@@ -224,6 +224,7 @@ export default function createApplicationMenus({
 					label: copy.exportOther,
 					parityLabel: copy.audacityParityMatchExportOther,
 					items: [
+						...(productId === 'soundscaper' ? [{ id: 'save-aup3', label: copy.saveAsAup3, preserveLabel: true, disabled: blocked, onClick: actions.saveAup3 }] : []),
 						...(productId === 'soundscaper' ? [{ id: 'save-aup4', label: copy.saveAsAup4, preserveLabel: true, disabled: blocked, onClick: actions.saveAup4 }] : []),
 						{
 							id: 'export-labels',

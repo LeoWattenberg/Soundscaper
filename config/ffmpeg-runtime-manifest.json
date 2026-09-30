@@ -64,8 +64,8 @@
 		},
 		"notices": {
 			"path": "THIRD_PARTY_LICENSES.md",
-			"byteLength": 88147,
-			"sha256": "5fdab9829267ecd723b3732f6fedf1a7a3675d04686183af7b73bb5a464624ac"
+			"byteLength": 90548,
+			"sha256": "eee7d280fd488b6c637ab7f80573fb3e2fc2a6d99fdf7ce2021bd6bfc726ef83"
 		},
 		"licensingPolicy": {
 			"path": "docs/production-licensing-policy.md",
@@ -74,8 +74,8 @@
 		},
 		"licensingMatrix": {
 			"path": "config/production-licensing-matrix.json",
-			"byteLength": 151381,
-			"sha256": "feb97480b644468b6ca87271ee4b21dd66efa339f0384ea348987e3eb3cf9ed3"
+			"byteLength": 152281,
+			"sha256": "ab38b7aa59e2f8a4aa5981e55a37591d6048844ae2740f5575f912dbd3958398"
 		},
 		"securityMatrix": {
 			"path": "config/production-security-matrix.json",
@@ -115,6 +115,6 @@
 		}
 	},
 	"integrity": {
-		"payloadSha256": "04a41c67c54758f044e400ddf184cf20441048ff87b0563daf8321040f40655f"
+		"payloadSha256": "74e90ee2188c502870d429ed840a50d84fc46cc5eb04318af9928fe1b8d4f3a6"
 	}
 }

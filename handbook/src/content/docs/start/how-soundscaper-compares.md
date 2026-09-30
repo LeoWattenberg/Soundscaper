@@ -60,7 +60,7 @@ product enables see
 | Capability | Soundscaper | Audacity 4 | Audition |
 | --- | --- | --- | --- |
 | Native project format | Yes — `.sscape`, a lossless portable archive | Yes — `.aup4` | Yes — `.sesx` |
-| Opens Audacity projects | Yes — AUP, AUP3, and AUP4 import; AUP4 export | Yes — native | No |
+| Opens Audacity projects | Yes — AUP, AUP3, and AUP4 import; AUP3 and AUP4 export | Yes — native | No |
 | Non-destructive clip timeline | Yes | Yes | Yes — multitrack editor |
 | Dedicated single-file editor | Partial — sample editing happens in the timeline | Partial — edits apply in place in the timeline | Yes — waveform editor |
 | Mono and stereo content on one track | Yes — a track holds either | No — a track is mono or stereo | No — channel format is fixed per track |
@@ -188,7 +188,7 @@ spectrogram settings are in **Edit → Preferences → Track display**.
 
 | Capability | Soundscaper | Audacity 4 | Audition |
 | --- | --- | --- | --- |
-| Audacity projects | Yes — AUP, AUP3, and AUP4 in; AUP4 out with an omission report | Yes — native | No |
+| Audacity projects | Yes — AUP, AUP3, and AUP4 in; AUP3 and AUP4 out with a compatibility report | Yes — native | No |
 | Audition sessions | Partial — desktop `.sesx` audio import with an omission report; no export | No — no SESX import in the pinned build | Yes — native |
 | EDL | Partial — CMX3600-class export, no import | No | No |
 | OpenTimelineIO | Partial — export only | No | No |

@@ -9,7 +9,7 @@ import AudioEditorButtonTooltips from '../AudioEditorButtonTooltips.jsx';
 import EditorOverlayHost from '../EditorOverlayHost.tsx';
 import AudioEditorMenuBar from '../AudioEditorMenuBar.jsx';
 import AudioEditorTimeline from '../AudioEditorTimeline.jsx';
-import { formatAup4CompatibilitySummary } from '../dialogs/editor-dialog-model.js';
+import { audacityCompatibilityTitle, formatAup4CompatibilitySummary } from '../dialogs/editor-dialog-model.js';
 import { SidePlaybackMeter, SideRecordingMeter } from '../toolbar/AudioEditorMeterControls.jsx';
 import { AccessibleSelectionToolbar, EditorActionBar } from '../toolbar/AudioEditorTransportControls.jsx';
 import EditorToolToolbar from '../toolbar/EditorToolToolbar.jsx';
@@ -308,7 +308,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 				{aup4Compatibility?.report && !aup4Compatibility.dismissed && (
 					<div data-aup4-compatibility-summary><EditorToast
 						id="aup4-compatibility"
-						title={copy.aup4CompatibilityReport}
+						title={audacityCompatibilityTitle(aup4Compatibility.report, copy)}
 						type={aup4Counts?.missing || aup4Counts?.omitted || aup4Counts?.converted ? 'warning' : 'info'}
 						description={formatAup4CompatibilitySummary(aup4Compatibility.report, copy)}
 						actions={[{ label: copy.aup4CompatibilityViewReport, onClick: () => setDialog('aup4-compatibility') }]}

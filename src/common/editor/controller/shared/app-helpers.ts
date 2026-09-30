@@ -146,13 +146,34 @@ export function labelMimeType(format: string): string {
 }
 
 export function labelExportFileName(value: unknown, format: string): string {
-	const base = stripExtension(String(value || 'labels')).replace(/[\\/:*?"<>|\u0000-\u001F]+/g, '-').trim() || 'labels';
+	const base = sanitizeFileName(stripExtension(String(value || 'labels')), 'labels');
 	return `${base}.${format}`;
 }
 
 export function ensureAup4FileName(value: unknown): string {
-	const base = String(value || 'audacity-project').replace(/[\\/:*?"<>|\u0000-\u001F]+/g, '-').trim() || 'audacity-project';
+	const base = sanitizeFileName(value, 'audacity-project');
 	return /\.aup4$/i.test(base) ? base : `${base}.aup4`;
+}
+
+export function ensureAup3FileName(value: unknown): string {
+	const base = sanitizeFileName(value, 'audacity-project');
+	return /\.aup3$/i.test(base) ? base : `${base.replace(/\.aup4$/i, '')}.aup3`;
+}
+
+function sanitizeFileName(value: unknown, fallback: string): string {
+	let result = '';
+	let replacing = false;
+	for (const character of String(value || fallback)) {
+		const invalid = character.charCodeAt(0) <= 0x1f || '\\/:*?"<>|'.includes(character);
+		if (invalid) {
+			if (!replacing) result += '-';
+			replacing = true;
+		} else {
+			result += character;
+			replacing = false;
+		}
+	}
+	return result.trim() || fallback;
 }
 
 export function normalizeAup4CompatibilityReport(report: unknown, direction: unknown): Aup4CompatibilityReport {

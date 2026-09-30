@@ -171,6 +171,7 @@ export const EDITOR_ACTION_FUNCTION_NAMES = defineEditorActionFunctionNames([
 	'revertFactorySettings',
 	'runEffectMacro',
 	'runNyquistEvaluation',
+	'saveAup3',
 	'saveAup4',
 	'saveDawproject',
 	'saveEffectPreset',

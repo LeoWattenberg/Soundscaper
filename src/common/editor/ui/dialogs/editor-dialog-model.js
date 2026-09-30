@@ -6,10 +6,25 @@ export function formatAup4CompatibilitySummary(report, copy) {
 		items.filter((item) => item?.disposition === disposition).length,
 	);
 	return copy.aup4CompatibilitySummary
-		.replace('{direction}', report?.direction === 'open' ? copy.aup4CompatibilityOpen : copy.aup4CompatibilitySave)
+		.replace('{direction}', report?.direction === 'open'
+			? isAup3Report(report) ? copy.aup3CompatibilityOpen : copy.aup4CompatibilityOpen
+			: isAup3Report(report) ? copy.aup3CompatibilitySave : copy.aup4CompatibilitySave)
 		.replace('{converted}', String(count('converted')))
 		.replace('{missing}', String(count('missing')))
 		.replace('{omitted}', String(count('omitted')));
+}
+
+export function audacityCompatibilityTitle(report, copy) {
+	return isAup3Report(report) ? copy.aup3CompatibilityReport : copy.aup4CompatibilityReport;
+}
+
+export function audacityCompatibilityDescription(report, copy) {
+	return isAup3Report(report) ? copy.aup3CompatibilityDescription : copy.aup4CompatibilityDescription;
+}
+
+function isAup3Report(report) {
+	return (report?.direction === 'save' && report?.targetGeneration === 'aup3')
+		|| (report?.direction === 'open' && report?.sourceGeneration === 'aup3');
 }
 
 export const TRACK_RATE_DIALOG_MISSING_TRACK = Symbol('track-rate-dialog-missing-track');

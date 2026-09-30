@@ -132,10 +132,10 @@ test('AUP4 export creates an explicit audio-only copy of a V4 video project', ()
 		code: 'VIDEO_OMITTED',
 		severity: 'warning',
 		disposition: 'omitted',
-		message: 'AUP4 is audio-only. Video tracks, clips, and media were omitted from this exported copy.',
+		message: 'Audacity project export is audio-only. Video tracks, clips, and media were omitted from this exported copy.',
 		scope: { kind: 'project' },
 		data: {
-			reason: 'aup4-audio-only',
+			reason: 'audacity-audio-only',
 			trackCount: 1,
 			timelineClipCount: 1,
 			projectBinClipCount: 1,

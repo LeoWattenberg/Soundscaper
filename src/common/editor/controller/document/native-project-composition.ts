@@ -5,7 +5,7 @@ import { createStableId } from '../../project.js';
 import { SCAPE_MIME_TYPE } from '../../scape-project-format.ts';
 import { loadStoredSourceChannels } from '../../clip-time-pitch-cache-channels.js';
 import { applicationVersion } from '../../application-version.ts';
-import { aup4ReportHasMissingPcm, ensureAup4FileName, normalizeAup4CompatibilityReport } from '../shared/app-helpers.ts';
+import { aup4ReportHasMissingPcm, ensureAup3FileName, ensureAup4FileName, normalizeAup4CompatibilityReport } from '../shared/app-helpers.ts';
 import type { ProjectSchemaFamily } from '../../project-schema-identity.ts';
 import { deferredArchiveRuntime } from './deferred-archive-runtime.ts';
 import { createNativeProjectService, type NativeProjectServiceRuntime } from './native-project-service.ts';
@@ -13,8 +13,9 @@ import type { EditorTaskProgressCoordinator } from '../shared/task-progress.ts';
 import { SOURCE_CHUNK_FRAMES, sourcePcmBytes } from '../source/source-audio.ts';
 
 type DefaultPort =
-	| 'createStableId' | 'ensureAup4FileName' | 'ensureProjectFileName' | 'sourcePcmBytes'
-	| 'loadStoredSourceChannels' | 'requestAup4FileHandle' | 'saveAup4Result' | 'createAup4Client'
+	| 'createStableId' | 'ensureAup3FileName' | 'ensureAup4FileName' | 'ensureProjectFileName' | 'sourcePcmBytes'
+	| 'loadStoredSourceChannels' | 'requestAup3FileHandle' | 'requestAup4FileHandle'
+	| 'saveAup3Result' | 'saveAup4Result' | 'createAup4Client'
 	| 'normalizeCompatibilityReport' | 'reportHasMissingPcm' | 'sourceChunkFrames'
 	| 'scapeMimeType' | 'applicationVersion';
 
@@ -34,10 +35,12 @@ export function createNativeProjectComposition(dependencies: NativeProjectCompos
 				...options, currentProjectSchemaFamily: dependencies.currentProjectSchemaFamily,
 			})
 		)),
-		createStableId, ensureAup4FileName, ensureProjectFileName: withProjectFileExtension,
+		createStableId, ensureAup3FileName, ensureAup4FileName, ensureProjectFileName: withProjectFileExtension,
 		sourcePcmBytes, loadStoredSourceChannels,
 		requestAup4FileHandle: deferredArchiveRuntime.requestAup4FileHandle,
+		requestAup3FileHandle: deferredArchiveRuntime.requestAup3FileHandle,
 		saveAup4Result: deferredArchiveRuntime.saveAup4Result,
+		saveAup3Result: deferredArchiveRuntime.saveAup3Result,
 		createAup4Client: deferredArchiveRuntime.createAup4Client,
 		normalizeCompatibilityReport: normalizeAup4CompatibilityReport,
 		reportHasMissingPcm: aup4ReportHasMissingPcm,
@@ -58,6 +61,9 @@ export function createNativeProjectComposition(dependencies: NativeProjectCompos
 		),
 		saveAup4: (...args: Parameters<typeof service.saveAup4>) => (
 			taskProgress.run('project-io', copy.aup4Saving, () => service.saveAup4(...args), undefined, { key: "aup4Saving" })
+		),
+		saveAup3: (...args: Parameters<typeof service.saveAup3>) => (
+			taskProgress.run('project-io', copy.aup3Saving, () => service.saveAup3(...args), undefined, { key: "aup3Saving" })
 		),
 	});
 }

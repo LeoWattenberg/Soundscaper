@@ -4,7 +4,7 @@
 
 The repository now builds two focused products from the same local-first mixed-media editor and canonical project schema. Soundscaper provides the complete audio/DAW surface at `/<locale>/`; Framescaper provides video effects and compositing at `/framescaper/<locale>/`. On the web, both routes deliberately share the same origin, IndexedDB/OPFS library, and project locks. Either product can preserve, render, and hand a project to the other without copying its media.
 
-Scape is the lossless portable project format for both products. Each writes its own suffix — Soundscaper saves `.sscape` and Framescaper `.fscape` — and both open `.sscape`, `.fscape`, the reserved `.liscape`, and the legacy `.scape` interchangeably, because the archive behind every one of them is the same. Audacity `.aup4` remains an explicitly audio-only interchange format.
+Scape is the lossless portable project format for both products. Each writes its own suffix — Soundscaper saves `.sscape` and Framescaper `.fscape` — and both open `.sscape`, `.fscape`, the reserved `.liscape`, and the legacy `.scape` interchangeably, because the archive behind every one of them is the same. Audacity `.aup3` and `.aup4` exports remain explicitly audio-only interchange formats.
 
 ## Why Soundscaper
 
@@ -27,7 +27,7 @@ Soundscaper features:
 * A much larger suite of real-time effects
 * Audio tracks which can contain both mono and stereo content
 * A new parametric EQ
-* AUP4 import and export, so you can move your content between Soundscaper and Audacity 4 at will
+* Audacity AUP, AUP3, and AUP4 import, plus audio-only AUP3 and AUP4 export with compatibility reports
 
 ## Privacy
 

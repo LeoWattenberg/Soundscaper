@@ -71,6 +71,7 @@ const FAMILY_LABELS = Object.freeze({
 	audio: 'Audio',
 	video: 'Video',
 	labels: 'Labels',
+	'aup3-audio-only': 'AUP3 (audio-only)',
 	'aup4-audio-only': 'AUP4 (audio-only)',
 	stems: 'Audio stems',
 });

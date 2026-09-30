@@ -11,7 +11,7 @@ export const SOUNDSCAPER_PROFILE = {
 	enabledCommands: ['project', 'timeline', 'transport', 'audio-mix', 'audio-record', 'audio-generate', 'audio-effects', 'audio-spectral', 'audio-analysis', 'audio-macros', 'video-basic', 'export-audio', 'export-video'],
 	panels: ['project-bin', 'track-list', 'mixer', 'effects', 'analysis', 'recording-meter', 'playback-meter'],
 	importChoices: ['scape', 'audacity-project', 'audio', 'video', 'labels'],
-	exportChoices: ['scape', 'aup4-audio-only', 'audio', 'video', 'labels', 'stems'],
+	exportChoices: ['scape', 'aup3-audio-only', 'aup4-audio-only', 'audio', 'video', 'labels', 'stems'],
 	shortcuts: { disabledCommandIds: ['workspace-video-editor', 'video-effect-add'] },
 	applicationFeatures: {},
 	capabilities: {

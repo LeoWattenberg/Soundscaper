@@ -66,8 +66,8 @@ It is not an implementation log or an evidence register. Do not append exact fix
 - Scape is the lossless cross-product project format. Each product writes its
   own suffix — Soundscaper `.sscape`, Framescaper `.fscape`, a future
   Lightscaper `.liscape` — and every product opens all of them plus the
-  legacy `.scape`, because the archive behind each is identical. AUP4 is
-  audio-only Audacity interchange, not a Soundscaper backup format.
+	legacy `.scape`, because the archive behind each is identical. AUP3 and AUP4
+	are audio-only Audacity interchange, not Soundscaper backup formats.
 - Web and Electron share the project domain, commands, migrations, and as much
   UI as practical. Native services remain behind narrow adapters and do not fork
   the canonical project model.

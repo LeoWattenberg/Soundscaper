@@ -101,7 +101,7 @@ export function mergeCompatibilityReports(left, right) {
 				candidate?.data,
 			]) === key) === index;
 		});
-	return createAup4CompatibilityReport(right?.direction || left?.direction || 'open', {
+	const report = createAup4CompatibilityReport(right?.direction || left?.direction || 'open', {
 		discardedCloudMetadata: mergeSanitizationReport(left?.discardedCloudMetadata, right?.discardedCloudMetadata),
 		missingAudio: [...(left?.missingAudio || []), ...(right?.missingAudio || [])]
 			.filter((entry, index, all) => all.findIndex((candidate) => candidate.blockId === entry.blockId && candidate.reason === entry.reason) === index),
@@ -110,12 +110,16 @@ export function mergeCompatibilityReports(left, right) {
 		limits: left?.limits || right?.limits || null,
 		items,
 	});
+	report.format = 'audacity-project';
+	const sourceGeneration = right?.sourceGeneration || left?.sourceGeneration;
+	if (sourceGeneration === 'aup3' || sourceGeneration === 'aup4') report.sourceGeneration = sourceGeneration;
+	return report;
 }
 
 export function normalizeFloat32(value) {
 	if (value instanceof Float32Array) return value;
 	if (ArrayBuffer.isView(value) || Array.isArray(value)) return Float32Array.from(value);
-	throw operationError('AUP4 source channels must contain Float32 samples.', 'INVALID_SOURCE_AUDIO');
+	throw operationError('Audacity-project source channels must contain Float32 samples.', 'INVALID_SOURCE_AUDIO');
 }
 
 export function operationError(message, code, details) {
@@ -126,11 +130,11 @@ export function operationError(message, code, details) {
 	return error;
 }
 
-/** An OPFS import failure leaves an oversized AUP4 without its in-memory fallback. */
+/** An OPFS import failure leaves an oversized Audacity project without its in-memory fallback. */
 export function aup4PoolImportFailure(error, { size, memoryLimit }) {
 	if (size <= memoryLimit || error?.name === 'AbortError' || error?.code === 'ABORTED') return error;
 	return operationError(
-		`The AUP4 file exceeds this browser's ${Math.round(memoryLimit / 1024 / 1024)} MiB in-memory project limit and could not be written to OPFS.`,
+		`The Audacity project file exceeds this browser's ${Math.round(memoryLimit / 1024 / 1024)} MiB in-memory project limit and could not be written to OPFS.`,
 		'PROJECT_TOO_LARGE',
 		{ limit: memoryLimit, size, storageFailure: String(error?.message || error) },
 	);
@@ -140,7 +144,7 @@ export function serializeError(error) {
 	const quotaFailure = error?.name === 'QuotaExceededError' || error?.code === 22;
 	return {
 		name: String(error?.name || 'Error'),
-		message: String(error?.message || error || 'Unknown AUP4 worker error'),
+		message: String(error?.message || error || 'Unknown Audacity-project worker error'),
 		code: String(quotaFailure ? 'QUOTA_EXCEEDED' : error?.code || 'AUP4_WORKER_ERROR'),
 		details: error?.details || (quotaFailure ? { atomicPublication: false } : null),
 	};
@@ -160,8 +164,32 @@ export function portableValidation(validation, entry = null) {
 	if (entry && !entry.pool && !issues.some((issue) => issue.code === 'NO_CRASH_RECOVERY')) issues.push({
 		level: 'warning',
 		code: 'NO_CRASH_RECOVERY',
-		message: 'OPFS persistence is unavailable; this in-memory AUP4 session has no browser-crash recovery.',
+		message: `OPFS persistence is unavailable; this in-memory ${(entry.targetGeneration || 'aup4').toUpperCase()} session has no browser-crash recovery.`,
 	});
+	const compatibilityReport = createAup4CompatibilityReport(
+		validation.compatibilityReport?.direction || 'open',
+		{
+			discardedCloudMetadata,
+			missingAudio: (validation.compatibilityReport?.missingAudio || []).map((missing) => ({
+				...missing,
+				possiblyCloudBacked: Boolean(missing.possiblyCloudBacked || discardedCloudMetadata.discardedEntries),
+			})),
+			networkAccessAttempted: false,
+			persistence: entry ? {
+				backend: entry.backend,
+				crashRecovery: Boolean(entry.pool),
+			} : null,
+			limits: entry ? {
+				portableSaveBytes: entry.portableLimit ?? null,
+				openedBytes: entry.openedSize ?? null,
+			} : null,
+			items: validation.compatibilityReport?.items || [],
+		},
+	);
+	if (entry?.targetGeneration === 'aup3') {
+		compatibilityReport.format = 'audacity-project';
+		compatibilityReport.targetGeneration = 'aup3';
+	}
 	return {
 		compatible: validation.compatible,
 		readOnly: validation.readOnly || Boolean(entry?.readOnly),
@@ -174,26 +202,7 @@ export function portableValidation(validation, entry = null) {
 		references: validation.references,
 		recovery: validation.recovery,
 		issues,
-		compatibilityReport: createAup4CompatibilityReport(
-			validation.compatibilityReport?.direction || 'open',
-			{
-			discardedCloudMetadata,
-			missingAudio: (validation.compatibilityReport?.missingAudio || []).map((missing) => ({
-				...missing,
-				possiblyCloudBacked: Boolean(missing.possiblyCloudBacked || discardedCloudMetadata.discardedEntries),
-			})),
-			networkAccessAttempted: false,
-			persistence: entry ? {
-				backend: entry.backend,
-				crashRecovery: Boolean(entry.pool),
-			} : null,
-				limits: entry ? {
-					portableSaveBytes: entry.portableLimit ?? null,
-					openedBytes: entry.openedSize ?? null,
-				} : null,
-				items: validation.compatibilityReport?.items || [],
-			},
-		),
+		compatibilityReport,
 	};
 }
 
@@ -201,6 +210,7 @@ export function projectDescriptor(entry) {
 	return {
 		projectId: entry.projectId,
 		sourceGeneration: entry.sourceGeneration || null,
+		targetGeneration: entry.targetGeneration || 'aup4',
 		backend: entry.backend,
 		readOnly: Boolean(entry.readOnly),
 		...(Number.isFinite(entry.portableLimit) ? { portableLimit: entry.portableLimit } : {}),

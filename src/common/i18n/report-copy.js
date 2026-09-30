@@ -10,6 +10,10 @@
  */
 const REPORT_COPY_ENTRIES = Object.freeze([
 	['projectCompatibilityReport', 'Project compatibility report', 'Projekt-Kompatibilitätsbericht'],
+	['aup3CompatibilityReport', 'AUP3 Compatibility Report', 'AUP3-Kompatibilitätsbericht'],
+	['aup3CompatibilityDescription', 'AUP3 is an Audacity 3 project format. The local Soundscaper project remains the authoritative, fully editable version.', 'AUP3 ist ein Audacity-3-Projektformat. Das lokale Soundscaper-Projekt bleibt die maßgebliche, vollständig bearbeitbare Fassung.'],
+	['aup3CompatibilityOpen', 'AUP3 open', 'AUP3-Import'],
+	['aup3CompatibilitySave', 'AUP3 export', 'AUP3-Export'],
 	['aup4CompatibilityReport', 'AUP4 Compatibility Report', 'AUP4-Kompatibilitätsbericht'],
 	['aup4CompatibilityDescription', 'AUP4 is an Audacity interchange format. The local Soundscaper project remains the authoritative, fully editable version.', 'AUP4 ist ein Audacity-Austauschformat. Das lokale Soundscaper-Projekt bleibt die maßgebliche, vollständig bearbeitbare Fassung.'],
 	['aup4CompatibilitySummary', '{direction}: {converted} converted, {missing} missing, {omitted} omitted.', '{direction}: {converted} konvertiert, {missing} fehlend, {omitted} ausgelassen.'],

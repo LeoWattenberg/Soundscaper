@@ -22,13 +22,13 @@ export function normalizeMaterialTransform(transform, inputFrameCount) {
 	const reversed = Boolean(transform?.reversed);
 	const inverted = Boolean(transform?.inverted);
 	const pcmGain = finiteNonNegative(transform?.pcmGain, 1);
-	const sliceStartFrame = nonNegativeFrame(transform?.sliceStartFrame ?? 0, 'AUP4 material transform sliceStartFrame');
+	const sliceStartFrame = nonNegativeFrame(transform?.sliceStartFrame ?? 0, 'Audacity-project material transform sliceStartFrame');
 	const sliceEndFrame = nonNegativeFrame(
 		transform?.sliceEndFrame ?? inputFrameCount,
-		'AUP4 material transform sliceEndFrame',
+		'Audacity-project material transform sliceEndFrame',
 	);
 	if (sliceEndFrame <= sliceStartFrame || sliceEndFrame > inputFrameCount) {
-		throw exportError('AUP4 material transform range is invalid.', 'INVALID_SNAPSHOT');
+		throw exportError('Audacity-project material transform range is invalid.', 'INVALID_SNAPSHOT');
 	}
 	if (!reversed && !inverted && pcmGain === 1
 		&& sliceStartFrame === 0 && sliceEndFrame === inputFrameCount) return null;

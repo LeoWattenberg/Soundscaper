@@ -393,6 +393,13 @@
 			"evidence": ["THIRD_PARTY_LICENSES.md", "src/common/editor/audacity-effects/index.js", "src/common/editor/audacity-waveform-renderer.js"]
 		},
 		{
+			"id": "audacity-3-aup3-export-profile",
+			"status": "documented",
+			"description": "The audio-only AUP3 writer derives its SQLite schema, binary-XML field boundary, project version, sample-block layout, track view state, tempo-stretch timing conversion, and real-time effect capability projection from official Audacity 3.7.9 commit 86d74c770974b25188ca2f23bcce47c1181bd08a. Its maintained audit verifies deterministic browser output and reopen behavior without claiming execution of Audacity's native loader.",
+			"artifactSurfaces": ["web-pages-bundle", "electron-renderer"],
+			"evidence": ["THIRD_PARTY_LICENSES.md", "src/common/editor/aup3-profile.ts", "src/common/editor/aup3-effect-profile.ts", "src/common/editor/aup3-database.ts", "scripts/audit-aup3-interop.mjs", "tests/aup3-profile-database.test.ts", "tests/aup3-effect-profile.test.ts", "tests/aup3-interop-audit.test.ts"]
+		},
+		{
 			"id": "audacity-translation-packs",
 			"status": "documented",
 			"description": "Audacity's reviewed translation strings are committed per-locale JSON catalogs converted from Audacity's upstream Qt TS catalogs, carrying inline provenance, and bundled into the renderer alongside the machine catalogs.",

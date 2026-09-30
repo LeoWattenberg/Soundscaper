@@ -458,11 +458,6 @@
       "count": 1
     }
   },
-  "src/common/editor/controller/shared/app-helpers.ts": {
-    "no-control-regex": {
-      "count": 2
-    }
-  },
   "src/common/editor/controller/source/clip-time-pitch-service.ts": {
     "no-useless-assignment": {
       "count": 1

@@ -31,15 +31,22 @@ export class Aup4WorkerClient {
 		this.pending = this.requests.entries;
 		this.disposed = false;
 		this.onMessage = (event) => this.#handleMessage(event.data || {});
-		this.onError = (event) => this.#handleFatal(event.error || new Error(event.message || 'The AUP4 worker stopped.'));
-		this.onMessageError = () => this.#handleFatal(new Error('The AUP4 worker sent an unreadable message.'));
+		this.onError = (event) => this.#handleFatal(event.error || new Error(event.message || 'The Audacity-project worker stopped.'));
+		this.onMessageError = () => this.#handleFatal(new Error('The Audacity-project worker sent an unreadable message.'));
 		this.worker.addEventListener('message', this.onMessage);
 		this.worker.addEventListener('error', this.onError);
 		this.worker.addEventListener('messageerror', this.onMessageError);
 	}
 
 	initialize(options = {}) { return this.call('initialize', {}, options); }
-	create(projectId, options = {}) { return this.call('create', { projectId }, options); }
+	create(projectId, options = {}) {
+		return this.call('create', {
+			projectId,
+			...(options.targetGeneration == null
+				? {}
+				: { targetGeneration: audacityProjectGeneration(options.targetGeneration) }),
+		}, options);
+	}
 	openFile(projectId, file, options = {}) {
 		const desktopRange = file instanceof Blob ? selectedRangeDescriptorForBlob(file) : null;
 		return this.call('open-file', { projectId, ...(desktopRange ? { desktopRange } : { file }), ...deviceOptions(options) }, options);
@@ -93,16 +100,16 @@ export class Aup4WorkerClient {
 	delete(projectId, options = {}) { return this.call('delete', { projectId }, options); }
 
 	call(type, args = {}, options = {}) {
-		if (this.disposed) return Promise.reject(new Aup4ClientError('The AUP4 client has been disposed.', 'DISPOSED'));
+		if (this.disposed) return Promise.reject(new Aup4ClientError('The Audacity-project client has been disposed.', 'DISPOSED'));
 		const id = createWorkerRequestId('aup4', `${Date.now().toString(36)}-${++this.sequence}`);
 		return this.requests.request({
 			id,
 			signal: options.signal,
 			timeoutMs: options.timeoutMs,
 			context: { onProgress: options.onProgress },
-			abortError: () => new Aup4ClientError('The AUP4 operation was cancelled.', 'ABORTED'),
+			abortError: () => new Aup4ClientError('The Audacity-project operation was cancelled.', 'ABORTED'),
 			timeoutError: (timeout) => {
-				const error = new Aup4ClientError(`The AUP4 worker received no activity for ${timeout} milliseconds.`, 'TIMEOUT', {
+				const error = new Aup4ClientError(`The Audacity-project worker received no activity for ${timeout} milliseconds.`, 'TIMEOUT', {
 					name: 'TimeoutError',
 				});
 				return error;
@@ -122,7 +129,7 @@ export class Aup4WorkerClient {
 		try {
 			this.worker.terminate?.();
 		} finally {
-			this.requests.dispose(new Aup4ClientError('The AUP4 client was disposed.', 'DISPOSED'));
+			this.requests.dispose(new Aup4ClientError('The Audacity-project client was disposed.', 'DISPOSED'));
 		}
 	}
 
@@ -152,25 +159,50 @@ export class Aup4WorkerClient {
 }
 
 export async function saveAup4Result(result, options = {}) {
+	return saveAudacityProjectResult(result, { ...options, targetGeneration: 'aup4' });
+}
+
+export async function saveAup3Result(result, options = {}) {
+	return saveAudacityProjectResult(result, { ...options, targetGeneration: 'aup3' });
+}
+
+async function saveAudacityProjectResult(result, options) {
+	const targetGeneration = audacityProjectGeneration(options.targetGeneration);
 	const bytes = result?.bytes;
-	if (!(bytes instanceof Uint8Array)) throw new TypeError('A native AUP4 byte array is required.');
-	const fileName = ensureAup4Extension(options.fileName || 'audacity-project.aup4');
+	if (!(bytes instanceof Uint8Array)) throw new TypeError(`A native ${targetGeneration.toUpperCase()} byte array is required.`);
+	const fileName = ensureAudacityProjectExtension(
+		options.fileName || `audacity-project.${targetGeneration}`,
+		targetGeneration,
+	);
 	return options.fileService.saveFile({
-		purpose: 'project',
+		purpose: targetGeneration === 'aup3' ? 'aup3' : 'project',
 		suggestedName: fileName,
 		mimeType: result.mimeType || 'application/x-audacity-project',
 		blob: new Blob([bytes], { type: result.mimeType || 'application/x-audacity-project' }),
 		target: options.saveTarget ?? options.fileHandle ?? { browserDownload: true, name: fileName },
+		signal: options.signal,
 	});
 }
 
 export async function requestAup4FileHandle(options = {}) {
+	return requestAudacityProjectFileHandle({ ...options, targetGeneration: 'aup4' });
+}
+
+export async function requestAup3FileHandle(options = {}) {
+	return requestAudacityProjectFileHandle({ ...options, targetGeneration: 'aup3' });
+}
+
+async function requestAudacityProjectFileHandle(options) {
 	if (typeof globalThis.showSaveFilePicker !== 'function') return null;
+	const targetGeneration = audacityProjectGeneration(options.targetGeneration);
 	return globalThis.showSaveFilePicker({
-		suggestedName: ensureAup4Extension(options.fileName || 'audacity-project.aup4'),
+		suggestedName: ensureAudacityProjectExtension(
+			options.fileName || `audacity-project.${targetGeneration}`,
+			targetGeneration,
+		),
 		types: [{
-			description: 'Audacity interchange',
-			accept: { 'application/x-audacity-project': ['.aup4'] },
+			description: targetGeneration === 'aup3' ? 'Audacity 3 project' : 'Audacity interchange',
+			accept: { 'application/x-audacity-project': [`.${targetGeneration}`] },
 		}],
 		excludeAcceptAllOption: false,
 	});
@@ -208,7 +240,7 @@ async function* snapshotSourceIterable(sources, signal) {
 		: typeof sources[Symbol.iterator] === 'function'
 			? sources[Symbol.iterator]()
 			: null;
-	if (!iterator) throw new TypeError('AUP4 source audio must be an iterable or async iterable.');
+	if (!iterator) throw new TypeError('Audacity-project source audio must be an iterable or async iterable.');
 	let complete = false;
 	try {
 		while (!complete) {
@@ -246,19 +278,19 @@ function nextSnapshotSource(iterator, signal) {
 }
 
 function abortedSnapshotError() {
-	return new Aup4ClientError('The AUP4 operation was cancelled.', 'ABORTED');
+	return new Aup4ClientError('The Audacity-project operation was cancelled.', 'ABORTED');
 }
 
 function cloneSnapshotSource(source, transfer) {
-	if (!source || typeof source !== 'object') throw new TypeError('An AUP4 source audio record is required.');
+	if (!source || typeof source !== 'object') throw new TypeError('An Audacity-project source audio record is required.');
 	if (!Array.isArray(source.channels) || !source.channels.length) {
-		throw new TypeError(`AUP4 source ${source.sourceId || ''} must contain planar channels.`);
+		throw new TypeError(`Audacity-project source ${source.sourceId || ''} must contain planar channels.`);
 	}
 	return {
 		...source,
 		channels: source.channels.map((channel) => {
 			if (!(channel instanceof Float32Array) && !ArrayBuffer.isView(channel) && !Array.isArray(channel)) {
-				throw new TypeError(`AUP4 source ${source.sourceId || ''} must contain Float32 samples.`);
+				throw new TypeError(`Audacity-project source ${source.sourceId || ''} must contain Float32 samples.`);
 			}
 			const copy = Float32Array.from(channel);
 			transfer.push(copy.buffer);
@@ -270,11 +302,17 @@ function cloneSnapshotSource(source, transfer) {
 function timestamp(value) {
 	if (value == null) return Date.now();
 	const number = value instanceof Date ? value.getTime() : Number(value);
-	if (!Number.isFinite(number)) throw new TypeError('A valid AUP4 timestamp is required.');
+	if (!Number.isFinite(number)) throw new TypeError('A valid Audacity-project timestamp is required.');
 	return number;
 }
 
-function ensureAup4Extension(value) {
+function ensureAudacityProjectExtension(value, targetGeneration) {
 	const name = String(value || '').trim().replace(/[\\/:*?"<>|\u0000-\u001f]+/g, '-').replace(/[. ]+$/g, '') || 'audacity-project';
-	return /\.aup4$/i.test(name) ? name : `${name}.aup4`;
+	const extension = `.${audacityProjectGeneration(targetGeneration)}`;
+	return /\.aup[34]$/i.test(name) ? name.replace(/\.aup[34]$/i, extension) : `${name}${extension}`;
+}
+
+function audacityProjectGeneration(value) {
+	if (value === 'aup3' || value === 'aup4') return value;
+	throw new TypeError(`Unsupported Audacity project generation: ${value}.`);
 }

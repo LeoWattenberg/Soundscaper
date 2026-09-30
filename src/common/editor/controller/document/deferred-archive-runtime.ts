@@ -61,8 +61,14 @@ export function createDeferredArchiveRuntime(
 		requestAup4FileHandle: async (...args: Parameters<Aup4Module['requestAup4FileHandle']>) => (
 			(await loadAup4()).requestAup4FileHandle(...args)
 		),
+		requestAup3FileHandle: async (...args: Parameters<Aup4Module['requestAup3FileHandle']>) => (
+			(await loadAup4()).requestAup3FileHandle(...args)
+		),
 		saveAup4Result: async (...args: Parameters<Aup4Module['saveAup4Result']>) => (
 			(await loadAup4()).saveAup4Result(...args)
+		),
+		saveAup3Result: async (...args: Parameters<Aup4Module['saveAup3Result']>) => (
+			(await loadAup4()).saveAup3Result(...args)
 		),
 		decodeLegacyAupProject: async (...args: Parameters<LegacyDecodeModule['decodeLegacyAupProject']>) => (
 			(await loadLegacy()).decodeLegacyAupProject(...args)

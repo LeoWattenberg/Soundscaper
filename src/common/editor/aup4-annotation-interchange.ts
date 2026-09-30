@@ -30,7 +30,7 @@ export function flattenAup4TimelineAnnotations(
 		code: 'TIMELINE_ANNOTATION_NON_PRIMARY_SEQUENCE_OMITTED',
 		severity: 'warning',
 		disposition: 'omitted',
-		message: 'AUP4 has one flat timeline; annotations outside the primary sequence were omitted.',
+		message: 'Audacity projects have one flat timeline; annotations outside the primary sequence were omitted.',
 		scope: { kind: 'project' },
 		data: { count: omittedSequenceCount },
 	});

@@ -25,7 +25,7 @@ const products = Object.freeze([
 		projectFileExtension: '.sscape',
 		shortcuts: Object.freeze({ disabledCommandIds: Object.freeze([]) }),
 		importChoices: Object.freeze(['scape', 'audio']),
-		exportChoices: Object.freeze(['scape', 'audio', 'video']),
+		exportChoices: Object.freeze(['scape', 'aup3-audio-only', 'aup4-audio-only', 'audio', 'video']),
 		capabilities: Object.freeze({ assistanceAssets: true, audioImport: true, videoEffects: false }),
 	}),
 	Object.freeze({
@@ -211,6 +211,7 @@ test('capability reference renders product-owned families and a reviewed feature
 	assert.match(rendered, /Video effects.*Not enabled.*Enabled/u);
 	// One machine-level `scape` family, rendered under each product's own suffix.
 	assert.match(rendered, /Soundscaper.*\.sscape, Audio/u);
+	assert.match(rendered, /Soundscaper.*AUP3 \(audio-only\), AUP4 \(audio-only\)/u);
 	assert.match(rendered, /Framescaper.*\.fscape, Video/u);
 	assert.doesNotMatch(rendered, /\| \.scape,/u);
 	assert.match(rendered, /disabled capability can still be preserved/u);

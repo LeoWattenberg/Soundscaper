@@ -33,6 +33,7 @@ const REFERENCE_SEEDS: readonly ReferenceSeed[] = Object.freeze([
 	['cancel-switch-product-to-soundscaper', 'Cancel: Edit in Soundscaper', 'File', FRAMESCAPER],
 	['delivery-queue', 'Delivery queue', 'File', BOTH],
 	['delivery-report', 'Delivery Report', 'File', BOTH],
+	['save-aup3', 'Export AUP3', 'File > Export other', SOUNDSCAPER],
 	['save-aup4', 'Export AUP4', 'File > Export other', SOUNDSCAPER],
 	['export-edl', 'Export edit list (EDL)', 'File > Export other', BOTH],
 	['export-otio', 'Export OpenTimelineIO', 'File > Export other', BOTH],

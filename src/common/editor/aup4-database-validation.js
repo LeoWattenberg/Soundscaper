@@ -126,6 +126,7 @@ export function validateAudacityProjectDatabase(database, options = {}) {
 }
 
 export function validateAup4References(database, root, options = {}) {
+	const profileName = options.profileName === 'AUP3' ? 'AUP3' : 'AUP4';
 	if (!root || root.name !== 'project') throw new Aup4Error('The Audacity document has no project root.', 'INVALID_PROJECT_XML');
 	const adapter = createAup4DatabaseAdapter(database);
 	const maxReferences = positiveInteger(options.maxBlockReferences, DEFAULT_MAX_BLOCK_REFERENCES);
@@ -134,24 +135,24 @@ export function validateAup4References(database, root, options = {}) {
 	let blockReferenceCount = 0;
 	let sampleBytes = 0;
 	const missingSampleBlockIds = new Set();
-	for (const sequence of editableAup4Sequences(root)) {
+	for (const sequence of editableAudacitySequences(root, options.includeNestedWaveClips === true)) {
 		sequenceCount += 1;
-		const expectedSamples = xmlSafeInteger(audacityXmlAttribute(sequence, 'numsamples', 0), 'sequence numsamples', 0);
-		const maxSamples = xmlSafeInteger(audacityXmlAttribute(sequence, 'maxsamples', AUP4_MAX_BLOCK_SAMPLES), 'sequence maxsamples', 1);
+		const expectedSamples = xmlSafeInteger(audacityXmlAttribute(sequence, 'numsamples', 0), 'sequence numsamples', 0, profileName);
+		const maxSamples = xmlSafeInteger(audacityXmlAttribute(sequence, 'maxsamples', AUP4_MAX_BLOCK_SAMPLES), 'sequence maxsamples', 1, profileName);
 		let sequenceSamples = 0;
 		for (const waveBlock of audacityXmlChildren(sequence, 'waveblock')) {
 			blockReferenceCount += 1;
-			if (blockReferenceCount > maxReferences) throw new Aup4Error('The AUP4 document contains too many sample-block references.', 'REFERENCE_LIMIT');
-			const start = xmlSafeInteger(audacityXmlAttribute(waveBlock, 'start', sequenceSamples), 'waveblock start', 0);
-			if (start !== sequenceSamples) throw new Aup4Error('An AUP4 sequence has non-contiguous sample blocks.', 'CORRUPT_SEQUENCE');
-			const blockId = xmlSafeInteger(audacityXmlAttribute(waveBlock, 'blockid', 0), 'waveblock blockid', Number.MIN_SAFE_INTEGER);
+			if (blockReferenceCount > maxReferences) throw new Aup4Error(`The ${profileName} document contains too many sample-block references.`, 'REFERENCE_LIMIT');
+			const start = xmlSafeInteger(audacityXmlAttribute(waveBlock, 'start', sequenceSamples), 'waveblock start', 0, profileName);
+			if (start !== sequenceSamples) throw new Aup4Error(`An ${profileName} sequence has non-contiguous sample blocks.`, 'CORRUPT_SEQUENCE');
+			const blockId = xmlSafeInteger(audacityXmlAttribute(waveBlock, 'blockid', 0), 'waveblock blockid', Number.MIN_SAFE_INTEGER, profileName);
 			const declaredLengthValue = audacityXmlAttribute(waveBlock, 'length', null);
 			let sampleCount;
 			if (blockId <= 0) {
-				if (blockId === 0) throw new Aup4Error('An AUP4 silent block has an invalid zero id.', 'INVALID_SAMPLE_BLOCK');
+				if (blockId === 0) throw new Aup4Error(`An ${profileName} silent block has an invalid zero id.`, 'INVALID_SAMPLE_BLOCK');
 				sampleCount = -blockId;
-				if (declaredLengthValue != null && xmlSafeInteger(declaredLengthValue, 'waveblock length', 1) !== sampleCount) {
-					throw new Aup4Error('An AUP4 silent block length does not match its encoded id.', 'CORRUPT_SEQUENCE');
+				if (declaredLengthValue != null && xmlSafeInteger(declaredLengthValue, 'waveblock length', 1, profileName) !== sampleCount) {
+					throw new Aup4Error(`An ${profileName} silent block length does not match its encoded id.`, 'CORRUPT_SEQUENCE');
 				}
 			} else {
 				let block = blockCache.get(blockId);
@@ -162,29 +163,29 @@ export function validateAup4References(database, root, options = {}) {
 						FROM sampleblocks WHERE blockid = ? LIMIT 1
 					`, [blockId])[0];
 					if (!row) {
-						if (!options.allowMissingSampleBlocks) throw new Aup4Error(`AUP4 sample block ${blockId} is missing.`, 'MISSING_SAMPLE_BLOCK');
+						if (!options.allowMissingSampleBlocks) throw new Aup4Error(`${profileName} sample block ${blockId} is missing.`, 'MISSING_SAMPLE_BLOCK');
 						const declaredLength = declaredLengthValue == null ? Number.NaN : Number(declaredLengthValue);
 						if (!Number.isSafeInteger(declaredLength) || declaredLength < 1) {
-							throw new Aup4Error(`Missing AUP4 sample block ${blockId} has no usable declared length.`, 'MISSING_SAMPLE_BLOCK');
+							throw new Aup4Error(`Missing ${profileName} sample block ${blockId} has no usable declared length.`, 'MISSING_SAMPLE_BLOCK');
 						}
 						missingSampleBlockIds.add(blockId);
 						block = { sampleCount: declaredLength, sampleBytes: 0, missing: true };
 					} else {
-						block = validateSampleBlockRecord(blockId, row);
+						block = validateSampleBlockRecord(blockId, row, profileName);
 						sampleBytes += block.sampleBytes;
 					}
 					blockCache.set(blockId, block);
 				}
 				sampleCount = block.sampleCount;
-				if (declaredLengthValue != null && xmlSafeInteger(declaredLengthValue, 'waveblock length', 1) !== sampleCount) {
-					throw new Aup4Error(`AUP4 sample block ${blockId} has a mismatched length.`, 'CORRUPT_SEQUENCE');
+				if (declaredLengthValue != null && xmlSafeInteger(declaredLengthValue, 'waveblock length', 1, profileName) !== sampleCount) {
+					throw new Aup4Error(`${profileName} sample block ${blockId} has a mismatched length.`, 'CORRUPT_SEQUENCE');
 				}
 			}
-			if (sampleCount > maxSamples) throw new Aup4Error('An AUP4 sample block exceeds its sequence maximum.', 'CORRUPT_SEQUENCE');
+			if (sampleCount > maxSamples) throw new Aup4Error(`An ${profileName} sample block exceeds its sequence maximum.`, 'CORRUPT_SEQUENCE');
 			sequenceSamples += sampleCount;
-			if (!Number.isSafeInteger(sequenceSamples)) throw new Aup4Error('An AUP4 sequence sample count is too large.', 'CORRUPT_SEQUENCE');
+			if (!Number.isSafeInteger(sequenceSamples)) throw new Aup4Error(`An ${profileName} sequence sample count is too large.`, 'CORRUPT_SEQUENCE');
 		}
-		if (sequenceSamples !== expectedSamples) throw new Aup4Error('An AUP4 sequence sample count does not match its blocks.', 'CORRUPT_SEQUENCE');
+		if (sequenceSamples !== expectedSamples) throw new Aup4Error(`An ${profileName} sequence sample count does not match its blocks.`, 'CORRUPT_SEQUENCE');
 	}
 	return {
 		sequenceCount,
@@ -272,34 +273,41 @@ export function readSchemaObjects(adapter) {
 	`).map(([type, name, table, sql]) => ({ type, name, table, sql }));
 }
 
-function validateSampleBlockRecord(blockId, row) {
+function validateSampleBlockRecord(blockId, row, profileName = 'AUP4') {
 	const sampleformat = Number(row[0]);
 	const bytesPerSample = SAMPLE_BYTES[sampleformat];
-	if (!bytesPerSample) throw new Aup4Error(`AUP4 sample block ${blockId} uses an unsupported sample format.`, 'INVALID_SAMPLE_BLOCK');
+	if (!bytesPerSample) throw new Aup4Error(`${profileName} sample block ${blockId} uses an unsupported sample format.`, 'INVALID_SAMPLE_BLOCK');
 	if (![row[1], row[2], row[3]].every((value) => Number.isFinite(Number(value)))) {
-		throw new Aup4Error(`AUP4 sample block ${blockId} has invalid summary statistics.`, 'INVALID_SAMPLE_BLOCK');
+		throw new Aup4Error(`${profileName} sample block ${blockId} has invalid summary statistics.`, 'INVALID_SAMPLE_BLOCK');
 	}
-	const summary256Bytes = nonNegativeSqlInteger(row[4], blockId, 'summary256');
-	const summary64kBytes = nonNegativeSqlInteger(row[5], blockId, 'summary64k');
-	const sampleBytes = nonNegativeSqlInteger(row[6], blockId, 'samples');
-	if (!sampleBytes || sampleBytes % bytesPerSample) throw new Aup4Error(`AUP4 sample block ${blockId} has misaligned sample data.`, 'INVALID_SAMPLE_BLOCK');
+	const summary256Bytes = nonNegativeSqlInteger(row[4], blockId, 'summary256', profileName);
+	const summary64kBytes = nonNegativeSqlInteger(row[5], blockId, 'summary64k', profileName);
+	const sampleBytes = nonNegativeSqlInteger(row[6], blockId, 'samples', profileName);
+	if (!sampleBytes || sampleBytes % bytesPerSample) throw new Aup4Error(`${profileName} sample block ${blockId} has misaligned sample data.`, 'INVALID_SAMPLE_BLOCK');
 	const sampleCount = sampleBytes / bytesPerSample;
 	const frames64k = Math.ceil(sampleCount / 65_536);
 	if (summary256Bytes !== frames64k * 256 * 3 * 4 || summary64kBytes !== frames64k * 3 * 4) {
-		throw new Aup4Error(`AUP4 sample block ${blockId} has invalid summary lengths.`, 'INVALID_SAMPLE_BLOCK');
+		throw new Aup4Error(`${profileName} sample block ${blockId} has invalid summary lengths.`, 'INVALID_SAMPLE_BLOCK');
 	}
 	return { sampleCount, sampleBytes };
 }
 
-function editableAup4Sequences(root) {
+function editableAudacitySequences(root, includeNestedWaveClips) {
 	const output = [];
 	for (const waveTrack of audacityXmlChildren(root, 'wavetrack')) {
 		for (const waveClip of audacityXmlChildren(waveTrack, 'waveclip')) {
-			const sequence = audacityXmlChildren(waveClip, 'sequence')[0];
-			if (sequence) output.push(sequence);
+			appendWaveClipSequences(output, waveClip, includeNestedWaveClips);
 		}
 	}
 	return output;
+}
+
+function appendWaveClipSequences(output, waveClip, includeNestedWaveClips) {
+	for (const sequence of audacityXmlChildren(waveClip, 'sequence')) output.push(sequence);
+	if (!includeNestedWaveClips) return;
+	for (const cutLine of audacityXmlChildren(waveClip, 'waveclip')) {
+		appendWaveClipSequences(output, cutLine, true);
+	}
 }
 
 export function descendantNodes(root, name) {
@@ -314,15 +322,14 @@ export function descendantNodes(root, name) {
 	return output;
 }
 
-function xmlSafeInteger(value, name, minimum) {
+function xmlSafeInteger(value, name, minimum, profileName = 'AUP4') {
 	const number = Number(value);
-	if (!Number.isSafeInteger(number) || number < minimum) throw new Aup4Error(`The AUP4 ${name} is invalid.`, 'CORRUPT_SEQUENCE');
+	if (!Number.isSafeInteger(number) || number < minimum) throw new Aup4Error(`The ${profileName} ${name} is invalid.`, 'CORRUPT_SEQUENCE');
 	return number;
 }
 
-function nonNegativeSqlInteger(value, blockId, name) {
+function nonNegativeSqlInteger(value, blockId, name, profileName = 'AUP4') {
 	const number = Number(value);
-	if (!Number.isSafeInteger(number) || number < 0) throw new Aup4Error(`AUP4 sample block ${blockId} has invalid ${name} data.`, 'INVALID_SAMPLE_BLOCK');
+	if (!Number.isSafeInteger(number) || number < 0) throw new Aup4Error(`${profileName} sample block ${blockId} has invalid ${name} data.`, 'INVALID_SAMPLE_BLOCK');
 	return number;
 }
-
