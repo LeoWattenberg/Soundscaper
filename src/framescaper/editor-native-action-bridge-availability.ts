@@ -32,7 +32,15 @@ export function framescaperNativeOpenFxActionBridgeAvailableNativeMedia(
 }
 
 function bridgeHasMethods(value: unknown, methods: readonly string[]): boolean {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
-	const bridge = value as Readonly<Record<string, unknown>>;
-	return methods.every((method) => typeof bridge[method] === 'function');
+	if (!value || typeof value !== 'object') return false;
+	try {
+		if (Array.isArray(value)) return false;
+		return methods.every((method) => {
+			const descriptor = Object.getOwnPropertyDescriptor(value, method);
+			return Boolean(descriptor && Object.hasOwn(descriptor, 'value')
+				&& typeof descriptor.value === 'function');
+		});
+	} catch {
+		return false;
+	}
 }
