@@ -217,3 +217,44 @@ test('reloading discards the build once and ignores failures reported while it h
 	assert.equal(controller.snapshot().status, 'reloading');
 	assert.equal(discards, 1);
 });
+
+test('reload cannot discard a build before staleness has been proved', async () => {
+	let discards = 0;
+	const controller = createStaleBuildController({
+		moduleUrl: RUNNING_MODULE,
+		probe: () => Promise.resolve<StaleBuildVerdict>('current'),
+		discard: async () => { discards += 1; },
+		reload: () => undefined,
+	});
+
+	await controller.reload();
+	assert.equal(controller.snapshot().status, 'idle');
+	controller.report(new TypeError('Failed to fetch dynamically imported module: /assets/ExportDialog-a1.js'));
+	assert.equal(controller.snapshot().status, 'checking');
+	await controller.reload();
+	await controller.settled();
+	assert.equal(controller.snapshot().status, 'idle');
+	assert.equal(discards, 0);
+});
+
+test('a failed stale-build discard returns to the prompt and may be retried', async () => {
+	const failure = new Error('cache storage was temporarily unavailable');
+	let discards = 0;
+	const controller = createStaleBuildController({
+		moduleUrl: RUNNING_MODULE,
+		probe: () => Promise.resolve<StaleBuildVerdict>('stale'),
+		discard: async () => {
+			discards += 1;
+			if (discards === 1) throw failure;
+		},
+		reload: () => undefined,
+	});
+	controller.report(new TypeError('Failed to fetch dynamically imported module: /assets/ExportDialog-a1.js'));
+	await controller.settled();
+
+	await assert.rejects(() => controller.reload(), (error: unknown) => error === failure);
+	assert.equal(controller.snapshot().status, 'prompting');
+	await controller.reload();
+	assert.equal(controller.snapshot().status, 'reloading');
+	assert.equal(discards, 2);
+});

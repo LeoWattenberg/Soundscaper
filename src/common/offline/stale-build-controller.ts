@@ -102,9 +102,14 @@ export function createStaleBuildController(options: StaleBuildControllerOptions)
 			if (status === 'prompting') settle('dismissed');
 		},
 		async reload(): Promise<void> {
-			if (status === 'reloading') return;
+			if (!proven || status === 'reloading') return;
 			settle('reloading');
-			await discard({ reload: options.reload });
+			try {
+				await discard({ reload: options.reload });
+			} catch (error) {
+				settle('prompting');
+				throw error;
+			}
 		},
 		async settled(): Promise<void> {
 			while (pending) await pending;

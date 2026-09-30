@@ -40,7 +40,10 @@ export const SHARED_FILES_TOKEN_PARAMETER = 'share';
 export const SHARED_FILES_ERROR_PARAMETER = 'share-error';
 
 /** What one stash may hold, mirroring what the worker will write. */
-export const SHARED_FILES_LIMITS = Object.freeze({ maximumFiles: 32 });
+export const SHARED_FILES_LIMITS = Object.freeze({
+	maximumFiles: 32,
+	maximumBytes: 512 * 1024 * 1024,
+});
 
 /** Where one stash records the files it holds. */
 export function sharedFilesManifestUrl(token: string): string {
@@ -121,7 +124,7 @@ export async function collectSharedFiles(
 	// editor rather than asking for a share that has already been consumed.
 	stripSharedFilesParameters(address, options.replaceAddress ?? replaceDocumentAddress);
 	if (refusal !== null) {
-		onError(Object.assign(new Error(sharedFilesRefusalMessage(refusal)),
+		reportError(onError, Object.assign(new Error(sharedFilesRefusalMessage(refusal)),
 			refusal === 'too-large' ? { code: 'SHARE_TARGET_TOO_LARGE' }
 				: refusal === 'storage' ? { code: 'SHARE_TARGET_STORAGE_FAILED' } : {}));
 		return collection('refused');
@@ -132,7 +135,7 @@ export async function collectSharedFiles(
 	try {
 		return await collectStashedFiles(cacheStorage, token, options, onError);
 	} catch (error) {
-		onError(error);
+		reportError(onError, error);
 		return collection('unreadable');
 	}
 }
@@ -153,8 +156,12 @@ async function collectStashedFiles(
 		await deleteSharedFileStash(cache, token, 0);
 		return collection('unreadable');
 	}
-	const files = await readStashedFiles(cache, token, entries, onError);
-	await deleteSharedFileStash(cache, token, entries.length);
+	let files: File[];
+	try {
+		files = await readStashedFiles(cache, token, entries, onError);
+	} finally {
+		await deleteSharedFileStash(cache, token, entries.length);
+	}
 	if (files.length === 0) return collection('missing');
 	await deliverLaunchedFiles(files, options.deliver);
 	return collection('collected', files);
@@ -171,12 +178,12 @@ async function readStashedFiles(
 		const entry = entries[index];
 		const response = await cache.match(sharedFilesBodyUrl(token, index));
 		if (!response) {
-			onError(new Error(`A shared file was missing from the handoff: ${entry.name}`));
+			reportError(onError, new Error(`A shared file was missing from the handoff: ${entry.name}`));
 			continue;
 		}
 		const body = await response.blob();
 		if (body.size !== entry.byteLength) {
-			onError(new Error(`A shared file was truncated in the handoff: ${entry.name}`));
+			reportError(onError, new Error(`A shared file was truncated in the handoff: ${entry.name}`));
 			continue;
 		}
 		files.push(new File([body], entry.name, { type: entry.type }));
@@ -208,11 +215,14 @@ function sharedFilesManifest(value: unknown): readonly SharedFileEntry[] | null 
 	if (record.schemaVersion !== 1 || !Array.isArray(record.files)) return null;
 	if (record.files.length > SHARED_FILES_LIMITS.maximumFiles) return null;
 	const entries: SharedFileEntry[] = [];
+	let totalBytes = 0;
 	for (const candidate of record.files as readonly unknown[]) {
 		if (!candidate || typeof candidate !== 'object') return null;
 		const entry = candidate as { name?: unknown; type?: unknown; byteLength?: unknown };
 		if (typeof entry.name !== 'string' || entry.name === '' || typeof entry.type !== 'string'
 			|| !Number.isSafeInteger(entry.byteLength) || (entry.byteLength as number) < 0) return null;
+		totalBytes += entry.byteLength as number;
+		if (!Number.isSafeInteger(totalBytes) || totalBytes > SHARED_FILES_LIMITS.maximumBytes) return null;
 		entries.push({ name: entry.name, type: entry.type, byteLength: entry.byteLength as number });
 	}
 	return entries;
@@ -270,6 +280,14 @@ function collection(
 	files: readonly File[] = [],
 ): SharedFilesCollection {
 	return Object.freeze({ status, files: Object.freeze(files) });
+}
+
+function reportError(report: (error: unknown) => void, error: unknown): void {
+	try {
+		report(error);
+	} catch {
+		// Error reporting is best-effort and must not turn document startup into a rejection.
+	}
 }
 
 function defaultReport(error: unknown): void {

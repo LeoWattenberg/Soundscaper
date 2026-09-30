@@ -171,6 +171,26 @@ test('Electron, non-HTTP documents, and browsers without service workers are unc
 	assert.equal(registrations, 0);
 });
 
+test('unsupported registration targets skip every deferred startup gate', async () => {
+	for (const options of [
+		{ desktop: true, location: new URL('https://soundscaper.org/en/'), serviceWorker: { register: async () => ({}) } },
+		{ desktop: false, location: new URL('soundscaper-app://bundle/'), serviceWorker: { register: async () => ({}) } },
+		{ desktop: false, location: new URL('https://soundscaper.org/en/'), serviceWorker: null },
+	]) {
+		const waits: string[] = [];
+		const result = await scheduleOfflineApplicationShellRegistration({
+			...options,
+			productId: 'soundscaper',
+			serviceWorker: options.serviceWorker as never,
+			waitForLoad: async () => { waits.push('load'); },
+			waitForEditor: async () => { waits.push('editor'); },
+			waitForIdle: async () => { waits.push('idle'); },
+		});
+		assert.equal(result.status, 'unsupported');
+		assert.deepEqual(waits, [], String(options.location));
+	}
+});
+
 test('registration failure is reported without rejecting application startup', async () => {
 	const failure = new Error('service workers disabled by policy');
 	const result = await registerOfflineApplicationShell({

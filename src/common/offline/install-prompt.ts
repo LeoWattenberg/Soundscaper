@@ -81,7 +81,7 @@ export function createInstallPromptCapture(
 			return choice?.outcome === 'accepted' ? 'accepted' : 'dismissed';
 		},
 		stop: () => {
-			captured = null;
+			discard();
 			if (!listening) return;
 			source?.removeEventListener('beforeinstallprompt', capture);
 			source?.removeEventListener('appinstalled', discard);

@@ -39,6 +39,7 @@ const IDLE: StaleBuildSnapshot = Object.freeze({ status: 'idle' as const, prompt
 const listeners = new Set<() => void>();
 let controller: StaleBuildController | null = null;
 let current: StaleBuildSnapshot = IDLE;
+let activeDetectionTeardown: (() => void) | null = null;
 
 /** The snapshot every stale-build view renders from, idle until something fails. */
 export function staleBuildSnapshot(): StaleBuildSnapshot {
@@ -71,6 +72,7 @@ export function reloadStaleBuild(): Promise<void> {
  * for the same window.
  */
 export function installStaleBuildDetection(options: InstallStaleBuildDetectionOptions): () => void {
+	activeDetectionTeardown?.();
 	const target = options.target ?? globalThis.window;
 	const reload = options.reload ?? (() => { globalThis.location?.reload(); });
 	const installed = createStaleBuildController({ ...options, moduleUrl: options.moduleUrl, reload });
@@ -86,7 +88,10 @@ export function installStaleBuildDetection(options: InstallStaleBuildDetectionOp
 	};
 	target?.addEventListener('vite:preloadError', onPreloadError);
 	target?.addEventListener('unhandledrejection', onRejection);
-	return () => {
+	let tornDown = false;
+	const teardown = (): void => {
+		if (tornDown) return;
+		tornDown = true;
 		target?.removeEventListener('vite:preloadError', onPreloadError);
 		target?.removeEventListener('unhandledrejection', onRejection);
 		unsubscribe();
@@ -95,5 +100,8 @@ export function installStaleBuildDetection(options: InstallStaleBuildDetectionOp
 			current = IDLE;
 			for (const listener of [...listeners]) listener();
 		}
+		if (activeDetectionTeardown === teardown) activeDetectionTeardown = null;
 	};
+	activeDetectionTeardown = teardown;
+	return teardown;
 }

@@ -122,6 +122,24 @@ test('storing a chosen theme reports refusal rather than throwing', () => {
 	assert.deepEqual(refusing.written, {});
 });
 
+test('storing a chosen theme reports unavailable storage as a refusal', () => {
+	assert.equal(storeDocumentTheme('soundscaper', 'dark', {} as never), false);
+	assert.equal(storeDocumentTheme('framescaper', 'light', { localStorage: null } as never), false);
+});
+
+test('an invalid product preference does not mask a valid shared preference', () => {
+	const element = root();
+	applyDocumentTheme(
+		element as unknown as HTMLElement,
+		'framescaper',
+		scope({
+			prefersDark: false,
+			stored: { framescaper_theme: 'aubergine', soundscaper_theme: 'dark' },
+		}).scope as never,
+	);
+	assert.equal(element.dataset.theme, 'dark');
+});
+
 test('a browser that refuses the media query at all is painted light rather than left unpainted', () => {
 	// `matchMedia` throws behind some privacy settings, and the system
 	// preference is the last thing consulted. Losing it must cost the visitor a

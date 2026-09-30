@@ -184,3 +184,39 @@ test('a proved stale build reloads through the shared runtime', async () => {
 		teardown();
 	}
 });
+
+test('installing a replacement detector detaches the superseded target', async () => {
+	const firstTarget = new EventTarget();
+	const secondTarget = new EventTarget();
+	let firstProbes = 0;
+	const firstTeardown = installStaleBuildDetection({
+		moduleUrl: RUNNING_MODULE,
+		target: firstTarget,
+		probe: () => { firstProbes += 1; return Promise.resolve('stale'); },
+		reload: () => undefined,
+	});
+	const secondTeardown = installStaleBuildDetection({
+		moduleUrl: RUNNING_MODULE,
+		target: secondTarget,
+		probe: () => Promise.resolve('current'),
+		reload: () => undefined,
+	});
+	try {
+		const retired = new Event('vite:preloadError');
+		Object.assign(retired, { payload: RETIRED_CHUNK });
+		firstTarget.dispatchEvent(retired);
+		await settle();
+		assert.equal(firstProbes, 0, 'the old target no longer starts probes');
+		assert.equal(staleBuildSnapshot().status, 'idle');
+
+		firstTeardown();
+		const current = new Event('vite:preloadError');
+		Object.assign(current, { payload: RETIRED_CHUNK });
+		secondTarget.dispatchEvent(current);
+		await settle();
+		assert.equal(staleBuildSnapshot().status, 'idle', 'old teardown does not detach its replacement');
+	} finally {
+		firstTeardown();
+		secondTeardown();
+	}
+});

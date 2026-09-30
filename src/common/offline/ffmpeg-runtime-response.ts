@@ -35,7 +35,7 @@ export async function readBoundedResponse(response: Response, options: Readonly<
 	try {
 		while (true) {
 			throwIfAborted(options.signal);
-			const { done, value } = await reader.read();
+			const { done, value } = await readResponseChunk(reader, options.signal);
 			throwIfAborted(options.signal);
 			if (done) break;
 			if (!(value instanceof Uint8Array) || value.byteLength === 0) {
@@ -69,6 +69,29 @@ export async function readBoundedResponse(response: Response, options: Readonly<
 		offset += chunk.byteLength;
 	}
 	return bytes;
+}
+
+async function readResponseChunk(
+	reader: ReadableStreamDefaultReader<Uint8Array>,
+	signal?: AbortSignal,
+): Promise<ReadableStreamReadResult<Uint8Array>> {
+	if (!signal) return reader.read();
+	throwIfAborted(signal);
+	let rejectAbort: (error: unknown) => void = () => undefined;
+	const aborted = new Promise<never>((_resolve, reject) => { rejectAbort = reject; });
+	const onAbort = (): void => {
+		try {
+			throwIfAborted(signal);
+		} catch (error) {
+			rejectAbort(error);
+		}
+	};
+	signal.addEventListener('abort', onAbort, { once: true });
+	try {
+		return await Promise.race([reader.read(), aborted]);
+	} finally {
+		signal.removeEventListener('abort', onAbort);
+	}
 }
 
 export function hasEncodedWireRepresentation(response: Response): boolean {

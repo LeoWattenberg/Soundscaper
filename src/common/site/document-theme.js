@@ -47,7 +47,9 @@ export function paintDocumentTheme(root, theme) {
  */
 export function storeDocumentTheme(productId, theme, scope = globalThis) {
 	try {
-		scope.localStorage?.setItem(productThemeKey(productId), theme);
+		const storage = scope.localStorage;
+		if (!storage || typeof storage.setItem !== 'function') return false;
+		storage.setItem(productThemeKey(productId), theme);
 		return true;
 	} catch {
 		return false;
@@ -64,9 +66,12 @@ function rememberActiveProduct(productId, scope) {
 
 function storedDocumentTheme(productId, scope) {
 	try {
-		const stored = scope.localStorage?.getItem(productThemeKey(productId))
-			|| scope.localStorage?.getItem(SHARED_THEME_KEY);
-		return stored === 'light' || stored === 'dark' ? stored : null;
+		const storage = scope.localStorage;
+		if (!storage || typeof storage.getItem !== 'function') return null;
+		const productTheme = storage.getItem(productThemeKey(productId));
+		if (productTheme === 'light' || productTheme === 'dark') return productTheme;
+		const sharedTheme = storage.getItem(SHARED_THEME_KEY);
+		return sharedTheme === 'light' || sharedTheme === 'dark' ? sharedTheme : null;
 	} catch {
 		return null;
 	}

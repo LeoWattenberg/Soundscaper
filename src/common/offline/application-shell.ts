@@ -71,8 +71,7 @@ export async function registerOfflineApplicationShell(
 	const location = options.location ?? globalThis.location;
 	const serviceWorker = options.serviceWorker
 		?? (globalThis.navigator?.serviceWorker as OfflineServiceWorkerContainer | undefined);
-	if (options.desktop || !location || !['http:', 'https:'].includes(location.protocol)
-		|| !serviceWorker || typeof serviceWorker.register !== 'function') {
+	if (!supportsOfflineApplicationShellRegistration(options, location, serviceWorker)) {
 		return Object.freeze({ status: 'unsupported' });
 	}
 	try {
@@ -92,10 +91,26 @@ export async function registerOfflineApplicationShell(
 export async function scheduleOfflineApplicationShellRegistration(
 	options: ScheduleOfflineApplicationShellOptions,
 ): Promise<OfflineApplicationShellRegistrationResult> {
+	const location = options.location ?? globalThis.location;
+	const serviceWorker = options.serviceWorker
+		?? (globalThis.navigator?.serviceWorker as OfflineServiceWorkerContainer | undefined);
+	if (!supportsOfflineApplicationShellRegistration(options, location, serviceWorker)) {
+		return Object.freeze({ status: 'unsupported' });
+	}
 	await (options.waitForLoad ?? waitForDocumentLoad)();
 	await (options.waitForEditor ?? waitForEditorReadiness)();
 	await (options.waitForIdle ?? waitForBrowserIdle)();
 	return registerOfflineApplicationShell(options);
+}
+
+function supportsOfflineApplicationShellRegistration(
+	options: RegisterOfflineApplicationShellOptions,
+	location: Pick<URL, 'protocol'> | undefined,
+	serviceWorker: OfflineServiceWorkerContainer | undefined,
+): serviceWorker is OfflineServiceWorkerContainer {
+	return !options.desktop && Boolean(location)
+		&& ['http:', 'https:'].includes(location!.protocol)
+		&& typeof serviceWorker?.register === 'function';
 }
 
 function waitForDocumentLoad(): Promise<void> {

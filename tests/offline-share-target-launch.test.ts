@@ -147,6 +147,7 @@ test('the document and the worker agree on where a share is stashed', () => {
 	assert.equal(SHARED_FILES_TOKEN_PARAMETER, sharedFilesTokenParameter());
 	assert.equal(SHARED_FILES_ERROR_PARAMETER, sharedFilesErrorParameter());
 	assert.equal(SHARED_FILES_LIMITS.maximumFiles, sharedFilesLimits().maximumFiles);
+	assert.equal(SHARED_FILES_LIMITS.maximumBytes, sharedFilesLimits().maximumBytes);
 	const token = 'c'.repeat(32);
 	assert.equal(sharedFilesManifestUrl(token), workerManifestUrl(token));
 	assert.equal(sharedFilesBodyUrl(token, 3), workerBodyUrl(token, 3));
@@ -250,6 +251,56 @@ test('a stash whose manifest cannot be read is swept rather than trusted', async
 	assert.deepEqual(collected.launches, []);
 });
 
+test('a forged manifest cannot make the document read beyond the worker byte limit', async (t) => {
+	const cacheStorage = new ShareCacheStorage();
+	const token = 'e'.repeat(32);
+	const cache = await cacheStorage.open(SHARED_FILES_CACHE_NAME);
+	await cache.put(sharedFilesManifestUrl(token), new Response(JSON.stringify({
+		schemaVersion: 1,
+		files: [{
+			name: 'oversized.wav',
+			type: 'audio/wav',
+			byteLength: sharedFilesLimits().maximumBytes + 1,
+		}],
+	})));
+
+	const collected = await collect(t, { href: `${ORIGIN}/en/?share=${token}`, caches: cacheStorage });
+
+	assert.equal(collected.result.status, 'unreadable');
+	assert.deepEqual(collected.errors, []);
+	assert.deepEqual(collected.launches, []);
+	assert.deepEqual([...cache.entries.keys()], [], 'the rejected stash is swept across the full index range');
+});
+
+test('a body read failure still consumes and deletes the one-time stash', async () => {
+	const token = 'b'.repeat(32);
+	const failure = new Error('cache body became unreadable');
+	const deleted: string[] = [];
+	const errors: unknown[] = [];
+	const manifest = new Response(JSON.stringify({
+		schemaVersion: 1,
+		files: [{ name: 'Broken.wav', type: 'audio/wav', byteLength: 4 }],
+	}));
+	const cache = {
+		match: async (url: string): Promise<Response | undefined> => (
+			url === sharedFilesManifestUrl(token)
+				? manifest.clone()
+				: { blob: async () => { throw failure; } } as unknown as Response
+		),
+		delete: async (url: string): Promise<boolean> => { deleted.push(url); return true; },
+	};
+	const result = await collectSharedFiles({
+		href: `${ORIGIN}/en/?share=${token}`,
+		caches: { open: async () => cache },
+		replaceAddress: () => undefined,
+		onError: (error) => { errors.push(error); },
+	});
+
+	assert.equal(result.status, 'unreadable');
+	assert.deepEqual(errors, [failure]);
+	assert.deepEqual(deleted, [sharedFilesManifestUrl(token), sharedFilesBodyUrl(token, 0)]);
+});
+
 test('a share missing one body opens the rest of the batch and reports the loss', async (t) => {
 	const cacheStorage = new ShareCacheStorage();
 	const token = await stashShare(cacheStorage, [
@@ -277,6 +328,16 @@ test('a share the worker refused is reported rather than opened empty', async (t
 	assert.match(String((collected.errors[0] as Error).message), /larger than a share may carry/u);
 	assert.equal((collected.errors[0] as { code?: string }).code, 'SHARE_TARGET_TOO_LARGE');
 	assert.deepEqual([...cacheStorage.caches.keys()], []);
+});
+
+test('a reporting callback cannot turn a refused share into a rejected startup task', async () => {
+	const failure = new Error('the mounted error surface was already gone');
+	const result = await collectSharedFiles({
+		href: `${ORIGIN}/en/?share-error=too-large`,
+		replaceAddress: () => undefined,
+		onError: () => { throw failure; },
+	});
+	assert.equal(result.status, 'refused');
 });
 
 test('a document with no cache storage collects nothing', async (t) => {

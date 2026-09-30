@@ -120,7 +120,11 @@ test('an event that carries no prompt is ignored rather than captured', () => {
 
 test('stopping the capture detaches both listeners and drops the held offer', () => {
 	const target = fakeSource();
-	const capture = createInstallPromptCapture({ source: target.source });
+	const announced: boolean[] = [];
+	const capture = createInstallPromptCapture({
+		source: target.source,
+		onChange: (available) => announced.push(available),
+	});
 	target.dispatch('beforeinstallprompt', fakeOffer().event);
 	assert.equal(target.listenerCount('beforeinstallprompt'), 1);
 	assert.equal(target.listenerCount('appinstalled'), 1);
@@ -128,6 +132,44 @@ test('stopping the capture detaches both listeners and drops the held offer', ()
 	assert.equal(capture.available(), false);
 	assert.equal(target.listenerCount('beforeinstallprompt'), 0);
 	assert.equal(target.listenerCount('appinstalled'), 0);
+	assert.deepEqual(announced, [true, false], 'stopping publishes the availability it removed');
+	capture.stop();
+	assert.deepEqual(announced, [true, false], 'stopping twice is silent');
+});
+
+test('a later browser offer supersedes an unspent one', async () => {
+	const target = fakeSource();
+	const first = fakeOffer('dismissed');
+	const second = fakeOffer('accepted');
+	const capture = createInstallPromptCapture({ source: target.source });
+	target.dispatch('beforeinstallprompt', first.event);
+	target.dispatch('beforeinstallprompt', second.event);
+
+	assert.equal(await capture.prompt(), 'accepted');
+	assert.equal(first.calls.prevented, 1);
+	assert.equal(first.calls.prompted, 0);
+	assert.equal(second.calls.prevented, 1);
+	assert.equal(second.calls.prompted, 1);
+});
+
+test('a browser prompt failure still spends the captured offer', async () => {
+	const target = fakeSource();
+	const announced: boolean[] = [];
+	const failure = new DOMException('gesture expired', 'NotAllowedError');
+	const capture = createInstallPromptCapture({
+		source: target.source,
+		onChange: (available) => announced.push(available),
+	});
+	target.dispatch('beforeinstallprompt', {
+		preventDefault: () => undefined,
+		prompt: () => Promise.reject(failure),
+		userChoice: Promise.resolve({ outcome: 'accepted' }),
+	});
+
+	await assert.rejects(() => capture.prompt(), (error: unknown) => error === failure);
+	assert.equal(capture.available(), false);
+	assert.equal(await capture.prompt(), 'unavailable');
+	assert.deepEqual(announced, [true, false]);
 });
 
 test('a host without an event target yields a capture that is permanently unavailable', async () => {
