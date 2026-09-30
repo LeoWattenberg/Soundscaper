@@ -3,24 +3,21 @@
 // Turning Audacity's per-channel wave tracks back into the browser's clips. A
 // stereo track is two sibling wave tracks whose clips have to be matched by
 // timeline position rather than by order, their rates reconciled, and any clip
-// Audacity 4 no longer supports counted rather than silently dropped. Split out
-// of aup4-conversion.js; no behaviour changes here.
+// Audacity 4 no longer supports counted rather than silently dropped.
 
 import {
 	audacityXmlAttribute,
 	audacityXmlChildren,
 } from './audacity-binary-xml.js';
+import { readAup4ClipStretch } from './aup4-clip-timing.ts';
 import { createStreamingWindowedSincResampler } from './resample.js';
 import { addAup4CompatibilityItem } from './aup4-profile.js';
 import { scaleSampleFrame } from './timeline-time.ts';
 import { readPitchAndSpeedPreset } from './aup4-conversion-settings.js';
 import {
-	booleanValue,
 	finite,
 	nonNegative,
 	nonNegativeInteger,
-	optionalPositive,
-	positive,
 	warn,
 } from './aup4-conversion-values.js';
 
@@ -50,15 +47,15 @@ export function groupWaveTracks(nodes, state) {
 	return groups;
 }
 
-export function alignWaveClips(group, channelRates, state, trackIndex) {
+export function alignWaveClips(group, channelRates, state, trackIndex, projectTempo) {
 	const clipsByChannel = group.map((node) => audacityXmlChildren(node, 'waveclip'));
 	if (group.length === 1) return clipsByChannel[0].map((node) => [node]);
 	const rows = clipsByChannel[0].map((node) => [node, null]);
-	const leaderTimelines = clipsByChannel[0].map((node) => waveClipTimeline(node, channelRates[0]));
+	const leaderTimelines = clipsByChannel[0].map((node) => waveClipTimeline(node, channelRates[0], projectTempo));
 	const unmatchedLeaderIndexes = new Set(rows.map((_row, index) => index));
 	let mismatch = clipsByChannel[0].length !== clipsByChannel[1].length;
 	for (const follower of clipsByChannel[1]) {
-		const followerTimeline = waveClipTimeline(follower, channelRates[1]);
+		const followerTimeline = waveClipTimeline(follower, channelRates[1], projectTempo);
 		const candidates = [...unmatchedLeaderIndexes]
 			.filter((index) => clipStartsAlign(leaderTimelines[index], followerTimeline))
 			.sort((left, right) => (
@@ -75,7 +72,7 @@ export function alignWaveClips(group, channelRates, state, trackIndex) {
 			const leaderTimeline = leaderTimelines[rowIndex];
 			const tolerance = clipTimelineTolerance(leaderTimeline, followerTimeline);
 			if (Math.abs(leaderTimeline.duration - followerTimeline.duration) > tolerance
-				|| waveClipSemanticKey(rows[rowIndex][0]) !== waveClipSemanticKey(follower)) {
+				|| waveClipSemanticKey(rows[rowIndex][0], projectTempo) !== waveClipSemanticKey(follower, projectTempo)) {
 				mismatch = true;
 			}
 		}
@@ -97,12 +94,9 @@ export function alignWaveClips(group, channelRates, state, trackIndex) {
 	return rows;
 }
 
-function waveClipTimeline(node, rate) {
+function waveClipTimeline(node, rate, projectTempo) {
 	const sequence = audacityXmlChildren(node, 'sequence')[0];
-	const storedStretchRatio = positive(audacityXmlAttribute(node, 'clipStretchRatio', 1), 1);
-	const clipTempo = optionalPositive(audacityXmlAttribute(node, 'clipTempo', null));
-	const rawAudioTempo = optionalPositive(audacityXmlAttribute(node, 'rawAudioTempo', null));
-	const stretchRatio = storedStretchRatio * (clipTempo != null && rawAudioTempo != null ? rawAudioTempo / clipTempo : 1);
+	const { stretchRatio } = readAup4ClipStretch(node, projectTempo);
 	const trimLeft = nonNegative(audacityXmlAttribute(node, 'trimLeft', 0));
 	const trimRight = nonNegative(audacityXmlAttribute(node, 'trimRight', 0));
 	const sampleCount = nonNegativeInteger(audacityXmlAttribute(sequence, 'numsamples', 0), 0);
@@ -121,17 +115,18 @@ function clipTimelineTolerance(left, right) {
 	return Math.max(1 / left.rate, 1 / right.rate) * 1.5 + 1e-9;
 }
 
-function waveClipSemanticKey(node) {
+function waveClipSemanticKey(node, projectTempo) {
+	const stretch = readAup4ClipStretch(node, projectTempo);
 	return JSON.stringify([
 		String(audacityXmlAttribute(node, 'name', '')),
 		finite(audacityXmlAttribute(node, 'trimLeft', 0), 0),
 		finite(audacityXmlAttribute(node, 'trimRight', 0), 0),
-		finite(audacityXmlAttribute(node, 'clipStretchRatio', 1), 1),
-		optionalPositive(audacityXmlAttribute(node, 'clipTempo', null)),
-		optionalPositive(audacityXmlAttribute(node, 'rawAudioTempo', null)),
+		stretch.storedStretchRatio,
+		stretch.clipTempo,
+		stretch.rawAudioTempo,
 		finite(audacityXmlAttribute(node, 'centShift', 0), 0),
 		readPitchAndSpeedPreset(node),
-		booleanValue(audacityXmlAttribute(node, 'clipStretchToMatchTempo', false), false),
+		stretch.stretchToTempo,
 		String(audacityXmlAttribute(node, 'groupId', -1)),
 		String(audacityXmlAttribute(node, 'colorindex', audacityXmlAttribute(node, 'color', 'auto'))),
 		audacityXmlChildren(node, 'envelope')[0] || null,

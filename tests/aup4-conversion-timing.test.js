@@ -301,6 +301,70 @@ test('AUP4 conversion preserves source offsets and stretched timing with Audacit
 	assert.equal(linear.project.clips[0].envelope[0].value, 0.5);
 });
 
+test('AUP4 conversion applies inherited project tempo before trims and envelopes', async () => {
+	const sequence = createAudacityXmlNode('sequence', [
+		{ kind: 'attribute', name: 'sampleformat', type: 'long', value: 0x0004000f },
+		{ kind: 'attribute', name: 'numsamples', type: 'long-long', value: 48_000 },
+	], [createAudacityXmlNode('waveblock', [
+		{ kind: 'attribute', name: 'start', type: 'long-long', value: 0 },
+		{ kind: 'attribute', name: 'length', type: 'long-long', value: 48_000 },
+		{ kind: 'attribute', name: 'blockid', type: 'long-long', value: 1 },
+	])]);
+	const envelope = createAudacityXmlNode('envelope', [], [
+		createAudacityXmlNode('controlpoint', [
+			{ kind: 'attribute', name: 't', type: 'double', value: 0, digits: 8 },
+			{ kind: 'attribute', name: 'val', type: 'double', value: 0.8, digits: 8 },
+		]),
+		createAudacityXmlNode('controlpoint', [
+			{ kind: 'attribute', name: 't', type: 'double', value: 1.1, digits: 8 },
+			{ kind: 'attribute', name: 'val', type: 'double', value: 0.2, digits: 8 },
+		]),
+	]);
+	const nativeClip = createAudacityXmlNode('waveclip', [
+		{ kind: 'attribute', name: 'name', type: 'string', value: 'Inherited tempo' },
+		{ kind: 'attribute', name: 'offset', type: 'double', value: 0, digits: 8 },
+		{ kind: 'attribute', name: 'trimLeft', type: 'double', value: 0.2, digits: 8 },
+		{ kind: 'attribute', name: 'trimRight', type: 'double', value: 0.3, digits: 8 },
+		{ kind: 'attribute', name: 'clipStretchRatio', type: 'double', value: 1, digits: 8 },
+		{ kind: 'attribute', name: 'rawAudioTempo', type: 'double', value: 282, digits: 8 },
+	], [sequence, envelope]);
+	const root = createAudacityXmlNode('project', [
+		{ kind: 'attribute', name: 'version', type: 'string', value: '2.0.0' },
+		{ kind: 'attribute', name: 'rate', type: 'double', value: 48_000, digits: -1 },
+		{ kind: 'attribute', name: 'time_signature_tempo', type: 'double', value: 188, digits: -1 },
+	], [createAudacityXmlNode('wavetrack', [
+		{ kind: 'attribute', name: 'name', type: 'string', value: 'Tempo track' },
+		{ kind: 'attribute', name: 'rate', type: 'double', value: 48_000, digits: -1 },
+		{ kind: 'attribute', name: 'channel', type: 'int', value: 0 },
+	], [nativeClip])]);
+	const sampleBlock = createAup4SampleBlock(new Float32Array(48_000));
+	let id = 0;
+	const decoded = await decodeAup4ProjectTree(root, async () => sampleBlock, {
+		idFactory: (prefix) => `${prefix}-${++id}`,
+	});
+	const [clip] = decoded.project.clips;
+	assert.equal(clip.speedRatio, 2 / 3);
+	assert.equal(clip.stretchToTempo, true);
+	assert.equal(clip.sourceStartFrame, 6_400);
+	assert.equal(clip.trimEndFrames, 9_600);
+	assert.equal(clip.sourceDurationFrames, 32_000);
+	assert.equal(clip.timelineStartFrame, 9_600);
+	assert.equal(clip.durationFrames, 48_000);
+	assert.equal(clip.envelope.length, 2);
+	assert.ok(Math.abs(clip.envelope[0].value - 0.6909090909090909) < 1e-12);
+	assert.deepEqual(clip.envelope[1], { frame: 43_200, value: 0.2 });
+
+	const exported = createAup4ProjectTree(decoded.project, new Map([[
+		`${clip.sourceId}:0`,
+		[{ blockId: 1, start: 0, sampleCount: 48_000 }],
+	]]));
+	const exportedClip = audacityXmlChildren(audacityXmlChildren(exported, 'wavetrack')[0], 'waveclip')[0];
+	assert.equal(audacityXmlAttribute(exportedClip, 'clipStretchRatio'), 1);
+	assert.equal(audacityXmlAttribute(exportedClip, 'clipStretchToMatchTempo'), true);
+	assert.equal(audacityXmlAttribute(exportedClip, 'rawAudioTempo'), 282);
+	assert.equal(audacityXmlAttributes(exportedClip, 'clipTempo').length, 0);
+});
+
 test('AUP4 conversion maps formant preservation through pitchAndSpeedPreset', async () => {
 	const source = createAudioSource({
 		id: 'formant-source', storageKey: 'formant-source', name: 'Formant source', frameCount: 4,

@@ -3,14 +3,15 @@
 // The Audacity 4 document nodes a project's tracks become: wave tracks and the
 // clips, sample sequences and envelopes hung off them, label tracks, and the
 // metadata tag block. Each builder lays its generated attributes and children
-// back over whatever the imported file carried in the same position. Split out
-// of aup4-profile.js; no behaviour changes here.
+// back over whatever the imported file carried in the same position.
 
 import {
 	audacityXmlAttribute,
 	audacityXmlChildren,
 	createAudacityXmlNode,
 } from './audacity-binary-xml.js';
+import { aup4ClipTempoStretchRatio } from './aup4-clip-timing.ts';
+import { booleanValue } from './aup4-conversion-values.js';
 import { createAup4EffectsNode } from './aup4-effects.js';
 import {
 	OMIT_OPAQUE_CHILD,
@@ -35,7 +36,7 @@ import {
 } from './aup4-profile-values.js';
 import { sampleFrameToSeconds as framesToSeconds } from './timeline-time.ts';
 
-export function createWaveTrackNode(project, track, channel, channelBlocks, projectRate, selectedTrackIds, selectedClipIds, groupNumbers) {
+export function createWaveTrackNode(project, track, channel, channelBlocks, projectRate, projectTempo, selectedTrackIds, selectedClipIds, groupNumbers) {
 	const channelCount = trackChannelCount(project, track);
 	const trackRate = trackSampleRate(project, track, projectRate);
 	const opaqueTrack = track.opaqueExtensions?.aup4WaveTracks?.[channel]?.node;
@@ -96,7 +97,7 @@ export function createWaveTrackNode(project, track, channel, channelBlocks, proj
 		const clip = project.clips.find((candidate) => candidate.id === clipId);
 		if (clip) generatedChildren.push({
 			key: 'waveclip',
-			entry: { kind: 'node', node: createWaveClipNode(project, clip, channel, channelBlocks, trackRate, projectRate, selectedClipIds, groupNumbers) },
+			entry: { kind: 'node', node: createWaveClipNode(project, clip, channel, channelBlocks, trackRate, projectRate, projectTempo, selectedClipIds, groupNumbers) },
 		});
 	}
 	let matchedEffects = false;
@@ -111,7 +112,7 @@ export function createWaveTrackNode(project, track, channel, channelBlocks, proj
 	return createAudacityXmlNode('wavetrack', [], content);
 }
 
-function createWaveClipNode(project, clip, channel, channelBlocks, rate, projectRate, selectedClipIds, groupNumbers) {
+function createWaveClipNode(project, clip, channel, channelBlocks, rate, projectRate, projectTempo, selectedClipIds, groupNumbers) {
 	const blocks = channelBlocks.get(`${clip.id}:${channel}`)
 		|| channelBlocks.get(`${clip.sourceId}:${channel}`)
 		|| channelBlocks.get(clip.id)
@@ -136,7 +137,15 @@ function createWaveClipNode(project, clip, channel, channelBlocks, rate, project
 		?? optionalFiniteInRange(audacityXmlAttribute(opaqueClip, 'clipTempo', null), 1, 999);
 	const rawAudioTempo = optionalFiniteInRange(clip.rawAudioTempo, 1, 999)
 		?? optionalFiniteInRange(audacityXmlAttribute(opaqueClip, 'rawAudioTempo', null), 1, 999);
-	const tempoStretchRatio = clipTempo != null && rawAudioTempo != null ? rawAudioTempo / clipTempo : 1;
+	const stretchToTempo = clip.stretchToTempo == null
+		? booleanValue(audacityXmlAttribute(opaqueClip, 'clipStretchToMatchTempo', true), true)
+		: Boolean(clip.stretchToTempo);
+	const tempoStretchRatio = aup4ClipTempoStretchRatio({
+		clipTempo,
+		rawAudioTempo,
+		projectTempo,
+		stretchToTempo,
+	});
 	const storedStretchRatio = stretchRatio / tempoStretchRatio;
 	const trimLeftSeconds = trimStartFrames * stretchRatio / rate;
 	const trimRightSeconds = trimEndFrames * stretchRatio / rate;
@@ -209,9 +218,7 @@ function createWaveClipNode(project, clip, channel, channelBlocks, rate, project
 		attribute('centShift', 'double', finiteInRange(clip.pitchCents, -1200, 1200, 0), -1),
 		attribute('pitchAndSpeedPreset', 'long', pitchAndSpeedPreset),
 		attribute('clipStretchRatio', 'double', storedStretchRatio, 8),
-		attribute('clipStretchToMatchTempo', 'bool', clip.stretchToTempo == null
-			? Boolean(audacityXmlAttribute(opaqueClip, 'clipStretchToMatchTempo', false))
-			: Boolean(clip.stretchToTempo)),
+		attribute('clipStretchToMatchTempo', 'bool', stretchToTempo),
 		attribute('name', 'string', String(clip.name || clip.title || 'Audio')),
 		attribute('groupId', 'long', groupNumbers.get(clip.groupId) ?? -1),
 		attribute('colorindex', 'int', colorIndex(clip.color, audacityXmlAttribute(opaqueClip, 'colorindex', 0))),

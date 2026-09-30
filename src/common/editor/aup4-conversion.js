@@ -74,6 +74,7 @@ export async function decodeAudacityProjectTree(root, loadBlock, options = {}) {
 	root = sanitization.node;
 	const idFactory = options.idFactory || createStableId;
 	const projectRate = positiveRate(audacityXmlAttribute(root, 'rate', 44_100));
+	const importedTempoBpm = finiteInRange(audacityXmlAttribute(root, 'time_signature_tempo', 120), 1, 1000, 120);
 	const maxDecodedBytes = positiveInteger(options.maxDecodedBytes, DEFAULT_MAX_DECODED_BYTES);
 	const compatibilityReport = createAup4CompatibilityReport('open', {
 		discardedCloudMetadata: sanitization.report,
@@ -136,7 +137,7 @@ export async function decodeAudacityProjectTree(root, loadBlock, options = {}) {
 			audacityXmlAttribute(firstSequence, 'sampleformat', 0),
 		));
 		const channelRates = group.map((node) => positiveRate(audacityXmlAttribute(node, 'rate', trackRate)));
-		const alignedClipNodes = alignWaveClips(group, channelRates, state, trackIndex);
+		const alignedClipNodes = alignWaveClips(group, channelRates, state, trackIndex, importedTempoBpm);
 		if (channelRates.some((rate) => rate !== trackRate)) {
 			warn(state, `Linked channels in track ${trackIndex + 1} use different sample rates; the first channel rate was used.`);
 			addAup4CompatibilityItem(compatibilityReport, {
@@ -177,9 +178,9 @@ export async function decodeAudacityProjectTree(root, loadBlock, options = {}) {
 			}
 			const clipNode = channelNodes[0];
 			const {
-				stretchRatio, trimLeftSeconds, trimStartFrames, trimEndFrames,
+				stretchRatio, stretchToTempo, trimLeftSeconds, trimStartFrames, trimEndFrames,
 				sourceDurationFrames, timelineStartFrame, durationFrames,
-			} = readAup4ClipTiming(clipNode, frameCount, trackRate, projectRate);
+			} = readAup4ClipTiming(clipNode, frameCount, trackRate, projectRate, importedTempoBpm);
 			const sourceId = idFactory('source');
 			const clipId = idFactory('clip');
 			const pitchAndSpeedPreset = readPitchAndSpeedPreset(clipNode);
@@ -220,7 +221,7 @@ export async function decodeAudacityProjectTree(root, loadBlock, options = {}) {
 				pitchCents: clamp(finite(audacityXmlAttribute(clipNode, 'centShift', 0), 0), -1200, 1200),
 				speedRatio: 1 / stretchRatio,
 				preserveFormants: pitchAndSpeedPreset === 1,
-				stretchToTempo: Boolean(audacityXmlAttribute(clipNode, 'clipStretchToMatchTempo', false)),
+				stretchToTempo,
 				opaqueExtensions: {
 					aup4WaveClip: opaqueWaveClipNode(clipNode),
 					aup4WaveClips: alignedChannels.map(opaqueWaveClipNode),
@@ -311,7 +312,6 @@ export async function decodeAudacityProjectTree(root, loadBlock, options = {}) {
 	const masterEffects = readEffectsWithReport(masterEffectsNode, state, {
 		kind: 'master',
 	}, idFactory, (active) => { masterEffectsActive = active; });
-	const importedTempoBpm = finiteInRange(audacityXmlAttribute(root, 'time_signature_tempo', 120), 1, 1000, 120);
 	const musicalRoot = canonicalAudacityMusicalRoot(importedTempoBpm, {
 		numerator: integerInRange(audacityXmlAttribute(root, 'time_signature_upper', 4), 1, 0x7fff_ffff, 4),
 		denominator: powerOfTwo(audacityXmlAttribute(root, 'time_signature_lower', 4), 4),

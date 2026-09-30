@@ -124,7 +124,9 @@ export function createAup3ProjectData(options = {}) {
 				trimLeft: clip.trimLeft || 0,
 				trimRight: clip.trimRight || 0,
 				...(clip.stretchRatio == null ? {} : { clipStretchRatio: clip.stretchRatio }),
+				...(clip.clipTempo == null ? {} : { clipTempo: clip.clipTempo }),
 				...(clip.rawAudioTempo == null ? {} : { rawAudioTempo: clip.rawAudioTempo }),
+				...(clip.stretchToTempo == null ? {} : { clipStretchToMatchTempo: clip.stretchToTempo }),
 				...(clip.centShift == null ? {} : { centShift: clip.centShift }),
 			}, children);
 		});

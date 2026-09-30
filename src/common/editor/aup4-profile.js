@@ -246,7 +246,7 @@ export function createAup4ProjectTree(project, channelBlocks = new Map()) {
 		else for (let channel = 0; channel < trackChannelCount(project, track); channel += 1) {
 			generatedRootChildren.push({
 				key: 'track',
-				entry: { kind: 'node', node: createWaveTrackNode(project, track, channel, channelBlocks, sampleRate, selectedTrackIds, selectedClipIds, groupNumbers) },
+				entry: { kind: 'node', node: createWaveTrackNode(project, track, channel, channelBlocks, sampleRate, tempo, selectedTrackIds, selectedClipIds, groupNumbers) },
 			});
 		}
 	}
