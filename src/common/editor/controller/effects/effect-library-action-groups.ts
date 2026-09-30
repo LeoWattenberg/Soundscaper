@@ -3,6 +3,7 @@
 import { publishedCopyFor } from '../shared/presentation-localization.ts'; import {
 	createMacroCommandService,
 	isRunnableMacroCommand,
+	type MacroCommandServiceRuntime,
 } from './internal/macro/macro-command-service.ts';
 import { createMacroProgramService } from './internal/macro/macro-program-service.ts';
 import { createMacroScriptHost } from './internal/macro/macro-script-host.ts';
@@ -14,7 +15,6 @@ import {
 import type { EditorActionFunctions } from '../composition/editor-action-functions.ts';
 import type { EditorActionResources } from '../composition/editor-action-resources.ts';
 import type { RestrictToCapability } from '../composition/action-facade-runtime.ts';
-import type { EditorSelectionActionGroup } from '../composition/selection-action-group.ts';
 
 export type EffectLibraryActionScope = Pick<EditorActionFunctions,
 	 'createStableId'
@@ -36,7 +36,7 @@ export type EffectLibraryActionScope = Pick<EditorActionFunctions,
 	| 'beginMacroTransaction'
 > & Pick<EditorActionResources, 'effectLibraryState' | 'copy' | 'productId' | 'locale' | 'onMacroScriptLog' | 'macroScriptStartedAt' | 'startMacroScriptTask'> & {
 	readonly getEditorActions?: () => Readonly<Record<string, unknown>> | null;
-	readonly selection: EditorSelectionActionGroup;
+	readonly selection: Pick<MacroCommandServiceRuntime, 'setExactSelection'>;
 };
 
 /**

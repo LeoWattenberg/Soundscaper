@@ -62,7 +62,7 @@ function createMacroActions(options: Readonly<{
 		getProject: () => ({ tracks: [], selection: null }),
 		projectSampleRate: () => 48_000,
 		timelineDurationFrames: () => 0,
-		setExactSelection: () => undefined,
+		selection: Object.freeze({ setExactSelection: () => undefined }),
 		beginMacroTransaction: options.beginMacroTransaction ?? (() => ({
 			assertCurrent: () => undefined, commit: () => undefined, rollback: () => undefined,
 		})),

@@ -1,8 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { LabelService } from '../edit/internal/label-service.ts';
-import type { EditorTrackService } from '../track-audio/internal/track-service.ts';
+import type { createEditComposition } from '../edit/edit-composition.ts';
+import type { createTrackAudioComposition } from '../track-audio/track-audio-composition.ts';
 import { deferAsyncControllerMethods, deferControllerMethods } from './internal/deferred-controller-methods.ts';
+
+type LabelService = ReturnType<typeof createEditComposition>['labels'];
+type TrackService = ReturnType<typeof createTrackAudioComposition>['track'];
 
 type LabelMutationCommand =
 	| Readonly<{
@@ -18,7 +21,7 @@ type LabelMutationCommand =
 	}>;
 
 interface EditorLabelActionGroupDependencies {
-	getTrack(): Pick<EditorTrackService, 'addLabel'>;
+	getTrack(): Pick<TrackService, 'addLabel'>;
 	getLabelService(): LabelService;
 	commit(command: LabelMutationCommand): unknown;
 }
