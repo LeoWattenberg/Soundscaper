@@ -12,6 +12,7 @@ import {
 	classifyNodeTestFile,
 	classifyNodeTestFiles,
 	listNodeTestFiles,
+	partitionNodeTestExecutionBatches,
 	parseNodeTestSelection,
 	selectNodeTestFiles,
 } from '../scripts/lib/node-test-shards.mjs';
@@ -134,6 +135,29 @@ test('the shard selection CLI accepts the shard ids and refuses anything else', 
 	assert.throws(() => parseNodeTestSelection(['--shard=common']), /Unknown test shard/u);
 	assert.throws(() => parseNodeTestSelection(['--shard=everything']), /Unknown test shard/u);
 	assert.throws(() => parseNodeTestSelection(['--stripe=1/4']), /Unknown test selection argument/u);
+});
+
+test('the real-time desktop protocol probe runs outside the parallel Node batch', () => {
+	const ordinaryFirst = '/repository/tests/ordinary-first.test.js';
+	const realTime = '/repository/tests/desktop-parallel-stack-protocol.test.ts';
+	const ordinaryLast = '/repository/tests/ordinary-last.test.ts';
+	assert.deepEqual(
+		partitionNodeTestExecutionBatches([ordinaryFirst, realTime, ordinaryLast]),
+		[[ordinaryFirst, ordinaryLast], [realTime]],
+		'a saturated parallel suite must not turn scheduler starvation into an audio-protocol failure',
+	);
+	assert.deepEqual(partitionNodeTestExecutionBatches([realTime]), [[realTime]]);
+
+	const discovered = listNodeTestFiles(ROOT).filter(
+		(file) => basename(file) === 'desktop-parallel-stack-protocol.test.ts',
+	);
+	assert.equal(discovered.length, 1, 'the real-time protocol probe must remain discoverable');
+	const shard = NODE_TEST_SHARD_IDS.find((id) => selectNodeTestFiles(ROOT, { shard: id }).includes(discovered[0]));
+	assert.ok(shard, 'the real-time protocol probe must belong to a shard');
+	const selected = selectNodeTestFiles(ROOT, { shard });
+	const batches = partitionNodeTestExecutionBatches(selected);
+	assert.deepEqual(batches.flat().sort(), [...selected].sort(), 'batching must retain every selected test exactly once');
+	assert.deepEqual(batches.at(-1), discovered, 'the discovered real-time protocol probe must be the final singleton');
 });
 
 for (const workflowName of SHARDED_WORKFLOWS) {

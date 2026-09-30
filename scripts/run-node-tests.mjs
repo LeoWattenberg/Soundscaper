@@ -8,6 +8,7 @@ import { spawnSync } from 'node:child_process';
 import {
 	describeNodeTestSelection,
 	parseNodeTestSelection,
+	partitionNodeTestExecutionBatches,
 	selectNodeTestFiles,
 } from './lib/node-test-shards.mjs';
 import {
@@ -51,15 +52,28 @@ if (coverageArgument !== undefined) {
 
 const styleAssetLoader = resolve(root, 'scripts/node-style-asset-loader.mjs');
 const requiredNativeReporter = resolve(root, 'scripts/require-linux-native-tests-reporter.mjs');
-const result = spawnSync(process.execPath, [
-	'--import', 'tsx', '--import', styleAssetLoader,
-	...(requireLinuxNative ? ['--test-reporter', requiredNativeReporter] : []),
-	'--test', ...testFiles,
-], {
-	cwd: root,
-	env,
-	stdio: 'inherit',
-});
+let executionError = null;
+let exitCode = 0;
+for (const batch of partitionNodeTestExecutionBatches(testFiles)) {
+	const result = spawnSync(process.execPath, [
+		'--import', 'tsx', '--import', styleAssetLoader,
+		...(requireLinuxNative ? ['--test-reporter', requiredNativeReporter] : []),
+		'--test', ...batch,
+	], {
+		cwd: root,
+		env,
+		stdio: 'inherit',
+	});
+	if (result.error) {
+		executionError = result.error;
+		break;
+	}
+	if (result.signal) {
+		executionError = new Error(`Node test runner terminated with ${result.signal}.`);
+		break;
+	}
+	if (result.status !== 0) exitCode = result.status ?? 1;
+}
 
 let requiredNativeReport = '';
 if (requiredNativeReportPath !== null) {
@@ -72,8 +86,7 @@ if (requiredNativeReportPath !== null) {
 	}
 }
 
-if (result.error) throw result.error;
-if (result.signal) throw new Error(`Node test runner terminated with ${result.signal}.`);
+if (executionError !== null) throw executionError;
 const requiredNativeError = requiredLinuxNativeSkipError(requiredNativeReport);
 if (requiredNativeError !== null) throw requiredNativeError;
-process.exitCode = result.status ?? 1;
+process.exitCode = exitCode;

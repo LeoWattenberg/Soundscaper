@@ -28,6 +28,12 @@ const PRODUCTS = Object.freeze([
 	{ id: 'soundscaper', reference: productReferencePattern('soundscaper'), name: /soundscaper/u },
 ]);
 
+// This probe asserts that two workers and an AudioWorklet continue while the
+// renderer thread is blocked. Running it beside hundreds of CPU-heavy test
+// processes instead measures host scheduler starvation and can trip the
+// production deadline before either worker receives its first block.
+const ISOLATED_NODE_TEST_NAMES = new Set(['desktop-parallel-stack-protocol.test.ts']);
+
 export function listNodeTestFiles(repositoryRoot) {
 	const testDirectory = resolve(repositoryRoot, 'tests');
 	return readdirSync(testDirectory, { withFileTypes: true })
@@ -70,6 +76,18 @@ export function selectNodeTestFiles(repositoryRoot, { shard = null } = {}) {
 	return shard === null
 		? listNodeTestFiles(repositoryRoot)
 		: (partitionNodeTestFiles(repositoryRoot).get(shard) ?? []);
+}
+
+export function partitionNodeTestExecutionBatches(testFiles) {
+	const parallel = [];
+	const isolated = [];
+	for (const testFile of testFiles) {
+		(ISOLATED_NODE_TEST_NAMES.has(basename(testFile)) ? isolated : parallel).push(testFile);
+	}
+	return [
+		...(parallel.length > 0 ? [parallel] : []),
+		...isolated.map((testFile) => [testFile]),
+	];
 }
 
 export function parseNodeTestSelection(argv) {
