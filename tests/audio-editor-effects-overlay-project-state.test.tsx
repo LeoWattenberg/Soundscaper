@@ -9,6 +9,7 @@ import { createAudioTrack } from '../src/common/editor/project-media-factory.ts'
 import { createAudioEditorProjectV17 } from '../src/common/editor/project-v17.ts';
 import AudioEditorEffectsOverlay from '../src/common/editor/ui/inspector/AudioEditorEffectsOverlay.jsx';
 import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
+import { deferred } from './helpers/async-test-control.ts';
 import {
 	installReactTestDom, reactProps, ReactTestElement,
 } from './helpers/react-test-dom.ts';
@@ -183,10 +184,4 @@ function effectProject(id: string) {
 interface Deferred<Value> {
 	readonly promise: Promise<Value>;
 	resolve(value: Value | PromiseLike<Value>): void;
-}
-
-function deferred<Value>(): Deferred<Value> {
-	let resolve: (value: Value | PromiseLike<Value>) => void = () => undefined;
-	const promise = new Promise<Value>((complete) => { resolve = complete; });
-	return { promise, resolve };
 }

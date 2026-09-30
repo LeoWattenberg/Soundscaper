@@ -13,6 +13,7 @@ import {
 import AudioWarpDialog from '../src/common/editor/ui/dialogs/AudioWarpDialog.tsx';
 import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
 import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts';
+import { deferred } from './helpers/async-test-control.ts';
 import {
 	installReactTestDom, reactProps, type ReactTestElement,
 } from './helpers/react-test-dom.ts';
@@ -90,12 +91,6 @@ function project(id: string) {
 		sources: [source], clips: [clip],
 		tracks: [createAudioTrack({ id: 'track', name: 'Track', clipIds: [clip.id] })],
 	});
-}
-
-function deferred<Value>() {
-	let resolve: (value: Value | PromiseLike<Value>) => void = () => undefined;
-	const promise = new Promise<Value>((complete) => { resolve = complete; });
-	return { promise, resolve };
 }
 
 function buttonWithText(root: ReactTestElement, text: string): ReactTestElement {

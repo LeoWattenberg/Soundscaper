@@ -7,6 +7,7 @@ import React, { act } from 'react';
 
 import { LabelExportDialog } from '../src/common/editor/ui/inspector/LabelExportDialog.jsx';
 import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
+import { deferred } from './helpers/async-test-control.ts';
 import {
 	installReactTestDom, reactProps, type ReactTestElement,
 } from './helpers/react-test-dom.ts';
@@ -231,14 +232,4 @@ interface Deferred<Value> {
 	readonly promise: Promise<Value>;
 	readonly resolve: (value: Value) => void;
 	readonly reject: (cause: unknown) => void;
-}
-
-function deferred<Value>(): Deferred<Value> {
-	let resolve!: (value: Value) => void;
-	let reject!: (cause: unknown) => void;
-	const promise = new Promise<Value>((accept, decline) => {
-		resolve = accept;
-		reject = decline;
-	});
-	return { promise, resolve, reject };
 }

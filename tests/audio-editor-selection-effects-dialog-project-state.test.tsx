@@ -7,6 +7,7 @@ import React, { act } from 'react';
 
 import { SelectionEffectsDialog } from '../src/common/editor/ui/inspector/SelectionEffectsDialog.jsx';
 import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
+import { deferred } from './helpers/async-test-control.ts';
 import {
 	installReactTestDom, reactProps, type ReactTestElement,
 } from './helpers/react-test-dom.ts';
@@ -477,10 +478,4 @@ async function settle<Value>(completion: Deferred<Value>, value: Value): Promise
 interface Deferred<Value> {
 	readonly promise: Promise<Value>;
 	readonly resolve: (value: Value) => void;
-}
-
-function deferred<Value>(): Deferred<Value> {
-	let resolve!: (value: Value) => void;
-	const promise = new Promise<Value>((accept) => { resolve = accept; });
-	return { promise, resolve };
 }

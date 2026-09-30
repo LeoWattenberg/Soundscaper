@@ -7,6 +7,7 @@ import React, { act } from 'react';
 
 import { AnalysisPanel } from '../src/common/editor/ui/inspector/AnalysisPanel.jsx';
 import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
+import { deferred } from './helpers/async-test-control.ts';
 import {
 	installReactTestDom, reactProps, type ReactTestElement,
 } from './helpers/react-test-dom.ts';
@@ -81,16 +82,6 @@ function snapshot(projectId: string) {
 		analysisReport: null,
 		analysisVisuals: null,
 	};
-}
-
-function deferred<Value>() {
-	let resolve: (value: Value | PromiseLike<Value>) => void = () => undefined;
-	let reject: (cause: Error) => void = () => undefined;
-	const promise = new Promise<Value>((complete, fail) => {
-		resolve = complete;
-		reject = fail;
-	});
-	return { promise, resolve, reject };
 }
 
 function buttonWithText(root: ReactTestElement, text: string): ReactTestElement {
