@@ -55,7 +55,6 @@
 		"scripts/lib/desktop-bundled-codec-corresponding-source.mjs": 587,
 		"scripts/lib/desktop-nightly-tests-runtime.mjs": 584,
 		"scripts/lib/desktop-package-content-manifest.mjs": 573,
-		"scripts/lib/desktop-project-library-runtime.mjs": 586,
 		"scripts/lib/desktop-scape-open-smoke.mjs": 598,
 		"scripts/lib/m7-local-assistance-privacy-metrics.mjs": 557,
 		"scripts/lib/milestone-5-native-source-acquisitions.mjs": 562,
