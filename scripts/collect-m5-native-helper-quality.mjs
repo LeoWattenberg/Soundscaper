@@ -132,7 +132,12 @@ export function assertM5NativeHelperCollectionHost(processEnvironment) {
 	);
 }
 
-/** Persist one immutable diagnostic result and its raw V2 measurement. */
+/**
+ * Persist one immutable diagnostic result and its raw V2 measurement.
+ * @param {string} outputDirectory
+ * @param {unknown} resultValue
+ * @param {unknown} [measurementValue]
+ */
 export async function writeM5NativeHelperResult(outputDirectory, resultValue, measurementValue = null) {
 	return writeQualityCollectorResult(outputDirectory, resultValue, {
 		resultLabel: 'M5 diagnostic result',
