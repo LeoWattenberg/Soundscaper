@@ -23,6 +23,7 @@ import type { createTrackAudioComposition } from '../track-audio/track-audio-com
 import type { createTransportComposition } from '../transport/transport-composition.ts';
 import { deferControllerMethods, deferAsyncControllerMethods } from './internal/deferred-controller-methods.ts';
 import { createEditorLabelActionGroup } from './label-action-group.ts';
+import { createEditorSelectionActionGroup } from './selection-action-group.ts';
 
 export interface ControllerBindingServices<RenderEngine extends ClipTimePitchRenderEngine = ClipTimePitchRenderEngine> {
 	readonly clips: () => ReturnType<typeof createClipVideoComposition>;
@@ -53,7 +54,6 @@ export function createControllerBindings<RenderEngine extends ClipTimePitchRende
 	const { load: loadPreferences } = deferControllerMethods(() => services.preferences(), ['load']);
 	const { switchProject } = deferControllerMethods(() => services.projectSwitchService(), ['switchProject']);
 	const { moveClipsToProjectBin, placeProjectBinClip, applyProjectBinReplacement } = deferControllerMethods(() => services.imports().projectBin, ['moveClipsToProjectBin', 'placeProjectBinClip', 'applyProjectBinReplacement']);
-	const { selectClip, setSelection, selectLeftOfPlaybackPosition, selectRightOfPlaybackPosition, setSnapSettings, snapTimelineFrame } = deferControllerMethods(() => services.tracks().selectionView, ['selectClip', 'setSelection', 'selectLeftOfPlaybackPosition', 'selectRightOfPlaybackPosition', 'setSnapSettings', 'snapTimelineFrame']);
 	const { materializeFreesoundUploadClip } = deferAsyncControllerMethods(() => services.tracks(), ['materializeFreesoundUploadClip']);
 	const { sampleEditingAvailable, setSampleEditMode } = deferControllerMethods(() => services.clips().sampleEdit, ['sampleEditingAvailable', 'setSampleEditMode']);
 	const { applySamplePencil, smoothSelectedSamples } = deferControllerMethods(() => services.clips(), ['applySamplePencil', 'smoothSelectedSamples']);
@@ -96,7 +96,7 @@ export function createControllerBindings<RenderEngine extends ClipTimePitchRende
 	const { renameProjectBinClip, removeProjectBinClip, setProjectBinClipColor, projectBinInstanceCount, selectProjectBinInstances, removeProjectBinSource } = deferControllerMethods(() => services.imports().projectBin, ['renameProjectBinClip', 'removeProjectBinClip', 'setProjectBinClipColor', 'projectBinInstanceCount', 'selectProjectBinInstances', 'removeProjectBinSource']);
 	const { mixAndRenderTracks, resampleTrack, resampleClip, swapTrackChannels, splitStereoTrack, makeStereoTrack } = deferControllerMethods(() => services.tracks(), ['mixAndRenderTracks', 'resampleTrack', 'resampleClip', 'swapTrackChannels', 'splitStereoTrack', 'makeStereoTrack']);
 	const { splitAtFrame } = deferControllerMethods(() => services.edits().clipboard, ['splitAtFrame']);
-	const { selectTrack, selectAllTracks, selectTrackStartToCursor, selectCursorToTrackEnd, selectTrackStartToEnd, selectedTracksTimeRange, toggleRmsWaveform, toggleVerticalRulers, toggleScrollViewToPlayhead, togglePinnedPlayhead, toggleRulerPlayback, selectAtZeroCrossings, setZoom } = deferControllerMethods(() => services.tracks().selectionView, ['selectTrack', 'selectAllTracks', 'selectTrackStartToCursor', 'selectCursorToTrackEnd', 'selectTrackStartToEnd', 'selectedTracksTimeRange', 'toggleRmsWaveform', 'toggleVerticalRulers', 'toggleScrollViewToPlayhead', 'togglePinnedPlayhead', 'toggleRulerPlayback', 'selectAtZeroCrossings', 'setZoom']);
+	const { selectedTracksTimeRange, toggleRmsWaveform, toggleVerticalRulers, toggleScrollViewToPlayhead, togglePinnedPlayhead, toggleRulerPlayback, setZoom } = deferControllerMethods(() => services.tracks().selectionView, ['selectedTracksTimeRange', 'toggleRmsWaveform', 'toggleVerticalRulers', 'toggleScrollViewToPlayhead', 'togglePinnedPlayhead', 'toggleRulerPlayback', 'setZoom']);
 	const { synchronizeAutomaticSampleEditMode, cancelSampleEdit } = deferControllerMethods(() => services.clips().sampleEdit, ['synchronizeAutomaticSampleEditMode', 'cancelSampleEdit']);
 	const { persistRecordingRouting, releaseInputs } = deferControllerMethods(() => services.recording().routing, ['persistRecordingRouting', 'releaseInputs']);
 	const { syncRecordingPoolSnapshot, setMonitoring, setRecordingInputGain, setLatencyOffset, invalidateTakeCycleRecording } = deferControllerMethods(() => services.recording(), ['syncRecordingPoolSnapshot', 'setMonitoring', 'setRecordingInputGain', 'setLatencyOffset', 'invalidateTakeCycleRecording']);
@@ -107,6 +107,9 @@ export function createControllerBindings<RenderEngine extends ClipTimePitchRende
 		getTrack: () => services.tracks().track,
 		getLabelService: () => services.edits().labels,
 		commit,
+	});
+	const selection = createEditorSelectionActionGroup({
+		getSelectionView: () => services.tracks().selectionView,
 	});
 	const { compactLiveSourceState, liveSessionSourceIds, liveSessionClipIds } = deferControllerMethods(() => services.doc().retention, ['compactLiveSourceState', 'liveSessionSourceIds', 'liveSessionClipIds']);
 	const { publishProjectState, setTimelineView, setAllTracksView } = deferControllerMethods(() => services.doc().view, ['publishProjectState', 'setTimelineView', 'setAllTracksView']);
@@ -129,8 +132,7 @@ export function createControllerBindings<RenderEngine extends ClipTimePitchRende
 	return Object.freeze({
 		openScape, saveScape, openAup4, openAudacityProject, saveAup4,
 		loadPreferences, switchProject, moveClipsToProjectBin, placeProjectBinClip,
-		applyProjectBinReplacement, labels, selectClip, setSelection,
-		selectLeftOfPlaybackPosition, selectRightOfPlaybackPosition, setSnapSettings, snapTimelineFrame,
+		applyProjectBinReplacement, labels, selection,
 		sampleEditingAvailable, setSampleEditMode, applySamplePencil, smoothSelectedSamples,
 		updateRecordingDeviceRows, addVideoClipEffect, updateVideoClipEffect, toggleVideoClipEffect,
 		bypassVideoClipEffect, previewVideoEffectGesture, commitVideoEffectGesture, cancelTimedRecording,
@@ -152,10 +154,9 @@ export function createControllerBindings<RenderEngine extends ClipTimePitchRende
 		cacheSourceBuffer, clearWaveformPcmWindows, renameProjectBinClip, removeProjectBinClip,
 		setProjectBinClipColor, projectBinInstanceCount, selectProjectBinInstances, removeProjectBinSource,
 		mixAndRenderTracks, materializeFreesoundUploadClip, resampleTrack, resampleClip, swapTrackChannels,
-		splitStereoTrack, makeStereoTrack, splitAtFrame, selectTrack,
-		selectAllTracks, selectTrackStartToCursor, selectCursorToTrackEnd, selectTrackStartToEnd,
+		splitStereoTrack, makeStereoTrack, splitAtFrame,
 		selectedTracksTimeRange, toggleRmsWaveform, toggleVerticalRulers, toggleScrollViewToPlayhead,
-		togglePinnedPlayhead, toggleRulerPlayback, selectAtZeroCrossings, setZoom,
+		togglePinnedPlayhead, toggleRulerPlayback, setZoom,
 		synchronizeAutomaticSampleEditMode, cancelSampleEdit, persistRecordingRouting, releaseInputs,
 		syncRecordingPoolSnapshot, setMonitoring, setRecordingInputGain, setLatencyOffset,
 		invalidateTakeCycleRecording, handleRecordingPoolChange, synchronizeMicrophoneMeterTarget, commit,

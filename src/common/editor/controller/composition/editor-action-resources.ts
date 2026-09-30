@@ -59,7 +59,6 @@ export interface EditorActionResources {
 	readonly fileService: ReturnType<typeof createAudioEditorFileService>;
 	readonly product: Readonly<{ id: string; name: string }>;
 	readonly regularIntervalAnnotationController: ReturnType<typeof createDocumentComposition>['regularIntervalAnnotation'];
-	readonly selectionViewService: ReturnType<typeof createTrackAudioComposition>['selectionView'];
 	readonly sequenceTimingService: ReturnType<typeof createClipVideoComposition>['sequenceTiming'];
 	readonly soundActivationPolicyService: ReturnType<typeof createControllerSoundActivationPolicy>;
 	readonly sourceMonitorService: ReturnType<typeof createClipVideoComposition>['sourceMonitor'];

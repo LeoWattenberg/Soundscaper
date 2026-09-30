@@ -14,6 +14,7 @@ import {
 import type { EditorActionFunctions } from '../composition/editor-action-functions.ts';
 import type { EditorActionResources } from '../composition/editor-action-resources.ts';
 import type { RestrictToCapability } from '../composition/action-facade-runtime.ts';
+import type { EditorSelectionActionGroup } from '../composition/selection-action-group.ts';
 
 export type EffectLibraryActionScope = Pick<EditorActionFunctions,
 	 'createStableId'
@@ -32,10 +33,10 @@ export type EffectLibraryActionScope = Pick<EditorActionFunctions,
 	| 'getProject'
 	| 'projectSampleRate'
 	| 'timelineDurationFrames'
-	| 'setExactSelection'
 	| 'beginMacroTransaction'
 > & Pick<EditorActionResources, 'effectLibraryState' | 'copy' | 'productId' | 'locale' | 'onMacroScriptLog' | 'macroScriptStartedAt' | 'startMacroScriptTask'> & {
 	readonly getEditorActions?: () => Readonly<Record<string, unknown>> | null;
+	readonly selection: EditorSelectionActionGroup;
 };
 
 /**
@@ -91,7 +92,7 @@ export function createEffectMacroActions(
 		},
 		projectSampleRate: scope.projectSampleRate,
 		timelineDurationFrames: scope.timelineDurationFrames,
-		setExactSelection: scope.setExactSelection,
+		setExactSelection: scope.selection.setExactSelection,
 		getActions: () => actions ?? scope.getEditorActions?.() ?? null,
 	});
 	const program = createMacroProgramService({
@@ -114,7 +115,7 @@ export function createEffectMacroActions(
 		projectSampleRate: scope.projectSampleRate,
 		runEffectMacro: scope.runEffectMacro,
 		runMacroCommand: commands.runMacroCommand,
-		setExactSelection: scope.setExactSelection,
+		setExactSelection: scope.selection.setExactSelection,
 		listSavedMacros: () => library.list(),
 		beginMacroTransaction: scope.beginMacroTransaction,
 	});

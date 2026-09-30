@@ -57,6 +57,33 @@ test('action assembly rejects an unowned label group even when its visible shape
 	assert.throws(() => assertEditorActionRuntime(scope), /Invalid editor action dependency: labels/u);
 });
 
+test('a missing or non-callable grouped exact-selection dependency fails with its exact path', () => {
+	for (const invalid of [undefined, null, 1, {}]) {
+		const runtime = createActionFacadeRuntime();
+		const scope = new Proxy(runtime, {
+			get(target, name, receiver) {
+				return name === 'selection'
+					? Object.freeze({ ...target.selection, setExactSelection: invalid })
+					: Reflect.get(target, name, receiver);
+			},
+		});
+		assert.throws(
+			() => assertEditorActionRuntime(scope),
+			/Missing editor action dependency: selection\.setExactSelection/u,
+		);
+	}
+});
+
+test('action assembly rejects an unowned selection group even when its visible shape matches', () => {
+	const runtime = createActionFacadeRuntime();
+	const scope = new Proxy(runtime, {
+		get(target, name, receiver) {
+			return name === 'selection' ? Object.freeze({ ...target.selection }) : Reflect.get(target, name, receiver);
+		},
+	});
+	assert.throws(() => assertEditorActionRuntime(scope), /Invalid editor action dependency: selection/u);
+});
+
 // The dependency inventory must remain closed even while some legacy command
 // payloads still need narrowing. An arbitrary index signature would make this
 // directive fail the test typecheck by accepting the misspelled port.

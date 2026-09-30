@@ -7,6 +7,8 @@ import {
 	createGroupedEditorActions,
 	type EditorActionRuntime,
 } from '../src/common/editor/controller/composition/action-facade.ts';
+import { createEditorSelectionActionGroup } from '../src/common/editor/controller/composition/selection-action-group.ts';
+import { createActionFacadeRuntime } from './helpers/action-facade-runtime-fixture.ts';
 
 const ACTIONS = Object.freeze([
 	'selectPreviousClipBoundaryToCursor',
@@ -25,31 +27,26 @@ test('controller timeline facade exposes every clip-selection navigation action'
 		name,
 		() => { calls.push(name); return name; },
 	])));
-	const callable = () => undefined;
-	const runtime = new Proxy<Record<string, unknown>>({}, {
-		get(_target, name) {
+	const base = createActionFacadeRuntime();
+	const selection = createEditorSelectionActionGroup({
+		getSelectionView: () => new Proxy({ clipNavigation }, {
+			get(target, name, receiver) {
+				return name === 'clipNavigation'
+					? clipNavigation
+					: Reflect.get(target, name, receiver) ?? (() => undefined);
+			},
+		}) as never,
+	});
+	const runtime = new Proxy(base, {
+		get(target, name, receiver) {
 			if (name === 'productSequenceActions') {
 				ambientProductReads += 1;
-				return { ambientSequenceAction: callable };
+				return { ambientSequenceAction: () => undefined };
 			}
-			if (name === 'selectionViewService') return { clipNavigation };
-			if (name === 'capabilities') return new Proxy({}, { get: () => true });
-			if (name === 'product') return { name: 'Soundscaper' };
-			if (name === 'copy') return { projectNotFound: 'Not found', localSourcesMissing: 'Missing' };
-			if (name === 'state') return { recentProjectIds: [], projects: [], preferences: { recording: {} }, effectPresets: {} };
-			if (name === 'videoTrimServices') return {
-				edge: { preview: callable, commit: callable, commitStep: callable },
-				rollRipple: { preview: callable, commit: callable },
-				slipSlide: { buildStepRequest: callable, preview: callable, commit: callable },
-				rateStretch: { preview: callable, commit: callable, commitStep: callable },
-			};
-			if (name === 'engine' || name === 'analysisService' || name === 'store') {
-				return new Proxy({}, { get: () => callable });
-			}
-			if (name === 'AUDIO_EDITOR_DEFAULT_SHORTCUTS') return {};
-			return callable;
+			if (name === 'selection') return selection;
+			return Reflect.get(target, name, receiver);
 		},
-	}) as unknown as EditorActionRuntime;
+	}) satisfies EditorActionRuntime;
 
 	const timeline = createGroupedEditorActions(runtime).timeline;
 	for (const name of ACTIONS) {

@@ -6,6 +6,10 @@ import {
 	assertEditorLabelActionGroup,
 	type EditorLabelActionGroup,
 } from './label-action-group.ts';
+import {
+	assertEditorSelectionActionGroup,
+	type EditorSelectionActionGroup,
+} from './selection-action-group.ts';
 export type { EditorActionResources } from './editor-action-resources.ts';
 
 type MissingEditorActionFunctionNames<Names extends readonly PropertyKey[]> =
@@ -177,16 +181,7 @@ export const EDITOR_ACTION_FUNCTION_NAMES = defineEditorActionFunctionNames([
 	'saveNow',
 	'saveScape',
 	'scheduleTimedRecording',
-	'selectAllTracks',
-	'selectAtZeroCrossings',
-	'selectClip',
-	'selectCursorToTrackEnd',
-	'selectLeftOfPlaybackPosition',
 	'selectProjectBinInstances',
-	'selectRightOfPlaybackPosition',
-	'selectTrack',
-	'selectTrackStartToCursor',
-	'selectTrackStartToEnd',
 	'sessionTab',
 	'setAllTracksView',
 	'setAudacityControlTrack',
@@ -195,7 +190,6 @@ export const EDITOR_ACTION_FUNCTION_NAMES = defineEditorActionFunctionNames([
 	'setAudioOutputDevice',
 	'setAutoFitTrackHeight',
 	'setClipTimePitch',
-	'setExactSelection',
 	'setLatencyOffset',
 	'setLoopRegion',
 	'setLoopRegionInOut',
@@ -215,10 +209,8 @@ export const EDITOR_ACTION_FUNCTION_NAMES = defineEditorActionFunctionNames([
 	'setRecordingTrackInput',
 	'setRetainInputs',
 	'setSampleEditMode',
-	'setSelection',
 	'setSelectionToLoopRegion',
 	'setShortcutPreference',
-	'setSnapSettings',
 	'setStatus',
 	'setTimelineView',
 	'setTimelineViewportWidth',
@@ -230,7 +222,6 @@ export const EDITOR_ACTION_FUNCTION_NAMES = defineEditorActionFunctionNames([
 	'setWorkspacePreference',
 	'setZoom',
 	'smoothSelectedSamples',
-	'snapTimelineFrame',
 	'splitAtFrame',
 	'splitStereoTrack',
 	'startRecording',
@@ -267,6 +258,7 @@ export const EDITOR_ACTION_FUNCTION_NAMES = defineEditorActionFunctionNames([
 
 export type EditorActionRuntime = EditorActionResources & EditorActionFunctions & Readonly<{
 	labels: EditorLabelActionGroup;
+	selection: EditorSelectionActionGroup;
 }>;
 export type RestrictToCapability = <Args extends unknown[], Result>(
 	capability: string, action: (...args: Args) => Result,
@@ -278,4 +270,5 @@ export function assertEditorActionRuntime(scope: EditorActionRuntime): void {
 		if (typeof scope[name] !== 'function') throw new TypeError(`Missing editor action dependency: ${name}.`);
 	}
 	assertEditorLabelActionGroup(scope.labels);
+	assertEditorSelectionActionGroup(scope.selection);
 }

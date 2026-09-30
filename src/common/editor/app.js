@@ -470,7 +470,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		abortError, activeSelection, assertPlayAtSpeedStaffPadMemorySafe, beginPlaybackCachePreparation: bindings.beginPlaybackCachePreparation, calculateAudioEditorMetronomeSchedule,
 		cancelPlaybackCachePreparation: bindings.cancelPlaybackCachePreparation, playbackCachePreparationPending: sources.timePitchCaches.isPlaybackCachePreparationPending, cancelTimedRecording: bindings.cancelTimedRecording, commit: bindings.commit, editingBlocked, editorTimelineDurationFrames, findTrack, formatPlaybackRate,
 		hasMissingTimelineSources: bindings.hasMissingTimelineSources, persistSetting, playAtSpeedPitchPreserver, productSettingKey, getProject: () => documentState.project,
-		projectDurationFrames, publishDocumentSnapshot, publishProjectState: bindings.publishProjectState, publishTelemetrySnapshot, sampleEditingAvailable: bindings.sampleEditingAvailable, setSelection: bindings.setSelection, setExactSelection: (startFrame, endFrame, details) => tracks.selectionView.setExactSelection(startFrame, endFrame, details), setStatus: bindings.setStatus,
+		projectDurationFrames, publishDocumentSnapshot, publishProjectState: bindings.publishProjectState, publishTelemetrySnapshot, sampleEditingAvailable: bindings.sampleEditingAvailable, setSelection: bindings.selection.setSelection, setExactSelection: bindings.selection.setExactSelection, setStatus: bindings.setStatus,
 		startRecording: bindings.startRecording, stopProjectBinPreview: bindings.stopProjectBinPreview, stopRecording: bindings.stopRecording, throwIfAborted,
 	});
 	const viewStateService = transportComposition.view;
@@ -501,7 +501,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		retireSourceChunkProvider: sources.sourceLifecycle.retireSourceChunkProvider,
 		getProject: () => documentState.project, getCommandProject, editingBlocked, commit: bindings.commit, publishProjectState: bindings.publishProjectState, publishDocumentSnapshot, setStatus: bindings.setStatus, handleError: bindings.handleError,
 		normalizePlaybackFrame, cancelPlaybackCachePreparation: bindings.cancelPlaybackCachePreparation, cancelPlayAtSpeedPreparation, stopProjectBinPreview: bindings.stopProjectBinPreview, hasMissingTimelineSources: bindings.hasMissingTimelineSources,
-		activateVideoSource: bindings.activateVideoSource, activateStoredSource: bindings.activateStoredSource, activeSelection, snapTimelineFrame: bindings.snapTimelineFrame, preflightStorage: bindings.preflightStorage, projectSampleRate, cacheSourceBuffer: bindings.cacheSourceBuffer,
+		activateVideoSource: bindings.activateVideoSource, activateStoredSource: bindings.activateStoredSource, activeSelection, snapTimelineFrame: bindings.selection.snapFrame, preflightStorage: bindings.preflightStorage, projectSampleRate, cacheSourceBuffer: bindings.cacheSourceBuffer,
 	});
 	videoNavigationService = clips.videoNavigation;
 	const tracks = createTrackAudioComposition({
@@ -529,9 +529,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 	bindSoundscaperPersistentDeliveryRuntime(options, { exportService: tracks.export, getProject: () => documentState.project, getSaveState: () => state.saveState, captureProjectGeneration: () => projectGeneration.capture(documentState.project?.id ?? null), assertProjectGeneration: (token) => projectGeneration.assertCurrent(token), deliveryReport: () => state.deliveryReport ?? null, cancelExport: cancelPersistentAudioDelivery, publishDocumentSnapshot });
 	const effects = createEffectsComposition({
 		state: effectsAccess, copy, locale, composition, absentSubsystem, lifetime, projectGeneration, projectRuntime, store, engine, sourceBuffers, sourcePeaks,
-		taskProgress, nyquistEvaluator, getProject: () => documentState.project, getCommandProject, activeSelection, selectedTracksTimeRange: bindings.selectedTracksTimeRange, editingBlocked, setSelection: bindings.setSelection,
+		taskProgress, nyquistEvaluator, getProject: () => documentState.project, getCommandProject, activeSelection, selectedTracksTimeRange: bindings.selectedTracksTimeRange, editingBlocked, setSelection: bindings.selection.setSelection,
 		persistSetting, publishDocumentSnapshot, setStatus: bindings.setStatus, preflightStorage: bindings.preflightStorage, renderSnapshot, prepareCommittedTimePitchCaches: bindings.prepareCommittedTimePitchCaches,
-		createRenderEngine: bindings.createCacheAwareRenderEngine, commit: bindings.commit, cacheSourceBuffer: bindings.cacheSourceBuffer, snapTimelineFrame: bindings.snapTimelineFrame, projectDurationFrames, projectSampleRate, handleError: bindings.handleError,
+		createRenderEngine: bindings.createCacheAwareRenderEngine, commit: bindings.commit, cacheSourceBuffer: bindings.cacheSourceBuffer, snapTimelineFrame: bindings.selection.snapFrame, projectDurationFrames, projectSampleRate, handleError: bindings.handleError,
 	});
 	const edits = createEditComposition({
 		state, copy, lifetime, projectGeneration, projectRuntime, composition, absentSubsystem, session: sessionController, store, engine, setEffectProcessing: effectsStatePorts.processing.set,
@@ -539,7 +539,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		effectTargets: (...args) => effects.selection.audacityEffectTargets(...args),
 		persistEffectResults: (results, type, scope) => effects.result.persistAudacityEffectResults(results, type, scope),
 		getProject: () => documentState.project, getCommandProject, editingBlocked, commit: bindings.commit, setStatus: bindings.setStatus, publishDocumentSnapshot, handleError: bindings.handleError, preflightStorage: bindings.preflightStorage,
-		normalizeTimelineFrame, snapTimelineFrame: bindings.snapTimelineFrame, activeSelection, cacheSourceBuffer: bindings.cacheSourceBuffer, projectChanged: bindings.projectChanged, garbageCollectSources: bindings.garbageCollectSources, compactLiveSourceState: bindings.compactLiveSourceState,
+		normalizeTimelineFrame, snapTimelineFrame: bindings.selection.snapFrame, activeSelection, cacheSourceBuffer: bindings.cacheSourceBuffer, projectChanged: bindings.projectChanged, garbageCollectSources: bindings.garbageCollectSources, compactLiveSourceState: bindings.compactLiveSourceState,
 	});
 	const imports = createImportComposition({
 		state, copy, lifetime, projectGeneration, store, engine, ffmpeg, archiveRuntime: deferredArchiveRuntime, helperTimingProbe: fileService.helperTimingProbe, adaptAudacityProject: options.adaptAudacityProject,
@@ -591,7 +591,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		setLoopRegion, setLoopRegionInOut,
 		setLoopRegionToSelection, setPanelDockExtentPreference, setPanelFrameSizePreference, setPanelPreference, setPanelVisibilityPreference,
 		setPlayAtSpeedRate,
-		setExactSelection: tracks.selectionView.setExactSelection, setSelectionToLoopRegion, setShortcutPreference,
+		setSelectionToLoopRegion, setShortcutPreference,
 		effectSelectionService: effects.selection, effectLibraryState: effectsAccess, effectPreviewState: effectsStatePorts.preview,
 		setToolbarButtonPreference, setTrackDisplayMode, setTrackRate,
 		setWorkspacePreference,
@@ -603,7 +603,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		recoverTakeCycleRecording: (pending) => takeCycleOpenRecovery.resolve(pending, 'recover'), discardTakeCycleRecording: (pending) => takeCycleOpenRecovery.resolve(pending, 'discard'),
 		toggleStretchToTempo: clips.clipProperty.toggleStretchToTempo,
 		toggleToolbarPreference,
-		selectionViewService: tracks.selectionView, sequenceTimingService: clips.sequenceTiming, timelineAnnotationService: doc.timelineAnnotation, regularIntervalAnnotationController: doc.regularIntervalAnnotation, trackFolderService: doc.trackFolder, trackStructuralOperations: tracks.track.structuralOperations, soundActivationPolicyService,
+		sequenceTimingService: clips.sequenceTiming, timelineAnnotationService: doc.timelineAnnotation, regularIntervalAnnotationController: doc.regularIntervalAnnotation, trackFolderService: doc.trackFolder, trackStructuralOperations: tracks.track.structuralOperations, soundActivationPolicyService,
 		audioWarpService: tracks.audioWarp, sourceMonitorService: clips.sourceMonitor, takeCompService: tracks.takeComp, taskProgress, videoTrimServices: clips.videoTrim, videoEditService: clips.videoEdit, videoNavigationService, videoSourceReprobeService: clips.videoSourceReprobe, framescaperCaptureActions: framescaperCapture ? { ...framescaperCapture.actions, openSetup: () => { framescaperCapture.actions.openSetup(); void preferencesService.setPanelVisibility('recording-setup', true).catch(bindings.handleError); } } : undefined, framescaperWebVcrActions: framescaperCapture?.webVcrActions, ...productActionRuntime(options),
 		updateWorkspacePreference,
 	}, () => lifetime.assertActive());

@@ -186,16 +186,7 @@ export interface EditorActionFunctions {
 	readonly saveNow: ReturnType<typeof createDocumentComposition>['mutation']['saveNow'];
 	readonly saveScape: ReturnType<typeof createNativeProjectService>['saveScape'];
 	readonly scheduleTimedRecording: ReturnType<typeof createRecordingComposition>['timed']['scheduleTimedRecording'];
-	readonly selectAllTracks: ReturnType<typeof createTrackAudioComposition>['selectionView']['selectAllTracks'];
-	readonly selectAtZeroCrossings: ReturnType<typeof createTrackAudioComposition>['selectionView']['selectAtZeroCrossings'];
-	readonly selectClip: ReturnType<typeof createTrackAudioComposition>['selectionView']['selectClip'];
-	readonly selectCursorToTrackEnd: ReturnType<typeof createTrackAudioComposition>['selectionView']['selectCursorToTrackEnd'];
-	readonly selectLeftOfPlaybackPosition: ReturnType<typeof createTrackAudioComposition>['selectionView']['selectLeftOfPlaybackPosition'];
 	readonly selectProjectBinInstances: ReturnType<typeof createImportComposition>['projectBin']['selectProjectBinInstances'];
-	readonly selectRightOfPlaybackPosition: ReturnType<typeof createTrackAudioComposition>['selectionView']['selectRightOfPlaybackPosition'];
-	readonly selectTrack: ReturnType<typeof createTrackAudioComposition>['selectionView']['selectTrack'];
-	readonly selectTrackStartToCursor: ReturnType<typeof createTrackAudioComposition>['selectionView']['selectTrackStartToCursor'];
-	readonly selectTrackStartToEnd: ReturnType<typeof createTrackAudioComposition>['selectionView']['selectTrackStartToEnd'];
 	readonly sessionTab: ReturnType<typeof createDocumentComposition>['session']['sessionTab'];
 	readonly setAllTracksView: ReturnType<typeof createDocumentComposition>['view']['setAllTracksView'];
 	readonly setAudacityControlTrack: ReturnType<typeof createEffectsComposition>['controls']['setAudacityControlTrack'];
@@ -204,7 +195,6 @@ export interface EditorActionFunctions {
 	readonly setAudioOutputDevice: ReturnType<typeof createRecordingComposition>['routing']['setAudioOutputDevice'];
 	readonly setAutoFitTrackHeight: ReturnType<typeof createTransportComposition>['view']['setAutoFitTrackHeight'];
 	readonly setClipTimePitch: ReturnType<typeof createClipVideoComposition>['clipProperty']['setClipTimePitch'];
-	readonly setExactSelection: ReturnType<typeof createTrackAudioComposition>['selectionView']['setExactSelection'];
 	readonly setLatencyOffset: ReturnType<typeof createRecordingComposition>['setLatencyOffset'];
 	readonly setLoopRegion: ReturnType<typeof createTransportComposition>['transport']['setLoopRegion'];
 	readonly setLoopRegionInOut: ReturnType<typeof createTransportComposition>['transport']['setLoopRegionInOut'];
@@ -224,10 +214,8 @@ export interface EditorActionFunctions {
 	readonly setRecordingTrackInput: ReturnType<typeof createRecordingComposition>['inputs']['setRecordingTrackInput'];
 	readonly setRetainInputs: ReturnType<typeof createRecordingComposition>['routing']['setRetainInputs'];
 	readonly setSampleEditMode: ReturnType<typeof createClipVideoComposition>['sampleEdit']['setSampleEditMode'];
-	readonly setSelection: ReturnType<typeof createTrackAudioComposition>['selectionView']['setSelection'];
 	readonly setSelectionToLoopRegion: ReturnType<typeof createTransportComposition>['transport']['setSelectionToLoopRegion'];
 	readonly setShortcutPreference: ReturnType<typeof createPreferencesComposition>['actions']['setShortcutPreference'];
-	readonly setSnapSettings: ReturnType<typeof createTrackAudioComposition>['selectionView']['setSnapSettings'];
 	readonly setStatus: ReturnType<typeof createControllerPresentationState>['setStatus'];
 	readonly setTimelineView: ReturnType<typeof createDocumentComposition>['view']['setTimelineView'];
 	readonly setTimelineViewportWidth: ReturnType<typeof createTransportComposition>['view']['setTimelineViewportWidth'];
@@ -239,7 +227,6 @@ export interface EditorActionFunctions {
 	readonly setWorkspacePreference: ReturnType<typeof createPreferencesComposition>['actions']['setWorkspacePreference'];
 	readonly setZoom: ReturnType<typeof createTrackAudioComposition>['selectionView']['setZoom'];
 	readonly smoothSelectedSamples: ReturnType<typeof createClipVideoComposition>['smoothSelectedSamples'];
-	readonly snapTimelineFrame: ReturnType<typeof createTrackAudioComposition>['selectionView']['snapTimelineFrame'];
 	readonly splitAtFrame: ReturnType<typeof createEditComposition>['clipboard']['splitAtFrame'];
 	readonly splitStereoTrack: ReturnType<typeof createTrackAudioComposition>['splitStereoTrack'];
 	readonly startRecording: ReturnType<typeof createRecordingComposition>['session']['startRecording'];

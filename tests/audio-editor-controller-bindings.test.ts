@@ -34,8 +34,19 @@ test('controller binding construction leaves unrelated owners uninitialized', ()
 	assert.equal(reads, 0);
 	assert.equal(typeof bindings.labels, 'object');
 	assert.equal(Object.isFrozen(bindings.labels), true);
+	assert.equal(typeof bindings.selection, 'object');
+	assert.equal(Object.isFrozen(bindings.selection), true);
 	assert.deepEqual(
 		['addLabel', 'importLabelFile', 'importCueFile', 'exportLabels'].filter((name) => Object.hasOwn(bindings, name)),
+		[],
+	);
+	assert.deepEqual(
+		[
+			'selectTrack', 'selectClip', 'setSelection', 'selectAllTracks',
+			'selectLeftOfPlaybackPosition', 'selectRightOfPlaybackPosition',
+			'selectTrackStartToCursor', 'selectCursorToTrackEnd', 'selectTrackStartToEnd',
+			'setSnapSettings', 'snapTimelineFrame', 'selectAtZeroCrossings',
+		].filter((name) => Object.hasOwn(bindings, name)),
 		[],
 	);
 	bindings.setStatus('Imported');
