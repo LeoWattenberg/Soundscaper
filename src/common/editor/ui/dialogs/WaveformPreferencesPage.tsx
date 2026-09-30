@@ -102,8 +102,8 @@ export default function WaveformPreferencesPage({
 function normalizedDraft(lowMid: string, midHigh: string): WaveformVisualizationPreferences | null {
 	try {
 		return normalizeWaveformVisualizationPreferences({
-			lowMidCrossoverHz: lowMid,
-			midHighCrossoverHz: midHigh,
+			lowMidCrossoverHz: Number(lowMid),
+			midHighCrossoverHz: Number(midHigh),
 		});
 	} catch {
 		return null;
