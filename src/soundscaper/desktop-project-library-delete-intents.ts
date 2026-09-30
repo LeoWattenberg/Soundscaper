@@ -14,12 +14,14 @@ const PREFIX = 'soundscaper.desktop-v1.delete-intent.v1:';
 const FIELDS = [
 	'kind', 'version', 'projectId', 'metadataRevision', 'projectRevision', 'projectSha256',
 ] as const;
+const MAXIMUM_INTENTS = 4_096;
 
 export interface SoundscaperDesktopDeleteIntentStore {
 	putIfAbsent(key: string, value: unknown): PromiseLike<boolean> | boolean;
 	deleteIfCurrent(key: string, expected: unknown): PromiseLike<boolean> | boolean;
-	listByPrefix(prefix: string): PromiseLike<readonly Readonly<{ key: string; value: unknown }>[]> |
-		readonly Readonly<{ key: string; value: unknown }>[];
+	listByPrefix(prefix: string): PromiseLike<readonly Readonly<{
+		key: string; projectId?: string; value: unknown;
+	}>[]> | readonly Readonly<{ key: string; projectId?: string; value: unknown }>[];
 }
 
 export interface SoundscaperDesktopDeleteIntentShadowStore {
@@ -71,7 +73,8 @@ export async function reconcileSoundscaperDesktopDeleteIntents(options: Readonly
 				throw new Error('A pending desktop  delete shadow changed before exact cleanup.');
 			}
 		});
-		if (await options.shadow.loadProject(intent.projectId) !== null) {
+		const remaining = await options.shadow.loadProject(intent.projectId);
+		if (remaining !== null && remaining !== undefined) {
 			throw new Error('A pending desktop  delete shadow remained after restart cleanup.');
 		}
 		await options.intents.remove(intent);
@@ -105,7 +108,7 @@ export class SoundscaperDesktopDeleteIntents {
 	}
 
 	async list(): Promise<readonly SoundscaperDesktopDeleteIntent[]> {
-		const rows = await this.#store.listByPrefix(PREFIX);
+		const rows = intentRows(await this.#store.listByPrefix(PREFIX));
 		const projectIds = new Set<string>();
 		return Object.freeze(rows.map((row) => {
 			const intent = validate(row.value);
@@ -125,7 +128,14 @@ function validate(value: unknown): SoundscaperDesktopDeleteIntent {
 		|| JSON.stringify(Reflect.ownKeys(value).sort()) !== JSON.stringify([...FIELDS].sort())) {
 		throw new TypeError('A closed desktop  delete intent is required.');
 	}
-	const raw = value as Record<(typeof FIELDS)[number], unknown>;
+	const raw = Object.create(null) as Record<(typeof FIELDS)[number], unknown>;
+	for (const field of FIELDS) {
+		const descriptor = Object.getOwnPropertyDescriptor(value, field);
+		if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) {
+			throw new TypeError(`A desktop  delete intent ${field} must be an own enumerable data property.`);
+		}
+		raw[field] = descriptor.value;
+	}
 	if (raw.kind !== 'soundscaper-desktop-v1-delete-intent' || raw.version !== 1
 		|| !Number.isSafeInteger(raw.metadataRevision) || Number(raw.metadataRevision) < 0
 		|| !Number.isSafeInteger(raw.projectRevision) || Number(raw.projectRevision) < 0
@@ -136,4 +146,42 @@ function validate(value: unknown): SoundscaperDesktopDeleteIntent {
 		...raw,
 		projectId: validateSoundscaperDesktopProjectId(raw.projectId),
 	}) as SoundscaperDesktopDeleteIntent;
+}
+
+function intentRows(
+	value: unknown,
+): readonly Readonly<{ readonly key: string; readonly value: unknown }>[] {
+	if (!Array.isArray(value) || Object.getPrototypeOf(value) !== Array.prototype
+		|| value.length > MAXIMUM_INTENTS || Reflect.ownKeys(value).length !== value.length + 1) {
+		throw new TypeError('Desktop delete intent rows must be a bounded dense array.');
+	}
+	const rows: Readonly<{ readonly key: string; readonly value: unknown }>[] = [];
+	for (let index = 0; index < value.length; index += 1) {
+		const item = Object.getOwnPropertyDescriptor(value, String(index));
+		if (!item?.enumerable || !Object.hasOwn(item, 'value')) {
+			throw new TypeError(`Desktop delete intent row ${String(index)} must be an own data property.`);
+		}
+		const row = item.value;
+		const rowKeys = row && typeof row === 'object' && !Array.isArray(row)
+			? Reflect.ownKeys(row) : [];
+		if (!row || typeof row !== 'object' || Array.isArray(row)
+			|| (Object.getPrototypeOf(row) !== Object.prototype && Object.getPrototypeOf(row) !== null)
+			|| rowKeys.length < 2 || rowKeys.length > 3
+			|| rowKeys.some((field) => field !== 'key' && field !== 'projectId' && field !== 'value')) {
+			throw new TypeError(`Desktop delete intent row ${String(index)} must be a closed record.`);
+		}
+		const keyDescriptor = Object.getOwnPropertyDescriptor(row, 'key');
+		const projectIdDescriptor = Object.getOwnPropertyDescriptor(row, 'projectId');
+		const valueDescriptor = Object.getOwnPropertyDescriptor(row, 'value');
+		if (!keyDescriptor?.enumerable || !Object.hasOwn(keyDescriptor, 'value')
+			|| !valueDescriptor?.enumerable || !Object.hasOwn(valueDescriptor, 'value')
+			|| typeof keyDescriptor.value !== 'string'
+			|| projectIdDescriptor !== undefined && (!projectIdDescriptor.enumerable
+				|| !Object.hasOwn(projectIdDescriptor, 'value')
+				|| typeof projectIdDescriptor.value !== 'string')) {
+			throw new TypeError(`Desktop delete intent row ${String(index)} fields must be own data properties.`);
+		}
+		rows.push(Object.freeze({ key: keyDescriptor.value, value: valueDescriptor.value }));
+	}
+	return Object.freeze(rows);
 }

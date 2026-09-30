@@ -194,10 +194,19 @@ function denseArray(value: unknown, name: string): readonly unknown[] {
 		throw new TypeError(`${name} must be an array.`)
 	}
 	for (let index = 0; index < value.length; index += 1) {
-		if (!Object.hasOwn(value, index)) throw new TypeError(`${name} must be dense.`)
+		const descriptor = Object.getOwnPropertyDescriptor(value, String(index))
+		if (!descriptor) throw new TypeError(`${name} must be dense.`)
+		if (!descriptor.enumerable || !Object.hasOwn(descriptor, 'value')) {
+			throw new TypeError(`${name}[${String(index)}] must be an own enumerable data property.`)
+		}
 	}
-	if (Reflect.ownKeys(value).some((key) => key !== 'length'
-		&& (typeof key === 'symbol' || !/^(0|[1-9]\d*)$/u.test(key)))) {
+	if (Reflect.ownKeys(value).some((key) => {
+		if (key === 'length') return false
+		if (typeof key === 'symbol') return true
+		const index = Number(key)
+		return !Number.isSafeInteger(index) || index < 0 || index >= value.length
+			|| String(index) !== key
+	})) {
 		throw new TypeError(`${name} contains an unsupported property.`)
 	}
 	return value
