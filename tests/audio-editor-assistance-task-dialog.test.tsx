@@ -4,7 +4,8 @@ import test from 'node:test';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { LocalAssistanceDialogView } from '../src/common/editor/ui/dialogs/LocalAssistanceDialog.tsx';
-import { createLocalAssistanceSessionStore } from '../src/common/editor/ui/local-assistance-session-store.ts';
+import { createLocalAssistanceAdvancedWorkflowSessionStore } from
+	'../src/common/editor/ui/local-assistance-advanced-session-store.ts';
 import { createLocalAssistanceGuidedSessionStore } from '../src/common/editor/ui/local-assistance-guided-session-store.ts';
 import { defaultAssistanceWorkflowSettingsV1 } from '../src/common/editor/assistance/workflow-settings-v1.ts';
 import { assistanceTaskModelFilter } from '../src/common/editor/controller/assistance/local-assistance-task-models.ts';
@@ -15,7 +16,8 @@ test('task dialog has a task title and no mode or workflow picker', () => {
 	guided.selectWorkflow('enhance-dialogue');
 	const html = renderToStaticMarkup(<LocalAssistanceDialogView copy={{}}
 		request={{ mode: 'task', workflowId: 'enhance-dialogue' }}
-		snapshot={createLocalAssistanceSessionStore(options).getSnapshot()} guided={guided.getSnapshot()}
+		snapshot={createLocalAssistanceAdvancedWorkflowSessionStore(options).getSnapshot()}
+		guided={guided.getSnapshot()}
 		onClose={() => undefined} onSelectSource={() => undefined} onSelectOperation={() => undefined}
 		onSelectModel={() => undefined} onConsentChange={() => undefined} onRun={() => undefined}
 		onCancel={() => undefined} onReview={() => undefined} onAccept={() => undefined} />);

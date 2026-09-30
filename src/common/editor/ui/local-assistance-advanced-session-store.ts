@@ -37,7 +37,7 @@ import type {
 	LocalAssistanceSessionStore,
 	LocalAssistanceSnapshot,
 	LocalAssistanceUiUnavailableReason,
-} from './local-assistance-session-store.ts';
+} from './local-assistance-session-types.ts';
 import {
 	createLocalAssistanceTranscriptCleanupStore,
 	type LocalAssistanceTranscriptCleanupStore,

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { Button } from '@soundscaper/design-system/Button';
-import type { LocalAssistanceSnapshot } from '../local-assistance-session-store.ts';
+import type { LocalAssistanceSnapshot } from '../local-assistance-session-types.ts';
 import type { AssistanceWorkflowSettingsV1 } from '../../assistance/workflow-settings-v1.ts';
 import { assistanceTaskModelsReady } from '../../controller/assistance/local-assistance-task-models.ts';
 

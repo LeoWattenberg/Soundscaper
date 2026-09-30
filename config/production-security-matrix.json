@@ -5645,7 +5645,7 @@
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/ui/local-assistance-session-store.ts"
+							"path": "src/common/editor/ui/local-assistance-advanced-session-store.ts"
 						},
 						{
 							"kind": "implementation",

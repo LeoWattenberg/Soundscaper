@@ -30,7 +30,7 @@ import { localAssistanceModelCompatible, localAssistanceModelTaskSlots,
 import {
 	type LocalAssistanceSnapshot,
 	type LocalAssistanceUiUnavailableReason,
-} from '../local-assistance-session-store.ts';
+} from '../local-assistance-session-types.ts';
 import { assistanceTaskLabel, type AssistanceDialogRequest } from '../assistance-task-catalog.ts';
 import { assistanceTaskModelFilter, assistanceTaskModelsReady } from '../../controller/assistance/local-assistance-task-models.ts';
 import type { LocalModelManagerBridge } from '../local-model-manager-bridge.ts';

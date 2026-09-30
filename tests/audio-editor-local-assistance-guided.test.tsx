@@ -31,7 +31,7 @@ import type { LocalAssistanceBridge } from '../src/common/editor/assistance/loca
 import type {
 	LocalAssistanceSelectedMediaPreparationPort,
 } from '../src/common/editor/assistance/local-assistance-preparation.ts';
-import type { LocalAssistanceSnapshot } from '../src/common/editor/ui/local-assistance-session-store.ts';
+import type { LocalAssistanceSnapshot } from '../src/common/editor/ui/local-assistance-session-types.ts';
 import { digestMediaContent } from '../src/common/editor/storage/media-content-digest.ts';
 import { assistanceWorkflowFixture, WORKFLOW_JOB_ID } from './helpers/assistance-workflow-fixture.ts';
 

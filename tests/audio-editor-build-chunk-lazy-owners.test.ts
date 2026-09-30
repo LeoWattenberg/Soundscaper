@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import {
@@ -440,8 +440,12 @@ test('stateful local assistance implementations share one dedicated lazy owner',
 test('menu-opened execution and UI surfaces use dedicated lazy owners', () => {
 	for (const path of [
 		'src/common/editor/ui/PrivacyPolicyRoute.tsx',
-		'src/common/editor/ui/local-assistance-guided-session-store.ts', 'src/common/editor/ui/local-assistance-review-authority.ts',
-		'src/common/editor/ui/local-assistance-session-store.ts',
+		'src/common/editor/ui/local-assistance-advanced-session-store.ts',
+		'src/common/editor/ui/local-assistance-guided-session-store.ts',
+		'src/common/editor/ui/local-assistance-review-authority.ts',
+		'src/common/editor/ui/local-assistance-selection-state.ts',
+		'src/common/editor/ui/local-assistance-session-types.ts',
+		'src/common/editor/ui/local-assistance-transcript-cleanup-store.ts',
 		'src/common/editor/ui/workspace/RecordingSetupPanel.tsx',
 		'src/common/editor/ui/workspace/SoundscaperRoutingGraphInspector.tsx',
 		'src/common/editor/ui/workspace/SoundscaperRoutingGraphView.tsx',
@@ -466,6 +470,9 @@ test('menu-opened execution and UI surfaces use dedicated lazy owners', () => {
 		assert.ok(group);
 		assert.equal(group.includeDependenciesRecursively, false);
 	}
+	assert.equal(existsSync(new URL(
+		'../src/common/editor/ui/local-assistance-session-store.ts', import.meta.url,
+	)), false, 'the unused operation-v1 UI store must stay retired');
 });
 
 test('effect dialogs and their design-system shell share one cycle-free lazy owner', () => {
