@@ -432,9 +432,9 @@ export class FramescaperNativeImageSequenceImportAuthority {
 			transaction.sourceId = admission.sourceId;
 			await this.#persist(transaction);
 			const result = Object.freeze({
-				kind: admission.kind, admitted: true,
-				projectId: admission.projectId, projectRevision: admission.projectRevision,
-				sourceId: admission.sourceId,
+				kind: admission.kind, admitted: true, schemaFamily: admission.schemaFamily,
+				schemaVersion: admission.schemaVersion, projectId: admission.projectId,
+				projectRevision: admission.projectRevision, sourceId: admission.sourceId,
 				inventorySha256: inventoryReference.sha256,
 				sourcePackSha256: packReference.sha256,
 				characteristics,

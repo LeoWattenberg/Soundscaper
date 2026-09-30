@@ -90,8 +90,14 @@ test('the production baseline ports stream pathless bytes over the negotiated Me
 		offset: 0, length: assets.inventory.reference.byteLength,
 	}), assets.inventory.bytes);
 	const request = admission('unused', assets);
-	const result = await ports.admit(request) as Readonly<{ admitted: boolean }>;
+	const result = await ports.admit(request) as Readonly<{
+		admitted: boolean;
+		schemaFamily?: unknown;
+		schemaVersion?: unknown;
+	}>;
 	assert.equal(result.admitted, true);
+	assert.equal(result.schemaFamily, request.schemaFamily);
+	assert.equal(result.schemaVersion, request.schemaVersion);
 	fixture.project.revision = 5;
 	fixture.project.storageKeys.add(assets.inventory.reference.storageKey);
 	fixture.project.storageKeys.add(assets.pack.storageKey);

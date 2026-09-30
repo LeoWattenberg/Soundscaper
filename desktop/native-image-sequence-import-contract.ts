@@ -222,7 +222,13 @@ export function parseFramescaperNativeImageSequenceManifest(
 			? null : normalizeFramescaperNativeImageSequenceReference(record.inventory, 'inventory'),
 	});
 	const authenticator = framescaperNativeImageSequenceSha256(record.authenticator);
-	if (authenticator !== imageSequenceStorageSha256(JSON.stringify(body))) {
+	const legacyBody = Object.freeze({
+		...body,
+		pack: record.pack,
+		inventory: record.inventory,
+	});
+	if (authenticator !== imageSequenceStorageSha256(JSON.stringify(body))
+		&& authenticator !== imageSequenceStorageSha256(JSON.stringify(legacyBody))) {
 		throw new Error('Unauthenticated image-sequence recovery manifest.');
 	}
 	return Object.freeze({ ...body, authenticator });
