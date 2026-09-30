@@ -15,8 +15,10 @@ export function localeLanguage(candidate = 'en') {
 export function localizedValue(value, locale = 'en') {
 	if (!value || typeof value !== 'object') return String(value ?? '');
 	const normalizedLocale = normalizeBcp47Locale(locale);
-	return value[normalizedLocale]
-		?? value[localeLanguage(normalizedLocale)]
-		?? value.en
-		?? String(value ?? '');
+	for (const key of [normalizedLocale, localeLanguage(normalizedLocale), 'en']) {
+		if (!Object.hasOwn(value, key)) continue;
+		const candidate = value[key];
+		if (typeof candidate === 'string') return candidate;
+	}
+	return String(value ?? '');
 }

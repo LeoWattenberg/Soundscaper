@@ -285,6 +285,7 @@ test('the fallback watch ignores acknowledgements for entries not yet posted', (
 	watch.port.post({
 		kind: 'entry',
 		entryId: 'p1',
+		sessionId: 'early-ack',
 	}, FRAMESCAPER);
 	acknowledge();
 	assert.deepEqual(watch.outcomes.map(({ entryId }) => entryId), ['p1']);

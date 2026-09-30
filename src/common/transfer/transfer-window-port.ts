@@ -20,6 +20,7 @@ import type {
 	ProjectTransferInboundMessage,
 	ProjectTransferPort,
 } from './project-transfer-handshake.ts';
+import { admitTransferOrigin } from './transfer-configuration.ts';
 
 export interface TransferMessageEventLike {
 	readonly origin: unknown;
@@ -133,11 +134,12 @@ function admitAllowedOriginSet(value: unknown): ReadonlySet<string> {
 		throw new TypeError('A window transfer port needs between one and eight allowed origins.');
 	}
 	const origins = new Set<string>();
-	for (const entry of value) {
-		if (typeof entry !== 'string' || !entry || entry === '*' || entry === 'null') {
+	for (const [index, entry] of value.entries()) {
+		try {
+			origins.add(admitTransferOrigin(entry, `allowedOrigins[${String(index)}]`));
+		} catch {
 			throw new TypeError('Every allowed transfer origin must be one exact origin.');
 		}
-		origins.add(entry);
 	}
 	return origins;
 }
@@ -166,10 +168,20 @@ export function openTransferPopup(options: OpenTransferPopupOptions): TransferMe
 	if (typeof scope?.open !== 'function') {
 		throw new TypeError('Opening a transfer popup needs a scope that can open windows.');
 	}
-	if (typeof url !== 'string' || !/^https?:\/\//u.test(url)) {
+	if (typeof url !== 'string') {
 		throw new TypeError('A transfer popup URL must be an absolute http(s) URL.');
 	}
-	const popup = scope.open(url, options.name ?? 'kw-project-transfer', options.features ?? TRANSFER_POPUP_FEATURES);
+	let parsed: URL;
+	try {
+		parsed = new URL(url);
+	} catch {
+		throw new TypeError('A transfer popup URL must be an absolute http(s) URL.');
+	}
+	if ((parsed.protocol !== 'http:' && parsed.protocol !== 'https:')
+		|| parsed.username || parsed.password) {
+		throw new TypeError('A transfer popup URL must be an absolute http(s) URL.');
+	}
+	const popup = scope.open(parsed.href, options.name ?? 'kw-project-transfer', options.features ?? TRANSFER_POPUP_FEATURES);
 	if (!popup || typeof popup.postMessage !== 'function') {
 		throw new TransferWindowError(
 			'popup-blocked',

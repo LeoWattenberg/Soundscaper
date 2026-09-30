@@ -39,6 +39,8 @@ import type * as Handshake from './project-transfer-handshake.ts';
  * allocating for.
  */
 const TRANSFER_PORT_BUFFER_LIMIT = 32;
+/** Mirrors PROJECT_TRANSFER_MAX_TEXT_LENGTH without adding the wire module to this lightweight seam. */
+const TRANSFER_ACK_REASON_LIMIT = 512;
 
 /**
  * Which ports are already buffered, so wrapping one twice is a no-op.
@@ -48,7 +50,7 @@ const TRANSFER_PORT_BUFFER_LIMIT = 32;
  * a second wrapper would subscribe to the first only after the awaits the first
  * exists to cover.
  */
-const bufferedPorts = new WeakSet<object>();
+const bufferedPorts = new WeakMap<object, Handshake.ProjectTransferPort>();
 
 /**
  * Hold what the peer says while this side is still reading its own store.
@@ -69,9 +71,11 @@ export function bufferTransferPort(
 	if (!port || typeof port.post !== 'function' || typeof port.subscribe !== 'function') {
 		throw new TypeError('A transfer needs a port with post() and subscribe().');
 	}
-	if (bufferedPorts.has(port)) return port;
+	const existing = bufferedPorts.get(port);
+	if (existing) return existing;
 	const held: Handshake.ProjectTransferInboundMessage[] = [];
 	let listener: ((message: Handshake.ProjectTransferInboundMessage) => void) | null = null;
+	let subscribed = false;
 	const stop = port.subscribe((message) => {
 		if (listener) listener(message);
 		else if (held.length < TRANSFER_PORT_BUFFER_LIMIT) held.push(message);
@@ -82,15 +86,24 @@ export function bufferTransferPort(
 			if (typeof next !== 'function') {
 				throw new TypeError('A transfer port subscriber must be a function.');
 			}
+			if (subscribed) throw new TypeError('A buffered transfer port can only be subscribed once.');
+			subscribed = true;
 			listener = next;
-			while (held.length > 0) next(held.shift() as Handshake.ProjectTransferInboundMessage);
+			try {
+				while (held.length > 0) next(held.shift() as Handshake.ProjectTransferInboundMessage);
+			} catch (error) {
+				listener = null;
+				stop();
+				throw error;
+			}
 			return () => {
 				listener = null;
 				stop();
 			};
 		},
 	});
-	bufferedPorts.add(buffered);
+	bufferedPorts.set(port, buffered);
+	bufferedPorts.set(buffered, buffered);
 	return buffered;
 }
 
@@ -116,9 +129,9 @@ export interface TransferAcknowledgementWatch {
  * Read both directions of the transfer off the port on its way past.
  *
  * Only an acknowledgement from an allowed origin, for an archive this transfer
- * actually offered, and the first one per archive, is believed. Anything the
- * protocol would refuse must not reach a report the visitor reads, and a status
- * that is not `stored` is recorded as a failure rather than guessed at.
+ * actually offered, from the session used to post it, and the first one per
+ * archive, is believed. Anything the protocol would refuse - including a third
+ * status or oversized reason - must not reach a report the visitor reads.
  *
  * Outbound, only the protocol's `entry` messages are noted, and only after the
  * underlying `post()` has returned: a post that threw did not put the archive on
@@ -129,31 +142,42 @@ export function observeTransferAcknowledgements(
 	entries: readonly Handshake.ProjectTransferEntry[],
 	allowedOrigins: readonly string[],
 ): TransferAcknowledgementWatch {
-	const offered = new Map(entries.map((entry) => [entry.entryId, entry]));
-	const posted = new Set<string>();
+	const offered = new Map<string, Handshake.ProjectTransferEntry>();
+	for (const entry of entries) {
+		if (offered.has(entry.entryId)) {
+			throw new TypeError(`A transfer acknowledgement watch received duplicate entry id ${entry.entryId}.`);
+		}
+		offered.set(entry.entryId, entry);
+	}
+	const posted = new Map<string, string>();
 	const outcomes: Handshake.ProjectTransferOutcome[] = [];
 	let sessionId = '';
 	const record = (message: Handshake.ProjectTransferInboundMessage): void => {
 		if (!message || !allowedOrigins.includes(message.origin)) return;
 		const ack = message.data as Partial<Handshake.ProjectTransferAckMessage> | null;
 		if (!ack || typeof ack !== 'object' || ack.kind !== 'ack' || typeof ack.entryId !== 'string') return;
-		if (!posted.has(ack.entryId)) return;
+		const postedSessionId = posted.get(ack.entryId);
+		if (postedSessionId === undefined || typeof ack.sessionId !== 'string'
+			|| ack.sessionId !== postedSessionId) return;
+		if (ack.status !== 'stored' && ack.status !== 'failed') return;
+		if (typeof ack.reason !== 'string' || ack.reason.length > TRANSFER_ACK_REASON_LIMIT) return;
 		const entry = offered.get(ack.entryId);
 		if (!entry) return;
 		offered.delete(ack.entryId);
-		if (typeof ack.sessionId === 'string') sessionId = ack.sessionId;
+		sessionId = ack.sessionId;
 		outcomes.push(Object.freeze({
 			entryId: entry.entryId,
 			name: entry.name,
 			byteLength: entry.byteLength,
-			status: ack.status === 'stored' ? 'stored' : 'failed',
-			reason: typeof ack.reason === 'string' ? ack.reason : '',
+			status: ack.status,
+			reason: ack.reason,
 		}));
 	};
 	const notePost = (message: unknown): void => {
 		const sent = message as Partial<Handshake.ProjectTransferEntryMessage> | null;
 		if (!sent || typeof sent !== 'object' || sent.kind !== 'entry') return;
-		if (typeof sent.entryId === 'string') posted.add(sent.entryId);
+		if (typeof sent.entryId === 'string' && typeof sent.sessionId === 'string'
+			&& offered.has(sent.entryId)) posted.set(sent.entryId, sent.sessionId);
 	};
 	const pending = (sent: boolean): readonly TransferSendPending[] => Object.freeze(
 		[...offered.values()]
@@ -176,7 +200,7 @@ export function observeTransferAcknowledgements(
 	});
 	// Already buffered underneath, so a transport that wraps its port again
 	// finds this one wrapped rather than subscribing a second listener to it.
-	bufferedPorts.add(watched);
+	bufferedPorts.set(watched, watched);
 	return Object.freeze({
 		port: watched,
 		get outcomes() {

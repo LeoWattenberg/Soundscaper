@@ -108,34 +108,35 @@ function admitManualFiles(
 	const sidecars: TransferArchiveSource[] = [];
 	const names = new Set<string>();
 	for (const source of files) {
-		if (!source || typeof source !== 'object' || typeof source.name !== 'string'
-			|| !source.name || source.name.length > 512 || typeof source.read !== 'function'
-			|| typeof source.byteLength !== 'number' || !Number.isSafeInteger(source.byteLength)
-			|| source.byteLength < 0) {
+		// A File-like object can expose accessors rather than inert fields. Capture
+		// its admitted identity once so an awaited read cannot change the name or
+		// declared length between admission and verification.
+		const admitted = snapshotManualFile(source);
+		if (!admitted) {
 			throw new TransferManualImportRefusalError('malformed-entry',
 				'Every manual transfer file needs a bounded name, exact byteLength, and read() function.');
 		}
-		if (names.has(source.name)) {
+		if (names.has(admitted.name)) {
 			throw new TransferManualImportRefusalError('malformed-entry',
-				`Manual transfer file ${source.name} was selected twice.`);
+				`Manual transfer file ${admitted.name} was selected twice.`);
 		}
-		names.add(source.name);
-		if (isCrossProductHandoffReportSidecarFileName(source.name)) {
-			if (source.byteLength > CROSS_PRODUCT_HANDOFF_REPORT_SIDECAR_MAX_BYTES) {
+		names.add(admitted.name);
+		if (isCrossProductHandoffReportSidecarFileName(admitted.name)) {
+			if (admitted.byteLength > CROSS_PRODUCT_HANDOFF_REPORT_SIDECAR_MAX_BYTES) {
 				throw new TransferManualImportRefusalError('entry-too-large',
-					`Conversion report sidecar ${source.name} is ${source.byteLength} bytes, over the`
+					`Conversion report sidecar ${admitted.name} is ${admitted.byteLength} bytes, over the`
 						+ ` ${CROSS_PRODUCT_HANDOFF_REPORT_SIDECAR_MAX_BYTES} byte limit.`);
 			}
-			sidecars.push(source);
-		} else if (PROJECT_FILE_NAME_PATTERN.test(source.name)) {
-			if (source.byteLength > maximumEntryBytes) {
+			sidecars.push(admitted);
+		} else if (PROJECT_FILE_NAME_PATTERN.test(admitted.name)) {
+			if (admitted.byteLength > maximumEntryBytes) {
 				throw new TransferManualImportRefusalError('entry-too-large',
-					`Manual archive ${source.name} is ${source.byteLength} bytes, over the`
+					`Manual archive ${admitted.name} is ${admitted.byteLength} bytes, over the`
 						+ ` ${maximumEntryBytes} byte limit.`);
 			}
-			archives.push(source);
+			archives.push(admitted);
 		} else throw new TransferManualImportRefusalError('malformed-entry',
-			`Manual transfer file ${source.name} is not a project archive or conversion report sidecar.`);
+			`Manual transfer file ${admitted.name} is not a project archive or conversion report sidecar.`);
 		if (archives.length > maximumEntries || sidecars.length > maximumEntries) {
 			throw new TransferManualImportRefusalError('entry-limit',
 				`A manual transfer admits at most ${maximumEntries} archives and matching sidecars.`);
@@ -144,6 +145,25 @@ function admitManualFiles(
 	return Object.freeze({
 		archives: Object.freeze(archives),
 		sidecars: Object.freeze(sidecars),
+	});
+}
+
+function snapshotManualFile(source: unknown): TransferArchiveSource | null {
+	if (!source || typeof source !== 'object') return null;
+	let name: unknown;
+	let byteLength: unknown;
+	let read: unknown;
+	try {
+		({ name, byteLength, read } = source as Record<string, unknown>);
+	} catch {
+		return null;
+	}
+	if (typeof name !== 'string' || !name || name.length > 512 || typeof read !== 'function'
+		|| typeof byteLength !== 'number' || !Number.isSafeInteger(byteLength) || byteLength < 0) return null;
+	return Object.freeze({
+		name,
+		byteLength,
+		read: () => (read as () => Promise<Uint8Array>).call(source),
 	});
 }
 
@@ -175,7 +195,9 @@ async function readManualFile(
 ): Promise<Uint8Array> {
 	let bytes: unknown;
 	try {
+		signal?.throwIfAborted();
 		bytes = await source.read();
+		signal?.throwIfAborted();
 	} catch (error) {
 		if (signal?.aborted) throw error;
 		throw new TransferManualImportRefusalError('malformed-entry',

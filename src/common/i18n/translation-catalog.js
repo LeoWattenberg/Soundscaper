@@ -33,7 +33,7 @@ const ELLIPSIS_PATTERN = /…|\.\.\./u;
 const NAMED_PLACEHOLDER_PATTERN = /\{[A-Za-z][A-Za-z0-9_]*\}/gu;
 // Tokens a translation has to carry through unchanged: `*track*`-style
 // identifiers and file extensions such as `.aup4`.
-const PROTECTED_TOKEN_PATTERN = /\*[A-Za-z][A-Za-z0-9_-]*\*|(?<![A-Za-z0-9])\.[a-z][a-z0-9]{1,5}\b/gu;
+const PROTECTED_TOKEN_PATTERN = /\*[A-Za-z][A-Za-z0-9_-]*\*|(?<![A-Za-z0-9])\.[a-z][a-z0-9]{1,5}\b/giu;
 
 /** The catalog locale that serves `locale`: its exact canonical tag, or null. */
 export function translationCatalogLocale(locale, loaders = TRANSLATION_CATALOG_LOADERS) {
@@ -64,10 +64,10 @@ export async function loadTranslationCatalog(locale, options = {}) {
 export function currentTranslations(catalog, englishCopy, options = {}) {
 	assertTranslationCatalogShape(catalog, options.locale);
 	if (!englishCopy || typeof englishCopy !== 'object') throw new TypeError('Translation catalog entries need an English reference.');
-	const origins = options.origins ? new Set(options.origins) : null;
+	const origins = admittedTranslationOrigins(options.origins);
 	const entries = {};
 	for (const [key, entry] of Object.entries(catalog.entries)) {
-		if (!Object.hasOwn(englishCopy, key) || !Array.isArray(entry)) continue;
+		if (!Object.hasOwn(englishCopy, key) || !Array.isArray(entry) || entry.length !== 3) continue;
 		const [origin, source, translation] = entry;
 		if (!TRANSLATION_ORIGINS.includes(origin) || (origins && !origins.has(origin))) continue;
 		if (source !== englishCopy[key] || !acceptableTranslation(source, translation)) continue;
@@ -88,7 +88,10 @@ export function acceptableTranslation(source, translation) {
 	if (translation.includes('<docs-ai-token')) return false;
 	if (lineCount(source) !== lineCount(translation)) return false;
 	if (!sameNamedPlaceholders(source, translation)) return false;
-	return protectedTokens(source).every((token) => translation.includes(token));
+	const sourceTokens = protectedTokenOccurrences(source);
+	const translationTokens = protectedTokenOccurrences(translation);
+	return sourceTokens.length === translationTokens.length
+		&& sourceTokens.every((token, index) => token === translationTokens[index]);
 }
 
 export function namedPlaceholders(value) {
@@ -103,6 +106,18 @@ export function sameNamedPlaceholders(source, translation) {
 
 export function protectedTokens(value) {
 	return [...new Set([...String(value).matchAll(PROTECTED_TOKEN_PATTERN)].map(([token]) => token))];
+}
+
+function protectedTokenOccurrences(value) {
+	return [...String(value).matchAll(PROTECTED_TOKEN_PATTERN)].map(([token]) => token).sort();
+}
+
+function admittedTranslationOrigins(value) {
+	if (value === undefined || value === null) return null;
+	if (!Array.isArray(value) || value.some((origin) => !TRANSLATION_ORIGINS.includes(origin))) {
+		throw new TypeError('Translation catalog origins must be an array of recognized origins.');
+	}
+	return new Set(value);
 }
 
 function lineCount(value) {
