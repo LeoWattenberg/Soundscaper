@@ -7,6 +7,7 @@ import {
 	pcmRawByteLength,
 } from '../wavpack/index.js';
 import { trustedMediaContentSha256 } from './media-content-provenance.ts';
+import { cloneStorageValue as cloneValue } from './storage-clone.ts';
 
 export interface StorageRecord {
 	readonly id?: string;
@@ -267,9 +268,4 @@ export function sameStoredSourceIdentity(
 		&& (left.path || null) === (right.path || null)
 		&& (left.baseSourceId || null) === (right.baseSourceId || null)
 		&& (left.pcmEncodingVersion ?? null) === (right.pcmEncodingVersion ?? null));
-}
-
-function cloneValue<Value>(value: Value): Value {
-	if (typeof globalThis.structuredClone === 'function') return globalThis.structuredClone(value);
-	return JSON.parse(JSON.stringify(value)) as Value;
 }

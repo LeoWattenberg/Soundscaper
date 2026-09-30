@@ -9,17 +9,13 @@ import { deleteByIndex, request, transact } from './indexeddb-backend.ts';
 import { sameStoredSourceIdentity, type StorageRecord } from './media-records.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
 import type { RetentionSessionGuard } from './retention-session-guard.ts';
+import { cloneStorageValue as clone } from './storage-clone.ts';
 import {
 	findMemoryDependentSourceId,
 	findStoredDependentSourceId,
 } from './source-dependency-query.ts';
 import { deletePairedVideoDerivativeRecords } from './video-derivative-repository.ts';
-
-const SOURCE_ANALYSIS_CACHE_PREFIXES = Object.freeze([
-	'audio-editor-peaks-v1:',
-	'audio-editor-peaks-v2:',
-	'audio-editor-frequency-waveform-v1:',
-]);
+import { SOURCE_ANALYSIS_CACHE_PREFIXES } from '../source-analysis-cache.ts';
 
 export type SourceStorageDeletionResult =
 	| { readonly status: 'retained'; readonly dependentSourceId: string }
@@ -187,10 +183,4 @@ function assertNotDurablyReferenced(sourceId: string, projects: unknown[], revis
 
 function asStorageRecord(value: unknown): StorageRecord | null {
 	return value && typeof value === 'object' ? value as StorageRecord : null;
-}
-
-function clone<Value>(value: Value): Value {
-	if (value === undefined || value === null) return value;
-	if (typeof globalThis.structuredClone === 'function') return globalThis.structuredClone(value);
-	return JSON.parse(JSON.stringify(value)) as Value;
 }

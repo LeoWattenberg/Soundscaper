@@ -8,7 +8,6 @@ import type { ProjectDocument, ProjectRevision } from './project-repository.ts';
 import {
 	applyMemoryMutations,
 	asRevision,
-	clone,
 	deleteMemoryMutation,
 	nonNegativeInteger,
 	revisionKey,
@@ -17,6 +16,7 @@ import {
 	type ProjectRevisionRecord,
 } from './project-repository-support.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
+import { cloneStorageValue as clone } from './storage-clone.ts';
 
 export interface ProjectSnapshotForRestore {
 	readonly current: ProjectDocument | null;

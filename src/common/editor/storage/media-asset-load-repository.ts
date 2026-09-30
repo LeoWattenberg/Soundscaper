@@ -5,6 +5,7 @@ import { hasMalformedMediaContentProvenance } from './media-content-provenance.t
 import type { MediaAssetLifecycleCoordinator } from './media-asset-lifecycle-coordinator.ts';
 import type { BlobLike, StorageRecord } from './media-records.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
+import { cloneStorageValue as clone } from './storage-clone.ts';
 
 const MISSING_MEDIA_MESSAGE = 'The requested local media asset is missing.';
 
@@ -105,11 +106,6 @@ function nonEmptyString(value: unknown): string {
 	const text = typeof value === 'string' ? value.trim() : '';
 	if (!text) throw new TypeError('A media source id is required.');
 	return text;
-}
-
-function clone<Value>(value: Value): Value {
-	if (typeof globalThis.structuredClone === 'function') return globalThis.structuredClone(value);
-	return JSON.parse(JSON.stringify(value)) as Value;
 }
 
 interface LinkedAbortController {

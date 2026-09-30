@@ -16,8 +16,7 @@ import type {
 	FrequencyWaveformWindowServiceDependencies,
 } from './frequency-waveform-window-service.ts';
 import type { SourceRuntimeProject } from './source-runtime-composition-types.ts';
-
-const FREQUENCY_WAVEFORM_CACHE_PREFIX = 'audio-editor-frequency-waveform-v1:';
+import { frequencyWaveformCacheKey } from '../../source-analysis-cache.ts';
 
 type FrequencyWaveformService = ReturnType<
 	typeof createFrequencyWaveformSourceService<SourceRuntimeProject, AudioBuffer>
@@ -154,7 +153,7 @@ export function createFrequencyWaveformRuntime(inputs: FrequencyWaveformRuntimeI
 			const deletePersistedAnalysis = async (): Promise<void> => {
 				persistentFrequencyWaveformCacheBypass.add(sourceId);
 				if (!store.deleteAnalysis) return;
-				await store.deleteAnalysis(`${FREQUENCY_WAVEFORM_CACHE_PREFIX}${sourceId}`);
+				await store.deleteAnalysis(frequencyWaveformCacheKey(sourceId));
 				persistentFrequencyWaveformCacheBypass.delete(sourceId);
 			};
 			const residentWindowService = frequencyWaveformWindowService;

@@ -51,6 +51,7 @@ import {
 	waveformPeaksHaveRms,
 	type WorkerCopy,
 } from './waveform-analysis.ts';
+import { frequencyWaveformCacheKey } from '../../source-analysis-cache.ts';
 
 export type {
 	SourceRuntimeCompositionCopy,
@@ -64,8 +65,6 @@ export type {
 /** How many waveform PCM windows stay resident, and how many frames each may span. */
 const MAXIMUM_WAVEFORM_PCM_WINDOW_FRAMES = 262_144;
 const MAXIMUM_WAVEFORM_PCM_WINDOW_ENTRIES = 32;
-// Keep the optional analysis contract lazy; this mirrors FREQUENCY_WAVEFORM_CACHE_PREFIX.
-const FREQUENCY_WAVEFORM_CACHE_PREFIX = 'audio-editor-frequency-waveform-v1:';
 
 type PlaybackApply = ReturnType<typeof createPlaybackProjectApplyService<SourceRuntimeProject, AudioBuffer>>;
 type StoredChunkProvider = ReturnType<typeof createStoredChunkProvider>;
@@ -338,7 +337,7 @@ export function createSourceRuntimeComposition<RenderEngine extends ClipTimePitc
 				}
 				if (removedAnalysis || removedWindow) dependencies.publishDocumentSnapshot();
 				persistentFrequencyWaveformCacheBypass.add(sourceId);
-				await store.deleteAnalysis?.(`${FREQUENCY_WAVEFORM_CACHE_PREFIX}${sourceId}`);
+				await store.deleteAnalysis?.(frequencyWaveformCacheKey(sourceId));
 			}
 		},
 		clearRuntime: (): void => {

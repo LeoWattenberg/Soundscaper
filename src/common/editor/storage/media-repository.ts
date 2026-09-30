@@ -31,6 +31,7 @@ import {
 import type { OpfsRepository } from './opfs-repository.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
 import type { RetentionSessionGuard } from './retention-session-guard.ts';
+import { cloneStorageValue as clone } from './storage-clone.ts';
 import {
 	deletePairedVideoDerivativeRecords,
 	VideoDerivativeRepository,
@@ -370,12 +371,6 @@ function assertNotDurablyReferenced(sourceId: string, projects: unknown[], revis
 	if (retained.has(sourceId)) {
 		throw new Error(`Media asset ${sourceId} is retained by a saved project or revision.`);
 	}
-}
-
-function clone<Value>(value: Value): Value {
-	if (value === undefined || value === null) return value;
-	if (typeof globalThis.structuredClone === 'function') return globalThis.structuredClone(value);
-	return JSON.parse(JSON.stringify(value)) as Value;
 }
 
 function fileField(input: unknown, field: 'name' | 'lastModified'): unknown {

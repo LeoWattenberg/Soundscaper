@@ -8,8 +8,12 @@
  * See THIRD_PARTY_LICENSES.md for the exact source and modification notice.
  */
 
+export {
+	FREQUENCY_WAVEFORM_CACHE_PREFIX,
+	frequencyWaveformCacheKey,
+} from './source-analysis-cache.ts';
+
 export const FREQUENCY_WAVEFORM_ANALYSIS_VERSION = 1;
-export const FREQUENCY_WAVEFORM_CACHE_PREFIX = 'audio-editor-frequency-waveform-v1:';
 export const FREQUENCY_WAVEFORM_FFT_SIZE = 2_048;
 export const FREQUENCY_WAVEFORM_HOP_SIZE = 256;
 export const FREQUENCY_WAVEFORM_MAX_SOURCE_BYTES = 8 * 1_024 * 1_024;
@@ -85,10 +89,6 @@ export interface FrequencyWaveformWindow {
 		readonly firstCenterFrame: number;
 		readonly hopSize: typeof FREQUENCY_WAVEFORM_HOP_SIZE;
 	};
-}
-
-export function frequencyWaveformCacheKey(sourceId: unknown): string {
-	return `${FREQUENCY_WAVEFORM_CACHE_PREFIX}${String(sourceId)}`;
 }
 
 export function frequencyWaveformVisualChannelCount(channelCount: number): number {

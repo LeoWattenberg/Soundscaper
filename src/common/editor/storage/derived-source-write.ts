@@ -12,10 +12,10 @@ import type { SourceChunkRecord, SourceRecordRepository } from './source-record-
 import {
 	PENDING_SOURCE_RETENTION_MS,
 	cleanupFailure,
-	clone,
 	createId,
 	positiveInteger,
 } from './source-write-common.ts';
+import { cloneStorageValue } from './storage-clone.ts';
 
 interface DerivedSourceWriteOptions {
 	readonly records: Pick<SourceRecordRepository,
@@ -133,7 +133,7 @@ export async function writeDerivedSource(
 		throw error;
 	}
 	const record: StorageRecord = {
-		...clone(metadata),
+		...cloneStorageValue(metadata),
 		id: sourceId,
 		storage: 'copy-on-write',
 		baseSourceId: materialize ? physicalBase.id : baseSourceId,
@@ -172,7 +172,7 @@ export async function writeDerivedSource(
 		}
 		throw error;
 	}
-	return clone(record);
+	return cloneStorageValue(record);
 }
 
 async function sourceDependencies(

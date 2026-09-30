@@ -5,6 +5,7 @@ import { bytesToHex } from '@noble/hashes/utils.js';
 
 import { readCursorPage, request, transact } from './indexeddb-backend.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
+import { cloneStorageValue as clone } from './storage-clone.ts';
 
 type KeyValueStoreName = 'settings' | 'analysis';
 const KEY_VALUE_INVENTORY_PAGE_SIZE = 64;
@@ -545,10 +546,4 @@ function writeComparisonText(digest: ComparisonDigest, type: string, value: stri
 function writeComparisonBytes(digest: ComparisonDigest, value: Uint8Array): void {
 	digest.update(COMPARISON_UTF8.encode(`binary:${String(value.byteLength)}:`));
 	digest.update(value);
-}
-
-function clone<Value>(value: Value): Value {
-	if (value === undefined || value === null) return value;
-	if (typeof globalThis.structuredClone === 'function') return globalThis.structuredClone(value);
-	return JSON.parse(JSON.stringify(value)) as Value;
 }

@@ -36,7 +36,6 @@ import {
 	applyMemoryMutations,
 	asRecord,
 	asRevision,
-	clone,
 	createProjectCreationFence,
 	deleteMemoryMutation,
 	isRevisionFor,
@@ -50,6 +49,7 @@ import {
 	type MemoryMutation,
 	type ProjectRevisionRecord,
 } from './project-repository-support.ts';
+import { cloneStorageValue as clone } from './storage-clone.ts';
 
 export interface ProjectDocument {
 	readonly id: string;

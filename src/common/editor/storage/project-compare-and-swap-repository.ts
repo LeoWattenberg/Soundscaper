@@ -18,10 +18,10 @@ import type {
 import type { StorageRepositoryPort } from './repository-port.ts';
 import {
 	asRecord,
-	clone,
 	revisionKey,
 	type ProjectRevisionRecord,
 } from './project-repository-support.ts';
+import { cloneStorageValue as clone } from './storage-clone.ts';
 
 /** Add exact-current publication to a project repository without widening its ordinary save path. */
 export class ProjectCompareAndSwapRepository implements ProjectRepositoryPort {

@@ -22,10 +22,10 @@ import { browserFileStorageFailure } from '../web-file-limit-failure.ts';
 import {
 	PENDING_SOURCE_RETENTION_MS,
 	cleanupFailure,
-	clone,
 	createId,
 	positiveInteger,
 } from './source-write-common.ts';
+import { cloneStorageValue } from './storage-clone.ts';
 
 interface StoredChunk {
 	readonly encoding: string | null;
@@ -330,8 +330,8 @@ export class SourceWriteRepository {
 					rawChunkCount,
 				});
 				const record: StorageRecord = {
-					...clone(persistedMetadata),
-					...clone(extraMetadata),
+					...cloneStorageValue(persistedMetadata),
+					...cloneStorageValue(extraMetadata),
 					id: sourceId,
 					storage: opfsWriter ? PCM_CONTAINER_STORAGE_TYPE : 'indexeddb-chunks',
 					sourceToken: token,
@@ -378,7 +378,7 @@ export class SourceWriteRepository {
 				}
 				state = 'committed';
 				if (previous) await options.deleteStoredSource(previous).catch(() => undefined);
-				return clone(record);
+				return cloneStorageValue(record);
 			},
 			abort() {
 				return abortOpenWriter();

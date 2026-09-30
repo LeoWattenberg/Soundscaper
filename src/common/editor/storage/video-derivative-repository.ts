@@ -29,6 +29,7 @@ import {
 } from './media-records.ts';
 import type { OpfsRepository } from './opfs-repository.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
+import { cloneStorageValue as clone } from './storage-clone.ts';
 import {
 	assertVideoDerivativeOriginalUnchanged,
 	assertVideoDerivativeRecordBinding,
@@ -537,12 +538,6 @@ function cachePublicationTime(value: unknown): number {
 		throw new RangeError('The derivative cache publication time is outside the supported Date range.');
 	}
 	return number;
-}
-
-function clone<Value>(value: Value): Value {
-	if (value === undefined || value === null) return value;
-	if (typeof globalThis.structuredClone === 'function') return globalThis.structuredClone(value);
-	return JSON.parse(JSON.stringify(value)) as Value;
 }
 
 function nonNegativeFiniteNumber(value: unknown, message: string): number {

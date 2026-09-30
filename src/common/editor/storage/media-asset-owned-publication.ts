@@ -7,6 +7,7 @@ import type { OwnedMediaAssetPublication } from './media-asset-write-contract.ts
 import { mediaAssetMetadata, type StorageRecord } from './media-records.ts';
 import type { OpfsRepository } from './opfs-repository.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
+import { cloneStorageValue as clone } from './storage-clone.ts';
 
 export class MediaPublicationReconciliationError extends AggregateError {
 	constructor(primary: unknown, reconciliation: unknown) {
@@ -100,9 +101,4 @@ export function sameMediaPayload(current: StorageRecord | null, expected: Storag
 
 function storageRecord(value: unknown): StorageRecord | null {
 	return value && typeof value === 'object' ? value as StorageRecord : null;
-}
-
-function clone<Value>(value: Value): Value {
-	if (typeof globalThis.structuredClone === 'function') return globalThis.structuredClone(value);
-	return JSON.parse(JSON.stringify(value)) as Value;
 }

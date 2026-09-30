@@ -96,11 +96,6 @@ export function isRevisionFor(projectId: string): (record: ProjectRevisionRecord
 	return (record): record is ProjectRevisionRecord => record?.projectId === projectId;
 }
 
-export function clone<Value>(value: Value): Value {
-	if (typeof globalThis.structuredClone === 'function') return globalThis.structuredClone(value);
-	return JSON.parse(JSON.stringify(value)) as Value;
-}
-
 export function createProjectCreationFence(): string {
 	const uuid = globalThis.crypto?.randomUUID?.();
 	if (!uuid) throw new Error('Secure random generation is required for create-only project storage.');

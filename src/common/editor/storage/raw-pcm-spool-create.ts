@@ -4,6 +4,7 @@ import {
 	normalizeCaptureSpoolCreationFence,
 	type CaptureSpoolCreationFence,
 } from './capture-spool-creation-fence.ts';
+import { cloneStorageValue } from './storage-clone.ts';
 
 const MAXIMUM_CHUNK_BYTES = 8 * 1024 * 1024;
 
@@ -38,7 +39,7 @@ export function normalizeRawPcmSpoolCreateRequest(
 		sampleRate: boundedPositiveInteger(value?.sampleRate, 768_000, 'raw PCM spool sampleRate'),
 		channelCount: boundedPositiveInteger(value?.channelCount, 64, 'raw PCM spool channelCount'),
 		chunkFrames: boundedPositiveInteger(value?.chunkFrames, 65_536, 'raw PCM spool chunkFrames'),
-		data: snapshotData(value?.data),
+		data: cloneStorageValue(value?.data),
 	};
 	if (request.channelCount * request.chunkFrames * Float32Array.BYTES_PER_ELEMENT > MAXIMUM_CHUNK_BYTES) {
 		throw new RangeError('Raw PCM spool chunks exceed the strict memory bound.');
@@ -58,10 +59,4 @@ function boundedPositiveInteger(value: unknown, maximum: number, name: string): 
 		throw new RangeError(`${name} must be a supported positive integer.`);
 	}
 	return Number(value);
-}
-
-function snapshotData<Value>(value: Value): Value {
-	if (value === undefined || value === null) return value;
-	if (typeof globalThis.structuredClone === 'function') return globalThis.structuredClone(value);
-	return JSON.parse(JSON.stringify(value)) as Value;
 }

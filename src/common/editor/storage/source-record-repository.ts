@@ -20,6 +20,7 @@ import {
 } from './media-asset-staging-repository.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
 import type { RetentionSessionGuard } from './retention-session-guard.ts';
+import { cloneStorageValue as clone } from './storage-clone.ts';
 import {
 	findMemoryDependentSourceId,
 	findStoredDependentSourceId,
@@ -453,9 +454,4 @@ function deleteChunkTail(index: IDBIndex, token: string, firstIndex: number): Pr
 function asChunk(value: unknown): SourceChunkRecord | null {
 	if (!value || typeof value !== 'object') return null;
 	return value as SourceChunkRecord;
-}
-
-function clone<Value>(value: Value): Value {
-	if (typeof globalThis.structuredClone === 'function') return globalThis.structuredClone(value);
-	return JSON.parse(JSON.stringify(value)) as Value;
 }

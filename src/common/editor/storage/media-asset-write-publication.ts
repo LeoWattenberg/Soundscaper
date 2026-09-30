@@ -9,6 +9,7 @@ import {
 } from './media-asset-owned-publication.ts';
 import type { StorageRecord } from './media-records.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
+import { cloneStorageValue as clone } from './storage-clone.ts';
 import type { VideoProxyClaimRecord } from './video-proxy-claim-repository.ts';
 import {
 	assertVideoProxyClaimedRowCurrent,
@@ -145,11 +146,6 @@ function sameClaimedRow(
 	} catch {
 		return false;
 	}
-}
-
-function clone<Value>(value: Value): Value {
-	if (typeof globalThis.structuredClone === 'function') return globalThis.structuredClone(value);
-	return JSON.parse(JSON.stringify(value)) as Value;
 }
 
 function storageRecord(value: unknown): StorageRecord | null {

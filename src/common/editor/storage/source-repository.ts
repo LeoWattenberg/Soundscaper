@@ -19,12 +19,7 @@ import {
 } from './source-write-lifecycle.ts';
 import type { TransientAnalysisCacheRepository } from './transient-analysis-cache-repository.ts';
 import { normalizePcmChunkFrames } from './pcm-chunk-geometry.ts';
-
-const SOURCE_ANALYSIS_CACHE_PREFIXES = Object.freeze([
-	'audio-editor-peaks-v1:',
-	'audio-editor-peaks-v2:',
-	'audio-editor-frequency-waveform-v1:',
-]);
+import { SOURCE_ANALYSIS_CACHE_PREFIXES } from '../source-analysis-cache.ts';
 
 const IMMUTABLE_SOURCE_METADATA_FIELDS = Object.freeze([
 	'channelCount', 'sampleRate', 'frameCount', 'frameLength', 'chunkFrames', 'chunkCount',

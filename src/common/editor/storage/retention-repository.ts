@@ -38,12 +38,7 @@ import type { SourceRepository } from './source-repository.ts';
 import type { SourceWriteMaintenance } from './source-write-lifecycle.ts';
 import type { TransientAnalysisCacheRepository } from './transient-analysis-cache-repository.ts';
 import type { AssistanceDerivativeRepositoryPort } from './deferred-assistance-derivative-repository.ts';
-
-const SOURCE_ANALYSIS_CACHE_PREFIXES = Object.freeze([
-	'audio-editor-peaks-v1:',
-	'audio-editor-peaks-v2:',
-	'audio-editor-frequency-waveform-v1:',
-]);
+import { SOURCE_ANALYSIS_CACHE_PREFIXES } from '../source-analysis-cache.ts';
 
 interface PruneOptions {
 	readonly protectedProjects?: readonly unknown[];

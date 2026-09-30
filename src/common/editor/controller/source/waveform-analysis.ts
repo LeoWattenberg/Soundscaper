@@ -7,13 +7,17 @@ import { projectUnwarpedClipSourceRange } from '../../audio-clip-source-projecti
 import { abortError, throwIfAborted } from '../shared/app-helpers.ts';
 
 export {
+	WAVEFORM_PEAK_CACHE_PREFIX,
+	legacyPeakCacheKey,
+	peakCacheKey,
+} from '../../source-analysis-cache.ts';
+export {
 	MAXIMUM_WAVEFORM_PEAK_WINDOW_BUCKETS,
 	MAXIMUM_WAVEFORM_PEAK_WINDOW_CHANNEL_BUCKETS,
 	WAVEFORM_PEAK_BLOCK_SIZES,
 	WAVEFORM_PEAKS_VERSION,
 } from '../../waveform-peak-contract.ts';
 export { readWaveformPeakWindow } from './internal/waveform-peak-window-reader.ts';
-export const WAVEFORM_PEAK_CACHE_PREFIX = 'audio-editor-peaks-v2:';
 
 export interface WorkerCopy {
 	readonly audioAnalysisWorkerFailed: string;
@@ -420,14 +424,6 @@ function hasArrayLikeLength(value: unknown): value is Readonly<{ readonly length
 	return typeof value === 'object' && value !== null
 		&& 'length' in value && typeof value.length === 'number'
 		&& Number.isSafeInteger(value.length) && value.length >= 0;
-}
-
-export function peakCacheKey(sourceId: unknown): string {
-	return `${WAVEFORM_PEAK_CACHE_PREFIX}${String(sourceId)}`;
-}
-
-export function legacyPeakCacheKey(sourceId: unknown): string {
-	return `audio-editor-peaks-v1:${String(sourceId)}`;
 }
 
 export function waitForAnalysisWorker(

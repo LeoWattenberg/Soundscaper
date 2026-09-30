@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { compareCodeUnits } from '../code-unit-order.ts';
+import { cloneStorageValue } from './storage-clone.ts';
 
 const MAXIMUM_ACTIVE_SPOOLS = 64;
 const MAXIMUM_CHUNK_BYTES = 8 * 1024 * 1024;
@@ -124,9 +125,7 @@ export function normalizeRawPcmSpoolChunkIndex(value: unknown): number {
 }
 
 export function snapshotRawPcmData<Value>(value: Value): Value {
-	if (value === undefined || value === null) return value;
-	if (typeof globalThis.structuredClone === 'function') return globalThis.structuredClone(value);
-	return JSON.parse(JSON.stringify(value)) as Value;
+	return cloneStorageValue(value);
 }
 
 function framescaperAppendProtocol(value: unknown): 'framescaper-manifest-v1' {
