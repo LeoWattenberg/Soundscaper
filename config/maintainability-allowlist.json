@@ -111,7 +111,6 @@
 		"src/common/editor/storage.js": 575,
 		"src/common/editor/storage/encoded-capture-spool-repository.ts": 590,
 		"src/common/editor/storage/framescaper-capture-session-creation-repository.ts": 560,
-		"src/common/editor/storage/key-value-repository.ts": 554,
 		"src/common/editor/storage/linked-original-lifecycle-coordinator.ts": 552,
 		"src/common/editor/storage/linked-original-store-service.ts": 600,
 		"src/common/editor/storage/linked-video-original-resolver.ts": 575,
