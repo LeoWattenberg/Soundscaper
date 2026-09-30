@@ -109,14 +109,38 @@ export function normalizeFramescaperNativeImageSequenceReference(
 	if (record.kind !== expectedKind || record.storageKey !== `${prefix}${digest}`) {
 		throw new Error('The asset reference identity is not digest-bound.');
 	}
-	framescaperNativeImageSequenceInteger(record.byteLength, 'asset byte length', 1);
-	if (asset === 'inventory') {
-		if (record.version !== 1) throw new TypeError('The inventory reference version is unsupported.');
-		for (const key of ['frameCount', 'firstFrameNumber', 'lastFrameNumber']) {
-			framescaperNativeImageSequenceInteger(record[key], key, key === 'frameCount' ? 1 : 0);
-		}
+	const byteLength = framescaperNativeImageSequenceInteger(
+		record.byteLength, 'asset byte length', 1,
+	);
+	if (asset === 'pack') {
+		return Object.freeze({
+			kind: 'image-sequence-source-pack',
+			storageKey: record.storageKey as string,
+			sha256: digest,
+			byteLength,
+		});
 	}
-	return Object.freeze({ ...record }) as unknown as FramescaperNativeImageSequenceReference;
+	if (record.version !== 1) throw new TypeError('The inventory reference version is unsupported.');
+	const frameCount = framescaperNativeImageSequenceInteger(record.frameCount, 'frameCount', 1);
+	const firstFrameNumber = framescaperNativeImageSequenceInteger(
+		record.firstFrameNumber, 'firstFrameNumber',
+	);
+	const lastFrameNumber = framescaperNativeImageSequenceInteger(
+		record.lastFrameNumber, 'lastFrameNumber',
+	);
+	if (lastFrameNumber - firstFrameNumber + 1 !== frameCount) {
+		throw new TypeError('The inventory reference frame span is invalid.');
+	}
+	return Object.freeze({
+		kind: 'image-sequence-inventory',
+		version: 1,
+		storageKey: record.storageKey as string,
+		sha256: digest,
+		byteLength,
+		frameCount,
+		firstFrameNumber,
+		lastFrameNumber,
+	});
 }
 
 export function normalizeFramescaperNativeImageSequenceAdmission(
@@ -130,16 +154,38 @@ export function normalizeFramescaperNativeImageSequenceAdmission(
 	if (record.kind !== 'framescaper-image-sequence-admission-v1') {
 		throw new TypeError('Admission is not an exact Framescaper v1 request.');
 	}
-	framescaperNativeImageSequenceId(record.projectId, 'project ID');
-	framescaperNativeImageSequenceId(record.sourceId, 'source ID');
-	framescaperNativeImageSequenceInteger(record.projectRevision, 'project revision');
-	framescaperNativeImageSequenceInteger(record.frameCount, 'frame count', 1);
-	if (!['decode-png-sequence', 'decode-tiff-sequence', 'decode-openexr-sequence']
-		.includes(String(record.profileId))) throw new TypeError('The sequence decode profile is unsupported.');
+	const projectId = framescaperNativeImageSequenceId(record.projectId, 'project ID');
+	const sourceId = framescaperNativeImageSequenceId(record.sourceId, 'source ID');
+	const projectRevision = framescaperNativeImageSequenceInteger(
+		record.projectRevision, 'project revision',
+	);
+	const frameCount = framescaperNativeImageSequenceInteger(record.frameCount, 'frame count', 1);
+	if (typeof record.profileId !== 'string'
+		|| !['decode-png-sequence', 'decode-tiff-sequence', 'decode-openexr-sequence']
+			.includes(record.profileId)) throw new TypeError('The sequence decode profile is unsupported.');
 	const rate = exactRecord(record.frameRate, ['num', 'den'], 'image-sequence rate');
-	framescaperNativeImageSequenceInteger(rate.num, 'rate numerator', 1);
-	framescaperNativeImageSequenceInteger(rate.den, 'rate denominator', 1);
-	return Object.freeze({ ...record }) as unknown as FramescaperImageSequenceNativeAdmissionRequest;
+	const frameRate = Object.freeze({
+		num: framescaperNativeImageSequenceInteger(rate.num, 'rate numerator', 1),
+		den: framescaperNativeImageSequenceInteger(rate.den, 'rate denominator', 1),
+	});
+	const inventory = normalizeFramescaperNativeImageSequenceReference(record.inventory, 'inventory');
+	const sourcePack = normalizeFramescaperNativeImageSequenceReference(record.sourcePack, 'pack');
+	if (inventory.kind !== 'image-sequence-inventory' || inventory.frameCount !== frameCount) {
+		throw new TypeError('The admission asset reference frame count is inconsistent.');
+	}
+	return Object.freeze({
+		kind: 'framescaper-image-sequence-admission-v1',
+		schemaFamily: FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+		schemaVersion: PROJECT_SCHEMA_VERSION,
+		projectId,
+		projectRevision,
+		sourceId,
+		profileId: record.profileId,
+		frameRate,
+		frameCount,
+		inventory,
+		sourcePack,
+	}) as FramescaperImageSequenceNativeAdmissionRequest;
 }
 
 export function parseFramescaperNativeImageSequenceManifest(
