@@ -35,7 +35,7 @@ do not raise an allowlist merely to make a check pass. The same applies to
 `eslint-suppressions.json`: fix or extract legacy lint debt; never increase a
 suppression count for new code. The previous editor facade cycle has been
 removed and must not be recreated. See
-[`docs/architecture.md`](docs/architecture.md) and the nearest nested
+[`docs/architecture/overview.md`](docs/architecture/overview.md) and the nearest nested
 `AGENTS.md` before editing a subsystem.
 
 Do not commit generated `dist/`, `coverage/`, `playwright-report/`,

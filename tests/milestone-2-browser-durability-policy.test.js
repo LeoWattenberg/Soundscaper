@@ -17,8 +17,8 @@ const workflowIds = [
 test('milestone 2 runs configured browsers without a qualification matrix', async () => {
 	const [inventory, qualityBudgets, threatModel, browserEvidence] = await Promise.all([
 		readFile(new URL('config/milestone-2-closure.json', root), 'utf8').then(JSON.parse),
-		readFile(new URL('docs/quality-budgets.md', root), 'utf8'),
-		readFile(new URL('docs/production-threat-model.md', root), 'utf8'),
+		readFile(new URL('docs/development/quality-diagnostics.md', root), 'utf8'),
+		readFile(new URL('docs/policies/security.md', root), 'utf8'),
 		Promise.all([
 			'tests/browser/milestone-2-browser-storage-durability.spec.js',
 			'tests/browser/audio-editor-export-session.spec.js',

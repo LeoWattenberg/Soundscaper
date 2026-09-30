@@ -137,7 +137,7 @@ test('Framescaper family-v1 keyed export reuses the frozen video Blob and direct
 
 test('the threat model owns the route-level claim without promoting resource guarantees', async () => {
 	const documentation = await readFile(
-		new URL('../docs/production-threat-model.md', import.meta.url),
+		new URL('../docs/policies/security.md', import.meta.url),
 		'utf8',
 	);
 	for (const routeId of Object.keys(ROUTE_CONTROL)) {

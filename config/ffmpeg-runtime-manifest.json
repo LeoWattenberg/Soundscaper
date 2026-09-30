@@ -54,8 +54,8 @@
 	"evidence": {
 		"lineEndings": {
 			"path": ".gitattributes",
-			"byteLength": 3210,
-			"sha256": "6a5a820256b0327793c4d83beb75fa6ce180d55f7cae5565593904957ea629b3"
+			"byteLength": 3195,
+			"sha256": "c2eaff411a1d114e5b84b35eb9b85f58d82e0e17646486657848c337e06b4c9e"
 		},
 		"correspondingSource": {
 			"path": "desktop/ffmpeg-corresponding-source.json",
@@ -64,28 +64,28 @@
 		},
 		"notices": {
 			"path": "THIRD_PARTY_LICENSES.md",
-			"byteLength": 88147,
-			"sha256": "5fdab9829267ecd723b3732f6fedf1a7a3675d04686183af7b73bb5a464624ac"
+			"byteLength": 88153,
+			"sha256": "9e662875e3f5a07448368c2f405ddd921a5efe3960c69cacc101199b256e12be"
 		},
 		"licensingPolicy": {
-			"path": "docs/production-licensing-policy.md",
-			"byteLength": 33336,
-			"sha256": "d49d685067fca0b83c456eaee207cdde0f0266994e3bf9b3b86e81d2b1aa673a"
+			"path": "docs/policies/licensing.md",
+			"byteLength": 33351,
+			"sha256": "0914fb0faa773651da85a86000971c1f0cb0ecf5c23cc9dd18efc3808b621938"
 		},
 		"licensingMatrix": {
 			"path": "config/production-licensing-matrix.json",
-			"byteLength": 151804,
-			"sha256": "60d6c0af65bbcc9494ddcadccf03f4f7306ffaafc92b3cb9efdc8228a158683c"
+			"byteLength": 151735,
+			"sha256": "36218aa2496e0913dced548e254f1724a474a66b6efeb3c2d1f7c457bd9c1c53"
 		},
 		"securityMatrix": {
 			"path": "config/production-security-matrix.json",
-			"byteLength": 852996,
-			"sha256": "a4cac35feef540fb73e4b67bcf922b37342e2f3eafdf553133ef4d59bedc1405"
+			"byteLength": 853032,
+			"sha256": "42cb565d042fd4c71be75ad658e362556539c74cf68b1d0f7b57e1e6b3a1a6be"
 		},
 		"threatModel": {
-			"path": "docs/production-threat-model.md",
-			"byteLength": 332211,
-			"sha256": "cb2e0630fc33cc12d39b39150f7458401c2b74a4827ef0f5380f80e0d74cabef"
+			"path": "docs/policies/security.md",
+			"byteLength": 332184,
+			"sha256": "f857eb2595b423907c912bee8e04863765e78625e7b1c5bad75f699aea89f662"
 		}
 	},
 	"security": {
@@ -115,6 +115,6 @@
 		}
 	},
 	"integrity": {
-		"payloadSha256": "d7357d431cca6166cfba253d7ce7a4e8b6ac5e902f13621ca62fb0d366e1f0c6"
+		"payloadSha256": "42cc4124cb406154263a4844653090aee80ffaef4362b23b0281cfcd12faf93e"
 	}
 }

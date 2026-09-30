@@ -236,8 +236,8 @@ test('the direct stem-archive fixture records native ZIP32/7z and compressed ZIP
 
 test('the threat and quality documents separate current codecs from historical fixtures', async () => {
 	const [threatModel, qualityBudgets] = await Promise.all([
-		readFile(new URL('../docs/production-threat-model.md', import.meta.url), 'utf8'),
-		readFile(new URL('../docs/quality-budgets.md', import.meta.url), 'utf8'),
+		readFile(new URL('../docs/policies/security.md', import.meta.url), 'utf8'),
+		readFile(new URL('../docs/development/quality-diagnostics.md', import.meta.url), 'utf8'),
 	]);
 
 	assert.match(

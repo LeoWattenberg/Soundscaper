@@ -100,10 +100,10 @@ export async function createFixture(context) {
 		lineEndings: '.gitattributes',
 		correspondingSource: 'desktop/ffmpeg-corresponding-source.json',
 		notices: 'THIRD_PARTY_LICENSES.md',
-		licensingPolicy: 'docs/production-licensing-policy.md',
+		licensingPolicy: 'docs/policies/licensing.md',
 		licensingMatrix: 'config/production-licensing-matrix.json',
 		securityMatrix: 'config/production-security-matrix.json',
-		threatModel: 'docs/production-threat-model.md',
+		threatModel: 'docs/policies/security.md',
 	};
 	const sourceDescriptor = {
 		url: 'https://example.test/ffmpeg-source.tar.gz',
@@ -132,8 +132,8 @@ export async function createFixture(context) {
 		'/config/production-licensing-matrix.json text eol=lf',
 		'/config/production-security-matrix.json text eol=lf',
 		'/desktop/ffmpeg-corresponding-source.json text eol=lf',
-		'/docs/production-licensing-policy.md text eol=lf',
-		'/docs/production-threat-model.md text eol=lf',
+		'/docs/policies/licensing.md text eol=lf',
+		'/docs/policies/security.md text eol=lf',
 		'/r2-cors.json text eol=lf',
 		'',
 	].join('\n'));

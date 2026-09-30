@@ -1,0 +1,1839 @@
+# Production threat model
+
+This document records the production security baseline for the Soundscaper and
+Framescaper local-first Web and Electron editors. The machine-readable control register is
+[`config/production-security-matrix.json`](../../config/production-security-matrix.json). Its checked-in implementation and test references are the evidence for each current claim.
+
+This register describes narrow controls and residual risks; it does not certify,
+qualify, attest to, or sign off a release. Historical “qualified” and
+“admitted” wording in retained version narratives means only that a bounded
+technical input or operation passed its named checks.
+
+The model is grounded on 2026-09-22. It must be updated when a trust boundary, supported input, renderer bridge, worker ABI, native executable, plug-in surface, release channel, or long-job lifecycle changes.
+
+## 1.0 project-identity boundary
+
+The `1.0.0-rc.1` baseline admits exactly
+`{schemaFamily:'soundscaper',schemaVersion:1}` and
+`{schemaFamily:'framescaper',schemaVersion:1}`. The identity reader requires own
+enumerable data properties and a positive safe-integer version; accessors are
+not invoked. Numeric-only documents receive typed `REIMPORT_REQUIRED`.
+Unknown families, malformed identities, and archive manifest/root disagreement
+reject before project traversal, asset reads, or persistence.
+
+The other known family and a later version of the selected family receive
+opaque read-only custody, not semantic validation or feature activation. Scape
+format 1 repeats the tuple in the manifest; retained foreign/future custody can
+only Save Copy the original bytes exactly. Family-less format 1, every
+pre-release format 2 archive, and every pre-release browser, desktop, or native
+store are outside the baseline. Fresh v1 identities prevent the candidate from
+opening, enumerating, mutating, or deleting them.
+
+There is no project migration, copy-forward, predecessor-validator dispatch,
+or family inference from a bare schema number, file suffix, feature wire, or
+independently versioned native or IPC protocol.
+
+Fallback admission, managed-media acquisition, and feature-compatibility
+projection run only after the owning family-v1 identity is authenticated. Their
+current transfer witnesses reopen within the same family. A foreign-family
+archive never enters those domain controls; its only archive egress is
+byte-exact Save Copy from opaque custody.
+
+The direct per-product libraries preserve catalog, body publication, list,
+duplicate, delete, lease, recovery, and plug-in-state behavior only after the
+owning family-v1 tuple is admitted. Managed-media and rendered-fallback
+witnesses are same-family workflows. Retired cross-family packaged handoff
+fixtures are provenance only and grant no active security, compatibility, or
+release claim. Source-level and portable-open evidence qualifies the four
+frozen rendered-fallback relationships; packaged activation, transport
+playback, and final delivery remain unqualified.
+
+This boundary is enforced for the RC and remains part of the ordinary automated
+gate. A known security-boundary failure is a reason for the owner to hold the
+release; the threat model itself issues no stable-readiness decision.
+
+## Meaning of the statuses
+
+- **Enforced** means every named control for a narrowly described current surface has implementation and automated verification evidence. Enforced does not mean risk-free, and it does not qualify a broader future surface.
+- **Partial** means useful controls exist but documented attack paths or lifecycle requirements remain unverified.
+- **Planned** means the surface is unsupported and must remain disabled until its acceptance criteria are implemented and verified.
+- **Distribution-blocked** means the named surface must not be distributed until its recorded security or lifecycle prerequisite is satisfied. It does not claim that every development build is technically prevented from exercising the code.
+
+Documentation, a roadmap entry, or a passing happy-path test is not by itself an enforced control. A control requires code plus relevant automated verification. Residual risks remain visible instead of being folded into a broad claim such as “sandboxed” or “secure.”
+
+## Scope, assets, and actors
+
+Protected assets are project and source integrity, user-selected files, local storage capacity, renderer and desktop-process availability, same-origin data, server-held service and OAuth credentials, opaque user sessions, user-selected upload audio and metadata, third-party quota, release provenance, and the authority of the user's operating-system account.
+
+The attacker may provide a malformed project, archive, audio/video file, metadata block, Nyquist program, or future plug-in; call a public proxy, steal a session capability, or supply an adversarial third-party response; compromise renderer content; or substitute a dependency or release input. Accidental corruption, interrupted uploads and writes, project switches, cancellation, and renderer/process crashes are treated as security-relevant fault cases because they can violate the same integrity and availability invariants.
+
+The browser, Electron/Chromium runtime, operating system, and hardware are trusted to enforce their documented primitives. Local operating-system compromise is out of scope. A malicious native plug-in is not made safe merely by running in another ordinary user process.
+
+## Trust boundaries
+
+| Boundary | Untrusted or less-trusted side | Privileged or persistent side | Invariant |
+| --- | --- | --- | --- |
+| `external-input-to-parser` | User-selected files and collaborator-supplied bytes | Project, archive, media, and metadata parsers | Reject invalid structure and resource amplification before persistent publication. |
+| `archive-reader-to-storage` | ZIP entries and admitted family-v1 project records | IndexedDB/OPFS projects and sources | A failed or cancelled import does not publish a project or leave staged sources. |
+| `browser-origin-to-peer-project-store` | Soundscaper or Framescaper transfer origin and manually selected archives | Peer-origin transfer page and its product-family stores | Admit only the configured origin and peer window, a closed bounded handshake, and ordinary family-qualified Scape publication. |
+| `public-browser-to-desktop-release-redirect` | Browser visitor following a desktop download link | Product Pages download Function and GitHub's public release listing | Accept only product hosts and safe methods, bound the upstream lookup, and redirect only to a published release with that product's installer. |
+| `public-client-to-freesound-proxy` | Public browsers, packaged Soundscaper clients, and other network callers | Pages Functions and their server-only Freesound credential | Admit only fixed read routes and bounded inputs, and never expose or forward the credential outside the fixed API origin. |
+| `authenticated-client-to-freesound-proxy` | Soundscaper web client or packaged main-process proxy holding an opaque session | OAuth/media Functions, D1 token store, and server-held OAuth credentials | Bind exact session transport and origin to closed OAuth, original-download, upload, and publication routes without exposing tokens to the renderer. |
+| `freesound-upstream-to-proxy` | Freesound OAuth/API, original-file, upload, and CDN preview responses | Owned OAuth/media contracts and bounded streams | Reject untrusted fetch targets, redirects, open response shapes, disallowed media types, and bodies beyond per-response ceilings. |
+| `renderer-to-electron-main` | Sandboxed renderer | Electron main process | Only the product-qualified v1 bridge, including bounded pathless linked-video, maintained linked PCM container, and owning-family project-library calls, reaches privileged handlers. |
+| `electron-main-to-filesystem` | Protocol and IPC requests | User-selected files and packaged resources | Renderer code receives capabilities, not ambient paths or arbitrary filesystem access; persisted linked-video and maintained linked PCM container paths remain main-private. |
+| `electron-main-to-shared-project-library` | Soundscaper or Framescaper Electron main-process host | Product-isolated family-v1 appData catalog, project-document tree, and managed-media tree | The family-qualified handshake and current fenced lease must agree before project use; only the current lease may publish state, exact-absent managed bodies receive point-in-time catalog and destination-capacity admission before body work, immutable bodies are complete and digest-bound before catalog publication, and recovery roots remain protected before host exposure. |
+| `untrusted-runtime-to-audio-engine` | User-authored Nyquist source and release-catalog reviewed WebAssembly | Editor PCM and effect results | Admit only the surface's closed protocol and host ABI; bind package identity, bytes, input, output, memory, lifecycle, and imports to its recorded envelope. |
+| `macro-program-to-editor-controller` | A macro written as JavaScript, running in a blob-URL module worker | The one open project's controller actions | Serve a fixed set of named reader and mutator methods and refuse everything else; a run is one undo entry, terminates on cancellation, deadline or failure, and cannot reach another project, a device, a file, or the network. |
+| `application-to-native-extension-surface` | Application requests | Supervised helper and admitted external-executable processes plus future native plug-in processes | The probe, native audio, authenticated local-model helper, and conditionally admitted external-shot runner speak closed versioned contracts behind main-owned spawn, verified binary or executable-pair authority, and pathless renderer channels; every further helper or plug-in surface needs its own enactment. |
+| `controller-task-to-io` | Cancelled or superseded controller job | Readers, writers, workers, and project state | Cancellation reaches the work, closes resources, rolls back staging, and prevents late publication. |
+| `dependency-to-release-artifact` | Registry, source archive, binary, and build inputs | Web assets and desktop packages | Shipped executable bytes match reviewed, pinned provenance and release policy. |
+
+## Current controls and historical risk-register provenance
+
+The version-bearing S21–S30, F18–F32, shared-schema, desktop-library, and
+format-2 narratives retained below are historical implementation provenance.
+Their safety mechanics feed the family-v1 baseline, but the old identities are
+not runtime, migration, storage, or packaging authorities.
+
+### Malformed projects and media
+
+`external-project-document-validation` is **partial**. Core project migration validates supported schemas and preserves newer schemas as opaque read-only clones. Schema 12 normalizes its bounded declarative feature-requirements manifest into a deep-frozen clone, rejects duplicate requirement IDs, noncanonical feature IDs, unsupported dispositions, and invalid fallback source-kind references or digest syntax, and evaluates caller-declared availability without executing project-supplied identifiers or mutating requirement state. Current-schema, current-format `.scape` paths preserve the manifest and fallback-only source assets, including collision remapping. A stable selected-product capability registry treats only strict `true` as available and unregistered IDs as unknown; exact schema 17 is evaluated from the actual project history before activation, incompatible projects become intrinsically read-only, and an existing same-ID tab's stored read-only declaration wins over the ignored incoming document's flags. The report remains deep-frozen across per-tab session metadata clones and the document snapshot. After activation, the maintained active workspace persistently displays a non-dismissible document-level notice from only the active tab's unavailable and unknown report items. The frozen subset recomputes counts and shows bounded display names, stable feature IDs, availability, and declared dispositions while that active tab is selected. Available items are excluded, evaluator messages and fallback internals are not read, and the notice exposes no activation controls or feature-code-loading claim; the role-defined audio whole-mix and whole-project video plus first-party track-local audioEffects and clip-local videoEffects indicators are governed by the separate playback controls below. Compatible and future-schema null reports render no notice. Current-format `.scape` inspection receives the same selected-product evaluator as a provider-owned option that caller options cannot override; exact schema 17 is evaluated after archive and source validation but before project collision lookup and returns a deep-frozen report, while future schemas return `null` and `featureRequirements` is not traversed. Maintained workspace/UI file-open routes turn an incompatible exact-schema report into one closed decision: no-collision opens offer **Open read-only** or **Cancel**, and a combined incompatibility and ID collision offers **Open as read-only copy** or **Cancel** in a single decision. Cancel settles before import, persistence, or activation. Acceptance passes only the existing copy policy into native open; the controller then reevaluates the actual project history and enforces it as intrinsically read-only. The localized dialog shows bounded display names, stable feature IDs, availability, and declared disposition, defaults focus to Cancel, and supports Escape dismissal and focus restoration. A separate maintained-controller admission step now verifies exact-schema-17 raw and stored-project rendered fallbacks against referenced local bytes before activation side effects. It binds existing-tab work to a session-owned history token and, after verification, obtains one exclusive session activation reservation before the first side effect. The reservation rejects target history replacement, close/reopen, and competing active-project publication through synchronous session publication and is released in `finally`. Admission reads publish no storage maintenance. It hashes canonical audio under checked geometry and a cumulative 65,536-chunk ceiling, hashes genuine original-media Blob bodies through a non-raiseable 4 MiB window, and applies a non-raiseable 64 GiB cumulative claimed-byte ceiling before fallback body reads. It runs sequentially and is cooperatively cancellable through the maintained store. Read-only video-metadata preflight is raced against cancellation, so an injected signal-ignoring provider may continue after admission rejects; a provider-stalled fallback body read can instead delay cancellation settlement and iterator cleanup. Verification deduplicates matching claims and rejects conflicting claims before storage reads. Future schemas are not traversed. This is point-in-time admission, not verification for arbitrary direct store loads, continuous binding against later low-level source replacement, publisher authenticity, runtime fallback substitution by the admission control, future-schema preservation, affected-object placeholders, or per-feature bypass controls. The separate playback controls below implement only the role-defined audio whole-mix and whole-project video, plus the closed first-party audioEffects track-target and videoEffects clip-target exceptions. Complete third-party activation gating remains a separate later surface rather than a prerequisite for the media-only audio fallback or maintained first-party effect notices described below. AUP4 conversion sanitizes imported structure. Legacy `.aup` XML applies a format-specific structural budget: authoritative declared `File.size` and the independently measured UTF-8 byte length of returned text are each capped at 16 MiB, retained elements at 100,000, attributes at 400,000, and depth at 128 through non-raiseable production ceilings and lower-only test seams. Supported canonical, default-sized simple/silent `_data` materialization adds non-raiseable ceilings of 65,536 selected companion files and 65,536 materializing references, 2 MiB per referenced physical file, 1 MiB per AU sample payload, 524,288 decoded or silent frames per block, 512 MiB of authoritative unique referenced file bytes, and 512 MiB of retained Float32 PCM. Bounded exact/basename indexes prevent reference-by-file lookup multiplication. Positive block lengths, a 24-byte AU header minimum, and equal-length paired linked clips are required; repeated references, silence, and linked zero-fill are charged. Selected/reference, declared-byte, and retained-PCM admission precedes retained-PCM allocation or block reads, while payload/frame refusal precedes decoded-block allocation; actual returned bytes must match snapshotted authoritative `File.size`. Audacity native-endian AU headers and samples are accepted, each unique file is read and decoded once, and one preallocated output per physical clip limits the logically reachable parser-owned window beyond retained PCM to one 2 MiB encoded file plus one 2 MiB decoded block. Equal or admitted zero-padded linked channels reach conversion without channel-normalization copies. Structural or materialization refusal precedes conversion, project/source persistence, and imported-project publication. These format-specific controls do not qualify XML-tree or opaque-extension clone amplification, elapsed time or cancellation, aliases, customized Audacity block-size settings above policy ceilings, provider-internal copies or garbage-collection lag, downstream conversion/waveform/storage/persistence working sets, total renderer RSS, noncanonical AU padding, other project families, or streaming-scale legacy import. The cross-format malformed-project regression and fuzz corpus remains incomplete.
+
+<!-- policy-narrative:framescaper-v18-editorial-document-admission -->
+Framescaper admits writable authority only after the hardened identity reader authenticates { schemaFamily: 'framescaper', schemaVersion: 1 }. Direct unversioned domain validators cover the complete frozen editorial, sequence, finishing, native-media, OpenFX, assistance, and image model before commands, history, playback, storage, export, or native project action. Soundscaper family v1 is a known foreign identity and receives opaque read-only custody without Framescaper domain traversal; unknown, malformed, accessor-backed, numeric-only, and pre-release identities fail before traversal or I/O.
+<!-- /policy-narrative:framescaper-v18-editorial-document-admission -->
+
+<!-- policy-narrative:framescaper-v20-keyed-project-admission -->
+Framescaper family-v1 commands, history, repositories, render plans, and native requests authenticate the project family together with the project ID and explicit capabilities. Product authority is never inferred from a bare schema number. A known foreign family or future version remains opaque and read-only, while malformed or pre-release identities reject before validation dispatch.
+<!-- /policy-narrative:framescaper-v20-keyed-project-admission -->
+
+<!-- policy-narrative:framescaper-v22-v26-dormant-candidate-admission -->
+The family-v1 runtime has no dormant product-generation validator, repository, migration, or activation path. A later Framescaper version and the other known family receive opaque read-only custody without domain traversal; numeric-only and every pre-release identity require re-import; unknown or malformed identities fail before storage or native capability activation.
+<!-- /policy-narrative:framescaper-v22-v26-dormant-candidate-admission -->
+
+<!-- policy-narrative:exact-v20-keyed-export-authority -->
+Framescaper family-v1 export authenticates the exact identity tuple, current document digest, explicit project capabilities, source bodies, timing bodies, and render-plan fingerprint before frame or audio production. The direct unversioned render domain preserves the complete frozen browser and native behavior; pre-release product generations and file suffixes grant no export authority.
+<!-- /policy-narrative:exact-v20-keyed-export-authority -->
+
+<!-- policy-narrative:v16-video-retime-preservation-admission -->
+Framescaper family v1 validates and edits the retained independently versioned V2 retime curve through direct unversioned domain modules. Preview, browser export, and the independent V14 native carrier share exact ordinal selection after source-domain proxy choice. Soundscaper family v1 does not activate retime, and no product family is inferred from the embedded curve or carrier version.
+<!-- /policy-narrative:v16-video-retime-preservation-admission -->
+
+`maintained-project-publication-admission` narrows one local publication surface. Every maintained caller save entering `AudioEditorProjectStore.saveProject`, and every maintained project copy entering its create-only publication path, serializes the submitted snapshot once for admission with the canonical tagged-binary `.scape` project-document codec and rejects UTF-8 output above a non-raiseable 256 MiB ceiling, with a lower-only test seam, before repository save or create-only mutation. These paths cover queued controller saves and maintained direct callers including inactive-tab close, project switch, import, duplication, and Scape transaction save or rollback. After the actual backend resolves, including IndexedDB-to-memory fallback, each maintained save or duplicate admits exactly twice the canonical UTF-8 length as a deterministic gross proxy for one current-project payload plus one revision-project payload, with exact `ceil(10%)` policy headroom immediately before repository publication. Direct IndexedDB saves and duplicates obtain one normalized estimate and use the strict admission owner. Queued autosave, explicit flush, and terminal flush instead pass the controller's localized capacity callback into the store and reuse the store's sizing result without a second canonical serialization. A duplicate can already have published its fresh pathless linked-video aliases when admission runs; a known shortage publishes no project or revision and invokes exact alias compensation, preserving the source alias and any replacement destination binding. A known insufficient estimate rejects direct and queued writes, including terminal teardown, before repository mutation or controller success side effects; an unknown or malformed estimate and every resolved memory backend proceed. Ordinary save rejection leaves the snapshot dirty without save, active-ID, garbage-collection, or usage-refresh side effects and the serialized queue admits a successor; duplicate rejection leaves no maintained copy project or revision after successful compensation.
+
+`project-publication-capacity-accounting` remains open. The twice-canonical planning amount is deterministic but is not an exact IndexedDB byte count: the local repository clones and compacts unreachable source metadata, then publishes structured-clone current and revision records with revision-wrapper fields. Browser record, key, property, transaction, journal, replacement, pruning, allocation-unit, and quota-accounting overhead remain unmeasured. The 256 MiB ceiling is evaluated after canonical serialization and does not bound the controller snapshot clone, already-materialized serializer string, heap, RSS, garbage collection, elapsed time, or backend write work. The capacity check covers maintained facade saves and the duplicate create-only project-publication path but is point-in-time and unreserved: estimates may lag, concurrent writers can oversubscribe, and write-time quota failure remains possible. Duplicate admission follows its separate alias transaction; the twice-canonical amount does not model alias-record overhead or reserve the later project transaction, although tested refusal performs exact alias compensation. Memory fallback and unknown estimates have no durable-capacity claim. For desktop shared projects the browser-side estimate covers only the local IndexedDB shadow. Exact-absent managed-media body publication separately validates prospective catalog geometry and performs same-store point-in-time managed-root admission before body or optional hard-link work, and main-process appData project-document staging admits the exact serialized document size against point-in-time fail-closed `statfs` before document directory or stage work. Neither control covers renderer/main IPC, SQLite catalog or WAL allocation, filesystem allocation overhead, cross-store or cross-process coordination, whole-handoff reservation, later external allocation, or write-time success. An authoritative shared-project load can publish its local shadow outside the save facade. Capacity refusal during Scape rollback restoration can also surface an aggregated rollback failure after the prior row was removed. Directly constructed repository instances, pre-existing over-limit stored documents, and other route-specific controls remain outside this control.
+
+For current schema 17, create, load, clone, and commit paths reconcile the reserved `soundscaper.audio-effects` requirement when maintained first-party effects occur in track, group, send, or master racks, including disabled effects and inactive racks. Publisher-authored audio-effects requirements take precedence, missing or foreign effects do not trigger the owned declaration, and reserved-ID conflicts reject. The same paths reconcile the reserved `soundscaper.video-effects` requirement for maintained first-party effects on timeline and Project Bin video clips, including disabled effects. Publisher-authored video-effects requirements take precedence, missing or foreign effects and stacks on non-video clips do not trigger the owned declaration, and reserved-ID conflicts reject. When exact schema 17 reports registered `audioEffects` as unavailable with declared `bypass` and effective `bypassed`, activation derives a bounded, non-persisted engine projection before activation side effects. Only active, enabled, not already bypassed maintained first-party effects in track, group, send, and master racks become minimal bypassed playback copies; the canonical project, history, source loading, and persistence remain unchanged. The lower-only 4,096-effect ceiling rejects instead of truncating, and inventory construction does not read effect `params`, `context`, or `state`. Deep-frozen per-tab and snapshot metadata drives one localized, noninteractive affected-object inventory under the first qualifying requirement. Unknown or third-party effects, rendered fallback, offline render or export behavior, and activation controls remain outside this audio slice.
+
+Schema 17 also validates nested track folders as closed top-level metadata plus
+authoritative closed per-sequence nodes. Sequence `trackIds` and project-wide
+track and folder preorder must match the exact derived hierarchy, a top-level
+folder holding audio owns the group bus carrying its identity with mirrored
+name and neutral mute and solo, and every audio descendant routes to that bus.
+Nonempty state owns `soundscaper.track-folders`, with display name `Nested
+track folders`, disposition `bypass`, and no fallback. Soundscaper registers
+its capability available with native folder-aware commands, clipboard
+placement, and tree UI; Framescaper registers it known but unavailable,
+preserving nonempty state read-only. The capability is excluded from audio and
+video fallback eligibility, and either fallback kind rejects at manifest
+admission. Legacy add, remove, and reorder commands delegate to the
+folder-aware path on a nonempty hierarchy, adopting the parent beside their
+flat position; cross-sequence reorder rejects rather than silently
+reparenting, direct mixer edits cannot break an owned folder bus mirror, and
+an ADM authored programme refuses folder edits that would change bus
+ownership. Before playback, audio
+render, video preview, or video export, a bounded transient projection derives
+inherited folder mute, solo, and hidden state into leaf track flags. It runs
+before rendered-fallback projections, privately authenticates its enumerable
+marker across explicit transient clones, and rejects a forged marker before
+hierarchy traversal. Canonical folder state, leaf-local flags, routing, history,
+and persistence remain unchanged; collapsed and height remain UI-only.
+
+<!-- policy-narrative:take-comp-native-and-cross-product-preservation -->
+family v1 take groups are mandatory closed canonical records with sequence and audio-track ownership, audio-source bounds, canonical lane, take, region, and group ordering, globally unique bounded identities, a 4,096-identity and 160-character stable-ID ceiling, and nonoverlap on one sequence track. Nonempty state owns the exact reserved `soundscaper.take-comp` requirement for `org.soundscaper.capability.take-comp`, display name `Take lanes and comps`, disposition `bypass`, and no fallback. That requirement refuses publisher substitution and the capability is excluded from audio and video rendered-fallback eligibility. Soundscaper registers takeComp true, so compatibility is available/native and writable; its typed domain and commands provide group add, update, remove, and flatten, exact lane and take audition, range promotion, boundary editing, and stale-safe exact flatten publication through a Tracks-menu dialog. Framescaper registers takeComp false but known, so compatibility is unavailable/bypassed and intrinsically read-only and it exposes no take/comp menu. Clipboard V4 clips take geometry, retains take-owned source roots, and pastes an independently identified graph. A current-format `.scape` collision copy consumes production-recovered cycle output and proves take groups as the only logical roots for exact PCM, remaps source and storage identities and every take source ID, keeps recipient collisions untouched, and reopens the copied document and bytes exactly. A fresh Soundscaper family-v1 desktop-library reopen consumes production-finalized cycle output and proves the owning family retains the exact document and managed PCM writable with no missing sources; it grants no foreign-family editing or shared-catalog authority. Routed cycle capture, durability, explicit open recovery, and bounded-resource truth belong to the dedicated `durable-routed-take-cycle-capture-and-recovery` control.
+<!-- /policy-narrative:take-comp-native-and-cross-product-preservation -->
+
+<!-- policy-narrative:audio-warp-native-and-cross-product-admission -->
+exact owning-family v1 validates audio warp maps on timeline and Project Bin audio clips. Each map has 2 through 4,096 closed points with strictly increasing outer and source domains, canonical reduced rational positions, outer endpoints matching the resolved clip anchor extent, source endpoints matching the clip source extent, and forward mode only; reversed clips and musical clips without beat authority reject. Project Bin placement preserves the same exact map on a distinct timeline clip and the result validates again. Authored state owns the exact reserved `soundscaper.audio-warp` requirement for `org.soundscaper.capability.audio-warp`, display name `Audio warp maps`, disposition `bypass`, and no fallback. It refuses publisher substitution and is excluded from audio and video rendered-fallback eligibility. Soundscaper registers audioWarp true in its profile and the production capability register, so the state is available/native and writable. Framescaper registers audioWarp false but known, so it is unavailable/bypassed and intrinsically read-only and Framescaper exposes no audio-warp menu or surface. One exact map evaluator and algebra serves playback, waveform projection, trim, split, and export. There is no scalar output-length substitution: the realtime scheduler and exact offline path derive source-position endpoints and piecewise linear projection from that map. The maintained nonidentity production playback fixture compares actual output across all frames and proves a 0.000001 PCM signal-error budget in both configured Chromium and Firefox jobs. The accessible Soundscaper menu dialog receives keyboard, named-role, axe, and forced-colors browser checks; this is not a screen-reader-product or assistive-technology matrix qualification.
+<!-- /policy-narrative:audio-warp-native-and-cross-product-admission -->
+
+Schema 17 also requires one own enumerable boolean `locked` field on every
+audio, video, and label track. The shared command boundary preserves the
+transaction-start authority of locked tracks through nested batches, rejects
+direct and indirect changes to their editorial content, structure, source
+bindings, and resolved timing, and validates the reconciled result before
+publication. Tracks locked later in the same transaction join that authority
+monotonically. Selection and established header, mixer, view, and track-rack
+controls remain usable, and both products expose Lock track and Unlock track
+through the Tracks menu. This core invariant has no capability, fallback,
+read-only compatibility state, or default-visible control; lock does not imply
+mute, hidden, bypass, or whole-project read-only state.
+
+Role-defined audio rendered-fallback playback is a separate exact schema 17 control. At most one audio rendered fallback of either closed audio role may qualify; more reject as ambiguous. The whole-mix branch accepts exactly one item with a canonical namespaced feature ID that is unavailable or unknown with declared and effective `rendered-fallback`, carries the closed `project-audio-mix-v1` role, and matches the canonical manifest. The `audio-track-render-v1` branch accepts only an exact registered `audioEffects` item reported unavailable whose descriptor exactly matches the canonical manifest by requirement ID, feature ID, role, target track ID, audio kind, source ID, and SHA-256; because the capability is always registered, unknown availability never qualifies that branch. Either role supplies fixed media semantics while the feature ID remains opaque identity; this control does not discover, load, or execute supplied feature code. For the whole-mix branch, a mono or stereo source matching project rate and master width becomes one neutral whole-mix clip using its full frame range from frame zero; canonical audio paths and mixer/master processing are removed only from the transient playback projection, while video and label timing remain. For the track branch, manifest validation binds exactly one audio track with an active rack, at least one enabled effect, and a non-empty audio clip lane with exact timeline placement whose extent the mono or stereo project-rate fallback source must equal exactly; the transient projection replaces only that lane with one neutral rendered clip from frame zero and neutralizes only that rack, the track keeps its identity, gain, pan, mute, solo, and envelope so native mixing and routing still apply, every other lane, mixer, and master rack stays native, ADM routing rejects, and a reserved rendered lane clip ID collision rejects. Ordinary lanes still load their ordinary sources; ordinary source loading is skipped on reapply only when the whole-mix role is the sole audio surface. The canonical project, history, persistence, save, export, and offline render stay unchanged. Initial activation and later engine reapplies share the same projection. Required stored metadata is rechecked; short sources are decoded and their buffer geometry must match exactly, while oversized sources must expose a streamable chunk provider. Readiness does not prefetch or revalidate streamed chunks, so later provider failure remains possible. Initial activation privately stages only the required fallback source before acquiring the session activation reservation or performing activation side effects. A decoded buffer or stream-provider candidate remains outside shared `sourceBuffers`, shared `sourceChunkProviders`, and engine chunk-source publication during this pre-reservation phase. Metadata, audio-context, and decoded-body operations race the controller-lifetime signal, reject cancellation promptly with its exact reason, and fence late settlement from publishing buffers, chunk providers, engine chunk sources, missing-source state, or status. A readiness or reservation failure discards the preparation and leaves the active project, tab, lock, and prior shared source identities unchanged. After preparation, activation rechecks fallback admission and session-owned history identity before reserving the target; later currentness checks fence engine entry and shared publication. Ordinary loading explicitly excludes the staged fallback source. Commit builds private buffer and provider snapshots from current shared state plus ordinary transient buffers, with the staged required source taking precedence over a conflicting transient. The engine receives those private snapshots first. After its callback returns, commit checks the signal and then runs the owning admission or canonical-project identity assertion synchronously at the publication boundary; no await intervenes before the required buffer or provider mutates shared state. Engine failure, cancellation, reservation or currentness failure, a publication-boundary identity failure, and a throwing cache publication preserve the prior shared identities; cache refusal removes rather than exposes a stale required representation. Commit ownership is single-use and discard is idempotent. Each canonical playback reapply owns one replaceable controller-lifetime task. A newer reapply or a successful project switch aborts stalled metadata, audio-context, or decoded-body source preparation with the exact reason; the switch does so before teardown. Late settlement is fenced from buffer, provider, engine-source, missing-source, and status publication. In the tested stalled-preparation race, only the newest source-ready projection enters the engine. Frozen per-tab and snapshot metadata and the localized source/component UI indicator remain bound to the exact feature ID and requirement ID without reading or exposing source identity or digest. The `org.example.future-mixer` unknown-feature composed Soundscaper-to-fresh-Framescaper activation witness transfers the manifest-only fallback beside editable original PCM, authenticates both managed bodies, verifies the fallback manifest digest before the transient projection, and preserves the exact canonical shadow. Its feature-requirement-only intrinsically read-only sender publishes the unchanged active snapshot without flushing only while it owns the current writable project lock; declared read-only, future-schema, missing- or stale-lock, and lock-contended projects refuse handoff. Digest admission is point-in-time, not a durable byte lease. An `engine.applyProject` or activation engine callback already entered is not abortable or transactional and may have taken effect even when its post-call publication-boundary assertion blocks shared publication; cancellation is observed only after that callback settles. Failure in a later activation step after successful engine and shared source publication is not rolled back. Ordinary-source loading remains outside this required-source publication transaction, and short-buffer retention after engine application remains subject to cache-fit policy. Streamed chunks are not prefetched or revalidated after readiness. ADM and surround playback remain outside this control. More than one qualifying audio rendered fallback of either closed audio role across any feature identities rejects as ambiguous, and non-audio roles never qualify for this projection. Fallback authoring, freeze or proxy workflows, linked-only or unmanaged playback, publisher authenticity, third-party feature-code activation, future schemas, and earlier Soundscaper schemas remain outside this control. Source/component tests exercise the UI indicator. The exact Linux x64 packaged workflow exercised source/component UI activation and transport playback for both frozen audio roles. Packaged runtime or UI final-delivery workflows, operating-system behavior, browser audio behavior beyond the maintained portable-open witness, reference-scale evidence, and a durable byte lease were not exercised.
+
+Final audio rendered-fallback delivery is another narrow exact schema 17
+control. Exactly one item with a canonical namespaced feature ID must be
+unavailable or unknown with declared and effective `rendered-fallback`, carry
+the closed `project-audio-mix-v1` role or the registered-`audioEffects`-only
+unavailable `audio-track-render-v1` role, exactly match the canonical manifest
+including any target track ID,
+and, for standalone final-audio delivery, be the only rendered fallback in the
+report; composed final-video delivery instead requires only that it be the sole
+audio rendered fallback. The role supplies fixed media
+semantics while the feature ID remains opaque identity; delivery does not
+discover, load, or execute supplied feature code. The capability-evaluated
+service applies only the audio projection to standalone final mix delivery. It
+supports normalized mix mode only; stems, BW64, and ADM reject before integrity
+verification or other export work. Simultaneous rendered fallbacks reject in
+this standalone path before verification or other export work; the separate
+final-video control below instead admits the active audio fallback of either
+closed role on its own whenever it
+qualifies there, and admits the exact one-audio/one-video
+composition of that audio fallback with one maintained video rendered fallback. The
+canonical project, history, persistence, and save state remain unchanged.
+
+Delivery does not reuse activation-time byte admission. Under the owned
+export-task signal, an operation-time selector binds the exact requirement ID,
+feature ID, audio kind, source ID, and SHA-256, together with the closed audio
+role and, for the track role, the exact target track ID that selection,
+currentness, and conflicting-claim comparison all include, and verifies only
+that selected
+PCM body; unrelated fallback storage is not read. It scans the full canonical
+`audio-f32le-chunks-v1` sequence with exact PCM geometry under the existing
+65,536-chunk ceiling and the selected target's share of the non-raiseable
+64 GiB fallback-byte ceiling. The scan records 32 bytes per chunk in a digest
+table bounded to 2 MiB, then returns one private provider with the admitted
+source geometry.
+
+For each requested stored chunk, the provider
+copies tight `Float32Array` channels, validates the requested index and exact
+frame and channel geometry, and compares the canonical chunk digest with the
+admitted table. It observes the task signal and operation currentness before
+the read, after the read, and before return. Missing, malformed, reordered,
+wrong-geometry, replaced, or digest-mismatched chunks fail with the stable audio
+fallback integrity identity instead of reaching the renderer. The full scan
+and per-read checks provide operation-scoped integrity; they do not reserve or
+freeze the backing storage binding.
+
+Settings refusal and verification complete before the export plan, picker,
+storage preflight, render, or output publication. For the whole-mix role, the
+projected renderer sees
+an empty private source-buffer map and the verified provider as its sole private
+chunk source. Global source-buffer, source-provider, engine chunk-source, and
+cache state remain unchanged, and committed time-pitch cache preparation is
+skipped for that role. The track render composes instead: its renderer receives
+ordinary source buffers and chunk providers with the fallback source removed
+from both, the fallback bytes are readable only through the verified private
+provider, which replaces any ordinary provider or cached buffer for that
+source, committed time-pitch caches are prepared for the native lanes, and
+missing ordinary sources still refuse export. This same private context
+reaches offline, realtime, and direct PCM
+rendering. A stable integrity failure from an offline provider read is not
+downgraded by retrying in realtime. Ordinary audio exports retain their
+existing source maps, callback shape, cache preparation, and non-integrity
+offline-to-realtime retry behavior.
+
+`org.example.future-mixer` supplies the unknown-feature composed
+Soundscaper-to-fresh-Framescaper witness. The canonical manifest, frozen
+playback metadata, and localized source/component UI remain bound to the exact
+feature ID and requirement ID without exposing fallback internals. Its
+operation-time export selector cross-binds the exact requirement ID and feature
+ID with the audio kind, source ID, and SHA-256. Corrupt recipient-local fallback
+PCM after activation triggers
+tamper refusal and rejects delivery before render or download; exact repair
+restores the exact PCM and expected fallback samples in successful WAV delivery
+while the canonical project and stored shadow remain unchanged.
+
+The full scan and per-read checks are not a durable storage-record or byte lease
+and provide no cross-process immutability. Non-audio roles never qualify, and
+more than one audio fallback of either closed audio role across any feature
+identities rejects as
+ambiguous. Publisher authenticity, third-party feature-code activation,
+authored fallback relationships, freeze or proxy workflows, linked-only or
+unmanaged delivery, stems, BW64, ADM, surround delivery, packaged runtime or UI
+workflows, browser audio behavior beyond the maintained portable-open witness,
+reference-scale evidence, future schemas, earlier Soundscaper schemas,
+whole-handoff atomicity, and operating-system behavior remain unqualified.
+
+When exact schema 17 reports registered `videoEffects` as unavailable with declared `bypass` and effective `bypassed`, activation derives a bounded, non-persisted preview-playback projection before activation side effects. Enabled maintained first-party effects on timeline and Project Bin video clips become minimal disabled copies for engine loading; the canonical project, history, source loading, persistence, save paths, offline render, and video export remain unchanged. The lower-only 4,096-effect ceiling, 256-character stable-ID ceiling, and 128-character effect-type ceiling reject instead of truncating, and inventory construction does not read effect `params`, `context`, `state`, or opaque payloads. Each placeholder entry in the deep-frozen per-tab and snapshot metadata records only Timeline or Project Bin location, clip ID, effect ID, and effect type and drives localized, control-free placeholders with canonical clip ownership. A cached selector removes only exact timeline clip ID, effect ID, and effect type matches before compositor rendering and active-effect counting; Project Bin inventory is not applied to the compositor. Future schemas return before clip or Project Bin traversal. Already-disabled, foreign, unknown, and third-party effects, rendered fallback, offline render or export behavior, activation controls, earlier Soundscaper schema compatibility, and complete third-party activation gating remain outside this video slice.
+
+A separate generic affected-object visibility pass names the project objects behind each unavailable or unknown requirement. It is strictly read-only: it walks the live canonical project and derives one frozen index, and it never projects, mutates, bypasses, reprojects, or persists anything, so the canonical project, history, activation, read-only enforcement, engine project, audio graph, source loading, offline render, export, and delivery stay unchanged. It reads canonical state; only mutation is excluded. A project whose own `schemaVersion` data property is not exactly 12, a compatible or non-`soundscaper-project` report, a report without an items array, and a report whose items are all available produce no index before any object traversal. Apart from that gate the pass is total: nothing in it rejects except its own ceiling option, which throws a `RangeError` for anything that is not a non-negative safe integer at or below the production limit, so the seam can only lower it. It runs on the document-snapshot path, where a throw would blank the editor, and schema-12 validation bounds no string length at all, so a missing, empty, or over-long stable ID or object type no longer rejects: the object is skipped instead. Every named property read on the project takes an own data property, so a project-supplied accessor in a named-property position is treated as absent rather than invoked or thrown on; array membership, by contrast, is read by ordinary element access, so array traversal is not accessor-safe. Attribution follows the declared report descriptor, not the outcome of playback qualification or integrity admission. An item carrying a declared fallback is attributed by its closed role: `project-audio-mix-v1` names every non-label, non-video track rack, every mixer group and send rack, the master rack under its fixed `master` identity, and every non-video timeline clip; `project-video-render-v1` names every video track as well as every timeline video clip, because the projection collapses both and naming only the clips would leave a project with video tracks and no video clips reporting nothing while every video track was discarded; `audio-track-render-v1` names the declared target track together with each timeline clip its lane anchors, because the projection replaces that lane and rack wholesale; any other declared role names at most the one timeline clip whose ID equals the declared target clip ID. Because attribution is declared rather than qualified, a `video-clip-render-v1` descriptor reported unknown is indexed and labelled "Replaced during editor playback" even though that clip role qualifies for editor playback only when its availability is unavailable, so the label reports a declared relationship, not an admitted or qualified replacement. Otherwise the reserved first-party `audioEffects` ID collects only effect types outside the maintained registry, in the racks of non-label, non-video tracks, mixer groups, mixer sends, and master, and it applies the same inertness gates as the sibling audio bypass: a rack whose `effectsActive` is `false` and an effect whose `enabled` is `false` or whose `bypassed` is `true` are skipped. The reserved `videoEffects` ID likewise collects only unregistered types, on timeline and Project Bin video clips, skipping an effect whose `enabled` is `false`. A registered type is skipped because it already has its own first-party placeholder section and collecting it would spend the shared ceiling on rows the notice discards, so `registered` is always false on both effect channels. The two are not equally reachable: video-effect normalization rejects an unknown video effect type when the project opens, so no valid project can carry a foreign video effect type and the video-effect channel is reachable in principle but not by any project that opens, while unregistered types are an audio-rack phenomenon in practice. Every other requirement, which is the normal case for an arbitrary publisher feature ID without a fallback, names nothing. A requirement is marked attributable only once a channel has actually named at least one object, so a declared fallback that matches nothing — an absent target clip ID, or a video role on a project with no video tracks and no video clips — falls through to the explicit notice line stating that its affected objects cannot be identified instead of rendering an empty list as nothing at all. An object dropped by the ceiling still counts as named, while a candidate whose identity could not be read counts only as omitted. Only two things reach that omitted count: an object the ceiling dropped, and an effect whose type is a readable non-empty string but whose stable ID is missing, empty, or over long or whose type exceeds 128 characters. An object whose own identity cannot be read at all — a track, mixer bus, or clip with a missing or over-long ID, or a non-object effect entry — is dropped silently by the traversal and is disclosed nowhere, and a rack dropped that way takes its whole effect list with it. From the project the pass reads only container membership, object IDs, object and effect types, track type to skip label and video tracks, and clip kinds; from the report only its format and compatibility, each requirement's identity and availability, and the fallback's closed role and declared target clip or track ID. Effect `params`, `context`, `state`, opaque payloads, evaluator messages, and fallback source IDs, digests, and bodies are not read. Unlike the two bypass inventories above, which reject, the shared lower-only 4,096-object ceiling truncates and discloses the per-requirement omitted count together with an index-level truncation flag and a localized omission line, so a large project degrades this list instead of turning a permitted open into a failure; a truncated read-only advisory list leaves nothing audible, while a truncated bypass would. Raising that ceiling rejects, but the 256-character stable-ID and 128-character object-type ceilings no longer reject: an identifier or type that exceeds either is skipped, on the same reasoning that keeps the pass total. That ceiling bounds the retained list, not the per-snapshot traversal of a large project: enumeration continues after exhaustion, and the index is recomputed for every document snapshot of any incompatible schema-12 document. The maintained workspace renders the index as a control-free section under each affected requirement of the active tab. It shows only newly visible state — canonical objects a declared rendered fallback names and effects whose type is outside the maintained registry — and because the effect channels never collect a registered type and the section filters to those same two cases, nothing the first-party audio- and video-effect inventories already list is duplicated; an attributable requirement with no newly visible and no omitted object renders no section. Each listed row is keyed by channel, location, scope, owner, and object ID, because schema 17 enforces ID uniqueness only within a collection and a track and a clip may legitimately share one. The index is derived in each document snapshot from the live current project plus the retained activation-time report, so the list follows later edits while availability stays fixed by activation; it is not persisted, is not stored in per-tab metadata, and never passes through `projectForPlayback`. This pass adds no bypass, activation, or fallback behavior: bypass remains the two maintained first-party slices, no previously invisible object becomes controllable, selectable, or actionable, and unknown or third-party features gain no capability, no feature-code discovery, loading, or execution, and no activation control. Naming an object is not publisher authenticity and is not a claim about what the unavailable feature would have done to it. Earlier and future schemas, offline render and export behavior, activation controls, and complete third-party activation gating remain outside this pass.
+
+Video rendered-fallback preview and playback is a separate exact schema 17 control. The `project-video-render-v1` whole-project branch accepts exactly one item with a canonical namespaced feature ID that is unavailable or unknown with declared and effective `rendered-fallback`. The closed role supplies fixed full-render media semantics while the feature ID remains opaque, and the control does not discover, load, or execute supplied feature code. The `video-clip-render-v1` branch accepts only an exact registered `videoEffects` item that is unavailable with declared and effective `rendered-fallback`. Either branch's report video descriptor must match the canonical manifest requirement by requirement ID, feature ID, relationship role, optional target clip ID, video kind, source ID, and SHA-256. Existing controller admission fully reads the genuine immutable video Blob, verifies its exact admitted size and SHA-256 through non-raiseable 4 MiB digest windows before activation, and the project-switch path rechecks relationship currentness after required-source activation and before transient engine entry. Only `project-video-render-v1` uses the whole-project contract: the fallback is the one exact video source named by the manifest, project and source sample rates are equal positive safe integers, frame count, width, and height are positive safe integers, and frame rate is positive and finite. Missing, duplicated, wrong-kind, ambiguous, or drifted sources, unsafe geometry, and reserved synthetic track or clip IDs reject. Its transient full-length render begins at frame zero, replaces only timeline video tracks and clips, and preserves audio, labels, Project Bin, and sources while canonical document and history state stay unchanged. The `video-clip-render-v1` role is restricted to `videoEffects` and binds one exact timeline target clip with an enabled maintained effect. Its fallback source must differ from the target's canonical source and declare `hasAudio: false`; its frame count equals the target duration, and its sample rate, width, height, and frame rate match that canonical source. Its transient projection replaces only the target: source-local start and trims become zero, speed becomes one, and video effects become empty, while target identity, track membership, timeline placement, duration, grouping, A/V link, layer and transition context, unaffected clips and sources, Project Bin, canonical document, and history remain unchanged. Initial activation and later playback reapply explicitly activate the required manifest-only video source before the transient engine project and preview, whose lookup follows the projected clip's exact source identity. Deeply frozen session and snapshot metadata and the localized source/component UI bind only the exact feature ID and requirement ID without exposing source identity or digest. More than one qualifying video fallback rejects; multiple clip fallbacks and simultaneous audio and video rendered fallbacks are unqualified for preview and playback, and other mixed relationships are unqualified everywhere. Other relationship roles, future schemas, and earlier Soundscaper schemas remain outside this playback control. Linked-only or unmanaged playback is unqualified, as is simultaneous rendered fallback delivery beyond one audio fallback of either closed audio role paired with one video fallback. Generic fallback authoring and third-party feature-code activation are unqualified, as are freeze, proxy, relink, embedded fallback audio, and other export parity. The exact Linux x64 packaged workflow exercised source/component UI activation and transport playback for both frozen video roles. Packaged runtime or UI final-delivery workflows were not exercised, browser behavior and codec coverage were not exercised, and range or reference-scale evidence was not exercised. This control provides no durable byte lease, cross-process replacement guarantee, or whole-handoff atomicity. The exact one-audio/one-video final delivery composition and every other maintained final-video fallback delivery are governed only by the separate control below.
+
+`org.example.future-video-pipeline` supplies the maintained unknown-feature
+whole-project relationship across explicit managed handoff in one composed
+headless Framescaper-to-fresh-Soundscaper workflow. Retention roots the fallback
+when its manifest is its only project reference. The feature-requirement-only
+intrinsically read-only sender publishes its unchanged active snapshot without
+flushing only while it owns the current writable lock; declared read-only,
+future-schema, missing- or stale-lock, and lock-contended projects reject.
+Handoff transfers its editable retained-video original and fallback as two exact
+managed video bodies. The empty recipient acquires both bodies and the exact
+canonical shadow before the controller independently authenticates the fallback
+declaration and activates the exact fallback Blob URL. Managed transfer
+authenticates each descriptor and body digest, not the manifest declaration.
+This point-in-time whole-Blob evidence is per binding and does not claim
+whole-handoff atomicity, a durable playback lease, packaged UI, browser codec
+playback, or reference-scale range transport.
+
+Exact schema 17 now normalizes feature-requirements manifest schema 2 with the
+closed rendered-fallback roles `project-audio-mix-v1`, `audio-track-render-v1`,
+`project-video-render-v1`, and `video-clip-render-v1`. Nested manifest schema 1
+deterministically normalizes only to the whole-project roles. The clip role is
+restricted to `videoEffects`, binds one exact target clip ID, and does not open
+a generic project-supplied role or third-party dispatch surface. The track role
+is likewise restricted to `audioEffects`, binds one exact target track ID
+validated against the project tracks at every normalization call site, and
+opens no generic role surface either.
+
+That target must be one timeline video clip with an enabled maintained effect.
+Its complete fallback source must differ from the canonical source, declare
+`hasAudio: false`, have frame count equal to the target duration, and match the
+canonical source's sample rate, width, height, and frame rate. Projection changes
+only the target: source start and trims become zero, speed becomes one, and the
+maintained effect list becomes empty. Track membership, timeline placement,
+duration, grouping, A/V link, unaffected clips and sources, and canonical state
+remain unchanged. Integrity selection and currentness bind role, target clip ID,
+source ID, and SHA-256 together with the qualifying target and source geometry;
+same-source relationship conflicts reject before media reads.
+
+Final video rendered-fallback delivery is another narrow exact schema 17
+control. The `project-video-render-v1` whole-project branch accepts exactly one
+item with a canonical namespaced feature ID that is unavailable or unknown with
+declared and effective `rendered-fallback`. The closed role supplies fixed
+full-render media semantics while the feature ID remains opaque, and delivery
+does not discover, load, or execute supplied feature code. The
+`video-clip-render-v1` branch accepts only an exact registered `videoEffects`
+item that is unavailable with declared and effective `rendered-fallback`.
+Either branch's report video descriptor must exactly match the canonical
+manifest by requirement ID, feature ID, relationship role, optional target clip
+ID, video kind, source ID, and SHA-256, and it must be the only video rendered
+fallback in the report.
+The capability-evaluated service applies the active audio rendered-fallback
+projection of either closed audio role first
+and then the video delivery projection: the whole-project fallback replaces
+timeline video from frame zero. The `video-clip-render-v1` alternative replaces
+only its exact target while preserving track membership, timeline placement,
+duration, grouping, A/V link, layer and transition context, and unaffected
+video. The composed projection represents at most one audio and one video
+rendered fallback and composes no audio or video effect bypass projection;
+unrepresented, duplicate same-kind, unsupported-role, or additional rendered
+fallbacks reject instead of exporting a partial projection. An active audio
+whole-mix renders through an empty private buffer map with its verified provider
+as the sole private chunk source and without committed time-pitch cache
+preparation; otherwise canonical audio clips and effects remain in the delivery
+snapshot and render into the separately staged mix. Only the exact required
+audio and video fallback source IDs are excluded from the
+missing-timeline-source refusal; every other missing timeline clip source still
+refuses delivery. Canonical project, history, and save state stay unchanged.
+
+An active delivery does not reuse activation-time byte admission. Under the
+owned export-task signal, one joint selector-mode verifier receives the active
+audio and video selectors. The video selector reselects the exact requirement
+ID, feature ID, relationship role, target clip ID, video kind, source ID, and
+SHA-256; the audio selector reselects its own requirement ID, feature ID, closed
+whole-mix role, audio kind, source ID, and SHA-256. Only those active canonical
+targets are verified, and selector mismatch or ambiguity rejects before storage.
+Their cumulative non-raiseable 64 GiB fallback-byte ceiling is charged in target
+order and completes before body reads, so an over-budget pair reads neither
+body; that preflight derives the audio share from declared geometry and the
+video share from one read-only stored-metadata lookup, its only storage access.
+Any selected audio chunk scan runs first and returns its digest-bound private
+chunk provider. The verifier then loads the selected video body once, constructs
+a canonical native `Blob`, and size-checks and hashes that same object with
+SHA-256 through non-raiseable 4 MiB windows. Nonselected fallback bodies are not
+read. Its admission returns that same verified object.
+Export reuses it with no second fallback-store read, eliminating the selected
+fallback's storage-reread TOCTOU between admission and encoding. It is the sole
+video input for the whole-project role or the selected target input for the
+clip-local role while ordinary unaffected video remains in the composition.
+
+That verified `Blob` may then enter either the separately governed exact direct
+MP4/WebM route or the legacy final-`Blob` route. Source digest verification and
+the delivery projection remain owned by this rendered-fallback control; direct
+target transport and commit are owned by their separate control.
+
+Task, project-generation, and operation currentness are asserted before
+verification and again after admission immediately before planning. With both
+selectors present, the composed fence rechecks operation currentness together
+with both selector identities at three points inside the audio chunk scan and
+again on every provider read, so drift in either requirement that lands during
+the scan aborts the joint admission before the video body loads, and later drift
+aborts the next provider read. A video-only admission interleaves no such fence
+with its body read and relies on the full admission recheck that follows
+verification. The export-task signal fences verifier work, the separately staged
+audio render, and the selected encoder. In the production browser, only an
+exact keyed-frame route with an admitted WebCodecs configuration continues into
+Mediabunny MP4/WebM muxing. Composed-graph and otherwise unsupported browser
+delivery fails closed with typed unavailability and no FFmpeg WebAssembly
+fallback. Desktop delivery retains its separately governed external provider.
+On the prepared-`Blob` branch, post-encode
+currentness precedes output-`Blob` construction. After prior-output cleanup is
+awaited, cancellation and currentness are asserted again before download
+publication, and the same export-task signal is passed through that publication
+request. After publication returns,
+cancellation and currentness are checked again. When that check refuses a late
+result, its returned recoverable cleanup handle is awaited before refusal; this
+does not make publication transactional or undo an external destination that
+provides no such handle. Delivery audio comes only from the separately staged
+mix, so embedded audio in the fallback container is ignored. A stale
+activation-time digest, missing managed body, wrong body, or digest mismatch
+refuses before planning, selected encoding, and either downstream publication route,
+including download.
+
+The `org.example.future-video-pipeline` unknown-feature witness supplies a
+composed Framescaper-to-fresh-Soundscaper handoff whose canonical manifest and
+capability report remain bound by requirement ID, feature ID, video kind, source
+ID, and SHA-256. Frozen playback metadata and the localized source/component UI
+bind only the exact feature ID and requirement ID without exposing source ID or
+digest. The operation-time selector then reselects the exact requirement ID,
+feature ID, video kind, source ID, and SHA-256. Managed transfer authenticates
+each descriptor and body digest, not the manifest declaration. The witness
+tampers with the acquired fallback after activation and proves delivery refusal,
+repairs the exact acquired body, and then proves that body alone reaches a
+successful video output while the canonical project and shadow remain
+unchanged. The retained immutable `Blob` supplies point-in-time bytes for this
+export, not a durable storage-record lease or cross-process replacement
+guarantee. A separate first-party clip-local managed handoff carries the exact
+target clip ID and digest-bound fallback body to a fresh recipient, reopens the
+canonical shadow, and admits the relationship before playback. Ordinary video
+export, portable `.scape` copy collision handling, and managed handoff share
+that exact role and target identity; copy import remaps only the fallback source
+ID.
+
+Only the exact one-audio/one-video final-video composition is qualified;
+standalone final-audio delivery still refuses any simultaneous rendered
+fallback, and more than one qualifying video item rejects. Multiple clip
+fallbacks, duplicate same-kind fallbacks, and other mixed fallback relationships
+are unqualified. Other relationship roles and future schemas remain outside this
+control. Generic fallback authoring and third-party feature-code activation are
+unqualified. Linked or unmanaged delivery is unqualified, as are freeze, proxy,
+relink, embedded fallback audio, and other export parity. Packaged runtime and
+UI workflows are unqualified, browser behavior is unqualified, codec
+qualification is unqualified, range transport is unqualified, and
+reference-scale evidence is unqualified. Whole-handoff atomicity remains
+unqualified.
+
+Descriptor validation alone does not hash or authenticate the referenced media bytes; the separate exact-schema-17 controller admission described above verifies referenced local bytes at its narrower boundary.
+
+`external-media-parser-bounds` is **partial**. WAV/ADM paths have explicit structural and expansion limits, and custom FFmpeg output arguments and protocols are constrained. Selected Framescaper F31 now binds its menu-owned native-media and professional sequence/proxy actions through its immutable V28/V14 foundation to authenticated project, body, timing, persistent-services V3, supervised-helper, and per-OS isolation-launcher contracts. Carrierless decode, native CPU and hardware encode, one exact CPU retry, and authenticated helper-scratch output-tree publication are implemented in source. Compressed audio/video retains the broad malformed-input corpus and decode/resource budgets as technical diagnostics. An ordinary checkout reports its exact source inputs `not-materialized` and contains no generated payload bytes; dedicated five-target media and OpenFX workflows provision, build, self-test, and stage-verify the matching host and launcher results. Historical `selected-v20` and V28 adapter names do not displace selected F31/V14/V20 product authority.
+
+<!-- policy-narrative:framescaper-v18-proxy-revalidation -->
+Framescaper family v1 treats originals as authority and revalidates each bounded proxy/timing pair against the current source before preview use. Direct unversioned proxy modules validate digest, timing reference, display geometry, exact boundaries, project family, source ownership, and current revision. Browser export, native render, and delivery never substitute proxy pictures.
+<!-- /policy-narrative:framescaper-v18-proxy-revalidation -->
+
+### Portable `.scape` projects
+
+`scape-archive-structure-integrity` is **enforced for the current portable format**. Import and inspection share a strict TypeScript envelope that rejects unsafe or duplicate names, encrypted and directory entries, descriptor aliases, reserved-entry reuse, missing entries, and unreferenced extra entries. Descriptor sizes must match central-directory uncompressed sizes before project or asset extraction, and import still verifies size and SHA-256 after extraction. Import configures zip.js with `checkSignature: true`, so extraction also enforces each entry CRC; a negative rollback test corrupts stored-asset CRC metadata, observes signature rejection, and leaves the target inventory unchanged. After project migration, a second shared boundary requires equal source/descriptor counts, unique exact case-sensitive source IDs, and matching audio/video kinds. Orphan, missing, duplicate, invalid, and kind-mismatched identities reject before collision handling, transaction creation, or any storage call; canonical export round trips preserve the same bijection.
+
+Every project schema is structurally scanned before `JSON.parse` constructs its object graph under lower-only raw ceilings of 101,536 JSON values and depth 130. These raw maxima include exact schema 17's worst-case wire expansion for 256 tagged-binary payloads—six additional JSON values per payload and two additional depth levels—so lowered logical encode and decode limits remain round-trip closed. For exact schema 17 in the current format, opaque `Uint8Array`, offset-view, and `ArrayBuffer` bytes use one reserved, versioned JSON tag. Export copies the addressed bytes and independently applies non-raiseable ceilings of 256 payloads, 4 MiB per payload, 8 MiB aggregate bytes, 100,000 logical traversed nodes, and depth 128. Import and inspection validate the closed descriptor shape, unique positive IDs, canonical base64, exact byte lengths, tag collisions, and the complete decoded budget before decoded-byte allocation, collision lookup, transaction creation, or storage. Project-container accessors, callable container `toJSON` hooks, cycles, unsupported binary views, malformed tags, and ambiguous tags reject. Decode restores only the declared binary type; it does not interpret or activate the bytes. Other project schemas keep ordinary JSON values: tag-shaped future state is structurally scanned and counted but is not decoded or interpreted, and this control does not claim unchanged future-archive re-export.
+
+For current-format exact schema 17 archives, every rendered-fallback claim is bound to its canonical asset descriptor before compatibility evaluation, collision lookup, or storage. Export snapshots the admitted project root and complete source records, serializes those same sources and the bounded normalized fallback manifest used for validation, rejects project-root/source-record accessors and callable `toJSON` hooks without invocation, hashes completed canonical asset output, and rejects a mismatch before manifest write or destination commit; import hashes each extracted asset body and verifies its size and SHA-256 before source or project publication. Inspection performs descriptor binding but does not hash asset bodies. Separately, maintained exact-schema-17 controller activation verifies the referenced local audio and video fallback bytes for the authoritative raw or stored activation project before activation side effects. Direct `store.loadProject()` calls, durable integrity after admission, runtime fallback use by activation admission itself, and future-schema `featureRequirements` remain outside that control. Runtime selection belongs only to the separate role-defined audio and video playback controls for the closed audio whole-mix and whole-project video roles plus the first-party track-local audioEffects and clip-local videoEffects relationships plus their narrow operation-time-verified final-delivery controls above. These are internal digest-integrity checks, not publisher authenticity.
+
+One narrow linked-PCM portable-archive control covers the current-format exact schema 17 path when the sender has no owned PCM. After the initial binding materializes and authenticates the selected body under the 512 MiB tier, export reads a maintained linked RIFF/RF64 PCM or IEEE-float WAV, first-party BW64 integer-PCM `.wav`, classic integer-PCM AIFF, or canonical first-party AIFF-C float32 admitted only by an exact `.aif` or `.aiff` name and `audio/aiff` MIME through the exact-revision ranged source reader and writes only canonical `audio-f32le-chunks-v1`; no second whole-original Blob is constructed. The bounded classic reader requires FORM/AIFF with structurally consistent COMM and SSND chunks and accepts signed big-endian integer PCM at 8, 16, 24, or 32 bits. The canonical first-party AIFF-C profile requires FORM/AIFC, one four-byte FVER v1 (`0xA2805140`) before an exact 44-byte COMM, 32-bit `fl32`, the exact Pascal compression name `32-bit floating point`, and structurally consistent SSND geometry. The first-party label describes the maintained fixture, not authenticated provenance: admission is producer-neutral and accepts any producer emitting that exact tuple. Broader, compressed, and other AIFC profiles reject; broader third-party interoperability and producer provenance are unqualified. External source-container bytes and the pathless locator identity are absent from the project, manifest, and complete archive. A fresh portless recipient imports ordinary owned PCM with zero linked bindings and reopens with exact samples and project state durably. Direct fixtures exercise first-party BW64 integer PCM, classic AIFF, and canonical first-party AIFF-C float32. This control does not qualify future-schema archive preservation, byte-exact source-container or ancillary metadata preservation, packaged executable or UI and operating-system behavior, relink or watch, arbitrary third-party BW64, new BW64 ADM preservation or editing semantics, broader or compressed AIFC, third-party AIFC interoperability and provenance, the `.aifc` extension, audible or device playback behavior, content-frozen or cross-process leasing, same-inode mutation fencing, retained PCM or parser metadata allocation, or reference-scale memory use.
+
+`scape-archive-expansion` is **enforced for the current canonical STORE `.scape` import surface**. Before reading manifest bytes, the shared envelope validates entry count, encryption state, and safe compressed/uncompressed metadata, and rejects more than 64 GiB of cumulative declared uncompressed data in the browser. An desktop range source instead admits up to the safe-integer range, subject to the source file size and available storage. Central-directory indexing also requires ZIP STORE with equal compressed and uncompressed sizes before local-header preflight or body reads, so a tested high-ratio DEFLATE archive cannot spend decompression work or reach storage. Canonical export pins and verifies the same STORE policy. The non-raiseable 4,096-entry ceiling bounds the quadratic pairwise layout pass, and export applies it before creating a destination. Manifest JSON is capped at 32 MiB and project JSON at 256 MiB by both metadata preflight and byte-counted text sinks. Descriptor sizes must match entry metadata before project JSON or asset extraction. One shared counter also charges bytes actually emitted into the manifest, project, and every extracted asset against the browser 64 GiB limit or the desktop safe-integer limit before an over-budget chunk is retained. PCM chunk headers and canonical project chunk geometry are validated before byte-length arithmetic or allocation, limiting parser-owned pending PCM storage to 16 MiB plus its four-byte header; one archive-wide 65,536-chunk ceiling deliberately bounds parser iterations and source-writer calls for the portable format. Export preflights that aggregate audio work before asset reads and rejects backing-store chunks that do not match the same geometry or final frame total. For the tested native `.scape` open/save path, one task `AbortSignal` reaches incremental ZIP enumeration and extraction, source reads and writes, archive output, and file publication. Cancellation closes the archive reader, returns source iterators, aborts unpublished output and transactional source/media writers, deletes provisional media, and restores the previous project together with its retained revision history.
+
+The separate `point-in-time-import-capacity-admission` control sums every validated manifest asset size with checked safe-integer arithmetic and adds exact `ceil(10%)` headroom. After the existing-project collision-cancel decision, but before copy remapping, transaction construction or capture, source metadata reads, writer creation, or asset extraction, import obtains exactly one storage estimate. An existing-ID cancel performs no estimate; copy and replace each charge the full incoming asset total without credit for replaced content. A missing or unknown estimate permits import, while known insufficient free space raises stable frozen `QUOTA_EXCEEDED` details. The maintained native-controller route exclusively supplies a decorated preflight callback with the raw asset-byte total and captures the composed import task signal. Its storage-capacity service derives the same exact headroom requirement, publishes `checking` followed by `ready`, `unknown`, or `insufficient` in the workspace `lastPreflight` snapshot, and returns the one normalized estimate that drives the Scape quota decision. Cancellation promptly abandons a signal-ignoring estimate, closes the reader, starts no writer or extraction, restores the prior settled preflight snapshot, consumes late provider resolution or rejection, and generation-fences older work from replacing newer state. Standalone undecorated imports retain the optional direct store estimator and do not update controller state. The authentic sparse witness pins 8,589,930,860 asset bytes and the exact 9,448,923,946-byte required-free threshold, with capacity estimation before its media writer. This remains a point-in-time advisory check: it does not reserve capacity, establish real browser or filesystem quota accuracy, qualify OPFS or IndexedDB durable 8 GiB persistence, account for browser-record or filesystem-allocation overhead beyond the policy headroom, guarantee write-time success, or serialize concurrent writers.
+
+Default import and inspection run a bounded raw-layout preflight before constructing zip.js. It anchors exact classic or Zip64 end records without offset repair, walks exactly the declared central records under a shared non-raiseable 33 MiB cap, resolves required Zip64 fields in specification order, and compares every local header and signed or unsigned data descriptor with its central owner without extracting or hashing an entry body. The fixed ZIP end-record search can nevertheless overlap at most 65,557 bytes of a final payload tail before it anchors those structures. Checked entry ranges must exactly partition the bytes preceding, and never cross, the central directory; exact no-descriptor CRC/size checks close zip.js's zero-field exception. Export admission uses the same ceiling with a conservative per-entry allowance for the pinned writer's greater-than-4-GiB Zip64 offset field, preventing a canonical save from creating an archive that this control refuses. Focused fixtures cover repaired end-record offsets, unsafe Zip64 values, malformed extras and descriptors, zeroed local fields, overlap, gaps, and central-directory crossing, while cancellation and exact bounded reads remain enforced. zip.js strict local-header and pairwise overlap checks remain as defense in depth.
+
+Raw admission and zip.js now consume one branded random-access byte-source contract. A provider may lower individual reads beneath the 33 MiB logical maximum, but cannot raise it; captured native typed-array operations validate actual internal byte length and publish a defensive copy. Validation retains private structural observations under an exact 69,271,649-byte canonical-writer-profile ceiling, including central comments. Conflicting overlaps reject, and later ZIP reads receive the admitted end, central, local-header, name/extra/comment, and descriptor bytes while the provider is called only for payload gaps. Standalone validation enforces the same ceiling, and the Blob path uses the same reader with parity coverage. The zip.js adapter uses a zero-high-water-mark payload stream, so overlap-only checks pull lazily instead of prefetching the start of a large entry. The strict renderer adapter snapshots the descriptor URL/declared size and fetch implementation, splits logical reads at the 16 MiB platform media-chunk ceiling, requires exact `206`, `Content-Range`, `Content-Length`, and body-byte agreement, and serializes requests until stream `done`. The first admitted abort or transport error best-effort cancels the response and terminally fences queued and future requests with one stable restorable reason; a request aborted only while queued neither fetches nor poisons the source. Desktop project-dialog and OS-association opens share one explicit router. A terminal case-insensitive project suffix — `.sscape`, `.fscape`, the reserved `.liscape`, or legacy `.scape` — reaches the range path only when the file service also requires the exact canonical Scape MIME type; browser project archives continue through the Blob source, and Audacity and all other desktop project or media families retain their existing bounded materialization paths. The file service constructs the range source inside one awaited capability scope spanning inspection, any collision decision, and import, then releases the descriptor exactly once after the consumer settles on success, failure, user cancellation, or abort. The adapter deliberately has no descriptor ID or release authority; main-process release and retirement remain the authoritative native cleanup barrier. An inspection refusal witness stamps the retired schema-9 project into an exact 8 GiB sparse Zip64 `.scape` fixture and proves, through the real read-capability store, protocol handler, renderer adapter, and structural inspection, that a legacy archive fails with the typed re-import error before any collision lookup or open decision. It transfers less than 8 MiB in exact ranges, touches the huge body only in the at-most-65,557-byte suffix unavoidably overlapped by the ZIP end-record search, and does not hash that body. The authentic exact 8 GiB fixture binds its 8,589,930,860-byte all-zero asset to SHA-256 `29fe8d0dc2c84f17f76b0a8a896c33042d832681351f0798a523dcbf72c49942` and CRC-32 `1,816,305,334` (`0x6c429eb6`). zip.js extraction runs with `checkSignature: true` CRC enforcement, and the negative rollback regression described above proves a corrupted stored-asset CRC rejects before target publication. A separate full-import witness uses the current-schema arm of the same fixture and takes its entire asset through the real read-capability store, Node protocol handler shim, strict renderer adapter, file service, project service, and full import into an independent counting-SHA-256 transactional sink. The sink observes the authentic byte length and SHA-256 with at-most-4-MiB awaited writes and zero payload retention; its point-in-time capacity estimate precedes the media writer and admits exactly 9,448,923,946 required free bytes. The range route performs no Blob materialization, capability release occurs exactly once, and the pinned handle close occurs exactly once. That full-import witness remains verified reference evidence and is exposed as the opt-in portable reference-scale gate `npm run test:reference:scape-8gib`. Routine Node and coverage runs fast-skip it because a measured all-files coverage run passed but took 525 seconds. This scheduling does not demote or narrow the verified result; refusal inspection and the corrupted-CRC negative rollback remain in routine coverage. Those two reference witnesses require sparse-file support and use a Node protocol shim rather than packaged UI. The counting sink is not OPFS or IndexedDB durable 8 GiB persistence and does not qualify real production browser or filesystem quota accuracy or reservation, write-time success under concurrent writers, browser heap or process RSS, whole-storage atomicity, or publisher authentication.
+
+A separate maintained Soundscaper-only Linux x64 packaged smoke production-exports an exact-schema-17 project with one mono source, one track, and one clip: 16,384 Float32 frames at 48 kHz and a 65,540-byte framed PCM asset. Its archive is larger than the 65,557-byte ZIP end-search suffix and no larger than 96 KiB. The packaged executable receives that `.sscape` as a positional argument under isolated user and application-data roots, exercising native OS-open argument extraction and the pending queue, a main-owned `scape-range-v1` descriptor, preload event delivery, the renderer router, range adapter and protocol, inspection and import into real packaged application storage, activation, exact project, track, and clip identities, and visible success without an alert or dialog. The harness observes the capability live before delivery and retired after open, and the closed sanitized result exposes no capability ID, URL, or filesystem path. This test exercises only the small current-schema packaged application path. It does not exercise installer or file-association registration, a shell launch, packaged 8 GiB or other reference scale, payload laziness or absence of whole materialization beyond the known range route, playback, persistent reopen or durability, crash or power loss, memory or RSS, quota accuracy, reservation, or concurrency, Windows, macOS, ARM, Framescaper, arbitrary third-party ZIP or effect semantics, or legacy Soundscaper schemas or libraries. Third-party activation gating and legacy Soundscaper compatibility are not current priorities; Audacity project interchange remains a separate boundary.
+
+A second maintained Soundscaper-only Linux x64 packaged process extends that small-fixture path into an orderly process-restart persistence witness. The first process imports the exact 70,082-byte schema 17 revision 7 source-bearing archive under isolated user and application-data roots, verifies the archive unchanged, reaches a clean exit, removes the archive, and proves its absence through `ENOENT`. The second process launches the same executable against the same roots with no positional project archive and no read descriptor or capability; normal bootstrap automatically reopens the project. It rereads the canonical schema-17 revision-7 shared project and verifies exactly one source, track, and clip plus their ownership and source relations, the exact active project, track, and clip identities, and an Audacity PCM-backed waveform with no waveform error, alert, or dialog. The same second process proves that the known reopened fixture's stored PCM enters the editor playback graph. It requires exact enabled `Play` and `Stop` controls; `Play` exposes an active, pressed `Pause`, and during that same active interval the playhead advances and the master playback meter rises above its declared floor. Explicit `Stop` restores enabled, unpressed `Play` and resets the playhead to zero. The closed result contains no archive path, descriptor, capability, or private storage path. This test exercises only orderly process-restart automatic source-bearing persistence and reopen plus transport entry, playback-clock advancement, master-meter activity, and explicit stop and reset for that known current-schema fixture. It does not establish audible or device output because the harness passes `--mute-audio`, playback fidelity, dropout- or glitch-free playback, full-duration playback, mixer, routing, or effect correctness, storage durability, crash or power-loss behavior, fsync, eviction, quota accuracy, reservation, concurrency, Windows, macOS, ARM, Framescaper, cross-product transfer, arbitrary third-party ZIP or effect semantics, or legacy Soundscaper schemas or libraries. Third-party activation gating and legacy Soundscaper compatibility are not current priorities; Audacity project interchange remains separate.
+
+Original video extraction no longer materializes the complete archive entry. zip.js is pinned to 4 MiB emissions; each emission is charged against the actual-byte budget, independently hashed, and awaited through a transactional media writer before the next emission. The writer independently snapshots and hashes storage bytes, enforces exact declared size and digest, and publishes metadata last. OPFS receives bounded writes; IndexedDB fallback persists source-owned bounded byte-backed chunks and normalizes them, plus legacy Blob rows, to canonical Blob reads; process-memory fallback rejects declared payloads above 64 MiB before extraction. The 64 MiB limit is payload admission for the degraded in-process backend, not a claim about total renderer heap or process RSS. Reference-scale cancellation, oversized emission, digest/metadata drift, and publication-failure tests leave prior project/source inventory unchanged.
+
+Editor storage no longer migrates pre-current databases: a version-8 open drops their stores inside the version-change transaction and recreates the current schema, so no pre-cutover retained-media row — and no spoofable inherited provenance field — survives the upgrade; a failed recreation rolls the complete version change back. Retained-media rows written by current code carry fresh verified digest provenance at publication. There is no lazy digest backfill: a row without verified provenance loads without an inherited SHA-256 as verified metadata and never upgrades itself; malformed provenance markers still fail the load closed. Loads publish nothing — retained-media reads perform no storage maintenance. Internal claim/version fields never cross the public metadata API. Every retained-media load registers synchronously, before its first await, with the same per-store lifecycle coordinator as streamed writes. Clear holds a temporary admission fence and close a permanent fence; both signal captured reads through cancellation linked with the caller and await terminal settlement before deleting data or closing the database. A load already inside one non-raiseable 4 MiB Blob read observes cancellation when that read returns, and a load that observes the maintenance abort cannot return a payload after maintenance settles.
+
+Production `.scape` save now selects one user target before asynchronous flush and gives its destination factory the admitted archive maximum. Archive output is re-chunked to at most 4 MiB, awaited with backpressure, and counted independently by the ZIP boundary and file adapter; disagreement aborts before publication. File System Access and desktop outputs remain staged until the controller's final ownership check. FSA `close()` or desktop sync-and-rename is then one explicit non-cancellable commit boundary, so cancellation before it rolls back while cancellation after it cannot falsely report that a committed file was removed. Desktop adds acknowledged one-MiB IPC chunks and bounds writes by the project-specific admitted maximum. Historical Chromium and Firefox workflow evidence reconstructs and reopens the streamed archive. Current automated tests run WebKit and skip only a concrete missing API or runtime capability. Browser download remains a Web Core fallback with the non-raiseable 512 MiB final-Blob ceiling. Cross-context coordination for storage operations outside the generation-fenced streamed-media path remains an open lifecycle concern and does not expand the configured archive bytes accepted by this control.
+
+The first direct render-output slice is narrower than portable project saving: it admits one exact WAV, AIFF, BWF, or BW64 mix only when the export plan selects `realtime-stream` and names one output. WAV requires the exact `audio/wav` MIME type and `.wav` extension plus one positive safe-integer planned file byte count at or below 65 GiB. Classic WAV admission requires an explicit positive safe-integer sample rate no greater than 4,294,967,295, 1–32 channels, a nonnegative safe-integer frame count, non-array object metadata, a marker array, null-or-object iXML, and CART exactly null. Its canonical (`sampleFormat`, `bitDepth`, `floatingPoint`) tuples are (`int16`, 16, false), (`int20`, 20, false), (`int24`, 24, false), and (`float32`, 32, true). It rejects an explicit container, BEXT, ADM, `preDataChunks`, or `trailingChunks` before target selection. Admission recomputes `inspectWavLayout` with automatic container selection from the same sample rate, channel count, frame count, encoding, metadata, markers, and iXML used by streaming. Only RIFF or RF64 and exact agreement between the recomputed and planned bytes pass. Odd PCM RIFF data is word-padded. Layout-only witnesses allocate no PCM or output bytes while admitting the largest constructible RIFF at 4,294,967,302 bytes, observing the next mono int16 frame select RF64 at 4,294,967,340 bytes, and admitting the exact 69,793,218,560-byte (65 GiB) RF64 ceiling while rejecting the next frame. This is an admission ceiling, not WAV scale, package, heap, or RSS qualification. AIFF requires `audio/aiff` and the canonical `.aiff` extension plus an exact count at or below 4,294,967,303 bytes, its theoretical 32-bit FORM limit. Direct admission requires an explicit valid sample rate, 1–32 channels, from zero through 4,294,967,295 output frames, non-array object metadata, and one canonical (`sampleFormat`, `bitDepth`, `floatingPoint`) tuple: (`int16`, 16, false), (`int24`, 24, false), (`int32`, 32, false), or (`float32`, 32, true). It recomputes `inspectAiffLayout` from those same layout-affecting encoder options, requires AIFF for integer PCM or AIFF-C for float32, and requires its exact byte count to equal the plan. Malformed or stale fields and layouts reject before target selection. The 4,294,967,303-byte theoretical maximum is odd and unconstructible under the current aligned layout; a layout-only witness allocates no PCM or output bytes while admitting the largest current constructible 4,294,967,302-byte layout and rejecting its next mono int16 frame. Exact integer AIFF, AIFF-C float, odd PCM padding, and trailing ID3 metadata use that same encoder geometry. BWF requires `audio/wav` and the canonical `.wav` extension plus one positive safe-integer planned file byte count at or below 65 GiB. Admission requires an explicit valid sample rate, 1–32 channels, a nonnegative safe-integer frame count, object metadata, a marker array, and null-or-object iXML and CART. It recomputes the automatic RIFF/RF64 layout with `inspectWavLayout` from the same encoder options used by streaming: sample rate, channel count, frame count, integer precision, BEXT, metadata, markers, iXML, and CART. It rejects malformed fields or a planned-byte mismatch before target selection. Its plan and encoding must carry the same canonical normalized version-2 BEXT, and direct admission permits only integer int16, int20, or int24 PCM. It rejects a plan container, ADM, `preDataChunks`, and `trailingChunks`, keeping BW64 and opaque chunks outside the direct BWF variant; rich standard BWF metadata, markers, iXML, and CART remain eligible when their exact geometry agrees. A layout-only witness allocates no PCM or output bytes while admitting the exact constructible 69,793,218,560-byte (65 GiB) RF64 boundary and rejecting the next frame. This remains an admission ceiling, not BWF scale, heap, or RSS qualification. Authored BW64 requires format and container `bw64`, `audio/wav`, the canonical `.wav` extension, and an exact positive safe-integer layout recomputed by `inspectWavLayout` at or below 69,793,218,560 bytes (65 GiB). This is an admission ceiling, not an exercised scale claim. Only int16, int20, or int24 PCM with the same canonical normalized version-2 BEXT in the plan and encoding is admitted. Admission requires authored normalized ADM metadata for mono, stereo, or 5.1, with exact bed channel order and an identity preserve mapping. Canonical CHNA before PCM and AXML after PCM must be byte-identical in `plan.adm` and the top-level plan. Standard RIFF metadata, markers, iXML, and CART remain inside exact geometry. The separately admitted pristine-passthrough BW64 route is qualified only for metadata produced by the current BW64 importer and still accepted by the pristine planner: valid warning-free ADM, one unchanged neutral full-range source path at the import revision, and a nonempty complete `riffChunkSequence` whose aggregate complete nonstructural RIFF bytes, including headers and alignment bytes, do not exceed 16 MiB. Direct admission rechecks 1–32 channels of int16, int20, or int24 non-float PCM; exact rate, channel, frame, and precision geometry; zero tail and dither; full range; identity preserve mappings in plan and encoding; CHNA-derived channel order; exact compacted pre/post bytes, order, and placement in `plan.adm` and the top-level plan; and exact `inspectWavLayout` geometry under the same 65 GiB admission ceiling. A preserved BEXT is emitted only from the sequence; without one, plan and encoding must carry the same canonical normalized version-2 BEXT. Preserved cue/adtl, iXML, CART, ID3, or LIST/INFO chunks suppress their modeled plan fields, and collisions reject. Legacy `opaqueRiffChunks`-only metadata, incomplete capture, invalid or warning-bearing metadata, stale or edited projects, sequence drift, mapping or geometry drift, and loudness measurement reject before target selection. The byte-exact claim covers preserved nonstructural chunks only; structural BW64 and PCM bytes are rebuilt, so this is not whole-file bit identity or broad third-party BW64 qualification. A direct-eligible realtime BWF or BW64 request with `measureLoudness: true` fails closed before target, preflight, or render because bounded two-pass measurement is unimplemented; this makes no measured-loudness claim. Desktop save-choice policy permits `.wav`, `.aif`, and `.aiff`, while controller admission remains canonical `.wav` or `.aiff`. A dedicated `audio-pcm-mix` purpose can open that exact-size destination through direct File System Access or Electron writing.
+
+The shared PCM route requests 16,384-frame chunks and derives the pending count from the render channel count, so pending planar Float32 PCM is bounded to 32 MiB; this does not bound resampler state, browser heap, or process RSS. Direct PCM adapters keep the realtime AudioContext running between chunks because suspension can skip captured frames; worklet producer credits and the admitted 32 MiB sink queue each fail closed on overflow before commit. Realtime publication waits for every streamed clip to settle and fails closed with the first stable source-underrun identity before commit; interactive playback retains silence-on-underrun behavior. Realtime progress is propagated into the owned export task and UI. The qualified selection-only upmix resamples the smaller input set before duplicating selected channels, while matrix mixes and downmixes retain the general mapping order. The shared PCM adapter has bounded encoder-emission retention, coalesces PCM into at-most-4-MiB writes, and serially awaits one destination write at a time. Exact desktop `audio-pcm-mix` sessions negotiate that 4 MiB maximum; generic exact-size and project sessions remain at one MiB. Planned, encoder-finalized, destination-written, and committed-result byte counts must form a four-way agreement before the route reports success, without a final renderer `Blob`. BW64 passthrough outside the exact current-import contract, including legacy opaque-only metadata, plus other PCM containers, compressed audio, custom FFmpeg output, video, stems, non-realtime plans, and browser-download fallback remain on their existing paths. Explicit publication is a non-cancellable commit boundary: if task or project ownership is lost during commit, the controller returns the committed result without stale success UI publication, while a committed-result size disagreement is reported as a post-publication integrity failure, not as rollback. Focused Node AIFF evidence has four cases covering exact FORM and metadata geometry, closed admission across all four canonical encoding tuples, malformed and stale layout refusal before target selection, the exact 4,294,967,302-byte constructible boundary and next-frame refusal without PCM or output allocation, realtime direct publication, picker cancellation, and mid-stream rollback. Focused Node BWF evidence has five cases covering admission, exact layout and publication, loudness fail-closed behavior, four-way diagnostics, and mid-stream cancellation. Focused Node authored BW64 evidence has six cases covering closed admission, exact standard-metadata preparation, canonical ds64/BEXT/fmt/CHNA/data/AXML streaming, loudness fail-closed behavior, four-way diagnostics, and mid-stream cancellation. Seven focused pristine-passthrough BW64 cases cover the real current-import-to-planner route, preserved and generated BEXT branches, exact nonstructural chunk bytes/order/placement and publication, closed admission, modeled-metadata collision refusal, stale or edited planning refusal, and loudness fail-closed behavior; the full maintained Node suite remained green at 398 test files. Focused 12-case Node WAV evidence covers exact classic RIFF/RF64 admission and encoder geometry, all four canonical encoding tuples, rich metadata, markers, and iXML with correct odd PCM RIFF padding, malformed or stale route refusal before target selection, the exact RIFF-to-RF64 and 65 GiB boundaries without PCM or output allocation, realtime publication, bounded writes and queueing, Blob fallback, cancellation, four-way byte accounting, cleanup, and commit ownership. The wider WAV Node suite also covers cleanup failures, ownership races, and the commit boundary.
+
+A separate opt-in desktop-threshold witness streams an exact 385 MiB silent float payload into a 403,701,804-byte RIFF with pinned SHA-256 through the production planner, export controller, real 16-packet PCM queue at its 32-channel, 32 MiB cap, passthrough streaming resampler, WAV stream encoder, and counting direct target. It requests 193 16,384-frame packets with a half-sized final packet, observes at most 16 pending packets, and makes 98 destination writes including the header with a 4,194,304-byte maximum. Its conservative 41,943,384-byte path-owned binary maximum stays below the planned 64 MiB buffered-binary limit with zero PCM payload retention at the target. A second run cancels after the first coalesced 4 MiB PCM destination write and aborts without close or commit, leaving no partial publication. Renderer heap and process RSS remain unqualified because this Node witness derives a structural ownership bound rather than measuring browser or process memory.
+
+Maintained Chromium and Firefox WAV, AIFF, BWF, and BW64 coverage now comprises ten aggregate format/engine cases with an injected File System Access target and simulated mobile planner profile to drive the maintained UI through the production realtime route. The WAV case validates structurally valid RIFF bytes and exact written-byte accounting without retaining the output; the AIFF case validates FORM, COMM, and SSND geometry plus exact written-byte accounting. The BWF case retains a 2 KiB prefix and validates RIFF, bext, fmt, and data geometry, the authored description, a 64-bit TimeReference, and a two-row CodingHistory. The authored BW64 case uses a 33.1-second stereo source and 384 kHz 16-bit output. Its 101,683,200-byte float-plan geometry exceeds 96 MiB but is not a final-file or scale measurement. A bounded 2 KiB prefix and 8 KiB suffix validate BW64, ds64, BEXT, fmt, canonical stereo CHNA, data, and trailing AXML. The pristine-passthrough case imports a synthetic 5.1, 48 kHz, 16-bit BW64 with 4,210,688 frames; its 101,056,512-byte float-plan geometry also exceeds 96 MiB without measuring final-file scale. Bounded 2 KiB prefix and 4 KiB suffix retention proves exact source JUNK padding, BEXT v2, and CHNA bytes/order before PCM plus PEAK padding and AXML bytes/order after PCM. Visible realtime progress precedes completed close, commit, and publication without Object URL or browser-download fallback. A second export cancels after nonzero PCM reaches the target and observes one abort without close, commit, or publication. All destination writes are at most 4 MiB and serial. The authored BW64 case passed focused Chromium and Firefox runs in 42.2 and 45.8 seconds; the pristine-passthrough case passed in 1.7 and 1.8 minutes respectively. The six earlier cases were not freshly rerun together. This verifies current-import application-path browser plumbing, selected preserved nonstructural chunk bytes/order/placement, publication, and pre-commit rollback, not arbitrary third-party or legacy opaque-only BW64, edited projects, whole-file bit identity, native-picker availability, the 65 GiB ceiling at scale, packaged behavior, heap or RSS, crash, power loss, or durability. Current automated tests run WebKit and skip only a concrete missing API or runtime capability.
+
+The 385 MiB Node witness remains WAV-only. Packaged completion evidence covers WAV, integer AIFF, BWF, and first-party authored BW64 at the current Soundscaper Linux x64 fixture scales, while packaged cancellation and staging-cleanup evidence remains WAV-only. BWF and BW64 have no packaged 65 GiB scale qualification. Packaged BWF completion only has no packaged visible-progress, cancellation, rollback, staging-cleanup, or commit-race qualification and does not qualify loudness, int20 or int24 PCM, RF64 or the 65 GiB boundary at scale, rich metadata variants, or third-party interoperability. Packaged authored BW64 completion has no packaged visible-progress, cancellation, rollback, staging-cleanup, or commit-race qualification and does not qualify loudness, int20 or int24 PCM, other ADM layouts or metadata variants, passthrough or third-party interoperability, or the 65 GiB boundary at scale. Packaged AIFF has no native-picker, visible-progress, cancellation, rollback, staging-cleanup, commit-race, heap, RSS, AIFF-C float, int24, int32, metadata, padding-variant, 4,294,967,302-byte boundary-scale, or other-platform qualification. The 65 GiB BWF and BW64 ceilings are admission only, not scale qualification.
+
+Packaged Soundscaper Linux x64 completion acceptance covers WAV, integer AIFF, BWF, and first-party authored BW64 and drives the maintained UI and controller through Electron 43, preload IPC, and `AtomicSaveManager`. A 48 kHz, two-channel encoded input with 792,000 frames was observed after import/decode as a 791,999-frame project range and produced 6,335,992 signed-16-bit frames at 384 kHz and 16 channels. The planner's 405,503,488-byte float geometry exceeds the 384 MiB threshold. The completed classic RIFF/WAV is 202,751,788 bytes. Its independent verifier streams through EOF in reads no larger than one MiB, retains at most the 31 bytes below one 32-byte PCM frame, compares all 95,039,880 non-primary channel samples with their primary sample and observes zero mismatches, and applies tolerant non-silence, positive/negative, zero-crossing, peak, mean, and RMS bounds. The same packaged sequence selects the exact AIFF option, reselects 16-bit PCM after the format default is applied, validates the application's canonical `.aiff` suggestion and combined `WAV and AIFF audio mix` filter with `wav`, `aif`, and `aiff` extensions, and completes a 202,751,798-byte classic AIFF. Its independent verifier requires a regular non-symbolic file with stable identity and size; uses reads no larger than one MiB; validates exact FORM/AIFF, 18-byte COMM, 16-channel, 6,335,992-frame, 16-bit, 384-kHz 80-bit-rate, and 202,751,752-byte SSND geometry with zero offset and block size; and proves that 202,751,744 bytes of big-endian PCM start at byte 54 with no pad or trailing bytes. It retains at most the observed 10-byte partial-frame carry, compares all 95,039,880 non-primary channel samples with zero mismatches, and applies the same tolerant signal bounds. The sequence then selects the exact BWF option, reselects 16-bit PCM after the format default, restores the custom 16-channel mapping after the BWF stereo default, retains 384 kHz, validates the canonical `.wav` suggestion and the same combined `WAV and AIFF audio mix` filter, and completes a 202,752,510-byte RIFF/WAVE BWF. Electron receives the same `wav`, `aif`, and `aiff` filter extensions rather than BWF-specific File System Access `types`. Its independent verifier requires a regular non-symbolic file with stable identity and size and uses reads no larger than one MiB. It validates a 689-byte bext payload at byte 12 with one-byte pad and 698-byte total chunk; a 40-byte extensible fmt at byte 710 with 16 channels, 384 kHz, signed 16-bit PCM, and the PCM GUID; and a 202,751,744-byte data payload whose PCM starts at byte 766 with no data pad or trailing bytes. It retains at most the 31-byte partial-frame carry, compares all 95,039,880 non-primary channel samples with zero mismatches, and applies the same tolerant signal bounds. The deterministic BEXT carries description `Soundscaper packaged BWF smoke`, originator `Soundscaper`, reference `PACKAGED-BWF-0001`, date 2026-07-30, time 12:34:56, input TimeReference 6,000 scaled to 48,000, version 2, a deterministic nonempty 64-byte UMID whose normalized 128 lowercase hexadecimal digits are pinned and whose 64 payload bytes are compared exactly, loudness sentinels, and two-row CodingHistory naming 48,000-Hz input and 384,000-Hz output. A separate first-party authored BW64 fixture uses a 44-second, six-channel, 2,112,000-frame source at 48 kHz and produces 16,896,000 frames at 384 kHz, six channels, and signed 16-bit PCM. Its 405,504,000-byte Float32 render geometry exceeds the 402,653,184-byte direct threshold, and the completed BW64 is exactly 202,755,508 bytes. The bounded verifier uses reads no larger than one MiB and validates exact BW64/ds64/BEXT/fmt/CHNA/data/AXML structure and placement, a 202,752,000-byte PCM payload, and canonical 5.1 CHNA and ADM metadata. It performs 84,480,000 channel comparisons with zero mismatches and observes at most 8 carry bytes, 16,894,241 nonzero frames, 8,447,121 positive frames, 8,447,120 negative frames, 19,359 crossings, peak 9,830, and RMS 6,950.862. All four whole-file SHA-256 values remain diagnostic and are not pinned; the exact BW64 BEXT, CHNA, and AXML payload hashes are pinned by the verifier. A WAV-only cancellation run independently observed a 33,554,476-byte staging file through a prefix no larger than 65,536 bytes, validated its RIFF geometry and nonzero payload, then observed removal of both the unpublished destination and every staging file. No browser download was visible after the packaged sequence. CI runs this packaged sequence only for Soundscaper Linux x64. The harness validates the application save choices and `audio-pcm-mix` purpose before supplying isolated targets ahead of `dialog.showSaveDialog`, so it bypasses and does not qualify the native OS picker. It also does not directly observe exact-size session negotiation or the negotiated four-MiB destination-write limit; separate shared-route controls cover those contracts. This is not a 65 GiB WAV, BWF, or BW64 run or a 4,294,967,302-byte AIFF run, and does not qualify browser heap, renderer or main-process RSS, quota, filesystem or parent-directory durability, crash or power-loss behavior, Windows, macOS, ARM, installers, Framescaper, AIFF-C float, other integer AIFF precisions, AIFF metadata or padding variants, other BWF or BW64 precisions or metadata variants, passthrough or third-party BW64, or other formats. Packaged AIFF does not qualify visible progress, cancellation, rollback, staging cleanup, or commit races. Packaged BWF does not qualify visible progress, cancellation, rollback, staging cleanup, commit races, loudness, RF64, or scale. Packaged authored BW64 does not qualify visible progress, cancellation, rollback, staging cleanup, commit races, loudness, passthrough or third-party interoperability, or 65 GiB scale. The exact decode and frame geometry is pinned-runtime-specific and must be revisited on Electron upgrades. Actual-device mobile behavior remains unqualified. The injected-File-System-Access direct-WAV browser case stalls the selected writer's non-cancellable close after commit admission; maintained Chromium and Firefox each return the cancelled task to the Start-export state before release, then observe exactly one complete destination publication with zero aborts and no stale success status, output link, Object URL, or browser download. That qualifies only this application-path classic-WAV commit race; AIFF, BWF, BW64, WebKit, native-picker, actual-device, reference-scale, packaged, crash, power-loss, and durability commit races remain unqualified.
+
+<!-- policy-narrative:direct-stem-archive-save -->
+The direct stem-archive slice owns exact ZIP32 and 7z Copy publication. Native
+PCM admits only canonical WAV, AIFF, or BWF stems with exact names, sizes,
+order, and recomputed layouts; 7z Copy retains its fixed 32-byte final-prefix
+patch. Compressed stems remain ZIP32-only and admit the same seven canonical
+compressed identities under owned realtime or centrally admitted offline plan
+fingerprints and per-entry refusal bounds. In production browsers, reviewed
+digest-pinned WebAssembly providers produce complete FLAC, MP3, Ogg Vorbis,
+Opus, WavPack, and MP2 entries; WebCodecs plus Mediabunny produces complete
+AAC/M4A entries after capability admission. Unsupported profiles, custom FFmpeg,
+and unavailable WebCodecs configurations fail closed without a browser FFmpeg
+fallback. Per-stem encoding is sequential and retains at most the current
+complete result; ZIP32 uses at-most-64-KiB slices, awaits backpressure,
+recomputes actual sizes/layout, closes before commit, and requires byte-count
+agreement. The direct route creates no final archive Blob. Production browser
+compressed encoding streams PCM packets into one continuous codec and stores
+each completed encoded file in temporary file storage; it does not retain the
+whole staged PCM or encoded file in JavaScript. The compatibility whole-buffer
+codec API remains separately bounded. Prepared Blob mode admits storage-backed
+audio archives up to 1,000,000,000 bytes and retains the 512 MiB fence for
+materialized archives. Compressed 7z, BW64 stems, video, inexact archives,
+scale, heap, worker memory, RSS, GC, CPU, time, durability, crash, and power
+loss remain outside this control. Desktop bundled streaming uses main-private
+scratch and authenticated utility-process codec sessions; other desktop
+providers retain their separate controls.
+<!-- /policy-narrative:direct-stem-archive-save -->
+
+<!-- policy-narrative:direct-stem-archive-save-rollback -->
+Direct native ZIP32/7z and compressed ZIP32 carry signal and currentness through
+sequential rendering, encoding, archive addition, finalization, close, and
+commit admission. Offline may retry only the current stem after an ordinary
+renderer or encoder failure and only before entry bytes are exposed;
+cancellation, staleness, integrity failure, plan drift, or any post-entry
+failure never retries. In browsers, aborting a dedicated codec terminates its
+worker; unavailable AAC or any profile/output refusal fails closed without
+FFmpeg. Empty or over-bound output, size/layout drift, I/O failure, and
+cancellation clean the current intermediate and abort the unpublished
+destination exactly once, with no commit, final archive Blob, or download.
+Native 7z drift refuses its final prefix; failed or repeated patches cannot
+commit. Exact archive/emitted/written counts precede non-cancellable commit.
+Ownership loss during commit returns the result without stale UI; size drift is
+post-publication failure. Prepared Blob mode retains its bounded lifecycle.
+Crash, power loss, durability, packaged/native-picker behavior, scale, complete
+codec-file residency, heap, worker memory, RSS, CPU, and time remain
+unqualified.
+<!-- /policy-narrative:direct-stem-archive-save-rollback -->
+
+<!-- policy-narrative:exact-direct-compressed-mix-save -->
+The exact compressed whole-mix route remains closed to seven canonical
+identities: MP3 (`audio/mpeg`, `.mp3`), FLAC (`audio/flac`, `.flac`), Ogg Vorbis
+(`audio/ogg; codecs=vorbis`, `.ogg`), Opus (`audio/ogg; codecs=opus`, `.opus`),
+WavPack (`audio/x-wavpack`, `.wv`), MP2 (`audio/mpeg`, `.mp2`), and AAC/M4A
+(`audio/mp4`, `.m4a`). Canonical identity, extension, full result MIME,
+normalized settings, mapping, and metadata are revalidated rather than trusting
+shared picker MIME values. In production browsers, six reviewed digest-pinned
+WebAssembly providers produce complete FLAC, MP3, Ogg Vorbis, Opus, WavPack, and
+MP2 files in a dedicated worker. Exact payload length and SHA-256 are verified
+before compilation, closed profiles reject unsupported tuples, and format
+validators reject incomplete output. AAC/M4A uses WebCodecs AudioEncoder through
+Mediabunny only after exact capability probing and returns one complete M4A only
+after demux confirms readable MP4, exactly one AAC-LC audio track, exact sample
+rate and channel count, and requested duration. The browser runtime advertises
+`ffmpegAvailable: false`; custom FFmpeg, unsupported formats or profiles, and
+unsupported media operations return typed unavailability with no FFmpeg
+fallback. A production bundle audit rejects FFmpeg package specifiers, core
+assets, runtime loader, URL, and cache seam. Direct publication admits the
+complete encoded length before opening its writer, transfers at-most-1-MiB
+ranges with one awaited write, closes before commit, and requires byte-count
+agreement without a final download Blob. Production browser file encoding now
+reads staged PCM in at-most-16,384-frame packets, keeps one continuous codec
+session, and awaits each at-most-1-MiB encoded packet write into temporary file
+storage. AAC uses fragmented MP4 with awaited sequential mux writes. The
+streamed route admits one hour of audio within the closed sample-rate and
+channel profiles and a lower-only 1,000,000,000-byte final-file ceiling;
+intermediate staged PCM may exceed that ceiling on disk. Finalization repairs
+the required codec prefix and validates final file geometry through bounded
+reads before publication. The compatibility whole-buffer codec API retains its
+128 MiB bounds. Desktop bundled streaming uses an owner-bound main-private
+scratch session and an authenticated utility process with the same reviewed
+codec sessions; operating-system and user-selected external providers remain
+separately governed. These packet bounds are not a heap, RSS, GC, CPU,
+elapsed-time, scale, durability, crash, or power-loss qualification.
+<!-- /policy-narrative:exact-direct-compressed-mix-save -->
+
+<!-- policy-narrative:direct-compressed-mix-save-rollback -->
+The direct compressed route carries its signal and currentness through target
+selection, rendering, PCM staging, browser-native or desktop encoding, bounded
+delivery, close, and pre-commit admission for all seven formats. In production
+browsers, cancellation of a dedicated WebAssembly encode terminates its worker
+and rejects pending operations; payload, profile, validation, short-output, and
+bound failures remain unpublished. AAC/M4A races every awaited
+WebCodecs/Mediabunny probe, mux, finalization, and validation operation against
+cancellation; abort cancels the output or disposes the demux input, and no
+aborted or stale result reaches publication. No browser cleanup deletes MEMFS,
+unmounts WORKERFS, or terminates FFmpeg because none is present. Any pre-commit
+refusal or target failure aborts an acquired unpublished destination exactly
+once and performs no download; primary and cleanup failures remain observable
+together. Close, emitted/written agreement, and unchanged plan precede one
+non-cancellable commit. Ownership loss during commit returns the committed
+result without stale success UI; committed-size drift is post-publication
+failure. Desktop bundled streaming cancellation stops the authenticated utility
+process and removes its owner-bound main-private scratch session; other desktop
+providers retain their existing cancellation controls. Crash, power loss,
+durable cleanup, browser lifecycle, scale, complete-buffer residency, heap, RSS,
+CPU, and time remain unqualified.
+<!-- /policy-narrative:direct-compressed-mix-save-rollback -->
+
+<!-- policy-narrative:exact-direct-mp4-webm-video-save -->
+The exact MP4 route binds `mp4`, `.mp4`, and `video/mp4`; WebM binds `webm`, `.webm`, and `video/webm`. Both require target purpose `video`, a safe name, unchanged exact plan fingerprint, currentness, structural validation, digest and byte-count agreement, close before one commit, and Blob-versus-direct publication boundaries. The production browser admits only the exact keyed-frame path: WebCodecs encodes H.264 for MP4 or VP9 for WebM and dynamically loaded Mediabunny muxes optional PCM as AAC or Opus into one complete container. An ineligible composed-graph path, missing WebCodecs capability, unsupported tuple, malformed audio, muxer refusal, or output-bound failure refuses with no browser FFmpeg fallback. Browser output is capped at 512 MiB and range-delivered in at-most-1-MiB chunks; no production browser imports, fetches, caches, or executes FFmpeg WebAssembly. Desktop Soundscaper family v1 remains unchanged: it forces the desktop provider, requires exact capability tokens and a live canary for the current external ffmpeg/ffprobe pair, uses `libx264`/`aac` for MP4 and `libvpx-vp9`/`libopus` for WebM, and verifies the two-stream probe. Renderer writes remain pathless into main-private pipes and finalized output remains in main-private scratch. Bundled video, operating-system video, and AV1 remain disabled; external WebM is VP9. Codec conformance, broad platforms, packaged UI, scale, aggregate memory, RSS, CPU, durability, crash, and power loss remain unqualified.
+<!-- /policy-narrative:exact-direct-mp4-webm-video-save -->
+
+<!-- policy-narrative:bounded-keyed-rgba-av-encoding -->
+The Framescaper family-v1 keyed browser encoder admits exact generated RGBA at no more than 1,280 by 720, 1 through 30 frames per second, 2,000,000 frames, 8 MiB per reusable frame allocation, and 1 TiB logical RGBA work. It requires an admitted WebCodecs configuration, encodes H.264 for MP4 or VP9 for WebM frame by frame, and dynamically loads Mediabunny to mux chunks and optional canonical float32 WAV PCM as AAC or Opus into one complete container. Missing WebCodecs, a non-keyed route, unsupported configuration, malformed PCM, or mux failure refuses without browser FFmpeg. Output is capped at 512 MiB. AbortSignal and currentness fence audio reads, frame production, WebCodecs submission, mux writes, finalization, and publication; failure cancels the muxer, closes resources, disposes the producer, and clears temporary output bytes. Desktop Soundscaper family-v1 plans use pathless owner-scoped main-private external-FFmpeg pipes, main-private scratch, and process-tree cancellation. Complete-container residency, heap, native/WASM/WebCodecs memory, RSS, GC, CPU, conformance, scale, platform breadth, quota, durability, crash, and power loss remain unqualified.
+<!-- /policy-narrative:bounded-keyed-rgba-av-encoding -->
+
+The frozen publication-route register remains implemented for exactly
+16 route IDs. `scape-browser-blob`, `project-transfer-browser-blob`,
+`audio-mix-browser-blob`, `audio-stems-browser-blob`, and `video-browser-blob`
+are the five retained browser-Blob fallbacks. Materialized output retains a
+non-raiseable 512 MiB ceiling. Storage-backed audio mix and stem archives have
+a separate 1,000,000,000-byte ceiling.
+Scape rechecks its completed archive. Browser compressed audio admits complete
+browser-native file bytes from the dedicated providers or WebCodecs plus
+Mediabunny, and keyed video admits one complete Mediabunny MP4/WebM container,
+before final Blob construction and before download publication. Project
+transfer publishes one bounded Scape archive and optional report companion at a
+time, releasing the preceding object URLs before producing the next archive.
+No browser route stats or reads FFmpeg MEMFS because production browser FFmpeg
+is absent.
+
+The other eleven IDs remain direct publication routes:
+`scape-file-system-access`, `scape-electron`,
+`audio-mix-direct-native-pcm`,
+`audio-mix-direct-compressed-realtime`,
+`audio-mix-direct-compressed-offline`,
+`audio-stems-direct-native-pcm-zip`,
+`audio-stems-direct-native-pcm-7z`,
+`audio-stems-direct-compressed-zip-realtime`,
+`audio-stems-direct-compressed-zip-offline`, `video-direct-mp4`, and
+`video-direct-webm`. Each maps to its archive, PCM, compressed-audio,
+stem-archive, or video control. None performs final renderer-sized Blob
+construction or download publication. Browser compressed audio routes range-deliver from temporary file storage
+after continuous codec finalization; video retains its complete generated
+container buffer. Direct publication alone does not imply streaming codec
+generation. This route-level qualification does
+not add browser heap, codec worker or Mediabunny memory, RSS, GC-headroom, CPU,
+elapsed-time, reference-scale, quota, crash, power-loss, durability,
+native-picker, packaged, or cross-platform claims.
+
+<!-- policy-narrative:bounded-browser-export-blob-publication -->
+Browser-download storage-backed audio mix and stem-archive output has a
+lower-only 1,000,000,000-byte final-file ceiling. A closed temporary-file writer
+or native scratch session must register the storage-owned Blob before the audio
+publication gate admits the larger file without whole-body materialization.
+Materialized audio output, MP4, WebM, Scape, and project-transfer Blobs retain
+their non-raiseable 512 MiB ceiling. Compressed audio comes from continuous
+reviewed WebAssembly codec sessions with at-most-16,384-frame PCM packets and
+awaited at-most-1-MiB encoded writes, or fragmented AAC/M4A muxing through
+WebCodecs plus Mediabunny. Completed files must be nonempty, within codec and
+publication bounds, current, and format-valid before final Blob admission and
+download. Exact keyed video retains its complete Mediabunny container route.
+Unsupported operations fail closed, and there is no production browser FFmpeg
+import, fetch, cache, runtime, stat, MEMFS, or whole-file FFmpeg read. Import
+and export foreground tasks display progress even with the optional status bar
+hidden and expose cancellation only while the current task owns it. Import
+writes bounded decoded PCM directly into chunk storage and preflights decoded
+storage capacity; source audio is capped at one hour and 1,000,000,000
+original-file bytes on the new compressed route. PCM routes retain their
+existing broader container admission. Export cancellation and currentness fence
+rendering, staged reads, encoding, final validation, and final destination
+writes; publication uses file-backed Blob slices or awaited ranges. These
+enumerated packet and file bounds do not qualify total browser heap,
+worker/WASM/WebCodecs memory, RSS, GC, CPU, time, conformance, broad scale,
+quota, or durability.
+<!-- /policy-narrative:bounded-browser-export-blob-publication -->
+
+### Cross-origin project transfer
+
+`cross-origin-project-transfer` is **partial** at the
+`browser-origin-to-peer-project-store` boundary.
+
+<!-- policy-narrative:origin-authenticated-bounded-project-transfer -->
+The production transfer route admits only messages from an exact origin in the configured Soundscaper/Framescaper pair and the exact peer window identity. Its versioned wire binds one random session identifier, strict sequence and acknowledgement state, one-shot terminal settlement, exact target origins, closed record shapes, and bounded text. Production defaults admit at most 512 entries and 512 MiB per archive; declared and actual lengths must agree, SharedArrayBuffer-backed data is refused, and each archive receives ordinary Scape identity, envelope, capacity, import-transaction, and family-store admission before publication. Manual import preflights file names, counts, declared sizes, and digest-bound conversion-report sidecars before reading one archive at a time. Download publication constructs and retains only one archive and optional companion group at a time, revokes the previous object URLs before the next archive, and leaves the sending origin unchanged.
+<!-- /policy-narrative:origin-authenticated-bounded-project-transfer -->
+
+The download side is the `project-transfer-browser-blob` publication route.
+The receiver's persistent write is separately registered as
+`web-cross-origin-project-transfer-import` in the publication fault matrix.
+Reference-scale aggregate memory and elapsed-time evidence, abrupt browser and
+power loss, and cross-tab concurrent reservation remain unqualified.
+
+### Desktop download release lookup
+
+The public `/download/desktop/` Pages Function reads the request host to select
+Soundscaper or Framescaper. It accepts only GET and HEAD, fetches published
+releases from a fixed GitHub API URL with bounded time, response size, and page
+count, and selects the newest product-tagged release that carries a desktop
+installer. The redirect target is constructed from the validated tag rather
+than an upstream URL. The lookup sends no project data or credentials to GitHub,
+caches release metadata briefly at the edge, and falls back to the product's
+GitHub release search if the API is unavailable. Browser redirects are not
+cached.
+
+### Freesound API proxy
+
+`freesound-proxy-boundary` is **partial** at the
+`public-client-to-freesound-proxy`, `authenticated-client-to-freesound-proxy`,
+and `freesound-upstream-to-proxy` boundaries.
+
+<!-- policy-narrative:bounded-freesound-read-proxy -->
+The Pages route map sends Freesound requests under `/api/freesound/*` to
+Functions; an independent `/download/desktop` route handles public release
+navigation. The read-only handlers fail closed on unrecognized hosts and browser
+Origins, methods outside GET/HEAD/OPTIONS, unknown or duplicate search
+parameters, invalid sound IDs, multiple or malformed byte ranges, and a missing
+or malformed server secret. They read `FREESOUND_API_KEY` only from the
+environment and carry that credential only in an Authorization header to the
+fixed https://freesound.org API; URLSearchParams constructs the query, redirects
+are disabled, and API JSON work has an eight-second default deadline. Successful
+JSON must declare `application/json`, fit a 2 MiB declared and streamed ceiling,
+decode as UTF-8, and normalize through a closed bounded owned contract that
+omits upstream pagination and preview locators. A preview locator must be a
+credential-free HTTPS URL on exact `cdn.freesound.org` with no port or fragment
+and a `/previews/` path ending in `.ogg`; the credential is not forwarded,
+redirects remain disabled, responses must have an allowlisted Ogg MIME, and
+declared and streamed bodies stop at 256 MiB. Public responses expose only owned
+JSON or allowlisted preview headers, set `nosniff` and explicit cache policy,
+scope CORS to the Soundscaper web, packaged-app, or current same origin, and
+normalize errors without upstream bodies or secrets. Tests cover secret
+confinement, admission failure before fetch, SSRF and multi-range rejection,
+media typing, deadlines, response ownership, and route scoping. The proxy is
+public: host and CORS checks constrain deployment and browser response sharing,
+not client authentication.
+<!-- /policy-narrative:bounded-freesound-read-proxy -->
+
+<!-- policy-narrative:bounded-freesound-oauth-media-proxy -->
+The authenticated Pages routes admit only the canonical production, Pages, or
+explicitly enabled loopback host; exact Soundscaper web or packaged-app Origins;
+closed methods, JSON bodies, sound IDs, ranges, media types, filenames, and
+publication metadata; and a cookie or bearer session whose transport matches its
+recorded web or desktop client kind. OAuth start issues separate random state
+and handoff capabilities with ten-minute expiry, stores only their hashes,
+exchanges a state once, fixes the callback and every token/API request to
+https://freesound.org with redirects disabled, and returns browser sessions only
+as Secure HttpOnly SameSite=Strict cookies. D1 stores access, refresh, and
+desktop polling session secrets only as AES-256-GCM ciphertext with
+field-specific authenticated data; rolling 30-day session records store hashes,
+refresh uses a generation-fenced lease, disconnect removes the session and
+orphan grant, and cleanup prunes expired rows. Original downloads pass only
+allowlisted headers and stop at 128 MiB. Uploads require one supported raw audio
+body of exactly 1 through 100,000,000 bytes; the worker verifies declared and
+observed bytes and constructs the sole upstream multipart audio field. Describe
+and pending responses normalize through bounded owned contracts and use no-store
+responses. The packaged client exposes only an exact Freesound authorization URL
+opener and a closed custom-protocol route allowlist; Electron main strips
+renderer credentials, holds the bearer token outside renderer authority, and
+persists it with safeStorage only when the operating-system backend is not Linux
+basic_text or unknown. Backend, UI-contract, and desktop tests cover replay,
+handoff mismatch, token encryption and refresh races, transport confusion, fixed
+upstream targets, body ceilings, metadata validation, token redaction, route
+confinement, and secure-storage fallback.
+<!-- /policy-narrative:bounded-freesound-oauth-media-proxy -->
+
+<!-- policy-narrative:freesound-proxy-deployment-rate-limiting -->
+The repository does not provision or verify a Cloudflare rate-limit rule for
+`/api/freesound/*`. Per-request parsing, authentication, response-byte ceilings,
+and Freesound's normalized 429 response do not bound aggregate request volume,
+OAuth attempts, token refreshes, concurrent preview or original streams, upload
+bandwidth, proxy egress, or shared API-quota consumption. CORS does not stop
+non-browser or same-origin callers, and a valid user session can still exhaust
+its own or shared quotas.
+<!-- /policy-narrative:freesound-proxy-deployment-rate-limiting -->
+
+<!-- policy-narrative:freesound-preview-stream-lifecycle -->
+There is no proxy-owned preview-body idle or total deadline after response
+headers and no preview digest, signature, or Ogg structural authentication. The
+256 MiB transform limits actual bytes, but a slow stream can retain work until
+platform or connection teardown, and an allowed-host, allowed-MIME response
+remains trusted Freesound CDN content rather than cryptographically
+authenticated media.
+<!-- /policy-narrative:freesound-preview-stream-lifecycle -->
+
+<!-- policy-narrative:freesound-authenticated-media-lifecycle -->
+Authenticated original-download and upload streams have byte ceilings and
+propagate client cancellation, but no proxy-owned idle or total body deadline
+after transfer begins. Original bytes have no end-to-end digest check, and an
+interrupted upload is non-idempotent: retrying after an ambiguous upstream
+outcome can create another pending Freesound upload.
+<!-- /policy-narrative:freesound-authenticated-media-lifecycle -->
+
+### Electron renderer, IPC, and filesystem capabilities
+
+`electron-renderer-ipc-boundary` is **enforced for the current v1 bridges only**. The window uses sandboxing, context isolation, no Node integration, sender/root-document checks, denied navigation and new-window paths, and a frozen input-validating preload API. Shared-project methods are bounded pathless list, read, bundle, commit, delete, and managed-media transfer operations for the closed canonical-PCM and retained-original-video encodings; main independently sanitizes their values, caps transfer bodies at 64 GiB and chunks at 4 MiB, and permits at most four active uploads and four active reads across the bridge service. Linked-original load requests are closed pathless DTOs with mandatory kind-specific Boolean modes: whole-Blob materialization requires `range: false` for audio or `playback: false` for video, while ranged access requires the corresponding true mode and a non-null exact locator revision. Main and preload independently validate the mode, returned revision, profile-bound descriptor, safe size, canonical URL, and kind-specific MIME/name contract, and they retire a descriptor that cannot be returned safely. Upload capacity remains charged through publication or abort settlement, and service disposal waits for finishing publications. Upload sessions and linked-original reads remain bound to their renderer owner for authorization and revocation. Navigation, renderer loss, and window close revoke the owner, fence new work, abort its uploads, and drain admitted operations and range reads. The external-video addition exposes nine separately validated owner-scoped methods for capabilities, begin, input write, input close, execute, stat, bounded range read, delete, and cancel. It admits opaque operation ids, exact closed plans, and at-most-1-MiB chunks, never renderer-selected paths, executables, or argv; at most two sessions exist globally and one per owner. Navigation, renderer loss, window close, disposal, and shutdown fence new work, cancel and drain the child/session lifecycle, and remove main-private scratch. The desktop local-assistance and additive workflow bridges likewise expose only opaque jobs, aggregate selected-media fences, authenticated slotted claims/reservations, closed operations and workflow graphs, progress, typed unavailable outcomes, and MessagePort byte transfers. Main-private staging, model/runtime/video/executable paths, and project-isolated derivative storage stay outside renderer authority; cancellation and release drain transfers and helper or external-process work before cleanup. No renderer receives a filesystem path. Implemented workflow code creates no authority for a runtime payload or digest-pinned model that has not passed admission.
+
+Soundscaper's Freesound addition exposes only an exact authorization-URL opener
+and a closed custom-protocol proxy. Electron main strips renderer-supplied
+credentials, captures the OAuth session before returning poll JSON, attaches it
+only to allowlisted requests, and keeps it in memory unless `safeStorage`
+reports a secure operating-system backend. Framescaper receives neither method.
+
+`AssistanceWorkflow` v1 binds each guided run to one closed workflow graph,
+aggregate source/range/timing/transcript/settings/model fence, slotted claims,
+one exact consent authority, and stage progress. Guided recipes are the default;
+Advanced exposes the fifteen primitive operations as validated one-stage
+recipes. Strict frame-pack, embedding, WAV, alignment, tag, beat, OCR, track,
+crop, and editorial reviewers bound output before proposal state; disposable
+indexes and intermediates remain outside `.scape`.
+
+The authenticated Sherpa helper retains three active catalog-bound adapters:
+Parakeet speech recognition, Silero voice activity, and diarization with one
+exact Pyannote plus ERes2Net pair. Main and the worker authenticate selected
+audio and every installed model file; missing, corrupt, unsupported, or
+unavailable authority returns typed unavailability without installation or an
+alternate model.
+
+Conditional external FFmpeg shot detection is model-free and does not enter
+the Sherpa helper. It runs only when main owns a current authenticated
+FFmpeg/FFprobe admission with the fixed `lavfi`, `null`, `color`, `concat`,
+`metadata`, `scdet`, and `showinfo` capabilities. The adapter hashes both
+executables, derives private working storage from the staged selected-video
+path, passes a four-frame black-to-white `scdet` canary, and then uses one
+fixed shell-free, bounded, process-tree-supervised grammar. Qualification or
+executable-authority loss returns typed unavailable; malformed actual metadata
+or process failure stays hard, and no shot boundary is fabricated.
+
+Conditional CPU runtime families and owned deterministic stages implement
+Whisper/wav2vec2 alignment, DeepFilterNet enhancement, TIGER separation, PANNs
+reactions, Beat This, TransNetV2 accurate shots, nomic/SigLIP embeddings, OCR,
+subject/saliency reframe, deterministic highlights, and bounded Qwen editorial
+JSON. Their isolated process/thread protocols enforce exact file grants, memory
+admission, supervision, crash quarantine, and termination cancellation. Desktop
+preparation provisions the exact selected-target CPU engine and authenticates
+its generated file manifest, including the Windows ARM64 Sherpa addon. The
+[retained conversion evidence](../../evidence/milestone-7-model-conversion/README.md)
+binds TIGER, PANNs, both Beat This checkpoints, TransNetV2, and Dereverb Room to
+actual source-framework comparisons and exact converted artifacts. Unmet model,
+runtime, or target combinations still return typed unavailability without
+substitution or fabricated output.
+
+Every reviewed choice starts unselected. Explicit acceptance revalidates the
+aggregate fence and uses ordinary atomic commands for transcript/captions,
+link-aware cleanup, anonymous speaker attribution, derived audio or D/M/E
+stems, reactions, beats/tempo, shots, reframe crop/keyframes, and highlight
+secondary sequences. Semantic indexes remain disposable and raw Qwen output
+never enters `.scape`. Stale authority, semantic failure, ownership collision,
+or publication failure refuses the edit and rolls back newly owned output.
+Existing transcript custody and AUP4 omission reporting remain unchanged.
+
+Each distributed model must retain versioned notices and full-digest public
+read-back, and its catalog artifact pins and installed bytes are verified by
+SHA-256 at use. The separate nightly suite downloads and executes real models in Electron;
+its results identify the exact package, models, workloads, and target exercised.
+Those fixture results do not establish a complete five-target privacy or
+cancellation study. Optional owner QA grants no runtime authority.
+
+<!-- policy-narrative:framescaper-capture-desktop-consent-authority -->
+The Framescaper family v1 packaged Framescaper capture route uses a separate frozen v1 control plane whose status, source-list, grant, and teardown methods accept or return no media bytes, native source IDs, filesystem paths, or Electron objects. Main and the sandbox preload independently validate every closed request and response. IPC and Chromium permission handlers require the exact Framescaper product, current owner, focused trusted main document and origin; display delivery additionally requires the main frame, a direct user gesture, requested video, and an unconsumed role grant. The fallback chooser admits at most 64 sanitized screen/window descriptors, exposes only pathless 32-hex tokens, retains its inventory for at most five minutes, never chooses the first source implicitly, and consumes it into an owner- and generation-bound 15-second single-use grant. Replayed, stale, expired, wrong-owner, wrong-role, unfocused, non-gesture, and malformed requests fail closed. macOS 15 or newer delegates display choice to the system picker; other supported desktop platforms use the explicit bounded list. Only Windows advertises and may return loopback system audio, and other platforms report it unavailable. Owner revocation, explicit generation teardown, renderer navigation or loss, window close, registration disposal, and application shutdown retire grants, permission handlers, the capture preload, and IPC handlers; capture-session downloads remain denied. The packaged protocol gives a standalone Framescaper editor document self camera, microphone, and display-capture policy, retains Soundscaper's self microphone, speaker-selection, and display-capture policy with camera denied, and makes embedded, non-editor, capability, error, and remote responses deny all capture features. The packaged Soundscaper route delegates capture to a separate strict session boundary. For Electron 43's exact callback shapes, its audio permission check admits the singular `mediaType` value `audio`, its audio permission request admits a nonempty `mediaTypes` array containing only `audio`, and its speaker-selection request admits the plain permission detail shape without a media field. Audio and speaker permissions require the exact live Soundscaper main editor WebContents, main-frame detail, trusted document URL, and origin, and remain available while that trusted editor is backgrounded so device enumeration is complete. Fullscreen and display permission additionally require the editor to be focused. On Windows only, a direct-user-gesture main-frame display request asking for both video and audio selects the first valid screen with Chromium loopback audio; the recording capture pool retains that required live video companion alongside the audio. Non-Windows display requests are rejected without screen enumeration, so desktop audio is unavailable. Soundscaper package transformation retains `desktopCapturer` and the self `display-capture` policy, and runtime staging compiles and carries the strict capture module. Registration disposal clears both permission handlers, the display handler, and its download listener. Mutually exclusive Pages rules mirror the standalone Framescaper and embedded denial split without overlapping Permissions-Policy values. Framescaper macOS configuration declares camera, microphone, and audio-capture usage text plus camera and audio-input entitlements, while Soundscaper retains its microphone-only entitlement. Framescaper family v1 sets the Framescaper product capability framescaperCapture true and is active on standalone web and desktop through its controller, app binding, and runtime probe. Recording Setup remains default-hidden and is reached only by opting in through View > Panels. The selected capture route authority uses this desktop control plane, but only that menu opt-in exposes the capture surface. framescaperWebVcr is true and exposes its default-hidden Record-menu surface lazily for testing; its real-runtime behavior belongs in optional owner QA. A real packaged, no-device smoke loads the standalone Framescaper artifact and exercises pathless control-plane availability, status, grant, and teardown as active-boundary defense-in-depth evidence. The smoke does not establish general device behavior: actual packaged cameras, microphones, operating-system picker and loopback behavior, encoder and timing behavior, teardown and long-session performance remain unverified while owner-device observations are unrecorded.
+<!-- /policy-narrative:framescaper-capture-desktop-consent-authority -->
+
+<!-- policy-narrative:framescaper-web-vcr-dormant-isolated-guest -->
+The integrated Framescaper Web VCR software path is active with `framescaperWebVcr: true`. Its menu-owned panel is default-hidden under Record, and no remote guest, popup, persistent browser profile, or capture grant exists until a direct user action summons it; ordinary startup creates none. Its focused desktop seams define `persist:framescaper-web-vcr-v1` with sandbox enabled, context isolation enabled, Node integration disabled, and web security enabled. Navigation admits strict HTTPS or `about:blank`, rejects embedded credentials and non-HTTPS destinations, cancels downloads, denies all guest permissions and device permissions, and admits at most four HTTPS popups only while idle. Remote content has no preload, IPC, filesystem, project, helper, shell, or DevTools authority; a separately scoped trusted-application preload contract is the only defined pathless bridge. Closed frozen DTO validation plus main-owned owner and generation checks bind opaque identities and a 10-second single-use capture grant that carries no media bytes or Electron objects across IPC. Electron 43 erases display-versus-camera provenance at the trusted-application video permission preflight; during a pending 10-second Web VCR grant, a check-only trusted-renderer consumer may transiently observe video-device metadata. Nonempty device requests continue through device authority, so no camera capture, remote-guest authority, or guest-partition crossover is admitted. The idle-only data-clear lifecycle consumes a short-lived confirmation, destroys the primary guest and every popup before clearing cookies, cache, and site storage, and owner revocation or disposal destroys remaining content. Deterministic domain, target, aperture, normalized-crop, even-pixel encoder mapping, monitor, recorder, and controller tests keep 720p and 1080p enabled; 4K remains unavailable and this is no platform claim. A deterministic Linux x64/Xvfb packaged feasibility smoke, admitted only by an exact test argument and reporting `diagnosticOnly: true`, exercises pinned loopback TLS, persistent authentication and clearing, scaled input, exact 1280x720 and 1920x1080 owned guest streams, non-silent page audio, a sampled visual marker, target crop and ended handling, lifecycle, and teardown. Real-runtime, packaged security, privacy, lifecycle, and long-session observations belong in optional owner QA and never disable the enabled build or test surface. The deterministic loopback HTTPS fixture and packaged feasibility smoke report only what they actually run and make no broader runtime or platform-support claim.
+<!-- /policy-narrative:framescaper-web-vcr-dormant-isolated-guest -->
+
+`desktop-static-resource-paths` is **enforced for the current application protocol**. Decoding, realpath containment, method restrictions, range handling, and the Electron CSP are covered by protocol tests, including escaping symlinks.
+
+`desktop-read-path-capabilities` is **enforced for the current versioned materialized, selected-file range, Scape range, linked-audio range, and linked-video playback range profiles**. Main assigns an immutable `materialized-v1`, `selected-range-v1`, `scape-range-v1`, `linked-audio-range-v1`, or `linked-video-range-v1` profile after user selection or exact linked-locator admission and before descriptor publication; the renderer supplies neither the path nor the profile. The store, frozen descriptor, canonical capability URL, and request lease all carry the same profile. Every pending or published capability is also bound to the opaque main-owned identity of the currently committed main-frame document, and all five profiles share the per-owner ceiling of 128 pending/live capabilities reserved before file open. `materialized-v1` retains its non-raiseable 512 MiB per-owner aggregate declared-byte ceiling. A terminal project archive under any accepted suffix with the exact canonical MIME type instead uses `scape-range-v1`, whose independent admission allows at most four capabilities and safe-integer aggregate declared bytes both globally and per owner. Other accepted desktop selections use owner-pinned `selected-range-v1` capabilities with safe-integer aggregate bytes, at most 128 capabilities, four active requests, and 4 MiB per requested range. Linked audio and video share one independent linked-original range admission of at most 128 capabilities and 64 GiB of aggregate declared bytes globally and per owner, 512 MiB per file, and 16 active range requests globally. Count is reserved before open and bytes are charged after stat but before descriptor publication. A cleanup failure retains the range charge and fences later range admission. Wrong-owner release refuses without mutating the capability. Explicit release, expiry for the expiring profiles, main-frame non-same-document navigation, renderer loss, actual window close, and shutdown synchronously invalidate lookup before admitted opens and handle closes drain. Linked-original range capabilities deliberately remain owner-pinned without wall-clock expiry. A delayed dialog, open, or stat result for a revoked owner closes without publication, and partial multi-file failure drains every prior descriptor rollback and reports primary plus cleanup failures. Serialized OS-open dispatch keeps a deduplicated visible queue head: four Scape descriptors can consume the global range count, the fifth remains unopened, and one acknowledged release redispatches it; a renderer-send failure releases its just-created descriptor before reporting and removing the queue head. Temporary count or aggregate-byte pressure is retryable and never evicts an existing handle; an individually oversized file is not retried. Cleanup failure rejects the drain after every close is attempted.
+
+The `scape-range-v1` protocol accepts only `GET` with one closed `bytes=start-end` range of at most 16 MiB wholly inside the declared file and always responds `206`; full-file, `HEAD`, suffix, open-ended, multiple, oversized, and end-of-file-overrun requests refuse. Profile parsing, descriptor/profile comparison, and range validation happen before acquisition, so malformed or mismatched requests cannot renew the inactivity TTL. The store repeats the expected-profile comparison before renewal and lease creation. One shared Scape admission gate permits only one active range request globally, not merely one per capability. A successful Web response body retains its request through `done` and then preserves the pinned handle for a later request. Body cancellation, request abort, or inner stream failure retires the whole capability, waits for native stream close and pinned handle close, and only then settles the renderer-facing cleanup barrier. Explicit release, expiry, owner revocation, and shutdown join the same retirement. Failed retirement remains visible only to the correct owner until owner or store teardown; raw handle state is not exposed through descriptor lookup. Preload validation repeats exact profile, name, MIME type, profile-specific size, and canonical URL-path binding with no query or fragment. The renderer repeats those profile rules: generic materialization rejects Scape and range descriptors, while the strict archive adapter performs exact serialized range reads, validates the complete partial-response contract and bytes through `done`, snapshots the descriptor URL/declared size and fetch implementation, preserves the first admitted terminal error across active, queued, and future reads, and exposes no release operation. Project-dialog selection and OS-association delivery share the same explicit router. One awaited file-service scope owns inspection, any collision decision, and import and releases the capability exactly once after that consumer settles on success, failure, user cancellation, or abort; an invalid or mismatched renderer route is also released before refusal. Main-process release joins retirement and remains the authoritative cleanup barrier. Browser Blob opens are unchanged. Selected Audacity and other non-Scape project and media reads use the selected-file range profile.
+
+The selected-file `selected-range-v1` profile applies to accepted non-Scape files chosen on desktop. Its descriptor is owner-scoped and pins a regular file handle until the read scope releases it. Renderer Blob adapters request exact 4 MiB or smaller ranges and verify response headers and length; Audacity worker imports transfer the descriptor and read the same bounded ranges. The protocol also permits `HEAD` and a streaming full-body `GET` for native media elements. Selection has no fixed per-file byte ceiling below JavaScript's safe integer range. Decoder geometry, project storage capacity, malformed metadata, and filesystem space can still prevent an import.
+
+The separately admitted `linked-audio-range-v1` and `linked-video-range-v1` profiles require closed bridge requests carrying the exact current locator revision and an exact kind-specific range or playback mode. Before capability publication, main requires the current pathname stat to match the persisted device, inode, size, modification-time, and change-time identity; it then opens an owner-scoped handle and independently requires that handle to match the same identity. This closes the pathname-replacement race through admission and keeps the admitted handle stable if the pathname is later moved, deleted, or replaced. The two profiles share the 128-capability, 64 GiB aggregate, 16-active-request linked-original gate globally and per owner where applicable, with at most 512 MiB per file. The protocol admits `HEAD` and one start-based closed or open-ended `GET` range, caps every returned range at 4 MiB, and rejects a full-body `GET`, suffix or multiple ranges, oversized ranges, and end-of-file overrun. A successful response or ordinary cancellation drains only that request slot and preserves the pinned capability; an inner stream failure retires it. Explicit renderer release, owner revocation, navigation, renderer loss, window close, and shutdown remove it from lookup and drain its request and handle. Main, preload, and renderer validate the exact revision, profile, mode, safe size, canonical pathless URL, and either the kind-specific video contract, the maintained WAV/RF64 MIME/name contract, or an exact `.aif` or `.aiff` name with `audio/aiff`; `.aifc` is not admitted. The resolver verifies the exact byte length and MIME, hashes the entire admitted handle sequentially with exact at-most-4-MiB `206` responses, validates `Accept-Ranges`, `Content-Range`, `Content-Length`, `Content-Type`, and body length, and then rereads the exact project/source binding and CAS fence. The video path returns only a media URL and one-shot release. The maintained linked-PCM path instead adapts the same verified range source to container inspection and canonical PCM chunk reads without constructing a second whole-original Blob, and releases the lease once when each read session ends. Its bounded classic AIFF reader requires FORM/AIFF with structurally consistent COMM and SSND chunks and accepts signed big-endian integer PCM at 8, 16, 24, or 32 bits. Its canonical first-party AIFF-C profile instead requires FORM/AIFC, one four-byte FVER v1 (`0xA2805140`) before an exact 44-byte COMM, 32-bit `fl32`, the exact Pascal compression name `32-bit floating point`, and structurally consistent SSND geometry. The first-party label describes the maintained fixture, not authenticated provenance: admission is producer-neutral and accepts any producer emitting that exact tuple. Broader, compressed, and other AIFC profiles reject; broader third-party interoperability and producer provenance are unqualified. Cancellation, metadata drift, malformed responses, digest mismatch, binding replacement, and admission failure release the capability once; a simultaneous verification and cleanup failure is preserved as an aggregate error.
+
+For maintained playback, one provider lazily owns one provider-owned stable PCM read session. It reuses one full-container digest and one parsed descriptor across serialized random or sequential chunk reads, while every chunk checks the complete alias group and exact binding before and after I/O. Per-read engine or stream cancellation is local; drift, corruption, and provider retirement are terminal. Provider replacement, failed activation, project switch, project or source deletion and clear, rollback, and controller or store disposal retire registry ownership, await exact-once release before backing cleanup, and aggregate cleanup failures with the primary failure.
+
+The linked-PCM range control begins only after selection and initial binding have materialized the complete external WAV or AIFF under the 512 MiB tier. The opened handle and sequential digest are point-in-time checks, not a content-frozen, durable, restart-stable, or cross-process lease; same-inode mutation during or after verification remains unfenced. Four-MiB transport bounds do not bound retained canonical Float32 arrays, parsed source-container metadata, decoder allocation, browser caching, garbage-collection headroom, or renderer and main-process RSS. Canonicalization does not preserve WAV or AIFF ancillary metadata. The ranged audio path has no packaged-executable, operating-system, or reference-scale qualification and does not itself establish audible or device playback behavior.
+
+The `materialized-v1` tier, when explicitly used, creates one whole `Blob` below 512 MiB. Ordinary desktop selections use `selected-range-v1`. Materialization excludes Scape and linked-original range descriptors, repeats declared `Content-Length`, emitted-byte, and final `Blob`-size agreement, splits retained parts at 16 MiB, forwards the caller's `AbortSignal`, and never calls `response.blob()`. Its bound covers active materialized bytes, not decoder amplification or whole-process RSS.
+
+`desktop-write-path-capabilities` is **partial**. Save targets are high-entropy, expiring, single-use tokens. Generic exact-size output and project-only maximum-bounded output negotiate acknowledged sequential one-MiB chunks; exact-size `audio-pcm-mix` sessions alone negotiate four-MiB chunks. An exact-size session may additionally declare one fixed 32-byte final-prefix patch. The owner-bound main operation exposes no caller-selected offset, requires the complete declared stream first, replaces only position zero exactly once without changing the session byte count, and blocks finish after a missing or failed patch. All use a private same-directory temporary file, file sync, atomic rename, and abort cleanup. The dedicated `audio-pcm-mix` target grants only exact-size WAV, AIFF, canonical BWF, or admitted BW64 publication; desktop choice policy permits `.wav`, `.aif`, and `.aiff` without extending maximum-bounded streaming to generic audio targets. Every target and derived session is bound to an opaque main-owned identity for one committed main-frame document; the renderer bridge neither supplies nor observes that identity. Main-document navigation, renderer loss, and actual window close synchronously fence that owner's admission and invalidate unused targets, including a save-dialog result that returns after revocation. Cleanup then drains admitted begin, chunk, final-prefix-patch, finish, and abort operations, permits an already-admitted finish to cross its sync-and-rename commit boundary, and aborts remaining staging. Fresh-owner session admission waits for prior owner drains, preventing an older admitted rename from overtaking a replacement save to the same destination. Navigation cleanup failures are reported; application shutdown additionally waits for all save work and rejects its failure-aware barrier on an unacknowledged handle close or staging unlink, so the process cannot report a clean exit. Fault-injection tests stall open, write, sync, and rename independently and force both cleanup failures. Admission now enforces 16 outstanding product-wide save targets, 4 pending or live save sessions, and 65 GiB per-save and aggregate admitted bytes, covering the canonical 64 GiB `.scape` export envelope plus its bounded STORE/ZIP overhead. Larger desktop imports do not gain a larger save-session ceiling. Global count and byte reservations are installed synchronously before the first await, and production ceilings expose lower-only test seams. Main fail-closes malformed, failed, or insufficient BigInt `statfs` available-space results before staging open. This preflight is a point-in-time check, not an operating-system reservation, so later external disk use can still exhaust the destination; a chunk or final-prefix write that then fails with ENOSPC or EDQUOT is a qualified typed refusal that discards the staged temporary file, releases the session's admitted count and bytes, and leaves the committed target untouched, while a commit-time space failure cleans staging and names the exhausted destination. Other write failures keep the session open for retry or abort. Reservation charges release only when no staging was acquired, cleanup is acknowledged, or commit completes; a staging cleanup failure leaves the count and bytes charged. An active chunk cannot be preempted inside its filesystem write, and parent-directory/per-platform durability still needs fault qualification.
+
+`shared-desktop-project-library-integrity` remains the stable risk identifier,
+but its current authority is product-isolated:
+
+<!-- policy-narrative:fenced-family-v1-project-catalog-publication -->
+The direct unversioned Soundscaper and Framescaper desktop libraries authenticate their exact family-v1 handshakes before use, persist library schema 1 and SQLite user_version 1 beneath distinct kw.media/*-project-library/v1 roots, preserve SSCP and FSCP application IDs, repeat schemaFamily and schemaVersion in catalog rows, and expose disjoint product:v1:project-library:* channels. Main-owned publication, immutable-body custody, bounded pathless DTOs, recovery, duplicate, delete, lease fencing, and shutdown draining remain product-scoped. Seeded pre-release roots and databases remain byte-for-byte untouched and invisible; there is no migration or copy-forward marker.
+<!-- /policy-narrative:fenced-family-v1-project-catalog-publication -->
+
+**Historical pre-freeze provenance.** The following shared-library description
+grants no current project, migration, storage, IPC, or package authority. A main-process host owned a product-neutral appData library under a fenced lease. A fresh filesystem library scope `v9` used SQLite `user_version` 11 and ignored rather than migrated the prior shared `v8` scope, preserving its metadata schema 8, exact schema 16 catalog, and SQLite `user_version` 10 in place. The older `v7`/schema-15/user-version-9 and earlier scopes remained historical and untouched. A copied `v8` database with `user_version` 10 placed at the `v9` path was rejected without mutation instead of being migrated, adopted, or backfilled. Metadata schema 9 bound a separate opaque library entry ID to project identity, exact schema 17, project revision, bounded byte length, SHA-256, and a derived immutable revision-and-digest path. The project store used the canonical tagged-binary codec, accepted opaque binary state, enforced a non-raiseable 256 MiB document ceiling with a lower-only test seam, and validated the persistence root's schema, ID, title, and revision. Before `JSON.parse` constructed an object graph, the codec structurally scanned every schema under a raw ceiling of 101,536 JSON values and depth 130, including worst-case binary-descriptor expansion. Exact schema 17 then received independent decoded-codec and structural-validator ceilings of 100,000 logical nodes and depth 128 per phase. The main-owned editor service exposed lower-only seams for these limits across renderer input, loaded commit results, stored reads, and response serialization. An over-budget renderer input rejected before host commit and therefore before project staging. A loaded commit result could be rejected after the host had already published it, but neither that result nor an over-budget stored read reached a renderer response. The lexical preflight, decoded-codec traversal, validator admission, and response serialization reset their counters; they were not one aggregate CPU, elapsed-time, cancellation, allocation, or RSS budget. This structural admission was qualified for canonical JSON-derived production graphs and ordinary direct objects, not arbitrary in-realm proxies or malicious injected hosts or providers. Within that scope, accessors, callable `toJSON` hooks, method-shadowed arrays, hidden or symbol data, cycles, exotic containers, and non-JSON scalars rejected without invoking application accessors. The main-owned editor service parsed that bounded document and ran the strict exact-schema-17 maintained-persistence-domain validator before calling host commit and therefore before project staging; it validated the loaded commit result and stored reads again before returning a renderer response. Core project, document, media, and graph structures were strictly checked by that validator. All audio effects had to be cloneable and carry their generic identity, enabled, and parameter structure; type-specific semantic checks covered missing-effect compatibility metadata and parametric EQ, while other first- and third-party effect payload semantics were intentionally not gated. Adversarial service fixtures rejected invalid collection shapes, duplicate identities, dangling source or clip references, over-node and deeply nested shapes, non-enumerable or accessor-backed ordinary properties, array method shadows, non-JSON scalar values, and invalid loaded commit results. Input-side failures did not reach a host commit or project file. A packaged-runtime fixture proved the validator and structural admission were emitted and active. Publication reserved the canonical path and one unique random attempt in lease- and fencing-token-bound authoritative project and stage inventories in the same immediate transaction before exclusive stage creation. When exact-lease cleanup was acknowledged, an exclusive-open failure retired only the registration without unlinking the path, while an error after exclusive creation targeted that registered random stage for removal. Lost-lease or failed cleanup left the registration for takeover. Successful materialization required the exact metadata and stage paths, lease ID, and fencing token, then atomically renamed and synced the file, marked the canonical row materialized, and removed the stage row under before-and-after lease checks. It then reverified length, digest, schema, ID, and revision. Every catalog reference had to have a materialized row before an exact plus-one journaled catalog commit. Lease ownership was checked before staging, before publication, and transactionally at catalog commit, so tested observers saw an old or new complete file-and-catalog pair and a stale fencing token could not publish. The host serialized commits and continued lease renewal while close fenced new work and drained admitted work.
+
+<!-- policy-narrative:framescaper-v18-desktop-v10-isolation -->
+Framescaper desktop authenticates only { schemaFamily: 'framescaper', schemaVersion: 1 } through its family-v1 handshake, FSCP database application ID, SQLite user_version 1, root kw.media/framescaper-project-library/v1, v1 IPC namespace, and stable production partition. Seeded pre-release roots remain byte-for-byte untouched and are never opened, enumerated, migrated, copied, or deleted.
+<!-- /policy-narrative:framescaper-v18-desktop-v10-isolation -->
+
+<!-- policy-narrative:framescaper-v20-desktop-v17-isolation -->
+Soundscaper and Framescaper desktop libraries independently authenticate their exact family-v1 handshakes, application IDs, user_version 1 databases, fresh v1 roots, and product-specific IPC namespaces. Both provide current catalog, publication, body, duplicate, delete, lease, recovery, and plug-in-state operations without any pre-release importer or copy-forward chain. Same project IDs remain separate by schema family.
+<!-- /policy-narrative:framescaper-v20-desktop-v17-isolation -->
+
+After recovery and before host exposure, a main-only immutable-document collector walks the authoritative project and stage inventories by monotonic row IDs, captures independent cycle high-waters, persists both cursors plus an alternating schedule, and scans at most 100,000 total rows per invocation in at-most-64-row batches. Each destructive batch holds an immediate SQLite writer transaction and validates the exact unexpired lease before and after filesystem work. A current exact-lease stage remains live; a stale registered regular stage is unlinked, a missing attempt retires, and a non-regular target or non-direct parent stays untouched and inventoried. Canonical rows owned by the current lease or referenced by an outstanding stage stay ineligible. Stage-cycle completion persists and consumes a canonical rescan flag in the same transaction, restarting the canonical high-water whenever retired attempts could have unblocked rows already passed by its cursor. Canonical batches rebuild portable case-folded reachability from the integrity-checked current catalog plus both previous and next snapshots of pending prepared or committed journals. An unreachable registered canonical regular immutable file is renamed to a deterministic noncatalogable quarantine and unlinked while catalog writers remain excluded; a crash-left quarantine remains retryable. Unregistered stage-looking, canonical, forged quarantine, and foreign files do not consume inventory budget and remain untouched. A real 100,001-row fixture proves successive bounded passes reach the suffix, while later inserts wait for the next high-water cycle. Low- and mixed-cap fixtures prove persisted alternation and post-stage canonical rescanning. A higher fencing token cannot inherit stale mutation authority. Batches yield for renewal and cancellation, and stale takeover fails before mutation. A tested reclamation failure during startup stops renewal and releases its still-owned lease; any cleanup failure is reported. The collector rejects a static symlinked project root, skips symlinked entry directories, and leaves malformed names, non-regular entries, unregistered stage-looking files, and managed media untouched. Focused prepared, committed, update, delete, higher-token path-reuse, corruption, case-alias, inventory progress, quarantine, stage-crash, symlink, and startup-cleanup fixtures qualify this cooperative-writer control without adding renderer IPC.
+
+The shared-project surface of the identity service, frozen preload, and owner-scoped IPC exposes only bounded, pathless list, read, bundle, commit, delete, and managed-source transfer operations. Main and preload independently enforce the 256 MiB document, 4 KiB identity, 10,000-summary, 64 GiB source-body, 4,094-bundle-descriptor, and 4 MiB chunk ceilings; renderer transfer code separately caps the project at 4,094 reachable logical sources before source-body or bridge-body I/O. Main additionally permits at most four active source uploads and four active source reads across the bridge service. Upload capacity remains charged through publication or abort settlement, and disposal waits for finishing publications. Catalog summaries omit entry IDs, main-owned catalog/filesystem paths, digests, product preferences, raw `updatedAtMs` fields, leases, and fencing tokens. Managed bundle descriptors expose only immutable binding IDs, source identities and storage keys, source kind, the matching closed `audio-f32le-chunks-v1` or `video-original-v1` encoding, byte lengths, and SHA-256 digests. Owner revocation fences new work, aborts owned upload sessions, and drains admitted operations. The renderer repository repeats maintained-persistence-domain exact-schema-17 validation and canonical reserialization before local mutation, retains revision history plus source and media data in a product-local shadow, treats the shared latest document and summary list as authoritative, and fails closed on an incomplete desktop bridge. A composed source-free editor fixture creates and autosaves in Soundscaper, discovers and bootstrap-reopens the same identity and revision from a fresh Framescaper-local store, publishes the next revision under a higher fencing token, and leaves the shared media catalog empty.
+
+Ordinary shared-project saves remain document-only. Managed canonical PCM and retained original video are published only through the explicit project-handoff action after the current project flushes. Before any source body read or bridge call, the sender enumerates at most 4,094 reachable logical sources, deduplicates compatible same-kind physical bindings, rejects conflicting aliases, and preflights one aggregate 64 GiB audio-and-video byte budget plus the audio-only 65,536-chunk budget. It performs two full validating reads of every admitted source; when a binding is absent, the second read also uploads bounded sequential chunks. Changed PCM, video bytes, or trusted video metadata abort completion. Main revalidates the exact current project revision and requested reachable source kind, identity, geometry, and closed `audio-f32le-chunks-v1` or `video-original-v1` encoding before accepting a body, derives the catalog document SHA-256 rather than accepting it from the renderer, and the serialized host repeats exact revision-and-document-digest validation at publication. The immutable binding includes project identity, exact revision, exact document digest, and storage-key/media geometry, so a prior-revision row or same-revision document variant is neither advertised nor accepted as present; exact-present reuse requires the declared length and SHA-256 and reverifies the regular body. When that exact content already has another same-kind canonical binding, main may first fully verify the donor and create a private random staged hard link, verify it again, and promote it exclusively to the distinct revision-bound target. Opaque or corrupt donor rows are skipped, an exhausted donor link count can try another donor, a winning target race is never overwritten, known unsupported hard-link behavior falls back to the normal bounded upload, and other operational failures propagate. New uploads use a private regular stage, are digest-verified and synced, are atomically renamed inside the fixed managed-media root, and are directory-synced before catalog publication. Short, overlong, oversized, digest-mismatched, conflicting, symlinked-scope, and non-regular bodies fail closed. Catalog publication failure can leave a verified materialized immutable body from an upload or linked reuse. Its exact retry reverifies and publishes it without a renderer body upload and does not consume another offered stream; a retry whose inventory remains planned must register and consume a new stage/body attempt. For one managed-media store instance, an exact-absent audio or video binding first validates the prospective catalog, including same-instance pending descriptors, against non-raiseable 50,000-row and 4 MiB serialized-metadata ceilings with lower-only test seams. It synchronously reserves one row and the declared body bytes under a non-raiseable aggregate 64 GiB pending-byte ceiling before awaiting point-in-time BigInt `statfs` for the managed-media root. Failed, malformed, or known-insufficient capacity results reject before managed-media directory work, body iteration, or optional hard-link work. The reservation remains held through descriptor-publication settlement, and final publication rereads the catalog and revalidates lower-only and hard catalog ceilings. Exact-present bindings bypass new-publication capacity admission but still receive immutable descriptor and body verification. The schema-4 managed-media canonical and stage-attempt inventories bind the exact descriptor, project identity, revision, document digest, storage key, state, lease ID, and fencing token. After point-in-time capacity admission for an exact-absent binding, main commits its exact canonical row and random upload or reuse stage before body or optional hard-link work and before directory or stage creation. Materialization accepts only the exact registered stage, verifies it is regular, atomically renames it, syncs the directory, advances the canonical row to materialized, and removes the stage row under persisted before-and-after lease checks. Catalog preparation requires every recognized managed descriptor to have an exact materialized or published row, and catalog commit marks those rows published in the same SQLite transaction as metadata. This optimization is not a universal copy-free guarantee: optional hard-link reuse is conservatively charged the full declared body and can reject a feasible link. Capacity admission is store-instance and point-in-time, not an operating-system, cross-instance or cross-process, whole-handoff, or renderer-session reservation; `DesktopSharedProjectMediaService.beginSourceWrite` can return ready before asynchronous host/store refusal surfaces. Main appData project-document staging separately admits the exact serialized document size against point-in-time fail-closed BigInt `statfs` for the projects root before document directory or stage work; SQLite/WAL allocation, filesystem allocation overhead, later external allocation, write-time success, and UI state remain unqualified. Startup-bounded tracked-inventory reclamation is a separate control; continuous runtime cleanup, rows beyond 100,000 until a later startup, unregistered or legacy content, empty directory cleanup, and SQLite/WAL space reclamation remain unqualified.
+
+After metadata-journal recovery and project-file reclamation, and before host exposure, a separate main-only managed-media collector walks authoritative canonical and stage-attempt inventories. Each descriptor row binds project identity, exact revision, document digest, storage key, state, and the live lease and fencing token. For each tracked catalog row whose exact current project tuple no longer exists, it logically retires that row; unmanaged or untracked rows are preserved. The normal fenced metadata journal is settled before physical deletion, and a current recognized descriptor without exact materialized or published inventory fails startup before managed-media filesystem mutation. Physical reclamation uses persisted independent high-waters and an alternating schedule for stage and canonical cycles, scans at most 100,000 total inventory rows per startup in at-most-64-row batches, and revalidates the exact unexpired lease before and after filesystem work. Current exact-lease stages, current catalog descriptors, and canonical rows with an outstanding stage are protected. Stale registered regular stages are removed, missing attempts retire, and non-direct parents remain untouched and inventoried. Stage cleanup and logical retirement restart the canonical cycle when they can change eligibility. Eligible exact registered canonical bodies move through deterministic noncatalogable quarantine before unlink, making crash-left promotion, quarantine, missing, and hard-link-name states retryable. Unregistered and legacy lookalikes, symlinks, non-regular targets, foreign files, and unmanaged catalog rows are neither adopted nor removed, remain untouched, and do not consume the inventory budget. Snapshot counts expose bounded completion, and startup failure releases the still-owned lease. This is startup-only cooperative-writer reclamation: more than 100,000 tracked rows wait for a later startup, while empty directory cleanup, SQLite/WAL space reclamation, and continuous runtime cleanup remain unqualified. Validation is exact-reference and bounded-batch rather than an eager hostile third-party database scan. The compiled desktop runtime and staging inventory include the collector without qualifying packaged UI or source-bearing workflows.
+
+Historical pre-V18 desktop-library V9 and shared schema 17 evidence used a dedicated Linux x64 CI job to build two separate unpacked packages and execute Soundscaper → Framescaper → Soundscaper sequentially. The current CI job is retired and no longer runs this incompatible V9/V17 source-free handoff against Framescaper V18/V10. Those historical processes share only an isolated appData root, use separate product profiles, and the final stage reuses the Soundscaper profile. After a renderer-ready signal, each packaged executable uses the pathless preload IPC, exact-SHA-256 verifies its expected canonical source-free schema 17 document, commits revisions 1, 2, and 3, and validates both the renderer summary and main-only catalog row. Every stage requires clean recovery, no stale takeover, a higher fencing token, an increasing catalog revision, and the expected preferred product. The runner awaits process exit and lease release before continuing. Combined with the composed editor fixture, this closes only the generic packaged source-free preload/IPC/multi-process/executable lifecycle gap. It does not qualify packaged controller autosave or tab activation; source-bearing bytes, playback, or managed media; concurrent opens; crash or stale takeover; interruption or power loss; parent-, database-, or project-root path identity; installers or file associations; or Windows, macOS, or ARM64. Third-party activation gating and legacy Soundscaper library migration remain deliberately outside this slice.
+
+<!-- policy-narrative:packaged-cross-platform-electron-lease-matrix -->
+The Soundscaper and Framescaper family-v1 desktop libraries each hold one renewable process-lifetime main-owned writer lease in a separate fresh root and user_version 1 database with a persistently monotonic fencing token. Startup recovers journals before renderer admission; renewal loss fences new work; shutdown drains admitted operations and releases only the exact owned lease. The CI job exercises same-project contention, cross-product isolation, lease transfer and takeover, conflicting commits, renderer loss, orderly restart, and crash recovery for both products on Windows x64, Windows ARM64, macOS ARM64, Linux x64, and Linux ARM64. Each run reports only its own revision, target, operation outcomes, and failures; no retained result set or human record certifies a later release.
+<!-- /policy-narrative:packaged-cross-platform-electron-lease-matrix -->
+
+<!-- policy-narrative:packaged-source-bearing-handoff -->
+This control preserves pre-freeze packaged or cross-product qualification prose only. It grants no family-v1 compatibility, migration, shared-catalog, activation, or release authority.
+<!-- /policy-narrative:packaged-source-bearing-handoff -->
+
+<!-- policy-narrative:chromium-scape-mixed-media-handoff -->
+This control preserves pre-freeze packaged or cross-product qualification prose only. It grants no family-v1 compatibility, migration, shared-catalog, activation, or release authority.
+<!-- /policy-narrative:chromium-scape-mixed-media-handoff -->
+
+For a latest authoritative exact-schema-17 source-bearing load, recipient-local admission collects at most 4,094 reachable timeline, Project Bin, and fallback sources and, before source bodies are read, deduplicates compatible same-kind physical bindings, rejects conflicts, and preflights the same aggregate 64 GiB audio-and-video byte ceiling plus the audio-only 65,536-chunk ceiling. A fresh recipient first acquires matching managed canonical-PCM and retained-original-video descriptors through exact bounded reads into staged product-local audio-source or media-asset writers. Descriptor identity, kind and storage key, exact byte length, and SHA-256 must match before atomic if-absent publication, and canonical audio byte geometry must also match the project. Retained original video is admitted as opaque exact bytes and is not decoded or probed for media geometry at this boundary. A writer that loses the absence race deletes only its own staging and preserves the winner. Partial transfers, later pre-shadow failures, and recipient-local binding conflicts roll back only exact acquisition-owned audio records or owned video publications and their source-token, path, or media-chunk payloads; a concurrent replacement with a different record identity or token is preserved. Sources not acquired this way still require the pre-existing latest recipient-local exact-schema-17 snapshot of the same project to bind logical identity, kind, storage key, MIME type, and kind-specific media geometry before any source or media read. Compatible same-kind physical-key aliases are body-verified once and conflicts reject. A successful unmanaged body qualification captures selected metadata before and after that body. Audio consumes the exact sequential chunk count and ordered Float32Array PCM with exact chunk, channel, and frame geometry; any supplied index or frame count must match. Video requires a syntactically valid trusted recipient-local SHA-256 before any video body read, then fully reads and hashes the genuine exact-size Blob with SHA-256 through 4 MiB windows, and the body digest must match. Shared admission performs no on-access storage maintenance. Digestless legacy video fails closed before its body is read, local shadow save, or activation; with no lazy digest backfill, such sources require re-import. Source integrity, availability, binding, geometry, budget, body, and digest failures detected before shadow publication preserve the recipient's prior local shadow and prevent activation. Cancellation first observed after the exact shadow is durable rejects the load before activation but retains the exact shadow and acquired audio and video it references. The later controller-owned rendered-fallback-declaration digest check instead follows repository shadowing. A source-free latest load performs zero source or media I/O. Bootstrap passes its lifetime signal, one repository instance keeps latest load, save, and delete serialized per project, and publication and retention protect physical storage keys. The maintained headless composed mixed-media fixture publishes exact PCM plus one retained original video from Soundscaper, closes its host and local store, acquires both into a fresh Framescaper-local store before activation, reports no missing sources, feeds exact PCM to the playback engine, exposes exact video bytes through a shared Blob URL to the timeline and Project Bin, exercises play and stop state, edits and saves in Framescaper, and returns to the original Soundscaper profile. On the tested Linux filesystem the revision-bound audio and video catalog rows are distinct while each exact body retains one inode; reopening the original profile preserves its local revision history and requires no bridge or shared-library body read or upload. This is controller/headless evidence, not packaged Electron UI or browser video-codec qualification.
+
+Maintained demand-loaded owned canonical PCM playback passes the provider's
+admitted source metadata into lazy session opening. The session captures at
+most 4,094 cycle-free records along the linear root-to-base copy-on-write
+ancestry, uses only captured source tokens or paths, serializes chunk reads, and
+checks every observed generation before and after each chunk. Drift is
+terminal, per-request cancellation is local,
+and store cleanup releases owned and fallback sessions while aggregating
+failures. A non-owned fallback session opened with an admitted source identity
+now rechecks that metadata identity before and after every chunk read as well;
+fallback sources carry no copy-on-write generation records, so that fence is
+identity-only and weaker than the owned generation fence, and unfenced legacy
+iterator reads remain outside it.
+This fences the root expected by the provider and ancestry observed
+at open; it does not prove the base generation intended when a derived source
+was published, compare all metadata, authenticate body bytes, retain storage,
+or create an immutable, durable, cross-store, or cross-process byte lease.
+
+Four narrower one-way headless fixtures root exact-schema fallbacks whose
+manifests are their only project references. The role-defined audio fixture
+transfers the original and whole-mix PCM into a fresh Framescaper shadow before
+separate controller manifest verification and exact-sample activation. The
+role-defined `org.example.future-video-pipeline` whole-project fixture transfers
+an editable retained-video original and full-render fallback from Framescaper
+into a fresh Soundscaper shadow before separate controller manifest verification
+and activation of the exact fallback Blob URL. The separate first-party
+clip-local videoEffects fixture transfers its canonical original and digest-bound
+fallback into a fresh recipient with the exact target clip ID, closes and
+reopens the canonical shadow, and then admits the relationship by role, target
+clip ID, source ID, and SHA-256 before target-only playback. The separate
+first-party track-local audioEffects fixture transfers its target-lane and
+native-lane originals plus the digest-bound track render from an editable
+compatible Soundscaper sender whose ordinary save stays document-only into a
+fresh Framescaper recipient that reports the registered capability unavailable,
+admits the relationship by role, target track ID, source ID, and SHA-256 before
+target-lane-only playback, refuses delivery on corrupted recipient-local render
+PCM, and mixes the native lane with the verified private render into exact WAV
+output while the canonical shadow stays unchanged. Managed acquisition
+verifies transfer descriptors and body digests; it does not authenticate any
+manifest declaration. These fixtures add no packaged UI, browser-codec,
+embedded-video-audio, durable-lease, range, or whole-handoff atomicity claim.
+
+One narrow linked-PCM managed-handoff exception is Electron-injected and
+point-in-time. It admits a main-private maintained RIFF/RF64 PCM or IEEE-float
+WAV, first-party BW64 integer-PCM `.wav`, or classic integer-PCM AIFF with an
+exact `.aif` or `.aiff` name and `audio/aiff` MIME, or canonical first-party
+FORM/AIFC v1 `fl32` 32-bit floating point under that same name/MIME contract, no
+larger than 512 MiB. The raw
+path and device, inode, size, modification-time, and change-time tuple stay in
+the private locator registry; project state retains only canonical source
+geometry and a pathless local binding. The initial selection and binding
+materialize and digest-verify the whole external container snapshot, while the sender
+has no owned PCM record or chunk. Subsequent maintained canonical reads require
+the exact locator revision, recheck pathname and opened-handle identity, hash
+the stable opened handle sequentially through at-most-4-MiB responses, reread
+the binding and CAS fence, and inspect and decode maintained-container ranges without another
+whole-original Blob. Explicit managed handoff performs the normal two canonical
+Float32 PCM passes and transfers only the resulting
+`audio-f32le-chunks-v1` body. A fresh recipient with no locator port acquires an
+ordinary owned canonical PCM source and reopens without the original locator.
+The external container bytes and locator identity do not cross the managed-media
+bridge or enter its catalog. The bounded classic AIFF reader requires FORM/AIFF
+with structurally consistent COMM and SSND chunks and accepts signed big-endian
+integer PCM at 8, 16, 24, or 32 bits. Its canonical first-party AIFF-C profile
+requires one four-byte FVER v1 (`0xA2805140`) before an exact 44-byte COMM,
+32-bit `fl32`, the exact Pascal compression name `32-bit floating point`, and
+structurally consistent SSND geometry. The first-party label describes the
+maintained fixture, not authenticated provenance: admission is producer-neutral
+and accepts any producer emitting that exact tuple. Broader, compressed, and
+other AIFC profiles reject; broader third-party interoperability and producer
+provenance are unqualified. The composed witnesses directly exercise
+first-party BW64 integer PCM, classic AIFF, and canonical first-party AIFF-C
+float32.
+
+A binding-backed exact- or shape-compatible changed-content Project Bin linked-PCM relink resolves exactly
+one audio source with a current audio binding and does not use missing-source
+state as eligibility. The component fences its asynchronous result to the
+exact project revision and menu request. Its UI handoff carries only a pathless
+selected `File`, opaque locator ID and revision, and exact
+`{projectId, projectRevision}` target. A stale chooser scope is released before
+dispatch. The service validates that target before starting the shared
+audio/video relink task and releases a mismatch without cancelling current
+work, then rechecks the target in storage publication admission. The UI
+classifies the candidate by byte length and SHA-256 at the exact project and
+project revision. Exact content dispatches immediately; a changed choice stays
+UI-owned until explicit localized confirmation, and decline or stale scope
+releases it. A bounded structural probe runs before timeline transport, Project
+Bin preview, or provider drain and requires the same maintained MIME and file
+identity plus exact frame count, channel count, sample rate, and original sample
+rate without retaining decoded PCM. The controller then stops transport and
+preview and retires and drains the current provider. Storage proves the old
+binding and its platform snapshot remain current. Default admission requires
+exact byte-length and SHA-256 equality. Changed-content admission reloads the
+candidate at its exact revision, publishes its measured byte length and SHA-256,
+and copies the bound MIME and source shape unchanged.
+A synchronous `assertCanPublish` rechecks the shared task, exact target, project
+generation, and writable state inside the same compensated memory batch or
+IndexedDB binding-and-provisional-root CAS. Project, source, clip, and history
+identities remain unchanged. After publication the controller invalidates stale
+source buffers, peaks, waveform state, and analysis, then reactivates the
+replacement before availability publication.
+
+Recovery state is guarded by current audio-operation ownership plus the active
+project and controller lifetime, rather than shared-task currentness. A
+prepublication failure preserves the old binding, and recovery rechecks
+operation ownership after metadata before activation of the old runtime. It
+drains cleanup of only a distinct unused candidate. Shared video relink or
+project-lock cancellation before publication can therefore restore the old
+runtime while that audio operation still owns the active project. After
+publication the new binding and provisional root remain: when activation is
+incomplete the same ownership guard retires and invalidates partial runtime and
+records missing state, while a completed owned activation publishes
+availability even if the shared task was cancelled. A newer audio relink,
+project replacement, or controller disposal prevents stale recovery. The
+displaced old locator waits for bounded alias-aware startup reconciliation.
+
+This exception does not qualify packaged executable or UI behavior,
+operating-system file-dialog or path durability, changed-geometry,
+changed-container or other-media relink, automatic watch or discovery,
+arbitrary third-party BW64, new BW64 ADM preservation or editing semantics,
+broader or compressed AIFC, third-party AIFC interoperability and provenance,
+the `.aifc` extension, byte-exact source-container or ancillary metadata
+preservation, generic linked-audio support, audible or device playback, or
+reference-scale behavior. The initial complete-body materialization remains.
+The stat tuple, opened handle, and full-body digest remain sequential
+point-in-time observations rather than a content-frozen or durable path,
+immutable same-inode lease, or cross-process guarantee. Same-inode mutation
+during or after verification is not fenced, and the four-MiB transport ceiling
+does not bound canonical Float32 arrays, parsed metadata, or process RSS.
+
+The linked retained-video slice persists a schema-1 closed product-local binding keyed by exact project and source identity. It contains only a pathless opaque locator ID, an opaque locator-revision fence, an independent repository-owned CAS binding token, storage key, canonical video MIME, exact source geometry, byte length, lowercase SHA-256, and canonical bind time; no filesystem path, URL, handle, or linked body enters project state or the binding store. The maintained Electron chooser accepts exactly one non-empty regular allowed video no larger than 512 MiB. Main records at most 128 locators and 64 GiB of aggregate referenced bytes in an atomically replaced private schema-1 JSON file under product-local `userData`; the registry itself is capped at 1 MiB. Only that main-owned file contains each raw absolute path and its device, inode, size, modification-time, and change-time identity. Main and preload return only validated random 64-hex locator and revision tokens with bounded display metadata. An ordinary locator load verifies the recorded stat identity before and after minting a fresh owner-scoped `materialized-v1` descriptor. A playback load instead requires the exact locator revision, verifies the current pathname identity, and requires the newly opened owner-scoped `linked-video-range-v1` handle to match that same identity before publication. Moving, deleting, or replacing the selected pathname before admission therefore fails closed, while replacement after admission cannot retarget the pinned handle. Renderer-owner revocation fences that owner's operation and ephemeral read descriptors but does not erase the persistent locator. Explicit locator release is a serialized exact locator-ID-and-revision CAS: a missing, stale, or already-revoked pair returns false without a registry write, while success retires only locator metadata and never deletes the external file. Failed persistence restores only in-memory state and does not prove durable on-disk rollback. Owner revocation after a deletion write attempts a second persisted restore; a failed restore is surfaced with an indeterminate on-disk outcome.
+
+The selection and import adapter consumes and releases its fresh descriptor through the existing whole-Blob materializer. Choice failure or cancellation after locator publication uses a closed exact locator ID-and-revision CAS release; a missing, malformed, or accessor revision never authorizes cleanup. The capability-gated Project Bin action passes one materialized selection and its pathless locator to the maintained video importer. The importer skips owned retained-original publication, constructs the exact video source, and binds and completely hashes the locator body before visual activation and canonical command publication. Failures before the canonical source lands release the unused exact locator revision, conditionally unlink the just-published binding, and remove import-owned audio and disposable derivatives. Once the canonical source has landed, a later publication or reporting failure retains its binding, locator, audio, and previews with that canonical state instead of attempting destructive rollback. Poster and thumbnail cache access derives provenance from the normalized exact linked binding and checks that binding around save, list, and load; those bodies remain disposable, noncanonical, and nonportable.
+
+An explicit exact-content relink is maintained for an already-bound, writable Project Bin video source whether or not it is currently missing; missing-source state is not eligibility, and the maintained menu asks the controller's binding eligibility check instead. The action passes one pathless selected Blob and only its opaque locator ID and revision; it does not pass a path or display metadata. The controller resolves the unique video member and reads the exact old binding token. Storage proves the old binding and its platform snapshot are current and, for the default exact-content admission, requires the selected Blob to equal the old byte length and SHA-256, reloads the candidate at the exact selected revision, and requires the same selected length and digest. A separate changed-content admission relinks a silent video source to different bytes: it requires explicit caller authorization behind the maintained localized confirmation, refuses any source or compound bin item that retains canonical extracted audio or pairs an audio member, keeps the binding's MIME type, and probes the selected file with the same decode pipeline import uses, so frame size and duration must match the canonical claims and no audio may decode. The CAS then publishes the measured byte length and SHA-256 with the source shape copied unchanged, stale disposable derivatives are purged best-effort after publication, a declined confirmation releases the chooser's locator, and the changed-content selection also materializes the complete body under the 512 MiB tier. frameRate and videoCodec remain unverified import placeholders carried through unchanged. A synchronous `assertCanPublish` runs inside the same compensated memory batch or IndexedDB readwrite transaction, immediately before the exact old-token CAS publishes the new binding and provisional-root pair. That callback rechecks task cancellation, writable writer admission, project generation, and, for an initially missing source, missing-source status. The controller stops timeline playback and Project Bin preview and revokes the current visual before CAS; a pre-publication failure afterward restores an initially available source's visual under current operation ownership or records missing state when restoration fails. Activation happens after CAS; only a current non-null activation clears missing state and publishes, and a failed activation records missing state on the committed binding, also for an initially available source. Canonical project, source, clip, and history identities remain unchanged.
+
+Every prepublication stale-token, wrong-content, cancelled, writer-lost, project-switched, or no-longer-missing failure preserves the old binding. Alias-aware lifecycle cleanup releases only a distinct candidate locator, disposal drains candidate cleanup, and cleanup failures remain reportable. A postpublication activation failure instead retains the new binding, provisional root, and missing state for retry. The displaced old locator is deliberately not immediately released because the controller path has neither a complete alias inventory nor an atomic main-registry bridge. Only bounded later startup reconciliation can discover registry metadata absent from the positive inventory and retire it after complete same-store alias inventory. Relink selection still materializes the complete Blob under the 512 MiB chooser tier. The separately maintained linked-PCM control owns its binding-backed exact- or shape-compatible changed-content Project Bin relink. Changed-duration, changed-geometry, or changed-container replacement, automatic watch or discovery, relink for other media, immediate displaced-old-locator retirement, cross-database, profile, or process coordination, packaged executable/UI and operating-system qualification, browser-codec evidence, and same-inode mutation fencing remain outside these maintained relink flows.
+
+Bind and whole-Blob resolve validate project ID, source ID, storage key, MIME type, and every geometry field before privileged platform I/O. Resolve supplies the expected locator revision, requires exact length and complete SHA-256 through non-raiseable 4 MiB windows, and rereads the exact binding and CAS fence before returning a pathless point-in-time Blob snapshot. Maintained desktop visual activation first attempts a separate ranged playback lease. It supplies the exact binding revision, requires matching byte length and MIME, hashes the complete pinned handle sequentially in non-raiseable 4 MiB ranges, rereads the exact binding and CAS fence, and returns only the media URL and one-shot release operation; it does not construct another original-video Blob. The visual service owns that lease together with its disposable Object URLs. Cancellation, activation failure, source supersession, project-generation replacement, visual replacement, project switch, source cleanup, project deletion, local-data clear, and controller disposal use asynchronous cleanup. Candidate and stored leases are released once, all bulk cleanup is attempted, primary and cleanup failures are preserved, and a media-element failure can compare the exact media URL before revoking so a stale error cannot release a newer visual. A failed ranged admission does not silently retry through whole-Blob resolution; the whole-Blob path remains only for a platform port without the optional playback lease.
+
+Each linked-enabled shared load or handoff builds a fresh per-operation alias session authenticated by a module-private WeakMap, so a structurally forged proof is rejected. The session inspects every complete reachable video alias group before any linked body read and rejects conflicting geometry, incomplete aliases, different locator or content identity, and sibling binding replacement. The maintained acquisition, availability, and handoff paths finish group, metadata, and aggregate budget preflight before lazy first body resolution. Storage key alone never authorizes a source: an authentic session must also bind every exact project/source identity and geometry plus matching MIME, length, and digest metadata. Import creates no durable product-owned original-video copy or media row. Binding, descriptor-free shared admission, and visual activation likewise create no durable product-owned copy; only explicit managed handoff feeds the verified Blob into the maintained managed sender. A bounded same-store/process lifecycle coordinator serializes binding mutations, project deletion and whole-store clear. It inventories at most 100,000 binding rows and 128 unique exact locator/revision pairs and deduplicates aliases. The local commit completes before exact metadata release; it then re-inventories so a live alias prevents release. Release rejection cannot undo the committed local mutation: it reports a committed cleanup error and retains a bounded pending retry that rechecks aliases on a later serialized operation. A fulfilled false result denotes a stale or missing locator and settles cleanup. The external target remains untouched. Source-level reachability outside bounded revision-matched startup reconciliation, maintained saves, and successful writable activations remains open; separate store or process activity is not serialized, crash and persistence durability are not qualified, and packaged executable/UI and operating-system behavior remain unqualified.
+
+`maintained-save-kindful-linked-original-binding-reachability` narrows maintained
+save- and successful-writable-activation-triggered kindful linked-original
+binding reachability. The controller applies it to queued autosaves, flushes,
+inactive-tab saves, and project-switch or analysis explicit saves and to a
+terminal successful writable activation. Both paths collect authoritative roots
+from every live Undo/Redo history, the clipboard's media kind, audio recording,
+and render-cache state only when the queued write or serialized maintenance
+executes. The resulting kindful audio/video reference array is frozen and
+deduplicated. A direct unqualified save skips destructive cleanup. The same
+textual source ID remains kind-distinct, a wrong-kind root does not retain a
+binding, and `protectedLinkedVideoSourceIds` remains a compatibility facade for
+direct callers.
+
+Activation cleanup runs only for durable IndexedDB. A read-only, failed,
+save-triggered, memory, or degraded activation skips it. After engine and
+session activation, state publication, and source GC, the controller enters the
+lifecycle coordinator and then the repository's latest-project-mutation lock.
+Under those locks it revalidates controller lifetime, current activation, the
+active project, the original write-lock identity, and writable state, then
+collects the current live roots inside serialized ownership. That revalidation
+prevents a superseded activation or lost write lock from pruning bindings.
+
+After admission, the current exact schema 17 project and at most 64 retained
+revisions provide timeline, Project Bin, and all feature-fallback declarations
+without publisher gating. The pass admits at most 100,000 aggregate roots,
+100,000 closed binding rows, 100,000 closed provisional-root rows, and 128 exact
+locator references. For a save, Desktop waits for the remote acknowledgement;
+a successful activation performs no new remote publication. Both keep the
+latest-mutation lock through the atomic local binding and provisional root
+transaction.
+
+Every maintained new or replacement binding and copied alias publishes a
+closed scalar provisional root containing only its schema version, binding key,
+project, kind, source, and binding token. The root contains no locator, path, or
+body. Binding and root publication uses the same compensated memory batch or
+IndexedDB readwrite transaction, and exact unlink or determinate rollback
+deletes the pair. Cleanup validates the complete bounded root inventory before
+mutation. This closes the same-database bind-before-project window against
+independent cleanup: an exact durable current or retained graph or the exact
+owner token may consume the root. A caller wildcard live root retains the
+binding for that pass but does not consume the root. A stale owner settles only
+its earlier in-memory reference and cannot consume a replacement root.
+Suppressed or failed maintenance settles no root.
+
+Startup has no owner token. A catalog-live rooted binding remains live when the
+local graph says it is unreachable or the graph is unverifiable; exact durable
+graph membership consumes the root, while catalog absence deletes the
+binding/root pair. Project deletion validates the complete root inventory
+before deleting the project's pairs, and whole-store clear deletes every root.
+Roots have no time expiry, so interruption or failed consumption leaves a
+bounded safe leak instead of risking source loss. The version-8 upgrade creates
+the root store but does not backfill existing pre-root binding rows.
+
+A post-commit prune failure is report-only, so the save or activation succeeds
+and a later maintained save or writable activation retries. A previously failed
+pending release that rejects again does not starve unrelated activation cleanup.
+Release then re-inventories every same-store alias before exact locator
+retirement.
+
+A memory and IndexedDB witness proves a no-owned-PCM linked WAV whose last
+durable revision has aged out stays canonically readable while a live audio root
+exists. When the last root disappears, the next maintained save or writable
+activation releases the exact locator once and leaves the external WAV
+untouched. The same IndexedDB database, including independent browser
+connections, is qualified only for the binding/root transaction. Different
+databases or profiles, project catalog or main locator registry coordination,
+abrupt crash or power loss, hostile IndexedDB, and hostile renderer authority
+remain unqualified. Project publication, the local binding transaction, and
+main locator retirement are separate. Coordination beyond this same-database
+window, relink beyond the exact- or shape-compatible changed-content retained-video and linked-PCM Project Bin flows or any
+automatic watch, packaged executable or operating-system behavior,
+audible or device playback qualification, third-party activation gating, and
+legacy private libraries remain outside the claim.
+
+`same-store-linked-video-project-duplication` narrows the maintained stored-project copy path. It duplicates only the loaded current project snapshot at revision zero; it does not copy the source project's revision history. Reachability is derived from current timeline clips, Project Bin clips, and exact-schema fallback declarations under the portable-format ceiling of 4,094 reachable source identities. Before any alias write, the alias repository validates a complete inventory of at most 100,000 closed binding rows and 128 unique exact locator/revision pairs, rejects malformed rows and conflicting revisions, rejects any pre-existing destination binding, charges the prospective row count, and requires every copied source binding to match the reachable video source's storage key, canonical MIME, and complete video geometry. Only an existing source-project binding for a reachable video source becomes a destination alias. Each alias preserves the exact locator, locator revision, length, digest, and source shape but receives a fresh cryptographic binding token and bind time. The memory path performs its preflight before a synchronous rollback-capable batch; IndexedDB performs the inventory, preflight, and alias writes in one readwrite binding-store transaction. This operation does not invoke the platform locator port: it does not load, stat, hash, materialize, release, or otherwise touch the external video body or private path.
+
+Aliases publish before the copy document so a published project cannot initially lack an alias that the source snapshot possessed. The subsequent create-only repository operation refuses a destination with a current project, the exact revision key, or any revision row. It writes only the compacted current project and its revision-zero record through one IndexedDB transaction or one compensating synchronous memory batch and deliberately leaves unrelated pending source and media rows unchanged. A fresh creation fence is stored with the revision record and associated only with the exact returned snapshot in that repository instance. Exact compensation therefore requires both the complete current snapshot and its creation fence; an identical later save or any replacement blocks deletion. Project collision, known capacity refusal, shadow-document drift, and tested prepublication or transaction failures invoke a second bounded full-inventory alias pass. Missing aliases settle, but any replaced token or changed alias rejects before deleting any member of the rollback batch. The alias and project publications are separate transactions, not one crash-atomic commit. Same-instance duplication and binding operations are serialized by the linked-original lifecycle coordinator; this is not a cross-store or cross-process transaction.
+
+Desktop shared duplication reads the authoritative canonical source document without resolving or admitting its media. After the exact local aliases exist, it performs a remote destination preflight, creates an exact revision-zero local shadow only if absent, and requires the complete canonical shadow serialization to equal the intended copy before calling the existing shared-project commit. An exact acknowledgement succeeds. If commit or acknowledgement handling fails, one authoritative reread classifies the outcome: an exact remote document is treated as committed and retains the local shadow and aliases; an absent remote document permits creation-fence-bound local shadow compensation followed by exact alias rollback. A divergent remote document, an unreadable recovery result, or failure to remove the exact local creation is reported as `ProjectDuplicationIndeterminateError` and deliberately retains the local shadow and aliases. Recovery never deletes a divergent remote project or a replacement alias. This distinguishes known refusal from a possibly committed or superseded remote outcome without claiming one atomic transaction across renderer IndexedDB and the main-owned shared catalog.
+
+Abrupt renderer or process death between the alias, local project, and Desktop remote phases is not qualified. On a later successful durable bootstrap, the existing bounded cooperative reconciliation can remove a binding whose project ID is absent from the authoritative catalog and can source-prune a catalog-live project only from a bounded product-local exact-schema-17 graph at the catalog revision. It can subsequently retire startup locator metadata, but it is not a duplication journal. It does not remove a hidden local Desktop shadow or its revisions, prove whether an ambiguous remote commit occurred, or automatically unblock retry of the same destination identity. Missing, stale, invalid, incomplete, or over-bound local graph state is retained conservatively. Memory fallback has no restart recovery. The creation-fence capability is repository-instance-local and is intentionally unavailable after restart. Separate stores, profiles, renderer processes, or main processes are not serialized across the complete duplicate; the focused concurrency witness covers one store instance. Power loss, IndexedDB durability boundaries, filesystem or SQLite durability, automatic indeterminate-state repair, cancellation, packaged UI behavior, and cross-product or cross-device duplication are unqualified. These residuals do not weaken the narrower point-in-time guarantee that a settled maintained same-store copy reuses pathless exact aliases without external media body I/O.
+
+The privileged service now rejects a compromised renderer's over-budget or maintained-domain-invalid exact-schema-17 input before it can call the host or stage a project, rejects maintained-domain-invalid or structurally over-budget loaded commit results and stored documents before a renderer response, and the renderer repository repeats validation before local mutation. Loaded-result refusal is a response boundary, not a rollback guarantee: a host commit may already be published before its returned object is rejected. This closes the earlier privileged-domain-validation residual and qualifies per-phase project-shape node and depth ceilings for the maintained shared persistence path, but `shared-project-parse-budget` remains open for execution and allocation. The 256 MiB input ceiling, 101,536-value/depth-130 raw preflight, and per-phase 100,000-node/depth-128 exact-V17 decode and validator admissions do not combine into one consumable end-to-end work budget. CPU or elapsed time, cancellation, scalar and string work, IPC and JSON/string allocation, semantic normalization and clone amplification, provider-internal allocation, garbage-collection lag, and total main-process RSS remain unqualified. Remaining project families also lack complete aggregate byte, node, depth, and elapsed-time budgets. Unmanaged recipient admission remains a bounded sequential readability check, not an atomic snapshot, publisher authentication, or a durable byte lease. Selected metadata is reread around each body, but body reads are not transactionally bound to it; same-metadata replacement during the sequential observations can go undetected, and replacement or deletion afterward is not fenced. Maintained owned canonical PCM playback is generation-fenced across the root-to-base copy-on-write ancestry observed at session open. It is not a durable proof of the intended base generation, complete metadata equality, a content or byte lease, storage retention, or a cross-store or cross-process byte snapshot. Unmanaged audio is not authenticated against a prior content digest; injected non-cooperative providers may continue after rejection; shadow save is not abort-atomic once begun; and separate repository instances or processes are not serialized. Explicit managed handoff now closes the maintained headless composed Soundscaper-to-Framescaper edit/save/return path for canonical PCM and retained original video. Separate one-way headless fixtures also close managed transfer and fresh-recipient activation for a manifest-only exact-schema role-defined unknown-feature audio whole-mix plus role-defined `org.example.future-video-pipeline` unknown-feature whole-project video and first-party videoEffects clip-target and first-party audioEffects track-target fallbacks with their editable originals; each transfer authenticates its descriptors and body digests before the controller independently verifies the manifest declaration. The track-target sender stays compatible and editable and publishes through the same explicit handoff action while its ordinary saves remain document-only. The audio and whole-project video senders are feature-requirement-only intrinsically read-only and publish their unchanged active snapshots without flushing only while they own the current writable project lock; declared read-only, future-schema, missing- or stale-lock, and lock-contended projects refuse handoff. The audio fixture additionally corrupts recipient-local fallback PCM after activation and proves final delivery refuses before render or download, then restores the exact PCM and obtains expected fallback samples in WAV output without canonical mutation. Exact-absent managed publication now has same-store point-in-time prospective catalog and managed-root admission before body or optional hard-link work. Startup-bounded tracked managed-media reclamation, orphan recovery, and logical catalog-row retirement are implemented. Continuous runtime cleanup, more than 100,000 tracked rows until a later startup, unregistered or legacy foreign content, empty directory cleanup, and SQLite/WAL space reclamation remain open. Linked retained video now has a maintained product-local chooser, validated main/preload boundary, whole-Blob selection/import adapter, exact-binding import, closed exact locator ID-and-revision CAS release, owner-scoped exact-revision ranged visual playback, binding-scoped disposable previews, and exact-content relink for an already-bound writable Project Bin source, without using missing-source state as eligibility, in source and component tests. The maintained linked-PCM slice uses the same kind-fenced locator registry and shared owner-scoped range pool for exact-revision, digest-verified WAV/RF64, structurally validated classic AIFF, or canonical first-party AIFF-C float32 inspection and canonical PCM chunk reads without a second whole-original Blob. Its binding-backed exact- or shape-compatible changed-content Project Bin relink does not depend on missing-source state, classifies the candidate at the exact project revision, requires localized confirmation and an exact PCM-geometry probe before quiescing current playback for changed bytes, drains the current provider before a guarded binding-and-provisional-root CAS, preserves canonical identities and source shape, and retains the published new binding after a postpublication activation failure while a current task invalidates any partially repopulated runtime before recording missing state. Raw paths remain in a private main-owned registry while renderer and project state remain pathless. Persisted device, inode, size, modification-time, and change-time identity is a point-in-time check, not an operating-system bookmark or automatic watch handle. A moved, deleted, or stat-changed target fails the next admission, and pathname replacement after range admission cannot retarget the opened handle. Same-inode external mutation during or after sequential digest verification is not fenced, however, so the owner-scoped handle is not an immutable, durable, or cross-process byte snapshot. Selection and initial binding, whole-Blob resolution, availability, handoff, and relink selection still materialize the complete body under the 512 MiB tier. Maintained visual activation and linked-PCM canonical reads instead use at-most-4-MiB responses without constructing another original Blob. Neither bound constrains retained canonical Float32 arrays, WAV metadata, decoder or codec amplification, renderer or main-process RSS, browser caching, or garbage-collection headroom, and the ranged paths have no packaged, operating-system, or reference-scale evidence. Bounded same-store/process project-delete and clear cleanup is implemented: the local commit of project-and-binding deletion completes before metadata release, live aliases remain protected, and a pending retry follows any reported committed cleanup failure. A bounded cooperative startup pass uses a point-in-time authoritative catalog of at most 10,000 closed exact project/revision summaries. Before IPC, one readwrite transaction validates local current projects and retained revisions plus at most 100,000 closed mixed-kind binding rows and storage aliases. The generic pass admits at most 128 mixed-kind exact locator/revision pairs; the legacy video-only fallback applies reference cardinality and deletion only to video while still validating full-store rows and aliases and preserving audio. Catalog-absent bindings are unreachable. A catalog-live binding is source-pruned only from a bounded product-local exact-schema-17 current and retained graph whose current revision equals the catalog summary; missing, stale, invalid, incomplete, or over-bound graph state and every surviving alias remain live. Binding validation, conflict, bound, or deletion failure rolls back before IPC; the resulting frozen positive inventory then enters the existing reconciliation path. Source-level reachability beyond bounded startup reconciliation, maintained saves, and successful writable activations remains open. The catalog snapshot, binding transaction, and main registry write are not one cross-boundary atomic operation; main cannot authenticate a hostile renderer's inventory completeness; separate store, profile, or process activity is not serialized; and general continuous cleanup beyond same-store save/activation/delete/clear remains open. The source/component slice is not qualified in a packaged executable or across operating-system file-dialog and identity behavior. Beyond the maintained linked-PCM range, portability, and managed-handoff slice, broader linked audio, broader unmanaged originals, portable authored-proxy relationships for linked or unmanaged media (which selected V27's locally implemented owned-original proxy lifecycle does not qualify), and rendered-fallback authoring and managed handoff beyond the closed audio and closed whole-project video roles and the maintained first-party clip-local videoEffects and track-local audioEffects relationships, plus packaged rendered-fallback final delivery and fallback relationships beyond the four frozen roles, relink and watch behavior beyond the maintained exact- or changed-content silent retained-video and exact- or shape-compatible changed-content linked-PCM Project Bin flows, general consolidation, external-writer mutation, exact allocation, whole-handoff, renderer-session, cross-store, cross-process, and write-time capacity behavior remain open. Browser `<video>` codec behavior remains open. The two fixed Linux x64 Electron source-bearing shared-library workflows were exercised separately and also exercised activation and transport playback for the four frozen rendered-fallback roles. Their two web `.scape` counterparts were separately exercised with the fixed Chromium browser-download fixture, while packaged rendered-fallback final delivery, fallback authoring or other relationships, linked/unmanaged-media relationships, broader fixtures, and the remaining browser and platform matrix stay open. Cross-platform hard-link availability and crash or power-loss behavior during reuse also remain unqualified; the bounded upload fallback preserves availability only for recognized unsupported-link failures. The Linux x64 source-free packaged lifecycle was exercised, but the remaining platform and fault matrix was not exercised: per-platform power-loss, parent- and database-path identity, Windows directory-sync and deny-delete behavior, junction, time-of-check/time-of-use, and interrupted foreign collisions at registered random stage paths are not covered. Unregistered or legacy pre-inventory stage-looking files remain foreign and are not adopted or deleted. Pre-release schemas 1 through 16 require source-media re-import and have no raw-project migration path. Migration from the prior shared `v8` scope, the older `v7`, `v6`, `v5`, `v4`, `v3`, `v2`, and `v1` scopes, or product-private Soundscaper libraries remains unsupported. Audacity AUP, legacy XML AUP, and AUP4 remain maintained interchange boundaries and emit the exact current schema.
+
+The bounded cooperative startup reconciliation pass above is implemented at the
+main/renderer durability boundary. After durable IndexedDB opens and before
+project loading, the maintained renderer obtains a point-in-time authoritative
+catalog of at most 10,000 project summaries. Each summary is projected to closed
+own-data `{ id, revision }`; invalid or duplicate identities, invalid
+non-negative safe-integer revisions, and an exceeded summary bound reject
+bootstrap before the binding transaction. Memory fallback returns before
+catalog listing, binding mutation, or IPC. A durable platform port without
+reconciliation can still evaluate the catalog but performs no binding mutation
+or IPC.
+
+One IndexedDB readwrite transaction over local current projects, retained
+revisions, and linked-original bindings validates at most 100,000 closed binding
+rows plus every storage alias. The generic pass admits at most 128 unique exact
+locator/revision pairs across the complete mixed-kind inventory. The legacy
+video-only fallback still validates every row and storage alias but applies
+reference cardinality and deletion only to video while preserving audio rows.
+Malformed rows, conflicting locator revisions or storage aliases, exceeded
+applicable bounds, and any binding deletion failure abort and roll back that
+transaction before IPC, including when the offending managed rows all belong to
+catalog-absent projects.
+
+Every audio or video binding whose project is absent from the catalog is
+unreachable. For a catalog-live project, source-level pruning runs only when the
+product-local current document is exact schema 17 at the catalog revision and no
+more than 64 exact retained revisions include that current revision. The current
+and retained graphs conservatively union their kindful timeline, Project Bin,
+and every feature-fallback source without publisher gating. Missing, older,
+newer, malformed, incomplete, or over-bound graph state retains every binding
+for that project. More than 100,000 aggregate roots across otherwise verifiable
+projects suppresses all source-level pruning while catalog-absent bindings stay
+eligible. Only after the complete scan does the transaction apply its binding
+deletions. Any surviving same-store alias keeps the locator in the frozen sorted
+positive inventory submitted through the existing closed preload/IPC path.
+
+The catalog summary is authoritative for project presence and current revision,
+not for the content of the product-local graph. The catalog snapshot, local
+transaction, and main registry write are not one cross-boundary atomic
+operation. A successful binding deletion commits before the separate main
+operation, so a later main rejection can leave locator metadata to be retired
+on retry. Main serializes its pass with locator mutations and removes only
+startup-loaded metadata absent from the submitted inventory; runtime-created
+records are not candidates. A failed pass can retry, and at most one successful
+pass completes per store/process. Unknown or stale references reject before
+mutation. A failed first registry write restores the in-memory inventory. Owner
+revocation after a successful deletion write attempts a second persisted
+restore; failure of that restore is surfaced and its on-disk outcome is
+indeterminate. The renderer transaction and main pass never load, stat, write,
+or delete external media bytes.
+
+On the next successful full bootstrap, this retires a locator left before
+binding publication and metadata whose last binding row was durably removed as
+project-absent or source-unreachable under the exact catalog-revision fence. Any
+surviving alias keeps the locator in the positive inventory.
+
+Current-process abandoned records wait for a later main-process restart. Main
+validates DTO shape and exact revisions but cannot authenticate inventory or
+local-graph completeness: a compromised renderer can omit live references and
+retire their startup metadata. A same-revision product-local graph is not
+content-authenticated by the catalog summary. Separate store, profile, or
+process activity is not serialized with this reconciliation. The pass is
+cooperative first-party lifecycle housekeeping, not a renderer-compromise
+integrity control. The composed restart witness uses orderly close, dispose, and
+reopen; abrupt process death, persistence write boundaries, fsync, and power
+loss are not qualified. Source-level cleanup outside bounded startup,
+maintained saves, and successful writable activations, general continuous
+cleanup beyond same-store startup/save/activation/delete/clear, and a total
+cloned-byte or process-RSS bound for one hostile IndexedDB row remain open.
+
+The rendered-fallback limitation in the preceding residual is narrowed by two
+maintained editor exceptions. Exact-schema role-defined audio whole-mix PCM for
+the unknown canonical `org.example.future-mixer` feature remains reachable when
+its manifest is the only reference, crosses explicit managed handoff with its
+editable original, and is acquired with the exact canonical shadow by a fresh
+recipient. The feature-requirement-only intrinsically read-only sender publishes
+its unchanged active snapshot without flushing only while it owns the current
+writable lock; declared read-only, future-schema, missing- or stale-lock, and
+lock-contended projects reject. Managed transfer authenticates its own descriptor
+and body digest; after shadow publication, the controller separately
+authenticates the project fallback declaration before read-only transient
+playback activation with the exact samples. The fixture then corrupts the
+recipient-local fallback PCM after activation and proves final delivery refuses
+before render or download; restoring the exact PCM produces the expected
+fallback samples in WAV output while canonical project state remains unchanged.
+Separately, exact-schema video fallback playback has two closed relationships.
+`project-video-render-v1` may activate one exact, locally available,
+controller-digest-admitted full render for a canonical feature identity that is
+unavailable or unknown. The role supplies fixed media semantics without loading
+feature code. Its `org.example.future-video-pipeline` witness crosses explicit
+managed handoff with its editable retained-video original from an intrinsically
+read-only Framescaper into a fresh Soundscaper exact shadow; transfer
+authenticates the two descriptors and body digests before the controller
+separately authenticates the manifest declaration and activates the exact
+fallback Blob URL. `video-clip-render-v1` remains restricted to exact registered
+`videoEffects` and one target clip; its distinct silent fallback matches target
+duration and canonical-source geometry and replaces only that target. Its
+managed fixture reaches a fresh recipient, closes and reopens the canonical
+shadow, and admits role, target clip ID, source ID, and digest before target-only
+playback. The track-local `audioEffects` sibling reaches the same explicit
+managed handoff from an editable compatible sender: its fixture admits role,
+target track ID, source ID, and digest on a fresh recipient that reports the
+registered capability unavailable before target-lane-only playback and a
+delivery that mixes the native lane with the verified private render. Multiple
+clip or mixed relationships remain unqualified. This video
+slice does not qualify packaged fallback handoff, browser codec playback, or a
+durable playback lease. Authored proxies and rendered-fallback relationships
+beyond the closed audio whole-mix and whole-project video roles plus the
+maintained first-party track-local audioEffects and clip-local videoEffects
+roles remain open — for the track role editor playback, maintained delivery,
+portable `.scape` round-trip, managed handoff, and exact Linux x64 packaged UI
+activation and transport playback were exercised, but packaged final delivery
+and browser workflows are not — as do publisher
+authentication and third-party feature-code activation.
+
+Path tokens are capabilities. Their required lifecycle is: explicit user selection, validation and handle acquisition in the main process, opaque token issuance, least-authority operations, bounded use, and deterministic revocation appropriate to the token's declared lifetime. Ordinary desktop reads enforce document-owner release, expiry, navigation, renderer-destruction, cancellation, and shutdown lifecycle separately for the 512 MiB `materialized-v1` whole-Blob tier and the four-capability, safe-integer aggregate `scape-range-v1` tier. Linked-video playback adds an independently admitted `linked-video-range-v1` tier with at most 128 capabilities, 64 GiB of aggregate declared bytes globally and per owner, 512 MiB per capability, 16 active requests, and 4 MiB per response. Its capability has no wall-clock expiry while its renderer-document owner and visual remain live; visual release, owner revocation, navigation, renderer loss, window close, and shutdown retire its handle. Save targets and sessions enforce committed-document ownership, bounded admission, and teardown separately. A linked-video locator remains deliberately different persistent product-local metadata: raw path and stat identity stay main-private across restart, import or whole-Blob resolution mints a fresh owner-scoped `materialized-v1` capability, visual playback mints a fresh exact-revision ranged capability, and a closed exact ID-and-revision CAS release retires metadata without deleting the external file. Same-store project deletion and clear commit local records before exact release, preserve live locator aliases, and retain a bounded pending retry after reported cleanup failure. A successful maintained cooperative bootstrap may retire startup-loaded locator metadata absent from its catalog-and-revision-pruned durable-binding inventory. Catalog-absent bindings are always unreachable; a catalog-live project is source-pruned only from a bounded product-local exact-schema-17 current and retained graph at the catalog revision, while unverifiable graph state and every surviving alias remain live. The locator has no operating-system bookmark, automatic watch, or automatic repair semantics; changed-content replacement exists only in the explicit maintained silent-video and shape-compatible linked-PCM Project Bin relinks. Each exact- or changed-content Project Bin relink remains a point-in-time selected-Blob operation, and the playback handle does not prevent same-inode mutation or provide an immutable cross-process byte lease. The sparse 8 GiB witness qualifies structural inspection and collision cancellation through the Scape range transport, not payload or memory-scale linked import. Active-chunk cancellation and parent-directory durability gaps keep the desktop-write risk partial.
+
+### Untrusted code, future helpers, and plug-ins
+
+`nyquist-untrusted-code-runtime` is **enforced for the current Nyquist surface only**. Source, PCM input/output, parameters, protocol messages, WebAssembly memory, and run time are bounded; abort/timeout terminates the worker; file-I/O C entry points are disabled; and bundled plug-ins are source-pinned and audited. Web Workers provide fault isolation, not an operating-system security boundary. This control does not establish a general third-party package ABI.
+
+`macro-program-untrusted-code-runtime` is **partial and conditional for macros written as JavaScript**. The program is the body of a module worker built from a blob URL, and neither shipped policy grants `'unsafe-eval'`, so in production the program cannot compile any further code; a static `import` in the body is a syntax error on the author's own line, and the browser's parser is what validates a program before it is stored. The worker prelude reduces the realm by allowlist along the whole prototype chain rather than by deleting named properties, because the worker APIs that matter are accessor properties for which `delete` returns `true` and removes nothing: `fetch`, `XMLHttpRequest`, `WebSocket`, `indexedDB`, `caches`, `Blob`, `URL`, `Worker`, `BroadcastChannel`, `WebAssembly`, `Atomics`, `crypto`, `navigator`, `location` and the timers are made `undefined` and non-configurable, and `postMessage` and `addEventListener` are captured into a closure before removal so a program cannot forge protocol traffic. `Date`, `performance.now` and `Math.random` read a virtual clock and a seeded PRNG, disclosed in the run log, so a run is reproducible — a macro is a test driver as well as a user tool.
+
+The security boundary is the host dispatch table, not the prelude — the same distinction this model draws for Nyquist. A fixed set of reader and mutator names is served and anything else is refused, so recording and the audio, video and screen capture devices have no name to call and a macro can never make the browser ask for a microphone or a camera; neither can other projects, file reads or writes, exports, preferences, persistent storage, raw command dispatch, or the Nyquist evaluator. Reentry is capped at one level. Cancellation, the deadline and any failure all terminate the worker, and the worker is discarded after every run rather than reused, so no state leaks between runs. A run's mutations collapse into one undo entry and roll back on failure; persisted sources, peak analyses and settings a step wrote are deliberately not rolled back, so a rolled-back run may leave orphaned sources for the next collection.
+
+Taking a program in from a file is the first executable content this editor has ever accepted: a `.txt` macro parses into a closed vocabulary, project files are schema-checked or held opaque, and Nyquist has no plug-in import at all. So importing stores text and grants nothing. The program lands unreviewed with the file it came from recorded, and where a Run button would be there is the source, the sentence about what a program can do to the open project, an acknowledgement to tick, and only then a button that enables it. The permission is a copy of the exact bytes it was granted for rather than a flag, so editing the program afterwards does not launder it, and the check runs against the source handed to the runner rather than against the record the manager holds — which closes reading the unreviewed program out of the list and passing its text straight to the run action. The transport is a `.soundscapemacro` JSON envelope rather than a bare `.js` file, so what people send each other is not something the recipient's own operating system will run outside this sandbox.
+
+Four exposures are recorded rather than designed around. There is no JavaScript heap ceiling: Nyquist caps its WebAssembly memory because it owns that memory, a JavaScript engine offers no equivalent, and containment for a program that allocates without bound is the deadline plus `terminate()` — Chromium and Firefox kill the worker, WebKit may take the tab with it. Dynamic `import()` is a syntactic form rather than a property and cannot be removed; production `script-src 'self'` confines it to this origin and whatever it resolves lands in the same reduced realm, so no authority is gained, but without a policy in front of it the fetch is a real network side effect. A blob-URL worker inherits the creating document's policy and cannot be given a tighter one, so on the web the worker keeps `connect-src 'self'` plus the first-party CDN; there is no same-origin write endpoint in this repository, so exfiltration is narrow rather than absent, and the desktop policy is `'self' blob:` and closes it. And the prelude is capability reduction, not a security boundary.
+
+`reviewed-web-effect-packages` is **enforced for the closed release-bundled catalog only**. The loader accepts an exact package id and version, and the immutable catalog currently approves only repository-owned Utility Gain 1.0.0 while retaining a fail-closed revoked 0.9.0 witness. It supplies an isolated copy of catalog-owned bytes and verifies the release-pinned SHA-256 before compilation. The reference schema accepts no arbitrary package URL, user trust override, package JavaScript, network, or same-origin storage authority.
+
+The pure-WASM ABI is closed to planar Float32 PCM, exact exports and process signature, zero imports, one bounded unshared 32-bit memory, immutable ABI/latency/tail metadata, and declared parameter, module, channel, block, input, output, memory, and timeout limits. Admission rejects malformed signatures, imports, tables, start functions, metadata drift, and excess memory before processing; the runtime rejects malformed or non-finite PCM, parameters, status, memory, and output.
+
+Offline processing uses a fresh dedicated module worker and a closed request/response protocol for each admitted block. Completion, malformed response, worker error, the catalog deadline, and cancellation all terminate the worker; returned package identity, shape, byte count, and finite samples are checked again before delivery. The static first-party AudioWorklet host is a separate exact allowlist: both its main-thread catalog and its worklet-local policy name Utility Gain, and it receives a prevalidated `WebAssembly.Module`, never package JavaScript. The worklet rechecks imports, exports, package identity, channels, block size, memory, parameters, and finite output and silences a failed block.
+
+Focused automated evidence covers malformed ABI, forbidden import, memory and output oversize, declared latency/tail drift, digest mismatch, revocation, catalog mismatch, timeout, cancellation, worker termination, and Utility Gain offline and realtime reference vectors. The worker seam and worklet constructor evidence do not qualify actual browser scheduling, hostile realtime CPU behavior, devices, process RSS, or an operating-system sandbox. There is no package digital-signature or external signing-authority channel: trust for this exact repository-owned package is the checked-in release source plus the pinned digest. Externally authored or non-repository-owned Web effect packages remain disabled behind the separate licensing/provenance gate, and this control does not authorize another package, remote fetching, user installation, or a marketplace.
+
+Selected F31 delegates through its immutable V28 foundation and binds one exact V14 render plan to an authenticated evaluated-RGBA carrier before the persistent native render service may consume it; this implemented route does not qualify or activate any empty five-target payload row.
+
+The current native-service implementation supersedes the two historical grounding
+paragraphs retained immediately below. Soundscaper S30/V11 now reaches its
+exact S29-founded persistent native audio plus explicitly user-allowed `native-plugin` real-time and offline
+hosting, exact V21 PDC, bounded state, continuity, and helper-owned vendor
+windows. Framescaper F31/V14/V20 reaches persistent services V3 through its
+immutable V28 foundation, native media,
+exact hardware-to-CPU retry, authenticated image-sequence publication, and one
+context-aware OpenFX graph for all six contexts with Interact Suite V1 and
+DrawSuite V1. Those are source-complete, default-off product routes, not release
+activation.
+
+`native-plugin-hosting` is partial and conditional: professional format
+surfaces are enabled for testing and defer execution to exact machine payload,
+platform, containment, consent, and quarantine checks. Linux LADSPA effects use
+the persistent M5F2 host, while cross-platform Vamp analyzers use the separate
+finite M5A1 analysis contract. Licensing and optional owner QA are not runtime
+authority.
+
+An ordinary checkout reports all thirteen required archive/extracted-tree inputs as
+`not-materialized`. The Soundscaper helper and professional rows and both
+Framescaper payload sets have repository-owned five-target producers. Their
+source-template manifests intentionally contain no generated bytes: the exact
+target result must be staged and reverified before execution. Launcher
+source/contracts/tests and CI results cover Linux namespaces and
+Landlock/seccomp, macOS Seatbelt, and Windows AppContainer. The historical
+absent-caller and absent-launcher statements below are audit history, not
+current behavior.
+
+Local assistance adds separately bounded active and conditional model surfaces
+to that partial risk. Main authenticates the Sherpa ONNX 1.13.5 closure before
+its lazy utility process and the worker verifies it again before native import.
+Stable regular-file grants bind selected media and every installed model;
+supervision enforces one job, heartbeat/RSS checks, termination cancellation,
+and quiescent staging cleanup. Catalog-bound Parakeet, Silero, and exact
+Pyannote/ERes2Net remain the active Sherpa routes. The additional ONNX Runtime,
+whisper.cpp, and llama.cpp families implement equivalent isolated grants,
+process/thread protocols, memory admission, quarantine, and termination.
+Release preparation builds these CPU engines, the Sherpa addon, and the Kokoro
+G2P closure for each supported target. The macOS native bytes are signed.
+The protected archive pins each immutable R2 download and its extracted file
+inventory, while the Electron package carries none of the assistance payloads.
+Model Manager downloads the required runtime when a model is installed; a
+preseeded or previously installed model can fetch it on first use. The complete
+closure is verified again before native execution.
+
+The conditional external-FFmpeg shot adapter is a separate ordinary child
+process, not a Sherpa job. A current main-only executable-pair admission,
+required scene-filter capabilities, exact SHA-256 checks, functional `scdet`
+canary, fixed shell-free arguments, bounded streaming parsers, and process-tree
+cancellation guard it. Those controls do not close the hash-before-path-spawn
+TOCTOU window, authenticate dynamically loaded libraries, or sandbox the
+selected executable's ambient account authority. Authentication or executable
+loss returns typed unavailable; malformed actual detection remains hard.
+
+<!-- policy-narrative:local-assistance-runtime-diagnostics -->
+The Sherpa helper, CPU runtime-family hosts, and external-FFmpeg shot detector
+execute ordinary native code with ambient account authority. Exact payload,
+selected-file, model-artifact, and executable authentication plus supervision
+contain accidental faults but do not create an operating-system sandbox, close
+the FFmpeg hash-to-path/dynamic-library gaps, or establish aggregate CPU/RSS and
+long-session bounds. Retained Linux x64 conversions now authenticate TIGER-DnR,
+PANNs Cnn10, both Beat This checkpoints, TransNetV2, and Dereverb Room, with
+exact artifact identities and passing source-framework/ONNX comparisons. The
+conversion evidence directory also retains direct production-worker smoke
+results, separately from packaged Electron tests. Release preparation builds
+pinned ONNX Runtime, whisper.cpp, llama.cpp, Sherpa, and Kokoro G2P target
+closures and signs macOS native bytes. A protected ASAR distribution manifest
+binds immutable R2 archive length and SHA-256 plus every extracted file;
+Electron packages omit the native assistance payloads. Historical
+external-supply candidate statuses are not substitutes for those release
+identities. Model and runtime distribution require versioned notices and
+full-digest public read-back; explicit Model Manager installation fetches the
+model and required runtime, and first use of preseeded or previously installed
+weights may fetch a missing runtime. Execution rechecks the selected model and
+target closure. Successful fixture runs prove only the model, runtime, workload,
+and target actually exercised. No complete five-target packaged
+privacy/cancellation workload or owner-device observation set establishes
+network behavior after model and runtime installation, unselected-media
+isolation, cancellation p95, canonical-state loss, or general model correctness.
+Optional owner QA does not grant runtime authority. Missing catalog entry,
+artifact, selected-media, runtime, storage, executable, or consent authority
+remains a hard machine refusal. Reviewed canonical acceptance spans transcript,
+link-aware cleanup, speaker attribution, derived audio/stems, reactions,
+beats/tempo, shots, indexes, reframe, and highlights; that wider stale-safe
+mutation surface does not itself verify runtime privacy, performance, or target
+compatibility.
+<!-- /policy-narrative:local-assistance-runtime-diagnostics -->
+
+Semantic review and explicit acceptance now cover transcript, link-aware
+cleanup, speaker attribution, derived audio/stems, reactions, beats/tempo,
+shots, disposable indexes, reframe, and highlight sequences. That wider
+stale-safe project mutation surface does not qualify any helper, model,
+publication, privacy metric, performance bound, or target.
+
+`native-helper-processes` is **partial across the supervised helper and codec-process surfaces**. The helper contract v1 is enacted with one read-only surface: a video probe helper running as an Electron utility process that main alone spawns and owns. The renderer addresses media only by its opaque read-capability id over four validated bridge channels; no spawn, filesystem-path, or binary authority ever crosses the renderer boundary, and the surface ships disabled until the user turns it on from the application menu. Both wire directions are validated against the versioned contract with typed rejections — a deterministic 10,000-case malformed-message suite runs as ordinary CI evidence — and a helper that violates the contract, misses the one-second heartbeat beyond the two-second crash-detection budget, overruns the one-second cancellation-acknowledgement budget, or exceeds its lower-only per-job input, duration, or peak-RSS policy is terminated, with repeated crashes quarantining the surface until the user explicitly clears it. Each job carries a grant naming one absolute main-verified media path whose captured device/inode identity the helper re-verifies after reopening; grants carry no output paths and no network authority. The Soundscaper application supplies no FFmpeg probe-helper engine: its renderer, runtime-resource, package, and release audits reject application-supplied FFmpeg, libav, the FFmpeg WebAssembly runtime, and the historical static FFmpeg host, so that application codec path cannot execute in a shipped desktop artifact. The Electron shell is a separately scoped framework exception. Instead of stock Electron 43.7.7's Chromium libffmpeg with proprietary codec support, Electron Builder selects the matching alternate framework library that Electron intends to omit proprietary codec support, and afterPack verifies its exact target, regular-file type, byte length, and SHA-256 against `config/electron-alternate-ffmpeg-manifest.json`. The five admitted targets are linux-x64, linux-arm64, mac-arm64, win-x64, and win-arm64; no mac-x64 package is admitted. This Chromium framework library is not passed to the helper or audio broker and is not a Soundscaper codec-provider tier. The separate desktop audio broker registers seven exact reviewed compressed-audio WASM payloads on linux-x64, linux-arm64, mac-arm64, win-x64, and win-arm64 and never mac-x64: libFLAC 1.5.0, libopus 1.6.1 with libogg 1.3.6, libvorbis 1.3.7 with libogg 1.3.6, WavPack 5.9.0, mpg123 1.33.7, LAME 4.0, and TwoLAME 0.4.0. One canonical manifest authenticates each control module, its complete transitive JavaScript import closure, and every WASM payload. Main reauthenticates that closure before every canary, preflight, or execution fork, and the helper reauthenticates it before import. Each job runs in a fresh one-shot Electron utility process with private 0700 scratch and 0600 files, exact input/output digest and geometry checks, a bounded deadline, kill-on-cancel/failure behavior, and a global four-job ceiling. The package also audits the exact notice/source closure and deterministic corresponding-source ZIP. The specialized first-party WAV/BWF/BW64 and AIFF paths remain application code and libsndfile is not bundled. WavPack retains its narrow stock 5.9.0 `wvunpack` multi-block witness. Each audio request is capped at 32 MiB input and 128 MiB returned output and retains whole buffers; a codec call remains synchronous inside its disposable helper, so these limits establish no aggregate JavaScript-copy, WASM-memory, CPU, elapsed-time, or RSS bound and the ordinary utility process is not a hostile-code sandbox. Windows Media Foundation and macOS ARM64 AudioToolbox source adapters, bounded inspectors, output validators, and exact live MP3/AAC canaries exist, including AAC encode and Windows-only MP3 encode. An isolated target-native CI build produces a codec-only Node-API addon for mac-arm64, win-x64, and win-arm64, authenticates the Electron headers and repository source/build plan, runs the native canaries, records the target toolchain and payload digest, and applies and strictly verifies an identity-free ad-hoc macOS execution seal before hashing. Preparation, beforePack, afterPack, the package-content manifest, and startup bind the same exact target, manifest, payload, byte length, and SHA-256. Linux has no uniform OS tier and mac-x64 is rejected. The final tier admits only a matching user-installed FFmpeg/ffprobe released from 4.4 through 9.x, configured in Edit > Preferences > General or installed after explicit confirmation through the exact WinGet/Homebrew plans, and never copies those bytes into an artifact. Audio uses fixed no-shell commands and bounded private scratch. Desktop keyed-RGBA video uses nine owner-scoped, pathless IPC methods, fixed H.264/AAC MP4 or VP9/Opus WebM plans, main-private pipes and scratch, at-most-1-MiB chunks and range reads, a 512 MiB maintained output cap, live per-pair qualification, deadlines, process-tree cancellation, structural/digest publication checks, and at most two sessions globally and one per owner. These controls do not close the hash-before-path-spawn TOCTOU window, authenticate dynamically loaded libraries, provide an operating-system filesystem/network/RSS/CPU sandbox, or constrain a malicious selected executable's ordinary account authority. The stable Soundscaper package keeps bundled and operating-system video disabled and supplies no bundled-video payload. Separately, the Framescaper media workflow builds FFmpeg with libvpx and FFmpeg's internal AV1 decoder on all five targets and records target-native component/canary evidence; that test producer is not a stable Soundscaper codec tier. External WebM is VP9, not AV1. The exact external video plans are qualified only against a current executable pair; other probe, trim, conform, remux, timing, proxy, and general video operations remain outside this bridge. Exact copyright licenses, artifacts, canaries, and interoperability witnesses do not establish patent clearance, non-infringement, broad producer/platform interoperability, or performance for any provider, codec, use, or territory. A second supervised surface is now enacted alongside it: a native audio helper that loads one Node-API addon inside its own utility process. That addon is the only native code the product loads, and it loads nowhere else — not in main, not in the preload, not in the renderer, not in an AudioWorklet. Its bytes are pinned per target in a manifest that ships inside the fuse-protected archive while the payload itself ships outside it as a verified resource, so the archive integrity fuse protects the pins and a re-hash protects the payload; main re-hashes before every spawn and the helper re-hashes again before its module loader sees the file. Linux x64 retains a checked-in development payload and the other four source-template rows are `ci-generated`; the dedicated helper workflow builds and verifies all five targets, while an unstaged row reports `payload-not-generated` rather than a capability. The helper is exercised across Electron's real utility-process boundary rather than through an injected channel, and its audio is compared against the same pinned addon loaded independently. Today it discovers operating-system audio backends, and the addon behind it opens PipeWire and ALSA streams through an ordered candidate chain: each backend reports an explicit status and the exact platform diagnostic, discovery never starts a sound server the user did not ask for, each attempt in the chain is reported with the refusal that ended it, and the synthetic loopback backend used for the transport proof is refused however it is requested so it can never be offered as a device. No helper job kind reaches that open path yet — the `audio-device` job answers backend inventory or runs the synthetic loopback and nothing else — so device opening is exercised by addon tests rather than by any product surface, and JACK remains discovery-only. Plug-in discovery is now enacted as a third surface, and it is deliberately built so that it cannot host: the scan service does not import the hosting surface at all, so "scanning cannot execute a plug-in" is a property of the module graph rather than a rule someone has to remember. Nothing scans at startup or without per-format consent; custom roots come only from a main-owned picker; no absolute path reaches renderer-facing state, and the preload strips path-bearing fields from every reply as a second line. Discovery is incremental because inspecting a candidate must call into it: the helper names the candidate in flight before touching it, so a process that dies leaves main holding exactly the digest to quarantine. Quarantine is digest-keyed, written atomically, survives restart, and is cleared only by an explicit rescan or re-enable; user cancellation, device loss and editor shutdown are not faults. Registry identity is format plus format-native stable id, a stable-id collision is ineligible until the user chooses, a changed digest is a new user-unapproved installation, and instruments are recorded but never materializable. Platform-appropriate VST3, CLAP, Audio Units, Linux-only LADSPA and LV2 effect surfaces, and cross-platform Vamp analyzer surfaces are enabled for testing. The scanner may receive explicit per-user consent, but any scan or host or analyzer attempt must still authenticate the target payload, outer OS launcher and containment closure, plug-in digest, platform, and quarantine state. Their unresolved licensing rows control distribution and never disable that machine-admitted test path. The machinery is also proven against a benign fixture format that is this project's own code. The media decode/encode/render source candidates, bounded data plane, pool, and enlarged contract exist, and all five 5B rows are `ci-generated`; an ordinary checkout remains machine-unavailable until its matching target result is staged; plug-in hosting is a fourth implemented helper job kind and is described in its own row below rather than treated as absent; device opening and the real-time data plane are implemented but not a stable-release claim; and process separation alone is not a hostile-code sandbox.
+
+`native-plugin-hosting` is **partial and conditional**. Its menu-owned, platform-appropriate format surfaces are enabled for testing, while a source-template checkout requires its matching CI-generated payload result to be staged before execution. Contract v1 carries a `plugin-host` job kind whose grant is exactly one absolute traversal-free binary path, its byte length, its lowercase SHA-256, its format, and its captured device/inode identity. The native audio helper implements that kind: it re-hashes the granted file, refuses a changed digest as a different installation, and `dlopen`s the bytes with `RTLD_NOW | RTLD_LOCAL` only after the outer exact target launcher establishes OS containment. `desktop/plugin-host-isolation.ts`, `desktop/native-helper-host-job.js`, `desktop/native-child-isolation-launcher.ts`, and `native/soundscaper-helper-addon/src/plugin_host.c` define this surface and are the focused inspection scope when it changes. Optional owner QA is never the execution oracle.
+
+Linux LADSPA uses the persistent M5F2 effect contract for bounded real-time and
+offline processing, parameter control, and host-owned bounded state. Vamp is
+not an effect: the cross-platform analyzer uses the closed M5A1 protocol for
+finite analysis, consuming finite PCM and returning bounded timestamped
+features without rack, bypass, latency/PDC, project-state, or vendor-window
+semantics. Main and preload independently validate pathless renderer IPC with
+opaque, owner-scoped session identities. Discovery still requires explicit
+per-format consent; a separate exact-digest per-installation allowance and
+selection survives restart, is reauthenticated before reuse, and cancellation
+follows withdrawal, while scanner and qualifying execution faults feed the
+shared digest-keyed quarantine. One PCM message is capped at 65,536 frames and
+16 MiB, one analysis at 12 hours, one returned batch at 65,536 features and
+1,048,576 values, and one session at 1,000,000 features. The authenticated
+professional helper opens only the granted exact Vamp library, performs no
+ambient discovery, and runs its M5A1 peer under the same exact payload and
+operating-system containment, revocation, cancellation, and shutdown-drain
+requirements as the M5F2 effect peer.
+
+Linux host libraries are not candidate payloads. At each invocation, the runtime extracts the authenticated target-native peer's exact `PT_INTERP`, admits only the closed case-sensitive SONAME set, resolves with that root-owned loader's cache inhibited, replays resolution through only the discovered library directories, and authenticates every canonical loader/library as root-owned and non-group/world-writable by bytes, SHA-256, device, and inode. A packaged ELF runtime closure is rejected. The authenticated interpreter is the launch entry point, and Landlock receives its loader/library read-execute grants as exact file descriptors before seccomp rather than a host-library directory; the peer and any request-specific grants are separately authenticated.
+
+On macOS, the launcher retains exact descriptors, uses `POSIX_SPAWN_SETEXEC` with `POSIX_SPAWN_START_SUSPENDED`, verifies the stopped peer's executable vnode identity, and resumes only that peer. The peer then invokes its first-party Seatbelt bootstrap before containment probes or framed protocol work and confirms that transition. The pinned `com.apple.security.cs.disable-library-validation` exception is applied only to the Soundscaper professional plug-in peer so it can load the selected plug-in. The package uses only identity-free ad-hoc sealing where macOS requires it for execution and verifies the peer-only entitlement scope; this is an execution prerequisite, not publisher identity or a trust claim.
+
+The controls that exist are stated here as controls, not as completeness. Hosting runs only in the supervised native child — never in main, the preload, the renderer, or an AudioWorklet — and the scan service does not import the hosting surface at all, so discovery is structurally unable to instantiate a plug-in rather than merely forbidden from doing so. The addon-side open refuses a descriptor whose ABI version is not the expected one, whose entry point is missing, whose classification is an instrument, or whose channel count is out of range, and it refuses an instrument in the host as well as in the registry so a registry mistake still cannot start one. Isolation is one host process per renderer owner and plug-in binary digest, so neither a second binary nor a second renderer owner shares a crash, and a revoked digest stays dead until an explicit restore rather than being revived by the next instance request. Main-side eligibility refuses to mint a host grant for an instrument, an unresolved stable-id collision, a non-active installation, an incompatible or unclassified descriptor, code the user has not explicitly allowed, or a quarantined digest. Quarantine is digest-keyed, written atomically, survives restart, and is cleared only by an explicit rescan or re-enable; two qualifying host faults inside ten minutes quarantine that digest, while user cancellation, device loss and editor shutdown are recorded as benign stops rather than faults. Opaque state is bounded and an oversize or rejected state makes the instance ineligible without discarding what was already persisted; the isolation registry renders nothing and therefore cannot manufacture a freeze after a failure. A vendor UI is modelled only as a helper-owned top-level window that receives no renderer bridge, DOM, Node, filesystem, network, child-process, or embedded child-window authority.
+
+The gaps are equally real. Native plug-ins execute arbitrary code and therefore require the exact per-OS launcher and its namespace/Landlock/seccomp, Seatbelt, or AppContainer policy rather than falling back to a same-UID utility process. The macOS stopped-vnode transition prevents the selected plug-in from running before Seatbelt, but it is not a defense against an already-running same-UID process that can race a newly valid same-vnode execution seal or send `SIGCONT`; that actor already has ambient account execution and remains outside this control. The repository-owned five-target professional workflow now produces and self-tests each matching launcher and payload result, and its staging check binds those generated bytes to the source-template manifest. An unstaged checkout reports `payload-not-generated`; it is not waiting for a reviewer, external verification ceremony, or policy signature. Those target results do not establish packaged hostile-code containment, broad third-party compatibility, or long-session resource behavior. The helper's host job and product callers implement real-time and offline hosting, PDC handoff, continuity, and vendor-window lifecycle, but those paths still lack broad third-party target fixtures and long-session automation. Source and notices, a matching target build result, required self-tests, architecture checks, hashes, and package verification remain distribution prerequisites; exact payload identity, OS containment, consent, and quarantine remain mandatory for every execution. Optional owner QA may record compatibility observations but substitutes for neither category.
+
+### Cancellation and late publication
+
+`long-job-cancellation` is **partial**. Controller task generations and
+`AbortSignal` guards prevent tested stale UI publication, and native `.scape`
+open/save passes the same task signal through the archive and tested
+storage/file-publication boundaries with rollback. Public `.scape` inspection
+now registers every generation before task creation or archive work, starts a
+distinct named task, snapshots options, composes caller and controller
+cancellation, and rejects signal-ignoring results after replacement, project
+switching, or disposal. A controller-level coordinator retains current and
+superseded generations through archive-reader cleanup. Project-switch admission
+synchronously installs a reference-counted temporary fence, cancels captured
+work with one shared legacy supersession `AbortError` per admission, and waits
+for settlement up to the shared deadline before project work; overlapping
+queued switches retain admission fencing until the last settles. Controller
+disposal installs a permanent fence and observes the same bounded wait before
+engine or storage teardown using the exact lifetime reason. Only the exact
+registration abort reason is benign; cleanup failures reject after captured
+work settles or remain observable alongside a deadline failure, while disposal
+continues the remaining teardown before rejecting.
+The coordinator now reserves a maximum of eight active admissions before task
+creation or archive work. Cancellation, a temporary or permanent fence, and
+drain arm one lower-only 30-second settlement deadline per admission;
+overlapping barriers reuse the same deadline without extending it. Expiry is a
+typed non-benign barrier failure, is aggregated with an already observed
+cleanup failure, and does not remove the active record. A timed-out admission
+therefore remains capacity-charged until its retained work actually settles.
+Public file opens add one
+replaceable request task spanning inspection, collision choice, and native-open
+settlement. The UI
+continuation owns one opaque prompt, settles its exact identity once, clears and
+rejects it with the exact reason on replacement, switching, or disposal, and
+keeps explicit user Cancel distinct from lifecycle cancellation. Matching native
+import cleanup clears and republishes the global busy flag even when project
+activation changed the original project generation; an older import owner cannot
+clear newer work. Errors classified as expected lifecycle unwind are suppressed
+from generic UI errors. Project switching now
+cancels an active native save, inspection, or collision continuation before
+awaited work;
+direct save keeps its target staged through the last ownership check, aborts on
+failure or supersession, and treats successful FSA close or desktop rename as
+committed without publishing stale success UI. The exact direct-PCM WAV/AIFF/BWF/BW64 slice
+follows the same publication rule: its plan, encoder-finalized, and
+destination-written counts agree before commit;
+pre-commit failure or cancellation aborts staging, but ownership loss during
+the non-cancellable commit returns the committed result without installing
+stale export state. Its fourth, committed-result size check can report a
+post-publication integrity failure and is never described as rollback. Within
+one project-store instance, retained-media loads register before their first
+await, as do
+streamed-writer begins that pass synchronous argument and signal validation.
+Clear holds a temporary admission fence and close a permanent fence; both
+reject later media work, signal and drain captured pre-staging begins and reads,
+abort established chunk or OPFS sinks and active writers, and cannot settle
+while an admitted begin could still return a live writer. A staged-path or
+durable-lease cleanup failure rejects maintenance rather than reporting
+successful quiescence. Clear establishes maintenance and captures its backend
+admission before its first wait. Close installs the permanent media fence and
+terminal facade state before its first await, joins an already admitted clear
+before terminal teardown, and returns one shared cleanup promise to concurrent
+callers; the admitted clear retains its normal memory fallback if IndexedDB
+availability fails during that join, while an unrelated pending database
+admission remains fenced when no clear is active. Across tabs or independent
+store instances, IndexedDB v5 generation-fenced leases retain live unpublished
+chunk/OPFS identities during cleanup, make clear invalidate old ownership
+atomically, and prevent a fenced writer from publishing late; expired staging
+is reclaimable, and degraded memory mode does not create shared streamed OPFS
+staging. Inspection now passes its owned signal into the default project
+collision lookup. That repository promptly races stalled database admission,
+rejects before a pre-cancelled memory read, and aborts and drains an active
+read-only IndexedDB transaction while preserving the exact reason. A defensive
+public inspection service gives the read-only Scape boundary a narrow retention
+capability. The boundary normalizes and registers an injected lookup with the
+same inspection admission in its synchronous read callback before returning the
+provider promise to the abort race, then still rejects a
+signal-ignoring provider promptly, closes the archive reader, and suppresses a
+late result or failure. Project switching and controller disposal now join both
+coordinator-owned inspection cleanup and registered provider settlement up to
+the admission's shared deadline. Project switching rejects before project work
+on timeout; disposal records the timeout, completes remaining engine and
+storage teardown, reaches its disposed phase, and then rejects. A provider that
+ignores its signal can still consume resources after that timeout and retains
+its capacity charge until settlement. The coordinator does not claim to
+force-terminate or sandbox third-party provider code; stricter provider gating
+remains deferred.
+
+<!-- policy-narrative:durable-routed-take-cycle-capture-and-recovery -->
+The maintained Soundscaper routed take-cycle path is a `takeComp`-gated production capture and recovery control. Soundscaper's existing Record options menu exposes Record loop into takes only for a writable exact owning-family v1 project with one positive enabled loop, unlocked armed audio targets, one routed input for every target, and exactly one owning sequence per target. Framescaper exposes neither the cycle entry nor recovery UI; direct start, Recover, and Discard actions enforce `takeComp` before controller mutation. Menu and controller admission refuse busy or pending recovery state, timed recording, a punch selection, sound activation, locked or unrouted targets, a disabled or empty loop, and a differently sized overlapping take group; active cycle capture cannot pause. Selection-only project mutations synchronize live session history while preserving dirty state, without autosave or compaction. Cycle start asserts currentness, flushes the exact current project before capture input or durable session I/O, and asserts currentness again. Routed input acquisition and AudioContext resume occur before a one-minute point-in-time storage preflight that charges project sample rate times total routed channels times Float32 bytes times 60 seconds. That preflight is not a duration cap, quota reservation, or write guarantee, and it runs before durable session and lane registration plus recorder creation or start. Streaming capture resamples input to project rate on one contiguous integer sample grid. Each complete pass and an explicitly interrupted partial final pass becomes a distinct ordered lane, take, and source. An exact-loop repeat appends to the same group; a differently sized overlap rejects before input acquisition. Multiple tracks share the same publication generation but each target group finalizes independently, so publication is not all-track atomic. Successful live settlement creates one history command and undo per routed track; restart replay creates no undo history. Raw capture remains outside project JSON and `.scape` in a durable analysis registry plus source-chunk roots until settlement. Closed raw records admit sample rates 1 through 768,000, 1 through 64 channels, at most 65,536 frames and 8 MiB useful planar Float32 per chunk. The capture planner caps 4,096 spans and passes, while the routed path derives the lower current family v1 entity capacity before input. The inventories admit 64 active spools per project and 4,096 globally; the exact global boundary and IndexedDB reopen are tested. Only the registry-visible prefix is authoritative: a chunk written before a failed registry CAS is never capture evidence, and exact-token cleanup removes that tail. Registered capturing and sealed roots are protected by retention regardless of age. Unregistered stale chunks are reclaimed. No age pruning or general project-deletion lifecycle is qualified for registered roots. Source publication binds the exact source token plus canonical packed byte length and SHA-256. The recovery envelope binds publication generation, lane ownership, source journals, and the base and target project revisions and document SHA-256. Per-lane project and source CAS precede strict active project and session history equality plus session token checks before synchronization. The maintained explicit 8 MiB limits charge each raw planar chunk and one evidence accumulator as separate useful-planar boundaries, not a combined or aggregate transient-memory claim. Input callback PCM, routed views, resampler output, span and source clones, repository and IndexedDB or structured-clone buffers, the canonical pack buffer, JavaScript objects, registries and envelopes, MediaStream, codec and browser audio internals, GC, heap, RSS, and unrelated jobs are excluded. There is no aggregate duration, global byte, or RSS bound. Open inspection derives one frozen recovery authority over every envelope, raw, and capturing root plus ownership under one publication generation. Resolution requires the exact object identity, a matching token on fresh inspection, and the current writable project. There is no implicit decision: closing the dialog or switching projects preserves durable roots. Inspection and pending authority block edits, save and autosave, ordinary, new-track, cycle, and timed recording, handoff, deletion, garbage collection, and maintenance until exact Recover or Discard settlement. Project lock loss requests cancellation and stop followed by reinspection; there is no prompt or bounded deadline guarantee, and partial settlement retains an exact retry authority. A production-repository mixed envelope across an instrumented IndexedDB process reopen proves Recover never activates the stale published source token, cleans incomplete media, re-finalizes the sealed raw draft, and produces exact two-lane family v1 and PCM. Discard leaves the base unchanged, activates nothing, and leaves zero source, envelope, spool, and chunk roots. Durable repository finalization and restart replay independently reopen exact two-lane output. The `.scape` collision-copy consumes production-recovered cycle output and proves exact PCM and identity remapping; a fresh Soundscaper family-v1 desktop-library reopen consumes production-finalized output and returns with no missing sources while granting no foreign-family editing or shared-catalog authority. The committed configured Chromium witness uses a persistent userDataDir, closes and relaunches the browser without application unload, and preserves IndexedDB. It proves ordinary settlement, an exact-loop repeat in one group, restart Recover, then a second restart whose dialog close makes no decision, mutation controls remain blocked, keyboard navigation reopens recovery, and Discard settles. It checks the named dialog and buttons, Recover focus, basic accessibility, no serious axe findings, and forced colors. This is not an operating-system crash or power-loss, fsync, packaged device or OS matrix, cross-browser, screen-reader, or assistive-technology qualification. It uses synthetic oscillator MediaStream input and synthetic quota and is not exact browser captured-waveform or PCM parity. External latency calibration and punch, timed, sound-activated, and paused modes remain excluded.
+<!-- /policy-narrative:durable-routed-take-cycle-capture-and-recovery -->
+
+<!-- policy-narrative:framescaper-native-services-pathless-bridge -->
+Framescaper family v1 alone mounts the main-owned persistent-services V3 runtime after settings load, delegates native project behavior through its direct unversioned Framescaper baseline and exact V14 render contract, and exposes the frozen framescaperDesktop.v1.nativeServices capability/snapshot, queue lifecycle, durable-root selection and revalidation, watch CRUD/reconciliation, scratch settlement, verified publication/checkpoint, external-display and preference methods plus authenticated frame and live-render MessagePorts. Preload and main independently validate closed pathless queue/root/watch projections and exact requests, reject destination traversal, authenticate the current renderer owner, and never return filesystem paths, SQLite handles, Electron objects, executable identities or raw media. Main owns the V3 database, lease-fenced queue/root/watch/scratch repositories, checkpoint recovery, publication fences, proxy-output broker, display session and Framescaper family-v1 project and exact V14 render authority and disposes them on shutdown. The renderer closes, canonicalizes and fingerprints the exact V14 plan before request construction; preload preserves the bounded closed declaration, and main reauthenticates the plan, current project, source bodies, timing and carrier before queue admission. The maintained native render route carries one evaluated-RGBA stream plus optional float32 audio, while helper-owned image-sequence work seals an exact regular-file output tree under scratch and main revalidates it immediately before broker-relative no-clobber destination publication. Authenticated broker trees are non-empty, so a concurrent completed broker winner cannot be replaced; however Node 26 exposes no portable directory RENAME_NOREPLACE primitive, and an external same-user process can race an empty destination into the absence-check/rename window. Cross-process atomic no-clobber remains an unverified portability limitation. The watch flow settles a stable pathless landing, commits the exact Project Bin mutation before acknowledgement, then schedules optional proxy work; restart recovery resumes proxy-only work without replaying the project mutation. Queue execution is constructed only when exact project/source authority, a main-owned physical-capacity authority, an authenticated payload, compatible platform, enforced containment, user opt-in, and capacity all admit it; optional owner QA does not affect queue execution. Before each dispatch pass capacity samples host parallelism, free memory and scratch, deducts running and durable reservations, and closes CPU, process-tree RSS, scratch, minimum-free-space and hardware-backend budgets. The repository alone claims admitted rows as running inside one immediate writer transaction; the dispatcher executes only those claims, defaults to two concurrent jobs within the closed one-through-four bound, and wakes deferred rows only after active completion or an explicit queue/preference event. Missing authority leaves render, proxy and sequence operations unavailable without mutating project state. Native media, hardware decode, hardware encode and OFX consent default off; both source-template payload arrays are empty with five `ci-generated` targets, so product actions remain unavailable until the matching CI result is staged and reverified.
+<!-- /policy-narrative:framescaper-native-services-pathless-bridge -->
+
+<!-- policy-narrative:framescaper-capture-durability-and-atomic-publication -->
+Framescaper family v1 is active on standalone web and desktop through its direct unversioned capture authority. Framescaper family v1 sets framescaperCapture true and admits the exact capture route authority through its controller, app binding, and runtime probe. Recording Setup remains default-hidden and is reached only by opting in through View > Panels. After that opt-in, the setup may be active or recovery-owned; Record is available only when the source, supported video encoder, audio packet path, cross-context Web Locks, complete encoded/raw/manifest repository set, video probe, and canonical publication store are all present; a partial stack reports unavailable. Opening the project, menu, setup panel, or inactive Record action opens no device. Each preview consumes one fresh direct user action; a combined browser request invokes getDisplayMedia before getUserMedia and a later denial, missing required track, abort, or setup failure releases every stream already opened. Display-returned system or tab audio is optional and becomes a distinct role only when actually present. Permissioned device enumeration occurs only after a preview lease exists, and labels and IDs remain live-session state rather than pre-permission persisted identity. One session freezes one through four unique camera, microphone, display, and optional system-audio streams under one monotonic active-time clock; pause and resume apply across the recorder set, timestamps retain each stream's original presentation geometry, and drop or drift evidence that cannot be measured remains unavailable rather than zero. Before any recorder can accept a packet, the durability coordinator first records a closed, 60-second leased creation inventory bound to the exact origin project ID, base revision and SHA-256, sequence and playhead, session generation, stream/source/spool identities, and tokens; it then creates the owned spools and closed CAS manifest and retires the inventory. A partial creation is marked cleanup-pending, and startup globally retries exact failed or expired creation cleanup even when its origin project is absent; changed storage ownership fails closed. Each append is serialized by an outer project/session Web Lock acquired before any nested exact spool Web Lock. It durably fences the exact previous-to-next metadata snapshots before writing the body, advances spool metadata, then re-reads and compare-and-swaps the authoritative manifest while the session lock remains held. Passive spool inspection cannot roll metadata-next with an outstanding intent back without an authoritative manifest prefix. A manifest at the next prefix retires the intent; the previous prefix restores metadata and cleans the physical tail; any other prefix or missing or changed ownership fails closed. Multi-stream append therefore has one session total order across contexts. Both append paths require the next contiguous packet sequence. After its first packet, encoded presentation time must equal the prior acknowledged end. PCM chunks cannot overlap; a non-pause hole is admitted only when presentation timing agrees within one microsecond with exact dropped-frame evidence bounded to 1,048,576 frames. Canonical PCM publication copies captured samples unchanged and inserts the equivalent zero-valued frames, with cumulative inserted silence also bounded to 1,048,576 frames. Only the manifest-acknowledged prefix is recovery truth. Tail rollback durably pairs metadata rewind with exact physical-tail cleanup and resumes OPFS, fallback, or raw cleanup after interruption. Terminal retirement persists deleting state and raw global reservation ownership until exact cleanup and release finish. Encoded packets are split into digest-bound chunks of at most 4 MiB and prefer OPFS with the bounded chunk repository fallback. Manifest admission permits one through four streams, at most 4,096 pause spans, 1,000,000 encoded packets and 16,000,000 chunks. Browser PCM packets admit at most 32 channels and 16,384 frames, while the durable raw store independently admits at most 64 channels, 65,536 frames, and 8 MiB useful planar Float32 per chunk. Required-source end, backpressure, encoder or storage failure, controller disposal, or shutdown stops and disposes preview and recorder ownership and seals the last acknowledged prefix when possible. Startup scans stored project IDs current-first, excludes terminal committed or discarded sessions, admits at most one global recovery, and opens a closed exact-origin project as an inactive tab before offering explicit recover, import-as-is, or delete decisions. Import-as-is requires every acknowledged stream to have a playable verdict, close makes no decision, and deletion rechecks exact storage ownership. The origin authority binds project ID, revision, SHA-256, sequence, and playhead. Switching to another project is allowed, but edit, close, delete, and handoff of the globally admitted exact origin remain blocked through successful live or recovery publication, or explicit discard; a failed Stop or publication attempt retains protected recovery. Canonical publication materializes each acknowledged spool into exactly one ordinary durable source before project mutation, asserts the origin fence before and after asset work, then plans exactly one project batch with bounded provenance. A known atomic CAS mismatch rolls back publication-owned assets in reverse order; an indeterminate commit failure retains them and records retryable recovery instead of deleting a completed take. Project Bin adds one bin item and clip reference per source; timeline adds one dedicated track, lane, and clip per stream; both destinations reuse the same ordinary sources rather than duplicating media. A/V links are created only for exactly aligned camera/microphone or display/system-audio pairs. After canonical capture and manifest commit, the publisher queues disposable derivative work without awaiting it. The derivative scheduler processes valid owned sources serially: it activates audio waveforms but schedules zero audio proxies, and after each captured video's poster and filmstrip attempt it schedules exactly one captured-video proxy. Derivative failures are aggregated to the warning sink without rolling back canonical capture success. Each proxy request binds the capture session, exact origin, source, revision, and content digest. Framescaper family v1 re-resolves authoritative project and source state, serializes an owned revision lineage, publishes ordinary proxy and timing bodies plus one source attachment by exact compare-and-swap, supports inactive-origin publication without changing the active project, synchronizes an active app and playback snapshot, and reclaims newly created claims and bodies after determinate failure. A landed proxy target retries exact claim cleanup, session-history installation, playback, and app-snapshot reconciliation without regenerating media or overwriting a later project edit. The Framescaper family v1 capture-derived scheduler remains post-commit generation and stays separate from Framescaper family v1's menu-reached general editorial proxy lifecycle, including generation, adaptive Original/Proxy/Auto preview selection, offline editing, detach, relink, regeneration, cancellation, and atomic cleanup. Neither route measures end-to-end memory or RSS. The standalone Framescaper Pages permissions boundary admits Framescaper family v1 while embedded Framescaper denies capture. The implementation is active on Framescaper family-v1 web and desktop, and framescaperWebVcr is true with a default-hidden Record-menu surface enabled for testing. Real-device and Web VCR observations may be recorded in optional owner QA and never disable either implemented route. Configured Chromium, Firefox, and WebKit each exercise the eight-case workflow with synthetic media (24 configured-engine cases), and a real packaged no-device smoke exercises only pathless control-plane availability, status, grant, and teardown; neither establishes behavior on other devices. Actual browser and packaged devices, operating-system picker behavior, encoder and timing behavior, long-session drift/drop budgets, cross-browser behavior, screen readers, and assistive technology remain unverified. The control has no aggregate duration or global byte bound and is not a browser heap, RSS, GC-headroom, disk-quota reservation, fsync, power-loss, decoder/encoder, or real-device timing claim. The registered capture fixture and workload write observed results through capture-device-diagnostics; unsupported measurements remain unavailable with a reason.
+<!-- /policy-narrative:framescaper-capture-durability-and-atomic-publication -->
+
+<!-- policy-narrative:bounded-audio-warp-transient-analysis -->
+The maintained audio-warp transient controller applies one non-raiseable 256 MiB useful-numeric-payload admission model to aggregate phased residency. Before exact range allocation, checked arithmetic charges the planar range PCM once for the maintained ownership-transfer path plus the larger of one decoded source chunk or the detector phase: three window-count Float64 arrays and two useful-numeric generations of candidate/result pairs. The same model rechecks actual worker input before worker creation, copy, or transfer. It accepts 1 through 32 channels, rejects more than 1,000,000 windows, and has a lower-only limit seam. Maintained exact-span, unique ArrayBuffer ownership transfers the range into the dedicated worker, detaching the controller views with no controller-to-worker PCM copy; the optional borrowed direct-helper path instead charges two PCM copies before making one. Codec internals, browser structured-clone and message objects, JavaScript object overhead for candidate records, garbage-collection headroom, process RSS, and unrelated jobs are excluded, so 256 MiB is neither a browser-heap nor product-wide reservation. A missing project digest is resolved by streaming the full canonical PCM source under before-and-after storage-generation checks. The identity binds that source digest, exact source range, channel policy, normalized parameters, and algorithm revision. Bounded random-access reading opens only intersecting exact-generation chunks. Controller task and project authority are rechecked around digest, cache, range, worker, and cache-publication awaits; AbortSignal cancellation terminates the dedicated worker. Results persist only in the disposable derived analysis cache, never project JSON. Each closed record binds its key, useful payload byte length, payload SHA-256, and bounded transient array; stale or corrupt records encountered by the service are deleted. The repository adds aggregate 512 MiB useful-payload, 4,095-entry, and 30-day age limits with access LRU, deterministic oldest/key eviction, corrupt-pair repair, and one physical publication slot. Scalar companion metadata is excluded from useful-byte accounting. Cache serialization and storage clones are not included in the 256 MiB detector admission. Because there is no authoritative digest-to-source index, successful source deletion and retention pruning conservatively purge the whole transient payload and companion namespaces. Cache state never roots source pruning, unrelated analysis is preserved, and a disposable cache-cleanup fault remains retryable but cannot roll back or reject the authoritative source deletion.
+<!-- /policy-narrative:bounded-audio-warp-transient-analysis -->
+
+<!-- policy-narrative:bounded-audio-warp-exact-window-rendering -->
+The exact audio-warp fallback first plans each window under a non-raiseable 32 MiB useful-planar-PCM ceiling and a five-second duration ceiling for 1 through 32 channels. It charges graph latency, pre-roll, final tail, OfflineAudioContext output, any coexisting crop, playback AudioBuffer copy, or sink-packet copy before OfflineAudioContext work; returned playback and export geometry must match exactly and remain bound to the complete project/map authority fingerprint. Sequential export uses project sample rate, renders one bounded window at a time, emits 128 through 16,384-frame packets, and awaits every sink packet. It uses zero pre-roll because admission permits only the stateless dry, gain, pan, mute, absolute-time envelope, and clip-fade path. Every enabled non-bypassed processor in an included target track, group, send, or master rack, including an opaque processor, rejects before render; inactive racks and disabled or bypassed processors add no state. Finite-window processor-state reset therefore cannot be mistaken for exact parity. Scalar output-length substitution rejects. Playback prefetches the next window immediately for its requested audio-clock boundary and rechecks the clock after rendering. A missed deadline raises a scheduling error that stops playback; it never shifts the next window later, and gapless playback is not guaranteed. Playback retains exactly the current and one prefetched window, approximately 64 MiB aggregate enumerated useful PCM at both 32 MiB boundaries; cleanup of one window is required before the window after next can render, and future AudioBufferSource windows are not retained. The central 256 MiB offline-output admission still checks exact OfflineAudioContext geometry before context work. AbortSignal checks and project/map fingerprint checks reject cancellation or authority change around every sequential render. These are useful-PCM controls, not browser heap, process RSS, GC headroom, AudioContext/graph/object overhead, a product-wide reservation, or a bound on internal allocation by a software or injected renderer outside the central OfflineAudioContext path.
+<!-- /policy-narrative:bounded-audio-warp-exact-window-rendering -->
+
+The StaffPad clip-cache coordinator has a narrower resource control. It
+serializes distinct render jobs before source loading, worker dispatch, or
+writer creation; exact-key callers deduplicate, and a queued job cancelled by
+its last subscriber starts no PCM work. Each admitted render has a non-raiseable 256 MiB
+useful-binary upper bound. Checked arithmetic covers complete source ownership
+or cloning, full client output, cumulative transferred chunks, the accumulator
+and maximum WASM read block, and the audited 64 MiB StaffPad linear-memory
+maximum. Tight planar-array backing validation prevents a small view from
+hiding a larger cloned or transferred buffer.
+
+That admission is not a browser heap, process RSS, GC-headroom, or general
+renderer limit. Its queue is coordinator-local rather than a product-wide
+reservation, so another coordinator or renderer can overlap it. Source/cache
+residency, permanent `AudioBuffer` and channel snapshots, message objects,
+persistence buffers, and runtime overhead can be additive.
+Maintained spectral gain/delete selection has a separate strict admission.
+Before storage preflight, dry rendering, worker dispatch, result retention, or
+persistence, the controller applies checked arithmetic. A non-raiseable 256 MiB
+ceiling with a lower-only test seam covers the conservative sequential
+useful-binary upper bound. Each target charges all earlier completed outputs
+plus its complete dry-render Float32 input, one equal transfer copy, one
+equal-shape output, two selection-sized Float64 accumulation and normalization
+arrays, the Hann, real, and imaginary Float64 arrays, and PFFFT input, output,
+and work interleaved-complex Float32 regions. The worker boundary independently
+validates and admits the actual input before FFT initialization, copying, or
+worker creation. It accepts 1–32 nonempty, equally sized Float32 channels with
+tight, distinct, non-shared, non-resizable `ArrayBuffer` backing and requires
+exact admitted channel and frame geometry for dry-render and worker/fallback
+results before retention.
+The controller supplies its task-and-project currentness assertion to
+persistence, which rechecks it around awaited buffer, source, and analysis work
+and immediately before the synchronous project commit.
+
+The claimed limit is only an upper bound on that enumerated useful-binary
+ownership model; cheaper fallback and zero-gain branches can omit charged
+allocations. It is not a browser-heap, process-RSS, or GC-headroom bound. It is
+not a product-wide reservation claim. Persistence buffers, `AudioBuffer` and
+channel copies, generic selection effects and spectral replacement, software or
+injected renderers, worker and structured-clone message objects,
+the PFFFT module heap and setup and retained transform plans beyond the charged
+regions, runtime overhead, and other concurrent spectral, effect, or render
+jobs remain outside and can overlap.
+Central `OfflineAudioContext` render output has a separate narrow admission.
+After the no-context software-renderer fallback and before the context factory,
+checked arithmetic applies a non-raiseable 256 MiB ceiling with a lower-only
+test seam to the exact Float32 context output plus the requested-frame crop
+copy when warm-up or processing latency makes both coexist. Created context
+length and sample rate are checked before worklets, graph construction, or
+source scheduling. The rendered buffer must match the admitted channel count,
+length, sample rate, and per-channel Float32 geometry before return or crop;
+mismatches fail closed. Oversized geometry can still use the no-context
+software-renderer fallback.
+
+The maintained `createExportPlan` path preserves its mobile, output-size, and
+live-PCM heuristics as an initial screen, then aligns each offline candidate
+with the central admission using project-rate requested frames, effective
+pre-roll, maximum mix or per-stem graph latency, and the actual render width.
+Known central-limit refusals are demoted to realtime streaming before offline
+render or context work, while the exact boundary is admitted. Direct engine
+callers retain the central no-context software-renderer fallback.
+
+This is not a source-buffer, reverse-cache, streamed-chunk, graph, worklet,
+WASM, codec, browser-heap, process-RSS, or GC-headroom bound. The factory can
+allocate before returned context geometry is checked, a caller-side abort does
+not prove that native `startRendering()` stopped, and concurrent calls on the
+same or separate engines and renderers can overlap without a product-wide
+reservation. Other render paths—including realtime capture beyond the
+maintained worklet-to-sink stream described next, generic selection effects and
+spectral replacement, software or injected renderers, dedicated audio-codec
+WebAssembly, WebCodecs/Mediabunny encoding and muxing, and native hosts—remain
+outside this central offline control. The export strategy
+alignment is a per-plan decision, not a heap, RSS, GC, or product-wide
+reservation; other engines and renderers can still overlap, and direct engine
+callers retain the separate software-renderer fallback.
+
+Maintained realtime worklet-to-sink rendering has a separate strict admission.
+Before constructing an `AudioContext`, it accepts 1–32 channels and
+128–16,384 frames per packet, caps a packet at 2 MiB, and derives a
+non-raiseable window of at most 512 packets, 8,388,608 pending frame positions,
+and 32 MiB of pending planar Float32 PCM. The default is the smaller of 64
+packets and the byte-bound count for the admitted geometry. An explicit packet
+count may replace that default only within all count, frame, and byte ceilings;
+the derived half-window backpressure threshold is lower-only. The worklet
+consumes one admitted
+producer credit before transfer and fails closed when a complete packet has no
+credit. Main returns one credit only after the sink promise settles, pending
+count/frame/byte accounting is released, and queue-owned channel references are
+dropped. Direct transfer of full packets and one copy for the final partial
+packet keep one render's enumerated useful binary at no more than the 32 MiB
+outstanding window plus one maximum 2 MiB staging or replacement packet. The
+main boundary requires exact channel width, tight distinct non-shared fixed
+`ArrayBuffer` backing, declared frames, contiguous offsets, output geometry,
+and completion geometry. Total streamed output is not capped by this
+working-set control.
+
+This is not a bound on browser structured-clone or message objects,
+`AudioContext`, graph, source/cache, resampler, encoder, persistence, WASM,
+browser heap, process RSS, or GC headroom. A sink can retain channel arrays
+after its promise settles outside the queue contract, and concurrent renders
+can overlap without a product-wide reservation. Scheduling can still exhaust
+producer credits; the render fails closed rather than retaining an unbounded
+`MessagePort` backlog.
+
+Disposable video-preview capture for imported-video posters and filmstrip
+thumbnails now has a narrower control. After browser `loadedmetadata` supplies
+geometry but before a seek or canvas allocation, checked arithmetic applies
+non-raiseable source ceilings of 16,384 by 16,384 pixels and 256 MiB of nominal
+source-RGBA bytes. Lower-only request dimensions cap the logical output RGBA
+payload at 640 by 360 pixels, or exactly 921,600 bytes. One extractor serializes
+its seek, canvas, and encoder section, and cancellation is checked before a
+queued turn or seek and again after encoding. A completed encoded Blob is
+checked exactly against a non-raiseable 4 MiB ceiling before it can return for
+derivative publication. Source import retains the original video, stops later
+captures after source-geometry refusal, and stops the remaining filmstrip after
+an encoded hard-cap refusal.
+
+`original-bound-disposable-video-preview-cache` is implemented for maintained
+poster and thumbnail cache records. Before save, the repository resolves the
+retained original by storage key and derives its repository-trusted current
+SHA-256 and media-content token. The content-addressed key binds the
+original storage key and digest, the closed poster or thumbnail type and
+normalized non-negative source time, and the versioned recipe. Save computes
+the derivative output SHA-256 and revalidates the original digest/token
+immediately before publication; IndexedDB atomically publishes the payload and
+scalar companion, while a failed publication removes any staged OPFS output.
+On IndexedDB load, payload and companion binding scalars must match, and every
+load verifies the stored output size and SHA-256. A well-formed record from an
+older original generation is a cache miss even when the replacement has the
+same digest; malformed pair or binding data and body-integrity failures still
+reject. Legacy or unbound derivative records are also cache misses.
+
+IndexedDB exact derivative deletion and media-asset cascade load every selected
+payload and require full agreement with its scalar companion before deleting
+any row. Only paths re-projected from validated payloads are disposed after the
+transaction commits. A mismatch therefore aborts the transaction without
+disposing any OPFS path, so a corrupt companion path cannot delete an unrelated
+retained original. A deletion selector that names a recipe matches only that
+normalized recipe ID and version; omitting the recipe keeps all revisions
+eligible. New video source imports and maintained read-write `.scape` imports
+persist `posterStorageKey` and `thumbnailStorageKey` as `null`, future read-only
+imports remain opaque, maintained source-update commands cannot author those
+locators, durable desktop recipient binding excludes legacy values, and managed
+source declarations omit them. Those fields are no longer part of maintained
+durable binding identity. This is disposable cache identity, not an editorial
+proxy or relink relationship.
+
+Neither control bounds decoder or codec allocations, browser heap, process
+RSS, or GC headroom. Object-URL creation and `loadedmetadata` precede the source
+gate; a native decode surface need not be the nominal RGBA representation.
+Canvas, encoder, driver, and browser overhead are unknown. The encoded Blob
+already exists when its size is checked, while the `toDataURL` fallback first
+materializes base64 and decoded bytes, so encode-time allocation is unbounded.
+Active browser encoding is not force-cancelled, multiple extractors can overlap
+without a product-wide reservation, and codec-family malformed-input corpora
+plus decode/encode elapsed-time evidence remain open.
+Framescaper capture has post-commit video proxies with job-local body
+capacity admission. Independently, the selected Framescaper V27 activation
+candidate locally implements the menu-reached general editorial proxy lifecycle
+and original/relink relationships after retime. Optional owner QA may record
+observations but does not gate or activate either route. Neither the capture-only
+route nor the V27 general route has pre-encode end-to-end working-set, decoder,
+browser-heap, process-RSS, or GC-headroom coverage for the whole product.
+Disposable thumbnail derivatives are not editorial proxies.
+The bounded desktop materializer now forwards a supplied signal, destroys the
+protocol stream, and releases its capability on abort, but current desktop open
+and import orchestration does not consistently own or provide that signal.
+AUP4, direct media/derivative writes, broad storage operations, and remaining
+desktop transports also do not yet share the end-to-end contract. Rejecting a
+late UI result is not cancellation if I/O, storage writes, or a process
+continues.
+
+The required cancellation contract is end-to-end: one signal flows from the user action or lifecycle event through parser, worker, archive reader, repository writer, filesystem transport, and future helper. Completion is acknowledged only after readers and workers are closed, temporary/staged data is rolled back, capabilities are released, and the job can no longer publish. Import/export workflows also need an accessible user cancel action.
+
+### Crash-safe publication fault register
+
+`publicationFaultVerification` in `config/production-security-matrix.json`
+records one explicit outcome for every publication-path and fault-class
+combination in `config/milestone-2-closure.json`: fifteen publication paths
+crossed with eight fault classes, one hundred twenty cells in total. A
+`witnessed` cell carries automated evidence that the previous commit is
+preserved or a recoverable journal is exposed and that no partial destination
+is advertised. An `inapplicable` cell records why the fault class has no
+surface on that path. A `platform-delegated` cell records that fault injection
+is unsupported because the invariant is owned by the platform: File System
+Access swap-file discard and post-`close()` destination durability belong to
+the user agent and are never observable from the page. An `unverified` cell
+has no supporting evidence and is an explicit failed check, never a silent
+skip; the register currently contains none. The register is machine-checked against the
+closure inventory: every combination must appear exactly once, witnessed cells
+must cite evidence files that exist, and every non-witnessed cell must state
+its reason.
+
+The register does not convert simulation limits into broader claims. Helper
+failures are injected at the encode boundary; hard worker termination is not
+injected. Restart witnesses reopen state through orderly close-and-reopen or
+fresh-instance construction; abrupt process death, power loss,
+parent-directory fsync, and non-Linux packaged behavior remain
+unverified and stay disclosed by their owning sections. A desktop export
+abandoned mid-stage leaves a dot-prefixed orphan `.soundscaper-part` file in
+the destination directory until the user removes it; the committed destination
+is never replaced and the orphan is never advertised as a result.
+
+The registered browser durability tests exercise Chromium and Firefox for
+`indexeddb-quota-refusal`, `opfs-quota-refusal`,
+`indexeddb-multitab-writer`, `opfs-multitab-writer`,
+`offline-shell-upgrade`, and `storage-eviction-recovery`. The former mutable
+FFmpeg runtime rollback workflow is no longer a production path and has been
+removed from the closure inventory. The IndexedDB workflow injects a synchronous
+`QuotaExceededError` into current-project publication after a prior revision is
+committed, observes the new revision remain dirty, and reloads the prior
+commit. The OPFS workflow injects the same typed refusal into the production
+synchronous worker's write operation; a supported worker refuses without
+publishing the import, while a browser without that worker path must complete
+through the IndexedDB correctness fallback. Both multi-tab workflows use the
+maintained lock UI to prove that the older tab becomes read-only, its attempted
+mutation does not change the project, and it regains the writer after the newer
+tab closes; the OPFS case first persists and reloads its PCM, original video,
+and derivatives.
+Shell upgrade begins with a prior complete cache, activates one complete current
+active-product cache, and retires only safely obsolete caches. The current
+product's verified core is guaranteed offline after installation; optional
+assets and the other product become available offline only after their exact
+allowlisted bytes have been fetched, verified, and cached on use. Dedicated
+audio WASM payloads and dynamically loaded WebCodecs/Mediabunny chunks are
+ordinary digest-bound application assets; no FFmpeg runtime is fetched, cached,
+served, or retained for rollback.
+Storage-eviction recovery exports a
+`.scape`, deletes the product-local IndexedDB database, proves the empty editor
+still starts, and reimports the same project identity. Automated tests run the
+pinned Playwright WebKit build and skip an individual workflow only when a concrete
+API or runtime probe, including OPFS, MediaRecorder, or an IndexedDB Blob round
+trip, fails. The quota
+failures are deterministic boundary injection rather than physical disk
+exhaustion; the eviction workflow proves archive recovery rather than browser
+retention. Actual eviction scheduling, quota accuracy, storage reservation,
+abrupt browser loss, power loss, reference-scale capacity, heap, and RSS remain
+unqualified.
+
+### Dependency and release integrity
+
+`runtime-supply-chain` remains **partial**. In-tree StaffPad, Nyquist,
+Parametric EQ, and seven reviewed compressed-audio WebAssembly providers retain
+pinned source and binary audits. The production browser authenticates the exact
+lazy-loaded payload length and SHA-256 before compilation. Six payloads produce
+complete FLAC, MP3/LAME, Ogg Vorbis, Opus, WavPack, and MP2/TwoLAME files;
+mpg123 owns MP3/MP2 decode. Closed imports, tuple and geometry bounds, output
+validators, and dedicated-worker termination fence this browser surface.
+WebCodecs supplies admitted AAC/H.264/VP9 primitives and Mediabunny supplies
+complete M4A, MP4, and WebM container generation.
+
+The production browser contains no FFmpeg WebAssembly import, fetch, cache, or
+runtime. Its emitted-bundle audit rejects `@ffmpeg/ffmpeg`, `@ffmpeg/core`,
+`ffmpeg-core` JavaScript/WASM assets, the old browser loader and public runtime
+URL, and the legacy CacheStorage namespace. The generated service worker has no
+FFmpeg runtime branch, browser preferences have no runtime installer, and
+Pages deployment validates Pages cache policy without requiring FFmpeg pointer
+or release objects.
+
+The checked-in FFmpeg WebAssembly manifest, publisher, source bundle, cache-rule
+scripts, and tests remain only legacy development, reproducibility, and audit
+tooling. The FFmpeg packages are development-only and have no production
+artifact surface. Stable publication and any browser reactivation remain
+blocked. Reactivation requires an explicit architecture and dependency review,
+updated licensing/security/patent evidence, restored bounded consumer and
+payload-authentication controls, recorded publication/rollback drills, and a
+deliberate change to the bundle audit. The manifest's payload digest preserves
+internal consistency but is not a human or release approval.
+
+Desktop composition remains separate and unchanged. Package assembly rejects
+application-supplied FFmpeg or libav sidecars while staging the exact reviewed
+audio WASMs and their source/notice closure for isolated utility helpers.
+Electron's separately pinned alternate Chromium `libffmpeg` remains framework
+infrastructure, not a Soundscaper codec-provider tier. A user-selected external
+FFmpeg/ffprobe pair remains outside the artifact, runs only after the existing
+verification and consent controls, and owns admitted desktop audio plus exact
+H.264/AAC MP4 or VP9/Opus WebM keyed video. Bundled and operating-system video
+and AV1 remain disabled. These controls do not qualify every external version,
+dynamic-library closure, malicious selected executable, broad interoperability,
+performance, aggregate codec memory, or patent clearance.
+
+The active local-model path adds a distinct authenticated supply boundary. A
+canonical V2 catalog and its licensing register are validated before its 21
+permitted entries are parsed. Every entry pins one complete licensing row,
+immutable upstream provenance, its distribution method, and exact artifact
+geometry and digests; refused or incomplete rows do not enter the catalog. The
+eight additional catalog tasks also recompute each recorded entry SHA-256 over
+the canonical offered entry and remain activation-pending on the independent
+runtime-target closure. Install and offline preseed are explicit. Resumable
+downloads publish only after full SHA-256 verification into a content-addressed
+filesystem store, and execution-time resolution reauthenticates the installed
+manifest and every blob. Corruption or external deletion makes the model
+unavailable rather than triggering silent repair or execution. Relocation
+copies, verifies, and swaps; cancellation waits for download quiescence. The
+catalog and publisher bind an EU R2 bucket and immutable public URLs. Retained
+publication receipts record public HEAD, Range, CORS, and full-digest read-back
+for the eight newly admitted models; those receipts do not authenticate a
+native runtime target. Missing mirror objects are an availability failure and
+do not authorize an unpinned upstream fallback. The
+separately packaged Sherpa runtime has its own exact target manifest and double
+verification described under native helpers.
+
+The Web application shell now has a separate verified availability boundary.
+Schema v2 inventories one complete allowlist of at most 4,096 regular assets,
+25 MiB each and 256 MiB in aggregate, with at most 4 MiB per install
+descriptor. Exact lengths and SHA-256 digests, product scope, fallbacks, and the
+service-worker template enter the release identity. Soundscaper at `/` and
+Framescaper at `/framescaper/` use separate no-store scoped classic workers.
+Registration waits for editor readiness and an idle opportunity and cannot
+reject application startup.
+
+Install batches admit at most four requests and 4 MiB of declared body bytes at
+once. Installation re-verifies complete reusable entries, writes readiness last,
+and removes only a failed candidate. Activation refuses an incomplete cache,
+claims clients before retiring only the current product's safe obsolete caches,
+and a failed takeover leaves the previous application shell available. A failed
+allowlisted navigation uses only the matching verified English product and
+embed-mode fallback and never serves mismatched bytes.
+
+This offline boundary is the application shell only. Production preferences
+contain no FFmpeg runtime installer, and no FFmpeg runtime is fetched, cached,
+served, or retained for rollback. The generated service worker has no FFmpeg
+fetch/cache/serve path; an old runtime URL bypasses legacy cache handling and
+follows ordinary network behavior. The emitted-bundle audit independently
+rejects FFmpeg package imports, core JavaScript/WASM assets, the browser loader
+and public runtime URL, and the legacy cache namespace. Dedicated audio WASM
+payloads and dynamically loaded WebCodecs/Mediabunny chunks are ordinary
+digest-bound application assets governed by the shell allowlist, not a mutable
+external codec runtime.
+
+The retained external FFmpeg WebAssembly publisher and pointer/cache code are
+development-only legacy audit machinery, not an active offline or authenticity
+boundary. No production browser consumes their pointer, manifest, release
+objects, or CacheStorage state. Any reactivation remains blocked by the bundle
+audit and requires an explicit owner decision after its architecture,
+licensing, security, and rollback behavior have been updated and verified.
+
+These controls do not qualify actual CacheStorage eviction or storage pressure,
+cross-browser and actual-device offline behavior, product-wide cache
+reservation, shell-install body amplification, codec execution while offline,
+or power-loss behavior. The application-shell fault matrix retains its own
+install/activation evidence; the obsolete mutable FFmpeg runtime-cache path and
+its rollback workflow are no longer production publication routes.
+
+Licensing and provenance checks are separate distribution safeguards. Passing a security audit does not establish license or patent clearance, and provenance documentation alone does not establish runtime isolation.
+
+## Model maintenance rules
+
+Review this model and matrix when any of the following changes:
+
+- a supported file family, archive field, codec, parser, expansion limit, or storage backend;
+- an Electron preference, CSP directive, IPC channel, capability lifetime, protocol handler, or permission;
+- a worker protocol, WebAssembly import/export, memory/output budget, or user-code surface;
+- a helper executable, plug-in format, SDK, process sandbox, or network/filesystem permission;
+- cancellation, project switching, renderer teardown, recovery, or atomic-save behavior;
+- a runtime binary, external asset host, dependency pin, or desktop update path.
+
+Update a status only when its implementation and automated verification change. Planned surfaces stay absent from the renderer bridge and registries. Partial and distribution-blocked rows stay explicit even when their existing tests pass.

@@ -22,7 +22,7 @@
 			"minimumMemoryBytes": 2147483648,
 			"licensingEvidence": {
 				"id": "silero-vad-v6",
-				"sha256": "34d87d2875d93363af327b75580b5405f3a15f422096c60382ae7230745a7b7a"
+				"sha256": "43ee8c5f56c59b5d06040f6e45cf8d08245bc2da15fe85b89bc4a069a002d2cb"
 			},
 			"upstream": {
 				"source": "https://github.com/snakers4/silero-vad",
@@ -63,7 +63,7 @@
 			"minimumMemoryBytes": 4294967296,
 			"licensingEvidence": {
 				"id": "parakeet-tdt-0.6b-v2",
-				"sha256": "a3718fadb4f7cddba04aed5e351fe6680682bf2b94385a6b435828c1fc987be6"
+				"sha256": "52032b015894123175f7194845e4700b681863ff80fd17a0184b276b30393efc"
 			},
 			"upstream": {
 				"source": "https://huggingface.co/csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8",
@@ -140,7 +140,7 @@
 			"minimumMemoryBytes": 4294967296,
 			"licensingEvidence": {
 				"id": "parakeet-tdt-0.6b-v3",
-				"sha256": "9eb9705914683f53faeca12fe5ea2cc60cf95793c54881f14f0d0c705ccdb70c"
+				"sha256": "0edefb315a49fef5bdaa9ab9fc56f2ce39ca94ff5295d8e135c02e692681f5bf"
 			},
 			"upstream": {
 				"source": "https://huggingface.co/csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8",
@@ -217,7 +217,7 @@
 			"minimumMemoryBytes": 4294967296,
 			"licensingEvidence": {
 				"id": "whisper-large-v3-turbo-ggml",
-				"sha256": "e0662f6656bd0020d35280c6c50a2fc7092c8f8a4c70d2ece208c602686a8bbb"
+				"sha256": "a20ffd59e7107eb50ed9217c17c3d630416f1431f32f5d6e73876f7af342bd46"
 			},
 			"upstream": {
 				"source": "https://huggingface.co/ggerganov/whisper.cpp",
@@ -258,7 +258,7 @@
 			"minimumMemoryBytes": 2147483648,
 			"licensingEvidence": {
 				"id": "pyannote-segmentation-3.0",
-				"sha256": "4a1488908595c2dca59229ec691f8913012b53e03cc8d6e39b8dfc75ea6094b8"
+				"sha256": "a2f140782efa31d099132675b252d43d0f8a9ce9b2f5e3c0c613bae0a5a70eb1"
 			},
 			"upstream": {
 				"source": "https://huggingface.co/csukuangfj/sherpa-onnx-pyannote-segmentation-3-0",
@@ -311,7 +311,7 @@
 			"minimumMemoryBytes": 2147483648,
 			"licensingEvidence": {
 				"id": "speech-3d-speaker-eres2net",
-				"sha256": "938eee976ee775cd34549cd92ba3329485db63b6f149985258b244880a124b4f"
+				"sha256": "4ea87da43fec4b7cf23577c06ed3209b940474ed1a413e234c0c1ce86ea0f992"
 			},
 			"upstream": {
 				"source": "https://huggingface.co/csukuangfj/speaker-embedding-models",
@@ -352,7 +352,7 @@
 			"minimumMemoryBytes": 2147483648,
 			"licensingEvidence": {
 				"id": "deepfilternet3",
-				"sha256": "9928f51340bb6b36b4aabbe2500a61292e423f9e4709fa9f5be1f26eab2e8cb9"
+				"sha256": "0d853d5372c08e3b98bf6d12b9f4a1c41c89da12ae6f0e1c4e1c1e292e537305"
 			},
 			"upstream": {
 				"source": "https://huggingface.co/soniqo/DeepFilterNet3-ONNX",
@@ -417,7 +417,7 @@
 			"minimumMemoryBytes": 2147483648,
 			"licensingEvidence": {
 				"id": "yunet-face-detection-2026may",
-				"sha256": "9a272cf5015e34bfb3a4668622c82ca3f712d19bd2f0ff5e8b59f1a033e0c783"
+				"sha256": "48a11a513d689760d05d5ec8b24e5220a233699cc790e4a9c110ec767f78fa7d"
 			},
 			"upstream": {
 				"source": "https://github.com/opencv/opencv_zoo",
@@ -458,7 +458,7 @@
 			"minimumMemoryBytes": 2147483648,
 			"licensingEvidence": {
 				"id": "dfine-nano-coco",
-				"sha256": "4be06a757af7e858a8a101cd339b2e33093c0fc307b571cea530c46e7f7c850e"
+				"sha256": "8ff5a1cd96ac91c2d66062b54507931c181759bfacbee1c9f7ce3805fe20edf7"
 			},
 			"upstream": {
 				"source": "https://huggingface.co/onnx-community/dfine_n_coco-ONNX",
@@ -523,7 +523,7 @@
 			"minimumMemoryBytes": 2147483648,
 			"licensingEvidence": {
 				"id": "u2netp-saliency",
-				"sha256": "17f8bd8f2eecfd601d5ae9448c9fa7410e2197c7fc339d134337fe9182fe132a"
+				"sha256": "6ee5276b4a0503e756b3286ccc8b3209931d271638e3ee8d6e10e63c62f71f7a"
 			},
 			"upstream": {
 				"source": "https://github.com/danielgatis/rembg",
@@ -564,7 +564,7 @@
 			"minimumMemoryBytes": 2147483648,
 			"licensingEvidence": {
 				"id": "ppocr-v4-mobile",
-				"sha256": "d0db2a16304077e9bd260d257615d8c683efd2e2cd379574570b25faeeeac086"
+				"sha256": "d412c6320de18cbac7052bd02dda79bca5279c3ca5349984311d710e8ee18b77"
 			},
 			"upstream": {
 				"source": "https://huggingface.co/SWHL/RapidOCR",
@@ -641,7 +641,7 @@
 			"minimumMemoryBytes": 4294967296,
 			"licensingEvidence": {
 				"id": "nomic-embed-text-v1.5",
-				"sha256": "2c193151c5b07d9850b08b480ab7b2623f34d523351992ad86e622410891ac03"
+				"sha256": "40b4efb6ba1df59d2e92d5356a039a5c5a24d8d77edfeb321456eee247b90269"
 			},
 			"upstream": {
 				"source": "https://huggingface.co/nomic-ai/nomic-embed-text-v1.5",
@@ -730,7 +730,7 @@
 			"minimumMemoryBytes": 8589934592,
 			"licensingEvidence": {
 				"id": "siglip2-base-patch16-224",
-				"sha256": "f067a0be2a584d716b9f071e0b1181849d1c678cfe0c3e8fe640764135e87cd3"
+				"sha256": "44eef7efdf74bac61b7be1192b5e8237d7e94df028f97c8f802fe59ffd329a91"
 			},
 			"upstream": {
 				"source": "https://huggingface.co/onnx-community/siglip2-base-patch16-224-ONNX",
@@ -818,7 +818,7 @@
 			"minimumMemoryBytes": 4294967296,
 			"licensingEvidence": {
 				"id": "wav2vec2-base-960h",
-				"sha256": "257a4f3ffd784d78495a61dfcbb45848ca6f5017411d3ec6e7b3ba585194fd1a"
+				"sha256": "d26e3554769e20054247a0590a4671d5d3552397ba7f5da9ee837bb65008d9e6"
 			},
 			"upstream": {
 				"source": "https://huggingface.co/facebook/wav2vec2-base-960h",
@@ -858,7 +858,7 @@
 			"minimumMemoryBytes": 4294967296,
 			"licensingEvidence": {
 				"id": "tiger-dnr",
-				"sha256": "208ed46195cca9043cac89c950a17ffa56b2e4bbac2406593680426ece786aa3"
+				"sha256": "961952ce9a488e7b9de9b59f37d3be8c75d223e303a23a9c837b7f0b5276718b"
 			},
 			"upstream": {
 				"source": "https://github.com/JusperLee/TIGER",
@@ -901,7 +901,7 @@
 			"minimumMemoryBytes": 2147483648,
 			"licensingEvidence": {
 				"id": "panns-cnn10",
-				"sha256": "673e11018f5306dcb9861284587c57fc2fc4c7498402250d060ddff42c91fb3e"
+				"sha256": "0d2b9d7b3a1b6258e5272deb26a459e5a18b27758b1e701cbf3e6773f472bd8a"
 			},
 			"upstream": {
 				"source": "https://github.com/qiuqiangkong/audioset_tagging_cnn",
@@ -950,7 +950,7 @@
 			"minimumMemoryBytes": 2147483648,
 			"licensingEvidence": {
 				"id": "beat-this-small0",
-				"sha256": "3b088c2e6e75bac951948a5e89fa7eec375699648f9b61e3ccd0af33b3c4d60c"
+				"sha256": "ba0631504bdefcf4abb77f30d2d3b879b7dfc5739198f5538eba1669c982aee9"
 			},
 			"upstream": {
 				"source": "https://github.com/CPJKU/beat_this",
@@ -999,7 +999,7 @@
 			"minimumMemoryBytes": 4294967296,
 			"licensingEvidence": {
 				"id": "beat-this-final0",
-				"sha256": "f8ac8ebc31ef67f1ef67f929df933b8ab24dad0225206c003a174ec8381b44d9"
+				"sha256": "860be286b4df74d475ffe194110634d1610cba6580f7af7bbfda427570ff693b"
 			},
 			"upstream": {
 				"source": "https://github.com/CPJKU/beat_this",
@@ -1048,7 +1048,7 @@
 			"minimumMemoryBytes": 2147483648,
 			"licensingEvidence": {
 				"id": "transnetv2",
-				"sha256": "38a533341c09cc1566f41c1490737ac82fe00e6ec26eac2270d7fa8084226101"
+				"sha256": "fd28b1c5fa1f709a24e6b3b003c87d8177876a92b0c37ad5ef255fc02b458eaa"
 			},
 			"upstream": {
 				"source": "https://github.com/soCzech/TransNetV2",
@@ -1103,7 +1103,7 @@
 			"minimumMemoryBytes": 17179869184,
 			"licensingEvidence": {
 				"id": "qwen3-4b-q4-k-m",
-				"sha256": "85df28b775c2f4987811c6f45698039f5cf5a4edf8b3999fb246465045a92022"
+				"sha256": "28d55d9ad24fa527489b8d3d8edf426ac12ab041ae9496f3a9415eac75c00e02"
 			},
 			"upstream": {
 				"source": "https://huggingface.co/Qwen/Qwen3-4B-GGUF",
@@ -1143,7 +1143,7 @@
 			"minimumMemoryBytes": 2147483648,
 			"licensingEvidence": {
 				"id": "dereverb-room",
-				"sha256": "d5fadc0a02fbc2325793f79193fdbe0fd822d782b68499a09fee6dcbe7f0cfef"
+				"sha256": "8cf715f0da3700a590de8f5456bd2b23ef1c663b97446adac4e51eeb08d42117"
 			},
 			"upstream": {
 				"source": "https://github.com/ZFTurbo/MSS_ONNX_TensorRT",

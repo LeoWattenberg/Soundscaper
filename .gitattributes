@@ -19,7 +19,7 @@ patches/**/*.patch text eol=lf
 /desktop/ffmpeg-corresponding-source.json text eol=lf
 /desktop/soundscaper-professional-linux-system-libraries.ts text eol=lf
 /desktop/soundscaper-professional-linux-system-runtime.ts text eol=lf
-/docs/production-licensing-policy.md text eol=lf
+/docs/policies/licensing.md text eol=lf
 /native/assistance-sherpa-node-api/** text eol=lf
 /native/common/** text eol=lf
 /native/framescaper-media-host/** text eol=lf
@@ -40,7 +40,7 @@ patches/**/*.patch text eol=lf
 /native/soundscaper-fixture-plugins/src/*.c text eol=lf
 /native/soundscaper-fixture-plugins/prebuilt/** binary
 /vendor/pipewire-headers/** text eol=lf
-/docs/production-threat-model.md text eol=lf
+/docs/policies/security.md text eol=lf
 /r2-cors.json text eol=lf
 
 # Desktop codec notices, license texts, and source manifests ship byte-for-byte

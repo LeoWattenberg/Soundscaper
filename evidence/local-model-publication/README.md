@@ -10,7 +10,7 @@ responses or proof of catalog publication, installation, inference, or
 all-platform support. The digest-pinned production catalog remains the
 installation authority. All eight additional model artifacts have retained
 public readbacks. See
-`docs/local-model-release-setup.md` for the repository-only catalog-inclusion
+`docs/operations/local-models/publish.md` for the repository-only catalog-inclusion
 check.
 
 The ordinary nightly-with-tests package repeats public HEAD, one-byte Range, and

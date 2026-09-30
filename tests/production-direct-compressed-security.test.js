@@ -187,8 +187,8 @@ test('the direct compressed fixture records both render strategies without memor
 
 test('the threat and quality documents limit direct compressed claims to the proved transport slice', async () => {
 	const [threatModel, qualityBudgets] = await Promise.all([
-		readFile(new URL('../docs/production-threat-model.md', import.meta.url), 'utf8'),
-		readFile(new URL('../docs/quality-budgets.md', import.meta.url), 'utf8'),
+		readFile(new URL('../docs/policies/security.md', import.meta.url), 'utf8'),
+		readFile(new URL('../docs/development/quality-diagnostics.md', import.meta.url), 'utf8'),
 	]);
 
 	assert.match(

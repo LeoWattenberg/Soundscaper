@@ -19,28 +19,20 @@ This file answers the same four questions as the main roadmap:
 3. What must be true before the milestone closes?
 4. What is explicitly outside the current scope?
 
-It is not an implementation log or an evidence register. Sequencing decisions,
-invariants, decision records, and bounded work packets belong to the owning
-plan document for each milestone, which carries the `path:line` evidence this
-file deliberately omits:
+It is not an implementation log or an evidence register. This roadmap itself
+owns Lightscaper scope, status, dependencies, ordering, and exit gates. Keep
+durable cross-cutting contracts in the subject-oriented
+[engineering documentation](docs/README.md), and keep a change's implementation
+sequence and temporary `path:line` inventory in its issue, pull request, or Git
+history. Re-ground code references when work starts instead of preserving a
+dated milestone plan.
 
-- L1 product seam: [L1 plan](docs/lightscaper-1-plan.md);
-- L2 catalog and develop contracts: [L2 plan](docs/lightscaper-2-plan.md);
-- L3 photo library: [L3 plan](docs/lightscaper-3-plan.md);
-- L4 develop, global adjustments: [L4 plan](docs/lightscaper-4-plan.md);
-- L5 export and handoff: [L5 plan](docs/lightscaper-5-plan.md);
-- L6 local adjustments and repair: [L6 plan](docs/lightscaper-6-plan.md);
-- L7 raw and deep color: [L7 plan](docs/lightscaper-7-plan.md);
-- L8 desktop tier: [L8 plan](docs/lightscaper-8-plan.md); and
-- L9 owner QA and diagnostics: [historical L9 plan](docs/lightscaper-9-plan.md).
-
-Each plan is grounded at the commit named in its own header; re-ground its
-citations at pickup. Machine-readable claims stay in the
-policies the main roadmap already names: capabilities in the
+Machine-readable claims stay in the policies the main roadmap already names:
+capabilities in the
 [capability inventory](config/production-capabilities.json), licensing in the
-[production licensing policy](docs/production-licensing-policy.md), budgets in
-the [quality budgets](docs/quality-budgets.md), and the owner release rule in the
-[release policy](docs/release-policy.md).
+[production licensing policy](docs/policies/licensing.md), budgets in
+the [quality budgets](docs/development/quality-diagnostics.md), and the owner release rule in the
+[release policy](docs/operations/release.md).
 
 ### Agent operating rules
 
@@ -64,10 +56,10 @@ the [quality budgets](docs/quality-budgets.md), and the owner release rule in th
 - Do not fork Framescaper or shared modules into `src/lightscaper/`. When a
   Framescaper-owned module needs generalizing, move it to `src/common/` in the
   same change with both products' tests.
-- The Framescaper V30 still-image campaign in flight on
-  `codex/milestone-8-images` owns still ingest and timeline-image modeling.
-  Lightscaper milestones that need it depend on it landing on `main`; do not
-  duplicate, preempt, or rebase-fork that work.
+- The implemented Framescaper
+  [image-media contract](docs/features/framescaper-images.md) owns still ingest
+  and timeline-image modeling. Lightscaper reuses that shared foundation rather
+  than creating a parallel image model.
 
 ## Product boundaries and invariants
 
@@ -582,8 +574,9 @@ Revalidate platform assumptions when the owning milestone starts:
 - A status becomes **Implemented** only with maintained behavior and its
   automated gate. Moving a human judgment into an implementation gate is a
   scope error; record the observation in optional owner QA instead.
-- Before implementation, decompose each milestone item into a bounded work
-  packet with outcome, invariants, acceptance, non-goals, and stop condition
-  in the owning `docs/lightscaper-*-plan.md`.
+- Before implementation, decompose the selected outcome into bounded changes
+  with explicit invariants, acceptance, non-goals, and stop conditions. Add or
+  amend a subject-oriented engineering document only when the result creates a
+  durable contract that future maintainers need.
 - Promote a platform tier only when the supported matrix proves the stronger
   contract.

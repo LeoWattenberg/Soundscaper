@@ -22,7 +22,7 @@ export async function createQaRun({ repositoryRoot = REPOSITORY_ROOT, product, n
 	const root = resolve(repositoryRoot);
 	const outputDirectory = join(root, 'qa-runs');
 	await ensurePrivateOutputDirectory(outputDirectory);
-	const templatePath = join(root, 'docs', 'qa', `${product}.md`);
+	const templatePath = join(root, 'docs', 'operations', 'qa', `${product}.md`);
 	const template = await readFile(templatePath, 'utf8');
 	validateTemplate(template, templatePath);
 	const timestamp = now.toISOString();

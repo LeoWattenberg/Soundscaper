@@ -5,7 +5,7 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 const matrixUrl = new URL('../config/production-security-matrix.json', import.meta.url);
-const threatModelUrl = new URL('../docs/production-threat-model.md', import.meta.url);
+const threatModelUrl = new URL('../docs/policies/security.md', import.meta.url);
 
 test('family-v1 retime authority retains the independently versioned V2 curve without product inference', async () => {
 	const matrix = JSON.parse(await readFile(matrixUrl, 'utf8'));

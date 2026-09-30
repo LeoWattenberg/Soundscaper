@@ -65,7 +65,7 @@ function validRecord(overrides = {}) {
 		blockedBy: [],
 		requirements,
 		provenanceSources: ['https://example.invalid/model'],
-		evidence: ['docs/milestone-7-plan.md'],
+		evidence: ['docs/architecture/local-assistance.md'],
 		...overrides,
 	};
 	record.requirements = requirements;

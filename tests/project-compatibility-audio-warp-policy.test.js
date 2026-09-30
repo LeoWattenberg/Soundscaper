@@ -5,7 +5,7 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 const policyUrl = new URL('../config/project-compatibility.json', import.meta.url);
-const documentationUrl = new URL('../docs/project-compatibility.md', import.meta.url);
+const documentationUrl = new URL('../docs/policies/project-compatibility.md', import.meta.url);
 
 test('audio-warp policy records native Soundscaper and read-only Framescaper truth', async () => {
 	const policy = JSON.parse(await readFile(policyUrl, 'utf8'));

@@ -126,7 +126,7 @@
   document, prefer adding a binding over hand-mirroring the prose.
 - After editing any file digest-pinned by `config/ffmpeg-runtime-manifest.json`
   (notably `config/production-security-matrix.json` and
-  `docs/production-threat-model.md`), run
+  `docs/policies/security.md`), run
   `node scripts/repin-runtime-evidence.mjs` to refresh the byteLength/sha256
   pins and the review payload digest in the same commit; never hand-edit those
   pins. `--check` verifies without writing.

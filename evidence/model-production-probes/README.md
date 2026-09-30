@@ -20,4 +20,4 @@ perceptual quality, licensing permission, or cross-platform performance.
 The audio smoke checks require preserved geometry, finite changed samples,
 and non-silence for every expected output. Other checks use the same semantic
 reviewers and bounds as the nightly cases. See the generated model guides and
-`docs/local-model-nightly-tests.md` for their exact fixture and validation rules.
+`docs/operations/local-models/nightly-tests.md` for their exact fixture and validation rules.

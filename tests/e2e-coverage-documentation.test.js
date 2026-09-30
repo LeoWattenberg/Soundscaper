@@ -6,7 +6,7 @@ import test from 'node:test';
 
 test('the E2E coverage handoff documents and exposes the strict union workflow', async () => {
 	const [documentation, packageMetadata, technicalReadme] = await Promise.all([
-		readFile(new URL('../docs/end-to-end-coverage.md', import.meta.url), 'utf8'),
+		readFile(new URL('../docs/development/end-to-end-coverage.md', import.meta.url), 'utf8'),
 		readFile(new URL('../package.json', import.meta.url), 'utf8').then(JSON.parse),
 		readFile(new URL('../Technical_README.md', import.meta.url), 'utf8'),
 	]);
@@ -44,5 +44,5 @@ test('the E2E coverage handoff documents and exposes the strict union workflow',
 		'npm run coverage:e2e:prepare',
 		'npm run coverage:e2e:check',
 	]) assert.ok(documentation.includes(phrase), `${phrase} is not documented`);
-	assert.match(technicalReadme, /\[end-to-end coverage\]\(docs\/end-to-end-coverage\.md\)/u);
+	assert.match(technicalReadme, /\[end-to-end coverage\]\(docs\/development\/end-to-end-coverage\.md\)/u);
 });

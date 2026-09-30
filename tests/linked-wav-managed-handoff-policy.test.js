@@ -5,9 +5,9 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 const compatibilityUrl = new URL('../config/project-compatibility.json', import.meta.url);
-const compatibilityDocumentUrl = new URL('../docs/project-compatibility.md', import.meta.url);
+const compatibilityDocumentUrl = new URL('../docs/policies/project-compatibility.md', import.meta.url);
 const securityUrl = new URL('../config/production-security-matrix.json', import.meta.url);
-const threatModelUrl = new URL('../docs/production-threat-model.md', import.meta.url);
+const threatModelUrl = new URL('../docs/policies/security.md', import.meta.url);
 
 test('linked PCM portability and handoff stay canonical and point-in-time', async () => {
 	const policy = await readJson(compatibilityUrl);

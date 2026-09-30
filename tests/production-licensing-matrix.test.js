@@ -8,7 +8,7 @@ const matrixUrl = new URL('../config/production-licensing-matrix.json', import.m
 const packageUrl = new URL('../package.json', import.meta.url);
 const lockUrl = new URL('../package-lock.json', import.meta.url);
 const noticesUrl = new URL('../THIRD_PARTY_LICENSES.md', import.meta.url);
-const policyUrl = new URL('../docs/production-licensing-policy.md', import.meta.url);
+const policyUrl = new URL('../docs/policies/licensing.md', import.meta.url);
 const repositoryUrl = new URL('../', import.meta.url);
 
 const SURFACE_IDS = [
@@ -57,7 +57,7 @@ test('production licensing matrix is versioned and distinguishes every distribut
 
 	assert.equal(matrix.schemaVersion, 1);
 	assert.match(matrix.groundedAt, /^\d{4}-\d{2}-\d{2}$/u);
-	assert.equal(matrix.policyDocument, 'docs/production-licensing-policy.md');
+	assert.equal(matrix.policyDocument, 'docs/policies/licensing.md');
 	assert.equal(matrix.lockfile.path, 'package-lock.json');
 	assert.equal(matrix.lockfile.lockfileVersion, 3);
 	assert.equal(
@@ -345,7 +345,7 @@ test('runtime provenance entries and distribution checks fail closed without cla
 			'tests/audio-editor-desktop-export-dialog-capability.test.js',
 			'tests/desktop-bundled-wavpack-audio-codec-runtime.test.ts',
 			'tests/desktop-audio-codec-runtime-staging.test.js',
-			'docs/desktop-codec-provider-plan.md',
+			'docs/architecture/desktop-codec-providers.md',
 			'THIRD_PARTY_LICENSES.md',
 		],
 	});

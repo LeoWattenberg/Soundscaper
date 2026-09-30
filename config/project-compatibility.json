@@ -6,7 +6,7 @@
 		"workPackage": "WP-9.0.0",
 		"commit": "573579b65852148d121e8f73046c57700ac93757",
 		"commitTimestamp": "2026-08-28T18:34:28+02:00",
-		"record": "docs/wp-9.0.0-baseline-decision.md",
+		"record": "docs/decisions/project-family-v1.md",
 		"releaseDecision": "repository-owner-on-v1.0.0-tag"
 	},
 	"projectSchema": {
@@ -80,7 +80,7 @@
 			"future-versioned-policy-change",
 			"retained-migration-from-family-v1"
 		],
-		"designRecord": "docs/wp-9.0.0-baseline-decision.md"
+		"designRecord": "docs/decisions/project-family-v1.md"
 	},
 	"rules": [
 		{
@@ -759,7 +759,7 @@
 			"requiredOutcome": "An explicit cross-product action leaves the exact owning family-v1 source unchanged and creates one independently identified, writable destination-family v1 project through a closed copy, materialize-fallback, omit-with-report, or refuse decision for every persisted root.",
 			"currentBehavior": "Both products expose Edit in the other product from the File menu. One versioned launch intent binds the exact source tuple and revision, invocation identity, and newly minted destination tuple; retrying that intent reuses its destination identity while a later invocation mints another. The owning family validates the source, the destination family constructs and validates a new project without relabelling schemaFamily, and the bounded Scape archive transport preserves sender storage. Browser preparation flushes before its lock-releasing route transition and refuses if the bound revision changes before export; desktop flushes without relinquishing its live project lock, exports the same converted archive under the destination-native suffix, and exposes File-menu cancellation backed by the export signal. Every source root receives one digest-bound disposition. Shared roots remain copies only when their source and destination digests agree; destination normalization is reported as materialization, the reserved closed retry provenance replaces only prior provenance, visual-only state with no supported destination members is reported as omitted, and unsupported audible authority refuses before archive export or receiver publication. A closed companion JSON ledger is bound to the exact entry ID, archive byte length, and SHA-256 digest; live, download, matching manual, and desktop paths use the identical artifact, and a receiver exposes it only after a recognized import or resident invocation provenance proves an exact retry. Manual import infers no ledger when its companion is absent. If an external archive commits before its separate companion write fails, the operation reports the named partial save without mutating either project library. This contract does not share project identity, revision history, undo history, or storage between products, and it grants no native payload, codec, or release-qualification authority.",
 			"evidence": [
-				"docs/wp-8c-cutover-decision.md",
+				"docs/decisions/product-origins.md",
 				"src/common/cross-product-handoff-intent.ts",
 				"src/common/transfer/cross-product-handoff-conversion.ts",
 				"src/common/transfer/cross-product-handoff-provenance.ts",

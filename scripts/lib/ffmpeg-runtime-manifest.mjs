@@ -30,10 +30,10 @@ const EVIDENCE_PATHS = Object.freeze({
 	lineEndings: '.gitattributes',
 	correspondingSource: 'desktop/ffmpeg-corresponding-source.json',
 	notices: 'THIRD_PARTY_LICENSES.md',
-	licensingPolicy: 'docs/production-licensing-policy.md',
+	licensingPolicy: 'docs/policies/licensing.md',
 	licensingMatrix: 'config/production-licensing-matrix.json',
 	securityMatrix: 'config/production-security-matrix.json',
-	threatModel: 'docs/production-threat-model.md',
+	threatModel: 'docs/policies/security.md',
 });
 const PUBLICATION_CHECK_IDS = Object.freeze([
 	'dependency-notice-version-audit',

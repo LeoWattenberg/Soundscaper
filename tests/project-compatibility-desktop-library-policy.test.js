@@ -5,7 +5,7 @@ import { access, readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 const policyUrl = new URL('../config/project-compatibility.json', import.meta.url);
-const documentationUrl = new URL('../docs/project-compatibility.md', import.meta.url);
+const documentationUrl = new URL('../docs/policies/project-compatibility.md', import.meta.url);
 
 test('desktop compatibility authority is split between two fresh family-v1 libraries', async () => {
 	const policy = JSON.parse(await readFile(policyUrl, 'utf8'));

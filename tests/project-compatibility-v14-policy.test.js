@@ -5,7 +5,7 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 const policyUrl = new URL('../config/project-compatibility.json', import.meta.url);
-const threatModelUrl = new URL('../docs/production-threat-model.md', import.meta.url);
+const threatModelUrl = new URL('../docs/policies/security.md', import.meta.url);
 
 test('the compatibility register binds the family-v1 baseline to current implementation evidence', async () => {
 	const policy = JSON.parse(await readFile(policyUrl, 'utf8'));

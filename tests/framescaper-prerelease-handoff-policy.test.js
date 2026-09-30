@@ -7,10 +7,9 @@ import test from 'node:test';
 const root = new URL('../', import.meta.url);
 
 test('pre-freeze handoff evidence is provenance and cannot authorize family-v1 storage', async () => {
-	const [closure, compatibility, historicalContract] = await Promise.all([
+	const [closure, compatibility] = await Promise.all([
 		json('config/milestone-2-closure.json'),
 		json('config/project-compatibility.json'),
-		text('docs/milestone-3b-framescaper-v18-product-isolation.md'),
 	]);
 	const handoff = closure.items.find(({ id }) => id === 'm2-handoff-packaged-roundtrip');
 	assert.equal(handoff.compatibilityBoundary.classification, 'legacy-shared-schema-17-pre-framescaper-v18');
@@ -21,7 +20,7 @@ test('pre-freeze handoff evidence is provenance and cannot authorize family-v1 s
 	const isolation = compatibility.rules.find(({ id }) => id === 'family-v1-product-isolation');
 	assert.match(isolation.currentBehavior, /fresh v1 stores.*no migration or copy-forward path.*never open, enumerate, mutate, or delete pre-release stores/iu);
 	assert.equal(isolation.historicalPreFreezeNarrative.formerId, 'framescaper-v18-product-isolation');
-	assert.match(historicalContract, /V18 is authoritative/iu);
+	assert.equal(isolation.historicalPreFreezeNarrative.status, 'provenance-only-not-runtime-authority');
 });
 
 test('current cross-product handoff is tuple-routed opaque custody', async () => {

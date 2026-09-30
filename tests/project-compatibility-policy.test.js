@@ -5,7 +5,7 @@ import { access, readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 const policyUrl = new URL('../config/project-compatibility.json', import.meta.url);
-const documentationUrl = new URL('../docs/project-compatibility.md', import.meta.url);
+const documentationUrl = new URL('../docs/policies/project-compatibility.md', import.meta.url);
 
 const BASELINE_RULES = Object.freeze([
 	'pre-release-reimport-required',
@@ -92,7 +92,7 @@ test('compatibility register freezes two independent family-v1 stores and one Sc
 		'retained-migration-from-family-v1',
 	]);
 	assert.equal(Object.hasOwn(policy.schemaRetirement, 'approval'), false);
-	assert.equal(policy.schemaRetirement.designRecord, 'docs/wp-9.0.0-baseline-decision.md');
+	assert.equal(policy.schemaRetirement.designRecord, 'docs/decisions/project-family-v1.md');
 });
 
 test('compatibility documentation distinguishes the active baseline from historical provenance', async () => {

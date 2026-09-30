@@ -100,7 +100,7 @@
 				"Each route ID either completes below its owning hard limits or refuses before unsafe allocation or publication.",
 				"Direct routes publish without a final renderer-sized Blob; browser-blob routes retain their documented bounded fallback."
 			],
-			"ownerRefs": ["docs/production-threat-model.md", "config/production-security-matrix.json"]
+			"ownerRefs": ["docs/policies/security.md", "config/production-security-matrix.json"]
 		},
 		{
 			"id": "m2-pipeline-resource-verification",
@@ -117,7 +117,7 @@
 				"Every listed workload passes the thresholds and environment checks in config/quality-budgets.json.",
 				"Browser, renderer, main-process, worker, encoder and retained-output memory are measured where the workload declares them."
 			],
-			"ownerRefs": ["config/quality-budgets.json", "docs/quality-budgets.md"]
+			"ownerRefs": ["config/quality-budgets.json", "docs/development/quality-diagnostics.md"]
 		},
 		{
 			"id": "m2-opfs-worker-boundary",
@@ -135,7 +135,7 @@
 				"The six listed OPFS operation classes use a dedicated worker and synchronous access handles only after capability detection.",
 				"IndexedDB remains the tested correctness fallback for the same operation classes."
 			],
-			"ownerRefs": ["docs/quality-budgets.md", "config/production-capabilities.json"]
+			"ownerRefs": ["docs/development/quality-diagnostics.md", "config/production-capabilities.json"]
 		},
 		{
 			"id": "m2-publication-fault-matrix",
@@ -172,7 +172,7 @@
 				"Every publication-path and fault combination either preserves the previous commit or exposes a recoverable journal; no partial destination is advertised.",
 				"Unsupported fault injection is recorded with an explicit reason, not silently skipped."
 			],
-			"ownerRefs": ["docs/production-threat-model.md", "config/production-security-matrix.json"]
+			"ownerRefs": ["docs/policies/security.md", "config/production-security-matrix.json"]
 		},
 		{
 			"id": "m2-browser-durability-matrix",
@@ -190,7 +190,7 @@
 				"Automated test activation runs each workflow ID in configured Chromium, Firefox, and WebKit and records a truthful unsupported outcome only for a concrete missing API or runtime capability, with the Web Core fallback passing.",
 				"A failed workflow leaves the last committed project and installed application shell usable."
 			],
-			"ownerRefs": ["docs/quality-budgets.md", "docs/production-threat-model.md"]
+			"ownerRefs": ["docs/development/quality-diagnostics.md", "docs/policies/security.md"]
 		},
 		{
 			"id": "m2-handoff-packaged-roundtrip",
@@ -221,7 +221,7 @@
 				"The Electron workflows run through packaged desktop-library-v9 UI products; headless-only evidence is insufficient.",
 				"This closure item does not authorize Framescaper V17 activation after V18 selection; exact V17 requires re-import, and cross-product V18 transfer is copy-only preservation until separately qualified."
 			],
-			"ownerRefs": ["docs/project-compatibility.md", "config/project-compatibility.json"]
+			"ownerRefs": ["docs/policies/project-compatibility.md", "config/project-compatibility.json"]
 		},
 		{
 			"id": "m2-media-relationship-roundtrip",
@@ -242,7 +242,7 @@
 				"Each relationship ID preserves its documented ownership, retention and portability semantics in both directions of the applicable handoff workflows.",
 				"Disposable previews remain excluded from project history and transfer and are reproducible from an admitted original."
 			],
-			"ownerRefs": ["docs/project-compatibility.md", "config/project-compatibility.json"]
+			"ownerRefs": ["docs/policies/project-compatibility.md", "config/project-compatibility.json"]
 		},
 		{
 			"id": "m2-linked-media-lifecycle",
@@ -264,7 +264,7 @@
 				"Every lifecycle ID preserves live aliases, never deletes external media and releases only an exact unreachable locator revision.",
 				"Cross-store and cross-process behavior is required only by m2-electron-lease-matrix."
 			],
-			"ownerRefs": ["docs/production-threat-model.md", "docs/project-compatibility.md"]
+			"ownerRefs": ["docs/policies/security.md", "docs/policies/project-compatibility.md"]
 		},
 		{
 			"id": "m2-managed-capacity-admission",
@@ -314,7 +314,7 @@
 				"Every capacity ID is checked before its first irreversible stage or body operation and produces a typed refusal.",
 				"Known point-in-time checks remain labelled as admission rather than operating-system reservation."
 			],
-			"ownerRefs": ["docs/production-threat-model.md", "config/production-security-matrix.json"]
+			"ownerRefs": ["docs/policies/security.md", "config/production-security-matrix.json"]
 		},
 		{
 			"id": "m2-electron-lease-matrix",
@@ -345,7 +345,7 @@
 				"The CI job runs the seven product-specific workflows for both Soundscaper and Framescaper on every configured desktop target and cross-product-simultaneous-open once per paired package set. Each run reports only its own revision and target; no retained cohort certifies a later release. macos-x64 remains retired.",
 				"Fencing tokens increase monotonically and no losing writer publishes a project or managed-media descriptor."
 			],
-			"ownerRefs": ["docs/project-compatibility.md", "docs/production-threat-model.md"]
+			"ownerRefs": ["docs/policies/project-compatibility.md", "docs/policies/security.md"]
 		},
 		{
 			"id": "m2-cache-root-safety",
@@ -363,7 +363,7 @@
 				"Cleanup never removes a protected root and compare-and-delete preserves replacements.",
 				"Only the five collectible classes may be removed automatically under their owning limits."
 			],
-			"ownerRefs": ["docs/production-threat-model.md", "config/production-security-matrix.json"]
+			"ownerRefs": ["docs/policies/security.md", "config/production-security-matrix.json"]
 		},
 		{
 			"id": "m2-compatibility-affected-objects",
@@ -373,7 +373,7 @@
 				"The bounded read-only affected-object index reports objects for the four frozen fallback roles and registered audioEffects/videoEffects channels and explicitly reports unattributable requirements.",
 				"The report never grants execution authority or mutates canonical state."
 			],
-			"ownerRefs": ["docs/project-compatibility.md", "config/project-compatibility.json"]
+			"ownerRefs": ["docs/policies/project-compatibility.md", "config/project-compatibility.json"]
 		},
 		{
 			"id": "m2-compatibility-bypass",
@@ -387,7 +387,7 @@
 				"Unavailable registered effects for the two feature IDs receive the maintained transient bypass projection and visible affected-object report.",
 				"Unknown features without a frozen fallback role remain read-only and reported; they are not executable and do not require an invented bypass."
 			],
-			"ownerRefs": ["docs/project-compatibility.md", "config/project-compatibility.json"]
+			"ownerRefs": ["docs/policies/project-compatibility.md", "config/project-compatibility.json"]
 		},
 		{
 			"id": "m2-compatibility-fallback-roles",
@@ -403,7 +403,7 @@
 				"Each role ID preserves canonical state and reaches current-format .scape, playback, maintained delivery, explicit managed handoff and affected-object reporting.",
 				"The packaged handoff workflows qualify the four roles; no additional role is required for Milestone 2."
 			],
-			"ownerRefs": ["docs/project-compatibility.md", "config/project-compatibility.json"]
+			"ownerRefs": ["docs/policies/project-compatibility.md", "config/project-compatibility.json"]
 		},
 		{
 			"id": "m2-compatibility-future-archive",
@@ -420,7 +420,7 @@
 				"A format-1 archive carrying a project schema greater than 9 can be opened read-only and saved as an unchanged archive copy without interpreting its project or asset graph.",
 				"Unknown archive format versions remain rejected before persistence and do not block Milestone 2."
 			],
-			"ownerRefs": ["docs/project-compatibility.md", "config/project-compatibility.json"]
+			"ownerRefs": ["docs/policies/project-compatibility.md", "config/project-compatibility.json"]
 		},
 		{
 			"id": "m2-compatibility-less-capable-roundtrip",
@@ -440,7 +440,7 @@
 				"Each workflow ID opens on the less-capable product, uses its admitted fallback, saves or exports without canonical mutation and returns to the originating product with editable and opaque state preserved.",
 				"Automated test activation runs the web workflows in configured Chromium, Firefox, and WebKit and skips only a concrete missing API or runtime capability; the Electron workflows exercise the packaged product pair."
 			],
-			"ownerRefs": ["docs/project-compatibility.md", "config/project-compatibility.json"]
+			"ownerRefs": ["docs/policies/project-compatibility.md", "config/project-compatibility.json"]
 		}
 	]
 }

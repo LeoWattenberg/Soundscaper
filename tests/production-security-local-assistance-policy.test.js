@@ -14,12 +14,12 @@ async function readText(path) {
 	return readFile(new URL(path, repositoryUrl), 'utf8');
 }
 
-test('Milestone 7 policy records conditional workflow activation and its machine gates', async () => {
+test('local-assistance policy records conditional workflow activation and its machine gates', async () => {
 	const [matrix, threatModel, activation, historicalEvidence] = await Promise.all([
 		readJson('config/production-security-matrix.json'),
-		readText('docs/production-threat-model.md'),
-		readText('docs/milestone-7-8a-activation-plan.md'),
-		readText('docs/milestone-7-local-model-evidence.md'),
+		readText('docs/policies/security.md'),
+		readText('docs/architecture/local-assistance.md'),
+		readText('docs/reference/local-model-provenance.md'),
 	]);
 	const ipcRisk = matrix.risks.find(({ id }) => id === 'electron-renderer-ipc-boundary');
 	const control = ipcRisk?.currentControls.find(
@@ -114,9 +114,9 @@ test('Milestone 7 policy records conditional workflow activation and its machine
 	assert.match(externalExecutableRisk.exposure,
 		/assistance shot.*scdet.*canary.*path-based runners.*replacement.*dynamically loaded libraries/isu);
 	assert.match(activationClaims,
-		/Delivered boundary \(2026-08-27\).*conditionally activates.*enabled for testing.*typed machine unavailability rather than substitute inference or an implicit download.*remain fail closed.*Owner QA is optional/isu);
+		/workflow becomes available only when all of these agree.*missing or mismatched condition returns a typed unavailable result.*never causes.*implicit installation.*substitute model.*fail closed.*Owner-device observations are optional QA/isu);
 	assert.match(historicalClaims,
-		/Historical slice record.*local-models.*enabled.*thirteen.*permitted/isu);
+		/local-models.*distribution gate is enabled.*only a complete evidence row.*distributionStatus.*permitted.*catalog contains 22 published identities/isu);
 });
 
 function compact(value) {
