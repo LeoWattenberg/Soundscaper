@@ -11,6 +11,7 @@ import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-worksp
 import { formatDate } from '../workspace-runtime.js';
 import {
 	applyTrackRateDialog,
+	aup4CompatibilityEffectPath,
 	aup4CompatibilityItems,
 	compatibilityCount,
 	formatAup4CompatibilityItem,
@@ -269,7 +270,7 @@ function Aup4CompatibilityReport({ report, copy }) {
 				<ul className="kw-audio-editor-compatibility-items">
 					{visibleItems.map((item, index) => (
 						<li key={`${item?.code || 'AUP4'}-${index}`} data-severity={item?.severity || 'info'}>
-							<strong>{formatAup4CompatibilityItem(item, copy)}</strong>
+							<strong title={aup4CompatibilityEffectPath(item) || undefined}>{formatAup4CompatibilityItem(item, copy)}</strong>
 							{item?.scope && <small>{formatAup4CompatibilityScope(item.scope)}</small>}
 						</li>
 					))}

@@ -1,3 +1,5 @@
+import { parseNativeEffectId } from '../../aup4-browser-effect-payload.js';
+
 export function formatAup4CompatibilitySummary(report, copy) {
 	const counts = report?.counts || {};
 	const items = aup4CompatibilityItems(report);
@@ -77,6 +79,11 @@ export function formatAup4CompatibilityItem(item, copy) {
 	const message = String(item?.message || '').trim();
 	if (message) return message;
 	return String(item?.code || copy.aup4CompatibilityDetails).replaceAll('_', ' ');
+}
+
+export function aup4CompatibilityEffectPath(item) {
+	if (item?.code !== 'MISSING_REALTIME_EFFECT' || item?.disposition !== 'missing') return '';
+	return parseNativeEffectId(item?.data?.nativeId)?.path || '';
 }
 
 export function rackEffectLabel(effect, labels, copy) {
