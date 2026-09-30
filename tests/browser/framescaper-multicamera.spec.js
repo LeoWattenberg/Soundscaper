@@ -18,6 +18,9 @@ const MULTICAMERA_REQUIREMENT_ID = 'framescaper.multicamera';
 const CFR = videoTimingProbeMedia.find(({ id }) => id === 'cfr-25fps-mp4-v1');
 const QUADRANTS = videoSourceGeometryMedia.find(({ id }) => id === 'geometry-anamorphic-mp4-v1');
 const PREVIEW_TIMECODE = '00:00:00:10';
+// The fixture's H.264 stream has no color-space tags, so browser decoders may
+// choose different legal YUV matrices while preserving the authored colors.
+const DECODER_CHANNEL_TOLERANCE = 48;
 
 test.describe('Framescaper selected-web multicamera workflow', () => {
 	test('creates, switches, saves, and reopens an exact Framescaper-v1 camera group from Tracks', async ({ page, browserName }, testInfo) => {
@@ -96,7 +99,8 @@ test.describe('Framescaper selected-web multicamera workflow', () => {
 			].entries()) {
 				for (const [channel, value] of expected.entries()) {
 					expect(Math.abs(quadrants[index][channel] - value),
-						`quadrant ${index} channel ${channel} matches its authored color`).toBeLessThanOrEqual(16);
+						`quadrant ${index} channel ${channel} matches its authored color`)
+						.toBeLessThanOrEqual(DECODER_CHANNEL_TOLERANCE);
 				}
 			}
 		} else await assertPreviewFallback(editor);
