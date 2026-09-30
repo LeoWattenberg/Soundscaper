@@ -29,5 +29,5 @@ export function waveformPeakBlockSizes(frameCount: number, channelCount: number)
 		> WAVEFORM_PEAK_MAX_SOURCE_BYTES) scale *= 2;
 	const sizes = WAVEFORM_PEAK_BLOCK_SIZES.map((size) => size * scale);
 	if (!sizes.every(Number.isSafeInteger)) throw new RangeError('The waveform source exceeds the supported frame range.');
-	return sizes;
+	return Object.freeze(sizes);
 }
