@@ -13,6 +13,16 @@ import { assertProjectFeatureRenderedFallbackManifestBinding } from './project-f
 import { assertProjectFeatureRenderedFallbackReservedIdsAvailable } from './project-feature-rendered-fallback-reserved-ids.ts';
 import { isProjectFeatureRenderedFallbackQualified } from './project-feature-rendered-fallback-qualification.ts';
 import {
+	arrayValue,
+	canonicalString,
+	dataProperty,
+	isRecord,
+	positiveSafeInteger,
+	recordValue,
+	replaceDataProperties,
+	type RecordValue,
+} from './project-feature-projection-record.ts';
+import {
 	projectFeatureAudioTrackRenderV1Playback,
 	type ProjectFeatureAudioTrackRenderV1Metadata,
 } from './project-feature-audio-track-render-v1.ts';
@@ -46,8 +56,6 @@ export interface ProjectFeatureAudioRenderedFallbackProjection<Project> {
 	readonly project: Project;
 	readonly metadata: ProjectFeatureAudioRenderedFallbackMetadata | null;
 }
-
-type RecordValue = Readonly<Record<string, unknown>>;
 
 interface QualifiedMixFallback {
 	readonly featureId: string;
@@ -320,48 +328,4 @@ function projectedTracks(values: readonly unknown[], fallback: RecordValue): rea
 	}
 	if (!inserted) output.unshift(fallback);
 	return Object.freeze(output);
-}
-
-function positiveSafeInteger(value: unknown, name: string): number {
-	if (!Number.isSafeInteger(value) || Number(value) < 1) {
-		throw new RangeError(`${name} must be a positive safe integer.`);
-	}
-	return Number(value);
-}
-
-function canonicalString(value: unknown, name: string): string {
-	if (typeof value !== 'string' || !value || value !== value.trim()) {
-		throw new TypeError(`${name} must be a non-empty canonical string.`);
-	}
-	return value;
-}
-
-function arrayValue(value: unknown, name: string): readonly unknown[] {
-	if (!Array.isArray(value)) throw new TypeError(`${name} must be an array.`);
-	return value;
-}
-
-function isRecord(value: unknown): value is RecordValue {
-	return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
-}
-
-function recordValue(value: unknown, name: string): RecordValue {
-	if (!isRecord(value)) throw new TypeError(`${name} must be an object.`);
-	return value;
-}
-
-function dataProperty(value: RecordValue, key: string, name: string): unknown {
-	const descriptor = Object.getOwnPropertyDescriptor(value, key);
-	if (!descriptor || !Object.hasOwn(descriptor, 'value')) {
-		throw new TypeError(`${name}.${key} must be an own data property.`);
-	}
-	return descriptor.value;
-}
-
-function replaceDataProperties(value: RecordValue, replacements: Record<string, unknown>): RecordValue {
-	const descriptors = Object.getOwnPropertyDescriptors(value);
-	for (const [key, replacement] of Object.entries(replacements)) {
-		descriptors[key] = { configurable: true, enumerable: true, writable: true, value: replacement };
-	}
-	return Object.freeze(Object.create(Object.getPrototypeOf(value) as object | null, descriptors) as RecordValue);
 }

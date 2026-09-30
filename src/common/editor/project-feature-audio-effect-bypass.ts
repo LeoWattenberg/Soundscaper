@@ -6,6 +6,13 @@ import {
 } from './project-feature-capabilities.ts';
 import type { ProjectFeatureRequirementsReport } from './project-feature-requirements.ts';
 import { qualifyingProjectFeatureEffectBypassRequirementIds } from './project-feature-effect-bypass-report.ts';
+import {
+	isRecord,
+	optionalDataProperty as dataProperty,
+	recordValue,
+	replaceDataProperties,
+	type RecordValue,
+} from './project-feature-projection-record.ts';
 import { isMaintainedProjectFeatureSchema } from './project-schema-version.ts';
 
 export const PROJECT_FEATURE_AUDIO_EFFECT_BYPASS_LIMITS = Object.freeze({
@@ -39,8 +46,6 @@ export interface ProjectFeatureAudioEffectBypassOptions {
 	/** Test seam: production limits may only be lowered. */
 	readonly maximumAffectedEffects?: number;
 }
-
-type RecordValue = Readonly<Record<string, unknown>>;
 
 interface RackProjection {
 	readonly owner: unknown;
@@ -197,28 +202,4 @@ function lowerOnlyLimit(value: unknown, production: number, name: string): numbe
 	}
 	if (Number(value) > production) throw new RangeError(`${name} cannot raise the production limit.`);
 	return Number(value);
-}
-
-function isRecord(value: unknown): value is RecordValue {
-	return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
-}
-
-function recordValue(value: unknown, name: string): RecordValue {
-	if (!isRecord(value)) throw new TypeError(`${name} must be an object.`);
-	return value;
-}
-
-function dataProperty(value: RecordValue, key: string, name: string): unknown {
-	const descriptor = Object.getOwnPropertyDescriptor(value, key);
-	if (!descriptor) return undefined;
-	if (!Object.hasOwn(descriptor, 'value')) throw new TypeError(`${name}.${key} must be a data property.`);
-	return descriptor.value;
-}
-
-function replaceDataProperties(value: RecordValue, replacements: Record<string, unknown>): RecordValue {
-	const descriptors = Object.getOwnPropertyDescriptors(value);
-	for (const [key, replacement] of Object.entries(replacements)) {
-		descriptors[key] = { configurable: true, enumerable: true, writable: true, value: replacement };
-	}
-	return Object.freeze(Object.create(Object.getPrototypeOf(value) as object | null, descriptors) as RecordValue);
 }
