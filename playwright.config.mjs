@@ -23,9 +23,10 @@ export default defineConfig({
 	forbidOnly: Boolean(process.env.CI),
 	failOnFlakyTests: false,
 	retries: process.env.CI ? 1 : 0,
-	// Media-heavy WebKit and Firefox workflows spawn native decoder/capture
-	// processes. Letting Playwright scale to half of a high-core workstation can
-	// starve those processes until otherwise healthy workflows hit their bounds.
+	// Media-heavy workflows spawn native decoder/capture processes. Letting
+	// Playwright scale to half of a high-core workstation can starve those
+	// processes until otherwise healthy workflows hit their bounds. Firefox's
+	// real-audio CI jobs narrow this further to one worker per shard.
 	workers: process.env.CI ? 2 : 4,
 	reporter: process.env.CI
 		? [['github'], ['html', { outputFolder: 'playwright-report', open: 'never' }]]

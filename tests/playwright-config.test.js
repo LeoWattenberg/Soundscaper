@@ -268,6 +268,10 @@ function assertBrowserCoverage(workflow, label, { staticJobs, gate, browserShard
 	assert.match(firefoxJob, /name: verified-site-build/u);
 	assertEngineIsSharded(firefoxJob, `${label} firefox`, 'npm run test:browser:built -- --project=firefox', browserShardCount);
 	assert.ok(
+		firefoxJob.includes(`--shard=\${{ matrix.shard }}/${browserShardCount} --workers=1`),
+		`${label} must keep Firefox media workflows on one worker per shard`,
+	);
+	assert.ok(
 		firefoxJob.indexOf('ci-firefox-audio-clock.mjs')
 			< firefoxJob.indexOf('test:browser:built -- --project=firefox'),
 		`${label} must probe the real audio clock before Firefox verification`,

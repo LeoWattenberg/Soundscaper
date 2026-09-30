@@ -138,8 +138,12 @@ test.describe('audio editor React/design-system workflows', () => {
 			await chooseCommandAction(page, editor, 'Analyze', command);
 			const analyzerDialog = page.getByRole('dialog', { name: command, exact: true });
 			await expect(analyzerDialog).toHaveAttribute('data-analysis-mode', mode);
+			if (mode !== 'contrast') {
+				await expect(analyzerDialog.locator(`[data-analysis-report="${mode}"]`)).toBeVisible({ timeout: 30_000 });
+			}
 			await closeDialog(analyzerDialog);
 			await expect(analyzerDialog).toHaveCount(0);
+			await expect(editor).not.toHaveAttribute('data-edit-block-reason', 'analysis-processing', { timeout: 30_000 });
 		}
 
 		const panelsMenu = await openNestedCommandMenu(page, editor, 'View', ['Panels']);

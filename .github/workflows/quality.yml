@@ -708,7 +708,10 @@ jobs:
           path: .wrangler/browser-products/framescaper-source-maps
 
       - name: Run Firefox workflows against the existing build
-        run: npm run test:browser:built -- --project=firefox --shard=${{ matrix.shard }}/4
+        # A second Firefox content process can starve the live AudioContext even
+        # after the PulseAudio clock probe passes. The four shard runners still
+        # keep the suite parallel without competing for one runner's audio clock.
+        run: npm run test:browser:built -- --project=firefox --shard=${{ matrix.shard }}/4 --workers=1
 
       - name: Upload Firefox diagnostics
         if: always()
