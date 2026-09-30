@@ -12,8 +12,10 @@ export function createHash(algorithm: string): Readonly<{
 }> {
 	if (algorithm !== 'sha256') throw new TypeError('The sandbox preload supports only SHA-256')
 	const chunks: Uint8Array[] = []
+	let finalized = false
 	const hash = {
 		update(value: HashInput) {
+			if (finalized) throw new Error('The sandbox SHA-256 hash is already finalized')
 			chunks.push(bytes(value))
 			return hash
 		},
@@ -21,6 +23,8 @@ export function createHash(algorithm: string): Readonly<{
 			if (encoding !== 'hex') {
 				throw new TypeError('The sandbox preload supports only hexadecimal digests')
 			}
+			if (finalized) throw new Error('The sandbox SHA-256 hash is already finalized')
+			finalized = true
 			const length = chunks.reduce((total, chunk) => total + chunk.byteLength, 0)
 			const input = new Uint8Array(length)
 			let offset = 0
