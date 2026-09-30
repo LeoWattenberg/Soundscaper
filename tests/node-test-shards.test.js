@@ -143,8 +143,8 @@ test('the real-time desktop protocol probe runs outside the parallel Node batch'
 	const ordinaryLast = '/repository/tests/ordinary-last.test.ts';
 	assert.deepEqual(
 		partitionNodeTestExecutionBatches([ordinaryFirst, realTime, ordinaryLast]),
-		[[ordinaryFirst, ordinaryLast], [realTime]],
-		'a saturated parallel suite must not turn scheduler starvation into an audio-protocol failure',
+		[[realTime], [ordinaryFirst, ordinaryLast]],
+		'a saturated parallel suite must not leave scheduler pressure behind for the audio-protocol probe',
 	);
 	assert.deepEqual(partitionNodeTestExecutionBatches([realTime]), [[realTime]]);
 
@@ -157,7 +157,7 @@ test('the real-time desktop protocol probe runs outside the parallel Node batch'
 	const selected = selectNodeTestFiles(ROOT, { shard });
 	const batches = partitionNodeTestExecutionBatches(selected);
 	assert.deepEqual(batches.flat().sort(), [...selected].sort(), 'batching must retain every selected test exactly once');
-	assert.deepEqual(batches.at(-1), discovered, 'the discovered real-time protocol probe must be the final singleton');
+	assert.deepEqual(batches[0], discovered, 'the discovered real-time protocol probe must be the first singleton');
 });
 
 for (const workflowName of SHARDED_WORKFLOWS) {

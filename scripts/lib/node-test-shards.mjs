@@ -84,9 +84,11 @@ export function partitionNodeTestExecutionBatches(testFiles) {
 	for (const testFile of testFiles) {
 		(ISOLATED_NODE_TEST_NAMES.has(basename(testFile)) ? isolated : parallel).push(testFile);
 	}
+	// Start real-time probes on the clean runner. A completed high-concurrency
+	// batch can leave short-lived child-process and scheduler pressure behind.
 	return [
-		...(parallel.length > 0 ? [parallel] : []),
 		...isolated.map((testFile) => [testFile]),
+		...(parallel.length > 0 ? [parallel] : []),
 	];
 }
 
