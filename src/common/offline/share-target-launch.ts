@@ -104,6 +104,10 @@ interface SharedFileEntry {
 	readonly byteLength: number;
 }
 
+type SharedFileBodyMatch =
+	| Readonly<{ response: Response | undefined }>
+	| Readonly<{ error: unknown }>;
+
 /**
  * Takes the share this document was opened by, if it was opened by one.
  *
@@ -147,57 +151,157 @@ async function collectStashedFiles(
 	onError: (error: unknown) => void,
 ): Promise<SharedFilesCollection> {
 	const cache = await cacheStorage.open(SHARED_FILES_CACHE_NAME);
-	const response = await cache.match(sharedFilesManifestUrl(token));
+	const manifestUrl = sharedFilesManifestUrl(token);
+	const response = await cache.match(manifestUrl);
 	if (!response) return collection('missing');
 	const entries = sharedFilesManifest(await parsedJson(response));
+	// Acquire body Responses while the manifest still identifies their cache
+	// keys. A service-worker prune may run in another context as soon as the
+	// manifest is claimed, but deleting cache entries cannot invalidate Responses
+	// this document already holds.
+	const bodyMatches = entries === null
+		? []
+		: await matchStashedFileBodies(cache, token, entries.length);
+	// Cache deletion is the one atomic claim the Cache API gives us. Two tabs
+	// may both acquire Responses, but only the one whose deletion succeeds may
+	// read and deliver them.
+	let claimed: boolean;
+	try {
+		claimed = await cache.delete(manifestUrl);
+	} catch (error) {
+		await cancelStashedFileBodies(bodyMatches, error);
+		throw error;
+	}
+	if (!claimed) {
+		await cancelStashedFileBodies(bodyMatches, new Error('Another document claimed the shared files.'));
+		return collection('missing');
+	}
 	if (entries === null) {
 		// A manifest that cannot be read still names a stash that must not be
 		// left behind, so the whole index range is swept.
-		await deleteSharedFileStash(cache, token, 0);
+		await deleteSharedFileBodies(cache, token, 0);
 		return collection('unreadable');
 	}
 	let files: File[];
 	try {
-		files = await readStashedFiles(cache, token, entries, onError);
+		files = await readStashedFiles(bodyMatches, entries, onError);
 	} finally {
-		await deleteSharedFileStash(cache, token, entries.length);
+		try {
+			await deleteSharedFileBodies(cache, token, entries.length);
+		} catch (error) {
+			reportError(onError, error);
+		}
 	}
 	if (files.length === 0) return collection('missing');
 	await deliverLaunchedFiles(files, options.deliver);
 	return collection('collected', files);
 }
 
-async function readStashedFiles(
+async function matchStashedFileBodies(
 	cache: SharedFileStashCache,
 	token: string,
+	count: number,
+): Promise<readonly SharedFileBodyMatch[]> {
+	return Promise.all(Array.from({ length: count }, async (_unused, index): Promise<SharedFileBodyMatch> => {
+		try {
+			return { response: await cache.match(sharedFilesBodyUrl(token, index)) };
+		} catch (error) {
+			return { error };
+		}
+	}));
+}
+
+async function cancelStashedFileBodies(
+	matches: readonly SharedFileBodyMatch[],
+	reason: unknown,
+): Promise<void> {
+	await Promise.all(matches.map(async (match) => {
+		if ('error' in match) return;
+		await match.response?.body?.cancel(reason).catch(() => undefined);
+	}));
+}
+
+async function readStashedFiles(
+	matches: readonly SharedFileBodyMatch[],
 	entries: readonly SharedFileEntry[],
 	onError: (error: unknown) => void,
 ): Promise<File[]> {
 	const files: File[] = [];
-	for (let index = 0; index < entries.length; index += 1) {
-		const entry = entries[index];
-		const response = await cache.match(sharedFilesBodyUrl(token, index));
-		if (!response) {
-			reportError(onError, new Error(`A shared file was missing from the handoff: ${entry.name}`));
-			continue;
+	const budget = { consumedBytes: 0 };
+	let nextUnreadIndex = 0;
+	try {
+		for (let index = 0; index < entries.length; index += 1) {
+			const entry = entries[index];
+			const match = matches[index];
+			nextUnreadIndex = index + 1;
+			if ('error' in match) throw match.error;
+			const response = match.response;
+			if (!response) {
+				reportError(onError, new Error(`A shared file was missing from the handoff: ${entry.name}`));
+				continue;
+			}
+			const body = await readStashedFileBody(response, entry.byteLength, budget);
+			if (body === null) {
+				reportError(onError, new Error(`A shared file was truncated in the handoff: ${entry.name}`));
+				continue;
+			}
+			files.push(new File([body], entry.name, { type: entry.type }));
 		}
-		const body = await response.blob();
-		if (body.size !== entry.byteLength) {
-			reportError(onError, new Error(`A shared file was truncated in the handoff: ${entry.name}`));
-			continue;
-		}
-		files.push(new File([body], entry.name, { type: entry.type }));
+	} catch (error) {
+		await cancelStashedFileBodies(matches.slice(nextUnreadIndex), error);
+		throw error;
 	}
 	return files;
 }
 
-/**
- * One stash removed.
- *
- * The manifest goes first, so a second collection of the same token finds
- * nothing rather than a manifest whose bodies are already gone.
- */
-async function deleteSharedFileStash(
+async function readStashedFileBody(
+	response: Response,
+	expectedBytes: number,
+	budget: { consumedBytes: number },
+): Promise<Blob | null> {
+	if (!response.body) return expectedBytes === 0 ? new Blob() : null;
+	const reader = response.body.getReader();
+	const chunks: ArrayBuffer[] = [];
+	let byteLength = 0;
+	let cancelled = false;
+	const cancel = async (reason: unknown): Promise<void> => {
+		if (cancelled) return;
+		cancelled = true;
+		await reader.cancel(reason).catch(() => undefined);
+	};
+	try {
+		while (true) {
+			const { done, value } = await reader.read();
+			if (done) break;
+			if (!(value instanceof Uint8Array) || value.byteLength === 0) {
+				throw new TypeError('A shared file returned an invalid body chunk.');
+			}
+			if (value.byteLength > SHARED_FILES_LIMITS.maximumBytes - budget.consumedBytes) {
+				const error = new RangeError('Shared-file handoff bodies exceed their actual byte limit.');
+				await cancel(error);
+				throw error;
+			}
+			budget.consumedBytes += value.byteLength;
+			if (value.byteLength > expectedBytes - byteLength) {
+				await cancel('Shared-file body exceeded its declared byte length.');
+				return null;
+			}
+			byteLength += value.byteLength;
+			const owned = new Uint8Array(value.byteLength);
+			owned.set(value);
+			chunks.push(owned.buffer);
+		}
+	} catch (error) {
+		await cancel(error);
+		throw error;
+	} finally {
+		reader.releaseLock();
+	}
+	return byteLength === expectedBytes ? new Blob(chunks) : null;
+}
+
+/** Remove every body named by a claimed manifest, or sweep the full range when it was unreadable. */
+async function deleteSharedFileBodies(
 	cache: SharedFileStashCache,
 	token: string,
 	count: number,
@@ -205,8 +309,17 @@ async function deleteSharedFileStash(
 	const total = Number.isSafeInteger(count) && count > 0
 		? Math.min(count, SHARED_FILES_LIMITS.maximumFiles)
 		: SHARED_FILES_LIMITS.maximumFiles;
-	await cache.delete(sharedFilesManifestUrl(token));
-	for (let index = 0; index < total; index += 1) await cache.delete(sharedFilesBodyUrl(token, index));
+	let firstFailure: unknown;
+	let failed = false;
+	for (let index = 0; index < total; index += 1) {
+		try {
+			await cache.delete(sharedFilesBodyUrl(token, index));
+		} catch (error) {
+			if (!failed) firstFailure = error;
+			failed = true;
+		}
+	}
+	if (failed) throw firstFailure;
 }
 
 function sharedFilesManifest(value: unknown): readonly SharedFileEntry[] | null {

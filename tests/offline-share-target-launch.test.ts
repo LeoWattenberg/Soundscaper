@@ -190,6 +190,19 @@ test('the files the worker stashed are collected, delivered and cleaned up', asy
 	assert.deepEqual(collected.errors, []);
 });
 
+test('an empty file survives the worker-to-document share handoff', async (t) => {
+	const cacheStorage = new ShareCacheStorage();
+	const token = await stashShare(cacheStorage, [new File([], 'Empty.wav', { type: 'audio/wav' })]);
+
+	const collected = await collect(t, { href: `${ORIGIN}/en/?share=${token}`, caches: cacheStorage });
+
+	assert.equal(collected.result.status, 'collected');
+	assert.deepEqual(names(collected.result.files), ['Empty.wav']);
+	assert.equal(collected.result.files[0]?.size, 0);
+	assert.equal(collected.result.files[0]?.type, 'audio/wav');
+	assert.deepEqual([...cacheStorage.shareCache().entries.keys()], []);
+});
+
 test('a collected share cannot be replayed from the same address', async (t) => {
 	const cacheStorage = new ShareCacheStorage();
 	const token = await stashShare(cacheStorage, [mediaFile('Take.wav', 'shared')]);
@@ -215,6 +228,51 @@ test('collecting one share leaves a second one still pending', async (t) => {
 	assert.deepEqual(names(collected.result.files), ['First.wav']);
 	assert.deepEqual(names(later.result.files), ['Second.wav'], 'the other share was not swept with the first');
 	assert.deepEqual([...cacheStorage.shareCache().entries.keys()], []);
+});
+
+test('a claimant keeps every body while a new worker submission prunes its manifestless stash', async () => {
+	const cacheStorage = new ShareCacheStorage();
+	const token = await stashShare(cacheStorage, [
+		mediaFile('First.wav', 'first body'),
+		mediaFile('Second.wav', 'second body'),
+	], 0x33);
+	const cache = await cacheStorage.open(SHARED_FILES_CACHE_NAME);
+	let releaseBody!: () => void;
+	let bodyReadStarted!: () => void;
+	const release = new Promise<void>((resolve) => { releaseBody = resolve; });
+	const started = new Promise<void>((resolve) => { bodyReadStarted = resolve; });
+	const gatedCache = {
+		match: async (url: string): Promise<Response | undefined> => {
+			const response = await cache.match(url);
+			if (!response || url !== sharedFilesBodyUrl(token, 0)) return response;
+			const bytes = new Uint8Array(await response.arrayBuffer());
+			return new Response(new ReadableStream<Uint8Array>({
+				async pull(controller) {
+					bodyReadStarted();
+					await release;
+					controller.enqueue(bytes);
+					controller.close();
+				},
+			}));
+		},
+		delete: (url: string): Promise<boolean> => cache.delete(url),
+	};
+	const deliveries: LaunchedFiles[] = [];
+	const collection = collectSharedFiles({
+		href: `${ORIGIN}/en/?share=${token}`,
+		caches: { open: async () => gatedCache },
+		deliver: (launch) => { deliveries.push(launch); },
+		replaceAddress: () => undefined,
+	});
+	await started;
+	const laterToken = await stashShare(cacheStorage, [mediaFile('Later.wav', 'later')], 0x44);
+	releaseBody();
+
+	const result = await collection;
+	assert.equal(result.status, 'collected');
+	assert.deepEqual(names(result.files), ['First.wav', 'Second.wav']);
+	assert.deepEqual(deliveries.map(({ files }) => names(files)), [['First.wav', 'Second.wav']]);
+	assert.ok(cache.entries.has(sharedFilesManifestUrl(laterToken)), 'the later share remains pending');
 });
 
 test('a token the worker never wrote collects nothing', async (t) => {
@@ -251,17 +309,17 @@ test('a stash whose manifest cannot be read is swept rather than trusted', async
 	assert.deepEqual(collected.launches, []);
 });
 
-test('a forged manifest cannot make the document read beyond the worker byte limit', async (t) => {
+test('a forged manifest cannot exceed the worker aggregate byte limit', async (t) => {
 	const cacheStorage = new ShareCacheStorage();
 	const token = 'e'.repeat(32);
 	const cache = await cacheStorage.open(SHARED_FILES_CACHE_NAME);
+	const halfLimit = SHARED_FILES_LIMITS.maximumBytes / 2;
 	await cache.put(sharedFilesManifestUrl(token), new Response(JSON.stringify({
 		schemaVersion: 1,
-		files: [{
-			name: 'oversized.wav',
-			type: 'audio/wav',
-			byteLength: sharedFilesLimits().maximumBytes + 1,
-		}],
+		files: [
+			{ name: 'first.wav', type: 'audio/wav', byteLength: halfLimit + 1 },
+			{ name: 'second.wav', type: 'audio/wav', byteLength: halfLimit },
+		],
 	})));
 
 	const collected = await collect(t, { href: `${ORIGIN}/en/?share=${token}`, caches: cacheStorage });
@@ -285,7 +343,7 @@ test('a body read failure still consumes and deletes the one-time stash', async 
 		match: async (url: string): Promise<Response | undefined> => (
 			url === sharedFilesManifestUrl(token)
 				? manifest.clone()
-				: { blob: async () => { throw failure; } } as unknown as Response
+				: { body: new ReadableStream({ pull: () => { throw failure; } }) } as unknown as Response
 		),
 		delete: async (url: string): Promise<boolean> => { deleted.push(url); return true; },
 	};
