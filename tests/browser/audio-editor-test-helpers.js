@@ -25,6 +25,7 @@ export { closeWorkspacePanel, dockWorkspacePanel, openWorkspacePanelMenu, worksp
 export {
 	effectSourceMetadata,
 	effectSourcePeak,
+	projectTimelineSourceNames,
 	sourcePeakChannels,
 } from './helpers/stored-source-probes.js';
 export {

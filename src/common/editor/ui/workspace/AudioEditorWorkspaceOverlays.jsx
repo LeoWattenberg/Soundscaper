@@ -10,8 +10,8 @@ import LocalProcessingOverlays from './LocalProcessingOverlays.tsx';
 import { resolveSoundscaperMasteringSequenceCopy } from '../soundscaper-workflow-product-runtime.tsx';
 import { lazyEditorModule } from '../../../offline/lazy-module.tsx';
 import EditorSurfaceBoundary from '../EditorSurfaceBoundary.jsx';
+import WorkspaceEffectWindows from './WorkspaceEffectWindows.tsx';
 
-const AudioEditorEffectsOverlay = lazyEditorModule(() => import('../inspector/AudioEditorEffectsOverlay.jsx'));
 const AudioEditorMacroManagerDialog = lazyEditorModule(() => import('../inspector/AudioEditorMacroManagerDialog.jsx'));
 const SOUNDSCAPER_BUILD = typeof __SCAPE_PRODUCT__ === 'undefined'
 	|| __SCAPE_PRODUCT__ === 'soundscaper';
@@ -72,7 +72,7 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 		displayAudioSupported,
 		dialogTrackId,
 		dialogValue,
-		effectWindow,
+		effectWindows,
 		editBlocked,
 		fileService,
 		generatorType,
@@ -88,7 +88,7 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 		setActiveSurface,
 		setDialog,
 		setDialogValue,
-		setEffectWindow,
+		closeEffectWindow,
 		setMacroDraft,
 		selectedMediaPreparation,
 		settleScapeOpenDecision,
@@ -174,26 +174,11 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 					</React.Suspense>
 				</div>
 			)}
-			{capabilities.audioEffects && effectWindow && (
-				<div data-effects-window-host>
-					<React.Suspense fallback={null}>
-						<AudioEditorEffectsOverlay
-							isOpen
-							controller={controller}
-							snapshot={snapshot}
-							copy={copy}
-							fileService={fileService}
-							trackId={effectWindow.trackId}
-							scope={effectWindow.scope}
-							selectedEffect={effectWindow.selectedEffect}
-							onSelectedEffectChange={(selectedEffect) => setEffectWindow(selectedEffect
-								? { ...effectWindow, selectedEffect }
-								: null)}
-							renderRack={false}
-						/>
-					</React.Suspense>
-				</div>
-			)}
+			{capabilities.audioEffects && <WorkspaceEffectWindows
+				windows={effectWindows} close={closeEffectWindow}
+				controller={controller} snapshot={snapshot} copy={copy}
+				fileService={fileService} locale={locale}
+			/>}
 
 			{activeSurface === 'clip' && (
 				<div data-editor-surface="clip">
