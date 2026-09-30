@@ -2214,6 +2214,10 @@
 				{
 					"kind": "audit",
 					"path": "scripts/audit-nyquist-wasm.mjs"
+				},
+				{
+					"kind": "implementation",
+					"path": "scripts/lib/wasm-binary-inspection.mjs"
 				}
 			]
 		},
@@ -2573,6 +2577,10 @@
 				{
 					"kind": "audit",
 					"path": "scripts/audit-nyquist-wasm.mjs"
+				},
+				{
+					"kind": "implementation",
+					"path": "scripts/lib/wasm-binary-inspection.mjs"
 				},
 				{
 					"kind": "test",
@@ -5821,6 +5829,22 @@
 						{
 							"kind": "implementation",
 							"path": "desktop/native-services-checkpoint-recovery-core.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "desktop/bounded-regular-file.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "desktop/native-services-checkpoint-manifest-file.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/desktop-bounded-regular-file.test.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/desktop-native-services-checkpoint-admission.test.ts"
 						},
 						{
 							"kind": "implementation",
@@ -10467,6 +10491,10 @@
 						{
 							"kind": "audit",
 							"path": "scripts/audit-nyquist-wasm.mjs"
+						},
+						{
+							"kind": "implementation",
+							"path": "scripts/lib/wasm-binary-inspection.mjs"
 						}
 					],
 					"policyAuthority": "family-v1-active"
@@ -10926,6 +10954,14 @@
 							"path": "desktop/native-media-execution.ts"
 						},
 						{
+							"kind": "implementation",
+							"path": "desktop/helper-worker-lifecycle.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/desktop-helper-worker-lifecycle.test.ts"
+						},
+						{
 							"kind": "document",
 							"path": "config/assistance-native-runtime-manifest.json"
 						},
@@ -11195,6 +11231,10 @@
 						{
 							"kind": "audit",
 							"path": "scripts/audit-twolame-wasm.mjs"
+						},
+						{
+							"kind": "implementation",
+							"path": "scripts/lib/wasm-binary-inspection.mjs"
 						},
 						{
 							"kind": "implementation",
@@ -13877,6 +13917,10 @@
 						{
 							"kind": "audit",
 							"path": "scripts/audit-staffpad-wasm.mjs"
+						},
+						{
+							"kind": "implementation",
+							"path": "scripts/lib/wasm-binary-inspection.mjs"
 						}
 					],
 					"policyAuthority": "family-v1-active"
@@ -14120,6 +14164,14 @@
 						},
 						{
 							"kind": "implementation",
+							"path": "scripts/lib/wasm-binary-inspection.mjs"
+						},
+						{
+							"kind": "test",
+							"path": "tests/wasm-binary-inspection.test.js"
+						},
+						{
+							"kind": "implementation",
 							"path": "src/common/editor/browser-dedicated-audio-codec.ts"
 						},
 						{
@@ -14327,6 +14379,10 @@
 						{
 							"kind": "audit",
 							"path": "scripts/audit-twolame-wasm.mjs"
+						},
+						{
+							"kind": "implementation",
+							"path": "scripts/lib/wasm-binary-inspection.mjs"
 						},
 						{
 							"kind": "implementation",

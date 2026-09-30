@@ -403,7 +403,7 @@
 			"id": "staffpad-wasm",
 			"status": "documented",
 			"artifactSurfaces": ["web-pages-bundle", "electron-renderer"],
-			"evidence": ["src/common/editor/staffpad/source-manifest.json", "src/common/editor/staffpad/NOTICE.md", "scripts/audit-staffpad-wasm.mjs"]
+			"evidence": ["src/common/editor/staffpad/source-manifest.json", "src/common/editor/staffpad/NOTICE.md", "scripts/audit-staffpad-wasm.mjs", "scripts/lib/wasm-binary-inspection.mjs"]
 		},
 		{
 			"id": "nyquist-wasm-and-plugins",
@@ -415,7 +415,7 @@
 			"id": "parametric-eq-wasm",
 			"status": "documented",
 			"artifactSurfaces": ["web-pages-bundle", "electron-renderer"],
-			"evidence": ["src/common/editor/parametric-eq/source-manifest.json", "src/common/editor/parametric-eq/NOTICE.md", "scripts/audit-parametric-eq-wasm.mjs"]
+			"evidence": ["src/common/editor/parametric-eq/source-manifest.json", "src/common/editor/parametric-eq/NOTICE.md", "scripts/audit-parametric-eq-wasm.mjs", "scripts/lib/wasm-binary-inspection.mjs"]
 		},
 		{
 			"id": "flac-1-5-0-desktop-wasm",
@@ -429,7 +429,7 @@
 			"providerRole": "soundscaper-bundled-flac-signed-24-bit-encode-decode",
 			"targets": ["linux-x64", "linux-arm64", "mac-arm64", "win-x64", "win-arm64"],
 			"verification": "Exact reviewed memory-only libFLAC slice with bounded parsing and startup canary. No patent-clearance or non-infringement claim is made.",
-			"evidence": ["src/common/editor/flac/source-manifest.json", "src/common/editor/flac/NOTICE.md", "scripts/audit-flac-wasm.mjs", "scripts/lib/desktop-bundled-flac-runtime.mjs", "desktop/bundled-flac-audio-codec-runtime.ts", "desktop/bundled-flac-stream.ts", "tests/desktop-bundled-flac-audio-codec-runtime.test.ts", "tests/desktop-bundled-flac-wasm.test.js", "tests/desktop-audio-codec-runtime-staging.test.js", "THIRD_PARTY_LICENSES.md"]
+			"evidence": ["src/common/editor/flac/source-manifest.json", "src/common/editor/flac/NOTICE.md", "scripts/audit-flac-wasm.mjs", "scripts/lib/wasm-binary-inspection.mjs", "scripts/lib/desktop-bundled-flac-runtime.mjs", "desktop/bundled-flac-audio-codec-runtime.ts", "desktop/bundled-flac-stream.ts", "tests/desktop-bundled-flac-audio-codec-runtime.test.ts", "tests/desktop-bundled-flac-wasm.test.js", "tests/desktop-audio-codec-runtime-staging.test.js", "THIRD_PARTY_LICENSES.md"]
 		},
 		{
 			"id": "opus-1-6-1-ogg-1-3-6-desktop-wasm",
@@ -443,7 +443,7 @@
 			"providerRole": "soundscaper-bundled-ogg-opus-48khz-mono-stereo-encode-decode",
 			"targets": ["linux-x64", "linux-arm64", "mac-arm64", "win-x64", "win-arm64"],
 			"verification": "Exact reviewed memory-only libopus/libogg slice with bounded Ogg parsing and startup canary. No patent-clearance or non-infringement claim is made.",
-			"evidence": ["src/common/editor/opus/source-manifest.json", "src/common/editor/opus/NOTICE.md", "scripts/audit-opus-wasm.mjs", "scripts/lib/desktop-bundled-opus-runtime.mjs", "desktop/bundled-opus-audio-codec-runtime.ts", "desktop/bundled-opus-stream.ts", "tests/desktop-bundled-opus-audio-codec-runtime.test.ts", "tests/desktop-bundled-opus-stream.test.ts", "tests/desktop-bundled-opus-wasm.test.js", "tests/desktop-audio-codec-runtime-staging.test.js", "THIRD_PARTY_LICENSES.md"]
+			"evidence": ["src/common/editor/opus/source-manifest.json", "src/common/editor/opus/NOTICE.md", "scripts/audit-opus-wasm.mjs", "scripts/lib/wasm-binary-inspection.mjs", "scripts/lib/desktop-bundled-opus-runtime.mjs", "desktop/bundled-opus-audio-codec-runtime.ts", "desktop/bundled-opus-stream.ts", "tests/desktop-bundled-opus-audio-codec-runtime.test.ts", "tests/desktop-bundled-opus-stream.test.ts", "tests/desktop-bundled-opus-wasm.test.js", "tests/desktop-audio-codec-runtime-staging.test.js", "THIRD_PARTY_LICENSES.md"]
 		},
 		{
 			"id": "vorbis-1-3-7-ogg-1-3-6-desktop-wasm",
@@ -457,7 +457,7 @@
 			"providerRole": "soundscaper-bundled-ogg-vorbis-mono-stereo-encode-decode",
 			"targets": ["linux-x64", "linux-arm64", "mac-arm64", "win-x64", "win-arm64"],
 			"verification": "Exact reviewed memory-only libvorbis/libogg slice with bounded Ogg parsing and startup canary. No patent-clearance or non-infringement claim is made.",
-			"evidence": ["src/common/editor/vorbis/source-manifest.json", "src/common/editor/vorbis/NOTICE.md", "scripts/audit-vorbis-wasm.mjs", "scripts/lib/desktop-bundled-vorbis-runtime.mjs", "desktop/bundled-vorbis-audio-codec-runtime.ts", "desktop/bundled-vorbis-stream.ts", "tests/desktop-bundled-vorbis-audio-codec-runtime.test.ts", "tests/desktop-bundled-vorbis-stream.test.ts", "tests/desktop-bundled-vorbis-wasm.test.js", "tests/desktop-audio-codec-runtime-staging.test.js", "THIRD_PARTY_LICENSES.md"]
+			"evidence": ["src/common/editor/vorbis/source-manifest.json", "src/common/editor/vorbis/NOTICE.md", "scripts/audit-vorbis-wasm.mjs", "scripts/lib/wasm-binary-inspection.mjs", "scripts/lib/desktop-bundled-vorbis-runtime.mjs", "desktop/bundled-vorbis-audio-codec-runtime.ts", "desktop/bundled-vorbis-stream.ts", "tests/desktop-bundled-vorbis-audio-codec-runtime.test.ts", "tests/desktop-bundled-vorbis-stream.test.ts", "tests/desktop-bundled-vorbis-wasm.test.js", "tests/desktop-audio-codec-runtime-staging.test.js", "THIRD_PARTY_LICENSES.md"]
 		},
 		{
 			"id": "mpg123-1-33-7-desktop-wasm",
@@ -471,7 +471,7 @@
 			"providerRole": "soundscaper-bundled-mpeg1-layer2-layer3-feed-decoder",
 			"targets": ["linux-x64", "linux-arm64", "mac-arm64", "win-x64", "win-arm64"],
 			"verification": "Exact reviewed feed-only MPEG-1 Layer II/III decoder slice with bounded stream authority and startup canary. No patent-clearance or non-infringement claim is made.",
-			"evidence": ["src/common/editor/mpg123/source-manifest.json", "src/common/editor/mpg123/NOTICE.md", "scripts/audit-mpg123-wasm.mjs", "scripts/lib/desktop-bundled-mpg123-runtime.mjs", "desktop/bundled-mpg123-audio-codec-runtime.ts", "desktop/bundled-mpeg-audio-stream.ts", "tests/desktop-bundled-mpg123-audio-codec-runtime.test.ts", "tests/desktop-bundled-mpg123-wasm.test.js", "tests/desktop-audio-codec-runtime-staging.test.js", "THIRD_PARTY_LICENSES.md"]
+			"evidence": ["src/common/editor/mpg123/source-manifest.json", "src/common/editor/mpg123/NOTICE.md", "scripts/audit-mpg123-wasm.mjs", "scripts/lib/wasm-binary-inspection.mjs", "scripts/lib/desktop-bundled-mpg123-runtime.mjs", "desktop/bundled-mpg123-audio-codec-runtime.ts", "desktop/bundled-mpeg-audio-stream.ts", "tests/desktop-bundled-mpg123-audio-codec-runtime.test.ts", "tests/desktop-bundled-mpg123-wasm.test.js", "tests/desktop-audio-codec-runtime-staging.test.js", "THIRD_PARTY_LICENSES.md"]
 		},
 		{
 			"id": "lame-4-0-desktop-wasm",
@@ -485,7 +485,7 @@
 			"providerRole": "soundscaper-bundled-mpeg1-layer3-cbr-encoder",
 			"targets": ["linux-x64", "linux-arm64", "mac-arm64", "win-x64", "win-arm64"],
 			"verification": "Exact reviewed encoder-only MPEG-1 Layer III slice in constant, average, variable, and preset bit-rate modes, with output parsing, gapless-tag validation, and startup canary. No patent-clearance or non-infringement claim is made.",
-			"evidence": ["src/common/editor/lame/source-manifest.json", "src/common/editor/lame/NOTICE.md", "scripts/audit-lame-wasm.mjs", "scripts/lib/desktop-bundled-lame-runtime.mjs", "desktop/bundled-lame-audio-codec-runtime.ts", "desktop/bundled-mpeg-audio-stream.ts", "tests/desktop-bundled-lame-audio-codec-runtime.test.ts", "tests/desktop-bundled-lame-wasm.test.js", "tests/desktop-audio-codec-runtime-staging.test.js", "THIRD_PARTY_LICENSES.md"]
+			"evidence": ["src/common/editor/lame/source-manifest.json", "src/common/editor/lame/NOTICE.md", "scripts/audit-lame-wasm.mjs", "scripts/lib/wasm-binary-inspection.mjs", "scripts/lib/desktop-bundled-lame-runtime.mjs", "desktop/bundled-lame-audio-codec-runtime.ts", "desktop/bundled-mpeg-audio-stream.ts", "tests/desktop-bundled-lame-audio-codec-runtime.test.ts", "tests/desktop-bundled-lame-wasm.test.js", "tests/desktop-audio-codec-runtime-staging.test.js", "THIRD_PARTY_LICENSES.md"]
 		},
 		{
 			"id": "twolame-0-4-0-desktop-wasm",
@@ -499,7 +499,7 @@
 			"providerRole": "soundscaper-bundled-mpeg1-layer2-cbr-encoder",
 			"targets": ["linux-x64", "linux-arm64", "mac-arm64", "win-x64", "win-arm64"],
 			"verification": "Exact reviewed encoder-only MPEG-1 Layer II CBR slice with output parsing and startup canary. No patent-clearance or non-infringement claim is made.",
-			"evidence": ["src/common/editor/twolame/source-manifest.json", "src/common/editor/twolame/NOTICE.md", "scripts/audit-twolame-wasm.mjs", "scripts/lib/desktop-bundled-twolame-runtime.mjs", "desktop/bundled-twolame-audio-codec-runtime.ts", "desktop/bundled-mpeg-audio-stream.ts", "tests/desktop-bundled-twolame-audio-codec-runtime.test.ts", "tests/desktop-bundled-twolame-wasm.test.js", "tests/desktop-audio-codec-runtime-staging.test.js", "THIRD_PARTY_LICENSES.md"]
+			"evidence": ["src/common/editor/twolame/source-manifest.json", "src/common/editor/twolame/NOTICE.md", "scripts/audit-twolame-wasm.mjs", "scripts/lib/wasm-binary-inspection.mjs", "scripts/lib/desktop-bundled-twolame-runtime.mjs", "desktop/bundled-twolame-audio-codec-runtime.ts", "desktop/bundled-mpeg-audio-stream.ts", "tests/desktop-bundled-twolame-audio-codec-runtime.test.ts", "tests/desktop-bundled-twolame-wasm.test.js", "tests/desktop-audio-codec-runtime-staging.test.js", "THIRD_PARTY_LICENSES.md"]
 		},
 		{
 			"id": "wavpack-wasm",
@@ -514,7 +514,7 @@
 			"compressionLevel": 2,
 			"targets": ["linux-x64", "linux-arm64", "mac-arm64", "win-x64", "win-arm64"],
 			"verification": "Exact reviewed float32 WavPack encode/decode slice with strict bounded parsing, startup canary, and a narrow stock WavPack 5.9.0 decoder witness. No patent-clearance or non-infringement claim is made.",
-			"evidence": ["src/common/editor/wavpack/source-manifest.json", "src/common/editor/wavpack/NOTICE.md", "src/common/editor/desktop-wavpack-codec-profile.ts", "src/common/editor/controller/export/internal/desktop-audio-export-capability.ts", "scripts/audit-wavpack-wasm.mjs", "scripts/lib/desktop-bundled-wavpack-runtime.mjs", "desktop/bundled-wavpack-audio-codec-runtime.ts", "desktop/bundled-wavpack-stream.ts", "desktop/desktop-audio-codec-registration.mjs", "tests/audio-editor-wavpack.test.js", "tests/audio-editor-desktop-export-capability.test.ts", "tests/audio-editor-desktop-export-codec-model.test.ts", "tests/audio-editor-desktop-export-dialog-capability.test.js", "tests/desktop-bundled-wavpack-audio-codec-runtime.test.ts", "tests/desktop-audio-codec-runtime-staging.test.js", "docs/desktop-codec-provider-plan.md", "THIRD_PARTY_LICENSES.md"]
+			"evidence": ["src/common/editor/wavpack/source-manifest.json", "src/common/editor/wavpack/NOTICE.md", "src/common/editor/desktop-wavpack-codec-profile.ts", "src/common/editor/controller/export/internal/desktop-audio-export-capability.ts", "scripts/audit-wavpack-wasm.mjs", "scripts/lib/wasm-binary-inspection.mjs", "scripts/lib/desktop-bundled-wavpack-runtime.mjs", "desktop/bundled-wavpack-audio-codec-runtime.ts", "desktop/bundled-wavpack-stream.ts", "desktop/desktop-audio-codec-registration.mjs", "tests/audio-editor-wavpack.test.js", "tests/audio-editor-desktop-export-capability.test.ts", "tests/audio-editor-desktop-export-codec-model.test.ts", "tests/audio-editor-desktop-export-dialog-capability.test.js", "tests/desktop-bundled-wavpack-audio-codec-runtime.test.ts", "tests/desktop-audio-codec-runtime-staging.test.js", "docs/desktop-codec-provider-plan.md", "THIRD_PARTY_LICENSES.md"]
 		},
 		{
 			"id": "reviewed-effect-utility-gain-wasm",
@@ -856,6 +856,7 @@
 			"scripts/audit-mpg123-wasm.mjs",
 			"scripts/audit-lame-wasm.mjs",
 			"scripts/audit-twolame-wasm.mjs",
+			"scripts/lib/wasm-binary-inspection.mjs",
 			"scripts/lib/desktop-bundled-audio-runtime.mjs",
 			"scripts/lib/desktop-bundled-audio-codec-runtime-closure.mjs",
 			"scripts/lib/desktop-bundled-codec-notices.mjs",
