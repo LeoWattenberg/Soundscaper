@@ -29,14 +29,14 @@ test('case 01: planar Float32 conversion rejects a zero channel count', () => {
 
 test('case 02: planar Float32 conversion rejects a fractional frame offset', () => {
 	assert.throws(
-		() => planarFloat32Chunk(words([1]), 0.5, 1, 1),
+		() => planarFloat32Chunk(words([1, 2]), 0.5, 1, 1),
 		/invalid interleaved Float32 PCM geometry/iu,
 	);
 });
 
-test('case 03: planar Float32 conversion rejects a negative frame count', () => {
+test('case 03: planar Float32 conversion rejects a noncanonical negative-zero frame count', () => {
 	assert.throws(
-		() => planarFloat32Chunk(words([1]), 0, -1, 1),
+		() => planarFloat32Chunk(words([1]), 0, -0, 1),
 		/invalid interleaved Float32 PCM geometry/iu,
 	);
 });

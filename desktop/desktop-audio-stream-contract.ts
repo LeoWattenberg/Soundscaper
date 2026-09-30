@@ -44,12 +44,9 @@ export function normalizeDesktopAudioStreamCommand(value: unknown): DesktopAudio
 	}
 	if (type === 'write') {
 		const record = audioStreamRecord(value, ['type', 'operationId', 'offset', 'bytes']);
-		if (!(record.bytes instanceof Uint8Array) || record.bytes.byteLength < 1
-			|| record.bytes.byteLength > DESKTOP_AUDIO_STREAM_MAXIMUM_PACKET_BYTES) {
-			throw new RangeError('Desktop streaming audio packet exceeds its bound.');
-		}
+		const bytes = audioStreamPacket(record.bytes);
 		return Object.freeze({ type, operationId: audioStreamOperationId(record.operationId),
-			offset: audioStreamInteger(record.offset, 0, DESKTOP_AUDIO_STREAM_MAXIMUM_PCM_BYTES, 'offset'), bytes: record.bytes });
+			offset: audioStreamInteger(record.offset, 0, DESKTOP_AUDIO_STREAM_MAXIMUM_PCM_BYTES, 'offset'), bytes });
 	}
 	if (type === 'read') {
 		const record = audioStreamRecord(value, ['type', 'operationId', 'offset', 'maximumBytes']);
@@ -71,6 +68,28 @@ export function audioStreamInteger(value: unknown, minimum: number, maximum: num
 	}
 	return Number(value);
 }
+
+function audioStreamPacket(value: unknown): Uint8Array {
+	if (!(value instanceof Uint8Array) || Object.getPrototypeOf(value) !== Uint8Array.prototype) {
+		throw new TypeError('Desktop streaming audio packets must be ordinary Uint8Array values.');
+	}
+	if (typeof SharedArrayBuffer === 'function' && value.buffer instanceof SharedArrayBuffer) {
+		throw new TypeError('Desktop streaming audio packets must not use shared memory.');
+	}
+	if (!(value.buffer instanceof ArrayBuffer)) {
+		throw new TypeError('Desktop streaming audio packets need ordinary backing memory.');
+	}
+	if (value.byteOffset !== 0 || value.byteLength !== value.buffer.byteLength) {
+		throw new TypeError('Desktop streaming audio packets must tightly cover their backing storage.');
+	}
+	if (value.byteLength < 1 || value.byteLength > DESKTOP_AUDIO_STREAM_MAXIMUM_PACKET_BYTES) {
+		throw new RangeError('Desktop streaming audio packet exceeds its bound.');
+	}
+	// The service may await filesystem work after admission. Own the bytes now so
+	// the renderer cannot change what is written or hashed during that interval.
+	return value.slice();
+}
+
 export function audioStreamRecord(value: unknown, fields: readonly string[]): Record<string, unknown> {
 	if (!value || typeof value !== 'object' || Array.isArray(value) || Object.getPrototypeOf(value) !== Object.prototype) {
 		throw new TypeError('Desktop streaming audio requires a plain record.');

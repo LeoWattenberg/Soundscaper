@@ -61,11 +61,18 @@ export interface NativeAddonPayloadLocation {
 
 interface ManifestTarget {
 	readonly id: string;
-	readonly status: string;
-	readonly blockedBy: string | null;
+	readonly status: 'built' | 'ci-generated';
 	readonly toolchainIdentity: string | null;
 	readonly payload: Readonly<{ path: string; byteLength: number; sha256: string }> | null;
 }
+
+interface NativeAddonManifest {
+	readonly addon: Readonly<{ version: string; napiVersion: number; payloadName: string }>;
+	readonly targets: readonly ManifestTarget[];
+}
+
+const SHA256 = /^[a-f0-9]{64}$/u;
+const NATIVE_ADDON_TARGET_IDS = new Set<string>(Object.values(NATIVE_ADDON_RUNTIME_TARGETS));
 
 export function nativeAddonTargetFor(platform: string, architecture: string): NativeAddonTargetId | null {
 	const key = `${platform}-${architecture}`;
@@ -90,23 +97,15 @@ export async function describeNativeAddonAvailability(
 	if (!target) {
 		return unavailable('unsupported-platform', `${platform}-${architecture} is not a claimed native helper target.`);
 	}
-	let manifest: {
-		addon: { version: string; napiVersion: number; payloadName: string };
-		targets: readonly ManifestTarget[];
-	};
+	let manifest: NativeAddonManifest;
 	try {
-		manifest = JSON.parse(String(await readFileImpl(
+		const parsed: unknown = JSON.parse(String(await readFileImpl(
 			join(location.applicationRoot, 'config/native-addon-payload-manifest.json'),
-		))) as typeof manifest;
-		// Read inside the guard, not after it: a manifest that parses but names
-		// no addon is exactly as unreadable as one that does not parse, and this
-		// function's whole contract is that it reports rather than throws.
-		if (typeof manifest?.addon?.payloadName !== 'string'
-			|| typeof manifest.addon.version !== 'string'
-			|| !Number.isSafeInteger(manifest.addon.napiVersion)
-			|| !Array.isArray(manifest.targets)) {
-			throw new TypeError('The manifest does not describe one native addon and its targets.');
-		}
+		)));
+		// Validate every path-producing and descriptor-producing field inside the
+		// typed-failure guard. A parseable manifest is still unreadable when one of
+		// those fields could escape its root or violate the public descriptor type.
+		manifest = validateNativeAddonManifest(parsed);
 	} catch (error) {
 		return unavailable('manifest-unreadable',
 			`The native addon payload manifest could not be read: ${describeError(error)}`);
@@ -167,6 +166,106 @@ export function createNativeAddonVerifier(
 
 function unavailable(reason: NativeAddonUnavailableReason, detail: string): NativeAddonAvailability {
 	return Object.freeze({ status: 'unavailable' as const, reason, detail });
+}
+
+function validateNativeAddonManifest(value: unknown): NativeAddonManifest {
+	const record = manifestRecord(value, 'manifest');
+	const addonRecord = manifestRecord(record.addon, 'addon descriptor');
+	const addon = Object.freeze({
+		version: boundedManifestText(addonRecord.version, 'addon version', 128),
+		napiVersion: positiveManifestInteger(addonRecord.napiVersion, 'N-API version'),
+		payloadName: payloadFileName(addonRecord.payloadName),
+	});
+	if (!Array.isArray(record.targets) || record.targets.length < 1
+		|| record.targets.length > NATIVE_ADDON_TARGET_IDS.size) {
+		throw new TypeError('The manifest must carry one bounded target list.');
+	}
+	const targets: ManifestTarget[] = [];
+	const seen = new Set<string>();
+	for (const candidate of record.targets) {
+		const target = validateManifestTarget(candidate, addon.payloadName);
+		if (seen.has(target.id)) throw new TypeError('The manifest repeats a native addon target.');
+		seen.add(target.id);
+		targets.push(target);
+	}
+	return Object.freeze({ addon, targets: Object.freeze(targets) });
+}
+
+function validateManifestTarget(value: unknown, payloadName: string): ManifestTarget {
+	const record = manifestRecord(value, 'target descriptor');
+	if (typeof record.id !== 'string' || !NATIVE_ADDON_TARGET_IDS.has(record.id)) {
+		throw new TypeError('The manifest names an unknown native addon target.');
+	}
+	if (record.status !== 'built' && record.status !== 'ci-generated') {
+		throw new TypeError('The manifest names an unknown native addon target status.');
+	}
+	const toolchainIdentity = record.toolchainIdentity === null
+		? null : boundedManifestText(record.toolchainIdentity, 'toolchain identity', 1_024);
+	let payload: ManifestTarget['payload'] = null;
+	if (record.payload !== null) {
+		const payloadRecord = manifestRecord(record.payload, 'payload descriptor');
+		const path = relativeManifestPath(payloadRecord.path);
+		if (path.split(/[\\/]/u).at(-1) !== payloadName) {
+			throw new TypeError('The native addon payload path and payload name do not agree.');
+		}
+		if (typeof payloadRecord.sha256 !== 'string' || !SHA256.test(payloadRecord.sha256)) {
+			throw new TypeError('The native addon payload digest is invalid.');
+		}
+		payload = Object.freeze({
+			path,
+			byteLength: positiveManifestInteger(payloadRecord.byteLength, 'payload byte length'),
+			sha256: payloadRecord.sha256,
+		});
+	}
+	if ((record.status === 'built') !== (payload !== null)) {
+		throw new TypeError('A built native addon target must carry exactly one payload descriptor.');
+	}
+	return Object.freeze({
+		id: record.id,
+		status: record.status,
+		toolchainIdentity,
+		payload,
+	});
+}
+
+function manifestRecord(value: unknown, label: string): Record<string, unknown> {
+	if (!value || typeof value !== 'object' || Array.isArray(value)
+		|| Object.getPrototypeOf(value) !== Object.prototype) {
+		throw new TypeError(`The native addon ${label} must be a plain record.`);
+	}
+	return value as Record<string, unknown>;
+}
+
+function boundedManifestText(value: unknown, label: string, maximum: number): string {
+	if (typeof value !== 'string' || value.length < 1 || value.length > maximum || value.includes('\0')) {
+		throw new TypeError(`The native addon ${label} must be bounded non-empty text.`);
+	}
+	return value;
+}
+
+function positiveManifestInteger(value: unknown, label: string): number {
+	if (!Number.isSafeInteger(value) || Number(value) < 1) {
+		throw new TypeError(`The native addon ${label} must be a positive safe integer.`);
+	}
+	return Number(value);
+}
+
+function payloadFileName(value: unknown): string {
+	const name = boundedManifestText(value, 'payload name', 255);
+	if (name === '.' || name === '..' || /[\\/]/u.test(name)) {
+		throw new TypeError('The native addon payload name must be one file name.');
+	}
+	return name;
+}
+
+function relativeManifestPath(value: unknown): string {
+	const path = boundedManifestText(value, 'payload path', 4_096);
+	const components = path.split(/[\\/]/u);
+	if (path.startsWith('/') || path.startsWith('\\') || /^[A-Za-z]:[\\/]/u.test(path)
+		|| components.some((component) => component === '' || component === '.' || component === '..')) {
+		throw new TypeError('The native addon payload path must be relative and traversal-free.');
+	}
+	return path;
 }
 
 function describeError(error: unknown): string {

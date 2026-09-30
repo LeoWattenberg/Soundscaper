@@ -75,9 +75,9 @@ function chunkGeometry(
 	frameCount: number,
 	channelCount: number,
 ): Float32ChunkGeometry | null {
-	if (!Number.isSafeInteger(frameOffset) || frameOffset < 0
-		|| !Number.isSafeInteger(frameCount) || frameCount < 0
-		|| !Number.isSafeInteger(channelCount) || channelCount < 1) return null;
+	if (!Number.isSafeInteger(frameOffset) || frameOffset < 0 || Object.is(frameOffset, -0)
+		|| !Number.isSafeInteger(frameCount) || frameCount < 0 || Object.is(frameCount, -0)
+		|| !Number.isSafeInteger(channelCount) || channelCount < 1 || Object.is(channelCount, -0)) return null;
 	const endFrame = frameOffset + frameCount;
 	const frameBytes = channelCount * FLOAT32_BYTES;
 	const chunkBytes = frameCount * frameBytes;

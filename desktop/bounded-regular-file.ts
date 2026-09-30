@@ -37,7 +37,9 @@ export async function readBoundedRegularFile(
 	catch (error) { return unavailable(errorCode(error) === 'ENOENT' ? 'missing' : 'invalid'); }
 	try {
 		const metadata = await handle.stat();
-		if (!metadata.isFile() || !Number.isSafeInteger(metadata.size)) return unavailable('invalid');
+		if (!metadata.isFile() || !Number.isSafeInteger(metadata.size) || metadata.size < 0) {
+			return unavailable('invalid');
+		}
 		if (metadata.size > maximumBytes) return unavailable('limit');
 		if (metadata.size < 1) return unavailable('missing');
 		const bytes = new Uint8Array(metadata.size);
@@ -50,7 +52,11 @@ export async function readBoundedRegularFile(
 		}
 		if (offset !== metadata.size) return unavailable('invalid');
 		const overflow = new Uint8Array(1);
-		if ((await handle.read(overflow, 0, 1, metadata.size)).bytesRead > 0) return unavailable('limit');
+		const overflowRead = (await handle.read(overflow, 0, 1, metadata.size)).bytesRead;
+		if (!Number.isSafeInteger(overflowRead) || overflowRead < 0 || overflowRead > 1) {
+			return unavailable('invalid');
+		}
+		if (overflowRead === 1) return unavailable('limit');
 		const finalMetadata = await handle.stat();
 		if (!finalMetadata.isFile() || finalMetadata.size !== metadata.size) return unavailable('invalid');
 		return Object.freeze({ status: 'available', bytes });

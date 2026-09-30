@@ -19,14 +19,21 @@ export interface CanonicalNativeChildFileIdentity {
 
 export function canonicalNativeChildFileIdentity(value: unknown): CanonicalNativeChildFileIdentity {
 	if (!value || typeof value !== 'object' || Array.isArray(value)
-		|| Object.getPrototypeOf(value) !== Object.prototype
-		|| JSON.stringify(Object.keys(value).sort()) !== JSON.stringify(['dev', 'ino'])) {
+		|| Object.getPrototypeOf(value) !== Object.prototype) {
 		throw new TypeError('A native isolation file identity is invalid.');
 	}
-	const record = value as Record<string, unknown>;
+	const descriptors = Object.getOwnPropertyDescriptors(value);
+	const keys = Reflect.ownKeys(descriptors);
+	const dev = descriptors.dev;
+	const ino = descriptors.ino;
+	if (keys.length !== 2 || keys.some((key) => key !== 'dev' && key !== 'ino')
+		|| !dev?.enumerable || !Object.hasOwn(dev, 'value')
+		|| !ino?.enumerable || !Object.hasOwn(ino, 'value')) {
+		throw new TypeError('A native isolation file identity is invalid.');
+	}
 	return Object.freeze({
-		dev: component(record.dev, 'device'),
-		ino: component(record.ino, 'inode'),
+		dev: component(dev.value, 'device'),
+		ino: component(ino.value, 'inode'),
 	});
 }
 
