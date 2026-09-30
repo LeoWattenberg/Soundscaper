@@ -2,6 +2,10 @@
 
 import type { EditorActionFunctions } from './editor-action-functions.ts';
 import type { EditorActionResources } from './editor-action-resources.ts';
+import {
+	assertEditorLabelActionGroup,
+	type EditorLabelActionGroup,
+} from './label-action-group.ts';
 export type { EditorActionResources } from './editor-action-resources.ts';
 
 type MissingEditorActionFunctionNames<Names extends readonly PropertyKey[]> =
@@ -18,7 +22,6 @@ function defineEditorActionFunctionNames<const Names extends readonly (keyof Edi
 export const EDITOR_ACTION_FUNCTION_NAMES = defineEditorActionFunctionNames([
 	'activatePanelTabPreference',
 	'addEffect',
-	'addLabel',
 	'addLabelTrack',
 	'addTrack',
 	'addVideoClipEffect',
@@ -79,7 +82,6 @@ export const EDITOR_ACTION_FUNCTION_NAMES = defineEditorActionFunctionNames([
 	'duplicateProject',
 	'duplicateTrack',
 	'exportEffectPreset',
-	'exportLabels',
 	'exportVideo',
 	'findClip',
 	'findTrack',
@@ -98,10 +100,8 @@ export const EDITOR_ACTION_FUNCTION_NAMES = defineEditorActionFunctionNames([
 	'handlePlayAtSpeed',
 	'handleTransport',
 	'hasMissingTimelineSources',
-	'importCueFile',
 	'importEffectPresets',
 	'importFiles',
-	'importLabelFile',
 	'inspectScape',
 	'listAudioEditorEffectPresets',
 	'listProjects',
@@ -265,14 +265,17 @@ export const EDITOR_ACTION_FUNCTION_NAMES = defineEditorActionFunctionNames([
 ]);
 
 
-export type EditorActionRuntime = EditorActionResources & EditorActionFunctions;
+export type EditorActionRuntime = EditorActionResources & EditorActionFunctions & Readonly<{
+	labels: EditorLabelActionGroup;
+}>;
 export type RestrictToCapability = <Args extends unknown[], Result>(
 	capability: string, action: (...args: Args) => Result,
 ) => (...args: Args) => Result;
 
 /** Fail at assembly, with the missing port's name, rather than on a later menu action. */
-export function assertEditorActionFunctions(scope: EditorActionRuntime): void {
+export function assertEditorActionRuntime(scope: EditorActionRuntime): void {
 	for (const name of EDITOR_ACTION_FUNCTION_NAMES) {
 		if (typeof scope[name] !== 'function') throw new TypeError(`Missing editor action dependency: ${name}.`);
 	}
+	assertEditorLabelActionGroup(scope.labels);
 }

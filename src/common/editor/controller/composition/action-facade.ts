@@ -3,7 +3,7 @@
 import { createLocalizedError } from '../../../i18n/presentation-message.ts'; import type { EngineParametricEqPreview } from '../../engine/public-api.ts';
 import type { EditorActionRuntime } from './action-facade-runtime.ts';
 import type { AudioEditorCommandPayloads } from '../../commands/protocol.ts';
-import { assertEditorActionFunctions } from './action-facade-runtime.ts';
+import { assertEditorActionRuntime } from './action-facade-runtime.ts';
 import {
 	createRecordingActionFacade,
 	createRecordingPreferenceActionFacade,
@@ -27,9 +27,9 @@ import {
 export type { EditorActionRuntime } from './action-facade-runtime.ts';
 
 export function createGroupedEditorActions(scope: EditorActionRuntime) {
-	assertEditorActionFunctions(scope);
+	assertEditorActionRuntime(scope);
 	const {
-	addEffect, addLabel, addLabelTrack, addTrack, addVideoTrackPair, adjustAllTrackHeights, adjustTrackHeight,
+	addEffect, addLabelTrack, addTrack, addVideoTrackPair, adjustAllTrackHeights, adjustTrackHeight,
 	analysisService, applyAudacityEffectFromController, applyProjectBinReplacement, applySamplePencil,
 	applySpectralSelection, beginParametricEqGesture, beginRackEffectGesture, cancelAudacityEffectPreview,
 	cancelNyquistEvaluation, cancelParametricEqGesture, cancelPlaybackCachePreparation,
@@ -38,11 +38,11 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 	clearLoopRegion, clearRecentProjects, closeProjectTab, commit, commitParametricEqGesture,
 	commitRackEffectGesture, configureDisplayInput, continueLoudnessMeasurement, copy, copyRackEffect, copyEffectStack,
 	createStableId, deleteProject, disjoinSelectedClip, dismissAup4CompatibilitySummary, duplicateProject,
-	duplicateTrack, engine, framescaperCaptureActions, framescaperWebVcrActions, exportLabels, ffmpeg,
+	duplicateTrack, engine, framescaperCaptureActions, framescaperWebVcrActions, ffmpeg,
 	fileService, findTrack, persistSetting, publishDocumentSnapshot, flushProject, generateSelectionSilence,
 	generateSignal, repeatLastGenerator, getClipVisualData, getProjectBinClipVisualData, getVisibleClips,
 	handleClipAction, handleEdit, handleExportAction, handlePlayAtSpeed, handleTransport,
-	hasMissingTimelineSources, importFiles, importLabelFile, importCueFile, inspectScape, listProjects, makeStereoTrack,
+	hasMissingTimelineSources, importFiles, inspectScape, labels, listProjects, makeStereoTrack,
 	materializeFreesoundUploadClip, mixAndRenderTracks, moveClips, moveClipsToNewTrack, moveClipsToProjectBin, moveTrack, newProject,
 	normalizePlaybackFrame, openAudacityProject, openAup4, openProject, openScape, openScapeFile, overwriteClips,
 	openDawproject, openSesx, saveDawproject, pasteEffectStack, pauseLoudnessMeasurement, placeProjectBinClip,
@@ -407,14 +407,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 			preview: restricted('audioEffects', (request: Readonly<Record<string, unknown>>) => runNyquistEvaluation({ ...request, preview: true })),
 			cancel: cancelNyquistEvaluation,
 		}),
-		labels: Object.freeze({
-			add: addLabel,
-			update: (trackId: string | null, labelId: string, changes: Readonly<Record<string, unknown>>) => commit({ type: 'label/update', trackId, labelId, changes }),
-			remove: (trackId: string | null, labelId: string) => commit({ type: 'label/remove', trackId, labelId }),
-			importFile: importLabelFile,
-			importCueFile,
-			export: exportLabels,
-		}),
+		labels,
 		metadata: Object.freeze({
 			update: (changes: Readonly<Record<string, unknown>>) => commit({ type: 'metadata/update', changes }),
 		}),

@@ -32,6 +32,12 @@ test('controller binding construction leaves unrelated owners uninitialized', ()
 		tracks: unavailable, viewStateService: unavailable,
 	});
 	assert.equal(reads, 0);
+	assert.equal(typeof bindings.labels, 'object');
+	assert.equal(Object.isFrozen(bindings.labels), true);
+	assert.deepEqual(
+		['addLabel', 'importLabelFile', 'importCueFile', 'exportLabels'].filter((name) => Object.hasOwn(bindings, name)),
+		[],
+	);
 	bindings.setStatus('Imported');
 	assert.deepEqual(state.status, { message: 'Imported', state: 'info' });
 	assert.equal(reads, 1);

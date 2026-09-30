@@ -22,6 +22,7 @@ import type { createControllerStorageCapacityService } from '../shared/storage-c
 import type { createTrackAudioComposition } from '../track-audio/track-audio-composition.ts';
 import type { createTransportComposition } from '../transport/transport-composition.ts';
 import { deferControllerMethods, deferAsyncControllerMethods } from './internal/deferred-controller-methods.ts';
+import { createEditorLabelActionGroup } from './label-action-group.ts';
 
 export interface ControllerBindingServices<RenderEngine extends ClipTimePitchRenderEngine = ClipTimePitchRenderEngine> {
 	readonly clips: () => ReturnType<typeof createClipVideoComposition>;
@@ -52,7 +53,6 @@ export function createControllerBindings<RenderEngine extends ClipTimePitchRende
 	const { load: loadPreferences } = deferControllerMethods(() => services.preferences(), ['load']);
 	const { switchProject } = deferControllerMethods(() => services.projectSwitchService(), ['switchProject']);
 	const { moveClipsToProjectBin, placeProjectBinClip, applyProjectBinReplacement } = deferControllerMethods(() => services.imports().projectBin, ['moveClipsToProjectBin', 'placeProjectBinClip', 'applyProjectBinReplacement']);
-	const { addLabel } = deferControllerMethods(() => services.tracks().track, ['addLabel']);
 	const { selectClip, setSelection, selectLeftOfPlaybackPosition, selectRightOfPlaybackPosition, setSnapSettings, snapTimelineFrame } = deferControllerMethods(() => services.tracks().selectionView, ['selectClip', 'setSelection', 'selectLeftOfPlaybackPosition', 'selectRightOfPlaybackPosition', 'setSnapSettings', 'snapTimelineFrame']);
 	const { materializeFreesoundUploadClip } = deferAsyncControllerMethods(() => services.tracks(), ['materializeFreesoundUploadClip']);
 	const { sampleEditingAvailable, setSampleEditMode } = deferControllerMethods(() => services.clips().sampleEdit, ['sampleEditingAvailable', 'setSampleEditMode']);
@@ -76,7 +76,6 @@ export function createControllerBindings<RenderEngine extends ClipTimePitchRende
 	const { loadProjectSources } = deferAsyncControllerMethods(() => services.sources().sourceLifecycle, ['loadProjectSources']);
 	const { listProjects, clearRecentProjects, renameProject, duplicateProject, garbageCollectSources } = deferAsyncControllerMethods(() => services.projectAdminService(), ['listProjects', 'clearRecentProjects', 'renameProject', 'duplicateProject', 'garbageCollectSources']);
 	const { prepareProjectBinReplacement, cancelProjectBinReplacement, playPauseProjectBinClip } = deferAsyncControllerMethods(() => services.imports().projectBin, ['prepareProjectBinReplacement', 'cancelProjectBinReplacement', 'playPauseProjectBinClip']);
-	const { importLabelFile, importCueFile, exportLabels } = deferAsyncControllerMethods(() => services.edits().labels, ['importLabelFile', 'importCueFile', 'exportLabels']);
 	const { disjoinSelectedClip } = deferAsyncControllerMethods(() => services.edits().clipboard, ['disjoinSelectedClip']);
 	const { generateSelectionSilence, generateSignal, repeatLastGenerator } = deferAsyncControllerMethods(() => services.edits(), ['generateSelectionSilence', 'generateSignal', 'repeatLastGenerator']);
 	const { requestInputAccess, setPreferredInputDevice, configureDisplayInput, setPreferredInputChannelCount, setAudioOutputDevice, setRecordingSourceLatency, setRetainInputs } = deferAsyncControllerMethods(() => services.recording().routing, ['requestInputAccess', 'setPreferredInputDevice', 'configureDisplayInput', 'setPreferredInputChannelCount', 'setAudioOutputDevice', 'setRecordingSourceLatency', 'setRetainInputs']);
@@ -104,6 +103,11 @@ export function createControllerBindings<RenderEngine extends ClipTimePitchRende
 	const { handleRecordingPoolChange } = deferControllerMethods(() => services.recording().inputs, ['handleRecordingPoolChange']);
 	const { synchronizeTarget: synchronizeMicrophoneMeterTarget } = deferControllerMethods(() => services.microphoneMeterService(), ['synchronizeTarget']);
 	const { commit, updateSelection, projectChanged, saveNow, flushProject } = deferControllerMethods(() => services.doc().mutation, ['commit', 'updateSelection', 'projectChanged', 'saveNow', 'flushProject']);
+	const labels = createEditorLabelActionGroup({
+		getTrack: () => services.tracks().track,
+		getLabelService: () => services.edits().labels,
+		commit,
+	});
 	const { compactLiveSourceState, liveSessionSourceIds, liveSessionClipIds } = deferControllerMethods(() => services.doc().retention, ['compactLiveSourceState', 'liveSessionSourceIds', 'liveSessionClipIds']);
 	const { publishProjectState, setTimelineView, setAllTracksView } = deferControllerMethods(() => services.doc().view, ['publishProjectState', 'setTimelineView', 'setAllTracksView']);
 	const { duplicateTrack } = deferControllerMethods(() => services.doc().trackDuplication, ['duplicateTrack']);
@@ -125,7 +129,7 @@ export function createControllerBindings<RenderEngine extends ClipTimePitchRende
 	return Object.freeze({
 		openScape, saveScape, openAup4, openAudacityProject, saveAup4,
 		loadPreferences, switchProject, moveClipsToProjectBin, placeProjectBinClip,
-		applyProjectBinReplacement, addLabel, selectClip, setSelection,
+		applyProjectBinReplacement, labels, selectClip, setSelection,
 		selectLeftOfPlaybackPosition, selectRightOfPlaybackPosition, setSnapSettings, snapTimelineFrame,
 		sampleEditingAvailable, setSampleEditMode, applySamplePencil, smoothSelectedSamples,
 		updateRecordingDeviceRows, addVideoClipEffect, updateVideoClipEffect, toggleVideoClipEffect,
@@ -136,7 +140,7 @@ export function createControllerBindings<RenderEngine extends ClipTimePitchRende
 		stopProjectBinPreview, bootstrap, openProject, claimProjectLock,
 		loadProjectSources, listProjects, clearRecentProjects, renameProject,
 		duplicateProject, garbageCollectSources, prepareProjectBinReplacement, cancelProjectBinReplacement,
-		playPauseProjectBinClip, importLabelFile, importCueFile, exportLabels, disjoinSelectedClip,
+		playPauseProjectBinClip, disjoinSelectedClip,
 		generateSelectionSilence, generateSignal, repeatLastGenerator, requestInputAccess,
 		setPreferredInputDevice, configureDisplayInput, setPreferredInputChannelCount, setAudioOutputDevice,
 		setRecordingSourceLatency, setRetainInputs, setRecordingTrackInput, setMicrophoneMetering,

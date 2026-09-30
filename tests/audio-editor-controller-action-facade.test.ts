@@ -42,10 +42,13 @@ const EXPECTED_ACTION_GROUPS = Object.freeze([
 ]);
 
 test('controller action facade exposes stable frozen responsibility groups', () => {
-	const actions = createGroupedEditorActions(createActionFacadeRuntime());
+	const runtime = createActionFacadeRuntime();
+	const actions = createGroupedEditorActions(runtime);
 	assert.deepEqual(Object.keys(actions).sort(), EXPECTED_ACTION_GROUPS);
 	assert.equal(Object.isFrozen(actions), true);
 	for (const group of Object.values(actions)) assert.equal(Object.isFrozen(group), true);
+	assert.equal(actions.labels, runtime.labels);
+	assert.deepEqual(Object.keys(actions.labels), ['add', 'update', 'remove', 'importFile', 'importCueFile', 'export']);
 });
 
 test('project actions dispatch stable-ID musical map commands', () => {

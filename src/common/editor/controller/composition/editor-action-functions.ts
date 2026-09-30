@@ -31,7 +31,6 @@ import type { createSettingPersistence } from '../preferences/setting-persistenc
 export interface EditorActionFunctions {
 	readonly activatePanelTabPreference: ReturnType<typeof createPreferencesComposition>['actions']['activatePanelTabPreference'];
 	readonly addEffect: ReturnType<typeof createEffectsComposition>['rack']['addEffect'];
-	readonly addLabel: ReturnType<typeof createTrackAudioComposition>['track']['addLabel'];
 	readonly addLabelTrack: ReturnType<typeof createTrackAudioComposition>['trackActions']['addLabelTrack'];
 	readonly addTrack: ReturnType<typeof createTrackAudioComposition>['trackActions']['addTrack'];
 	readonly addVideoClipEffect: ReturnType<typeof createClipVideoComposition>['videoEffect']['addVideoClipEffect'];
@@ -92,7 +91,6 @@ export interface EditorActionFunctions {
 	readonly duplicateProject: ReturnType<typeof createProjectAdminService>['duplicateProject'];
 	readonly duplicateTrack: ReturnType<typeof createDocumentComposition>['trackDuplication']['duplicateTrack'];
 	readonly exportEffectPreset: ReturnType<typeof createEffectsComposition>['controls']['exportEffectPreset'];
-	readonly exportLabels: ReturnType<typeof createEditComposition>['labels']['exportLabels'];
 	readonly exportVideo: ReturnType<typeof createTrackAudioComposition>['export']['exportVideo'];
 	readonly findClip: typeof findClip;
 	readonly findTrack: typeof findTrack;
@@ -113,8 +111,6 @@ export interface EditorActionFunctions {
 	readonly hasMissingTimelineSources: ReturnType<typeof createSourceRuntimeComposition>['projectVisual']['hasMissingTimelineSources'];
 	readonly importEffectPresets: ReturnType<typeof createEffectsComposition>['controls']['importEffectPresets'];
 	readonly importFiles: ReturnType<typeof createImportComposition>['importFiles'];
-	readonly importLabelFile: ReturnType<typeof createEditComposition>['labels']['importLabelFile'];
-	readonly importCueFile: ReturnType<typeof createEditComposition>['labels']['importCueFile'];
 	readonly inspectScape: ReturnType<typeof createScapeProjectFileService>['inspectScape'];
 	readonly listAudioEditorEffectPresets: typeof listAudioEditorEffectPresets;
 	readonly listProjects: ReturnType<typeof createProjectAdminService>['listProjects'];

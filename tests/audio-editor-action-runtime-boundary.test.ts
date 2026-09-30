@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
 	EDITOR_ACTION_FUNCTION_NAMES,
-	assertEditorActionFunctions,
+	assertEditorActionRuntime,
 	type EditorActionRuntime,
 } from '../src/common/editor/controller/composition/action-facade-runtime.ts';
 import type { EditorActionFunctions } from '../src/common/editor/controller/composition/editor-action-functions.ts';
@@ -25,18 +25,36 @@ test('a missing or non-callable dependency fails during assembly with its name',
 				return name === 'saveNow' ? invalid : Reflect.get(target, name, receiver);
 			},
 		});
-		assert.throws(() => assertEditorActionFunctions(scope), /Missing editor action dependency: saveNow/u);
+		assert.throws(() => assertEditorActionRuntime(scope), /Missing editor action dependency: saveNow/u);
 	}
-	assert.doesNotThrow(() => assertEditorActionFunctions(createActionFacadeRuntime()));
+	assert.doesNotThrow(() => assertEditorActionRuntime(createActionFacadeRuntime()));
 });
 
-test('the CUE import action is included in runtime dependency validation', () => {
-	const scope = new Proxy(createActionFacadeRuntime(), {
+test('a missing or non-callable grouped CUE import dependency fails with its exact path', () => {
+	for (const invalid of [undefined, null, 1, {}]) {
+		const runtime = createActionFacadeRuntime();
+		const scope = new Proxy(runtime, {
+			get(target, name, receiver) {
+				return name === 'labels'
+					? Object.freeze({ ...target.labels, importCueFile: invalid })
+					: Reflect.get(target, name, receiver);
+			},
+		});
+		assert.throws(
+			() => assertEditorActionRuntime(scope),
+			/Missing editor action dependency: labels\.importCueFile/u,
+		);
+	}
+});
+
+test('action assembly rejects an unowned label group even when its visible shape matches', () => {
+	const runtime = createActionFacadeRuntime();
+	const scope = new Proxy(runtime, {
 		get(target, name, receiver) {
-			return name === 'importCueFile' ? undefined : Reflect.get(target, name, receiver);
+			return name === 'labels' ? Object.freeze({ ...target.labels }) : Reflect.get(target, name, receiver);
 		},
 	});
-	assert.throws(() => assertEditorActionFunctions(scope), /Missing editor action dependency: importCueFile/u);
+	assert.throws(() => assertEditorActionRuntime(scope), /Invalid editor action dependency: labels/u);
 });
 
 // The dependency inventory must remain closed even while some legacy command
