@@ -3,7 +3,6 @@
 /** Main-owned staging and supervision for one-shot bundled-codec utility processes. */
 
 import { createHash } from 'node:crypto';
-import { rm, writeFile } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
 
 import {
@@ -13,7 +12,11 @@ import {
 	type BundledAudioCodecId,
 } from './bundled-audio-codec-helper-configuration.js';
 import { readBoundedRegularFile } from './bounded-regular-file.js';
-import { createPrivateScratchDirectory } from './private-scratch-directory.js';
+import {
+	superviseOneShotMessageChild,
+	type OneShotMessageChildResult,
+} from './one-shot-message-child-supervision.js';
+import { withOwnedPrivateScratchInput } from './private-scratch-directory.js';
 import type {
 	DesktopAudioCodecProviderExecutionResult,
 } from './desktop-audio-codec-broker.js';
@@ -76,8 +79,7 @@ type HelperResult = Readonly<{
 
 type SupervisionFailure =
 	| 'cancelled' | 'helper-crashed' | 'helper-failed' | 'helper-protocol' | 'helper-timeout';
-type SupervisionResult = Readonly<{ readonly status: 'complete'; readonly result: HelperResult }>
-	| Readonly<{ readonly status: 'failed'; readonly reason: SupervisionFailure }>;
+type SupervisionResult = OneShotMessageChildResult<HelperResult, SupervisionFailure>;
 const TARGETS = new Set<string>([
 	'linux-x64', 'linux-arm64', 'mac-arm64', 'win-x64', 'win-arm64',
 ]);
@@ -226,25 +228,20 @@ async function runActive(options: Readonly<{
 	maximumDurationMs: number;
 	killWaitMs: number;
 }>): Promise<DesktopCodecPreflightResult | DesktopAudioCodecProviderExecutionResult> {
-	let directory: string | null = null;
-	let result: DesktopCodecPreflightResult | DesktopAudioCodecProviderExecutionResult;
-	try {
-		directory = await createPrivateScratchDirectory(
-			options.scratchRoot, 'bundled-audio-codec-',
-		);
-		const files = Object.freeze({
-			inputPath: join(directory, 'input.bin'), outputPath: join(directory, 'output.bin'),
-		});
-		await writeFile(files.inputPath, options.request.input, { flag: 'wx', mode: 0o600 });
-		result = await runStaged({ ...options, files });
-	} catch { result = failure(options.phase, 'execution-failed', DETAILS.scratch); }
-	finally {
-		if (directory !== null) {
-			try { await rm(directory, { recursive: true, force: true, maxRetries: 2, retryDelay: 25 }); }
-			catch { result = failure(options.phase, 'execution-failed', DETAILS.cleanup); }
-		}
-	}
-	return result!;
+	return await withOwnedPrivateScratchInput({
+		root: options.scratchRoot,
+		prefix: 'bundled-audio-codec-',
+		inputFileName: 'input.bin',
+		input: options.request.input,
+		async run({ directory, inputPath }) {
+			const files = Object.freeze({
+				inputPath, outputPath: join(directory, 'output.bin'),
+			});
+			return await runStaged({ ...options, files });
+		},
+		failed: () => failure(options.phase, 'execution-failed', DETAILS.scratch),
+		cleanupFailed: () => failure(options.phase, 'execution-failed', DETAILS.cleanup),
+	});
 }
 
 async function runStaged(options: Readonly<{
@@ -314,64 +311,19 @@ type SupervisionOptions = Readonly<{
 }>);
 
 function supervise(options: SupervisionOptions): Promise<SupervisionResult> {
-	return new Promise((resolve) => {
-		let phase: 'ready' | 'running' | 'terminal' = 'ready';
-		let terminal: HelperResult | null = null;
-		let stopping: SupervisionFailure | null = null;
-		let settled = false;
-		let killTimer: ReturnType<typeof setTimeout> | null = null;
-		const durationTimer = setTimeout(() => stop('helper-timeout'), options.maximumDurationMs);
-		const removeMessage = options.child.onMessage(onMessage);
-		const removeExit = options.child.onExit(onExit);
-		const onAbort = (): void => stop('cancelled');
-		options.signal?.addEventListener('abort', onAbort, { once: true });
-		if (options.signal?.aborted) onAbort();
-
-		function onMessage(value: unknown): void {
-			if (settled || stopping !== null) return;
-			try {
-				if (phase === 'ready') {
-					inspectReady(value, options.configuration);
-					phase = 'running';
-					options.child.postMessage(helperJob(options));
-					return;
-				}
-				if (phase !== 'running') throw new TypeError('Duplicate helper result.');
-				terminal = inspectTerminal(value, options.phase);
-				phase = 'terminal';
-			} catch (error) {
-				stop(error instanceof HelperJobError ? 'helper-failed' : 'helper-protocol');
-			}
-		}
-
-		function onExit(code: number | null): void {
-			if (settled) return;
-			if (stopping !== null) { finish({ status: 'failed', reason: stopping }); return; }
-			if (phase === 'terminal' && terminal !== null && code === 0) {
-				finish({ status: 'complete', result: terminal });
-				return;
-			}
-			finish({ status: 'failed', reason: 'helper-crashed' });
-		}
-
-		function stop(reason: SupervisionFailure): void {
-			if (settled || stopping !== null) return;
-			stopping = reason;
-			try { options.child.kill(); }
-			catch { finish({ status: 'failed', reason }); return; }
-			killTimer = setTimeout(() => finish({ status: 'failed', reason }), options.killWaitMs);
-		}
-
-		function finish(result: SupervisionResult): void {
-			if (settled) return;
-			settled = true;
-			clearTimeout(durationTimer);
-			if (killTimer !== null) clearTimeout(killTimer);
-			options.signal?.removeEventListener('abort', onAbort);
-			removeMessage();
-			removeExit();
-			resolve(Object.freeze(result));
-		}
+	return superviseOneShotMessageChild<HelperResult, SupervisionFailure>({
+		child: options.child,
+		...(options.signal ? { signal: options.signal } : {}),
+		maximumDurationMs: options.maximumDurationMs,
+		killWaitMs: options.killWaitMs,
+		inspectReady: (value) => inspectReady(value, options.configuration),
+		createJob: () => helperJob(options),
+		inspectTerminal: (value) => inspectTerminal(value, options.phase),
+		inspectionFailure: (error) => error instanceof HelperJobError
+			? 'helper-failed' : 'helper-protocol',
+		cancelledFailure: 'cancelled',
+		crashedFailure: 'helper-crashed',
+		timeoutFailure: 'helper-timeout',
 	});
 }
 

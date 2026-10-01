@@ -3,11 +3,11 @@
 /** Main-owned staging and one-shot utility-process supervision for reviewed OS audio codecs. */
 
 import { createHash } from 'node:crypto';
-import { rm, writeFile } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
 
 import { readBoundedRegularFile } from './bounded-regular-file.ts';
-import { createPrivateScratchDirectory } from './private-scratch-directory.ts';
+import { superviseOneShotMessageChild } from './one-shot-message-child-supervision.ts';
+import { withOwnedPrivateScratchInput } from './private-scratch-directory.ts';
 import {
 	desktopAudioMp3ConstantBitrateKbps,
 	normalizeDesktopAudioCodecRequest,
@@ -227,28 +227,24 @@ async function executeActive(options: Readonly<{
 	maximumDurationMs: number;
 	killWaitMs: number;
 }>): Promise<OperatingSystemAudioCodecOperationResult> {
-	let scratchDirectory: string | null = null;
-	let result: OperatingSystemAudioCodecOperationResult;
-	try {
-		scratchDirectory = await createPrivateScratchDirectory(
-			options.scratchRoot, 'os-audio-codec-',
-		);
-		const files: StagedFiles = Object.freeze({
-			inputPath: join(scratchDirectory, options.request.operation === 'audio-encode'
-				? 'input.f32le' : options.request.format === 'mp3' ? 'input.mp3' : 'input.m4a'),
-			outputPath: join(scratchDirectory, options.request.operation === 'audio-encode'
-				? options.request.format === 'mp3' ? 'output.mp3' : 'output.m4a' : 'output.f32le'),
-		});
-		await writeFile(files.inputPath, Buffer.from(options.request.input), { flag: 'wx', mode: 0o600 });
-		result = await executeStaged({ ...options, files });
-	} catch { result = unavailable('scratch-failed'); }
-	finally {
-		if (scratchDirectory !== null) {
-			try { await rm(scratchDirectory, { recursive: true, force: true, maxRetries: 2, retryDelay: 25 }); }
-			catch { result = unavailable('cleanup-failed'); }
-		}
-	}
-	return result!;
+	const inputFileName = options.request.operation === 'audio-encode'
+		? 'input.f32le' : options.request.format === 'mp3' ? 'input.mp3' : 'input.m4a';
+	return await withOwnedPrivateScratchInput({
+		root: options.scratchRoot,
+		prefix: 'os-audio-codec-',
+		inputFileName,
+		input: options.request.input,
+		async run({ directory, inputPath }) {
+			const files: StagedFiles = Object.freeze({
+				inputPath,
+				outputPath: join(directory, options.request.operation === 'audio-encode'
+					? options.request.format === 'mp3' ? 'output.mp3' : 'output.m4a' : 'output.f32le'),
+			});
+			return await executeStaged({ ...options, files });
+		},
+		failed: () => unavailable('scratch-failed'),
+		cleanupFailed: () => unavailable('cleanup-failed'),
+	});
 }
 
 async function executeStaged(options: Readonly<{
@@ -338,77 +334,37 @@ function superviseChild(options: Readonly<{
 	maximumDurationMs: number;
 	killWaitMs: number;
 }>): Promise<HelperResult> {
-	return new Promise((resolve) => {
-		let phase: 'ready' | 'running' | 'terminal' = 'ready';
-		let terminal: HelperResult | null = null;
-		let stopping: 'cancelled' | 'helper-protocol' | 'helper-timeout' | null = null;
-		let settled = false;
-		let killTimer: ReturnType<typeof setTimeout> | null = null;
-		const durationTimer = setTimeout(() => stop('helper-timeout'), options.maximumDurationMs);
-		const removeMessage = options.child.onMessage(onMessage);
-		const removeExit = options.child.onExit(onExit);
-		const onAbort = (): void => stop('cancelled');
-		options.signal?.addEventListener('abort', onAbort, { once: true });
-		if (options.signal?.aborted) onAbort();
-
-		function onMessage(value: unknown): void {
-			if (settled || stopping !== null) return;
-			try {
-				if (phase === 'ready') {
-					inspectReady(value, options.configuration.target);
-					phase = 'running';
-					options.child.postMessage(Object.freeze({
-						contractVersion: 1, type: 'job',
-						request: Object.freeze({
-							contractVersion: 1,
-							operation: options.operation,
-							format: options.format,
-							inputPath: options.files.inputPath,
-							outputPath: options.files.outputPath,
-							inputBytes: options.input.byteLength,
-							inputSha256: digest(options.input),
-							maximumOutputBytes: options.maximumOutputBytes,
-							...(options.operation === 'audio-encode' ? {
-								sampleRate: options.sampleRate,
-								channelCount: options.channelCount,
-								bitrateKbps: options.bitrateKbps,
-							} : {}),
-						}),
-					}));
-					return;
-				}
-				if (phase !== 'running') throw new TypeError('Duplicate terminal helper message.');
-				terminal = inspectTerminal(value, options.operation);
-				phase = 'terminal';
-			} catch { stop('helper-protocol'); }
-		}
-
-		function onExit(code: number | null): void {
-			if (settled) return;
-			if (stopping !== null) { finish(unavailable(stopping)); return; }
-			if (phase === 'terminal' && terminal !== null && code === 0) { finish(terminal); return; }
-			finish(unavailable('helper-crashed'));
-		}
-
-		function stop(reason: NonNullable<typeof stopping>): void {
-			if (settled || stopping !== null) return;
-			stopping = reason;
-			try { options.child.kill(); }
-			catch { finish(unavailable(reason)); return; }
-			killTimer = setTimeout(() => finish(unavailable(reason)), options.killWaitMs);
-		}
-
-		function finish(result: HelperResult): void {
-			if (settled) return;
-			settled = true;
-			clearTimeout(durationTimer);
-			if (killTimer !== null) clearTimeout(killTimer);
-			options.signal?.removeEventListener('abort', onAbort);
-			removeMessage();
-			removeExit();
-			resolve(result);
-		}
-	});
+	type SupervisionFailure = 'cancelled' | 'helper-crashed' | 'helper-protocol' | 'helper-timeout';
+	return superviseOneShotMessageChild<HelperResult, SupervisionFailure>({
+		child: options.child,
+		...(options.signal ? { signal: options.signal } : {}),
+		maximumDurationMs: options.maximumDurationMs,
+		killWaitMs: options.killWaitMs,
+		inspectReady: (value) => inspectReady(value, options.configuration.target),
+		createJob: () => Object.freeze({
+			contractVersion: 1, type: 'job',
+			request: Object.freeze({
+				contractVersion: 1,
+				operation: options.operation,
+				format: options.format,
+				inputPath: options.files.inputPath,
+				outputPath: options.files.outputPath,
+				inputBytes: options.input.byteLength,
+				inputSha256: digest(options.input),
+				maximumOutputBytes: options.maximumOutputBytes,
+				...(options.operation === 'audio-encode' ? {
+					sampleRate: options.sampleRate,
+					channelCount: options.channelCount,
+					bitrateKbps: options.bitrateKbps,
+				} : {}),
+			}),
+		}),
+		inspectTerminal: (value) => inspectTerminal(value, options.operation),
+		inspectionFailure: () => 'helper-protocol',
+		cancelledFailure: 'cancelled',
+		crashedFailure: 'helper-crashed',
+		timeoutFailure: 'helper-timeout',
+	}).then((result) => result.status === 'complete' ? result.result : unavailable(result.reason));
 }
 
 function inspectReady(value: unknown, target: OperatingSystemAudioCodecTarget): void {

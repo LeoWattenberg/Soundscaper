@@ -2,7 +2,6 @@
 
 /** Main-process-only, resource-bounded execution for admitted external FFmpeg audio operations. */
 
-import { rm, writeFile } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
 
 import { readBoundedRegularFile } from './bounded-regular-file.ts';
@@ -20,7 +19,7 @@ import {
 	spawnExternalFfmpegProcess,
 	superviseExternalFfmpegProcess,
 } from './external-ffmpeg-process-security.ts';
-import { createPrivateScratchDirectory } from './private-scratch-directory.ts';
+import { withOwnedPrivateScratchInput } from './private-scratch-directory.ts';
 import { shouldDetachProcessTree } from './process-tree-termination.ts';
 
 export interface ExternalFfmpegAudioOperationFiles {
@@ -236,28 +235,22 @@ async function executeActive<Operation>(options: Readonly<{
 			?? options.limits.output;
 		boundedInteger(maximumOutputBytes, 1, options.limits.output, 'operation output');
 	} catch { return unavailable('contract-rejected'); }
-	let scratchDirectory: string | null = null;
-	let result: ExternalFfmpegAudioOperationResult;
-	try {
-		scratchDirectory = await createPrivateScratchDirectory(
-			options.scratchRoot, 'audio-operation-',
-		);
-		const files: ExternalFfmpegAudioOperationFiles = Object.freeze({
-			inputPath: join(scratchDirectory, 'input.media'),
-			outputPath: join(scratchDirectory, 'output.media'),
-			maximumOutputBytes,
-		});
-		await writeFile(files.inputPath, Buffer.from(options.request.input), { flag: 'wx', mode: 0o600 });
-		result = await executeStaged({ ...options, files, scratchDirectory });
-	} catch {
-		result = unavailable('scratch-failed');
-	} finally {
-		if (scratchDirectory !== null) {
-			try { await rm(scratchDirectory, { recursive: true, force: true, maxRetries: 2, retryDelay: 25 }); }
-			catch { result = unavailable('cleanup-failed'); }
-		}
-	}
-	return result;
+	return await withOwnedPrivateScratchInput({
+		root: options.scratchRoot,
+		prefix: 'audio-operation-',
+		inputFileName: 'input.media',
+		input: options.request.input,
+		async run({ directory: scratchDirectory, inputPath }) {
+			const files: ExternalFfmpegAudioOperationFiles = Object.freeze({
+				inputPath,
+				outputPath: join(scratchDirectory, 'output.media'),
+				maximumOutputBytes,
+			});
+			return await executeStaged({ ...options, files, scratchDirectory });
+		},
+		failed: () => unavailable('scratch-failed'),
+		cleanupFailed: () => unavailable('cleanup-failed'),
+	});
 }
 
 async function executeStaged<Operation>(options: Readonly<{
