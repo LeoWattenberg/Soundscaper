@@ -66,6 +66,30 @@ export async function effectSourceMetadata(page) {
 	}), SOUNDSCAPER_DATABASE_NAME);
 }
 
+/** Names of the sources currently referenced by one persisted project's timeline clips. */
+export async function projectTimelineSourceNames(page, projectId) {
+	return page.evaluate(({ databaseName, id }) => new Promise((resolve, reject) => {
+		const openRequest = indexedDB.open(databaseName);
+		openRequest.onerror = () => reject(openRequest.error);
+		openRequest.onsuccess = () => {
+			const database = openRequest.result;
+			const request = database.transaction('projects', 'readonly').objectStore('projects').get(id);
+			request.onerror = () => {
+				database.close();
+				reject(request.error);
+			};
+			request.onsuccess = () => {
+				database.close();
+				const project = request.result;
+				const names = new Map((project?.sources || []).map((source) => [source.id, source.name]));
+				resolve((project?.clips || [])
+					.filter((clip) => clip.kind === 'audio')
+					.map((clip) => names.get(clip.sourceId) || null));
+			};
+		};
+	}), { databaseName: SOUNDSCAPER_DATABASE_NAME, id: projectId });
+}
+
 export async function effectSourcePeak(page, name) {
 	return page.evaluate(async ({ databaseName, effectName }) => {
 		const { source, peaks } = await new Promise((resolve, reject) => {
@@ -103,4 +127,3 @@ export async function effectSourcePeak(page, name) {
 		return peak;
 	}, { databaseName: SOUNDSCAPER_DATABASE_NAME, effectName: name });
 }
-

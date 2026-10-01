@@ -38,6 +38,7 @@ import { openWorkspaceProjectFile } from './open-workspace-project-file.ts';
 import { desktopExternalDestination } from '../workspace-runtime.js'; import { createTimedRecordingDialogValue } from '../dialogs/timed-recording-dialog-model.ts';
 import { useTrackHeaderDrawerFlag, useWorkspaceCompactLayout } from './useWorkspaceCompactLayout.js';
 import { useWorkspaceEffectsPanel } from './useWorkspaceEffectsPanel.js';
+import { useWorkspaceEffectWindows } from './WorkspaceEffectWindows.tsx';
 import { useAutoShowVideoPreview } from './useAutoShowVideoPreview.ts';
 import { createWorkspaceEditItems } from './workspace-edit-items.js';
 import { resolveEditingActionAvailability } from '../../commands/editing-selection-authority.ts';
@@ -61,7 +62,7 @@ const DEFERRED_WEB_VCR_PANEL_ID = 'web-vcr'; export default function AudioEditor
 	const snapshot = useAudioEditorSnapshot(controller);
 	const [activeSurface, setActiveSurface] = useTakeCycleRecoverySurface(productId, snapshot.takeCycleRecovery);
 	usePrivacyPolicySurface(productId, initialSurface, setActiveSurface);
-	const [effectWindow, setEffectWindow] = useState(null);
+	const { windows: effectWindows, open: setEffectWindow, close: closeEffectWindow } = useWorkspaceEffectWindows(snapshot.project?.id ?? null);
 	const [macroDraft, setMacroDraft] = useState(null);
 	const [dialog, setDialog] = useState(null);
 	const [dialogValue, setDialogValue] = useState('');
@@ -469,7 +470,7 @@ const DEFERRED_WEB_VCR_PANEL_ID = 'web-vcr'; export default function AudioEditor
 		editorOverlayTarget,
 		editorRef,
 		editorThemeVariables,
-		effectWindow,
+		effectWindows, closeEffectWindow,
 		effectsPanelTarget,
 		executeEdit,
 		fileService,
