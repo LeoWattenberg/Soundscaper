@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { spawn } from 'node:child_process';
+import { runBoundedSmokeChild } from './desktop-smoke-child.mjs';
 import { createHash, randomBytes } from 'node:crypto';
 import { access, lstat, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -35,8 +35,6 @@ const MIB = 1024 * 1024;
 const MAXIMUM_CHILD_OUTPUT_BYTES = MIB;
 const MAXIMUM_CHILD_TIMEOUT_MS = 5 * 60 * 1000;
 const DEFAULT_CHILD_TIMEOUT_MS = 2 * 60 * 1000;
-const CHILD_TERMINATION_GRACE_MS = 250;
-const CHILD_SETTLEMENT_TIMEOUT_MS = 1_000;
 export const DESKTOP_SCAPE_OPEN_FIXTURE = deepFreeze({
 	archiveName: 'packaged-current-schema.sscape',
 	project: {
@@ -244,96 +242,10 @@ export function runBoundedDesktopScapeOpenChild(command, args, {
 	const timeout = integerInRange(timeoutMs, 1, MAXIMUM_CHILD_TIMEOUT_MS, 'child timeout');
 	const childEnvironment = { ...environment };
 	delete childEnvironment.ELECTRON_RUN_AS_NODE;
-	return new Promise((resolvePromise, reject) => {
-		const child = spawn(command, args, {
-			cwd: directory,
-			detached: process.platform !== 'win32',
-			env: childEnvironment,
-			stdio: ['ignore', 'pipe', 'pipe'],
-			windowsHide: true,
-		});
-		const stdoutChunks = [];
-		const stderrChunks = [];
-		let outputBytes = 0;
-		let failure = null;
-		let settled = false;
-		let childClosed = false;
-		let forceSent = false;
-		let timeoutHandle;
-		let forceHandle;
-		let settlementHandle;
-		const clearTimers = () => {
-			clearTimeout(timeoutHandle);
-			clearTimeout(forceHandle);
-			clearTimeout(settlementHandle);
-		};
-		const rejectOnce = (error, abandonChild = false) => {
-			if (settled) return;
-			settled = true;
-			clearTimers();
-			if (abandonChild) {
-				child.stdout.destroy();
-				child.stderr.destroy();
-				child.unref();
-			}
-			reject(error);
-		};
-		const terminate = (error) => {
-			if (failure) return;
-			failure = error;
-			clearTimeout(timeoutHandle);
-			if (process.platform === 'win32') {
-				terminateWindowsChildTree(child);
-			} else {
-				signalPosixChildGroup(child, 'SIGTERM');
-				forceHandle = setTimeout(() => {
-					forceSent = true;
-					signalPosixChildGroup(child, 'SIGKILL');
-					if (childClosed) rejectOnce(failure);
-				}, CHILD_TERMINATION_GRACE_MS);
-			}
-			settlementHandle = setTimeout(() => {
-				if (process.platform === 'win32') terminateWindowsChildTree(child);
-				else {
-					forceSent = true;
-					signalPosixChildGroup(child, 'SIGKILL');
-				}
-				rejectOnce(failure, true);
-			}, CHILD_SETTLEMENT_TIMEOUT_MS);
-		};
-		const append = (chunks) => (chunk) => {
-			if (failure) return;
-			const bytes = Buffer.from(chunk);
-			outputBytes += bytes.byteLength;
-			if (outputBytes > outputLimit) {
-				terminate(new RangeError(`Packaged Scape-open child output exceeds ${String(outputLimit)} bytes`));
-				return;
-			}
-			chunks.push(bytes);
-		};
-		child.stdout.on('data', append(stdoutChunks));
-		child.stderr.on('data', append(stderrChunks));
-		child.once('error', (error) => {
-			if (!failure) rejectOnce(error);
-		});
-		timeoutHandle = setTimeout(() => {
-			terminate(new Error(`Packaged Scape-open child timed out after ${String(timeout)} milliseconds`));
-		}, timeout);
-		child.once('close', (code, signal) => {
-			if (settled) return;
-			childClosed = true;
-			if (failure && process.platform !== 'win32' && !forceSent) return;
-			settled = true;
-			clearTimers();
-			if (failure) return reject(failure);
-			if (signal) return reject(new Error(`Packaged Scape-open child exited with signal ${signal}`));
-			resolvePromise(deepFreeze({
-				code,
-				stdout: Buffer.concat(stdoutChunks).toString('utf8'),
-				stderr: Buffer.concat(stderrChunks).toString('utf8'),
-			}));
-		});
-	});
+	return runBoundedSmokeChild(command, args, {
+		cwd: directory, environment: childEnvironment, outputLimit, timeout,
+		label: 'Scape-open', errorEvent: 'once',
+	}).then(deepFreeze);
 }
 
 export async function runDesktopScapeOpenSmoke({
@@ -555,36 +467,6 @@ function integerInRange(value, minimum, maximum, label) {
 		throw new RangeError(`Desktop Scape-open ${label} must be an integer from ${String(minimum)} to ${String(maximum)}`);
 	}
 	return value;
-}
-
-function signalPosixChildGroup(child, signal) {
-	if (!Number.isSafeInteger(child.pid) || child.pid < 1) return;
-	try {
-		process.kill(-child.pid, signal);
-	} catch (error) {
-		if (error?.code === 'ESRCH') return;
-		try {
-			child.kill(signal);
-		} catch {
-			// The independent settlement deadline remains authoritative.
-		}
-	}
-}
-
-function terminateWindowsChildTree(child) {
-	if (!Number.isSafeInteger(child.pid) || child.pid < 1) return;
-	const killer = spawn('taskkill.exe', ['/PID', String(child.pid), '/T', '/F'], {
-		stdio: 'ignore',
-		windowsHide: true,
-	});
-	killer.once('error', () => {
-		try {
-			child.kill('SIGKILL');
-		} catch {
-			// The independent settlement deadline remains authoritative.
-		}
-	});
-	killer.unref();
 }
 
 function childDiagnostics(child) {
