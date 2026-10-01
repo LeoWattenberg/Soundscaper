@@ -10887,7 +10887,7 @@
 						},
 						{
 							"kind": "test",
-							"path": "tests/desktop-native-services-vfr-project-staging.test.ts"
+							"path": "tests/desktop-native-services-project-context-authority.test.ts"
 						},
 						{
 							"kind": "test",

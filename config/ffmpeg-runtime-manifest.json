@@ -79,8 +79,8 @@
 		},
 		"securityMatrix": {
 			"path": "config/production-security-matrix.json",
-			"byteLength": 854976,
-			"sha256": "4c8a7259d4ff3bdc9664db44093c41ac4e10d99b32d460a88f0ceab8775b01b5"
+			"byteLength": 854982,
+			"sha256": "3d33ca4269c97dec34c0cc95f4c76b94ca84f19cc9cdff54d95bfb56829d8c05"
 		},
 		"threatModel": {
 			"path": "docs/policies/security.md",
@@ -115,6 +115,6 @@
 		}
 	},
 	"integrity": {
-		"payloadSha256": "93ebdedf1fdd2babb845f7319cbf214212f5cc68fe48443ee95670595dd91137"
+		"payloadSha256": "69a6b29a629f941afc0df203e15ceaa3502eb00cbe67b725f12fe703eab9c729"
 	}
 }
