@@ -12,6 +12,7 @@ import { createDefaultMixerGraphV21 } from './mixer-graph-v21.ts';
 import { assertProjectFeatureRenderedFallbackManifestBinding } from './project-feature-rendered-fallback-manifest-binding.ts';
 import { assertProjectFeatureRenderedFallbackReservedIdsAvailable } from './project-feature-rendered-fallback-reserved-ids.ts';
 import { isProjectFeatureRenderedFallbackQualified } from './project-feature-rendered-fallback-qualification.ts';
+import { selectSingleProjectFeatureRenderedFallback } from './project-feature-rendered-fallback-selection.ts';
 import {
 	arrayValue,
 	canonicalString,
@@ -30,7 +31,6 @@ import type {
 	ProjectFeatureAudioMixFallback,
 	ProjectFeatureAudioTrackRenderFallback,
 	ProjectFeatureRequirementsReport,
-	ProjectFeatureRequirementsReportItem,
 } from './project-feature-requirements.ts';
 
 export const PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS = Object.freeze({
@@ -170,41 +170,21 @@ function unchanged<Project>(project: Project): ProjectFeatureAudioRenderedFallba
 function qualifyingFallback(
 	report: ProjectFeatureRequirementsReport | null | undefined,
 ): QualifiedFallback | null {
-	if (report?.compatible !== false || report.format !== 'soundscaper-project' || !Array.isArray(report.items)) {
-		return null;
-	}
-	const candidates = report.items.filter(isQualifyingItem);
-	if (candidates.length === 0) return null;
-	if (candidates.length !== 1) {
-		throw new RangeError('Multiple audio rendered fallbacks are ambiguous for editor playback.');
-	}
-	const item = candidates[0]!;
-	if (item.fallback.role === 'audio-track-render-v1') {
-		return Object.freeze({
-			featureId: item.featureId as QualifiedTrackFallback['featureId'],
-			requirementId: canonicalString(item.requirementId, 'Rendered fallback requirement ID'),
-			fallback: item.fallback,
-		});
-	}
-	return Object.freeze({
-		featureId: canonicalString(item.featureId, 'Rendered fallback feature ID'),
-		requirementId: canonicalString(item.requirementId, 'Rendered fallback requirement ID'),
-		fallback: item.fallback,
-	});
-}
-
-function isQualifyingItem(item: ProjectFeatureRequirementsReportItem): item is ProjectFeatureRequirementsReportItem &
-	Readonly<{ fallback: ProjectFeatureAudioMixFallback | ProjectFeatureAudioTrackRenderFallback }> {
-	const fallback = item.fallback;
-	return fallback?.kind === 'audio'
-		&& (fallback.role === 'project-audio-mix-v1' || fallback.role === 'audio-track-render-v1')
-		&& isProjectFeatureRenderedFallbackQualified({
-			role: fallback.role,
+	return selectSingleProjectFeatureRenderedFallback(report, {
+		kind: 'audio',
+		admittedRoles: ['project-audio-mix-v1', 'audio-track-render-v1'],
+		qualifies: (item) => isProjectFeatureRenderedFallbackQualified({
+			role: item.fallback.role,
 			featureId: item.featureId,
 			availability: item.availability,
 			declaredDisposition: item.declaredDisposition,
 			effectiveDisposition: item.disposition,
-		}, 'audio-playback');
+		}, 'audio-playback'),
+		featureIdentity: (item) => item.fallback.role === 'audio-track-render-v1'
+			? item.featureId
+			: canonicalString(item.featureId, 'Rendered fallback feature ID'),
+		ambiguityDiagnostic: 'Multiple audio rendered fallbacks are ambiguous for editor playback.',
+	}) as QualifiedFallback | null;
 }
 
 function isQualifiedTrackFallback(qualified: QualifiedFallback): qualified is QualifiedTrackFallback {
