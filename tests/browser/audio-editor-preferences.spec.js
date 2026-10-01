@@ -4,13 +4,13 @@ import { readdir } from 'node:fs/promises';
 
 import { darkTheme } from '../../vendor/audacity-design-system/tokens/src/themes/dark.v2.ts';
 import { lightTheme } from '../../vendor/audacity-design-system/tokens/src/themes/light.v2.ts';
-import { BROWSER_PRODUCT_FIXTURE_ROOT } from '../../scripts/lib/browser-product-site-plan.mjs';
 import { expect, test } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
 	chooseCommandAction,
 	chooseDropdown,
 } from './audio-editor-test-helpers.js';
+import { resolveSoundscaperBrowserAssetsDirectory } from './helpers/production-build-paths.js';
 import { chooseTrackMenuAction } from './helpers/track-menu.js';
 
 const cssColor = (hex) => `rgb(${[1, 3, 5].map((offset) =>
@@ -49,7 +49,7 @@ test('desktop Preferences opens General and manages the display-only FFmpeg loca
 
 test('desktop defaults to Speed, preserves Memory, and leaves AI code on demand', async ({ page }) => {
 	test.setTimeout(90_000);
-	const assets = await readdir(new URL(`../../${BROWSER_PRODUCT_FIXTURE_ROOT}/soundscaper/assets/`, import.meta.url));
+	const assets = await readdir(resolveSoundscaperBrowserAssetsDirectory());
 	const asset = (name, extension = 'js') => {
 		const file = assets.find((candidate) => candidate.startsWith(`${name}-`) && candidate.endsWith(`.${extension}`));
 		if (!file) throw new Error(`Browser fixture has no ${name} chunk`);
