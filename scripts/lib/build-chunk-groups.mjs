@@ -33,6 +33,7 @@ import {
 	EDITOR_FFMPEG_RUNTIME_CHUNK_TEST,
 	EDITOR_FREQUENCY_WAVEFORM_CHUNK_TEST,
 	EDITOR_IMPORT_ADMISSION_CHUNK_TEST,
+	EDITOR_MACRO_DEFAULTS_CHUNK_TEST,
 	EDITOR_OPTIONAL_ASSISTANCE_CHUNK_TEST,
 	EDITOR_OPTIONAL_CAPTURE_CHUNK_TEST,
 	EDITOR_OPTIONAL_EXECUTION_CHUNK_TEST,
@@ -260,6 +261,15 @@ export const chunkGroups = [
 	{
 		name: 'editor-recording-runtime',
 		test: EDITOR_RECORDING_RUNTIME_CHUNK_TEST,
+		priority: 99,
+		minSize: 0,
+		maxSize: 400_000,
+		includeDependenciesRecursively: false,
+	},
+	{
+		// First-launch defaults share eager contracts, never optional codec/export code.
+		name: 'editor-macro-defaults',
+		test: EDITOR_MACRO_DEFAULTS_CHUNK_TEST,
 		priority: 99,
 		minSize: 0,
 		maxSize: 400_000,
