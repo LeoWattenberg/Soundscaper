@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { FramescaperNativeServicesController } from './native-services-controller.ts';
 import { FramescaperNativeServicesControllerV3 } from './native-services-controller-v3.ts';
 import {
 	registerFramescaperExternalDisplayFramePort,
@@ -81,7 +80,7 @@ export interface FramescaperNativeServicesMainIpcOptions {
 	readonly removeListener?: (channel: string, listener: (event: unknown, value?: unknown) => void) => void;
 	/** Connect this to the selected desktop generation's authenticated owner. */
 	readonly authorizeOwner: (event: unknown) => boolean | object;
-	readonly controller: FramescaperNativeServicesController | FramescaperNativeServicesControllerV3;
+	readonly controller: FramescaperNativeServicesControllerV3;
 	readonly renderInputs?: Pick<
 		FramescaperNativeRenderInputRouter,
 		'begin' | 'beginLive' | 'receive' | 'finalize' | 'writeLive' | 'completeLive'
@@ -136,8 +135,7 @@ export function registerFramescaperNativeServicesMainIpc(
 	);
 	if (typeof options.handle !== 'function' || typeof options.removeHandler !== 'function'
 		|| typeof options.authorizeOwner !== 'function'
-		|| (!(options.controller instanceof FramescaperNativeServicesController)
-			&& !(options.controller instanceof FramescaperNativeServicesControllerV3))) {
+		|| !(options.controller instanceof FramescaperNativeServicesControllerV3)) {
 		throw new TypeError('Framescaper native-services IPC requires exact main-owned seams.');
 	}
 	const handle = options.handle as FramescaperNativeServicesMainIpcOptions['handle'];

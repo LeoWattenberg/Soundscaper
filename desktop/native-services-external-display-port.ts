@@ -7,7 +7,7 @@ import {
 	type FramescaperExternalDisplayWindow,
 	type FramescaperExternalDisplayWindowOptions,
 } from './external-display-controller.ts';
-import type { FramescaperNativeExternalDisplayPort } from './native-services-lifecycle.ts';
+import type { FramescaperNativeExternalDisplayPort } from './native-services-lifecycle-v3.ts';
 
 export interface FramescaperNativeExternalDisplayPortOptions {
 	readonly platform: NodeJS.Platform;

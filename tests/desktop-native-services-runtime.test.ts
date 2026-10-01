@@ -8,17 +8,60 @@ import { join } from 'node:path';
 import test from 'node:test';
 
 import {
-	startFramescaperNativeServicesRuntime,
-} from '../desktop/native-services-runtime.ts';
-import { FramescaperNativeProjectAuthority } from '../desktop/native-services-project-authority.ts';
+	startFramescaperNativeServicesRuntimeV3,
+} from '../desktop/native-services-runtime-v3.ts';
+import { recoverNativeImageSequenceCheckpointV3 } from '../desktop/native-services-checkpoint-recovery-v3.ts';
 import type { NativeQueueCapacityV1 } from '../src/common/editor/native-queue-admission.ts';
-import { createNativeQueueRecordV2 } from '../src/common/editor/native-queue-record.ts';
-import { nativeQueueKeyedPlanV7 } from './helpers/native-queue-plan-fixture.ts';
+import { createNativeQueueRecordV3 } from '../src/common/editor/native-queue-record-v3.ts';
+import {
+	createFramescaperNativeRenderPlanAuthorityNativeMedia,
+} from '../src/framescaper/editor-native-render-plan-authority.ts';
+import {
+	createFramescaperProjectUnifiedExactRenderPlanNativeMedia,
+} from '../src/framescaper/editor-project-unified-render-plan-native-media.ts';
+import {
+	FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE,
+} from '../src/framescaper/editor-domain-runtime-profile.ts';
+import { createFramescaperProjectNativeMedia } from '../src/framescaper/editor-project-native-media.ts';
+import { framescaperV20Options } from './helpers/framescaper-model-fixture.ts';
 import { settle, waitFor } from './helpers/async-test-control.ts';
+
+const PROFILE = FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE;
+const PROJECT_OPTIONS = framescaperV20Options();
+PROJECT_OPTIONS.sources = (PROJECT_OPTIONS.sources as Array<Record<string, unknown>>)
+	.filter(({ kind }) => kind !== 'audio');
+PROJECT_OPTIONS.clips = (PROJECT_OPTIONS.clips as Array<Record<string, unknown>>)
+	.filter(({ kind }) => kind !== 'audio');
+PROJECT_OPTIONS.tracks = (PROJECT_OPTIONS.tracks as Array<Record<string, unknown>>)
+	.filter(({ type }) => type !== 'audio');
+PROJECT_OPTIONS.sequences = (PROJECT_OPTIONS.sequences as Array<Record<string, unknown>>)
+	.map((sequence) => ({
+		...sequence,
+		trackIds: (sequence.trackIds as string[]).filter((id) => id !== 'audio-track'),
+	}));
+const DERIVED_PROJECT = createFramescaperProjectNativeMedia(PROFILE, PROJECT_OPTIONS);
+PROJECT_OPTIONS.finishing = {
+	sourceColorInterpretations: DERIVED_PROJECT.videoSourceColorInterpretations.map(
+		(interpretation) => ({ ...interpretation, provenance: 'legacy-unmanaged-encoded' }),
+	),
+};
+const PROJECT = createFramescaperProjectNativeMedia(PROFILE, PROJECT_OPTIONS);
+const PLAN = createFramescaperProjectUnifiedExactRenderPlanNativeMedia(
+	PROFILE, PROJECT, createFramescaperNativeRenderPlanAuthorityNativeMedia(PROJECT),
+);
+const IMAGE_DELIVERY = Object.freeze({
+	kind: 'image-sequence' as const, format: 'png' as const,
+	frameRate: Object.freeze({ num: 10, den: 1 }), preserveAlpha: true as const,
+});
+const IMAGE_PLAN = createFramescaperProjectUnifiedExactRenderPlanNativeMedia(
+	PROFILE, PROJECT,
+	createFramescaperNativeRenderPlanAuthorityNativeMedia(PROJECT, IMAGE_DELIVERY),
+	IMAGE_DELIVERY,
+);
 
 test('the main-owned runtime composes one fenced database and truthful controller', async () => {
 	let mediaEnabled = false;
-	const runtime = startFramescaperNativeServicesRuntime({
+	const runtime = startFramescaperNativeServicesRuntimeV3({
 		databasePath: ':memory:',
 		leaseId: 'lease-native-runtime',
 		instanceId: 'instance-native-runtime',
@@ -29,7 +72,7 @@ test('the main-owned runtime composes one fenced database and truthful controlle
 	});
 	await runtime.ready;
 
-	assert.equal(runtime.databaseVersion, 1);
+	assert.equal(runtime.databaseVersion, 3);
 	assert.equal(runtime.controller.snapshot().runtimeAvailable, false);
 	assert.equal(runtime.controller.snapshot().nativeMediaEnabled, false);
 	mediaEnabled = true;
@@ -48,7 +91,7 @@ test('the main-owned runtime composes one fenced database and truthful controlle
 
 test('an unqualified startup recovery is fail-closed and never dispatches', async () => {
 	const recoveries: unknown[] = [];
-	const runtime = startFramescaperNativeServicesRuntime({
+	const runtime = startFramescaperNativeServicesRuntimeV3({
 		databasePath: ':memory:',
 		leaseId: 'lease-native-recovery',
 		instanceId: 'instance-native-recovery',
@@ -75,7 +118,7 @@ test('qualified recovery reaches an explicitly mounted dispatcher during startup
 	const temporary = await mkdtemp(join(tmpdir(), 'framescaper-native-runtime-'));
 	t.after(() => rm(temporary, { recursive: true, force: true }));
 	const databasePath = join(temporary, 'services.sqlite');
-	const first = startFramescaperNativeServicesRuntime({
+	const first = startFramescaperNativeServicesRuntimeV3({
 		databasePath, leaseId: 'lease-native-first', instanceId: 'instance-native-first',
 		processId: 44, runtimeAvailable: () => false, nativeMediaEnabled: () => false,
 		now: () => 3_000,
@@ -86,9 +129,9 @@ test('qualified recovery reaches an explicitly mounted dispatcher during startup
 		grantId: rootGrantId, rootPath: '/private/exports', volumeIdentity: 'volume-a',
 		directoryIdentity: 'directory-a', authorizedAtMs: 3_000,
 	}, first.lease.lease(), 3_000);
-	const record = createNativeQueueRecordV2({
+	const record = createNativeQueueRecordV3({
 		schemaFamily: 'framescaper', schemaVersion: 1,
-		jobId: 'cd'.repeat(20), taskKind: 'encoded-export', plan: nativeQueueKeyedPlanV7(),
+		jobId: 'cd'.repeat(20), taskKind: 'encoded-export', plan: PLAN,
 		projectId: 'project-1', projectRevision: 1, inputFingerprints: [], rootGrantId,
 		relativeDestination: 'programme.mp4', reservations: {
 			cpuCores: 1, processTreeRssBytes: 1_024, scratchBytes: 0,
@@ -100,7 +143,7 @@ test('qualified recovery reaches an explicitly mounted dispatcher during startup
 	await first.close();
 
 	const dispatched: string[] = [];
-	const second = startFramescaperNativeServicesRuntime({
+	const second = startFramescaperNativeServicesRuntimeV3({
 		databasePath, leaseId: 'lease-native-second', instanceId: 'instance-native-second',
 		processId: 45, runtimeAvailable: () => true, nativeMediaEnabled: () => true,
 		now: () => 30_000,
@@ -122,7 +165,7 @@ test('enabling Native Media wakes qualified recovered work once per preference t
 	const temporary = await mkdtemp(join(tmpdir(), 'framescaper-native-enable-recovery-'));
 	t.after(() => rm(temporary, { recursive: true, force: true }));
 	const databasePath = join(temporary, 'services.sqlite');
-	const first = startFramescaperNativeServicesRuntime({
+	const first = startFramescaperNativeServicesRuntimeV3({
 		databasePath, leaseId: 'lease-enable-first', instanceId: 'instance-enable-first',
 		processId: 51, runtimeAvailable: () => false, nativeMediaEnabled: () => false,
 		now: () => 6_000,
@@ -133,9 +176,9 @@ test('enabling Native Media wakes qualified recovered work once per preference t
 		grantId: rootGrantId, rootPath: '/private/exports', volumeIdentity: 'volume-a',
 		directoryIdentity: 'directory-a', authorizedAtMs: 6_000,
 	}, first.lease.lease(), 6_000);
-	const recovered = createNativeQueueRecordV2({
+	const recovered = createNativeQueueRecordV3({
 		schemaFamily: 'framescaper', schemaVersion: 1,
-		jobId: 'd0'.repeat(20), taskKind: 'encoded-export', plan: nativeQueueKeyedPlanV7(),
+		jobId: 'd0'.repeat(20), taskKind: 'encoded-export', plan: PLAN,
 		projectId: 'project-1', projectRevision: 1, inputFingerprints: [], rootGrantId,
 		relativeDestination: 'recovered.mp4', reservations: {
 			cpuCores: 1, processTreeRssBytes: 1_024, scratchBytes: 0,
@@ -150,7 +193,7 @@ test('enabling Native Media wakes qualified recovered work once per preference t
 	let now = 60_000;
 	const executed: string[] = [];
 	const errors: unknown[] = [];
-	const second = startFramescaperNativeServicesRuntime({
+	const second = startFramescaperNativeServicesRuntimeV3({
 		databasePath, leaseId: 'lease-enable-second', instanceId: 'instance-enable-second',
 		processId: 52, runtimeAvailable: () => true, nativeMediaEnabled: () => mediaEnabled,
 		now: () => ++now,
@@ -191,9 +234,9 @@ test('enabling Native Media wakes qualified recovered work once per preference t
 		await waitForQueueState(second, recovered.jobId, 'completed');
 		assert.deepEqual(executed, [recovered.jobId]);
 
-		const later = createNativeQueueRecordV2({
+		const later = createNativeQueueRecordV3({
 			schemaFamily: 'framescaper', schemaVersion: 1,
-			jobId: 'd1'.repeat(20), taskKind: 'encoded-export', plan: nativeQueueKeyedPlanV7(),
+			jobId: 'd1'.repeat(20), taskKind: 'encoded-export', plan: PLAN,
 			projectId: 'project-1', projectRevision: 1, inputFingerprints: [], rootGrantId,
 			relativeDestination: 'later.mp4', reservations: {
 				cpuCores: 1, processTreeRssBytes: 1_024, scratchBytes: 0,
@@ -218,9 +261,9 @@ test('enabling Native Media wakes qualified recovered work once per preference t
 		assert.deepEqual(executed, [recovered.jobId, later.jobId]);
 
 		await second.queueDispatcher?.dispose();
-		const deferred = createNativeQueueRecordV2({
+		const deferred = createNativeQueueRecordV3({
 			schemaFamily: 'framescaper', schemaVersion: 1,
-			jobId: 'd2'.repeat(20), taskKind: 'encoded-export', plan: nativeQueueKeyedPlanV7(),
+			jobId: 'd2'.repeat(20), taskKind: 'encoded-export', plan: PLAN,
 			projectId: 'project-1', projectRevision: 1, inputFingerprints: [], rootGrantId,
 			relativeDestination: 'deferred.mp4', reservations: {
 				cpuCores: 1, processTreeRssBytes: 1_024, scratchBytes: 0,
@@ -244,7 +287,7 @@ test('startup leaves terminal rows visible without invoking project exact-plan r
 	const temporary = await mkdtemp(join(tmpdir(), 'framescaper-native-terminal-runtime-'));
 	t.after(() => rm(temporary, { recursive: true, force: true }));
 	const databasePath = join(temporary, 'services.sqlite');
-	const first = startFramescaperNativeServicesRuntime({
+	const first = startFramescaperNativeServicesRuntimeV3({
 		databasePath, leaseId: 'lease-terminal-first', instanceId: 'instance-terminal-first',
 		processId: 48, runtimeAvailable: () => false, nativeMediaEnabled: () => false,
 		now: () => 5_000,
@@ -255,9 +298,9 @@ test('startup leaves terminal rows visible without invoking project exact-plan r
 		grantId: rootGrantId, rootPath: '/private/exports', volumeIdentity: 'volume-a',
 		directoryIdentity: 'directory-a', authorizedAtMs: 5_000,
 	}, first.lease.lease(), 5_000);
-	const record = createNativeQueueRecordV2({
+	const record = createNativeQueueRecordV3({
 		schemaFamily: 'framescaper', schemaVersion: 1,
-		jobId: 'cf'.repeat(20), taskKind: 'encoded-export', plan: nativeQueueKeyedPlanV7(),
+		jobId: 'cf'.repeat(20), taskKind: 'encoded-export', plan: PLAN,
 		projectId: 'project-1', projectRevision: 1, inputFingerprints: [], rootGrantId,
 		relativeDestination: 'terminal.mp4', reservations: {
 			cpuCores: 1, processTreeRssBytes: 1_024, scratchBytes: 0,
@@ -269,7 +312,7 @@ test('startup leaves terminal rows visible without invoking project exact-plan r
 	await first.close();
 
 	let revalidations = 0;
-	const second = startFramescaperNativeServicesRuntime({
+	const second = startFramescaperNativeServicesRuntimeV3({
 		databasePath, leaseId: 'lease-terminal-second', instanceId: 'instance-terminal-second',
 		processId: 49, runtimeAvailable: () => true, nativeMediaEnabled: () => true,
 		now: () => 50_000,
@@ -289,7 +332,7 @@ test('runtime close waits for an in-progress watch reconciliation before closing
 	const scanEntered = new Promise<void>((resolve) => { enterScan = resolve; });
 	let releaseScan!: () => void;
 	const scanBarrier = new Promise<void>((resolve) => { releaseScan = resolve; });
-	const runtime = startFramescaperNativeServicesRuntime({
+	const runtime = startFramescaperNativeServicesRuntimeV3({
 		databasePath: ':memory:', leaseId: 'lease-watch-close', instanceId: 'instance-watch-close',
 		processId: 50, runtimeAvailable: () => false, nativeMediaEnabled: () => false,
 		now: () => 60_000,
@@ -329,14 +372,14 @@ test('startup recovery dispatch uses frame counts reverified by project authorit
 	const temporary = await mkdtemp(join(tmpdir(), 'framescaper-native-checkpoint-runtime-'));
 	t.after(() => rm(temporary, { recursive: true, force: true }));
 	const databasePath = join(temporary, 'services.sqlite');
-	const first = startFramescaperNativeServicesRuntime({
+	const first = startFramescaperNativeServicesRuntimeV3({
 		databasePath, leaseId: 'lease-checkpoint-first', instanceId: 'instance-checkpoint-first',
 		processId: 46, runtimeAvailable: () => false, nativeMediaEnabled: () => false,
 		now: () => 4_000,
 	});
 	await first.ready;
 	const rootGrantId = 'ac'.repeat(16);
-	const root = first.roots.authorize({
+	first.roots.authorize({
 		grantId: rootGrantId, rootPath: '/private/exports', volumeIdentity: 'volume-a',
 		directoryIdentity: 'directory-a', authorizedAtMs: 4_000,
 	}, first.lease.lease(), 4_000);
@@ -344,9 +387,9 @@ test('startup recovery dispatch uses frame counts reverified by project authorit
 		Object.freeze({ sourceId: 'source-a', sha256: '12'.repeat(32) }),
 		Object.freeze({ sourceId: 'source-b', sha256: '34'.repeat(32) }),
 	]);
-	const record = createNativeQueueRecordV2({
+	const record = createNativeQueueRecordV3({
 		schemaFamily: 'framescaper', schemaVersion: 1,
-		jobId: 'ce'.repeat(20), taskKind: 'image-sequence-export', plan: nativeQueueKeyedPlanV7(),
+		jobId: 'ce'.repeat(20), taskKind: 'image-sequence-export', plan: IMAGE_PLAN,
 		projectId: 'project-1', projectRevision: 7, inputFingerprints: inputs, rootGrantId,
 		relativeDestination: 'frames/frame.png', reservations: {
 			cpuCores: 1, processTreeRssBytes: 1_024, scratchBytes: 4_096,
@@ -358,76 +401,63 @@ test('startup recovery dispatch uses frame counts reverified by project authorit
 	await first.close();
 
 	const sourceInventoryDigest = createHash('sha256').update(JSON.stringify(inputs)).digest('hex');
+	const plannedFrameCount = IMAGE_PLAN.output.frameCount;
 	const manifest = Object.freeze([0, 1].map((frameIndex) => Object.freeze({
 		frameIndex, relativePath: `frames/frame-${String(frameIndex).padStart(6, '0')}.png`,
 		byteLength: frameIndex + 10, sha256: String(frameIndex + 1).repeat(64),
 		planFingerprint: record.planFingerprint, sourceInventoryDigest,
 	})));
-	const authority = new FramescaperNativeProjectAuthority({
-		project: {
-			schemaFamily: 'framescaper', schemaVersion: 1,
-			projectState: () => Object.freeze({
-				schemaFamily: 'framescaper' as const, schemaVersion: 1 as const,
-				open: true, writable: true,
-			}),
-			projectRecord: () => Object.freeze({
-				schemaFamily: 'framescaper' as const, schemaVersion: 1 as const,
-				projectId: record.projectId, projectRevision: record.projectRevision,
-				projectSha256: '56'.repeat(32),
-				bodies: Object.freeze(inputs.map((input) => Object.freeze({
-					kind: 'video-original' as const, encoding: 'framescaper-video-original-v1',
-					sourceId: input.sourceId, storageKey: input.sourceId, mimeType: 'video/mp4',
-					byteLength: 1, sha256: input.sha256,
-				}))),
-			}),
-			readProjectBundle: async () => null, readBody: async () => new Uint8Array(),
-		},
-		scratchRoot: '/private/scratch',
-		executable: () => Object.freeze({
-			path: '/private/media-host', byteLength: 1, sha256: '78'.repeat(32),
-			identity: Object.freeze({ dev: 1, ino: 2 }),
-		}),
-		createMessageChannel: () => { throw new Error('must not stage during recovery'); },
-		probeRoot: async () => Object.freeze({
-			exists: true, directory: true, symbolicLink: false, canonicalPath: root.rootPath,
-			volumeIdentity: root.volumeIdentity, directoryIdentity: root.directoryIdentity,
-		}),
-		publicationPortFor: () => { throw new Error('must not publish during recovery'); },
-		publicationFenceFor: () => { throw new Error('must not fence during recovery'); },
-		reserveScratch: () => undefined, settleScratch: async () => undefined,
-		scratchMatches: () => true,
-		checkpointStore: {
-			read: async () => Object.freeze({
-				version: 1 as const, jobId: record.jobId, planFingerprint: record.planFingerprint,
-				sourceInventoryDigest, plannedFrameCount: 30, manifest,
-			}),
-			write: async () => undefined,
-		},
-		checkpointInspectFor: () => async (frame) => Object.freeze({
-			byteLength: frame.byteLength, sha256: frame.sha256, symbolicLink: false,
-		}),
-		onCheckpointError: (error) => { throw error; },
-	});
 	const dispatched: Array<{ jobId: string; progress: number | null }> = [];
-	const second = startFramescaperNativeServicesRuntime({
+	const second = startFramescaperNativeServicesRuntimeV3({
 		databasePath, leaseId: 'lease-checkpoint-second', instanceId: 'instance-checkpoint-second',
 		processId: 47, runtimeAvailable: () => true, nativeMediaEnabled: () => true,
 		now: () => 40_000,
-		revalidate: ({ record: current, root: currentRoot, rootAuthorized }) => (
-			authority.revalidate(current, currentRoot, rootAuthorized)
-		),
+		revalidate: async ({ record: current, root, rootAuthorized }) => ({
+			projectRevisionMatches: true,
+			planFingerprintMatches: true,
+			inputFingerprintsMatch: true,
+			rootGrantAuthorized: rootAuthorized,
+			rootGrantValid: rootAuthorized,
+			helperBuildMatches: true,
+			scratchIdentityMatches: true,
+			...await recoverNativeImageSequenceCheckpointV3({
+				record: current,
+				rootUsable: rootAuthorized && root !== null,
+				store: {
+					read: async () => Object.freeze({
+						version: 1 as const,
+						jobId: record.jobId,
+						planFingerprint: record.planFingerprint,
+						sourceInventoryDigest,
+						plannedFrameCount,
+						manifest,
+					}),
+					write: async () => undefined,
+				},
+				inspect: async (frame) => Object.freeze({
+					byteLength: frame.byteLength,
+					sha256: frame.sha256,
+					symbolicLink: false,
+				}),
+				onError: (error) => { throw error; },
+			}),
+		}),
 		dispatchRecovered: (records) => {
 			dispatched.push(...records.map(({ jobId, progress }) => ({ jobId, progress })));
 		},
 	});
 	await second.ready;
-	assert.deepEqual(dispatched, [{ jobId: record.jobId, progress: 2 / 30 }]);
-	assert.equal(second.queue.read(record.jobId)?.progress, 2 / 30);
-	await second.close();
+	try {
+		assert.equal(second.queue.read(record.jobId)?.state, 'queued');
+		assert.deepEqual(dispatched, [{ jobId: record.jobId, progress: 2 / plannedFrameCount }]);
+		assert.equal(second.queue.read(record.jobId)?.progress, 2 / plannedFrameCount);
+	} finally {
+		await second.close();
+	}
 });
 
 async function waitForQueueState(
-	runtime: ReturnType<typeof startFramescaperNativeServicesRuntime>,
+	runtime: ReturnType<typeof startFramescaperNativeServicesRuntimeV3>,
 	jobId: string,
 	state: string,
 ): Promise<void> {

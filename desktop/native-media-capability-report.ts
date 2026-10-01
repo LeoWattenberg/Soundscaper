@@ -7,7 +7,7 @@ import {
 	createNativeMediaCapabilitySnapshotV1,
 	type NativeMediaCapabilitySnapshotV1,
 } from '../src/common/editor/native-media-capability-snapshot.ts';
-import type { FramescaperNativeServicePreferences } from './native-services-controller.ts';
+import type { FramescaperNativeServicePreferences } from './native-services-controller-contracts-v3.ts';
 
 export interface FramescaperNativeCapabilityRuntimeV1 {
 	readonly payloadBuilt: boolean;

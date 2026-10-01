@@ -9,7 +9,8 @@ import {
 	initializeFramescaperNativeServicesDatabase,
 	releaseFramescaperNativeServicesWriterLease,
 } from '../desktop/native-services-database.ts';
-import { FramescaperNativeQueueRepository } from '../desktop/native-services-queue-repository.ts';
+import { FramescaperNativeQueueRepository } from '../desktop/native-services-queue-repository-v3.ts';
+import { initializeFramescaperNativeServicesDatabaseV3 } from '../desktop/native-services-database-v3.ts';
 import { FramescaperNativeRootRepository } from '../desktop/native-services-root-repository.ts';
 import {
 	FramescaperNativeScratchRepository,
@@ -26,9 +27,19 @@ import {
 	verifyNativeImageSequenceCheckpoint,
 } from '../desktop/native-services-publication.ts';
 import { createNativeMediaPublicationPlan } from '../src/common/editor/native-media-atomic-publication.ts';
-import { createNativeQueueRecordV2 } from '../src/common/editor/native-queue-record.ts';
+import { createNativeQueueRecordV3 } from '../src/common/editor/native-queue-record-v3.ts';
 import { NATIVE_WATCH_RECONCILE_INTERVAL_MS } from '../src/common/editor/native-watch-reconciliation.ts';
-import { nativeQueueKeyedPlanV7 } from './helpers/native-queue-plan-fixture.ts';
+import {
+	createFramescaperNativeRenderPlanAuthorityNativeMedia,
+} from '../src/framescaper/editor-native-render-plan-authority.ts';
+import {
+	createFramescaperProjectUnifiedExactRenderPlanNativeMedia,
+} from '../src/framescaper/editor-project-unified-render-plan-native-media.ts';
+import {
+	FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE,
+} from '../src/framescaper/editor-domain-runtime-profile.ts';
+import { createFramescaperProjectNativeMedia } from '../src/framescaper/editor-project-native-media.ts';
+import { framescaperV20Options } from './helpers/framescaper-model-fixture.ts';
 
 const GRANT_ID = 'f'.repeat(32);
 const ROOT = '/volumes/ingest';
@@ -37,6 +48,11 @@ const SHA_B = 'b'.repeat(64);
 const PROJECT_IDENTITY = Object.freeze({
 	schemaFamily: 'framescaper' as const, schemaVersion: 1 as const,
 });
+const PROFILE = FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE;
+const PROJECT = createFramescaperProjectNativeMedia(PROFILE, framescaperV20Options());
+const PLAN = createFramescaperProjectUnifiedExactRenderPlanNativeMedia(
+	PROFILE, PROJECT, createFramescaperNativeRenderPlanAuthorityNativeMedia(PROJECT),
+);
 
 test('watch rules default to link and reconcile non-recursively after two stable observations', async () => {
 	const database = open();
@@ -264,7 +280,7 @@ test('scratch reservations obey the existing quota and cleanup only an authentic
 	const queue = new FramescaperNativeQueueRepository(database);
 	queue.enqueue(queueRecord('1a', 0), lease, 1);
 	queue.enqueue(queueRecord('2b', 1), lease, 1);
-	const scratch = new FramescaperNativeScratchRepository(database);
+	const scratch = new FramescaperNativeScratchRepository(database, queue);
 
 	const first = scratch.reserve({
 		jobId: jobId('1a'), directoryName: `job-${jobId('1a')}`,
@@ -324,7 +340,7 @@ test('a failed job retry re-arms only its exact authenticated scratch reservatio
 	});
 	const queue = new FramescaperNativeQueueRepository(database);
 	const record = queue.enqueue(queueRecord('3c', 0), lease, 1);
-	const scratch = new FramescaperNativeScratchRepository(database);
+	const scratch = new FramescaperNativeScratchRepository(database, queue);
 	const request = {
 		jobId: record.jobId, directoryName: `job-${record.jobId}`,
 		manifestDigest: SHA_A, rootIdentity: 'scratch-root-a', requestedBytes: 4_096,
@@ -445,6 +461,7 @@ test('image-sequence recovery keeps only one contiguous run of exactly verified 
 function open(): DatabaseSync {
 	const database = new DatabaseSync(':memory:');
 	initializeFramescaperNativeServicesDatabase(database);
+	initializeFramescaperNativeServicesDatabaseV3(database);
 	return database;
 }
 
@@ -477,10 +494,10 @@ function jobId(byte: string): string {
 }
 
 function queueRecord(byte: string, position: number) {
-	return createNativeQueueRecordV2({
+	return createNativeQueueRecordV3({
 		schemaFamily: 'framescaper', schemaVersion: 1,
-		jobId: jobId(byte), taskKind: 'encoded-export', plan: nativeQueueKeyedPlanV7(),
-		projectId: 'project-1', projectRevision: 1, inputFingerprints: [],
+		jobId: jobId(byte), taskKind: 'encoded-export', plan: PLAN,
+		projectId: String(PROJECT.id), projectRevision: Number(PROJECT.revision), inputFingerprints: [],
 		rootGrantId: GRANT_ID, relativeDestination: `exports/${byte}.mp4`,
 		reservations: {
 			cpuCores: 1, processTreeRssBytes: 1_024, scratchBytes: 4_096,

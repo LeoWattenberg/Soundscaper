@@ -8,7 +8,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 import type { HelperDataPlaneIoPort } from '../desktop/helper-data-plane-io.ts';
 import { sendHelperDataPlaneFile } from '../desktop/helper-data-plane-io.ts';
-import { framescaperNativeQueueEnqueueRequest } from '../desktop/native-services-lifecycle.ts';
+import { framescaperNativeQueueEnqueueRequest } from '../desktop/native-services-lifecycle-contracts.ts';
 import {
 	FRAMESCAPER_NATIVE_RENDER_INPUT_MAXIMUM_PENDING_STAGES,
 	FRAMESCAPER_NATIVE_RENDER_INPUT_STAGE_EXPIRY_MS,

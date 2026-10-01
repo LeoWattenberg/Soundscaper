@@ -13,7 +13,10 @@ import {
 } from '../desktop/native-services-database.ts';
 import {
 	FramescaperNativeQueueRepository,
-} from '../desktop/native-services-queue-repository.ts';
+} from '../desktop/native-services-queue-repository-v3.ts';
+import {
+	initializeFramescaperNativeServicesDatabaseV3,
+} from '../desktop/native-services-database-v3.ts';
 import {
 	FRAMESCAPER_NATIVE_SERVICES_RENEW_INTERVAL_MS,
 	FramescaperNativeServicesLeaseCoordinator,
@@ -22,12 +25,27 @@ import {
 	FramescaperNativeRootRepository,
 } from '../desktop/native-services-root-repository.ts';
 import { FramescaperNativeWatchRepository } from '../desktop/native-services-watch-repository.ts';
-import { createNativeQueueRecordV2 } from '../src/common/editor/native-queue-record.ts';
+import { createNativeQueueRecordV3 } from '../src/common/editor/native-queue-record-v3.ts';
 import type { NativeQueueCapacityV1 } from '../src/common/editor/native-queue-admission.ts';
-import { nativeQueueKeyedPlanV7 } from './helpers/native-queue-plan-fixture.ts';
+import {
+	createFramescaperNativeRenderPlanAuthorityNativeMedia,
+} from '../src/framescaper/editor-native-render-plan-authority.ts';
+import {
+	createFramescaperProjectUnifiedExactRenderPlanNativeMedia,
+} from '../src/framescaper/editor-project-unified-render-plan-native-media.ts';
+import {
+	FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE,
+} from '../src/framescaper/editor-domain-runtime-profile.ts';
+import { createFramescaperProjectNativeMedia } from '../src/framescaper/editor-project-native-media.ts';
+import { framescaperV20Options } from './helpers/framescaper-model-fixture.ts';
 
 const GRANT_ID = 'f'.repeat(32);
 const ROOT = '/volumes/exports';
+const PROFILE = FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE;
+const PROJECT = createFramescaperProjectNativeMedia(PROFILE, framescaperV20Options());
+const PLAN = createFramescaperProjectUnifiedExactRenderPlanNativeMedia(
+	PROFILE, PROJECT, createFramescaperNativeRenderPlanAuthorityNativeMedia(PROJECT),
+);
 
 test('the native queue repository persists CRUD and dispatches only the default two jobs', () => {
 	const database = open();
@@ -225,6 +243,7 @@ test('revoking a root atomically disables every dependent watch rule', () => {
 function open(): DatabaseSync {
 	const database = new DatabaseSync(':memory:');
 	initializeFramescaperNativeServicesDatabase(database);
+	initializeFramescaperNativeServicesDatabaseV3(database);
 	return database;
 }
 
@@ -253,10 +272,10 @@ function queueRecord(
 	position: number,
 	taskKind: 'encoded-export' | 'image-sequence-export' = 'encoded-export',
 ) {
-	return createNativeQueueRecordV2({
+	return createNativeQueueRecordV3({
 		schemaFamily: 'framescaper', schemaVersion: 1,
-		jobId: jobId(byte), taskKind, plan: nativeQueueKeyedPlanV7(),
-		projectId: 'project-1', projectRevision: 1,
+		jobId: jobId(byte), taskKind, plan: PLAN,
+		projectId: String(PROJECT.id), projectRevision: Number(PROJECT.revision),
 		inputFingerprints: [{ sourceId: 'source-a', sha256: 'b'.repeat(64) }],
 		rootGrantId: GRANT_ID, relativeDestination: `exports/${byte}.mp4`,
 		reservations: {

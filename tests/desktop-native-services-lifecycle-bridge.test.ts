@@ -9,15 +9,13 @@ import {
 	acquireFramescaperNativeServicesWriterLease,
 	initializeFramescaperNativeServicesDatabase,
 } from '../desktop/native-services-database.ts';
-import {
-	FramescaperNativeServicesController,
-} from '../desktop/native-services-controller.ts';
+import { initializeFramescaperNativeServicesDatabaseV3 } from '../desktop/native-services-database-v3.ts';
 import {
 	FramescaperNativeServicesControllerV3,
 } from '../desktop/native-services-controller-v3.ts';
 import {
-	FramescaperNativeServicesLifecycle,
-} from '../desktop/native-services-lifecycle.ts';
+	FramescaperNativeServicesLifecycleV3,
+} from '../desktop/native-services-lifecycle-v3.ts';
 import {
 	FRAMESCAPER_NATIVE_SERVICES_MAIN_CHANNELS,
 	registerFramescaperNativeServicesMainIpc,
@@ -25,21 +23,26 @@ import {
 import {
 	createFramescaperNativeServicesMainPreloadBridge,
 } from '../desktop/native-services-main-preload.ts';
-import { FramescaperNativeQueueRepository } from '../desktop/native-services-queue-repository.ts';
+import { FramescaperNativeQueueRepository } from '../desktop/native-services-queue-repository-v3.ts';
 import { FramescaperNativeRootRepository } from '../desktop/native-services-root-repository.ts';
 import { FramescaperNativeScratchRepository } from '../desktop/native-services-scratch-repository.ts';
 import { FramescaperNativeWatchRepository } from '../desktop/native-services-watch-repository.ts';
-import { createNativeQueueRecordV2 } from '../src/common/editor/native-queue-record.ts';
+import { createNativeQueueRecordV3 } from '../src/common/editor/native-queue-record-v3.ts';
 import {
 	NATIVE_MEDIA_CAPABILITY_IDS,
 	createNativeMediaCapabilitySnapshotV1,
 } from '../src/common/editor/native-media-capability-snapshot.ts';
-import { createUnifiedExactRenderPlan } from '../src/common/editor/unified-exact-render-plan.ts';
 import {
-	nativeQueueKeyedPlanV7,
-	nativeQueueSmallStaticPlanV8,
-} from './helpers/native-queue-plan-fixture.ts';
-import { unifiedExactPlanFixture } from './helpers/unified-exact-render-plan-fixture.ts';
+	createFramescaperNativeRenderPlanAuthorityNativeMedia,
+} from '../src/framescaper/editor-native-render-plan-authority.ts';
+import {
+	createFramescaperProjectUnifiedExactRenderPlanNativeMedia,
+} from '../src/framescaper/editor-project-unified-render-plan-native-media.ts';
+import {
+	FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE,
+} from '../src/framescaper/editor-domain-runtime-profile.ts';
+import { createFramescaperProjectNativeMedia } from '../src/framescaper/editor-project-native-media.ts';
+import { framescaperV20Options } from './helpers/framescaper-model-fixture.ts';
 
 const GRANT_ID = 'ab'.repeat(16);
 const RULE_ID = 'cd'.repeat(16);
@@ -47,6 +50,15 @@ const JOB_ID = 'ef'.repeat(20);
 const SILENT_JOB_ID = 'ad'.repeat(20);
 const ROOT = '/private/native-output';
 const SHA_B = 'b'.repeat(64);
+const PROFILE = FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE;
+const PROJECT = createFramescaperProjectNativeMedia(PROFILE, framescaperV20Options());
+const DELIVERY = Object.freeze({
+	kind: 'image-sequence' as const, format: 'png' as const,
+	frameRate: Object.freeze({ num: 10, den: 1 }), preserveAlpha: true as const,
+});
+const PLAN = createFramescaperProjectUnifiedExactRenderPlanNativeMedia(
+	PROFILE, PROJECT, createFramescaperNativeRenderPlanAuthorityNativeMedia(PROJECT, DELIVERY), DELIVERY,
+);
 
 const usableCapabilities = () => createNativeMediaCapabilitySnapshotV1({
 	masterEnabled: true,
@@ -59,6 +71,7 @@ const usableCapabilities = () => createNativeMediaCapabilitySnapshotV1({
 test('a closed-project watch rule does not fail manual reconcile for the others', async () => {
 	const database = new DatabaseSync(':memory:');
 	initializeFramescaperNativeServicesDatabase(database);
+	initializeFramescaperNativeServicesDatabaseV3(database);
 	const lease = acquireFramescaperNativeServicesWriterLease(database, {
 		leaseId: 'lease-reconcile', instanceId: 'instance-reconcile', processId: 7, nowMs: 1_000,
 	});
@@ -103,13 +116,14 @@ test('a closed-project watch rule does not fail manual reconcile for the others'
 test('the pathless lifecycle bridge owns roots, watch reconciliation, cleanup, publication, checkpoints, and display', async () => {
 	const database = new DatabaseSync(':memory:');
 	initializeFramescaperNativeServicesDatabase(database);
+	initializeFramescaperNativeServicesDatabaseV3(database);
 	const lease = acquireFramescaperNativeServicesWriterLease(database, {
 		leaseId: 'lease-lifecycle', instanceId: 'instance-lifecycle', processId: 7, nowMs: 1_000,
 	});
 	const queue = new FramescaperNativeQueueRepository(database);
 	const roots = new FramescaperNativeRootRepository(database);
 	const watch = new FramescaperNativeWatchRepository(database);
-	const scratch = new FramescaperNativeScratchRepository(database);
+	const scratch = new FramescaperNativeScratchRepository(database, queue);
 	let reconciliations = 0;
 	let hintRefreshes = 0;
 	let displayId: string | null = null;
@@ -122,7 +136,7 @@ test('the pathless lifecycle bridge owns roots, watch reconciliation, cleanup, p
 			byteLength: 10, sha256: SHA_B, symbolicLink: false,
 		}],
 	]);
-	const lifecycle = new FramescaperNativeServicesLifecycle({
+	const lifecycle = new FramescaperNativeServicesLifecycleV3({
 		queue, roots, watch, scratch,
 		lease: () => lease,
 		now: () => 1_001,
@@ -185,7 +199,7 @@ test('the pathless lifecycle bridge owns roots, watch reconciliation, cleanup, p
 			present: () => undefined,
 		},
 	});
-	const controller = new FramescaperNativeServicesController({
+	const controller = new FramescaperNativeServicesControllerV3({
 		queue, roots, watch, lifecycle, lease: () => lease, now: () => 1_001,
 		runtimeAvailable: () => true, nativeMediaEnabled: () => true,
 		projectState: () => ({
@@ -235,17 +249,12 @@ test('the pathless lifecycle bridge owns roots, watch reconciliation, cleanup, p
 	assert.equal(await bridge.revalidateRoot({ grantId: GRANT_ID }), true);
 	await assert.rejects(() => bridge.createWatch({
 		grantId: GRANT_ID, schemaFamily: 'framescaper', schemaVersion: 1,
-		projectId: 'project-1', binId: null,
-		extensions: ['mov'], importMode: 'link', generateProxies: true,
-	}), /watch-folder proxy generation is unavailable/u);
-	await assert.rejects(() => bridge.createWatch({
-		grantId: GRANT_ID, schemaFamily: 'framescaper', schemaVersion: 1,
 		projectId: 'project-1', binId: 'bin-1',
 		extensions: ['mov'], importMode: 'link', generateProxies: false,
-	}), /watch-folder destination bins are unavailable/u);
+	}), /exact v1 writable project bin/u);
 	const rule = await bridge.createWatch({
 		grantId: GRANT_ID, schemaFamily: 'framescaper', schemaVersion: 1,
-		projectId: 'project-1', binId: null,
+		projectId: 'project-1', binId: 'project-bin',
 		extensions: ['mov'], importMode: 'link', generateProxies: false,
 	});
 	assert.equal(rule.ruleId, RULE_ID);
@@ -261,7 +270,7 @@ test('the pathless lifecycle bridge owns roots, watch reconciliation, cleanup, p
 	const enqueued = await bridge.enqueue({
 		schemaFamily: planned.schemaFamily, schemaVersion: planned.schemaVersion,
 		taskKind: planned.taskKind,
-		planVersion: planned.planVersion as 7,
+		planVersion: planned.planVersion,
 		derivedInputStageId: JOB_ID,
 		planFingerprint: planned.planFingerprint,
 		planPayload: planned.planPayload,
@@ -282,14 +291,14 @@ test('the pathless lifecycle bridge owns roots, watch reconciliation, cleanup, p
 	const checkpoint = await bridge.checkpoint({
 		schemaFamily: 'framescaper', schemaVersion: 1, jobId: JOB_ID,
 		sourceInventoryDigest,
-		plannedFrameCount: 30,
+		plannedFrameCount: PLAN.output.frameCount,
 		manifest: [{
 			frameIndex: 0, relativePath: 'frames/000001.png', byteLength: 2, sha256: SHA_B,
 			planFingerprint: queueRecord().planFingerprint, sourceInventoryDigest,
 		}],
 	});
 	assert.equal(checkpoint.verifiedFrameCount, 1);
-	assert.equal(checkpoint.complete, false);
+	assert.equal(checkpoint.complete, PLAN.output.frameCount === 1);
 	assert.equal((storedCheckpoint as { manifest: unknown[] }).manifest.length, 1);
 	const published = await bridge.publish({
 		schemaFamily: 'framescaper', schemaVersion: 1,
@@ -299,56 +308,8 @@ test('the pathless lifecycle bridge owns roots, watch reconciliation, cleanup, p
 	assert.equal(published.outcome, 'published');
 	assert.equal(queue.read(JOB_ID)?.state, 'completed');
 	assert.equal(await bridge.remove({ jobId: JOB_ID }), true);
-	assert.deepEqual(removedRenderInputs, [JOB_ID]);
+	assert.deepEqual(removedRenderInputs, [], 'V14 carrier custody settles before terminal queue removal');
 	assert.equal(queue.read(JOB_ID), null);
-	const silentPlan = createNativeQueueRecordV2({
-		schemaFamily: 'framescaper', schemaVersion: 1,
-		jobId: SILENT_JOB_ID, taskKind: 'encoded-export', plan: nativeQueueSmallStaticPlanV8(),
-		projectId: 'project-1', projectRevision: 1, inputFingerprints: [], rootGrantId: GRANT_ID,
-		relativeDestination: 'exports/silent.mp4', reservations: {
-			cpuCores: 1, processTreeRssBytes: 1_024, scratchBytes: 4_096,
-			minimumFreeBytes: 0, hardwareBackend: null,
-		}, recoveryClass: 'atomic-restart', position: 0, createdAtMs: 1_004,
-	});
-	const silentEnqueued = await bridge.enqueue({
-		schemaFamily: silentPlan.schemaFamily, schemaVersion: silentPlan.schemaVersion,
-		taskKind: silentPlan.taskKind, planVersion: silentPlan.planVersion as 8,
-		derivedInputStageId: null, planFingerprint: silentPlan.planFingerprint,
-		planPayload: silentPlan.planPayload, projectId: silentPlan.projectId,
-		projectRevision: silentPlan.projectRevision, inputFingerprints: silentPlan.inputFingerprints,
-		rootGrantId: silentPlan.rootGrantId, relativeDestination: silentPlan.relativeDestination,
-		reservations: silentPlan.reservations, recoveryClass: silentPlan.recoveryClass,
-	});
-	assert.equal(silentEnqueued.jobId, SILENT_JOB_ID);
-	assert.deepEqual(claimedRenderInputs, [JOB_ID], 'silent V8 bypasses durable derived-input claims');
-	await bridge.control({ jobId: SILENT_JOB_ID, action: 'cancel' });
-	assert.equal(await bridge.remove({ jobId: SILENT_JOB_ID }), true);
-	assert.deepEqual(removedRenderInputs, [JOB_ID, SILENT_JOB_ID]);
-	const unifiedPlan = createNativeQueueRecordV2({
-		schemaFamily: 'framescaper', schemaVersion: 1,
-		jobId: SILENT_JOB_ID, taskKind: 'encoded-export',
-		plan: createUnifiedExactRenderPlan(unifiedExactPlanFixture(12)),
-		projectId: 'project-1', projectRevision: 1,
-		inputFingerprints: [{ sourceId: 'source-1', sha256: '12'.repeat(32) }],
-		rootGrantId: GRANT_ID, relativeDestination: 'exports/candidate.mp4', reservations: {
-			cpuCores: 1, processTreeRssBytes: 1_024, scratchBytes: 4_096,
-			minimumFreeBytes: 0, hardwareBackend: null,
-		}, recoveryClass: 'atomic-restart', position: 0, createdAtMs: 1_005,
-	});
-	const unifiedEnqueued = await bridge.enqueue({
-		schemaFamily: unifiedPlan.schemaFamily, schemaVersion: unifiedPlan.schemaVersion,
-		taskKind: unifiedPlan.taskKind, planVersion: unifiedPlan.planVersion as 12,
-		derivedInputStageId: null, planFingerprint: unifiedPlan.planFingerprint,
-		planPayload: unifiedPlan.planPayload, projectId: unifiedPlan.projectId,
-		projectRevision: unifiedPlan.projectRevision, inputFingerprints: unifiedPlan.inputFingerprints,
-		rootGrantId: unifiedPlan.rootGrantId, relativeDestination: unifiedPlan.relativeDestination,
-		reservations: unifiedPlan.reservations, recoveryClass: unifiedPlan.recoveryClass,
-	});
-	assert.equal(unifiedEnqueued.jobId, SILENT_JOB_ID);
-	assert.deepEqual(claimedRenderInputs, [JOB_ID], 'unified V12 bypasses legacy derived-input claims');
-	await bridge.control({ jobId: SILENT_JOB_ID, action: 'cancel' });
-	assert.equal(await bridge.remove({ jobId: SILENT_JOB_ID }), true);
-
 	assert.deepEqual(await bridge.externalDisplays(), {
 		displays: [{
 			displayId: 'display-2', label: 'Client', primary: false,
@@ -383,13 +344,13 @@ test('the pathless lifecycle bridge owns roots, watch reconciliation, cleanup, p
 });
 
 function queueRecord() {
-	return createNativeQueueRecordV2({
+	return createNativeQueueRecordV3({
 		schemaFamily: 'framescaper', schemaVersion: 1,
 		jobId: JOB_ID,
 		taskKind: 'image-sequence-export',
-		plan: nativeQueueKeyedPlanV7(),
-		projectId: 'project-1',
-		projectRevision: 1,
+		plan: PLAN,
+		projectId: String(PROJECT.id),
+		projectRevision: Number(PROJECT.revision),
 		inputFingerprints: [],
 		rootGrantId: GRANT_ID,
 		relativeDestination: 'exports/reel.mp4',

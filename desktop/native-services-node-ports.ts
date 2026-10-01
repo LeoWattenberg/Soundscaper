@@ -19,7 +19,7 @@ import {
 import {
 	createFramescaperNativeFilesystemCheckpointStore,
 	type FramescaperNativeCheckpointStore,
-} from './native-services-checkpoint-recovery.ts';
+} from './native-services-checkpoint-recovery-core.ts';
 import type {
 	FramescaperNativeRootGrant,
 	FramescaperNativeRootObservation,

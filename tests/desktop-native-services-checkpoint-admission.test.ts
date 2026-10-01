@@ -5,13 +5,10 @@ import test from 'node:test';
 
 import {
 	FRAMESCAPER_NATIVE_CHECKPOINT_MAXIMUM_DURABLE_BYTES,
-	admitNativeImageSequenceCheckpointEvidence,
 	createFramescaperNativeFilesystemCheckpointStore,
 	nativeImageSequenceCheckpointEvidenceByteLength,
-	nativeImageSequenceSourceInventoryDigest,
-	verifyAndStoreNativeImageSequenceCheckpoint,
 	type NativeImageSequenceCheckpointEvidenceV1,
-} from '../desktop/native-services-checkpoint-recovery.ts';
+} from '../desktop/native-services-checkpoint-recovery-core.ts';
 import {
 	admitNativeImageSequenceCheckpointEvidenceV3,
 	createFramescaperNativeFilesystemCheckpointStore as createFramescaperNativeFilesystemCheckpointStoreV3,
@@ -19,20 +16,13 @@ import {
 	nativeImageSequenceSourceInventoryDigestV3,
 	verifyAndStoreNativeImageSequenceCheckpointV3,
 } from '../desktop/native-services-checkpoint-recovery-v3.ts';
-import { framescaperNativeCheckpointLifecycleRequest } from '../desktop/native-services-lifecycle.ts';
-import { createNativeMediaPlanEnvelopeV1 } from '../src/common/editor/native-media-plan-envelope.ts';
+import { framescaperNativeCheckpointLifecycleRequest } from '../desktop/native-services-lifecycle-contracts.ts';
 import { createNativeMediaPlanEnvelopeV2 } from '../src/common/editor/native-media-plan-envelope-v2.ts';
-import {
-	assertNativeQueueRecordV2,
-	createNativeQueueRecordV2,
-	type NativeQueueRecordV2,
-} from '../src/common/editor/native-queue-record.ts';
 import {
 	assertNativeQueueRecordV3,
 	createNativeQueueRecordV3,
 	type NativeQueueRecordV3,
 } from '../src/common/editor/native-queue-record-v3.ts';
-import { createVideoKeyframeExportPlanV7 } from '../src/common/editor/video-keyframe-export-plan-v7.ts';
 import { createFramescaperNativeRenderPlanAuthorityNativeMedia } from '../src/framescaper/editor-native-render-plan-authority.ts';
 import { createFramescaperProjectUnifiedExactRenderPlanNativeMedia } from '../src/framescaper/editor-project-unified-render-plan-native-media.ts';
 import { FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-domain-runtime-profile.ts';
@@ -71,11 +61,11 @@ test('checkpoint IPC admission refuses a control envelope over 64 KiB before cop
 
 test('checkpoint admission refuses a durable representation over 64 KiB before frame I/O', async () => {
 	const record = runningImageSequenceRecord();
-	const sourceInventoryDigest = nativeImageSequenceSourceInventoryDigest(record);
-	const plannedFrameCount = createNativeMediaPlanEnvelopeV1(
+	const sourceInventoryDigest = nativeImageSequenceSourceInventoryDigestV3(record);
+	const plannedFrameCount = createNativeMediaPlanEnvelopeV2(
 		JSON.parse(record.planPayload) as unknown,
 	).summary.outputFrameCount;
-	const manifest = Object.freeze(Array.from({ length: 100 }, (_, frameIndex) => frame(
+	const manifest = Object.freeze(Array.from({ length: plannedFrameCount }, (_, frameIndex) => frame(
 		frameIndex,
 		record.planFingerprint,
 		sourceInventoryDigest,
@@ -83,7 +73,7 @@ test('checkpoint admission refuses a durable representation over 64 KiB before f
 	)));
 	let inspections = 0;
 	let writes = 0;
-	await assert.rejects(() => verifyAndStoreNativeImageSequenceCheckpoint(record, {
+	await assert.rejects(() => verifyAndStoreNativeImageSequenceCheckpointV3(record, {
 		sourceInventoryDigest,
 		plannedFrameCount,
 		manifest,
@@ -100,8 +90,8 @@ test('checkpoint admission refuses a durable representation over 64 KiB before f
 
 test('checkpoint durable admission stores only the exactly verified contiguous prefix', async () => {
 	const record = runningImageSequenceRecord();
-	const sourceInventoryDigest = nativeImageSequenceSourceInventoryDigest(record);
-	const plannedFrameCount = createNativeMediaPlanEnvelopeV1(
+	const sourceInventoryDigest = nativeImageSequenceSourceInventoryDigestV3(record);
+	const plannedFrameCount = createNativeMediaPlanEnvelopeV2(
 		JSON.parse(record.planPayload) as unknown,
 	).summary.outputFrameCount;
 	const manifest = Object.freeze([0, 1, 2].map((frameIndex) => frame(
@@ -110,7 +100,7 @@ test('checkpoint durable admission stores only the exactly verified contiguous p
 		sourceInventoryDigest,
 		`frames/frame-${String(frameIndex).padStart(6, '0')}.png`,
 	)));
-	const admitted = admitNativeImageSequenceCheckpointEvidence(record, {
+	const admitted = admitNativeImageSequenceCheckpointEvidenceV3(record, {
 		sourceInventoryDigest,
 		plannedFrameCount,
 		manifest,
@@ -119,7 +109,7 @@ test('checkpoint durable admission stores only the exactly verified contiguous p
 		<= FRAMESCAPER_NATIVE_CHECKPOINT_MAXIMUM_DURABLE_BYTES);
 	const stored: NativeImageSequenceCheckpointEvidenceV1[] = [];
 	const inspected: number[] = [];
-	const result = await verifyAndStoreNativeImageSequenceCheckpoint(record, {
+	const result = await verifyAndStoreNativeImageSequenceCheckpointV3(record, {
 		sourceInventoryDigest,
 		plannedFrameCount,
 		manifest,
@@ -184,64 +174,17 @@ test('V3 checkpoint admission uses the shared durable representation for a V14 i
 	});
 });
 
-function runningImageSequenceRecord(): NativeQueueRecordV2 {
-	const durationFrames = 80_000;
-	const plan = createVideoKeyframeExportPlanV7({
-		format: 'mp4',
-		sampleRate: 8_000,
-		range: { startFrame: 0, endFrame: durationFrames, durationFrames },
-		canvas: {
-			width: 2, height: 2, frameRate: { num: 30, den: 1 }, fit: 'contain',
-			pixelFormat: 'yuv420p', backgroundColor: '#000000',
-			referenceClipId: 'clip-1', referenceSourceId: 'source-1',
-		},
-		activeClipIds: ['clip-1'],
-		activeSourceIds: ['source-1'],
-		sources: [{
-			kind: 'video', id: 'source-1', storageKey: 'source-1',
-			mimeType: 'video/mp4', contentSha256: SHA_A,
-		}],
-		includeAudio: false,
-	});
-	const queued = createNativeQueueRecordV2({
-		schemaFamily: 'framescaper', schemaVersion: 1,
-		jobId: 'ab'.repeat(20),
-		taskKind: 'image-sequence-export',
-		plan,
-		projectId: 'project-1',
-		projectRevision: 7,
-		inputFingerprints: [{ sourceId: 'source-1', sha256: SHA_A }],
-		rootGrantId: 'cd'.repeat(16),
-		relativeDestination: 'frames/frame.png',
-		reservations: {
-			cpuCores: 1,
-			processTreeRssBytes: 256 * 1_024 ** 2,
-			scratchBytes: 32 * 1_024 ** 2,
-			minimumFreeBytes: 0,
-			hardwareBackend: null,
-		},
-		recoveryClass: 'verified-frame-checkpoint',
-		position: 0,
-		createdAtMs: 1,
-	});
-	const running = Object.freeze({
-		...queued,
-		state: 'running' as const,
-		progress: 0,
-		attempt: 1,
-		updatedAtMs: 2,
-	});
-	assertNativeQueueRecordV2(running);
-	return running;
+function runningImageSequenceRecord(): NativeQueueRecordV3 {
+	return runningImageSequenceRecordV3('ab'.repeat(20));
 }
 
-function runningImageSequenceRecordV3(): NativeQueueRecordV3 {
+function runningImageSequenceRecordV3(jobId = 'cd'.repeat(20)): NativeQueueRecordV3 {
 	const profile = FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE;
 	const project = createFramescaperProjectNativeMedia(profile, framescaperV20Options());
 	const delivery = Object.freeze({
 		kind: 'image-sequence' as const,
 		format: 'png' as const,
-		frameRate: Object.freeze({ num: 30, den: 1 }),
+		frameRate: Object.freeze({ num: 120, den: 1 }),
 		preserveAlpha: true as const,
 	});
 	const plan = createFramescaperProjectUnifiedExactRenderPlanNativeMedia(
@@ -252,7 +195,7 @@ function runningImageSequenceRecordV3(): NativeQueueRecordV3 {
 	);
 	const queued = createNativeQueueRecordV3({
 		schemaFamily: 'framescaper', schemaVersion: 1,
-		jobId: 'cd'.repeat(20),
+		jobId,
 		taskKind: 'image-sequence-export',
 		plan,
 		projectId: String(project.id),

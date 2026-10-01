@@ -8,9 +8,10 @@ import {
 	acquireFramescaperNativeServicesWriterLease,
 	initializeFramescaperNativeServicesDatabase,
 } from '../desktop/native-services-database.ts';
+import { initializeFramescaperNativeServicesDatabaseV3 } from '../desktop/native-services-database-v3.ts';
 import {
-	FramescaperNativeServicesController,
-} from '../desktop/native-services-controller.ts';
+	FramescaperNativeServicesControllerV3,
+} from '../desktop/native-services-controller-v3.ts';
 import {
 	FRAMESCAPER_NATIVE_SERVICES_MAIN_CHANNELS,
 	registerFramescaperNativeServicesMainIpc,
@@ -18,24 +19,41 @@ import {
 import {
 	createFramescaperNativeServicesMainPreloadBridge,
 } from '../desktop/native-services-main-preload.ts';
-import { FramescaperNativeQueueRepository } from '../desktop/native-services-queue-repository.ts';
+import { FramescaperNativeQueueRepository } from '../desktop/native-services-queue-repository-v3.ts';
 import { FramescaperNativeRootRepository } from '../desktop/native-services-root-repository.ts';
 import { FramescaperNativeWatchRepository } from '../desktop/native-services-watch-repository.ts';
-import { createNativeQueueRecordV2 } from '../src/common/editor/native-queue-record.ts';
+import { createNativeQueueRecordV3 } from '../src/common/editor/native-queue-record-v3.ts';
 import {
 	framescaperOpenFxInteractEffectStateSha256V1,
 	framescaperOpenFxInteractRequestV1,
 } from '../src/common/editor/native-ofx-interact-contract.ts';
-import { nativeQueueKeyedPlanV7 } from './helpers/native-queue-plan-fixture.ts';
 import { framescaperClosedNativeCapabilityReportV1 } from '../desktop/native-media-capability-report.ts';
 import {
 	NATIVE_MEDIA_CAPABILITY_IDS,
 	createNativeMediaCapabilitySnapshotV1,
 } from '../src/common/editor/native-media-capability-snapshot.ts';
+import {
+	createFramescaperNativeRenderPlanAuthorityNativeMedia,
+} from '../src/framescaper/editor-native-render-plan-authority.ts';
+import {
+	createFramescaperProjectUnifiedExactRenderPlanNativeMedia,
+} from '../src/framescaper/editor-project-unified-render-plan-native-media.ts';
+import {
+	FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE,
+} from '../src/framescaper/editor-domain-runtime-profile.ts';
+import { createFramescaperProjectNativeMedia } from '../src/framescaper/editor-project-native-media.ts';
+import { framescaperV20Options } from './helpers/framescaper-model-fixture.ts';
+
+const PROFILE = FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE;
+const PROJECT = createFramescaperProjectNativeMedia(PROFILE, framescaperV20Options());
+const PLAN = createFramescaperProjectUnifiedExactRenderPlanNativeMedia(
+	PROFILE, PROJECT, createFramescaperNativeRenderPlanAuthorityNativeMedia(PROJECT),
+);
 
 test('the authenticated pathless bridge reports blocked state and permits safe queue cleanup', async () => {
 	const database = new DatabaseSync(':memory:');
 	initializeFramescaperNativeServicesDatabase(database);
+	initializeFramescaperNativeServicesDatabaseV3(database);
 	const roots = new FramescaperNativeRootRepository(database);
 	const lease = acquireFramescaperNativeServicesWriterLease(database, {
 		leaseId: 'lease-a', instanceId: 'instance-a', processId: 1, nowMs: 0,
@@ -45,9 +63,9 @@ test('the authenticated pathless bridge reports blocked state and permits safe q
 		volumeIdentity: 'volume-a', directoryIdentity: 'directory-a', authorizedAtMs: 0,
 	}, lease, 0);
 	const queue = new FramescaperNativeQueueRepository(database);
-	queue.enqueue(createNativeQueueRecordV2({
+	queue.enqueue(createNativeQueueRecordV3({
 		schemaFamily: 'framescaper', schemaVersion: 1,
-		jobId: '1a'.repeat(20), taskKind: 'encoded-export', plan: nativeQueueKeyedPlanV7(),
+		jobId: '1a'.repeat(20), taskKind: 'encoded-export', plan: PLAN,
 		projectId: 'project-1', projectRevision: 1, inputFingerprints: [],
 		rootGrantId: 'f'.repeat(32), relativeDestination: 'exports/reel.mp4',
 		reservations: {
@@ -62,7 +80,7 @@ test('the authenticated pathless bridge reports blocked state and permits safe q
 		hardwareEncodeEnabled: false,
 		ofxConsentEnabled: false,
 	};
-	const controller = new FramescaperNativeServicesController({
+	const controller = new FramescaperNativeServicesControllerV3({
 		queue,
 		roots,
 		watch: new FramescaperNativeWatchRepository(database),
@@ -283,6 +301,7 @@ function openFxEffect() {
 test('direct queue reorder requires a writable owning project after capability admission', () => {
 	const database = new DatabaseSync(':memory:');
 	initializeFramescaperNativeServicesDatabase(database);
+	initializeFramescaperNativeServicesDatabaseV3(database);
 	const lease = acquireFramescaperNativeServicesWriterLease(database, {
 		leaseId: 'lease-reorder', instanceId: 'instance-reorder', processId: 3, nowMs: 0,
 	});
@@ -292,9 +311,9 @@ test('direct queue reorder requires a writable owning project after capability a
 		grantId: '9b'.repeat(16), rootPath: '/private/reorder-root',
 		volumeIdentity: 'volume-reorder', directoryIdentity: 'directory-reorder', authorizedAtMs: 0,
 	}, lease, 0);
-	queue.enqueue(createNativeQueueRecordV2({
+	queue.enqueue(createNativeQueueRecordV3({
 		schemaFamily: 'framescaper', schemaVersion: 1,
-		jobId: '8a'.repeat(20), taskKind: 'encoded-export', plan: nativeQueueKeyedPlanV7(),
+		jobId: '8a'.repeat(20), taskKind: 'encoded-export', plan: PLAN,
 		projectId: 'project-closed', projectRevision: 1, inputFingerprints: [],
 		rootGrantId: '9b'.repeat(16), relativeDestination: 'exports/closed.mp4',
 		reservations: { cpuCores: 1, processTreeRssBytes: 1_024, scratchBytes: 4_096,
@@ -308,7 +327,7 @@ test('direct queue reorder requires a writable owning project after capability a
 			selfTestPassed: true, userEnabled: true,
 		})),
 	});
-	const controller = new FramescaperNativeServicesController({
+	const controller = new FramescaperNativeServicesControllerV3({
 		queue, roots,
 		watch: new FramescaperNativeWatchRepository(database), lease: () => lease,
 		runtimeAvailable: () => true, nativeMediaEnabled: () => true,
@@ -324,10 +343,11 @@ test('direct queue reorder requires a writable owning project after capability a
 test('the preload boundary rejects a hostile native capability response', async () => {
 	const database = new DatabaseSync(':memory:');
 	initializeFramescaperNativeServicesDatabase(database);
+	initializeFramescaperNativeServicesDatabaseV3(database);
 	const lease = acquireFramescaperNativeServicesWriterLease(database, {
 		leaseId: 'lease-b', instanceId: 'instance-b', processId: 2, nowMs: 0,
 	});
-	const controller = new FramescaperNativeServicesController({
+	const controller = new FramescaperNativeServicesControllerV3({
 		queue: new FramescaperNativeQueueRepository(database),
 		roots: new FramescaperNativeRootRepository(database),
 		watch: new FramescaperNativeWatchRepository(database),

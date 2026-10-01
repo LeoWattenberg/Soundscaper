@@ -14,7 +14,7 @@ import {
 	HelperDataPlaneSender,
 	type HelperDataPlaneBinding,
 } from '../desktop/helper-data-plane.ts';
-import type { FramescaperNativeServicesController } from '../desktop/native-services-controller.ts';
+import type { FramescaperNativeServicesControllerV3 } from '../desktop/native-services-controller-v3.ts';
 
 test('the renderer transfers one digest-bound evaluated RGBA frame with backpressure', async () => {
 	const handlers = new Map<string, (event: unknown, value?: unknown) => void>();
@@ -25,7 +25,7 @@ test('the renderer transfers one digest-bound evaluated RGBA frame with backpres
 			presented.push(frame);
 			return { displays: [], activeDisplayId: 'display-2' };
 		},
-	} as unknown as FramescaperNativeServicesController;
+	} as unknown as FramescaperNativeServicesControllerV3;
 	const registration = registerFramescaperExternalDisplayFramePort({
 		on: (channel, listener) => handlers.set(channel, listener),
 		removeListener: (channel) => { handlers.delete(channel); },

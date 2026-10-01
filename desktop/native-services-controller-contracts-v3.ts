@@ -21,6 +21,9 @@ import {
 	readProjectSchemaIdentity,
 } from '../src/common/editor/project-schema-identity.ts';
 
+export { assertFramescaperNativeWatchProjection } from './native-services-watch-controller-contract.ts';
+export type { FramescaperNativeWatchProjection } from './native-services-watch-controller-contract.ts';
+
 export const FRAMESCAPER_NATIVE_SERVICES_SNAPSHOT_VERSION = 1;
 export const FRAMESCAPER_NATIVE_SERVICE_PREFERENCES = Object.freeze([
 	'native-media', 'hardware-decode', 'hardware-encode', 'ofx-consent',

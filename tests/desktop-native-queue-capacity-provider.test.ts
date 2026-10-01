@@ -7,21 +7,36 @@ import { join } from 'node:path';
 import test from 'node:test';
 
 import {
-	createFramescaperNativeQueueCapacityProvider,
-} from '../desktop/native-queue-capacity-provider.ts';
+	createFramescaperNativeQueueCapacityProviderV3,
+} from '../desktop/native-queue-capacity-provider-v3.ts';
 import type { FramescaperNativeScratchReservation } from '../desktop/native-services-scratch-repository.ts';
 import { admitNativeQueueJobs } from '../src/common/editor/native-queue-admission.ts';
 import {
-	assertNativeQueueRecordV2,
-	createNativeQueueRecordV2,
-} from '../src/common/editor/native-queue-record.ts';
+	assertNativeQueueRecordV3,
+	createNativeQueueRecordV3,
+} from '../src/common/editor/native-queue-record-v3.ts';
 import { applyNativeQueueTransition } from '../src/common/editor/native-queue-state-machine.ts';
-import { nativeQueueKeyedPlanV7 } from './helpers/native-queue-plan-fixture.ts';
+import {
+	createFramescaperNativeRenderPlanAuthorityNativeMedia,
+} from '../src/framescaper/editor-native-render-plan-authority.ts';
+import {
+	createFramescaperProjectUnifiedExactRenderPlanNativeMedia,
+} from '../src/framescaper/editor-project-unified-render-plan-native-media.ts';
+import {
+	FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE,
+} from '../src/framescaper/editor-domain-runtime-profile.ts';
+import { createFramescaperProjectNativeMedia } from '../src/framescaper/editor-project-native-media.ts';
+import { framescaperV20Options } from './helpers/framescaper-model-fixture.ts';
 
 const GIB = 1024 ** 3;
+const PROFILE = FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE;
+const PROJECT = createFramescaperProjectNativeMedia(PROFILE, framescaperV20Options());
+const PLAN = createFramescaperProjectUnifiedExactRenderPlanNativeMedia(
+	PROFILE, PROJECT, createFramescaperNativeRenderPlanAuthorityNativeMedia(PROJECT),
+);
 
 test('the capacity provider accounts for running work and durable scratch exactly once', async () => {
-	const provider = createFramescaperNativeQueueCapacityProvider({
+	const provider = createFramescaperNativeQueueCapacityProviderV3({
 		scratchRoot: '/private/framescaper-scratch',
 		availableParallelism: () => 8,
 		freeMemory: () => 16 * GIB,
@@ -57,7 +72,7 @@ test('the capacity provider accounts for running work and durable scratch exactl
 
 test('multiple pre-materialized scratch promises cannot overcommit raw volume free space', async () => {
 	let freeBytes = 40 * GIB;
-	const provider = createFramescaperNativeQueueCapacityProvider({
+	const provider = createFramescaperNativeQueueCapacityProviderV3({
 		scratchRoot: '/private/framescaper-scratch',
 		availableParallelism: () => 8,
 		freeMemory: () => 16 * GIB,
@@ -88,7 +103,7 @@ test('multiple pre-materialized scratch promises cannot overcommit raw volume fr
 test('the production sampler uses real bounded host and scratch-volume observations', async (t) => {
 	const temporary = await mkdtemp(join(tmpdir(), 'framescaper-capacity-'));
 	t.after(() => rm(temporary, { recursive: true, force: true }));
-	const provider = createFramescaperNativeQueueCapacityProvider({
+	const provider = createFramescaperNativeQueueCapacityProviderV3({
 		scratchRoot: join(temporary, 'managed-scratch'),
 	});
 	const snapshot = await provider({ queue: [], scratch: [] });
@@ -112,15 +127,15 @@ test('invalid physical observations fail closed before becoming capacity', async
 		})],
 		scratch: [],
 	};
-	await assert.rejects(createFramescaperNativeQueueCapacityProvider({
+	await assert.rejects(createFramescaperNativeQueueCapacityProviderV3({
 		scratchRoot: '/private/scratch', availableParallelism: () => 0,
 		inspectScratchVolume: async () => ({ totalBytes: 20 * GIB, freeBytes: 20 * GIB }),
 	})(context), /parallelism/iu);
-	await assert.rejects(createFramescaperNativeQueueCapacityProvider({
+	await assert.rejects(createFramescaperNativeQueueCapacityProviderV3({
 		scratchRoot: '/private/scratch', freeMemory: () => -1,
 		inspectScratchVolume: async () => ({ totalBytes: 20 * GIB, freeBytes: 20 * GIB }),
 	})(context), /free memory/iu);
-	await assert.rejects(createFramescaperNativeQueueCapacityProvider({
+	await assert.rejects(createFramescaperNativeQueueCapacityProviderV3({
 		scratchRoot: '/private/scratch',
 		inspectScratchVolume: async () => ({ totalBytes: 20 * GIB, freeBytes: 21 * GIB }),
 	})(committedContext), /more free bytes/iu);
@@ -136,10 +151,10 @@ function queueRecord(
 		hardwareBackend: string | null;
 	}>,
 ) {
-	return createNativeQueueRecordV2({
+	return createNativeQueueRecordV3({
 		schemaFamily: 'framescaper', schemaVersion: 1,
-		jobId: suffix.repeat(20), taskKind: 'encoded-export', plan: nativeQueueKeyedPlanV7(),
-		projectId: 'project-1', projectRevision: 1, inputFingerprints: [],
+		jobId: suffix.repeat(20), taskKind: 'encoded-export', plan: PLAN,
+		projectId: String(PROJECT.id), projectRevision: Number(PROJECT.revision), inputFingerprints: [],
 		rootGrantId: 'f'.repeat(32), relativeDestination: `${suffix}.mov`, reservations,
 		position: 0, createdAtMs: 1,
 	});
@@ -152,7 +167,7 @@ function runningRecord(
 	const record = applyNativeQueueTransition(
 		queueRecord(suffix, reservations), { kind: 'dispatch' }, 2,
 	).record;
-	assertNativeQueueRecordV2(record);
+	assertNativeQueueRecordV3(record);
 	return record;
 }
 

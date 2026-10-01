@@ -17,7 +17,7 @@ import {
 	type FramescaperNativeQueueRemoveRequest,
 	type FramescaperNativeQueueReorderRequest,
 	type FramescaperNativeServicesSnapshot,
-} from './native-services-controller.ts';
+} from './native-services-controller-contracts-v3.ts';
 import {
 	framescaperNativeCheckpointLifecycleRequest,
 	framescaperNativeExternalDisplayRequest,
@@ -32,7 +32,7 @@ import {
 	type FramescaperNativeQueueEnqueueRequest,
 	type FramescaperNativeWatchCreateRequest,
 	type FramescaperNativeWatchEnabledRequest,
-} from './native-services-lifecycle.ts';
+} from './native-services-lifecycle-contracts.ts';
 import type {
 	FramescaperNativePublicationResult,
 	NativeImageSequenceCheckpointResultV1,

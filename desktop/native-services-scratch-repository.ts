@@ -14,7 +14,6 @@ import {
 	type FramescaperNativeServicesLease,
 	withFramescaperNativeServicesWriterMutation,
 } from './native-services-database.ts';
-import { FramescaperNativeQueueRepository } from './native-services-queue-repository.ts';
 
 const SHA256 = /^[a-f0-9]{64}$/u;
 const DIRECTORY = /^job-[a-f0-9]{40}$/u;
@@ -48,6 +47,13 @@ export interface FramescaperNativeScratchReservationRequest {
 	readonly volume: FramescaperNativeScratchVolume;
 }
 
+export interface FramescaperNativeScratchQueueReader {
+	read(jobId: string): Readonly<{
+		readonly state: string;
+		readonly reservations: Readonly<{ readonly scratchBytes: number }>;
+	}> | null;
+}
+
 export interface FramescaperNativeScratchCleanupPort {
 	readonly inspect: (
 		directoryName: string,
@@ -57,9 +63,14 @@ export interface FramescaperNativeScratchCleanupPort {
 
 export class FramescaperNativeScratchRepository {
 	readonly #database: DatabaseSync;
+	readonly #queue: FramescaperNativeScratchQueueReader;
 
-	constructor(database: DatabaseSync) {
+	constructor(database: DatabaseSync, queue: FramescaperNativeScratchQueueReader) {
 		this.#database = database;
+		if (!queue || typeof queue.read !== 'function') {
+			throw new TypeError('A native scratch repository requires its selected queue reader.');
+		}
+		this.#queue = queue;
 	}
 
 	reserve(
@@ -78,7 +89,7 @@ export class FramescaperNativeScratchRepository {
 			state: 'reserved', createdAtMs, expiresAtMs: null,
 		});
 		return withFramescaperNativeServicesWriterMutation(this.#database, lease, nowMs, () => {
-			const job = new FramescaperNativeQueueRepository(this.#database).read(jobId);
+			const job = this.#queue.read(jobId);
 			if (job === null) throw new Error('A native scratch reservation requires an existing queue job.');
 			if (job.state === 'completed' || job.state === 'failed' || job.state === 'cancelled') {
 				throw new Error('A settled native queue job cannot reserve new scratch.');

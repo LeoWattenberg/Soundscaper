@@ -22,7 +22,7 @@ import {
 	type FramescaperNativeExternalDisplayPort,
 } from './native-services-lifecycle-v3.ts';
 import type { FramescaperNativePublicationPort, NativeImageSequenceCheckpointFrameV1 } from './native-services-publication.ts';
-import type { FramescaperNativeCheckpointStore } from './native-services-checkpoint-recovery.ts';
+import type { FramescaperNativeCheckpointStore } from './native-services-checkpoint-recovery-core.ts';
 import {
 	initializeFramescaperNativeServicesDatabaseV3,
 } from './native-services-database-v3.ts';
@@ -159,7 +159,7 @@ export function startFramescaperNativeServicesRuntimeV3(
 		const queue = new FramescaperNativeQueueRepository(database);
 		const roots = new FramescaperNativeRootRepository(database);
 		const watch = new FramescaperNativeWatchRepository(database);
-		const scratch = new FramescaperNativeScratchRepository(database);
+		const scratch = new FramescaperNativeScratchRepository(database, queue);
 		lease = new FramescaperNativeServicesLeaseCoordinator({
 			database,
 			leaseId: options.leaseId,

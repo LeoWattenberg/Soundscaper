@@ -3,14 +3,30 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { FramescaperNativeMediaQueueDispatcher } from '../desktop/native-media-queue-dispatcher.ts';
-import { startFramescaperNativeServicesRuntime } from '../desktop/native-services-runtime.ts';
+import { FramescaperNativeMediaQueueDispatcherV3 } from '../desktop/native-media-queue-dispatcher-v3.ts';
+import { startFramescaperNativeServicesRuntimeV3 } from '../desktop/native-services-runtime-v3.ts';
 import type { NativeQueueCapacityV1 } from '../src/common/editor/native-queue-admission.ts';
-import { createNativeQueueRecordV2, type NativeQueueRecordV2 } from '../src/common/editor/native-queue-record.ts';
-import { nativeQueueKeyedPlanV7 } from './helpers/native-queue-plan-fixture.ts';
+import { createNativeQueueRecordV3, type NativeQueueRecordV3 } from '../src/common/editor/native-queue-record-v3.ts';
+import {
+	createFramescaperNativeRenderPlanAuthorityNativeMedia,
+} from '../src/framescaper/editor-native-render-plan-authority.ts';
+import {
+	createFramescaperProjectUnifiedExactRenderPlanNativeMedia,
+} from '../src/framescaper/editor-project-unified-render-plan-native-media.ts';
+import {
+	FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE,
+} from '../src/framescaper/editor-domain-runtime-profile.ts';
+import { createFramescaperProjectNativeMedia } from '../src/framescaper/editor-project-native-media.ts';
+import { framescaperV20Options } from './helpers/framescaper-model-fixture.ts';
 import { waitFor } from './helpers/async-test-control.ts';
 
-test('the durable dispatcher reparses V7-V12, limits concurrency, runs the pool, publishes, and completes', async () => {
+const PROFILE = FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE;
+const PROJECT = createFramescaperProjectNativeMedia(PROFILE, framescaperV20Options());
+const PLAN = createFramescaperProjectUnifiedExactRenderPlanNativeMedia(
+	PROFILE, PROJECT, createFramescaperNativeRenderPlanAuthorityNativeMedia(PROJECT),
+);
+
+test('the durable V3 dispatcher authenticates V14, limits concurrency, publishes, and completes', async () => {
 	let now = 1_000;
 	const runtime = serviceRuntime(() => ++now);
 	await runtime.ready;
@@ -20,7 +36,7 @@ test('the durable dispatcher reparses V7-V12, limits concurrency, runs the pool,
 		let maximumActive = 0;
 		const published: string[] = [];
 		const cleaned: Array<Readonly<{ jobId: string; outcome: string }>> = [];
-		const dispatcher = new FramescaperNativeMediaQueueDispatcher({
+		const dispatcher = new FramescaperNativeMediaQueueDispatcherV3({
 			queue: runtime.queue, roots: runtime.roots, lease: () => runtime.lease.lease(),
 			now: () => ++now, available: () => true, nativeMediaEnabled: () => true,
 			capacity: async () => capacity(),
@@ -82,13 +98,13 @@ test('unavailable policy and a mismatched prepared plan remain fail-closed witho
 			}),
 			onError: (error: unknown) => { errors.push(error); },
 		};
-		const unavailable = new FramescaperNativeMediaQueueDispatcher({ ...base, available: () => false });
+		const unavailable = new FramescaperNativeMediaQueueDispatcherV3({ ...base, available: () => false });
 		await unavailable.dispatch([record!]);
 		assert.equal(runtime.queue.read(record!.jobId)?.state, 'queued');
-		const mismatched = new FramescaperNativeMediaQueueDispatcher({ ...base, available: () => true });
+		const mismatched = new FramescaperNativeMediaQueueDispatcherV3({ ...base, available: () => true });
 		await mismatched.dispatch([record!]);
-		assert.equal(runtime.queue.read(record!.jobId)?.state, 'failed');
-		assert.equal(runtime.queue.read(record!.jobId)?.lastFailureCode, 'native-prepare-failed');
+		assert.equal(runtime.queue.read(record!.jobId)?.state, 'paused');
+		assert.equal(runtime.queue.read(record!.jobId)?.lastFailureCode, 'awaiting-carrier-regeneration');
 		assert.equal(poolCalls, 0);
 		assert.match(String(errors[0]), /exact plan fingerprint/u);
 	} finally {
@@ -107,7 +123,7 @@ test('missing or invalid capacity fails closed without claiming queued work', as
 			queue: runtime.queue, roots: runtime.roots, lease: () => runtime.lease.lease(),
 			now: () => ++now, available: () => true, nativeMediaEnabled: () => true,
 			pool: { runJob: async () => { poolCalls += 1; } },
-			prepare: async (current: NativeQueueRecordV2) => ({
+			prepare: async (current: NativeQueueRecordV3) => ({
 				request: {
 					kind: 'media-render' as const,
 					grant: { plan: { sha256: current.planFingerprint } } as never,
@@ -116,16 +132,16 @@ test('missing or invalid capacity fails closed without claiming queued work', as
 			}),
 		};
 		assert.throws(
-			() => new FramescaperNativeMediaQueueDispatcher(base as never),
+			() => new FramescaperNativeMediaQueueDispatcherV3(base as never),
 			/capacity snapshot provider/iu,
 		);
-		const absent = new FramescaperNativeMediaQueueDispatcher({
+		const absent = new FramescaperNativeMediaQueueDispatcherV3({
 			...base, capacity: async () => null,
 		});
 		await absent.dispatch([record!]);
 		assert.equal(runtime.queue.read(record!.jobId)?.state, 'queued');
 		assert.equal(poolCalls, 0);
-		const invalid = new FramescaperNativeMediaQueueDispatcher({
+		const invalid = new FramescaperNativeMediaQueueDispatcherV3({
 			...base, capacity: async () => ({ ...capacity(), availableCpuCores: -1 }),
 		});
 		await assert.rejects(invalid.dispatch([record!]), /availableCpuCores/u);
@@ -151,7 +167,7 @@ test('deferred work waits for an explicit wake and hardware reservations stay ex
 		const firstStarted = new Promise<void>((resolve) => { enterFirst = resolve; });
 		let releaseFirst!: () => void;
 		const firstBarrier = new Promise<void>((resolve) => { releaseFirst = resolve; });
-		const dispatcher = new FramescaperNativeMediaQueueDispatcher({
+		const dispatcher = new FramescaperNativeMediaQueueDispatcherV3({
 			queue: runtime.queue, roots: runtime.roots, lease: () => runtime.lease.lease(),
 			now: () => ++now, available: () => true, nativeMediaEnabled: () => true,
 			capacity: async () => {
@@ -212,7 +228,7 @@ test('reorder changes the next durable dispatch rather than only its displayed p
 		let releaseFirst!: () => void;
 		const firstBarrier = new Promise<void>((resolve) => { releaseFirst = resolve; });
 		const started: string[] = [];
-		const dispatcher = new FramescaperNativeMediaQueueDispatcher({
+		const dispatcher = new FramescaperNativeMediaQueueDispatcherV3({
 			queue: runtime.queue, roots: runtime.roots, lease: () => runtime.lease.lease(),
 			now: () => ++now, available: () => true, nativeMediaEnabled: () => true,
 			capacity: async () => capacity({ configuredConcurrency: 1 }),
@@ -254,7 +270,7 @@ test('async dispatcher disposal aborts a running job and waits for authenticated
 		const cleanupBarrier = new Promise<void>((resolve) => { releaseCleanup = resolve; });
 		let helperStarted!: () => void;
 		const helperStart = new Promise<void>((resolve) => { helperStarted = resolve; });
-		const dispatcher = new FramescaperNativeMediaQueueDispatcher({
+		const dispatcher = new FramescaperNativeMediaQueueDispatcherV3({
 			queue: runtime.queue, roots: runtime.roots, lease: () => runtime.lease.lease(),
 			now: () => ++now, available: () => true, nativeMediaEnabled: () => true,
 			capacity: async () => capacity(),
@@ -286,7 +302,7 @@ test('async dispatcher disposal aborts a running job and waits for authenticated
 	}
 });
 
-test('pausing a running selected-V20 job reports paused cleanup so durable V7 inputs can resume', async () => {
+test('pausing a running selected V14 job reports paused cleanup for regenerated carrier custody', async () => {
 	let now = 5_000;
 	const runtime = serviceRuntime(() => ++now);
 	await runtime.ready;
@@ -295,7 +311,7 @@ test('pausing a running selected-V20 job reports paused cleanup so durable V7 in
 		let helperStarted!: () => void;
 		const started = new Promise<void>((resolve) => { helperStarted = resolve; });
 		const outcomes: string[] = [];
-		const dispatcher = new FramescaperNativeMediaQueueDispatcher({
+		const dispatcher = new FramescaperNativeMediaQueueDispatcherV3({
 			queue: runtime.queue, roots: runtime.roots, lease: () => runtime.lease.lease(),
 			now: () => ++now, available: () => true, nativeMediaEnabled: () => true,
 			capacity: async () => capacity(),
@@ -332,7 +348,7 @@ test('pausing a running selected-V20 job reports paused cleanup so durable V7 in
 });
 
 function serviceRuntime(now: () => number) {
-	return startFramescaperNativeServicesRuntime({
+	return startFramescaperNativeServicesRuntimeV3({
 		databasePath: ':memory:', leaseId: `lease-${String(now())}`,
 		instanceId: `instance-${String(now())}`, processId: 42,
 		runtimeAvailable: () => false, nativeMediaEnabled: () => false, now,
@@ -341,8 +357,8 @@ function serviceRuntime(now: () => number) {
 
 function queueRecords(
 	runtime: ReturnType<typeof serviceRuntime>, count: number, createdAtMs: number,
-	reservationOverrides: Partial<NativeQueueRecordV2['reservations']> = {},
-): readonly NativeQueueRecordV2[] {
+	reservationOverrides: Partial<NativeQueueRecordV3['reservations']> = {},
+): readonly NativeQueueRecordV3[] {
 	const rootGrantId = 'ab'.repeat(16);
 	if (runtime.roots.read(rootGrantId) === null) {
 		runtime.roots.authorize({
@@ -351,11 +367,12 @@ function queueRecords(
 		}, runtime.lease.lease(), createdAtMs);
 	}
 	return Object.freeze(Array.from({ length: count }, (_, index) => {
-		const record = createNativeQueueRecordV2({
+		const record = createNativeQueueRecordV3({
 			schemaFamily: 'framescaper', schemaVersion: 1,
 			jobId: (index + 1).toString(16).padStart(2, '0').repeat(20),
-			taskKind: 'encoded-export', plan: nativeQueueKeyedPlanV7(),
-			projectId: 'project-1', projectRevision: 1, inputFingerprints: [], rootGrantId,
+			taskKind: 'encoded-export', plan: PLAN,
+			projectId: String(PROJECT.id), projectRevision: Number(PROJECT.revision),
+			inputFingerprints: [], rootGrantId,
 			relativeDestination: `output-${String(index)}.mov`, reservations: {
 				cpuCores: 1, processTreeRssBytes: 1_024, scratchBytes: 0,
 				minimumFreeBytes: 0, hardwareBackend: null, ...reservationOverrides,
