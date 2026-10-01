@@ -9,11 +9,13 @@ import {
 export function resolveVideoPreviewCompositorSize(canvas, options = {}) {
 	const rect = canvas.getBoundingClientRect();
 	const pixelRatio = Math.max(1, Number(globalThis.devicePixelRatio) || 1);
+	const previewScale = options.outputWidth != null || options.outputHeight != null ? 1
+		: options.previewResolution === 'quarter' ? 0.25 : options.previewResolution === 'half' ? 0.5 : 1;
 	let width = options.outputWidth == null
-		? Math.max(1, Math.round(rect.width * pixelRatio))
+		? Math.max(1, Math.round(rect.width * pixelRatio * previewScale))
 		: exactVideoPreviewRenderDimension(options.outputWidth, 'width');
 	let height = options.outputHeight == null
-		? Math.max(1, Math.round(rect.height * pixelRatio))
+		? Math.max(1, Math.round(rect.height * pixelRatio * previewScale))
 		: exactVideoPreviewRenderDimension(options.outputHeight, 'height');
 	const scale = Math.min(
 		1,

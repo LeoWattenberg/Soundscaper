@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { createGroupedEditorActions } from '../../controller/composition/action-facade.ts';
+import type { VideoPreviewResolution } from '../../video-preview-preferences.ts';
 
 type Actions = ReturnType<typeof createGroupedEditorActions>;
 
@@ -47,6 +48,9 @@ export function createWorkspaceSelectionViewMenuPorts(dependencies: WorkspaceMen
 		}),
 		viewMenu: Object.freeze({
 			setTimelineView: (view: Parameters<Actions['timeline']['setView']>[0]) => run(() => controller.actions.timeline.setView(view)),
+			setVideoPreviewResolution: (resolution: VideoPreviewResolution) => run(() => controller.actions.preferences.update({
+				view: { videoPreviewResolution: resolution },
+			})),
 			toggleRms: () => run(() => controller.actions.timeline.toggleRms()),
 			toggleFadeShapeHandles: () => run(() => controller.actions.preferences.update({
 				view: { showFadeShapeHandles: !snapshot.preferences?.view?.showFadeShapeHandles },
