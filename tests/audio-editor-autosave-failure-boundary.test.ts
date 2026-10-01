@@ -199,6 +199,45 @@ test('beforeunload covers the gap while an autosave snapshot is being prepared',
 	await runtime.service.drain();
 });
 
+for (const maintenance of ['garbageCollect', 'refreshStorageUsage'] as const) {
+	test(`beforeunload releases a saved document while ${maintenance} is still running`, async () => {
+		let beforeUnload!: (event: BeforeUnloadEvent) => void;
+		let beginMaintenance!: () => void;
+		let finishMaintenance!: () => void;
+		const started = new Promise<void>((resolve) => { beginMaintenance = resolve; });
+		const finished = new Promise<void>((resolve) => { finishMaintenance = resolve; });
+		let dirty = true;
+		const runtime = fixture({
+			hasUnsavedProjectChanges: () => dirty,
+			beforeUnloadTarget: { addEventListener: (_type, listener) => { beforeUnload = listener; } },
+			markProjectSaved: () => { dirty = false; },
+			[maintenance]: async () => { beginMaintenance(); await finished; },
+		});
+		const blocksUnload = () => {
+			let prevented = false;
+			beforeUnload({ preventDefault: () => { prevented = true; }, returnValue: '' } as BeforeUnloadEvent);
+			return prevented;
+		};
+		runtime.service.scheduleAutosave();
+		runtime.fire();
+		await started;
+		try {
+			assert.equal(runtime.publications.at(-1), 'saved');
+			assert.equal(blocksUnload(), false);
+			// A newer edit queued behind maintenance still needs unload protection.
+			dirty = true;
+			runtime.setProject({ id: 'project', revision: 1 });
+			runtime.service.scheduleAutosave();
+			runtime.fire();
+			assert.equal(blocksUnload(), true);
+		} finally {
+			finishMaintenance();
+			await runtime.service.drain();
+		}
+		assert.equal(blocksUnload(), false);
+	});
+}
+
 test('production save services own independent queues and report status without shared state', async () => {
 	const first = fixture({ state: undefined });
 	const second = fixture({ state: undefined });

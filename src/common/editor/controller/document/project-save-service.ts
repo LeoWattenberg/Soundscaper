@@ -332,14 +332,18 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 		materialize = false,
 	): Promise<unknown> {
 		queuedSaveCounts.set(snapshot.id, (queuedSaveCounts.get(snapshot.id) ?? 0) + 1);
+		let pending = true;
+		const finishPublication = () => {
+			if (!pending) return;
+			pending = false;
+			const remaining = (queuedSaveCounts.get(snapshot.id) ?? 1) - 1;
+			if (remaining) queuedSaveCounts.set(snapshot.id, remaining);
+			else queuedSaveCounts.delete(snapshot.id);
+		};
 		const operation = state.saveQueue
 			.catch(() => undefined)
-			.then(() => saveSnapshot(snapshot, generation, projectSaveEpoch, writeFence, preparationPurpose, materialize))
-			.finally(() => {
-				const remaining = (queuedSaveCounts.get(snapshot.id) ?? 1) - 1;
-				if (remaining) queuedSaveCounts.set(snapshot.id, remaining);
-				else queuedSaveCounts.delete(snapshot.id);
-			});
+			.then(() => saveSnapshot(snapshot, generation, projectSaveEpoch, writeFence, preparationPurpose, materialize, finishPublication))
+			.finally(finishPublication);
 		state.saveQueue = operation;
 		return operation;
 	}
@@ -351,6 +355,7 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 		writeFence: string | null,
 		preparationPurpose: ProjectSnapshotPreparationPurpose,
 		materialize: boolean,
+		finishPublication: () => void,
 	): Promise<void> {
 		if (!ownsProjectSaveEpoch(snapshotValue.id, projectSaveEpoch) || !ownsWriteFence(snapshotValue.id, writeFence)) return;
 		let snapshot = snapshotValue;
@@ -412,6 +417,7 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 				await dependencies.persistActiveProjectId(snapshot.id);
 			}
 			if (!ownsProjectSaveEpoch(snapshot.id, projectSaveEpoch) || !ownsWriteFence(snapshot.id, writeFence)) return;
+			finishPublication();
 			if (dependencies.isCurrentProject(snapshot.id) && generation === state.saveGeneration) {
 				if (dependencies.hasSessionTab(snapshot.id)) dependencies.markProjectSaved(snapshot.id);
 				dependencies.publish('saved');
