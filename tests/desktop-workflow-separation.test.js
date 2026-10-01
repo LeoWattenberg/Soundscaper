@@ -5,6 +5,13 @@ import test from 'node:test';
 
 import { extractJob, readWorkflow } from './helpers/workflow-jobs.js';
 
+test('desktop preview restores Electron before the native protocol test shard', async () => {
+	const tests = extractJob(await readWorkflow('desktop-preview.yml'), 'tests');
+	assert.match(tests, /if: matrix\.shard == 'common-2'\s+run: \|\s+if \[ ! -x node_modules\/electron\/dist\/electron \]; then\s+node node_modules\/electron\/install\.js\s+fi\s+test -x node_modules\/electron\/dist\/electron/u);
+	assert.ok(tests.indexOf('node node_modules/electron/install.js')
+		< tests.indexOf('run: xvfb-run --auto-servernum npm run test:shard'));
+});
+
 test('desktop distribution and automated test artifacts have separate workflow entry points', async () => {
 	const preview = await readWorkflow('desktop-preview.yml');
 	const tested = await readWorkflow('desktop-nightly-tests.yml');
