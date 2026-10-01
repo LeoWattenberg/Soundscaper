@@ -43,5 +43,6 @@ export function createDesktopNightlyTestsProgressWindow(options: {
 		unhandle(scheme: string): void;
 	};
 	readonly initialProgress: DesktopNightlyTestsProgress;
+	readonly icon?: string;
 	readonly onError?: (error: unknown) => void;
 }): Promise<DesktopNightlyTestsProgressWindow>;

@@ -51,6 +51,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await page.getByRole('button', { name: 'Collapse navigation' }).click();
 		await expect(page.locator('.website-brand img')).toBeVisible();
 		await waitForEditor(page);
+		await expect(page.locator('.kw-audio-editor__application-mark')).toHaveAttribute('src', '/logo/soundscaper.svg');
 
 		await page.goto('/embed/en/');
 		await expect(page.locator('.website-site-sidebar')).toHaveCount(0);

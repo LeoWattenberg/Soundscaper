@@ -46,6 +46,7 @@ test('the attended nightly runner opens a locked-down visible progress window', 
 	const window = await createDesktopNightlyTestsProgressWindow({
 		BrowserWindow: FakeWindow,
 		protocol,
+		icon: '/opt/app/resources/nightly-tests/sites/soundscaper/offline-icons/soundscaper-512.png',
 		initialProgress: { completed: 0, total: 6, label: 'Application launched' },
 	});
 	window.update({ completed: 2, total: 6, label: 'Performance diagnostics' });
@@ -54,6 +55,7 @@ test('the attended nightly runner opens a locked-down visible progress window', 
 	assert.equal(observed.url, NIGHTLY_TESTS_PROGRESS_DOCUMENT_URL);
 	assert.equal(protocol.scheme, NIGHTLY_TESTS_PROGRESS_SCHEME);
 	assert.equal(observed.options?.show, false);
+	assert.equal(observed.options?.icon, '/opt/app/resources/nightly-tests/sites/soundscaper/offline-icons/soundscaper-512.png');
 	assert.equal(observed.options?.closable, false);
 	assert.deepEqual(observed.options?.webPreferences, {
 		nodeIntegration: false,

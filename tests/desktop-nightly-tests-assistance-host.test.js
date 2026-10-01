@@ -27,12 +27,37 @@ test('the diagnostic host requires explicit model mode, an isolated profile, and
 	const plan = resolveNightlyAssistanceHostPlan(options);
 	assert.equal(plan.productApp, '/opt/products/soundscaper.asar');
 	assert.equal(plan.preload, '/opt/products/soundscaper.asar/desktop/preload.mjs');
+	assert.equal(plan.icon, '/opt/products/soundscaper/linux-unpacked/resources/renderer/offline-icons/soundscaper-512.png');
+	assert.equal(resolveNightlyAssistanceHostPlan({ ...options, environment: {
+		...ENVIRONMENT, SOUNDSCAPER_LOCAL_ASSISTANCE_PRODUCT_ID: 'framescaper',
+	} }).icon, '/opt/products/framescaper/linux-unpacked/resources/renderer/offline-icons/framescaper-512.png');
 	assert.equal(plan.profile, '/tmp/model-profile');
 	assert.equal(plan.modelCache, '/tmp/model-cache');
 	assert.throws(() => resolveNightlyAssistanceHostPlan({ ...options, environment: { ...ENVIRONMENT, SOUNDSCAPER_LOCAL_ASSISTANCE_REAL_MODELS: '0' } }), /explicit/u);
 	assert.throws(() => resolveNightlyAssistanceHostPlan({ ...options, argv: ARGV.map((arg) => arg.replace('address=127.0.0.1', 'address=0.0.0.0')) }), /127\.0\.0\.1/u);
 	assert.throws(() => resolveNightlyAssistanceHostPlan({ ...options, argv: [...ARGV, '--remote-debugging-port=45001'] }), /exactly one/u);
 	assert.throws(() => resolveNightlyAssistanceHostPlan({ ...options, argv: ARGV.map((arg) => arg.replace('=/tmp/model-profile', '=relative')) }), /absolute/u);
+});
+
+test('assistance diagnostics use the packaged product logo on every desktop target', () => {
+	for (const productId of ['soundscaper', 'framescaper']) {
+		const productName = productId === 'soundscaper' ? 'Soundscaper' : 'Framescaper';
+		for (const [platform, arch, resourceDirectory] of [
+			['linux', 'x64', 'linux-unpacked/resources'],
+			['linux', 'arm64', 'linux-arm64-unpacked/resources'],
+			['win32', 'x64', 'win-unpacked/resources'],
+			['win32', 'arm64', 'win-arm64-unpacked/resources'],
+			['darwin', 'x64', `mac/${productName}.app/Contents/Resources`],
+			['darwin', 'arm64', `mac-arm64/${productName}.app/Contents/Resources`],
+		]) {
+			const plan = resolveNightlyAssistanceHostPlan({
+				argv: ARGV, environment: { ...ENVIRONMENT, SOUNDSCAPER_LOCAL_ASSISTANCE_PRODUCT_ID: productId },
+				platform, arch,
+			});
+			assert.equal(plan.icon,
+				`/opt/products/${productId}/${resourceDirectory}/renderer/offline-icons/${productId}-512.png`);
+		}
+	}
 });
 
 test('the diagnostic document scheme is registered before Electron becomes ready', () => {
@@ -94,6 +119,7 @@ test('the isolated host uses production registration and preload with guarded re
 		} }),
 	});
 	assert.equal(windowOptions.webPreferences.preload, hosted.plan.preload);
+	assert.equal(windowOptions.icon, hosted.plan.icon);
 	assert.equal(profilePath, '/tmp/model-profile');
 	assert.equal(loadedUrl, NIGHTLY_ASSISTANCE_DOCUMENT_URL);
 	const documentResponse = await documentHandler({ method: 'GET', url: NIGHTLY_ASSISTANCE_DOCUMENT_URL });
@@ -102,7 +128,7 @@ test('the isolated host uses production registration and preload with guarded re
 	assert.match(await documentResponse.text(), /Local assistance real model tests/u);
 	assert.equal((await documentHandler({ method: 'GET', url: `${NIGHTLY_ASSISTANCE_DOCUMENT_URL}missing` })).status, 404);
 	assert.equal((await documentHandler({ method: 'POST', url: NIGHTLY_ASSISTANCE_DOCUMENT_URL })).status, 405);
-	assert.deepEqual(verifiedFiles, [hosted.plan.preload], 'Electron can access archive entries, not the empty archive root');
+	assert.deepEqual(verifiedFiles, [hosted.plan.preload, hosted.plan.icon], 'verify the archive entry and the product logo before opening the window');
 	for (const key of ['contextIsolation', 'sandbox', 'webSecurity']) assert.equal(windowOptions.webPreferences[key], true);
 	assert.equal(windowOptions.webPreferences.nodeIntegration, false);
 	assert.equal(registration.runtimeRoot, undefined);

@@ -2,7 +2,7 @@
 
 const ARGUMENT = '--soundscaper-nightly-tests-base-url=';
 
-export async function createDesktopNightlyTestsWindow({ argv, BrowserWindow }) {
+export async function createDesktopNightlyTestsWindow({ argv, BrowserWindow, icon }) {
 	const values = argv.filter((value) => value.startsWith(ARGUMENT)).map((value) => value.slice(ARGUMENT.length));
 	if (values.length === 0) return null;
 	if (values.length !== 1) throw new Error('Packaged nightly tests require exactly one loopback URL.');
@@ -13,6 +13,7 @@ export async function createDesktopNightlyTestsWindow({ argv, BrowserWindow }) {
 		// Map the diagnostic window after navigation so Chromium delivers decoded-video
 		// presentation callbacks, but do not activate it over the product window.
 		show: false,
+		icon,
 		webPreferences: {
 			nodeIntegration: false,
 			contextIsolation: true,

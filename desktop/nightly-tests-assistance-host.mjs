@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { access, mkdir, readFile } from 'node:fs/promises';
-import { isAbsolute, join, resolve } from 'node:path';
+import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { takeCoverage } from 'node:v8';
 
@@ -52,16 +52,19 @@ export function resolveNightlyAssistanceHostPlan({ argv, environment, platform =
 	const modelCache = absolute(environment.SOUNDSCAPER_LOCAL_ASSISTANCE_MODEL_CACHE, 'Nightly assistance model cache');
 	const productId = environment.SOUNDSCAPER_LOCAL_ASSISTANCE_PRODUCT_ID;
 	const productRoot = absolute(environment.SOUNDSCAPER_PACKAGED_PRODUCT_ROOT, 'Packaged product root');
-	resolvePackagedProductExecutable({
+	const executable = resolvePackagedProductExecutable({
 		productRoot,
 		productId, platform, arch,
 	});
+	const productResources = platform === 'darwin'
+		? resolve(dirname(executable), '../Resources') : join(dirname(executable), 'resources');
 	// electron-builder can only embed integrity metadata for an ASAR at the
 	// root of a directory-valued extraResource. The product packager places this
 	// host-only copy there while the product executable keeps its original ASAR.
 	const productApp = join(productRoot, `${productId}.asar`);
 	return Object.freeze({ productId, profile, modelCache, productApp,
 		preload: join(productApp, 'desktop/preload.mjs'),
+		icon: join(productResources, 'renderer', 'offline-icons', `${productId}-512.png`),
 		document: join(import.meta.dirname, 'nightly-tests-assistance.html') });
 }
 
@@ -77,6 +80,7 @@ export async function startNightlyAssistanceHost({ app, BrowserWindow, ipcMain, 
 	// Electron treats an archive root as its virtual directory, whose empty entry
 	// cannot be passed to fs.access. Check readability through its preload entry.
 	await verifyFile(plan.preload);
+	await verifyFile(plan.icon);
 	const documentBody = await (dependencies.readFile ?? readFile)(plan.document);
 	await (dependencies.mkdir ?? mkdir)(plan.profile, { recursive: true, mode: 0o700 });
 	app.setPath('userData', plan.profile);
@@ -89,6 +93,7 @@ export async function startNightlyAssistanceHost({ app, BrowserWindow, ipcMain, 
 	const { registerAssistance, IPC } = await (dependencies.loadProductModules ?? loadProductModules)(plan.productApp);
 	const window = new BrowserWindow({
 		width: 960, height: 640, show: false,
+		icon: plan.icon,
 		webPreferences: {
 			preload: plan.preload,
 			additionalArguments: [`--soundscaper-product=${plan.productId}`],

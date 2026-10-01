@@ -21,6 +21,7 @@ test('packaged diagnostic window is visible without activation, loopback-only, s
 	const window = await createDesktopNightlyTestsWindow({
 		argv: ['soundscaper', '--soundscaper-nightly-tests-base-url=http://127.0.0.1:4323'],
 		BrowserWindow: FakeWindow,
+		icon: '/opt/app/resources/renderer/offline-icons/soundscaper-512.png',
 	});
 	assert.ok(window);
 	assert.equal(observations.url, 'http://127.0.0.1:4323/');
@@ -35,6 +36,7 @@ test('packaged diagnostic window is visible without activation, loopback-only, s
 		backgroundThrottling: false,
 	});
 	assert.equal(observations.options.show, false);
+	assert.equal(observations.options.icon, '/opt/app/resources/renderer/offline-icons/soundscaper-512.png');
 	assert.deepEqual(observations.events, ['loaded', 'shown-inactive']);
 	assert.equal(Object.hasOwn(observations.options.webPreferences, 'preload'), false);
 	assert.deepEqual(observations.openHandler(), { action: 'deny' });

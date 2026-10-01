@@ -13,6 +13,7 @@ import { createPackage } from '@electron/asar';
 import { getCurrentFuseWire } from '@electron/fuses';
 
 import hardenDesktopNightlyTests from '../scripts/desktop-nightly-tests-after-pack.mjs';
+import { generateDesktopIcon } from '../scripts/desktop-icons.mjs';
 
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
 
@@ -77,7 +78,8 @@ test('the hardened nightly launcher renders and updates its archived progress pa
 	}));
 	await writeFile(join(source, 'main.mjs'), `
 		import assert from 'node:assert/strict';
-		import { app, BrowserWindow, protocol, session } from 'electron/main';
+		import { join } from 'node:path';
+		import { app, BrowserWindow, nativeImage, protocol, session } from 'electron/main';
 		import { createDesktopNightlyTestsProgressWindow, NIGHTLY_TESTS_PROGRESS_SCHEME,
 			NIGHTLY_TESTS_PROGRESS_DOCUMENT_URL } from './desktop/nightly-tests-progress-window.mjs';
 		protocol.registerSchemesAsPrivileged([{
@@ -87,9 +89,12 @@ test('the hardened nightly launcher renders and updates its archived progress pa
 		async function run() {
 		try {
 			await app.whenReady();
+			const icon = join(process.resourcesPath, 'icon.png');
+			assert.equal(nativeImage.createFromPath(icon).isEmpty(), false);
 			const errors = [];
 			const progress = await createDesktopNightlyTestsProgressWindow({
 				BrowserWindow, protocol: session.defaultSession.protocol,
+				icon,
 				initialProgress: { completed: 0, total: 6, label: 'Application launched' },
 				onError: error => { errors.push(error); },
 			});
@@ -134,6 +139,7 @@ test('the hardened nightly launcher renders and updates its archived progress pa
 		}
 	`);
 	await mkdir(join(root, 'resources'));
+	await generateDesktopIcon({ outputPath: join(root, 'resources/icon.png') });
 	await createPackage(source, join(root, 'resources/app.asar'));
 	await hardenDesktopNightlyTests({
 		electronPlatformName: 'linux', appOutDir: root,

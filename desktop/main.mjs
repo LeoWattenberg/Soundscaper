@@ -231,7 +231,7 @@ async function startApplication() {
 		onPreferences: () => sendToRenderer(IPC.menuCommand, { command: 'preferences' }),
 	});
 	await createWindow();
-	nightlyTestsWindow = await createDesktopNightlyTestsWindow({ argv: process.argv, BrowserWindow });
+	nightlyTestsWindow = await createDesktopNightlyTestsWindow({ argv: process.argv, BrowserWindow, icon: desktopWindowOptions({ rendererRoot: resources.renderer, productId: PRODUCT_ID }).icon });
 	nightlyTestsWindow?.once('closed', () => { nightlyTestsWindow = null; });
 	void checkForUpdates(false);
 
@@ -249,7 +249,7 @@ async function createWindow() {
 	pendingClose = null;
 	allowNextClose = false;
 	mainWindow = new BrowserWindow({
-		...desktopWindowOptions(),
+		...desktopWindowOptions({ rendererRoot: resourceRoots().renderer, productId: PRODUCT_ID }),
 		title: APP_NAME,
 		width: 1440,
 		height: 900,

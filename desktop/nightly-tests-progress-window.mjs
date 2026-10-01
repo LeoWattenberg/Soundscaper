@@ -24,7 +24,7 @@ const PROGRESS_UPDATE_RECIPE = Object.freeze({
 });
 
 /** Open the attended runner surface before any test processes are launched. */
-export async function createDesktopNightlyTestsProgressWindow({ BrowserWindow, protocol, initialProgress, onError = () => undefined }) {
+export async function createDesktopNightlyTestsProgressWindow({ BrowserWindow, protocol, icon, initialProgress, onError = () => undefined }) {
 	if (typeof BrowserWindow !== 'function') {
 		throw new TypeError('The nightly tests progress window requires Electron BrowserWindow.');
 	}
@@ -49,6 +49,7 @@ export async function createDesktopNightlyTestsProgressWindow({ BrowserWindow, p
 		autoHideMenuBar: true,
 		backgroundColor: '#11131a',
 		title: TITLE,
+		icon,
 		webPreferences: {
 			nodeIntegration: false,
 			contextIsolation: true,

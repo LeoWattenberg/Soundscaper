@@ -118,6 +118,7 @@ async function startNightlyTests() {
 				BrowserWindow: electron.BrowserWindow,
 				protocol: electron.session.defaultSession.protocol,
 				initialProgress: latestProgress,
+				icon: resolve(process.resourcesPath, 'nightly-tests/sites/soundscaper/offline-icons/soundscaper-512.png'),
 				onError: (error) => { log(`Progress renderer failed: ${errorDetails(error)}`); },
 			});
 		}

@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import test from 'node:test';
 
 import { IPC, MENU_COMMANDS } from '../desktop/constants.js';
@@ -27,7 +28,8 @@ test('main wires the custom chrome channels and no longer owns an application co
 	assert.ok(MENU_COMMANDS.includes('view:toggle-fullscreen'));
 
 	const source = await readFile(new URL('../desktop/main.mjs', import.meta.url), 'utf8');
-	assert.match(source, /\.\.\.desktopWindowOptions\(\)/u);
+	assert.match(source, /\.\.\.desktopWindowOptions\(\{ rendererRoot: resourceRoots\(\)\.renderer, productId: PRODUCT_ID \}\)/u);
+	assert.match(source, /createDesktopNightlyTestsWindow\(\{[^\n]*icon: desktopWindowOptions\(\{ rendererRoot: resources\.renderer, productId: PRODUCT_ID \}\)\.icon/u);
 	assert.match(source, /hideNativeWindowButtons\(mainWindow, process\.platform\)/u);
 	assert.match(source, /installDesktopApplicationMenu\(\{/u);
 	assert.match(source, /registerFocusedWindowAccelerators\(\{/u);
@@ -40,8 +42,15 @@ test('main wires the custom chrome channels and no longer owns an application co
 	assert.doesNotMatch(source, /function installMenu|desktopNativeTierMenu|IPC\.setFullscreen|IPC\.fullscreenChanged/u);
 });
 
-test('desktop windows replace the system title bar and macOS traffic lights', () => {
-	assert.deepEqual(desktopWindowOptions(), { titleBarStyle: 'hidden' });
+test('desktop windows use the selected product logo and replace the system title bar and macOS traffic lights', () => {
+	for (const productId of ['soundscaper', 'framescaper']) {
+		for (const rendererRoot of ['/opt/app/resources/renderer', '/tmp/checkout/.desktop-build/renderer']) {
+			assert.deepEqual(desktopWindowOptions({ rendererRoot, productId }), {
+				titleBarStyle: 'hidden',
+				icon: join(rendererRoot, 'offline-icons', `${productId}-512.png`),
+			});
+		}
+	}
 
 	const calls = [];
 	const window = { setWindowButtonVisibility: (visible) => calls.push(visible) };

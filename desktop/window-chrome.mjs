@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { join } from 'node:path';
+
 /**
  * Main-process ownership of the desktop window's custom chrome.
  *
@@ -18,8 +20,13 @@ export const WINDOW_ACTIONS = Object.freeze([
 	'toggle-dev-tools',
 ]);
 
-export function desktopWindowOptions() {
-	return Object.freeze({ titleBarStyle: 'hidden' });
+export function desktopWindowOptions({ rendererRoot, productId }) {
+	return Object.freeze({
+		titleBarStyle: 'hidden',
+		// The install raster is generated from public/logo for this product.
+		// Set it on the native window so taskbars do not use a cached executable icon.
+		icon: join(rendererRoot, 'offline-icons', `${productId}-512.png`),
+	});
 }
 
 /** macOS keeps traffic lights under a hidden title bar unless explicitly told otherwise. */
