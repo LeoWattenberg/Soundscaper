@@ -6,6 +6,7 @@ import { normalizeWaveformRulerState } from './geometry.ts';
 import { LabelTrackRow } from './LabelTrackRow.jsx';
 import { audioEditorAsymmetricStereoHeightsAvailable } from './stereo-channel-height-runtime.ts';
 import { TrackFolderRow } from './TrackFolderRow.jsx';
+import { TrackViewportRow } from './TrackViewportRow.tsx';
 import {
 	planTrackListRows,
 	resolveTrackFolderMoveKey,
@@ -310,7 +311,24 @@ export function TrackListView({
 				if (entry.rowHidden) return null;
 				const trackIndex = trackIndexById.get(entry.trackId);
 				const track = trackIndex === undefined ? undefined : project.tracks[trackIndex];
-				return track === undefined ? null : renderTrack(track, trackIndex);
+				if (track === undefined) return null;
+				// Small sessions keep their stable row instances; deep sessions only
+				// mount heavy waveform/spectrogram content near the scroll viewport.
+				return track.type === 'label' ? renderTrack(track, trackIndex) : (
+					<TrackViewportRow
+						key={track.id}
+						enabled={project.tracks.length > 24}
+						trackId={track.id}
+						trackIndex={trackIndex}
+						trackName={track.name}
+						height={visualTrackHeight(track)}
+						panelWidth={panelWidth}
+						headerWidth={trackHeaderWidth}
+						tabIndex={isFlatNavigation ? 0 : trackBaseTabIndex + trackIndex * 4}
+					>
+						{renderTrack(track, trackIndex)}
+					</TrackViewportRow>
+				);
 			})}
 			{(clipDragPreview?.createTrack || projectBinDragPreview?.createTrack) && (
 				<div className="audio-editor-new-track-drop-preview" aria-live="polite">

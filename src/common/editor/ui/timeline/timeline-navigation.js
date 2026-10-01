@@ -1,6 +1,8 @@
 import { mediaTrackBlockDestination } from '../timeline-track-block-geometry.ts';
+import { revealTrackViewportRow } from './track-viewport-observer.ts';
 
 export function trackNavigationRow(root, trackIndex) {
+	revealTrackViewportRow(root, trackIndex);
 	return root?.querySelector(`.audio-editor-track-row[data-track-index="${trackIndex}"]`) || null;
 }
 
