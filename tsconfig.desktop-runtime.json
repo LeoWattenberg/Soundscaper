@@ -93,6 +93,7 @@
 		"desktop/framescaper-media-host-payload.ts",
 		"desktop/framescaper-openfx-host-payload.ts",
 		"desktop/framescaper-openfx-runtime.ts",
+		"src/common/editor/native-media-v14-openfx-carrier.ts",
 		"desktop/helper-data-plane-io.ts",
 		"desktop/helper-job-grant.ts",
 		"desktop/helper-native-ofx-host-grant-v2.ts",
