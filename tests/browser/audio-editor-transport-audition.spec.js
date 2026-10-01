@@ -32,6 +32,66 @@ test.describe('transport audition shortcuts', () => {
 		await expect(menu).toHaveCount(0);
 	});
 
+	test('W plays the selection and Stop returns to its nonzero start', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [longTone]);
+		const clip = clipByName(editor, longTone.name);
+		const playhead = editor.getByRole('slider', { name: 'Playhead', exact: true });
+		const box = await clip.boundingBox();
+		expect(box).not.toBeNull();
+		const y = box.y + box.height * 0.55;
+		await page.mouse.move(box.x + box.width * 0.2, y);
+		await page.mouse.down();
+		await page.mouse.move(box.x + box.width * 0.4, y, { steps: 6 });
+		await page.mouse.up();
+		const selection = editor.locator('[data-time-selection-overlay]').first();
+		await expect(selection).toBeVisible();
+		const selectionStyle = await selection.getAttribute('style');
+		const selectionStart = await frame(playhead);
+		expect(selectionStart).toBeGreaterThan(0);
+		await playOptions(editor).click();
+		const menu = page.getByRole('menu', { name: 'Play options', exact: true });
+		await expect(menuItem(menu, 'Play selection').locator('.context-menu-item-shortcut')).toHaveText('W');
+		await page.keyboard.press('Escape');
+		await page.keyboard.press('w');
+		await expect(editor.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
+		await expect.poll(() => frame(playhead)).toBeGreaterThan(selectionStart + 1_000);
+		await editor.getByRole('button', { name: 'Stop', exact: true }).click();
+		await expect(editor.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
+		await expect.poll(() => frame(playhead)).toBe(selectionStart);
+		await expect(selection).toHaveAttribute('style', selectionStyle);
+
+		await page.keyboard.press('w');
+		await expect(editor.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
+		await expect(editor.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
+		await expect(selection).toHaveAttribute('style', selectionStyle);
+		expect(errors).toEqual([]);
+	});
+
+	for (const stopWith of ['Stop button', 'Space']) {
+		test(`${stopWith} returns to the current playback start`, async ({ page }) => {
+			const errors = collectClientErrors(page);
+			const editor = await bootEditor(page, '/embed/en/');
+			await importFiles(editor, [longTone]);
+			const clip = clipByName(editor, longTone.name);
+			const playhead = editor.getByRole('slider', { name: 'Playhead', exact: true });
+			for (const position of [0.2, 0.4]) {
+				await clickClipInterior(page, clip, position);
+				const start = await frame(playhead);
+				expect(start).toBeGreaterThan(0);
+				await page.keyboard.press('Space');
+				await expect(editor.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
+				await expect.poll(() => frame(playhead)).toBeGreaterThan(start + 1_000);
+				if (stopWith === 'Stop button') await editor.getByRole('button', { name: 'Stop', exact: true }).click();
+				else await page.keyboard.press('Space');
+				await expect(editor.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
+				await expect.poll(() => frame(playhead)).toBe(start);
+			}
+			expect(errors).toEqual([]);
+		});
+	}
+
 	test('C previews and P resumes a gap without an edit, and X stops at the audible position', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');

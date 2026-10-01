@@ -518,11 +518,6 @@ async [ENGINE_ENSURE_MASTER_LOUDNESS_METER](context) {
 		for (const listener of this.parametricEqErrorListeners) listener(error);
 	},
 
-[ENGINE_SET_STATE](value) {
-		if (this.state === value) return;
-		this.state = value;
-		for (const listener of this.stateListeners) listener(value);
-	}
 } satisfies EngineRuntimeMethodMap<
 	| typeof ENGINE_SCHEDULE_CURRENT_PLAYBACK
 	| typeof ENGINE_SCHEDULE_PREPARED_SPEED_PLAYBACK
@@ -537,5 +532,4 @@ async [ENGINE_ENSURE_MASTER_LOUDNESS_METER](context) {
 	| typeof ENGINE_EMIT_POSITION
 	| typeof ENGINE_EMIT_METERS
 	| typeof ENGINE_EMIT_PARAMETRIC_EQ_ERROR
-	| typeof ENGINE_SET_STATE
 >;

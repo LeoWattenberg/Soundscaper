@@ -29,6 +29,7 @@ import {
 	projectTrackFolderMediaStateV12,
 } from '../track-folder-media-runtime.ts';
 import { resolveProjectGraphSelection } from './project-graph-selection.ts';
+import { playbackSessionStart, restorePlaybackSessionStart } from './playback-session.ts';
 import { resolveRuntimeProjectProjection } from '../runtime-clip-projection.ts';
 import {
 	ENGINE_ASSERT_ACTIVE,
@@ -343,18 +344,17 @@ loadProject(project, sourceBuffers = new Map(), options = {}) {
 
 applyProject(this: EngineRuntimeHost, project, sourceBuffers = this.sources, options = {}) {
 		const wasPlaying = this.state === 'playing';
-		// A play() still waiting on its audio context or worklets loses its scrub
-		// generation to the reload below and returns quietly, so it is reissued
-		// over the reloaded project rather than dropped.
+		// Reissue a pending Play over the refreshed sources after loadProject cancels its generation.
 		const playRequested = this.pendingPlayRequest !== 0;
 		const position = this.getPositionFrames();
+		const sessionStart = playbackSessionStart(this);
 		const playbackRate = this.playbackRate;
 		const playbackMode = this.playbackMode;
 		this.loadProject(project, sourceBuffers, { ...options, preserveLoudnessMeasurement: true });
 		this.positionFrame = Math.min(position, this.playbackDurationFrames);
+		restorePlaybackSessionStart(this, sessionStart);
 		if (wasPlaying && playbackMode === 'naive') return this.playAtSpeed(playbackRate);
-		// A StaffPad mix belongs to the exact project snapshot that produced it.
-		// Stop instead of silently resuming that stale PCM or falling back to 1x.
+		// Stop a stale StaffPad mix instead of resuming it or falling back to 1x.
 		if (wasPlaying && playbackMode !== 'staffpad') return this.play();
 		if (!wasPlaying && playRequested) return this.play();
 		this[ENGINE_EMIT_POSITION]();

@@ -31,6 +31,7 @@ import {
 	buildProjectGraph,
 } from './project-graph.ts';
 import { playbackOutputDestination } from './playback-output.ts';
+import { resetPlaybackSession } from './playback-session.ts';
 import { isCutPreviewActive, isCutPreviewPaused, pauseCutPreview, readCutPreviewPosition, resumeCutPreview } from './cut-preview.ts';
 import { resetProductionMeterSessionV21 } from './production-meter-runtime-session-v21.ts';
 import {
@@ -219,6 +220,7 @@ async playAtSpeed(rate, {
 async playAt(this: EngineRuntimeHost, contextTime, fromFrame = this.positionFrame, onBeforeStart) {
 		this[ENGINE_ASSERT_ACTIVE]();
 		if (!this.project) throw new Error('Load an audio editor project before playback.');
+		resetPlaybackSession(this);
 		// Recording and the other clocked starts run to their own end, never to
 		// the end of whatever bounded the last thing that was played.
 		this.playRange = null;
@@ -278,23 +280,11 @@ pause() {
 		this[ENGINE_EMIT_POSITION]();
 	},
 
-stop() {
-		this[ENGINE_ASSERT_ACTIVE]();
-		this[ENGINE_CANCEL_SCRUB]();
-		this[ENGINE_HALT_GRAPH]();
-		this.masterLoudnessMeter?.setRunning(false);
-		this.positionFrame = 0;
-		// The range bounded the run that just ended; whatever starts next says
-		// for itself whether it is bounded.
-		this.playRange = null;
-		this[ENGINE_SET_STATE](this.project ? 'stopped' : 'empty');
-		this[ENGINE_EMIT_POSITION]();
-	},
-
 seek(frame) {
 		this[ENGINE_ASSERT_ACTIVE]();
 		let nextFrame = clampFrame(frame, 0, this.playbackDurationFrames);
 		const wasPlaying = this.state === 'playing';
+		if (!wasPlaying) resetPlaybackSession(this);
 		// Rescheduling playback from outside an enabled loop would date the next
 		// loop iteration before the context clock, so land on the loop start the
 		// way play() and setLoop() already do.
@@ -527,7 +517,6 @@ subscribeParametricEqErrors(listener) {
 	| 'playAtSpeed'
 	| 'playAt'
 	| 'pause'
-	| 'stop'
 	| 'seek'
 	| 'pauseLoudnessMeasurement'
 	| 'continueLoudnessMeasurement'

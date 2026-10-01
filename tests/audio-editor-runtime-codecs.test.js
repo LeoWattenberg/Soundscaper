@@ -190,6 +190,7 @@ test('engine requests worker-side windowed-sinc conversion for arbitrary long-so
 	assert.ok(Math.abs(streamClient.opens[0].resampleInputOffset - 0.91875) < 1e-6);
 	assert.equal(context.bufferSources.length, 0);
 	engine.stop();
+	engine.seek(0);
 	await engine.playAtSpeed(2);
 	assert.equal(streamClient.opens.length, 2);
 	assert.equal(streamClient.opens[1].outputFrameCount, 24_000);

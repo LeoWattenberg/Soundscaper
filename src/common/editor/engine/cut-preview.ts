@@ -3,6 +3,7 @@
 import { audioBufferChannels, clampFrame } from './buffer-math.ts';
 import { createAnalyser } from './effect-rack.ts';
 import { playbackOutputDestination } from './playback-output.ts';
+import { resetPlaybackSession } from './playback-session.ts';
 import { ScheduledParameterRegistry } from './scheduled-parameter-registry.ts';
 import { soundscaperNativeAudioDestination } from '../soundscaper-native-audio-renderer.ts';
 import {
@@ -169,6 +170,7 @@ export const engineCutPreviewMethods = {
 			&& (!selectedIds.size || selectedIds.has(String(candidate.id))));
 		if (!track) throw new Error('Select an audio track to preview the cut.');
 		this.pause();
+		resetPlaybackSession(this);
 		this[ENGINE_CANCEL_SCRUB]();
 		releaseCutPreview(this);
 		const generation = this.scrubGeneration;

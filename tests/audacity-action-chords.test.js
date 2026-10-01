@@ -85,12 +85,12 @@ test('4.0.0 play/stop and play-from-cursor toggles read transport state and the 
 
 		state.transportState = 'playing';
 		await runtime.actions.transport.playStop();
-		assert.deepEqual(calls, ['playPause', 'stop', 'seek:12345'], 'a playing transport stops without discarding its playhead');
+		assert.deepEqual(calls, ['playPause', 'stop'], 'a playing transport uses the same Stop action as the toolbar');
 
 		state.transportState = 'stopped';
 		state.recording = true;
 		await runtime.actions.transport.playStop();
-		assert.deepEqual(calls, ['playPause', 'stop', 'seek:12345', 'recording.stop'], 'Space stops an active recording');
+		assert.deepEqual(calls, ['playPause', 'stop', 'recording.stop'], 'Space stops an active recording');
 		state.recording = false;
 		for (const field of ['recordingStarting', 'recordingScheduling', 'scheduledRecording']) {
 			state[field] = true;

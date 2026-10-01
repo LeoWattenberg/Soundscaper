@@ -23,12 +23,7 @@ export function createTransportActionGroup({ controller, controllerActions, proj
 		playStop: async () => {
 			if (recording()) return controllerActions.recording.stop();
 			if (!playing()) return controllerActions.transport.playPause();
-			const liveFrame = Math.max(0, Math.round(Number(
-				controller.engine?.getPositionFrames?.()
-					?? controller.getTelemetrySnapshot?.()?.positionFrame,
-			) || 0));
-			await controllerActions.transport.stop();
-			return controllerActions.transport.seek(liveFrame);
+			return controllerActions.transport.stop();
 		},
 		playFromCursor: () => {
 			if (playing()) return controllerActions.transport.playPause();

@@ -11,6 +11,7 @@ import { engineNativeEffectPdcControlMethods } from './native-effect-pdc-control
 import { enginePlaybackOutputMethods } from './playback-output.ts';
 import { enginePlaybackGraphLatencyMethods } from './playback-graph-latency.ts';
 import { enginePlaybackFailureMethods } from './playback-stream-failure.ts';
+import { enginePlaybackSessionMethods } from './playback-session.ts';
 import {
 	engineTransportAccessors,
 	engineTransportControlMethods,
@@ -86,6 +87,7 @@ export function installEngineRuntimeMethods(target: object): void {
 		enginePlaybackGraphLatencyMethods,
 		enginePlaybackFailureMethods,
 		engineTransportControlMethods,
+		enginePlaybackSessionMethods,
 		engineLiveAnalysisLeaseMethods,
 		engineCutPreviewMethods,
 		engineTransportAccessors,
