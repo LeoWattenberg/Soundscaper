@@ -411,11 +411,14 @@ export class VideoPreviewCompositor {
 					recordVideoPreviewEntryRendered(ledger, entry);
 					continue;
 				}
+				const textureRecord = this.videoTextures.get(video);
+				const cacheFrameVersion = cacheEffects && textureRecord?.frameIdentity?.canReuseFrame()
+					? textureRecord.frameVersion : undefined;
 				const sourceTarget = applyVideoPreviewEntryEffects(
 					this, videoTexture, passes, contentViewport,
-					cacheEffects ? this.videoTextures.get(video)?.frameVersion : undefined,
+					cacheFrameVersion,
 				);
-				cacheEffects = false;
+				if (cacheFrameVersion != null) cacheEffects = false;
 				gl.enable(gl.BLEND);
 				gl.blendEquation(gl.FUNC_ADD);
 				gl.blendFuncSeparate(

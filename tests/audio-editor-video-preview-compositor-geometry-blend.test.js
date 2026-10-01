@@ -194,24 +194,51 @@ test('unchanged video frames reuse effects while opacity, animated effects, and 
 });
 
 test('additional effected entries do not overwrite the retained first-entry result', () => {
-	const fixture = createRecordingFixture();
-	const compositor = createVideoPreviewCompositor(fixture.canvas);
-	const effects = [{ id: 'vignette', type: 'vignette', enabled: true, params: { amount: 0.5 } }];
-	const layers = ['bottom', 'top'].map((id) => {
-		const clip = { ...entry(id), effects: effects.map((effect) => ({ ...effect, id: `${id}-vignette` })) };
-		Object.assign(clip.video, {
-			currentTime: 0, paused: true, addEventListener() {}, removeEventListener() {},
+	for (const opaqueFirst of [false, true]) {
+		const fixture = createRecordingFixture();
+		const compositor = createVideoPreviewCompositor(fixture.canvas);
+		const effects = [{ id: 'vignette', type: 'vignette', enabled: true, params: { amount: 0.5 } }];
+		const layers = ['bottom', 'top'].map((id, index) => {
+			const clip = { ...entry(id), effects: effects.map((effect) => ({ ...effect, id: `${id}-vignette` })) };
+			if (opaqueFirst && index === 0) clip.video.drawable = {};
+			else Object.assign(clip.video, {
+				currentTime: 0, paused: true, addEventListener() {}, removeEventListener() {},
+			});
+			return { entries: [clip] };
 		});
-		return { entries: [clip] };
-	});
-	try {
-		compositor.render(layers);
-		fixture.recording.reset();
-		compositor.render(layers);
-		assert.equal(fixture.recording.draws.length, 5,
-			'the retained entry composites directly; the other stack runs without a cache copy');
-	} finally {
-		compositor.dispose();
+		try {
+			compositor.render(layers);
+			fixture.recording.reset();
+			compositor.render(layers);
+			assert.equal(fixture.recording.draws.length, 5,
+				'the first reusable entry composites directly; the other stack runs without a cache copy');
+		} finally {
+			compositor.dispose();
+		}
+	}
+});
+
+test('fresh exact drawables and conservative playing frames omit the unusable effect cache copy', () => {
+	for (const opaque of [true, false]) {
+		const fixture = createRecordingFixture();
+		const compositor = createVideoPreviewCompositor(fixture.canvas);
+		const clip = { ...entry('uncacheable'), effects: [{
+			id: 'vignette', type: 'vignette', enabled: true, params: { amount: 0.5 },
+		}] };
+		if (opaque) clip.video.drawable = {};
+		else Object.assign(clip.video, {
+			currentTime: 0, paused: false, addEventListener() {}, removeEventListener() {},
+		});
+		try {
+			compositor.render([{ entries: [clip] }]);
+			fixture.recording.reset();
+			compositor.render([{ entries: [clip] }]);
+			assert.equal(fixture.recording.draws.length, 4,
+				'uncacheable frames need the source copy, effect, composition and delivery draws');
+			assert.equal(fixture.recording.allocations.length, 0, 'scratch targets remain reusable');
+		} finally {
+			compositor.dispose();
+		}
 	}
 });
 

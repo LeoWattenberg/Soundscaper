@@ -8,6 +8,7 @@ import {
 	releaseVideoTexture,
 	uploadVideoTexture,
 } from '../src/common/editor/ui/video-preview-video-textures.js';
+import { createVideoPreviewFrameIdentity } from '../src/common/editor/controller/clip-video/video-preview-frame-identity.ts';
 
 type FrameCallback = (now: number, metadata: { mediaTime: number; presentedFrames: number }) => void;
 
@@ -187,4 +188,24 @@ test('a late cancelled callback cannot keep a released element alive', () => {
 	video.dispatchEvent(new Event('seeked'));
 	assert.equal(video.callbacks.size, 0);
 	assert.equal(textures.size, 0);
+});
+
+test('effect-result eligibility excludes unknown drawables, disposed trackers, and playing fallbacks', () => {
+	assert.equal(createVideoPreviewFrameIdentity({ drawable: {} }), null);
+	const playing = new Video();
+	const tracked = createVideoPreviewFrameIdentity(playing);
+	assert.ok(tracked);
+	assert.equal(tracked.canReuseFrame(), true);
+	tracked.dispose();
+	assert.equal(tracked.canReuseFrame(), false);
+	const fallback = new Video();
+	fallback.requestVideoFrameCallback = undefined;
+	const conservative = createVideoPreviewFrameIdentity(fallback);
+	assert.ok(conservative);
+	assert.equal(conservative.canReuseFrame(), false);
+	fallback.paused = true;
+	assert.equal(conservative.canReuseFrame(), true);
+	fallback.paused = false;
+	assert.equal(conservative.canReuseFrame(), false);
+	conservative.dispose();
 });

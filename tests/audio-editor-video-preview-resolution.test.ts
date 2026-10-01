@@ -59,6 +59,7 @@ test('video preview resolution is reachable through View when video playback is 
 	}, { setVideoPreviewResolution: () => {} } as never);
 	const entry = menu(true).items.find((item: { id?: string }) => item.id === 'video-preview-resolution');
 	assert.ok(entry);
+	assert.ok(entry.items);
 	assert.equal(entry.items[2]?.checked, true);
 	assert.equal(menu(false).items.some((item: { id?: string }) => item.id === 'video-preview-resolution'), false);
 });

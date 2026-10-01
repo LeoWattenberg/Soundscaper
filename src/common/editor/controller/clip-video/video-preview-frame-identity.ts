@@ -18,6 +18,7 @@ interface VideoFrameSource {
 }
 
 export interface VideoPreviewFrameIdentity {
+	canReuseFrame(): boolean;
 	needsUpload(): boolean;
 	markUploaded(): void;
 	dispose(): void;
@@ -62,6 +63,10 @@ class PresentedFrameIdentity implements VideoPreviewFrameIdentity {
 		this.#requestFrame();
 	}
 
+	canReuseFrame(): boolean {
+		return !this.#disposed && (this.#usesCallbacks || this.source.paused);
+	}
+
 	needsUpload(): boolean {
 		if (this.#disposed) return true;
 		const source = this.source;
@@ -76,7 +81,7 @@ class PresentedFrameIdentity implements VideoPreviewFrameIdentity {
 		// can use it as an additional signal before seeked/frame callbacks arrive.
 		if (source.paused && source.currentTime !== this.#observedTime) this.#revision += 1;
 		this.#observedTime = source.currentTime;
-		return (!this.#usesCallbacks && !source.paused) || this.#revision !== this.#uploadedRevision;
+		return !this.canReuseFrame() || this.#revision !== this.#uploadedRevision;
 	}
 
 	markUploaded(): void {
