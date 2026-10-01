@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { canonicalJson as stableJson } from './canonical-json.mjs';
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, posix, resolve, win32 } from 'node:path';
@@ -527,13 +528,6 @@ function sourceLineLengths(value) {
 	return lines.map((line) => line.length);
 }
 
-function stableJson(value) {
-	if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
-	if (value && typeof value === 'object') {
-		return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableJson(value[key])}`).join(',')}}`;
-	}
-	return JSON.stringify(value);
-}
 
 function readJson(path, label) {
 	try { return JSON.parse(readFileSync(path, 'utf8')); }

@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { canonicalJson as stableJson } from './canonical-json.mjs';
 import { posix, win32 } from 'node:path';
 
 import { E2E_PRODUCTS } from './e2e-coverage-build-evidence.mjs';
@@ -149,13 +150,6 @@ function origin(url) {
 	try { return new URL(url).origin; } catch { return null; }
 }
 
-function stableJson(value) {
-	if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
-	if (value && typeof value === 'object') {
-		return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableJson(value[key])}`).join(',')}}`;
-	}
-	return JSON.stringify(value);
-}
 
 function record(value) {
 	return value !== null && typeof value === 'object' && !Array.isArray(value);
