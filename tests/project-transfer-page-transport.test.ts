@@ -17,19 +17,14 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { runtimeFor } from './project-transfer-runtime-fixture.ts';
 
 import {
 	PROJECT_TRANSFER_DEFAULT_TIMEOUT_MILLISECONDS,
 	PROJECT_TRANSFER_MAX_TIMEOUT_MILLISECONDS,
 	PROJECT_TRANSFER_PROTOCOL_VERSION,
-	receiveProjectTransfer,
-	sendProjectTransfer,
 	type ProjectTransferPort,
 } from '../src/common/transfer/project-transfer-handshake.ts';
-import {
-	exportProjectTransferBundle,
-	importProjectTransferBundle,
-} from '../src/common/transfer/project-transfer-bundle.ts';
 import * as Session from '../src/common/transfer/transfer-session.ts';
 import {
 	describeTransferDownload,
@@ -499,17 +494,5 @@ function linkedWindowPorts() {
 		receiverPort: createWindowTransferPort({
 			peer: sender, listener: receiver, allowedOrigins, expectedSource: sender,
 		}),
-	};
-}
-
-function runtimeFor(archive: ReturnType<typeof createFakeArchive>): Session.TransferRuntime {
-	return {
-		exportProject: archive.exportProject as Session.TransferRuntime['exportProject'],
-		inspectProject: archive.inspectProject as Session.TransferRuntime['inspectProject'],
-		importProject: archive.importProject as Session.TransferRuntime['importProject'],
-		exportBundle: exportProjectTransferBundle,
-		importBundle: importProjectTransferBundle,
-		sendTransfer: sendProjectTransfer,
-		receiveTransfer: receiveProjectTransfer,
 	};
 }

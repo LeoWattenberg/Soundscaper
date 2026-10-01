@@ -26,18 +26,10 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { runtimeFor } from './project-transfer-runtime-fixture.ts';
 
-import {
-	exportProjectTransferBundle,
-	importProjectTransferBundle,
-} from '../src/common/transfer/project-transfer-bundle.ts';
-import {
-	receiveProjectTransfer,
-	sendProjectTransfer,
-} from '../src/common/transfer/project-transfer-handshake.ts';
 import { createTransferStoreFederation } from '../src/common/transfer/transfer-store-federation.ts';
 import { mountTransferPage } from '../src/common/transfer/transfer-page-entry.ts';
-import type { TransferRuntime } from '../src/common/transfer/transfer-session.ts';
 import { createFakeArchive } from './project-transfer-bundle-fixture.ts';
 import { FakeWindow, settle, withUnreferencedTimers } from './project-transfer-page-fixture.ts';
 
@@ -268,17 +260,5 @@ function listingStore(projects: readonly unknown[]) {
 		),
 		ready: async () => undefined,
 		close: async () => undefined,
-	};
-}
-
-function runtimeFor(archive: ReturnType<typeof createFakeArchive>): TransferRuntime {
-	return {
-		exportProject: archive.exportProject as TransferRuntime['exportProject'],
-		inspectProject: archive.inspectProject as TransferRuntime['inspectProject'],
-		importProject: archive.importProject as TransferRuntime['importProject'],
-		exportBundle: exportProjectTransferBundle,
-		importBundle: importProjectTransferBundle,
-		sendTransfer: sendProjectTransfer,
-		receiveTransfer: receiveProjectTransfer,
 	};
 }
