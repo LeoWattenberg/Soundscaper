@@ -295,6 +295,11 @@ test('runtime provenance entries and distribution checks fail closed without cla
 	for (const path of [
 		'desktop/bundled-audio-codec-helper-process.ts',
 		'desktop/bundled-audio-codec-operation-runner.ts',
+		'desktop/one-shot-message-child-supervision.ts',
+		'desktop/private-scratch-directory.ts',
+		'desktop/authenticated-bundled-audio-codec-runtime-loader.ts',
+		'desktop/bundled-audio-codec-runtime-support.ts',
+		'desktop/direct-bundled-audio-codec-wasm.ts',
 		'desktop/bundled-audio-codec-runtime-payload.mjs',
 		'desktop/external-ffmpeg-video-operation-service.ts',
 		'desktop/external-ffmpeg-video-verification.ts',
@@ -302,6 +307,9 @@ test('runtime provenance entries and distribution checks fail closed without cla
 		'desktop/desktop-video-codec-main-ipc.ts',
 		'src/common/editor/desktop-video-codec-runtime.ts',
 		'tests/desktop-bundled-audio-codec-operation-runner.test.ts',
+		'tests/desktop-bundled-audio-codec-runtime-kernel.test.ts',
+		'tests/desktop-one-shot-message-child-supervision.test.ts',
+		'tests/desktop-private-scratch-directory.test.ts',
 		'tests/external-ffmpeg-video-verification.test.ts',
 		'tests/external-ffmpeg-video-canary-inspection.test.ts',
 	]) assert.ok(codecPolicy.evidence.includes(path), `desktop codec evidence needs ${path}`);

@@ -37,6 +37,11 @@ const BUNDLED_CODEC_EVIDENCE = [
 	'desktop/bundled-audio-codec-electron-spawn.mjs',
 	'desktop/bundled-audio-codec-helper-process.ts',
 	'desktop/bundled-audio-codec-operation-runner.ts',
+	'desktop/one-shot-message-child-supervision.ts',
+	'desktop/private-scratch-directory.ts',
+	'desktop/authenticated-bundled-audio-codec-runtime-loader.ts',
+	'desktop/bundled-audio-codec-runtime-support.ts',
+	'desktop/direct-bundled-audio-codec-wasm.ts',
 	'desktop/bundled-audio-codec-isolated-runtime.ts',
 	'desktop/bundled-flac-audio-codec-runtime.ts',
 	'desktop/bundled-opus-audio-codec-runtime.ts',
@@ -58,6 +63,9 @@ const BUNDLED_CODEC_EVIDENCE = [
 	'tests/desktop-bundled-audio-codec-electron-spawn.test.js',
 	'tests/desktop-bundled-audio-codec-helper-process.test.ts',
 	'tests/desktop-bundled-audio-codec-operation-runner.test.ts',
+	'tests/desktop-bundled-audio-codec-runtime-kernel.test.ts',
+	'tests/desktop-one-shot-message-child-supervision.test.ts',
+	'tests/desktop-private-scratch-directory.test.ts',
 	'tests/desktop-bundled-audio-codec-isolated-runtime.test.ts',
 ];
 const OS_CODEC_EVIDENCE = [
