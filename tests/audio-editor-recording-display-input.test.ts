@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import test, { type TestContext } from 'node:test';
 import {
+	displayAudioCaptureUnsupportedReason,
 	requestDisplayInput,
 	supportsDisplayAudioCapture,
 } from '../src/common/editor/recording-display-input.ts';
@@ -16,10 +17,24 @@ function installCaptureController(context: TestContext, value: unknown): void {
 	});
 }
 
-test('uses display-audio capability detection instead of browser sniffing', () => {
+test('display audio requires the display capture API', () => {
 	const mediaDevices = { getDisplayMedia: () => Promise.resolve({}) };
 	assert.equal(supportsDisplayAudioCapture(mediaDevices), true);
 	assert.equal(supportsDisplayAudioCapture({}), false);
+});
+
+test('Firefox display video support does not imply display audio support', () => {
+	const mediaDevices = { getDisplayMedia: () => Promise.resolve({}) };
+	for (const userAgent of [
+		'Mozilla/5.0 (X11; Linux x86_64; rv:143.0) Gecko/20100101 Firefox/143.0',
+		'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0',
+	]) {
+		assert.equal(supportsDisplayAudioCapture(mediaDevices, userAgent), false);
+		assert.equal(displayAudioCaptureUnsupportedReason(mediaDevices, userAgent), 'firefox');
+	}
+	assert.equal(supportsDisplayAudioCapture(mediaDevices, 'Mozilla/5.0 Chrome/140.0.0.0 Safari/537.36'), true);
+	assert.equal(supportsDisplayAudioCapture(mediaDevices, 'An unknown browser'), true);
+	assert.equal(displayAudioCaptureUnsupportedReason({}, 'An unknown browser'), 'unavailable');
 });
 
 test('display recording keeps focus on the editor before the permission prompt opens', async (context) => {

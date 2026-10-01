@@ -1,4 +1,5 @@
 import React from 'react';
+import { displayAudioCaptureUnsupportedReason, supportsDisplayAudioCapture } from '../recording-display-input.ts';
 
 const DISPLAY_SOURCE_KEY = 'display';
 const DEVICE_SOURCE_PREFIX = 'device:';
@@ -21,6 +22,7 @@ export default function RecordingInputSelectors({
 	const sourceKey = routeSourceKey(route);
 	const channelCount = route?.channelCount === 2 ? 2 : 1;
 	const sourceOptions = buildSourceOptions({ devices, route, routes, track, channelCount, copy, displayAudioSupported });
+	const displayAudioTooltip = sourceOptions.find((option) => option.value === DISPLAY_SOURCE_KEY)?.title;
 	const availableChannels = sourceChannelCount(sourceKey, devices, route, channelCount);
 	const channelOptions = sourceKey
 		? buildChannelOptions({ sourceKey, availableChannels, channelCount, routes, trackId: track.id, route })
@@ -98,12 +100,13 @@ export default function RecordingInputSelectors({
 				<span className="kw-audio-editor-sr-only">{copy.recordingInputSource}: {track.name}</span>
 				<select
 					aria-label={`${copy.recordingInputSource}: ${track.name}`}
+					title={displayAudioTooltip}
 					disabled={controlsDisabled}
 					value={sourceKey}
 					onChange={handleSourceChange}
 				>
 					{sourceOptions.map((option) => (
-						<option key={option.value || 'unassigned'} value={option.value} disabled={option.disabled}>{option.label}</option>
+						<option key={option.value || 'unassigned'} value={option.value} disabled={option.disabled} title={option.title}>{option.label}</option>
 					))}
 				</select>
 			</label>
@@ -150,7 +153,8 @@ function buildSourceOptions({ devices, route, routes, track, channelCount, copy,
 	const options = [{ value: '', label: copy.recordingInputUnassigned, disabled: false }];
 	const currentSourceKey = routeSourceKey(route);
 	const browserDisplaySupported = typeof navigator === 'undefined'
-		|| typeof navigator.mediaDevices?.getDisplayMedia === 'function';
+		|| supportsDisplayAudioCapture();
+	const firefoxDisplayUnsupported = displayAudioCaptureUnsupportedReason() === 'firefox';
 	const displaySupported = typeof displayAudioSupported === 'boolean'
 		? displayAudioSupported && browserDisplaySupported
 		: browserDisplaySupported;
@@ -186,11 +190,12 @@ function buildSourceOptions({ devices, route, routes, track, channelCount, copy,
 			disabled: false,
 		});
 	}
-	if (displaySupported || currentSourceKey === DISPLAY_SOURCE_KEY) {
+	if (displaySupported || firefoxDisplayUnsupported || currentSourceKey === DISPLAY_SOURCE_KEY) {
 		options.push({
 			value: DISPLAY_SOURCE_KEY,
 			label: copy.recordingDesktopAudio,
 			disabled: !displaySupported || !displayChannels.some((option) => !option.disabled),
+			title: firefoxDisplayUnsupported ? copy.recordingDesktopAudioFirefoxUnsupported : undefined,
 		});
 	}
 	return options;

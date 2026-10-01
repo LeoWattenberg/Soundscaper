@@ -11,14 +11,23 @@ interface DisplayMediaCapability {
 }
 
 /**
- * Display audio has no pre-prompt capability probe: a conforming host may
- * return video only. Admit the request here and validate its audio track in
- * the capture pool so newly capable browsers are not rejected by user agent.
+ * Display audio has no pre-prompt capability probe. Firefox is known to return
+ * video only; other hosts still need live audio validation in the capture pool.
+ * https://developer.mozilla.org/en-US/docs/Web/API/Screen_Capture_API/Using_Screen_Capture#browser_compatibility
  */
+export function displayAudioCaptureUnsupportedReason(
+	mediaDevices: DisplayMediaCapability | null | undefined = globalThis.navigator?.mediaDevices,
+	userAgent = globalThis.navigator?.userAgent ?? '',
+): 'firefox' | 'unavailable' | null {
+	if (/\bFirefox\//u.test(userAgent)) return 'firefox';
+	return typeof mediaDevices?.getDisplayMedia === 'function' ? null : 'unavailable';
+}
+
 export function supportsDisplayAudioCapture(
 	mediaDevices: DisplayMediaCapability | null | undefined = globalThis.navigator?.mediaDevices,
+	userAgent = globalThis.navigator?.userAgent ?? '',
 ): boolean {
-	return typeof mediaDevices?.getDisplayMedia === 'function';
+	return displayAudioCaptureUnsupportedReason(mediaDevices, userAgent) === null;
 }
 
 function createCaptureController(): RecordingCaptureController | undefined {

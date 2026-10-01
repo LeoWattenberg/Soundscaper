@@ -6,6 +6,7 @@ import { Separator } from '@soundscaper/design-system/Separator';
 import { ToolbarButtonGroup } from '@soundscaper/design-system/Toolbar';
 
 import { iconNameToChar } from '../../audacity-iconcodes.js';
+import { displayAudioCaptureUnsupportedReason } from '../../recording-display-input.ts';
 import {
 	playbackMeterAmplitudeToDb,
 	playbackMeterGainFromPosition,
@@ -281,7 +282,9 @@ export function AudioDevicesFlyout({
 	const preferredInput = devices.preferredInputDeviceId || 'default';
 	const preferredInputChannelCount = devices.preferredInputChannelCount === 2 ? 2 : 1;
 	const displayInputSelected = preferredInput === 'display';
-	const displayInputSupported = devices.displayInputSupported && displayAudioSupported !== false;
+	const firefoxDisplayUnsupported = displayAudioCaptureUnsupportedReason() === 'firefox';
+	const displayInputSupported = devices.displayInputSupported && displayAudioSupported !== false && !firefoxDisplayUnsupported;
+	const displayAudioTooltip = firefoxDisplayUnsupported ? copy.recordingDesktopAudioFirefoxUnsupported : undefined;
 	const preferredOutput = devices.preferredOutputDeviceId || '';
 	const selectedInput = inputs.find((device) => device.deviceId === preferredInput);
 	const stereoUnavailable = Number(selectedInput?.channelCount) === 1;
@@ -302,19 +305,24 @@ export function AudioDevicesFlyout({
 		<div className="kw-audio-editor__audio-devices-content" data-audio-devices-flyout>
 			{heading && <strong>{copy.audioDevices}</strong>}
 			<label>
-				<span>{copy.audioInputDevice}</span>
+				<span className="audio-editor-help-label">{copy.audioInputDevice}
+					{firefoxDisplayUnsupported && <EditorHelpTooltip subject={copy.recordingDesktopAudio}
+						description={displayAudioTooltip} helpLabel={copy.helpMenu} />}
+				</span>
 				<select
 					aria-label={copy.audioInputDevice}
+					title={displayAudioTooltip}
 					value={preferredInput}
 					disabled={!devices.inputSupported}
 					onChange={(event) => run(() => controller.actions.audioDevices.setPreferredInput(event.currentTarget.value))}
 				>
 					<option value="default">{copy.audioDeviceSystemDefault}</option>
-					{missingInput && <option value={preferredInput}>{copy.audioDevicePreferredUnavailable}</option>}
+					{missingInput && !(displayInputSelected && firefoxDisplayUnsupported) && <option value={preferredInput}>{copy.audioDevicePreferredUnavailable}</option>}
 					{inputs
 						.filter((device) => device.deviceId !== 'default')
 						.map((device) => <option key={device.deviceId} value={device.deviceId}>{device.label}</option>)}
-					{displayInputSupported && <option value="display">{copy.recordingDesktopAudio}</option>}
+					{(displayInputSupported || firefoxDisplayUnsupported) && <option value="display"
+						disabled={!displayInputSupported} title={displayAudioTooltip}>{copy.recordingDesktopAudio}</option>}
 				</select>
 			</label>
 			{!displayInputSelected && !devices.inputAccess && devices.microphoneInputSupported && (

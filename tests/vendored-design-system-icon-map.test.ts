@@ -17,6 +17,7 @@ const ICON_FONT = new URL(
 // `framework/ui/view/iconcodes.h` in `musescore/muse_framework`.
 const SHARE_FILE = 0xef24;
 const IMPORT = 0xf357;
+const ERROR = 0xf3d0;
 
 test('the Icon map exposes MuseScore IMPORT under its own name beside SHARE_FILE', () => {
 	const source = readFileSync(ICON_SOURCE, 'utf8');
@@ -25,13 +26,14 @@ test('the Icon map exposes MuseScore IMPORT under its own name beside SHARE_FILE
 	assert.match(source, /^ {2}export: '\\uEF24',$/mu);
 });
 
-test('the bundled icon font carries both codepoints the map names', () => {
+test('the bundled icon font carries the import, share and error toast glyphs', () => {
 	const codepoints = readIconFontCodepoints(readFileSync(ICON_FONT));
 	assert.ok(
 		codepoints.has(IMPORT),
 		'MusescoreIcon.ttf must carry IconCode::IMPORT; without the glyph the name renders blank.',
 	);
 	assert.ok(codepoints.has(SHARE_FILE));
+	assert.ok(codepoints.has(ERROR), 'The error toast must use a glyph available in MusescoreIcon.ttf.');
 });
 
 /** Reads the character map of a TrueType font as the set of mapped codepoints. */

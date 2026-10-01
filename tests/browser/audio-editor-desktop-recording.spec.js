@@ -1,5 +1,5 @@
 import { expect, test } from './audio-editor-test-fixtures.js';
-import { bootEditor, registerAudioEditorHooks } from './audio-editor-test-helpers.js';
+import { bootEditor, chooseCommandAction, registerAudioEditorHooks } from './audio-editor-test-helpers.js';
 
 async function installDesktopCapture(page) {
 	await page.addInitScript(() => {
@@ -64,7 +64,48 @@ async function installDesktopCapture(page) {
 test.describe('desktop audio recording', () => {
 	registerAudioEditorHooks();
 
-	test('records stereo desktop audio from Audio setup without microphone access', async ({ page }) => {
+	test('Firefox disables desktop audio before sharing and explains the limitation', async ({ page }) => {
+		await installDesktopCapture(page);
+		await page.addInitScript(() => {
+			Object.defineProperty(navigator, 'userAgent', { configurable: true,
+				value: 'Mozilla/5.0 (X11; Linux x86_64; rv:143.0) Gecko/20100101 Firefox/143.0' });
+		});
+		const editor = await bootEditor(page, '/embed/en/');
+		const explanation = 'Firefox does not support audio tracks in display capture.';
+		await editor.getByRole('button', { name: 'Audio setup', exact: true }).click();
+		const setup = editor.getByRole('dialog', { name: 'Audio setup', exact: true });
+		const microphone = setup.getByRole('combobox', { name: 'Microphone', exact: true });
+		await expect(microphone.getByRole('option', { name: 'Desktop / tab audio', exact: true })).toHaveAttribute('disabled', '');
+		await expect(microphone).toHaveAttribute('title', explanation);
+		await microphone.focus();
+		await microphone.press('ArrowDown');
+		await microphone.press('Enter');
+		await expect(microphone).toHaveValue('default');
+		const help = setup.getByRole('button', { name: 'Help: Desktop / tab audio', exact: true });
+		await help.hover();
+		await expect(editor.getByRole('tooltip', { name: explanation, exact: true })).toBeVisible();
+		await setup.getByText('Audio setup', { exact: true }).hover();
+		await expect(editor.getByRole('tooltip', { name: explanation, exact: true })).toBeHidden();
+		await page.keyboard.press('Escape');
+		await chooseCommandAction(page, editor, 'Edit', 'Preferences');
+		const preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
+		await preferences.getByRole('tab', { name: /Audio settings$/u }).click();
+		await expect(preferences.getByRole('combobox', { name: 'Microphone', exact: true })
+			.getByRole('option', { name: 'Desktop / tab audio', exact: true })).toHaveAttribute('disabled', '');
+		await preferences.getByRole('button', { name: 'Help: Desktop / tab audio', exact: true }).focus();
+		await expect(page.getByRole('tooltip', { name: explanation, exact: true })).toBeVisible();
+		await page.keyboard.press('Tab');
+		await expect(page.getByRole('tooltip', { name: explanation, exact: true })).toBeHidden();
+		await page.keyboard.press('Escape');
+		await chooseCommandAction(page, editor, 'View', 'Enable multi-track recording');
+		const trackSource = editor.getByRole('combobox', { name: 'Recording source: Track 1', exact: true });
+		await expect(trackSource.getByRole('option', { name: 'Desktop / tab audio', exact: true })).toHaveAttribute('disabled', '');
+		await expect(trackSource).toHaveAttribute('title', explanation);
+		expect(await page.evaluate(() => window.__desktopDisplayRequests)).toBe(0);
+	});
+
+	test('records stereo desktop audio from Audio setup without microphone access', async ({ page, browserName }) => {
+		test.skip(browserName === 'firefox', 'Firefox does not support display audio capture.');
 		test.setTimeout(60_000);
 		await installDesktopCapture(page);
 		const editor = await bootEditor(page, '/embed/en/');
@@ -102,7 +143,8 @@ test.describe('desktop audio recording', () => {
 		expect(await page.evaluate(() => window.__desktopDisplayRequests)).toBe(1);
 	});
 
-	test('Record requests desktop sharing and starts after the permission handoff', async ({ page }) => {
+	test('Record requests desktop sharing and starts after the permission handoff', async ({ page, browserName }) => {
+		test.skip(browserName === 'firefox', 'Firefox does not support display audio capture.');
 		await installDesktopCapture(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		await editor.getByRole('button', { name: 'Audio setup', exact: true }).click();
@@ -123,7 +165,8 @@ test.describe('desktop audio recording', () => {
 	});
 
 	for (const outcome of ['failure', 'video-only']) {
-		test(`desktop sharing reports ${outcome} and can retry recording`, async ({ page }) => {
+		test(`desktop sharing reports ${outcome} and can retry recording`, async ({ page, browserName }) => {
+			test.skip(browserName === 'firefox', 'Firefox does not support display audio capture.');
 			await installDesktopCapture(page);
 			const editor = await bootEditor(page, '/embed/en/');
 			await editor.getByRole('button', { name: 'Audio setup', exact: true }).click();
@@ -138,6 +181,7 @@ test.describe('desktop audio recording', () => {
 				.getByText(outcome === 'failure'
 					? 'The action failed: Could not start audio source'
 					: 'The action failed: Display capture did not provide an audio track. Choose a source with Share audio enabled; browser and operating-system support varies.', { exact: true })).toBeVisible();
+			await expect(editor.getByRole('region', { name: 'Unknown error', exact: true }).locator('.toast__icon')).toHaveText('\uF3D0');
 			await expect(editor.locator('[data-editor-status]')).not.toContainText('The action failed');
 			expect((await editor.locator('[data-selection-toolbar]').boundingBox()).height).toBe(statusHeight);
 			await expect(record).toHaveAttribute('aria-pressed', 'false');

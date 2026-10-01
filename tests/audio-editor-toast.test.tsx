@@ -6,7 +6,13 @@ import React, { act } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import EditorToast, { EditorWarningToast } from '../src/common/editor/ui/EditorToast.tsx';
+import { iconNameToChar } from '../src/common/editor/audacity-iconcodes.js';
 import { installReactTestDom, reactProps } from './helpers/react-test-dom.ts';
+
+test('error toasts use the ERROR glyph from the bundled MuseScore icon map', () => {
+	const markup = renderToStaticMarkup(<EditorToast id="capture-error" title="Unknown error" type="error" />);
+	assert.ok(markup.includes(`<div class="toast__icon">${iconNameToChar('ERROR')}</div>`));
+});
 
 test('toast actions support pending operations and localized dismissal', () => {
 	const markup = renderToStaticMarkup(<EditorToast

@@ -2,12 +2,13 @@
 
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import test from 'node:test';
+import test, { type TestContext } from 'node:test';
 import React, { act } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import { createAudioEditorPreferencesV1 } from '../src/common/editor/preferences.js';
 import WorkspacePreferencesDialog from '../src/common/editor/ui/dialogs/WorkspacePreferencesDialog.jsx';
+import RecordingInputSelectors from '../src/common/editor/ui/RecordingInputSelectors.jsx';
 import { AudioDevicesFlyout } from '../src/common/editor/ui/toolbar/AudioEditorMeterControls.jsx';
 import { EditorActionBar } from '../src/common/editor/ui/toolbar/AudioEditorTransportControls.jsx';
 import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
@@ -52,6 +53,45 @@ test('Audio preferences receives the same resolved display-audio capability', ()
 	assert.equal(unavailable.includes(displayOption), false);
 	assert.equal(available.includes(displayOption), true);
 });
+
+test('Firefox keeps desktop audio visible but disabled in Audio setup and preferences with an explanation', (context) => {
+	installFirefoxNavigator(context);
+	for (const markup of [
+		renderToStaticMarkup(<AudioDevicesFlyout {...audioDeviceProps()} displayAudioSupported={false} />),
+		preferencesMarkup(false),
+	]) {
+		assert.match(markup, /<option value="display" disabled="" title="Firefox does not support audio tracks in display capture\.">Desktop \/ tab audio<\/option>/u);
+		assert.match(markup, /aria-label="Help: Desktop \/ tab audio"/u);
+		assert.doesNotMatch(markup, />Choose display source</u);
+	}
+});
+
+test('Firefox disables desktop audio in track routing, including an existing display route', (context) => {
+	installFirefoxNavigator(context);
+	for (const route of [null, { kind: 'display', channelCount: 1, channelStart: 0 }]) {
+		const markup = renderToStaticMarkup(<RecordingInputSelectors
+			controller={controller()}
+			recordingInputs={{ routes: { 'track-1': route } }}
+			track={{ id: 'track-1', name: 'Track 1', type: 'audio' }}
+			copy={ENGLISH_COPY}
+			run={run}
+			displayAudioSupported
+		/>);
+		assert.match(markup, /<option value="display" disabled="" title="Firefox does not support audio tracks in display capture\."[^>]*>Desktop \/ tab audio<\/option>/u);
+	}
+});
+
+function installFirefoxNavigator(context: TestContext): void {
+	const previous = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+	Object.defineProperty(globalThis, 'navigator', { configurable: true, value: {
+		userAgent: 'Mozilla/5.0 (X11; Linux x86_64; rv:143.0) Gecko/20100101 Firefox/143.0',
+		mediaDevices: { getDisplayMedia: () => Promise.resolve({}) },
+	} });
+	context.after(() => {
+		if (previous) Object.defineProperty(globalThis, 'navigator', previous);
+		else Reflect.deleteProperty(globalThis, 'navigator');
+	});
+}
 
 test('the workspace model forwards display-audio support to both Audio setup entry points', async () => {
 	const [view, overlays] = await Promise.all([
