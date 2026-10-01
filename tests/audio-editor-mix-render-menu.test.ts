@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
+import { findMenuItem } from './helpers/application-menu-fixture.ts';
 
 import { createWorkspaceApplicationMenus } from '../src/common/editor/ui/workspace/workspace-application-menu-runtime.js';
 import { WORKSPACE_PANEL_IDS } from '../src/common/editor/ui/workspace/workspace-panel-model.ts';
@@ -131,13 +132,4 @@ function menuItem(values: unknown, id: string): MenuItem {
 	const item = findMenuItem(values as readonly MenuItem[], id);
 	assert.ok(item, `Missing menu item ${id}.`);
 	return item;
-}
-
-function findMenuItem(values: readonly MenuItem[], id: string): MenuItem | null {
-	for (const value of values) {
-		if (value.id === id) return value;
-		const nested = value.items ? findMenuItem(value.items, id) : null;
-		if (nested) return nested;
-	}
-	return null;
 }

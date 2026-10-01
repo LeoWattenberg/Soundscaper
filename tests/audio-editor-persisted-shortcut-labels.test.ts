@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { findMenuItem } from './helpers/application-menu-fixture.ts';
 
 import { applyAudacityParityToMenus } from '../src/common/editor/audacity-action-parity.js';
 import { createAudioEditorPreferencesV1 } from '../src/common/editor/preferences.js';
@@ -9,12 +10,6 @@ import { createAudioEditorSearchEntries } from '../src/common/editor/search.js';
 import createApplicationMenus from '../src/common/editor/ui/application-menus.js';
 import { handleWorkspaceKeyboard } from '../src/common/editor/ui/workspace-shortcuts.ts';
 import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
-
-interface MenuItem {
-	readonly id?: string;
-	readonly shortcut?: string;
-	readonly items?: readonly MenuItem[];
-}
 
 test('Audacity parity decoration installs the imported default shortcut labels', () => {
 	const [split, deleteRipple] = applyAudacityParityToMenus([
@@ -69,14 +64,6 @@ test('canonical paste-insert and native save-as menu items consume persisted sho
 	assert.deepEqual(calls, ['scape']);
 });
 
-function findMenuItem(items: readonly MenuItem[], id: string): MenuItem | null {
-	for (const item of items) {
-		if (item.id === id) return item;
-		const nested = item.items ? findMenuItem(item.items, id) : null;
-		if (nested) return nested;
-	}
-	return null;
-}
 
 function menuInput(
 	shortcuts: Readonly<Record<string, readonly string[]>>,
