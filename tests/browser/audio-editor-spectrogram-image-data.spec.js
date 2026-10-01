@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { fileURLToPath } from 'node:url';
+
 import { build } from 'esbuild';
 
 import { expect, test } from './audio-editor-test-fixtures.js';
@@ -237,7 +239,7 @@ async function openPainterHarness(page) {
 				"export { audioEditorStereoChannelGeometry } from '../../src/common/editor/ui/timeline/stereo-channel-height-runtime.ts';",
 				"export { drawAudacityClipSpectrogram, releaseSpectrogramCanvas } from '../../src/common/editor/ui/timeline/spectrogram-canvas-renderer.js';",
 			].join('\n'),
-			resolveDir: new URL('.', import.meta.url).pathname,
+			resolveDir: fileURLToPath(new URL('.', import.meta.url)),
 		},
 		// The fixtures supply analyzed columns; this harness does not initialize FFT or WASM.
 		external: ['./pffft.js'],

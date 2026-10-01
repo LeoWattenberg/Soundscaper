@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { fileURLToPath } from 'node:url';
+
 import { build } from 'esbuild';
 
 import { expect, test } from './audio-editor-test-fixtures.js';
@@ -11,7 +13,7 @@ const syntheticRouteTest = test.extend({ browserCoverage: false });
 syntheticRouteTest('reuses decoded video frames while refreshing animated effects and paused seeks', async ({ browserName, page }) => {
 	test.skip(browserName !== 'chromium', 'Frame identity and upload counts are qualified with the Chromium decoder.');
 	const bundled = await build({
-		entryPoints: [new URL('../../src/common/editor/ui/video-preview-compositor.js', import.meta.url).pathname],
+		entryPoints: [fileURLToPath(new URL('../../src/common/editor/ui/video-preview-compositor.js', import.meta.url))],
 		bundle: true, write: false, format: 'esm', target: 'es2022',
 	});
 	await page.route(`**${ROOT}/**`, async (route) => {
