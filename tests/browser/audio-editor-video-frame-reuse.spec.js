@@ -71,6 +71,52 @@ syntheticRouteTest('reuses decoded video frames while refreshing animated effect
 			for (let repeat = 0; repeat < 12; repeat += 1) render();
 			const pausedUploads = uploads;
 			const repeatedDraws = (draws - firstDraws) / 12;
+			const layered = [
+				{ entries: [{ clipId: 'reuse-bottom', video, opacity: 1, effects: [{
+					...effects[0], id: 'bottom-color', params: { brightness: -0.1 },
+				}] }] },
+				{ entries: [{ clipId: 'reuse-top', video, opacity: 0.5, effects: [{
+					...effects[0], id: 'top-color', params: { brightness: 0.15 },
+				}] }] },
+			];
+			const renderLayered = () => {
+				const before = draws;
+				compositor.render(layered, options);
+				const pixels = new Uint8Array(160 * 90 * 4);
+				gl.readPixels(0, 0, 160, 90, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+				return { pixels, draws: draws - before };
+			};
+			const equalPixels = (left, right) => left.every((value, index) => value === right[index]);
+			const firstLayered = renderLayered();
+			const repeatedLayered = renderLayered();
+			layered[1].entries[0].effects = [{
+				...layered[1].entries[0].effects[0], params: { brightness: 0.4 },
+			}];
+			const changedLayered = renderLayered();
+			const repeatedChangedLayered = renderLayered();
+			layered[1].entries[0].opacity = 0.25;
+			const opacityLayered = renderLayered();
+			layered[1].entries[0].renderDescription = {
+				crop: {
+					normalized: { left: 0, top: 0, right: 0, bottom: 0 },
+					sourcePixels: { x: 0, y: 0, width: video.videoWidth, height: video.videoHeight },
+				},
+				sourceDisplayToCanvas: [160 / video.videoWidth, 0, 0, 90 / video.videoHeight, 8, 0],
+				opacityStart: 0.25, opacityEnd: 0.25, blendMode: 'normal', compositingOrder: 1,
+			};
+			const transformedLayered = renderLayered();
+			const layeredCache = {
+				repeatedDraws: repeatedLayered.draws,
+				repeatedPixelsEqual: equalPixels(firstLayered.pixels, repeatedLayered.pixels),
+				changedEffectDraws: changedLayered.draws,
+				changedEffectPixelsDiffer: !equalPixels(repeatedLayered.pixels, changedLayered.pixels),
+				changedEffectRepeatDraws: repeatedChangedLayered.draws,
+				changedEffectRepeatPixelsEqual: equalPixels(changedLayered.pixels, repeatedChangedLayered.pixels),
+				opacityDraws: opacityLayered.draws,
+				opacityPixelsDiffer: !equalPixels(repeatedChangedLayered.pixels, opacityLayered.pixels),
+				transformDraws: transformedLayered.draws,
+				transformPixelsDiffer: !equalPixels(opacityLayered.pixels, transformedLayered.pixels),
+			};
 			const beforeAnimation = draws;
 			// Effects resolve their animation before the compositor receives them.
 			layer.entries[0].effects = [{ ...effects[0], params: { brightness: 0.4 } }];
@@ -100,6 +146,7 @@ syntheticRouteTest('reuses decoded video frames while refreshing animated effect
 			return {
 				pausedUploads, firstDraws, repeatedDraws, animatedDraws,
 				animationUploads, seekUploads, renders, playbackUploads: uploads - beforePlayback,
+				layeredCache,
 			};
 		} finally {
 			compositor.dispose();
@@ -112,6 +159,13 @@ syntheticRouteTest('reuses decoded video frames while refreshing animated effect
 	expect(result.pausedUploads).toBe(1);
 	expect(result.animationUploads).toBe(1);
 	expect(result.repeatedDraws).toBeLessThan(result.firstDraws);
+	expect(result.layeredCache).toEqual({
+		repeatedDraws: 3, repeatedPixelsEqual: true,
+		changedEffectDraws: 6, changedEffectPixelsDiffer: true,
+		changedEffectRepeatDraws: 3, changedEffectRepeatPixelsEqual: true,
+		opacityDraws: 3, opacityPixelsDiffer: true,
+		transformDraws: 3, transformPixelsDiffer: true,
+	});
 	expect(result.animatedDraws).toBeGreaterThan(result.repeatedDraws);
 	expect(result.seekUploads).toBe(1);
 	expect(result.playbackUploads).toBeGreaterThan(5);
