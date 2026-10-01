@@ -291,6 +291,10 @@ test.describe('Milestone 7 Guided workflow qualification', () => {
 		await expect(preview).toHaveAttribute('data-highlight-proposal-id', 'highlight-b');
 		const speechlessStart = Number(await preview.getAttribute('data-preview-start-seconds'));
 		const speechlessEnd = Number(await preview.getAttribute('data-preview-end-seconds'));
+		const sourceFrameCount = Number(await preview.getAttribute('data-preview-source-end-frame'))
+			- Number(await preview.getAttribute('data-preview-source-start-frame'));
+		expect(sourceFrameCount).toBeGreaterThan(0);
+		const sourceFrameSeconds = (speechlessEnd - speechlessStart) / sourceFrameCount;
 		expect(speechlessStart).toBeGreaterThan(0);
 		await seekVideo(previewVideo, speechlessEnd);
 		const restartedAt = await previewVideo.evaluate(async (video, startSeconds) => {
@@ -317,11 +321,13 @@ test.describe('Milestone 7 Guided workflow qualification', () => {
 				video.pause();
 			}
 		}, speechlessStart);
-		expect(restartedAt).toBeCloseTo(speechlessStart, 3);
+		// Playback advances before the seeking event is delivered; observe its first frame.
+		expect(restartedAt).toBeGreaterThanOrEqual(speechlessStart);
+		expect(restartedAt).toBeLessThan(speechlessStart + sourceFrameSeconds);
 		await expect(previewVideo).toHaveJSProperty('paused', true);
 		await seekVideo(previewVideo, speechlessStart - 0.01);
 		await expect.poll(() => previewVideo.evaluate((video) => video.currentTime))
-			.toBeCloseTo(speechlessStart, 2);
+			.toBeCloseTo(speechlessStart, 3);
 		const vertical = speechless.getByRole('slider', {
 			name: 'Vertical position', exact: true,
 		}).first();
