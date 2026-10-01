@@ -27,10 +27,10 @@ test('Audacity parity decoration installs the imported default shortcut labels',
 });
 
 test('application menus and command search expose persisted shortcut alternatives', () => {
-	const menus: readonly MenuItem[] = createApplicationMenus(menuInput({
+	const menus = createApplicationMenus(menuInput({
 		'file-new': ['Alt+N', 'Ctrl+Alt+N'],
 	}));
-	const menuCommand = findMenuItem(menus, 'new-project');
+	const menuCommand = findMenuItem<MenuItem>(menus, 'new-project');
 	const searchCommand = createAudioEditorSearchEntries({ menus })
 		.find((entry) => entry.kind === 'command' && entry.commandId === 'file-new');
 
@@ -39,10 +39,10 @@ test('application menus and command search expose persisted shortcut alternative
 });
 
 test('application menus and command search do not restore a removed shortcut', () => {
-	const menus: readonly MenuItem[] = createApplicationMenus(menuInput({}));
-	const menuCommand = findMenuItem(menus, 'new-project');
-	const saveAs = findMenuItem(menus, 'file-save-as');
-	const saveAup4 = findMenuItem(menus, 'save-aup4');
+	const menus = createApplicationMenus(menuInput({}));
+	const menuCommand = findMenuItem<MenuItem>(menus, 'new-project');
+	const saveAs = findMenuItem<MenuItem>(menus, 'file-save-as');
+	const saveAup4 = findMenuItem<MenuItem>(menus, 'save-aup4');
 	const searchCommand = createAudioEditorSearchEntries({ menus })
 		.find((entry) => entry.kind === 'command' && entry.commandId === 'file-new');
 
@@ -58,14 +58,14 @@ test('canonical paste-insert and native save-as menu items consume persisted sho
 		insert: ['Shift+V'],
 		'file-save-as': ['Ctrl+Shift+S'],
 	};
-	const menus: readonly MenuItem[] = createApplicationMenus(menuInput(shortcuts, {
+	const menus = createApplicationMenus(menuInput(shortcuts, {
 		saveAup4: () => { calls.push('aup4'); },
 		saveScape: () => { calls.push('scape'); },
 	}));
 
-	assert.equal(findMenuItem(menus, 'insert')?.shortcut, 'Shift+V');
-	assert.equal(findMenuItem(menus, 'file-save-as')?.shortcut, 'Ctrl+Shift+S');
-	assert.ok(findMenuItem(menus, 'save-aup4'));
+	assert.equal(findMenuItem<MenuItem>(menus, 'insert')?.shortcut, 'Shift+V');
+	assert.equal(findMenuItem<MenuItem>(menus, 'file-save-as')?.shortcut, 'Ctrl+Shift+S');
+	assert.ok(findMenuItem<MenuItem>(menus, 'save-aup4'));
 	handleWorkspaceKeyboard(keyboardEvent('S'), { preferences: { shortcuts } }, (handler) => handler(), { menus });
 	assert.deepEqual(calls, ['scape']);
 });
