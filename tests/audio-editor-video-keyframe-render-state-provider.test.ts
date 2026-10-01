@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { assertDeepFrozen } from './helpers/frozen-contract-assertions.ts';
 import test from 'node:test';
 
 import {
@@ -240,11 +241,6 @@ function assertClose(actual: number, expected: number): void {
 	assert.ok(Math.abs(actual - expected) < 1e-12, `${String(actual)} != ${String(expected)}`);
 }
 
-function assertDeepFrozen(value: unknown): void {
-	if (!value || typeof value !== 'object') return;
-	assert.equal(Object.isFrozen(value), true);
-	for (const child of Object.values(value)) assertDeepFrozen(child);
-}
 
 test('the render-state canvas carries the delivery fit the preview and the export share', () => {
 	const provider = createVideoKeyframeRenderStateProvider();

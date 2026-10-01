@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { assertDeepFrozenGraph as assertDeepFrozen } from './helpers/frozen-contract-assertions.ts';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
@@ -528,11 +529,4 @@ function exportedFunctionSource(source: string, name: string): string {
 		if (depth === 0) return source.slice(start, index + 1);
 	}
 	throw new Error(`Unclosed exported function ${name}.`);
-}
-
-function assertDeepFrozen(value: unknown, seen = new Set<object>()): void {
-	if (value === null || typeof value !== 'object' || seen.has(value)) return;
-	seen.add(value);
-	assert.equal(Object.isFrozen(value), true);
-	for (const nested of Object.values(value)) assertDeepFrozen(nested, seen);
 }

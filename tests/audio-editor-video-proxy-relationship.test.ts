@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { assertDeepFrozenGraph as assertDeepFrozen } from './helpers/frozen-contract-assertions.ts';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
@@ -581,11 +582,4 @@ async function waitFor(predicate: () => boolean): Promise<void> {
 		await new Promise<void>((resolve) => setImmediate(resolve));
 	}
 	throw new Error('Timed out waiting for the deferred proxy phase.');
-}
-
-function assertDeepFrozen(value: unknown, seen = new Set<object>()): void {
-	if (value === null || typeof value !== 'object' || seen.has(value)) return;
-	seen.add(value);
-	assert.equal(Object.isFrozen(value), true);
-	for (const nested of Object.values(value)) assertDeepFrozen(nested, seen);
 }

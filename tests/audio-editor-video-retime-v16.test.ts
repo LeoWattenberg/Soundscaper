@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { assertDeepFrozen } from './helpers/frozen-contract-assertions.ts';
 import test from 'node:test';
 
 import {
@@ -179,9 +180,3 @@ test('V16 structural admission refuses sparse arrays and accessors without invok
 	const nonPlain = Object.assign(Object.create({ inherited: true }) as Record<string, unknown>, curve());
 	assert.throws(() => normalizeVideoRetimeCurveV16(nonPlain, BINDING), /plain|record|prototype/iu);
 });
-
-function assertDeepFrozen(value: unknown): void {
-	if (!value || typeof value !== 'object') return;
-	assert.equal(Object.isFrozen(value), true);
-	for (const child of Object.values(value)) assertDeepFrozen(child);
-}
