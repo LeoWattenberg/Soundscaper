@@ -8,12 +8,12 @@ import {
 	type FrequencyWaveformCrossovers,
 	type FrequencyWaveformWindow,
 } from '../../frequency-waveform-contract.ts';
-import {
-	requiredAudioSource,
-	type FrequencyWaveformRuntimeClip,
-	type FrequencyWaveformRuntimeProject,
-	type FrequencyWaveformRuntimeSource,
-	type RequiredFrequencyWaveformSource,
+import { requiredAudioSource } from './internal/frequency-waveform-source-admission.ts';
+import type {
+	FrequencyWaveformRuntimeClip,
+	FrequencyWaveformRuntimeProject,
+	FrequencyWaveformRuntimeSource,
+	RequiredFrequencyWaveformSource,
 } from './frequency-waveform-source-service.ts';
 
 type Awaitable<Value> = PromiseLike<Value> | Value;
