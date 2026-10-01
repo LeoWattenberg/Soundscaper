@@ -134,6 +134,7 @@
 		"effects/graphic-eq-gesture.ts",
 		"effects/macro-script-library-service.ts",
 		"effects/macro-transaction-metadata.ts",
+		"export/archive-safe-integer-addition.ts",
 		"export/deferred-export-service.ts",
 		"export/delivery-preset-service.ts",
 		"export/export-action-group.ts",
