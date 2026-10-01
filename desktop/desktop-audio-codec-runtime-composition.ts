@@ -15,11 +15,9 @@ import {
 	type DesktopAudioCodecCapabilityTuple,
 } from './desktop-audio-codec-capability-contract.ts';
 import {
-	DESKTOP_AUDIO_CODEC_INPUT_LIMIT_BYTES,
 	DESKTOP_AUDIO_CODEC_MAXIMUM_CHANNEL_COUNT,
 	DESKTOP_AUDIO_CODEC_MAXIMUM_SAMPLE_RATE,
 	DESKTOP_AUDIO_CODEC_MINIMUM_SAMPLE_RATE,
-	DESKTOP_AUDIO_CODEC_OUTPUT_LIMIT_BYTES,
 	normalizeDesktopAudioCodecRequest,
 	normalizeDesktopAudioCodecResult,
 	type DesktopAudioCodecRequest,
@@ -296,9 +294,8 @@ function externalRuntime(options: Readonly<{
 					getAdmittedExecutable: () => Promise.resolve(
 						externalFfmpegExecutablePairFromRuntimeAdmission(snapshot),
 					),
-					maximumInputBytes: DESKTOP_AUDIO_CODEC_INPUT_LIMIT_BYTES,
-					maximumOutputBytes: DESKTOP_AUDIO_CODEC_OUTPUT_LIMIT_BYTES
-						+ DESKTOP_AUDIO_FFMPEG_WAVE_OVERHEAD_LIMIT_BYTES,
+					maximumInputBytes: Number.MAX_SAFE_INTEGER,
+					maximumOutputBytes: Number.MAX_SAFE_INTEGER,
 				});
 				const outcome = await runner.execute(Object.freeze({
 					operation: request, input: request.input,
@@ -436,8 +433,8 @@ function fixedFfmpegContract(
 		},
 		maximumOutputBytes(operation: DesktopAudioCodecRequest) {
 			if (operation !== request) throw new TypeError('The fixed FFmpeg request changed.');
-			return request.maximumOutputBytes + (request.operation === 'audio-decode'
-				? DESKTOP_AUDIO_FFMPEG_WAVE_OVERHEAD_LIMIT_BYTES : 0);
+			return Math.min(Number.MAX_SAFE_INTEGER, request.maximumOutputBytes + (request.operation === 'audio-decode'
+				? DESKTOP_AUDIO_FFMPEG_WAVE_OVERHEAD_LIMIT_BYTES : 0));
 		},
 		buildArguments(operation: DesktopAudioCodecRequest, files: ExternalFfmpegAudioOperationFiles) {
 			if (operation !== request) throw new TypeError('The fixed FFmpeg request changed.');

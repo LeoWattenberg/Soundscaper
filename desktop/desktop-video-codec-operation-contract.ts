@@ -6,7 +6,7 @@ import {
 	admitVideoKeyframeEncoderWorkload,
 	type VideoKeyframeEncoderWorkload,
 } from '../src/common/editor/video-keyframe-encoder-admission.js';
-import { VIDEO_KEYFRAME_AUDIO_MAXIMUM_BYTES } from '../src/common/editor/video-keyframe-audio-input.js';
+import { VIDEO_KEYFRAME_DESKTOP_MAXIMUM_FILE_BYTES } from '../src/common/editor/video-keyframe-audio-input.js';
 import { createVideoExactPictureExportFrameSource } from '../src/common/editor/video-keyframe-export-frame-source.js';
 import {
 	VIDEO_DELIVERY_QUALITY_TIERS,
@@ -61,7 +61,7 @@ const VIDEO_SENTINEL = '/desktop-video-input.rgba';
 const AUDIO_SENTINEL = '/desktop-audio-input.wav';
 const MP4_OUTPUT_SENTINEL = '/desktop-video-output.mp4';
 const WEBM_OUTPUT_SENTINEL = '/desktop-video-output.webm';
-export const DESKTOP_VIDEO_CODEC_MAXIMUM_OUTPUT_BYTES = 2 * 1024 * 1024 * 1024;
+export const DESKTOP_VIDEO_CODEC_MAXIMUM_OUTPUT_BYTES = VIDEO_KEYFRAME_DESKTOP_MAXIMUM_FILE_BYTES;
 export const DESKTOP_VIDEO_CODEC_MAXIMUM_INPUT_CHUNK_BYTES = 1024 * 1024;
 export const DESKTOP_VIDEO_CODEC_MAXIMUM_OUTPUT_CHUNK_BYTES = 1024 * 1024;
 
@@ -89,9 +89,6 @@ export function normalizeDesktopVideoCodecOperationPlan(
 	const durationFrames = positiveInteger(data(record, 'durationFrames'), 'duration frames');
 	const videoInputBytes = positiveInteger(data(record, 'videoInputBytes'), 'video input bytes');
 	const audioInputBytes = nullablePositiveInteger(data(record, 'audioInputBytes'), 'audio input bytes');
-	if (audioInputBytes !== null && audioInputBytes > VIDEO_KEYFRAME_AUDIO_MAXIMUM_BYTES) {
-		throw new RangeError('Desktop video audio input exceeds its hard byte limit.');
-	}
 	const ringCapacityBytes = positiveInteger(data(record, 'ringCapacityBytes'), 'ring capacity');
 	const audioRingCapacityBytes = nullablePositiveInteger(
 		data(record, 'audioRingCapacityBytes'), 'audio ring capacity',

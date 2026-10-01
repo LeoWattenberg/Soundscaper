@@ -157,7 +157,6 @@ type ProcessResult =
 
 const ARGUMENT_LIMIT = 128;
 const ARGUMENT_BYTE_LIMIT = 4_096;
-const HARD_BYTE_LIMIT = 2 * 1_024 * 1_024 * 1_024;
 const HARD_DURATION_LIMIT_MS = 30 * 60 * 1_000;
 const GUARDED_ARGUMENTS = Object.freeze([
 	'-nostdin', '-hide_banner', '-nostats', '-loglevel', 'error', '-y',
@@ -384,7 +383,8 @@ function guardedArguments(
 	return Object.freeze([
 		...GUARDED_ARGUMENTS,
 		...operationArguments.slice(0, -1),
-		'-fs', String(files.maximumOutputBytes), files.outputPath,
+		...(files.maximumOutputBytes === Number.MAX_SAFE_INTEGER ? [] : ['-fs', String(files.maximumOutputBytes)]),
+		files.outputPath,
 	]);
 }
 
@@ -442,8 +442,8 @@ function validateOptions<Operation>(options: ExternalFfmpegAudioOperationRunnerO
 
 function operationLimits<Operation>(options: ExternalFfmpegAudioOperationRunnerOptions<Operation>): Limits {
 	return Object.freeze({
-		input: boundedInteger(options.maximumInputBytes ?? 512 * 1_024 * 1_024, 1, HARD_BYTE_LIMIT, 'input'),
-		output: boundedInteger(options.maximumOutputBytes ?? 512 * 1_024 * 1_024, 1, HARD_BYTE_LIMIT, 'output'),
+		input: boundedInteger(options.maximumInputBytes ?? Number.MAX_SAFE_INTEGER, 1, Number.MAX_SAFE_INTEGER, 'input'),
+		output: boundedInteger(options.maximumOutputBytes ?? Number.MAX_SAFE_INTEGER, 1, Number.MAX_SAFE_INTEGER, 'output'),
 		log: boundedInteger(options.maximumLogBytes ?? 64 * 1_024, 1, 1_024 * 1_024, 'log'),
 		duration: boundedInteger(options.maximumDurationMs ?? 5 * 60 * 1_000, 1, HARD_DURATION_LIMIT_MS, 'runtime'),
 		terminationGrace: boundedInteger(options.terminationGraceMs ?? 1_000, 1, 5_000, 'termination grace'),

@@ -286,7 +286,7 @@ export class ReadCapabilityStore {
 			this.#assertAdmissionActive(state);
 			this.#sweepExpired(state);
 			if (readProfile === READ_PROFILE_LINKED_AUDIO_RANGE_V1 && size > MAX_LINKED_AUDIO_IMPORT_FILE_BYTES) {
-				throw new ReadCapabilityAdmissionError('Selected audio range file bytes exceed the 1 GB limit');
+				throw new ReadCapabilityAdmissionError('Selected audio range file bytes exceed the safe integer limit');
 			}
 			if (rangeTicket) {
 				rangeAdmission.charge(rangeTicket, size);

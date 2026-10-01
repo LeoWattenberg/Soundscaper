@@ -19,6 +19,7 @@ import type { VideoKeyframeRgbaFrameProducer } from '../src/common/editor/video-
 import { createFramescaperProjectRetime } from '../src/framescaper/editor-project-retime.ts';
 import { FRAMESCAPER_RETIME_PROJECT_MODEL_PROFILE } from '../src/framescaper/editor-project-retime-profile.ts';
 import { framescaperV20Options } from './helpers/framescaper-model-fixture.ts';
+import { DESKTOP_MAIN_AUDIO_CODEC_RUNTIME_MARKER } from '../src/common/editor/desktop-main-audio-codec-runtime-marker.ts';
 
 const TOKEN = '0123456789abcdef0123456789abcdef';
 const MP4 = Uint8Array.of(
@@ -32,6 +33,24 @@ const WEBM = Uint8Array.of(
 	0x16, 0x54, 0xae, 0x6b, 0x81, 0,
 	0x1f, 0x43, 0xb6, 0x75, 0x81, 0,
 );
+
+test('desktop FFmpeg video admits uncapped output while the browser retains its size limit', async () => {
+	for (const maximumOutputBytes of [undefined, Number.MAX_SAFE_INTEGER]) {
+		const frameSource = source();
+		const fake = fakeEditorFfmpeg(MP4.slice());
+		const port = { ...fake.port, [DESKTOP_MAIN_AUDIO_CODEC_RUNTIME_MARKER]: true as const };
+		const result = await encodeVideoKeyframeVideo(port, {
+			frameSource, producer: exactProducer(frameSource).value, format: 'mp4',
+			...(maximumOutputBytes === undefined ? {} : { maximumOutputBytes }),
+		}, { createJobToken: () => TOKEN });
+		assert.deepEqual(result.bytes, MP4);
+	}
+	const frameSource = source();
+	await assert.rejects(() => encodeVideoKeyframeVideo(fakeEditorFfmpeg(MP4.slice()).port, {
+		frameSource, producer: exactProducer(frameSource).value, format: 'mp4',
+		maximumOutputBytes: Number.MAX_SAFE_INTEGER,
+	}, { createJobToken: () => TOKEN }), /maximumOutputBytes/u);
+});
 
 test('encodes authenticated V20 frames through one lease into owned exact MP4 and WebM bytes', async () => {
 	for (const [format, encoded, extension, mimeType] of [

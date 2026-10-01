@@ -46,6 +46,7 @@ import {
 	type VideoKeyframeDeliveredOutput,
 } from './video-keyframe-video-operation.ts';
 import { manageVideoKeyframeOutputSink } from './video-keyframe-video-sink.ts';
+import { isDesktopMainAudioCodecRuntime } from './desktop-main-audio-codec-runtime-marker.ts';
 
 export { VIDEO_KEYFRAME_VIDEO_MAXIMUM_OUTPUT_BYTES } from './video-keyframe-video-output.ts';
 export type {
@@ -157,7 +158,7 @@ export async function encodeVideoKeyframeVideo(
 					maximumChunkBytes: request.maximumOutputChunkBytes,
 					signal: request.signal,
 					assertCurrent: request.assertCurrent,
-				});
+				}, request.desktopExternalFfmpeg ? Number.MAX_SAFE_INTEGER : undefined);
 				return Object.freeze({
 					output: output.bytes,
 					byteLength: output.byteLength,
@@ -211,7 +212,7 @@ export async function encodeVideoKeyframeVideoToSink<Output>(
 						maximumChunkBytes: request.maximumOutputChunkBytes,
 						signal: request.signal,
 						assertCurrent: request.assertCurrent,
-					}, managedSink.value);
+					}, managedSink.value, request.desktopExternalFfmpeg ? Number.MAX_SAFE_INTEGER : undefined);
 				},
 				deliverNative(bytes: Uint8Array<ArrayBuffer>, path: string) {
 					return streamVideoKeyframeVideoOutput({
@@ -253,7 +254,7 @@ async function encodeManaged<Output>(
 	dependenciesValue: VideoKeyframeVideoEncoderDependencies,
 	createDelivery: (request: NormalizedRequest) => DeliveryStrategy<Output>,
 ) {
-	const request = normalizeRequest(requestValue);
+	const request = normalizeRequest(requestValue, isDesktopMainAudioCodecRuntime(editorFfmpegValue));
 	const dependencies = normalizeDependencies(dependenciesValue);
 	const editorFfmpeg = request.webCodecs ? null : validateEditorFfmpeg(editorFfmpegValue);
 	const delivery = createDelivery(request);
@@ -271,7 +272,7 @@ async function encodeManaged<Output>(
 				maximumBytes: request.maximumAudioBytes,
 				...(request.signal ? { signal: request.signal } : {}),
 				...(request.assertCurrent ? { assertCurrent: request.assertCurrent } : {}),
-			})
+			}, request.desktopExternalFfmpeg ? Number.MAX_SAFE_INTEGER : undefined)
 			: undefined;
 		if (audioSource) {
 			if (audioSource.sampleRate !== request.frameSource.sampleRate) {

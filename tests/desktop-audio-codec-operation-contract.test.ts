@@ -93,12 +93,15 @@ test('the request boundary enforces byte, output, rate, channel and PCM-frame bo
 	assert.throws(() => assertDesktopAudioCodecRequest({
 		...decodeRequest(), input: { byteLength: 4 },
 	}), /Uint8Array/u);
-	assert.throws(() => assertDesktopAudioCodecRequest({
+	assert.doesNotThrow(() => assertDesktopAudioCodecRequest({
 		...decodeRequest(), input: new Uint8Array(DESKTOP_AUDIO_CODEC_INPUT_LIMIT_BYTES + 1),
-	}), /input/u);
+	}));
 	assert.throws(() => assertDesktopAudioCodecRequest({
-		...decodeRequest(), maximumOutputBytes: DESKTOP_AUDIO_CODEC_OUTPUT_LIMIT_BYTES + 1,
+		...decodeRequest(), maximumOutputBytes: Number.MAX_SAFE_INTEGER + 1,
 	}), /maximum output/u);
+	assert.doesNotThrow(() => assertDesktopAudioCodecRequest({
+		...decodeRequest(), maximumOutputBytes: Number.MAX_SAFE_INTEGER,
+	}));
 	assert.throws(() => assertDesktopAudioCodecRequest({ ...encodeRequest('flac'), sampleRate: 7_999 }), /sample rate/u);
 	assert.doesNotThrow(() => assertDesktopAudioCodecRequest({
 		...encodeRequest('opus'), channelCount: 8, input: new Uint8Array(32), sampleRate: 48_000,
@@ -216,7 +219,7 @@ test('results reject unknown metadata, forged PCM geometry and oversized bytes',
 	}), /frame count/u);
 	assert.throws(() => assertDesktopAudioCodecResult({
 		...result, bytes: new Uint8Array(DESKTOP_AUDIO_CODEC_OUTPUT_LIMIT_BYTES + 1),
-	}), /bytes/u);
+	}, DESKTOP_AUDIO_CODEC_OUTPUT_LIMIT_BYTES), /bytes/u);
 	const normalized = normalizeDesktopAudioCodecResult(result, 8);
 	assert.notEqual(normalized.bytes, result.bytes);
 	assert.throws(() => normalizeDesktopAudioCodecResult(result, 7), /bytes/u);

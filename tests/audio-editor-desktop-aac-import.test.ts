@@ -28,7 +28,7 @@ test('desktop M4A import reaches the utility codec without browser AAC and trims
 				assert.ok(file instanceof File);
 				assert.equal(file.name, 'voice.m4a');
 				assert.equal(options.format, 'aac-m4a');
-				assert.equal(options.maximumOutputBytes, 128 * 1024 * 1024);
+				assert.equal(options.maximumOutputBytes, (2400 + 2048) * 2 * 4);
 				return Promise.resolve({ sampleRate: 48_000,
 					channels: [Float32Array.from({ length: 3072 }, (_, index) => index), new Float32Array(3072)] });
 			} },
@@ -66,15 +66,17 @@ test('desktop AAC utility rejects a changed rate, changed channels, truncation, 
 	}
 });
 
-test('desktop AAC utility admission preserves the existing whole-file limits', () => {
-	const codec = { decode() { assert.fail('Oversized AAC must not reach whole-file decode.'); } };
+test('desktop AAC admission allows large files and decoded geometry for external FFmpeg', () => {
+	const codec = { decode() { assert.fail('Admission must not start decoding.'); } };
 	const geometry = { sampleRate: 48_000, channelCount: 2, durationSeconds: 1, timelineOrigin: 0 };
 	class LargeOriginal extends Blob { override get size() { return 32 * 1024 * 1024 + 1; } }
 	assert.equal(canUseDesktopAacImport(new Blob(['m4a']), geometry), true);
 	for (const [file, source] of [[new LargeOriginal(), geometry], [new Blob(['m4a']), { ...geometry, durationSeconds: 3600 }]] as const) {
-		assert.equal(canUseDesktopAacImport(file, source), false);
-		assert.throws(() => openDesktopAacImportSession(file, source, codec), /32 MiB input and 128 MiB decoded PCM/u);
+		assert.equal(canUseDesktopAacImport(file, source), true);
+		openDesktopAacImportSession(file, source, codec).dispose();
 	}
+	assert.equal(canUseDesktopAacImport(new Blob(), geometry), false);
+	assert.equal(canUseDesktopAacImport(new Blob(['m4a']), { ...geometry, durationSeconds: Infinity }), false);
 });
 
 test('retiring desktop AAC cancels a pending utility decode and removes its opening listener', async () => {

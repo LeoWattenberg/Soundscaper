@@ -8,6 +8,7 @@ import {
 	createDesktopExternalFfmpegVideoWorkload,
 	normalizeDesktopVideoCodecOperationPlan,
 } from '../desktop/desktop-video-codec-operation-contract.ts';
+import { guardExternalFfmpegVideoArguments } from '../desktop/external-ffmpeg-video-process.ts';
 
 const PLAN = Object.freeze({
 	schemaVersion: 1 as const,
@@ -61,6 +62,20 @@ test('main reconstructs fixed H264/AAC argv with private pipes and output', () =
 		'-movflags', '+faststart', '-f', 'mp4',
 		'-t', '2.000000000', '/private/session/output.mp4',
 	]);
+});
+
+test('desktop external video accepts file sizes beyond the former 2 GiB cap', () => {
+	const plan = normalizeDesktopVideoCodecOperationPlan({ ...PLAN,
+		audioInputBytes: 3 * 1024 ** 3, maximumOutputBytes: Number.MAX_SAFE_INTEGER });
+	assert.equal(plan.audioInputBytes, 3 * 1024 ** 3);
+	assert.equal(plan.maximumOutputBytes, Number.MAX_SAFE_INTEGER);
+	const { ffmpegArguments } = createDesktopExternalFfmpegVideoWorkload(plan, { outputPath: '/private/output.mp4' });
+	assert.equal(guardExternalFfmpegVideoArguments(ffmpegArguments, Number.MAX_SAFE_INTEGER).includes('-fs'), false);
+	const bounded = guardExternalFfmpegVideoArguments(ffmpegArguments, 1024);
+	assert.equal(bounded[bounded.indexOf('-fs') + 1], '1024');
+	for (const maximumOutputBytes of [0, Infinity, Number.MAX_SAFE_INTEGER + 1]) {
+		assert.throws(() => normalizeDesktopVideoCodecOperationPlan({ ...PLAN, maximumOutputBytes }), /output bytes/u);
+	}
 });
 
 test('desktop video capabilities require the full fixed A/V plan capability set', () => {

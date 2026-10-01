@@ -78,7 +78,7 @@ export function guardExternalFfmpegVideoArguments(
 	}
 	return Object.freeze([
 		...GUARDED_ARGUMENT_PREFIX, ...arguments_.slice(2, -1),
-		'-fs', String(maximumOutputBytes), arguments_.at(-1)!,
+		...(maximumOutputBytes === Number.MAX_SAFE_INTEGER ? [] : ['-fs', String(maximumOutputBytes)]), arguments_.at(-1)!,
 	]);
 }
 

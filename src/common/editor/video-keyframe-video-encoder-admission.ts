@@ -26,7 +26,7 @@ import type {
 	VideoKeyframeEncoderOperationOptions,
 	VideoKeyframeVideoEditorFfmpeg,
 } from './video-keyframe-ffmpeg-operation.ts';
-import { VIDEO_KEYFRAME_AUDIO_MAXIMUM_BYTES } from './video-keyframe-audio-input.ts';
+import { VIDEO_KEYFRAME_AUDIO_MAXIMUM_BYTES, VIDEO_KEYFRAME_DESKTOP_MAXIMUM_FILE_BYTES } from './video-keyframe-audio-input.ts';
 import { VIDEO_KEYFRAME_VIDEO_MAXIMUM_OUTPUT_BYTES } from './video-keyframe-video-output.ts';
 import type {
 	VideoKeyframeVideoEncoderDependencies,
@@ -48,13 +48,17 @@ const WORKLOAD_OPTION_FIELDS = [
 ] as const;
 
 export interface NormalizedRequest extends VideoKeyframeVideoEncoderRequest {
+	readonly desktopExternalFfmpeg: boolean;
 	readonly maximumAudioBytes: number;
 	readonly maximumOutputBytes: number;
 	readonly maximumOutputChunkBytes: number;
 }
 
-export function normalizeRequest(value: VideoKeyframeVideoEncoderRequest): NormalizedRequest {
+export function normalizeRequest(value: VideoKeyframeVideoEncoderRequest, desktop = false): NormalizedRequest {
 	const record = closedRecord(value, REQUEST_FIELDS, 'video keyframe video encoder request');
+	const desktopExternalFfmpeg = desktop && optional(record, 'webCodecs', undefined) === undefined;
+	const outputLimit = desktopExternalFfmpeg ? VIDEO_KEYFRAME_DESKTOP_MAXIMUM_FILE_BYTES : VIDEO_KEYFRAME_VIDEO_MAXIMUM_OUTPUT_BYTES;
+	const audioLimit = desktopExternalFfmpeg ? VIDEO_KEYFRAME_DESKTOP_MAXIMUM_FILE_BYTES : VIDEO_KEYFRAME_AUDIO_MAXIMUM_BYTES;
 	const frameSource = data(record, 'frameSource', 'video keyframe video encoder request');
 	assertVideoKeyframeExportFrameSource(frameSource);
 	const producer = data(record, 'producer', 'video keyframe video encoder request');
@@ -63,8 +67,8 @@ export function normalizeRequest(value: VideoKeyframeVideoEncoderRequest): Norma
 		throw new RangeError('Video keyframe video encoder format must be mp4 or webm.');
 	}
 	const maximumOutputBytes = boundedMaximum(
-		optional(record, 'maximumOutputBytes', VIDEO_KEYFRAME_VIDEO_MAXIMUM_OUTPUT_BYTES),
-		VIDEO_KEYFRAME_VIDEO_MAXIMUM_OUTPUT_BYTES,
+		optional(record, 'maximumOutputBytes', outputLimit),
+		outputLimit,
 		'maximumOutputBytes',
 	);
 	const maximumOutputChunkBytes = boundedMaximum(
@@ -87,8 +91,8 @@ export function normalizeRequest(value: VideoKeyframeVideoEncoderRequest): Norma
 		);
 	}
 	const maximumAudioBytes = boundedMaximum(
-		optional(record, 'maximumAudioBytes', VIDEO_KEYFRAME_AUDIO_MAXIMUM_BYTES),
-		VIDEO_KEYFRAME_AUDIO_MAXIMUM_BYTES,
+		optional(record, 'maximumAudioBytes', audioLimit),
+		audioLimit,
 		'maximumAudioBytes',
 	);
 	const signal = optionalSignal(record, 'signal');
@@ -97,6 +101,7 @@ export function normalizeRequest(value: VideoKeyframeVideoEncoderRequest): Norma
 		? data(record, 'webCodecs', 'video keyframe video encoder request')
 		: undefined;
 	const result: Record<string, unknown> = {
+		desktopExternalFfmpeg,
 		frameSource,
 		producer,
 		format,

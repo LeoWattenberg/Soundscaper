@@ -6,7 +6,6 @@ import {
 	DESKTOP_AUDIO_CODEC_MAXIMUM_CHANNEL_COUNT,
 	DESKTOP_AUDIO_CODEC_MAXIMUM_SAMPLE_RATE,
 	DESKTOP_AUDIO_CODEC_MINIMUM_SAMPLE_RATE,
-	DESKTOP_AUDIO_CODEC_OUTPUT_LIMIT_BYTES,
 	type DesktopDecodedAudioGeometry,
 } from './desktop-audio-codec-operation-contract.ts';
 
@@ -50,7 +49,7 @@ export function parseDesktopAudioFfmpegWaveOutput(
 	maximumPcmBytes: number,
 ): DesktopAudioFfmpegWaveOutput {
 	const maximum = boundedInteger(
-		maximumPcmBytes, 1, DESKTOP_AUDIO_CODEC_OUTPUT_LIMIT_BYTES, 'PCM output bound',
+		maximumPcmBytes, 1, Number.MAX_SAFE_INTEGER, 'PCM output bound',
 	);
 	if (!(value instanceof Uint8Array) || value.byteLength < 44
 		|| value.byteLength > maximum + DESKTOP_AUDIO_FFMPEG_WAVE_OVERHEAD_LIMIT_BYTES) {

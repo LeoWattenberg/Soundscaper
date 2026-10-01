@@ -145,6 +145,13 @@ constrain cooperative execution; they are not an operating-system filesystem,
 network, RSS, or CPU sandbox. A malicious selected executable retains its
 ordinary account and network authority.
 
+Desktop external FFmpeg audio imports and exports and keyed video exports have
+no fixed file-size cap. Audio selections use bounded file ranges; audio
+operations still retain whole input/output buffers and therefore require enough
+memory and scratch storage. Large audio requests bypass the 32 MiB input and
+128 MiB output utility tiers. Explicit caller output bounds remain enforced,
+and browser publication keeps its existing limits.
+
 Edit > Preferences > General shows the canonical location and status and owns
 Browse, Clear, Rescan, and explicit Install actions. Installation uses the
 exact WinGet package id `BtbN.FFmpeg.GPL.8.1` or an already installed Homebrew
@@ -163,7 +170,7 @@ Renderer requests remain pathless and owner-scoped. Main binds video to private
 descriptor 3 and optional audio to descriptor 4, creates private scratch and
 the output path, and accepts or returns IPC ranges of at most 1 MiB. Admission
 allows no more than two sessions globally and one per renderer owner. Fixed
-arguments, exact input byte counts, duration/log/output ceilings, executable
+arguments, exact input byte counts, duration/log ceilings, executable
 identity checks, cancellation, cleanup, bounded output reads, container
 validation, and digest-bound output evidence guard publication.
 

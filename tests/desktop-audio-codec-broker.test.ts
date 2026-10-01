@@ -108,6 +108,55 @@ test('preflight falls through in fixed priority and only the selected external r
 	assert.notEqual(outcome.result.bytes, input);
 });
 
+test('large audio inputs bypass bounded tiers and reach external FFmpeg with no fixed output cap', async () => {
+	const trace: string[] = [];
+	const request = { ...encodeRequest('opus'), input: new Uint8Array(32 * 1024 ** 2 + 8),
+		maximumOutputBytes: Number.MAX_SAFE_INTEGER };
+	const broker = createDesktopAudioCodecBroker({ runtimes: [
+		runtime(provider('bundled', 'supported', trace), () => { throw new Error('bounded tier executed'); }),
+		runtime(provider('operating-system', 'supported', trace), () => { throw new Error('bounded tier executed'); }),
+		{ provider: provider('external-ffmpeg', 'supported', trace), execute(admitted) {
+			assert.equal(admitted.input.byteLength, request.input.byteLength);
+			assert.equal(admitted.maximumOutputBytes, Number.MAX_SAFE_INTEGER);
+			return Promise.resolve(executed([1]));
+		} },
+	] });
+	const outcome = await broker.execute(request);
+	assert.equal(outcome.receipt.provider.kind, 'external-ffmpeg');
+	assert.deepEqual(trace, ['preflight:external-ffmpeg']);
+});
+
+test('small bundled operations keep their byte budget when the desktop request has no file cap', async () => {
+	const trace: string[] = [];
+	const broker = createDesktopAudioCodecBroker({ runtimes: [
+		{ provider: provider('bundled', 'supported', trace), execute(admitted) {
+			assert.equal(admitted.maximumOutputBytes, 128 * 1024 ** 2);
+			return Promise.resolve(executed([1]));
+		} },
+		runtime(provider('operating-system', 'supported', trace), () => { throw new Error('unused'); }),
+		runtime(provider('external-ffmpeg', 'supported', trace), () => { throw new Error('unused'); }),
+	] });
+	const outcome = await broker.execute({ ...encodeRequest('opus'), maximumOutputBytes: Number.MAX_SAFE_INTEGER });
+	assert.equal(outcome.receipt.provider.kind, 'bundled');
+});
+
+test('source-derived output above 128 MiB selects external FFmpeg even for a small compressed input', async () => {
+	const trace: string[] = [];
+	const maximumOutputBytes = 256 * 1024 ** 2;
+	const broker = createDesktopAudioCodecBroker({ runtimes: [
+		runtime(provider('bundled', 'supported', trace), () => { throw new Error('bounded tier executed'); }),
+		runtime(provider('operating-system', 'supported', trace), () => { throw new Error('bounded tier executed'); }),
+		{ provider: provider('external-ffmpeg', 'supported', trace), execute(request) {
+			assert.equal(request.maximumOutputBytes, maximumOutputBytes);
+			return Promise.resolve({ status: 'executed', output: new Uint8Array(8),
+				decodedGeometry: { sampleRate: 48_000, channelCount: 2, frameCount: 1 } });
+		} },
+	] });
+	const outcome = await broker.execute({ ...decodeRequest('aac-m4a'), maximumOutputBytes });
+	assert.equal(outcome.receipt.provider.kind, 'external-ffmpeg');
+	assert.deepEqual(trace, ['preflight:external-ffmpeg', 'preflight:external-ffmpeg']);
+});
+
 test('request-aware runtime preflight falls through before provider selection and rejects terminally', async () => {
 	for (const disposition of ['unsupported', 'rejected'] as const) {
 		const trace: string[] = [];

@@ -94,6 +94,32 @@ test('an admitted operation launches only main-built argv in a private scratch d
 	await assertRemoved(dirname(files.inputPath));
 });
 
+test('default external audio execution does not impose a file-size cap', async (context) => {
+	const root = await temporaryRoot(context);
+	const child = fakeChild();
+	let outputPath = '';
+	const runner = createExternalFfmpegAudioOperationRunner({
+		scratchRoot: root,
+		contract: contract({ onBuild(files) {
+			outputPath = files.outputPath;
+			assert.equal(files.maximumOutputBytes, Number.MAX_SAFE_INTEGER);
+		} }),
+		getAdmittedExecutable: admittedExecutable,
+		digestExecutable: admittedDigest,
+		spawn(_path, argv) {
+			assert.equal(argv.includes('-fs'), false);
+			void complete(child, outputPath, Uint8Array.of(1));
+			return child;
+		},
+	});
+	const result = await runner.execute(operationRequest());
+	assert.equal(result.status, 'executed');
+	assert.doesNotThrow(() => createExternalFfmpegAudioOperationRunner({
+		scratchRoot: root, contract: contract(), getAdmittedExecutable: admittedExecutable,
+		maximumInputBytes: Number.MAX_SAFE_INTEGER, maximumOutputBytes: Number.MAX_SAFE_INTEGER,
+	}));
+});
+
 test('renderer-shaped paths and argv are rejected before a contract or process sees them', async (context) => {
 	const root = await temporaryRoot(context);
 	let admitted = 0;

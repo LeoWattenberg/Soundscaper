@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import {
-	assertBrowserExportOutputSize,
 	BROWSER_EXPORT_BLOB_MAXIMUM_BYTES,
 } from './browser-export-output.ts';
 import {
@@ -46,9 +45,10 @@ export interface VideoKeyframeVideoSinkOutput<Output> {
 /** Copy one admitted MEMFS file through exact bounded ranges into an owned allocation. */
 export async function collectVideoKeyframeVideoOutput(
 	requestValue: VideoKeyframeVideoOutputRequest,
+	maximumAllowedBytes = VIDEO_KEYFRAME_VIDEO_MAXIMUM_OUTPUT_BYTES,
 ): Promise<VideoKeyframeVideoOutput> {
 	const request = normalizeRequest(requestValue);
-	const maximumBytes = normalizeMaximumBytes(request.maximumBytes);
+	const maximumBytes = normalizeMaximumBytes(request.maximumBytes, maximumAllowedBytes);
 	const maximumChunkBytes = normalizeMaximumChunkBytes(request.maximumChunkBytes);
 	const sink = createOutputSink(request.format, maximumBytes);
 	const result = await streamFfmpegOutputFile(request.source, request.path, sink, {
@@ -67,9 +67,10 @@ export async function collectVideoKeyframeVideoOutput(
 export async function streamVideoKeyframeVideoOutput<Output>(
 	requestValue: VideoKeyframeVideoOutputRequest,
 	sink: FfmpegOutputSink<Output>,
+	maximumAllowedBytes = VIDEO_KEYFRAME_VIDEO_MAXIMUM_OUTPUT_BYTES,
 ): Promise<VideoKeyframeVideoSinkOutput<Output>> {
 	const request = normalizeRequest(requestValue);
-	const maximumBytes = normalizeMaximumBytes(request.maximumBytes);
+	const maximumBytes = normalizeMaximumBytes(request.maximumBytes, maximumAllowedBytes);
 	const maximumChunkBytes = normalizeMaximumChunkBytes(request.maximumChunkBytes);
 	const managedSink = manageVideoKeyframeOutputSink(sink);
 	const evidence = await assertFiniteVideoKeyframeContainerFile(
@@ -136,9 +137,9 @@ function createOutputSink(
 	let offset = 0;
 	return Object.freeze({
 		async open(exactByteLength: number): Promise<void> {
-			assertBrowserExportOutputSize(
-				exactByteLength, 'Video keyframe export', maximumBytes,
-			);
+			if (!Number.isSafeInteger(exactByteLength) || exactByteLength < 0 || exactByteLength > maximumBytes) {
+				throw new RangeError(`Video keyframe export output exceeds its maximum of ${String(maximumBytes)} bytes.`);
+			}
 			if (exactByteLength === 0) {
 				throw new RangeError('Video keyframe export output must be non-empty.');
 			}
@@ -167,12 +168,12 @@ function createOutputSink(
 	});
 }
 
-function normalizeMaximumBytes(value: number | undefined): number {
-	const maximum = value ?? VIDEO_KEYFRAME_VIDEO_MAXIMUM_OUTPUT_BYTES;
-	if (!Number.isSafeInteger(maximum) || maximum <= 0
-		|| maximum > VIDEO_KEYFRAME_VIDEO_MAXIMUM_OUTPUT_BYTES) {
+function normalizeMaximumBytes(value: number | undefined, limit: number): number {
+	const maximum = value ?? limit;
+	if (!Number.isSafeInteger(limit) || limit <= 0 || !Number.isSafeInteger(maximum) || maximum <= 0
+		|| maximum > limit) {
 		throw new RangeError(
-			`Video keyframe export maximumOutputBytes must be a positive safe integer no greater than ${String(VIDEO_KEYFRAME_VIDEO_MAXIMUM_OUTPUT_BYTES)}.`,
+			`Video keyframe export maximumOutputBytes must be a positive safe integer no greater than ${String(limit)}.`,
 		);
 	}
 	return maximum;

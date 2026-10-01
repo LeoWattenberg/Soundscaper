@@ -4,20 +4,18 @@ import type { StreamedAudioImportSession } from './browser-streamed-audio-import
 import type { WavPackImportGroupDecoder } from './browser-streamed-wavpack-import.ts';
 import type { BrowserContainerAudioSample } from './browser-container-audio-decode.ts';
 
-const MAXIMUM_INPUT_BYTES = 32 * 1024 * 1024;
-const MAXIMUM_PCM_BYTES = 128 * 1024 * 1024;
 const MAXIMUM_READ_BYTES = 4 * 1024 * 1024;
 const SAMPLE_FRAMES = 65_536;
 const AAC_PACKET_FRAMES = 1024;
 
 type SourceGeometry = Omit<StreamedAudioImportSession, 'samples' | 'dispose'>;
 
-/** Preserve the broker's existing whole-file caps; larger sources retain packet decoding. */
+/** Admit source geometry without imposing the bounded utility tier's caps on external FFmpeg. */
 export function canUseDesktopAacImport(file: Blob, geometry: Pick<SourceGeometry, 'sampleRate' | 'channelCount' | 'durationSeconds'>): boolean {
 	const frames = Math.round(geometry.sampleRate * geometry.durationSeconds);
 	const bytes = (frames + AAC_PACKET_FRAMES * 2) * geometry.channelCount * 4;
-	return file.size <= MAXIMUM_INPUT_BYTES && Number.isSafeInteger(frames) && frames > 0
-		&& Number.isSafeInteger(bytes) && bytes > 0 && bytes <= MAXIMUM_PCM_BYTES;
+	return Number.isSafeInteger(file.size) && file.size > 0 && Number.isSafeInteger(frames) && frames > 0
+		&& Number.isSafeInteger(bytes) && bytes > 0;
 }
 
 /** AAC/M4A belongs to the main-owned OS/external provider, including when Electron has no AAC decoder. */
@@ -30,7 +28,7 @@ export function openDesktopAacImportSession(
 ): StreamedAudioImportSession {
 	signal?.throwIfAborted();
 	if (!canUseDesktopAacImport(file, geometry) || (leadingFrames !== 0 && leadingFrames !== AAC_PACKET_FRAMES)) {
-		throw new Error('Desktop AAC/M4A utility import is limited to 32 MiB input and 128 MiB decoded PCM.');
+		throw new Error('Desktop AAC/M4A import requires valid source geometry and packet padding.');
 	}
 	const frames = Math.round(geometry.sampleRate * geometry.durationSeconds);
 	const controller = new AbortController();
@@ -57,7 +55,7 @@ export function openDesktopAacImportSession(
 			}
 			const name = 'name' in file && typeof file.name === 'string' ? file.name : 'selected.m4a';
 			const decoded = await codec.decode(new File(parts, name, { type: file.type || 'audio/mp4' }), {
-				format: 'aac-m4a', signal: controller.signal, maximumOutputBytes: MAXIMUM_PCM_BYTES,
+				format: 'aac-m4a', signal: controller.signal, maximumOutputBytes: (frames + AAC_PACKET_FRAMES * 2) * geometry.channelCount * 4,
 			});
 			assertCurrent();
 			const expectedFrames = frames + leadingFrames;

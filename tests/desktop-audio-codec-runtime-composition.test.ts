@@ -240,8 +240,8 @@ test('external execution uses one immutable admission snapshot and the fixed pat
 	assert.deepEqual(executablePaths, [first.executablePath]);
 	assert.ok(capturedRunnerOptions);
 	const runnerOptions = capturedRunnerOptions as unknown as ExternalFfmpegAudioOperationRunnerOptions<DesktopAudioCodecRequest>;
-	assert.equal(runnerOptions.maximumInputBytes, 32 * 1_024 * 1_024);
-	assert.equal(runnerOptions.maximumOutputBytes, 129 * 1_024 * 1_024);
+	assert.equal(runnerOptions.maximumInputBytes, Number.MAX_SAFE_INTEGER);
+	assert.equal(runnerOptions.maximumOutputBytes, Number.MAX_SAFE_INTEGER);
 	assert.equal(observations[0]?.receipt.provider.version, '9.0.1');
 	assert.equal(observations[0]?.receipt.provider.implementation, 'ffmpeg-libopus');
 	assert.match(observations[0]?.receipt.provider.id ?? '',

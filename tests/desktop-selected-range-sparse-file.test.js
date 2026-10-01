@@ -8,6 +8,24 @@ import test from 'node:test';
 
 import { ReadCapabilityStore } from '../desktop/file-capabilities.js';
 
+test('desktop audio selection admits a sparse file above the former 1 GB limit', async (context) => {
+	const directory = await mkdtemp(join(tmpdir(), 'soundscaper-large-audio-selection-'));
+	const filePath = join(directory, 'large.m4a');
+	const size = 1_000_000_001;
+	const owner = {};
+	const store = new ReadCapabilityStore();
+	context.after(async () => {
+		await store.dispose();
+		await rm(directory, { recursive: true, force: true });
+	});
+	const writer = await open(filePath, 'w+');
+	try { await writer.truncate(size); } finally { await writer.close(); }
+	const descriptor = await store.registerSelectedAudioRangePath(filePath, { owner });
+	assert.equal(descriptor.size, size);
+	assert.equal(descriptor.readProfile, 'linked-audio-range-v1');
+	assert.equal(await store.release(descriptor.id, { owner }), true);
+});
+
 test('desktop reads the tail of a real sparse 7 GiB Audacity selection through its pinned handle', {
 	skip: process.platform !== 'linux' ? 'The sparse 7 GiB fixture uses Linux filesystem semantics.' : false,
 }, async (context) => {

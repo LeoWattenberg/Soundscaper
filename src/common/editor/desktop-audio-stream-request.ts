@@ -7,14 +7,21 @@ import { writeInterleavedFloat32Pcm } from './interleaved-float32-pcm.ts';
 import type { WavPcmDescriptor } from './wav-pcm-chunk-reader.ts';
 import type { DesktopAudioCodecRuntimeSettings, NormalizedMediaSettings } from './desktop-audio-codec-runtime.ts';
 import type { DesktopAudioStreamEncoderRequest } from './desktop-audio-stream-encoder.ts';
+import { queryDesktopAudioCodecCapability } from './desktop-audio-codec-capabilities.ts';
 const capabilities = createMediaExportCapabilities();
 
 export async function buildDesktopAudioStreamRequest(file: Blob, format: DesktopAudioCodecFormat,
-	settings: DesktopAudioCodecRuntimeSettings): Promise<DesktopAudioStreamEncoderRequest | null> {
+	settings: DesktopAudioCodecRuntimeSettings,
+	queryCapability?: Parameters<typeof queryDesktopAudioCodecCapability>[0],
+): Promise<DesktopAudioStreamEncoderRequest | null> {
 	const descriptor = await inspectWavBlobPcm(file, { signal: settings.signal }) as WavPcmDescriptor;
 	const media = normalizeMediaExportSettings(format, { ...settings, capabilities,
 		inputChannelCount: descriptor.channelCount, sampleRate: settings.sampleRate ?? descriptor.sampleRate }) as NormalizedMediaSettings;
 	if (descriptor.frameCount * media.channelCount * 4 <= DESKTOP_AUDIO_CODEC_INPUT_LIMIT_BYTES) return null;
+	const tuple: DesktopAudioCodecCapabilityTuple = { operation: 'audio-encode', format,
+		sampleRate: media.sampleRate, channelCount: media.channelCount,
+		settings: encodeDesktopAudioSettings(format, media) as DesktopAudioCodecCapabilityTuple['settings'] };
+	if (queryCapability && (await queryDesktopAudioCodecCapability(queryCapability, tuple)).provider !== 'bundled') return null;
 	if (media.sampleRate !== descriptor.sampleRate || (settings.inputChannelCount !== undefined && settings.inputChannelCount !== descriptor.channelCount)) {
 		throw new RangeError('The staged WAV geometry must match its desktop streaming export settings.');
 	}
@@ -77,10 +84,9 @@ export async function stagedDesktopWavPcm(file: Blob, format: DesktopAudioCodecF
 		);
 	}
 	const byteLength = descriptor.frameCount * media.channelCount * Float32Array.BYTES_PER_ELEMENT;
-	if (!Number.isSafeInteger(byteLength) || byteLength < 1
-		|| byteLength > DESKTOP_AUDIO_CODEC_INPUT_LIMIT_BYTES) {
+	if (!Number.isSafeInteger(byteLength) || byteLength < 1) {
 		throw unsupported(
-			`The staged WAV requires ${String(byteLength)} interleaved PCM bytes; the desktop audio bridge limit is ${String(DESKTOP_AUDIO_CODEC_INPUT_LIMIT_BYTES)}.`,
+			`The staged WAV requires an invalid interleaved PCM byte count: ${String(byteLength)}.`,
 		);
 	}
 	const input = new Uint8Array(byteLength);

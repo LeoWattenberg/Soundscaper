@@ -5,6 +5,8 @@
 import { createHash } from 'node:crypto';
 
 import {
+	DESKTOP_AUDIO_CODEC_INPUT_LIMIT_BYTES,
+	DESKTOP_AUDIO_CODEC_OUTPUT_LIMIT_BYTES,
 	createDesktopAudioCodecResult,
 	normalizeDesktopAudioCodecRequest,
 	normalizeDesktopAudioCodecResult,
@@ -224,9 +226,23 @@ export async function bindDesktopAudioCodecRuntimeToRequest(
 	readonly provider: DesktopCodecProvider;
 	readonly runtime: DesktopAudioCodecProviderRuntime;
 }>> {
+	if (runtime.provider.kind !== 'external-ffmpeg') {
+		if (request.input.byteLength > DESKTOP_AUDIO_CODEC_INPUT_LIMIT_BYTES
+			|| (request.maximumOutputBytes > DESKTOP_AUDIO_CODEC_OUTPUT_LIMIT_BYTES && request.maximumOutputBytes !== Number.MAX_SAFE_INTEGER)) {
+			return Object.freeze({ runtime, provider: Object.freeze({ ...runtime.provider,
+				preflight: () => Promise.resolve({ disposition: 'unsupported' as const,
+					reason: 'This audio file requires the external FFmpeg provider.' }),
+			}) });
+		}
+		request = Object.freeze({ ...request,
+			maximumOutputBytes: Math.min(request.maximumOutputBytes, DESKTOP_AUDIO_CODEC_OUTPUT_LIMIT_BYTES) });
+	}
 	const selected = await selectedRuntime(runtime, request, operation, signal);
+	const bounded = Object.freeze({ ...selected,
+		execute: (_request: DesktopAudioCodecRequest, options: Parameters<typeof selected.execute>[1]) => selected.execute(request, options),
+	});
 	const preflightRequest = selected.preflightRequest;
-	if (preflightRequest === undefined) return Object.freeze({ provider: selected.provider, runtime: selected });
+	if (preflightRequest === undefined) return Object.freeze({ provider: selected.provider, runtime: bounded });
 	const source = selected.provider;
 	const provider: DesktopCodecProvider = Object.freeze({
 		kind: source.kind, id: source.id, implementation: source.implementation,
@@ -242,7 +258,7 @@ export async function bindDesktopAudioCodecRuntimeToRequest(
 			}));
 		},
 	});
-	return Object.freeze({ provider, runtime: selected });
+	return Object.freeze({ provider, runtime: bounded });
 }
 
 async function selectedRuntime(
@@ -273,6 +289,10 @@ async function runSelectedRuntime(
 	operation: DesktopCodecOperation,
 	signal: AbortSignal | undefined,
 ): Promise<DesktopCodecExecutionResult<DesktopAudioCodecResult>> {
+	if (runtime.provider.kind !== 'external-ffmpeg') {
+		request = Object.freeze({ ...request,
+			maximumOutputBytes: Math.min(request.maximumOutputBytes, DESKTOP_AUDIO_CODEC_OUTPUT_LIMIT_BYTES) });
+	}
 	let rawResult: unknown;
 	try {
 		rawResult = await runtime.execute(request, Object.freeze({

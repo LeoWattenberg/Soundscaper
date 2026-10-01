@@ -177,8 +177,8 @@ export function assertDesktopAudioCodecRequest(value: unknown): asserts value is
 		throw new TypeError('The desktop audio codec operation is unsupported.');
 	}
 	const format = audioFormat(record.format);
-	bytes(record.input, DESKTOP_AUDIO_CODEC_INPUT_LIMIT_BYTES, 'input');
-	integer(record.maximumOutputBytes, 1, DESKTOP_AUDIO_CODEC_OUTPUT_LIMIT_BYTES, 'maximum output');
+	bytes(record.input, Number.MAX_SAFE_INTEGER, 'input');
+	integer(record.maximumOutputBytes, 1, Number.MAX_SAFE_INTEGER, 'maximum output');
 	if (Object.hasOwn(record, 'requestId')) requestId(record.requestId);
 	if (operation === 'audio-decode') {
 		if (record.sampleRate !== null || record.channelCount !== null) {
@@ -284,9 +284,9 @@ function validateDecodedGeometry(
 
 export function assertDesktopAudioCodecResult(
 	value: unknown,
-	maximumBytes = DESKTOP_AUDIO_CODEC_OUTPUT_LIMIT_BYTES,
+	maximumBytes = Number.MAX_SAFE_INTEGER,
 ): asserts value is DesktopAudioCodecResult {
-	integer(maximumBytes, 1, DESKTOP_AUDIO_CODEC_OUTPUT_LIMIT_BYTES, 'result byte bound');
+	integer(maximumBytes, 1, Number.MAX_SAFE_INTEGER, 'result byte bound');
 	const record = exactRecord(value, 'result');
 	exactKeys(record, REQUIRED_RESULT_FIELDS, RESULT_FIELDS, 'result');
 	bytes(record.bytes, maximumBytes, 'result bytes');
@@ -298,7 +298,7 @@ export function assertDesktopAudioCodecResult(
 
 export function normalizeDesktopAudioCodecResult(
 	value: unknown,
-	maximumBytes = DESKTOP_AUDIO_CODEC_OUTPUT_LIMIT_BYTES,
+	maximumBytes = Number.MAX_SAFE_INTEGER,
 ): DesktopAudioCodecResult {
 	assertDesktopAudioCodecResult(value, maximumBytes);
 	return Object.freeze({

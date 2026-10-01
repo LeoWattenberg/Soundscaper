@@ -3,6 +3,7 @@
 import type { VideoKeyframeFfmpegInputStream } from './video-keyframe-encoder-stream.ts';
 
 export const VIDEO_KEYFRAME_AUDIO_MAXIMUM_BYTES = 2 * 1024 * 1024 * 1024;
+export const VIDEO_KEYFRAME_DESKTOP_MAXIMUM_FILE_BYTES = Number.MAX_SAFE_INTEGER;
 
 export interface VideoKeyframeAudioInputSource {
 	readonly byteLength: number;
@@ -33,8 +34,9 @@ const AUDIO_INPUT_SOURCES = new WeakSet<object>();
 export async function admitVideoKeyframeAudioInput(
 	value: Blob,
 	options: VideoKeyframeAudioInputAdmissionOptions = {},
+	maximumAllowedBytes = VIDEO_KEYFRAME_AUDIO_MAXIMUM_BYTES,
 ): Promise<VideoKeyframeAudioInputSource> {
-	const settings = normalizeOptions(options);
+	const settings = normalizeOptions(options, maximumAllowedBytes);
 	assertReady(settings);
 	const snapshot = snapshotWav(value, settings.maximumBytes ?? VIDEO_KEYFRAME_AUDIO_MAXIMUM_BYTES);
 	const inspected = await inspectCanonicalFloat32Wav(snapshot, settings.signal);
@@ -236,6 +238,7 @@ function snapshotWav(value: Blob, maximumBytes: number): Blob {
 
 function normalizeOptions(
 	value: VideoKeyframeAudioInputAdmissionOptions,
+	maximumAllowedBytes: number,
 ): Required<Pick<VideoKeyframeAudioInputAdmissionOptions, 'maximumBytes'>>
 	& Omit<VideoKeyframeAudioInputAdmissionOptions, 'maximumBytes'> {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) {
@@ -253,9 +256,9 @@ function normalizeOptions(
 	const maximumBytes = Object.hasOwn(value, 'maximumBytes')
 		? positiveSafeInteger(value.maximumBytes, 'maximumAudioBytes')
 		: VIDEO_KEYFRAME_AUDIO_MAXIMUM_BYTES;
-	if (maximumBytes > VIDEO_KEYFRAME_AUDIO_MAXIMUM_BYTES) {
+	if (maximumBytes > maximumAllowedBytes) {
 		throw new RangeError(
-			`maximumAudioBytes cannot exceed ${String(VIDEO_KEYFRAME_AUDIO_MAXIMUM_BYTES)}.`,
+			`maximumAudioBytes cannot exceed ${String(maximumAllowedBytes)}.`,
 		);
 	}
 	if (value.signal !== undefined

@@ -1,8 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 /** Renderer adapter for the pathless, main-owned desktop audio codec bridge. */
 import {
-	DESKTOP_AUDIO_CODEC_FORMATS, DESKTOP_AUDIO_CODEC_INPUT_LIMIT_BYTES,
-	DESKTOP_AUDIO_CODEC_OUTPUT_LIMIT_BYTES,
+	DESKTOP_AUDIO_CODEC_FORMATS,
 	normalizeDesktopAudioCodecRequest, normalizeDesktopAudioCodecResult,
 	type DesktopAudioCodecFormat, type DesktopAudioCodecRequest, type DesktopAudioCodecResult,
 } from '../../../desktop/desktop-audio-codec-operation-contract.ts';
@@ -156,7 +155,7 @@ export function createDesktopAudioCodecRuntime(bridgeValue: DesktopAudioCodecRen
 			const settings = settingsRecord(settingsValue, ENCODE_SETTING_FIELDS, 'encode');
 			try {
 				assertFfmpegOutputReady(settings);
-				const streamedRequest = bridge.stream ? await (await import('./desktop-audio-stream-request.ts')).buildDesktopAudioStreamRequest(file, desktopFormat(formatValue), settings) : null;
+				const streamedRequest = bridge.stream ? await (await import('./desktop-audio-stream-request.ts')).buildDesktopAudioStreamRequest(file, desktopFormat(formatValue), settings, bridge.capabilities) : null;
 				if (streamedRequest) {
 					const encoder = await import('./desktop-audio-stream-encoder.ts'); assertActive(); streamOwnsFailure = true;
 					return await encoder.withDesktopAudioStreamOwnership(streamedRequest, mintRequestId(active), active,
@@ -195,7 +194,7 @@ export function createDesktopAudioCodecRuntime(bridgeValue: DesktopAudioCodecRen
 			throwIfAborted(settings.signal);
 			const input = await boundedInputBytes(file, settings.signal);
 			const format = decodeFormat(file, input, settings.format);
-			const maximumOutputBytes = settings.maximumOutputBytes ?? DESKTOP_AUDIO_CODEC_OUTPUT_LIMIT_BYTES;
+			const maximumOutputBytes = settings.maximumOutputBytes ?? Number.MAX_SAFE_INTEGER;
 			const request = normalizeDesktopAudioCodecRequest({
 				operation: 'audio-decode', format, input, sampleRate: null, channelCount: null,
 				settings: { sampleFormat: 'f32le' }, maximumOutputBytes,
@@ -234,7 +233,7 @@ export function createDesktopAudioCodecRuntime(bridgeValue: DesktopAudioCodecRen
 		const settings = settingsRecord(settingsValue, ENCODE_SETTING_FIELDS, 'encode');
 		throwIfAborted(settings.signal);
 		const { buildDesktopAudioStreamRequest, encodeDesktopAudioSettings, stagedDesktopWavPcm } = await import('./desktop-audio-stream-request.ts');
-		const streamedRequest = bridge.stream ? await buildDesktopAudioStreamRequest(file, format, settings) : null;
+		const streamedRequest = bridge.stream ? await buildDesktopAudioStreamRequest(file, format, settings, bridge.capabilities) : null;
 		if (streamedRequest) {
 			const encoder = await import('./desktop-audio-stream-encoder.ts'); assertActive();
 			return await encoder.withDesktopAudioStreamOwnership(streamedRequest, mintRequestId(active), active,
@@ -251,7 +250,7 @@ export function createDesktopAudioCodecRuntime(bridgeValue: DesktopAudioCodecRen
 			operation: 'audio-encode', format, input: staged.input,
 			sampleRate: staged.media.sampleRate, channelCount: staged.media.channelCount,
 			settings: codecSettings,
-			maximumOutputBytes: settings.maximumOutputBytes ?? DESKTOP_AUDIO_CODEC_OUTPUT_LIMIT_BYTES,
+			maximumOutputBytes: settings.maximumOutputBytes ?? Number.MAX_SAFE_INTEGER,
 			requestId: mintRequestId(active),
 		});
 		const result = await executeRequest(request, settings.signal);
@@ -318,19 +317,25 @@ async function boundedInputBytes(value: Blob | ArrayBuffer | ArrayBufferView, si
 ): Promise<Uint8Array> {
 	throwIfAborted(signal);
 	if (value instanceof Blob) {
-		if (value.size < 1 || value.size > DESKTOP_AUDIO_CODEC_INPUT_LIMIT_BYTES) {
-			throw new RangeError('The desktop audio decode input exceeds its 32 MiB bound.');
+		if (!Number.isSafeInteger(value.size) || value.size < 1) {
+			throw new RangeError('The desktop audio decode input must have a positive safe byte count.');
 		}
-		const buffer = await value.arrayBuffer();
-		throwIfAborted(signal);
-		if (!(buffer instanceof ArrayBuffer) || buffer.byteLength !== value.size) {
-			throw new Error('The desktop audio decode Blob returned unexpected bytes.');
+		const input = new Uint8Array(value.size);
+		for (let offset = 0; offset < value.size; offset += 4 * 1024 ** 2) {
+			throwIfAborted(signal);
+			const end = Math.min(value.size, offset + 4 * 1024 ** 2);
+			const buffer = await value.slice(offset, end).arrayBuffer();
+			throwIfAborted(signal);
+			if (!(buffer instanceof ArrayBuffer) || buffer.byteLength !== end - offset) {
+				throw new Error('The desktop audio decode Blob returned unexpected bytes.');
+			}
+			input.set(new Uint8Array(buffer), offset);
 		}
-		return new Uint8Array(buffer);
+		return input;
 	}
 	const bytes = ownedBytes(value);
-	if (bytes.byteLength < 1 || bytes.byteLength > DESKTOP_AUDIO_CODEC_INPUT_LIMIT_BYTES) {
-		throw new RangeError('The desktop audio decode input exceeds its 32 MiB bound.');
+	if (bytes.byteLength < 1) {
+		throw new RangeError('The desktop audio decode input must be non-empty.');
 	}
 	return bytes;
 }
