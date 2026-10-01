@@ -31,6 +31,7 @@ import {
 	selectExportOfflineRenderAdmission,
 } from './export-plan-admission.js';
 import { scaleSampleFrame } from './timeline-time.ts';
+import { estimateExportSourceWorkingSetBytes } from './export-source-working-set.ts';
 
 export const FAST_RENDER_THRESHOLDS = Object.freeze({
 	mobile: { outputBytes: 96 * 1024 ** 2, totalBytes: 320 * 1024 ** 2 },
@@ -104,9 +105,12 @@ export function chooseRenderStrategy(options = {}) {
 	const outputBytes = Number(options.outputBytes) || 0;
 	const livePcmBytes = Number(options.livePcmBytes) || 0;
 	const totalBytes = outputBytes + livePcmBytes;
-	const withinLegacyThresholds = outputBytes <= thresholds.outputBytes && totalBytes <= thresholds.totalBytes;
 	const hasOfflineRenderAdmission = options.offlineRenderAdmission !== undefined;
 	const offlineRenderAdmission = hasOfflineRenderAdmission ? options.offlineRenderAdmission : null;
+	// Context output and cropped PCM can coexist with all scheduled sources.
+	const renderOutputBytes = Math.max(outputBytes, Number(offlineRenderAdmission?.peakUsefulBinaryBytes) || 0);
+	const withinLegacyThresholds = outputBytes <= thresholds.outputBytes
+		&& livePcmBytes + renderOutputBytes <= thresholds.totalBytes;
 	const fast = withinLegacyThresholds && offlineRenderAdmission?.admitted !== false;
 	return {
 		strategy: fast ? 'offline' : 'realtime-stream',
@@ -345,7 +349,13 @@ export function createExportPlan(project, options = {}) {
 	const renderStrategyOptions = {
 		mobile: Boolean(options.mobile),
 		outputBytes,
-		livePcmBytes: options.livePcmBytes ?? estimateProjectPcmBytes(runtimeProject),
+		livePcmBytes: options.livePcmBytes ?? estimateExportSourceWorkingSetBytes(runtimeProject,
+			masteringSequence
+				? masteringSequence.plan.segments.map((segment) => ({ startFrame: segment.sourceStartFrame, endFrame: segment.sourceEndFrame }))
+				: chapters || [range])
+			// Sequence assembly retains its rendered regions beside the complete
+			// delivery, at the render width before the encoder's channel mapping.
+			+ (masteringSequence ? estimatePcmBytes(outputFrames, runtimeProject.masterChannels) * 2 : 0),
 	};
 	const legacyRender = chooseRenderStrategy(renderStrategyOptions);
 	const render = legacyRender.strategy === 'offline'
@@ -355,10 +365,12 @@ export function createExportPlan(project, options = {}) {
 				project: runtimeProject,
 				mode,
 				outputs,
-				range: masteringSequence
-					? { startFrame: masteringSequence.sourceRange.startFrame, durationFrames: masteringSequence.longestRenderFrames }
-					: range,
+				range,
 				chapters,
+				renderRanges: masteringSequence?.plan.segments.map((segment) => ({
+					startFrame: segment.sourceStartFrame,
+					durationFrames: segment.sourceEndFrame - segment.sourceStartFrame,
+				})),
 				tailFrames,
 				channelCount: adm?.channelCount,
 			}),

@@ -169,3 +169,28 @@ test('an ordinary delivery is untouched by any of this', () => {
 		false,
 	);
 });
+
+
+test('sequence memory includes retained regions and assembly before channel mapping', () => {
+	const plan = createExportPlan(albumProject(ORDER), {
+		format: 'wav', masteringSequenceId: 'album-order', sampleRate: 24_000, channelCount: 1,
+	});
+	assert.equal(plan.channelCount, 1);
+	assert.ok('livePcmBytes' in plan.render);
+	const sourceBytes = 1_200_000 * 2 * 4;
+	const retainedRegionsAndAssembly = plan.outputFrames * 2 * 4 * 2;
+	assert.ok(Number(plan.render.livePcmBytes) >= sourceBytes + retainedRegionsAndAssembly);
+});
+
+
+test('sequence admission charges the actual later region pre-roll and crop', () => {
+	const plan = createExportPlan(albumProject(ORDER), {
+		format: 'wav', masteringSequenceId: 'album-order',
+	});
+	const admission = plan.render.offlineRenderAdmission;
+	assert.ok(admission);
+	assert.equal(admission.preRollFrames, 480_000);
+	assert.equal(admission.geometry.contextFrames, 960_000);
+	assert.equal(admission.geometry.requestedFrames, 480_000);
+	assert.equal(admission.peakUsefulBinaryBytes, (960_000 + 480_000) * 2 * 4);
+});

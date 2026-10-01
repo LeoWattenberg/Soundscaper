@@ -5,8 +5,8 @@ import { throwIfAborted } from './async-utils.ts';
 import { chunkChannels } from './clip-scheduler-chunk-sources.ts';
 import type { EngineChunkSource } from './types.ts';
 
-const INPUT_FEED_FRAMES = 4_096;
-const RESAMPLE_RADIUS = 24;
+export const OFFLINE_CHUNK_RESAMPLE_INPUT_FEED_FRAMES = 4_096;
+export const OFFLINE_CHUNK_RESAMPLE_RADIUS = 24;
 
 interface StreamingResampler {
 	push(channels: readonly Float32Array[]): readonly Float32Array[];
@@ -31,10 +31,10 @@ export async function createOfflineChunkResampleBuffer(options: Readonly<{
 	if (inputOffsetFrame >= source.frameCount) {
 		throw new RangeError('The offline long-source resample range is empty.');
 	}
-	const sourceStartFrame = Math.max(0, Math.floor(inputOffsetFrame) - RESAMPLE_RADIUS);
+	const sourceStartFrame = Math.max(0, Math.floor(inputOffsetFrame) - OFFLINE_CHUNK_RESAMPLE_RADIUS);
 	const sourceEndFrame = Math.min(
 		source.frameCount,
-		Math.ceil(inputOffsetFrame + inputFrameCount) + RESAMPLE_RADIUS,
+		Math.ceil(inputOffsetFrame + inputFrameCount) + OFFLINE_CHUNK_RESAMPLE_RADIUS,
 	);
 	if (sourceEndFrame <= sourceStartFrame) {
 		throw new RangeError('The offline long-source resample range is empty.');
@@ -66,7 +66,7 @@ export async function createOfflineChunkResampleBuffer(options: Readonly<{
 		const chunkStartFrame = chunkIndex * source.chunkFrames;
 		const chunkOffset = inputNextFrame - chunkStartFrame;
 		const available = (channels[0]?.length ?? 0) - chunkOffset;
-		const frames = Math.min(INPUT_FEED_FRAMES, sourceEndFrame - inputNextFrame, available);
+		const frames = Math.min(OFFLINE_CHUNK_RESAMPLE_INPUT_FEED_FRAMES, sourceEndFrame - inputNextFrame, available);
 		if (frames <= 0) throw new Error('A long-source storage chunk did not cover the resampler input.');
 		const input = Array.from({ length: source.channelCount }, (_, channel) => {
 			const values = channels[channel];
