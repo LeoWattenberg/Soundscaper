@@ -382,32 +382,24 @@ export class RawPcmSpoolRepository {
 
 	async #replace(expected: RawPcmSpoolRecord, replacement: RawPcmSpoolRecord): Promise<boolean> {
 		assertSameOwnership(expected, replacement);
-		if (expected.appendProtocol !== 'framescaper-manifest-v1') {
+		const replaceRegistry = async (recoverAppends: boolean): Promise<boolean> => {
 			for (let attempt = 0; attempt < MAXIMUM_CAS_ATTEMPTS; attempt += 1) {
-				const registry = await this.#loadRegistry(expected.projectId);
+				const registry = await this.#loadRegistry(expected.projectId, recoverAppends);
 				const index = registry.records.findIndex(({ spoolId }) => spoolId === expected.spoolId);
 				if (index < 0 || !sameRecord(registry.records[index]!, expected)) return false;
+				if (!recoverAppends) {
+					await recoverRawPcmSpoolTail(this.#values, this.#chunks, expected);
+					await assertNoPendingRawPcmAppend(this.#values, expected, normalizeRecord);
+				}
 				const records = [...registry.records];
 				records[index] = replacement;
 				const next = freezeRegistry(expected.projectId, records);
 				if (await this.#values.replaceIfCurrent(registryKey(expected.projectId), registry.value, next)) return true;
 			}
 			throw new Error('Raw PCM spool replacement exceeded its bounded CAS retry limit.');
-		}
-		return withCaptureSpoolOperationLock(operationIdentity(expected), async () => {
-		for (let attempt = 0; attempt < MAXIMUM_CAS_ATTEMPTS; attempt += 1) {
-			const registry = await this.#loadRegistry(expected.projectId, false);
-			const index = registry.records.findIndex(({ spoolId }) => spoolId === expected.spoolId);
-			if (index < 0 || !sameRecord(registry.records[index]!, expected)) return false;
-			await recoverRawPcmSpoolTail(this.#values, this.#chunks, expected);
-			await assertNoPendingRawPcmAppend(this.#values, expected, normalizeRecord);
-			const records = [...registry.records];
-			records[index] = replacement;
-			const next = freezeRegistry(expected.projectId, records);
-			if (await this.#values.replaceIfCurrent(registryKey(expected.projectId), registry.value, next)) return true;
-		}
-		throw new Error('Raw PCM spool replacement exceeded its bounded CAS retry limit.');
-		});
+		};
+		if (expected.appendProtocol !== 'framescaper-manifest-v1') return replaceRegistry(true);
+		return withCaptureSpoolOperationLock(operationIdentity(expected), () => replaceRegistry(false));
 	}
 
 	async #removeRecord(expected: RawPcmSpoolRecord): Promise<boolean> {
