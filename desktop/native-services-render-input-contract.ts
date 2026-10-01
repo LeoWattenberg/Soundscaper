@@ -214,18 +214,6 @@ export function nativeRenderInputExactEnvelope(
 	return envelope as NativeRenderInputEnvelope;
 }
 
-export function nativeRenderInputExactV20Envelope(
-	payload: string,
-	fingerprint: string,
-	expectedVersion?: 7 | 8,
-) {
-	const envelope = nativeRenderInputExactEnvelope(payload, fingerprint, expectedVersion);
-	if (envelope.planVersion !== 7 && envelope.planVersion !== 8) {
-		throw new TypeError('The native render-input plan identity is not exact canonical selected-V20 V7/V8.');
-	}
-	return envelope;
-}
-
 export function nativeRenderInputDataBinding(
 	id: string,
 	index: number,
