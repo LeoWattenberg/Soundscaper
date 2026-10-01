@@ -277,6 +277,16 @@ test('frequency requests use the same minimum clip width as rendering', async ()
 	assert.deepEqual(requests, [['clip', { startFrame: 0, endFrame: 100 }]]);
 });
 
+test('frequency crossover changes request fresh analysis without discarding existing visual data', async () => {
+	const requests = await frequencyRequestsAtSummaryZoom({
+		sourceFrameCount: 25_600, clipFrameCount: 25_600, pixelsPerSecond: 480, changeCrossovers: true,
+	});
+	assert.deepEqual(requests, [
+		['clip', { startFrame: 0, endFrame: 25_600 }],
+		['clip', { startFrame: 0, endFrame: 25_600 }],
+	]);
+});
+
 test('adaptive analysis resolution upgrades a moderate summary request to a bounded window', async () => {
 	const requests = await frequencyRequestsAtSummaryZoom({
 		sourceFrameCount: 40_000_000,
@@ -296,6 +306,7 @@ async function frequencyRequestsAtSummaryZoom(options: Readonly<{
 	clipFrameCount: number;
 	pixelsPerSecond: number;
 	resolvedBlockSize?: number;
+	changeCrossovers?: boolean;
 }>) {
 	const dom = installReactTestDom();
 	const { createRoot } = await import('react-dom/client');
@@ -314,7 +325,8 @@ async function frequencyRequestsAtSummaryZoom(options: Readonly<{
 	const preferences = Object.freeze({ lowMidCrossoverHz: 250, midHighCrossoverHz: 4_000 });
 	const revisions = [1, 2].map((revision) => Object.freeze({
 		revision,
-		preferences: Object.freeze({ waveformVisualization: preferences }),
+		preferences: Object.freeze({ waveformVisualization: options.changeCrossovers && revision === 2
+			? Object.freeze({ ...preferences, lowMidCrossoverHz: 300 }) : preferences }),
 	}));
 	const trackClips = Object.freeze([clip]);
 	const clipLookup = new Map([[clip.id, clip]]);
@@ -372,8 +384,8 @@ async function frequencyRequestsAtSummaryZoom(options: Readonly<{
 	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
 	try {
 		await act(async () => { root.render(<Harness revision={1} />); });
-		if (options.resolvedBlockSize !== undefined) {
-			frequencyAnalysis = {
+		if (options.resolvedBlockSize !== undefined || options.changeCrossovers) {
+			if (options.resolvedBlockSize !== undefined) frequencyAnalysis = {
 				crossovers: { lowMidHz: 250, midHighHz: 4_000 },
 				levels: [{ blockSize: options.resolvedBlockSize }],
 			};

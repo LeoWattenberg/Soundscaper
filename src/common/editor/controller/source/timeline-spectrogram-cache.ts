@@ -18,6 +18,13 @@ interface CacheOptions<Image> {
 export function createTimelineSpectrogramCache<Image>(options: CacheOptions<Image>) {
 	const analysis = createBoundedCache<SpectrogramChannels>(options.analysisByteBudget ?? 32 * 1024 ** 2);
 	const pixels = createBoundedCache<Image>(options.pixelByteBudget ?? 32 * 1024 ** 2, options.releaseImage);
+	const pixelIdentities = new WeakMap<object, symbol>();
+	const pixelIdentity = (value: unknown): unknown => {
+		if (value === null || (typeof value !== 'object' && typeof value !== 'function')) return value;
+		let identity = pixelIdentities.get(value);
+		if (!identity) { identity = Symbol(); pixelIdentities.set(value, identity); }
+		return identity;
+	};
 	return {
 		analysis(owner: object, key: readonly unknown[], compute: () => SpectrogramChannels | null) {
 			const cached = analysis.get(owner, key);
@@ -33,13 +40,15 @@ export function createTimelineSpectrogramCache<Image>(options: CacheOptions<Imag
 			return columns;
 		},
 		image(owner: object, key: readonly unknown[], width: number, height: number, paint: () => Image | null) {
-			const cached = pixels.get(owner, [...key, width, height]);
+			// Raster identities must not keep FFT arrays alive after analysis eviction.
+			const pixelKey = [...key.map(pixelIdentity), width, height];
+			const cached = pixels.get(owner, pixelKey);
 			if (cached) return cached;
 			pixels.release(owner);
 			const bytes = width * height * 4;
 			if (!(bytes > 0) || !Number.isSafeInteger(bytes) || bytes > pixels.budget) return null;
 			const image = paint();
-			if (image) pixels.set(owner, [...key, width, height], image, bytes);
+			if (image) pixels.set(owner, pixelKey, image, bytes);
 			return image;
 		},
 		release(owner: object) {

@@ -221,6 +221,7 @@ export function useAudioTrackRowViewModel({
 		controller,
 		displayMode,
 		frequencyWaveformModule,
+		frequencyWaveformPreferences,
 		pixelsPerSecond,
 		projection.clips,
 		run,
