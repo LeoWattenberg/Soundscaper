@@ -6,6 +6,7 @@ import {
 	normalizeAudioEditorShortcut, updateAudioEditorPreferencesV1, updateCustomAudioEditorWorkspace,
 } from '../../preferences.js';
 import { createStableId } from '../../project.js';
+import { createEditorPreferenceActionOwner } from './preference-action-group.ts';
 import type { AudioEditorOptimizationMode } from '../../performance-preferences.ts';
 import { createEditorPreferenceActionDelegates, createEditorPreferencesService } from './internal/preferences-service.ts';
 import { applyLoadedPreferenceSession } from './internal/preference-session-defaults.ts';
@@ -48,7 +49,7 @@ export function createPreferencesComposition(d: {
 	});
 	return Object.freeze({
 		service,
-		actions: createEditorPreferenceActionDelegates(service, createStableId),
+		actions: createEditorPreferenceActionOwner(createEditorPreferenceActionDelegates(service, createStableId)),
 		async load(token = d.lifetime.capture()): Promise<Preferences> {
 			return applyLoadedPreferenceSession(await service.load(value => d.lifetime.guard(value, token)), d.state);
 		},

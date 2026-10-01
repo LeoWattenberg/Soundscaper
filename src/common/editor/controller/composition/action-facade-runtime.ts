@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { assertEditorPreferenceActionOwner, type EditorPreferenceActionOwner } from '../preferences/preference-action-group.ts';
 import type { EditorActionFunctions } from './editor-action-functions.ts';
 import type { EditorActionResources } from './editor-action-resources.ts';
 import {
@@ -28,7 +29,6 @@ function defineEditorActionFunctionNames<const Names extends readonly (keyof Edi
 }
 
 export const EDITOR_ACTION_FUNCTION_NAMES = defineEditorActionFunctionNames([
-	'activatePanelTabPreference',
 	'addEffect',
 	'addLabelTrack',
 	'addTrack',
@@ -73,11 +73,9 @@ export const EDITOR_ACTION_FUNCTION_NAMES = defineEditorActionFunctionNames([
 	'copyEffectStack',
 	'copyRackEffect',
 	'createStableId',
-	'createWorkspacePreference',
 	'currentAudacityEffectParams',
 	'deleteEffectPreset',
 	'deleteProject',
-	'deleteWorkspacePreference',
 	'discardTakeCycleRecording',
 	'disjoinSelectedClip',
 	'dismissAup4CompatibilitySummary',
@@ -111,8 +109,6 @@ export const EDITOR_ACTION_FUNCTION_NAMES = defineEditorActionFunctionNames([
 	'mixAndRenderTracks',
 	'moveClips',
 	'moveClipsToNewTrack',
-	'movePanelPreference',
-	'moveToolbarPreference',
 	'moveTrack',
 	'newProject',
 	'normalizePlaybackFrame',
@@ -183,10 +179,6 @@ export const EDITOR_ACTION_FUNCTION_NAMES = defineEditorActionFunctionNames([
 	'setLoopRegionToSelection',
 	'setMicrophoneMetering',
 	'setMonitoring',
-	'setPanelDockExtentPreference',
-	'setPanelFrameSizePreference',
-	'setPanelPreference',
-	'setPanelVisibilityPreference',
 	'setPlayAtSpeedRate',
 	'setPreferredInputChannelCount',
 	'setPreferredInputDevice',
@@ -196,16 +188,13 @@ export const EDITOR_ACTION_FUNCTION_NAMES = defineEditorActionFunctionNames([
 	'setRetainInputs',
 	'setSampleEditMode',
 	'setSelectionToLoopRegion',
-	'setShortcutPreference',
 	'setStatus',
 	'setTimelineView',
 	'setTimelineViewportWidth',
-	'setToolbarButtonPreference',
 	'setTrackChannelHeightRatio',
 	'setTrackDisplayMode',
 	'setTrackRate',
 	'setVisibleTrackHeights',
-	'setWorkspacePreference',
 	'setZoom',
 	'smoothSelectedSamples',
 	'splitAtFrame',
@@ -221,14 +210,12 @@ export const EDITOR_ACTION_FUNCTION_NAMES = defineEditorActionFunctionNames([
 	'timelineDurationFrames',
 	'toggleLeadInRecording',
 	'toggleMetronome',
-	'togglePanelPreference',
 	'togglePinnedPlayhead',
 	'toggleRecordingPause',
 	'toggleRmsWaveform',
 	'toggleRulerPlayback',
 	'toggleSelectionFollowsLoop',
 	'toggleStretchToTempo',
-	'toggleToolbarPreference',
 	'toggleScrollViewToPlayhead',
 	'toggleVerticalRulers',
 	'toggleVideoClipEffect',
@@ -236,13 +223,13 @@ export const EDITOR_ACTION_FUNCTION_NAMES = defineEditorActionFunctionNames([
 	'updatePreferences',
 	'updateRackEffect',
 	'updateVideoClipEffect',
-	'updateWorkspacePreference',
 	'updateZoom',
 ]);
 
 
 export type EditorActionRuntime = EditorActionResources & EditorActionFunctions & Readonly<{
 	labels: EditorLabelActionGroup;
+	preferenceActions: EditorPreferenceActionOwner;
 	projectBin: EditorProjectBinActionGroup;
 	selection: EditorSelectionActionGroup;
 }>;
@@ -256,6 +243,7 @@ export function assertEditorActionRuntime(scope: EditorActionRuntime): void {
 		if (typeof scope[name] !== 'function') throw new TypeError(`Missing editor action dependency: ${name}.`);
 	}
 	assertEditorLabelActionGroup(scope.labels);
+	assertEditorPreferenceActionOwner(scope.preferenceActions);
 	assertEditorProjectBinActionGroup(scope.projectBin);
 	assertEditorSelectionActionGroup(scope.selection);
 }

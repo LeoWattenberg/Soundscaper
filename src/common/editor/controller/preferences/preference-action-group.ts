@@ -1,9 +1,25 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { createEditorPreferenceActionDelegates } from './internal/preferences-service.ts';
 import type { createPreferencesComposition } from './preferences-composition.ts';
 
 type RuntimeAction = (...args: unknown[]) => unknown;
-type PreferenceActions = ReturnType<typeof createPreferencesComposition>['actions'];
+type PreferenceActions = ReturnType<typeof createEditorPreferenceActionDelegates>;
+const preferenceActionOwners = new WeakSet<object>();
+
+/** Preserve the owning composition's exact frozen delegates through action assembly. */
+export function createEditorPreferenceActionOwner<Actions extends PreferenceActions>(actions: Actions): Actions {
+	Object.freeze(actions);
+	preferenceActionOwners.add(actions);
+	return actions;
+}
+
+export type EditorPreferenceActionOwner = ReturnType<typeof createPreferencesComposition>['actions'];
+
+export function assertEditorPreferenceActionOwner(value: unknown): asserts value is EditorPreferenceActionOwner {
+	if (!value || typeof value !== 'object') throw new TypeError('Missing editor action dependency: preferenceActions.');
+	if (!preferenceActionOwners.has(value)) throw new TypeError('Invalid editor action dependency: preferenceActions.');
+}
 
 /**
  * The preferences action group.
@@ -13,7 +29,8 @@ type PreferenceActions = ReturnType<typeof createPreferencesComposition>['action
  * the facade sits at the maintainability ceiling where each one costs a split.
  */
 
-export interface PreferenceActionScope extends PreferenceActions {
+export interface PreferenceActionScope {
+	readonly preferenceActions: EditorPreferenceActionOwner;
 	readonly AUDIO_EDITOR_DEFAULT_SHORTCUTS: unknown;
 	readonly updatePreferences: (changes: unknown) => unknown;
 	readonly setTimelineView: (view: unknown) => unknown;
@@ -29,11 +46,11 @@ export function createPreferenceActionGroup(
 	scope: PreferenceActionScope,
 	recordingPreferences: PreferenceActionRecordingFacade,
 ) {
-	const { updatePreferences, setTimelineView } = scope;
+	const { updatePreferences, setTimelineView, preferenceActions } = scope;
 	return Object.freeze({
 		update: recordingPreferences.update,
 		revertFactorySettings: recordingPreferences.revertFactorySettings,
-		setWorkspace: scope.setWorkspacePreference,
+		setWorkspace: preferenceActions.setWorkspacePreference,
 		setSkin: (skin: unknown) => updatePreferences({ appearance: { skin } }),
 		setTheme: (theme: unknown) => updatePreferences({ appearance: { theme } }),
 		setClipStyle: (clipStyle: unknown) => updatePreferences({ appearance: { clipStyle } }),
@@ -46,20 +63,20 @@ export function createPreferenceActionGroup(
 			setTimelineView(defaultView);
 			return updated;
 		},
-		toggleToolbar: scope.toggleToolbarPreference,
-		moveToolbar: scope.moveToolbarPreference,
-		setToolbarButton: scope.setToolbarButtonPreference,
-		togglePanel: scope.togglePanelPreference,
-		setPanel: scope.setPanelPreference,
-		setPanelVisibility: scope.setPanelVisibilityPreference,
-		setPanelFrameSize: scope.setPanelFrameSizePreference,
-		setPanelDockExtent: scope.setPanelDockExtentPreference,
-		movePanel: scope.movePanelPreference,
-		activatePanelTab: scope.activatePanelTabPreference,
-		setShortcut: scope.setShortcutPreference,
+		toggleToolbar: preferenceActions.toggleToolbarPreference,
+		moveToolbar: preferenceActions.moveToolbarPreference,
+		setToolbarButton: preferenceActions.setToolbarButtonPreference,
+		togglePanel: preferenceActions.togglePanelPreference,
+		setPanel: preferenceActions.setPanelPreference,
+		setPanelVisibility: preferenceActions.setPanelVisibilityPreference,
+		setPanelFrameSize: preferenceActions.setPanelFrameSizePreference,
+		setPanelDockExtent: preferenceActions.setPanelDockExtentPreference,
+		movePanel: preferenceActions.movePanelPreference,
+		activatePanelTab: preferenceActions.activatePanelTabPreference,
+		setShortcut: preferenceActions.setShortcutPreference,
 		resetShortcuts: () => updatePreferences({ shortcuts: scope.AUDIO_EDITOR_DEFAULT_SHORTCUTS }),
-		createWorkspace: scope.createWorkspacePreference,
-		updateWorkspace: scope.updateWorkspacePreference,
-		deleteWorkspace: scope.deleteWorkspacePreference,
+		createWorkspace: preferenceActions.createWorkspacePreference,
+		updateWorkspace: preferenceActions.updateWorkspacePreference,
+		deleteWorkspace: preferenceActions.deleteWorkspacePreference,
 	});
 }

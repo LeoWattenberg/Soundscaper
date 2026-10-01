@@ -29,7 +29,6 @@ import type { createSettingPersistence } from '../preferences/setting-persistenc
 
 /** Action assembly preserves the contracts declared by the owning services. */
 export interface EditorActionFunctions {
-	readonly activatePanelTabPreference: ReturnType<typeof createPreferencesComposition>['actions']['activatePanelTabPreference'];
 	readonly addEffect: ReturnType<typeof createEffectsComposition>['rack']['addEffect'];
 	readonly addLabelTrack: ReturnType<typeof createTrackAudioComposition>['trackActions']['addLabelTrack'];
 	readonly addTrack: ReturnType<typeof createTrackAudioComposition>['trackActions']['addTrack'];
@@ -74,11 +73,9 @@ export interface EditorActionFunctions {
 	readonly copyEffectStack: ReturnType<typeof createEffectsComposition>['rack']['copyEffectStack'];
 	readonly copyRackEffect: ReturnType<typeof createEffectsComposition>['rack']['copyRackEffect'];
 	readonly createStableId: typeof createStableId;
-	readonly createWorkspacePreference: ReturnType<typeof createPreferencesComposition>['actions']['createWorkspacePreference'];
 	readonly currentAudacityEffectParams: ReturnType<typeof createEffectsComposition>['controls']['currentAudacityEffectParams'];
 	readonly deleteEffectPreset: ReturnType<typeof createEffectsComposition>['controls']['deleteEffectPreset'];
 	readonly deleteProject: ReturnType<typeof createProjectAdminService>['deleteProject'];
-	readonly deleteWorkspacePreference: ReturnType<typeof createPreferencesComposition>['actions']['deleteWorkspacePreference'];
 	readonly discardTakeCycleRecording: (pending: Parameters<TakeCycleOpenRecoveryAppPort['resolve']>[0]) => Promise<void>;
 	readonly disjoinSelectedClip: ReturnType<typeof createEditComposition>['clipboard']['disjoinSelectedClip'];
 	readonly dismissAup4CompatibilitySummary: ReturnType<typeof createNativeProjectService>['dismissAup4CompatibilitySummary'];
@@ -112,8 +109,6 @@ export interface EditorActionFunctions {
 	readonly mixAndRenderTracks: ReturnType<typeof createTrackAudioComposition>['mixAndRenderTracks'];
 	readonly moveClips: ReturnType<typeof createClipVideoComposition>['clipTransform']['moveClips'];
 	readonly moveClipsToNewTrack: ReturnType<typeof createClipVideoComposition>['clipTransform']['moveClipsToNewTrack'];
-	readonly movePanelPreference: ReturnType<typeof createPreferencesComposition>['actions']['movePanelPreference'];
-	readonly moveToolbarPreference: ReturnType<typeof createPreferencesComposition>['actions']['moveToolbarPreference'];
 	readonly moveTrack: ReturnType<typeof createTrackAudioComposition>['trackActions']['moveTrack'];
 	readonly newProject: ReturnType<typeof createProjectSwitchService>['newProject'];
 	readonly normalizePlaybackFrame: ReturnType<typeof createTransportComposition>['transport']['normalizePlaybackFrame'];
@@ -184,10 +179,6 @@ export interface EditorActionFunctions {
 	readonly setLoopRegionToSelection: ReturnType<typeof createTransportComposition>['transport']['setLoopRegionToSelection'];
 	readonly setMicrophoneMetering: ReturnType<typeof createMicrophoneMeterService>['setMicrophoneMetering'];
 	readonly setMonitoring: ReturnType<typeof createRecordingComposition>['setMonitoring'];
-	readonly setPanelDockExtentPreference: ReturnType<typeof createPreferencesComposition>['actions']['setPanelDockExtentPreference'];
-	readonly setPanelFrameSizePreference: ReturnType<typeof createPreferencesComposition>['actions']['setPanelFrameSizePreference'];
-	readonly setPanelPreference: ReturnType<typeof createPreferencesComposition>['actions']['setPanelPreference'];
-	readonly setPanelVisibilityPreference: ReturnType<typeof createPreferencesComposition>['actions']['setPanelVisibilityPreference'];
 	readonly setPlayAtSpeedRate: ReturnType<typeof createTransportComposition>['transport']['setPlayAtSpeedRate'];
 	readonly setPreferredInputChannelCount: ReturnType<typeof createRecordingComposition>['routing']['setPreferredInputChannelCount'];
 	readonly setPreferredInputDevice: ReturnType<typeof createRecordingComposition>['routing']['setPreferredInputDevice'];
@@ -197,16 +188,13 @@ export interface EditorActionFunctions {
 	readonly setRetainInputs: ReturnType<typeof createRecordingComposition>['routing']['setRetainInputs'];
 	readonly setSampleEditMode: ReturnType<typeof createClipVideoComposition>['sampleEdit']['setSampleEditMode'];
 	readonly setSelectionToLoopRegion: ReturnType<typeof createTransportComposition>['transport']['setSelectionToLoopRegion'];
-	readonly setShortcutPreference: ReturnType<typeof createPreferencesComposition>['actions']['setShortcutPreference'];
 	readonly setStatus: ReturnType<typeof createControllerPresentationState>['setStatus'];
 	readonly setTimelineView: ReturnType<typeof createDocumentComposition>['view']['setTimelineView'];
 	readonly setTimelineViewportWidth: ReturnType<typeof createTransportComposition>['view']['setTimelineViewportWidth'];
-	readonly setToolbarButtonPreference: ReturnType<typeof createPreferencesComposition>['actions']['setToolbarButtonPreference'];
 	readonly setTrackChannelHeightRatio: ReturnType<typeof createDocumentComposition>['session']['setTrackChannelHeightRatio'];
 	readonly setTrackDisplayMode: ReturnType<typeof createTrackAudioComposition>['trackActions']['setTrackDisplayMode'];
 	readonly setTrackRate: ReturnType<typeof createTrackAudioComposition>['trackActions']['setTrackRate'];
 	readonly setVisibleTrackHeights: ReturnType<typeof createTransportComposition>['view']['setVisibleTrackHeights'];
-	readonly setWorkspacePreference: ReturnType<typeof createPreferencesComposition>['actions']['setWorkspacePreference'];
 	readonly setZoom: ReturnType<typeof createTrackAudioComposition>['selectionView']['setZoom'];
 	readonly smoothSelectedSamples: ReturnType<typeof createClipVideoComposition>['smoothSelectedSamples'];
 	readonly splitAtFrame: ReturnType<typeof createEditComposition>['clipboard']['splitAtFrame'];
@@ -222,14 +210,12 @@ export interface EditorActionFunctions {
 	readonly timelineDurationFrames: () => number;
 	readonly toggleLeadInRecording: ReturnType<typeof createRecordingComposition>['session']['toggleLeadInRecording'];
 	readonly toggleMetronome: ReturnType<typeof createTransportComposition>['transport']['toggleMetronome'];
-	readonly togglePanelPreference: ReturnType<typeof createPreferencesComposition>['actions']['togglePanelPreference'];
 	readonly togglePinnedPlayhead: ReturnType<typeof createTrackAudioComposition>['selectionView']['togglePinnedPlayhead'];
 	readonly toggleRecordingPause: ReturnType<typeof createRecordingComposition>['session']['toggleRecordingPause'];
 	readonly toggleRmsWaveform: ReturnType<typeof createTrackAudioComposition>['selectionView']['toggleRmsWaveform'];
 	readonly toggleRulerPlayback: ReturnType<typeof createTrackAudioComposition>['selectionView']['toggleRulerPlayback'];
 	readonly toggleSelectionFollowsLoop: ReturnType<typeof createTransportComposition>['transport']['toggleSelectionFollowsLoop'];
 	readonly toggleStretchToTempo: ReturnType<typeof createClipVideoComposition>['clipProperty']['toggleStretchToTempo'];
-	readonly toggleToolbarPreference: ReturnType<typeof createPreferencesComposition>['actions']['toggleToolbarPreference'];
 	readonly toggleScrollViewToPlayhead: ReturnType<typeof createTrackAudioComposition>['selectionView']['toggleScrollViewToPlayhead'];
 	readonly toggleVerticalRulers: ReturnType<typeof createTrackAudioComposition>['selectionView']['toggleVerticalRulers'];
 	readonly toggleVideoClipEffect: ReturnType<typeof createClipVideoComposition>['videoEffect']['toggleVideoClipEffect'];
@@ -237,6 +223,5 @@ export interface EditorActionFunctions {
 	readonly updatePreferences: ReturnType<typeof createPreferencesComposition>['service']['update'];
 	readonly updateRackEffect: ReturnType<typeof createEffectsComposition>['rack']['updateRackEffect'];
 	readonly updateVideoClipEffect: ReturnType<typeof createClipVideoComposition>['videoEffect']['updateVideoClipEffect'];
-	readonly updateWorkspacePreference: ReturnType<typeof createPreferencesComposition>['actions']['updateWorkspacePreference'];
 	readonly updateZoom: ReturnType<typeof createTransportComposition>['view']['updateZoom'];
 }
