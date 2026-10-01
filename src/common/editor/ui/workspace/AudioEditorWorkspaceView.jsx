@@ -29,39 +29,32 @@ import EditorSurfaceBoundary from '../EditorSurfaceBoundary.jsx';
 import { CueImportDestinationDialog, WorkspaceImportInput } from './cue-import-workspace.tsx';
 import WebFileLimitDialog from './WebFileLimitDialog.tsx';
 import { withWebFileLoadLimitContext } from '../../web-file-limit-failure.ts';
+import { createWorkspacePanelDockRuntime } from './workspace-model-boundaries.ts';
 const ProjectLockToast = lazyEditorModule(() => import('../ProjectLockToast.tsx'));
 
 const EMPTY_SPLIT_TOOL_SHORTCUTS = Object.freeze([]);
 export default function AudioEditorWorkspaceView({ model }) {
 	const skin = useEditorSkin();
 	const {
-		aboutLabel,
 		activateSearchEntry,
 		assistanceSearchRuntime,
-		applicationMenus,
 		aup4Compatibility,
 		aup4InputRef,
 		automationToolEnabled,
 		blocked,
-		capabilities,
 		chromeDrawer,
 		clearError,
 		compactLayout,
-		controller,
 		cueImportDialog,
-		copy,
-		displayAudioSupported,
 		desktopChrome,
 		draggedWorkspacePanelId,
 		durationFrames,
 		editBlock,
-		editBlocked,
 		editorOverlayTarget,
 		editorRef,
 		editorThemeVariables,
 		effectsPanelTarget,
 		executeEdit,
-		fileService,
 		floatingToolbarPosition,
 		floatingToolbarRef,
 		importInputRef,
@@ -70,7 +63,6 @@ export default function AudioEditorWorkspaceView({ model }) {
 		isFullscreen,
 		isVideoEditorWorkspace,
 		legacyDataInputRef,
-		locale,
 		localError, webFileLimitPrompt, dismissWebFileLimitPrompt,
 		moveWorkspacePanel,
 		onError,
@@ -82,33 +74,24 @@ export default function AudioEditorWorkspaceView({ model }) {
 		parityRuntime,
 		pendingLegacyProjectRef,
 		playbackMeterSettings,
-		preferences,
-		productId,
 		project,
 		runtimeProject,
-		projectBinEffectivelyOpen,
 		recordingMeterSettings,
 		revealProjectBin,
-		run,
 		saveText,
 		searchEntries,
-		setDialog,
 		setDraggedWorkspacePanelId,
 		setEditorOverlayTarget,
 		setEffectWindow,
 		setPlaybackMeterSettings,
 		setRecordingMeterSettings,
 		setShowArmControls,
-		showArmControls,
-		soundscaperWorkflow,
-		snapshot,
 		statusMessage,
 		statusState,
 		statusError,
 		timelineSearchReveal,
 		toggleFullscreen,
 		toggleSplitTool,
-		toggleWorkspacePanel,
 		uploadClipToFreesound,
 		toolbarButtonPreferences,
 		toolbarDock,
@@ -117,7 +100,52 @@ export default function AudioEditorWorkspaceView({ model }) {
 		trackHeaderDrawer,
 		uiFlags,
 		workspaceRef,
+		overlayModel,
 	} = model;
+	const {
+		applicationMenus,
+		capabilities,
+		controller,
+		copy,
+		displayAudioSupported,
+		editBlocked,
+		fileService,
+		locale,
+		preferences,
+		projectBinEffectivelyOpen,
+		productId,
+		run,
+		setDialog,
+		showArmControls,
+		soundscaperWorkflow,
+		snapshot,
+		toggleWorkspacePanel,
+	} = overlayModel;
+	const panelDockRuntime = createWorkspacePanelDockRuntime({
+		controller,
+		snapshot,
+		productId,
+		capabilities,
+		copy,
+		locale,
+		fileService,
+		playbackMeterSettings,
+		run,
+		showArmControls,
+		displayAudioSupported,
+		onOpenEffects: openEffects,
+		onRoutingGraphGesture,
+		onRoutingParameterGesture,
+		effectsPanelTarget,
+		onEffectWindowChange: setEffectWindow,
+		draggedPanelId: draggedWorkspacePanelId,
+		onPanelDragStart: setDraggedWorkspacePanelId,
+		onPanelDragEnd: () => setDraggedWorkspacePanelId(null),
+		onPanelMove: moveWorkspacePanel,
+		onTogglePanel: toggleWorkspacePanel,
+		projectBinEffectivelyOpen,
+		blocked,
+	});
 	const splitToolShortcut = useSplitToolShortcut({
 		bindings: snapshot.preferences?.shortcuts?.['split-tool'] || EMPTY_SPLIT_TOOL_SHORTCUTS,
 		persistentEnabled: Boolean(uiFlags.splitTool),
@@ -300,7 +328,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 					videoRenderedFallback={snapshot.videoRenderedFallback}
 					affectedObjects={snapshot.featureRequirementsAffectedObjects}
 					copy={copy}
-					reportOpen={model.dialog === 'project-compatibility'}
+					reportOpen={overlayModel.dialog === 'project-compatibility'}
 					onOpenReport={() => setDialog('project-compatibility')}
 					onCloseReport={() => setDialog(null)}
 					overlayTarget={editorOverlayTarget}
@@ -322,33 +350,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 				ref={workspaceRef}
 				className="kw-audio-editor__workspace"
 			>
-				<WorkspacePanelDock
-					dock="left"
-					controller={controller}
-					snapshot={snapshot}
-					productId={productId}
-					capabilities={capabilities}
-					copy={copy}
-					aboutLabel={aboutLabel}
-					locale={locale}
-					fileService={fileService}
-					playbackMeterSettings={playbackMeterSettings}
-					run={run}
-					showArmControls={showArmControls}
-					displayAudioSupported={displayAudioSupported}
-					onOpenEffects={openEffects}
-					onRoutingGraphGesture={onRoutingGraphGesture}
-					onRoutingParameterGesture={onRoutingParameterGesture}
-					effectsPanelTarget={effectsPanelTarget}
-					onEffectWindowChange={setEffectWindow}
-					draggedPanelId={draggedWorkspacePanelId}
-					onPanelDragStart={setDraggedWorkspacePanelId}
-					onPanelDragEnd={() => setDraggedWorkspacePanelId(null)}
-					onPanelMove={moveWorkspacePanel}
-					onTogglePanel={toggleWorkspacePanel}
-					projectBinEffectivelyOpen={projectBinEffectivelyOpen}
-					blocked={blocked}
-				/>
+				<WorkspacePanelDock {...panelDockRuntime} dock="left" aboutLabel={overlayModel.aboutLabel} />
 				{uiFlags.tracksPanel && <div className="kw-audio-editor__workspace-main">
 				<main className="kw-audio-editor__canvas">
 					<AudioEditorTimeline
@@ -388,59 +390,9 @@ export default function AudioEditorWorkspaceView({ model }) {
 					/>
 					<p className="kw-audio-editor__keyboard-help" tabIndex={-1}>{copy.keyboardHelp}</p>
 				</main>
-				<WorkspacePanelDock
-					dock="bottom"
-					controller={controller}
-					snapshot={snapshot}
-					productId={productId}
-					capabilities={capabilities}
-					copy={copy}
-					locale={locale}
-					fileService={fileService}
-					playbackMeterSettings={playbackMeterSettings}
-					run={run}
-					showArmControls={showArmControls}
-					displayAudioSupported={displayAudioSupported}
-					onOpenEffects={openEffects}
-					onRoutingGraphGesture={onRoutingGraphGesture}
-					onRoutingParameterGesture={onRoutingParameterGesture}
-					effectsPanelTarget={effectsPanelTarget}
-					onEffectWindowChange={setEffectWindow}
-					draggedPanelId={draggedWorkspacePanelId}
-					onPanelDragStart={setDraggedWorkspacePanelId}
-					onPanelDragEnd={() => setDraggedWorkspacePanelId(null)}
-					onPanelMove={moveWorkspacePanel}
-					onTogglePanel={toggleWorkspacePanel}
-					projectBinEffectivelyOpen={projectBinEffectivelyOpen}
-					blocked={blocked}
-				/>
+				<WorkspacePanelDock {...panelDockRuntime} dock="bottom" />
 				</div>}
-				<WorkspacePanelDock
-					dock="right"
-					controller={controller}
-					snapshot={snapshot}
-					productId={productId}
-					capabilities={capabilities}
-					copy={copy}
-					locale={locale}
-					fileService={fileService}
-					playbackMeterSettings={playbackMeterSettings}
-					run={run}
-					showArmControls={showArmControls}
-					displayAudioSupported={displayAudioSupported}
-					onOpenEffects={openEffects}
-					onRoutingGraphGesture={onRoutingGraphGesture}
-					onRoutingParameterGesture={onRoutingParameterGesture}
-					effectsPanelTarget={effectsPanelTarget}
-					onEffectWindowChange={setEffectWindow}
-					draggedPanelId={draggedWorkspacePanelId}
-					onPanelDragStart={setDraggedWorkspacePanelId}
-					onPanelDragEnd={() => setDraggedWorkspacePanelId(null)}
-					onPanelMove={moveWorkspacePanel}
-					onTogglePanel={toggleWorkspacePanel}
-					projectBinEffectivelyOpen={projectBinEffectivelyOpen}
-					blocked={blocked}
-				/>
+				<WorkspacePanelDock {...panelDockRuntime} dock="right" />
 				{toolbarButtonPreferences['playback-volume'] !== false
 					&& playbackMeterSettings.position === 'side'
 					&& <SidePlaybackMeter
@@ -462,32 +414,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 						onSettingsChange={setRecordingMeterSettings}
 						run={run}
 					/>}
-				<WorkspacePanelDock
-					dock="floating"
-					controller={controller}
-					snapshot={snapshot}
-					productId={productId}
-					capabilities={capabilities}
-					copy={copy}
-					locale={locale}
-					fileService={fileService}
-					playbackMeterSettings={playbackMeterSettings}
-					run={run}
-					showArmControls={showArmControls}
-					displayAudioSupported={displayAudioSupported}
-					onOpenEffects={openEffects}
-					onRoutingGraphGesture={onRoutingGraphGesture}
-					onRoutingParameterGesture={onRoutingParameterGesture}
-					effectsPanelTarget={effectsPanelTarget}
-					onEffectWindowChange={setEffectWindow}
-					draggedPanelId={draggedWorkspacePanelId}
-					onPanelDragStart={setDraggedWorkspacePanelId}
-					onPanelDragEnd={() => setDraggedWorkspacePanelId(null)}
-					onPanelMove={moveWorkspacePanel}
-					onTogglePanel={toggleWorkspacePanel}
-					projectBinEffectivelyOpen={projectBinEffectivelyOpen}
-					blocked={blocked}
-				/>
+				<WorkspacePanelDock {...panelDockRuntime} dock="floating" />
 				<div
 					className={`kw-audio-editor__workspace-drop-targets${draggedWorkspacePanelId ? ' kw-audio-editor__workspace-drop-targets--active' : ''}`}
 					data-workspace-drop-targets
@@ -539,7 +466,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 				run={run}
 			/>}
 
-			<AudioEditorWorkspaceOverlays model={model} />
+			<AudioEditorWorkspaceOverlays model={overlayModel} />
 			<EditorOverlayHost ref={setEditorOverlayTarget} />
 			<AudioEditorButtonTooltips rootRef={editorRef} />
 			{webFileLimitPrompt && <WebFileLimitDialog copy={copy} productId={productId} onClose={dismissWebFileLimitPrompt} />}
