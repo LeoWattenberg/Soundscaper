@@ -587,22 +587,7 @@
       "count": 1
     }
   },
-  "src/common/editor/storage/capture-spool-append-intent-repository.ts": {
-    "no-control-regex": {
-      "count": 1
-    }
-  },
   "src/common/editor/storage/capture-spool-creation-fence.ts": {
-    "no-control-regex": {
-      "count": 1
-    }
-  },
-  "src/common/editor/storage/capture-spool-operation-lock.ts": {
-    "no-control-regex": {
-      "count": 1
-    }
-  },
-  "src/common/editor/storage/capture-spool-tail-cleanup-repository.ts": {
     "no-control-regex": {
       "count": 1
     }
@@ -620,31 +605,8 @@
       "count": 2
     }
   },
-  "src/common/editor/storage/encoded-capture-spool-create.ts": {
-    "no-control-regex": {
-      "count": 1
-    }
-  },
-  "src/common/editor/storage/encoded-capture-spool-repository.ts": {
-    "no-control-regex": {
-      "count": 1
-    }
-  },
-  "src/common/editor/storage/framescaper-capture-creation-admission.ts": {
-    "no-control-regex": {
-      "count": 1
-    }
-  },
   "src/common/editor/storage/framescaper-capture-session-creation-repository.ts": {
-    "no-control-regex": {
-      "count": 1
-    },
     "no-useless-assignment": {
-      "count": 1
-    }
-  },
-  "src/common/editor/storage/framescaper-capture-session-manifest-repository.ts": {
-    "no-control-regex": {
       "count": 1
     }
   },
@@ -665,11 +627,6 @@
   },
   "src/common/editor/storage/media-asset-write-repository.ts": {
     "preserve-caught-error": {
-      "count": 1
-    }
-  },
-  "src/common/editor/storage/opfs-preferred-encoded-capture-chunk-port.ts": {
-    "no-control-regex": {
       "count": 1
     }
   },
@@ -698,26 +655,6 @@
   },
   "src/common/editor/storage/project-repository-support.ts": {
     "preserve-caught-error": {
-      "count": 1
-    }
-  },
-  "src/common/editor/storage/raw-pcm-spool-create.ts": {
-    "no-control-regex": {
-      "count": 1
-    }
-  },
-  "src/common/editor/storage/raw-pcm-spool-global-inventory.ts": {
-    "no-control-regex": {
-      "count": 1
-    }
-  },
-  "src/common/editor/storage/raw-pcm-spool-record.ts": {
-    "no-control-regex": {
-      "count": 1
-    }
-  },
-  "src/common/editor/storage/raw-pcm-spool-repository.ts": {
-    "no-control-regex": {
       "count": 1
     }
   },
