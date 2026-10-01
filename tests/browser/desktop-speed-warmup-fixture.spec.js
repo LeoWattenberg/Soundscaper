@@ -3,6 +3,9 @@
 import { expect, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, collectClientErrors } from './audio-editor-test-helpers.js';
 
+// The override scenario serves a synthetic feature module outside the built site.
+test.use({ browserCoverage: false });
+
 for (const productId of ['soundscaper', 'framescaper']) {
 	test(`${productId} desktop stubs finish Speed preparation without a web build manifest`, async ({ page }) => {
 		await installDesktopBridge(page, `${productId}Desktop`);
