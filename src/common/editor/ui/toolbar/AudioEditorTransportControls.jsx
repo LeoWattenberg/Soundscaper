@@ -77,6 +77,7 @@ export function PlaySpeedFlyout({ copy, snapshot, blocked, controller, run, clos
 		<div className="kw-audio-editor__split-button-options" data-play-at-speed>
 			<ContextMenuItem
 				label={copy.playSelection}
+				shortcut={snapshot.preferences?.shortcuts?.['action://playback/play-selection']?.join(', ')}
 				disabled={blocked || transportState === 'playing' || !snapshot.selection}
 				onClick={() => {
 					close();

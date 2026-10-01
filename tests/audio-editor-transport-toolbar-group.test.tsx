@@ -13,6 +13,7 @@ import TransportToolbarGroup, {
 } from '../src/common/editor/ui/toolbar/TransportToolbarGroup.jsx';
 import { AccessibleTimeCode, PlaySpeedFlyout, TelemetryTimeCode } from '../src/common/editor/ui/toolbar/AudioEditorTransportControls.jsx';
 import { ENGLISH_COPY, GERMAN_COPY } from '../src/common/i18n/catalogs.js';
+import { createAudioEditorPreferencesV1 } from '../src/common/editor/preferences.js';
 import { ThemeProvider } from '../vendor/audacity-design-system/components/src/ThemeProvider/ThemeProvider.tsx';
 
 // The .jsx modules compile against the global React the browser build provides.
@@ -123,6 +124,30 @@ test('the play dropdown separates selection playback from its speed controls', (
 	const pitch = markup.indexOf(`>${ENGLISH_COPY.playAtSpeedPreservePitch}<`);
 	assert.ok(selection >= 0 && selection < divider && divider < pitch);
 	assert.equal(GERMAN_COPY.playSelection, 'Auswahl abspielen');
+});
+
+test('the Play Selection menu displays stored shortcut alternatives and respects removals', () => {
+	for (const [shortcuts, expected] of [
+		[createAudioEditorPreferencesV1().shortcuts, 'W'],
+		[{ 'action://playback/play-selection': ['Alt+W', 'Ctrl+Alt+W'] }, 'Alt+W, Ctrl+Alt+W'],
+		[{}, null],
+	] as const) {
+		const markup = renderToStaticMarkup(<ThemeProvider><PlaySpeedFlyout
+			copy={ENGLISH_COPY}
+			snapshot={{ ...snapshot, preferences: { ...snapshot.preferences, shortcuts } }}
+			blocked={false}
+			controller={{
+				actions: { transport: { playSelection: () => undefined }, preferences: { update: () => undefined } },
+				getTelemetrySnapshot: () => ({ transportState: 'stopped' }),
+				subscribeTelemetry: () => () => undefined,
+			}}
+			run={() => undefined}
+		/></ThemeProvider>);
+		const selectionItem = markup.match(/<span class="context-menu-item-label">Play selection<\/span>([^]*?)<\/div>/u)?.[1];
+		assert.ok(selectionItem !== undefined);
+		if (expected) assert.ok(selectionItem.includes(`class="context-menu-item-shortcut">${expected}</span>`));
+		else assert.doesNotMatch(selectionItem, /context-menu-item-shortcut/u);
+	}
 });
 
 test('transport icons use upstream idle accents and white while recording', () => {
