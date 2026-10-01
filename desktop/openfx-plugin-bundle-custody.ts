@@ -3,7 +3,7 @@
 /** Immutable, full-tree custody for one target-specific OpenFX bundle. */
 
 import { lstat, readdir } from 'node:fs/promises';
-import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
 
 import type { FramescaperOpenFxHostTargetId } from './framescaper-openfx-host-payload.ts';
 import type {
@@ -228,7 +228,4 @@ function absolutePath(value: unknown): string {
 	return value;
 }
 
-export function pathInsideOpenFxCustody(root: string, path: string): boolean {
-	const value = relative(root, path);
-	return value !== '' && value !== '..' && !value.startsWith(`..${sep}`) && !isAbsolute(value);
-}
+

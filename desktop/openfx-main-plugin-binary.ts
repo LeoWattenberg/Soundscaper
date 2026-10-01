@@ -56,14 +56,6 @@ export async function authenticateFramescaperOpenFxPluginBinary(
 	} finally { await handle.close(); }
 }
 
-export function sameFramescaperOpenFxPluginBinary(
-	left: HelperExecutableGrant,
-	right: HelperExecutableGrant,
-): boolean {
-	return left.path === right.path && left.bytes === right.bytes && left.sha256 === right.sha256
-		&& left.identity.dev === right.identity.dev && left.identity.ino === right.identity.ino;
-}
-
 function absolutePath(value: unknown): string {
 	if (typeof value !== 'string' || !isAbsolute(value) || value.includes('\0')) {
 		throw new TypeError('The OpenFX plug-in binary must be an absolute path.');
