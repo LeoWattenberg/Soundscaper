@@ -12,6 +12,7 @@ import {
 	createFramescaperDesktopProjectLibraryPaths,
 	DESKTOP_PROJECT_LIBRARY_APPLICATION_ID,
 	validateFramescaperDesktopProjectLibraryHandshake,
+	validateFramescaperDesktopProjectLibraryOwner,
 } from '../desktop/framescaper-project-library-contract.ts';
 import { initializeFramescaperDesktopProjectLibraryLifecycleDatabase } from
 	'../desktop/framescaper-project-library-database.ts';
@@ -19,6 +20,8 @@ import { initializeFramescaperDesktopProjectLibraryExactGenerationDatabase } fro
 	'../desktop/project-library-exact-generation-database.ts';
 import { FRAMESCAPER_DESKTOP_PROJECT_LIBRARY_MAIN_CHANNELS } from
 	'../desktop/framescaper-project-library-main-channels.ts';
+import { registerFramescaperDesktopProjectLibraryMainIpc } from
+	'../desktop/framescaper-project-library-main-ipc.ts';
 import { FramescaperDesktopProjectLibraryMain } from
 	'../desktop/framescaper-project-library-main.ts';
 
@@ -38,6 +41,9 @@ test('Framescaper desktop baseline handshake is the exact family-qualified tuple
 		desktopLibraryScope: ['kw.media', 'framescaper-project-library', 'v1'],
 	});
 	assert.deepEqual(validateFramescaperDesktopProjectLibraryHandshake(handshake), handshake);
+	assert.ok(Object.isFrozen(handshake));
+	assert.ok(Object.isFrozen(handshake.scapeFormatVersions));
+	assert.ok(Object.isFrozen(handshake.desktopLibraryScope));
 	assert.throws(() => validateFramescaperDesktopProjectLibraryHandshake({
 		...handshake,
 		schemaFamily: 'soundscaper',
@@ -122,4 +128,40 @@ test('Framescaper baseline IPC namespace is unique and complete', () => {
 	assert.equal(channels.every((channel) => channel.startsWith(
 		'framescaper:v1:project-library:',
 	)), true);
+});
+
+
+test('Framescaper baseline registers its exact static channels and refuses foreign owners', async (context) => {
+	assert.throws(() => validateFramescaperDesktopProjectLibraryOwner({
+		product: 'soundscaper', processId: 933, instanceId: 'baseline-owner',
+	}), /owner must be Framescaper/u);
+	const root = await mkdtemp(join(tmpdir(), 'framescaper-baseline-ipc-'));
+	context.after(() => rm(root, { recursive: true, force: true }));
+	const main = await FramescaperDesktopProjectLibraryMain.start({
+		appDataPath: root,
+		owner: { product: 'framescaper', processId: 933, instanceId: 'baseline-owner' },
+		handshake: createFramescaperDesktopProjectLibraryHandshake(),
+		onLeaseLost: () => undefined,
+		testControl: null,
+	});
+	context.after(() => main.close());
+	const handlers = new Map<string, (event: unknown, value?: unknown) => unknown>();
+	const renderer = {};
+	const registration = registerFramescaperDesktopProjectLibraryMainIpc({
+		main,
+		handle: (channel: string, handler: (event: unknown, value?: unknown) => unknown) => {
+			handlers.set(channel, handler);
+		},
+		removeHandler: (channel: string) => { handlers.delete(channel); },
+		ownerFor: () => renderer,
+	});
+	context.after(() => registration.dispose());
+	assert.deepEqual([...handlers.keys()], Object.values(FRAMESCAPER_DESKTOP_PROJECT_LIBRARY_MAIN_CHANNELS));
+	const handshake = handlers.get(FRAMESCAPER_DESKTOP_PROJECT_LIBRARY_MAIN_CHANNELS.handshake)!;
+	assert.throws(() => handshake({}, { ...main.localHandshake, schemaFamily: 'soundscaper' }),
+		/handshake was refused/u);
+	assert.throws(() => handlers.get(FRAMESCAPER_DESKTOP_PROJECT_LIBRARY_MAIN_CHANNELS.listProjects)!({}),
+		/handshake was refused/u);
+	await registration.dispose();
+	assert.equal(handlers.size, 0);
 });

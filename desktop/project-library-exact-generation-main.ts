@@ -8,9 +8,9 @@ import {
 	setFramescaperDesktopProjectLibraryExactGenerationMetadataRevision as setMetadataRevision,
 } from './project-library-exact-generation-database.ts';
 import type {
-	FramescaperDesktopProjectLibraryExactGenerationOwner,
-	FramescaperDesktopProjectLibraryExactGenerationPaths,
-} from './project-library-exact-generation-contract.ts';
+	FramescaperDesktopProjectLibraryOwner,
+	FramescaperDesktopProjectLibraryPaths,
+} from './framescaper-project-library-contract.ts';
 import {
 	abortPublicationAfterFailure,
 	type FramescaperDesktopProjectLibraryExactGenerationExtension,
@@ -71,14 +71,14 @@ export interface FramescaperDesktopProjectLibraryExactGenerationConfiguration ex
 	readonly databaseUserVersion: number;
 	readonly createHandshake: () => unknown;
 	readonly validateHandshake: (value: unknown) => unknown;
-	readonly createPaths: (appDataPath: string) => Readonly<FramescaperDesktopProjectLibraryExactGenerationPaths>;
-	readonly validateOwner: (value: unknown) => Readonly<FramescaperDesktopProjectLibraryExactGenerationOwner>;
+	readonly createPaths: (appDataPath: string) => Readonly<FramescaperDesktopProjectLibraryPaths>;
+	readonly validateOwner: (value: unknown) => Readonly<FramescaperDesktopProjectLibraryOwner>;
 	readonly validateProject: (value: unknown) => unknown;
 }
 export interface FramescaperDesktopProjectLibraryExactGenerationMainSnapshot {
 	readonly closed: boolean;
 	readonly fenced: boolean;
-	readonly owner: Readonly<FramescaperDesktopProjectLibraryExactGenerationOwner>;
+	readonly owner: Readonly<FramescaperDesktopProjectLibraryOwner>;
 	readonly activeSessions: number;
 	readonly activePublication: boolean;
 	readonly writer?: unknown;
@@ -103,8 +103,8 @@ export class FramescaperDesktopProjectLibraryExactGenerationMain {
 	readonly localHandshake: unknown;
 	readonly #configuration: FramescaperDesktopProjectLibraryExactGenerationConfiguration;
 	readonly #database: DatabaseSync;
-	readonly #owner: Readonly<FramescaperDesktopProjectLibraryExactGenerationOwner>;
-	readonly #paths: Readonly<FramescaperDesktopProjectLibraryExactGenerationPaths>;
+	readonly #owner: Readonly<FramescaperDesktopProjectLibraryOwner>;
+	readonly #paths: Readonly<FramescaperDesktopProjectLibraryPaths>;
 	readonly #lifecycle: FramescaperDesktopProjectLibraryExactGenerationLifecycle | null;
 	readonly #sessions = new Set<ExactGenerationSession>();
 	readonly #writeFences = new DesktopProjectWriteFences();
@@ -112,9 +112,9 @@ export class FramescaperDesktopProjectLibraryExactGenerationMain {
 	#closed = false;
 	private constructor(
 		configuration: FramescaperDesktopProjectLibraryExactGenerationConfiguration,
-		paths: Readonly<FramescaperDesktopProjectLibraryExactGenerationPaths>,
+		paths: Readonly<FramescaperDesktopProjectLibraryPaths>,
 		database: DatabaseSync,
-		owner: Readonly<FramescaperDesktopProjectLibraryExactGenerationOwner>,
+		owner: Readonly<FramescaperDesktopProjectLibraryOwner>,
 		lifecycle: FramescaperDesktopProjectLibraryExactGenerationLifecycle | null,
 	) {
 		this.#configuration = configuration;
@@ -281,7 +281,7 @@ export class FramescaperDesktopProjectLibraryExactGenerationMain {
 class ExactGenerationSession implements FramescaperDesktopProjectLibraryExactGenerationMainSession {
 	readonly #configuration: FramescaperDesktopProjectLibraryExactGenerationConfiguration;
 	readonly #database: DatabaseSync;
-	readonly #paths: Readonly<FramescaperDesktopProjectLibraryExactGenerationPaths>;
+	readonly #paths: Readonly<FramescaperDesktopProjectLibraryPaths>;
 	readonly #lifecycle: FramescaperDesktopProjectLibraryExactGenerationLifecycle | null;
 	readonly #writeFences: DesktopProjectWriteFences;
 	readonly #onActiveProject: (projectId: string | null) => void;
@@ -293,7 +293,7 @@ class ExactGenerationSession implements FramescaperDesktopProjectLibraryExactGen
 	constructor(
 		configuration: FramescaperDesktopProjectLibraryExactGenerationConfiguration,
 		database: DatabaseSync,
-		paths: Readonly<FramescaperDesktopProjectLibraryExactGenerationPaths>,
+		paths: Readonly<FramescaperDesktopProjectLibraryPaths>,
 		lifecycle: FramescaperDesktopProjectLibraryExactGenerationLifecycle | null,
 		writeFences: DesktopProjectWriteFences,
 		onActiveProject: (projectId: string | null) => void,

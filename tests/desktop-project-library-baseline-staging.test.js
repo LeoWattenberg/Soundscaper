@@ -16,6 +16,11 @@ const RETIRED_LIBRARY = /(?:^|\/)(?:soundscaper-)?project-library-v(?:10|1[2-9]|
 
 test('desktop staging contains only unversioned v1 project-library authorities', () => {
 	assert.equal(DESKTOP_EXPECTED_RUNTIME_FILES.some((file) => RETIRED_LIBRARY.test(file)), false);
+	for (const retired of ['contract', 'main-channels']) {
+		assert.equal(DESKTOP_PROJECT_LIBRARY_BASELINE_RUNTIME_FILES.includes(
+			`desktop/project-library-exact-generation-${retired}.js`,
+		), false);
+	}
 	assert.deepEqual(DESKTOP_PROJECT_LIBRARY_BASELINE_RUNTIME_FILES.filter((file) => (
 		file.startsWith('desktop/framescaper-project-library-')
 	)), [

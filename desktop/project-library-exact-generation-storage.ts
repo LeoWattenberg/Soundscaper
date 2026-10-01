@@ -10,7 +10,7 @@ import {
 	framescaperDesktopProjectLibraryExactGenerationMetadataRevision as metadataRevision,
 	setFramescaperDesktopProjectLibraryExactGenerationMetadataRevision as setMetadataRevision,
 } from './project-library-exact-generation-database.ts';
-import type { FramescaperDesktopProjectLibraryExactGenerationPaths } from './project-library-exact-generation-contract.ts';
+import type { FramescaperDesktopProjectLibraryPaths } from './framescaper-project-library-contract.ts';
 import type {
 	FramescaperDesktopProjectLibraryExactGenerationLifecycle,
 	FramescaperDesktopProjectLibraryExactPublicationBody,
@@ -101,7 +101,7 @@ export function readFramescaperDesktopExactProjectRow(database: DatabaseSync, pr
 export async function readFramescaperDesktopExactProjectBundle(
 	configuration: FramescaperDesktopProjectLibraryExactGenerationConfiguration,
 	database: DatabaseSync,
-	paths: Readonly<FramescaperDesktopProjectLibraryExactGenerationPaths>,
+	paths: Readonly<FramescaperDesktopProjectLibraryPaths>,
 	row: FramescaperDesktopExactStoredProjectRow,
 	configuredBodies: (configuration: FramescaperDesktopProjectLibraryExactGenerationConfiguration,
 		project: unknown, projectSha256: string, value: unknown) => readonly Readonly<FramescaperDesktopExactBodyDescriptor>[],
@@ -122,7 +122,7 @@ export async function readFramescaperDesktopExactProjectBundle(
 export async function persistFramescaperDesktopExactPublication(
 	configuration: FramescaperDesktopProjectLibraryExactGenerationConfiguration,
 	database: DatabaseSync,
-	paths: Readonly<FramescaperDesktopProjectLibraryExactGenerationPaths>,
+	paths: Readonly<FramescaperDesktopProjectLibraryPaths>,
 	publication: FramescaperDesktopExactPublication,
 	lifecycle: FramescaperDesktopProjectLibraryExactGenerationLifecycle | null = null,
 	assertCurrent: () => void = () => undefined,
@@ -299,7 +299,7 @@ export function validateFramescaperDesktopExactBody(
 }
 
 export function framescaperDesktopExactMediaPath(
-	paths: Readonly<FramescaperDesktopProjectLibraryExactGenerationPaths>,
+	paths: Readonly<FramescaperDesktopProjectLibraryPaths>,
 	body: FramescaperDesktopExactBodyDescriptor,
 ): string {
 	const extension = body.kind === 'video-original' ? '.media'
@@ -329,7 +329,7 @@ export function assertFramescaperDesktopExactExpectedProject(
 }
 
 export function assertFramescaperDesktopExactCurrentDocument(
-	paths: Readonly<FramescaperDesktopProjectLibraryExactGenerationPaths>,
+	paths: Readonly<FramescaperDesktopProjectLibraryPaths>,
 	row: FramescaperDesktopExactStoredProjectRow | null,
 	expected: unknown,
 ): void {
@@ -340,7 +340,7 @@ export function assertFramescaperDesktopExactCurrentDocument(
 
 export function checkFramescaperDesktopExactCurrentWriteFence(
 	database: DatabaseSync,
-	paths: Readonly<FramescaperDesktopProjectLibraryExactGenerationPaths>,
+	paths: Readonly<FramescaperDesktopProjectLibraryPaths>,
 	projectId: string,
 	expected: unknown,
 	assertFence: () => void,
