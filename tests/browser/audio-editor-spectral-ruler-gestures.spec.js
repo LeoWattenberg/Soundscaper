@@ -50,6 +50,8 @@ test('spectral center drag snaps to selected audio and keeps bandwidth; the menu
 	const center = track.getByRole('slider', { name: 'Spectral selection center-frequency handle', exact: true });
 	const minimum = track.getByRole('slider', { name: 'Spectral selection minimum-frequency handle', exact: true });
 	const maximum = track.getByRole('slider', { name: 'Spectral selection maximum-frequency handle', exact: true });
+	// Peak snapping reads the PCM that the spectrogram loads asynchronously.
+	await expect(clip.locator('canvas.clip-body__waveform')).toHaveAttribute('data-spectrogram-renderer', 'pffft-wasm');
 	const centerBox = await center.boundingBox();
 	const laneBox = await track.locator('[data-track-lane]').boundingBox();
 	const bodyTop = Number(await track.locator('[data-track-lane]').getAttribute('data-channel-body-top'));
