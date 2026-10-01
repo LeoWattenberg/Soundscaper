@@ -8,7 +8,7 @@ import { prepareStreamedAudioImport } from '../src/common/editor/browser-streame
 import { aacSourceMetadata } from '../src/common/editor/aac-source-geometry.ts';
 import { aacLcM4a48_000Fixture } from './helpers/os-audio-codec-fixtures.ts';
 
-async function withNativeAacFixture(body: (seen: { packets: number; constructors: number; closedData: number; closedDecoders: number; flushes: number }) => Promise<void>): Promise<void> {
+async function withNativeAacFixture(body: (seen: { packets: number; constructors: number; closedData: number; closedDecoders: number; flushes: number }) => Promise<void>, supported = true): Promise<void> {
 	const seen = { packets: 0, constructors: 0, closedData: 0, closedDecoders: 0, flushes: 0 };
 	const previous = new Map(['AudioDecoder', 'AudioData', 'EncodedAudioChunk'].map(name => [name, Object.getOwnPropertyDescriptor(globalThis, name)]));
 	class FixtureData {
@@ -31,7 +31,7 @@ async function withNativeAacFixture(body: (seen: { packets: number; constructors
 		readonly decodeQueueSize = 0;
 		private closed = false;
 		constructor(private readonly init: AudioDecoderInit) { super(); seen.constructors++; }
-		static isConfigSupported(config: AudioDecoderConfig) { return Promise.resolve({ supported: config.codec === 'mp4a.40.2', config }); }
+		static isConfigSupported(config: AudioDecoderConfig) { return Promise.resolve({ supported: supported && config.codec === 'mp4a.40.2', config }); }
 		configure(config: AudioDecoderConfig): void { assert.equal(config.sampleRate, 48_000); assert.equal(config.numberOfChannels, 2); }
 		decode(chunk: EncodedAudioChunk): void {
 			assert.ok(chunk.timestamp >= 0); assert.equal(chunk.duration, null); assert.ok(chunk.byteLength > 0); seen.packets++;
@@ -48,7 +48,7 @@ async function withNativeAacFixture(body: (seen: { packets: number; constructors
 	}
 }
 
-async function encodedFixture(sourceFrames: number, options: { metadata?: string; packets?: number; offset?: number } = {}): Promise<Blob> {
+async function encodedFixture(sourceFrames: number, options: { metadata?: string | null; packets?: number; offset?: number } = {}): Promise<Blob> {
 	const canary = new Input({ source: new BufferSource(aacLcM4a48_000Fixture()), formats: [MP4] });
 	try {
 		const track = await canary.getPrimaryAudioTrack();
@@ -60,7 +60,7 @@ async function encodedFixture(sourceFrames: number, options: { metadata?: string
 		const output = new Output({ format: new Mp4OutputFormat({ fastStart: 'fragmented' }), target });
 		const source = new EncodedAudioPacketSource('aac');
 		output.addAudioTrack(source);
-		output.setMetadataTags({ raw: { scaf: options.metadata ?? aacSourceMetadata(48_000, 2, sourceFrames) } });
+		if (options.metadata !== null) output.setMetadataTags({ raw: { scaf: options.metadata ?? aacSourceMetadata(48_000, 2, sourceFrames) } });
 		await output.start();
 		for (let index = 0; index < (options.packets ?? Math.ceil(sourceFrames / 1024) + 1); index++) {
 			await source.add(new EncodedPacket(packet.data, 'key', (index * 1024 + (index > 0 ? options.offset ?? 0 : 0)) / 48_000, 1024 / 48_000),
@@ -126,6 +126,55 @@ test('AAC source metadata cannot hide excessive encoded delay, forged geometry, 
 		await assert.rejects(prepareStreamedAudioImport(await encodedFixture(1030, options)), /AAC source geometry/u);
 		assert.equal(seen.packets, 0); assert.equal(seen.constructors, 0);
 	}
+}));
+
+test('desktop AAC utility import preserves validated priming and source length without selecting a native decoder', async () => withNativeAacFixture(async seen => {
+	let calls = 0;
+	const prepared = await prepareStreamedAudioImport(await encodedFixture(1030), {
+		desktop: true, reviewedFallback: false, desktopCodec: { decode(_file, options) {
+			calls++;
+			assert.equal(options.format, 'aac-m4a');
+			return Promise.resolve({ sampleRate: 48_000, channels: [
+				Float32Array.from({ length: 3072 }, (_, index) => index),
+				Float32Array.from({ length: 3072 }, (_, index) => index),
+			] });
+		} },
+	});
+	assert.equal(calls, 0);
+	assert.equal(prepared.descriptor.frameCount, 1030);
+	const values: number[] = [];
+	await prepared.stream({ chunkFrames: 127, onChunk(channels) { values.push(...channels[0]!); } });
+	assert.deepEqual(values, Array.from({ length: 1030 }, (_, index) => index + 1024));
+	assert.equal(calls, 1);
+	assert.equal(seen.constructors, 0);
+	assert.equal(seen.packets, 0);
+}, false));
+
+test('desktop AAC with working native support never selects an unavailable utility provider', async () => withNativeAacFixture(async seen => {
+	const prepared = await prepareStreamedAudioImport(await encodedFixture(1030), {
+		desktop: true, reviewedFallback: false, desktopCodec: { decode() {
+			assert.fail('Working native AAC must remain available without an admitted main provider.');
+		} },
+	});
+	let frames = 0;
+	await prepared.stream({ chunkFrames: 127, onChunk(channels) { frames += channels[0]!.length; } });
+	assert.equal(frames, 1030);
+	assert.equal(seen.constructors, 1);
+	assert.equal(seen.packets, 3);
+}));
+
+test('desktop AAC with encoded timeline gaps retains packet decoding without invoking the whole-file utility', async () => withNativeAacFixture(async seen => {
+	const blob = await encodedFixture(1030, { offset: 100, metadata: null });
+	const prepared = await prepareStreamedAudioImport(blob, {
+		desktop: true, reviewedFallback: false, desktopCodec: { decode() {
+			assert.fail('A discontinuous AAC source must retain its packet timestamps.');
+		} },
+	});
+	let frames = 0;
+	await prepared.stream({ chunkFrames: 127, onChunk(channels) { frames += channels[0]!.length; } });
+	assert.equal(frames, prepared.descriptor.frameCount);
+	assert.equal(seen.constructors, 1);
+	assert.equal(seen.packets, 3);
 }));
 
 test('tagged AAC rejects a negative edited packet timeline rather than trimming priming twice', async () => withNativeAacFixture(async seen => {

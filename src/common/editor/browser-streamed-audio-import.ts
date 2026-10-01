@@ -215,7 +215,7 @@ function validateSample(sample: BrowserContainerAudioSample, descriptor: Streame
 async function openBrowserAudioImportSession(file: Blob, signal?: AbortSignal, reviewedFallback = true,
 	desktopCodec?: WavPackImportGroupDecoder): Promise<StreamedAudioImportSession> {
 	signal?.throwIfAborted();
-	const { ALL_FORMATS, AudioSample, AudioSampleSink, BlobSource, EncodedPacketSink, Input } = await import('mediabunny');
+	const { ALL_FORMATS, AudioSample, AudioSampleSink, BlobSource, EncodedPacketSink, Input, MP4 } = await import('mediabunny');
 	const { readAacSourceMetadata, validateAacSourceGeometry } = await import('./aac-source-geometry.ts');
 	const aacMetadata = await readAacSourceMetadata(file, signal);
 	signal?.throwIfAborted();
@@ -242,6 +242,9 @@ async function openBrowserAudioImportSession(file: Blob, signal?: AbortSignal, r
 		const [sampleRate, channelCount, timelineOrigin, endTimestamp] = await Promise.all([
 			track.getSampleRate(), track.getNumberOfChannels(), track.getFirstTimestamp(), track.computeDuration(),
 		]);
+		const desktopAac = !reviewedFallback && desktopCodec && codec === 'aac' && await input.getFormat() === MP4
+			&& await track.getCodecParameterString() === 'mp4a.40.2'
+			? await import('./desktop-aac-import.ts') : null;
 		const streamedLayerII = layerII && !reviewedFallback
 			&& (file.size > 32 * 1024 * 1024 || (endTimestamp - timelineOrigin) * sampleRate * channelCount * 4 > 128 * 1024 * 1024);
 		if (streamedLayerII) {
@@ -258,7 +261,11 @@ async function openBrowserAudioImportSession(file: Blob, signal?: AbortSignal, r
 			if (config && preferReviewedAudioImportDecoder(codec, config)) track.getDecoderConfig = () => Promise.resolve(config);
 			else if (layerII) throw new Error('The reviewed MPEG LayerII decoder does not support this source configuration.');
 		}
-		if (!(layerII && !reviewedFallback && !streamedLayerII) && !await track.canDecode()) {
+		const nativeCanDecode = !(layerII && !reviewedFallback && !streamedLayerII) && await track.canDecode();
+		const utilityAac = !nativeCanDecode && desktopAac?.canUseDesktopAacImport(file, { sampleRate, channelCount,
+			durationSeconds: endTimestamp - Math.max(0, timelineOrigin) }) === true
+			&& await hasContinuousAudioPacketTimeline(new EncodedPacketSink(track).packets(undefined, undefined, { metadataOnly: true }), sampleRate, signal, 1024);
+		if (!utilityAac && !(layerII && !reviewedFallback && !streamedLayerII) && !nativeCanDecode) {
 			if (!reviewedFallback && !streamedLayerII) throw new Error('This desktop browser cannot incrementally decode the compressed audio track.');
 			const { enableReviewedAudioImportDecoder } = await import('./browser-reviewed-streamed-audio-decoders.ts');
 			enableReviewedAudioImportDecoder(await track.getCodec());
@@ -266,6 +273,7 @@ async function openBrowserAudioImportSession(file: Blob, signal?: AbortSignal, r
 		}
 		let origin = Math.max(0, timelineOrigin);
 		let durationSeconds = endTimestamp - origin;
+		let aacLeadingFrames = 0;
 		if (layerII && !reviewedFallback && !streamedLayerII) {
 			const { openDesktopMpegLayerIIImportSession } = await import('./desktop-mpeg-layer-ii-import.ts');
 			input.dispose();
@@ -288,8 +296,14 @@ async function openBrowserAudioImportSession(file: Blob, signal?: AbortSignal, r
 			}
 			if (Math.abs(durationSeconds * sampleRate - encodedFrames) > 1e-5) throw new Error('The AAC source geometry differs from its encoded duration.');
 			const gapless = validateAacSourceGeometry(aacMetadata, { sampleRate, channelCount, encodedFrames });
+			aacLeadingFrames = gapless.leadingFrames;
 			origin += gapless.leadingFrames / sampleRate;
 			durationSeconds = gapless.sourceFrames / sampleRate;
+		}
+		if (utilityAac && desktopAac && desktopCodec) {
+			input.dispose();
+			return desktopAac.openDesktopAacImportSession(file, { sampleRate, channelCount, timelineOrigin: origin,
+				durationSeconds }, desktopCodec, signal, aacLeadingFrames);
 		}
 		if (codec === 'mp3') {
 			const { inspectMp3GaplessGeometry } = await import('./mp3-gapless-import.ts');
@@ -315,6 +329,7 @@ async function openBrowserAudioImportSession(file: Blob, signal?: AbortSignal, r
 		signal?.throwIfAborted();
 		const continuousTimeline = codec === 'aac' && await hasContinuousAudioPacketTimeline(
 			new EncodedPacketSink(track).packets(undefined, undefined, { metadataOnly: true }), sampleRate, signal,
+			await track.getCodecParameterString() === 'mp4a.40.2' ? 1024 : MAXIMUM_SAMPLE_FRAMES,
 		);
 		if (codec === 'aac') {
 			const config = await track.getDecoderConfig();
@@ -341,7 +356,7 @@ async function openBrowserAudioImportSession(file: Blob, signal?: AbortSignal, r
 /** Only a dense encoded timeline permits replacing inaccurate native sample timestamps. */
 export async function hasContinuousAudioPacketTimeline(
 	packets: AsyncIterable<Readonly<{ timestamp: number; duration: number; byteLength: number }>>,
-	sampleRate: number, signal?: AbortSignal,
+	sampleRate: number, signal?: AbortSignal, maximumPacketFrames = MAXIMUM_SAMPLE_FRAMES,
 ): Promise<boolean> {
 	if (!Number.isSafeInteger(sampleRate) || sampleRate < 1) return false;
 	let end: number | null = null;
@@ -350,7 +365,7 @@ export async function hasContinuousAudioPacketTimeline(
 		signal?.throwIfAborted();
 		const start = packet.timestamp * sampleRate;
 		const frames = Math.round(packet.duration * sampleRate);
-		if (!Number.isFinite(start) || !Number.isSafeInteger(frames) || frames < 1
+		if (!Number.isFinite(start) || !Number.isSafeInteger(frames) || frames < 1 || frames > maximumPacketFrames
 			|| packet.byteLength < 1 || packet.byteLength > 1024 * 1024
 			|| (end !== null && Math.abs(start - end) > 1)) return false;
 		end = (end ?? Math.round(start)) + frames;
