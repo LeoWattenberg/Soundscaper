@@ -10,8 +10,9 @@ import {
 // Realtime deadline qualification must run without V8 coverage instrumentation.
 test.use({ browserCoverage: false });
 
+// Finite playback must outlast the 20-second readiness observation window.
 const tones = [330, 660].map((frequency, index) => createWavFixture({
-	name: `parallel-stack-${String(index)}.wav`, frequency, duration: 16, channelCount: 1,
+	name: `parallel-stack-${String(index)}.wav`, frequency, duration: 32, channelCount: 1,
 }));
 
 async function installParallelStackProbe(page) {
