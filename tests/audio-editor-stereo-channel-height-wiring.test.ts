@@ -37,5 +37,6 @@ test('one display ratio drives clip, canvas, ruler, pointer, and divider geometr
 test('Audacity canvases resolve stereo waveform and spectrogram bands through shared geometry', async () => {
 	const renderer = await source('TimelineCanvasRenderer.jsx');
 	assert.match(renderer, /audioEditorStereoChannelGeometry\(waveformHeight, options\.channelHeightRatio\)/u);
-	assert.match(renderer, /audioEditorStereoChannelGeometry\(options\.height, options\.channelHeightRatio\)/u);
+	const spectrogram = await source('spectrogram-canvas-renderer.js');
+	assert.match(spectrogram, /audioEditorStereoChannelGeometry\(options\.height, options\.channelHeightRatio\)/u);
 });

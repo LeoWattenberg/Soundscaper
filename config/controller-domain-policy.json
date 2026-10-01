@@ -200,6 +200,7 @@
 		"source/source-lifecycle-service.ts",
 		"source/source-runtime-composition-types.ts",
 		"source/source-runtime-composition.ts",
+		"source/timeline-spectrogram-cache.ts",
 		"source/waveform-analysis.ts",
 		"track-audio/audio-warp-action-facade.ts",
 		"track-audio/derived-audio-composition.ts",

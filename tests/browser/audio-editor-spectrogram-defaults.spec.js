@@ -7,6 +7,25 @@ import {
 } from './audio-editor-test-helpers.js';
 
 test('a new audio track renders the spectrogram defaults set with no track selected', async ({ page }) => {
+	await page.addInitScript(() => {
+		const counts = new WeakMap();
+		const fill = CanvasRenderingContext2D.prototype.fillRect;
+		const copy = CanvasRenderingContext2D.prototype.drawImage;
+		globalThis.__spectrogramPaintProbe = { copies: 0, paints: 0 };
+		CanvasRenderingContext2D.prototype.fillRect = function (...args) {
+			counts.set(this.canvas, (counts.get(this.canvas) || 0) + 1);
+			return fill.apply(this, args);
+		};
+		CanvasRenderingContext2D.prototype.drawImage = function (source, ...args) {
+			if (this.canvas.matches('canvas.clip-body__waveform') && source instanceof HTMLCanvasElement) {
+				globalThis.__spectrogramPaintProbe = {
+					copies: globalThis.__spectrogramPaintProbe.copies + 1,
+					paints: counts.get(source) || 0,
+				};
+			}
+			return copy.call(this, source, ...args);
+		};
+	});
 	const editor = await bootEditor(page, '/embed/en/');
 	await chooseNestedCommandAction(page, editor, 'Select', ['Tracks', 'No tracks']);
 	await chooseCommandAction(page, editor, 'Edit', 'Preferences');
@@ -46,6 +65,17 @@ test('a new audio track renders the spectrogram defaults set with no track selec
 	const canvas = clip.locator('canvas.clip-body__waveform').first();
 	await expect(canvas).toHaveAttribute('data-spectrogram-renderer', 'pffft-wasm');
 	const cropped = await spectrogramRaster(canvas);
+	const beforeSelection = await page.evaluate(() => globalThis.__spectrogramPaintProbe);
+	expect(beforeSelection.paints).toBeGreaterThan(0);
+	const box = await canvas.boundingBox();
+	expect(box).not.toBeNull();
+	await page.mouse.move(box.x + box.width * 0.2, box.y + box.height * 0.25);
+	await page.mouse.down();
+	await page.mouse.move(box.x + box.width * 0.7, box.y + box.height * 0.25, { steps: 4 });
+	await page.mouse.up();
+	await expect.poll(() => page.evaluate(() => globalThis.__spectrogramPaintProbe.copies))
+		.toBeGreaterThan(beforeSelection.copies);
+	expect(await page.evaluate(() => globalThis.__spectrogramPaintProbe.paints)).toBe(beforeSelection.paints);
 
 	await chooseCommandAction(page, editor, 'Edit', 'Preferences');
 	preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
