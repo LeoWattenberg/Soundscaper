@@ -83,12 +83,19 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
     if (!isOpen || !autoFocus || !menuRef.current) return;
 
     // Find first focusable menu item
-    const firstItem = menuRef.current.querySelector('[role="menuitem"]') as HTMLElement;
+    const menu = menuRef.current;
+    const firstItem = menu.querySelector('[role="menuitem"]') as HTMLElement;
     if (firstItem) {
+      const focusedElement = document.activeElement;
       // Use setTimeout to ensure menu is rendered and positioned
-      setTimeout(() => {
-        firstItem.focus();
+      const focusTimer = window.setTimeout(() => {
+        const activeElement = document.activeElement;
+        if (firstItem.isConnected && (activeElement === focusedElement
+          || activeElement === document.body)) {
+          firstItem.focus();
+        }
       }, 0);
+      return () => window.clearTimeout(focusTimer);
     }
   }, [isOpen, autoFocus]);
 
@@ -153,7 +160,15 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
           if (triggerElementRef.current) {
             const trigger = triggerElementRef.current;
             triggerElementRef.current = null;
-            setTimeout(() => trigger.focus(), 0);
+            window.setTimeout(() => {
+              // Closing may yield to another menu or dialog before this timer
+              // runs. Restore only while focus still belongs to the old menu.
+              const activeElement = document.activeElement;
+              if (trigger.isConnected && (activeElement === focusedElement
+                || activeElement === document.body)) {
+                trigger.focus();
+              }
+            }, 0);
           }
           break;
 

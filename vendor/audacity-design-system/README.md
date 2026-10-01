@@ -268,6 +268,11 @@ application overrides and source patches against the pin and upstream master.
     unchanged. The application supplies parameter, generator, track, and meter defaults.
     Covered by `tests/audio-editor-control-default-reset.test.tsx` and
     `tests/browser/audio-editor-control-resets.spec.js`.
+32. `ContextMenu` cancels its initial autofocus timer when the menu closes and checks
+    whether focus moved before either delayed autofocus or Escape restoration runs.
+    Opening another control immediately after dismissing a menu keeps that control's
+    focus, so its keyboard activation reaches the intended target. Covered by
+    `tests/vendored-design-system-context-menu-focus.test.tsx`. Upstream-PR candidate.
 
 ## Application-side adaptations
 

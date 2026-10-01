@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ContextMenu } from '@soundscaper/design-system/ContextMenu';
 import { ContextMenuItem } from '@soundscaper/design-system/ContextMenuItem';
@@ -50,7 +50,7 @@ export default function WorkspacePanelHeader({
 	const menuButtonRef = useRef(null);
 	const [menu, setMenu] = useState(null);
 	const consumeTriggerDismissal = useMenuTriggerDismissal(menuButtonRef, Boolean(menu));
-	const closeMenu = () => setMenu(null);
+	const closeMenu = useCallback(() => setMenu(null), []);
 	const openMenu = ({ x, y, keyboard }) => {
 		menuButtonRef.current?.focus();
 		setMenu({ x, y, keyboard });
