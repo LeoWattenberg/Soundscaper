@@ -3,7 +3,7 @@
 import { expect, longTone, test } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor, clickClipInterior, clipByName, collectClientErrors,
-	importFiles, registerAudioEditorHooks,
+	importFiles, registerAudioEditorHooks, seekOnRuler,
 } from './audio-editor-test-helpers.js';
 
 const frame = async (playhead) => Number(await playhead.getAttribute('aria-valuenow'));
@@ -74,12 +74,14 @@ test.describe('transport audition shortcuts', () => {
 			const errors = collectClientErrors(page);
 			const editor = await bootEditor(page, '/embed/en/');
 			await importFiles(editor, [longTone]);
-			const clip = clipByName(editor, longTone.name);
+			const rulerBounds = await editor.locator('[data-ruler]').boundingBox();
+			expect(rulerBounds).not.toBeNull();
 			const playhead = editor.getByRole('slider', { name: 'Playhead', exact: true });
 			for (const position of [0.2, 0.4]) {
-				await clickClipInterior(page, clip, position);
+				const previousStart = await frame(playhead);
+				await seekOnRuler(page, editor, rulerBounds.width * position);
+				await expect.poll(() => frame(playhead)).toBeGreaterThan(previousStart);
 				const start = await frame(playhead);
-				expect(start).toBeGreaterThan(0);
 				await page.keyboard.press('Space');
 				await expect(editor.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
 				await expect.poll(() => frame(playhead)).toBeGreaterThan(start + 1_000);

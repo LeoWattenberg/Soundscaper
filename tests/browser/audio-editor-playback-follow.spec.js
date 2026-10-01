@@ -138,7 +138,7 @@ test.describe('timeline playback following', () => {
 		expect(errors).toEqual([]);
 	});
 
-	test('keeps the playhead when Space stops and resumes playback', async ({ page }) => {
+	test('returns the playhead to its start when Space stops and restarts playback', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [longTone]);
@@ -148,24 +148,23 @@ test.describe('timeline playback following', () => {
 		});
 		const playhead = editor.getByRole('slider', { name: 'Playhead', exact: true });
 		const playheadLine = playhead.locator('.playhead-cursor__line');
+		await expect(playhead).toHaveAttribute('aria-valuenow', '0');
 
 		await page.keyboard.press('Space');
 		await expect(editor.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
 		await expect.poll(async () => Number(await playhead.getAttribute('aria-valuenow'))).toBeGreaterThan(0);
 		await expect.poll(() => intersectionRatio(playheadLine)).toBeGreaterThan(0);
-		const stoppedFrameFloor = Number(await playhead.getAttribute('aria-valuenow'));
 		await page.keyboard.press('Space');
 		await expect(editor.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
 		await expect(playhead).toHaveCount(1);
-		await expect.poll(async () => Number(await playhead.getAttribute('aria-valuenow')))
-			.toBeGreaterThanOrEqual(stoppedFrameFloor);
+		await expect(playhead).toHaveAttribute('aria-valuenow', '0');
 		await expect.poll(() => intersectionRatio(playheadLine)).toBeGreaterThan(0);
 
 		await page.keyboard.press('Space');
 		await expect(editor.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
 		await expect(playhead).toHaveCount(1);
 		await expect.poll(async () => Number(await playhead.getAttribute('aria-valuenow')))
-			.toBeGreaterThan(stoppedFrameFloor);
+			.toBeGreaterThan(0);
 		await expect.poll(() => intersectionRatio(playheadLine)).toBeGreaterThan(0);
 		expect(errors).toEqual([]);
 	});
