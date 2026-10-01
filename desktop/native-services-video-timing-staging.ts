@@ -243,4 +243,3 @@ function assertStagedByteLimit(maximum: number, required: number, message: strin
 		throw new RangeError(message);
 	}
 }
-

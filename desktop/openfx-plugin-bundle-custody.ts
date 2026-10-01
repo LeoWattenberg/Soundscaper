@@ -227,5 +227,3 @@ function absolutePath(value: unknown): string {
 	}
 	return value;
 }
-
-
