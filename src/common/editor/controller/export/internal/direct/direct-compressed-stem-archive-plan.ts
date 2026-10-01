@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { isFlatStemFileName } from './direct-stem-file-name.ts';
 import {
 	captureCanonicalCompressedPlanCore,
 	captureCanonicalCompressedPlanSnapshot,
@@ -61,7 +62,7 @@ export function captureDirectCompressedStemArchiveContract(
 			|| archive.expectedByteLength !== null
 			|| archive.zip32 !== null
 			|| typeof archive.fileName !== 'string'
-			|| !flatFileName(archive.fileName, '.zip')
+			|| !isFlatStemFileName(archive.fileName, '.zip')
 			|| !Array.isArray(archive.entries)
 			|| archive.entries.length !== ownedPlan.outputs.length) return null;
 
@@ -81,7 +82,7 @@ export function captureDirectCompressedStemArchiveContract(
 				|| typeof output.trackId !== 'string'
 				|| !output.trackId
 				|| typeof output.fileName !== 'string'
-				|| !flatFileName(output.fileName, suffix)
+				|| !isFlatStemFileName(output.fileName, suffix)
 				|| entry.fileName !== output.fileName
 				|| entry.expectedByteLength !== null
 				|| names.has(output.fileName)
@@ -158,15 +159,6 @@ export function captureDirectCompressedStemArchiveContract(
 	}
 }
 
-function flatFileName(value: string, suffix: string): boolean {
-	return value.length > suffix.length
-		&& value.toLowerCase().endsWith(suffix)
-		&& value !== '.'
-		&& value !== '..'
-		&& !/[\u0000-\u001f\u007f]/u.test(value)
-		&& !value.includes('/')
-		&& !value.includes('\\');
-}
 
 function multiplySafe(left: number, right: number): number {
 	if (!Number.isSafeInteger(left) || left < 0
