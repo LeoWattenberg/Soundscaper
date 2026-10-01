@@ -300,6 +300,10 @@ test.describe('ported Audacity effect layouts', () => {
 		const peakControl = parameter(dialog, 'New peak amplitude');
 		const peak = peakControl.getByRole('spinbutton');
 		await expect(peakControl.getByRole('slider')).toBeVisible();
+		// Amplify publishes its selection-derived default after opening the dialog.
+		// Wait for toneA's known peak before capturing the linked-control baseline.
+		await expect.poll(async () => Number(await gain.inputValue()))
+			.toBeCloseTo(20 * Math.log10(1 / 0.35), 2);
 		const startingGain = Number(await gain.inputValue());
 		const startingPeak = Number(await peak.inputValue());
 		await commitInput(peak, String(startingPeak - 3));
