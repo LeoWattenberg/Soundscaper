@@ -3,6 +3,7 @@ import { createLocalizedError } from '../../../i18n/presentation-message.ts'; im
 	WAVEFORM_PEAKS_VERSION,
 	waveformPeakBlockSizes,
 } from '../../waveform-peak-contract.ts';
+import { createWaveformPeakBuilder } from '../../waveform-peak-builder.ts';
 import { projectUnwarpedClipSourceRange } from '../../audio-clip-source-projection.ts';
 import { abortError, throwIfAborted } from '../shared/app-helpers.ts';
 
@@ -189,7 +190,7 @@ export async function generateStoredWaveformPeaks(
 	try {
 		const ready = waitForAnalysisWorker(worker, 'ready', copy, options);
 		worker.postMessage({ type: 'start', channelCount: source.channelCount,
-			blockSizes: waveformPeakBlockSizes(source.frameCount, source.channelCount) });
+			frameCount: source.frameCount });
 		await ready;
 		for await (const chunk of store.readSourceChunks(source.storageKey || source.id)) {
 			throwIfAborted(options.signal);
@@ -218,54 +219,18 @@ export async function generateStoredWaveformPeaksFallback(
 	options: StoredWaveformAnalysisOptions = {},
 ): Promise<WaveformPeaks> {
 	throwIfAborted(options.signal);
-	const levels = waveformPeakBlockSizes(source.frameCount, source.channelCount).map((blockSize) => ({
-		blockSize,
-		channels: Array.from({ length: source.channelCount }, () => ({
-			minimums: new Float32Array(Math.ceil(source.frameCount / blockSize))
-				.fill(Number.POSITIVE_INFINITY),
-			maximums: new Float32Array(Math.ceil(source.frameCount / blockSize))
-				.fill(Number.NEGATIVE_INFINITY),
-			squareSums: new Float64Array(Math.ceil(source.frameCount / blockSize)),
-			counts: new Uint32Array(Math.ceil(source.frameCount / blockSize)),
-		})),
-	}));
+	const builder = createWaveformPeakBuilder(source);
 	let frameOffset = 0;
 	for await (const chunk of store.readSourceChunks(source.storageKey || source.id)) {
 		throwIfAborted(options.signal);
-		for (let frame = 0; frame < chunk.frames; frame += 1) {
-			const absoluteFrame = frameOffset + frame;
-			for (let channel = 0; channel < source.channelCount; channel += 1) {
-				const sample = chunk.channels[channel]![frame]!;
-				for (const level of levels) {
-					const block = Math.floor(absoluteFrame / level.blockSize);
-					const channelLevel = level.channels[channel]!;
-					channelLevel.minimums[block] = Math.min(channelLevel.minimums[block]!, sample);
-					channelLevel.maximums[block] = Math.max(channelLevel.maximums[block]!, sample);
-					channelLevel.squareSums[block] += sample * sample;
-					channelLevel.counts[block] += 1;
-				}
-			}
-		}
+		builder.append(chunk.channels.map((channel) => channel.subarray(0, chunk.frames)));
 		frameOffset += chunk.frames;
 		options.onProgress?.(frameOffset / Math.max(1, source.frameCount));
 		if (options.signal || options.onProgress) await new Promise<void>((resolve) => { setTimeout(resolve, 0); });
 		throwIfAborted(options.signal);
 	}
 	if (frameOffset !== source.frameCount) throw new Error('The stored audio source frame count does not match its metadata.');
-	return {
-		version: WAVEFORM_PEAKS_VERSION,
-		channelCount: source.channelCount,
-		levels: levels.map(({ blockSize, channels }) => ({
-			blockSize,
-			channels: channels.map(({ minimums, maximums, squareSums, counts }) => ({
-				minimums: Float32Array.from(minimums, (value, block) => (counts[block] ? value : 0)),
-				maximums: Float32Array.from(maximums, (value, block) => (counts[block] ? value : 0)),
-				rms: Float32Array.from(squareSums, (squareSum, block) => (
-					counts[block] ? Math.sqrt(squareSum / counts[block]!) : 0
-				)),
-			})),
-		})),
-	};
+	return builder.finish();
 }
 
 export async function analyzeChannelsInWorker(
@@ -317,7 +282,7 @@ export async function generateWaveformPeaks(
 	const worker = new Worker(new URL('../../peaks-worker.js', import.meta.url), { type: 'module' });
 	try {
 		worker.postMessage({ type: 'start', channelCount: channels.length,
-			blockSizes: waveformPeakBlockSizes(channels[0]?.length || 0, channels.length) });
+			frameCount: channels[0]?.length || 0 });
 		await waitForAnalysisWorker(worker, 'ready', copy);
 		const frameCount = channels[0]?.length || 0;
 		for (let offset = 0; offset < frameCount; offset += chunkFrames) {
@@ -335,36 +300,9 @@ export async function generateWaveformPeaks(
 }
 
 export function generateWaveformPeaksFallback(channels: Float32Array[]): WaveformPeaks {
-	return {
-		version: WAVEFORM_PEAKS_VERSION,
-		channelCount: channels.length,
-		levels: waveformPeakBlockSizes(channels[0]?.length || 0, channels.length).map((blockSize) => {
-			const count = Math.ceil((channels[0]?.length || 0) / blockSize);
-			const channelLevels = channels.map((channel) => {
-				const minimums = new Float32Array(count);
-				const maximums = new Float32Array(count);
-				const rms = new Float32Array(count);
-				for (let block = 0; block < count; block += 1) {
-					let minimum = Number.POSITIVE_INFINITY;
-					let maximum = Number.NEGATIVE_INFINITY;
-					let squareSum = 0;
-					let sampleCount = 0;
-					for (let frame = block * blockSize; frame < Math.min(channel.length, (block + 1) * blockSize); frame += 1) {
-						const sample = channel[frame]!;
-						minimum = Math.min(minimum, sample);
-						maximum = Math.max(maximum, sample);
-						squareSum += sample * sample;
-						sampleCount += 1;
-					}
-					minimums[block] = sampleCount ? minimum : 0;
-					maximums[block] = sampleCount ? maximum : 0;
-					rms[block] = sampleCount ? Math.sqrt(squareSum / sampleCount) : 0;
-				}
-				return { minimums, maximums, rms };
-			});
-			return { blockSize, channels: channelLevels };
-		}),
-	};
+	const builder = createWaveformPeakBuilder({ frameCount: channels[0]?.length || 0, channelCount: channels.length });
+	builder.append(channels);
+	return builder.finish();
 }
 
 export function waveformPeaksHaveRms(
