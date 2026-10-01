@@ -14,9 +14,12 @@ const RESAMPLE_INPUT_FEED_FRAMES = 4_096;
 /**
  * Installs the storage-chunk to playback-packet worker protocol on a
  * DedicatedWorkerGlobalScope-compatible object. Only one 65,536-frame source
- * chunk is retained per stream while bounded 1,024-frame packets are in
- * flight. Sample-rate conversion uses a 4,096-frame input feed and the shared
- * windowed-sinc implementation, so long sources never become AudioBuffers.
+ * chunk and its next required chunk are retained per stream while bounded
+ * 1,024-frame packets are in flight. Storage replies travel through the main
+ * thread, so lookahead lets playback survive a slow timeline repaint without
+ * deepening the worklet queue. Sample-rate conversion uses a 4,096-frame input
+ * feed and the shared windowed-sinc implementation, so long sources never
+ * become AudioBuffers.
  */
 export function installChunkStreamWorker(scope = globalThis) {
 	if (!scope || typeof scope.addEventListener !== 'function' || typeof scope.postMessage !== 'function') {
@@ -41,6 +44,7 @@ export function installChunkStreamWorker(scope = globalThis) {
 		streams.delete(stream.id);
 		stream.cancelled = true;
 		stream.storageChannels = null;
+		stream.prefetchedStorageChannels = null;
 		stream.pendingOutputChannels = null;
 		stream.inFlight.clear();
 		releasePacketPort(stream);
@@ -51,6 +55,7 @@ export function installChunkStreamWorker(scope = globalThis) {
 		if (!stream.productionEnded || stream.inFlight.size || stream.cancelled) return;
 		streams.delete(stream.id);
 		stream.storageChannels = null;
+		stream.prefetchedStorageChannels = null;
 		releasePacketPort(stream);
 		post({ type: 'stream-complete', streamId: stream.id, frames: stream.endFrame - stream.startFrame });
 	};
@@ -59,6 +64,8 @@ export function installChunkStreamWorker(scope = globalThis) {
 		if (stream.productionEnded || stream.cancelled) return;
 		stream.productionEnded = true;
 		stream.storageChannels = null;
+		stream.prefetchedStorageChannels = null;
+		stream.prefetchedStorageChunkIndex = null;
 		stream.pendingOutputChannels = null;
 		stream.storageChunkIndex = null;
 		postPacket(stream, {
@@ -110,6 +117,27 @@ export function installChunkStreamWorker(scope = globalThis) {
 		});
 	};
 
+	const ensureStorageChunk = (stream, chunkIndex) => {
+		if (stream.storageChunkIndex !== chunkIndex || !stream.storageChannels) {
+			stream.storageChannels = stream.prefetchedStorageChunkIndex === chunkIndex
+				? stream.prefetchedStorageChannels
+				: null;
+			stream.storageChunkIndex = stream.storageChannels ? chunkIndex : null;
+			if (!stream.storageChannels) {
+				requestStorageChunk(stream, chunkIndex);
+				return false;
+			}
+			stream.prefetchedStorageChannels = null;
+			stream.prefetchedStorageChunkIndex = null;
+		}
+		const nextChunkIndex = chunkIndex + 1;
+		if (nextChunkIndex * stream.chunkFrames < stream.sourceEndFrame
+			&& stream.prefetchedStorageChunkIndex !== nextChunkIndex) {
+			requestStorageChunk(stream, nextChunkIndex);
+		}
+		return true;
+	};
+
 	const pump = (stream) => {
 		if (!stream.started || stream.cancelled || stream.productionEnded) return;
 		try {
@@ -119,12 +147,7 @@ export function installChunkStreamWorker(scope = globalThis) {
 			}
 			while (stream.inFlight.size < stream.highWaterMark && stream.nextFrame < stream.endFrame) {
 				const chunkIndex = Math.floor(stream.nextFrame / stream.chunkFrames);
-				if (stream.storageChunkIndex !== chunkIndex || !stream.storageChannels) {
-					stream.storageChannels = null;
-					stream.storageChunkIndex = null;
-					requestStorageChunk(stream, chunkIndex);
-					return;
-				}
+				if (!ensureStorageChunk(stream, chunkIndex)) return;
 				const chunkOffset = stream.nextFrame % stream.chunkFrames;
 				const available = stream.storageChannels[0].length - chunkOffset;
 				const frames = Math.min(
@@ -168,12 +191,7 @@ export function installChunkStreamWorker(scope = globalThis) {
 			}
 			if (stream.inputNextFrame < stream.sourceEndFrame) {
 				const chunkIndex = Math.floor(stream.inputNextFrame / stream.chunkFrames);
-				if (stream.storageChunkIndex !== chunkIndex || !stream.storageChannels) {
-					stream.storageChannels = null;
-					stream.storageChunkIndex = null;
-					requestStorageChunk(stream, chunkIndex);
-					return;
-				}
+				if (!ensureStorageChunk(stream, chunkIndex)) return;
 				const chunkOffset = stream.inputNextFrame % stream.chunkFrames;
 				const available = stream.storageChannels[0].length - chunkOffset;
 				const frames = Math.min(
@@ -255,6 +273,8 @@ export function installChunkStreamWorker(scope = globalThis) {
 			storageRequest: null,
 			storageChunkIndex: null,
 			storageChannels: null,
+			prefetchedStorageChunkIndex: null,
+			prefetchedStorageChannels: null,
 			resampler: resample
 				? createStreamingWindowedSincResampler(
 					resampleInputFrames,
@@ -299,6 +319,10 @@ export function installChunkStreamWorker(scope = globalThis) {
 
 	const acceptStorageChunk = (stream, message) => {
 		const request = stream.storageRequest;
+		if (stream.productionEnded) {
+			stream.storageRequest = null;
+			return;
+		}
 		if (!request || message.requestId !== request.requestId || Number(message.chunkIndex) !== request.chunkIndex) {
 			throw createChunkStreamError('STALE_STORAGE_CHUNK', 'The worker received an unexpected storage chunk.');
 		}
@@ -316,8 +340,13 @@ export function installChunkStreamWorker(scope = globalThis) {
 			return channel;
 		});
 		stream.storageRequest = null;
-		stream.storageChunkIndex = request.chunkIndex;
-		stream.storageChannels = channels;
+		if (stream.storageChannels) {
+			stream.prefetchedStorageChunkIndex = request.chunkIndex;
+			stream.prefetchedStorageChannels = channels;
+		} else {
+			stream.storageChunkIndex = request.chunkIndex;
+			stream.storageChannels = channels;
+		}
 		pump(stream);
 	};
 
@@ -326,6 +355,7 @@ export function installChunkStreamWorker(scope = globalThis) {
 		streams.delete(stream.id);
 		stream.cancelled = true;
 		stream.storageChannels = null;
+		stream.prefetchedStorageChannels = null;
 		stream.pendingOutputChannels = null;
 		stream.inFlight.clear();
 		releasePacketPort(stream);
@@ -364,6 +394,10 @@ export function installChunkStreamWorker(scope = globalThis) {
 			} else if (message.type === 'storage-chunk') {
 				acceptStorageChunk(stream, message);
 			} else if (message.type === 'storage-error') {
+				if (stream.productionEnded) {
+					stream.storageRequest = null;
+					return;
+				}
 				throw createChunkStreamError('STORAGE_READ_FAILED', message.message || 'The source storage chunk could not be read.');
 			} else if (message.type === 'packet-consumed') {
 				if (!stream.inFlight.delete(message.packetId)) return;
