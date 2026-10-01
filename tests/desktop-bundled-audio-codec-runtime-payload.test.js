@@ -55,13 +55,17 @@ test('staged manifest closes over control, helper, runner, seven modules, and se
 		['flac', 'lame', 'mpg123', 'opus', 'twolame', 'vorbis', 'wavpack'],
 	);
 	for (const required of [
+		'project-library-runtime/desktop/authenticated-bundled-audio-codec-runtime-loader.js',
 		'project-library-runtime/desktop/bounded-regular-file.js',
 		'project-library-runtime/desktop/bundled-audio-codec-helper-configuration.js',
 		'project-library-runtime/desktop/bundled-audio-codec-identity.js',
 		'project-library-runtime/desktop/bundled-audio-codec-helper-process.js',
 		'project-library-runtime/desktop/bundled-audio-codec-operation-runner.js',
+		'project-library-runtime/desktop/bundled-audio-codec-runtime-support.js',
 		'project-library-runtime/desktop/bundled-audio-codec-isolated-runtime.js',
+		'project-library-runtime/desktop/direct-bundled-audio-codec-wasm.js',
 		'project-library-runtime/desktop/finite-float32-pcm.js',
+		'project-library-runtime/desktop/one-shot-message-child-supervision.js',
 		'project-library-runtime/desktop/private-scratch-directory.js',
 		'bundled-audio-codec-electron-spawn.mjs',
 	]) assert.equal(fixture.manifest.files.some(({ path }) => path === required), true, required);
@@ -78,8 +82,10 @@ test('staged manifest closes over control, helper, runner, seven modules, and se
 		moduleSha256: fixture.manifest.files.find(({ role, codec }) => role === 'module' && codec === 'flac').sha256,
 		dependencies: [
 			'desktop/audio-codec-stream-helper.js',
+			'desktop/authenticated-bundled-audio-codec-runtime-loader.js',
 			'desktop/bundled-audio-codec-helper-configuration.js',
 			'desktop/bundled-audio-codec-identity.js',
+			'desktop/bundled-audio-codec-runtime-support.js',
 			'desktop/bundled-flac-stream.js',
 			'desktop/bundled-mpeg-audio-stream.js',
 			'desktop/bundled-opus-stream.js',
@@ -88,6 +94,7 @@ test('staged manifest closes over control, helper, runner, seven modules, and se
 			'desktop/desktop-audio-codec-capability-contract.js',
 			'desktop/desktop-audio-codec-operation-contract.js',
 			'desktop/desktop-audio-stream-contract.js',
+			'desktop/direct-bundled-audio-codec-wasm.js',
 			'desktop/finite-float32-pcm.js',
 			'src/common/editor/browser-dedicated-audio-codec.js',
 			'src/common/editor/browser-dedicated-audio-output-validation.js',

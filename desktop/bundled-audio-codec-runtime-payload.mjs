@@ -75,6 +75,7 @@ const CONTROL_ENTRY_FILES = Object.freeze([
 	'project-library-runtime/desktop/bundled-audio-codec-helper-process.js',
 	'project-library-runtime/desktop/bundled-audio-codec-isolated-runtime.js',
 	'project-library-runtime/desktop/bundled-audio-codec-operation-runner.js',
+	'project-library-runtime/desktop/one-shot-message-child-supervision.js',
 	'project-library-runtime/desktop/bundled-audio-codec-provider-catalog.js',
 	'project-library-runtime/desktop/private-scratch-directory.js',
 	'project-library-runtime/desktop/desktop-audio-codec-operation-contract.js',
@@ -106,16 +107,41 @@ const COMMON_DEPENDENCIES = Object.freeze([
 const FINITE_FLOAT32_PCM_DEPENDENCIES = Object.freeze([
 	'project-library-runtime/desktop/finite-float32-pcm.js',
 ]);
+const AUTHENTICATED_RUNTIME_DEPENDENCIES = Object.freeze([
+	'project-library-runtime/desktop/authenticated-bundled-audio-codec-runtime-loader.js',
+	'project-library-runtime/desktop/bundled-audio-codec-runtime-support.js',
+]);
+const DIRECT_WASM_RUNTIME_DEPENDENCIES = Object.freeze([
+	'project-library-runtime/desktop/direct-bundled-audio-codec-wasm.js',
+]);
 const CONTROL_FILES = Object.freeze([...new Set([...CONTROL_ENTRY_FILES, ...COMMON_DEPENDENCIES])].sort());
 const CODEC_DEPENDENCIES = Object.freeze({
-	flac: Object.freeze([...COMMON_DEPENDENCIES, ...FINITE_FLOAT32_PCM_DEPENDENCIES].sort()),
-	lame: Object.freeze([...COMMON_DEPENDENCIES, ...FINITE_FLOAT32_PCM_DEPENDENCIES].sort()),
-	mpg123: Object.freeze([...COMMON_DEPENDENCIES, ...FINITE_FLOAT32_PCM_DEPENDENCIES].sort()),
-	opus: Object.freeze([...COMMON_DEPENDENCIES, ...FINITE_FLOAT32_PCM_DEPENDENCIES].sort()),
-	twolame: Object.freeze([...COMMON_DEPENDENCIES, ...FINITE_FLOAT32_PCM_DEPENDENCIES].sort()),
-	vorbis: Object.freeze([...COMMON_DEPENDENCIES, ...FINITE_FLOAT32_PCM_DEPENDENCIES].sort()),
+	flac: Object.freeze([
+		...COMMON_DEPENDENCIES, ...FINITE_FLOAT32_PCM_DEPENDENCIES,
+		...AUTHENTICATED_RUNTIME_DEPENDENCIES, ...DIRECT_WASM_RUNTIME_DEPENDENCIES,
+	].sort()),
+	lame: Object.freeze([
+		...COMMON_DEPENDENCIES, ...FINITE_FLOAT32_PCM_DEPENDENCIES,
+		...AUTHENTICATED_RUNTIME_DEPENDENCIES, ...DIRECT_WASM_RUNTIME_DEPENDENCIES,
+	].sort()),
+	mpg123: Object.freeze([
+		...COMMON_DEPENDENCIES, ...FINITE_FLOAT32_PCM_DEPENDENCIES,
+		...AUTHENTICATED_RUNTIME_DEPENDENCIES, ...DIRECT_WASM_RUNTIME_DEPENDENCIES,
+	].sort()),
+	opus: Object.freeze([
+		...COMMON_DEPENDENCIES, ...FINITE_FLOAT32_PCM_DEPENDENCIES,
+		...AUTHENTICATED_RUNTIME_DEPENDENCIES, ...DIRECT_WASM_RUNTIME_DEPENDENCIES,
+	].sort()),
+	twolame: Object.freeze([
+		...COMMON_DEPENDENCIES, ...FINITE_FLOAT32_PCM_DEPENDENCIES,
+		...AUTHENTICATED_RUNTIME_DEPENDENCIES, ...DIRECT_WASM_RUNTIME_DEPENDENCIES,
+	].sort()),
+	vorbis: Object.freeze([
+		...COMMON_DEPENDENCIES, ...FINITE_FLOAT32_PCM_DEPENDENCIES,
+		...AUTHENTICATED_RUNTIME_DEPENDENCIES, ...DIRECT_WASM_RUNTIME_DEPENDENCIES,
+	].sort()),
 	wavpack: Object.freeze([
-		...COMMON_DEPENDENCIES,
+		...COMMON_DEPENDENCIES, ...AUTHENTICATED_RUNTIME_DEPENDENCIES,
 		'project-library-runtime/src/common/editor/desktop-wavpack-codec-profile.js',
 		'project-library-runtime/src/common/editor/wavpack/pcm.js',
 		'project-library-runtime/src/common/editor/wavpack/runtime.js',
