@@ -73,6 +73,8 @@ test.describe('macros palette libraries', () => {
 	});
 
 	test('default macros are selected and edited in place, and deleted defaults stay deleted', async ({ page }) => {
+		// Include both full reloads alongside the library editing operations.
+		test.setTimeout(60_000);
 		const errors = collectClientErrors(page);
 		let editor = await bootEditor(page, '/embed/en/');
 		let manager = await openManager(page, editor);

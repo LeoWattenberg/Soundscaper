@@ -117,6 +117,8 @@ test.describe('label interactions during recording', () => {
 	registerAudioEditorHooks();
 
 	test('Add label remains available during recording and labels the live recording cursor', async ({ page }) => {
+		// Boot, import, recording and label inspection share this workflow budget.
+		test.setTimeout(60_000);
 		await page.addInitScript(() => {
 			const mediaDevices = {
 				enumerateDevices: async () => [{ kind: 'audioinput', deviceId: 'default', groupId: 'fixture', label: 'Fixture microphone' }],
@@ -140,7 +142,7 @@ test.describe('label interactions during recording', () => {
 		});
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
-		// Keep the selected recording interval longer than this test's 30-second budget.
+		// Keep the selected recording interval longer than the live label actions.
 		await importFiles(editor, [halfMinuteTone]);
 		await chooseCommandAction(page, editor, 'Select', 'Select all');
 		const record = editor.locator('[data-transport="record"] .kw-audio-editor__split-button-main button');

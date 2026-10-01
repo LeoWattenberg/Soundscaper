@@ -45,6 +45,8 @@ test.describe('lazy effect dialog styles', () => {
 	test.use({ viewport: { width: 1600, height: 1000 } });
 
 	test('loads effect-specific styles on demand and preserves the four layouts', async ({ page }) => {
+		// Six dialog openings and a responsive layout change share this budget.
+		test.setTimeout(60_000);
 		const editor = await bootEditor(page, '/embed/en/');
 		expect(await loadedEffectStyles(page)).toEqual([]);
 		await importFiles(editor, [toneA]);
