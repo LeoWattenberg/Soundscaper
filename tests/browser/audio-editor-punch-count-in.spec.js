@@ -31,7 +31,7 @@ test.describe('Soundscaper punch and count-in recording', () => {
 					construct(Target, argumentsList) {
 						const node = Reflect.construct(Target, argumentsList, Target);
 						const [context, processorName] = argumentsList;
-						if (processorName === 'kw-audio-recorder') {
+						if (processorName === 'kw-audio-recorder' || processorName === 'kw-audio-chunk-stream') {
 							const nativePostMessage = node.port.postMessage.bind(node.port);
 							node.port.postMessage = (message, transfer) => {
 								if (message?.type === 'start') {
@@ -40,6 +40,11 @@ test.describe('Soundscaper punch and count-in recording', () => {
 										stopFrame: message.stopFrame,
 										sampleRate: context.sampleRate,
 									};
+								} else if (message?.type === 'play-stream') {
+									globalThis.__soundscaperBufferStarts.push({
+										when: message.contextStartFrame / context.sampleRate,
+										sampleRate: context.sampleRate,
+									});
 								}
 								return transfer === undefined
 									? nativePostMessage(message)
@@ -113,6 +118,7 @@ test.describe('Soundscaper punch and count-in recording', () => {
 		const record = editor.locator('[data-transport="record"] .kw-audio-editor__split-button-main button');
 		await record.click();
 		await expect.poll(() => page.evaluate(() => globalThis.__soundscaperRecorderSchedule)).not.toBeNull();
+		await expect.poll(() => page.evaluate(() => globalThis.__soundscaperBufferStarts.length)).toBeGreaterThan(0);
 		const observed = await page.evaluate(() => ({
 			recorder: globalThis.__soundscaperRecorderSchedule,
 			bufferStarts: globalThis.__soundscaperBufferStarts,
