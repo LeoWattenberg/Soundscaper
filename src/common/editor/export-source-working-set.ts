@@ -6,6 +6,7 @@ import type { EngineChunkSource, EngineProject } from './engine/types.ts';
 import { OFFLINE_CHUNK_RESAMPLE_INPUT_FEED_FRAMES, OFFLINE_CHUNK_RESAMPLE_RADIUS } from './engine/offline-chunk-resample.ts';
 import { STAFFPAD_CLIP_TIME_PITCH_WASM_BYTES, STAFFPAD_CLIP_TIME_PITCH_MAXIMUM_BLOCK_FRAMES } from './clip-time-pitch-render-admission.ts';
 import { SOURCE_CHUNK_FRAMES, SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES } from './source-pcm-contract.ts';
+import { scaleSampleFrame } from './timeline-time.ts';
 
 interface ExportSourceGeometry {
 	readonly id: unknown;
@@ -72,7 +73,7 @@ export function estimateExportSourceWorkingSetBytes(
 		if (!Number.isFinite(speedRatio) || speedRatio <= 0) throw new RangeError('Clip speed ratio must be positive and finite.');
 		const cacheFrames = Math.max(frames,
 			Math.ceil(Number(clip.sourceDurationFrames ?? clip.durationFrames ?? 0) / speedRatio),
-			Math.ceil(Number(clip.durationFrames ?? 0) * geometry.sampleRate / sampleRate));
+			scaleSampleFrame(Number(clip.durationFrames ?? 0), sampleRate, geometry.sampleRate, 'enclosingEnd'));
 		// Two input copies and two output copies bound borrowed/reversed input
 		// and sequential StaffPad stages. Its worker/scratch is shared.
 		residentBytes = addBytes(residentBytes, pcmBytes(cacheFrames * 4, channels));

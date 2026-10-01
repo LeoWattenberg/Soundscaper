@@ -4,6 +4,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { chooseRenderStrategy, createExportPlan } from '../src/common/editor/export.js';
 import { estimateExportSourceWorkingSetBytes } from '../src/common/editor/export-source-working-set.ts';
+import {
+	STAFFPAD_CLIP_TIME_PITCH_MAXIMUM_BLOCK_FRAMES,
+	STAFFPAD_CLIP_TIME_PITCH_WASM_BYTES,
+} from '../src/common/editor/clip-time-pitch-render-admission.ts';
 
 const RATE = 48_000;
 const CHUNK = 65_536;
@@ -121,4 +125,20 @@ test('warped clips with scalar fields still account for the scalar cache prepara
 	project.clips[0]!.timelineStartFrame = RATE * 100;
 	Object.assign(project.clips[0]!, { pitchCents: 100, warpMap: { points: [] } });
 	assert.ok(estimate(project) >= bytes(RATE * 3_600) * 4);
+});
+
+test('scalar cache admission encloses fractional source-rate extents without floating precision loss', () => {
+	for (const [durationFrames, sourceRateFrames] of [
+		[3, 3],
+		// The exact extent ends at 91,875,000,000,113 + 1/160 source frames;
+		// multiplying with Number precision can erase that final fraction.
+		[100_000_000_000_123, 91_875_000_000_114],
+	] as const) {
+		const project = projectFixture();
+		Object.assign(project.sources[0]!, { frameCount: 1, sampleRate: 44_100 });
+		Object.assign(project.clips[0]!, { durationFrames, sourceDurationFrames: 1, pitchCents: 100 });
+		const scratch = STAFFPAD_CLIP_TIME_PITCH_WASM_BYTES
+			+ bytes(CHUNK + STAFFPAD_CLIP_TIME_PITCH_MAXIMUM_BLOCK_FRAMES);
+		assert.equal(estimateExportSourceWorkingSetBytes(project, []), bytes(1 + sourceRateFrames * 4) + scratch);
+	}
 });
