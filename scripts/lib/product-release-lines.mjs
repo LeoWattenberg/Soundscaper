@@ -8,8 +8,12 @@ import { promisify } from 'node:util';
 const readFileAsync = promisify(readFile);
 const PRODUCT_IDS = Object.freeze(['soundscaper', 'framescaper']);
 const CHANNELS = Object.freeze(['candidate', 'stable']);
-const SEMVER = /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-(?:beta|rc)\.(?:0|[1-9]\d*))?$/u;
-const STABLE_SEMVER = /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/u;
+const VERSION_CORE = String.raw`(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)`;
+const PRERELEASE_IDENTIFIER = String.raw`(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)`;
+const SEMVER = new RegExp(
+	String.raw`^${VERSION_CORE}(?:-(?:beta|rc)\.${PRERELEASE_IDENTIFIER}(?:\.${PRERELEASE_IDENTIFIER})*)?$`, 'u',
+);
+const STABLE_SEMVER = new RegExp(`^${VERSION_CORE}$`, 'u');
 const CONFIG_PATH = resolve(
 	dirname(fileURLToPath(import.meta.url)), '../../config/product-release-lines.json',
 );

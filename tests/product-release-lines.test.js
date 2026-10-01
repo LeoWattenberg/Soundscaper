@@ -69,6 +69,41 @@ test('the resolver supports divergent product versions without package metadata'
 	});
 });
 
+test('date-named candidates retain their exact version in tags, packages, and updates', () => {
+	const dated = structuredClone(RELEASE_LINES);
+	dated.products.soundscaper.candidate.version = '1.0.0-rc.Oct.1';
+	const validated = validateProductReleaseLines(dated);
+	const version = resolveProductApplicationVersion('soundscaper', validated);
+	assert.equal(version, '1.0.0-rc.Oct.1');
+	assert.equal(resolveProductDesktopMetadata('soundscaper', validated).applicationVersion, version);
+	const tag = expectedProductReleaseTag('soundscaper', validated);
+	assert.equal(tag, 'soundscaper-v1.0.0-rc.Oct.1');
+	assert.deepEqual(resolveProductReleaseTag(tag, validated), {
+		productId: 'soundscaper', channel: 'candidate', version,
+	});
+	const packagePattern = desktopReleaseTargetPackageInventory('soundscaper', 'mac-arm64', version)[0].pattern;
+	assert.equal(packagePattern.test('Soundscaper-1.0.0-rc.Oct.1-mac-arm64.dmg'), true);
+	assert.equal(packagePattern.test('Soundscaper-1.0.0-rcXOctX1-mac-arm64.dmg'), false);
+	const release = { tag_name: tag, prerelease: true, draft: false };
+	assert.equal(selectUpdate([release], '1.0.0-rc.11', 'soundscaper-v'), release);
+	assert.equal(selectUpdate([release], version, 'soundscaper-v'), null);
+	assert.equal(selectUpdate([release], '1.0.0', 'soundscaper-v'), null);
+});
+
+test('candidate identifiers follow semantic versioning and stable versions stay plain', () => {
+	for (const version of [
+		'1.0.0-rc.', '1.0.0-rc.Oct..1', '1.0.0-rc.Oct.01',
+		'1.0.0-rc.01', '1.0.0-rc.Oct_1', '1.0.0-preview.Oct.1',
+	]) {
+		const changed = structuredClone(RELEASE_LINES);
+		changed.products.soundscaper.candidate.version = version;
+		assert.throws(() => validateProductReleaseLines(changed), /release version is invalid/iu, version);
+	}
+	const changed = structuredClone(RELEASE_LINES);
+	changed.products.soundscaper.stable.version = '1.0.0-rc.Oct.1';
+	assert.throws(() => validateProductReleaseLines(changed), /stable release version is invalid/iu);
+});
+
 test('release-line validation is strict and does not redefine project schema families', async () => {
 	for (const mutate of [
 		(value) => { value.products.soundscaper.extra = true; },
