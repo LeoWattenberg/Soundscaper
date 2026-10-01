@@ -7,6 +7,7 @@ import {
 	LINKED_ORIGINAL_BINDING_SCHEMA_VERSION,
 	normalizeLinkedOriginalBinding,
 	normalizeLinkedOriginalBindingInput,
+	normalizeLinkedOriginalLocatorRevision,
 } from '../src/common/editor/storage/linked-original-binding.ts';
 
 const SHA256 = 'ab'.repeat(32);
@@ -105,6 +106,27 @@ test('linked original bindings reject open rows, unknown kinds, and unsupported 
 		() => normalizeLinkedOriginalBinding(binding({ schemaVersion: 3 })),
 		/schema.*version/iu,
 	);
+});
+
+
+test('locator revision admission preserves opaque token boundaries and Unicode folding', () => {
+	for (const revision of ['a'.repeat(16), 'A'.repeat(128), 'KELVIN_K_12345678', 'LONG_ſ_123456789', '0_-123456789abcd']) {
+		assert.equal(normalizeLinkedOriginalLocatorRevision(revision), revision);
+		assert.equal(normalizeLinkedOriginalBinding(binding({ locatorRevision: revision })).locatorRevision, revision);
+	}
+});
+
+test('locator revision admission refuses malformed tokens with the binding diagnostic', () => {
+	for (const locatorRevision of [
+		'a'.repeat(15), 'a'.repeat(129), '', 123, null, undefined, {},
+		' aaaaaaaaaaaaaaaa', 'aaaaaaaaaaaaaaaa ', '_aaaaaaaaaaaaaaa',
+		'aaaaaaaaaaaaaaa.', '/private/original', 'https://media.test/file',
+		'aaaaaaaaaaaaaaaa\n', 'aaaaaaaa\naaaaaaaa', 'äaaaaaaaaaaaaaaa',
+	]) {
+		const expected = { name: 'TypeError', message: 'locatorRevision must be an opaque platform-generation fence token.' };
+		assert.throws(() => normalizeLinkedOriginalLocatorRevision(locatorRevision), expected);
+		assert.throws(() => normalizeLinkedOriginalBinding(binding({ locatorRevision })), expected);
+	}
 });
 
 function binding(overrides: Record<string, unknown> = {}): Record<string, unknown> {
