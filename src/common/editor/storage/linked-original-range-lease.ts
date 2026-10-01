@@ -3,6 +3,10 @@
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
 import { createAbortGuard } from '../abort-error.ts';
+import {
+	oneShotLinkedOriginalRelease,
+	possibleLinkedOriginalRelease,
+} from './linked-original-custody.ts';
 
 import {
 	createLinkedOriginalRangeByteSource,
@@ -41,15 +45,15 @@ export async function verifyLinkedOriginalRangeLease(
 	expected: ExpectedLinkedOriginalRange,
 	signal?: AbortSignal,
 ): Promise<VerifiedLinkedOriginalRangeLease> {
-	const rawRelease = possibleRangeRelease(rawLease);
-	let release = rawRelease ? oneShotRelease(rawRelease) : null;
+	const rawRelease = possibleLinkedOriginalRelease(rawLease);
+	let release = rawRelease ? oneShotLinkedOriginalRelease(rawRelease) : null;
 	try {
 		throwIfAborted(signal);
 		if (rawLease === null) {
 			throw new Error('The linked original range is unavailable or changed.');
 		}
 		const lease = rangeLeaseValue(rawLease);
-		release ??= oneShotRelease(() => lease.release());
+		release ??= oneShotLinkedOriginalRelease(() => lease.release());
 		if (lease.locatorRevision !== expected.locatorRevision) {
 			throw new Error('The linked original locator changed during range admission.');
 		}
@@ -137,15 +141,6 @@ function rangeLeaseValue(value: LinkedOriginalRangeLease): Readonly<{
 	});
 }
 
-function possibleRangeRelease(value: unknown): (() => PromiseLike<void> | void) | null {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-	const descriptor = Object.getOwnPropertyDescriptor(value, 'release');
-	return descriptor?.enumerable && Object.hasOwn(descriptor, 'value')
-		&& typeof descriptor.value === 'function'
-		? () => Reflect.apply(descriptor.value, value, []) as PromiseLike<void> | void
-		: null;
-}
-
 async function verifyRangeDigest(
 	source: LinkedOriginalRangeByteSource,
 	expectedSha256: string,
@@ -163,12 +158,4 @@ async function verifyRangeDigest(
 	if (bytesToHex(digest.digest()) !== expectedSha256) {
 		throw new Error('The linked original range failed SHA-256 verification.');
 	}
-}
-
-function oneShotRelease(operation: () => PromiseLike<void> | void): () => Promise<void> {
-	let result: Promise<void> | null = null;
-	return () => {
-		result ??= Promise.resolve().then(operation);
-		return result;
-	};
 }

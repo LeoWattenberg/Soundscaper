@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { linkedOriginalCanonicalIdentity } from './linked-original-schema.ts';
+
 export const LINKED_ORIGINAL_BINDING_SCHEMA_VERSION = 2 as const;
 export const LEGACY_LINKED_VIDEO_ORIGINAL_BINDING_SCHEMA_VERSION = 1 as const;
 
@@ -105,7 +107,6 @@ const LEGACY_BINDING_INPUT_FIELDS = Object.freeze(LEGACY_BINDING_FIELDS.filter((
 	field !== 'bindingToken' && field !== 'boundAt'
 )));
 const LEGACY_BINDING_INPUT_FIELD_SET: ReadonlySet<string> = new Set(LEGACY_BINDING_INPUT_FIELDS);
-const MAXIMUM_ID_CHARACTERS = 256;
 const MAXIMUM_MIME_TYPE_CHARACTERS = 128;
 const OPAQUE_TOKEN_PATTERN = /^[a-z0-9][a-z0-9_-]{15,127}$/iu;
 const SHA256_PATTERN = /^[a-f0-9]{64}$/u;
@@ -270,10 +271,10 @@ export function normalizeLinkedVideoOriginalSourceShape(value: unknown): LinkedV
 		width: positiveSafeIntegerField(candidate.width, 'sourceShape.width'),
 		height: positiveSafeIntegerField(candidate.height, 'sourceShape.height'),
 		frameRate: positiveFinite(candidate.frameRate, 'sourceShape.frameRate'),
-		videoCodec: boundedIdentity(candidate.videoCodec, 'sourceShape.videoCodec'),
+		videoCodec: linkedOriginalCanonicalIdentity(candidate.videoCodec, 'sourceShape.videoCodec'),
 		audioCodec: candidate.audioCodec === null
 			? null
-			: boundedIdentity(candidate.audioCodec, 'sourceShape.audioCodec'),
+			: linkedOriginalCanonicalIdentity(candidate.audioCodec, 'sourceShape.audioCodec'),
 		hasAudio: requiredBoolean(candidate.hasAudio, 'sourceShape.hasAudio'),
 	});
 }
@@ -310,9 +311,9 @@ function normalizeCurrentBinding(candidate: Record<string, unknown>): LinkedOrig
 
 function normalizeSharedFields(candidate: Record<string, unknown>, kind: LinkedOriginalKind) {
 	return {
-		projectId: boundedIdentity(candidate.projectId, 'projectId'),
-		sourceId: boundedIdentity(candidate.sourceId, 'sourceId'),
-		storageKey: boundedIdentity(candidate.storageKey, 'storageKey'),
+		projectId: linkedOriginalCanonicalIdentity(candidate.projectId, 'projectId'),
+		sourceId: linkedOriginalCanonicalIdentity(candidate.sourceId, 'sourceId'),
+		storageKey: linkedOriginalCanonicalIdentity(candidate.storageKey, 'storageKey'),
 		locatorId: opaqueToken(
 			candidate.locatorId,
 			'locatorId must be an opaque pathless token, not a path or URL.',
@@ -368,19 +369,6 @@ function dataField(record: Record<string, unknown>, field: string): unknown {
 		throw new TypeError(`Linked original ${field} must be an enumerable data field.`);
 	}
 	return descriptor.value;
-}
-
-function boundedIdentity(value: unknown, field: string): string {
-	if (typeof value !== 'string' || !value || value !== value.trim()) {
-		throw new TypeError(`${field} must be a non-empty canonical string.`);
-	}
-	if (value.length > MAXIMUM_ID_CHARACTERS) {
-		throw new RangeError(`${field} exceeds its character limit.`);
-	}
-	if (/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u.test(value)) {
-		throw new TypeError(`${field} must not contain control or formatting characters.`);
-	}
-	return value;
 }
 
 function opaqueToken(value: unknown, message: string): string {

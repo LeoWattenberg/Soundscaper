@@ -16,6 +16,7 @@ import type {
 	LinkedOriginalLocatorReference,
 	LinkedOriginalRepository,
 } from './linked-original-repository.ts';
+import { sameLinkedOriginalBinding } from './linked-original-custody.ts';
 import type { LinkedOriginalRangeByteSource } from './linked-original-range-byte-source.ts';
 import {
 	failLinkedOriginalRangeLease,
@@ -282,7 +283,7 @@ export class LinkedOriginalResolver {
 		throwIfAborted(options.signal);
 		const current = await this.#bindings.get(projectId, source.id);
 		throwIfAborted(options.signal);
-		if (!current || !sameBinding(current, binding)) {
+		if (!current || !sameLinkedOriginalBinding(current, binding)) {
 			throw new Error('The linked original binding changed during resolution.');
 		}
 	}
@@ -447,10 +448,6 @@ function linkedMetadata(binding: LinkedOriginalBinding): LinkedOriginalMetadata 
 		size: binding.byteLength,
 		sha256: binding.sha256,
 	});
-}
-
-function sameBinding(left: LinkedOriginalBinding, right: LinkedOriginalBinding): boolean {
-	return left.bindingToken === right.bindingToken && JSON.stringify(left) === JSON.stringify(right);
 }
 
 function locatorReference(value: unknown): Readonly<LinkedOriginalLocatorReference> {

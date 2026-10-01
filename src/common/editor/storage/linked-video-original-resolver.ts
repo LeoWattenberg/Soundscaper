@@ -3,6 +3,11 @@
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
 import { createAbortGuard } from '../abort-error.ts';
+import {
+	oneShotLinkedOriginalRelease,
+	possibleLinkedOriginalRelease,
+	sameLinkedOriginalBinding,
+} from './linked-original-custody.ts';
 
 import {
 	LINKED_VIDEO_ORIGINAL_BINDING_SCHEMA_VERSION,
@@ -217,15 +222,15 @@ export class LinkedVideoOriginalResolver {
 			expectedRevision: binding.locatorRevision,
 			signal: options.signal,
 		});
-		const rawRelease = possiblePlaybackRelease(rawLease);
-		let release = rawRelease ? oneShotRelease(rawRelease) : null;
+		const rawRelease = possibleLinkedOriginalRelease(rawLease);
+		let release = rawRelease ? oneShotLinkedOriginalRelease(rawRelease) : null;
 		try {
 			throwIfAborted(options.signal);
 			if (rawLease === null) {
 				throw new Error('The linked video original is unavailable or changed.');
 			}
 			const lease = playbackLeaseValue(rawLease);
-			release ??= oneShotRelease(() => lease.release());
+			release ??= oneShotLinkedOriginalRelease(() => lease.release());
 			if (lease.locatorRevision !== binding.locatorRevision) {
 				throw new Error('The linked video original locator changed during playback admission.');
 			}
@@ -267,7 +272,7 @@ export class LinkedVideoOriginalResolver {
 		throwIfAborted(options.signal);
 		const current = await this.#bindings.get(projectId, source.id);
 		throwIfAborted(options.signal);
-		if (!current || !sameBinding(current, binding)) {
+		if (!current || !sameLinkedOriginalBinding(current, binding)) {
 			throw new Error('The linked video original binding changed during resolution.');
 		}
 	}
@@ -462,15 +467,6 @@ function playbackLeaseValue(value: LinkedVideoOriginalPlaybackLease): LinkedVide
 	});
 }
 
-function possiblePlaybackRelease(value: unknown): (() => PromiseLike<void> | void) | null {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-	const descriptor = Object.getOwnPropertyDescriptor(value, 'release');
-	return descriptor?.enumerable && Object.hasOwn(descriptor, 'value')
-		&& typeof descriptor.value === 'function'
-		? () => Reflect.apply(descriptor.value, value, []) as PromiseLike<void> | void
-		: null;
-}
-
 async function verifyPlaybackBytes(
 	lease: LinkedVideoOriginalPlaybackLease,
 	expectedSha256: string,
@@ -502,14 +498,6 @@ async function verifyPlaybackBytes(
 	}
 }
 
-function oneShotRelease(operation: () => PromiseLike<void> | void): () => Promise<void> {
-	let result: Promise<void> | null = null;
-	return () => {
-		result ??= Promise.resolve().then(operation);
-		return result;
-	};
-}
-
 async function failPlaybackLease(
 	error: unknown,
 	release: () => Promise<void>,
@@ -536,10 +524,6 @@ function linkedMetadata(binding: LinkedVideoOriginalBinding): ResolvedLinkedVide
 		size: binding.byteLength,
 		sha256: binding.sha256,
 	});
-}
-
-function sameBinding(left: LinkedVideoOriginalBinding, right: LinkedVideoOriginalBinding): boolean {
-	return left.bindingToken === right.bindingToken && JSON.stringify(left) === JSON.stringify(right);
 }
 
 function locatorReference(value: unknown): Readonly<LinkedVideoOriginalLocatorReference> {
