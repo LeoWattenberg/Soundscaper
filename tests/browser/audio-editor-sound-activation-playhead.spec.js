@@ -34,6 +34,8 @@ test.describe('Soundscaper sound-activated playhead', () => {
 		await editor.getByRole('button', { name: 'Record options', exact: true }).click();
 		await page.getByRole('dialog', { name: 'Record options', exact: true })
 			.getByRole('button', { name: 'Sound-activated recording', exact: true }).click();
+		await expect(editor.locator('[data-transport="record"] .kw-audio-editor__split-button-main button'))
+			.toHaveAttribute('aria-pressed', 'true');
 		const timeline = editor.locator('.audio-editor-timeline-panel');
 		const playheadX = () => timeline.evaluate((node) =>
 			Number.parseFloat(node.style.getPropertyValue('--timeline-playhead-x')));
