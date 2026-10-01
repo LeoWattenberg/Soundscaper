@@ -3,6 +3,9 @@ import { readFile } from 'node:fs/promises';
 import { ModuleKind, ScriptTarget, transpileModule } from 'typescript';
 
 const SOURCE_MODULES = new Map([
+	['common/editor/controller/clip-video/video-preview-effect-result-cache.ts', '../../src/common/editor/controller/clip-video/video-preview-effect-result-cache.ts'],
+	['common/editor/controller/clip-video/video-preview-frame-identity.ts', '../../src/common/editor/controller/clip-video/video-preview-frame-identity.ts'],
+	['common/editor/controller/clip-video/video-preview-target-pool.ts', '../../src/common/editor/controller/clip-video/video-preview-target-pool.ts'],
 	['common/editor/closed-domain-value.ts', '../../src/common/editor/closed-domain-value.ts'],
 	['common/editor/native-external-display.ts', '../../src/common/editor/native-external-display.ts'],
 	['common/editor/native-validation.ts', '../../src/common/editor/native-validation.ts'],
@@ -14,6 +17,7 @@ const SOURCE_MODULES = new Map([
 	['common/editor/ui/video-preview-compositor-size.js', '../../src/common/editor/ui/video-preview-compositor-size.js'],
 	['common/editor/ui/video-preview-effects.js', '../../src/common/editor/ui/video-preview-effects.js'],
 	['common/editor/ui/video-preview-effects-shader.js', '../../src/common/editor/ui/video-preview-effects-shader.js'],
+	['common/editor/ui/video-preview-entry-effects.js', '../../src/common/editor/ui/video-preview-entry-effects.js'],
 	['common/editor/ui/video-preview-geometry-shader.ts', '../../src/common/editor/ui/video-preview-geometry-shader.ts'],
 	['common/editor/ui/video-preview-layer-effects.js', '../../src/common/editor/ui/video-preview-layer-effects.js'],
 	['common/editor/ui/video-preview-render-description.ts', '../../src/common/editor/ui/video-preview-render-description.ts'],

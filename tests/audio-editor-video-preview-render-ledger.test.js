@@ -186,7 +186,7 @@ test('adjustment-layer effects are explicit compositor requests and outcomes', (
 	});
 });
 
-test('adjustment-layer passes disable entry-compositing blend state before drawing', () => {
+test('adjustment-layer passes disable blending and consume the layer without a preliminary copy', () => {
 	let blending = true;
 	const drawBlendStates = [];
 	const target = (name) => ({ name, texture: `${name}-texture` });
@@ -199,7 +199,7 @@ test('adjustment-layer passes disable entry-compositing blend state before drawi
 		draw() { drawBlendStates.push(blending); },
 	};
 	applyVideoPreviewLayerEffects(compositor, compositor.targets.layer, [effect('adjustment', 'color-adjust')], { x: 1, y: 1 });
-	assert.deepEqual(drawBlendStates, [false, false]);
+	assert.deepEqual(drawBlendStates, [false]);
 });
 
 function effect(id, type, enabled = true) {

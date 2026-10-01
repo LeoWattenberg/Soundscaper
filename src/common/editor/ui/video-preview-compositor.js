@@ -10,6 +10,7 @@ import {
 } from './video-preview-effects.js';
 import { videoDeliveryColorChannels } from '../video-delivery-color.ts';
 import { NATIVE_EXTERNAL_DISPLAY_MAXIMUM_RGBA_BYTES } from '../native-external-display.ts';
+import { createVideoPreviewEffectResultCache } from '../controller/clip-video/video-preview-effect-result-cache.ts';
 import {
 	pruneVideoTextures,
 	releaseVideoTexture,
@@ -24,11 +25,9 @@ import {
 	decodableVideoPreviewLayers,
 	recordVideoPreviewEntryFallback,
 	recordVideoPreviewEntryRendered,
+	recordVideoPreviewLayerRendered,
 } from './video-preview-render-ledger.js';
-import {
-	videoPreviewBlurViewport,
-	videoPreviewViewports,
-} from './video-preview-viewports.js';
+import { videoPreviewViewports } from './video-preview-viewports.js';
 import {
 	createVideoPreviewCompositionBlendRuntime,
 	disposeVideoPreviewCompositionBlendRuntime,
@@ -48,6 +47,7 @@ import {
 } from './video-preview-render-target.js';
 import { resolveVideoPreviewCompositorSize } from './video-preview-compositor-size.js';
 import { compositeVideoPreviewAdjustedLayer } from './video-preview-layer-effects.js';
+import { applyVideoPreviewEntryEffects } from './video-preview-entry-effects.js';
 
 export {
 	VIDEO_PREVIEW_MAX_GAUSSIAN_BLUR_KERNEL_SIGMA,
@@ -58,7 +58,6 @@ export { videoPreviewBlurViewport, videoPreviewViewports } from './video-preview
 export { shouldContinueVideoPreviewPlayback } from './video-preview-render-ledger.js';
 
 const COPY_PASS = Object.freeze({});
-const RECT_COPY_PASS = Object.freeze({ code: 8 });
 const FINAL_YUV420_PASS = Object.freeze({ code: 7 });
 const EMPTY_EFFECTS = Object.freeze([]);
 const ZERO_VECTOR_2 = Object.freeze([0, 0]);
@@ -100,6 +99,7 @@ export class VideoPreviewCompositor {
 		this.finalEffectResolution = { width: 1, height: 1 };
 		this.blurContentViewport = { x: 0, y: 0, width: 1, height: 1 };
 		this.effectStackCache = new WeakMap();
+		this.effectResultCache = createVideoPreviewEffectResultCache();
 		this.renderGeneration = 0;
 		this.handleContextLost = (event) => {
 			event.preventDefault();
@@ -123,6 +123,7 @@ export class VideoPreviewCompositor {
 	}
 
 	initializeResources() {
+		this.effectResultCache.clear();
 		this.programs = Array.from(
 			{ length: EFFECT_PROGRAM_COUNT },
 			(_, effectCode) => createProgram(this.gl, effectCode),
@@ -136,6 +137,7 @@ export class VideoPreviewCompositor {
 		this.currentProgram = null;
 		this.boundBlurKernel = null;
 		this.targets = null;
+		for (const video of this.videoTextures?.keys() || []) this.releaseVideo(video);
 		this.videoTextures = new Map();
 		this.configureGeometry();
 	}
@@ -320,7 +322,7 @@ export class VideoPreviewCompositor {
 			this.targets.composition, background.red, background.green, background.blue, background.alpha,
 		);
 		let compositionTarget = this.targets.composition;
-		let compositionSwapTarget = this.targets.compositionSwap;
+		let compositionSwapTarget = null;
 		let renderedEntries = 0;
 		const referenceWidth = Math.max(1, finiteNumber(options.referenceWidth, this.canvas.width));
 		const referenceHeight = Math.max(1, finiteNumber(options.referenceHeight, this.canvas.height));
@@ -337,9 +339,18 @@ export class VideoPreviewCompositor {
 		this.finalEffectResolution.width = referenceWidth;
 		this.finalEffectResolution.height = referenceHeight;
 		const previewScale = this.previewScale;
+		let cacheEffects = true;
 
 		for (const layer of layers) {
-			this.clearTarget(this.targets.layer);
+			// A lone normal entry can blend straight into the completed picture.
+			// Transition entries still accumulate additively before composition.
+			const direct = (layer.blendMode || 'normal') === 'normal'
+				&& layer.entries?.length === 1
+				&& !this.passesForEffects(layer.effects || EMPTY_EFFECTS, {
+					x: this.canvas.width / referenceWidth, y: this.canvas.height / referenceHeight,
+				}).length;
+			const layerTarget = direct ? compositionTarget : this.targets.layer;
+			if (!direct) this.clearTarget(layerTarget);
 			let renderedLayerEntries = 0;
 			for (const entry of layer.entries || []) {
 				const video = entry.video;
@@ -383,10 +394,13 @@ export class VideoPreviewCompositor {
 				if (!passes.length) {
 					gl.enable(gl.BLEND);
 					gl.blendEquation(gl.FUNC_ADD);
-					gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE, gl.ONE, gl.ONE);
+					gl.blendFuncSeparate(
+						gl.SRC_ALPHA, direct ? gl.ONE_MINUS_SRC_ALPHA : gl.ONE,
+						gl.ONE, direct ? gl.ONE_MINUS_SRC_ALPHA : gl.ONE,
+					);
 					this.draw(
 						videoTexture,
-						this.targets.layer,
+						layerTarget,
 						COPY_PASS,
 						opacity,
 						geometry == null ? contentViewport : referenceViewport,
@@ -397,109 +411,17 @@ export class VideoPreviewCompositor {
 					recordVideoPreviewEntryRendered(ledger, entry);
 					continue;
 				}
-				gl.disable(gl.BLEND);
-				this.clearTarget(this.targets.ping);
-				this.draw(
-					videoTexture,
-					this.targets.ping,
-					COPY_PASS,
-					1,
-					contentViewport,
+				const sourceTarget = applyVideoPreviewEntryEffects(
+					this, videoTexture, passes, contentViewport,
+					cacheEffects ? this.videoTextures.get(video)?.frameVersion : undefined,
 				);
-				let sourceTarget = this.targets.ping;
-				for (const pass of passes) {
-					if (pass.preserveSource) {
-						this.clearTarget(this.targets.anchor);
-						this.draw(
-							sourceTarget.texture,
-							this.targets.anchor,
-							RECT_COPY_PASS,
-							1,
-							null,
-							contentViewport,
-							contentViewport,
-							sourceTarget,
-						);
-					}
-					if (pass.code === EFFECT_CODES['gaussian-blur']) {
-						const isHorizontalPass = pass.direction?.[0] === 1;
-						if (isHorizontalPass) {
-							const blurViewport = videoPreviewBlurViewport(
-								contentViewport,
-								this.canvas.width,
-								this.canvas.height,
-								this.targets.blurPing.width,
-								this.targets.blurPing.height,
-								pass.params1?.[0],
-								this.blurContentViewport,
-							);
-							this.clearTarget(this.targets.blurPing);
-							this.draw(
-								sourceTarget.texture,
-								this.targets.blurPing,
-								RECT_COPY_PASS,
-								1,
-								null,
-								blurViewport,
-								contentViewport,
-								sourceTarget,
-							);
-							this.clearTarget(this.targets.blurPong);
-							this.draw(
-								this.targets.blurPing.texture,
-								this.targets.blurPong,
-								pass,
-								1,
-								null,
-								blurViewport,
-							);
-							sourceTarget = this.targets.blurPong;
-						} else {
-							this.clearTarget(this.targets.blurPing);
-							this.draw(
-								sourceTarget.texture,
-								this.targets.blurPing,
-								pass,
-								1,
-								null,
-								this.blurContentViewport,
-							);
-							this.clearTarget(this.targets.ping);
-							this.draw(
-								this.targets.blurPing.texture,
-								this.targets.ping,
-								RECT_COPY_PASS,
-								1,
-								null,
-								contentViewport,
-								this.blurContentViewport,
-								this.targets.blurPing,
-							);
-							sourceTarget = this.targets.ping;
-						}
-						continue;
-					}
-					const destinationTarget = sourceTarget === this.targets.ping
-						? this.targets.pong
-						: this.targets.ping;
-					this.clearTarget(destinationTarget);
-					this.draw(
-						sourceTarget.texture,
-						destinationTarget,
-						pass,
-						1,
-						null,
-						contentViewport,
-						null,
-						null,
-						null,
-						pass.auxiliary ? this.targets.anchor.texture : null,
-					);
-					sourceTarget = destinationTarget;
-				}
+				cacheEffects = false;
 				gl.enable(gl.BLEND);
 				gl.blendEquation(gl.FUNC_ADD);
-				gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE, gl.ONE, gl.ONE);
+				gl.blendFuncSeparate(
+					gl.SRC_ALPHA, direct ? gl.ONE_MINUS_SRC_ALPHA : gl.ONE,
+					gl.ONE, direct ? gl.ONE_MINUS_SRC_ALPHA : gl.ONE,
+				);
 				const effectedQuad = geometry == null ? null : videoPreviewRenderQuad(geometry, {
 					canvasWidth: referenceWidth,
 					canvasHeight: referenceHeight,
@@ -509,7 +431,7 @@ export class VideoPreviewCompositor {
 				});
 				this.draw(
 					sourceTarget.texture,
-					this.targets.layer,
+					layerTarget,
 					COPY_PASS,
 					opacity,
 					geometry == null ? null : referenceViewport,
@@ -520,8 +442,13 @@ export class VideoPreviewCompositor {
 				recordVideoPreviewEntryRendered(ledger, entry);
 			}
 			if (!renderedLayerEntries) continue;
+			if (direct) {
+				recordVideoPreviewLayerRendered(ledger, layer);
+				continue;
+			}
 			const nextTarget = compositeVideoPreviewAdjustedLayer(
-				this, ledger, layer, compositionTarget, compositionSwapTarget,
+				this, ledger, layer, compositionTarget,
+				compositionSwapTarget || this.targets.compositionSwap,
 				referenceWidth, referenceHeight,
 			);
 			compositionSwapTarget = compositionTarget;
@@ -576,7 +503,8 @@ export class VideoPreviewCompositor {
 		this.canvas.removeEventListener('webglcontextlost', this.handleContextLost);
 		this.canvas.removeEventListener('webglcontextrestored', this.handleContextRestored);
 		deleteVideoPreviewRenderTargets(this.gl, this.targets);
-		for (const record of this.videoTextures?.values() || []) this.gl.deleteTexture(record.texture);
+		this.effectResultCache.clear();
+		for (const video of this.videoTextures?.keys() || []) this.releaseVideo(video);
 		this.videoTextures.clear();
 		this.gl.deleteBuffer(this.positionBuffer);
 		for (const program of this.programs) this.gl.deleteProgram(program);

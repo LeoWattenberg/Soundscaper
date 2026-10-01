@@ -2,7 +2,11 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { createVideoPreviewCompositor } from '../src/common/editor/ui/video-preview-compositor.js';
-import { createVideoPreviewRenderTargets } from '../src/common/editor/ui/video-preview-render-target.js';
+import {
+	allocatedVideoPreviewRenderTargets,
+	createVideoPreviewRenderTargets,
+	deleteVideoPreviewRenderTargets,
+} from '../src/common/editor/ui/video-preview-render-target.js';
 
 function createStubContext() {
 	let nextConstant = 1;
@@ -51,10 +55,17 @@ function createStubContext() {
 	});
 }
 
-test('render-target allocation releases every partial resource after a later target fails', () => {
+test('a failed lazy target releases its partial resources while retaining earlier targets', () => {
 	const gl = createStubContext();
-	gl.failFramebufferIn(3);
-	assert.throws(() => createVideoPreviewRenderTargets(gl, 640, 360, 0.5), /allocate/iu);
+	const targets = createVideoPreviewRenderTargets(gl, 640, 360, 0.5);
+	void targets.composition;
+	void targets.layer;
+	void targets.ping;
+	gl.failFramebufferIn(0);
+	assert.throws(() => targets.pong, /allocate/iu);
+	assert.equal(gl.deletedFramebuffers.length, 0, 'earlier live targets remain usable');
+	assert.equal(gl.deletedTextures.length, 1, 'the failed target releases its texture');
+	deleteVideoPreviewRenderTargets(gl, targets);
 	assert.equal(gl.deletedFramebuffers.length, 3);
 	assert.equal(gl.deletedTextures.length, 4,
 		'including the texture whose paired framebuffer allocation failed');
@@ -65,7 +76,7 @@ test('a failed compositor resize retains the live targets and retries the reques
 	const compositor = createVideoPreviewCompositor(canvas);
 	compositor.resizeToDisplaySize({ outputWidth: 640, outputHeight: 360 });
 	const priorTargets = compositor.targets;
-	const priorFramebuffers = new Set(Object.values(priorTargets).map(({ framebuffer }) => framebuffer));
+	const priorFramebuffers = new Set(allocatedVideoPreviewRenderTargets(priorTargets).map(({ framebuffer }) => framebuffer));
 	canvas.gl.failFramebufferIn(0);
 	assert.throws(
 		() => compositor.resizeToDisplaySize({ outputWidth: 800, outputHeight: 450 }),
@@ -81,7 +92,7 @@ test('a failed compositor resize retains the live targets and retries the reques
 	assert.equal(canvas.width, 800);
 	assert.equal(canvas.height, 450);
 	assert.notStrictEqual(compositor.targets, priorTargets);
-	assert.equal(canvas.gl.deletedFramebuffers.filter((value) => priorFramebuffers.has(value)).length, 8);
+	assert.equal(canvas.gl.deletedFramebuffers.filter((value) => priorFramebuffers.has(value)).length, 1);
 	compositor.dispose();
 });
 
