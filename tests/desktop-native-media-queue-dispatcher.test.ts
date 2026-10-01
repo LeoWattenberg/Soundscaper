@@ -334,7 +334,7 @@ test('pausing a running selected V14 job reports paused cleanup for regenerated 
 		const paused = runtime.queue.control(
 			record!.jobId, { kind: 'pause' }, runtime.lease.lease(), ++now,
 		);
-		dispatcher.control(paused.record, 'pause');
+		await dispatcher.control(paused.record, 'pause');
 		await draining;
 		assert.equal(runtime.queue.read(record!.jobId)?.state, 'paused');
 		assert.deepEqual(outcomes, ['paused']);
