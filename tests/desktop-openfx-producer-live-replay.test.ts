@@ -7,6 +7,8 @@ import { join } from 'node:path';
 import test, { type TestContext } from 'node:test';
 import { MessageChannel } from 'node:worker_threads';
 
+import { DESKTOP_5B_TRANSITIVE_RUNTIME_FILES } from '../scripts/lib/desktop-5b-transitive-runtime-files.mjs';
+
 import * as execution from '../desktop/framescaper-openfx-frame-execution.ts';
 import * as transport from '../desktop/framescaper-openfx-frame-port.ts';
 import { createFramescaperOpenFxFrameRegistration } from '../desktop/framescaper-openfx-frame-registration.mjs';
@@ -22,6 +24,11 @@ import {
 	OWNER, STAGE_ID, SOURCE_BYTES, beginRequest, byteDescriptor, claimRequest,
 	liveFixture, openFxPlugin, queueRecord,
 } from './helpers/framescaper-native-live-openfx-fixture.ts';
+
+test('OpenFX staging retains the independent carrier IPC contract and retires only the legacy transformer', () => {
+	assert.ok(DESKTOP_5B_TRANSITIVE_RUNTIME_FILES.includes('src/common/editor/native-media-v14-openfx-carrier.js'));
+	assert.equal(DESKTOP_5B_TRANSITIVE_RUNTIME_FILES.some((path) => path.includes('openfx-live-frame-transform')), false);
+});
 
 test('the current producer evaluates authored OpenFX once through the frame port and relays its authenticated carrier once', async (context) => {
 	const harness = await setup(context);
@@ -116,7 +123,8 @@ async function setup(context: TestContext, current = true) {
 			inventory: () => [openFxPlugin()], supportedGpuBackends: () => [],
 			execute: async (request: { inputs: readonly { rgba: Uint8Array }[] }) => {
 				executed += 1;
-				assert.equal(request.inputs[0]?.rgba.byteLength, 16);
+				assert.deepEqual([...request.inputs[0]!.rgba], [0, 0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255],
+					'the authored effect receives the opaque black source plane');
 				const rgba = new Uint8Array(16).fill(255);
 				if (state.cancelAfterExecution) abort.abort(new Error('producer cancelled'));
 				return { mode: 'render', rgba, availability: 'available', authoredStatePreserved: true,
@@ -148,7 +156,9 @@ async function setup(context: TestContext, current = true) {
 	context.after(() => staging.abandonOwner(OWNER));
 	const canvas = () => ({ width: 2, height: 2, getContext: () => ({
 		clearRect() {}, drawImage() {},
-		getImageData: () => ({ data: new Uint8ClampedArray(16).fill(255) }),
+		getImageData: () => ({ data: Uint8ClampedArray.from([
+			0, 0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255,
+		]) }),
 	}) }) as unknown as HTMLCanvasElement;
 	const previous = globalThis.document;
 	Object.defineProperty(globalThis, 'document', { configurable: true, value: { createElement: canvas } });

@@ -46,12 +46,12 @@ test('the native plug-in hosting row describes the out-of-process host that ship
 		'desktop/plugin-vendor-window-authority.mjs',
 		'desktop/native-child-isolation-launcher.ts',
 		'src/soundscaper/editor-native-plugin-actions.ts',
-		'desktop/framescaper-openfx-live-frame-transform.ts',
+		'desktop/framescaper-openfx-frame-execution.ts',
 		'tests/desktop-protocol.test.js',
 		'tests/desktop-plugin-registry.test.ts',
 		'tests/desktop-plugin-host-service.test.ts',
 		'tests/desktop-native-child-isolation-launcher.test.ts',
-		'tests/desktop-framescaper-openfx-live-frame-transform.test.ts',
+		'tests/desktop-openfx-producer-live-replay.test.ts',
 		'tests/production-licensing-matrix.test.js',
 	]);
 

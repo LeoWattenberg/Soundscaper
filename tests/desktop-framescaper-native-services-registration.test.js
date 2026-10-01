@@ -134,7 +134,6 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 		begin: async () => ({}), receive: async () => undefined, finalize: async () => ({}),
 		scratchReservation: () => 300,
 		outstandingLiveScratchByteLength: async () => 500,
-		mountOpenFxTransformFactory: (value) => { renderInputStaging.openFxFactory = value; },
 		abandonOwner: async () => { renderInputOwnerDisposals += 1; return 2; },
 		reclaim: async (records) => { renderInputReclaims += 1; assert.deepEqual(records, []); },
 	};
@@ -413,7 +412,6 @@ test('a runtime startup failure releases the session display subscription', asyn
 				openFxTimingAssets: async () => [],
 			}),
 			createRenderInputStaging: () => ({
-				mountOpenFxTransformFactory: () => undefined,
 			}),
 			createProjectMediaAuthority: ({ project }) => project,
 			createWatchImportBroker: () => ({ dispose: async () => undefined }),
