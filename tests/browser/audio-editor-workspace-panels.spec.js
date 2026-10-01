@@ -336,7 +336,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await importFiles(editor, [toneA]);
 		const clipHeader = clipByName(editor, toneA.name).locator('.clip-header');
 		const clipTrackRow = clipHeader.locator('xpath=ancestor::*[@data-track-row][1]');
-		const trackRow = editor.locator('[data-track-list] > [data-track-row]').first();
+		const trackRow = editor.locator('[data-track-list] [data-track-row]').first();
 		const trackHeader = trackRow.locator('[data-track-header]');
 		const timelineInner = editor.locator('.audio-editor-timeline-inner');
 		const [headerBounds, initialTrackBounds, initialClipTrackBounds, timelineBounds] = await Promise.all([
@@ -390,7 +390,7 @@ test.describe('audio editor React/design-system workflows', () => {
 	test('auto-fits new track heights until manual resizing and re-engages from View Zoom', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
 		const timeline = editor.locator('[data-timeline]');
-		const trackRows = editor.locator('[data-track-list] > [data-track-row]');
+		const trackRows = editor.locator('[data-track-list] [data-track-row]');
 		const addAudioTrack = async () => {
 			await editor.getByRole('button', { name: 'Add track', exact: true }).click();
 			await page.getByRole('menu', { name: 'Add track', exact: true })
