@@ -10,6 +10,7 @@ import {
 	openSoundscaperSoakSession,
 	prepareSoundscaperSoakContext,
 } from '../../scripts/lib/soundscaper-soak-playwright.mjs';
+import { createSoundscaperSoakWorkflowDriver } from '../../scripts/lib/soundscaper-soak-workflows.mjs';
 
 test.describe('Soundscaper soak-debug UI driver', () => {
 	registerAudioEditorHooks();
@@ -95,6 +96,22 @@ test.describe('Soundscaper soak-debug UI driver', () => {
 		} finally {
 			await session.close({ failed: false });
 		}
+	});
+
+	test('reopens an autosaved project through Local projects after closing it', async ({ page }, testInfo) => {
+		test.setTimeout(120_000);
+		await bootEditor(page, '/embed/en/');
+		const workflows = createSoundscaperSoakWorkflowDriver({
+			page, target: 'desktop', outputDirectory: testInfo.outputPath('soak-autosave-output'),
+		});
+		await workflows.execute('media-import', { variant: 21 });
+		const editor = page.locator('[data-audio-editor]');
+		const projectId = await editor.getAttribute('data-project-id');
+
+		await workflows.execute('autosave-reload');
+
+		await expect(editor).toHaveAttribute('data-project-id', projectId);
+		await expect(editor).toHaveAttribute('data-clip-count', '1');
 	});
 });
 

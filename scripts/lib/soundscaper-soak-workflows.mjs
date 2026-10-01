@@ -151,6 +151,7 @@ async function autosaveAndReload(page, target, restartPage) {
 		await waitForSaved(editor);
 		await chooseMenu(page, editor, 'File', 'Close project');
 		await waitForAttributeChange(editor, 'data-project-id', projectId, 30_000);
+		editor = await waitForEditor(page);
 		await chooseNestedMenu(page, editor, 'File', ['Project management', 'Local projects']);
 		const projects = page.getByRole('dialog', { name: 'Local projects', exact: true });
 		await projects.getByRole('button', {
