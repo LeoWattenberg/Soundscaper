@@ -1,13 +1,19 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { expect, test, toneA } from './audio-editor-test-fixtures.js';
+import { createAudioClip, createAudioSource, createAudioTrack } from '../../src/common/editor/project-media-factory.ts';
+import { exportScapeProject, SCAPE_MIME_TYPE } from '../../src/common/editor/scape-project.js';
+import { createProjectStore } from '../../src/common/editor/storage.js';
+import { createSoundscaperProject } from '../../src/soundscaper/editor-project.ts';
 import {
 	bootEditor,
 	collectClientErrors,
-	importFiles,
 	registerAudioEditorHooks,
+	waitForProjectActivation,
 } from './audio-editor-test-helpers.js';
-import { arrangeWithMacro } from './helpers/macro-arrange.js';
+
+const PROJECT_ID = 'browser-track-viewport-project';
+const TRACK_COUNT = 200;
 
 registerAudioEditorHooks();
 
@@ -16,14 +22,15 @@ test('large timelines cull distant tracks, preserve scroll geometry and reveal k
 	const errors = collectClientErrors(page);
 	await page.setViewportSize({ width: 1_200, height: 800 });
 	const editor = await bootEditor(page, '/embed/en/');
-	await importFiles(editor, [toneA]);
-	await arrangeWithMacro(page, editor, `
-		const tracks = await sound.project.tracks();
-		for (let index = tracks.length; index < 200; index += 1) {
-			await sound.command('NewMonoTrack');
-		}
-		await sound.select.none();
-	`, { timeout: 90_000 });
+	// Track creation has its own workflow coverage; open the complete project so
+	// this test measures viewport behavior without rendering every growing draft.
+	await editor.locator('[data-aup4-input]').setInputFiles({
+		name: 'track-viewport.scape',
+		mimeType: SCAPE_MIME_TYPE,
+		buffer: await createTrackViewportArchive(),
+	});
+	await expect(editor).toHaveAttribute('data-project-id', PROJECT_ID, { timeout: 20_000 });
+	await waitForProjectActivation(editor);
 	await expect(editor).toHaveAttribute('data-track-count', '200');
 	const timeline = editor.locator('[data-timeline]');
 	const slots = editor.locator('[data-track-viewport-row]');
@@ -106,3 +113,47 @@ test('large timelines cull distant tracks, preserve scroll geometry and reveal k
 	await expect(slots.first()).toHaveAttribute('data-track-mounted', 'false');
 	expect(errors).toEqual([]);
 });
+
+async function createTrackViewportArchive() {
+	const sampleRate = toneA.buffer.readUInt32LE(24);
+	const channelCount = toneA.buffer.readUInt16LE(22);
+	const frameCount = toneA.buffer.readUInt32LE(40) / (channelCount * 2);
+	const source = createAudioSource({
+		id: 'viewport-source', storageKey: 'viewport-source', name: toneA.name,
+		sampleRate, channelCount, frameCount,
+	});
+	const clip = createAudioClip({
+		id: 'viewport-clip', sourceId: source.id, title: toneA.name,
+		timelineStartFrame: 0, sourceStartFrame: 0,
+		sourceDurationFrames: frameCount, durationFrames: frameCount,
+	});
+	const tracks = Array.from({ length: TRACK_COUNT }, (_, index) => createAudioTrack({
+		id: `viewport-track-${index + 1}`,
+		name: index === 1 ? 'browser-tone-a' : `Track ${index + 1}`,
+		clipIds: index === 1 ? [clip.id] : [],
+		height: 300,
+	}, sampleRate));
+	const project = createSoundscaperProject({
+		id: PROJECT_ID, title: 'Track viewport project', now: '2026-10-01T12:00:00.000Z',
+		sampleRate, tracks, sources: [source], clips: [clip],
+	});
+	const store = createProjectStore({
+		indexedDB: null, databaseName: 'browser-track-viewport-fixture', preferOpfs: false,
+	});
+	try {
+		const writer = await store.beginSourceWrite(source.storageKey, {
+			name: source.name, mimeType: source.mimeType, sampleRate, channelCount,
+			chunkFrames: source.chunkFrames,
+		});
+		const channels = Array.from({ length: channelCount }, (_, channel) => Float32Array.from(
+			{ length: frameCount }, (_, frame) => toneA.buffer.readInt16LE(44 + (frame * channelCount + channel) * 2) / 32768,
+		));
+		await writer.write(channels);
+		await writer.commit();
+		const exported = await exportScapeProject(project, store);
+		if (!(exported.blob instanceof Blob)) throw new Error('Track viewport fixture export did not return a Blob.');
+		return Buffer.from(await exported.blob.arrayBuffer());
+	} finally {
+		await store.close();
+	}
+}
