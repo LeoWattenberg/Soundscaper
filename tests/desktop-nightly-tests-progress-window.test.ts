@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
+import vm from 'node:vm';
 
 import {
 	createDesktopNightlyTestsProgressUpdateSource,
@@ -45,10 +46,10 @@ test('the attended nightly runner opens a locked-down visible progress window', 
 	const window = await createDesktopNightlyTestsProgressWindow({
 		BrowserWindow: FakeWindow,
 		protocol,
-		initialProgress: { completed: 0, total: 4, label: 'Application launched' },
+		initialProgress: { completed: 0, total: 6, label: 'Application launched' },
 	});
-	window.update({ completed: 1, total: 4, label: 'Performance diagnostics' });
-	window.finish({ completed: 4, total: 4, label: 'Tests passed' }, 'passed');
+	window.update({ completed: 2, total: 6, label: 'Performance diagnostics' });
+	window.finish({ completed: 6, total: 6, label: 'Tests passed' }, 'passed');
 
 	assert.equal(observed.url, NIGHTLY_TESTS_PROGRESS_DOCUMENT_URL);
 	assert.equal(protocol.scheme, NIGHTLY_TESTS_PROGRESS_SCHEME);
@@ -64,14 +65,14 @@ test('the attended nightly runner opens a locked-down visible progress window', 
 		devTools: false,
 	});
 	assert.equal(observed.shown, 1);
-	assert.deepEqual(observed.bars, [[0, undefined], [0.25, undefined], [1, { mode: 'normal' }]]);
+	assert.deepEqual(observed.bars, [[0, undefined], [1 / 3, undefined], [1, { mode: 'normal' }]]);
 	assert.equal(observed.titles.at(-1), 'Soundscaper Nightly Tests — Tests passed');
 	const lastSource = observed.scripts.at(-1) ?? '';
 	assert.match(lastSource, /"label":"Tests passed"/u);
 	assert.match(lastSource,
 		/\/\/# sourceURL=soundscaper-nightly-progress:\/\/runner\/__e2e-excluded__\/nightly-progress-update-v1-[a-f\d]{64}\.js$/u);
 	assert.deepEqual(validateDesktopNightlyTestsProgressUpdateSource(lastSource), {
-		completed: 4, total: 4, label: 'Tests passed',
+		completed: 6, total: 6, label: 'Tests passed',
 	});
 	let prevented = 0;
 	const event = { preventDefault: () => { prevented += 1; } };
@@ -108,12 +109,64 @@ test('the progress document is self-contained, script-restricted, and visibly ex
 	]);
 
 	assert.match(html, /Content-Security-Policy[^>]+script-src 'self'/u);
-	assert.match(html, /<progress[^>]+max="4"/u);
+	assert.match(html, /<progress[^>]+max="6"/u);
+	for (const label of [
+		'Browser tests',
+		'Dual-origin browser coverage',
+		'Performance diagnostics',
+		'Packaged app diagnostics',
+		'Packaged app coverage',
+		'Local model tests',
+	]) assert.match(html, new RegExp(`>${label}<`, 'u'));
 	assert.match(html, /Application launched/u);
 	assert.match(html, /nightly-tests-progress-renderer\.js/u);
 	assert.match(html, /nightly-tests-progress\.css/u);
 	assert.match(renderer, /renderNightlyTestsProgress/u);
 	assert.match(stylesheet, /progress/u);
+});
+
+test('the progress renderer shows one progress bar for every phase', async () => {
+	class Element {
+		textContent = '';
+	}
+	class ProgressElement extends Element {
+		max = 1;
+		value = 0;
+		#attributes = new Set<string>(['value']);
+		removeAttribute(name: string) { this.#attributes.delete(name); }
+		setAttribute(name: string) { this.#attributes.add(name); }
+		hasAttribute(name: string) { return this.#attributes.has(name); }
+	}
+	const elements = new Map<string, Element>([
+		['status', new Element()],
+		['count', new Element()],
+		['progress', new ProgressElement()],
+	]);
+	for (let index = 0; index < 6; index += 1) {
+		elements.set(`phase-progress-${String(index)}`, new ProgressElement());
+	}
+	const context = {
+		document: { getElementById: (id: string) => elements.get(id) ?? null },
+		HTMLElement: Element,
+		HTMLProgressElement: ProgressElement,
+	};
+	const renderer = await readFile(new URL('../desktop/nightly-tests-progress-renderer.js', import.meta.url), 'utf8');
+	vm.runInNewContext(renderer, context);
+	const render = (context as typeof context & {
+		renderNightlyTestsProgress(value: { completed: number; total: number; label: string }): void;
+	}).renderNightlyTestsProgress;
+
+	render({ completed: 2, total: 6, label: 'Performance diagnostics' });
+
+	assert.equal((elements.get('phase-progress-0') as ProgressElement).value, 1);
+	assert.equal((elements.get('phase-progress-1') as ProgressElement).value, 1);
+	assert.equal((elements.get('phase-progress-2') as ProgressElement).hasAttribute('value'), false);
+	assert.equal((elements.get('phase-progress-3') as ProgressElement).value, 0);
+
+	render({ completed: 6, total: 6, label: 'Tests passed' });
+	for (let index = 0; index < 6; index += 1) {
+		assert.equal((elements.get(`phase-progress-${String(index)}`) as ProgressElement).value, 1);
+	}
 });
 
 test('a native taskbar error cannot prevent the window from showing its current phase', async () => {
@@ -136,10 +189,10 @@ test('a native taskbar error cannot prevent the window from showing its current 
 	const window = await createDesktopNightlyTestsProgressWindow({
 		BrowserWindow: TaskbarFailureWindow,
 		protocol: protocolFixture(),
-		initialProgress: { completed: 0, total: 4, label: 'Application launched' },
+		initialProgress: { completed: 0, total: 6, label: 'Application launched' },
 		onError: (error) => { errors.push(error); },
 	});
-	window.update({ completed: 1, total: 4, label: 'Performance diagnostics' });
+	window.update({ completed: 2, total: 6, label: 'Performance diagnostics' });
 	assert.equal(shown, true);
 	assert.equal(errors.length, 2);
 	assert.match(scripts.at(-1) ?? '', /Performance diagnostics/u);
@@ -162,7 +215,7 @@ test('the progress protocol serves only its three bundled assets with restricted
 	}
 	await createDesktopNightlyTestsProgressWindow({
 		BrowserWindow: Window, protocol,
-		initialProgress: { completed: 0, total: 4, label: 'Application launched' },
+		initialProgress: { completed: 0, total: 6, label: 'Application launched' },
 	});
 	for (const [path, filename, contentType] of [
 		['', 'nightly-tests-progress.html', 'text/html'],
@@ -205,7 +258,7 @@ test('a progress navigation failure destroys the window and removes its protocol
 	}
 	await assert.rejects(createDesktopNightlyTestsProgressWindow({
 		BrowserWindow: Window, protocol,
-		initialProgress: { completed: 0, total: 4, label: 'Application launched' },
+		initialProgress: { completed: 0, total: 6, label: 'Application launched' },
 	}), /Navigation failed/u);
 	assert.equal(destroyed, true);
 	assert.deepEqual(protocol.removed, [NIGHTLY_TESTS_PROGRESS_SCHEME]);

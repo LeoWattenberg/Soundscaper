@@ -37,7 +37,7 @@ export async function createDesktopNightlyTestsProgressWindow({ BrowserWindow, p
 	])));
 	const window = new BrowserWindow({
 		width: 600,
-		height: 320,
+		height: 440,
 		show: false,
 		closable: false,
 		maximizable: false,

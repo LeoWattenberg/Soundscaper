@@ -18,7 +18,7 @@ body {
 main {
 	box-sizing: border-box;
 	width: 100%;
-	padding: 40px 48px;
+	padding: 32px 48px;
 }
 
 .eyebrow {
@@ -31,7 +31,7 @@ main {
 }
 
 h1 {
-	margin: 0 0 24px;
+	margin: 0 0 20px;
 	font-size: 28px;
 	line-height: 1.2;
 }
@@ -55,8 +55,26 @@ progress {
 	font-size: 13px;
 }
 
+.phases {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 14px 24px;
+	margin-top: 22px;
+}
+
+.phase {
+	min-width: 0;
+	color: #c9c8d4;
+	font-size: 12px;
+}
+
+.phase progress {
+	height: 8px;
+	margin-top: 5px;
+}
+
 .hint {
-	margin: 24px 0 0;
+	margin: 20px 0 0;
 	color: #9696a7;
 	font-size: 13px;
 	line-height: 1.45;

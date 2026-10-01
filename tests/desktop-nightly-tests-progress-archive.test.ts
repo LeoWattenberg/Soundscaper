@@ -90,19 +90,23 @@ test('the hardened nightly launcher renders and updates its archived progress pa
 			const errors = [];
 			const progress = await createDesktopNightlyTestsProgressWindow({
 				BrowserWindow, protocol: session.defaultSession.protocol,
-				initialProgress: { completed: 0, total: 4, label: 'Application launched' },
+				initialProgress: { completed: 0, total: 6, label: 'Application launched' },
 				onError: error => { errors.push(error); },
 			});
 			assert.equal(progress.window.isVisible(), true);
-			for (const [completed, label] of [[0, 'Application launched'], [1, 'Performance diagnostics'], [4, 'Tests passed']]) {
-				if (completed === 1) progress.update({ completed, total: 4, label });
-				if (completed === 4) progress.finish({ completed, total: 4, label }, 'passed');
+			for (const [completed, label] of [[0, 'Application launched'], [2, 'Performance diagnostics'], [6, 'Tests passed']]) {
+				if (completed === 2) progress.update({ completed, total: 6, label });
+				if (completed === 6) progress.finish({ completed, total: 6, label }, 'passed');
 				const state = await progress.window.webContents.executeJavaScript(
 					'({url:location.href,label:document.getElementById("status").textContent,' +
 					'value:document.getElementById("progress").value,max:document.getElementById("progress").max,' +
+					'phases:[...document.querySelectorAll(".phase progress")].map(value => value.position),' +
 					'background:getComputedStyle(document.documentElement).backgroundColor})');
 				assert.deepEqual(state, { url: NIGHTLY_TESTS_PROGRESS_DOCUMENT_URL, label,
-					value: completed, max: 4, background: 'rgb(17, 19, 26)' });
+					value: completed, max: 6,
+					phases: completed === 0 ? [0, 0, 0, 0, 0, 0]
+						: completed === 2 ? [1, 1, -1, 0, 0, 0] : [1, 1, 1, 1, 1, 1],
+					background: 'rgb(17, 19, 26)' });
 			}
 			assert.deepEqual(errors, []);
 			console.log('NIGHTLY_PROGRESS_ARCHIVE_PASSED');
