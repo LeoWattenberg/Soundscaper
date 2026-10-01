@@ -13,6 +13,10 @@ import {
 	recordValue,
 	replaceDataProperties,
 } from '../src/common/editor/project-feature-projection-record.ts';
+import {
+	projectFeatureBoundedString,
+	projectFeatureLowerOnlyLimit,
+} from '../src/common/editor/project-feature-projection-limits.ts';
 
 test('project feature projection records admit only the shared scalar and collection shapes', () => {
 	assert.equal(positiveSafeInteger(4, 'Count'), 4);
@@ -71,4 +75,28 @@ test('project feature projection replacement preserves prototype and untouched d
 	});
 	assert.equal(Object.getOwnPropertyDescriptor(projected, 'replaced')?.enumerable, true);
 	assert.equal(original.replaced, 'before');
+});
+
+test('project feature projection limits preserve bounded-string and lower-only admission', () => {
+	assert.equal(projectFeatureBoundedString('stable', 'Value', 6), 'stable');
+	assert.equal(projectFeatureLowerOnlyLimit(undefined, 8, 'maximum'), 8);
+	assert.equal(projectFeatureLowerOnlyLimit(0, 8, 'maximum'), 0);
+	assert.equal(projectFeatureLowerOnlyLimit(7, 8, 'maximum'), 7);
+
+	assert.throws(
+		() => projectFeatureBoundedString('', 'Value', 6),
+		/Value must be a non-empty bounded string/u,
+	);
+	assert.throws(
+		() => projectFeatureBoundedString('toolong', 'Value', 6),
+		/Value must be a non-empty bounded string/u,
+	);
+	assert.throws(
+		() => projectFeatureLowerOnlyLimit(-1, 8, 'maximum'),
+		/maximum must be a non-negative safe integer/u,
+	);
+	assert.throws(
+		() => projectFeatureLowerOnlyLimit(9, 8, 'maximum'),
+		/maximum cannot raise the production limit/u,
+	);
 });

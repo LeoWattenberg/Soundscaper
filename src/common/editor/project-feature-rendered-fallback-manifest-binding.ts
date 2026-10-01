@@ -6,6 +6,13 @@ import type {
 	ProjectFeatureVideoClipRenderFallback,
 	ProjectFeatureVideoRenderFallback,
 } from './project-feature-requirement-types.ts';
+import {
+	arrayValue,
+	dataProperty,
+	isRecord,
+	recordValue,
+	type RecordValue,
+} from './project-feature-projection-record.ts';
 
 export type ProjectFeatureRenderedFallbackManifestBinding =
 	| Readonly<{
@@ -28,8 +35,6 @@ export type ProjectFeatureRenderedFallbackManifestBinding =
 		readonly requirementId: string;
 		readonly fallback: ProjectFeatureVideoClipRenderFallback;
 	}>;
-
-type RecordValue = Readonly<Record<string, unknown>>;
 
 /** Prove that a reported rendered fallback is still bound to its manifest entry. */
 export function assertProjectFeatureRenderedFallbackManifestBinding(
@@ -81,26 +86,4 @@ export function assertProjectFeatureRenderedFallbackManifestBinding(
 	if (!matchesBase || !matchesRelationship) {
 		throw new Error('The rendered fallback descriptor does not match the project manifest.');
 	}
-}
-
-function isRecord(value: unknown): value is RecordValue {
-	return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
-}
-
-function recordValue(value: unknown, name: string): RecordValue {
-	if (!isRecord(value)) throw new TypeError(`${name} must be an object.`);
-	return value;
-}
-
-function arrayValue(value: unknown, name: string): readonly unknown[] {
-	if (!Array.isArray(value)) throw new TypeError(`${name} must be an array.`);
-	return value;
-}
-
-function dataProperty(value: RecordValue, key: string, name: string): unknown {
-	const descriptor = Object.getOwnPropertyDescriptor(value, key);
-	if (!descriptor || !Object.hasOwn(descriptor, 'value')) {
-		throw new TypeError(`${name}.${key} must be an own data property.`);
-	}
-	return descriptor.value;
 }

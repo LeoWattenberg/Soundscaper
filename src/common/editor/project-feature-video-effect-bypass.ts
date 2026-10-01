@@ -11,6 +11,10 @@ import {
 	replaceDataProperties,
 	type RecordValue,
 } from './project-feature-projection-record.ts';
+import {
+	projectFeatureBoundedString,
+	projectFeatureLowerOnlyLimit,
+} from './project-feature-projection-limits.ts';
 import { VIDEO_EFFECT_TYPES } from './video-effects.js';
 
 export const PROJECT_FEATURE_VIDEO_EFFECT_BYPASS_LIMITS = Object.freeze({
@@ -68,7 +72,7 @@ export function projectFeatureVideoEffectPlaybackBypass<Project extends object>(
 		PROJECT_FEATURE_CAPABILITY_IDS.videoEffects,
 	);
 	if (requirementIds.length === 0) return unchanged(project);
-	const maximumAffectedEffects = lowerOnlyLimit(
+	const maximumAffectedEffects = projectFeatureLowerOnlyLimit(
 		options.maximumAffectedEffects,
 		PROJECT_FEATURE_VIDEO_EFFECT_BYPASS_LIMITS.maximumAffectedEffects,
 		'maximumAffectedEffects',
@@ -159,7 +163,7 @@ function projectClip(
 		}
 		clipId ??= stableId(dataProperty(clip, 'id', clipName), `${clipName}.id`);
 		const effectId = stableId(dataProperty(value, 'id', effectName), `${effectName}.id`);
-		boundedString(
+		projectFeatureBoundedString(
 			effectType,
 			`${effectName}.type`,
 			PROJECT_FEATURE_VIDEO_EFFECT_BYPASS_LIMITS.maximumEffectTypeLength,
@@ -179,21 +183,9 @@ function projectClip(
 }
 
 function stableId(value: unknown, name: string): string {
-	return boundedString(value, name, PROJECT_FEATURE_VIDEO_EFFECT_BYPASS_LIMITS.maximumStableIdLength);
-}
-
-function boundedString(value: unknown, name: string, maximumLength: number): string {
-	if (typeof value !== 'string' || !value || value.length > maximumLength) {
-		throw new TypeError(`${name} must be a non-empty bounded string.`);
-	}
-	return value;
-}
-
-function lowerOnlyLimit(value: unknown, production: number, name: string): number {
-	if (value === undefined) return production;
-	if (!Number.isSafeInteger(value) || Number(value) < 0) {
-		throw new RangeError(`${name} must be a non-negative safe integer.`);
-	}
-	if (Number(value) > production) throw new RangeError(`${name} cannot raise the production limit.`);
-	return Number(value);
+	return projectFeatureBoundedString(
+		value,
+		name,
+		PROJECT_FEATURE_VIDEO_EFFECT_BYPASS_LIMITS.maximumStableIdLength,
+	);
 }

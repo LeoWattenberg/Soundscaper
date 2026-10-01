@@ -13,6 +13,10 @@ import {
 	replaceDataProperties,
 	type RecordValue,
 } from './project-feature-projection-record.ts';
+import {
+	projectFeatureBoundedString,
+	projectFeatureLowerOnlyLimit,
+} from './project-feature-projection-limits.ts';
 import { isMaintainedProjectFeatureSchema } from './project-schema-version.ts';
 
 export const PROJECT_FEATURE_AUDIO_EFFECT_BYPASS_LIMITS = Object.freeze({
@@ -76,7 +80,7 @@ export function projectFeatureAudioEffectPlaybackBypass<
 		PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
 	);
 	if (requirementIds.length === 0) return unchanged(project);
-	const maximumAffectedEffects = lowerOnlyLimit(
+	const maximumAffectedEffects = projectFeatureLowerOnlyLimit(
 		options.maximumAffectedEffects,
 		PROJECT_FEATURE_AUDIO_EFFECT_BYPASS_LIMITS.maximumAffectedEffects,
 		'maximumAffectedEffects',
@@ -174,7 +178,11 @@ function projectRack(
 			throw new RangeError('Too many affected audio effects; the playback-bypass limit was exceeded.');
 		}
 		const effectId = stableId(dataProperty(value, 'id', effectName), `${effectName}.id`);
-		boundedString(effectType, `${effectName}.type`, PROJECT_FEATURE_AUDIO_EFFECT_BYPASS_LIMITS.maximumEffectTypeLength);
+		projectFeatureBoundedString(
+			effectType,
+			`${effectName}.type`,
+			PROJECT_FEATURE_AUDIO_EFFECT_BYPASS_LIMITS.maximumEffectTypeLength,
+		);
 		placeholders.push(Object.freeze({ scope, ownerId, effectId, effectType }));
 		changed = true;
 		return Object.freeze({ id: effectId, type: effectType, enabled: true, bypassed: true, params: Object.freeze({}) });
@@ -185,21 +193,9 @@ function projectRack(
 }
 
 function stableId(value: unknown, name: string): string {
-	return boundedString(value, name, PROJECT_FEATURE_AUDIO_EFFECT_BYPASS_LIMITS.maximumStableIdLength);
-}
-
-function boundedString(value: unknown, name: string, maximumLength: number): string {
-	if (typeof value !== 'string' || !value || value.length > maximumLength) {
-		throw new TypeError(`${name} must be a non-empty bounded string.`);
-	}
-	return value;
-}
-
-function lowerOnlyLimit(value: unknown, production: number, name: string): number {
-	if (value === undefined) return production;
-	if (!Number.isSafeInteger(value) || Number(value) < 0) {
-		throw new RangeError(`${name} must be a non-negative safe integer.`);
-	}
-	if (Number(value) > production) throw new RangeError(`${name} cannot raise the production limit.`);
-	return Number(value);
+	return projectFeatureBoundedString(
+		value,
+		name,
+		PROJECT_FEATURE_AUDIO_EFFECT_BYPASS_LIMITS.maximumStableIdLength,
+	);
 }
