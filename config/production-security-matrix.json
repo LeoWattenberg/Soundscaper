@@ -5800,15 +5800,19 @@
 						},
 						{
 							"kind": "implementation",
-							"path": "desktop/native-queue-capacity-provider.ts"
+							"path": "desktop/native-queue-capacity-provider-v3.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "desktop/native-media-queue-dispatcher.ts"
+							"path": "desktop/native-media-queue-dispatcher-v3.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "desktop/native-services-runtime.ts"
+							"path": "desktop/native-services-project-context-authority.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "desktop/native-services-project-media-authority.ts"
 						},
 						{
 							"kind": "implementation",

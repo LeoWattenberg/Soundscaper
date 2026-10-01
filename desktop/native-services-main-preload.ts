@@ -27,12 +27,14 @@ import {
 	framescaperNativeWatchCreateRequest,
 	framescaperNativeWatchEnabledRequest,
 	type FramescaperNativeCheckpointLifecycleRequest,
-	type FramescaperNativeExternalDisplayProjection,
 	type FramescaperNativePublicationLifecycleRequest,
 	type FramescaperNativeQueueEnqueueRequest,
 	type FramescaperNativeWatchCreateRequest,
 	type FramescaperNativeWatchEnabledRequest,
 } from './native-services-lifecycle-contracts.ts';
+import type {
+	FramescaperNativeExternalDisplayProjection,
+} from './native-services-lifecycle-v3.ts';
 import type {
 	FramescaperNativePublicationResult,
 	NativeImageSequenceCheckpointResultV1,

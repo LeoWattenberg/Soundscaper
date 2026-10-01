@@ -81,7 +81,7 @@ test('foreign owners and malformed bindings are refused before frame bytes are c
 	const controller = {
 		externalDisplays: () => ({ displays: [], activeDisplayId: 'display-2' }),
 		presentExternalDisplay: () => { throw new Error('must not present'); },
-	} as unknown as FramescaperNativeServicesController;
+	} as unknown as FramescaperNativeServicesControllerV3;
 	const registration = registerFramescaperExternalDisplayFramePort({
 		on: (_channel, value) => { listener = value; },
 		removeListener: () => undefined,
@@ -117,7 +117,7 @@ test('a second frame port is rejected until the single 64 MiB transfer slot sett
 	const controller = {
 		externalDisplays: () => ({ displays: [], activeDisplayId: 'display-2' }),
 		presentExternalDisplay: () => { presentations += 1; return { displays: [], activeDisplayId: 'display-2' }; },
-	} as unknown as FramescaperNativeServicesController;
+	} as unknown as FramescaperNativeServicesControllerV3;
 	const registration = registerFramescaperExternalDisplayFramePort({
 		on: (_channel, value) => { listener = value; },
 		removeListener: () => undefined,

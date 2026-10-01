@@ -36,7 +36,7 @@ test('Soundscaper package policy excludes product-owned Framescaper implementati
 	const candidates = [
 		'desktop/application-lifecycle.js',
 		'desktop/framescaper-capture-desktop-port.js',
-		'desktop/native-services-runtime.js',
+		'desktop/native-services-runtime-v3.js',
 		'desktop/openfx-main-service.js',
 		'desktop/helper-native-ofx-interact-grant.js',
 		'desktop/helper-probe-service.js',
@@ -66,7 +66,7 @@ test('Soundscaper package policy excludes product-owned Framescaper implementati
 	]));
 	assert.throws(() => assertDesktopProductPackageIsolation('soundscaper', [
 		'desktop/main.mjs',
-		'desktop/project-library-runtime/desktop/native-services-runtime.js',
+		'desktop/project-library-runtime/desktop/native-services-runtime-v3.js',
 	]), /Framescaper-owned files/iu);
 });
 

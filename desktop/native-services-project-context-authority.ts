@@ -11,7 +11,13 @@ import {
 	framescaperNativeProjectMediaBundle,
 	framescaperNativeProjectMediaRecord,
 } from './native-services-project-media-custody.ts';
-import type { NativePlanVideoTimingAssetBytes } from './native-services-video-timing-staging.ts';
+import type {
+	FramescaperNativeProjectMediaBody,
+} from './native-services-project-body-custody.ts';
+import type {
+	NativePlanVideoTimingAssetBytes,
+	NativeProjectMediaBody,
+} from './native-services-video-timing-staging.ts';
 
 export interface FramescaperNativeProjectContextPort {
 	readonly schemaFamily: 'framescaper';
@@ -66,15 +72,32 @@ export class FramescaperNativeProjectContextAuthority {
 		return authenticateOpenFxProjectTimingAssets({
 			plan,
 			project: {
-				projectRecord: (projectId) => framescaperNativeProjectMediaRecord(
-					this.#project.projectRecord(projectId),
-				),
+				projectRecord: (projectId) => {
+					const current = framescaperNativeProjectMediaRecord(
+						this.#project.projectRecord(projectId),
+					);
+					return current === null ? null : Object.freeze({
+						...current,
+						bodies: openFxBodies(current.bodies),
+					});
+				},
 				readProjectBundle: (projectId) => this.#project.readProjectBundle(projectId),
 				readBody: (body) => this.#project.readBody(body),
 			},
-			parseBundle: framescaperNativeProjectMediaBundle,
+			parseBundle: (value) => {
+				const bundle = framescaperNativeProjectMediaBundle(value);
+				return Object.freeze({ ...bundle, bodies: openFxBodies(bundle.bodies) });
+			},
 		});
 	}
+}
+
+function openFxBodies(
+	bodies: readonly Readonly<FramescaperNativeProjectMediaBody>[],
+): readonly Readonly<NativeProjectMediaBody>[] {
+	return Object.freeze(bodies.filter((body): body is Readonly<NativeProjectMediaBody> => (
+		body.kind === 'video-original' || body.kind === 'video-proxy' || body.kind === 'video-timing'
+	)));
 }
 
 function assertProjectIdentity(value: unknown, label: string): void {
