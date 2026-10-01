@@ -94,19 +94,38 @@ test('the hardened nightly launcher renders and updates its archived progress pa
 				onError: error => { errors.push(error); },
 			});
 			assert.equal(progress.window.isVisible(), true);
-			for (const [completed, label] of [[0, 'Application launched'], [2, 'Performance diagnostics'], [6, 'Tests passed']]) {
-				if (completed === 2) progress.update({ completed, total: 6, label });
-				if (completed === 6) progress.finish({ completed, total: 6, label }, 'passed');
+			for (const [completed, label, items, expectedValue, expectedPhases] of [
+				[0, 'Application launched', null, 0, [0, 0, 0, 0, 0, 0]],
+				[0, 'Browser tests', { completed: 2, total: 8, label: '[chromium] project opens <audio> ü' },
+					0.25, [0.25, 0, 0, 0, 0, 0]],
+				[0, 'Browser tests', { completed: 8, total: 8, label: 'Tests finished' },
+					1, [1, 0, 0, 0, 0, 0]],
+				[2, 'Performance diagnostics', null, 2, [1, 1, 0, 0, 0, 0]],
+				[2, 'Performance diagnostics', { completed: 3, total: 4, label: '[chromium] audio benchmark' },
+					2.75, [1, 1, 0.75, 0, 0, 0]],
+				[3, 'Packaged app diagnostics', null, 3, [1, 1, 1, 0, 0, 0]],
+				[6, 'Tests passed', null, 6, [1, 1, 1, 1, 1, 1]],
+			]) {
+				const update = { completed, total: 6, label, ...(items ? { items } : {}) };
+				if (completed === 6) progress.finish(update, 'passed');
+				else progress.update(update);
 				const state = await progress.window.webContents.executeJavaScript(
 					'({url:location.href,label:document.getElementById("status").textContent,' +
 					'value:document.getElementById("progress").value,max:document.getElementById("progress").max,' +
 					'phases:[...document.querySelectorAll(".phase progress")].map(value => value.position),' +
+					'current:document.getElementById("current-item").textContent,' +
 					'background:getComputedStyle(document.documentElement).backgroundColor})');
 				assert.deepEqual(state, { url: NIGHTLY_TESTS_PROGRESS_DOCUMENT_URL, label,
-					value: completed, max: 6,
-					phases: completed === 0 ? [0, 0, 0, 0, 0, 0]
-						: completed === 2 ? [1, 1, -1, 0, 0, 0] : [1, 1, 1, 1, 1, 1],
+					value: expectedValue, max: 6, phases: expectedPhases,
+					current: items?.label ?? (completed > 0 && completed < 6 ? 'Preparing tests…' : ''),
 					background: 'rgb(17, 19, 26)' });
+				if (items) {
+					const counts = await progress.window.webContents.executeJavaScript(
+						'({browser:document.getElementById("phase-count-0").textContent,' +
+						'active:document.getElementById("phase-count-' + completed + '").textContent})');
+					assert.equal(counts.active, items.completed + ' of ' + items.total + ' tests complete');
+					if (completed === 2) assert.equal(counts.browser, '8 of 8 tests complete');
+				}
 			}
 			assert.deepEqual(errors, []);
 			console.log('NIGHTLY_PROGRESS_ARCHIVE_PASSED');

@@ -30,6 +30,8 @@ module.exports = {
 		'desktop/nightly-tests-progress-renderer.js',
 		'desktop/nightly-tests-progress.css',
 		'scripts/lib/desktop-nightly-tests-runtime.mjs',
+		'scripts/lib/desktop-nightly-tests-playwright-child.mjs',
+		'scripts/lib/desktop-nightly-tests-progress-reporter.mjs',
 		'scripts/lib/desktop-nightly-tests-phases.mjs',
 		'scripts/lib/desktop-nightly-tests-local-assistance.mjs',
 		'scripts/lib/desktop-nightly-tests-dual-origin.mjs',

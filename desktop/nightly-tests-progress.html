@@ -16,30 +16,37 @@
 		<p id="status" class="status" role="status" aria-live="polite">Application launched</p>
 		<progress id="progress" value="0" max="6" aria-label="Nightly test progress"></progress>
 		<p id="count" class="count">0 of 6 phases complete</p>
+		<p id="current-item" class="current-item" role="status" aria-live="polite"></p>
 		<section class="phases" aria-label="Progress by phase">
 			<div class="phase">
 				<span>Browser tests</span>
 				<progress id="phase-progress-0" value="0" max="1" aria-label="Browser tests progress"></progress>
+				<span id="phase-count-0" class="phase-count">Waiting</span>
 			</div>
 			<div class="phase">
 				<span>Dual-origin browser coverage</span>
 				<progress id="phase-progress-1" value="0" max="1" aria-label="Dual-origin browser coverage progress"></progress>
+				<span id="phase-count-1" class="phase-count">Waiting</span>
 			</div>
 			<div class="phase">
 				<span>Performance diagnostics</span>
 				<progress id="phase-progress-2" value="0" max="1" aria-label="Performance diagnostics progress"></progress>
+				<span id="phase-count-2" class="phase-count">Waiting</span>
 			</div>
 			<div class="phase">
 				<span>Packaged app diagnostics</span>
 				<progress id="phase-progress-3" value="0" max="1" aria-label="Packaged app diagnostics progress"></progress>
+				<span id="phase-count-3" class="phase-count">Waiting</span>
 			</div>
 			<div class="phase">
 				<span>Packaged app coverage</span>
 				<progress id="phase-progress-4" value="0" max="1" aria-label="Packaged app coverage progress"></progress>
+				<span id="phase-count-4" class="phase-count">Waiting</span>
 			</div>
 			<div class="phase">
 				<span>Local model tests</span>
 				<progress id="phase-progress-5" value="0" max="1" aria-label="Local model tests progress"></progress>
+				<span id="phase-count-5" class="phase-count">Waiting</span>
 			</div>
 		</section>
 		<p class="hint">This can take a while, especially while local models download and run. The result folder will be written beside this application.</p>

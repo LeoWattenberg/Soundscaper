@@ -22,9 +22,12 @@ export async function* runDesktopNightlyTestsDiagnosticPhases(options, dependenc
 		[runDesktopNightlyTestsLocalAssistancePhase, undefined, 'Local model tests'],
 	];
 	for (const [index, [runPhase, writeDiagnostics, label]] of phases.entries()) {
-		options.onProgress?.(Object.freeze({ completed: index + 1, total: 6, label }));
+		const phaseProgress = Object.freeze({ completed: index + 1, total: 6, label });
+		options.onProgress?.(phaseProgress);
 		const result = await runPhase(options, {
-			runPlaywright: dependencies.runPlaywright,
+			runPlaywright: (plan) => dependencies.runPlaywright(plan, (items) => {
+				options.onProgress?.(Object.freeze({ ...phaseProgress, items }));
+			}),
 			startPagesSiteServer: dependencies.startPagesSiteServer,
 			writeDiagnostics,
 			preserveEvidence: dependencies.preserveCoverageEvidence,

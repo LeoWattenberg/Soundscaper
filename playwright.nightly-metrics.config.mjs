@@ -53,6 +53,7 @@ export function createNightlyMetricsConfig(environment = process.env) {
 		updateSnapshots: 'none',
 		reporter: [
 			['list'],
+			[resolve(payloadRoot, 'scripts/lib/desktop-nightly-tests-progress-reporter.mjs')],
 			['html', { outputFolder: resolve(metricsRoot, 'playwright-report'), open: 'never' }],
 			['json', { outputFile: resolve(metricsRoot, 'results.json') }],
 			['junit', { outputFile: resolve(metricsRoot, 'junit.xml') }],

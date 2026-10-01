@@ -4,7 +4,10 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import { validateDesktopNightlyTestsProgress } from '../scripts/lib/desktop-nightly-tests-presentation.mjs';
+import {
+	desktopNightlyTestsProgressRatio,
+	validateDesktopNightlyTestsProgress,
+} from '../scripts/lib/desktop-nightly-tests-presentation.mjs';
 
 export const NIGHTLY_TESTS_PROGRESS_SCHEME = 'soundscaper-nightly-progress';
 export const NIGHTLY_TESTS_PROGRESS_DOCUMENT_URL = `${NIGHTLY_TESTS_PROGRESS_SCHEME}://runner/`;
@@ -37,7 +40,7 @@ export async function createDesktopNightlyTestsProgressWindow({ BrowserWindow, p
 	])));
 	const window = new BrowserWindow({
 		width: 600,
-		height: 440,
+		height: 540,
 		show: false,
 		closable: false,
 		maximizable: false,
@@ -92,8 +95,9 @@ export async function createDesktopNightlyTestsProgressWindow({ BrowserWindow, p
 		if (window.isDestroyed()) return;
 		window.setTitle(`${TITLE} — ${progress.label}`);
 		try {
-			if (mode) window.setProgressBar(progress.completed / progress.total, { mode });
-			else window.setProgressBar(progress.completed / progress.total);
+			const ratio = desktopNightlyTestsProgressRatio(progress);
+			if (mode) window.setProgressBar(ratio, { mode });
+			else window.setProgressBar(ratio);
 		} catch (error) {
 			onError(error);
 		}
@@ -114,8 +118,9 @@ export async function createDesktopNightlyTestsProgressWindow({ BrowserWindow, p
 
 /** Build the sole harness-only expression admitted by the progress window. */
 export function createDesktopNightlyTestsProgressUpdateSource(value) {
-	if (!value || typeof value !== 'object' || Array.isArray(value)
-		|| JSON.stringify(Reflect.ownKeys(value).sort()) !== '["completed","label","total"]') {
+	const hasItems = value && typeof value === 'object' && Object.hasOwn(value, 'items');
+	if (!hasClosedKeys(value, hasItems ? ['completed', 'items', 'label', 'total'] : ['completed', 'label', 'total'])
+		|| hasItems && !hasClosedKeys(value.items, ['completed', 'label', 'total'])) {
 		throw new TypeError('Nightly tests progress must be a closed record.');
 	}
 	const progress = validateDesktopNightlyTestsProgress(value);
@@ -127,6 +132,11 @@ export function createDesktopNightlyTestsProgressUpdateSource(value) {
 	const digest = createHash('sha256').update(body, 'utf8').digest('hex');
 	const path = `${PROGRESS_UPDATE_RECIPE.pathPrefix}${digest}.js`;
 	return `${body}\n//# sourceURL=${NIGHTLY_TESTS_PROGRESS_DOCUMENT_URL}${path}`;
+}
+
+function hasClosedKeys(value, keys) {
+	return value && typeof value === 'object' && !Array.isArray(value)
+		&& JSON.stringify(Reflect.ownKeys(value).sort()) === JSON.stringify(keys);
 }
 
 /** Authenticate the exact closed update recipe used by an archived harness. */

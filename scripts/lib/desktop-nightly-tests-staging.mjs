@@ -68,6 +68,8 @@ export const NIGHTLY_TEST_PAYLOAD_INPUTS = Object.freeze([
 	{ source: 'desktop/soak-debug-dialog.mjs', destination: 'desktop/soak-debug-dialog.mjs', kind: 'file', label: 'packaged soak output guard' },
 	{ source: 'desktop/soak-debug-process-metrics.mjs', destination: 'desktop/soak-debug-process-metrics.mjs', kind: 'file', label: 'packaged soak process metrics contract' },
 	{ source: 'scripts/lib/desktop-nightly-tests-runtime.mjs', destination: 'scripts/lib/desktop-nightly-tests-runtime.mjs', kind: 'file', label: 'nightly test runtime' },
+	{ source: 'scripts/lib/desktop-nightly-tests-playwright-child.mjs', destination: 'scripts/lib/desktop-nightly-tests-playwright-child.mjs', kind: 'file', label: 'nightly Playwright child progress transport' },
+	{ source: 'scripts/lib/desktop-nightly-tests-progress-reporter.mjs', destination: 'scripts/lib/desktop-nightly-tests-progress-reporter.mjs', kind: 'file', label: 'nightly Playwright item progress reporter' },
 	{ source: 'scripts/lib/desktop-nightly-tests-phases.mjs', destination: 'scripts/lib/desktop-nightly-tests-phases.mjs', kind: 'file', label: 'serial nightly test phases' },
 	{ source: 'scripts/lib/desktop-nightly-tests-dual-origin.mjs', destination: 'scripts/lib/desktop-nightly-tests-dual-origin.mjs', kind: 'file', label: 'nightly dual-origin browser coverage phase' },
 	{ source: 'scripts/lib/pages-site-static-server.mjs', destination: 'scripts/lib/pages-site-static-server.mjs', kind: 'file', label: 'Pages-compatible nightly product server' },

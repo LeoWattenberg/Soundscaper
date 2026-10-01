@@ -112,6 +112,8 @@ test('nightly test staging creates a hermetic, manifest-bound Playwright payload
 		'desktop/soak-debug-dialog.mjs',
 		'desktop/soak-debug-process-metrics.mjs',
 		'scripts/lib/desktop-nightly-tests-runtime.mjs',
+		'scripts/lib/desktop-nightly-tests-playwright-child.mjs',
+		'scripts/lib/desktop-nightly-tests-progress-reporter.mjs',
 		'scripts/lib/desktop-nightly-tests-phases.mjs',
 		'scripts/lib/desktop-nightly-tests-dual-origin.mjs',
 		'scripts/lib/pages-site-static-server.mjs',

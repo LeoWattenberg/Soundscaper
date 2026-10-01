@@ -70,6 +70,7 @@ export function createNightlyTestsConfig(environment = process.env, platform = p
 		updateSnapshots: 'none',
 		reporter: [
 			['list'],
+			[resolve(payloadRoot, 'scripts/lib/desktop-nightly-tests-progress-reporter.mjs')],
 			['html', { outputFolder: resolve(runRoot, 'playwright-report'), open: 'never' }],
 			['json', { outputFile: resolve(runRoot, 'results.json') }],
 			['junit', { outputFile: resolve(runRoot, 'junit.xml') }],

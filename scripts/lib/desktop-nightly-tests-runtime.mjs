@@ -1,8 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { spawn } from 'node:child_process';
 import { createReadStream } from 'node:fs';
-import { mkdtemp, open, readdir, realpath, rename, stat, unlink, writeFile } from 'node:fs/promises';
+import { mkdtemp, readdir, realpath, rename, stat, unlink, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { extname, isAbsolute, join, posix, win32 } from 'node:path';
 import { startDesktopNightlyTestsProductSites } from './desktop-nightly-tests-product-sites.mjs';
@@ -12,6 +11,7 @@ import { DUAL_ORIGIN_ARTIFACT_PATHS, runDesktopNightlyTestsDiagnosticPhases } fr
 import { staticSiteContentType } from './static-site-content-types.mjs';
 import { PACKAGED_RUNTIME_ARTIFACT_PATHS } from './desktop-nightly-tests-packaged-runtime.mjs';
 import { LOCAL_ASSISTANCE_ARTIFACT_PATHS } from './desktop-nightly-tests-local-assistance.mjs';
+import { runDesktopNightlyTestsPlaywrightChild } from './desktop-nightly-tests-playwright-child.mjs';
 const RESULT_KIND = 'soundscaper-desktop-nightly-tests';
 const PRODUCT_ID_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/u;
 const SOURCE_REVISION_PATTERN = /^[a-f\d]{40}$/u;
@@ -260,7 +260,7 @@ export async function runDesktopNightlyTests(options, dependencies = {}) {
 	}));
 	const startStaticServer = dependencies.startStaticServer;
 	const startProductSites = dependencies.startProductSites ?? startDesktopNightlyTestsProductSites;
-	const runPlaywright = dependencies.runPlaywright ?? runPlaywrightChild;
+	const runPlaywright = dependencies.runPlaywright ?? runDesktopNightlyTestsPlaywrightChild;
 	let sites = null, outcome;
 	let signal = null, failure = null;
 	const failedPhases = [];
@@ -277,7 +277,9 @@ export async function runDesktopNightlyTests(options, dependencies = {}) {
 			esbuildBinaryPath,
 			environment: sites.browserEnvironment,
 		});
-		const child = await runPlaywright(plan);
+		const child = await runPlaywright(plan, (items) => {
+			options.onProgress?.(Object.freeze({ completed: 0, total: 6, label: 'Browser tests', items }));
+		});
 		signal = child.signal ?? null;
 		outcome = mapDesktopNightlyTestsExit({ code: child.code, signal });
 		if (outcome.status === 'failed') failedPhases.push('Browser tests');
@@ -383,51 +385,6 @@ function closeServer(server) {
 	return new Promise((resolvePromise, reject) => {
 		server.close((error) => error ? reject(error) : resolvePromise());
 		server.closeAllConnections?.();
-	});
-}
-
-async function runPlaywrightChild(plan) {
-	const descriptor = await open(plan.logFile, 'wx');
-	const log = descriptor.createWriteStream();
-	let child;
-	try {
-		child = spawn(plan.command, plan.args, {
-			cwd: plan.cwd,
-			detached: false,
-			env: { ...plan.env },
-			stdio: ['ignore', 'pipe', 'pipe'],
-			windowsHide: true,
-		});
-	} catch (error) {
-		await closeWritable(log);
-		throw error;
-	}
-	child.stdout.pipe(log, { end: false });
-	child.stderr.pipe(log, { end: false });
-	try {
-		return await new Promise((resolvePromise, reject) => {
-			const cleanup = () => {
-				child.off('error', onChildError);
-				child.off('close', onClose);
-				log.off('error', onLogError);
-			};
-			const onChildError = (error) => { cleanup(); reject(error); };
-			const onClose = (code, signal) => { cleanup(); resolvePromise({ code, signal }); };
-			const onLogError = (error) => { child.kill(); onChildError(error); };
-			child.once('error', onChildError);
-			child.once('close', onClose);
-			log.once('error', onLogError);
-		});
-	} finally {
-		await closeWritable(log);
-	}
-}
-
-function closeWritable(stream) {
-	if (stream.closed || stream.destroyed) return Promise.resolve();
-	return new Promise((resolvePromise, reject) => {
-		stream.once('error', reject);
-		stream.end(resolvePromise);
 	});
 }
 

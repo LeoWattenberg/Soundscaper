@@ -60,6 +60,7 @@ test('bundled Playwright config uses only absolute launcher-provided paths', asy
 		}
 		assert.deepEqual(config.reporter, [
 			['list'],
+			[resolve(payloadRoot, 'scripts/lib/desktop-nightly-tests-progress-reporter.mjs')],
 			['html', { outputFolder: resolve(runRoot, 'playwright-report'), open: 'never' }],
 			['json', { outputFile: resolve(runRoot, 'results.json') }],
 			['junit', { outputFile: resolve(runRoot, 'junit.xml') }],
@@ -117,6 +118,7 @@ test('bundled metrics config isolates registered collectors from the functional 
 		assert.ok(config.testMatch.includes('audio-editor-m4b2-keyframe-parity.spec.js'));
 		assert.deepEqual(config.reporter, [
 			['list'],
+			[resolve(payloadRoot, 'scripts/lib/desktop-nightly-tests-progress-reporter.mjs')],
 			['html', { outputFolder: resolve(runRoot, 'metrics/playwright-report'), open: 'never' }],
 			['json', { outputFile: resolve(runRoot, 'metrics/results.json') }],
 			['junit', { outputFile: resolve(runRoot, 'metrics/junit.xml') }],

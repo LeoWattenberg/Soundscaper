@@ -48,6 +48,8 @@ const SOURCE_EXTENSION_SUBSTITUTIONS = Object.freeze({
 test('nightly payload production modules have a closed local-import graph', () => {
 	const result = inspectLocalImportClosure(NIGHTLY_TEST_PAYLOAD_INPUTS);
 
+	assert.ok(result.visited.has('scripts/lib/desktop-nightly-tests-playwright-child.mjs'));
+	assert.ok(result.visited.has('scripts/lib/desktop-nightly-tests-progress-reporter.mjs'));
 	assert.ok(result.visited.has('scripts/lib/browser-coverage-profile.mjs'));
 	assert.ok(result.visited.has('scripts/lib/browser-dynamic-coverage-sources.mjs'));
 	assert.ok(result.visited.has('scripts/lib/browser-target-coverage-state.mjs'));

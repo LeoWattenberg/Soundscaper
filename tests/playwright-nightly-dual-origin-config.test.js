@@ -58,6 +58,7 @@ test('nightly dual-origin coverage runs only the reciprocal Chromium workflow', 
 	assert.deepEqual(config.use.storageState.origins.map(({ origin }) => origin), [origins.soundscaper]);
 	assert.deepEqual(config.reporter, [
 		['list'],
+		[resolve(payloadRoot, 'scripts/lib/desktop-nightly-tests-progress-reporter.mjs')],
 		['html', {
 			outputFolder: resolve(runRoot, 'e2e-coverage/dual-origin/playwright-report'),
 			open: 'never',

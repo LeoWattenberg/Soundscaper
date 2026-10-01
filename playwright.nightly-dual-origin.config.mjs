@@ -26,6 +26,7 @@ export function createNightlyDualOriginConfig(environment = process.env) {
 		updateSnapshots: 'none',
 		reporter: [
 			['list'],
+			[resolve(payloadRoot, 'scripts/lib/desktop-nightly-tests-progress-reporter.mjs')],
 			['html', { outputFolder: resolve(artifactRoot, 'playwright-report'), open: 'never' }],
 			['json', { outputFile: resolve(artifactRoot, 'results.json') }],
 			['junit', { outputFile: resolve(artifactRoot, 'junit.xml') }],

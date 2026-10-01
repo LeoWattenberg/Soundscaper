@@ -53,6 +53,8 @@ test('nightly-with-tests packaging is isolated, portable, and keeps its payload 
 	assert.ok(config.files.includes('desktop/nightly-tests-progress-renderer.js'));
 	assert.ok(config.files.includes('desktop/nightly-tests-progress.css'));
 	assert.ok(config.files.includes('scripts/lib/desktop-nightly-tests-runtime.mjs'));
+	assert.ok(config.files.includes('scripts/lib/desktop-nightly-tests-playwright-child.mjs'));
+	assert.ok(config.files.includes('scripts/lib/desktop-nightly-tests-progress-reporter.mjs'));
 	assert.ok(config.files.includes('scripts/lib/desktop-nightly-tests-dual-origin.mjs'));
 	assert.ok(config.files.includes('scripts/lib/pages-site-static-server.mjs'));
 	assert.ok(config.files.includes('scripts/lib/product-web-routing.mjs'));

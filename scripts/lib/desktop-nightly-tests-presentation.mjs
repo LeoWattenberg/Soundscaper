@@ -33,10 +33,13 @@ export function createDesktopNightlyTestsProgressBar({ output = process.stdout, 
 	const write = (value, final) => {
 		const progress = validateDesktopNightlyTestsProgress(value);
 		if (finished || unavailable) return;
-		const filled = Math.round((progress.completed / progress.total) * PROGRESS_BAR_WIDTH);
-		const percent = Math.round((progress.completed / progress.total) * 100);
+		const ratio = desktopNightlyTestsProgressRatio(progress);
+		const filled = Math.round(ratio * PROGRESS_BAR_WIDTH);
+		const percent = Math.round(ratio * 100);
+		const itemDetail = progress.items && progress.completed < progress.total
+			? ` — ${String(progress.items.completed)}/${String(progress.items.total)} tests: ${progress.items.label}` : '';
 		const line = `[${'#'.repeat(filled)}${'-'.repeat(PROGRESS_BAR_WIDTH - filled)}] `
-			+ `${String(progress.completed)}/${String(progress.total)} ${String(percent)}% ${progress.label}`;
+			+ `${String(progress.completed)}/${String(progress.total)} ${String(percent)}% ${progress.label}${itemDetail}`;
 		try {
 			output.write(output.isTTY === true
 				? `\r${line}\u001B[K${final ? '\n' : ''}`
@@ -118,7 +121,25 @@ export function validateDesktopNightlyTestsProgress(value) {
 		|| value.label.includes('\n') || value.label.includes('\r')) {
 		throw new TypeError('Nightly tests progress label must be one line of text.');
 	}
+	if (Object.hasOwn(value, 'items')) {
+		const items = value.items;
+		if (!items || typeof items !== 'object' || Array.isArray(items)
+			|| !Number.isInteger(items.completed) || !Number.isInteger(items.total)
+			|| items.total < 0 || items.completed < 0 || items.completed > items.total
+			|| typeof items.label !== 'string' || !items.label
+			|| items.label.includes('\n') || items.label.includes('\r')) {
+			throw new TypeError('Nightly tests item progress must have valid counters and a one-line label.');
+		}
+	}
 	return value;
+}
+
+/** Include the active phase's completed tests in overall progress. */
+export function desktopNightlyTestsProgressRatio(progress) {
+	const items = progress.items;
+	const fraction = progress.completed < progress.total && items?.total > 0
+		? items.completed / items.total : 0;
+	return (progress.completed + fraction) / progress.total;
 }
 
 function readOwnString(environment, key) {

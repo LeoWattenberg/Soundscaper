@@ -41,6 +41,13 @@ export interface DesktopNightlyTestsProgress {
 	readonly completed: number;
 	readonly total: number;
 	readonly label: string;
+	readonly items?: DesktopNightlyTestsItemProgress;
+}
+
+export interface DesktopNightlyTestsItemProgress {
+	readonly completed: number;
+	readonly total: number;
+	readonly label: string;
 }
 
 export interface DesktopNightlyTestsResultEnvelope {
@@ -196,6 +203,7 @@ export interface DesktopNightlyTestsDependencies {
 	readonly resolveEsbuildBinary?: typeof resolveDesktopNightlyTestsEsbuildBinary;
 	readonly runPlaywright?: (
 		plan: DesktopNightlyTestsPlaywrightPlan,
+		onItems?: (progress: DesktopNightlyTestsItemProgress) => void,
 	) => Promise<{ readonly code: number | null; readonly signal: string | null }>;
 	readonly writeMetricsDiagnostics?: (options: {
 		readonly payloadRoot: string;

@@ -18,7 +18,7 @@ body {
 main {
 	box-sizing: border-box;
 	width: 100%;
-	padding: 32px 48px;
+	padding: 28px 36px;
 }
 
 .eyebrow {
@@ -55,11 +55,20 @@ progress {
 	font-size: 13px;
 }
 
+.current-item {
+	min-height: 38px;
+	margin: 12px 0 0;
+	color: #c9c8d4;
+	font-size: 13px;
+	line-height: 1.45;
+	overflow-wrap: anywhere;
+}
+
 .phases {
 	display: grid;
 	grid-template-columns: repeat(2, minmax(0, 1fr));
 	gap: 14px 24px;
-	margin-top: 22px;
+	margin-top: 16px;
 }
 
 .phase {
@@ -71,6 +80,13 @@ progress {
 .phase progress {
 	height: 8px;
 	margin-top: 5px;
+}
+
+.phase-count {
+	display: block;
+	margin-top: 4px;
+	color: #b9b9c8;
+	font-size: 11px;
 }
 
 .hint {
