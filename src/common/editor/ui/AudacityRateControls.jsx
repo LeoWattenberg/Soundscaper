@@ -33,7 +33,7 @@ export default function AudacityRateControls({ effectType, parameters, effectCon
 		value={value} range={range} step={step}
 		presentation="number" copy={copy} disabled={disabled || locked} hook={key}
 		sampleRate={sampleRate}
-		timeCodeUnit={!tempo && unit === 's' ? 'seconds' : null} onCommit={onCommit} />;
+		timeCodeUnit={unit === 's' ? 'seconds' : null} onCommit={onCommit} />;
 	const toRpm = VINYL_RATES.find(value => Math.abs(value - fromRpm * multiplier) < 0.01);
 	const destinationRpmOptions = VINYL_OPTIONS.map(option => ({
 		...option,
