@@ -59,7 +59,7 @@ export async function withOwnedPrivateScratchInput<Result>(options: Readonly<{
 		}
 		directory = await operations.createDirectory(options.root, options.prefix);
 		const inputPath = join(directory, options.inputFileName);
-		await operations.writeInput(inputPath, options.input, { flag: 'wx', mode: 0o600 });
+		await operations.writeInput(inputPath, new Uint8Array(options.input), { flag: 'wx', mode: 0o600 });
 		result = await options.run(Object.freeze({ directory, inputPath }));
 	} catch (error) {
 		result = options.failed(error);

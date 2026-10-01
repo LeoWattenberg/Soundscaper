@@ -45,6 +45,34 @@ test('owned private scratch writes exclusively at mode 0600 and cleans after suc
 	]);
 });
 
+test('owned private scratch snapshots input before the asynchronous write', async () => {
+	const input = Uint8Array.of(1, 2, 3);
+	let releaseWrite!: () => void;
+	const writePending = new Promise<void>((resolve) => { releaseWrite = resolve; });
+	let admitWrite!: () => void;
+	const writeStarted = new Promise<void>((resolve) => { admitWrite = resolve; });
+	let stagedInput: Uint8Array | null = null;
+	const operation = withOwnedPrivateScratchInput({
+		root: '/private-root', prefix: 'codec-', inputFileName: 'input.bin', input,
+		run: async () => 'complete', failed: () => 'failed', cleanupFailed: () => 'cleanup-failed',
+	}, {
+		createDirectory: async () => '/private-root/codec-owned',
+		writeInput: async (_path, data) => {
+			if (!(data instanceof Uint8Array)) throw new TypeError('Expected binary scratch input.');
+			stagedInput = data;
+			admitWrite();
+			await writePending;
+		},
+		removeDirectory: async () => undefined,
+	});
+	await writeStarted;
+	input.fill(9);
+	assert.notEqual(stagedInput, input);
+	assert.deepEqual(stagedInput, Uint8Array.of(1, 2, 3));
+	releaseWrite();
+	assert.equal(await operation, 'complete');
+});
+
 test('owned private scratch cleanup failure replaces callback and preparation results', async () => {
 	for (const run of [
 		async () => 'complete',
