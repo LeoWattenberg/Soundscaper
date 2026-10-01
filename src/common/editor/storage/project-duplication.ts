@@ -57,15 +57,7 @@ export async function duplicateProjectWithLinkedVideoOriginals(
 	port: ProjectDuplicationPort,
 	request: ProjectDuplicationRequest,
 ): Promise<ProjectDocument> {
-	const source = await port.loadProject(request.sourceProjectId);
-	if (!source) throw new Error('The project to duplicate could not be found.');
-	const projects = await port.listProjects();
-	if (!projects.some(({ id }) => id === request.sourceProjectId)) {
-		throw new Error('The project to duplicate is no longer in the current catalog.');
-	}
-	if (projects.some(({ id }) => id === request.copyProjectId)) {
-		throw new Error('The project duplication destination already exists.');
-	}
+	const source = await duplicationSource(port, request);
 	const copy = duplicateDocument(source, request);
 	const sources = reachableVideoSources(source);
 	const aliases = port.aliases
