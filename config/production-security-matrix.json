@@ -11724,6 +11724,14 @@
 						},
 						{
 							"kind": "implementation",
+							"path": "desktop/professional-candidate-custody.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/desktop-professional-candidate-custody.test.ts"
+						},
+						{
+							"kind": "implementation",
 							"path": "config/production-licensing-matrix.json"
 						},
 						{

@@ -47,6 +47,8 @@ test('the native plug-in hosting row describes the out-of-process host that ship
 		'desktop/native-child-isolation-launcher.ts',
 		'src/soundscaper/editor-native-plugin-actions.ts',
 		'desktop/framescaper-openfx-frame-execution.ts',
+		'desktop/professional-candidate-custody.ts',
+		'tests/desktop-professional-candidate-custody.test.ts',
 		'tests/desktop-protocol.test.js',
 		'tests/desktop-plugin-registry.test.ts',
 		'tests/desktop-plugin-host-service.test.ts',

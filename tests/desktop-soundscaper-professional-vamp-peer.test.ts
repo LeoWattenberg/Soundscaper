@@ -55,6 +55,8 @@ test('the Vamp peer snapshots one exact library and launches M5A1 on the authent
 	assert.notEqual(captured.readExecute[0].path, libraryPath,
 		'the isolated child receives immutable snapshot custody, not the mutable source');
 	assert.equal(JSON.stringify(captured).includes('VAMP_PATH'), false);
+	await assert.rejects(stat(captured.readExecute[0].path), { code: 'ENOENT' },
+		'failed Vamp launch disposes its reviewed snapshot');
 });
 
 test('the Vamp peer admits only exact Vamp analyzer operations', async () => {

@@ -110,6 +110,7 @@
 		"desktop/native-child-framed-control.ts",
 		"desktop/soundscaper-professional-linux-system-libraries.ts",
 		"desktop/soundscaper-professional-linux-system-runtime.ts",
+		"desktop/professional-candidate-custody.ts",
 		"desktop/soundscaper-professional-plugin-peer.ts",
 		"desktop/soundscaper-professional-vamp-peer.ts",
 		"desktop/vamp-analyzer-peer-codec.ts",

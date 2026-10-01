@@ -53,6 +53,8 @@ test('the professional peer grants only its immutable snapshot file', async (con
 	assert.ok(fileGrant);
 	assert.equal(directoryGrant, undefined);
 	assert.notEqual(fileGrant.path, dirname(fileGrant.path));
+	await assert.rejects(stat(fileGrant.path), { code: 'ENOENT' },
+		'failed launch disposes its reviewed snapshot');
 });
 
 async function descriptor(path: string): Promise<NativeChildIsolationArtifactDescriptor> {
