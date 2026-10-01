@@ -61,8 +61,8 @@ syntheticRouteTest('reuses decoded video frames while refreshing animated effect
 			nativeSubImage(...args);
 		};
 		gl.drawArrays = (...args) => { draws += 1; nativeDraw(...args); };
-		const effects = [{ type: 'color-adjust', enabled: true, params: { brightness: 0.2 } }];
-		const layer = { entries: [{ video, effects, opacity: 1 }] };
+		const effects = [{ id: 'reuse-color', type: 'color-adjust', enabled: true, params: { brightness: 0.2 } }];
+		const layer = { entries: [{ clipId: 'reuse-clip', video, effects, opacity: 1 }] };
 		const options = { outputWidth: 160, outputHeight: 90, outputColorModel: 'rgba' };
 		const render = () => compositor.render([layer], options);
 		try {
