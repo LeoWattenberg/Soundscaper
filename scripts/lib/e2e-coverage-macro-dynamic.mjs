@@ -1,5 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import {
+	decodedUrlPath,
+	origin,
+	sourceLineLengths,
+} from './e2e-coverage-identity-source.mjs';
 import { canonicalJson as stableJson } from './canonical-json.mjs';
 import {
 	E2E_EXECUTABLE_URL_PREFIX,
@@ -205,19 +210,8 @@ function registerDynamicScript(scripts, script) {
 	scripts.set(script.coverageUrl, script);
 }
 
-function decodedUrlPath(url) {
-	return decodeURIComponent(new URL(url).pathname).replaceAll('\\', '/').replace(/^\/+/u, '');
-}
 
-function origin(url) {
-	try { return new URL(url).origin; } catch { return null; }
-}
 
-function sourceLineLengths(value) {
-	const lines = String(value).split('\n');
-	if (lines.length > 1 && lines.at(-1) === '') lines.pop();
-	return lines.map((line) => line.length);
-}
 
 
 function record(value) {

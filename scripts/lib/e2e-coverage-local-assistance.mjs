@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { normalizedInstalledPath } from './e2e-coverage-identity-source.mjs';
 import { canonicalJson as stableJson } from './canonical-json.mjs';
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
@@ -323,14 +324,6 @@ function installedFilePath(url, platform) {
 	return normalizedInstalledPath(path, platform);
 }
 
-function normalizedInstalledPath(path, platform) {
-	const slashed = path.replaceAll('\\', '/');
-	const unc = platform === 'win32' && slashed.startsWith('//');
-	let normalized = slashed.replace(/\/{2,}/gu, '/').replace(/\/$/u, '');
-	if (unc) normalized = `/${normalized}`;
-	if (platform === 'win32' && /^\/[A-Za-z]:\//u.test(normalized)) normalized = normalized.slice(1);
-	return normalized;
-}
 
 function pathStartsWith(path, prefix, platform) {
 	return platform === 'win32'

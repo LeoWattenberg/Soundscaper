@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { sourceLineLengths } from './e2e-coverage-identity-source.mjs';
 import { canonicalJson as stableJson } from './canonical-json.mjs';
 import { createHash } from 'node:crypto';
 import {
@@ -362,11 +363,6 @@ function encodePath(path) {
 	return path.split('/').map(encodeURIComponent).join('/');
 }
 
-function sourceLineLengths(value) {
-	const lines = String(value).split('\n');
-	if (lines.length > 1 && lines.at(-1) === '') lines.pop();
-	return lines.map((line) => line.length);
-}
 
 function readJson(path, label) {
 	try { return JSON.parse(readFileSync(path, 'utf8')); }
