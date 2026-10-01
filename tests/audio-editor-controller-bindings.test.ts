@@ -36,6 +36,8 @@ test('controller binding construction leaves unrelated owners uninitialized', ()
 	assert.equal(Object.isFrozen(bindings.labels), true);
 	assert.equal(typeof bindings.selection, 'object');
 	assert.equal(Object.isFrozen(bindings.selection), true);
+	assert.equal(typeof bindings.projectBin, 'object');
+	assert.equal(Object.isFrozen(bindings.projectBin), true);
 	assert.deepEqual(
 		['addLabel', 'importLabelFile', 'importCueFile', 'exportLabels'].filter((name) => Object.hasOwn(bindings, name)),
 		[],
@@ -46,6 +48,18 @@ test('controller binding construction leaves unrelated owners uninitialized', ()
 			'selectLeftOfPlaybackPosition', 'selectRightOfPlaybackPosition',
 			'selectTrackStartToCursor', 'selectCursorToTrackEnd', 'selectTrackStartToEnd',
 			'setSnapSettings', 'snapTimelineFrame', 'selectAtZeroCrossings',
+		].filter((name) => Object.hasOwn(bindings, name)),
+		[],
+	);
+	assert.deepEqual(
+		[
+			'moveClipsToProjectBin', 'placeProjectBinClip', 'applyProjectBinReplacement',
+			'prepareProjectBinReplacement', 'cancelProjectBinReplacement',
+			'playPauseProjectBinClip', 'stopProjectBinPreview', 'renameProjectBinClip',
+			'removeProjectBinClip', 'setProjectBinClipColor', 'projectBinInstanceCount',
+			'selectProjectBinInstances', 'removeProjectBinSource', 'canRelinkLinkedAudio',
+			'classifyLinkedAudioRelink', 'relinkLinkedAudio', 'canRelinkLinkedVideo',
+			'classifyLinkedVideoRelink', 'relinkLinkedVideo', 'getProjectBinClipVisualData',
 		].filter((name) => Object.hasOwn(bindings, name)),
 		[],
 	);

@@ -24,6 +24,7 @@ import type { createTransportComposition } from '../transport/transport-composit
 import { deferControllerMethods, deferAsyncControllerMethods } from './internal/deferred-controller-methods.ts';
 import { createEditorLabelActionGroup } from './label-action-group.ts';
 import { createEditorSelectionActionGroup } from './selection-action-group.ts';
+import { createEditorProjectBinActionGroup } from './project-bin-action-group.ts';
 
 export interface ControllerBindingServices<RenderEngine extends ClipTimePitchRenderEngine = ClipTimePitchRenderEngine> {
 	readonly clips: () => ReturnType<typeof createClipVideoComposition>;
@@ -53,7 +54,6 @@ export interface ControllerBindingServices<RenderEngine extends ClipTimePitchRen
 export function createControllerBindings<RenderEngine extends ClipTimePitchRenderEngine>(services: ControllerBindingServices<RenderEngine>) {
 	const { load: loadPreferences } = deferControllerMethods(() => services.preferences(), ['load']);
 	const { switchProject } = deferControllerMethods(() => services.projectSwitchService(), ['switchProject']);
-	const { moveClipsToProjectBin, placeProjectBinClip, applyProjectBinReplacement } = deferControllerMethods(() => services.imports().projectBin, ['moveClipsToProjectBin', 'placeProjectBinClip', 'applyProjectBinReplacement']);
 	const { materializeFreesoundUploadClip } = deferAsyncControllerMethods(() => services.tracks(), ['materializeFreesoundUploadClip']);
 	const { sampleEditingAvailable, setSampleEditMode } = deferControllerMethods(() => services.clips().sampleEdit, ['sampleEditingAvailable', 'setSampleEditMode']);
 	const { applySamplePencil, smoothSelectedSamples } = deferControllerMethods(() => services.clips(), ['applySamplePencil', 'smoothSelectedSamples']);
@@ -69,13 +69,11 @@ export function createControllerBindings<RenderEngine extends ClipTimePitchRende
 	const { loadRecordingRouting, refreshRecordingInputs, refreshAudioDevices } = deferAsyncControllerMethods(() => services.recording().routing, ['loadRecordingRouting', 'refreshRecordingInputs', 'refreshAudioDevices']);
 	const { startRecordingOnNewTrack } = deferAsyncControllerMethods(() => services.recording().session, ['startRecordingOnNewTrack']);
 	const { scheduleTimedRecording } = deferAsyncControllerMethods(() => services.recording().timed, ['scheduleTimedRecording']);
-	const { stopProjectBinPreview } = deferAsyncControllerMethods(() => services.imports().projectBin, ['stopProjectBinPreview']);
 	const { bootstrap } = deferAsyncControllerMethods(() => services.projectBootstrapService(), ['bootstrap']);
 	const { openProject } = deferAsyncControllerMethods(() => services.projectSwitchService(), ['openProject']);
 	const { claimProjectLock } = deferAsyncControllerMethods(() => services.projectLockService(), ['claimProjectLock']);
 	const { loadProjectSources } = deferAsyncControllerMethods(() => services.sources().sourceLifecycle, ['loadProjectSources']);
 	const { listProjects, clearRecentProjects, renameProject, duplicateProject, garbageCollectSources } = deferAsyncControllerMethods(() => services.projectAdminService(), ['listProjects', 'clearRecentProjects', 'renameProject', 'duplicateProject', 'garbageCollectSources']);
-	const { prepareProjectBinReplacement, cancelProjectBinReplacement, playPauseProjectBinClip } = deferAsyncControllerMethods(() => services.imports().projectBin, ['prepareProjectBinReplacement', 'cancelProjectBinReplacement', 'playPauseProjectBinClip']);
 	const { disjoinSelectedClip } = deferAsyncControllerMethods(() => services.edits().clipboard, ['disjoinSelectedClip']);
 	const { generateSelectionSilence, generateSignal, repeatLastGenerator } = deferAsyncControllerMethods(() => services.edits(), ['generateSelectionSilence', 'generateSignal', 'repeatLastGenerator']);
 	const { requestInputAccess, setPreferredInputDevice, configureDisplayInput, setPreferredInputChannelCount, setAudioOutputDevice, setRecordingSourceLatency, setRetainInputs } = deferAsyncControllerMethods(() => services.recording().routing, ['requestInputAccess', 'setPreferredInputDevice', 'configureDisplayInput', 'setPreferredInputChannelCount', 'setAudioOutputDevice', 'setRecordingSourceLatency', 'setRetainInputs']);
@@ -85,7 +83,7 @@ export function createControllerBindings<RenderEngine extends ClipTimePitchRende
 	const { stopRecording } = deferAsyncControllerMethods(() => services.recording().session, ['stopRecording']);
 	const { get: getSnapshot } = deferControllerMethods(() => services.documentChannel(), ['get']);
 	const { get: getTelemetrySnapshot } = deferControllerMethods(() => services.telemetryChannel(), ['get']);
-	const { getClipVisualData, getProjectBinClipVisualData, revokeVideoVisuals, revokeVideoVisual, activateVideoSource, hasMissingTimelineSources, getVisibleClips } = deferControllerMethods(() => services.sources().projectVisual, ['getClipVisualData', 'getProjectBinClipVisualData', 'revokeVideoVisuals', 'revokeVideoVisual', 'activateVideoSource', 'hasMissingTimelineSources', 'getVisibleClips']);
+	const { getClipVisualData, revokeVideoVisuals, revokeVideoVisual, activateVideoSource, hasMissingTimelineSources, getVisibleClips } = deferControllerMethods(() => services.sources().projectVisual, ['getClipVisualData', 'revokeVideoVisuals', 'revokeVideoVisual', 'activateVideoSource', 'hasMissingTimelineSources', 'getVisibleClips']);
 	const { update: updatePreferences, revertFactorySettings } = deferControllerMethods(() => services.preferencesService(), ['update', 'revertFactorySettings']);
 	const { sessionTab, persistActiveSessionUiState, setTrackChannelHeightRatio } = deferControllerMethods(
 		() => services.doc().session,
@@ -93,7 +91,6 @@ export function createControllerBindings<RenderEngine extends ClipTimePitchRende
 	);
 	const { dismissAup4CompatibilitySummary } = deferControllerMethods(() => services.nativeProjectService(), ['dismissAup4CompatibilitySummary']);
 	const { cacheSourceBuffer, clearWaveformPcmWindows } = deferControllerMethods(() => services.sources().sourceLifecycle, ['cacheSourceBuffer', 'clearWaveformPcmWindows']);
-	const { renameProjectBinClip, removeProjectBinClip, setProjectBinClipColor, projectBinInstanceCount, selectProjectBinInstances, removeProjectBinSource } = deferControllerMethods(() => services.imports().projectBin, ['renameProjectBinClip', 'removeProjectBinClip', 'setProjectBinClipColor', 'projectBinInstanceCount', 'selectProjectBinInstances', 'removeProjectBinSource']);
 	const { mixAndRenderTracks, resampleTrack, resampleClip, swapTrackChannels, splitStereoTrack, makeStereoTrack } = deferControllerMethods(() => services.tracks(), ['mixAndRenderTracks', 'resampleTrack', 'resampleClip', 'swapTrackChannels', 'splitStereoTrack', 'makeStereoTrack']);
 	const { splitAtFrame } = deferControllerMethods(() => services.edits().clipboard, ['splitAtFrame']);
 	const { selectedTracksTimeRange, toggleRmsWaveform, toggleVerticalRulers, toggleScrollViewToPlayhead, togglePinnedPlayhead, toggleRulerPlayback, setZoom } = deferControllerMethods(() => services.tracks().selectionView, ['selectedTracksTimeRange', 'toggleRmsWaveform', 'toggleVerticalRulers', 'toggleScrollViewToPlayhead', 'togglePinnedPlayhead', 'toggleRulerPlayback', 'setZoom']);
@@ -110,6 +107,10 @@ export function createControllerBindings<RenderEngine extends ClipTimePitchRende
 	});
 	const selection = createEditorSelectionActionGroup({
 		getSelectionView: () => services.tracks().selectionView,
+	});
+	const projectBin = createEditorProjectBinActionGroup({
+		getProjectBin: () => services.imports().projectBin,
+		getProjectVisual: () => services.sources().projectVisual,
 	});
 	const { compactLiveSourceState, liveSessionSourceIds, liveSessionClipIds } = deferControllerMethods(() => services.doc().retention, ['compactLiveSourceState', 'liveSessionSourceIds', 'liveSessionClipIds']);
 	const { publishProjectState, setTimelineView, setAllTracksView } = deferControllerMethods(() => services.doc().view, ['publishProjectState', 'setTimelineView', 'setAllTracksView']);
@@ -131,28 +132,25 @@ export function createControllerBindings<RenderEngine extends ClipTimePitchRende
 	const { openScape, saveScape, openAup4, openAudacityProject, saveAup3, saveAup4 } = deferAsyncControllerMethods(() => services.nativeProjectService(), ['openScape', 'saveScape', 'openAup4', 'openAudacityProject', 'saveAup3', 'saveAup4']);
 	return Object.freeze({
 		openScape, saveScape, openAup4, openAudacityProject, saveAup3, saveAup4,
-		loadPreferences, switchProject, moveClipsToProjectBin, placeProjectBinClip,
-		applyProjectBinReplacement, labels, selection,
+		loadPreferences, switchProject, labels, selection, projectBin,
 		sampleEditingAvailable, setSampleEditMode, applySamplePencil, smoothSelectedSamples,
 		updateRecordingDeviceRows, addVideoClipEffect, updateVideoClipEffect, toggleVideoClipEffect,
 		bypassVideoClipEffect, previewVideoEffectGesture, commitVideoEffectGesture, cancelTimedRecording,
 		startRecording, startSoundActivatedRecording, setVisibleTrackHeights, resizeTrackHeight, newProject,
 		releaseProjectLock, requestWaveformPcmWindow, requestFrequencyWaveform, activateStoredSource, loadRecordingRouting,
 		refreshRecordingInputs, refreshAudioDevices, startRecordingOnNewTrack, scheduleTimedRecording,
-		stopProjectBinPreview, bootstrap, openProject, claimProjectLock,
+		bootstrap, openProject, claimProjectLock,
 		loadProjectSources, listProjects, clearRecentProjects, renameProject,
-		duplicateProject, garbageCollectSources, prepareProjectBinReplacement, cancelProjectBinReplacement,
-		playPauseProjectBinClip, disjoinSelectedClip,
+		duplicateProject, garbageCollectSources, disjoinSelectedClip,
 		generateSelectionSilence, generateSignal, repeatLastGenerator, requestInputAccess,
 		setPreferredInputDevice, configureDisplayInput, setPreferredInputChannelCount, setAudioOutputDevice,
 		setRecordingSourceLatency, setRetainInputs, setRecordingTrackInput, setMicrophoneMetering,
 		applyProjectToPlaybackEngine, stopRecording, getSnapshot, getTelemetrySnapshot,
-		getClipVisualData, getProjectBinClipVisualData, revokeVideoVisuals, revokeVideoVisual,
+		getClipVisualData, revokeVideoVisuals, revokeVideoVisual,
 		activateVideoSource, hasMissingTimelineSources, getVisibleClips, updatePreferences,
 		revertFactorySettings, sessionTab, persistActiveSessionUiState, setTrackChannelHeightRatio,
 		dismissAup4CompatibilitySummary,
-		cacheSourceBuffer, clearWaveformPcmWindows, renameProjectBinClip, removeProjectBinClip,
-		setProjectBinClipColor, projectBinInstanceCount, selectProjectBinInstances, removeProjectBinSource,
+		cacheSourceBuffer, clearWaveformPcmWindows,
 		mixAndRenderTracks, materializeFreesoundUploadClip, resampleTrack, resampleClip, swapTrackChannels,
 		splitStereoTrack, makeStereoTrack, splitAtFrame,
 		selectedTracksTimeRange, toggleRmsWaveform, toggleVerticalRulers, toggleScrollViewToPlayhead,

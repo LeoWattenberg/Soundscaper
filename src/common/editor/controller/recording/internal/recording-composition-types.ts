@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { TakeCycleProjectDocument } from './take-cycle/take-cycle-project-document.ts';
-import type { EditorControllerLifetime, EditorProjectGeneration } from '../../shared/lifecycle.ts';
+import type { EditorControllerLifetime } from '../../shared/lifecycle.ts';
+import type { ControllerDocumentScope } from '../../document/controller-document-scope.ts';
 import type { MicrophoneMeterService } from '../microphone-meter-service.ts';
 import type { OwnedStateWriteScope } from '../../shared/owned-state.ts';
 import type { ProjectFlushOptions } from '../../document/project-save-service.ts';
@@ -109,7 +110,7 @@ export interface RecordingCompositionDependencies {
 		RecordingCompositionWritableState
 	>;
 	readonly lifetime: Pick<EditorControllerLifetime, 'capture' | 'assertActive' | 'startTask' | 'cancelTask'>;
-	readonly projectGeneration: Pick<EditorProjectGeneration, 'capture' | 'assertCurrent'>;
+	readonly document: ControllerDocumentScope<RecordingCompositionProject>;
 	readonly projectRuntime: Readonly<{
 		cloneProject(project: unknown): unknown;
 		applyCommand: (
@@ -139,8 +140,6 @@ export interface RecordingCompositionDependencies {
 	readonly scheduleTimer: (callback: () => unknown, delayMs: number) => unknown;
 	readonly clearTimer: (handle: unknown) => void;
 	readonly productSettingKey: (name: string) => string;
-	readonly getProject: () => RecordingCompositionProject | null;
-	readonly setProject: (project: TakeCycleProject) => void;
 	readonly projectSampleRate: () => number;
 	readonly getMicrofadeNewClips: () => boolean;
 	readonly assignPreferredInputToTrack: (trackId: string) => boolean;

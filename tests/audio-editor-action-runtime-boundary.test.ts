@@ -19,6 +19,7 @@ export type EditorActionFunctionInventoryIsExhaustive = AssertTrue<
 >;
 
 test('a missing or non-callable dependency fails during assembly with its name', () => {
+	assert.equal(EDITOR_ACTION_FUNCTION_NAMES.length, 210);
 	for (const invalid of [undefined, null, 1, {}]) {
 		const scope = new Proxy(createActionFacadeRuntime(), {
 			get(target, name, receiver) {
@@ -82,6 +83,33 @@ test('action assembly rejects an unowned selection group even when its visible s
 		},
 	});
 	assert.throws(() => assertEditorActionRuntime(scope), /Invalid editor action dependency: selection/u);
+});
+
+test('a missing grouped Project Bin visual dependency fails with its exact path', () => {
+	const runtime = createActionFacadeRuntime();
+	const scope = new Proxy(runtime, {
+		get(target, name, receiver) {
+			return name === 'projectBin'
+				? Object.freeze({ ...target.projectBin, getVisualData: null })
+				: Reflect.get(target, name, receiver);
+		},
+	});
+	assert.throws(
+		() => assertEditorActionRuntime(scope),
+		/Missing editor action dependency: projectBin\.getVisualData/u,
+	);
+});
+
+test('action assembly rejects an unowned Project Bin group even when its visible shape matches', () => {
+	const runtime = createActionFacadeRuntime();
+	const scope = new Proxy(runtime, {
+		get(target, name, receiver) {
+			return name === 'projectBin'
+				? Object.freeze({ ...target.projectBin })
+				: Reflect.get(target, name, receiver);
+		},
+	});
+	assert.throws(() => assertEditorActionRuntime(scope), /Invalid editor action dependency: projectBin/u);
 });
 
 // The dependency inventory must remain closed even while some legacy command

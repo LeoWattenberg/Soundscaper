@@ -2,7 +2,7 @@
 import { createCaptureComposition } from './controller/capture/capture-composition.ts'; import { setLocalizedStatus } from '../i18n/presentation-message.ts';
 import { startController } from './controller/composition/controller-startup.ts';
 import { createControllerResources } from './controller/composition/controller-resources.ts';
-import { bindSessionHistoryAdmission } from './controller/document/session-history-admission.ts';
+import { bindSessionHistoryAdmission } from './controller/document/session-history-admission.ts'; import { createControllerDocumentScope } from './controller/document/controller-document-scope.ts';
 import { createControllerDisposal } from './controller/composition/controller-disposal.ts';
 import { createControllerBindings } from './controller/composition/controller-bindings.ts';
 import { createControllerDocumentState, createControllerDocumentCheckpoints } from './controller/document/document-state.ts'; import { publishProjectView } from './controller/document/document-snapshot.ts';
@@ -160,6 +160,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	const { scheduleTimer, clearScheduledTimer, scheduleInterval, clearScheduledInterval } = createControllerTimers(options);
 	/** @type {import('./controller/document/document-state.ts').ControllerDocumentState<import('./controller/document/document-composition-types.ts').DocumentProject, import('./controller/document/document-composition-types.ts').DocumentHistory>} */
 	const documentState = createControllerDocumentState();
+	const documentScope = createControllerDocumentScope(documentState, projectGeneration);
 	const { activeSelection, normalizeExportSettings } = createControllerProjectQueries({ getProject: () => documentState.project, projectSampleRate: () => projectSampleRate() });
 	const { state, effectsAccess, effectsStatePorts, recordingAccess, transportAccess,
 		recordingPort, reconcileRecordingRouting,
@@ -278,16 +279,15 @@ export function createAudioEditorController(_root = null, options = {}) {
 		togglePanelPreference, toggleToolbarPreference, updateWorkspacePreference,
 	} = preferences.actions;
 	const doc = createDocumentComposition({
-		state, copy, lifetime, projectGeneration, projectRuntime, product, capabilities, session: sessionController, store, engine, sourceBuffers, sourcePeaks,
+		state, copy, lifetime, document: documentScope, projectRuntime, product, capabilities, session: sessionController, store, engine, sourceBuffers, sourcePeaks,
 		timePitchCache: clipTimePitchCache, protectedSourceIds: stagedProjectBinSourceIds, maximumPixelsPerSecond: AUDIO_EDITOR_MAX_PIXELS_PER_SECOND,
 		settingKeys: { recentProjects: recentProjectsSettingKey, lastProject: lastProjectSettingKey }, scheduleTimer, clearTimer: clearScheduledTimer,
 		prepareProjectSnapshot: options.prepareProjectSnapshot, sources,
-		getProject: () => documentState.project, setProject: (value) => { documentState.project = value; },
 		getHistory: () => state.history, setHistory: (history) => { state.history = history; },
 		projectDurationFrames, editorTimelineDurationFrames, projectSampleRate: () => projectSampleRate(), getMicrofadeNewClips: () => state.preferences.editing.applyMicrofadesToNewClips, persistSetting, preflightStorage: bindings.preflightStorage,
 		garbageCollectSources: bindings.garbageCollectSources, refreshStorageUsage: bindings.refreshStorageUsage, editingBlocked,
 		assertEditingAllowed: () => { if (documentState.project) framescaperCapture?.assertOriginEditAllowed(documentState.project.id); },
-		updatePlayhead, synchronizeAutomaticSampleEditMode: bindings.synchronizeAutomaticSampleEditMode, synchronizeMicrophoneMeterTarget: bindings.synchronizeMicrophoneMeterTarget, stopProjectBinPreview: bindings.stopProjectBinPreview,
+		updatePlayhead, synchronizeAutomaticSampleEditMode: bindings.synchronizeAutomaticSampleEditMode, synchronizeMicrophoneMeterTarget: bindings.synchronizeMicrophoneMeterTarget, stopProjectBinPreview: bindings.projectBin.stopPreview,
 		reconcileRecordingRouting,
 		persistRecordingRouting: bindings.persistRecordingRouting, publishDocumentSnapshot, handleError: bindings.handleError,
 	});
@@ -302,7 +302,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		recordingRoutingSettingKey, releaseProjectLock: bindings.releaseProjectLock, acquireInactiveProjectLock: (id) => acquireLock(id), revokeVideoVisuals: bindings.revokeVideoVisuals, saveNow: bindings.saveNow,
 		scheduleTimer: globalThis.setTimeout.bind(globalThis), sessionController, sessionTab: bindings.sessionTab,
 		setProject: (nextProject) => { documentState.project = nextProject; },
-		disposeRenderEngines: sources.timePitchCaches.disposeRenderEngines, sourceBuffers, sourceChunkProviders, sourcePeaks, state, stopProjectBinPreview: bindings.stopProjectBinPreview, stopRecording: bindings.stopRecording, store,
+		disposeRenderEngines: sources.timePitchCaches.disposeRenderEngines, sourceBuffers, sourceChunkProviders, sourcePeaks, state, stopProjectBinPreview: bindings.projectBin.stopPreview, stopRecording: bindings.stopRecording, store,
 		switchProject: bindings.switchProject, ...(framescaperCaptureAdminInterlock ? { beginCaptureInterlockedAdminOperation: framescaperCaptureAdminInterlock.beginAdminOperation } : {}),
 	});
 	const { prepareProjectHandoff, assertProjectHandoffAllowed, closeProjectTab, deleteProject, clearLocalData } =
@@ -320,7 +320,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	const { locking: projectLockService, projects: projectSwitchService } = createProjectLifecycleComposition({
 		locking: {
 			state, cancelTask: (...args) => lifetime.cancelTask(...args),
-			getProjectId: () => documentState.project?.id ?? null,
+			getProjectId: () => documentScope.get()?.id ?? null,
 			getProjectMetadata: (projectId) => bindings.sessionTab(projectId)?.metadata || {},
 			acquireProjectLock: acquireLock,
 			isPersistedSnapshotCurrent: typeof Reflect.get(store, 'saveProjectIfCurrentWithWriteFence') === 'function' ? (projectId) => doc.saves.isPersistedSnapshotCurrent(projectId, (id) => store.loadProject(id)) : undefined,
@@ -333,8 +333,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 		},
 		projects: {
 			state, effectsState: effectsStatePorts.project, lifetime, scapeInspectionQuiescence, projectGeneration, copy, productCapabilities: product.capabilities,
-			getProject: () => documentState.project,
-			setProject: (nextProject) => { documentState.project = nextProject; },
+			getProject: documentScope.get,
+			setProject: documentScope.set,
 			createProject: projectRuntime.createProject,
 			normalizeProjectSampleRate,
 			createInitialAudioTrackCommand: (trackOptions, sampleRate) => createAddTrackCommand({ ...trackOptions, spectrogram: spectrogramSettingsForNewTrack(state.preferences.spectrogram, sampleRate) }),
@@ -352,7 +352,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			persistActiveSessionUiState: bindings.persistActiveSessionUiState,
 			saveNow: bindings.saveNow,
 			cancelScheduledSave: doc.saves.cancelScheduled,
-			stopEngine: () => engine.stop(), stopProjectBinPreview: bindings.stopProjectBinPreview, disposeRenderEngines: sources.timePitchCaches.disposeRenderEngines,
+			stopEngine: () => engine.stop(), stopProjectBinPreview: bindings.projectBin.stopPreview, disposeRenderEngines: sources.timePitchCaches.disposeRenderEngines,
 			beginSourceChunkProviderReplacement: () => sourceChunkProviders.beginReplacement(),
 			cancelEffectPreview: bindings.cancelAudacityEffectPreview,
 			sessionTab: bindings.sessionTab,
@@ -406,7 +406,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	});
 	const nativeProjectService = createNativeProjectComposition({
 		lifetime, projectGeneration, state, copy, store, fileService, taskProgress,
-		getProject: () => documentState.project, acquireReplaceProjectWriteAuthority: createScapeReplaceWriteAuthority({ getActiveProjectId: () => documentState.project?.id ?? null, getActiveReadOnly: () => state.readOnly, getActiveLock: () => state.projectLock, acquireProjectLock: acquireLock }),
+		getProject: documentScope.get, acquireReplaceProjectWriteAuthority: createScapeReplaceWriteAuthority({ getActiveProjectId: () => documentScope.get()?.id ?? null, getActiveReadOnly: () => state.readOnly, getActiveLock: () => state.projectLock, acquireProjectLock: acquireLock }),
 		switchProject: bindings.switchProject,
 		editingBlocked,
 		flushProject: bindings.flushProject,
@@ -430,8 +430,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 		proxy: {
 			createScheduler: options.createFramescaperCaptureProxyScheduler, runtime: ffmpeg,
 			helperTimingProbe: fileService.helperTimingProbe,
-			saves: { getActiveProjectId: () => documentState.project?.id ?? null, hasUnsavedProjectChanges: () => Boolean(documentState.project && bindings.sessionTab(documentState.project.id)?.dirty), saves: doc.saves },
-			activeProject: { getActiveProject: () => documentState.project, installActiveProject: captureRuntime.createProxyDocumentInstaller({ runtime: projectRuntime, setHistory: value => { state.history = value; }, synchronizeProject: bindings.applyProjectToPlaybackEngine }), publishProjectState: bindings.publishProjectState },
+			saves: { getActiveProjectId: () => documentScope.get()?.id ?? null, hasUnsavedProjectChanges: () => { const active = documentScope.get(); return Boolean(active && bindings.sessionTab(active.id)?.dirty); }, saves: doc.saves },
+			activeProject: { getActiveProject: documentScope.get, installActiveProject: captureRuntime.createProxyDocumentInstaller({ runtime: projectRuntime, setHistory: value => { state.history = value; }, synchronizeProject: bindings.applyProjectToPlaybackEngine }), publishProjectState: bindings.publishProjectState },
 		},
 		derivatives: {
 			getOriginProject: async (projectId) => bindings.sessionTab(projectId)?.history?.present ?? store.loadProject(projectId), store,
@@ -440,7 +440,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		},
 		authority: {
 			getProjectAdmission: (projectId) => { const tab = bindings.sessionTab(projectId); return tab ? { readOnly: Boolean(tab.readOnly), intrinsicReadOnly: Boolean(tab.metadata?.intrinsicReadOnly || tab.metadata?.declaredReadOnly || tab.metadata?.featureRequirementsReadOnly) } : null; },
-			getActiveProjectId: () => documentState.project?.id ?? null, getActiveReadOnly: () => state.readOnly,
+			getActiveProjectId: () => documentScope.get()?.id ?? null, getActiveReadOnly: () => state.readOnly,
 			getActiveLock: () => state.projectLock, acquireProjectLock: (projectId) => acquireLock(projectId),
 		},
 		app: {
@@ -449,8 +449,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 			isDesktop: Boolean(fileService.isDesktop), embedded: globalThis.document?.documentElement?.dataset?.embedded === 'true',
 			store, mediaDevices, getActivePlayheadFrame: () => state.positionFrame, recordPersistedSnapshot: (project) => doc.saves.recordPersistedSnapshot(/** @type {import('./controller/document/document-composition-types.ts').DocumentProject} */ (/** @type {unknown} */ (project))),
 			...captureRuntime.createDocumentPorts({ adminInterlock: framescaperCaptureAdminInterlock, session: sessionController, runtime: projectRuntime,
-				getProject: () => documentState.project, getHistory: () => state.history,
-				setProject: value => { documentState.project = value; }, setHistory: value => { state.history = value; },
+				getProject: documentScope.get, getHistory: () => state.history,
+				setProject: documentScope.set, setHistory: value => { state.history = value; },
 				synchronizeProject: async value => { await bindings.applyProjectToPlaybackEngine(value); bindings.publishProjectState(); } }),
 			prepareCaptureStart: async () => { await bindings.flushProject(); },
 			getAudioContext: () => engine.getAudioContext({ resume: false }),
@@ -471,7 +471,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		cancelPlaybackCachePreparation: bindings.cancelPlaybackCachePreparation, playbackCachePreparationPending: sources.timePitchCaches.isPlaybackCachePreparationPending, cancelTimedRecording: bindings.cancelTimedRecording, commit: bindings.commit, editingBlocked, editorTimelineDurationFrames, findTrack, formatPlaybackRate,
 		hasMissingTimelineSources: bindings.hasMissingTimelineSources, persistSetting, playAtSpeedPitchPreserver, productSettingKey, getProject: () => documentState.project,
 		projectDurationFrames, publishDocumentSnapshot, publishProjectState: bindings.publishProjectState, publishTelemetrySnapshot, sampleEditingAvailable: bindings.sampleEditingAvailable, setSelection: bindings.selection.setSelection, setExactSelection: bindings.selection.setExactSelection, setStatus: bindings.setStatus,
-		startRecording: bindings.startRecording, stopProjectBinPreview: bindings.stopProjectBinPreview, stopRecording: bindings.stopRecording, throwIfAborted,
+		startRecording: bindings.startRecording, stopProjectBinPreview: bindings.projectBin.stopPreview, stopRecording: bindings.stopRecording, throwIfAborted,
 	});
 	const viewStateService = transportComposition.view;
 	const {
@@ -500,7 +500,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		materializeTimePitchCacheEntry: (entry, signal) => sources.timePitchCaches.materializeTimePitchCacheEntry(entry, signal),
 		retireSourceChunkProvider: sources.sourceLifecycle.retireSourceChunkProvider,
 		getProject: () => documentState.project, getCommandProject, editingBlocked, commit: bindings.commit, publishProjectState: bindings.publishProjectState, publishDocumentSnapshot, setStatus: bindings.setStatus, handleError: bindings.handleError,
-		normalizePlaybackFrame, cancelPlaybackCachePreparation: bindings.cancelPlaybackCachePreparation, cancelPlayAtSpeedPreparation, stopProjectBinPreview: bindings.stopProjectBinPreview, hasMissingTimelineSources: bindings.hasMissingTimelineSources,
+		normalizePlaybackFrame, cancelPlaybackCachePreparation: bindings.cancelPlaybackCachePreparation, cancelPlayAtSpeedPreparation, stopProjectBinPreview: bindings.projectBin.stopPreview, hasMissingTimelineSources: bindings.hasMissingTimelineSources,
 		activateVideoSource: bindings.activateVideoSource, activateStoredSource: bindings.activateStoredSource, activeSelection, snapTimelineFrame: bindings.selection.snapFrame, preflightStorage: bindings.preflightStorage, projectSampleRate, cacheSourceBuffer: bindings.cacheSourceBuffer,
 	});
 	videoNavigationService = clips.videoNavigation;
@@ -526,7 +526,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		reorderTrack, moveTrack, setTrackDisplayMode, setTrackRate,
 	} = tracks.trackActions;
 	const { cancelPersistentAudioDelivery, exportVideo, handleExportAction, renderSnapshot } = tracks.export;
-	bindSoundscaperPersistentDeliveryRuntime(options, { exportService: tracks.export, getProject: () => documentState.project, getSaveState: () => state.saveState, captureProjectGeneration: () => projectGeneration.capture(documentState.project?.id ?? null), assertProjectGeneration: (token) => projectGeneration.assertCurrent(token), deliveryReport: () => state.deliveryReport ?? null, cancelExport: cancelPersistentAudioDelivery, publishDocumentSnapshot });
+	bindSoundscaperPersistentDeliveryRuntime(options, { exportService: tracks.export, getProject: documentScope.get, getSaveState: () => state.saveState, captureProjectGeneration: documentScope.captureCurrent, assertProjectGeneration: documentScope.assertCurrent, deliveryReport: () => state.deliveryReport ?? null, cancelExport: cancelPersistentAudioDelivery, publishDocumentSnapshot });
 	const effects = createEffectsComposition({
 		state: effectsAccess, copy, locale, composition, absentSubsystem, lifetime, projectGeneration, projectRuntime, store, engine, sourceBuffers, sourcePeaks,
 		taskProgress, nyquistEvaluator, getProject: () => documentState.project, getCommandProject, activeSelection, selectedTracksTimeRange: bindings.selectedTracksTimeRange, editingBlocked, setSelection: bindings.selection.setSelection,
@@ -553,13 +553,13 @@ export function createAudioEditorController(_root = null, options = {}) {
 		switchProject: bindings.switchProject, projectChanged: bindings.projectChanged, warnEnvelope,
 	});
 	const recording = createRecordingComposition({
-		state: recordingAccess, lifetime, projectGeneration, projectRuntime, session: sessionController, store, engine, copy, locale, mediaDevices, getProjectWriteFence: (id) => state.projectLock?.projectId === id && !state.projectLock.readOnly && !state.readOnly ? state.projectLock.writeFence ?? null : null, recordPersistedSnapshot: (project) => doc.saves.recordPersistedSnapshot(/** @type {import('./controller/document/document-composition-types.ts').DocumentProject} */ (project)),
+		state: recordingAccess, lifetime, document: documentScope, projectRuntime, session: sessionController, store, engine, copy, locale, mediaDevices, getProjectWriteFence: (id) => state.projectLock?.projectId === id && !state.projectLock.readOnly && !state.readOnly ? state.projectLock.writeFence ?? null : null, recordPersistedSnapshot: (project) => doc.saves.recordPersistedSnapshot(/** @type {import('./controller/document/document-composition-types.ts').DocumentProject} */ (project)),
 		capturePool: recordingCapturePool, createRecorder: recordingControllerFactory, microphoneMeter: microphoneMeterService,
 		soundActivation: soundActivationPolicyService, openRecovery: takeCycleOpenRecoveryBinding, retention: doc.retention,
 		sourceBuffers, sourceChunkProviders, sourcePeaks, currentTimeMs, scheduleTimer, clearTimer: clearScheduledTimer, productSettingKey,
-		getProject: () => documentState.project, setProject: (value) => { documentState.project = value; }, projectSampleRate, getMicrofadeNewClips: () => state.preferences.editing.applyMicrofadesToNewClips,
+		projectSampleRate, getMicrofadeNewClips: () => state.preferences.editing.applyMicrofadesToNewClips,
 		assignPreferredInputToTrack, addTrack, commit: bindings.commit, activateStoredSource: bindings.activateStoredSource, beginPlaybackCachePreparation: bindings.beginPlaybackCachePreparation, applyProjectToPlaybackEngine: bindings.applyProjectToPlaybackEngine,
-		flushProject: bindings.flushProject, stopProjectBinPreview: bindings.stopProjectBinPreview, persistSetting, updatePreferences: bindings.updatePreferences, preflightStorage: bindings.preflightStorage, publishDocumentSnapshot,
+		flushProject: bindings.flushProject, stopProjectBinPreview: bindings.projectBin.stopPreview, persistSetting, updatePreferences: bindings.updatePreferences, preflightStorage: bindings.preflightStorage, publishDocumentSnapshot,
 		publishTelemetrySnapshot, publishProjectState: bindings.publishProjectState, updatePlayhead, updateTransportState: bindings.updateTransportState, setStatus: bindings.setStatus, handleError: bindings.handleError,
 	});
 	const actions = createControllerActionComposition(bindings, {
@@ -584,7 +584,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		pauseLoudnessMeasurement,
 		prepareProjectHandoff, assertProjectHandoffAllowed, prepareAudacityEffectFromController: effects.execution.prepareAudacityEffectFromController, previewAudacityEffectFromController: effects.execution.previewAudacityEffectFromController,
 		product, productId: product.id, locale: options.locale, macroScriptStartedAt: () => new Date().toISOString(), startMacroScriptTask: () => lifetime.startTask('macro-script', { scope: EDITOR_PROJECT_TASK_SCOPE }), getProject: () => documentState.project, projectSampleRate, beginMacroTransaction: () => doc.mutation.beginMacroTransaction(), timelineDurationFrames: () => projectDurationFrames(documentState.project),
-		releaseVideoSourceVisual: bindings.revokeVideoVisual, reloadVideoSourceVisual, reportVideoPreviewPressure: options.reportProductVideoPreviewPressure || (() => undefined), canRelinkLinkedAudio: imports.projectBin.canRelinkLinkedAudio, classifyLinkedAudioRelink: imports.projectBin.classifyLinkedAudioRelink, relinkLinkedAudio: imports.projectBin.relinkLinkedAudio, canRelinkLinkedVideo: imports.projectBin.canRelinkLinkedVideo, classifyLinkedVideoRelink: imports.projectBin.classifyLinkedVideoRelink, relinkLinkedVideo: imports.projectBin.relinkLinkedVideo,
+		releaseVideoSourceVisual: bindings.revokeVideoVisual, reloadVideoSourceVisual, reportVideoPreviewPressure: options.reportProductVideoPreviewPressure || (() => undefined),
 		reorderTrack,
 		requestStoragePersistence: storageCapacityService.requestStoragePersistence,
 		resetLoudnessMeasurement,
@@ -631,7 +631,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		clearWaveformCaches: sources.clearWaveformPcmCaches, closeStore: () => store.close?.(),
 	});
 	if (options.productNativeRenderInputAuthority) connectControllerNativeRenderInput(options.productNativeRenderInputAuthority, {
-		lifetime, projectGeneration, getProject: () => documentState.project, cloneProject: projectRuntime.cloneProject,
+		lifetime, projectGeneration, getProject: documentScope.get, cloneProject: projectRuntime.cloneProject,
 		sourceBuffers, renderSnapshot, createRenderEngine: bindings.createCacheAwareRenderEngine,
 		prepareCommittedTimePitchCaches: bindings.prepareCommittedTimePitchCaches,
 	});
@@ -660,7 +660,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		getTelemetrySnapshot: bindings.getTelemetrySnapshot, subscribeTelemetry: telemetryChannel.subscribe,
 		getLocalDiagnosticsSnapshot: state.localDiagnostics.snapshot, recordLocalDiagnosticError: state.localDiagnostics.record,
 		getClipVisualData: bindings.getClipVisualData,
-		getProjectBinClipVisualData: bindings.getProjectBinClipVisualData, selectedMediaPreparation: effects.audio.selectedMediaPreparation, textToSpeechProjectPort,
+		getProjectBinClipVisualData: bindings.projectBin.getVisualData, selectedMediaPreparation: effects.audio.selectedMediaPreparation, textToSpeechProjectPort,
 		actions, presentationLocalization: localization.port,
 		beginDisposal: () => { disposeResources.beginDisposal(); publishDocumentSnapshot({ force: true }); }, blockStoreClose: disposeResources.blockStoreClose, canCloseStore: disposeResources.canCloseStore, dispose: () => { disposeLocalization(); return disposeResources(); },
 	};

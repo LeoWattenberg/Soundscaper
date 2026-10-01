@@ -7,7 +7,8 @@ import type { MacroTransactionMetadata } from '../effects/macro-transaction-meta
 
 import type { EnginePublicApi } from '../../engine/public-api.ts';
 import type { EditorCommandCapabilities } from './internal/command-capability-policy.ts';
-import type { EditorControllerLifetime, EditorProjectGeneration } from '../shared/lifecycle.ts';
+import type { EditorControllerLifetime } from '../shared/lifecycle.ts';
+import type { ControllerDocumentScope } from './controller-document-scope.ts';
 import type {
 	EditorCommandMoment,
 	MutationTrack,
@@ -120,7 +121,7 @@ export interface DocumentCompositionDependencies {
 	readonly state: DocumentCompositionState;
 	readonly copy: DocumentCompositionCopy;
 	readonly lifetime: EditorControllerLifetime;
-	readonly projectGeneration: Pick<EditorProjectGeneration, 'capture' | 'assertCurrent'>;
+	readonly document: ControllerDocumentScope<DocumentProject>;
 	/** Product operations act on the admitted document and its history. */
 	readonly projectRuntime: Readonly<{
 		readonly cloneProject: (project: DocumentProject) => DocumentProject;
@@ -150,8 +151,6 @@ export interface DocumentCompositionDependencies {
 		snapshot: DocumentProject,
 	) => PromiseLike<unknown> | unknown;
 	readonly sources: Pick<SourceRuntimeComposition, 'projectVisual' | 'timePitchCaches' | 'playbackApply' | 'sourceLifecycle'>;
-	readonly getProject: () => DocumentProject | null;
-	readonly setProject: (project: DocumentProject | null) => void;
 	readonly getHistory: () => DocumentHistory | null;
 	readonly setHistory: (history: DocumentHistory) => void;
 	readonly projectDurationFrames: (project: DocumentProject) => number;

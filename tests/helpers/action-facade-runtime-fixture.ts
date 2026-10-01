@@ -3,6 +3,7 @@
 import type { EditorActionRuntime } from '../../src/common/editor/controller/composition/action-facade.ts';
 import { createEditorLabelActionGroup } from '../../src/common/editor/controller/composition/label-action-group.ts';
 import { createEditorSelectionActionGroup } from '../../src/common/editor/controller/composition/selection-action-group.ts';
+import { createEditorProjectBinActionGroup } from '../../src/common/editor/controller/composition/project-bin-action-group.ts';
 
 /**
  * A runtime that answers every name the action facade destructures.
@@ -48,6 +49,11 @@ export function createActionFacadeRuntime(capability = true): EditorActionRuntim
 	const selection = createEditorSelectionActionGroup({
 		getSelectionView: () => selectionView as never,
 	});
+	const projectBinService = new Proxy<Record<string, unknown>>({}, { get: () => callable });
+	const projectBin = createEditorProjectBinActionGroup({
+		getProjectBin: () => projectBinService as never,
+		getProjectVisual: () => ({ getProjectBinClipVisualData: callable }) as never,
+	});
 	const runtime = new Proxy<Record<string, unknown>>({}, {
 		get(_target, name) {
 			if (name === 'capabilities') return new Proxy({}, { get: () => capability });
@@ -55,6 +61,7 @@ export function createActionFacadeRuntime(capability = true): EditorActionRuntim
 			if (name === 'videoTrimServices') return videoTrimServices;
 			if (name === 'copy') return { projectNotFound: 'Not found', localSourcesMissing: 'Missing', audioClipNotFound: 'Missing' };
 			if (name === 'labels') return labels;
+			if (name === 'projectBin') return projectBin;
 			if (name === 'selection') return selection;
 			if (name === 'project') return { tracks: [], clips: [] };
 			if (name === 'state' || name === 'effectLibraryState') return state;

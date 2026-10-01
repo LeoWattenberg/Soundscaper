@@ -39,7 +39,6 @@ export interface EditorActionFunctions {
 	readonly adjustTrackHeight: ReturnType<typeof createTransportComposition>['view']['adjustTrackHeight'];
 	readonly applyAudacityEffectFromController: ReturnType<typeof createEffectsComposition>['applyAudacityEffectFromController'];
 	readonly applyEffectPreset: ReturnType<typeof createEffectsComposition>['controls']['applyEffectPreset'];
-	readonly applyProjectBinReplacement: ReturnType<typeof createImportComposition>['projectBin']['applyProjectBinReplacement'];
 	readonly applySamplePencil: ReturnType<typeof createClipVideoComposition>['applySamplePencil'];
 	readonly applySpectralSelection: ReturnType<typeof createEffectsComposition>['applySpectralSelection'];
 	readonly assertProjectHandoffAllowed: ReturnType<typeof createProjectAdminService>['assertProjectHandoffAllowed'];
@@ -48,14 +47,11 @@ export interface EditorActionFunctions {
 	readonly beginRackEffectGesture: ReturnType<typeof createEffectsComposition>['rack']['beginRackEffectGesture'];
 	readonly beginVideoEffectGesture: ReturnType<typeof createClipVideoComposition>['videoEffect']['beginVideoEffectGesture'];
 	readonly bypassVideoClipEffect: ReturnType<typeof createClipVideoComposition>['videoEffect']['bypassVideoClipEffect'];
-	readonly canRelinkLinkedAudio: ReturnType<typeof createImportComposition>['projectBin']['canRelinkLinkedAudio'];
-	readonly canRelinkLinkedVideo: ReturnType<typeof createImportComposition>['projectBin']['canRelinkLinkedVideo'];
 	readonly cancelAudacityEffectPreview: ReturnType<typeof createEffectsComposition>['controls']['cancelAudacityEffectPreview'];
 	readonly cancelEffectMacro: ReturnType<typeof createEffectsComposition>['macro']['cancelEffectMacro'];
 	readonly cancelNyquistEvaluation: ReturnType<typeof createEffectsComposition>['nyquistHost']['cancelNyquistEvaluation'];
 	readonly cancelParametricEqGesture: ReturnType<typeof createEffectsComposition>['rack']['cancelParametricEqGesture'];
 	readonly cancelPlaybackCachePreparation: ReturnType<typeof createSourceRuntimeComposition>['timePitchCaches']['cancelPlaybackCachePreparation'];
-	readonly cancelProjectBinReplacement: ReturnType<typeof createImportComposition>['projectBin']['cancelProjectBinReplacement'];
 	readonly cancelRackEffectGesture: ReturnType<typeof createEffectsComposition>['rack']['cancelRackEffectGesture'];
 	readonly cancelSampleEdit: ReturnType<typeof createClipVideoComposition>['sampleEdit']['cancelSampleEdit'];
 	readonly cancelTimedRecording: ReturnType<typeof createRecordingComposition>['timed']['cancelTimedRecording'];
@@ -63,8 +59,6 @@ export interface EditorActionFunctions {
 	readonly captureRackNoiseProfileFromController: ReturnType<typeof createEffectsComposition>['controls']['captureRackNoiseProfileFromController'];
 	readonly captureSelectedNoiseProfile: ReturnType<typeof createEffectsComposition>['captureSelectedNoiseProfile'];
 	readonly claimProjectLock: ReturnType<typeof createProjectLockService>['claimProjectLock'];
-	readonly classifyLinkedAudioRelink: ReturnType<typeof createImportComposition>['projectBin']['classifyLinkedAudioRelink'];
-	readonly classifyLinkedVideoRelink: ReturnType<typeof createImportComposition>['projectBin']['classifyLinkedVideoRelink'];
 	readonly cleanupDerivativeCache: ReturnType<typeof createControllerStorageCapacityService>['cleanupDerivativeCache'];
 	readonly cleanupDisposableStorage: ReturnType<typeof createControllerStorageCapacityService>['cleanupDisposableStorage'];
 	readonly clearLocalData: ReturnType<typeof createProjectAdminService>['clearLocalData'];
@@ -99,7 +93,6 @@ export interface EditorActionFunctions {
 	readonly generateSignal: ReturnType<typeof createEditComposition>['generateSignal'];
 	readonly getClipVisualData: ReturnType<typeof createSourceRuntimeComposition>['projectVisual']['getClipVisualData'];
 	readonly getProject: () => DocumentProject | null;
-	readonly getProjectBinClipVisualData: ReturnType<typeof createSourceRuntimeComposition>['projectVisual']['getProjectBinClipVisualData'];
 	readonly getVideoSourceVisualData: ReturnType<typeof createSourceRuntimeComposition>['projectVisual']['getVideoSourceVisualData'];
 	readonly getVisibleClips: ReturnType<typeof createSourceRuntimeComposition>['projectVisual']['getVisibleClips'];
 	readonly handleClipAction: ReturnType<typeof createClipVideoComposition>['clipProperty']['handleClipAction'];
@@ -119,7 +112,6 @@ export interface EditorActionFunctions {
 	readonly mixAndRenderTracks: ReturnType<typeof createTrackAudioComposition>['mixAndRenderTracks'];
 	readonly moveClips: ReturnType<typeof createClipVideoComposition>['clipTransform']['moveClips'];
 	readonly moveClipsToNewTrack: ReturnType<typeof createClipVideoComposition>['clipTransform']['moveClipsToNewTrack'];
-	readonly moveClipsToProjectBin: ReturnType<typeof createImportComposition>['projectBin']['moveClipsToProjectBin'];
 	readonly movePanelPreference: ReturnType<typeof createPreferencesComposition>['actions']['movePanelPreference'];
 	readonly moveToolbarPreference: ReturnType<typeof createPreferencesComposition>['actions']['moveToolbarPreference'];
 	readonly moveTrack: ReturnType<typeof createTrackAudioComposition>['trackActions']['moveTrack'];
@@ -136,16 +128,12 @@ export interface EditorActionFunctions {
 	readonly pasteEffectStack: ReturnType<typeof createEffectsComposition>['rack']['pasteEffectStack'];
 	readonly pauseLoudnessMeasurement: ReturnType<typeof createMicrophoneMeterService>['pauseLoudnessMeasurement'];
 	readonly persistSetting: ReturnType<typeof createSettingPersistence>['persist'];
-	readonly placeProjectBinClip: ReturnType<typeof createImportComposition>['projectBin']['placeProjectBinClip'];
-	readonly playPauseProjectBinClip: ReturnType<typeof createImportComposition>['projectBin']['playPauseProjectBinClip'];
 	readonly prepareAudacityEffectFromController: ReturnType<typeof createEffectsComposition>['execution']['prepareAudacityEffectFromController'];
-	readonly prepareProjectBinReplacement: ReturnType<typeof createImportComposition>['projectBin']['prepareProjectBinReplacement'];
 	readonly prepareProjectHandoff: ReturnType<typeof createProjectAdminService>['prepareProjectHandoff'];
 	readonly previewAudacityEffectFromController: ReturnType<typeof createEffectsComposition>['execution']['previewAudacityEffectFromController'];
 	readonly previewParametricEq: ReturnType<typeof createEffectsComposition>['rack']['previewParametricEq'];
 	readonly previewRackEffect: ReturnType<typeof createEffectsComposition>['rack']['previewRackEffect'];
 	readonly previewVideoEffectGesture: ReturnType<typeof createClipVideoComposition>['videoEffect']['previewVideoEffectGesture'];
-	readonly projectBinInstanceCount: ReturnType<typeof createImportComposition>['projectBin']['projectBinInstanceCount'];
 	readonly projectSampleRate: ReturnType<typeof createTransportComposition>['transport']['projectSampleRate'];
 	readonly publishDocumentSnapshot: (options?: Readonly<{ force?: boolean }>) => void;
 	readonly recoverTakeCycleRecording: (pending: Parameters<TakeCycleOpenRecoveryAppPort['resolve']>[0]) => Promise<void>;
@@ -154,14 +142,9 @@ export interface EditorActionFunctions {
 	readonly refreshStorageUsage: ReturnType<typeof createControllerStorageCapacityService>['refreshStorageUsage'];
 	readonly releaseInputs: ReturnType<typeof createRecordingComposition>['routing']['releaseInputs'];
 	readonly releaseVideoSourceVisual: ReturnType<typeof createSourceRuntimeComposition>['projectVisual']['revokeVideoVisual'];
-	readonly relinkLinkedAudio: ReturnType<typeof createImportComposition>['projectBin']['relinkLinkedAudio'];
-	readonly relinkLinkedVideo: ReturnType<typeof createImportComposition>['projectBin']['relinkLinkedVideo'];
 	readonly reloadVideoSourceVisual: (sourceId: string) => ReturnType<ReturnType<typeof createSourceRuntimeComposition>['projectVisual']['activateVideoSource']>;
-	readonly removeProjectBinClip: ReturnType<typeof createImportComposition>['projectBin']['removeProjectBinClip'];
-	readonly removeProjectBinSource: ReturnType<typeof createImportComposition>['projectBin']['removeProjectBinSource'];
 	readonly removeVideoClipEffect: ReturnType<typeof createClipVideoComposition>['videoEffect']['removeVideoClipEffect'];
 	readonly renameProject: ReturnType<typeof createProjectAdminService>['renameProject'];
-	readonly renameProjectBinClip: ReturnType<typeof createImportComposition>['projectBin']['renameProjectBinClip'];
 	readonly renderClipPitchSpeed: ReturnType<typeof createClipVideoComposition>['renderClipPitchSpeed'];
 	readonly reorderTrack: ReturnType<typeof createTrackAudioComposition>['trackActions']['reorderTrack'];
 	readonly reorderVideoClipEffect: ReturnType<typeof createClipVideoComposition>['videoEffect']['reorderVideoClipEffect'];
@@ -187,7 +170,6 @@ export interface EditorActionFunctions {
 	readonly saveNow: ReturnType<typeof createDocumentComposition>['mutation']['saveNow'];
 	readonly saveScape: ReturnType<typeof createNativeProjectService>['saveScape'];
 	readonly scheduleTimedRecording: ReturnType<typeof createRecordingComposition>['timed']['scheduleTimedRecording'];
-	readonly selectProjectBinInstances: ReturnType<typeof createImportComposition>['projectBin']['selectProjectBinInstances'];
 	readonly sessionTab: ReturnType<typeof createDocumentComposition>['session']['sessionTab'];
 	readonly setAllTracksView: ReturnType<typeof createDocumentComposition>['view']['setAllTracksView'];
 	readonly setAudacityControlTrack: ReturnType<typeof createEffectsComposition>['controls']['setAudacityControlTrack'];
@@ -209,7 +191,6 @@ export interface EditorActionFunctions {
 	readonly setPlayAtSpeedRate: ReturnType<typeof createTransportComposition>['transport']['setPlayAtSpeedRate'];
 	readonly setPreferredInputChannelCount: ReturnType<typeof createRecordingComposition>['routing']['setPreferredInputChannelCount'];
 	readonly setPreferredInputDevice: ReturnType<typeof createRecordingComposition>['routing']['setPreferredInputDevice'];
-	readonly setProjectBinClipColor: ReturnType<typeof createImportComposition>['projectBin']['setProjectBinClipColor'];
 	readonly setRecordingInputGain: ReturnType<typeof createRecordingComposition>['setRecordingInputGain'];
 	readonly setRecordingSourceLatency: ReturnType<typeof createRecordingComposition>['routing']['setRecordingSourceLatency'];
 	readonly setRecordingTrackInput: ReturnType<typeof createRecordingComposition>['inputs']['setRecordingTrackInput'];
@@ -234,7 +215,6 @@ export interface EditorActionFunctions {
 	readonly startSoundActivatedRecording: ReturnType<typeof createRecordingComposition>['session']['startSoundActivatedRecording'];
 	readonly startRecordingOnNewTrack: ReturnType<typeof createRecordingComposition>['session']['startRecordingOnNewTrack'];
 	readonly startTakeCycleRecording: ReturnType<typeof createRecordingComposition>['session']['startTakeCycleRecording'];
-	readonly stopProjectBinPreview: ReturnType<typeof createImportComposition>['projectBin']['stopProjectBinPreview'];
 	readonly stopRecording: ReturnType<typeof createRecordingComposition>['session']['stopRecording'];
 	readonly stretchClip: ReturnType<typeof createClipVideoComposition>['clipProperty']['stretchClip'];
 	readonly swapTrackChannels: ReturnType<typeof createTrackAudioComposition>['swapTrackChannels'];

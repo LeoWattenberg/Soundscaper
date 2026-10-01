@@ -80,9 +80,9 @@ type RecordingRouting = ReturnType<typeof createRecordingRoutingService<Recordin
  * closures below, so the controller never holds their wiring order.
  */
 export function createRecordingComposition(dependencies: RecordingCompositionDependencies) {
-	const { state, engine, copy, locale, store, microphoneMeter, soundActivation, capturePool } = dependencies;
+	const { state, engine, copy, locale, store, microphoneMeter, soundActivation, capturePool, document } = dependencies;
 	const requireProject = (): RecordingCompositionProject => {
-		const project = dependencies.getProject();
+		const project = document.get();
 		if (!project) throw new Error('Recording requires an open project.');
 		return project;
 	};
@@ -108,7 +108,7 @@ export function createRecordingComposition(dependencies: RecordingCompositionDep
 		normalizeRecordingRouting,
 		persistSetting: dependencies.persistSetting,
 		productSettingKey: dependencies.productSettingKey,
-		getProject: dependencies.getProject,
+		getProject: document.get,
 		projectSampleRate: dependencies.projectSampleRate,
 		publishDocumentSnapshot: dependencies.publishDocumentSnapshot,
 		recordingCapturePool: capturePool,
@@ -208,15 +208,15 @@ export function createRecordingComposition(dependencies: RecordingCompositionDep
 		sourceChunkFrames: SOURCE_CHUNK_FRAMES,
 		labelTrackName: publishedCopyFor(copy).labels,
 		captureProjectScope: () => {
-			const captured = dependencies.getProject();
+			const captured = document.get();
 			if (!captured) throw abortError();
-			const token = dependencies.projectGeneration.capture(captured.id);
+			const token = document.captureCurrent();
 			return Object.freeze({
 				project: captured,
 				projectId: captured.id,
 				assertCurrent: () => {
-					dependencies.projectGeneration.assertCurrent(token);
-					if (dependencies.getProject() !== captured) throw abortError();
+					document.assertCurrent(token);
+					if (document.get() !== captured) throw abortError();
 				},
 			});
 		},
@@ -237,7 +237,7 @@ export function createRecordingComposition(dependencies: RecordingCompositionDep
 		),
 		activateStoredSource: async (source, metadata) => { await dependencies.activateStoredSource(source, metadata); },
 		commitBatch: (project, commands, selection) => {
-			if (project !== dependencies.getProject()) throw abortError();
+			if (project !== document.get()) throw abortError();
 			dependencies.commit({ type: 'batch', commands }, selection);
 		},
 		setStatusDone: () => setLocalizedStatus(dependencies.setStatus, copy, "done", undefined, 'success'),
@@ -262,11 +262,14 @@ export function createRecordingComposition(dependencies: RecordingCompositionDep
 		...(dependencies.getProjectWriteFence ? { getProjectWriteFence: dependencies.getProjectWriteFence } : {}),
 		...(dependencies.recordPersistedSnapshot ? { recordPersistedSnapshot: dependencies.recordPersistedSnapshot } : {}),
 		session: dependencies.session,
-		projectGeneration: dependencies.projectGeneration,
+		projectGeneration: {
+			capture: () => document.captureCurrent(),
+			assertCurrent: (token) => document.assertCurrent(token),
+		},
 		state,
 		recording: captureRuntime,
-		getProject: dependencies.getProject,
-		setProject: dependencies.setProject,
+		getProject: document.get,
+		setProject: document.set,
 		activeSelection: activeSelectionOf,
 		findAudioSource: (project, mediaId) => findSource(project, mediaId),
 		trackName: (project, trackId) => findTrack(project, trackId)?.name || publishedCopyFor(copy).recordingLabel,
@@ -299,10 +302,10 @@ export function createRecordingComposition(dependencies: RecordingCompositionDep
 		state,
 		inspect: takeCycle.inspectOpenRecovery,
 		recover: takeCycle.recoverOnOpen,
-		getCurrentProjectId: () => dependencies.getProject()?.id ?? null,
+		getCurrentProjectId: () => document.get()?.id ?? null,
 		isDisposed: () => state.disposed,
 		isCurrentProjectWritable: () => Boolean(
-			dependencies.getProject() && state.projectLock && !state.readOnly && !state.projectLock.readOnly,
+			document.get() && state.projectLock && !state.readOnly && !state.projectLock.readOnly,
 		),
 		publish: dependencies.publishDocumentSnapshot,
 	}));
@@ -316,7 +319,7 @@ export function createRecordingComposition(dependencies: RecordingCompositionDep
 
 	const session = createRecordingSessionService({
 		state,
-		getProjectId: () => dependencies.getProject()?.id || null,
+		getProjectId: () => document.get()?.id || null,
 		abortError,
 		addTrack: dependencies.addTrack,
 		stopProjectBinPreview: dependencies.stopProjectBinPreview,
@@ -355,7 +358,7 @@ export function createRecordingComposition(dependencies: RecordingCompositionDep
 		resetSoundActivationSources: soundActivation.resetSources,
 		setSoundActivationCaptureEnabled: soundActivation.setCaptureEnabled,
 		canStartSoundActivatedRecording: () => {
-			const project = dependencies.getProject();
+			const project = document.get();
 			return Boolean(project && !activeSelectionOf(project));
 		},
 		handleError: dependencies.handleError,
@@ -382,7 +385,7 @@ export function createRecordingComposition(dependencies: RecordingCompositionDep
 	});
 	const timed = createTimedRecordingService({
 		state,
-		getProjectId: () => dependencies.getProject()?.id || null,
+		getProjectId: () => document.get()?.id || null,
 		normalizeStartTime: normalizeTimedRecordingStart,
 		currentTimeMs: dependencies.currentTimeMs,
 		prepareInputs: timedInputs.prepareTimedRecordingInputs,
@@ -426,13 +429,13 @@ export function createRecordingComposition(dependencies: RecordingCompositionDep
 		capturePool,
 		captureOperation: () => {
 			const lifetimeToken = dependencies.lifetime.capture();
-			const targetProject = dependencies.getProject();
-			const projectToken = targetProject ? dependencies.projectGeneration.capture(targetProject.id) : null;
+			const targetProject = document.get();
+			const projectToken = targetProject ? document.captureCurrent() : null;
 			return Object.freeze({
 				assertCurrent() {
 					dependencies.lifetime.assertActive(lifetimeToken);
-					if (projectToken) dependencies.projectGeneration.assertCurrent(projectToken);
-					if (dependencies.getProject() !== targetProject) throw abortError();
+					if (projectToken) document.assertCurrent(projectToken);
+					if (document.get() !== targetProject) throw abortError();
 				},
 			});
 		},
@@ -444,7 +447,7 @@ export function createRecordingComposition(dependencies: RecordingCompositionDep
 			updateRecordingDeviceRows: routing.updateRecordingDeviceRows,
 		},
 		cancelTimedRecording: timed.cancelTimedRecording,
-		getTrack: (trackId) => findTrack(dependencies.getProject(), trackId) || null,
+		getTrack: (trackId) => findTrack(document.get(), trackId) || null,
 		projectSampleRate: dependencies.projectSampleRate,
 		publishDocumentSnapshot: dependencies.publishDocumentSnapshot,
 		recordingRouteSourceKey,

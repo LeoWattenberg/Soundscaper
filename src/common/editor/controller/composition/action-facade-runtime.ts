@@ -10,6 +10,10 @@ import {
 	assertEditorSelectionActionGroup,
 	type EditorSelectionActionGroup,
 } from './selection-action-group.ts';
+import {
+	assertEditorProjectBinActionGroup,
+	type EditorProjectBinActionGroup,
+} from './project-bin-action-group.ts';
 export type { EditorActionResources } from './editor-action-resources.ts';
 
 type MissingEditorActionFunctionNames<Names extends readonly PropertyKey[]> =
@@ -34,7 +38,6 @@ export const EDITOR_ACTION_FUNCTION_NAMES = defineEditorActionFunctionNames([
 	'adjustTrackHeight',
 	'applyAudacityEffectFromController',
 	'applyEffectPreset',
-	'applyProjectBinReplacement',
 	'applySamplePencil',
 	'applySpectralSelection',
 	'assertProjectHandoffAllowed',
@@ -43,14 +46,11 @@ export const EDITOR_ACTION_FUNCTION_NAMES = defineEditorActionFunctionNames([
 	'beginRackEffectGesture',
 	'beginVideoEffectGesture',
 	'bypassVideoClipEffect',
-	'canRelinkLinkedAudio',
-	'canRelinkLinkedVideo',
 	'cancelAudacityEffectPreview',
 	'cancelEffectMacro',
 	'cancelNyquistEvaluation',
 	'cancelParametricEqGesture',
 	'cancelPlaybackCachePreparation',
-	'cancelProjectBinReplacement',
 	'cancelRackEffectGesture',
 	'cancelSampleEdit',
 	'cancelTimedRecording',
@@ -58,8 +58,6 @@ export const EDITOR_ACTION_FUNCTION_NAMES = defineEditorActionFunctionNames([
 	'captureRackNoiseProfileFromController',
 	'captureSelectedNoiseProfile',
 	'claimProjectLock',
-	'classifyLinkedAudioRelink',
-	'classifyLinkedVideoRelink',
 	'cleanupDerivativeCache',
 	'cleanupDisposableStorage',
 	'clearLocalData',
@@ -94,7 +92,6 @@ export const EDITOR_ACTION_FUNCTION_NAMES = defineEditorActionFunctionNames([
 	'generateSignal',
 	'getClipVisualData',
 	'getProject',
-	'getProjectBinClipVisualData',
 	'getVideoSourceVisualData',
 	'getVisibleClips',
 	'handleClipAction',
@@ -114,7 +111,6 @@ export const EDITOR_ACTION_FUNCTION_NAMES = defineEditorActionFunctionNames([
 	'mixAndRenderTracks',
 	'moveClips',
 	'moveClipsToNewTrack',
-	'moveClipsToProjectBin',
 	'movePanelPreference',
 	'moveToolbarPreference',
 	'moveTrack',
@@ -131,16 +127,12 @@ export const EDITOR_ACTION_FUNCTION_NAMES = defineEditorActionFunctionNames([
 	'pasteEffectStack',
 	'pauseLoudnessMeasurement',
 	'persistSetting',
-	'placeProjectBinClip',
-	'playPauseProjectBinClip',
 	'prepareAudacityEffectFromController',
-	'prepareProjectBinReplacement',
 	'prepareProjectHandoff',
 	'previewAudacityEffectFromController',
 	'previewParametricEq',
 	'previewRackEffect',
 	'previewVideoEffectGesture',
-	'projectBinInstanceCount',
 	'projectSampleRate',
 	'publishDocumentSnapshot',
 	'recoverTakeCycleRecording',
@@ -149,14 +141,9 @@ export const EDITOR_ACTION_FUNCTION_NAMES = defineEditorActionFunctionNames([
 	'refreshStorageUsage',
 	'releaseInputs',
 	'releaseVideoSourceVisual',
-	'relinkLinkedAudio',
-	'relinkLinkedVideo',
 	'reloadVideoSourceVisual',
-	'removeProjectBinClip',
-	'removeProjectBinSource',
 	'removeVideoClipEffect',
 	'renameProject',
-	'renameProjectBinClip',
 	'renderClipPitchSpeed',
 	'reorderTrack',
 	'reorderVideoClipEffect',
@@ -182,7 +169,6 @@ export const EDITOR_ACTION_FUNCTION_NAMES = defineEditorActionFunctionNames([
 	'saveNow',
 	'saveScape',
 	'scheduleTimedRecording',
-	'selectProjectBinInstances',
 	'sessionTab',
 	'setAllTracksView',
 	'setAudacityControlTrack',
@@ -204,7 +190,6 @@ export const EDITOR_ACTION_FUNCTION_NAMES = defineEditorActionFunctionNames([
 	'setPlayAtSpeedRate',
 	'setPreferredInputChannelCount',
 	'setPreferredInputDevice',
-	'setProjectBinClipColor',
 	'setRecordingInputGain',
 	'setRecordingSourceLatency',
 	'setRecordingTrackInput',
@@ -229,7 +214,6 @@ export const EDITOR_ACTION_FUNCTION_NAMES = defineEditorActionFunctionNames([
 	'startSoundActivatedRecording',
 	'startRecordingOnNewTrack',
 	'startTakeCycleRecording',
-	'stopProjectBinPreview',
 	'stopRecording',
 	'stretchClip',
 	'swapTrackChannels',
@@ -259,6 +243,7 @@ export const EDITOR_ACTION_FUNCTION_NAMES = defineEditorActionFunctionNames([
 
 export type EditorActionRuntime = EditorActionResources & EditorActionFunctions & Readonly<{
 	labels: EditorLabelActionGroup;
+	projectBin: EditorProjectBinActionGroup;
 	selection: EditorSelectionActionGroup;
 }>;
 export type RestrictToCapability = <Args extends unknown[], Result>(
@@ -271,5 +256,6 @@ export function assertEditorActionRuntime(scope: EditorActionRuntime): void {
 		if (typeof scope[name] !== 'function') throw new TypeError(`Missing editor action dependency: ${name}.`);
 	}
 	assertEditorLabelActionGroup(scope.labels);
+	assertEditorProjectBinActionGroup(scope.projectBin);
 	assertEditorSelectionActionGroup(scope.selection);
 }

@@ -52,14 +52,10 @@ type Mutation = ReturnType<typeof createProjectMutationService<
  * through a closure, because mutation synchronises annotation focus in turn.
  */
 export function createDocumentComposition(dependencies: DocumentCompositionDependencies) {
-	const { state, copy, lifetime, projectRuntime, session, store, engine, sources } = dependencies;
-	const captureProject = (projectId: string) => dependencies.projectGeneration.capture(projectId);
-	const assertProject = (token: ReturnType<typeof captureProject>) => dependencies.projectGeneration.assertCurrent(token);
-	const requireProject = (): DocumentProject => {
-		const project = dependencies.getProject();
-		if (!project) throw new Error('The document services require an open project.');
-		return project;
-	};
+	const { state, copy, lifetime, projectRuntime, session, store, engine, sources, document } = dependencies;
+	const captureProject = (_projectId: string) => document.captureCurrent();
+	const assertProject = (token: ReturnType<typeof captureProject>) => document.assertCurrent(token);
+	const requireProject = document.requireCurrent;
 	let mutation: Mutation | null = null;
 	const requireMutation = (): Mutation => {
 		if (!mutation) throw new Error('The mutation service is not composed yet.');
@@ -72,8 +68,8 @@ export function createDocumentComposition(dependencies: DocumentCompositionDepen
 		lastProjectSettingKey: dependencies.settingKeys.lastProject,
 		getRecentProjectIds: () => state.recentProjectIds,
 		setRecentProjectIds: (projectIds) => { state.recentProjectIds = projectIds; },
-		getActiveProjectId: () => dependencies.getProject()?.id ?? null,
-		getActiveProject: dependencies.getProject,
+		getActiveProjectId: () => document.get()?.id ?? null,
+		getActiveProject: document.get,
 		state,
 		findTrack,
 		findClip,
@@ -86,8 +82,8 @@ export function createDocumentComposition(dependencies: DocumentCompositionDepen
 	const { sessionTab } = projectSession;
 	const retention = createProjectRetentionService<DocumentProject, DocumentHistory>({
 		state,
-		getProject: dependencies.getProject,
-		setProject: dependencies.setProject,
+		getProject: document.get,
+		setProject: document.set,
 		compactHistory: createHistorySourceCompactor<DocumentProject>((project, preserveSourceIds) => (
 			compactProjectSourceMetadata(project, { preserveSourceIds })
 		)),
@@ -108,10 +104,10 @@ export function createDocumentComposition(dependencies: DocumentCompositionDepen
 		evictSourceCaches: evictUnreferencedSourceCaches,
 	});
 	const saves = createProjectSaveService<DocumentProject>({
-		getProject: dependencies.getProject,
+		getProject: document.get,
 		hasHistory: () => Boolean(dependencies.getHistory()),
 		hasUnsavedProjectChanges: () => {
-			const project = dependencies.getProject();
+			const project = document.get();
 			return Boolean(project && sessionTab(project.id)?.dirty);
 		},
 		isReadOnly: () => state.readOnly || Boolean(state.takeCycleRecovery || state.takeCycleRecoveryInspecting),
@@ -122,7 +118,7 @@ export function createDocumentComposition(dependencies: DocumentCompositionDepen
 		prepareSnapshot: dependencies.prepareProjectSnapshot
 			? async (snapshot, purpose) => {
 				await dependencies.prepareProjectSnapshot?.(purpose, snapshot);
-				const project = dependencies.getProject();
+				const project = document.get();
 				if (!project || project.id !== snapshot.id) throw new Error('The active project changed during save preparation.');
 				return projectRuntime.cloneProject(project);
 			}
@@ -140,7 +136,7 @@ export function createDocumentComposition(dependencies: DocumentCompositionDepen
 			) }
 			: {}),
 		onPublicationConflict: (projectId) => {
-			if (dependencies.getProject()?.id !== projectId) return;
+			if (document.get()?.id !== projectId) return;
 			state.readOnly = true;
 			session.setProjectReadOnly?.(projectId, {
 				readOnly: true, reason: 'project-lock', lockMethod: state.projectLock?.method ?? 'unknown',
@@ -151,7 +147,7 @@ export function createDocumentComposition(dependencies: DocumentCompositionDepen
 			await dependencies.persistSetting(dependencies.settingKeys.lastProject, projectId);
 			if (dependencies.product.id === 'soundscaper') await dependencies.persistSetting('last-project-id', projectId);
 		},
-		isCurrentProject: (projectId) => dependencies.getProject()?.id === projectId,
+		isCurrentProject: (projectId) => document.get()?.id === projectId,
 		hasSessionTab: (projectId) => Boolean(sessionTab(projectId)),
 		markProjectSaved: (projectId) => session.markProjectSaved(projectId),
 		publish: (saveState) => { state.saveState = saveState; dependencies.publishDocumentSnapshot(); },
@@ -166,7 +162,7 @@ export function createDocumentComposition(dependencies: DocumentCompositionDepen
 	const view = createProjectViewService<DocumentProject>({
 		lifetime,
 		state,
-		getProject: dependencies.getProject,
+		getProject: document.get,
 		projectDurationFrames: dependencies.projectDurationFrames,
 		editorTimelineDurationFrames: dependencies.editorTimelineDurationFrames,
 		projectSampleRate: dependencies.projectSampleRate,
@@ -181,7 +177,7 @@ export function createDocumentComposition(dependencies: DocumentCompositionDepen
 	const timelineAnnotation = createTimelineAnnotationService({
 		lifetime,
 		state,
-		getProject: dependencies.getProject,
+		getProject: document.get,
 		editingBlocked: dependencies.editingBlocked,
 		createId: createStableId,
 		getPositionFrames: () => engine.getPositionFrames(),
@@ -197,7 +193,7 @@ export function createDocumentComposition(dependencies: DocumentCompositionDepen
 	});
 	const trackFolder = createTrackFolderService({
 		lifetime,
-		getProject: dependencies.getProject,
+		getProject: document.get,
 		editingBlocked: dependencies.editingBlocked,
 		createId: createStableId,
 		commit: (command) => requireMutation().commit(command),
@@ -212,8 +208,8 @@ export function createDocumentComposition(dependencies: DocumentCompositionDepen
 		capabilities: dependencies.capabilities,
 		get projectReadOnlyMessage() { return copy.projectReadOnly; },
 		assertEditingAllowed: dependencies.assertEditingAllowed,
-		getProject: dependencies.getProject,
-		setProject: dependencies.setProject,
+		getProject: document.get,
+		setProject: document.set,
 		getHistory: dependencies.getHistory,
 		setHistory: dependencies.setHistory,
 		executeEditorCommand: projectRuntime.executeCommand,
