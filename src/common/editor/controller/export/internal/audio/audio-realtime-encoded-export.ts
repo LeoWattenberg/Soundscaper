@@ -153,9 +153,9 @@ export function createRealtimeEncodedAudioExport(runtime: RealtimeEncodedExportR
 			sampleRate: renderSampleRate,
 			preRollFrames: Math.min(plan.range.startFrame, renderSampleRate * 10),
 			...directPcmRenderQueueOptions(Number(snapshot.masterChannels || 2), containerLabel),
-			// Browser suspend/resume can skip capture quanta. Keep exact direct
-			// exports continuous; bounded capture and sink paths reject overflow.
-			suspendForBackpressure: !directEncoder,
+			// Browser suspend/resume can skip capture quanta. Keep every export
+			// continuous; bounded capture and sink paths reject overflow.
+			suspendForBackpressure: false,
 			...withRenderProgress({}),
 			signal,
 			onChunk: (channels: RuntimeValue, metadata: RuntimeValue = {}) => {
