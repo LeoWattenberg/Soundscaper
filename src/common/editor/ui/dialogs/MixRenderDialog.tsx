@@ -1,7 +1,7 @@
 import { feedbackFailure, usePresentationFeedback } from '../presentation-feedback.ts';
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
+import React, { useId, useMemo, useRef, useState } from 'react';
 import { DialogFooter } from '@soundscaper/design-system/Footer';
 
 import '../audio-editor-design-system/28-mix-render.css';
@@ -18,10 +18,8 @@ import EditorHelpTooltip from '../EditorHelpTooltip.tsx';
 import PreferenceCheckbox from '../EditorPreferenceCheckbox.tsx';
 import { LabeledDropdown } from '../inspector/inspector-controls.jsx';
 import { formatLocalizedTemplate } from '../localization-template.ts';
-import {
-	runAwaitedAudioEditorOperation,
-	type AudioEditorWorkspaceRunner,
-} from '../workspace/audio-editor-workspace-runner.ts';
+import { useOwnedDialogOperation } from '../useOwnedDialogOperation.ts';
+import type { AudioEditorWorkspaceRunner } from '../workspace/audio-editor-workspace-runner.ts';
 
 interface MixRenderDialogCopy {
 	readonly mixRenderTitle: string;
@@ -67,8 +65,6 @@ export default function MixRenderDialog({
 }: MixRenderDialogProps) {
 	const project = snapshot.project ?? null;
 	const projectId = project?.id ?? null;
-	const currentProjectIdRef = useRef(projectId);
-	currentProjectIdRef.current = projectId;
 	const targetTracks = useMemo(() => project ? selectAudioTracksForMix(
 		project,
 		snapshot.selectedTrackId ?? null,
@@ -85,9 +81,7 @@ export default function MixRenderDialog({
 	);
 	const defaultOutputChannelCountRef = useRef(predictedOutputChannelCount ?? 2);
 	defaultOutputChannelCountRef.current = predictedOutputChannelCount ?? 2;
-	const [pending, setPending] = useState(false);
 	const [error, setError] = usePresentationFeedback(copy);
-	const activeOperationRef = useRef<symbol | null>(null);
 	const outputChannelCounts = useMemo(
 		() => project ? mixRenderOutputChannelChoices(project) : Object.freeze([1, 2]),
 		[project],
@@ -97,47 +91,35 @@ export default function MixRenderDialog({
 		label: outputLayoutChoiceLabel(copy, channelCount),
 	})), [copy, outputChannelCounts]);
 
-	useEffect(() => {
-		activeOperationRef.current = null;
-		setMixDown(true);
-		setRenderEffects(true);
-		setReplaceOriginals(true);
-		setMixDownChannelCount(defaultOutputChannelCountRef.current);
-		setPending(false);
-		setError('');
-	}, [projectId, setError]);
-	useEffect(() => () => { activeOperationRef.current = null; }, []);
-
 	const emptyOperation = !mixDown && !renderEffects;
-	const submitDisabled = pending || emptyOperation || predictedOutputChannelCount === null;
+	const operation = useOwnedDialogOperation({
+		owner: projectId,
+		blocked: emptyOperation || predictedOutputChannelCount === null,
+		run,
+		onOwnerChange: () => {
+			setMixDown(true);
+			setRenderEffects(true);
+			setReplaceOriginals(true);
+			setMixDownChannelCount(defaultOutputChannelCountRef.current);
+			setError('');
+		},
+	});
+
+	const pending = operation.pending !== null;
+	const submitDisabled = operation.disabled;
 	const submit = (): void => {
-		if (submitDisabled || activeOperationRef.current !== null) return;
-		const operationId = Symbol('mix-render');
-		const submittedProjectId = projectId;
 		const options = {
 			mixDown,
 			renderEffects,
 			replaceOriginals,
 			...(mixDown ? { mixDownChannelCount } : {}),
 		};
-		activeOperationRef.current = operationId;
-		setPending(true);
-		setError('');
-		void runAwaitedAudioEditorOperation(run, () => {
-			if (currentProjectIdRef.current !== submittedProjectId) return undefined;
-			return controller.actions.track.mixAndRender(options);
-		}).then(() => {
-			if (activeOperationRef.current !== operationId
-				|| currentProjectIdRef.current !== submittedProjectId) return;
-			onClose();
-		}).catch((operationError: unknown) => {
-			if (activeOperationRef.current !== operationId
-				|| currentProjectIdRef.current !== submittedProjectId) return;
-			setError(feedbackFailure(operationError));
-		}).finally(() => {
-			if (activeOperationRef.current !== operationId) return;
-			activeOperationRef.current = null;
-			setPending(false);
+		operation.perform('mix-render', () => controller.actions.track.mixAndRender(options), {
+			onStart: () => { setError(''); },
+			onSuccess: onClose,
+			onFailure: (operationError) => {
+				setError(feedbackFailure(operationError));
+			},
 		});
 	};
 

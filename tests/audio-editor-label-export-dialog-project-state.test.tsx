@@ -75,6 +75,21 @@ test('label export ignores an earlier project rejection while the new project ex
 	}
 });
 
+test('label export keeps synchronous failures in its local presentation owner', async () => {
+	const fixture = await mountedLabelExportFixture({
+		exportLabels: () => { throw new Error('Local label export failed'); },
+	});
+	try {
+		await fixture.render(labelProject('project-a', ['labels']));
+		await click(fixture.exportButton());
+		assert.equal(fixture.alert()?.textContent, 'Local label export failed');
+		assert.equal(fixture.exportButton().hasAttribute('disabled'), false);
+		assert.equal(fixture.closes.count, 0);
+	} finally {
+		await fixture.cleanup();
+	}
+});
+
 interface LabelExportResult {
 	readonly cancelled?: boolean;
 }
@@ -84,7 +99,9 @@ interface LabelExportRequest {
 	readonly trackIds: readonly string[];
 }
 
-async function mountedLabelExportFixture() {
+async function mountedLabelExportFixture(options: Readonly<{
+	exportLabels?: (request: LabelExportRequest) => unknown;
+}> = {}) {
 	const dom = installReactTestDom();
 	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
 	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
@@ -100,6 +117,7 @@ async function mountedLabelExportFixture() {
 		actions: {
 			labels: {
 				export: (request: LabelExportRequest) => {
+					if (options.exportLabels) return options.exportLabels(request);
 					const completion = deferred<LabelExportResult>();
 					calls.push({ request, completion });
 					return completion.promise;

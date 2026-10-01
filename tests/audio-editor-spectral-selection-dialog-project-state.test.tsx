@@ -61,6 +61,26 @@ test('a queued spectral submission cannot apply after its project is replaced', 
 	}
 });
 
+test('spectral selection deliberately admits repeated submissions without a single-flight fence', async () => {
+	const fixture = await mountedSpectralSelectionFixture({ deferRun: true });
+	try {
+		await fixture.render(spectralSnapshot('project-a', 48_000, 100, 9_000));
+		await click(fixture.button(ENGLISH_COPY.spectralDelete));
+		await click(fixture.button(ENGLISH_COPY.spectralDelete));
+		assert.equal(fixture.queued.length, 2);
+
+		await fixture.runQueued(0);
+		await fixture.runQueued(1);
+		assert.deepEqual(fixture.selections, [
+			{ minimumFrequency: 100, maximumFrequency: 9_000 },
+			{ minimumFrequency: 100, maximumFrequency: 9_000 },
+		]);
+		assert.equal(fixture.deletions.count, 2);
+	} finally {
+		await fixture.cleanup();
+	}
+});
+
 test('the menu dialog moves a spectral center while keeping its bandwidth', async () => {
 	const fixture = await mountedSpectralSelectionFixture();
 	try {

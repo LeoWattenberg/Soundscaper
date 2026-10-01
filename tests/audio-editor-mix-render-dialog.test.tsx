@@ -218,6 +218,48 @@ test('Mix & Render reports failure without closing and fences completion to its 
 	}
 });
 
+test('Mix & Render suppresses stale rejection after a project switch', async () => {
+	const completion = deferred<void>();
+	const mounted = await mountDialog({
+		project: project(1),
+		mixAndRender: () => completion.promise,
+	});
+	try {
+		await submit(mounted.dom.container, false);
+		await mounted.render(project(2, undefined, 'project-b'));
+		await act(async () => {
+			completion.reject(new Error('Project A render failed'));
+			await completion.promise.catch(() => undefined);
+			await Promise.resolve();
+		});
+		assert.equal(mounted.dom.container.querySelector('[role="alert"]'), null);
+		assert.equal(mounted.closes(), 0);
+		assert.equal(reactProps(buttonWithText(mounted.dom.container, 'Mix & Render')).disabled, false);
+	} finally {
+		await mounted.unmount();
+	}
+});
+
+test('Mix & Render completion loses ownership when the dialog unmounts', async () => {
+	const completion = deferred<void>();
+	const mounted = await mountDialog({
+		project: project(1),
+		mixAndRender: () => completion.promise,
+	});
+	try {
+		await submit(mounted.dom.container, false);
+		await mounted.hide();
+		await act(async () => {
+			completion.resolve();
+			await completion.promise;
+			await Promise.resolve();
+		});
+		assert.equal(mounted.closes(), 0);
+	} finally {
+		await mounted.unmount();
+	}
+});
+
 function renderDialog(value: ReturnType<typeof project>): string {
 	const priorReact = Object.getOwnPropertyDescriptor(globalThis, 'React');
 	Object.defineProperty(globalThis, 'React', { configurable: true, value: React });
