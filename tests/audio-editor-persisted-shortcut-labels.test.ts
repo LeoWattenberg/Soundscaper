@@ -11,6 +11,12 @@ import createApplicationMenus from '../src/common/editor/ui/application-menus.js
 import { handleWorkspaceKeyboard } from '../src/common/editor/ui/workspace-shortcuts.ts';
 import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
 
+interface MenuItem {
+	readonly id?: string;
+	readonly shortcut?: string;
+	readonly items?: readonly MenuItem[];
+}
+
 test('Audacity parity decoration installs the imported default shortcut labels', () => {
 	const [split, deleteRipple] = applyAudacityParityToMenus([
 		{ id: 'split', label: 'Split' },
@@ -21,7 +27,7 @@ test('Audacity parity decoration installs the imported default shortcut labels',
 });
 
 test('application menus and command search expose persisted shortcut alternatives', () => {
-	const menus = createApplicationMenus(menuInput({
+	const menus: readonly MenuItem[] = createApplicationMenus(menuInput({
 		'file-new': ['Alt+N', 'Ctrl+Alt+N'],
 	}));
 	const menuCommand = findMenuItem(menus, 'new-project');
@@ -33,7 +39,7 @@ test('application menus and command search expose persisted shortcut alternative
 });
 
 test('application menus and command search do not restore a removed shortcut', () => {
-	const menus = createApplicationMenus(menuInput({}));
+	const menus: readonly MenuItem[] = createApplicationMenus(menuInput({}));
 	const menuCommand = findMenuItem(menus, 'new-project');
 	const saveAs = findMenuItem(menus, 'file-save-as');
 	const saveAup4 = findMenuItem(menus, 'save-aup4');
@@ -52,7 +58,7 @@ test('canonical paste-insert and native save-as menu items consume persisted sho
 		insert: ['Shift+V'],
 		'file-save-as': ['Ctrl+Shift+S'],
 	};
-	const menus = createApplicationMenus(menuInput(shortcuts, {
+	const menus: readonly MenuItem[] = createApplicationMenus(menuInput(shortcuts, {
 		saveAup4: () => { calls.push('aup4'); },
 		saveScape: () => { calls.push('scape'); },
 	}));
@@ -63,7 +69,6 @@ test('canonical paste-insert and native save-as menu items consume persisted sho
 	handleWorkspaceKeyboard(keyboardEvent('S'), { preferences: { shortcuts } }, (handler) => handler(), { menus });
 	assert.deepEqual(calls, ['scape']);
 });
-
 
 function menuInput(
 	shortcuts: Readonly<Record<string, readonly string[]>>,
