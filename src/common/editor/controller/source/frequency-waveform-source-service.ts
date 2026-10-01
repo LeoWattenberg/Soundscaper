@@ -432,7 +432,7 @@ function frequencyWaveformAnalysisTypedArrayBytes(analysis: FrequencyWaveformAna
 	return bytes;
 }
 
-function requiredAudioSource(
+export function requiredAudioSource(
 	value: FrequencyWaveformRuntimeSource | null | undefined,
 ): RequiredFrequencyWaveformSource | null {
 	if (!value || value.kind === 'video' || value.kind === 'image' || value.kind === 'still') return null;

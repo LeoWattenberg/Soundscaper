@@ -16,6 +16,7 @@ import {
 	DEFAULT_MAXIMUM_RESIDENT_FREQUENCY_WAVEFORM_ANALYSIS_BYTES,
 	DEFAULT_MAXIMUM_RESIDENT_FREQUENCY_WAVEFORM_ANALYSES,
 	createFrequencyWaveformSourceService,
+	requiredAudioSource,
 	type RequiredFrequencyWaveformSource,
 } from '../src/common/editor/controller/source/frequency-waveform-source-service.ts';
 
@@ -440,3 +441,20 @@ function analysisForSource(
 		}),
 	};
 }
+
+
+test('frequency source admission preserves null predicate and permissive canonical geometry', () => {
+	const empty = { id: '', frameCount: 0, channelCount: 1, sampleRate: 1 };
+	assert.equal(requiredAudioSource(empty), empty);
+	assert.equal(requiredAudioSource(SOURCE), SOURCE);
+	for (const candidate of [
+		null, undefined, { ...empty, id: 1 },
+		...['video', 'image', 'still'].map((kind) => ({ ...empty, kind })),
+		...[-1, 0.5, Number.MAX_SAFE_INTEGER + 1].map((frameCount) => ({ ...empty, frameCount })),
+		...[0, -1, 0.5, Number.MAX_SAFE_INTEGER + 1].flatMap((value) => [
+			{ ...empty, channelCount: value }, { ...empty, sampleRate: value },
+		]),
+	]) {
+		assert.equal(requiredAudioSource(candidate as Parameters<typeof requiredAudioSource>[0]), null);
+	}
+});
