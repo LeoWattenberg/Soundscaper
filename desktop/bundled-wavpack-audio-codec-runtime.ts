@@ -2,11 +2,14 @@
 
 /** Main-process runtime for the exact reviewed WavPack 5.9.0 WebAssembly payload. */
 
-import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
-import { setImmediate as waitImmediate } from 'node:timers/promises';
 
+import {
+	loadAuthenticatedBundledAudioCodecRuntime,
+	type AuthenticatedBundledAudioCodecRuntimeLoadOptions,
+} from './authenticated-bundled-audio-codec-runtime-loader.ts';
 import { BUNDLED_AUDIO_CODEC_IDENTITIES, createBundledAudioCodecProvider } from './bundled-audio-codec-identity.ts';
+import { createBundledAudioCodecRuntimeSupport } from './bundled-audio-codec-runtime-support.ts';
 import {
 	assembleBundledWavPackChunks,
 	BundledWavPackStreamError,
@@ -28,10 +31,7 @@ import type {
 	DesktopCodecPreflightResult,
 	DesktopCodecProvider,
 } from '../src/common/editor/desktop-codec-coordinator.ts';
-import {
-	DESKTOP_CODEC_TARGETS,
-	type DesktopCodecTarget,
-} from '../src/common/editor/desktop-codec-provider-catalog.ts';
+import type { DesktopCodecTarget } from '../src/common/editor/desktop-codec-provider-catalog.ts';
 import { DESKTOP_BUNDLED_WAVPACK_COMPRESSION_LEVEL } from '../src/common/editor/desktop-wavpack-codec-profile.ts';
 import {
 	interleavePlanarFloat32Chunk,
@@ -53,7 +53,10 @@ const MAXIMUM_BLOCK_FRAMES = 65_536;
 const MAXIMUM_BLOCK_OVERHEAD_BYTES = 64 * 1024;
 const MAXIMUM_SAMPLE_RATE = 192_000;
 const MAXIMUM_CHANNEL_COUNT = 8;
-const TARGETS = new Set<string>(DESKTOP_CODEC_TARGETS);
+const {
+	abortReason, admitTarget: desktopTarget, failure: failed, isAbortError,
+	throwIfAborted,
+} = createBundledAudioCodecRuntimeSupport('WavPack');
 
 interface WavPackExports {
 	readonly memory: WebAssembly.Memory;
@@ -74,40 +77,22 @@ interface ReviewedWavPackRuntime {
 	readonly exports: WavPackExports;
 }
 
-export interface BundledWavPackRuntimeLoadOptions {
-	readonly target: DesktopCodecTarget;
-	readonly readPayload?: () => Promise<Uint8Array>;
-	readonly yieldControl?: () => Promise<void>;
-}
+export type BundledWavPackRuntimeLoadOptions =
+	AuthenticatedBundledAudioCodecRuntimeLoadOptions<DesktopCodecTarget>;
 
 export async function loadBundledWavPackAudioCodecRuntime(
 	options: BundledWavPackRuntimeLoadOptions,
 ): Promise<DesktopAudioCodecProviderRuntime | null> {
-	const target = desktopTarget(options?.target);
-	if (options.readPayload !== undefined && typeof options.readPayload !== 'function') {
-		throw new TypeError('The bundled WavPack payload reader is invalid.');
-	}
-	if (options.yieldControl !== undefined && typeof options.yieldControl !== 'function') {
-		throw new TypeError('The bundled WavPack scheduler is invalid.');
-	}
-	try {
-		const source = await (options.readPayload ?? readReviewedPayload)();
-		if (!(source instanceof Uint8Array) || source.byteLength !== BUNDLED_WAVPACK_WASM_BYTE_LENGTH
-			|| sha256(source) !== BUNDLED_WAVPACK_WASM_SHA256) return null;
-		const loadReviewedWasm = loadWavPackWasm as unknown as (
-			value: Uint8Array,
-		) => Promise<ReviewedWavPackRuntime>;
-		const loaded = await loadReviewedWasm(source);
-		const codec = wasmCodec(loaded);
-		verifyCanary(codec);
-		return createRuntime(target, codec, options.yieldControl ?? yieldToMainLoop);
-	} catch {
-		return null;
-	}
-}
-
-async function readReviewedPayload(): Promise<Uint8Array> {
-	return await readFile(BUNDLED_WAVPACK_WASM_URL);
+	const loadReviewedWasm = loadWavPackWasm as unknown as (
+		value: Uint8Array,
+	) => Promise<ReviewedWavPackRuntime>;
+	return await loadAuthenticatedBundledAudioCodecRuntime(options, {
+		codecLabel: 'WavPack', admitTarget: desktopTarget,
+		expectedByteLength: BUNDLED_WAVPACK_WASM_BYTE_LENGTH,
+		expectedSha256: BUNDLED_WAVPACK_WASM_SHA256,
+		readPayload: async () => await readFile(BUNDLED_WAVPACK_WASM_URL),
+		instantiate: loadReviewedWasm, createCodec: wasmCodec, verifyCanary, createRuntime,
+	});
 }
 
 function createRuntime(
@@ -405,39 +390,3 @@ function verifyCanary(codec: WavPackCodec): void {
 }
 
 class WavPackOutputBoundError extends Error {}
-
-function failed(
-	reason: 'unavailable' | 'security-failed' | 'execution-failed' | 'result-failed',
-	detail: string,
-): Extract<DesktopAudioCodecProviderExecutionResult, { readonly status: 'failed' }> {
-	return Object.freeze({ status: 'failed', reason, detail });
-}
-
-function desktopTarget(value: unknown): DesktopCodecTarget {
-	if (typeof value !== 'string' || !TARGETS.has(value)) {
-		throw new TypeError('The bundled WavPack desktop target is unsupported.');
-	}
-	return value as DesktopCodecTarget;
-}
-
-function sha256(bytes: Uint8Array): string {
-	return createHash('sha256').update(bytes).digest('hex');
-}
-
-function throwIfAborted(signal?: AbortSignal): void {
-	if (signal?.aborted) throw abortReason(signal);
-}
-
-function abortReason(signal?: AbortSignal, fallback?: unknown): Error {
-	if (signal?.reason instanceof Error) return signal.reason;
-	if (fallback instanceof Error && isAbortError(fallback)) return fallback;
-	return new DOMException('The bundled WavPack operation was cancelled.', 'AbortError');
-}
-
-function isAbortError(value: unknown): boolean {
-	return value instanceof Error && value.name === 'AbortError';
-}
-
-async function yieldToMainLoop(): Promise<void> {
-	await waitImmediate();
-}

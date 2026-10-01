@@ -2,12 +2,16 @@
 
 /** Main-process runtime for the exact reviewed libFLAC 1.5.0 WebAssembly payload. */
 
-import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
-import { setImmediate as waitImmediate } from 'node:timers/promises';
 
+import {
+	loadAuthenticatedBundledAudioCodecRuntime,
+	type AuthenticatedBundledAudioCodecRuntimeLoadOptions,
+} from './authenticated-bundled-audio-codec-runtime-loader.ts';
+import { createBundledAudioCodecRuntimeSupport } from './bundled-audio-codec-runtime-support.ts';
 import { assertFiniteFloat32Pcm } from './finite-float32-pcm.ts';
 import { BUNDLED_AUDIO_CODEC_IDENTITIES, createBundledAudioCodecProvider } from './bundled-audio-codec-identity.ts';
+import { instantiateDirectBundledAudioCodecWasm } from './direct-bundled-audio-codec-wasm.ts';
 
 import {
 	BundledFlacStreamError,
@@ -26,10 +30,7 @@ import type {
 	DesktopCodecPreflightResult,
 	DesktopCodecProvider,
 } from '../src/common/editor/desktop-codec-coordinator.ts';
-import {
-	DESKTOP_CODEC_TARGETS,
-	type DesktopCodecTarget,
-} from '../src/common/editor/desktop-codec-provider-catalog.ts';
+import type { DesktopCodecTarget } from '../src/common/editor/desktop-codec-provider-catalog.ts';
 
 export const BUNDLED_FLAC_VERSION = BUNDLED_AUDIO_CODEC_IDENTITIES.flac.version;
 export const BUNDLED_FLAC_WASM_BYTE_LENGTH = 154763;
@@ -45,7 +46,10 @@ const MAXIMUM_CHANNEL_COUNT = 8;
 const INITIAL_MEMORY_BYTES = 8 * 1024 * 1024;
 const MAXIMUM_MEMORY_BYTES = 256 * 1024 * 1024;
 const MAXIMUM_OUTPUT_BYTES = 128 * 1024 * 1024;
-const TARGETS = new Set<string>(DESKTOP_CODEC_TARGETS);
+const {
+	abortReason, admitTarget: desktopTarget, failure: failed, isAbortError,
+	throwIfAborted,
+} = createBundledAudioCodecRuntimeSupport('FLAC');
 
 const ALLOWED_IMPORTS: Readonly<Record<string, (...arguments_: number[]) => number | void>> = Object.freeze({
 	'env.abort': () => { throw new FlacRuntimeError('The reviewed FLAC payload aborted.'); },
@@ -95,37 +99,19 @@ interface FlacCodec {
 	}>): Uint8Array;
 }
 
-export interface BundledFlacRuntimeLoadOptions {
-	readonly target: DesktopCodecTarget;
-	readonly readPayload?: () => Promise<Uint8Array>;
-	readonly yieldControl?: () => Promise<void>;
-}
+export type BundledFlacRuntimeLoadOptions =
+	AuthenticatedBundledAudioCodecRuntimeLoadOptions<DesktopCodecTarget>;
 
 export async function loadBundledFlacAudioCodecRuntime(
 	options: BundledFlacRuntimeLoadOptions,
 ): Promise<DesktopAudioCodecProviderRuntime | null> {
-	const target = desktopTarget(options?.target);
-	if (options.readPayload !== undefined && typeof options.readPayload !== 'function') {
-		throw new TypeError('The bundled FLAC payload reader is invalid.');
-	}
-	if (options.yieldControl !== undefined && typeof options.yieldControl !== 'function') {
-		throw new TypeError('The bundled FLAC scheduler is invalid.');
-	}
-	try {
-		const source = await (options.readPayload ?? readReviewedPayload)();
-		if (!(source instanceof Uint8Array) || source.byteLength !== BUNDLED_FLAC_WASM_BYTE_LENGTH
-			|| sha256(source) !== BUNDLED_FLAC_WASM_SHA256) return null;
-		const exports = await loadReviewedWasm(source);
-		const codec = wasmCodec(exports);
-		verifyCanary(codec);
-		return createRuntime(target, codec, options.yieldControl ?? yieldToMainLoop);
-	} catch {
-		return null;
-	}
-}
-
-async function readReviewedPayload(): Promise<Uint8Array> {
-	return await readFile(BUNDLED_FLAC_WASM_URL);
+	return await loadAuthenticatedBundledAudioCodecRuntime(options, {
+		codecLabel: 'FLAC', admitTarget: desktopTarget,
+		expectedByteLength: BUNDLED_FLAC_WASM_BYTE_LENGTH,
+		expectedSha256: BUNDLED_FLAC_WASM_SHA256,
+		readPayload: async () => await readFile(BUNDLED_FLAC_WASM_URL),
+		instantiate: loadReviewedWasm, createCodec: wasmCodec, verifyCanary, createRuntime,
+	});
 }
 
 function createRuntime(
@@ -268,21 +254,11 @@ function decode(
 }
 
 async function loadReviewedWasm(source: Uint8Array): Promise<FlacExports> {
-	const ownedSource = new Uint8Array(source.byteLength);
-	ownedSource.set(source);
-	const module = await WebAssembly.compile(ownedSource);
-	const imports: Record<string, Record<string, (...arguments_: number[]) => number | void>> = {};
-	for (const descriptor of WebAssembly.Module.imports(module)) {
-		const key = `${descriptor.module}.${descriptor.name}`;
-		const implementation = ALLOWED_IMPORTS[key];
-		if (descriptor.kind !== 'function' || implementation === undefined) {
-			throw new FlacRuntimeError(`The reviewed FLAC payload imports forbidden authority ${key}.`);
-		}
-		imports[descriptor.module] ??= {};
-		imports[descriptor.module]![descriptor.name] = implementation;
-	}
-	const instance = await WebAssembly.instantiate(module, imports);
-	const exports = normalizeExports(instance.exports);
+	const exports = normalizeExports(await instantiateDirectBundledAudioCodecWasm(
+		source, ALLOWED_IMPORTS, (key) => new FlacRuntimeError(
+			`The reviewed FLAC payload imports forbidden authority ${key}.`,
+		),
+	));
 	exports._initialize();
 	if (exports.scfl_abi_version() !== 1
 		|| exports.scfl_maximum_channels() !== MAXIMUM_CHANNEL_COUNT
@@ -416,39 +392,3 @@ class FlacCodecResultError extends Error {}
 class FlacDecodeIntegrityError extends Error {}
 class FlacOutputBoundError extends Error {}
 class FlacPcmInputError extends Error {}
-
-function failed(
-	reason: 'unavailable' | 'security-failed' | 'execution-failed' | 'result-failed',
-	detail: string,
-): Extract<DesktopAudioCodecProviderExecutionResult, { readonly status: 'failed' }> {
-	return Object.freeze({ status: 'failed', reason, detail });
-}
-
-function desktopTarget(value: unknown): DesktopCodecTarget {
-	if (typeof value !== 'string' || !TARGETS.has(value)) {
-		throw new TypeError('The bundled FLAC desktop target is unsupported.');
-	}
-	return value as DesktopCodecTarget;
-}
-
-function sha256(bytes: Uint8Array): string {
-	return createHash('sha256').update(bytes).digest('hex');
-}
-
-function throwIfAborted(signal?: AbortSignal): void {
-	if (signal?.aborted) throw abortReason(signal);
-}
-
-function abortReason(signal?: AbortSignal, fallback?: unknown): Error {
-	if (signal?.reason instanceof Error) return signal.reason;
-	if (fallback instanceof Error && isAbortError(fallback)) return fallback;
-	return new DOMException('The bundled FLAC operation was cancelled.', 'AbortError');
-}
-
-function isAbortError(value: unknown): boolean {
-	return value instanceof Error && value.name === 'AbortError';
-}
-
-async function yieldToMainLoop(): Promise<void> {
-	await waitImmediate();
-}

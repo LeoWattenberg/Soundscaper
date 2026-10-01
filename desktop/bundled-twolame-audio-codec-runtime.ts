@@ -2,11 +2,15 @@
 
 /** Main-process runtime for the exact reviewed TwoLAME 0.4.0 WebAssembly encoder. */
 
-import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
-import { setImmediate as waitImmediate } from 'node:timers/promises';
 
+import {
+	loadAuthenticatedBundledAudioCodecRuntime,
+	type AuthenticatedBundledAudioCodecRuntimeLoadOptions,
+} from './authenticated-bundled-audio-codec-runtime-loader.ts';
 import { BUNDLED_AUDIO_CODEC_IDENTITIES, createBundledAudioCodecProvider } from './bundled-audio-codec-identity.ts';
+import { createBundledAudioCodecRuntimeSupport } from './bundled-audio-codec-runtime-support.ts';
+import { instantiateDirectBundledAudioCodecWasm } from './direct-bundled-audio-codec-wasm.ts';
 import { assertFiniteFloat32Pcm } from './finite-float32-pcm.ts';
 
 import { parseBundledMpegAudioStream } from './bundled-mpeg-audio-stream.ts';
@@ -23,10 +27,7 @@ import type {
 	DesktopCodecPreflightResult,
 	DesktopCodecProvider,
 } from '../src/common/editor/desktop-codec-coordinator.ts';
-import {
-	DESKTOP_CODEC_TARGETS,
-	type DesktopCodecTarget,
-} from '../src/common/editor/desktop-codec-provider-catalog.ts';
+import type { DesktopCodecTarget } from '../src/common/editor/desktop-codec-provider-catalog.ts';
 
 export const BUNDLED_TWOLAME_VERSION = BUNDLED_AUDIO_CODEC_IDENTITIES.twolame.version;
 export const BUNDLED_TWOLAME_WASM_BYTE_LENGTH = 148_312;
@@ -40,11 +41,14 @@ const MAXIMUM_CHANNEL_COUNT = 2;
 const INITIAL_MEMORY_BYTES = 8 * 1024 * 1024;
 const MAXIMUM_MEMORY_BYTES = 256 * 1024 * 1024;
 const MAXIMUM_OUTPUT_BYTES = 128 * 1024 * 1024;
-const TARGETS = new Set<string>(DESKTOP_CODEC_TARGETS);
 const ADMITTED_SAMPLE_RATES = new Set<number>([32_000, 44_100, 48_000]);
 const ADMITTED_BITRATES = new Set<number>([
 	32, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 384,
 ]);
+const {
+	abortReason, admitTarget: desktopTarget, failure: failed, isAbortError,
+	throwIfAborted,
+} = createBundledAudioCodecRuntimeSupport('TwoLAME');
 
 const ALLOWED_IMPORTS: Readonly<Record<string, (...arguments_: number[]) => number | void>> = Object.freeze({
 	'env.emscripten_notify_memory_growth': () => undefined,
@@ -82,37 +86,19 @@ interface TwolameCodec {
 	}>): Uint8Array;
 }
 
-export interface BundledTwolameRuntimeLoadOptions {
-	readonly target: DesktopCodecTarget;
-	readonly readPayload?: () => Promise<Uint8Array>;
-	readonly yieldControl?: () => Promise<void>;
-}
+export type BundledTwolameRuntimeLoadOptions =
+	AuthenticatedBundledAudioCodecRuntimeLoadOptions<DesktopCodecTarget>;
 
 export async function loadBundledTwolameAudioCodecRuntime(
 	options: BundledTwolameRuntimeLoadOptions,
 ): Promise<DesktopAudioCodecProviderRuntime | null> {
-	const target = desktopTarget(options?.target);
-	if (options.readPayload !== undefined && typeof options.readPayload !== 'function') {
-		throw new TypeError('The bundled TwoLAME payload reader is invalid.');
-	}
-	if (options.yieldControl !== undefined && typeof options.yieldControl !== 'function') {
-		throw new TypeError('The bundled TwoLAME scheduler is invalid.');
-	}
-	try {
-		const source = await (options.readPayload ?? readReviewedPayload)();
-		if (!(source instanceof Uint8Array) || source.byteLength !== BUNDLED_TWOLAME_WASM_BYTE_LENGTH
-			|| sha256(source) !== BUNDLED_TWOLAME_WASM_SHA256) return null;
-		const exports = await loadReviewedWasm(source);
-		const codec = wasmCodec(exports);
-		verifyCanary(codec);
-		return createRuntime(target, codec, options.yieldControl ?? yieldToMainLoop);
-	} catch {
-		return null;
-	}
-}
-
-async function readReviewedPayload(): Promise<Uint8Array> {
-	return await readFile(BUNDLED_TWOLAME_WASM_URL);
+	return await loadAuthenticatedBundledAudioCodecRuntime(options, {
+		codecLabel: 'TwoLAME', admitTarget: desktopTarget,
+		expectedByteLength: BUNDLED_TWOLAME_WASM_BYTE_LENGTH,
+		expectedSha256: BUNDLED_TWOLAME_WASM_SHA256,
+		readPayload: async () => await readFile(BUNDLED_TWOLAME_WASM_URL),
+		instantiate: loadReviewedWasm, createCodec: wasmCodec, verifyCanary, createRuntime,
+	});
 }
 
 function createRuntime(
@@ -221,25 +207,17 @@ function encode(
 }
 
 async function loadReviewedWasm(source: Uint8Array): Promise<TwolameExports> {
-	const ownedSource = new Uint8Array(source.byteLength);
-	ownedSource.set(source);
-	const module = await WebAssembly.compile(ownedSource);
-	const imports: Record<string, Record<string, (...arguments_: number[]) => number | void>> = {};
-	const descriptors = WebAssembly.Module.imports(module);
-	if (descriptors.length !== Object.keys(ALLOWED_IMPORTS).length) {
-		throw new TwolameRuntimeError('The reviewed TwoLAME payload import inventory changed.');
-	}
-	for (const descriptor of descriptors) {
-		const key = `${descriptor.module}.${descriptor.name}`;
-		const implementation = ALLOWED_IMPORTS[key];
-		if (descriptor.kind !== 'function' || implementation === undefined) {
-			throw new TwolameRuntimeError(`The reviewed TwoLAME payload imports forbidden authority ${key}.`);
-		}
-		imports[descriptor.module] ??= {};
-		imports[descriptor.module]![descriptor.name] = implementation;
-	}
-	const instance = await WebAssembly.instantiate(module, imports);
-	const exports = normalizeExports(instance.exports);
+	const exports = normalizeExports(await instantiateDirectBundledAudioCodecWasm(
+		source, ALLOWED_IMPORTS, (key) => new TwolameRuntimeError(
+			`The reviewed TwoLAME payload imports forbidden authority ${key}.`,
+		),
+		{
+		expectedImportCount: Object.keys(ALLOWED_IMPORTS).length,
+		changedImportInventory: () => new TwolameRuntimeError(
+			'The reviewed TwoLAME payload import inventory changed.',
+		),
+		},
+	));
 	exports._initialize();
 	if (exports.sctl_abi_version() !== 1 || exports.sctl_twolame_major() !== 0
 		|| exports.sctl_twolame_minor() !== 4 || exports.sctl_twolame_patch() !== 0
@@ -354,39 +332,3 @@ class TwolameCodecOutputBoundError extends Error {}
 class TwolameOutputBoundError extends Error {}
 class TwolameOutputValidationError extends Error {}
 class TwolamePcmInputError extends Error {}
-
-function failed(
-	reason: 'unavailable' | 'security-failed' | 'execution-failed' | 'result-failed',
-	detail: string,
-): Extract<DesktopAudioCodecProviderExecutionResult, { readonly status: 'failed' }> {
-	return Object.freeze({ status: 'failed', reason, detail });
-}
-
-function desktopTarget(value: unknown): DesktopCodecTarget {
-	if (typeof value !== 'string' || !TARGETS.has(value)) {
-		throw new TypeError('The bundled TwoLAME desktop target is unsupported.');
-	}
-	return value as DesktopCodecTarget;
-}
-
-function sha256(bytes: Uint8Array): string {
-	return createHash('sha256').update(bytes).digest('hex');
-}
-
-function throwIfAborted(signal?: AbortSignal): void {
-	if (signal?.aborted) throw abortReason(signal);
-}
-
-function abortReason(signal?: AbortSignal, fallback?: unknown): Error {
-	if (signal?.reason instanceof Error) return signal.reason;
-	if (fallback instanceof Error && isAbortError(fallback)) return fallback;
-	return new DOMException('The bundled TwoLAME operation was cancelled.', 'AbortError');
-}
-
-function isAbortError(value: unknown): boolean {
-	return value instanceof Error && value.name === 'AbortError';
-}
-
-async function yieldToMainLoop(): Promise<void> {
-	await waitImmediate();
-}
