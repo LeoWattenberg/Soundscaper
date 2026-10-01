@@ -84,6 +84,7 @@ export function installChunkStreamWorker(scope = globalThis) {
 			frames,
 			channels,
 		}, transferListForAudioChannels(channels));
+		if (!stream.reportProgress) return;
 		post({
 			type: 'stream-progress',
 			streamId: stream.id,
@@ -249,6 +250,7 @@ export function installChunkStreamWorker(scope = globalThis) {
 			inputNextFrame: sourceStartFrame,
 			nextPacket: 1,
 			highWaterMark,
+			reportProgress: message.reportProgress === true,
 			inFlight: new Set(),
 			storageRequest: null,
 			storageChunkIndex: null,

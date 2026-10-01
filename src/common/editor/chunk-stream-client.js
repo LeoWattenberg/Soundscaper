@@ -109,7 +109,6 @@ export class ChunkStreamClient {
 			stream.externalSignal.addEventListener('abort', stream.externalAbort, { once: true });
 		}
 		this.streams.set(streamId, stream);
-
 		let outputConfigured = false;
 		try {
 			outputPort.postMessage({
@@ -124,6 +123,7 @@ export class ChunkStreamClient {
 				resample: outputFrameCount != null,
 				packetFrames: AUDIO_EDITOR_TRANSFER_CHUNK_FRAMES,
 				highWaterMark,
+				reportPlayhead: stream.onPlayhead !== null,
 			});
 			outputConfigured = true;
 			outputPort.postMessage({ type: 'attach-packet-port', streamId, port: packetChannel.port1 }, [packetChannel.port1]);
@@ -145,6 +145,7 @@ export class ChunkStreamClient {
 				resample: outputFrameCount != null,
 				packetFrames: AUDIO_EDITOR_TRANSFER_CHUNK_FRAMES,
 				highWaterMark,
+				reportProgress: stream.onProgress !== null,
 				packetPort: packetChannel.port2,
 			}, [packetChannel.port2]);
 		} catch (error) {
@@ -157,7 +158,6 @@ export class ChunkStreamClient {
 			}
 			throw error;
 		}
-
 		const handle = {
 			streamId,
 			ready: ready.promise,
