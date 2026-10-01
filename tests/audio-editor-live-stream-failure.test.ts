@@ -247,6 +247,7 @@ class MockCaptureNode extends MockNode {
 			}
 		};
 		context.capture = this;
+		queueMicrotask(() => this.emit({ type: 'capture-ready' }));
 	}
 	emit(data: Readonly<Record<string, unknown>>): void { this.port.onmessage?.({ data }); }
 }

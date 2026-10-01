@@ -318,7 +318,8 @@ test('realtime setup freezes the clock, arms capture from the scheduled start, a
 		void rendering.catch(() => undefined);
 		await streams.opened.promise;
 		await new Promise((resolve) => setImmediate(resolve));
-		assert.equal(context.resumeCalls, 1, 'the capture worklet can acknowledge only after the audio clock resumes');
+		assert.equal(context.resumeCalls, 0, 'priming and capture arming keep the scheduled clock frozen');
+		context.capture?.arm();
 		await context.captureDone.promise;
 		streams.complete();
 		await rendering;
@@ -353,9 +354,10 @@ test('realtime cancellation skips a sink still waiting for the clock to suspend'
 	let sinkWrites = 0;
 	let engine: WebAudioEditorEngine | null = null;
 	context.suspend = async () => {
+		if (context.state !== 'running') return;
 		suspensionStarted.resolve();
 		await releaseSuspension.promise;
-		if (context.state !== 'closed') context.state = 'suspended';
+		if ((context.state as AudioContextState) !== 'closed') context.state = 'suspended';
 	};
 	globalThis.AudioContext = function MockAudioContextFactory() { return context; } as unknown as typeof AudioContext;
 	globalThis.AudioWorkletNode = MockCaptureNode as unknown as typeof AudioWorkletNode;
@@ -463,7 +465,6 @@ class MockRealtimeAudioContext {
 			this.onPostCaptureResume?.();
 			return;
 		}
-		if (!this.autoArmCapture) this.capture?.arm();
 		this.capture?.emit({
 			type: 'audio-chunk', frameOffset: 0, frames: 1,
 			channels: [Float32Array.of(0.5)],
@@ -473,7 +474,7 @@ class MockRealtimeAudioContext {
 	}
 
 	async suspend(): Promise<void> {
-		this.suspendCalls += 1;
+		this.suspendCalls += Number(this.state === 'running');
 		this.state = 'suspended';
 	}
 
@@ -521,6 +522,7 @@ class MockCaptureNode extends MockNode {
 			}
 		}, start() {} };
 		context.capture = this;
+		queueMicrotask(() => this.emit({ type: 'capture-ready' }));
 	}
 
 	arm(): void { if (this.startFrame !== null) this.emit({ type: 'capture-armed', startFrame: this.startFrame }); }

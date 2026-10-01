@@ -41,6 +41,7 @@ import {
 } from './lifecycle.ts';
 import { planRealtimePcmSinkQueueAdmission } from '../pcm-sink-admission.ts';
 import { validateRealtimeCaptureMessage } from './realtime-render-capture.ts';
+import { waitForRealtimeCaptureReady } from './realtime-capture-ready.ts';
 import {
 	ENGINE_EMIT_PARAMETRIC_EQ_ERROR,
 	ENGINE_GET_CHUNK_STREAM_CLIENT,
@@ -129,7 +130,8 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 		let graph: ProjectGraph | null = null;
 		let nativeRuntimes: Awaited<ReturnType<typeof prepareNativePluginOfflineRuntimes>> | null = null;
 		try {
-			if (context.state === 'running') await context.suspend();
+			// A new context can report suspended while its automatic start is queued.
+			await context.suspend();
 			await context.audioWorklet.addModule(new URL('../render-capture-worklet.js', import.meta.url));
 			await ensureProjectWorklets(context, this.project);
 			nativeRuntimes = await prepareNativePluginOfflineRuntimes(context, this.project, { trackId, includeMaster });
@@ -169,6 +171,7 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 			silent.gain.value = 0;
 			capture.connect(silent);
 			silent.connect(context.destination);
+			await waitForRealtimeCaptureReady(capture, signal);
 			graph = buildProjectGraph(context, capture, this.project, {
 				metering: false,
 				respectMuteSolo,
@@ -263,6 +266,8 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 		let doneReceived = false;
 		let terminating = false;
 		let captureArmed = false;
+		let resolveCaptureArmed!: () => void;
+		const captureArmedPromise = new Promise<void>((resolve) => { resolveCaptureArmed = resolve; });
 		let captureArmTimeout: ReturnType<typeof setTimeout> | null = null;
 		interface SinkQueue {
 			readonly failure: unknown;
@@ -378,6 +383,7 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 					captureArmed = true;
 					if (captureArmTimeout !== null) clearTimeout(captureArmTimeout);
 					captureArmTimeout = null;
+					resolveCaptureArmed();
 					return;
 				}
 				if (!captureArmed && (data.type === 'audio-chunk' || data.type === 'done')) {
@@ -421,9 +427,13 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 					new Error('The realtime capture worklet did not arm.'),
 				), 10_000);
 				capture.port.postMessage({ type: 'start-capture', startFrame: captureStartFrame });
+				// Port messages can arrive after the scheduled lead on a running clock.
+				await Promise.race([captureArmedPromise, done]);
 				// A blocked resume can remain pending after cancellation or an arm
 				// timeout. Observe completion as well so those failures reach cleanup.
-				await Promise.race([context.resume(), done]);
+				if (!graph.abortController.signal.aborted) {
+					await Promise.race([context.resume(), done]);
+				}
 			}
 			await done;
 			// The capture and native processors use different ports. A roundtrip

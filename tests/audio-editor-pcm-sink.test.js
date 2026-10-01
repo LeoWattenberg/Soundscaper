@@ -564,8 +564,8 @@ async function withMockRealtimeRenderer(onResume, run, { closeFailure = null, on
 			await Promise.resolve().then(() => onResume(this));
 		}
 		async suspend() {
-			this.suspendCalls += 1;
-			if (onSuspend) await onSuspend(this);
+			this.suspendCalls += Number(this.state === 'running');
+			if (onSuspend && this.state === 'running') await onSuspend(this);
 			if (this.state !== 'closed') this.state = 'suspended';
 		}
 		emit(data) { this.capture?.port.onmessage?.({ data }); }
@@ -582,7 +582,7 @@ async function withMockRealtimeRenderer(onResume, run, { closeFailure = null, on
 			this.messages = [];
 			this.port = { onmessage: null, start() {}, postMessage: (message) => { this.messages.push(message); if (message.type === 'start-capture') queueMicrotask(() => this.port.onmessage?.({ data: { type: 'capture-armed', startFrame: message.startFrame } })); } };
 			this.onprocessorerror = null;
-			context.capture = this;
+			context.capture = this; queueMicrotask(() => this.port.onmessage?.({ data: { type: 'capture-ready' } }));
 		}
 	}
 	globalThis.AudioContext = MockRealtimeAudioContext;

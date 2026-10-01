@@ -35,6 +35,7 @@ class RenderCaptureProcessor extends WorkletProcessor {
 				this.inFlightChunks -= 1;
 			}
 		};
+		this.port.postMessage({ type: 'capture-ready' });
 	}
 
 	process(inputs, outputs) {

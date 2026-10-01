@@ -31,7 +31,7 @@ test('realtime capture keeps the clock running and rejects bounded sink overflow
 			assert.equal((error as Error & { code?: string }).code, 'PCM_SINK_BACKPRESSURE');
 			return true;
 		});
-		assert.equal(context.suspendCalls, 0);
+		assert.equal(context.suspendCalls, 1, 'only initial setup suspends the clock, never sink backpressure');
 		assert.equal(context.closeCalls, 1);
 	} finally {
 		await engine?.dispose();
@@ -99,6 +99,7 @@ class MockCaptureNode extends MockNode {
 			}
 		}, start() {} };
 		context.capture = this;
+		queueMicrotask(() => this.emit({ type: 'capture-ready' }));
 	}
 
 	emit(data: Readonly<Record<string, unknown>>): void {
