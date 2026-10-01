@@ -13,6 +13,7 @@ import {
 	MediaAssetStagingRepository,
 } from './media-asset-staging-repository.ts';
 import type { OpfsBinaryWriter, OpfsRepository } from './opfs-repository.ts';
+import { copyUint8ArrayToArrayBuffer } from './binary-copy.ts';
 
 const throwIfAborted = createAbortGuard('Media storage was cancelled.');
 
@@ -118,7 +119,7 @@ function chunkSink(
 				sourceId,
 				mediaChunkToken: token,
 				index,
-				payload: new Blob([exactArrayBuffer(bytes)]),
+				payload: new Blob([copyUint8ArrayToArrayBuffer(bytes)]),
 				byteLength: bytes.byteLength,
 				createdAt: Date.now(),
 			}, database, lease);
@@ -178,12 +179,6 @@ async function releaseLeaseAfterFailure(
 		);
 	}
 	throw primary;
-}
-
-function exactArrayBuffer(bytes: Uint8Array): ArrayBuffer {
-	const buffer = new ArrayBuffer(bytes.byteLength);
-	new Uint8Array(buffer).set(bytes);
-	return buffer;
 }
 
 function createMediaChunkToken(sourceId: string): string {

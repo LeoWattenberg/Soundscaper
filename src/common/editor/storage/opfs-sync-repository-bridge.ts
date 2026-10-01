@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { BlobLike } from './media-records.ts';
+import { copyUint8ArrayToArrayBuffer } from './binary-copy.ts';
 import {
 	OpfsSyncWorkerClient,
 	type OpfsSyncStoragePort,
@@ -198,7 +199,7 @@ class OpfsSyncReadableBlob implements BlobLike {
 			return bytes;
 		}
 		if (result.size !== this.fileSize) throw new Error('The OPFS file changed during a bounded read.');
-		return exactBuffer(result.bytes);
+		return copyUint8ArrayToArrayBuffer(result.bytes);
 	}
 
 	withType(type: string): BlobLike {
@@ -215,12 +216,6 @@ class OpfsSyncReadableBlob implements BlobLike {
 function sliceIndex(value: number, size: number): number {
 	const integer = Number.isFinite(value) ? Math.trunc(value) : 0;
 	return integer < 0 ? Math.max(size + integer, 0) : Math.min(integer, size);
-}
-
-function exactBuffer(bytes: Uint8Array): ArrayBuffer {
-	const buffer = new ArrayBuffer(bytes.byteLength);
-	new Uint8Array(buffer).set(bytes);
-	return buffer;
 }
 
 function throwIfAborted(signal?: AbortSignal): void {

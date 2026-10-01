@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { copyUint8ArrayToArrayBuffer } from './binary-copy.ts';
+
 import {
 	PCM_CONTAINER_EXTENSION,
 	containerCodecToEncoding,
@@ -456,7 +458,7 @@ async function openBinaryWriter(
 		async write(bytes, options = {}) {
 			if (closed) throw new Error('The OPFS media writer is closed.');
 			throwIfAborted(options.signal ?? defaultSignal);
-			await writable?.write(copyArrayBuffer(bytes));
+			await writable?.write(copyUint8ArrayToArrayBuffer(bytes));
 			throwIfAborted(options.signal ?? defaultSignal);
 		},
 		async close(options = {}) {
@@ -501,12 +503,6 @@ function containerRecord(entry: PcmIndexEntry, payload: unknown): Record<string,
 function createId(prefix: string): string {
 	if (globalThis.crypto?.randomUUID) return `${prefix}-${globalThis.crypto.randomUUID()}`;
 	return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
-}
-
-function copyArrayBuffer(bytes: Uint8Array): ArrayBuffer {
-	const buffer = new ArrayBuffer(bytes.byteLength);
-	new Uint8Array(buffer).set(bytes);
-	return buffer;
 }
 
 async function removeStagedPath(directory: FileSystemDirectoryHandle, path: string): Promise<void> {
