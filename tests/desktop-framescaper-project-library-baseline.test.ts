@@ -158,7 +158,7 @@ test('Framescaper baseline registers its exact static channels and refuses forei
 	context.after(() => registration.dispose());
 	assert.deepEqual([...handlers.keys()], Object.values(FRAMESCAPER_DESKTOP_PROJECT_LIBRARY_MAIN_CHANNELS));
 	const handshake = handlers.get(FRAMESCAPER_DESKTOP_PROJECT_LIBRARY_MAIN_CHANNELS.handshake)!;
-	assert.throws(() => handshake({}, { ...main.localHandshake, schemaFamily: 'soundscaper' }),
+	assert.throws(() => handshake({}, { ...createFramescaperDesktopProjectLibraryHandshake(), schemaFamily: 'soundscaper' }),
 		/handshake was refused/u);
 	assert.throws(() => handlers.get(FRAMESCAPER_DESKTOP_PROJECT_LIBRARY_MAIN_CHANNELS.listProjects)!({}),
 		/handshake was refused/u);

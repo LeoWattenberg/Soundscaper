@@ -142,7 +142,7 @@ async function setup(context: TestContext, current = true) {
 	}, { modules: [execution, transport] });
 	context.after(() => broker.dispose());
 	const client = createFramescaperOpenFxFramePortClient({
-		openSession: async (request) => broker.open(OWNER, { postMessage(_channel, offer, ports) {
+		openSession: async (request) => broker.open(OWNER, { postMessage(_channel: string, offer: unknown, ports: readonly unknown[]) {
 			listener?.(offer as never, ports[0] as never);
 		} }, request as never),
 		subscribeOffers(value) { listener = value as never; return () => { listener = null; }; },

@@ -147,7 +147,6 @@ export const DESKTOP_5B_TRANSITIVE_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/video-retime-preview-executor.js',
 	'src/common/editor/framescaper-native-live-render-role-v1.js',
 	'src/framescaper/editor-native-image-sequence-import.js',
-	'src/framescaper/editor-native-openfx-authoring.js',
 ]);
 
 /** Leaf modules whose package imports must be closed into the staged runtime. */
