@@ -11,6 +11,7 @@ import {
 	useAudioTrackRowViewModel,
 } from '../src/common/editor/ui/timeline/useAudioTrackRowViewModel.js';
 import { WAVEFORM_PEAKS_VERSION } from '../src/common/editor/waveform-peak-contract.ts';
+import type { TimelineClipVisualData } from '../src/common/editor/ui/timeline/waveform-view-model.ts';
 import { installReactTestDom } from './helpers/react-test-dom.ts';
 
 const EMPTY_SET = new Set<string>();
@@ -148,6 +149,112 @@ test('audio rows prefetch a window fine enough for the next fourfold zoom step',
 		project: null,
 		pixelWidth: 20,
 	}), null);
+});
+
+test('audio row reuses visual models on unrelated publications and refreshes when clip data arrives', async () => {
+	const dom = installReactTestDom();
+	const { createRoot } = await import('react-dom/client');
+	const source = { id: 'source', frameCount: 100, channelCount: 1, sampleRate: 48_000 };
+	const clip = {
+		id: 'clip', sourceId: source.id, title: 'Clip', timelineStartFrame: 0,
+		sourceStartFrame: 0, sourceDurationFrames: 100, durationFrames: 100, envelope: [],
+	};
+	const project = { id: 'project', sampleRate: 48_000, clips: [clip], sources: [source], tracks: [TRACK] };
+	const trackClips = [clip];
+	const clipLookup = new Map([[clip.id, clip]]);
+	const sourceLookup = new Map([[source.id, source]]);
+	const waveformCache = new Map();
+	let visual: TimelineClipVisualData = { source, available: true, buffer: null, peaks: null };
+	const requests: unknown[][] = [];
+	const controller = {
+		...CONTROLLER,
+		actions: {
+			...CONTROLLER.actions,
+			timeline: {
+				requestWaveformPcmWindow: (...args: unknown[]) => { requests.push(args); },
+			},
+		},
+		// Controller getters return a fresh wrapper on each read; its content
+		// references, rather than the wrapper, identify visual publications.
+		getClipVisualData: () => ({ ...visual }),
+	};
+	const observed: ReturnType<typeof useAudioTrackRowViewModel>[] = [];
+	function Harness({ publication, presentationProject = project, selectedId = null }: Readonly<{
+		publication: object; presentationProject?: object; selectedId?: string | null;
+	}>) {
+		observed.push(useAudioTrackRowViewModel({
+			controller,
+			project: presentationProject,
+			track: TRACK,
+			trackClips,
+			clipLookup,
+			sourceLookup,
+			trackWindowRef: TRACK_WINDOW_REF,
+			renderViewportStartFrame: 0,
+			viewportDurationFrames: 100,
+			viewModelRevision: publication,
+			pixelsPerSecond: 120,
+			sampleRate: 48_000,
+			selection: null,
+			selectedClipId: selectedId,
+			selectedClipIdSet: EMPTY_SET,
+			displayMode: 'waveform',
+			showRms: false,
+			recordingPreview: null,
+			clipDragPreview: null,
+			projectBinDragPreview: null,
+			waveformCache,
+			draggingClipIds: EMPTY_SET,
+			copy: COPY,
+			run: RUN,
+			blocked: false,
+			automationToolEnabled: false,
+		}));
+		return null;
+	}
+	const root = createRoot(dom.container as unknown as Element);
+	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
+	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
+	try {
+		await act(async () => { root.render(<Harness publication={{ revision: 1 }} />); });
+		const initial = observed.at(-1)!;
+		assert.equal(requests.length, 1);
+		await act(async () => { root.render(<Harness
+			publication={{ revision: 2, playhead: 42 }}
+			presentationProject={{ ...project, selection: { clipIds: ['other'] } }}
+			selectedId="other"
+		/>); });
+		const unrelated = observed.at(-1)!;
+		assert.equal(unrelated.projectedClips, initial.projectedClips,
+			'playback, status and selection on other rows do not recreate waveform plans');
+		assert.equal(requests.length, 1, 'unrelated updates do not repeat PCM requests');
+		visual = { ...visual, pcmWindow: {
+			startFrame: 0, endFrame: 100, channels: [new Float32Array(100)],
+		} };
+		await act(async () => { root.render(<Harness publication={{ revision: 3 }} />); });
+		const ready = observed.at(-1)!;
+		assert.notEqual(ready.projectedClips, initial.projectedClips);
+		assert.ok(ready.projectedClips[0]?.audacityWaveform);
+		assert.notEqual(ready.projectedClips[0]?.waveformPending, true);
+		await act(async () => { root.render(<Harness publication={{ revision: 4, playhead: 43 }} />); });
+		assert.equal(observed.at(-1)?.projectedClips, ready.projectedClips);
+		await act(async () => { root.render(<Harness publication={{ revision: 5 }} selectedId="clip" />); });
+		assert.notEqual(observed.at(-1)?.projectedClips, ready.projectedClips);
+		assert.equal(observed.at(-1)?.projectedClips[0]?.selected, true);
+		await act(async () => { root.render(<Harness publication={{ revision: 6 }} selectedId="other" />); });
+		assert.equal(observed.at(-1)?.projectedClips[0]?.selected, false);
+		const beforeTempo = observed.at(-1)?.projectedClips;
+		await act(async () => { root.render(<Harness
+			publication={{ revision: 7 }}
+			presentationProject={{ ...project, tempoMap: { events: [] } }}
+		/>); });
+		assert.notEqual(observed.at(-1)?.projectedClips, beforeTempo, 'tempo edits refresh waveform plans');
+	} finally {
+		await act(async () => root.unmount());
+		actGlobal.IS_REACT_ACT_ENVIRONMENT = priorAct;
+		dom.restore();
+	}
 });
 
 test('frequency mode requests bounded data at moderate summary zoom before analysis exists', async () => {

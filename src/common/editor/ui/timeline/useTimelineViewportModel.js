@@ -167,7 +167,7 @@ export function useTimelineViewportModel({
 		viewportWidth,
 		pixelsPerSecond,
 		sampleRate,
-		resetToken: project,
+		resetToken: project?.id ?? project,
 	});
 	const renderViewportStartFrame = Math.max(
 		0,
