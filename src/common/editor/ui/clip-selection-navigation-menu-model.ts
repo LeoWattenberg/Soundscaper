@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { ApplicationSelectionMenuPort } from './workspace/selection-view-menu-ports.ts';
 import { AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS as ACTION_IDS } from './application-menu-registry.ts';
 
 interface ClipSelectionNavigationMenuProject {
@@ -17,15 +18,9 @@ interface ClipSelectionNavigationMenuInput {
 	readonly selectionActive: boolean;
 }
 
-interface ClipSelectionNavigationMenuActions {
-	readonly selectNoTracks: () => unknown;
-	readonly selectPreviousClipBoundaryToCursor: () => unknown;
-	readonly selectCursorToNextClipBoundary: () => unknown;
-	readonly selectPreviousClip: () => unknown;
-	readonly selectNextClip: () => unknown;
-	readonly skipToSelectionStart: () => unknown;
-	readonly skipToSelectionEnd: () => unknown;
-}
+type ClipSelectionNavigationMenuActions = Pick<ApplicationSelectionMenuPort,
+	'selectNoTracks' | 'selectPreviousClipBoundaryToCursor' | 'selectCursorToNextClipBoundary'
+	| 'selectPreviousClip' | 'selectNextClip' | 'skipToSelectionStart' | 'skipToSelectionEnd'>;
 
 export function createClipSelectionNavigationMenuModel(
 	input: ClipSelectionNavigationMenuInput,

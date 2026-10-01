@@ -20,10 +20,11 @@ const ACTION_NAMES = Object.freeze([
 
 test('Select and View menus expose all seven navigation actions as executable leaves', () => {
 	const calls: string[] = [];
-	const menus = createApplicationMenus(menuInput(actionPorts(Object.fromEntries(ACTION_NAMES.map((name) => [
+	const actions = actionPorts(Object.fromEntries(ACTION_NAMES.map((name) => [
 		name,
 		() => { calls.push(name); },
-	])))));
+	])));
+	const menus = createApplicationMenus(menuInput(actions));
 	const select = topLevelMenu(menus, 'select');
 	const tracks = child(select, 'select-tracks');
 	const audioClips = child(select, 'menu-selection-audio-clips');
@@ -42,12 +43,29 @@ test('Select and View menus expose all seven navigation actions as executable le
 		'skip-to-selection-start',
 		'skip-to-selection-end',
 	]);
-	for (const leaf of leaves) {
+	for (const [index, leaf] of leaves.entries()) {
 		assert.equal(leaf.disabled, false, String(leaf.id));
 		assert.equal(typeof leaf.onClick, 'function', String(leaf.id));
+		assert.equal(leaf.onClick, (actions as Readonly<Record<string, unknown>>)[ACTION_NAMES[index] ?? '']);
 		leaf.onClick?.();
 	}
 	assert.deepEqual(calls, ACTION_NAMES);
+});
+
+test('both product menus read Select/View callbacks exclusively from the two focused ports', () => {
+	const selectAll = () => 'selected';
+	const zoomIn = () => 'zoomed';
+	for (const productId of ['soundscaper', 'framescaper']) {
+		const input = menuInput(actionPorts({}));
+		const menus = createApplicationMenus({
+			...input, productId,
+			selectionMenu: { selectAll }, viewMenu: { zoomIn },
+			actions: actionPorts({ selectAll: () => { throw new Error('Flat selection callback was used.'); },
+				zoomIn: () => { throw new Error('Flat view callback was used.'); } }),
+		});
+		assert.equal(child(topLevelMenu(menus, 'select'), 'select-all').onClick, selectAll);
+		assert.equal(child(child(topLevelMenu(menus, 'view'), 'zoom'), 'zoom-in').onClick, zoomIn);
+	}
 });
 
 test('menu model disables navigation only when its exact state prerequisite is absent', () => {
@@ -163,7 +181,7 @@ function menuInput(actions: object) {
 		blocked: false, editBlocked: false, handoffBlocked: false, showArmControls: false,
 		selectionActive: true, selectedClip: null, durationFrames: 100,
 		effectsPanelOpen: false, projectBinEffectivelyOpen: false, uiFlags: {},
-		actionRuntime: null, actions,
+		actionRuntime: null, actions, selectionMenu: actions, viewMenu: actions,
 	};
 }
 

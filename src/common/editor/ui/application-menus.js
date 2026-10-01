@@ -1,3 +1,4 @@
+import { createApplicationSelectMenu } from './application-select-menu.js';
 import { applyAudacityParityToMenus } from '../audacity-action-parity.js';
 import { createCommunityTranslationMenuItems } from './community-translations/community-translation-menu.ts';
 import { audacitySpectrogramTrackSelected } from '../audacity-action-enablement.ts';
@@ -83,6 +84,8 @@ export default function createApplicationMenus({
 	compactLayout = false,
 	actionRuntime,
 	actions,
+	selectionMenu = {},
+	viewMenu = {},
 	crossProductHandoffAvailable = false,
 }) {
 	// The File menu names the suffix this product writes, so the catalog's
@@ -148,7 +151,7 @@ export default function createApplicationMenus({
 		copy, actions,
 	});
 	const productItems = createApplicationMenuProductItems({ productId, capabilities, project, snapshot, editBlocked, copy, actions });
-	const clipSelectionNavigationMenus = createClipSelectionNavigationMenuModel({ project, selectedTrackId: snapshot.selectedTrackId ?? null, blocked, copy, selectionActive: editSelectionActive }, actions);
+	const clipSelectionNavigationMenus = createClipSelectionNavigationMenuModel({ project, selectedTrackId: snapshot.selectedTrackId ?? null, blocked, copy, selectionActive: editSelectionActive }, selectionMenu);
 	const structuralMenus = createTrackStructuralOperationMenuModel({ copy, editingBlocked: editBlocked,
 		hasTracks: Boolean(project?.tracks.length),
 		hasAlignmentTarget: Boolean(selectedTrack || project?.selection?.trackIds?.length),
@@ -345,53 +348,15 @@ export default function createApplicationMenus({
 				{ id: 'preferences', label: copy.preferences, onClick: actions.openPreferences },
 			],
 		},
-		{
-			id: 'select',
-			label: copy.selectMenu,
-			items: [
-				{ id: 'select-all', label: copy.selectAll, shortcut: 'Ctrl+A', disabled: editBlocked || durationFrames <= 0, onClick: actions.selectAll },
-				{ id: 'select-none', label: copy.selectNone, shortcut: 'Ctrl+Shift+A', disabled: !editSelectionActive, onClick: actions.selectNone },
-				divider(),
-				{ id: 'select-tracks', label: copy.selectTracks, items: [
-					{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.selectAllTracks, label: copy.allTracks, disabled: !project?.tracks.length, onClick: actions.selectAllTracks },
-					clipSelectionNavigationMenus.selectNoTracks,
-				] },
-				clipSelectionNavigationMenus.audioClips,
-				{ id: 'menu-selection-spectral', label: copy.selectSpectral, items: [
-					{ id: 'toggle-spectral-selection', label: copy.toggleSpectralSelection, disabled: editBlocked || !spectralTrackSelected },
-					{ id: 'spectral-brush', label: copy.spectralBrush, checked: Boolean(uiFlags.spectralBrush), disabled: editBlocked || !spectralTrackSelected },
-				] },
-				{
-					id: 'select-region',
-					label: copy.selectRegion,
-					items: [
-						{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.selectLeftOfPlaybackPosition, label: copy.leftAtPlayback, onClick: actions.selectLeftOfPlayback },
-						{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.selectRightOfPlaybackPosition, label: copy.rightAtPlayback, onClick: actions.selectRightOfPlayback },
-						{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.selectTrackStartToCursor, label: copy.trackStartToCursor, onClick: actions.selectTrackStartToCursor },
-						{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.selectCursorToTrackEnd, label: copy.cursorToTrackEnd, onClick: actions.selectCursorToTrackEnd },
-						{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.selectTrackStartToEnd, label: copy.trackStartToEnd || copy.selectAll, onClick: actions.selectTrackStartToEnd },
-					],
-				},
-				{
-					id: 'looping',
-					label: copy.loopRegion,
-					items: [
-						{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.toggleLoopRegion, label: copy.loop, shortcut: productId === 'framescaper' ? undefined : 'L', checked: Boolean(project?.loop?.enabled), onClick: actions.toggleLoop },
-						{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.clearLoopRegion, label: copy.clearLoopRegion || copy.selectNone, disabled: !project?.loop?.enabled, onClick: actions.clearLoop },
-						{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.setLoopRegionToSelection, label: copy.loopToSelection || copy.loop, disabled: !editSelectionActive, onClick: actions.loopToSelection },
-						{ id: 'set-selection-to-loop', label: copy.selectionToLoop, disabled: !project?.loop?.enabled, onClick: actions.selectionToLoop },
-						{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.setLoopRegionInOut, label: copy.setLoopInOut || copy.loopRegion, onClick: actions.setLoopInOut },
-						{ id: 'toggle-selection-follows-loop-region', label: copy.selectionFollowsLoop, checked: Boolean(snapshot.loopOptions?.selectionFollows), onClick: actions.toggleSelectionFollowsLoop },
-						],
-					},
-					{ id: 'zero-crossings', label: copy.zeroCrossings, shortcut: 'Z', disabled: editBlocked || !editSelectionActive, onClick: actions.zeroCross },
-				],
-			},
+		createApplicationSelectMenu({
+			copy, productId, project, snapshot, divider, editBlocked, durationFrames, editSelectionActive,
+			clipSelectionNavigationMenus, spectralTrackSelected, uiFlags,
+		}, selectionMenu, actions),
 		createApplicationViewMenu({
 			capabilities, clipSelectionNavigationMenus, compactLayout, copy, desktopHost, divider, editBlocked,
 			effectsPanelOpen, preferences, productItems, project, projectBinEffectivelyOpen, selectedAudioTrack,
 			editSelectionActive, showArmControls, snapshot, uiFlags,
-		}, actions),
+		}, viewMenu, actions),
 		{
 			id: 'tracks',
 			label: copy.tracksMenu,
@@ -478,7 +443,7 @@ export default function createApplicationMenus({
 				...productItems.analyze,
 				{ id: 'analysis', label: copy.analysisCommand, disabled: !project,
 					checked: snapshot.preferences?.workspace?.panels?.analysis?.visible === true,
-					visibilityToggle: true, onClick: () => actions.togglePanel('analysis') },
+					visibilityToggle: true, onClick: () => viewMenu.togglePanel('analysis') },
 				{ id: 'analyze-selection', label: copy.analyzeSelection, disabled: selectionAnalyzerBlocked, onClick: () => actions.openAnalysis('levels') },
 				{ id: 'plot-spectrum', label: copy.plotSpectrum, disabled: selectionAnalyzerBlocked, onClick: () => actions.openAnalysis('spectrum') },
 				{ id: 'find-clipping', label: copy.findClipping, disabled: selectionAnalyzerBlocked, onClick: () => actions.openAnalysis('clipping') },
