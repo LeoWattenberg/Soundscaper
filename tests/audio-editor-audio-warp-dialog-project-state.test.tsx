@@ -51,6 +51,12 @@ test('an audio-warp operation from another project cannot keep or update the dia
 	/>;
 	try {
 		await act(async () => root.render(renderDialog('project-a')));
+		const strength = dom.container.querySelectorAll('input').find(control => control.type === 'range');
+		assert.ok(strength);
+		await act(async () => { reactProps(strength).onChange({ currentTarget: { value: '75' } }); });
+		assert.equal(reactProps(strength).value, 75);
+		await act(async () => { reactProps(strength).onDoubleClick({ preventDefault() {}, stopPropagation() {} }); });
+		assert.equal(reactProps(strength).value, 50);
 		await act(async () => {
 			void reactProps(buttonWithText(dom.container, ENGLISH_COPY.audioWarpAnalyze)).onClick({});
 		});

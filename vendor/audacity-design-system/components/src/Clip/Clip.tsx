@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import type { MidiNote } from '@audacity-ui/core';
 import type { ClipColor } from '../types/clip';
 import { ClipHeader } from '../ClipHeader/ClipHeader';
+import { clipPitchShiftLabel } from '../ClipHeader/clip-header-badge-labels';
+export { clipPitchShiftLabel } from '../ClipHeader/clip-header-badge-labels';
 import { ClipBody, ClipBodyVariant, ClipBodyChannelMode } from '../ClipBody/ClipBody';
 import type { SpectrogramScale } from '../ClipBody/ClipBody';
 import { MidiClipBody } from '../MidiClipBody/MidiClipBody';
@@ -25,26 +27,6 @@ const StretchIcon = () => (
 );
 
 const EMPTY_NUMBER_ARRAY: number[] = [];
-
-/**
- * LOCAL DEVIATION (see ../../../README.md): the pitch badge's text.
- *
- * Audacity writes the shift as semitones with two decimals and then drops the
- * trailing zeros, so a whole semitone reads `1` rather than `1.00`
- * (`GetPitchShiftText` in `ClipPitchAndSpeedButtonHandle.cpp`). It carries the
- * direction in the glyph beside the number, choosing between a pitch-up and a
- * pitch-down indicator bitmap; this header has one musical note for both, so
- * the sign goes on the number instead and a raised clip reads `+1` where a
- * lowered one reads `-1`.
- */
-export function clipPitchShiftLabel(cents: number): string {
-  const semitones = (Number(cents) || 0) / 100;
-  if (semitones === 0) return '';
-  const magnitude = Math.abs(semitones)
-    .toFixed(2)
-    .replace(/\.?0+$/u, '');
-  return `${semitones > 0 ? '+' : '-'}${magnitude}`;
-}
 
 export type ClipState = 'default' | 'headerHover';
 
@@ -97,6 +79,8 @@ export interface ClipProps {
   /** Visual time-stretch factor (default 1). Forwarded to ClipBody so the
    *  waveform expands / compresses horizontally without changing trim. */
   clipStretchFactor?: number;
+  /** Explicit playback ratio; avoids deriving speed from rounded frame lengths. */
+  clipSpeedRatio?: number;
   /** LOCAL DEVIATION (see ../../../README.md): pitch shift the clip carries,
    *  in cents (default 0). A non-zero shift draws the header's pitch badge,
    *  the counterpart of the time-stretch badge `clipStretchFactor` draws. */
@@ -111,6 +95,12 @@ export interface ClipProps {
   cursorPosition?: { time: number; db: number } | null;
   /** Callback when clip header is clicked */
   onHeaderClick?: (shiftKey: boolean, metaKey: boolean) => void;
+  pitchLabel?: string;
+  speedLabel?: string;
+  onPitchClick?: () => void;
+  onSpeedClick?: () => void;
+  onPitchReset?: () => void;
+  onSpeedReset?: () => void;
   /** Callback when the user commits a clip rename inline (header
    *  double-click → input → Enter / blur). */
   onRename?: (newName: string) => void;
@@ -191,12 +181,19 @@ const ClipComponent: React.FC<ClipProps> = ({
   clipTrimStart = 0,
   clipFullDuration,
   clipStretchFactor = 1,
+  clipSpeedRatio,
   clipPitchCents = 0,
   pixelsPerSecond = 100,
   hiddenPointIndices = EMPTY_NUMBER_ARRAY,
   hoveredPointIndices = EMPTY_NUMBER_ARRAY,
   cursorPosition = null,
   onHeaderClick,
+  pitchLabel,
+  speedLabel,
+  onPitchClick,
+  onSpeedClick,
+  onPitchReset,
+  onSpeedReset,
   onRename,
   renameRequestId,
   onRenameFinished,
@@ -390,10 +387,16 @@ const ClipComponent: React.FC<ClipProps> = ({
             onRenameFinished={onRenameFinished}
             width={width}
             showMenu={!isRecording}
-            showStretch={clipStretchFactor !== 1}
+            showStretch={clipSpeedRatio !== undefined ? clipSpeedRatio !== 1 : clipStretchFactor !== 1}
             // The audio plays inversely proportional to the visible width —
             // 2× wider clip = 50% speed, half-width = 200% speed.
-            stretchPercent={100 / clipStretchFactor}
+            stretchPercent={clipSpeedRatio !== undefined ? clipSpeedRatio * 100 : 100 / clipStretchFactor}
+            pitchLabel={pitchLabel}
+            speedLabel={speedLabel}
+            onPitchClick={onPitchClick}
+            onSpeedClick={onSpeedClick}
+            onPitchReset={onPitchReset}
+            onSpeedReset={onSpeedReset}
             // LOCAL DEVIATION (see ../../../README.md): draw the pitch badge
             // the header already knows how to render. Upstream never supplies
             // it, so a clip shifted by the pitch commands looked untouched.

@@ -125,6 +125,11 @@ export default function NativePluginParameterControls({
 					value={value}
 					disabled={controlDisabled}
 					onChange={(event) => { void update(parameter, Number(event.currentTarget.value)); }}
+					onDoubleClick={(event) => {
+						event.preventDefault();
+						event.stopPropagation();
+						void update(parameter, parameter.defaultValue);
+					}}
 				/>}
 				{!isBoolean && <output>{formatValue(value, parameter.label)}</output>}
 			</label>;

@@ -264,7 +264,13 @@ function CaptureSetupOptions({
 		<label className="kw-framescaper-capture__gain">
 			<span>{copy.captureInputGain}</span>
 			<input type="range" min="0" max="2" step="0.05" value={inputGain} disabled={disabled}
-				onChange={(event) => onInputGain(Number(event.currentTarget.value))} />
+				onChange={(event) => onInputGain(Number(event.currentTarget.value))}
+				onDoubleClick={(event) => {
+					if (disabled) return;
+					event.preventDefault();
+					event.stopPropagation();
+					onInputGain(1);
+				}} />
 			<output>{inputGain.toFixed(2)}×</output>
 		</label>
 	</div>;

@@ -5,6 +5,7 @@ import { useId } from 'react';
 import './audio-editor-design-system/20-sound-activation.css';
 
 import type { SoundActivationPolicySnapshot } from '../controller/recording/sound-activation-policy-service.ts';
+import { DEFAULT_SOUND_ACTIVATION_PREFERENCES } from '../sound-activation-preferences.ts';
 import {
 	SOUND_ACTIVATION_UI_RANGES,
 	createSoundActivationUiModel,
@@ -90,6 +91,7 @@ export default function SoundActivationSettings({
 					label={copy.soundActivationThreshold}
 					description={copy.soundActivationThresholdDescription}
 					value={model.preferences.thresholdDb}
+					defaultValue={DEFAULT_SOUND_ACTIVATION_PREFERENCES.thresholdDb}
 					valueText={model.thresholdValueText}
 					range={SOUND_ACTIVATION_UI_RANGES.thresholdDb}
 					disabled={model.controlsDisabled}
@@ -103,6 +105,7 @@ export default function SoundActivationSettings({
 					label={copy.soundActivationHysteresis}
 					description={copy.soundActivationHysteresisDescription}
 					value={model.preferences.hysteresisDb}
+					defaultValue={DEFAULT_SOUND_ACTIVATION_PREFERENCES.hysteresisDb}
 					valueText={model.hysteresisValueText}
 					range={SOUND_ACTIVATION_UI_RANGES.hysteresisDb}
 					disabled={model.controlsDisabled}
@@ -156,6 +159,7 @@ interface SoundActivationRangeProps {
 	readonly description: string;
 	readonly helpLabel: string;
 	readonly value: number;
+	readonly defaultValue?: number;
 	readonly valueText: string;
 	readonly range: Readonly<{ minimum: number; maximum: number; step: number }>;
 	readonly disabled: boolean;
@@ -170,6 +174,7 @@ function SoundActivationRange({
 	description,
 	helpLabel,
 	value,
+	defaultValue,
 	valueText,
 	range,
 	disabled,
@@ -202,6 +207,12 @@ function SoundActivationRange({
 			value={value}
 			disabled={disabled}
 			onChange={(event) => onChange(event.currentTarget.valueAsNumber)}
+			onDoubleClick={(event) => {
+				if (disabled || defaultValue === undefined) return;
+				event.preventDefault();
+				event.stopPropagation();
+				onChange(defaultValue);
+			}}
 		/>
 		<span id={descriptionId} className="kw-audio-editor-sr-only">{description}</span>
 	</label>;

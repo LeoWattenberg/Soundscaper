@@ -16,6 +16,7 @@ export const PanKnob: React.FC<PanKnobProps> = (props) => {
   return (
     <Knob
       {...props}
+      defaultValue={props.defaultValue ?? 0}
       min={-100}
       max={100}
       mode="bipolar"

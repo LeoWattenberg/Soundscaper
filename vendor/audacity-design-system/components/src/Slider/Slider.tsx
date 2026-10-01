@@ -7,6 +7,8 @@ export interface SliderProps {
    * Current value (0-100)
    */
   value?: number;
+  /** Value restored by double-clicking the slider. */
+  defaultValue?: number;
   /**
    * Minimum value
    */
@@ -45,6 +47,7 @@ export interface SliderProps {
 
 export const Slider: React.FC<SliderProps> = ({
   value = 50,
+  defaultValue,
   min = 0,
   max = 100,
   onChange,
@@ -140,6 +143,16 @@ export const Slider: React.FC<SliderProps> = ({
           if (['ArrowLeft', 'ArrowRight', 'ArrowDown', 'ArrowUp', 'Home', 'End', 'PageDown', 'PageUp'].includes(event.key)) endGesture();
         }}
         onBlur={endGesture}
+        onDoubleClick={(event) => {
+          if (disabled || !onChange || defaultValue === undefined || !Number.isFinite(defaultValue)) return;
+          event.preventDefault();
+          event.stopPropagation();
+          endGesture();
+          const next = Math.max(min, Math.min(max, defaultValue));
+          onGestureStart?.(clampedValue);
+          onChange(next);
+          onGestureEnd?.(next);
+        }}
         disabled={disabled}
         className="slider__input"
         aria-label={ariaLabel}

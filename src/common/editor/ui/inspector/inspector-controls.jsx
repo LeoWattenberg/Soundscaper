@@ -67,7 +67,7 @@ export function ActionHook({ hook, children }) {
 
 // v0.9.0's Slider parses values as integers and does not expose a step prop.
 // Preserve its DOM/CSS contract while keeping Audacity's fractional parameters.
-export function SteppedSlider({ value, min, max, step, ariaLabel, valueText, disabled, onChange,
+export function SteppedSlider({ value, defaultValue, min, max, step, ariaLabel, valueText, disabled, onChange,
 	onGestureStart, onGestureEnd, onGestureCancel }) {
 	const clampedValue = Math.max(min, Math.min(max, Number(value) || 0));
 	const gestureActiveRef = useRef(false);
@@ -136,6 +136,16 @@ export function SteppedSlider({ value, min, max, step, ariaLabel, valueText, dis
 					if (['ArrowLeft', 'ArrowRight', 'ArrowDown', 'ArrowUp', 'Home', 'End', 'PageDown', 'PageUp'].includes(event.key)) endGesture();
 				}}
 				onBlur={endGesture}
+				onDoubleClick={(event) => {
+					if (disabled || !onChange || !Number.isFinite(defaultValue)) return;
+					event.preventDefault();
+					event.stopPropagation();
+					endGesture();
+					const next = Math.max(min, Math.min(max, defaultValue));
+					onGestureStart?.(clampedValue);
+					onChange(next);
+					onGestureEnd?.(next);
+				}}
 			/>
 			<div className="slider__track"><div className="slider__fill" style={{ width: `${percentage}%` }} /></div>
 			<div className="slider__handle" style={{ left: `calc(${percentage}% - ${percentage / 100 * 16}px)` }} />

@@ -248,6 +248,7 @@ export default function EffectParameterEditor({
 					label={parameterLabel}
 					displayLabel={displayLabel}
 					value={sourceControl ? Number(effect.params?.[name]) * scale : effect.params?.[name]}
+					defaultValue={(AUDIO_EFFECT_DEFINITIONS[effect.type] || AUDIO_SELECTION_EFFECT_DEFINITIONS[effect.type])?.defaults?.[name] * scale}
 					range={sourceControl && range ? range.map(value => value * scale) : range}
 					step={descriptor?.[2]?.step ? descriptor[2].step * scale : undefined}
 					presentation={sourceControl?.presentation || 'knob'}

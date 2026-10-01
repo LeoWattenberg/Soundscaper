@@ -362,6 +362,12 @@ function StrengthField({
 			aria-label={label}
 			aria-valuetext={output}
 			onChange={(event) => onChange(Number(event.currentTarget.value))}
+			onDoubleClick={(event) => {
+				if (disabled) return;
+				event.preventDefault();
+				event.stopPropagation();
+				onChange(50);
+			}}
 		/>
 	</label>;
 }

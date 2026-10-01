@@ -153,6 +153,11 @@ export function AudacityAudioMeter({
 				aria-valuetext={slider.valueText}
 				orient={orientation === 'vertical' ? 'vertical' : undefined}
 				onChange={(event) => slider.onChange(Number(event.currentTarget.value))}
+				onDoubleClick={(event) => {
+					event.preventDefault();
+					event.stopPropagation();
+					slider.onChange(slider.defaultValue);
+				}}
 			/>}
 			{(clipped || truePeakExceeded) && <span className="kw-audio-editor__playback-meter-clipped" aria-hidden="true" />}
 		</div>

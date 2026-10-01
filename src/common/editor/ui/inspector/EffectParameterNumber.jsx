@@ -99,7 +99,7 @@ export default function ParameterNumber({
 		onCommit(next);
 	};
 	const changeSlider = (next) => {
-		const snapped = knobStep > 0
+		const snapped = next !== defaultValue && knobStep > 0
 			? Math.round((next - knobRange[0]) / knobStep) * knobStep + knobRange[0]
 			: next;
 		const value = Number(snapped.toFixed(8));
@@ -119,7 +119,7 @@ export default function ParameterNumber({
 				min={knobRange[0]}
 				max={knobRange[1]}
 				step={knobStep}
-				{...(audacity ? { defaultValue } : {})}
+				defaultValue={defaultValue}
 				label={label}
 				mode={knobRange[0] < 0 && knobRange[1] > 0 ? 'bipolar' : 'unipolar'}
 				disabled={disabled}
@@ -130,6 +130,7 @@ export default function ParameterNumber({
 			/>}
 			{!timeUnit && knobRange && presentation === 'slider' && <SteppedSlider
 				value={Number(value) || 0}
+				defaultValue={defaultValue}
 				min={knobRange[0]}
 				max={knobRange[1]}
 				step={knobStep}

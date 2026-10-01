@@ -103,6 +103,12 @@ export function PlaySpeedFlyout({ copy, snapshot, blocked, controller, run, clos
 					aria-label={copy.playbackSpeed}
 					disabled={blocked || transportState === 'playing'}
 					onChange={(event) => run(() => controller.actions.transport.setPlayAtSpeedRate(Number(event.currentTarget.value)))}
+					onDoubleClick={(event) => {
+						if (blocked || transportState === 'playing') return;
+						event.preventDefault();
+						event.stopPropagation();
+						run(() => controller.actions.transport.setPlayAtSpeedRate(1));
+					}}
 				/>
 				<output aria-hidden="true">{formatPlaybackSpeed(snapshot.playbackOptions?.rate || 1)}×</output>
 			</label>

@@ -215,6 +215,7 @@ export const MixerChannel: React.FC<MixerChannelProps> = ({
         <div className="mixer-channel__pan-row">
           <Knob
             value={pan}
+            defaultValue={0}
             min={-100}
             max={100}
             mode="bipolar"

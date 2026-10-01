@@ -169,6 +169,13 @@ function VideoEffectSlider({ clipId, effectId, name, parameter, value, actions, 
 		else if (event.key === 'Enter') gesture.commit();
 	};
 	const pointerDown = (event) => { event.currentTarget.setPointerCapture?.(event.pointerId); gesture.begin(); };
+	const reset = (event) => {
+		if (disabled) return;
+		event.preventDefault();
+		event.stopPropagation();
+		gesture.preview({ [name]: parameter.default });
+		gesture.commit();
+	};
 	return (
 		<div className="audio-editor-video-effect__param" data-video-effect-param={name} role="group" aria-label={label}>
 			<span>{label}</span>
@@ -177,7 +184,7 @@ function VideoEffectSlider({ clipId, effectId, name, parameter, value, actions, 
 				<output>{parameterUnit(parameter, copy)}</output>
 			</div>
 			<div className={`slider audio-editor-stepped-slider${disabled ? ' slider--disabled' : ''}`} style={{ '--slider-track-bg': 'var(--line)', '--slider-fill-bg': 'var(--accent)', '--slider-handle-bg': 'var(--panel)', '--slider-handle-border': 'var(--accent-strong)' }}>
-				<input type="range" className="slider__input" value={numericValue} min={parameter.min} max={parameter.max} step={parameter.step} aria-label={label} aria-valuetext={parameterValue(value, parameter, copy)} disabled={disabled} onFocus={gesture.begin} onPointerDown={pointerDown} onChange={(event) => gesture.preview({ [name]: Number(event.currentTarget.value) })} onPointerUp={gesture.commit} onPointerCancel={gesture.cancel} onBlur={gesture.commit} onKeyDown={keyDown} />
+				<input type="range" className="slider__input" value={numericValue} min={parameter.min} max={parameter.max} step={parameter.step} aria-label={label} aria-valuetext={parameterValue(value, parameter, copy)} disabled={disabled} onFocus={gesture.begin} onPointerDown={pointerDown} onChange={(event) => gesture.preview({ [name]: Number(event.currentTarget.value) })} onPointerUp={gesture.commit} onPointerCancel={gesture.cancel} onBlur={gesture.commit} onKeyDown={keyDown} onDoubleClick={reset} />
 				<div className="slider__track"><div className="slider__fill" style={{ width: `${percentage}%` }} /></div>
 				<div className="slider__handle" style={{ left: `calc(${percentage}% - ${percentage / 100 * 16}px)` }} />
 			</div>

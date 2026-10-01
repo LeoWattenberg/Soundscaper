@@ -57,6 +57,9 @@ test('generated native plug-in controls read and write bounded normalized parame
 		assert.deepEqual(writes, [{ index: 0, value: 0.75 }, { index: 1, value: 1 }])
 		assert.equal(reactProps(range).value, 0.75)
 		assert.equal(reactProps(checkbox).checked, true)
+		await act(async () => { await reactProps(range).onDoubleClick({ preventDefault() {}, stopPropagation() {} }) })
+		assert.deepEqual(writes.at(-1), { index: 0, value: 0.5 })
+		assert.equal(reactProps(range).value, 0.5)
 		assert.equal(dom.find('[data-native-plugin-vendor-ui]'), null)
 	} finally {
 		await act(async () => root.unmount())

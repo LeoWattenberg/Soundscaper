@@ -180,11 +180,12 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 				fileService={fileService} locale={locale}
 			/>}
 
-			{activeSurface === 'clip' && (
+			{['clip', 'clip-pitch', 'clip-speed'].includes(activeSurface) && (
 				<div data-editor-surface="clip">
 					<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
 						<ClipPropertiesDialog
 							isOpen
+							focusField={activeSurface === 'clip-pitch' ? 'pitchCents' : activeSurface === 'clip-speed' ? 'speedRatio' : null}
 							controller={controller}
 							snapshot={snapshot}
 							copy={copy}

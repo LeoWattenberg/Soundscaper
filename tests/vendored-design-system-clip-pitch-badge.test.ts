@@ -8,6 +8,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 
 import { ThemeProvider } from '../vendor/audacity-design-system/components/src/ThemeProvider/ThemeProvider.tsx';
 import { Clip, clipPitchShiftLabel } from '../vendor/audacity-design-system/components/src/Clip/Clip.tsx';
+import { ClipHeader } from '../vendor/audacity-design-system/components/src/ClipHeader/ClipHeader.tsx';
 import { TrackNew } from '../vendor/audacity-design-system/components/src/Track/TrackNew.tsx';
 import { createTimelineClipViewModel } from '../src/common/editor/ui/timeline/waveform-view-model.ts';
 
@@ -122,6 +123,40 @@ test('the pitch badge sits beside the time-stretch badge it was modelled on', ()
 	assert.deepEqual(badgeValues(both), ['+7', '50%']);
 });
 
+test('speed badges appear only for a non-default speed and preserve tiny changes around 100%', () => {
+	for (const [clipStretchFactor, expected] of [
+		[1, []],
+		[100 / 99.99999, ['99.9%']],
+		[100 / 100.00001, ['100.1%']],
+		[100 / 112.34, ['112.3%']],
+	] as const) {
+		const markup = render(React.createElement(Clip, {
+			name: 'One', width: 320, height: 120, clipDuration: 2, clipStretchFactor,
+		}));
+		assert.deepEqual(badgeValues(markup), expected);
+	}
+	assert.deepEqual(badgeValues(render(React.createElement(ClipHeader, {
+		showSpeed: true, speedValue: '100%', showStretch: true, stretchPercent: 100,
+	}))), []);
+});
+
+test('explicit playback speed takes precedence over stretch lengths rounded to source frames', () => {
+	for (const [clipStretchFactor, clipSpeedRatio, expected] of [
+		[1.00001, 1, []],
+		[1, 0.9999999, ['99.9%']],
+		[1, 1.0000001, ['100.1%']],
+	] as const) {
+		assert.deepEqual(badgeValues(render(React.createElement(Clip, {
+			width: 320, height: 120, clipDuration: 2, clipStretchFactor, clipSpeedRatio,
+		}))), expected);
+	}
+	const markup = render(React.createElement(TrackNew, {
+		clips: [{ id: 1, name: 'One', start: 0, duration: 2, stretchFactor: 1, speedRatio: 0.9999999 }],
+		trackIndex: 0, width: 800, clipStyle: 'classic',
+	} as never));
+	assert.deepEqual(badgeValues(markup), ['99.9%']);
+});
+
 test('a track passes each clip its own pitch shift', () => {
 	const markup = renderToStaticMarkup(React.createElement(
 		ThemeProvider,
@@ -136,6 +171,19 @@ test('a track passes each clip its own pitch shift', () => {
 		} as never),
 	));
 	assert.deepEqual(badgeValues(markup), ['+2']);
+});
+
+test('a track forwards localized accessible indicator labels through the clip header', () => {
+	const markup = render(React.createElement(TrackNew, {
+		clips: [{ id: 1, name: 'One', start: 0, duration: 2, pitchCents: 200, speedRatio: 0.5 }],
+		trackIndex: 0,
+		width: 800,
+		clipPitchLabel: 'Clip-Tonhöhe',
+		clipSpeedLabel: 'Clip-Geschwindigkeit',
+	} as never));
+	assert.match(markup, /aria-label="Clip-Tonhöhe"/u);
+	assert.match(markup, /aria-label="Clip-Geschwindigkeit"/u);
+	assert.doesNotMatch(markup, /aria-label="Clip (?:pitch|speed)"/u);
 });
 
 test('the deviation from upstream is recorded for the next sync', async () => {

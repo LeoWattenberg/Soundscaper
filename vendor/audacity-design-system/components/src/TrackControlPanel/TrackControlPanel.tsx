@@ -15,6 +15,7 @@ export interface TrackControlPanelProps {
   trackName: string;
   trackType?: 'mono' | 'stereo' | 'label' | 'midi';
   volume?: number; // 0-100
+  defaultVolume?: number;
   pan?: number; // -100 to 100
   isMuted?: boolean;
   isSolo?: boolean;
@@ -105,6 +106,7 @@ export const TrackControlPanel: React.FC<TrackControlPanelProps> = ({
   trackName,
   trackType = 'mono',
   volume = 75,
+  defaultVolume = 75,
   pan = 0,
   isMuted = false,
   isSolo = false,
@@ -951,6 +953,7 @@ export const TrackControlPanel: React.FC<TrackControlPanelProps> = ({
             >
               <Slider
                 value={volume}
+                defaultValue={defaultVolume}
                 onChange={onVolumeChange}
                 onGestureStart={onVolumeGestureStart}
                 onGestureEnd={onVolumeGestureEnd}

@@ -7,6 +7,8 @@ export interface KnobProps {
    * Current value
    */
   value?: number;
+  /** Value restored by double-clicking the knob. */
+  defaultValue?: number;
   /**
    * Minimum value
    */
@@ -58,6 +60,7 @@ export interface KnobProps {
 
 export const Knob: React.FC<KnobProps> = ({
   value = 0,
+  defaultValue,
   min = -100,
   max = 100,
   step = 1,
@@ -299,6 +302,17 @@ export const Knob: React.FC<KnobProps> = ({
       onKeyDown={handleKeyDown}
       onKeyUp={finishKeyGesture}
       onBlur={() => finishKeyGesture()}
+      onDoubleClick={(event) => {
+        if (disabled || !onChange || defaultValue === undefined || !Number.isFinite(defaultValue)) return;
+        event.preventDefault();
+        event.stopPropagation();
+        settleDrag('commit');
+        finishKeyGesture();
+        const next = Math.max(min, Math.min(max, defaultValue));
+        onGestureStart?.(clampedValue);
+        onChange(next);
+        onGestureEnd?.(next);
+      }}
     >
       {/* Background gauge */}
       <div className="knob__gauge" />

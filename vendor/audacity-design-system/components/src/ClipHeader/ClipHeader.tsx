@@ -1,6 +1,8 @@
 import React from 'react';
 import type { ClipColor } from '../types/clip';
 import { Icon } from '../Icon';
+import { ClipHeaderBadge } from './ClipHeaderBadge';
+import { clipSpeedLabel } from './clip-header-badge-labels';
 import '../assets/fonts/musescore-icon.css';
 import './ClipHeader.css';
 
@@ -29,8 +31,17 @@ export interface ClipHeaderProps {
   speedValue?: string;
   /** Whether to show the time-stretch indicator (clock glyph + percent). */
   showStretch?: boolean;
-  /** Stretch as a percent (e.g. 200 for 2× stretch). Rounded display. */
+  /** Playback speed as a percent, without rounding non-default speeds to 100%. */
   stretchPercent?: number;
+  /** Localized accessible labels for the existing indicators. */
+  pitchLabel?: string;
+  speedLabel?: string;
+  /** Opens clip properties at the corresponding control. */
+  onPitchClick?: () => void;
+  onSpeedClick?: () => void;
+  /** Restores the corresponding clip property on double-click. */
+  onPitchReset?: () => void;
+  onSpeedReset?: () => void;
   /** Whether to show the menu button */
   showMenu?: boolean;
   /** Click handler for the header */
@@ -77,6 +88,12 @@ export const ClipHeader: React.FC<ClipHeaderProps> = ({
   speedValue = '112%',
   showStretch = false,
   stretchPercent = 100,
+  pitchLabel = 'Clip pitch',
+  speedLabel = 'Clip speed',
+  onPitchClick,
+  onSpeedClick,
+  onPitchReset,
+  onSpeedReset,
   showMenu = true,
   onClick,
   onMenuClick,
@@ -177,6 +194,7 @@ export const ClipHeader: React.FC<ClipHeaderProps> = ({
     e.stopPropagation();
     onMenuClick?.(e);
   };
+  const speedPercent = Number.parseFloat(speedValue);
   // Calculate time selection overlay position and width
   // Don't show time selection overlay when clip is selected (selected state takes priority)
   let timeSelectionOverlay: { left: number; width: number } | null = null;
@@ -261,29 +279,38 @@ export const ClipHeader: React.FC<ClipHeaderProps> = ({
 
         <div className="clip-header__info">
           {showPitch && (
-            <div className="clip-header__badge">
-              <span className="clip-header__badge-icon">♪</span>
-              <span className="clip-header__badge-value">{pitchValue}</span>
-            </div>
+            <ClipHeaderBadge
+              label={pitchLabel}
+              icon={<span className="clip-header__badge-icon" aria-hidden="true">♪</span>}
+              value={pitchValue}
+              onClick={onPitchClick}
+              onReset={onPitchReset}
+            />
           )}
 
-          {showSpeed && (
-            <div className="clip-header__badge">
-              <span className="clip-header__badge-icon">⚡</span>
-              <span className="clip-header__badge-value">{speedValue}</span>
-            </div>
+          {showSpeed && speedPercent !== 100 && (
+            <ClipHeaderBadge
+              label={speedLabel}
+              icon={<span className="clip-header__badge-icon" aria-hidden="true">⚡</span>}
+              value={Number.isFinite(speedPercent) ? clipSpeedLabel(speedPercent) : speedValue}
+              onClick={onSpeedClick}
+              onReset={onSpeedReset}
+            />
           )}
 
-          {showStretch && (
-            <div className="clip-header__badge">
-              <span
+          {showStretch && stretchPercent !== 100 && (
+            <ClipHeaderBadge
+              label={speedLabel}
+              icon={<span
                 className="clip-header__badge-icon musescore-icon"
                 aria-hidden="true"
               >
                 {'\uF475'}
-              </span>
-              <span className="clip-header__badge-value">{Math.round(stretchPercent)}%</span>
-            </div>
+              </span>}
+              value={clipSpeedLabel(stretchPercent)}
+              onClick={onSpeedClick}
+              onReset={onSpeedReset}
+            />
           )}
 
           {showMenu && (
@@ -294,7 +321,7 @@ export const ClipHeader: React.FC<ClipHeaderProps> = ({
               type="button"
               tabIndex={-1}
             >
-              <Icon name="menu" size={14} />
+              <Icon name="menu" size={14} color="var(--clip-header-text)" />
             </button>
           )}
         </div>

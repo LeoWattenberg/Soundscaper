@@ -5,6 +5,7 @@ import { TrackCrossfadeVisual } from '@soundscaper/design-system/Track/TrackCros
 import { resolveTrackWaveformOptions } from '../../track-display-mode.ts';
 import { editorTimelineDurationFrames } from '../../project.js';
 import { TrackControls } from './TrackControls.jsx';
+import { clipHeaderActions } from './clip-header-actions.ts';
 import { TrackAutomationOverlay } from '../soundscaper-workflow-product-runtime.tsx';
 import { ClipFadeOverlays } from './ClipFadeOverlays.tsx';
 import { crossfadedClipFadeEdges } from './clip-fade-crossfaded-edges.ts';
@@ -84,6 +85,7 @@ export function AudioTrackRow({
 	onOpenEffects,
 	onAutomationTarget,
 	onOpenClipMenu,
+	onOpenClipProperties,
 	onOpenRulerFlyout,
 	onFocusTimelineRuler,
 	onFocusTrackContainer,
@@ -320,6 +322,7 @@ export function AudioTrackRow({
 					onKeyDownCapture={handleClipKeyDownCapture}
 				>
 					<TrackNew
+						{...clipHeaderActions({ controller, blocked, run, onOpenClipProperties, copy })}
 						clips={projectedClips}
 						height={trackHeight}
 						trackIndex={trackIndex}

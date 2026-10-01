@@ -92,9 +92,11 @@ function ClassicFilterGraph({ parameters, sampleRate, copy }: Pick<GraphProps, '
 		<div className="audio-editor-audacity-wx-graph__ranges">
 			<span aria-hidden="true">{`+ ${DECIBEL_UNIT}`}</span>
 			<input type="range" min="0" max="20" step="1" value={maximumDb}
-				aria-label={String(canonicalCopyValue('effectClassicMaxDb', copy))} onChange={event => setMaximumDb(Number(event.currentTarget.value))} />
+				aria-label={String(canonicalCopyValue('effectClassicMaxDb', copy))} onChange={event => setMaximumDb(Number(event.currentTarget.value))}
+				onDoubleClick={event => { event.stopPropagation(); setMaximumDb(20); }} />
 			<input type="range" min="-120" max="-10" step="1" value={minimumDb}
-				aria-label={String(canonicalCopyValue('effectClassicMinDb', copy))} onChange={event => setMinimumDb(Number(event.currentTarget.value))} />
+				aria-label={String(canonicalCopyValue('effectClassicMinDb', copy))} onChange={event => setMinimumDb(Number(event.currentTarget.value))}
+				onDoubleClick={event => { event.stopPropagation(); setMinimumDb(-30); }} />
 			<span aria-hidden="true">{`- ${DECIBEL_UNIT}`}</span>
 		</div>
 	</div>;

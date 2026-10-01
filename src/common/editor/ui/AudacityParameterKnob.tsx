@@ -42,8 +42,11 @@ export default function AudacityParameterKnob({
 			'--audacity-knob-sweep': `${position * 280}deg`,
 		} as CSSProperties}
 		onPointerDownCapture={() => { if (!disabled) accessibleRef.current?.focus(); }}
-		onDoubleClick={() => {
+		onDoubleClick={event => {
 			if (disabled || !onChange || defaultValue === undefined) return;
+			event.preventDefault();
+			event.stopPropagation();
+			finishKeyboardGesture();
 			const next = Math.max(min, Math.min(max, defaultValue));
 			onGestureStart?.(actual);
 			onChange(next);

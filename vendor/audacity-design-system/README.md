@@ -253,6 +253,21 @@ application overrides and source patches against the pin and upstream master.
     it can use Audacity's palette without loading the design system's spectrogram analysis or
     `@audacity-ui/core`. `utils/spectrogram.ts` re-exports the function for existing consumers.
     Covered by `tests/audio-editor-pffft-spectrogram.test.js`.
+30. `ClipHeader` uses its header text color for the menu glyph and makes the existing
+    pitch and speed indicators buttons. `Clip` and `TrackNew` forward localized labels,
+    properties actions, and double-click reset actions. Pointer activation waits for a
+    possible double-click; keyboard activation opens immediately. `clipSpeedRatio`
+    supplies exact playback speed independently of rounded waveform geometry. Unity
+    speed is hidden; non-default speeds display one decimal and never round to 100%.
+    Covered by `tests/vendored-design-system-clip-pitch-badge.test.ts`,
+    `tests/vendored-design-system-clip-badge-interactions.test.tsx`, and
+    `tests/browser/audio-editor-clip-indicators.spec.js`.
+31. `Knob` and `Slider` accept an explicit `defaultValue` and restore it on double-click
+    through their gesture callbacks. `PanKnob` defaults to its center, and
+    `TrackControlPanel` forwards the host's default volume. Disabled controls stay
+    unchanged. The application supplies parameter, generator, track, and meter defaults.
+    Covered by `tests/audio-editor-control-default-reset.test.tsx` and
+    `tests/browser/audio-editor-control-resets.spec.js`.
 
 ## Application-side adaptations
 

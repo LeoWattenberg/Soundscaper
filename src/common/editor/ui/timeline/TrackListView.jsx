@@ -43,6 +43,7 @@ export function TrackListView({
 	openClipMenu,
 	openTrackRulerFlyout,
 	onOpenEffects,
+	onOpenClipProperties,
 	focusTimelineRuler,
 	focusTrackContainer,
 	focusTrackPanelControl,
@@ -255,6 +256,7 @@ export function TrackListView({
 					run={run}
 					onMenu={(anchor) => setTrackMenu({ trackId: track.id, anchor })}
 					onOpenEffects={onOpenEffects}
+					onOpenClipProperties={onOpenClipProperties}
 					onOpenClipMenu={openClipMenu}
 					onOpenRulerFlyout={(displayMode, event) => openTrackRulerFlyout(track, displayMode, event)}
 					onFocusTimelineRuler={focusTimelineRuler}

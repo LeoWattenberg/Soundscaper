@@ -1,6 +1,7 @@
 import type { EditorController, EditorSnapshot } from '../../types.ts';
 import type { TrackAutomationRuntime } from '../../track-automation-runtime.ts';
 import type { TrackFreezeRuntime } from '../../track-freeze-runtime.ts';
+import type { ClipPropertiesFocus } from './clip-header-actions.ts';
 import TimelineController from './TimelineController.jsx';
 import EditorSurfaceBoundary from '../EditorSurfaceBoundary.jsx';
 
@@ -33,7 +34,7 @@ interface AudioEditorTimelineProps {
 	readonly spectralBrushEnabled?: boolean;
 	readonly onError: (error: unknown) => void;
 	readonly onOpenEffects?: (...args: readonly unknown[]) => void;
-	readonly onOpenClipProperties?: (clipId: string) => void;
+	readonly onOpenClipProperties?: (clipId: string, field?: ClipPropertiesFocus) => void;
 	readonly onExportClip?: (clipId: string) => void;
 	readonly onUploadClipToFreesound?: (clipId: string) => void;
 	readonly onRevealProjectBin?: () => void;

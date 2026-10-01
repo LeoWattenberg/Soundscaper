@@ -442,6 +442,7 @@ export function OutputTrackControls({
 				trackName={label}
 				trackType="stereo"
 				volume={gainDbToDesignVolume(linearToDb(bus.gain))}
+				defaultVolume={gainDbToDesignVolume(0)}
 				pan={panToDesignValue(bus.pan)}
 				isMuted={Boolean(bus.mute)}
 				isSolo={Boolean(bus.solo)}

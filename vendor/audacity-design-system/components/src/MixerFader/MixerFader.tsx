@@ -11,6 +11,8 @@ export interface MixerFaderProps {
    * @default 0
    */
   value?: number;
+  /** Value restored by double-clicking the fader. */
+  defaultValue?: number;
   /**
    * Minimum value
    * @default -60
@@ -68,6 +70,7 @@ const KEYBOARD_LARGE_STEP_FRACTION = 0.1;
  */
 export const MixerFader: React.FC<MixerFaderProps> = ({
   value: valueProp = 0,
+  defaultValue = 0,
   min = -60,
   max = 12,
   onChange,
@@ -213,6 +216,17 @@ export const MixerFader: React.FC<MixerFaderProps> = ({
       aria-disabled={disabled || undefined}
       tabIndex={tabIndex ?? (disabled ? -1 : 0)}
       onKeyDown={handleKeyDown}
+      onDoubleClick={(event) => {
+        if (disabled || !Number.isFinite(defaultValue)) return;
+        event.preventDefault();
+        event.stopPropagation();
+        handlePointerCancel();
+        const next = Math.max(min, Math.min(max, defaultValue));
+        onGestureStart?.(clampedValue);
+        setValue(next);
+        onGestureEnd?.(next);
+        onChangeEnd?.(next);
+      }}
     >
       <div
         ref={trackRef}

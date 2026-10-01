@@ -212,6 +212,7 @@ export function TrackControls({
 				trackName={track.name}
 				trackType="stereo"
 				volume={gainDbToDesignVolume(linearToDb(track.gain))}
+				defaultVolume={gainDbToDesignVolume(0)}
 				pan={panToDesignValue(track.pan)}
 				isMuted={track.mute}
 				isSolo={track.solo}

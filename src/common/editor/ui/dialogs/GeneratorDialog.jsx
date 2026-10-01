@@ -226,6 +226,7 @@ export default function GeneratorDialog({ type, controller, copy, locale, run, o
 										<div className="kw-audio-editor-generator__ratio-control">
 											<GeneratorKnob
 												value={params.wordsPerMinute}
+												defaultValue={generatorDefaults('morse').wordsPerMinute}
 												label={copy.generatorMorseSpeed}
 												minimum={MORSE_SPEED_RANGE.minimum}
 												maximum={MORSE_SPEED_RANGE.maximum}
@@ -303,6 +304,7 @@ export default function GeneratorDialog({ type, controller, copy, locale, run, o
 										<div className="kw-audio-editor-generator__ratio-control">
 											<GeneratorKnob
 												value={dtmfTiming.dutyPercent}
+												defaultValue={generatorDtmfTiming(generatorDefaults('dtmf')).dutyPercent}
 												label={labels.dutyCycle}
 												onChange={(value) => updateDtmfTiming({ dutyPercent: value })}
 											/>

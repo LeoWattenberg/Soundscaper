@@ -351,7 +351,7 @@ function MixerSendKnob({ label, value, disabled, onChange, onGestureStart, onGes
 		knob.addEventListener('keydown', handleKeyDown);
 		return () => knob.removeEventListener('keydown', handleKeyDown);
 	}, [label, onChange, onGestureEnd, onGestureStart, value]);
-	return <div ref={wrapperRef} className="kw-audio-editor__mixer-send-knob"><Knob value={value} min={-60} max={12} step={1} label={label} mode="unipolar" disabled={disabled} onChange={onChange} onGestureStart={onGestureStart} onGestureEnd={onGestureEnd} onGestureCancel={onGestureCancel} /></div>;
+	return <div ref={wrapperRef} className="kw-audio-editor__mixer-send-knob"><Knob value={value} defaultValue={-60} min={-60} max={12} step={1} label={label} mode="unipolar" disabled={disabled} onChange={onChange} onGestureStart={onGestureStart} onGestureEnd={onGestureEnd} onGestureCancel={onGestureCancel} /></div>;
 }
 
 function sendLevelAddress(project, trackId, sendId) {

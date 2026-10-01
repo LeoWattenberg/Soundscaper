@@ -478,7 +478,16 @@ export function ParametricEqEditor({
 							&& !outputGestureRef.current) beginOutputGain();
 				}} onKeyUp={(event) => {
 					if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown'].includes(event.key)) finishOutputGain();
-				}} onBlur={() => finishOutputGain()} />
+				}} onBlur={() => finishOutputGain()} onDoubleClick={(event) => {
+						if (disabled) return;
+						event.preventDefault();
+						event.stopPropagation();
+						finishOutputGain();
+						if (parameterAutomation?.performAtomic('outputGain', null, 0)) return;
+						const next = normalizeParametricEqParams({ ...draft, outputGain: 0 }, effectId);
+						setDraft(next);
+						commit(next, true);
+					}} />
 					<ParametricEqNumericInput disabled={disabled} min={MIN_GAIN} max={MAX_GAIN} step="0.1" value={draft.outputGain} onCommit={(value) => {
 						if (parameterAutomation?.performAtomic('outputGain', null, value)) return;
 						const next = normalizeParametricEqParams({ ...draft, outputGain: value }, effectId);

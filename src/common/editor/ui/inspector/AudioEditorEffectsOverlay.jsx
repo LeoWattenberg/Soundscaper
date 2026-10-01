@@ -386,7 +386,7 @@ export function AudioEditorEffectsOverlay({
 						<div className="audio-editor-master-gain" data-master-gain>
 							<span>{copy.masterGain}</span>
 							<SteppedSlider
-								value={masterGainDb}
+								value={masterGainDb} defaultValue={0}
 								min={MASTER_GAIN_MIN_DB}
 								max={MASTER_GAIN_MAX_DB}
 								step={0.1}

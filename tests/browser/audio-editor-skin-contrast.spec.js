@@ -1,5 +1,5 @@
 import { expect, monoTone, test } from './audio-editor-test-fixtures.js';
-import { bootEditor, chooseCommandAction, chooseNestedCommandAction, importFiles, registerAudioEditorHooks } from './audio-editor-test-helpers.js';
+import { bootEditor, chooseCommandAction, chooseNestedCommandAction, clipByName, importFiles, registerAudioEditorHooks } from './audio-editor-test-helpers.js';
 
 async function appearance(page, editor) {
 	await chooseCommandAction(page, editor, 'Edit', 'Preferences');
@@ -55,6 +55,24 @@ test('default light theme keeps vertical ruler numbers readable', async ({ page 
 	await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
 	await expect(editor).toHaveAttribute('data-editor-skin', 'default');
 	await contrast(editor.locator('.audio-editor-vertical-ruler .vertical-ruler__label'));
+});
+
+test('dark theme keeps the clip menu glyph readable over its light clip header', async ({ page }) => {
+	registerAudioEditorHooks();
+	const editor = await bootEditor(page, '/embed/en/');
+	await importFiles(editor, [monoTone]);
+	const preferences = await appearance(page, editor);
+	await preferences.getByRole('radio', { name: 'Dark', exact: true }).check();
+	await preferences.getByRole('button', { name: 'Close', exact: true }).last().click();
+	await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+	const clip = clipByName(editor, monoTone.name);
+	const menu = clip.getByRole('button', { name: 'Clip menu', exact: true });
+	await contrast(menu, 'color', 3);
+	await menu.hover();
+	await contrast(menu, 'color', 3);
+	await clip.focus();
+	await clip.press('Enter');
+	await contrast(menu, 'color', 3);
 });
 
 for (const product of ['soundscaper', 'framescaper']) {

@@ -156,6 +156,12 @@ export interface TrackProps {
    * Callback when a clip menu button is clicked
    */
   onClipMenuClick?: (clipId: string | number, x: number, y: number, openedViaKeyboard?: boolean) => void;
+  clipPitchLabel?: string;
+  clipSpeedLabel?: string;
+  onClipPitchClick?: (clipId: string | number) => void;
+  onClipSpeedClick?: (clipId: string | number) => void;
+  onClipPitchReset?: (clipId: string | number) => void;
+  onClipSpeedReset?: (clipId: string | number) => void;
 
   /**
    * Callback when a clip edge is being trimmed
@@ -377,6 +383,12 @@ const TrackNewComponent: React.FC<TrackProps> = ({
   onEnvelopePointsChange,
   onClipHeaderClick,
   onClipMenuClick,
+  clipPitchLabel,
+  clipSpeedLabel,
+  onClipPitchClick,
+  onClipSpeedClick,
+  onClipPitchReset,
+  onClipSpeedReset,
   onClipTrimEdge,
   onClipStretchEdge,
   tabIndex,
@@ -949,6 +961,7 @@ const TrackNewComponent: React.FC<TrackProps> = ({
             clipTrimStart={(clip as any).trimStart || 0} // justified: trimStart not on Clip type — pending components sweep
             clipFullDuration={(clip as any).fullDuration} // justified: fullDuration not on Clip type — pending components sweep
             clipStretchFactor={(clip as any).stretchFactor ?? 1} // justified: stretchFactor not on Clip type — pending components sweep
+            clipSpeedRatio={(clip as any).speedRatio} // justified: speedRatio not on Clip type — pending components sweep
             // LOCAL DEVIATION (see ../../../README.md): pass the clip's pitch
             // shift through so the header draws its pitch badge.
             clipPitchCents={(clip as any).pitchCents ?? 0} // justified: pitchCents not on Clip type — pending components sweep
@@ -968,6 +981,12 @@ const TrackNewComponent: React.FC<TrackProps> = ({
               current?.clipId === clip.id ? null : current
             ))}
             onMenuClick={(x, y) => onClipMenuClick?.(clip.id, x, y)}
+            pitchLabel={clipPitchLabel}
+            speedLabel={clipSpeedLabel}
+            onPitchClick={onClipPitchClick ? () => onClipPitchClick(clip.id) : undefined}
+            onSpeedClick={onClipSpeedClick ? () => onClipSpeedClick(clip.id) : undefined}
+            onPitchReset={onClipPitchReset ? () => onClipPitchReset(clip.id) : undefined}
+            onSpeedReset={onClipSpeedReset ? () => onClipSpeedReset(clip.id) : undefined}
             onTrimEdge={
               onClipTrimEdge
                 ? ({ edge, clientX }) => onClipTrimEdge(clip.id, edge, clientX)

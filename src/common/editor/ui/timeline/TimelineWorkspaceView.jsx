@@ -144,6 +144,7 @@ export function TimelineWorkspaceView({
 		setOutputMenu,
 		setFocusedOutputKey,
 		onOpenEffects,
+		onOpenClipProperties,
 	} = actions;
 	const { displayedLoop } = menuModel;
 	// One resolved scale feeds the ruler canvas and the grid lines behind the
@@ -399,6 +400,7 @@ export function TimelineWorkspaceView({
 						openClipMenu={openClipMenu}
 						openTrackRulerFlyout={openTrackRulerFlyout}
 						onOpenEffects={onOpenEffects}
+						onOpenClipProperties={onOpenClipProperties}
 						focusTimelineRuler={focusTimelineRuler}
 						focusTrackContainer={focusTrackContainer}
 						focusTrackPanelControl={focusTrackPanelControl}

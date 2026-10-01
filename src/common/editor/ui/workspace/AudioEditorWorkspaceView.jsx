@@ -371,7 +371,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 						spectralBrushEnabled={uiFlags.spectralBrush}
 						onError={onError}
 						onOpenEffects={openEffects}
-						onOpenClipProperties={() => openSurface('clip')}
+						onOpenClipProperties={(_clipId, field) => openSurface(field ? `clip-${field}` : 'clip')}
 						onExportClip={(clipId) => {
 							const clip = project?.clips.find((candidate) => candidate.id === clipId);
 							if (!clip) return;

@@ -34,10 +34,13 @@ export function clipRenameTitle(rawValue, displayedName) {
 	return title === displayedName ? null : title;
 }
 
-export function ClipPropertiesDialog({ isOpen, controller, snapshot, copy, onClose }) {
+export function ClipPropertiesDialog({ isOpen, controller, snapshot, copy, onClose, focusField = null }) {
+	const initialFocus = ['pitchCents', 'speedRatio'].includes(focusField)
+		? `[data-clip-field="${focusField}"] input` : 'first';
 	return (
 		<AudioEditorDialogShell
 			isOpen={isOpen}
+			initialFocus={initialFocus}
 			title={copy.clipProperties || copy.clip}
 			onClose={onClose}
 			width={720}
@@ -280,7 +283,7 @@ function ClipFadeShapeField({ name, label, value, fadeFrames, legacyLabel, disab
 	return <label className="audio-editor-field" data-clip-field={name}>
 		<span>{label}</span>
 		<div className="audio-editor-clip-fade-shape__row">
-			<SteppedSlider value={shape} min={0.15} max={6} step={0.01}
+			<SteppedSlider value={shape} min={0.15} max={6} step={0.01} defaultValue={1}
 				ariaLabel={label} valueText={legacy ? legacyLabel : undefined}
 				disabled={disabled} onChange={(next) => onCommit(name, next)} />
 			<output>{legacy ? legacyLabel : shape.toFixed(2)}</output>
