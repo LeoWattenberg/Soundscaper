@@ -98,7 +98,6 @@ test('the baseline routes its exact evaluated carrier only through native encode
 	const authority = new FramescaperNativeProjectMediaAuthority({
 		project: {
 			...PROJECT_IDENTITY,
-			projectState: () => Object.freeze({ ...PROJECT_IDENTITY, open: true, writable: true }),
 			projectRecord: () => malformedProjectRecord ? ({ malformed: true } as never) : Object.freeze({
 				...PROJECT_IDENTITY, projectId, projectRevision, projectSha256,
 				bodies: Object.freeze([body]),
@@ -233,7 +232,6 @@ test('the baseline runs its carrier-free legacy-unmanaged full-frame family on n
 	const authority = new FramescaperNativeProjectMediaAuthority({
 		project: {
 			...PROJECT_IDENTITY,
-			projectState: () => ({ ...PROJECT_IDENTITY, open: true, writable: true }),
 			projectRecord: () => ({ ...PROJECT_IDENTITY, projectId, projectRevision, projectSha256: 'ef'.repeat(32), bodies: [body] }),
 			readProjectBundle: async () => ({
 				project: { ...PROJECT_IDENTITY, projectRevision, sha256: 'ef'.repeat(32) }, bodies: [body],
@@ -312,7 +310,6 @@ test('the baseline attempts the opted-in OS encoder once before identical native
 	const authority = new FramescaperNativeProjectMediaAuthority({
 		project: {
 			...PROJECT_IDENTITY,
-			projectState: () => ({ ...PROJECT_IDENTITY, open: true, writable: true }),
 			projectRecord: () => ({ ...PROJECT_IDENTITY, projectId, projectRevision, projectSha256: 'ef'.repeat(32), bodies: [body] }),
 			readProjectBundle: async () => ({
 				project: { ...PROJECT_IDENTITY, projectRevision, sha256: 'ef'.repeat(32) }, bodies: [body],
@@ -392,7 +389,6 @@ test('the baseline prepares one exact original as a native ProRes Proxy MOV job'
 	const authority = new FramescaperNativeProjectMediaAuthority({
 		project: {
 			...PROJECT_IDENTITY,
-			projectState: () => ({ ...PROJECT_IDENTITY, open: true, writable: true }),
 			projectRecord: () => ({ projectId, projectRevision,
 				...PROJECT_IDENTITY, projectSha256: 'ef'.repeat(32), bodies: [body] }),
 			readProjectBundle: async () => ({
@@ -576,7 +572,6 @@ function imageSequenceReservationFixture() {
 		new FramescaperNativeProjectMediaAuthority({
 			project: {
 				...PROJECT_IDENTITY,
-				projectState: () => ({ ...PROJECT_IDENTITY, open: true, writable: true }),
 				projectRecord: () => ({ projectId: String(project.id), projectRevision: Number(project.revision),
 					...PROJECT_IDENTITY, projectSha256: 'ef'.repeat(32), bodies: ownedBodies }),
 				readProjectBundle: async () => ({ project: { ...PROJECT_IDENTITY, projectRevision: Number(project.revision),

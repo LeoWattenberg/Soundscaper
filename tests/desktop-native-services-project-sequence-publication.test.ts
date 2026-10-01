@@ -72,7 +72,6 @@ test('baseline image-sequence jobs publish their authenticated tree through the 
 	const authority = new FramescaperNativeProjectMediaAuthority({
 		project: {
 			...PROJECT_IDENTITY,
-			projectState: () => ({ ...PROJECT_IDENTITY, open: true, writable: true }),
 			projectRecord: () => ({ projectId: String(project.id), projectRevision: Number(project.revision),
 				...PROJECT_IDENTITY, projectSha256, bodies: [body] }),
 			readProjectBundle: async () => ({

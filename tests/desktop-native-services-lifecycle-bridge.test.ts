@@ -270,7 +270,7 @@ test('the pathless lifecycle bridge owns roots, watch reconciliation, cleanup, p
 	const enqueued = await bridge.enqueue({
 		schemaFamily: planned.schemaFamily, schemaVersion: planned.schemaVersion,
 		taskKind: planned.taskKind,
-		planVersion: planned.planVersion,
+		planVersion: 14,
 		derivedInputStageId: JOB_ID,
 		planFingerprint: planned.planFingerprint,
 		planPayload: planned.planPayload,
