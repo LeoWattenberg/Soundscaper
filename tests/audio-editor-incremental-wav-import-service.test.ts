@@ -6,6 +6,15 @@ import test from 'node:test';
 import {
 	createIncrementalWavImporter,
 } from '../src/common/editor/controller/import/internal/incremental-wav-import-service.ts';
+import { generateWaveformPeaksFallback, type WaveformPeaks } from '../src/common/editor/controller/source/waveform-analysis.ts';
+
+test('incremental import forwards peaks from decoded chunks to activation without retaining PCM', async () => {
+	const samples = Float32Array.from({ length: 73 }, (_, frame) => frame < 64 ? 0.1 : 2.1);
+	const fixture = createFixture({ samples });
+	await fixture.importWav();
+	assert.deepEqual(fixture.activationPeaks, [generateWaveformPeaksFallback([samples])]);
+	assert.equal(fixture.calls.includes('commit-project'), true);
+});
 
 class TestSourceChunkProviders extends Map<string, unknown> {
 	readonly #calls: string[];
@@ -96,13 +105,16 @@ test('incremental rollback preserves source deletion failure beside its primary 
 });
 
 interface FixtureOptions {
-	readonly activationFailure: unknown;
+	readonly activationFailure?: unknown;
 	readonly drainOperation?: () => Promise<void>;
 	readonly sourceDeletionFailure?: unknown;
+	readonly samples?: Float32Array;
 }
 
 function createFixture(options: FixtureOptions) {
 	const calls: string[] = [];
+	const activationPeaks: WaveformPeaks[] = [];
+	const samples = options.samples ?? Float32Array.of(0, 0);
 	const sourceBuffers = new Map<string, unknown>();
 	const sourceChunkProviders = new TestSourceChunkProviders(
 		calls,
@@ -111,14 +123,15 @@ function createFixture(options: FixtureOptions) {
 	const sourcePeaks = new Map<string, unknown>();
 	const importIncrementalWav = createIncrementalWavImporter({
 		SOURCE_CHUNK_FRAMES: 2,
-		async activateStoredSource(source: { id: string }) {
+		async activateStoredSource(source: { id: string }, _metadata: unknown, activation: { peaks: WaveformPeaks }) {
 			calls.push(`activate:${source.id}`);
+			activationPeaks.push(activation.peaks);
 			sourceBuffers.set(source.id, {});
 			sourceChunkProviders.set(source.id, {});
 			sourcePeaks.set(source.id, {});
-			throw options.activationFailure;
+			if (options.activationFailure) throw options.activationFailure;
 		},
-		commit: () => { throw new Error('Commit must not follow failed activation.'); },
+		commit: () => { calls.push('commit-project'); },
 		copy: { track: 'Track' },
 		createStableId: (prefix) => `${prefix}-1`,
 		getProject: () => ({ tracks: [] }),
@@ -150,15 +163,22 @@ function createFixture(options: FixtureOptions) {
 		},
 		streamWavBlobPcm: async (_file: unknown, streamOptions: {
 			onChunk(channels: Float32Array[]): Promise<void>;
-		}) => streamOptions.onChunk([Float32Array.of(0, 0)]),
+		}) => {
+			for (let offset = 0; offset < samples.length; offset += 2) {
+				const chunk = samples.slice(offset, offset + 2);
+				await streamOptions.onChunk([chunk]);
+				chunk.fill(0);
+			}
+		},
 		stripExtension: (name) => name.replace(/\.wav$/u, ''),
 		warnEnvelope: () => undefined,
 	});
 	return {
 		calls,
+		activationPeaks,
 		importWav: () => importIncrementalWav(
 			{ name: 'source.wav', type: 'audio/wav' },
-			{ channelCount: 1, frameCount: 2, sampleRate: 48_000 },
+			{ channelCount: 1, frameCount: samples.length, sampleRate: 48_000 },
 			{},
 			{},
 		),

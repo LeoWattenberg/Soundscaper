@@ -297,7 +297,7 @@ export function createSourceLifecycleService<
 	}
 
 	async function activateStoredSource(source: SourceLifecycleSource, metadata: Metadata | null | undefined,
-		options: ActivateStoredSourceOptions<Buffer> = {}): Promise<Peaks> {
+		options: ActivateStoredSourceOptions<Buffer, Peaks> = {}): Promise<Peaks> {
 		const { activateStoredSourceWithProgress } = await import('./internal/stored-source-activation.ts');
 		return activateStoredSourceWithProgress({
 			SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES, audioBufferChannels, copy, engine,
