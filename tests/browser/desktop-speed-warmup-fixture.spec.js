@@ -4,7 +4,7 @@ import { expect, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, collectClientErrors } from './audio-editor-test-helpers.js';
 
 // The override scenario serves a synthetic feature module outside the built site.
-test.use({ browserCoverage: false });
+const syntheticRouteTest = test.extend({ browserCoverage: false });
 
 for (const productId of ['soundscaper', 'framescaper']) {
 	test(`${productId} desktop stubs finish Speed preparation without a web build manifest`, async ({ page }) => {
@@ -20,7 +20,7 @@ for (const productId of ['soundscaper', 'framescaper']) {
 	});
 }
 
-test('a desktop Speed scenario can replace the shared manifest with its feature modules', async ({ page }) => {
+syntheticRouteTest('a desktop Speed scenario can replace the shared manifest with its feature modules', async ({ page }) => {
 	await installDesktopBridge(page, 'scapeDesktop');
 	const errors = collectClientErrors(page);
 	let featureRequests = 0;

@@ -3,6 +3,7 @@
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
 import { createAbortGuard } from '../abort-error.ts';
+import { normalizeLinkedOriginalLocatorRevision } from './linked-original-binding.ts';
 import {
 	oneShotLinkedOriginalRelease,
 	possibleLinkedOriginalRelease,
@@ -389,36 +390,11 @@ function snapshotValue(value: LinkedVideoOriginalSnapshot | null): Readonly<{
 		}
 	}
 	const candidate = value as unknown as Readonly<Record<string, unknown>>;
-	const locatorRevision = locatorRevisionValue(candidate.locatorRevision);
+	const locatorRevision = normalizeLinkedOriginalLocatorRevision(candidate.locatorRevision);
 	return Object.freeze({
 		blob: candidate.blob,
 		locatorRevision,
 	});
-}
-
-function locatorRevisionValue(locatorRevision: unknown): string {
-	const normalized = normalizeLinkedVideoOriginalBindingInput({
-		schemaVersion: 1,
-		projectId: 'validation-project',
-		sourceId: 'validation-source',
-		storageKey: 'validation-storage',
-		locatorId: 'locator_validation_token',
-		locatorRevision,
-		mimeType: 'video/validation',
-		byteLength: 1,
-		sha256: VALIDATION_DIGEST,
-		sourceShape: {
-			frameCount: 1,
-			sampleRate: 1,
-			width: 1,
-			height: 1,
-			frameRate: 1,
-			videoCodec: 'validation',
-			audioCodec: null,
-			hasAudio: false,
-		},
-	});
-	return normalized.locatorRevision;
 }
 
 function playbackLeaseValue(value: LinkedVideoOriginalPlaybackLease): LinkedVideoOriginalPlaybackLease {
@@ -452,7 +428,7 @@ function playbackLeaseValue(value: LinkedVideoOriginalPlaybackLease): LinkedVide
 	const readRange = value.readRange;
 	const release = value.release;
 	return Object.freeze({
-		locatorRevision: locatorRevisionValue(value.locatorRevision),
+		locatorRevision: normalizeLinkedOriginalLocatorRevision(value.locatorRevision),
 		mediaUrl: value.mediaUrl,
 		byteLength: value.byteLength,
 		mimeType: value.mimeType,

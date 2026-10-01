@@ -1,5 +1,12 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import {
+	normalizedInstalledPath,
+	decodedUrlPath,
+	origin,
+	sourceLineLengths,
+} from './e2e-coverage-identity-source.mjs';
+import { canonicalJson as stableJson } from './canonical-json.mjs';
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, posix, resolve, win32 } from 'node:path';
@@ -366,14 +373,6 @@ function authenticateExcludedRuntimeSource(source, descriptor, url) {
 	}
 }
 
-function normalizedInstalledPath(path, platform) {
-	const slashed = path.replaceAll('\\', '/');
-	const unc = platform === 'win32' && slashed.startsWith('//');
-	let normalized = slashed.replace(/\/{2,}/gu, '/').replace(/\/$/u, '');
-	if (unc) normalized = `/${normalized}`;
-	if (platform === 'win32' && /^\/[A-Za-z]:\//u.test(normalized)) normalized = normalized.slice(1);
-	return normalized;
-}
 
 function normalizeRawCache(cache, script, repositoryRoot, sourceRevision, label) {
 	if (!record(cache) || !Array.isArray(cache.lineLengths) || !record(cache.data)) {
@@ -509,31 +508,13 @@ function requiredSurfaceIds() {
 	]).sort();
 }
 
-function decodedUrlPath(url) {
-	return decodeURIComponent(new URL(url).pathname).replaceAll('\\', '/').replace(/^\/+/u, '');
-}
 
-function origin(url) {
-	try { return new URL(url).origin; } catch { return null; }
-}
 
 function safeProfileName(value) {
 	return value.replaceAll(/[^A-Za-z0-9._-]+/gu, '-').slice(0, 180);
 }
 
-function sourceLineLengths(value) {
-	const lines = String(value).split('\n');
-	if (lines.length > 1 && lines.at(-1) === '') lines.pop();
-	return lines.map((line) => line.length);
-}
 
-function stableJson(value) {
-	if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
-	if (value && typeof value === 'object') {
-		return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableJson(value[key])}`).join(',')}}`;
-	}
-	return JSON.stringify(value);
-}
 
 function readJson(path, label) {
 	try { return JSON.parse(readFileSync(path, 'utf8')); }

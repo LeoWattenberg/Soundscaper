@@ -3,7 +3,6 @@
 import { isAbsolute, normalize } from 'node:path';
 import {
 	createFixedProjectLibraryPaths,
-	fixedProjectLibraryPaths,
 	isProjectLibraryDescendant,
 } from './project-library-path-layout.ts';
 
@@ -18,9 +17,7 @@ export const DESKTOP_PROJECT_LIBRARY_DATABASE_VERSION = 1 as const;
 const LIBRARY_SCOPE = Object.freeze([
 	'kw.media', 'framescaper-project-library', 'v1',
 ] as const);
-const PATH_FIELDS = Object.freeze([
-	'libraryRoot', 'databasePath', 'projectsRoot', 'managedMediaRoot',
-] as const);
+
 const OWNER_FIELDS = Object.freeze(['product', 'processId', 'instanceId'] as const);
 const HANDSHAKE_FIELDS = Object.freeze([
 	'kind',
@@ -76,20 +73,6 @@ export function createFramescaperDesktopProjectLibraryPaths(
 	const paths = createFixedProjectLibraryPaths(normalizedRoot, LIBRARY_SCOPE);
 	assertDescendant(normalizedRoot, paths.libraryRoot, 'library root');
 	return paths;
-}
-
-export function validateFramescaperDesktopProjectLibraryPaths(
-	value: unknown,
-): Readonly<FramescaperDesktopProjectLibraryPaths> {
-	const record = snapshotClosedRecord(value, PATH_FIELDS, 'Framescaper desktop library paths');
-	const libraryRoot = absolutePath(record.libraryRoot, 'libraryRoot');
-	const expected = fixedProjectLibraryPaths(libraryRoot);
-	for (const field of PATH_FIELDS) {
-		if (normalize(absolutePath(record[field], field)) !== expected[field]) {
-			throw new TypeError(`Framescaper desktop library ${field} leaves its fixed scope`);
-		}
-	}
-	return expected;
 }
 
 export function validateFramescaperDesktopProjectLibraryOwner(
@@ -201,13 +184,6 @@ function snapshotClosedRecord<const Field extends string>(
 		result[field] = descriptor.value;
 	}
 	return result;
-}
-
-function absolutePath(value: unknown, field: string): string {
-	if (typeof value !== 'string' || value.includes('\0') || !isAbsolute(value)) {
-		throw new TypeError(`Framescaper desktop library ${field} must be an absolute path`);
-	}
-	return normalize(value);
 }
 
 function positiveSafeInteger(value: unknown, field: string): number {

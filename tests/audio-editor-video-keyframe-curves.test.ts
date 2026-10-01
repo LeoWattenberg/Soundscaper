@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { assertDeepFrozen } from './helpers/frozen-contract-assertions.ts';
 import test from 'node:test';
 
 import {
@@ -593,8 +594,3 @@ test('evaluation accepts only normalized collections and exact in-domain positio
 	assert.throws(() => evaluateVideoKeyframeCurves(normalized, rational(11)), /domain|position/iu);
 	assert.throws(() => evaluateVideoKeyframeCurves(normalized, rational(-0)), /negative zero/iu);
 });
-function assertDeepFrozen(value: unknown): void {
-	if (!value || typeof value !== 'object') return;
-	assert.equal(Object.isFrozen(value), true);
-	for (const child of Object.values(value)) assertDeepFrozen(child);
-}

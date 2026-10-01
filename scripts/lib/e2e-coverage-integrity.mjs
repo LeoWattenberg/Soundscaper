@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { canonicalJson as stableJson } from './canonical-json.mjs';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -178,15 +179,6 @@ function digest(value) {
 	return `sha256:${createHash('sha256').update(value).digest('hex')}`;
 }
 
-function stableJson(value) {
-	if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
-	if (value && typeof value === 'object') {
-		return `{${Object.keys(value).sort().map((key) => (
-			`${JSON.stringify(key)}:${stableJson(value[key])}`
-		)).join(',')}}`;
-	}
-	return JSON.stringify(value);
-}
 
 function errorMessage(error) {
 	return error instanceof Error ? error.message : String(error);

@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { addArchiveSafeIntegers } from './archive-safe-integer-addition.ts';
 import { createLocalizedError } from '../../../i18n/presentation-message.ts'; import {
 	createSequentialSevenZipCopyArchive,
 	sevenZipCopyArchiveByteLength,
@@ -305,7 +306,7 @@ function requiredTemporaryBytes(
 		(largest, entry) => Math.max(largest, entry.expectedByteLength),
 		0,
 	);
-	return addSafeIntegers(archiveByteLength, largestEntry);
+	return addArchiveSafeIntegers(archiveByteLength, largestEntry);
 }
 
 function inputByteLength(input: Blob | Uint8Array | ArrayBuffer | ArrayBufferView): number {
@@ -322,16 +323,6 @@ function toUint8Array(input: Uint8Array | ArrayBuffer | ArrayBufferView): Uint8A
 	return new Uint8Array(input);
 }
 
-function addSafeIntegers(...values: readonly number[]): number {
-	let sum = 0;
-	for (const value of values) {
-		if (!Number.isSafeInteger(value) || value < 0 || sum > Number.MAX_SAFE_INTEGER - value) {
-			throw new RangeError('Archive size exceeds JavaScript\'s safe-integer range.');
-		}
-		sum += value;
-	}
-	return sum;
-}
 
 function normalizeError(error: unknown): Error {
 	return error instanceof Error ? error : new Error(String(error));

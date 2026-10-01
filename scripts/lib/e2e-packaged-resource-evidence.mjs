@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { canonicalJson as stableJson } from './canonical-json.mjs';
 import { readFileSync } from 'node:fs';
 import { isAbsolute, join } from 'node:path';
 
@@ -132,15 +133,6 @@ function exactKeys(value, keys) {
 		&& stableJson(Object.keys(value).sort()) === stableJson(keys);
 }
 
-function stableJson(value) {
-	if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
-	if (value !== null && typeof value === 'object') {
-		return `{${Object.keys(value).sort().map((key) => (
-			`${JSON.stringify(key)}:${stableJson(value[key])}`
-		)).join(',')}}`;
-	}
-	return JSON.stringify(value);
-}
 
 function comparePath(left, right) {
 	return compareText(left.path, right.path);

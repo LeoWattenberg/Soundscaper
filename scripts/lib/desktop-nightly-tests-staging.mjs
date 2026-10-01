@@ -116,6 +116,7 @@ export const NIGHTLY_TEST_PAYLOAD_INPUTS = Object.freeze([
 	{ source: 'scripts/lib/browser-target-coverage-state.mjs', destination: 'scripts/lib/browser-target-coverage-state.mjs', kind: 'file', label: 'browser target coverage state' },
 	{ source: 'scripts/lib/browser-target-coverage.mjs', destination: 'scripts/lib/browser-target-coverage.mjs', kind: 'file', label: 'browser worker coverage recorder' },
 	{ source: 'scripts/lib/e2e-coverage-integrity.mjs', destination: 'scripts/lib/e2e-coverage-integrity.mjs', kind: 'file', label: 'E2E coverage source integrity' },
+	{ source: 'scripts/lib/canonical-json.mjs', destination: 'scripts/lib/canonical-json.mjs', kind: 'file', label: 'Canonical evidence JSON' },
 	{ source: 'scripts/lib/e2e-mediabunny-dynamic-coverage.mjs', destination: 'scripts/lib/e2e-mediabunny-dynamic-coverage.mjs', kind: 'file', label: 'Mediabunny dynamic-worker coverage admission' },
 	{ source: 'scripts/lib/e2e-coverage-prefixes.mjs', destination: 'scripts/lib/e2e-coverage-prefixes.mjs', kind: 'file', label: 'E2E coverage URL prefixes' },
 	{ source: 'scripts/lib/e2e-coverage-source-maps.mjs', destination: 'scripts/lib/e2e-coverage-source-maps.mjs', kind: 'file', label: 'dynamic coverage source-map validation' },

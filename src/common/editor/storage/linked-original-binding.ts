@@ -133,6 +133,11 @@ const VIDEO_SOURCE_SHAPE_FIELDS = Object.freeze([
 ] as const);
 const VIDEO_SOURCE_SHAPE_FIELD_SET: ReadonlySet<string> = new Set(VIDEO_SOURCE_SHAPE_FIELDS);
 
+/** Admit the opaque platform generation without manufacturing a binding. */
+export function normalizeLinkedOriginalLocatorRevision(value: unknown): string {
+	return opaqueToken(value, 'locatorRevision must be an opaque platform-generation fence token.');
+}
+
 /** Normalize current bindings and read legacy schema-v1 rows as video. */
 export function normalizeLinkedOriginalBinding(value: unknown): LinkedOriginalBinding {
 	const version = dataField(plainRecord(value, 'Linked original binding'), 'schemaVersion');
@@ -318,10 +323,7 @@ function normalizeSharedFields(candidate: Record<string, unknown>, kind: LinkedO
 			candidate.locatorId,
 			'locatorId must be an opaque pathless token, not a path or URL.',
 		),
-		locatorRevision: opaqueToken(
-			candidate.locatorRevision,
-			'locatorRevision must be an opaque platform-generation fence token.',
-		),
+		locatorRevision: normalizeLinkedOriginalLocatorRevision(candidate.locatorRevision),
 		mimeType: mediaMimeType(candidate.mimeType, kind),
 		byteLength: positiveSafeIntegerField(candidate.byteLength, 'byteLength'),
 		sha256: contentDigest(candidate.sha256),

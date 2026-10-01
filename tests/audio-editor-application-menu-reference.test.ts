@@ -324,7 +324,7 @@ function applicationMenusForState(product: ProductId, state: ApplicationMenuStat
 		uiFlags: { clipping: true, statusbar: true, storagePanel: true, tracksPanel: true, trackHeaderDrawer: true },
 		compactLayout: true,
 		actionRuntime: null,
-		actions,
+		actions, selectionMenu: actions, viewMenu: actions,
 		crossProductHandoffAvailable: true,
 	}) as readonly MenuItem[];
 }

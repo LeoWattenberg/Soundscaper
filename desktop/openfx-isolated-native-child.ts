@@ -32,12 +32,6 @@ const LINUX_RUNTIME_LOADERS = Object.freeze({
 	'linux-arm64': 'ld-linux-aarch64.so.1',
 } as const);
 
-export function createIsolatedOpenFxHostProcessInvoker(
-	descriptor: FramescaperOpenFxHostDescriptor,
-): OpenFxHostProcessInvoker {
-	return createIsolatedOpenFxNativeChildAuthority(descriptor).invoke;
-}
-
 export function createIsolatedOpenFxNativeChildAuthority(
 	descriptor: FramescaperOpenFxHostDescriptor,
 ) {

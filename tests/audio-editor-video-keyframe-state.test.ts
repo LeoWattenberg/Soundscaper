@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { assertDeepFrozen } from './helpers/frozen-contract-assertions.ts';
 import test from 'node:test';
 
 import {
@@ -240,11 +241,6 @@ test('the evaluator rejects uncompiled state, out-of-domain queries, and contrad
 	assert.throws(() => evaluateVideoKeyframedClipState(compiled, rational(11)), /domain|position/iu);
 });
 
-function assertDeepFrozen(value: unknown): void {
-	if (!value || typeof value !== 'object') return;
-	assert.equal(Object.isFrozen(value), true);
-	for (const child of Object.values(value)) assertDeepFrozen(child);
-}
 
 function effectParameter(value: unknown, parameterId: string): number | undefined {
 	return (value as { readonly params?: Readonly<Record<string, number>> } | undefined)

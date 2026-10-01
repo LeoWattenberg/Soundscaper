@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { addArchiveSafeIntegers } from '../../archive-safe-integer-addition.ts';
 export const ZIP32_UINT16_SENTINEL = 0xffff;
 export const ZIP32_UINT32_SENTINEL = 0xffff_ffff;
 
@@ -33,13 +34,13 @@ export function extendZip32Layout(
 	validateEntry(entry);
 	const nameByteLength = textEncoder.encode(entry.fileName).byteLength;
 	const entryCount = layout.entryCount + 1;
-	const localByteLength = addSafeIntegers(
+	const localByteLength = addArchiveSafeIntegers(
 		layout.localByteLength,
 		entry.byteLength,
 		46,
 		nameByteLength,
 	);
-	const centralDirectoryByteLength = addSafeIntegers(
+	const centralDirectoryByteLength = addArchiveSafeIntegers(
 		layout.centralDirectoryByteLength,
 		46,
 		nameByteLength,
@@ -54,7 +55,7 @@ export function extendZip32Layout(
 		entryCount,
 		localByteLength,
 		centralDirectoryByteLength,
-		archiveByteLength: addSafeIntegers(localByteLength, centralDirectoryByteLength, 22),
+		archiveByteLength: addArchiveSafeIntegers(localByteLength, centralDirectoryByteLength, 22),
 	});
 }
 
@@ -78,15 +79,4 @@ function isFlatArchiveName(fileName: string): boolean {
 		&& !fileName.includes('\0')
 		&& !fileName.includes('/')
 		&& !fileName.includes('\\');
-}
-
-function addSafeIntegers(...values: readonly number[]): number {
-	let sum = 0;
-	for (const value of values) {
-		if (!Number.isSafeInteger(value) || value < 0 || sum > Number.MAX_SAFE_INTEGER - value) {
-			throw new RangeError('Archive size exceeds JavaScript\'s safe-integer range.');
-		}
-		sum += value;
-	}
-	return sum;
 }

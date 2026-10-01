@@ -11720,7 +11720,15 @@
 						},
 						{
 							"kind": "implementation",
-							"path": "desktop/framescaper-openfx-live-frame-transform.ts"
+							"path": "desktop/framescaper-openfx-frame-execution.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "desktop/professional-candidate-custody.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/desktop-professional-candidate-custody.test.ts"
 						},
 						{
 							"kind": "implementation",
@@ -11792,7 +11800,7 @@
 						},
 						{
 							"kind": "test",
-							"path": "tests/desktop-framescaper-openfx-live-frame-transform.test.ts"
+							"path": "tests/desktop-openfx-producer-live-replay.test.ts"
 						},
 						{
 							"kind": "test",

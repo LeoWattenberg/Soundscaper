@@ -2,11 +2,11 @@
 
 /** Addon-shaped async proxy for the actually isolated professional plug-in peer. */
 
-import { lstat, readdir, realpath } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
+import { realpath } from 'node:fs/promises';
+import { dirname } from 'node:path';
 
 import type { HelperFileIdentity, HelperPluginFormat } from './helper-job-grant.ts';
-import { nativeChildFileIdentityFromStat } from './native-child-file-identity.ts';
+import { collectProfessionalCandidates, exactProfessionalCandidateGrant } from './professional-candidate-custody.ts';
 import {
 	isEnforcedNativeChildLaunch,
 	type NativeChildIsolationArtifactDescriptor,
@@ -20,8 +20,6 @@ import { professionalPeerLoaderArgumentsValid } from './professional-peer-loader
 const VERSION = 2;
 const MAXIMUM_FRAME_BYTES = 16 * 1024 ** 2;
 const MAXIMUM_STATE_BYTES = MAXIMUM_FRAME_BYTES - 64;
-const MAXIMUM_CANDIDATES = 512;
-const MAXIMUM_DEPTH = 16;
 const OPERATION = Object.freeze({
 	scan: 1, open: 2, process: 3, latency: 4, save: 5, load: 6, close: 7, vendor: 8,
 	capabilities: 9, parameters: 10, parameterGet: 11, parameterSet: 12,
@@ -304,7 +302,8 @@ async function openSession(
 	const snapshot = await snapshotAuthenticatedPluginCandidate(pluginPath, context);
 	let launch;
 	try {
-		const pluginGrant = await exactPathGrant(snapshot.path, snapshot.authentication.identity);
+		const pluginGrant = await exactProfessionalCandidateGrant(snapshot.path, snapshot.authentication.identity, true,
+			'The plug-in path changed before isolated launch.');
 		const arguments_ = entryExecutable.path === peerExecutable.path ? []
 			: [...entryArguments, peerExecutable.path];
 		launch = await launcher.launch({
@@ -377,35 +376,7 @@ function loaderArguments(value: readonly string[]): readonly string[] {
 async function listPluginCandidates(root: string, suffix: string): Promise<readonly string[]> {
 	if (!suffix.startsWith('.') || suffix.includes('/') || suffix.includes('\\')) throw new TypeError('Invalid plug-in suffix.');
 	if (await realpath(root) !== root) throw new Error('A plug-in root must remain canonical.');
-	const output: string[] = [];
-	async function visit(directory: string, depth: number): Promise<void> {
-		if (depth > MAXIMUM_DEPTH || output.length > MAXIMUM_CANDIDATES) return;
-		const entries = await readdir(directory, { withFileTypes: true });
-		entries.sort((left, right) => left.name.localeCompare(right.name, 'en'));
-		for (const entry of entries) {
-			const path = resolve(directory, entry.name);
-			const metadata = await lstat(path);
-			if (metadata.isSymbolicLink()) continue;
-			if (path.endsWith(suffix) && (metadata.isFile() || metadata.isDirectory())) output.push(path);
-			else if (metadata.isDirectory()) await visit(path, depth + 1);
-			if (output.length > MAXIMUM_CANDIDATES) return;
-		}
-	}
-	await visit(root, 0);
-	return Object.freeze(output);
-}
-
-async function exactPathGrant(path: string, expected: Readonly<HelperFileIdentity>) {
-	const metadata = await lstat(path, { bigint: true });
-	const identity = nativeChildFileIdentityFromStat(metadata);
-	if (metadata.isSymbolicLink() || (!metadata.isFile() && !metadata.isDirectory())
-		|| Number(BigInt.asUintN(64, metadata.dev)) !== expected.dev
-		|| Number(BigInt.asUintN(64, metadata.ino)) !== expected.ino
-		|| await realpath(path) !== path) throw new Error('The plug-in path changed before isolated launch.');
-	return Object.freeze({
-		path, kind: metadata.isDirectory() ? 'directory' as const : 'file' as const,
-		identity,
-	});
+	return collectProfessionalCandidates(root, (path, metadata) => path.endsWith(suffix) && (metadata.isFile() || metadata.isDirectory()));
 }
 
 function readDescription(reader: BinaryReader): PeerDescription {

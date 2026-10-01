@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { FramescaperDesktopProjectLibraryExactGenerationMainChannels } from './project-library-exact-generation-main-channels.ts';
+import type { FRAMESCAPER_DESKTOP_PROJECT_LIBRARY_MAIN_CHANNELS } from './framescaper-project-library-main-channels.ts';
 import type { FramescaperDesktopProjectLibraryExactGenerationMainSession } from './project-library-exact-generation-main.ts';
 
 const OPTION_FIELDS = ['handle', 'removeHandler', 'ownerFor', 'main'] as const;
@@ -21,7 +21,7 @@ export function registerFramescaperDesktopProjectLibraryExactGenerationMainIpc(
 	value: unknown,
 	configuration: Readonly<{
 		label: string;
-		channels: Readonly<FramescaperDesktopProjectLibraryExactGenerationMainChannels>;
+		channels: typeof FRAMESCAPER_DESKTOP_PROJECT_LIBRARY_MAIN_CHANNELS;
 		isMain: (value: unknown) => value is FramescaperDesktopProjectLibraryExactGenerationIpcMain;
 	}>,
 ): FramescaperDesktopProjectLibraryExactGenerationMainIpcRegistration {

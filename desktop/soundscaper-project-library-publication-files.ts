@@ -274,20 +274,6 @@ export async function readSoundscaperDesktopProjectLibraryFile(
 	return new Uint8Array(await readFile(path));
 }
 
-export async function readSoundscaperDesktopProjectLibraryFileRange(
-	libraryRoot: string,
-	relativeFile: string,
-	byteLength: number,
-	sha256: string,
-	offset: number,
-	length: number,
-	signal?: AbortSignal,
-): Promise<Uint8Array> {
-	return new SoundscaperDesktopProjectLibraryFileRangeReader().read(
-		libraryRoot, relativeFile, byteLength, sha256, offset, length, signal,
-	);
-}
-
 export async function verifySoundscaperDesktopProjectLibraryFile(
 	path: string,
 	byteLength: number,

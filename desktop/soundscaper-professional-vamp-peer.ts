@@ -2,11 +2,11 @@
 
 /** Exact-library proxy for the M5A1 analyzer mode of the authenticated peer. */
 
-import { lstat, readdir, realpath } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
+import { realpath } from 'node:fs/promises';
+import { dirname } from 'node:path';
 
 import type { HelperFileIdentity } from './helper-job-grant.ts';
-import { nativeChildFileIdentityFromStat } from './native-child-file-identity.ts';
+import { collectProfessionalCandidates, exactProfessionalCandidateGrant } from './professional-candidate-custody.ts';
 import {
 	isEnforcedNativeChildLaunch,
 	type NativeChildIsolationArtifactDescriptor,
@@ -42,8 +42,6 @@ import {
 	writeVampAnalyzerPcm,
 } from './vamp-analyzer-peer-codec.ts';
 
-const MAXIMUM_CANDIDATES = 512;
-const MAXIMUM_DEPTH = 16;
 export const VAMP_PEER_CHILD_CRASH_CODE = 'vamp-peer-crash';
 
 export interface ProfessionalVampPeerContext {
@@ -243,7 +241,8 @@ async function openSession(
 	const snapshot = await snapshotAuthenticatedPluginCandidate(libraryPath, context);
 	let launch: NativeChildIsolationLaunch;
 	try {
-		const libraryGrant = await exactFileGrant(snapshot.path, snapshot.authentication.identity);
+		const libraryGrant = await exactProfessionalCandidateGrant(snapshot.path, snapshot.authentication.identity, false,
+			'The Vamp library changed before isolated launch.');
 		const arguments_ = entryExecutable.path === peerExecutable.path
 			? ['--vamp-analyzer'] : [...entryArguments, peerExecutable.path, '--vamp-analyzer'];
 		launch = await launcher.launch({
@@ -343,32 +342,7 @@ function vampPeerAggregateError(errors: readonly unknown[], message: string): Ag
 async function listVampLibraries(root: string, suffix: string): Promise<readonly string[]> {
 	if (!['.so', '.dylib', '.dll'].includes(suffix)) throw new TypeError('Invalid Vamp library suffix.');
 	if (await realpath(root) !== root) throw new Error('A Vamp library root must remain canonical.');
-	const output: string[] = [];
-	async function visit(directory: string, depth: number): Promise<void> {
-		if (depth > MAXIMUM_DEPTH || output.length > MAXIMUM_CANDIDATES) return;
-		const entries = await readdir(directory, { withFileTypes: true });
-		entries.sort((left, right) => left.name.localeCompare(right.name, 'en'));
-		for (const entry of entries) {
-			const path = resolve(directory, entry.name);
-			const metadata = await lstat(path);
-			if (metadata.isSymbolicLink()) continue;
-			if (metadata.isFile() && path.endsWith(suffix)) output.push(path);
-			else if (metadata.isDirectory()) await visit(path, depth + 1);
-			if (output.length > MAXIMUM_CANDIDATES) return;
-		}
-	}
-	await visit(root, 0);
-	return Object.freeze(output);
-}
-
-async function exactFileGrant(path: string, expected: Readonly<HelperFileIdentity>) {
-	const metadata = await lstat(path, { bigint: true });
-	const identity = nativeChildFileIdentityFromStat(metadata);
-	if (metadata.isSymbolicLink() || !metadata.isFile()
-		|| Number(BigInt.asUintN(64, metadata.dev)) !== expected.dev
-		|| Number(BigInt.asUintN(64, metadata.ino)) !== expected.ino
-		|| await realpath(path) !== path) throw new Error('The Vamp library changed before isolated launch.');
-	return Object.freeze({ path, kind: 'file' as const, identity });
+	return collectProfessionalCandidates(root, (path, metadata) => metadata.isFile() && path.endsWith(suffix));
 }
 
 function loaderArguments(value: readonly string[]): readonly string[] {

@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { isFlatStemFileName } from './direct-stem-file-name.ts';
 import { sevenZipCopyArchiveByteLength } from '../archive/sequential-seven-zip-copy.ts';
 import { inspectZip32Layout, type Zip32Layout } from '../archive/zip32.ts';
 
@@ -90,7 +91,7 @@ export function captureDirectNativeStemArchiveContract(
 			|| entriesValue.length !== outputsValue.length
 			|| ownValue(archive, 'mimeType') !== archiveDetails.mimeType
 			|| typeof archiveFileName !== 'string'
-			|| !flatFileName(archiveFileName, archiveDetails.extension)
+			|| !isFlatStemFileName(archiveFileName, archiveDetails.extension)
 			|| !positiveSafeInteger(archiveByteLength)) return null;
 
 		const outputs: DirectNativeStemArchiveOutput[] = [];
@@ -104,7 +105,7 @@ export function captureDirectNativeStemArchiveContract(
 			const trackId = ownValue(output, 'trackId');
 			if (!output || !entry
 				|| typeof fileName !== 'string'
-				|| !flatFileName(fileName, formatDetails.extension)
+				|| !isFlatStemFileName(fileName, formatDetails.extension)
 				|| typeof trackId !== 'string'
 				|| !trackId
 				|| ownValue(entry, 'fileName') !== fileName
@@ -202,15 +203,6 @@ function archiveFormatId(value: unknown): DirectNativeStemArchiveFormat | null {
 	return value === 'zip' || value === '7z' ? value : null;
 }
 
-function flatFileName(value: string, suffix: string): boolean {
-	return value.length > suffix.length
-		&& value.toLowerCase().endsWith(suffix)
-		&& value !== '.'
-		&& value !== '..'
-		&& !/[\u0000-\u001f\u007f]/u.test(value)
-		&& !value.includes('/')
-		&& !value.includes('\\');
-}
 
 function positiveSafeInteger(value: unknown): value is number {
 	return Number.isSafeInteger(value) && Number(value) > 0;

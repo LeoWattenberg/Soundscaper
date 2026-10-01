@@ -91,8 +91,8 @@ test('the View menu offers the Audacity preset and the workspace onboarding to S
 	assert.equal(findMenuItem(framescaper, 'workspace-onboarding'), null);
 });
 
-test('the menu runtime routes the onboarding item to its editor surface', async () => {
-	const runtime = await readFile(new URL('src/common/editor/ui/workspace/workspace-application-menu-runtime.js', ROOT), 'utf8');
+test('the View menu port routes the onboarding item to its editor surface', async () => {
+	const runtime = await readFile(new URL('src/common/editor/ui/workspace/selection-view-menu-ports.ts', ROOT), 'utf8');
 	assert.match(runtime, /openWorkspaceOnboarding: \(\) => openSurface\('workspace-onboarding'\)/u);
 });
 
@@ -123,6 +123,7 @@ function menuInput(productId: string, actions: Record<string, unknown>) {
 		selectionActive: false, selectedClip: null, durationFrames: 0,
 		effectsPanelOpen: false, projectBinEffectivelyOpen: false, uiFlags: {},
 		actionRuntime: null,
+		viewMenu: actions,
 		actions: new Proxy({ ...actions }, {
 			get: (target, property, receiver) => Reflect.has(target, property)
 				? Reflect.get(target, property, receiver)

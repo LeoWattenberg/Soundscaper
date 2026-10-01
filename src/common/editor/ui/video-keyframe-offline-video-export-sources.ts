@@ -1,5 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import {
+	offlineVideoExportRecord as record, offlineVideoExportData as data,
+	offlineVideoExportDenseArray as denseArray, offlineVideoExportBoundedId as boundedId,
+} from './video-keyframe-offline-video-export-admission.ts';
 import { digestMediaContent } from '../storage/media-content-digest.ts';
 import {
 	createVideoKeyframeExportInventory,
@@ -153,38 +157,6 @@ function captureCanonicalSources(
 function assertReady(options: Readonly<{ signal: AbortSignal; assertCurrent: () => void }>): void {
 	if (options.signal.aborted) throw options.signal.reason ?? new DOMException('Offline video export was cancelled.', 'AbortError');
 	options.assertCurrent();
-}
-
-function record(value: unknown, name: string): Readonly<Record<string, unknown>> {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError(`${name} must be a plain record.`);
-	const prototype = Object.getPrototypeOf(value);
-	if (prototype !== Object.prototype && prototype !== null) throw new TypeError(`${name} must be a plain record.`);
-	return value as Readonly<Record<string, unknown>>;
-}
-
-function data(value: object, key: string, name: string): unknown {
-	const descriptor = Object.getOwnPropertyDescriptor(value, key);
-	if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) throw new TypeError(`${name}.${key} must be an own data property.`);
-	return descriptor.value;
-}
-
-function denseArray(value: unknown, name: string, maximum: number): readonly unknown[] {
-	if (!Array.isArray(value) || Object.getPrototypeOf(value) !== Array.prototype || value.length > maximum) {
-		throw new RangeError(`${name} must be a bounded ordinary array.`);
-	}
-	const result: unknown[] = [];
-	for (let index = 0; index < value.length; index += 1) {
-		const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
-		if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) throw new TypeError(`${name} must be dense own data.`);
-		result.push(descriptor.value);
-	}
-	if (Reflect.ownKeys(value).length !== value.length + 1) throw new TypeError(`${name} cannot contain named fields.`);
-	return Object.freeze(result);
-}
-
-function boundedId(value: unknown, name: string): string {
-	if (typeof value !== 'string' || value.length < 1 || value.length > 256) throw new TypeError(`${name} must be a bounded ID.`);
-	return value;
 }
 
 function dimension(value: unknown, name: string): number {

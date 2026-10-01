@@ -7,7 +7,6 @@ import { join } from 'node:path';
 import type { NativeQueueRecordV2 } from '../src/common/editor/native-queue-record.ts';
 import type { NativeQueueRecordV3 } from '../src/common/editor/native-queue-record-v3.ts';
 import type { HelperDataPlaneIoPort } from './helper-data-plane-io.ts';
-import type { FramescaperOpenFxLiveFrameTransformFactory } from './framescaper-openfx-live-frame-transform.ts';
 import { FramescaperNativeLiveRenderInputStaging,
 	type FramescaperNativeLiveRenderInputMessageChannel,
 	type FramescaperNativeLiveRenderInputStagingOptions,
@@ -29,7 +28,6 @@ export interface FramescaperNativeRenderInputRouterOptions {
 	readonly root: string;
 	readonly mintStageId: () => string;
 	readonly createMessageChannel: () => FramescaperNativeLiveRenderInputMessageChannel;
-	readonly openFxTransformFactory?: FramescaperOpenFxLiveFrameTransformFactory | null;
 	readonly storageAdmission?: FramescaperNativeLiveRenderInputStagingOptions['storageAdmission'];
 	readonly now?: () => number;
 }
@@ -50,16 +48,8 @@ export class FramescaperNativeRenderInputRouter {
 			...common, root: join(options.root, 'live'),
 			createMessageChannel: options.createMessageChannel,
 			...(options.storageAdmission ? { storageAdmission: options.storageAdmission } : {}),
-			...(options.openFxTransformFactory === undefined ? {}
-				: { openFxTransformFactory: options.openFxTransformFactory }),
 		});
 	}
-
-	mountOpenFxTransformFactory(factory: FramescaperOpenFxLiveFrameTransformFactory): void {
-		this.#live.mountOpenFxTransformFactory(factory);
-	}
-
-	openFxTransformAudit(stageId: string) { return this.#live.openFxTransformAudit(stageId); }
 
 	begin(owner: unknown, value: unknown) { return this.#durable.begin(owner, value); }
 	beginLive(owner: unknown, value: unknown) { return this.#live.beginLive(owner, value); }

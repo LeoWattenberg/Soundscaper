@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { assertDeepFrozen } from './helpers/frozen-contract-assertions.ts';
 import test from 'node:test';
 
 import {
@@ -323,9 +324,3 @@ test('requirement helpers derive umbrella and sorted per-type bypass declaration
 	assert.ok(requirements.every(({ disposition, fallback }) => disposition === 'bypass' && fallback === null));
 	assertDeepFrozen(requirements);
 });
-
-function assertDeepFrozen(value: unknown): void {
-	if (!value || typeof value !== 'object') return;
-	assert.equal(Object.isFrozen(value), true);
-	for (const child of Object.values(value)) assertDeepFrozen(child);
-}

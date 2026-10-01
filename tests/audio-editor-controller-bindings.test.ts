@@ -10,6 +10,8 @@ import type { EnginePublicApi } from '../src/common/editor/engine/public-api.ts'
 test('controller binding construction leaves unrelated owners uninitialized', () => {
 	let reads = 0;
 	let publishes = 0;
+	let preferenceReads = 0;
+	const preferenceActions = Object.freeze({});
 	const unavailable = (): never => { throw new Error('An unrelated service was read.'); };
 	const state = {
 		status: { message: '', state: 'info' }, exportProgress: 0,
@@ -23,7 +25,9 @@ test('controller binding construction leaves unrelated owners uninitialized', ()
 	const bindings = createControllerBindings({
 		clips: unavailable, doc: unavailable, documentChannel: unavailable, edits: unavailable,
 		effects: unavailable, imports: unavailable, microphoneMeterService: unavailable,
-		nativeProjectService: unavailable, preferences: unavailable, preferencesService: unavailable,
+		nativeProjectService: unavailable,
+		preferences: () => { preferenceReads += 1; return { actions: preferenceActions } as never; },
+		preferencesService: unavailable,
 		presentationState: () => { reads += 1; return presentation; },
 		projectAdminService: unavailable, projectBootstrapService: unavailable,
 		projectLockService: unavailable, projectSwitchService: unavailable, recording: unavailable,
@@ -32,6 +36,9 @@ test('controller binding construction leaves unrelated owners uninitialized', ()
 		tracks: unavailable, viewStateService: unavailable,
 	});
 	assert.equal(reads, 0);
+	assert.equal(preferenceReads, 0);
+	assert.equal(bindings.preferenceActions, preferenceActions);
+	assert.equal(preferenceReads, 1);
 	assert.equal(typeof bindings.labels, 'object');
 	assert.equal(Object.isFrozen(bindings.labels), true);
 	assert.equal(typeof bindings.selection, 'object');

@@ -10,7 +10,6 @@ export const DESKTOP_5B_TRANSITIVE_RUNTIME_FILES = Object.freeze([
 	'desktop/native-image-sequence-decode-main-ipc.js',
 	'desktop/framescaper-openfx-frame-execution.js',
 	'desktop/framescaper-openfx-frame-port.js',
-	'desktop/framescaper-openfx-live-frame-transform-registration.js',
 	'desktop/helper-data-plane-input-reservation.js',
 	'desktop/helper-data-plane-output-reservation.js',
 	'desktop/helper-native-media-backend.js',
@@ -41,6 +40,7 @@ export const DESKTOP_5B_TRANSITIVE_RUNTIME_FILES = Object.freeze([
 	'desktop/soundscaper-professional-linux-system-libraries.js',
 	'desktop/soundscaper-professional-linux-system-runtime.js',
 	'desktop/professional-peer-loader-arguments.js',
+	'desktop/professional-candidate-custody.js',
 	'desktop/soundscaper-professional-plugin-peer.js',
 	'desktop/soundscaper-professional-vamp-peer.js',
 	'desktop/vamp-analyzer-peer-codec.js',
@@ -93,7 +93,6 @@ export const DESKTOP_5B_TRANSITIVE_RUNTIME_FILES = Object.freeze([
 	'desktop/openfx-helper-v12-native-grant.js',
 	'desktop/openfx-helper-interact-job.js',
 	'desktop/openfx-helper-video-timing-staging.js',
-	'desktop/framescaper-openfx-live-frame-transform.js',
 	'desktop/openfx-host-process-contract.js',
 	'desktop/openfx-isolated-native-child.js',
 	'desktop/openfx-main-helper-channel.js',
@@ -149,7 +148,6 @@ export const DESKTOP_5B_TRANSITIVE_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/video-retime-preview-executor.js',
 	'src/common/editor/framescaper-native-live-render-role-v1.js',
 	'src/framescaper/editor-native-image-sequence-import.js',
-	'src/framescaper/editor-native-openfx-authoring.js',
 ]);
 
 /** Leaf modules whose package imports must be closed into the staged runtime. */

@@ -3,7 +3,6 @@
 import { isAbsolute, normalize } from 'node:path';
 import {
 	createFixedProjectLibraryPaths,
-	fixedProjectLibraryPaths,
 	isProjectLibraryDescendant,
 } from './project-library-path-layout.ts';
 
@@ -17,9 +16,7 @@ export const DESKTOP_PROJECT_LIBRARY_APPLICATION_ID =
 export const DESKTOP_PROJECT_LIBRARY_DATABASE_VERSION = 1 as const;
 
 const LIBRARY_SCOPE = Object.freeze(['kw.media', 'soundscaper-project-library', 'v1'] as const);
-const PATH_FIELDS = Object.freeze([
-	'libraryRoot', 'databasePath', 'projectsRoot', 'managedMediaRoot',
-] as const);
+
 const OWNER_FIELDS = Object.freeze(['product', 'processId', 'instanceId'] as const);
 const HANDSHAKE_FIELDS = Object.freeze([
 	'kind',
@@ -77,20 +74,6 @@ export function createSoundscaperDesktopProjectLibraryPaths(
 	const paths = createFixedProjectLibraryPaths(normalizedRoot, LIBRARY_SCOPE);
 	assertDescendant(normalizedRoot, paths.libraryRoot, 'library root');
 	return paths;
-}
-
-export function validateSoundscaperDesktopProjectLibraryPaths(
-	value: unknown,
-): Readonly<SoundscaperDesktopProjectLibraryPaths> {
-	const record = snapshotClosedRecord(value, PATH_FIELDS, 'Soundscaper desktop baseline library paths');
-	const libraryRoot = absolutePath(record.libraryRoot, 'libraryRoot');
-	const expected = fixedProjectLibraryPaths(libraryRoot);
-	for (const field of PATH_FIELDS) {
-		if (normalize(absolutePath(record[field], field)) !== expected[field]) {
-			throw new TypeError(`Soundscaper desktop baseline library ${field} leaves its fixed scope`);
-		}
-	}
-	return expected;
 }
 
 export function validateSoundscaperDesktopProjectLibraryOwner(
@@ -230,13 +213,6 @@ function snapshotClosedRecord<const Field extends string>(
 		snapshot[field] = descriptor.value;
 	}
 	return snapshot;
-}
-
-function absolutePath(value: unknown, field: string): string {
-	if (typeof value !== 'string' || value.includes('\0') || !isAbsolute(value)) {
-		throw new TypeError(`Soundscaper desktop baseline library ${field} must be an absolute path`);
-	}
-	return normalize(value);
 }
 
 function positiveSafeInteger(value: unknown, name: string): number {

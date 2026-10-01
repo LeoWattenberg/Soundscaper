@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { assertDeepFrozenGraph as assertDeepFrozen } from './helpers/frozen-contract-assertions.ts';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
@@ -332,11 +333,4 @@ function vfrTiming(options: Readonly<{
 
 function uniformTicks(frameCount: number, step: bigint): readonly bigint[] {
 	return Object.freeze(Array.from({ length: frameCount }, (_value, index) => BigInt(index) * step));
-}
-
-function assertDeepFrozen(value: unknown, seen = new Set<object>()): void {
-	if (value === null || typeof value !== 'object' || seen.has(value)) return;
-	seen.add(value);
-	assert.equal(Object.isFrozen(value), true);
-	for (const nested of Object.values(value)) assertDeepFrozen(nested, seen);
 }

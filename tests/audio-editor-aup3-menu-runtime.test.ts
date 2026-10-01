@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { findMenuItem } from './helpers/application-menu-fixture.ts';
 
 import { createWorkspaceApplicationMenus } from '../src/common/editor/ui/workspace/workspace-application-menu-runtime.js';
 import { WORKSPACE_PANEL_IDS } from '../src/common/editor/ui/workspace/workspace-panel-model.ts';
@@ -64,13 +65,4 @@ function workspaceInput(overrides: Readonly<Record<string, unknown>> = {}) {
 			? Reflect.get(target, property, receiver)
 			: () => undefined,
 	}) as unknown as Parameters<typeof createWorkspaceApplicationMenus>[0];
-}
-
-function findMenuItem(values: readonly MenuItem[], id: string): MenuItem | null {
-	for (const value of values) {
-		if (value.id === id) return value;
-		const nested = value.items ? findMenuItem(value.items, id) : null;
-		if (nested) return nested;
-	}
-	return null;
 }

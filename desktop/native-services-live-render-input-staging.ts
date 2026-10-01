@@ -7,13 +7,6 @@ import { isAbsolute, join, normalize } from 'node:path';
 
 import type { NativeQueueRecordV2 } from '../src/common/editor/native-queue-record.ts';
 import { assertNativeQueueRecordV3, type NativeQueueRecordV3 } from '../src/common/editor/native-queue-record-v3.ts';
-import {
-	isFramescaperOpenFxLiveFrameTransformAudit,
-	isFramescaperOpenFxLiveFrameTransformFactory,
-	type FramescaperOpenFxLiveFrameTransformAudit,
-	type FramescaperOpenFxLiveFrameTransformFactory,
-	type FramescaperOpenFxLiveFrameTransformSession,
-} from './framescaper-openfx-live-frame-transform.ts';
 import { HELPER_DATA_PLANE_MAXIMUM_BYTES } from './helper-data-plane.ts';
 import type { HelperDataPlaneIoPort } from './helper-data-plane-io.ts';
 import {
@@ -63,7 +56,6 @@ export interface FramescaperNativeLiveRenderInputStagingOptions {
 	readonly mintStageId: () => string;
 	/** Compatibility-only registration hook; durable replay opens no helper port. */
 	readonly createMessageChannel: () => FramescaperNativeLiveRenderInputMessageChannel;
-	readonly openFxTransformFactory?: FramescaperOpenFxLiveFrameTransformFactory | null;
 	readonly now?: () => number;
 	readonly availableBytes?: (root: string) => Promise<number>;
 	readonly maximumReplayBytes?: number;
@@ -81,7 +73,6 @@ interface PendingLiveStage {
 	readonly identity: FramescaperNativeRenderInputStageIdentity;
 	readonly envelope: ReturnType<typeof framescaperNativeLiveRenderInputBeginRequest>['envelope'];
 	readonly carrierByteLength: number;
-	readonly abort: AbortController;
 	readonly streams: ReadonlyMap<LiveInputRole, PendingLiveStream>;
 	finalized: boolean;
 	claimed: boolean;
@@ -94,8 +85,6 @@ interface PendingLiveStream {
 	readonly role: LiveInputRole;
 	readonly byteLength: number;
 	readonly spool: NativeLiveRenderReplaySpool;
-	openFxTransform: FramescaperOpenFxLiveFrameTransformSession | null;
-	openFxAudit: FramescaperOpenFxLiveFrameTransformAudit | null;
 	writing: boolean;
 	completed: boolean;
 	nextSequence: number;
@@ -106,7 +95,6 @@ interface PendingLiveStream {
 export class FramescaperNativeLiveRenderInputStaging {
 	readonly #root: string;
 	readonly #mintStageId: () => string;
-	#openFxTransformFactory: FramescaperOpenFxLiveFrameTransformFactory | null;
 	readonly #now: () => number;
 	readonly #availableBytes: (root: string) => Promise<number>;
 	readonly #maximumReplayBytes: number;
@@ -118,8 +106,6 @@ export class FramescaperNativeLiveRenderInputStaging {
 	constructor(options: FramescaperNativeLiveRenderInputStagingOptions) {
 		if (!options || typeof options !== 'object' || Array.isArray(options)
 			|| typeof options.mintStageId !== 'function' || typeof options.createMessageChannel !== 'function'
-			|| (options.openFxTransformFactory !== undefined && options.openFxTransformFactory !== null
-				&& !isFramescaperOpenFxLiveFrameTransformFactory(options.openFxTransformFactory))
 			|| (options.now !== undefined && typeof options.now !== 'function')
 			|| (options.availableBytes !== undefined && typeof options.availableBytes !== 'function')
 			|| (options.storageAdmission !== undefined && typeof options.storageAdmission !== 'function')
@@ -129,19 +115,10 @@ export class FramescaperNativeLiveRenderInputStaging {
 		}
 		this.#root = absolutePath(options.root);
 		this.#mintStageId = options.mintStageId;
-		this.#openFxTransformFactory = options.openFxTransformFactory ?? null;
 		this.#now = options.now ?? Date.now;
 		this.#availableBytes = options.availableBytes ?? filesystemAvailableBytes;
 		this.#maximumReplayBytes = options.maximumReplayBytes ?? HELPER_DATA_PLANE_MAXIMUM_BYTES;
 		this.#storageAdmission = options.storageAdmission;
-	}
-
-	mountOpenFxTransformFactory(factory: FramescaperOpenFxLiveFrameTransformFactory): void {
-		if (!isFramescaperOpenFxLiveFrameTransformFactory(factory)
-			|| this.#openFxTransformFactory !== null || this.#pending.size !== 0) {
-			throw new Error('The branded OpenFX live transformer must mount once before staging begins.');
-		}
-		this.#openFxTransformFactory = factory;
 	}
 
 	owns(stageId: string): boolean { return this.#pending.has(nativeRenderInputStageId(stageId)); }
@@ -205,19 +182,14 @@ export class FramescaperNativeLiveRenderInputStaging {
 						path: liveReplayPath(owned.directory, row.role, index),
 						role: row.role, byteLength: row.byteLength, envelope: control.envelope,
 					}),
-					openFxTransform: null, openFxAudit: null,
 					writing: false, completed: false, nextSequence: 0, receivedBytes: 0,
 				});
 				const stage: PendingLiveStage = {
 					owner, owned, identity: control.identity, envelope: control.envelope,
 					carrierByteLength: control.request.carrierByteLength,
-					abort: new AbortController(), streams: Object.freeze(streams),
+					streams: Object.freeze(streams),
 					finalized: false, claimed: false, failed: false,
 				};
-				const video = liveStream(stage, 'evaluated-rgba-frame-pack');
-				video.openFxTransform = openFxTransform(
-					this.#openFxTransformFactory, control.envelope.plan, stage, video,
-				);
 				this.#pending.set(id, stage);
 			} catch (error) {
 				for (const stream of streams.values()) stream.spool.fail(error);
@@ -307,8 +279,7 @@ export class FramescaperNativeLiveRenderInputStaging {
 		}
 		stream.writing = true;
 		try {
-			if (stream.openFxTransform === null) await writeReplayBytes(stream, request.bytes);
-			else await stream.openFxTransform.write(request.bytes);
+			await stream.spool.write(request.bytes);
 			stream.nextSequence += 1;
 			stream.receivedBytes += request.bytes.byteLength;
 			return Object.freeze({ sequence: request.sequence, receivedBytes: stream.receivedBytes });
@@ -327,30 +298,13 @@ export class FramescaperNativeLiveRenderInputStaging {
 			throw new Error('The live V14 carrier cannot complete in its current lifecycle.');
 		}
 		try {
-			let helperTrailer: Readonly<{ byteLength: number; sha256: string }> = request;
-			if (stream.openFxTransform !== null) {
-				const audit = await stream.openFxTransform.complete(Object.freeze({
-					byteLength: request.byteLength, sha256: request.sha256,
-				}));
-				if (!isFramescaperOpenFxLiveFrameTransformAudit(audit)) {
-					throw new Error('The OpenFX transformer returned no genuine audit.');
-				}
-				stream.openFxAudit = audit;
-				helperTrailer = audit.transformedOutput;
-			}
-			await stream.spool.complete(helperTrailer);
+			await stream.spool.complete(request);
 			stream.completed = true;
 			return Object.freeze({ byteLength: request.byteLength, sha256: request.sha256 });
 		} catch (error) {
 			failLiveStage(stage, error);
 			throw error;
 		}
-	}
-
-	openFxTransformAudit(stageId: string): FramescaperOpenFxLiveFrameTransformAudit | null {
-		const stage = this.#pending.get(nativeRenderInputStageId(stageId));
-		const audit = stage?.streams.get('evaluated-rgba-frame-pack')?.openFxAudit ?? null;
-		return audit !== null && isFramescaperOpenFxLiveFrameTransformAudit(audit) ? audit : null;
 	}
 
 	async revalidate(record: NativeRenderInputQueueRecord): Promise<boolean> {
@@ -440,9 +394,7 @@ export class FramescaperNativeLiveRenderInputStaging {
 	async #remove(stage: PendingLiveStage): Promise<void> {
 		stage.failed = true;
 		const reason = new Error('The live V14 render-input stage ended.');
-		stage.abort.abort(reason);
 		for (const stream of stage.streams.values()) {
-			stream.openFxTransform?.abort(reason);
 			stream.spool.fail(reason);
 		}
 		await Promise.all([...stage.streams.values()].map(({ spool }) => spool.dispose()));
@@ -461,28 +413,6 @@ export class FramescaperNativeLiveRenderInputStaging {
 	}
 }
 
-function openFxTransform(
-	factory: FramescaperOpenFxLiveFrameTransformFactory | null,
-	plan: PendingLiveStage['envelope']['plan'],
-	stage: PendingLiveStage,
-	stream: PendingLiveStream,
-): FramescaperOpenFxLiveFrameTransformSession | null {
-	const includesOpenFx = plan.nodes.some(({ kind }) => kind === 'openfx');
-	if (factory === null) return null;
-	const transform = factory(Object.freeze({
-		plan, signal: stage.abort.signal,
-		sink: Object.freeze({ write: (bytes: Uint8Array<ArrayBuffer>) => writeReplayBytes(stream, bytes) }),
-	}));
-	if (includesOpenFx && transform === null) {
-		throw new Error('The branded OpenFX transformer refused an authored OpenFX plan.');
-	}
-	return transform;
-}
-
-async function writeReplayBytes(stream: PendingLiveStream, bytes: Uint8Array<ArrayBuffer>): Promise<void> {
-	await stream.spool.write(bytes);
-}
-
 function liveStream(stage: PendingLiveStage, role: LiveInputRole): PendingLiveStream {
 	const stream = stage.streams.get(role);
 	if (!stream) throw new Error(`The live V14 stage did not reserve ${role}.`);
@@ -492,9 +422,7 @@ function liveStream(stage: PendingLiveStage, role: LiveInputRole): PendingLiveSt
 function failLiveStage(stage: PendingLiveStage, reason: unknown): void {
 	if (stage.failed) return;
 	stage.failed = true;
-	stage.abort.abort(reason);
 	for (const stream of stage.streams.values()) {
-		stream.openFxTransform?.abort(reason);
 		stream.spool.fail(reason);
 	}
 }

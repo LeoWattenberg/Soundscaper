@@ -15,6 +15,7 @@ import type {
 	LinkedVideoOriginalLocatorReference,
 	LinkedVideoOriginalRepository,
 } from './linked-video-original-repository.ts';
+import type { LinkedOriginalProjectBindingPruneResult } from './linked-original-project-reachability-repository.ts';
 import type { LinkedVideoOriginalResolver } from './linked-video-original-resolver.ts';
 import type {
 	LinkedOriginalBindingPublicationResult,
@@ -135,17 +136,7 @@ export class LinkedVideoOriginalLifecycleCoordinator {
 			| LinkedVideoOriginalProjectBindingPruneResult | null,
 	): Promise<Value> {
 		return this.#coordinator.saveProject(projectId, operation, async (transientBindings) => {
-			const result = await prune(transientBindings);
-			if (!result) return null;
-			return Object.freeze({
-				durableSourceReferences: Object.freeze(result.durableVideoSourceIds.map((sourceId) => (
-					Object.freeze({ kind: 'video' as const, sourceId })
-				))),
-				removedLocatorReferences: Object.freeze(result.removedLocatorReferences.map((reference) => (
-					Object.freeze({ kind: 'video' as const, ...reference })
-				))),
-				settledTransientBindings: result.settledTransientBindings,
-			});
+			return originalPruneResult(await prune(transientBindings));
 		});
 	}
 
@@ -157,17 +148,7 @@ export class LinkedVideoOriginalLifecycleCoordinator {
 			| LinkedVideoOriginalProjectBindingPruneResult | null,
 	): Promise<boolean> {
 		return this.#coordinator.maintainOpenedProject(projectId, async (transientBindings) => {
-			const result = await prune(transientBindings);
-			if (!result) return null;
-			return Object.freeze({
-				durableSourceReferences: Object.freeze(result.durableVideoSourceIds.map((sourceId) => (
-					Object.freeze({ kind: 'video' as const, sourceId })
-				))),
-				removedLocatorReferences: Object.freeze(result.removedLocatorReferences.map((reference) => (
-					Object.freeze({ kind: 'video' as const, ...reference })
-				))),
-				settledTransientBindings: result.settledTransientBindings,
-			});
+			return originalPruneResult(await prune(transientBindings));
 		});
 	}
 
@@ -265,4 +246,19 @@ function legacyCleanupError(
 	return error instanceof LinkedOriginalLocatorCleanupError
 		? new LinkedVideoOriginalLocatorCleanupError(error.operation, error.pendingCount, error.cause)
 		: new LinkedVideoOriginalProjectBindingCleanupError(error.operation, error.projectId, error.cause);
+}
+
+function originalPruneResult(
+	result: LinkedVideoOriginalProjectBindingPruneResult | null,
+): LinkedOriginalProjectBindingPruneResult | null {
+	if (!result) return null;
+	return Object.freeze({
+		durableSourceReferences: Object.freeze(result.durableVideoSourceIds.map((sourceId) => (
+			Object.freeze({ kind: 'video' as const, sourceId })
+		))),
+		removedLocatorReferences: Object.freeze(result.removedLocatorReferences.map((reference) => (
+			Object.freeze({ kind: 'video' as const, ...reference })
+		))),
+		settledTransientBindings: result.settledTransientBindings,
+	});
 }

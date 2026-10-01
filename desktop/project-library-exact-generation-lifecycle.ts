@@ -3,9 +3,9 @@
 import type { DatabaseSync } from 'node:sqlite';
 
 import type {
-	FramescaperDesktopProjectLibraryExactGenerationOwner,
-	FramescaperDesktopProjectLibraryExactGenerationPaths,
-} from './project-library-exact-generation-contract.ts';
+	FramescaperDesktopProjectLibraryOwner,
+	FramescaperDesktopProjectLibraryPaths,
+} from './framescaper-project-library-contract.ts';
 
 export type FramescaperDesktopProjectLibraryPublicationCheckpoint =
 	'prepared' | 'materialized' | 'committed' | 'complete';
@@ -52,8 +52,8 @@ export interface FramescaperDesktopProjectLibraryExactGenerationExtension {
 	start(value: Readonly<{
 		appDataPath: string;
 		database: DatabaseSync;
-		owner: Readonly<FramescaperDesktopProjectLibraryExactGenerationOwner>;
-		paths: Readonly<FramescaperDesktopProjectLibraryExactGenerationPaths>;
+		owner: Readonly<FramescaperDesktopProjectLibraryOwner>;
+		paths: Readonly<FramescaperDesktopProjectLibraryPaths>;
 	}>): Promise<FramescaperDesktopProjectLibraryExactGenerationLifecycle>;
 }
 

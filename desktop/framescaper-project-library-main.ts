@@ -19,7 +19,7 @@ import {
 	type FramescaperDesktopProjectLibraryExactGenerationMainSession,
 	type FramescaperDesktopProjectLibraryExactGenerationMainSnapshot,
 } from './project-library-exact-generation-main.ts';
-import type { FramescaperDesktopProjectLibraryExactGenerationPaths } from './project-library-exact-generation-contract.ts';
+import type { FramescaperDesktopProjectLibraryPaths } from './framescaper-project-library-contract.ts';
 import { framescaperDesktopExactMediaPath } from './project-library-exact-generation-storage.ts';
 import { materializeProjectLibraryNativeBody } from './project-library-native-body-materialization.ts';
 import {
@@ -62,10 +62,10 @@ export type FramescaperDesktopProjectLibraryMainSession =
 /** Framescaper 1.0 owner with an exact lease, fence, and crash-recovery boundary. */
 export class FramescaperDesktopProjectLibraryMain {
 	readonly #core: FramescaperDesktopProjectLibraryExactGenerationMain;
-	readonly #paths: Readonly<FramescaperDesktopProjectLibraryExactGenerationPaths>;
+	readonly #paths: Readonly<FramescaperDesktopProjectLibraryPaths>;
 
 	private constructor(core: FramescaperDesktopProjectLibraryExactGenerationMain,
-		paths: Readonly<FramescaperDesktopProjectLibraryExactGenerationPaths>) {
+		paths: Readonly<FramescaperDesktopProjectLibraryPaths>) {
 		this.#core = core;
 		this.#paths = paths;
 	}

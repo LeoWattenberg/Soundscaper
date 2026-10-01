@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
 import { EventEmitter } from 'node:events';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -14,15 +13,9 @@ import {
 	FRAMESCAPER_NATIVE_LIVE_RENDER_REPLAY_OVERHEAD_BYTES,
 	FramescaperNativeLiveRenderInputStaging,
 } from '../desktop/native-services-live-render-input-staging.ts';
-import {
-	createFramescaperOpenFxLiveFrameTransformFactory,
-	isFramescaperOpenFxLiveFrameTransformAudit,
-} from '../desktop/framescaper-openfx-live-frame-transform.ts';
 import { createNativeMediaPlanEnvelopeV2 } from '../src/common/editor/native-media-plan-envelope-v2.ts';
-import { framescaperOpenFxPluginProjectionV1 } from '../src/common/editor/native-ofx-service-contract.ts';
 import { createNativeQueueRecordV3 } from '../src/common/editor/native-queue-record-v3.ts';
 import { nativeRgbaFramePackV1ByteLength } from '../src/common/editor/native-rgba-frame-pack-v1-contract.ts';
-import { createUnifiedExactRenderPlan } from '../src/common/editor/unified-exact-render-plan.ts';
 import { createFramescaperNativeRenderPlanAuthorityNativeMedia } from '../src/framescaper/editor-native-render-plan-authority.ts';
 import { createFramescaperProjectUnifiedExactRenderPlanNativeMedia } from '../src/framescaper/editor-project-unified-render-plan-native-media.ts';
 import { FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-domain-runtime-profile.ts';
@@ -35,8 +28,6 @@ import { framescaperV20Options } from './helpers/framescaper-model-fixture.ts';
 
 const STAGE_ID = 'ab'.repeat(20);
 const OWNER = Object.freeze({ renderer: 28 });
-const OPENFX_SHA = 'a1'.repeat(32);
-const OPENFX_HANDLE = '12'.repeat(20);
 
 test('live V14 staging durably authenticates one bounded carrier for repeat native attempts', async () => {
 	const root = await mkdtemp(join(tmpdir(), 'framescaper-live-v14-'));
@@ -103,7 +94,7 @@ test('live V14 staging durably authenticates one bounded carrier for repeat nati
 test('baseline image-sequence delivery revalidates its live carrier while proxy custody stays refused', async () => {
 	const root = await mkdtemp(join(tmpdir(), 'framescaper-live-v14-image-sequence-'));
 	try {
-		const fixture = liveFixture(false, Object.freeze({
+		const fixture = liveFixture(Object.freeze({
 			kind: 'image-sequence', format: 'png',
 			frameRate: Object.freeze({ num: 1, den: 1 }), preserveAlpha: true,
 		}));
@@ -137,72 +128,6 @@ test('baseline image-sequence delivery revalidates its live carrier while proxy 
 		assert.equal(await staging.revalidate(proxy), false);
 		await assert.rejects(() => staging.inspect(proxy), /queue record|stage disagrees/iu);
 		await staging.settle(imageSequence, 'succeeded');
-	} finally { await rm(root, { recursive: true, force: true }); }
-});
-
-test('live V14 OpenFX mounting authenticates renderer input separately from transformed helper bytes', async () => {
-	const root = await mkdtemp(join(tmpdir(), 'framescaper-live-v14-openfx-'));
-	try {
-		const fixture = liveFixture(true);
-		const factory = createFramescaperOpenFxLiveFrameTransformFactory({
-			inventory: () => [openFxPlugin()],
-			execute: async (request) => {
-				const rgba = Uint8Array.from(request.inputs[0]!.rgba, (value) => 255 - value);
-				return {
-					mode: 'render', availability: 'available', authoredStatePreserved: true,
-					reportsDegradation: false, backend: 'cpu', retriedOnCpu: false,
-					output: { streamId: '34'.repeat(20), ...byteDescriptor(rgba) }, rgba,
-				};
-			},
-		});
-		const staging = new FramescaperNativeLiveRenderInputStaging({
-			root, mintStageId: () => STAGE_ID, openFxTransformFactory: factory,
-			createMessageChannel: () => {
-				const [host, helper] = portPair(); return { hostPort: host, helperPort: helper };
-			},
-		});
-		await staging.beginLive(OWNER, beginRequest(fixture));
-		await staging.finalize(OWNER, { stageId: STAGE_ID });
-		await staging.claim(OWNER, claimRequest(fixture));
-		const derived = await staging.inspect(queueRecord(fixture));
-		const materialized = derived.materialize(root);
-		let sequence = 0; let offset = 0;
-		for (const bytes of await carrierChunks(fixture)) {
-			await staging.writeLive(OWNER, {
-				stageId: STAGE_ID, role: 'evaluated-rgba-frame-pack', sequence, offset, bytes,
-			});
-			sequence += 1; offset += bytes.byteLength;
-		}
-		const renderer = await carrierResult(fixture);
-		const rendererTrailer = Object.freeze({
-			byteLength: renderer.byteLength, sha256: renderer.sha256,
-		});
-		assert.deepEqual(await staging.completeLive(OWNER, {
-			stageId: STAGE_ID, role: 'evaluated-rgba-frame-pack', ...rendererTrailer,
-		}), rendererTrailer, 'renderer acknowledgement remains bound to the pre-transform trailer');
-		await new Promise((resolve) => setImmediate(resolve));
-		const audit = staging.openFxTransformAudit(STAGE_ID);
-		assert.equal(isFramescaperOpenFxLiveFrameTransformAudit(audit), true);
-		assert.deepEqual(audit?.rendererInput, rendererTrailer);
-		const grant = (await materialized)[0];
-		if (grant?.type !== 'file') throw new Error('OpenFX live stage returned no replayable video file.');
-		const native = new Uint8Array(await readFile(grant.path));
-		assert.deepEqual(audit?.transformedOutput, byteDescriptor(native));
-		const original = Buffer.concat((await carrierChunks(fixture)).map((chunk) => Buffer.from(chunk)));
-		const expected = Uint8Array.from(original);
-		expected.fill(254, expected.byteLength - 16);
-		assert.deepEqual(native, expected, 'only the four RGBA pixels are transformed');
-		await staging.settle(queueRecord(fixture), 'succeeded');
-
-		const unavailable = new FramescaperNativeLiveRenderInputStaging({
-			root, mintStageId: () => STAGE_ID,
-			createMessageChannel: () => { const [host, helper] = portPair(); return { hostPort: host, helperPort: helper }; },
-		});
-		const unavailableAdmission = await unavailable.beginLive(OWNER, beginRequest(fixture));
-		assert.equal(unavailableAdmission.carrierByteLength,
-			fixture.carrierByteLength,
-			'evaluated renderer bytes pass through once when no legacy final-carrier transform is mounted');
-		await unavailable.abandon(OWNER, { stageId: unavailableAdmission.stageId });
 	} finally { await rm(root, { recursive: true, force: true }); }
 });
 
@@ -371,7 +296,6 @@ test('live V14 replay atomically admits only two of three concurrent native atte
 });
 
 function liveFixture(
-	withOpenFx = false,
 	delivery?: FramescaperNativeRenderDeliveryRequestNativeMedia,
 ) {
 	const options = framescaperV20Options();
@@ -386,62 +310,18 @@ function liveFixture(
 		.map((clip) => ({ ...clip, sequenceFrameCount: 1, sourceFrameCount: 1 })) };
 	options.tracks = (options.tracks as Array<Record<string, unknown>>).filter(({ type }) => type === 'video');
 	options.sequences = [{ id: 'main-sequence', rate: { num: 1, den: 1 }, trackIds: ['video-track'] }];
-	if (withOpenFx) options.ofxEffects = [openFxEffect()];
 	const project = createFramescaperProjectNativeMedia(FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE, options);
 	const created = createFramescaperProjectUnifiedExactRenderPlanNativeMedia(
 		FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE, project,
 		createFramescaperNativeRenderPlanAuthorityNativeMedia(project, delivery), delivery,
 	);
-	let plan = created;
-	if (withOpenFx) {
-		const raw = structuredClone(created) as unknown as Record<string, unknown>;
-		const output = raw.output as Record<string, unknown>;
-		output.canvas = { ...(output.canvas as Record<string, unknown>), width: 2, height: 2 };
-		const finishing = (raw.nodes as Array<Record<string, unknown>>)
-			.find(({ kind }) => kind === 'finishing')!;
-		Object.assign((finishing.sourceInterpretations as Array<Record<string, unknown>>)[0]!, {
-			primaries: 'bt709', transfer: 'bt709', matrix: 'rgb', range: 'full',
-			provenance: 'user-override',
-		});
-		const validated = createUnifiedExactRenderPlan(raw);
-		if (validated.version !== 14) throw new Error('OpenFX fixture plan is not V14.');
-		plan = validated as typeof created;
-	}
+	const plan = created;
 	const envelope = createNativeMediaPlanEnvelopeV2(plan);
 	const carrierByteLength = nativeRgbaFramePackV1ByteLength({
 		width: envelope.summary.width, height: envelope.summary.height,
 		frameCount: envelope.summary.outputFrameCount,
 	});
 	return { project, plan, envelope, carrierByteLength };
-}
-
-function openFxEffect() {
-	return {
-		schemaVersion: 1, instanceId: 'ofx-instance', pluginId: 'net.example.Filter',
-		binarySha256: OPENFX_SHA, context: 'filter',
-		attachment: { kind: 'filter', targetId: 'video-clip' },
-		inputs: [{ name: 'Source', sourceRef: 'video-source' }], parameters: [],
-		customEncodings: {}, enabled: true,
-		freshness: {
-			authoredStateSha256: OPENFX_SHA, inputIdentitiesSha256: 'b2'.repeat(32),
-			renderPlanFingerprintSha256: 'c3'.repeat(32), nativeEffectFingerprintSha256: 'd4'.repeat(32),
-		}, frozenFallback: null,
-	};
-}
-
-function openFxPlugin() {
-	return framescaperOpenFxPluginProjectionV1({
-		pluginHandle: OPENFX_HANDLE, pluginId: 'net.example.Filter', vendor: 'Example',
-		version: { major: 1, minor: 0 }, binarySha256: OPENFX_SHA,
-		supportedContexts: ['filter'], parameters: [], components: ['RGBA'], pixelDepths: ['byte'],
-		threading: 'instance-safe', state: 'enabled', quarantined: false,
-	});
-}
-
-function byteDescriptor(bytes: Uint8Array) {
-	return Object.freeze({
-		byteLength: bytes.byteLength, sha256: createHash('sha256').update(bytes).digest('hex'),
-	});
 }
 
 function beginRequest(fixture: ReturnType<typeof liveFixture>) {

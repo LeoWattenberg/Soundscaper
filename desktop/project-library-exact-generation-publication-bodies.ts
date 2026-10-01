@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { FramescaperDesktopProjectLibraryExactGenerationPaths } from
-	'./project-library-exact-generation-contract.ts';
+import type { FramescaperDesktopProjectLibraryPaths } from
+	'./framescaper-project-library-contract.ts';
 import {
 	framescaperDesktopExactMediaPath as mediaPath,
 	type FramescaperDesktopExactBodyDescriptor,
@@ -9,7 +9,7 @@ import {
 import { verifyProjectLibraryNativeBody } from './project-library-native-body-materialization.ts';
 
 export async function admitExactPublicationBodies(
-	paths: Readonly<FramescaperDesktopProjectLibraryExactGenerationPaths>,
+	paths: Readonly<FramescaperDesktopProjectLibraryPaths>,
 	bodies: readonly Readonly<FramescaperDesktopExactBodyDescriptor>[],
 	publicationId: string,
 	maximumChunkBytes: number,

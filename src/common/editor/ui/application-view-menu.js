@@ -18,7 +18,10 @@ import { extendApplicationMenuProductPanelItems } from './application-menu-produ
  * what it does to a project, which is why it composes here instead of in the menu model that
  * assembles every menu.
  */
-export function createApplicationViewMenu(context, actions) {
+/** @param {object} context
+ * @param {import('./workspace/selection-view-menu-ports.ts').ApplicationViewMenuPort} viewMenu
+ * @param {object} actions Shared Effects/fullscreen entries. */
+export function createApplicationViewMenu(context, viewMenu, actions = {}) {
 	const {
 		capabilities, clipSelectionNavigationMenus, compactLayout, copy, desktopHost, divider, editBlocked,
 		effectsPanelOpen, preferences, productItems, project, projectBinEffectivelyOpen, selectedAudioTrack,
@@ -54,7 +57,7 @@ export function createApplicationViewMenu(context, actions) {
 								? projectBinEffectivelyOpen
 								: preferences.workspace.panels[panelId].visible,
 							visibilityToggle: true,
-							onClick: () => actions.togglePanel(panelId),
+							onClick: () => viewMenu.togglePanel(panelId),
 						}, productItems))
 						.flat(),
 				],
@@ -63,21 +66,21 @@ export function createApplicationViewMenu(context, actions) {
 				id: 'workspace-preset',
 				label: copy.workspace,
 				items: [
-					{ id: 'workspace-modern', label: copy.workspaceModern, checked: preferences.workspace.activeId === 'modern', onClick: () => actions.setWorkspace('modern') },
-					{ id: 'workspace-audacity', label: copy.workspaceAudacity, checked: preferences.workspace.activeId === 'audacity', onClick: () => actions.setWorkspace('audacity') },
-					{ id: 'workspace-music', label: copy.workspaceMusic, checked: preferences.workspace.activeId === 'music', onClick: () => actions.setWorkspace('music') },
-					{ id: 'workspace-classic', label: copy.workspaceClassic, checked: preferences.workspace.activeId === 'classic', onClick: () => actions.setWorkspace('classic') },
-					{ id: 'workspace-video-editor', label: copy.workspaceVideo, checked: preferences.workspace.activeId === 'video-editor', onClick: () => actions.setWorkspace('video-editor') },
-					...preferences.workspace.custom.map((workspace) => ({ id: `workspace-${workspace.id}`, documentationId: 'workspace-custom', label: workspace.name, checked: preferences.workspace.activeId === workspace.id, onClick: () => actions.setWorkspace(workspace.id) })),
-					{ id: 'workspace-onboarding', label: copy.workspaceOnboardingMenu, onClick: actions.openWorkspaceOnboarding },
+					{ id: 'workspace-modern', label: copy.workspaceModern, checked: preferences.workspace.activeId === 'modern', onClick: () => viewMenu.setWorkspace('modern') },
+					{ id: 'workspace-audacity', label: copy.workspaceAudacity, checked: preferences.workspace.activeId === 'audacity', onClick: () => viewMenu.setWorkspace('audacity') },
+					{ id: 'workspace-music', label: copy.workspaceMusic, checked: preferences.workspace.activeId === 'music', onClick: () => viewMenu.setWorkspace('music') },
+					{ id: 'workspace-classic', label: copy.workspaceClassic, checked: preferences.workspace.activeId === 'classic', onClick: () => viewMenu.setWorkspace('classic') },
+					{ id: 'workspace-video-editor', label: copy.workspaceVideo, checked: preferences.workspace.activeId === 'video-editor', onClick: () => viewMenu.setWorkspace('video-editor') },
+					...preferences.workspace.custom.map((workspace) => ({ id: `workspace-${workspace.id}`, documentationId: 'workspace-custom', label: workspace.name, checked: preferences.workspace.activeId === workspace.id, onClick: () => viewMenu.setWorkspace(workspace.id) })),
+					{ id: 'workspace-onboarding', label: copy.workspaceOnboardingMenu, onClick: viewMenu.openWorkspaceOnboarding },
 				],
 			},
-			{ id: 'show-arm-controls', label: copy.showArmControls, checked: showArmControls, onClick: actions.toggleArmControls },
+			{ id: 'show-arm-controls', label: copy.showArmControls, checked: showArmControls, onClick: viewMenu.toggleArmControls },
 		// The compact layout keeps the track headers in a drawer; the desktop column has no such state.
 		...(compactLayout ? [{ id: 'local://track-header-drawer', label: copy.trackHeaders, checked: Boolean(uiFlags.trackHeaderDrawer), visibilityToggle: true }] : []),
-			{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.toggleRmsInWaveform, label: copy.viewRmsInWaveform, preserveLabel: true, checked: Boolean(snapshot.timeline?.showRms), visibilityToggle: true, onClick: actions.toggleRms },
-			{ id: 'show-fade-shape-handles', label: copy.viewFadeShapeHandles, checked: Boolean(snapshot.preferences?.view?.showFadeShapeHandles), visibilityToggle: true, onClick: actions.toggleFadeShapeHandles },
-			{ id: 'show-rulers', label: copy.viewVerticalRulers, preserveLabel: true, checked: snapshot.timeline?.showVerticalRulers !== false, visibilityToggle: true, onClick: actions.toggleVerticalRulers },
+			{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.toggleRmsInWaveform, label: copy.viewRmsInWaveform, preserveLabel: true, checked: Boolean(snapshot.timeline?.showRms), visibilityToggle: true, onClick: viewMenu.toggleRms },
+			{ id: 'show-fade-shape-handles', label: copy.viewFadeShapeHandles, checked: Boolean(snapshot.preferences?.view?.showFadeShapeHandles), visibilityToggle: true, onClick: viewMenu.toggleFadeShapeHandles },
+			{ id: 'show-rulers', label: copy.viewVerticalRulers, preserveLabel: true, checked: snapshot.timeline?.showVerticalRulers !== false, visibilityToggle: true, onClick: viewMenu.toggleVerticalRulers },
 			{ id: 'toggle-clipping-in-waveform', label: copy.viewClippingInWaveform, preserveLabel: true, checked: uiFlags.clipping, visibilityToggle: true },
 			{ id: 'show-master-track', label: copy.viewMasterTrack, preserveLabel: true, checked: Boolean(snapshot.preferences?.view?.showMasterTrack), visibilityToggle: true },
 			...(timelineAnnotationsAvailable(snapshot) ? [{
@@ -85,26 +88,26 @@ export function createApplicationViewMenu(context, actions) {
 				label: copy.panelMarkers,
 				checked: Boolean(snapshot.preferences?.view?.showMarkers),
 				visibilityToggle: true,
-				onClick: actions.toggleMarkers,
+				onClick: viewMenu.toggleMarkers,
 			}] : []),
 			{ id: 'toggle-statusbar', label: copy.statusBar, checked: uiFlags.statusbar, visibilityToggle: true },
 			divider(),
-			createSnapMenu(copy, project, editBlocked, actions.setSnap),
+			createSnapMenu(copy, project, editBlocked, viewMenu.setSnap),
 			{
 				id: 'zoom',
 				label: copy.zoomMenu,
 				items: [
-					{ id: 'zoom-in', label: copy.zoomIn, shortcut: 'Ctrl+1', onClick: actions.zoomIn },
-					{ id: 'zoom-default', label: copy.zoomNormal, shortcut: 'Ctrl+2', onClick: actions.zoomDefault },
-					{ id: 'zoom-out', label: copy.zoomOut, shortcut: 'Ctrl+3', onClick: actions.zoomOut },
-					{ id: 'zoom-to-selection', label: copy.zoomSelection, disabled: !editSelectionActive, onClick: actions.zoomSelection },
-					{ id: 'zoom-toggle', label: copy.zoomToggle, onClick: actions.zoomToggle },
-					{ id: 'zoom-fit', label: copy.zoomFit, shortcut: 'Ctrl+0', onClick: actions.zoomFit },
-					{ id: 'fit-height', label: copy.fitHeight, onClick: actions.fitHeight },
-					{ id: 'center-view-on-playhead', label: copy.centerViewOnPlayhead, onClick: actions.centerOnPlayhead },
+					{ id: 'zoom-in', label: copy.zoomIn, shortcut: 'Ctrl+1', onClick: viewMenu.zoomIn },
+					{ id: 'zoom-default', label: copy.zoomNormal, shortcut: 'Ctrl+2', onClick: viewMenu.zoomDefault },
+					{ id: 'zoom-out', label: copy.zoomOut, shortcut: 'Ctrl+3', onClick: viewMenu.zoomOut },
+					{ id: 'zoom-to-selection', label: copy.zoomSelection, disabled: !editSelectionActive, onClick: viewMenu.zoomSelection },
+					{ id: 'zoom-toggle', label: copy.zoomToggle, onClick: viewMenu.zoomToggle },
+					{ id: 'zoom-fit', label: copy.zoomFit, shortcut: 'Ctrl+0', onClick: viewMenu.zoomFit },
+					{ id: 'fit-height', label: copy.fitHeight, onClick: viewMenu.fitHeight },
+					{ id: 'center-view-on-playhead', label: copy.centerViewOnPlayhead, onClick: viewMenu.centerOnPlayhead },
 					divider(),
-					{ id: 'decrease-all-track-heights', label: copy.decreaseAllTrackHeights, shortcut: 'Ctrl+Shift+Down', disabled: !project?.tracks.length, onClick: actions.decreaseAllTrackHeights },
-					{ id: 'increase-all-track-heights', label: copy.increaseAllTrackHeights, shortcut: 'Ctrl+Shift+Up', disabled: !project?.tracks.length, onClick: actions.increaseAllTrackHeights },
+					{ id: 'decrease-all-track-heights', label: copy.decreaseAllTrackHeights, shortcut: 'Ctrl+Shift+Down', disabled: !project?.tracks.length, onClick: viewMenu.decreaseAllTrackHeights },
+					{ id: 'increase-all-track-heights', label: copy.increaseAllTrackHeights, shortcut: 'Ctrl+Shift+Up', disabled: !project?.tracks.length, onClick: viewMenu.increaseAllTrackHeights },
 				],
 			},
 			clipSelectionNavigationMenus.skip,

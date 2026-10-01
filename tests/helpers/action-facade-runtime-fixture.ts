@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createEditorPreferenceActionOwner } from '../../src/common/editor/controller/preferences/preference-action-group.ts';
 import type { EditorActionRuntime } from '../../src/common/editor/controller/composition/action-facade.ts';
 import { createEditorLabelActionGroup } from '../../src/common/editor/controller/composition/label-action-group.ts';
 import { createEditorSelectionActionGroup } from '../../src/common/editor/controller/composition/selection-action-group.ts';
@@ -54,6 +55,23 @@ export function createActionFacadeRuntime(capability = true): EditorActionRuntim
 		getProjectBin: () => projectBinService as never,
 		getProjectVisual: () => ({ getProjectBinClipVisualData: callable }) as never,
 	});
+	const preferenceActions = createEditorPreferenceActionOwner(Object.freeze(Object.fromEntries([
+		'setWorkspacePreference',
+		'toggleToolbarPreference',
+		'moveToolbarPreference',
+		'setToolbarButtonPreference',
+		'togglePanelPreference',
+		'setPanelPreference',
+		'setPanelVisibilityPreference',
+		'setPanelFrameSizePreference',
+		'setPanelDockExtentPreference',
+		'movePanelPreference',
+		'activatePanelTabPreference',
+		'setShortcutPreference',
+		'createWorkspacePreference',
+		'updateWorkspacePreference',
+		'deleteWorkspacePreference',
+	].map((name) => [name, callable]))) as never);
 	const runtime = new Proxy<Record<string, unknown>>({}, {
 		get(_target, name) {
 			if (name === 'capabilities') return new Proxy({}, { get: () => capability });
@@ -62,6 +80,7 @@ export function createActionFacadeRuntime(capability = true): EditorActionRuntim
 			if (name === 'copy') return { projectNotFound: 'Not found', localSourcesMissing: 'Missing', audioClipNotFound: 'Missing' };
 			if (name === 'labels') return labels;
 			if (name === 'projectBin') return projectBin;
+			if (name === 'preferenceActions') return preferenceActions;
 			if (name === 'selection') return selection;
 			if (name === 'project') return { tracks: [], clips: [] };
 			if (name === 'state' || name === 'effectLibraryState') return state;

@@ -133,6 +133,7 @@ export function createControllerBindings<RenderEngine extends ClipTimePitchRende
 	return Object.freeze({
 		openScape, saveScape, openAup4, openAudacityProject, saveAup3, saveAup4,
 		loadPreferences, switchProject, labels, selection, projectBin,
+		get preferenceActions() { return services.preferences().actions; },
 		sampleEditingAvailable, setSampleEditMode, applySamplePencil, smoothSelectedSamples,
 		updateRecordingDeviceRows, addVideoClipEffect, updateVideoClipEffect, toggleVideoClipEffect,
 		bypassVideoClipEffect, previewVideoEffectGesture, commitVideoEffectGesture, cancelTimedRecording,

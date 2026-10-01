@@ -1,3 +1,4 @@
+import { createWorkspaceSelectionViewMenuPorts } from './selection-view-menu-ports.ts';
 import { assistanceDialogSurface } from '../assistance-task-catalog.ts';
 import { otherProductId, productProfile } from '../../../products.js';
 import { applicationInstallPromptCapture } from '../../../offline/install-prompt.ts';
@@ -107,7 +108,11 @@ export function createWorkspaceApplicationMenus({
 				? () => openSurface('desktop-mcp') : undefined,
 		} : {}),
 	});
+	const { selectionMenu, viewMenu } = createWorkspaceSelectionViewMenuPorts({
+		controller, parityRuntime, snapshot, run, zoomProject, setShowArmControls, toggleWorkspacePanel, openSurface,
+	});
 	const menus = createApplicationMenus({
+			selectionMenu, viewMenu,
 			productId,
 			aboutLabel,
 			capabilities,
@@ -264,45 +269,12 @@ export function createWorkspaceApplicationMenus({
 				openMetadata: () => openWorkspacePanel('metadata'),
 				openClipProperties: () => openSurface('clip'),
 				openPreferences: () => openSurface('preferences'),
-				selectAll: () => run(() => controller.actions.timeline.selectAll()),
-				selectNone: () => run(() => controller.actions.timeline.clearSelection()),
-				selectAllTracks: () => run(() => controller.actions.timeline.selectAllTracks()),
-				selectNoTracks: () => run(() => controller.actions.timeline.selectNoTracks()),
-				selectPreviousClipBoundaryToCursor: () => run(() => controller.actions.timeline.selectPreviousClipBoundaryToCursor()),
-				selectCursorToNextClipBoundary: () => run(() => controller.actions.timeline.selectCursorToNextClipBoundary()),
-				selectPreviousClip: () => run(() => controller.actions.timeline.selectPreviousClip()),
-				selectNextClip: () => run(() => controller.actions.timeline.selectNextClip()),
-				skipToSelectionStart: () => run(() => controller.actions.timeline.skipToSelectionStart()),
-				skipToSelectionEnd: () => run(() => controller.actions.timeline.skipToSelectionEnd()),
-				selectLeftOfPlayback: () => run(() => controller.actions.timeline.selectLeftOfPlayback()),
-				selectRightOfPlayback: () => run(() => controller.actions.timeline.selectRightOfPlayback()),
-				selectTrackStartToCursor: () => run(() => controller.actions.timeline.selectTrackStartToCursor()),
-				selectCursorToTrackEnd: () => run(() => controller.actions.timeline.selectCursorToTrackEnd()),
-				selectTrackStartToEnd: () => run(() => controller.actions.timeline.selectTrackStartToEnd()),
 				toggleLoop: () => run(() => controller.actions.transport.toggleLoop()),
 				clearLoop: () => run(() => controller.actions.transport.clearLoop()),
 				loopToSelection: () => run(() => controller.actions.transport.loopToSelection()),
 				selectionToLoop: () => run(() => controller.actions.transport.selectionToLoop()),
 				setLoopInOut: () => run(() => controller.actions.transport.setLoopInOut()),
 				toggleSelectionFollowsLoop: () => run(() => controller.actions.transport.toggleSelectionFollowsLoop()),
-				setTimelineView: (view) => run(() => controller.actions.timeline.setView(view)),
-				toggleRms: () => run(() => controller.actions.timeline.toggleRms()),
-				toggleFadeShapeHandles: () => run(() => controller.actions.preferences.update({
-					view: { showFadeShapeHandles: !snapshot.preferences?.view?.showFadeShapeHandles },
-				})),
-				toggleVerticalRulers: () => run(() => controller.actions.timeline.toggleVerticalRulers()),
-				toggleScrollViewToPlayhead: () => run(() => controller.actions.timeline.toggleScrollViewToPlayhead()),
-				togglePinnedPlayhead: () => run(() => controller.actions.timeline.togglePinnedPlayhead()),
-				toggleRulerPlayback: () => run(() => controller.actions.timeline.toggleRulerPlayback()),
-					setSnap: (settings) => run(() => controller.actions.timeline.setSnap(settings)),
-				zoomIn: () => zoomProject('in', 'playhead'),
-				zoomOut: () => zoomProject('out', 'playhead'),
-				zoomDefault: () => run(() => parityRuntime.actions.timeline.zoomDefault()),
-				zoomSelection: () => run(() => parityRuntime.actions.timeline.zoomSelection()),
-				zoomToggle: () => run(() => parityRuntime.actions.timeline.zoomToggle()),
-				zoomFit: () => run(() => controller.actions.timeline.zoomFit()),
-				fitHeight: () => run(() => controller.actions.timeline.fitHeight()),
-				centerOnPlayhead: () => run(() => parityRuntime.actions.timeline.centerOnPlayhead()),
 				fullscreen: () => run(toggleFullscreen),
 				record: toggleRecording,
 				recordNewTrack: () => run(() => controller.actions.recording.startNewTrack()),
@@ -310,10 +282,6 @@ export function createWorkspaceApplicationMenus({
 				openTimedRecording,
 				toggleLeadIn: () => run(() => controller.actions.recording.toggleLeadIn()),
 				toggleMetronome: () => run(() => controller.actions.transport.toggleMetronome()),
-				toggleArmControls: () => setShowArmControls((current) => !current),
-				toggleMarkers: () => run(() => controller.actions.preferences.update({
-					view: { showMarkers: !snapshot.preferences?.view?.showMarkers },
-				})),
 				stop: () => run(() => controller.actions.transport.stop()),
 				playPause: () => run(() => controller.actions.transport.playPause()),
 				playSelection: () => run(() => controller.actions.transport.playSelection()),
@@ -367,8 +335,6 @@ export function createWorkspaceApplicationMenus({
 				swapTrackChannels: () => run(() => controller.actions.track.swapChannels(snapshot.selectedTrackId)),
 				splitStereoLr: () => run(() => controller.actions.track.splitStereoLR(snapshot.selectedTrackId)),
 				splitStereoCenter: () => run(() => controller.actions.track.splitStereoCenter(snapshot.selectedTrackId)),
-				decreaseAllTrackHeights: () => run(() => controller.actions.track.decreaseAllHeights()),
-				increaseAllTrackHeights: () => run(() => controller.actions.track.increaseAllHeights()),
 				setTrackDisplay: (mode) => snapshot.selectedTrackId && run(() => controller.actions.track.setDisplayMode(snapshot.selectedTrackId, mode)),
 				setTrackRate: (sampleRate) => snapshot.selectedTrackId && run(() => controller.actions.track.setRate(snapshot.selectedTrackId, sampleRate)),
 				mixAndRender: () => openSurface('mix-render'),
@@ -377,7 +343,6 @@ export function createWorkspaceApplicationMenus({
 					setDialogValue(String(trackSourceRate(project, selectedAudioTrack, project?.sampleRate || 48_000)));
 					setDialog('resample');
 				},
-					zeroCross: () => run(() => controller.actions.timeline.zeroCross()),
 				openEffects: () => openEffects(snapshot.selectedTrackId),
 				openMacrosPalette: () => openSurface('macros-palette'),
 				runMacro: (macro) => run(() => controller.actions.macros.run(macro)),
@@ -400,12 +365,9 @@ export function createWorkspaceApplicationMenus({
 					const report = await controller.actions.analysis.measureLoudness();
 					if (report) setDialog('delivery-report');
 				}),
-					setWorkspace: (workspaceId) => run(() => controller.actions.preferences.setWorkspace(workspaceId)),
-					togglePanel: toggleWorkspacePanel,
 					manual: () => openExternal(documentationUrl(productId, 'manual', locale)),
 					tutorials: () => openExternal(documentationUrl(productId, 'tutorials', locale)),
 					privacyPolicy: () => openSurface('privacy-policy'),
-					openWorkspaceOnboarding: () => openSurface('workspace-onboarding'),
 					support: () => openExternal(`mailto:team@mindscaper.org?subject=${encodeURIComponent(`${productProfile(productId).name} support`)}`),
 					revertFactorySettings: () => parityRuntime.actions.help.revertFactorySettings(),
 					toggleStoragePanel: () => parityRuntime.actions.help.toggleStoragePanel(),

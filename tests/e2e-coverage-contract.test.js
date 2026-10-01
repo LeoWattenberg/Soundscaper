@@ -23,6 +23,17 @@ import { e2eExecutableCoverageKey } from '../scripts/lib/e2e-coverage-integrity.
 
 const workspaces = [];
 
+test('executable coverage keys hash the code-unit canonical bytes without a newline', () => {
+	const sha256 = `sha256:${'a'.repeat(64)}`;
+	const sources = ['src/audiob.js', 'src/audioX.js'];
+	const expected = `{"sha256":"${sha256}","sourceMapSha256":null,"sources":["src/audioX.js","src/audiob.js"]}`;
+	assert.equal(
+		e2eExecutableCoverageKey({ sources, sourceMapSha256: null, sha256 }),
+		`sha256:${createHash('sha256').update(expected).digest('hex')}`,
+	);
+	assert.deepEqual(sources, ['src/audiob.js', 'src/audioX.js']);
+});
+
 after(() => {
 	for (const workspace of workspaces) rmSync(workspace, { recursive: true, force: true });
 });

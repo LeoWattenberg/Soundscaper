@@ -8,6 +8,7 @@ import {
 	type FrequencyWaveformCrossovers,
 	type FrequencyWaveformWindow,
 } from '../../frequency-waveform-contract.ts';
+import { requiredAudioSource } from './internal/frequency-waveform-source-admission.ts';
 import type {
 	FrequencyWaveformRuntimeClip,
 	FrequencyWaveformRuntimeProject,
@@ -447,18 +448,6 @@ function clipMappingSignature(
 		project.sampleRate ?? null,
 		project.tempoMap ?? null,
 	]);
-}
-
-function requiredAudioSource(
-	value: FrequencyWaveformRuntimeSource | null | undefined,
-): RequiredFrequencyWaveformSource | null {
-	if (!value || value.kind === 'video' || value.kind === 'image' || value.kind === 'still') return null;
-	return typeof value.id === 'string'
-		&& Number.isSafeInteger(value.frameCount) && Number(value.frameCount) >= 0
-		&& Number.isSafeInteger(value.channelCount) && Number(value.channelCount) > 0
-		&& Number.isSafeInteger(value.sampleRate) && Number(value.sampleRate) > 0
-		? value as RequiredFrequencyWaveformSource
-		: null;
 }
 
 function sameSourceGeometry(

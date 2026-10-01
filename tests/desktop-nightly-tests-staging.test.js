@@ -142,6 +142,7 @@ test('nightly test staging creates a hermetic, manifest-bound Playwright payload
 		'scripts/lib/cdp-javascript-coverage.mjs',
 		'scripts/lib/browser-target-coverage.mjs',
 		'scripts/lib/e2e-coverage-integrity.mjs',
+		'scripts/lib/canonical-json.mjs',
 		'scripts/lib/e2e-coverage-prefixes.mjs',
 		'scripts/lib/e2e-coverage-source-maps.mjs',
 		'scripts/lib/macro-dynamic-coverage.mjs',
