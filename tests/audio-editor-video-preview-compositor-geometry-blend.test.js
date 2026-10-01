@@ -193,7 +193,7 @@ test('unchanged video frames reuse effects while opacity, animated effects, and 
 	}
 });
 
-test('additional effected entries do not overwrite the retained first-entry result', () => {
+test('each reusable effected clip retains its own completed result', () => {
 	for (const opaqueFirst of [false, true]) {
 		const fixture = createRecordingFixture();
 		const compositor = createVideoPreviewCompositor(fixture.canvas);
@@ -210,11 +210,65 @@ test('additional effected entries do not overwrite the retained first-entry resu
 			compositor.render(layers);
 			fixture.recording.reset();
 			compositor.render(layers);
-			assert.equal(fixture.recording.draws.length, 5,
-				'the first reusable entry composites directly; the other stack runs without a cache copy');
+			assert.equal(fixture.recording.draws.length, opaqueFirst ? 5 : 3,
+				'reusable clips need only composition draws; opaque drawables still evaluate their effects');
 		} finally {
 			compositor.dispose();
 		}
+	}
+});
+
+test('a changed second clip invalidates only its effects and reuses its allocated result target', () => {
+	const fixture = createRecordingFixture();
+	const compositor = createVideoPreviewCompositor(fixture.canvas);
+	const layers = ['bottom', 'top'].map((id) => ({ entries: [cachedEntry(id)] }));
+	const second = layers[1].entries[0];
+	try {
+		compositor.render(layers);
+		const retainedTextures = [fixture.recording.draws[2], fixture.recording.draws[6]]
+			.map((draw) => draw.framebuffer);
+		for (const change of [
+			() => { second.video.currentTime = 1; },
+			() => { second.video.src = 'replacement.webm'; },
+			() => { second.effects = [{ ...second.effects[0], params: { amount: 0.8 } }]; },
+		]) {
+			change();
+			fixture.recording.reset();
+			compositor.render(layers);
+			assert.equal(fixture.recording.draws.length, 6, 'only the changed clip runs its stack and cache copy');
+			assert.equal(fixture.recording.draws[3].framebuffer, retainedTextures[1]);
+			assert.equal(fixture.recording.allocations.length, 0, 'source and effect edits reuse owned targets');
+			fixture.recording.reset();
+			compositor.render(layers);
+			assert.equal(fixture.recording.draws.length, 3, 'the refreshed second result is retained');
+		}
+	} finally {
+		compositor.dispose();
+	}
+});
+
+test('the compositor releases departed effect targets, resizes them and disposes each once', () => {
+	const fixture = createRecordingFixture();
+	const compositor = createVideoPreviewCompositor(fixture.canvas);
+	const layers = ['bottom', 'top'].map((id) => ({ entries: [cachedEntry(id)] }));
+	try {
+		compositor.render(layers);
+		const firstTarget = fixture.recording.draws[2].framebuffer;
+		const secondTarget = fixture.recording.draws[6].framebuffer;
+		fixture.recording.reset();
+		compositor.render(layers.slice(0, 1));
+		assert.deepEqual(fixture.recording.deletedFramebuffers, [secondTarget]);
+		fixture.recording.reset();
+		compositor.render(layers.slice(0, 1), { outputWidth: 320, outputHeight: 180 });
+		assert.ok(fixture.recording.deletedFramebuffers.includes(firstTarget), 'resizing releases the old cache target');
+		const resizedTarget = fixture.recording.draws[2].framebuffer;
+		fixture.recording.reset();
+		compositor.dispose();
+		compositor.dispose();
+		assert.equal(fixture.recording.deletedFramebuffers.filter((target) => target === resizedTarget).length, 1);
+		assert.equal(new Set(fixture.recording.deletedFramebuffers).size, fixture.recording.deletedFramebuffers.length);
+	} finally {
+		compositor.dispose();
 	}
 });
 
@@ -289,6 +343,16 @@ function entry(clipId) {
 	};
 }
 
+function cachedEntry(clipId) {
+	const clip = { ...entry(clipId), effects: [{
+		id: `${clipId}-vignette`, type: 'vignette', enabled: true, params: { amount: 0.5 },
+	}] };
+	Object.assign(clip.video, {
+		currentTime: 0, paused: true, addEventListener() {}, removeEventListener() {},
+	});
+	return clip;
+}
+
 function isBlendProgram(program) {
 	return program.shaders.some((shader) => shader.source.includes('uniform sampler2D u_backdrop'));
 }
@@ -334,16 +398,19 @@ function createRecordingContext() {
 	const clears = [];
 	const allocations = [];
 	const blendFactors = [];
+	const deletedFramebuffers = [];
 	const recording = {
 		draws,
 		clears,
 		allocations,
 		blendFactors,
+		deletedFramebuffers,
 		reset() {
 			draws.length = 0;
 			clears.length = 0;
 			allocations.length = 0;
 			blendFactors.length = 0;
+			deletedFramebuffers.length = 0;
 			state.uniforms.clear();
 			state.textures.clear();
 		},
@@ -363,6 +430,7 @@ function createRecordingContext() {
 		createBuffer: () => ({ id: nextId += 1 }),
 		createTexture: () => ({ id: nextId += 1 }),
 		createFramebuffer: () => ({ id: nextId += 1 }),
+		deleteFramebuffer: (framebuffer) => { deletedFramebuffers.push(framebuffer); },
 		createVertexArray: () => ({ id: nextId += 1 }),
 		checkFramebufferStatus: () => constant('FRAMEBUFFER_COMPLETE'),
 		useProgram: (program) => { state.program = program; },

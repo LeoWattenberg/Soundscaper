@@ -42,6 +42,8 @@ import {
 	videoPreviewRenderQuadUniforms,
 } from './video-preview-render-description.ts';
 import {
+	createVideoPreviewRenderTarget,
+	deleteVideoPreviewRenderTarget,
 	deleteVideoPreviewRenderTargets,
 	replaceVideoPreviewRenderTargets,
 } from './video-preview-render-target.js';
@@ -99,7 +101,10 @@ export class VideoPreviewCompositor {
 		this.finalEffectResolution = { width: 1, height: 1 };
 		this.blurContentViewport = { x: 0, y: 0, width: 1, height: 1 };
 		this.effectStackCache = new WeakMap();
-		this.effectResultCache = createVideoPreviewEffectResultCache();
+		this.effectResultCache = createVideoPreviewEffectResultCache({
+			allocate: (width, height) => createVideoPreviewRenderTarget(this.gl, width, height),
+			release: (target) => deleteVideoPreviewRenderTarget(this.gl, target),
+		});
 		this.renderGeneration = 0;
 		this.handleContextLost = (event) => {
 			event.preventDefault();
@@ -187,6 +192,7 @@ export class VideoPreviewCompositor {
 		this.targets = replaceVideoPreviewRenderTargets(
 			this.gl, this.canvas, this.targets, width, height, GAUSSIAN_BLUR_RENDER_SCALE,
 		);
+		this.effectResultCache.clear();
 	}
 
 	uploadVideo(video) {
@@ -311,6 +317,9 @@ export class VideoPreviewCompositor {
 			decodableVideoPreviewLayers(layers), SUPPORTED_EFFECT_TYPES,
 		);
 		this.resizeToDisplaySize(options);
+		this.effectResultCache.beginFrame(layers.flatMap((layer) => (
+			(layer.entries || []).map((entry) => entry.clipId ?? entry.video)
+		)));
 		this.renderGeneration += 1;
 		const gl = this.gl;
 		gl.disable(gl.BLEND);
@@ -339,7 +348,6 @@ export class VideoPreviewCompositor {
 		this.finalEffectResolution.width = referenceWidth;
 		this.finalEffectResolution.height = referenceHeight;
 		const previewScale = this.previewScale;
-		let cacheEffects = true;
 
 		for (const layer of layers) {
 			// A lone normal entry can blend straight into the completed picture.
@@ -412,13 +420,12 @@ export class VideoPreviewCompositor {
 					continue;
 				}
 				const textureRecord = this.videoTextures.get(video);
-				const cacheFrameVersion = cacheEffects && textureRecord?.frameIdentity?.canReuseFrame()
+				const cacheFrameVersion = textureRecord?.frameIdentity?.canReuseFrame()
 					? textureRecord.frameVersion : undefined;
 				const sourceTarget = applyVideoPreviewEntryEffects(
 					this, videoTexture, passes, contentViewport,
-					cacheFrameVersion,
+					cacheFrameVersion, entry.clipId ?? video,
 				);
-				if (cacheFrameVersion != null) cacheEffects = false;
 				gl.enable(gl.BLEND);
 				gl.blendEquation(gl.FUNC_ADD);
 				gl.blendFuncSeparate(
@@ -473,6 +480,7 @@ export class VideoPreviewCompositor {
 		);
 		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 		this.pruneUnusedVideoTextures();
+		this.effectResultCache.endFrame();
 		return completeVideoPreviewRenderLedger(ledger, renderedEntries);
 	}
 

@@ -2,7 +2,7 @@
 
 export const VIDEO_PREVIEW_TARGET_NAMES = Object.freeze([
 	'ping', 'pong', 'layer', 'composition', 'compositionSwap', 'anchor',
-	'blurPing', 'blurPong', 'effectCache',
+	'blurPing', 'blurPong',
 ] as const);
 
 export type VideoPreviewTargetName = typeof VIDEO_PREVIEW_TARGET_NAMES[number];

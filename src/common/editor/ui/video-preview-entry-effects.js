@@ -7,9 +7,9 @@ const COPY_PASS = Object.freeze({});
 const RECT_COPY_PASS = Object.freeze({ code: 8 });
 
 /** Evaluate a clip's effects independently of its changing composition geometry. */
-export function applyVideoPreviewEntryEffects(compositor, videoTexture, passes, contentViewport, frameVersion) {
+export function applyVideoPreviewEntryEffects(compositor, videoTexture, passes, contentViewport, frameVersion, key) {
 	const cacheInput = frameVersion == null ? null : {
-		texture: videoTexture, frameVersion, passes,
+		key, texture: videoTexture, frameVersion, passes,
 		targets: compositor.targets,
 		width: compositor.canvas.width, height: compositor.canvas.height,
 		viewport: contentViewport,
@@ -118,7 +118,8 @@ export function applyVideoPreviewEntryEffects(compositor, videoTexture, passes, 
 		sourceTarget = destinationTarget;
 	}
 	if (!cacheInput) return sourceTarget;
-	const target = compositor.targets.effectCache;
+	const target = compositor.effectResultCache.acquire(cacheInput);
+	if (!target) return sourceTarget;
 	compositor.clearTarget(target);
 	compositor.draw(sourceTarget.texture, target, COPY_PASS);
 	compositor.effectResultCache.store(cacheInput, target);
