@@ -1,5 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import {
+	captureSpoolStableId as stableId,
+	captureSpoolStableText as stableText,
+} from './capture-spool-validation.ts';
+
 const KEY_PREFIX = 'framescaper-capture-spool-append-intent-v1:';
 
 export type CaptureSpoolAppendStorageKind = 'encoded-media' | 'raw-pcm';
@@ -199,13 +204,6 @@ function assertCanonicalData(value: unknown, name: string): void {
 	}
 }
 
-function stableId(value: unknown, name: string): string { return stableText(value, name, 256); }
-function stableText(value: unknown, name: string, maximumLength: number): string {
-	if (typeof value !== 'string' || !value.length || value !== value.trim()
-		|| value !== value.normalize('NFC') || value.length > maximumLength
-		|| /[\u0000-\u001f\u007f]/u.test(value)) throw new TypeError(`${name} is invalid.`);
-	return value;
-}
 function nonNegativeInteger(value: unknown, name: string): number {
 	if (!Number.isSafeInteger(value) || Number(value) < 0) throw new RangeError(`${name} must be non-negative.`);
 	return Number(value);

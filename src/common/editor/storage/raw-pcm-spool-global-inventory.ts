@@ -1,6 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { compareCodeUnits } from '../code-unit-order.ts';
+import {
+	captureSpoolDataRecord as dataRecord,
+	captureSpoolStableId as stableId,
+} from './capture-spool-validation.ts';
 import type { RawPcmSpoolRecord } from './raw-pcm-spool-record.ts';
 
 export const RAW_PCM_MAXIMUM_GLOBAL_ACTIVE_SPOOLS = 4_096;
@@ -49,15 +53,4 @@ export function rawPcmSpoolGlobalEntry(
 		spoolId: record.spoolId,
 		spoolToken: record.spoolToken,
 	});
-}
-
-function dataRecord(value: unknown, name: string): Readonly<Record<string, unknown>> {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError(`${name} must be a data record.`);
-	return value as Readonly<Record<string, unknown>>;
-}
-function stableId(value: unknown, name: string): string {
-	if (typeof value !== 'string' || !value.length || value !== value.trim()
-		|| value !== value.normalize('NFC') || value.length > 256
-		|| /[\u0000-\u001f\u007f]/u.test(value)) throw new TypeError(`${name} is invalid.`);
-	return value;
 }

@@ -1,6 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { compareCodeUnits } from '../code-unit-order.ts';
+import {
+	captureSpoolDataRecord as dataRecord,
+	captureSpoolStableId as stableId,
+} from './capture-spool-validation.ts';
 import { cloneStorageValue } from './storage-clone.ts';
 
 const MAXIMUM_ACTIVE_SPOOLS = 64;
@@ -130,16 +134,6 @@ export function snapshotRawPcmData<Value>(value: Value): Value {
 
 function framescaperAppendProtocol(value: unknown): 'framescaper-manifest-v1' {
 	if (value !== 'framescaper-manifest-v1') throw new Error('Raw PCM spool append protocol is invalid.');
-	return value;
-}
-function dataRecord(value: unknown, name: string): Readonly<Record<string, unknown>> {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError(`${name} must be a data record.`);
-	return value as Readonly<Record<string, unknown>>;
-}
-function stableId(value: unknown, name: string): string {
-	if (typeof value !== 'string' || !value.length || value !== value.trim()
-		|| value !== value.normalize('NFC') || value.length > 256
-		|| /[\u0000-\u001f\u007f]/u.test(value)) throw new TypeError(`${name} is invalid.`);
 	return value;
 }
 function boundedPositiveInteger(value: unknown, maximum: number, name: string): number {

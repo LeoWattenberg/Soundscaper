@@ -8,6 +8,7 @@ import {
 	type CaptureSpoolAppendIntent,
 	type CaptureSpoolAppendIntentValues,
 } from './capture-spool-append-intent-repository.ts';
+import { captureSpoolExactSum as exactSum } from './capture-spool-validation.ts';
 import {
 	mediaAssetChunkKey,
 	type MediaAssetChunkRecord,
@@ -335,10 +336,5 @@ function nonNegativeInteger(value: unknown, name: string): number {
 function boundedNonNegativeInteger(value: unknown, maximum: number, name: string): number {
 	const result = nonNegativeInteger(value, name);
 	if (result > maximum) throw new RangeError(`${name} exceeds its strict bound.`);
-	return result;
-}
-function exactSum(left: number, right: number, name: string): number {
-	const result = left + right;
-	if (!Number.isSafeInteger(result)) throw new RangeError(`${name} exceeds the safe integer range.`);
 	return result;
 }

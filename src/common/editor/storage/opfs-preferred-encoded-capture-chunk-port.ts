@@ -6,6 +6,10 @@ import {
 	type MediaAssetChunkRecord,
 } from './media-asset-chunk-records.ts';
 import type { OpfsRepository } from './opfs-repository.ts';
+import {
+	captureSpoolDataRecord as dataRecord,
+	captureSpoolStableText as stableText,
+} from './capture-spool-validation.ts';
 
 const SELECTION_KEY_PREFIX = 'framescaper-capture-chunk-storage-v1:';
 const REFERENCE_KEY_PREFIX = 'framescaper-capture-opfs-chunk-v1:';
@@ -280,18 +284,4 @@ function selectionKey(token: string): string {
 
 function referenceKey(token: string, index: number): string {
 	return `${REFERENCE_KEY_PREFIX}${encodeURIComponent(token)}:${String(index).padStart(10, '0')}`;
-}
-
-function dataRecord(value: unknown, name: string): Readonly<Record<string, unknown>> {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) {
-		throw new TypeError(`${name} must be a data record.`);
-	}
-	return value as Readonly<Record<string, unknown>>;
-}
-
-function stableText(value: unknown, name: string, maximumLength: number): string {
-	if (typeof value !== 'string' || !value.length || value !== value.trim()
-		|| value !== value.normalize('NFC') || value.length > maximumLength
-		|| /[\u0000-\u001f\u007f]/u.test(value)) throw new TypeError(`${name} is invalid.`);
-	return value;
 }

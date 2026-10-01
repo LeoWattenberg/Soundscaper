@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { compareCodeUnits } from '../code-unit-order.ts';
+import { captureSpoolStableId as stableId } from './capture-spool-validation.ts';
 
 const CREATION_KEY_PREFIX = 'framescaper-capture-session-creation-v1:';
 const CREATION_ADMISSION_KEY = 'framescaper-capture-session-creation-admission-v1';
@@ -224,11 +225,4 @@ function closedArray(value: unknown, name: string): readonly unknown[] {
 		result.push(descriptor.value);
 	}
 	return Object.freeze(result);
-}
-
-function stableId(value: unknown, name: string): string {
-	if (typeof value !== 'string' || !value.length || value !== value.trim()
-		|| value !== value.normalize('NFC') || value.length > 256
-		|| /[\u0000-\u001f\u007f]/u.test(value)) throw new TypeError(`${name} is invalid.`);
-	return value;
 }

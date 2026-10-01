@@ -4,6 +4,7 @@ import {
 	normalizeCaptureSpoolCreationFence,
 	type CaptureSpoolCreationFence,
 } from './capture-spool-creation-fence.ts';
+import { captureSpoolStableText as stableText } from './capture-spool-validation.ts';
 
 export interface CreateEncodedCaptureSpoolRequest {
 	readonly projectId: string;
@@ -50,11 +51,4 @@ export function putEncodedCaptureSpoolWhenCurrent(
 		throw new TypeError('Encoded capture spool creation requires an atomic creation fence.');
 	}
 	return create.call(values, fence.key, fence.expected, key, record);
-}
-
-function stableText(value: unknown, name: string, maximumLength: number): string {
-	if (typeof value !== 'string' || !value.length || value !== value.trim()
-		|| value !== value.normalize('NFC') || value.length > maximumLength
-		|| /[\u0000-\u001f\u007f]/u.test(value)) throw new TypeError(`${name} is invalid.`);
-	return value;
 }

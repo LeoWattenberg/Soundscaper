@@ -1,6 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { KeyValueRepository } from './key-value-repository.ts';
+import {
+	captureSpoolDataRecord as dataRecord,
+	captureSpoolExactSum as exactSum,
+	captureSpoolStableId as stableId,
+} from './capture-spool-validation.ts';
 import type { SourceChunkRecord, SourceRecordRepository } from './source-record-repository.ts';
 import { restoreRawPcmAcknowledgedPrefix } from './raw-pcm-spool-prefix-repair.ts';
 import {
@@ -548,23 +553,8 @@ function sameData(left: unknown, right: unknown): boolean {
 	return JSON.stringify(left) === JSON.stringify(right);
 }
 
-function dataRecord(value: unknown, name: string): Readonly<Record<string, unknown>> {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError(`${name} must be a data record.`);
-	return value as Readonly<Record<string, unknown>>;
-}
-function exactSum(left: number, right: number, name: string): number {
-	const result = left + right;
-	if (!Number.isSafeInteger(result)) throw new RangeError(`${name} exceeds the safe integer range.`);
-	return result;
-}
 function chunkKey(token: string, index: number): string { return `${token}:${String(index).padStart(10, '0')}`; }
 function registryKey(projectId: string): string { return `${KEY_PREFIX}${encodeURIComponent(projectId)}`; }
-function stableId(value: unknown, name: string): string {
-	if (typeof value !== 'string' || !value.length || value !== value.trim()
-		|| value !== value.normalize('NFC') || value.length > 256
-		|| /[\u0000-\u001f\u007f]/u.test(value)) throw new TypeError(`${name} is invalid.`);
-	return value;
-}
 function boundedPositiveInteger(value: unknown, maximum: number, name: string): number {
 	if (!Number.isSafeInteger(value) || Number(value) < 1 || Number(value) > maximum) {
 		throw new RangeError(`${name} must be a supported positive integer.`);

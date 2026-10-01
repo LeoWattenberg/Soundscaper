@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { compareCodeUnits } from '../code-unit-order.ts';
+import { captureSpoolStableId as stableId } from './capture-spool-validation.ts';
 import {
 	normalizeFramescaperCaptureSessionManifest,
 	type FramescaperCaptureSessionManifestV1,
@@ -291,11 +292,4 @@ function playabilityCanTransition(
 	to: FramescaperCaptureStreamManifestV1['playability'],
 ): boolean {
 	return from === to || from === 'unknown';
-}
-
-function stableId(value: unknown, name: string): string {
-	if (typeof value !== 'string' || !value.length || value !== value.trim()
-		|| value !== value.normalize('NFC') || value.length > 256
-		|| /[\u0000-\u001f\u007f]/u.test(value)) throw new TypeError(`${name} is invalid.`);
-	return value;
 }

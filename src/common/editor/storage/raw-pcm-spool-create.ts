@@ -4,6 +4,7 @@ import {
 	normalizeCaptureSpoolCreationFence,
 	type CaptureSpoolCreationFence,
 } from './capture-spool-creation-fence.ts';
+import { captureSpoolStableId as stableId } from './capture-spool-validation.ts';
 import { cloneStorageValue } from './storage-clone.ts';
 
 const MAXIMUM_CHUNK_BYTES = 8 * 1024 * 1024;
@@ -45,13 +46,6 @@ export function normalizeRawPcmSpoolCreateRequest(
 		throw new RangeError('Raw PCM spool chunks exceed the strict memory bound.');
 	}
 	return Object.freeze(request);
-}
-
-function stableId(value: unknown, name: string): string {
-	if (typeof value !== 'string' || !value.length || value !== value.trim()
-		|| value !== value.normalize('NFC') || value.length > 256
-		|| /[\u0000-\u001f\u007f]/u.test(value)) throw new TypeError(`${name} is invalid.`);
-	return value;
 }
 
 function boundedPositiveInteger(value: unknown, maximum: number, name: string): number {

@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { captureSpoolStableText as stableText } from './capture-spool-validation.ts';
+
 const KEY_PREFIX = 'capture-spool-tail-cleanup-v1:';
 
 export interface CaptureSpoolTailCleanupIdentity {
@@ -130,13 +132,6 @@ function closedDataRecord(value: unknown, keys: readonly string[], name: string)
 	}
 	if (keys.some((key) => !Object.hasOwn(result, key))) throw new TypeError(`${name} has an invalid closed shape.`);
 	return Object.freeze(result);
-}
-
-function stableText(value: unknown, name: string, maximumLength: number): string {
-	if (typeof value !== 'string' || !value.length || value !== value.trim()
-		|| value !== value.normalize('NFC') || value.length > maximumLength
-		|| /[\u0000-\u001f\u007f]/u.test(value)) throw new TypeError(`${name} is invalid.`);
-	return value;
 }
 
 function nonNegativeInteger(value: unknown, name: string): number {

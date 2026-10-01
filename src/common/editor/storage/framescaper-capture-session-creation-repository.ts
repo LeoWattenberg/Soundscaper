@@ -12,6 +12,10 @@ import {
 	framescaperCaptureCreationJournalKey,
 	framescaperCaptureCreationProjectPrefix,
 } from './framescaper-capture-creation-admission.ts';
+import {
+	captureSpoolExactSum as exactSum,
+	captureSpoolStableId as stableId,
+} from './capture-spool-validation.ts';
 
 const MANIFEST_KEY_PREFIX = 'framescaper-capture-session-manifest-v1:';
 const PUBLICATION_FENCE_KEY_PREFIX = 'framescaper-capture-session-creation-fence-v1:';
@@ -544,17 +548,4 @@ function positiveInteger(value: unknown, name: string): number {
 	const integer = nonNegativeInteger(value, name);
 	if (integer < 1) throw new RangeError(`${name} must be positive.`);
 	return integer;
-}
-
-function exactSum(left: number, right: number, name: string): number {
-	const result = left + right;
-	if (!Number.isSafeInteger(result)) throw new RangeError(`${name} exceeds the safe integer range.`);
-	return result;
-}
-
-function stableId(value: unknown, name: string): string {
-	if (typeof value !== 'string' || !value.length || value !== value.trim()
-		|| value !== value.normalize('NFC') || value.length > 256
-		|| /[\u0000-\u001f\u007f]/u.test(value)) throw new TypeError(`${name} is invalid.`);
-	return value;
 }

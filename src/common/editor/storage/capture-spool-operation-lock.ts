@@ -1,5 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import {
+	captureSpoolStableId as stableId,
+	captureSpoolStableText as stableText,
+} from './capture-spool-validation.ts';
+
 interface CaptureSpoolLockIdentity {
 	readonly storageKind: 'encoded-media' | 'raw-pcm';
 	readonly projectId: string;
@@ -88,12 +93,4 @@ function sessionLockName(identity: CaptureSessionLockIdentity): string {
 		encodeURIComponent(stableId(identity.projectId, 'capture session lock projectId')),
 		encodeURIComponent(stableId(identity.sessionId, 'capture session lock sessionId')),
 	].join(':');
-}
-
-function stableId(value: unknown, name: string): string { return stableText(value, name, 256); }
-function stableText(value: unknown, name: string, maximumLength: number): string {
-	if (typeof value !== 'string' || !value.length || value !== value.trim()
-		|| value !== value.normalize('NFC') || value.length > maximumLength
-		|| /[\u0000-\u001f\u007f]/u.test(value)) throw new TypeError(`${name} is invalid.`);
-	return value;
 }
