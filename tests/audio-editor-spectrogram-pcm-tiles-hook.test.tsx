@@ -85,6 +85,174 @@ test('streamed spectrogram tiles survive each PCM publication without restarting
 	}
 });
 
+for (const failure of ['retired', 'rejected'] as const) test(`${failure} PCM reads retry when the source visual is published again`, async () => {
+	const dom = installReactTestDom();
+	const { createRoot } = await import('react-dom/client');
+	const root = createRoot(dom.container as unknown as Element);
+	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+	const previousAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
+	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
+	const sourceLookup = new Map([[SOURCE.id, SOURCE]]);
+	const projectedClips = [CLIP];
+	let calls = 0;
+	let publish = () => {};
+	let latest: ReadonlyMap<string, SpectrogramPcmColumns> = new Map();
+	const controller = {
+		getClipVisualData: () => ({ available: true, source: SOURCE, buffer: null, pcmWindow: null }),
+		actions: { timeline: { requestWaveformPcmWindow: (
+			_clipId: string,
+			{ startFrame, endFrame }: { startFrame: number; endFrame: number; signal?: AbortSignal },
+		) => {
+			calls += 1;
+			if (calls === 1) return failure === 'retired'
+				? Promise.resolve(null)
+				: Promise.reject(new Error('The stored source was temporarily unavailable.'));
+			return Promise.resolve({
+				startFrame, endFrame, channels: [new Float32Array(endFrame - startFrame)],
+			});
+		} } },
+	};
+	function Harness() {
+		const [visualRevision, setVisualRevision] = useState(0);
+		publish = () => setVisualRevision((revision) => revision + 1);
+		latest = useSpectrogramPcmTiles({
+			controller, projectedClips, sourceLookup, project: null,
+			pixelsPerSecond: 20, sampleRate: 48_000,
+			displayMode: 'spectrogram', fftWindowSize: 32, windowType: 'hann', visualRevision,
+		});
+		return null;
+	}
+	try {
+		await act(async () => root.render(<Harness />));
+		await waitFor(() => calls === 1);
+		await act(async () => { await new Promise((resolve) => setImmediate(resolve)); });
+		assert.equal(latest.has(CLIP.id), false, 'the failed read has no completed spectral columns');
+		assert.equal(calls, 1, 'a failed read without a newer publication must not retry itself');
+		await act(async () => publish());
+		await waitFor(() => latest.has(CLIP.id));
+		assert.ok(calls > 1, 'a failed read must release its active request so a publication can retry');
+		const completedCalls = calls;
+		await act(async () => publish());
+		assert.equal(calls, completedCalls, 'successful retries still reuse completed columns');
+	} finally {
+		await act(async () => root.unmount());
+		actGlobal.IS_REACT_ACT_ENVIRONMENT = previousAct;
+		dom.restore();
+	}
+});
+
+test('a visual publication during a retiring PCM read retries after that read settles', async () => {
+	const dom = installReactTestDom();
+	const { createRoot } = await import('react-dom/client');
+	const root = createRoot(dom.container as unknown as Element);
+	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+	const previousAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
+	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
+	const sourceLookup = new Map([[SOURCE.id, SOURCE]]);
+	const projectedClips = [CLIP];
+	const retiringReads: Array<(value: null) => void> = [];
+	let calls = 0;
+	let publish = () => {};
+	let latest: ReadonlyMap<string, SpectrogramPcmColumns> = new Map();
+	const controller = {
+		getClipVisualData: () => ({ available: true, source: SOURCE, buffer: null, pcmWindow: null }),
+		actions: { timeline: { requestWaveformPcmWindow: (
+			_clipId: string,
+			{ startFrame, endFrame }: { startFrame: number; endFrame: number; signal?: AbortSignal },
+		) => {
+			calls += 1;
+			if (calls === 1) return new Promise<null>((resolve) => retiringReads.push(resolve));
+			return Promise.resolve({ startFrame, endFrame, channels: [new Float32Array(endFrame - startFrame)] });
+		} } },
+	};
+	function Harness() {
+		const [visualRevision, setVisualRevision] = useState(0);
+		publish = () => setVisualRevision((revision) => revision + 1);
+		latest = useSpectrogramPcmTiles({
+			controller, projectedClips, sourceLookup, project: null,
+			pixelsPerSecond: 20, sampleRate: 48_000,
+			displayMode: 'spectrogram', fftWindowSize: 32, windowType: 'hann', visualRevision,
+		});
+		return null;
+	}
+	try {
+		await act(async () => root.render(<Harness />));
+		await waitFor(() => retiringReads.length === 1);
+		await act(async () => publish());
+		assert.equal(calls, 1, 'a newer publication does not restart a read before it settles');
+		await act(async () => retiringReads[0]!(null));
+		await waitFor(() => latest.has(CLIP.id));
+		assert.ok(calls > 1, 'retirement after a publication retries without another user action');
+	} finally {
+		await act(async () => root.unmount());
+		actGlobal.IS_REACT_ACT_ENVIRONMENT = previousAct;
+		dom.restore();
+	}
+});
+
+for (const failure of ['retired', 'rejected'] as const) test(`${failure} later PCM tiles do not retry forever after publishing earlier tiles`, async () => {
+	const dom = installReactTestDom();
+	const { createRoot } = await import('react-dom/client');
+	const root = createRoot(dom.container as unknown as Element);
+	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+	const previousAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
+	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
+	const source = { ...SOURCE, frameCount: 700_000 };
+	const clip = { ...CLIP, durationFrames: source.frameCount, sourceDurationFrames: source.frameCount,
+		waveformEndFrame: source.frameCount };
+	const sourceLookup = new Map([[source.id, source]]);
+	const projectedClips = [clip];
+	let calls = 0;
+	let unavailable = true;
+	let publish = () => {};
+	let pcmWindow: { startFrame: number; endFrame: number; channels: readonly Float32Array[] } | null = null;
+	let latest: ReadonlyMap<string, SpectrogramPcmColumns> = new Map();
+	const controller = {
+		getClipVisualData: () => ({ available: true, source, buffer: null, pcmWindow }),
+		actions: { timeline: { requestWaveformPcmWindow: async (
+			_clipId: string,
+			{ startFrame, endFrame }: { startFrame: number; endFrame: number; signal?: AbortSignal },
+		) => {
+			calls += 1;
+			// Stop an unfixed implementation's third attempt so the regression fails finitely.
+			if (unavailable && calls > 6) return new Promise<null>(() => {});
+			if (unavailable && startFrame >= 500_000) {
+				if (failure === 'rejected') throw new Error('The final source chunk is unavailable.');
+				return null;
+			}
+			pcmWindow = { startFrame, endFrame, channels: [new Float32Array(endFrame - startFrame)] };
+			publish();
+			await new Promise((resolve) => setImmediate(resolve));
+			return pcmWindow;
+		} } },
+	};
+	function Harness() {
+		const [visualRevision, setVisualRevision] = useState(0);
+		publish = () => setVisualRevision((revision) => revision + 1);
+		latest = useSpectrogramPcmTiles({
+			controller, projectedClips, sourceLookup, project: null,
+			pixelsPerSecond: 24, sampleRate: 48_000,
+			displayMode: 'spectrogram', fftWindowSize: 32, windowType: 'hann', visualRevision,
+		});
+		return null;
+	}
+	try {
+		await act(async () => root.render(<Harness />));
+		await waitFor(() => calls >= 6);
+		await act(async () => { await new Promise((resolve) => setImmediate(resolve)); });
+		assert.equal(calls, 6, 'PCM publications allow one automatic retry, never an endless reload loop');
+		assert.equal(latest.has(clip.id), false, 'unavailable final tiles cannot publish a partial spectrum');
+		unavailable = false;
+		await act(async () => publish());
+		await waitFor(() => latest.has(clip.id));
+		assert.equal(calls, 9, 'a later source publication can recover after the automatic retry is spent');
+	} finally {
+		await act(async () => root.unmount());
+		actGlobal.IS_REACT_ACT_ENVIRONMENT = previousAct;
+		dom.restore();
+	}
+});
+
 test('a changed spectral width aborts stale tiles and unmount aborts the replacement', async () => {
 	const dom = installReactTestDom();
 	const { createRoot } = await import('react-dom/client');

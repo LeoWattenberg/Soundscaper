@@ -85,6 +85,7 @@ export function useSpectrogramPcmTiles({
 }: SpectrogramPcmTileHookOptions): ReadonlyMap<string, SpectrogramPcmColumns> {
 	const active = useRef(new Map<string, ActiveTileRequest>());
 	const completed = useRef(new Map<string, CompletedTileRequest>());
+	const automaticRetries = useRef(new Map<string, string>());
 	const [resultRevision, publishResult] = useReducer((value: number) => value + 1, 0);
 	const requests = useMemo((): readonly TileRequest[] => {
 		void visualRevision;
@@ -124,8 +125,10 @@ export function useSpectrogramPcmTiles({
 		return output;
 	}, [controller, displayMode, fftWindowSize, pixelsPerSecond, project, projectedClips,
 		sampleRate, sourceLookup, visualRevision, windowType]);
+	const latestRequests = useRef(requests);
 
 	useEffect(() => {
+		latestRequests.current = requests;
 		const wanted = new Map(requests.map((request) => [request.clip.id, request]));
 		for (const [clipId, request] of active.current) {
 			if (wanted.get(clipId)?.key === request.key) continue;
@@ -135,9 +138,12 @@ export function useSpectrogramPcmTiles({
 		for (const [clipId, result] of completed.current) {
 			if (wanted.get(clipId)?.key !== result.key) completed.current.delete(clipId);
 		}
+		for (const [clipId, key] of automaticRetries.current) {
+			if (wanted.get(clipId)?.key !== key) automaticRetries.current.delete(clipId);
+		}
 		for (const request of requests) {
 			const clipId = request.clip.id;
-			if (active.current.has(clipId)) continue;
+			if (active.current.has(clipId) || completed.current.get(clipId)?.key === request.key) continue;
 			const abort = new AbortController();
 			const job: ActiveTileRequest = { key: request.key, abort };
 			active.current.set(clipId, job);
@@ -161,17 +167,30 @@ export function useSpectrogramPcmTiles({
 			}).then((columns) => {
 				if (!columns || abort.signal.aborted || active.current.get(clipId) !== job) return;
 				completed.current.set(clipId, { key: request.key, columns });
+				automaticRetries.current.delete(clipId);
 				publishResult();
 			}).catch(() => {
 				// A clip can lose its source while analysis is in flight.
+			}).finally(() => {
+				// Retired reads must let a later source publication retry the same content.
+				if (active.current.get(clipId) !== job) return;
+				active.current.delete(clipId);
+				if (completed.current.get(clipId)?.key !== request.key && latestRequests.current !== requests
+					&& automaticRetries.current.get(clipId) !== request.key) {
+					// Earlier PCM tiles also publish visuals. Spend one automatic retry per
+					// content key so an unavailable later tile cannot reload them forever.
+					automaticRetries.current.set(clipId, request.key);
+					publishResult();
+				}
 			});
 		}
-	}, [controller, fftWindowSize, project, requests, windowType]);
+	}, [controller, fftWindowSize, project, requests, resultRevision, windowType]);
 
 	useEffect(() => () => {
 		for (const request of active.current.values()) request.abort.abort();
 		active.current.clear();
 		completed.current.clear();
+		automaticRetries.current.clear();
 	}, []);
 
 	return useMemo(() => {

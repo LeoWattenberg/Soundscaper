@@ -52,7 +52,7 @@ export function pffftSpectrogramBandEnergies(waveformData, width, options = {}) 
 	const frequencyBands = normalizeBandCount(options.frequencyBands, fftWindowSize);
 	const pixelSkip = Math.max(1, Math.floor(Number(options.pixelSkip) || 1));
 	const pixelStart = Math.max(0, Math.floor(Number(options.pixelStart) || 0));
-	const pixelEnd = Math.min(width, Number.isFinite(options.pixelEnd) ? Math.floor(options.pixelEnd) : width);
+	const pixelEnd = Math.min(width, Number.isFinite(options.pixelEnd) ? options.pixelEnd : width);
 	const samplesPerPixel = waveformData.length / Math.max(1, width);
 	const hasSampleAccessor = typeof waveformData.sampleAt === 'function';
 	const sampleAt = hasSampleAccessor

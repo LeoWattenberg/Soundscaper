@@ -129,6 +129,18 @@ test('PFFFT spectrogram can analyze a tile at global canvas columns', async () =
 	assert.deepEqual(tile, full.slice(4));
 });
 
+test('PFFFT spectrogram tiles include the last column at a fractional canvas right edge', async () => {
+	await preparePffftSpectrogram(64);
+	const samples = Float32Array.from({ length: 512 }, (_, index) => Math.sin(index / 9));
+	const options = { fftWindowSize: 64, frequencyBands: 16, pixelSkip: 1 };
+	const full = pffftSpectrogramBandEnergies(samples, 8.5, options);
+	const tile = pffftSpectrogramBandEnergies(samples, 8.5, {
+		...options, pixelStart: 4, pixelEnd: 8.5,
+	});
+	assert.equal(full.length, 9);
+	assert.deepEqual(tile, full.slice(4), 'pixel 8 still intersects the fractional painted span');
+});
+
 test('PFFFT spectrogram analysis honors the selected window function', async () => {
 	await preparePffftSpectrogram(256);
 	const samples = Float32Array.from({ length: 512 }, (_, index) => (

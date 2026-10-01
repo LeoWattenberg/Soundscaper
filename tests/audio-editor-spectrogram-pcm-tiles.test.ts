@@ -326,3 +326,28 @@ test('PFFFT paints a short projected tone at interior and final clip positions',
 			`short view ${startFrame}-${endFrame} changed color across its columns: ${energies}`);
 	}
 });
+
+test('PFFFT completes every streamed column for a fractional clip width', async () => {
+	const samples = Float32Array.from({ length: 4_096 }, (_, frame) => (
+		0.5 * Math.sin(2 * Math.PI * 937.5 * frame / 48_000)
+	));
+	let requests = 0;
+	const result = await generateSpectrogramPcmTiles({
+		clip: {
+			id: 'clip', sourceId: 'source', timelineStartFrame: 0,
+			durationFrames: samples.length, sourceStartFrame: 0, sourceDurationFrames: samples.length,
+			waveformStartFrame: 0, waveformEndFrame: samples.length,
+		},
+		width: 96.5, fftWindowSize: 512, windowType: 'hann', maximumSourceFrames: 1_024,
+		async requestPcmWindow(startFrame, endFrame) {
+			requests += 1;
+			return { startFrame, endFrame, channels: [samples.slice(startFrame, endFrame)] };
+		},
+	});
+	assert.ok(result);
+	assert.ok(requests > 1, 'the source must pass through several bounded PCM tiles');
+	const columns = result.channels[0]!;
+	assert.equal(columns.length, 97, 'the last partial display pixel still needs its FFT column');
+	assert.equal(columns[48]!.indexOf(Math.max(...columns[48]!)), 10, 'the tone stays at 937.5 Hz');
+	assert.ok(columns[96]![10]! > columns[48]![10]! * 0.4, 'the final partial pixel retains the tone');
+});
