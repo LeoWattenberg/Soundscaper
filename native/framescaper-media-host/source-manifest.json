@@ -34,6 +34,11 @@
 	},
 	"sharedSourceFiles": [
 		{
+			"path": "native/common/build-recipe-security.mjs",
+			"byteLength": 8017,
+			"sha256": "7b75b4d375bf43c2194bc37360cc65711c5c70aaeb7776f9bfa79359023799dc"
+		},
+		{
 			"path": "native/common/exact_time.hpp",
 			"byteLength": 3325,
 			"sha256": "a97a7a25225418c83bacb23a4c41f995d757a5b86fdbd529e2ca26ee1bfaaef6"
@@ -92,8 +97,8 @@
 		},
 		{
 			"path": "build/recipe-driver.mjs",
-			"byteLength": 28439,
-			"sha256": "7deeb7f0b631426d8ea7ba34befb4b75e06acad7e58c25ccf5807109ff212b00"
+			"byteLength": 22026,
+			"sha256": "a64506b1a5c20f57f2521a1a46dcfbd3fb9842a66c5eb8567b61b7e73a0008f1"
 		},
 		{
 			"path": "build/source-authentication.mjs",

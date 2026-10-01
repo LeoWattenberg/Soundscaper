@@ -1,12 +1,29 @@
 #!/usr/bin/env node
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
+import { mkdirSync, readdirSync } from 'node:fs';
+import { dirname, join, relative, resolve } from 'node:path';
+
 import {
-	lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, statSync,
-} from 'node:fs';
-import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
+	SHA256_DIGEST as DIGEST,
+	assertSeparateRoots,
+	authenticateToolchainReceipt,
+	canonicalJson,
+	closedRecord,
+	deepFreeze,
+	emptyOutputRoot,
+	existingDirectory,
+	fingerprintToolchainReceipt,
+	jsonBytes,
+	pinnedFile,
+	pinnedJson,
+	safeRelativePath,
+	sha256 as digest,
+	sourceReceipt,
+	verifyWitnesses as verifyBuildRecipeWitnesses,
+	witnessFile,
+} from '../../common/build-recipe-security.mjs';
 
 import {
 	addBoostClosureWitness,
@@ -20,14 +37,12 @@ import {
 
 const HOST_ROOT = 'native/framescaper-openfx-host';
 const MEDIA_HOST_ROOT = 'native/framescaper-media-host';
-const SOURCE_RECEIPT = '.framescaper-source-identity.json';
-const DIGEST = /^[a-f0-9]{64}$/u;
 const SOURCE_DATE_EPOCH = 1786492800;
 const OPENFX_COMMIT_SHA = 'ab779510b2655b4d11a7e01e5c521f9aa8c88976';
 const OPENFX_ARCHIVE_SHA256 = '7f4fcde6c4bff3ee1f95a0b73a805e662a3e030999523165b40cfbe76c1ab9f5';
 const BOOST_ARCHIVE_SHA256 = '5c1d40cb8e19adbf740a4ec2da35b3e58f3f5804b1dce44deb53df72193cbc6c';
 const SHARED_SOURCE_PATHS = Object.freeze([
-	'native/common/exact_time.hpp',
+	'native/common/build-recipe-security.mjs', 'native/common/exact_time.hpp',
 	'native/common/sha256.cpp', 'native/common/sha256.hpp',
 ]);
 const MEDIA_CONTRACT_SOURCES = Object.freeze([
@@ -56,10 +71,7 @@ const EXECUTED = new WeakSet();
 export const FRAMESCAPER_OPENFX_HOST_BUILD_TARGETS = TARGETS;
 
 export function fingerprintFramescaperOpenFxHostToolchainReceipt(value) {
-	const receipt = closedRecord(value, [
-		'schemaVersion', 'targetId', 'hostRuntime', 'executables', 'environment',
-	], 'OpenFX-host toolchain receipt body');
-	return digest(Buffer.from(canonicalJson(receipt)));
+	return fingerprintToolchainReceipt(value, 'OpenFX-host toolchain receipt body');
 }
 
 export function createFramescaperOpenFxHostBuildRecipe(value) {
@@ -429,166 +441,20 @@ function verifyBoostSource(root, headerClosure, witnesses) {
 }
 
 function verifyToolchain(pathValue, identityValue, target, witnesses) {
-	const path = existingFile(pathValue, 'toolchain receipt');
-	const receipt = jsonFile(path, 'toolchain receipt');
-	const row = closedRecord(receipt, [
-		'schemaVersion', 'targetId', 'hostRuntime', 'executables', 'environment', 'identitySha256',
-	], 'toolchain receipt');
-	const body = {
-		schemaVersion: row.schemaVersion, targetId: row.targetId, hostRuntime: row.hostRuntime,
-		executables: row.executables, environment: row.environment,
-	};
-	const identitySha256 = fingerprintFramescaperOpenFxHostToolchainReceipt(body);
-	if (row.schemaVersion !== 1 || row.targetId !== target.id || row.hostRuntime !== target.hostRuntime
-		|| row.identitySha256 !== identitySha256 || identityValue !== identitySha256) {
-		throw new Error('The provisioned OpenFX-host toolchain identity drifted.');
-	}
-	const executables = closedRecord(row.executables, TOOL_ROLES, 'toolchain executables');
-	for (const role of TOOL_ROLES) {
-		const entry = closedRecord(executables[role], ['path', 'sha256'], `toolchain executable ${role}`);
-		const executable = existingFile(entry.path, `toolchain executable ${role}`);
-		const bytes = witnessFile(executable, witnesses);
-		if (entry.sha256 !== digest(bytes)) throw new Error(`Toolchain executable ${role} drifted.`);
-		executables[role] = Object.freeze({ path: executable, sha256: entry.sha256 });
-	}
-	const environment = closedEnvironment(row.environment);
-	witnessFile(path, witnesses);
-	return Object.freeze({ identitySha256, executables: Object.freeze(executables), environment });
-}
-
-function closedEnvironment(value) {
-	const environment = closedRecord(value, Object.keys(value ?? {}), 'toolchain environment');
-	if (!Object.hasOwn(environment, 'PATH')) throw new Error('The toolchain environment must bind PATH.');
-	const result = {};
-	for (const key of Object.keys(environment).sort()) {
-		if (!TOOLCHAIN_ENVIRONMENT.has(key) || typeof environment[key] !== 'string'
-			|| environment[key].length === 0 || environment[key].includes('\0')) {
-			throw new Error(`Toolchain environment ${key} is unsupported.`);
-		}
-		result[key] = environment[key];
-	}
-	return Object.freeze(result);
-}
-
-function sourceReceipt(root, witnesses) {
-	const path = join(root, SOURCE_RECEIPT);
-	witnessFile(path, witnesses);
-	return jsonFile(path, `${root} source receipt`);
-}
-
-function pinnedJson(root, manifest, path, witnesses) {
-	pinnedFile(root, manifest, path, witnesses);
-	return jsonFile(join(root, path), path);
-}
-
-function pinnedFile(root, manifest, path, witnesses) {
-	const pin = manifest.sourceFiles?.find((entry) => entry.path === path);
-	if (!safeRelativePath(path) || !pin || !DIGEST.test(String(pin.sha256))) {
-		throw new Error(`Local build input ${path} is not source-manifest pinned.`);
-	}
-	const bytes = witnessFile(join(root, path), witnesses);
-	if (bytes.byteLength !== pin.byteLength || digest(bytes) !== pin.sha256) throw new Error(`Local build input ${path} drifted from its pin.`);
-	return bytes;
-}
-
-function safeRelativePath(value) {
-	return typeof value === 'string' && value.length > 0 && !value.includes('\\')
-		&& !isAbsolute(value) && value.split('/').every((part) => part !== '' && part !== '.' && part !== '..')
-		&& /^[a-zA-Z0-9._+/-]+$/u.test(value);
-}
-
-function witnessFile(path, witnesses) {
-	const file = existingFile(path, 'build input');
-	const bytes = readFileSync(file);
-	witnesses.push(Object.freeze({ path: file, sha256: digest(bytes), byteLength: bytes.byteLength }));
-	return bytes;
+	return authenticateToolchainReceipt({
+		pathValue,
+		identityValue,
+		target,
+		roles: TOOL_ROLES,
+		allowedEnvironment: TOOLCHAIN_ENVIRONMENT,
+		witnesses,
+		receiptBodyName: 'OpenFX-host toolchain receipt body',
+		identityError: 'The provisioned OpenFX-host toolchain identity drifted.',
+	});
 }
 
 function verifyWitnesses(witnesses) {
-	for (const witness of witnesses) {
-		if (verifySourceAuthenticationWitness(witness)) continue;
-		const bytes = readFileSync(existingFile(witness.path, 'build input witness'));
-		if (bytes.byteLength !== witness.byteLength || digest(bytes) !== witness.sha256) {
-			throw new Error(`Build input drifted after recipe admission: ${witness.path}`);
-		}
-	}
-}
-
-function emptyOutputRoot(value, repositoryRoot) {
-	const root = existingDirectory(value, 'output root');
-	if (inside(repositoryRoot, root)) throw new Error('The native build output root must remain outside the repository.');
-	if (readdirSync(root).length !== 0) throw new Error('The native build output root must be empty.');
-	return root;
-}
-
-function assertSeparateRoots(roots) {
-	for (const [index, root] of roots.entries()) for (const peer of roots.slice(index + 1)) {
-		if (inside(root, peer) || inside(peer, root)) throw new Error('Native build source and output roots must not overlap.');
-	}
-}
-
-function inside(parent, child) {
-	const path = relative(parent, child);
-	return path === '' || (!path.startsWith(`..${sep}`) && path !== '..' && !isAbsolute(path));
-}
-
-function existingDirectory(value, name) {
-	if (typeof value !== 'string' || !isAbsolute(value)) throw new TypeError(`${name} must be an explicit absolute path.`);
-	const path = resolve(value);
-	if (realpathSync(path) !== path || lstatSync(path).isSymbolicLink() || !statSync(path).isDirectory()) {
-		throw new Error(`${name} must be one canonical non-symlink directory.`);
-	}
-	return path;
-}
-
-function existingFile(value, name) {
-	if (typeof value !== 'string' || !isAbsolute(value)) throw new TypeError(`${name} must be an absolute path.`);
-	const path = resolve(value);
-	if (realpathSync(path) !== path || lstatSync(path).isSymbolicLink() || !statSync(path).isFile()) {
-		throw new Error(`${name} must be one canonical non-symlink file.`);
-	}
-	return path;
-}
-
-function jsonFile(path, name) {
-	return jsonBytes(readFileSync(path), name);
-}
-
-function jsonBytes(bytes, name) {
-	let result;
-	try { result = JSON.parse(bytes.toString('utf8')); }
-	catch { throw new TypeError(`${name} must be valid JSON.`); }
-	return closedRecord(result, Object.keys(result ?? {}), name);
-}
-
-function closedRecord(value, fields, name, optional = false) {
-	if (optional && value === undefined) value = {};
-	if (!value || typeof value !== 'object' || Array.isArray(value)
-		|| (Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null)) {
-		throw new TypeError(`${name} must be a plain record.`);
-	}
-	const keys = Reflect.ownKeys(value);
-	if (keys.some((key) => typeof key !== 'string' || !fields.includes(key))
-		|| (!optional && (keys.length !== fields.length || fields.some((field) => !keys.includes(field))))) {
-		throw new TypeError(`${name} has missing or unsupported fields.`);
-	}
-	return value;
-}
-
-function canonicalJson(value) {
-	if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
-	if (value && typeof value === 'object') return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(',')}}`;
-	return JSON.stringify(value);
-}
-
-function digest(bytes) {
-	return createHash('sha256').update(bytes).digest('hex');
-}
-
-function deepFreeze(value) {
-	if (!value || typeof value !== 'object' || Object.isFrozen(value)) return value;
-	for (const child of Object.values(value)) deepFreeze(child);
-	return Object.freeze(value);
+	verifyBuildRecipeWitnesses(witnesses, verifySourceAuthenticationWitness);
 }
 
 function currentHostRuntime() {
