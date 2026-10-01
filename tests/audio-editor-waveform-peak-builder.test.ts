@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createWaveformPeakBuilder } from '../src/common/editor/waveform-peak-builder.ts';
 import { waveformPeakBlockSizes, WAVEFORM_PEAKS_VERSION } from '../src/common/editor/waveform-peak-contract.ts';
+import { waveformPeaksHaveRms } from '../src/common/editor/controller/source/waveform-analysis.ts';
 
 function referencePeaks(channels: readonly Float32Array[]) {
 	return {
@@ -58,6 +59,30 @@ test('hierarchical RMS uses unrounded square sums and sample weights for a parti
 	assert.deepEqual(builder.finish(), referencePeaks([samples]));
 });
 
+test('hierarchical RMS versions the one-ULP rounding difference from sequential accumulation', () => {
+	const float32UlpAtUnity = 2 ** -23;
+	for (const frameCount of [256, 1_024]) {
+		const samples = Float32Array.from({ length: frameCount }, (_, index) => 1 + (index % 2) * float32UlpAtUnity);
+		const builder = createWaveformPeakBuilder({ frameCount, channelCount: 1 });
+		builder.append([samples]);
+		const peaks = builder.finish();
+		const sequential = referencePeaks([samples]);
+		for (const [index, level] of peaks.levels.entries()) {
+			const channel = level.channels[0]!;
+			const reference = sequential.levels[index]!.channels[0]!;
+			assert.deepEqual(channel.minimums, reference.minimums);
+			assert.deepEqual(channel.maximums, reference.maximums);
+			for (const [bucket, rms] of channel.rms.entries()) {
+				assert.ok(Math.abs(rms - reference.rms[bucket]!) <= float32UlpAtUnity);
+			}
+		}
+		assert.equal(sequential.levels.find(({ blockSize }) => blockSize === frameCount)!.channels[0]!.rms[0], 1);
+		assert.equal(peaks.levels.find(({ blockSize }) => blockSize === frameCount)!.channels[0]!.rms[0], 1 + float32UlpAtUnity);
+		assert.ok(peaks.version > 5, 'version 5 cached sequential sums must be regenerated');
+		assert.equal(waveformPeaksHaveRms({ ...peaks, version: 5 }), false);
+	}
+});
+
 test('peak builders reject malformed or incomplete PCM before publishing a pyramid', () => {
 	const builder = createWaveformPeakBuilder({ frameCount: 10, channelCount: 2 });
 	assert.throws(() => builder.append([new Float32Array(1)]), /channel count/u);
@@ -89,6 +114,8 @@ test('the peak worker publishes the same hierarchy from transferred chunks and r
 			messages.push(message); transfers.push(transfer);
 		},
 	};
+	// TSX/esbuild resolves globals through self during the dynamic worker import.
+	Object.setPrototypeOf(endpoint, globalThis);
 	Reflect.set(globalThis, 'self', endpoint);
 	try {
 		await import('../src/common/editor/peaks-worker.js');

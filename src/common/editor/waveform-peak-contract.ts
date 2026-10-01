@@ -5,7 +5,8 @@
  * renderer. Bump it whenever the stored values change so a cached pyramid from
  * an earlier build is recomputed rather than drawn.
  */
-export const WAVEFORM_PEAKS_VERSION = 5;
+// Hierarchical square sums change Float32 RMS rounding relative to sequential sums.
+export const WAVEFORM_PEAKS_VERSION = 6;
 /** Bound viewport-local analysis independently of caller or display size. */
 export const MAXIMUM_WAVEFORM_PEAK_WINDOW_BUCKETS = 65_536;
 export const MAXIMUM_WAVEFORM_PEAK_WINDOW_CHANNEL_BUCKETS = 131_072;
