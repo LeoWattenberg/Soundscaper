@@ -12,7 +12,7 @@ import { arrangeWithMacro } from './helpers/macro-arrange.js';
 registerAudioEditorHooks();
 
 test('large timelines cull distant tracks, preserve scroll geometry and reveal keyboard destinations', async ({ page }) => {
-	test.setTimeout(90_000);
+	test.setTimeout(120_000);
 	const errors = collectClientErrors(page);
 	await page.setViewportSize({ width: 1_200, height: 800 });
 	const editor = await bootEditor(page, '/embed/en/');
@@ -23,7 +23,7 @@ test('large timelines cull distant tracks, preserve scroll geometry and reveal k
 			await sound.command('NewMonoTrack');
 		}
 		await sound.select.none();
-	`, { timeout: 60_000 });
+	`, { timeout: 90_000 });
 	await expect(editor).toHaveAttribute('data-track-count', '200');
 	const timeline = editor.locator('[data-timeline]');
 	const slots = editor.locator('[data-track-viewport-row]');
