@@ -10,4 +10,3 @@ export function addArchiveSafeIntegers(...values: readonly number[]): number {
 	}
 	return sum;
 }
-

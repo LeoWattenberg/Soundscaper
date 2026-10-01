@@ -9,4 +9,3 @@ export function isFlatStemFileName(value: string, suffix: string): boolean {
 		&& !value.includes('/')
 		&& !value.includes('\\');
 }
-
