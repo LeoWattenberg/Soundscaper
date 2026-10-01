@@ -168,8 +168,10 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(secondRendered).toBeVisible({ timeout: 20_000 });
 		await expect(firstClip).toBeVisible();
 		await expect(secondClip).toBeVisible();
-		await expect(clipByName(firstTrack.locator('xpath=following-sibling::*[1]'), firstRenderedName)).toBeVisible();
-		await expect(clipByName(secondTrack.locator('xpath=following-sibling::*[1]'), secondRenderedName)).toBeVisible();
+		await expect(firstRendered.locator('xpath=ancestor::div[@data-track-row][1]')).toHaveAttribute(
+			'data-track-index', String(Number(await firstTrack.getAttribute('data-track-index')) + 1));
+		await expect(secondRendered.locator('xpath=ancestor::div[@data-track-row][1]')).toHaveAttribute(
+			'data-track-index', String(Number(await secondTrack.getAttribute('data-track-index')) + 1));
 		await expect(clipByName(editor, 'Mix')).toHaveCount(0);
 		expect(errors).toEqual([]);
 	});
