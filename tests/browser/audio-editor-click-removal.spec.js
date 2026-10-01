@@ -29,9 +29,12 @@ async function openClickRemoval(page, editor) {
 async function exportAudio(page, editor) {
 	const dialog = await openExportDialog(page, editor);
 	await chooseDropdown(page, dialog.locator('[data-export-field="format"]'), 'WAV');
-	await dialog.getByRole('button', { name: 'Export', exact: true }).click();
 	const link = dialog.locator('[data-export-download]');
+	const previousUrl = await link.isVisible() ? await link.getAttribute('href') : null;
+	await dialog.getByRole('button', { name: 'Export', exact: true }).click();
 	await expect(link).toBeVisible({ timeout: 20000 });
+	// The previous export stays downloadable until the new output is published.
+	if (previousUrl) await expect(link).not.toHaveAttribute('href', previousUrl);
 	const [download] = await Promise.all([page.waitForEvent('download'), link.click()]);
 	const bytes = await readFile(await download.path());
 	const result = await page.evaluate(async (data) => {

@@ -52,11 +52,17 @@ export function createWaveformPreviewCacheKey({
 	clip,
 	sourceWindow,
 	rendering,
+	timeAuthority,
 }: {
 	readonly source: WaveformSourceIdentity | null | undefined;
 	readonly clip: WaveformClipIdentity;
 	readonly sourceWindow: WaveformSourceWindow;
 	readonly rendering: WaveformPreviewRenderingKey;
+	readonly timeAuthority?: Readonly<{
+		sampleRate: number;
+		projectSampleRate?: number;
+		tempoMap?: unknown;
+	}>;
 }): string {
 	return JSON.stringify([
 		createWaveformContentKey(source, clip),
@@ -69,6 +75,9 @@ export function createWaveformPreviewCacheKey({
 		rendering.reuseSummaryForCompatibility,
 		rendering.provideAudacitySpectrogram,
 		rendering.frequencyWaveformMode ?? null,
+		timeAuthority?.sampleRate ?? null,
+		timeAuthority?.projectSampleRate ?? null,
+		timeAuthority?.tempoMap ?? null,
 	]);
 }
 

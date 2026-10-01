@@ -1,5 +1,12 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import {
+	createVideoPreviewTargetPool,
+	VIDEO_PREVIEW_TARGET_NAMES,
+} from '../controller/clip-video/video-preview-target-pool.ts';
+
+const TARGET_POOLS = new WeakMap();
+
 export function createVideoPreviewRenderTarget(gl, width, height) {
 	let texture = null;
 	let framebuffer = null;
@@ -33,35 +40,39 @@ export function deleteVideoPreviewRenderTarget(gl, target) {
 }
 
 export function createVideoPreviewRenderTargets(gl, width, height, blurScale) {
-	const blurWidth = Math.max(1, Math.round(width * blurScale));
-	const blurHeight = Math.max(1, Math.round(height * blurScale));
+	const pool = createVideoPreviewTargetPool({
+		width, height, blurScale,
+		allocate: (targetWidth, targetHeight) => createVideoPreviewRenderTarget(gl, targetWidth, targetHeight),
+		release: (target) => deleteVideoPreviewRenderTarget(gl, target),
+	});
 	const targets = {};
-	try {
-		targets.ping = createVideoPreviewRenderTarget(gl, width, height);
-		targets.pong = createVideoPreviewRenderTarget(gl, width, height);
-		targets.layer = createVideoPreviewRenderTarget(gl, width, height);
-		targets.composition = createVideoPreviewRenderTarget(gl, width, height);
-		targets.compositionSwap = createVideoPreviewRenderTarget(gl, width, height);
-		targets.anchor = createVideoPreviewRenderTarget(gl, width, height);
-		targets.blurPing = createVideoPreviewRenderTarget(gl, blurWidth, blurHeight);
-		targets.blurPong = createVideoPreviewRenderTarget(gl, blurWidth, blurHeight);
-		return targets;
-	} catch (error) {
-		deleteVideoPreviewRenderTargets(gl, targets);
-		throw error;
+	for (const name of VIDEO_PREVIEW_TARGET_NAMES) {
+		Object.defineProperty(targets, name, { enumerable: true, get: () => pool.get(name) });
 	}
+	TARGET_POOLS.set(targets, pool);
+	return targets;
+}
+
+export function allocatedVideoPreviewRenderTargets(targets) {
+	return TARGET_POOLS.get(targets)?.allocated() || Object.values(targets || {});
 }
 
 export function deleteVideoPreviewRenderTargets(gl, targets) {
+	const pool = TARGET_POOLS.get(targets);
+	if (pool) {
+		pool.dispose();
+		return;
+	}
 	for (const target of Object.values(targets || {})) deleteVideoPreviewRenderTarget(gl, target);
 }
 
-/** Allocate a complete replacement before releasing the compositor's live target set. */
+/** Validate the replacement composition target before releasing the live target set. */
 export function replaceVideoPreviewRenderTargets(gl, canvas, previousTargets, width, height, blurScale) {
 	const nextTargets = createVideoPreviewRenderTargets(gl, width, height, blurScale);
 	const previousWidth = canvas.width;
 	const previousHeight = canvas.height;
 	try {
+		void nextTargets.composition;
 		canvas.width = width;
 		canvas.height = height;
 	} catch (error) {

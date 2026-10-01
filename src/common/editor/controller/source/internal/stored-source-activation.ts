@@ -17,14 +17,15 @@ export async function activateStoredSourceWithProgress<Buffer, Provider, Peaks, 
 	runtime: ActivationRuntime<Buffer, Provider, Peaks, Metadata>,
 	source: SourceLifecycleSource,
 	metadata: Metadata | null | undefined,
-	options: ActivateStoredSourceOptions<Buffer>,
+	options: ActivateStoredSourceOptions<Buffer, Peaks>,
 ): Promise<Peaks> {
 	const { signal, onProgress, requireChunkStream = false } = options;
 	signal?.throwIfAborted();
 	const provider = runtime.registerStoredChunkProvider(source, metadata);
 	if (requireChunkStream && !provider) throw new Error(`Source ${source.id} requires a playable chunk provider.`);
 	let peakBuffer: Buffer | null = options.buffer ?? null;
-	if (provider && (requireChunkStream || runtime.sourcePcmBytes(source) > runtime.SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES)) {
+	if (provider && (options.peaks !== undefined || requireChunkStream
+		|| runtime.sourcePcmBytes(source) > runtime.SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES)) {
 		runtime.sourceBuffers.delete(source.id);
 	} else {
 		const context = peakBuffer ? null : await runtime.engine.getAudioContext!({ resume: false });
@@ -33,11 +34,11 @@ export async function activateStoredSourceWithProgress<Buffer, Provider, Peaks, 
 		signal?.throwIfAborted();
 		if (peakBuffer) runtime.cacheSourceBuffer(source.id, peakBuffer);
 	}
-	const peaks = peakBuffer
+	const peaks = options.peaks ?? (peakBuffer
 		? await runtime.generateWaveformPeaks(runtime.audioBufferChannels(peakBuffer), runtime.copy)
 		: await runtime.generateStoredWaveformPeaks(runtime.store, source, runtime.copy, {
 			...(signal ? { signal } : {}), onProgress: (value) => { signal?.throwIfAborted(); onProgress?.(0.98 * value); },
-		});
+		}));
 	signal?.throwIfAborted();
 	const peakKey = runtime.peakCacheKey(source.id);
 	try {

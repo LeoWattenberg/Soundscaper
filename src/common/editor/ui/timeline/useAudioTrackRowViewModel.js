@@ -11,6 +11,8 @@ import { waveformPeakLevelForResolution } from '../../design-system-adapters/wav
 import { MAXIMUM_WAVEFORM_PEAK_WINDOW_BUCKETS } from '../../waveform-peak-contract.ts';
 import { isFrequencyWaveformDisplayMode } from '../../track-display-mode.ts';
 import { createAudioTrackRowClipViewModels } from './audio-track-row-view-model.js';
+import { createAudioTrackClipSelectionReader } from './audio-track-clip-selection.ts';
+import { createAudioTrackVisualRevisionReader } from './audio-track-visual-revision.ts';
 import { createCrossfadeOverlays } from './TrackOverlapOverlays.jsx';
 import {
 	pcmWindowCoversProjectedClip,
@@ -122,11 +124,32 @@ export function useAudioTrackRowViewModel({
 		viewportDurationFrames,
 		sampleRate,
 	}), [clips, renderViewportStartFrame, sampleRate, viewportDurationFrames]);
+	const hasProject = project != null;
+	const projectId = project?.id;
+	const projectSampleRate = project?.sampleRate;
+	const projectTempoMap = project?.tempoMap;
+	// Waveform analysis reads timeline time authority, independent of selection
+	// and unrelated document edits that replace the containing project object.
+	const waveformProject = useMemo(() => hasProject ? {
+		id: projectId, sampleRate: projectSampleRate, tempoMap: projectTempoMap,
+	} : null, [hasProject, projectId, projectSampleRate, projectTempoMap]);
+	const readClipSelection = useMemo(createAudioTrackClipSelectionReader, []);
+	const projectedSelectedClipIds = useMemo(() => readClipSelection(
+		projection.clips, selectedClipIdSet, selectedClipId,
+	), [projection.clips, readClipSelection, selectedClipId, selectedClipIdSet]);
+	const readVisualRevision = useMemo(createAudioTrackVisualRevisionReader, []);
+	const clipVisualRevision = useMemo(() => {
+		// Publications can replace media held behind the stable controller. Only
+		// content changes for projected clips invalidate their expensive models.
+		void viewModelRevision;
+		return readVisualRevision(controller, projection.clips);
+	}, [controller, projection.clips, readVisualRevision, viewModelRevision]);
+	const frequencyWaveformPreferences = viewModelRevision?.preferences?.waveformVisualization;
 	const resolvedSpectrogramOptions = spectrogramOptions
 		?? createSpectrogramCanvasOptions(track.spectrogram, sampleRate);
 	const spectrogramTiles = useSpectrogramPcmTiles({
 		controller,
-		project,
+		project: waveformProject,
 		projectedClips: projection.clips,
 		sourceLookup,
 		pixelsPerSecond,
@@ -134,7 +157,7 @@ export function useAudioTrackRowViewModel({
 		displayMode,
 		fftWindowSize: resolvedSpectrogramOptions.fftWindowSize,
 		windowType: resolvedSpectrogramOptions.windowType,
-		visualRevision: viewModelRevision,
+		visualRevision: clipVisualRevision,
 	});
 	const { envelopePreviewRef, envelopePreviewRevision, updateEnvelope } = useAudioTrackEnvelope({
 		controller,
@@ -164,7 +187,7 @@ export function useAudioTrackRowViewModel({
 				|| controller.getProjectBinClipVisualData?.(clip.projectBinClipId || clip.id);
 			const pixelWidth = (clip.waveformEndFrame - clip.waveformStartFrame) / sampleRate * pixelsPerSecond;
 			const requestPixelWidth = timelineWaveformPcmWindowRequestPixelWidth({
-				visual, clip, project, pixelWidth, displayMode,
+				visual, clip, project: waveformProject, pixelWidth, displayMode,
 				fftWindowSize: resolvedSpectrogramOptions.fftWindowSize,
 			});
 			if (requestPixelWidth === null) continue;
@@ -174,8 +197,8 @@ export function useAudioTrackRowViewModel({
 			requests.set(String(clip.id), { clip: requestClip, pixelWidth: requestPixelWidth });
 		}
 		return requests;
-	}, [controller, displayMode, pixelsPerSecond, project, projection.clips,
-		resolvedSpectrogramOptions.fftWindowSize, sampleRate, viewModelRevision]);
+	}, [clipVisualRevision, controller, displayMode, pixelsPerSecond, projection.clips,
+		resolvedSpectrogramOptions.fftWindowSize, sampleRate, waveformProject]);
 	useEffect(() => {
 		const requestWindow = controller.actions.timeline.requestWaveformPcmWindow;
 		if (typeof requestWindow !== 'function') return;
@@ -191,18 +214,19 @@ export function useAudioTrackRowViewModel({
 	useEffect(() => {
 		if (!isFrequencyWaveformDisplayMode(displayMode) || !frequencyWaveformModule) return;
 		frequencyWaveformModule.requestVisibleFrequencyWaveforms({
-			controller, clips: projection.clips, project, pixelsPerSecond, sampleRate, run,
+			controller, clips: projection.clips, project: waveformProject, pixelsPerSecond, sampleRate, run,
 		});
 	}, [
+		clipVisualRevision,
 		controller,
 		displayMode,
 		frequencyWaveformModule,
+		frequencyWaveformPreferences,
 		pixelsPerSecond,
-		project,
 		projection.clips,
 		run,
 		sampleRate,
-		viewModelRevision,
+		waveformProject,
 	]);
 
 	const windowLeft = framesToSeconds(projection.overscanStartFrame, { sampleRate }) * pixelsPerSecond;
@@ -212,7 +236,7 @@ export function useAudioTrackRowViewModel({
 		// These revisions deliberately invalidate visual data held behind stable
 		// controller and preview refs without making exact scroll a dependency.
 		void envelopePreviewRevision;
-		void viewModelRevision;
+		void clipVisualRevision;
 		return createAudioTrackRowClipViewModels({
 			controller,
 			sourceLookup,
@@ -223,8 +247,8 @@ export function useAudioTrackRowViewModel({
 			sampleRate,
 			copy,
 			displayMode,
-			project,
-			selectedClipIds: selectedClipIdSet.size ? selectedClipIdSet : selectedClipId,
+			project: waveformProject,
+			selectedClipIds: projectedSelectedClipIds,
 			showRms,
 			halfWave,
 			trackColor: track.color,
@@ -233,7 +257,7 @@ export function useAudioTrackRowViewModel({
 			waveformPendingClipIds: displayMode === 'spectrogram' ? null : waveformWindowRequests,
 			envelopePreviews: envelopePreviewRef.current,
 			frequencyWaveformProjector: frequencyWaveformModule?.prepareFrequencyWaveformClipProjection,
-			frequencyWaveformPreferences: viewModelRevision?.preferences?.waveformVisualization,
+			frequencyWaveformPreferences,
 		}).map((clip) => {
 			const columns = spectrogramTiles.get(String(clip.id));
 			if (!columns) return clip;
@@ -255,6 +279,7 @@ export function useAudioTrackRowViewModel({
 			};
 		});
 	}, [
+		clipVisualRevision,
 		controller,
 		copy,
 		displayMode,
@@ -262,22 +287,21 @@ export function useAudioTrackRowViewModel({
 		envelopePreviewRef,
 		envelopePreviewRevision,
 		frequencyWaveformModule,
+		frequencyWaveformPreferences,
 		pixelsPerSecond,
-		project,
 		projection.clips,
 		projection.overscanStartFrame,
+		projectedSelectedClipIds,
 		recordingPreview,
 		sampleRate,
-		selectedClipId,
-		selectedClipIdSet,
 		showRms,
 		spectrogramTiles,
 		halfWave,
 		sourceLookup,
 		track.color,
-		viewModelRevision,
 		waveformWindowRequests,
 		waveformCache,
+		waveformProject,
 	]);
 
 	useEffect(() => {

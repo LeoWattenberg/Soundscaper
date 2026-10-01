@@ -1,76 +1,26 @@
-import { WAVEFORM_PEAK_BLOCK_SIZES } from './waveform-peak-contract.ts';
+import { createWaveformPeakBuilder } from './waveform-peak-builder.ts';
 
-let levels = [];
-let channelCount = 0;
+let builder = null;
 
 self.onmessage = ({ data = {} }) => {
 	try {
 		if (data.type === 'start') {
-			channelCount = data.channelCount;
-			levels = (data.blockSizes || WAVEFORM_PEAK_BLOCK_SIZES).map((blockSize) => ({
-				blockSize,
-				channels: Array.from({ length: channelCount }, () => createChannelLevel()),
-			}));
+			builder = createWaveformPeakBuilder({ frameCount: data.frameCount, channelCount: data.channelCount });
 			self.postMessage({ type: 'ready' });
 		} else if (data.type === 'chunk') {
-			const channels = (data.channels || []).map((channel) => new Float32Array(channel));
-			if (channels.length !== channelCount) throw new Error('Peak channel count changed.');
-			for (let frame = 0; frame < (channels[0]?.length || 0); frame += 1) {
-				for (let channel = 0; channel < channelCount; channel += 1) {
-					for (const level of levels) pushSample(level.channels[channel], channels[channel][frame], level.blockSize);
-				}
-			}
+			if (!builder) throw new Error('Peak analysis has not started.');
+			builder.append((data.channels || []).map((channel) => new Float32Array(channel)));
 			self.postMessage({ type: 'ack' });
 		} else if (data.type === 'finish') {
-			for (const level of levels) {
-				for (const channel of level.channels) flushLevel(channel);
-			}
-			const result = levels.map((level) => ({
-				blockSize: level.blockSize,
-				channels: level.channels.map((channel) => ({
-					minimums: Float32Array.from(channel.minimums),
-					maximums: Float32Array.from(channel.maximums),
-					rms: Float32Array.from(channel.rms),
-				})),
-			}));
-			const transfers = result.flatMap((level) => level.channels.flatMap(
+			if (!builder) throw new Error('Peak analysis has not started.');
+			const { levels } = builder.finish();
+			const transfers = levels.flatMap((level) => level.channels.flatMap(
 				(channel) => [channel.minimums.buffer, channel.maximums.buffer, channel.rms.buffer],
 			));
-			self.postMessage({ type: 'result', levels: result }, transfers);
-			levels = [];
+			self.postMessage({ type: 'result', levels }, transfers);
+			builder = null;
 		}
 	} catch (error) {
 		self.postMessage({ type: 'error', message: error?.message || String(error) });
 	}
 };
-
-function createChannelLevel() {
-	return {
-		count: 0,
-		minimum: Number.POSITIVE_INFINITY,
-		maximum: Number.NEGATIVE_INFINITY,
-		squareSum: 0,
-		minimums: [],
-		maximums: [],
-		rms: [],
-	};
-}
-
-function pushSample(level, sample, blockSize) {
-	level.minimum = Math.min(level.minimum, sample);
-	level.maximum = Math.max(level.maximum, sample);
-	level.squareSum += sample * sample;
-	level.count += 1;
-	if (level.count >= blockSize) flushLevel(level);
-}
-
-function flushLevel(level) {
-	if (!level.count) return;
-	level.minimums.push(level.minimum);
-	level.maximums.push(level.maximum);
-	level.rms.push(Math.sqrt(level.squareSum / level.count));
-	level.count = 0;
-	level.minimum = Number.POSITIVE_INFINITY;
-	level.maximum = Number.NEGATIVE_INFINITY;
-	level.squareSum = 0;
-}

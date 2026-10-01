@@ -5,7 +5,6 @@ import { videoPreviewBlurViewport } from './video-preview-viewports.js';
 import { drawVideoPreviewCompositionBlend } from './video-preview-composition-blend.ts';
 import { recordVideoPreviewLayerRendered } from './video-preview-render-ledger.js';
 
-const COPY_PASS = Object.freeze({});
 const RECT_COPY_PASS = Object.freeze({ code: 8 });
 const EMPTY_EFFECTS = Object.freeze([]);
 
@@ -40,9 +39,7 @@ export function applyVideoPreviewLayerEffects(compositor, sourceTarget, effects,
 		x: 0, y: 0, width: compositor.canvas.width, height: compositor.canvas.height,
 	};
 	const targets = compositor.targets;
-	compositor.clearTarget(targets.ping);
-	compositor.draw(sourceTarget.texture, targets.ping, COPY_PASS, 1, viewport);
-	let current = targets.ping;
+	let current = sourceTarget;
 	for (const pass of passes) {
 		if (pass.preserveSource) {
 			compositor.clearTarget(targets.anchor);

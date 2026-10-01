@@ -9,6 +9,7 @@ import {
 	workspacePanelLabel,
 } from './workspace/workspace-panel-model.ts';
 import { extendApplicationMenuProductPanelItems } from './application-menu-product-runtime.js';
+import { createVideoPreviewResolutionMenu } from './video-preview-resolution-menu.ts';
 
 /**
  * The View menu: panel visibility, workspace presets, waveform and ruler display, snapping,
@@ -76,6 +77,9 @@ export function createApplicationViewMenu(context, viewMenu, actions = {}) {
 				],
 			},
 			{ id: 'show-arm-controls', label: copy.showArmControls, checked: showArmControls, onClick: viewMenu.toggleArmControls },
+			...(capabilities.videoPlayback ? [createVideoPreviewResolutionMenu(
+				copy, snapshot.preferences?.view?.videoPreviewResolution, viewMenu.setVideoPreviewResolution,
+			)] : []),
 		// The compact layout keeps the track headers in a drawer; the desktop column has no such state.
 		...(compactLayout ? [{ id: 'local://track-header-drawer', label: copy.trackHeaders, checked: Boolean(uiFlags.trackHeaderDrawer), visibilityToggle: true }] : []),
 			{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.toggleRmsInWaveform, label: copy.viewRmsInWaveform, preserveLabel: true, checked: Boolean(snapshot.timeline?.showRms), visibilityToggle: true, onClick: viewMenu.toggleRms },

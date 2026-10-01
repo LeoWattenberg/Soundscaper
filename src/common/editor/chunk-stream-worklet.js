@@ -49,6 +49,7 @@ export class ChunkStreamPlaybackProcessor extends ProcessorBase {
 		this.sourceEnded = false;
 		this.primed = false;
 		this.ended = false;
+		this.reportPlayhead = false;
 		this.lastPlayheadReport = 0;
 		this.lastUnderrunReport = -Infinity;
 		this.messagePort.onmessage = (event) => this.#handleMessage(event.data || {});
@@ -124,7 +125,7 @@ export class ChunkStreamPlaybackProcessor extends ProcessorBase {
 		}
 
 		if (this.positionFrame >= this.endFrame) this.#finish();
-		else if (this.positionFrame - this.lastPlayheadReport >= AUDIO_EDITOR_TRANSFER_CHUNK_FRAMES) {
+		else if (this.reportPlayhead && this.positionFrame - this.lastPlayheadReport >= AUDIO_EDITOR_TRANSFER_CHUNK_FRAMES) {
 			this.lastPlayheadReport = this.positionFrame;
 			this.#post({ type: 'stream-playhead', streamId: this.streamId, frame: this.positionFrame });
 		}
@@ -200,6 +201,7 @@ export class ChunkStreamPlaybackProcessor extends ProcessorBase {
 		this.sourceEnded = false;
 		this.primed = false;
 		this.ended = false;
+		this.reportPlayhead = message.reportPlayhead === true;
 		this.lastPlayheadReport = startFrame;
 		this.lastUnderrunReport = -Infinity;
 		this.#post({

@@ -6,8 +6,8 @@ import { downmixSurroundToStereo } from '../../surround-monitoring.ts';
 import { scaleSampleFrame } from '../../timeline-time.ts';
 import { abortError, throwIfAborted } from '../shared/app-helpers.ts';
 
-export const SOURCE_CHUNK_FRAMES = 65_536;
-export const SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES = 32 * 1024 * 1024;
+import { SOURCE_CHUNK_FRAMES } from '../../source-pcm-contract.ts';
+export { SOURCE_CHUNK_FRAMES, SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES } from '../../source-pcm-contract.ts';
 
 export interface AudioBufferLike {
 	readonly length: number;

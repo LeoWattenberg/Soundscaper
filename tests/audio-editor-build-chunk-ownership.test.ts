@@ -266,10 +266,12 @@ test('every local assistance controller module keeps the lazy assistance owner',
 
 test('moved controller domains preserve their optional chunk owners', () => {
 	const pathsByOwner = {
-		'editor-optional-execution': [
-			'src/common/editor/controller/analysis/analysis-service.ts',
+		'editor-macro-defaults': [
 			'src/common/editor/controller/effects/effect-macro-defaults-service.ts',
 			'src/common/editor/controller/effects/internal/macro/effect-macro-defaults.ts',
+		],
+		'editor-optional-execution': [
+			'src/common/editor/controller/analysis/analysis-service.ts',
 		],
 		'editor-vamp-analyzer': [
 			'src/common/editor/controller/analysis/vamp-analysis-action-facade.ts',
@@ -306,7 +308,7 @@ test('every assistance domain module has an owning chunk group', () => {
 test('macro default templates stay with the deferred macro migration', () => {
 	assert.equal(
 		chunkGroupForModulePath('src/common/editor/effect-macro-templates.ts'),
-		'editor-optional-execution',
+		'editor-macro-defaults',
 	);
 });
 

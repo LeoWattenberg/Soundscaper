@@ -64,7 +64,7 @@ test('the compositor forwards canonical affine and crop geometry to shader unifo
 	}
 });
 
-test('each composed layer uses the previous ping-pong target as its blend backdrop', () => {
+test('a specialized blend uses the completed normal layer as its backdrop', () => {
 	const fixture = createRecordingFixture();
 	const compositor = createVideoPreviewCompositor(fixture.canvas);
 	fixture.recording.reset();
@@ -78,18 +78,15 @@ test('each composed layer uses the previous ping-pong target as its blend backdr
 
 		assert.equal(report.status, 'rendered');
 		assert.equal(report.renderedEntryCount, 2);
-		assert.equal(blendDraws.length, 2);
-		assert.deepEqual(blendDraws.map((draw) => draw.uniforms.u_blend_mode), [0, 1]);
+		assert.equal(blendDraws.length, 1);
+		assert.deepEqual(blendDraws.map((draw) => draw.uniforms.u_blend_mode), [1]);
 		assert.deepEqual(blendDraws.map((draw) => draw.framebuffer), [
 			compositor.targets.compositionSwap.framebuffer,
-			compositor.targets.composition.framebuffer,
 		]);
 		assert.deepEqual(blendDraws.map((draw) => draw.textures.get(fixture.gl.TEXTURE0)), [
 			compositor.targets.composition.texture,
-			compositor.targets.compositionSwap.texture,
 		]);
 		assert.deepEqual(blendDraws.map((draw) => draw.textures.get(fixture.gl.TEXTURE1)), [
-			compositor.targets.layer.texture,
 			compositor.targets.layer.texture,
 		]);
 	} finally {
@@ -123,9 +120,125 @@ test('legacy entries retain contained identity geometry and default normal blend
 				VIDEO_PREVIEW_IDENTITY_TEXTURE_TRANSFORM,
 			));
 		}
-		assert.deepEqual(blendDraws.map((draw) => draw.uniforms.u_blend_mode), [0]);
+		assert.equal(effectDraws.length, 2, 'plain video needs one composition draw and one final pass');
+		assert.equal(blendDraws.length, 0, 'normal single-entry layers blend in the composition target');
 	} finally {
 		compositor.dispose();
+	}
+});
+
+test('plain previews allocate one full-size scratch target and preserve source-over opacity', () => {
+	const fixture = createRecordingFixture();
+	const compositor = createVideoPreviewCompositor(fixture.canvas);
+	fixture.recording.reset();
+	try {
+		compositor.render([{ entries: [{ ...entry('plain'), opacity: 0.25 }] }]);
+		assert.equal(fixture.recording.allocations.length, 1);
+		assert.deepEqual(fixture.recording.blendFactors.at(-1), [
+			fixture.gl.SRC_ALPHA, fixture.gl.ONE_MINUS_SRC_ALPHA,
+			fixture.gl.ONE, fixture.gl.ONE_MINUS_SRC_ALPHA,
+		]);
+		assert.equal(fixture.recording.draws[0].uniforms.u_opacity, 0.25);
+	} finally {
+		compositor.dispose();
+	}
+});
+
+test('crossfade entries retain additive layer accumulation before normal composition', () => {
+	const fixture = createRecordingFixture();
+	const compositor = createVideoPreviewCompositor(fixture.canvas);
+	fixture.recording.reset();
+	try {
+		compositor.render([{ entries: [
+			{ ...entry('outgoing'), opacity: 0.75 },
+			{ ...entry('incoming'), opacity: 0.25 },
+		] }]);
+		assert.equal(fixture.recording.draws.filter((draw) => isBlendProgram(draw.program)).length, 1);
+		assert.deepEqual(fixture.recording.blendFactors[0], [
+			fixture.gl.SRC_ALPHA, fixture.gl.ONE, fixture.gl.ONE, fixture.gl.ONE,
+		]);
+		assert.equal(fixture.recording.allocations.length, 3, 'only layer and composition ping-pong targets are needed');
+	} finally {
+		compositor.dispose();
+	}
+});
+
+test('unchanged video frames reuse effects while opacity, animated effects, and seeks keep updating', () => {
+	const fixture = createRecordingFixture();
+	const compositor = createVideoPreviewCompositor(fixture.canvas);
+	const clip = { ...entry('cached'), effects: [{
+		id: 'vignette', type: 'vignette', enabled: true, params: { amount: 0.5 },
+	}] };
+	Object.assign(clip.video, {
+		currentTime: 0, paused: true, addEventListener() {}, removeEventListener() {},
+	});
+	const layers = [{ entries: [clip] }];
+	try {
+		compositor.render(layers);
+		fixture.recording.reset();
+		clip.opacity = 0.75;
+		compositor.render(layers);
+		assert.equal(fixture.recording.draws.length, 2, 'unchanged effects need only composition and delivery draws');
+		assert.equal(fixture.recording.draws[0].uniforms.u_opacity, 0.75);
+		fixture.recording.reset();
+		clip.effects = [{ ...clip.effects[0], params: { amount: 0.6 } }];
+		compositor.render(layers);
+		assert.ok(fixture.recording.draws.length > 2, 'animated effect values must be evaluated');
+		fixture.recording.reset();
+		clip.video.currentTime = 1;
+		compositor.render(layers);
+		assert.ok(fixture.recording.draws.length > 2, 'a newly presented source frame invalidates the cached result');
+	} finally {
+		compositor.dispose();
+	}
+});
+
+test('additional effected entries do not overwrite the retained first-entry result', () => {
+	for (const opaqueFirst of [false, true]) {
+		const fixture = createRecordingFixture();
+		const compositor = createVideoPreviewCompositor(fixture.canvas);
+		const effects = [{ id: 'vignette', type: 'vignette', enabled: true, params: { amount: 0.5 } }];
+		const layers = ['bottom', 'top'].map((id, index) => {
+			const clip = { ...entry(id), effects: effects.map((effect) => ({ ...effect, id: `${id}-vignette` })) };
+			if (opaqueFirst && index === 0) clip.video.drawable = {};
+			else Object.assign(clip.video, {
+				currentTime: 0, paused: true, addEventListener() {}, removeEventListener() {},
+			});
+			return { entries: [clip] };
+		});
+		try {
+			compositor.render(layers);
+			fixture.recording.reset();
+			compositor.render(layers);
+			assert.equal(fixture.recording.draws.length, 5,
+				'the first reusable entry composites directly; the other stack runs without a cache copy');
+		} finally {
+			compositor.dispose();
+		}
+	}
+});
+
+test('fresh exact drawables and conservative playing frames omit the unusable effect cache copy', () => {
+	for (const opaque of [true, false]) {
+		const fixture = createRecordingFixture();
+		const compositor = createVideoPreviewCompositor(fixture.canvas);
+		const clip = { ...entry('uncacheable'), effects: [{
+			id: 'vignette', type: 'vignette', enabled: true, params: { amount: 0.5 },
+		}] };
+		if (opaque) clip.video.drawable = {};
+		else Object.assign(clip.video, {
+			currentTime: 0, paused: false, addEventListener() {}, removeEventListener() {},
+		});
+		try {
+			compositor.render([{ entries: [clip] }]);
+			fixture.recording.reset();
+			compositor.render([{ entries: [clip] }]);
+			assert.equal(fixture.recording.draws.length, 4,
+				'uncacheable frames need the source copy, effect, composition and delivery draws');
+			assert.equal(fixture.recording.allocations.length, 0, 'scratch targets remain reusable');
+		} finally {
+			compositor.dispose();
+		}
 	}
 });
 
@@ -219,12 +332,18 @@ function createRecordingContext() {
 	};
 	const draws = [];
 	const clears = [];
+	const allocations = [];
+	const blendFactors = [];
 	const recording = {
 		draws,
 		clears,
+		allocations,
+		blendFactors,
 		reset() {
 			draws.length = 0;
 			clears.length = 0;
+			allocations.length = 0;
+			blendFactors.length = 0;
 			state.uniforms.clear();
 			state.textures.clear();
 		},
@@ -251,6 +370,8 @@ function createRecordingContext() {
 			clears.push({ framebuffer: state.framebuffer, color: [red, green, blue, alpha] });
 		},
 		bindFramebuffer: (_target, framebuffer) => { state.framebuffer = framebuffer; },
+		texImage2D: (...args) => { if (args.length === 9) allocations.push([args[3], args[4]]); },
+		blendFuncSeparate: (...factors) => { blendFactors.push(factors); },
 		activeTexture: (textureUnit) => { state.activeTexture = textureUnit; },
 		bindTexture: (_target, texture) => { state.textures.set(state.activeTexture, texture); },
 		uniform1i: (location, value) => setUniform(state, location, value),

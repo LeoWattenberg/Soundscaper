@@ -4,6 +4,7 @@
 
 import { publishedCopyFor } from '../../shared/presentation-localization.ts'; import type { sourcePcmBytes } from '../../source/source-audio.ts';
 import { scaleSampleFrame } from '../../../timeline-time.ts';
+import { createWaveformPeakBuilder } from '../../../waveform-peak-builder.ts';
 import { admitAudioImportChannelCount } from './audio-import-channel-admission.ts';
 import {
 	createImportedAudioContentIdentityWriter,
@@ -80,6 +81,7 @@ export function createIncrementalPcmImporter(runtime: IncrementalPcmImportRuntim
 			: descriptor.container === 'aiff' || descriptor.container === 'aifc'
 			? 'audio/aiff'
 			: file.type || 'audio/wav';
+		const peakBuilder = createWaveformPeakBuilder(descriptor);
 		const writer = createImportedAudioContentIdentityWriter(await store.beginSourceWrite(sourceId, {
 			requirePersistentPcm: pcmBytes > 64 * 1024 * 1024,
 			name: sourceName,
@@ -107,6 +109,7 @@ export function createIncrementalPcmImporter(runtime: IncrementalPcmImportRuntim
 				assertCurrent,
 				onChunk: async (channels: Float32Array[]) => {
 					assertCurrent();
+					peakBuilder.append(channels);
 					streamedFrames += channels[0]?.length || 0;
 					await writer.write(channels, { signal: importOptions.signal });
 					assertCurrent();
@@ -164,6 +167,7 @@ export function createIncrementalPcmImporter(runtime: IncrementalPcmImportRuntim
 			wavMetadata.projectAdmCandidate, descriptor);
 			await activateStoredSource(source, metadata, {
 				...activationOptions,
+				peaks: peakBuilder.finish(),
 				signal: importOptions.signal,
 				onProgress: (value: number) => { assertCurrent(); reportProgress(0.8 + 0.19 * value); },
 			});

@@ -12,7 +12,7 @@ const SELECTION_KEYS = [
 	'selectTrackStartToEnd', 'zeroCross',
 ];
 const VIEW_KEYS = [
-	'setTimelineView', 'toggleRms', 'toggleFadeShapeHandles', 'toggleVerticalRulers',
+	'setTimelineView', 'setVideoPreviewResolution', 'toggleRms', 'toggleFadeShapeHandles', 'toggleVerticalRulers',
 	'toggleScrollViewToPlayhead', 'togglePinnedPlayhead', 'toggleRulerPlayback', 'setSnap',
 	'zoomIn', 'zoomOut', 'zoomDefault', 'zoomSelection', 'zoomToggle', 'zoomFit', 'fitHeight',
 	'centerOnPlayhead', 'toggleArmControls', 'toggleMarkers', 'decreaseAllTrackHeights',
@@ -57,6 +57,7 @@ test('menu ports preserve direct zoom, parity operations, snapshot toggles and f
 	f.viewMenu.zoomSelection();
 	f.viewMenu.zoomToggle();
 	f.viewMenu.centerOnPlayhead();
+	f.viewMenu.setVideoPreviewResolution('half');
 	f.viewMenu.toggleFadeShapeHandles();
 	f.viewMenu.toggleMarkers();
 	f.viewMenu.toggleArmControls();
@@ -66,6 +67,7 @@ test('menu ports preserve direct zoom, parity operations, snapshot toggles and f
 		['zoom', 'in', 'playhead'], ['zoom', 'out', 'playhead'],
 		['run'], ['parity', 'zoomDefault'], ['run'], ['parity', 'zoomSelection'],
 		['run'], ['parity', 'zoomToggle'], ['run'], ['parity', 'centerOnPlayhead'],
+		['run'], ['preferences', 'update', { view: { videoPreviewResolution: 'half' } }],
 		['run'], ['preferences', 'update', { view: { showFadeShapeHandles: false } }],
 		['run'], ['preferences', 'update', { view: { showMarkers: true } }],
 		['arm', true, false], ['panel', 'project-bin'], ['surface', 'workspace-onboarding'],

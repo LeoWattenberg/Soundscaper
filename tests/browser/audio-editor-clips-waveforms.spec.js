@@ -458,7 +458,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(await waveform.evaluate((canvas) => canvas.__kwWaveformPlan === globalThis.__waveformPlanBeforeDrag)).toBe(true);
 		await page.mouse.up();
 		await expect.poll(() => waveform.evaluate((canvas) => (
-			canvas.__kwWaveformPlan === globalThis.__waveformPlanBeforeDrag
+			canvas.__kwWaveformPlan === globalThis.__waveformPlanBeforeDrag || canvas.dataset.waveformPending === 'true'
 		))).toBe(false);
 		await page.evaluate(() => {
 			globalThis.__waveformClearsAfterPointerDown = 0;

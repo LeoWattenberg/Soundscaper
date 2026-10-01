@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { activateStoredSourceWithProgress } from '../src/common/editor/controller/source/internal/stored-source-activation.ts';
-import { generateStoredWaveformPeaksFallback, type StoredWaveformAnalysisOptions } from '../src/common/editor/controller/source/waveform-analysis.ts';
+import { generateStoredWaveformPeaksFallback, WAVEFORM_PEAKS_VERSION, type StoredWaveformAnalysisOptions } from '../src/common/editor/controller/source/waveform-analysis.ts';
 import type { SourceLifecycleCopy, SourceLifecycleSource } from '../src/common/editor/controller/source/source-lifecycle-service.ts';
 import { createSourceRuntimeComposition, type SourceRuntimeCompositionDependencies } from '../src/common/editor/controller/source/source-runtime-composition.ts';
 import { createProjectVisualService } from '../src/common/editor/controller/document/project-visual-service.ts';
@@ -89,6 +89,36 @@ test('short stored sources use the composed audio context and full-buffer wavefo
 	const peaks = await activateStoredSourceWithProgress(fixture.runtime, fixture.source, null, {});
 	assert.deepEqual(peaks, { channels: buffer.channels });
 	assert.deepEqual(cached, [buffer]);
+});
+
+test('precomputed import peaks activate short chunk sources without rereading stored PCM', async () => {
+	const fixture = activationFixture();
+	const peaks = { version: WAVEFORM_PEAKS_VERSION, channelCount: 1, levels: [] };
+	const progress: number[] = [];
+	const result = await activateStoredSourceWithProgress(fixture.runtime, fixture.source, null, {
+		peaks, onProgress: (value) => { progress.push(value); },
+	});
+	assert.equal(result, peaks);
+	assert.equal(fixture.sourcePeaks.get('source'), peaks);
+	assert.equal(fixture.pulls(), 0);
+	assert.equal(fixture.saved(), 1);
+	assert.deepEqual(progress, [1]);
+});
+
+test('precomputed import peaks retain cache rollback when activation is cancelled while saving', async () => {
+	const fixture = activationFixture();
+	const controller = new AbortController();
+	const removed: string[] = [];
+	Object.assign(fixture.runtime.store, {
+		saveAnalysis: () => { controller.abort(); },
+		deleteAnalysis: (key: string) => { removed.push(key); },
+	});
+	await assert.rejects(activateStoredSourceWithProgress(fixture.runtime, fixture.source, null, {
+		peaks: { version: WAVEFORM_PEAKS_VERSION, channelCount: 1, levels: [] }, signal: controller.signal,
+	}), { name: 'AbortError' });
+	assert.equal(fixture.pulls(), 0);
+	assert.deepEqual(removed, ['source']);
+	assert.equal(fixture.sourcePeaks.size, 0);
 });
 
 test('late cancellation removes a waveform cache saved while cancellation was pending', async () => {

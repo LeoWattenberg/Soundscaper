@@ -235,6 +235,7 @@ export function createTimelineClipViewModel({
 	const source = visual?.source || sourceLookup.get(clip.sourceId);
 	const sourceRate = Number(source?.sampleRate) > 0 ? Number(source?.sampleRate) : sampleRate;
 	const sourceDurationFrames = clip.sourceDurationFrames || clip.durationFrames;
+	const warpTempoMap = clip.warpMap != null && clip.anchor === 'musical' ? project?.tempoMap : null;
 	const selectedClipIds = selection.selectedClipIds;
 	const selected = selectedClipIds instanceof Set
 		? selectedClipIds.has(clip.id)
@@ -245,7 +246,7 @@ export function createTimelineClipViewModel({
 	const output: TimelineClipViewModel = {
 		id: clip.id,
 		sourceId: clip.sourceId,
-		waveformIdentity: JSON.stringify([createWaveformContentKey(source, clip), sampleRate, project?.tempoMap]),
+		waveformIdentity: JSON.stringify([createWaveformContentKey(source, clip), sampleRate, project?.sampleRate, warpTempoMap]),
 		waveformStartFrame: clip.waveformStartFrame,
 		waveformEndFrame: clip.waveformEndFrame,
 		// Imported clips begin with a title derived from the source filename. Keep
@@ -373,6 +374,7 @@ export function createTimelineClipViewModel({
 		}
 		const cacheSignature = createWaveformPreviewCacheKey({
 			source,
+			timeAuthority: { sampleRate, projectSampleRate: project?.sampleRate, tempoMap: warpTempoMap },
 			clip: { ...clip, sourceDurationFrames },
 			sourceWindow: {
 				startFrame: clip.waveformStartFrame,

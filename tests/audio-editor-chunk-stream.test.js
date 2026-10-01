@@ -91,7 +91,7 @@ test('worker demand-loads one 65,536-frame chunk and enforces packet backpressur
 		startFrame: 0,
 		endFrame: 2_500,
 		packetFrames: AUDIO_EDITOR_TRANSFER_CHUNK_FRAMES,
-		highWaterMark: 2,
+		highWaterMark: 2, reportProgress: true,
 	});
 	assert.equal(scope.messages.at(-1).message.type, 'stream-ready');
 	scope.dispatch({ type: 'start-stream', streamId: 'worker-test' });
@@ -154,7 +154,7 @@ test('worker windowed-sinc resamples a source range into bounded playback packet
 		sourceEndFrame: 4_800,
 		resample: true,
 		packetFrames: AUDIO_EDITOR_TRANSFER_CHUNK_FRAMES,
-		highWaterMark: 2,
+		highWaterMark: 2, reportProgress: true,
 	});
 	scope.dispatch({ type: 'start-stream', streamId: 'resample-test' });
 	const request = scope.messages.find(({ message }) => message.type === 'need-storage-chunk').message;

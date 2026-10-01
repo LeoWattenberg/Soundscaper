@@ -131,8 +131,9 @@ export interface SourceLifecycleLoadOptions {
 	readonly signal?: AbortSignal;
 }
 
-export interface ActivateStoredSourceOptions<Buffer> extends StoredWaveformAnalysisOptions {
+export interface ActivateStoredSourceOptions<Buffer, Peaks = unknown> extends StoredWaveformAnalysisOptions {
 	readonly buffer?: Buffer | null;
+	readonly peaks?: Peaks;
 	readonly requireChunkStream?: boolean;
 }
 

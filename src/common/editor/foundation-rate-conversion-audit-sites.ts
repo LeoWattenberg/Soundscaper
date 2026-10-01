@@ -5,6 +5,12 @@ import type { FoundationTimeConversionSite } from './foundation-time-conversion-
 /** Focused WP-0.1 inventory for integer sample-rate changes of basis. */
 export const FOUNDATION_RATE_CONVERSION_AUDIT_SITES: readonly FoundationTimeConversionSite[] = [
 	{
+		id: 'export-source-working-set-cache-extent',
+		file: 'src/common/editor/export-source-working-set.ts',
+		behavior: 'Scalar export cache admission encloses the project-rate clip duration on the source sample grid so fractional final frames and large exact extents cannot undercount retained PCM.',
+		conversions: [{ helper: 'scaleSampleFrame', policies: ['enclosingEnd'] }],
+	},
+	{
 		id: 'export-output-frame-sizing',
 		file: 'src/common/editor/export.js',
 		behavior: 'Programme and effect-tail extents are independently scaled into the output rate with enclosing-end rounding so neither requested range can be shortened by conversion.',

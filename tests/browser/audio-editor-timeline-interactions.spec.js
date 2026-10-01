@@ -28,6 +28,7 @@ import {
 	registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
 import { SOUNDSCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
+import { expectRenderedTrackOrder } from './helpers/rendered-track-order.js';
 
 async function openMixRenderDialog(page, editor) {
 	await chooseCommandAction(page, editor, 'Tracks', 'Mix & Render');
@@ -168,8 +169,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(secondRendered).toBeVisible({ timeout: 20_000 });
 		await expect(firstClip).toBeVisible();
 		await expect(secondClip).toBeVisible();
-		await expect(clipByName(firstTrack.locator('xpath=following-sibling::*[1]'), firstRenderedName)).toBeVisible();
-		await expect(clipByName(secondTrack.locator('xpath=following-sibling::*[1]'), secondRenderedName)).toBeVisible();
+		await expectRenderedTrackOrder([[firstTrack, firstRendered], [secondTrack, secondRendered]]);
 		await expect(clipByName(editor, 'Mix')).toHaveCount(0);
 		expect(errors).toEqual([]);
 	});

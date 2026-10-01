@@ -201,6 +201,7 @@ Product availability follows each product profile’s command filters and each l
 | Freesound | `panel-freesound` | — | View > Panels | Soundscaper | Soundscaper local |
 | Freeze Video | `framescaper-freeze-video` | — | Effect | Framescaper | Soundscaper local |
 | Freeze track | `soundscaper-freeze-track` | — | Tracks > Freeze | Soundscaper | Soundscaper local |
+| Full resolution | `video-preview-resolution-full` | — | View > Video preview resolution | Soundscaper, Framescaper | Soundscaper local |
 | Fullscreen | `fullscreen` | F11 | View | Soundscaper, Framescaper | Audacity |
 | Generate | `framescaper-proxy-generate` | — | Tools > Proxies | Framescaper | Soundscaper local |
 | Generate Editorial Text | `assistance-task-generate-editorial-text` | — | Generate | Soundscaper, Framescaper | Soundscaper local |
@@ -208,6 +209,7 @@ Product availability follows each product profile’s command filters and each l
 | Grading & Finishing Presets | `framescaper-grading-presets` | — | Effect > Video Finishing | Framescaper | Soundscaper local |
 | Graphic EQ | `audacity-graphic-eq` | — | Effect > EQ and filters | Soundscaper | Soundscaper local |
 | Group clips | `group-clips` | Ctrl+G | Edit > Clip; Clip context | Soundscaper, Framescaper | Audacity |
+| Half resolution | `video-preview-resolution-half` | — | View > Video preview resolution | Soundscaper, Framescaper | Soundscaper local |
 | Half-wave | `action://projectscene/track-view-half-wave` | — | Track context > Track visualization | Soundscaper, Framescaper | Audacity |
 | High-Pass Filter | `nyquist:highpass` | — | Nyquist | Soundscaper | Audacity |
 | High-pass filter | `highpass-filter` | — | Effect > EQ and filters | Soundscaper | Soundscaper local |
@@ -359,6 +361,7 @@ Product availability follows each product profile’s command filters and each l
 | Project bin | `panel-project-bin` | — | View > Panels | Soundscaper, Framescaper | Soundscaper local |
 | Project properties | `project-properties` | — | File > Project management | Soundscaper, Framescaper | Audacity |
 | Project tempo | `playback-bpm` | — | Transport toolbar | Soundscaper, Framescaper | Audacity |
+| Quarter resolution | `video-preview-resolution-quarter` | — | View > Video preview resolution | Soundscaper, Framescaper | Soundscaper local |
 | Range track selection | `track-view-range-selection` | Shift+Enter | Keyboard navigation | Soundscaper, Framescaper | Audacity |
 | Rate stretch left edge to playhead | `rate-stretch-left-edge-to-playhead` | — | Edit > Audio clips | Framescaper | Soundscaper local |
 | Rate stretch right edge to playhead | `rate-stretch-right-edge-to-playhead` | — | Edit > Audio clips | Framescaper | Soundscaper local |

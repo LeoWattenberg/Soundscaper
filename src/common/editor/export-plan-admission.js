@@ -66,9 +66,9 @@ export function resolveExportLoudnessNormalization(options, { mode, admMetadata,
 }
 
 export function selectExportOfflineRenderAdmission({
-	project, mode, outputs, range, chapters, tailFrames, channelCount,
+	project, mode, outputs, range, chapters, renderRanges = null, tailFrames, channelCount,
 }) {
-	const ranges = mode === 'chapters' && chapters?.length ? chapters : [range];
+	const ranges = renderRanges ?? (mode === 'chapters' && chapters?.length ? chapters : [range]);
 	const targets = deliversMasterMix(mode)
 		? [{ trackId: null, includeMaster: true }]
 		: outputs.map(({ trackId }) => ({ trackId, includeMaster: false }));
