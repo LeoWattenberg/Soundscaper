@@ -527,7 +527,10 @@ test.describe('audio editor React/design-system workflows', () => {
 			clip: getComputedStyle(clip).cursor,
 			lane: getComputedStyle(clip.closest('[data-track-lane]')).cursor,
 		}));
-		expect(splitCursors).toEqual({ clip: 'col-resize', lane: 'auto' });
+		expect(splitCursors.lane).toBe('auto');
+		expect(splitCursors.clip).toMatch(
+			/^url\(".*\/assets\/Split-[^"]+\.png"\) 16 16, col-resize$/u,
+		);
 		await clickClipInterior(page, splitClip, 0.35);
 		await expect(editor).toHaveAttribute('data-clip-count', '2');
 

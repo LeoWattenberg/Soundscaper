@@ -401,7 +401,7 @@
 
 .audio-editor-timeline-panel[data-split-tool="true"] .audio-editor-track-lane [data-clip-id],
 .audio-editor-timeline-panel[data-split-tool="true"] .audio-editor-track-lane [data-clip-id] * {
-	cursor: col-resize;
+	cursor: url('../../../../../vendor/audacity-design-system/components/src/assets/cursors/Split.png') 16 16, col-resize;
 }
 
 .kw-audio-editor__recording-level input {
