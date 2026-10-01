@@ -8,6 +8,7 @@ import {
 } from '../../pffft-spectrogram.js';
 import { createTimelineSpectrogramCache } from '../../controller/source/timeline-spectrogram-cache.ts';
 import { audioEditorStereoChannelGeometry } from './stereo-channel-height-runtime.ts';
+import { paintSpectrogramImageData } from './spectrogram-image-data.ts';
 
 const cache = createTimelineSpectrogramCache({
 	releaseImage(image) { image.width = 0; image.height = 0; },
@@ -51,13 +52,16 @@ export function drawAudacityClipSpectrogram(context, channels, options) {
 	const geometry = channelCount > 1
 		? audioEditorStereoChannelGeometry(options.height, options.channelHeightRatio)
 		: [{ top: 0, height: options.height }];
-	const paint = (target) => {
+	const paint = (target, bulk = false) => {
 		target.fillStyle = options.backgroundColor;
 		target.fillRect(0, 0, options.width, options.height);
 		if (columns) {
 			for (let channel = 0; channel < channelCount; channel += 1) {
-				paintSpectrogram(target, columns[channel], 0, geometry[channel].top,
-					options.width, geometry[channel].height, spectrogramOptions);
+				const { top, height } = geometry[channel];
+				if (!bulk || !paintSpectrogramImageData(target, columns[channel], 0, top,
+					options.width, height, spectrogramOptions)) {
+					paintSpectrogram(target, columns[channel], 0, top, options.width, height, spectrogramOptions);
+				}
 			}
 		}
 		if (channelCount > 1) {
@@ -84,7 +88,7 @@ export function drawAudacityClipSpectrogram(context, channels, options) {
 		surface.width = backingWidth;
 		surface.height = backingHeight;
 		target.setTransform(backingWidth / options.width, 0, 0, backingHeight / options.height, 0, 0);
-		try { paint(target); }
+		try { paint(target, true); }
 		catch (error) { surface.width = 0; surface.height = 0; throw error; }
 		return surface;
 	}) : null;

@@ -10,6 +10,8 @@ function harness() {
 	let paints = 0;
 	let copies = 0;
 	let allocations = 0;
+	let bulkWrites = 0;
+	let transform = { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
 	const surfaces: Array<{ width: number; height: number }> = [];
 	const context = {
 		canvas: {
@@ -31,10 +33,17 @@ function harness() {
 	const offscreen = {
 		fillStyle: '',
 		fillRect() { paints += 1; },
-		setTransform() {},
+		setTransform(a: number, b: number, c: number, d: number, e: number, f: number) {
+			transform = { a, b, c, d, e, f };
+		},
+		getTransform: () => transform,
+		createImageData(width: number, height: number) {
+			return { width, height, data: new Uint8ClampedArray(width * height * 4) };
+		},
+		putImageData() { bulkWrites += 1; },
 		beginPath() {}, moveTo() {}, lineTo() {}, stroke() {},
 	};
-	return { context, surfaces, snapshot: () => ({ paints, copies, allocations }) };
+	return { context, surfaces, snapshot: () => ({ paints, copies, allocations, bulkWrites }) };
 }
 
 const OPTIONS = {
@@ -55,12 +64,14 @@ test('spectrogram redraw copies cached pixels and gain/geometry changes reuse FF
 	drawAudacityClipSpectrogram(h.context, channels, OPTIONS);
 	const first = h.snapshot();
 	const firstReads = sampleReads;
-	assert.ok(first.paints > 0);
+	assert.equal(first.paints, 1, 'only the background uses a canvas rectangle');
+	assert.equal(first.bulkWrites, 1, 'a cache miss uploads all spectral pixels together');
 	assert.equal(first.copies, 1);
 	assert.equal(first.allocations, 1);
 	assert.equal(h.context.canvas.dataset.spectrogramRenderer, 'pffft-wasm');
 	drawAudacityClipSpectrogram(h.context, channels, OPTIONS);
 	assert.equal(h.snapshot().paints, first.paints, 'selection redraw does no color painting');
+	assert.equal(h.snapshot().bulkWrites, first.bulkWrites, 'selection redraw does no bulk painting');
 	assert.equal(h.snapshot().copies, 2);
 	assert.equal(sampleReads, firstReads, 'selection redraw does no FFTs');
 	drawAudacityClipSpectrogram(h.context, channels, { ...OPTIONS, gainDb: 40 });
