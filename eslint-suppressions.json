@@ -393,17 +393,11 @@
     }
   },
   "src/common/editor/controller/export/internal/direct/direct-compressed-stem-archive-plan.ts": {
-    "no-control-regex": {
-      "count": 1
-    },
     "no-extra-boolean-cast": {
       "count": 1
     }
   },
   "src/common/editor/controller/export/internal/direct/direct-native-stem-archive-plan.ts": {
-    "no-control-regex": {
-      "count": 1
-    },
     "no-extra-boolean-cast": {
       "count": 1
     }
@@ -415,6 +409,11 @@
   },
   "src/common/editor/controller/export/internal/direct/direct-pcm-export.ts": {
     "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/common/editor/controller/export/internal/direct/direct-stem-file-name.ts": {
+    "no-control-regex": {
       "count": 1
     }
   },
