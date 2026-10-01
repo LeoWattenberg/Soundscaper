@@ -11,13 +11,15 @@ import {
 import type { StorageRecord } from './media-records.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
 import { cloneStorageValue as clone } from './storage-clone.ts';
-import type { VideoProxyClaimRecord } from './video-proxy-claim-repository.ts';
+import {
+	sameVideoProxyClaim,
+	type VideoProxyClaimRecord,
+} from './video-proxy-claim-repository.ts';
 import {
 	assertVideoProxyClaimedRowCurrent,
 	assertVideoProxyClaimPublicationAvailable,
 	createUnverifiedVideoProxyClaim,
 	normalizeVideoProxyClaimStagingInput,
-	sameVideoProxyClaim,
 	type VideoProxyClaimStagingInput,
 } from './video-proxy-claim-staging-record.ts';
 

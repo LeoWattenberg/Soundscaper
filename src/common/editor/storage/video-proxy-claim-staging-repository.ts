@@ -14,7 +14,9 @@ import { MEDIA_ASSET_STAGING_STORE_NAME } from './media-asset-staging-schema.ts'
 import type { OpfsRepository } from './opfs-repository.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
 import {
+	createVideoProxyClaimGeneration,
 	normalizeVideoProxyClaimRecord,
+	sameVideoProxyClaim,
 	type VideoProxyClaimRecord,
 } from './video-proxy-claim-repository.ts';
 import {
@@ -24,7 +26,6 @@ import {
 	createUnverifiedVideoProxyClaim,
 	normalizeVideoProxyClaimStagingInput,
 	safeVideoProxyClaimNow,
-	sameVideoProxyClaim,
 	type VideoProxyClaimStagingInput,
 	videoProxyClaimExpiry,
 } from './video-proxy-claim-staging-record.ts';
@@ -66,7 +67,7 @@ export class VideoProxyClaimStagingRepository {
 		this.#chunks = new MediaAssetChunkRecords(port);
 		this.#now = options.now ?? Date.now;
 		this.#maximumClaims = boundedVideoProxyClaimMaximum(options.maximumClaims);
-		this.#createGeneration = options.createGeneration ?? createGeneration;
+		this.#createGeneration = options.createGeneration ?? createVideoProxyClaimGeneration;
 	}
 
 	async createVerifiedClaim(
@@ -325,12 +326,6 @@ async function loadOpfsBody(opfs: OpfsRepository, path: string): Promise<Blob> {
 
 function assertDigest(actual: Uint8Array, expected: string): void {
 	if (bytesToHex(actual) !== expected) throw new Error('The claimed video proxy body failed digest verification.');
-}
-
-function createGeneration(): string {
-	const uuid = globalThis.crypto?.randomUUID?.();
-	if (!uuid) throw new Error('Secure random generation is required for video proxy claims.');
-	return `video-proxy-generation-${uuid}`;
 }
 
 function throwIfAborted(signal?: AbortSignal): void {

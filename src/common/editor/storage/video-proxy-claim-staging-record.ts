@@ -7,6 +7,7 @@ import { trustedMediaContentSha256 } from './media-content-provenance.ts';
 import type { StorageRecord } from './media-records.ts';
 import {
 	MAX_VIDEO_PROXY_CLAIMS,
+	createVideoProxyClaimGeneration,
 	normalizeVideoProxyClaimRecord,
 	type VideoProxyClaimBodyKind,
 	type VideoProxyClaimRecord,
@@ -113,7 +114,7 @@ export function createUnverifiedVideoProxyClaim(
 ): Readonly<VideoProxyClaimRecord> {
 	const input = normalizeVideoProxyClaimStagingInput(inputValue);
 	const now = safeNow(options.now ?? Date.now());
-	const generation = options.generation ?? createGeneration();
+	const generation = options.generation ?? createVideoProxyClaimGeneration();
 	return normalizeVideoProxyClaimRecord({
 		key: videoProxyClaimKey(input.operationId, input.bodyKind, input.bodyKey),
 		kind: VIDEO_PROXY_CLAIM_KIND,
@@ -199,17 +200,6 @@ export function assertVideoProxyClaimedRowCurrent(
 	}
 }
 
-export function sameVideoProxyClaim(
-	value: unknown,
-	expected: Readonly<VideoProxyClaimRecord>,
-): boolean {
-	try {
-		return JSON.stringify(normalizeVideoProxyClaimRecord(value)) === JSON.stringify(expected);
-	} catch {
-		return false;
-	}
-}
-
 export function boundedVideoProxyClaimMaximum(value: unknown): number {
 	if (value === undefined) return MAX_VIDEO_PROXY_CLAIMS;
 	const requested = positiveSafeInteger(value, 'maximum video proxy claims');
@@ -266,12 +256,6 @@ function safeNow(value: unknown): number {
 		throw new RangeError('The video proxy claim clock is outside the safe range.');
 	}
 	return Number(value);
-}
-
-function createGeneration(): string {
-	const uuid = globalThis.crypto?.randomUUID?.();
-	if (!uuid) throw new Error('Secure random generation is required for video proxy claims.');
-	return `video-proxy-generation-${uuid}`;
 }
 
 function dataRecord(value: unknown, label: string): Record<string, unknown> {

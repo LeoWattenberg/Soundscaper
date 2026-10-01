@@ -184,7 +184,8 @@ export class VideoProxyClaimRepository {
 			request(stagingStore.get(state.proxy.key)),
 			request(stagingStore.get(state.timing.key)),
 		]);
-		if (!sameClaim(proxyValue, state.proxy) || !sameClaim(timingValue, state.timing)) {
+		if (!sameVideoProxyClaim(proxyValue, state.proxy)
+			|| !sameVideoProxyClaim(timingValue, state.timing)) {
 			throw new Error('A video proxy preservation claim changed before commit.');
 		}
 		assertClaimsLive(state.proxy, state.timing, this.#now());
@@ -339,12 +340,21 @@ function assertClaimsLive(
 	}
 }
 
-function sameClaim(value: unknown, expected: Readonly<VideoProxyClaimRecord>): boolean {
+export function sameVideoProxyClaim(
+	value: unknown,
+	expected: Readonly<VideoProxyClaimRecord>,
+): boolean {
 	try {
 		return JSON.stringify(normalizeVideoProxyClaimRecord(value)) === JSON.stringify(expected);
 	} catch {
 		return false;
 	}
+}
+
+export function createVideoProxyClaimGeneration(): string {
+	const uuid = globalThis.crypto?.randomUUID?.();
+	if (!uuid) throw new Error('Secure random generation is required for video proxy claims.');
+	return `video-proxy-generation-${uuid}`;
 }
 
 function closedRecord<const Fields extends readonly string[]>(
