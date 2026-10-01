@@ -3,13 +3,11 @@
 import {
 	normalizeWebVcrCapability,
 	normalizeWebVcrCommandV1 as normalizeCanonicalWebVcrCommandV1,
-	normalizeWebVcrNormalizedCrop,
 	normalizeWebVcrResolution,
 	normalizeWebVcrSnapshot,
 	type WebVcrCapability,
 	type WebVcrCommandV1,
 	type WebVcrLifecyclePhase,
-	type WebVcrNormalizedCrop,
 	type WebVcrResolution,
 	type WebVcrSnapshot,
 } from '../src/common/editor/web-vcr-domain.ts';
@@ -227,10 +225,6 @@ export function validateWebVcrDispatchResultV1(value: unknown): Readonly<WebVcrD
 		});
 	}
 	throw new TypeError('Web VCR dispatch result kind is invalid.');
-}
-
-export function validateWebVcrNormalizedCropV1(value: unknown): Readonly<WebVcrNormalizedCrop> {
-	return normalizeWebVcrNormalizedCrop(value);
 }
 
 function validateSurface(
