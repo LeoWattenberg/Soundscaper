@@ -51,7 +51,7 @@ export interface SourceReadFallback {
 		sourceId: string,
 		options?: SourceReadOptions,
 	): PromiseLike<SourcePcmReadSession | null> | SourcePcmReadSession | null;
-	releaseSessions?(): PromiseLike<void> | void;
+	releaseSessions?(sourceIds?: ReadonlySet<string>): PromiseLike<void> | void;
 	chunks(sourceId: string, options?: SourceReadOptions): AsyncIterable<SourcePcmChunk>;
 	chunk(
 		sourceId: string,
@@ -65,6 +65,7 @@ export class SourceReadRepository {
 	readonly #options: SourceReadRepositoryOptions;
 	readonly #ownedSessions: OwnedSourcePcmReadSessionRepository;
 	readonly #openings = new Set<Readonly<{
+		sourceId: string;
 		abort: AbortController;
 		promise: Promise<SourcePcmReadSession | null>;
 	}>>();
@@ -89,7 +90,7 @@ export class SourceReadRepository {
 			...options,
 			signal: signals.signal,
 		})).finally(signals.dispose);
-		const record = Object.freeze({ abort, promise: opening });
+		const record = Object.freeze({ sourceId, abort, promise: opening });
 		this.#openings.add(record);
 		void opening.then(
 			() => { this.#openings.delete(record); },
@@ -160,13 +161,13 @@ export class SourceReadRepository {
 		});
 	}
 
-	async releaseSessions(): Promise<void> {
-		const openings = [...this.#openings];
+	async releaseSessions(sourceIds?: ReadonlySet<string>): Promise<void> {
+		const openings = [...this.#openings].filter((opening) => !sourceIds || sourceIds.has(opening.sourceId));
 		for (const opening of openings) opening.abort.abort(SESSION_CLEANUP_REASON);
 		const results = await Promise.allSettled([
 			...openings.map(({ promise }) => promise),
-			this.#ownedSessions.releaseSessions(),
-			Promise.resolve().then(() => this.#options.fallback?.releaseSessions?.()),
+			this.#ownedSessions.releaseSessions(sourceIds),
+			Promise.resolve().then(() => this.#options.fallback?.releaseSessions?.(sourceIds)),
 		]);
 		const seenFailures = new Set<unknown>();
 		const failures = results

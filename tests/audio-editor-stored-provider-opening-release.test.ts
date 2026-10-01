@@ -40,6 +40,31 @@ test('a real maintenance-aborted opening reopens once and later provider reads r
 	await provider.dispose();
 });
 
+test('bulk cleanup preserves successor sessions opened while older admission is settling', async () => {
+	const started = deferred<void>();
+	const gate = deferred<typeof metadata>();
+	const reader = new SourceReadRepository({
+		records: {
+			getMetadata(id: string) {
+				if (id === 'blocked') { started.resolve(); return gate.promise; }
+				return Promise.resolve(metadata);
+			},
+		} as never,
+		pcm: {} as never,
+		opfs: { readLegacyChunk() { return Promise.resolve({ index: 0, frames: 1, channels: [Float32Array.of(0.25)] }); } } as never,
+	});
+	const opening = reader.openSession('blocked');
+	const openingFailure = assert.rejects(opening, /being released|cancel/u);
+	await started.promise;
+	const maintenance = reader.releaseSessions();
+	const successor = await reader.openSession('owned');
+	assert.ok(successor);
+	gate.resolve(metadata);
+	await Promise.all([maintenance, openingFailure]);
+	assert.deepEqual(await successor.chunk(0), { index: 0, frames: 1, channels: [Float32Array.of(0.25)] });
+	await successor.release();
+});
+
 test('a maintenance-aborted opening retries only once and retains real opening errors', async () => {
 	for (const failure of [released, new Error('source generation changed')]) {
 		let openings = 0;

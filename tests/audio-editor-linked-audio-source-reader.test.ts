@@ -124,6 +124,27 @@ test('linked AIFF source reads synthesize canonical metadata and big-endian PCM 
 	assert.ok(Math.abs(chunks[2]!.channels[0]![0]! - 0.998_992_919_921_875) < 1e-12);
 });
 
+test('targeted linked PCM cleanup releases selected storage keys and preserves other reads', async () => {
+	const body = waveBlob([Float32Array.of(0.25)]);
+	const fixture = linkedFixture(stablePort(body));
+	for (const storageKey of ['retained', 'removed']) {
+		await fixture.resolver.bind('project-audio', audioSource({ id: `${storageKey}-audio`, storageKey, frameCount: 1 }), LOCATOR_ID, {
+			expectedLocatorRevision: LOCATOR_REVISION,
+		});
+	}
+	const reader = new LinkedAudioOriginalSourceReader({ bindings: fixture.bindings, resolver: fixture.resolver });
+	const retained = await reader.openSession('retained');
+	const removed = await reader.openSession('removed');
+	try {
+		await reader.releaseSessions(new Set(['removed']));
+		assert.deepEqual((await retained.chunk(0)).channels[0], Float32Array.of(0.25));
+		await assert.rejects(removed.chunk(0), /released/u);
+	} finally {
+		await reader.releaseSessions();
+	}
+	await assert.rejects(retained.chunk(0), /released/u);
+});
+
 test('linked AIFF-C reads decode first-party float32 without an owned PCM body', async () => {
 	const body = aiffBlob([Float32Array.of(-1.25, 0.25, 1.5)], 'float32');
 	const fixture = linkedFixture(stablePort(body));

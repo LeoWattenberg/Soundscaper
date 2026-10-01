@@ -273,7 +273,6 @@ export class RetentionRepository {
 		minimumAgeMs = 60_000,
 		now = Date.now(),
 	}: PruneOptions): Promise<PruneResult> {
-		await this.#options.sources.stopBackgroundWork();
 		const protectedIds = new Set(protectedSourceIds || []);
 		for (const project of protectedProjects || []) collectProjectStorageKeys(project, protectedIds);
 		const maximumAge = Math.max(0, Number(minimumAgeMs) || 0);
@@ -326,6 +325,9 @@ export class RetentionRepository {
 			deletedSourceIds.push(...result.removedSourceIds);
 		}
 		if (deletedSourceIds.length > 0) {
+			// Retire reads only for detached payloads; retained playback and analysis
+			// sessions must survive saves that prune unrelated source history.
+			await this.#options.sources.stopBackgroundWork({ sourceIds: new Set(deletedSourceIds) });
 			// Reproducible analyses are availability-only. A failed bounded purge
 			// remains retryable and cannot change authoritative reachability truth.
 			await this.#options.transientAnalysisCache.purge().catch(() => undefined);

@@ -37,10 +37,11 @@ export class OwnedSourcePcmReadSessionRepository {
 	readonly #options: OwnedSourcePcmReadSessionRepositoryOptions;
 	readonly #maximumDependencyCount: number;
 	readonly #openings = new Set<Readonly<{
+		sourceId: string;
 		abort: AbortController;
 		promise: Promise<SourcePcmReadSession | null>;
 	}>>();
-	readonly #sessions = new Set<SourcePcmReadSession>();
+	readonly #sessions = new Map<SourcePcmReadSession, string>();
 
 	constructor(options: OwnedSourcePcmReadSessionRepositoryOptions) {
 		this.#options = options;
@@ -66,10 +67,10 @@ export class OwnedSourcePcmReadSessionRepository {
 				release: noOpRelease,
 				onRelease: () => { this.#sessions.delete(session); },
 			});
-			this.#sessions.add(session);
+			this.#sessions.set(session, sourceId);
 			return session;
 		}).finally(signals.dispose);
-		const record = Object.freeze({ abort, promise: opening });
+		const record = Object.freeze({ sourceId, abort, promise: opening });
 		this.#openings.add(record);
 		void opening.then(
 			() => { this.#openings.delete(record); },
@@ -78,14 +79,17 @@ export class OwnedSourcePcmReadSessionRepository {
 		return opening;
 	}
 
-	async releaseSessions(): Promise<void> {
-		const openings = [...this.#openings];
+	async releaseSessions(sourceIds?: ReadonlySet<string>): Promise<void> {
+		const openings = [...this.#openings].filter((opening) => !sourceIds || sourceIds.has(opening.sourceId));
+		// A provider may reopen while an aborted admission is still settling.
+		// Retire only the sessions owned when this cleanup started.
+		const sessions = [...this.#sessions].filter(([, sourceId]) => !sourceIds || sourceIds.has(sourceId));
 		for (const opening of openings) opening.abort.abort(SESSION_CLEANUP_REASON);
-		const openingResults = await Promise.allSettled(openings.map(({ promise }) => promise));
-		const releaseResults = await Promise.allSettled([...this.#sessions].map(
-			(session) => Promise.resolve(session.release()),
-		));
-		const failures = [...openingResults, ...releaseResults]
+		const results = await Promise.allSettled([
+			...openings.map(({ promise }) => promise),
+			...sessions.map(([session]) => Promise.resolve(session.release())),
+		]);
+		const failures = results
 			.filter((result): result is PromiseRejectedResult => result.status === 'rejected')
 			.filter(({ reason }) => reason !== SESSION_CLEANUP_REASON)
 			.map(({ reason }) => reason as unknown);

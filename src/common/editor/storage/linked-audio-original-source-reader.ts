@@ -70,10 +70,11 @@ const throwIfAborted = createAbortGuard('Linked audio source loading was cancell
 export class LinkedAudioOriginalSourceReader implements SourceReadFallback {
 	readonly #options: LinkedAudioOriginalSourceReaderOptions;
 	readonly #openings = new Set<Readonly<{
+		storageKey: string;
 		abort: AbortController;
 		promise: Promise<SourcePcmReadSession>;
 	}>>();
-	readonly #sessions = new Set<SourcePcmReadSession>();
+	readonly #sessions = new Map<SourcePcmReadSession, string>();
 
 	constructor(options: LinkedAudioOriginalSourceReaderOptions) {
 		if (!options?.bindings || typeof options.bindings.listByStorageKey !== 'function') {
@@ -110,10 +111,10 @@ export class LinkedAudioOriginalSourceReader implements SourceReadFallback {
 				release: state.release,
 				onRelease: () => { this.#sessions.delete(session); },
 			});
-			this.#sessions.add(session);
+			this.#sessions.set(session, storageKey);
 			return session;
 		}).finally(signals.dispose);
-		const record = Object.freeze({ abort, promise: opening });
+		const record = Object.freeze({ storageKey, abort, promise: opening });
 		this.#openings.add(record);
 		void opening.then(
 			() => { this.#openings.delete(record); },
@@ -122,14 +123,15 @@ export class LinkedAudioOriginalSourceReader implements SourceReadFallback {
 		return opening;
 	}
 
-	async releaseSessions(): Promise<void> {
-		const openings = [...this.#openings];
+	async releaseSessions(sourceIds?: ReadonlySet<string>): Promise<void> {
+		const openings = [...this.#openings].filter((opening) => !sourceIds || sourceIds.has(opening.storageKey));
+		const sessions = [...this.#sessions].filter(([, storageKey]) => !sourceIds || sourceIds.has(storageKey));
 		for (const opening of openings) opening.abort.abort(SESSION_CLEANUP_REASON);
-		const openingResults = await Promise.allSettled(openings.map((opening) => opening.promise));
-		const results = await Promise.allSettled([...this.#sessions].map(
-			(session) => Promise.resolve(session.release()),
-		));
-		const failures = [...openingResults, ...results]
+		const results = await Promise.allSettled([
+			...openings.map((opening) => opening.promise),
+			...sessions.map(([session]) => Promise.resolve(session.release())),
+		]);
+		const failures = results
 			.filter((result): result is PromiseRejectedResult => result.status === 'rejected')
 			.filter((result) => result.reason !== SESSION_CLEANUP_REASON)
 			.map((result) => result.reason as unknown);

@@ -210,9 +210,9 @@ export class SourceRepository {
 		if (source.sourceToken) await this.#options.records.deleteChunks(source.sourceToken);
 	}
 
-	async stopBackgroundWork({ closeCodec = false }: { readonly closeCodec?: boolean } = {}): Promise<void> {
+	async stopBackgroundWork({ closeCodec = false, sourceIds }: { readonly closeCodec?: boolean; readonly sourceIds?: ReadonlySet<string> } = {}): Promise<void> {
 		try {
-			await this.#options.reader.releaseSessions();
+			await this.#options.reader.releaseSessions(sourceIds);
 		} finally {
 			this.#options.opfs.clearCache();
 			if (closeCodec) this.#options.pcm.closeOwnedCodec();
