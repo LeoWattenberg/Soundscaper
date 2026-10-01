@@ -80,4 +80,3 @@ function isFlatArchiveName(fileName: string): boolean {
 		&& !fileName.includes('/')
 		&& !fileName.includes('\\');
 }
-
