@@ -83,10 +83,6 @@ interface LoadedBodies {
 
 export interface FramescaperNativeProjectMediaAuthorityOptions {
 	readonly project: Omit<FramescaperNativeProjectContextPort, 'projectRecord' | 'projectState'> & Readonly<{
-		projectState(projectId: string): Readonly<{
-			readonly schemaFamily: 'framescaper'; readonly schemaVersion: 1;
-			readonly open: boolean; readonly writable: boolean;
-		}>;
 		projectRecord(projectId: string): unknown;
 		materializeBody(body: unknown, destination: string, signal?: AbortSignal): Promise<unknown>;
 	}>;
