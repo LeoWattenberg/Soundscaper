@@ -29,7 +29,7 @@ import type {
 	FramescaperNativeMediaV14RuntimeRequest,
 	FramescaperNativeMediaProxyV14RuntimeRequest,
 } from './native-media-v14-runtime-contract.ts';
-import type { FramescaperNativeProjectAuthorityPort } from './native-services-project-authority.ts';
+import type { FramescaperNativeProjectContextPort } from './native-services-project-context-authority.ts';
 import type { FramescaperNativeQueueEnqueueRequest } from './native-services-lifecycle-contracts.ts';
 import type {
 	FramescaperNativeRenderInputSettlementPort,
@@ -82,7 +82,11 @@ interface LoadedBodies {
 }
 
 export interface FramescaperNativeProjectMediaAuthorityOptions {
-	readonly project: Omit<FramescaperNativeProjectAuthorityPort, 'projectRecord'> & Readonly<{
+	readonly project: Omit<FramescaperNativeProjectContextPort, 'projectRecord' | 'projectState'> & Readonly<{
+		projectState(projectId: string): Readonly<{
+			readonly schemaFamily: 'framescaper'; readonly schemaVersion: 1;
+			readonly open: boolean; readonly writable: boolean;
+		}>;
 		projectRecord(projectId: string): unknown;
 		materializeBody(body: unknown, destination: string, signal?: AbortSignal): Promise<unknown>;
 	}>;

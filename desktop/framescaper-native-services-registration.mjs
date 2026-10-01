@@ -69,67 +69,12 @@ export async function startFramescaperNativeServicesRegistration(value, dependen
 		mintClaimId: nodePorts.mintOpaqueId,
 	});
 	let imageSequenceImport = null;
-	const projectBodyAuthority = options.projectAuthority === null ? null : modules.createProjectAuthority({
-		project: options.projectAuthority,
-		scratchRoot,
-		executable: () => mediaExecutable(mediaRuntime),
-		createMessageChannel: options.createMessageChannel,
-		probeRoot: nodePorts.probeRoot,
-		publicationPortFor: nodePorts.publicationPortFor,
-		publicationFenceFor: (record, root) => {
-			const assert = async () => {
-				const currentRuntime = await runtimeReady;
-				const service = currentRuntime.publicationFence;
-				if (service === null) throw new Error('Native publication fencing is unavailable.');
-				await service.for(record, root).beforePublication();
-			};
-			return Object.freeze({ schemaFamily: 'framescaper', schemaVersion: 1,
-				projectId: record.projectId, projectRevision: record.projectRevision,
-				beforePublication: assert, afterPublication: assert });
-		},
-		checkpointStore: nodePorts.checkpointStore,
-		checkpointInspectFor: nodePorts.checkpointInspectFor,
-		onCheckpointError: options.onServiceError,
-		reserveScratch: async (request) => {
-			const currentRuntime = await runtimeReady;
-			const existing = currentRuntime.scratch.read(request.jobId);
-			if (existing !== null) {
-				if (existing.directoryName !== request.directoryName
-					|| existing.manifestDigest !== request.manifestDigest
-					|| existing.rootIdentity !== request.rootIdentity
-					|| existing.reservedBytes !== request.requestedBytes
-					|| existing.state !== 'reserved') {
-					throw new Error('Recovered native scratch no longer matches its exact reservation.');
-				}
-				return;
-			}
-			const now = Date.now();
-			currentRuntime.scratch.reserve(
-				{ ...request, createdAtMs: now }, currentRuntime.lease.lease(), now,
-			);
-		},
-		settleScratch: async (jobId, outcome) => {
-			const currentRuntime = await runtimeReady;
-			await currentRuntime.scratch.settle(
-				jobId, outcome, Date.now(), nodePorts.scratchCleanup, currentRuntime.lease.lease(),
-			);
-		},
-		scratchMatches: async (record, manifestDigest) => {
-			const currentRuntime = await runtimeReady;
-			const reservation = currentRuntime.scratch.read(record.jobId);
-			if (reservation === null || reservation.state !== 'reserved'
-				|| reservation.directoryName !== `job-${record.jobId}`
-				|| reservation.manifestDigest !== manifestDigest) return false;
-			const observed = await nodePorts.scratchCleanup.inspect(reservation.directoryName);
-			return observed?.jobId === record.jobId
-				&& observed.manifestDigest === reservation.manifestDigest
-				&& observed.rootIdentity === reservation.rootIdentity;
-		},
-	});
-	const projectAuthority = projectBodyAuthority === null ? null
+	const projectContextAuthority = options.projectAuthority === null
+		? null : modules.createProjectContextAuthority(options.projectAuthority);
+	const projectAuthority = projectContextAuthority === null ? null
 			: modules.createProjectMediaAuthority({
 				project: options.projectAuthority,
-				watch: projectBodyAuthority, runtime: mediaRuntime, renderInputs: renderInputStaging,
+				watch: projectContextAuthority, runtime: mediaRuntime, renderInputs: renderInputStaging,
 			platform: options.externalDisplay.platform, probeRoot: nodePorts.probeRoot,
 			hardwareEncodeEnabled: () => options.settings.snapshot().nativeHardwareEncodeEnabled === true,
 			publicationPortFor: nodePorts.publicationPortFor,
@@ -162,13 +107,13 @@ export async function startFramescaperNativeServicesRegistration(value, dependen
 			selectPluginBinary: options.selectOpenFxPluginBinary,
 			createMessageChannel: options.createMessageChannel,
 			currentProject: currentOpenFxProject,
-			videoTimingAssets: (plan) => projectBodyAuthority?.openFxTimingAssets(plan)
+			videoTimingAssets: (plan) => projectContextAuthority?.openFxTimingAssets(plan)
 				?? Promise.reject(new Error('OpenFX project timing authority is unavailable.')),
 			mintOpaqueId: nodePorts.mintOpaqueId,
 		});
 		openFxFrames = await (modules.createOpenFxFrameRegistration
 			?? createFramescaperOpenFxFrameRegistration)({
-			openFxService, projectBodyAuthority, createMessageChannel: options.createMessageChannel,
+			openFxService, projectContextAuthority, createMessageChannel: options.createMessageChannel,
 			currentProject: ({ project }, effect) => currentOpenFxProject(project, effect),
 			mintOpaqueId: nodePorts.mintOpaqueId, onError: options.onServiceError,
 		});
@@ -400,7 +345,7 @@ function setPreference(settings, preference, enabled) {
 async function loadRuntimeModules() {
 	const [runtime, ipc, nodePorts, externalDisplay, nativeMedia, openFx, openFxService,
 		capabilityReport, displayController,
-		projectAuthority, projectMediaAuthority, watchImportBroker,
+		projectContextAuthority, projectMediaAuthority, watchImportBroker,
 		imageSequenceSelection, imageSequenceImport, proxyOutputs, queueCapacity, renderInputs,
 		backendAuthority] = await Promise.all([
 		import('./project-library-runtime/desktop/native-services-runtime-v3.js'),
@@ -412,7 +357,7 @@ async function loadRuntimeModules() {
 		import('./project-library-runtime/desktop/openfx-main-service.js'),
 		import('./project-library-runtime/desktop/native-media-capability-report.js'),
 		import('./project-library-runtime/desktop/external-display-controller.js'),
-		import('./project-library-runtime/desktop/native-services-project-authority.js'),
+		import('./project-library-runtime/desktop/native-services-project-context-authority.js'),
 		import('./project-library-runtime/desktop/native-services-project-media-authority.js'),
 		import('./project-library-runtime/desktop/native-services-watch-import-broker.js'),
 		import('./project-library-runtime/desktop/native-image-sequence-selection.js'),
@@ -437,7 +382,9 @@ async function loadRuntimeModules() {
 		createOpenFxService: (options) => new openFxService.FramescaperOpenFxMainService(options),
 		createCapabilityReport: capabilityReport.createFramescaperNativeCapabilityReportV1,
 		externalDisplaySupport: displayController.externalDisplayPlacementSupport,
-		createProjectAuthority: (options) => new projectAuthority.FramescaperNativeProjectAuthority(options),
+		createProjectContextAuthority: (project) => (
+			new projectContextAuthority.FramescaperNativeProjectContextAuthority(project)
+		),
 		createProjectMediaAuthority: (options) => (
 			new projectMediaAuthority.FramescaperNativeProjectMediaAuthority(options)
 		),

@@ -189,7 +189,12 @@ class DesktopProjectLibraryProductRuntime {
 		return Object.freeze({
 			schemaFamily: this.#host.localHandshake.schemaFamily,
 			schemaVersion: this.#host.localHandshake.schemaVersion,
-			projectState: (projectId) => this.#host.nativeProjectState(projectId),
+			projectState: (projectId) => Object.freeze({
+				schemaFamily: this.#host.localHandshake.schemaFamily,
+				schemaVersion: this.#host.localHandshake.schemaVersion,
+				...this.#host.nativeProjectState(projectId),
+				binId: 'project-bin',
+			}),
 			projectRecord: (projectId) => this.#host.nativeProjectRecord(projectId),
 			readProjectBundle: (projectId) => this.#host.readNativeProjectBundle(projectId),
 			readBody: (body) => this.#host.readNativeBody(body),

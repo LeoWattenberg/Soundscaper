@@ -19,7 +19,7 @@ export async function createFramescaperOpenFxFrameRegistration(options, dependen
 		supportedGpuBackends: () => options.openFxService.supportedGpuBackends(),
 		execute: (request) => options.openFxService.execute(request),
 		currentProject: async (plan, effect) => await options.currentProject(plan, effect) === true,
-		timingAssets: (plan) => options.projectBodyAuthority?.openFxTimingAssets(plan)
+		timingAssets: (plan) => options.projectContextAuthority?.openFxTimingAssets(plan)
 			?? Promise.reject(new Error('OpenFX project timing authority is unavailable.')),
 	});
 	return transport.createFramescaperOpenFxFramePortBroker({

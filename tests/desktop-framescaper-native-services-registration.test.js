@@ -112,7 +112,11 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 			helperBuildMatches: false, scratchIdentityMatches: true,
 		}),
 		prepare: async () => prepared,
-		projectState: () => Object.freeze({ open: true, writable: true }),
+		projectState: () => Object.freeze({
+			schemaFamily: 'framescaper', schemaVersion: 1,
+			open: true, writable: true, binId: 'project-bin',
+		}),
+		openFxTimingAssets: async () => [],
 		watchProject: () => Object.freeze({ schemaFamily: 'framescaper', schemaVersion: 1,
 			projectId: 'project-1', projectRevision: 1, open: true, writable: true }),
 		watchImportAlreadyPresent: async () => false,
@@ -182,7 +186,10 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 			createExternalDisplayPort: () => externalDisplay,
 			createQueueCapacityProvider: (value) => { queueCapacityOptions = value; return queueCapacity; },
 			createCapabilityReport: (value) => Object.freeze({ value }),
-			createProjectAuthority: (value) => { authorityOptions = value; return projectAuthorityRuntime; },
+			createProjectContextAuthority: (value) => {
+				authorityOptions = value;
+				return projectAuthorityRuntime;
+			},
 			createRenderInputStaging: (value) => { renderInputOptions = value; return renderInputStaging; },
 			createProjectMediaAuthority: (value) => {
 				projectMediaAuthorityOptions = value;
@@ -256,7 +263,7 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 		inputFingerprintsMatch: true, rootGrantAuthorized: true, rootGrantValid: true,
 		helperBuildMatches: false, scratchIdentityMatches: true,
 	});
-	assert.equal(authorityOptions.project, registrationInput.projectAuthority);
+	assert.equal(authorityOptions, registrationInput.projectAuthority);
 	assert.equal('projectSchemaVersion' in projectMediaAuthorityOptions, false);
 	assert.equal(await openFxServiceOptions.currentProject(
 		{ schemaFamily: 'framescaper', schemaVersion: 1, id: 'project-1', revision: 7 },
@@ -281,8 +288,6 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 		{ project: { schemaFamily: 'framescaper', schemaVersion: 1,
 			id: 'project-1', revision: 7 } }, { ...authoredEffect, state: 'stale' },
 	), false);
-	assert.equal(authorityOptions.checkpointStore, nodePorts.checkpointStore);
-	assert.equal(authorityOptions.checkpointInspectFor, nodePorts.checkpointInspectFor);
 	assert.match(renderInputOptions.root, /framescaper-native-render-inputs$/u);
 	assert.equal(renderInputOptions.mintStageId, nodePorts.mintOpaqueId);
 	assert.equal(typeof renderInputOptions.storageAdmission, 'function');
@@ -297,7 +302,10 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 	assert.equal(runtimeOptions.selectRoot, nodePorts.selectRoot);
 	assert.equal(runtimeOptions.watchScan, nodePorts.watchScan);
 	assert.equal(runtimeOptions.externalDisplay, externalDisplay);
-	assert.deepEqual(runtimeOptions.watchProjectState('project-1'), { open: true, writable: true });
+	assert.deepEqual(runtimeOptions.watchProjectState('project-1'), {
+		schemaFamily: 'framescaper', schemaVersion: 1,
+		open: true, writable: true, binId: 'project-bin',
+	});
 	assert.equal(await runtimeOptions.watchImportFile(), false, 'the default-off master blocks watch mutation');
 	registrationInput.settings.snapshot = () => ({
 		nativeMediaEnabled: true, nativeHardwareDecodeEnabled: false,
@@ -397,10 +405,12 @@ test('a runtime startup failure releases the session display subscription', asyn
 			}),
 			createNodePorts: () => ({}),
 			createExternalDisplayPort: () => ({ dispose: () => { disposals += 1; } }),
-			createProjectAuthority: () => ({
+			createProjectContextAuthority: () => ({
 				revalidate: async () => ({}), prepare: async () => ({}),
-				projectState: () => ({ open: false, writable: false }),
+				projectState: () => ({ schemaFamily: 'framescaper', schemaVersion: 1,
+					open: false, writable: false, binId: 'project-bin' }),
 				watchProject: () => null,
+				openFxTimingAssets: async () => [],
 			}),
 			createRenderInputStaging: () => ({
 				mountOpenFxTransformFactory: () => undefined,
@@ -493,7 +503,7 @@ function options(productId) {
 			schemaFamily: 'framescaper',
 			schemaVersion: 1,
 			projectState: () => ({ schemaFamily: 'framescaper', schemaVersion: 1,
-				open: true, writable: true }),
+				open: true, writable: true, binId: 'project-bin' }),
 			projectRecord: () => null,
 			readProjectBundle: async () => null,
 			readBody: async () => new Uint8Array(),

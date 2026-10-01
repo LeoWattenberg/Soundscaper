@@ -25,7 +25,7 @@ test('frame registration forwards exact effect identity into current-project aut
 		openFxService: {
 			inventory: () => [], supportedGpuBackends: () => [], execute: async () => ({ mode: 'bypass' }),
 		},
-		projectBodyAuthority: { openFxTimingAssets: async () => [] },
+		projectContextAuthority: { openFxTimingAssets: async () => [] },
 		createMessageChannel: () => ({}), mintOpaqueId: () => 'ab'.repeat(20),
 		currentProject: async (candidate, effect) => {
 			observed.push([candidate, effect]);
