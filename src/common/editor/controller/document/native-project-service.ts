@@ -5,7 +5,6 @@ import { isAudioMediaKind } from '../../audio-media-kind.ts'; import { createLoc
 import { isProjectFileName } from '../../../project-file-extensions.ts';
 import { createDeferredDawprojectService } from '../import/deferred-dawproject-service.ts';
 import { createDeferredSesxService } from '../import/deferred-sesx-service.ts';
-import { hasCoreEditingProjectAuthority } from '../../project-schema-version.ts';
 import {
 	EDITOR_PROJECT_TASK_SCOPE,
 	type EditorProjectToken,
@@ -30,11 +29,11 @@ import {
 	publishNativeScape,
 	saveNativeScapeArchiveCopy,
 } from './internal/native-project/native-scape-save.ts';
+import { createNativeAudacityProjectSave } from './internal/native-project/native-audacity-project-save.ts';
 import type {
 	Aup4DecodedSource,
 	Aup4Environment,
 	Aup4PortableOptions,
-	Aup4SnapshotSource,
 	NativeAup4Client,
 	NativeCompatibilityReport,
 	NativeProgress,
@@ -44,12 +43,11 @@ import type {
 	NativeSavedFile,
 	NativeScapeManifest,
 	OpenScapeOptions,
-	SaveAup4Options,
 	SaveScapeOptions,
 	ScapeImportResult,
 } from './native-project-types.ts';
 
-export type { NativeProjectServiceRuntime, OpenScapeOptions, SaveAup4Options, SaveScapeOptions } from './native-project-types.ts';
+export type { NativeProjectServiceRuntime, OpenScapeOptions, SaveAup3Options, SaveAup4Options, SaveScapeOptions } from './native-project-types.ts';
 const READ_ONLY_AUP4_ISSUES = new Set(['EDITABLE_LIMIT_EXCEEDED']);
 
 /**
@@ -70,6 +68,16 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 	} = createNativeProjectOwnership(runtime);
 	const dawproject = createDeferredDawprojectService(runtime, { beginProjectTask, assertOwnership, beginImport, finishImport, persistSourceChunks, updateNativeProjectProgress, requireProject });
 	const sesx = createDeferredSesxService(runtime, { beginProjectTask, assertOwnership, beginImport, finishImport, persistSourceChunks, updateNativeProjectProgress, requireProject });
+	const audacitySave = createNativeAudacityProjectSave(runtime, {
+		assertOwnership, beginProjectTask, beginSave, failSave, finishSave,
+		getClient: getAup4Client,
+		getEnvironment: () => environment,
+		rememberCompatibilityReport: rememberAup4CompatibilityReport,
+		requireOwnedProject, requireProject,
+		updateProgress: (progress, prefix, task, projectToken, localization) => {
+			updateNativeProjectProgress(progress, prefix, task, projectToken, undefined, localization);
+		},
+	});
 
 	return Object.freeze({
 		dismissAup4CompatibilitySummary,
@@ -80,7 +88,8 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 		openAup4, openDawproject: dawproject.openDawproject, saveDawproject: dawproject.saveDawproject, openSesx: sesx.openSesx,
 		openScape,
 		rememberAup4CompatibilityReport,
-		saveAup4,
+		saveAup3: audacitySave.saveAup3,
+		saveAup4: audacitySave.saveAup4,
 		saveScape,
 		updateNativeProjectProgress,
 	});
@@ -316,112 +325,6 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 	/** Compatibility alias for integrations that opened only AUP4. */
 	async function openAup4(file: NativeProjectFile): Promise<Readonly<Record<string, unknown>> | undefined> { return openAudacityProject(file); }
 
-	async function saveAup4(options: SaveAup4Options = {}): Promise<NativeSavedFile | Readonly<{
-		cancelled: true;
-	}>> {
-		let snapshot = requireProject();
-		if (!hasCoreEditingProjectAuthority(snapshot)) throw createLocalizedError(Error, runtime.copy, 'aup4OnlyV2');
-		if (runtime.hasMissingTimelineSources(snapshot, { audioOnly: true })) {
-			throw createLocalizedError(Error, runtime.copy, 'missingSourcesPreventSave');
-		}
-		if (runtime.reportHasMissingPcm(runtime.sessionTab(snapshot.id)?.metadata?.aup4CompatibilityReport)) {
-			throw createLocalizedError(Error, runtime.copy, 'missingSourcesPreventSave');
-		}
-		if (runtime.state.readOnly && !options.saveCopy) throw createLocalizedError(Error, runtime.copy, 'projectReadOnly');
-		const operation = beginProjectTask('native-project-save', snapshot.id, PROJECT_SCOPED_TASK);
-		let fileHandle = options.fileHandle;
-		let saveTarget = options.saveTarget;
-		let activeClient: NativeAup4Client | null = null;
-		let nativeId: string | null = null;
-		let nativeCreated = false;
-		try {
-			if (runtime.fileService.isDesktop && saveTarget === undefined) {
-				try {
-					saveTarget = await runtime.fileService.chooseSaveTarget({
-						purpose: 'aup4',
-						suggestedName: runtime.ensureAup4FileName(options.fileName || snapshot.title),
-						mimeType: 'application/x-audacity-project',
-					});
-				} catch (error) {
-					if (isAbortError(error)) return { cancelled: true };
-					throw error;
-				}
-				assertOwnership(operation.task, operation.projectToken);
-				if (!saveTarget) return { cancelled: true };
-			} else if (!fileHandle && options.useFileSystemAccess !== false) {
-				try {
-					fileHandle = await runtime.requestAup4FileHandle({ fileName: options.fileName || snapshot.title });
-				} catch (error) {
-					if (isAbortError(error)) return { cancelled: true };
-					throw error;
-				}
-				assertOwnership(operation.task, operation.projectToken);
-			}
-			snapshot = requireOwnedProject(snapshot.id);
-			const exportSnapshot = runtime.prepareAudacityProjectExport
-				? await runtime.prepareAudacityProjectExport(snapshot) : snapshot;
-			assertOwnership(operation.task, operation.projectToken);
-			activeClient = await getAup4Client();
-			assertOwnership(operation.task, operation.projectToken);
-			nativeId = sanitizeNativeId(runtime.createStableId('aup4-export'));
-			const referencedSources = snapshot.sources.filter((source): source is NativeProjectAudioSource => (
-				isAudioMediaKind(source.kind)
-				&& snapshot.clips.some((clip) => isAudioMediaKind(clip.kind) && clip.sourceId === source.id)
-			));
-			const sourceBytes = referencedSources.reduce((total, source) => total + runtime.sourcePcmBytes(source), 0);
-			const workingBytes = referencedSources.reduce((maximum, source) => (
-				Math.max(maximum, runtime.sourcePcmBytes(source))
-			), 0);
-			await runtime.preflightStorage(sourceBytes, 'export');
-			assertOwnership(operation.task, operation.projectToken);
-			const storage = await runtime.store.estimateStorage();
-			assertOwnership(operation.task, operation.projectToken);
-			const progress = (value: NativeProgress) => {
-				updateNativeProjectProgress(value, runtime.copy.aup4Saving, operation.task, operation.projectToken, undefined, { key: 'aup4Saving' });
-			};
-			const portable = portableOptions(workingBytes, storage, progress);
-			beginSave(operation.task, operation.projectToken);
-			await activeClient.create(nativeId);
-			nativeCreated = true;
-			assertOwnership(operation.task, operation.projectToken);
-			const written = await activeClient.writeSnapshot(
-				nativeId,
-				exportSnapshot,
-				readAup4SourceAudio(referencedSources, operation),
-				portable,
-			);
-			assertOwnership(operation.task, operation.projectToken);
-			await activeClient.commit(nativeId);
-			assertOwnership(operation.task, operation.projectToken);
-			const result = await activeClient.export(nativeId, portable);
-			assertOwnership(operation.task, operation.projectToken);
-			const saved = await runtime.saveAup4Result(result, {
-				fileName: options.fileName || snapshot.title,
-				fileHandle,
-				fileService: runtime.fileService,
-				saveTarget,
-			});
-			assertOwnership(operation.task, operation.projectToken);
-			const validation = result.validation || await activeClient.inspect(nativeId);
-			assertOwnership(operation.task, operation.projectToken);
-			const compatibilityReport = rememberAup4CompatibilityReport(
-				written.compatibilityReport || result.compatibilityReport || validation.compatibilityReport,
-				'save',
-				snapshot.id,
-			);
-			const saveFinished = finishSave(operation.task, operation.projectToken, 'saved');
-			if (saveFinished) setLocalizedStatus(runtime.setStatus, runtime.copy, "aup4Saved", undefined, 'success');
-			if (saveFinished) runtime.publishDocumentSnapshot();
-			return { ...saved, validation, compatibilityReport };
-		} catch (error) {
-			failSave(operation.task, operation.projectToken);
-			throw error;
-		} finally {
-			if (nativeCreated && nativeId) await closeNativeProject(activeClient, nativeId);
-			operation.task.finish();
-		}
-	}
-
 	async function persistDecodedSource(
 		project: NativeProjectDocument,
 		sourceAudio: Aup4DecodedSource,
@@ -441,24 +344,6 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 	): Promise<void> {
 		await persistNativeProjectSource(runtime, project, sourceId, chunks, persistedSourceIds,
 			() => assertOwnership(operation.task, operation.projectToken));
-	}
-
-	async function* readAup4SourceAudio(
-		sources: readonly NativeProjectAudioSource[],
-		operation: ProjectTask,
-	): AsyncGenerator<Aup4SnapshotSource> {
-		for (const source of sources) {
-			assertOwnership(operation.task, operation.projectToken);
-			const buffer = runtime.sourceBuffers.get(source.id);
-			const channels = buffer
-				? Array.from({ length: buffer.numberOfChannels }, (_, channel) => buffer.getChannelData(channel))
-				: await runtime.loadStoredSourceChannels(runtime.store, source);
-			assertOwnership(operation.task, operation.projectToken);
-			if (!channels?.length) {
-				throw createLocalizedError(Error, runtime.copy, 'sourcePcmUnavailable', { source: source.name || source.id });
-			}
-			yield { sourceId: source.id, sampleRate: source.sampleRate, channels };
-		}
 	}
 
 	function rememberAup4CompatibilityReport(
@@ -523,10 +408,6 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 
 function sanitizeNativeId(value: string): string {
 	return value.replace(/[^a-z0-9_-]/gi, '-');
-}
-
-function isAbortError(error: unknown): boolean {
-	return error instanceof Error && error.name === 'AbortError';
 }
 
 async function closeNativeProject(client: NativeAup4Client | null, nativeId: string): Promise<void> {

@@ -41,7 +41,7 @@ export { normalizeAup4ExportSource } from './aup4-export-variants.js';
  * changing the browser project. The returned project and PCM are export-only.
  */
 export function normalizeAup4ExportSnapshot(project, sourceAudio = []) {
-	if (!Array.isArray(sourceAudio)) throw exportError('AUP4 source audio must be an array.', 'INVALID_SNAPSHOT');
+	if (!Array.isArray(sourceAudio)) throw exportError('Audacity-project source audio must be an array.', 'INVALID_SNAPSHOT');
 	const plan = createAup4ExportPlan(project);
 	const audioById = new Map(sourceAudio.map((source) => [source.sourceId, source]));
 	const normalizedSources = [];
@@ -101,14 +101,14 @@ export function createAup4ExportPlan(project) {
 		const normalizedTrack = normalizedProject.tracks[trackIndex];
 		const clips = (track.clipIds || []).map((clipId) => {
 			const clip = clipById.get(clipId);
-			if (!clip) throw exportError(`AUP4 track ${track.id} references missing clip ${clipId}.`, 'INVALID_SNAPSHOT');
+			if (!clip) throw exportError(`Audacity-project track ${track.id} references missing clip ${clipId}.`, 'INVALID_SNAPSHOT');
 			return clip;
 		});
 		const overlapLanes = assignAup4OverlapLanes(clips);
 		const automaticCrossfades = automaticAup4CrossfadeRanges(clips);
 		const referencedSources = clips.map((clip) => {
 			const source = sourceById.get(clip.sourceId);
-			if (!source) throw exportError(`AUP4 clip ${clip.id} references missing source ${clip.sourceId}.`, 'MISSING_SOURCE');
+			if (!source) throw exportError(`Audacity-project clip ${clip.id} references missing source ${clip.sourceId}.`, 'MISSING_SOURCE');
 			return source;
 		});
 		const targetChannels = referencedSources.some((source) => positiveChannelCount(source.channelCount) > 1) ? 2 : 1;
@@ -145,7 +145,7 @@ export function createAup4ExportPlan(project) {
 				|| trimStartFrames > sourceStartFrame
 				|| sourceEndFrame + trimEndFrames > sourceFrameCount
 			) {
-				throw exportError(`AUP4 clip ${clip.id} exceeds source ${source.id}.`, 'INVALID_SNAPSHOT');
+				throw exportError(`Audacity-project clip ${clip.id} exceeds source ${source.id}.`, 'INVALID_SNAPSHOT');
 			}
 			const normalizedClip = normalizedClipById.get(clip.id);
 			const envelopeConversion = createNativeClipEnvelope(
@@ -406,5 +406,5 @@ function expandSplitTrackSelection(project, replacements) {
 }
 
 function assertExportPlan(plan) {
-	if (!plan?.project || !Array.isArray(plan.sources)) throw exportError('An AUP4 export plan is required.', 'INVALID_SNAPSHOT');
+	if (!plan?.project || !Array.isArray(plan.sources)) throw exportError('An Audacity-project export plan is required.', 'INVALID_SNAPSHOT');
 }

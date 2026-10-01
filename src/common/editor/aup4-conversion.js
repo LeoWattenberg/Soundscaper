@@ -204,6 +204,9 @@ export async function decodeAudacityProjectTree(root, loadBlock, options = {}) {
 				opaqueExtensions: { aup4Sequence: opaqueNode(audacityXmlChildren(clipNode, 'sequence')[0]) },
 			});
 			const groupId = audacityXmlAttribute(clipNode, 'groupId', -1);
+			const audacityCutLineCount = channelNodes.reduce((total, node) => (
+				total + Math.max(0, countUnsupportedWaveClips(node) - 1)
+			), 0);
 			const clip = createAudioClip({
 				id: clipId,
 				sourceId,
@@ -223,6 +226,7 @@ export async function decodeAudacityProjectTree(root, loadBlock, options = {}) {
 				preserveFormants: pitchAndSpeedPreset === 1,
 				stretchToTempo,
 				opaqueExtensions: {
+					...(audacityCutLineCount ? { audacityCutLineCount } : {}),
 					aup4WaveClip: opaqueWaveClipNode(clipNode),
 					aup4WaveClips: alignedChannels.map(opaqueWaveClipNode),
 					aup4PitchAndSpeedPreset: {
@@ -276,7 +280,11 @@ export async function decodeAudacityProjectTree(root, loadBlock, options = {}) {
 			effectsActive,
 			effects: trackEffects,
 			clipIds,
-			collapsed: Number(audacityXmlAttribute(group[0], 'height', 160)) > 0 && Number(audacityXmlAttribute(group[0], 'height', 160)) < 60,
+			collapsed: booleanValue(
+				audacityXmlAttribute(group[0], 'minimized', null),
+				Number(audacityXmlAttribute(group[0], 'height', 160)) > 0
+					&& Number(audacityXmlAttribute(group[0], 'height', 160)) < 60,
+			),
 			height: Math.max(40, Math.round(positive(audacityXmlAttribute(group[0], 'height', 160), 160))),
 			opaqueExtensions: {
 				aup4WaveTracks: group.map(opaqueWaveTrackNode),

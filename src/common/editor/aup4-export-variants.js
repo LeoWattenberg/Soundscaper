@@ -11,7 +11,7 @@ import { applyMaterialTransform, normalizeInputChannels } from './aup4-export-ma
 import { exportError, positiveRate } from './aup4-export-values.js';
 
 function assertExportPlan(plan) {
-	if (!plan?.project || !Array.isArray(plan.sources)) throw exportError('An AUP4 export plan is required.', 'INVALID_SNAPSHOT');
+	if (!plan?.project || !Array.isArray(plan.sources)) throw exportError('An Audacity-project export plan is required.', 'INVALID_SNAPSHOT');
 }
 
 
@@ -39,7 +39,7 @@ export function normalizeAup4ExportSource(plan, sourceAudio) {
 			variant.targetRate,
 		);
 		if (channels.some((channel) => channel.length !== variant.source.frameCount)) {
-			throw exportError(`AUP4 source ${sourceId} normalization produced an invalid frame count.`, 'INVALID_SOURCE_AUDIO');
+			throw exportError(`Audacity-project source ${sourceId} normalization produced an invalid frame count.`, 'INVALID_SOURCE_AUDIO');
 		}
 		return { sourceId: variant.source.id, sampleRate: variant.targetRate, channels };
 	});
@@ -74,7 +74,7 @@ export function mapChannels(channels, targetChannels) {
 			mixInto(channel % 2 ? right : left, channels[channel], 0.5);
 		}
 	}
-	if (left.length !== frameCount || right.length !== frameCount) throw exportError('AUP4 channel downmix failed.', 'INVALID_SOURCE_AUDIO');
+	if (left.length !== frameCount || right.length !== frameCount) throw exportError('Audacity-project channel downmix failed.', 'INVALID_SOURCE_AUDIO');
 	return [left, right];
 }
 

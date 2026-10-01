@@ -14,7 +14,7 @@ This page reflects the current product profiles. “Enabled” means that the pr
 
 | Product | Import families | Export families |
 | --- | --- | --- |
-| Soundscaper | .sscape, Audacity projects, Audio, Video, Labels | .sscape, AUP4 (audio-only), Audio, Video, Labels, Audio stems |
+| Soundscaper | .sscape, Audacity projects, Audio, Video, Labels | .sscape, AUP3 (audio-only), AUP4 (audio-only), Audio, Video, Labels, Audio stems |
 | Framescaper | .fscape, Audacity projects, Audio, Video, Labels | .fscape, Audio, Video, Labels |
 
 Families describe product entry points, not every file extension a decoder might accept. See [Export formats](/reference/generated/formats/) for concrete output formats and runtime conditions.

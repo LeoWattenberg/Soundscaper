@@ -273,6 +273,7 @@
 			],
 			"exportFamilies": [
 				"scape",
+				"aup3-audio-only",
 				"aup4-audio-only",
 				"audio",
 				"video",

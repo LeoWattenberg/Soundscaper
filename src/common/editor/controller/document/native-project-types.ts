@@ -17,6 +17,7 @@ import type { ScapeReplaceWriteAuthority } from '../../scape-import-transaction.
 export type NativeAwaitable<Value> = PromiseLike<Value> | Value;
 export type NativeSaveState = 'dirty' | 'saved' | 'saving' | string;
 export type NativeStatusState = 'error' | 'info' | 'success';
+export type AudacityProjectGeneration = 'aup3' | 'aup4';
 
 export interface NativeStorageEstimate {
 	readonly usage: number | null;
@@ -94,6 +95,9 @@ export interface NativeProjectCopy {
 	readonly aup4Saving: string;
 	readonly sourcePcmUnavailable: string;
 	readonly aup4Saved: string;
+	readonly aup3OnlyV2: string;
+	readonly aup3Saving: string;
+	readonly aup3Saved: string;
 	readonly chooseDawprojectFile?: string;
 	readonly dawprojectOpened?: string;
 	readonly dawprojectSaving?: string;
@@ -135,7 +139,7 @@ export interface NativeProjectStore {
 }
 
 export interface NativeFileSaveRequest {
-	readonly purpose: 'project' | 'interchange';
+	readonly purpose: 'project' | 'aup3' | 'interchange';
 	readonly blob: Blob;
 	readonly suggestedName: string;
 	readonly mimeType: string;
@@ -201,7 +205,7 @@ export interface NativeProjectFileService {
 	): Promise<Value>;
 	releaseSesxSession?(sessionReadId: string): Promise<boolean>;
 	chooseSaveTarget(request: Readonly<{
-		purpose: 'aup4';
+		purpose: AudacityProjectGeneration;
 		suggestedName: string;
 		mimeType: string;
 	}>): Promise<unknown>;
@@ -289,7 +293,10 @@ export interface NativeAup4Client {
 		signal: AbortSignal;
 	}>): AsyncIterable<readonly Float32Array[]>;
 	initialize(): Promise<Aup4Environment>;
-	create(projectId: string): PromiseLike<unknown> | unknown;
+	create(projectId: string, options?: Readonly<{
+		targetGeneration?: AudacityProjectGeneration;
+		signal?: AbortSignal;
+	}>): PromiseLike<unknown> | unknown;
 	openFile(projectId: string, file: NativeProjectFile, options: Aup4PortableOptions): Promise<Aup4OpenedProject>;
 	decode(projectId: string, options: Readonly<{
 		title: string;
@@ -302,7 +309,7 @@ export interface NativeAup4Client {
 		sources: AsyncIterable<Aup4SnapshotSource>,
 		options: Aup4PortableOptions,
 	): Promise<Aup4SnapshotResult>;
-	commit(projectId: string): PromiseLike<unknown> | unknown;
+	commit(projectId: string, options?: Readonly<{ signal?: AbortSignal }>): PromiseLike<unknown> | unknown;
 	export(projectId: string, options: Aup4PortableOptions): Promise<Aup4ExportResult>;
 	inspect(projectId: string): Promise<Aup4Validation>;
 	delete?(projectId: string): PromiseLike<unknown> | unknown;
@@ -372,6 +379,7 @@ export interface NativeProjectServiceRuntime {
 	readonly preflightStorage: (requiredBytes: number, operation: 'export' | 'import') => PromiseLike<unknown> | unknown;
 	readonly createStableId: (prefix: string) => string;
 	readonly ensureAup4FileName: (value: unknown) => string;
+	readonly ensureAup3FileName: (value: unknown) => string;
 	/** The project suffix this product writes; every accepted suffix still opens. */
 	readonly projectFileExtension: ProjectFileExtension;
 	readonly ensureProjectFileName: (value: unknown, extension: unknown) => string;
@@ -381,11 +389,20 @@ export interface NativeProjectServiceRuntime {
 		source: NativeProjectAudioSource,
 	) => Promise<readonly Float32Array[] | null>;
 	readonly requestAup4FileHandle: (options: Readonly<{ fileName: string }>) => Promise<unknown>;
+	readonly requestAup3FileHandle: (options: Readonly<{ fileName: string }>) => Promise<unknown>;
 	readonly saveAup4Result: (result: Aup4ExportResult, options: Readonly<{
 		fileName: string;
 		fileHandle?: unknown;
 		fileService: NativeProjectFileService;
 		saveTarget?: unknown;
+		signal: AbortSignal;
+	}>) => Promise<NativeSavedFile>;
+	readonly saveAup3Result: (result: Aup4ExportResult, options: Readonly<{
+		fileName: string;
+		fileHandle?: unknown;
+		fileService: NativeProjectFileService;
+		saveTarget?: unknown;
+		signal: AbortSignal;
 	}>) => Promise<NativeSavedFile>;
 	readonly createAup4Client: (options: Readonly<Record<string, unknown>>) => NativeAup4Client;
 	readonly initialAup4Client?: NativeAup4Client | null;
@@ -460,3 +477,5 @@ export interface SaveAup4Options {
 	readonly saveTarget?: unknown;
 	readonly useFileSystemAccess?: boolean;
 }
+
+export type SaveAup3Options = SaveAup4Options;

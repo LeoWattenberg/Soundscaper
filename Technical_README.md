@@ -34,11 +34,13 @@ quota and eviction policy also remain authoritative: Soundscaper requests
 persistent storage, but that best-effort request can be denied, private or
 restricted contexts may fall back to process memory, and clearing site data
 removes local projects. Keep rendered audio backups of important work rather
-than treating origin-private storage as the only copy. AUP4 is an Audacity
-interchange export: it preserves compatible editable tracks and reports
-conversions, missing plug-ins, and omitted Soundscaper-only mixing state, but it
-is not a full-fidelity Soundscaper backup. AUP4 is audio-only, so video media is
-explicitly reported and omitted; use MP4 or WebM export for a rendered video.
+than treating origin-private storage as the only copy. AUP3 and AUP4 are
+Audacity project exports: AUP3 targets the pinned Audacity 3.7.9 project profile,
+while AUP4 uses the current interchange profile. Both preserve compatible
+editable tracks and report conversions, missing plug-ins, and omitted
+Soundscaper-only mixing state, but neither is a full-fidelity Soundscaper
+backup. Both are audio-only, so video media is explicitly reported and omitted;
+use MP4 or WebM export for a rendered video.
 
 Imported MP4, M4V, and WebM originals are stored immutably in OPFS when
 available, with an IndexedDB Blob fallback. Posters and five-second filmstrip
@@ -164,13 +166,14 @@ Writes require the active project ID and revision and use the editor's normal
 validation, undo, and autosave path. MCP is off at launch and is unavailable in
 the browser and Framescaper.
 
-Desktop projects remain in the app's autosaved local library. Opening or
-double-clicking an `.aup4` imports a new independent library copy;
-later edits never change the opened file. **Save** flushes that internal copy,
-while **Save As** exports a new Audacity interchange `.aup4`. Move compatible
-tracks between the browser and desktop app by exporting AUP4 and importing the
-independent copy. The compatibility report identifies converted audio,
-unavailable effects, and Soundscaper-only state that was omitted. Browser
+Desktop projects remain in the app's autosaved local library. Opening an
+`.aup3` or opening or double-clicking an `.aup4` imports a new independent
+library copy; later edits never change the opened file. **Save** flushes that
+internal copy. **File → Export other** offers AUP3 targeting the pinned Audacity
+3.7.9 profile and AUP4 using the current interchange profile. Move compatible
+tracks between the browser and desktop app by exporting either format and
+importing the independent copy. The compatibility report identifies converted
+audio, unavailable effects, and Soundscaper-only state that was omitted. Browser
 preferences, undo history, mixer routing, and origin-private storage are not
 migrated. Uninstalling an installed build preserves the local library, but
 users should still keep rendered backups before removing application data

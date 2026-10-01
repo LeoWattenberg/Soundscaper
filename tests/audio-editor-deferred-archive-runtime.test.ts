@@ -29,7 +29,9 @@ test('archive implementations stay unloaded until their existing actions run and
 					dispose: () => { clientCalls.push(['dispose']); },
 				}),
 				requestAup4FileHandle: async (options: unknown) => ({ options }),
+				requestAup3FileHandle: async (options: unknown) => ({ generation: 'aup3', options }),
 				saveAup4Result: async (result: unknown, options: unknown) => ({ result, options }),
+				saveAup3Result: async (result: unknown, options: unknown) => ({ generation: 'aup3', result, options }),
 			};
 		},
 		legacy: async () => {
@@ -65,6 +67,14 @@ test('archive implementations stay unloaded until their existing actions run and
 		['initialize', { worker: 'fixture' }],
 		['create', 'project-1'],
 	]);
+	assert.deepEqual(await runtime.requestAup3FileHandle({ fileName: 'legacy.aup3' }), {
+		generation: 'aup3', options: { fileName: 'legacy.aup3' },
+	});
+	assert.deepEqual(await runtime.saveAup3Result({ bytes: Uint8Array.of(3) }, { fileName: 'legacy.aup3' }), {
+		generation: 'aup3',
+		result: { bytes: Uint8Array.of(3) },
+		options: { fileName: 'legacy.aup3' },
+	});
 
 	assert.deepEqual(await runtime.decodeLegacyAupProject('legacy.aup', []), {
 		file: 'legacy.aup',

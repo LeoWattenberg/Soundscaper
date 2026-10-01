@@ -20,7 +20,7 @@ export function positiveRate(value, name) {
 
 export function positiveChannelCount(value) {
 	const number = Number(value);
-	if (!Number.isSafeInteger(number) || number <= 0 || number > 64) throw exportError('AUP4 source channelCount is invalid.', 'INVALID_SOURCE_AUDIO');
+	if (!Number.isSafeInteger(number) || number <= 0 || number > 64) throw exportError('Audacity-project source channelCount is invalid.', 'INVALID_SOURCE_AUDIO');
 	return number;
 }
 

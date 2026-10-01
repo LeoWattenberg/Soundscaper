@@ -132,6 +132,8 @@ export function createAup3ProjectData(options = {}) {
 		});
 		return xmlNode('wavetrack', {
 			name: track.name || `Track ${trackIndex + 1}`,
+			...(track.height == null ? {} : { height: track.height }),
+			...(track.minimized == null ? {} : { minimized: track.minimized }),
 			channel: track.channel ?? 0,
 			linked: track.linked || false,
 			mute: track.mute || false,

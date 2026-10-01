@@ -65,7 +65,7 @@ export const AUP4_OWNED_FEATURE_CARRIAGE: Readonly<Record<OwnedFeatureKey, Aup4F
 	audioAutomation: Object.freeze({
 		carriage: 'omitted',
 		code: 'AUTOMATION_LANES_OMITTED',
-		message: 'Audacity has no automation lanes. Only the clip and track envelopes AUP4 understands were exported.',
+		message: 'Audacity has no automation lanes. Only the clip and track envelopes understood by the project format were exported.',
 	}),
 	audioMixerGraph: Object.freeze({
 		carriage: 'reported',
@@ -93,7 +93,7 @@ export const AUP4_OWNED_FEATURE_CARRIAGE: Readonly<Record<OwnedFeatureKey, Aup4F
 	sourceCharacteristics: Object.freeze({
 		carriage: 'omitted',
 		code: 'SOURCE_CHARACTERISTICS_OMITTED',
-		message: 'Probed source characteristics are not part of AUP4 and were omitted; reopening this copy re-probes its media.',
+		message: 'Probed source characteristics are not part of the Audacity project and were omitted; reopening this copy re-probes its media.',
 	}),
 });
 

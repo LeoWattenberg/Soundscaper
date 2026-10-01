@@ -90,29 +90,41 @@ test('File Open is the only Audacity project import command and dispatches the s
 	}
 });
 
-test('AUP4 export is localized under File Export other and invokes its existing action', () => {
+test('AUP3 and AUP4 exports are localized under File Export other and invoke their actions', () => {
+	assert.equal(ENGLISH_COPY.saveAsAup3, 'Export AUP3');
+	assert.equal(GERMAN_COPY.saveAsAup3, 'AUP3 exportieren');
 	for (const copy of [ENGLISH_COPY, GERMAN_COPY]) {
-		let exported = 0;
+		const exported: string[] = [];
 		const menus = createApplicationMenus(menuInput({ copy, actions: {
-			saveAup4: () => { exported += 1; },
+			saveAup3: () => { exported.push('aup3'); },
+			saveAup4: () => { exported.push('aup4'); },
 		} }));
 		const other = findMenuItem(menus, 'file')?.items?.find((item) => item.id === 'export-other');
-		const exportItem = other?.items?.find((item) => item.id === 'save-aup4');
-		assert.ok(exportItem);
-		assert.equal(exportItem.label, copy.saveAsAup4);
-		assert.equal(exportItem.disabled, false);
-		exportItem.onClick?.();
-		assert.equal(exported, 1);
-		assert.equal(findMenuItem(menus, 'file')?.items?.find((item) => item.id === 'save-aup4'), undefined);
+		const exportAup3 = other?.items?.find((item) => item.id === 'save-aup3');
+		const exportAup4 = other?.items?.find((item) => item.id === 'save-aup4');
+		assert.ok(exportAup3);
+		assert.ok(exportAup4);
+		assert.equal(exportAup3.label, copy.saveAsAup3);
+		assert.equal(exportAup4.label, copy.saveAsAup4);
+		assert.equal(exportAup3.disabled, false);
+		assert.equal(exportAup4.disabled, false);
+		exportAup3.onClick?.();
+		exportAup4.onClick?.();
+		assert.deepEqual(exported, ['aup3', 'aup4']);
+		const fileItems = findMenuItem(menus, 'file')?.items;
+		assert.equal(fileItems?.find((item) => item.id === 'save-aup3'), undefined);
+		assert.equal(fileItems?.find((item) => item.id === 'save-aup4'), undefined);
 	}
 });
 
 test('Audacity Open and export retain their blocking and product availability', () => {
 	const blocked = createApplicationMenus(menuInput({ blocked: true }));
 	assert.equal(findMenuItem(blocked, 'open-project')?.disabled, true);
+	assert.equal(findMenuItem(blocked, 'save-aup3')?.disabled, true);
 	assert.equal(findMenuItem(blocked, 'save-aup4')?.disabled, true);
 	const framescaper = createApplicationMenus(menuInput({ productId: 'framescaper' }));
 	assert.ok(findMenuItem(framescaper, 'open-project'));
+	assert.equal(findMenuItem(framescaper, 'save-aup3'), undefined);
 	assert.equal(findMenuItem(framescaper, 'save-aup4'), undefined);
 });
 

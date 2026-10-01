@@ -65,6 +65,7 @@ const SAVE_PURPOSES = Object.freeze({
 		defaultExtension: NATIVE_PROJECT_EXTENSION,
 		filters: [{ name: 'Scape projects', extensions: [...PROJECT_EXTENSIONS] }],
 	}),
+	aup3: Object.freeze({ defaultExtension: 'aup3', filters: [{ name: 'Audacity 3 project', extensions: ['aup3'] }] }),
 	aup4: Object.freeze({ defaultExtension: 'aup4', filters: [{ name: 'Audacity interchange', extensions: ['aup4'] }] }),
 	'audio-pcm-mix': Object.freeze({
 		defaultExtension: 'wav',

@@ -61,7 +61,7 @@ export function flattenAup4MusicalMaps(
 		code: 'TEMPO_ROOT_BPM_CONVERTED',
 		severity: 'warning',
 		disposition: 'converted',
-		message: 'AUP4 cannot encode the project tempo; the retained global tempo uses 120 BPM.',
+		message: 'The Audacity project cannot encode the project tempo; the retained global tempo uses 120 BPM.',
 		scope: { kind: 'project' },
 		data: { sourceBpm: firstTempo?.bpm, retainedBpm: retainedTempoBpm },
 	});
@@ -69,7 +69,7 @@ export function flattenAup4MusicalMaps(
 		code: 'SIGNATURE_ROOT_DENOMINATOR_CONVERTED',
 		severity: 'warning',
 		disposition: 'converted',
-		message: 'AUP4 cannot encode the project signature denominator; the retained global signature uses 4.',
+		message: 'The Audacity project cannot encode the project signature denominator; the retained global signature uses 4.',
 		scope: { kind: 'project' },
 		data: {
 			sourceDenominator: sourceSignatureDenominator,
@@ -80,7 +80,7 @@ export function flattenAup4MusicalMaps(
 		code: 'TEMPO_MAP_FLATTENED',
 		severity: 'warning',
 		disposition: 'converted',
-		message: 'AUP4 retained the first tempo event as its global tempo. Musical clip and label positions were projected before later events were flattened.',
+		message: 'The Audacity project retained the first tempo event as its global tempo. Musical clip and label positions were projected before later events were flattened.',
 		scope: { kind: 'project' },
 		data: {
 			eventCount: tempoEvents.length,
@@ -96,7 +96,7 @@ export function flattenAup4MusicalMaps(
 		code: 'SIGNATURE_MAP_FLATTENED',
 		severity: 'warning',
 		disposition: 'converted',
-		message: 'AUP4 retained the first signature event as its global signature. Later bar-indexed events were flattened.',
+		message: 'The Audacity project retained the first signature event as its global signature. Later bar-indexed events were flattened.',
 		scope: { kind: 'project' },
 		data: {
 			eventCount: signatureEvents.length,

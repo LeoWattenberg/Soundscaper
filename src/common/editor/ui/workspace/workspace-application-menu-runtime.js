@@ -208,6 +208,7 @@ export function createWorkspaceApplicationMenus({
 				saveDawproject: () => run(() => controller.actions.project.saveDawproject()),
 				saveProject: () => run(() => controller.actions.project.save()),
 				saveScape: () => run(() => controller.actions.project.saveScape({ saveCopy: snapshot.readOnly })),
+				saveAup3: () => run(() => controller.actions.project.saveAup3({ saveCopy: snapshot.readOnly })),
 				saveAup4: () => run(() => controller.actions.project.saveAup4({ saveCopy: snapshot.readOnly })),
 				openDeliveryReport: () => setDialog('delivery-report'),
 				importFiles: () => fileService.isDesktop

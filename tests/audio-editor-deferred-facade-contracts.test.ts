@@ -101,7 +101,9 @@ const SELECTION_PORTS = ['applyAudioSelectionEffectAsync'] as const;
 const PFFFT_PORTS = ['initializePffft'] as const;
 const PARAMETRIC_EQ_PORTS = ['loadParametricEqWasmModule'] as const;
 const SPECTRAL_PORTS = ['applySpectralGain'] as const;
-const AUP4_MODULE_PORTS = ['requestAup4FileHandle', 'saveAup4Result'] as const;
+const AUP4_MODULE_PORTS = [
+	'requestAup3FileHandle', 'requestAup4FileHandle', 'saveAup3Result', 'saveAup4Result',
+] as const;
 const LEGACY_DECODE_PORTS = ['decodeLegacyAupProject'] as const;
 const LEGACY_CONVERT_PORTS = ['convertLegacyAupToProject'] as const;
 const SCAPE_PORTS = ['inspectScapeProject', 'importScapeProject', 'exportScapeProject'] as const;

@@ -11,6 +11,8 @@ import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-worksp
 import { formatDate } from '../workspace-runtime.js';
 import {
 	applyTrackRateDialog,
+	audacityCompatibilityDescription,
+	audacityCompatibilityTitle,
 	aup4CompatibilityEffectPath,
 	aup4CompatibilityItems,
 	compatibilityCount,
@@ -48,7 +50,7 @@ export default function EditorDialog({ type, value, onValueChange, trackId, cont
 		'timed-recording': copy.timedRecording,
 		'track-rate': copy.sampleRate,
 		resample: copy.resample,
-		'aup4-compatibility': copy.aup4CompatibilityReport,
+		'aup4-compatibility': audacityCompatibilityTitle(snapshot.aup4Compatibility?.report, copy),
 		'delivery-report': copy.deliveryReport,
 		about: aboutLabel,
 		'revert-factory': copy.revertFactorySettings,
@@ -257,7 +259,7 @@ function Aup4CompatibilityReport({ report, copy }) {
 	const displayCount = (disposition) => Math.max(compatibilityCount(counts[disposition]), visibleCount(disposition));
 	return (
 		<div data-aup4-compatibility-report>
-			<p>{copy.aup4CompatibilityDescription}</p>
+			<p>{audacityCompatibilityDescription(report, copy)}</p>
 			<p>{formatAup4CompatibilitySummary(report, copy)}</p>
 			<dl className="kw-audio-editor-compatibility-counts">
 				<div><dt>{copy.aup4CompatibilityPreserved}</dt><dd>{displayCount('preserved')}</dd></div>

@@ -66,6 +66,12 @@ test('the Audacity interchange export dialog names the interchange export', asyn
 	assert.equal(options.title, 'Export Audacity interchange');
 });
 
+test('the AUP3 export dialog names the Audacity 3 project', async () => {
+	const fixture = saveDialogFixture();
+	const options = await fixture.choose('aup3');
+	assert.equal(options.title, 'Export Audacity 3 project');
+});
+
 test('every other save purpose keeps the generic export title', async () => {
 	const fixture = saveDialogFixture();
 	assert.equal((await fixture.choose('audio')).title, 'Export');

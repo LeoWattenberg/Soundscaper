@@ -105,6 +105,50 @@ The action-parity manifest, native AUP4 codec/profile implementation, compatibil
 
 `tests/fixtures/aup4-native-empty.js`, `tests/fixtures/aup4-native-legacy.js`, `tests/fixtures/aup4-native-rich.js`, `tests/fixtures/aup4-binary-xml-oracle.js`, and `tests/fixtures/aup4-sampleblock-oracle.js` contain the compressed Audacity-created empty/legacy/rich projects and compact interoperability data derived from the pinned Audacity sources. The rich fixture exercises two tracks, five clips, group state, stretch-to-tempo state, Float32 block reuse, and byte-exact Audacity-created summaries through an Audacity-created fixture → browser decode → browser write → browser reopen cycle. That fixture-codec audit does not execute Audacity's compiled native loader or writer. The separate compiled-native round-trip release gate is recorded as pending, with its required evidence, in `tests/fixtures/aup4-interop-gate.json`; `npm run audit:aup4-interop:release` fails closed until that evidence is produced. The browser codec is a clean JavaScript adaptation with typed opaque-node preservation; no QML, wxWidgets, or other `au3/` UI code is included.
 
+## Audacity 3.7.9 native AUP3 export profile
+
+The audio-only AUP3 writer is a clean TypeScript adaptation of project-file
+behavior pinned to official Audacity 3.7.9 commit
+`86d74c770974b25188ca2f23bcce47c1181bd08a`:
+
+- source: <https://github.com/audacity/audacity/tree/86d74c770974b25188ca2f23bcce47c1181bd08a>
+- AUP3 behavior sources: `libraries/lib-project-file-io/ProjectFileIO.cpp`,
+  `libraries/lib-project-file-io/DBConnection.cpp`,
+  `libraries/lib-project-file-io/ProjectSerializer.cpp`,
+  `libraries/lib-project-file-io/SqliteSampleBlock.cpp`,
+  `libraries/lib-wave-track/WaveClip.cpp`,
+  `libraries/lib-numeric-formats/ProjectTimeSignature.cpp`,
+  `libraries/lib-effects/Effect.cpp`,
+  `libraries/lib-realtime-effects/RealtimeEffectState.cpp`,
+  `libraries/lib-builtin-effects/BassTrebleBase.cpp`,
+  `libraries/lib-builtin-effects/DistortionBase.cpp`,
+  `libraries/lib-builtin-effects/PhaserBase.cpp`,
+  `libraries/lib-builtin-effects/ReverbBase.cpp`,
+  `libraries/lib-builtin-effects/WahWahBase.cpp`,
+  `src/effects/Compressor.cpp`,
+  `src/effects/Limiter.cpp`,
+  `src/ProjectFileManager.cpp`,
+  `src/tracks/ui/ChannelView.cpp`,
+  `libraries/lib-project/ProjectFormatVersion.cpp`, and
+  `libraries/lib-project/ProjectFormatVersion.h`
+- upstream license and notices:
+  <https://github.com/audacity/audacity/blob/86d74c770974b25188ca2f23bcce47c1181bd08a/LICENSE.txt>
+- selected GPLv3 terms: [`LICENSES/GPL-3.0.txt`](LICENSES/GPL-3.0.txt)
+
+The adaptation writes Audacity's 64-KiB-page, three-table `project`, `autosave`,
+and `sampleblocks` SQLite profile with the `AUDY` application ID, packed 3.7 base
+format version `0x03070000`, binary-XML project version `1.3.0`, and compatible
+Float32 sample blocks and summaries. It reuses Soundscaper's project conversion
+rather than any upstream UI code. AUP4-only binary blob fields have no field
+token in the pinned Audacity 3 serializer; the AUP3 writer therefore removes
+them and records that omission in its compatibility report instead of emitting
+a stream Audacity 3 cannot decode. Effects whose opaque state depends on those
+fields are omitted as a whole. The writer also retains only the seven built-in
+effects that declare real-time support at the pinned revision; process-only
+effects are omitted and reported rather than placed into a rack Audacity 3
+cannot reproduce. No Audacity-created AUP3 fixture is redistributed for this
+profile.
+
 ## Audacity 4 translation catalogs
 
 Soundscaper can load selected user-interface translations from Audacity 4's Qt

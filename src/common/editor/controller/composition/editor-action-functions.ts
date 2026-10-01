@@ -180,6 +180,7 @@ export interface EditorActionFunctions {
 	readonly revertFactorySettings: ReturnType<typeof createPreferencesComposition>['service']['revertFactorySettings'];
 	readonly runEffectMacro: ReturnType<typeof createEffectsComposition>['runEffectMacro'];
 	readonly runNyquistEvaluation: ReturnType<typeof createEffectsComposition>['runNyquistEvaluation'];
+	readonly saveAup3: ReturnType<typeof createNativeProjectService>['saveAup3'];
 	readonly saveAup4: ReturnType<typeof createNativeProjectService>['saveAup4'];
 	readonly saveDawproject: ReturnType<typeof createNativeProjectService>['saveDawproject'];
 	readonly saveEffectPreset: ReturnType<typeof createEffectsComposition>['controls']['saveEffectPreset'];

@@ -39,8 +39,10 @@ Choose **Cancel** beside the bar to stop an import or audio export.
 
 - Scape (`.sscape` from Soundscaper, `.fscape` from Framescaper, and either one openable in both) is the portable, full-fidelity project format shared by Soundscaper
   and Framescaper.
-- AUP4 is audio-only interchange with Audacity. It is not a full backup of a
-  mixed-media Soundscaper project.
+- AUP3 and AUP4 are audio-only interchange with Audacity. Choose AUP3 to target
+  the Audacity 3.7.9 project profile or AUP4 for the current interchange profile.
+  Neither is a full backup of a mixed-media Soundscaper project; review the
+  compatibility report after export.
 - Adobe Audition SESX (`.sesx`) can be opened in the desktop edition to create
   a local project from its referenced audio files. Keep the original session
   and media; SESX export is not available.

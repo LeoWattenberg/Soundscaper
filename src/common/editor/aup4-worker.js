@@ -2,6 +2,11 @@ import sqlite3InitModule from '@sqlite.org/sqlite-wasm';
 import sqliteWasmUrl from '@sqlite.org/sqlite-wasm/sqlite3.wasm?url';
 
 import {
+	commitAup3Autosave,
+	initializeAup3Database,
+	prepareAup3PortableExport,
+} from './aup3-database.ts';
+import {
 	assertAudacitySerializedDatabaseHeader,
 	commitAup4Autosave,
 	discardExcludedAup4Metadata,
@@ -56,7 +61,7 @@ async function dispatch(message) {
 		id: message.id,
 		progress(value, phase, detail = null) { postMessage({ id: message.id, progress: { value, phase, detail } }); },
 		checkCancelled() {
-			if (requestState.isCancelled(message.id)) throw operationError('The AUP4 operation was cancelled.', 'ABORTED');
+			if (requestState.isCancelled(message.id)) throw operationError('The Audacity-project operation was cancelled.', 'ABORTED');
 		},
 	};
 	try {
@@ -85,14 +90,14 @@ async function handle(type, args, context) {
 	if (type === 'commit') return commitProject(args.projectId, args.now);
 	if (type === 'export') return exportProject(args, context);
 	if (type === 'delete') return deleteProject(args.projectId);
-	throw operationError(`Unsupported AUP4 worker operation: ${type}.`, 'UNKNOWN_OPERATION');
+	throw operationError(`Unsupported Audacity-project worker operation: ${type}.`, 'UNKNOWN_OPERATION');
 }
 
 async function initializeSqlite() {
 	if (!sqlitePromise) sqlitePromise = sqlite3InitModule({
 		locateFile(path) { return path.endsWith('.wasm') ? sqliteWasmUrl : path; },
 		print: () => undefined,
-		printErr: (...values) => console.warn('[AUP4 SQLite]', ...values),
+		printErr: (...values) => console.warn('[Audacity-project SQLite]', ...values),
 	});
 	return sqlitePromise;
 }
@@ -110,7 +115,7 @@ async function initializePool() {
 			await pool.reserveMinimumCapacity(INITIAL_POOL_CAPACITY);
 			return pool;
 		} catch (error) {
-			console.warn('[AUP4 SQLite] OPFS SAH pool unavailable; using bounded memory storage.', error);
+			console.warn('[Audacity-project SQLite] OPFS SAH pool unavailable; using bounded memory storage.', error);
 			return null;
 		}
 	})();
@@ -132,13 +137,23 @@ async function environmentInfo() {
 
 async function createProject(args, context) {
 	const projectId = normalizeProjectId(args.projectId);
-	if (projects.has(projectId)) return projectDescriptor(projects.get(projectId));
+	const targetGeneration = normalizeTargetGeneration(args.targetGeneration);
+	if (projects.has(projectId)) {
+		const existing = projects.get(projectId);
+		if (existing.targetGeneration !== targetGeneration) throw operationError(
+			`Audacity project ${projectId} is already open for ${existing.targetGeneration.toUpperCase()} output.`,
+			'TARGET_GENERATION_MISMATCH',
+		);
+		return projectDescriptor(existing);
+	}
 	const sqlite = await initializeSqlite();
 	const pool = await initializePool();
 	context.checkCancelled();
 	const entry = openDatabase(sqlite, pool, projectId);
 	try {
-		initializeAup4Database(entry.database);
+		entry.targetGeneration = targetGeneration;
+		if (targetGeneration === 'aup3') initializeAup3Database(entry.database);
+		else initializeAup4Database(entry.database);
 		projects.set(projectId, entry);
 		return projectDescriptor(entry);
 	} catch (error) {
@@ -162,13 +177,13 @@ async function openFile(args, context) {
 	const limit = portableLimit(args, Boolean(pool));
 	const availableQuota = storageAvailable(args);
 	if (availableQuota != null && file.size > availableQuota) throw operationError(
-		'The AUP4 file is larger than the browser storage currently available.',
+		'The Audacity project file is larger than the browser storage currently available.',
 		'QUOTA_EXCEEDED',
 		{ required: file.size, available: availableQuota, readOnlyAvailable: false },
 	);
 	const exceedsEditableLimit = file.size > limit;
 	if (exceedsEditableLimit && !pool) {
-		throw operationError(`The AUP4 file exceeds this browser's ${Math.round(limit / 1024 / 1024)} MiB in-memory project limit.`, 'PROJECT_TOO_LARGE', {
+		throw operationError(`The Audacity project file exceeds this browser's ${Math.round(limit / 1024 / 1024)} MiB in-memory project limit.`, 'PROJECT_TOO_LARGE', {
 			readOnlyAvailable: false,
 			limit,
 			size: file.size,
@@ -211,6 +226,7 @@ async function openFile(args, context) {
 	}
 	try {
 		entry.sourceGeneration = sourceGeneration;
+		entry.targetGeneration = 'aup4';
 		const migration = upgradeAudacityProjectDatabase(entry.database, WORKER_VALIDATION_OPTIONS);
 		const discardedCloudMetadata = discardExcludedAup4Metadata(entry.database);
 		entry.discardedCloudMetadata = discardedCloudMetadata;
@@ -251,7 +267,7 @@ function deserializeMemoryDatabase(sqlite, bytes) {
 	const result = sqlite.capi.sqlite3_deserialize(database.pointer, 'main', pointer, serialized.byteLength, serialized.byteLength, flags);
 	if (result) {
 		database.close();
-		throw operationError(`SQLite could not deserialize the AUP4 file (${result}).`, 'INVALID_DATABASE');
+		throw operationError(`SQLite could not deserialize the Audacity project file (${result}).`, 'INVALID_DATABASE');
 	}
 	configureDefensiveDatabase(sqlite, database);
 	return database;
@@ -299,6 +315,9 @@ async function planImport(args, context) {
 function commitProject(projectId, now) {
 	const entry = requireWritableProject(projectId);
 	snapshots.assertNone(entry.projectId);
+	if (entry.targetGeneration === 'aup3') {
+		return { committed: commitAup3Autosave(entry.database), history: [] };
+	}
 	return { committed: commitAup4Autosave(entry.database, { now }), history: listAup4History(entry.database) };
 }
 
@@ -306,8 +325,13 @@ async function exportProject(args, context) {
 	const projectId = normalizeProjectId(args.projectId);
 	const entry = requireProject(projectId);
 	snapshots.assertNone(entry.projectId);
-	if (!entry.readOnly && args.commit !== false) commitAup4Autosave(entry.database, { now: args.now });
-	const validation = prepareAup4PortableExport(entry.database);
+	if (!entry.readOnly && args.commit !== false) {
+		if (entry.targetGeneration === 'aup3') commitAup3Autosave(entry.database);
+		else commitAup4Autosave(entry.database, { now: args.now });
+	}
+	const validation = entry.targetGeneration === 'aup3'
+		? prepareAup3PortableExport(entry.database)
+		: prepareAup4PortableExport(entry.database);
 	context.checkCancelled();
 	let bytes;
 	if (entry.pool) {
@@ -325,15 +349,34 @@ async function exportProject(args, context) {
 	}
 	context.checkCancelled();
 	const limit = portableLimit(args, Boolean(entry.pool));
-	if (bytes.byteLength > limit) throw operationError(`The AUP4 snapshot exceeds this browser's ${Math.round(limit / 1024 / 1024)} MiB save limit.`, 'PROJECT_TOO_LARGE', { limit, size: bytes.byteLength });
+	const label = entry.targetGeneration.toUpperCase();
+	if (bytes.byteLength > limit) throw operationError(`The ${label} snapshot exceeds this browser's ${Math.round(limit / 1024 / 1024)} MiB save limit.`, 'PROJECT_TOO_LARGE', { limit, size: bytes.byteLength });
 	context.progress(1, 'complete');
 	return {
 		bytes,
 		size: bytes.byteLength,
 		mimeType: 'application/x-audacity-project',
-		extension: '.aup4',
-		validation: portableValidation(validation, entry),
+		extension: `.${entry.targetGeneration}`,
+		validation: portableValidation(exportValidation(validation, entry), entry),
 		compatibilityReport: entry.lastExportCompatibilityReport || null,
+	};
+}
+
+function normalizeTargetGeneration(value) {
+	if (value == null || value === 'aup4') return 'aup4';
+	if (value === 'aup3') return 'aup3';
+	throw operationError(`Unsupported Audacity project target: ${value}.`, 'INVALID_TARGET_GENERATION');
+}
+
+function exportValidation(validation, entry) {
+	if (entry.targetGeneration !== 'aup3') return validation;
+	return {
+		...validation,
+		compatible: true,
+		readOnly: false,
+		generation: 'aup3',
+		issues: [],
+		compatibilityReport: entry.lastExportCompatibilityReport,
 	};
 }
 
@@ -359,13 +402,13 @@ async function deleteProject(projectId) {
 
 function requireProject(projectId) {
 	const entry = projects.get(normalizeProjectId(projectId));
-	if (!entry?.database) throw operationError(`AUP4 project is not open: ${projectId}.`, 'PROJECT_NOT_OPEN');
+	if (!entry?.database) throw operationError(`Audacity project is not open: ${projectId}.`, 'PROJECT_NOT_OPEN');
 	return entry;
 }
 
 function requireWritableProject(projectId) {
 	const entry = requireProject(projectId);
-	if (entry.readOnly) throw operationError('This newer AUP4 project is read-only.', 'READ_ONLY');
+	if (entry.readOnly) throw operationError('This newer Audacity project is read-only.', 'READ_ONLY');
 	return entry;
 }
 

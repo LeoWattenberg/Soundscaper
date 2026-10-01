@@ -1,6 +1,6 @@
 ---
 title: Project files
-description: Choose between the local library, Scape project files, AUP4, SESX import, and rendered backups.
+description: Choose between the local library, Scape project files, Audacity interchange, SESX import, and rendered backups.
 sidebar:
   order: 2
 ---
@@ -29,15 +29,17 @@ Importing or opening a Scape copy can encounter an existing project with the
 same ID. Use the offered copy workflow when both versions must remain in the
 local library.
 
-## AUP4
+## Audacity AUP3 and AUP4
 
-AUP4 exists for compatible audio interchange with Audacity. Export produces a
+Audacity project export is available from **File → Export other**. Choose
+**Export AUP3** to target the Audacity 3.7.9 project profile, or **Export AUP4**
+for the current Audacity interchange profile. Each export produces a
 compatibility report describing conversions, unavailable effects, and omitted
 Soundscaper-only state.
 
-AUP4 is audio-only. Video is omitted, and browser preferences, undo history,
-mixer routing, and the browser's project library are not transferred. Do not
-use AUP4 as the sole backup of a Soundscaper or Framescaper project.
+Both formats are audio-only. Video is omitted, and browser preferences, undo
+history, mixer routing, and the browser's project library are not transferred.
+Do not use either as the sole backup of a Soundscaper or Framescaper project.
 
 ## Adobe Audition SESX
 

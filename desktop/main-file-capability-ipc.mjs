@@ -9,6 +9,7 @@ import { acceptsFile, validateFileChoice, validateSaveChoice } from './validatio
 const SAVE_DIALOG_TITLES = new Map([
 	['project', 'Save project'],
 	['project-copy', 'Save project copy'],
+	['aup3', 'Export Audacity 3 project'],
 	['aup4', 'Export Audacity interchange'],
 ]);
 

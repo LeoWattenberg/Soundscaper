@@ -301,7 +301,7 @@ export const AUDACITY_ACTION_DEFINITIONS = [
 	// PCM whatever it declares, so setting the format only relabelled material
 	// it never touched — and a shortcut bound to this command did so silently.
 	// The declaration itself survives on the source, which is what carries an
-	// imported Audacity project's format back out to .aup4.
+	// imported Audacity project's format back out to .aup3 or .aup4.
 	excluded('action://trackedit/track/change-format?format=%1', 'Track sample format', ['Track context > Format'], EXCLUDED_REASONS.sampleFormat, { source: UPSTREAM.trackEdit, upstreamAction: 'dynamic ActionQuery format action' }),
 	implemented('track-spectrogram-settings', 'Spectrogram settings', ['Track context > Spectrogram'], 'track.openSpectrogramSettings', { enableWhen: 'audio-track-selected', source: UPSTREAM.spectrogram }),
 	implemented('action://projectscene/track-view-half-wave', 'Half-wave', ['Track context > Track visualization'], 'track.setHalfWaveView', { enableWhen: 'audio-track-selected', source: UPSTREAM.projectScene }),
