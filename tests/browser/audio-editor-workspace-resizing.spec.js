@@ -51,6 +51,8 @@ test.describe('workspace panel resizing', () => {
 		await chooseCommandAction(page, editor, 'Edit', 'Metadata editor');
 		const metadataPanel = editor.locator('[data-workspace-panel="metadata"]');
 		await expect(metadataPanel).toBeVisible();
+		// Opening the panel schedules focus before its menu can claim the keyboard.
+		await expect(metadataPanel).toBeFocused();
 		await dockWorkspacePanel(editor, 'metadata', 'floating');
 		const floatingDock = editor.locator('[data-panel-dock="floating"]');
 		// A keyboard-opened panel menu lands on its first item; Escape hands focus back to the button.
@@ -200,6 +202,7 @@ test.describe('workspace panel resizing', () => {
 		const mixerPanel = editor.locator('[data-workspace-panel="mixer"]');
 		if (!await mixerPanel.isVisible()) await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Mixer']);
 		await chooseCommandAction(page, editor, 'Edit', 'Metadata editor');
+		await expect(editor.locator('[data-workspace-panel="metadata"]')).toBeFocused();
 		await dockWorkspacePanel(editor, 'metadata', 'bottom');
 		const bottomDock = editor.locator('[data-panel-dock="bottom"]');
 		await expect(bottomDock.locator('[data-workspace-panel-group]')).toHaveCount(2);
