@@ -34,8 +34,8 @@ function sameSnapshotValue(left: unknown, right: unknown, seen: WeakMap<object, 
 	if (prior) prior.add(right);
 	else seen.set(left, new WeakSet([right]));
 	const leftKeys = Reflect.ownKeys(left);
-	const rightKeys = Reflect.ownKeys(right);
-	if (leftKeys.length !== rightKeys.length || leftKeys.some((key) => !rightKeys.includes(key))) return false;
+	const rightKeys = new Set(Reflect.ownKeys(right));
+	if (leftKeys.length !== rightKeys.size || leftKeys.some((key) => !rightKeys.has(key))) return false;
 	for (const key of leftKeys) {
 		const leftDescriptor = Object.getOwnPropertyDescriptor(left, key);
 		const rightDescriptor = Object.getOwnPropertyDescriptor(right, key);
