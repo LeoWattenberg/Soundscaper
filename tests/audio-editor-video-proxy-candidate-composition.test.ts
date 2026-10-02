@@ -160,3 +160,23 @@ test('an existing proxy is observed without a decoder but stays bounded', () => 
 		/cannot be empty/iu,
 	);
 });
+
+test('existing proxy size warnings run before probing and approval preserves exact candidate metadata', async () => {
+	for (const accept of [true, false]) {
+		let warnings = 0; let probes = 0;
+		const candidate = new Blob(['proxy'], { type: 'video/webm' });
+		const observer = createVideoProxyExistingCandidateObserverForRuntime(candidate, {
+			probeVideoTiming: async () => { probes++; return PROBE_RESULT; },
+		}, { maximumBytes: 4, async confirmFileSizeWarning(warning) {
+			warnings++; assert.equal(probes, 0); assert.equal(warning.byteLength, 5); return accept;
+		} });
+		assert.ok(observer);
+		const original = new Blob(['original'], { type: 'video/mp4' });
+		const observing = observeVideoProxyCandidate(observer, { original, originalSourceId: 'source', assertCurrent() {},
+			identity: { authority: 'owned', projectId: 'project', sourceId: 'source', storageKey: 'original',
+				mimeType: original.type, byteLength: original.size, sha256: 'a'.repeat(64), generationToken: 'generation' } });
+		if (accept) assert.equal(consumeVideoProxyCandidateObservation(await observing).byteLength, 5);
+		else await assert.rejects(observing, { name: 'AbortError' });
+		assert.equal(warnings, 1); assert.equal(probes, accept ? 1 : 0);
+	}
+});

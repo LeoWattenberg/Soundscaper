@@ -21,7 +21,6 @@ const PROXY_KEY_PREFIX = 'video-proxy-sha256:';
 const TIMING_KEY_PREFIX = 'video-timing-sha256:';
 const TIMING_ENCODING = 'soundscaper-video-timing-v1';
 const TIMING_MIME_TYPE = 'application/vnd.soundscaper.video-timing';
-const MAX_PROXY_BYTES = 512 * 1024 * 1024;
 const MAX_TIMING_BYTES = 16_000_032;
 const IDENTIFIER_PATTERN = /^[\x21-\x7e]{1,256}$/u;
 
@@ -282,7 +281,7 @@ function normalizeRowIdentity(
 	const sha256 = digest(raw.sha256, 'claim row');
 	if (!bodyKey.endsWith(sha256)) throw new TypeError('A claim row digest does not match its body key.');
 	const byteLength = positiveSafeInteger(raw.byteLength, 'claim row byte length');
-	if (byteLength > (bodyKind === 'proxy' ? MAX_PROXY_BYTES : MAX_TIMING_BYTES)) {
+	if (bodyKind === 'timing' && byteLength > MAX_TIMING_BYTES) {
 		throw new RangeError('A claim row exceeds its body byte limit.');
 	}
 	const mimeType = string(raw.mimeType, 'claim row MIME type');

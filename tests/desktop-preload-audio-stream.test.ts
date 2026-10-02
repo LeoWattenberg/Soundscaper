@@ -40,7 +40,7 @@ test('sandbox preload rejects oversized or path-bearing stream commands before m
 	await assert.rejects(() => bridge.runDesktopAudioCodecStreamCommand({ type: 'write', operationId, offset: 0, bytes: oversized }), /Oversized desktop audio stream packet/u);
 	for (const command of [
 		{ type: 'begin', plan: { ...plan, inputPath: '/renderer/input' } },
-		{ type: 'begin', plan: { ...plan, maximumOutputBytes: 1_000_000_001 } },
+		{ type: 'begin', plan: { ...plan, maximumOutputBytes: Number.MAX_SAFE_INTEGER + 1 } },
 		{ type: 'begin', plan: { ...plan, frameCount: plan.frameCount + 1 } },
 		{ type: 'write', operationId, offset: 0, bytes: new Uint8Array(1024 ** 2 + 1) },
 		{ type: 'read', operationId, offset: 0, maximumBytes: 1024 ** 2 + 1 },

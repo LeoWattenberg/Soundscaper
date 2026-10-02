@@ -8,6 +8,7 @@ import { createAudioEditorFileService } from '../../common/editor/file-service.j
 import { BoundAudioEditorApp } from '../../common/editor/ui/AudioEditorApp.jsx';
 import { snapshotBootstrapCopyFields } from
 	'../../common/editor/ui/audio-editor-bootstrap-copy-snapshot.ts';
+import type { FileSizeWarningConfirmation } from '../../common/editor/controller/shared/file-size-warning-confirmation.ts';
 import type { MonoConversionConfirmation } from
 	'../../common/editor/ui/dialogs/mono-conversion-confirmation.ts';
 import {
@@ -71,11 +72,13 @@ const RUNTIME_LIFECYCLE = createAudioEditorWebRuntimeLifecycle<
 		presentation: FramescaperWebEditorRuntimePresentation,
 		fileService: WebFileService,
 		monoConversionConfirmation: MonoConversionConfirmation,
+		fileSizeWarningConfirmation: FileSizeWarningConfirmation,
 	) => createFramescaperAudioEditorController(environment, {
 		locale: presentation.locale,
 		copy: presentation.copy,
 		fileService,
 		confirmMonoConversion: monoConversionConfirmation.confirm,
+		confirmFileSizeWarning: fileSizeWarningConfirmation.confirm,
 	}),
 	createExtension: (controller: WebController, _environment, fileService: WebFileService) => (
 		createFramescaperNativeWatchImportClient({
@@ -129,6 +132,7 @@ const BOOTSTRAP_CONFIGURATION: AudioEditorWebBootstrapConfiguration<
 				projectForRuntimeConsumers={runtimeProjector(runtime)}
 				assistanceSearchSource={RUNTIME_LIFECYCLE.assistanceSearchSource(runtime)}
 				monoConversionConfirmation={runtimeMonoConversionConfirmation(runtime)}
+				fileSizeWarningConfirmation={RUNTIME_LIFECYCLE.fileSizeWarningConfirmation(runtime)}
 				crossProductHandoffAvailable={true}
 			/>
 		</Suspense>

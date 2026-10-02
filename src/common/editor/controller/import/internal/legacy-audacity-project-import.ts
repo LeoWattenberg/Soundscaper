@@ -59,7 +59,8 @@ export function createLegacyAudacityProjectImport(runtime: LegacyAudacityImportR
 		await preflightStorage(Math.max(file.size * 8, 8 * 1024 * 1024), 'import');
 		assertImportProjectCurrent();
 		setLocalizedStatus(setStatus, copy, "aupImporting");
-		const structure = await decodeLegacyAupProject(file, legacyDataFiles, { onProgress: updateProgress });
+		const structure = await decodeLegacyAupProject(file, legacyDataFiles, { onProgress: updateProgress,
+			confirmFileSizeWarning: runtime.confirmFileSizeWarning, assertCurrent: assertImportProjectCurrent });
 		assertImportProjectCurrent();
 		const decoded = await convertLegacyAupToProject(structure, {
 			title: stripExtension(file.name),

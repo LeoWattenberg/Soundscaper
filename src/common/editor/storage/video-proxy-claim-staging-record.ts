@@ -23,7 +23,6 @@ import {
 } from './video-proxy-cleanup-tombstone.ts';
 
 const CLAIM_LEASE_MS = 24 * 60 * 60 * 1000;
-const MAX_PROXY_BYTES = 512 * 1024 * 1024;
 const MAX_TIMING_BYTES = 16_000_032;
 const TIMING_MIME_TYPE = 'application/vnd.soundscaper.video-timing';
 const INPUT_FIELDS = [
@@ -54,7 +53,7 @@ export function normalizeVideoProxyClaimStagingInput(value: unknown): VideoProxy
 		throw new TypeError('A content-addressed video proxy claim body key is required.');
 	}
 	const byteLength = positiveSafeInteger(raw.byteLength, 'claim body byte length');
-	if (byteLength > (bodyKind === 'proxy' ? MAX_PROXY_BYTES : MAX_TIMING_BYTES)) {
+	if (bodyKind === 'timing' && byteLength > MAX_TIMING_BYTES) {
 		throw new RangeError('The claimed video proxy body exceeds its fixed byte limit.');
 	}
 	const mimeType = string(raw.mimeType, 'claim body MIME type');

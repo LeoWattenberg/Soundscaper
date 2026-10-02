@@ -12,7 +12,6 @@ import {
 	type ScapeArchiveLayoutWitness,
 } from './scape-archive-layout-witness.ts';
 import { SCAPE_ARCHIVE_LIMITS } from './scape-archive-envelope.ts';
-import { isDesktopScapeArchiveByteSource } from './desktop-scape-archive-byte-source.ts';
 import { SCAPE_MAXIMUM_CENTRAL_DIRECTORY_BYTES } from './scape-archive-zip-profile.ts';
 
 const LOCAL_SIGNATURE = 0x04034b50;
@@ -108,8 +107,9 @@ async function validateByteSourceLayout(
 	if (!Number.isSafeInteger(size) || size < END_FIXED_BYTES) {
 		throw new RangeError('The Scape ZIP size is invalid.');
 	}
-	const maximumExpandedBytes = isDesktopScapeArchiveByteSource(source)
-		? Number.MAX_SAFE_INTEGER : SCAPE_ARCHIVE_LIMITS.maximumExpandedBytes;
+	// The envelope asks the user about the archive-size policy before reading
+	// bodies. Structural ZIP validation only bounds arithmetic here.
+	const maximumExpandedBytes = Number.MAX_SAFE_INTEGER;
 	const context: LayoutContext = { source, signal, size, maximumExpandedBytes, witness };
 	const central = await locateCentralDirectory(context);
 	const entries = await readCentralEntries(context, central);

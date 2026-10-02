@@ -2,6 +2,7 @@
 
 import { createImportedSourceProvenance } from '../../../source-provenance.ts';
 import type { EditorProjectToken } from '../../shared/lifecycle.ts';
+import type { FileSizeWarningConfirmation } from '../../shared/file-size-warning.ts';
 import type { ImportCompositionState } from './import-composition-types.ts';
 import type { NormalizedProjectImportOptions, ProjectImportDestination } from './project-import-options.ts';
 import {
@@ -97,6 +98,7 @@ export interface FreesoundImportServiceRuntime {
 	readonly createContributionId: (prefix: 'attribution') => string;
 	readonly maximumPreviewBytes?: number;
 	readonly maximumOriginalBytes?: number;
+	readonly confirmFileSizeWarning?: FileSizeWarningConfirmation;
 	readonly authenticated?: boolean | (() => boolean);
 	readonly admission?: { token: EditorProjectToken | null };
 	readonly state?: Pick<ImportCompositionState, 'importing' | 'readOnly'>;
@@ -189,6 +191,8 @@ export function createFreesoundImportService(runtime: FreesoundImportServiceRunt
 			variant,
 			maximumOriginalBytes,
 			maximumPreviewBytes,
+			confirmFileSizeWarning: runtime.confirmFileSizeWarning,
+			assertCurrent: assertProjectCurrent,
 			fetch: variant === 'original' ? fetchOriginal : fetchRequest,
 			url: soundUrl(soundId, variant === 'original' ? '/original' : '/preview'),
 			...(request.signal ? { signal: request.signal } : {}),

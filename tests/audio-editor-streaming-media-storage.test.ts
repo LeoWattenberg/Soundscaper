@@ -11,7 +11,7 @@ import {
 } from '../src/common/editor/storage/media-asset-write-repository.ts';
 import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
 
-test('streaming media storage publishes documented non-raiseable byte boundaries', async () => {
+test('streaming media storage preserves chunk bounds and requires confirmation above the memory warning threshold', async () => {
 	assert.equal(MEDIA_ASSET_STREAM_CHUNK_BYTES, 4 * 1024 * 1024);
 	assert.equal(MEDIA_ASSET_MEMORY_STREAM_MAXIMUM_BYTES, 64 * 1024 * 1024);
 	const store = memoryStore('stream-media-memory-admission');
@@ -25,7 +25,7 @@ test('streaming media storage publishes documented non-raiseable byte boundaries
 			expectedBytes: MEDIA_ASSET_MEMORY_STREAM_MAXIMUM_BYTES + 1,
 			expectedSha256: '0'.repeat(64),
 		}),
-		/64 MiB process-memory media limit/iu,
+		{ code: 'FILE_SIZE_WARNING' },
 	);
 	assert.equal(store.memory.mediaAssetChunks.size, 0);
 	assert.equal(store.memory.mediaAssets.size, 0);

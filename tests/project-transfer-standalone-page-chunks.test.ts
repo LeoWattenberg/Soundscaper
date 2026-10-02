@@ -54,6 +54,8 @@ const TRANSFER_DIRECTORY = 'src/common/transfer/';
 const DEFERRED_ARCHIVE_MODULE = 'src/common/editor/controller/document/deferred-archive-runtime.ts';
 const SCHEMA_IDENTITY_MODULE = 'src/common/editor/project-schema-identity.ts';
 const HANDOFF_INTENT_MODULE = 'src/common/cross-product-handoff-intent.ts';
+const SIZE_WARNING_MODULE = 'src/common/editor/controller/shared/file-size-warning.ts';
+const SIZE_CONFIRMATION_MODULE = 'src/common/editor/controller/shared/file-size-warning-confirmation.ts';
 
 /**
  * Modules outside the transfer world that the mounted page statically reaches.
@@ -62,7 +64,7 @@ const HANDOFF_INTENT_MODULE = 'src/common/cross-product-handoff-intent.ts';
  * list is a deliberate claim - and the module named has to have an owner that no
  * editor chunk shares.
  */
-const EXPECTED_SHARED_MODULES = [HANDOFF_INTENT_MODULE, SCHEMA_IDENTITY_MODULE];
+const EXPECTED_SHARED_MODULES = [HANDOFF_INTENT_MODULE, SIZE_CONFIRMATION_MODULE, SIZE_WARNING_MODULE, SCHEMA_IDENTITY_MODULE];
 
 test('the transfer page statically reaches only the transfer world and named shared modules', () => {
 	const shared = [...staticImportClosure(TRANSFER_PAGE_ENTRY)]
@@ -87,6 +89,8 @@ test('project interchange facades form one dependency-closed chunk', () => {
 	assert.equal(chunkOwner(DEFERRED_ARCHIVE_MODULE), 'project-interchange-foundations');
 	assert.equal(chunkOwner(SCHEMA_IDENTITY_MODULE), 'project-interchange-foundations');
 	assert.equal(chunkOwner(HANDOFF_INTENT_MODULE), 'project-interchange-foundations');
+	assert.equal(chunkOwner(SIZE_WARNING_MODULE), 'project-interchange-foundations');
+	assert.equal(chunkOwner(SIZE_CONFIRMATION_MODULE), 'project-interchange-foundations');
 	const group = chunkGroups.find((candidate) => candidate.name === 'project-interchange-foundations');
 	assert.ok(group, 'project-interchange-foundations must exist');
 	assert.equal(group.minSize, 0, 'a shared leaf must not be merged back into a larger chunk');

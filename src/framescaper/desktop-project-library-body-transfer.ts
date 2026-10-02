@@ -5,6 +5,7 @@ import { bytesToHex } from '@noble/hashes/utils.js';
 
 import { throwIfScapeAborted } from '../common/editor/scape-abort.ts';
 import { SCAPE_ARCHIVE_LIMITS } from '../common/editor/scape-archive-envelope.ts';
+import { confirmFileSizeWarning, type FileSizeWarningOptions } from '../common/editor/controller/shared/file-size-warning.ts';
 import {
 	canonicalMediaContentBlob,
 	digestMediaContent,
@@ -90,6 +91,7 @@ export async function prepareFramescaperDesktopPublicationBodies(
 	store: FramescaperDesktopCoreBodyStore,
 	signal?: AbortSignal,
 	selectBody: FramescaperDesktopBodySelection = () => true,
+	warningOptions: FileSizeWarningOptions = {},
 ): Promise<readonly Readonly<FramescaperDesktopPreparedBody>[]> {
 	const base = await prepareFramescaperDesktopCorePublicationBodies(
 		framescaperDesktopCoreBodyProject(project), projectSha256, store, signal, selectBody,
@@ -123,7 +125,8 @@ export async function prepareFramescaperDesktopPublicationBodies(
 	]);
 	validateFramescaperDesktopBodies(project, projectSha256,
 		prepared.map(({ descriptor }) => descriptor));
-	assertAggregateBytes(prepared.map(({ descriptor }) => descriptor));
+	await confirmFileSizeWarning(assertAggregateBytes(prepared.map(({ descriptor }) => descriptor)),
+		SCAPE_ARCHIVE_LIMITS.maximumExpandedBytes, 'Desktop project media', { ...warningOptions, signal });
 	return prepared;
 }
 
@@ -385,14 +388,15 @@ function bodyKey(value: Pick<FramescaperDesktopBodyDescriptor, 'kind' | 'storage
 	return JSON.stringify([value.kind, value.storageKey]);
 }
 
-function assertAggregateBytes(bodies: readonly Readonly<{ byteLength: number }>[]): void {
+function assertAggregateBytes(bodies: readonly Readonly<{ byteLength: number }>[]): number {
 	let total = 0;
 	for (const { byteLength } of bodies) {
-		if (byteLength > SCAPE_ARCHIVE_LIMITS.maximumExpandedBytes - total) {
+		if (byteLength > Number.MAX_SAFE_INTEGER - total) {
 			throw new RangeError('Framescaper desktop baseline bodies exceed their aggregate byte limit.');
 		}
 		total += byteLength;
 	}
+	return total;
 }
 
 function concatenate(chunks: readonly Uint8Array[], byteLength: number): Uint8Array {

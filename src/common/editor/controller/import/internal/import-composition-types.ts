@@ -19,6 +19,7 @@ import type { ProjectVisualService } from '../../document/project-visual-types.t
 import type { bufferFromChannels } from '../../source/source-audio.ts';
 import type { publishImportedVideo } from './source-import-video-publication.ts';
 import type { EditorTaskProgressCoordinator } from '../../shared/task-progress.ts';
+import type { FileSizeWarningConfirmation } from '../../shared/file-size-warning.ts';
 import type { ChangedContentVideoCandidateRuntime } from './linked-media/video-relink-probe.ts';
 import type { VideoSourceReprobeDependencies } from '../../clip-video/video-source-reprobe-service.ts';
 import type { generateWaveformPeaks } from '../../source/waveform-analysis.ts';
@@ -123,6 +124,7 @@ export interface ImportCompositionDependencies {
 	readonly publishDocumentSnapshot: () => void;
 	readonly handleError: (error: unknown) => void;
 	readonly preflightStorage: (bytes: number, category: 'import') => Promise<unknown>;
+	readonly confirmFileSizeWarning?: FileSizeWarningConfirmation;
 	readonly projectSampleRate: () => number;
 	readonly activateStoredSource: ProjectBinServiceDependencies['activateStoredSource'];
 	readonly invalidateSourceRuntime: ProjectBinServiceDependencies['invalidateSourceRuntime'];

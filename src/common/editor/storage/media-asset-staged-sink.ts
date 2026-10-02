@@ -8,6 +8,7 @@ import { MediaAssetCleanupError } from './media-asset-cleanup-error.ts';
 import { MEDIA_ASSET_CHUNK_STORAGE_TYPE } from './media-asset-chunk-schema.ts';
 import { browserFileStorageFailure } from '../web-file-limit-failure.ts';
 import { createAbortGuard } from '../abort-error.ts';
+import { confirmFileSizeWarning as admitFileSizeWarning, type FileSizeWarningConfirmation } from '../controller/shared/file-size-warning.ts';
 import {
 	MediaAssetStagingLease,
 	MediaAssetStagingRepository,
@@ -40,6 +41,7 @@ export async function prepareMediaAssetStaging({
 	staging,
 	opfs,
 	signal,
+	confirmFileSizeWarning,
 }: Readonly<{
 	sourceId: string;
 	expectedBytes: number;
@@ -49,6 +51,7 @@ export async function prepareMediaAssetStaging({
 	staging: MediaAssetStagingRepository;
 	opfs: OpfsRepository;
 	signal?: AbortSignal;
+	confirmFileSizeWarning?: FileSizeWarningConfirmation;
 }>): Promise<PreparedMediaAssetStaging> {
 	const plan = database ? await opfs.planBinaryWriter(`media-${sourceId}`, { signal })
 		.catch((error: unknown) => { throw browserFileStorageFailure('OPFS media planning', error); }) : null;
@@ -78,8 +81,8 @@ export async function prepareMediaAssetStaging({
 			);
 		}
 	}
-	if (!database && expectedBytes > maximumMemoryBytes) {
-		throw new RangeError('Streamed media exceeds the fixed 64 MiB process-memory media limit.');
+	if (!database) {
+		await admitFileSizeWarning(expectedBytes, maximumMemoryBytes, 'Temporary media storage', { confirmFileSizeWarning, signal });
 	}
 	const token = createMediaChunkToken(sourceId);
 	const lease = await staging.acquire(sourceId, { mediaChunkToken: token }, database);

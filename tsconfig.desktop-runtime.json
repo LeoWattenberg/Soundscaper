@@ -17,6 +17,7 @@
 	},
 	"include": [
 		"desktop/application-lifecycle.ts",
+		"desktop/save-size-warning-dialog.ts",
 		"desktop/mcp-main-registration.ts",
 		"desktop/mcp-service.ts",
 		"desktop/bounded-regular-file.ts",

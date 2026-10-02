@@ -11,7 +11,8 @@ test('one-hour stereo scratch may exceed the original and encoded file cap while
 	const command = normalizeDesktopAudioStreamCommand({ type: 'write', operationId: `desktop-audio-stream-${'a'.repeat(32)}`,
 		offset: 1_382_400_000 - 8, bytes: new Uint8Array(8) });
 	assert.equal(command.type, 'write');
-	assert.throws(() => normalizeDesktopAudioStreamPlan({ ...plan, maximumOutputBytes: 1_000_000_001 }), /bound/u);
+	assert.equal(normalizeDesktopAudioStreamPlan({ ...plan, maximumOutputBytes: 1_000_000_001 }).maximumOutputBytes, 1_000_000_001);
+	assert.throws(() => normalizeDesktopAudioStreamPlan({ ...plan, maximumOutputBytes: Number.MAX_SAFE_INTEGER + 1 }), /bound/u);
 	assert.throws(() => normalizeDesktopAudioStreamPlan({ ...plan, frameCount: plan.frameCount + 1 }), /bound/u);
 	assert.throws(() => normalizeDesktopAudioStreamCommand({ type: 'write', operationId: `desktop-audio-stream-${'a'.repeat(32)}`,
 		offset: DESKTOP_AUDIO_STREAM_MAXIMUM_PCM_BYTES + 1, bytes: new Uint8Array(8) }), /bound/u);

@@ -43,10 +43,10 @@ test('raw PCM import rejects open-ended formats, partial frames, and oversized i
 	const oversized = { size: MAXIMUM_RAW_PCM_IMPORT_BYTES + 1, name: 'huge.raw' } as File;
 	await assert.rejects(prepareRawPcmWaveFile(oversized, {
 		sampleFormat: 'uint8', byteOrder: 'little', sampleRate: 44_100, channelCount: 1, offsetBytes: 0,
-	}), /size limit/);
+	}), { code: 'FILE_SIZE_WARNING' });
 });
 
-test('desktop raw PCM imports a 7 GiB source through bounded RF64 slices', async () => {
+test('accepted browser raw PCM imports a 7 GiB source through bounded RF64 slices', async () => {
 	const size = 7 * 1024 ** 3;
 	const reads: number[] = [];
 	const source = {
@@ -60,7 +60,12 @@ test('desktop raw PCM imports a 7 GiB source through bounded RF64 slices', async
 	} as File;
 	const wav = await prepareRawPcmWaveFile(source, {
 		sampleFormat: 'int16', byteOrder: 'big', sampleRate: 48_000, channelCount: 1, offsetBytes: 0,
-	}, { desktop: true });
+	}, { confirmFileSizeWarning: async (warning) => {
+		assert.equal(warning.byteLength, size);
+		assert.equal(warning.thresholdBytes, MAXIMUM_RAW_PCM_IMPORT_BYTES);
+		assert.equal(reads.length, 0);
+		return true;
+	} });
 	assert.equal(wav.name, 'huge.wav');
 	assert.equal(wav.size, size + 80);
 	const header = new DataView(await wav.slice(0, 80).arrayBuffer());
@@ -72,4 +77,20 @@ test('desktop raw PCM imports a 7 GiB source through bounded RF64 slices', async
 	assert.deepEqual(new Uint8Array(await wav.slice(80, 84).arrayBuffer()), new Uint8Array([0x34, 0x12, 0x34, 0x12]));
 	assert.deepEqual(new Uint8Array(await wav.slice(wav.size - 2).arrayBuffer()), new Uint8Array([0x34, 0x12]));
 	assert.ok(reads.every((length) => length <= 4 * 1024 * 1024));
+});
+
+test('raw PCM cancellation and unsafe byte counts cannot reach a source read', async () => {
+	let read = false;
+	const source = {
+		name: 'large.raw', size: MAXIMUM_RAW_PCM_IMPORT_BYTES + 2,
+		slice() { read = true; throw new Error('must not read'); },
+	} as unknown as File;
+	const settings = { sampleFormat: 'int16', byteOrder: 'little', sampleRate: 48_000, channelCount: 1, offsetBytes: 0 } as const;
+	await assert.rejects(prepareRawPcmWaveFile(source, settings, {
+		confirmFileSizeWarning: async () => false,
+	}), { name: 'AbortError' });
+	await assert.rejects(prepareRawPcmWaveFile({ ...source, size: Number.MAX_SAFE_INTEGER + 1 } as File, settings, {
+		confirmFileSizeWarning: async () => { assert.fail('Invalid sizes must not ask for override.'); },
+	}), /safe/u);
+	assert.equal(read, false);
 });

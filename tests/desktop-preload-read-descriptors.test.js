@@ -7,7 +7,7 @@ const MATERIALIZED_PROFILE = 'materialized-v1';
 const SCAPE_RANGE_PROFILE = 'scape-range-v1';
 const SELECTED_RANGE_PROFILE = 'selected-range-v1';
 const SCAPE_MIME_TYPE = 'application/vnd.soundscaper.scape+zip';
-const MATERIALIZED_MAXIMUM_BYTES = 512 * 1024 ** 2;
+const MATERIALIZED_MAXIMUM_BYTES = Number.MAX_SAFE_INTEGER;
 const SCAPE_RANGE_MAXIMUM_BYTES = Number.MAX_SAFE_INTEGER;
 const ID = 'a'.repeat(64);
 

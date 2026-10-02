@@ -49,10 +49,15 @@ const NARRATIVE_CODE_ID_TOKENS = Object.freeze([
 export const POLICY_NARRATIVE_BINDINGS = Object.freeze([
 	...[
 		['desktop-write-path-capabilities', 'exact-direct-compressed-mix-save'],
+		['desktop-write-path-capabilities', 'aggregate-save-capacity-and-disk-admission'],
 		['desktop-write-path-capabilities', 'direct-stem-archive-save'],
 		['long-job-cancellation', 'direct-compressed-mix-save-rollback'],
 		['long-job-cancellation', 'direct-stem-archive-save-rollback'],
 		['long-job-cancellation', 'bounded-browser-export-blob-publication'],
+		['long-job-cancellation', 'overridable-materialized-file-publication'],
+		['scape-archive-expansion', 'overridable-scape-size-admission'],
+		['scape-archive-expansion', 'bounded-streaming-media-extraction'],
+		['external-project-document-validation', 'maintained-project-publication-admission'],
 	].map(([riskId, controlId]) => Object.freeze({
 		marker: controlId,
 		register: 'config/production-security-matrix.json',

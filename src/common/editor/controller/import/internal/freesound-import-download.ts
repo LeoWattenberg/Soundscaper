@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { confirmFileSizeWarning, type FileSizeWarningOptions } from '../../shared/file-size-warning.ts';
+
 export const DEFAULT_MAXIMUM_FREESOUND_IMPORT_BYTES = 128 * 1024 * 1024;
 
 const PREVIEW_MIME_TYPES: ReadonlySet<string> = new Set([
@@ -35,7 +37,7 @@ export class FreesoundOriginalTooLargeError extends RangeError {
 	}
 }
 
-export async function downloadFreesoundImport(options: Readonly<{
+export async function downloadFreesoundImport(options: Readonly<FileSizeWarningOptions & {
 	readonly sound: FreesoundImportDownloadSound;
 	readonly variant: ResolvedFreesoundImportVariant;
 	readonly maximumOriginalBytes: number;
@@ -48,16 +50,25 @@ export async function downloadFreesoundImport(options: Readonly<{
 	if (variant === 'preview-hq-ogg' && !sound.preview.available) {
 		throw new Error('The selected Freesound sound has no HQ OGG preview.');
 	}
-	if (variant === 'original' && sound.originalFile.byteLength > options.maximumOriginalBytes) {
-		throw new FreesoundOriginalTooLargeError(sound.originalFile.byteLength, options.maximumOriginalBytes);
-	}
-	const response = await options.fetch(options.url, {
+	const thresholdBytes = variant === 'original' ? options.maximumOriginalBytes : options.maximumPreviewBytes;
+	const approvedBytes = await confirmFileSizeWarning(
+		variant === 'original' ? sound.originalFile.byteLength : 0,
+		thresholdBytes, `Freesound ${variant === 'original' ? 'original' : 'HQ preview'} import`, options,
+	);
+	const url = new URL(options.url);
+	if (options.confirmFileSizeWarning) url.searchParams.set('sizeWarning', 'client');
+	const response = await options.fetch(url, {
 		method: 'GET',
 		credentials: variant === 'original' ? 'include' : 'omit',
 		redirect: 'error',
 		signal,
 		headers: { Accept: variant === 'original' ? 'audio/*, application/ogg' : 'audio/ogg' },
 	});
+	try { assertReady(options); }
+	catch (error) {
+		await response.body?.cancel(error).catch(() => undefined);
+		throw error;
+	}
 	if (!response.ok) {
 		if (variant === 'original' && response.status === 413) {
 			throw new FreesoundOriginalTooLargeError(sound.originalFile.byteLength, options.maximumOriginalBytes);
@@ -71,8 +82,7 @@ export async function downloadFreesoundImport(options: Readonly<{
 	const mimeType = variant === 'original'
 		? originalMimeType(declaredMimeType, sound.originalFile.format)
 		: previewMimeType(declaredMimeType);
-	const maximumBytes = variant === 'original' ? options.maximumOriginalBytes : options.maximumPreviewBytes;
-	const blob = await readCappedBody(response, maximumBytes, variant, sound.originalFile.byteLength, signal);
+	const blob = await readAdmittedBody(response, thresholdBytes, approvedBytes, variant, options);
 	const fileName = variant === 'preview-hq-ogg'
 		? previewFileName(sound.name, sound.id)
 		: safeFileName(
@@ -82,42 +92,57 @@ export async function downloadFreesoundImport(options: Readonly<{
 	return Object.freeze({ blob, fileName, mimeType, variant });
 }
 
-async function readCappedBody(
+async function readAdmittedBody(
 	response: Response,
-	maximumBytes: number,
+	thresholdBytes: number,
+	approvedBytes: number,
 	variant: ResolvedFreesoundImportVariant,
-	originalByteLength: number,
-	signal?: AbortSignal,
+	options: FileSizeWarningOptions,
 ): Promise<Blob> {
-	const declaredBytes = nullableNonNegativeInteger(response.headers.get('Content-Length'));
-	const tooLarge = () => variant === 'original'
-		? new FreesoundOriginalTooLargeError(declaredBytes ?? originalByteLength, maximumBytes)
-		: new RangeError('The Freesound preview is too large to import.');
-	if (declaredBytes !== null && declaredBytes > maximumBytes) throw tooLarge();
-	const reader = response.body?.getReader();
-	if (!reader) return new Blob();
-	const chunks: ArrayBuffer[] = [];
-	let byteLength = 0;
+	let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
 	try {
+		const declaredBytes = nullableNonNegativeInteger(response.headers.get('Content-Length'));
+		if (declaredBytes !== null && declaredBytes > approvedBytes) {
+			approvedBytes = await confirmFileSizeWarning(declaredBytes, thresholdBytes,
+				`Freesound ${variant === 'original' ? 'original' : 'HQ preview'} import`, options);
+		}
+		assertReady(options);
+		reader = response.body?.getReader();
+		if (!reader) return new Blob();
+		const chunks: ArrayBuffer[] = [];
+		let byteLength = 0;
 		for (;;) {
-			signal?.throwIfAborted();
+			assertReady(options);
 			const { done, value } = await reader.read();
-			signal?.throwIfAborted();
+			assertReady(options);
 			if (done) break;
-			if (value.byteLength > maximumBytes - byteLength) throw tooLarge();
+			if (value.byteLength > Number.MAX_SAFE_INTEGER - byteLength) {
+				throw new RangeError('The Freesound audio byte length is not a safe integer.');
+			}
+			if (value.byteLength > approvedBytes - byteLength) {
+				await confirmFileSizeWarning(byteLength + value.byteLength, thresholdBytes,
+					`Freesound ${variant === 'original' ? 'original' : 'HQ preview'} import`, options);
+				// Without a reliable complete size, one approval continues this file's stream.
+				approvedBytes = Number.MAX_SAFE_INTEGER;
+			}
 			const owned = new ArrayBuffer(value.byteLength);
 			new Uint8Array(owned).set(value);
 			chunks.push(owned);
 			byteLength += owned.byteLength;
 		}
+		return new Blob(chunks);
 	} catch (error) {
-		try { await reader.cancel(error); }
+		try { if (reader) await reader.cancel(error); else await response.body?.cancel(error); }
 		catch { /* Preserve the read, cancellation, or admission failure. */ }
 		throw error;
 	} finally {
-		reader.releaseLock();
+		reader?.releaseLock();
 	}
-	return new Blob(chunks);
+}
+
+function assertReady(options: FileSizeWarningOptions): void {
+	options.signal?.throwIfAborted();
+	options.assertCurrent?.();
 }
 
 function previewMimeType(value: string): string {
@@ -166,7 +191,10 @@ function previewFileName(value: string, soundId: number): string {
 function nullableNonNegativeInteger(value: string | null): number | null {
 	if (value === null || value.trim() === '') return null;
 	const number = Number(value);
-	return Number.isSafeInteger(number) && number >= 0 ? number : null;
+	if (!/^\d+$/u.test(value) || !Number.isSafeInteger(number)) {
+		throw new RangeError('The Freesound audio byte length is not a non-negative safe integer.');
+	}
+	return number;
 }
 
 async function responseError(response: Response, fallback: string): Promise<Error> {

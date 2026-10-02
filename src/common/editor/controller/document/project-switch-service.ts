@@ -339,7 +339,7 @@ export function createProjectSwitchService<
 					const currentProject = runtime.getProject();
 					if (!currentProject || currentProject.id !== projectId) throw new Error('Deferred project save belongs to a stale project.');
 					if (runtime.createProjectIfAbsent) {
-						const created = await guard(runtime.createProjectIfAbsent(currentProject));
+						const created = await guard(runtime.createProjectIfAbsent(currentProject, { signal: AbortSignal.any([runtime.lifetime.signal]), assertCurrent: () => { runtime.lifetime.assertActive(token); if (runtime.getProject()?.id !== projectId) throw new DOMException('The project changed before initial publication.', 'AbortError'); } }));
 						if (created === null) { initialPublicationConflict = true; throw new Error('The project already exists at create-only publication.'); }
 					} else await guard(runtime.saveProject(currentProject));
 					runtime.session.markProjectSaved(projectId);

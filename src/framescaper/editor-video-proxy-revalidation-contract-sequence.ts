@@ -2,9 +2,6 @@
 
 import type { EditorProjectRuntimeProfile } from '../common/editor/project-runtime-profile.ts';
 import {
-	VIDEO_PROXY_MAXIMUM_BODY_BYTES,
-} from '../common/editor/video-proxy-attachment-v18.ts';
-import {
 	closedDataRecord,
 	nonEmptyString,
 	positiveSafeInteger,
@@ -178,7 +175,6 @@ export function normalizeFramescaperVideoProxyBodyIdentitySequence(
 	};
 	if (role === 'proxy') {
 		if (raw.kind !== 'video-proxy' || raw.encoding !== 'video-proxy-v1'
-			|| foundation.byteLength > VIDEO_PROXY_MAXIMUM_BODY_BYTES
 			|| foundation.mimeType.length > 128 || !VIDEO_MIME.test(foundation.mimeType)) {
 			throw new TypeError('The Framescaper sequence proxy body identity is invalid.');
 		}

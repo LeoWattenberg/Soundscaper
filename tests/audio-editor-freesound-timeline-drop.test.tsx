@@ -6,6 +6,7 @@ import React, { act } from 'react';
 
 import { AUDIO_EDITOR_FREESOUND_RESULT_DRAG_TYPE } from '../src/common/editor/project-bin-dnd.js';
 import { useTimelineProjectBinDnd } from '../src/common/editor/ui/timeline/useTimelineProjectBinDnd.js';
+import type { FileSizeWarningConfirmation } from '../src/common/editor/controller/shared/file-size-warning.ts';
 import { installReactTestDom } from './helpers/react-test-dom.ts';
 
 test('a Freesound result dropped on the timeline imports at the exact audio target', async () => {
@@ -22,13 +23,16 @@ test('a Freesound result dropped on the timeline imports at the exact audio targ
 	eventGlobal.addEventListener = globalThis.window.addEventListener.bind(globalThis.window);
 	eventGlobal.removeEventListener = globalThis.window.removeEventListener.bind(globalThis.window);
 	const imports: unknown[] = [];
+	const runtimes: unknown[] = [];
+	const confirmFileSizeWarning: FileSizeWarningConfirmation = async () => true;
 	let handlers: ReturnType<typeof useTimelineProjectBinDnd> | null = null;
 	const { createRoot } = await import('react-dom/client');
 	const root = createRoot(dom.container as unknown as Element);
 	function Harness() {
 		handlers = useTimelineProjectBinDnd({
 			controller: {},
-			importFreesoundSound: async (_controller: unknown, request: unknown) => { imports.push(request); },
+			confirmFileSizeWarning,
+			importFreesoundSound: async (_controller: unknown, request: unknown, runtime: unknown) => { imports.push(request); runtimes.push(runtime); },
 			mutationsBlocked: false,
 			state: { setDraggingClipIds() {}, setProjectBinDragPreview() {} },
 			model: {
@@ -59,6 +63,7 @@ test('a Freesound result dropped on the timeline imports at the exact audio targ
 			preventDefault: () => { prevented = true; },
 		}));
 		assert.equal(prevented, true);
+		assert.deepEqual(runtimes, [{ confirmFileSizeWarning }]);
 		assert.deepEqual(imports, [{
 			soundId: 42, destination: 'timeline', trackId: 'track-a', timelineStartFrame: 24_000,
 		}]);

@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { confirmFileSizeWarning } from '../../../shared/file-size-warning.ts';
 import { createWavHeader, createWavStreamEncoder, inspectWavLayout } from '../../../../wav.js';
 import type {
 	NativeAudioBuffer,
@@ -24,7 +25,7 @@ export function dawprojectWavByteLength(source: NativeProjectAudioSource): numbe
 
 /** Zip.js pulls this stream only while writing its current media entry. */
 export function dawprojectWavStream(
-	runtime: Pick<NativeProjectServiceRuntime, 'store' | 'sourceBuffers' | 'loadStoredSourceChannels'>,
+	runtime: Pick<NativeProjectServiceRuntime, 'store' | 'sourceBuffers' | 'loadStoredSourceChannels' | 'confirmFileSizeWarning'>,
 	source: NativeProjectAudioSource,
 	signal: AbortSignal,
 ): ReadableStream<Uint8Array> {
@@ -44,7 +45,7 @@ export function dawprojectWavStream(
 }
 
 async function* wavChunks(
-	runtime: Pick<NativeProjectServiceRuntime, 'store' | 'sourceBuffers' | 'loadStoredSourceChannels'>,
+	runtime: Pick<NativeProjectServiceRuntime, 'store' | 'sourceBuffers' | 'loadStoredSourceChannels' | 'confirmFileSizeWarning'>,
 	source: NativeProjectAudioSource,
 	signal: AbortSignal,
 ): AsyncGenerator<Uint8Array> {
@@ -75,7 +76,7 @@ async function* wavChunks(
 }
 
 async function* sourceChunks(
-	runtime: Pick<NativeProjectServiceRuntime, 'store' | 'sourceBuffers' | 'loadStoredSourceChannels'>,
+	runtime: Pick<NativeProjectServiceRuntime, 'store' | 'sourceBuffers' | 'loadStoredSourceChannels' | 'confirmFileSizeWarning'>,
 	source: NativeProjectAudioSource,
 	signal: AbortSignal,
 ): AsyncGenerator<readonly Float32Array[]> {
@@ -90,9 +91,7 @@ async function* sourceChunks(
 		}
 		return;
 	}
-	if (dawprojectWavByteLength(source) > DAWPROJECT_BLOB_EXPORT_BYTE_LIMIT) {
-		throw new RangeError('DAWproject source exceeds the fallback PCM memory budget.');
-	}
+	await confirmFileSizeWarning(dawprojectWavByteLength(source), DAWPROJECT_BLOB_EXPORT_BYTE_LIMIT, `DAWproject source ${source.id}`, { signal, confirmFileSizeWarning: runtime.confirmFileSizeWarning });
 	const channels = await runtime.loadStoredSourceChannels(runtime.store, source);
 	if (!channels?.length) throw new Error(`DAWproject source ${source.id} is unavailable.`);
 	for (let offset = 0; offset < source.frameCount; offset += 65_536) {

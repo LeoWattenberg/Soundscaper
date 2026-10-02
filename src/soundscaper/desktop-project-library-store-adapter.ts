@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { admitProjectPublication } from '../common/editor/storage/project-publication-options.ts';
+import type { FileSizeWarningOptions } from '../common/editor/controller/shared/file-size-warning.ts';
+import { admitSoundscaperDesktopStorePublication } from './desktop-project-library-store-publication.ts';
 import {
 	ProjectDuplicationIndeterminateError,
 } from '../common/editor/storage/project-duplication.ts';
@@ -48,7 +49,7 @@ export interface SoundscaperDesktopProjectStoreLocal {
 }
 
 export type SoundscaperDesktopProjectStoreAdapter<Store> = Store & Readonly<{
-	createProjectIfAbsent(project: unknown): Promise<SoundscaperProject | null>;
+	createProjectIfAbsent(project: unknown, options?: unknown): Promise<SoundscaperProject | null>;
 	claimProjectWriteFence(projectId: string): Promise<string>;
 	saveProjectIfCurrent(expected: unknown, project: unknown, options?: unknown): Promise<SoundscaperProject | null>;
 	saveProjectIfCurrentWithWriteFence(
@@ -69,9 +70,9 @@ export type SoundscaperDesktopProjectStoreAdapter<Store> = Store & Readonly<{
 const COMPOSITION_FIELDS = ['localStore', 'desktopProjectLibrary'] as const;
 const LOAD_FIELDS = ['revision', 'signal'] as const;
 const SAVE_FIELDS = [
-	'admitProjectPublication', 'protectedLinkedOriginalSourceReferences', 'protectedLinkedVideoSourceIds',
+	'admitProjectPublication', 'confirmFileSizeWarning', 'signal', 'assertCurrent', 'protectedLinkedOriginalSourceReferences', 'protectedLinkedVideoSourceIds',
 ] as const;
-const DUPLICATE_FIELDS = ['id', 'title'] as const;
+const DUPLICATE_FIELDS = ['id', 'title', 'confirmFileSizeWarning', 'signal', 'assertCurrent'] as const;
 const SCAPE_CREATION_FENCE_LOST = Symbol('scape-creation-fence-lost');
 
 /** Keep web on the exact local identity; desktop receives a closed project-lifecycle overlay only. */
@@ -145,8 +146,8 @@ function proxyHandler<Store extends SoundscaperDesktopProjectStoreLocal>(
 		saveProject: async (projectValue: unknown, optionsValue: unknown = {}) => {
 			const options = saveOptions(optionsValue);
 			const project = soundscaperProjectClone(profile, projectValue);
-			await admitProjectPublication(localStore, project, options);
-			return renderer.publishProject({ project });
+			const warningOptions = await admitSoundscaperDesktopStorePublication(localStore, profile, project, options);
+			return renderer.publishProject({ project, ...warningOptions });
 		},
 		saveProjectIfCurrent: async (
 			expectedValue: unknown,
@@ -156,8 +157,8 @@ function proxyHandler<Store extends SoundscaperDesktopProjectStoreLocal>(
 			const options = saveOptions(optionsValue);
 			const expected = soundscaperProjectClone(profile, expectedValue);
 			const project = soundscaperProjectClone(profile, projectValue);
-			await admitProjectPublication(localStore, project, options);
-			return renderer.publishProjectIfCurrent(expected, project);
+			const warningOptions = await admitSoundscaperDesktopStorePublication(localStore, profile, project, options);
+			return renderer.publishProjectIfCurrent(expected, project, warningOptions);
 		},
 		claimProjectWriteFence: (projectId: string) => renderer.claimProjectWriteFence(projectId),
 		saveProjectIfCurrentWithWriteFence: async (
@@ -166,8 +167,8 @@ function proxyHandler<Store extends SoundscaperDesktopProjectStoreLocal>(
 			const options = saveOptions(optionsValue);
 			const expected = soundscaperProjectClone(profile, expectedValue);
 			const project = soundscaperProjectClone(profile, projectValue);
-			await admitProjectPublication(localStore, project, options);
-			return renderer.publishProjectIfCurrentWithWriteFence(expected, project, token);
+			const warningOptions = await admitSoundscaperDesktopStorePublication(localStore, profile, project, options);
+			return renderer.publishProjectIfCurrentWithWriteFence(expected, project, token, warningOptions);
 		},
 		// Desktop main cannot be rewound through its shadow-only repository,
 		// so rollback is conservatively refused.
@@ -177,18 +178,21 @@ function proxyHandler<Store extends SoundscaperDesktopProjectStoreLocal>(
 		restoreProjectSnapshotIfCurrentWithWriteFence: async (
 			_projectId: string, _expected: unknown, _snapshot: unknown, _token: string,
 		) => false as const,
-		createProjectIfAbsent: async (projectValue: unknown) => {
+		createProjectIfAbsent: async (projectValue: unknown, publicationOptions: unknown = {}) => {
 			const project = soundscaperProjectClone(profile, projectValue);
 			if (Number(project.revision) !== 0) {
 				throw new Error('Soundscaper desktop  create requires fresh revision zero.');
 			}
 			const existing = await renderer.readProject(String(project.id));
 			if (existing !== null) return null;
-			return renderer.publishProject({ project });
+			const warningOptions = await admitSoundscaperDesktopStorePublication(localStore, profile, project, publicationOptions);
+			return renderer.publishProject({ project, ...warningOptions });
 		},
-		createScapeProjectIfAbsent: (projectValue: unknown) => (
-			renderer.createScapeProjectIfAbsent(soundscaperProjectClone(profile, projectValue))
-		),
+		createScapeProjectIfAbsent: async (projectValue: unknown, publicationOptions: unknown = {}) => {
+			const project = soundscaperProjectClone(profile, projectValue);
+			const warningOptions = await admitSoundscaperDesktopStorePublication(localStore, profile, project, publicationOptions);
+			return renderer.createScapeProjectIfAbsent(project, warningOptions);
+		},
 		getNativePluginStateBodyMetadata: async (bodyId: string) => {
 			const body = await renderer.readNativePluginState(bodyId);
 			return body === null ? null : Object.freeze({
@@ -256,6 +260,7 @@ function proxyHandler<Store extends SoundscaperDesktopProjectStoreLocal>(
 				createProjectIfAbsent: async (copy: ProjectDocument) => {
 					try {
 						await assertLocalDuplicateDestinationAbsent(localStore, copyProjectId);
+						await admitSoundscaperDesktopStorePublication(localStore, profile, copy, { confirmFileSizeWarning: options.confirmFileSizeWarning, signal: options.signal, assertCurrent: options.assertCurrent });
 						return await renderer.duplicateProject(sourceProjectId, {
 							id: String(copy.id),
 							title: String(copy.title),
@@ -328,7 +333,7 @@ function saveOptions(value: unknown): Record<string, unknown> {
 	return allowedRecord(value, SAVE_FIELDS, 'Soundscaper desktop  save options');
 }
 
-function duplicateOptions(value: unknown): Readonly<{ readonly id?: string; readonly title?: unknown }> {
+function duplicateOptions(value: unknown): Readonly<{ readonly id?: string; readonly title?: unknown }> & FileSizeWarningOptions {
 	const raw = allowedRecord(value, DUPLICATE_FIELDS, 'Soundscaper desktop  duplicate options');
 	if (raw.id !== undefined && (typeof raw.id !== 'string' || !raw.id)) {
 		throw new TypeError('The Soundscaper desktop  duplicate project id is invalid.');
@@ -336,6 +341,8 @@ function duplicateOptions(value: unknown): Readonly<{ readonly id?: string; read
 	return Object.freeze({
 		...(raw.id === undefined ? {} : { id: raw.id }),
 		...(raw.title === undefined ? {} : { title: raw.title }),
+		confirmFileSizeWarning: raw.confirmFileSizeWarning as FileSizeWarningOptions['confirmFileSizeWarning'],
+		signal: raw.signal as AbortSignal | undefined, assertCurrent: raw.assertCurrent as FileSizeWarningOptions['assertCurrent'],
 	});
 }
 

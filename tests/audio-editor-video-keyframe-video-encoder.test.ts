@@ -34,7 +34,29 @@ const WEBM = Uint8Array.of(
 	0x1f, 0x43, 0xb6, 0x75, 0x81, 0,
 );
 
-test('desktop FFmpeg video admits uncapped output while the browser retains its size limit', async () => {
+test('exact video encoder forwards size approval and releases its operation after refusal', async () => {
+	for (const accept of [true, false]) {
+		const frameSource = source();
+		const producer = exactProducer(frameSource);
+		const ffmpeg = fakeEditorFfmpeg(MP4.slice());
+		let warnings = 0;
+		const encoding = encodeVideoKeyframeVideo(ffmpeg.port, {
+			frameSource, producer: producer.value, format: 'mp4', maximumOutputBytes: 12,
+			async confirmFileSizeWarning(warning) {
+				warnings++;
+				assert.equal(warning.byteLength, MP4.byteLength);
+				return accept;
+			},
+		}, { createJobToken: () => TOKEN });
+		if (accept) assert.deepEqual((await encoding).bytes, MP4);
+		else await assert.rejects(encoding, { name: 'AbortError' });
+		assert.equal(warnings, 1);
+		assert.equal(producer.disposeCalls(), 1);
+		assert.equal(ffmpeg.events().at(-1), 'lease-end');
+	}
+});
+
+test('desktop and browser FFmpeg video accept valid caller warning thresholds', async () => {
 	for (const maximumOutputBytes of [undefined, Number.MAX_SAFE_INTEGER]) {
 		const frameSource = source();
 		const fake = fakeEditorFfmpeg(MP4.slice());
@@ -46,10 +68,11 @@ test('desktop FFmpeg video admits uncapped output while the browser retains its 
 		assert.deepEqual(result.bytes, MP4);
 	}
 	const frameSource = source();
-	await assert.rejects(() => encodeVideoKeyframeVideo(fakeEditorFfmpeg(MP4.slice()).port, {
+	const result = await encodeVideoKeyframeVideo(fakeEditorFfmpeg(MP4.slice()).port, {
 		frameSource, producer: exactProducer(frameSource).value, format: 'mp4',
 		maximumOutputBytes: Number.MAX_SAFE_INTEGER,
-	}, { createJobToken: () => TOKEN }), /maximumOutputBytes/u);
+	}, { createJobToken: () => TOKEN });
+	assert.deepEqual(result.bytes, MP4);
 });
 
 test('encodes authenticated V20 frames through one lease into owned exact MP4 and WebM bytes', async () => {
@@ -92,7 +115,7 @@ test('encodes authenticated V20 frames through one lease into owned exact MP4 an
 test('stats before bounded exact ranges and refuses short, oversized, or invalid containers before return', async (context) => {
 	for (const scenario of [
 		{ name: 'short range', options: { shortRange: true }, match: /short range/u },
-		{ name: 'oversized stat', options: { statSize: 13 }, maximumOutputBytes: 12, match: /maximum/u },
+		{ name: 'oversized stat', options: { statSize: 13 }, maximumOutputBytes: 12, match: /size warning threshold/u },
 		{ name: 'invalid MP4', options: {}, bytes: Uint8Array.of(1, 2, 3, 4), match: /MP4 container/u },
 	] as const) {
 		await context.test(scenario.name, async () => {
@@ -298,12 +321,12 @@ test('editor and lease authority accessors are rejected without invocation', asy
 	assert.equal(acceptedProducer.disposeCalls(), 1);
 });
 
-test('the wrapper owns closed options, lower-only caps, and a cryptographic token grammar', async () => {
+test('the wrapper owns closed options, valid thresholds, and a cryptographic token grammar', async () => {
 	assert.equal(VIDEO_KEYFRAME_VIDEO_MAXIMUM_OUTPUT_BYTES, 512 * 1024 * 1024);
 	const frameSource = source();
 	for (const request of [
 		{ format: 'gif' },
-		{ format: 'mp4', maximumOutputBytes: VIDEO_KEYFRAME_VIDEO_MAXIMUM_OUTPUT_BYTES + 1 },
+		{ format: 'mp4', maximumOutputBytes: Number.MAX_SAFE_INTEGER + 1 },
 		{ format: 'mp4', inputPath: '/attacker.rgba' },
 		{ format: 'mp4', outputPath: '/attacker.mp4' },
 	] as const) {

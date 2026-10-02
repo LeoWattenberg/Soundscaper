@@ -22,6 +22,8 @@ import type {
 	DirectPcmDestination,
 } from './direct/direct-pcm-export.ts';
 
+import type { FileSizeWarningConfirmation } from '../../shared/file-size-warning.ts';
+
 type Awaitable<Value> = PromiseLike<Value> | Value;
 
 interface RenderedAudioBuffer {
@@ -77,6 +79,7 @@ export interface RenderedAudioEncodedOutput extends Readonly<Record<string, unkn
 }
 
 export interface RenderedAudioEncodingRuntime {
+	readonly confirmFileSizeWarning?: FileSizeWarningConfirmation;
 	applyMediaChannelMapping(
 		channels: readonly Float32Array[],
 		mapping: unknown,
@@ -285,7 +288,7 @@ export async function encodeRenderedAudio(
 	setLocalizedStatus(setStatus, copy, "encoding");
 	return withLoudness(await ffmpeg.encode(wav, plan.format, {
 		...plan.encoding,
-		onProgress: options.onProgress,
+		onProgress: options.onProgress, confirmFileSizeWarning: runtime.confirmFileSizeWarning, assertCurrent: options.assertCurrent,
 		bitDepth,
 		sampleRate: plan.sampleRate,
 		applyDither: plan.encoding.sampleFormat !== 'float32'

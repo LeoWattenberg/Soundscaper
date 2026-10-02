@@ -2,6 +2,7 @@ import type { EditorController, EditorSnapshot } from '../../types.ts';
 import type { TrackAutomationRuntime } from '../../track-automation-runtime.ts';
 import type { TrackFreezeRuntime } from '../../track-freeze-runtime.ts';
 import type { ClipPropertiesFocus } from './clip-header-actions.ts';
+import type { FileSizeWarningConfirmation } from '../../controller/shared/file-size-warning.ts';
 import TimelineController from './TimelineController.jsx';
 import EditorSurfaceBoundary from '../EditorSurfaceBoundary.jsx';
 
@@ -18,6 +19,7 @@ interface TimelineSearchRevealRequest {
 
 interface AudioEditorTimelineProps {
 	readonly controller: EditorController;
+	readonly confirmFileSizeWarning?: FileSizeWarningConfirmation;
 	readonly snapshot: EditorSnapshot;
 	readonly runtimeProject?: Readonly<Record<string, unknown>> | null;
 	readonly locale: string;
@@ -48,6 +50,7 @@ interface AudioEditorTimelineProps {
 
 export default function AudioEditorTimeline({
 	controller,
+	confirmFileSizeWarning,
 	snapshot,
 	runtimeProject = null,
 	locale,
@@ -85,6 +88,7 @@ export default function AudioEditorTimeline({
 		spectralBrushEnabled,
 	};
 	const actions = {
+		confirmFileSizeWarning,
 		onError,
 		onOpenEffects,
 		onOpenClipProperties,

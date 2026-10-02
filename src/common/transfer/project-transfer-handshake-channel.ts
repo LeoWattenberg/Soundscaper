@@ -70,6 +70,7 @@ export interface ProjectTransferChannelSettings {
 }
 
 export interface ProjectTransferChannel {
+	readonly signal: AbortSignal;
 	expectVersion(version: number): void;
 	expectSession(sessionId: string): void;
 	next(): Promise<ProjectTransferMessage>;
@@ -136,6 +137,7 @@ export function normalizeProjectTransferChannel(
 export function openProjectTransferChannel(
 	settings: ProjectTransferChannelSettings,
 ): ProjectTransferChannel {
+	const lifetime = new AbortController();
 	const queued: ProjectTransferMessage[] = [];
 	let waiter: {
 		resolve: (message: ProjectTransferMessage) => void;
@@ -150,6 +152,7 @@ export function openProjectTransferChannel(
 
 	function fail(error: ProjectTransferProtocolError): void {
 		if (failure === null) failure = error;
+		lifetime.abort(failure);
 		const pending = waiter;
 		if (pending === null) return;
 		waiter = null;
@@ -236,6 +239,7 @@ export function openProjectTransferChannel(
 	}
 
 	return Object.freeze({
+		signal: lifetime.signal,
 		expectVersion(version: number): void {
 			expectedVersion = version;
 		},
@@ -276,6 +280,7 @@ export function openProjectTransferChannel(
 		close(): void {
 			if (closed) return;
 			closed = true;
+			lifetime.abort(projectTransferError('ABORTED', 'The transfer channel is closed.'));
 			const pending = waiter;
 			if (pending !== null) {
 				waiter = null;

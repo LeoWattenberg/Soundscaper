@@ -108,6 +108,7 @@ export function createImportComposition(dependencies: ImportCompositionDependenc
 		isWavFile,
 		peakCacheKey,
 		preflightStorage: dependencies.preflightStorage,
+		confirmFileSizeWarning: dependencies.confirmFileSizeWarning,
 		getProject: dependencies.getProject,
 		captureProject,
 		assertProject,

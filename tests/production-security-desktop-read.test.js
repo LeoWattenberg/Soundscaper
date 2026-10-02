@@ -35,7 +35,7 @@ test('desktop read capability behavior remains verified for its current surface'
 	]) assert.ok(rendererOwnedRead.evidence.some((item) => item.path === path));
 	assert.match(
 		rendererOwnedRead.summary,
-		/opaque main-owned.*committed main-frame document.*immutable profile.*all five profiles.*128 pending or live capability slots per owner.*before the first file-open await.*`materialized-v1`.*512 MiB.*per owner.*`scape-range-v1`.*four capabilities.*safe-integer aggregate declared bytes.*globally and per owner.*other accepted selections.*`selected-range-v1`.*safe-integer aggregate bytes.*128 capabilities.*four active requests.*4 MiB per requested range.*linked audio and video.*`linked-audio-range-v1`.*`linked-video-range-v1`.*128 capabilities.*64 GiB.*globally and per owner.*512 MiB per linked-original audio or video file.*16 active range requests.*count reserves before open.*bytes charge after stat.*before publication/iu,
+		/opaque main-owned.*committed main-frame document.*immutable profile.*all five profiles.*128 pending or live capability slots per owner.*before the first file-open await.*`materialized-v1`.*512 MiB warning threshold per owner.*asks before publishing a larger descriptor.*rechecks owner and file identity.*one approved larger file.*`scape-range-v1`.*four capabilities.*safe-integer aggregate declared bytes.*globally and per owner.*other accepted selections.*`selected-range-v1`.*safe-integer aggregate bytes.*128 capabilities.*four active requests.*4 MiB per requested range.*linked audio and video.*`linked-audio-range-v1`.*`linked-video-range-v1`.*128 capabilities.*safe-integer aggregate declared bytes globally and per owner.*16 active range requests globally.*linked original above 512 MiB.*native user confirmation before locator creation.*count reserves before open.*bytes charge after stat.*before publication/iu,
 	);
 	assert.match(
 		rendererOwnedRead.summary,
@@ -43,7 +43,7 @@ test('desktop read capability behavior remains verified for its current surface'
 	);
 	assert.match(
 		rendererOwnedRead.summary,
-		/OS-open paths.*visible queue head.*four real Scape descriptors.*fifth refuses before open.*acknowledged release redispatches.*renderer-send failure releases its descriptor.*transient count or aggregate-byte pressure.*retryable without eviction.*individually oversized file is not/iu,
+		/OS-open paths.*visible queue head.*four real Scape descriptors.*fifth refuses before open.*acknowledged release redispatches.*renderer-send failure releases its descriptor.*transient count or aggregate-byte pressure.*retryable without eviction.*file without the required size confirmation is refused/iu,
 	);
 
 	const leasedRangeRead = desktopRead.currentControls.find(
@@ -96,7 +96,7 @@ test('desktop read capability behavior remains verified for its current surface'
 	]) assert.ok(linkedVideoPlayback.evidence.some((item) => item.path === path));
 	assert.match(
 		linkedVideoPlayback.summary,
-		/mandatory playback mode.*exact locator revision.*pathname stat.*device, inode, size, modification-time, and change-time.*owner-scoped handle.*`linked-video-range-v1`.*replacement during admission fails closed.*replacement after admission cannot retarget.*512 MiB.*128 capabilities.*64 GiB.*globally and per owner.*16 active requests.*no wall-clock expiry.*`HEAD`.*start-based closed or open-ended `GET`.*4 MiB.*rejects.*full-body GET.*suffix.*multiple.*oversized.*EOF-overrun/iu,
+		/mandatory playback mode.*exact locator revision.*pathname stat.*device, inode, size, modification-time, and change-time.*owner-scoped handle.*`linked-video-range-v1`.*replacement during admission fails closed.*replacement after admission cannot retarget.*selection asks above 512 MiB before locator creation.*safe-integer per-file and aggregate declared bytes.*128 capabilities.*16 active requests globally.*no wall-clock expiry.*`HEAD`.*start-based closed or open-ended `GET`.*4 MiB.*rejects.*full-body GET.*suffix.*multiple.*oversized.*EOF-overrun/iu,
 	);
 	assert.match(
 		linkedVideoPlayback.summary,
@@ -125,7 +125,7 @@ test('desktop read capability behavior remains verified for its current surface'
 	]) assert.ok(linkedAudioRange.evidence.some((item) => item.path === path));
 	assert.match(
 		linkedAudioRange.summary,
-		/closed pathless DTO.*mandatory range mode.*non-null exact locator revision.*pathname stat.*newly opened owner-scoped handle.*device, inode, size, modification-time, and change-time.*`linked-audio-range-v1`.*replacement during admission fails closed.*cannot retarget.*128 capabilities.*64 GiB.*globally and per owner.*512 MiB per file.*16 active requests.*4 MiB per response.*no wall-clock expiry/iu,
+		/closed pathless DTO.*mandatory range mode.*non-null exact locator revision.*pathname stat.*newly opened owner-scoped handle.*device, inode, size, modification-time, and change-time.*`linked-audio-range-v1`.*replacement during admission fails closed.*cannot retarget.*safe-integer per-file and aggregate declared bytes.*128 capabilities.*16 active requests globally.*4 MiB per response.*512 MiB asks for native user confirmation before locator creation.*no wall-clock expiry/iu,
 	);
 	assert.match(
 		linkedAudioRange.summary,
@@ -167,7 +167,7 @@ test('desktop read capability behavior remains verified for its current surface'
 	]) assert.ok(boundedMaterialization.evidence.some((item) => item.path === path));
 	assert.match(
 		boundedMaterialization.summary,
-		/only.*main-assigned `materialized-v1`.*ordinary desktop selections.*`selected-range-v1`.*authoritative main-process admission.*materialized aggregate active declared bytes.*512 MiB.*per committed-document owner.*before publication.*preload.*exact materialized profile.*name.*MIME.*safe size.*canonical profile-bearing URL.*renderer.*before fetch.*rejects.*Scape name.*canonical Scape MIME.*`scape-range-v1`.*`linked-audio-range-v1`.*`linked-video-range-v1`.*instead of materializing.*exact declared Content-Length.*emitted-byte.*final Blob-size.*response body stream.*copied and split.*16 MiB.*caller.*AbortSignal.*stalled body read.*exact reason.*never calls response\.blob.*scoped descriptor batch.*releases every capability.*success.*failure.*cancellation.*request abort.*destroys.*file stream.*bounded whole-Blob tier.*not.*decoder amplification.*whole-process RSS.*Scape, selected-file, and linked-original audio\/video ranges.*excluded.*separately admitted range profiles/iu,
+		/only.*main-assigned `materialized-v1`.*ordinary desktop selections.*`selected-range-v1`.*authoritative main-process admission.*native confirmation above 512 MiB before descriptor publication.*rechecks document ownership and opened-file identity.*accepted larger file.*owner materialization budget alone.*concurrent resident-byte accounting.*preload.*exact materialized profile.*name.*MIME.*safe size.*canonical profile-bearing URL.*renderer.*before fetch.*rejects.*Scape name.*canonical Scape MIME.*`scape-range-v1`.*`linked-audio-range-v1`.*`linked-video-range-v1`.*instead of materializing.*exact declared Content-Length.*emitted-byte.*final Blob-size.*response body stream.*copied and split.*16 MiB.*caller.*AbortSignal.*stalled body read.*exact reason.*never calls response\.blob.*scoped descriptor batch.*releases every capability.*success.*failure.*cancellation.*request abort.*destroys.*file stream.*bounded whole-Blob tier.*not.*decoder amplification.*whole-process RSS.*Scape, selected-file, and linked-original audio\/video ranges.*excluded.*separately admitted range profiles/iu,
 	);
 	assert.equal(desktopRead.surfaceDisposition, 'verified-current-surface');
 	assert.deepEqual(desktopRead.residualRisks, []);

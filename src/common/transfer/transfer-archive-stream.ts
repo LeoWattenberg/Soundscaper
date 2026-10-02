@@ -19,6 +19,7 @@
  */
 
 import type * as Bundle from './project-transfer-bundle.ts';
+import { confirmFileSizeWarning, type FileSizeWarningConfirmation } from '../editor/controller/shared/file-size-warning.ts';
 import type * as Handshake from './project-transfer-handshake.ts';
 import type { CrossProductHandoffConversionReportV1 } from './cross-product-handoff-conversion.ts';
 import type { CrossProductHandoffLaunchIntentV1 } from '../cross-product-handoff-intent.ts';
@@ -83,6 +84,7 @@ export interface TransferRuntime {
 			intent: CrossProductHandoffLaunchIntentV1;
 			signal?: AbortSignal;
 			maximumBlobBytes: number;
+			confirmFileSizeWarning?: FileSizeWarningConfirmation;
 		}>,
 	) => PromiseLike<Readonly<{
 		readonly blob: unknown;
@@ -123,6 +125,7 @@ export interface TransferCollection {
 }
 
 export interface CollectTransferArchivesOptions {
+	readonly confirmFileSizeWarning?: FileSizeWarningConfirmation;
 	readonly runtime: TransferRuntime;
 	readonly store: Bundle.ProjectTransferExportStore;
 	/**
@@ -167,6 +170,7 @@ export async function* streamTransferArchives(
 		select: options.select,
 		maximumEntries: options.maximumEntries,
 		maximumEntryBytes: options.maximumEntryBytes ?? TRANSFER_MAX_ARCHIVE_BYTES,
+		confirmFileSizeWarning: options.confirmFileSizeWarning,
 		signal: options.signal,
 		onProgress: options.onProgress,
 	});
@@ -176,9 +180,10 @@ export async function* streamTransferArchives(
 			byteLength += event.entry.byteLength;
 			// Checked before the archive is yielded: past the ceiling the caller
 			// must not receive it, because receiving it is what makes it resident.
-			if (maximumTotalBytes !== null && byteLength > maximumTotalBytes) {
+			if (maximumTotalBytes !== null && byteLength > maximumTotalBytes && !options.confirmFileSizeWarning) {
 				throw new TransferBudgetError(byteLength, maximumTotalBytes);
 			}
+			if (maximumTotalBytes !== null) await confirmFileSizeWarning(byteLength, maximumTotalBytes, 'Project transfer archives', options);
 			exported += 1;
 			yield Object.freeze({ kind: 'entry' as const, entry: event.entry, index: event.index, total });
 			continue;

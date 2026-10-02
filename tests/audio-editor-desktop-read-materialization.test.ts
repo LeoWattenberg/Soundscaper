@@ -45,7 +45,7 @@ test('desktop read materialization streams an exact response and forwards its Ab
 	assert.deepEqual(new Uint8Array(await blob.arrayBuffer()), Uint8Array.of(1, 2, 3, 4));
 });
 
-test('declared size and a lower non-raiseable ceiling are validated before fetch', async () => {
+test('declared size and caller-approved safe bounds are validated before fetch', async () => {
 	const controller = new AbortController();
 	let fetchCalls = 0;
 	const fetchFile: DesktopReadFetch = async () => {
@@ -71,13 +71,6 @@ test('declared size and a lower non-raiseable ceiling are validated before fetch
 	}
 	await assert.rejects(
 		() => materializeDesktopReadBlob(
-			{ url: 'soundscaper-app://bundle/read', size: 0 },
-			{ ...options, maximumBytes: DESKTOP_READ_HARD_LIMIT_BYTES + 1 },
-		),
-		/non-raiseable|hard limit/iu,
-	);
-	await assert.rejects(
-		() => materializeDesktopReadBlob(
 			{ url: 'soundscaper-app://bundle/read', size: 4 },
 			{ ...options, maximumBytes: 3 },
 		),
@@ -98,6 +91,11 @@ test('declared size and a lower non-raiseable ceiling are validated before fetch
 	);
 	assert.equal(empty.size, 0);
 	assert.equal(fetchCalls, 1);
+	assert.equal((await materializeDesktopReadBlob(
+		{ url: 'soundscaper-app://bundle/read', size: 0 },
+		{ ...options, maximumBytes: 66 * 1024 ** 3 },
+	)).size, 0);
+	assert.equal(fetchCalls, 2);
 });
 
 test('HTTP status, Content-Length, and readable body must exactly match the descriptor', async () => {
@@ -157,6 +155,20 @@ test('HTTP status, Content-Length, and readable body must exactly match the desc
 			fixture.label,
 		);
 	}
+});
+
+test('main-approved large declared reads reach bounded stream accounting and still reject truncation', async () => {
+	const byteLength = 66 * 1024 ** 3;
+	let fetched = false;
+	await assert.rejects(materializeDesktopReadBlob(
+		{ url: 'soundscaper-app://bundle/read', size: byteLength },
+		{ signal: new AbortController().signal, maximumBytes: byteLength,
+			fetch: async () => {
+				fetched = true;
+				return new Response(new Uint8Array(0), { headers: { 'Content-Length': String(byteLength) } });
+			} },
+	), /actual bytes.*declared size/iu);
+	assert.equal(fetched, true);
 });
 
 test('actual bytes reject cumulative overrun and final truncation and cancel the reader', async () => {

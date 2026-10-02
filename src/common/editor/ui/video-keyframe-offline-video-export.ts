@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { FileSizeWarningConfirmation } from '../controller/shared/file-size-warning.ts';
 import {
 	offlineVideoExportRecord as record, offlineVideoExportData as data,
 	offlineVideoExportDenseArray as denseArray, offlineVideoExportBoundedId as boundedId,
@@ -95,6 +96,7 @@ export interface VideoKeyframeOfflineVideoExportRequest {
 	readonly rgbaCompositor?: import('./video-keyframe-offline-rgba-renderer.ts').VideoKeyframeOfflineRgbaCompositor;
 	readonly signal: AbortSignal;
 	readonly assertCurrent: () => void;
+	readonly confirmFileSizeWarning?: FileSizeWarningConfirmation;
 }
 
 export interface VideoKeyframeOfflineVideoExportDependencies {
@@ -129,6 +131,7 @@ interface NormalizedRequest {
 	readonly rgbaCompositor?: import('./video-keyframe-offline-rgba-renderer.ts').VideoKeyframeOfflineRgbaCompositor;
 	readonly signal: AbortSignal;
 	readonly assertCurrent: () => void;
+	readonly confirmFileSizeWarning?: FileSizeWarningConfirmation;
 }
 
 const REQUEST_FIELDS = [
@@ -136,7 +139,7 @@ const REQUEST_FIELDS = [
 	'format', 'quality', 'webCodecs', 'editorFfmpeg', 'audioMix', 'ringCapacityBytes', 'audioRingCapacityBytes',
 	'maximumAudioBytes', 'maximumWidth', 'maximumHeight',
 	'maximumFrameCount', 'maximumTotalRgbaBytes', 'maximumOutputBytes',
-	'maximumOutputChunkBytes', 'sourceTimeoutMs', 'rgbaPostprocessor', 'rgbaCompositor', 'signal', 'assertCurrent',
+	'maximumOutputChunkBytes', 'sourceTimeoutMs', 'rgbaPostprocessor', 'rgbaCompositor', 'signal', 'assertCurrent', 'confirmFileSizeWarning',
 ] as const;
 const ENCODER_OPTION_FIELDS = [
 	'ringCapacityBytes', 'audioRingCapacityBytes', 'maximumAudioBytes',
@@ -340,6 +343,7 @@ function normalizeRequest(value: unknown): NormalizedRequest {
 			audioMix: canonicalMediaContentBlob(request.audioMix),
 		}),
 		encoderOptions: Object.freeze(encoderOptions),
+		...(request.confirmFileSizeWarning === undefined ? {} : { confirmFileSizeWarning: request.confirmFileSizeWarning as FileSizeWarningConfirmation }),
 		...(sourceTimeoutMs === undefined ? {} : { sourceTimeoutMs }),
 		...(request.rgbaPostprocessor === undefined ? {} : {
 			rgbaPostprocessor: request.rgbaPostprocessor as VideoKeyframeOfflineRgbaPostprocessor,

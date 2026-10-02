@@ -51,7 +51,7 @@ const DEFERRED_WEB_VCR_PANEL_ID = 'web-vcr'; export default function AudioEditor
 	copy,
 	productId = 'soundscaper',
 	controller,
-	fileService,
+	fileService, confirmFileSizeWarning,
 	selectedMediaPreparation = controller?.selectedMediaPreparation ?? null, assistanceSearchSource = null,
 	projectForRuntimeConsumers, crossProductHandoffAvailable = false, initialSurface = null,
 }) {
@@ -461,7 +461,7 @@ const DEFERRED_WEB_VCR_PANEL_ID = 'web-vcr'; export default function AudioEditor
 	const overlayModel = createWorkspaceOverlayModel({
 		activeSurface, applicationMenus, aboutLabel, capabilities, closeNyquist,
 		controller, copy, dialog, displayAudioSupported, dialogTrackId, dialogValue,
-		effectWindows, editBlocked, fileService, generatorType, locale, macroDraft,
+		effectWindows, editBlocked, fileService, confirmFileSizeWarning, generatorType, locale, macroDraft,
 		nyquistTarget, preferences, preferencesPage, projectBinEffectivelyOpen, productId,
 		run, scapeOpenDecision, setActiveSurface, setDialog, setDialogValue,
 		closeEffectWindow, setMacroDraft, selectedMediaPreparation, settleScapeOpenDecision,
@@ -469,7 +469,7 @@ const DEFERRED_WEB_VCR_PANEL_ID = 'web-vcr'; export default function AudioEditor
 	});
 
 	return <AudioEditorWorkspaceView model={{
-		activateSearchEntry, assistanceSearchRuntime,
+		activateSearchEntry, assistanceSearchRuntime, confirmFileSizeWarning,
 		aup4Compatibility,
 		aup4InputRef,
 		automationToolEnabled,

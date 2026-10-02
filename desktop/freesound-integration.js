@@ -133,15 +133,17 @@ export function createDesktopFreesoundProxy({ appOrigin, apiOrigin, fetchImpl, s
 				|| !parsedUrl.pathname.startsWith(FREESOUND_DESKTOP_PREFIX)) {
 				return errorResponse(404, 'Not found');
 			}
-			if (parsedUrl.search || parsedUrl.hash) return errorResponse(400, 'Query parameters are not allowed');
 			const apiPath = parsedUrl.pathname.slice(FREESOUND_DESKTOP_PREFIX.length);
 			const matchingPaths = ROUTES.filter((route) => route.path.test(apiPath));
 			if (!matchingPaths.length) return errorResponse(404, 'Not found');
 			const route = matchingPaths.find((candidate) => candidate.method === request.method);
 			if (!route) return errorResponse(405, 'Method not allowed');
+			if (parsedUrl.hash || (parsedUrl.search && (request.method !== 'GET'
+				|| !/^\/api\/freesound\/sounds\/[1-9]\d*\/original$/u.test(apiPath)
+				|| parsedUrl.search !== '?sizeWarning=client'))) return errorResponse(400, 'Query parameters are not allowed');
 			const token = sessionStore.get();
 			const upstreamRequest = await upstreamRequestOptions(request, route, { appOrigin, token });
-			const upstream = await fetchImpl(`${apiOrigin}${apiPath}`, upstreamRequest);
+			const upstream = await fetchImpl(`${apiOrigin}${apiPath}${parsedUrl.search}`, upstreamRequest);
 			if (upstream.status === 401 && token) await sessionStore.clear();
 			if (apiPath === '/api/freesound/oauth/session' && request.method === 'DELETE' && upstream.ok) {
 				await sessionStore.clear();

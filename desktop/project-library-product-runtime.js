@@ -14,7 +14,12 @@ const EXACT_PRELOAD_BY_PRODUCT = Object.freeze({
 
 /** Selects exactly one main-owned library generation from the packaged product profile. */
 export async function startDesktopProjectLibraryProductRuntime(value) {
-	const options = closedRecord(value, START_FIELDS, 'desktop project-library product runtime');
+	const hasWarning = value !== null && typeof value === 'object' && Object.hasOwn(value, 'confirmFileSizeWarning');
+	const options = closedRecord(value, hasWarning ? [...START_FIELDS, 'confirmFileSizeWarning'] : START_FIELDS,
+		'desktop project-library product runtime');
+	if (options.confirmFileSizeWarning !== undefined && typeof options.confirmFileSizeWarning !== 'function') {
+		throw new TypeError('Desktop project-library size confirmation must be a function');
+	}
 	const productId = product(options.productId);
 	const appDataPath = absolutePath(options.appDataPath, 'appData');
 	const owner = Object.freeze({
@@ -55,6 +60,7 @@ export async function startDesktopProjectLibraryProductRuntime(value) {
 			import('./project-library-runtime/desktop/soundscaper-project-library-main-ipc.js'),
 		]);
 		return startLoadedDesktopProjectLibraryProductRuntime({
+			confirmFileSizeWarning: options.confirmFileSizeWarning,
 			productId,
 			productName: 'Soundscaper',
 			generation: '1.0',
@@ -79,6 +85,7 @@ export async function startLoadedDesktopProjectLibraryProductRuntime({
 	owner,
 	onLeaseLost,
 	leaseTestControl,
+	confirmFileSizeWarning,
 	createHandshake,
 	startHost,
 	registerIpc,
@@ -89,6 +96,7 @@ export async function startLoadedDesktopProjectLibraryProductRuntime({
 		handshake: createHandshake(),
 		onLeaseLost,
 		testControl: projectLibraryTestControl(leaseTestControl),
+		...(productId === 'soundscaper' && confirmFileSizeWarning !== undefined ? { confirmFileSizeWarning } : {}),
 	});
 	return new DesktopProjectLibraryProductRuntime({
 		productId,

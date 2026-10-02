@@ -88,7 +88,7 @@ test('mixed selection applies its cumulative limit before either body is read', 
 				return new Blob([VIDEO_BYTES]);
 			},
 		}, { audioFallback: AUDIO_SELECTOR, videoFallback: VIDEO_SELECTOR }),
-		/cumulative.*expanded-byte limit/iu,
+		{ code: 'FILE_SIZE_WARNING' },
 	);
 	assert.equal(audioBodyReads, 0);
 	assert.equal(videoBodyReads, 0);

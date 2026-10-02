@@ -129,7 +129,6 @@ const BODY_FIELDS = [
 const DIGEST = /^[a-f0-9]{64}$/u;
 const BINDING_ID = /^f[a-f0-9]{64}$/u;
 const ENTRY_ID = /^[A-Za-z0-9_-]{8,128}$/u;
-const MAXIMUM_PROJECT_BYTES = 256 * 1024 * 1024;
 const MAXIMUM_BODIES = 4_094;
 const MAXIMUM_PROJECTS = 10_000;
 const MAXIMUM_TITLE_BYTES = 1_024;
@@ -258,8 +257,7 @@ export function validateSoundscaperDesktopBundle(
 	assertSoundscaperProjectProfile(profile);
 	const bundle = exactRecord(value, BUNDLE_FIELDS, 'Soundscaper desktop  bundle');
 	const row = projectRow(bundle.project, expectedProjectId, desktopProjectSchemaVersion(profile));
-	if (typeof bundle.document !== 'string' || bundle.document.length === 0
-		|| bundle.document.length > MAXIMUM_PROJECT_BYTES) {
+	if (typeof bundle.document !== 'string' || bundle.document.length === 0) {
 		throw new TypeError('The Soundscaper desktop  project document is invalid.');
 	}
 	const documentBytes = new TextEncoder().encode(bundle.document);
@@ -301,7 +299,6 @@ export function snapshotSoundscaperDesktopProject(
 	const project = soundscaperProjectClone(profile, projectValue);
 	const document = JSON.stringify(project);
 	const bytes = new TextEncoder().encode(document);
-	if (bytes.byteLength > MAXIMUM_PROJECT_BYTES) throw new RangeError('The project exceeds the desktop limit.');
 	return Object.freeze({ project, document, byteLength: bytes.byteLength, sha256: digestBytes(bytes) });
 }
 
@@ -403,8 +400,7 @@ function projectRow(
 	const projectRevision = nonNegative(row.projectRevision, 'project revision');
 	const sha256Value = digest(row.sha256, 'project');
 	const byteLength = positive(row.byteLength, 'project byte length');
-	if (byteLength > MAXIMUM_PROJECT_BYTES
-		|| row.metadataFile !== `${id}/${String(projectRevision)}-${sha256Value}.json`) {
+	if (row.metadataFile !== `${id}/${String(projectRevision)}-${sha256Value}.json`) {
 		throw new Error('The Soundscaper desktop  project row has invalid document geometry.');
 	}
 	if (typeof row.name !== 'string' || !row.name.trim()) throw new TypeError('The project name is invalid.');

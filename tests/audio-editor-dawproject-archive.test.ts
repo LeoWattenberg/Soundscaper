@@ -117,10 +117,28 @@ test('an entry larger than the limit is refused before it is inflated', async ()
 	});
 	const read = await readDawprojectArchive(archive, { maximumEntryBytes: 100 });
 	try {
-		await assert.rejects(read.readEntry('audio/big.wav'), /entry limit/u);
+		await assert.rejects(read.readEntry('audio/big.wav'), /size warning threshold/u);
 	} finally {
 		await read.close();
 	}
+});
+
+test('a DAWproject media-entry warning can be accepted for one read or canceled', async () => {
+	const media = wavBlob(2_000);
+	const blob = await writeDawprojectArchive({
+		projectXml: PROJECT_XML, metadataXml: '', files: [{ path: 'audio/big.wav', blob: media }],
+	});
+	const warnings: number[] = [];
+	const admitted = await readDawprojectArchive(blob, { maximumEntryBytes: 100,
+		confirmFileSizeWarning: async (warning) => { warnings.push(warning.byteLength); return true; } });
+	try {
+		assert.equal((await admitted.readEntry('audio/big.wav'))?.size, media.size);
+		assert.deepEqual(warnings, [media.size]);
+	} finally { await admitted.close(); }
+	const canceled = await readDawprojectArchive(blob, { maximumEntryBytes: 100,
+		confirmFileSizeWarning: async () => false });
+	try { await assert.rejects(canceled.readEntry('audio/big.wav'), { name: 'AbortError' }); }
+	finally { await canceled.close(); }
 });
 
 test('an aborted signal stops both writing and reading', async () => {

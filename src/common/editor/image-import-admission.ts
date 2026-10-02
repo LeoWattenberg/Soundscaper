@@ -59,6 +59,12 @@ export interface AdmittedImageImportGesture {
 	readonly totalInputBytes: number;
 }
 
+/** Bounds already admitted for this import, including an accepted size warning. */
+export interface ImageImportSizeAdmission {
+	readonly maximumFileInputBytes?: number;
+	readonly maximumGestureInputBytes?: number;
+}
+
 export type ImageDecodePrecision = 'sdr' | 'high-precision';
 
 export interface ImageDecodeWorkloadRequest {
@@ -86,24 +92,27 @@ const DECODE_KEYS = new Set([
 ]);
 
 /** Admit the complete selected image batch before reading or decoding a file. */
-export function admitImageImportGesture(value: unknown): Readonly<AdmittedImageImportGesture> {
+export function admitImageImportGesture(value: unknown, sizes: ImageImportSizeAdmission = {}): Readonly<AdmittedImageImportGesture> {
 	const request = closedRecord(value, GESTURE_KEYS, 'image import gesture');
 	const lengths = exactArray(dataProperty(request, 'fileByteLengths'), 'image import file byte lengths');
 	if (lengths.length < 1 || lengths.length > IMAGE_IMPORT_LIMITS.maximumFilesPerGesture) {
 		refuse('file-count', `An image import gesture requires 1 through ${String(IMAGE_IMPORT_LIMITS.maximumFilesPerGesture)} files.`);
 	}
 	let total = 0n;
+	const maximumFileBytes = positiveSafeInteger(sizes.maximumFileInputBytes ?? IMAGE_IMPORT_LIMITS.maximumFileInputBytes, 'file-input-bytes', 'Image input admission');
+	const maximumGestureBytes = positiveSafeInteger(sizes.maximumGestureInputBytes ?? IMAGE_IMPORT_LIMITS.maximumGestureInputBytes, 'gesture-input-bytes', 'Image gesture admission');
 	for (let index = 0; index < lengths.length; index += 1) {
 		const descriptor = Object.getOwnPropertyDescriptor(lengths, String(index));
 		if (!descriptor || !Object.hasOwn(descriptor, 'value')) {
 			refuse('invalid-request', 'Image import file byte lengths must be dense data values.');
 		}
 		const byteLength = positiveSafeInteger(descriptor.value, 'file-input-bytes', 'Image input byte length');
-		if (byteLength > IMAGE_IMPORT_LIMITS.maximumFileInputBytes) {
+		if (byteLength > maximumFileBytes) {
 			refuse('file-input-bytes', 'An image input exceeds the 64 MiB per-file limit.');
 		}
 		total += BigInt(byteLength);
-		if (total > BigInt(IMAGE_IMPORT_LIMITS.maximumGestureInputBytes)) {
+		if (total > BigInt(Number.MAX_SAFE_INTEGER)) refuse('gesture-input-bytes', 'Image total input bytes exceed the safe integer range.');
+		if (total > BigInt(maximumGestureBytes)) {
 			refuse('gesture-input-bytes', 'Image inputs exceed the 512 MiB per-gesture limit.');
 		}
 	}
@@ -115,12 +124,13 @@ export function admitImageImportGesture(value: unknown): Readonly<AdmittedImageI
  * The caller must classify any >8-bit, wide-gamut, ICC-transform, or PQ work
  * as `high-precision`, even though the persisted derivative is RGBA8.
  */
-export function admitImageDecodeWorkload(value: unknown): Readonly<AdmittedImageDecodeWorkload> {
+export function admitImageDecodeWorkload(value: unknown, sizes: Pick<ImageImportSizeAdmission, 'maximumFileInputBytes'> = {}): Readonly<AdmittedImageDecodeWorkload> {
 	const request = closedRecord(value, DECODE_KEYS, 'image decode workload');
 	const sourceByteLength = positiveSafeInteger(
 		dataProperty(request, 'sourceByteLength'), 'file-input-bytes', 'Image input byte length',
 	);
-	if (sourceByteLength > IMAGE_IMPORT_LIMITS.maximumFileInputBytes) {
+	const maximumFileBytes = positiveSafeInteger(sizes.maximumFileInputBytes ?? IMAGE_IMPORT_LIMITS.maximumFileInputBytes, 'file-input-bytes', 'Image input admission');
+	if (sourceByteLength > maximumFileBytes) {
 		refuse('file-input-bytes', 'An image input exceeds the 64 MiB per-file limit.');
 	}
 	const width = boundedPositiveInteger(
@@ -182,9 +192,10 @@ export function admitImageDecodeWorkload(value: unknown): Readonly<AdmittedImage
 }
 
 /** Recheck the exact compressed asset body before staging publication. */
-export function admitImageCanonicalBody(value: unknown): Readonly<{ byteLength: number }> {
+export function admitImageCanonicalBody(value: unknown, maximumBytes = IMAGE_IMPORT_LIMITS.maximumCanonicalBodyBytesPerFile): Readonly<{ byteLength: number }> {
 	const byteLength = positiveSafeInteger(value, 'canonical-body-bytes', 'Canonical image body byte length');
-	if (byteLength > IMAGE_IMPORT_LIMITS.maximumCanonicalBodyBytesPerFile) {
+	const maximum = positiveSafeInteger(maximumBytes, 'canonical-body-bytes', 'Canonical image body admission');
+	if (byteLength > maximum) {
 		refuse('canonical-body-bytes', 'A canonical image body exceeds the 512 MiB per-file limit.');
 	}
 	return Object.freeze({ byteLength });

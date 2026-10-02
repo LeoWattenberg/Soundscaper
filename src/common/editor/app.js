@@ -274,7 +274,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	});
 	const preferencesService = preferences.service;
 	const doc = createDocumentComposition({
-		state, copy, lifetime, document: documentScope, projectRuntime, product, capabilities, session: sessionController, store, engine, sourceBuffers, sourcePeaks,
+		state, copy, lifetime, confirmFileSizeWarning: options.confirmFileSizeWarning, document: documentScope, projectRuntime, product, capabilities, session: sessionController, store, engine, sourceBuffers, sourcePeaks,
 		timePitchCache: clipTimePitchCache, protectedSourceIds: stagedProjectBinSourceIds, maximumPixelsPerSecond: AUDIO_EDITOR_MAX_PIXELS_PER_SECOND,
 		settingKeys: { recentProjects: recentProjectsSettingKey, lastProject: lastProjectSettingKey }, scheduleTimer, clearTimer: clearScheduledTimer,
 		prepareProjectSnapshot: options.prepareProjectSnapshot, sources,
@@ -290,7 +290,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		cancelPlaybackCachePreparation: bindings.cancelPlaybackCachePreparation,
 		clearScheduledTimer: globalThis.clearTimeout.bind(globalThis),
 		clearWaveformPcmWindows: () => { bindings.clearWaveformPcmWindows(); sources.frequencyWaveforms.clearRuntime(); },
-		clipTimePitchCache, commit: bindings.commit, copy, currentTimeMs, editorHistoryProjects, engine,
+		clipTimePitchCache, commit: bindings.commit, copy, currentTimeMs, confirmFileSizeWarning: options.confirmFileSizeWarning, editorHistoryProjects, engine,
 		evictUnreferencedSourceCaches, flushProject: bindings.flushProject, getProject: () => documentState.project, getRecordingRouting: recordingPort.getRouting, handleError: bindings.handleError,
 		liveSessionClipIds: bindings.liveSessionClipIds, liveSessionLinkedOriginalSourceReferences: doc.retention.liveSessionLinkedOriginalSourceReferences, liveSessionSourceIds: bindings.liveSessionSourceIds, newProject: bindings.newProject, openProject: bindings.openProject, persistSetting,
 		projectGeneration, projectSaveService: doc.saves, projectMaintenanceRuntime: options.projectMaintenanceRuntime, projectSessionService: doc.session, publishDocumentSnapshot,
@@ -311,7 +311,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	const unsubscribeParametricEqErrors = typeof engine.subscribeParametricEqErrors === 'function' ? engine.subscribeParametricEqErrors((error) => bindings.handleError(error)) : () => {};
 	const unsubscribePlaybackErrors = typeof engine.subscribePlaybackErrors === 'function'
 		? engine.subscribePlaybackErrors((error) => bindings.handleError(error)) : () => {};
-	const { inspectScape, openScapeFile, scapeInspectionQuiescence } = createScapeProjectFileService({ lifetime, store, openScape: bindings.openScape, productCapabilities: product.capabilities, currentProjectSchemaFamily: product.id, inspectScapeProject: options.scapeProjectRuntime?.inspectScapeProject, scapeInspectionQuiescenceOptions: options.scapeInspectionQuiescenceOptions });
+	const { inspectScape, openScapeFile, scapeInspectionQuiescence } = createScapeProjectFileService({ lifetime, store, confirmFileSizeWarning: options.confirmFileSizeWarning, openScape: bindings.openScape, productCapabilities: product.capabilities, currentProjectSchemaFamily: product.id, inspectScapeProject: options.scapeProjectRuntime?.inspectScapeProject, scapeInspectionQuiescenceOptions: options.scapeInspectionQuiescenceOptions });
 	const { locking: projectLockService, projects: projectSwitchService } = createProjectLifecycleComposition({
 		locking: {
 			state, cancelTask: (...args) => lifetime.cancelTask(...args),
@@ -337,7 +337,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			executeCommand: projectRuntime.executeCommand,
 			loadProject: projectRuntime.loadProject,
 			playbackProjectService,
-			verifyProjectFallbackIntegrity: (activeProject, verifyOptions) => verifyProjectFallbackIntegrity(activeProject, store, verifyOptions),
+			verifyProjectFallbackIntegrity: (activeProject, verifyOptions) => verifyProjectFallbackIntegrity(activeProject, store, { confirmFileSizeWarning: options.confirmFileSizeWarning, ...verifyOptions }),
 			assignPreferredInputToTrack: (trackId) => assignPreferredInputToTrack(trackId),
 			cancelTimedRecording: bindings.cancelTimedRecording,
 			cancelRecordingStart: bindings.cancelRecordingStart,
@@ -365,7 +365,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			loadEngineProject: (activeProject, transientBuffers, preparedSources) => engine.loadProject(activeProject, preparedSources?.sourceBuffers
 					?? (transientBuffers?.size ? new Map([...sourceBuffers, ...transientBuffers]) : sourceBuffers), { chunkSources: preparedSources?.chunkSources ?? sourceChunkProviders }), openRecovery: takeCycleOpenRecovery,
 			recordOpenedProject: (projectId, guard) => doc.session.recordOpenedProject(projectId, guard), maintainOpenedProject: (projectId, isCurrentWritable) => store.maintainOpenedProject?.(projectId, () => isCurrentWritable() ? doc.retention.liveSessionLinkedOriginalSourceReferences() : null),
-			createProjectIfAbsent: options.createProjectIfAbsent || (typeof Reflect.get(store, 'createProjectIfAbsent') === 'function' ? (project) => store.createProjectIfAbsent(project) : undefined),
+			createProjectIfAbsent: options.createProjectIfAbsent || (typeof Reflect.get(store, 'createProjectIfAbsent') === 'function' ? (project, publicationOptions = {}) => store.createProjectIfAbsent(project, { ...publicationOptions, confirmFileSizeWarning: options.confirmFileSizeWarning }) : undefined),
 			saveProject: (activeProject) => store.saveProject(activeProject, { protectedLinkedOriginalSourceReferences: doc.retention.liveSessionLinkedOriginalSourceReferences() }),
 			recordPersistedSnapshot: (project) => doc.saves.recordPersistedSnapshotFromStore(project.id, (id) => store.loadProject(id)), isPersistedSnapshotCurrent: typeof Reflect.get(store, 'saveProjectIfCurrentWithWriteFence') === 'function' ? (projectId) => doc.saves.isPersistedSnapshotCurrent(projectId, (id) => store.loadProject(id)) : undefined, isActivatedProjectCurrent: typeof Reflect.get(store, 'saveProjectIfCurrentWithWriteFence') === 'function' ? async (project) => sameProjectSnapshot(await store.loadProject(project.id), project) : undefined, isProjectAbsent: async (projectId) => await store.loadProject(projectId) === null,
 			listProjects: () => store.listProjects(),
@@ -400,7 +400,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		copy,
 	});
 	const nativeProjectService = createNativeProjectComposition({
-		lifetime, projectGeneration, state, copy, store, fileService, taskProgress,
+		lifetime, projectGeneration, state, copy, store, fileService, taskProgress, confirmFileSizeWarning: options.confirmFileSizeWarning,
 		getProject: documentScope.get, acquireReplaceProjectWriteAuthority: createScapeReplaceWriteAuthority({ getActiveProjectId: () => documentScope.get()?.id ?? null, getActiveReadOnly: () => state.readOnly, getActiveLock: () => state.projectLock, acquireProjectLock: acquireLock }),
 		switchProject: bindings.switchProject,
 		editingBlocked,
@@ -419,7 +419,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		setStatus: bindings.setStatus,
 		publishDocumentSnapshot,
 		sourceBuffers,
-		prepareDawprojectAudio: createDawprojectAudioPreparer(ffmpeg), product,
+		prepareDawprojectAudio: createDawprojectAudioPreparer(ffmpeg, options.confirmFileSizeWarning), product,
 	});
 	const captureComposition = createCaptureComposition(framescaperCaptureRuntime, captureRuntime => ({
 		proxy: {
@@ -537,7 +537,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		normalizeTimelineFrame, snapTimelineFrame: bindings.selection.snapFrame, activeSelection, cacheSourceBuffer: bindings.cacheSourceBuffer, projectChanged: bindings.projectChanged, garbageCollectSources: bindings.garbageCollectSources, compactLiveSourceState: bindings.compactLiveSourceState,
 	});
 	const imports = createImportComposition({
-		state, copy, lifetime, projectGeneration, store, engine, ffmpeg, archiveRuntime: deferredArchiveRuntime, helperTimingProbe: fileService.helperTimingProbe, adaptAudacityProject: options.adaptAudacityProject,
+		state, copy, lifetime, projectGeneration, store, engine, ffmpeg, archiveRuntime: deferredArchiveRuntime, confirmFileSizeWarning: options.confirmFileSizeWarning, helperTimingProbe: fileService.helperTimingProbe, adaptAudacityProject: options.adaptAudacityProject,
 		sourceBuffers, sourceChunkProviders, sourcePeaks, sourceResolver: clipTimePitchSourceResolver, sourceChunkFrames: SOURCE_CHUNK_FRAMES,
 		protectedSourceIds: stagedProjectBinSourceIds, trackColors: AUDIO_EDITOR_TRACK_COLORS, taskProgress, projectVisual: sources.projectVisual,
 		createPreviewEngine: (previewOptions) => renderEngineFactory(previewOptions),

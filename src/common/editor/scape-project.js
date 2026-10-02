@@ -25,7 +25,7 @@ import {
 	verifyScapeAssetBytes,
 	verifyScapeExtractedAsset,
 } from './scape-archive-media.ts';
-import { extractScapeVideo } from './scape-archive-video.ts';
+import { extractScapeVideo } from './scape-archive-video.ts'; import { confirmScapeProxyImportSizes } from './scape-proxy-import-size-warning.ts';
 import { createScapeExportDestination } from './scape-export-destination.ts';
 import {
 	assertScapeExportBlob,
@@ -79,10 +79,10 @@ export async function exportScapeProject(project, store, options = {}) {
 	}
 	throwIfScapeAborted(signal);
 	const additionalAssets = assetExtension ? await awaitScapeOperation(
-		assetExtension.planExportAssets({ project, store, signal }), signal,
+		assetExtension.planExportAssets({ project, store, signal, confirmFileSizeWarning: options.confirmFileSizeWarning, assertCurrent: options.assertCurrent }), signal,
 	) : [];
 	const plan = await prepareScapeExport(project, store, {
-		maximumBlobBytes: options.maximumBlobBytes,
+		maximumBlobBytes: options.maximumBlobBytes, confirmFileSizeWarning: options.confirmFileSizeWarning, assertCurrent: options.assertCurrent,
 		output: writable || createWritable ? 'stream' : 'blob',
 		signal,
 		currentProjectSchemaFamily: options.currentProjectSchemaFamily,
@@ -200,7 +200,7 @@ async function importScapeProjectAttempt(input, store, options, remapAllSources)
 				expandedByteBudget,
 				manifest,
 				projectText,
-			} = await readScapeArchiveEnvelope(entries, options.archiveLimits || {}, signal, assetExtension?.assetKinds, isDesktopScapeArchiveByteSource(input));
+			} = await readScapeArchiveEnvelope(entries, options.archiveLimits || {}, signal, assetExtension?.assetKinds, isDesktopScapeArchiveByteSource(input), { confirmFileSizeWarning: options.confirmFileSizeWarning, assertCurrent: options.assertCurrent });
 			const audioChunkBudget = new ScapeAudioChunkBudget();
 			const projectBytes = TEXT_ENCODER.encode(projectText);
 			verifyScapeAssetBytes(projectBytes, manifest.project, 'project document');
@@ -211,7 +211,7 @@ async function importScapeProjectAttempt(input, store, options, remapAllSources)
 			}
 			let project = structuredClone(loaded.project);
 			const archiveProject = structuredClone(project);
-			const extensionValidation = assetExtension?.validateImportAssets(project, manifest) ?? null;
+			const extensionValidation = assetExtension?.validateImportAssets(project, manifest) ?? null; await confirmScapeProxyImportSizes(manifest, options);
 			const assetBySourceId = indexScapeProjectAssets(project, manifest, {
 				currentProjectSchemaFamily: resolveScapeCurrentProjectSchemaFamily(options),
 				currentProjectSchemaVersion: resolveScapeCurrentProjectSchemaVersion(options),
@@ -240,7 +240,7 @@ async function importScapeProjectAttempt(input, store, options, remapAllSources)
 			}
 			transaction = await beginScapeImportTransaction(store, signal, project.id,
 				existingProject && collision === 'replace' ? existingProject : null,
-				options.acquireReplaceProjectWriteAuthority);
+				options.acquireReplaceProjectWriteAuthority, { confirmFileSizeWarning: options.confirmFileSizeWarning, assertCurrent: options.assertCurrent });
 			for (const [storageKey, asset] of timingAssetByStorageKey) {
 				throwIfScapeAborted(signal);
 				const existingTiming = await awaitScapeOperation(store.getMediaAssetMetadata(storageKey), signal);
@@ -487,7 +487,7 @@ async function importScapeProjectAttempt(input, store, options, remapAllSources)
  *   projectId: string,
  *   options?: Readonly<{ signal?: AbortSignal }>,
  * ) => PromiseLike<unknown> | unknown } | null} store
- * @param {{ signal?: AbortSignal,
+ * @param {{ signal?: AbortSignal, confirmFileSizeWarning?: import('./controller/shared/file-size-warning.ts').FileSizeWarningConfirmation, assertCurrent?: () => void,
  *   canonicalProjectDigest?: boolean, loadProject?: (project: unknown) => { project: Record<string, unknown>, readOnly: boolean },
  *   currentProjectSchemaFamily?: import('./project-schema-identity.ts').ProjectSchemaFamily,
  *   currentProjectSchemaVersion?: number,
@@ -501,7 +501,7 @@ export async function inspectScapeProject(input, store = null, options = {}, ret
 	const assetExtension = resolveScapeProjectAssetExtension(options.projectAssetExtension);
 	return withScapeProjectInput(input, signal, async (entries) => {
 		const { manifest, projectText } = await readScapeArchiveEnvelope(entries,
-			options.archiveLimits || {}, signal, assetExtension?.assetKinds, isDesktopScapeArchiveByteSource(input));
+			options.archiveLimits || {}, signal, assetExtension?.assetKinds, isDesktopScapeArchiveByteSource(input), { confirmFileSizeWarning: options.confirmFileSizeWarning, assertCurrent: options.assertCurrent });
 		verifyScapeAssetBytes(TEXT_ENCODER.encode(projectText), manifest.project, 'project document');
 		throwIfScapeAborted(signal);
 		const loaded = loadScapeProjectDocument(projectText, manifest.project, options);

@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import type { FileSizeWarningOptions } from '../../../shared/file-size-warning.ts';
 
 import {
 	admBedChannelOrder,
@@ -107,7 +108,7 @@ interface CanonicalPassthroughAdmPlan {
 	readonly trailingChunks: DirectRiffChunks;
 }
 
-interface DirectBw64RequestedSettings extends Readonly<Record<string, unknown>> {
+interface DirectBw64RequestedSettings extends FileSizeWarningOptions, Readonly<Record<string, unknown>> {
 	readonly measureLoudness?: unknown;
 }
 
@@ -145,7 +146,7 @@ export async function prepareDirectBw64Destination(
 	return openDirectPcmDestination(
 		prepared,
 		plan.outputFileBytesPerRender,
-		BW64_CONTAINER_LABEL,
+		BW64_CONTAINER_LABEL, 'exact', {}, { signal, confirmFileSizeWarning: settings.confirmFileSizeWarning },
 	);
 }
 
@@ -175,7 +176,6 @@ function directBw64Plan(value: Readonly<Record<string, unknown>>): value is Read
 		|| !plan.outputs[0].fileName.toLowerCase().endsWith('.wav')
 		|| !Number.isSafeInteger(plan.outputFileBytesPerRender)
 		|| Number(plan.outputFileBytesPerRender) <= 0
-		|| Number(plan.outputFileBytesPerRender) > DIRECT_BW64_MAXIMUM_FILE_BYTES
 		|| (bitDepth !== 16 && bitDepth !== 20 && bitDepth !== 24)
 		|| encoding?.floatingPoint !== false
 		|| encoding.sampleFormat !== `int${String(bitDepth)}`) {
@@ -306,8 +306,7 @@ function hasExactWavLayout(
 		};
 		const layout = inspectWavLayout(options);
 		return layout.container === 'bw64'
-			&& layout.byteLength === plan.outputFileBytesPerRender
-			&& layout.byteLength <= DIRECT_BW64_MAXIMUM_FILE_BYTES;
+			&& layout.byteLength === plan.outputFileBytesPerRender;
 	} catch {
 		return false;
 	}

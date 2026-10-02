@@ -292,6 +292,7 @@ async function runSenderDownload(
 	try {
 		const report = await downloadTransferArchives({
 			archives: streamTransferArchives({
+				confirmFileSizeWarning: context.confirmFileSizeWarning,
 				runtime: exportingRuntime,
 				store: source.store as ExportStore,
 				select: selectionPredicate(transferable),
@@ -355,13 +356,17 @@ async function runSenderHandshake(
 		const runtime = await context.dependencies.loadRuntime();
 		const exportingRuntime = editableRuntime(runtime, context);
 		source = await context.dependencies.openStore();
+		const exportStore = source.store as ExportStore;
 		const report = await sendTransferArchives({
+			confirmFileSizeWarning: context.confirmFileSizeWarning,
 			runtime: exportingRuntime,
 			// Streamed, not collected: the archives reach the offer one at a
 			// time and the aggregate ceiling is what bounds the whole transfer.
-			archives: streamTransferArchives({
+			archiveFactory: (signal) => streamTransferArchives({
+				confirmFileSizeWarning: context.confirmFileSizeWarning,
+				signal,
 				runtime: exportingRuntime,
-				store: source.store as ExportStore,
+				store: exportStore,
 				select: selectionPredicate(transferable),
 				onProgress: (progress) => view.status(exportProgressText(progress)),
 			}),

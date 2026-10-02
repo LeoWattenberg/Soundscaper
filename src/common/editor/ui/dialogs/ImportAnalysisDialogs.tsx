@@ -5,6 +5,7 @@ import { Button } from '@soundscaper/design-system/Button';
 import { DialogFooter } from '@soundscaper/design-system/Footer';
 
 import { prepareRawPcmWaveFile, type RawPcmByteOrder, type RawPcmSampleFormat } from '../../controller/import/raw-pcm-import.ts';
+import type { FileSizeWarningConfirmation } from '../../controller/shared/file-size-warning.ts';
 import type { RegularIntervalAnnotationOptions } from '../../controller/document/regular-interval-annotation-service.ts';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import AudioEditorTimeCodeInput from '../AudioEditorTimeCodeInput.tsx';
@@ -29,10 +30,11 @@ interface CommonProps {
 	readonly copy: Readonly<Record<string, string>>;
 	readonly run: (operation: () => unknown) => unknown;
 	readonly onClose: () => void;
+	readonly confirmFileSizeWarning?: FileSizeWarningConfirmation;
 	readonly fileService?: Readonly<{ isDesktop: boolean }>;
 }
 
-export function RawPcmImportDialog({ controller, copy, run, onClose, fileService }: CommonProps) {
+export function RawPcmImportDialog({ controller, copy, run, onClose, fileService, confirmFileSizeWarning }: CommonProps) {
 	const [file, setFile] = useState<File | null>(null);
 	const [sampleFormat, setSampleFormat] = useState<RawPcmSampleFormat>('int16');
 	const [byteOrder, setByteOrder] = useState<RawPcmByteOrder>('little');
@@ -53,7 +55,7 @@ export function RawPcmImportDialog({ controller, copy, run, onClose, fileService
 		run(async () => {
 			try {
 				const wav = await withWebFileLoadLimitContext(() => prepareRawPcmWaveFile(file, { sampleFormat, byteOrder, sampleRate, channelCount, offsetBytes },
-					{ desktop: fileService?.isDesktop === true }));
+					{ desktop: fileService?.isDesktop === true, confirmFileSizeWarning, assertCurrent: () => { if (!projectIsCurrent()) throw new DOMException('The project changed.', 'AbortError'); } }));
 				if (!projectIsCurrent()) return;
 				await controller.actions.project.importFiles([wav]);
 				if (!projectIsCurrent()) return;

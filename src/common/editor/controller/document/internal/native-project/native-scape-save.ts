@@ -64,7 +64,7 @@ export async function beginNativeScapeSave(
 export async function publishNativeScape(
 	runtime: Pick<
 		NativeProjectServiceRuntime,
-		'exportScapeProject' | 'fileService' | 'publishDocumentSnapshot' | 'scapeMimeType' | 'state' | 'store'
+		'exportScapeProject' | 'fileService' | 'publishDocumentSnapshot' | 'scapeMimeType' | 'state' | 'store' | 'confirmFileSizeWarning'
 	>,
 	request: Readonly<{
 		assertReadyToCommit(): void;
@@ -82,7 +82,7 @@ export async function publishNativeScape(
 		return publishDirectScape(runtime, { ...request, prepared });
 	}
 	const exported = await runtime.exportScapeProject(request.project, runtime.store, {
-		signal: request.signal,
+		signal: request.signal, confirmFileSizeWarning: runtime.confirmFileSizeWarning, assertCurrent: request.assertReadyToCommit,
 	});
 	if (!(exported.blob instanceof Blob)) {
 		throw new TypeError('The fallback Scape export did not produce a Blob.');
@@ -232,7 +232,7 @@ export async function publishNativeScapeArchiveCopy(
 
 async function publishDirectScape(
 	runtime: Pick<NativeProjectServiceRuntime,
-	'exportScapeProject' | 'publishDocumentSnapshot' | 'state' | 'store'>,
+	'exportScapeProject' | 'publishDocumentSnapshot' | 'state' | 'store' | 'confirmFileSizeWarning'>,
 	request: Readonly<{
 		assertReadyToCommit(): void;
 		fileName: string;
@@ -248,7 +248,7 @@ async function publishDirectScape(
 	try {
 		const exported = await runtime.exportScapeProject(request.project, runtime.store, {
 			createWritable: (maximumBytes) => request.prepared.createWritable(maximumBytes),
-			signal: request.signal,
+			signal: request.signal, confirmFileSizeWarning: runtime.confirmFileSizeWarning, assertCurrent: request.assertReadyToCommit,
 		});
 		if (exported.blob !== null) throw new TypeError('The direct Scape export assembled an unexpected Blob.');
 		if (!Number.isSafeInteger(exported.byteLength)

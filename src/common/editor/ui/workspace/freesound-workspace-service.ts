@@ -35,7 +35,7 @@ export interface FreesoundWorkspaceController {
 
 export type FreesoundWorkspaceRuntime = Readonly<Pick<
 	FreesoundImportServiceRuntime,
-	'apiBaseUrl' | 'fetch' | 'maximumPreviewBytes' | 'maximumOriginalBytes'
+	'apiBaseUrl' | 'fetch' | 'maximumPreviewBytes' | 'maximumOriginalBytes' | 'confirmFileSizeWarning'
 >> & Readonly<{
 	authenticated?: () => boolean;
 	authenticatedRequest?: (path: string, init?: RequestInit) => Promise<Response>;
@@ -60,6 +60,7 @@ export function createFreesoundWorkspaceActions(
 	const service = createFreesoundImportService({
 		enabled: controller.getSnapshot().productId === 'soundscaper',
 		...runtime,
+		get confirmFileSizeWarning() { return runtime.confirmFileSizeWarning; },
 		authenticated: () => runtime.authenticated?.() === true,
 		fetchOriginal: (input, init) => {
 			const url = input instanceof URL ? input : new URL(String(input));
@@ -136,6 +137,7 @@ export function freesoundWorkspaceActions(
 export function importFreesoundSound(
 	controller: FreesoundWorkspaceController,
 	request: FreesoundImportRequest,
+	runtime: FreesoundWorkspaceRuntime = {},
 ): Promise<unknown> {
-	return freesoundWorkspaceActions(controller).importSound(request);
+	return freesoundWorkspaceActions(controller, runtime).importSound(request);
 }

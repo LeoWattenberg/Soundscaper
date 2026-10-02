@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { SCAPE_ARCHIVE_LIMITS } from '../common/editor/scape-archive-envelope.ts';
 import {
 	ASSISTANCE_ASSET_REFERENCE_LIMITS_V1,
 	ASSISTANCE_TRANSCRIPT_BODY_MIME_TYPE_V1,
@@ -309,7 +308,7 @@ function assertKindEncoding(kind: FramescaperDesktopBodyKind, encoding: string):
 
 function assertRoleBound(value: FramescaperDesktopBodyDescriptor): void {
 	if ((value.kind === 'framescaper-still' || value.kind === 'framescaper-freeze-render')
-		&& (value.byteLength > 512 * 1024 * 1024 || !IMAGE_MIME.test(value.mimeType))) {
+		&& !IMAGE_MIME.test(value.mimeType)) {
 		throw new RangeError(`baseline desktop ${value.kind} exceeds its image role bound.`);
 	}
 	if (value.kind === 'framescaper-cube-lut'
@@ -422,8 +421,7 @@ function digest(value: unknown, label: string): string {
 }
 
 function bodyLength(value: unknown): number {
-	if (!Number.isSafeInteger(value) || Number(value) < 1
-		|| Number(value) > SCAPE_ARCHIVE_LIMITS.maximumExpandedBytes) {
+	if (!Number.isSafeInteger(value) || Number(value) < 1) {
 		throw new RangeError('baseline desktop body length is invalid.');
 	}
 	return Number(value);

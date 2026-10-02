@@ -19,6 +19,7 @@ import {
 	type VideoTimingProbePort,
 } from './video-timing-probe.ts';
 import { validateVideoProxyOriginalMimeType } from './video-proxy-original-mime-type.ts';
+import { confirmFileSizeWarning, type FileSizeWarningConfirmation } from './controller/shared/file-size-warning.ts';
 
 export const VIDEO_PROXY_CANDIDATE_MAXIMUM_BYTES = 512 * 1024 * 1024;
 export const VIDEO_PROXY_CANDIDATE_MAXIMUM_TIMING_PROBES = 8;
@@ -57,6 +58,7 @@ export interface VideoProxyCandidateObserverDependencies {
 	readonly recipe: VideoProxyCandidateRecipe;
 	readonly probes: readonly VideoTimingProbePort[];
 	readonly maximumBytes?: number;
+	readonly confirmFileSizeWarning?: FileSizeWarningConfirmation;
 }
 
 export interface VideoProxyCandidateObserver {
@@ -103,6 +105,7 @@ interface CandidateObserverState {
 	readonly recipe: Readonly<VideoProxyCandidateRecipe>;
 	readonly probes: readonly VideoTimingProbePort[];
 	readonly maximumBytes: number;
+	readonly confirmFileSizeWarning?: FileSizeWarningConfirmation;
 }
 
 const OBSERVERS = new WeakMap<object, CandidateObserverState>();
@@ -115,7 +118,7 @@ export function createVideoProxyCandidateObserver(
 	dependenciesValue: VideoProxyCandidateObserverDependencies,
 ): VideoProxyCandidateObserver {
 	const dependencies = closedDataRecord(dependenciesValue, [
-		'generator', 'recipe', 'probes', 'maximumBytes',
+		'generator', 'recipe', 'probes', 'maximumBytes', 'confirmFileSizeWarning',
 	], ['generator', 'recipe', 'probes'], 'video proxy candidate dependencies');
 	const generator = captureGenerator(dependencies.generator);
 	const recipe = captureIdentity(dependencies.recipe, 'video proxy candidate recipe');
@@ -123,14 +126,15 @@ export function createVideoProxyCandidateObserver(
 	const maximumBytes = dependencies.maximumBytes === undefined
 		? VIDEO_PROXY_CANDIDATE_MAXIMUM_BYTES
 		: positiveSafeInteger(dependencies.maximumBytes, 'video proxy candidate maximumBytes');
-	if (maximumBytes > VIDEO_PROXY_CANDIDATE_MAXIMUM_BYTES) {
-		throw new RangeError('Video proxy candidate maximumBytes cannot raise its hard limit.');
+	if (dependencies.confirmFileSizeWarning !== undefined && typeof dependencies.confirmFileSizeWarning !== 'function') {
+		throw new TypeError('Video proxy candidate confirmFileSizeWarning must be a function.');
 	}
 	const observer: VideoProxyCandidateObserver = Object.freeze({
 		kind: 'video-proxy-candidate-observer',
 		version: 1,
 	});
-	OBSERVERS.set(observer, Object.freeze({ generator, recipe, probes, maximumBytes }));
+	OBSERVERS.set(observer, Object.freeze({ generator, recipe, probes, maximumBytes,
+		confirmFileSizeWarning: dependencies.confirmFileSizeWarning as FileSizeWarningConfirmation | undefined }));
 	return observer;
 }
 
@@ -167,9 +171,8 @@ export async function observeVideoProxyCandidate(
 	assertCurrent(request);
 	const candidate = Object.freeze(canonicalMediaContentBlob(generated));
 	if (candidate.size < 1) throw new RangeError('A video proxy candidate Blob cannot be empty.');
-	if (candidate.size > state.maximumBytes) {
-		throw new RangeError('The video proxy candidate Blob exceeds its maximum byte length.');
-	}
+	await confirmFileSizeWarning(candidate.size, state.maximumBytes, 'Video proxy',
+		{ confirmFileSizeWarning: state.confirmFileSizeWarning, signal: request.signal, assertCurrent: () => assertCurrent(request) });
 	if (candidate.type.length > 128 || !/^video\/[a-z0-9][a-z0-9!#$&^_.+\-]*$/u.test(candidate.type)) {
 		throw new TypeError('A video proxy candidate requires a canonical video MIME type.');
 	}

@@ -3,10 +3,11 @@
 import { isDesktopMainAudioCodecRuntime } from '../../../desktop-main-audio-codec-runtime-marker.ts';
 import type { WavPackImportGroupDecoder } from '../../../browser-streamed-wavpack-import.ts';
 import type { createIncrementalPcmImporter } from './incremental-wav-import-service.ts';
+import type { FileSizeWarningConfirmation } from '../../shared/file-size-warning.ts';
 
 export async function importStreamedAudioFile(
 	file: Blob,
-	options: Readonly<{ signal?: AbortSignal }>,
+	options: Readonly<{ signal?: AbortSignal; confirmFileSizeWarning?: FileSizeWarningConfirmation }>,
 	codec: WavPackImportGroupDecoder,
 	metadata: unknown,
 	importPcm: ReturnType<typeof createIncrementalPcmImporter>,
@@ -16,6 +17,7 @@ export async function importStreamedAudioFile(
 	const desktop = isDesktopMainAudioCodecRuntime(codec);
 	const prepared = await prepareStreamedAudioImport(file, {
 		signal: options.signal, reviewedFallback: !desktop, desktop, desktopCodec: desktop ? codec : undefined,
+		confirmFileSizeWarning: options.confirmFileSizeWarning, assertCurrent,
 	});
 	try {
 		return await importPcm(file, { ...prepared.descriptor, stream: prepared.stream }, options,

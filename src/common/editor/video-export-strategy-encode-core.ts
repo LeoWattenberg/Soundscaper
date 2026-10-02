@@ -85,7 +85,7 @@ export function createVideoExportOfflineRequest(
 		...(request.rgbaPostprocessor === undefined ? {} : { rgbaPostprocessor: request.rgbaPostprocessor }),
 		...(request.rgbaCompositor === undefined ? {} : { rgbaCompositor: request.rgbaCompositor }),
 		signal: request.signal,
-		assertCurrent: request.assertCurrent,
+		assertCurrent: request.assertCurrent, confirmFileSizeWarning: request.confirmFileSizeWarning,
 	});
 }
 

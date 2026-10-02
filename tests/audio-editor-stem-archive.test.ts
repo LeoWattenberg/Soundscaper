@@ -280,7 +280,7 @@ test('nullable ZIP plans preserve the fallback memory-storage threshold', async 
 			[{ fileName: 'lead.flac', expectedByteLength: null }],
 			97 * 1024 ** 2,
 		);
-		await assert.rejects(() => createStreamingStemArchive(plan, copy), /large stems require storage/u);
+		await assert.rejects(() => createStreamingStemArchive(plan, copy), /size warning threshold/u);
 	});
 });
 
@@ -330,7 +330,7 @@ test('native stem plans require persistent storage when archive plus staging exc
 		assert.equal(plan.requiredTemporaryBytes! > 96 * 1024 ** 2, true);
 		await assert.rejects(
 			() => createStreamingStemArchive(plan, copy),
-			/large stems require storage/u,
+			/size warning threshold/u,
 		);
 	});
 });

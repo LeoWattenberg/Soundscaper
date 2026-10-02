@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { freesoundDownloadMaximumBytes } from './download-size-warning.ts';
 import {
 	FreesoundOAuthContractError,
 	normalizeDescribedSound,
@@ -50,6 +51,7 @@ export async function handleFreesoundOriginalRequest(
 ): Promise<Response> {
 	return handleOAuthEndpoint(context, ['GET', 'HEAD'], async (admission) => {
 		const id = soundId(context.params.id);
+		const maximumBytes = freesoundDownloadMaximumBytes(context.request, MAX_FREESOUND_ORIGINAL_BYTES, () => new OAuthHttpError(400, 'invalid_request', 'The Freesound download query is invalid.'));
 		const { accessToken, authorized } = await accessTokenForSession(context, dependencies);
 		const range = byteRange(context.request.headers.get('range'));
 		// Freesound's API negotiates a JSON renderer before its download view returns audio.
@@ -75,11 +77,11 @@ export async function handleFreesoundOriginalRequest(
 				headers: streamedAudioHeaders(response.headers, admission.corsOrigin, id, null),
 			});
 		}
-		const originalBytes = assertOriginalResponse(response);
+		const originalBytes = assertOriginalResponse(response, maximumBytes);
 		const responseHeaders = streamedAudioHeaders(response.headers, admission.corsOrigin, id, originalBytes);
 		const body = admission.head || response.body === null
 			? null
-			: boundedStream(response.body, MAX_FREESOUND_ORIGINAL_BYTES);
+			: boundedStream(response.body, maximumBytes);
 		return new Response(body, { status: response.status, headers: responseHeaders });
 	});
 }
@@ -313,11 +315,11 @@ function boundedStream(source: ReadableStream<Uint8Array>, maximumBytes: number)
 	}));
 }
 
-function assertOriginalResponse(response: Response): number | null {
+function assertOriginalResponse(response: Response, maximumBytes: number): number | null {
 	const byteLength = response.status === 206
 		? partialOriginalByteLength(response.headers)
 		: originalContentLength(response.headers.get('content-length'));
-	if (byteLength !== null && byteLength > MAX_FREESOUND_ORIGINAL_BYTES) throw originalTooLargeError();
+	if (byteLength !== null && byteLength > maximumBytes) throw originalTooLargeError();
 	const type = response.headers.get('content-type')?.split(';', 1)[0]?.trim().toLocaleLowerCase('en-US');
 	if (type === undefined || (!type.startsWith('audio/') && type !== 'application/ogg'
 		&& type !== 'application/octet-stream')) {

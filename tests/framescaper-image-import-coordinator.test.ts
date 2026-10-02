@@ -12,6 +12,7 @@ import {
 import {
 	createFramescaperProjectTimelineImage,
 } from '../src/framescaper/editor-project-timeline-image.ts';
+import { IMAGE_IMPORT_LIMITS } from '../src/common/editor/image-import-admission.ts';
 
 type Data = Record<string, unknown>;
 
@@ -146,4 +147,23 @@ test('an import returns the project alongside its per-file results', async () =>
 
 	assert.deepEqual(Object.keys(result), ['project', 'files']);
 	assert.equal((result.project as Data).schemaFamily, 'framescaper');
+});
+
+test('an accepted image file warning runs before reading, while refusal or a replaced project reads nothing', async () => {
+	const events: string[] = [];
+	const oversized = { ...file('large.png', IMAGE_IMPORT_LIMITS.maximumFileInputBytes + 1), arrayBuffer: async () => {
+		events.push('read'); throw new Error('read stopped');
+	} };
+	const result = await run({ files: [oversized], confirmFileSizeWarning: async () => {
+		events.push('confirmed'); return true;
+	} });
+	assert.deepEqual(events, ['confirmed', 'read']);
+	assert.equal((result.files as Data[])[0]!.message, 'read stopped');
+	events.length = 0;
+	await assert.rejects(run({ files: [oversized], confirmFileSizeWarning: async () => false }), { name: 'AbortError' });
+	let current = true;
+	await assert.rejects(run({ files: [oversized], confirmFileSizeWarning: async () => { current = false; return true; },
+		assertCurrent: () => { if (!current) throw new Error('project replaced'); },
+	}), /project replaced/u);
+	assert.deepEqual(events, []);
 });

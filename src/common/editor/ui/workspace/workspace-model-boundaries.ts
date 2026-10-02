@@ -3,7 +3,7 @@
 export const WORKSPACE_OVERLAY_MODEL_KEYS = Object.freeze([
 	'activeSurface', 'applicationMenus', 'aboutLabel', 'capabilities',
 	'closeNyquist', 'controller', 'copy', 'dialog', 'displayAudioSupported',
-	'dialogTrackId', 'dialogValue', 'effectWindows', 'editBlocked', 'fileService',
+	'dialogTrackId', 'dialogValue', 'effectWindows', 'editBlocked', 'fileService', 'confirmFileSizeWarning',
 	'generatorType', 'locale', 'macroDraft', 'nyquistTarget', 'preferences',
 	'preferencesPage', 'projectBinEffectivelyOpen', 'productId', 'run', 'scapeOpenDecision',
 	'setActiveSurface', 'setDialog', 'setDialogValue', 'closeEffectWindow', 'setMacroDraft',
@@ -21,7 +21,7 @@ export function createWorkspaceOverlayModel(model: WorkspaceOverlayModel): Works
 
 export const WORKSPACE_PANEL_DOCK_RUNTIME_KEYS = Object.freeze([
 	'controller', 'snapshot', 'productId', 'capabilities', 'copy', 'locale',
-	'fileService', 'playbackMeterSettings', 'recordingMeterSettings',
+	'fileService', 'confirmFileSizeWarning', 'playbackMeterSettings', 'recordingMeterSettings',
 	'onPlaybackMeterSettingsChange', 'onRecordingMeterSettingsChange', 'clippingEnabled', 'run', 'showArmControls',
 	'displayAudioSupported', 'onOpenEffects', 'onRoutingGraphGesture',
 	'onRoutingParameterGesture', 'effectsPanelTarget', 'onEffectWindowChange',

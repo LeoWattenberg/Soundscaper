@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { FileSizeWarningOptions } from '../common/editor/controller/shared/file-size-warning.ts';
 import type { AudioEditorProjectStoreOptions } from '../common/editor/storage/project-store-options.ts';
 import type { ProjectDocument } from '../common/editor/storage/project-repository.ts';
 import { AudioEditorProjectStore } from '../common/editor/storage.js';
@@ -30,7 +31,7 @@ export interface SoundscaperEditorProjectEnvironment {
 	readonly controllerStore: AudioEditorProjectStore;
 	readonly desktopProjectLibrary: SoundscaperDesktopProjectLibraryRenderer | null;
 	readonly playback: SoundscaperAudioTrackFreezePlaybackService;
-	readonly createProjectIfAbsent: (project: ProjectDocument) => Promise<ProjectDocument | null>;
+	readonly createProjectIfAbsent: (project: ProjectDocument, options?: FileSizeWarningOptions) => Promise<ProjectDocument | null>;
 	readonly close: () => Promise<void>;
 }
 
@@ -70,7 +71,7 @@ export async function createSoundscaperEditorProjectEnvironment(
 			controllerStore,
 			desktopProjectLibrary,
 			playback,
-			createProjectIfAbsent: (project: ProjectDocument) => controllerStore.createProjectIfAbsent(project),
+			createProjectIfAbsent: (project: ProjectDocument, publicationOptions: FileSizeWarningOptions = {}) => controllerStore.createProjectIfAbsent(project, publicationOptions),
 			close: async () => {
 				playback.dispose();
 				await store.close();

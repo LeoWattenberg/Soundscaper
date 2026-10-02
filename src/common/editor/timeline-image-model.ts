@@ -118,7 +118,7 @@ export function normalizeFramescaperImageSourceV1(value: unknown): FramescaperIm
 	const canonical = normalizeCanonical(field(record, 'canonical', 'Framescaper image source'));
 	const assetByteLength = positiveInteger(
 		field(record, 'assetByteLength', 'Framescaper image source'),
-		FRAMESCAPER_IMAGE_MODEL_LIMITS_V1.maximumAssetBytes,
+		Number.MAX_SAFE_INTEGER,
 		'Framescaper image source.assetByteLength',
 	);
 	if (assetByteLength <= original.byteLength) {
@@ -223,7 +223,7 @@ function normalizeOriginal(value: unknown): FramescaperImageOriginalV1 {
 		recognizedFormat,
 		byteLength: positiveInteger(
 			field(record, 'byteLength', 'Framescaper image original'),
-			FRAMESCAPER_IMAGE_MODEL_LIMITS_V1.maximumOriginalBytes,
+			Number.MAX_SAFE_INTEGER,
 			'Framescaper image original.byteLength',
 		),
 		sha256: digest(field(record, 'sha256', 'Framescaper image original'), 'image original'),

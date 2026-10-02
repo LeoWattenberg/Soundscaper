@@ -111,7 +111,7 @@ test('a project collects one durable reference per still, proxy, timing, cube LU
 		`framescaper/finishing/motion/${MOTION.sha256}.json`,
 	]);
 	assert.deepEqual(references.map(({ maximumBytes }) => maximumBytes), [
-		MAXIMUM_STILL_BYTES, MAXIMUM_STILL_BYTES, VIDEO_TIMING_ASSET_MAXIMUM_BYTES,
+		Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER, VIDEO_TIMING_ASSET_MAXIMUM_BYTES,
 		MAXIMUM_LUT_BYTES, 1024 * 1024 * 1024,
 	]);
 	assert.deepEqual(references.map(({ byteLength }) => byteLength), [
@@ -246,7 +246,7 @@ test('planning refuses a body whose stored size, byte length or digest no longer
 		message: 'finishing still body still-body is missing or stale.',
 	});
 	await assert.rejects(plan(still, store({ 'still-body': stored('still-body', { size: MAXIMUM_STILL_BYTES + 1 }) })), {
-		message: 'finishing still body still-body is missing or stale.',
+		code: 'FILE_SIZE_WARNING',
 	});
 	await assert.rejects(
 		plan(proxy, store({ 'video-proxy-body': stored('video-proxy-body', { size: PROXY_BYTES.byteLength + 1 }) })),
@@ -347,7 +347,7 @@ test('import validation refuses a descriptor whose kind, entry, digest or size c
 	refuse({ sha256: 'ab'.repeat(32) });
 	refuse({ size: 0 });
 	refuse({ size: 12.5 });
-	refuse({ size: MAXIMUM_STILL_BYTES + 1 });
+	refuse({ size: Number.MAX_SAFE_INTEGER + 1 });
 });
 
 test('import validation holds a descriptor to the exact byte length a fixed-size reference declares', () => {

@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { confirmFileSizeWarning, type FileSizeWarningConfirmation, type FileSizeWarningOptions } from '../common/editor/controller/shared/file-size-warning.ts';
 import {
 	mapFramescaperImageTimelineFrameV1,
 	type FramescaperImageClipV1,
@@ -55,6 +56,7 @@ export async function createFramescaperVideoExportImageExecutionTimelineImage(op
 	readonly store?: FramescaperStoredImageAssetStoreTimelineImage;
 	readonly signal: AbortSignal;
 	readonly assertCurrent: () => void;
+	readonly confirmFileSizeWarning?: FileSizeWarningConfirmation;
 }>): Promise<FramescaperVideoExportSupplementalPictureExecutionFinishing | null> {
 	const project = cloneFramescaperProjectTimelineImage(options?.profile, options?.project);
 	assertReady(options);
@@ -66,8 +68,8 @@ export async function createFramescaperVideoExportImageExecutionTimelineImage(op
 		...item,
 		source: framescaperImageSourceForClipTimelineImage(project.sources, item.clip),
 	}));
-	admitActiveImageAssets(planned.map(({ source }) => source));
-	const baseResources = admitImageExecutionResources(planned);
+	await admitActiveImageAssets(planned.map(({ source }) => source), options);
+	const baseResources = await admitImageExecutionResources(planned, options);
 	const readers = new Map<string, FramescaperImageFramePackReaderV1>();
 	const contexts: ImageContextTimelineImage[] = [];
 	const frameCache = new Map<string, CachedImageFrameTimelineImage>();
@@ -168,29 +170,30 @@ const MAXIMUM_IMAGE_EXECUTION_WORKING_BYTES = 512 * 1024 * 1024;
 interface ImageExecutionResourcesTimelineImage {
 	readonly maximumAssetBytes: bigint;
 	readonly snapshotBytes: bigint;
+	readonly maximumWorkingBytes: bigint;
 	readonly readerMetadataBytes: bigint;
 }
 
 type ImageExecutionBaseResourcesTimelineImage = Omit<ImageExecutionResourcesTimelineImage, 'readerMetadataBytes'>;
 
-function admitActiveImageAssets(sources: readonly FramescaperImageSourceV1[]): void {
+async function admitActiveImageAssets(sources: readonly FramescaperImageSourceV1[], options: FileSizeWarningOptions): Promise<void> {
 	const unique = new Map(sources.map((source) => [source.id, source] as const));
 	if (unique.size > MAXIMUM_ACTIVE_IMAGE_ASSETS) {
 		throw new RangeError('timelineImage active image assets exceed their count bound.');
 	}
 	let total = 0n;
 	for (const source of unique.values()) total += BigInt(source.assetByteLength);
-	if (total > BigInt(MAXIMUM_ACTIVE_IMAGE_ASSET_BYTES)) {
-		throw new RangeError('timelineImage active image assets exceed their byte bound.');
-	}
+	if (total > BigInt(Number.MAX_SAFE_INTEGER)) throw new RangeError('timelineImage active image assets exceed the supported byte count.');
+	await confirmFileSizeWarning(Number(total), MAXIMUM_ACTIVE_IMAGE_ASSET_BYTES, 'Video export image assets', options);
 }
 
-function admitImageExecutionResources(
+async function admitImageExecutionResources(
 	planned: readonly Readonly<{
 		readonly clip: FramescaperImageClipV1;
 		readonly source: FramescaperImageSourceV1;
 	}>[],
-): ImageExecutionBaseResourcesTimelineImage {
+	options: FileSizeWarningOptions,
+): Promise<ImageExecutionBaseResourcesTimelineImage> {
 	if (planned.length > MAXIMUM_ACTIVE_IMAGE_CONTEXTS) {
 		throw new RangeError('timelineImage active image clips exceed their context bound.');
 	}
@@ -204,10 +207,11 @@ function admitImageExecutionResources(
 		maximumAssetBytes = maximumBigInt(maximumAssetBytes, assetBytes);
 	}
 	const maximum = BigInt(MAXIMUM_IMAGE_EXECUTION_WORKING_BYTES);
-	if (snapshotBytes + maximumAssetBytes + rangeReadChunkBytes() > maximum) {
-		throw new RangeError('timelineImage active image snapshots exceed their working byte bound.');
-	}
-	return Object.freeze({ maximumAssetBytes, snapshotBytes });
+	const inputBytes = snapshotBytes + maximumAssetBytes + rangeReadChunkBytes();
+	await confirmFileSizeWarning(Number(inputBytes), MAXIMUM_IMAGE_EXECUTION_WORKING_BYTES, 'Video export image snapshots', options);
+	// Confirmed large input snapshots keep the frame and decoder workspace budget.
+	const maximumWorkingBytes = inputBytes > maximum ? inputBytes + maximum : maximum;
+	return Object.freeze({ maximumAssetBytes, snapshotBytes, maximumWorkingBytes });
 }
 
 function admitImageReaderMetadata(
@@ -216,7 +220,7 @@ function admitImageReaderMetadata(
 	candidateBytes: bigint,
 ): void {
 	if (executionBaseBytes(resources, retainedBytes + candidateBytes)
-		> BigInt(MAXIMUM_IMAGE_EXECUTION_WORKING_BYTES)) {
+		> resources.maximumWorkingBytes) {
 		throw new RangeError('timelineImage active image reader metadata exceeds its working byte bound.');
 	}
 }
@@ -240,7 +244,7 @@ function admitResolvedImageFrames(
 	}
 	const decodedWorkingBytes = executionBaseBytes(resources, resources.readerMetadataBytes)
 		+ decodedCacheBytes + maximumDecodedFrameBytes;
-	const maximum = BigInt(MAXIMUM_IMAGE_EXECUTION_WORKING_BYTES);
+	const maximum = resources.maximumWorkingBytes;
 	if (decodedWorkingBytes > maximum) {
 		throw new RangeError('timelineImage resolved image frames exceed their decoded working byte bound.');
 	}
@@ -355,6 +359,7 @@ function assertCanvas(plan: UnifiedExactRenderPlanV13, width: number, height: nu
 function assertReady(options: Readonly<{
 	readonly signal: AbortSignal;
 	readonly assertCurrent: () => void;
+	readonly confirmFileSizeWarning?: FileSizeWarningConfirmation;
 }>): void {
 	if (options.signal.aborted) {
 		throw options.signal.reason ?? new DOMException('The timelineImage image export was aborted.', 'AbortError');

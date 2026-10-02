@@ -105,12 +105,12 @@ export class FakeWindow {
 		});
 	}
 
-	addEventListener(_type: 'message', listener: (event: FakeMessageEvent) => void): void {
-		this.listeners.add(listener);
+	addEventListener(type: string, listener: (event: FakeMessageEvent) => void): void {
+		if (type === 'message') this.listeners.add(listener);
 	}
 
-	removeEventListener(_type: 'message', listener: (event: FakeMessageEvent) => void): void {
-		this.listeners.delete(listener);
+	removeEventListener(type: string, listener: (event: FakeMessageEvent) => void): void {
+		if (type === 'message') this.listeners.delete(listener);
 	}
 
 	setTimeout(callback: () => void, milliseconds: number): unknown {

@@ -165,7 +165,7 @@ test('new compressed formats preserve chooser cancellation, Blob fallback, and c
 	assert.equal(custom.downloads.length, 1);
 });
 
-test('new compressed routes refuse oversized nonpersistent staging before render and abort once', async () => {
+test('new compressed routes require a decision for large nonpersistent staging before render and abort once', async () => {
 	const entry = caseFor('wavpack');
 	const plan = structuredClone(actualPlan(entry.format, entry.options));
 	const byteLength = 97 * 1024 ** 2;
@@ -186,7 +186,40 @@ test('new compressed routes refuse oversized nonpersistent staging before render
 	assert.equal(fixture.events.includes('ffmpeg:stat'), false);
 	assert.equal(fixture.target.opens(), 0);
 	assert.equal(fixture.target.aborts(), 1);
-	assert.match(String(fixture.errors[0]), /storage required/iu);
+	assert.match(String(fixture.errors[0]), /size warning threshold.*confirmation is required/iu);
+});
+
+test('compressed staging accepts an explicit size decision and cancels before rendering when declined', async () => {
+	const entry = caseFor('wavpack');
+	for (const accepted of [true, false]) {
+		const plan = structuredClone(actualPlan(entry.format, entry.options));
+		const byteLength = 97 * 1024 ** 2;
+		plan.outputFrames = byteLength / (plan.channelCount * 4);
+		plan.outputBytesPerRender = byteLength;
+		plan.requiredTemporaryBytes = byteLength;
+		plan.range.endFrame = plan.outputFrames;
+		plan.range.durationFrames = plan.outputFrames;
+		plan.render.totalBytes += byteLength - plan.render.outputBytes;
+		plan.render.outputBytes = byteLength;
+		const fixture = serviceFixture(entry, 'stream', { persistent: false, plan, failure: 'result' });
+		let prompts = 0;
+		const runtime = { ...fixture.runtime, options: { ...fixture.runtime.options,
+			confirmFileSizeWarning: async (warning: { byteLength: number; thresholdBytes: number }) => {
+				prompts += 1;
+				assert.equal(warning.byteLength, byteLength);
+				assert.equal(warning.thresholdBytes, 96 * 1024 ** 2);
+				assert.equal(fixture.events.includes('render:realtime'), false);
+				return accepted;
+			} } };
+		assert.equal(await createEditorExportService(runtime).handleExportAction('export', { mode: 'mix', format: entry.format }), undefined);
+		assert.equal(prompts, 1, String(fixture.errors[0]));
+		assert.equal(fixture.events.includes('render:realtime'), accepted);
+		assert.equal(fixture.target.aborts(), 1);
+		assert.equal(fixture.downloads.length, 0);
+		if (accepted) assert.match(String(fixture.errors[0]), /metadata|MIME|type|result/iu,
+			'an accepted size still cannot publish the intentionally changed codec result');
+		else assert.equal(fixture.errors.length, 0, 'declining the warning is normal cancellation');
+	}
 });
 
 test('new compressed result failure and plan drift clean staging and abort exactly once', async (context) => {

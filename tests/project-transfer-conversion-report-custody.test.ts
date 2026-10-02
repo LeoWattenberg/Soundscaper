@@ -221,8 +221,8 @@ test('archive/report companion names stay paired inside a 255-byte UTF-8 filenam
 	}
 });
 
-test('protocol v2 requires a nullable sidecar and refuses a sidecar that does not bind its payload', () => {
-	assert.equal(PROJECT_TRANSFER_PROTOCOL_VERSION, 2);
+test('protocol v3 requires a nullable sidecar and refuses a sidecar that does not bind its payload', () => {
+	assert.equal(PROJECT_TRANSFER_PROTOCOL_VERSION, 3);
 	assert.equal(admitProjectTransferMessage(wireEntry(null))?.kind, 'entry');
 	const missing = { ...wireEntry(null) } as Record<string, unknown>;
 	delete missing.conversionReportSidecar;

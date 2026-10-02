@@ -7,6 +7,7 @@ import {
 } from './project-schema-identity.ts';
 import { parseOpaqueScapeProjectDocument } from './scape-project-document.ts';
 import { ScapeExpandedByteBudget } from './scape-expanded-byte-budget.ts';
+import { confirmFileSizeWarning, type FileSizeWarningOptions } from './controller/shared/file-size-warning.ts';
 
 export const SCAPE_FORMAT = 'scape-project';
 export const SCAPE_FORMAT_VERSION = 1;
@@ -100,12 +101,21 @@ export async function readScapeArchiveEnvelope(
 	signal?: AbortSignal,
 	additionalAssetKinds: readonly string[] = [],
 	desktopImport = false,
+	warningOptions: FileSizeWarningOptions = {},
 ): Promise<ScapeArchiveEnvelope> {
 	throwIfScapeAborted(signal);
 	const limits = resolveLimits(limitOverrides, desktopImport);
+	const confirmation = { ...warningOptions, signal };
+	const entryByName = indexEntries(entries, warningOptions.confirmFileSizeWarning
+		? { ...limits, maximumExpandedBytes: Number.MAX_SAFE_INTEGER } : limits, signal);
+	if (warningOptions.confirmFileSizeWarning) {
+		limits.maximumExpandedBytes = await confirmFileSizeWarning(entries.reduce((sum, entry) => sum + entry.uncompressedSize, 0),
+			limits.maximumExpandedBytes, 'Scape project archive', confirmation);
+	}
 	const expandedByteBudget = new ScapeExpandedByteBudget(limits.maximumExpandedBytes);
-	const entryByName = indexEntries(entries, limits, signal);
 	const manifestEntry = requiredFileEntry(entryByName, SCAPE_MANIFEST_ENTRY);
+	if (warningOptions.confirmFileSizeWarning) limits.maximumManifestBytes = await confirmFileSizeWarning(
+		manifestEntry.uncompressedSize, limits.maximumManifestBytes, SCAPE_MANIFEST_ENTRY, confirmation);
 	await validateEntryLayouts([manifestEntry], signal);
 	assertMetadataLimit(manifestEntry, SCAPE_MANIFEST_ENTRY, limits.maximumManifestBytes);
 	const manifestText = await readBoundedTextEntry(
@@ -117,8 +127,10 @@ export async function readScapeArchiveEnvelope(
 	);
 	throwIfScapeAborted(signal);
 	const manifest = parseScapeManifest(manifestText, additionalAssetKinds);
-	validateManifestOwnership(manifest, entryByName, limits);
 	const projectEntry = requiredFileEntry(entryByName, SCAPE_PROJECT_ENTRY);
+	if (warningOptions.confirmFileSizeWarning) limits.maximumProjectBytes = await confirmFileSizeWarning(
+		projectEntry.uncompressedSize, limits.maximumProjectBytes, SCAPE_PROJECT_ENTRY, confirmation);
+	validateManifestOwnership(manifest, entryByName, limits);
 	await validateEntryLayouts([projectEntry], signal);
 	const projectText = await readBoundedTextEntry(
 		projectEntry,

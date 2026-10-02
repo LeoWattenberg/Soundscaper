@@ -56,6 +56,7 @@ test('keeps proxy and timing attachments in the unified format 1', () => {
 	assert.deepEqual(plan.assets, [proxyDescriptor(), timingDescriptor()]);
 	assert.equal(Object.isFrozen(plan), true);
 	assert.equal(Object.isFrozen(plan.assets), true);
+	assert.equal(planScapeVideoProxyArchiveAssets([reference({ byteLength: 512 * 1024 * 1024 + 1 })]).assets[0]?.size, 512 * 1024 * 1024 + 1);
 	assert.ok(plan.assets.every((asset) => Object.isFrozen(asset)));
 	assert.notEqual(plan.assets[0], input);
 	assert.deepEqual(Object.keys(plan.assets[0]!), DESCRIPTOR_FIELDS);
@@ -172,7 +173,7 @@ test('enforces proxy identity, body bounds, timing binding, and the archive entr
 		reference({ mimeType: 'audio/mp4' }),
 		reference({ mimeType: 'video/mp4;codecs=h264' }),
 		reference({ byteLength: 0 }),
-		reference({ byteLength: 512 * 1024 * 1024 + 1 }),
+		reference({ byteLength: Number.MAX_SAFE_INTEGER + 1 }),
 		reference({ timingAsset: timing({ sourceSha256: 'd'.repeat(64) }) }),
 	]) assert.throws(() => planScapeVideoProxyArchiveAssets([invalid]), /proxy|timing|digest|MIME|byte|bind/iu);
 

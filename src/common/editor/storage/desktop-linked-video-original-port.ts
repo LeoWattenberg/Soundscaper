@@ -63,7 +63,6 @@ const LOAD_FIELDS = Object.freeze(['locatorRevision', 'descriptor']);
 const PLAYBACK_DESCRIPTOR_FIELDS = Object.freeze([
 	'id', 'url', 'name', 'size', 'mimeType', 'readProfile', 'lastModified',
 ]);
-const MATERIALIZED_VIDEO_MAXIMUM_BYTES = 512 * 1024 ** 2;
 const MAXIMUM_LINKED_VIDEO_REFERENCES = 128;
 
 /** Adapts the frozen preload DTOs to the renderer's pathless storage port. */
@@ -385,8 +384,7 @@ function locatorValue(value: unknown): Omit<DesktopLinkedVideoOriginalChoice, 'f
 		throw new TypeError('Linked-video locator choice has an invalid name.');
 	}
 	const size = candidate.size;
-	if (!Number.isSafeInteger(size) || Number(size) < 1
-		|| Number(size) > MATERIALIZED_VIDEO_MAXIMUM_BYTES) {
+	if (!Number.isSafeInteger(size) || Number(size) < 1) {
 		throw new RangeError('Linked-video locator choice has an invalid size.');
 	}
 	const mimeType = String(candidate.mimeType ?? '');

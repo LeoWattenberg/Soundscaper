@@ -3,6 +3,7 @@
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
 import { unzlibSync, zlibSync } from 'fflate';
+import { confirmFileSizeWarning, FileSizeWarningRequiredError, type FileSizeWarningOptions } from './controller/shared/file-size-warning.ts';
 
 import {
 	FRAMESCAPER_IMAGE_MODEL_LIMITS_V1,
@@ -70,6 +71,11 @@ export interface FramescaperImageFramePackPublicationV1 {
 	readonly timingMode: FramescaperImageTimingModeV1;
 }
 
+export interface FramescaperImageFramePackSizeWarningsV1 extends FileSizeWarningOptions {
+	readonly maximumOriginalBytes?: number;
+	readonly maximumAssetBytes?: number;
+}
+
 export interface OpenFramescaperImageFramePackRequestV1 {
 	readonly source: FramescaperImageSourceV1;
 	readonly read: (offset: number, length: number) => Awaitable<Uint8Array>;
@@ -112,8 +118,36 @@ export function createFramescaperImageFramePackV1(
 	input: FramescaperImageFramePackInputV1,
 ): FramescaperImageFramePackPublicationV1 {
 	const original = bytes(input?.original, 'The image original');
-	if (original.byteLength < 1
-		|| original.byteLength > FRAMESCAPER_IMAGE_MODEL_LIMITS_V1.maximumOriginalBytes) {
+	if (original.byteLength > FRAMESCAPER_IMAGE_MODEL_LIMITS_V1.maximumOriginalBytes) {
+		throw new FileSizeWarningRequiredError({ label: 'Image original', byteLength: original.byteLength, thresholdBytes: FRAMESCAPER_IMAGE_MODEL_LIMITS_V1.maximumOriginalBytes });
+	}
+	const prepared = prepareImageFramePack(input);
+	if (prepared.byteLength > FRAMESCAPER_IMAGE_MODEL_LIMITS_V1.maximumAssetBytes) {
+		throw new FileSizeWarningRequiredError({ label: 'Canonical image body', byteLength: prepared.byteLength, thresholdBytes: FRAMESCAPER_IMAGE_MODEL_LIMITS_V1.maximumAssetBytes });
+	}
+	return prepared.assemble();
+}
+
+/** Confirm exact input/output sizes before allocating the final whole-file body. */
+export async function createFramescaperImageFramePackWithWarningsV1(
+	input: FramescaperImageFramePackInputV1,
+	options: FramescaperImageFramePackSizeWarningsV1 = {},
+): Promise<FramescaperImageFramePackPublicationV1> {
+	const original = bytes(input?.original, 'The image original');
+	await confirmFileSizeWarning(original.byteLength,
+		options.maximumOriginalBytes ?? FRAMESCAPER_IMAGE_MODEL_LIMITS_V1.maximumOriginalBytes, 'Image original', options);
+	const prepared = prepareImageFramePack(input);
+	await confirmFileSizeWarning(prepared.byteLength,
+		options.maximumAssetBytes ?? FRAMESCAPER_IMAGE_MODEL_LIMITS_V1.maximumAssetBytes, 'Canonical image body', options);
+	return prepared.assemble();
+}
+
+function prepareImageFramePack(input: FramescaperImageFramePackInputV1): Readonly<{
+	byteLength: number;
+	assemble(): FramescaperImageFramePackPublicationV1;
+}> {
+	const original = bytes(input?.original, 'The image original');
+	if (original.byteLength < 1) {
 		throw new FramescaperImageFramePackV1Error('The image original exceeds its byte domain.');
 	}
 	const width = positiveInteger(
@@ -161,9 +195,7 @@ export function createFramescaperImageFramePackV1(
 	const totalByteLength = checkedFramescaperImageAssetAdd(
 		sections.frameDataOffset, sections.frameDataByteLength, 'image asset byte length',
 	);
-	if (totalByteLength > FRAMESCAPER_IMAGE_MODEL_LIMITS_V1.maximumAssetBytes) {
-		throw new FramescaperImageFramePackV1Error('The image asset exceeds its byte ceiling.');
-	}
+	return Object.freeze({ byteLength: totalByteLength, assemble: () => {
 	const originalSha256 = digest(original);
 	const conversionReceiptSha256 = digest(receiptBytes);
 	const output = new Uint8Array(totalByteLength);
@@ -203,6 +235,7 @@ export function createFramescaperImageFramePackV1(
 		durationTicks: expectedPresentation.toString(),
 		timingMode,
 	});
+	} });
 }
 
 /** Authenticate the whole immutable body and its bounded sections before exposing a reader. */

@@ -4,6 +4,7 @@ import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
 
 import type { EditorProjectRuntimeProfile } from '../common/editor/project-runtime-profile.ts';
+import type { FileSizeWarningOptions } from '../common/editor/controller/shared/file-size-warning.ts';
 import { isStrictlyHigherProjectRevision } from '../common/editor/project-revision-cas.ts';
 import { serializeScapeProjectDocument } from '../common/editor/scape-project-document.ts';
 import {
@@ -43,6 +44,8 @@ import { assertFramescaperProjectRuntimeProfile } from './editor-project-runtime
 import { framescaperDesktopProjectCatalog as catalog } from './desktop-project-library-renderer-catalog.ts';
 import { framescaperProjectStoreAuthority } from './editor-project-store.ts';
 import { cloneFramescaperProject, type FramescaperProject } from './editor-project.ts';
+import { assertFramescaperDesktopMediaPublicationCurrent as assertPublicationCurrent,
+	framescaperDesktopMediaPublicationWarningOptions as mediaWarningOptions } from './desktop-project-library-media-size-warning.ts';
 
 const GLOBAL_NAME = 'framescaperDesktop';
 const API_FIELDS = [
@@ -107,9 +110,9 @@ export interface FramescaperDesktopProjectLibraryProjectSummary {
 	readonly updatedAt: string;
 }
 
-interface RendererPublicationRequest {
+interface RendererPublicationRequest extends FileSizeWarningOptions {
 	readonly project: unknown;
-	readonly signal?: AbortSignal;
+	readonly signal?: AbortSignal | null;
 	readonly beforeFinish?: () => PromiseLike<void> | void;
 }
 
@@ -117,10 +120,10 @@ export interface FramescaperDesktopProjectLibraryRenderer {
 	listProjects(): Promise<readonly Readonly<FramescaperDesktopProjectLibraryProjectSummary>[]>;
 	claimProjectWriteFence(projectId: string): Promise<string>;
 	readProject(projectId: string, options?: Readonly<{ signal?: AbortSignal }>): Promise<FramescaperProject | null>;
-	createScapeProjectIfAbsent(project: unknown): Promise<FramescaperProject | null>;
+	createScapeProjectIfAbsent(project: unknown, options?: FileSizeWarningOptions): Promise<FramescaperProject | null>;
 	publishProject(request: Readonly<RendererPublicationRequest>): Promise<FramescaperProject>;
-	publishProjectIfCurrent(expected: unknown, project: unknown): Promise<FramescaperProject | null>;
-	publishProjectIfCurrentWithWriteFence(expected: unknown, project: unknown, token: string): Promise<FramescaperProject | null>;
+	publishProjectIfCurrent(expected: unknown, project: unknown, options?: FileSizeWarningOptions): Promise<FramescaperProject | null>;
+	publishProjectIfCurrentWithWriteFence(expected: unknown, project: unknown, token: string, options?: FileSizeWarningOptions): Promise<FramescaperProject | null>;
 	deleteProject(projectId: string): Promise<void>;
 	deleteProjectIfCurrent(project: unknown): Promise<boolean>;
 	duplicateProject(sourceProjectId: string, options: Readonly<{
@@ -216,22 +219,22 @@ class Renderer implements FramescaperDesktopProjectLibraryRenderer {
 		return this.#publishProject(request);
 	}
 
-	createScapeProjectIfAbsent(projectValue: unknown): Promise<FramescaperProject | null> {
+	createScapeProjectIfAbsent(projectValue: unknown, options: FileSizeWarningOptions = {}): Promise<FramescaperProject | null> {
 		const project = cloneFramescaperProject(this.#profile, projectValue);
 		if (project.revision !== 0) {
 			throw new Error('Framescaper desktop Scape creation requires revision zero.');
 		}
-		return this.#publishProject({ project }, undefined, true);
+		return this.#publishProject({ ...options, project }, undefined, true);
 	}
 
-	publishProjectIfCurrent(expectedValue: unknown, projectValue: unknown): Promise<FramescaperProject | null> {
+	publishProjectIfCurrent(expectedValue: unknown, projectValue: unknown, options: FileSizeWarningOptions = {}): Promise<FramescaperProject | null> {
 		const expected = cloneFramescaperProject(this.#profile, expectedValue);
-		return this.#publishProject({ project: projectValue }, expected);
+		return this.#publishProject({ ...options, project: projectValue }, expected);
 	}
-	publishProjectIfCurrentWithWriteFence(expectedValue: unknown, projectValue: unknown, token: string): Promise<FramescaperProject | null> {
+	publishProjectIfCurrentWithWriteFence(expectedValue: unknown, projectValue: unknown, token: string, options: FileSizeWarningOptions = {}): Promise<FramescaperProject | null> {
 		const expected = cloneFramescaperProject(this.#profile, expectedValue);
 		if (typeof token !== 'string' || !/^[a-f0-9]{48}$/u.test(token)) throw new TypeError('Invalid Framescaper desktop write fence.');
-		return this.#publishProject({ project: projectValue }, expected, false, token);
+		return this.#publishProject({ ...options, project: projectValue }, expected, false, token);
 	}
 
 	#publishProject(request: Readonly<RendererPublicationRequest>): Promise<FramescaperProject>;
@@ -249,7 +252,7 @@ class Renderer implements FramescaperDesktopProjectLibraryRenderer {
 	): Promise<FramescaperProject | null> {
 		return this.#exclusive(async () => {
 			const project = cloneFramescaperProject(this.#profile, request.project);
-			throwIfAborted(request.signal);
+			assertPublicationCurrent(request);
 			const projectId = String(project.id);
 			if (expected && String(expected.id) !== projectId) {
 				throw new Error('Framescaper desktop conditional publication requires one project identity.');
@@ -274,8 +277,9 @@ class Renderer implements FramescaperDesktopProjectLibraryRenderer {
 				throw new Error('Framescaper desktop catalog changed before publication.');
 			}
 			const projectSha256 = bytesToHex(sha256(new TextEncoder().encode(JSON.stringify(project))));
+			const warningOptions = mediaWarningOptions(this, projectId, request, current !== null);
 			const bodyInventory = await prepareFramescaperDesktopPublicationBodies(
-				project, projectSha256, this.#store, request.signal, () => false,
+				project, projectSha256, this.#store, request.signal ?? undefined, () => false, warningOptions,
 			);
 			const publicationId = createFramescaperDesktopPublicationId();
 			let admitted = false;
@@ -299,19 +303,20 @@ class Renderer implements FramescaperDesktopProjectLibraryRenderer {
 				}
 				const admission = validateFramescaperDesktopPublicationAdmission(rawAdmission, publicationId, bodyInventory.length);
 				admitted = true;
+				assertPublicationCurrent(request);
 				const requiredBodyIndexes = new Set(admission.requiredBodyIndexes);
 				const preparedBodies = admission.requiredBodyIndexes.length === 0 ? bodyInventory
 					: await prepareFramescaperDesktopPublicationBodies(
-						project, projectSha256, this.#store, request.signal,
-						(_descriptor, bodyIndex) => requiredBodyIndexes.has(bodyIndex),
+						project, projectSha256, this.#store, request.signal ?? undefined,
+						(_descriptor, bodyIndex) => requiredBodyIndexes.has(bodyIndex), warningOptions,
 					);
 				assertFramescaperDesktopPublicationBodyInventory(bodyInventory, preparedBodies);
 				await uploadFramescaperDesktopPublicationBodies(
-					publicationId, preparedBodies, this.#bridge, this.#store, request.signal,
+					publicationId, preparedBodies, this.#bridge, this.#store, request.signal ?? undefined,
 				);
-				throwIfAborted(request.signal);
+				assertPublicationCurrent(request);
 				if (request.beforeFinish) await request.beforeFinish();
-				throwIfAborted(request.signal);
+				assertPublicationCurrent(request);
 				finishing = true;
 				const rawResult = await this.#bridge.finishPublication({ publicationId });
 				if (rawResult === null) {
@@ -319,6 +324,7 @@ class Renderer implements FramescaperDesktopProjectLibraryRenderer {
 					throw new Error('Framescaper desktop publication lost its write fence.');
 				}
 				finished = true;
+				assertPublicationCurrent(request);
 				const result = validateBundle(this.#profile, rawResult, projectId);
 				if (JSON.stringify(result.project) !== JSON.stringify(project)) {
 					throw new Error('Framescaper publication readback changed the project.');

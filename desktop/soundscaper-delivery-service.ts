@@ -55,10 +55,8 @@ import {
 	soundscaperDeliveryDescription,
 	soundscaperDeliverySummary,
 } from './soundscaper-delivery-service-view.ts';
-export type {
-	SoundscaperDeliveryClaim, SoundscaperDeliveryEvent, SoundscaperDeliveryPersistedState,
-	SoundscaperDeliverySummary, SoundscaperDeliveryVisibleState,
-} from './soundscaper-delivery-service-contract.ts';
+export type { SoundscaperDeliveryClaim, SoundscaperDeliveryEvent, SoundscaperDeliveryPersistedState,
+	SoundscaperDeliverySummary, SoundscaperDeliveryVisibleState } from './soundscaper-delivery-service-contract.ts';
 const TERMINAL = new Set<SoundscaperDeliveryPersistedState>(['completed', 'cancelled', 'failed', 'stale']);
 
 export class SoundscaperDeliveryService {
@@ -67,6 +65,7 @@ export class SoundscaperDeliveryService {
 	readonly #beforeFileFence: (operation: string) => void;
 	readonly #readProjectIdentity: StartOptions['readProjectIdentity'];
 	readonly #filesystem: SoundscaperDeliveryFilesystemAuthority;
+	readonly #confirmFileSizeWarning: StartOptions['confirmFileSizeWarning'];
 	readonly #repository: SoundscaperDeliveryQueueRepository;
 	readonly #publication: SoundscaperDeliveryPublication;
 	readonly #roots: SoundscaperDeliveryRootStore;
@@ -88,10 +87,9 @@ export class SoundscaperDeliveryService {
 		this.#beforeFileFence = options.beforeFileFence ?? (() => undefined);
 		this.#readProjectIdentity = options.readProjectIdentity;
 		this.#filesystem = options.filesystem;
+		this.#confirmFileSizeWarning = options.confirmFileSizeWarning;
 		this.#roots = new SoundscaperDeliveryRootStore(database, options.observeRoot);
-		this.#repository = new SoundscaperDeliveryQueueRepository(
-			database, () => this.#lease, this.#now,
-		);
+		this.#repository = new SoundscaperDeliveryQueueRepository(database, () => this.#lease, this.#now);
 		this.#publication = new SoundscaperDeliveryPublication({
 			repository: this.#repository,
 			roots: this.#roots,
@@ -332,7 +330,9 @@ export class SoundscaperDeliveryService {
 		try {
 			const write = await SoundscaperDeliveryWrite.open(this.#filesystem, root, {
 				...request, jobId: row.job_id, stagingName,
-				assertFence: (operation) => this.#fileFence(operation),
+				confirmFileSizeWarning: this.#confirmFileSizeWarning,
+				assertFence: (operation) => { this.#fileFence(operation); if (operation !== 'size-warning') return;
+					this.#claim(request.claimId); if (this.#roots.require(row.destination_grant_id).revokedAtMs !== null) throw new Error('The delivery root is revoked.'); },
 			});
 			this.#assertWriter();
 			try {

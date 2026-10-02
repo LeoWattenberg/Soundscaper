@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { confirmFileSizeWarning, type FileSizeWarningOptions } from '../shared/file-size-warning.ts';
+
 export const MAXIMUM_RAW_PCM_IMPORT_BYTES = 256 * 1024 * 1024;
 
 export type RawPcmSampleFormat = 'uint8' | 'int16' | 'int24' | 'int32' | 'float32';
@@ -15,12 +17,11 @@ export interface RawPcmImportOptions {
 
 const FORMAT_BYTES = Object.freeze({ uint8: 1, int16: 2, int24: 3, int32: 4, float32: 4 });
 
-/** Convert a closed, bounded raw PCM stream to a WAV file accepted by the normal importer. */
+/** Wrap admitted raw PCM as WAV, retaining large inputs through bounded slices. */
 export async function prepareRawPcmWaveFile(file: File, options: RawPcmImportOptions,
-	settings: Readonly<{ desktop?: boolean }> = {}): Promise<File> {
+	settings: Readonly<FileSizeWarningOptions & { desktop?: boolean }> = {}): Promise<File> {
 	if (!file || typeof file.size !== 'number' || typeof file.name !== 'string') throw new TypeError('A raw PCM file is required.');
-	if (!Number.isSafeInteger(file.size) || file.size < 0
-		|| (!settings.desktop && file.size > MAXIMUM_RAW_PCM_IMPORT_BYTES)) throw new RangeError('Raw PCM input exceeds the size limit.');
+	if (!Number.isSafeInteger(file.size) || file.size < 0) throw new RangeError('Raw PCM input must have a safe non-negative byte length.');
 	if (!Object.hasOwn(FORMAT_BYTES, options?.sampleFormat)) throw new RangeError('Unsupported raw PCM sample format.');
 	if (options.byteOrder !== 'little' && options.byteOrder !== 'big') throw new RangeError('Unsupported raw PCM byte order.');
 	const sampleRate = boundedInteger(options.sampleRate, 1, 384_000, 'sample rate');
@@ -30,19 +31,22 @@ export async function prepareRawPcmWaveFile(file: File, options: RawPcmImportOpt
 	const dataBytes = file.size - offsetBytes;
 	const blockAlign = bytesPerSample * channelCount;
 	if (!dataBytes || dataBytes % blockAlign !== 0) throw new RangeError('Raw PCM data must contain complete interleaved frames.');
-	if (settings.desktop && dataBytes > Number.MAX_SAFE_INTEGER - 81) throw new RangeError('Raw PCM input exceeds the safe WAV byte range.');
+	if (dataBytes > Number.MAX_SAFE_INTEGER - 81) throw new RangeError('Raw PCM input exceeds the safe WAV byte range.');
+	if (!settings.desktop) await confirmFileSizeWarning(file.size, MAXIMUM_RAW_PCM_IMPORT_BYTES, file.name, settings);
+	settings.signal?.throwIfAborted(); settings.assertCurrent?.();
 	const name = `${file.name.replace(/\.[^.]*$/, '') || 'raw-audio'}.wav`;
-	if (settings.desktop) {
-		const header = dataBytes + 36 > 0xffff_ffff
+	if (settings.desktop || file.size > MAXIMUM_RAW_PCM_IMPORT_BYTES) {
+		const header = dataBytes + 36 + (dataBytes % 2) > 0xffff_ffff
 			? rf64Header(dataBytes, options.sampleFormat, sampleRate, channelCount, blockAlign)
 			: wavHeader(dataBytes, options.sampleFormat, sampleRate, channelCount, blockAlign);
 		return new RawPcmWaveFile(header, file, offsetBytes, bytesPerSample,
 			options.byteOrder === 'big' && bytesPerSample > 1, name);
 	}
 	const source = new Uint8Array(await file.slice(offsetBytes).arrayBuffer());
+	settings.signal?.throwIfAborted(); settings.assertCurrent?.();
 	if (options.byteOrder === 'big' && bytesPerSample > 1) swapSamples(source, bytesPerSample);
 	const header = wavHeader(dataBytes, options.sampleFormat, sampleRate, channelCount, blockAlign);
-	return new File([header.buffer as ArrayBuffer, source.buffer as ArrayBuffer], name, { type: 'audio/wav', lastModified: file.lastModified });
+	return new File([header.buffer as ArrayBuffer, source.buffer as ArrayBuffer, new Uint8Array(dataBytes % 2)], name, { type: 'audio/wav', lastModified: file.lastModified });
 }
 
 function rf64Header(dataBytes: number, format: RawPcmSampleFormat, sampleRate: number,
@@ -164,7 +168,7 @@ function wavHeader(
 	const bytes = new Uint8Array(44);
 	const view = new DataView(bytes.buffer);
 	writeAscii(bytes, 0, 'RIFF');
-	view.setUint32(4, 36 + dataBytes, true);
+	view.setUint32(4, 36 + dataBytes + (dataBytes % 2), true);
 	writeAscii(bytes, 8, 'WAVEfmt ');
 	view.setUint32(16, 16, true);
 	view.setUint16(20, format === 'float32' ? 3 : 1, true);

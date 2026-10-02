@@ -3,9 +3,10 @@
 import { isDesktopMainAudioCodecRuntime } from '../../desktop-main-audio-codec-runtime-marker.ts';
 import type { PreparedStreamedAudioImport } from '../../browser-streamed-audio-import.ts';
 import type { WavPackImportGroupDecoder } from '../../browser-streamed-wavpack-import.ts';
+import type { FileSizeWarningConfirmation } from '../shared/file-size-warning.ts';
 
 /** Keep DAWproject's compressed decoder outside the startup graph. */
-export function createDawprojectAudioPreparer(codec: WavPackImportGroupDecoder): (
+export function createDawprojectAudioPreparer(codec: WavPackImportGroupDecoder, confirmFileSizeWarning?: FileSizeWarningConfirmation): (
 	file: Blob, name: string, signal: AbortSignal,
 ) => Promise<PreparedStreamedAudioImport> {
 	const desktop = isDesktopMainAudioCodecRuntime(codec);
@@ -13,6 +14,7 @@ export function createDawprojectAudioPreparer(codec: WavPackImportGroupDecoder):
 		const { prepareStreamedAudioImport } = await import('../../browser-streamed-audio-import.ts');
 		return prepareStreamedAudioImport(blob, {
 			signal, reviewedFallback: !desktop, desktop, desktopCodec: desktop ? codec : undefined,
+			confirmFileSizeWarning,
 		});
 	};
 }

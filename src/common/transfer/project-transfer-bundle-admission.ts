@@ -17,6 +17,7 @@ import {
 } from './cross-product-handoff-report-sidecar.ts';
 import { TransferManualImportRefusalError } from './transfer-manual-refusal.ts';
 import { admittedProjectTransferId, MAXIMUM_PROJECT_ID_LENGTH } from './project-transfer-record.ts';
+import type { FileSizeWarningConfirmation } from '../editor/controller/shared/file-size-warning.ts';
 
 export { admittedProjectTransferId, asProjectTransferRecord } from './project-transfer-record.ts';
 export {
@@ -31,7 +32,7 @@ export const PROJECT_TRANSFER_ENTRY_MIME_TYPE = SCAPE_MIME_TYPE;
 export const PROJECT_TRANSFER_DEFAULT_MAXIMUM_ENTRIES = 512;
 export const PROJECT_TRANSFER_DEFAULT_MAXIMUM_ENTRY_BYTES = 512 * 1024 * 1024;
 const MAXIMUM_ADMITTED_ENTRIES = 100_000;
-const MAXIMUM_ADMITTED_ENTRY_BYTES = 8 * 1024 * 1024 * 1024;
+const MAXIMUM_ADMITTED_ENTRY_BYTES = Number.MAX_SAFE_INTEGER;
 const MAXIMUM_TITLE_LENGTH = 512;
 const MAXIMUM_FILE_NAME_LENGTH = 255;
 const MAXIMUM_REASON_LENGTH = 512;
@@ -93,7 +94,7 @@ export type ProjectTransferExportEvent =
 export type ProjectTransferArchiveExport = (
 	project: ProjectTransferProject,
 	store: unknown,
-	options: Readonly<{ signal?: AbortSignal; maximumBlobBytes: number }>,
+	options: Readonly<{ signal?: AbortSignal; maximumBlobBytes: number; confirmFileSizeWarning?: FileSizeWarningConfirmation }>,
 ) => PromiseLike<ProjectTransferArchiveExportResult | null | undefined>
 	| ProjectTransferArchiveExportResult | null | undefined;
 
@@ -112,14 +113,14 @@ export interface ProjectTransferArchiveExportResult {
 export type ProjectTransferArchiveInspect = (
 	input: unknown,
 	store: unknown,
-	options: Readonly<{ signal?: AbortSignal; canonicalProjectDigest?: boolean }>,
+	options: Readonly<{ signal?: AbortSignal; canonicalProjectDigest?: boolean; confirmFileSizeWarning?: FileSizeWarningConfirmation }>,
 ) => PromiseLike<unknown> | unknown;
 
 /** The archive import seam: importScapeProject(input, store, options). */
 export type ProjectTransferArchiveImport = (
 	input: unknown,
 	store: unknown,
-	options: Readonly<{ signal?: AbortSignal; collision: 'cancel' }>,
+	options: Readonly<{ signal?: AbortSignal; collision: 'cancel'; confirmFileSizeWarning?: FileSizeWarningConfirmation }>,
 ) => PromiseLike<unknown> | unknown;
 
 export interface ProjectTransferExportStore {
@@ -145,6 +146,7 @@ export interface ProjectTransferImportStore {
 }
 
 export interface ProjectTransferExportRequest {
+	readonly confirmFileSizeWarning?: FileSizeWarningConfirmation;
 	readonly store: ProjectTransferExportStore;
 	readonly exportProject: ProjectTransferArchiveExport;
 	/** Product selection lives with the caller; this module owns no product. */
@@ -156,6 +158,7 @@ export interface ProjectTransferExportRequest {
 }
 
 export interface ProjectTransferImportRequest {
+	readonly confirmFileSizeWarning?: FileSizeWarningConfirmation;
 	readonly store: ProjectTransferImportStore;
 	readonly importProject: ProjectTransferArchiveImport;
 	readonly inspectProject: ProjectTransferArchiveInspect;
@@ -249,6 +252,7 @@ export function projectTransferImportStop(
 }
 
 export interface AdmittedProjectTransferExportRequest {
+	readonly confirmFileSizeWarning?: FileSizeWarningConfirmation;
 	readonly store: ProjectTransferExportStore;
 	readonly exportProject: ProjectTransferArchiveExport;
 	readonly select: ((project: ProjectTransferProject) => boolean) | null;
@@ -259,6 +263,7 @@ export interface AdmittedProjectTransferExportRequest {
 }
 
 export interface AdmittedProjectTransferImportRequest {
+	readonly confirmFileSizeWarning?: FileSizeWarningConfirmation;
 	readonly store: ProjectTransferImportStore;
 	readonly importProject: ProjectTransferArchiveImport;
 	readonly inspectProject: ProjectTransferArchiveInspect;
@@ -293,6 +298,7 @@ export function admitProjectTransferExportRequest(
 	}
 	return {
 		store,
+		confirmFileSizeWarning: admitSizeWarning(value.confirmFileSizeWarning),
 		exportProject: value.exportProject as ProjectTransferArchiveExport,
 		select: (value.select as ((project: ProjectTransferProject) => boolean) | undefined) ?? null,
 		maximumEntries: admitEntryCount(value.maximumEntries),
@@ -322,6 +328,7 @@ export function admitProjectTransferImportRequest(
 	}
 	return {
 		store,
+		confirmFileSizeWarning: admitSizeWarning(value.confirmFileSizeWarning),
 		importProject: value.importProject as ProjectTransferArchiveImport,
 		inspectProject: value.inspectProject as ProjectTransferArchiveInspect,
 		entries,
@@ -451,6 +458,12 @@ function admitSignal(value: unknown): AbortSignal | undefined {
 	if (value === undefined || value === null) return undefined;
 	if (typeof AbortSignal === 'function' && value instanceof AbortSignal) return value;
 	throw new TypeError('A project transfer signal must be an AbortSignal.');
+}
+
+function admitSizeWarning(value: unknown): FileSizeWarningConfirmation | undefined {
+	if (value === undefined) return undefined;
+	if (typeof value !== 'function') throw new TypeError('A project transfer size warning confirmation must be a function.');
+	return value as FileSizeWarningConfirmation;
 }
 
 function admitProgress(value: unknown): ((progress: ProjectTransferProgress) => void) | undefined {

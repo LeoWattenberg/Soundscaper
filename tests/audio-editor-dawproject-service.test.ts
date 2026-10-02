@@ -490,7 +490,7 @@ test('DAWproject export writes a direct save stream without assembling a Blob', 
 	}
 });
 
-test('DAWproject browser download rejects an aggregate archive above its memory budget before PCM reads', async () => {
+test('DAWproject browser download requires confirmation above its size warning before PCM reads', async () => {
 	const project = exportableProject();
 	const huge = { ...project, sources: [{ ...project.sources[0]!, frameCount: DAWPROJECT_BLOB_EXPORT_BYTE_LIMIT / 8 + 1 }] };
 	let read = false;
@@ -498,7 +498,7 @@ test('DAWproject browser download rejects an aggregate archive above its memory 
 		getProject: () => huge,
 		loadStoredSourceChannels: async () => { read = true; return null; },
 	});
-	await assert.rejects(createNativeProjectService(fixture.runtime).saveDawproject(), /browser download memory budget/u);
+	await assert.rejects(createNativeProjectService(fixture.runtime).saveDawproject(), /size warning threshold/u);
 	assert.equal(read, false);
 });
 

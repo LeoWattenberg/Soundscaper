@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { FileSizeWarningConfirmation } from '../shared/file-size-warning.ts';
 import type { RuntimeProjectProjection } from '../../runtime-clip-projection.ts';
 import type { CommandProjectView } from '../../command-project-view.ts';
 import type { RecordingControllerFactory } from '../recording/recording-transaction-types.ts';
@@ -64,6 +65,7 @@ export interface ControllerOptions extends ControllerResourceOptions, Controller
 	readonly resolveProductVideoPreviewMedia?: SourceRuntimeCompositionDependencies['resolveProductVideoPreviewMedia'];
 	readonly reportProductVideoPreviewPressure?: EditorActionFunctions['reportVideoPreviewPressure'];
 	readonly saveLabelFile?: EditCompositionDependencies['saveLabelFile'];
+	readonly confirmFileSizeWarning?: FileSizeWarningConfirmation;
 	readonly confirmMonoConversion?: EditCompositionDependencies['confirmMonoConversion'];
 	readonly aup4Client?: NativeProjectServiceRuntime['initialAup4Client'];
 	readonly aup4?: NativeProjectServiceRuntime['aup4Options'];

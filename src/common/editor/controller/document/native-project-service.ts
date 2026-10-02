@@ -30,6 +30,8 @@ import {
 	saveNativeScapeArchiveCopy,
 } from './internal/native-project/native-scape-save.ts';
 import { createNativeAudacityProjectSave } from './internal/native-project/native-audacity-project-save.ts';
+import { confirmFileSizeWarning } from '../shared/file-size-warning.ts';
+import { withAudacityWorkerSizeAdmission } from './internal/native-project/audacity-worker-size-admission.ts';
 import type {
 	Aup4DecodedSource,
 	Aup4Environment,
@@ -142,6 +144,8 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 			}
 			const imported = await runtime.importScapeProject(file, runtime.store, {
 				collision: options.collision || 'copy', acquireReplaceProjectWriteAuthority: runtime.acquireReplaceProjectWriteAuthority,
+				confirmFileSizeWarning: runtime.confirmFileSizeWarning,
+				assertCurrent: () => assertOwnership(operation.task, operation.projectToken),
 				estimateStorageForPreflight: (bytes, operation) => runtime.estimateStorageForPreflight(bytes, operation, signal), signal,
 			});
 			if (imported.publicationCommitted === true) {
@@ -197,7 +201,7 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 			});
 			if (prepared.mode === 'cancelled') return { cancelled: true };
 			assertOwnership(operation.task, operation.projectToken);
-			await runtime.flushProject({ prepareCurrentSnapshot: true, preparationPurpose: 'scape-save' });
+			await runtime.flushProject({ prepareCurrentSnapshot: true, preparationPurpose: 'scape-save', allowFileSizeWarning: true });
 			assertOwnership(operation.task, operation.projectToken);
 			const snapshot = requireOwnedProject(projectAtStart.id);
 			beginSave(operation.task, operation.projectToken);
@@ -235,10 +239,19 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 			assertOwnership(operation.task, operation.projectToken);
 			const storage = await runtime.store.estimateStorage();
 			assertOwnership(operation.task, operation.projectToken);
-			const opened = await activeClient.openFile(nativeId, file, { ...portableOptions(file.size, storage, (progress) => {
+			const { getAup4SaveLimit } = await import('../../aup4-profile.js'); const threshold = getAup4SaveLimit({ mobile: runtime.state.mobile, opfs: environment?.opfs,
+				deviceMemory: (globalThis.navigator as Navigator & { deviceMemory?: number } | undefined)?.deviceMemory });
+			const maxBytes = await confirmFileSizeWarning(file.size, threshold, file.name, {
+				confirmFileSizeWarning: runtime.confirmFileSizeWarning, signal: operation.task.signal,
+				assertCurrent: () => assertOwnership(operation.task, operation.projectToken),
+			});
+			const fileOptions = { ...portableOptions(file.size, storage, (progress) => {
 				updateNativeProjectProgress(progress, runtime.copy.importing, operation.task,
 					operation.projectToken, { start: 0, end: 0.3 }, { key: 'importing' });
-			}), signal: operation.task.signal });
+			}), maxBytes, fileSizeWarningApproved: maxBytes > threshold, signal: operation.task.signal };
+			const opened = await withAudacityWorkerSizeAdmission((workerOptions) => activeClient.openFile(nativeId, file, workerOptions),
+				fileOptions, file.name, { confirmFileSizeWarning: runtime.confirmFileSizeWarning, signal: operation.task.signal,
+					assertCurrent: () => assertOwnership(operation.task, operation.projectToken) }, 'preflight');
 			assertOwnership(operation.task, operation.projectToken);
 			const streaming = Boolean(activeClient.planImport && activeClient.readSourceChunks);
 			const decode = streaming ? activeClient.planImport! : activeClient.decode;

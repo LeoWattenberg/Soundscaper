@@ -109,7 +109,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 		copy,
 		displayAudioSupported,
 		editBlocked,
-		fileService,
+		fileService, confirmFileSizeWarning,
 		locale,
 		preferences,
 		projectBinEffectivelyOpen,
@@ -129,7 +129,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 		capabilities,
 		copy,
 		locale,
-		fileService,
+		fileService, confirmFileSizeWarning,
 		playbackMeterSettings, recordingMeterSettings,
 		onPlaybackMeterSettingsChange: setPlaybackMeterSettings, onRecordingMeterSettingsChange: setRecordingMeterSettings,
 		clippingEnabled: uiFlags.clipping, run,
@@ -358,7 +358,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 				<WorkspacePanelDock {...panelDockRuntime} dock="top" />
 				<main className="kw-audio-editor__canvas">
 					<AudioEditorTimeline
-						controller={controller}
+						controller={controller} confirmFileSizeWarning={confirmFileSizeWarning}
 						snapshot={snapshot}
 						runtimeProject={runtimeProject}
 						locale={locale}

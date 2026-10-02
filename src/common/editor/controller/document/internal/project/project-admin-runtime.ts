@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { FileSizeWarningConfirmation } from '../../../shared/file-size-warning.ts';
 import type { FramescaperCaptureAdminInterlockLease, FramescaperCaptureAdminOperationRequest } from '../../../capture/framescaper-capture-admin-interlock.ts';
 import type { ProjectLinkedOriginalSourceReference } from '../../../../storage/project-publication-options.ts';
 import type { ProjectFlushOptions } from '../../project-save-service.ts';
@@ -58,6 +59,7 @@ export interface ProjectAdminServiceRuntime<
 	Project extends AdminProject = AdminProject,
 	History extends AdminHistory<Project> = AdminHistory<Project>,
 > {
+	readonly confirmFileSizeWarning?: FileSizeWarningConfirmation;
 	readonly beginCaptureInterlockedAdminOperation?: (
 		request: Readonly<FramescaperCaptureAdminOperationRequest>,
 	) => Readonly<FramescaperCaptureAdminInterlockLease>;
@@ -141,7 +143,7 @@ export interface ProjectAdminServiceRuntime<
 			expected: Project, project: Project, writeFence: string,
 			options: Readonly<{ protectedLinkedOriginalSourceReferences: readonly ProjectLinkedOriginalSourceReference[] }>,
 		): Promise<unknown | null>;
-		duplicateProject(projectId: string, options: Readonly<{ title: string }>): Awaitable<AdminProject>;
+		duplicateProject(projectId: string, options: Readonly<{ title: string; confirmFileSizeWarning?: FileSizeWarningConfirmation; assertCurrent?: () => void }>): Awaitable<AdminProject>;
 		deleteProject(projectId: string): Awaitable<unknown>;
 		clear(): Awaitable<unknown>;
 		preservesProjectsOnClear?(): boolean;

@@ -20,10 +20,11 @@ import {
 	type TransferRuntime,
 } from './transfer-archive-stream.ts';
 import { TransferManualImportRefusalError } from './transfer-manual-refusal.ts';
+import { confirmFileSizeWarning, type FileSizeWarningConfirmation } from '../editor/controller/shared/file-size-warning.ts';
 
 const DEFAULT_MAXIMUM_ENTRIES = 512;
 const DEFAULT_MAXIMUM_ENTRY_BYTES = 512 * 1024 * 1024;
-const MAXIMUM_ADMITTED_ENTRY_BYTES = 8 * 1024 * 1024 * 1024;
+const MAXIMUM_ADMITTED_ENTRY_BYTES = Number.MAX_SAFE_INTEGER;
 const PROJECT_FILE_NAME_PATTERN = /\.(?:sscape|fscape|liscape|scape)$/iu;
 
 export interface TransferArchiveSource {
@@ -34,6 +35,7 @@ export interface TransferArchiveSource {
 }
 
 export interface ImportTransferArchiveFilesOptions {
+	readonly confirmFileSizeWarning?: FileSizeWarningConfirmation;
 	readonly runtime: TransferRuntime;
 	readonly store: Bundle.ProjectTransferImportStore;
 	readonly files: Iterable<TransferArchiveSource>;
@@ -52,10 +54,11 @@ export async function importTransferArchiveFiles(
 	const maximumEntryBytes = manualMaximumEntryBytes(options.maximumEntryBytes);
 
 	async function* entries(): AsyncGenerator<unknown, void> {
-		const selected = admitManualFiles(options.files, maximumEntries, maximumEntryBytes);
+		const selected = admitManualFiles(options.files, maximumEntries, options.confirmFileSizeWarning ? Number.MAX_SAFE_INTEGER : maximumEntryBytes);
 		const sidecars = pairManualSidecars(selected);
 		for (const source of selected.archives) {
 			options.signal?.throwIfAborted();
+			await confirmFileSizeWarning(source.byteLength, maximumEntryBytes, source.name, options);
 			const bytes = await readManualFile(source, 'archive', options.signal);
 			const sidecarSource = sidecars.get(source.name);
 			let conversionReportSidecar = null;
@@ -86,7 +89,8 @@ export async function importTransferArchiveFiles(
 		inspectProject: runtime.inspectProject,
 		entries: entries(),
 		maximumEntries,
-		maximumEntryBytes,
+		maximumEntryBytes: options.confirmFileSizeWarning ? Number.MAX_SAFE_INTEGER : maximumEntryBytes,
+		confirmFileSizeWarning: options.confirmFileSizeWarning,
 		signal: options.signal,
 		onProgress: options.onProgress,
 	});

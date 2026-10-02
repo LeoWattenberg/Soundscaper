@@ -397,7 +397,7 @@ function exactRecord(value: unknown, fields: readonly string[], label: string): 
 }
 
 function boundedBytes(value: unknown, label: string): number {
-	if (!Number.isSafeInteger(value) || Number(value) < 0 || Number(value) > 65 * 1024 ** 3) {
+	if (!Number.isSafeInteger(value) || Number(value) < 0) {
 		throw new RangeError(`Soundscaper delivery helper ${label} is invalid.`);
 	}
 	return Number(value);

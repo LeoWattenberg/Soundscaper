@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import type { FileSizeWarningOptions } from '../controller/shared/file-size-warning.ts';
 
 export function createProjectStoreId(prefix: string): string {
 	if (globalThis.crypto?.randomUUID) return `${prefix}-${globalThis.crypto.randomUUID()}`;
@@ -25,14 +26,14 @@ interface ProjectDuplicationStore<Result> {
 	readonly projectRepository: Readonly<Record<string, unknown>>;
 	loadProject(projectId: string): Promise<unknown>;
 	listProjects(): Promise<unknown>;
-	createProjectIfAbsent(project: unknown): Promise<unknown>;
+	createProjectIfAbsent(project: unknown, options?: FileSizeWarningOptions): Promise<unknown>;
 }
 
 /** Store-level project duplication entry shared by the browser and desktop repositories. */
 export function duplicateStoreProject<Result>(
 	store: ProjectDuplicationStore<Result>,
 	projectId: string,
-	{ id, title }: Readonly<{ id?: string; title?: unknown }> = {},
+	{ id, title, ...warningOptions }: Readonly<{ id?: string; title?: unknown }> & FileSizeWarningOptions = {},
 ): Promise<Result> {
 	const repository = store.projectRepository as Readonly<{
 		loadProjectForDuplication?(projectId: string): Promise<unknown>;
@@ -42,7 +43,7 @@ export function duplicateStoreProject<Result>(
 			? repository.loadProjectForDuplication(requestedId)
 			: store.loadProject(requestedId),
 		listProjects: () => store.listProjects(),
-		createProjectIfAbsent: (project) => store.createProjectIfAbsent(project),
+		createProjectIfAbsent: (project) => store.createProjectIfAbsent(project, warningOptions),
 	}, {
 		sourceProjectId: projectId,
 		copyProjectId: id || createProjectStoreId('project'),

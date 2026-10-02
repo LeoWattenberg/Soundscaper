@@ -2,6 +2,7 @@
 
 import { randomBytes as nodeRandomBytes } from 'node:crypto';
 import { stat as nodeStat } from 'node:fs/promises';
+import { confirmDesktopFileSizeWarning, type DesktopSaveSizeWarning } from './save-size-warning-dialog.ts';
 
 import {
 	MAX_PERSISTED_LINKED_VIDEO_BYTES,
@@ -107,6 +108,7 @@ export interface DesktopLinkedVideoLocatorStoreOptions {
 	readonly readCapabilities: DesktopLinkedVideoReadCapabilityStore;
 	readonly maximumCount?: number;
 	readonly maximumBytes?: number;
+	readonly confirmFileSizeWarning?: (warning: Readonly<DesktopSaveSizeWarning>) => Promise<boolean>;
 	readonly randomBytes?: (size: number) => Uint8Array;
 	readonly registry?: DesktopLinkedVideoLocatorRegistry | null;
 	readonly stat?: (path: string) => PromiseLike<LinkedVideoFileStat> | LinkedVideoFileStat;
@@ -115,6 +117,7 @@ export interface DesktopLinkedVideoLocatorStoreOptions {
 /** Main-process, renderer-owner-scoped grants for point-in-time video originals. */
 export class DesktopLinkedVideoLocatorStore {
 	readonly #entries = new Map<string, LocatorEntry>();
+	readonly #confirmFileSizeWarning: DesktopLinkedVideoLocatorStoreOptions['confirmFileSizeWarning'];
 	readonly #maximumBytes: number;
 	readonly #maximumCount: number;
 	readonly #ownerStates = new WeakMap<object, OwnerState>();
@@ -138,16 +141,11 @@ export class DesktopLinkedVideoLocatorStore {
 			throw new TypeError('A linked-video read capability store is required.');
 		}
 		this.#readCapabilities = options.readCapabilities;
-		this.#maximumCount = boundedLimit(
-			options.maximumCount ?? MAX_LINKED_VIDEO_LOCATORS,
-			MAX_LINKED_VIDEO_LOCATORS,
-			'Linked-video locator count',
-		);
-		this.#maximumBytes = boundedLimit(
-			options.maximumBytes ?? MAX_LINKED_VIDEO_LOCATOR_BYTES,
-			MAX_LINKED_VIDEO_LOCATOR_BYTES,
-			'Linked-video locator bytes',
-		);
+		this.#confirmFileSizeWarning = options.confirmFileSizeWarning;
+		this.#maximumCount = boundedLimit(options.maximumCount ?? MAX_LINKED_VIDEO_LOCATORS,
+			MAX_LINKED_VIDEO_LOCATORS, 'Linked-video locator count');
+		this.#maximumBytes = boundedLimit(options.maximumBytes ?? MAX_LINKED_VIDEO_LOCATOR_BYTES,
+			MAX_LINKED_VIDEO_LOCATOR_BYTES, 'Linked-video locator bytes');
 		this.#randomBytes = options.randomBytes ?? nodeRandomBytes;
 		this.#registry = options.registry ?? null;
 		this.#stat = options.stat ?? nodeStat;
@@ -177,7 +175,7 @@ export class DesktopLinkedVideoLocatorStore {
 		const mimeType = linkedOriginalMimeType(kind, options?.mimeType, name);
 		const identity = persistedLinkedVideoFileIdentityFromStat(await this.#stat(absolutePath));
 		if (identity.size < 1) throw new RangeError('A linked-video locator cannot reference an empty file.');
-		if (identity.size > MAX_LINKED_VIDEO_FILE_BYTES || identity.size > this.#maximumBytes) {
+		if (identity.size > this.#maximumBytes) {
 			throw new RangeError('Linked-video file bytes exceed the admission limit.');
 		}
 		const state = this.#ownerState(owner);
@@ -190,6 +188,17 @@ export class DesktopLinkedVideoLocatorStore {
 			if (identity.size > this.#maximumBytes - this.#bytes) {
 				throw new RangeError('Linked-video locator bytes exceed the admission limit.');
 			}
+			await confirmDesktopFileSizeWarning({ fileName: name, byteLength: identity.size,
+				thresholdBytes: MAX_LINKED_VIDEO_FILE_BYTES }, this.#confirmFileSizeWarning, () => {
+				this.#assertActive();
+				if (state.revoked) throw new Error('The linked-video locator owner was revoked.');
+			});
+			if (identity.size > MAX_LINKED_VIDEO_FILE_BYTES && !samePersistedLinkedVideoFileIdentity(identity,
+				persistedLinkedVideoFileIdentityFromStat(await this.#stat(absolutePath)))) {
+				throw new Error('The linked original changed during size confirmation.');
+			}
+			this.#assertActive();
+			if (state.revoked) throw new Error('The linked-video locator owner was revoked.');
 			const locatorId = this.#newToken();
 			const entry: LocatorEntry = Object.freeze({
 				kind,
@@ -523,17 +532,7 @@ function publicLocator(entry: LocatorEntry): Readonly<DesktopLinkedVideoLocator>
 }
 
 function persistedEntry(entry: LocatorEntry): Readonly<PersistedLinkedVideoLocator> {
-	return normalizePersistedLinkedVideoLocator({
-		kind: entry.kind,
-		locatorId: entry.locatorId,
-		locatorRevision: entry.locatorRevision,
-		path: entry.path,
-		name: entry.name,
-		size: entry.size,
-		mimeType: entry.mimeType,
-		lastModified: entry.lastModified,
-		identity: entry.identity,
-	});
+	return normalizePersistedLinkedVideoLocator(entry);
 }
 
 function assertDescriptorMatches(

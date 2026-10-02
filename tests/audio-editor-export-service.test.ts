@@ -280,7 +280,7 @@ test('realtime exports stream native PCM and transcode staged compressed formats
 	assert.equal(flac.calls.includes('sink-remove'), true);
 });
 
-test('realtime export handles storage requirements and renderer failures', async () => {
+test('realtime export handles missing size decisions and renderer failures', async () => {
 	const storage = createFixture();
 	const huge = defaultPlan();
 	huge.render = { strategy: 'realtime-stream' };
@@ -289,7 +289,7 @@ test('realtime export handles storage requirements and renderer failures', async
 	storage.setSinkPersistent(false);
 	assert.equal(await createEditorExportService(storage.runtime).handleExportAction('export'), undefined);
 	assert.equal(storage.calls.includes('sink-abort'), true);
-	assert.match((storage.errors[0] as Error).message, /storage required/u);
+	assert.match((storage.errors[0] as Error).message, /size warning threshold.*confirmation is required/u);
 
 	const renderer = createFixture();
 	const realtime = defaultPlan();

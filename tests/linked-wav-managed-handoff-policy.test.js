@@ -120,7 +120,7 @@ test('linked PCM desktop security controls preserve the maintained AIFF profiles
 	for (const control of [portability, range, handoff]) assertMaintainedAiffProfile(control.summary);
 	assert.match(
 		range.summary,
-		/pathless DTO.*exact locator revision.*128 capabilities.*64 GiB.*512 MiB per file.*16 active (?:range )?requests.*4 MiB per response.*exact closed ranges.*binding and CAS fence.*without another whole-original Blob.*release once/iu,
+		/pathless DTO.*exact locator revision.*safe-integer per-file and aggregate declared bytes.*128 capabilities.*16 active requests.*4 MiB per response.*above 512 MiB.*native user confirmation.*before locator creation.*exact closed ranges.*binding and CAS fence.*without another whole-original Blob.*release once/iu,
 	);
 	assert.match(
 		range.summary,

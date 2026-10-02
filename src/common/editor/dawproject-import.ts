@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import {
+	DAWPROJECT_XML_LIMITS,
 	attribute,
 	booleanAttribute,
 	childElement,
@@ -102,9 +103,11 @@ export interface DawprojectDocument {
 	readonly metadata: DawprojectMetadata;
 }
 
-export function parseDawprojectDocument(projectXml: string, metadataXml?: string | null): DawprojectDocument {
-	const root = parseXmlDocument(projectXml);
-	const metadataRoot = typeof metadataXml === 'string' && metadataXml.trim() ? parseXmlDocument(metadataXml) : null;
+export function parseDawprojectDocument(projectXml: string, metadataXml?: string | null,
+	options: Readonly<{ maximumBytes?: number }> = {}): DawprojectDocument {
+	const limits = { ...DAWPROJECT_XML_LIMITS, maximumBytes: options.maximumBytes ?? DAWPROJECT_XML_LIMITS.maximumBytes };
+	const root = parseXmlDocument(projectXml, limits);
+	const metadataRoot = typeof metadataXml === 'string' && metadataXml.trim() ? parseXmlDocument(metadataXml, limits) : null;
 	return parseDawprojectProjectElement(root, metadataRoot);
 }
 

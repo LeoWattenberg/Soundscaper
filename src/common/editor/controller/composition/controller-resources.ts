@@ -16,6 +16,7 @@ import { AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES } from '../../audacity-effects/
 import { audioBufferChannels, normalizeByteLimit, type createStoredChunkProvider } from '../source/source-audio.ts';
 import { SourceChunkProviderRegistry } from '../source/source-chunk-provider-registry.ts';
 import { deferredEffectRuntime, type DeferredNyquistClient } from '../effects/deferred-effect-runtime.ts';
+import type { FileSizeWarningConfirmation } from '../shared/file-size-warning.ts';
 
 type ControllerCodecRuntime = ReturnType<typeof createEditorCodecRuntime>
 	& Readonly<{ probeVideoTiming?: VideoTimingProbePort['probe'] }>;
@@ -28,6 +29,7 @@ export type ControllerTimePitchCache = Pick<ClipTimePitchRenderCacheCoordinator,
 >>;
 
 export interface ControllerResourceOptions {
+	readonly confirmFileSizeWarning?: FileSizeWarningConfirmation;
 	readonly productId?: string;
 	readonly fileService?: ReturnType<typeof createAudioEditorFileService>;
 	readonly store?: ReturnType<typeof createProjectStore>;
@@ -58,6 +60,7 @@ export interface ControllerResourceCallbacks {
 export function createControllerResources(options: ControllerResourceOptions, callbacks: ControllerResourceCallbacks) {
 	const fileService = options.fileService || createAudioEditorFileService();
 	const store = options.store || createProjectStore({
+		confirmFileSizeWarning: options.confirmFileSizeWarning,
 		memoryFallback: !fileService.isDesktop,
 		linkedOriginalPort: fileService.linkedOriginalPort,
 		linkedVideoOriginalPort: fileService.linkedVideoOriginalPort,
@@ -89,7 +92,7 @@ export function createControllerResources(options: ControllerResourceOptions, ca
 	engine.setSourceResolver?.(clipTimePitchSourceResolver);
 	const ffmpeg: ControllerCodecRuntime = options.ffmpeg || createEditorCodecRuntime({
 		onLoading: () => setLocalizedStatus(callbacks.setStatus, callbacks.copy, "ffmpegLoading"),
-		onProgress: callbacks.updateExportProgress, fileService,
+		onProgress: callbacks.updateExportProgress, fileService, confirmFileSizeWarning: options.confirmFileSizeWarning,
 	});
 	const nyquistClient = options.nyquistEvaluator ? null : deferredEffectRuntime.createNyquistClient(options.nyquistClientOptions);
 	const nyquistEvaluator: DeferredNyquistClient['evaluate'] = options.nyquistEvaluator

@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { confirmFileSizeWarning, type FileSizeWarningOptions } from './controller/shared/file-size-warning.ts';
 import { raceAbortablePromise } from './abort-race.ts';
 import {
 	assertVideoKeyframeAudioInputSource,
@@ -27,7 +28,7 @@ const DEFAULT_MAXIMUM_OUTPUT_BYTES = 2 * 1024 * 1024 * 1024;
 
 type Awaitable<Value> = PromiseLike<Value> | Value;
 
-export interface VideoKeyframeMediabunnyExecutionRequest {
+export interface VideoKeyframeMediabunnyExecutionRequest extends FileSizeWarningOptions {
 	readonly workload: VideoKeyframeEncoderWorkload;
 	readonly frameSource: VideoKeyframeExportFrameSource;
 	readonly producer: VideoKeyframeRgbaFrameProducer;
@@ -90,7 +91,7 @@ export async function executeVideoKeyframeMediabunnyEncoder(
 		throw new Error('Mediabunny execution geometry disagrees with its admitted frame source.');
 	}
 	const audio = audioRequest(request);
-	const maximumOutputBytes = boundedOutputBytes(request.maximumOutputBytes);
+	let maximumOutputBytes = boundedOutputBytes(request.maximumOutputBytes);
 	// The managed renderer requires an operation signal even when the caller did
 	// not supply cancellation. FFmpeg's execution engine used to provide this
 	// generation signal; the native branch owns the equivalent scope itself.
@@ -143,7 +144,8 @@ export async function executeVideoKeyframeMediabunnyEncoder(
 						throw new TypeError('Browser-native video produced an invalid encoded chunk length.');
 					}
 					if (chunk.byteLength > maximumOutputBytes - encodedVideoBytes) {
-						throw new RangeError('The browser-native video output exceeds its requested byte bound.');
+						await confirmFileSizeWarning(encodedVideoBytes + chunk.byteLength, maximumOutputBytes, 'Video export', request);
+						maximumOutputBytes = Number.MAX_SAFE_INTEGER;
 					}
 					encodedVideoBytes += chunk.byteLength;
 					await raceAbortablePromise(activeMuxer.addVideoChunk(chunk, metadata), operationSignal, abortReason);
@@ -168,8 +170,8 @@ export async function executeVideoKeyframeMediabunnyEncoder(
 			throw new Error('Mediabunny video accounting disagrees with the WebCodecs producer.');
 		}
 		if (muxed.bytes.byteLength > maximumOutputBytes) {
-			muxed.bytes.fill(0);
-			throw new RangeError('The browser-native video output exceeds its requested byte bound.');
+			try { await confirmFileSizeWarning(muxed.bytes.byteLength, maximumOutputBytes, 'Video export', request); }
+			catch (error) { muxed.bytes.fill(0); throw error; }
 		}
 		return Object.freeze({
 			bytes: muxed.bytes,
@@ -321,8 +323,8 @@ function maximumSafeInteger(left: number, right: number): number {
 
 function boundedOutputBytes(value: number | undefined): number {
 	const bytes = value ?? DEFAULT_MAXIMUM_OUTPUT_BYTES;
-	if (!Number.isSafeInteger(bytes) || bytes < 1 || bytes > DEFAULT_MAXIMUM_OUTPUT_BYTES) {
-		throw new RangeError('Mediabunny maximum output bytes are outside the browser bound.');
+	if (!Number.isSafeInteger(bytes) || bytes < 1) {
+		throw new RangeError('Mediabunny maximum output bytes must be a positive safe integer.');
 	}
 	return bytes;
 }

@@ -166,7 +166,7 @@ test('legacy schema-1 locator rows reopen as video while new audio and video sha
 	await store.dispose();
 });
 
-test('linked-audio locator admission rejects mismatched metadata and enforces its hard cap', async (context) => {
+test('linked-audio locator admission rejects mismatched metadata and requires above-threshold approval', async (context) => {
 	const root = await temporaryRoot(context);
 	const wavPath = join(root, 'selected.wav');
 	await writeFile(wavPath, 'wav');

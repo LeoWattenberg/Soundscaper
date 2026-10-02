@@ -31,7 +31,8 @@
  */
 
 import type * as Handshake from './project-transfer-handshake.ts';
-import { admitProjectTransferMessage } from './project-transfer-handshake-wire.ts';
+import { admitProjectTransferMessage, projectTransferError, PROJECT_TRANSFER_PROTOCOL_VERSION } from './project-transfer-handshake-wire.ts';
+import { normalizeProjectTransferChannel } from './project-transfer-handshake-channel.ts';
 
 /**
  * The buffer is small and fixed: once the protocol is listening it does its own
@@ -50,6 +51,10 @@ const TRANSFER_PORT_BUFFER_LIMIT = 32;
  * exists to cover.
  */
 const bufferedPorts = new WeakMap<object, Handshake.ProjectTransferPort>();
+const bufferedObservations = new WeakMap<object, Readonly<{
+	held: Handshake.ProjectTransferInboundMessage[];
+	listeners: Set<(message: Handshake.ProjectTransferInboundMessage) => void>;
+}>>();
 
 /**
  * Hold what the peer says while this side is still reading its own store.
@@ -73,9 +78,11 @@ export function bufferTransferPort(
 	const existing = bufferedPorts.get(port);
 	if (existing) return existing;
 	const held: Handshake.ProjectTransferInboundMessage[] = [];
+	const observers = new Set<(message: Handshake.ProjectTransferInboundMessage) => void>();
 	let listener: ((message: Handshake.ProjectTransferInboundMessage) => void) | null = null;
 	let subscribed = false;
 	const stop = port.subscribe((message) => {
+		for (const observer of observers) observer(message);
 		if (listener) listener(message);
 		else if (held.length < TRANSFER_PORT_BUFFER_LIMIT) held.push(message);
 	});
@@ -103,7 +110,41 @@ export function bufferTransferPort(
 	});
 	bufferedPorts.set(port, buffered);
 	bufferedPorts.set(buffered, buffered);
+	const observation = Object.freeze({ held, listeners: observers });
+	bufferedObservations.set(port, observation);
+	bufferedObservations.set(buffered, observation);
 	return buffered;
+}
+
+/** Observe cancellation during export without consuming the protocol's buffered ready message. */
+export function watchSenderTransferAbort(
+	options: Pick<Handshake.ProjectTransferChannelOptions, 'port' | 'targetOrigin' | 'allowedOrigins' | 'signal'>,
+): Readonly<{ port: Handshake.ProjectTransferPort; signal: AbortSignal; stopObserving: () => void; close: () => void }> {
+	const settings = normalizeProjectTransferChannel(options);
+	const port = bufferTransferPort(settings.port);
+	const observation = bufferedObservations.get(port);
+	if (!observation) throw new TypeError('The sender export requires an observable buffered port.');
+	const lifetime = new AbortController();
+	const signal = settings.signal ? AbortSignal.any([settings.signal, lifetime.signal]) : lifetime.signal;
+	let sessionId: string | null = null;
+	const inspect = (inbound: Handshake.ProjectTransferInboundMessage) => {
+		if (signal.aborted || inbound.origin !== settings.targetOrigin || !settings.allowedOrigins.has(inbound.origin)) return;
+		try {
+			const message = admitProjectTransferMessage(inbound.data);
+			if (!message || message.protocolVersion !== PROJECT_TRANSFER_PROTOCOL_VERSION) return;
+			if (message.kind === 'ready' && sessionId === null) sessionId = message.sessionId;
+			if (message.kind === 'abort' && (message.sessionId === '' || message.sessionId === sessionId)) {
+				lifetime.abort(projectTransferError('PEER_ABORTED', `The peer ended the transfer: ${message.reason || 'no reason given'}`));
+			}
+		} catch { /* Invalid peer data remains buffered for the protocol's own refusal. */ }
+	};
+	observation.listeners.add(inspect);
+	for (const inbound of observation.held) inspect(inbound);
+	const stopObserving = () => { observation.listeners.delete(inspect); };
+	return Object.freeze({ port, signal, stopObserving, close: () => {
+		stopObserving();
+		lifetime.abort(projectTransferError('ABORTED', 'The sender export lifetime is closed.'));
+	} });
 }
 
 /** An offered archive the peer never answered for. */
@@ -217,6 +258,8 @@ export function observeTransferAcknowledgements(
 	// Already buffered underneath, so a transport that wraps its port again
 	// finds this one wrapped rather than subscribing a second listener to it.
 	bufferedPorts.set(watched, watched);
+	const observation = bufferedObservations.get(port);
+	if (observation) bufferedObservations.set(watched, observation);
 	return Object.freeze({
 		port: watched,
 		get outcomes() {

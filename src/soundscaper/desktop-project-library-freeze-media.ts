@@ -2,6 +2,7 @@
 
 import type { ScapeArchiveEntry } from '../common/editor/scape-archive-envelope.ts'
 import { SCAPE_ARCHIVE_LIMITS } from '../common/editor/scape-archive-envelope.ts'
+import { confirmFileSizeWarning, type FileSizeWarningOptions } from '../common/editor/controller/shared/file-size-warning.ts'
 import { throwIfScapeAborted } from '../common/editor/scape-abort.ts'
 import {
 	createScapeDigest,
@@ -56,8 +57,11 @@ export async function acquireSoundscaperDesktopFreezeBodies(
 	bridge: Pick<SoundscaperDesktopRendererBridge, 'readBodyChunk'>,
 	store: SoundscaperDesktopFreezeStore,
 	signal?: AbortSignal,
+	options: FileSizeWarningOptions = {},
 ): Promise<SoundscaperDesktopFreezeAcquisition> {
-	preflightBodies(snapshot)
+	signal ??= options.signal ?? undefined
+	await confirmFileSizeWarning(soundscaperDesktopFreezeBodyBytes(snapshot.project, snapshot.bundle.bodies),
+		SCAPE_ARCHIVE_LIMITS.maximumExpandedBytes, 'Desktop project media', { ...options, signal })
 	const acquired: StorageRecord[] = []
 	let settled = false
 	const rollback = async (): Promise<void> => {
@@ -149,15 +153,19 @@ export async function streamSoundscaperDesktopFreezeBody(
 	}
 }
 
-function preflightBodies(snapshot: Readonly<SoundscaperDesktopBundleSnapshot>): void {
-	const bytes = new ScapeExpandedByteBudget(SCAPE_ARCHIVE_LIMITS.maximumExpandedBytes)
+export function soundscaperDesktopFreezeBodyBytes(
+	project: SoundscaperProject, bodies: readonly Readonly<SoundscaperDesktopBody>[],
+): number {
+	const bytes = new ScapeExpandedByteBudget(Number.MAX_SAFE_INTEGER)
 	const chunks = new ScapeAudioChunkBudget()
-	for (const body of snapshot.bundle.bodies) {
-		const source = freezeSource(snapshot.project, body)
+	for (const body of bodies) {
+		const source = freezeSource(project, body)
 		const layout = scapeAudioSourceLayout(source)
+		if (body.byteLength !== layout.archiveBytes) throw new Error('A freeze body changed its exact descriptor length.')
 		bytes.consume(layout.archiveBytes, body.sourceId)
 		chunks.consumeMany(layout.chunkCount, body.sourceId)
 	}
+	return bytes.usedBytes
 }
 
 async function assertStoredBody(

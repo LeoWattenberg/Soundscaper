@@ -451,7 +451,7 @@ test('direct WAV admission accepts exact canonical, metadata-rich, RIFF, RF64, a
 			return Object.freeze({ mode: 'blob' });
 		},
 	}, nextPlan, {}, new AbortController().signal);
-	assert.equal(nextPrepareCalls, 0);
+	assert.equal(nextPrepareCalls, 1);
 	assert.deepEqual(nextPreparation, { cancelled: null, destination: null });
 });
 

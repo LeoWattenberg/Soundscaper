@@ -41,7 +41,7 @@ export class ReadCapabilityStore {
 	#cleanupErrors = [];
 	#disposed = false;
 	#disposePromise = null;
-	#entries = new Map();
+	#entries = new Map(); #confirmFileSizeWarning;
 	#maximumBytes;
 	#maximumCount;
 	#now;
@@ -65,22 +65,16 @@ export class ReadCapabilityStore {
 		maximumBytes = MAX_READ_CAPABILITY_BYTES_PER_OWNER,
 		maximumScapeRangeCount, maximumScapeRangeBytes,
 		maximumLinkedVideoPlaybackCount, maximumLinkedVideoPlaybackBytes,
+		confirmFileSizeWarning = /** @type {((warning: { fileName: string, byteLength: number, thresholdBytes: number }) => Promise<boolean>) | undefined} */ (undefined),
 	} = {}) {
 		this.#ttlMs = ttlMs;
 		this.#now = now;
 		this.#open = openImpl;
 		this.#randomBytes = randomBytesImpl;
-		this.#maximumCount = boundedReadLimit(
-			maximumCount,
-			MAX_READ_CAPABILITIES_PER_OWNER,
-			'Read capability count',
-			{ allowZero: false },
-		);
-		this.#maximumBytes = boundedReadLimit(
-			maximumBytes,
-			MAX_READ_CAPABILITY_BYTES_PER_OWNER,
-			'Read capability aggregate bytes',
-		);
+		this.#confirmFileSizeWarning = confirmFileSizeWarning;
+		this.#maximumCount = boundedReadLimit(maximumCount, MAX_READ_CAPABILITIES_PER_OWNER,
+			'Read capability count', { allowZero: false });
+		this.#maximumBytes = boundedReadLimit(maximumBytes, MAX_READ_CAPABILITY_BYTES_PER_OWNER, 'Read capability aggregate bytes');
 		this.#scapeRangeAdmission = new ScapeRangeReadAdmission({
 			maximumCount: maximumScapeRangeCount,
 			maximumBytes: maximumScapeRangeBytes,
@@ -291,10 +285,17 @@ export class ReadCapabilityStore {
 			if (rangeTicket) {
 				rangeAdmission.charge(rangeTicket, size);
 			} else {
+				let admittedBytes = this.#maximumBytes;
 				if (size > this.#maximumBytes) {
-					throw new ReadCapabilityAdmissionError(`Read capability bytes exceed the per-owner limit of ${this.#maximumBytes}`);
+					if (!this.#confirmFileSizeWarning) throw new ReadCapabilityAdmissionError(`Read capability bytes exceed the per-owner warning threshold of ${this.#maximumBytes}; confirmation is required`);
+					const accepted = await this.#confirmFileSizeWarning({ fileName: displayName || basename(filePath), byteLength: size, thresholdBytes: this.#maximumBytes });
+					this.#assertAdmissionActive(state);
+					if (accepted !== true) throw Object.assign(new Error('Large-file loading was cancelled'), { name: 'AbortError', code: 'ABORTED' });
+					assertReadCapabilityFileIdentity(await handle.stat(), details);
+					this.#assertAdmissionActive(state);
+					admittedBytes = size;
 				}
-				if (size > this.#maximumBytes - state.bytes) {
+				if (size > admittedBytes - state.bytes) {
 					throw new ReadCapabilityAdmissionError(`Read capability bytes exceed the per-owner limit of ${this.#maximumBytes}`, { retryable: true });
 				}
 				state.bytes += size;

@@ -22,7 +22,7 @@ import {
 } from './media-export.js';
 import { inspectWavBlobPcm, streamWavBlobPcm } from './wav-import.js';
 import { writeInterleavedFloat32Pcm } from './interleaved-float32-pcm.ts';
-import type { WavPcmDescriptor } from './wav-pcm-chunk-reader.ts';
+import type { WavPcmDescriptor } from './wav-pcm-chunk-reader.ts'; import type { FileSizeWarningConfirmation, FileSizeWarningOptions } from './controller/shared/file-size-warning.ts';
 
 export interface BrowserDedicatedAudioCodecClient {
 	encode(request: DedicatedAudioEncodeRequest, options?: Readonly<{ signal?: AbortSignal }>): Promise<Uint8Array>;
@@ -30,7 +30,7 @@ export interface BrowserDedicatedAudioCodecClient {
 	dispose(): void;
 }
 
-export interface BrowserAudioCodecRuntimeOptions {
+export interface BrowserAudioCodecRuntimeOptions extends Pick<FileSizeWarningOptions, 'confirmFileSizeWarning'> {
 	readonly codecClient?: BrowserDedicatedAudioCodecClient;
 	readonly webCodecsAac?: boolean;
 	readonly encodeAac?: (request: BrowserAacEncodeRequest) => Promise<Uint8Array>;
@@ -52,7 +52,7 @@ export interface BrowserAudioCodecRuntimeSettings {
 	readonly compressionLevel?: number;
 	readonly quality?: number;
 	readonly bitRate?: number;
-	readonly maximumOutputBytes?: number;
+	readonly maximumOutputBytes?: number; readonly confirmFileSizeWarning?: FileSizeWarningConfirmation;
 	readonly maximumOutputChunkBytes?: number;
 	readonly frameCount?: number;
 	readonly signal?: AbortSignal;
@@ -214,7 +214,7 @@ export function createBrowserAudioCodecRuntime(options: BrowserAudioCodecRuntime
 		if (!(file instanceof Blob)) throw new TypeError('Expected a staged WAV Blob.');
 		const format = admittedFormat(formatValue, capabilities);
 		const signal = operationSignal(settingsValue.signal, lifetimeAbort.signal);
-		const operationSettings = { ...settingsValue, signal };
+		const operationSettings = { ...settingsValue, signal, confirmFileSizeWarning: settingsValue.confirmFileSizeWarning ?? options.confirmFileSizeWarning };
 		throwIfAborted(signal);
 		if (options.codecClient === undefined && options.encodeAac === undefined) {
 			return (await import('./browser-audio-streamed-encode.ts')).encodeBrowserAudioFileStreamed(file, format, operationSettings, capabilities);

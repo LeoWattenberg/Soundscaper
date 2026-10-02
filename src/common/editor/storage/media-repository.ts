@@ -2,6 +2,7 @@
 
 import { collectProjectStorageKeys } from '../retention.js';
 import { createAbortGuard } from '../abort-error.ts';
+import type { FileSizeWarningConfirmation } from '../controller/shared/file-size-warning.ts';
 import { request, transact } from './indexeddb-backend.ts';
 import {
 	DERIVATIVE_CACHE_ENTRY_STORE_NAME,
@@ -48,6 +49,7 @@ interface MediaWriteOptions {
 }
 
 interface MediaRepositoryOptions {
+	readonly confirmFileSizeWarning?: FileSizeWarningConfirmation;
 	readonly cacheLimits?: Readonly<Pick<
 		DerivativeCacheLimits,
 		'maximumBytes' | 'maximumEntries' | 'maximumAgeMs'
@@ -69,7 +71,7 @@ export class MediaRepository {
 		this.#port = port;
 		this.#opfs = opfs;
 		this.#sessionGuard = options.sessionGuard ?? null;
-		this.#assetWrites = new MediaAssetWriteRepository(port, opfs, this.#assetLifecycle);
+		this.#assetWrites = new MediaAssetWriteRepository(port, opfs, this.#assetLifecycle, options.confirmFileSizeWarning);
 		this.#assetLoads = new MediaAssetLoadRepository(port, this.#assetWrites, this.#assetLifecycle);
 		this.#derivatives = new VideoDerivativeRepository(port, opfs, options);
 	}

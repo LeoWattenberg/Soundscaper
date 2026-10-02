@@ -28,8 +28,9 @@ test('SDF1 retains one native session through patched seal, journaled publicatio
 	});
 	const session = await authority.open({
 		root: ROOT, reference: '2'.repeat(48), finalName: 'master.wav',
-		maximumBytes: 64, finalPrefixByteLength: 32, fence: (operation) => fences.push(operation),
+		maximumBytes: 65 * 1024 ** 3 + 1, finalPrefixByteLength: 32, fence: (operation) => fences.push(operation),
 	});
+	assert.equal((helper.lastJson.limits as { maxBytes: number }).maxBytes, 65 * 1024 ** 3 + 1);
 	const original = new Uint8Array(64).fill(1);
 	assert.equal(await session.write(0, original), 64);
 	const prefix = new Uint8Array(32).fill(9);

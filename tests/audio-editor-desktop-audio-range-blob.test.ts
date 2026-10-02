@@ -5,7 +5,7 @@ import { createDesktopAudioRangeBlob } from '../src/common/editor/desktop-audio-
 import { createAudioEditorFileService } from '../src/common/editor/file-service.js';
 
 const id = 'a'.repeat(64);
-const descriptor = Object.freeze({ id, name: 'long.wav', size: 900_000_000, mimeType: 'audio/wav',
+const descriptor = Object.freeze({ id, name: 'long.wav', size: 7 * 1024 ** 3, mimeType: 'audio/wav',
 	readProfile: 'linked-audio-range-v1', lastModified: 0,
 	url: `soundscaper-app://bundle/_desktop/read/linked-audio-range-v1/${id}/long.wav` });
 

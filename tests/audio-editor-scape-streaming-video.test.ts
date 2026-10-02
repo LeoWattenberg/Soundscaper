@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { FileSizeWarningRequiredError } from '../src/common/editor/controller/shared/file-size-warning.ts';
 
 import type { ScapeArchiveEntry } from '../src/common/editor/scape-archive-envelope.ts';
 import { ScapeExpandedByteBudget } from '../src/common/editor/scape-expanded-byte-budget.ts';
@@ -108,7 +109,7 @@ test('video extraction rejects archive-size drift before writing storage', async
 	assert.equal(budget.usedBytes, bytes.byteLength);
 });
 
-test('memory fallback rejects over 64 MiB before asset extraction and preserves inventory', async () => {
+test('memory fallback requires a typed warning decision above 64 MiB before extraction and preserves inventory', async () => {
 	let assetExtractions = 0;
 	const fixture = syntheticVideoArchive({
 		projectId: 'memory-admission',
@@ -121,7 +122,13 @@ test('memory fallback rejects over 64 MiB before asset extraction and preserves 
 
 	await assert.rejects(importScapeProject(new Blob(['synthetic']), store, {
 		archiveReaderFactory: fixture.readerFactory,
-	}), /64 MiB process-memory media limit/iu);
+	}), (error: unknown) => {
+		assert.ok(error instanceof FileSizeWarningRequiredError);
+		assert.equal(error.code, 'FILE_SIZE_WARNING');
+		assert.deepEqual(error.warning, { label: 'Temporary media storage', byteLength: 64 * 1024 * 1024 + 1,
+			thresholdBytes: 64 * 1024 * 1024 });
+		return true;
+	});
 	assert.equal(assetExtractions, 0);
 	assert.deepEqual(await inventory(store), before);
 });

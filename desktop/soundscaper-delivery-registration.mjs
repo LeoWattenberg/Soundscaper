@@ -11,6 +11,7 @@ import {
 } from './project-library-runtime/desktop/soundscaper-delivery-filesystem-process.js';
 import { registerSoundscaperDeliveryMainIpc } from './project-library-runtime/desktop/soundscaper-delivery-main-ipc.js';
 import { SoundscaperDeliveryService } from './project-library-runtime/desktop/soundscaper-delivery-service.js';
+import { createDesktopSaveSizeWarningConfirmation } from './project-library-runtime/desktop/save-size-warning-dialog.js';
 import { describeSoundscaperProfessionalNativePayload } from './soundscaper-professional-native-payload.mjs';
 
 /** Composes the Soundscaper-only durable queue without growing the desktop entrypoint. */
@@ -26,6 +27,7 @@ export async function startSoundscaperDeliveryRegistration(options) {
 		instanceId: options.instanceId,
 		processId: options.processId,
 		filesystem,
+		confirmFileSizeWarning: createDesktopSaveSizeWarningConfirmation((value) => options.dialog.showMessageBox(value)),
 		readProjectIdentity: async (projectId) => (await authority.readProjectAuthority(projectId))?.projectIdentity ?? null,
 	});
 	try {

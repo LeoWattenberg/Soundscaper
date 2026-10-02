@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { confirmFileSizeWarning, FileSizeWarningRequiredError, type FileSizeWarningOptions } from './controller/shared/file-size-warning.ts';
+
 export const BROWSER_EXPORT_BLOB_MAXIMUM_BYTES = 512 * 1024 * 1024;
 
 type Awaitable<Value> = PromiseLike<Value> | Value;
@@ -16,7 +18,7 @@ export interface FfmpegWholeFileSource {
 	): Awaitable<unknown>;
 }
 
-export interface BoundedFfmpegOutputOptions {
+export interface BoundedFfmpegOutputOptions extends FileSizeWarningOptions {
 	readonly assertCurrent?: () => void;
 	readonly label?: string;
 	readonly maximumBytes?: unknown;
@@ -29,7 +31,7 @@ export interface BrowserExportEncodedOutput {
 	readonly mimeType?: unknown;
 }
 
-/** Guard the renderer-owned whole-file fallback below one frozen, lower-only ceiling. */
+/** Synchronous admission requires a previously confirmed bound for larger output. */
 export function assertBrowserExportOutputSize(
 	byteLength: unknown,
 	label = 'Browser export',
@@ -40,9 +42,7 @@ export function assertBrowserExportOutputSize(
 		throw new RangeError(`${label} byte length must be a safe non-negative integer.`);
 	}
 	if (byteLength > normalizedMaximum) {
-		throw new RangeError(
-			`${label} output is ${byteLength} bytes; the browser Blob fallback maximum is ${normalizedMaximum} bytes.`,
-		);
+		throw new FileSizeWarningRequiredError({ label, byteLength, thresholdBytes: normalizedMaximum });
 	}
 	return byteLength;
 }
@@ -87,6 +87,27 @@ export function admitBrowserExportBlob(
 	return blob;
 }
 
+export async function prepareBrowserExportBlobWithWarning(
+	output: BrowserExportEncodedOutput,
+	label = 'Browser export',
+	maximumBytes?: unknown,
+	options: FileSizeWarningOptions = {},
+): Promise<Blob> {
+	const byteLength = browserExportEncodedByteLength(output, label);
+	const admitted = await confirmFileSizeWarning(byteLength, normalizeMaximumBytes(maximumBytes), label, options);
+	return prepareBrowserExportBlob(output, label, admitted);
+}
+
+export function browserExportEncodedByteLength(output: BrowserExportEncodedOutput, label: string): number {
+	if (!output || typeof output !== 'object') throw new TypeError(`${label} encoded output must be an object.`);
+	if (output.blob != null) {
+		if (!(output.blob instanceof Blob)) throw new TypeError(`${label} output must be a Blob.`);
+		return assertBrowserExportOutputSize(output.blob.size, label, Number.MAX_SAFE_INTEGER);
+	}
+	if (!(output.bytes instanceof Uint8Array)) throw new TypeError(`${label} encoded output must own a Blob or Uint8Array bytes.`);
+	return output.bytes.byteLength;
+}
+
 /** Stat and admit an FFmpeg output before asking its worker to materialize the whole file. */
 export async function readBoundedFfmpegOutputFile(
 	source: FfmpegWholeFileSource,
@@ -102,7 +123,8 @@ export async function readBoundedFfmpegOutputFile(
 	assertReady(options);
 	const stat = await source.statFile(path, signalOptions(options.signal));
 	assertReady(options);
-	const byteLength = statByteLength(stat, label, maximumBytes);
+	const byteLength = statByteLength(stat, label);
+	await confirmFileSizeWarning(byteLength, maximumBytes, label, options);
 	const output = await source.readFile(path, undefined, signalOptions(options.signal));
 	assertReady(options);
 	if (!(output instanceof Uint8Array)) {
@@ -122,16 +144,15 @@ function normalizeMaximumBytes(value: unknown): number {
 		typeof normalized !== 'number'
 		|| !Number.isSafeInteger(normalized)
 		|| normalized <= 0
-		|| normalized > BROWSER_EXPORT_BLOB_MAXIMUM_BYTES
 	) {
 		throw new RangeError(
-			`browser export maximumBytes must be a positive safe integer no greater than ${BROWSER_EXPORT_BLOB_MAXIMUM_BYTES}.`,
+			'browser export maximumBytes must be a positive safe integer.',
 		);
 	}
 	return normalized;
 }
 
-function statByteLength(stat: unknown, label: string, maximumBytes: number): number {
+function statByteLength(stat: unknown, label: string): number {
 	if (!stat || typeof stat !== 'object') {
 		throw new TypeError(`${label} FFmpeg output stat must be an object with an own size.`);
 	}
@@ -139,7 +160,7 @@ function statByteLength(stat: unknown, label: string, maximumBytes: number): num
 	if (!descriptor || !Object.prototype.hasOwnProperty.call(descriptor, 'value')) {
 		throw new TypeError(`${label} FFmpeg output stat must have an own data size.`);
 	}
-	return assertBrowserExportOutputSize(descriptor.value, label, maximumBytes);
+	return assertBrowserExportOutputSize(descriptor.value, label, Number.MAX_SAFE_INTEGER);
 }
 
 function validateSource(source: FfmpegWholeFileSource): void {

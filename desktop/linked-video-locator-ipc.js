@@ -6,7 +6,6 @@ import {
 	APP_ORIGIN,
 	IPC,
 	MAX_LINKED_VIDEO_PLAYBACK_CAPABILITY_FILE_BYTES,
-	MAX_READ_CAPABILITY_BYTES_PER_OWNER,
 	READ_CAPABILITY_PREFIX,
 	READ_PROFILE_LINKED_AUDIO_RANGE_V1,
 	READ_PROFILE_LINKED_VIDEO_RANGE_V1,
@@ -495,7 +494,7 @@ function videoSize(value, readProfile = READ_PROFILE_MATERIALIZED_V1) {
 	const size = nonNegativeSafeInteger(value, 'Linked-video size');
 	const maximum = [READ_PROFILE_LINKED_AUDIO_RANGE_V1, READ_PROFILE_LINKED_VIDEO_RANGE_V1].includes(readProfile)
 		? MAX_LINKED_VIDEO_PLAYBACK_CAPABILITY_FILE_BYTES
-		: MAX_READ_CAPABILITY_BYTES_PER_OWNER;
+		: Number.MAX_SAFE_INTEGER;
 	if (size < 1 || size > maximum) {
 		throw new RangeError('Linked-video size exceeds its read limit.');
 	}

@@ -522,13 +522,13 @@ test('scoped desktop reads reject aggregate excess before fetching and release u
 	assert.deepEqual(released, ['read-c', 'read-d']);
 });
 
-test('desktop file-service read ceilings are lower-only numeric test seams', () => {
+test('desktop file-service read maxima require safe integers for main-approved descriptors', () => {
 	assert.throws(
 		() => createAudioEditorFileService({ bridge: {}, readMaximumBytes: '3' }),
 		/hard limit/iu,
 	);
 	assert.throws(
-		() => createAudioEditorFileService({ bridge: {}, readMaximumBytes: 512 * 1024 ** 2 + 1 }),
+		() => createAudioEditorFileService({ bridge: {}, readMaximumBytes: Number.MAX_SAFE_INTEGER + 1 }),
 		/hard limit/iu,
 	);
 });

@@ -117,6 +117,7 @@ function editableCopyExporter(
 		const exported = await exportProject(converted.project, owner ?? store, {
 			...(options.signal ? { signal: options.signal } : {}),
 			maximumBlobBytes: options.maximumBlobBytes,
+			confirmFileSizeWarning: options.confirmFileSizeWarning,
 		});
 		if (!(exported?.blob instanceof Blob)) {
 			throw new TypeError('The destination-family Scape exporter did not produce an archive Blob.');

@@ -20,6 +20,7 @@ import { inspectWavBlobPcm } from '../../../../wav-import.js';
 import { createWavBlobPcmChunkReader, type WavBlobPcmChunkReader, type WavPcmDescriptor } from '../../../../wav-pcm-chunk-reader.ts';
 import type { BlobLike } from '../../../../storage/media-records.ts';
 import type { PreparedStreamedAudioImport } from '../../../../browser-streamed-audio-import.ts';
+import { confirmFileSizeWarning } from '../../../shared/file-size-warning.ts';
 
 import type { EditorProjectToken, EditorTaskScope } from '../../../shared/lifecycle.ts';
 import type {
@@ -107,33 +108,34 @@ export function createDawprojectService(runtime: NativeProjectServiceRuntime, he
 					.then((directory) => directory.getDirectoryHandle('soundscaper-dawproject-import', { create: true }))
 					.catch(() => undefined)
 				: undefined;
-			archive = await readDawprojectArchive(file, { signal,
+			archive = await readDawprojectArchive(file, { signal, confirmFileSizeWarning: runtime.confirmFileSizeWarning,
 				...(temporaryDirectory ? { temporaryDirectory, maximumEntryBytes: Number.MAX_SAFE_INTEGER } : {}) });
 			assertReady();
-			const document = parseDawprojectDocument(archive.projectXml, archive.metadataXml);
+			const document = parseDawprojectDocument(archive.projectXml, archive.metadataXml, { maximumBytes: archive.xmlMaximumBytes });
 			const references = dawprojectMediaReferences(document)
 				.filter((reference) => reference.kind === 'audio' && !reference.external);
 			const media = new Map<string, DawprojectDecodedMediaInfo | null>();
 			const stagedSourceIds = new Map<string, string>();
 			for (const [index, reference] of references.entries()) {
 				const entrySize = archive.entrySize(reference.path);
-				if (!temporaryDirectory && entrySize !== null && entrySize > DAWPROJECT_IMPORT_WORKING_BYTE_LIMIT) {
-					throw new RangeError(`DAWproject media ${reference.path} exceeds the import working memory budget.`);
-				}
+				let admittedWorkingBytes = DAWPROJECT_IMPORT_WORKING_BYTE_LIMIT;
+				if (!temporaryDirectory && entrySize !== null) admittedWorkingBytes = await confirmFileSizeWarning(entrySize + 64 * 1024 * 1024,
+					admittedWorkingBytes, `DAWproject media ${reference.path}`, {
+						confirmFileSizeWarning: runtime.confirmFileSizeWarning, signal, assertCurrent: assertReady });
 				const blob = await archive.readEntry(reference.path);
 				assertReady();
 				if (!blob) continue;
-				if (!temporaryDirectory && blob.size > DAWPROJECT_IMPORT_WORKING_BYTE_LIMIT) {
-					throw new RangeError(`DAWproject media ${reference.path} exceeds the import working memory budget.`);
-				}
+				if (!temporaryDirectory) admittedWorkingBytes = await confirmFileSizeWarning(blob.size + 64 * 1024 * 1024,
+					admittedWorkingBytes, `DAWproject media ${reference.path}`, { confirmFileSizeWarning: runtime.confirmFileSizeWarning,
+						signal, assertCurrent: assertReady });
 				const wav = await inspectPcmWav(blob, signal);
 				let prepared: PreparedStreamedAudioImport | null = null;
 				try {
 					if (!wav && runtime.prepareDawprojectAudio) {
-						if (!temporaryDirectory) assertDawprojectCompressedWorkingBudget(blob.size, DAWPROJECT_IMPORT_WORKING_BYTE_LIMIT, reference.path);
+						if (!temporaryDirectory) assertDawprojectCompressedWorkingBudget(blob.size, admittedWorkingBytes, reference.path);
 						try { prepared = await runtime.prepareDawprojectAudio(blob, entryBaseName(reference.path), signal); }
 						catch (error) {
-							if (error instanceof RangeError) throw error;
+							if (error instanceof RangeError || (error instanceof Error && error.name === 'AbortError')) throw error;
 							assertReady();
 						}
 					}
@@ -149,11 +151,10 @@ export function createDawprojectService(runtime: NativeProjectServiceRuntime, he
 						throw new RangeError(`DAWproject media ${reference.path} exceeds the supported source byte count.`);
 					}
 					const chunkFrames = Math.min(runtime.sourceChunkFrames, AUDIO_EDITOR_PCM_CHUNK_FRAMES);
-					if (!temporaryDirectory && wav && blob.size + Math.min(info.frameCount, chunkFrames)
-						* (wav.blockAlign + info.channelCount * Float32Array.BYTES_PER_ELEMENT)
-						> DAWPROJECT_IMPORT_WORKING_BYTE_LIMIT) {
-						throw new RangeError(`DAWproject media ${reference.path} exceeds the import working memory budget.`);
-					}
+					if (!temporaryDirectory && wav) await confirmFileSizeWarning(blob.size + Math.min(info.frameCount, chunkFrames)
+						* (wav.blockAlign + info.channelCount * Float32Array.BYTES_PER_ELEMENT), admittedWorkingBytes,
+						`DAWproject media ${reference.path}`, { confirmFileSizeWarning: runtime.confirmFileSizeWarning,
+							signal, assertCurrent: assertReady });
 					await runtime.preflightStorage(sourceBytes, 'import');
 					assertReady();
 					const sourceId = runtime.createStableId('source');
@@ -298,9 +299,7 @@ export function createDawprojectService(runtime: NativeProjectServiceRuntime, he
 					throw error;
 				}
 			} else {
-				if (maximumArchiveBytes > DAWPROJECT_BLOB_EXPORT_BYTE_LIMIT) {
-					throw new RangeError('DAWproject export exceeds the browser download memory budget. Choose a file streaming destination.');
-				}
+				await confirmFileSizeWarning(maximumArchiveBytes, DAWPROJECT_BLOB_EXPORT_BYTE_LIMIT, 'DAWproject export', { signal: operation.task.signal, assertCurrent: assertReady, confirmFileSizeWarning: runtime.confirmFileSizeWarning });
 				await runtime.preflightStorage(maximumArchiveBytes, 'export');
 				assertReady();
 				const blob = await writeDawprojectArchive(

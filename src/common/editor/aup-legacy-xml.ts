@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { SaxesParser } from 'saxes';
+import { confirmFileSizeWarning, type FileSizeWarningOptions } from './controller/shared/file-size-warning.ts';
 
 export interface LegacyAupXmlLimits {
 	readonly maximumBytes: number;
@@ -68,9 +69,14 @@ export function resolveLegacyAupXmlLimits(
 export async function readLegacyAupXml(
 	input: unknown,
 	overrides: Partial<LegacyAupXmlLimits> = {},
+	warningOptions: FileSizeWarningOptions = {},
 ): Promise<LegacyAupXmlNode> {
-	const limits = resolveLegacyAupXmlLimits(overrides);
+	let limits = resolveLegacyAupXmlLimits(overrides);
 	assertLegacyAupXmlFile(input);
+	if (warningOptions.confirmFileSizeWarning) {
+		limits = { ...limits, maximumBytes: await confirmFileSizeWarning(input.size, limits.maximumBytes,
+			'Legacy Audacity project XML', warningOptions) };
+	}
 	if (input.size > limits.maximumBytes) {
 		throw xmlLimitError(
 			'The legacy AUP XML declared size exceeds its byte limit.',
@@ -82,8 +88,27 @@ export async function readLegacyAupXml(
 	}
 	const xml = await input.text();
 	if (typeof xml !== 'string') throw new TypeError('A legacy Audacity project must return XML text.');
+	if (warningOptions.confirmFileSizeWarning) {
+		const actualBytes = utf8ByteLength(xml);
+		limits = { ...limits, maximumBytes: await confirmFileSizeWarning(actualBytes, limits.maximumBytes,
+			'Legacy Audacity project XML', warningOptions) };
+	}
 	assertUtf8ByteLimit(xml, limits.maximumBytes);
 	return parseLegacyAupXml(xml, limits);
+}
+
+function utf8ByteLength(xml: string): number {
+	let bytes = 0;
+	for (let index = 0; index < xml.length; index += 1) {
+		const first = xml.charCodeAt(index);
+		if (first <= 0x7f) bytes += 1;
+		else if (first <= 0x7ff) bytes += 2;
+		else if (first >= 0xd800 && first <= 0xdbff && index + 1 < xml.length
+			&& xml.charCodeAt(index + 1) >= 0xdc00 && xml.charCodeAt(index + 1) <= 0xdfff) {
+			bytes += 4; index += 1;
+		} else bytes += 3;
+	}
+	return bytes;
 }
 
 function assertLegacyAupXmlFile(input: unknown): asserts input is LegacyAupXmlFile {

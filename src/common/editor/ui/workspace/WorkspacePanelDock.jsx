@@ -25,7 +25,7 @@ export default function WorkspacePanelDock({
 	capabilities = snapshot.capabilities,
 	copy,
 	locale,
-	fileService,
+	fileService, confirmFileSizeWarning,
 	playbackMeterSettings,
 	recordingMeterSettings = /** @type {import('../meter-settings.ts').MeterSettings | undefined} */ (undefined),
 	onPlaybackMeterSettingsChange = /** @type {((update: import('./meter-panel-settings.ts').MeterSettingsUpdate) => void) | undefined} */ (undefined),
@@ -504,7 +504,7 @@ export default function WorkspacePanelDock({
 				dock={dock}
 				copy={copy}
 				contentProps={{
-					controller, snapshot, productId, capabilities, copy, locale, fileService, clipPropertiesFocusRequest,
+					controller, snapshot, productId, capabilities, copy, locale, fileService, confirmFileSizeWarning, clipPropertiesFocusRequest,
 					playbackMeterSettings, recordingMeterSettings,
 					onPlaybackMeterSettingsChange, onRecordingMeterSettingsChange,
 					clippingEnabled,

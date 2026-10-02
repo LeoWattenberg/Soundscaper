@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { FileSizeWarningOptions } from './controller/shared/file-size-warning.ts';
 import { createStableId } from './project.js';
 import { awaitScapeOperation, throwIfScapeAborted } from './scape-abort.ts';
 import type { ScapeArchiveEntry, ScapeManifest } from './scape-archive-envelope.ts';
@@ -10,7 +11,7 @@ import { SourceAlreadyExistsError } from './storage/source-write-repository.ts';
 
 type Awaitable<Value> = PromiseLike<Value> | Value;
 
-export interface ScapeProjectAssetExtensionExportRequest {
+export interface ScapeProjectAssetExtensionExportRequest extends FileSizeWarningOptions {
 	readonly project: Readonly<Record<string, unknown>>;
 	readonly store: Readonly<{
 		getMediaAssetMetadata(sourceId: string): Awaitable<unknown>;

@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import type { FileSizeWarningOptions } from '../../../shared/file-size-warning.ts';
 
 import type { BextMetadata } from '../../../../broadcast-wave.ts';
 import type { CartMetadataInput } from '../../../../cart-metadata.ts';
@@ -49,7 +50,7 @@ interface DirectBwfPlan {
 	readonly trailingChunks?: unknown;
 }
 
-interface DirectBwfRequestedSettings extends Readonly<Record<string, unknown>> {
+interface DirectBwfRequestedSettings extends FileSizeWarningOptions, Readonly<Record<string, unknown>> {
 	readonly measureLoudness?: unknown;
 }
 
@@ -83,7 +84,7 @@ export async function prepareDirectBwfDestination(
 	return openDirectPcmDestination(
 		prepared,
 		plan.outputFileBytesPerRender as number,
-		BWF_CONTAINER_LABEL,
+		BWF_CONTAINER_LABEL, 'exact', {}, { signal, confirmFileSizeWarning: settings.confirmFileSizeWarning },
 	);
 }
 
@@ -118,7 +119,6 @@ function directBwfPlan(plan: DirectBwfPlan): plan is DirectBwfPlan & {
 		|| !plan.outputs[0].fileName.toLowerCase().endsWith('.wav')
 		|| !Number.isSafeInteger(plan.outputFileBytesPerRender)
 		|| Number(plan.outputFileBytesPerRender) <= 0
-		|| Number(plan.outputFileBytesPerRender) > DIRECT_BWF_MAXIMUM_FILE_BYTES
 		|| (bitDepth !== 16 && bitDepth !== 20 && bitDepth !== 24)
 		|| encoding?.floatingPoint !== false
 		|| encoding.sampleFormat !== `int${String(bitDepth)}`
@@ -148,8 +148,7 @@ function hasExactWavLayout(
 			bext,
 		});
 		return (layout.container === 'riff' || layout.container === 'rf64')
-			&& layout.byteLength === plan.outputFileBytesPerRender
-			&& layout.byteLength <= DIRECT_BWF_MAXIMUM_FILE_BYTES;
+			&& layout.byteLength === plan.outputFileBytesPerRender;
 	} catch {
 		return false;
 	}

@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { FileSizeWarningConfirmation } from '../common/editor/controller/shared/file-size-warning.ts';
 import type { FfmpegOutputSink } from '../common/editor/ffmpeg-output-stream.ts';
 import { resolveVideoExportRange } from '../common/editor/video-export.js';
 import {
@@ -58,12 +59,13 @@ export function createFramescaperVideoExportStrategyTimelineImage(
 ): ProductVideoExportStrategy {
 	const foundationAuthorities = new WeakMap<object, ExportAuthorityTimelineImage>();
 	const createSupplementalPictureExecution = async ({
-		canonicalProject, foundationPlan, signal, assertCurrent,
+		canonicalProject, foundationPlan, signal, assertCurrent, confirmFileSizeWarning,
 	}: Readonly<{
 		readonly canonicalProject: Readonly<Record<string, unknown>>;
 		readonly foundationPlan: Parameters<typeof createFramescaperVideoExportImageExecutionTimelineImage>[0]['foundationPlan'];
 		readonly signal: AbortSignal;
 		readonly assertCurrent: () => void;
+		readonly confirmFileSizeWarning?: FileSizeWarningConfirmation;
 	}>) => {
 		const authority = foundationAuthorities.get(canonicalProject);
 		if (!authority) throw new Error('Selected timelineImage image export lost its exact project authority.');
@@ -74,7 +76,7 @@ export function createFramescaperVideoExportStrategyTimelineImage(
 			foundationPlan,
 			store: assetStore,
 			signal,
-			assertCurrent,
+			assertCurrent, confirmFileSizeWarning,
 		});
 	};
 	const delegate = createFramescaperVideoExportStrategyNativeMedia(

@@ -106,6 +106,7 @@ test('Scape save requests an exact prepared snapshot before archive export', asy
 	await service.saveScape({ useFileSystemAccess: false });
 
 	assert.deepEqual(flushes, [{
+		allowFileSizeWarning: true,
 		prepareCurrentSnapshot: true,
 		preparationPurpose: 'scape-save',
 	}]);

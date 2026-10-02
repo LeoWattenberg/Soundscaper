@@ -20,6 +20,7 @@ import {
 } from './editor-timeline-image-current-project-publication-timeline-image.ts';
 import type { FramescaperProjectTimelineImage } from './editor-project-timeline-image.ts';
 import { assertFramescaperProjectIdentity } from './editor-project-identity.ts';
+import type { FileSizeWarningConfirmation } from '../common/editor/controller/shared/file-size-warning.ts';
 
 const IMAGE_ACCEPT = [
 	'.jpg', '.jpeg', '.png', '.apng', '.gif', '.webp', '.bmp',
@@ -55,6 +56,7 @@ export interface BindFramescaperSelectedImageAuthoringControllerTimelineImageOpt
 	readonly selectFiles?: () => Promise<readonly FramescaperImageImportFileTimelineImage[]>;
 	readonly createId?: (prefix: string) => string;
 	readonly importImages?: ImportImages;
+	readonly confirmFileSizeWarning?: FileSizeWarningConfirmation;
 }
 
 const RESULTS = new WeakMap<object, FramescaperTimelineImageImportResultTimelineImage>();
@@ -112,6 +114,10 @@ export function bindFramescaperSelectedImageAuthoringControllerTimelineImage(
 			),
 			createId: options.createId ?? createStableId,
 			publisher,
+			confirmFileSizeWarning: options.confirmFileSizeWarning,
+			assertCurrent: () => {
+				if (controller.project?.id !== project.id) throw new Error('The project changed during image import.');
+			},
 		});
 		RESULTS.set(controller as object, result);
 		const failures = result.files.filter(({ status }) => status === 'failed');

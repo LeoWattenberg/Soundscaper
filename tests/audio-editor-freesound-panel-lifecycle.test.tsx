@@ -195,7 +195,7 @@ test('Freesound waveform seeks, starts or resumes preview, and reuses the active
 	}
 });
 
-test('connected original imports over 128 MiB require confirmation before the exact HQ preview retry', async () => {
+test('connected original imports retain an explicit HQ preview choice after a provider refusal', async () => {
 	const dom = installReactTestDom();
 	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
 	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
@@ -203,6 +203,7 @@ test('connected original imports over 128 MiB require confirmation before the ex
 	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
 	const publicPaths: string[] = [];
 	const authenticatedPaths: string[] = [];
+	let sizeApprovals = 0;
 	const imports: Array<{ file: File; options: Readonly<Record<string, unknown>> }> = [];
 	const oversized = {
 		...RESULT,
@@ -227,6 +228,10 @@ test('connected original imports over 128 MiB require confirmation before the ex
 	const transport = {
 		request: async (path: string) => {
 			authenticatedPaths.push(path);
+			if (new URL(path, 'https://soundscaper.org').pathname.endsWith('/original')) {
+				assert.equal(sizeApprovals, authenticatedPaths.filter((item) => item.includes('/original')).length);
+				return new Response(null, { status: 413 });
+			}
 			if (path.endsWith('/oauth/session')) {
 				return Response.json({ data: { connected: true, user: { id: 5, username: 'uploader' } } });
 			}
@@ -269,6 +274,7 @@ test('connected original imports over 128 MiB require confirmation before the ex
 			}}
 			copy={ENGLISH_COPY}
 			freesoundTransport={transport}
+			confirmFileSizeWarning={async () => { sizeApprovals += 1; return true; }}
 		/>));
 		await flush();
 		assert.ok(dom.container.textContent?.includes('Connected as uploader'));
@@ -298,7 +304,8 @@ test('connected original imports over 128 MiB require confirmation before the ex
 			assert.equal(imports.at(-1)?.file.type, 'audio/ogg');
 		}
 
-		assert.equal(authenticatedPaths.some((path) => path.endsWith('/original')), false);
+		assert.equal(authenticatedPaths.filter((path) => path.includes('/original')).length, 2);
+		assert.equal(sizeApprovals, 2);
 		assert.equal(publicPaths.filter((path) => path.endsWith('/preview')).length, 2);
 		assert.equal(imports.length, 2);
 	} finally {

@@ -2,6 +2,7 @@
 
 import { checkedPublicationByteSum } from './publication-byte-estimates.ts';
 import { serializeScapeProjectDocument } from './scape-project-document.ts';
+import { confirmFileSizeWarning, type FileSizeWarningOptions } from './controller/shared/file-size-warning.ts';
 
 const MIB = 1024 * 1024;
 
@@ -63,6 +64,21 @@ export function estimateProjectRevisionPublication(
 	options: ProjectRevisionPublicationOptions = {},
 ): Readonly<ProjectRevisionPublicationEstimate> {
 	const maximumBytes = maximumDocumentBytes(options);
+	return measureProjectPublication(project, maximumBytes);
+}
+
+/** Admit the document-size policy before quota planning or durable publication. */
+export async function admitProjectRevisionPublication(
+	project: unknown,
+	thresholdBytes = MAXIMUM_PROJECT_PUBLICATION_DOCUMENT_BYTES,
+	options: FileSizeWarningOptions = {},
+): Promise<Readonly<ProjectRevisionPublicationEstimate>> {
+	const publication = measureProjectPublication(project, Number.MAX_SAFE_INTEGER);
+	await confirmFileSizeWarning(publication.document.bytes, thresholdBytes, 'Project document', options);
+	return publication;
+}
+
+function measureProjectPublication(project: unknown, maximumBytes: number): Readonly<ProjectRevisionPublicationEstimate> {
 	const canonicalDocument = serializeScapeProjectDocument(project);
 	const documentBytes = boundedUtf8ByteLength(canonicalDocument, maximumBytes);
 	const currentAndRevisionBytes = checkedPublicationByteSum(documentBytes, documentBytes);

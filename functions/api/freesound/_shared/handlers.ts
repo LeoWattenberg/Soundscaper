@@ -5,6 +5,7 @@ import {
 	normalizeFreesoundSearch,
 	normalizeFreesoundSound,
 } from './contracts.ts';
+import { freesoundDownloadMaximumBytes } from './download-size-warning.ts';
 import {
 	createBoundedPreviewStream,
 	createUpstreamDeadline,
@@ -128,6 +129,7 @@ export async function handleFreesoundPreviewRequest(
 ): Promise<Response> {
 	return handleEndpoint(context, async (admission, upstream) => {
 		const id = soundId(context.params.id);
+		const maximumBytes = freesoundDownloadMaximumBytes(context.request, MAX_PREVIEW_BYTES, () => new HttpError(400, 'invalid_request', 'The Freesound download query is invalid.'));
 		const range = byteRange(context.request.headers.get('range'));
 		const normalized = await fetchSound(context, upstream, id, true);
 		const headers = new Headers({ Accept: 'audio/ogg' });
@@ -148,11 +150,11 @@ export async function handleFreesoundPreviewRequest(
 			if (upstreamResponse.status !== 200 && upstreamResponse.status !== 206) {
 				throw upstreamStatus(upstreamResponse.status, false, upstreamResponse.headers);
 			}
-			assertPreviewResponse(upstreamResponse);
+			assertPreviewResponse(upstreamResponse, maximumBytes);
 			const responseHeaders = previewHeaders(upstreamResponse.headers, admission, id);
 			const body = admission.head || upstreamResponse.body === null
 				? null
-				: createBoundedPreviewStream(upstreamResponse.body, transfer.deadline, MAX_PREVIEW_BYTES);
+				: createBoundedPreviewStream(upstreamResponse.body, transfer.deadline, maximumBytes);
 			if (body === null) transfer.deadline.dispose();
 			return new Response(body, { status: upstreamResponse.status, headers: responseHeaders });
 		} catch (error) {
@@ -358,13 +360,13 @@ async function boundedBody(response: Response, maximumBytes: number): Promise<Ui
 	return joined;
 }
 
-function assertPreviewResponse(response: Response): void {
+function assertPreviewResponse(response: Response, maximumBytes: number): void {
 	const contentType = response.headers.get('content-type')?.split(';', 1)[0]?.trim().toLocaleLowerCase('en-US');
 	if (contentType !== 'audio/ogg' && contentType !== 'application/ogg' && contentType !== 'audio/vorbis') {
 		throw new HttpError(502, 'invalid_upstream_response', 'Freesound returned an invalid preview.');
 	}
 	const length = response.headers.get('content-length');
-	if (length !== null && (!/^\d+$/u.test(length) || Number(length) > MAX_PREVIEW_BYTES)) {
+	if (length !== null && (!/^\d+$/u.test(length) || !Number.isSafeInteger(Number(length)) || Number(length) > maximumBytes)) {
 		throw new HttpError(502, 'invalid_upstream_response', 'Freesound returned an invalid preview.');
 	}
 }

@@ -1,5 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { confirmFileSizeWarning, type FileSizeWarningConfirmation, type FileSizeWarningOptions } from '../common/editor/controller/shared/file-size-warning.ts'
+import { admitSoundscaperDesktopPublication, rendererPublicationRequest, soundscaperDesktopMediaWarningOptions, soundscaperDesktopPublicationWarningOptions, type SoundscaperDesktopRendererPublication as RendererPublication } from './desktop-project-library-publication-warning.ts'
+import { SoundscaperDesktopFreezeSizeAdmission, assertSoundscaperDesktopMediaPublicationCurrent } from './desktop-project-library-freeze-size-warning.ts'
+import { SCAPE_ARCHIVE_LIMITS } from '../common/editor/scape-archive-envelope.ts'
 import { throwIfScapeAborted } from '../common/editor/scape-abort.ts'
 import { isStrictlyHigherProjectRevision } from '../common/editor/project-revision-cas.ts'
 import type { EditorProjectRuntimeProfile } from '../common/editor/project-runtime-profile.ts'
@@ -12,7 +16,6 @@ import type { SoundscaperProject } from './editor-project-validation.ts'
 import {
 	soundscaperDesktopBodiesForProject,
 	resolveSoundscaperDesktopRendererBridge,
-	snapshotSoundscaperDesktopProject,
 	validateSoundscaperDesktopAbort,
 	validateSoundscaperDesktopAcknowledgement,
 	validateSoundscaperDesktopBundle,
@@ -26,6 +29,7 @@ import {
 } from './desktop-project-library-renderer-contract.ts'
 import {
 	acquireSoundscaperDesktopFreezeBodies,
+	soundscaperDesktopFreezeBodyBytes,
 	streamSoundscaperDesktopFreezeBody,
 	type SoundscaperDesktopFreezeStore,
 } from './desktop-project-library-freeze-media.ts'
@@ -47,7 +51,7 @@ import {
 	reconcileSoundscaperDesktopDeleteIntents,
 	type SoundscaperDesktopDeleteIntentStore,
 } from './desktop-project-library-delete-intents.ts'
-import { abortSignal, allowedRecord, inheritedData, isSoundscaperDesktopWriteFenceRefusal, ownData, signalOptions, validateSoundscaperDesktopAdmission } from './desktop-project-library-renderer-validation.ts'
+import { allowedRecord, inheritedData, isSoundscaperDesktopWriteFenceRefusal, ownData, signalOptions, validateSoundscaperDesktopAdmission } from './desktop-project-library-renderer-validation.ts'
 import {
 	validateSoundscaperNativePluginStateBodyIdV1,
 	validateSoundscaperNativePluginStateBodyRecordV1,
@@ -79,15 +83,16 @@ export interface SoundscaperDesktopProjectLibraryShadowStore extends
 }
 
 export interface SoundscaperDesktopProjectLibraryRenderer {
+	setFileSizeWarningConfirmation(confirmation?: FileSizeWarningConfirmation): void
 	listProjects(): Promise<readonly Readonly<SoundscaperDesktopProjectSummary>[]>
 	claimProjectWriteFence(projectId: string): Promise<string>
 	readProject(projectId: string, options?: Readonly<{ signal?: AbortSignal }>): Promise<SoundscaperProject | null>
-	createScapeProjectIfAbsent(project: unknown): Promise<SoundscaperProject | null>
-	publishProject(request: Readonly<{ readonly project: unknown; readonly signal?: AbortSignal }> | unknown):
+	createScapeProjectIfAbsent(project: unknown, options?: FileSizeWarningOptions): Promise<SoundscaperProject | null>
+	publishProject(request: Readonly<{ readonly project: unknown; readonly signal?: AbortSignal }> & FileSizeWarningOptions | unknown):
 		Promise<SoundscaperProject>
-	publishProjectIfCurrent(expected: unknown, project: unknown): Promise<SoundscaperProject | null>
+	publishProjectIfCurrent(expected: unknown, project: unknown, options?: FileSizeWarningOptions): Promise<SoundscaperProject | null>
 	publishProjectIfCurrentWithWriteFence(
-		expected: unknown, project: unknown, token: string,
+		expected: unknown, project: unknown, token: string, options?: FileSizeWarningOptions,
 	): Promise<SoundscaperProject | null>
 	deleteProject(projectId: string): Promise<void>
 	deleteProjectIfCurrent(project: unknown): Promise<boolean>
@@ -111,8 +116,6 @@ export {
 	SoundscaperDesktopProjectLibraryIndeterminateError,
 } from './desktop-project-library-renderer-catalog.ts'
 
-const PUBLICATION_REQUIRED_FIELDS = ['project'] as const
-const PUBLICATION_OPTIONAL_FIELDS = ['signal'] as const
 
 /** Connect the packaged  bridge only to one authenticated durable V21 shadow. */
 export async function connectSoundscaperDesktopProjectLibraryRenderer(
@@ -164,6 +167,7 @@ class Renderer implements SoundscaperDesktopProjectLibraryRenderer {
 	readonly #bridge: SoundscaperDesktopRendererBridge
 	readonly #ledger: SoundscaperDesktopWitnessLedger
 	readonly #catalog: SoundscaperDesktopRendererCatalog
+	readonly #mediaAdmission = new SoundscaperDesktopFreezeSizeAdmission()
 	#tail: Promise<void> = Promise.resolve()
 
 	constructor(
@@ -189,6 +193,9 @@ class Renderer implements SoundscaperDesktopProjectLibraryRenderer {
 	listProjects(): Promise<readonly Readonly<SoundscaperDesktopProjectSummary>[]> {
 		return this.#exclusive(() => this.#catalog.listProjects())
 	}
+	setFileSizeWarningConfirmation(confirmation?: FileSizeWarningConfirmation): void {
+		this.#mediaAdmission.setConfirmation(confirmation)
+	}
 	claimProjectWriteFence(projectId: string): Promise<string> {
 		return this.#exclusive(async () => {
 			const token = await this.#bridge.claimProjectWriteFence(validateSoundscaperDesktopProjectId(projectId))
@@ -203,8 +210,8 @@ class Renderer implements SoundscaperDesktopProjectLibraryRenderer {
 		return this.#exclusive(() => this.#readProject(projectId, signal))
 	}
 
-	createScapeProjectIfAbsent(projectValue: unknown): Promise<SoundscaperProject | null> {
-		const request = rendererPublicationRequest(this.#profile, { project: projectValue })
+	createScapeProjectIfAbsent(projectValue: unknown, options: FileSizeWarningOptions = {}): Promise<SoundscaperProject | null> {
+		const request = rendererPublicationRequest(this.#profile, { project: projectValue, ...soundscaperDesktopPublicationWarningOptions(options) })
 		const projectId = validateSoundscaperDesktopProjectId(String(request.project.id))
 		return this.#exclusive(async () => {
 			if (await this.#readProject(projectId, request.signal) !== null) return null
@@ -217,9 +224,9 @@ class Renderer implements SoundscaperDesktopProjectLibraryRenderer {
 		return this.#exclusive(() => this.#publishFromWitness(request))
 	}
 
-	publishProjectIfCurrent(expectedValue: unknown, projectValue: unknown): Promise<SoundscaperProject | null> {
+	publishProjectIfCurrent(expectedValue: unknown, projectValue: unknown, options: FileSizeWarningOptions = {}): Promise<SoundscaperProject | null> {
 		const expected = soundscaperProjectClone(this.#profile, expectedValue)
-		const request = rendererPublicationRequest(this.#profile, { project: projectValue })
+		const request = rendererPublicationRequest(this.#profile, { project: projectValue, ...soundscaperDesktopPublicationWarningOptions(options) })
 		const projectId = validateSoundscaperDesktopProjectId(String(expected.id))
 		if (String(request.project.id) !== projectId) {
 			throw new Error('Soundscaper desktop conditional publication requires one project identity.')
@@ -231,10 +238,10 @@ class Renderer implements SoundscaperDesktopProjectLibraryRenderer {
 		})
 	}
 	publishProjectIfCurrentWithWriteFence(
-		expectedValue: unknown, projectValue: unknown, token: string,
+		expectedValue: unknown, projectValue: unknown, token: string, options: FileSizeWarningOptions = {},
 	): Promise<SoundscaperProject | null> {
 		const expected = soundscaperProjectClone(this.#profile, expectedValue)
-		const request = rendererPublicationRequest(this.#profile, { project: projectValue })
+		const request = rendererPublicationRequest(this.#profile, { project: projectValue, ...soundscaperDesktopPublicationWarningOptions(options) })
 		const projectId = validateSoundscaperDesktopProjectId(String(expected.id))
 		if (String(request.project.id) !== projectId || typeof token !== 'string'
 			|| !/^[a-f0-9]{48}$/u.test(token)) throw new TypeError('Invalid fenced desktop publication')
@@ -342,6 +349,7 @@ class Renderer implements SoundscaperDesktopProjectLibraryRenderer {
 		const raw = await this.#bridge.readProjectBundle(projectId)
 		throwIfScapeAborted(signal)
 		if (raw === null) {
+			this.#mediaAdmission.forget(projectId)
 			const catalog = validateSoundscaperDesktopCatalogSnapshot(await this.#bridge.listProjects())
 			throwIfScapeAborted(signal)
 			if (catalog.projects.some(({ id }) => id === projectId)) {
@@ -357,16 +365,19 @@ class Renderer implements SoundscaperDesktopProjectLibraryRenderer {
 	}
 
 	async #publish(request: NormalizedPublication): Promise<SoundscaperProject> {
+		await admitSoundscaperDesktopPublication(request)
 		throwIfScapeAborted(request.signal)
 		const projectId = validateSoundscaperDesktopProjectId(String(request.project.id))
-		const currentValue = await this.#store.loadProject(
-			projectId, request.signal ? { signal: request.signal } : {},
-		)
-		const current = currentValue == null ? null : soundscaperProjectClone(this.#profile, currentValue)
-		assertSoundscaperDesktopLocalPublicationCas(this.#profile, current, request)
 		const planned = soundscaperDesktopBodiesForProject(
 			this.#profile, request.project, request.documentSha256,
 		)
+		const mediaOptions = this.#mediaAdmission.options(projectId, soundscaperDesktopMediaWarningOptions(request))
+		await confirmFileSizeWarning(soundscaperDesktopFreezeBodyBytes(request.project, planned.bodies),
+			SCAPE_ARCHIVE_LIMITS.maximumExpandedBytes, 'Desktop project media', mediaOptions)
+		const currentValue = await this.#store.loadProject(projectId, request.signal ? { signal: request.signal } : {})
+		const current = currentValue == null ? null : soundscaperProjectClone(this.#profile, currentValue)
+		assertSoundscaperDesktopLocalPublicationCas(this.#profile, current, request)
+		assertSoundscaperDesktopMediaPublicationCurrent(mediaOptions)
 		const publicationId = createSoundscaperDesktopPublicationId()
 		let committed = false
 		try {
@@ -380,13 +391,15 @@ class Renderer implements SoundscaperDesktopProjectLibraryRenderer {
 					writeFence: request.writeFence, expectedDocument: request.expectedDocument,
 				} : {}),
 			}), planned.bodies.length)
+			assertSoundscaperDesktopMediaPublicationCurrent(mediaOptions)
 			if (admission.publicationId !== publicationId) {
 				throw new Error('The desktop  publication admission changed its renderer operation id.')
 			}
 			for (const bodyIndex of admission.requiredBodyIndexes) {
+				assertSoundscaperDesktopMediaPublicationCurrent(mediaOptions)
 				await this.#uploadBody(publicationId, bodyIndex, planned.bodies[bodyIndex]!, request.project, request.signal)
 			}
-			throwIfScapeAborted(request.signal)
+			assertSoundscaperDesktopMediaPublicationCurrent(mediaOptions)
 			const result = validateSoundscaperDesktopBundle(
 				this.#profile,
 				await this.#bridge.finishPublication({ publicationId }),
@@ -394,7 +407,8 @@ class Renderer implements SoundscaperDesktopProjectLibraryRenderer {
 			)
 			assertPublicationResult(request, result)
 			committed = true
-			const reconciled = await this.#reconcile(result, request.signal)
+			assertSoundscaperDesktopMediaPublicationCurrent(mediaOptions)
+			const reconciled = await this.#reconcile(result, request.signal, mediaOptions)
 			this.#ledger.commitSnapshot(request.expectedMetadataRevision, result)
 			return reconciled
 		} catch (error) {
@@ -415,7 +429,7 @@ class Renderer implements SoundscaperDesktopProjectLibraryRenderer {
 			const recovered = await this.#catalog.recoverPublication(request, primary)
 			if (recovered === null) throw primary
 			try {
-				const reconciled = await this.#reconcile(recovered, request.signal)
+				const reconciled = await this.#reconcile(recovered, request.signal, mediaOptions)
 				this.#ledger.commitSnapshot(request.expectedMetadataRevision, recovered)
 				return reconciled
 			} catch (reconcileError) {
@@ -452,6 +466,7 @@ class Renderer implements SoundscaperDesktopProjectLibraryRenderer {
 	async #reconcile(
 		snapshot: Readonly<SoundscaperDesktopBundleSnapshot>,
 		signal?: AbortSignal,
+		mediaOptions = this.#mediaAdmission.options(snapshot.bundle.project.projectId, { signal }, true),
 	): Promise<SoundscaperProject> {
 		throwIfScapeAborted(signal)
 		const currentValue = await this.#store.loadProject(
@@ -460,9 +475,10 @@ class Renderer implements SoundscaperDesktopProjectLibraryRenderer {
 		const current = currentValue == null ? null : soundscaperProjectClone(this.#profile, currentValue)
 		const mode = shadowMode(current, snapshot.project)
 		const acquisition = await acquireSoundscaperDesktopFreezeBodies(
-			snapshot, this.#bridge, this.#store, signal,
+			snapshot, this.#bridge, this.#store, signal, mediaOptions,
 		)
 		try {
+			assertSoundscaperDesktopMediaPublicationCurrent(mediaOptions)
 			let result: unknown
 			if (mode === 'same') {
 				result = acquisition.acquiredBodyCount === 0
@@ -499,33 +515,10 @@ class Renderer implements SoundscaperDesktopProjectLibraryRenderer {
 	}
 }
 
-interface RendererPublication {
-	readonly project: SoundscaperProject
-	readonly document: string
-	readonly documentSha256: string
-	readonly signal?: AbortSignal
-	readonly writeFence?: string
-	readonly expectedDocument?: SoundscaperProject
-}
-
 interface NormalizedPublication extends RendererPublication {
 	readonly allowImportedRevision: boolean
 	readonly expectedMetadataRevision: number
 	readonly expectedProject: Readonly<{ readonly projectRevision: number; readonly projectSha256: string }> | null
-}
-
-function rendererPublicationRequest(profile: EditorProjectRuntimeProfile, value: unknown): RendererPublication {
-	const raw = allowedRecord(
-		value, PUBLICATION_REQUIRED_FIELDS, PUBLICATION_OPTIONAL_FIELDS, 'Soundscaper desktop  publication',
-	)
-	const snapshot = snapshotSoundscaperDesktopProject(profile, raw.project)
-	const signal = raw.signal === undefined ? undefined : abortSignal(raw.signal)
-	return Object.freeze({
-		project: snapshot.project,
-		document: snapshot.document,
-		documentSha256: snapshot.sha256,
-		...(signal ? { signal } : {}),
-	})
 }
 
 function assertPublicationResult(

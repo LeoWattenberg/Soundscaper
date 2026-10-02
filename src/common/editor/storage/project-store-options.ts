@@ -13,6 +13,7 @@ export interface AudioEditorProjectStoreOptions {
 	readonly preferOpfs?: boolean;
 	readonly revisionLimit?: number;
 	readonly maximumProjectDocumentBytes?: number;
+	readonly confirmFileSizeWarning?: StorageRepositoryOptions['confirmFileSizeWarning'];
 	readonly pcmCodec?: StorageRepositoryOptions['pcmCodec'];
 	readonly pcmCodecFactory?: StorageRepositoryOptions['pcmCodecFactory'];
 	readonly derivativeCacheLimits?: StorageRepositoryOptions['derivativeCacheLimits'];

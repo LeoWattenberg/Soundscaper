@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { admitProjectPublication } from '../common/editor/storage/project-publication-options.ts';
+import { admitProjectPublication, projectPublicationWarningOptions } from '../common/editor/storage/project-publication-options.ts';
 import type { ProjectDocument } from '../common/editor/storage/project-repository.ts';
 import type { EditorProjectRuntimeProfile } from '../common/editor/project-runtime-profile.ts';
 import {
@@ -14,7 +14,7 @@ import { cloneFramescaperProject, type FramescaperProject } from './editor-proje
 const COMPOSITION_FIELDS = ['localStore', 'desktopProjectLibrary'] as const;
 const LOAD_FIELDS = ['revision', 'signal'] as const;
 const SAVE_FIELDS = [
-	'admitProjectPublication', 'protectedLinkedOriginalSourceReferences', 'protectedLinkedVideoSourceIds',
+	'admitProjectPublication', 'confirmFileSizeWarning', 'signal', 'assertCurrent', 'protectedLinkedOriginalSourceReferences', 'protectedLinkedVideoSourceIds',
 ] as const;
 const LABEL = 'Framescaper desktop';
 const SCAPE_CREATION_FENCE_LOST = Symbol('Framescaper Scape creation fence lost');
@@ -32,8 +32,8 @@ export interface FramescaperDesktopProjectStoreLocal {
 }
 
 export type FramescaperDesktopProjectStoreAdapter<Store> = Store & Readonly<{
-	createProjectIfAbsent(project: unknown): Promise<FramescaperProject | null>;
-	createScapeProjectIfAbsent(project: unknown): Promise<FramescaperProject | null>;
+	createProjectIfAbsent(project: unknown, options?: unknown): Promise<FramescaperProject | null>;
+	createScapeProjectIfAbsent(project: unknown, options?: unknown): Promise<FramescaperProject | null>;
 	deleteProjectIfCurrent(project: unknown): Promise<boolean>;
 	claimProjectWriteFence(projectId: string): Promise<string>;
 	saveProjectIfCurrent(expected: unknown, project: unknown, options?: unknown): Promise<FramescaperProject | null>;
@@ -80,7 +80,7 @@ function proxyHandler<Store extends FramescaperDesktopProjectStoreLocal>(
 			const options = allowedRecord(optionsValue, SAVE_FIELDS, `${LABEL} save options`);
 			const project = cloneFramescaperProject(profile, projectValue);
 			await admitProjectPublication(localStore, project as unknown as ProjectDocument, options);
-			return renderer.publishProject({ project });
+			return renderer.publishProject({ project, ...projectPublicationWarningOptions(options) });
 		},
 		saveProjectIfCurrent: async (
 			expectedValue: unknown, projectValue: unknown, optionsValue: unknown = {},
@@ -89,7 +89,7 @@ function proxyHandler<Store extends FramescaperDesktopProjectStoreLocal>(
 			const expected = cloneFramescaperProject(profile, expectedValue);
 			const project = cloneFramescaperProject(profile, projectValue);
 			await admitProjectPublication(localStore, project as unknown as ProjectDocument, options);
-			return renderer.publishProjectIfCurrent(expected, project);
+			return renderer.publishProjectIfCurrent(expected, project, projectPublicationWarningOptions(options));
 		},
 		claimProjectWriteFence: (projectId: string) => renderer.claimProjectWriteFence(projectId),
 		saveProjectIfCurrentWithWriteFence: async (
@@ -99,7 +99,7 @@ function proxyHandler<Store extends FramescaperDesktopProjectStoreLocal>(
 			const expected = cloneFramescaperProject(profile, expectedValue);
 			const project = cloneFramescaperProject(profile, projectValue);
 			await admitProjectPublication(localStore, project as unknown as ProjectDocument, options);
-			return renderer.publishProjectIfCurrentWithWriteFence(expected, project, token);
+			return renderer.publishProjectIfCurrentWithWriteFence(expected, project, token, projectPublicationWarningOptions(options));
 		},
 		// Desktop main cannot be rewound through its shadow-only repository,
 		// so rollback is conservatively refused.
@@ -109,15 +109,18 @@ function proxyHandler<Store extends FramescaperDesktopProjectStoreLocal>(
 		restoreProjectSnapshotIfCurrentWithWriteFence: async (
 			_projectId: string, _expected: unknown, _snapshot: unknown, _token: string,
 		) => false as const,
-		createProjectIfAbsent: async (projectValue: unknown) => {
+		createProjectIfAbsent: async (projectValue: unknown, publicationOptions: unknown = {}) => {
 			const project = cloneFramescaperProject(profile, projectValue);
 			if (project.revision !== 0) throw new Error(`${LABEL} create requires revision zero.`);
 			if (await renderer.readProject(String(project.id)) !== null) return null;
-			return renderer.publishProject({ project });
+			await admitProjectPublication(localStore, project as ProjectDocument, publicationOptions);
+			return renderer.publishProject({ project, ...projectPublicationWarningOptions(publicationOptions) });
 		},
-		createScapeProjectIfAbsent: (projectValue: unknown) => (
-			renderer.createScapeProjectIfAbsent(cloneFramescaperProject(profile, projectValue))
-		),
+		createScapeProjectIfAbsent: async (projectValue: unknown, publicationOptions: unknown = {}) => {
+			const project = cloneFramescaperProject(profile, projectValue);
+			await admitProjectPublication(localStore, project as ProjectDocument, publicationOptions);
+			return renderer.createScapeProjectIfAbsent(project, projectPublicationWarningOptions(publicationOptions));
+		},
 		deleteProjectIfCurrent: async (projectValue: unknown) => {
 			const project = cloneFramescaperProject(profile, projectValue);
 			const lifecycle = localStore.linkedOriginalStoreService;
@@ -143,11 +146,16 @@ function proxyHandler<Store extends FramescaperDesktopProjectStoreLocal>(
 			await renderer.deleteProject(projectId);
 		},
 		duplicateProject: async (sourceProjectId: string, optionsValue: unknown = {}) => {
-			const options = allowedRecord(optionsValue, ['id', 'title'] as const, `${LABEL} duplicate options`);
+			const options = allowedRecord(optionsValue, ['id', 'title', 'confirmFileSizeWarning', 'signal', 'assertCurrent'] as const, `${LABEL} duplicate options`);
 			if (typeof options.id !== 'string' || !options.id
 				|| typeof options.title !== 'string' || !options.title) {
 				throw new TypeError(`${LABEL} duplication requires exact destination identity and title.`);
 			}
+			const source = await renderer.readProject(sourceProjectId);
+			if (!source) throw new Error('The source project is unavailable.');
+			await admitProjectPublication(localStore, { ...source, id: options.id, title: options.title, revision: 0 }, {
+				confirmFileSizeWarning: options.confirmFileSizeWarning, signal: options.signal, assertCurrent: options.assertCurrent,
+			});
 			return renderer.duplicateProject(sourceProjectId, {
 				id: options.id,
 				title: options.title,

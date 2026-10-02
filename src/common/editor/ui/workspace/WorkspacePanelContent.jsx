@@ -77,7 +77,7 @@ export default function WorkspacePanelContent({
 	capabilities = snapshot.capabilities,
 	copy,
 	locale,
-	fileService,
+	fileService, confirmFileSizeWarning = /** @type {import('../../controller/shared/file-size-warning.ts').FileSizeWarningConfirmation | undefined} */ (undefined),
 	playbackMeterSettings,
 	recordingMeterSettings = /** @type {import('../meter-settings.ts').MeterSettings | undefined} */ (undefined),
 	onPlaybackMeterSettingsChange = /** @type {((update: import('./meter-panel-settings.ts').MeterSettingsUpdate) => void) | undefined} */ (undefined),
@@ -122,7 +122,7 @@ export default function WorkspacePanelContent({
 					snapshot={snapshot}
 					copy={copy}
 					locale={locale}
-					fileService={fileService}
+					fileService={fileService} confirmFileSizeWarning={confirmFileSizeWarning}
 					run={run}
 					blocked={blocked}
 					panelActive={panelActive}
@@ -150,7 +150,7 @@ export default function WorkspacePanelContent({
 				snapshot={snapshot}
 				copy={copy}
 				locale={locale}
-				fileService={fileService}
+				fileService={fileService} confirmFileSizeWarning={confirmFileSizeWarning}
 				run={run}
 				blocked={blocked}
 			/>

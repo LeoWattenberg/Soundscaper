@@ -5,7 +5,8 @@ import { DatabaseSync } from 'node:sqlite';
 
 import type { DesktopProjectWriteFences } from './project-library-write-fence.ts';
 import { soundscaperDesktopProjectLibraryPublicationRefusalCode } from './soundscaper-project-library-publication-contract.ts';
-import { assertSoundscaperDesktopFencedPublication, assertSoundscaperDesktopPublicationPreflight, matchesSoundscaperDesktopFencedCurrent } from './soundscaper-project-library-write-fence.ts';
+import { assertSoundscaperDesktopFencedPublication, matchesSoundscaperDesktopFencedCurrent } from './soundscaper-project-library-write-fence.ts';
+import { SoundscaperDesktopDocumentSizeAdmission, soundscaperDocumentPublicationGuard, type SoundscaperDesktopDocumentSizeConfirmation } from './soundscaper-project-library-document-size-warning.ts';
 
 import {
 	createSoundscaperDesktopProjectLibraryPaths,
@@ -75,12 +76,13 @@ export interface SoundscaperDesktopProjectLibraryPublicationRecovery {
 	readonly metadataRevision: number | null;
 }
 
-const CREATE_FIELDS = ['database', 'appDataPath', 'checkpoint', 'now', 'randomId'] as const;
+const CREATE_FIELDS = ['database', 'appDataPath', 'checkpoint', 'now', 'randomId', 'confirmFileSizeWarning'] as const;
 const RECOVER_FIELDS = ['lease'] as const;
 const READ_FIELDS = ['offset', 'length', 'signal'] as const;
 const ID = /^[a-f0-9]{48}$/u;
 
 interface CreateOptions {
+	readonly confirmFileSizeWarning?: SoundscaperDesktopDocumentSizeConfirmation;
 	readonly database: DatabaseSync;
 	readonly appDataPath: string;
 	readonly checkpoint?: (phase: SoundscaperDesktopProjectLibraryPublicationCheckpoint) => void;
@@ -93,6 +95,7 @@ export class SoundscaperDesktopProjectLibraryPublicationHost {
 	readonly paths: Readonly<SoundscaperDesktopProjectLibraryPaths>;
 	readonly #checkpoint: (phase: SoundscaperDesktopProjectLibraryPublicationCheckpoint) => void;
 	readonly #database: DatabaseSync;
+	readonly #documentSizeAdmission: SoundscaperDesktopDocumentSizeAdmission;
 	readonly #gate = createSoundscaperDesktopProjectLibraryHandshakeGate();
 	readonly #now: () => number;
 	readonly #randomId: () => string;
@@ -101,6 +104,7 @@ export class SoundscaperDesktopProjectLibraryPublicationHost {
 
 	private constructor(options: CreateOptions) {
 		this.#database = options.database;
+		this.#documentSizeAdmission = new SoundscaperDesktopDocumentSizeAdmission(options.confirmFileSizeWarning);
 		this.paths = createSoundscaperDesktopProjectLibraryPaths(options.appDataPath);
 		this.#checkpoint = options.checkpoint ?? (() => {});
 		this.#now = options.now ?? Date.now;
@@ -112,7 +116,7 @@ export class SoundscaperDesktopProjectLibraryPublicationHost {
 		if (!(options.database instanceof DatabaseSync) || typeof options.appDataPath !== 'string') {
 			throw new TypeError('Soundscaper desktop baseline publication host requires database and appData path');
 		}
-		for (const field of ['checkpoint', 'now', 'randomId'] as const) {
+		for (const field of ['checkpoint', 'now', 'randomId', 'confirmFileSizeWarning'] as const) {
 			if (options[field] !== undefined && typeof options[field] !== 'function') {
 				throw new TypeError(`Soundscaper desktop baseline publication host ${field} must be a function`);
 			}
@@ -120,6 +124,7 @@ export class SoundscaperDesktopProjectLibraryPublicationHost {
 		return Object.freeze(new SoundscaperDesktopProjectLibraryPublicationHost({
 			database: options.database,
 			appDataPath: options.appDataPath,
+			confirmFileSizeWarning: options.confirmFileSizeWarning as CreateOptions['confirmFileSizeWarning'],
 			...(options.checkpoint === undefined ? {} : { checkpoint: options.checkpoint as CreateOptions['checkpoint'] }),
 			...(options.now === undefined ? {} : { now: options.now as CreateOptions['now'] }),
 			...(options.randomId === undefined ? {} : { randomId: options.randomId as CreateOptions['randomId'] }),
@@ -167,7 +172,7 @@ export class SoundscaperDesktopProjectLibraryPublicationHost {
 		this.#assertOperational();
 		return this.#exclusive(async () => {
 			throwIfAborted(signal);
-			const now = this.#timestamp();
+			let now = this.#timestamp();
 			assertSoundscaperDesktopProjectLibraryDatabaseIdentity(this.#database);
 			const current = readSoundscaperDesktopProjectLibraryMetadataSnapshot(this.#database);
 			const projectId = publicationProjectId(value);
@@ -180,14 +185,9 @@ export class SoundscaperDesktopProjectLibraryPublicationHost {
 				now,
 				retainedMedia,
 			);
-			assertSoundscaperDesktopProjectLibraryPublicationLease(
-				this.#database,
-				plan.lease,
-				now,
-			);
-			assertSoundscaperDesktopPublicationPreflight(
-				this.#database, plan.bundle.project.projectId, plan.bundle.project.projectRevision,
-			);
+			await this.#documentSizeAdmission.admit(plan.bundle.project, current.metadata.projects,
+				soundscaperDocumentPublicationGuard(this.#database, plan, () => this.#timestamp(), signal, conditional));
+			now = this.#timestamp();
 			const transactionId = this.#newId();
 			const stages = await stageSoundscaperDesktopProjectLibraryPublication(
 				this.paths,

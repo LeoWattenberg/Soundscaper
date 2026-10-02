@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { admitImageImportGesture, IMAGE_IMPORT_LIMITS } from '../common/editor/image-import-admission.ts';
+import { IMAGE_IMPORT_LIMITS } from '../common/editor/image-import-admission.ts';
+import { confirmImageImportGesture } from '../common/editor/image-import-size-warnings.ts';
+import type { FileSizeWarningOptions } from '../common/editor/controller/shared/file-size-warning.ts';
 import { openFramescaperBrowserNativeImageV1 } from '../common/editor/timeline-image-browser-native-port.ts';
 import {
 	decodeFramescaperBrowserNativeImageV1,
@@ -42,9 +44,10 @@ export type DecodeFramescaperTimelineImageTimelineImage = (request: Readonly<{
 	readonly fileName: string;
 	readonly mimeTypeHint: string | null;
 	readonly signal?: AbortSignal;
-}>) => Promise<FramescaperBrowserNativeImageDecodeResultV1>;
+	readonly maximumFileInputBytes?: number;
+} & FileSizeWarningOptions>) => Promise<FramescaperBrowserNativeImageDecodeResultV1>;
 
-export interface FramescaperTimelineImageImportRequestTimelineImage {
+export interface FramescaperTimelineImageImportRequestTimelineImage extends FileSizeWarningOptions {
 	readonly project: FramescaperProjectTimelineImage;
 	readonly files: readonly FramescaperImageImportFileTimelineImage[];
 	readonly sequenceStartFrame: number;
@@ -87,7 +90,15 @@ export async function importFramescaperTimelineImagesTimelineImage(
 	if (typeof request.createId !== 'function' || typeof request.publisher?.publish !== 'function') {
 		throw new TypeError('Timeline image import requires ID and publication ports.');
 	}
-	admitImageImportGesture({ fileByteLengths: request.files.map((file) => fileSize(file)) });
+	const lengths = request.files.map((file) => fileSize(file));
+	if (request.signal?.aborted) {
+		const files: FramescaperTimelineImageImportFileResultTimelineImage[] = [];
+		appendCancelled(request.files, files);
+		return Object.freeze({ project: request.project, files: Object.freeze(files) });
+	}
+	const admitted = await confirmImageImportGesture({ fileByteLengths: lengths }, {
+		...request, fileNames: request.files.map((file) => safeFileName(file.name)),
+	});
 	const decode = request.decode ?? defaultDecode;
 	const results: FramescaperTimelineImageImportFileResultTimelineImage[] = [];
 	const prepared: PreparedImage[] = [];
@@ -106,6 +117,8 @@ export async function importFramescaperTimelineImagesTimelineImage(
 			const signal = decodeSignal(request.signal);
 			const decoded = await decode({
 				bytes, fileName, mimeTypeHint: mimeHint(file.type), signal,
+				maximumFileInputBytes: admitted.maximumFileInputBytes,
+				confirmFileSizeWarning: request.confirmFileSizeWarning, assertCurrent: request.assertCurrent,
 			});
 			prepared.push(Object.freeze({
 				file,
@@ -324,7 +337,7 @@ function decodeSignal(parent: AbortSignal | undefined): AbortSignal {
 }
 
 function isAbort(value: unknown): boolean {
-	return value instanceof DOMException && value.name === 'AbortError';
+	return value instanceof Error && value.name === 'AbortError';
 }
 
 function message(value: unknown): string {

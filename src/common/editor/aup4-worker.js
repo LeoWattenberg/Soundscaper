@@ -187,6 +187,7 @@ async function openFile(args, context) {
 			readOnlyAvailable: false,
 			limit,
 			size: file.size,
+			phase: 'preflight',
 		});
 	}
 	await closeProject(projectId);

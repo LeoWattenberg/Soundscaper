@@ -46,13 +46,13 @@ export function createFramescaperScapeProjectAssetExtensionTimelineImage(
 	const extension: ScapeProjectAssetExtension = {
 		assetKinds: Object.freeze([...foundation.assetKinds, FRAMESCAPER_SCAPE_IMAGE_ASSET_KIND_TIMELINE_IMAGE]),
 		sourceKinds: SOURCE_KINDS,
-		async planExportAssets({ project, store, signal }) {
+		async planExportAssets({ project, store, signal, ...warningOptions }) {
 			const selected = codec.clone(profile, project);
 			const foundationProject = framescaperProjectFinishingFoundationShapeNativeMedia(
 				framescaperProjectNativeMediaFoundationShapeTimelineImage(selected),
 			);
 			const [foundationAssets, imageAssets] = await Promise.all([
-				foundation.planExportAssets({ project: foundationProject, store, signal }),
+				foundation.planExportAssets({ project: foundationProject, store, signal, ...warningOptions }),
 				planFramescaperScapeImageExportAssetsTimelineImage(selected, store, signal),
 			]);
 			return Object.freeze([...foundationAssets, ...imageAssets]);

@@ -9,6 +9,7 @@ import {
 } from '../src/common/editor/timeline-image-native-decode-v1.ts';
 import { openFramescaperImageFramePackV1 } from '../src/common/editor/timeline-image-frame-pack-v1.ts';
 import { FRAMESCAPER_IMAGE_ASSET_MIME_TYPE } from '../src/common/editor/timeline-image-model.ts';
+import { IMAGE_IMPORT_LIMITS } from '../src/common/editor/image-import-admission.ts';
 
 const PNG = Uint8Array.of(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1);
 
@@ -85,4 +86,27 @@ test('browser-native decode closes a failing decoder session', async () => {
 		}),
 	}), /decode stopped/iu);
 	assert.equal(closed, true);
+});
+
+test('an accepted native image input warning survives all repeated byte admission and frame-pack assembly checks', async () => {
+	const bytes = new Uint8Array(IMAGE_IMPORT_LIMITS.maximumFileInputBytes + 1);
+	bytes.set(PNG);
+	const events: string[] = [];
+	const decoded = await decodeFramescaperBrowserNativeImageV1({
+		bytes, fileName: 'large.png', mimeTypeHint: 'image/png',
+		confirmFileSizeWarning: async (warning) => {
+			assert.equal(warning.byteLength, bytes.byteLength);
+			events.push('confirmed'); return true;
+		},
+		open: async () => {
+			events.push('opened');
+			return { metadata: { width: 1, height: 1, frameCount: 1, topology: 'single', runtimeVersion: 'test-1' },
+				async decodeFrame() { return { rgba: Uint8Array.of(0, 0, 0, 255), durationMicroseconds: 1 }; },
+				close() { events.push('closed'); },
+			};
+		},
+	});
+	assert.deepEqual(events, ['confirmed', 'opened', 'closed']);
+	assert.equal(decoded.publication.originalByteLength, bytes.byteLength);
+	assert.ok(decoded.publication.assetByteLength > bytes.byteLength);
 });

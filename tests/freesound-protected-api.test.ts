@@ -154,6 +154,44 @@ test('original downloads reject a declared file above the editor import ceiling 
 	assert.equal((await response.json() as { error: { code: string } }).error.code, 'original_too_large');
 });
 
+test('original proxy permits explicit client size warnings while retaining integer and range integrity', async () => {
+	for (const byteLength of [MAX_FREESOUND_ORIGINAL_BYTES + 1, Number.MAX_SAFE_INTEGER + 1]) {
+		const response = await handleFreesoundOriginalRequest(context(new Request(
+			'https://soundscaper.org/api/freesound/sounds/123/original?sizeWarning=client',
+			{ headers: authHeaders({ Range: 'bytes=0-3' }) },
+		), { id: '123' }), {
+			repository: await repositoryWithSession(), now: () => NOW,
+			fetchImpl: async () => new Response(Uint8Array.of(1, 2, 3, 4), {
+				status: 206,
+				headers: {
+					'Content-Type': 'audio/wav', 'Content-Length': '4',
+					'Content-Range': `bytes 0-3/${String(byteLength)}`,
+				},
+			}),
+		});
+		assert.equal(response.status, Number.isSafeInteger(byteLength) ? 206 : 502);
+		if (response.status === 206) {
+			assert.equal(response.headers.get('x-freesound-original-bytes'), String(byteLength));
+			assert.deepEqual(new Uint8Array(await response.arrayBuffer()), Uint8Array.of(1, 2, 3, 4));
+		}
+	}
+});
+
+test('original download size-warning queries are closed before authorization or upstream audio', async () => {
+	for (const query of ['sizeWarning=other', 'sizeWarning=client&sizeWarning=client', 'sizeWarning=client&extra=1', 'unknown=1']) {
+		let called = false;
+		const response = await handleFreesoundOriginalRequest(context(new Request(
+			`https://soundscaper.org/api/freesound/sounds/123/original?${query}`,
+			{ headers: authHeaders() },
+		), { id: '123' }), {
+			repository: await repositoryWithSession(), now: () => NOW,
+			fetchImpl: async () => { called = true; return new Response(Uint8Array.of(1), { headers: { 'Content-Type': 'audio/wav' } }); },
+		});
+		assert.equal(response.status, 400);
+		assert.equal(called, false);
+	}
+});
+
 test('partial original downloads enforce the total-file ceiling from strict Content-Range metadata', async () => {
 	const oversizedRepository = await repositoryWithSession();
 	const oversized = await handleFreesoundOriginalRequest(context(new Request(

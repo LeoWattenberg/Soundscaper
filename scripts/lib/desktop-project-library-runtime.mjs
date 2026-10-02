@@ -48,7 +48,7 @@ export const DESKTOP_RUNTIME_PACKAGE_IMPORTS = Object.freeze({
 
 export const DESKTOP_EXPECTED_RUNTIME_FILES = Object.freeze([
 	...DESKTOP_5B_TRANSITIVE_RUNTIME_FILES,
-	'desktop/application-lifecycle.js', 'desktop/mcp-main-registration.js', 'desktop/mcp-service.js',
+	'desktop/application-lifecycle.js', 'desktop/save-size-warning-dialog.js', 'src/common/editor/controller/shared/file-size-warning.js', 'desktop/mcp-main-registration.js', 'desktop/mcp-service.js',
 	...DESKTOP_ASSISTANCE_RUNTIME_FILES,
 	...DESKTOP_EXTERNAL_FFMPEG_RUNTIME_FILES,
 	'desktop/framescaper-capture-desktop-port.js',

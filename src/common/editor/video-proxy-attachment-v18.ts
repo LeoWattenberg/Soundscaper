@@ -74,9 +74,6 @@ export function normalizeVideoProxyAttachmentV18(
 	const storageKey = proxyStorageKey(attachment.storageKey, sha256);
 	const mimeType = videoMimeType(attachment.mimeType);
 	const byteLength = positiveSafeInteger(attachment.byteLength, 'video proxy attachment byteLength');
-	if (byteLength > VIDEO_PROXY_MAXIMUM_BODY_BYTES) {
-		throw new RangeError('The video proxy attachment exceeds its maximum body byte length.');
-	}
 	const originalSha256 = digest(attachment.originalSha256, 'video proxy original');
 	const originalAuthorityKind = originalAuthority(attachment.originalAuthorityKind);
 	const generatorId = boundedIdentifier(attachment.generatorId, 'video proxy generator ID');

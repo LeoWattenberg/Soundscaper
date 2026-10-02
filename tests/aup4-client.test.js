@@ -27,6 +27,21 @@ test('AUP4 client sends a selected desktop descriptor instead of cloning an empt
 	} finally { client.dispose(); }
 });
 
+test('Audacity client serializes explicit size-warning approval with its admitted byte bound', async () => {
+	const worker = new FakeWorker(), client = createAup4Client({ worker });
+	try {
+		const maxBytes = 65 * 1024 * 1024;
+		const opening = client.openFile('approved', new File(['SQLite'], 'large.aup4'), {
+			opfs: false, maxBytes, fileSizeWarningApproved: true,
+		});
+		const request = worker.messages.at(-1);
+		assert.equal(request.args.fileSizeWarningApproved, true);
+		assert.equal(request.args.maxBytes, maxBytes);
+		worker.emit({ id: request.id, result: { projectId: 'approved' } });
+		await opening;
+	} finally { client.dispose(); }
+});
+
 test('AUP4 client omits worker operations with no application caller', () => {
 	const client = createAup4Client({ worker: new FakeWorker() });
 	try {
