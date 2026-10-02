@@ -76,7 +76,13 @@ async function openImageDecoder(
 			cancelled(signal);
 			width = positiveInteger(probe.image.displayWidth, 'ImageDecoder display width');
 			height = positiveInteger(probe.image.displayHeight, 'ImageDecoder display height');
-		} finally { probe.image.close(); }
+		} catch (error) {
+			probe.image.close();
+			throw error;
+		}
+		// Firefox can return the same VideoFrame when frame zero is requested again.
+		// Keep the probe until admission permits pixel extraction, then consume it.
+		let firstImage: BrowserDecodedImageLike | null = probe.image;
 		let closed = false;
 		return Object.freeze({
 			metadata: Object.freeze({
@@ -87,8 +93,10 @@ async function openImageDecoder(
 			async decodeFrame(index: number, frameSignal?: AbortSignal) {
 				if (closed) throw new Error('The browser image decoder is closed.');
 				cancelled(frameSignal ?? signal);
-				const result = await decoder.decode({ frameIndex: index, completeFramesOnly: true });
-				const image = result.image;
+				const image = index === 0 && firstImage
+					? firstImage
+					: (await decoder.decode({ frameIndex: index, completeFramesOnly: true })).image;
+				if (image === firstImage) firstImage = null;
 				try {
 					cancelled(frameSignal ?? signal);
 					assertFrameDimensions(image, width, height);
@@ -98,7 +106,13 @@ async function openImageDecoder(
 					});
 				} finally { image.close(); }
 			},
-			close() { if (!closed) { closed = true; decoder.close(); } },
+			close() {
+				if (closed) return;
+				closed = true;
+				firstImage?.close();
+				firstImage = null;
+				decoder.close();
+			},
 		});
 	} catch (error) {
 		decoder.close();

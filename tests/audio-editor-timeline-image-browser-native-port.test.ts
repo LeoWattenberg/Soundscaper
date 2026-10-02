@@ -7,28 +7,30 @@ import {
 	openFramescaperBrowserNativeImageV1,
 } from '../src/common/editor/timeline-image-browser-native-port.ts';
 
-test('ImageDecoder dimensions come from a decoded frame rather than the track inventory', async (context) => {
+test('ImageDecoder reuses the dimensions probe when frame zero is cached', async (context) => {
 	const decoderDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'ImageDecoder');
 	const canvasDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'OffscreenCanvas');
 	let decodeCalls = 0;
 	let closedFrames = 0;
 	class FakeImageDecoder {
 		static async isTypeSupported(): Promise<boolean> { return true; }
+		private readonly image = new FakeImage();
 		readonly tracks = {
 			ready: Promise.resolve(),
 			selectedTrack: { frameCount: 1 },
 		};
 		async decode(): Promise<Readonly<{ image: FakeImage; complete: true }>> {
 			decodeCalls += 1;
-			return { image: new FakeImage(), complete: true };
+			return { image: this.image, complete: true };
 		}
 		close(): void {}
 	}
 	class FakeImage {
-		readonly displayWidth = 2;
-		readonly displayHeight = 1;
+		private closed = false;
+		get displayWidth(): number { return this.closed ? 0 : 2; }
+		get displayHeight(): number { return this.closed ? 0 : 1; }
 		readonly duration = null;
-		close(): void { closedFrames += 1; }
+		close(): void { this.closed = true; closedFrames += 1; }
 	}
 	class FakeOffscreenCanvas {
 		constructor(readonly width: number, readonly height: number) {}
@@ -65,9 +67,16 @@ test('ImageDecoder dimensions come from a decoded frame rather than the track in
 	assert.deepEqual([...((await session.decodeFrame(0)).rgba)], [
 		255, 0, 0, 255, 0, 255, 0, 255,
 	]);
-	assert.equal(decodeCalls, 2);
-	assert.equal(closedFrames, 2);
+	assert.equal(decodeCalls, 1, 'reuse the dimensions probe when the decoder caches its frame');
+	assert.equal(closedFrames, 1);
 	session.close();
+	const unused = await openFramescaperBrowserNativeImageV1({
+		bytes: Uint8Array.of(1), format: 'png', mimeType: 'image/png',
+	});
+	assert.equal(closedFrames, 1, 'keep the probe alive until its frame is consumed');
+	unused.close();
+	unused.close();
+	assert.equal(closedFrames, 2, 'close an unused probe exactly once');
 });
 
 /**
