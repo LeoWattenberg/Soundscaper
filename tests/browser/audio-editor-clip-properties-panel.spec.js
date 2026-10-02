@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { expect, test, toneA, toneB } from './audio-editor-test-fixtures.js';
+import { SOUNDSCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 import {
 	bootEditor,
 	chooseCommandAction,
@@ -26,6 +27,24 @@ async function selectClip(clip) {
 	await clip.focus();
 	await clip.press('Enter');
 	await expect(clip.locator('.clip-display')).toHaveAttribute('data-selected', 'true');
+}
+
+async function savedClipPanelPreferences(page) {
+	return page.evaluate(({ databaseName, panelId }) => new Promise((resolve, reject) => {
+		const opening = indexedDB.open(databaseName);
+		opening.onerror = () => reject(opening.error);
+		opening.onsuccess = () => {
+			const database = opening.result;
+			const request = database.transaction('settings', 'readonly').objectStore('settings')
+				.get('soundscaper:audio-editor-preferences-v1');
+			request.onerror = () => { database.close(); reject(request.error); };
+			request.onsuccess = () => {
+				const panel = request.result?.value?.workspace?.panels?.[panelId] ?? null;
+				database.close();
+				resolve(panel);
+			};
+		};
+	}), { databaseName: SOUNDSCAPER_DATABASE_NAME, panelId: PANEL_ID });
 }
 
 test.describe('live dockable Clip properties', () => {
@@ -184,12 +203,14 @@ test.describe('live dockable Clip properties', () => {
 		await resize.press('Shift+ArrowRight');
 		await expect(panel).toHaveAttribute('data-workspace-panel-width', String(width + 48));
 		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved');
+		await expect.poll(async () => (await savedClipPanelPreferences(page))?.width).toBe(width + 48);
 		await page.reload();
 		const restoredEditor = await waitForEditor(page);
 		const restored = restoredEditor.locator(`[data-panel-dock="floating"] [data-workspace-panel="${PANEL_ID}"]`);
 		await expect(restored).toBeVisible();
 		await expect(restored).toHaveAttribute('data-workspace-panel-width', String(width + 48));
 		await closeClipProperties(restored);
+		await expect.poll(async () => (await savedClipPanelPreferences(page))?.visible).toBe(false);
 		await page.reload();
 		const closedEditor = await waitForEditor(page);
 		await expect(closedEditor.locator(`[data-workspace-panel="${PANEL_ID}"]`)).toHaveCount(0);
