@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { projectForRuntimeConsumers } from '../../project-current-runtime.ts';
+import type { RuntimeClipProject } from '../../runtime-clip-projection.ts';
 import type { ClipPropertiesFocusRequest } from '../../controller/composition/clip-properties-panel-opening.ts';
 import ClipPropertiesBody from './ClipPropertiesBody.jsx';
 import ClipSourceEditor from './ClipSourceEditor.tsx';
@@ -76,7 +78,9 @@ export default function ClipPropertiesPanel({ controller, snapshot, copy, focusR
 	};
 
 	const sourceController = controller as ClipSourceController;
-	const sourceProject = snapshot.project as ClipSourceProject | null;
+	const sourceProject = useMemo(() => snapshot.project
+		? projectForRuntimeConsumers(snapshot.project as ClipSourceProject & RuntimeClipProject) : null, [snapshot.project]);
+	const runtimeSnapshot = sourceProject ? { ...snapshot, project: sourceProject } : snapshot;
 	const sourceClip = sourceProject?.clips.find(clip => clip.id === activeClipId);
 	const hasSourceEditor = panelActive && sourceClip?.kind === 'audio' && sourceController.actions?.clipSourcePreview
 		&& sourceProject?.sources.some(source => source.id === sourceClip.sourceId);
@@ -95,7 +99,7 @@ export default function ClipPropertiesPanel({ controller, snapshot, copy, focusR
 			{hasSourceEditor && sourceProject && activeClipId && <ClipSourceEditor key={`source:${sourceProject.id}:${activeClipId}`} controller={sourceController}
 				project={sourceProject} clipId={activeClipId} copy={copy} blocked={selectAudioEditorEditBlock(snapshot as Parameters<typeof selectAudioEditorEditBlock>[0]).blocked} />}
 			<ClipPropertiesBody key={JSON.stringify([selection.projectId, activeClipId])} controller={controller}
-				snapshot={snapshot} copy={copy} clipId={activeClipId} />
+				snapshot={runtimeSnapshot} copy={copy} clipId={activeClipId} />
 		</div> : <p className="audio-editor-panel-hint" data-no-clip>{copy.noClipSelected}</p>}
 	</div>;
 }
