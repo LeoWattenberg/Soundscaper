@@ -110,7 +110,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		const initialClip = clipByName(editor, toneA.name);
 		const clipId = await initialClip.getAttribute('data-clip-id');
 		expect(clipId).not.toBeNull();
-		const clip = editor.locator(`[data-clip-id="${clipId}"]`);
+		const clip = editor.locator(`[role="group"][data-clip-id="${clipId}"]`);
 
 		await clip.locator('.clip-header__name').dblclick();
 		const headerInput = clip.getByRole('textbox', { name: 'Clip name', exact: true });

@@ -196,7 +196,12 @@ test.describe('clip source editor', () => {
 		await mainTransport.getByRole('button', { name: 'Play', exact: true }).click();
 		await expect(panel.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
 		await expect(mainTransport.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
-		await panel.getByRole('button', { name: 'Play', exact: true }).click();
+		// Focusing the source transport retires the timeline worklet. Let its
+		// coverage checkpoint finish before sending the next mouse gesture.
+		const sourcePlay = panel.getByRole('button', { name: 'Play', exact: true });
+		await sourcePlay.focus();
+		await expect(mainTransport.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
+		await sourcePlay.click();
 		await expect(panel.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
 		await expect(mainTransport.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
 		await panel.getByRole('button', { name: 'Stop', exact: true }).click();

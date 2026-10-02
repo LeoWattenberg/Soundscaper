@@ -215,8 +215,9 @@ test.describe('non-destructive clip fade handles', () => {
 		await clip.getByRole('slider', { name: 'Fade in', exact: true }).press('End');
 		await clip.getByRole('slider', { name: 'Fade out', exact: true }).press('End');
 		const dialog = await openClipProperties(page, editor, clip);
-		const incoming = dialog.getByRole('slider', { name: 'Fade in shape', exact: true });
-		const outgoing = dialog.getByRole('slider', { name: 'Fade out shape', exact: true });
+		await dialog.getByText('Fading', { exact: true }).click();
+		const incoming = dialog.locator('[data-clip-field="fadeInShape"]').getByRole('slider');
+		const outgoing = dialog.locator('[data-clip-field="fadeOutShape"]').getByRole('slider');
 		await expect(incoming).toHaveValue('1');
 		await expect(outgoing).toHaveValue('1');
 		await incoming.focus();
