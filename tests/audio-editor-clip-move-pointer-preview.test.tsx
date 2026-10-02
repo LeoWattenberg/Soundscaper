@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import React, { act, useState } from 'react';
 
+import { createTimelineProjectIndex } from '../src/common/editor/design-system-adapters/timeline.ts';
 import { NEW_AUDIO_TRACK_DROP_TARGET } from '../src/common/editor/ui/timeline/constants.ts';
 import { useTimelinePointerMove } from '../src/common/editor/ui/timeline/useTimelinePointerMove.js';
 import { installReactTestDom } from './helpers/react-test-dom.ts';
@@ -59,6 +60,18 @@ test('existing-track drag keeps the grabbed clip on the requested track and clam
 	}
 });
 
+test('drag participants and source tracks reuse the shared project index instead of scanning clips', async () => {
+	const fixture = await mountMovePreview({ requireIndexedLookup: true });
+	try {
+		await fixture.move(150, NEW_AUDIO_TRACK_DROP_TARGET);
+		assert.equal(fixture.preview()?.previews.length, 2);
+		await fixture.move(160, 'track-c');
+		assert.equal(fixture.preview()?.previews[0]?.trackId, 'track-c');
+	} finally {
+		await fixture.cleanup();
+	}
+});
+
 interface ClipPreview {
 	readonly clipId: string;
 	readonly trackId: string;
@@ -77,7 +90,7 @@ function pointerEvent(clientX: number) {
 	};
 }
 
-async function mountMovePreview({ capturedSelection = false, linkedAv = false } = {}) {
+async function mountMovePreview({ capturedSelection = false, linkedAv = false, requireIndexedLookup = false } = {}) {
 	const dom = installReactTestDom();
 	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
 	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
@@ -98,6 +111,7 @@ async function mountMovePreview({ capturedSelection = false, linkedAv = false } 
 		kind: 'move', clipId: 'lower', trackId: 'track-b', startX: 100,
 		clipIds: ['lower', 'upper'], preview: null as MovePreview | null,
 		moveOptions: capturedSelection ? { clipIds: ['lower', 'upper'] } : {},
+		snapDisabled: requireIndexedLookup,
 	};
 	const project = {
 		tracks: [
@@ -116,6 +130,13 @@ async function mountMovePreview({ capturedSelection = false, linkedAv = false } 
 		// drag has captured its participants. Preview must still move both clips.
 		selection: { startFrame: 0, endFrame: 0, clipIds: capturedSelection ? ['upper'] : ['lower'] },
 	};
+	const projectIndex = createTimelineProjectIndex(project);
+	if (requireIndexedLookup) {
+		project.clips.find = () => assert.fail('Dragging scanned the project clip array.');
+		for (const track of project.tracks) {
+			track.clipIds.includes = () => assert.fail('Dragging scanned a track clip-ID array.');
+		}
+	}
 	function Harness() {
 		const [preview, setClipDragPreview] = useState<MovePreview | null>(null);
 		currentPreview = preview;
@@ -127,7 +148,7 @@ async function mountMovePreview({ capturedSelection = false, linkedAv = false } 
 				setDraggingClipIds: noOp, setClipDragPreview, setTrackResizePreview: noOp,
 				setLoopPreview: noOp, setSelectionPreview: noOp,
 			},
-			model: { project, projectIndex: { clipById: new Map() }, panelWidth: 180, pixelsPerSecond: 1_000, sampleRate: 1_000 },
+			model: { project, projectIndex, panelWidth: 180, pixelsPerSecond: 1_000, sampleRate: 1_000 },
 			hitTesting: {
 				frameAtClientX: (clientX: number) => clientX, isOverOutputDock: () => false,
 				isOverProjectBin: () => false, setProjectBinDropActive: noOp, trackAtClientY: () => requestedTrackId,
