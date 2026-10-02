@@ -78,3 +78,21 @@ test('musical source trims keep the beat anchor and sample marker through comman
 	assert.deepEqual(persisted.musicalDurationBeats, { num: 1, den: 480 });
 	assert.deepEqual(normalizeAudioWarpMap(persisted.warpMap).points[1], { outer: { num: 1, den: 800 }, source: { num: 200, den: 1 }, mode: 'forward' });
 });
+
+test('trimming a source before any stretch marker exists commits JSON-safe clip fields', async () => {
+	const { createSoundscaperProject } = await import('../src/soundscaper/editor-project.ts');
+	const { applySoundscaperProjectCommand } = await import('../src/soundscaper/editor-project-commands.ts');
+	const { createAudioClip, createAudioSource, createAudioTrack } = await import('../src/common/editor/project-media-factory.ts');
+	const document = createSoundscaperProject({
+		id: 'plain-source-trim', now: '2026-10-02T12:00:00.000Z', sampleRate: project.sampleRate, tempoMap: project.tempoMap,
+		sources: [createAudioSource({ ...source, id: 'source', storageKey: 'source', channelCount: 1 })],
+		clips: [createAudioClip({ id: 'clip', sourceId: 'source', timelineStartFrame: 1000, sourceStartFrame: 0, sourceDurationFrames: 1000, durationFrames: 1000, warpMap: null })],
+		tracks: [createAudioTrack({ id: 'track', clipIds: ['clip'] })],
+	});
+	const result = applySoundscaperProjectCommand(document, { type: 'clip/trim', clipId: 'clip', sourceRange: true, sourceStartFrame: 12, sourceDurationFrames: 988, durationFrames: 988 });
+	assert.equal(result.clips[0]?.sourceStartFrame, 12);
+	assert.equal(result.clips[0]?.durationFrames, 988);
+	assert.equal(result.clips[0]?.timelineStartFrame, 1000);
+	assert.equal(result.clips[0]?.warpMap, null);
+	assert.deepEqual(JSON.parse(JSON.stringify(result)), result);
+});

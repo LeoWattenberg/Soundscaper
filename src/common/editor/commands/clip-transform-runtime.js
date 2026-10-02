@@ -415,7 +415,7 @@ export function trimClip(project, command) {
 		sourceStartFrame,
 		sourceDurationFrames,
 		durationFrames,
-		...(warpSegment ? { warpMap: warpSegment.warpMap } : {}),
+		...(warpSegment?.warpMap ? { warpMap: warpSegment.warpMap } : {}),
 		...(warpSegment?.opaqueExtensions ? { opaqueExtensions: warpSegment.opaqueExtensions } : {}),
 		trimStartFrames: command.trimStartFrames ?? clip.trimStartFrames,
 		trimEndFrames: command.trimEndFrames ?? clip.trimEndFrames,
