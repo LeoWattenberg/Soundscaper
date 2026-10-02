@@ -189,7 +189,7 @@ test('all OS-capable desktop staging paths build the codec host while Linux rece
 		'--runner-os=${{ runner.os }}',
 		'--runner-arch=${{ runner.arch }}',
 	]) assert.equal((workflow + testedWorkflow).match(new RegExp(escapeRegExp(argument), 'gu'))?.length, 4, argument);
-	const previewPublisherJob = jobSource(workflow, 'publish-windows-assistance-runtime-handoff', 'package');
+	const previewPublisherJob = jobSource(workflow, 'publish-assistance-runtime-handoff', 'package');
 	assert.match(previewPublisherJob, /windows-2025[\s\S]*windows-11-arm/u);
 	assert.match(previewPublisherJob, /node scripts\/ci-build-os-audio-codec-host\.mjs/u);
 	const packageJob = jobSource(workflow, 'package', 'milestone-5-package-audit-summary');

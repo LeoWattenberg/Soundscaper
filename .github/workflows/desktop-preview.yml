@@ -450,8 +450,8 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-  publish-windows-assistance-runtime-handoff:
-    name: Publish Windows AI runtimes / ${{ matrix.target.arch }}
+  publish-assistance-runtime-handoff:
+    name: Publish AI runtimes / ${{ matrix.target.platform }} / ${{ matrix.target.arch }}
     needs: [quality, tests, coverage, browser, firefox]
     timeout-minutes: 90
     strategy:
@@ -466,6 +466,18 @@ jobs:
             platform: win
             arch: arm64
             node_arch: x64
+          - runner: macos-15
+            platform: mac
+            arch: arm64
+            node_arch: arm64
+          - runner: ubuntu-22.04
+            platform: linux
+            arch: x64
+            node_arch: x64
+          - runner: ubuntu-24.04-arm
+            platform: linux
+            arch: arm64
+            node_arch: arm64
     runs-on: ${{ matrix.target.runner }}
     steps:
       - name: Check out source
@@ -487,7 +499,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Install local-model CPU build tools
+        if: runner.os == 'Linux'
+        timeout-minutes: 10
+        run: bash scripts/ci-apt-install.sh build-essential cmake
+
       - name: Build the authenticated target-native OS audio codec host
+        if: matrix.target.platform != 'linux'
         run: >-
           node scripts/ci-build-os-audio-codec-host.mjs
           --desktop-platform=${{ matrix.target.platform }}
@@ -500,7 +518,7 @@ jobs:
         with:
           version: 0.12.5
 
-      - name: Stage the authenticated Windows AI runtime archives
+      - name: Stage the authenticated AI runtime archives
         run: node scripts/desktop-prepare.mjs
         env:
           SOUNDSCAPER_DESKTOP_TARGET_PLATFORM: ${{ matrix.target.platform }}
@@ -534,7 +552,7 @@ jobs:
 
   package:
     name: Package ${{ matrix.product }} / ${{ matrix.target.platform }} / ${{ matrix.target.arch }}
-    needs: [quality, tests, coverage, browser, firefox, publish-windows-assistance-runtime-handoff]
+    needs: [quality, tests, coverage, browser, firefox, publish-assistance-runtime-handoff]
     timeout-minutes: 60
     strategy:
       fail-fast: false
@@ -600,8 +618,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Download the published Windows AI runtime handoff
-        if: matrix.target.platform == 'win'
+      - name: Download the published AI runtime handoff
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: assistance-runtime-handoff-${{ matrix.target.platform }}-${{ matrix.target.arch }}
@@ -639,7 +656,7 @@ jobs:
           SOUNDSCAPER_DESKTOP_TARGET_PLATFORM: ${{ matrix.target.platform }}
           SOUNDSCAPER_DESKTOP_TARGET_ARCH: ${{ matrix.target.arch }}
           SOUNDSCAPER_SOURCE_REVISION: ${{ github.sha }}
-          SOUNDSCAPER_ASSISTANCE_RUNTIME_HANDOFF_ROOT: ${{ matrix.target.platform == 'win' && format('{0}/.native-build/assistance-runtime-handoff', github.workspace) || '' }}
+          SOUNDSCAPER_ASSISTANCE_RUNTIME_HANDOFF_ROOT: ${{ github.workspace }}/.native-build/assistance-runtime-handoff
 
       - name: Verify published optional AI runtimes
         run: node scripts/publish-assistance-runtime-assets.mjs --verify
