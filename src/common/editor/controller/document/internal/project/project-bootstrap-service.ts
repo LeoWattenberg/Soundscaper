@@ -2,6 +2,7 @@
 
 import type { EditorLifetimeToken } from '../../../shared/lifecycle.ts'; import { createLocalizedError, setLocalizedStatus } from '../../../../../i18n/presentation-message.ts';
 import type { ProjectSessionGuard } from './project-session-service.ts';
+import { prefetchProjectBootstrapSettings } from './project-bootstrap-settings.ts';
 import { DELIVERY_PRESETS_SETTING_KEY } from '../../../export/delivery-preset-service.ts';
 import {
 	createDeliveryPresetState,
@@ -173,8 +174,11 @@ export function createProjectBootstrapService<
 				if (!runtime.isDisposed()) runtime.handleError(error);
 			});
 		await runtime.loadPreferences(token);
+		const loadSetting = prefetchProjectBootstrapSettings(
+			runtime.store, runtime.productSettingKey, runtime.audioDevicePreferencesSettingKey,
+		);
 		try {
-			const storedPresets = await guard(runtime.store.loadSetting('audio-editor-effect-presets-v1', null));
+			const storedPresets = await guard(loadSetting('audio-editor-effect-presets-v1', null));
 			runtime.effectsState.setEffectPresets(runtime.createEffectPresets(storedPresets || {}));
 		} catch (error) {
 			if (runtime.isDisposedError(error)) throw error;
@@ -187,7 +191,7 @@ export function createProjectBootstrapService<
 		// A newer schema or failed read cannot be replaced by an empty fallback.
 		try {
 			const storedMacros = await guard(
-				runtime.store.loadSetting(EFFECT_MACRO_LIBRARY_SETTING_KEY, null),
+				loadSetting(EFFECT_MACRO_LIBRARY_SETTING_KEY, null),
 			);
 			if (effectMacroLibrarySchemaIsAhead(storedMacros)) {
 				runtime.effectsState.setEffectMacros(createInitialEffectMacroLibrary(), true);
@@ -210,7 +214,7 @@ export function createProjectBootstrapService<
 		// key so an older build simply does not read them.
 		try {
 			const storedScripts = await guard(
-				runtime.store.loadSetting(MACRO_SCRIPT_LIBRARY_SETTING_KEY, null),
+				loadSetting(MACRO_SCRIPT_LIBRARY_SETTING_KEY, null),
 			);
 			if (macroScriptLibrarySchemaIsAhead(storedScripts)) {
 				runtime.effectsState.setMacroScripts(createInitialMacroScriptLibrary(), true);
@@ -227,7 +231,7 @@ export function createProjectBootstrapService<
 		// new preset alone, taking every preset saved before it with it.
 		try {
 			const storedDeliveryPresets = await guard(
-				runtime.store.loadSetting(DELIVERY_PRESETS_SETTING_KEY, null),
+				loadSetting(DELIVERY_PRESETS_SETTING_KEY, null),
 			);
 			runtime.state.deliveryPresets = createDeliveryPresetState(storedDeliveryPresets || {});
 			runtime.state.deliveryPresetsReadOnly = false;
@@ -236,10 +240,10 @@ export function createProjectBootstrapService<
 			runtime.state.deliveryPresets = createDeliveryPresetState();
 			runtime.state.deliveryPresetsReadOnly = true;
 		}
-		runtime.recordingState.monitoring = Boolean(await guard(runtime.store.loadSetting('input-monitor', false)));
-		runtime.recordingState.microphoneMetering = Boolean(await guard(runtime.store.loadSetting('microphone-metering', false)));
+		runtime.recordingState.monitoring = Boolean(await guard(loadSetting('input-monitor', false)));
+		runtime.recordingState.microphoneMetering = Boolean(await guard(loadSetting('microphone-metering', false)));
 		try {
-			runtime.recordingState.recordingInputGain = runtime.normalizeRecordingInputGain(await guard(runtime.store.loadSetting(
+			runtime.recordingState.recordingInputGain = runtime.normalizeRecordingInputGain(await guard(loadSetting(
 				'recording-input-gain',
 				runtime.recordingInputGainDefault,
 			)));
@@ -247,43 +251,43 @@ export function createProjectBootstrapService<
 			if (runtime.isDisposedError(error)) throw error;
 			runtime.recordingState.recordingInputGain = runtime.recordingInputGainDefault;
 		}
-		runtime.recordingState.latencyOffsetMs = runtime.normalizeLatencyOffset(await guard(runtime.store.loadSetting(
+		runtime.recordingState.latencyOffsetMs = runtime.normalizeLatencyOffset(await guard(loadSetting(
 			'recording-latency-offset-ms',
 			0,
 		)));
-		runtime.recordingState.leadInRecording = Boolean(await guard(runtime.store.loadSetting('recording-lead-in', false)));
-		runtime.state.showRms = Boolean(await guard(runtime.store.loadSetting(
+		runtime.recordingState.leadInRecording = Boolean(await guard(loadSetting('recording-lead-in', false)));
+		runtime.state.showRms = Boolean(await guard(loadSetting(
 			runtime.productSettingKey('waveform-show-rms'),
 			false,
 		)));
-		runtime.state.showVerticalRulers = Boolean(await guard(runtime.store.loadSetting(
+		runtime.state.showVerticalRulers = Boolean(await guard(loadSetting(
 			runtime.productSettingKey('timeline-show-vertical-rulers'),
 			true,
 		)));
-		runtime.transportState.scrollViewToPlayhead = Boolean(await guard(runtime.store.loadSetting(
+		runtime.transportState.scrollViewToPlayhead = Boolean(await guard(loadSetting(
 			runtime.productSettingKey('timeline-update-while-playing'),
 			true,
 		)));
-		runtime.transportState.pinnedPlayhead = Boolean(await guard(runtime.store.loadSetting(
+		runtime.transportState.pinnedPlayhead = Boolean(await guard(loadSetting(
 			runtime.productSettingKey('timeline-pinned-playhead'),
 			false,
 		)));
 		if (runtime.transportState.pinnedPlayhead) {
 			runtime.transportState.scrollViewToPlayhead = false;
 		}
-		runtime.transportState.playbackOnRulerClick = Boolean(await guard(runtime.store.loadSetting(
+		runtime.transportState.playbackOnRulerClick = Boolean(await guard(loadSetting(
 			runtime.productSettingKey('timeline-ruler-playback'),
 			true,
 		)));
-		runtime.transportState.metronomeEnabled = Boolean(await guard(runtime.store.loadSetting(
+		runtime.transportState.metronomeEnabled = Boolean(await guard(loadSetting(
 			runtime.productSettingKey('transport-metronome'),
 			false,
 		)));
-		runtime.transportState.selectionFollowsLoop = Boolean(await guard(runtime.store.loadSetting(
+		runtime.transportState.selectionFollowsLoop = Boolean(await guard(loadSetting(
 			runtime.productSettingKey('selection-follows-loop'),
 			false,
 		)));
-		const savedAudioDevices = runtime.normalizeAudioDevicePreferences(await guard(runtime.store.loadSetting(
+		const savedAudioDevices = runtime.normalizeAudioDevicePreferences(await guard(loadSetting(
 			runtime.productSettingKey(runtime.audioDevicePreferencesSettingKey),
 			null,
 		)));
