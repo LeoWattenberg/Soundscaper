@@ -29,7 +29,7 @@ interface Props {
 const amplitudeRulers = renderAmplitudeRulers as (channels: number, height: number, width: number, mode: string, format: string, zoom: number, ratio: number) => ReactNode;
 
 type Gesture = { readonly kind: 'selection' | 'start' | 'end' | 'fade-in' | 'fade-out' | 'shape-in' | 'shape-out' | 'marker'; readonly startFrame: number; readonly pointIndex?: number;
-	readonly startX: number; readonly startY: number; readonly pointerId: number; readonly initialValue?: number; readonly gainHeight?: number; readonly baseGain?: number; readonly startGain?: number };
+	readonly startX: number; readonly startY: number; readonly pointerId: number; readonly initialSelection: SourceSelection | null; readonly initialValue?: number; readonly gainHeight?: number; readonly baseGain?: number; readonly startGain?: number };
 
 export default function ClipSourceEditor({ controller, project, clipId, copy, blocked }: Props) {
 	const clip = project.clips.find(candidate => candidate.id === clipId)!;
@@ -154,7 +154,7 @@ export default function ClipSourceEditor({ controller, project, clipId, copy, bl
 			return;
 		}
 		const edge = kind.endsWith('-in') ? 'in' : 'out';
-		gesture.current = { kind, startFrame: frame, pointIndex, startX: event.clientX, startY: event.clientY, pointerId: event.pointerId,
+		gesture.current = { kind, startFrame: frame, pointIndex, startX: event.clientX, startY: event.clientY, pointerId: event.pointerId, initialSelection: selectedRef.current,
 			initialValue: kind.startsWith('shape-') ? clip[fadeShapeField(edge)] ?? 2 : clip[fadeField(edge)] ?? 0,
 			gainHeight: handle?.closest('.audio-editor-clip-fade')?.getBoundingClientRect().height,
 			baseGain: handle?.dataset.fadeShapeBaseGain ? Number(handle.dataset.fadeShapeBaseGain) : undefined,
@@ -175,6 +175,10 @@ export default function ClipSourceEditor({ controller, project, clipId, copy, bl
 		if (current.kind === 'selection') setSelection({ startFrame: Math.min(current.startFrame, frame), endFrame: Math.max(current.startFrame, frame) });
 		if (current.kind.startsWith('fade-') || current.kind.startsWith('shape-')) setFadePreview(fadeChanges(current, event));
 	};
+	const moveMarker = (pointIndex: number, frame: number) => {
+		const feedback = clipSourceStretchFeedback(project, clip, source, pointIndex, frame);
+		if (feedback?.canMove) run(() => controller.actions.audioWarp.moveSourceMarker(clipId, pointIndex, feedback.displayFrame - range.startFrame));
+	};
 	const finish = (event: PointerEvent<HTMLDivElement>) => {
 		const current = gesture.current; if (!current) return;
 		gesture.current = null; setDragFrame(null); setFadePreview(null);
@@ -184,13 +188,14 @@ export default function ClipSourceEditor({ controller, project, clipId, copy, bl
 		} else if (current.kind === 'start' || current.kind === 'end') {
 			run(() => preview.trim(clipId, clipSourceTrim(clip, source, project.sampleRate, current.kind as 'start' | 'end', clip.reversed ? clip.sourceStartFrame + (frame - range.startFrame) / clip.durationFrames * clip.sourceDurationFrames : sourceAt(frame))));
 		} else if (current.kind === 'marker') {
-			run(() => controller.actions.audioWarp.moveSourceMarker(clipId, current.pointIndex!, clipSourceStretchFeedback(project, clip, source, current.pointIndex!, frame)!.displayFrame - range.startFrame));
+			moveMarker(current.pointIndex!, frame);
 		} else {
 			run(() => controller.actions.clip.update(clipId, fadeChanges(current, event)));
 		}
 	};
 	const cancelGesture = () => {
 		const current = gesture.current;
+		if (current?.kind === 'selection') setSelection(current.initialSelection);
 		if (current && waveRef.current?.hasPointerCapture?.(current.pointerId)) waveRef.current.releasePointerCapture(current.pointerId);
 		gesture.current = null; setDragFrame(null); setFadePreview(null);
 	};
@@ -255,7 +260,7 @@ export default function ClipSourceEditor({ controller, project, clipId, copy, bl
 					data-source-sample={marker.source.num / marker.source.den} style={{ left: pixel(index + 1 === markerIndex && markerFeedback ? markerFeedback.displayFrame : clipSourceFrameToDisplay(project, clip, source, marker.source.num / marker.source.den)) }}
 					onPointerDown={event => begin(event, 'marker', index + 1)} onKeyDown={event => {
 						if (event.key === 'Delete' || event.key === 'Backspace') { event.preventDefault(); event.stopPropagation(); run(() => controller.actions.audioWarp.deleteSourceMarker(clipId, index + 1)); }
-						if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') { event.preventDefault(); event.stopPropagation(); run(() => controller.actions.audioWarp.moveSourceMarker(clipId, index + 1, clipSourceStretchFeedback(project, clip, source, index + 1, clipSourceFrameToDisplay(project, clip, source, marker.source.num / marker.source.den) + (event.key === 'ArrowLeft' ? -1 : 1) * (event.shiftKey ? Math.round(project.sampleRate / 10) : 1))!.displayFrame - range.startFrame)); }
+						if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') { event.preventDefault(); event.stopPropagation(); moveMarker(index + 1, clipSourceFrameToDisplay(project, clip, source, marker.source.num / marker.source.den) + (event.key === 'ArrowLeft' ? -1 : 1) * (event.shiftKey ? Math.round(project.sampleRate / 10) : 1)); }
 					}} />)}
 				{markerFeedback && <div className="audio-editor-source-stretch-feedback" role="status" aria-live="polite"
 					style={{ left: Math.max(0, Math.min(width - 240, pixel(markerFeedback.displayFrame) - 120)) }}>

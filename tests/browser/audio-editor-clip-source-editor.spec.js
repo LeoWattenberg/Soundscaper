@@ -133,6 +133,10 @@ test.describe('clip source editor', () => {
 		await expect(waveform.locator('[data-source-active="true"]')).toHaveCount(0);
 		await expect.poll(paintedSamples).toBeGreaterThan(100);
 		await expect(waveform.locator('[data-waveform-error]')).toHaveCount(0);
+		await waveform.click({ button: 'right', position: { x: 80, y: 80 } });
+		await page.getByRole('menuitem', { name: 'Fit source', exact: true }).click();
+		await expect(waveform.getByRole('slider', { name: 'Fade in', exact: true })).toBeVisible();
+		await expect(waveform.getByRole('slider', { name: 'Fade out', exact: true })).toBeVisible();
 		expect(errors).toEqual([]);
 	});
 

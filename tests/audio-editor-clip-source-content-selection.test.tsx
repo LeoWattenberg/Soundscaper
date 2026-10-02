@@ -19,6 +19,37 @@ test('shared source fade handles appear on the first mount before any clip edit'
 	} finally { await f.cleanup(); }
 });
 
+for (const cancel of ['Escape', 'pointercancel'] as const) {
+	test(`${cancel} restores the previous source highlight and effect target`, async () => {
+		const f = await fixture();
+		try {
+			await f.select(250, 350);
+			const previous = f.highlight();
+			await f.dragSelection(400, 600);
+			assert.notDeepEqual(f.highlight(), previous);
+			await f.cancelSelection(cancel);
+			assert.deepEqual(f.highlight(), previous);
+			assert.deepEqual(f.preview.snapshot().selection, { startFrame: 250, endFrame: 350 });
+			assert.deepEqual(f.effectSelection(), { clipId: 'clip', startFrame: 250, endFrame: 350 });
+		} finally { await f.cleanup(); }
+	});
+}
+
+test('source keyboard movement skips markers without an integer frame between their neighbors', async () => {
+	const f = await fixture();
+	try {
+		await f.render({ durationFrames: 3, warpMap: { feature: 'audio-warp', points: [
+			{ outer: 0, source: 100, mode: 'forward' },
+			{ outer: { num: 1, den: 10 }, source: 200, mode: 'forward' },
+			{ outer: { num: 2, den: 10 }, source: 250, mode: 'forward' },
+			{ outer: { num: 3, den: 10 }, source: 300, mode: 'forward' },
+			{ outer: 3, source: 500, mode: 'forward' },
+		] } });
+		await f.pressMarker(1, 'ArrowRight');
+		assert.deepEqual(f.markerMoves, []);
+	} finally { await f.cleanup(); }
+});
+
 test('source edits refresh the effect target without requiring another focus event', async () => {
 	const f = await fixture();
 	try {
@@ -76,26 +107,45 @@ async function fixture() {
 	preview.focus('clip');
 	let effectSelection: (SourceSelection & { readonly clipId: string }) | null = null;
 	const noop = () => undefined;
+	const markerMoves: unknown[][] = [];
 	const controller: ClipSourceController = { getClipVisualData: () => null, actions: {
-		clip: { update: noop }, audioWarp: { addSourceMarker: noop, moveSourceMarker: noop, deleteSourceMarker: noop }, timeline: {},
+		clip: { update: noop }, audioWarp: { addSourceMarker: noop, moveSourceMarker: (...args: unknown[]) => { markerMoves.push(args); }, deleteSourceMarker: noop }, timeline: {},
 		effects: { setSourceSelection: value => { effectSelection = value; } },
 		clipSourcePreview: { ...preview, trim: noop },
 	} };
 	const { createRoot } = await import('react-dom/client');
 	const root = createRoot(dom.container as unknown as Element);
-	const render = async (changes: Readonly<Record<string, number>> = {}) => {
+	const render = async (changes: Partial<ClipSourceProject['clips'][number]> = {}) => {
 		project = { ...project, clips: [{ ...project.clips[0]!, ...changes }] };
 		await act(async () => { root.render(<ClipSourceEditor controller={controller} project={project} clipId="clip" copy={ENGLISH_COPY} blocked={false} />); });
 	};
 	await render();
+	const wave = dom.one('.audio-editor-source-wave-area');
+	Object.defineProperty(wave, 'getBoundingClientRect', { value: () => ({ left: 0, width: 1_000 }) });
+	Object.defineProperty(wave, 'setPointerCapture', { value: noop });
+	const event = { button: 0, pointerId: 1, preventDefault: noop, stopPropagation: noop };
 	return {
-		render, preview, effectSelection: () => effectSelection,
+		render, preview, markerMoves, effectSelection: () => effectSelection,
+		pressMarker: async (index: number, key: string) => {
+			const marker = dom.container.querySelectorAll('.audio-editor-source-stretch-marker')[index]!;
+			await act(async () => { reactProps(marker).onKeyDown({ ...event, key }); });
+		},
 		fadeHandle: (edge: string) => dom.find(`[data-clip-fade-handle="${edge}"]`),
+		highlight: () => {
+			const highlight = dom.find('.audio-editor-source-selection');
+			return highlight ? [Reflect.get(highlight.style, 'left'), Reflect.get(highlight.style, 'width')] : null;
+		},
+		dragSelection: async (startFrame: number, endFrame: number) => {
+			await act(async () => { reactProps(wave).onPointerDown({ ...event, clientX: startFrame }); });
+			await act(async () => { reactProps(wave).onPointerMove({ ...event, clientX: endFrame }); });
+		},
+		cancelSelection: async (method: 'Escape' | 'pointercancel') => {
+			await act(async () => {
+				if (method === 'Escape') reactProps(dom.one('.audio-editor-clip-source-editor')).onKeyDownCapture({ ...event, key: 'Escape' });
+				else reactProps(wave).onPointerCancel(event);
+			});
+		},
 		select: async (startFrame: number, endFrame: number) => {
-			const wave = dom.one('.audio-editor-source-wave-area');
-			Object.defineProperty(wave, 'getBoundingClientRect', { value: () => ({ left: 0, width: 1_000 }) });
-			Object.defineProperty(wave, 'setPointerCapture', { value: noop });
-			const event = { button: 0, pointerId: 1, preventDefault: noop, stopPropagation: noop };
 			await act(async () => { reactProps(wave).onPointerDown({ ...event, clientX: startFrame }); });
 			await act(async () => { reactProps(wave).onPointerUp({ ...event, clientX: endFrame }); });
 		},

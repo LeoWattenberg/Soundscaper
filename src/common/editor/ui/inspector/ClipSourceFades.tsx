@@ -25,8 +25,8 @@ export default function ClipSourceFades({ rootRef, clip, startFrame, endFrame, w
 	const first = Math.max(startFrame, clip.timelineStartFrame);
 	const last = Math.min(endFrame, clip.timelineStartFrame + clip.durationFrames);
 	return <>
-		{last > first && <div className="audio-editor-source-fade-target" data-clip-id={clip.id}
-			style={{ left: (first - startFrame) / (endFrame - startFrame) * width, width: (last - first) / (endFrame - startFrame) * width }} />}
+		<div className="audio-editor-source-fade-target" data-clip-id={clip.id}
+			style={{ left: (first - startFrame) / (endFrame - startFrame) * width, width: Math.max(0, last - first) / (endFrame - startFrame) * width }} />
 		{mounted && <ClipFadeOverlays rootRef={rootRef} clips={clips} selectedIds={selectedIds} startFrame={startFrame} endFrame={endFrame}
 			pixelsPerSecond={width * sampleRate / (endFrame - startFrame)} sampleRate={sampleRate} blocked={blocked} showFadeShapeHandles
 			crossfadedFadeEdges={NO_CROSSFADES} handleTabIndex={0} onChange={onChange} onTabOut={() => rootRef.current?.focus()}
