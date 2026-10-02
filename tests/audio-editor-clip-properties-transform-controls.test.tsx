@@ -27,9 +27,60 @@ test('the four property drawers start collapsed and keep their controls together
 		assert.ok(drawers.every((drawer) => drawer.getAttribute('open') === null));
 		assert.ok(drawers[0]!.querySelector('[data-clip-field="name"]'));
 		assert.ok(drawers[1]!.querySelector('[data-clip-field="fadeInFrame"]'));
+		assert.equal(drawers[1]!.querySelector('[data-clip-field="gain"]'), null);
 		assert.ok(drawers[2]!.querySelector('[data-clip-field="pitchCents"]'));
+		assert.ok(drawers[3]!.querySelector('[data-clip-field="gain"]'));
+		assert.equal(drawers[0]!.querySelector('[data-drawer-icon]')?.textContent, '\uEF28');
+		assert.ok(drawers[1]!.querySelector('[data-drawer-icon]')?.querySelector('svg'));
+		assert.equal(drawers[2]!.querySelector('[data-drawer-icon]')?.textContent, '\uF475');
+		assert.equal(drawers[3]!.querySelector('[data-drawer-icon]')?.textContent, '\uF4A8');
 		assert.deepEqual(drawers[3]!.querySelectorAll('[data-clip-action]')
 			.map((action) => action.getAttribute('data-clip-action')), ['normalize-peak', 'normalize-lufs']);
+	} finally { await fixture.cleanup(); }
+});
+
+test('unchanged pitch and speed point up without a change sweep in either pitch unit', async () => {
+	const fixture = await mountedFixture();
+	try {
+		await fixture.render();
+		for (const unit of [ENGLISH_COPY.clipPitchUnitSemitones, ENGLISH_COPY.clipPitchUnitPercent]) {
+			await fixture.choosePitchUnit(unit);
+			for (const field of ['pitchCents', 'speedRatio']) {
+				const knob = fixture.dom.one(`[data-clip-knob="${field}"]`);
+				const style = knob.querySelector('.knob__knob-group')!.style as unknown as { transform: string };
+				assert.equal(style.transform, 'rotate(0deg)');
+				assert.equal(knob.querySelector('.knob__value-sweep'), null);
+			}
+		}
+	} finally { await fixture.cleanup(); }
+});
+
+test('pitch and tempo link commits the selected clip preference and shows saved state', async () => {
+	const fixture = await mountedFixture({ linkPitchAndTempo: true });
+	try {
+		await fixture.render();
+		assert.equal(fixture.toggleState('linkPitchAndTempo'), 'true');
+		assert.ok(fixture.pitchCard().querySelector('[data-clip-field="linkPitchAndTempo"]'));
+		await fixture.toggle('linkPitchAndTempo');
+		assert.deepEqual(fixture.timePitchCalls, [{ linkPitchAndTempo: false }]);
+	} finally { await fixture.cleanup(); }
+});
+
+test('linked pitch reads playback speed and edits speed without overwriting independent pitch', async () => {
+	const fixture = await mountedFixture({ linkPitchAndTempo: true, speedRatio: 4, pitchCents: 300 });
+	try {
+		await fixture.render();
+		assert.equal(fixture.pitchValue(), '24.00');
+		assert.equal(fixture.pitchLabel(), ENGLISH_COPY.clipLinkedPitchSemitones);
+		await fixture.commitPitch('24');
+		await fixture.choosePitchUnit(ENGLISH_COPY.clipPitchUnitPercent);
+		assert.equal(fixture.pitchValue(), '300.000');
+		assert.equal(fixture.pitchLabel(), ENGLISH_COPY.clipLinkedPitchPercent);
+		await fixture.commitPitch('-75');
+		assert.deepEqual(fixture.timePitchCalls, [{ speedRatio: 4 }, { speedRatio: 0.25 }]);
+		await fixture.commitPitch('-100');
+		assert.equal(fixture.errorText(), ENGLISH_COPY.clipLinkedPitchRange);
+		assert.equal(fixture.timePitchCalls.length, 2);
 	} finally { await fixture.cleanup(); }
 });
 

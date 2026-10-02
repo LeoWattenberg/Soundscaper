@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import React, { act } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 
 import { Knob } from '../vendor/audacity-design-system/components/src/Knob/Knob.tsx';
 import {
@@ -11,6 +12,23 @@ import {
 	reactProps,
 	type ReactTestElement,
 } from './helpers/react-test-dom.ts';
+
+test('asymmetric bipolar knobs center the neutral value and sweep both sides in their original units', () => {
+	for (const [min, max, neutralValue, values] of [
+		[-50, 100, 0, [-50, -25, 0, 50, 100]],
+		[0.25, 4, 1, [0.25, 0.625, 1, 2.5, 4]],
+	] as const) {
+		for (const [index, value] of values.entries()) {
+			const markup = renderToStaticMarkup(<Knob value={value} min={min} max={max} neutralValue={neutralValue} />);
+			assert.ok(markup.includes(`rotate(${(index - 2) * 67.5}deg)`));
+			assert.equal(markup.includes('knob__value-sweep'), value !== neutralValue);
+			assert.ok(markup.includes(`aria-valuenow="${value}"`), 'screen readers retain the parameter units');
+		}
+	}
+	const mixerPan = renderToStaticMarkup(<Knob value={0} min={-100} max={100} />);
+	assert.ok(mixerPan.includes('rotate(0deg)'));
+	assert.equal(mixerPan.includes('knob__value-sweep'), false, 'existing default center is unchanged');
+});
 
 test('knob pointer gestures settle once across capture loss, cancellation, blur, and unmount', async () => {
 	const priorAddEventListener = Object.getOwnPropertyDescriptor(globalThis, 'addEventListener');

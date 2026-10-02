@@ -57,17 +57,21 @@ export function TrackFadeHandle({
   // The two grips need room to remain legible and independently grabbable.
   if (clipWidth < 64) return null;
 
-  const mirrored = edge === 'out';
   const left = handleLeft(edge, boundaryX, oppositeBoundaryX, clipWidth);
 
   return <button {...buttonProps} type="button" role="slider" data-fade-handle={edge}
     className={className ? `audacity-track-fade-handle ${className}` : 'audacity-track-fade-handle'}
     style={{ ...style, left }}>
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"
-      aria-hidden="true" style={mirrored ? { transform: 'scaleX(-1)' } : undefined}>
+    <TrackFadeHandleGlyph edge={edge} />
+  </button>;
+}
+
+/** The same quick-fade glyph for non-interactive labels and drawer headings. */
+export function TrackFadeHandleGlyph({ edge = 'in' }: { edge?: 'in' | 'out' }): React.ReactElement {
+  return <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true" style={edge === 'out' ? { transform: 'scaleX(-1)' } : undefined}>
       <path d="M15.5 6.5V15.5H6.5V6.5H15.5Z" fill="#FFFFFF" stroke="#14151A" />
       <path d="M16 6.5C12.8421 6.5 6.5 12.8421 6.5 16V6.5H16Z"
         fill="#9295A6" fillOpacity="0.75" stroke="#14151A" />
-    </svg>
-  </button>;
+    </svg>;
 }

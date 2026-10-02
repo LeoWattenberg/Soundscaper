@@ -73,7 +73,7 @@ test.describe('live dockable Clip properties', () => {
 		await selectClip(second);
 		await expect(clipField(panel, 'name')).toHaveValue(SECOND_TITLE);
 		await expect(second).toBeFocused();
-		await panel.getByText('Fading', { exact: true }).click();
+		await panel.getByText('Normalize', { exact: true }).click();
 		await commitInput(clipField(panel, 'gain'), '-3');
 		await chooseCommandAction(page, editor, 'Select', 'Select none');
 		await expect(panel.getByText(EMPTY_SELECTION, { exact: true })).toBeVisible();
@@ -114,7 +114,7 @@ test.describe('live dockable Clip properties', () => {
 		await expect(second.locator('.clip-display')).toHaveAttribute('data-selected', 'true');
 		await firstTab.click();
 		await expect(firstTab).toHaveAttribute('aria-selected', 'true');
-		await panel.getByText('Fading', { exact: true }).click();
+		await panel.getByText('Normalize', { exact: true }).click();
 		await commitInput(clipField(panel, 'gain'), '-3');
 		await panel.getByText('Media settings', { exact: true }).click();
 		const inverted = panel.locator('[data-clip-field="inverted"]').getByRole('checkbox');
@@ -128,7 +128,7 @@ test.describe('live dockable Clip properties', () => {
 		await expect(clipField(panel, 'gain')).toHaveValue('0.00');
 		await panel.getByText('Media settings', { exact: true }).click();
 		await expect(inverted).toHaveAttribute('aria-checked', 'false');
-		await panel.getByText('Fading', { exact: true }).click();
+		await panel.getByText('Normalize', { exact: true }).click();
 		await commitInput(clipField(panel, 'gain'), '-9');
 		await secondTab.focus();
 		await secondTab.press('Home');
@@ -164,9 +164,15 @@ test.describe('live dockable Clip properties', () => {
 		expect(sourceBounds.y + sourceBounds.height).toBeGreaterThanOrEqual(contentBounds.y + contentBounds.height - 12);
 		const pitchDrawer = panel.locator('[data-clip-properties-drawer="pitch"]');
 		await expect(pitchDrawer).not.toHaveAttribute('open');
+		const headingBounds = await pitchDrawer.locator('h3').boundingBox();
+		const iconBounds = await pitchDrawer.locator('[data-drawer-icon]').boundingBox();
+		const drawerBounds = await pitchDrawer.boundingBox();
+		expect(headingBounds.y + headingBounds.height).toBeLessThan(iconBounds.y);
+		expect(iconBounds.y + iconBounds.height).toBeGreaterThan(drawerBounds.y + drawerBounds.height - 16);
 		await pitchDrawer.getByText('Pitch and tempo', { exact: true }).click();
 		await expect(pitchDrawer).toHaveAttribute('open', '');
-		await expect(pitchDrawer.locator('summary')).toHaveCSS('writing-mode', 'vertical-rl');
+		await expect(pitchDrawer.locator('summary h3')).toHaveCSS('writing-mode', 'vertical-rl');
+		await expect(pitchDrawer.locator('summary h3')).toHaveCSS('transform', 'matrix(-1, 0, 0, -1, 0, 0)');
 		const semitones = pitchDrawer.getByRole('button', { name: 'Semitones (half-steps)', exact: true });
 		const percent = pitchDrawer.getByRole('button', { name: 'Percent change', exact: true });
 		await expect(semitones).toHaveAttribute('aria-pressed', 'true');
@@ -180,9 +186,17 @@ test.describe('live dockable Clip properties', () => {
 		await knob.focus();
 		await knob.press('ArrowLeft');
 		await expect(clipField(panel, 'pitchCents')).toHaveValue('11.99');
+		await pitchDrawer.getByText('Pitch and tempo', { exact: true }).click();
+		const normalizeDrawer = panel.locator('[data-clip-properties-drawer="normalize"]');
+		await normalizeDrawer.getByText('Normalize', { exact: true }).click();
+		await expect(normalizeDrawer.getByRole('spinbutton', { name: 'Clip gain (dB)', exact: true })).toBeVisible();
+		const normalizationButtons = await normalizeDrawer.getByRole('button').all();
+		const peakBounds = await normalizationButtons[0].boundingBox();
+		const loudnessBounds = await normalizationButtons[1].boundingBox();
+		expect(loudnessBounds.y).toBeGreaterThanOrEqual(peakBounds.y + peakBounds.height);
 		await dockWorkspacePanel(editor, PANEL_ID, 'right');
 		await panel.getByText('Pitch and tempo', { exact: true }).click();
-		await expect(panel.locator('[data-clip-properties-drawer="pitch"] summary')).toHaveCSS('writing-mode', 'horizontal-tb');
+		await expect(panel.locator('[data-clip-properties-drawer="pitch"] summary h3')).toHaveCSS('writing-mode', 'horizontal-tb');
 		expect(errors).toEqual([]);
 	});
 

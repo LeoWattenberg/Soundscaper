@@ -80,7 +80,7 @@ export async function editClipProperties(page, editor, clip, edits) {
 	for (const [field, value] of Object.entries(edits)) {
 		if (value === undefined) continue;
 		const drawer = ['pitchCents', 'speedRatio', 'stretchToTempo'].includes(field)
-			? 'pitch' : ['gain', 'fadeInFrame', 'fadeOutFrame'].includes(field) ? 'fading' : 'media';
+			? 'pitch' : field === 'gain' ? 'normalize' : ['fadeInFrame', 'fadeOutFrame'].includes(field) ? 'fading' : 'media';
 		const section = dialog.locator(`[data-clip-properties-drawer="${drawer}"]`);
 		if (await section.getAttribute('open') === null) await section.locator('summary').click();
 		if (field === 'stretchToTempo') {

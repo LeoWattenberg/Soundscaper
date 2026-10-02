@@ -230,7 +230,8 @@ application overrides and source patches against the pin and upstream master.
     keyboard edits, and the clip curve overlay, so the grip forwards those events and remains inside
     the clip's overlay. It also keeps both grips reachable when this editor's independent
     fades overlap. Covered by `tests/vendored-design-system-fade-handle.test.tsx` and
-    `tests/browser/audio-editor-clip-fades.spec.js`.
+    `tests/browser/audio-editor-clip-fades.spec.js`. Its exported `TrackFadeHandleGlyph`
+    lets the clip-properties fading drawer reuse the same visual without an interactive grip.
 27. `TrackCrossfadeVisual.tsx` ports current upstream's paired white veils, equal-power gain
     curves, and shared intersection handle from `TrackNew.tsx` at
     `4a5bdd07c6e6c400db9fea84b194ac00057623dd`. The host supplies frame-canonical paths and
@@ -266,6 +267,9 @@ application overrides and source patches against the pin and upstream master.
     through their gesture callbacks. `PanKnob` defaults to its center, and
     `TrackControlPanel` forwards the host's default volume. Disabled controls stay
     unchanged. The application supplies parameter, generator, track, and meter defaults.
+    `Knob` also accepts `neutralValue` for asymmetric bipolar ranges: the neutral value
+    points straight up with no sweep while keyboard and accessible values retain their units.
+    Clip pitch percentages use 0 and playback speed uses 1, matching the pan knob's neutral display.
     Covered by `tests/audio-editor-control-default-reset.test.tsx` and
     `tests/browser/audio-editor-control-resets.spec.js`.
 32. `ContextMenu` cancels its initial autofocus timer when the menu closes and checks

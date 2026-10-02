@@ -3,12 +3,14 @@
 import { feedbackFailure, usePresentationFeedback } from '../presentation-feedback.ts';
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
+import { TrackFadeHandleGlyph } from '@soundscaper/design-system/Track/TrackFadeHandle';
 import { AUDIO_EDITOR_SAMPLE_RATE, findClip, findClipTrack, findSource } from '../../project.js';
 import AudioEditorTimeCodeInput from '../AudioEditorTimeCodeInput.tsx';
 import { selectAudioEditorEditBlock } from '../edit-blocking.ts';
 import { ActionHook, CommitField, DesignCheckbox, SteppedSlider } from './inspector-controls.jsx';
 import ClipPropertyKnob from './ClipPropertyKnob.tsx';
 import { clipPropertiesMediaRange } from './clip-properties-media-range.ts';
+import { clipLinkedPitchSpeed } from './clip-properties-linked-pitch.ts';
 import ClipResampleDialog from './ClipResampleDialog.jsx';
 import { VideoEffectRack } from './VideoEffectRack.jsx';
 import VideoSourcePropertiesSection from './VideoSourcePropertiesSection.jsx';
@@ -52,6 +54,14 @@ export default function ClipPropertiesBody({ controller, snapshot, copy, clipId 
 	// reading of the same stored value, so it is remembered for this inspector
 	// rather than written to the clip.
 	const [pitchUnit, setPitchUnit] = useState('semitones');
+	const linkedPitch = Boolean(clip?.linkPitchAndTempo);
+	const pitchCents = linkedPitch ? 1200 * Math.log2(clip.speedRatio) : clip?.pitchCents ?? 0;
+	const pitchValue = clipPitchInUnit(pitchCents, pitchUnit);
+	const pitchLimit = linkedPitch ? 24 : 12;
+	const pitchMinimum = pitchUnit === 'percent' ? 100 * (2 ** (-pitchLimit / 12) - 1) : -pitchLimit;
+	const pitchMaximum = pitchUnit === 'percent' ? 100 * (2 ** (pitchLimit / 12) - 1) : pitchLimit;
+	const pitchLabel = linkedPitch ? (pitchUnit === 'percent' ? copy.clipLinkedPitchPercent : copy.clipLinkedPitchSemitones)
+		: clipPitchUnitFieldLabel(copy, pitchUnit);
 	const projectIdentity = project?.id ?? null;
 	const clipIdentity = clip?.id ?? null;
 	const currentTarget = useRef({ projectIdentity, clipIdentity });
@@ -110,8 +120,10 @@ export default function ClipPropertiesBody({ controller, snapshot, copy, clipId 
 				if (!Number.isFinite(shape) || shape < 0.15 || shape > 6) throw new RangeError('Invalid fade shape.');
 				controller.actions.clip.update(clip.id, { [name]: shape });
 			} else if (name === 'pitchCents') {
-				const pitchCents = clipPitchUnitToCents(rawValue, pitchUnit, copy);
-				controller.actions.clip.setTimePitch(clip.id, { pitchCents });
+				const changes = linkedPitch
+					? { speedRatio: clipLinkedPitchSpeed(rawValue, pitchUnit, copy.clipLinkedPitchRange) }
+					: { pitchCents: clipPitchUnitToCents(rawValue, pitchUnit, copy) };
+				controller.actions.clip.setTimePitch(clip.id, changes);
 			} else if (name === 'speedRatio') {
 				controller.actions.clip.setTimePitch(clip.id, { speedRatio: Number(rawValue) });
 			}
@@ -183,7 +195,6 @@ export default function ClipPropertiesBody({ controller, snapshot, copy, clipId 
 				{isVideoClip && source?.kind === 'video' && <VideoSourcePropertiesSection source={source} controller={controller} copy={copy} disabled={disabled} />}
 				{!isVideoClip && <ClipPropertiesDrawer name="fading" label={copy.fading}>
 					<div className="audio-editor-clip-properties__stack">
-						<CommitField label={`${copy.clipGain} (dB)`} name="gain" value={clip ? linearToDb(clip.gain).toFixed(2) : '0.00'} type="number" disabled={disabled} onCommit={commitField} />
 						<ClipTimeCodeField name="fadeInFrame" label={copy.fadeIn} value={clip?.fadeInFrames ?? 0}
 							sampleRate={sampleRate} maximum={clip?.durationFrames ?? 0} disabled={disabled}
 							onCommit={(value) => commitField('fadeInFrame', value)} />
@@ -201,9 +212,9 @@ export default function ClipPropertiesBody({ controller, snapshot, copy, clipId 
 				{!isVideoClip && snapshot.capabilities?.audioEffects && <ClipPropertiesDrawer name="pitch" label={copy.pitchTempo}
 					initiallyOpen={['pitchCents', 'speedRatio'].includes(focusField)}>
 					<div className="audio-editor-clip-properties__stack">
-						<ClipPropertyKnob key={pitchUnit} label={clipPitchUnitFieldLabel(copy, pitchUnit)} name="pitchCents"
-							value={clipPitchInUnit(clip?.pitchCents ?? 0, pitchUnit)}
-							min={pitchUnit === 'percent' ? -50 : -12} max={pitchUnit === 'percent' ? 100 : 12}
+						<ClipPropertyKnob key={pitchUnit} label={pitchLabel} name="pitchCents"
+							value={pitchValue}
+							min={Math.min(pitchMinimum, Number(pitchValue))} max={Math.max(pitchMaximum, Number(pitchValue))}
 							step={pitchUnit === 'percent' ? 0.1 : 0.01} defaultValue={0} disabled={disabled} onCommit={commitField}
 							formatKnobValue={(value) => value.toFixed(pitchUnit === 'percent' ? 3 : 2)}
 							onKnobCommit={(value) => commitField('pitchCents', value)}>
@@ -218,8 +229,9 @@ export default function ClipPropertiesBody({ controller, snapshot, copy, clipId 
 						</ClipPropertyKnob>
 						<ClipPropertyKnob label={copy.clipSpeedRatio} name="speedRatio" value={clip?.speedRatio ?? 1}
 							min={Math.min(0.25, clip?.speedRatio ?? 1)} max={Math.max(4, clip?.speedRatio ?? 1)}
-							step={0.01} defaultValue={1} mode="unipolar" disabled={disabled}
+							step={0.01} defaultValue={1} disabled={disabled}
 							onCommit={commitField} onKnobCommit={(value) => commitField('speedRatio', value)} />
+						<div data-clip-field="linkPitchAndTempo"><DesignCheckbox label={copy.clipLinkPitchAndTempo} checked={linkedPitch} disabled={disabled} onChange={(checked) => { if (ownsTarget()) controller.actions.clip.setTimePitch(clip.id, { linkPitchAndTempo: checked }); }} /></div>
 						<div data-clip-field="preserveFormants"><DesignCheckbox label={copy.preserveFormants} checked={Boolean(clip?.preserveFormants)} disabled={disabled} onChange={(checked) => { if (ownsTarget()) controller.actions.clip.setTimePitch(clip.id, { preserveFormants: checked }); }} /></div>
 						<div data-clip-field="stretchToTempo"><DesignCheckbox label={copy.stretchToTempo} checked={Boolean(clip?.stretchToTempo)} disabled={disabled} onChange={() => { if (ownsTarget()) controller.actions.clip.toggleStretchToTempo(clip.id); }} /></div>
 						<div className="audio-editor-panel-actions">
@@ -228,11 +240,12 @@ export default function ClipPropertiesBody({ controller, snapshot, copy, clipId 
 						</div>
 					</div>
 				</ClipPropertiesDrawer>}
-				{!isVideoClip && snapshot.capabilities?.audioEffects && <ClipPropertiesDrawer name="normalize" label={copy.effectCardNormalize}>
-					<div className="audio-editor-panel-actions">
+				{!isVideoClip && <ClipPropertiesDrawer name="normalize" label={copy.effectCardNormalize}>
+					<CommitField label={`${copy.clipGain} (dB)`} name="gain" value={clip ? linearToDb(clip.gain).toFixed(2) : '0.00'} type="number" disabled={disabled} onCommit={commitField} />
+					{snapshot.capabilities?.audioEffects && <div className="audio-editor-panel-actions audio-editor-clip-normalize-actions">
 						<ActionHook hook="normalize-peak"><Button disabled={disabled} onClick={() => run(controller.actions.clip.normalizePeak)}>{copy.normalizePeak}</Button></ActionHook>
 						<ActionHook hook="normalize-lufs"><Button disabled={disabled} onClick={() => run(controller.actions.clip.normalizeLoudness)}>{copy.normalizeLufs}</Button></ActionHook>
-					</div>
+					</div>}
 				</ClipPropertiesDrawer>}
 				{isVideoClip && snapshot.capabilities?.videoEffects && <VideoEffectRack clip={clip} controller={controller} copy={copy} disabled={disabled} onError={setError} />}
 			</div>
@@ -254,8 +267,11 @@ export default function ClipPropertiesBody({ controller, snapshot, copy, clipId 
 }
 
 function ClipPropertiesDrawer({ name, label, initiallyOpen = false, children }) {
+	const icons = { media: '\uEF28', pitch: '\uF475', normalize: '\uF4A8' };
 	return <details className="audio-editor-clip-properties__drawer" data-clip-properties-drawer={name} open={initiallyOpen || undefined}>
-		<summary><h3>{label}</h3></summary>
+		<summary><h3>{label}</h3><span className="audio-editor-clip-properties__drawer-icon" data-drawer-icon aria-hidden="true">
+			{name === 'fading' ? <TrackFadeHandleGlyph /> : icons[name]}
+		</span></summary>
 		<div className="audio-editor-clip-properties__drawer-content">{children}</div>
 	</details>;
 }

@@ -25,7 +25,7 @@ test.describe('inspector helper workflows', () => {
 		await importFiles(editor, [toneA]);
 		const properties = await openClipProperties(page, editor, clipByName(editor, toneA.name));
 
-		await properties.getByText('Fading', { exact: true }).click();
+		await properties.getByText('Normalize', { exact: true }).click();
 		const gain = properties.getByRole('spinbutton', { name: 'Clip gain (dB)', exact: true });
 		await commitInput(gain, '25');
 		await expect(properties.getByRole('alert')).toHaveText('Invalid gain value.');
@@ -33,7 +33,7 @@ test.describe('inspector helper workflows', () => {
 		await expect(properties.getByRole('alert')).toHaveCount(0);
 		await expect(gain).toHaveValue('-6.00');
 
-		await properties.getByText('Fading', { exact: true }).click();
+		await properties.getByText('Normalize', { exact: true }).click();
 		await properties.getByText('Pitch and tempo', { exact: true }).click();
 		let pitch = properties.getByRole('spinbutton', {
 			name: 'Pitch (semitones, −12 to +12)', exact: true,

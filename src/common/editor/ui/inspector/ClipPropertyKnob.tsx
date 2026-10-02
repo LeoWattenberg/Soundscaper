@@ -29,7 +29,7 @@ export default function ClipPropertyKnob({ name, label, value, min, max,
 		<span>{label}</span>
 		<div className="audio-editor-clip-property-knob__row">
 			<Knob label={label} value={gestureValue ?? Number(value)} min={min} max={max} step={step}
-				defaultValue={defaultValue} mode={mode} disabled={disabled} onChange={setGestureValue}
+				defaultValue={defaultValue} neutralValue={defaultValue} mode={mode} disabled={disabled} onChange={setGestureValue}
 				onGestureEnd={(next) => { onKnobCommit(next); setGestureValue(null); }}
 				onGestureCancel={() => setGestureValue(null)} />
 			<CommitField label={label} name={name} value={displayValue} type="number" disabled={disabled}

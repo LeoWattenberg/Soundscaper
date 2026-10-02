@@ -81,10 +81,28 @@
 }
 
 .audio-editor-clip-properties__drawer summary {
+	display: flex;
+	align-items: center;
+	gap: 8px;
 	padding: 8px 10px;
 	color: var(--text);
 	cursor: pointer;
 	user-select: none;
+	list-style: none;
+}
+
+.audio-editor-clip-properties__drawer summary::-webkit-details-marker {
+	display: none;
+}
+
+.audio-editor-clip-properties__drawer-icon {
+	display: inline-flex;
+	flex: 0 0 16px;
+	align-items: center;
+	justify-content: center;
+	width: 16px;
+	height: 16px;
+	font: 16px 'MusescoreIcon', sans-serif;
 }
 
 .audio-editor-clip-properties__drawer summary:focus-visible {
@@ -110,6 +128,11 @@
 	display: grid;
 	gap: 6px;
 	min-width: 0;
+}
+
+.audio-editor-clip-normalize-actions {
+	flex-direction: column;
+	align-items: stretch;
 }
 
 .audio-editor-clip-property-knob > span {
@@ -214,9 +237,20 @@
 
 [data-panel-dock='bottom'] .audio-editor-clip-properties__drawer summary {
 	float: inline-start;
+	box-sizing: border-box;
+	flex-direction: column;
+	justify-content: flex-end;
+	width: 32px;
+	height: 100%;
 	min-height: 150px;
 	padding: 10px 7px;
+	gap: 10px;
+}
+
+[data-panel-dock='bottom'] .audio-editor-clip-properties__drawer summary h3 {
 	writing-mode: vertical-rl;
+	transform: rotate(180deg);
+	white-space: nowrap;
 }
 
 [data-panel-dock='bottom'] .audio-editor-clip-properties__drawer-content {

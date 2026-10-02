@@ -9,6 +9,8 @@ export interface KnobProps {
   value?: number;
   /** Value restored by double-clicking the knob. */
   defaultValue?: number;
+  /** Bipolar value shown at twelve o'clock with no change sweep. Defaults to the range midpoint. */
+  neutralValue?: number;
   /**
    * Minimum value
    */
@@ -61,6 +63,7 @@ export interface KnobProps {
 export const Knob: React.FC<KnobProps> = ({
   value = 0,
   defaultValue,
+  neutralValue,
   min = -100,
   max = 100,
   step = 1,
@@ -97,6 +100,11 @@ export const Knob: React.FC<KnobProps> = ({
 
   // Normalize value to 0-1 range
   const normalizedValue = (clampedValue - min) / (max - min);
+  const centerValue = neutralValue !== undefined && Number.isFinite(neutralValue)
+    && neutralValue > min && neutralValue < max ? neutralValue : (min + max) / 2;
+  const bipolarNormalized = clampedValue < centerValue
+    ? (clampedValue - centerValue) / (centerValue - min)
+    : (clampedValue - centerValue) / (max - centerValue);
 
   // Calculate rotation angle for knob
   // For bipolar: center is at 0deg, range is -135deg to +135deg
@@ -104,7 +112,6 @@ export const Knob: React.FC<KnobProps> = ({
   let knobRotation: number;
   if (mode === 'bipolar') {
     // Map value from min/max to -135/+135 degrees
-    const bipolarNormalized = (clampedValue - min) / (max - min) * 2 - 1; // -1 to 1
     knobRotation = bipolarNormalized * 135;
   } else {
     // Unipolar: -135deg at min, +135deg at max
@@ -118,9 +125,7 @@ export const Knob: React.FC<KnobProps> = ({
 
   if (mode === 'bipolar') {
     // Bipolar mode: sweep from center outward
-    const centerValue = (min + max) / 2;
     const isNegative = clampedValue < centerValue;
-    const bipolarNormalized = (clampedValue - min) / (max - min) * 2 - 1; // -1 to 1
     valueSweepDegrees = Math.abs(bipolarNormalized) * 135;
     sweepStartDeg = isNegative ? 0 - valueSweepDegrees : 0;
     sweepColor = isNegative ? '#84b5ff' : '#677ce4';
@@ -141,7 +146,7 @@ export const Knob: React.FC<KnobProps> = ({
   const ariaLabel = label ? `${label}: ${clampedValue}` : `${clampedValue}`;
 
   const showSweep = mode === 'bipolar'
-    ? clampedValue !== (min + max) / 2
+    ? clampedValue !== centerValue
     : normalizedValue > 0;
 
   // Keyboard adjustment — fired when the knob's button has DOM focus,
