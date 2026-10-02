@@ -235,7 +235,7 @@ export default function ClipPropertiesBody({ controller, snapshot, copy, clipId 
 						<div data-clip-field="preserveFormants"><DesignCheckbox label={copy.preserveFormants} checked={Boolean(clip?.preserveFormants)} disabled={disabled} onChange={(checked) => { if (ownsTarget()) controller.actions.clip.setTimePitch(clip.id, { preserveFormants: checked }); }} /></div>
 						<div data-clip-field="stretchToTempo"><DesignCheckbox label={copy.stretchToTempo} checked={Boolean(clip?.stretchToTempo)} disabled={disabled} onChange={() => { if (ownsTarget()) controller.actions.clip.toggleStretchToTempo(clip.id); }} /></div>
 						<div className="audio-editor-panel-actions">
-							<ActionHook hook="render-pitch-speed"><Button disabled={disabled || !clip || (clip.pitchCents === 0 && clip.speedRatio === 1)} onClick={() => run(controller.actions.clip.renderPitchSpeed)}>{copy.render}</Button></ActionHook>
+							<ActionHook hook="render-pitch-speed"><Button disabled={disabled || !clip || (pitchCents === 0 && clip.speedRatio === 1)} onClick={() => run(controller.actions.clip.renderPitchSpeed)}>{copy.render}</Button></ActionHook>
 							<ActionHook hook="reset-pitch-speed"><Button variant="secondary" disabled={disabled || !clip || (clip.pitchCents === 0 && clip.speedRatio === 1)} onClick={() => run(controller.actions.clip.resetPitchSpeed)}>{copy.reset}</Button></ActionHook>
 						</div>
 					</div>

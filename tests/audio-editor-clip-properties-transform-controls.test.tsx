@@ -84,6 +84,17 @@ test('linked pitch reads playback speed and edits speed without overwriting inde
 	} finally { await fixture.cleanup(); }
 });
 
+test('linked unity speed has nothing to render while Reset can clear retained independent pitch', async () => {
+	const fixture = await mountedFixture({ linkPitchAndTempo: true, speedRatio: 1, pitchCents: 300 });
+	try {
+		await fixture.render();
+		const render = fixture.dom.one('[data-clip-action="render-pitch-speed"]').querySelector('button')!;
+		const reset = fixture.dom.one('[data-clip-action="reset-pitch-speed"]').querySelector('button')!;
+		assert.equal(render.getAttribute('disabled'), '');
+		assert.equal(reset.getAttribute('disabled'), null);
+	} finally { await fixture.cleanup(); }
+});
+
 test('pitch and speed have a knob beside their numeric value and exclusive pitch units', async () => {
 	const fixture = await mountedFixture({ pitchCents: 200, speedRatio: 8 });
 	try {
