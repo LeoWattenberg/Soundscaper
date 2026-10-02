@@ -7,7 +7,8 @@ import { Icon } from '@soundscaper/design-system/Icon';
 import { framesToSeconds, projectClipsToViewport } from '../../design-system-adapters.js';
 import { createTimelineViewportClipIndex } from '../../design-system-adapters/timeline-viewport-index.ts';
 import { isVisualTimelineClipKind } from '../timeline-media-presence.ts';
-import { AutomaticCrossfadeOverlays, createVideoOverlapPresentation } from './TrackOverlapOverlays.jsx';
+import { AutomaticCrossfadeOverlays } from './TrackOverlapOverlays.jsx';
+import { analyzeVideoClipOverlaps, projectVideoOverlapPresentation } from './video-overlap-presentation.ts';
 import { TimeSelectionOverlay } from './TimelineOverlayComponents.jsx';
 import { TrackNameEditor } from './TrackControls.jsx';
 import { focusFirst } from './timeline-navigation.js';
@@ -94,14 +95,15 @@ export function VideoTrackRow({
 	const windowLeft = framesToSeconds(projection.overscanStartFrame, { sampleRate }) * pixelsPerSecond;
 	const windowFrames = Math.max(1, projection.overscanEndFrame - projection.overscanStartFrame);
 	const windowWidth = Math.max(1, framesToSeconds(windowFrames, { sampleRate }) * pixelsPerSecond);
-	const overlapPresentation = useMemo(() => createVideoOverlapPresentation(
-		clips,
+	const overlapAnalysis = useMemo(() => analyzeVideoClipOverlaps(clips), [clips]);
+	const overlapPresentation = useMemo(() => projectVideoOverlapPresentation(
+		overlapAnalysis,
 		projection.overscanStartFrame,
 		projection.overscanEndFrame,
 		pixelsPerSecond,
 		sampleRate,
 	), [
-		clips,
+		overlapAnalysis,
 		pixelsPerSecond,
 		projection.overscanEndFrame,
 		projection.overscanStartFrame,
