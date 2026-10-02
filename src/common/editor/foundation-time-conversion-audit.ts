@@ -44,6 +44,12 @@ export interface FoundationTimeConversionSite {
  */
 const FOUNDATION_TIME_CONVERSION_EDITOR_SITES: readonly FoundationTimeConversionSite[] = deepFreezeAuditSites([
 	{
+		id: 'clip-warp-rate-stretch-anchor',
+		file: 'src/common/editor/audio-warp-rate-stretch.ts',
+		behavior: 'Changing a warped clip playback rate preserves source samples and exactly recovers the musical origin when grouped stretching moves its timeline anchor.',
+		conversions: [{ helper: 'sampleFrameToBeat', policies: ['exact'] }],
+	},
+	{
 		id: 'otio-video-source-in-point',
 		file: 'src/common/editor/otio-export.ts',
 		behavior: 'Frame-authoritative video source in-points are rebased from the exact source grid to the OTIO sequence grid with nearest-point rounding.',

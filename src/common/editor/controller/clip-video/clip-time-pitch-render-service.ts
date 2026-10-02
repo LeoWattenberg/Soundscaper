@@ -74,6 +74,8 @@ interface RenderSource extends ClipTransformSource {
 }
 
 interface RenderFingerprint {
+	readonly linkPitchAndTempo: boolean;
+	readonly warpMap: string;
 	readonly projectId: string;
 	readonly clipId: string;
 	readonly sourceId: string;
@@ -104,6 +106,7 @@ export interface ClipTimePitchRenderServiceDependencies {
 	readonly sourcePeaks: MutableCache<unknown>;
 	readonly sourceChunkFrames: number;
 	getProject(): ClipTransformProject;
+	renderLinkedOutput?(project: ClipTransformProject, clip: ClipTransformClip, source: ClipTransformSource, signal: AbortSignal): Promise<AudioBufferLike>;
 	getSelectedClipId(): string | null;
 	editingBlocked(): boolean;
 	captureProject(): EditorProjectToken;
@@ -156,7 +159,7 @@ export function createClipTimePitchRenderService(
 		const track = clip ? findClipTrack(project, clip.id) : null;
 		const source = clip ? findRenderSource(project, clip.sourceId) : null;
 		if (!clip || !track || !source) throw createLocalizedError(Error, dependencies.copy, 'audioClipNotFound');
-		if (!clipNeedsTimePitchRender(clip)) return clip.id;
+		if (!clipNeedsTimePitchRender(clip) && !(clip.linkPitchAndTempo && clip.speedRatio !== 1)) return clip.id;
 		const task = dependencies.lifetime.startTask('clip-time-pitch-render');
 		const operation = ++renderGeneration;
 		const projectToken = dependencies.captureProject();
@@ -168,11 +171,16 @@ export function createClipTimePitchRenderService(
 		let writer: ClipTimePitchSourceWriter | null = null;
 		let writerCommitted = false;
 		try {
-			const entry = await dependencies.prepareCommittedOutput(clip, source, { signal: task.signal });
+			let buffer: AudioBufferLike | undefined;
+			if (clip.linkPitchAndTempo) {
+				if (!dependencies.renderLinkedOutput) throw new Error('Linked clip rendering is unavailable.');
+				buffer = await dependencies.renderLinkedOutput(project, clip, source, task.signal);
+			} else {
+				const entry = await dependencies.prepareCommittedOutput(clip, source, { signal: task.signal });
+				assertOwned(task, projectToken, fingerprint);
+				buffer = (await dependencies.materializeEntry(entry, task.signal)).audioBuffer;
+			}
 			assertOwned(task, projectToken, fingerprint);
-			const materialized = await dependencies.materializeEntry(entry, task.signal);
-			assertOwned(task, projectToken, fingerprint);
-			const buffer = materialized.audioBuffer;
 			if (!buffer) throw new Error('The committed time/pitch cache did not materialize audio.');
 			const publication = estimatePcmRenderPublication({
 				frameCount: buffer.length,
@@ -314,6 +322,7 @@ function renderedClip(
 		trimEndFrames: 0,
 		pitchCents: 0,
 		speedRatio: 1,
+		...(clip.linkPitchAndTempo ? { linkPitchAndTempo: false, warpMap: null } : {}),
 		preserveFormants: false,
 		reversed: false,
 		fadeInFrames: Math.min(clip.fadeInFrames, durationFrames),
@@ -324,6 +333,7 @@ function renderedClip(
 
 function fingerprintClip(project: ClipTransformProject, clip: RenderClip): RenderFingerprint {
 	return Object.freeze({
+		linkPitchAndTempo: Boolean(clip.linkPitchAndTempo), warpMap: JSON.stringify(clip.warpMap ?? null),
 		projectId: project.id,
 		clipId: clip.id,
 		sourceId: clip.sourceId,
@@ -339,6 +349,7 @@ function fingerprintClip(project: ClipTransformProject, clip: RenderClip): Rende
 
 function matchesFingerprint(clip: RenderClip, value: RenderFingerprint): boolean {
 	return clip.id === value.clipId
+		&& Boolean(clip.linkPitchAndTempo) === value.linkPitchAndTempo && JSON.stringify(clip.warpMap ?? null) === value.warpMap
 		&& clip.sourceId === value.sourceId
 		&& clip.sourceStartFrame === value.sourceStartFrame
 		&& clip.sourceDurationFrames === value.sourceDurationFrames

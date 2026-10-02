@@ -287,6 +287,7 @@ export function createAudioClip(options = {}) {
 		color: nonEmptyString(options.color || 'auto', 'clip.color'),
 		pitchCents: finiteInRange(options.pitchCents ?? 0, -1_200, 1_200, 'clip.pitchCents'),
 		speedRatio: finiteInRange(options.speedRatio ?? 1, 0.001, 1_000, 'clip.speedRatio'),
+		...(options.linkPitchAndTempo == null ? {} : { linkPitchAndTempo: Boolean(options.linkPitchAndTempo) }),
 		preserveFormants: Boolean(options.preserveFormants),
 		stretchToTempo: Boolean(options.stretchToTempo),
 		renderCacheRevision: safeInteger(options.renderCacheRevision ?? 0, 0, 'clip.renderCacheRevision'),

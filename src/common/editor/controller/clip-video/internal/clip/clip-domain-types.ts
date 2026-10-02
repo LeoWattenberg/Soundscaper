@@ -27,6 +27,7 @@ export interface ClipTransformClip extends Readonly<Record<string, unknown>> {
 	readonly groupId?: string | null;
 	readonly avLinkId?: string | null;
 	readonly speedRatio?: number;
+	readonly linkPitchAndTempo?: boolean;
 	readonly videoEffects?: readonly CommandObject[];
 }
 

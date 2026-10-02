@@ -66,6 +66,7 @@ export type ClipVideoCompositionEngine = Pick<EnginePublicApi,
 
 export interface ClipVideoCompositionDependencies {
 	readonly sourcePreview?: ClipSourcePreviewResources;
+	readonly createLinkedRenderEngine?: ClipSourcePreviewResources['createEngine'];
 	readonly state: ClipVideoCompositionState;
 	readonly copy: ClipVideoCompositionCopy;
 	readonly lifetime: Pick<EditorControllerLifetime, 'assertActive' | 'signal' | 'startTask'>;

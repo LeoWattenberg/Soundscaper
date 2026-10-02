@@ -204,7 +204,7 @@ function buildClipTransformState(project, transforms) {
 		'timelineStartFrame', 'sourceStartFrame', 'sourceDurationFrames', 'durationFrames',
 		'trimStartFrames', 'trimEndFrames', 'fadeInFrames', 'fadeOutFrames',
 		'fadeInShape', 'fadeOutShape',
-		'envelope', 'pitchCents', 'speedRatio', 'preserveFormants', 'stretchToTempo',
+		'envelope', 'pitchCents', 'speedRatio', 'preserveFormants', 'stretchToTempo', 'linkPitchAndTempo',
 		'renderCacheRevision',
 	]);
 	return transforms.map((transform, index) => {

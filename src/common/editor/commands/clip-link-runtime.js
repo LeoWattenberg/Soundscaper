@@ -379,6 +379,7 @@ function clipsHaveContiguousSource(left, right) {
 		|| left.gain !== right.gain
 		|| (left.pitchCents ?? 0) !== (right.pitchCents ?? 0)
 		|| (left.speedRatio ?? 1) !== (right.speedRatio ?? 1)
+		|| Boolean(left.linkPitchAndTempo) !== Boolean(right.linkPitchAndTempo)
 		|| Boolean(left.preserveFormants) !== Boolean(right.preserveFormants)
 		|| Boolean(left.stretchToTempo) !== Boolean(right.stretchToTempo)
 		|| left.warpMap != null

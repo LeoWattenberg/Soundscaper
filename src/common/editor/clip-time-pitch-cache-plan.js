@@ -37,7 +37,7 @@ export const CLIP_TIME_PITCH_CACHE_PREFIX = 'audio-editor-time-pitch-v1';
 const MAXIMUM_SEQUENTIAL_STAGES = 32;
 
 export function clipNeedsTimePitchRender(clip) {
-	if (!clip || typeof clip !== 'object') return false;
+	if (!clip || typeof clip !== 'object' || clip.linkPitchAndTempo === true) return false;
 	return Number(clip.pitchCents ?? 0) !== 0 || Number(clip.speedRatio ?? 1) !== 1;
 }
 

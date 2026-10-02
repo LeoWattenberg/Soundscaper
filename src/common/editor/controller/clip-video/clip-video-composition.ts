@@ -16,6 +16,7 @@ import { createClipSourcePreviewService } from './internal/clip-source-preview-s
 import type { ClipSourcePreviewProject } from './internal/clip-source-preview-project.ts';
 import { createClipPropertyService, type ClipAnalysisResult } from './internal/clip/clip-property-service.ts';
 import { createClipTimePitchRenderService } from './clip-time-pitch-render-service.ts';
+import { renderLinkedClipAudio } from './internal/linked-clip-render.ts';
 import { createClipTransformService } from './internal/clip/clip-transform-service.ts';
 import { createSampleEditService } from './internal/sample-edit-service.ts';
 import { createSequenceTimingService } from './internal/sequence-timing-service.ts';
@@ -209,6 +210,10 @@ export function createClipVideoComposition(dependencies: ClipVideoCompositionDep
 		commit: dependencies.commit,
 	});
 	const clipTimePitchRender: ClipTimePitchRender = createClipTimePitchRenderService({
+		renderLinkedOutput: (project, clip, source, signal) => {
+			if (!dependencies.sourcePreview) throw new Error('Linked clip rendering requires source audio resources.');
+			return renderLinkedClipAudio({ ...dependencies.sourcePreview, createEngine: dependencies.createLinkedRenderEngine ?? dependencies.sourcePreview.createEngine }, project, clip, source, signal);
+		},
 		lifetime,
 		copy,
 		store: dependencies.store,

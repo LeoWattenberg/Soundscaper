@@ -64,7 +64,7 @@ export function estimateExportSourceWorkingSetBytes(
 	// outside the selected render. Preserve that full-source exposure.
 	let cacheScratchBytes = 0;
 	for (const clip of getProjectClips(project)) {
-		if (clip.kind === 'video' || (Number(clip.pitchCents ?? 0) === 0 && Number(clip.speedRatio ?? 1) === 1)) continue;
+		if (clip.kind === 'video' || clip.linkPitchAndTempo === true || (Number(clip.pitchCents ?? 0) === 0 && Number(clip.speedRatio ?? 1) === 1)) continue;
 		const geometry = chunkSources.get(clip.sourceId) ?? sources.get(clip.sourceId);
 		if (!geometry) continue;
 		const frames = 'frameCount' in geometry ? geometry.frameCount : geometry.length;

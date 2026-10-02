@@ -152,10 +152,47 @@ test('post-commit analysis failures roll back durable data without aborting a co
 	assert.deepEqual(harness.deletedAnalysis, ['peaks:rendered-clip-1']);
 });
 
+test('rendering a linked clip bakes naive playback and clears its per-clip link after publication', async () => {
+	let linkedRenders = 0;
+	const harness = createHarness(projectFixture({ clips: [clipFixture({ linkPitchAndTempo: true, speedRatio: 2 })] }), {
+		materialize: async () => { throw new Error('Linked output must not materialize StaffPad.'); },
+		renderLinked: async () => { linkedRenders += 1; return audioBufferFixture(); },
+	});
+	await harness.service.renderClipPitchSpeed('clip');
+	assert.equal(linkedRenders, 1);
+	const command = harness.commits[0]!.command;
+	assert.equal(command.type, 'batch');
+	if (command.type !== 'batch') assert.fail('Expected a rendered clip batch.');
+	const added = command.commands.find((entry) => entry.type === 'clip/add');
+	assert.ok(added?.type === 'clip/add');
+	assert.equal(added.clip.linkPitchAndTempo, false);
+	assert.equal(added.clip.pitchCents, 0);
+	assert.equal(added.clip.speedRatio, 1);
+	assert.equal(added.clip.warpMap, null);
+	assert.deepEqual(harness.writerEvents, ['write:4', 'commit']);
+});
+
+test('link toggles and stretch marker changes retire an in-flight naive render', async () => {
+	const point = (outer: number, source: number) => ({ outer: { num: outer, den: 1 }, source: { num: source, den: 1 }, mode: 'forward' });
+	for (const changes of [{ linkPitchAndTempo: false }, { warpMap: { feature: 'audio-warp', points: [point(0, 0), point(2, 1), point(4, 4)] } }]) {
+		const clip = clipFixture({ linkPitchAndTempo: true, speedRatio: 2 });
+		const gate = deferred<AudioBufferLike>();
+		const harness = createHarness(projectFixture({ clips: [clip] }), { renderLinked: () => gate.promise });
+		const pending = harness.service.renderClipPitchSpeed('clip');
+		await Promise.resolve();
+		harness.replaceWithinProject(projectFixture({ clips: [{ ...clip, ...changes }] }));
+		gate.resolve(audioBufferFixture());
+		await assert.rejects(pending, { name: 'AbortError' });
+		assert.equal(harness.commits.length, 0);
+		assert.deepEqual(harness.writerEvents, []);
+	}
+});
+
 function createHarness(
 	initialProject: ClipTransformProject,
 	options: Readonly<{
 		materialize?: () => Promise<ClipTimePitchCacheEntry>;
+		renderLinked?: () => Promise<AudioBufferLike>;
 		failCommit?: boolean;
 		failPeaks?: boolean;
 		failPreflight?: boolean;
@@ -209,6 +246,7 @@ function createHarness(
 		sourcePeaks,
 		sourceChunkFrames: 65_536,
 		getProject: () => project,
+		renderLinkedOutput: options.renderLinked,
 		getSelectedClipId: () => 'clip',
 		editingBlocked: () => blocked,
 		captureProject: () => generation.capture(project.id),
@@ -255,6 +293,7 @@ function createHarness(
 		statuses,
 		writerEvents,
 		setBlocked(value: boolean) { blocked = value; },
+		replaceWithinProject(next: ClipTransformProject) { project = next; },
 		switchProject(next: ClipTransformProject) {
 			project = next;
 			generation.activate(next.id);

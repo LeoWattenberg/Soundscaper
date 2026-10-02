@@ -176,6 +176,7 @@ function validateClip(clip: ProjectDataRecord, inProjectBin: boolean, foundation
 		}
 		projectFiniteInRange(clip.pitchCents, -1_200, 1_200, `${prefix}.pitchCents`);
 		projectFiniteInRange(clip.speedRatio, 0.001, 1_000, `${prefix}.speedRatio`);
+		if (clip.linkPitchAndTempo !== undefined) projectBoolean(clip.linkPitchAndTempo, `${prefix}.linkPitchAndTempo`);
 		projectBoolean(clip.preserveFormants, `${prefix}.preserveFormants`);
 		projectBoolean(clip.stretchToTempo, `${prefix}.stretchToTempo`);
 		projectSafeInteger(clip.renderCacheRevision, 0, `${prefix}.renderCacheRevision`);

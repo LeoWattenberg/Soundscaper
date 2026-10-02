@@ -171,6 +171,7 @@ export function createClipboardDescriptor(project, options = {}) {
 					...(typeof segment.inverted === 'boolean' ? { inverted: segment.inverted } : {}),
 					...(Array.isArray(segment.envelope) ? { envelope: segment.envelope } : {}),
 					...(Number.isFinite(segment.pitchCents) ? { pitchCents: segment.pitchCents } : {}),
+					...(typeof segment.linkPitchAndTempo === 'boolean' ? { linkPitchAndTempo: segment.linkPitchAndTempo } : {}),
 					...(typeof segment.preserveFormants === 'boolean' ? { preserveFormants: segment.preserveFormants } : {}),
 					...(typeof segment.stretchToTempo === 'boolean' ? { stretchToTempo: segment.stretchToTempo } : {}),
 					...(Number.isSafeInteger(segment.renderCacheRevision) ? {

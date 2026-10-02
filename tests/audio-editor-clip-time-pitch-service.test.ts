@@ -46,6 +46,18 @@ test('canonical clips need no transient coordinates when deciding whether caches
 	assert.deepEqual(harness.cache.retained, ['plain']);
 });
 
+test('linked playback and committed exports bypass StaffPad preparation even with retained independent pitch', async () => {
+	const project = projectFixture({ clips: [clipFixture({ linkPitchAndTempo: true, pitchCents: 300, speedRatio: 4 })] });
+	const harness = createHarness(project, {
+		prepareCommitted: async () => { throw new Error('Linked export must not prepare StaffPad.'); },
+		resolvePlayback: async () => { throw new Error('Linked playback must not prepare StaffPad.'); },
+	});
+	assert.equal(harness.service.projectHasTimePitchClips(project), false);
+	assert.deepEqual(await harness.service.prepareCommittedTimePitchCaches(project), []);
+	assert.deepEqual(await harness.service.beginPlaybackCachePreparation(project), []);
+	assert.deepEqual(harness.cache.retained, ['pitched']);
+});
+
 test('committed cache preparation rejects malformed inventories before changing retained clips', async () => {
 	const harness = createHarness(projectFixture());
 	for (const snapshot of [null, {}, { ...projectFixture(), sources: [{ id: 'bad', kind: 3 }] },

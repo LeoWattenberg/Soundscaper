@@ -137,7 +137,7 @@ function assertCommandCapabilities(
 		unsupported(productName, 'audioEffects');
 	}
 	if (!capabilities.audioEffects && command.type === 'clip/update'
-		&& ['pitchCents', 'speedRatio', 'preserveFormants', 'stretchToTempo', 'reversed']
+		&& ['pitchCents', 'speedRatio', 'preserveFormants', 'stretchToTempo', 'reversed', 'linkPitchAndTempo']
 			.some((key) => hasOwn(command.changes, key))) {
 		unsupported(productName, 'audioEffects');
 	}

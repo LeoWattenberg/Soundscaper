@@ -101,7 +101,7 @@ export function resolveClipSource(
 		sourceDurationFrames: null,
 		reversed: Boolean(clip.reversed),
 	};
-	if (!sourceResolver) return fallback;
+	if (!sourceResolver || clip.linkPitchAndTempo === true) return fallback;
 	const value = sourceResolver(clip, {
 		project,
 		sources,

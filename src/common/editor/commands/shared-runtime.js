@@ -23,6 +23,7 @@ import {
 	cloneVideoEffects,
 } from '../video-effects.js';
 import { trimAudioWarpClipToTimelineRange } from '../audio-warp-clip-edit.ts';
+import { stretchAudioWarpClipRate } from '../audio-warp-rate-stretch.ts';
 import { detachVideoCompositionCarrier } from './video-composition-carrier.ts';
 import {
 	detachVideoKeyframeCarrier,
@@ -183,6 +184,11 @@ export function segmentOfClip(project, clip, segmentStartFrame, segmentEndFrame,
  */
 export function warpSegmentForExtent(project, clip, changes, timelineStartFrame, durationFrames) {
 	if (durationFrames === clip.durationFrames) return null;
+	if (clip.kind === 'audio' && clip.warpMap != null && Object.hasOwn(changes, 'speedRatio')
+		&& (changes.sourceStartFrame ?? clip.sourceStartFrame) === clip.sourceStartFrame
+		&& (changes.sourceDurationFrames ?? clip.sourceDurationFrames) === clip.sourceDurationFrames) {
+		return stretchAudioWarpClipRate(project, clip, requireSource(project, clip.sourceId), timelineStartFrame, durationFrames);
+	}
 	return warpSegmentForTimelineRange(project, clip, changes, timelineStartFrame, durationFrames);
 }
 

@@ -80,6 +80,7 @@ export interface AudioClipLeaf {
 	readonly color: string;
 	readonly pitchCents: number;
 	readonly speedRatio: number;
+	readonly linkPitchAndTempo?: boolean;
 	readonly preserveFormants: boolean;
 	readonly stretchToTempo: boolean;
 	readonly renderCacheRevision: number;

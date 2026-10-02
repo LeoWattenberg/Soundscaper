@@ -32,6 +32,7 @@ export interface ClipAnalysisResult {
 export interface ClipTimePitchChanges extends Readonly<Record<string, unknown>> {
 	readonly pitchCents?: unknown;
 	readonly speedRatio?: unknown;
+	readonly linkPitchAndTempo?: unknown;
 	readonly preserveFormants?: unknown;
 }
 
@@ -178,15 +179,18 @@ export function createClipPropertyService(
 		const clip = findTimePitchClip(project, clipId);
 		const track = clip ? findClipTrack(project, clip.id) : null;
 		if (!clip || !track) throw createLocalizedError(Error, dependencies.copy, 'audioClipNotFound');
-		const pitchCents = changes.pitchCents == null ? clip.pitchCents : Number(changes.pitchCents);
-		const speedRatio = changes.speedRatio == null ? clip.speedRatio : Number(changes.speedRatio);
-		if (!Number.isFinite(pitchCents) || pitchCents < -1_200 || pitchCents > 1_200) {
+		const linked = changes.linkPitchAndTempo == null ? Boolean(clip.linkPitchAndTempo) : Boolean(changes.linkPitchAndTempo);
+		const requestedPitch = changes.pitchCents == null ? clip.pitchCents : Number(changes.pitchCents);
+		const pitchCents = linked ? clip.pitchCents : requestedPitch;
+		const speedRatio = linked && changes.pitchCents != null && changes.speedRatio == null
+			? 2 ** (requestedPitch / 1_200) : changes.speedRatio == null ? clip.speedRatio : Number(changes.speedRatio);
+		if (!Number.isFinite(requestedPitch) || (!linked && (pitchCents < -1_200 || pitchCents > 1_200))) {
 			throw createLocalizedError(RangeError, dependencies.copy, 'clipPitchRange');
 		}
-		if (!Number.isFinite(speedRatio) || speedRatio <= 0) {
+		if (!Number.isFinite(speedRatio) || speedRatio < 0.001 || speedRatio > 1_000) {
 			throw createLocalizedError(RangeError, dependencies.copy, 'clipSpeedPositive');
 		}
-		const durationFrames = changes.speedRatio == null
+		const durationFrames = changes.speedRatio == null && !(linked && changes.pitchCents != null)
 			? clip.durationFrames
 			: Math.max(1, Math.round(sourceTimelineFrames(project, clip) / speedRatio));
 		const command = prepareTransformClipsCommand(project, [{
@@ -195,6 +199,7 @@ export function createClipPropertyService(
 			changes: {
 				pitchCents,
 				speedRatio,
+				...(changes.linkPitchAndTempo == null ? {} : { linkPitchAndTempo: linked }),
 				...(changes.preserveFormants == null ? {} : {
 					preserveFormants: Boolean(changes.preserveFormants),
 				}),
