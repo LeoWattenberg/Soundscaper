@@ -45,6 +45,22 @@ test('the nightly payload carries the data file its release-line reader opens at
 		'the nightly-tests extraResources filter must retain the release-line data');
 });
 
+test('the packaged spectrogram painter harness resolves its vendored colormap', async () => {
+	const result = await build({
+		entryPoints: [join(BROWSER_TESTS, 'helpers/spectrogram-painter-harness.js')],
+		external: ['./pffft.js'],
+		bundle: true, write: false, format: 'esm', target: 'es2022', metafile: true,
+	});
+	const filter = await readPackagedPayloadFilter();
+	for (const entry of Object.keys(result.metafile.inputs)) {
+		const input = relative(REPOSITORY_ROOT, resolve(REPOSITORY_ROOT, entry));
+		assert.ok(isStagedInput(input), `NIGHTLY_TEST_PAYLOAD_INPUTS is missing ${input}`);
+		const packaged = packagedPathOf(input);
+		assert.ok(packaged !== null && filter.some(pattern => matchesGlob(packaged, pattern)),
+			`the nightly-tests extraResources filter drops ${input}`);
+	}
+});
+
 test('the nightly package carries the Nyquist archive fixtures read by its browser smoke test', async () => {
 	const inputs = [
 		'tests/fixtures/nyquist-archive/manifest.json.gz',

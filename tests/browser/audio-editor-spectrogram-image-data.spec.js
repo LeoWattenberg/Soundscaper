@@ -232,15 +232,7 @@ syntheticRouteTest('reports warmed isolated spectrogram painter timings with ide
 
 async function openPainterHarness(page) {
 	bundle ||= build({
-		stdin: {
-			contents: [
-				"export { paintSpectrogram } from '../../src/common/editor/pffft-spectrogram.js';",
-				"export { paintSpectrogramImageData } from '../../src/common/editor/ui/timeline/spectrogram-image-data.ts';",
-				"export { audioEditorStereoChannelGeometry } from '../../src/common/editor/ui/timeline/stereo-channel-height-runtime.ts';",
-				"export { drawAudacityClipSpectrogram, releaseSpectrogramCanvas } from '../../src/common/editor/ui/timeline/spectrogram-canvas-renderer.js';",
-			].join('\n'),
-			resolveDir: fileURLToPath(new URL('.', import.meta.url)),
-		},
+		entryPoints: [fileURLToPath(new URL('./helpers/spectrogram-painter-harness.js', import.meta.url))],
 		// The fixtures supply analyzed columns; this harness does not initialize FFT or WASM.
 		external: ['./pffft.js'],
 		bundle: true, write: false, format: 'esm', target: 'es2022',

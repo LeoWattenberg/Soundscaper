@@ -186,6 +186,7 @@ test('nightly test staging creates a hermetic, manifest-bound Playwright payload
 		'src/common/editor/example.ts',
 		'vendor/audacity-design-system/tokens/src/themes/dark.v2.ts',
 		'vendor/audacity-design-system/tokens/src/themes/light.v2.ts',
+		'vendor/audacity-design-system/components/src/utils/roseus-colormap.ts',
 		'.local-browsers/chromium-101/INSTALLATION_COMPLETE',
 		'.local-browsers/firefox-102/INSTALLATION_COMPLETE',
 		'.local-browsers/webkit-103/INSTALLATION_COMPLETE',
@@ -248,6 +249,7 @@ test('nightly test staging creates a hermetic, manifest-bound Playwright payload
 		'playwright.nightly-tests.config.mjs',
 		'src',
 		'tests',
+		'vendor',
 	]);
 	for (const descriptor of manifest.payload) {
 		assert.ok(Number.isSafeInteger(descriptor.byteLength) && descriptor.byteLength > 0);

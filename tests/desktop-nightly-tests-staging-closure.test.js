@@ -55,7 +55,18 @@ test('nightly payload production modules have a closed local-import graph', () =
 	assert.ok(result.visited.has('scripts/lib/browser-target-coverage-state.mjs'));
 	assert.ok(result.visited.has('src/common/editor/macro-script/dynamic-source-contract.js'));
 	assert.ok(result.visited.has('src/common/editor/native-plugin-realtime-worklet.js'));
+	assert.ok(result.visited.has('vendor/audacity-design-system/components/src/utils/roseus-colormap.ts'));
 	assert.ok(result.queryImports.some(({ specifier }) => specifier.endsWith('?worker&url')));
+});
+
+test('nightly payload audit rejects an omitted spectrogram painter dependency', () => {
+	const withoutColormap = NIGHTLY_TEST_PAYLOAD_INPUTS.filter(({ source }) => (
+		source !== 'vendor/audacity-design-system/components/src/utils/roseus-colormap.ts'
+	));
+	assert.throws(
+		() => inspectLocalImportClosure(withoutColormap),
+		/Unstaged local import .*pffft-spectrogram\.js.*roseus-colormap\.ts/u,
+	);
 });
 
 test('nightly payload production-module audit rejects an unstaged local dependency', () => {

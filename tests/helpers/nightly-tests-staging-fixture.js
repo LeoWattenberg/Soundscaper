@@ -142,6 +142,7 @@ export async function createFixture(context) {
 		['handbook/src/content/docs/reference/macro-programs.md', '# Macro programs\n\n```js\nsound.log("fixture");\n```\n'],
 		['vendor/audacity-design-system/tokens/src/themes/dark.v2.ts', 'export const darkTheme = {};\n'],
 		['vendor/audacity-design-system/tokens/src/themes/light.v2.ts', 'export const lightTheme = {};\n'],
+		['vendor/audacity-design-system/components/src/utils/roseus-colormap.ts', 'export const getSpectrogramColor = () => "#010101";\n'],
 		['handbook/guides/soundscaper/volume.mjs', 'export const guide = true;\n'],
 		['tests/browser/example.spec.js', 'export const test = true;\n'],
 		['tests/browser/dual-origin/framescaper-service-worker.spec.js', 'export const framescaperWorker = true;\n'],

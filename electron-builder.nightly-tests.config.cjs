@@ -91,6 +91,7 @@ module.exports = {
 				'scripts/*.mjs',
 				'src/**/*',
 				'vendor/audacity-design-system/tokens/**/*',
+				'vendor/audacity-design-system/components/src/utils/roseus-colormap.ts',
 				'stage-manifest.json',
 				'tests/**/*',
 			],
