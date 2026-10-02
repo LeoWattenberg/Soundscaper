@@ -24,6 +24,7 @@ async function setupBoundaryClips(page) {
 		.toHaveAttribute('aria-checked', 'false');
 	const anchor = clipByName(editor, toneA.name);
 	const properties = await openClipProperties(page, editor, anchor);
+	await properties.getByText('Media settings', { exact: true }).click();
 	await clipField(properties, 'startFrame').fill(String(ANCHOR_START_FRAME));
 	await clipField(properties, 'startFrame').press('Tab');
 	await closeClipProperties(properties);
@@ -40,6 +41,7 @@ async function startFrame(page, editor, clip) {
 
 async function resetMovingClip(page, editor, moving) {
 	const properties = await openClipProperties(page, editor, moving);
+	await properties.getByText('Media settings', { exact: true }).click();
 	await clipField(properties, 'startFrame').fill('0');
 	await clipField(properties, 'startFrame').press('Tab');
 	await closeClipProperties(properties);

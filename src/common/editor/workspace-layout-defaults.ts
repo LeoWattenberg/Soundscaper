@@ -107,7 +107,7 @@ export const DEFAULT_PANELS = Object.freeze({
 	'playback-meter': Object.freeze({ visible: false, dock: 'right', order: 12, size: 240 }),
 	'recording-meter': Object.freeze({ visible: false, dock: 'right', order: 13, size: 240 }),
 	clock: Object.freeze({ visible: false, dock: 'floating', order: 14, size: 640 }),
-	'clip-properties': Object.freeze({ visible: false, dock: 'right', order: 15, size: 400 }),
+	'clip-properties': Object.freeze({ visible: false, dock: 'bottom', order: 15, size: 400 }),
 });
 
 export const DEFAULT_FLOATING_PANEL_GEOMETRY = Object.freeze({

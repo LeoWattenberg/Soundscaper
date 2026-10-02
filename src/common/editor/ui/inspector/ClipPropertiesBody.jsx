@@ -6,14 +6,14 @@ import { Button } from '@soundscaper/design-system/Button';
 import { AUDIO_EDITOR_SAMPLE_RATE, findClip, findClipTrack, findSource } from '../../project.js';
 import AudioEditorTimeCodeInput from '../AudioEditorTimeCodeInput.tsx';
 import { selectAudioEditorEditBlock } from '../edit-blocking.ts';
-import { ActionHook, CommitField, DesignCheckbox, LabeledDropdown, SteppedSlider } from './inspector-controls.jsx';
+import { ActionHook, CommitField, DesignCheckbox, SteppedSlider } from './inspector-controls.jsx';
+import ClipPropertyKnob from './ClipPropertyKnob.tsx';
 import ClipResampleDialog from './ClipResampleDialog.jsx';
 import { VideoEffectRack } from './VideoEffectRack.jsx';
 import VideoSourcePropertiesSection from './VideoSourcePropertiesSection.jsx';
 import {
 	clipPitchInUnit,
 	clipPitchUnitFieldLabel,
-	clipPitchUnitOptions,
 	clipPitchUnitToCents,
 	dbToLinear,
 	linearToDb,
@@ -34,7 +34,7 @@ export function clipRenameTitle(rawValue, displayedName) {
 	return title === displayedName ? null : title;
 }
 
-export default function ClipPropertiesBody({ controller, snapshot, copy, clipId = snapshot.selectedClipId }) {
+export default function ClipPropertiesBody({ controller, snapshot, copy, clipId = snapshot.selectedClipId, focusField = null }) {
 	const project = snapshot.project;
 	const clip = project && clipId ? findClip(project, clipId) : null;
 	const source = clip ? findSource(project, clip.sourceId) : null;
@@ -141,12 +141,8 @@ export default function ClipPropertiesBody({ controller, snapshot, copy, clipId 
 		<div className="audio-editor-clip-inspector">
 			{!clip && <p className="audio-editor-panel-hint" data-no-clip>{copy.noClipSelected}</p>}
 			<div className="audio-editor-clip-properties" data-clip-fields aria-disabled={disabled}>
-				<section className="audio-editor-clip-properties__card audio-editor-clip-properties__card--wide">
-					<h3>{copy.clip}</h3>
+				<ClipPropertiesDrawer name="media" label={copy.clipMediaSettings} initiallyOpen={focusField === 'name'}>
 					<CommitField label={copy.clipName} name="name" value={displayedName} disabled={disabled} onCommit={commitField} />
-				</section>
-				<section className="audio-editor-clip-properties__card audio-editor-clip-properties__card--wide">
-					<h3>{copy.clipMediaSettings}</h3>
 					<div className="audio-editor-clip-properties__time-grid">
 						<ClipTimeCodeField name="startFrame" label={copy.clipStart} value={clip?.timelineStartFrame ?? 0}
 							sampleRate={sampleRate} disabled={disabled}
@@ -178,10 +174,9 @@ export default function ClipPropertiesBody({ controller, snapshot, copy, clipId 
 							</div>
 						</div>
 					)}
-				</section>
+				</ClipPropertiesDrawer>
 				{isVideoClip && source?.kind === 'video' && <VideoSourcePropertiesSection source={source} controller={controller} copy={copy} disabled={disabled} />}
-				{!isVideoClip && <section className="audio-editor-clip-properties__card">
-					<h3>{copy.fading}</h3>
+				{!isVideoClip && <ClipPropertiesDrawer name="fading" label={copy.fading}>
 					<div className="audio-editor-clip-properties__stack">
 						<CommitField label={`${copy.clipGain} (dB)`} name="gain" value={clip ? linearToDb(clip.gain).toFixed(2) : '0.00'} type="number" disabled={disabled} onCommit={commitField} />
 						<ClipTimeCodeField name="fadeInFrame" label={copy.fadeIn} value={clip?.fadeInFrames ?? 0}
@@ -197,15 +192,27 @@ export default function ClipPropertiesBody({ controller, snapshot, copy, clipId 
 							fadeFrames={clip?.fadeOutFrames ?? 0} legacyLabel={copy.legacyLinearFadeShape}
 							disabled={disabled} onCommit={commitField} />
 					</div>
-				</section>}
-				{!isVideoClip && snapshot.capabilities?.audioEffects && <section className="audio-editor-clip-properties__card">
-					<h3>{copy.pitchTempo}</h3>
+				</ClipPropertiesDrawer>}
+				{!isVideoClip && snapshot.capabilities?.audioEffects && <ClipPropertiesDrawer name="pitch" label={copy.pitchTempo}
+					initiallyOpen={['pitchCents', 'speedRatio'].includes(focusField)}>
 					<div className="audio-editor-clip-properties__stack">
-						<LabeledDropdown label={copy.clipPitchUnit} hook="clip-pitch-unit" options={clipPitchUnitOptions(copy)} value={pitchUnit} disabled={disabled} onChange={setPitchUnit} />
-						{/* Remounting on a unit change drops any half-typed draft, which
-						    would otherwise be read as a figure in the newly chosen unit. */}
-						<CommitField key={pitchUnit} label={clipPitchUnitFieldLabel(copy, pitchUnit)} name="pitchCents" value={clipPitchInUnit(clip?.pitchCents ?? 0, pitchUnit)} type="number" disabled={disabled} onCommit={commitField} />
-						<CommitField label={copy.clipSpeedRatio} name="speedRatio" value={clip?.speedRatio ?? 1} type="number" disabled={disabled} onCommit={commitField} />
+						<ClipPropertyKnob key={pitchUnit} label={clipPitchUnitFieldLabel(copy, pitchUnit)} name="pitchCents"
+							value={clipPitchInUnit(clip?.pitchCents ?? 0, pitchUnit)} knobValue={(clip?.pitchCents ?? 0) / 100}
+							min={-12} max={12} step={0.01} defaultValue={0} disabled={disabled} onCommit={commitField}
+							formatKnobValue={(value) => clipPitchInUnit(value * 100, pitchUnit)}
+							onKnobCommit={(value) => commitField('pitchCents', clipPitchInUnit(value * 100, pitchUnit))}>
+							<div className="audio-editor-clip-pitch-units" role="group" aria-label={copy.clipPitchUnit} data-clip-pitch-unit>
+								<button type="button" aria-label={copy.clipPitchUnitSemitones} title={copy.clipPitchUnitSemitones}
+									aria-pressed={pitchUnit === 'semitones'} disabled={disabled} onClick={() => setPitchUnit('semitones')}>
+									<span className="audio-editor-clip-pitch-units__semitones" aria-hidden="true">{'\uEF21'}</span>
+								</button>
+								<button type="button" aria-label={copy.clipPitchUnitPercent} title={copy.clipPitchUnitPercent}
+									aria-pressed={pitchUnit === 'percent'} disabled={disabled} onClick={() => setPitchUnit('percent')}>%</button>
+							</div>
+						</ClipPropertyKnob>
+						<ClipPropertyKnob label={copy.clipSpeedRatio} name="speedRatio" value={clip?.speedRatio ?? 1}
+							min={0.25} max={4} step={0.01} defaultValue={1} mode="unipolar" disabled={disabled}
+							onCommit={commitField} onKnobCommit={(value) => commitField('speedRatio', value)} />
 						<div data-clip-field="preserveFormants"><DesignCheckbox label={copy.preserveFormants} checked={Boolean(clip?.preserveFormants)} disabled={disabled} onChange={(checked) => { if (ownsTarget()) controller.actions.clip.setTimePitch(clip.id, { preserveFormants: checked }); }} /></div>
 						<div data-clip-field="stretchToTempo"><DesignCheckbox label={copy.stretchToTempo} checked={Boolean(clip?.stretchToTempo)} disabled={disabled} onChange={() => { if (ownsTarget()) controller.actions.clip.toggleStretchToTempo(clip.id); }} /></div>
 						<div className="audio-editor-panel-actions">
@@ -213,7 +220,13 @@ export default function ClipPropertiesBody({ controller, snapshot, copy, clipId 
 							<ActionHook hook="reset-pitch-speed"><Button variant="secondary" disabled={disabled || !clip || (clip.pitchCents === 0 && clip.speedRatio === 1)} onClick={() => run(controller.actions.clip.resetPitchSpeed)}>{copy.reset}</Button></ActionHook>
 						</div>
 					</div>
-				</section>}
+				</ClipPropertiesDrawer>}
+				{!isVideoClip && snapshot.capabilities?.audioEffects && <ClipPropertiesDrawer name="normalize" label={copy.clipNormalize}>
+					<div className="audio-editor-panel-actions">
+						<ActionHook hook="normalize-peak"><Button disabled={disabled} onClick={() => run(controller.actions.clip.normalizePeak)}>{copy.normalizePeak}</Button></ActionHook>
+						<ActionHook hook="normalize-lufs"><Button disabled={disabled} onClick={() => run(controller.actions.clip.normalizeLoudness)}>{copy.normalizeLufs}</Button></ActionHook>
+					</div>
+				</ClipPropertiesDrawer>}
 				{isVideoClip && snapshot.capabilities?.videoEffects && <VideoEffectRack clip={clip} controller={controller} copy={copy} disabled={disabled} onError={setError} />}
 			</div>
 			{resampleOpen && clip && source && (
@@ -229,12 +242,15 @@ export default function ClipPropertiesBody({ controller, snapshot, copy, clipId 
 				/>
 			)}
 			{error && <p className="audio-editor-field-error" role="alert">{error}</p>}
-			{!isVideoClip && snapshot.capabilities?.audioEffects && <div className="audio-editor-panel-actions">
-				<ActionHook hook="normalize-peak"><Button disabled={disabled} onClick={() => run(controller.actions.clip.normalizePeak)}>{copy.normalizePeak}</Button></ActionHook>
-				<ActionHook hook="normalize-lufs"><Button disabled={disabled} onClick={() => run(controller.actions.clip.normalizeLoudness)}>{copy.normalizeLufs}</Button></ActionHook>
-			</div>}
 		</div>
 	);
+}
+
+function ClipPropertiesDrawer({ name, label, initiallyOpen = false, children }) {
+	return <details className="audio-editor-clip-properties__drawer" data-clip-properties-drawer={name} open={initiallyOpen || undefined}>
+		<summary><h3>{label}</h3></summary>
+		<div className="audio-editor-clip-properties__drawer-content">{children}</div>
+	</details>;
 }
 
 /**

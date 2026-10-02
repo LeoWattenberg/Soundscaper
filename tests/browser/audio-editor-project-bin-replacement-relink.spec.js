@@ -227,6 +227,7 @@ async function setupShortReplacement(page) {
 		instances.nth(1).getAttribute('data-clip-id'),
 	]);
 	const later = await openClipProperties(page, editor, instances.nth(1));
+	await later.getByText('Media settings', { exact: true }).click();
 	await clipField(later, 'startFrame').fill(String(laterStartFrame));
 	await clipField(later, 'startFrame').press('Tab');
 	await closeClipProperties(later);

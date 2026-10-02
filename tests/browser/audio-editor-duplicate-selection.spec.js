@@ -13,6 +13,7 @@ test.describe('Duplicate selection', () => {
 		await importFiles(editor, [toneA]);
 		const original = clipByName(editor, toneA.name);
 		const properties = await openClipProperties(page, editor, original);
+		await properties.getByText('Media settings', { exact: true }).click();
 		await clipField(properties, 'startFrame').fill('12345');
 		await clipField(properties, 'startFrame').press('Tab');
 		await closeClipProperties(properties);

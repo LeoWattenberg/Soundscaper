@@ -99,13 +99,15 @@ test('opening requests activate and focus the requested clip once, after its doc
 		await f.render(['one', 'two'], { focusRequest: request, panelActive: true });
 		assert.equal(f.tab('two').getAttribute('aria-selected'), 'true');
 		assert.equal(f.dom.container.ownerDocument.activeElement, f.input('speedRatio'));
+		assert.equal(f.dom.one('[data-clip-properties-drawer="pitch"]').getAttribute('open'), '');
 		await f.clickTab('one');
 		f.tab('one').focus();
 		await f.render(['one', 'two'], { focusRequest: request });
 		assert.equal(f.tab('one').getAttribute('aria-selected'), 'true');
 		assert.equal(f.dom.container.ownerDocument.activeElement, f.tab('one'), 'live snapshots do not replay opening focus');
 		await f.render(['one', 'two'], { focusRequest: { clipId: 'two', field: null } });
-		assert.equal(f.dom.container.ownerDocument.activeElement, f.input('name'));
+		assert.equal(f.dom.container.ownerDocument.activeElement, f.dom.one('[data-clip-properties-active-clip]'));
+		assert.equal(f.dom.one('[data-clip-properties-drawer="media"]').getAttribute('open'), null);
 	} finally { await f.cleanup(); }
 });
 

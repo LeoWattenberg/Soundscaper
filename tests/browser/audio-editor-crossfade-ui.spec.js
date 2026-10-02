@@ -13,6 +13,7 @@ async function overlapStereoClips(page) {
 	const trackId = await track.getAttribute('data-track-id');
 	const trackName = (await track.locator('.track-control-panel__track-name-text').textContent()).trim();
 	const properties = await openClipProperties(page, editor, incoming);
+	await properties.getByText('Media settings', { exact: true }).click();
 	await clipField(properties, 'startFrame').fill('19200');
 	await clipField(properties, 'startFrame').press('Tab');
 	await closeClipProperties(properties);

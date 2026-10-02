@@ -86,6 +86,7 @@ test.describe('shared audio editor dialog behavior', () => {
 
 		await chooseNestedCommandAction(page, editor, 'Edit', ['Audio clips', 'Clip properties']);
 		const dialog = editor.locator('[data-workspace-panel="clip-properties"]');
+		await dialog.getByText('Media settings', { exact: true }).click();
 		const duration = dialog.locator('[data-clip-field="durationFrame"]');
 		await expect(duration.locator('.timecode-unit[data-unit="hours"]')).toHaveText('h');
 		await expect(duration.locator('.timecode-unit[data-unit="hours"]')).toHaveCSS('text-transform', 'none');

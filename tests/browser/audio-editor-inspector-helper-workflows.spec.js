@@ -4,7 +4,6 @@ import { expect, test, toneA } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
 	chooseCustomChannelMapping,
-	chooseDropdown,
 	clipByName,
 	closeClipProperties,
 	collectClientErrors,
@@ -26,6 +25,7 @@ test.describe('inspector helper workflows', () => {
 		await importFiles(editor, [toneA]);
 		const properties = await openClipProperties(page, editor, clipByName(editor, toneA.name));
 
+		await properties.getByText('Fading', { exact: true }).click();
 		const gain = properties.getByRole('spinbutton', { name: 'Clip gain (dB)', exact: true });
 		await commitInput(gain, '25');
 		await expect(properties.getByRole('alert')).toHaveText('Invalid gain value.');
@@ -33,6 +33,8 @@ test.describe('inspector helper workflows', () => {
 		await expect(properties.getByRole('alert')).toHaveCount(0);
 		await expect(gain).toHaveValue('-6.00');
 
+		await properties.getByText('Fading', { exact: true }).click();
+		await properties.getByText('Pitch and tempo', { exact: true }).click();
 		let pitch = properties.getByRole('spinbutton', {
 			name: 'Pitch (semitones, −12 to +12)', exact: true,
 		});
@@ -44,7 +46,7 @@ test.describe('inspector helper workflows', () => {
 		await expect(properties.getByRole('alert')).toHaveCount(0);
 		await expect(pitch).toHaveValue('1.25');
 
-		await chooseDropdown(page, properties.locator('[data-clip-pitch-unit]'), 'Percent change');
+		await properties.getByRole('button', { name: 'Percent change', exact: true }).click();
 		pitch = properties.getByRole('spinbutton', {
 			name: 'Pitch (percent, −50 to +100)', exact: true,
 		});
