@@ -108,7 +108,7 @@ test('legacy FFmpeg video bytes preserve whole-read results and best-effort clea
 	assert.equal(runtime.terminateCalls, 0);
 });
 
-test('legacy FFmpeg video bytes refuse oversized output before whole-file reads', async () => {
+test('legacy FFmpeg video bytes require an oversized output decision before whole-file reads', async () => {
 	const runtime = new VideoJobRuntime(Uint8Array.of(9, 8, 7));
 	await assert.rejects(
 		encodeFfmpegVideoBytes({
@@ -118,10 +118,30 @@ test('legacy FFmpeg video bytes refuse oversized output before whole-file reads'
 			settings: { maximumOutputBytes: 2 },
 			...runtime.options(),
 		}),
-		/Video export.*maximum is 2 bytes/u,
+		{ code: 'FILE_SIZE_WARNING' },
 	);
 	assert.equal(runtime.instance.statFileCalls, 1);
 	assert.equal(runtime.instance.readFileCalls, 0);
+});
+
+test('legacy FFmpeg video awaits an exact size decision before reading the body', async () => {
+	for (const accepted of [true, false]) {
+		const runtime = new VideoJobRuntime(Uint8Array.of(9, 8, 7));
+		let prompts = 0;
+		const operation = encodeFfmpegVideoBytes({
+			videoBlobsBySourceId: new Map(), audioMix: null, plan: silentMp4Plan(),
+			settings: { maximumOutputBytes: 2, confirmFileSizeWarning: async (warning) => {
+				prompts += 1;
+				assert.deepEqual(warning, { label: 'Video export', byteLength: 3, thresholdBytes: 2 });
+				assert.equal(runtime.instance.readFileCalls, 0);
+				return accepted;
+			} }, ...runtime.options(),
+		});
+		if (accepted) assert.deepEqual((await operation).bytes, Uint8Array.of(9, 8, 7));
+		else await assert.rejects(operation, { name: 'AbortError' });
+		assert.equal(prompts, 1);
+		assert.equal(runtime.instance.readFileCalls, accepted ? 1 : 0);
+	}
 });
 
 test('FFmpeg video sink output aborts once for encoding and streaming failures', async () => {

@@ -13,6 +13,7 @@ import type {
 	SoundscaperDeliveryFilesystemAuthority,
 	SoundscaperDeliveryFilesystemSession,
 } from './soundscaper-delivery-filesystem-authority.ts';
+import { confirmDesktopFileSizeWarning, type DesktopSaveSizeWarning } from './save-size-warning-dialog.ts';
 
 export interface SoundscaperDeliveryRoot {
 	readonly grantId: string;
@@ -40,6 +41,8 @@ export interface SoundscaperDeliveryWriteDeclaration {
 	readonly stagingName?: string;
 	/** Main-private lease fence, checked after every awaited filesystem operation. */
 	readonly assertFence?: (operation: string) => void;
+	/** Main-private native user confirmation; never accepted from renderer IPC. */
+	readonly confirmFileSizeWarning?: (warning: Readonly<DesktopSaveSizeWarning>) => Promise<boolean>;
 }
 
 export interface SoundscaperDeliveryStagedFile {
@@ -217,14 +220,18 @@ export class SoundscaperDeliveryWrite {
 		});
 		validateWriteDeclaration(admitted);
 		const fence = declaration.assertFence ?? (() => undefined);
+		const maximumBytes = byteLength(
+			admitted.size === undefined ? admitted.maximumSize : admitted.size,
+			admitted.size === undefined ? 'maximum size' : 'declared size',
+		);
+		await confirmDesktopFileSizeWarning({
+			fileName: finalName, byteLength: maximumBytes, thresholdBytes: 65 * 1024 ** 3,
+		}, declaration.confirmFileSizeWarning, () => fence('size-warning'));
 		let session: SoundscaperDeliveryFilesystemSession | null = null;
 		try {
 			session = await filesystem.open({
 				root, reference: stagingName, finalName,
-				maximumBytes: byteLength(
-					admitted.size === undefined ? admitted.maximumSize : admitted.size,
-					admitted.size === undefined ? 'maximum size' : 'declared size',
-				),
+				maximumBytes,
 				finalPrefixByteLength: (admitted.finalPrefixByteLength ?? 0) as 0 | 32,
 				fence,
 			});
@@ -471,7 +478,7 @@ function id(value: unknown, label: string): string {
 }
 
 function byteLength(value: unknown, label: string): number {
-	if (!Number.isSafeInteger(value) || Number(value) < 0 || Number(value) > 65 * 1024 ** 3) {
+	if (!Number.isSafeInteger(value) || Number(value) < 0) {
 		throw new RangeError(`The Soundscaper delivery ${label} is invalid.`);
 	}
 	return Number(value);

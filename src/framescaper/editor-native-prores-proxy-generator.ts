@@ -33,6 +33,7 @@ import { createFramescaperNativeRenderPlanAuthorityNativeMedia } from './editor-
 import { FRAMESCAPER_NATIVE_MEDIA_RENDER_QUEUE_RESERVATIONS } from './editor-native-render-queue-reservations.ts';
 import { createFramescaperProjectUnifiedExactRenderPlanNativeMedia } from './editor-project-unified-render-plan-native-media.ts';
 import { cloneFramescaperProjectNativeMedia, type FramescaperProjectNativeMedia } from './editor-project-native-media.ts';
+import { confirmFileSizeWarning, type FileSizeWarningOptions } from '../common/editor/controller/shared/file-size-warning.ts';
 
 const GENERATOR = Object.freeze({ id: 'framescaper-native-media-host', version: 1 });
 const RECIPE = Object.freeze({ id: 'framescaper-native-prores-proxy-mov-v1', version: 1 });
@@ -41,7 +42,7 @@ const JOB_ID = /^[a-f0-9]{40}$/u;
 const MAXIMUM_PROXY_BYTES = 512 * 1024 ** 2;
 const READ_BYTES = 1024 * 1024;
 
-export interface FramescaperNativeProResProxyCandidateOptions {
+export interface FramescaperNativeProResProxyCandidateOptions extends FileSizeWarningOptions {
 	readonly profile: unknown;
 	readonly getProject: () => unknown;
 	readonly composition: FramescaperCapturedVideoProxyRuntimeComposition;
@@ -49,7 +50,7 @@ export interface FramescaperNativeProResProxyCandidateOptions {
 	readonly waitForPoll?: (signal?: AbortSignal) => Promise<void>;
 }
 
-export interface FramescaperNativeProResProxyGeneratorOptions {
+export interface FramescaperNativeProResProxyGeneratorOptions extends FileSizeWarningOptions {
 	readonly profile: unknown;
 	readonly getProject: () => unknown;
 	readonly bridge: FramescaperNativeServicesBridge;
@@ -69,10 +70,12 @@ export function createFramescaperNativeProResProxyCandidateObserver(
 	if (probes.length === 0) return null;
 	const generator = createFramescaperNativeProResProxyGenerator({
 		profile: options.profile, getProject: options.getProject, bridge,
+		confirmFileSizeWarning: options.confirmFileSizeWarning ?? options.composition.confirmFileSizeWarning,
 		...(options.waitForPoll ? { waitForPoll: options.waitForPoll } : {}),
 	});
 	return createVideoProxyCandidateObserver({
 		generator, recipe: RECIPE, probes, maximumBytes: MAXIMUM_PROXY_BYTES,
+		confirmFileSizeWarning: options.confirmFileSizeWarning ?? options.composition.confirmFileSizeWarning,
 	});
 }
 
@@ -95,6 +98,7 @@ export function createFramescaperNativeProResProxyGenerator(
 		) => generate({
 			profile: options.profile, getProject: options.getProject, bridge: options.bridge,
 			identity, recipe, signal: generation.signal, assertCurrent: generation.assertCurrent,
+			confirmFileSizeWarning: options.confirmFileSizeWarning,
 			waitForPoll: options.waitForPoll ?? waitForPoll,
 		}),
 	});
@@ -108,7 +112,7 @@ async function generate(context: Readonly<{
 		readonly projectId: string; readonly sourceId: string; readonly sha256: string;
 	}>;
 	readonly recipe: VideoProxyCandidateRecipe;
-	readonly signal?: AbortSignal;
+	readonly signal?: AbortSignal; readonly confirmFileSizeWarning?: FileSizeWarningOptions['confirmFileSizeWarning'];
 	readonly assertCurrent: () => void;
 	readonly waitForPoll: (signal?: AbortSignal) => Promise<void>;
 }>): Promise<Blob> {
@@ -141,7 +145,7 @@ async function generate(context: Readonly<{
 	let primary: unknown;
 	try {
 		await waitForCompletion(context, projection.jobId);
-		return await readCompletedProxy(context.bridge, projection.jobId, context.signal);
+		return await readCompletedProxy(context.bridge, projection.jobId, context.signal, context);
 	} catch (error) {
 		primary = error;
 		await cancelAfterFailure(context.bridge, projection.jobId);
@@ -172,10 +176,12 @@ async function readCompletedProxy(
 	bridge: FramescaperNativeServicesBridge,
 	jobId: string,
 	signal?: AbortSignal,
+	warningOptions: FileSizeWarningOptions = {},
 ): Promise<Blob> {
 	const claim = exactClaim(await bridge.claimProxyOutput!({ jobId }));
 	let primary: unknown;
 	try {
+		await confirmFileSizeWarning(claim.byteLength, MAXIMUM_PROXY_BYTES, 'Video proxy', { ...warningOptions, signal });
 		const parts: ArrayBuffer[] = [];
 		for (let offset = 0; offset < claim.byteLength;) {
 			throwIfAborted(signal);
@@ -318,7 +324,7 @@ function exactClaim(value: unknown) {
 	const row = value as Readonly<Record<string, unknown>>;
 	if (typeof row.claimId !== 'string' || !JOB_ID.test(row.claimId)
 		|| !Number.isSafeInteger(row.byteLength) || Number(row.byteLength) < 1
-		|| Number(row.byteLength) > MAXIMUM_PROXY_BYTES || !SHA256.test(String(row.sha256))
+		|| !SHA256.test(String(row.sha256))
 		|| row.mimeType !== 'video/quicktime') throw new TypeError('The native proxy claim is invalid.');
 	return Object.freeze({ claimId: row.claimId, byteLength: Number(row.byteLength),
 		sha256: String(row.sha256), mimeType: 'video/quicktime' as const });

@@ -209,7 +209,7 @@ export function soundscaperMainSource(sourceValue) {
 		'\treleaseChecker =',
 		'deferred native services startup');
 	source = replaceOnce(source,
-		"\tlinkedVideoLocators = createDesktopLinkedVideoLocatorRuntime({ readCapabilities, registryPath: resolve(app.getPath('userData'), 'linked-video-locators-project-v1.json') });\n\tawait linkedVideoLocators.ready();\n",
+		"\tlinkedVideoLocators = createDesktopLinkedVideoLocatorRuntime({ readCapabilities, registryPath: resolve(app.getPath('userData'), 'linked-video-locators-project-v1.json'), confirmFileSizeWarning: createDesktopSaveSizeWarningConfirmation((options) => dialog.showMessageBox(options), 'linking') });\n\tawait linkedVideoLocators.ready();\n",
 		'', 'linked-video locator startup');
 	source = replaceOnce(source,
 		"\tlinkedVideoLocators.registerIpc({ dialog, handle, ownerFor: rendererSaveOwnerFor, windowFor: () => mainWindow });\n",

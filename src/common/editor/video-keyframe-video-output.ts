@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { confirmFileSizeWarning, type FileSizeWarningOptions } from './controller/shared/file-size-warning.ts';
 import {
 	BROWSER_EXPORT_BLOB_MAXIMUM_BYTES,
 } from './browser-export-output.ts';
@@ -20,7 +21,7 @@ import { manageVideoKeyframeOutputSink } from './video-keyframe-video-sink.ts';
 
 export const VIDEO_KEYFRAME_VIDEO_MAXIMUM_OUTPUT_BYTES = BROWSER_EXPORT_BLOB_MAXIMUM_BYTES;
 
-export interface VideoKeyframeVideoOutputRequest {
+export interface VideoKeyframeVideoOutputRequest extends FileSizeWarningOptions {
 	readonly source: FfmpegOutputFileSource;
 	readonly path: string;
 	readonly format: VideoKeyframeEncoderFormat;
@@ -48,7 +49,7 @@ export async function collectVideoKeyframeVideoOutput(
 	maximumAllowedBytes = VIDEO_KEYFRAME_VIDEO_MAXIMUM_OUTPUT_BYTES,
 ): Promise<VideoKeyframeVideoOutput> {
 	const request = normalizeRequest(requestValue);
-	const maximumBytes = normalizeMaximumBytes(request.maximumBytes, maximumAllowedBytes);
+	const maximumBytes = await admitOutputBytes(request, normalizeMaximumBytes(request.maximumBytes, maximumAllowedBytes));
 	const maximumChunkBytes = normalizeMaximumChunkBytes(request.maximumChunkBytes);
 	const sink = createOutputSink(request.format, maximumBytes);
 	const result = await streamFfmpegOutputFile(request.source, request.path, sink, {
@@ -70,7 +71,7 @@ export async function streamVideoKeyframeVideoOutput<Output>(
 	maximumAllowedBytes = VIDEO_KEYFRAME_VIDEO_MAXIMUM_OUTPUT_BYTES,
 ): Promise<VideoKeyframeVideoSinkOutput<Output>> {
 	const request = normalizeRequest(requestValue);
-	const maximumBytes = normalizeMaximumBytes(request.maximumBytes, maximumAllowedBytes);
+	const maximumBytes = await admitOutputBytes(request, normalizeMaximumBytes(request.maximumBytes, maximumAllowedBytes));
 	const maximumChunkBytes = normalizeMaximumChunkBytes(request.maximumChunkBytes);
 	const managedSink = manageVideoKeyframeOutputSink(sink);
 	const evidence = await assertFiniteVideoKeyframeContainerFile(
@@ -100,7 +101,7 @@ function normalizeRequest(value: VideoKeyframeVideoOutputRequest): VideoKeyframe
 		throw new TypeError('Video keyframe output request must be a plain object.');
 	}
 	const allowed = new Set([
-		'source', 'path', 'format', 'maximumBytes', 'maximumChunkBytes', 'signal', 'assertCurrent',
+		'source', 'path', 'format', 'maximumBytes', 'maximumChunkBytes', 'signal', 'assertCurrent', 'confirmFileSizeWarning',
 	]);
 	const admitted: Record<string, unknown> = {};
 	for (const key of Reflect.ownKeys(value)) {
@@ -126,6 +127,7 @@ function normalizeRequest(value: VideoKeyframeVideoOutputRequest): VideoKeyframe
 	if (admitted.assertCurrent !== undefined && typeof admitted.assertCurrent !== 'function') {
 		throw new TypeError('Video keyframe output request assertCurrent must be a function.');
 	}
+	if (admitted.confirmFileSizeWarning !== undefined && typeof admitted.confirmFileSizeWarning !== 'function') throw new TypeError('Video output size confirmation must be a function.');
 	return Object.freeze(admitted) as unknown as VideoKeyframeVideoOutputRequest;
 }
 
@@ -168,12 +170,18 @@ function createOutputSink(
 	});
 }
 
+async function admitOutputBytes(request: VideoKeyframeVideoOutputRequest, threshold: number): Promise<number> {
+	request.signal?.throwIfAborted();
+	request.assertCurrent?.();
+	const stat = await request.source.statFile(request.path, request.signal ? { signal: request.signal } : undefined);
+	return confirmFileSizeWarning(stat.size, threshold, 'Video export', request);
+}
+
 function normalizeMaximumBytes(value: number | undefined, limit: number): number {
 	const maximum = value ?? limit;
-	if (!Number.isSafeInteger(limit) || limit <= 0 || !Number.isSafeInteger(maximum) || maximum <= 0
-		|| maximum > limit) {
+	if (!Number.isSafeInteger(limit) || limit <= 0 || !Number.isSafeInteger(maximum) || maximum <= 0) {
 		throw new RangeError(
-			`Video keyframe export maximumOutputBytes must be a positive safe integer no greater than ${String(limit)}.`,
+			'Video keyframe export maximumOutputBytes must be a positive safe integer.',
 		);
 	}
 	return maximum;

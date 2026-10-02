@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-import { admitAudioExportBlob } from '../../../../audio-export-output.ts';
+import { admitAudioExportBlobWithWarning as admitAudioExportBlob } from '../../../../audio-export-output.ts';
 import { createExportChapterPlan } from '../../../../export-chapters.ts';
+import type { FileSizeWarningConfirmation } from '../../../shared/file-size-warning.ts';
 import type { DeliveryConformanceFinding } from '../../../../delivery-conformance.ts';
 
 // Legacy JavaScript ports are narrowed as their owning services migrate.
@@ -25,7 +26,7 @@ interface StreamingStemArchiveExport {
  * joins the archive rather than the archive being conformed once at the end.
  */
 export async function streamStemArchiveExport({
-	abortSignal,
+	abortSignal, confirmFileSizeWarning,
 	admitOutputBytes,
 	conformExport,
 	copy,
@@ -39,7 +40,7 @@ export async function streamStemArchiveExport({
 	stemProject,
 	throwIfAborted,
 }: {
-	abortSignal: RuntimeValue,
+	abortSignal: RuntimeValue, confirmFileSizeWarning?: FileSizeWarningConfirmation,
 	admitOutputBytes: number,
 	conformExport: (
 		plan: RuntimeValue, encoded: RuntimeValue, start: number, end: number,
@@ -56,7 +57,7 @@ export async function streamStemArchiveExport({
 	throwIfAborted: (signal: RuntimeValue) => void,
 }): Promise<StreamingStemArchiveExport> {
 	if (!plan.archive) throw new Error('The stem export plan has no archive descriptor.');
-	const archive = await createStreamingStemArchive(plan.archive, copy);
+	const archive = await createStreamingStemArchive(plan.archive, copy, { signal: abortSignal, confirmFileSizeWarning });
 	try {
 		const findings: DeliveryConformanceFinding[] = [];
 		const chapters = plan.mode === 'chapters';
@@ -82,7 +83,7 @@ export async function streamStemArchiveExport({
 		const result = await archive.finish();
 		return {
 			conformance: Object.freeze(findings),
-			blob: admitAudioExportBlob(result.blob, 'Audio stem archive', admitOutputBytes),
+			blob: await admitAudioExportBlob(result.blob, 'Audio stem archive', admitOutputBytes, { signal: abortSignal, confirmFileSizeWarning }),
 			fileName: plan.archive.fileName,
 			cleanup: result.cleanup,
 		};

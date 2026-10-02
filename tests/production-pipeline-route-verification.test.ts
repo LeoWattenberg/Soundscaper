@@ -71,7 +71,7 @@ test('milestone 2 verifies one exact unique publication-route register', async (
 	assert.deepEqual(verification.routes.map(({ id }) => id), routeIds);
 });
 
-test('every browser route has one frozen Blob limit and every direct route excludes a final renderer Blob', async () => {
+test('every browser route has a frozen Blob warning threshold and every direct route excludes a final renderer Blob', async () => {
 	const matrix = JSON.parse(await readFile(matrixUrl, 'utf8'));
 	const controls = new Map<string, Readonly<{ evidence: Array<{ kind: string; path: string }> }>>();
 	for (const risk of matrix.risks) {
@@ -145,7 +145,7 @@ test('the threat model owns the route-level claim without promoting resource gua
 	}
 	assert.match(
 		documentation,
-		/five retained\s+browser-Blob fallbacks.*non-raiseable 512 MiB.*Storage-backed audio mix and stem archives.*1,000,000,000-byte.*complete\s+browser-native.*before final Blob construction.*before download publication/isu,
+		/five browser-Blob fallbacks.*user-overridable\s+512 MiB warning threshold.*Storage-backed audio mix and stem archives.*user-overridable 1,000,000,000-byte warning threshold.*exact operation size.*structural format.*safe-integer arithmetic.*actual storage capacity.*byte-count.*digest.*cancellation.*currentness.*completed native file bytes before Blob\s+construction and download publication/isu,
 	);
 	assert.match(
 		documentation,

@@ -339,7 +339,7 @@ test('an inadmissible bound is refused before any work starts', async () => {
 			store: receiving,
 			inspectProject: archive.inspectProject,
 			importProject: archive.importProject,
-			maximumEntryBytes: 8 * 1024 * 1024 * 1024 + 1,
+			maximumEntryBytes: Number.MAX_SAFE_INTEGER + 1,
 			entries: [],
 		}),
 		(error: unknown) => error instanceof ProjectTransferRefusalError && error.code === 'invalid-bound',

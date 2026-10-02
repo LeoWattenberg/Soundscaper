@@ -24,8 +24,8 @@ const FOUR_MIB = 4 * 1024 ** 2;
 
 test('linked audio and video range capabilities share the hard admission pool', async (context) => {
 	assert.equal(MAX_LINKED_VIDEO_PLAYBACK_CAPABILITIES, 128);
-	assert.equal(MAX_LINKED_VIDEO_PLAYBACK_CAPABILITY_BYTES, 64 * 1024 ** 3);
-	assert.equal(MAX_LINKED_VIDEO_PLAYBACK_CAPABILITY_FILE_BYTES, 512 * 1024 ** 2);
+	assert.equal(MAX_LINKED_VIDEO_PLAYBACK_CAPABILITY_BYTES, Number.MAX_SAFE_INTEGER);
+	assert.equal(MAX_LINKED_VIDEO_PLAYBACK_CAPABILITY_FILE_BYTES, Number.MAX_SAFE_INTEGER);
 	assert.equal(MAX_LINKED_VIDEO_PLAYBACK_RANGE_RESPONSE_BYTES, FOUR_MIB);
 	assert.equal(MAX_LINKED_VIDEO_PLAYBACK_REQUESTS, 16);
 	const handles = [fakeHandle(6), fakeHandle(4), fakeHandle(7)];
@@ -64,9 +64,9 @@ test('linked audio and video range capabilities share the hard admission pool', 
 		store.registerLinkedOriginalRangePath('/tmp/oversized.wav', rangeOptions(
 			'audio', MAX_LINKED_VIDEO_PLAYBACK_CAPABILITY_FILE_BYTES + 1,
 		)),
-		/file bytes|limit/iu,
+		/file bytes|limit|identity/iu,
 	);
-	assert.equal(opened, 3, 'per-file and metadata refusal do not open another handle');
+	assert.equal(opened, 3, 'unsafe file identity and metadata refusal do not open another handle');
 });
 
 test('linked audio range capabilities admit exact classic AIFF name and MIME pairs', async (context) => {

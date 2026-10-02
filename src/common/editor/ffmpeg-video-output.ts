@@ -9,6 +9,7 @@ import {
 	type FfmpegOutputSink,
 	type FfmpegOutputStreamOptions,
 } from './ffmpeg-output-stream.ts';
+import type { FileSizeWarningConfirmation } from './controller/shared/file-size-warning.ts';
 import { readBoundedFfmpegOutputFile } from './browser-export-output.ts';
 import { getVideoExportFormat } from './video-export.js';
 import { buildVideoFfmpegArgs } from './video-ffmpeg.js';
@@ -70,6 +71,7 @@ interface PreparedVideoBlobs {
  */
 interface FfmpegVideoSettings extends FfmpegOutputStreamOptions, Readonly<Record<string, unknown>> {
 	readonly captions?: Blob | null;
+	readonly confirmFileSizeWarning?: FileSizeWarningConfirmation;
 	/** One WOFF per font subset the burned cues draw from, keyed by subset id. */
 	readonly burnInFonts?: ReadonlyMap<string, Blob> | null;
 }
@@ -168,7 +170,7 @@ export async function encodeFfmpegVideoBytes(
 			if (code !== 0) throw options.createEncodingError(staged.descriptor.id, code);
 			const data = await readBoundedFfmpegOutputFile(instance, job.output, {
 				label: 'Video export', maximumBytes: options.settings.maximumOutputBytes, signal,
-				assertCurrent: options.settings.assertCurrent,
+				assertCurrent: options.settings.assertCurrent, confirmFileSizeWarning: options.settings.confirmFileSizeWarning,
 			});
 			return {
 				bytes: data,

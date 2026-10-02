@@ -2,6 +2,7 @@
 
 import { PLATFORM_TRANSFER_HARD_LIMITS } from './platform/bounded-transfer.ts';
 
+/** Compatibility name for the default threshold; main-approved reads supply their exact larger bound. */
 export const DESKTOP_READ_HARD_LIMIT_BYTES = 512 * 1024 * 1024;
 
 export interface DesktopReadMaterializationDescriptor {
@@ -36,9 +37,6 @@ export async function materializeDesktopReadBlob(
 	const maximumBytes = options.maximumBytes === undefined
 		? DESKTOP_READ_HARD_LIMIT_BYTES
 		: nonNegativeSafeInteger(options.maximumBytes, 'Desktop read maximumBytes');
-	if (maximumBytes > DESKTOP_READ_HARD_LIMIT_BYTES) {
-		throw new RangeError('Desktop read maximumBytes exceeds the non-raiseable hard limit.');
-	}
 	if (descriptor.size > maximumBytes) {
 		throw new RangeError('The desktop read declared size exceeds its maximumBytes.');
 	}

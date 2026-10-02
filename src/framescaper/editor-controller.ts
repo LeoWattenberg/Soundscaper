@@ -54,13 +54,14 @@ import { bindFramescaperSelectedImagePreviewControllerTimelineImage } from
 	'./editor-selected-timeline-image-image-preview-controller.ts';
 
 const PRESENTATION_FIELDS = [
-	'locale', 'copy', 'fileService', 'confirmMonoConversion',
+	'locale', 'copy', 'fileService', 'confirmMonoConversion', 'confirmFileSizeWarning',
 ] as const;
 
 export interface FramescaperAudioEditorControllerPresentation {
 	readonly locale?: string;
 	readonly copy?: ControllerOptions['copy'];
 	readonly fileService?: ControllerOptions['fileService'];
+	readonly confirmFileSizeWarning?: ControllerOptions['confirmFileSizeWarning'];
 	readonly confirmMonoConversion?: ControllerOptions['confirmMonoConversion'];
 }
 
@@ -126,7 +127,7 @@ export function createFramescaperAudioEditorController(
 		acquireProjectLock: environment.runtime.acquireProjectLock,
 		projectRuntime: environment.runtime,
 		playbackProjectService: environment.playback,
-		createProjectIfAbsent: environment.createProjectIfAbsent,
+		createProjectIfAbsent: (project, publicationOptions) => environment.createProjectIfAbsent(project, { ...publicationOptions, confirmFileSizeWarning: publicationOptions?.confirmFileSizeWarning ?? presentation.confirmFileSizeWarning }),
 		scapeProjectRuntime: createFramescaperScapeNativeRuntime(environment.runtime.profile),
 		productSequenceActions,
 		createProductVideoRetimeProgramOrdinalBridge: createVideoRetimeProgramOrdinalBridge,
@@ -142,11 +143,11 @@ export function createFramescaperAudioEditorController(
 			pressure: Parameters<FramescaperVideoProxyActionRuntime['reportPreviewPressure']>[1],
 		) => proxyActions?.reportPreviewPressure(sourceId, pressure),
 		createFramescaperCaptureProxyScheduler: (composition) => {
-			const base = composition;
+			const base = Object.freeze({ ...composition, confirmFileSizeWarning: presentation.confirmFileSizeWarning });
 			const candidateObserver = createFramescaperNativeProResProxyCandidateObserver({
 				profile: environment.runtime.profile,
 				getProject: () => controller?.project ?? null,
-				composition: base,
+				composition: base, confirmFileSizeWarning: presentation.confirmFileSizeWarning,
 			});
 			proxyComposition = candidateObserver === null ? base : Object.freeze({
 				...base,
@@ -196,7 +197,7 @@ export function createFramescaperAudioEditorController(
 		...(openFxExecute ? { openFxExecute } : {}),
 	} as never);
 	bindFramescaperSelectedImageAuthoringControllerTimelineImage({
-		controller: controller as never,
+		confirmFileSizeWarning: presentation.confirmFileSizeWarning,		controller: controller as never,
 		session: sessionController as never,
 		executeCommand: (history, command, options) => environment.runtime.executeCommand(
 			history as never, command as never, options,
@@ -253,6 +254,9 @@ function snapshotPresentation(value: unknown): FramescaperAudioEditorControllerP
 	if (output.confirmMonoConversion !== undefined
 		&& typeof output.confirmMonoConversion !== 'function') {
 		throw new TypeError('Framescaper mono conversion confirmation must be a function.');
+	}
+	if (output.confirmFileSizeWarning !== undefined && typeof output.confirmFileSizeWarning !== 'function') {
+		throw new TypeError('Framescaper file size confirmation must be a function.');
 	}
 	return output as FramescaperAudioEditorControllerPresentation;
 }

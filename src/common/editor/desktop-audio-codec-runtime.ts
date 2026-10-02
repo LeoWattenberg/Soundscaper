@@ -25,6 +25,7 @@ import {
 } from './ffmpeg-output-stream.ts';
 import type { DesktopAudioStreamCommandBridge } from './desktop-audio-stream-encoder.ts';
 import { DESKTOP_MAIN_AUDIO_CODEC_RUNTIME_MARKER } from './desktop-main-audio-codec-runtime-marker.ts';
+import type { FileSizeWarningOptions } from './controller/shared/file-size-warning.ts';
 export interface DesktopAudioCodecRendererBridge {
 	capabilities(query: DesktopAudioCodecCapabilityQuery): unknown | Promise<unknown>;
 	execute(request: DesktopAudioCodecRequest): unknown | Promise<unknown>;
@@ -32,7 +33,7 @@ export interface DesktopAudioCodecRendererBridge {
 	stream?: DesktopAudioStreamCommandBridge;
 }
 type DesktopAudioCodecLegacyRendererBridge = Pick<DesktopAudioCodecRendererBridge, 'execute' | 'cancel'>;
-export interface DesktopAudioCodecRuntimeSettings {
+export interface DesktopAudioCodecRuntimeSettings extends FileSizeWarningOptions {
 	readonly format?: string; readonly backend?: string; readonly extension?: string; readonly mimeType?: string;
 	readonly capabilities?: unknown; readonly sampleRate?: number; readonly inputChannelCount?: number; readonly channelCount?: number;
 	readonly channelMapping?: unknown;
@@ -99,7 +100,7 @@ const ENCODE_SETTING_FIELDS = new Set<string>([
 	'inputChannelCount', 'channelCount', 'channelMapping',
 	'sampleFormat', 'bitDepth', 'floatingPoint', 'dither', 'metadata',
 	'compressionLevel', 'quality', 'bitRate', 'applyDither', 'maximumOutputBytes',
-	'maximumOutputChunkBytes', 'signal', 'assertCurrent', 'onProgress',
+	'maximumOutputChunkBytes', 'signal', 'assertCurrent', 'onProgress', 'confirmFileSizeWarning',
 ]);
 const DECODE_SETTING_FIELDS = new Set<string>([
 	'format', 'sampleRate', 'channelCount', 'maximumOutputBytes', 'signal',
@@ -125,7 +126,9 @@ export class DesktopAudioCodecRuntimeUnsupportedError extends Error {
 	constructor(message: string) { super(message); this.name = 'DesktopAudioCodecRuntimeUnsupportedError'; }
 }
 
-export function createDesktopAudioCodecRuntime(bridgeValue: DesktopAudioCodecRendererBridge | DesktopAudioCodecLegacyRendererBridge): DesktopAudioCodecRuntime {
+export function createDesktopAudioCodecRuntime(bridgeValue: DesktopAudioCodecRendererBridge | DesktopAudioCodecLegacyRendererBridge,
+	options: Pick<FileSizeWarningOptions, 'confirmFileSizeWarning'> = {},
+): DesktopAudioCodecRuntime {
 	const bridge = rendererBridge(bridgeValue);
 	const active = new Map<string, ActiveRequest>();
 	let disposed = false;
@@ -152,7 +155,7 @@ export function createDesktopAudioCodecRuntime(bridgeValue: DesktopAudioCodecRen
 			settingsValue: DesktopAudioCodecRuntimeSettings = {},
 		): Promise<DesktopAudioCodecStreamResult<Output>> {
 			let streamOwnsFailure = false;
-			const settings = settingsRecord(settingsValue, ENCODE_SETTING_FIELDS, 'encode');
+			const settings = withWarningDefault(settingsRecord(settingsValue, ENCODE_SETTING_FIELDS, 'encode'));
 			try {
 				assertFfmpegOutputReady(settings);
 				const streamedRequest = bridge.stream ? await (await import('./desktop-audio-stream-request.ts')).buildDesktopAudioStreamRequest(file, desktopFormat(formatValue), settings, bridge.capabilities) : null;
@@ -224,13 +227,16 @@ export function createDesktopAudioCodecRuntime(bridgeValue: DesktopAudioCodecRen
 		},
 	});
 	return runtime;
+	function withWarningDefault(settings: DesktopAudioCodecRuntimeSettings): DesktopAudioCodecRuntimeSettings {
+		return { ...settings, confirmFileSizeWarning: settings.confirmFileSizeWarning ?? options.confirmFileSizeWarning };
+	}
 
 	async function encodeStagedWav(file: Blob, formatValue: string,
 		settingsValue: DesktopAudioCodecRuntimeSettings,
 	): Promise<DesktopAudioCodecEncodedResult> {
 		assertActive();
 		const format = desktopFormat(formatValue);
-		const settings = settingsRecord(settingsValue, ENCODE_SETTING_FIELDS, 'encode');
+		const settings = withWarningDefault(settingsRecord(settingsValue, ENCODE_SETTING_FIELDS, 'encode'));
 		throwIfAborted(settings.signal);
 		const { buildDesktopAudioStreamRequest, encodeDesktopAudioSettings, stagedDesktopWavPcm } = await import('./desktop-audio-stream-request.ts');
 		const streamedRequest = bridge.stream ? await buildDesktopAudioStreamRequest(file, format, settings, bridge.capabilities) : null;
@@ -418,6 +424,9 @@ function settingsRecord(value: unknown, permitted: ReadonlySet<string>, operatio
 	}
 	if (result.assertCurrent !== undefined && typeof result.assertCurrent !== 'function') {
 		throw new TypeError('Desktop audio encode assertCurrent must be a function.');
+	}
+	if (result.confirmFileSizeWarning !== undefined && typeof result.confirmFileSizeWarning !== 'function') {
+		throw new TypeError('Desktop audio encode confirmFileSizeWarning must be a function.');
 	}
 	return Object.freeze(result) as DesktopAudioCodecRuntimeSettings;
 }

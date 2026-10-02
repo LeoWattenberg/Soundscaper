@@ -4,7 +4,7 @@ import {
 	playbackMeterPercent,
 } from '../playback-meter.js';
 
-export const METER_POSITIONS = ['flyout', 'top', 'side'] as const;
+export const METER_POSITIONS = ['flyout', 'top', 'side', 'panel'] as const;
 export const METER_STYLES = ['default', 'rms', 'gradient'] as const;
 export const METER_TYPES = ['db-log', 'db-linear', 'amplitude', 'ebu-r128'] as const;
 export const METER_DB_RANGES = [36, 48, 60, 72, 84, 96, 120, 144] as const;

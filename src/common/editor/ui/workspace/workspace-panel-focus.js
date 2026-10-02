@@ -33,8 +33,17 @@ function focusWhenMounted(ownerDocument, selector, previous = null) {
 
 export function closeWorkspacePanelAndRestoreFocus(ownerDocument, panelId, onTogglePanel) {
 	onTogglePanel(panelId);
+	if (panelId === 'clock') {
+		focusWorkspaceToolbarTimeCode(ownerDocument);
+		return;
+	}
 	if (!workspacePanelRestoresCaptureFocus(panelId)) return;
 	focusWhenMounted(ownerDocument, '[data-transport="framescaper-record"] button');
+}
+
+/** Closing the optional clock returns keyboard use to its toolbar readout. */
+export function focusWorkspaceToolbarTimeCode(ownerDocument) {
+	focusWhenMounted(ownerDocument, '[data-editor-tool-toolbar] [data-time-display] .timecode');
 }
 
 /**

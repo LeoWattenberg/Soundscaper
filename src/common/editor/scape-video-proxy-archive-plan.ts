@@ -35,7 +35,6 @@ const TIMING_FIELDS = [
 const SHA256 = /^[a-f0-9]{64}$/u;
 const VIDEO_MIME_TYPE = /^video\/[a-z0-9][a-z0-9!#$&^_.+\-]*$/u;
 const PROXY_STORAGE_PREFIX = 'video-proxy-sha256:';
-const MAXIMUM_PROXY_BYTES = 512 * 1024 * 1024;
 const MAXIMUM_ASSETS = 4_094;
 
 /**
@@ -90,9 +89,6 @@ function normalizeReference(value: unknown): Readonly<ScapeVideoProxyArchiveRefe
 	}
 	const mimeType = videoMimeType(raw.mimeType);
 	const byteLength = positiveSafeInteger(raw.byteLength, 'video proxy archive byteLength');
-	if (byteLength > MAXIMUM_PROXY_BYTES) {
-		throw new RangeError('The video proxy archive body exceeds its maximum byte length.');
-	}
 	if (timingAsset.sourceSha256 !== sha256) {
 		throw new Error('The video proxy archive timing reference is not bound to its proxy digest.');
 	}

@@ -117,7 +117,7 @@ test('STORE/Zip64 estimate bounds the pinned writer profile and UTF-8 filenames'
 	);
 });
 
-test('Blob admission rejects declared audio before PCM reads and cannot be raised', async () => {
+test('Blob size warnings require a decision before PCM reads and allow confirmed larger archives', async () => {
 	let pcmReads = 0;
 	const store = {
 		async getMediaAssetMetadata() { return null; },
@@ -131,16 +131,24 @@ test('Blob admission rejects declared audio before PCM reads and cannot be raise
 
 	await assert.rejects(
 		exportScapeProject(project, store, { maximumBlobBytes: 1 }),
-		/final Blob assembly limit/iu,
+		/size warning threshold/iu,
 	);
 	assert.equal(pcmReads, 0);
-	await assert.rejects(
-		exportScapeProject(project, store, {
-			maximumBlobBytes: SCAPE_WEB_CORE_BLOB_MAXIMUM_BYTES + 1,
-		}),
-		/cannot exceed the hard limit/iu,
-	);
-	assert.equal(pcmReads, 0);
+	let confirmations = 0;
+	const exported = await exportScapeProject(project, store, {
+		maximumBlobBytes: 1,
+		async confirmFileSizeWarning(warning: { byteLength: number; thresholdBytes: number }) {
+			confirmations++;
+			assert.equal(pcmReads, 0);
+			assert.equal(warning.thresholdBytes, 1);
+			assert.ok(warning.byteLength > 1);
+			return true;
+		},
+	});
+	assert.ok(exported.blob instanceof Blob);
+	assert.equal(confirmations, 1);
+	assert.equal(pcmReads, 1);
+	assert.ok(SCAPE_WEB_CORE_BLOB_MAXIMUM_BYTES > 1);
 });
 
 test('video admission uses scalar metadata and rejects size drift before payload streaming', async () => {
@@ -156,7 +164,7 @@ test('video admission uses scalar metadata and rejects size drift before payload
 
 	await assert.rejects(
 		exportScapeProject(project, oversizedStore, { maximumBlobBytes: 1 }),
-		/final Blob assembly limit/iu,
+		/size warning threshold/iu,
 	);
 	assert.equal(metadataReads, 1);
 	assert.equal(mediaLoads, 0);

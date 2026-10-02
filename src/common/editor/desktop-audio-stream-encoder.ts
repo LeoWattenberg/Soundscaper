@@ -7,12 +7,15 @@ import { inspectWavBlobPcm, streamWavBlobPcm } from './wav-import.js';
 import type { WavPcmDescriptor } from './wav-pcm-chunk-reader.ts';
 import { applyMediaChannelMapping } from './media-export.js';
 import { writeInterleavedFloat32Pcm } from './interleaved-float32-pcm.ts';
+import { confirmFileSizeWarning, type FileSizeWarningOptions } from './controller/shared/file-size-warning.ts';
+import { LARGE_AUDIO_FILE_BYTES } from './large-audio-policy.ts';
 import { assertFfmpegOutputReady, abortFfmpegOutputSink, streamFfmpegOutputFile,
 	type FfmpegOutputSink } from './ffmpeg-output-stream.ts';
 
-export interface DesktopAudioStreamEncoderSettings {
+export interface DesktopAudioStreamEncoderSettings extends FileSizeWarningOptions {
 	readonly signal?: AbortSignal; readonly assertCurrent?: () => void;
 	readonly maximumOutputChunkBytes?: number; readonly onProgress?: (value: number) => void;
+	readonly maximumOutputBytes?: number;
 }
 export interface DesktopAudioStreamFileResult {
 	readonly blob: Blob; readonly bytes: null; readonly extension: string; readonly mimeType: string;
@@ -76,6 +79,8 @@ export async function encodeDesktopAudioStreamFile(request: DesktopAudioStreamEn
 		const result = audioStreamRecord(await executeWithProgress(operationId, request, bridge), ['byteLength']);
 		assertFfmpegOutputReady(request.settings);
 		const byteLength = audioStreamInteger(result.byteLength, 1, request.plan.maximumOutputBytes, 'output length');
+		await confirmFileSizeWarning(byteLength, request.settings.maximumOutputBytes ?? LARGE_AUDIO_FILE_BYTES,
+			'Compressed audio export', request.settings);
 		const read = async (offset: number, length: number): Promise<Uint8Array<ArrayBuffer>> => {
 			if (released) throw new Error('The desktop encoded audio file was released.');
 			assertFfmpegOutputReady(request.settings);

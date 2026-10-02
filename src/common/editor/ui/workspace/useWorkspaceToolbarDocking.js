@@ -1,96 +1,68 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-export function useWorkspaceToolbarDocking(editorRef) {
-	const [toolbarDock, setToolbarDock] = useState('top');
-	const [floatingToolbarPosition, setFloatingToolbarPosition] = useState({ x: 24, y: 104 });
-	const toolbarDragRef = useRef(null);
-	const floatingToolbarRef = useRef(null);
-	const finishToolbarDrag = useCallback(() => {
-		const drag = toolbarDragRef.current;
-		if (drag?.frame) cancelAnimationFrame(drag.frame);
-		if (drag?.moved) {
-			setToolbarDock(drag.dock);
-			if (drag.dock === 'floating') {
-				setFloatingToolbarPosition({ x: drag.x, y: drag.y });
-			}
-		}
-		toolbarDragRef.current = null;
+import { createToolbarDockingSession, loadToolbarDockingState } from '../../controller/composition/toolbar-docking-session.ts';
+
+function toolbarStorage() {
+	try { return globalThis.localStorage; } catch { return null; }
+}
+
+export function useWorkspaceToolbarDocking(editorRef, productId) {
+	const storageKey = `${productId}-toolbar-docking-v1`;
+	const [state, setState] = useState(() => loadToolbarDockingState(toolbarStorage(), storageKey));
+	const sessionRef = useRef(null);
+	const floatingToolbarElementRef = useRef(null);
+	const [floatingToolbar, setFloatingToolbar] = useState(null);
+	const floatingToolbarRef = useCallback((element) => {
+		floatingToolbarElementRef.current = element;
+		setFloatingToolbar(element);
 	}, []);
+	useEffect(() => {
+		const session = createToolbarDockingSession({
+			initialState: loadToolbarDockingState(toolbarStorage(), storageKey),
+			storage: toolbarStorage(),
+			storageKey,
+			onChange: setState,
+			getFloatingBounds: () => floatingToolbarElementRef.current?.getBoundingClientRect() ?? null,
+			onFloatingPreview: ({ x, y }) => {
+				const toolbar = floatingToolbarElementRef.current;
+				if (toolbar) Object.assign(toolbar.style, { left: `${x}px`, top: `${y}px` });
+			},
+			events: { subscribe: (type, handler) => {
+				window.addEventListener(type, handler);
+				return () => window.removeEventListener(type, handler);
+			} },
+			requestFrame: (callback) => requestAnimationFrame(callback),
+			cancelFrame: (id) => cancelAnimationFrame(id),
+		});
+		sessionRef.current = session;
+		return () => { session.dispose(); sessionRef.current = null; };
+	}, [storageKey]);
+	useEffect(() => {
+		const editor = editorRef.current;
+		const toolbar = floatingToolbar;
+		if (state.dock !== 'floating' || !editor || !toolbar) return undefined;
+		const reconcile = () => sessionRef.current?.reconcileFloatingBounds(editor.getBoundingClientRect());
+		reconcile();
+		const observer = new ResizeObserver(reconcile);
+		observer.observe(editor);
+		observer.observe(toolbar);
+		return () => observer.disconnect();
+	}, [editorRef, floatingToolbar, state.dock]);
 	const handleToolbarGripperMouseDown = useCallback((event, toolbarRect) => {
 		if (event.button !== 0 || !editorRef.current) return;
 		event.preventDefault();
-		const editorRect = editorRef.current.getBoundingClientRect();
-		toolbarDragRef.current = {
-			startX: event.clientX,
-			startY: event.clientY,
-			offsetX: event.clientX - toolbarRect.left,
-			offsetY: event.clientY - toolbarRect.top,
-			editorLeft: editorRect.left,
-			editorTop: editorRect.top,
-			editorBottom: editorRect.bottom,
-			dock: toolbarDock,
-			x: floatingToolbarPosition.x,
-			y: floatingToolbarPosition.y,
-			frame: 0,
-			moved: false,
-		};
-	}, [editorRef, floatingToolbarPosition.x, floatingToolbarPosition.y, toolbarDock]);
-	useEffect(() => {
-		const handleToolbarDrag = (event) => {
-			const drag = toolbarDragRef.current;
-			if (!drag) return;
-			const moved = drag.moved || Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) > 4;
-			if (!moved) return;
-			drag.moved = true;
-			const edgeDistance = 56;
-			if (event.clientY - drag.editorTop <= edgeDistance) {
-				if (drag.dock !== 'top') {
-					drag.dock = 'top';
-					setToolbarDock('top');
-				}
-				return;
-			}
-			if (drag.editorBottom - event.clientY <= edgeDistance) {
-				if (drag.dock !== 'bottom') {
-					drag.dock = 'bottom';
-					setToolbarDock('bottom');
-				}
-				return;
-			}
-			drag.x = Math.max(0, event.clientX - drag.editorLeft - drag.offsetX);
-			drag.y = Math.max(0, event.clientY - drag.editorTop - drag.offsetY);
-			if (drag.dock !== 'floating') {
-				drag.dock = 'floating';
-				setToolbarDock('floating');
-			}
-			if (drag.frame) return;
-			drag.frame = requestAnimationFrame(() => {
-				drag.frame = 0;
-				if (toolbarDragRef.current !== drag || drag.dock !== 'floating') return;
-				const toolbar = floatingToolbarRef.current;
-				if (!toolbar) return;
-				toolbar.style.left = `${drag.x}px`;
-				toolbar.style.top = `${drag.y}px`;
-			});
-		};
-		window.addEventListener('mousemove', handleToolbarDrag);
-		window.addEventListener('mouseup', finishToolbarDrag);
-		return () => {
-			window.removeEventListener('mousemove', handleToolbarDrag);
-			window.removeEventListener('mouseup', finishToolbarDrag);
-			const drag = toolbarDragRef.current;
-			if (drag?.frame) {
-				cancelAnimationFrame(drag.frame);
-				drag.frame = 0;
-			}
-		};
-	}, [finishToolbarDrag]);
-
+		sessionRef.current?.begin(
+			{ x: event.clientX, y: event.clientY },
+			toolbarRect,
+			editorRef.current.getBoundingClientRect(),
+		);
+	}, [editorRef]);
+	const setToolbarDock = useCallback((dock) => sessionRef.current?.setDock(dock), []);
 	return {
-		floatingToolbarPosition,
+		floatingToolbarPosition: { x: state.x, y: state.y },
 		floatingToolbarRef,
 		handleToolbarGripperMouseDown,
-		toolbarDock,
-		toolbarDragRef,
+		toolbarDock: state.dock,
+		setToolbarDock,
 	};
 }

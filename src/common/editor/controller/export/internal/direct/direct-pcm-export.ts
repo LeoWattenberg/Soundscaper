@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { confirmFileSizeWarning, type FileSizeWarningOptions } from '../../../shared/file-size-warning.ts';
 import {
 	AUDIO_EDITOR_PCM_SINK_MAX_CHANNELS,
 	AUDIO_EDITOR_PCM_SINK_MAX_CHUNK_FRAMES,
@@ -91,6 +92,7 @@ export async function openDirectPcmDestination(
 	containerLabel = 'PCM',
 	sizeMode: DirectPcmDestinationSizeMode = 'exact',
 	writableOptions: DirectPcmWritableOptions = {},
+	warningOptions: FileSizeWarningOptions = {},
 ): Promise<DirectPcmPreparation> {
 	if (!prepared || typeof prepared !== 'object') {
 		throw new TypeError(`The prepared ${containerLabel} destination is invalid.`);
@@ -114,6 +116,7 @@ export async function openDirectPcmDestination(
 	const stream = prepared as PreparedPcmStream;
 	assertPreparedStream(stream, containerLabel, Boolean(normalizedWritableOptions.finalPrefixByteLength));
 	try {
+		await confirmFileSizeWarning(plannedByteLength, DIRECT_PCM_MAXIMUM_FILE_BYTES, `${containerLabel} export`, warningOptions);
 		const writable = await stream.createWritable(plannedByteLength, sizeMode, normalizedWritableOptions);
 		if (!writable || typeof writable.getWriter !== 'function') {
 			throw new TypeError(`The prepared ${containerLabel} destination is not writable.`);

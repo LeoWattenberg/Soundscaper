@@ -330,7 +330,7 @@ async function createVisualExecution(
 		...(request.webCodecs ? { webCodecs: request.webCodecs } : {}),
 		...(request.audioMix instanceof Blob ? { audioMix: request.audioMix } : {}),
 		encoderOptions,
-		signal: request.signal, assertCurrent: request.assertCurrent,
+		signal: request.signal, assertCurrent: request.assertCurrent, confirmFileSizeWarning: request.confirmFileSizeWarning,
 	});
 	await preflightVideoKeyframeOfflineEncoder(options, frameSource);
 	return Object.freeze({ exact, encoderRequest: createVideoKeyframeOfflineEncoderRequest(

@@ -3,6 +3,7 @@
 import { LARGE_AUDIO_FILE_BYTES, LARGE_AUDIO_DURATION_SECONDS } from './large-audio-policy.ts';
 import type { BrowserContainerAudioSample } from './browser-container-audio-decode.ts';
 import type { WavPackImportGroupDecoder } from './browser-streamed-wavpack-import.ts';
+import { confirmFileSizeWarning, type FileSizeWarningOptions } from './controller/shared/file-size-warning.ts';
 
 const MAXIMUM_CHANNELS = 32;
 const MAXIMUM_SAMPLE_FRAMES = 65_536;
@@ -45,7 +46,7 @@ export interface PreparedStreamedAudioImport {
 /** Admit source geometry before the first PCM allocation; only chunks cross into storage. */
 export async function prepareStreamedAudioImport(
 	file: Blob,
-	options: Readonly<{
+	options: Readonly<FileSizeWarningOptions & {
 		signal?: AbortSignal;
 		openSession?: (file: Blob, signal?: AbortSignal) => Promise<StreamedAudioImportSession>;
 		reviewedFallback?: boolean;
@@ -58,9 +59,7 @@ export async function prepareStreamedAudioImport(
 	if (!Number.isSafeInteger(file.size) || file.size < 1) {
 		throw new RangeError('The compressed audio original has an unsupported byte length.');
 	}
-	if (!options.desktop && file.size > LARGE_AUDIO_FILE_BYTES) {
-		throw new RangeError('The compressed audio original exceeds the 1 GB import limit.');
-	}
+	if (!options.desktop) await confirmFileSizeWarning(file.size, LARGE_AUDIO_FILE_BYTES, 'Compressed audio import', options);
 	const session = await awaitImportOperation((options.openSession ?? (async (blob, signal) => {
 		const header = new Uint8Array(await blob.slice(0, 4).arrayBuffer());
 		if (String.fromCharCode(...header) === 'wvpk') {

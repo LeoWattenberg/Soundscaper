@@ -10,9 +10,7 @@ import {
 } from './media-asset-chunk-records.ts';
 import { MediaAssetCleanupError } from './media-asset-cleanup-error.ts';
 import { MEDIA_ASSET_CHUNK_STORAGE_TYPE } from './media-asset-chunk-schema.ts';
-import {
-	MediaAssetLifecycleCoordinator,
-} from './media-asset-lifecycle-coordinator.ts';
+import { MediaAssetLifecycleCoordinator } from './media-asset-lifecycle-coordinator.ts';
 import { MediaAssetWriteAdmission } from './media-asset-write-admission.ts';
 import { MediaAssetDisposalRepository } from './media-asset-disposal-repository.ts';
 import {
@@ -85,9 +83,11 @@ export class MediaAssetWriteRepository {
 	readonly #staging: MediaAssetStagingRepository;
 	readonly #coordinator: MediaAssetLifecycleCoordinator;
 	readonly #disposal: MediaAssetDisposalRepository;
+	readonly #confirmFileSizeWarning: Parameters<typeof prepareMediaAssetStaging>[0]['confirmFileSizeWarning'];
 
-	constructor(port: StorageRepositoryPort, opfs: OpfsRepository, coordinator: MediaAssetLifecycleCoordinator) {
+	constructor(port: StorageRepositoryPort, opfs: OpfsRepository, coordinator: MediaAssetLifecycleCoordinator, confirmFileSizeWarning?: Parameters<typeof prepareMediaAssetStaging>[0]['confirmFileSizeWarning']) {
 		this.#port = port;
+		this.#confirmFileSizeWarning = confirmFileSizeWarning;
 		this.#opfs = opfs;
 		this.#coordinator = coordinator;
 		this.#chunks = new MediaAssetChunkRecords(port);
@@ -129,7 +129,7 @@ export class MediaAssetWriteRepository {
 			prepared = await prepareMediaAssetStaging({
 				sourceId: id,
 				expectedBytes,
-				maximumMemoryBytes: MEDIA_ASSET_MEMORY_STREAM_MAXIMUM_BYTES,
+				maximumMemoryBytes: MEDIA_ASSET_MEMORY_STREAM_MAXIMUM_BYTES, confirmFileSizeWarning: this.#confirmFileSizeWarning,
 				database,
 				chunks: this.#chunks,
 				staging: this.#staging,

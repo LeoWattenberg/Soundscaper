@@ -19,6 +19,7 @@
 import type {
 	VideoProxyCandidateGeneratorPort,
 	VideoProxyCandidateObserver,
+	VideoProxyCandidateObserverDependencies,
 } from '../../video-proxy-candidate-observation.ts';
 import { canonicalMediaContentBlob } from '../../storage/media-content-digest.ts';
 import { createVideoProxyCandidateObserver } from '../../video-proxy-candidate-observation.ts';
@@ -28,6 +29,7 @@ import { VIDEO_PROXY_GENERATION_RECIPE } from '../../video-proxy-generation.ts';
 import { createFfmpegVideoTimingProbe } from '../../video-timing-probe.ts';
 import type { VideoTimingProbePort } from '../../video-timing-probe.ts';
 import type { FfmpegMediaFileLease } from '../../ffmpeg-media-file-operation.ts';
+type FileSizeWarningConfirmation = NonNullable<VideoProxyCandidateObserverDependencies['confirmFileSizeWarning']>;
 
 export interface VideoProxyCandidateRuntime {
 	runProxyMediaOperation?<Output>(
@@ -35,6 +37,7 @@ export interface VideoProxyCandidateRuntime {
 		settings?: Readonly<{ signal?: AbortSignal }>,
 	): Promise<Output>;
 	probeVideoTiming?: VideoTimingProbePort['probe'];
+	readonly options?: Readonly<{ confirmFileSizeWarning?: FileSizeWarningConfirmation }>;
 }
 
 export interface VideoProxyCandidateCompositionOptions {
@@ -42,6 +45,7 @@ export interface VideoProxyCandidateCompositionOptions {
 	readonly helperTimingProbe?: VideoTimingProbePort | null;
 	/** Refuse a candidate larger than this, as the observer's own bound. */
 	readonly maximumBytes?: number;
+	readonly confirmFileSizeWarning?: FileSizeWarningConfirmation;
 }
 
 const EXISTING_PROXY_GENERATOR = Object.freeze({
@@ -70,9 +74,11 @@ export function createVideoProxyCandidateObserverForRuntime(
 	const runProxyMediaOperation = runtime.runProxyMediaOperation.bind(runtime);
 	const probes = timingProbes(runtime, options);
 	return createVideoProxyCandidateObserver({
-		generator: createFfmpegVideoProxyGenerator({ runOperation: runProxyMediaOperation }),
+		generator: createFfmpegVideoProxyGenerator({ runOperation: runProxyMediaOperation,
+			confirmFileSizeWarning: options.confirmFileSizeWarning ?? runtime.options?.confirmFileSizeWarning, maximumBytes: options.maximumBytes }),
 		recipe: VIDEO_PROXY_GENERATION_RECIPE,
 		probes,
+		confirmFileSizeWarning: options.confirmFileSizeWarning ?? runtime.options?.confirmFileSizeWarning,
 		...(options.maximumBytes === undefined ? {} : { maximumBytes: options.maximumBytes }),
 	});
 }
@@ -110,6 +116,7 @@ export function createVideoProxyExistingCandidateObserverForRuntime(
 		generator,
 		recipe: EXISTING_PROXY_RECIPE,
 		probes,
+		confirmFileSizeWarning: options.confirmFileSizeWarning ?? runtime?.options?.confirmFileSizeWarning,
 		...(options.maximumBytes === undefined ? {} : { maximumBytes: options.maximumBytes }),
 	});
 }

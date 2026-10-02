@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { confirmFileSizeWarning, type FileSizeWarningOptions } from '../common/editor/controller/shared/file-size-warning.ts';
 import { awaitScapeOperation, throwIfScapeAborted } from '../common/editor/scape-abort.ts';
 import type { ScapeAssetDescriptor, ScapeManifest } from '../common/editor/scape-archive-envelope.ts';
 import { safeScapeEntryId } from '../common/editor/scape-archive-media.ts';
@@ -17,7 +18,6 @@ import {
 	type VideoProcessorStackV1,
 } from '../common/editor/video-motion-model-v27.ts';
 import {
-	VIDEO_PROXY_MAXIMUM_BODY_BYTES,
 	type VideoProxyAttachmentV18,
 } from '../common/editor/video-proxy-attachment-v18.ts';
 import {
@@ -82,6 +82,7 @@ export async function planFramescaperDurableScapeExportAssets(
 	store: FramescaperDurableScapeMetadataStore,
 	label: FramescaperDurableScapeAssetPlanLabel,
 	signal?: AbortSignal,
+	warningOptions: FileSizeWarningOptions = {},
 ): Promise<readonly PlannedScapeExportAsset[]> {
 	const assets: PlannedScapeExportAsset[] = [];
 	for (const reference of references) {
@@ -96,6 +97,7 @@ export async function planFramescaperDurableScapeExportAssets(
 			|| metadata.sha256 !== reference.sha256) {
 			throw new Error(`${label} ${reference.role} body ${reference.storageKey} is missing or stale.`);
 		}
+		if (reference.role === 'still' || reference.role === 'freeze-render' || reference.role === 'proxy') await confirmFileSizeWarning(size, MAXIMUM_STILL_BYTES, `${label} ${reference.role} asset`, { ...warningOptions, signal });
 		const storedMime = String(metadata.mimeType ?? '');
 		if (storedMime && storedMime !== reference.mimeType) {
 			throw new Error(`${label} ${reference.role} body ${reference.storageKey} has a conflicting media type.`);
@@ -226,7 +228,7 @@ function stillReference(
 		encoding: freeze ? 'freeze-render-v1' : 'still-image-v1',
 		entry: `framescaper/finishing/${freeze ? 'freeze' : 'still'}/${safeScapeEntryId(sourceId)}/body`,
 		mimeType, storageKey: stableId(source.storageKey, `${label} ${role} storage key`),
-		sha256: digest, byteLength: null, maximumBytes: MAXIMUM_STILL_BYTES,
+		sha256: digest, byteLength: null, maximumBytes: Number.MAX_SAFE_INTEGER,
 		sourceId, timingReference: null, lutReference: null, motionReference: null,
 		processorStack: null,
 	}, label);
@@ -241,7 +243,7 @@ function proxyReference(
 		kind: 'framescaper-video-proxy', encoding: 'video-proxy-v1',
 		entry: `framescaper/finishing/proxy/${attachment.sha256}/body`, mimeType: attachment.mimeType,
 		storageKey: attachment.storageKey, sha256: attachment.sha256,
-		byteLength: attachment.byteLength, maximumBytes: VIDEO_PROXY_MAXIMUM_BODY_BYTES,
+		byteLength: attachment.byteLength, maximumBytes: Number.MAX_SAFE_INTEGER,
 		sourceId: null, timingReference: null, lutReference: null, motionReference: null,
 		processorStack: null,
 	}, label);

@@ -169,7 +169,7 @@ test('an abort actively cancels a muxer whose finalization has not settled', {
 	assert.equal(harness.canceled, 1);
 });
 
-test('encoded video is rejected at its byte bound before container finalization', async () => {
+test('encoded video requires a size warning decision before container finalization', async () => {
 	const frameSource = createVideoExactPictureExportFrameSource({
 		sampleRate: 48_000,
 		startFrame: 0,
@@ -197,9 +197,31 @@ test('encoded video is rejected at its byte bound before container finalization'
 			encoderClass: class {}, videoFrameClass: class {},
 		},
 		maximumOutputBytes: 2,
-	}, harness.dependencies), /exceeds.*byte bound/u);
+	}, harness.dependencies), /size warning threshold/u);
 	assert.equal(harness.finalized, 0);
 	assert.equal(harness.canceled, 1);
+});
+
+test('browser-native encoded packet size warning can be accepted or canceled', async () => {
+	const frameSource = createVideoExactPictureExportFrameSource({ sampleRate: 48_000, startFrame: 0, endFrame: 48_000,
+		canvas: { width: 4, height: 2, frameRate: 1 } });
+	const workload = admitVideoKeyframeEncoderWorkload({ frameSource, format: 'webm', videoEncoder: 'webcodecs',
+		inputPath: '/video.ivf', outputPath: '/output.webm' });
+	for (const accept of [true, false]) {
+		const harness = executionHarness();
+		let warnings = 0;
+		const encoding = executeVideoKeyframeMediabunnyEncoder({ workload, frameSource,
+			producer: { width: 4, height: 2, byteLength: 32, produce() {}, dispose() {} },
+			webCodecs: { codec: 'vp09.00.10.08', bitrate: 100_000, encoderClass: class {}, videoFrameClass: class {} },
+			maximumOutputBytes: 2,
+			async confirmFileSizeWarning() { warnings++; assert.equal(harness.finalized, 0); return accept; },
+		}, harness.dependencies);
+		if (accept) assert.equal((await encoding).bytes.byteLength, 4);
+		else await assert.rejects(encoding, { name: 'AbortError' });
+		assert.equal(warnings, 1);
+		assert.equal(harness.finalized, accept ? 1 : 0);
+		assert.equal(harness.canceled, accept ? 0 : 1);
+	}
 });
 
 function executionHarness(options: Readonly<{

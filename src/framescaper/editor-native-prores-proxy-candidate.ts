@@ -21,6 +21,7 @@ import {
 import type {
 	FramescaperNativeProResProxyGeneratorOptions,
 } from './editor-native-prores-proxy-generator.ts';
+import type { FileSizeWarningOptions } from '../common/editor/controller/shared/file-size-warning.ts';
 
 const GENERATOR = Object.freeze({ id: 'framescaper-native-media-host', version: 1 });
 const RECIPE = Object.freeze({ id: 'framescaper-native-prores-proxy-mov-v1', version: 1 });
@@ -34,7 +35,7 @@ export type DeferredFramescaperNativeProResProxyCandidateLoader = () => Promise<
 	DeferredFramescaperNativeProResProxyCandidateModule
 >;
 
-export interface FramescaperNativeProResProxyCandidateOptions {
+export interface FramescaperNativeProResProxyCandidateOptions extends FileSizeWarningOptions {
 	readonly profile: unknown;
 	readonly getProject: () => unknown;
 	readonly composition: FramescaperCapturedVideoProxyRuntimeComposition;
@@ -63,6 +64,8 @@ export function createFramescaperNativeProResProxyCandidateObserver(
 		profile: options.profile,
 		getProject: () => framescaperProjectNativeMediaFoundationShapeAssistance(options.getProject()),
 		bridge,
+		...((options.confirmFileSizeWarning ?? options.composition.confirmFileSizeWarning) ?
+			{ confirmFileSizeWarning: options.confirmFileSizeWarning ?? options.composition.confirmFileSizeWarning } : {}),
 		...(options.waitForPoll ? { waitForPoll: options.waitForPoll } : {}),
 	});
 	const loadGenerator = retryableGeneratorLoader(executionOptions, loadModule);
@@ -78,6 +81,7 @@ export function createFramescaperNativeProResProxyCandidateObserver(
 		recipe: RECIPE,
 		probes,
 		maximumBytes: VIDEO_PROXY_CANDIDATE_MAXIMUM_BYTES,
+		confirmFileSizeWarning: options.confirmFileSizeWarning ?? options.composition.confirmFileSizeWarning,
 	});
 }
 

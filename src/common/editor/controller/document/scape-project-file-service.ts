@@ -5,6 +5,7 @@ import type { ProjectSchemaFamily } from '../../project-schema-identity.ts';
 import type { ScapeManifest } from '../../scape-archive-envelope.ts';
 import type { ScapeProjectInput } from '../../scape-project-input.ts';
 import type { EditorControllerLifetime } from '../shared/lifecycle.ts';
+import type { FileSizeWarningConfirmation } from '../shared/file-size-warning.ts';
 import { createProjectFeatureCompatibilityService } from './project-feature-compatibility-service.ts';
 import {
 	createScapeInspectionService,
@@ -39,6 +40,7 @@ export interface ScapeProjectFileServiceRuntime<
 	Inspection extends ScapeOpenInspection,
 	Result,
 > {
+	readonly confirmFileSizeWarning?: FileSizeWarningConfirmation;
 	readonly lifetime: Pick<EditorControllerLifetime, 'startTask'>;
 	readonly scapeInspectionQuiescence?: ScapeInspectionQuiescence;
 	readonly scapeInspectionQuiescenceOptions?: ScapeInspectionQuiescenceOptions;
@@ -69,7 +71,7 @@ export function createScapeProjectFileService<
 		lifetime: runtime.lifetime,
 		scapeInspectionQuiescence,
 		store: runtime.store,
-		providerOptions: { projectFeatureCompatibility },
+		providerOptions: { projectFeatureCompatibility, confirmFileSizeWarning: runtime.confirmFileSizeWarning },
 		inspectScapeProject: runtime.inspectScapeProject,
 	});
 	const openRequestService = createScapeOpenRequestService<Inspection, Result>({

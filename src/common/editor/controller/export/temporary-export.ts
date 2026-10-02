@@ -1,4 +1,5 @@
-import { createLocalizedError } from '../../../i18n/presentation-message.ts'; import { cloneProject } from '../../project.js';
+import { cloneProject } from '../../project.js';
+import { confirmFileSizeWarning, type FileSizeWarningOptions } from '../shared/file-size-warning.ts';
 import { normalizeAutomationLaneV21 } from '../../automation-lane-v21.ts';
 import { normalizeMixerGraphV21, type MixerGraphV21 } from '../../mixer-graph-v21.ts';
 import type { ProjectFeatureRequirementsManifest } from '../../project-feature-requirements.ts';
@@ -49,11 +50,14 @@ export async function createStreamingZipArchive(
 	name: string,
 	estimatedInputBytes = 0,
 	copy: TemporaryExportCopy,
+	warningOptions: FileSizeWarningOptions = {},
 ): Promise<StreamingZipArchive> {
 	const sink = await createTemporaryFileSink(name, copy);
-	if (!sink.persistent && estimatedInputBytes > 96 * 1024 ** 2) {
+	try {
+		if (!sink.persistent) await confirmFileSizeWarning(estimatedInputBytes, 96 * 1024 ** 2, 'Audio stem archive staging', warningOptions);
+	} catch (error) {
 		await sink.abort();
-		throw createLocalizedError(Error, copy, 'largeStemsStorageRequired');
+		throw error;
 	}
 	const archive = await createSequentialZip32Archive({
 		write: (chunk) => sink.write(chunk),
@@ -142,4 +146,3 @@ function projectProductionStemSnapshot(value: unknown): void {
 	};
 	projectTransientRenderFeatures(project);
 }
-

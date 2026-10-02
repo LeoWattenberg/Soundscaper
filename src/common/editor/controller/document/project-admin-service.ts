@@ -191,7 +191,8 @@ export function createProjectAdminService<
 		await saveNow();
 		if (getProject() !== project) return null;
 		const title = String(requestedTitle || `${project.title} ${publishedCopyFor(copy).projectCopySuffix}`).trim();
-		const duplicated = await store.duplicateProject(project.id, { title });
+		const duplicated = await store.duplicateProject(project.id, { title, confirmFileSizeWarning: runtime.confirmFileSizeWarning,
+			assertCurrent: () => { if (getProject() !== project) throw new DOMException('The project changed during duplication.', 'AbortError'); } });
 		await persistSetting(recordingRoutingSettingKey(duplicated.id), recordingRouting, { policy: 'required' });
 		if (getProject() !== project) {
 			state.projects = Object.freeze(await store.listProjects());

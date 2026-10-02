@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { FileSizeWarningConfirmation } from '../controller/shared/file-size-warning.ts';
 import { FFMPEG_OUTPUT_STREAM_MAXIMUM_CHUNK_BYTES } from '../ffmpeg-output-stream.ts';
 import { admitVideoKeyframeAudioInput } from '../video-keyframe-audio-input.ts';
 import {
@@ -9,7 +10,6 @@ import {
 } from '../video-keyframe-encoder-stream.ts';
 import type { VideoKeyframeExportFrameSource } from '../video-keyframe-export-frame-source.ts';
 import {
-	VIDEO_KEYFRAME_VIDEO_MAXIMUM_OUTPUT_BYTES,
 	type VideoKeyframeVideoEncoderRequest,
 } from '../video-keyframe-video-encoder.ts';
 import type { VideoDeliveryQuality } from '../video-delivery-quality.ts';
@@ -33,6 +33,7 @@ export interface VideoKeyframeOfflineEncoderOptions {
 	readonly webCodecs?: VideoKeyframeOfflineWebCodecsDecision;
 	readonly audioMix?: Blob;
 	readonly encoderOptions: Readonly<Record<string, number>>;
+	readonly confirmFileSizeWarning?: FileSizeWarningConfirmation;
 	readonly signal: AbortSignal;
 	readonly assertCurrent: () => void;
 }
@@ -51,7 +52,7 @@ export function createVideoKeyframeOfflineEncoderRequest(
 		...(request.audioMix ? { audioMix: request.audioMix } : {}),
 		...request.encoderOptions,
 		signal: request.signal,
-		assertCurrent: request.assertCurrent,
+		assertCurrent: request.assertCurrent, confirmFileSizeWarning: request.confirmFileSizeWarning,
 	});
 }
 
@@ -78,7 +79,7 @@ export async function preflightVideoKeyframeOfflineEncoder(
 	admitVideoKeyframeEncoderWorkload(workload as unknown as VideoKeyframeEncoderWorkloadRequest);
 	preflightOutputMaximum(
 		request.encoderOptions.maximumOutputBytes,
-		VIDEO_KEYFRAME_VIDEO_MAXIMUM_OUTPUT_BYTES,
+		Number.MAX_SAFE_INTEGER,
 		'maximumOutputBytes',
 	);
 	preflightOutputMaximum(
@@ -91,7 +92,7 @@ export async function preflightVideoKeyframeOfflineEncoder(
 		...(request.encoderOptions.maximumAudioBytes === undefined
 			? {} : { maximumBytes: request.encoderOptions.maximumAudioBytes }),
 		signal: request.signal,
-		assertCurrent: request.assertCurrent,
+		assertCurrent: request.assertCurrent, confirmFileSizeWarning: request.confirmFileSizeWarning,
 	});
 	if (audio.sampleRate !== frameSource.sampleRate) {
 		throw new RangeError(

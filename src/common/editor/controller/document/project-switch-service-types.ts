@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import type { FileSizeWarningOptions } from '../shared/file-size-warning.ts';
 
 import type { AudioEditorClipboard } from '../../commands/protocol.ts';
 
@@ -217,7 +218,7 @@ export interface ProjectSwitchServiceRuntime<
 		projectId: string,
 		isCurrentWritable: () => boolean,
 	) => PromiseLike<unknown> | unknown;
-	readonly createProjectIfAbsent?: (project: Project) => PromiseLike<Pick<Project, 'id'> | null> | Pick<Project, 'id'> | null;
+	readonly createProjectIfAbsent?: (project: Project, options?: FileSizeWarningOptions) => PromiseLike<Pick<Project, 'id'> | null> | Pick<Project, 'id'> | null;
 	readonly isProjectAbsent?: (projectId: string) => Promise<boolean>;
 	readonly saveProject: (project: Project) => Promise<unknown>;
 	readonly recordPersistedSnapshot?: (project: Project) => PromiseLike<void> | void;

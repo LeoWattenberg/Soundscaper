@@ -450,6 +450,7 @@ export function SidePlaybackMeter({
 	onSettingsChange,
 	clippingEnabled,
 	run,
+	orientation = 'vertical',
 }) {
 	const masterMeter = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.meters?.master);
 	return (
@@ -473,7 +474,7 @@ export function SidePlaybackMeter({
 				copy={copy}
 				meter={masterMeter}
 				settings={settings}
-				orientation="vertical"
+				orientation={orientation}
 				clipped={clippingEnabled && (masterMeter?.peak || 0) >= 1}
 				slider={playbackMeterSlider(
 					copy,
@@ -493,6 +494,7 @@ export function SideRecordingMeter({
 	settings,
 	onSettingsChange,
 	run,
+	orientation = 'vertical',
 }) {
 	const meterValue = useRecordingMeter(controller);
 	const meter = typeof meterValue === 'number' ? recordingMeterData(meterValue) : meterValue;
@@ -522,7 +524,7 @@ export function SideRecordingMeter({
 				copy={copy}
 				meter={meter}
 				settings={settings}
-				orientation="vertical"
+				orientation={orientation}
 				channelCount={recordingMeterChannelCount(snapshot)}
 				meterLabel={copy.inputLevel}
 				meterKind="recording"

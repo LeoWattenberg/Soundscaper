@@ -4,12 +4,14 @@ import {
 } from '../../storage/project-publication-options.ts';
 import { ProjectCommittedMaintenanceError } from '../../storage/project-committed-maintenance-error.ts';
 import { sameProjectSnapshot } from '../../storage/project-snapshot-equality.ts';
+import type { FileSizeWarningConfirmation, FileSizeWarningOptions } from '../shared/file-size-warning.ts';
 
 export interface ProjectSaveSnapshot {
 	readonly id: string;
 }
 
 export interface ProjectFlushOptions {
+	readonly allowFileSizeWarning?: boolean;
 	readonly forceCurrentSnapshot?: boolean;
 	/** Prepare and persist the current snapshot even when document history is clean. */
 	readonly prepareCurrentSnapshot?: boolean;
@@ -43,6 +45,7 @@ interface ProjectBeforeUnloadTarget {
 }
 
 export interface ProjectSaveServiceDependencies<Project extends ProjectSaveSnapshot> {
+	readonly confirmFileSizeWarning?: FileSizeWarningConfirmation;
 	/** Legacy injection for deterministic fixtures; production saves own their state. */
 	readonly state?: ProjectSaveState<Project>;
 	readonly getProject: () => Project | null;
@@ -59,7 +62,7 @@ export interface ProjectSaveServiceDependencies<Project extends ProjectSaveSnaps
 	readonly admitProjectPublication: (bytes: number) => Promise<unknown>;
 	readonly collectProtectedLinkedOriginalSourceReferences?: (
 	) => Iterable<ProjectLinkedOriginalSourceReference>;
-	readonly saveProject: (snapshot: Project, options: {
+	readonly saveProject: (snapshot: Project, options: FileSizeWarningOptions & {
 		readonly admitProjectPublication: (bytes: number) => Promise<unknown>;
 		readonly protectedLinkedOriginalSourceReferences?: readonly ProjectLinkedOriginalSourceReference[];
 	}) => Promise<unknown>;
@@ -67,7 +70,7 @@ export interface ProjectSaveServiceDependencies<Project extends ProjectSaveSnaps
 		expected: Project,
 		snapshot: Project,
 		writeFence: string,
-		options: {
+		options: FileSizeWarningOptions & {
 			readonly admitProjectPublication: (bytes: number) => Promise<unknown>;
 			readonly protectedLinkedOriginalSourceReferences?: readonly ProjectLinkedOriginalSourceReference[];
 		},
@@ -276,6 +279,7 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 			false,
 			options.forceCurrentSnapshot === true || prepareCurrentSnapshot,
 			options.preparationPurpose ?? 'project-save',
+			options.allowFileSizeWarning === true,
 		);
 	}
 
@@ -294,6 +298,7 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 		allowTerminal: boolean,
 		forceCurrentSnapshot: boolean,
 		preparationPurpose: ProjectSnapshotPreparationPurpose,
+		allowFileSizeWarning = false,
 	): Promise<unknown> | undefined {
 		if (suspensionCount > 0 || (terminal && !allowTerminal)) return undefined;
 		const project = dependencies.getProject();
@@ -307,7 +312,7 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 			if (gate) {
 				if (scheduledProjectId === project.id) cancelScheduled();
 				return gate.promise.then(() => flushCurrentProject(
-					allowTerminal, forceCurrentSnapshot, preparationPurpose,
+					allowTerminal, forceCurrentSnapshot, preparationPurpose, allowFileSizeWarning,
 				));
 			}
 		}
@@ -320,6 +325,7 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 			currentProjectSaveEpoch(project.id),
 			dependencies.getWriteFence?.(project.id) ?? null,
 			preparationPurpose,
+			false, allowFileSizeWarning,
 		);
 	}
 
@@ -330,6 +336,7 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 		writeFence: string | null,
 		preparationPurpose: ProjectSnapshotPreparationPurpose,
 		materialize = false,
+		allowFileSizeWarning = false,
 	): Promise<unknown> {
 		queuedSaveCounts.set(snapshot.id, (queuedSaveCounts.get(snapshot.id) ?? 0) + 1);
 		let pending = true;
@@ -342,7 +349,7 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 		};
 		const operation = state.saveQueue
 			.catch(() => undefined)
-			.then(() => saveSnapshot(snapshot, generation, projectSaveEpoch, writeFence, preparationPurpose, materialize, finishPublication))
+			.then(() => saveSnapshot(snapshot, generation, projectSaveEpoch, writeFence, preparationPurpose, materialize, finishPublication, allowFileSizeWarning))
 			.finally(finishPublication);
 		state.saveQueue = operation;
 		return operation;
@@ -356,6 +363,7 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 		preparationPurpose: ProjectSnapshotPreparationPurpose,
 		materialize: boolean,
 		finishPublication: () => void,
+		allowFileSizeWarning: boolean,
 	): Promise<void> {
 		if (!ownsProjectSaveEpoch(snapshotValue.id, projectSaveEpoch) || !ownsWriteFence(snapshotValue.id, writeFence)) return;
 		let snapshot = snapshotValue;
@@ -377,6 +385,13 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 				}) ?? undefined
 				: undefined;
 			const saveOptions = {
+				...(allowFileSizeWarning ? { confirmFileSizeWarning: dependencies.confirmFileSizeWarning } : {}),
+				assertCurrent: () => {
+					if (!ownsProjectSaveEpoch(snapshot.id, projectSaveEpoch) || !ownsWriteFence(snapshot.id, writeFence)
+						|| (allowFileSizeWarning && !dependencies.isCurrentProject(snapshot.id))) {
+						throw new DOMException('The project save was retired.', 'AbortError');
+					}
+				},
 				admitProjectPublication: async (bytes: number) => {
 					if (!ownsProjectSaveEpoch(snapshot.id, projectSaveEpoch) || !ownsWriteFence(snapshot.id, writeFence)) {
 						throw new DOMException('The project save was retired.', 'AbortError');

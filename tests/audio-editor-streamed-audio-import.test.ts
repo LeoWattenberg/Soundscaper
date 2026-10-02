@@ -68,16 +68,48 @@ test('one hour of stereo 48 kHz admits metadata without allocating complete PCM'
 	prepared.dispose();
 });
 
-test('oversized original refuses before decoder opening and excessive duration closes the session', async () => {
+test('oversized original requires a warning decision before decoder opening and excessive duration closes the session', async () => {
 	let opened = false;
 	class LargeBlob extends Blob { override get size() { return 1_000_000_001; } }
 	await assert.rejects(prepareStreamedAudioImport(new LargeBlob(), { openSession: async () => {
 		opened = true; throw new Error('unexpected open');
-	} }), /1 GB/u);
+	} }), { code: 'FILE_SIZE_WARNING' });
 	assert.equal(opened, false);
 	const { events, prepare } = fixture([], { duration: 3600.1 });
 	await assert.rejects(prepare(), /one-hour/u);
 	assert.equal(events.at(-1), 'dispose');
+});
+
+test('a large compressed original opens only after its warning is accepted', async () => {
+	const events: string[] = [];
+	class LargeBlob extends Blob { override get size() { return 1_000_000_001; } }
+	const { session } = fixture([1, 2, 3]);
+	const prepared = await prepareStreamedAudioImport(new LargeBlob(), {
+		confirmFileSizeWarning: async (warning) => {
+			assert.deepEqual(warning, { label: 'Compressed audio import', byteLength: 1_000_000_001, thresholdBytes: 1_000_000_000 });
+			events.push('confirmed'); return true;
+		},
+		openSession: async () => { events.push('opened'); return session; },
+	});
+	assert.deepEqual(events, ['confirmed', 'opened']);
+	prepared.dispose();
+});
+
+test('canceling a compressed import warning or replacing its project never opens a decoder', async () => {
+	class LargeBlob extends Blob { override get size() { return 1_000_000_001; } }
+	let opened = false;
+	const openSession = async (): Promise<StreamedAudioImportSession> => {
+		opened = true; throw new Error('must not open');
+	};
+	await assert.rejects(prepareStreamedAudioImport(new LargeBlob(), {
+		confirmFileSizeWarning: async () => false, openSession,
+	}), { name: 'AbortError' });
+	let current = true;
+	await assert.rejects(prepareStreamedAudioImport(new LargeBlob(), {
+		confirmFileSizeWarning: async () => { current = false; return true; }, openSession,
+		assertCurrent: () => { if (!current) throw new Error('project replaced'); },
+	}), /project replaced/u);
+	assert.equal(opened, false);
 });
 
 test('desktop compressed import admits a multi-gigabyte eight-hour source without allocating PCM', async () => {

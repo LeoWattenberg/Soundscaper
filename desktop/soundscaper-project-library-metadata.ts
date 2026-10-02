@@ -19,7 +19,6 @@ const MEDIA_FIELDS = ['id', 'relativeFile', 'category', 'byteLength', 'sha256'] 
 const OPAQUE_ID = /^[A-Za-z0-9_-]{8,128}$/u;
 const DIGEST = /^[a-f0-9]{64}$/u;
 const MAXIMUM_METADATA_BYTES = 4 * 1024 * 1024;
-const MAXIMUM_PROJECT_DOCUMENT_BYTES = 256 * 1024 * 1024;
 const MAXIMUM_PROJECT_ID_BYTES = 4 * 1024;
 const MAXIMUM_PROJECTS = 10_000;
 const MAXIMUM_MEDIA = 50_000;
@@ -124,9 +123,6 @@ function validateProject(value: unknown): Readonly<SoundscaperDesktopLibraryProj
 	const projectRevision = nonNegativeSafeInteger(record.projectRevision, 'project revision');
 	const sha256 = digest(record.sha256, 'project');
 	const byteLength = positiveSafeInteger(record.byteLength, 'project byte length');
-	if (byteLength > MAXIMUM_PROJECT_DOCUMENT_BYTES) {
-		throw new RangeError('Soundscaper desktop baseline project exceeds its document byte limit');
-	}
 	const metadataFile = `${id}/${String(projectRevision)}-${sha256}.json`;
 	if (record.metadataFile !== metadataFile) {
 		throw new TypeError('Soundscaper desktop baseline project metadataFile does not match its descriptor');

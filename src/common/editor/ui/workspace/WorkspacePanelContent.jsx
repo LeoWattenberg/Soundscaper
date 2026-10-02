@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react'; import { publishedCopyFor } 
 import { Button } from '@soundscaper/design-system/Button';
 
 import AudioEditorMixerPanel from './AudioEditorMixerPanel.jsx';
+import ClockPanel from './ClockPanel.tsx';
+import MeterWorkspacePanel from './MeterWorkspacePanel.jsx';
 import { LabelManagerRow } from './LabelManagerRows.jsx';
 import ProjectBinPanel from './ProjectBinPanel.jsx';
 import SourceMonitorPanel from './SourceMonitorPanel.jsx';
@@ -49,6 +51,7 @@ const FRAMESCAPER_BUILD = typeof __SCAPE_PRODUCT__ === 'undefined'
 const SOUNDSCAPER_BUILD = typeof __SCAPE_PRODUCT__ === 'undefined'
 	|| __SCAPE_PRODUCT__ === 'soundscaper';
 const DEFERRED_WORKSPACE_PANELS = Object.freeze({
+	'clip-properties': lazyEditorModule(() => import('../inspector/ClipPropertiesPanel.tsx')),
 	metadata: lazyEditorModule(() => import('./ProjectMetadataPanel.tsx')),
 	...(FRAMESCAPER_BUILD ? {
 		'recording-setup': lazyEditorModule(() => import('./RecordingSetupPanel.tsx')),
@@ -68,13 +71,18 @@ export default function WorkspacePanelContent({
 	panelActive = true,
 	dock = 'main',
 	controller,
+	clipPropertiesFocusRequest = /** @type {import('../../controller/composition/clip-properties-panel-opening.ts').ClipPropertiesFocusRequest | null} */ (null),
 	snapshot,
 	productId = snapshot.productId,
 	capabilities = snapshot.capabilities,
 	copy,
 	locale,
-	fileService,
+	fileService, confirmFileSizeWarning = /** @type {import('../../controller/shared/file-size-warning.ts').FileSizeWarningConfirmation | undefined} */ (undefined),
 	playbackMeterSettings,
+	recordingMeterSettings = /** @type {import('../meter-settings.ts').MeterSettings | undefined} */ (undefined),
+	onPlaybackMeterSettingsChange = /** @type {((update: import('./meter-panel-settings.ts').MeterSettingsUpdate) => void) | undefined} */ (undefined),
+	onRecordingMeterSettingsChange = /** @type {((update: import('./meter-panel-settings.ts').MeterSettingsUpdate) => void) | undefined} */ (undefined),
+	clippingEnabled = false,
 	run,
 	showArmControls,
 	displayAudioSupported,
@@ -87,6 +95,21 @@ export default function WorkspacePanelContent({
 	projectBinVisible = false,
 }) {
 	const project = snapshot.project;
+	if (panelId === 'playback-meter' || panelId === 'recording-meter') {
+		const recording = panelId === 'recording-meter';
+		return <MeterWorkspacePanel
+			kind={recording ? 'recording' : 'playback'}
+			dock={dock}
+			panelActive={panelActive}
+			controller={controller}
+			copy={copy}
+			snapshot={snapshot}
+			settings={recording ? recordingMeterSettings : playbackMeterSettings}
+			onSettingsChange={recording ? onRecordingMeterSettingsChange : onPlaybackMeterSettingsChange}
+			clippingEnabled={clippingEnabled}
+			run={run}
+		/>;
+	}
 	const DeferredWorkspacePanel = Object.hasOwn(DEFERRED_WORKSPACE_PANELS, panelId)
 		? DEFERRED_WORKSPACE_PANELS[panelId]
 		: null;
@@ -95,10 +118,11 @@ export default function WorkspacePanelContent({
 			<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
 				<DeferredWorkspacePanel
 					controller={controller}
+					focusRequest={panelId === 'clip-properties' ? clipPropertiesFocusRequest : undefined}
 					snapshot={snapshot}
 					copy={copy}
 					locale={locale}
-					fileService={fileService}
+					fileService={fileService} confirmFileSizeWarning={confirmFileSizeWarning}
 					run={run}
 					blocked={blocked}
 					panelActive={panelActive}
@@ -116,6 +140,9 @@ export default function WorkspacePanelContent({
 			</React.Suspense>
 		);
 	}
+	if (panelId === 'clock') {
+		return <ClockPanel controller={controller} snapshot={snapshot} copy={copy} run={run} />;
+	}
 	if (panelId === 'project-bin') {
 		return (
 			<ProjectBinPanel
@@ -123,7 +150,7 @@ export default function WorkspacePanelContent({
 				snapshot={snapshot}
 				copy={copy}
 				locale={locale}
-				fileService={fileService}
+				fileService={fileService} confirmFileSizeWarning={confirmFileSizeWarning}
 				run={run}
 				blocked={blocked}
 			/>

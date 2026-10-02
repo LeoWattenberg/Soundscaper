@@ -212,7 +212,7 @@ test('enforces genuine nonempty video Blob and independently reachable byte/prob
 		lengthReads: 1, ownKeyReads: 0, elementReads: 0,
 	});
 	assert.throws(
-		() => createVideoProxyFixture({ candidateMaximumBytes: VIDEO_PROXY_CANDIDATE_MAXIMUM_BYTES + 1 }),
+		() => createVideoProxyFixture({ candidateMaximumBytes: Number.MAX_SAFE_INTEGER + 1 }),
 		/byte|maximum|limit|raise/iu,
 	);
 });

@@ -14,7 +14,7 @@
 
 import {
 	createRealtimeExportPcmTransform, type RealtimeExportPcmTransform,
-} from '../realtime-export-pcm-transform.ts'; import { createLocalizedError, setLocalizedStatus } from '../../../../../i18n/presentation-message.ts';
+} from '../realtime-export-pcm-transform.ts'; import { setLocalizedStatus } from '../../../../../i18n/presentation-message.ts';
 import { encodeRealtimePcmSpoolChunk, readRealtimePcmSpool } from './realtime-pcm-spool.ts';
 import { directPcmContainerLabel } from '../direct/direct-export-dispatch.ts';
 import {
@@ -25,6 +25,7 @@ import {
 } from '../direct/direct-compressed-export.ts';
 import type { ExportRenderSources } from './audio-export-render-orchestration.ts';
 import type { AudioEncodingProgressRange } from './audio-export-progress.ts';
+import { confirmFileSizeWarning } from '../../../shared/file-size-warning.ts';
 
 export interface RealtimeEncodedExportRuntime {
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
@@ -83,14 +84,9 @@ export function createRealtimeEncodedAudioExport(runtime: RealtimeEncodedExportR
 			captureSink = await createTemporaryFileSink(`audio-editor-${createStableId('capture')}.f32`, copy);
 			const captureBytes = (plan.range.durationFrames + plan.tailFrames)
 				* Number(snapshot.masterChannels || 2) * Float32Array.BYTES_PER_ELEMENT;
-			if (!captureSink.persistent && captureBytes > 96 * 1024 ** 2) {
-				throw createLocalizedError(Error, copy, 'realtimeStorageRequired');
-			}
+			if (!captureSink.persistent) await confirmFileSizeWarning(captureBytes, 96 * 1024 ** 2, 'Realtime PCM capture', { signal, assertCurrent: assertDirectCurrent, confirmFileSizeWarning: runtime.options?.confirmFileSizeWarning });
 		}
-		if (sink && !sink.persistent
-			&& (plan.outputFileBytesPerRender ?? plan.outputBytesPerRender) > 96 * 1024 ** 2) {
-			throw createLocalizedError(Error, copy, 'realtimeStorageRequired');
-		}
+		if (sink && !sink.persistent) await confirmFileSizeWarning(plan.outputFileBytesPerRender ?? plan.outputBytesPerRender ?? 0, 96 * 1024 ** 2, 'Realtime audio export staging', { signal, assertCurrent: assertDirectCurrent, confirmFileSizeWarning: runtime.options?.confirmFileSizeWarning });
 		const bitDepth = plan.encoding.bitDepth || (plan.format === 'flac' || plan.format === 'wavpack' ? settings.bitDepth : 24);
 		const stagingFloat = !nativePcm && plan.format !== 'flac';
 		const encoderOptions = {
@@ -213,7 +209,7 @@ export function createRealtimeEncodedAudioExport(runtime: RealtimeEncodedExportR
 					bitDepth,
 					sampleRate: plan.sampleRate,
 					applyDither: plan.encoding.sampleFormat !== 'float32' && plan.ditherMode !== 'none' && plan.format !== 'flac',
-					signal,
+					signal, confirmFileSizeWarning: runtime.options?.confirmFileSizeWarning, assertCurrent: assertDirectCurrent,
 					onProgress: (value: number) => { runtime.taskProgress?.updateActive?.(value); },
 				};
 				if (directCompressedDestination) {

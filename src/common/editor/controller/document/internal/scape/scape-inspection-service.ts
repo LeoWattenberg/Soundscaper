@@ -74,7 +74,8 @@ export function createScapeInspectionService<Result = unknown>(
 			]);
 			signal.addEventListener('abort', cancelAdmission, { once: true });
 			if (signal.aborted) cancelAdmission();
-			const ownedOptions = Object.freeze({ ...snapshot, ...providerOptions, signal });
+			const ownedOptions = Object.freeze({ ...snapshot, ...providerOptions, signal,
+				assertCurrent: () => { throwIfAborted(signal); task?.assertCurrent(); } });
 			throwIfAborted(signal);
 			const result = await inspectProject(file, runtime.store, ownedOptions, retention);
 			throwIfAborted(signal);

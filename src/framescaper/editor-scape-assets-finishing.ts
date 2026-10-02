@@ -24,8 +24,8 @@ export function createFramescaperScapeProjectAssetExtensionFinishing(
 	const extension: ScapeProjectAssetExtension = {
 		assetKinds: FRAMESCAPER_SCAPE_ASSET_KINDS_FINISHING,
 		sourceKinds: SOURCE_KINDS,
-		planExportAssets: ({ project, store, signal }) => planFramescaperScapeExportAssetsFinishing(
-			cloneFramescaperProjectFinishing(profile, project), store, signal,
+		planExportAssets: ({ project, store, signal, ...warningOptions }) => planFramescaperScapeExportAssetsFinishing(
+			cloneFramescaperProjectFinishing(profile, project), store, signal, warningOptions,
 		),
 		validateExportAssetBody: validateFramescaperScapeExportAssetBodyFinishing,
 		validateImportAssets: (project, manifest) => validateFramescaperScapeImportAssetsFinishing(

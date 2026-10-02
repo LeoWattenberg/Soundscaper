@@ -2,6 +2,7 @@
 
 /** Selected finishing adapter from exact keyed RGBA frames into the shared V13 finisher. */
 
+import { confirmFileSizeWarning, type FileSizeWarningOptions } from '../common/editor/controller/shared/file-size-warning.ts';
 import {
 	parseCubeLutV1,
 	type ParsedCubeLutV1,
@@ -35,7 +36,7 @@ export interface FramescaperVideoExportFinishingAssetStoreFinishing {
 	): PromiseLike<BlobLike | null>;
 }
 
-export interface FramescaperVideoExportFinishingRequestFinishing {
+export interface FramescaperVideoExportFinishingRequestFinishing extends FileSizeWarningOptions {
 	readonly profile: unknown;
 	readonly project: FramescaperProjectFinishing;
 	readonly plan: VideoKeyframeExportPlanV7;
@@ -50,7 +51,7 @@ export interface FramescaperVideoExportFinishingAssetsFinishing {
 	readonly luts: ReadonlyMap<string, ParsedCubeLutV1>;
 }
 
-export interface FramescaperVideoFinishingAssetLoadRequestFinishing {
+export interface FramescaperVideoFinishingAssetLoadRequestFinishing extends FileSizeWarningOptions {
 	readonly project: FramescaperProjectFinishing;
 	readonly store?: FramescaperVideoExportFinishingAssetStoreFinishing;
 	readonly signal: AbortSignal;
@@ -209,11 +210,10 @@ export async function loadFramescaperVideoExportFinishingAssetsFinishing(
 		));
 	}), (reference) => reference.id);
 	const references = [...lutReferences, ...analysisReferences];
-	if (references.length > MAXIMUM_AUXILIARY_ASSETS
-		|| references.reduce((total, reference) => total + reference.byteLength, 0)
-			> MAXIMUM_AUXILIARY_BYTES) {
+	if (references.length > MAXIMUM_AUXILIARY_ASSETS) {
 		throw new RangeError('Selected finishing finishing assets exceed the browser export bound.');
 	}
+	await confirmFileSizeWarning(references.reduce((total, reference) => total + reference.byteLength, 0), MAXIMUM_AUXILIARY_BYTES, 'Video export finishing assets', request);
 	if (references.length > 0 && request.store === undefined) {
 		throw new Error('Selected finishing finishing assets are unavailable in this browser runtime.');
 	}

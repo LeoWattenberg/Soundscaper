@@ -86,6 +86,8 @@ test('workers give effect definitions and the complete canonical copy registry a
 test('small product-ready foundations have non-recursive semantic owners', () => {
 	for (const [path, owner] of [
 		['src/common/editor/controller/document/deferred-archive-runtime.ts', 'project-interchange-foundations'],
+		['src/common/editor/controller/shared/file-size-warning.ts', 'project-interchange-foundations'],
+		['src/common/editor/controller/shared/file-size-warning-confirmation.ts', 'project-interchange-foundations'],
 		['desktop/desktop-video-codec-operation-contract.ts', 'editor-codec-foundations'],
 		['src/common/editor/wavpack/pcm.js', 'editor-codec-foundations'],
 		['src/common/editor/staffpad/parameters.js', 'editor-codec-foundations'],

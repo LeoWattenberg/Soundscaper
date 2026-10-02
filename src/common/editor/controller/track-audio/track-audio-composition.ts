@@ -187,7 +187,9 @@ export function createTrackAudioComposition(dependencies: TrackAudioCompositionD
 		updateExportProgress: dependencies.export.updateExportProgress,
 		taskProgress,
 		setPersistentExportProgressObserver: dependencies.export.setPersistentExportProgressObserver,
-		verifyProjectFallbackIntegrity,
+		verifyProjectFallbackIntegrity: (...[project, fallbackStore, verifyOptions]: Parameters<typeof verifyProjectFallbackIntegrity>) => verifyProjectFallbackIntegrity(
+			project, fallbackStore, { ...verifyOptions, confirmFileSizeWarning: dependencies.controllerOptions?.confirmFileSizeWarning },
+		),
 	});
 	const materializeFreesoundUploadClip = async (request: Readonly<{
 		projectId: string;

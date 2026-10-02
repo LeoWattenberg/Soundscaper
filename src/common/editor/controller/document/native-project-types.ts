@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { FileSizeWarningConfirmation } from '../shared/file-size-warning.ts';
+
 import type {
 	EditorControllerLifetime,
 	EditorProjectGeneration,
@@ -259,6 +261,8 @@ export interface Aup4Environment extends Readonly<Record<string, unknown>> {
 }
 
 export interface Aup4PortableOptions {
+	readonly maxBytes?: number;
+	readonly fileSizeWarningApproved?: boolean;
 	readonly signal?: AbortSignal;
 	readonly mobile: boolean;
 	readonly opfs?: boolean;
@@ -347,6 +351,7 @@ export interface NativeAudioBuffer {
 }
 
 export interface NativeProjectServiceRuntime {
+	readonly confirmFileSizeWarning?: FileSizeWarningConfirmation;
 	readonly lifetime: Pick<EditorControllerLifetime, 'assertActive' | 'startTask'>;
 	readonly projectGeneration: Pick<EditorProjectGeneration, 'capture' | 'assertCurrent'>;
 	readonly state: NativeProjectState;
@@ -416,6 +421,8 @@ export interface NativeProjectServiceRuntime {
 		file: NativeScapeProjectFile,
 		store: NativeProjectStore,
 		options: Readonly<{
+			confirmFileSizeWarning?: FileSizeWarningConfirmation;
+			assertCurrent?: () => void;
 			collision: string;
 			acquireReplaceProjectWriteAuthority?: (projectId: string) => Promise<ScapeReplaceWriteAuthority>;
 			estimateStorageForPreflight: (
@@ -429,6 +436,8 @@ export interface NativeProjectServiceRuntime {
 		project: NativeProjectDocument,
 		store: NativeProjectStore,
 		options: Readonly<{
+			confirmFileSizeWarning?: FileSizeWarningConfirmation;
+			assertCurrent?: () => void;
 			createWritable?: (maximumBytes: number) => Promise<WritableStream<Uint8Array>>;
 			signal: AbortSignal;
 		}>,

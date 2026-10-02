@@ -4,6 +4,7 @@ import { groupWorkspacePanelEntries } from '../../workspace-panel-layout.ts';
 import { formatResizeLabel } from '../localization-template.ts';
 import { timelineAnnotationsAvailable } from '../timeline/timeline-annotation-ui-model.ts';
 import { workspacePanelAvailable } from './workspace-product-panel-runtime.ts';
+import { workspaceSideDockAllowsWidePanels } from './workspace-side-dock-width.ts';
 import WorkspacePanelGroup from './WorkspacePanelGroup.jsx';
 import {
 	ANALYZER_PANEL_ID_SET,
@@ -18,13 +19,18 @@ import {
 export default function WorkspacePanelDock({
 	dock,
 	controller,
+	clipPropertiesFocusRequest = /** @type {import('../../controller/composition/clip-properties-panel-opening.ts').ClipPropertiesFocusRequest | null} */ (null),
 	snapshot,
 	productId = snapshot.productId,
 	capabilities = snapshot.capabilities,
 	copy,
 	locale,
-	fileService,
+	fileService, confirmFileSizeWarning,
 	playbackMeterSettings,
+	recordingMeterSettings = /** @type {import('../meter-settings.ts').MeterSettings | undefined} */ (undefined),
+	onPlaybackMeterSettingsChange = /** @type {((update: import('./meter-panel-settings.ts').MeterSettingsUpdate) => void) | undefined} */ (undefined),
+	onRecordingMeterSettingsChange = /** @type {((update: import('./meter-panel-settings.ts').MeterSettingsUpdate) => void) | undefined} */ (undefined),
+	clippingEnabled = false,
 	run,
 	showArmControls,
 	displayAudioSupported,
@@ -52,6 +58,7 @@ export default function WorkspacePanelDock({
 			panel?.visible
 			&& workspacePanelAvailable(productId, id, snapshot.webVcr, snapshot.capture)
 			&& (capabilities?.audioEffects || id !== 'effects')
+			&& (capabilities?.audioRecording || id !== 'recording-meter')
 			&& (capabilities?.audioAnalysis || (!ANALYZER_PANEL_ID_SET.has(id) && id !== 'ebu-r128'))
 			&& (id !== 'markers' || timelineAnnotationsAvailable(snapshot))
 			&& !(snapshot.preferences?.workspace?.activeId === 'video-editor'
@@ -62,7 +69,7 @@ export default function WorkspacePanelDock({
 		.filter(([, panel]) => panel.dock === dock)
 		.sort((left, right) => left[1].order - right[1].order);
 	const groups = groupWorkspacePanelEntries(panels);
-	const arrangeTargets = ['left', 'right', 'bottom'].flatMap((targetDock) => (
+	const arrangeTargets = ['left', 'right', 'top', 'bottom'].flatMap((targetDock) => (
 		groupWorkspacePanelEntries(availablePanels
 			.filter(([, panel]) => panel.dock === targetDock)
 			.sort((left, right) => left[1].order - right[1].order))
@@ -147,6 +154,7 @@ export default function WorkspacePanelDock({
 			}
 			const size = Math.round(session.horizontal ? bounds.width : bounds.height);
 			if (!Number.isFinite(size) || Math.abs(size - session.initialSize) < 2) {
+				if (session.initialWide !== undefined) session.element.dataset.workspaceDockWide = session.initialWide;
 				session.element.style.removeProperty(session.sizeProperty);
 				return;
 			}
@@ -162,6 +170,7 @@ export default function WorkspacePanelDock({
 			const session = resizeSessionRef.current;
 			if (session?.pointerId !== undefined && event?.pointerId !== session.pointerId) return;
 			resizeSessionRef.current = null;
+			if (session?.initialWide !== undefined) session.element.dataset.workspaceDockWide = session.initialWide;
 			if (session?.manual && dock === 'floating' && session.element) {
 				session.element.style.width = `${session.initialWidth}px`;
 				session.element.style.height = `${session.initialHeight}px`;
@@ -242,10 +251,11 @@ export default function WorkspacePanelDock({
 			const minimumSize = hasEffects ? 360 : 240;
 			const maximumSize = Math.max(
 				minimumSize,
-				Math.min(hasEffects ? 520 : 420, Math.round((workspaceBounds?.width || window.innerWidth) * 0.65)),
+				Math.round((workspaceBounds?.width || window.innerWidth) * 0.65),
 			);
 			resizeSessionRef.current = {
 				element,
+				initialWide: element.dataset.workspaceDockWide,
 				horizontal: true,
 				invertDelta: dock === 'right',
 				initialWidth: Math.round(bounds.width),
@@ -264,17 +274,19 @@ export default function WorkspacePanelDock({
 				startClientX: event.clientX,
 				startClientY: event.clientY,
 			};
+			element.style.width = window.getComputedStyle(element).width;
+			element.dataset.workspaceDockWide = 'true';
 			event.preventDefault();
 			return;
 		}
-		if (dock === 'bottom' && dockResizeHandle?.closest('[data-panel-dock]') === dockRef.current) {
+		if ((dock === 'top' || dock === 'bottom') && dockResizeHandle?.closest('[data-panel-dock]') === dockRef.current) {
 			const element = dockRef.current;
 			const bounds = element?.getBoundingClientRect();
 			if (!element || !bounds) return;
 			resizeSessionRef.current = {
 				element,
 				horizontal: false,
-				invertDelta: true,
+				invertDelta: dock === 'bottom',
 				initialWidth: Math.round(bounds.width),
 				initialHeight: Math.round(bounds.height),
 				initialSize: Math.round(bounds.height),
@@ -294,13 +306,13 @@ export default function WorkspacePanelDock({
 		}
 		const element = event.target.closest?.('[data-workspace-panel-group]');
 		if (!element || event.target.closest?.('[role="menu"]')) return;
-		if (dock === 'bottom') return;
+		if (dock === 'top' || dock === 'bottom') return;
 		const panelIndex = groups.findIndex((group) => group.id === element.dataset.workspacePanelGroup);
 		if (panelIndex < 0 || (dock !== 'floating' && panelIndex === groups.length - 1)) return;
 		const panelGroup = groups[panelIndex];
 		const bounds = element.getBoundingClientRect();
 		const threshold = 14;
-		const horizontal = dock === 'bottom' || dock === 'floating';
+		const horizontal = dock === 'floating';
 		const resizeWidth = dock === 'floating' && event.clientX >= bounds.right - threshold;
 		const resizeHeight = dock === 'floating' && event.clientY >= bounds.bottom - threshold;
 		const onResizeEdge = dock === 'floating'
@@ -414,14 +426,15 @@ export default function WorkspacePanelDock({
 		}));
 		return true;
 	};
-	const adjustBottomDockSize = (event) => {
-		if (dock !== 'bottom' || !['ArrowUp', 'ArrowDown'].includes(event.key)) return;
+	const adjustHorizontalDockSize = (event) => {
+		if ((dock !== 'top' && dock !== 'bottom') || !['ArrowUp', 'ArrowDown'].includes(event.key)) return;
 		const bounds = dockRef.current?.getBoundingClientRect();
 		if (!bounds) return;
 		event.preventDefault();
 		const step = event.shiftKey ? 48 : 16;
-		const size = Math.max(120, bounds.height + (event.key === 'ArrowUp' ? step : -step));
-		run(() => controller.actions.preferences.setPanelDockExtent('bottom', { size }));
+		const expands = dock === 'top' ? event.key === 'ArrowDown' : event.key === 'ArrowUp';
+		const size = Math.max(120, bounds.height + (expands ? step : -step));
+		run(() => controller.actions.preferences.setPanelDockExtent(dock, { size }));
 	};
 	const adjustSideDockSize = (event) => {
 		if ((dock !== 'left' && dock !== 'right') || !['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
@@ -433,7 +446,7 @@ export default function WorkspacePanelDock({
 		const minimumSize = hasEffects ? 360 : 240;
 		const maximumSize = Math.max(
 			minimumSize,
-			Math.min(hasEffects ? 520 : 420, Math.round((workspaceBounds?.width || window.innerWidth) * 0.65)),
+			Math.round((workspaceBounds?.width || window.innerWidth) * 0.65),
 		);
 		const step = event.shiftKey ? 48 : 16;
 		const expands = dock === 'left' ? event.key === 'ArrowRight' : event.key === 'ArrowLeft';
@@ -441,7 +454,7 @@ export default function WorkspacePanelDock({
 		run(() => controller.actions.preferences.setPanelDockExtent(dock, { width }));
 	};
 	if (!panels.length) return null;
-	const dockStyle = dock === 'bottom'
+	const dockStyle = dock === 'top' || dock === 'bottom'
 		? {
 			'--workspace-panel-size': `${panels[0][1].size}px`,
 			'--workspace-panel-count': groups.length,
@@ -454,6 +467,7 @@ export default function WorkspacePanelDock({
 			ref={dockRef}
 			className={`kw-audio-editor__panel-dock kw-audio-editor__panel-dock--${dock}`}
 			data-panel-dock={dock}
+			data-workspace-dock-wide={workspaceSideDockAllowsWidePanels(panels, snapshot.preferences?.workspace?.activeId)}
 			style={dockStyle}
 			aria-label={copy.panels}
 			onPointerDownCapture={beginResize}
@@ -475,12 +489,12 @@ export default function WorkspacePanelDock({
 				aria-label={formatResizeLabel(copy, workspaceDockLabel(copy, dock))}
 				onKeyDown={adjustSideDockSize}
 			/>}
-			{dock === 'bottom' && <button
+			{(dock === 'top' || dock === 'bottom') && <button
 				type="button"
-				className="kw-audio-editor__workspace-dock-resize-handle"
+				className={`kw-audio-editor__workspace-dock-resize-handle kw-audio-editor__workspace-dock-resize-handle--${dock}`}
 				data-workspace-dock-resize-handle={dock}
 				aria-label={formatResizeLabel(copy, workspaceDockLabel(copy, dock))}
-				onKeyDown={adjustBottomDockSize}
+				onKeyDown={adjustHorizontalDockSize}
 			/>}
 			{groups.map((group, groupIndex) => <WorkspacePanelGroup
 				key={group.id}
@@ -490,14 +504,10 @@ export default function WorkspacePanelDock({
 				dock={dock}
 				copy={copy}
 				contentProps={{
-					controller,
-					snapshot,
-					productId,
-					capabilities,
-					copy,
-					locale,
-					fileService,
-					playbackMeterSettings,
+					controller, snapshot, productId, capabilities, copy, locale, fileService, confirmFileSizeWarning, clipPropertiesFocusRequest,
+					playbackMeterSettings, recordingMeterSettings,
+					onPlaybackMeterSettingsChange, onRecordingMeterSettingsChange,
+					clippingEnabled,
 					run,
 					showArmControls,
 					displayAudioSupported,

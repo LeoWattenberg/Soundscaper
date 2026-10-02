@@ -40,6 +40,7 @@ export const DESKTOP_SOUNDSCAPER_RUNTIME_FILES = Object.freeze([
 	'desktop/soundscaper-project-library-contract.js',
 	'desktop/soundscaper-project-library-current-project.js',
 	'desktop/soundscaper-project-library-database.js',
+	'desktop/soundscaper-project-library-document-size-warning.js',
 	'desktop/soundscaper-project-library-handshake-gate.js',
 	'desktop/soundscaper-project-library-ipc.js',
 	'desktop/soundscaper-project-library-lease-wait.js',

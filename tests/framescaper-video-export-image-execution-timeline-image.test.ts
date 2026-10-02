@@ -389,7 +389,7 @@ test('active image assets that exceed their aggregate byte bound are refused', a
 			foundationPlan: plan(['image-clip-1', 'image-clip-2']),
 			store: store.store,
 		})),
-		/active image assets exceed their byte bound/u,
+		/size warning threshold/u,
 	);
 	assert.deepEqual(store.keys, [], 'the byte bound is admitted before any body is loaded');
 });
@@ -406,7 +406,7 @@ test('an image snapshot that exceeds the execution working byte bound is refused
 			foundationPlan: plan(['image-clip-1']),
 			store: store.store,
 		})),
-		/snapshots exceed their working byte bound/u,
+		/size warning threshold/u,
 	);
 	assert.deepEqual(store.keys, []);
 });

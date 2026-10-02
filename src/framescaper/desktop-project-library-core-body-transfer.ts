@@ -4,7 +4,6 @@ import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
 
 import { throwIfScapeAborted } from '../common/editor/scape-abort.ts';
-import { SCAPE_ARCHIVE_LIMITS } from '../common/editor/scape-archive-envelope.ts';
 import {
 	canonicalMediaContentBlob,
 	digestMediaContent,
@@ -506,14 +505,14 @@ function digest(value: unknown, label: string): string {
 }
 
 function positive(value: unknown, label: string): number {
-	if (!Number.isSafeInteger(value) || Number(value) < 1 || Number(value) > SCAPE_ARCHIVE_LIMITS.maximumExpandedBytes) {
+	if (!Number.isSafeInteger(value) || Number(value) < 1) {
 		throw new RangeError(`${label} is invalid.`);
 	}
 	return Number(value);
 }
 
 function addBodyBytes(total: number, value: number): number {
-	if (value > SCAPE_ARCHIVE_LIMITS.maximumExpandedBytes - total) {
+	if (value > Number.MAX_SAFE_INTEGER - total) {
 		throw new RangeError('Framescaper desktop desktop core managed bodies exceed their aggregate byte limit.');
 	}
 	return total + value;

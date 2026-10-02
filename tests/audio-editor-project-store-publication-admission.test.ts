@@ -34,7 +34,7 @@ test('the project store rejects an oversized snapshot before current or revision
 			title: 'x'.repeat(256),
 			revision: 2,
 		}),
-		/exceeds its byte limit/u,
+		/size warning threshold/u,
 	);
 
 	assert.deepEqual(await store.loadProject(retained.id), retained);

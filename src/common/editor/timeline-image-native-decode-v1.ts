@@ -1,10 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { classifyImageFormatSignature, type ReviewedImageFormat } from './image-format-signature.ts';
-import { admitImageCanonicalBody, admitImageDecodeWorkload } from './image-import-admission.ts';
+import { admitImageDecodeWorkload, IMAGE_IMPORT_LIMITS } from './image-import-admission.ts';
+import { confirmFileSizeWarning, type FileSizeWarningOptions } from './controller/shared/file-size-warning.ts';
 import { routeImageDecoder } from './image-decoder-routing.ts';
 import {
-	createFramescaperImageFramePackV1,
+	createFramescaperImageFramePackWithWarningsV1,
 	type FramescaperImageFramePackPublicationV1,
 } from './timeline-image-frame-pack-v1.ts';
 import type { FramescaperImageTimingModeV1 } from './timeline-image-model.ts';
@@ -41,12 +42,13 @@ export type OpenFramescaperBrowserNativeImageV1 = (request: Readonly<{
 	readonly signal?: AbortSignal;
 }>) => Promise<FramescaperBrowserNativeImageDecodeSessionV1>;
 
-export interface FramescaperBrowserNativeImageDecodeRequestV1 {
+export interface FramescaperBrowserNativeImageDecodeRequestV1 extends FileSizeWarningOptions {
 	readonly bytes: Uint8Array;
 	readonly fileName: string;
 	readonly mimeTypeHint: string | null;
 	readonly open: OpenFramescaperBrowserNativeImageV1;
 	readonly signal?: AbortSignal;
+	readonly maximumFileInputBytes?: number;
 }
 
 export interface FramescaperBrowserNativeImageDecodeResultV1 {
@@ -75,6 +77,8 @@ export async function decodeFramescaperBrowserNativeImageV1(
 	if (classification.status !== 'recognized') throw new RangeError('The image byte signature is not recognized.');
 	const mimeType = NATIVE_MIME_TYPES.get(classification.format);
 	if (!mimeType) throw new RangeError(`The reviewed ${classification.format} format has no supported browser-native route.`);
+	const maximumFileInputBytes = await confirmFileSizeWarning(request.bytes.byteLength,
+		request.maximumFileInputBytes ?? IMAGE_IMPORT_LIMITS.maximumFileInputBytes, request.fileName, request);
 	let session: FramescaperBrowserNativeImageDecodeSessionV1 | null = null;
 	try {
 		session = await request.open({
@@ -92,7 +96,7 @@ export async function decodeFramescaperBrowserNativeImageV1(
 		if (route.status !== 'ready' || route.decoder !== 'browser-native') {
 			throw new RangeError(`The ${classification.format} topology is not verified for browser-native decode.`);
 		}
-		admit(metadata, request.bytes.byteLength, metadata.frameCount * FALLBACK_DURATION_MICROSECONDS);
+		admit(metadata, request.bytes.byteLength, metadata.frameCount * FALLBACK_DURATION_MICROSECONDS, maximumFileInputBytes);
 		const notices: string[] = [];
 		let presentationTicks = 0n;
 		let fallbackCount = 0;
@@ -107,13 +111,13 @@ export async function decodeFramescaperBrowserNativeImageV1(
 			frames.push(Object.freeze({ presentationTicks, durationTicks, rgba }));
 			presentationTicks += durationTicks;
 		}
-		admit(metadata, request.bytes.byteLength, safeNumber(presentationTicks, 'image duration'));
+		admit(metadata, request.bytes.byteLength, safeNumber(presentationTicks, 'image duration'), maximumFileInputBytes);
 		const timingMode: FramescaperImageTimingModeV1 = fallbackCount === 0
 			? 'embedded' : fallbackCount === metadata.frameCount ? 'fallback' : 'mixed';
 		if (fallbackCount > 0) notices.push(
 			`${String(fallbackCount)} image frame${fallbackCount === 1 ? '' : 's'} used the five-second timing fallback.`,
 		);
-		const publication = createFramescaperImageFramePackV1({
+		const publication = await createFramescaperImageFramePackWithWarningsV1({
 			original: request.bytes,
 			receipt: {
 				schemaVersion: 1,
@@ -130,8 +134,7 @@ export async function decodeFramescaperBrowserNativeImageV1(
 				notices,
 			},
 			width: metadata.width, height: metadata.height, timingMode, frames,
-		});
-		admitImageCanonicalBody(publication.assetByteLength);
+		}, { ...request, maximumOriginalBytes: maximumFileInputBytes });
 		return Object.freeze({
 			recognizedFormat: classification.format,
 			canonicalMimeType: mimeType,
@@ -147,6 +150,7 @@ function admit(
 	metadata: FramescaperBrowserNativeImageMetadataV1,
 	sourceByteLength: number,
 	durationMicroseconds: number,
+	maximumFileInputBytes: number,
 ): void {
 	admitImageDecodeWorkload({
 		sourceByteLength,
@@ -157,7 +161,7 @@ function admit(
 		durationMicroseconds,
 		iccBytes: 0,
 		metadataBytes: 0,
-	});
+	}, { maximumFileInputBytes });
 }
 
 function normalizeMetadata(value: unknown): FramescaperBrowserNativeImageMetadataV1 {

@@ -51,6 +51,7 @@ import {
 } from './transfer-session.ts';
 import { describeTransferImport } from './transfer-report-rows.ts';
 import { createTransferView } from './transfer-page-view.ts';
+import { createTransferPageSizeWarning } from './transfer-page-size-warning.ts';
 import { mountSender } from './transfer-page-send.ts';
 import type { TransferPageContext, TransferPageDependencies } from './transfer-page-context.ts';
 
@@ -148,6 +149,9 @@ export async function mountTransferPage(options: MountTransferPageOptions): Prom
 	// The view is built before anything is loaded, so a runtime chunk that fails
 	// to arrive is reported on a page the visitor can already read.
 	const view = createTransferView(scope.document, route.title, route.summary);
+	const sizeWarning = createTransferPageSizeWarning(view);
+	scope.addEventListener?.('pagehide', (event) => { if (event.type === 'pagehide') sizeWarning.dispose(); }, { once: true });
+	const confirmFileSizeWarning = sizeWarning.confirm;
 	const dependencies = options.dependencies ?? deferredDependencies();
 	view.note(configuration.loopback
 		? `This page reads the projects stored on ${configuration.selfOrigin} and hands them back to`
@@ -159,8 +163,8 @@ export async function mountTransferPage(options: MountTransferPageOptions): Prom
 	// on the page rather than reject into a caller that has already handed the
 	// document over and will render nothing further.
 	try {
-		if (options.role === 'send') await mountSender({ scope, configuration, dependencies, view });
-		else await mountReceiver({ scope, configuration, dependencies, view });
+		if (options.role === 'send') await mountSender({ scope, configuration, dependencies, view, confirmFileSizeWarning });
+		else await mountReceiver({ scope, configuration, dependencies, view, confirmFileSizeWarning });
 	} catch (error) {
 		view.status(describeTransferError(error), 'error');
 	}
@@ -219,6 +223,7 @@ async function mountReceiver(context: TransferPageContext): Promise<void> {
 		const source = await context.dependencies.openStore();
 		try {
 			const result = await importTransferArchiveFiles({
+				confirmFileSizeWarning: context.confirmFileSizeWarning,
 				runtime,
 				store: source.store as Parameters<typeof importTransferArchiveFiles>[0]['store'],
 				files,
@@ -266,6 +271,7 @@ async function mountReceiver(context: TransferPageContext): Promise<void> {
 		source = await context.dependencies.openStore();
 		view.status(`Accepting a transfer from ${configuration.peerOrigin}…`);
 		const received = await receiveTransferArchives({
+			confirmFileSizeWarning: context.confirmFileSizeWarning,
 			runtime,
 			store: source.store as Parameters<typeof receiveTransferArchives>[0]['store'],
 			port,

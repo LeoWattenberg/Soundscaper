@@ -14,7 +14,7 @@ import {
 	clipByName,
 	clipField,
 	clipNameAccessiblePattern,
-	closeDialog,
+	closeClipProperties,
 	collectClientErrors,
 	getMenuItem,
 	importFiles,
@@ -138,7 +138,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await nameField.fill('Properties rename');
 		await nameField.press('Tab');
 		await expect(clip).toContainText('Properties rename');
-		await closeDialog(dialog);
+		await closeClipProperties(dialog);
 		await editor.getByRole('button', { name: 'Undo', exact: true }).click();
 		await expect(clip).toContainText('F2 rename');
 		expect(errors).toEqual([]);
@@ -154,7 +154,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		let clipDialog = await openClipProperties(page, editor);
 		await expect(clipField(clipDialog, 'startFrame')).toHaveValue('0');
 		await expect(clipField(clipDialog, 'durationFrame')).toHaveValue('38400');
-		await closeDialog(clipDialog);
+		await closeClipProperties(clipDialog);
 		await clip.scrollIntoViewIfNeeded();
 
 		const box = await clip.boundingBox();
@@ -168,7 +168,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect.poll(async () => Number(await clipField(clipDialog, 'startFrame').inputValue())).toBeGreaterThan(0);
 
 		const movedDuration = Number(await clipField(clipDialog, 'durationFrame').inputValue());
-		await closeDialog(clipDialog);
+		await closeClipProperties(clipDialog);
 		await clip.scrollIntoViewIfNeeded();
 		const trimBox = await clip.boundingBox();
 		expect(trimBox).not.toBeNull();
@@ -178,7 +178,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await page.mouse.up();
 		clipDialog = await openClipProperties(page, editor);
 		await expect.poll(async () => Number(await clipField(clipDialog, 'durationFrame').inputValue())).toBeLessThan(movedDuration);
-		await closeDialog(clipDialog);
+		await closeClipProperties(clipDialog);
 		const selectedClipBox = await clip.boundingBox();
 		expect(selectedClipBox).not.toBeNull();
 		await page.mouse.move(selectedClipBox.x + 32, selectedClipBox.y + 48);

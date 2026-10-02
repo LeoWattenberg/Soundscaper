@@ -13,11 +13,18 @@
 	right: 0;
 }
 
-.kw-audio-editor__workspace-drop-target--bottom {
+:is(.kw-audio-editor__workspace-drop-target--top, .kw-audio-editor__workspace-drop-target--bottom) {
 	right: 28%;
-	bottom: 0;
 	left: 28%;
 	height: 70px;
+}
+
+.kw-audio-editor__workspace-drop-target--top {
+	top: 0;
+}
+
+.kw-audio-editor__workspace-drop-target--bottom {
+	bottom: 0;
 }
 
 .kw-audio-editor__workspace-drop-target--floating {
@@ -81,9 +88,9 @@
 }
 
 :is(.kw-audio-editor__panel-dock--left, .kw-audio-editor__panel-dock--right):has([data-workspace-panel-members~='effects']) {
-	width: min(42vw, var(--workspace-dock-width, 440px));
+	width: min(var(--workspace-dock-width-limit, 42vw), var(--workspace-dock-width, 440px));
 	min-width: 360px;
-	max-width: 520px;
+	max-width: var(--workspace-dock-max-width, 520px);
 }
 
 :is(.kw-audio-editor__panel-dock--left, .kw-audio-editor__panel-dock--right) [data-workspace-panel-members~='effects'] {

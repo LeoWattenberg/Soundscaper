@@ -6,9 +6,10 @@ import { registerDesktopLinkedVideoLocatorIpc } from './linked-video-locator-ipc
 import { acceptsFile, mimeTypeForPath } from './validation.js';
 
 /** Composes the persisted main-process locator store without exposing it. */
-export function createDesktopLinkedVideoLocatorRuntime({ readCapabilities, registryPath }) {
+export function createDesktopLinkedVideoLocatorRuntime({ readCapabilities, registryPath, confirmFileSizeWarning }) {
 	const store = new DesktopLinkedVideoLocatorStore({
 		readCapabilities,
+		confirmFileSizeWarning,
 		registry: new FileDesktopLinkedVideoLocatorRegistry(registryPath),
 	});
 	return Object.freeze({

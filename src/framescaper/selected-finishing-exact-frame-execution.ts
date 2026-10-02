@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-import {
+import type { FileSizeWarningConfirmation } from '../common/editor/controller/shared/file-size-warning.ts'; import {
 	addUnifiedExactLinearCompositionEntryV13,
 	addUnifiedExactLinearDissolveEntryV13,
 	compositeUnifiedExactLinearFrameV13,
@@ -126,7 +126,7 @@ export async function createFramescaperSelectedExactFrameExecutionFinishing(opti
 	readonly openFx?: FramescaperSelectedOpenFxExecutionNativeMedia;
 	readonly createAcceleratorCanvas?: () => unknown;
 	readonly signal: AbortSignal;
-	readonly assertCurrent: () => void;
+	readonly assertCurrent: () => void; readonly confirmFileSizeWarning?: FileSizeWarningConfirmation;
 }>): Promise<FramescaperSelectedExactFrameExecutionFinishing> {
 	assertReady(options);
 	const finishingConsumer = createUnifiedExactRenderFinishingPreviewConsumerV13(options.plan, options.timingSidecars);
@@ -137,11 +137,11 @@ export async function createFramescaperSelectedExactFrameExecutionFinishing(opti
 	const finishingAssets = await loadFramescaperVideoExportFinishingAssetsFinishing({
 		project: options.project,
 		...(options.store ? { store: options.store } : {}),
-		signal: options.signal, assertCurrent: options.assertCurrent,
+		signal: options.signal, assertCurrent: options.assertCurrent, confirmFileSizeWarning: options.confirmFileSizeWarning,
 	}, finishing);
 	const visualAssets = await loadFramescaperVideoExportVisualAssetsFinishing({
 		...(options.store ? { store: options.store } : {}),
-		signal: options.signal, assertCurrent: options.assertCurrent,
+		signal: options.signal, assertCurrent: options.assertCurrent, confirmFileSizeWarning: options.confirmFileSizeWarning,
 	}, options.plan, finishing);
 	const soundVisualizer = options.plan.nodes.some((node) => node.kind === 'visual'
 		&& node.modelKind === 'sound-visualizer')

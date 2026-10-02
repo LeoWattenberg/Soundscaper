@@ -19,7 +19,7 @@ test('legacy AUP evidence pins structural and block-materialization budgets', as
 	assert.ok(legacyAup);
 	assert.match(
 		legacyAup.summary,
-		/format-specific.*legacy `?\.aup`? XML.*authoritative declared `File\.size`.*independently measures.*returned text.*UTF-8 byte length.*16 MiB.*100,000.*elements.*400,000.*attributes.*depth.*128.*lower-only.*before.*`?_data`?.*block.*conversion.*project\/source persistence.*publication.*does not qualify.*elapsed time.*other project families.*PCM amplification.*total import working set/iu,
+		/format-specific.*legacy `?\.aup`? XML.*explicit user confirmation above 16 MiB.*authoritative declared `File\.size`.*before reading text.*independently measures.*returned text.*UTF-8 byte length.*before parsing.*admitted warning threshold.*cancellation and caller currentness.*confirmation.*Structural limits stay enforced.*100,000.*elements.*400,000.*attributes.*depth.*128.*lower-only.*declined warning or structural refusal precedes.*`?_data`?.*block.*conversion.*project\/source persistence.*publication.*does not qualify.*elapsed time.*other project families.*PCM amplification.*total import working set/iu,
 	);
 	for (const path of [
 		'src/common/editor/aup-legacy-xml.ts',
@@ -80,10 +80,10 @@ test('legacy AUP evidence pins structural and block-materialization budgets', as
 		/focused legacy `?\.aup`? XML and AU-block.*declared.*returned XML bytes.*elements.*attributes.*depth.*selected.*referenced.*indexed lookup.*ambiguity.*declared\/actual block bytes.*header minimum.*positive block.*payload\/frame.*native endianness.*pre-allocation refusal.*retained PCM.*silence.*repeated references.*stereo padding.*unequal linked-pair rejection.*does not yet cover every supported project family/iu,
 	);
 
-	const documentation = await readFile(new URL(`../${matrix.modelDocument}`, import.meta.url), 'utf8');
+	const documentation = (await readFile(new URL(`../${matrix.modelDocument}`, import.meta.url), 'utf8')).replace(/\s+/gu, ' ');
 	assert.match(
 		documentation,
-		/external-project-document-validation.*partial.*legacy `?\.aup`? XML.*`File\.size`.*UTF-8 byte length.*16 MiB.*100,000.*400,000.*128.*canonical, default-sized simple\/silent `?_data`?.*65,536.*2 MiB.*1 MiB.*524,288.*512 MiB.*retained Float32 PCM.*exact\/basename indexes.*positive block lengths.*24-byte AU header.*equal-length paired linked clips.*precedes retained-PCM allocation or block reads.*precedes decoded-block allocation.*native-endian.*unique file.*preallocated output.*logically reachable parser-owned window.*precedes conversion.*persistence.*publication.*do not qualify.*customized Audacity block-size.*garbage-collection lag.*total renderer RSS.*streaming-scale.*corpus/isu,
+		/external-project-document-validation.*partial.*legacy `?\.aup`? XML.*`File\.size`.*UTF-8 (?:byte length|text length).*16 MiB warning threshold.*cancellation and currentness.*confirmation.*100,000.*400,000.*128.*canonical, default-sized simple\/silent `?_data`?.*65,536.*2 MiB.*1 MiB.*524,288.*512 MiB.*retained Float32 PCM.*exact\/basename indexes.*positive block lengths.*24-byte AU header.*equal-length paired linked clips.*precedes retained-PCM allocation or block reads.*precedes decoded-block allocation.*native-endian.*unique file.*preallocated output.*logically reachable parser-owned window.*precedes conversion.*persistence.*publication.*do not qualify.*customized Audacity block-size.*garbage-collection lag.*total renderer RSS.*streaming-scale.*corpus/isu,
 	);
 	assert.match(
 		documentation,
@@ -104,7 +104,7 @@ test('desktop save admission evidence pins product-wide capacity before staging'
 	assert.ok(admission);
 	assert.match(
 		admission.summary,
-		/16 outstanding product-wide targets.*4 pending or live sessions.*65 GiB per-save and aggregate admitted bytes.*synchronously.*before the first await.*lower-only.*bigint `statfs`.*available.*before staging open.*point-in-time.*not an operating-system reservation.*cleanup failure.*charged.*ENOSPC or EDQUOT.*qualified typed refusal.*staged temporary file is discarded.*admitted count and bytes release.*committed target file survives.*commit-time space failure cleans staging.*other write failures keep the session open/iu,
+		/16 outstanding product-wide targets.*4 pending or live sessions.*65 GiB warning threshold.*owner-bound target.*native user confirmation.*exact declared size and owner.*shutdown and owner revocation checked again before staging.*accepted larger save.*budget alone.*reservations remain synchronous.*concurrent admitted-byte accounting.*bigint `statfs`.*available.*before staging open.*point-in-time.*not an operating-system reservation.*cleanup failure.*charged.*ENOSPC or EDQUOT.*qualified typed refusal.*staged temporary file is discarded.*admitted count and bytes release.*committed target file survives.*commit-time space failure cleans staging.*other write failures keep the session open/iu,
 	);
 	for (const path of [
 		'desktop/constants.js', 'desktop/preload.mjs',
@@ -120,10 +120,10 @@ test('desktop save admission evidence pins product-wide capacity before staging'
 		({ id }) => id === 'in-flight-write-cancellation',
 	));
 
-	const documentation = await readFile(new URL(`../${matrix.modelDocument}`, import.meta.url), 'utf8');
+	const documentation = (await readFile(new URL(`../${matrix.modelDocument}`, import.meta.url), 'utf8')).replace(/\s+/gu, ' ');
 	assert.match(
 		documentation,
-		/desktop-write-path-capabilities.*partial.*16 outstanding product-wide save targets.*4 pending or live save sessions.*65 GiB per-save and aggregate admitted bytes.*synchronously before the first await.*lower-only.*BigInt `statfs`.*before staging open.*point-in-time.*not an operating-system reservation.*cleanup failure.*charged.*active chunk.*parent-directory/isu,
+		/desktop-write-path-capabilities.*partial.*16 outstanding product-wide targets.*4 pending or live sessions.*65 GiB.*warning threshold.*owner-bound target.*native user confirmation.*exact declared size.*owner.*shutdown.*revocation.*before staging.*larger save.*budget alone.*count and byte reservations.*synchronous.*BigInt `statfs`.*before staging open.*point-in-time.*not an operating-system reservation.*cleanup failure.*charged.*active chunk.*parent-directory/isu,
 	);
 });
 

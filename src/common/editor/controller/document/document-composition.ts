@@ -104,6 +104,7 @@ export function createDocumentComposition(dependencies: DocumentCompositionDepen
 		evictSourceCaches: evictUnreferencedSourceCaches,
 	});
 	const saves = createProjectSaveService<DocumentProject>({
+		confirmFileSizeWarning: dependencies.confirmFileSizeWarning,
 		getProject: document.get,
 		hasHistory: () => Boolean(dependencies.getHistory()),
 		hasUnsavedProjectChanges: () => {

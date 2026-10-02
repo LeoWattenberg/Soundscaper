@@ -12,6 +12,7 @@ import { expect } from '@playwright/test';
 const DOCK_MENU_LABELS = Object.freeze({
 	left: /^(?:Left|Links)$/u,
 	right: /^(?:Right|Rechts)$/u,
+	top: /^(?:Top|Oben)$/u,
 	bottom: /^(?:Bottom|Unten)$/u,
 	floating: /^(?:Floating|Schwebend)$/u,
 });

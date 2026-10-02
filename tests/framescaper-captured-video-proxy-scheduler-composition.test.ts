@@ -272,9 +272,9 @@ test('an unusable helper timing probe or candidate bound is refused while compos
 	);
 	assert.throws(
 		() => capturedVideoProxySchedulerDependencies(real, session(), composition({
-			runtime: generatingRuntime(), maximumBytes: 512 * 1024 * 1024 + 1,
+			runtime: generatingRuntime(), maximumBytes: Number.MAX_SAFE_INTEGER + 1,
 		})),
-		/cannot raise its hard limit/u,
+		/positive safe integer/u,
 	);
 	assert.ok(capturedVideoProxySchedulerDependencies(real, session(), composition({
 		runtime: generatingRuntime(), helperTimingProbe: timingProbe(), maximumBytes: 1024,

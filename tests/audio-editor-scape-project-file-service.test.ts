@@ -7,6 +7,22 @@ import { EditorControllerLifetime } from '../src/common/editor/controller/shared
 import { createScapeProjectFileService } from '../src/common/editor/controller/document/scape-project-file-service.ts';
 import { createScapeArchiveByteSource } from '../src/common/editor/scape-archive-byte-source.ts';
 
+test('Scape initial inspection receives its warning port and a current-task assertion', async () => {
+	const lifetime = new EditorControllerLifetime();
+	const confirm = async () => true;
+	let called = false;
+	const service = createScapeProjectFileService({ lifetime, store: null, productCapabilities: {},
+		confirmFileSizeWarning: confirm,
+		inspectScapeProject: (_file, _store, options) => {
+			assert.equal(options.confirmFileSizeWarning, confirm);
+			assert.equal(typeof options.assertCurrent, 'function');
+			(options.assertCurrent as () => void)(); called = true;
+			return { exists: false };
+		}, openScape: () => undefined });
+	await service.inspectScape(new Blob(['inspect']));
+	assert.equal(called, true);
+});
+
 test('Scape project file composition shares owned inspection with collision-gated opens', async () => {
 	const lifetime = new EditorControllerLifetime();
 	const store = { loadProject: () => null };

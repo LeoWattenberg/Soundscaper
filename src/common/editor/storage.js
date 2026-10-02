@@ -31,8 +31,8 @@ export class AudioEditorProjectStore {
 		storageManager = globalThis.navigator?.storage,
 		opfsRoot = null,
 		preferOpfs = true,
-		revisionLimit = 20,
-		maximumProjectDocumentBytes = undefined,
+		revisionLimit = 20, maximumProjectDocumentBytes = undefined,
+		confirmFileSizeWarning = undefined,
 		pcmCodec = null,
 		pcmCodecFactory = null,
 		derivativeCacheLimits = undefined,
@@ -42,6 +42,7 @@ export class AudioEditorProjectStore {
 		onLinkedVideoOriginalLocatorCleanupError = undefined,
 		repositoryFactory = /** @type {import('./storage/repositories.ts').StorageRepositoryFactory} */ (createStorageRepositories),
 		} = options;
+		if (confirmFileSizeWarning !== undefined && typeof confirmFileSizeWarning !== 'function') throw new TypeError('Project store confirmFileSizeWarning must be a function.');
 		const databaseName = projectStorageProfileNames?.databaseName ?? requestedDatabaseName;
 		this.databaseName = databaseName;
 		this.indexedDB = indexedDB;
@@ -67,10 +68,8 @@ export class AudioEditorProjectStore {
 			memory: this.memory,
 			database: () => this.#database(),
 		}, {
-			revisionLimit: this.revisionLimit,
-			preferOpfs,
-			storageManager,
-			opfsRoot,
+			revisionLimit: this.revisionLimit, preferOpfs, storageManager, opfsRoot,
+			confirmFileSizeWarning,
 			pcmCodec,
 			pcmCodecFactory,
 			derivativeCacheLimits,

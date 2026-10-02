@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import type { FileSizeWarningOptions } from '../../../shared/file-size-warning.ts';
 
 import type { IxmlMetadataInput } from '../../../../ixml.ts';
 import type { RiffMarkerInput } from '../../../../riff-markers.ts';
@@ -56,7 +57,7 @@ export async function prepareDirectWavDestination(
 		prepareSave?: (request: Readonly<Record<string, unknown>>) => PromiseLike<unknown> | unknown;
 	}>,
 	plan: DirectWavPlan,
-	requestedSettings: Readonly<Record<string, unknown>> | null | undefined,
+	requestedSettings: (Readonly<Record<string, unknown>> & FileSizeWarningOptions) | null | undefined,
 	signal: AbortSignal,
 ): Promise<DirectWavPreparation> {
 	if (!directWavPlan(plan) || typeof fileService.prepareSave !== 'function') return emptyPreparation();
@@ -74,7 +75,7 @@ export async function prepareDirectWavDestination(
 	return openDirectPcmDestination(
 		prepared,
 		plan.outputFileBytesPerRender as number,
-		WAV_CONTAINER_LABEL,
+		WAV_CONTAINER_LABEL, 'exact', {}, { signal, confirmFileSizeWarning: settings.confirmFileSizeWarning },
 	);
 }
 
@@ -110,8 +111,7 @@ function directWavPlan(plan: DirectWavPlan): plan is DirectWavPlan & {
 		|| typeof plan.outputs[0]?.fileName !== 'string'
 		|| !plan.outputs[0].fileName.toLowerCase().endsWith('.wav')
 		|| !Number.isSafeInteger(plan.outputFileBytesPerRender)
-		|| Number(plan.outputFileBytesPerRender) <= 0
-		|| Number(plan.outputFileBytesPerRender) > DIRECT_WAV_MAXIMUM_FILE_BYTES) return false;
+		|| Number(plan.outputFileBytesPerRender) <= 0) return false;
 	return hasExactWavLayout(plan, sampleFormat);
 }
 
@@ -149,8 +149,7 @@ function hasExactWavLayout(plan: DirectWavPlan, sampleFormat: DirectWavSampleFor
 			ixml: plan.ixml,
 		});
 		return (layout.container === 'riff' || layout.container === 'rf64')
-			&& layout.byteLength === plan.outputFileBytesPerRender
-			&& layout.byteLength <= DIRECT_WAV_MAXIMUM_FILE_BYTES;
+			&& layout.byteLength === plan.outputFileBytesPerRender;
 	} catch {
 		return false;
 	}

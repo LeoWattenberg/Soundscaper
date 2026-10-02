@@ -288,7 +288,7 @@ test('moved controller domains preserve their optional chunk owners', () => {
 			'src/common/editor/controller/capture/internal/web-vcr/framescaper-web-vcr-controller.ts',
 		],
 		'project-interchange-foundations': [
-			'src/common/editor/controller/document/deferred-archive-runtime.ts',
+			'src/common/editor/controller/document/deferred-archive-runtime.ts', 'src/common/editor/controller/shared/file-size-warning.ts', 'src/common/editor/controller/shared/file-size-warning-confirmation.ts',
 		],
 	} as const;
 	for (const [owner, paths] of Object.entries(pathsByOwner)) {

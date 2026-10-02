@@ -15,6 +15,7 @@ import {
 
 export function useTimelineProjectBinDnd({
 	controller,
+	confirmFileSizeWarning = /** @type {import('../../controller/shared/file-size-warning.ts').FileSizeWarningConfirmation | undefined} */ (undefined),
 	mutationsBlocked,
 	state,
 	model,
@@ -136,7 +137,7 @@ export function useTimelineProjectBinDnd({
 				destination: 'timeline',
 				...(targetTrack ? { trackId: targetTrack.id } : {}),
 				timelineStartFrame: target.timelineStartFrame,
-			}));
+			}, { confirmFileSizeWarning }));
 			return;
 		}
 		if (files.length) {
@@ -146,7 +147,7 @@ export function useTimelineProjectBinDnd({
 				timelineStartFrame: target.timelineStartFrame,
 			})));
 		}
-	}, [clearProjectBinDragState, controller, importFreesoundSound, mutationsBlocked, project, run, timelineDropTargetAt]);
+	}, [clearProjectBinDragState, controller, confirmFileSizeWarning, importFreesoundSound, mutationsBlocked, project, run, timelineDropTargetAt]);
 
 	useEffect(() => {
 		const finishHtmlDrag = () => clearProjectBinDragState(true);
@@ -157,8 +158,8 @@ export function useTimelineProjectBinDnd({
 	return { onTimelineDragOver, onTimelineDragLeave, onTimelineDrop };
 }
 
-export function importFreesoundTimelineDrop(controller, request) {
+export function importFreesoundTimelineDrop(controller, request, runtime = /** @type {import('../workspace/freesound-workspace-service.ts').FreesoundWorkspaceRuntime} */ ({})) {
 	return import('../workspace/freesound-workspace-service.ts').then(({ importFreesoundSound }) => (
-		importFreesoundSound(controller, request)
+		importFreesoundSound(controller, request, runtime)
 	));
 }

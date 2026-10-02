@@ -8,7 +8,7 @@ const FEATURE_MODULES = Object.freeze([
 	'RealtimeAnalysisPanel.jsx',
 	'AudioEditorEffectsOverlay.jsx',
 	'AudioEditorMacroManagerDialog.jsx',
-	'ClipPropertiesDialog.jsx',
+	'ClipPropertiesPanel.tsx',
 	'ExportDialog.jsx',
 	'LabelExportDialog.jsx',
 	'SelectionEffectsDialog.jsx',
@@ -40,7 +40,7 @@ test('every maintained Inspector production module stays below the local size bu
 test('the legacy Inspector path is only a bounded compatibility facade', async () => {
 	const facade = await readFile(new URL('../src/common/editor/ui/AudioEditorInspector.jsx', import.meta.url), 'utf8');
 	assert.ok(sourceLineCount(facade) <= 30);
-	for (const moduleName of ['AnalysisPanel.jsx', ...FEATURE_MODULES.filter((name) => name !== 'RealtimeAnalysisPanel.jsx')]) {
+	for (const moduleName of ['AnalysisPanel.jsx', 'ClipPropertiesDialog.jsx', ...FEATURE_MODULES.filter((name) => !['RealtimeAnalysisPanel.jsx', 'ClipPropertiesPanel.tsx'].includes(name))]) {
 		assert.match(facade, new RegExp(`inspector/${moduleName.replace('.', '\\.')}`));
 	}
 });

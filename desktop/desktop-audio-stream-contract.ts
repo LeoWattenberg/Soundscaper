@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { normalizeDesktopAudioCodecCapabilityQuery,
 	type DesktopAudioCodecCapabilityTuple } from './desktop-audio-codec-capability-contract.ts';
-import { LARGE_AUDIO_FILE_BYTES, LARGE_AUDIO_DURATION_SECONDS, LARGE_AUDIO_PCM_CHUNK_FRAMES } from '../src/common/editor/large-audio-policy.ts';
+import { LARGE_AUDIO_DURATION_SECONDS, LARGE_AUDIO_PCM_CHUNK_FRAMES } from '../src/common/editor/large-audio-policy.ts';
 
-export const DESKTOP_AUDIO_STREAM_MAXIMUM_BYTES = LARGE_AUDIO_FILE_BYTES;
+export const DESKTOP_AUDIO_STREAM_MAXIMUM_BYTES = Number.MAX_SAFE_INTEGER;
 export const DESKTOP_AUDIO_STREAM_MAXIMUM_PCM_BYTES = LARGE_AUDIO_DURATION_SECONDS * 192_000 * 8 * 4;
 export const DESKTOP_AUDIO_STREAM_MAXIMUM_PACKET_BYTES = 1024 * 1024;
 export const DESKTOP_AUDIO_STREAM_MAXIMUM_PACKET_FRAMES = LARGE_AUDIO_PCM_CHUNK_FRAMES;
@@ -30,7 +30,8 @@ export function normalizeDesktopAudioStreamPlan(value: unknown): DesktopAudioStr
 		throw new RangeError('Desktop streaming PCM exceeds its one-hour profile byte bound.');
 	}
 	return Object.freeze({ schemaVersion: 1, tuple, frameCount,
-		maximumOutputBytes: audioStreamInteger(record.maximumOutputBytes, 1, DESKTOP_AUDIO_STREAM_MAXIMUM_BYTES, 'output bound') });
+		maximumOutputBytes: audioStreamInteger(record.maximumOutputBytes, 1,
+			DESKTOP_AUDIO_STREAM_MAXIMUM_BYTES - frameCount * tuple.channelCount * 4, 'output bound') });
 }
 export function normalizeDesktopAudioStreamCommand(value: unknown): DesktopAudioStreamCommand {
 	const type = value && typeof value === 'object' ? (value as Record<string, unknown>).type : null;

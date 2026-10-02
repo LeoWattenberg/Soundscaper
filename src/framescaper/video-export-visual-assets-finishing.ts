@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { confirmFileSizeWarning, type FileSizeWarningOptions } from '../common/editor/controller/shared/file-size-warning.ts';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
 import {
@@ -27,7 +28,7 @@ export interface FramescaperVideoExportVisualAssetsFinishing {
 	readonly luts: ReadonlyMap<string, ParsedCubeLutV1>;
 }
 
-interface LoadRequest {
+interface LoadRequest extends FileSizeWarningOptions {
 	readonly store?: FramescaperVideoExportVisualAssetStoreFinishing;
 	readonly signal: AbortSignal;
 	readonly assertCurrent: () => void;
@@ -60,10 +61,17 @@ export async function loadFramescaperVideoExportVisualAssetsFinishing(
 		throw new Error('finishing visual export assets are unavailable.');
 	}
 	let totalBytes = 0;
+	let thresholdBytes = MAXIMUM_VISUAL_ASSET_BYTES;
+	const admitBytes = async (size: number): Promise<void> => {
+		totalBytes = boundedTotal(totalBytes, size);
+		if (totalBytes > thresholdBytes) {
+			await confirmFileSizeWarning(totalBytes, thresholdBytes, 'Video export visual assets', request);
+			thresholdBytes = Number.MAX_SAFE_INTEGER;
+		}
+	};
 	const stills = new Map<string, UnifiedExactRenderVisualRgbaV13>();
 	for (const source of stillSources) {
-		const blob = await loadBlob(request, stableId(source.storageKey, 'finishing still storage key'));
-		totalBytes = boundedTotal(totalBytes, blob.size);
+		const blob = await loadBlob(request, stableId(source.storageKey, 'finishing still storage key'), admitBytes);
 		const bytes = new Uint8Array(await blob.arrayBuffer());
 		assertReady(request);
 		if (bytesToHex(sha256(bytes)) !== digest(source.contentSha256, 'finishing still digest')) {
@@ -83,8 +91,7 @@ export async function loadFramescaperVideoExportVisualAssetsFinishing(
 	}
 	const luts = new Map<string, ParsedCubeLutV1>();
 	for (const reference of lutReferences) {
-		const blob = await loadBlob(request, reference.storageKey);
-		totalBytes = boundedTotal(totalBytes, blob.size);
+		const blob = await loadBlob(request, reference.storageKey, admitBytes);
 		const text = new TextDecoder('utf-8', { fatal: true }).decode(await blob.arrayBuffer());
 		assertReady(request);
 		const parsed = parseCubeLutV1(text);
@@ -94,7 +101,7 @@ export async function loadFramescaperVideoExportVisualAssetsFinishing(
 	return Object.freeze({ stills, luts });
 }
 
-async function loadBlob(request: LoadRequest, storageKey: string): Promise<Blob> {
+async function loadBlob(request: LoadRequest, storageKey: string, admitBytes: (size: number) => Promise<void>): Promise<Blob> {
 	assertReady(request);
 	const value = await request.store!.loadMediaAsset(storageKey, { signal: request.signal });
 	assertReady(request);
@@ -102,6 +109,7 @@ async function loadBlob(request: LoadRequest, storageKey: string): Promise<Blob>
 		|| typeof value.arrayBuffer !== 'function') {
 		throw new Error(`finishing visual asset ${storageKey} is missing or stale.`);
 	}
+	await admitBytes(value.size);
 	return value instanceof Blob ? value : new Blob([await value.arrayBuffer()]);
 }
 
@@ -152,7 +160,7 @@ function assertLut(reference: VideoCubeLutReferenceV1, parsed: ParsedCubeLutV1):
 
 function boundedTotal(total: number, added: number): number {
 	const result = total + added;
-	if (!Number.isSafeInteger(result) || result > MAXIMUM_VISUAL_ASSET_BYTES) {
+	if (!Number.isSafeInteger(result)) {
 		throw new RangeError('finishing visual export assets exceed their byte bound.');
 	}
 	return result;

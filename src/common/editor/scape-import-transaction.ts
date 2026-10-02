@@ -5,6 +5,7 @@ import type { ScapeVideoWriter } from './scape-archive-video.ts';
 import type { OwnedMediaAssetPublication } from './storage/media-asset-write-contract.ts';
 import type { StorageRecord } from './storage/media-records.ts';
 import { sameProjectSnapshot } from './storage/project-snapshot-equality.ts';
+import type { FileSizeWarningOptions } from './controller/shared/file-size-warning.ts';
 
 export interface ScapeReplaceWriteAuthority {
 	readonly writeFence: string;
@@ -48,8 +49,8 @@ export interface ScapeImportStore {
 			signal?: AbortSignal;
 		}>,
 	): PromiseLike<ScapeVideoWriter>;
-	createScapeProjectIfAbsent?(project: ScapeProjectDocument): PromiseLike<ScapeProjectDocument | null>;
-	createProjectIfAbsent?(project: ScapeProjectDocument): PromiseLike<ScapeProjectDocument | null>;
+	createScapeProjectIfAbsent?(project: ScapeProjectDocument, options?: FileSizeWarningOptions): PromiseLike<ScapeProjectDocument | null>;
+	createProjectIfAbsent?(project: ScapeProjectDocument, options?: FileSizeWarningOptions): PromiseLike<ScapeProjectDocument | null>;
 	deleteProjectIfCurrent?(project: ScapeProjectDocument): PromiseLike<boolean>;
 	saveProject(project: ScapeProjectDocument): PromiseLike<unknown>;
 	saveProjectIfCurrent?(
@@ -60,6 +61,7 @@ export interface ScapeImportStore {
 		expected: ScapeProjectDocument,
 		project: ScapeProjectDocument,
 		writeFence: string,
+		options?: FileSizeWarningOptions,
 	): PromiseLike<ScapeProjectDocument | null>;
 	deleteProject(projectId: string): PromiseLike<unknown>;
 	discardSourceIfCurrent(source: StorageRecord): PromiseLike<boolean>;
@@ -92,6 +94,7 @@ export class ScapeImportTransaction {
 	readonly #store: ScapeImportStore;
 	readonly #signal?: AbortSignal;
 	readonly #replaceAuthority?: ScapeReplaceWriteAuthority;
+	readonly #publicationOptions: FileSizeWarningOptions;
 	readonly #sourcePublications: StorageRecord[] = [];
 	readonly #mediaPublications: OwnedMediaAssetPublication[] = [];
 	#projectId: string | null = null;
@@ -102,10 +105,12 @@ export class ScapeImportTransaction {
 	#projectWriteAttempted = false;
 	#complete = false;
 
-	constructor(store: ScapeImportStore, signal?: AbortSignal, replaceAuthority?: ScapeReplaceWriteAuthority) {
+	constructor(store: ScapeImportStore, signal?: AbortSignal, replaceAuthority?: ScapeReplaceWriteAuthority, warningOptions: FileSizeWarningOptions = {}) {
 		this.#store = store;
 		this.#signal = signal;
 		this.#replaceAuthority = replaceAuthority;
+		this.#publicationOptions = { confirmFileSizeWarning: warningOptions.confirmFileSizeWarning, signal,
+			assertCurrent: () => { throwIfScapeAborted(signal); replaceAuthority?.assertCurrent(); warningOptions.assertCurrent?.(); } };
 	}
 
 	async releaseWriteAuthority(): Promise<void> {
@@ -161,7 +166,7 @@ export class ScapeImportTransaction {
 			}
 			this.#createOnlyPublicationAttempted = true;
 			this.#projectWriteAttempted = true;
-			const created = await createExactly.call(this.#store, project);
+			const created = await createExactly.call(this.#store, project, this.#publicationOptions);
 			if (created === null) throw new Error('The Scape target project was created concurrently.');
 			if (created.id !== project.id) {
 				throw new Error('Create-only Scape publication changed the target project identity.');
@@ -178,7 +183,7 @@ export class ScapeImportTransaction {
 		this.#publishedProject = project;
 		this.#projectWriteAttempted = true;
 		const published = await this.#store.saveProjectIfCurrentWithWriteFence(
-			capturedProject, project, this.#replaceAuthority.writeFence,
+			capturedProject, project, this.#replaceAuthority.writeFence, this.#publicationOptions,
 		);
 		if (published === null) {
 			this.#publishedProject = null;
@@ -263,12 +268,13 @@ export async function beginScapeImportTransaction(
 	projectId: string,
 	replacedProject: ScapeProjectDocument | null,
 	acquire?: (projectId: string) => PromiseLike<ScapeReplaceWriteAuthority> | ScapeReplaceWriteAuthority,
+	warningOptions: FileSizeWarningOptions = {},
 ): Promise<ScapeImportTransaction> {
 	if (replacedProject && typeof acquire !== 'function') {
 		throw new Error('Scape replace requires project write authority.');
 	}
 	const authority = replacedProject ? await acquire!(projectId) : undefined;
-	const transaction = new ScapeImportTransaction(store, signal, authority);
+	const transaction = new ScapeImportTransaction(store, signal, authority, warningOptions);
 	try {
 		await transaction.captureProject(projectId, replacedProject ?? undefined);
 		return transaction;

@@ -4,7 +4,7 @@ import { expect, longTone, test } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
 	clipByName,
-	closeDialog,
+	closeClipProperties,
 	collectClientErrors,
 	commitInput,
 	importFiles,
@@ -22,6 +22,7 @@ function speedField(dialog) {
 
 async function expectHighlighted(field) {
 	await expect(field).toBeFocused();
+	await expect(field).toBeInViewport({ ratio: 1 });
 	await expect(field.locator('..')).toHaveClass(/text-input--active/u);
 }
 
@@ -39,20 +40,20 @@ test.describe('clip pitch and speed indicators', () => {
 
 		let dialog = await openClipProperties(page, editor, clip);
 		await dialog.getByRole('checkbox', { name: 'Stretch with project tempo changes', exact: true }).check();
-		await closeDialog(dialog);
+		await closeClipProperties(dialog);
 		await expect(speed).toHaveCount(0);
 		await expect(clip).not.toContainText('100%');
 
 		for (const [ratio, percentage] of [['0.9999999', '99.9%'], ['1.0000001', '100.1%']]) {
 			dialog = await openClipProperties(page, editor, clip);
 			await commitInput(speedField(dialog), ratio);
-			await closeDialog(dialog);
+			await closeClipProperties(dialog);
 			await expect(speed).toContainText(percentage);
 		}
 
 		dialog = await openClipProperties(page, editor, clip);
 		await commitInput(speedField(dialog), '1');
-		await closeDialog(dialog);
+		await closeClipProperties(dialog);
 		await expect(speed).toHaveCount(0);
 		await expect(clip).not.toContainText('100%');
 		expect(errors).toEqual([]);
@@ -68,16 +69,16 @@ test.describe('clip pitch and speed indicators', () => {
 		let dialog = await openClipProperties(page, editor, clip);
 		await commitInput(pitchField(dialog), '2');
 		await commitInput(speedField(dialog), '1.25');
-		await closeDialog(dialog);
+		await closeClipProperties(dialog);
 		await otherClip.focus();
 		await otherClip.press('Enter');
 
 		await clip.getByRole('button', { name: 'Clip pitch', exact: true }).click();
-		dialog = page.getByRole('dialog', { name: 'Clip properties', exact: true });
+		dialog = editor.locator('[data-workspace-panel="clip-properties"]');
 		await expect(dialog).toBeVisible();
 		await expectHighlighted(pitchField(dialog));
 		await expect(pitchField(dialog)).toHaveValue('2.00');
-		await closeDialog(dialog);
+		await closeClipProperties(dialog);
 		await otherClip.focus();
 		await otherClip.press('Enter');
 
@@ -85,7 +86,7 @@ test.describe('clip pitch and speed indicators', () => {
 		await expect(dialog).toBeVisible();
 		await expectHighlighted(speedField(dialog));
 		await expect(speedField(dialog)).toHaveValue('1.25');
-		await closeDialog(dialog);
+		await closeClipProperties(dialog);
 
 		await clip.getByRole('button', { name: 'Clip pitch', exact: true }).press('Enter');
 		await expect(dialog).toBeVisible();
@@ -103,7 +104,7 @@ test.describe('clip pitch and speed indicators', () => {
 		const dialog = await openClipProperties(page, editor, clip);
 		await commitInput(pitchField(dialog), '2');
 		await commitInput(speedField(dialog), '1.25');
-		await closeDialog(dialog);
+		await closeClipProperties(dialog);
 
 		await pitch.dblclick();
 		await expect(pitch).toHaveCount(0);

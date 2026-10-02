@@ -2,7 +2,7 @@ import { expect } from '@playwright/test';
 import { test } from './audio-editor-test-fixtures.js';
 
 import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
-import { collectClientErrors } from './audio-editor-test-helpers.js';
+import { closeClipProperties, collectClientErrors } from './audio-editor-test-helpers.js';
 import { resolveBrowserProductTestUrl } from './helpers/browser-product-test-url.js';
 import { closeWorkspacePanel } from './helpers/workspace-panel-chrome.js';
 
@@ -227,7 +227,7 @@ test.describe('audio editor video composition workflow', () => {
 		await expect(clipMenu).toBeVisible();
 		await clipMenu.locator('[data-action-id="clip-properties"]').click();
 
-		const dialog = page.getByRole('dialog', { name: 'Clip properties', exact: true });
+		const dialog = editor.locator('[data-workspace-panel="clip-properties"]');
 		const rack = dialog.locator('[data-video-effect-rack]');
 		await expect(rack).toBeVisible();
 		await expect(rack.locator('[data-video-effect-empty]')).toBeVisible();
@@ -277,7 +277,7 @@ test.describe('audio editor video composition workflow', () => {
 		const lumaMode = rack.locator('[data-video-effect-type="luma-key"] [data-video-effect-param="mode"] select');
 		await lumaMode.selectOption('1');
 		await expect(lumaMode).toHaveValue('1');
-		await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+		await closeClipProperties(dialog);
 		await expect(dialog).toBeHidden();
 
 		const preview = editor.locator('[data-video-preview]');
@@ -316,7 +316,7 @@ test.describe('audio editor video composition workflow', () => {
 		const restoredClipMenu = page.locator('.audio-editor-clip-context-menu');
 		await expect(restoredClipMenu).toBeVisible();
 		await restoredClipMenu.locator('[data-action-id="clip-properties"]').click();
-		const restoredDialog = page.getByRole('dialog', { name: 'Clip properties', exact: true });
+		const restoredDialog = restoredEditor.locator('[data-workspace-panel="clip-properties"]');
 		const restoredRack = restoredDialog.locator('[data-video-effect-rack]');
 		const restoredEffects = restoredRack.locator('[data-video-effect-id]');
 		await expect(restoredEffects).toHaveCount(4);
@@ -356,13 +356,13 @@ test.describe('audio editor video composition workflow', () => {
 		await videoClip.click({ button: 'right' });
 		const clipMenu = page.locator('.audio-editor-clip-context-menu');
 		await clipMenu.locator('[data-action-id="clip-properties"]').click();
-		const dialog = page.getByRole('dialog', { name: 'Clip properties', exact: true });
+		const dialog = editor.locator('[data-workspace-panel="clip-properties"]');
 		const rack = dialog.locator('[data-video-effect-rack]');
 		const picker = rack.locator('[data-video-effect-picker]');
 		await picker.getByRole('button').click();
 		await page.getByRole('option', { name: 'Pixelate', exact: true }).click();
 		await rack.getByRole('button', { name: 'Add effect', exact: true }).click();
-		await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+		await closeClipProperties(dialog);
 
 		const preview = editor.locator('[data-video-preview]');
 		await expect(preview).toHaveAttribute('data-video-preview-renderer', 'fallback');

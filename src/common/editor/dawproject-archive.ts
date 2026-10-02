@@ -18,6 +18,7 @@ import {
 import { createArchiveMediaReader } from './archive-media-reader.ts';
 import type { BlobLike } from './storage/media-records.ts';
 import { DAWPROJECT_XML_LIMITS } from './dawproject-xml.ts';
+import { confirmFileSizeWarning, type FileSizeWarningConfirmation } from './controller/shared/file-size-warning.ts';
 
 /**
  * The ZIP container around a DAWproject.
@@ -51,12 +52,14 @@ export interface DawprojectArchiveOptions {
 }
 
 export interface DawprojectArchiveReadOptions extends DawprojectArchiveOptions {
+	readonly confirmFileSizeWarning?: FileSizeWarningConfirmation;
 	readonly maximumEntries?: number;
 	readonly maximumEntryBytes?: number;
 	readonly temporaryDirectory?: FileSystemDirectoryHandle;
 }
 
 export interface DawprojectArchive {
+	readonly xmlMaximumBytes: number;
 	readonly projectXml: string;
 	readonly metadataXml: string | null;
 	readonly entryNames: readonly string[];
@@ -169,15 +172,15 @@ export async function readDawprojectArchive(
 			const normalized = normalizeEntryPath(path);
 			return byPath.get(normalized) ?? byLowerPath.get(normalized.toLowerCase()) ?? null;
 		};
+		let xmlMaximumBytes = DAWPROJECT_XML_LIMITS.maximumBytes;
 		const readText = async (path: string, required: boolean): Promise<string | null> => {
 			const entry = find(path);
 			if (!entry) {
 				if (required) throw new Error(`The DAWproject archive has no ${path} entry.`);
 				return null;
 			}
-			if (entry.uncompressedSize > DAWPROJECT_XML_LIMITS.maximumBytes) {
-				throw new RangeError(`${path} exceeds the ${String(DAWPROJECT_XML_LIMITS.maximumBytes)}-byte limit.`);
-			}
+			xmlMaximumBytes = Math.max(xmlMaximumBytes, await confirmFileSizeWarning(entry.uncompressedSize,
+				DAWPROJECT_XML_LIMITS.maximumBytes, path, { confirmFileSizeWarning: options.confirmFileSizeWarning, signal }));
 			if (!entry.getData) throw new Error(`${path} cannot be read from the archive.`);
 			return stripByteOrderMark(await entry.getData<string>(new TextWriter('utf-8'), { signal }));
 		};
@@ -192,6 +195,7 @@ export async function readDawprojectArchive(
 			if (names && temporaryDirectory) await Promise.all([...names].map((name) => temporaryDirectory.removeEntry(name)));
 		};
 		return Object.freeze({
+			xmlMaximumBytes,
 			projectXml: projectXml ?? '',
 			metadataXml,
 			entryNames: Object.freeze([...byPath.keys()]),
@@ -201,9 +205,8 @@ export async function readDawprojectArchive(
 				if (closed) throw new Error('The DAWproject archive is closed.');
 				const entry = find(path);
 				if (!entry?.getData) return null;
-				if (entry.uncompressedSize > maximumEntryBytes) {
-					throw new RangeError(`${path} exceeds the ${String(maximumEntryBytes)}-byte entry limit.`);
-				}
+				await confirmFileSizeWarning(entry.uncompressedSize, maximumEntryBytes, path,
+					{ confirmFileSizeWarning: options.confirmFileSizeWarning, signal });
 				if (temporaryDirectory) {
 					const name = crypto.randomUUID();
 					const handle = await temporaryDirectory.getFileHandle(name, { create: true });

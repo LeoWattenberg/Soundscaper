@@ -32,6 +32,7 @@
 
 import type * as Bundle from './project-transfer-bundle.ts';
 import type * as Handshake from './project-transfer-handshake.ts';
+import { confirmFileSizeWarning, type FileSizeWarningConfirmation } from '../editor/controller/shared/file-size-warning.ts';
 import {
 	transferArchiveEvents,
 	transferArchiveTitle,
@@ -43,11 +44,13 @@ import {
 	type TransferArchiveSourceOptions,
 	type TransferExportFailure,
 	type TransferRuntime,
+	type TransferStreamEvent,
 } from './transfer-archive-stream.ts';
 
 import {
 	bufferTransferPort,
 	observeTransferAcknowledgements,
+	watchSenderTransferAbort,
 	type TransferSendPending,
 } from './transfer-send-watch.ts';
 
@@ -92,6 +95,7 @@ export type { TransferSendPending };
 export const TRANSFER_ACKNOWLEDGEMENT_TIMEOUT_MILLISECONDS = 600_000;
 
 export interface TransferChannelOptions {
+	readonly confirmFileSizeWarning?: FileSizeWarningConfirmation;
 	readonly port: Handshake.ProjectTransferPort;
 	readonly targetOrigin: string;
 	readonly allowedOrigins: readonly string[];
@@ -153,6 +157,8 @@ export interface SendTransferArchivesOptions
 	extends TransferChannelOptions, TransferArchiveSourceOptions {
 	readonly runtime: TransferRuntime;
 	readonly maximumTotalBytes?: number;
+	/** Build the producer after the peer's private cancellation lifetime exists. */
+	readonly archiveFactory?: (signal: AbortSignal) => AsyncIterable<TransferStreamEvent>;
 }
 
 /**
@@ -172,6 +178,18 @@ export interface SendTransferArchivesOptions
  */
 export async function sendTransferArchives(
 	options: SendTransferArchivesOptions,
+): Promise<TransferSendReport> {
+	const lifetime = watchSenderTransferAbort(options);
+	try {
+		lifetime.signal.throwIfAborted();
+		return await sendTransferArchivesWithLifetime({ ...options, port: lifetime.port, signal: lifetime.signal,
+			...(options.archiveFactory ? { archives: options.archiveFactory(lifetime.signal) } : {}),
+		}, lifetime.stopObserving);
+	} finally { lifetime.close(); }
+}
+
+async function sendTransferArchivesWithLifetime(
+	options: SendTransferArchivesOptions, finishExport: () => void,
 ): Promise<TransferSendReport> {
 	const { runtime } = requireTransferRuntime(options, 'sending transfer archives');
 	const maximumTotalBytes = admitTotalByteCeiling(options.maximumTotalBytes);
@@ -197,7 +215,8 @@ export async function sendTransferArchives(
 		}
 		if (event.kind === 'summary') continue;
 		byteLength += event.entry.byteLength;
-		if (byteLength > maximumTotalBytes) throw new TransferBudgetError(byteLength, maximumTotalBytes);
+		if (byteLength > maximumTotalBytes && !options.confirmFileSizeWarning) throw new TransferBudgetError(byteLength, maximumTotalBytes);
+		await confirmFileSizeWarning(byteLength, maximumTotalBytes, 'Project transfer archives', options);
 		offered.push(Object.freeze({
 			entryId: event.entry.projectId,
 			name: event.entry.fileName,
@@ -208,10 +227,12 @@ export async function sendTransferArchives(
 		titles.set(event.entry.projectId, event.entry.title);
 	}
 	const watch = observeTransferAcknowledgements(port, offered, options.allowedOrigins);
+	finishExport(); // The protocol now owns peer cancellation and its typed stop reason.
 	let report: Handshake.ProjectTransferReport | null = null;
 	let stopped: TransferStop | null = null;
 	try {
 		report = await runtime.sendTransfer({
+			confirmFileSizeWarning: options.confirmFileSizeWarning,
 			entries: offered,
 			port: watch.port,
 			targetOrigin: options.targetOrigin,
@@ -397,6 +418,7 @@ export async function receiveTransferArchives(
 	const records: TransferImportRecord[] = [];
 	const signal = options.signal ?? null;
 	const receive = runtime.receiveTransfer({
+		confirmFileSizeWarning: options.confirmFileSizeWarning,
 		sessionId: options.sessionId,
 		// Buffered here as well as on the page: a message that arrives between
 		// this port being built and the protocol subscribing to it is a message
@@ -408,10 +430,11 @@ export async function receiveTransferArchives(
 		clock: options.clock,
 		signal,
 		maxEntryBytes: TRANSFER_MAX_ARCHIVE_BYTES,
-		acceptEntry: async (entry) => {
+		acceptEntry: async (entry, request) => {
 			let record: TransferImportRecord;
 			try {
 				const result = await runtime.importBundle({
+					maximumEntryBytes: Math.max(entry.byteLength, TRANSFER_MAX_ARCHIVE_BYTES), confirmFileSizeWarning: options.confirmFileSizeWarning,
 					store,
 					importProject: runtime.importProject,
 					inspectProject: runtime.inspectProject,
@@ -421,7 +444,7 @@ export async function receiveTransferArchives(
 						bytes: entry.payload as Uint8Array<ArrayBuffer>,
 						conversionReportSidecar: entry.conversionReportSidecar,
 					}],
-					signal: signal ?? undefined,
+					signal: request?.signal ?? signal ?? undefined,
 				});
 				record = result.entries[0] ?? refusedImportRecord(entry, result.stopped, records.length);
 			} catch (error) {

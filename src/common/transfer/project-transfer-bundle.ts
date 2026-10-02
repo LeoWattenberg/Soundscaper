@@ -37,6 +37,7 @@ import {
 	crossProductHandoffProvenanceMatchesReport,
 	readCrossProductHandoffProvenance,
 } from './cross-product-handoff-provenance.ts';
+import { confirmFileSizeWarning } from '../editor/controller/shared/file-size-warning.ts';
 import {
 	admitProjectTransferBytes,
 	admitProjectTransferEntry,
@@ -157,17 +158,19 @@ async function exportOneProject(
 	const result = await admitted.exportProject(project, admitted.store, {
 		...(signal ? { signal } : {}),
 		maximumBlobBytes: maximumEntryBytes,
+		confirmFileSizeWarning: admitted.confirmFileSizeWarning,
 	});
 	const blob = result?.blob;
 	if (!(blob instanceof Blob)) {
 		throw new TypeError('The .scape export did not produce an archive blob.');
 	}
-	if (blob.size > maximumEntryBytes) {
+	if (blob.size > maximumEntryBytes && !admitted.confirmFileSizeWarning) {
 		throw new ProjectTransferRefusalError('entry-too-large',
 			`The .scape archive for ${project.id} is ${blob.size} bytes, over the ${maximumEntryBytes} byte entry limit.`);
 	}
+	const admittedBytes = await confirmFileSizeWarning(blob.size, maximumEntryBytes, `Project transfer archive ${project.id}`, admitted);
 	const bytes = new Uint8Array(await blob.arrayBuffer());
-	admitProjectTransferBytes(bytes, maximumEntryBytes, `The .scape archive for ${project.id}`);
+	admitProjectTransferBytes(bytes, admittedBytes, `The .scape archive for ${project.id}`);
 	const exportedIdentity = result as ProjectTransferArchiveExportResult;
 	const projectId = exportedIdentity.projectId === undefined
 		? project.id : admittedProjectTransferId(exportedIdentity.projectId);
@@ -233,7 +236,8 @@ export async function importProjectTransferBundle(
 		for await (const raw of admitted.entries) {
 			throwIfScapeAborted(signal);
 			if (index >= maximumEntries) throw projectTransferEntryLimitRefusal(maximumEntries);
-			const entry = admitProjectTransferEntry(raw, admitted.maximumEntryBytes, index);
+			const entry = admitProjectTransferEntry(raw, admitted.confirmFileSizeWarning ? Number.MAX_SAFE_INTEGER : admitted.maximumEntryBytes, index);
+			if (admitted.confirmFileSizeWarning) await confirmFileSizeWarning(entry.bytes.byteLength, admitted.maximumEntryBytes, 'Project transfer archive', admitted);
 			onProgress?.(Object.freeze({
 				stage: 'import' as const,
 				completed: index,
@@ -269,6 +273,7 @@ async function importOneEntry(
 	try {
 		inspected = asProjectTransferRecord(await admitted.inspectProject(
 			admitted.toArchiveInput(entry.bytes), store, {
+				confirmFileSizeWarning: admitted.confirmFileSizeWarning,
 				...(signal ? { signal } : {}),
 				...(entry.conversionReportSidecar === null ? {} : { canonicalProjectDigest: true }),
 			},
@@ -412,7 +417,7 @@ async function importAdmittedArchive(
 		// that appears between inspect and import refuses instead of landing a copy.
 		const result = asProjectTransferRecord(await admitted.importProject(
 			admitted.toArchiveInput(entry.bytes), witness.store,
-			{ ...(signal ? { signal } : {}), collision: 'cancel' },
+			{ ...(signal ? { signal } : {}), collision: 'cancel', confirmFileSizeWarning: admitted.confirmFileSizeWarning },
 		));
 		if (result.readOnly === true) {
 			return transferRecord({

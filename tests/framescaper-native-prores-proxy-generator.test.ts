@@ -422,7 +422,7 @@ test('a claim that is not an exact ProRes Proxy output claim is refused without 
 	};
 	for (const claim of [
 		null, [valid], { ...valid, claimId: 'short' }, { ...valid, byteLength: 0 },
-		{ ...valid, byteLength: 1.5 }, { ...valid, byteLength: 512 * 1024 ** 2 + 1 },
+		{ ...valid, byteLength: 1.5 }, { ...valid, byteLength: Number.MAX_SAFE_INTEGER + 1 },
 		{ ...valid, sha256: 'not-a-digest' }, { ...valid, mimeType: 'video/mp4' },
 	]) {
 		const self = world();

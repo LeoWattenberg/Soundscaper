@@ -222,6 +222,7 @@ function deviceOptions(options) {
 		...(options.quota == null ? {} : { quota: Number(options.quota) }),
 		...(options.usage == null ? {} : { usage: Number(options.usage) }),
 		workingBytes: Math.max(0, Number(options.workingBytes) || 0),
+		fileSizeWarningApproved: options.fileSizeWarningApproved === true,
 		maxBytes: options.maxBytes == null ? effectiveAup4SaveLimit({
 			opfs: options.opfs !== false,
 			mobile,

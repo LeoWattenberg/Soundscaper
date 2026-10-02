@@ -2,7 +2,9 @@
 @import './audio-editor-design-system/01-tokens-base.css';
 @import './audio-editor-design-system/02-overlays-search.css';
 @import './audio-editor-design-system/02a-toolbar-settings.css';
+@import './audio-editor-design-system/02b-toolbar-docking.css';
 @import './audio-editor-design-system/03-shell-toolbars-meters.css';
+@import './audio-editor-design-system/03a-meter-workspace-panel.css';
 @import './audio-editor-design-system/04-shell-workspace.css';
 @import './audio-editor-design-system/04a-workspace-panel-docking.css';
 @import './audio-editor-design-system/05-panels-project-bin.css';
@@ -21,6 +23,7 @@
 @import './audio-editor-design-system/10a-effect-picker-actions.css';
 @import './audio-editor-design-system/10b-dialog-export.css';
 @import './audio-editor-design-system/11-panels-dialogs-generators.css';
+@import './audio-editor-design-system/11a-clip-properties-panel.css';
 @import './audio-editor-design-system/12-dialogs-preferences-responsive.css';
 @import './audio-editor-design-system/13-responsive-accessibility.css';
 @import './audio-editor-design-system/14-task-progress.css';

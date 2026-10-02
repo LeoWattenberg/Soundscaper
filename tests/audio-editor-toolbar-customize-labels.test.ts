@@ -18,7 +18,7 @@ test('the customize-toolbar flyout calls the time display "Timecode" in both loc
 });
 
 test('the playhead label keeps naming the timeline cursor and timecode aria-labels', async () => {
-	const transport = await readFile(new URL('../src/common/editor/ui/toolbar/AudioEditorTransportControls.jsx', import.meta.url), 'utf8');
-	assert.match(transport, /ariaLabel=\{`\$\{copy\.playhead\}: \$\{copy\.format\}`\}/u);
+	const timecode = await readFile(new URL('../src/common/editor/ui/toolbar/TelemetryTimeCode.tsx', import.meta.url), 'utf8');
+	assert.match(timecode, /label=\{`\$\{copy\.playhead\}: \$\{copy\.format\}`\}/u);
 	assert.equal(ENGLISH_COPY.playhead, 'Playhead');
 });

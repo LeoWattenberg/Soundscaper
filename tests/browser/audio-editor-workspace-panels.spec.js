@@ -11,7 +11,7 @@ import {
 	chooseNestedCommandAction,
 	clipByName,
 	clipField,
-	closeDialog,
+	closeClipProperties,
 	closeWorkspacePanel,
 	collectClientErrors,
 	dockWorkspacePanel,
@@ -520,7 +520,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(projectBin.locator('[data-project-bin-item]')).toHaveCount(2);
 		const droppedClipDialog = await openClipProperties(page, editor, clipByName(editor, monoTone.name));
 		await expect.poll(async () => Number(await clipField(droppedClipDialog, 'startFrame').inputValue())).toBeGreaterThan(0);
-		await closeDialog(droppedClipDialog);
+		await closeClipProperties(droppedClipDialog);
 	});
 
 	test('suppresses the default Project bin on compact mobile until explicitly opened', async ({ page }) => {

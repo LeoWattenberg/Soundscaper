@@ -6,7 +6,7 @@ import {
 	chooseCustomChannelMapping,
 	chooseDropdown,
 	clipByName,
-	closeDialog,
+	closeClipProperties,
 	collectClientErrors,
 	commitInput,
 	disableNativeSavePicker,
@@ -53,7 +53,7 @@ test.describe('inspector helper workflows', () => {
 		await expect(properties.getByRole('alert')).toHaveCount(0);
 		await expect(pitch).toHaveValue('10.000');
 
-		await closeDialog(properties);
+		await closeClipProperties(properties);
 		expect(errors).toEqual([]);
 	});
 

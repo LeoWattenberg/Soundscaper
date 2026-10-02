@@ -84,6 +84,30 @@ test('workspace presets retain their product-specific layout defaults', () => {
 	assert.notEqual(modern.workspace.panels, AUDIO_EDITOR_WORKSPACE_PRESETS.modern.panels);
 });
 
+test('switching to Classic hides Clock and meter panels opened in another workspace', () => {
+	const preferences = createAudioEditorPreferencesV1({
+		workspace: {
+			activeId: 'modern',
+			panels: {
+				clock: { visible: true, dock: 'top', order: 0 },
+				'playback-meter': { visible: true, dock: 'left', order: 0 },
+				'recording-meter': { visible: true, dock: 'bottom', order: 0 },
+			},
+		},
+	});
+	for (const panelId of ['clock', 'playback-meter', 'recording-meter']) {
+		assert.equal(preferences.workspace.panels[panelId].visible, true, panelId);
+	}
+
+	const classic = applyAudioEditorWorkspace(preferences, 'classic');
+	assert.equal(classic.workspace.activeId, 'classic');
+	for (const panelId of ['clock', 'playback-meter', 'recording-meter']) {
+		assert.equal(classic.workspace.panels[panelId].visible, false, panelId);
+	}
+	assert.equal(classic.workspace.toolbarButtons['time-display'], true);
+	assert.equal(classic.workspace.panels.effects.visible, true);
+});
+
 test('the Audacity preset mirrors the 4.0.0 Modern layout while the others keep the new chrome hidden', () => {
 	const audacity = AUDIO_EDITOR_WORKSPACE_PRESETS.audacity;
 	const modern = AUDIO_EDITOR_WORKSPACE_PRESETS.modern;

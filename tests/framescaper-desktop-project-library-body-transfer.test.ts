@@ -249,7 +249,7 @@ test('preflight refuses extension metadata that contradicts its project authorit
 	const authority = /body conflicts with project authority/u;
 	const binding = /framescaper-still metadata conflicts with its project binding/u;
 	for (const [key, overrides, message] of [
-		[STILL_KEY, { size: 512 * 1024 * 1024 + 1 }, authority], [LUT_KEY, { size: LUT.byteLength + 1 }, authority],
+		[STILL_KEY, { size: Number.MAX_SAFE_INTEGER + 1 }, /metadata is incomplete/u], [LUT_KEY, { size: LUT.byteLength + 1 }, authority],
 		[LUT_KEY, { sha256: 'cd'.repeat(32) }, authority], [STILL_KEY, { mimeType: 'image/jpeg' }, authority],
 		[STILL_KEY, { kind: 'framescaper-still' }, binding], [STILL_KEY, { encoding: 'freeze-render-v1' }, binding],
 	] as const) {
@@ -312,7 +312,7 @@ test('preflight refuses a baseline inventory that exceeds its aggregate byte bud
 			size: 512 * 1024 * 1024, sha256: key.replace('still-body-', '').padStart(64, '0') }),
 		loadMediaAsset: () => { throw new Error('an unselected body is never loaded'); },
 	} as unknown as FramescaperDesktopBodyStore, undefined, () => false),
-	/exceed their aggregate byte limit/u);
+	/size warning threshold/u);
 });
 
 function uploadMetadata(descriptor: Descriptor, overrides: Data = {}): Data {

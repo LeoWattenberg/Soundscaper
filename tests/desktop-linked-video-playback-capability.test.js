@@ -22,8 +22,8 @@ const FOUR_MIB = 4 * 1024 ** 2;
 
 test('linked-video playback admission is explicitly count- and byte-bounded', async (context) => {
 	assert.equal(MAX_LINKED_VIDEO_PLAYBACK_CAPABILITIES, 128);
-	assert.equal(MAX_LINKED_VIDEO_PLAYBACK_CAPABILITY_BYTES, 64 * 1024 ** 3);
-	assert.equal(MAX_LINKED_VIDEO_PLAYBACK_CAPABILITY_FILE_BYTES, 512 * 1024 ** 2);
+	assert.equal(MAX_LINKED_VIDEO_PLAYBACK_CAPABILITY_BYTES, Number.MAX_SAFE_INTEGER);
+	assert.equal(MAX_LINKED_VIDEO_PLAYBACK_CAPABILITY_FILE_BYTES, Number.MAX_SAFE_INTEGER);
 	assert.equal(MAX_LINKED_VIDEO_PLAYBACK_RANGE_RESPONSE_BYTES, FOUR_MIB);
 	assert.equal(MAX_LINKED_VIDEO_PLAYBACK_REQUESTS, 16);
 	const handles = [fakeHandle(6), fakeHandle(4), fakeHandle(7)];
@@ -75,17 +75,30 @@ test('playback admission binds the opened handle to the locator file identity', 
 	assert.equal(replacement.closeCalls, 1);
 });
 
-test('one linked-video playback capability cannot exceed the locator file ceiling', async () => {
+test('one linked-video playback capability rejects unsafe file sizes before opening', async () => {
 	let opened = false;
 	const store = new ReadCapabilityStore({ openImpl: async () => { opened = true; } });
 	await assert.rejects(
 		store.registerLinkedOriginalRangePath('/tmp/oversized.mp4', playbackOptions(
 			MAX_LINKED_VIDEO_PLAYBACK_CAPABILITY_FILE_BYTES + 1,
 		)),
-		/file bytes|limit/iu,
+		/size|safe|identity|limit/iu,
 	);
 	assert.equal(opened, false);
 	await store.dispose();
+});
+
+test('an admitted large locator keeps its exact playback file identity and bounded range window', async (context) => {
+	const byteLength = 512 * 1024 ** 2 + 1;
+	const handle = fakeHandle(byteLength);
+	const store = new ReadCapabilityStore({ openImpl: async () => handle });
+	context.after(() => store.dispose());
+	const descriptor = await store.registerLinkedOriginalRangePath('/tmp/approved-large.mp4', playbackOptions(byteLength));
+	assert.equal(descriptor.size, byteLength);
+	assert.equal(descriptor.readProfile, READ_PROFILE_LINKED_VIDEO_RANGE_V1);
+	assert.equal(MAX_LINKED_VIDEO_PLAYBACK_RANGE_RESPONSE_BYTES, FOUR_MIB);
+	assert.equal(await store.release(descriptor.id, { owner: OWNER }), true);
+	assert.equal(handle.closeCalls, 1);
 });
 
 test('seek cancellation drains an admitted file read before releasing its request slot', async (context) => {

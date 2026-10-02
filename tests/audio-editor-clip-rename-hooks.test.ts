@@ -12,7 +12,7 @@ test('timeline clip rename paths require a selected focused clip and preserve in
 		readFile(new URL('vendor/audacity-design-system/components/src/ClipHeader/ClipHeader.tsx', ROOT), 'utf8'),
 		readFile(new URL('src/common/editor/ui/timeline/AudioTrackRow.jsx', ROOT), 'utf8'),
 		readFile(new URL('src/common/editor/ui/timeline/VideoTrackRow.jsx', ROOT), 'utf8'),
-		readFile(new URL('src/common/editor/ui/inspector/ClipPropertiesDialog.jsx', ROOT), 'utf8'),
+		readFile(new URL('src/common/editor/ui/inspector/ClipPropertiesBody.jsx', ROOT), 'utf8'),
 	]);
 
 	assert.match(track, /e\.key === 'F2'[\s\S]*?!e\.altKey[\s\S]*?!e\.ctrlKey[\s\S]*?!e\.metaKey[\s\S]*?!e\.shiftKey[\s\S]*?!e\.repeat[\s\S]*?clipSelected[\s\S]*?onClipRename/u);

@@ -104,6 +104,10 @@ export const DEFAULT_PANELS = Object.freeze({
 	freesound: Object.freeze({ visible: false, dock: 'right', order: 11, size: 400 }),
 	'recording-setup': Object.freeze({ visible: false, dock: 'bottom', order: 11, size: 420 }),
 	'web-vcr': Object.freeze({ visible: false, dock: 'bottom', order: 12, size: 640 }),
+	'playback-meter': Object.freeze({ visible: false, dock: 'right', order: 12, size: 240 }),
+	'recording-meter': Object.freeze({ visible: false, dock: 'right', order: 13, size: 240 }),
+	clock: Object.freeze({ visible: false, dock: 'floating', order: 14, size: 640 }),
+	'clip-properties': Object.freeze({ visible: false, dock: 'right', order: 15, size: 400 }),
 });
 
 export const DEFAULT_FLOATING_PANEL_GEOMETRY = Object.freeze({
@@ -120,6 +124,10 @@ export const DEFAULT_FLOATING_PANEL_GEOMETRY = Object.freeze({
 	freesound: Object.freeze({ x: 264, y: 208, width: 440, height: 560 }),
 	'recording-setup': Object.freeze({ x: 88, y: 88, width: 620, height: 520 }),
 	'web-vcr': Object.freeze({ x: 112, y: 64, width: 760, height: 620 }),
+	'playback-meter': Object.freeze({ x: 192, y: 96, width: 320, height: 520 }),
+	'recording-meter': Object.freeze({ x: 224, y: 128, width: 320, height: 520 }),
+	clock: Object.freeze({ x: 240, y: 160, width: 640, height: 200 }),
+	'clip-properties': Object.freeze({ x: 272, y: 192, width: 400, height: 520 }),
 });
 
 export const AUDIO_EDITOR_WORKSPACE_PRESETS = Object.freeze({
@@ -139,6 +147,10 @@ export const AUDIO_EDITOR_WORKSPACE_PRESETS = Object.freeze({
 			effects: Object.freeze({ visible: true, dock: 'left', order: 0, size: 360 }),
 			mixer: Object.freeze({ visible: false, dock: 'bottom', order: 4, size: 460 }),
 			markers: Object.freeze({ visible: false, dock: 'right', order: 5, size: 360 }),
+			'playback-meter': DEFAULT_PANELS['playback-meter'],
+			'recording-meter': DEFAULT_PANELS['recording-meter'],
+			clock: DEFAULT_PANELS.clock,
+			'clip-properties': DEFAULT_PANELS['clip-properties'],
 		}),
 	}),
 	music: Object.freeze({

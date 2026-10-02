@@ -326,7 +326,7 @@ test('save aliases delegate to the single serialized project save service', asyn
 	assert.equal(await fixture.service.flushProject(), 'saved');
 	assert.equal(scheduled, 1);
 	assert.deepEqual(flushes, [
-		{ prepareCurrentSnapshot: true, preparationPurpose: 'project-save' },
+		{ prepareCurrentSnapshot: true, preparationPurpose: 'project-save', allowFileSizeWarning: true },
 		{},
 	]);
 });

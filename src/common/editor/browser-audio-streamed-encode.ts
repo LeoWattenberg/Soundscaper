@@ -13,6 +13,7 @@ import { validateProfile } from './browser-dedicated-audio-profiles.ts';
 import { mp3CodecRateSettings, opusCodecRateSettings } from './media-export.js';
 import { streamFfmpegOutputFile, type FfmpegOutputSink } from './ffmpeg-output-stream.ts';
 import { validateStreamedAudioOutput } from './browser-streamed-audio-output-validation.ts';
+import { confirmFileSizeWarning } from './controller/shared/file-size-warning.ts';
 
 interface StreamMedia {
 	readonly channelCount: number;
@@ -65,15 +66,19 @@ export async function encodeBrowserAudioFileStreamed(
 	}) as StreamMedia;
 	if (media.sampleRate !== descriptor.sampleRate) throw new RangeError('The staged WAV must already have the requested export sample rate.');
 	assertStreamedBrowserCodecInput(format, media, descriptor.frameCount);
-	const maximum = settings.maximumOutputBytes ?? LARGE_AUDIO_FILE_BYTES;
-	if (!Number.isSafeInteger(maximum) || maximum < 1 || maximum > LARGE_AUDIO_FILE_BYTES) throw new RangeError('The audio export file-byte limit is invalid.');
+	let maximum = settings.maximumOutputBytes ?? LARGE_AUDIO_FILE_BYTES;
+	if (!Number.isSafeInteger(maximum) || maximum < 1) throw new RangeError('The audio export file-byte warning threshold is invalid.');
 	const sink = await (dependencies.createSink ?? defaultSink)();
+	if (!sink.persistent) maximum = Math.min(maximum, 96 * 1024 ** 2);
 	let byteLength = 0;
 	let session: BrowserAudioEncodeStreamSession | null = null;
 	const write = async (bytes: Uint8Array): Promise<void> => {
 		assertCurrent();
-		if (bytes.byteLength > maximum - byteLength) throw new RangeError('The encoded audio export exceeds its file-byte limit.');
-		if (!sink.persistent && bytes.byteLength > 96 * 1024 ** 2 - byteLength) throw new Error('Large compressed audio exports require origin-private file storage.');
+		if (!Number.isSafeInteger(byteLength + bytes.byteLength)) throw new RangeError('The encoded audio export exceeds the supported byte count.');
+		if (bytes.byteLength > maximum - byteLength) {
+			await confirmFileSizeWarning(byteLength + bytes.byteLength, maximum, 'Compressed audio export', { ...settings, assertCurrent });
+			maximum = Number.MAX_SAFE_INTEGER;
+		}
 		if (bytes.byteLength) await sink.write(bytes);
 		byteLength += bytes.byteLength;
 		assertCurrent();

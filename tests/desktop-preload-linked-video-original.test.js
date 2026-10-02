@@ -107,7 +107,7 @@ test('preload rejects malformed linked-video metadata and non-video read descrip
 	const cases = [
 		{ ...locator(), locatorId: 'wrong' },
 		{ ...locator(), name: '../selected.mp4' },
-		{ ...locator(), size: 512 * 1024 ** 2 + 1 },
+		{ ...locator(), size: Number.MAX_SAFE_INTEGER + 1 },
 		{ ...locator(), mimeType: 'audio/mp4' },
 	];
 	const choiceFixture = await loadPreload(cases);

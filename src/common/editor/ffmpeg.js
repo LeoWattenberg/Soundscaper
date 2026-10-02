@@ -236,7 +236,7 @@ export function createEditorFfmpeg(options = {}) {
 				}), -1, { signal });
 				if (code !== 0) throw new FfmpegEncodingError(normalizedFormat, code);
 				const data = await readBoundedFfmpegOutputFile(instance, output, {
-					label: 'Audio export', maximumBytes: settings.maximumOutputBytes, signal,
+					label: 'Audio export', maximumBytes: settings.maximumOutputBytes, signal, confirmFileSizeWarning: settings.confirmFileSizeWarning, assertCurrent: settings.assertCurrent,
 				});
 				return {
 					bytes: data,
@@ -286,7 +286,7 @@ export function createEditorFfmpeg(options = {}) {
 				}), -1, { signal });
 				if (code !== 0) throw new FfmpegEncodingError(normalizedFormat, code);
 				const data = await readBoundedFfmpegOutputFile(instance, output, {
-					label: 'Audio export', maximumBytes: settings.maximumOutputBytes, signal,
+					label: 'Audio export', maximumBytes: settings.maximumOutputBytes, signal, confirmFileSizeWarning: settings.confirmFileSizeWarning, assertCurrent: settings.assertCurrent,
 				});
 				return {
 					bytes: data,

@@ -43,6 +43,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 		automationToolEnabled,
 		blocked,
 		chromeDrawer,
+		clipPropertiesFocusRequest,
 		clearError,
 		compactLayout,
 		cueImportDialog,
@@ -95,7 +96,6 @@ export default function AudioEditorWorkspaceView({ model }) {
 		uploadClipToFreesound,
 		toolbarButtonPreferences,
 		toolbarDock,
-		toolbarDragRef,
 		toolbarProps,
 		trackHeaderDrawer,
 		uiFlags,
@@ -109,7 +109,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 		copy,
 		displayAudioSupported,
 		editBlocked,
-		fileService,
+		fileService, confirmFileSizeWarning,
 		locale,
 		preferences,
 		projectBinEffectivelyOpen,
@@ -123,14 +123,16 @@ export default function AudioEditorWorkspaceView({ model }) {
 	} = overlayModel;
 	const panelDockRuntime = createWorkspacePanelDockRuntime({
 		controller,
+		clipPropertiesFocusRequest,
 		snapshot,
 		productId,
 		capabilities,
 		copy,
 		locale,
-		fileService,
-		playbackMeterSettings,
-		run,
+		fileService, confirmFileSizeWarning,
+		playbackMeterSettings, recordingMeterSettings,
+		onPlaybackMeterSettingsChange: setPlaybackMeterSettings, onRecordingMeterSettingsChange: setRecordingMeterSettings,
+		clippingEnabled: uiFlags.clipping, run,
 		showArmControls,
 		displayAudioSupported,
 		onOpenEffects: openEffects,
@@ -350,11 +352,13 @@ export default function AudioEditorWorkspaceView({ model }) {
 				ref={workspaceRef}
 				className="kw-audio-editor__workspace"
 			>
+				{!compactLayout && toolbarDock === 'left' && <div className="kw-audio-editor__side-toolbar" data-toolbar-dock="left">{editorToolbar}</div>}
 				<WorkspacePanelDock {...panelDockRuntime} dock="left" aboutLabel={overlayModel.aboutLabel} />
 				{uiFlags.tracksPanel && <div className="kw-audio-editor__workspace-main">
+				<WorkspacePanelDock {...panelDockRuntime} dock="top" />
 				<main className="kw-audio-editor__canvas">
 					<AudioEditorTimeline
-						controller={controller}
+						controller={controller} confirmFileSizeWarning={confirmFileSizeWarning}
 						snapshot={snapshot}
 						runtimeProject={runtimeProject}
 						locale={locale}
@@ -371,7 +375,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 						spectralBrushEnabled={uiFlags.spectralBrush}
 						onError={onError}
 						onOpenEffects={openEffects}
-						onOpenClipProperties={(_clipId, field) => openSurface(field ? `clip-${field}` : 'clip')}
+						onOpenClipProperties={(clipId, field) => openSurface(field ? `clip-${field}` : 'clip', { clipId })}
 						onExportClip={(clipId) => {
 							const clip = project?.clips.find((candidate) => candidate.id === clipId);
 							if (!clip) return;
@@ -393,8 +397,10 @@ export default function AudioEditorWorkspaceView({ model }) {
 				<WorkspacePanelDock {...panelDockRuntime} dock="bottom" />
 				</div>}
 				<WorkspacePanelDock {...panelDockRuntime} dock="right" />
+				{!compactLayout && toolbarDock === 'right' && <div className="kw-audio-editor__side-toolbar" data-toolbar-dock="right">{editorToolbar}</div>}
 				{toolbarButtonPreferences['playback-volume'] !== false
 					&& playbackMeterSettings.position === 'side'
+					&& !preferences.workspace.panels['playback-meter']?.visible
 					&& <SidePlaybackMeter
 						controller={controller}
 						copy={copy}
@@ -406,6 +412,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 					/>}
 				{capabilities.audioRecording && toolbarButtonPreferences.monitor !== false
 					&& recordingMeterSettings.position === 'side'
+					&& !preferences.workspace.panels['recording-meter']?.visible
 					&& <SideRecordingMeter
 						controller={controller}
 						copy={copy}
@@ -448,8 +455,8 @@ export default function AudioEditorWorkspaceView({ model }) {
 				className="kw-audio-editor__floating-toolbar"
 				data-toolbar-dock="floating"
 				style={{
-					left: `${toolbarDragRef.current?.dock === 'floating' ? toolbarDragRef.current.x : floatingToolbarPosition.x}px`,
-					top: `${toolbarDragRef.current?.dock === 'floating' ? toolbarDragRef.current.y : floatingToolbarPosition.y}px`,
+					left: `${floatingToolbarPosition.x}px`,
+					top: `${floatingToolbarPosition.y}px`,
 				}}
 			>{editorToolbar}</div>}
 

@@ -459,7 +459,7 @@ test('auxiliary references beyond the browser count or byte bound are refused to
 	for (const presentations of [many, [huge]]) {
 		await assert.rejects(() => loadAssets(finishingNode({ visualPresentations: presentations })),
 			(error: unknown) => error instanceof RangeError
-				&& /exceed the browser export bound/u.test(error.message));
+				&& /exceed the browser export bound|size warning threshold/u.test(error.message));
 	}
 });
 

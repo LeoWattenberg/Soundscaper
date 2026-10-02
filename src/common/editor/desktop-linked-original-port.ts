@@ -109,7 +109,6 @@ const LOAD_FIELDS = Object.freeze(['locatorRevision', 'descriptor']);
 const DESCRIPTOR_FIELDS = Object.freeze([
 	'id', 'url', 'name', 'size', 'mimeType', 'readProfile', 'lastModified',
 ]);
-const MAXIMUM_MATERIALIZED_BYTES = 512 * 1024 ** 2;
 const MAXIMUM_REFERENCES = 128;
 
 /** Kind-aware materialized originals and owner-scoped platform range leases. */
@@ -485,7 +484,7 @@ function audioMimeType(value: unknown, name: string): 'audio/aiff' | 'audio/rf64
 
 function positiveMaterializedSize(value: unknown, label: string): number {
 	const size = nonnegativeSafeInteger(value, label);
-	if (size < 1 || size > MAXIMUM_MATERIALIZED_BYTES) {
+	if (size < 1) {
 		throw new RangeError(`${label} exceeds its materialized read limit.`);
 	}
 	return size;

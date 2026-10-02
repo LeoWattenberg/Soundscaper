@@ -28,6 +28,7 @@ import {
 import {
 	PROJECT_TRANSFER_MAX_ENTRIES,
 	PROJECT_TRANSFER_MAX_ENTRY_BYTES,
+	PROJECT_TRANSFER_DEFAULT_TOTAL_BYTES,
 	PROJECT_TRANSFER_PROTOCOL_VERSION,
 	type ProjectTransferEntry,
 	type ProjectTransferOutcome,
@@ -39,6 +40,8 @@ import {
 	describeProjectTransferReason,
 	projectTransferError,
 } from './project-transfer-handshake-wire.ts';
+import type { FileSizeWarningConfirmation } from '../editor/controller/shared/file-size-warning.ts';
+import { acceptTransferSizeOffer, negotiateTransferSizeOffer } from './project-transfer-size-warning.ts';
 
 export * from './project-transfer-handshake-wire.ts';
 export {
@@ -52,12 +55,14 @@ export type {
 } from './project-transfer-handshake-channel.ts';
 
 export interface ProjectTransferSenderOptions extends ProjectTransferChannelOptions {
+	readonly confirmFileSizeWarning?: FileSizeWarningConfirmation;
 	readonly entries: readonly ProjectTransferEntry[];
 }
 
 export interface ProjectTransferReceiverOptions extends ProjectTransferChannelOptions {
+	readonly confirmFileSizeWarning?: FileSizeWarningConfirmation;
 	readonly sessionId: string;
-	readonly acceptEntry: (entry: ProjectTransferEntry) => Promise<void> | void;
+	readonly acceptEntry: (entry: ProjectTransferEntry, request?: Readonly<{ signal: AbortSignal }>) => Promise<void> | void;
 	readonly maxEntries?: number;
 	readonly maxEntryBytes?: number;
 }
@@ -71,7 +76,7 @@ export async function sendProjectTransfer(
 	options: ProjectTransferSenderOptions,
 ): Promise<ProjectTransferReport> {
 	const settings = normalizeProjectTransferChannel(options);
-	const entries = normalizeOfferedEntries(options?.entries);
+	const entries = normalizeOfferedEntries(options?.entries, options.confirmFileSizeWarning ? Number.MAX_SAFE_INTEGER : PROJECT_TRANSFER_MAX_ENTRY_BYTES);
 	const channel = openProjectTransferChannel(settings);
 	return runProjectTransferRole(channel, async () => {
 		const ready = await expectProjectTransferKind(channel, 'ready');
@@ -84,7 +89,8 @@ export async function sendProjectTransfer(
 		}
 		channel.expectVersion(PROJECT_TRANSFER_PROTOCOL_VERSION);
 		channel.expectSession(ready.sessionId);
-		assertOfferFitsPeer(entries, ready.maxEntries, ready.maxEntryBytes);
+		assertOfferFitsPeer(entries, ready.maxEntries, options.confirmFileSizeWarning ? Number.MAX_SAFE_INTEGER : ready.maxEntryBytes);
+		await negotiateTransferSizeOffer(channel, ready.sessionId, entries, ready.maxEntryBytes, options);
 		channel.send({ ...envelopeFor(ready.sessionId), kind: 'begin', entryCount: entries.length });
 		const acknowledged: ProjectTransferOutcome[] = [];
 		for (const [index, entry] of entries.entries()) {
@@ -114,15 +120,23 @@ export async function receiveProjectTransfer(
 	const maxEntries = admitProjectTransferInteger(
 		options.maxEntries ?? PROJECT_TRANSFER_MAX_ENTRIES, 'maxEntries', 1, PROJECT_TRANSFER_MAX_ENTRIES,
 	);
-	const maxEntryBytes = admitProjectTransferInteger(
-		options.maxEntryBytes ?? PROJECT_TRANSFER_MAX_ENTRY_BYTES, 'maxEntryBytes', 1, PROJECT_TRANSFER_MAX_ENTRY_BYTES,
+	let maxEntryBytes = admitProjectTransferInteger(
+		options.maxEntryBytes ?? PROJECT_TRANSFER_MAX_ENTRY_BYTES, 'maxEntryBytes', 1, Number.MAX_SAFE_INTEGER,
 	);
 	const channel = openProjectTransferChannel(settings);
 	channel.expectVersion(PROJECT_TRANSFER_PROTOCOL_VERSION);
 	channel.expectSession(sessionId);
 	return runProjectTransferRole(channel, async () => {
 		channel.send({ ...envelopeFor(sessionId), kind: 'ready', maxEntries, maxEntryBytes });
-		const begin = await expectProjectTransferKind(channel, 'begin');
+		const byteBudget = { bytes: 0, maximumBytes: PROJECT_TRANSFER_DEFAULT_TOTAL_BYTES };
+		let declaredTotalBytes: number | null = null;
+		let begin = await channel.next();
+		if (begin.kind === 'size-offer') {
+			maxEntryBytes = await acceptTransferSizeOffer(channel, sessionId, begin, maxEntryBytes, options);
+			byteBudget.maximumBytes = begin.totalBytes; declaredTotalBytes = begin.totalBytes;
+			begin = await expectProjectTransferKind(channel, 'begin');
+		}
+		if (begin.kind !== 'begin') throw projectTransferError('UNEXPECTED_MESSAGE', 'Expected transfer begin after size admission.');
 		if (begin.entryCount > maxEntries) {
 			throw projectTransferError(
 				'TOO_MANY_ENTRIES',
@@ -134,9 +148,10 @@ export async function receiveProjectTransfer(
 		const seen = new Set<string>();
 		for (let index = 0; index < begin.entryCount; index += 1) {
 			outcomes.push(await receiveOneEntry({
-				channel, sessionId, sequence: index + 1, seen, maxEntryBytes, acceptEntry,
+				channel, sessionId, sequence: index + 1, seen, maxEntryBytes, acceptEntry, byteBudget,
 			}));
 		}
+		if (declaredTotalBytes !== null && byteBudget.bytes !== declaredTotalBytes) throw projectTransferError('INVALID_FIELD', 'The transfer payload total differs from its approved offer.');
 		await expectProjectTransferKind(channel, 'complete');
 		channel.send({ ...envelopeFor(sessionId), kind: 'report', outcomes });
 		return buildTransferReport(sessionId, outcomes);
@@ -174,12 +189,13 @@ async function sendOneEntry(
 }
 
 interface ReceiveEntryContext {
+	readonly byteBudget: { bytes: number; maximumBytes: number };
 	readonly channel: ProjectTransferChannel;
 	readonly sessionId: string;
 	readonly sequence: number;
 	readonly seen: Set<string>;
 	readonly maxEntryBytes: number;
-	readonly acceptEntry: (entry: ProjectTransferEntry) => Promise<void> | void;
+	readonly acceptEntry: ProjectTransferReceiverOptions['acceptEntry'];
 }
 
 async function receiveOneEntry(context: ReceiveEntryContext): Promise<ProjectTransferOutcome> {
@@ -203,6 +219,10 @@ async function receiveOneEntry(context: ReceiveEntryContext): Promise<ProjectTra
 			'byteLength',
 		);
 	}
+	if (message.byteLength > context.byteBudget.maximumBytes - context.byteBudget.bytes) {
+		throw projectTransferError('PAYLOAD_TOO_LARGE', 'The transfer payload exceeds its admitted total size.');
+	}
+	context.byteBudget.bytes += message.byteLength;
 	const entry: ProjectTransferEntry = Object.freeze({
 		entryId: message.entryId,
 		name: message.name,
@@ -213,7 +233,9 @@ async function receiveOneEntry(context: ReceiveEntryContext): Promise<ProjectTra
 	let status: ProjectTransferStatus = 'stored';
 	let reason = '';
 	try {
-		await context.acceptEntry(entry);
+		channel.signal.throwIfAborted();
+		await context.acceptEntry(entry, { signal: channel.signal });
+		channel.signal.throwIfAborted();
 	} catch (error) {
 		status = 'failed';
 		reason = describeProjectTransferReason(error) || 'The entry could not be stored.';
@@ -224,7 +246,7 @@ async function receiveOneEntry(context: ReceiveEntryContext): Promise<ProjectTra
 	return outcomeFor(entry, status, reason);
 }
 
-function normalizeOfferedEntries(value: unknown): readonly ProjectTransferEntry[] {
+function normalizeOfferedEntries(value: unknown, maximumBytes: number): readonly ProjectTransferEntry[] {
 	if (!Array.isArray(value)) throw new TypeError('A project transfer requires an array of entries.');
 	if (value.length > PROJECT_TRANSFER_MAX_ENTRIES) {
 		throw projectTransferError(
@@ -236,7 +258,7 @@ function normalizeOfferedEntries(value: unknown): readonly ProjectTransferEntry[
 	const entries: ProjectTransferEntry[] = [];
 	const seen = new Set<string>();
 	for (const held of value as readonly unknown[]) {
-		const entry = admitProjectTransferEntry(held, PROJECT_TRANSFER_MAX_ENTRY_BYTES);
+		const entry = admitProjectTransferEntry(held, maximumBytes);
 		if (seen.has(entry.entryId)) {
 			throw projectTransferError('INVALID_FIELD', `Entry ${entry.entryId} is offered twice.`, 'entryId');
 		}

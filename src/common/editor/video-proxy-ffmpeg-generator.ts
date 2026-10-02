@@ -34,6 +34,7 @@ import {
 	VIDEO_PROXY_GENERATION_OUTPUT,
 	VIDEO_PROXY_GENERATION_RECIPE,
 } from './video-proxy-generation.ts';
+import { confirmFileSizeWarning, type FileSizeWarningConfirmation } from './controller/shared/file-size-warning.ts';
 
 const GENERATOR_ID = 'framescaper-video-proxy-ffmpeg-v1';
 const GENERATOR_VERSION = 1;
@@ -55,6 +56,8 @@ export class VideoProxyGenerationError extends Error {
 }
 
 export interface VideoProxyGeneratorDependencies {
+	readonly confirmFileSizeWarning?: FileSizeWarningConfirmation;
+	readonly maximumBytes?: number;
 	/** The same leased runtime the trim rewriter and timing probe are lent. */
 	runOperation<Output>(
 		operation: (lease: FfmpegMediaFileLease) => Promise<Output>,
@@ -100,6 +103,8 @@ export function createFfmpegVideoProxyGenerator(
 					if (!produced.byteLength) {
 						throw new Error('FFmpeg produced an empty video proxy body.');
 					}
+					await confirmFileSizeWarning(produced.byteLength, dependencies.maximumBytes ?? 512 * 1024 * 1024, 'Video proxy',
+						{ confirmFileSizeWarning: dependencies.confirmFileSizeWarning, signal: options.signal, assertCurrent: options.assertCurrent });
 					// Last, so a source that was relinked, reprobed, or removed while the
 					// encode ran cannot hand back a body for the source it used to be.
 					options.assertCurrent();

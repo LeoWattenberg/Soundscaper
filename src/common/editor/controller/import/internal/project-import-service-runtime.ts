@@ -413,7 +413,7 @@ export function createProjectImportServiceRuntime(runtime: ProjectImportRuntime)
 		const { isStreamedAudioImportFile, scanEncodedAudioMarkers, decodeStandaloneAudioForImport } = await loadImportAdmissionExecution();
 		if (isStreamedAudioImportFile(file)) {
 			const { importStreamedAudioFile } = await import('./streamed-audio-import-service.ts');
-			return importStreamedAudioFile(file, attributedImportOptions, ffmpeg, wavMetadata,
+			return importStreamedAudioFile(file, { ...attributedImportOptions, confirmFileSizeWarning: runtime.confirmFileSizeWarning }, ffmpeg, wavMetadata,
 				importIncrementalPcm, assertImportProjectCurrent);
 		}
 		await preflightStorage(Math.max(file.size * 8, 8 * 1024 * 1024), 'import');

@@ -9,6 +9,7 @@ import type {
 	createDesktopVideoCodecOperationRunner,
 	DesktopVideoCodecRendererBridge,
 } from './desktop-video-codec-runtime.ts';
+import type { FileSizeWarningConfirmation } from './controller/shared/file-size-warning.ts';
 
 export class DesktopCodecRuntimeUnavailableError extends Error {
 	readonly code = 'DESKTOP_CODEC_RUNTIME_UNAVAILABLE';
@@ -31,7 +32,10 @@ const CAPABILITIES = createMediaExportCapabilities({
  */
 export function createEditorCodecRuntime(options: unknown = {}) {
 	const audioBridge = desktopAudioCodecBridge(options);
-	const base = audioBridge === null ? unavailableRuntime() : createDesktopAudioCodecRuntime(audioBridge);
+	const confirmation = options && typeof options === 'object' ? (options as { confirmFileSizeWarning?: unknown }).confirmFileSizeWarning : undefined;
+	if (confirmation !== undefined && typeof confirmation !== 'function') throw new TypeError('The desktop codec file-size warning callback must be a function.');
+	const base = audioBridge === null ? unavailableRuntime() : createDesktopAudioCodecRuntime(audioBridge,
+		{ confirmFileSizeWarning: confirmation as FileSizeWarningConfirmation | undefined });
 	const videoBridge = desktopVideoCodecBridge(options);
 	if (videoBridge === null) return base;
 	// Video encoding starts only from an opted-in export operation. Keep its

@@ -4,7 +4,7 @@ import {
 	chooseCommandAction,
 	clipByName,
 	clipField,
-	closeDialog,
+	closeClipProperties,
 	collectClientErrors,
 	importFiles,
 	openClipProperties,
@@ -26,7 +26,7 @@ async function setupBoundaryClips(page) {
 	const properties = await openClipProperties(page, editor, anchor);
 	await clipField(properties, 'startFrame').fill(String(ANCHOR_START_FRAME));
 	await clipField(properties, 'startFrame').press('Tab');
-	await closeDialog(properties);
+	await closeClipProperties(properties);
 	await expect.poll(async () => (await anchor.boundingBox())?.x ?? 0).toBeGreaterThan(250);
 	return { editor, anchor, moving: clipByName(editor, toneB.name) };
 }
@@ -34,7 +34,7 @@ async function setupBoundaryClips(page) {
 async function startFrame(page, editor, clip) {
 	const properties = await openClipProperties(page, editor, clip);
 	const frame = Number(await clipField(properties, 'startFrame').inputValue());
-	await closeDialog(properties);
+	await closeClipProperties(properties);
 	return frame;
 }
 
@@ -42,7 +42,7 @@ async function resetMovingClip(page, editor, moving) {
 	const properties = await openClipProperties(page, editor, moving);
 	await clipField(properties, 'startFrame').fill('0');
 	await clipField(properties, 'startFrame').press('Tab');
-	await closeDialog(properties);
+	await closeClipProperties(properties);
 }
 
 async function beginNearBoundaryClipDrag(page, anchor, moving, targetAnchorTrack = false) {

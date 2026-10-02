@@ -72,9 +72,39 @@ test('encoded file-byte limits stop staging before the over-budget packet is wri
 			async finish() { throw new Error('Finish must not run after refusal.'); },
 			close() {},
 		}),
-	}), /file-byte limit/u);
+	}), /size warning threshold/u);
 	assert.equal(sink.parts.length, 0);
 	assert.equal(sink.aborted, true);
+});
+
+test('accepting the file-size warning resumes staged packets and declining removes the staging file', async () => {
+	const wav = new Blob([Uint8Array.from(encodeWav([new Float32Array(20_000)], { sampleRate: 48_000, float: true }))]);
+	for (const accept of [true, false]) {
+		const sink = sinkFixture();
+		let warnings = 0;
+		const exporting = encodeBrowserAudioFileStreamed(wav, 'mp3', {
+			maximumOutputBytes: 1,
+			async confirmFileSizeWarning(warning) {
+				warnings++;
+				assert.equal(sink.parts.length, 0);
+				assert.equal(warning.thresholdBytes, 1);
+				return accept;
+			},
+		}, createMediaExportCapabilities(), {
+			createSink: async () => sink, validateOutput: async () => undefined,
+			openSession: async () => ({
+				async write() { return Uint8Array.of(1, 2); },
+				async finish() { return { bytes: Uint8Array.of(3), prefixPatch: new Uint8Array() }; }, close() {},
+			}),
+		});
+		if (accept) assert.equal((await exporting).blob.size, 5);
+		else {
+			await assert.rejects(exporting, { name: 'AbortError' });
+			assert.equal(sink.aborted, true);
+			assert.equal(sink.parts.length, 0);
+		}
+		assert.equal(warnings, 1);
+	}
 });
 
 test('a closed but malformed encoded file is refused before publication and staging is removed', async () => {

@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { FileSizeWarningOptions } from '../common/editor/controller/shared/file-size-warning.ts';
 import type { ScapeManifest } from '../common/editor/scape-archive-envelope.ts';
 import type { PlannedScapeExportAsset } from '../common/editor/scape-export-plan.ts';
 import type { VideoCubeLutReferenceV1 } from '../common/editor/video-color-management-v27.ts';
@@ -32,9 +33,10 @@ export async function planFramescaperScapeExportAssetsFinishing(
 	project: FramescaperProjectFinishing,
 	store: FramescaperDurableScapeMetadataStore,
 	signal?: AbortSignal,
+	warningOptions: FileSizeWarningOptions = {},
 ): Promise<readonly PlannedScapeExportAsset[]> {
 	return planFramescaperDurableScapeExportAssets(
-		collectFramescaperScapeAssetReferencesFinishing(project), store, 'finishing', signal,
+		collectFramescaperScapeAssetReferencesFinishing(project), store, 'finishing', signal, warningOptions,
 	);
 }
 

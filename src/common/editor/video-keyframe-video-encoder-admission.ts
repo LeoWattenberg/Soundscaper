@@ -40,7 +40,7 @@ const REQUEST_FIELDS = new Set([
 	'frameSource', 'producer', 'format', 'quality', 'webCodecs', 'audioMix', 'ringCapacityBytes',
 	'audioRingCapacityBytes', 'maximumAudioBytes',
 	'maximumWidth', 'maximumHeight', 'maximumFrameCount', 'maximumTotalRgbaBytes',
-	'maximumOutputBytes', 'maximumOutputChunkBytes', 'signal', 'assertCurrent',
+	'maximumOutputBytes', 'maximumOutputChunkBytes', 'signal', 'assertCurrent', 'confirmFileSizeWarning',
 ]);
 const WORKLOAD_OPTION_FIELDS = [
 	'ringCapacityBytes', 'audioRingCapacityBytes', 'maximumWidth', 'maximumHeight',
@@ -68,7 +68,7 @@ export function normalizeRequest(value: VideoKeyframeVideoEncoderRequest, deskto
 	}
 	const maximumOutputBytes = boundedMaximum(
 		optional(record, 'maximumOutputBytes', outputLimit),
-		outputLimit,
+		Number.MAX_SAFE_INTEGER,
 		'maximumOutputBytes',
 	);
 	const maximumOutputChunkBytes = boundedMaximum(
@@ -92,11 +92,12 @@ export function normalizeRequest(value: VideoKeyframeVideoEncoderRequest, deskto
 	}
 	const maximumAudioBytes = boundedMaximum(
 		optional(record, 'maximumAudioBytes', audioLimit),
-		audioLimit,
+		Number.MAX_SAFE_INTEGER,
 		'maximumAudioBytes',
 	);
 	const signal = optionalSignal(record, 'signal');
 	const assertCurrent = optionalFunction(record, 'assertCurrent');
+	const confirmFileSizeWarning = optionalFunction(record, 'confirmFileSizeWarning');
 	const webCodecs = Object.hasOwn(record, 'webCodecs')
 		? data(record, 'webCodecs', 'video keyframe video encoder request')
 		: undefined;
@@ -116,6 +117,7 @@ export function normalizeRequest(value: VideoKeyframeVideoEncoderRequest, deskto
 		maximumOutputChunkBytes,
 		...(signal ? { signal } : {}),
 		...(assertCurrent ? { assertCurrent } : {}),
+		...(confirmFileSizeWarning ? { confirmFileSizeWarning } : {}),
 	};
 	for (const key of WORKLOAD_OPTION_FIELDS) {
 		if (Object.hasOwn(record, key)) result[key] = data(record, key, 'video keyframe video encoder request');

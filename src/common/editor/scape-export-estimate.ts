@@ -54,9 +54,6 @@ export function resolveScapeBlobMaximumBytes(value: unknown): number {
 	const maximum = value == null
 		? SCAPE_WEB_CORE_BLOB_MAXIMUM_BYTES
 		: positiveSafeInteger(value, 'Scape final Blob maximum bytes');
-	if (maximum > SCAPE_WEB_CORE_BLOB_MAXIMUM_BYTES) {
-		throw new RangeError('The Scape final Blob assembly limit cannot exceed the hard limit.');
-	}
 	return maximum;
 }
 

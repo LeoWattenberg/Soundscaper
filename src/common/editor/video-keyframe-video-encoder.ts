@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { FileSizeWarningConfirmation } from './controller/shared/file-size-warning.ts';
 import { admitVideoKeyframeAudioInput } from './video-keyframe-audio-input.ts';
 import {
 	admitVideoKeyframeEncoderWorkload,
@@ -85,6 +86,7 @@ export interface VideoKeyframeVideoEncoderRequest {
 	readonly maximumFrameCount?: number;
 	readonly maximumTotalRgbaBytes?: number;
 	readonly maximumOutputBytes?: number;
+	readonly confirmFileSizeWarning?: FileSizeWarningConfirmation;
 	readonly maximumOutputChunkBytes?: number;
 	readonly signal?: AbortSignal;
 	readonly assertCurrent?: () => void;
@@ -154,7 +156,7 @@ export async function encodeVideoKeyframeVideo(
 					source: lease,
 					path,
 					format: request.format,
-					maximumBytes: request.maximumOutputBytes,
+					maximumBytes: request.maximumOutputBytes, confirmFileSizeWarning: request.confirmFileSizeWarning,
 					maximumChunkBytes: request.maximumOutputChunkBytes,
 					signal: request.signal,
 					assertCurrent: request.assertCurrent,
@@ -170,7 +172,7 @@ export async function encodeVideoKeyframeVideo(
 					source: nativeOutputSource(bytes),
 					path,
 					format: request.format,
-					maximumBytes: request.maximumOutputBytes,
+					maximumBytes: request.maximumOutputBytes, confirmFileSizeWarning: request.confirmFileSizeWarning,
 					maximumChunkBytes: request.maximumOutputChunkBytes,
 					signal: request.signal,
 					assertCurrent: request.assertCurrent,
@@ -208,7 +210,7 @@ export async function encodeVideoKeyframeVideoToSink<Output>(
 						source: lease,
 						path,
 						format: request.format,
-						maximumBytes: request.maximumOutputBytes,
+						maximumBytes: request.maximumOutputBytes, confirmFileSizeWarning: request.confirmFileSizeWarning,
 						maximumChunkBytes: request.maximumOutputChunkBytes,
 						signal: request.signal,
 						assertCurrent: request.assertCurrent,
@@ -219,7 +221,7 @@ export async function encodeVideoKeyframeVideoToSink<Output>(
 						source: nativeOutputSource(bytes),
 						path,
 						format: request.format,
-						maximumBytes: request.maximumOutputBytes,
+						maximumBytes: request.maximumOutputBytes, confirmFileSizeWarning: request.confirmFileSizeWarning,
 						maximumChunkBytes: request.maximumOutputChunkBytes,
 						signal: request.signal,
 						assertCurrent: request.assertCurrent,
@@ -269,7 +271,7 @@ async function encodeManaged<Output>(
 		assertReady(request.signal, request.assertCurrent);
 		const audioSource = request.audioMix
 			? await admitVideoKeyframeAudioInput(request.audioMix, {
-				maximumBytes: request.maximumAudioBytes,
+				maximumBytes: request.maximumAudioBytes, confirmFileSizeWarning: request.confirmFileSizeWarning,
 				...(request.signal ? { signal: request.signal } : {}),
 				...(request.assertCurrent ? { assertCurrent: request.assertCurrent } : {}),
 			}, request.desktopExternalFfmpeg ? Number.MAX_SAFE_INTEGER : undefined)
@@ -313,7 +315,7 @@ async function encodeManaged<Output>(
 				producer: managedProducer.value,
 				webCodecs: request.webCodecs,
 				...(audioSource ? { audioSource, audioBitrate } : {}),
-				maximumOutputBytes: request.maximumOutputBytes,
+				maximumOutputBytes: request.maximumOutputBytes, confirmFileSizeWarning: request.confirmFileSizeWarning,
 				...(request.signal ? { signal: request.signal } : {}),
 				...(request.assertCurrent ? { assertCurrent: request.assertCurrent } : {}),
 			});

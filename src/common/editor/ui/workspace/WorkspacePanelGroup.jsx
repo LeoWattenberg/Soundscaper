@@ -61,7 +61,7 @@ export default function WorkspacePanelGroup({
 			maxWidth: floatingBounds.width ? `${Math.max(1, floatingBounds.width - geometry.x)}px` : '100%',
 			maxHeight: floatingBounds.height ? `${Math.max(1, floatingBounds.height - geometry.y)}px` : '100%',
 		}
-		: dock === 'bottom' ? undefined : { '--workspace-panel-size': `${activePanel.size}px` };
+		: dock === 'top' || dock === 'bottom' ? undefined : { '--workspace-panel-size': `${activePanel.size}px` };
 
 	useEffect(() => {
 		if (!draggedPanelId) setDropPreview(null);
@@ -77,8 +77,9 @@ export default function WorkspacePanelGroup({
 		onKeyDown: (event) => {
 			if (adjustFloatingPanelGeometry(event, panelId, panel, 'move')) return;
 			if (grouped) return;
-			const backwards = dock === 'bottom' ? event.key === 'ArrowLeft' : event.key === 'ArrowUp';
-			const forwards = dock === 'bottom' ? event.key === 'ArrowRight' : event.key === 'ArrowDown';
+			const horizontal = dock === 'top' || dock === 'bottom';
+			const backwards = horizontal ? event.key === 'ArrowLeft' : event.key === 'ArrowUp';
+			const forwards = horizontal ? event.key === 'ArrowRight' : event.key === 'ArrowDown';
 			if (!backwards && !forwards) return;
 			const targetGroup = groups[groupIndex + (forwards ? 1 : -1)];
 			if (!targetGroup) return;

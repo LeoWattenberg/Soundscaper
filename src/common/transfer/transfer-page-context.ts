@@ -13,6 +13,7 @@ import type { TransferOriginConfiguration } from './transfer-configuration.ts';
 import type { TransferRuntime } from './transfer-session.ts';
 import type { TransferView } from './transfer-page-view.ts';
 import type { TransferStoreSource } from './transfer-archive-runtime.ts';
+import type { FileSizeWarningConfirmation } from '../editor/controller/shared/file-size-warning.ts';
 
 /**
  * The archive machinery, behind a seam.
@@ -31,4 +32,5 @@ export interface TransferPageContext {
 	readonly configuration: TransferOriginConfiguration;
 	readonly dependencies: TransferPageDependencies;
 	readonly view: TransferView;
+	readonly confirmFileSizeWarning?: FileSizeWarningConfirmation;
 }

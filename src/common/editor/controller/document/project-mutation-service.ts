@@ -336,6 +336,7 @@ export function createProjectMutationService<
 	async function saveNow(): Promise<unknown> {
 		dependencies.lifetime.assertActive();
 		return dependencies.saves.flushProject({
+			allowFileSizeWarning: true,
 			prepareCurrentSnapshot: true,
 			preparationPurpose: 'project-save',
 		});

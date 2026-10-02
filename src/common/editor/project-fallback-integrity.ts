@@ -10,6 +10,7 @@ import {
 	throwIfScapeAborted,
 } from './scape-abort.ts';
 import { SCAPE_ARCHIVE_LIMITS } from './scape-archive-envelope.ts';
+import { confirmFileSizeWarning, type FileSizeWarningConfirmation } from './controller/shared/file-size-warning.ts';
 import type { ScapeProjectFallbackClaim } from './scape-project-assets.ts';
 import {
 	PROJECT_AUDIO_FALLBACK_INTEGRITY_ERROR_CODE,
@@ -86,6 +87,7 @@ export interface ProjectFallbackIntegrityStore {
 }
 
 export interface ProjectFallbackIntegrityOptions {
+	readonly confirmFileSizeWarning?: FileSizeWarningConfirmation;
 	readonly signal?: AbortSignal;
 	readonly assertCurrent?: () => void;
 	readonly audioFallback?: ProjectAudioFallbackIntegritySelector;
@@ -174,7 +176,12 @@ export async function verifyProjectFallbackIntegrity(
 	}
 	const audioSources = targetValues.filter(({ claim }) => claim.kind === 'audio').map(({ source }) => source);
 	const audioChunkBudget = createScapeAudioExportChunkBudget(audioSources);
-	const plans = await preflightVerification(targetValues, store, signal);
+	const plans = await preflightVerification(targetValues, store, {
+		...options, assertCurrent: () => {
+			options.assertCurrent?.();
+			assertAdmissionCurrent(admissionState, project, audioSelector, videoSelector);
+		},
+	});
 	let verifiedAudioProvider: ProjectAudioFallbackChunkProvider | null = null;
 	let verifiedVideoBlob: Blob | null = null;
 	for (const plan of plans) {
@@ -218,8 +225,9 @@ export async function verifyProjectFallbackIntegrity(
 async function preflightVerification(
 	targets: readonly VerificationTarget[],
 	store: ProjectFallbackIntegrityStore,
-	signal?: AbortSignal,
+	options: ProjectFallbackIntegrityOptions,
 ): Promise<readonly VerificationPlan[]> {
+	const signal = options.signal;
 	if (targets.some(({ claim }) => claim.kind === 'audio')
 		&& typeof store?.readSourceChunks !== 'function') {
 		throw new TypeError('Stored audio fallback verification is unavailable.');
@@ -247,11 +255,15 @@ async function preflightVerification(
 			}
 			expectedBytes = mediaAssetSize(metadata, target.claim.sourceId);
 		}
-		if (expectedBytes > SCAPE_ARCHIVE_LIMITS.maximumExpandedBytes - admittedBytes) {
-			throw new RangeError('Rendered fallbacks exceed the cumulative Scape expanded-byte limit.');
+		if (expectedBytes > Number.MAX_SAFE_INTEGER - admittedBytes) {
+			throw new RangeError('Rendered fallback cumulative bytes exceed the supported safe integer range.');
 		}
 		admittedBytes += expectedBytes;
 		plans.push(Object.freeze({ ...target, expectedBytes }));
+	}
+	if (admittedBytes > SCAPE_ARCHIVE_LIMITS.maximumExpandedBytes) {
+		await confirmFileSizeWarning(admittedBytes, SCAPE_ARCHIVE_LIMITS.maximumExpandedBytes,
+			'Rendered fallback media', options);
 	}
 	return Object.freeze(plans);
 }

@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { FileSizeWarningConfirmation } from '../shared/file-size-warning.ts';
 import type { FfmpegOutputSink } from '../../ffmpeg-output-stream.ts';
 import type {
 	VideoKeyframeOfflineRgbaCompositor,
@@ -70,6 +71,7 @@ export interface ProductVideoExportStrategyEncodeRequest {
 	readonly signal: AbortSignal;
 	readonly assertCurrent: () => void;
 	readonly maximumOutputBytes: unknown;
+	readonly confirmFileSizeWarning?: FileSizeWarningConfirmation;
 	/** Product-owned picture finishing applied after exact compositing and before encoding. */
 	readonly rgbaPostprocessor?: VideoKeyframeOfflineRgbaPostprocessor;
 	/** Product-owned exact per-layer picture composition before encoding. */

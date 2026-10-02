@@ -23,6 +23,7 @@ import { canonicalAudacityMusicalRoot } from './audacity-tempo-import.ts';
 import { createAudacityAnnotationImport, readAup4AnnotationTracks } from './audacity-annotation-interchange.ts';
 import { secondsToSampleFrame } from './timeline-time.ts';
 import { planAup4ClipAudio } from './aup4-import-plan.ts';
+import { confirmFileSizeWarning } from './controller/shared/file-size-warning.ts';
 
 const DEFAULT_MAX_DECODED_BYTES = 512 * 1024 * 1024;import {
 	booleanValue,
@@ -84,6 +85,7 @@ export async function decodeAudacityProjectTree(root, loadBlock, options = {}) {
 	compatibilityReport.format = 'audacity-project';
 	compatibilityReport.sourceGeneration = options.sourceGeneration === 'aup3' ? 'aup3' : 'aup4';
 	const state = {
+		fileSizeWarningOptions: { confirmFileSizeWarning: options.confirmFileSizeWarning, signal: options.signal, assertCurrent: options.assertCurrent },
 		decodedBytes: 0,
 		maxDecodedBytes,
 		warnings: [],
@@ -383,7 +385,8 @@ async function decodeClipSequence(clipNode, state) {
 	const sequence = audacityXmlChildren(clipNode, 'sequence')[0];
 	if (!sequence) return new Float32Array(0);
 	const sampleCount = nonNegativeInteger(audacityXmlAttribute(sequence, 'numsamples', 0), 0);
-	if (sampleCount * 4 + state.decodedBytes > state.maxDecodedBytes) throw conversionError('The AUP4 project exceeds the browser decode-memory limit.', 'PROJECT_TOO_LARGE');
+	state.maxDecodedBytes = await confirmFileSizeWarning(sampleCount * 4 + state.decodedBytes,
+		state.maxDecodedBytes, 'Decoded Audacity project audio', state.fileSizeWarningOptions);
 	const output = new Float32Array(sampleCount);
 	state.decodedBytes += output.byteLength;
 	let expectedStart = 0;

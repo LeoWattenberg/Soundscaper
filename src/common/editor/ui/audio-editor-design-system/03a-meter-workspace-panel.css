@@ -1,0 +1,85 @@
+#kw-audio-editor-design-system [data-workspace-tab-panel='playback-meter']:not([hidden]),
+#kw-audio-editor-design-system [data-workspace-tab-panel='recording-meter']:not([hidden]) {
+	display: flex;
+	padding: 0;
+	overflow: hidden;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__meter-workspace-panel {
+	display: flex;
+	width: 100%;
+	min-width: 0;
+	min-height: 0;
+	flex: 1 1 auto;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__meter-workspace-panel > aside {
+	width: 100%;
+	min-width: 0;
+	min-height: 0;
+	flex: 1 1 auto;
+	align-items: stretch;
+	padding: 8px;
+	border: 0;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__meter-workspace-panel .kw-audio-editor__audacity-level-trigger {
+	align-self: flex-start;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__meter-workspace-panel > aside .kw-audio-editor__master-meter {
+	width: 100%;
+	min-width: 0;
+	height: auto;
+	min-height: 48px;
+	flex: 1 1 auto;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__meter-workspace-panel .kw-audio-editor__playback-meter-ruler {
+	font-size: 12px;
+	line-height: 14px;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__meter-workspace-panel .kw-audio-editor__playback-meter-surface--horizontal {
+	padding-bottom: 20px;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__meter-workspace-panel .kw-audio-editor__playback-meter-surface--horizontal .kw-audio-editor__playback-meter-ruler {
+	bottom: 3px;
+	height: 14px;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__meter-workspace-panel .kw-audio-editor__playback-meter-surface--horizontal .kw-audio-editor__playback-meter-volume {
+	height: calc(100% - 24px);
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__meter-workspace-panel .kw-audio-editor__playback-meter-surface--vertical .kw-audio-editor__playback-meter-channels,
+#kw-audio-editor-design-system .kw-audio-editor__meter-workspace-panel .kw-audio-editor__playback-meter-surface--vertical .kw-audio-editor__playback-meter-volume {
+	left: 30px;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__meter-workspace-panel .kw-audio-editor__playback-meter-surface--vertical .kw-audio-editor__playback-meter-ruler {
+	width: 26px;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__meter-workspace-panel .kw-audio-editor__ebu-compact-readout {
+	font-size: 11px;
+	line-height: 14px;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__meter-workspace-panel .kw-audio-editor__playback-meter-surface--horizontal[data-meter-type='ebu-r128'] {
+	padding-bottom: 40px;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__meter-workspace-panel .kw-audio-editor__playback-meter-surface--horizontal .kw-audio-editor__ebu-compact-readout {
+	bottom: 20px;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__meter-workspace-panel .kw-audio-editor__playback-meter-surface--vertical[data-meter-type='ebu-r128'] {
+	padding-bottom: 58px;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__meter-workspace-panel .kw-audio-editor__playback-meter-surface--vertical[data-meter-type='ebu-r128'] .kw-audio-editor__playback-meter-channels,
+#kw-audio-editor-design-system .kw-audio-editor__meter-workspace-panel .kw-audio-editor__playback-meter-surface--vertical[data-meter-type='ebu-r128'] .kw-audio-editor__playback-meter-ruler {
+	bottom: 58px;
+}

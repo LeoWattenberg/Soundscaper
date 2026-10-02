@@ -41,6 +41,9 @@ export function portableLimit(args, opfs) {
 		...(args.usage == null ? {} : { usage: args.usage }),
 		workingBytes: args.workingBytes,
 	});
+	if (args.fileSizeWarningApproved === true && Number.isSafeInteger(args.maxBytes) && args.maxBytes > 0) {
+		return Math.min(args.maxBytes, storageAvailable(args) ?? args.maxBytes);
+	}
 	return normalizeLimit(args.maxBytes, fallback);
 }
 

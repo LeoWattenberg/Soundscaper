@@ -20,11 +20,13 @@ test('workspace overlay model has one exact frozen courier inventory', () => {
 });
 
 test('workspace panel docks share one exact frozen non-dock runtime inventory', () => {
+	const focusRequest = Object.freeze({ clipId: 'selected-clip', field: 'speedRatio' });
 	const runtime = createWorkspacePanelDockRuntime(Object.fromEntries(
-		WORKSPACE_PANEL_DOCK_RUNTIME_KEYS.map((key) => [key, key]),
+		WORKSPACE_PANEL_DOCK_RUNTIME_KEYS.map((key) => [key, key === 'clipPropertiesFocusRequest' ? focusRequest : key]),
 	) as Record<typeof WORKSPACE_PANEL_DOCK_RUNTIME_KEYS[number], unknown>);
 	assert.deepEqual(Object.keys(runtime), WORKSPACE_PANEL_DOCK_RUNTIME_KEYS);
 	assert.equal(Object.isFrozen(runtime), true);
+	assert.equal(runtime.clipPropertiesFocusRequest, focusRequest, 'preserve the request identity that triggers panel focus');
 });
 
 test('the workspace producer passes one overlay model and View reuses one dock runtime', async () => {
@@ -35,6 +37,6 @@ test('the workspace producer passes one overlay model and View reuses one dock r
 	assert.match(workspace, /const overlayModel = createWorkspaceOverlayModel\(\{/u);
 	assert.match(workspace, /<AudioEditorWorkspaceView model=\{\{[\s\S]*\boverlayModel,/u);
 	assert.match(view, /<AudioEditorWorkspaceOverlays model=\{overlayModel\}/u);
-	assert.equal(view.match(/<WorkspacePanelDock \{\.\.\.panelDockRuntime\} dock=/gu)?.length, 4);
+	assert.equal(view.match(/<WorkspacePanelDock \{\.\.\.panelDockRuntime\} dock=/gu)?.length, 5);
 	assert.match(view, /dock="left" aboutLabel=\{overlayModel\.aboutLabel\}/u);
 });

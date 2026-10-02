@@ -3,7 +3,6 @@ import {
 	createFileSystemPreparedSave,
 } from './file-save-stream.ts';
 import {
-	DESKTOP_READ_HARD_LIMIT_BYTES,
 	materializeDesktopReadBlob,
 } from './desktop-read-materialization.ts';
 import {
@@ -447,9 +446,10 @@ function isReadDescriptor(value) {
 }
 
 function desktopReadMaximum(value) {
-	if (value === undefined) return DESKTOP_READ_HARD_LIMIT_BYTES;
+	// Main approves large materialization before granting this exact descriptor.
+	if (value === undefined) return Number.MAX_SAFE_INTEGER;
 	const maximum = value;
-	if (!Number.isSafeInteger(maximum) || maximum < 0 || maximum > DESKTOP_READ_HARD_LIMIT_BYTES) {
+	if (!Number.isSafeInteger(maximum) || maximum < 0) {
 		throw new RangeError('The desktop read maximum must not exceed its hard limit.');
 	}
 	return maximum;

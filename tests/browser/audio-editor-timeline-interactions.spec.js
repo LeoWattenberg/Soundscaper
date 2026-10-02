@@ -13,7 +13,7 @@ import {
 	chooseNestedCommandAction,
 	clipByName,
 	closeChromeDrawer,
-	closeDialog,
+	closeClipProperties,
 	closeEffectsPanel,
 	collectClientErrors,
 	dispatchPinch,
@@ -536,7 +536,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		const mobileClip = clipByName(editor, toneA.name);
 		const clipDialog = await openClipProperties(page, editor, mobileClip);
 		await expectSurfaceWithinViewport(clipDialog, page);
-		await page.keyboard.press('Escape');
+		await closeClipProperties(clipDialog);
 		await expect(clipDialog).toBeHidden();
 		await expect(mobileClip).toBeVisible();
 
@@ -630,9 +630,9 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(renderPitchSpeed).toHaveAttribute('data-disabled-reason', 'unavailable');
 
 		await clipMenu.locator('[data-action-id="clip-properties"]').click();
-		const clipDialog = page.getByRole('dialog', { name: 'Clip properties', exact: true });
+		const clipDialog = editor.locator('[data-workspace-panel="clip-properties"]');
 		await expect(clipDialog).toBeVisible();
-		await closeDialog(clipDialog);
+		await closeClipProperties(clipDialog);
 		expect(errors).toEqual([]);
 	});
 

@@ -10,6 +10,8 @@ import CommunityTranslationMount from './community-translations/CommunityTransla
 import { useCommunityTranslationPresentation } from './community-translations/community-translation-presentation.ts';
 import { getLocaleDescriptor } from '../../i18n/locales.js';
 
+const FileSizeWarningDialog = lazyEditorModule(() => import('./dialogs/FileSizeWarningDialog.tsx'));
+
 const MonoConversionConfirmationDialog = lazyEditorModule(
 	() => import('./dialogs/MonoConversionConfirmationDialog.tsx'),
 );
@@ -23,13 +25,15 @@ export function BoundAudioEditorApp(props) {
 		<DesktopSpeedWarmupGate controller={props.controller} desktop={props.fileService.isDesktop}
 			productId={props.productId} locale={locale} copy={copy}>
 			<div dir={getLocaleDescriptor(locale)?.direction || 'ltr'} style={{ display: 'contents' }}>
-				<AudioEditorWorkspace {...props} copy={copy} locale={locale} />
+				<AudioEditorWorkspace {...props} copy={copy} locale={locale} confirmFileSizeWarning={props.fileSizeWarningConfirmation?.confirm} />
 				{props.monoConversionConfirmation && <ConfirmationDialogMount
 					Component={MonoConversionConfirmationDialog}
 					confirmation={props.monoConversionConfirmation}
 					copy={copy}
 					cancelDecision={{ accepted: false, dontShowAgain: false }}
 				/>}
+				{props.fileSizeWarningConfirmation && <ConfirmationDialogMount Component={FileSizeWarningDialog}
+					confirmation={props.fileSizeWarningConfirmation} copy={copy} cancelDecision={false} />}
 				<CommunityTranslationMount controller={props.controller} copy={copy} locale={props.locale}
 					productId={props.productId} fileService={props.fileService} />
 			</div>

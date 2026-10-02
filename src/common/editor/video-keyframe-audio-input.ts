@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { confirmFileSizeWarning, type FileSizeWarningOptions } from './controller/shared/file-size-warning.ts';
 import type { VideoKeyframeFfmpegInputStream } from './video-keyframe-encoder-stream.ts';
 
 export const VIDEO_KEYFRAME_AUDIO_MAXIMUM_BYTES = 2 * 1024 * 1024 * 1024;
@@ -17,7 +18,7 @@ export interface VideoKeyframeAudioInputSource {
 	): Promise<Uint8Array<ArrayBuffer>>;
 }
 
-export interface VideoKeyframeAudioInputAdmissionOptions {
+export interface VideoKeyframeAudioInputAdmissionOptions extends FileSizeWarningOptions {
 	readonly maximumBytes?: number;
 	readonly signal?: AbortSignal;
 	readonly assertCurrent?: () => void;
@@ -38,7 +39,8 @@ export async function admitVideoKeyframeAudioInput(
 ): Promise<VideoKeyframeAudioInputSource> {
 	const settings = normalizeOptions(options, maximumAllowedBytes);
 	assertReady(settings);
-	const snapshot = snapshotWav(value, settings.maximumBytes ?? VIDEO_KEYFRAME_AUDIO_MAXIMUM_BYTES);
+	const snapshot = snapshotWav(value, Number.MAX_SAFE_INTEGER);
+	await confirmFileSizeWarning(snapshot.size, settings.maximumBytes, 'Video export audio mix', settings);
 	const inspected = await inspectCanonicalFloat32Wav(snapshot, settings.signal);
 	assertReady(settings);
 	const sampleRate = inspected.sampleRate;
@@ -245,7 +247,7 @@ function normalizeOptions(
 		throw new TypeError('Video keyframe audio input admission options must be an object.');
 	}
 	for (const key of Reflect.ownKeys(value)) {
-		if (key !== 'maximumBytes' && key !== 'signal' && key !== 'assertCurrent') {
+		if (key !== 'maximumBytes' && key !== 'signal' && key !== 'assertCurrent' && key !== 'confirmFileSizeWarning') {
 			throw new TypeError('Video keyframe audio input admission options have an unsupported field.');
 		}
 		const descriptor = Object.getOwnPropertyDescriptor(value, key);
@@ -255,12 +257,8 @@ function normalizeOptions(
 	}
 	const maximumBytes = Object.hasOwn(value, 'maximumBytes')
 		? positiveSafeInteger(value.maximumBytes, 'maximumAudioBytes')
-		: VIDEO_KEYFRAME_AUDIO_MAXIMUM_BYTES;
-	if (maximumBytes > maximumAllowedBytes) {
-		throw new RangeError(
-			`maximumAudioBytes cannot exceed ${String(maximumAllowedBytes)}.`,
-		);
-	}
+		: positiveSafeInteger(maximumAllowedBytes, 'maximumAudioBytes');
+	if (value.confirmFileSizeWarning !== undefined && typeof value.confirmFileSizeWarning !== 'function') throw new TypeError('Video audio size confirmation must be a function.');
 	if (value.signal !== undefined
 		&& (typeof AbortSignal !== 'function' || !(value.signal instanceof AbortSignal))) {
 		throw new TypeError('Video keyframe audio input signal must be an AbortSignal.');
@@ -270,6 +268,7 @@ function normalizeOptions(
 	}
 	return Object.freeze({
 		maximumBytes,
+		...(value.confirmFileSizeWarning ? { confirmFileSizeWarning: value.confirmFileSizeWarning } : {}),
 		...(value.signal ? { signal: value.signal } : {}),
 		...(value.assertCurrent ? { assertCurrent: value.assertCurrent } : {}),
 	});

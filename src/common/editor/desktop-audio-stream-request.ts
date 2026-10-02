@@ -8,6 +8,7 @@ import type { WavPcmDescriptor } from './wav-pcm-chunk-reader.ts';
 import type { DesktopAudioCodecRuntimeSettings, NormalizedMediaSettings } from './desktop-audio-codec-runtime.ts';
 import type { DesktopAudioStreamEncoderRequest } from './desktop-audio-stream-encoder.ts';
 import { queryDesktopAudioCodecCapability } from './desktop-audio-codec-capabilities.ts';
+import { LARGE_AUDIO_FILE_BYTES } from './large-audio-policy.ts';
 const capabilities = createMediaExportCapabilities();
 
 export async function buildDesktopAudioStreamRequest(file: Blob, format: DesktopAudioCodecFormat,
@@ -25,10 +26,13 @@ export async function buildDesktopAudioStreamRequest(file: Blob, format: Desktop
 	if (media.sampleRate !== descriptor.sampleRate || (settings.inputChannelCount !== undefined && settings.inputChannelCount !== descriptor.channelCount)) {
 		throw new RangeError('The staged WAV geometry must match its desktop streaming export settings.');
 	}
+	const threshold = settings.maximumOutputBytes ?? LARGE_AUDIO_FILE_BYTES;
+	if (!Number.isSafeInteger(threshold) || threshold < 1) throw new RangeError('Desktop audio output warning threshold is invalid.');
+	const maximumOutputBytes = Math.max(threshold, descriptor.frameCount * media.channelCount * 8 + 16 * 1024 * 1024);
 	return { file, plan: { schemaVersion: 1, frameCount: descriptor.frameCount,
 		tuple: { operation: 'audio-encode', format, sampleRate: media.sampleRate, channelCount: media.channelCount,
 			settings: encodeDesktopAudioSettings(format, media) as DesktopAudioCodecCapabilityTuple['settings'] },
-		maximumOutputBytes: settings.maximumOutputBytes ?? 1_000_000_000 }, channelMapping: media.channelMapping,
+		maximumOutputBytes }, channelMapping: media.channelMapping,
 		extension: `.${media.extension}`, mimeType: media.mimeType, settings };
 }
 

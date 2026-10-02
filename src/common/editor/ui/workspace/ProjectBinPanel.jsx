@@ -22,7 +22,7 @@ import { withWebFileLoadLimitContext } from '../../web-file-limit-failure.ts';
 import { useProjectBinSourceProperties } from './use-project-bin-source-properties.jsx';
 
 const AUDIO_EDITOR_AUDIO_FILE_ACCEPT = 'audio/*,video/mp4,video/webm,.aac,.aif,.aiff,.bw64,.flac,.m4a,.m4v,.mp2,.mp3,.mp4,.oga,.ogg,.opus,.rf64,.wav,.wave,.wavpack,.webm,.wv';
-export default function ProjectBinPanel({ controller, snapshot, copy, locale, fileService, run, blocked }) {
+export default function ProjectBinPanel({ controller, snapshot, copy, locale, fileService, run, blocked, confirmFileSizeWarning = /** @type {import('../../controller/shared/file-size-warning.ts').FileSizeWarningConfirmation | undefined} */ (undefined) }) {
 	const inputRef = useRef(null);
 	const replacementInputRef = useRef(null);
 	const linkedAudioRelinkRequestRef = useRef(0);
@@ -82,7 +82,7 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 	const sourceProperties = useProjectBinSourceProperties({ project, controller, copy, disabled: mutationBlocked });
 	const { dropActive, dropHandlers, resetDropState } = useProjectBinFileDrop({
 		blocked: mutationBlocked,
-		onFiles: (files) => run(() => importFiles(files)), onFreesoundSound: (soundId) => run(() => import('./freesound-workspace-service.ts').then(({ importFreesoundSound }) => importFreesoundSound(controller, { soundId, destination: 'project-bin' }))),
+		onFiles: (files) => run(() => importFiles(files)), onFreesoundSound: (soundId) => run(() => import('./freesound-workspace-service.ts').then(({ importFreesoundSound }) => importFreesoundSound(controller, { soundId, destination: 'project-bin' }, { confirmFileSizeWarning }))),
 	});
 	const selectedMediaTrack = project?.tracks.find((track) => (
 		track.id === snapshot.selectedTrackId && ['audio', 'video'].includes(track.type)

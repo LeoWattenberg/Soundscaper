@@ -155,13 +155,15 @@ test('sandbox preload exposes only the versioned narrow bridge', async () => {
 		{ ...calls[4].value },
 		{ targetId: 'a'.repeat(48), maximumSize: MAX_DESKTOP_SAVE_BYTES },
 	);
+	await bridge.v1.beginWrite({ targetId: 'a'.repeat(48), maximumSize: MAX_DESKTOP_SAVE_BYTES + 1 });
+	assert.deepEqual({ ...calls[5].value }, { targetId: 'a'.repeat(48), maximumSize: MAX_DESKTOP_SAVE_BYTES + 1 }, 'main owns the native warning decision');
 	assert.throws(
-		() => bridge.v1.beginWrite({ targetId: 'a'.repeat(48), maximumSize: MAX_DESKTOP_SAVE_BYTES + 1 }),
-		/save size is too large/iu,
+		() => bridge.v1.beginWrite({ targetId: 'a'.repeat(48), maximumSize: Number.MAX_SAFE_INTEGER + 1 }),
+		/non-negative safe integer/iu,
 	);
-	assert.equal(calls.length, 5, 'oversized declarations do not cross IPC');
+	assert.equal(calls.length, 6, 'unsafe declarations do not cross IPC');
 	const authorizeUrl = 'https://freesound.org/apiv2/oauth2/authorize/?client_id=x&response_type=code&state=y&redirect_uri=https%3A%2F%2Fsoundscaper.org%2Fapi%2Ffreesound%2Foauth%2Fcallback';
 	await bridge.v1.openFreesoundAuthorization(authorizeUrl);
-	assert.deepEqual(calls[5], { method: 'invoke', channel: 'soundscaper:v1:freesound:authorize', value: authorizeUrl });
+	assert.deepEqual(calls[6], { method: 'invoke', channel: 'soundscaper:v1:freesound:authorize', value: authorizeUrl });
 	assert.throws(() => bridge.v1.openFreesoundAuthorization('https://evil.example/'), /authorization URL/u);
 });

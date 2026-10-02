@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { AnalysisCacheRoutingRepository } from './analysis-cache-routing-repository.ts';
+import type { FileSizeWarningConfirmation } from '../controller/shared/file-size-warning.ts';
 import {
 	createDeferredAssistanceDerivativeRepository,
 	type AssistanceDerivativeRepositoryPort,
@@ -74,6 +75,7 @@ export interface StorageRepositories {
 }
 
 export interface StorageRepositoryOptions {
+	readonly confirmFileSizeWarning?: FileSizeWarningConfirmation;
 	readonly revisionLimit: number;
 	readonly preferOpfs: boolean;
 	readonly storageManager?: StorageManager | null;
@@ -143,6 +145,7 @@ export function createStorageRepositories(
 	const assistanceDerivatives = createDeferredAssistanceDerivativeRepository(analysis);
 	const analysisCache = new AnalysisCacheRoutingRepository(analysis, transientAnalysisCache);
 	const media = new MediaRepository(port, opfs, {
+		confirmFileSizeWarning: options.confirmFileSizeWarning,
 		cacheLimits: options.derivativeCacheLimits,
 		now: options.derivativeCacheNow,
 		sessionGuard,

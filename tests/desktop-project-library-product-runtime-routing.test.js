@@ -15,6 +15,7 @@ test('loaded desktop product adapters share startup and renderer registration ro
 		close: async () => { calls.push('close'); },
 	};
 	const onLeaseLost = () => undefined;
+	const confirmFileSizeWarning = async () => true;
 	const owner = Object.freeze({ product: 'soundscaper', processId: 7, instanceId: 'instance-1' });
 	const runtime = await startLoadedDesktopProjectLibraryProductRuntime({
 		productId: 'soundscaper',
@@ -23,6 +24,7 @@ test('loaded desktop product adapters share startup and renderer registration ro
 		appDataPath: '/tmp/project-library-routing-test',
 		owner,
 		onLeaseLost,
+		confirmFileSizeWarning,
 		leaseTestControl: Object.freeze({
 			leaseTtlMs: 30_000,
 			renewIntervalMs: 10_000,
@@ -48,6 +50,7 @@ test('loaded desktop product adapters share startup and renderer registration ro
 		owner,
 		handshake: { product: 'soundscaper' },
 		onLeaseLost,
+		confirmFileSizeWarning,
 		testControl: {
 			leaseTtlMs: 30_000,
 			renewIntervalMs: 10_000,

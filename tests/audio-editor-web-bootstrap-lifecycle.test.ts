@@ -67,6 +67,10 @@ test('the shared web runtime owns attachments and disposes every product resourc
 	assert.equal(lifecycle.projectForRuntimeConsumers(runtime), projector);
 	assert.ok(lifecycle.assistanceSearchSource(runtime));
 	assert.equal(lifecycle.monoConversionConfirmation(runtime).getSnapshot(), null);
+	const sizeConfirmation = lifecycle.fileSizeWarningConfirmation(runtime);
+	const pendingSize = sizeConfirmation.confirm({ label: 'large.wav', byteLength: 20, thresholdBytes: 10 });
+	const rejectedSize = assert.rejects(pendingSize, { name: 'AbortError' });
+	assert.equal(sizeConfirmation.getSnapshot()?.label, 'large.wav');
 
 	const first = runtime.dispose();
 	assert.equal(runtime.dispose(), first);
@@ -82,6 +86,7 @@ test('the shared web runtime owns attachments and disposes every product resourc
 		return true;
 	});
 	assert.deepEqual(log, ['confirmation', 'extension', 'controller', 'environment']);
+	await rejectedSize;
 	await assert.rejects(runtime.dispose());
 	assert.deepEqual(log, ['confirmation', 'extension', 'controller', 'environment']);
 	assert.throws(
@@ -371,4 +376,26 @@ test('returning to a locale waits for its new startup rather than showing dispos
 			dom.restore();
 		}
 	}
+});
+
+test('a failing file size confirmation factory closes its already-owned runtime resources', async () => {
+	const log: string[] = [];
+	const failure = new Error('confirmation construction failed');
+	const lifecycle = createAudioEditorWebRuntimeLifecycle({
+		createFileService: () => ({ isDesktop: false, bridge: null }),
+		createEnvironment: async () => ({
+			runtime: { projectForRuntimeConsumers: () => null },
+			store: { assistanceDerivativeRepository: null },
+			close: () => { log.push('environment'); },
+		}),
+		createController: () => ({ dispose: () => undefined }),
+		createMonoConversionConfirmation: () => confirmation(log),
+		createFileSizeWarningConfirmation: () => { throw failure; },
+		constructionCleanupMessage: 'construction cleanup failed',
+		controllerAndEnvironmentDisposalMessage: 'disposal failed',
+		controllerAndEnvironmentDisposalCause: false,
+		exactRuntimeMessage: 'exact runtime required',
+	});
+	await assert.rejects(lifecycle.create({}), (error) => error === failure);
+	assert.deepEqual(log, ['confirmation', 'environment']);
 });

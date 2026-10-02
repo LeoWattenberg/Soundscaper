@@ -48,6 +48,36 @@ test('desktop encoder refuses truncated codec output and deletes owned native sp
 	assert.equal(deletes, 1);
 });
 
+test('desktop streaming asks from final output metadata before reading it and deletes rejected output', async () => {
+	for (const accept of [true, false]) {
+		let warnings = 0; let reads = 0; let deletes = 0;
+		const exporting = encodeDesktopAudioStreamFile({ file,
+			plan: { schemaVersion: 1, frameCount: frames, maximumOutputBytes: encoded.length,
+				tuple: { operation: 'audio-encode', format: 'mp2', sampleRate: 48000, channelCount: 2, settings: { bitrateKbps: 192 } } },
+			channelMapping: 'preserve', extension: '.mp2', mimeType: 'audio/mpeg', settings: {
+				maximumOutputBytes: encoded.length - 1,
+				async confirmFileSizeWarning(warning) {
+					warnings++;
+					assert.equal(reads, 0);
+					assert.equal(warning.byteLength, encoded.length);
+					return accept;
+				},
+			},
+		}, (command) => {
+			if (command.type === 'begin') return { operationId };
+			if (command.type === 'write') return { offset: command.offset + command.bytes.length };
+			if (command.type === 'execute') return { byteLength: encoded.length };
+			if (command.type === 'read') { reads++; return encoded.slice(command.offset, command.offset + command.maximumBytes); }
+			if (command.type === 'delete') { deletes++; return true; }
+			throw new Error('unexpected command');
+		});
+		if (accept) { const result = await exporting; assert.equal(result.blob.size, encoded.length); await result.cleanup(); }
+		else await assert.rejects(exporting, { name: 'AbortError' });
+		assert.equal(warnings, 1); assert.equal(deletes, 1);
+		assert.equal(reads > 0, accept);
+	}
+});
+
 test('native stream work remains owned until abort cleanup settles and then leaves the active runtime map', async () => {
 	const active = new Map<string, { cancel(reason: unknown): void }>(); const parent = new AbortController();
 	let received: AbortSignal | null = null; let finish!: () => void; let settled = false;

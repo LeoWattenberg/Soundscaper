@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { confirmFileSizeWarning, type FileSizeWarningOptions } from './controller/shared/file-size-warning.ts';
 import { awaitScapeOperation, throwIfScapeAborted } from './scape-abort.ts';
 import {
 	SCAPE_ARCHIVE_LIMITS,
@@ -90,7 +91,7 @@ export interface ScapeExportPlan {
 	readonly audioChunkBudget: ScapeAudioChunkBudget;
 }
 
-export interface ScapeExportPlanOptions {
+export interface ScapeExportPlanOptions extends FileSizeWarningOptions {
 	readonly maximumBlobBytes?: unknown;
 	readonly output: 'blob' | 'stream';
 	readonly signal?: AbortSignal;
@@ -148,7 +149,7 @@ export async function prepareScapeExport(
 		throw new RangeError('The project has too many assets for the portable archive.');
 	}
 	project.sources = Object.freeze(sources);
-	const maximumBlobBytes = resolveScapeBlobMaximumBytes(options.maximumBlobBytes);
+	let maximumBlobBytes = resolveScapeBlobMaximumBytes(options.maximumBlobBytes);
 	const audioChunkBudget = createScapeAudioExportChunkBudget(
 		sources.filter(({ kind }) => kind === 'audio'),
 	);
@@ -164,9 +165,7 @@ export async function prepareScapeExport(
 	}
 	const projectText = serializeScapeProjectDocument(project);
 	const projectBytes = TEXT_ENCODER.encode(projectText);
-	if (projectBytes.byteLength > SCAPE_ARCHIVE_LIMITS.maximumProjectBytes) {
-		throw new RangeError('project.json exceeds the metadata limit.');
-	}
+	await confirmFileSizeWarning(projectBytes.byteLength, SCAPE_ARCHIVE_LIMITS.maximumProjectBytes, 'Scape project metadata', options);
 	const projectDescriptor: ScapeProjectDescriptor = Object.freeze({
 		entry: SCAPE_PROJECT_ENTRY,
 		mimeType: 'application/json',
@@ -279,20 +278,14 @@ export async function prepareScapeExport(
 	));
 	const placeholderManifest = createManifest(createdAt, projectDescriptor, placeholderAssets);
 	const manifestBytes = TEXT_ENCODER.encode(JSON.stringify(placeholderManifest)).byteLength;
-	if (manifestBytes > SCAPE_ARCHIVE_LIMITS.maximumManifestBytes) {
-		throw new RangeError('manifest.json exceeds the metadata limit.');
-	}
-	assertExpandedBytes(projectBytes.byteLength, assets, manifestBytes);
+	await confirmFileSizeWarning(manifestBytes, SCAPE_ARCHIVE_LIMITS.maximumManifestBytes, 'Scape manifest metadata', options);
+	await confirmFileSizeWarning(expandedBytes(projectBytes.byteLength, assets, manifestBytes), SCAPE_ARCHIVE_LIMITS.maximumExpandedBytes, 'Scape expanded archive', options);
 	const maximumArchiveBytes = maximumScapeStoreArchiveBytes([
 		{ filename: SCAPE_PROJECT_ENTRY, payloadBytes: projectBytes.byteLength },
 		...assets.map((asset) => ({ filename: asset.entry, payloadBytes: asset.size })),
 		{ filename: SCAPE_MANIFEST_ENTRY, payloadBytes: manifestBytes },
 	]);
-	if (options.output === 'blob' && maximumArchiveBytes > maximumBlobBytes) {
-		throw new RangeError(
-			`The Scape archive exceeds the ${String(maximumBlobBytes)}-byte final Blob assembly limit.`,
-		);
-	}
+	if (options.output === 'blob') maximumBlobBytes = await confirmFileSizeWarning(maximumArchiveBytes, maximumBlobBytes, 'Scape project export', options);
 	return Object.freeze({
 		projectBytes,
 		projectDescriptor,
@@ -377,16 +370,15 @@ function createManifest(
 	};
 }
 
-function assertExpandedBytes(
+function expandedBytes(
 	projectBytes: number,
 	assets: readonly PlannedScapeExportAsset[],
 	manifestBytes: number,
-): void {
+): number {
 	let total = BigInt(projectBytes) + BigInt(manifestBytes);
 	for (const asset of assets) total += BigInt(asset.size);
-	if (total > BigInt(SCAPE_ARCHIVE_LIMITS.maximumExpandedBytes)) {
-		throw new RangeError('The Scape archive exceeds the portable expanded-byte limit.');
-	}
+	if (total > BigInt(Number.MAX_SAFE_INTEGER)) throw new RangeError('The Scape expanded archive exceeds the supported byte count.');
+	return Number(total);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

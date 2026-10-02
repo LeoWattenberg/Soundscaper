@@ -24,7 +24,7 @@ interface Panel extends WorkspacePanelPreference {
 }
 
 function panel(
-	dock: 'left' | 'right' | 'bottom' | 'floating',
+	dock: 'left' | 'right' | 'top' | 'bottom' | 'floating',
 	order: number,
 	changes: Partial<Panel> = {},
 ): Panel {
@@ -301,11 +301,32 @@ test('panel placement rejects missing targets, unsupported docks, and floating t
 		/Panel missing/u,
 	);
 	assert.throws(
-		() => placeWorkspacePanel(panels, 'history', { kind: 'dock', dock: 'top' as WorkspacePanelDock, groupIndex: 0 }),
+		() => placeWorkspacePanel(panels, 'history', { kind: 'dock', dock: 'missing' as WorkspacePanelDock, groupIndex: 0 }),
 		/unsupported dock/u,
 	);
 	assert.throws(
 		() => placeWorkspacePanel(panels, 'history', { kind: 'tab', targetPanelId: 'mixer' }),
 		/Floating panels cannot be tabbed/u,
 	);
+});
+
+test('top panels retain their tab group and shared dock height across placement and preference reload', () => {
+	let panels = canonicalizeWorkspacePanelGroups({
+		history: panel('top', 0, { size: 280 }),
+		metadata: panel('right', 0, { size: 400 }),
+		labels: panel('left', 0),
+	});
+	panels = placeWorkspacePanel(panels, 'metadata', { kind: 'dock', dock: 'top', groupIndex: 1 });
+	assert.equal(panels.metadata?.dock, 'top');
+	assert.equal(panels.metadata?.size, 280);
+	panels = placeWorkspacePanel(panels, 'labels', { kind: 'before', targetPanelId: 'metadata' });
+	assert.equal(panels.labels?.dock, 'top');
+	assert.equal(panels.labels?.size, 280);
+	panels = placeWorkspacePanel(panels, 'metadata', { kind: 'tab', targetPanelId: 'history' });
+	panels = setWorkspacePanelDockExtent(panels, 'top', { size: 448 });
+	const restored = createAudioEditorPreferencesV1({ workspace: { panels } }).workspace.panels;
+	assert.equal(restored.history?.dock, 'top');
+	assert.equal(restored.metadata?.tabGroup, restored.history?.tabGroup);
+	assert.equal(restored.metadata?.tabActive, true);
+	assert.deepEqual([restored.history?.size, restored.metadata?.size, restored.labels?.size], [448, 448, 448]);
 });

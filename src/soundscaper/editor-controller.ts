@@ -43,13 +43,14 @@ import type {
 } from '../common/editor/controller/export/soundscaper-persistent-delivery-runtime-binding.ts';
 
 const PRESENTATION_FIELDS = [
-	'locale', 'copy', 'fileService', 'confirmMonoConversion',
+	'locale', 'copy', 'fileService', 'confirmMonoConversion', 'confirmFileSizeWarning',
 ] as const;
 
 export interface SoundscaperAudioEditorControllerPresentation {
 	readonly locale?: string;
 	readonly copy?: ControllerOptions['copy'];
 	readonly fileService?: ControllerOptions['fileService'];
+	readonly confirmFileSizeWarning?: ControllerOptions['confirmFileSizeWarning'];
 	readonly confirmMonoConversion?: ControllerOptions['confirmMonoConversion'];
 }
 
@@ -70,6 +71,7 @@ export function createSoundscaperAudioEditorController(
 ): SoundscaperAudioEditorController {
 	const environment = assertSoundscaperEditorProjectEnvironment(environmentValue);
 	const presentation = snapshotPresentation(presentationValue);
+	environment.desktopProjectLibrary?.setFileSizeWarningConfirmation(presentation.confirmFileSizeWarning);
 	const scapeProjectRuntime = createSoundscaperScapeNativeRuntime();
 	const productVideoExportStrategy = createSoundscaperVideoExportStrategy(environment.runtime);
 	const nativePluginStateStore = environment.controllerStore as unknown as
@@ -90,7 +92,7 @@ export function createSoundscaperAudioEditorController(
 		acquireProjectLock: environment.runtime.acquireProjectLock,
 		projectRuntime: environment.runtime,
 		playbackProjectService: environment.playback,
-		createProjectIfAbsent: environment.createProjectIfAbsent,
+		createProjectIfAbsent: (project, publicationOptions) => environment.createProjectIfAbsent(project, { ...publicationOptions, confirmFileSizeWarning: publicationOptions?.confirmFileSizeWarning ?? presentation.confirmFileSizeWarning }),
 		adaptAudacityProject: async (value: unknown) => recoverSoundscaperNativePluginStatesFromAup4(
 			importSoundscaperAudacityProject(value),
 			nativePluginStateStore,
@@ -389,6 +391,9 @@ function snapshotPresentation(value: unknown): SoundscaperAudioEditorControllerP
 	if (output.confirmMonoConversion !== undefined
 		&& typeof output.confirmMonoConversion !== 'function') {
 		throw new TypeError('Soundscaper mono conversion confirmation must be a function.');
+	}
+	if (output.confirmFileSizeWarning !== undefined && typeof output.confirmFileSizeWarning !== 'function') {
+		throw new TypeError('Soundscaper file size confirmation must be a function.');
 	}
 	return output as SoundscaperAudioEditorControllerPresentation;
 }

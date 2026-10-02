@@ -4,6 +4,7 @@ import { chmod, mkdir } from 'node:fs/promises';
 import { DatabaseSync } from 'node:sqlite';
 
 import { admitLowerOnly } from '../src/common/editor/lower-only-seam.ts';
+import type { SoundscaperDesktopDocumentSizeConfirmation } from './soundscaper-project-library-document-size-warning.ts';
 import {
 	SoundscaperDesktopProjectLibraryCatalog,
 	type SoundscaperDesktopProjectLibraryLease,
@@ -77,6 +78,7 @@ export interface SoundscaperDesktopProjectLibraryTestControl {
 }
 
 interface StartOptions {
+	readonly confirmFileSizeWarning?: SoundscaperDesktopDocumentSizeConfirmation;
 	readonly appDataPath: string;
 	readonly owner: SoundscaperDesktopProjectLibraryOwner;
 	readonly handshake: SoundscaperDesktopProjectLibraryHandshake;
@@ -170,6 +172,7 @@ export class SoundscaperDesktopProjectLibraryMain {
 			const host = SoundscaperDesktopProjectLibraryPublicationHost.create({
 				database,
 				appDataPath: options.appDataPath,
+				confirmFileSizeWarning: options.confirmFileSizeWarning,
 				...(options.testControl?.checkpoint ? { checkpoint: options.testControl.checkpoint } : {}),
 			});
 			host.acceptHandshake(options.handshake);
@@ -327,12 +330,17 @@ async function recoverPending(
 }
 
 function validateStartOptions(value: unknown): Readonly<StartOptions> {
-	const record = snapshotClosedRecord(value, START_FIELDS, 'Soundscaper desktop baseline main options');
+	const hasWarning = value !== null && typeof value === 'object' && Object.hasOwn(value, 'confirmFileSizeWarning');
+	const record = snapshotClosedRecord(value, hasWarning ? [...START_FIELDS, 'confirmFileSizeWarning'] as const : START_FIELDS,
+		'Soundscaper desktop baseline main options');
 	if (typeof record.appDataPath !== 'string') {
 		throw new TypeError('Soundscaper desktop baseline main appDataPath must be a string');
 	}
 	if (typeof record.onLeaseLost !== 'function') {
 		throw new TypeError('Soundscaper desktop baseline main onLeaseLost must be a function');
+	}
+	if (record.confirmFileSizeWarning !== undefined && typeof record.confirmFileSizeWarning !== 'function') {
+		throw new TypeError('Soundscaper desktop baseline main size confirmation must be a function');
 	}
 	return Object.freeze({
 		appDataPath: record.appDataPath,
@@ -340,6 +348,7 @@ function validateStartOptions(value: unknown): Readonly<StartOptions> {
 		handshake: validateSoundscaperDesktopProjectLibraryHandshake(record.handshake),
 		onLeaseLost: record.onLeaseLost as (error: unknown) => void,
 		testControl: validateTestControl(record.testControl),
+		confirmFileSizeWarning: record.confirmFileSizeWarning as StartOptions['confirmFileSizeWarning'],
 	});
 }
 

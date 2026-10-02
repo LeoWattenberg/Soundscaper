@@ -9,6 +9,7 @@ import {
 	selectAudioEditorProjectHandoffBlock,
 } from '../edit-blocking.ts';
 import { loadPlaybackMeterSettings, loadRecordingMeterSettings } from '../meter-settings.ts';
+import { resolveMeterPanelSettingsChange } from './meter-panel-settings.ts';
 import AudioEditorWorkspaceView from './AudioEditorWorkspaceView.jsx';
 import { resolveWorkspaceRuntimeProjection } from './workspace-runtime-projection.ts';
 import { workspaceStatusPresentation } from './workspace-status-presentation.ts';
@@ -16,6 +17,7 @@ import { withDesktopProjectReadDescriptor } from './desktop-project-file-routing
 import { workspacePreferencesPage } from './workspace-preferences-routing.ts';
 import { useTimelineNavigation } from './useTimelineNavigation.js';
 import { useWorkspaceToolbarDocking } from './useWorkspaceToolbarDocking.js';
+import { useWorkspaceClipPropertiesPanel } from './useWorkspaceClipPropertiesPanel.ts';
 import { useAudioEditorWorkspaceLifecycle } from './useAudioEditorWorkspaceLifecycle.js';
 import { useDesktopEditorBridge } from './useDesktopEditorBridge.js';
 import { useScapeOpenDecisionContinuation } from './useScapeOpenDecisionContinuation.ts';
@@ -49,7 +51,7 @@ const DEFERRED_WEB_VCR_PANEL_ID = 'web-vcr'; export default function AudioEditor
 	copy,
 	productId = 'soundscaper',
 	controller,
-	fileService,
+	fileService, confirmFileSizeWarning,
 	selectedMediaPreparation = controller?.selectedMediaPreparation ?? null, assistanceSearchSource = null,
 	projectForRuntimeConsumers, crossProductHandoffAvailable = false, initialSurface = null,
 }) {
@@ -95,8 +97,8 @@ const DEFERRED_WEB_VCR_PANEL_ID = 'web-vcr'; export default function AudioEditor
 		floatingToolbarRef,
 		handleToolbarGripperMouseDown,
 		toolbarDock,
-		toolbarDragRef,
-	} = useWorkspaceToolbarDocking(editorRef);
+		setToolbarDock,
+	} = useWorkspaceToolbarDocking(editorRef, productId);
 	const project = snapshot.project;
 	// Resolved above every surface boundary, so a document the projection
 	// refuses becomes a value here and fails under the timeline's own boundary.
@@ -248,12 +250,17 @@ const DEFERRED_WEB_VCR_PANEL_ID = 'web-vcr'; export default function AudioEditor
 			return files.length;
 		});
 	}, [fileService, importRoutedFiles, openDesktopProjectDescriptor]);
+	const { clipPropertiesFocusRequest, openClipPropertiesSurface } = useWorkspaceClipPropertiesPanel({
+		controller, run, setActiveSurface, selectedClipId: snapshot.selectedClipId ?? null,
+		projectId: project?.id ?? null, panelVisible: Boolean(preferences?.workspace?.panels?.['clip-properties']?.visible),
+	});
 	const openSurface = useCallback((surface, options = {}) => {
+		if (openClipPropertiesSurface(surface, options?.clipId)) return;
 		if (surface === 'preferences') {
 			setPreferencesPage(workspacePreferencesPage(options?.section));
 		}
 		setActiveSurface(surface);
-	}, [setActiveSurface]);
+	}, [openClipPropertiesSurface, setActiveSurface]);
 	const soundscaperWorkflow = useSoundscaperWorkflowWorkspace({ productId, controller, project, selectedTrackId: snapshot.selectedTrackId, openSurface });
 	const { effectsPanelTarget, openEffects } = useWorkspaceEffectsPanel({
 		controller, run, setActiveSurface, selectedTrackId: snapshot.selectedTrackId,
@@ -435,19 +442,26 @@ const DEFERRED_WEB_VCR_PANEL_ID = 'web-vcr'; export default function AudioEditor
 		snapshot,
 		toggleFullscreen,
 	});
+	const meterSettingsChange = (panelId, settings, setSettings) => (update) => {
+		const next = resolveMeterPanelSettingsChange(settings, update, Boolean(preferences.workspace.panels[panelId]?.visible));
+		setSettings(next.settings);
+		run(() => controller.actions.preferences.setPanelVisibility(panelId, next.panelVisible));
+	};
+	const changePlaybackMeterSettings = meterSettingsChange('playback-meter', playbackMeterSettings, setPlaybackMeterSettings);
+	const changeRecordingMeterSettings = meterSettingsChange('recording-meter', recordingMeterSettings, setRecordingMeterSettings);
 	const toolbarProps = {
 		actionRuntime: parityRuntime.actions, automationToolEnabled, blocked, capabilities, controller, copy, durationFrames, locale, productId,
 		editItems, executeEdit, isCompact: isCompact || compactLayout, onGripperMouseDown: handleToolbarGripperMouseDown, onJumpToEnd: jumpToEnd,
 		onJumpToStart: jumpToStart, onOpenSpectralSelection: openSpectralSelection,
 		onOpenTakeCycleRecovery: () => openSurface('take-cycle-recovery'), onOpenTimedRecording: openTimedRecording,
-		onPlaybackMeterSettingsChange: setPlaybackMeterSettings, onRecordingMeterSettingsChange: setRecordingMeterSettings,
+		onPlaybackMeterSettingsChange: changePlaybackMeterSettings, onRecordingMeterSettingsChange: changeRecordingMeterSettings,
 		onToggleAutomationTool: toggleAutomationTool, onToggleSplitTool: toggleSplitTool, playbackMeterSettings, recordLabel, recordingMeterSettings, run, snapshot,
-		toggleRecording, toolbarButtons: toolbarButtonPreferences, toolbars: toolbarPreferences, uiFlags, zoomProject,
+		toggleRecording, toolbarButtons: toolbarButtonPreferences, toolbars: toolbarPreferences, uiFlags, zoomProject, toolbarDock, onToolbarDock: setToolbarDock,
 	};
 	const overlayModel = createWorkspaceOverlayModel({
 		activeSurface, applicationMenus, aboutLabel, capabilities, closeNyquist,
 		controller, copy, dialog, displayAudioSupported, dialogTrackId, dialogValue,
-		effectWindows, editBlocked, fileService, generatorType, locale, macroDraft,
+		effectWindows, editBlocked, fileService, confirmFileSizeWarning, generatorType, locale, macroDraft,
 		nyquistTarget, preferences, preferencesPage, projectBinEffectivelyOpen, productId,
 		run, scapeOpenDecision, setActiveSurface, setDialog, setDialogValue,
 		closeEffectWindow, setMacroDraft, selectedMediaPreparation, settleScapeOpenDecision,
@@ -455,12 +469,13 @@ const DEFERRED_WEB_VCR_PANEL_ID = 'web-vcr'; export default function AudioEditor
 	});
 
 	return <AudioEditorWorkspaceView model={{
-		activateSearchEntry, assistanceSearchRuntime,
+		activateSearchEntry, assistanceSearchRuntime, confirmFileSizeWarning,
 		aup4Compatibility,
 		aup4InputRef,
 		automationToolEnabled,
 		blocked,
 		chromeDrawer, compactLayout, dismissWebFileLimitPrompt,
+		clipPropertiesFocusRequest,
 		desktopChrome,
 		draggedWorkspacePanelId,
 		durationFrames,
@@ -495,8 +510,8 @@ const DEFERRED_WEB_VCR_PANEL_ID = 'web-vcr'; export default function AudioEditor
 		setDraggedWorkspacePanelId,
 		setEditorOverlayTarget,
 		setEffectWindow,
-		setPlaybackMeterSettings,
-		setRecordingMeterSettings,
+		setPlaybackMeterSettings: changePlaybackMeterSettings,
+		setRecordingMeterSettings: changeRecordingMeterSettings,
 		setShowArmControls,
 		statusMessage,
 		statusState,
@@ -507,7 +522,7 @@ const DEFERRED_WEB_VCR_PANEL_ID = 'web-vcr'; export default function AudioEditor
 		uploadClipToFreesound,
 		toolbarButtonPreferences,
 		toolbarDock,
-		toolbarDragRef, toolbarProps, trackHeaderDrawer,
+		setToolbarDock, toolbarProps, trackHeaderDrawer,
 		uiFlags,
 		workspaceRef,
 		overlayModel,

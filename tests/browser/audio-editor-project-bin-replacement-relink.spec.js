@@ -7,7 +7,7 @@ import {
 	bootEditor,
 	clipByName,
 	clipField,
-	closeDialog,
+	closeClipProperties,
 	collectClientErrors,
 	openClipProperties,
 	registerAudioEditorHooks,
@@ -229,7 +229,7 @@ async function setupShortReplacement(page) {
 	const later = await openClipProperties(page, editor, instances.nth(1));
 	await clipField(later, 'startFrame').fill(String(laterStartFrame));
 	await clipField(later, 'startFrame').press('Tab');
-	await closeDialog(later);
+	await closeClipProperties(later);
 	await expectClipFrames(page, editor, laterId, { start: laterStartFrame, duration: originalFrameCount });
 	return { editor, card, firstId, laterId };
 }
@@ -246,7 +246,7 @@ async function expectClipFrames(page, editor, clipId, expected) {
 	const dialog = await openClipProperties(page, editor, clip);
 	await expect(clipField(dialog, 'startFrame')).toHaveValue(String(expected.start));
 	await expect(clipField(dialog, 'durationFrame')).toHaveValue(String(expected.duration));
-	await closeDialog(dialog);
+	await closeClipProperties(dialog);
 }
 
 async function chooseRelink(page, card, choice) {

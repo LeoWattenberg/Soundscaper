@@ -90,8 +90,14 @@ lifecycle once bytes or metadata have been submitted.
 
 `GET /api/freesound/sounds/:id/original` streams the authenticated original
 through the fixed Freesound API origin with a 128 MiB declared and observed byte
-ceiling. A larger original returns an explicit error; the client may fetch the
-HQ OGG preview only after the user confirms that fallback.
+warning threshold. The editor requests `sizeWarning=client` for an import that
+can show an explicit Continue or Cancel decision; the proxy then streams with
+checked safe-integer byte accounting. The editor confirms known oversized files
+before fetching, declared response sizes before retaining body bytes, and
+unknown-length downloads when they cross the threshold. Without that closed
+query option, a larger original returns an explicit error; the client may fetch
+the HQ OGG preview only after the user confirms that fallback. Public preview
+streams support the same option, with their default 256 MiB proxy threshold.
 
 `POST /api/freesound/uploads` accepts one raw WAV, AIFF, FLAC, OGG, or MP3 body
 with a canonical percent-encoded filename header. Both the declared and observed

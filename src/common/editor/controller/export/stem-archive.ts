@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { addArchiveSafeIntegers } from './archive-safe-integer-addition.ts';
+import { confirmFileSizeWarning, type FileSizeWarningOptions } from '../shared/file-size-warning.ts';
 import { createLocalizedError } from '../../../i18n/presentation-message.ts'; import {
 	createSequentialSevenZipCopyArchive,
 	sevenZipCopyArchiveByteLength,
@@ -109,17 +110,18 @@ export function createSevenZipStemArchivePlan(
 export async function createStreamingStemArchive(
 	plan: StemArchivePlan,
 	copy: TemporaryExportCopy,
+	warningOptions: FileSizeWarningOptions = {},
 ): Promise<StreamingStemArchive> {
 	validatePlan(plan);
 	if (plan.format === 'zip') {
 		const archive = await createStreamingZipArchive(
 			plan.fileName,
 			plan.requiredTemporaryBytes ?? plan.fallbackRequiredTemporaryBytes ?? 0,
-			copy,
+			copy, warningOptions,
 		);
 		return enforcePlannedEntries(archive, plan, copy);
 	}
-	return createStreamingSevenZipArchive(plan, copy);
+	return createStreamingSevenZipArchive(plan, copy, warningOptions);
 }
 
 function enforcePlannedEntries(
@@ -181,13 +183,16 @@ function enforcePlannedEntries(
 async function createStreamingSevenZipArchive(
 	plan: StemArchivePlan,
 	copy: TemporaryExportCopy,
+	warningOptions: FileSizeWarningOptions,
 ): Promise<StreamingStemArchive> {
 	const entries = plan.entries as readonly ExactStemArchiveEntryPlan[];
 	sevenZipCopyArchiveByteLength(entries);
 	const sink = await createTemporaryFileSink(plan.fileName, copy);
-	if (!sink.persistent && (plan.requiredTemporaryBytes ?? 0) > MEMORY_ARCHIVE_LIMIT) {
+	try {
+		if (!sink.persistent) await confirmFileSizeWarning(plan.requiredTemporaryBytes ?? 0, MEMORY_ARCHIVE_LIMIT, 'Audio stem archive staging', warningOptions);
+	} catch (error) {
 		await sink.abort();
-		throw createLocalizedError(Error, copy, 'largeStemsStorageRequired');
+		throw error;
 	}
 	const archive = await createSequentialSevenZipCopyArchive(entries, {
 		write: (chunk) => sink.write(chunk),

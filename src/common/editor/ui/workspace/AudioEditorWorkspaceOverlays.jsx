@@ -22,7 +22,6 @@ const WorkspaceOnboardingDialog = SOUNDSCAPER_BUILD
 const DesktopMcpDialog = typeof __SCAPE_DESKTOP_RENDERER__ !== 'undefined'
 	&& __SCAPE_DESKTOP_RENDERER__
 	? lazyEditorModule(() => import('../dialogs/DesktopMcpDialog.tsx')) : null;
-const ClipPropertiesDialog = lazyEditorModule(() => import('../inspector/ClipPropertiesDialog.jsx'));
 const VideoCompositionDialog = lazyEditorModule(() => import('../inspector/VideoCompositionDialog.tsx'));
 const VideoKeyframeDialog = lazyEditorModule(() => import('../inspector/VideoKeyframeDialog.tsx'));
 const VideoRetimeDialog = lazyEditorModule(() => import('../dialogs/VideoRetimeDialog.tsx'));
@@ -74,7 +73,7 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 		dialogValue,
 		effectWindows,
 		editBlocked,
-		fileService,
+		fileService, confirmFileSizeWarning,
 		generatorType,
 		locale,
 		macroDraft,
@@ -180,20 +179,6 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 				fileService={fileService} locale={locale}
 			/>}
 
-			{['clip', 'clip-pitch', 'clip-speed'].includes(activeSurface) && (
-				<div data-editor-surface="clip">
-					<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
-						<ClipPropertiesDialog
-							isOpen
-							focusField={activeSurface === 'clip-pitch' ? 'pitchCents' : activeSurface === 'clip-speed' ? 'speedRatio' : null}
-							controller={controller}
-							snapshot={snapshot}
-							copy={copy}
-							onClose={() => setActiveSurface(null)}
-						/>
-					</React.Suspense>
-				</div>
-			)}
 			{productId === 'framescaper' && capabilities.videoGeometry && activeSurface === 'video-composition' && (
 				<div data-editor-surface="video-composition">
 					<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
@@ -419,7 +404,7 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 					/>
 				</div>
 			)}
-			{activeSurface === 'raw-pcm-import' && <RawPcmImportDialog controller={controller} copy={copy} run={run} fileService={fileService} onClose={() => setActiveSurface(null)} />}
+			{activeSurface === 'raw-pcm-import' && <RawPcmImportDialog confirmFileSizeWarning={confirmFileSizeWarning} controller={controller} copy={copy} run={run} fileService={fileService} onClose={() => setActiveSurface(null)} />}
 			{capabilities.timelineAnnotations && activeSurface === 'regular-interval-annotations' && <RegularIntervalAnnotationDialog controller={controller} copy={copy} run={run} onClose={() => setActiveSurface(null)} />}
 			{capabilities.audioEffects && activeSurface === 'nyquist' && (
 				<div data-editor-surface="nyquist">

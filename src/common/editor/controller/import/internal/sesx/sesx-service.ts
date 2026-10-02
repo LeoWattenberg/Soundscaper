@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { setLocalizedStatus } from '../../../../../i18n/presentation-message.ts';
+import { confirmFileSizeWarning } from '../../../shared/file-size-warning.ts';
 import { desktopReadCapabilityIdFor } from '../../../../desktop-read-capability-registry.ts';
 import { SESX_XML_MAXIMUM_BYTES } from '../../../../sesx-format.ts';
 import { sesxAudioReferences, parseSesxDocument, type SesxAudioReference } from '../../../../sesx-import.ts';
@@ -47,7 +48,6 @@ export function createSesxService(runtime: NativeProjectServiceRuntime, helpers:
 				throw new Error('Desktop SESX media access is unavailable.');
 			}
 			if (runtime.editingBlocked()) return undefined;
-			if (file.size > SESX_XML_MAXIMUM_BYTES) throw new RangeError('The SESX session exceeds the 32 MiB XML limit.');
 			const operation = helpers.beginProjectTask('native-project-open');
 			const signal = operation.task.signal;
 			const assertReady = (): void => { helpers.assertOwnership(operation.task, operation.projectToken); };
@@ -57,7 +57,9 @@ export function createSesxService(runtime: NativeProjectServiceRuntime, helpers:
 			helpers.beginImport(operation.task);
 			setLocalizedStatus(runtime.setStatus, runtime.copy, 'importing');
 			try {
-				const document = parseSesxDocument(await file.text());
+				const maximumBytes = await confirmFileSizeWarning(file.size, SESX_XML_MAXIMUM_BYTES, file.name, {
+					confirmFileSizeWarning: runtime.confirmFileSizeWarning, signal, assertCurrent: assertReady });
+				const document = parseSesxDocument(await file.text(), { maximumBytes });
 				assertReady();
 				const references = sesxAudioReferences(document);
 				const media = new Map<string, SesxDecodedMediaInfo | null>();
@@ -74,7 +76,7 @@ export function createSesxService(runtime: NativeProjectServiceRuntime, helpers:
 							if (!wav && runtime.prepareDawprojectAudio) {
 								try { prepared = await runtime.prepareDawprojectAudio(blob, reference.name, signal); }
 								catch (error) {
-									if (error instanceof RangeError) throw error;
+									if (error instanceof RangeError || (error instanceof Error && error.name === 'AbortError')) throw error;
 									assertReady();
 								}
 							}

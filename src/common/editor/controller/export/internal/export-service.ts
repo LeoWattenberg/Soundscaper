@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-import { admitAudioExportBlob, prepareAudioExportBlob } from '../../../audio-export-output.ts'; import { createLocalizedError, setLocalizedStatus } from '../../../../i18n/presentation-message.ts';
+import { admitAudioExportBlob, prepareAudioExportBlobWithWarning as prepareAudioExportBlob } from '../../../audio-export-output.ts'; import { createLocalizedError, setLocalizedStatus } from '../../../../i18n/presentation-message.ts';
 import { audioExportPublicationProgress, NO_AUDIO_EXPORT_PROGRESS as NO_TASK_PROGRESS } from './audio/audio-export-progress.ts';
 import { isVideoExportRequestFormat } from '../../../video-export-request-format.ts';
 import { inheritTrackFolderMediaStateProjectionV12 } from '../../../track-folder-media-runtime.ts';
@@ -105,7 +105,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 	const renderRealtimeEncoded = createRealtimeEncodedAudioExport({
 		applyMediaChannelMapping, copy, createAiffStreamEncoder, createCacheAwareRenderEngine,
 		createStableId, createStreamingWindowedSincResampler, createTemporaryFileSink,
-		createWavStreamEncoder, ffmpeg, normalizeProjectSampleRate,
+		createWavStreamEncoder, ffmpeg, normalizeProjectSampleRate, options,
 		prepareCommittedTimePitchCaches, setStatus, taskProgress, throwIfAborted, withRenderProgress,
 	});
 	async function handleExportAction(
@@ -236,7 +236,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 			const directCompressedTemporaryBytes = directCompressedStagingTemporaryBytes(plan);
 			const stemPreparation = await prepareDirectStemArchiveDestination(
 				fileService, plan,
-				requestedSettings && typeof requestedSettings === 'object' ? requestedSettings : null,
+				{ ...(requestedSettings && typeof requestedSettings === 'object' ? requestedSettings : {}), confirmFileSizeWarning: options.confirmFileSizeWarning },
 				abort.signal,
 			);
 			if (stemPreparation.cancelled) return stemPreparation.cancelled;
@@ -245,7 +245,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 			if (!pendingDirectDestination) {
 				const compressedPreparation = await prepareDirectCompressedDestination(
 					fileService, plan,
-					requestedSettings && typeof requestedSettings === 'object' ? requestedSettings : null,
+					{ ...(requestedSettings && typeof requestedSettings === 'object' ? requestedSettings : {}), confirmFileSizeWarning: options.confirmFileSizeWarning },
 					abort.signal,
 				);
 				if (compressedPreparation.cancelled) return compressedPreparation.cancelled;
@@ -255,7 +255,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 			if (!pendingDirectDestination) {
 				const directPreparation = await prepareDirectPcmExportDestination(
 					fileService, plan,
-					requestedSettings && typeof requestedSettings === 'object' ? requestedSettings : null,
+					{ ...(requestedSettings && typeof requestedSettings === 'object' ? requestedSettings : {}), confirmFileSizeWarning: options.confirmFileSizeWarning },
 					abort.signal,
 				);
 				if (directPreparation.cancelled) return directPreparation.cancelled;
@@ -324,7 +324,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 				// conformance can still say why.
 				assertDeliveryConformance(conformance);
 				if (encoded.directDestination) directOutput = encoded;
-				else blob = prepareAudioExportBlob(encoded, 'Audio export', browserMaximumOutputBytes);
+				else blob = await prepareAudioExportBlob(encoded, 'Audio export', browserMaximumOutputBytes, { signal: abort.signal, assertCurrent: assertExportCurrent, confirmFileSizeWarning: options.confirmFileSizeWarning });
 				fileName = plan.outputs[0].fileName;
 			} else if (directStemArchive) {
 				if (!plan.archive) throw new Error('The stem export plan has no archive descriptor.');
@@ -361,7 +361,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 			} else {
 				const archived = await streamStemArchiveExport({
 					abortSignal: abort.signal,
-					admitOutputBytes: browserMaximumOutputBytes,
+					admitOutputBytes: browserMaximumOutputBytes, confirmFileSizeWarning: options.confirmFileSizeWarning,
 					conformExport: conformPersistentExport,
 					copy,
 					createStreamingStemArchive,
@@ -417,7 +417,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 				publishDocumentSnapshot();
 				return result;
 			}
-			blob = admitAudioExportBlob(blob, 'Audio export', browserMaximumOutputBytes);
+			blob = admitAudioExportBlob(blob, 'Audio export', Math.max(1, blob?.size ?? 0));
 			await clearPreviousExportOutput();
 			const published = await fileService.createDownload({
 				...audioExportPublicationProgress(progressTask, copy.save, abort.signal, { key: 'save' }),
@@ -530,7 +530,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 			encodingRuntime: {
 				applyMediaChannelMapping, audioBufferChannels, copy,
 				createAiffStreamEncoder, createWavStreamEncoder, encodeAiff, encodeWav,
-				ffmpeg, resampleBuffer, setStatus, throwIfAborted,
+				ffmpeg, resampleBuffer, setStatus, throwIfAborted, confirmFileSizeWarning: options.confirmFileSizeWarning,
 			},
 			normalizeProjectSampleRate,
 			renderRealtimeEncoded,

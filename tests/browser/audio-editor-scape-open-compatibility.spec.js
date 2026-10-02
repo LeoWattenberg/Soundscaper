@@ -22,7 +22,7 @@ import {
 	assertNoSeriousAxeViolations,
 	bootEditor,
 	chooseCommandAction,
-	clipByName,
+	clipByName, closeClipProperties,
 	collectClientErrors,
 	chooseExportProjectFileAction,
 	importFiles,
@@ -349,7 +349,7 @@ test.describe('Scape open feature decisions', () => {
 		const clipMenu = page.locator('.audio-editor-clip-context-menu');
 		await expect(clipMenu).toBeVisible();
 		await clipMenu.locator('[data-action-id="clip-properties"]').click();
-		const clipDialog = page.getByRole('dialog', { name: 'Clip properties', exact: true });
+		const clipDialog = framescaper.locator('[data-workspace-panel="clip-properties"]');
 		const rack = clipDialog.locator('[data-video-effect-rack]');
 		await expect(rack).toBeVisible();
 		const picker = rack.locator('[data-video-effect-picker]');
@@ -360,7 +360,7 @@ test.describe('Scape open feature decisions', () => {
 		await expect(pixelate).toHaveCount(1);
 		const effectId = await pixelate.getAttribute('data-video-effect-id');
 		expect(effectId).toBeTruthy();
-		await clipDialog.getByRole('button', { name: 'Close', exact: true }).click();
+		await closeClipProperties(clipDialog);
 
 		const exported = await captureScapeArchive(page, framescaper);
 		const originalFramescaperId = await framescaper.getAttribute('data-project-id');

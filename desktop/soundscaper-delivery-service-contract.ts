@@ -13,6 +13,7 @@ import {
 } from '../src/common/editor/soundscaper-persistent-delivery-plan-v1.ts';
 import type { SoundscaperDeliveryRootObservation } from './soundscaper-delivery-root.ts';
 import type { SoundscaperDeliveryFilesystemAuthority } from './soundscaper-delivery-filesystem-authority.ts';
+import type { DesktopSaveSizeWarning } from './save-size-warning-dialog.ts';
 
 export type SoundscaperDeliveryPersistedState =
 	| 'queued' | 'running' | 'needs-authorization' | 'stale'
@@ -88,6 +89,7 @@ export interface SoundscaperDeliveryStartOptions {
 	/** Test/composition hook invoked after file I/O and immediately before the lease fence. */
 	readonly beforeFileFence?: (operation: string) => void;
 	readonly filesystem: SoundscaperDeliveryFilesystemAuthority;
+	readonly confirmFileSizeWarning?: (warning: Readonly<DesktopSaveSizeWarning>) => Promise<boolean>;
 }
 
 export interface SoundscaperDeliveryQueueRow extends Record<string, unknown> {

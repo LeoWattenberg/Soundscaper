@@ -51,8 +51,7 @@ export function assertDesktopLinkedAudioReadProfile(
 	if (!wav && !rf64 && !aiff) {
 		throw new TypeError('A linked-audio range descriptor requires an exact WAV, RF64, or AIFF MIME/name pair.');
 	}
-	if (!Number.isSafeInteger(descriptor.size) || (descriptor.size as number) < 1
-		|| (descriptor.size as number) > 512 * 1024 ** 2) {
+	if (!Number.isSafeInteger(descriptor.size) || (descriptor.size as number) < 1) {
 		throw new RangeError('The linked-audio desktop read size is outside its admitted range.');
 	}
 }
@@ -66,8 +65,7 @@ export function assertDesktopLinkedVideoReadProfile(
 		|| isProjectFileName(descriptor.name)) {
 		throw new TypeError('A canonical linked-video desktop read profile is required.');
 	}
-	if (!Number.isSafeInteger(descriptor.size) || (descriptor.size as number) < 1
-		|| (descriptor.size as number) > 512 * 1024 ** 2) {
+	if (!Number.isSafeInteger(descriptor.size) || (descriptor.size as number) < 1) {
 		throw new RangeError('The linked-video desktop read size is outside its admitted range.');
 	}
 }

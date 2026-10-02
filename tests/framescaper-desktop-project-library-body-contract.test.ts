@@ -256,15 +256,15 @@ test('a body digest and byte length are bounded before any body read', () => {
 		/baseline desktop body digest is invalid/u);
 	assert.throws(() => validateDescriptor(stillBody({ byteLength: 0 })), RangeError);
 	assert.throws(() => validateDescriptor(stillBody({ byteLength: 1.5 })), RangeError);
-	assert.throws(() => validateDescriptor(stillBody({ byteLength: 64 * 1024 * 1024 * 1024 + 1 })),
+	assert.throws(() => validateDescriptor(stillBody({ byteLength: Number.MAX_SAFE_INTEGER + 1 })),
 		/baseline desktop body length is invalid/u);
 });
 
-test('the still and freeze-render roles are bounded by image media type and image size', () => {
+test('the still and freeze-render roles retain image media type and accept admitted image sizes', () => {
 	assert.throws(() => validateDescriptor(stillBody({ mimeType: 'application/octet-stream' })),
 		/baseline desktop framescaper-still exceeds its image role bound/u);
-	assert.throws(() => validateDescriptor(stillBody({ byteLength: 512 * 1024 * 1024 + 1 })),
-		/baseline desktop framescaper-still exceeds its image role bound/u);
+	assert.equal(validateDescriptor(stillBody({ byteLength: 512 * 1024 * 1024 + 1 })).byteLength,
+		512 * 1024 * 1024 + 1);
 	const freeze = stillBody({ kind: 'framescaper-freeze-render', encoding: 'freeze-render-v1' });
 	assert.equal(validateDescriptor(freeze).kind, 'framescaper-freeze-render');
 	assert.throws(() => validateDescriptor({ ...freeze, mimeType: 'text/plain' }),
@@ -342,7 +342,7 @@ test('extension references are collected as finishing bodies, then professional 
 		`assistance:transcript:${TRANSCRIPT_KEY}`,
 	]);
 	assert.equal(references[0]?.byteLength, null, 'a still body carries no project-bound length');
-	assert.equal(references[0]?.maximumBytes, 512 * 1024 * 1024);
+	assert.equal(references[0]?.maximumBytes, Number.MAX_SAFE_INTEGER);
 	assert.equal(references[0]?.archiveReference?.role, 'still');
 	assert.equal(references[0]?.professionalReference, null);
 	assert.equal(references[4]?.maximumBytes, ASSISTANCE_ASSET_REFERENCE_LIMITS_V1.maximumBodyBytes);

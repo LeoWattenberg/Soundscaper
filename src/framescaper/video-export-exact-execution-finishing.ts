@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { FileSizeWarningConfirmation } from '../common/editor/controller/shared/file-size-warning.ts';
 import type { ProductVideoExportStrategyEncodeRequest } from '../common/editor/controller/export/product-video-export-strategy.ts';
 import type { VideoKeyframeExportFrame } from '../common/editor/video-keyframe-export-frame-source.ts';
 import type { VideoKeyframeOfflineRgbaCompositor } from '../common/editor/video-keyframe-offline-rgba-contract.ts';
@@ -43,6 +44,7 @@ export type CreateFramescaperVideoExportSupplementalPictureExecutionFinishing = 
 		readonly foundationPlan: UnifiedExactRenderPlanV13;
 		readonly signal: AbortSignal;
 		readonly assertCurrent: () => void;
+		readonly confirmFileSizeWarning?: FileSizeWarningConfirmation;
 	}>,
 ) => PromiseLike<FramescaperVideoExportSupplementalPictureExecutionFinishing | null>
 	| FramescaperVideoExportSupplementalPictureExecutionFinishing | null;
@@ -87,7 +89,7 @@ export async function createFramescaperVideoExportExactExecutionFinishing(option
 				foundationPlan: visual.exactPlan, timingViews: timingViewsBySourceId,
 			}) } : {}),
 			sourceFrames, signal: options.request.signal,
-			assertCurrent: options.request.assertCurrent,
+			assertCurrent: options.request.assertCurrent, confirmFileSizeWarning: options.request.confirmFileSizeWarning,
 		});
 	} catch (error) {
 		const failures: unknown[] = [error];
@@ -105,7 +107,7 @@ export async function createFramescaperVideoExportExactExecutionFinishing(option
 			canonicalProject: options.request.canonicalProject,
 			foundationPlan: visual.exactPlan,
 			signal: options.request.signal,
-			assertCurrent: options.request.assertCurrent,
+			assertCurrent: options.request.assertCurrent, confirmFileSizeWarning: options.request.confirmFileSizeWarning,
 		}) ?? null;
 		assertSupplementalExecution(supplementalCandidate);
 		supplemental = supplementalCandidate;

@@ -30,16 +30,39 @@ test.afterEach(() => {
 	else globalThis.__soundscaperBoundedOutputRuntime = originalRuntime;
 });
 
-test('legacy audio byte routes refuse oversized FFmpeg output before whole-file reads', async () => {
+test('legacy audio byte routes require an oversized output decision before whole-file reads', async () => {
 	for (const encode of [
 		(ffmpeg) => ffmpeg.encode(Uint8Array.of(1), 'mp3', { maximumOutputBytes: 2 }),
 		(ffmpeg) => ffmpeg.encodeFile(new Blob([Uint8Array.of(1)]), 'mp3', { maximumOutputBytes: 2 }),
 	]) {
 		const ffmpeg = createEditorFfmpeg({ idleTimeoutMs: false });
-		await assert.rejects(encode(ffmpeg), /Audio export.*maximum is 2 bytes/u);
+		await assert.rejects(encode(ffmpeg), { code: 'FILE_SIZE_WARNING' });
 		assert.equal(MockFfmpegRuntime.instances[0].statFileCalls, 1);
 		assert.equal(MockFfmpegRuntime.instances[0].readFileCalls, 0);
 		ffmpeg.dispose();
+	}
+});
+
+test('legacy audio byte routes await acceptance before reading and stop on cancellation', async () => {
+	for (const method of ['encode', 'encodeFile']) {
+		for (const accepted of [true, false]) {
+			const ffmpeg = createEditorFfmpeg({ idleTimeoutMs: false });
+			let prompts = 0;
+			const settings = { maximumOutputBytes: 2, confirmFileSizeWarning: async (warning) => {
+				prompts += 1;
+				assert.deepEqual(warning, { label: 'Audio export', byteLength: 3, thresholdBytes: 2 });
+				assert.equal(MockFfmpegRuntime.instances[0].readFileCalls, 0);
+				return accepted;
+			} };
+			const input = method === 'encode' ? Uint8Array.of(1) : new Blob([Uint8Array.of(1)]);
+			const operation = ffmpeg[method](input, 'mp3', settings);
+			if (accepted) assert.deepEqual((await operation).bytes, Uint8Array.of(1, 2, 3));
+			else await assert.rejects(operation, { name: 'AbortError' });
+			assert.equal(prompts, 1);
+			assert.equal(MockFfmpegRuntime.instances[0].readFileCalls, accepted ? 1 : 0);
+			ffmpeg.dispose();
+			MockFfmpegRuntime.instances = [];
+		}
 	}
 });
 

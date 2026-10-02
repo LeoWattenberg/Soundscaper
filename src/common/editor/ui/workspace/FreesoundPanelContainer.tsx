@@ -57,6 +57,7 @@ interface ActiveFreesoundPreview {
 }
 
 interface FreesoundPanelContainerProps {
+	readonly confirmFileSizeWarning?: import('../../controller/shared/file-size-warning.ts').FileSizeWarningConfirmation;
 	readonly controller: FreesoundPanelController;
 	readonly snapshot: Readonly<Record<string, unknown>>;
 	readonly copy: Readonly<Record<string, string>>;
@@ -88,7 +89,7 @@ export function FreesoundPanelContainer({
 	panelActive = true,
 	freesoundTransport,
 	materializeClip,
-	prepareUploadFile,
+	prepareUploadFile, confirmFileSizeWarning,
 }: FreesoundPanelContainerProps) {
 	const clipMaterializer = materializeClip ?? controller.actions.clip?.materializeFreesoundUpload;
 	const transport = useMemo(
@@ -102,6 +103,7 @@ export function FreesoundPanelContainer({
 	}), [apiClient, clipMaterializer, controller, prepareUploadFile]);
 	const accountSnapshot = useSyncExternalStore(account.subscribe, account.getSnapshot, account.getSnapshot);
 	const actions = freesoundWorkspaceActions(controller, {
+		confirmFileSizeWarning,
 		authenticated: () => account.getSnapshot().auth.status === 'connected',
 		authenticatedRequest: async (path, init) => {
 			const response = await transport.request(path, init);

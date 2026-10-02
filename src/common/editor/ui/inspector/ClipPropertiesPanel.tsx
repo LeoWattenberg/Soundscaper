@@ -1,0 +1,87 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
+import type { ClipPropertiesFocusRequest } from '../../controller/composition/clip-properties-panel-opening.ts';
+import ClipPropertiesBody from './ClipPropertiesBody.jsx';
+import {
+	clipPropertiesSelection,
+	reconcileClipPropertiesTarget,
+	type ClipPropertiesSelectionSnapshot,
+	type ClipPropertiesTarget,
+} from './clip-properties-selection.ts';
+
+export type { ClipPropertiesFocusRequest } from '../../controller/composition/clip-properties-panel-opening.ts';
+
+interface ClipPropertiesPanelProps {
+	readonly controller: object;
+	readonly snapshot: ClipPropertiesSelectionSnapshot & Readonly<Record<string, unknown>>;
+	readonly copy: Readonly<Record<string, string>>;
+	readonly focusRequest?: ClipPropertiesFocusRequest | null;
+	readonly panelActive?: boolean;
+}
+
+/** A live inspector whose local tabs never rewrite the timeline's selection. */
+export default function ClipPropertiesPanel({ controller, snapshot, copy, focusRequest = null, panelActive = true }: ClipPropertiesPanelProps) {
+	const selection = clipPropertiesSelection(snapshot, copy.clip);
+	const [storedTarget, setStoredTarget] = useState<ClipPropertiesTarget>({ projectId: null, clipId: null });
+	const handledFocus = useRef<ClipPropertiesFocusRequest | null>(null);
+	const pendingFocus = focusRequest && handledFocus.current !== focusRequest
+		&& (focusRequest.projectId === undefined || focusRequest.projectId === selection.projectId);
+	const target = reconcileClipPropertiesTarget(storedTarget, selection);
+	const activeClipId = pendingFocus && selection.clips.some(({ id }) => id === focusRequest.clipId)
+		? focusRequest.clipId ?? target.clipId : target.clipId;
+	const bodyRef = useRef<HTMLDivElement>(null);
+	const tabRefs = useRef(new Map<string, HTMLButtonElement>());
+	const baseId = useId();
+	const bodyId = `${baseId}-properties`;
+	const tabId = (clipId: string) => `${baseId}-clip-${encodeURIComponent(clipId)}`;
+	const multiple = selection.clips.length > 1;
+
+	useEffect(() => {
+		setStoredTarget((previous) => previous.projectId === selection.projectId && previous.clipId === activeClipId
+			? previous : { projectId: selection.projectId, clipId: activeClipId });
+	}, [selection.projectId, activeClipId]);
+	useEffect(() => {
+		if (!panelActive || !focusRequest || handledFocus.current === focusRequest) return;
+		const acknowledge = () => { handledFocus.current = focusRequest; focusRequest.onHandled?.(); };
+		const wrongProject = focusRequest.projectId !== undefined && focusRequest.projectId !== selection.projectId;
+		const removedClip = focusRequest.clipId !== null && !selection.clips.some(({ id }) => id === focusRequest.clipId);
+		if (wrongProject || removedClip || !activeClipId) { acknowledge(); return; }
+		const field = focusRequest.field ?? 'name';
+		const input = bodyRef.current?.querySelector(`[data-clip-field="${field}"]`)?.querySelector<HTMLInputElement>('input');
+		const focusTarget = input && !input.disabled ? input : bodyRef.current;
+		if (!focusTarget) return;
+		focusTarget.focus();
+		acknowledge();
+	}, [focusRequest, panelActive, activeClipId, selection.projectId, selection.clips]);
+
+	const activateTab = (clipId: string) => setStoredTarget({ projectId: selection.projectId, clipId });
+	const handleTabKey = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
+		let nextIndex: number;
+		if (event.key === 'ArrowRight') nextIndex = (index + 1) % selection.clips.length;
+		else if (event.key === 'ArrowLeft') nextIndex = (index - 1 + selection.clips.length) % selection.clips.length;
+		else if (event.key === 'Home') nextIndex = 0;
+		else if (event.key === 'End') nextIndex = selection.clips.length - 1;
+		else return;
+		event.preventDefault();
+		const nextClip = selection.clips[nextIndex];
+		if (!nextClip) return;
+		activateTab(nextClip.id);
+		tabRefs.current.get(nextClip.id)?.focus();
+	};
+
+	return <div className="audio-editor-clip-properties-panel" data-clip-properties-panel>
+		{multiple && <div className="audio-editor-clip-properties-panel__tabs" role="tablist" aria-label={copy.clipPropertiesSelectedClips}>
+			{selection.clips.map((clip, index) => <button key={clip.id} type="button" role="tab"
+				id={tabId(clip.id)} aria-controls={bodyId} aria-selected={clip.id === activeClipId}
+				tabIndex={clip.id === activeClipId ? 0 : -1} data-clip-properties-tab={clip.id} title={clip.label}
+				ref={(node) => { if (node) tabRefs.current.set(clip.id, node); else tabRefs.current.delete(clip.id); }}
+				onClick={() => activateTab(clip.id)} onKeyDown={(event) => handleTabKey(event, index)}>{clip.label}</button>)}
+		</div>}
+		{activeClipId ? <div ref={bodyRef} id={bodyId} role={multiple ? 'tabpanel' : undefined}
+			aria-labelledby={multiple ? tabId(activeClipId) : undefined} tabIndex={-1} data-clip-properties-active-clip={activeClipId}>
+			<ClipPropertiesBody key={JSON.stringify([selection.projectId, activeClipId])} controller={controller}
+				snapshot={snapshot} copy={copy} clipId={activeClipId} />
+		</div> : <p className="audio-editor-panel-hint" data-no-clip>{copy.noClipSelected}</p>}
+	</div>;
+}

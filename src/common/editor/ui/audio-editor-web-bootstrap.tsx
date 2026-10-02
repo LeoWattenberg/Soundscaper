@@ -4,6 +4,8 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 
+import { createFileSizeWarningConfirmation, type FileSizeWarningConfirmation } from '../controller/shared/file-size-warning-confirmation.ts';
+
 import { EditorStartupProgress } from '../../site/EditorStartupProgress.tsx';
 
 import {
@@ -46,6 +48,7 @@ interface RuntimeController {
 interface RuntimeMetadata<Projector> {
 	readonly assistanceSearchSource: AssistanceSearchSource | null;
 	readonly monoConversionConfirmation: MonoConversionConfirmation;
+	readonly fileSizeWarningConfirmation: FileSizeWarningConfirmation;
 	readonly projectForRuntimeConsumers: Projector;
 }
 
@@ -64,6 +67,7 @@ export interface AudioEditorWebRuntimeLifecycleOptions<
 		presentation: Presentation,
 		fileService: FileService,
 		monoConversionConfirmation: MonoConversionConfirmation,
+		fileSizeWarningConfirmation: FileSizeWarningConfirmation,
 	) => Controller;
 	readonly createExtension?: (
 		controller: Controller,
@@ -71,6 +75,7 @@ export interface AudioEditorWebRuntimeLifecycleOptions<
 		fileService: FileService,
 	) => Extension;
 	readonly disposeExtension?: (extension: Extension) => PromiseLike<void> | void;
+	readonly createFileSizeWarningConfirmation?: () => FileSizeWarningConfirmation;
 	readonly createMonoConversionConfirmation?: () => MonoConversionConfirmation;
 	readonly constructionCleanupMessage: string;
 	readonly extensionAndControllerDisposalMessage?: string;
@@ -91,6 +96,8 @@ export interface AudioEditorWebRuntimeLifecycle<
 		AssistanceSearchSource | null;
 	monoConversionConfirmation(runtime: Readonly<AudioEditorWebRuntime<Controller, FileService>>):
 		MonoConversionConfirmation;
+	fileSizeWarningConfirmation(runtime: Readonly<AudioEditorWebRuntime<Controller, FileService>>):
+		FileSizeWarningConfirmation;
 	projectForRuntimeConsumers(runtime: Readonly<AudioEditorWebRuntime<Controller, FileService>>): Projector;
 }
 
@@ -123,15 +130,18 @@ export function createAudioEditorWebRuntimeLifecycle<
 		const monoConversionConfirmation = (
 			options.createMonoConversionConfirmation ?? createMonoConversionConfirmation
 		)();
+		let sizeConfirmationToDispose: FileSizeWarningConfirmation | undefined;
 		try {
+			const fileSizeWarningConfirmation = (options.createFileSizeWarningConfirmation ?? createFileSizeWarningConfirmation)();
+			sizeConfirmationToDispose = fileSizeWarningConfirmation;
 			const controller = options.createController(
-				environment, presentation, fileService, monoConversionConfirmation,
+				environment, presentation, fileService, monoConversionConfirmation, fileSizeWarningConfirmation,
 			);
 			const extension = options.createExtension?.(controller, environment, fileService);
 			let disposal: Promise<void> | null = null;
 			const dispose = (): Promise<void> => {
 				disposal ??= disposeRuntimeResources(
-					controller, environment, extension, monoConversionConfirmation, options,
+					controller, environment, extension, monoConversionConfirmation, fileSizeWarningConfirmation, options,
 				);
 				return disposal;
 			};
@@ -139,6 +149,7 @@ export function createAudioEditorWebRuntimeLifecycle<
 			metadata.set(runtime, Object.freeze({
 				projectForRuntimeConsumers: environment.runtime.projectForRuntimeConsumers,
 				monoConversionConfirmation,
+				fileSizeWarningConfirmation,
 				assistanceSearchSource: fileService.isDesktop
 					? createLocalAssistanceLazySemanticSearchSourceV1({
 						bridgeScope: fileService.bridge,
@@ -149,6 +160,7 @@ export function createAudioEditorWebRuntimeLifecycle<
 			return runtime;
 		} catch (error) {
 			monoConversionConfirmation.dispose();
+			sizeConfirmationToDispose?.dispose();
 			try {
 				await environment.close();
 			} catch (cleanupError) {
@@ -194,6 +206,7 @@ export function createAudioEditorWebRuntimeLifecycle<
 		createWhenReady,
 		assistanceSearchSource: (runtime: Runtime) => requireMetadata(runtime).assistanceSearchSource,
 		monoConversionConfirmation: (runtime: Runtime) => requireMetadata(runtime).monoConversionConfirmation,
+		fileSizeWarningConfirmation: (runtime: Runtime) => requireMetadata(runtime).fileSizeWarningConfirmation,
 		projectForRuntimeConsumers: (runtime: Runtime) => requireMetadata(runtime).projectForRuntimeConsumers,
 	});
 }
@@ -210,6 +223,7 @@ async function disposeRuntimeResources<
 	environment: Environment,
 	extension: Extension | undefined,
 	monoConversionConfirmation: MonoConversionConfirmation,
+	fileSizeWarningConfirmation: FileSizeWarningConfirmation,
 	options: AudioEditorWebRuntimeLifecycleOptions<
 		Presentation, FileService, Projector, Environment, Controller, Extension
 	>,
@@ -217,6 +231,7 @@ async function disposeRuntimeResources<
 	let failure: unknown;
 	let failed = false;
 	monoConversionConfirmation.dispose();
+	fileSizeWarningConfirmation.dispose();
 	if (extension !== undefined && options.disposeExtension) {
 		try {
 			controller.beginDisposal?.();

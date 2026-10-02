@@ -153,12 +153,14 @@ test('raw PCM import cannot cross a project switch while conversion is pending',
 			await readStarted.promise;
 		});
 		assert.equal(running.length, 1);
+		const runningImport = running[0];
+		assert.ok(runningImport);
 
 		currentProject = projectB;
 		await act(async () => root.render(renderDialog()));
 		await act(async () => {
 			readPending.resolve(new Uint8Array([0, 0]).buffer);
-			await running[0];
+			await assert.rejects(runningImport, { name: 'AbortError', message: 'The project changed.' });
 		});
 
 		assert.equal(imports, 0, 'project A media must not import into project B');

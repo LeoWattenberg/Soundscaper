@@ -289,7 +289,7 @@ test('streaming ZIP archives require persistent storage for large stem sets', as
 	await withNavigator({ storage: {} }, async () => {
 		await assert.rejects(
 			() => createStreamingZipArchive('large.zip', 97 * 1024 ** 2, copy),
-			/large stems require storage/u,
+			/size warning threshold/u,
 		);
 	});
 });

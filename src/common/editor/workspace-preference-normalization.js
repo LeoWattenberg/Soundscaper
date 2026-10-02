@@ -20,7 +20,7 @@ import { canonicalizeWorkspacePanelGroups, normalizeWorkspacePanelGroupFields } 
 import { clone, finiteInRange, integer, nonEmptyString, oneOf } from './preferences-validators.js';
 
 export const BUILT_IN_WORKSPACE_SET = new Set(AUDIO_EDITOR_BUILT_IN_WORKSPACES);
-const DOCK_SET = new Set(['left', 'right', 'bottom', 'floating']);
+const DOCK_SET = new Set(['left', 'right', 'top', 'bottom', 'floating']);
 
 export function workspaceLayout(activeId, custom) {
 	if (BUILT_IN_WORKSPACE_SET.has(activeId)) return AUDIO_EDITOR_WORKSPACE_PRESETS[activeId];

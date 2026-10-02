@@ -2,7 +2,8 @@
 
 import { createVisibleVideoTrackPredicate } from '../../../../video-timeline.js'; import { createLocalizedError, setLocalizedStatus } from '../../../../../i18n/presentation-message.ts';
 
-import { prepareBrowserExportBlob } from '../../../../browser-export-output.ts';
+import type { FileSizeWarningConfirmation } from '../../../shared/file-size-warning.ts';
+import { prepareBrowserExportBlobWithWarning as prepareBrowserExportBlob } from '../../../../browser-export-output.ts';
 import { getVideoExportFormat } from '../../../../video-export.js';
 import { projectTrackFolderMediaStateV12 } from '../../../../track-folder-media-runtime.ts';
 import { createExportRenderProject } from '../../export-render-project.ts';
@@ -320,7 +321,7 @@ export function createEditorVideoExportAction(
 							productEncodeRequest(
 								canonicalProject, exportProject, productPlan, keyedTimingIndexes,
 								videoBlobs, audioMixBlob, ffmpeg, abort.signal,
-								assertVideoExportCurrent, browserMaximumOutputBytes,
+								assertVideoExportCurrent, browserMaximumOutputBytes, runtime.options?.confirmFileSizeWarning,
 								encoderDecision.tier === 'webcodecs'
 									? { codec: encoderDecision.codec!, bitrate: encoderDecision.bitrate! }
 									: null,
@@ -334,7 +335,7 @@ export function createEditorVideoExportAction(
 							pendingDirectDestination,
 							{
 								signal: abort.signal, assertCurrent: assertVideoExportCurrent,
-								maximumOutputBytes: browserMaximumOutputBytes,
+								maximumOutputBytes: browserMaximumOutputBytes, confirmFileSizeWarning: runtime.options?.confirmFileSizeWarning,
 								...(captionDocument ? { captions: captionDocument } : {}),
 								...(burnInFonts ? { burnInFonts } : {}),
 							},
@@ -353,13 +354,13 @@ export function createEditorVideoExportAction(
 					? await productStrategy!.encode(productEncodeRequest(
 						canonicalProject, exportProject, productPlan, keyedTimingIndexes,
 						videoBlobs, audioMixBlob, ffmpeg, abort.signal,
-						assertVideoExportCurrent, browserMaximumOutputBytes,
+						assertVideoExportCurrent, browserMaximumOutputBytes, runtime.options?.confirmFileSizeWarning,
 						encoderDecision.tier === 'webcodecs'
 							? { codec: encoderDecision.codec!, bitrate: encoderDecision.bitrate! }
 							: null,
 					))
 					: await ffmpeg.encodeVideo(videoBlobs, audioMixBlob, plan, {
-						signal: abort.signal, maximumOutputBytes: browserMaximumOutputBytes,
+						signal: abort.signal, maximumOutputBytes: browserMaximumOutputBytes, confirmFileSizeWarning: runtime.options?.confirmFileSizeWarning,
 						...(captionDocument ? { captions: captionDocument } : {}),
 						...(burnInFonts ? { burnInFonts } : {}),
 					});
@@ -401,8 +402,8 @@ export function createEditorVideoExportAction(
 				publishDocumentSnapshot();
 				return result;
 			}
-			const blob = prepareBrowserExportBlob(
-				encoded, 'Video export', browserMaximumOutputBytes,
+			const blob = await prepareBrowserExportBlob(
+				encoded, 'Video export', browserMaximumOutputBytes, { signal: abort.signal, assertCurrent: assertVideoExportCurrent, confirmFileSizeWarning: runtime.options?.confirmFileSizeWarning },
 			);
 			if (state.outputUrl) globalThis.URL?.revokeObjectURL?.(state.outputUrl);
 			await state.outputCleanup?.();
@@ -479,6 +480,7 @@ function productEncodeRequest(
 	signal: AbortSignal,
 	assertCurrent: () => void,
 	maximumOutputBytes: unknown,
+	confirmFileSizeWarning: FileSizeWarningConfirmation | undefined,
 	webCodecs: Readonly<{ codec: string; bitrate: number }> | null,
 ) {
 	if (!timingIndexes) throw new Error('Keyed video export lost its exact timing lease.');
@@ -494,7 +496,7 @@ function productEncodeRequest(
 		webCodecs,
 		signal,
 		assertCurrent,
-		maximumOutputBytes,
+		maximumOutputBytes, confirmFileSizeWarning,
 	});
 }
 

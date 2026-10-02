@@ -8,7 +8,7 @@ import {
 	chooseNestedCommandAction,
 	clickClipInterior,
 	clipField,
-	closeDialog,
+	closeClipProperties, closeDialog,
 	commitInput,
 	openClipProperties,
 	openEffectsForTrack,
@@ -93,7 +93,7 @@ export async function editClipProperties(page, editor, clip, edits) {
 			await expect(input).toHaveValue(String(value));
 		}
 	}
-	await closeDialog(dialog);
+	await closeClipProperties(dialog);
 }
 
 export function trackRow(clip) {
@@ -153,7 +153,7 @@ export async function duplicateClip(page, editor, clip) {
 export async function clipDurationFrames(page, editor, clip) {
 	const dialog = await openClipProperties(page, editor, clip);
 	const duration = Number(await clipField(dialog, 'durationFrame').inputValue());
-	await closeDialog(dialog);
+	await closeClipProperties(dialog);
 	return duration;
 }
 

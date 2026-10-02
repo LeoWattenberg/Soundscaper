@@ -3,6 +3,7 @@
 import { createLocalizedError, setLocalizedStatus } from '../../../../../i18n/presentation-message.ts';
 import { isAudioMediaKind } from '../../../../audio-media-kind.ts';
 import { hasCoreEditingProjectAuthority } from '../../../../project-schema-version.ts';
+import { confirmFileSizeWarning } from '../../../shared/file-size-warning.ts';
 import {
 	EDITOR_PROJECT_TASK_SCOPE,
 	type EditorProjectToken,
@@ -25,6 +26,7 @@ import type {
 	SaveAup4Options,
 } from '../../native-project-types.ts';
 import type { ProjectTask } from './native-project-ownership.ts';
+import { withAudacityWorkerSizeAdmission } from './audacity-worker-size-admission.ts';
 
 type SaveResult = Readonly<NativeSavedFile & {
 	validation: Aup4Validation;
@@ -149,6 +151,15 @@ export function createNativeAudacityProjectSave(
 			const portable = portableOptions(
 				runtime, dependencies.getEnvironment(), workingBytes, storage, progress, signal,
 			);
+			const { getAup4SaveLimit } = await import('../../../../aup4-profile.js'); const threshold = getAup4SaveLimit({ mobile: runtime.state.mobile, opfs: portable.opfs,
+				deviceMemory: (globalThis.navigator as Navigator & { deviceMemory?: number } | undefined)?.deviceMemory });
+			const estimatedBytes = Math.ceil(sourceBytes * 1.02) + 2 * 1024 * 1024;
+			const maxBytes = await confirmFileSizeWarning(estimatedBytes, threshold,
+				target.ensureFileName(options.fileName || snapshot.title), {
+					confirmFileSizeWarning: runtime.confirmFileSizeWarning, signal,
+					assertCurrent: () => dependencies.assertOwnership(operation.task, operation.projectToken),
+				});
+			let admittedPortable: Aup4PortableOptions = { ...portable, maxBytes, fileSizeWarningApproved: maxBytes > threshold };
 			setLocalizedStatus(runtime.setStatus, runtime.copy, target.savingKey);
 			if (target.updatesProjectSaveState) {
 				dependencies.beginSave(operation.task, operation.projectToken);
@@ -156,16 +167,20 @@ export function createNativeAudacityProjectSave(
 			await client.create(nativeId, { targetGeneration: target.generation, signal });
 			nativeCreated = true;
 			dependencies.assertOwnership(operation.task, operation.projectToken);
-			const written = await client.writeSnapshot(
-				nativeId,
-				exportSnapshot,
-				readAudacitySourceAudio(runtime, referencedSources, operation, dependencies.assertOwnership),
-				portable,
-			);
+			const warningOptions = { confirmFileSizeWarning: runtime.confirmFileSizeWarning, signal,
+				assertCurrent: () => dependencies.assertOwnership(operation.task, operation.projectToken) };
+			const writingClient = client, writingNativeId = nativeId;
+			const written = await withAudacityWorkerSizeAdmission((workerOptions) => {
+				admittedPortable = workerOptions;
+				return writingClient.writeSnapshot(writingNativeId, exportSnapshot,
+					readAudacitySourceAudio(runtime, referencedSources, operation, dependencies.assertOwnership), workerOptions);
+			},
+				admittedPortable, target.ensureFileName(options.fileName || snapshot.title), warningOptions, 'preflight');
 			dependencies.assertOwnership(operation.task, operation.projectToken);
 			await client.commit(nativeId, { signal });
 			dependencies.assertOwnership(operation.task, operation.projectToken);
-			const result = await client.export(nativeId, portable);
+			const result = await withAudacityWorkerSizeAdmission((workerOptions) => writingClient.export(writingNativeId, workerOptions),
+				admittedPortable, target.ensureFileName(options.fileName || snapshot.title), warningOptions, 'export');
 			dependencies.assertOwnership(operation.task, operation.projectToken);
 			const saved = await target.saveResult(result, {
 				fileName: options.fileName || snapshot.title,

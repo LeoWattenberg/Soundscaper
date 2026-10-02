@@ -141,7 +141,7 @@ test('direct output caps reject the stat before container ranges or destination 
 		producer: producer(frameSource),
 		format: 'mp4',
 		maximumOutputBytes: MP4.byteLength - 1,
-	}, sink.value, { createJobToken: () => TOKEN }), /output.*1 through/u);
+	}, sink.value, { createJobToken: () => TOKEN }), /size warning threshold/u);
 	assert.equal(events.includes('read-output'), false);
 	assert.equal(events.includes('open-sink'), false);
 	assert.equal(events.includes('write-sink'), false);
@@ -228,13 +228,13 @@ function sinkFfmpeg(encoded: Uint8Array, events: string[], options: FfmpegOption
 				async statFile() {
 					statCalls += 1;
 					events.push('stat-output');
-					return { size: statCalls > 1 && options.replacementAfterValidation
+					return { size: statCalls > 2 && options.replacementAfterValidation
 						? options.replacementAfterValidation.byteLength : encoded.byteLength };
 				},
 				async readFileRange(_path: string, offset: number, maximumBytes: number) {
 					events.push('read-output');
 					rangeSizes.push(maximumBytes);
-					const bytes = statCalls > 1 && options.replacementAfterValidation
+					const bytes = statCalls > 2 && options.replacementAfterValidation
 						? options.replacementAfterValidation : encoded;
 					return bytes.slice(offset, offset + maximumBytes);
 				},

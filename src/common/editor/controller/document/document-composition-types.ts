@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { FileSizeWarningConfirmation } from '../shared/file-size-warning.ts';
 import type { MediaSourceLeaf, MediaClipLeaf } from '../../project-media-types.ts';
 import type { FramescaperImageSourceV1, FramescaperImageClipV1 } from '../../timeline-image-model.ts';
 import type { ProjectDocumentBody } from '../../project-document-body-types.ts';
@@ -118,6 +119,7 @@ export type DocumentCompositionStore = Readonly<{
 }>;
 
 export interface DocumentCompositionDependencies {
+	readonly confirmFileSizeWarning?: FileSizeWarningConfirmation;
 	readonly state: DocumentCompositionState;
 	readonly copy: DocumentCompositionCopy;
 	readonly lifetime: EditorControllerLifetime;

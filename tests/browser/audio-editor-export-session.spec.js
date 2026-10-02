@@ -16,7 +16,7 @@ import {
 	chooseDropdown,
 	chooseNestedCommandAction,
 	clipByName,
-	closeDialog,
+	closeClipProperties, closeDialog,
 	closeEffectsPanel,
 	closeWorkspacePanel,
 	collectClientErrors,
@@ -584,7 +584,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		const clipDialog = await openClipProperties(page, editor, clipByName(editor, toneA.name));
 		await assertAccessibleBasics(clipDialog);
 		await assertNoSeriousAxeViolations(page);
-		await closeDialog(clipDialog);
+		await closeClipProperties(clipDialog);
 
 		const effectDialog = await openSelectionEffectDialog(page, editor);
 		await assertAccessibleBasics(effectDialog);

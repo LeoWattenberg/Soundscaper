@@ -284,7 +284,7 @@ test('preflight refuses managed bodies that exceed their aggregate byte budget',
 	const sources = ['body-a', 'body-b'].map((key) => videoSource({ id: key, storageKey: key, ...bare }));
 	await assert.rejects(prepareBodies(projectOf(...sources), PROJECT_SHA256, {
 		getMediaAssetMetadata: (key: string) => ({ sourceId: key, mimeType: 'video/mp4',
-			size: 64 * 1024 * 1024 * 1024, sha256: ORIGINAL_SHA256 }),
+			size: Number.MAX_SAFE_INTEGER, sha256: ORIGINAL_SHA256 }),
 		loadMediaAsset: () => { throw new Error('an unselected body must not be loaded'); },
 		beginMediaAssetWrite: () => { throw new Error('preflight never writes'); },
 	} as unknown as FramescaperDesktopCoreBodyStore, undefined, () => false),

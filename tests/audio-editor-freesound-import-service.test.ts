@@ -5,9 +5,9 @@ import test from 'node:test';
 
 import {
 	createFreesoundImportService,
-	FreesoundOriginalTooLargeError,
 } from '../src/common/editor/controller/import/freesound-import-service.ts';
 import { downloadFreesoundImport } from '../src/common/editor/controller/import/internal/freesound-import-download.ts';
+import { FileSizeWarningRequiredError } from '../src/common/editor/controller/shared/file-size-warning.ts';
 
 const SOUND = Object.freeze({
 	id: 42,
@@ -331,7 +331,7 @@ test('original Freesound imports require authentication and only fall back when 
 	assert.deepEqual(importedNames, ['Rain close.ogg']);
 });
 
-test('oversized originals expose an explicit preview fallback without downloading or importing', async () => {
+test('oversized originals require a size decision before downloading or importing', async () => {
 	let originalRequested = false;
 	let imported = false;
 	const service = createFreesoundImportService({
@@ -350,15 +350,39 @@ test('oversized originals expose an explicit preview fallback without downloadin
 	await assert.rejects(
 		service.importSound({ soundId: 42, destination: 'project-bin' }),
 		(error: unknown) => {
-			assert.ok(error instanceof FreesoundOriginalTooLargeError);
-			assert.equal(error.maximumBytes, 4_000);
-			assert.equal(error.byteLength, 4_096);
-			assert.equal(error.canFallbackToPreview, true);
+			assert.ok(error instanceof FileSizeWarningRequiredError);
+			assert.equal(error.warning.thresholdBytes, 4_000);
+			assert.equal(error.warning.byteLength, 4_096);
 			return true;
 		},
 	);
 	assert.equal(originalRequested, false);
 	assert.equal(imported, false);
+});
+
+test('Freesound service forwards size decisions and rechecks project authority before original bytes', async () => {
+	for (const choice of ['accept', 'cancel', 'stale'] as const) {
+		let current = true;
+		let downloads = 0;
+		let imports = 0;
+		const service = createFreesoundImportService({
+			enabled: true, authenticated: true, maximumOriginalBytes: 4_000,
+			createContributionId: () => 'contribution-42', importFile: async () => { imports++; },
+			confirmFileSizeWarning: async () => { current = choice !== 'stale'; return choice !== 'cancel'; },
+			fetch: async (input) => {
+				if (!new URL(String(input)).pathname.endsWith('/original')) return Response.json({ data: SOUND });
+				downloads++;
+				return new Response(Uint8Array.of(1), { headers: { 'Content-Type': 'audio/ogg' } });
+			},
+		});
+		const operation = service.importSound({ soundId: 42, destination: 'project-bin' }, () => {
+			if (!current) throw new Error('project changed');
+		});
+		if (choice === 'accept') await operation;
+		else await assert.rejects(operation, choice === 'cancel' ? { name: 'AbortError' } : /project changed/u);
+		assert.equal(downloads, choice === 'accept' ? 1 : 0);
+		assert.equal(imports, choice === 'accept' ? 1 : 0);
+	}
 });
 
 test('original filenames from content-disposition are sanitized before project import', async () => {
@@ -424,7 +448,7 @@ test('Freesound import rejects oversized previews before buffering them', async 
 			: Response.json({ data: SOUND }),
 	});
 
-	await assert.rejects(service.importSound({ soundId: 42, destination: 'project-bin' }), /too large/iu);
+	await assert.rejects(service.importSound({ soundId: 42, destination: 'project-bin' }), FileSizeWarningRequiredError);
 	assert.equal(imported, false);
 });
 
@@ -514,7 +538,7 @@ async function rejectOversizedPreviewStream(contentLength: string | null): Promi
 
 	await assert.rejects(
 		service.importSound({ soundId: 42, destination: 'project-bin' }),
-		/The Freesound preview is too large to import\./u,
+		FileSizeWarningRequiredError,
 	);
 	return Object.freeze({ imported, pullCount, cancelReason });
 }

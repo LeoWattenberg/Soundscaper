@@ -179,7 +179,7 @@ test('fallback byte admission is cumulative and completes video metadata preflig
 			claim('video-one', 'rendered-video-one', 'video', digest(new Uint8Array())),
 			claim('video-two', 'rendered-video-two', 'video', digest(new Uint8Array())),
 		]), store),
-		/cumulative.*expanded-byte limit/iu,
+		{ code: 'FILE_SIZE_WARNING' },
 	);
 	assert.equal(metadataReads, 2);
 	assert.equal(bodyReads, 0);
@@ -204,7 +204,7 @@ test('fallback byte admission is cumulative and completes video metadata preflig
 			},
 			loadMediaAsset() { mixedBodyReads += 1; return new Blob(); },
 		}),
-		/cumulative.*expanded-byte limit/iu,
+		{ code: 'FILE_SIZE_WARNING' },
 	);
 	assert.equal(mixedAudioReads, 0);
 	assert.equal(mixedMetadataReads, 1);
@@ -224,7 +224,7 @@ test('fallback byte admission is cumulative and completes video metadata preflig
 		}], [claim('audio-fallback', AUDIO_ID, 'audio', 'f'.repeat(64))]), {
 			async *readSourceChunks() { audioReads += 1; yield [Float32Array.of(0)]; },
 		}),
-		/cumulative.*expanded-byte limit/iu,
+		{ code: 'FILE_SIZE_WARNING' },
 	);
 	assert.equal(audioReads, 0);
 });

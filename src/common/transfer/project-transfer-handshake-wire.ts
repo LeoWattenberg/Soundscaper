@@ -20,10 +20,11 @@ import {
 } from './cross-product-handoff-report-sidecar.ts';
 
 export const PROJECT_TRANSFER_PROTOCOL_ID = 'kw-project-transfer';
-export const PROJECT_TRANSFER_PROTOCOL_VERSION = 2;
+export const PROJECT_TRANSFER_PROTOCOL_VERSION = 3;
 export const PROJECT_TRANSFER_MAX_PROTOCOL_VERSION = 0xffff;
 export const PROJECT_TRANSFER_MAX_ENTRIES = 512;
 export const PROJECT_TRANSFER_MAX_ENTRY_BYTES = 256 * 1024 * 1024;
+export const PROJECT_TRANSFER_DEFAULT_TOTAL_BYTES = 1024 * 1024 * 1024;
 export const PROJECT_TRANSFER_MAX_ID_LENGTH = 256;
 export const PROJECT_TRANSFER_MAX_TEXT_LENGTH = 512;
 export const PROJECT_TRANSFER_DEFAULT_TIMEOUT_MILLISECONDS = 30_000;
@@ -101,6 +102,10 @@ export type ProjectTransferReadyMessage = Envelope
 	& Readonly<{ kind: 'ready'; maxEntries: number; maxEntryBytes: number }>;
 export type ProjectTransferBeginMessage = Envelope
 	& Readonly<{ kind: 'begin'; entryCount: number }>;
+export type ProjectTransferSizeOfferMessage = Envelope
+	& Readonly<{ kind: 'size-offer'; maxEntryBytes: number; totalBytes: number }>;
+export type ProjectTransferSizeAcceptMessage = Envelope
+	& Readonly<{ kind: 'size-accept'; maxEntryBytes: number; totalBytes: number }>;
 export type ProjectTransferEntryMessage = Envelope & Readonly<{
 	kind: 'entry'; sequence: number; entryId: string;
 	name: string; byteLength: number; payload: Uint8Array;
@@ -119,6 +124,7 @@ export type ProjectTransferAbortMessage = Envelope
 export type ProjectTransferMessage =
 	| ProjectTransferReadyMessage
 	| ProjectTransferBeginMessage
+	| ProjectTransferSizeOfferMessage | ProjectTransferSizeAcceptMessage
 	| ProjectTransferEntryMessage
 	| ProjectTransferAckMessage
 	| ProjectTransferCompleteMessage
@@ -130,6 +136,8 @@ export type ProjectTransferMessageKind = ProjectTransferMessage['kind'];
 const MESSAGE_KEYS = Object.freeze({
 	ready: ['kind', 'maxEntries', 'maxEntryBytes', 'protocol', 'protocolVersion', 'sessionId'],
 	begin: ['entryCount', 'kind', 'protocol', 'protocolVersion', 'sessionId'],
+	'size-offer': ['kind', 'maxEntryBytes', 'totalBytes', 'protocol', 'protocolVersion', 'sessionId'],
+	'size-accept': ['kind', 'maxEntryBytes', 'totalBytes', 'protocol', 'protocolVersion', 'sessionId'],
 	entry: [
 		'byteLength', 'conversionReportSidecar', 'entryId', 'kind', 'name', 'payload',
 		'protocol', 'protocolVersion', 'sequence', 'sessionId',
@@ -199,7 +207,11 @@ function admitMessageBody(
 	const read = (key: string): unknown => requireProjectTransferField(record, key);
 	if (kind === 'ready') {
 		fields.maxEntries = admitProjectTransferInteger(read('maxEntries'), 'maxEntries', 1, PROJECT_TRANSFER_MAX_ENTRIES);
-		fields.maxEntryBytes = admitProjectTransferInteger(read('maxEntryBytes'), 'maxEntryBytes', 1, PROJECT_TRANSFER_MAX_ENTRY_BYTES);
+		fields.maxEntryBytes = admitProjectTransferInteger(read('maxEntryBytes'), 'maxEntryBytes', 1, Number.MAX_SAFE_INTEGER);
+	} else if (kind === 'size-offer' || kind === 'size-accept') {
+		fields.maxEntryBytes = admitProjectTransferInteger(read('maxEntryBytes'), 'maxEntryBytes', 1, Number.MAX_SAFE_INTEGER);
+		fields.totalBytes = admitProjectTransferInteger(read('totalBytes'), 'totalBytes', 1, Number.MAX_SAFE_INTEGER);
+		if ((fields.maxEntryBytes as number) > (fields.totalBytes as number)) throw projectTransferError('INVALID_FIELD', 'A transfer size offer must cover its largest archive.');
 	} else if (kind === 'begin') {
 		fields.entryCount = admitProjectTransferInteger(read('entryCount'), 'entryCount', 0, PROJECT_TRANSFER_MAX_ENTRIES);
 	} else if (kind === 'entry') {
@@ -207,7 +219,7 @@ function admitMessageBody(
 		const entryId = admitProjectTransferId(read('entryId'), 'entryId');
 		fields.entryId = entryId;
 		fields.name = admitProjectTransferText(read('name'), 'name');
-		const byteLength = admitProjectTransferInteger(read('byteLength'), 'byteLength', 0, PROJECT_TRANSFER_MAX_ENTRY_BYTES);
+		const byteLength = admitProjectTransferInteger(read('byteLength'), 'byteLength', 0, Number.MAX_SAFE_INTEGER);
 		fields.byteLength = byteLength;
 		const payload = admitProjectTransferPayload(read('payload'), byteLength, 'payload');
 		fields.payload = payload;
@@ -235,7 +247,7 @@ export function admitProjectTransferEntry(value: unknown, maximumBytes: number):
 	const record = asClosedRecord(value, 'transfer entry', ENTRY_KEYS);
 	const entryId = admitProjectTransferId(record.entryId, 'entryId');
 	const name = admitProjectTransferText(record.name, 'name');
-	const byteLength = admitProjectTransferInteger(record.byteLength, 'byteLength', 0, PROJECT_TRANSFER_MAX_ENTRY_BYTES);
+	const byteLength = admitProjectTransferInteger(record.byteLength, 'byteLength', 0, Number.MAX_SAFE_INTEGER);
 	if (byteLength > maximumBytes) {
 		throw projectTransferError('PAYLOAD_TOO_LARGE', `Entry ${entryId} is ${byteLength} bytes, over the ${maximumBytes} byte limit.`, 'byteLength');
 	}
@@ -286,9 +298,7 @@ export function admitProjectTransferPayload(
 	if (value.byteOffset !== 0 || buffer.byteLength !== value.byteLength) {
 		throw projectTransferError('INVALID_FIELD', `${field} must tightly cover its backing buffer.`, field);
 	}
-	if (value.byteLength > PROJECT_TRANSFER_MAX_ENTRY_BYTES) {
-		throw projectTransferError('PAYLOAD_TOO_LARGE', `${field} exceeds ${PROJECT_TRANSFER_MAX_ENTRY_BYTES} bytes.`, field);
-	}
+	if (!Number.isSafeInteger(value.byteLength)) throw projectTransferError('PAYLOAD_TOO_LARGE', `${field} exceeds the safe byte range.`, field);
 	if (value.byteLength !== byteLength) {
 		throw projectTransferError('INVALID_FIELD', `${field} holds ${value.byteLength} bytes but declares ${byteLength}.`, field);
 	}
@@ -308,7 +318,7 @@ function admitOutcomes(value: unknown): readonly ProjectTransferOutcome[] {
 		outcomes.push(Object.freeze({
 			entryId: admitProjectTransferId(record.entryId, `outcomes[${index}].entryId`),
 			name: admitProjectTransferText(record.name, `outcomes[${index}].name`),
-			byteLength: admitProjectTransferInteger(record.byteLength, `outcomes[${index}].byteLength`, 0, PROJECT_TRANSFER_MAX_ENTRY_BYTES),
+			byteLength: admitProjectTransferInteger(record.byteLength, `outcomes[${index}].byteLength`, 0, Number.MAX_SAFE_INTEGER),
 			status: admitStatus(record.status),
 			reason: admitProjectTransferText(record.reason, `outcomes[${index}].reason`),
 		}));

@@ -10,14 +10,15 @@ import {
 	readBoundedFfmpegOutputFile,
 } from '../src/common/editor/browser-export-output.ts';
 
-test('browser export output uses a frozen 512 MiB ceiling with lower-only overrides', () => {
+test('browser export output uses a 512 MiB warning threshold and accepts admitted bounds', () => {
 	assert.equal(BROWSER_EXPORT_BLOB_MAXIMUM_BYTES, 512 * 1024 * 1024);
 	assert.equal(assertBrowserExportOutputSize(2, 'Audio export', 2), 2);
+	assert.equal(assertBrowserExportOutputSize(2, 'Audio export', Number.MAX_SAFE_INTEGER), 2);
 	assert.throws(
 		() => assertBrowserExportOutputSize(3, 'Audio export', 2),
-		/Audio export.*3 bytes.*maximum is 2 bytes/u,
+		/Audio export.*3 bytes.*size warning threshold/u,
 	);
-	for (const maximum of [0, -1, 1.5, Number.MAX_SAFE_INTEGER, Infinity, Number.NaN]) {
+	for (const maximum of [0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1, Infinity, Number.NaN]) {
 		assert.throws(
 			() => assertBrowserExportOutputSize(1, 'Audio export', maximum),
 			/browser export maximumBytes/u,
@@ -98,7 +99,7 @@ test('browser export Blob preparation admits bytes before construction and prese
 				'Audio export',
 				2,
 			),
-			/Audio export.*maximum is 2 bytes/u,
+			/Audio export.*size warning threshold/u,
 		);
 		assert.equal(constructionCount, 0);
 	} finally {

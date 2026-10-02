@@ -55,7 +55,7 @@ import { attachDesktopMainWindowRecovery } from './project-library-runtime/deskt
 import { registerDesktopNativeTierControls } from './project-library-runtime/desktop/native-tier-controls.js';
 import { RendererSaveOwnership } from './renderer-save-owner.js';
 import { DesktopRendererOwnershipCleanup } from './renderer-ownership-cleanup.js';
-import { AtomicSaveManager, SaveTargetStore } from './save-targets.js';
+import { AtomicSaveManager, SaveTargetStore } from './save-targets.js'; import { createDesktopSaveSizeWarningConfirmation } from './project-library-runtime/desktop/save-size-warning-dialog.js';
 import { DesktopSettingsStore } from './settings.js';
 import { ReleaseChecker } from './update-check.js';
 import {
@@ -70,9 +70,9 @@ import {
 } from './validation.js';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SOAK_DEBUG_ENABLED = PRODUCT_ID === 'soundscaper' && soakDebugProcessMetricsEnabled(process.argv); const dialog = createSoakDebugDialog(electronDialog, SOAK_DEBUG_ENABLED ? process.argv : []); const checkpointSoakMainCoverage = createSoakDebugMainCoverageCheckpoint(takeCoverage); const exitWithCoverage = (code) => exitAfterCoverageCheckpoint({ checkpoint: takeCoverage, exit: (exitCode) => app.exit(exitCode), reportError: (error) => console.error('Desktop V8 coverage checkpoint failed:', cleanError(error)) }, code);
-const readCapabilities = new ReadCapabilityStore();
+const readCapabilities = new ReadCapabilityStore({ confirmFileSizeWarning: createDesktopSaveSizeWarningConfirmation((options) => dialog.showMessageBox(options), 'loading') });
 const saveTargets = new SaveTargetStore();
-const saves = new AtomicSaveManager({ targets: saveTargets });
+const saves = new AtomicSaveManager({ targets: saveTargets, confirmFileSizeWarning: createDesktopSaveSizeWarningConfirmation((options) => dialog.showMessageBox(options)) });
 if (DECLARED_APPLICATION_VERSION !== null && app.getVersion() !== DECLARED_APPLICATION_VERSION) throw new Error('Packaged application version does not match its selected product release line.');
 const rendererSaveOwnership = new RendererSaveOwnership();
 let mainWindow = null; const sesxMediaSessions = new SesxMediaSessionStore({ readCapabilities, dialog, windowFor: () => mainWindow });
@@ -175,11 +175,11 @@ if (!app.requestSingleInstanceLock()) {
 
 async function startApplication() {
 	await app.whenReady(); if (await desktopSmokeProbe.professionalNativeUtilitySmoke({ argv: process.argv, packaged: app.isPackaged, productId: PRODUCT_ID, userDataPath: app.getPath('userData'), nativePayloadLocation: Object.freeze({ applicationRoot: dirname(__dirname), packaged: app.isPackaged, resourcesPath: process.resourcesPath, platform: process.platform, arch: process.arch }), utilityProcess, helperPath: resolve(__dirname, 'soundscaper-professional-native-utility-smoke-helper.js'), log: console.log })) { await exitApplication(0); return; }
-	linkedVideoLocators = createDesktopLinkedVideoLocatorRuntime({ readCapabilities, registryPath: resolve(app.getPath('userData'), 'linked-video-locators-project-v1.json') });
+	linkedVideoLocators = createDesktopLinkedVideoLocatorRuntime({ readCapabilities, registryPath: resolve(app.getPath('userData'), 'linked-video-locators-project-v1.json'), confirmFileSizeWarning: createDesktopSaveSizeWarningConfirmation((options) => dialog.showMessageBox(options), 'linking') });
 	await linkedVideoLocators.ready();
 	if (applicationShutdown.requested) return;
 	const libraryStartup = startDesktopProjectLibraryProductRuntime({
-		productId: PRODUCT_ID,
+		productId: PRODUCT_ID, confirmFileSizeWarning: createDesktopSaveSizeWarningConfirmation((options) => dialog.showMessageBox(options)),
 		appDataPath: resolveDesktopProjectLibraryAppData({
 			applicationDataPath: app.getPath('appData'),
 			argv: process.argv,

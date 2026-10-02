@@ -1,16 +1,28 @@
 import { expect } from '@playwright/test';
 import { test } from './audio-editor-test-fixtures.js';
+import { chooseNestedCommandAction } from './audio-editor-test-helpers.js';
 
 const INSPECTOR_FEATURE_CHUNKS = Object.freeze([
 	'RealtimeAnalysisPanel',
 	'AudioEditorEffectsOverlay',
 	'AudioEditorMacroManagerDialog',
-	'ClipPropertiesDialog',
+	'ClipPropertiesPanel',
 	'ExportDialog',
 	'SelectionEffectsDialog',
 ]);
 
 test.describe('Inspector lazy feature boundaries', () => {
+	test('opening Clip properties loads its panel without preloading sibling Inspector features', async ({ page }) => {
+		const requestedScripts = collectRequestedScripts(page);
+		const editor = await bootEditorWithTone(page);
+		requestedScripts.length = 0;
+
+		await chooseNestedCommandAction(page, editor, 'Edit', ['Audio clips', 'Clip properties']);
+		await expect(editor.locator('[data-workspace-panel="clip-properties"]')).toBeVisible();
+		await expect.poll(() => requestedScripts.some((name) => name.startsWith('ClipPropertiesPanel-'))).toBe(true);
+		expectLoadedOnly(requestedScripts, 'ClipPropertiesPanel');
+	});
+
 	test('opening Analysis loads its entry without preloading sibling Inspector features', async ({ page }) => {
 		const requestedScripts = collectRequestedScripts(page);
 		const editor = await bootEditorWithTone(page);

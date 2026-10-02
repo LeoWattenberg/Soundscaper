@@ -23,7 +23,7 @@ export {
  */
 export async function decodeLegacyAupProject(projectFile, dataFiles, options = {}) {
 	const blockLimits = resolveLegacyAupBlockLimits(options.blockLimits);
-	const root = await readLegacyAupXml(projectFile, options.parseLimits);
+	const root = await readLegacyAupXml(projectFile, options.parseLimits, options);
 	const project = root.name === 'project' ? root : findDescendant(root, 'project');
 	if (!project) throw new LegacyAupError('The AUP file has no project element.', 'INVALID_PROJECT_XML');
 	const budget = new LegacyAupBlockBudget(blockLimits);

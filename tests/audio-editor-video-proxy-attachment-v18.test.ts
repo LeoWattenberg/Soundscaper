@@ -144,7 +144,7 @@ test('rejects every attachment scalar and local cross-field violation', () => {
 		['zero bytes', (value) => { value.byteLength = 0; }],
 		['fractional bytes', (value) => { value.byteLength = 1.5; }],
 		['unsafe bytes', (value) => { value.byteLength = Number.MAX_SAFE_INTEGER + 1; }],
-		['over bytes', (value) => { value.byteLength = VIDEO_PROXY_MAXIMUM_BODY_BYTES + 1; }],
+		['negative bytes', (value) => { value.byteLength = -1; }],
 		['proxy digest', (value) => { value.sha256 = PROXY_SHA256.toUpperCase(); }],
 		['nonhex proxy digest', (value) => { value.sha256 = 'g'.repeat(64); }],
 		['original digest', (value) => { value.originalSha256 = 'x'; }],
@@ -162,6 +162,8 @@ test('rejects every attachment scalar and local cross-field violation', () => {
 	assert.equal(normalizeVideoProxyAttachmentV18(attachment({ byteLength: VIDEO_PROXY_MAXIMUM_BODY_BYTES })).byteLength,
 		VIDEO_PROXY_MAXIMUM_BODY_BYTES);
 	assert.equal(normalizeVideoProxyAttachmentV18(attachment({ byteLength: 1 })).byteLength, 1);
+	assert.equal(normalizeVideoProxyAttachmentV18(attachment({ byteLength: VIDEO_PROXY_MAXIMUM_BODY_BYTES + 1 })).byteLength,
+		VIDEO_PROXY_MAXIMUM_BODY_BYTES + 1);
 	assert.equal(normalizeVideoProxyAttachmentV18(attachment({ originalAuthorityKind: 'linked' })).originalAuthorityKind,
 		'linked');
 });
@@ -220,6 +222,7 @@ test('remains a closed scalar owner with only the reviewed cumulative consumers'
 	assert.doesNotMatch(source,
 		/video-timing-asset\.ts|video-timing-storage|candidate-observation|proxy-relationship|project-|storage\/|controller\/|ui\/|repository|capabilit|scape-|desktop|app\./u);
 	const consumers = new Set([
+		'src/common/editor/scape-proxy-import-size-warning.ts',
 		'scripts/lib/desktop-project-library-runtime.mjs',
 		// Independently versioned exact-render plans consume the persisted proxy wire.
 		'src/common/editor/unified-exact-render-plan-v11.ts',
@@ -248,7 +251,6 @@ test('remains a closed scalar owner with only the reviewed cumulative consumers'
 		'src/framescaper/editor-video-proxy-command-retime.ts',
 		'src/framescaper/editor-video-proxy-attachment-retention-sequence.ts',
 		'src/framescaper/editor-video-proxy-preview-media-retime.ts',
-		'src/framescaper/editor-video-proxy-revalidation-contract-sequence.ts',
 		// Both Scape wrappers delegate to this one durable-asset consumer.
 		'src/framescaper/editor-scape-durable-asset-plan-core.ts',
 	]);

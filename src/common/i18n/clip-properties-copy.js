@@ -4,6 +4,7 @@
  * speed controls, its fades and gain, and the media settings behind them. */
 export const CLIP_PROPERTIES_COPY_BY_LOCALE = Object.freeze({
 	de: Object.freeze({
+			clipPropertiesSelectedClips: 'Ausgewählte Clips',
 			noClipSelected: 'Wähle einen Clip aus, um Start, Länge, Fades und Verstärkung präzise zu bearbeiten.',
 			clipName: 'Clipname',
 			clipStart: 'Start',
@@ -30,6 +31,7 @@ export const CLIP_PROPERTIES_COPY_BY_LOCALE = Object.freeze({
 			clipMediaSettings: 'Medieneinstellungen',
 	}),
 	en: Object.freeze({
+			clipPropertiesSelectedClips: 'Selected clips',
 			noClipSelected: 'Select a clip to edit its start, length, fades, and gain precisely.',
 			clipName: 'Clip name',
 			clipStart: 'Start',

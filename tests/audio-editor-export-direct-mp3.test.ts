@@ -232,7 +232,7 @@ test('export service preserves MP3 chooser cancellation and prepared-Blob fallba
 	assert.ok(fallback.downloads[0]?.blob instanceof Blob);
 });
 
-test('direct MP3 retains nonpersistent staging refusal above 96 MiB', async () => {
+test('direct MP3 requires a size decision for nonpersistent staging above 96 MiB', async () => {
 	const fixture = serviceFixture('stream', { persistent: false });
 	const byteLength = 97 * 1024 ** 2;
 	fixture.plan.outputFrames = byteLength / 8;
@@ -251,7 +251,7 @@ test('direct MP3 retains nonpersistent staging refusal above 96 MiB', async () =
 	assert.equal(fixture.events.includes('ffmpeg:stat'), false);
 	assert.equal(fixture.target.opens(), 0);
 	assert.equal(fixture.target.aborts(), 1);
-	assert.match(String(fixture.errors[0]), /storage required/iu);
+	assert.match(String(fixture.errors[0]), /size warning threshold.*confirmation is required/iu);
 });
 
 test('late cancellation during direct MP3 commit returns the file without stale success UI', async () => {

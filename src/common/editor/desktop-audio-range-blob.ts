@@ -94,7 +94,7 @@ function assertDesktopSelectedAudioReadProfile(descriptor: AudioRangeDescriptor)
 		|| !extension || !extensions[extension] || descriptor.mimeType !== extensions[extension]) {
 		throw new TypeError('A canonical selected-audio desktop range profile is required.');
 	}
-	if (!Number.isSafeInteger(descriptor.size) || Number(descriptor.size) < 1 || Number(descriptor.size) > 1_000_000_000) {
-		throw new RangeError('The selected-audio desktop range size exceeds its 1 GB bound.');
+	if (!Number.isSafeInteger(descriptor.size) || Number(descriptor.size) < 1) {
+		throw new RangeError('The selected-audio desktop range size must be a positive safe integer.');
 	}
 }

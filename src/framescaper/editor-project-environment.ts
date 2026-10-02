@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { admitProjectPublication } from '../common/editor/storage/project-publication-options.ts';
 import type { PlaybackProjectService } from '../common/editor/controller/source/playback-project-service.ts';
+import type { FileSizeWarningOptions } from '../common/editor/controller/shared/file-size-warning.ts';
 import type { AudioEditorProjectStoreOptions } from '../common/editor/storage/project-store-options.ts';
 import type { ProjectDocument } from '../common/editor/storage/project-repository.ts';
 import { AudioEditorProjectStore } from '../common/editor/storage.js';
@@ -42,7 +44,7 @@ export interface FramescaperEditorProjectEnvironment {
 	readonly claimCleanup: FramescaperProjectSequenceClaimCleanupRepository;
 	readonly videoProxyCleanup: FramescaperVideoProxyCleanupCoordinatorRetime;
 	readonly initialCleanup: Readonly<FramescaperProjectSequenceClaimCleanupResult>;
-	readonly createProjectIfAbsent: (project: ProjectDocument) => Promise<ProjectDocument | null>;
+	readonly createProjectIfAbsent: (project: ProjectDocument, options?: FileSizeWarningOptions) => Promise<ProjectDocument | null>;
 	readonly close: () => Promise<void>;
 }
 
@@ -107,12 +109,15 @@ export async function createFramescaperEditorProjectEnvironment(
 			),
 			timelineImages: authority.timelineImages,
 			createProjectIfAbsent: controllerStore === store
-				? (project: ProjectDocument) => exactProjectRepository(store).createIfAbsent(project)
-				: (project: ProjectDocument) => (
+				? async (project: ProjectDocument, publicationOptions: FileSizeWarningOptions = {}) => {
+					await admitProjectPublication(store, project, publicationOptions);
+					return exactProjectRepository(store).createIfAbsent(project);
+				}
+				: (project: ProjectDocument, publicationOptions: FileSizeWarningOptions = {}) => (
 					controllerStore as unknown as Readonly<{
-						createProjectIfAbsent(value: unknown): Promise<ProjectDocument | null>;
+						createProjectIfAbsent(value: unknown, options?: FileSizeWarningOptions): Promise<ProjectDocument | null>;
 					}>
-				).createProjectIfAbsent(project),
+				).createProjectIfAbsent(project, publicationOptions),
 			close: () => store.close(),
 		});
 		PRODUCT_ENVIRONMENTS.add(environment);
