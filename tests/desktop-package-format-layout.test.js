@@ -10,7 +10,10 @@ import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 
 import appImageUtil from 'app-builder-lib/out/targets/appimage/appImageUtil.js';
+import appLauncher from 'app-builder-lib/out/targets/appimage/appLauncher.js';
+import iconConverter from 'app-builder-lib/out/util/iconConverter.js';
 
+import { generateDesktopIcon } from '../scripts/desktop-icons.mjs';
 import {
 	normalizeDesktopPackageInstalledClosure,
 	validateDesktopPackageSpecificResources,
@@ -26,7 +29,7 @@ const LIBRARIES = [
 	'libindicator.so.7',
 	'libnotify.so.4',
 ];
-const ICON_SIZES = [16, 24, 32, 48, 64, 128, 256, 512];
+const ICON_SIZES = [1024];
 
 test('AppImage wrapper normalization authenticates x64 metadata and retains only the application', async (context) => {
 	const fixture = await appImageFixture(context, 'linux-x64');
@@ -39,6 +42,26 @@ test('AppImage arm64 normalization requires the exact empty compatibility-librar
 	assert.deepEqual((await normalizeFixture(fixture)).map(({ path }) => path), ['resources/app.asar']);
 	await writeFixtureFile(join(fixture.root, 'usr/lib/libXss.so.1'), elfSharedLibrary(183));
 	await assert.rejects(normalizeFixture(fixture), /unsupported metadata/iu);
+});
+
+test('AppImage normalization authenticates the configured PNG through the real builder icon pipeline', async (context) => {
+	const fixture = await appImageFixture(context, 'linux-arm64');
+	const sourceRoot = await mkdtemp(join(tmpdir(), 'desktop-package-canonical-icon-'));
+	context.after(() => rm(sourceRoot, { recursive: true, force: true }));
+	const source = await generateDesktopIcon({ outputPath: join(sourceRoot, 'icon.png') });
+	const { icons, isFallback } = await iconConverter.convertIcon({
+		sources: [source], fallbackSources: [], roots: [sourceRoot],
+		format: 'set', outDir: join(sourceRoot, 'converted'),
+	});
+	assert.equal(isFallback, false);
+	assert.deepEqual(icons.map(({ size }) => size), [1024]);
+	for (const path of ['.DirIcon', 'soundscaper.png', 'usr/share/icons']) {
+		await rm(join(fixture.root, path), { recursive: true });
+	}
+	await appLauncher.copyIcons({
+		stageDir: fixture.root, options: { icons, executableName: 'soundscaper' },
+	});
+	assert.deepEqual((await normalizeFixture(fixture)).map(({ path }) => path), ['resources/app.asar']);
 });
 
 test('AppImage wrapper normalization rejects launcher, desktop, MIME, and library substitutions', async (context) => {
@@ -99,25 +122,32 @@ test('AppImage wrapper normalization rejects missing, mislinked, mis-moded, and 
 	const iconLink = await appImageFixture(context, 'linux-x64');
 	await rm(join(iconLink.root, '.DirIcon'));
 	await symlink(
-		'usr/share/icons/hicolor/16x16/apps/soundscaper.png',
+		'usr/share/icons/hicolor/512x512/apps/soundscaper.png',
 		join(iconLink.root, '.DirIcon'),
 	);
 	await assert.rejects(normalizeFixture(iconLink), /invalid \.DirIcon icon link/iu);
 
+	const extraIcon = await appImageFixture(context, 'linux-arm64');
+	await writeFixtureFile(
+		join(extraIcon.root, 'usr/share/icons/hicolor/512x512/apps/soundscaper.png'),
+		createPngFixture(512),
+	);
+	await assert.rejects(normalizeFixture(extraIcon), /unsupported metadata/iu);
+
 	for (const [name, bytes] of [
-		['truncated', createPngFixture(16).subarray(0, 8)],
-		['wrong dimensions', createPngFixture(24)],
+		['truncated', createPngFixture(1024).subarray(0, 8)],
+		['wrong dimensions', createPngFixture(512)],
 		['wrong CRC', (() => {
-			const corrupted = createPngFixture(16);
+			const corrupted = createPngFixture(1024);
 			corrupted[29] ^= 0xff;
 			return corrupted;
 		})()],
 	]) {
 		const fixture = await appImageFixture(context, 'linux-x64');
 		await writeFixtureFile(
-			join(fixture.root, 'usr/share/icons/hicolor/16x16/apps/soundscaper.png'), bytes,
+			join(fixture.root, 'usr/share/icons/hicolor/1024x1024/apps/soundscaper.png'), bytes,
 		);
-		await assert.rejects(normalizeFixture(fixture), /expected 16px PNG/iu, name);
+		await assert.rejects(normalizeFixture(fixture), /expected 1024px PNG/iu, name);
 	}
 });
 
@@ -216,7 +246,7 @@ async function appImageFixture(context, targetId) {
 			authority['linux-x64'][name] = descriptor(bytes);
 		}
 	}
-	const iconTarget = 'usr/share/icons/hicolor/512x512/apps/soundscaper.png';
+	const iconTarget = 'usr/share/icons/hicolor/1024x1024/apps/soundscaper.png';
 	await symlink(iconTarget, join(root, '.DirIcon'));
 	await symlink(iconTarget, join(root, 'soundscaper.png'));
 	return { authority, root, targetId };

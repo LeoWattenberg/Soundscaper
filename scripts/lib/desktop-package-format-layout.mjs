@@ -51,7 +51,8 @@ const NSIS_ELEVATE_HELPER_AUTHORITY = Object.freeze({
 	byteLength: 107_520,
 	sha256: '9b1fbf0c11c520ae714af8aa9af12cfd48503eedecd7398d8992ee94d1b4dc37',
 });
-const APPIMAGE_ICON_SIZES = Object.freeze([16, 24, 32, 48, 64, 128, 256, 512]);
+// The configured PNG is passed through by electron-builder's set converter.
+const APPIMAGE_ICON_SIZES = Object.freeze([1024]);
 const MAXIMUM_WRAPPER_FILE_BYTES = 64 * 1024 * 1024;
 const SCAPE_MIME_TYPE = 'application/vnd.soundscaper.scape+zip';
 const AUDACITY_MIME_TYPE = 'application/x-audacity-project';
@@ -163,7 +164,7 @@ export async function normalizeDesktopPackageInstalledClosure(
 	desktopProductName(productId);
 	const excluded = new Set(packageResourceExclusions.map((name) => `resources/${name}`));
 	if (packageFormat !== '.appimage') return files.filter(({ path }) => !excluded.has(path));
-	const iconTarget = `usr/share/icons/hicolor/512x512/apps/${productId}.png`;
+	const iconTarget = `usr/share/icons/hicolor/1024x1024/apps/${productId}.png`;
 	const inventory = new Map(files.map((file) => [file.path, file]));
 	for (const name of ['.DirIcon', `${productId}.png`]) {
 		const link = inventory.get(name);

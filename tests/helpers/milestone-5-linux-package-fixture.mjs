@@ -145,7 +145,7 @@ export async function createSoundscaperLinuxPackageFixture({
 }
 
 async function stageAppImageWrapper(root, applicationVersion) {
-	const icon = 'usr/share/icons/hicolor/512x512/apps/soundscaper.png';
+	const icon = 'usr/share/icons/hicolor/1024x1024/apps/soundscaper.png';
 	await writeBytes(
 		join(root, 'AppRun'),
 		Buffer.from(appImageUtil.generateAppRunScript({ ExecutableName: 'soundscaper' })),
@@ -167,7 +167,7 @@ async function stageAppImageWrapper(root, applicationVersion) {
 			'Categories=AudioVideo;Audio;',
 		].join('\n')}\n`),
 	);
-	for (const size of [16, 24, 32, 48, 64, 128, 256, 512]) {
+	for (const size of [1024]) {
 		await writeBytes(
 			join(root, `usr/share/icons/hicolor/${size}x${size}/apps/soundscaper.png`),
 			createPngFixture(size),
