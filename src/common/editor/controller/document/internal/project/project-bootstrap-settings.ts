@@ -13,23 +13,27 @@ export function prefetchProjectBootstrapSettings(
 	store: BootstrapSettingsStore,
 	productSettingKey: (key: string) => string,
 	audioDevicePreferencesSettingKey: string,
+	recordingInputGainDefault: number,
 ): (key: string, fallback: unknown) => Promise<unknown> {
-	const keys = [
-		'audio-editor-effect-presets-v1',
-		EFFECT_MACRO_LIBRARY_SETTING_KEY,
-		MACRO_SCRIPT_LIBRARY_SETTING_KEY,
-		DELIVERY_PRESETS_SETTING_KEY,
-		'input-monitor', 'microphone-metering', 'recording-input-gain',
-		'recording-latency-offset-ms', 'recording-lead-in',
-		...[
-			'waveform-show-rms', 'timeline-show-vertical-rulers',
-			'timeline-update-while-playing', 'timeline-pinned-playhead',
-			'timeline-ruler-playback', 'transport-metronome', 'selection-follows-loop',
-			audioDevicePreferencesSettingKey,
-		].map(productSettingKey),
+	// Pass each real fallback into the store: its default parameter converts
+	// explicit undefined into null, which would erase true-valued defaults.
+	const settings: readonly (readonly [string, unknown])[] = [
+		['audio-editor-effect-presets-v1', null],
+		[EFFECT_MACRO_LIBRARY_SETTING_KEY, null],
+		[MACRO_SCRIPT_LIBRARY_SETTING_KEY, null],
+		[DELIVERY_PRESETS_SETTING_KEY, null],
+		['input-monitor', false], ['microphone-metering', false],
+		['recording-input-gain', recordingInputGainDefault],
+		['recording-latency-offset-ms', 0], ['recording-lead-in', false],
+		...([
+			['waveform-show-rms', false], ['timeline-show-vertical-rulers', true],
+			['timeline-update-while-playing', true], ['timeline-pinned-playhead', false],
+			['timeline-ruler-playback', true], ['transport-metronome', false],
+			['selection-follows-loop', false], [audioDevicePreferencesSettingKey, null],
+		] as const).map(([key, fallback]) => [productSettingKey(key), fallback] as const),
 	];
-	const reads = new Map(keys.map((key) => [key,
-		Promise.resolve().then(() => store.loadSetting(key, undefined)).then(
+	const reads = new Map(settings.map(([key, fallback]) => [key,
+		Promise.resolve().then(() => store.loadSetting(key, fallback)).then(
 			(value): PromiseSettledResult<unknown> => ({ status: 'fulfilled', value }),
 			(error: unknown): PromiseSettledResult<unknown> => ({ status: 'rejected', reason: error }),
 		),

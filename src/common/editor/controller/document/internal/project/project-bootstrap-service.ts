@@ -175,7 +175,7 @@ export function createProjectBootstrapService<
 			});
 		await runtime.loadPreferences(token);
 		const loadSetting = prefetchProjectBootstrapSettings(
-			runtime.store, runtime.productSettingKey, runtime.audioDevicePreferencesSettingKey,
+			runtime.store, runtime.productSettingKey, runtime.audioDevicePreferencesSettingKey, runtime.recordingInputGainDefault,
 		);
 		try {
 			const storedPresets = await guard(loadSetting('audio-editor-effect-presets-v1', null));

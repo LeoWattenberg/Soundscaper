@@ -20,7 +20,7 @@ test('bootstrap starts its independent settings reads together before awaiting s
 		...fixture.runtime,
 		store: {
 			...fixture.runtime.store,
-			async loadSetting(key, fallback) {
+			async loadSetting(key, fallback: unknown = null) {
 				requested.push(key);
 				await gate.promise;
 				return fixture.runtime.store.loadSetting(key, fallback);
@@ -35,8 +35,21 @@ test('bootstrap starts its independent settings reads together before awaiting s
 	assert.equal(pendingReads, 17, 'each storage latency is paid once, rather than seventeen times');
 	assert.equal(new Set(requested).size, 17, 'each setting is read once');
 	assert.equal(fixture.state.showVerticalRulers, true);
+	assert.equal(fixture.state.scrollViewToPlayhead, true);
+	assert.equal(fixture.state.playbackOnRulerClick, true);
 	assert.equal(fixture.state.recordingInputGain, 1);
 	assert.ok(fixture.events.includes('new-project'));
+});
+
+test('persisted false and null settings retain their values despite true-valued defaults', async () => {
+	const fixture = createFixture();
+	fixture.settings.set('product:timeline-show-vertical-rulers', false);
+	fixture.settings.set('product:timeline-update-while-playing', null);
+	fixture.settings.set('product:timeline-ruler-playback', false);
+	await fixture.service.bootstrap(fixture.lifetime.capture());
+	assert.equal(fixture.state.showVerticalRulers, false);
+	assert.equal(fixture.state.scrollViewToPlayhead, false);
+	assert.equal(fixture.state.playbackOnRulerClick, false);
 });
 
 test('disposal during parallel setting reads prevents project activation and publication', async () => {
@@ -46,7 +59,7 @@ test('disposal during parallel setting reads prevents project activation and pub
 		...fixture.runtime,
 		store: {
 			...fixture.runtime.store,
-			async loadSetting(key, fallback) {
+			async loadSetting(key, fallback: unknown = null) {
 				await gate.promise;
 				return fixture.runtime.store.loadSetting(key, fallback);
 			},
