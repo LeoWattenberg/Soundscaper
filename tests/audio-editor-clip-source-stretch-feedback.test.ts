@@ -45,3 +45,31 @@ test('musical markers measure each neighboring speed through its actual project 
 	assert.equal(dragged.beforeSpeed, 2 / 3);
 	assert.equal(dragged.afterSpeed, 2 / 3);
 });
+
+test('passive marker feedback retains its exact fractional frame and adjacent speeds', () => {
+	const fractional = { ...clip, sourceStartFrame: 0, sourceDurationFrames: 100, durationFrames: 100,
+		warpMap: { feature: 'audio-warp', points: [
+			{ outer: 0, source: 0, mode: 'forward' }, { outer: { num: 1, den: 2 }, source: 1, mode: 'forward' },
+			{ outer: 100, source: 100, mode: 'forward' },
+		] } };
+	const feedback = clipSourceStretchFeedback(project, fractional, { ...source, sampleRate: project.sampleRate }, 1)!;
+	assert.equal(feedback.displayFrame, 0.5);
+	assert.equal(feedback.beforeSpeed, 2);
+	assert.equal(feedback.afterSpeed, 99 / 99.5);
+});
+
+test('dense rational markers retain their original frame when no integer move fits', () => {
+	const dense = { ...clip, sourceStartFrame: 0, sourceDurationFrames: 100, durationFrames: 100,
+		warpMap: { feature: 'audio-warp', points: [
+			{ outer: 0, source: 0, mode: 'forward' }, { outer: { num: 1, den: 4 }, source: 1, mode: 'forward' },
+			{ outer: { num: 1, den: 2 }, source: 2, mode: 'forward' }, { outer: 100, source: 100, mode: 'forward' },
+		] } };
+	for (const requestedFrame of [undefined, -10, 10]) {
+		const feedback = clipSourceStretchFeedback(project, dense, { ...source, sampleRate: project.sampleRate }, 1, requestedFrame)!;
+		assert.equal(feedback.displayFrame, 0.25);
+		assert.equal(feedback.canMove, false);
+		assert.equal(feedback.beforeSpeed, 4);
+		assert.equal(feedback.afterSpeed, 4);
+	}
+	assert.equal(clipSourceStretchFeedback(project, clip, source, 1, 108_000)?.canMove, true);
+});

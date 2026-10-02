@@ -13,9 +13,14 @@ export function clipSourceStretchFeedback(project: ClipSourceTimingProject, clip
 	const afterSample = after.source.num / after.source.den;
 	const beforeFrame = clipSourceFrameToDisplay(project, clip, source, beforeSample);
 	const afterFrame = clipSourceFrameToDisplay(project, clip, source, afterSample);
-	const displayFrame = Math.max(Math.floor(beforeFrame) + 1, Math.min(Math.ceil(afterFrame) - 1,
-		Math.round(requestedFrame ?? clipSourceFrameToDisplay(project, clip, source, sourceFrame))));
-	return { sourceFrame, displayFrame,
+	const firstFrame = Math.floor(beforeFrame) + 1, lastFrame = Math.ceil(afterFrame) - 1;
+	const canMove = firstFrame <= lastFrame && (requestedFrame === undefined || Number.isFinite(requestedFrame));
+	// Stored points can be fractional after rate changes. Focus must not quantize
+	// them, and an interval narrower than one sample may have no legal UI move.
+	const displayFrame = requestedFrame !== undefined && canMove
+		? Math.max(firstFrame, Math.min(lastFrame, Math.round(requestedFrame)))
+		: clipSourceFrameToDisplay(project, clip, source, sourceFrame);
+	return { sourceFrame, displayFrame, canMove,
 		beforeSpeed: (sourceFrame - beforeSample) / source.sampleRate * project.sampleRate / (displayFrame - beforeFrame),
 		afterSpeed: (afterSample - sourceFrame) / source.sampleRate * project.sampleRate / (afterFrame - displayFrame),
 	};
