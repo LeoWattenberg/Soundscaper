@@ -59,3 +59,60 @@ test('video overlap scroll projections read no authored clip geometry after anal
 	}
 	assert.equal(geometryReads, 0);
 });
+
+test('dense offscreen image overlaps retain bounded preparation and project every visible pair', () => {
+	const images = Array.from({ length: 250 }, (_, index) => ({
+		...clip(`image-${String(index).padStart(3, '0')}`, 10_000, 100), kind: 'image',
+	}));
+	const analysis = analyzeVideoClipOverlaps([
+		...images, clip('left', 0, 150), clip('right', 100, 150),
+	]);
+	assert.ok(analysis.overlaps.length <= 504, 'offscreen dense pairs must not be retained quadratically');
+	assert.equal(analysis.invalid, true);
+	assert.equal(analysis.invalidClipIds.size, images.length);
+	assert.equal(analysis.invalidClipIds.has('left'), false);
+	assert.equal(analysis.invalidClipIds.has('right'), false);
+	const offscreen = projectVideoOverlapPresentation(analysis, 1_000, 2_000, 100, 100);
+	assert.deepEqual(offscreen.overlays, []);
+	const valid = projectVideoOverlapPresentation(analysis, 120, 220, 100, 100);
+	assert.deepEqual(valid.overlays.map(({ id, width, valid }) => ({ id, width, valid })), [
+		{ id: 'left:right:100:150', width: 30, valid: true },
+	]);
+	const dense = projectVideoOverlapPresentation(analysis, 10_020, 10_030, 100, 100);
+	assert.equal(dense.overlays.length, images.length * (images.length - 1) / 2);
+	assert.deepEqual(dense.overlays[0], {
+		id: 'image-000:image-001:10000:10100', left: 12, width: 10, valid: false,
+		label: 'Invalid video overlap between IMAGE-000 and IMAGE-001',
+	});
+	assert.equal(dense.overlays.at(-1)?.id, 'image-248:image-249:10000:10100');
+});
+
+test('swept invalid clip IDs and dense projections agree with exhaustive overlap geometry', () => {
+	let seed = 123;
+	const next = () => { seed = (seed * 1_664_525 + 1_013_904_223) >>> 0; return seed; };
+	for (let sample = 0; sample < 20; sample += 1) {
+		const clips = Array.from({ length: 80 }, (_, index) => clip(String(index), next() % 500, next() % 150 + 1))
+			.sort((left, right) => left.timelineStartFrame - right.timelineStartFrame || left.id.localeCompare(right.id));
+		const expected = [];
+		const invalidIds = new Set<string>();
+		for (let leftIndex = 0; leftIndex < clips.length; leftIndex += 1) {
+			const left = clips[leftIndex]!;
+			for (let rightIndex = leftIndex + 1; rightIndex < clips.length; rightIndex += 1) {
+				const right = clips[rightIndex]!;
+				const start = Math.max(left.timelineStartFrame, right.timelineStartFrame);
+				const end = Math.min(left.timelineStartFrame + left.durationFrames, right.timelineStartFrame + right.durationFrames);
+				if (start >= end) continue;
+				const valid = left.timelineStartFrame < right.timelineStartFrame
+					&& left.timelineStartFrame + left.durationFrames < right.timelineStartFrame + right.durationFrames
+					&& !clips.some((third, index) => index !== leftIndex && index !== rightIndex
+						&& third.timelineStartFrame < end && third.timelineStartFrame + third.durationFrames > start);
+				if (!valid) { invalidIds.add(left.id); invalidIds.add(right.id); }
+				if (start < 300 && end > 200) expected.push({ id: `${left.id}:${right.id}:${start}:${end}`, valid });
+			}
+		}
+		const analysis = analyzeVideoClipOverlaps(clips);
+		assert.deepEqual([...analysis.invalidClipIds].sort(), [...invalidIds].sort());
+		assert.deepEqual(projectVideoOverlapPresentation(analysis, 200, 300, 100, 100).overlays
+			.map(({ id, valid }) => ({ id, valid })), expected);
+	}
+});

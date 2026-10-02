@@ -22,11 +22,20 @@ interface VideoOverlap {
 	readonly label: string;
 }
 
+interface OrderedClip {
+	readonly clip: VideoOverlapClip;
+	readonly start: number;
+	readonly end: number;
+}
+
+type ThirdClipQuery = (start: number, end: number, left: number, right: number) => boolean;
+
 export interface VideoOverlapAnalysis {
 	readonly invalid: boolean;
 	readonly invalidClipIds: ReadonlySet<string>;
 	readonly overlaps: readonly VideoOverlap[];
 	readonly index?: TimelineViewportClipIndex<VideoOverlap>;
+	readonly projectOverlaps?: (start: number, end: number) => readonly VideoOverlap[];
 }
 
 /** Analyze document-wide validity once; subsequent scrolls only project visible overlaps. */
@@ -34,9 +43,8 @@ export function analyzeVideoClipOverlaps(clips: readonly VideoOverlapClip[]): Vi
 	const ordered = clips.filter((clip) => !clip.isRecordingPreview && Number(clip.durationFrames) > 0)
 		.map((clip) => ({ clip, start: clip.timelineStartFrame, end: clip.timelineStartFrame + clip.durationFrames }))
 		.sort((left, right) => left.start - right.start || compareCodeUnits(String(left.clip.id), String(right.clip.id)));
-	const overlaps: VideoOverlap[] = [];
-	const invalidClipIds = new Set<string>();
-	let invalid = false;
+	const invalidClipIds = invalidOverlapClipIds(ordered);
+	let invalid = invalidClipIds.size > 0;
 	try {
 		validateVideoTrackComposition({
 			id: 'video-drag-preview', type: 'video', clipIds: ordered.map(({ clip }) => clip.id),
@@ -63,21 +71,75 @@ export function analyzeVideoClipOverlaps(clips: readonly VideoOverlapClip[]): Vi
 		return longestEnds[low - 1]?.some((index) => index !== left && index !== right
 			&& ordered[index]!.end > start) ?? false;
 	};
+	// Images and invalid drag previews can have arbitrarily dense overlaps.
+	// Cache sparse pairs, but retain only captured clip geometry in dense cases.
+	const overlaps = collectOverlaps(ordered, hasThirdClip, Math.max(128, ordered.length * 2));
+	if (!overlaps) return {
+		invalid, invalidClipIds, overlaps: [],
+		projectOverlaps: (start, end) => collectOverlaps(ordered, hasThirdClip, Infinity, start, end)!,
+	};
+	const index = overlaps.length > 128 && overlaps.every((overlap) => (
+		Number.isSafeInteger(overlap.timelineStartFrame) && overlap.timelineStartFrame >= 0
+		&& Number.isSafeInteger(overlap.durationFrames) && overlap.durationFrames > 0
+		&& overlap.durationFrames <= Number.MAX_SAFE_INTEGER - overlap.timelineStartFrame
+	)) ? createTimelineViewportClipIndex(overlaps) : undefined;
+	return { invalid, invalidClipIds, overlaps, index };
+}
+
+/** Every three-way intersection invalidates its active clips; mark each only once. */
+function invalidOverlapClipIds(ordered: readonly OrderedClip[]): Set<string> {
+	const ends = ordered.map((_clip, index) => index).sort((left, right) => ordered[left]!.end - ordered[right]!.end);
+	const active = new Set<number>();
+	const unmarked = new Set<number>();
+	const invalidClipIds = new Set<string>();
+	let endIndex = 0;
+	for (let index = 0; index < ordered.length; index += 1) {
+		const right = ordered[index]!;
+		while (endIndex < ends.length && ordered[ends[endIndex]!]!.end <= right.start) {
+			active.delete(ends[endIndex]!);
+			unmarked.delete(ends[endIndex]!);
+			endIndex += 1;
+		}
+		if (active.size >= 2) {
+			for (const index of unmarked) invalidClipIds.add(ordered[index]!.clip.id);
+			unmarked.clear();
+			invalidClipIds.add(right.clip.id);
+		} else if (active.size === 1) {
+			const leftIndex = active.values().next().value!;
+			const left = ordered[leftIndex]!;
+			if (!(left.start < right.start && left.end < right.end)) {
+				invalidClipIds.add(left.clip.id);
+				invalidClipIds.add(right.clip.id);
+				unmarked.delete(leftIndex);
+			}
+		}
+		active.add(index);
+		if (!invalidClipIds.has(right.clip.id)) unmarked.add(index);
+	}
+	return invalidClipIds;
+}
+
+function collectOverlaps(
+	ordered: readonly OrderedClip[],
+	hasThirdClip: ThirdClipQuery,
+	limit: number,
+	viewportStart = -Infinity,
+	viewportEnd = Infinity,
+): VideoOverlap[] | null {
+	const overlaps: VideoOverlap[] = [];
 	for (let leftIndex = 0; leftIndex < ordered.length; leftIndex += 1) {
 		const left = ordered[leftIndex]!;
+		if (left.end <= viewportStart || left.start >= viewportEnd) continue;
 		for (let rightIndex = leftIndex + 1; rightIndex < ordered.length; rightIndex += 1) {
 			const right = ordered[rightIndex]!;
-			if (right.start >= left.end) break;
+			if (right.start >= left.end || right.start >= viewportEnd) break;
+			if (right.end <= viewportStart) continue;
 			const startFrame = Math.max(left.start, right.start);
 			const endFrame = Math.min(left.end, right.end);
 			if (endFrame <= startFrame) continue;
+			if (overlaps.length >= limit) return null;
 			const valid = left.start < right.start && left.end < right.end
 				&& !hasThirdClip(startFrame, endFrame, leftIndex, rightIndex);
-			if (!valid) {
-				invalid = true;
-				invalidClipIds.add(left.clip.id);
-				invalidClipIds.add(right.clip.id);
-			}
 			overlaps.push({
 				id: `${left.clip.id}:${right.clip.id}:${startFrame}:${endFrame}`,
 				timelineStartFrame: startFrame,
@@ -89,12 +151,7 @@ export function analyzeVideoClipOverlaps(clips: readonly VideoOverlapClip[]): Vi
 			});
 		}
 	}
-	const index = overlaps.length > 128 && overlaps.every((overlap) => (
-		Number.isSafeInteger(overlap.timelineStartFrame) && overlap.timelineStartFrame >= 0
-		&& Number.isSafeInteger(overlap.durationFrames) && overlap.durationFrames > 0
-		&& overlap.durationFrames <= Number.MAX_SAFE_INTEGER - overlap.timelineStartFrame
-	)) ? createTimelineViewportClipIndex(overlaps) : undefined;
-	return { invalid, invalidClipIds, overlaps, index };
+	return overlaps;
 }
 
 export function projectVideoOverlapPresentation(
@@ -104,7 +161,8 @@ export function projectVideoOverlapPresentation(
 	pixelsPerSecond: number,
 	sampleRate: number,
 ) {
-	const candidates = analysis.index?.query(overscanStartFrame, overscanEndFrame) ?? analysis.overlaps;
+	const candidates = analysis.projectOverlaps?.(overscanStartFrame, overscanEndFrame)
+		?? analysis.index?.query(overscanStartFrame, overscanEndFrame) ?? analysis.overlaps;
 	const overlays = candidates.flatMap((overlap) => {
 		const visibleStartFrame = Math.max(overlap.timelineStartFrame, overscanStartFrame);
 		const visibleEndFrame = Math.min(overlap.timelineStartFrame + overlap.durationFrames, overscanEndFrame);
