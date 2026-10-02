@@ -252,6 +252,8 @@ async function dragPanel(source, target, intent, orientation) {
 	const handle = source.locator(`[data-workspace-panel-drag-handle="${panelId}"]`);
 	if (orientation !== 'side') {
 		await handle.dragTo(target, { targetPosition });
+		// The drop can replace the dragged frame before WebKit receives its release.
+		await source.page().mouse.up();
 		return;
 	}
 	// Chromium's native drag interception can stall when moving over a

@@ -103,17 +103,15 @@ test.describe('Soundscaper exact timing and freeze workflows', () => {
 		await expect(track.locator('[data-track-lane]')).toHaveAttribute('data-selected', 'true');
 		const history = await openHistoryPanel(page, editor);
 		const historyBeforeResample = await history.locator('[data-history-list] > li').count();
-		// Import decodes through the device AudioContext, so the material arrives at
-		// whatever rate that clock runs at: CI drives Firefox from a 48 kHz null sink and
-		// this machine from a 44.1 kHz one. The rate is a clip property rather than a
-		// track menu entry, and resampling to the rate the source already carries commits
-		// nothing, so only claim the entry where the command had work to do.
+		// Resampling to the source's current rate commits nothing. Read the rate
+		// from the expanded drawer and only claim an entry when the rate changes.
 		const properties = await openClipProperties(page, editor, clipByName(editor, freezeImpulse.name));
+		await properties.getByText('Media settings', { exact: true }).click();
 		const sourceRate = Number(await properties
 			.locator('[data-clip-source-fact="sampleRate"] .audio-editor-field__value').innerText());
 		expect(Number.isFinite(sourceRate)).toBe(true);
+		expect(sourceRate).toBeGreaterThan(0);
 		if (sourceRate !== FREEZE_SAMPLE_RATE) {
-			await properties.getByText('Media settings', { exact: true }).click();
 			await properties.getByRole('button', { name: 'Resample', exact: true }).click();
 			const resampleDialog = page.locator('[data-clip-resample-dialog]');
 			await expect(resampleDialog).toBeVisible();
@@ -123,10 +121,15 @@ test.describe('Soundscaper exact timing and freeze workflows', () => {
 			);
 			await resampleDialog.getByRole('button', { name: 'Resample', exact: true }).click();
 			await expect(resampleDialog).toBeHidden();
-			await expect(history.locator('[data-history-list] > li'))
-				.toHaveCount(historyBeforeResample + 1, { timeout: 10_000 });
+			await expect(properties.locator('[data-clip-source-fact="sampleRate"] .audio-editor-field__value'))
+				.toHaveText(String(FREEZE_SAMPLE_RATE));
 		}
 		await closeClipProperties(properties);
+		// Clip properties replaces History in their shared tab group. Closing it
+		// restores the history list before checking the resample transaction.
+		await expect(history).toBeVisible();
+		await expect(history.locator('[data-history-list] > li'))
+			.toHaveCount(historyBeforeResample + Number(sourceRate !== FREEZE_SAMPLE_RATE), { timeout: 10_000 });
 		await track.locator('[data-track-header]').click();
 		await expect(track.locator('[data-track-lane]')).toHaveAttribute('data-selected', 'true');
 		await closeWorkspacePanel(editor, 'history');
