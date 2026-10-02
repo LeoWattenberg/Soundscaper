@@ -28,14 +28,20 @@
 .audio-editor-source-waveforms .clip-body__waveform { position: absolute; width: 100%; height: 100%; }
 .audio-editor-source-clip { position: absolute; inset-block: 0; border: 1px solid var(--accent, #89b5ff); pointer-events: none; }
 .audio-editor-source-clip .clip-header { pointer-events: auto; min-height: 22px; }
-.audio-editor-source-trim { position: absolute; top: 24px; bottom: 0; width: 9px; border: 0; background: transparent; pointer-events: auto; cursor: ew-resize; z-index: 4; }
+.audio-editor-source-trim { position: absolute; top: 24px; bottom: 0; width: 9px; border: 0; background: transparent; pointer-events: auto; z-index: 4; }
 .audio-editor-source-trim:hover, .audio-editor-source-trim:focus-visible { background: color-mix(in srgb, var(--accent) 50%, transparent); }
 .audio-editor-source-trim--start { left: -4px; }
 .audio-editor-source-trim--end { right: -4px; }
-.audio-editor-source-fade { position: absolute; top: 25px; width: 11px; height: 11px; transform: translateX(-50%) rotate(45deg); border: 1px solid var(--text); background: var(--stage-raised); pointer-events: auto; z-index: 5; cursor: ew-resize; }
+.audio-editor-source-trim--start, .audio-editor-source-wave-area[data-source-gesture="start"] { cursor: url('../../../../../vendor/audacity-design-system/components/src/assets/cursors/ClipTrimLeft.png') 8 10, ew-resize; }
+.audio-editor-source-trim--end, .audio-editor-source-wave-area[data-source-gesture="end"] { cursor: url('../../../../../vendor/audacity-design-system/components/src/assets/cursors/ClipTrimRight.png') 8 10, ew-resize; }
+.audio-editor-source-fade-target { position: absolute; inset-block: 0; pointer-events: none; z-index: 5; }
+.audio-editor-source-fade-target .audio-editor-clip-fade { top: 24px; bottom: 0; }
 .audio-editor-source-selection { position: absolute; inset-block: 24px 0; background: color-mix(in srgb, var(--accent, #89b5ff) 22%, transparent); pointer-events: none; }
 .audio-editor-source-stretch-marker { position: absolute; top: 38px; bottom: 0; width: 9px; transform: translateX(-50%); border: 0; background: linear-gradient(90deg, transparent 3px, #eeb85c 3px, #eeb85c 5px, transparent 5px); cursor: ew-resize; z-index: 3; }
 .audio-editor-source-stretch-marker::before { content: ''; position: absolute; top: 0; left: 0; border-inline: 4px solid transparent; border-top: 8px solid #eeb85c; }
+.audio-editor-source-stretch-feedback { position: absolute; top: 58px; width: min(240px, 100%); display: grid; grid-template-columns: 1fr 1fr; gap: 1px; border: 1px solid var(--line); border-radius: 4px; background: var(--line); color: var(--text); box-shadow: 0 2px 8px #0004; pointer-events: none; z-index: 7; font-size: 12px; font-variant-numeric: tabular-nums; }
+.audio-editor-source-stretch-feedback span { min-width: 0; padding: 5px 8px; background: var(--stage-raised); text-align: center; }
+.audio-editor-source-stretch-feedback small { display: block; margin-bottom: 3px; font-size: 10px; opacity: 0.8; }
 .audio-editor-source-playhead, .audio-editor-source-drag-guide { position: absolute; inset-block: 0; width: 1px; background: var(--accent, #ef6262); pointer-events: none; z-index: 6; }
 .audio-editor-source-drag-guide { background: #eeb85c; border-left: 1px dashed var(--text); }
 .audio-editor-clip-source-editor > .audio-editor-field-error { position: absolute; bottom: 0; margin: 0; padding: 5px; background: var(--stage-raised); z-index: 10; }

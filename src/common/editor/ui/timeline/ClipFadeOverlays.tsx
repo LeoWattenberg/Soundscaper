@@ -24,6 +24,7 @@ interface Props {
 	readonly pixelsPerSecond: number;
 	readonly sampleRate: number;
 	readonly blocked: boolean;
+	readonly handleTabIndex?: 0 | -1;
 	readonly showFadeShapeHandles: boolean;
 	readonly crossfadedFadeEdges: ReadonlySet<string>;
 	readonly copy: { readonly fadeIn: string; readonly fadeOut: string; readonly fadeInShape: string; readonly fadeOutShape: string; readonly legacyLinearFadeShape: string };
@@ -45,7 +46,7 @@ function moveFadeFocus(target: HTMLElement, current: HTMLElement, backwards: boo
 	else onTabOut(clipId);
 }
 
-export function ClipFadeOverlays({ rootRef, clips, selectedIds, startFrame, endFrame, pixelsPerSecond, sampleRate, blocked, showFadeShapeHandles, crossfadedFadeEdges, copy, onChange, onTabOut }: Props) {
+export function ClipFadeOverlays({ rootRef, clips, selectedIds, startFrame, endFrame, pixelsPerSecond, sampleRate, blocked, handleTabIndex = -1, showFadeShapeHandles, crossfadedFadeEdges, copy, onChange, onTabOut }: Props) {
 	const [targets, setTargets] = useState<ReadonlyMap<string, HTMLElement>>(new Map());
 	const geometries = useMemo(() => new Map(clips.map(clip => [
 		clip.id, fadeOverlayGeometry(clip, startFrame, endFrame, pixelsPerSecond, sampleRate),
@@ -90,7 +91,7 @@ export function ClipFadeOverlays({ rootRef, clips, selectedIds, startFrame, endF
 				const label = edge === 'in' ? copy.fadeIn : copy.fadeOut;
 				return <TrackFadeHandle key={edge} edge={edge} boundaryX={displayX(x)}
 					oppositeBoundaryX={edge === 'in' ? outBoundaryX : inBoundaryX} clipWidth={displayWidth}
-					role="slider" tabIndex={-1}
+					role="slider" tabIndex={handleTabIndex}
 					data-clip-fade-handle={edge} aria-label={label}
 					aria-valuemin={0} aria-valuemax={clip.durationFrames / sampleRate} aria-valuenow={value / sampleRate}
 					aria-orientation="horizontal" disabled={blocked}
@@ -98,7 +99,7 @@ export function ClipFadeOverlays({ rootRef, clips, selectedIds, startFrame, endF
 					onDoubleClick={event => { event.stopPropagation(); }}
 					onKeyDown={event => {
 						event.stopPropagation();
-						if (event.key === 'Tab') {
+						if (event.key === 'Tab' && handleTabIndex < 0) {
 							event.preventDefault();
 							moveFadeFocus(target, event.currentTarget, event.shiftKey, clip.id, onTabOut);
 							return;
@@ -116,7 +117,7 @@ export function ClipFadeOverlays({ rootRef, clips, selectedIds, startFrame, endF
 				return <TrackFadeShapeHandle key={position.edge} edge={position.edge}
 					left={position.left}
 					top={`clamp(0px, calc(${position.topPercent.toFixed(3)}% - 8px), calc(100% - 16px))`}
-					tabIndex={-1} data-clip-fade-shape-handle={position.edge}
+					tabIndex={handleTabIndex} data-clip-fade-shape-handle={position.edge}
 					data-fade-shape-base-gain={position.baseGain}
 					data-fade-shape-start-gain={position.gain}
 					aria-label={position.edge === 'in' ? copy.fadeInShape : copy.fadeOutShape}
@@ -127,7 +128,7 @@ export function ClipFadeOverlays({ rootRef, clips, selectedIds, startFrame, endF
 					onDoubleClick={event => { event.stopPropagation(); }}
 					onKeyDown={event => {
 						event.stopPropagation();
-						if (event.key === 'Tab') {
+						if (event.key === 'Tab' && handleTabIndex < 0) {
 							event.preventDefault();
 							moveFadeFocus(target, event.currentTarget, event.shiftKey, clip.id, onTabOut);
 							return;

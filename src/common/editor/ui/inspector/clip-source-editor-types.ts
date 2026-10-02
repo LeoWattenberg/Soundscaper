@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import type { AudioWarpRuntimeProject } from '../../audio-warp-runtime.ts';
 import type { SignatureMap } from '../../musical-grid.ts';
-import type { TimelineClipVisualData, TimelineAudioBuffer } from '../timeline/waveform-view-model.ts';
+import type { TimelineClipVisualData, TimelineAudioBuffer, TimelinePcmWindow } from '../timeline/waveform-view-model.ts';
 import type { SourceWaveformClip, SourceWaveformSource } from './ClipSourceWaveforms.tsx';
 
 export interface ClipSourceProject extends AudioWarpRuntimeProject {
@@ -31,6 +31,7 @@ export interface ClipSourceController {
 		readonly effects: {
 			setSourceSelection(selection: (SourceSelection & { readonly clipId: string }) | null): unknown;
 			loadSourceAudio?(clipId: string): Promise<TimelineAudioBuffer>;
+			loadSourceAudioWindow?(clipId: string, range: SourceSelection & { readonly signal?: AbortSignal }): Promise<TimelinePcmWindow | null>;
 		};
 		readonly timeline: { requestFrequencyWaveform?(clipId: string): Promise<unknown> };
 		readonly clipSourcePreview: {

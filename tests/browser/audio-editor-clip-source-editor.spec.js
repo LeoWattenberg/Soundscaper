@@ -30,12 +30,109 @@ test.describe('clip source editor', () => {
 		const marker = panel.getByRole('button', { name: 'Stretch marker 1', exact: true });
 		await expect(marker).toBeVisible();
 		const sample = await marker.getAttribute('data-source-sample');
+		await marker.focus();
+		await expect(marker).toHaveAttribute('aria-description', /Before marker: 1\.00× \(100%\); After marker: 1\.00× \(100%\)/u);
+		const markerBounds = await marker.boundingBox();
+		await page.mouse.move(markerBounds.x + markerBounds.width / 2, markerBounds.y + 30);
+		await page.mouse.down();
+		await page.mouse.move(markerBounds.x + markerBounds.width / 2 + 25, markerBounds.y + 30, { steps: 5 });
+		const feedback = panel.locator('.audio-editor-source-stretch-feedback');
+		await expect(feedback).toBeVisible();
+		await expect(feedback.locator('[data-source-speed="before"]')).toHaveText(/Before marker0\.\d+× \(\d+(?:\.\d+)?%\)/u);
+		await expect(feedback.locator('[data-source-speed="after"]')).toHaveText(/After marker1\.\d+× \(\d+(?:\.\d+)?%\)/u);
+		await expect(marker).toHaveAttribute('data-source-sample', sample);
+		await page.mouse.up();
 		const left = (await marker.boundingBox()).x;
 		await marker.press('Shift+ArrowRight');
 		await expect(marker).toHaveAttribute('data-source-sample', sample);
 		await expect.poll(async () => (await marker.boundingBox()).x).toBeGreaterThan(left);
 		await marker.press('Delete');
 		await expect(marker).toHaveCount(0);
+		expect(errors).toEqual([]);
+	});
+
+	test('reuses timeline fade grips, previews waveform fades, and cancels captured drags with Escape', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [longTone]);
+		const clip = clipByName(editor, longTone.name);
+		const panel = await openClipProperties(page, editor, clip);
+		const waveform = panel.getByRole('region', { name: 'Source waveform', exact: true });
+		const fadeIn = waveform.getByRole('slider', { name: 'Fade in', exact: true });
+		const fadeOut = waveform.getByRole('slider', { name: 'Fade out', exact: true });
+		await expect(fadeIn).toHaveAttribute('data-fade-handle', 'in');
+		await expect(fadeOut).toHaveAttribute('data-fade-handle', 'out');
+		await expect(fadeIn.locator('svg path').first()).toBeVisible();
+		const startTrim = panel.getByRole('button', { name: 'Trim source start', exact: true });
+		const endTrim = panel.getByRole('button', { name: 'Trim source end', exact: true });
+		expect(await startTrim.evaluate(element => getComputedStyle(element).cursor)).toContain('ClipTrimLeft');
+		expect(await endTrim.evaluate(element => getComputedStyle(element).cursor)).toContain('ClipTrimRight');
+		await fadeIn.press('Shift+ArrowRight');
+		const initial = await fadeIn.getAttribute('aria-valuenow');
+		const numeric = await clipField(panel, 'fadeInFrame').inputValue();
+		const placement = await clip.getAttribute('aria-label');
+		const canvas = waveform.locator('[data-source-active="true"] canvas').first();
+		const image = () => canvas.evaluate(element => element.toDataURL());
+		const before = await image();
+		const curve = waveform.locator('path[data-fade-curve="in"]');
+		await expect(curve).toHaveAttribute('fill', 'none');
+		const curveBefore = await curve.getAttribute('d');
+		const grip = await fadeIn.boundingBox();
+		await page.mouse.move(grip.x + grip.width / 2, grip.y + 5);
+		await page.mouse.down();
+		await page.mouse.move(grip.x + grip.width / 2 + 60, grip.y + 5, { steps: 5 });
+		await expect.poll(async () => Number(await fadeIn.getAttribute('aria-valuenow'))).toBeGreaterThan(Number(initial));
+		await expect(curve).not.toHaveAttribute('d', curveBefore);
+		await expect.poll(image).not.toBe(before);
+		await page.keyboard.press('Escape');
+		await expect(fadeIn).toHaveAttribute('aria-valuenow', initial);
+		await expect(curve).toHaveAttribute('d', curveBefore);
+		await expect.poll(image).toBe(before);
+		await page.mouse.up();
+		await expect(clipField(panel, 'fadeInFrame')).toHaveValue(numeric);
+		await expect(clip).toHaveAttribute('aria-label', placement);
+		expect(errors).toEqual([]);
+	});
+
+	test('keeps painted waveform samples while zooming and panning across unused source media', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [longTone]);
+		const panel = await openClipProperties(page, editor, clipByName(editor, longTone.name));
+		const waveform = panel.getByRole('region', { name: 'Source waveform', exact: true });
+		await panel.getByRole('button', { name: 'Trim source start', exact: true }).press('Shift+ArrowRight');
+		await panel.getByRole('button', { name: 'Trim source end', exact: true }).press('Shift+ArrowLeft');
+		const ruler = panel.getByRole('slider', { name: 'Source timeline', exact: true });
+		const wheel = (deltaY, deltaX = 0, ctrlKey = false) => waveform.evaluate((element, values) => {
+			const rect = element.getBoundingClientRect();
+			element.dispatchEvent(new WheelEvent('wheel', { ...values, bubbles: true, cancelable: true, clientX: rect.x + rect.width / 2, clientY: rect.y + 80 }));
+		}, { deltaY, deltaX, ctrlKey });
+		for (let step = 0; step < 22; step += 1) {
+			const previous = await ruler.getAttribute('aria-valuemax');
+			await wheel(-100, 0, true);
+			await expect(ruler).not.toHaveAttribute('aria-valuemax', previous);
+		}
+		const paintedSamples = () => waveform.locator('canvas').evaluateAll(canvases => canvases.reduce((sum, canvas) => {
+			if (!canvas.width || !canvas.height) return sum;
+			const context = canvas.getContext('2d');
+			const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+			let painted = 0;
+			for (let y = 0; y < canvas.height; y += 1) {
+				if (Math.abs(y - canvas.height / 2) < 4) continue;
+				for (let x = 0; x < canvas.width; x += 1) if (pixels[(y * canvas.width + x) * 4 + 3] > 0) painted += 1;
+			}
+			return sum + painted;
+		}, 0));
+		await expect.poll(paintedSamples).toBeGreaterThan(100);
+		await wheel(0, -1000000);
+		await expect(ruler).toHaveAttribute('aria-valuemin', '0');
+		await expect(waveform.locator('[data-source-active="false"] canvas')).toHaveCount(1);
+		await expect.poll(paintedSamples).toBeGreaterThan(100);
+		await wheel(0, 1000000);
+		await expect(waveform.locator('[data-source-active="false"] canvas')).toHaveCount(1);
+		await expect(waveform.locator('[data-source-active="true"]')).toHaveCount(0);
+		await expect.poll(paintedSamples).toBeGreaterThan(100);
+		await expect(waveform.locator('[data-waveform-error]')).toHaveCount(0);
 		expect(errors).toEqual([]);
 	});
 

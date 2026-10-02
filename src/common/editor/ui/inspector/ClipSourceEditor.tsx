@@ -10,6 +10,9 @@ import { renderAmplitudeRulers, renderFrequencyRulers } from '../timeline/track-
 import { useNonPassiveWheel } from '../useNonPassiveWheel.js';
 import { feedbackFailure, usePresentationFeedback } from '../presentation-feedback.ts';
 import ClipSourceWaveforms from './ClipSourceWaveforms.tsx';
+import ClipSourceFades from './ClipSourceFades.tsx';
+import { fadeDurationAtPointer, fadeShapeAtPointer, fadeField, fadeShapeField } from '../timeline/clip-fade-geometry.ts';
+import { clipSourceStretchFeedback, formatSourceStretchSpeed } from './clip-source-stretch-feedback.ts';
 import ClipSourceRuler, { INITIAL_SOURCE_RULER_OPTIONS } from './ClipSourceRuler.tsx';
 import { clipSourceSelection } from './clip-source-selection.ts';
 import { clipSourceTrim } from './clip-source-view.ts';
@@ -25,7 +28,8 @@ interface Props {
 }
 const amplitudeRulers = renderAmplitudeRulers as (channels: number, height: number, width: number, mode: string, format: string, zoom: number, ratio: number) => ReactNode;
 
-type Gesture = { readonly kind: 'selection' | 'start' | 'end' | 'fade-in' | 'fade-out' | 'marker'; readonly startFrame: number; readonly pointIndex?: number };
+type Gesture = { readonly kind: 'selection' | 'start' | 'end' | 'fade-in' | 'fade-out' | 'shape-in' | 'shape-out' | 'marker'; readonly startFrame: number; readonly pointIndex?: number;
+	readonly startX: number; readonly startY: number; readonly pointerId: number; readonly initialValue?: number; readonly gainHeight?: number; readonly baseGain?: number; readonly startGain?: number };
 
 export default function ClipSourceEditor({ controller, project, clipId, copy, blocked }: Props) {
 	const clip = project.clips.find(candidate => candidate.id === clipId)!;
@@ -46,6 +50,8 @@ export default function ClipSourceEditor({ controller, project, clipId, copy, bl
 	const [error, setError] = usePresentationFeedback(copy);
 	const [menu, setMenu] = useState<{ kind: 'view' | 'wave'; x: number; y: number; frame: number } | null>(null);
 	const [dragFrame, setDragFrame] = useState<number | null>(null);
+	const [fadePreview, setFadePreview] = useState<Readonly<Record<string, number>> | null>(null);
+	const [focusedMarker, setFocusedMarker] = useState<number | null>(null);
 	const gesture = useRef<Gesture | null>(null);
 	const selectedRef = useRef(selection);
 	selectedRef.current = selection;
@@ -138,35 +144,63 @@ export default function ClipSourceEditor({ controller, project, clipId, copy, bl
 	});
 	const begin = (event: PointerEvent<HTMLElement>, kind: Gesture['kind'], pointIndex?: number) => {
 		if (event.button !== 0 || blocked) return;
-		event.preventDefault(); event.stopPropagation(); waveRef.current?.focus(); focus();
+		const handle = event.target instanceof Element ? event.target.closest<HTMLElement>('[data-clip-fade-handle], [data-clip-fade-shape-handle]') : null;
+		if (handle?.dataset.clipFadeHandle) kind = handle.dataset.clipFadeHandle === 'in' ? 'fade-in' : 'fade-out';
+		if (handle?.dataset.clipFadeShapeHandle) kind = handle.dataset.clipFadeShapeHandle === 'in' ? 'shape-in' : 'shape-out';
+		event.preventDefault(); event.stopPropagation(); (handle ?? waveRef.current)?.focus(); focus();
 		const frame = frameAt(event.clientX);
 		if (kind === 'selection' && (event.ctrlKey || event.metaKey)) {
 			if (frame >= range.startFrame && frame <= range.endFrame) run(() => controller.actions.audioWarp.addSourceMarker(clipId, sourceAt(frame)));
 			return;
 		}
-		gesture.current = { kind, startFrame: frame, pointIndex }; setDragFrame(frame);
+		const edge = kind.endsWith('-in') ? 'in' : 'out';
+		gesture.current = { kind, startFrame: frame, pointIndex, startX: event.clientX, startY: event.clientY, pointerId: event.pointerId,
+			initialValue: kind.startsWith('shape-') ? clip[fadeShapeField(edge)] ?? 2 : clip[fadeField(edge)] ?? 0,
+			gainHeight: handle?.closest('.audio-editor-clip-fade')?.getBoundingClientRect().height,
+			baseGain: handle?.dataset.fadeShapeBaseGain ? Number(handle.dataset.fadeShapeBaseGain) : undefined,
+			startGain: handle?.dataset.fadeShapeStartGain ? Number(handle.dataset.fadeShapeStartGain) : undefined };
+		setDragFrame(frame);
 		waveRef.current?.setPointerCapture(event.pointerId);
 		if (kind === 'selection') setSelection({ startFrame: frame, endFrame: frame });
+	};
+	const fadeChanges = (current: Gesture, event: PointerEvent<HTMLElement>) => {
+		const edge = current.kind.endsWith('-in') ? 'in' : 'out';
+		return current.kind.startsWith('shape-')
+			? { [fadeShapeField(edge)]: fadeShapeAtPointer(current.initialValue!, current.startY, event.clientY, current.gainHeight ?? 100, current.baseGain, current.startGain) }
+			: { [fadeField(edge)]: fadeDurationAtPointer(edge, current.initialValue!, current.startX, event.clientX, width * project.sampleRate / (endFrame - startFrame), project.sampleRate, clip.durationFrames) };
 	};
 	const move = (event: PointerEvent<HTMLDivElement>) => {
 		const current = gesture.current; if (!current) return;
 		const frame = frameAt(event.clientX); setDragFrame(frame);
 		if (current.kind === 'selection') setSelection({ startFrame: Math.min(current.startFrame, frame), endFrame: Math.max(current.startFrame, frame) });
+		if (current.kind.startsWith('fade-') || current.kind.startsWith('shape-')) setFadePreview(fadeChanges(current, event));
 	};
 	const finish = (event: PointerEvent<HTMLDivElement>) => {
 		const current = gesture.current; if (!current) return;
-		gesture.current = null; setDragFrame(null);
+		gesture.current = null; setDragFrame(null); setFadePreview(null);
 		const frame = frameAt(event.clientX);
 		if (current.kind === 'selection') {
 			run(() => { applySelection(frame === current.startFrame ? null : { startFrame: Math.min(current.startFrame, frame), endFrame: Math.max(current.startFrame, frame) }); preview.seek(frame); });
 		} else if (current.kind === 'start' || current.kind === 'end') {
 			run(() => preview.trim(clipId, clipSourceTrim(clip, source, project.sampleRate, current.kind as 'start' | 'end', clip.reversed ? clip.sourceStartFrame + (frame - range.startFrame) / clip.durationFrames * clip.sourceDurationFrames : sourceAt(frame))));
 		} else if (current.kind === 'marker') {
-			run(() => controller.actions.audioWarp.moveSourceMarker(clipId, current.pointIndex!, frame - range.startFrame));
+			run(() => controller.actions.audioWarp.moveSourceMarker(clipId, current.pointIndex!, clipSourceStretchFeedback(project, clip, source, current.pointIndex!, frame)!.displayFrame - range.startFrame));
 		} else {
-			const field = current.kind === 'fade-in' ? 'fadeInFrames' : 'fadeOutFrames';
-			run(() => controller.actions.clip.update(clipId, { [field]: Math.max(0, Math.min(clip.durationFrames, current.kind === 'fade-in' ? frame - range.startFrame : range.endFrame - frame)) }));
+			run(() => controller.actions.clip.update(clipId, fadeChanges(current, event)));
 		}
+	};
+	const cancelGesture = () => {
+		const current = gesture.current;
+		if (current && waveRef.current?.hasPointerCapture?.(current.pointerId)) waveRef.current.releasePointerCapture(current.pointerId);
+		gesture.current = null; setDragFrame(null); setFadePreview(null);
+	};
+	const previewClip = useMemo(() => fadePreview ? { ...clip, ...fadePreview } : clip, [clip, fadePreview]);
+	const fadeClip = useMemo(() => ({ ...previewClip, timelineStartFrame: range.startFrame }), [previewClip, range.startFrame]);
+	const markerIndex = gesture.current?.kind === 'marker' ? gesture.current.pointIndex! : focusedMarker;
+	const markerFeedback = markerIndex === null ? null : clipSourceStretchFeedback(project, clip, source, markerIndex, gesture.current?.kind === 'marker' ? dragFrame ?? undefined : undefined);
+	const markerDescription = (pointIndex: number) => {
+		const feedback = pointIndex === markerIndex ? markerFeedback : clipSourceStretchFeedback(project, clip, source, pointIndex);
+		return feedback ? `${copy.clipSourceSpeedBefore}: ${formatSourceStretchSpeed(feedback.beforeSpeed)}; ${copy.clipSourceSpeedAfter}: ${formatSourceStretchSpeed(feedback.afterSpeed)}` : '';
 	};
 	const markers = clip.warpMap ? normalizeAudioWarpMap(clip.warpMap).points.slice(1, -1) : [];
 	const labels: Record<TrackDisplayMode, string> = { waveform: copy.waveformView, spectrogram: copy.spectrogramView, multiview: copy.multiview,
@@ -174,10 +208,11 @@ export default function ClipSourceEditor({ controller, project, clipId, copy, bl
 	const spectral = displayMode === 'spectrogram' || displayMode === 'multiview';
 	const bodyHeight = size.height - 24;
 	return <div ref={rootRef} className="audio-editor-clip-source-editor" data-clip-source-editor onFocusCapture={focus}
+		onKeyDownCapture={event => { if (event.key === 'Escape' && gesture.current) { event.preventDefault(); event.stopPropagation(); cancelGesture(); } }}
 		onKeyDown={event => {
 			if (event.target instanceof HTMLInputElement || event.target instanceof HTMLButtonElement) return;
 			if (event.code === 'Space') { event.preventDefault(); event.stopPropagation(); run(() => preview.playPause(clipId)); }
-			if (event.key === 'Escape') { gesture.current = null; setDragFrame(null); run(() => preview.stop()); }
+			if (event.key === 'Escape') { gesture.current = null; setDragFrame(null); setFadePreview(null); run(() => preview.stop()); }
 			if ((event.ctrlKey || event.metaKey) && event.key === 'a') { event.preventDefault(); event.stopPropagation(); run(() => applySelection({ startFrame: 0, endFrame: range.totalFrames })); }
 		}}>
 		<ClipSourceRuler copy={copy} width={width} sampleRate={project.sampleRate} startFrame={startFrame} endFrame={endFrame}
@@ -197,34 +232,36 @@ export default function ClipSourceEditor({ controller, project, clipId, copy, bl
 				{displayMode !== 'spectrogram' && amplitudeRulers(source.channelCount, displayMode === 'multiview' ? bodyHeight / 2 : bodyHeight, 40, displayMode, 'linear-db', verticalZoom, 0.5)}
 			</div>
 			<div ref={waveRef} className="audio-editor-source-wave-area" role="region" aria-label={copy.clipSourceWaveform} tabIndex={0}
-				data-source-frame-count={source.frameCount} onPointerDown={event => begin(event, 'selection')} onPointerMove={move} onPointerUp={finish}
-				onPointerCancel={() => { gesture.current = null; setDragFrame(null); }}
+				data-source-frame-count={source.frameCount} data-source-gesture={gesture.current?.kind} onPointerDown={event => begin(event, 'selection')} onPointerMove={move} onPointerUp={finish}
+				onPointerCancel={cancelGesture}
 				onContextMenu={event => { event.preventDefault(); setMenu({ kind: 'wave', x: event.clientX, y: event.clientY, frame: frameAt(event.clientX) }); }}>
-				{visual && <ClipSourceWaveforms project={project} clip={clip} source={source} visual={visual} width={width} startFrame={startFrame} endFrame={endFrame}
-					displayMode={displayMode} verticalZoom={verticalZoom} selection={selection} copy={copy} />}
+				{visual && <ClipSourceWaveforms project={project} clip={previewClip} source={source} visual={visual} width={width} startFrame={startFrame} endFrame={endFrame}
+					displayMode={displayMode} verticalZoom={verticalZoom} selection={selection} copy={copy}
+					loadSourceAudioWindow={controller.actions.effects.loadSourceAudioWindow} onLoadError={cause => setError(feedbackFailure(cause))} />}
 				<div className="audio-editor-source-clip" style={{ left: pixel(range.startFrame), width: pixel(range.endFrame) - pixel(range.startFrame) }} data-source-clip-overlay>
 					<div onPointerDown={event => event.stopPropagation()}><ClipHeader name={clip.title || source.name || copy.clip} selected width={pixel(range.endFrame) - pixel(range.startFrame)} showMenu={false}
 						onRename={title => run(() => controller.actions.clip.update(clipId, { title }))} /></div>
 					{(['start', 'end'] as const).map(edge => <button key={edge} type="button" className={`audio-editor-source-trim audio-editor-source-trim--${edge}`}
 						aria-label={edge === 'start' ? copy.clipSourceTrimStart : copy.clipSourceTrimEnd} disabled={blocked} onPointerDown={event => begin(event, edge)}
 						onKeyDown={event => { if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') { event.preventDefault(); event.stopPropagation(); const frame = (edge === 'start' ? clip.sourceStartFrame : clip.sourceStartFrame + clip.sourceDurationFrames) + (event.key === 'ArrowLeft' ? -1 : 1) * (event.shiftKey ? Math.round(source.sampleRate / 10) : 1); run(() => preview.trim(clipId, clipSourceTrim(clip, source, project.sampleRate, edge, frame))); } }} />)}
-					{(['in', 'out'] as const).map(edge => <button key={edge} type="button" className="audio-editor-source-fade" aria-label={edge === 'in' ? copy.fadeIn : copy.fadeOut}
-						style={{ left: edge === 'in' ? (clip.fadeInFrames ?? 0) / clip.durationFrames * 100 + '%' : (1 - (clip.fadeOutFrames ?? 0) / clip.durationFrames) * 100 + '%' }}
-						disabled={blocked} onPointerDown={event => begin(event, edge === 'in' ? 'fade-in' : 'fade-out')}
-						onKeyDown={event => { if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
-							event.preventDefault(); event.stopPropagation(); const field = edge === 'in' ? 'fadeInFrames' : 'fadeOutFrames';
-							const delta = (event.key === 'ArrowLeft' ? -1 : 1) * (edge === 'out' ? -1 : 1) * (event.shiftKey ? Math.round(project.sampleRate / 10) : 1);
-							run(() => controller.actions.clip.update(clipId, { [field]: Math.max(0, Math.min(clip.durationFrames, (clip[field] ?? 0) + delta)) }));
-						} }} />)}
+
 				</div>
+				<ClipSourceFades rootRef={waveRef} clip={fadeClip} startFrame={startFrame} endFrame={endFrame} width={width} sampleRate={project.sampleRate}
+					blocked={blocked} copy={copy} onChange={(id, changes) => run(() => controller.actions.clip.update(id, changes))} />
 				{selection && <div className="audio-editor-source-selection" style={{ left: pixel(selection.startFrame), width: pixel(selection.endFrame) - pixel(selection.startFrame) }} />}
 				{markers.map((marker, index) => <button key={`${marker.source.num}/${marker.source.den}`} type="button" className="audio-editor-source-stretch-marker"
-					aria-label={`${copy.clipSourceStretchMarker} ${index + 1}`} title={`${copy.samplePosition} ${marker.source.num / marker.source.den}`} disabled={blocked}
-					data-source-sample={marker.source.num / marker.source.den} style={{ left: pixel(clipSourceFrameToDisplay(project, clip, source, marker.source.num / marker.source.den)) }}
+					aria-label={`${copy.clipSourceStretchMarker} ${index + 1}`} title={`${copy.samplePosition} ${marker.source.num / marker.source.den}; ${markerDescription(index + 1)}`} aria-description={markerDescription(index + 1)} disabled={blocked}
+					onFocus={() => setFocusedMarker(index + 1)} onBlur={() => setFocusedMarker(null)}
+					data-source-sample={marker.source.num / marker.source.den} style={{ left: pixel(index + 1 === markerIndex && markerFeedback ? markerFeedback.displayFrame : clipSourceFrameToDisplay(project, clip, source, marker.source.num / marker.source.den)) }}
 					onPointerDown={event => begin(event, 'marker', index + 1)} onKeyDown={event => {
 						if (event.key === 'Delete' || event.key === 'Backspace') { event.preventDefault(); event.stopPropagation(); run(() => controller.actions.audioWarp.deleteSourceMarker(clipId, index + 1)); }
-						if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') { event.preventDefault(); event.stopPropagation(); run(() => controller.actions.audioWarp.moveSourceMarker(clipId, index + 1, clipSourceFrameToDisplay(project, clip, source, marker.source.num / marker.source.den) - range.startFrame + (event.key === 'ArrowLeft' ? -1 : 1) * (event.shiftKey ? Math.round(project.sampleRate / 10) : 1))); }
+						if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') { event.preventDefault(); event.stopPropagation(); run(() => controller.actions.audioWarp.moveSourceMarker(clipId, index + 1, clipSourceStretchFeedback(project, clip, source, index + 1, clipSourceFrameToDisplay(project, clip, source, marker.source.num / marker.source.den) + (event.key === 'ArrowLeft' ? -1 : 1) * (event.shiftKey ? Math.round(project.sampleRate / 10) : 1))!.displayFrame - range.startFrame)); }
 					}} />)}
+				{markerFeedback && <div className="audio-editor-source-stretch-feedback" role="status" aria-live="polite"
+					style={{ left: Math.max(0, Math.min(width - 240, pixel(markerFeedback.displayFrame) - 120)) }}>
+					<span data-source-speed="before"><small>{copy.clipSourceSpeedBefore}</small>{formatSourceStretchSpeed(markerFeedback.beforeSpeed)}</span>
+					<span data-source-speed="after"><small>{copy.clipSourceSpeedAfter}</small>{formatSourceStretchSpeed(markerFeedback.afterSpeed)}</span>
+				</div>}
 				<div className="audio-editor-source-playhead" style={{ left: pixel(transport.positionFrame) }} />
 				{dragFrame !== null && <div className="audio-editor-source-drag-guide" style={{ left: pixel(dragFrame) }} />}
 			</div>

@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { useMemo, useRef } from 'react';
 import { AudacityWaveformCanvases } from '../timeline/TimelineCanvasRenderer.jsx';
-import { createTimelineClipViewModel, type TimelineClipVisualData } from '../timeline/waveform-view-model.ts';
-import { prepareFrequencyWaveformClipProjection } from '../timeline/frequency-waveform-projection.ts';
+import type { TimelineClipVisualData } from '../timeline/waveform-view-model.ts';
 import { createSpectrogramCanvasOptions } from '../timeline/spectrogram-canvas-options.ts';
-import { clipSourceSegments } from './clip-source-view.ts';
+import { useClipSourceAudioWindows } from './useClipSourceAudioWindows.ts';
+import type { ClipSourceController } from './clip-source-editor-types.ts';
 import type { AudioWarpRuntimeProject, AudioWarpRuntimeClip } from '../../audio-warp-runtime.ts';
 import type { TrackDisplayMode } from '../../track-display-mode.ts';
 
@@ -33,32 +33,19 @@ interface Props {
 	readonly verticalZoom: number;
 	readonly selection: { readonly startFrame: number; readonly endFrame: number } | null;
 	readonly copy: Readonly<Record<string, string>>;
+	readonly loadSourceAudioWindow?: ClipSourceController['actions']['effects']['loadSourceAudioWindow'];
+	readonly onLoadError: (error: unknown) => void;
 }
-export default function ClipSourceWaveforms({ project, clip, source, visual, width, startFrame, endFrame, displayMode, verticalZoom, selection, copy }: Props) {
+export default function ClipSourceWaveforms({ project, clip, source, visual, width, startFrame, endFrame, displayMode, verticalZoom, selection, copy, loadSourceAudioWindow, onLoadError }: Props) {
 	const rootRef = useRef<HTMLDivElement>(null);
 	const pixelsPerSecond = width * project.sampleRate / (endFrame - startFrame);
 	const { buffer, peaks, pcmWindow, peakWindow, frequencyAnalysis, frequencyWindow } = visual;
 	const stableVisual = useMemo(() => ({ source, buffer, peaks, pcmWindow, peakWindow, frequencyAnalysis, frequencyWindow }),
 		[source, buffer, peaks, pcmWindow, peakWindow, frequencyAnalysis, frequencyWindow]);
-	const models = useMemo(() => clipSourceSegments(clip, source, project.sampleRate).flatMap(segment => {
-		const localStart = Math.max(0, startFrame - segment.timelineStartFrame);
-		const localEnd = Math.min(segment.durationFrames, endFrame - segment.timelineStartFrame);
-		if (localEnd <= localStart) return [];
-		// Musical warp maps stay anchored to their original project tempo position.
-		const waveformClip = { ...segment, timelineStartFrame: segment.active ? clip.timelineStartFrame : segment.timelineStartFrame,
-			waveformStartFrame: localStart, waveformEndFrame: localEnd };
-		const offset = waveformClip.timelineStartFrame - segment.timelineStartFrame;
-		return [createTimelineClipViewModel({
-			controller: { getClipVisualData: () => stableVisual }, sourceLookup: new Map([[source.id, source]]), project: { ...project },
-			clip: waveformClip,
-			geometry: { overscanStartFrame: startFrame + offset, pixelsPerSecond, sampleRate: project.sampleRate },
-			selection: { selectedClipIds: segment.active ? segment.id : '' }, copy: { clip: copy.clip },
-			rendering: { showRms: true, halfWave: displayMode === 'half-wave', color: 'blue',
-				provideAudacitySpectrogram: displayMode === 'spectrogram' || displayMode === 'multiview',
-				frequencyWaveformMode: displayMode === 'waveform-three-band' || displayMode === 'waveform-rainbow' ? displayMode : null,
-				frequencyWaveformProjector: prepareFrequencyWaveformClipProjection },
-		})];
-	}), [clip, source, project, stableVisual, startFrame, endFrame, displayMode, pixelsPerSecond, copy.clip]);
+	const options = useMemo(() => ({ project, clip, source, visual: stableVisual, width,
+		startFrame, endFrame, displayMode, clipLabel: copy.clip }), [project, clip, source, stableVisual, width, startFrame, endFrame, displayMode, copy.clip]);
+	const plans = useClipSourceAudioWindows(options, loadSourceAudioWindow, onLoadError);
+	const models = plans.models;
 	return <div ref={rootRef} className="audio-editor-source-waveforms" aria-hidden="true">
 		{models.map(model => <div key={model.id} data-clip-id={model.id} className="clip-body clip-body--blue" data-source-active={model.selected} style={{ left: model.start * pixelsPerSecond, width: model.duration * pixelsPerSecond }}>
 			<canvas className="clip-body__waveform" />
