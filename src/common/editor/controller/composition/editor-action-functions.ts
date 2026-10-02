@@ -31,6 +31,7 @@ import type { createSettingPersistence } from '../preferences/setting-persistenc
 export interface EditorActionFunctions {
 	readonly setSourceSelection: ReturnType<typeof createEffectsComposition>['sourceEditor']['setSourceSelection'];
 	readonly loadSourceAudio: ReturnType<typeof createEffectsComposition>['sourceEditor']['loadSourceAudio'];
+	readonly loadSourceAudioWindow: ReturnType<typeof createEffectsComposition>['sourceEditor']['loadSourceAudioWindow'];
 	readonly addEffect: ReturnType<typeof createEffectsComposition>['rack']['addEffect'];
 	readonly addLabelTrack: ReturnType<typeof createTrackAudioComposition>['trackActions']['addLabelTrack'];
 	readonly addTrack: ReturnType<typeof createTrackAudioComposition>['trackActions']['addTrack'];

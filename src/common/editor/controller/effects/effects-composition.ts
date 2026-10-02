@@ -44,6 +44,7 @@ import {
 } from './internal/effect-result-service.ts';
 import { createEffectSelectionService } from './effect-selection-service.ts';
 import { createSourceEditorEffects } from './internal/source-editor-effects.ts';
+import { loadSourceEditorAudioWindow } from './internal/source-editor-audio-window.ts';
 import type { EffectsCompositionDependencies, EffectsCompositionProject } from './effects-composition-types.ts';
 import {
 	audacityEffectMemoryError,
@@ -107,6 +108,8 @@ export function createEffectsComposition(dependencies: EffectsCompositionDepende
 	const sourceEditor = createSourceEditorEffects<AudioBuffer>({
 		getProject: dependencies.getCommandProject,
 		publishDocumentSnapshot: dependencies.publishDocumentSnapshot,
+		loadSourceWindow: (source, request) => loadSourceEditorAudioWindow(source, request, { store,
+			buffer: typeof dependencies.sourceBuffers.get === 'function' ? dependencies.sourceBuffers.get(source.id) as AudioBuffer | undefined : undefined }),
 		loadSourceBuffer: async (source) => {
 			if (source.frameCount * source.channelCount * Float32Array.BYTES_PER_ELEMENT > AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES) throw memoryError();
 			const cached = typeof dependencies.sourceBuffers.get === 'function'

@@ -2,6 +2,7 @@
 
 import type { AudioBufferLike } from '../../source/source-audio.ts';
 import type { EffectSelectionProject, EffectTarget } from '../effect-selection-service.ts';
+import type { SourceEditorAudioWindow, SourceEditorAudioWindowRequest } from './source-editor-audio-window.ts';
 
 const SOURCE_TRACK_PREFIX = 'source-editor:';
 
@@ -20,6 +21,7 @@ export interface SourceEditorAudioSource {
 interface Dependencies<Buffer extends AudioBufferLike> {
 	readonly getProject: () => EffectSelectionProject;
 	readonly loadSourceBuffer: (source: SourceEditorAudioSource) => Promise<Buffer | null>;
+	readonly loadSourceWindow?: (source: SourceEditorAudioSource, request: SourceEditorAudioWindowRequest) => Promise<SourceEditorAudioWindow | null>;
 	readonly publishDocumentSnapshot: () => void;
 }
 interface SelectedSource extends SourceEditorSelection {
@@ -83,6 +85,15 @@ export function createSourceEditorEffects<Buffer extends AudioBufferLike>(depend
 		if (!clip || clip.kind !== 'audio') throw new RangeError('Select an audio clip to load its source.');
 		return readSource(clip.sourceId);
 	}
+	async function loadSourceAudioWindow(clipId: string, request: SourceEditorAudioWindowRequest): Promise<SourceEditorAudioWindow | null> {
+		const project = dependencies.getProject();
+		const clip = project.clips.find(item => item.id === clipId);
+		const source = clip?.kind === 'audio' ? findSource(project, clip.sourceId) : null;
+		if (!source) throw new RangeError('Select an audio clip to load its source.');
+		const result = await dependencies.loadSourceWindow?.(source, request) ?? null;
+		const current = dependencies.getProject();
+		return !request.signal?.aborted && current.id === project.id && current.clips.some(item => item.id === clipId && item.sourceId === source.id) ? result : null;
+	}
 	async function renderRange(trackId: string, startFrame: number, endFrame: number): Promise<Float32Array[] | null> {
 		if (!trackId.startsWith(SOURCE_TRACK_PREFIX)) return null;
 		const buffer = await readSource(trackId.slice(SOURCE_TRACK_PREFIX.length));
@@ -107,7 +118,7 @@ export function createSourceEditorEffects<Buffer extends AudioBufferLike>(depend
 			return merged;
 		});
 	}
-	return Object.freeze({ setSourceSelection, target, loadSourceAudio, renderRange, expandResult });
+	return Object.freeze({ setSourceSelection, target, loadSourceAudio, loadSourceAudioWindow, renderRange, expandResult });
 }
 
 function findSource(project: EffectSelectionProject, sourceId: string): SourceEditorAudioSource | null {
