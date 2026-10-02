@@ -113,6 +113,7 @@ test.describe('Soundscaper exact timing and freeze workflows', () => {
 			.locator('[data-clip-source-fact="sampleRate"] .audio-editor-field__value').innerText());
 		expect(Number.isFinite(sourceRate)).toBe(true);
 		if (sourceRate !== FREEZE_SAMPLE_RATE) {
+			await properties.getByText('Media settings', { exact: true }).click();
 			await properties.getByRole('button', { name: 'Resample', exact: true }).click();
 			const resampleDialog = page.locator('[data-clip-resample-dialog]');
 			await expect(resampleDialog).toBeVisible();
@@ -240,6 +241,7 @@ test.describe('Soundscaper exact timing and freeze workflows', () => {
 		expect(trackId).toBeTruthy();
 		expect(projectId).toBeTruthy();
 		const properties = await openClipProperties(page, editor, clipByName(editor, tone.name));
+		await properties.getByText('Pitch and tempo', { exact: true }).click();
 		await commitInput(properties.getByRole('spinbutton', {
 			name: 'Pitch (semitones, −12 to +12)', exact: true,
 		}), '12');

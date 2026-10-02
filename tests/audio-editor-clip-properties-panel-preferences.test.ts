@@ -17,10 +17,10 @@ import {
 } from '../src/common/editor/ui/workspace/workspace-panel-model.ts';
 import { ENGLISH_COPY, GERMAN_COPY } from '../src/common/i18n/catalogs.js';
 
-test('Clip properties is an optional hidden right panel in fresh and older preferences', () => {
+test('Clip properties is an optional hidden bottom panel in fresh and older preferences', () => {
 	const preferences = createAudioEditorPreferencesV1();
 	assert.deepEqual(preferences.workspace.panels['clip-properties'], {
-		visible: false, dock: 'right', order: 15, size: 400,
+		visible: false, dock: 'bottom', order: 15, size: 400,
 		x: 272, y: 192, width: 400, height: 520,
 	});
 	const older = { ...preferences, workspace: { ...preferences.workspace, panels: { ...preferences.workspace.panels } } };
@@ -39,7 +39,7 @@ test('switching to every built-in preset hides an opened Clip properties panel',
 	for (const workspaceId of AUDIO_EDITOR_BUILT_IN_WORKSPACES) {
 		const applied = applyAudioEditorWorkspace(preferences, workspaceId);
 		assert.equal(applied.workspace.panels['clip-properties'].visible, false, workspaceId);
-		assert.equal(applied.workspace.panels['clip-properties'].dock, 'right', workspaceId);
+		assert.equal(applied.workspace.panels['clip-properties'].dock, 'bottom', workspaceId);
 	}
 });
 

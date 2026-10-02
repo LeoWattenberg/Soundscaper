@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { expect, test, toneA, toneB } from './audio-editor-test-fixtures.js';
+import { SOUNDSCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 import {
 	bootEditor,
 	chooseCommandAction,
@@ -28,6 +29,24 @@ async function selectClip(clip) {
 	await expect(clip.locator('.clip-display')).toHaveAttribute('data-selected', 'true');
 }
 
+async function savedClipPanelPreferences(page) {
+	return page.evaluate(({ databaseName, panelId }) => new Promise((resolve, reject) => {
+		const opening = indexedDB.open(databaseName);
+		opening.onerror = () => reject(opening.error);
+		opening.onsuccess = () => {
+			const database = opening.result;
+			const request = database.transaction('settings', 'readonly').objectStore('settings')
+				.get('soundscaper:audio-editor-preferences-v1');
+			request.onerror = () => { database.close(); reject(request.error); };
+			request.onsuccess = () => {
+				const panel = request.result?.value?.workspace?.panels?.[panelId] ?? null;
+				database.close();
+				resolve(panel);
+			};
+		};
+	}), { databaseName: SOUNDSCAPER_DATABASE_NAME, panelId: PANEL_ID });
+}
+
 test.describe('live dockable Clip properties', () => {
 	registerAudioEditorHooks();
 	test.use({ viewport: { width: 1_440, height: 1_000 } });
@@ -43,6 +62,8 @@ test.describe('live dockable Clip properties', () => {
 		await selectClip(first);
 		await expect(panel).toHaveCount(0);
 		await openClipProperties(page, editor);
+		await expect(editor.locator('[data-panel-dock="bottom"] [data-workspace-panel="clip-properties"]')).toBeVisible();
+		await expect(panel.locator('[data-clip-properties-drawer][open]')).toHaveCount(0);
 		const contentBounds = await panel.locator(`[data-workspace-tab-panel="${PANEL_ID}"]`).boundingBox();
 		const bodyBounds = await panel.locator('[data-clip-properties-panel]').boundingBox();
 		expect(bodyBounds.x).toBeGreaterThanOrEqual(contentBounds.x);
@@ -52,6 +73,7 @@ test.describe('live dockable Clip properties', () => {
 		await selectClip(second);
 		await expect(clipField(panel, 'name')).toHaveValue(SECOND_TITLE);
 		await expect(second).toBeFocused();
+		await panel.getByText('Fading', { exact: true }).click();
 		await commitInput(clipField(panel, 'gain'), '-3');
 		await chooseCommandAction(page, editor, 'Select', 'Select none');
 		await expect(panel.getByText(EMPTY_SELECTION, { exact: true })).toBeVisible();
@@ -87,12 +109,14 @@ test.describe('live dockable Clip properties', () => {
 		await page.locator('.audio-editor-clip-context-menu').getByRole('menuitem', { name: 'Clip properties', exact: true }).click();
 		await expect(panel.getByRole('tab')).toHaveCount(2);
 		await expect(firstTab).toHaveAttribute('aria-selected', 'true');
-		await expect(clipField(panel, 'name')).toBeFocused();
+		await expect(panel.locator('[data-clip-properties-active-clip]')).toBeFocused();
 		await expect(first.locator('.clip-display')).toHaveAttribute('data-selected', 'true');
 		await expect(second.locator('.clip-display')).toHaveAttribute('data-selected', 'true');
 		await firstTab.click();
 		await expect(firstTab).toHaveAttribute('aria-selected', 'true');
+		await panel.getByText('Fading', { exact: true }).click();
 		await commitInput(clipField(panel, 'gain'), '-3');
+		await panel.getByText('Media settings', { exact: true }).click();
 		const inverted = panel.locator('[data-clip-field="inverted"]').getByRole('checkbox');
 		await inverted.click();
 		await expect(inverted).toHaveAttribute('aria-checked', 'true');
@@ -102,12 +126,15 @@ test.describe('live dockable Clip properties', () => {
 		await expect(secondTab).toHaveAttribute('aria-selected', 'true');
 		await expect(clipField(panel, 'name')).toHaveValue(SECOND_TITLE);
 		await expect(clipField(panel, 'gain')).toHaveValue('0.00');
+		await panel.getByText('Media settings', { exact: true }).click();
 		await expect(inverted).toHaveAttribute('aria-checked', 'false');
+		await panel.getByText('Fading', { exact: true }).click();
 		await commitInput(clipField(panel, 'gain'), '-9');
 		await secondTab.focus();
 		await secondTab.press('Home');
 		await expect(firstTab).toBeFocused();
 		await expect(clipField(panel, 'gain')).toHaveValue('-3.00');
+		await panel.getByText('Media settings', { exact: true }).click();
 		await expect(inverted).toHaveAttribute('aria-checked', 'true');
 		await firstTab.press('End');
 		await expect(secondTab).toBeFocused();
@@ -124,6 +151,38 @@ test.describe('live dockable Clip properties', () => {
 		await chooseCommandAction(page, editor, 'Select', 'Select none');
 		await expect(panel.getByRole('tab')).toHaveCount(0);
 		await expect(panel.getByText(EMPTY_SELECTION, { exact: true })).toBeVisible();
+		expect(errors).toEqual([]);
+	});
+
+	test('drawers expand vertically at the bottom and pitch knobs retain numeric entry', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA]);
+		const panel = await openClipProperties(page, editor, clipByName(editor, toneA.name));
+		const sourceBounds = await panel.locator('[data-clip-source-editor]').boundingBox();
+		const contentBounds = await panel.locator('[data-workspace-tab-panel="clip-properties"]').boundingBox();
+		expect(sourceBounds.y + sourceBounds.height).toBeGreaterThanOrEqual(contentBounds.y + contentBounds.height - 12);
+		const pitchDrawer = panel.locator('[data-clip-properties-drawer="pitch"]');
+		await expect(pitchDrawer).not.toHaveAttribute('open');
+		await pitchDrawer.getByText('Pitch and tempo', { exact: true }).click();
+		await expect(pitchDrawer).toHaveAttribute('open', '');
+		await expect(pitchDrawer.locator('summary')).toHaveCSS('writing-mode', 'vertical-rl');
+		const semitones = pitchDrawer.getByRole('button', { name: 'Semitones (half-steps)', exact: true });
+		const percent = pitchDrawer.getByRole('button', { name: 'Percent change', exact: true });
+		await expect(semitones).toHaveAttribute('aria-pressed', 'true');
+		await percent.click();
+		await expect(percent).toHaveAttribute('aria-pressed', 'true');
+		await expect(semitones).toHaveAttribute('aria-pressed', 'false');
+		await commitInput(clipField(panel, 'pitchCents'), '100');
+		await semitones.click();
+		await expect(clipField(panel, 'pitchCents')).toHaveValue('12.00');
+		const knob = panel.locator('[data-clip-knob="pitchCents"]').getByRole('slider');
+		await knob.focus();
+		await knob.press('ArrowLeft');
+		await expect(clipField(panel, 'pitchCents')).toHaveValue('11.99');
+		await dockWorkspacePanel(editor, PANEL_ID, 'right');
+		await panel.getByText('Pitch and tempo', { exact: true }).click();
+		await expect(panel.locator('[data-clip-properties-drawer="pitch"] summary')).toHaveCSS('writing-mode', 'horizontal-tb');
 		expect(errors).toEqual([]);
 	});
 
@@ -144,12 +203,14 @@ test.describe('live dockable Clip properties', () => {
 		await resize.press('Shift+ArrowRight');
 		await expect(panel).toHaveAttribute('data-workspace-panel-width', String(width + 48));
 		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved');
+		await expect.poll(async () => (await savedClipPanelPreferences(page))?.width).toBe(width + 48);
 		await page.reload();
 		const restoredEditor = await waitForEditor(page);
 		const restored = restoredEditor.locator(`[data-panel-dock="floating"] [data-workspace-panel="${PANEL_ID}"]`);
 		await expect(restored).toBeVisible();
 		await expect(restored).toHaveAttribute('data-workspace-panel-width', String(width + 48));
 		await closeClipProperties(restored);
+		await expect.poll(async () => (await savedClipPanelPreferences(page))?.visible).toBe(false);
 		await page.reload();
 		const closedEditor = await waitForEditor(page);
 		await expect(closedEditor.locator(`[data-workspace-panel="${PANEL_ID}"]`)).toHaveCount(0);

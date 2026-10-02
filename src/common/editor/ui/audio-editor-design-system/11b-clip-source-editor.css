@@ -1,0 +1,47 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+.audio-editor-clip-source-editor {
+	position: relative;
+	min-width: 260px;
+	min-height: 210px;
+	height: 100%;
+	flex: 1 1 520px;
+	display: flex;
+	flex-direction: column;
+	background: var(--stage, #23252a);
+	color: var(--text);
+	border: 1px solid var(--line);
+	border-radius: 4px;
+	overflow: hidden;
+}
+.audio-editor-source-ruler { display: flex; height: 40px; flex: 0 0 40px; border-bottom: 1px solid var(--line); }
+.audio-editor-source-ruler__transport { background: var(--stage-raised); display: flex; align-items: center; width: 96px; flex: 0 0 96px; }
+.audio-editor-source-ruler__transport button { background: transparent; border: 0; color: inherit; width: 32px; height: 30px; cursor: pointer; }
+.audio-editor-source-ruler__transport button[aria-pressed="true"] { color: var(--accent); background: var(--stage-raised); }
+.audio-editor-source-ruler__scale { background: var(--stage-raised); cursor: pointer; flex-shrink: 0; }
+.audio-editor-source-ruler__scale line { stroke: var(--line, #888); }
+.audio-editor-source-ruler__scale text { fill: var(--text, #ddd); font: 11px Inter, sans-serif; }
+.audio-editor-source-body { display: flex; flex: 1; min-height: 170px; overflow: hidden; }
+.audio-editor-source-vertical-ruler { display: flex; flex-direction: column; align-items: flex-end; padding-top: 24px; width: 96px; flex: 0 0 96px; border-right: 1px solid var(--line); cursor: context-menu; background: var(--stage-raised); }
+.audio-editor-source-wave-area { position: relative; flex: 1; min-width: 0; overflow: hidden; touch-action: none; outline-offset: -2px; }
+.audio-editor-source-waveforms { position: absolute; inset: 24px 0 0; pointer-events: none; }
+.audio-editor-source-waveforms > div { background: var(--clip-blue-body, #bcd7f8); opacity: 0.6; position: absolute; top: 0; bottom: 0; }
+.audio-editor-source-waveforms .clip-body__waveform { position: absolute; width: 100%; height: 100%; }
+.audio-editor-source-clip { position: absolute; inset-block: 0; border: 1px solid var(--accent, #89b5ff); pointer-events: none; }
+.audio-editor-source-clip .clip-header { pointer-events: auto; min-height: 22px; }
+.audio-editor-source-trim { position: absolute; top: 24px; bottom: 0; width: 9px; border: 0; background: transparent; pointer-events: auto; cursor: ew-resize; z-index: 4; }
+.audio-editor-source-trim:hover, .audio-editor-source-trim:focus-visible { background: color-mix(in srgb, var(--accent) 50%, transparent); }
+.audio-editor-source-trim--start { left: -4px; }
+.audio-editor-source-trim--end { right: -4px; }
+.audio-editor-source-fade { position: absolute; top: 25px; width: 11px; height: 11px; transform: translateX(-50%) rotate(45deg); border: 1px solid var(--text); background: var(--stage-raised); pointer-events: auto; z-index: 5; cursor: ew-resize; }
+.audio-editor-source-selection { position: absolute; inset-block: 24px 0; background: color-mix(in srgb, var(--accent, #89b5ff) 22%, transparent); pointer-events: none; }
+.audio-editor-source-stretch-marker { position: absolute; top: 38px; bottom: 0; width: 9px; transform: translateX(-50%); border: 0; background: linear-gradient(90deg, transparent 3px, #eeb85c 3px, #eeb85c 5px, transparent 5px); cursor: ew-resize; z-index: 3; }
+.audio-editor-source-stretch-marker::before { content: ''; position: absolute; top: 0; left: 0; border-inline: 4px solid transparent; border-top: 8px solid #eeb85c; }
+.audio-editor-source-playhead, .audio-editor-source-drag-guide { position: absolute; inset-block: 0; width: 1px; background: var(--accent, #ef6262); pointer-events: none; z-index: 6; }
+.audio-editor-source-drag-guide { background: #eeb85c; border-left: 1px dashed var(--text); }
+.audio-editor-clip-source-editor > .audio-editor-field-error { position: absolute; bottom: 0; margin: 0; padding: 5px; background: var(--stage-raised); z-index: 10; }
+
+.audio-editor-source-waveforms > [data-source-active="true"] { opacity: 1; }
+.audio-editor-source-vertical-ruler .vertical-ruler__label { --ruler-text-primary: var(--text); --ruler-text-secondary: var(--text); }
+
+.audio-editor-source-ruler__loop, .audio-editor-source-ruler__selection { fill: var(--accent); pointer-events: none; }
+.audio-editor-source-ruler__selection { opacity: 0.2; }

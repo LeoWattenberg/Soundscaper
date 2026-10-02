@@ -17,12 +17,53 @@ import {
 	installReactTestDom, reactProps, type ReactTestElement,
 } from './helpers/react-test-dom.ts';
 
+test('the four property drawers start collapsed and keep their controls together', async () => {
+	const fixture = await mountedFixture();
+	try {
+		await fixture.render();
+		const drawers = fixture.dom.container.querySelectorAll('[data-clip-properties-drawer]');
+		assert.deepEqual(drawers.map((drawer) => drawer.getAttribute('data-clip-properties-drawer')),
+			['media', 'fading', 'pitch', 'normalize']);
+		assert.ok(drawers.every((drawer) => drawer.getAttribute('open') === null));
+		assert.ok(drawers[0]!.querySelector('[data-clip-field="name"]'));
+		assert.ok(drawers[1]!.querySelector('[data-clip-field="fadeInFrame"]'));
+		assert.ok(drawers[2]!.querySelector('[data-clip-field="pitchCents"]'));
+		assert.deepEqual(drawers[3]!.querySelectorAll('[data-clip-action]')
+			.map((action) => action.getAttribute('data-clip-action')), ['normalize-peak', 'normalize-lufs']);
+	} finally { await fixture.cleanup(); }
+});
+
+test('pitch and speed have a knob beside their numeric value and exclusive pitch units', async () => {
+	const fixture = await mountedFixture({ pitchCents: 200, speedRatio: 8 });
+	try {
+		await fixture.render();
+		const pitch = fixture.dom.one('[data-clip-knob="pitchCents"]');
+		const speed = fixture.dom.one('[data-clip-knob="speedRatio"]');
+		assert.ok(pitch.querySelector('[role="slider"]'));
+		assert.equal(speed.querySelector('[role="slider"]')?.getAttribute('aria-valuenow'), '8');
+		const buttons = fixture.dom.one('[data-clip-pitch-unit]').querySelectorAll('button');
+		assert.deepEqual(buttons.map((button) => button.getAttribute('aria-pressed')), ['true', 'false']);
+		assert.equal(buttons[0]!.textContent, '\uEF21');
+		assert.equal(buttons[1]!.textContent, '%');
+		await fixture.choosePitchUnit(ENGLISH_COPY.clipPitchUnitPercent);
+		assert.deepEqual(fixture.dom.one('[data-clip-pitch-unit]').querySelectorAll('button')
+			.map((button) => button.getAttribute('aria-pressed')), ['false', 'true']);
+		const knob = fixture.dom.one('[data-clip-knob="pitchCents"]').querySelector('[role="slider"]')!;
+		assert.equal(knob.getAttribute('aria-valuenow'), '12.246');
+		await act(async () => reactProps(knob).onKeyDown({ key: 'ArrowRight', preventDefault() {}, stopPropagation() {} }));
+		assert.equal(fixture.timePitchCalls.length, 0, 'dragging previews without committing intermediate edits');
+		await act(async () => reactProps(knob).onKeyUp({ key: 'ArrowRight', preventDefault() {}, stopPropagation() {} }));
+		assert.equal(fixture.timePitchCalls.length, 1);
+		assert.ok(Number(fixture.timePitchCalls[0]!.pitchCents) > 200);
+	} finally { await fixture.cleanup(); }
+});
+
 test('reverse and invert are checkboxes inside the media settings card', async () => {
 	const fixture = await mountedFixture();
 	try {
 		await fixture.render();
 
-		assert.equal(fixture.headings()[1], ENGLISH_COPY.clipMediaSettings);
+		assert.equal(fixture.headings()[0], ENGLISH_COPY.clipMediaSettings);
 		assert.equal(fixture.toggleState('reversed'), 'false');
 		assert.equal(fixture.toggleState('inverted'), 'false');
 
@@ -240,20 +281,6 @@ async function mountedFixture(clipOverrides: Readonly<Record<string, unknown>> =
 		assert.ok(box, `Missing mounted ${field} checkbox.`);
 		return box;
 	};
-	// The unit menu is a portalled listbox, so its options only exist while the
-	// trigger has been clicked open; the trigger has to be measurable first
-	// because the menu positions itself against the trigger's box.
-	const togglePitchUnitMenu = async () => {
-		const trigger = dom.one('[data-clip-pitch-unit]').querySelector('button');
-		assert.ok(trigger, 'Missing mounted pitch unit trigger.');
-		Object.defineProperty(trigger, 'getBoundingClientRect', {
-			configurable: true,
-			value: () => ({ bottom: 28, left: 0, width: 240 }),
-		});
-		await click(trigger);
-		return descendants(document.body as unknown as ReactTestElement)
-			.filter((candidate) => candidate.getAttribute('role') === 'option');
-	};
 	const pitchField = () => dom.one('[data-clip-field="pitchCents"]');
 	const pitchInput = () => {
 		const input = pitchField().querySelector('input');
@@ -261,6 +288,7 @@ async function mountedFixture(clipOverrides: Readonly<Record<string, unknown>> =
 		return input;
 	};
 	return {
+		dom,
 		calls,
 		timePitchCalls,
 		click,
@@ -283,7 +311,7 @@ async function mountedFixture(clipOverrides: Readonly<Record<string, unknown>> =
 			const heading = dom.container.querySelectorAll('h3')
 				.find((node) => node.textContent === ENGLISH_COPY.pitchTempo);
 			assert.ok(heading?.parentNode instanceof Object, 'the pitch card carries a heading.');
-			return heading!.closest('section')!;
+			return heading!.closest('details')!;
 		},
 		toggleState: (field: string) => checkbox(field).getAttribute('aria-checked'),
 		toggle: (field: string) => click(checkbox(field)),
@@ -301,14 +329,11 @@ async function mountedFixture(clipOverrides: Readonly<Record<string, unknown>> =
 				await Promise.resolve();
 			});
 		},
-		pitchUnitOptions: async () => {
-			const labels = (await togglePitchUnitMenu()).map((option) => option.textContent);
-			await togglePitchUnitMenu();
-			return labels;
-		},
+		pitchUnitOptions: () => dom.one('[data-clip-pitch-unit]').querySelectorAll('button')
+			.map((button) => button.getAttribute('aria-label')),
 		choosePitchUnit: async (optionLabel: string) => {
-			const option = (await togglePitchUnitMenu())
-				.find((candidate) => candidate.textContent === optionLabel);
+			const option = dom.one('[data-clip-pitch-unit]').querySelectorAll('button')
+				.find((button) => button.getAttribute('aria-label') === optionLabel);
 			assert.ok(option, `Missing mounted pitch unit option ${optionLabel}.`);
 			await click(option);
 		},
@@ -338,10 +363,4 @@ function project(clipOverrides: Readonly<Record<string, unknown>>) {
 		sources: [source], clips: [clip],
 		tracks: [createAudioTrack({ id: 'shared-track', name: 'Track', clipIds: [clip.id] })],
 	});
-}
-
-
-function descendants(root: ReactTestElement): ReactTestElement[] {
-	const children = root.childNodes.filter((node): node is ReactTestElement => 'tagName' in node);
-	return children.flatMap((child) => [child, ...descendants(child)]);
 }

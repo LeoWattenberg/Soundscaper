@@ -374,6 +374,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 			update: (changes: Readonly<Record<string, unknown>>) => commit({ type: 'metadata/update', changes }),
 		}),
 		preferences: createPreferenceActionGroup(scope, recordingPreferences),
+		clipSourcePreview: Object.freeze({ ...scope.clipSourcePreviewService }),
 		clip: Object.freeze({
 			update: (clipId: string, changes: Readonly<Record<string, unknown>>) => commit({ type: 'clip/update', clipId, changes }, { selectClipId: clipId }),
 			setTimePitch: restricted('audioEffects', setClipTimePitch),
@@ -394,6 +395,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 			materializeFreesoundUpload: materializeFreesoundUploadClip,
 		}),
 		effects: Object.freeze({
+			setSourceSelection: scope.setSourceSelection, loadSourceAudio: scope.loadSourceAudio,
 			add: restricted('audioEffects', addEffect),
 			update: restricted('audioEffects', updateRackEffect),
 			copy: restricted('audioEffects', copyRackEffect),

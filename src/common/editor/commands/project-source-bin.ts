@@ -19,6 +19,7 @@ export const PROJECT_SOURCE_BIN_COMMAND_TYPES = [
 	'source/update',
 	'source/reprobe',
 	'source/rewrite-media',
+	'source/process-audio',
 	'project-bin/add',
 	'project-bin/move-from-timeline',
 	'project-bin/place',

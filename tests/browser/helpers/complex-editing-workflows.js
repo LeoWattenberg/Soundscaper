@@ -79,6 +79,10 @@ export async function editClipProperties(page, editor, clip, edits) {
 	const dialog = await openClipProperties(page, editor, clip);
 	for (const [field, value] of Object.entries(edits)) {
 		if (value === undefined) continue;
+		const drawer = ['pitchCents', 'speedRatio', 'stretchToTempo'].includes(field)
+			? 'pitch' : ['gain', 'fadeInFrame', 'fadeOutFrame'].includes(field) ? 'fading' : 'media';
+		const section = dialog.locator(`[data-clip-properties-drawer="${drawer}"]`);
+		if (await section.getAttribute('open') === null) await section.locator('summary').click();
 		if (field === 'stretchToTempo') {
 			const toggle = dialog.locator('[data-clip-field="stretchToTempo"]').getByRole('checkbox');
 			if (await toggle.isChecked() !== Boolean(value)) await toggle.click();

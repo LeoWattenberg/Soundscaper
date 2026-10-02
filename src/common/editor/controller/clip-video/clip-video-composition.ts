@@ -12,6 +12,8 @@ import {
 import { createAudioEditorVideoFrameExtractor } from '../../video-media.js';
 import { throwIfAborted } from '../shared/app-helpers.ts';
 import type { ClipVideoCompositionDependencies, ClipVideoCompositionProject } from './clip-video-composition-types.ts';
+import { createClipSourcePreviewService } from './internal/clip-source-preview-service.ts';
+import type { ClipSourcePreviewProject } from './internal/clip-source-preview-project.ts';
 import { createClipPropertyService, type ClipAnalysisResult } from './internal/clip/clip-property-service.ts';
 import { createClipTimePitchRenderService } from './clip-time-pitch-render-service.ts';
 import { createClipTransformService } from './internal/clip/clip-transform-service.ts';
@@ -62,6 +64,12 @@ export function createClipVideoComposition(dependencies: ClipVideoCompositionDep
 	const assertProject = (token: ReturnType<typeof captureProject>) => dependencies.projectGeneration.assertCurrent(token);
 	const seek = (frame: number) => engine.seek(dependencies.normalizePlaybackFrame(frame));
 
+	const clipSourcePreview = createClipSourcePreviewService({
+		lifetime, resources: dependencies.sourcePreview,
+		getProject: () => dependencies.getCommandProject() as unknown as ClipSourcePreviewProject,
+		captureProject, assertProject, handleError: dependencies.handleError,
+		editingBlocked: dependencies.editingBlocked, commit: dependencies.commit,
+	});
 	const sequenceTiming = createSequenceTimingService({
 		lifetime,
 		getProject: dependencies.getProject,
@@ -241,6 +249,7 @@ export function createClipVideoComposition(dependencies: ClipVideoCompositionDep
 
 	return Object.freeze({
 		sequenceTiming,
+		clipSourcePreview,
 		sourceMonitor,
 		videoEdit,
 		videoNavigation,

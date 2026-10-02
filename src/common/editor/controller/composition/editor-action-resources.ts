@@ -47,6 +47,7 @@ export interface EditorActionResources {
 	readonly AUDIO_EDITOR_DEFAULT_SHORTCUTS: typeof AUDIO_EDITOR_DEFAULT_SHORTCUTS;
 	readonly analysisService: AnalysisActions;
 	readonly audioWarpService: ReturnType<typeof createTrackAudioComposition>['audioWarp'];
+	readonly clipSourcePreviewService: ReturnType<typeof createClipVideoComposition>['clipSourcePreview'];
 	readonly capabilities: Readonly<Record<string, boolean>>;
 	readonly copy: Readonly<Record<string, string> & { projectNotFound: string }>;
 	readonly effectSelectionService: ReturnType<typeof createEffectsComposition>['selection'];

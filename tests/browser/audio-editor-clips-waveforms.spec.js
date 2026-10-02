@@ -131,8 +131,8 @@ test.describe('audio editor React/design-system workflows', () => {
 		await headerInput.fill('F2 rename');
 		await headerInput.press('Enter');
 		await expect(clip).toContainText('F2 rename');
-
 		const dialog = await openClipProperties(page, editor, clip);
+		await dialog.getByText('Media settings', { exact: true }).click();
 		const nameField = clipField(dialog, 'name');
 		await expect(nameField).toHaveValue('F2 rename');
 		await nameField.fill('Properties rename');

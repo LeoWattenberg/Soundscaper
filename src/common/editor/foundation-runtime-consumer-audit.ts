@@ -105,6 +105,7 @@ export const FOUNDATION_RUNTIME_PROJECTION_BOUNDARIES: readonly FoundationRuntim
 
 /** Files that own the raw-project boundary for every WP-0.2 consumer surface. */
 export const FOUNDATION_RUNTIME_SHIELDED_OWNERS: readonly FoundationRuntimeShieldedOwner[] = deepFreeze([
+	{ file: 'src/common/editor/controller/track-audio/internal/audio-warp/audio-warp-composition.ts', surfaces: ['composition'] },
 	{ file: 'src/common/editor/controller/import/internal/project-bin/project-bin-runtime.ts', surfaces: ['preview', 'composition'] },
 	{ file: 'src/common/editor/controller/import/internal/project-bin/project-bin-preview-service.ts', surfaces: ['preview'] },
 	{ file: 'src/common/editor/controller/import/internal/project-bin/project-bin-replacement-service.ts', surfaces: ['composition'] },
@@ -131,6 +132,7 @@ export const FOUNDATION_RUNTIME_SHIELDED_OWNERS: readonly FoundationRuntimeShiel
 	{ file: 'src/common/editor/ui/timeline/useTimelineViewportModel.js', surfaces: ['timeline'] },
 	{ file: 'src/common/editor/ui/framescaper-edit-control-menu-model.ts', surfaces: ['timeline'] },
 	{ file: 'src/common/editor/controller/document/project-visual-service.ts', surfaces: ['waveform'] },
+	{ file: 'src/common/editor/ui/inspector/ClipPropertiesPanel.tsx', surfaces: ['waveform'] },
 ]);
 
 /** Exact non-consumer readers co-located with a shield owner. No wildcard exclusions are admitted. */

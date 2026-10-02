@@ -56,6 +56,7 @@ test.describe('double click control defaults', () => {
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [longTone]);
 		const dialog = await openClipProperties(page, editor, clipByName(editor, longTone.name));
+		await dialog.getByText('Fading', { exact: true }).click();
 		for (const label of ['Fade in shape', 'Fade out shape']) {
 			const slider = dialog.getByRole('slider', { name: label, exact: true });
 			await expect(slider).toHaveValue('1');

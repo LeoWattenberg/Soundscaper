@@ -38,6 +38,7 @@ export function createSelectionEffectPreviewService(runtime: SelectionEffectPrev
 
 	return async function previewAudacityEffectFromController(request: RuntimeValue = {}) {
 		if (state.audacityEffectProcessing) return false;
+		runtime.pauseSourcePreview?.();
 		cancelAudacityEffectPreview({ publish: false });
 		const previewGeneration = state.audacityPreviewGeneration;
 		const requireCurrentPreview = (source: RuntimeValue = null) => {
@@ -52,7 +53,7 @@ export function createSelectionEffectPreviewService(runtime: SelectionEffectPrev
 		if (!fullTargets.length) throw createLocalizedError(Error, copy, 'audacitySelectionHint');
 		const type = state.audacityEffectType;
 		const definition = AUDIO_SELECTION_EFFECT_DEFINITIONS[type];
-		const sampleRate = projectSampleRate();
+		const sampleRate = fullTargets[0]?.sourceSampleRate ?? projectSampleRate();
 		const maximumFrames = Math.max(1, Math.round(sampleRate * 6));
 		const previewStartFrame = Math.min(...fullTargets.map((target: RuntimeValue) => target.startFrame));
 		const previewEndFrame = Math.min(
@@ -162,7 +163,7 @@ export function createSelectionEffectPreviewService(runtime: SelectionEffectPrev
 						channels,
 						contextFrames,
 						afterContextFrames,
-						projectDurationFrames(getProject()),
+						preview.sourceFrameCount ?? projectDurationFrames(getProject()),
 						renderDryTrackRange,
 						requireCurrentPreview,
 					);

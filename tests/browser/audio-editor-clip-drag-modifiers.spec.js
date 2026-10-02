@@ -17,6 +17,7 @@ test.describe('clip header drag modifiers', () => {
 		const destination = editor.locator('[data-track-row]').filter({ hasNot: clip }).first();
 		const destinationId = await destination.getAttribute('data-track-id');
 		const properties = await openClipProperties(page, editor, clip);
+		await properties.getByText('Media settings', { exact: true }).click();
 		await clipField(properties, 'startFrame').fill('12345');
 		await clipField(properties, 'startFrame').press('Tab');
 		await closeClipProperties(properties);

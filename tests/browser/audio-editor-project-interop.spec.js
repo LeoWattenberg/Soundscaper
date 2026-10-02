@@ -90,6 +90,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		const clipDialog = await openClipProperties(page, editor, firstClip);
 		await expect(clipDialog.locator('[data-clip-fields]')).toHaveAttribute('aria-disabled', 'false');
 		await expect(clipField(clipDialog, 'durationFrame')).toHaveValue('38400');
+		await clipDialog.getByText('Media settings', { exact: true }).click();
 		await commitInput(clipField(clipDialog, 'startFrame'), '120');
 		await expect(clipField(clipDialog, 'startFrame')).toHaveValue('120');
 		await closeClipProperties(clipDialog);

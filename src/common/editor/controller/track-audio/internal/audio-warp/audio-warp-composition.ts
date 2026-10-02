@@ -4,10 +4,13 @@ import type { AudioEditorCommand } from '../../../../commands/protocol.ts';
 import type { AudioWarpRenderPathStatus } from '../../../../audio-warp-runtime.ts';
 import {
 	MAXIMUM_AUDIO_WARP_TRANSIENTS,
+	evaluateAudioWarpMapAtSource,
 	type AudioWarpMap,
 	type AudioWarpQuantizeOptions,
 } from '../../../../audio-warp-domain.ts';
 import type { Rational } from '../../../../timeline-time.ts';
+import { audioWarpOuterAtTimelineFrame, type AudioWarpAuthorityRuntimeClip } from '../../../../audio-warp-runtime-authority.ts';
+import { resolveRuntimeClipProjection } from '../../../../runtime-clip-projection.ts';
 import {
 	createAudioWarpAuthoringService,
 	type AudioWarpAuthoringProject,
@@ -72,6 +75,9 @@ export interface AudioWarpControllerCompositionDependencies {
 
 export interface AudioWarpControllerComposition {
 	view(): Readonly<AudioWarpControllerView>;
+	addSourceMarker(clipId: string, sourceFrame: number): unknown;
+	moveSourceMarker(clipId: string, pointIndex: number, clipRelativeFrame: number): unknown;
+	deleteSourceMarker(clipId: string, pointIndex: number): unknown;
 	analyzeSelected(): Promise<Readonly<ClipTransientAnalysisOutcome>>;
 	createIdentityMapSelected(): unknown;
 	addMarkerSelected(marker: AudioWarpMarkerInput): unknown;
@@ -101,6 +107,9 @@ export function createAudioWarpControllerComposition(
 	let disposed = false;
 	return Object.freeze({
 		view,
+		addSourceMarker,
+		moveSourceMarker,
+		deleteSourceMarker,
 		analyzeSelected,
 		createIdentityMapSelected,
 		addMarkerSelected,
@@ -133,6 +142,41 @@ export function createAudioWarpControllerComposition(
 			blockReason,
 			renderStatus: dependencies.getRenderStatus(),
 		});
+	}
+
+	function addSourceMarker(clipId: string, sourceFrame: number): unknown {
+		assertUsable();
+		if (!Number.isSafeInteger(sourceFrame)) throw new RangeError('Stretch markers require an exact source sample.');
+		const preparation = authoring.prepareClipEdit(clipId);
+		const map = preparation.warpMap ?? identityWarpMap(preparation);
+		return authoring.setWarpMap(preparation, addAudioWarpMarker(map, {
+			source: sourceFrame,
+			outer: evaluateAudioWarpMapAtSource(map, sourceFrame),
+		}));
+	}
+
+	function moveSourceMarker(clipId: string, pointIndex: number, clipRelativeFrame: number): unknown {
+		assertUsable();
+		const project = dependencies.getProject();
+		const persistedClip = project.clips.find((candidate) => candidate.id === clipId);
+		if (!persistedClip) throw new RangeError('The source editor clip is unavailable.');
+		const clip = resolveRuntimeClipProjection(project, persistedClip) as unknown as AudioWarpAuthorityRuntimeClip;
+		if (!Number.isSafeInteger(clipRelativeFrame) || clipRelativeFrame <= 0 || clipRelativeFrame >= clip.durationFrames) {
+			throw new RangeError('Stretch marker positions must remain in the clip interior.');
+		}
+		const preparation = authoring.prepareClipEdit(clipId);
+		const point = preparation.warpMap?.points[pointIndex];
+		if (!point) throw new RangeError('The source stretch marker is unavailable.');
+		return authoring.setWarpMap(preparation, moveAudioWarpMarker(preparation.warpMap, pointIndex, {
+			source: point.source,
+			outer: audioWarpOuterAtTimelineFrame(project, clip, clip.timelineStartFrame + clipRelativeFrame),
+		}));
+	}
+
+	function deleteSourceMarker(clipId: string, pointIndex: number): unknown {
+		assertUsable();
+		const preparation = authoring.prepareClipEdit(clipId);
+		return authoring.setWarpMap(preparation, deleteAudioWarpMarker(preparation.warpMap, pointIndex));
 	}
 
 	async function analyzeSelected(): Promise<Readonly<ClipTransientAnalysisOutcome>> {

@@ -13,6 +13,12 @@ import type { FoundationTimeConversionSite } from './foundation-time-conversion-
  */
 export const FOUNDATION_TIME_CONVERSION_COMMAND_SITES: readonly FoundationTimeConversionSite[] = deepFreezeAuditSites([
 	{
+		id: 'shared-source-effect-musical-warp-duration',
+		file: 'src/common/editor/commands/source-process-audio-runtime.ts',
+		behavior: 'Length-changing source effects resolve musical warp points to nearest project samples before scaling elapsed time and recovering their beat coordinates through the current tempo map.',
+		conversions: [{ helper: 'beatToSampleFrame', policies: ['point'] }],
+	},
+	{
 		id: 'tts-regeneration-duration',
 		file: 'src/common/editor/commands/clip-tts-regeneration-runtime.js',
 		behavior: 'A regenerated speech source resolves its sample count to the project rate with the shared nearest-point policy before retaining the clip placement.',

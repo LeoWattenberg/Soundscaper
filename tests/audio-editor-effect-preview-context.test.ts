@@ -36,6 +36,7 @@ function fixture(start: number, end: number, projectEnd: number, cancelOnRender 
 	};
 	let started = 0;
 	let published = 0;
+	let sourcePaused = false;
 	const source = {
 		buffer: null as unknown,
 		onended: null as (() => void) | null,
@@ -43,6 +44,7 @@ function fixture(start: number, end: number, projectEnd: number, cancelOnRender 
 		start: () => { started += 1; },
 	};
 	const preview = createSelectionEffectPreviewService({
+		pauseSourcePreview: () => { sourcePaused = true; },
 		state,
 		AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES: 1_000_000,
 		AUDIO_SELECTION_EFFECT_DEFINITIONS,
@@ -73,6 +75,7 @@ function fixture(start: number, end: number, projectEnd: number, cancelOnRender 
 		publishDocumentSnapshot: () => { published += 1; },
 		renderDryTrackRange: async (trackId: string, from: number, to: number,
 			channels: number, clipIds: readonly string[]) => {
+			assert.equal(sourcePaused, true, 'source playback stops before effect preparation');
 			renders.push({ trackId, start: from, end: to, channels, clipIds });
 			if (renders.length === cancelOnRender) state.audacityPreviewGeneration += 1;
 			return [Float32Array.from({ length: to - from }, (_, index) => (from + index) / 1_000)];
@@ -84,8 +87,14 @@ function fixture(start: number, end: number, projectEnd: number, cancelOnRender 
 		},
 		setStatus: () => undefined,
 	});
-	return { preview, state, renders, jobs, played, started: () => started, published: () => published };
+	return { preview, state, renders, jobs, played, started: () => started, published: () => published, sourcePaused: () => sourcePaused };
 }
+
+test('effect previews pause the clip source transport before auditioning their result', async () => {
+	const value = fixture(20, 24, 50);
+	await value.preview();
+	assert.equal(value.sourcePaused(), true);
+});
 
 test('Repair previews supply clip-scoped context clipped to the project and play only the selection', async () => {
 	for (const [start, end, projectEnd] of [[20, 24, 50], [0, 4, 50], [46, 50, 50], [220, 224, 500]] as const) {

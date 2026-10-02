@@ -29,6 +29,12 @@ export interface FoundationRuntimeConsumerEvidence {
  * boundary before reading any persisted/resolved clip timing field.
  */
 const entries: FoundationRuntimeConsumerEvidence[] = [
+	{
+		id: 'clip-source-stretch-marker-authoring', surface: 'composition',
+		file: 'src/common/editor/controller/track-audio/internal/audio-warp/audio-warp-composition.ts', entryPoint: 'moveSourceMarker',
+		inputIdentifier: 'project', projectedIdentifier: 'clip', boundary: 'resolveRuntimeClipProjection',
+		evidence: 'Source editor stretch drags resolve authored sample or musical clip geometry before converting an output sample offset back to the exact warp anchor domain.',
+	},
 	{"id": "bin-audio-preview", "file": "src/common/editor/controller/import/internal/project-bin/project-bin-preview-service.ts", "entryPoint": "playPauseProjectBinClip", "inputIdentifier": "project", "projectedIdentifier": null, "boundary": "resolveProjectBinAudioPreviewClip", "surface": "preview", "evidence": "Project Bin reads resolved clip geometry at its audio preview and replacement boundary while retaining authored documents for checkpoint ownership."},
 	{"id": "bin-preview-geometry", "file": "src/common/editor/controller/import/internal/project-bin/project-bin-runtime.ts", "entryPoint": "resolveProjectBinAudioPreviewClip", "inputIdentifier": "project", "projectedIdentifier": "resolved", "boundary": "resolveRuntimeClipProjection", "surface": "preview", "evidence": "Project Bin reads resolved clip geometry at its audio preview and replacement boundary while retaining authored documents for checkpoint ownership."},
 	{"id": "bin-replacement-geometry", "file": "src/common/editor/controller/import/internal/project-bin/project-bin-runtime.ts", "entryPoint": "projectBinReplacementShortensClip", "inputIdentifier": "project", "projectedIdentifier": "resolved", "boundary": "resolveRuntimeClipProjection", "surface": "composition", "evidence": "Project Bin reads resolved clip geometry at its audio preview and replacement boundary while retaining authored documents for checkpoint ownership."},
@@ -352,6 +358,16 @@ const entries: FoundationRuntimeConsumerEvidence[] = [
 		projectedIdentifier: null,
 		boundary: 'projectForRuntimeConsumers',
 		evidence: 'Framescaper linked-audio menu admission crosses the shared runtime projection boundary after removing only V19’s validated-empty unavailable annotation carrier.',
+	},
+	{
+		id: 'clip-properties-source-waveform',
+		surface: 'waveform',
+		file: 'src/common/editor/ui/inspector/ClipPropertiesPanel.tsx',
+		entryPoint: 'ClipPropertiesPanel',
+		inputIdentifier: 'persistedProject',
+		projectedIdentifier: 'sourceProject',
+		boundary: 'projectForRuntimeConsumers',
+		evidence: 'Clip properties resolves persisted musical or sequence-backed geometry before passing clips to the source waveform overlay, its ruler, and the numeric media and fade drawers.',
 	},
 	{
 		id: 'waveform-visible-clips',

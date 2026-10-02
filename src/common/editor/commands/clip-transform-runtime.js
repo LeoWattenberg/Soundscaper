@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { clipSourceTrimFields } from '../clip-source-trim.ts';
 import { compareCodeUnits } from '../code-unit-order.ts';
 import { shapesForNewClipFades } from '../audio-clip-transition-gain.ts';
 import {
@@ -387,7 +388,12 @@ export function trimClip(project, command) {
 		? clip.timelineStartFrame
 		: assertFrame(command.timelineStartFrame, 'clip trim destination');
 	const durationFrames = command.durationFrames ?? clip.durationFrames;
-	const warpSegment = warpSegmentForTimelineRange(
+	const warpSegment = command.sourceRange === true
+		? clipSourceTrimFields(project, clip, project.sources.find((source) => source.id === clip.sourceId), {
+			sourceStartFrame: command.sourceStartFrame ?? clip.sourceStartFrame,
+			sourceDurationFrames: command.sourceDurationFrames ?? clip.sourceDurationFrames, durationFrames,
+		})
+		: warpSegmentForTimelineRange(
 		project,
 		clip,
 		command,
@@ -409,7 +415,8 @@ export function trimClip(project, command) {
 		sourceStartFrame,
 		sourceDurationFrames,
 		durationFrames,
-		...(warpSegment ? { warpMap: warpSegment.warpMap } : {}),
+		...(warpSegment?.warpMap ? { warpMap: warpSegment.warpMap } : {}),
+		...(warpSegment?.opaqueExtensions ? { opaqueExtensions: warpSegment.opaqueExtensions } : {}),
 		trimStartFrames: command.trimStartFrames ?? clip.trimStartFrames,
 		trimEndFrames: command.trimEndFrames ?? clip.trimEndFrames,
 		envelope: envelopeForTrimmedBounds(clip, timelineStartFrame, durationFrames),
