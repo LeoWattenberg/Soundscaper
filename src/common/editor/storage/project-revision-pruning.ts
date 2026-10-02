@@ -7,7 +7,7 @@ import {
 	asRecord,
 	asRevision,
 	isRevisionFor,
-	type ProjectRevisionRecord,
+	revisionKey,
 } from './project-repository-support.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
 
@@ -24,7 +24,7 @@ export async function pruneProjectRevisions(
 		}
 		: await transact(database, ['projects', 'revisions'], 'readonly', async ({ projects, revisions }) => {
 			const [records, current] = await Promise.all([
-				request(revisions.index('projectId').getAll(projectId)) as Promise<ProjectRevisionRecord[]>,
+				readRevisionIdentities(revisions.index('projectId'), projectId),
 				request(projects.get(projectId)) as Promise<unknown>,
 			]);
 			return { records, current };
@@ -46,4 +46,31 @@ export async function pruneProjectRevisions(
 	await transact(database, 'revisions', 'readwrite', ({ revisions }) => {
 		for (const record of stale) revisions.delete(record.key);
 	});
+}
+
+interface RevisionIdentity { readonly key: string; readonly revision: number }
+
+/** Publication keys already encode the revision; loading whole documents here multiplies autosave work. */
+async function readRevisionIdentities(index: IDBIndex, projectId: string): Promise<RevisionIdentity[]> {
+	const keys = await new Promise<IDBValidKey[]>((resolve, reject) => {
+		const identities: IDBValidKey[] = [];
+		const cursorRequest = index.openKeyCursor(projectId);
+		cursorRequest.onerror = () => reject(cursorRequest.error ?? new Error('Could not enumerate project revisions.'));
+		cursorRequest.onsuccess = () => {
+			const cursor = cursorRequest.result;
+			if (!cursor) { resolve(identities); return; }
+			identities.push(cursor.primaryKey);
+			cursor.continue();
+		};
+	});
+	return (await Promise.all(keys.map(async (key): Promise<RevisionIdentity | null> => {
+		if (typeof key === 'string' && key.startsWith(`${projectId}:`)) {
+			const revision = Number(key.slice(projectId.length + 1));
+			if (Number.isSafeInteger(revision) && revision >= 0 && revisionKey(projectId, revision) === key) {
+				return { key, revision };
+			}
+		}
+		// Retain compatibility with historical rows whose keys do not follow the publication format.
+		return asRevision(await request(index.objectStore.get(key)));
+	}))).filter((identity): identity is RevisionIdentity => identity !== null);
 }
