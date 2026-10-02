@@ -1,0 +1,21 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+.audio-editor-clip-spreadsheet { height: 100%; min-height: 0; padding: 12px; box-sizing: border-box; }
+.audio-editor-clip-spreadsheet__content { height: 100%; display: flex; flex-direction: column; gap: 12px; min-height: 0; }
+.audio-editor-clip-spreadsheet__content > p { margin: 0; }
+.audio-editor-clip-spreadsheet__actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.audio-editor-clip-spreadsheet__scroll { overflow: auto; flex: 1; min-height: 80px; border: 1px solid var(--line); }
+.audio-editor-clip-spreadsheet table { border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%; font-variant-numeric: tabular-nums; }
+.audio-editor-clip-spreadsheet th, .audio-editor-clip-spreadsheet td { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); height: 34px; padding: 0 10px; white-space: pre; min-width: 90px; max-width: 340px; overflow: hidden; text-overflow: ellipsis; }
+.audio-editor-clip-spreadsheet td { cursor: cell; user-select: none; background: var(--panel); }
+.audio-editor-clip-spreadsheet td[aria-readonly='true'] { color: var(--muted); background: var(--stage-raised); }
+.audio-editor-clip-spreadsheet td[aria-selected='true'] { background: color-mix(in srgb, var(--accent) 20%, var(--panel)); }
+.audio-editor-clip-spreadsheet td:focus { outline: 2px solid var(--accent); outline-offset: -2px; }
+.audio-editor-clip-spreadsheet th { padding: 0; background: var(--stage-raised); }
+.audio-editor-clip-spreadsheet thead th { position: sticky; top: 0; z-index: 2; }
+.audio-editor-clip-spreadsheet th:first-child { position: sticky; left: 0; min-width: 42px; z-index: 1; }
+.audio-editor-clip-spreadsheet thead th:first-child { z-index: 3; }
+.audio-editor-clip-spreadsheet th button { display: block; width: 100%; height: 34px; padding: 0 10px; border: 0; border-radius: 0; background: transparent; color: inherit; font: inherit; font-weight: 600; white-space: nowrap; cursor: pointer; }
+.audio-editor-clip-spreadsheet th button:hover { background: var(--stage-hover); }
+.audio-editor-clip-spreadsheet td input { box-sizing: border-box; width: 100%; min-width: 90px; height: 30px; padding: 2px; border: 0; background: var(--panel); color: var(--text); font: inherit; user-select: text; }
+.audio-editor-clip-spreadsheet__hint { font-size: 12px; color: var(--muted); }

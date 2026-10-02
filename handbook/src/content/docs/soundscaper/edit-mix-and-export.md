@@ -55,6 +55,33 @@ Dragging it changes the timing on either side; the overlay shows both playback
 rates. The clip’s controls remain per clip. Selecting source audio and applying
 an effect updates every clip that uses that source.
 
+### Edit clips in a spreadsheet {#clip-spreadsheet}
+
+Choose **View → Panels → Clip spreadsheet** to see all clips in the project.
+The panel opens below the timeline. Use its panel menu to move it to another
+dock, make it float, or close it. Its size and placement are saved with your
+workspace. Each row shows a clip's track, timeline position, source file, source offset, duration,
+pitch, speed, gain, fades, and playback flags. Times are in seconds, pitch is
+in semitones, and speed is a ratio: `1` is normal speed and `2` is twice as fast.
+
+Double-click a cell or select it and press **Enter** to edit its value. Press
+**Enter** to apply the edit or **Escape** to cancel. Track, source file, sample
+rate, and channel count are read-only. Clips on locked tracks and video clips
+are also read-only.
+
+Changing duration trims or extends the source range at the current offset.
+Changing speed keeps the source range unless you also paste a duration.
+Ungroup or unlink clips before changing their timing here; edit warped clip
+timing in the source editor.
+
+Select a cell, drag across a range, or **Shift+click** another cell to extend
+the selection. Click a row number or column heading to select the whole row
+or column. Use **Ctrl+C** and **Ctrl+V** (**Cmd+C** and **Cmd+V** on macOS) to
+exchange the selection with a spreadsheet editor. Values use tabs between
+columns and newlines between rows. Pasting starts at the selected cell and
+updates existing clips. **Undo** reverses a whole paste in one step; a paste
+containing an invalid value leaves the clips unchanged.
+
 ## Build the mix
 
 Use track gain, pan, mute, and solo controls to balance the project. The Mixer

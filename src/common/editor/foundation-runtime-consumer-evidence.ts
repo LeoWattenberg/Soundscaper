@@ -30,6 +30,18 @@ export interface FoundationRuntimeConsumerEvidence {
  */
 const entries: FoundationRuntimeConsumerEvidence[] = [
 	{
+		id: 'clip-spreadsheet-display', surface: 'timeline',
+		file: 'src/common/editor/clip-spreadsheet.ts', entryPoint: 'getClipSpreadsheetRows',
+		inputIdentifier: 'projectValue', projectedIdentifier: 'project', boundary: 'runtimeProject',
+		evidence: 'Spreadsheet rows resolve persisted musical and sequence-backed clip geometry before displaying or copying positions, durations, and source offsets in seconds.',
+	},
+	{
+		id: 'clip-spreadsheet-edit-planning', surface: 'composition',
+		file: 'src/common/editor/clip-spreadsheet.ts', entryPoint: 'planClipSpreadsheetEdits',
+		inputIdentifier: 'projectValue', projectedIdentifier: 'project', boundary: 'runtimeProject',
+		evidence: 'Spreadsheet edit planning compares parsed cells against one resolved runtime project before producing atomic commands whose normal reconciliation preserves persisted timing authority.',
+	},
+	{
 		id: 'clip-source-stretch-marker-authoring', surface: 'composition',
 		file: 'src/common/editor/controller/track-audio/internal/audio-warp/audio-warp-composition.ts', entryPoint: 'moveSourceMarker',
 		inputIdentifier: 'project', projectedIdentifier: 'clip', boundary: 'resolveRuntimeClipProjection',

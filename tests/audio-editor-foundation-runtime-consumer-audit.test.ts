@@ -6,6 +6,8 @@ import { join, relative } from 'node:path';
 import test from 'node:test';
 
 import { createExportPlan } from '../src/common/editor/export.js';
+import { applyEditorCommand } from '../src/common/editor/commands.js';
+import { getClipSpreadsheetRows, planClipSpreadsheetEdits } from '../src/common/editor/clip-spreadsheet.ts';
 import {
 	FOUNDATION_RUNTIME_CONSUMER_SURFACES,
 	FOUNDATION_RUNTIME_PROJECTION_IMPORTER_EXCLUSIONS,
@@ -291,6 +293,46 @@ test('Framescaper edit-control menus own their projected timing boundary', () =>
 		FOUNDATION_RUNTIME_SHIELDED_OWNERS.find(({ file }) => file === consumer?.file),
 		{ file: consumer?.file, surfaces: ['timeline'] },
 	);
+});
+
+test('clip spreadsheet display and edit planning own their resolved timing boundary', () => {
+	const file = 'src/common/editor/clip-spreadsheet.ts';
+	const consumers = FOUNDATION_RUNTIME_CONSUMER_SURFACES.filter(consumer => consumer.file === file);
+	assert.deepEqual(consumers.map(({ entryPoint, surface, boundary }) => ({ entryPoint, surface, boundary })), [
+		{ entryPoint: 'getClipSpreadsheetRows', surface: 'timeline', boundary: 'runtimeProject' },
+		{ entryPoint: 'planClipSpreadsheetEdits', surface: 'composition', boundary: 'runtimeProject' },
+	]);
+	assert.deepEqual(FOUNDATION_RUNTIME_SHIELDED_OWNERS.find(owner => owner.file === file)?.surfaces, ['timeline', 'composition']);
+
+	const source = createAudioSource({ id: 'spreadsheet-source', frameCount: 192_000, channelCount: 1, sampleRate: 48_000 });
+	const clip = createAudioClip({
+		id: 'spreadsheet-clip', sourceId: source.id, sourceDurationFrames: 48_000,
+		anchor: 'musical', musicalStartBeat: { num: 3, den: 1 },
+		musicalExtent: 'beat', musicalDurationBeats: { num: 2, den: 1 },
+	});
+	const project = createCurrentAudioEditorProject({
+		id: 'spreadsheet-runtime-projection', sampleRate: 48_000,
+		sources: [source], clips: [clip], tracks: [createAudioTrack({ id: 'spreadsheet-track', clipIds: [clip.id] })],
+	});
+	const before = structuredClone(project);
+	assert.equal(Object.hasOwn(project.clips[0], 'timelineStartFrame'), false);
+	assert.equal(Object.hasOwn(project.clips[0], 'durationFrames'), false);
+	assert.equal(getClipSpreadsheetRows(project)[0]?.cells.position, '1.5');
+	assert.equal(getClipSpreadsheetRows(project)[0]?.cells.duration, '1');
+	const command = planClipSpreadsheetEdits(project, [
+		{ clipId: clip.id, column: 'position', value: '2' },
+		{ clipId: clip.id, column: 'duration', value: '1.5' },
+	]);
+	assert.ok(command);
+	const edited = applyEditorCommand(project, command);
+	assert.equal(getClipSpreadsheetRows(edited)[0]?.cells.position, '2');
+	assert.equal(getClipSpreadsheetRows(edited)[0]?.cells.duration, '1.5');
+	assert.equal(edited.clips[0].anchor, 'musical');
+	assert.deepEqual(edited.clips[0].musicalStartBeat, { num: 4, den: 1 });
+	assert.deepEqual(edited.clips[0].musicalDurationBeats, { num: 3, den: 1 });
+	assert.equal(Object.hasOwn(edited.clips[0], 'timelineStartFrame'), false);
+	assert.equal(Object.hasOwn(edited.clips[0], 'durationFrames'), false);
+	assert.deepEqual(project, before);
 });
 
 test('the runtime consumer audit is immutable and uniquely identifies each surface', () => {
