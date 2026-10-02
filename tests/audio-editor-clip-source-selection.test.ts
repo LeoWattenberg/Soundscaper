@@ -2,7 +2,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { clipSourceSelection } from '../src/common/editor/ui/inspector/clip-source-selection.ts';
-const project = { sampleRate: 1000, tempoMap: { mode: 'hold' as const, events: [{ beat: { num: 0, den: 1 }, bpm: 120 }] } };
+import type { ClipSourceTimingProject } from '../src/common/editor/clip-source-timing.ts';
+const project: ClipSourceTimingProject = { sampleRate: 1000, tempoMap: { mode: 'musical', events: [{ beat: { num: 0, den: 1 }, bpm: { num: 120, den: 1 } }] } };
 const clip = { sourceStartFrame: 200, sourceDurationFrames: 200, timelineStartFrame: 800, durationFrames: 200, reversed: true };
 const source = { sampleRate: 1000, frameCount: 1000 };
 
