@@ -52,10 +52,16 @@ export interface EffectSelectionProject extends Readonly<Record<string, unknown>
 	readonly tracks: readonly EffectSelectionTrack[];
 	readonly clips: readonly EffectSelectionClip[];
 	readonly selection?: EffectSelection | null;
+	readonly sources?: readonly Readonly<Record<string, unknown>>[];
 
 }
 
 export interface EffectTarget {
+	readonly sourceId?: string;
+	readonly sourceTrackId?: string;
+	readonly sourceClipId?: string;
+	readonly sourceFrameCount?: number;
+	readonly sourceSampleRate?: number;
 	readonly track: EffectSelectionTrack;
 	readonly clipId?: string;
 	readonly clipIds?: readonly string[];
@@ -99,6 +105,7 @@ interface SetSelectionResult {
 }
 
 export interface EffectSelectionServiceRuntime {
+	readonly sourceTarget?: () => EffectTarget | null;
 	readonly state: EffectSelectionState;
 	readonly copy: EffectSelectionCopy;
 	readonly getProject: () => EffectSelectionProject;
@@ -147,6 +154,8 @@ export interface SpectralBoxOptions {
 
 export function createEffectSelectionService(runtime: EffectSelectionServiceRuntime) {
 	function audacityEffectTarget(requestedTrackId: string | null = runtime.state.selectedTrackId): EffectTarget | null {
+		const source = runtime.sourceTarget?.();
+		if (source) return source;
 		const project = runtime.getProject();
 		const editingSelection = runtime.resolveEditingSelection(project, {
 			selectedClipId: runtime.state.selectedClipId,
@@ -181,6 +190,8 @@ export function createEffectSelectionService(runtime: EffectSelectionServiceRunt
 	}
 
 	function audacityEffectTargets(options: EffectTargetOptions = {}): EffectTarget[] {
+		const source = runtime.sourceTarget?.();
+		if (source) return [source];
 		const project = runtime.getProject();
 		const editingSelection = runtime.resolveEditingSelection(project, {
 			selectedClipId: runtime.state.selectedClipId,
@@ -270,6 +281,7 @@ export function createEffectSelectionService(runtime: EffectSelectionServiceRunt
 		definition: EffectDefinitionForSelection,
 	): Readonly<EffectSelectionFrequencyRange & { windowSize: number }> | null {
 		const frequencyRange = runtime.activeSelection()?.frequencyRange;
+		if (target.sourceId) return null;
 		if (!frequencyRange || runtime.state.audacityEffectType === 'eq') return null;
 		if (definition.lengthChanging) throw createLocalizedError(Error, runtime.copy, 'spectralEffectLengthChanging');
 		return {

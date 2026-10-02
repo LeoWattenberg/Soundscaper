@@ -66,12 +66,13 @@ test('source processing refuses channel changes and invalid replacement bounds a
 test('source processing carries audible and hidden stretch anchors to the replacement samples', () => {
 	const project = fixture();
 	const point = (outer: number, source: number) => ({ outer: { num: outer, den: 1 }, source: { num: source, den: 1 }, mode: 'forward' as const });
-	project.clips[0]!.warpMap = { feature: 'audio-warp', points: [point(0, 100), point(90, 200), point(200, 300)] };
-	project.clips[0]!.opaqueExtensions = { [CLIP_SOURCE_STRETCH_EXTENSION]: {
+	const warpMap = { feature: 'audio-warp', points: [point(0, 100), point(90, 200), point(200, 300)] };
+	const opaqueExtensions = { [CLIP_SOURCE_STRETCH_EXTENSION]: {
 		sourceId: 'source', sourceFrameCount: 1_000,
 		map: { feature: 'audio-warp', points: [point(0, 0), point(100, 100), point(190, 200), point(300, 300), point(1_000, 1_000)] },
 	} };
-	const after = applyEditorCommand(createCurrentAudioEditorProject(project), command(1_100), { now: NOW }) as typeof project;
+	const before = createCurrentAudioEditorProject({ ...project, clips: [{ ...project.clips[0], warpMap, opaqueExtensions }, ...project.clips.slice(1)] });
+	const after = applyEditorCommand(before, command(1_100), { now: NOW }) as typeof project;
 	assert.equal(validateCurrentAudioEditorProject(after), true);
 	assert.deepEqual(normalizeAudioWarpMap(after.clips[0]!.warpMap).points.map((item) => item.source.num / item.source.den), [100, 250, 400]);
 	const extensions = after.clips[0]!.opaqueExtensions as Readonly<Record<string, unknown>>;

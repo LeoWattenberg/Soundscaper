@@ -49,7 +49,7 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 		const projectToken = runtime.captureProject();
 		const targets = audacityEffectTargets();
 		if (!targets.length) return currentAudacityEffectParams(type);
-		const sampleRate = projectSampleRate();
+		const sampleRate = targets[0]?.sourceSampleRate ?? projectSampleRate();
 		const params = normalizeAudioSelectionEffectParams(type, currentAudacityEffectParams(type));
 		const estimatedPeakBytes = targets.reduce((sum: number, target: RuntimeValue) => (
 			sum + estimateAudioSelectionEffectPeakBytes(type, target.durationFrames, params, {
@@ -89,7 +89,7 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 		const definition = AUDIO_SELECTION_EFFECT_DEFINITIONS[type];
 		const targets = audacityEffectTargets({ includeSilentTracks: Boolean(definition.lengthChanging) });
 		if (!targets.length) throw createLocalizedError(Error, copy, 'audacitySelectionHint');
-		const sampleRate = projectSampleRate();
+		const sampleRate = targets[0]?.sourceSampleRate ?? projectSampleRate();
 		const selection = activeSelection();
 		const spectralSelections: RuntimeValue = new Map(targets.map((target: RuntimeValue) => [
 			target.track.id,
@@ -109,7 +109,9 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 		for (const target of targets) {
 			const estimatedFrames = estimateAudioSelectionEffectOutputFrames(type, target.durationFrames, params, { sampleRate });
 			if (target.hasAudio !== false) {
-				estimatedOutputBytes += estimatedFrames * target.channelCount * Float32Array.BYTES_PER_ELEMENT;
+				const outputFrames = target.sourceFrameCount ? target.sourceFrameCount + estimatedFrames - target.durationFrames : estimatedFrames;
+				estimatedOutputBytes += outputFrames * target.channelCount * Float32Array.BYTES_PER_ELEMENT;
+				if (target.sourceFrameCount) estimatedPeakBytes += (target.sourceFrameCount + outputFrames) * target.channelCount * Float32Array.BYTES_PER_ELEMENT;
 			}
 			estimatedPeakBytes += estimateAudioSelectionEffectPeakBytes(type, target.durationFrames, params, {
 				channelCount: target.channelCount,
@@ -194,7 +196,7 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 							? await renderCurrentDryTrackRange(target.track.id, beforeStart, target.startFrame, target.channelCount, target.clipIds)
 							: channels.map(() => new Float32Array(0));
 						if (afterContextFrames > 0) {
-							const afterEnd = Math.min(projectDurationFrames(getProject()), target.endFrame + afterContextFrames);
+							const afterEnd = Math.min(target.sourceFrameCount ?? projectDurationFrames(getProject()), target.endFrame + afterContextFrames);
 							effectContext.afterChannels = target.endFrame < afterEnd
 								? await renderCurrentDryTrackRange(target.track.id, target.endFrame, afterEnd, target.channelCount, target.clipIds)
 								: channels.map(() => new Float32Array(0));
@@ -230,9 +232,9 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 		if (!source.trim()) throw createLocalizedError(TypeError, { nyquistSource: copy.nyquistSource || 'Nyquist source is required.' }, 'nyquistSource');
 		const role = normalizeNyquistRole(request.role || request.pluginType || request.type);
 		const preview = Boolean(request.preview);
-		const sampleRate = projectSampleRate();
 		const selection = activeSelection();
 		const availableTargets = audacityEffectTargets();
+		const sampleRate = role === 'generate' ? projectSampleRate() : availableTargets[0]?.sourceSampleRate ?? projectSampleRate();
 		const targets = role === 'generate'
 			? [null]
 			: availableTargets.length ? availableTargets : role === 'prompt' ? [null] : [];

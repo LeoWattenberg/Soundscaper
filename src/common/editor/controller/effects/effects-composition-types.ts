@@ -77,6 +77,7 @@ export type EffectsCompositionCopy =
 
 export type EffectsCompositionStore =
 	& SelectionEffectResultRuntime['store']
+	& Readonly<{ loadSourceAudioBuffer(sourceId: string, context: import('../source/source-audio.ts').AudioBufferContext<AudioBuffer>): Promise<AudioBuffer | null> }>
 	& NyquistGeneratedAudioServiceRuntime['store']
 	& Readonly<{ readonly assistanceDerivativeRepository?: AssistanceDerivativeRepositoryPort }>;
 

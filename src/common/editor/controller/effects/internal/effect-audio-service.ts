@@ -46,6 +46,12 @@ export function createEffectAudioService<Buffer = EffectAudioBuffer>(runtime: Ef
 		signal?.throwIfAborted();
 		const project = runtime.getProject();
 		const token = runtime.captureProject();
+		if (runtime.renderSourceRange) {
+			const sourceChannels = await runtime.renderSourceRange(trackId, startFrame, endFrame);
+			signal?.throwIfAborted();
+			runtime.assertProject(token);
+			if (sourceChannels) return sourceChannels;
+		}
 		const track = findTrack(project, trackId);
 		if (!track) throw createLocalizedError(Error, runtime.copy, 'audioTrackNotFound');
 		const channelCount = requestedChannelCount
@@ -153,7 +159,7 @@ export function createEffectAudioService<Buffer = EffectAudioBuffer>(runtime: Ef
 		if (runtime.editingBlocked()) return null;
 		const target = runtime.audacityEffectTarget();
 		if (!target) throw createLocalizedError(Error, runtime.copy, 'audacitySelectionHint');
-		const sampleRate = runtime.projectSampleRate();
+		const sampleRate = target.sourceSampleRate ?? runtime.projectSampleRate();
 		const suppliedParams = paramsValue !== null && typeof paramsValue === 'object' && !Array.isArray(paramsValue)
 			? paramsValue
 			: {};

@@ -43,6 +43,7 @@ import {
 	type EffectResultProject,
 } from './internal/effect-result-service.ts';
 import { createEffectSelectionService } from './effect-selection-service.ts';
+import { createSourceEditorEffects } from './internal/source-editor-effects.ts';
 import type { EffectsCompositionDependencies, EffectsCompositionProject } from './effects-composition-types.ts';
 import {
 	audacityEffectMemoryError,
@@ -103,6 +104,18 @@ export function createEffectsComposition(dependencies: EffectsCompositionDepende
 	const captureProject = () => dependencies.projectGeneration.capture(requireProject().id);
 	const assertProject = (token: ReturnType<typeof captureProject>) => dependencies.projectGeneration.assertCurrent(token);
 	const memoryError = () => audacityEffectMemoryError(copy);
+	const sourceEditor = createSourceEditorEffects<AudioBuffer>({
+		getProject: dependencies.getCommandProject,
+		publishDocumentSnapshot: dependencies.publishDocumentSnapshot,
+		loadSourceBuffer: async (source) => {
+			if (source.frameCount * source.channelCount * Float32Array.BYTES_PER_ELEMENT > AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES) throw memoryError();
+			const cached = typeof dependencies.sourceBuffers.get === 'function'
+				? dependencies.sourceBuffers.get(source.id) as AudioBuffer | undefined : undefined;
+			if (cached) return cached;
+			const context = await engine.getAudioContext({ resume: false });
+			return store.loadSourceAudioBuffer(source.storageKey || source.id, context);
+		},
+	});
 
 	const worker = dependencies.composition.selectionEffectWorkers
 		? createSelectionEffectWorkerService({
@@ -119,6 +132,7 @@ export function createEffectsComposition(dependencies: EffectsCompositionDepende
 		})
 		: createAbsentSelectionEffectWorkerService(absentSubsystem);
 	const selection = createEffectSelectionService({
+		sourceTarget: sourceEditor.target,
 		state,
 		copy,
 		getProject: dependencies.getCommandProject,
@@ -143,6 +157,7 @@ export function createEffectsComposition(dependencies: EffectsCompositionDepende
 		captureRackNoiseProfile: (...args) => audio.captureRackNoiseProfile(...args),
 	});
 	const audio: EffectAudio = createEffectAudioService<RenderedAudio>({
+		renderSourceRange: sourceEditor.renderRange,
 		lifetime: dependencies.lifetime,
 		...(dependencies.projectRuntime.assistanceAssetCommands ? {
 			assistanceStore: store,
@@ -184,6 +199,7 @@ export function createEffectsComposition(dependencies: EffectsCompositionDepende
 		publishDocumentSnapshot: dependencies.publishDocumentSnapshot,
 	});
 	const result: SelectionEffectResult = createSelectionEffectResultService<AudioBuffer>({
+		expandSourceResult: sourceEditor.expandResult,
 		SOURCE_CHUNK_FRAMES,
 		assertAudacityEffectOutput,
 		audioSelectionEffectLabel,
@@ -374,6 +390,7 @@ export function createEffectsComposition(dependencies: EffectsCompositionDepende
 	/** The long-running effect operations, reported through task progress. */
 	const processing = (label: string | undefined) => label || copy.audacityProcessing;
 	return Object.freeze({
+		sourceEditor,
 		selection,
 		controls,
 		audio,

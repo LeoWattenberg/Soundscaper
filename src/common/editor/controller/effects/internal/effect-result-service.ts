@@ -139,6 +139,7 @@ interface PasteOptions {
 }
 
 export interface SelectionEffectResultRuntime<Buffer extends AudioBufferLike = AudioBufferLike> {
+	readonly expandSourceResult?: (target: EffectTarget, channels: Float32Array[]) => Promise<Float32Array[]>;
 	readonly SOURCE_CHUNK_FRAMES: number;
 	readonly assertAudacityEffectOutput: (channels: Float32Array[]) => unknown;
 	readonly audioSelectionEffectLabel: (type: string | null, copy: EffectResultCopy) => string;
@@ -248,7 +249,7 @@ export function createSelectionEffectResultService<Buffer extends AudioBufferLik
 		assertOperationCurrent();
 		const uncheckedResults: unknown = results;
 		if (!Array.isArray(uncheckedResults) || !uncheckedResults.length) throw createLocalizedError(Error, copy, 'effectInvalidAudio');
-		const sampleRate = projectSampleRate();
+		const sampleRate = results[0]?.target?.sourceSampleRate ?? projectSampleRate();
 		const context = await engine.getAudioContext({ resume: false });
 		assertOperationCurrent();
 		const effectName = options.effectName || audioSelectionEffectLabel(type, copy);
@@ -273,7 +274,9 @@ export function createSelectionEffectResultService<Buffer extends AudioBufferLik
 				throw createLocalizedError(Error, copy, 'effectChannelLengthsMismatch');
 			}
 			const target = targetValue as EffectTarget;
-			const channels = rawChannels;
+			const channels = target.sourceId && runtime.expandSourceResult
+				? await runtime.expandSourceResult(target, rawChannels) : rawChannels;
+			assertOperationCurrent();
 			const frameCount = channels[0]!.length;
 			assertAudacityEffectOutput(channels);
 			if (channels.length !== target.channelCount) throw createLocalizedError(Error, copy, 'effectChannelLayoutChanged');
@@ -292,11 +295,11 @@ export function createSelectionEffectResultService<Buffer extends AudioBufferLik
 			}
 			const buffer = await bufferFromChannels(channels, sampleRate, context, copy);
 			assertOperationCurrent();
-			const { deriveEffectResultProvenance } = await loadSourceProvenanceDerivation();
+			const { deriveEffectResultProvenance, deriveSourceProvenanceForIds } = await loadSourceProvenanceDerivation();
 			assertOperationCurrent();
 			const sourceId = createStableId('audacity-effect');
 			const sourceName = `${target.track.name} — ${effectName}.wav`;
-			const provenance = deriveEffectResultProvenance(
+			const provenance = target.sourceId ? deriveSourceProvenanceForIds(getProject().sources ?? [], [target.sourceId]) : deriveEffectResultProvenance(
 				runtime.getAttributionProject?.() ?? getProject(),
 				target,
 			);
@@ -311,7 +314,7 @@ export function createSelectionEffectResultService<Buffer extends AudioBufferLik
 				originalSampleRate: sampleRate,
 				...(provenance ? { provenance } : {}),
 			};
-			const replacement = target.clipId ? null : prepareRangeReplacementCommand(getProject(), {
+			const replacement = target.clipId || target.sourceId ? null : prepareRangeReplacementCommand(getProject(), {
 				trackId: target.track.id,
 				startFrame: target.startFrame,
 				endFrame: target.endFrame,
@@ -326,7 +329,10 @@ export function createSelectionEffectResultService<Buffer extends AudioBufferLik
 				sourceId,
 				sourceName,
 				replacement,
-				command: replacement,
+				command: target.sourceId ? {
+					type: 'source/process-audio', sourceId: target.sourceId, source,
+					startFrame: target.startFrame, endFrame: target.endFrame,
+				} : replacement,
 			});
 		}
 		const firstEntry = entries[0]!;
@@ -405,11 +411,12 @@ export function createSelectionEffectResultService<Buffer extends AudioBufferLik
 				type: 'batch',
 				commands: [
 					...replacementCommands,
-					selectionCommand,
+					...(firstEntry.target.sourceId ? [] : [selectionCommand]),
 				],
 			}, {
-				selectTrackId: entries.find((entry) => entry.target.track.id === state.selectedTrackId)?.target.track.id
+				selectTrackId: firstEntry.target.sourceTrackId || entries.find((entry) => entry.target.track.id === state.selectedTrackId)?.target.track.id
 					|| firstEntry.target.track.id,
+				...(firstEntry.target.sourceClipId ? { selectClipId: firstEntry.target.sourceClipId } : {}),
 				...(entries.length === 1 && firstEntry.replacement
 					? { selectClipId: firstEntry.replacement.clipId }
 					: {}),
