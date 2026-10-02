@@ -112,9 +112,12 @@ export const EDITOR_PRODUCTION_METER_CHUNK_TEST = new RegExp(
 	`${editorPath}production-audio[\\\\/](?:loudness-history-session|strip-analysis-scheduler|strip-meter-session)\\.ts$`,
 );
 
+/** Only the lazy import service and import dialogs read these preparation modules. */
+const deferredImportHelpers = String.raw`controller[\\/]import[\\/](?:raw-pcm-import|internal[\\/](?:clip-spreadsheet-paste-service|prepare-clip-spreadsheet-source|import-result-warnings|incremental-wav-import-service|wav-import-metadata|wav-import-routing|legacy-audacity-project-import|legacy-aup-project-persistence|freesound-import-download|linked-media[\\/](?:linked-wav-import-service|linked-audio-import-admission)|dawproject[\\/](?:dawproject-import-compressed|dawproject-export-audio)))`;
+
 /** Import admission runs after an import starts, apart from codec execution. */
 export const EDITOR_IMPORT_ADMISSION_CHUNK_TEST = new RegExp(
-	String.raw`${editorPath}(?:controller[\\/]import[\\/](?:freesound-import-service|internal[\\/](?:freesound-import-service|import-task-cancellation|imported-source-provenance|project-import-admission|project-import-options-for-use|project-import-service-runtime|standalone-audio-import-decoder))|encoded-audio-marker-scan|imported-media-metadata|source-provenance(?:-derivation)?|streamed-audio-import-file|ui[\\/]workspace[\\/]freesound-workspace-service)\.ts$`,
+	String.raw`${editorPath}(?:${deferredImportHelpers}|controller[\\/]import[\\/](?:freesound-import-service|internal[\\/](?:freesound-import-service|import-task-cancellation|imported-source-provenance|project-import-admission|project-import-options-for-use|project-import-service-runtime|standalone-audio-import-decoder))|encoded-audio-marker-scan|imported-media-metadata|source-provenance(?:-derivation)?|streamed-audio-import-file|ui[\\/]workspace[\\/]freesound-workspace-service)\.ts$`,
 );
 
 /** Stored PCM and waveform activation reached after a source is opened. */
@@ -151,9 +154,12 @@ export const EDITOR_OPTIONAL_ASSISTANCE_CHUNK_TEST = new RegExp(
 	`(?:${editorPath}(?:controller[\\\\/]${editorOptionalAssistanceModule}|assistance[\\\\/](?!${editorEagerAssistanceModule}\\.ts$)[^\\\\/]+|storage[\\\\/]assistance-derivative-(?:codec|key-value-port|repository))|src[\\\\/]soundscaper[\\\\/]local-assistance-deferred-publication)\\.ts$`,
 );
 
+/** Helpers reached only by optional surfaces; broad UI ownership must not hoist them. */
+const deferredSurfaceHelpers = String.raw`ui[\\/](?:clip-spreadsheet[\\/][^\\/]+|(?:AdmMetadataFields|BextMetadataFields|adm-metadata-editor-model|bext-metadata-editor-model|desktop-speed-warmup|export-channel-matrix|export-dialog-output-options|export-dialog-initial-settings|label-export-dialog-model|delivery-batch-dialog-model|audio-warp-dialog-model|take-comp-dialog-model|video-keyframe-dialog-input|video-retime-exact-map-input|ParametricEqNumericInput|useParametricEqSpectrum)\.[jt]sx?|skins[\\/](?:SkinCarousel|SkinPreferences|appearance-previews)\.tsx?|workspace[\\/]freesound-media-url\.ts)`;
+
 /** Menu-opened UI, panel-only domain helpers, and deferred native authoring contracts. */
 export const EDITOR_OPTIONAL_SURFACE_CHUNK_TEST = new RegExp(
-	`(?:${editorPath}(?:${editorOptionalSurfaceModule}|freesound-upload-metadata\\.ts|ui[\\\\/]local-assistance-review-authority\\.ts|local-diagnostics-(?:report|contract)\\.ts|native-ofx-(?:host-contract(?:-v2)?|interact-contract)\\.ts)|src[\\\\/]common[\\\\/]i18n[\\\\/]freesound-attribution-copy\\.js|src[\\\\/]framescaper[\\\\/](?:editor-selected-timeline-image-image-(?:preview|filmstrip|preview-resources)|editor-native-openfx-authoring-model)\\.ts)$`,
+	`(?:${editorPath}(?:${editorOptionalSurfaceModule}|${deferredSurfaceHelpers}|freesound-upload-metadata\\.ts|ui[\\\\/]local-assistance-review-authority\\.ts|local-diagnostics-(?:report|contract)\\.ts|native-ofx-(?:host-contract(?:-v2)?|interact-contract)\\.ts)|src[\\\\/]common[\\\\/]i18n[\\\\/]freesound-attribution-copy\\.js|src[\\\\/]framescaper[\\\\/](?:editor-selected-timeline-image-image-(?:preview|filmstrip|preview-resources)|editor-native-openfx-authoring-model)\\.ts)$`,
 );
 
 /** Split Tool interaction runtimes kept out of the product-ready startup graph. */

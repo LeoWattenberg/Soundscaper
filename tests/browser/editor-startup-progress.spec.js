@@ -6,12 +6,12 @@ import { bootEditor, chooseCommandAction, registerAudioEditorHooks } from './aud
 
 registerAudioEditorHooks();
 
-test('first-launch macro defaults load without optional execution or export chunks', async ({ page }) => {
+test('first-launch macro defaults load without optional execution, import or surface chunks', async ({ page }) => {
 	const requested = [];
 	page.on('request', (request) => { requested.push(new URL(request.url()).pathname); });
 	const editor = await bootEditor(page, '/embed/en/');
 	expect(requested.some((path) => /\/editor-macro-defaults-[^/]+\.js$/u.test(path))).toBe(true);
-	expect(requested.filter((path) => /\/editor-optional-(?:execution|export)-[^/]+\.js$/u.test(path))).toEqual([]);
+	expect(requested.filter((path) => /\/editor-(?:optional-(?:execution|export|surfaces)|import-admission)-[^/]+\.js$/u.test(path))).toEqual([]);
 	await chooseCommandAction(page, editor, 'Tools', 'Macros palette');
 	const manager = page.getByRole('dialog', { name: 'Macros palette', exact: true });
 	await expect(manager.locator('[data-macro-id]')).toHaveText(['Restoration', 'Fade ends']);
