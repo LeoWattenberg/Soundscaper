@@ -94,14 +94,40 @@ test('length-changing source effects rebase musical warp points through interven
 		tempoMap: { mode: 'musical', events: [
 			{ id: 'fast', beat: 0, bpm: 120 }, { id: 'slow', beat: 4, bpm: 60 },
 		] }, sources: [source], clips: [clip], tracks: [createAudioTrack({ id: 'track', clipIds: ['musical'] })],
+		projectBin: { clips: [createAudioClip({ ...clip, id: 'binned-musical', binItemId: 'bin' })] },
 	});
 	const after = applyEditorCommand(before, { type: 'source/process-audio', sourceId: 'source',
 		startFrame: 0, endFrame: 96_000, source: createAudioSource({ ...source, id: 'processed', frameCount: 288_000 }),
 	}) as typeof before;
 	assert.equal(validateCurrentAudioEditorProject(after), true);
-	const resolved = projectForRuntimeConsumers(after).clips[0]!;
-	assert.equal(resolved.durationFrames, 576_000);
-	assert.equal(resolved.timelineStartFrame, 0);
-	assert.deepEqual(normalizeAudioWarpMap(resolved.warpMap).points.map(({ outer, source: sample }) => [outer.num / outer.den, sample.num / sample.den]),
-		[[0, 0], [6, 96_000], [14, 192_000]]);
+	const resolved = projectForRuntimeConsumers(after);
+	for (const result of [...resolved.clips, ...resolved.projectBin.clips]) {
+		assert.equal(result.durationFrames, 576_000);
+		assert.equal(result.timelineStartFrame, 0);
+		assert.deepEqual(normalizeAudioWarpMap(result.warpMap).points.map(({ outer, source: sample }) => [outer.num / outer.den, sample.num / sample.den]),
+			[[0, 0], [6, 96_000], [14, 192_000]]);
+	}
+});
+
+test('hidden markers retain their display timing after source effects on another sample grid', () => {
+	const point = (outer: number, source: number) => ({ outer: { num: outer, den: 1 }, source: { num: source, den: 1 }, mode: 'forward' as const });
+	const source = createAudioSource({ id: 'source', frameCount: 1_000, sampleRate: 24_000, channelCount: 1 });
+	const clip = createAudioClip({ id: 'warped', sourceId: 'source', durationFrames: 2_000, sourceDurationFrames: 1_000,
+		warpMap: { feature: 'audio-warp', points: [point(0, 0), point(500, 250), point(800, 400), point(1_200, 600), point(2_000, 1_000)] },
+	});
+	const before = createCurrentAudioEditorProject({ id: 'hidden-markers', now: NOW, sampleRate: 48_000,
+		sources: [source], clips: [clip], tracks: [createAudioTrack({ id: 'track', clipIds: ['warped'] })],
+	});
+	const trimmed = applyEditorCommand(before, { type: 'clip/trim', clipId: 'warped', sourceRange: true,
+		sourceStartFrame: 400, sourceDurationFrames: 200, durationFrames: 400,
+	}) as typeof before;
+	const processed = applyEditorCommand(trimmed, { type: 'source/process-audio', sourceId: 'source',
+		startFrame: 0, endFrame: 100, source: createAudioSource({ ...source, id: 'processed', frameCount: 1_100 }),
+	}) as typeof before;
+	const extended = applyEditorCommand(processed, { type: 'clip/trim', clipId: 'warped', sourceRange: true,
+		sourceStartFrame: 0, sourceDurationFrames: 1_100, durationFrames: 2_200,
+	}) as typeof before;
+	assert.equal(validateCurrentAudioEditorProject(extended), true);
+	assert.deepEqual(normalizeAudioWarpMap(extended.clips[0]!.warpMap).points.map(({ outer, source: sample }) => [outer.num / outer.den, sample.num / sample.den]),
+		[[0, 0], [700, 350], [1_000, 500], [1_400, 700], [2_200, 1_100]]);
 });

@@ -2,7 +2,7 @@
 
 import { normalizeClipForProject, normalizeSourceForProject, assertClipSourceBounds } from './shared-runtime.js';
 import type { AudioEditorCommand } from './protocol.ts';
-import { normalizeAudioWarpMap } from '../audio-warp-domain.ts';
+import { evaluateAudioWarpMapAtSource, normalizeAudioWarpMap } from '../audio-warp-domain.ts';
 import { audioWarpOuterAtTimelineFrame, isMusicalAudioWarpClip, type AudioWarpAuthorityRuntimeClip, type AudioWarpAuthorityRuntimeProject } from '../audio-warp-runtime-authority.ts';
 import { CLIP_SOURCE_STRETCH_EXTENSION, type ClipSourceStretchMemory } from '../clip-source-stretch-memory.ts';
 import { addRationals, beatToSampleFrame, compareRationals, multiplyRationals, subtractRationals, type Rational } from '../timeline-time.ts';
@@ -76,7 +76,7 @@ export function processSourceAudio(projectValue: object, command: Extract<AudioE
 				...point, source: mapRational(point.source),
 				outer: remapWarpOuter(project, clip, point.outer, durationFrames),
 			})) } } : {}),
-			...remapStretchMemory(clip, previous, next, mapRational),
+			...remapStretchMemory(clip, previous, next, mapRational, { startFrame, endFrame, outputFrames }),
 		};
 		const updated = normalizeClipForProject(project, { ...clip, ...changes }) as Clip;
 		assertClipSourceBounds(project, updated);
@@ -96,15 +96,25 @@ function remapWarpOuter(project: Project, clip: Clip, outer: Rational, durationF
 	return audioWarpOuterAtTimelineFrame(project, clip, clip.timelineStartFrame + offset);
 }
 
-function remapStretchMemory(clip: Clip, previous: Source, next: Source, mapFrame: (frame: Rational) => Rational): RecordValue {
+function remapStretchMemory(clip: Clip, previous: Source, next: Source, mapFrame: (frame: Rational) => Rational,
+	range: Readonly<{ startFrame: number; endFrame: number; outputFrames: number }>): RecordValue {
 	const extensions = clip.opaqueExtensions && typeof clip.opaqueExtensions === 'object'
 		? clip.opaqueExtensions as RecordValue : null;
 	const memory = extensions?.[CLIP_SOURCE_STRETCH_EXTENSION] as ClipSourceStretchMemory | undefined;
 	if (!memory || memory.sourceId !== previous.id || memory.sourceFrameCount !== previous.frameCount) return {};
 	const map = normalizeAudioWarpMap(memory.map);
+	const outerStart = evaluateAudioWarpMapAtSource(map, range.startFrame);
+	const outerEnd = evaluateAudioWarpMapAtSource(map, range.endFrame);
+	const factor = { num: range.outputFrames, den: range.endFrame - range.startFrame };
+	const outerDelta = multiplyRationals(subtractRationals(outerEnd, outerStart), subtractRationals(factor, 1));
+	// Hidden display positions belong to the archived warp's project-sample
+	// domain. Its source endpoints locate the edit even across different grids.
+	const mapOuter = (outer: Rational): Rational => compareRationals(outer, outerStart) <= 0 ? outer
+		: compareRationals(outer, outerEnd) >= 0 ? addRationals(outer, outerDelta)
+		: addRationals(outerStart, multiplyRationals(subtractRationals(outer, outerStart), factor));
 	return { opaqueExtensions: { ...extensions, [CLIP_SOURCE_STRETCH_EXTENSION]: {
 		sourceId: next.id, sourceFrameCount: next.frameCount,
-		map: { ...map, points: map.points.map((point) => ({ ...point, source: mapFrame(point.source), outer: mapFrame(point.outer) })) },
+		map: { ...map, points: map.points.map((point) => ({ ...point, source: mapFrame(point.source), outer: mapOuter(point.outer) })) },
 	} } };
 }
 
