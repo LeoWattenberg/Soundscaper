@@ -6,7 +6,7 @@
 			"applicationVersionChannel": "candidate",
 			"releaseChannel": "candidate",
 			"candidate": {
-				"version": "1.0.0-rc.Oct.2.b",
+				"version": "1.0.0-rc.Oct.2.c",
 				"tagPrefix": "soundscaper-v"
 			},
 			"stable": {
