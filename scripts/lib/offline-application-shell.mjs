@@ -71,6 +71,17 @@ const PRODUCT_INSTALL_ARTIFACTS = Object.freeze({
 export const MASKABLE_ICON_SAFE_ZONE = 0.55;
 const MASKABLE_ICON_BACKGROUND = '#ffffff';
 
+/** Generate the canonical native-window raster without provisioning a browser offline shell. */
+export async function generateProductWindowIcon({ outputRoot, repositoryRoot, productId }) {
+	if (!Object.hasOwn(PRODUCT_INSTALL_ARTIFACTS, productId)) {
+		throw new TypeError('The window icon product is unsupported.');
+	}
+	const source = resolve(repositoryRoot, PRODUCT_INSTALL_ARTIFACTS[productId].source);
+	const name = `${productId}-512`;
+	await writeIcon(outputRoot, name, await renderSquarePng(source, 512));
+	return resolve(outputRoot, `offline-icons/${name}.png`);
+}
+
 export async function generateOfflineApplicationShell({ outputRoot, repositoryRoot, environment = process.env }) {
 	const root = resolve(outputRoot);
 	const repository = resolve(repositoryRoot);

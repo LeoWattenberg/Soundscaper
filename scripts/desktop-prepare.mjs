@@ -14,6 +14,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { generateDesktopIcon } from './desktop-icons.mjs';
+import { generateProductWindowIcon } from './lib/offline-application-shell.mjs';
 import { listTranslationCatalogLocales, readTranslationCatalog } from './i18n-ai/catalog.mjs';
 import { buildSourceMapsRequested } from './lib/build-source-map-relocation.mjs';
 import { stageDesktopBundledCodecNotices } from './lib/desktop-bundled-codec-notices.mjs';
@@ -389,25 +390,30 @@ async function describeCommittedTranslations() {
 	return { ...provenance, locales: audacityLocales };
 }
 
-async function buildRenderer() {
-	const vite = resolve(ROOT, 'node_modules/vite/bin/vite.js');
-	const environment = { ...process.env };
+export async function buildRenderer({
+	repositoryRoot = ROOT, rendererRoot = RENDERER_ROOT, productId = PRODUCT_ID,
+	environment: inheritedEnvironment = process.env, runBuild = run, buildSmoke = buildDesktopRendererSmokeBundle,
+	audit = auditDesktopRendererCodecComposition,
+} = {}) {
+	const vite = resolve(repositoryRoot, 'node_modules/vite/bin/vite.js');
+	const environment = { ...inheritedEnvironment };
 	delete environment.PUBLIC_FFMPEG_CORE_BASE_URL;
-	await run(process.execPath, [vite, 'build', '--outDir', RENDERER_ROOT], {
+	await runBuild(process.execPath, [vite, 'build', '--outDir', rendererRoot], {
 		env: {
 			...environment,
-			SCAPE_PRODUCT: PRODUCT_ID,
+			SCAPE_PRODUCT: productId,
 			SCAPE_DESKTOP_CODEC_RUNTIME: 'main-process',
 		},
 	});
-	await buildDesktopRendererSmokeBundle({
-		repositoryRoot: ROOT,
-		rendererRoot: RENDERER_ROOT,
-		productId: PRODUCT_ID,
-		sourceMaps: buildSourceMapsRequested(process.env),
+	await generateProductWindowIcon({ outputRoot: rendererRoot, repositoryRoot, productId });
+	await buildSmoke({
+		repositoryRoot,
+		rendererRoot,
+		productId,
+		sourceMaps: buildSourceMapsRequested(inheritedEnvironment),
 	});
-	await auditDesktopRendererCodecComposition({ root: RENDERER_ROOT });
-	await assertFile(resolve(RENDERER_ROOT, 'index.html'), 'desktop editor document');
+	await audit({ root: rendererRoot });
+	await assertFile(resolve(rendererRoot, 'index.html'), 'desktop editor document');
 }
 
 async function stageApplication(
