@@ -200,7 +200,8 @@ export function installChunkStreamWorker(scope = globalThis) {
 					available,
 				);
 				if (frames <= 0) throw createChunkStreamError('INVALID_STORAGE_CHUNK', 'A storage chunk did not cover the requested resampler input.');
-				const input = stream.storageChannels.map((channel) => channel.slice(chunkOffset, chunkOffset + frames));
+				// push copies this borrowed window before retaining convolution history.
+				const input = stream.storageChannels.map((channel) => channel.subarray(chunkOffset, chunkOffset + frames));
 				stream.inputNextFrame += frames;
 				stream.pendingOutputChannels = stream.resampler.push(input);
 				stream.pendingOutputOffset = 0;

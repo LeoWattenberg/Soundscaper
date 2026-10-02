@@ -71,7 +71,7 @@ export async function createOfflineChunkResampleBuffer(options: Readonly<{
 		const input = Array.from({ length: source.channelCount }, (_, channel) => {
 			const values = channels[channel];
 			if (!values) throw new Error('A long-source storage chunk has missing channels.');
-			return values.slice(chunkOffset, chunkOffset + frames);
+			return values.subarray(chunkOffset, chunkOffset + frames);
 		});
 		outputOffset = copyOutput(outputChannels, outputOffset, resampler.push(input), outputFrameCount);
 		const admittedStart = Math.max(inputNextFrame, inputOffsetFrame);
