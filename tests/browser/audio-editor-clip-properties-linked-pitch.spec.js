@@ -55,6 +55,21 @@ test.describe('clip properties pitch and normalization', () => {
 		expect(errors).toEqual([]);
 	});
 
+	test('neutral linked playback disables rendering in the panel and the clip menu', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [longTone]);
+		const clip = clipByName(editor, longTone.name);
+		const panel = await openClipProperties(page, editor, clip);
+		await panel.getByText('Pitch and tempo', { exact: true }).click();
+		await commitInput(clipField(panel, 'pitchCents'), '3');
+		await panel.getByRole('checkbox', { name: 'Link pitch and tempo', exact: true }).click();
+		await expect(clipField(panel, 'pitchCents')).toHaveValue('0.00');
+		await expect(panel.getByRole('button', { name: 'Render', exact: true })).toBeDisabled();
+		await clip.click({ button: 'right', position: { x: 32, y: 10 } });
+		await expect(page.locator('.audio-editor-clip-context-menu')
+			.getByRole('menuitem', { name: 'Render pitch and speed', exact: true })).toHaveAttribute('aria-disabled', 'true');
+	});
+
 	test('normalization contains gain and stacks both normalization actions vertically', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [longTone]);

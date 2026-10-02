@@ -330,7 +330,7 @@ export function TimelineMenus({
 					actionId={AUDACITY_CLIP_CONTEXT_ACTION_IDS.renderPitchSpeed}
 					label={copy.renderPitchSpeed}
 					disabled={audioClipEditBlocked(menuClip)
-						|| (menuClip.pitchCents === 0 && menuClip.speedRatio === 1)}
+						|| (menuClip.speedRatio === 1 && (menuClip.linkPitchAndTempo || menuClip.pitchCents === 0))}
 					disabledReason={unavailableReason}
 					locale={contextLocale}
 					onClick={() => menuClip && run(() => controller.actions.clip.renderPitchSpeed(menuClip.id))}
