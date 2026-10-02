@@ -18,8 +18,8 @@ test('memory compare-and-swap shares its owned publication snapshot without dupl
 	const nativeClone = globalThis.structuredClone;
 	let projectClones = 0;
 	globalThis.structuredClone = (value, options) => {
-		if (value && typeof value === 'object' && ('id' in value && value.id === initial.id
-			|| 'project' in value && value.project?.id === initial.id)) projectClones += 1;
+		const candidate: unknown = value && typeof value === 'object' && 'project' in value ? value.project : value;
+		if (candidate && typeof candidate === 'object' && 'id' in candidate && candidate.id === initial.id) projectClones += 1;
 		return nativeClone(value, options);
 	};
 	let committed;
