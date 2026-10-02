@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type PointerEvent, type ReactNode } from 'react';
 import { ClipHeader } from '@soundscaper/design-system/ClipHeader';
 import { ContextMenu } from '@soundscaper/design-system/ContextMenu';
 import { ContextMenuItem } from '@soundscaper/design-system/ContextMenuItem';
@@ -73,19 +73,21 @@ export default function ClipSourceEditor({ controller, project, clipId, copy, bl
 	};
 	const focus = () => run(() => { preview.focus(clipId); applySelection(selectedRef.current); });
 	const restoreSourceFocus = useRef(() => {});
-	restoreSourceFocus.current = () => run(() => applySelection(selectedRef.current));
+	restoreSourceFocus.current = () => run(() => { preview.focus(clipId); applySelection(selectedRef.current); });
 	useEffect(() => {
 		if (transport.focused && transport.clipId === clipId) restoreSourceFocus.current();
 		else controller.actions.effects.setSourceSelection(null);
 	}, [transport.focused, transport.clipId, clipId, controller]);
-	const contentKey = JSON.stringify([clip, source.id, source.frameCount]);
+	const contentKey = useMemo(() => JSON.stringify([clip, source.id, source.frameCount]), [clip, source.id, source.frameCount]);
 	const previousContent = useRef(contentKey);
 	useEffect(() => {
 		if (previousContent.current === contentKey) return;
 		previousContent.current = contentKey;
 		preview.stop();
-		setSelection(value => clipSourceSelection(project, clip, source, value).display);
-	}, [contentKey, preview, project, clip, source]);
+		const current = preview.snapshot();
+		if (current.focused && current.clipId === clipId) restoreSourceFocus.current();
+		else setSelection(value => clipSourceSelection(project, clip, source, value).display);
+	}, [contentKey, preview, project, clip, source, clipId]);
 	useEffect(() => preview.subscribe(() => setTransport(preview.snapshot())), [preview]);
 	useEffect(() => {
 		const element = rootRef.current;
