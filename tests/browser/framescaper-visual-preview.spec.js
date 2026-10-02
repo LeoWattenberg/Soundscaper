@@ -240,7 +240,8 @@ test.describe('Framescaper v1 exact visual preview', () => {
 		await authoring.locator('[data-framescaper-authoring-brightness]').fill('0.4');
 		await authoring.locator('[data-framescaper-authoring-apply]').click();
 		await expectVisualCommandStatus(authoring, 'Selected authored state applied.');
-		await page.keyboard.press('Escape');
+		await authoring.getByRole('button', { name: 'Close', exact: true }).click();
+		await expect(authoring).toBeHidden(VISUAL_COMMAND_OPTIONS);
 		await saveProjectAndWait(page, editor);
 		await waitForStoredVisualState(page, projectId, { adjustmentCount: 1 });
 		await expectExactVisualFrame(preview, 1);
@@ -272,7 +273,8 @@ test.describe('Framescaper v1 exact visual preview', () => {
 		await expect(authoring.locator('[data-framescaper-authoring-freeze-duration] [data-timecode-direct-entry]')).toHaveValue('24');
 		await authoring.locator('[data-framescaper-authoring-freeze]').click();
 		await expectVisualCommandStatus(authoring, 'Exact playhead freeze created.');
-		await page.keyboard.press('Escape');
+		await authoring.getByRole('button', { name: 'Close', exact: true }).click();
+		await expect(authoring).toBeHidden(VISUAL_COMMAND_OPTIONS);
 		await saveProjectAndWait(page, editor);
 		await waitForStoredVisualState(page, projectId, { freezeCount: 1, stillCount: 1 });
 		const state = await storedVisualState(page, projectId);
