@@ -41,3 +41,18 @@ test('trimmed and retimed source segments occupy the visible viewport without of
 	assert.deepEqual(view.models.map(model => [Math.round(model.start * view.pixelsPerSecond), Math.round(model.duration * view.pixelsPerSecond)]), [[0, 100], [100, 800], [900, 100]]);
 	assert.deepEqual(view.requests, [{ startFrame: 9998, endFrame: 20_002 }, { startFrame: 19_998, endFrame: 60_002 }, { startFrame: 59_998, endFrame: 70_002 }]);
 });
+
+test('short source segments retain their actual width in both geometry and sampled waveform plans', () => {
+	const samples = new Float32Array(source.frameCount).fill(0.5);
+	const view = clipSourceWaveformModels({ ...options, startFrame: 0, endFrame: source.frameCount,
+		clip: { ...clip, sourceStartFrame: 100, sourceDurationFrames: 100, durationFrames: 100 },
+		visual: { buffer: { numberOfChannels: 1, getChannelData: () => samples } } });
+	assert.equal(view.models.length, 3);
+	for (const model of view.models.slice(0, 2)) {
+		assert.equal(model.duration * view.pixelsPerSecond, 0.8);
+		const waveform = model.audacityWaveform as { pixelWidth: number };
+		assert.ok(waveform.pixelWidth <= 1, 'sample projection must use the true subpixel segment width');
+	}
+	assert.equal(view.models[1]!.start * view.pixelsPerSecond, 0.8);
+	assert.equal(view.models[2]!.start * view.pixelsPerSecond, 1.6);
+});

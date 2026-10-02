@@ -174,6 +174,7 @@ export interface TimelineClipViewModelOptions {
 		overscanStartFrame: number;
 		pixelsPerSecond: number;
 		sampleRate: number;
+		minimumClipPixels?: number;
 	}>;
 	readonly project?: (AudioWarpRuntimeProject & Readonly<Record<string, unknown>>) | null;
 	readonly selection: Readonly<{
@@ -259,7 +260,7 @@ export function createTimelineClipViewModel({
 		),
 		duration: Math.max(
 			framesToSeconds(clip.waveformEndFrame - clip.waveformStartFrame, { sampleRate }),
-			MINIMUM_VISIBLE_CLIP_PIXELS / pixelsPerSecond,
+			(geometry.minimumClipPixels ?? MINIMUM_VISIBLE_CLIP_PIXELS) / pixelsPerSecond,
 		),
 		selected,
 		color,

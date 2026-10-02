@@ -37,7 +37,7 @@ export function clipSourceWaveformModels({ project, clip, source, visual, window
 		const offset = waveformClip.timelineStartFrame - segment.timelineStartFrame;
 		const model = createTimelineClipViewModel({
 			controller: { getClipVisualData: () => ({ ...visual, source, pcmWindow }) }, sourceLookup: new Map([[source.id, source]]), project,
-			clip: waveformClip, geometry: { overscanStartFrame: startFrame + offset, pixelsPerSecond, sampleRate: project.sampleRate },
+			clip: waveformClip, geometry: { overscanStartFrame: startFrame + offset, pixelsPerSecond, sampleRate: project.sampleRate, minimumClipPixels: 0 },
 			selection: { selectedClipIds: segment.active ? segment.id : '' }, copy: { clip: clipLabel },
 			rendering: { showRms: true, halfWave: displayMode === 'half-wave', color: 'blue', provideAudacitySpectrogram: spectral,
 				frequencyWaveformMode: displayMode === 'waveform-three-band' || displayMode === 'waveform-rainbow' ? displayMode : null,
