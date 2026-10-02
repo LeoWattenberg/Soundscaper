@@ -3,7 +3,7 @@
 import { expect, test, longTone } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor, clipByName, clipField, collectClientErrors, commitInput,
-	importFiles, openClipProperties, registerAudioEditorHooks,
+	importFiles, openClipProperties, registerAudioEditorHooks, waitForEditor,
 } from './audio-editor-test-helpers.js';
 
 test.describe('clip properties pitch and normalization', () => {
@@ -68,6 +68,17 @@ test.describe('clip properties pitch and normalization', () => {
 		await clip.click({ button: 'right', position: { x: 32, y: 10 } });
 		await expect(page.locator('.audio-editor-clip-context-menu')
 			.getByRole('menuitem', { name: 'Render pitch and speed', exact: true })).toHaveAttribute('aria-disabled', 'true');
+		await page.keyboard.press('Escape');
+		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved');
+		await page.reload();
+		const restoredEditor = await waitForEditor(page);
+		const restoredPanel = await openClipProperties(page, restoredEditor, clipByName(restoredEditor, longTone.name));
+		await restoredPanel.getByText('Pitch and tempo', { exact: true }).click();
+		const restoredLink = restoredPanel.getByRole('checkbox', { name: 'Link pitch and tempo', exact: true });
+		await expect(restoredLink).toBeChecked();
+		await expect(clipField(restoredPanel, 'pitchCents')).toHaveValue('0.00');
+		await restoredLink.click();
+		await expect(clipField(restoredPanel, 'pitchCents')).toHaveValue('3.00');
 	});
 
 	test('normalization contains gain and stacks both normalization actions vertically', async ({ page }) => {
