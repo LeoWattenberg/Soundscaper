@@ -44,7 +44,7 @@ test('headless audio editor exposes cached snapshots, subscriptions, and frame-a
 
 	assert.deepEqual(Object.keys(controller.actions), [
 		'project', 'projectBin', 'video', 'edit', 'transport', 'recording', 'capture', 'webVcr', 'metering', 'audioDevices', 'storage', 'timeline', 'timelineAnnotations', 'sequences', 'trackFolders', 'audioWarp', 'takeComp', 'sampleEdit', 'spectral',
-		'track', 'mixer', 'generators', 'nyquist', 'labels', 'metadata', 'preferences', 'clip', 'effects', 'macros', 'analysis', 'export', 'media',
+		'track', 'mixer', 'generators', 'nyquist', 'labels', 'metadata', 'preferences', 'clipSourcePreview', 'clip', 'effects', 'macros', 'analysis', 'export', 'media',
 	]);
 	assert.equal(readySnapshot.preferences.workspace.activeId, 'modern');
 	assert.equal(readySnapshot.preferences.appearance.theme, 'system');
