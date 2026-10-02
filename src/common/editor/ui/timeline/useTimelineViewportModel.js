@@ -133,8 +133,12 @@ export function useTimelineViewportModel({
 	const recordingPreviews = snapshot.recordingPreviews?.length
 		? snapshot.recordingPreviews
 		: snapshot.recordingPreview ? [snapshot.recordingPreview] : [];
+	const documentDurationFrames = useMemo(
+		() => project ? editorTimelineDurationFrames(project, sampleRate) : sampleRate * 30,
+		[project, sampleRate],
+	);
 	const durationFrames = Math.max(
-		project ? editorTimelineDurationFrames(project, sampleRate) : sampleRate * 30,
+		documentDurationFrames,
 		...recordingPreviews.map((preview) => preview.startFrame + preview.durationFrames),
 	);
 	const durationSeconds = framesToSeconds(durationFrames, { sampleRate });
