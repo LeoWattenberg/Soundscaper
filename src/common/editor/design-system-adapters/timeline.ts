@@ -9,6 +9,7 @@ import type {
 	ViewportClipProjection,
 	ViewportProjectionOptions,
 } from './types.ts';
+import type { TimelineViewportClipIndex } from './timeline-viewport-index.ts';
 import {
 	MAXIMUM_FRAME,
 	addFrames,
@@ -55,8 +56,10 @@ export function createTimelineProjectIndex<
 export function projectClipsToViewport<Clip extends TimelineViewportClip>(
 	clips: readonly Clip[],
 	options: ViewportProjectionOptions,
+	index?: TimelineViewportClipIndex<Clip>,
 ): TimelineViewportProjection<Clip> {
 	if (!Array.isArray(clips)) throw new TypeError('clips must be an array.');
+	if (index && index.clips !== clips) throw new TypeError('Viewport index must use the same immutable clip snapshot.');
 	const viewportStartFrame = nonNegativeSafeInteger(options.viewportStartFrame ?? 0, 'viewportStartFrame');
 	const viewportDurationFrames = positiveSafeInteger(options.viewportDurationFrames, 'viewportDurationFrames');
 	const viewportEndFrame = addFrames(viewportStartFrame, viewportDurationFrames, 'viewport');
@@ -66,7 +69,7 @@ export function projectClipsToViewport<Clip extends TimelineViewportClip>(
 	const viewportDurationSeconds = viewportDurationFrames / sampleRate;
 
 	const projectedClips: Array<Clip & ViewportClipProjection> = [];
-	for (const clip of clips) {
+	for (const clip of index?.query(overscanStartFrame, overscanEndFrame) ?? clips) {
 		if (!clip || typeof clip !== 'object') throw new TypeError('Each clip must be an object.');
 		const clipStartFrame = nonNegativeSafeInteger(clip.timelineStartFrame, 'clip.timelineStartFrame');
 		const clipDurationFrames = positiveSafeInteger(clip.durationFrames, 'clip.durationFrames');

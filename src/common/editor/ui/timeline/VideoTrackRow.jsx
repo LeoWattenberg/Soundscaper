@@ -5,6 +5,7 @@ import { GhostButton } from '@soundscaper/design-system/GhostButton';
 import { Icon } from '@soundscaper/design-system/Icon';
 
 import { framesToSeconds, projectClipsToViewport } from '../../design-system-adapters.js';
+import { createTimelineViewportClipIndex } from '../../design-system-adapters/timeline-viewport-index.ts';
 import { isVisualTimelineClipKind } from '../timeline-media-presence.ts';
 import { AutomaticCrossfadeOverlays, createVideoOverlapPresentation } from './TrackOverlapOverlays.jsx';
 import { TimeSelectionOverlay } from './TimelineOverlayComponents.jsx';
@@ -83,11 +84,13 @@ export function VideoTrackRow({
 		}
 		return projected;
 	}, [clipDragPreview, clipLookup, projectBinDragPreview, track.id, trackClips]);
+	const viewportClipIndex = useMemo(() => clips.length > 128 && !clipDragPreview && !projectBinDragPreview
+		? createTimelineViewportClipIndex(clips) : undefined, [clipDragPreview, clips, projectBinDragPreview]);
 	const projection = useMemo(() => projectClipsToViewport(clips, {
 		viewportStartFrame: renderViewportStartFrame,
 		viewportDurationFrames,
 		sampleRate,
-	}), [clips, renderViewportStartFrame, sampleRate, viewportDurationFrames]);
+	}, viewportClipIndex), [clips, renderViewportStartFrame, sampleRate, viewportClipIndex, viewportDurationFrames]);
 	const windowLeft = framesToSeconds(projection.overscanStartFrame, { sampleRate }) * pixelsPerSecond;
 	const windowFrames = Math.max(1, projection.overscanEndFrame - projection.overscanStartFrame);
 	const windowWidth = Math.max(1, framesToSeconds(windowFrames, { sampleRate }) * pixelsPerSecond);
