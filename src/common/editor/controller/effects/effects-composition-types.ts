@@ -86,6 +86,7 @@ export type EffectsCompositionEngine = Pick<EnginePublicApi,
 >;
 
 export interface EffectsCompositionDependencies {
+	readonly pauseSourcePreview?: () => void;
 	readonly state: EffectsCompositionState;
 	readonly copy: EffectsCompositionCopy;
 	readonly locale: string;

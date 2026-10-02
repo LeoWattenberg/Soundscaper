@@ -85,6 +85,7 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 
 	async function applySelectedAudacityEffect() {
 		if (editingBlocked()) return;
+		runtime.pauseSourcePreview?.();
 		const type = state.audacityEffectType;
 		const definition = AUDIO_SELECTION_EFFECT_DEFINITIONS[type];
 		const targets = audacityEffectTargets({ includeSilentTracks: Boolean(definition.lengthChanging) });
@@ -240,6 +241,7 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 			: availableTargets.length ? availableTargets : role === 'prompt' ? [null] : [];
 		if (!targets.length) throw createLocalizedError(Error, copy, copy.nyquistSelectionRequired ? 'nyquistSelectionRequired' : 'audacitySelectionHint');
 		if (!preview && editingBlocked()) return null;
+		runtime.pauseSourcePreview?.();
 
 		cancelAudacityEffectPreview({ publish: false });
 		// startTask replaces any evaluation still running and enrols this one in

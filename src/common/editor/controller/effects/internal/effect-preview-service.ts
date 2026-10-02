@@ -38,6 +38,7 @@ export function createSelectionEffectPreviewService(runtime: SelectionEffectPrev
 
 	return async function previewAudacityEffectFromController(request: RuntimeValue = {}) {
 		if (state.audacityEffectProcessing) return false;
+		runtime.pauseSourcePreview?.();
 		cancelAudacityEffectPreview({ publish: false });
 		const previewGeneration = state.audacityPreviewGeneration;
 		const requireCurrentPreview = (source: RuntimeValue = null) => {
