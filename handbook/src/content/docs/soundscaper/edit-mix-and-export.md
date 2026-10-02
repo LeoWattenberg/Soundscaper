@@ -36,6 +36,25 @@ keys adjust the duration by 10 milliseconds, or 100 milliseconds with
 For numeric entry, choose **Edit → Audio clips → Clip properties** and
 use **Fading**.
 
+### Edit a clip’s source {#clip-source-properties}
+
+Choose **Edit → Audio clips → Clip properties** to open the source editor.
+The full recording appears behind the clip. Drag the clip’s edges to change
+its source in and duration while keeping its start on the project timeline.
+The **Normalize** drawer contains clip gain and the peak and loudness actions.
+
+Open **Pitch and tempo** and check **Link pitch and tempo** to change speed
+and pitch together. A speed ratio of `1` and a pitch change of `0%` leave the
+sound unchanged. A ratio of `2` plays twice as fast and an octave higher;
+`0.5` plays half as fast and an octave lower. Editing either linked control
+updates the other. Unchecking the link restores the independent pitch setting
+while keeping the current speed ratio.
+
+**Ctrl+click** the waveform to add a stretch marker tied to that source sample.
+Dragging it changes the timing on either side; the overlay shows both playback
+rates. The clip’s controls remain per clip. Selecting source audio and applying
+an effect updates every clip that uses that source.
+
 ## Build the mix
 
 Use track gain, pan, mute, and solo controls to balance the project. The Mixer
