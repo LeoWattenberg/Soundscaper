@@ -6,7 +6,7 @@ import {
 	chooseCommandAction,
 	chooseNestedCommandAction,
 	clickClipInterior,
-	clipByName,
+	clipByName, closeClipProperties,
 	clipField,
 	collectClientErrors,
 	importFiles,
@@ -61,16 +61,16 @@ test('joins a paste into the containing clip and preserves it through history', 
 		timeout: 15_000,
 	}).toBeGreaterThan(38_400);
 	const joinedDuration = await clipField(properties, 'durationFrame').inputValue();
-	await properties.getByRole('button', { name: 'Close', exact: true }).click();
+	await closeClipProperties(properties);
 
 	await chooseCommandAction(page, editor, 'Edit', 'Undo');
 	properties = await openClipProperties(page, editor, editor.locator(`[data-clip-id="${clipId}"]`));
 	await expect(clipField(properties, 'durationFrame')).toHaveValue('38400');
-	await properties.getByRole('button', { name: 'Close', exact: true }).click();
+	await closeClipProperties(properties);
 	await chooseCommandAction(page, editor, 'Edit', 'Redo');
 	properties = await openClipProperties(page, editor, editor.locator(`[data-clip-id="${clipId}"]`));
 	await expect(clipField(properties, 'durationFrame')).toHaveValue(joinedDuration);
-	await properties.getByRole('button', { name: 'Close', exact: true }).click();
+	await closeClipProperties(properties);
 	await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved');
 
 	await page.reload();
@@ -80,6 +80,6 @@ test('joins a paste into the containing clip and preserves it through history', 
 	await expect(restoredClip).toBeVisible();
 	properties = await openClipProperties(page, restoredEditor, restoredClip);
 	await expect(clipField(properties, 'durationFrame')).toHaveValue(joinedDuration);
-	await properties.getByRole('button', { name: 'Close', exact: true }).click();
+	await closeClipProperties(properties);
 	expect(errors).toEqual([]);
 });

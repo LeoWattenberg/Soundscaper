@@ -1,5 +1,5 @@
 import { expect, test, toneA, toneB, monoTone } from './audio-editor-test-fixtures.js';
-import { bootEditor, chooseCommandAction, clipByName, collectClientErrors, importFiles, openClipProperties, registerAudioEditorHooks, setDocumentTheme, waitForEditor } from './audio-editor-test-helpers.js';
+import { bootEditor, chooseCommandAction, clipByName, closeClipProperties, collectClientErrors, importFiles, openClipProperties, registerAudioEditorHooks, setDocumentTheme, waitForEditor } from './audio-editor-test-helpers.js';
 import { chooseTrackMenuAction } from './helpers/track-menu.js';
 
 async function selectClip(clip) {
@@ -225,7 +225,7 @@ test.describe('non-destructive clip fade handles', () => {
 		await outgoing.focus();
 		await outgoing.press('Home');
 		await expect(outgoing).toHaveValue('0.15');
-		await dialog.getByRole('button', { name: 'Done', exact: true }).click();
+		await closeClipProperties(dialog);
 		await expect(clip.getByRole('slider', { name: 'Fade in shape', exact: true })).toHaveAttribute('aria-valuenow', '6');
 		await expect(clip.getByRole('slider', { name: 'Fade out shape', exact: true })).toHaveAttribute('aria-valuenow', '0.15');
 	});

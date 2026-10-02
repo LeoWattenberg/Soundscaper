@@ -26,7 +26,7 @@ export const WORKSPACE_PANEL_DOCK_RUNTIME_KEYS = Object.freeze([
 	'displayAudioSupported', 'onOpenEffects', 'onRoutingGraphGesture',
 	'onRoutingParameterGesture', 'effectsPanelTarget', 'onEffectWindowChange',
 	'draggedPanelId', 'onPanelDragStart', 'onPanelDragEnd', 'onPanelMove',
-	'onTogglePanel', 'projectBinEffectivelyOpen', 'blocked',
+	'onTogglePanel', 'projectBinEffectivelyOpen', 'blocked', 'clipPropertiesFocusRequest',
 ] as const);
 
 export type WorkspacePanelDockRuntimeKey = typeof WORKSPACE_PANEL_DOCK_RUNTIME_KEYS[number];

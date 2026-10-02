@@ -19,6 +19,7 @@ import {
 export default function WorkspacePanelDock({
 	dock,
 	controller,
+	clipPropertiesFocusRequest = /** @type {import('../../controller/composition/clip-properties-panel-opening.ts').ClipPropertiesFocusRequest | null} */ (null),
 	snapshot,
 	productId = snapshot.productId,
 	capabilities = snapshot.capabilities,
@@ -503,10 +504,9 @@ export default function WorkspacePanelDock({
 				dock={dock}
 				copy={copy}
 				contentProps={{
-					controller, snapshot, productId, capabilities, copy, locale, fileService,
+					controller, snapshot, productId, capabilities, copy, locale, fileService, clipPropertiesFocusRequest,
 					playbackMeterSettings, recordingMeterSettings,
-					onPlaybackMeterSettingsChange,
-					onRecordingMeterSettingsChange,
+					onPlaybackMeterSettingsChange, onRecordingMeterSettingsChange,
 					clippingEnabled,
 					run,
 					showArmControls,

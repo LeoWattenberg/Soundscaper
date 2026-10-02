@@ -16,7 +16,7 @@ import {
 	addRackEffect,
 	chooseExportProjectFileAction,
 	chooseFileAction,
-	closeDialog,
+	closeClipProperties, closeDialog,
 	closeEffectsPanel,
 	commitInput,
 	openClipProperties,
@@ -105,7 +105,7 @@ export async function runResample(page, state, entry, clip) {
 	await expect(dialog).toBeHidden({ timeout: OPEN_TIMEOUT });
 	await expect(properties.locator('[data-clip-source-fact="sampleRate"] .audio-editor-field__value'))
 		.toHaveText(new RegExp(`^${String(entry.rate)}`, 'u'), { timeout: OPEN_TIMEOUT });
-	await closeDialog(properties);
+	await closeClipProperties(properties);
 }
 
 /** Drag a clip later by its name bar, scaling seconds to pixels from the clip's own width. */

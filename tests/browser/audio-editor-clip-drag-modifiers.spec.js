@@ -1,6 +1,6 @@
 import { expect, test, toneA, toneB } from './audio-editor-test-fixtures.js';
 import {
-	bootEditor, clipByName, clipField, closeDialog, collectClientErrors,
+	bootEditor, clipByName, clipField, closeClipProperties, collectClientErrors,
 	importFiles, openClipProperties, registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
 
@@ -19,7 +19,7 @@ test.describe('clip header drag modifiers', () => {
 		const properties = await openClipProperties(page, editor, clip);
 		await clipField(properties, 'startFrame').fill('12345');
 		await clipField(properties, 'startFrame').press('Tab');
-		await closeDialog(properties);
+		await closeClipProperties(properties);
 		const box = await clip.boundingBox();
 		const lane = await destination.boundingBox();
 		expect(box).not.toBeNull();
@@ -33,7 +33,7 @@ test.describe('clip header drag modifiers', () => {
 		await expect(clip.locator('xpath=ancestor::*[@data-track-row][1]')).toHaveAttribute('data-track-id', destinationId);
 		const movedProperties = await openClipProperties(page, editor, clip);
 		await expect(clipField(movedProperties, 'startFrame')).toHaveValue('12345');
-		await closeDialog(movedProperties);
+		await closeClipProperties(movedProperties);
 		await editor.getByRole('button', { name: 'Undo', exact: true }).click();
 		await expect(clip.locator('xpath=ancestor::*[@data-track-row][1]')).toHaveAttribute('data-track-id', sourceId);
 		expect(errors).toEqual([]);

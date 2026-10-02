@@ -17,6 +17,7 @@ import { withDesktopProjectReadDescriptor } from './desktop-project-file-routing
 import { workspacePreferencesPage } from './workspace-preferences-routing.ts';
 import { useTimelineNavigation } from './useTimelineNavigation.js';
 import { useWorkspaceToolbarDocking } from './useWorkspaceToolbarDocking.js';
+import { useWorkspaceClipPropertiesPanel } from './useWorkspaceClipPropertiesPanel.ts';
 import { useAudioEditorWorkspaceLifecycle } from './useAudioEditorWorkspaceLifecycle.js';
 import { useDesktopEditorBridge } from './useDesktopEditorBridge.js';
 import { useScapeOpenDecisionContinuation } from './useScapeOpenDecisionContinuation.ts';
@@ -249,12 +250,17 @@ const DEFERRED_WEB_VCR_PANEL_ID = 'web-vcr'; export default function AudioEditor
 			return files.length;
 		});
 	}, [fileService, importRoutedFiles, openDesktopProjectDescriptor]);
+	const { clipPropertiesFocusRequest, openClipPropertiesSurface } = useWorkspaceClipPropertiesPanel({
+		controller, run, setActiveSurface, selectedClipId: snapshot.selectedClipId ?? null,
+		projectId: project?.id ?? null, panelVisible: Boolean(preferences?.workspace?.panels?.['clip-properties']?.visible),
+	});
 	const openSurface = useCallback((surface, options = {}) => {
+		if (openClipPropertiesSurface(surface, options?.clipId)) return;
 		if (surface === 'preferences') {
 			setPreferencesPage(workspacePreferencesPage(options?.section));
 		}
 		setActiveSurface(surface);
-	}, [setActiveSurface]);
+	}, [openClipPropertiesSurface, setActiveSurface]);
 	const soundscaperWorkflow = useSoundscaperWorkflowWorkspace({ productId, controller, project, selectedTrackId: snapshot.selectedTrackId, openSurface });
 	const { effectsPanelTarget, openEffects } = useWorkspaceEffectsPanel({
 		controller, run, setActiveSurface, selectedTrackId: snapshot.selectedTrackId,
@@ -469,6 +475,7 @@ const DEFERRED_WEB_VCR_PANEL_ID = 'web-vcr'; export default function AudioEditor
 		automationToolEnabled,
 		blocked,
 		chromeDrawer, compactLayout, dismissWebFileLimitPrompt,
+		clipPropertiesFocusRequest,
 		desktopChrome,
 		draggedWorkspacePanelId,
 		durationFrames,

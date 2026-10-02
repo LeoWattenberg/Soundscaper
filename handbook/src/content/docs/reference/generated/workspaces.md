@@ -41,8 +41,11 @@ A workspace is a saved arrangement of the panels and toolbars around the timelin
 | Playback meter | `playback-meter` | Right | Hidden | Hidden | Hidden | Hidden | Hidden |
 | Recording meter | `recording-meter` | Right | Hidden | Hidden | Hidden | Hidden | Hidden |
 | Clock | `clock` | Floating | Hidden | Hidden | Hidden | Hidden | Hidden |
+| Clip properties | `clip-properties` | Right | Hidden | Hidden | Hidden | Hidden | Hidden |
 
 Open optional panels from **View > Panels**. The **Clock**, **Playback meter**, and Soundscaper’s **Recording meter** start hidden. You can also choose **Undock timecode** in the toolbar timecode’s dropdown to move that readout into the Clock panel; **Return to toolbar** in the Clock’s dropdown puts it back.
+
+Open **View > Panels > Clip properties** to inspect the current clip selection beside the timeline. This panel follows the selection and updates as clips change. When several clips are selected, choose a clip’s tab to edit its properties. The panel starts hidden and supports the same docking, shared panel tabs, and resizing as other panels.
 
 Use a panel’s **Panel menu** to move it to the left, right, top, bottom, or a floating window. To share one frame, choose **Arrange panel**, a destination panel, then **As tab**. Each tab uses the same full frame, with one panel visible at a time. You can also drag a panel grip onto the middle third of another panel to create tabs; dropping onto the first or last third places it before or after that frame.
 

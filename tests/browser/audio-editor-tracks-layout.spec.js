@@ -4,7 +4,7 @@ import {
 	bootEditor,
 	clipByName,
 	clipField,
-	closeDialog,
+	closeClipProperties,
 	collectClientErrors,
 	fileDataTransfer,
 	importFiles,
@@ -313,7 +313,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(dock.locator('[data-clip-id], [data-track-row], [data-track-lane]')).toHaveCount(0);
 		const clipDialog = await openClipProperties(page, editor, clip);
 		await expect(clipField(clipDialog, 'startFrame')).toHaveValue('0');
-		await closeDialog(clipDialog);
+		await closeClipProperties(clipDialog);
 		expect(errors).toEqual([]);
 	});
 

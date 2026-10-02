@@ -1,0 +1,57 @@
+.audio-editor-clip-properties-panel {
+	container: clip-properties / inline-size;
+	display: grid;
+	min-width: 0;
+	gap: 12px;
+}
+
+.audio-editor-clip-properties-panel__tabs {
+	display: flex;
+	min-width: 0;
+	overflow-x: auto;
+	border-bottom: 1px solid var(--line);
+}
+
+.audio-editor-clip-properties-panel__tabs [role='tab'] {
+	flex: 0 0 auto;
+	max-width: 220px;
+	padding: 8px 12px;
+	overflow: hidden;
+	color: var(--muted);
+	background: transparent;
+	border: 0;
+	border-bottom: 2px solid transparent;
+	font: inherit;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	cursor: pointer;
+}
+
+.audio-editor-clip-properties-panel__tabs [aria-selected='true'] {
+	color: var(--text);
+	border-bottom-color: var(--accent);
+}
+
+.audio-editor-clip-properties-panel__tabs [role='tab']:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: -2px;
+}
+
+.audio-editor-clip-properties-panel .audio-editor-clip-properties,
+.audio-editor-clip-properties-panel .audio-editor-clip-properties__time-grid {
+	grid-template-columns: minmax(0, 1fr);
+}
+
+.audio-editor-clip-properties-panel .audio-editor-clip-properties__card {
+	padding: 0;
+	background: transparent;
+	border: 0;
+	border-radius: 0;
+}
+
+@container clip-properties (min-width: 620px) {
+	.audio-editor-clip-properties-panel .audio-editor-clip-properties,
+	.audio-editor-clip-properties-panel .audio-editor-clip-properties__time-grid {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}

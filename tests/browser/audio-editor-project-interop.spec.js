@@ -16,7 +16,7 @@ import {
 	clipByName,
 	clipField,
 	closeAup4CompatibilityReport,
-	closeDialog,
+	closeClipProperties, closeDialog,
 	closeEffectsPanel,
 	closeWorkspacePanel,
 	collectClientErrors,
@@ -92,7 +92,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(clipField(clipDialog, 'durationFrame')).toHaveValue('38400');
 		await commitInput(clipField(clipDialog, 'startFrame'), '120');
 		await expect(clipField(clipDialog, 'startFrame')).toHaveValue('120');
-		await closeDialog(clipDialog);
+		await closeClipProperties(clipDialog);
 
 		await seekOnRuler(page, editor, 48);
 		await editor.getByRole('button', { name: 'Split at playhead' }).click();
@@ -235,7 +235,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(clipByName(editor, 'Audio 1')).toHaveCount(1);
 		const clipDialog = await openClipProperties(page, editor, clipByName(editor, 'Audio 1'));
 		await expect(clipField(clipDialog, 'durationFrame')).toHaveValue('4');
-		await closeDialog(clipDialog);
+		await closeClipProperties(clipDialog);
 		expect(errors).toEqual([]);
 	});
 

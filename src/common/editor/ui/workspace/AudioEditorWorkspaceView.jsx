@@ -43,6 +43,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 		automationToolEnabled,
 		blocked,
 		chromeDrawer,
+		clipPropertiesFocusRequest,
 		clearError,
 		compactLayout,
 		cueImportDialog,
@@ -122,6 +123,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 	} = overlayModel;
 	const panelDockRuntime = createWorkspacePanelDockRuntime({
 		controller,
+		clipPropertiesFocusRequest,
 		snapshot,
 		productId,
 		capabilities,
@@ -373,7 +375,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 						spectralBrushEnabled={uiFlags.spectralBrush}
 						onError={onError}
 						onOpenEffects={openEffects}
-						onOpenClipProperties={(_clipId, field) => openSurface(field ? `clip-${field}` : 'clip')}
+						onOpenClipProperties={(clipId, field) => openSurface(field ? `clip-${field}` : 'clip', { clipId })}
 						onExportClip={(clipId) => {
 							const clip = project?.clips.find((candidate) => candidate.id === clipId);
 							if (!clip) return;

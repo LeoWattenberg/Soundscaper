@@ -81,6 +81,7 @@ const REFERENCE_SEEDS: readonly ReferenceSeed[] = Object.freeze([
 	['panel-freesound', 'Freesound', 'View > Panels', SOUNDSCAPER, 'setting'],
 	['panel-mixer', 'Mixer', 'View > Panels', BOTH, 'setting'],
 	['panel-clock', 'Clock', 'View > Panels', BOTH, 'setting'],
+	['panel-clip-properties', 'Clip properties', 'View > Panels', BOTH, 'setting'],
 	['panel-playback-meter', 'Playback meter', 'View > Panels', BOTH, 'setting'],
 	['panel-recording-meter', 'Recording meter', 'View > Panels', SOUNDSCAPER, 'setting'],
 	['panel-recording-setup', 'Recording setup', 'View > Panels', FRAMESCAPER, 'setting'],

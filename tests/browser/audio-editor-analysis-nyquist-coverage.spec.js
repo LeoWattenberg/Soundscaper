@@ -11,7 +11,7 @@ import {
 	chooseCommandAction,
 	chooseNestedCommandAction,
 	clipByName,
-	closeDialog,
+	closeClipProperties, closeDialog,
 	collectClientErrors,
 	commitInput,
 	importFiles,
@@ -46,7 +46,7 @@ test.describe('analysis and Nyquist dialog coverage', () => {
 		await importFiles(editor, [fixture]);
 		const properties = await openClipProperties(page, editor, clipByName(editor, fixture.name));
 		await commitInput(properties.getByRole('spinbutton', { name: 'Clip gain (dB)', exact: true }), '24');
-		await closeDialog(properties);
+		await closeClipProperties(properties);
 		await chooseCommandAction(page, editor, 'Select', 'Select all');
 
 		const analysis = await openAnalysis(page, editor, 'Analyze selection', 'levels');

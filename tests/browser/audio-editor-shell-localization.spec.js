@@ -8,7 +8,7 @@ import {
 import {
 	bootEditor,
 	clipByName,
-	closeDialog,
+	closeClipProperties,
 	collectClientErrors,
 	escapeRegex,
 	importFiles,
@@ -209,9 +209,9 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(ownsItsPixels).toBe(true);
 
 		await clipMenu.getByRole('menuitem', { name: 'Clip properties', exact: true }).click();
-		const clipDialog = page.getByRole('dialog', { name: 'Clip properties', exact: true });
+		const clipDialog = editor.locator('[data-workspace-panel="clip-properties"]');
 		await expect(clipDialog).toBeVisible();
-		await closeDialog(clipDialog);
+		await closeClipProperties(clipDialog);
 		expect(errors).toEqual([]);
 	});
 

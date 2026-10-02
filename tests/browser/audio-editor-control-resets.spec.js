@@ -4,7 +4,7 @@ import { expect, longTone, test } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
 	clipByName,
-	closeDialog,
+	closeClipProperties,
 	collectClientErrors,
 	importFiles,
 	openClipProperties,
@@ -64,7 +64,7 @@ test.describe('double click control defaults', () => {
 			await slider.dblclick();
 			await expect(slider).toHaveValue('1');
 		}
-		await closeDialog(dialog);
+		await closeClipProperties(dialog);
 		expect(errors).toEqual([]);
 	});
 });

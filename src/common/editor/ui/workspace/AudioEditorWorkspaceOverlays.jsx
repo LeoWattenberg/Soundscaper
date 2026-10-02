@@ -22,7 +22,6 @@ const WorkspaceOnboardingDialog = SOUNDSCAPER_BUILD
 const DesktopMcpDialog = typeof __SCAPE_DESKTOP_RENDERER__ !== 'undefined'
 	&& __SCAPE_DESKTOP_RENDERER__
 	? lazyEditorModule(() => import('../dialogs/DesktopMcpDialog.tsx')) : null;
-const ClipPropertiesDialog = lazyEditorModule(() => import('../inspector/ClipPropertiesDialog.jsx'));
 const VideoCompositionDialog = lazyEditorModule(() => import('../inspector/VideoCompositionDialog.tsx'));
 const VideoKeyframeDialog = lazyEditorModule(() => import('../inspector/VideoKeyframeDialog.tsx'));
 const VideoRetimeDialog = lazyEditorModule(() => import('../dialogs/VideoRetimeDialog.tsx'));
@@ -180,20 +179,6 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 				fileService={fileService} locale={locale}
 			/>}
 
-			{['clip', 'clip-pitch', 'clip-speed'].includes(activeSurface) && (
-				<div data-editor-surface="clip">
-					<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
-						<ClipPropertiesDialog
-							isOpen
-							focusField={activeSurface === 'clip-pitch' ? 'pitchCents' : activeSurface === 'clip-speed' ? 'speedRatio' : null}
-							controller={controller}
-							snapshot={snapshot}
-							copy={copy}
-							onClose={() => setActiveSurface(null)}
-						/>
-					</React.Suspense>
-				</div>
-			)}
 			{productId === 'framescaper' && capabilities.videoGeometry && activeSurface === 'video-composition' && (
 				<div data-editor-surface="video-composition">
 					<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>

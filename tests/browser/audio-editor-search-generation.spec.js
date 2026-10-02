@@ -15,7 +15,7 @@ import {
 	chooseNestedCommandAction,
 	clipByName,
 	clipField,
-	closeDialog,
+	closeClipProperties, closeDialog,
 	closeWorkspacePanel,
 	collectClientErrors,
 	commitInput,
@@ -252,7 +252,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await importFiles(editor, [toneA, toneB]);
 		const clipDialog = await openClipProperties(page, editor, clipByName(editor, toneB.name));
 		await commitInput(clipField(clipDialog, 'startFrame'), '4800000');
-		await closeDialog(clipDialog);
+		await closeClipProperties(clipDialog);
 
 		const timelineScroll = editor.locator('.audio-editor-timeline-scroll');
 		await timelineScroll.evaluate((element) => {
@@ -466,7 +466,7 @@ test.describe('audio editor React/design-system workflows', () => {
 			await expect(clipByName(editor, 'Tone')).toHaveCount(1);
 			const clipDialog = await openClipProperties(page, editor, clipByName(editor, 'Tone'));
 			await expect(clipField(clipDialog, 'durationFrame')).toHaveValue('12000');
-			await closeDialog(clipDialog);
+			await closeClipProperties(clipDialog);
 		});
 
 		await test.step('reload the saved project and retain the generated duration', async () => {
@@ -476,7 +476,7 @@ test.describe('audio editor React/design-system workflows', () => {
 			await expect(editor).toHaveAttribute('data-clip-count', '1');
 			const clipDialog = await openClipProperties(page, editor, clipByName(editor, 'Tone'));
 			await expect(clipField(clipDialog, 'durationFrame')).toHaveValue('12000');
-			await closeDialog(clipDialog);
+			await closeClipProperties(clipDialog);
 		});
 
 		expect(errors).toEqual([]);

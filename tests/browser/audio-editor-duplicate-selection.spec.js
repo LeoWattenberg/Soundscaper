@@ -1,6 +1,6 @@
 import { expect, test, toneA } from './audio-editor-test-fixtures.js';
 import {
-	bootEditor, chooseCommandAction, clipByName, clipField, closeDialog,
+	bootEditor, chooseCommandAction, clipByName, clipField, closeClipProperties,
 	collectClientErrors, importFiles, openClipProperties, registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
 
@@ -15,7 +15,7 @@ test.describe('Duplicate selection', () => {
 		const properties = await openClipProperties(page, editor, original);
 		await clipField(properties, 'startFrame').fill('12345');
 		await clipField(properties, 'startFrame').press('Tab');
-		await closeDialog(properties);
+		await closeClipProperties(properties);
 		const originalId = await original.getAttribute('data-clip-id');
 		const source = original.locator('xpath=ancestor::*[@data-track-row][1]');
 		const sourceId = await source.getAttribute('data-track-id');
@@ -30,7 +30,7 @@ test.describe('Duplicate selection', () => {
 		expect(await copiedTrack.getAttribute('data-track-id')).not.toBe(sourceId);
 		const copiedProperties = await openClipProperties(page, editor, copied);
 		await expect(clipField(copiedProperties, 'startFrame')).toHaveValue('12345');
-		await closeDialog(copiedProperties);
+		await closeClipProperties(copiedProperties);
 		await editor.getByRole('button', { name: 'Undo', exact: true }).click();
 		await expect(editor).toHaveAttribute('data-clip-count', '1');
 		await expect(editor).toHaveAttribute('data-track-count', String(beforeTracks));

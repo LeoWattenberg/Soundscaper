@@ -19,6 +19,7 @@ export const WORKSPACE_PANEL_IDS = Object.freeze([
 	'playback-meter',
 	'recording-meter',
 	'clock',
+	'clip-properties',
 	DEFERRED_WEB_VCR_PANEL_ID,
 ]);
 export const WORKSPACE_DISCOVERABLE_PANEL_IDS = Object.freeze(
@@ -86,6 +87,7 @@ export function workspacePanelLabel(copy: EditorCopy, panelId: string): string {
 		'recording-setup': copy.panelRecordingSetup,
 		'playback-meter': copy.panelPlaybackMeter,
 		'recording-meter': copy.panelRecordingMeter,
+		'clip-properties': copy.clipPropertiesCommand,
 		[DEFERRED_WEB_VCR_PANEL_ID]: copy.webVcrTitle,
 		analysis: copy.analysisCommand,
 	};

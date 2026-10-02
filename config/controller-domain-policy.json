@@ -53,6 +53,7 @@
 		"clip-video/video-source-reprobe-service.ts",
 		"composition/action-facade-runtime.ts",
 		"composition/action-facade.ts",
+		"composition/clip-properties-panel-opening.ts",
 		"composition/controller-action-composition.ts",
 		"composition/controller-bindings.ts",
 		"composition/controller-disposal.ts",

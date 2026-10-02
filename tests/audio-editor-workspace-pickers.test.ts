@@ -16,6 +16,7 @@ interface MenuItem {
 	readonly id?: string;
 	readonly label?: string;
 	readonly checked?: boolean;
+	readonly disabled?: boolean;
 	readonly items?: readonly MenuItem[];
 	onClick?(): unknown;
 }
@@ -94,6 +95,23 @@ test('the View menu offers the Audacity preset and the workspace onboarding to S
 test('the View menu port routes the onboarding item to its editor surface', async () => {
 	const runtime = await readFile(new URL('src/common/editor/ui/workspace/selection-view-menu-ports.ts', ROOT), 'utf8');
 	assert.match(runtime, /openWorkspaceOnboarding: \(\) => openSurface\('workspace-onboarding'\)/u);
+});
+
+test('both products expose the live Clip properties panel through View even without a clip selection', () => {
+	for (const productId of ['soundscaper', 'framescaper']) {
+		const toggled: string[] = [];
+		const menus = filterProductMenus(createApplicationMenus(menuInput(productId, {
+			togglePanel: (panelId: string) => toggled.push(panelId),
+		})), {}, productId);
+		const panels = findMenuItem(menus, 'panels');
+		const inspector = findMenuItem(panels?.items ?? [], 'panel-clip-properties');
+		assert.ok(inspector, productId);
+		assert.equal(inspector.label, ENGLISH_COPY.clipPropertiesCommand, productId);
+		assert.equal(inspector.checked, false, productId);
+		assert.notEqual(inspector.disabled, true, productId);
+		inspector.onClick?.();
+		assert.deepEqual(toggled, ['clip-properties'], productId);
+	}
 });
 
 function findMenuItem(values: readonly unknown[], id: string): MenuItem | null {

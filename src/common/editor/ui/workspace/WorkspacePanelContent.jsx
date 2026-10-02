@@ -51,6 +51,7 @@ const FRAMESCAPER_BUILD = typeof __SCAPE_PRODUCT__ === 'undefined'
 const SOUNDSCAPER_BUILD = typeof __SCAPE_PRODUCT__ === 'undefined'
 	|| __SCAPE_PRODUCT__ === 'soundscaper';
 const DEFERRED_WORKSPACE_PANELS = Object.freeze({
+	'clip-properties': lazyEditorModule(() => import('../inspector/ClipPropertiesPanel.tsx')),
 	metadata: lazyEditorModule(() => import('./ProjectMetadataPanel.tsx')),
 	...(FRAMESCAPER_BUILD ? {
 		'recording-setup': lazyEditorModule(() => import('./RecordingSetupPanel.tsx')),
@@ -70,6 +71,7 @@ export default function WorkspacePanelContent({
 	panelActive = true,
 	dock = 'main',
 	controller,
+	clipPropertiesFocusRequest = /** @type {import('../../controller/composition/clip-properties-panel-opening.ts').ClipPropertiesFocusRequest | null} */ (null),
 	snapshot,
 	productId = snapshot.productId,
 	capabilities = snapshot.capabilities,
@@ -116,6 +118,7 @@ export default function WorkspacePanelContent({
 			<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
 				<DeferredWorkspacePanel
 					controller={controller}
+					focusRequest={panelId === 'clip-properties' ? clipPropertiesFocusRequest : undefined}
 					snapshot={snapshot}
 					copy={copy}
 					locale={locale}

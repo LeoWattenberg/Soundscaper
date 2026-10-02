@@ -1,6 +1,6 @@
 import { expect, test, toneA, toneB } from './audio-editor-test-fixtures.js';
 import {
-	bootEditor, clipByName, clipField, closeDialog, collectClientErrors,
+	bootEditor, clipByName, clipField, closeClipProperties, collectClientErrors,
 	importFiles, openClipProperties, registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
 
@@ -15,7 +15,7 @@ async function overlapStereoClips(page) {
 	const properties = await openClipProperties(page, editor, incoming);
 	await clipField(properties, 'startFrame').fill('19200');
 	await clipField(properties, 'startFrame').press('Tab');
-	await closeDialog(properties);
+	await closeClipProperties(properties);
 	await incoming.click({ button: 'right', position: { x: 32, y: 10 } });
 	const menu = page.locator('.audio-editor-clip-context-menu');
 	const move = menu.getByRole('menuitem', { name: /^Move to track \(preserve time\)/u });

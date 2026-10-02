@@ -210,10 +210,10 @@ export async function openClipProperties(page, editor, clip) {
 		await clip.press('Enter');
 	}
 	await chooseNestedCommandAction(page, editor, 'Edit', ['Audio clips', 'Clip properties']);
-	const dialog = page.getByRole('dialog', { name: 'Clip properties', exact: true });
-	await expect(dialog).toBeVisible();
-	await expect(page.locator('[data-editor-surface="clip"]')).toBeVisible();
-	return dialog;
+	const panel = editor.locator('[data-workspace-panel="clip-properties"]');
+	await expect(panel).toBeVisible();
+	await expect(panel.locator('[data-clip-properties-panel]')).toBeVisible();
+	return panel;
 }
 
 export async function openEffectsForTrack(editor, trackIndex) {
@@ -274,6 +274,10 @@ export async function openExportDialog(page, editor, { label = 'Export audio', .
 	await expect(dialog).toBeVisible();
 	await expect(page.locator('[data-editor-surface="export"]')).toBeVisible();
 	return dialog;
+}
+
+export async function closeClipProperties(panel) {
+	await closeWorkspacePanel(panel.page().locator('[data-audio-editor]'), 'clip-properties');
 }
 
 export async function closeDialog(dialog) {

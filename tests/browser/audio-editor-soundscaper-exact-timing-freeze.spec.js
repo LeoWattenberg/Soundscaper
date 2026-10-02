@@ -14,7 +14,7 @@ import {
 	chooseCommandAction,
 	chooseNestedCommandAction,
 	chooseFileAction,
-	closeDialog,
+	closeClipProperties, closeDialog,
 	closeEffectsPanel,
 	closeWorkspacePanel,
 	commitInput,
@@ -125,7 +125,7 @@ test.describe('Soundscaper exact timing and freeze workflows', () => {
 			await expect(history.locator('[data-history-list] > li'))
 				.toHaveCount(historyBeforeResample + 1, { timeout: 10_000 });
 		}
-		await closeDialog(properties);
+		await closeClipProperties(properties);
 		await track.locator('[data-track-header]').click();
 		await expect(track.locator('[data-track-lane]')).toHaveAttribute('data-selected', 'true');
 		await closeWorkspacePanel(editor, 'history');
@@ -243,7 +243,7 @@ test.describe('Soundscaper exact timing and freeze workflows', () => {
 		await commitInput(properties.getByRole('spinbutton', {
 			name: 'Pitch (semitones, −12 to +12)', exact: true,
 		}), '12');
-		await closeDialog(properties);
+		await closeClipProperties(properties);
 		const effectsPanel = await openEffectsForTrack(editor, 1);
 		await addRackEffect(page, effectsPanel, 'track', 'Feedback delay');
 		const delay = page.getByRole('dialog', { name: 'Feedback delay', exact: true });

@@ -5,7 +5,7 @@ import {
 	bootEditor,
 	chooseCommandAction,
 	chooseNestedCommandAction,
-	clipByName,
+	clipByName, closeClipProperties,
 	closeEffectsPanel,
 	collectClientErrors,
 	importFiles,
@@ -200,7 +200,7 @@ async function applyEditorialRevision(page, editor, row, clips, action, projectI
 			const dialog = await openClipProperties(page, editor, clips.last());
 			await dialog.getByRole('checkbox', { name: 'Reverse', exact: true }).click();
 			await dialog.getByRole('checkbox', { name: 'Invert', exact: true }).click();
-			await dialog.getByRole('button', { name: 'Done', exact: true }).click();
+			await closeClipProperties(dialog);
 			evidence.clipId = clipId;
 			break;
 		}
@@ -240,7 +240,7 @@ async function assertRestoredRevision(page, editor, row, action, evidence) {
 		);
 		await expect(dialog.getByRole('checkbox', { name: 'Reverse', exact: true })).toBeChecked();
 		await expect(dialog.getByRole('checkbox', { name: 'Invert', exact: true })).toBeChecked();
-		await dialog.getByRole('button', { name: 'Done', exact: true }).click();
+		await closeClipProperties(dialog);
 	}
 	if (action === 'accent-delete-undo') {
 		await expect(clipByName(editor, toneA.name)).toBeVisible();
