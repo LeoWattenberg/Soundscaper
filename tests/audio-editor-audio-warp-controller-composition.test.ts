@@ -82,6 +82,25 @@ test('selected-clip marker add, move, and delete persist through the existing ex
 	]);
 });
 
+test('source editor marker edits preserve the exact source sample independently of timeline selection', () => {
+	const fixture = compositionFixture();
+	fixture.select(null);
+	fixture.service.addSourceMarker('clip', 200);
+	assert.equal(fixture.commands.length, 1);
+	assert.deepEqual(warpPointsOf(fixture.present())[1], {
+		outer: { num: 50, den: 1 }, source: { num: 200, den: 1 }, mode: 'forward',
+	});
+	fixture.service.moveSourceMarker('clip', 1, 75);
+	assert.deepEqual(warpPointsOf(fixture.present())[1], {
+		outer: { num: 75, den: 1 }, source: { num: 200, den: 1 }, mode: 'forward',
+	});
+	assert.equal(clipOf(fixture.present()).timelineStartFrame, 1_000);
+	assert.equal(clipOf(fixture.present()).durationFrames, 100);
+	assert.throws(() => fixture.service.moveSourceMarker('clip', 1, 101), /increasing|interior|range/iu);
+	fixture.service.deleteSourceMarker('clip', 1);
+	assert.equal(warpPointsOf(fixture.present()).length, 2);
+});
+
 test('quantize routes exact zero, one, and intermediate strengths after ensuring identity', async () => {
 	for (const strength of [0, { num: 1, den: 2 }, 1] as const) {
 		const fixture = compositionFixture();

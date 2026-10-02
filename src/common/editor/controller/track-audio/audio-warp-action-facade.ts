@@ -20,6 +20,9 @@ export function createAudioWarpActionFacade(dependencies: AudioWarpActionFacadeD
 	};
 	return Object.freeze({
 		view: guarded('view'),
+		addSourceMarker: guarded('addSourceMarker'),
+		moveSourceMarker: guarded('moveSourceMarker'),
+		deleteSourceMarker: guarded('deleteSourceMarker'),
 		analyze: guarded('analyzeSelected'),
 		createIdentityMap: guarded('createIdentityMapSelected'),
 		addMarker: guarded('addMarkerSelected'),

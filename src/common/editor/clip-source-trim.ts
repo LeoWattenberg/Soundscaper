@@ -13,6 +13,7 @@ export interface ClipSourceTrim {
 
 /** Source edits retain the project anchor and every surviving marker's exact sample. */
 export function clipSourceTrimFields(project: ClipSourceTimingProject, clip: ClipSourceTimingClip, source: ClipSourceTimingSource, changes: ClipSourceTrim): ClipSourceTrim & Readonly<{ warpMap?: Readonly<AudioWarpMap>; opaqueExtensions?: Readonly<Record<string, unknown>> }> {
+	if (clip.kind !== 'audio') throw new RangeError('Source range trimming requires an audio clip.');
 	for (const [field, value] of Object.entries(changes)) {
 		if (!Number.isSafeInteger(value) || value < (field === 'sourceStartFrame' ? 0 : 1)) throw new RangeError('Clip source range requires whole, positive sample extents.');
 	}

@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { ClipSourcePreviewResources } from './internal/clip-source-preview-service.ts';
 import type { EnginePublicApi } from '../../engine/public-api.ts';
 import type { ClipPropertyServiceDependencies } from './internal/clip/clip-property-service.ts';
 import type { ClipTimePitchRenderServiceDependencies } from './clip-time-pitch-render-service.ts';
@@ -64,6 +65,7 @@ export type ClipVideoCompositionEngine = Pick<EnginePublicApi,
 >;
 
 export interface ClipVideoCompositionDependencies {
+	readonly sourcePreview?: ClipSourcePreviewResources;
 	readonly state: ClipVideoCompositionState;
 	readonly copy: ClipVideoCompositionCopy;
 	readonly lifetime: Pick<EditorControllerLifetime, 'assertActive' | 'signal' | 'startTask'>;

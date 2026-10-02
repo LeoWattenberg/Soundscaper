@@ -80,6 +80,12 @@ const FOUNDATION_TIME_CONVERSION_EDITOR_SITES: readonly FoundationTimeConversion
 		conversions: [{ helper: 'sampleFrameToBeat', policies: ['exact'] }],
 	},
 	{
+		id: 'clip-source-preview-musical-markers',
+		file: 'src/common/editor/clip-source-timing.ts',
+		behavior: 'Clip source preview maps musical stretch anchors and tempo boundaries to their nearest project sample while retaining source sample identities.',
+		conversions: [{ helper: 'beatToSampleFrame', policies: ['point'] }],
+	},
+	{
 		id: 'audio-warp-runtime-authority',
 		file: 'src/common/editor/audio-warp-runtime-authority.ts',
 		behavior: 'Persisted and runtime musical warp authority exactly inverts resolved sample endpoints to verify that the authored beat domain matches the clip extent.',

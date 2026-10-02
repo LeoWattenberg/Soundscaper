@@ -489,7 +489,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	const { adjustAllTrackHeights } = viewStateService;
 	const clips = createClipVideoComposition({
 		state, copy, lifetime, projectGeneration, projectRuntime, store, engine, ffmpeg, helperTimingProbe: fileService.helperTimingProbe, setEffectProcessing: effectsStatePorts.processing.set,
-		sourceBuffers, sourcePeaks, sourceChunkFrames: SOURCE_CHUNK_FRAMES, taskProgress, currentTimeMs, monotonicNow: options.monotonicNow,
+		sourceBuffers, sourcePeaks, sourceChunkFrames: SOURCE_CHUNK_FRAMES, taskProgress, currentTimeMs, monotonicNow: options.monotonicNow, sourcePreview: { sourceBuffers, sourceChunkProviders, sourceResolver: clipTimePitchSourceResolver, createEngine: (previewOptions) => renderEngineFactory(previewOptions), prepare: bindings.prepareCommittedTimePitchCaches, retirePlayback: () => { retireTimelinePlayback(); void bindings.projectBin.stopPreview().catch(bindings.handleError); }, subscribeTimelineState: (listener) => engine.subscribeState(listener) },
 		setInterval: scheduleInterval, clearInterval: clearScheduledInterval, createVideoRetimeProgramOrdinalBridge: options.createProductVideoRetimeProgramOrdinalBridge,
 		prepareCommittedOutput: (clip, source, prepareOptions) => clipTimePitchCache.prepareCommittedOutput(clip, source, prepareOptions),
 		materializeTimePitchCacheEntry: (entry, signal) => sources.timePitchCaches.materializeTimePitchCacheEntry(entry, signal),
@@ -596,7 +596,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		recoverTakeCycleRecording: (pending) => takeCycleOpenRecovery.resolve(pending, 'recover'), discardTakeCycleRecording: (pending) => takeCycleOpenRecovery.resolve(pending, 'discard'),
 		toggleStretchToTempo: clips.clipProperty.toggleStretchToTempo,
 		sequenceTimingService: clips.sequenceTiming, timelineAnnotationService: doc.timelineAnnotation, regularIntervalAnnotationController: doc.regularIntervalAnnotation, trackFolderService: doc.trackFolder, trackStructuralOperations: tracks.track.structuralOperations, soundActivationPolicyService,
-		audioWarpService: tracks.audioWarp, sourceMonitorService: clips.sourceMonitor, takeCompService: tracks.takeComp, taskProgress, videoTrimServices: clips.videoTrim, videoEditService: clips.videoEdit, videoNavigationService, videoSourceReprobeService: clips.videoSourceReprobe, framescaperCaptureActions: framescaperCapture ? { ...framescaperCapture.actions, openSetup: () => { framescaperCapture.actions.openSetup(); void preferencesService.setPanelVisibility('recording-setup', true).catch(bindings.handleError); } } : undefined, framescaperWebVcrActions: framescaperCapture?.webVcrActions, ...productActionRuntime(options),
+		audioWarpService: tracks.audioWarp, clipSourcePreviewService: clips.clipSourcePreview, sourceMonitorService: clips.sourceMonitor, takeCompService: tracks.takeComp, taskProgress, videoTrimServices: clips.videoTrim, videoEditService: clips.videoEdit, videoNavigationService, videoSourceReprobeService: clips.videoSourceReprobe, framescaperCaptureActions: framescaperCapture ? { ...framescaperCapture.actions, openSetup: () => { framescaperCapture.actions.openSetup(); void preferencesService.setPanelVisibility('recording-setup', true).catch(bindings.handleError); } } : undefined, framescaperWebVcrActions: framescaperCapture?.webVcrActions, ...productActionRuntime(options),
 	}, () => lifetime.assertActive());
 	const disposeResources = createControllerDisposal({
 		lifetime, state, effectsState: effectsStatePorts.runtime, clearDiagnostics: () => state.localDiagnostics.clear(), clearTaskProgress: taskProgress.clear,
@@ -613,7 +613,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		cancelEffectPreview: () => bindings.cancelAudacityEffectPreview({ publish: false }), disposeMicrophoneMeter: microphoneMeterService.dispose,
 		terminalFlush: doc.saves.terminalFlush, stopRecording: bindings.stopRecording, disposeCapturePool: () => recordingCapturePool.dispose?.(),
 		releaseProjectLock: bindings.releaseProjectLock, revokeOutputUrl: (url) => URL.revokeObjectURL(url), disposeProjectBin: imports.projectBin.dispose,
-		disposeAudioWarp: tracks.audioWarp.dispose, disposeTakeComp: tracks.takeComp.dispose,
+		disposeAudioWarp: tracks.audioWarp.dispose, disposeTakeComp: tracks.takeComp.dispose, disposeClipSourcePreview: clips.clipSourcePreview.dispose,
 		disposeRenderEngines: sources.timePitchCaches.disposeRenderEngines, disposeCodec: () => ffmpeg.dispose(),
 		disposeNativeProject: nativeProjectService.dispose, disposeTimePitchCache: () => clipTimePitchCache.dispose?.(),
 		disposeSession: () => sessionController.dispose?.(), disposeEngine: () => engine.dispose(),

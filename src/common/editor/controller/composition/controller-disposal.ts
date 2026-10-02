@@ -55,6 +55,7 @@ export interface ControllerDisposalDependencies {
 	readonly disposeProjectBin: Cleanup;
 	readonly disposeAudioWarp: Cleanup;
 	readonly disposeTakeComp: Cleanup;
+	readonly disposeClipSourcePreview?: Cleanup;
 	readonly disposeRenderEngines: Cleanup;
 	readonly disposeCodec: Cleanup;
 	readonly disposeNativeProject: Cleanup;
@@ -158,6 +159,7 @@ export function createControllerDisposal(d: ControllerDisposalDependencies): Con
 			await cleanup(d.disposeProjectBin, true);
 			await cleanup(d.disposeAudioWarp, true);
 			await cleanup(d.disposeTakeComp, true);
+			if (d.disposeClipSourcePreview) await cleanup(d.disposeClipSourcePreview, true);
 			await cleanup(d.disposeRenderEngines, true);
 			await cleanup(d.disposeCodec, true);
 			await cleanup(d.disposeNativeProject, true);
