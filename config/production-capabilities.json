@@ -4,7 +4,7 @@
 	"releaseLineAuthority": "config/product-release-lines.json",
 	"productVersions": {
 		"productId": "soundscaper",
-		"version": "1.0.0-rc.Oct.2.c",
+		"version": "1.0.0-rc.Oct.2.d",
 		"previewTagPatterns": [
 			"soundscaper-v*-beta.*",
 			"soundscaper-v*-rc.*"
@@ -119,7 +119,7 @@
 			"release": {
 				"softwareStatus": "feature-complete",
 				"channel": "candidate",
-				"candidateVersion": "1.0.0-rc.Oct.2.c",
+				"candidateVersion": "1.0.0-rc.Oct.2.d",
 				"stableTarget": "1.0.0"
 			},
 			"applicationFeatures": {},
