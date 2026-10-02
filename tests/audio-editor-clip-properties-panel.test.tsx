@@ -99,7 +99,7 @@ test('opening requests activate and focus the requested clip once, after its doc
 		await f.render(['one', 'two'], { focusRequest: request, panelActive: true });
 		assert.equal(f.tab('two').getAttribute('aria-selected'), 'true');
 		assert.equal(f.dom.container.ownerDocument.activeElement, f.input('speedRatio'));
-		assert.equal(f.dom.one('[data-clip-properties-drawer="pitch"]').getAttribute('open'), '');
+		assert.equal((f.dom.one('[data-clip-properties-drawer="pitch"]') as unknown as { open: boolean }).open, true);
 		await f.clickTab('one');
 		f.tab('one').focus();
 		await f.render(['one', 'two'], { focusRequest: request });

@@ -197,10 +197,11 @@ export default function ClipPropertiesBody({ controller, snapshot, copy, clipId 
 					initiallyOpen={['pitchCents', 'speedRatio'].includes(focusField)}>
 					<div className="audio-editor-clip-properties__stack">
 						<ClipPropertyKnob key={pitchUnit} label={clipPitchUnitFieldLabel(copy, pitchUnit)} name="pitchCents"
-							value={clipPitchInUnit(clip?.pitchCents ?? 0, pitchUnit)} knobValue={(clip?.pitchCents ?? 0) / 100}
-							min={-12} max={12} step={0.01} defaultValue={0} disabled={disabled} onCommit={commitField}
-							formatKnobValue={(value) => clipPitchInUnit(value * 100, pitchUnit)}
-							onKnobCommit={(value) => commitField('pitchCents', clipPitchInUnit(value * 100, pitchUnit))}>
+							value={clipPitchInUnit(clip?.pitchCents ?? 0, pitchUnit)}
+							min={pitchUnit === 'percent' ? -50 : -12} max={pitchUnit === 'percent' ? 100 : 12}
+							step={pitchUnit === 'percent' ? 0.1 : 0.01} defaultValue={0} disabled={disabled} onCommit={commitField}
+							formatKnobValue={(value) => value.toFixed(pitchUnit === 'percent' ? 3 : 2)}
+							onKnobCommit={(value) => commitField('pitchCents', value)}>
 							<div className="audio-editor-clip-pitch-units" role="group" aria-label={copy.clipPitchUnit} data-clip-pitch-unit>
 								<button type="button" aria-label={copy.clipPitchUnitSemitones} title={copy.clipPitchUnitSemitones}
 									aria-pressed={pitchUnit === 'semitones'} disabled={disabled} onClick={() => setPitchUnit('semitones')}>
@@ -211,7 +212,8 @@ export default function ClipPropertiesBody({ controller, snapshot, copy, clipId 
 							</div>
 						</ClipPropertyKnob>
 						<ClipPropertyKnob label={copy.clipSpeedRatio} name="speedRatio" value={clip?.speedRatio ?? 1}
-							min={0.25} max={4} step={0.01} defaultValue={1} mode="unipolar" disabled={disabled}
+							min={Math.min(0.25, clip?.speedRatio ?? 1)} max={Math.max(4, clip?.speedRatio ?? 1)}
+							step={0.01} defaultValue={1} mode="unipolar" disabled={disabled}
 							onCommit={commitField} onKnobCommit={(value) => commitField('speedRatio', value)} />
 						<div data-clip-field="preserveFormants"><DesignCheckbox label={copy.preserveFormants} checked={Boolean(clip?.preserveFormants)} disabled={disabled} onChange={(checked) => { if (ownsTarget()) controller.actions.clip.setTimePitch(clip.id, { preserveFormants: checked }); }} /></div>
 						<div data-clip-field="stretchToTempo"><DesignCheckbox label={copy.stretchToTempo} checked={Boolean(clip?.stretchToTempo)} disabled={disabled} onChange={() => { if (ownsTarget()) controller.actions.clip.toggleStretchToTempo(clip.id); }} /></div>

@@ -34,13 +34,13 @@ test('the four property drawers start collapsed and keep their controls together
 });
 
 test('pitch and speed have a knob beside their numeric value and exclusive pitch units', async () => {
-	const fixture = await mountedFixture({ pitchCents: 200 });
+	const fixture = await mountedFixture({ pitchCents: 200, speedRatio: 8 });
 	try {
 		await fixture.render();
 		const pitch = fixture.dom.one('[data-clip-knob="pitchCents"]');
 		const speed = fixture.dom.one('[data-clip-knob="speedRatio"]');
 		assert.ok(pitch.querySelector('[role="slider"]'));
-		assert.ok(speed.querySelector('[role="slider"]'));
+		assert.equal(speed.querySelector('[role="slider"]')?.getAttribute('aria-valuenow'), '8');
 		const buttons = fixture.dom.one('[data-clip-pitch-unit]').querySelectorAll('button');
 		assert.deepEqual(buttons.map((button) => button.getAttribute('aria-pressed')), ['true', 'false']);
 		assert.equal(buttons[0]!.textContent, '\uEF21');
@@ -49,7 +49,7 @@ test('pitch and speed have a knob beside their numeric value and exclusive pitch
 		assert.deepEqual(fixture.dom.one('[data-clip-pitch-unit]').querySelectorAll('button')
 			.map((button) => button.getAttribute('aria-pressed')), ['false', 'true']);
 		const knob = fixture.dom.one('[data-clip-knob="pitchCents"]').querySelector('[role="slider"]')!;
-		assert.equal(knob.getAttribute('aria-valuetext'), '12.246');
+		assert.equal(knob.getAttribute('aria-valuenow'), '12.246');
 		await act(async () => reactProps(knob).onKeyDown({ key: 'ArrowRight', preventDefault() {}, stopPropagation() {} }));
 		assert.deepEqual(fixture.timePitchCalls, [], 'dragging previews without committing intermediate edits');
 		await act(async () => reactProps(knob).onKeyUp({ key: 'ArrowRight', preventDefault() {}, stopPropagation() {} }));
