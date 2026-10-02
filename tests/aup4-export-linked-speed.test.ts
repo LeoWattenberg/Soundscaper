@@ -55,7 +55,9 @@ for (const generation of ['aup3', 'aup4'] as const) {
 			assert.equal(clip.sourceStartFrame, exported.sourceStartFrame);
 			assert.equal(clip.pitchCents, 0);
 			assert.equal(clip.speedRatio, 1);
-			assertFrequency(reopened.sources[0]!.channels[0]!, Number(reopened.sources[0]!.sampleRate), 600);
+			const reopenedAudio = reopened.sources[0]!;
+			assert.ok(reopenedAudio.channels, 'native sample blocks decode to PCM channels');
+			assertFrequency(reopenedAudio.channels[0]!, Number(reopenedAudio.sampleRate), 600);
 		});
 	}
 }
