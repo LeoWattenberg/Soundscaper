@@ -8,7 +8,7 @@
 import { createStreamingWindowedSincResampler } from './resample.js';
 import { scaleSampleFrame } from './timeline-time.ts';
 import { applyMaterialTransform, normalizeInputChannels } from './aup4-export-material.js';
-import { exportError, positiveRate } from './aup4-export-values.js';
+import { exportError, positiveRate, scaleBoundary } from './aup4-export-values.js';
 
 function assertExportPlan(plan) {
 	if (!plan?.project || !Array.isArray(plan.sources)) throw exportError('An Audacity-project export plan is required.', 'INVALID_SNAPSHOT');
@@ -29,13 +29,17 @@ export function normalizeAup4ExportSource(plan, sourceAudio) {
 	const sourceRate = positiveRate(inputSource.sampleRate ?? sourceAudio.sampleRate, `source ${sourceId} sampleRate`);
 	return variants.map((variant) => {
 		const mappedChannels = mapChannels(inputChannels, variant.targetChannels);
-		const convertedChannels = sourceRate === variant.targetRate
+		const playbackRate = variant.transform?.playbackRate ?? 1;
+		const playbackInputRate = sourceRate * playbackRate;
+		const outputFrameCount = playbackRate === 1 ? undefined
+			: Math.max(1, scaleBoundary(mappedChannels[0].length, variant.targetRate / playbackInputRate));
+		const convertedChannels = playbackInputRate === variant.targetRate
 			? mappedChannels.map((channel) => channel.slice())
-			: resampleChannels(mappedChannels, sourceRate, variant.targetRate);
+			: resampleChannels(mappedChannels, playbackInputRate, variant.targetRate, outputFrameCount);
 		const channels = applyMaterialTransform(
 			convertedChannels,
 			variant.transform,
-			sourceRate,
+			playbackInputRate,
 			variant.targetRate,
 		);
 		if (channels.some((channel) => channel.length !== variant.source.frameCount)) {
@@ -82,8 +86,7 @@ function mixInto(output, input, gain) {
 	for (let frame = 0; frame < output.length; frame += 1) output[frame] += input[frame] * gain;
 }
 
-export function resampleChannels(channels, inputRate, outputRate) {
-	const outputFrames = Math.max(1, scaleSampleFrame(channels[0].length, inputRate, outputRate, 'point'));
+export function resampleChannels(channels, inputRate, outputRate, outputFrames = Math.max(1, scaleSampleFrame(channels[0].length, inputRate, outputRate, 'point'))) {
 	const resampler = createStreamingWindowedSincResampler(inputRate, outputRate, channels.length);
 	const head = resampler.push(channels); const tail = resampler.finish(outputFrames);
 	return head.map((values, channel) => {

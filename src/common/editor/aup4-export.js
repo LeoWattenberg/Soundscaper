@@ -11,6 +11,7 @@ import { projectForRuntimeConsumers } from './project-current-runtime.ts';
 import { projectTrackFolderMediaStateV12 } from './track-folder-media-runtime.ts';
 import { flattenAup4TimelineAnnotations } from './aup4-annotation-interchange.ts';
 import { normalizeMaterialTransform } from './aup4-export-material.js';
+import { aup4LinkedSamplePlaybackRate, neutralizeAup4RenderedTimePitch } from './aup4-linked-speed-export.ts';
 import {
 	scaleBoundary, scaledRangeLength,
 	positiveRate,
@@ -130,7 +131,8 @@ export function createAup4ExportPlan(project) {
 			const source = sourceById.get(clip.sourceId);
 			const sourceRate = positiveRate(source.sampleRate, `source ${source.id} sampleRate`);
 			const sourceChannels = positiveChannelCount(source.channelCount);
-			const ratio = targetRate / sourceRate;
+			const playbackRate = aup4LinkedSamplePlaybackRate(clip, sourceRate, projectRate);
+			const ratio = targetRate / (sourceRate * playbackRate);
 			const sourceFrameCount = positiveFrame(source.frameCount, `source ${source.id} frameCount`);
 			const sourceStartFrame = nonNegativeFrame(clip.sourceStartFrame, `clip ${clip.id} sourceStartFrame`);
 			const sourceDurationFrames = positiveFrame(
@@ -156,6 +158,7 @@ export function createAup4ExportPlan(project) {
 			const sliceStartFrame = sourceStartFrame - trimStartFrames;
 			const sliceEndFrame = sourceEndFrame + trimEndFrames;
 			const transform = {
+				playbackRate,
 				sliceStartFrame,
 				sliceEndFrame,
 				reversed: Boolean(clip.reversed),
@@ -196,6 +199,14 @@ export function createAup4ExportPlan(project) {
 			if (Object.hasOwn(clip, 'reversed') || clip.reversed) normalizedClip.reversed = false;
 			if (Object.hasOwn(clip, 'inverted') || clip.inverted) normalizedClip.inverted = false;
 			normalizedClip.envelope = envelopeConversion.points;
+			if (clip.linkPitchAndTempo === true) {
+				neutralizeAup4RenderedTimePitch(normalizedClip);
+				addAup4CompatibilityItem(compatibilityReport, {
+					code: 'LINKED_PITCH_TEMPO_RENDERED', severity: 'info', disposition: 'converted',
+					scope: { kind: 'clip', trackId: track.id, clipId: clip.id },
+					data: { sourceId: source.id, playbackRate },
+				});
+			}
 			if (sourceRate !== targetRate) {
 				addAup4CompatibilityItem(compatibilityReport, {
 					code: 'SOURCE_RESAMPLED',
@@ -276,7 +287,7 @@ export function createAup4ExportPlan(project) {
 			const key = JSON.stringify([source.id, targetRate, targetChannels, materialTransform]);
 			const existing = variants.get(key);
 			if (existing) return existing;
-			const ratio = targetRate / sourceRate;
+			const ratio = targetRate / (sourceRate * (materialTransform?.playbackRate ?? 1));
 			const sliceStartFrame = materialTransform?.sliceStartFrame ?? 0;
 			const sliceEndFrame = materialTransform?.sliceEndFrame ?? inputFrameCount;
 			const outputFrameCount = Math.max(1, scaledRangeLength(sliceStartFrame, sliceEndFrame, ratio));

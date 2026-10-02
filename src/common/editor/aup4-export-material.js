@@ -22,6 +22,8 @@ export function normalizeMaterialTransform(transform, inputFrameCount) {
 	const reversed = Boolean(transform?.reversed);
 	const inverted = Boolean(transform?.inverted);
 	const pcmGain = finiteNonNegative(transform?.pcmGain, 1);
+	const playbackRate = Number(transform?.playbackRate ?? 1);
+	if (!Number.isFinite(playbackRate) || playbackRate <= 0) throw exportError('Audacity-project material playback rate is invalid.', 'INVALID_SNAPSHOT');
 	const sliceStartFrame = nonNegativeFrame(transform?.sliceStartFrame ?? 0, 'Audacity-project material transform sliceStartFrame');
 	const sliceEndFrame = nonNegativeFrame(
 		transform?.sliceEndFrame ?? inputFrameCount,
@@ -30,7 +32,7 @@ export function normalizeMaterialTransform(transform, inputFrameCount) {
 	if (sliceEndFrame <= sliceStartFrame || sliceEndFrame > inputFrameCount) {
 		throw exportError('Audacity-project material transform range is invalid.', 'INVALID_SNAPSHOT');
 	}
-	if (!reversed && !inverted && pcmGain === 1
+	if (!reversed && !inverted && pcmGain === 1 && playbackRate === 1
 		&& sliceStartFrame === 0 && sliceEndFrame === inputFrameCount) return null;
 	return {
 		sliceStartFrame,
@@ -38,6 +40,7 @@ export function normalizeMaterialTransform(transform, inputFrameCount) {
 		reversed,
 		inverted,
 		pcmGain,
+		playbackRate,
 	};
 }
 
