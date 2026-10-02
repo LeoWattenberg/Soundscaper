@@ -55,3 +55,26 @@ test('a hidden stretch marker returns on the identical source sample after trim 
 	assert.equal(restored.warpMap?.points.some((point) => point.source.num === 200 && point.source.den === 1), true);
 	assert.equal(restored.opaqueExtensions?.other, 'kept');
 });
+
+test('musical source trims keep the beat anchor and sample marker through command reconciliation', async () => {
+	const { createSoundscaperProject } = await import('../src/soundscaper/editor-project.ts');
+	const { applySoundscaperProjectCommand } = await import('../src/soundscaper/editor-project-commands.ts');
+	const { createAudioClip, createAudioSource, createAudioTrack } = await import('../src/common/editor/project-media-factory.ts');
+	const { resolveRuntimeClipProjection } = await import('../src/common/editor/runtime-clip-projection.ts');
+	const document = createSoundscaperProject({
+		id: 'musical-source-trim', now: '2026-10-02T12:00:00.000Z', sampleRate: project.sampleRate, tempoMap: project.tempoMap,
+		sources: [createAudioSource({ ...source, id: 'source', storageKey: 'source', channelCount: 1 })],
+		clips: [createAudioClip({ ...clip, id: 'clip', sourceId: 'source', anchor: 'musical', musicalExtent: 'beat', musicalStartBeat: { num: 1, den: 24 }, musicalDurationBeats: { num: 1, den: 240 }, warpMap: {
+			feature: 'audio-warp', points: [{ outer: 0, source: 100, mode: 'forward' }, { outer: { num: 1, den: 320 }, source: 200, mode: 'forward' }, { outer: { num: 1, den: 240 }, source: 300, mode: 'forward' }],
+		} })],
+		tracks: [createAudioTrack({ id: 'track', clipIds: ['clip'] })],
+	});
+	const result = applySoundscaperProjectCommand(document, { type: 'clip/trim', clipId: 'clip', sourceRange: true, sourceStartFrame: 150, sourceDurationFrames: 150, durationFrames: 50 });
+	const persisted = result.clips[0]!;
+	const edited = resolveRuntimeClipProjection(result, persisted);
+	assert.equal(edited.timelineStartFrame, 1000);
+	assert.equal(edited.durationFrames, 50);
+	assert.deepEqual(persisted.musicalStartBeat, { num: 1, den: 24 });
+	assert.deepEqual(persisted.musicalDurationBeats, { num: 1, den: 480 });
+	assert.deepEqual(normalizeAudioWarpMap(persisted.warpMap).points[1], { outer: { num: 1, den: 800 }, source: { num: 200, den: 1 }, mode: 'forward' });
+});
