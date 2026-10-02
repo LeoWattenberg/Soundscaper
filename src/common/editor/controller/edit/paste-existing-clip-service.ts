@@ -22,6 +22,7 @@ import {
 } from './internal/paste-command-tree.ts';
 import { rollbackDerivedSourcesAfterFailure } from './internal/paste-derived-source-failure.ts';
 import { loadSourceProvenanceDerivation } from '../../source-provenance-derivation-loader.ts';
+import { createPasteProjectLookup, type PasteProjectLookup } from './internal/paste-project-lookup.ts';
 
 type RenderReplaceCommand = Extract<AudioEditorCommand, { readonly type: 'clip/render-replace-many' }>;
 type LiftDeleteCommand = Extract<AudioEditorCommand, { readonly type: 'range/lift-delete' }>;
@@ -63,6 +64,7 @@ interface ExistingClipPasteTarget {
 interface ExistingClipPastePlan {
 	readonly paste: PasteCommand;
 	readonly targets: readonly ExistingClipPasteTarget[];
+	readonly lookup?: PasteProjectLookup;
 }
 
 /**
@@ -135,6 +137,7 @@ export function commitPasteIntoExistingClipCommand(
 				plan.paste,
 				replacements,
 				request.project,
+				plan.lookup!,
 			);
 			return await request.commit(command);
 		} catch (error) {
@@ -171,6 +174,7 @@ function planPasteIntoExistingClip(
 	if (new Set(mappedTrackIds).size !== mappedTrackIds.length) return { paste, targets: [] };
 	const additions = sourceAdditionsById(discovered.sourceAdds);
 	const atFrame = safeFrame(paste.atFrame, 'paste.atFrame');
+	const lookup = createPasteProjectLookup(project);
 	const targets = intervals.flatMap(({ clipboardTrack, descriptor }) => {
 		const target = planTrackPasteIntoExistingClip(
 			paste,
@@ -179,10 +183,11 @@ function planPasteIntoExistingClip(
 			project,
 			additions,
 			atFrame,
+			lookup,
 		);
 		return target ? [target] : [];
 	});
-	return { paste, targets };
+	return { paste, targets, lookup };
 }
 
 function planTrackPasteIntoExistingClip(
@@ -192,13 +197,13 @@ function planTrackPasteIntoExistingClip(
 	project: ExistingClipPasteProject,
 	additions: ReadonlyMap<string, CommandObject>,
 	atFrame: number,
+	lookup: PasteProjectLookup,
 ): ExistingClipPasteTarget | null {
 	if (!isComposableAudioDescriptor(descriptor)) return null;
 	const targetTrackId = paste.trackMap?.[clipboardTrack.sourceTrackId] ?? clipboardTrack.sourceTrackId;
-	const targetTrack = project.tracks.find((track) => track.id === targetTrackId);
+	const targetTrack = lookup.track(targetTrackId);
 	if (targetTrack?.type !== 'audio' || !targetTrack.clipIds?.length) return null;
-	const containingClips = targetTrack.clipIds
-		.map((clipId) => project.clips.find((clip) => clip.id === clipId))
+	const containingClips = lookup.clipsForTrack(targetTrackId)
 		.filter((clip): clip is ControllerClip => Boolean(
 			clip
 			&& clip.timelineStartFrame <= atFrame
@@ -207,13 +212,13 @@ function planTrackPasteIntoExistingClip(
 	if (containingClips.length !== 1) return null;
 	const existingClip = containingClips[0]!;
 	if (!isComposableExistingClip(existingClip) || clipsCollidingWithRange(
-		project, targetTrackId, existingClip.id,
+		lookup, targetTrackId, existingClip.id,
 		existingClip.timelineStartFrame,
 		existingClip.timelineStartFrame + existingClip.durationFrames,
 	).length) return null;
-	const existingSource = resolveSource(project, additions, existingClip.sourceId);
+	const existingSource = resolveSource(lookup, additions, existingClip.sourceId);
 	const pastedSourceId = nonEmptyString(descriptor.sourceId, 'clipboard clip sourceId');
-	const pastedSource = resolveSource(project, additions, pastedSourceId);
+	const pastedSource = resolveSource(lookup, additions, pastedSourceId);
 	if (!existingSource || !pastedSource) return null;
 	const channelCount = existingSource.channelCount;
 	if (channelCount < 1 || channelCount > 2
@@ -240,7 +245,7 @@ function planTrackPasteIntoExistingClip(
 	const extensionEndFrame = extensionStartFrame + pastedDurationFrames;
 	if (!Number.isSafeInteger(extensionEndFrame)) throw new RangeError('Joined paste end exceeds the safe integer range.');
 	if (paste.mode === 'overlap' && clipsCollidingWithRange(
-		project,
+		lookup,
 		targetTrackId,
 		existingClip.id,
 		extensionStartFrame,
@@ -265,15 +270,15 @@ function sourceAdditionsById(commands: readonly SourceAddCommand[]): ReadonlyMap
 }
 
 function resolveSource(
-	project: ExistingClipPasteProject,
+	lookup: PasteProjectLookup,
 	additions: ReadonlyMap<string, CommandObject>,
 	sourceId: string,
 ): ControllerSource | null {
 	const added = additions.get(sourceId);
 	const inventory: readonly ControllerSourceInventory[] = added
 		? [{ ...added, id: sourceId }]
-		: project.sources;
-	return findControllerSource({ sources: inventory }, sourceId);
+		: [];
+	return added ? findControllerSource({ sources: inventory }, sourceId) : lookup.source(sourceId);
 }
 
 function isComposableExistingClip(clip: ControllerClip): boolean {
@@ -375,6 +380,7 @@ function rewritePasteWithRenderedReplacements(
 		readonly source: ControllerSource;
 	}>[],
 	project: ExistingClipPasteProject,
+	lookup: PasteProjectLookup,
 ): AudioEditorCommand {
 	const targetTrackIds = new Set(replacements.map(({ target }) => target.targetTrackId));
 	const clipboardTracks = new Set(replacements.map(({ target }) => target.clipboardTrack));
@@ -403,7 +409,7 @@ function rewritePasteWithRenderedReplacements(
 	});
 	const rewritten = rewriteCommandTree(command, paste, rewrittenPaste);
 	const collisionDeletes = paste.mode === 'overlap' ? replacements.flatMap(({ target }) => {
-		const deletion = extensionCollisionDelete(target, project);
+		const deletion = extensionCollisionDelete(target, lookup);
 		return deletion ? [deletion] : [];
 	}) : [];
 	const replacement: RenderReplaceCommand = Object.freeze({
@@ -426,13 +432,13 @@ function rewritePasteWithRenderedReplacements(
 
 function extensionCollisionDelete(
 	target: ExistingClipPasteTarget,
-	project: ExistingClipPasteProject,
+	lookup: PasteProjectLookup,
 ): LiftDeleteCommand | null {
 	const startFrame = target.existingClip.timelineStartFrame + target.existingClip.durationFrames;
 	const endFrame = startFrame + target.pastedDurationFrames;
 	if (!Number.isSafeInteger(endFrame)) throw new RangeError('Joined paste end exceeds the safe integer range.');
 	const clipIds = clipsCollidingWithRange(
-		project,
+		lookup,
 		target.targetTrackId,
 		target.existingClip.id,
 		startFrame,
@@ -452,22 +458,16 @@ function extensionCollisionDelete(
 }
 
 function clipsCollidingWithRange(
-	project: ExistingClipPasteProject,
+	lookup: PasteProjectLookup,
 	trackId: string,
 	excludedClipId: string,
 	startFrame: number,
 	endFrame: number,
 ): readonly ControllerClip[] {
-	const track = project.tracks.find(({ id }) => id === trackId);
-	return (track?.clipIds ?? []).flatMap((clipId) => {
-		if (clipId === excludedClipId) return [];
-		const clip = project.clips.find(({ id }) => id === clipId);
-		return clip
-			&& clip.timelineStartFrame < endFrame
+	return lookup.clipsForTrack(trackId).filter((clip) => (
+		clip.id !== excludedClipId && clip.timelineStartFrame < endFrame
 			&& clip.timelineStartFrame + clip.durationFrames > startFrame
-			? [clip]
-			: [];
-	});
+	));
 }
 
 function rewriteCommandTree(
