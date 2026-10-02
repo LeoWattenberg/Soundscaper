@@ -94,6 +94,55 @@ test('loaded-source rows and existing edits paste as one undo entry without impo
 	assert.deepEqual(getClipSpreadsheetRows(undoEditorCommand(f.history).present), getClipSpreadsheetRows(f.initial));
 });
 
+test('source edits import replacement files and join other pasted edits in one undo entry', async () => {
+	const f = fixture();
+	const file = new File(['audio'], 'Replacement.wav', { type: 'audio/wav' });
+	await f.paste('sheet', [
+		{ clipId: 'original', column: 'source', value: '/disk/Replacement.wav' },
+		{ clipId: 'original', column: 'name', value: 'Replacement' },
+	], [], [{ reference: '/disk/Replacement.wav', file }]);
+	assert.deepEqual(f.imports, ['Replacement.wav']);
+	assert.equal(f.history.undoStack.length, 1);
+	assert.equal(f.history.present.clips[0].sourceId, 'imported-1');
+	assert.equal(f.history.present.clips[0].sourceDurationFrames, 44_100);
+	assert.equal(f.history.present.clips[0].durationFrames, 48_000);
+	assert.equal(getClipSpreadsheetRows(f.history.present)[0]?.cells.name, 'Replacement');
+	assert.deepEqual(f.history.present.sources.map((source: { id: string }) => source.id), ['existing', 'imported-1']);
+	assert.deepEqual(getClipSpreadsheetRows(undoEditorCommand(f.history).present), getClipSpreadsheetRows(f.initial));
+	assert.equal(redoEditorCommand(undoEditorCommand(f.history)).present.clips[0].sourceId, 'imported-1');
+});
+
+test('replacement edits and inserted rows sharing a disk reference import and add their source once', async () => {
+	const f = fixture();
+	const file = new File(['audio'], 'Shared.wav', { type: 'audio/wav' });
+	await f.paste('sheet', [{ clipId: 'original', column: 'source', value: '/disk/Shared.wav' }],
+		[{ source: '/disk/Shared.wav', track: 'track', position: '2', duration: '1' }],
+		[{ reference: '/disk/Shared.wav', file }]);
+	assert.deepEqual(f.imports, ['Shared.wav']);
+	assert.equal(f.history.present.sources.length, 2);
+	assert.deepEqual(f.history.present.clips.map((clip: { sourceId: string }) => clip.sourceId), ['imported-1', 'imported-1']);
+	assert.equal(f.history.undoStack.length, 1);
+});
+
+test('invalid replacement edits fail before importing and invalid final bounds discard staged media', async () => {
+	const f = fixture();
+	const file = new File(['audio'], 'Replacement.wav', { type: 'audio/wav' });
+	const files = [{ reference: '/disk/Replacement.wav', file }];
+	await assert.rejects(f.paste('sheet', [
+		{ clipId: 'original', column: 'source', value: '/disk/Replacement.wav' },
+		{ clipId: 'original', column: 'speed', value: '0' },
+	], [], files), /speed/i);
+	assert.deepEqual(f.imports, []);
+	await assert.rejects(f.paste('sheet', [
+		{ clipId: 'original', column: 'source', value: '/disk/Replacement.wav' },
+		{ clipId: 'original', column: 'duration', value: '11' },
+	], [], files), /exceed/i);
+	assert.deepEqual(f.imports, ['Replacement.wav']);
+	assert.deepEqual(f.deleted, ['imported-1']);
+	assert.deepEqual(f.history.present, f.initial);
+	assert.equal(f.history.undoStack.length, 0);
+});
+
 test('missing sources prepare once without changing the project and remain available for undo and redo', async () => {
 	const f = fixture();
 	f.setImportedHook(() => { assert.equal(f.history.present, f.initial); assert.equal(f.history.undoStack.length, 0); });

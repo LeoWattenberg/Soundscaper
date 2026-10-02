@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { isProjectFileName } from '../../../../project-file-extensions.ts';
-import { planClipSpreadsheetEdits, type ClipSpreadsheetEdit } from '../../../clip-spreadsheet.ts';
+import { findMissingClipSpreadsheetEditSources, planClipSpreadsheetEdits, type ClipSpreadsheetEdit } from '../../../clip-spreadsheet.ts';
 import {
 	findMissingClipSpreadsheetSources, planClipSpreadsheetInsert,
 	type ClipSpreadsheetInsertSource, type ClipSpreadsheetNewRow,
@@ -64,12 +64,13 @@ export function createClipSpreadsheetPasteService(dependencies: ClipSpreadsheetP
 		if (dependencies.editingBlocked()) throw new RangeError('Clip editing is currently unavailable.');
 		const edits = requestedEdits.map(edit => ({ ...edit }));
 		const rows = requestedRows.map(row => ({ ...row }));
-		const editCommand = planClipSpreadsheetEdits(project, edits);
-		const missing = findMissingClipSpreadsheetSources(project, rows);
+		const missing = [...new Set([
+			...findMissingClipSpreadsheetEditSources(project, edits), ...findMissingClipSpreadsheetSources(project, rows),
+		])];
 		const sourcesById = new Map(project.sources.map(source => [source.id, source]));
 		const sourcesByName = new Map(project.sources.map(source => [Reflect.get(source, 'name') as unknown, source]));
-		for (const row of rows) {
-			const reference = row.source?.trim();
+		for (const referenceValue of [...rows.map(row => row.source), ...edits.filter(edit => edit.column === 'source').map(edit => edit.value)]) {
+			const reference = referenceValue?.trim();
 			const source = (reference ? sourcesById.get(reference) : undefined) ?? sourcesByName.get(reference);
 			if (source && dependencies.missingSourceIds.has(source.id)) throw new RangeError(`Relink the missing source before pasting clips: ${reference ?? source.id}`);
 		}
@@ -78,6 +79,7 @@ export function createClipSpreadsheetPasteService(dependencies: ClipSpreadsheetP
 			if (!fileByReference.has(reference)) throw new RangeError(`Select the source file: ${reference}`);
 		}
 		if (!missing.length) {
+			const editCommand = planClipSpreadsheetEdits(project, edits);
 			const insertCommand = planClipSpreadsheetInsert(project, rows, { createId: dependencies.createId });
 			const command = combineCommands(editCommand, insertCommand);
 			return command ? dependencies.commit(command) : null;
@@ -128,14 +130,17 @@ export function createClipSpreadsheetPasteService(dependencies: ClipSpreadsheetP
 				progress.update(importedFiles.size / missing.length);
 			}
 			assertCurrent();
-			const insertCommand = planClipSpreadsheetInsert(project, rows, {
-				createId: dependencies.createId, additionalSources: sources, resolvedSourceIds: Object.fromEntries(resolvedSourceIds),
+			const resolved = Object.fromEntries(resolvedSourceIds);
+			const editCommand = planClipSpreadsheetEdits(project, edits, { additionalSources: sources, resolvedSourceIds: resolved });
+			const insertCommand = planClipSpreadsheetInsert({ ...project, sources: [...project.sources, ...sources] }, rows, {
+				createId: dependencies.createId, resolvedSourceIds: resolved,
 			});
 			dependencies.setImporting(false);
 			importingHeld = false;
 			if (dependencies.editingBlocked()) throw new RangeError('Clip editing is currently unavailable.');
 			assertCurrent();
-			const command = combineCommands(editCommand, insertCommand);
+			const sourceCommand: AudioEditorCommand = { type: 'batch', commands: sources.map(source => ({ type: 'source/add', source })) };
+			const command = combineCommands(sourceCommand, editCommand, insertCommand);
 			const result = command ? dependencies.commit(command) : null;
 			return result;
 		} catch (error) {

@@ -37,7 +37,7 @@ const entries: FoundationRuntimeConsumerEvidence[] = [
 	},
 	{
 		id: 'clip-spreadsheet-edit-planning', surface: 'composition',
-		file: 'src/common/editor/clip-spreadsheet.ts', entryPoint: 'planClipSpreadsheetEdits',
+		file: 'src/common/editor/clip-spreadsheet.ts', entryPoint: 'planEdits',
 		inputIdentifier: 'projectValue', projectedIdentifier: 'project', boundary: 'runtimeProject',
 		evidence: 'Spreadsheet edit planning compares parsed cells against one resolved runtime project before producing atomic commands whose normal reconciliation preserves persisted timing authority.',
 	},

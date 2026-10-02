@@ -65,9 +65,13 @@ pitch, speed, gain, fades, and playback flags. Times are in seconds, pitch is
 in semitones, and speed is a ratio: `1` is normal speed and `2` is twice as fast.
 
 Double-click a cell or select it and press **Enter** to edit its value. Press
-**Enter** to apply the edit or **Escape** to cancel. Track, source file, sample
-rate, and channel count are read-only for existing clips. Clips on locked tracks and video clips
-are also read-only.
+**Enter** to apply the edit or **Escape** to cancel. Track and source cells show
+their actual IDs. Change the track ID to move a clip to an existing audio track.
+Change the source ID or enter a local file path to replace its audio, keeping
+its timeline position, duration, speed, and source offset in seconds. The new
+file must contain that source range. Reversed and inverted are checkboxes;
+select a checkbox cell and press **Space** to toggle it. Clips on locked tracks
+and video clips are read-only.
 
 Changing duration trims or extends the source range at the current offset.
 Changing speed keeps the source range unless you also paste a duration.
@@ -79,11 +83,11 @@ the selection. Click a row number or column heading to select the whole row
 or column. Use **Ctrl+C** and **Ctrl+V** (**Cmd+C** and **Cmd+V** on macOS) to
 exchange the selection with a spreadsheet editor. Values use tabs between
 columns and newlines between rows. Pasting starts at the selected cell and
-updates existing clips. Rows extending beyond the table create new clips.
-Use **Paste new rows** to append rows without replacing existing clips, or
-**Paste** to start from an empty project. For keyboard pasting, focus the
-**Paste new rows** area at the bottom of the table and press **Ctrl+V** or
-**Cmd+V**. New rows follow the table's column
+updates existing clips. A paste extending beyond existing rows is rejected.
+Press **Escape** with a selection, or click the empty space below the table, to
+clear the selection. Pasting with no selection inserts new rows, including in
+an empty project. Playback flags copy as `true` or `false` and accept those
+values when pasted. New rows follow the table's column
 order and need a source file name or source ID. A unique existing track name
 places the clip on that track; a new name creates an audio track. Blank track
 names use the source name. Blank numeric cells use defaults: position and
@@ -92,11 +96,12 @@ the remaining audio at the requested speed.
 
 The panel first looks for the source in the project, including the Project
 Bin. If it is missing, choose **Load referenced files** and select the audio
-files listed in the panel. Disk paths also need this file selection: pasting
+files listed in the dialog. Disk paths also need this file selection: pasting
 a path does not grant the app access to the file. Selected files must match
 the referenced names unambiguously. The panel imports the audio, validates
 the source bounds and clip properties, and places the new clips at their
-specified positions. **Undo** reverses a whole paste in one step; a paste
+specified positions. **Ctrl+Z** (**Cmd+Z** on macOS) reverses a whole paste in
+one step; **Ctrl+Shift+Z** (**Cmd+Shift+Z**) redoes it. A paste
 containing an invalid value leaves the clips unchanged.
 
 ## Build the mix

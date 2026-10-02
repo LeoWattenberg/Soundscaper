@@ -147,11 +147,11 @@ export const FOUNDATION_RUNTIME_SHIELDED_OWNERS: readonly FoundationRuntimeShiel
 export const FOUNDATION_RUNTIME_TIMING_READER_EXCLUSIONS: readonly FoundationRuntimeTimingReaderExclusion[] = deepFreeze([
 	{
 		file: 'src/common/editor/clip-spreadsheet.ts', entryPoint: 'rowsForProject',
-		reason: 'Private table projection receives the resolved project captured by getClipSpreadsheetRows or planClipSpreadsheetEdits before converting sample coordinates into spreadsheet seconds.',
+		reason: 'Private table projection receives the resolved project captured by getClipSpreadsheetRows or planEdits before converting sample coordinates into spreadsheet seconds.',
 	},
 	{
 		file: 'src/common/editor/clip-spreadsheet.ts', entryPoint: 'planClip',
-		reason: 'Private edit planner receives the resolved project and clip owned by planClipSpreadsheetEdits after its registered runtime projection boundary; persisted musical anchors remain command-owned.',
+		reason: 'Private edit planner receives the resolved project and clip owned by planEdits after its registered runtime projection boundary; persisted musical anchors remain command-owned.',
 	},
 	{
 		file: 'src/common/editor/controller/edit/internal/labeled-audio-silence.ts', entryPoint: 'coveredSpans',

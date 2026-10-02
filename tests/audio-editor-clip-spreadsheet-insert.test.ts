@@ -33,13 +33,13 @@ function insert(project: ReturnType<typeof fixture>, rows: readonly ClipSpreadsh
 test('new spreadsheet rows create clips with native source timing and every editable property', () => {
 	const project = insert(fixture(), [{
 		name: 'Verse', track: 'Existing', source: 'Voice.wav', position: '2.5', offset: '1', duration: '1.5',
-		pitch: '3', speed: '2', gain: '-6', fadeIn: '0.1', fadeOut: '0.2', reversed: 'TRUE', inverted: 'yes', sampleRate: '44100', channels: '2',
+		pitch: '3', speed: '2', gain: '-6', fadeIn: '0.1', fadeOut: '0.2', reversed: 'TRUE', inverted: 'yes',
 	}]);
 	const row = getClipSpreadsheetRows(project)[1];
 	assert.ok(row);
 	assert.deepEqual(row.cells, {
-		name: 'Verse', track: 'Existing', source: 'Voice.wav', position: '2.5', offset: '1', duration: '1.5',
-		pitch: '3', speed: '2', gain: '-6', fadeIn: '0.1', fadeOut: '0.2', reversed: 'true', inverted: 'true', sampleRate: '44100', channels: '2',
+		name: 'Verse', track: 'existing-track', source: 'source', position: '2.5', offset: '1', duration: '1.5',
+		pitch: '3', speed: '2', gain: '-6', fadeIn: '0.1', fadeOut: '0.2', reversed: 'true', inverted: 'true',
 	});
 	const clip = project.clips[1];
 	assert.equal(clip.sourceStartFrame, 44_100);
@@ -90,7 +90,7 @@ test('source and track ambiguity require explicit IDs and locked tracks remain p
 	assert.throws(() => findMissingClipSpreadsheetSources(locked, [{ source: 'missing.wav', track: 'Existing' }]), /locked/i);
 });
 
-test('source bounds and metadata mismatches reject the whole insertion without changing the project', () => {
+test('source bounds and removed metadata columns reject the whole insertion without changing the project', () => {
 	const project = fixture();
 	const before = structuredClone(project);
 	for (const row of [
@@ -114,7 +114,7 @@ test('prepared imported sources and all rows belong to a single undo step', () =
 	assert.equal(history.present.sources.length, 2);
 	assert.ok(Array.isArray(history.present.clips));
 	assert.equal(history.present.clips.length, 2);
-	assert.equal(getClipSpreadsheetRows(history.present)[1]?.cells.source, 'Fresh.wav');
+	assert.equal(getClipSpreadsheetRows(history.present)[1]?.cells.source, 'imported');
 	const restored = undoEditorCommand(history).present;
 	assert.ok(Array.isArray(restored.sources));
 	assert.ok(Array.isArray(restored.tracks));

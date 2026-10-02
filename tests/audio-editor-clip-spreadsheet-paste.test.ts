@@ -10,39 +10,55 @@ const origin = { top: 0, left: 0, bottom: 0, right: 0 };
 function row(id: string): ClipSpreadsheetRow {
 	return { id, kind: 'audio', editable: true, cells: Object.fromEntries(CLIP_SPREADSHEET_COLUMNS.map(column => [column.id, ''])) as ClipSpreadsheetRow['cells'] };
 }
-const fullRow = (name: string, source = 'Voice.wav') => [name, 'Voice', '2', source, '0', '1', '0', '1', '0', '0', '0', 'false', 'false', '48000', '1'].join('\t');
+const fullRow = (name: string, source = 'Voice.wav') => {
+	const values: Readonly<Record<string, string>> = {
+		name, track: 'track-voice', position: '2', source, offset: '0', duration: '1', pitch: '0', speed: '1',
+		gain: '0', fadeIn: '0', fadeOut: '0', reversed: 'false', inverted: 'false', sampleRate: '48000', channels: '1',
+	};
+	return CLIP_SPREADSHEET_COLUMNS.map(column => values[column.id]).join('\t');
+};
 
-test('paste edits existing clips and creates overflow rows in one plan', () => {
-	const rows = [row('first')];
-	const result = planClipSpreadsheetPaste(`${fullRow('Updated')}\r\n${fullRow('New')}`, origin, rows);
-	assert.equal(result.edits.length, CLIP_SPREADSHEET_COLUMNS.length);
+test('paste overwrites existing clips without inserting rows', () => {
+	const rows = [row('first'), row('second')];
+	const result = planClipSpreadsheetPaste(`${fullRow('Updated')}\r\n${fullRow('Also updated')}`, origin, rows);
+	assert.equal(result.edits.length, CLIP_SPREADSHEET_COLUMNS.length * 2);
 	assert.deepEqual(result.edits[0], { clipId: 'first', column: 'name', value: 'Updated' });
-	assert.equal(result.newRows.length, 1);
-	assert.equal(result.newRows[0]?.name, 'New');
-	assert.equal(result.newRows[0]?.source, 'Voice.wav');
+	assert.deepEqual(result.edits[CLIP_SPREADSHEET_COLUMNS.length], { clipId: 'second', column: 'name', value: 'Also updated' });
+	assert.deepEqual(result.newRows, []);
 	assert.deepEqual(result.range, { top: 0, left: 0, bottom: 1, right: CLIP_SPREADSHEET_COLUMNS.length - 1 });
 	assert.equal(rows[0]?.cells.name, '');
 });
 
-test('empty-grid and explicit append anchors create rows without overwriting existing clips', () => {
-	const empty = planClipSpreadsheetPaste(fullRow('First'), origin, []);
+test('paste with no selection inserts rows into an empty grid or after existing clips', () => {
+	const empty = planClipSpreadsheetPaste(fullRow('First'), null, []);
 	assert.deepEqual(empty.edits, []);
 	assert.equal(empty.newRows[0]?.name, 'First');
-	const appended = planClipSpreadsheetPaste(`${fullRow('Second')}\n${fullRow('Third')}`, {
-		top: 1, left: 0, bottom: 1, right: 0,
-	}, [row('first')]);
+	assert.deepEqual(empty.range, { ...origin, right: CLIP_SPREADSHEET_COLUMNS.length - 1 });
+	const rows = [row('first')];
+	const appended = planClipSpreadsheetPaste(`${fullRow('Second')}\n${fullRow('Third')}`, null, rows);
 	assert.deepEqual(appended.edits, []);
 	assert.deepEqual(appended.newRows.map(value => value.name), ['Second', 'Third']);
-	assert.equal(appended.range.bottom, 2);
+	assert.equal(appended.newRows[0]?.source, 'Voice.wav');
+	assert.deepEqual(appended.range, { top: 1, left: 0, bottom: 2, right: CLIP_SPREADSHEET_COLUMNS.length - 1 });
+	assert.equal(rows[0]?.cells.name, '');
 });
 
-test('a selected whole row expands when pasting several rows', () => {
+test('a selected whole row expands over existing rows when pasting several rows', () => {
 	const result = planClipSpreadsheetPaste(`${fullRow('First')}\n${fullRow('Second')}`, {
 		...origin, right: CLIP_SPREADSHEET_COLUMNS.length - 1,
-	}, [row('first')]);
+	}, [row('first'), row('second')]);
 	assert.equal(result.edits[0]?.clipId, 'first');
-	assert.equal(result.newRows[0]?.name, 'Second');
+	assert.equal(result.edits[CLIP_SPREADSHEET_COLUMNS.length]?.clipId, 'second');
+	assert.deepEqual(result.newRows, []);
 	assert.equal(result.range.bottom, 1);
+});
+
+test('paste beyond selected existing rows fails atomically instead of inserting clips', () => {
+	const rows = [row('first')];
+	const text = `${fullRow('First')}\n${fullRow('Second')}`;
+	assert.throws(() => planClipSpreadsheetPaste(text, origin, rows), /outside/u);
+	assert.throws(() => planClipSpreadsheetPaste(text, { ...origin, right: CLIP_SPREADSHEET_COLUMNS.length - 1 }, rows), /outside/u);
+	assert.equal(rows[0]?.cells.name, '');
 });
 
 test('ordinary selections retain scalar fill and rectangular tiling', () => {
@@ -58,16 +74,20 @@ test('ordinary selections retain scalar fill and rectangular tiling', () => {
 });
 
 test('partial new rows preserve supplied columns for domain validation', () => {
-	const result = planClipSpreadsheetPaste('Voice.wav\t0.5', { top: 0, left: 3, bottom: 0, right: 3 }, []);
-	assert.deepEqual(result.newRows, [{ source: 'Voice.wav', offset: '0.5' }]);
-	assert.deepEqual(planClipSpreadsheetPaste('Name only', origin, []).newRows, [{ name: 'Name only' }]);
+	const result = planClipSpreadsheetPaste('Voice\ttrack-voice\t0\tVoice.wav\t0.5', null, []);
+	assert.deepEqual(result.newRows, [{ name: 'Voice', track: 'track-voice', position: '0', source: 'Voice.wav', offset: '0.5' }]);
+	assert.deepEqual(planClipSpreadsheetPaste('Name only', null, []).newRows, [{ name: 'Name only' }]);
 });
 
 test('paste rejects invalid ranges, skipped rows, ragged matrices, column overflow and incompatible dimensions', () => {
-	assert.throws(() => planClipSpreadsheetPaste('a\tb\nc', origin, []), /rectangular/u);
+	assert.throws(() => planClipSpreadsheetPaste('a\tb\nc', null, []), /rectangular/u);
+	assert.throws(() => planClipSpreadsheetPaste('a', origin, []), /range/u);
+	assert.throws(() => planClipSpreadsheetPaste('a', { top: 1, left: 0, bottom: 1, right: 0 }, [row('first')]), /range/u);
 	assert.throws(() => planClipSpreadsheetPaste('a', { top: 2, left: 0, bottom: 2, right: 0 }, [row('first')]), /range/u);
 	assert.throws(() => planClipSpreadsheetPaste('a', { top: 0, left: 0, bottom: 2, right: 0 }, [row('first')]), /range/u);
-	assert.throws(() => planClipSpreadsheetPaste('a\tb', { top: 0, left: 14, bottom: 0, right: 14 }, []), /outside/u);
+	const lastColumn = CLIP_SPREADSHEET_COLUMNS.length - 1;
+	assert.throws(() => planClipSpreadsheetPaste('a\tb', { ...origin, left: lastColumn, right: lastColumn }, [row('first')]), /outside/u);
+	assert.throws(() => planClipSpreadsheetPaste(Array<string>(CLIP_SPREADSHEET_COLUMNS.length + 1).fill('a').join('\t'), null, []), /outside/u);
 	assert.throws(() => planClipSpreadsheetPaste('1\t2', { top: 0, left: 0, bottom: 0, right: 2 }, [row('first')]), /dimensions/u);
 	assert.throws(() => planClipSpreadsheetPaste('a', { ...origin, left: Number.NaN }, []), /range/u);
 });

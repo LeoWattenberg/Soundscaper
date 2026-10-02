@@ -45,8 +45,6 @@ interface ParsedRow {
 	readonly fadeOut: string;
 	readonly reversed: boolean;
 	readonly inverted: boolean;
-	readonly sampleRate: number | null;
-	readonly channels: number | null;
 }
 
 /** Validate supplied values before a caller opens a file picker or reads disk media. */
@@ -127,8 +125,6 @@ function clipFields(project: InsertProject, source: ClipSpreadsheetInsertSource,
 	if (sourceStartFrame + sourceDurationFrames > source.frameCount) throw new RangeError('Clip offset and duration exceed the source file.');
 	if (!Number.isSafeInteger(timelineStartFrame + durationFrames)) throw new RangeError('Clip position and duration exceed the supported timeline.');
 	if (fadeInFrames > durationFrames || fadeOutFrames > durationFrames) throw new RangeError('A fade cannot be longer than the clip.');
-	if (row.sampleRate !== null && row.sampleRate !== source.sampleRate) throw new RangeError('The pasted sample rate does not match the source file.');
-	if (row.channels !== null && row.channels !== source.channelCount) throw new RangeError('The pasted channel count does not match the source file.');
 	return {
 		timelineStartFrame, sourceStartFrame, sourceDurationFrames, durationFrames,
 		pitchCents: row.pitchCents, speedRatio: row.speedRatio, gain: row.gain,
@@ -172,16 +168,9 @@ function parseRow(row: ClipSpreadsheetNewRow): ParsedRow {
 		speedRatio: spreadsheetNumber(text('speed', '1'), 0.001, 1_000, 'Speed'),
 		gain: spreadsheetGain(text('gain', '0')),
 		reversed: spreadsheetBoolean(text('reversed', 'false')), inverted: spreadsheetBoolean(text('inverted', 'false')),
-		sampleRate: metadataInteger(text('sampleRate', '')), channels: metadataInteger(text('channels', '')),
 	};
 }
 
-function metadataInteger(raw: string): number | null {
-	if (!raw) return null;
-	const value = spreadsheetNumber(raw, 1, Number.MAX_SAFE_INTEGER, 'Source metadata');
-	if (!Number.isSafeInteger(value)) throw new RangeError('Source metadata requires a whole number.');
-	return value;
-}
 function validateSource(source: ClipSpreadsheetInsertSource): void {
 	if (source.kind !== undefined && source.kind !== 'audio') throw new RangeError('New spreadsheet rows require audio source files.');
 	for (const value of [source.sampleRate, source.frameCount, source.channelCount]) {

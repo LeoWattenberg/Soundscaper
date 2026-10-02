@@ -300,7 +300,7 @@ test('clip spreadsheet display and edit planning own their resolved timing bound
 	const consumers = FOUNDATION_RUNTIME_CONSUMER_SURFACES.filter(consumer => consumer.file === file);
 	assert.deepEqual(consumers.map(({ entryPoint, surface, boundary }) => ({ entryPoint, surface, boundary })), [
 		{ entryPoint: 'getClipSpreadsheetRows', surface: 'timeline', boundary: 'runtimeProject' },
-		{ entryPoint: 'planClipSpreadsheetEdits', surface: 'composition', boundary: 'runtimeProject' },
+		{ entryPoint: 'planEdits', surface: 'composition', boundary: 'runtimeProject' },
 	]);
 	assert.deepEqual(FOUNDATION_RUNTIME_SHIELDED_OWNERS.find(owner => owner.file === file)?.surfaces, ['timeline', 'composition']);
 

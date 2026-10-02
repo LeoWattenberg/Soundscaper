@@ -5,7 +5,7 @@ import { selectAudioEditorControllerEditBlock, type AudioEditorControllerEditSta
 import type { AudioEditorCommand } from '../../../commands/protocol.ts';
 
 interface ClipSpreadsheetActionDependencies {
-	readonly state: AudioEditorControllerEditState;
+	readonly state: AudioEditorControllerEditState & Readonly<{ missingSourceIds?: ReadonlySet<string> }>;
 	getProject(): Readonly<{ id: string }> | null;
 	commit(command: AudioEditorCommand): unknown;
 }
@@ -17,6 +17,21 @@ export function createClipSpreadsheetAction(dependencies: ClipSpreadsheetActionD
 		if (!project || project.id !== projectId) throw new RangeError('The spreadsheet project is no longer open.');
 		if (selectAudioEditorControllerEditBlock(dependencies.state).blocked) throw new RangeError('Clip editing is currently unavailable.');
 		const command = planClipSpreadsheetEdits(project, edits);
+		if (command) assertSourcesAvailable(command, dependencies.state.missingSourceIds);
 		return command ? dependencies.commit(command) : null;
 	};
+}
+
+function assertSourcesAvailable(command: AudioEditorCommand, missingSourceIds?: ReadonlySet<string>): void {
+	if (!missingSourceIds?.size) return;
+	if (command.type === 'batch') {
+		for (const child of command.commands) assertSourcesAvailable(child, missingSourceIds);
+	} else if (command.type === 'clip/transform-many') {
+		for (const { changes } of command.transforms) {
+			const sourceId = changes.sourceId;
+			if (typeof sourceId === 'string' && missingSourceIds.has(sourceId)) {
+				throw new RangeError(`Relink the missing source before editing clips: ${sourceId}`);
+			}
+		}
+	}
 }

@@ -5,6 +5,12 @@ import type { FoundationTimeConversionSite } from './foundation-time-conversion-
 /** Focused WP-0.1 inventory for integer sample-rate changes of basis. */
 export const FOUNDATION_RATE_CONVERSION_AUDIT_SITES: readonly FoundationTimeConversionSite[] = [
 	{
+		id: 'clip-spreadsheet-source-replacement',
+		file: 'src/common/editor/clip-spreadsheet.ts',
+		behavior: 'Replacing a spreadsheet clip source rescales its source offset and duration onto the replacement sample grid with point rounding while preserving their seconds and timeline coordinates.',
+		conversions: [{ helper: 'scaleSampleFrame', policies: ['point'] }],
+	},
+	{
 		id: 'clip-spreadsheet-time-cells',
 		file: 'src/common/editor/clip-spreadsheet-values.ts',
 		behavior: 'Spreadsheet time cells use point rounding on their owning sample grid. Source and timeline durations change sample-rate basis exactly at neutral speed; speed changes convert the authored seconds under the same explicit point policy.',

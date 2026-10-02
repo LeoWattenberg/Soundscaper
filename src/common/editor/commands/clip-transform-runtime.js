@@ -201,6 +201,7 @@ function buildClipTransformState(project, transforms) {
 	if (!Array.isArray(transforms) || !transforms.length) throw new TypeError('Clip transforms must be a non-empty array.');
 	const ids = normalizeCommandIds(transforms.map((transform) => transform?.clipId), 'transforms.clipIds');
 	const allowed = new Set([
+		'sourceId',
 		'timelineStartFrame', 'sourceStartFrame', 'sourceDurationFrames', 'durationFrames',
 		'trimStartFrames', 'trimEndFrames', 'fadeInFrames', 'fadeOutFrames',
 		'fadeInShape', 'fadeOutShape',

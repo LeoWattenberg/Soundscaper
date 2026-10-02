@@ -20,23 +20,23 @@ export interface ClipSpreadsheetPastePlan {
 	readonly range: SpreadsheetRange;
 }
 
-/** Extend a paste below existing clips while retaining the usual selection fill rules. */
+/** Append only when no cells are selected; otherwise overwrite existing clips. */
 export function planClipSpreadsheetPaste(
 	text: string,
-	range: SpreadsheetRange,
+	range: SpreadsheetRange | null,
 	rows: readonly ClipSpreadsheetRow[],
 ): ClipSpreadsheetPastePlan {
 	const matrix = parseSpreadsheetTsv(text);
-	const anchor = range.top === range.bottom && range.left === range.right;
-	if (![range.top, range.left, range.bottom, range.right].every(value => Number.isSafeInteger(value) && value >= 0)
+	if (range && (![range.top, range.left, range.bottom, range.right].every(value => Number.isSafeInteger(value) && value >= 0)
 		|| range.top > range.bottom || range.left > range.right
-		|| range.top > rows.length || (range.bottom >= rows.length && !(anchor && range.top === rows.length))) {
+		|| range.bottom >= rows.length)) {
 		throw new RangeError('Invalid spreadsheet paste range.');
 	}
 	const columnCount = CLIP_SPREADSHEET_COLUMNS.length;
-	const fullRow = range.top === range.bottom && range.left === 0 && range.right === columnCount - 1;
-	const selected = fullRow && matrix.length > 1 ? { ...range, bottom: range.top + matrix.length - 1 } : range;
-	const rowCount = Math.max(rows.length, selected.bottom + 1, selected.top + matrix.length);
+	const fullRow = range && range.top === range.bottom && range.left === 0 && range.right === columnCount - 1;
+	const selected = fullRow && matrix.length > 1 ? { ...range, bottom: range.top + matrix.length - 1 }
+		: range ?? { top: rows.length, left: 0, bottom: rows.length, right: 0 };
+	const rowCount = range ? rows.length : rows.length + matrix.length;
 	const cells = planSpreadsheetPaste(matrix, selected, rowCount, columnCount);
 	const edits: ClipSpreadsheetEdit[] = [];
 	const newRows = new Map<number, Partial<Record<ClipSpreadsheetColumnId, string>>>();

@@ -1,11 +1,13 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { Button } from '@soundscaper/design-system/Button';
+import { DialogFooter } from '@soundscaper/design-system/Footer';
 import { CLIP_SPREADSHEET_COPY_BY_LOCALE } from '../../../i18n/editor-clip-spreadsheet-copy.ts';
 import { resolveEditorCopyScope } from '../../../i18n/editor-copy-scope.ts';
 import {
-	CLIP_SPREADSHEET_COLUMNS, getClipSpreadsheetRows, isClipSpreadsheetCellEditable, planClipSpreadsheetEdits,
+	CLIP_SPREADSHEET_COLUMNS, findMissingClipSpreadsheetEditSources, getClipSpreadsheetRows, isClipSpreadsheetCellEditable,
 	type ClipSpreadsheetEdit, type ClipSpreadsheetRow,
 } from '../../clip-spreadsheet.ts';
 import { selectAudioEditorEditBlock, type AudioEditorEditBlockingSnapshot } from '../../edit-blocking.ts';
@@ -13,6 +15,7 @@ import { findMissingClipSpreadsheetSources, type ClipSpreadsheetNewRow } from '.
 import { withWebFileLoadLimitContext } from '../../web-file-limit-failure.ts';
 import { formatLocalizedTemplate } from '../localization-template.ts';
 import { feedbackFailure, usePresentationFeedback } from '../presentation-feedback.ts';
+import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import {
 	normalizeSpreadsheetRange, serializeSpreadsheetTsv,
 	type SpreadsheetCell, type SpreadsheetRange,
@@ -65,7 +68,7 @@ function ClipSpreadsheetSurface({ controller, snapshot, copy, fileService }: Cli
 	const rows = useMemo(() => getClipSpreadsheetRows(snapshot.project), [snapshot.project]);
 	const [anchor, setAnchor] = useState(ORIGIN);
 	const [focus, setFocus] = useState(ORIGIN);
-	const [appendSelected, setAppendSelected] = useState(false);
+	const [hasSelection, setHasSelection] = useState(false);
 	const [draft, setDraft] = useState<CellDraft | null>(null);
 	const draftRef = useRef<CellDraft | null>(null);
 	const selectDraftOnFocus = useRef(true);
@@ -74,29 +77,31 @@ function ClipSpreadsheetSurface({ controller, snapshot, copy, fileService }: Cli
 	const [pendingPaste, setPendingPaste] = useState<PendingPaste | null>(null);
 	const [pasting, setPasting] = useState(false);
 	const tableRef = useRef<HTMLTableElement>(null);
-	const appendRef = useRef<HTMLTableCellElement>(null);
+	const restoreGridFocus = useRef<SpreadsheetCell | 'grid' | null>(null);
 	const inputRef = useRef<HTMLInputElement>(null);
 	const filesRef = useRef<HTMLInputElement>(null);
 	const alive = useRef(true);
 	const liveProject = useRef(snapshot.project);
 	liveProject.current = snapshot.project;
-	const descriptionId = useId();
 	const blocked = selectAudioEditorEditBlock(snapshot).blocked || pasting;
 	const liveBlocked = useRef(blocked);
 	liveBlocked.current = blocked;
 	const columns = CLIP_SPREADSHEET_COLUMNS;
-	const range = appendSelected ? { top: rows.length, bottom: rows.length, left: 0, right: 0 }
-		: normalizeSpreadsheetRange(clampCell(anchor), clampCell(focus));
+	const range = hasSelection ? normalizeSpreadsheetRange(clampCell(anchor), clampCell(focus)) : null;
 	const active = clampCell(focus);
 	const projectId = snapshot.project?.id;
 	const rowIdentity = rows.map(({ id }) => id).join('\0');
 
 	useEffect(() => {
 		alive.current = true;
-		return () => { alive.current = false; };
+		const frame = requestAnimationFrame(() => {
+			const activeElement = tableRef.current?.ownerDocument.activeElement;
+			if (!activeElement?.closest('[data-workspace-panel-menu]')) tableRef.current?.focus();
+		});
+		return () => { cancelAnimationFrame(frame); alive.current = false; };
 	}, []);
 	useEffect(() => {
-		setAnchor(ORIGIN); setFocus(ORIGIN); setAppendSelected(document.activeElement === appendRef.current); draftRef.current = null; setDraft(null); setError('');
+		setAnchor(ORIGIN); setFocus(ORIGIN); setHasSelection(false); draftRef.current = null; setDraft(null); setError('');
 	}, [rowIdentity, setError]);
 	useEffect(() => {
 		if (draftRef.current) {
@@ -105,6 +110,14 @@ function ClipSpreadsheetSurface({ controller, snapshot, copy, fileService }: Cli
 		}
 	}, [draft?.clipId, draft?.row, draft?.column]);
 	useEffect(() => { if (blocked) { draftRef.current = null; setDraft(null); } }, [blocked]);
+	useEffect(() => {
+		const target = restoreGridFocus.current;
+		if (!pendingPaste && !error && !pasting && target) {
+			restoreGridFocus.current = null;
+			if (target === 'grid') tableRef.current?.focus({ preventScroll: true });
+			else focusCell(target, true);
+		}
+	});
 
 	function clampCell(cell: SpreadsheetCell): SpreadsheetCell {
 		return { row: Math.max(0, Math.min(rows.length - 1, cell.row)), column: Math.max(0, Math.min(columns.length - 1, cell.column)) };
@@ -114,28 +127,35 @@ function ClipSpreadsheetSurface({ controller, snapshot, copy, fileService }: Cli
 	}
 	function selectCell(cell: SpreadsheetCell, extend = false): void {
 		const next = clampCell(cell);
-		setAppendSelected(false);
-		if (!extend) setAnchor(next);
+		setHasSelection(true);
+		if (!extend || !hasSelection) setAnchor(next);
 		setFocus(next);
 		focusCell(next);
 	}
-	function selectRange(next: SpreadsheetRange): void {
-		setAppendSelected(false);
+	function selectRange(next: SpreadsheetRange, deferFocus = false): void {
+		setHasSelection(true);
 		setAnchor({ row: next.top, column: next.left });
 		const cell = { row: next.bottom, column: next.right };
-		setFocus(cell); focusCell(cell, true);
+		setFocus(cell);
+		if (deferFocus) restoreGridFocus.current = cell;
+		else focusCell(cell, true);
 	}
 	function selectAll(): void {
 		if (rows.length && finishEdit()) selectRange({ top: 0, left: 0, bottom: rows.length - 1, right: columns.length - 1 });
 	}
-	function selectAppend(): void {
-		if (blocked || !projectId) return;
+	function clearSelection(): void {
 		if (!finishEdit()) { inputRef.current?.focus(); return; }
-		setAppendSelected(true); appendRef.current?.focus();
+		setHasSelection(false); tableRef.current?.focus({ preventScroll: true });
 	}
 	function apply(edits: readonly ClipSpreadsheetEdit[]): boolean {
-		if (blocked || !projectId) return false;
+		if (blocked || !projectId || !snapshot.project) return false;
 		try {
+			const missing = findMissingClipSpreadsheetEditSources(snapshot.project, edits);
+			if (missing.length) {
+				setPendingPaste({ project: snapshot.project, plan: { edits, newRows: [], range: range ?? normalizeSpreadsheetRange(active, active) }, missing });
+				setError('');
+				return true;
+			}
 			controller.actions.clip.editSpreadsheet(projectId, edits);
 			setError('');
 			return true;
@@ -145,6 +165,12 @@ function ClipSpreadsheetSurface({ controller, snapshot, copy, fileService }: Cli
 		const row = rows[cell.row];
 		const column = columns[cell.column];
 		if (blocked || !row || !column || !isClipSpreadsheetCellEditable(row, column.id)) return;
+		if (!hasSelection) selectCell(cell);
+		if (column.id === 'reversed' || column.id === 'inverted') {
+			if (initial !== undefined) return;
+			apply([{ clipId: row.id, column: column.id, value: String(row.cells[column.id] !== 'true') }]);
+			return;
+		}
 		setError('');
 		selectDraftOnFocus.current = initial === undefined;
 		updateDraft({ ...cell, clipId: row.id, value: initial ?? row.cells[column.id] });
@@ -162,6 +188,7 @@ function ClipSpreadsheetSurface({ controller, snapshot, copy, fileService }: Cli
 		return true;
 	}
 	function copyText(): string {
+		if (!range) return '';
 		return serializeSpreadsheetTsv(rows.slice(range.top, range.bottom + 1).map(row => (
 			columns.slice(range.left, range.right + 1).map(column => row.cells[column.id])
 		)));
@@ -170,8 +197,10 @@ function ClipSpreadsheetSurface({ controller, snapshot, copy, fileService }: Cli
 		if (blocked || !snapshot.project) return;
 		try {
 			const plan = planClipSpreadsheetPaste(text, selected, rows);
-			const missing = findMissingClipSpreadsheetSources(snapshot.project, plan.newRows);
-			if (missing.length) planClipSpreadsheetEdits(snapshot.project, plan.edits);
+			const missing = [...new Set([
+				...findMissingClipSpreadsheetEditSources(snapshot.project, plan.edits),
+				...findMissingClipSpreadsheetSources(snapshot.project, plan.newRows),
+			])];
 			const pending = { project: snapshot.project, plan, missing };
 			setPendingPaste(null); setError('');
 			if (missing.length) setPendingPaste(pending);
@@ -192,7 +221,8 @@ function ClipSpreadsheetSurface({ controller, snapshot, copy, fileService }: Cli
 			));
 			if (alive.current) {
 				setPendingPaste(null); setError(''); updateDraft(null);
-				if (!pending.plan.newRows.length) selectRange(pending.plan.range);
+				if (!pending.plan.newRows.length) selectRange(pending.plan.range, true);
+				else { setHasSelection(false); restoreGridFocus.current = 'grid'; }
 			}
 		} catch (cause) { if (alive.current) setError(feedbackFailure(cause)); }
 		finally { if (alive.current) setPasting(false); }
@@ -208,44 +238,22 @@ function ClipSpreadsheetSurface({ controller, snapshot, copy, fileService }: Cli
 			});
 		} catch (cause) { if (alive.current) setError(feedbackFailure(cause)); }
 	}
-	async function clipboardAction(action: 'copy' | 'paste' | 'append'): Promise<void> {
-		const project = snapshot.project;
-		try {
-			if (action === 'copy') await navigator.clipboard.writeText(copyText());
-			else {
-				const text = await navigator.clipboard.readText();
-				if (!alive.current || liveProject.current !== project || liveBlocked.current) return;
-				await pasteText(text, action === 'append' ? { top: rows.length, bottom: rows.length, left: 0, right: 0 } : range);
-			}
-		} catch {
-			if (alive.current) {
-				if (action === 'append' || appendSelected) selectAppend();
-				else if (rows.length) focusCell(active, true);
-				else tableRef.current?.focus();
-				setError(labels.clipboardUnavailable);
-			}
-		}
-	}
 	function historyAction(action: 'undo' | 'redo'): void {
 		if (blocked) return;
 		try { controller.actions.edit[action](); updateDraft(null); setError(''); }
 		catch (cause) { setError(feedbackFailure(cause)); }
 	}
 	function handleKey(event: KeyboardEvent<HTMLTableElement>): void {
-		if (event.target === appendRef.current) {
-			if (event.key !== 'Tab' && event.key !== 'Escape') event.stopPropagation();
-			if ((event.ctrlKey || event.metaKey) && ['z', 'y'].includes(event.key.toLowerCase())) {
-				event.preventDefault(); historyAction(event.shiftKey || event.key.toLowerCase() === 'y' ? 'redo' : 'undo');
-			}
+		if (event.key === 'Escape' && !draft) {
+			if (hasSelection) { event.preventDefault(); event.stopPropagation(); clearSelection(); }
 			return;
 		}
-		if (event.key === 'Escape' && !draft) return;
-		const tabLeavesGrid = event.key === 'Tab' && !draft && (event.shiftKey
+		const tabLeavesGrid = event.key === 'Tab' && !draft && (!hasSelection || (event.shiftKey
 			? active.row === 0 && active.column === 0
-			: active.row === rows.length - 1 && active.column === columns.length - 1);
+			: active.row === rows.length - 1 && active.column === columns.length - 1));
 		if (tabLeavesGrid) return;
 		event.stopPropagation();
-		if (!rows.length || event.target instanceof HTMLButtonElement) return;
+		if (event.target instanceof HTMLButtonElement) return;
 		if (draft) {
 			if (event.key === 'Escape') {
 				event.preventDefault(); updateDraft(null); setError(''); focusCell(active);
@@ -263,6 +271,7 @@ function ClipSpreadsheetSurface({ controller, snapshot, copy, fileService }: Cli
 		if (modifier && ['z', 'y'].includes(event.key.toLowerCase())) {
 			event.preventDefault(); historyAction(event.shiftKey || event.key.toLowerCase() === 'y' ? 'redo' : 'undo'); return;
 		}
+		if (!rows.length) return;
 		const directions: Record<string, SpreadsheetCell> = {
 			ArrowUp: { row: active.row - 1, column: active.column },
 			ArrowDown: { row: active.row + 1, column: active.column },
@@ -274,7 +283,9 @@ function ClipSpreadsheetSurface({ controller, snapshot, copy, fileService }: Cli
 		const next = directions[event.key];
 		if (next) { event.preventDefault(); selectCell(next, event.shiftKey); }
 		else if (event.key === 'Tab') { event.preventDefault(); selectCell(nextCell(active, 'horizontal', event.shiftKey ? -1 : 1)); }
-		else if (event.key === 'Enter' || event.key === 'F2') { event.preventDefault(); beginEdit(active); }
+		else if (event.key === 'Enter' || event.key === 'F2' || (event.code === 'Space' && ['reversed', 'inverted'].includes(columns[active.column]!.id))) {
+			event.preventDefault(); if (!hasSelection) selectCell(active); beginEdit(active);
+		}
 		else if (event.key.length === 1 && !modifier && !event.altKey) { event.preventDefault(); beginEdit(active, event.key); }
 	}
 	function nextCell(cell: SpreadsheetCell, direction: 'horizontal' | 'vertical', step: number): SpreadsheetCell {
@@ -283,60 +294,46 @@ function ClipSpreadsheetSurface({ controller, snapshot, copy, fileService }: Cli
 		return { row: Math.floor(index / columns.length), column: index % columns.length };
 	}
 	function cellSelected(row: number, column: number): boolean {
-		return row >= range.top && row <= range.bottom && column >= range.left && column <= range.right;
+		return Boolean(range && row >= range.top && row <= range.bottom && column >= range.left && column <= range.right);
 	}
 	function headerRange(kind: 'row' | 'column', index: number, extend: boolean): void {
 		if (!rows.length || (draft && !finishEdit())) return;
+		const extending = extend && hasSelection;
 		const nextAnchor = kind === 'row'
-			? { row: extend ? anchor.row : index, column: 0 }
-			: { row: 0, column: extend ? anchor.column : index };
+			? { row: extending ? anchor.row : index, column: 0 }
+			: { row: 0, column: extending ? anchor.column : index };
 		const nextFocus = kind === 'row'
 			? { row: index, column: columns.length - 1 }
 			: { row: rows.length - 1, column: index };
-		setAppendSelected(false);
+		setHasSelection(true);
 		setAnchor(nextAnchor); setFocus(nextFocus); focusCell(nextFocus, true);
 	}
 
-	return <div className="audio-editor-clip-spreadsheet" data-clip-spreadsheet aria-describedby={descriptionId}>
+	const closeFeedback = (): void => { if (!pasting) { setPendingPaste(null); setError(''); } };
+	return <div className="audio-editor-clip-spreadsheet" data-clip-spreadsheet>
 		<div className="audio-editor-clip-spreadsheet__content" onKeyDown={event => { if (!['Escape', 'Tab'].includes(event.key) || draft) event.stopPropagation(); }}>
-			<p id={descriptionId}>{labels.description}</p>
-			<div className="audio-editor-clip-spreadsheet__actions">
-				<Button variant="secondary" disabled={!rows.length || appendSelected || Boolean(draft)} onClick={() => { void clipboardAction('copy'); }}>{labels.copy}</Button>
-				<Button variant="secondary" disabled={blocked || !projectId || Boolean(draft)} onClick={() => { void clipboardAction('paste'); }}>{labels.paste}</Button>
-				<Button variant="secondary" disabled={blocked || !projectId || Boolean(draft)} onClick={() => { void clipboardAction('append'); }}>{labels.pasteRows}</Button>
-				<Button variant="secondary" disabled={blocked || !snapshot.history?.canUndo} onClick={() => historyAction('undo')}>{labels.undo}</Button>
-				<Button variant="secondary" disabled={blocked || !snapshot.history?.canRedo} onClick={() => historyAction('redo')}>{labels.redo}</Button>
-			</div>
 			<input ref={filesRef} type="file" multiple hidden accept="audio/*,.aac,.aif,.aiff,.bw64,.flac,.m4a,.mp2,.mp3,.oga,.ogg,.opus,.rf64,.wav,.wave,.wavpack,.wv"
 				onChange={event => {
 					const files = Array.from(event.currentTarget.files ?? []);
 					event.currentTarget.value = '';
 					if (pendingPaste && files.length) void completePaste(pendingPaste, files);
 				}} />
-			{pendingPaste && <div className="audio-editor-clip-spreadsheet__pending">
-				<p>{labels.missingFiles}</p>
-				<ul>{pendingPaste.missing.map(reference => <li key={reference}>{reference}</li>)}</ul>
-				<div className="audio-editor-clip-spreadsheet__actions">
-					<Button variant="secondary" disabled={blocked} onClick={() => { void chooseReferencedFiles(); }}>{labels.loadFiles}</Button>
-					<Button variant="secondary" disabled={pasting} onClick={() => { setPendingPaste(null); setError(''); }}>{labels.cancelPaste}</Button>
-				</div>
-			</div>}
-			{pasting && <p role="status">{labels.pasting}</p>}
-			{blocked && !pasting && <p role="status">{labels.editingBlocked}</p>}
-			{rows.length === 0 && <p>{labels.empty}</p>}
-			<div className="audio-editor-clip-spreadsheet__scroll">
-				<table ref={tableRef} role="grid" aria-label={labels.title} aria-multiselectable="true" tabIndex={rows.length ? undefined : 0}
+			<div className="audio-editor-clip-spreadsheet__scroll" onMouseDown={event => {
+				if (event.button === 0 && event.target === event.currentTarget) { event.preventDefault(); clearSelection(); }
+			}}>
+				<table ref={tableRef} role="grid" aria-label={labels.title} aria-multiselectable="true" aria-busy={pasting}
+					aria-readonly={blocked} tabIndex={hasSelection ? -1 : 0}
 					onKeyDown={handleKey}
 					onCopy={event => {
 						if (draft) return;
 						event.preventDefault(); event.stopPropagation();
-						if (appendSelected) return;
+						if (!range) return;
 						try { event.clipboardData.setData('text/plain', copyText()); setError(''); }
 						catch (cause) { setError(feedbackFailure(cause)); }
 					}}
 					onPaste={event => {
 						if (draft && !/[\t\r\n]/u.test(event.clipboardData.getData('text/plain'))) return;
-						event.preventDefault(); event.stopPropagation(); void pasteText(event.clipboardData.getData('text/plain'));
+						event.preventDefault(); event.stopPropagation(); updateDraft(null); void pasteText(event.clipboardData.getData('text/plain'));
 					}}>
 					<thead><tr>
 						<th scope="col"><button type="button" tabIndex={-1} aria-label={labels.selectAll} onClick={selectAll}>#</button></th>
@@ -353,31 +350,36 @@ function ClipSpreadsheetSurface({ controller, snapshot, copy, fileService }: Cli
 							const editing = draft?.clipId === row.id && draft.column === columnIndex;
 							return <td key={column.id} role="gridcell" data-row={rowIndex} data-column={column.id}
 								aria-selected={cellSelected(rowIndex, columnIndex)} aria-readonly={blocked || !editable}
-								tabIndex={active.row === rowIndex && active.column === columnIndex ? 0 : -1}
-								onFocus={() => setAppendSelected(false)}
+								tabIndex={hasSelection && active.row === rowIndex && active.column === columnIndex ? 0 : -1}
 								title={editable ? undefined : row.pitchLinked && column.id === 'pitch' ? labels.linkedPitchReadOnly : labels.readOnly}
 								onMouseDown={event => {
 									if (event.button !== 0 || editing) return;
-									event.preventDefault(); if (finishEdit()) selectCell(cell, event.shiftKey);
+									if (!(event.target instanceof HTMLInputElement)) event.preventDefault();
+									if (finishEdit()) selectCell(cell, event.shiftKey);
 								}}
 								onMouseEnter={event => { if (event.buttons === 1 && !draft) selectCell(cell, true); }}
-								onDoubleClick={() => beginEdit(cell)}>
+								onDoubleClick={() => { if (column.id !== 'reversed' && column.id !== 'inverted') beginEdit(cell); }}>
 								{editing ? <input ref={inputRef} aria-label={labels[column.id]} value={draft.value}
 									onChange={event => updateDraft({ ...draft, value: event.currentTarget.value })}
-									onBlur={() => { finishEdit(); }} /> : row.cells[column.id]}
+									onBlur={() => { finishEdit(); }} /> : column.id === 'reversed' || column.id === 'inverted'
+									? <input type="checkbox" aria-label={labels[column.id]} tabIndex={-1} checked={row.cells[column.id] === 'true'}
+										disabled={blocked || !editable} onChange={event => {
+											apply([{ clipId: row.id, column: column.id, value: String(event.currentTarget.checked) }]);
+										}} /> : row.cells[column.id]}
 							</td>;
 						})}
 					</tr>)}</tbody>
-					<tfoot><tr><th ref={appendRef} colSpan={columns.length + 1}
-						data-clip-spreadsheet-append tabIndex={blocked || !projectId ? -1 : 0}
-						aria-disabled={blocked || !projectId} aria-selected={appendSelected}
-						onFocus={selectAppend} onClick={selectAppend}>
-						<div className="audio-editor-clip-spreadsheet__actions">{labels.pasteRows}</div>
-					</th></tr></tfoot>
 				</table>
 			</div>
-			<p className="audio-editor-clip-spreadsheet__hint">{labels.readOnly}</p>
-			{error && <p role="alert" className="audio-editor-field-error">{error}</p>}
 		</div>
+		{(pendingPaste || error) && createPortal(<AudioEditorDialogShell title={labels.title} onClose={closeFeedback}
+			footer={<DialogFooter className="audio-editor-dialog-footer" rightContent={<>
+				{pendingPaste && <Button variant="secondary" disabled={blocked} onClick={() => { void chooseReferencedFiles(); }}>{labels.loadFiles}</Button>}
+				<Button variant="secondary" disabled={pasting} onClick={closeFeedback}>{pendingPaste ? labels.cancelPaste : labels.close}</Button>
+			</>} />}>
+			{pendingPaste && <><p>{labels.missingFiles}</p><ul>{pendingPaste.missing.map(reference => <li key={reference}>{reference}</li>)}</ul></>}
+			{pasting && <p role="status">{labels.pasting}</p>}
+			{error && <p role="alert" className="audio-editor-field-error">{error}</p>}
+		</AudioEditorDialogShell>, tableRef.current?.closest('[data-audio-editor]') ?? document.body)}
 	</div>;
 }

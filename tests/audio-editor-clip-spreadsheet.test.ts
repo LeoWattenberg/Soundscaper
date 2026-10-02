@@ -7,7 +7,7 @@ import { createVideoClip, createVideoSource, createVideoTrack } from '../src/com
 import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import { createEditorHistory, executeEditorCommand, undoEditorCommand } from '../src/common/editor/history.js';
 import {
-	CLIP_SPREADSHEET_COLUMNS, getClipSpreadsheetRows, isClipSpreadsheetCellEditable, planClipSpreadsheetEdits,
+	CLIP_SPREADSHEET_COLUMNS, findMissingClipSpreadsheetEditSources, getClipSpreadsheetRows, isClipSpreadsheetCellEditable, planClipSpreadsheetEdits,
 	type ClipSpreadsheetEdit,
 } from '../src/common/editor/clip-spreadsheet.ts';
 import { createGroupedEditorActions } from '../src/common/editor/controller/composition/action-facade.ts';
@@ -38,9 +38,10 @@ test('spreadsheet projects sample rates into seconds and keeps rows stable after
 	assert.equal(rows[0]?.cells.position, '1');
 	assert.equal(rows[0]?.cells.offset, '1');
 	assert.equal(rows[0]?.cells.duration, '2');
-	assert.equal(rows[0]?.cells.source, 'Voice.wav');
-	assert.equal(rows[0]?.cells.sampleRate, '44100');
-	assert.equal(rows[0]?.cells.channels, '2');
+	assert.equal(rows[0]?.cells.source, 'source');
+	assert.equal(rows[0]?.cells.track, 'track');
+	assert.equal(Object.hasOwn(rows[0]?.cells ?? {}, 'sampleRate'), false);
+	assert.equal(Object.hasOwn(rows[0]?.cells ?? {}, 'channels'), false);
 	const next = change(project, [{ clipId: 'first', column: 'position', value: '5' }]);
 	assert.deepEqual(getClipSpreadsheetRows(next).map(row => row.id), ['first', 'second']);
 });
@@ -51,7 +52,96 @@ test('whole-row roundtrips and equivalent numeric values do not create history',
 	const edits = rows.flatMap(row => CLIP_SPREADSHEET_COLUMNS.map(column => ({ clipId: row.id, column: column.id, value: row.cells[column.id] })));
 	assert.equal(planClipSpreadsheetEdits(project, edits), null);
 	assert.equal(planClipSpreadsheetEdits(project, [{ clipId: 'first', column: 'position', value: '1.0000' }]), null);
-	assert.throws(() => planClipSpreadsheetEdits(project, [{ clipId: 'first', column: 'source', value: 'Other.wav' }]), /read.only/i);
+	assert.throws(() => planClipSpreadsheetEdits(project, [{ clipId: 'first', column: 'source', value: 'Other.wav' }]), /source.*missing|missing.*source/i);
+});
+
+test('track IDs move clips while source IDs replace media in the same undo entry', () => {
+	const project = applyEditorCommand(fixture(), { type: 'batch', commands: [
+		{ type: 'track/add', track: { id: 'destination', name: 'Destination' } },
+		{ type: 'source/add', source: { id: 'replacement', storageKey: 'replacement', name: 'Replacement.wav', sampleRate: 48_000, frameCount: 240_000, channelCount: 1 } },
+	] });
+	const command = planClipSpreadsheetEdits(project, [
+		{ clipId: 'first', column: 'track', value: 'destination' },
+		{ clipId: 'first', column: 'source', value: 'replacement' },
+	]);
+	assert.ok(command);
+	const history = executeEditorCommand(createEditorHistory(project), command);
+	assert.equal(history.undoStack.length, 1);
+	const clip = history.present.clips.find((item: { id: string }) => item.id === 'first');
+	assert.ok(clip);
+	assert.equal(clip.sourceId, 'replacement');
+	assert.equal(clip.sourceStartFrame, 48_000);
+	assert.equal(clip.sourceDurationFrames, 96_000);
+	assert.equal(clip.durationFrames, 96_000);
+	assert.equal(clip.trimStartFrames, 48_000);
+	assert.equal(clip.trimEndFrames, 96_000);
+	assert.equal(clip.renderCacheRevision, Number(project.clips[0].renderCacheRevision) + 1);
+	const row = getClipSpreadsheetRows(history.present).find(item => item.id === 'first');
+	assert.equal(row?.cells.source, 'replacement');
+	assert.equal(row?.cells.track, 'destination');
+	assert.deepEqual(getClipSpreadsheetRows(undoEditorCommand(history).present), getClipSpreadsheetRows(project));
+});
+
+test('replacement source and explicit bounds validate together for shorter media', () => {
+	const project = applyEditorCommand(fixture(), { type: 'source/add', source: {
+		id: 'short', storageKey: 'short', name: 'Short.wav', sampleRate: 48_000, frameCount: 24_000, channelCount: 1,
+	} });
+	const next = change(project, [
+		{ clipId: 'first', column: 'source', value: 'Short.wav' },
+		{ clipId: 'first', column: 'offset', value: '0' },
+		{ clipId: 'first', column: 'duration', value: '0.5' },
+	]);
+	assert.equal(next.clips[0].sourceId, 'short');
+	assert.equal(next.clips[0].sourceStartFrame, 0);
+	assert.equal(next.clips[0].sourceDurationFrames, 24_000);
+	assert.equal(next.clips[0].durationFrames, 24_000);
+	assert.throws(() => change(project, [{ clipId: 'first', column: 'source', value: 'short' }]), /exceed/i);
+});
+
+test('replacement sources use their native sample rate when speed and duration are pasted together', () => {
+	const project = applyEditorCommand(fixture(), { type: 'source/add', source: {
+		id: 'replacement', storageKey: 'replacement', name: 'Replacement.wav', sampleRate: 48_000, frameCount: 240_000, channelCount: 1,
+	} });
+	const edits = [
+		{ clipId: 'first', column: 'source', value: 'replacement' },
+		{ clipId: 'first', column: 'speed', value: '2' },
+	] as const;
+	const spedUp = change(project, edits);
+	assert.equal(spedUp.clips[0].sourceDurationFrames, 96_000);
+	assert.equal(spedUp.clips[0].durationFrames, 48_000);
+	assert.deepEqual(spedUp.clips[0].envelope.map((point: { frame: number }) => point.frame), [0, 24_000, 48_000]);
+	const fixedDuration = change(project, [...edits, { clipId: 'first', column: 'duration', value: '2' }]);
+	assert.equal(fixedDuration.clips[0].sourceDurationFrames, 192_000);
+	assert.equal(fixedDuration.clips[0].durationFrames, 96_000);
+});
+
+test('source discovery validates edited rows and accepts unknown disk references before import', () => {
+	const project = fixture();
+	assert.deepEqual(findMissingClipSpreadsheetEditSources(project, [
+		{ clipId: 'first', column: 'source', value: '/disk/new.wav' },
+		{ clipId: 'second', column: 'source', value: '/disk/new.wav' },
+		{ clipId: 'first', column: 'offset', value: '20' },
+	]), ['/disk/new.wav']);
+	assert.deepEqual(findMissingClipSpreadsheetEditSources(project, [{ clipId: 'first', column: 'source', value: 'Voice.wav' }]), []);
+	assert.throws(() => findMissingClipSpreadsheetEditSources(project, [
+		{ clipId: 'first', column: 'source', value: '/disk/new.wav' },
+		{ clipId: 'first', column: 'speed', value: '0' },
+	]), /speed/i);
+	assert.throws(() => findMissingClipSpreadsheetEditSources(project, [{ clipId: 'first', column: 'source', value: '' }]), /source/i);
+});
+
+test('invalid destination IDs, locked destinations, and source name ambiguity refuse all edits', () => {
+	const initial = applyEditorCommand(fixture(), { type: 'batch', commands: [
+		{ type: 'track/add', track: { id: 'locked', name: 'Locked' } },
+		{ type: 'track/add', track: { id: 'labels', name: 'Labels', type: 'label' } },
+		{ type: 'source/add', source: { id: 'duplicate', storageKey: 'duplicate', name: 'Voice.wav', sampleRate: 44_100, frameCount: 441_000, channelCount: 1 } },
+	] });
+	const project = applyEditorCommand(initial, { type: 'track/update', trackId: 'locked', changes: { locked: true } });
+	for (const value of ['unknown', 'Voice', 'locked', 'labels']) {
+		assert.throws(() => planClipSpreadsheetEdits(project, [{ clipId: 'first', column: 'track', value }]));
+	}
+	assert.throws(() => planClipSpreadsheetEdits(project, [{ clipId: 'first', column: 'source', value: 'Voice.wav' }]), /ambiguous/i);
+	assert.equal(planClipSpreadsheetEdits(project, [{ clipId: 'first', column: 'source', value: 'source' }]), null);
 });
 
 test('a mixed-cell paste commits once and undo restores every clip', () => {
@@ -128,6 +218,26 @@ test('spreadsheet action rejects stale targets and blocked edits and commits onl
 	apply(project.id, [{ clipId: 'first', column: 'position', value: '1.00' }]);
 	assert.equal(commands.length, 0);
 	apply(project.id, [{ clipId: 'first', column: 'name', value: 'Renamed' }, { clipId: 'second', column: 'pitch', value: '2' }]);
+	assert.equal(commands.length, 1);
+});
+
+test('direct spreadsheet source edits refuse unavailable media by resolved ID before committing any cells', () => {
+	const project = applyEditorCommand(fixture(), { type: 'source/add', source: {
+		id: 'missing', storageKey: 'missing', name: 'Missing.wav', sampleRate: 48_000, frameCount: 240_000, channelCount: 1,
+	} });
+	const state = { missingSourceIds: new Set(['missing']) };
+	const commands: unknown[] = [];
+	const apply = createClipSpreadsheetAction({ getProject: () => project, state, commit: command => commands.push(command) });
+	for (const value of ['missing', 'Missing.wav']) {
+		assert.throws(() => apply(project.id, [{ clipId: 'first', column: 'source', value }]), /relink.*missing|missing.*source/i);
+		assert.throws(() => apply(project.id, [
+			{ clipId: 'second', column: 'name', value: 'Do not commit' },
+			{ clipId: 'first', column: 'source', value },
+		]), /relink.*missing|missing.*source/i);
+	}
+	assert.deepEqual(commands, []);
+	state.missingSourceIds.clear();
+	apply(project.id, [{ clipId: 'first', column: 'source', value: 'Missing.wav' }]);
 	assert.equal(commands.length, 1);
 });
 
