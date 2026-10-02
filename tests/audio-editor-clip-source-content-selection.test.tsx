@@ -11,6 +11,14 @@ import { EditorControllerLifetime, EditorProjectGeneration } from '../src/common
 import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
 import { installReactTestDom, reactProps } from './helpers/react-test-dom.ts';
 
+test('shared source fade handles appear on the first mount before any clip edit', async () => {
+	const f = await fixture();
+	try {
+		assert.equal(f.fadeHandle('in')?.getAttribute('aria-label'), 'Fade in');
+		assert.equal(f.fadeHandle('out')?.getAttribute('aria-label'), 'Fade out');
+	} finally { await f.cleanup(); }
+});
+
 test('source edits refresh the effect target without requiring another focus event', async () => {
 	const f = await fixture();
 	try {
@@ -82,6 +90,7 @@ async function fixture() {
 	await render();
 	return {
 		render, preview, effectSelection: () => effectSelection,
+		fadeHandle: (edge: string) => dom.find(`[data-clip-fade-handle="${edge}"]`),
 		select: async (startFrame: number, endFrame: number) => {
 			const wave = dom.one('.audio-editor-source-wave-area');
 			Object.defineProperty(wave, 'getBoundingClientRect', { value: () => ({ left: 0, width: 1_000 }) });

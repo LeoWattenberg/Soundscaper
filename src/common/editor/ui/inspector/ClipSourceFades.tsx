@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-import { useMemo, type RefObject } from 'react';
+import { useEffect, useMemo, useState, type RefObject } from 'react';
 import { ClipFadeOverlays } from '../timeline/ClipFadeOverlays.tsx';
 import type { FadeClip } from '../timeline/clip-fade-geometry.ts';
 
@@ -18,6 +18,8 @@ const NO_CROSSFADES: ReadonlySet<string> = new Set();
 
 /** The same fade curves and grips as the timeline, cropped to the source viewport. */
 export default function ClipSourceFades({ rootRef, clip, startFrame, endFrame, width, sampleRate, blocked, copy, onChange }: Props) {
+	const [mounted, setMounted] = useState(false);
+	useEffect(() => { setMounted(true); }, []);
 	const clips = useMemo(() => [{ ...clip, kind: 'audio' }], [clip]);
 	const selectedIds = useMemo(() => new Set([clip.id]), [clip.id]);
 	const first = Math.max(startFrame, clip.timelineStartFrame);
@@ -25,9 +27,9 @@ export default function ClipSourceFades({ rootRef, clip, startFrame, endFrame, w
 	return <>
 		{last > first && <div className="audio-editor-source-fade-target" data-clip-id={clip.id}
 			style={{ left: (first - startFrame) / (endFrame - startFrame) * width, width: (last - first) / (endFrame - startFrame) * width }} />}
-		<ClipFadeOverlays rootRef={rootRef} clips={clips} selectedIds={selectedIds} startFrame={startFrame} endFrame={endFrame}
+		{mounted && <ClipFadeOverlays rootRef={rootRef} clips={clips} selectedIds={selectedIds} startFrame={startFrame} endFrame={endFrame}
 			pixelsPerSecond={width * sampleRate / (endFrame - startFrame)} sampleRate={sampleRate} blocked={blocked} showFadeShapeHandles
 			crossfadedFadeEdges={NO_CROSSFADES} handleTabIndex={0} onChange={onChange} onTabOut={() => rootRef.current?.focus()}
-			copy={{ fadeIn: copy.fadeIn, fadeOut: copy.fadeOut, fadeInShape: copy.fadeInShape, fadeOutShape: copy.fadeOutShape, legacyLinearFadeShape: copy.legacyLinearFadeShape }} />
+			copy={{ fadeIn: copy.fadeIn, fadeOut: copy.fadeOut, fadeInShape: copy.fadeInShape, fadeOutShape: copy.fadeOutShape, legacyLinearFadeShape: copy.legacyLinearFadeShape }} />}
 	</>;
 }
