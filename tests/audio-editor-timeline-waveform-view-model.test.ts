@@ -92,6 +92,14 @@ test('the clip projection carries the pitch shift the header badge is drawn from
 	}).pitchCents, 0);
 });
 
+test('linked pitch badges report the audible sample playback rate rather than the retained independent pitch', () => {
+	for (const [speedRatio, expected] of [[0.5, -1200], [1, 0], [2, 1200], [4, 2400]]) {
+		assert.equal(createTimelineClipViewModel({ ...base,
+			clip: { ...clip, linkPitchAndTempo: true, pitchCents: 300, speedRatio },
+		}).pitchCents, expected);
+	}
+});
+
 test('warped clip projection consumes its warp-fetched partial PCM window', () => {
 	const project = {
 		sampleRate: 48_000,

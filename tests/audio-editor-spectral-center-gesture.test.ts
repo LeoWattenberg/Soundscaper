@@ -38,6 +38,17 @@ test('peak snapping analyzes the selected source interval and independent stereo
 	assert.deepEqual(selectedTrackSpectralPeaks(controller, clips, { startFrame: rate * 3, endFrame: rate * 4 }, rate), []);
 });
 
+test('linked source playback ignores the retained independent pitch when snapping spectral peaks', () => {
+	const sampleRate = 8192;
+	const samples = Float32Array.from({ length: sampleRate }, (_, frame) => Math.sin(2 * Math.PI * 256 * frame / sampleRate));
+	const controller = { getClipVisualData: () => ({ buffer: { numberOfChannels: 1, getChannelData: () => samples } }) };
+	const clip = { id: 'audio', sourceId: 'source', timelineStartFrame: 0, sourceStartFrame: 0,
+		sourceDurationFrames: sampleRate, durationFrames: sampleRate / 2, waveformStartFrame: 0, waveformEndFrame: sampleRate / 2,
+		speedRatio: 2, pitchCents: 1200, linkPitchAndTempo: true };
+	const peaks = selectedTrackSpectralPeaks(controller, [clip], { startFrame: 0, endFrame: sampleRate / 2 }, sampleRate);
+	assert.equal(snapSpectralCenterToPeak(500, peaks), 512);
+});
+
 test('spectral center movement clamps the entire band at display limits', () => {
 	const band = { minimumFrequency: 1_000, maximumFrequency: 3_000 };
 	assert.deepEqual(moveSpectralBandCenter(band, 24_000, 'linear', 0, 24_000), {

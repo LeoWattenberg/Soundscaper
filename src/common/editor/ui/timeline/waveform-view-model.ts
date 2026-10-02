@@ -74,6 +74,7 @@ export interface TimelineWaveformClip {
 	readonly reversed?: boolean;
 	readonly inverted?: boolean;
 	readonly pitchCents?: number;
+	readonly linkPitchAndTempo?: boolean;
 	readonly speedRatio?: number;
 	readonly kind?: unknown;
 	readonly anchor?: unknown;
@@ -268,7 +269,7 @@ export function createTimelineClipViewModel({
 		speedRatio: clip.speedRatio,
 		// The clip header draws a pitch badge beside the time-stretch one, so the
 		// shift the pitch commands step has to reach the design system too.
-		pitchCents: badgedPitchCents(clip.pitchCents),
+		pitchCents: badgedPitchCents(clip.linkPitchAndTempo ? 1200 * Math.log2(clip.speedRatio ?? 1) : clip.pitchCents),
 		envelopePoints: envelopeFramesToDesignPoints(clip.envelope, sampleRate, {
 			startFrame: clip.waveformStartFrame,
 			endFrame: clip.waveformEndFrame,
