@@ -140,6 +140,9 @@ test.describe('live dockable Clip properties', () => {
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [toneA]);
 		const panel = await openClipProperties(page, editor, clipByName(editor, toneA.name));
+		const sourceBounds = await panel.locator('[data-clip-source-editor]').boundingBox();
+		const contentBounds = await panel.locator('[data-workspace-tab-panel="clip-properties"]').boundingBox();
+		expect(sourceBounds.y + sourceBounds.height).toBeGreaterThanOrEqual(contentBounds.y + contentBounds.height - 12);
 		const pitchDrawer = panel.locator('[data-clip-properties-drawer="pitch"]');
 		await expect(pitchDrawer).not.toHaveAttribute('open');
 		await pitchDrawer.getByText('Pitch and tempo', { exact: true }).click();

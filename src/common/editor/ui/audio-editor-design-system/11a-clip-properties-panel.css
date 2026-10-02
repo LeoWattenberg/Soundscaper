@@ -1,19 +1,31 @@
+.kw-audio-editor__workspace-panel-content[data-workspace-tab-panel='clip-properties']:not([hidden]) {
+	display: flex;
+	align-content: stretch;
+}
+
 .audio-editor-clip-properties-panel {
 	container: clip-properties / inline-size;
-	display: grid;
+	display: flex;
+	flex: 1;
+	flex-direction: column;
 	min-width: 0;
+	min-height: 0;
 	gap: 12px;
 }
 
 .audio-editor-clip-properties-panel [data-clip-properties-active-clip] {
 	display: flex;
+	flex: 1;
 	flex-direction: column;
 	gap: 10px;
 	min-width: 0;
+	min-height: 0;
+	overflow: auto;
 }
 
 .audio-editor-clip-properties-panel__tabs {
 	display: flex;
+	flex: 0 0 auto;
 	min-width: 0;
 	overflow-x: auto;
 	border-bottom: 1px solid var(--line);
@@ -174,19 +186,25 @@
 [data-panel-dock='bottom'] .audio-editor-clip-properties-panel .audio-editor-clip-source-editor {
 	flex: 1 0 260px;
 	min-height: 210px;
+	height: auto;
 }
 
 [data-panel-dock='bottom'] .audio-editor-clip-source-editor + .audio-editor-clip-inspector {
+	display: flex;
 	flex: 0 0 auto;
-	max-width: calc(100% - 270px);
+	flex-direction: column;
+	min-height: 0;
 }
 
 [data-panel-dock='bottom'] .audio-editor-clip-properties-panel .audio-editor-clip-properties {
-	min-height: 100%;
+	flex: 1;
+	min-height: 0;
 }
 
 [data-panel-dock='bottom'] .audio-editor-clip-properties__drawer {
 	flex: 0 0 34px;
+	min-height: 0;
+	overflow-y: auto;
 }
 
 [data-panel-dock='bottom'] .audio-editor-clip-properties__drawer[open] {
@@ -197,7 +215,7 @@
 [data-panel-dock='bottom'] .audio-editor-clip-properties__drawer summary {
 	float: inline-start;
 	min-height: 150px;
-	padding: 10px 8px;
+	padding: 10px 7px;
 	writing-mode: vertical-rl;
 }
 
