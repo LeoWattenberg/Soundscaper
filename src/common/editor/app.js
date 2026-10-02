@@ -571,7 +571,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		exportVideo, ffmpeg, fileService, findClip, findTrack,
 		getVideoSourceVisualData: sources.projectVisual.getVideoSourceVisualData, handleEdit: edits.handleEdit,
 		handleExportAction, handlePlayAtSpeed, handleTransport,
-		importFiles: imports.importFiles, inspectScape,
+		importFiles: imports.importFiles, pasteClipSpreadsheet: imports.pasteSpreadsheet, inspectScape,
 		listAudioEditorEffectPresets,
 		moveTrack, normalizePlaybackFrame,
 		openScapeFile, openDawproject: (file) => taskProgress.run('project-io', copy.importing, () => nativeProjectService.openDawproject(file), undefined, { key: "importing" }), openSesx: (file) => taskProgress.run('project-io', copy.importing, () => nativeProjectService.openSesx(file), undefined, { key: "importing" }), saveDawproject: (saveOptions) => taskProgress.run('project-io', copy.dawprojectSaving, () => nativeProjectService.saveDawproject(saveOptions), undefined, { key: "dawprojectSaving" }),

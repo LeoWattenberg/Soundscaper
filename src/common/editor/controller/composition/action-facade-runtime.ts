@@ -102,6 +102,7 @@ export const EDITOR_ACTION_FUNCTION_NAMES = defineEditorActionFunctionNames([
 	'hasMissingTimelineSources',
 	'importEffectPresets',
 	'importFiles',
+	'pasteClipSpreadsheet',
 	'inspectScape',
 	'listAudioEditorEffectPresets',
 	'listProjects',

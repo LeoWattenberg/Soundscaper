@@ -8,6 +8,7 @@ import {
 	createRecordingActionFacade,
 	createRecordingPreferenceActionFacade,
 } from '../recording/recording-action-facade.ts';
+import { createClipSpreadsheetAction } from './internal/clip-spreadsheet-action.ts';
 import { createProjectOwnedFeatureActionFacades } from './internal/project-owned-feature-action-facades.ts';
 import { createTimelineAnnotationActionFacade } from '../document/timeline-annotation-action-facade.ts';
 import { createVideoActionGroup } from '../clip-video/video-action-group.ts';
@@ -42,7 +43,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 	fileService, findTrack, persistSetting, publishDocumentSnapshot, flushProject, generateSelectionSilence,
 	generateSignal, repeatLastGenerator, getClipVisualData, getVisibleClips,
 	handleClipAction, handleEdit, handleExportAction, handlePlayAtSpeed, handleTransport,
-	hasMissingTimelineSources, importFiles, inspectScape, labels, listProjects, makeStereoTrack,
+	hasMissingTimelineSources, importFiles, pasteClipSpreadsheet, inspectScape, labels, listProjects, makeStereoTrack,
 	materializeFreesoundUploadClip, mixAndRenderTracks, moveClips, moveClipsToNewTrack, moveTrack, newProject,
 	normalizePlaybackFrame, openAudacityProject, openAup4, openProject, openScape, openScapeFile, overwriteClips,
 	openDawproject, openSesx, saveDawproject, pasteEffectStack, pauseLoudnessMeasurement,
@@ -376,6 +377,8 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 		preferences: createPreferenceActionGroup(scope, recordingPreferences),
 		clipSourcePreview: Object.freeze({ ...scope.clipSourcePreviewService }),
 		clip: Object.freeze({
+			editSpreadsheet: restricted('audioEffects', createClipSpreadsheetAction(scope)),
+			pasteSpreadsheet: restricted('audioEffects', pasteClipSpreadsheet),
 			update: (clipId: string, changes: Readonly<Record<string, unknown>>) => commit({ type: 'clip/update', clipId, changes }, { selectClipId: clipId }),
 			setTimePitch: restricted('audioEffects', setClipTimePitch),
 			stretch: restricted('audioEffects', stretchClip),

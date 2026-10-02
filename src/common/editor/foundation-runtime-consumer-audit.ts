@@ -60,6 +60,13 @@ export const FOUNDATION_RUNTIME_PROJECTION_BOUNDARIES: readonly FoundationRuntim
 		guardsBrand: true,
 	},
 	{
+		boundary: 'runtimeProject',
+		file: 'src/common/editor/clip-spreadsheet.ts',
+		root: false,
+		delegate: 'projectForRuntimeConsumers',
+		guardsBrand: false,
+	},
+	{
 		boundary: 'ensureRuntimeProject',
 		file: 'src/common/editor/video-export.js',
 		root: false,
@@ -105,6 +112,7 @@ export const FOUNDATION_RUNTIME_PROJECTION_BOUNDARIES: readonly FoundationRuntim
 
 /** Files that own the raw-project boundary for every WP-0.2 consumer surface. */
 export const FOUNDATION_RUNTIME_SHIELDED_OWNERS: readonly FoundationRuntimeShieldedOwner[] = deepFreeze([
+	{ file: 'src/common/editor/clip-spreadsheet.ts', surfaces: ['timeline', 'composition'] },
 	{ file: 'src/common/editor/controller/track-audio/internal/audio-warp/audio-warp-composition.ts', surfaces: ['composition'] },
 	{ file: 'src/common/editor/controller/import/internal/project-bin/project-bin-runtime.ts', surfaces: ['preview', 'composition'] },
 	{ file: 'src/common/editor/controller/import/internal/project-bin/project-bin-preview-service.ts', surfaces: ['preview'] },
@@ -137,6 +145,14 @@ export const FOUNDATION_RUNTIME_SHIELDED_OWNERS: readonly FoundationRuntimeShiel
 
 /** Exact non-consumer readers co-located with a shield owner. No wildcard exclusions are admitted. */
 export const FOUNDATION_RUNTIME_TIMING_READER_EXCLUSIONS: readonly FoundationRuntimeTimingReaderExclusion[] = deepFreeze([
+	{
+		file: 'src/common/editor/clip-spreadsheet.ts', entryPoint: 'rowsForProject',
+		reason: 'Private table projection receives the resolved project captured by getClipSpreadsheetRows or planClipSpreadsheetEdits before converting sample coordinates into spreadsheet seconds.',
+	},
+	{
+		file: 'src/common/editor/clip-spreadsheet.ts', entryPoint: 'planClip',
+		reason: 'Private edit planner receives the resolved project and clip owned by planClipSpreadsheetEdits after its registered runtime projection boundary; persisted musical anchors remain command-owned.',
+	},
 	{
 		file: 'src/common/editor/controller/edit/internal/labeled-audio-silence.ts', entryPoint: 'coveredSpans',
 		reason: 'Private downstream helper receives the resolved AudioGeneratorProject from generateLabeledSilence; its caller crosses projectForAudioGeneratorCommands before planning spans.',

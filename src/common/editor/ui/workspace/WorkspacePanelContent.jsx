@@ -59,6 +59,7 @@ const DEFERRED_WORKSPACE_PANELS = Object.freeze({
 	} : {}),
 	...(SOUNDSCAPER_BUILD ? {
 		freesound: lazyEditorModule(() => import('./FreesoundPanelContainer.tsx')),
+		'clip-spreadsheet': lazyEditorModule(() => import('../clip-spreadsheet/ClipSpreadsheetPanel.tsx')),
 	} : {}),
 });
 

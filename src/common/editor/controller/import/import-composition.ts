@@ -22,7 +22,7 @@ import {
 import { fitAudioBufferToFrames } from './internal/audio-buffer-frame-fit.ts';
 import type { ImportCompositionDependencies } from './internal/import-composition-types.ts';
 import { createProjectBinService } from './internal/project-bin/project-bin-service.ts';
-import { createProjectImportService } from './internal/project-import-service.ts';
+import { createProjectImportService, type ProjectImportRuntime } from './internal/project-import-service.ts';
 import {
 	audioBufferChannels,
 	bufferFromChannels,
@@ -38,6 +38,7 @@ import {
 } from './internal/source-import.ts';
 import { admitChangedContentVideoCandidate, type ChangedContentVideoCandidateSource } from './internal/linked-media/video-relink-probe.ts';
 import { generateWaveformPeaks, peakCacheKey } from '../source/waveform-analysis.ts';
+import type { createClipSpreadsheetPasteService } from './internal/clip-spreadsheet-paste-service.ts';
 
 export type {
 	ImportCompositionCopy,
@@ -68,7 +69,7 @@ export function createImportComposition(dependencies: ImportCompositionDependenc
 	);
 	let importVideoFile: ImportVideoFile | null = null;
 
-	const projectImport = createProjectImportService({
+	const projectImportRuntime: ProjectImportRuntime = {
 		SOURCE_CHUNK_FRAMES: dependencies.sourceChunkFrames,
 		activateStoredSource: dependencies.activateStoredSource,
 		audioBufferChannels,
@@ -127,7 +128,8 @@ export function createImportComposition(dependencies: ImportCompositionDependenc
 		warnEnvelope: dependencies.warnEnvelope,
 		writeBuffer,
 		taskProgress,
-	});
+	};
+	const projectImport = createProjectImportService(projectImportRuntime);
 	importVideoFile = createImportVideoFile({
 		SOURCE_CHUNK_FRAMES: dependencies.sourceChunkFrames,
 		activateVideoSource,
@@ -225,9 +227,34 @@ export function createImportComposition(dependencies: ImportCompositionDependenc
 		),
 	});
 
+	let spreadsheetPaste: Promise<ReturnType<typeof createClipSpreadsheetPasteService>> | null = null;
+	async function pasteSpreadsheet(...args: Parameters<ReturnType<typeof createClipSpreadsheetPasteService>>) {
+		const token = captureProject();
+		const project = dependencies.getProject();
+		spreadsheetPaste ??= Promise.all([
+			import('./internal/clip-spreadsheet-paste-service.ts'), import('./internal/prepare-clip-spreadsheet-source.ts'),
+		]).then(([{ createClipSpreadsheetPasteService: createPaste }, { createClipSpreadsheetSourcePreparer }]) => createPaste({
+			lifetime, taskProgress, importingLabel: copy.importing,
+			protectedSourceIds: dependencies.protectedSourceIds,
+			sourceBuffers: dependencies.sourceBuffers, sourcePeaks: dependencies.sourcePeaks,
+			missingSourceIds: state.missingSourceIds, store,
+			getProject: dependencies.getProject, captureProject, assertProject,
+			editingBlocked: dependencies.editingBlocked,
+			setImporting: importing => { state.importing = importing; },
+			createId: createStableId, commit: dependencies.commit,
+			prepareAudioSource: createClipSpreadsheetSourcePreparer(projectImportRuntime),
+			retireSourceChunkProvider: dependencies.retireSourceChunkProvider,
+			publish: dependencies.publishDocumentSnapshot,
+		}));
+		const paste = await spreadsheetPaste;
+		assertProject(token);
+		if (project !== dependencies.getProject()) throw new Error('The project changed before the spreadsheet paste could begin.');
+		return paste(...args);
+	}
 	return Object.freeze({
 		importFile: projectImport.importFile,
 		importFiles: projectImport.importFiles,
+		pasteSpreadsheet,
 		normalizeImportOptions: projectImport.normalizeImportOptions,
 		normalizeImportTimelineStartFrame: projectImport.normalizeImportTimelineStartFrame,
 		importVideoFile,

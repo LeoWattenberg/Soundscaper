@@ -19,8 +19,8 @@ export type EditorActionFunctionInventoryIsExhaustive = AssertTrue<
 >;
 
 test('a missing or non-callable dependency fails during assembly with its name', () => {
-	assert.equal(EDITOR_ACTION_FUNCTION_NAMES.length, 198);
-	for (const dependency of ['saveNow', 'setSourceSelection', 'loadSourceAudio', 'loadSourceAudioWindow'] as const) {
+	assert.equal(EDITOR_ACTION_FUNCTION_NAMES.length, 199);
+	for (const dependency of ['saveNow', 'setSourceSelection', 'loadSourceAudio', 'loadSourceAudioWindow', 'pasteClipSpreadsheet'] as const) {
 		for (const invalid of [undefined, null, 1, {}]) {
 			const scope = new Proxy(createActionFacadeRuntime(), {
 				get(target, name, receiver) {

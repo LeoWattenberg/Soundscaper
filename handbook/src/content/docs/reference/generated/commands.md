@@ -99,6 +99,7 @@ Product availability follows each product profile’s command filters and each l
 | Clip gain | `clip-gain` | — | Clip context | Soundscaper, Framescaper | Audacity |
 | Clip properties | `clip-properties` | — | Clip context | Soundscaper, Framescaper | Audacity |
 | Clip properties | `panel-clip-properties` | — | View > Panels | Soundscaper, Framescaper | Soundscaper local |
+| Clip spreadsheet | `panel-clip-spreadsheet` | — | View > Panels | Soundscaper | Soundscaper local |
 | Clock | `panel-clock` | — | View > Panels | Soundscaper, Framescaper | Soundscaper local |
 | Close project | `file-close` | Ctrl+W | File | Soundscaper, Framescaper | Audacity |
 | Commit frozen track | `soundscaper-commit-freeze` | — | Tracks > Freeze | Soundscaper | Soundscaper local |
