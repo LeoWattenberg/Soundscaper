@@ -8,6 +8,7 @@ import { createAudioClip, createAudioSource, createAudioTrack } from '../src/com
 import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
 import { CLIP_SOURCE_STRETCH_EXTENSION, type ClipSourceStretchMemory } from '../src/common/editor/clip-source-stretch-memory.ts';
 import { normalizeAudioWarpMap } from '../src/common/editor/audio-warp-domain.ts';
+import { projectForRuntimeConsumers } from '../src/common/editor/project-current-runtime.ts';
 
 const NOW = '2026-10-02T12:00:00.000Z';
 function fixture() {
@@ -80,4 +81,27 @@ test('source processing carries audible and hidden stretch anchors to the replac
 	assert.equal(memory.sourceId, 'processed');
 	assert.equal(memory.sourceFrameCount, 1_100);
 	assert.deepEqual(memory.map.points.map((item) => item.source.num / item.source.den), [0, 100, 250, 400, 1_100]);
+});
+
+test('length-changing source effects rebase musical warp points through intervening tempo changes', () => {
+	const point = (outer: number, source: number) => ({ outer: { num: outer, den: 1 }, source: { num: source, den: 1 }, mode: 'forward' as const });
+	const source = createAudioSource({ id: 'source', frameCount: 192_000, sampleRate: 48_000, channelCount: 1 });
+	const clip = createAudioClip({ id: 'musical', sourceId: 'source', anchor: 'musical', musicalStartBeat: 0,
+		musicalExtent: 'beat', musicalDurationBeats: 8, sourceStartFrame: 0, sourceDurationFrames: 96_000,
+		warpMap: { feature: 'audio-warp', points: [point(0, 0), point(4, 48_000), point(8, 96_000)] },
+	});
+	const before = createCurrentAudioEditorProject({ id: 'musical-source', now: NOW, sampleRate: 48_000,
+		tempoMap: { mode: 'musical', events: [
+			{ id: 'fast', beat: 0, bpm: 120 }, { id: 'slow', beat: 4, bpm: 60 },
+		] }, sources: [source], clips: [clip], tracks: [createAudioTrack({ id: 'track', clipIds: ['musical'] })],
+	});
+	const after = applyEditorCommand(before, { type: 'source/process-audio', sourceId: 'source',
+		startFrame: 0, endFrame: 96_000, source: createAudioSource({ ...source, id: 'processed', frameCount: 288_000 }),
+	}) as typeof before;
+	assert.equal(validateCurrentAudioEditorProject(after), true);
+	const resolved = projectForRuntimeConsumers(after).clips[0]!;
+	assert.equal(resolved.durationFrames, 576_000);
+	assert.equal(resolved.timelineStartFrame, 0);
+	assert.deepEqual(normalizeAudioWarpMap(resolved.warpMap).points.map(({ outer, source: sample }) => [outer.num / outer.den, sample.num / sample.den]),
+		[[0, 0], [6, 96_000], [14, 192_000]]);
 });

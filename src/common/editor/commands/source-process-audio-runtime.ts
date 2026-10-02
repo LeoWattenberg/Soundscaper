@@ -3,8 +3,9 @@
 import { normalizeClipForProject, normalizeSourceForProject, assertClipSourceBounds } from './shared-runtime.js';
 import type { AudioEditorCommand } from './protocol.ts';
 import { normalizeAudioWarpMap } from '../audio-warp-domain.ts';
+import { audioWarpOuterAtTimelineFrame, isMusicalAudioWarpClip, type AudioWarpAuthorityRuntimeClip, type AudioWarpAuthorityRuntimeProject } from '../audio-warp-runtime-authority.ts';
 import { CLIP_SOURCE_STRETCH_EXTENSION, type ClipSourceStretchMemory } from '../clip-source-stretch-memory.ts';
-import { addRationals, compareRationals, multiplyRationals, subtractRationals, type Rational } from '../timeline-time.ts';
+import { addRationals, beatToSampleFrame, compareRationals, multiplyRationals, subtractRationals, type Rational } from '../timeline-time.ts';
 
 type RecordValue = Record<string, unknown>;
 interface Source extends RecordValue {
@@ -14,7 +15,7 @@ interface Source extends RecordValue {
 	sampleRate: number;
 	channelCount: number;
 }
-interface Clip extends RecordValue {
+interface Clip extends RecordValue, AudioWarpAuthorityRuntimeClip {
 	id: string;
 	sourceId: string;
 	sourceStartFrame: number;
@@ -25,7 +26,7 @@ interface Clip extends RecordValue {
 	fadeOutFrames?: number;
 	envelope?: readonly Readonly<{ frame: number; value: number }>[];
 }
-interface Project extends RecordValue {
+interface Project extends RecordValue, AudioWarpAuthorityRuntimeProject {
 	sources: Source[];
 	clips: Clip[];
 	projectBin?: { clips: Clip[] };
@@ -73,7 +74,7 @@ export function processSourceAudio(projectValue: object, command: Extract<AudioE
 			} : {}),
 			...(warpMap ? { warpMap: { ...warpMap, points: warpMap.points.map((point) => ({
 				...point, source: mapRational(point.source),
-				outer: multiplyRationals(point.outer, { num: durationFrames, den: clip.durationFrames }),
+				outer: remapWarpOuter(project, clip, point.outer, durationFrames),
 			})) } } : {}),
 			...remapStretchMemory(clip, previous, next, mapRational),
 		};
@@ -83,6 +84,16 @@ export function processSourceAudio(projectValue: object, command: Extract<AudioE
 	};
 	project.clips = project.clips.map(replace);
 	if (project.projectBin) project.projectBin.clips = project.projectBin.clips.map(replace);
+}
+
+function remapWarpOuter(project: Project, clip: Clip, outer: Rational, durationFrames: number): Rational {
+	if (durationFrames === clip.durationFrames || compareRationals(outer, 0) === 0) return outer;
+	if (!isMusicalAudioWarpClip(clip)) return multiplyRationals(outer, { num: durationFrames, den: clip.durationFrames });
+	// Beat spacing can change across tempo events: scale elapsed samples before
+	// recovering the beat position, as the command projection does for the extent.
+	const frame = beatToSampleFrame(addRationals(clip.musicalStartBeat!, outer), project.tempoMap, project.sampleRate);
+	const offset = Math.round((frame - clip.timelineStartFrame) * durationFrames / clip.durationFrames);
+	return audioWarpOuterAtTimelineFrame(project, clip, clip.timelineStartFrame + offset);
 }
 
 function remapStretchMemory(clip: Clip, previous: Source, next: Source, mapFrame: (frame: Rational) => Rational): RecordValue {
