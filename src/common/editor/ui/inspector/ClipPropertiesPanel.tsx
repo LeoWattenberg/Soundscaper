@@ -78,8 +78,9 @@ export default function ClipPropertiesPanel({ controller, snapshot, copy, focusR
 	};
 
 	const sourceController = controller as ClipSourceController;
-	const sourceProject = useMemo(() => snapshot.project
-		? projectForRuntimeConsumers(snapshot.project as ClipSourceProject & RuntimeClipProject) : null, [snapshot.project]);
+	const persistedProject = snapshot.project;
+	const sourceProject = useMemo(() => persistedProject
+		? projectForRuntimeConsumers(persistedProject as ClipSourceProject & RuntimeClipProject) : null, [persistedProject]);
 	const runtimeSnapshot = sourceProject ? { ...snapshot, project: sourceProject } : snapshot;
 	const sourceClip = sourceProject?.clips.find(clip => clip.id === activeClipId);
 	const hasSourceEditor = panelActive && sourceClip?.kind === 'audio' && sourceController.actions?.clipSourcePreview

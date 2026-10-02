@@ -132,6 +132,7 @@ export const FOUNDATION_RUNTIME_SHIELDED_OWNERS: readonly FoundationRuntimeShiel
 	{ file: 'src/common/editor/ui/timeline/useTimelineViewportModel.js', surfaces: ['timeline'] },
 	{ file: 'src/common/editor/ui/framescaper-edit-control-menu-model.ts', surfaces: ['timeline'] },
 	{ file: 'src/common/editor/controller/document/project-visual-service.ts', surfaces: ['waveform'] },
+	{ file: 'src/common/editor/ui/inspector/ClipPropertiesPanel.tsx', surfaces: ['waveform'] },
 ]);
 
 /** Exact non-consumer readers co-located with a shield owner. No wildcard exclusions are admitted. */

@@ -360,6 +360,16 @@ const entries: FoundationRuntimeConsumerEvidence[] = [
 		evidence: 'Framescaper linked-audio menu admission crosses the shared runtime projection boundary after removing only V19’s validated-empty unavailable annotation carrier.',
 	},
 	{
+		id: 'clip-properties-source-waveform',
+		surface: 'waveform',
+		file: 'src/common/editor/ui/inspector/ClipPropertiesPanel.tsx',
+		entryPoint: 'ClipPropertiesPanel',
+		inputIdentifier: 'persistedProject',
+		projectedIdentifier: 'sourceProject',
+		boundary: 'projectForRuntimeConsumers',
+		evidence: 'Clip properties resolves persisted musical or sequence-backed geometry before passing clips to the source waveform overlay, its ruler, and the numeric media and fade drawers.',
+	},
+	{
 		id: 'waveform-visible-clips',
 		surface: 'waveform',
 		file: 'src/common/editor/controller/document/project-visual-service.ts',
