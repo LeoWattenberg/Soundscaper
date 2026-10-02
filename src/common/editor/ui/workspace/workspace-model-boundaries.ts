@@ -21,7 +21,8 @@ export function createWorkspaceOverlayModel(model: WorkspaceOverlayModel): Works
 
 export const WORKSPACE_PANEL_DOCK_RUNTIME_KEYS = Object.freeze([
 	'controller', 'snapshot', 'productId', 'capabilities', 'copy', 'locale',
-	'fileService', 'playbackMeterSettings', 'run', 'showArmControls',
+	'fileService', 'playbackMeterSettings', 'recordingMeterSettings',
+	'onPlaybackMeterSettingsChange', 'onRecordingMeterSettingsChange', 'clippingEnabled', 'run', 'showArmControls',
 	'displayAudioSupported', 'onOpenEffects', 'onRoutingGraphGesture',
 	'onRoutingParameterGesture', 'effectsPanelTarget', 'onEffectWindowChange',
 	'draggedPanelId', 'onPanelDragStart', 'onPanelDragEnd', 'onPanelMove',

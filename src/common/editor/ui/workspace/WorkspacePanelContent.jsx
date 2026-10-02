@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react'; import { publishedCopyFor } 
 import { Button } from '@soundscaper/design-system/Button';
 
 import AudioEditorMixerPanel from './AudioEditorMixerPanel.jsx';
+import ClockPanel from './ClockPanel.tsx';
+import MeterWorkspacePanel from './MeterWorkspacePanel.jsx';
 import { LabelManagerRow } from './LabelManagerRows.jsx';
 import ProjectBinPanel from './ProjectBinPanel.jsx';
 import SourceMonitorPanel from './SourceMonitorPanel.jsx';
@@ -75,6 +77,10 @@ export default function WorkspacePanelContent({
 	locale,
 	fileService,
 	playbackMeterSettings,
+	recordingMeterSettings = /** @type {import('../meter-settings.ts').MeterSettings | undefined} */ (undefined),
+	onPlaybackMeterSettingsChange = /** @type {((update: import('./meter-panel-settings.ts').MeterSettingsUpdate) => void) | undefined} */ (undefined),
+	onRecordingMeterSettingsChange = /** @type {((update: import('./meter-panel-settings.ts').MeterSettingsUpdate) => void) | undefined} */ (undefined),
+	clippingEnabled = false,
 	run,
 	showArmControls,
 	displayAudioSupported,
@@ -87,6 +93,21 @@ export default function WorkspacePanelContent({
 	projectBinVisible = false,
 }) {
 	const project = snapshot.project;
+	if (panelId === 'playback-meter' || panelId === 'recording-meter') {
+		const recording = panelId === 'recording-meter';
+		return <MeterWorkspacePanel
+			kind={recording ? 'recording' : 'playback'}
+			dock={dock}
+			panelActive={panelActive}
+			controller={controller}
+			copy={copy}
+			snapshot={snapshot}
+			settings={recording ? recordingMeterSettings : playbackMeterSettings}
+			onSettingsChange={recording ? onRecordingMeterSettingsChange : onPlaybackMeterSettingsChange}
+			clippingEnabled={clippingEnabled}
+			run={run}
+		/>;
+	}
 	const DeferredWorkspacePanel = Object.hasOwn(DEFERRED_WORKSPACE_PANELS, panelId)
 		? DEFERRED_WORKSPACE_PANELS[panelId]
 		: null;
@@ -115,6 +136,9 @@ export default function WorkspacePanelContent({
 				/>
 			</React.Suspense>
 		);
+	}
+	if (panelId === 'clock') {
+		return <ClockPanel controller={controller} snapshot={snapshot} copy={copy} run={run} />;
 	}
 	if (panelId === 'project-bin') {
 		return (

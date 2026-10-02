@@ -177,6 +177,7 @@ export function MeterSettingsFlyout({
 		['flyout', copy.meterPositionFlyout],
 		['top', copy.meterPositionTop],
 		['side', copy.meterPositionSide],
+		['panel', copy.meterPositionPanel],
 	];
 	const styles = [
 		['default', copy.defaultOption],
@@ -198,7 +199,7 @@ export function MeterSettingsFlyout({
 					<label key={value} className="kw-audio-editor__playback-meter-radio">
 						<input
 							type="radio"
-							name="meter-position"
+							name={`meter-position-${meterKind}`}
 							value={value}
 							checked={settings.position === value}
 							onChange={() => update('position', value)}

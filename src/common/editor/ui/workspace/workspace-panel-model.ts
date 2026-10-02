@@ -16,13 +16,16 @@ export const WORKSPACE_PANEL_IDS = Object.freeze([
 	'mixer',
 	'analysis',
 	'recording-setup',
+	'playback-meter',
+	'recording-meter',
+	'clock',
 	DEFERRED_WEB_VCR_PANEL_ID,
 ]);
 export const WORKSPACE_DISCOVERABLE_PANEL_IDS = Object.freeze(
 	WORKSPACE_PANEL_IDS.filter((panelId) => panelId !== DEFERRED_WEB_VCR_PANEL_ID),
 );
 export const WORKSPACE_TOOLBAR_IDS = Object.freeze(['transport', 'tools', 'edit', 'meter']);
-export const WORKSPACE_DOCK_IDS = Object.freeze(['left', 'right', 'bottom', 'floating']);
+export const WORKSPACE_DOCK_IDS = Object.freeze(['left', 'right', 'top', 'bottom', 'floating']);
 export const FLOATING_PANEL_MIN_WIDTH = 240;
 export const FLOATING_PANEL_MIN_HEIGHT = 120;
 
@@ -81,6 +84,8 @@ export function workspacePanelLabel(copy: EditorCopy, panelId: string): string {
 		'source-monitor': copy.panelSourceMonitor,
 		freesound: copy['ui.freesoundAttribution.panel'] || copy.panel,
 		'recording-setup': copy.panelRecordingSetup,
+		'playback-meter': copy.panelPlaybackMeter,
+		'recording-meter': copy.panelRecordingMeter,
 		[DEFERRED_WEB_VCR_PANEL_ID]: copy.webVcrTitle,
 		analysis: copy.analysisCommand,
 	};

@@ -25,18 +25,20 @@ test('side dock targets split vertically into before, tab, and after thirds', ()
 	}
 });
 
-test('bottom dock targets split horizontally into before, tab, and after thirds', () => {
-	assert.equal(resolveWorkspacePanelDropIntent('bottom', { x: 40, y: 120 }, bounds), 'before');
-	assert.equal(resolveWorkspacePanelDropIntent('bottom', { x: 140, y: 120 }, bounds), 'before');
-	assert.equal(resolveWorkspacePanelDropIntent('bottom', { x: 140.01, y: 120 }, bounds), 'tab');
-	assert.equal(resolveWorkspacePanelDropIntent('bottom', { x: 240, y: 120 }, bounds), 'tab');
-	assert.equal(resolveWorkspacePanelDropIntent('bottom', { x: 240.01, y: 120 }, bounds), 'after');
-	assert.equal(resolveWorkspacePanelDropIntent('bottom', { x: 340, y: 120 }, bounds), 'after');
+test('top and bottom dock targets split horizontally into before, tab, and after thirds', () => {
+	for (const dock of ['top', 'bottom']) {
+		assert.equal(resolveWorkspacePanelDropIntent(dock, { x: 40, y: 120 }, bounds), 'before');
+		assert.equal(resolveWorkspacePanelDropIntent(dock, { x: 140, y: 120 }, bounds), 'before');
+		assert.equal(resolveWorkspacePanelDropIntent(dock, { x: 140.01, y: 120 }, bounds), 'tab');
+		assert.equal(resolveWorkspacePanelDropIntent(dock, { x: 240, y: 120 }, bounds), 'tab');
+		assert.equal(resolveWorkspacePanelDropIntent(dock, { x: 240.01, y: 120 }, bounds), 'after');
+		assert.equal(resolveWorkspacePanelDropIntent(dock, { x: 340, y: 120 }, bounds), 'after');
+	}
 });
 
 test('drop intent rejects unsupported docks, invalid geometry, and points outside the target', () => {
 	assert.equal(resolveWorkspacePanelDropIntent('floating', { x: 100, y: 100 }, bounds), null);
-	assert.equal(resolveWorkspacePanelDropIntent('top', { x: 100, y: 100 }, bounds), null);
+	assert.equal(resolveWorkspacePanelDropIntent('missing', { x: 100, y: 100 }, bounds), null);
 	assert.equal(resolveWorkspacePanelDropIntent('left', { x: 39.99, y: 100 }, bounds), null);
 	assert.equal(resolveWorkspacePanelDropIntent('left', { x: 100, y: 390.01 }, bounds), null);
 	assert.equal(resolveWorkspacePanelDropIntent('left', { x: Number.NaN, y: 100 }, bounds), null);
@@ -66,20 +68,22 @@ test('side previews use the corresponding half or the complete target', () => {
 	});
 });
 
-test('bottom previews use the corresponding half or the complete target', () => {
-	assert.deepEqual(resolveWorkspacePanelDropPreview('bottom', 'before', bounds), {
-		left: 40,
-		top: 90,
-		width: 150,
-		height: 300,
-	});
-	assert.deepEqual(resolveWorkspacePanelDropPreview('bottom', 'tab', bounds), bounds);
-	assert.deepEqual(resolveWorkspacePanelDropPreview('bottom', 'after', bounds), {
-		left: 190,
-		top: 90,
-		width: 150,
-		height: 300,
-	});
+test('top and bottom previews use the corresponding half or the complete target', () => {
+	for (const dock of ['top', 'bottom']) {
+		assert.deepEqual(resolveWorkspacePanelDropPreview(dock, 'before', bounds), {
+			left: 40,
+			top: 90,
+			width: 150,
+			height: 300,
+		});
+		assert.deepEqual(resolveWorkspacePanelDropPreview(dock, 'tab', bounds), bounds);
+		assert.deepEqual(resolveWorkspacePanelDropPreview(dock, 'after', bounds), {
+			left: 190,
+			top: 90,
+			width: 150,
+			height: 300,
+		});
+	}
 });
 
 test('preview geometry rejects unsupported docks, intents, and unusable bounds', () => {

@@ -12,10 +12,11 @@ import {
 	PlaybackMeterToolbarGroup,
 	RecordingMeterToolbarGroup,
 } from './AudioEditorMeterControls.jsx';
-import { TelemetryTimeCode } from './AudioEditorTransportControls.jsx';
+import TelemetryTimeCode from './TelemetryTimeCode.tsx';
 import { MusicalTimelineControls } from './MusicalTimelineControls.jsx';
 import { SequenceTimingControls } from './SequenceTimingControls.jsx';
 import SnapToolbarControl from './SnapToolbarControl.jsx';
+import ToolbarDockingMenu from '../workspace/ToolbarDockingMenu.tsx';
 import SpectrogramToolControl from './SpectrogramToolControl.jsx';
 import {
 	framescaperCaptureRecordRequired,
@@ -64,6 +65,8 @@ export default function EditorToolToolbar({
 	onJumpToStart,
 	onJumpToEnd,
 	onGripperMouseDown,
+	toolbarDock = 'top',
+	onToolbarDock = undefined,
 }) {
 	const project = snapshot.project;
 	const selectedTrack = project?.tracks.find((track) => track.id === snapshot.selectedTrackId && track.type === 'audio');
@@ -225,12 +228,15 @@ export default function EditorToolToolbar({
 				</WorkspaceToolbarSection>,
 
 				<WorkspaceToolbarSection key="meter" {...toolbarSectionProps('meter')}>
-				{isToolbarButtonVisible('time-display') && <TelemetryTimeCode
+				{isToolbarButtonVisible('time-display') && !snapshot.preferences?.workspace?.panels?.clock?.visible && <TelemetryTimeCode
 					controller={controller}
 					copy={copy}
 					project={project}
 					durationFrames={durationFrames}
 					isCompact={isCompact}
+					preferredFormat={snapshot.preferences?.workspace?.timeDisplayFormat}
+					onFormatChange={(format) => run(() => controller.actions.preferences.update({ workspace: { timeDisplayFormat: format } }))}
+					onUndock={() => run(() => controller.actions.preferences.update({ workspace: { panels: { clock: { ...snapshot.preferences?.workspace?.panels?.clock, visible: true, dock: 'floating' } } } }))}
 					sequenceTiming={productId === 'framescaper'}
 					recording={snapshot.recording}
 					run={run}
@@ -256,22 +262,23 @@ export default function EditorToolToolbar({
 					run={run}
 				/>}
 
-				{capabilities.audioRecording && isToolbarButtonVisible('monitor') && recordingMeterSettings.position !== 'side' && <RecordingMeterToolbarGroup
+				{capabilities.audioRecording && isToolbarButtonVisible('monitor')
+					&& (recordingMeterSettings.position !== 'side' || snapshot.preferences?.workspace?.panels?.['recording-meter']?.visible) && <RecordingMeterToolbarGroup
 					copy={copy}
 					snapshot={snapshot}
 					controller={controller}
 					run={run}
-					settings={recordingMeterSettings}
+					settings={snapshot.preferences?.workspace?.panels?.['recording-meter']?.visible ? { ...recordingMeterSettings, position: 'panel' } : recordingMeterSettings}
 					onSettingsChange={onRecordingMeterSettingsChange}
 				/>}
 
 				{isToolbarButtonVisible('playback-volume')
-					&& playbackMeterSettings.position !== 'side'
+					&& (playbackMeterSettings.position !== 'side' || snapshot.preferences?.workspace?.panels?.['playback-meter']?.visible)
 					&& <PlaybackMeterToolbarGroup
 						controller={controller}
 						copy={copy}
 						snapshot={snapshot}
-						settings={playbackMeterSettings}
+						settings={snapshot.preferences?.workspace?.panels?.['playback-meter']?.visible ? { ...playbackMeterSettings, position: 'panel' } : playbackMeterSettings}
 						onSettingsChange={onPlaybackMeterSettingsChange}
 						clippingEnabled={uiFlags.clipping}
 						isCompact={isCompact}
@@ -292,6 +299,7 @@ export default function EditorToolToolbar({
 				className="kw-audio-editor__toolbar-settings"
 			>
 				<div className="kw-audio-editor__toolbar-settings-content">
+					{onToolbarDock && <ToolbarDockingMenu copy={copy} dock={toolbarDock} onDock={onToolbarDock} onClose={() => setToolbarSettingsPosition(null)} />}
 					<strong>{copy.toolbarButtons}</strong>
 					<div className="kw-audio-editor__toolbar-settings-list">
 						{toolbarButtonOptions.map((button) => <button

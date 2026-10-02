@@ -98,6 +98,7 @@ Product availability follows each product profile’s command filters and each l
 | Clip Fix | `nyquist:clipfix` | — | Nyquist | Soundscaper | Audacity |
 | Clip gain | `clip-gain` | — | Clip context | Soundscaper, Framescaper | Audacity |
 | Clip properties | `clip-properties` | — | Clip context | Soundscaper, Framescaper | Audacity |
+| Clock | `panel-clock` | — | View > Panels | Soundscaper, Framescaper | Soundscaper local |
 | Close project | `file-close` | Ctrl+W | File | Soundscaper, Framescaper | Audacity |
 | Commit frozen track | `soundscaper-commit-freeze` | — | Tracks > Freeze | Soundscaper | Soundscaper local |
 | Compressor | `audacity-compressor` | — | Effect > Volume and compression | Soundscaper | Soundscaper local |
@@ -347,6 +348,7 @@ Product availability follows each product profile’s command filters and each l
 | Play/Stop and set cursor | `play-stop-select` | X | Transport | Soundscaper, Framescaper | Soundscaper local |
 | Playback controls | `toggle-transport` | — | View > Toolbars | Soundscaper, Framescaper | Audacity |
 | Playback level | `action://playback/level` | — | Mixer toolbar | Soundscaper, Framescaper | Audacity |
+| Playback meter | `panel-playback-meter` | — | View > Panels | Soundscaper, Framescaper | Soundscaper local |
 | Playback time | `playback-time` | — | Transport toolbar | Soundscaper, Framescaper | Audacity |
 | Plot spectrum | `plot-spectrum` | — | Analyze | Soundscaper | Audacity |
 | Pluck | `nyquist:pluck` | — | Nyquist | Soundscaper | Audacity |
@@ -369,6 +371,7 @@ Product availability follows each product profile’s command filters and each l
 | Record level | `action://record/level` | — | Meter toolbar | Soundscaper | Audacity |
 | Record on current track | `record-on-current-track` | R | Record; Transport | Soundscaper | Audacity |
 | Record on new track | `record-on-new-track` | — | Record | Soundscaper | Audacity |
+| Recording meter | `panel-recording-meter` | — | View > Panels | Soundscaper | Soundscaper local |
 | Recording setup | `panel-recording-setup` | — | View > Panels | Framescaper | Soundscaper local |
 | Redo | `action://trackedit/redo` | Ctrl+Shift+Z | Edit | Soundscaper, Framescaper | Audacity |
 | Reduce Reverb | `assistance-task-reduce-reverb` | — | Effect > Noise removal and repair | Soundscaper, Framescaper | Soundscaper local |

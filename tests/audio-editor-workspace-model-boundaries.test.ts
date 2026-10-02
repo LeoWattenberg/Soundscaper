@@ -35,6 +35,6 @@ test('the workspace producer passes one overlay model and View reuses one dock r
 	assert.match(workspace, /const overlayModel = createWorkspaceOverlayModel\(\{/u);
 	assert.match(workspace, /<AudioEditorWorkspaceView model=\{\{[\s\S]*\boverlayModel,/u);
 	assert.match(view, /<AudioEditorWorkspaceOverlays model=\{overlayModel\}/u);
-	assert.equal(view.match(/<WorkspacePanelDock \{\.\.\.panelDockRuntime\} dock=/gu)?.length, 4);
+	assert.equal(view.match(/<WorkspacePanelDock \{\.\.\.panelDockRuntime\} dock=/gu)?.length, 5);
 	assert.match(view, /dock="left" aboutLabel=\{overlayModel\.aboutLabel\}/u);
 });

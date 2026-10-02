@@ -3,6 +3,7 @@
 export const WORKSPACE_PANEL_DOCKS = Object.freeze([
 	'left',
 	'right',
+	'top',
 	'bottom',
 	'floating',
 ] as const);
@@ -84,7 +85,7 @@ function withDockExtent<Panel extends WorkspacePanelPreference>(
 	anchor: Panel,
 	dock: unknown,
 ): Panel {
-	const field = dock === 'bottom' ? 'size' : dock === 'left' || dock === 'right' ? 'width' : null;
+	const field = dock === 'top' || dock === 'bottom' ? 'size' : dock === 'left' || dock === 'right' ? 'width' : null;
 	return field !== null && Object.hasOwn(anchor, field)
 		? { ...panel, [field]: anchor[field] } as Panel
 		: panel;

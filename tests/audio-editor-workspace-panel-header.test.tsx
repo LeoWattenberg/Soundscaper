@@ -27,6 +27,7 @@ const COPY = Object.freeze({
 	close: 'Close',
 	dockLeft: 'Left',
 	dockRight: 'Right',
+	dockTop: 'Top',
 	dockBottom: 'Bottom',
 	dockFloating: 'Floating',
 	workspaceMove: 'Move workspace item',
@@ -177,7 +178,7 @@ test('the panel menu offers target-relative Before, As tab, and After arrangemen
 	});
 	try {
 		await mounted.openMenu();
-		assert.deepEqual(mounted.menuItemLabels(), ['Left', 'Right', 'Bottom', 'Floating', 'Arrange panel', 'Close']);
+		assert.deepEqual(mounted.menuItemLabels(), ['Left', 'Right', 'Top', 'Bottom', 'Floating', 'Arrange panel', 'Close']);
 		const arrange = mounted.menuItems().find((item) => (
 			item.querySelector('.context-menu-item-label')?.textContent === 'Arrange panel'
 		));
@@ -215,11 +216,11 @@ test('the menu lists every dock with the current one checked and disabled, then 
 		assert.equal(menu.parentNode, dom.container, 'the menu escapes the dock stacking context without leaving the styled editor root');
 		assert.ok(!dom.one('.kw-audio-editor__workspace-panel-header').contains(menu), 'the menu is not rendered inside the panel header');
 		assert.equal(String((menu.style as unknown as { zIndex?: unknown }).zIndex), '10031', 'the menu stays above effect windows and dialogs');
-		assert.deepEqual(mounted.menuItemLabels(), ['Left', 'Right', 'Bottom', 'Floating', 'Close']);
+		assert.deepEqual(mounted.menuItemLabels(), ['Left', 'Right', 'Top', 'Bottom', 'Floating', 'Close']);
 		const items = mounted.menuItems();
 		assert.equal(items[1]?.getAttribute('aria-disabled'), 'true', 'the current dock cannot be re-chosen');
 		assert.ok(items[1]?.querySelector('.context-menu-item-checkmark')?.querySelector('.icon'), 'the current dock is checked');
-		for (const index of [0, 2, 3, 4]) {
+		for (const index of [0, 2, 3, 4, 5]) {
 			assert.equal(items[index]?.getAttribute('aria-disabled'), 'false', `item ${index} stays enabled`);
 			assert.ok(!items[index]?.querySelector('.context-menu-item-checkmark')?.querySelector('.icon'), `item ${index} is unchecked`);
 		}
@@ -229,7 +230,7 @@ test('the menu lists every dock with the current one checked and disabled, then 
 			'menu items are direct children of the menu so its keyboard navigation reaches them',
 		);
 
-		await act(async () => reactProps(items[3]!).onClick({}));
+		await act(async () => reactProps(items[4]!).onClick({}));
 		assert.deepEqual(docks, ['floating']);
 		assert.ok(!mounted.findMenu(), 'choosing a dock closes the menu');
 		assert.equal(menuButton.getAttribute('aria-expanded'), 'false');
@@ -305,7 +306,7 @@ test('right-clicking the header opens the same menu', async () => {
 		assert.equal(prevented, 1, 'the native context menu is suppressed');
 		assert.ok(mounted.findMenu());
 		assert.equal(menuButton.getAttribute('aria-expanded'), 'true');
-		assert.deepEqual(mounted.menuItemLabels(), ['Left', 'Right', 'Bottom', 'Floating', 'Close']);
+		assert.deepEqual(mounted.menuItemLabels(), ['Left', 'Right', 'Top', 'Bottom', 'Floating', 'Close']);
 	} finally {
 		await mounted.unmount();
 	}

@@ -9,6 +9,7 @@ import {
 	selectAudioEditorProjectHandoffBlock,
 } from '../edit-blocking.ts';
 import { loadPlaybackMeterSettings, loadRecordingMeterSettings } from '../meter-settings.ts';
+import { resolveMeterPanelSettingsChange } from './meter-panel-settings.ts';
 import AudioEditorWorkspaceView from './AudioEditorWorkspaceView.jsx';
 import { resolveWorkspaceRuntimeProjection } from './workspace-runtime-projection.ts';
 import { workspaceStatusPresentation } from './workspace-status-presentation.ts';
@@ -95,8 +96,8 @@ const DEFERRED_WEB_VCR_PANEL_ID = 'web-vcr'; export default function AudioEditor
 		floatingToolbarRef,
 		handleToolbarGripperMouseDown,
 		toolbarDock,
-		toolbarDragRef,
-	} = useWorkspaceToolbarDocking(editorRef);
+		setToolbarDock,
+	} = useWorkspaceToolbarDocking(editorRef, productId);
 	const project = snapshot.project;
 	// Resolved above every surface boundary, so a document the projection
 	// refuses becomes a value here and fails under the timeline's own boundary.
@@ -435,14 +436,21 @@ const DEFERRED_WEB_VCR_PANEL_ID = 'web-vcr'; export default function AudioEditor
 		snapshot,
 		toggleFullscreen,
 	});
+	const meterSettingsChange = (panelId, settings, setSettings) => (update) => {
+		const next = resolveMeterPanelSettingsChange(settings, update, Boolean(preferences.workspace.panels[panelId]?.visible));
+		setSettings(next.settings);
+		run(() => controller.actions.preferences.setPanelVisibility(panelId, next.panelVisible));
+	};
+	const changePlaybackMeterSettings = meterSettingsChange('playback-meter', playbackMeterSettings, setPlaybackMeterSettings);
+	const changeRecordingMeterSettings = meterSettingsChange('recording-meter', recordingMeterSettings, setRecordingMeterSettings);
 	const toolbarProps = {
 		actionRuntime: parityRuntime.actions, automationToolEnabled, blocked, capabilities, controller, copy, durationFrames, locale, productId,
 		editItems, executeEdit, isCompact: isCompact || compactLayout, onGripperMouseDown: handleToolbarGripperMouseDown, onJumpToEnd: jumpToEnd,
 		onJumpToStart: jumpToStart, onOpenSpectralSelection: openSpectralSelection,
 		onOpenTakeCycleRecovery: () => openSurface('take-cycle-recovery'), onOpenTimedRecording: openTimedRecording,
-		onPlaybackMeterSettingsChange: setPlaybackMeterSettings, onRecordingMeterSettingsChange: setRecordingMeterSettings,
+		onPlaybackMeterSettingsChange: changePlaybackMeterSettings, onRecordingMeterSettingsChange: changeRecordingMeterSettings,
 		onToggleAutomationTool: toggleAutomationTool, onToggleSplitTool: toggleSplitTool, playbackMeterSettings, recordLabel, recordingMeterSettings, run, snapshot,
-		toggleRecording, toolbarButtons: toolbarButtonPreferences, toolbars: toolbarPreferences, uiFlags, zoomProject,
+		toggleRecording, toolbarButtons: toolbarButtonPreferences, toolbars: toolbarPreferences, uiFlags, zoomProject, toolbarDock, onToolbarDock: setToolbarDock,
 	};
 	const overlayModel = createWorkspaceOverlayModel({
 		activeSurface, applicationMenus, aboutLabel, capabilities, closeNyquist,
@@ -495,8 +503,8 @@ const DEFERRED_WEB_VCR_PANEL_ID = 'web-vcr'; export default function AudioEditor
 		setDraggedWorkspacePanelId,
 		setEditorOverlayTarget,
 		setEffectWindow,
-		setPlaybackMeterSettings,
-		setRecordingMeterSettings,
+		setPlaybackMeterSettings: changePlaybackMeterSettings,
+		setRecordingMeterSettings: changeRecordingMeterSettings,
 		setShowArmControls,
 		statusMessage,
 		statusState,
@@ -507,7 +515,7 @@ const DEFERRED_WEB_VCR_PANEL_ID = 'web-vcr'; export default function AudioEditor
 		uploadClipToFreesound,
 		toolbarButtonPreferences,
 		toolbarDock,
-		toolbarDragRef, toolbarProps, trackHeaderDrawer,
+		setToolbarDock, toolbarProps, trackHeaderDrawer,
 		uiFlags,
 		workspaceRef,
 		overlayModel,

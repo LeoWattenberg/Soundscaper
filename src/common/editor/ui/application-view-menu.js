@@ -40,6 +40,7 @@ export function createApplicationViewMenu(context, viewMenu, actions = {}) {
 					...WORKSPACE_DISCOVERABLE_PANEL_IDS
 						.filter((panelId) => !ANALYZER_PANEL_ID_SET.has(panelId)
 							&& (capabilities.audioEffects || panelId !== 'effects')
+							&& (capabilities.audioRecording || panelId !== 'recording-meter')
 							&& (capabilities.audioAnalysis || panelId !== 'ebu-r128')
 							&& (panelId !== 'markers' || timelineAnnotationsAvailable(snapshot)))
 						.map((panelId) => panelId === 'effects'

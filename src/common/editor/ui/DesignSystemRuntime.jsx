@@ -166,6 +166,7 @@ export function readablePrimaryButtonText(theme) {
 	return best;
 }
 
+/** @returns {[(node: HTMLElement | null) => void, { width: number, height: number }]} */
 export function useElementSize() {
 	const [element, setElement] = useState(null);
 	const [size, setSize] = useState({ width: 1, height: 1 });
