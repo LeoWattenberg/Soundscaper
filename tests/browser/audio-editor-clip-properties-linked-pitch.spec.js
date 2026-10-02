@@ -48,7 +48,7 @@ test.describe('clip properties pitch and normalization', () => {
 		await expect(panel.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
 		await panel.getByRole('button', { name: 'Stop', exact: true }).click();
 		await linked.click();
-		await panel.getByRole('button', { name: 'Semitones', exact: true }).click();
+		await panel.getByRole('button', { name: 'Semitones (half-steps)', exact: true }).click();
 		await expect(clipField(panel, 'pitchCents')).toHaveValue('3.00');
 		await expect(clipField(panel, 'speedRatio')).toHaveValue('0.5');
 		await expect(panel.getByRole('alert')).toHaveCount(0);
