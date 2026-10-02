@@ -51,7 +51,7 @@ test('pitch and speed have a knob beside their numeric value and exclusive pitch
 		const knob = fixture.dom.one('[data-clip-knob="pitchCents"]').querySelector('[role="slider"]')!;
 		assert.equal(knob.getAttribute('aria-valuenow'), '12.246');
 		await act(async () => reactProps(knob).onKeyDown({ key: 'ArrowRight', preventDefault() {}, stopPropagation() {} }));
-		assert.deepEqual(fixture.timePitchCalls, [], 'dragging previews without committing intermediate edits');
+		assert.equal(fixture.timePitchCalls.length, 0, 'dragging previews without committing intermediate edits');
 		await act(async () => reactProps(knob).onKeyUp({ key: 'ArrowRight', preventDefault() {}, stopPropagation() {} }));
 		assert.equal(fixture.timePitchCalls.length, 1);
 		assert.ok(Number(fixture.timePitchCalls[0]!.pitchCents) > 200);

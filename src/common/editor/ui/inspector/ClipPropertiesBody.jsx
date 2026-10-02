@@ -8,6 +8,7 @@ import AudioEditorTimeCodeInput from '../AudioEditorTimeCodeInput.tsx';
 import { selectAudioEditorEditBlock } from '../edit-blocking.ts';
 import { ActionHook, CommitField, DesignCheckbox, SteppedSlider } from './inspector-controls.jsx';
 import ClipPropertyKnob from './ClipPropertyKnob.tsx';
+import { clipPropertiesMediaRange } from './clip-properties-media-range.ts';
 import ClipResampleDialog from './ClipResampleDialog.jsx';
 import { VideoEffectRack } from './VideoEffectRack.jsx';
 import VideoSourcePropertiesSection from './VideoSourcePropertiesSection.jsx';
@@ -85,6 +86,10 @@ export default function ClipPropertiesBody({ controller, snapshot, copy, clipId 
 			} else if (name === 'startFrame') {
 				const timelineStartFrame = nonNegativeFrame(rawValue, copy);
 				controller.actions.clip.move(clip.id, track.id, timelineStartFrame);
+			} else if ((name === 'sourceInFrame' || name === 'durationFrame') && !isVideoClip
+				&& source && controller.actions.clipSourcePreview?.trim) {
+				const value = nonNegativeFrame(rawValue, copy);
+				controller.actions.clipSourcePreview.trim(clip.id, clipPropertiesMediaRange(clip, source.frameCount, name, value));
 			} else if (name === 'sourceInFrame') {
 				const sourceStartFrame = nonNegativeFrame(rawValue, copy);
 				controller.actions.clip.trim(clip.id, { sourceStartFrame });
@@ -148,7 +153,7 @@ export default function ClipPropertiesBody({ controller, snapshot, copy, clipId 
 							sampleRate={sampleRate} disabled={disabled}
 							onCommit={(value) => commitField('startFrame', value)} />
 						<ClipTimeCodeField name="sourceInFrame" label={copy.clipIn} value={clip?.sourceStartFrame ?? 0}
-							sampleRate={sampleRate} disabled={disabled}
+							sampleRate={source?.sampleRate || sampleRate} disabled={disabled}
 							onCommit={(value) => commitField('sourceInFrame', value)} />
 						<ClipTimeCodeField name="durationFrame" label={copy.clipDuration} value={clip?.durationFrames ?? 1}
 							sampleRate={sampleRate} minimum={1} disabled={disabled}
