@@ -107,6 +107,15 @@ test('the live scheduler sets linked buffer source playbackRate without changing
 	assert.deepEqual(started.started, [1, 0, 2]);
 });
 
+test('fast linked rates preserve adjacent sample markers as distinct rational positions', () => {
+	const point = (outer: number, source: number) => ({ outer: { num: outer, den: 1 }, source: { num: source, den: 1 }, mode: 'forward' as const });
+	const harness = createHarness({ warpMap: { feature: 'audio-warp', points: [point(0, 0), point(1, 1), point(96_000, 48_000)] } });
+	harness.service.setClipTimePitch('clip', { linkPitchAndTempo: true, speedRatio: 1_000 });
+	const marker = normalizeAudioWarpMap(harness.clip().warpMap).points[1]!;
+	assert.deepEqual(marker.outer, { num: 1, den: 1_000 });
+	assert.deepEqual(marker.source, { num: 1, den: 1 });
+});
+
 function createHarness(clipChanges: Readonly<Record<string, unknown>> = {}, tempoMap?: HoldTempoMap) {
 	let project = createCurrentAudioEditorProject({ id: 'linked-project', now: '2026-10-02T12:00:00.000Z', sampleRate: 48_000,
 		...(tempoMap ? { tempoMap } : {}),

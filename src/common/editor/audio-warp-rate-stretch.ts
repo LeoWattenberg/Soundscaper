@@ -4,6 +4,7 @@ import { normalizeAudioWarpMap } from './audio-warp-domain.ts';
 import { audioWarpOuterAtTimelineFrame, isMusicalAudioWarpClip, type AudioWarpAuthorityRuntimeClip, type AudioWarpAuthorityRuntimeProject } from './audio-warp-runtime-authority.ts';
 import { clipSourcePreviewWarpMap, type ClipSourceTimingSource } from './clip-source-timing.ts';
 import { sampleFrameToBeat } from './timeline-tempo-inverse.ts';
+import { multiplyRationals } from './timeline-time.ts';
 
 /** Stretch elapsed output time while every authored marker retains its source sample. */
 export function stretchAudioWarpClipRate(
@@ -15,12 +16,14 @@ export function stretchAudioWarpClipRate(
 ) {
 	const previous = clipSourcePreviewWarpMap(project, clip, source);
 	if (!previous) return null;
+	const musical = isMusicalAudioWarpClip(clip);
 	const next = { ...clip, timelineStartFrame, durationFrames,
-		...(isMusicalAudioWarpClip(clip) && timelineStartFrame !== clip.timelineStartFrame
+		...(musical && timelineStartFrame !== clip.timelineStartFrame
 			? { musicalStartBeat: sampleFrameToBeat(timelineStartFrame, project.tempoMap, project.sampleRate) } : {}),
 	};
 	const points = previous.points.map((point, index) => ({ ...point,
-		outer: index === 0 ? { num: 0, den: 1 } : audioWarpOuterAtTimelineFrame(project, next,
+		outer: !musical ? multiplyRationals(point.outer, { num: durationFrames, den: clip.durationFrames })
+			: index === 0 ? { num: 0, den: 1 } : audioWarpOuterAtTimelineFrame(project, next,
 			timelineStartFrame + (index === previous.points.length - 1 ? durationFrames
 				: Math.round(point.outer.num / point.outer.den * durationFrames / clip.durationFrames))),
 	}));
