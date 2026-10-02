@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import {
-	brandRuntimeProjectProjection, resolveRuntimeClipProjection, resolveRuntimeProjectProjection,
+	brandRuntimeProjectProjection, resolveRuntimeProjectProjection,
 	type RuntimeClipProject, type RuntimeProjectProjection,
 } from './runtime-clip-projection.ts';
 
@@ -27,10 +27,6 @@ export function projectForCommand(project: RuntimeClipProject): RuntimeClipProje
 			const source = record(value, 'source');
 			return source.kind === 'video' ? { ...source, frameCount: source.sampleFrameCount } : source;
 		}) : [],
-		projectBin: {
-			...bin,
-			clips: bin.clips.map((value: unknown) => resolveRuntimeClipProjection(project, record(value, 'project.projectBin.clips'))),
-		},
 	};
 	return brandRuntimeProjectProjection(projected);
 }
