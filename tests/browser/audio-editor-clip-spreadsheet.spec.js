@@ -22,13 +22,34 @@ async function editCell(grid, row, column, label, value) {
 }
 
 async function pasteText(page, text) {
+	if (page.context().browser().browserType().name() !== 'chromium') {
+		await clipboardEvent(page, 'paste', text);
+		return;
+	}
 	await page.evaluate((value) => navigator.clipboard.writeText(value), text);
 	await page.keyboard.press('ControlOrMeta+v');
 }
 
 async function copiedText(page) {
+	if (page.context().browser().browserType().name() !== 'chromium') {
+		return clipboardEvent(page, 'copy');
+	}
 	await page.keyboard.press('ControlOrMeta+c');
 	return page.evaluate(() => navigator.clipboard.readText());
+}
+
+// Firefox and WebKit do not expose OS clipboard permissions through Playwright.
+// Exercise their DOM clipboard events; Chromium retains the native keyboard path.
+async function clipboardEvent(page, type, text = '') {
+	return page.evaluate(({ eventType, value }) => {
+		const event = new ClipboardEvent(eventType, {
+			bubbles: true, cancelable: true, clipboardData: new DataTransfer(),
+		});
+		// Firefox creates its own transfer instead of retaining the constructor input.
+		event.clipboardData.setData('text/plain', value);
+		document.activeElement.dispatchEvent(event);
+		return event.clipboardData.getData('text/plain');
+	}, { eventType: type, value: text });
 }
 
 async function clearSelection(page, grid) {
@@ -42,8 +63,10 @@ function referencedFilesDialog(page) {
 }
 
 test.describe('clip spreadsheet', () => {
-	test.beforeEach(async ({ context }) => {
-		await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+	test.beforeEach(async ({ browserName, context }) => {
+		if (browserName === 'chromium') {
+			await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+		}
 	});
 
 	test('opens from View Panels for an empty project and closes through panel controls', async ({ page }) => {
@@ -448,7 +471,7 @@ test.describe('clip spreadsheet', () => {
 		expect(errors).toEqual([]);
 	});
 
-	test('keyboard paste appends safely when clipboard reading is unavailable', async ({ page }) => {
+	test('paste appends safely when clipboard reading is unavailable', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [toneA]);
