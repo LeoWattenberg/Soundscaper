@@ -84,6 +84,13 @@ test.describe('clip source editor', () => {
 		await panel.getByRole('button', { name: 'Play', exact: true }).click();
 		await expect(panel.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
 		await expect.poll(() => ruler.getAttribute('aria-valuenow')).not.toBe('0');
+		const mainTransport = editor.locator('.kw-audio-editor__transport');
+		await mainTransport.getByRole('button', { name: 'Play', exact: true }).click();
+		await expect(panel.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
+		await expect(mainTransport.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
+		await panel.getByRole('button', { name: 'Play', exact: true }).click();
+		await expect(panel.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
+		await expect(mainTransport.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
 		await panel.getByRole('button', { name: 'Stop', exact: true }).click();
 		await expect(panel.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
 		await expect(ruler).toHaveAttribute('aria-valuenow', '0');
