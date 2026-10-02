@@ -57,6 +57,7 @@ export const AUDIO_EDITOR_COMMAND_TYPES = [
 	'source/update',
 	'source/reprobe',
 	'source/rewrite-media',
+	'source/process-audio',
 	'project-bin/add',
 	'project-bin/move-from-timeline',
 	'project-bin/place',
@@ -211,6 +212,12 @@ type LegacyNonBatchAudioEditorCommandPayloads = {
 			readonly sourceStartFrame: number;
 		}>[];
 	};
+	readonly 'source/process-audio': {
+		readonly sourceId: string;
+		readonly source: CommandObject;
+		readonly startFrame: number;
+		readonly endFrame: number;
+	};
 	readonly 'project-bin/add': { readonly clip: CommandObject };
 	readonly 'project-bin/move-from-timeline': { readonly clipIds: readonly string[] };
 	readonly 'project-bin/place': {
@@ -321,6 +328,7 @@ type LegacyNonBatchAudioEditorCommandPayloads = {
 	};
 	readonly 'clip/trim': {
 		readonly clipId: string;
+		readonly sourceRange?: boolean;
 		readonly timelineStartFrame?: number;
 		readonly sourceStartFrame?: number;
 		readonly sourceDurationFrames?: number;

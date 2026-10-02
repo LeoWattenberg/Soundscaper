@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createEnvelopeValueEvaluator } from '../automation.js';
+import { processSourceAudio } from './source-process-audio-runtime.ts';
 import {
 	assertFrame,
 	normalizeFrameRange,
@@ -534,6 +535,7 @@ export function createProjectSourceBinRuntimeHandlers(dispatchChild) {
 		'source/update': (project, command) => updateSource(project, command.sourceId, command.changes),
 		'source/reprobe': reprobeSource,
 		'source/rewrite-media': rewriteSourceMedia,
+		'source/process-audio': processSourceAudio,
 		'project-bin/add': (project, command) => addProjectBinClip(project, command.clip),
 		'project-bin/move-from-timeline': (project, command) => moveTimelineClipsToProjectBin(project, command.clipIds),
 		'project-bin/place': placeProjectBinClip,
