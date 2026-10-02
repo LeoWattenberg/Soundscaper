@@ -3,6 +3,9 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
 import type { ClipPropertiesFocusRequest } from '../../controller/composition/clip-properties-panel-opening.ts';
 import ClipPropertiesBody from './ClipPropertiesBody.jsx';
+import ClipSourceEditor from './ClipSourceEditor.tsx';
+import { selectAudioEditorEditBlock } from '../edit-blocking.ts';
+import type { ClipSourceController, ClipSourceProject } from './clip-source-editor-types.ts';
 import {
 	clipPropertiesSelection,
 	reconcileClipPropertiesTarget,
@@ -47,8 +50,10 @@ export default function ClipPropertiesPanel({ controller, snapshot, copy, focusR
 		const wrongProject = focusRequest.projectId !== undefined && focusRequest.projectId !== selection.projectId;
 		const removedClip = focusRequest.clipId !== null && !selection.clips.some(({ id }) => id === focusRequest.clipId);
 		if (wrongProject || removedClip || !activeClipId) { acknowledge(); return; }
-		const field = focusRequest.field ?? 'name';
-		const input = bodyRef.current?.querySelector(`[data-clip-field="${field}"]`)?.querySelector<HTMLInputElement>('input');
+		const field = focusRequest.field;
+		const input = field ? bodyRef.current?.querySelector(`[data-clip-field="${field}"]`)?.querySelector<HTMLInputElement>('input') : null;
+		const drawer = input?.closest('details');
+		if (input && !input.disabled && drawer) drawer.open = true;
 		const focusTarget = input && !input.disabled ? input : bodyRef.current;
 		if (!focusTarget) return;
 		focusTarget.focus();
@@ -70,6 +75,12 @@ export default function ClipPropertiesPanel({ controller, snapshot, copy, focusR
 		tabRefs.current.get(nextClip.id)?.focus();
 	};
 
+	const sourceController = controller as ClipSourceController;
+	const sourceProject = snapshot.project as ClipSourceProject | null;
+	const sourceClip = sourceProject?.clips.find(clip => clip.id === activeClipId);
+	const hasSourceEditor = panelActive && sourceClip?.kind === 'audio' && sourceController.actions?.clipSourcePreview
+		&& sourceProject?.sources.some(source => source.id === sourceClip.sourceId);
+
 	return <div className="audio-editor-clip-properties-panel" data-clip-properties-panel>
 		{multiple && <div className="audio-editor-clip-properties-panel__tabs" role="tablist" aria-label={copy.clipPropertiesSelectedClips}>
 			{selection.clips.map((clip, index) => <button key={clip.id} type="button" role="tab"
@@ -79,7 +90,10 @@ export default function ClipPropertiesPanel({ controller, snapshot, copy, focusR
 				onClick={() => activateTab(clip.id)} onKeyDown={(event) => handleTabKey(event, index)}>{clip.label}</button>)}
 		</div>}
 		{activeClipId ? <div ref={bodyRef} id={bodyId} role={multiple ? 'tabpanel' : undefined}
-			aria-labelledby={multiple ? tabId(activeClipId) : undefined} tabIndex={-1} data-clip-properties-active-clip={activeClipId}>
+			aria-labelledby={multiple ? tabId(activeClipId) : undefined} tabIndex={-1} data-clip-properties-active-clip={activeClipId}
+			onFocusCapture={() => { if (hasSourceEditor && activeClipId) sourceController.actions.clipSourcePreview.focus(activeClipId); }}>
+			{hasSourceEditor && sourceProject && activeClipId && <ClipSourceEditor key={`source:${sourceProject.id}:${activeClipId}`} controller={sourceController}
+				project={sourceProject} clipId={activeClipId} copy={copy} blocked={selectAudioEditorEditBlock(snapshot as Parameters<typeof selectAudioEditorEditBlock>[0]).blocked} />}
 			<ClipPropertiesBody key={JSON.stringify([selection.projectId, activeClipId])} controller={controller}
 				snapshot={snapshot} copy={copy} clipId={activeClipId} />
 		</div> : <p className="audio-editor-panel-hint" data-no-clip>{copy.noClipSelected}</p>}

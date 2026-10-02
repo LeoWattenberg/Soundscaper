@@ -228,7 +228,7 @@ export default function ClipPropertiesBody({ controller, snapshot, copy, clipId 
 						</div>
 					</div>
 				</ClipPropertiesDrawer>}
-				{!isVideoClip && snapshot.capabilities?.audioEffects && <ClipPropertiesDrawer name="normalize" label={copy.clipNormalize}>
+				{!isVideoClip && snapshot.capabilities?.audioEffects && <ClipPropertiesDrawer name="normalize" label={copy.effectCardNormalize}>
 					<div className="audio-editor-panel-actions">
 						<ActionHook hook="normalize-peak"><Button disabled={disabled} onClick={() => run(controller.actions.clip.normalizePeak)}>{copy.normalizePeak}</Button></ActionHook>
 						<ActionHook hook="normalize-lufs"><Button disabled={disabled} onClick={() => run(controller.actions.clip.normalizeLoudness)}>{copy.normalizeLufs}</Button></ActionHook>

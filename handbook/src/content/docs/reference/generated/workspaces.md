@@ -41,7 +41,7 @@ A workspace is a saved arrangement of the panels and toolbars around the timelin
 | Playback meter | `playback-meter` | Right | Hidden | Hidden | Hidden | Hidden | Hidden |
 | Recording meter | `recording-meter` | Right | Hidden | Hidden | Hidden | Hidden | Hidden |
 | Clock | `clock` | Floating | Hidden | Hidden | Hidden | Hidden | Hidden |
-| Clip properties | `clip-properties` | Right | Hidden | Hidden | Hidden | Hidden | Hidden |
+| Clip properties | `clip-properties` | Bottom | Hidden | Hidden | Hidden | Hidden | Hidden |
 
 Open optional panels from **View > Panels**. The **Clock**, **Playback meter**, and Soundscaper’s **Recording meter** start hidden. You can also choose **Undock timecode** in the toolbar timecode’s dropdown to move that readout into the Clock panel; **Return to toolbar** in the Clock’s dropdown puts it back.
 
