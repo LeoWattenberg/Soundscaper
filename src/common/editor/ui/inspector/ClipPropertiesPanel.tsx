@@ -7,6 +7,7 @@ import type { ClipPropertiesFocusRequest } from '../../controller/composition/cl
 import ClipPropertiesBody from './ClipPropertiesBody.jsx';
 import ClipSourceEditor from './ClipSourceEditor.tsx';
 import { selectAudioEditorEditBlock } from '../edit-blocking.ts';
+import { feedbackFailure, usePresentationFeedback } from '../presentation-feedback.ts';
 import type { ClipSourceController, ClipSourceProject } from './clip-source-editor-types.ts';
 import {
 	clipPropertiesSelection,
@@ -28,6 +29,7 @@ interface ClipPropertiesPanelProps {
 /** A live inspector whose local tabs never rewrite the timeline's selection. */
 export default function ClipPropertiesPanel({ controller, snapshot, copy, focusRequest = null, panelActive = true }: ClipPropertiesPanelProps) {
 	const selection = clipPropertiesSelection(snapshot, copy.clip);
+	const [error, setError] = usePresentationFeedback(copy);
 	const [storedTarget, setStoredTarget] = useState<ClipPropertiesTarget>({ projectId: null, clipId: null });
 	const handledFocus = useRef<ClipPropertiesFocusRequest | null>(null);
 	const pendingFocus = focusRequest && handledFocus.current !== focusRequest
@@ -85,6 +87,15 @@ export default function ClipPropertiesPanel({ controller, snapshot, copy, focusR
 	const sourceClip = sourceProject?.clips.find(clip => clip.id === activeClipId);
 	const hasSourceEditor = panelActive && sourceClip?.kind === 'audio' && sourceController.actions?.clipSourcePreview
 		&& sourceProject?.sources.some(source => source.id === sourceClip.sourceId);
+	const handlePlaybackKey = (event: KeyboardEvent<HTMLDivElement>) => {
+		if (!hasSourceEditor || !activeClipId || event.defaultPrevented || event.code !== 'Space' || event.altKey || event.ctrlKey || event.metaKey) return;
+		event.stopPropagation();
+		if (event.target instanceof Element && event.target.closest('input, textarea, select, button, a, summary, [contenteditable]:not([contenteditable="false"]), [role="button"], [role="slider"], [role="spinbutton"]')) return;
+		event.preventDefault();
+		setError('');
+		try { void Promise.resolve(sourceController.actions.clipSourcePreview.playPause(activeClipId)).catch(cause => setError(feedbackFailure(cause))); }
+		catch (cause) { setError(feedbackFailure(cause)); }
+	};
 
 	return <div className="audio-editor-clip-properties-panel" data-clip-properties-panel>
 		{multiple && <div className="audio-editor-clip-properties-panel__tabs" role="tablist" aria-label={copy.clipPropertiesSelectedClips}>
@@ -96,11 +107,13 @@ export default function ClipPropertiesPanel({ controller, snapshot, copy, focusR
 		</div>}
 		{activeClipId ? <div ref={bodyRef} id={bodyId} role={multiple ? 'tabpanel' : undefined}
 			aria-labelledby={multiple ? tabId(activeClipId) : undefined} tabIndex={-1} data-clip-properties-active-clip={activeClipId}
+			onKeyDown={handlePlaybackKey}
 			onFocusCapture={() => { if (hasSourceEditor && activeClipId) sourceController.actions.clipSourcePreview.focus(activeClipId); }}>
 			{hasSourceEditor && sourceProject && activeClipId && <ClipSourceEditor key={`source:${sourceProject.id}:${activeClipId}`} controller={sourceController}
 				project={sourceProject} clipId={activeClipId} copy={copy} blocked={selectAudioEditorEditBlock(snapshot as Parameters<typeof selectAudioEditorEditBlock>[0]).blocked} />}
 			<ClipPropertiesBody key={JSON.stringify([selection.projectId, activeClipId])} controller={controller}
 				snapshot={runtimeSnapshot} copy={copy} clipId={activeClipId} />
 		</div> : <p className="audio-editor-panel-hint" data-no-clip>{copy.noClipSelected}</p>}
+		{error && <p role="alert">{error}</p>}
 	</div>;
 }

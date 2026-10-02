@@ -81,10 +81,17 @@ test.describe('clip source editor', () => {
 		await expect(ruler).toHaveAttribute('data-time-origin', 'local');
 		await panel.getByRole('button', { name: 'Loop selection', exact: true }).click();
 		await expect(panel.getByRole('button', { name: 'Loop selection', exact: true })).toHaveAttribute('aria-pressed', 'true');
-		await panel.getByRole('button', { name: 'Play', exact: true }).click();
+		const propertiesBody = panel.locator('[data-clip-properties-active-clip]');
+		await propertiesBody.focus();
+		await propertiesBody.press('Space');
 		await expect(panel.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
 		await expect.poll(() => ruler.getAttribute('aria-valuenow')).not.toBe('0');
 		const mainTransport = editor.locator('.kw-audio-editor__transport');
+		await expect(mainTransport.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
+		await propertiesBody.press('Space');
+		await expect(panel.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
+		await propertiesBody.press('Space');
+		await expect(panel.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
 		await mainTransport.getByRole('button', { name: 'Play', exact: true }).click();
 		await expect(panel.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
 		await expect(mainTransport.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
