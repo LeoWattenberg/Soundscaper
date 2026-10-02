@@ -103,6 +103,7 @@ export interface EditorActionFunctions {
 	readonly hasMissingTimelineSources: ReturnType<typeof createSourceRuntimeComposition>['projectVisual']['hasMissingTimelineSources'];
 	readonly importEffectPresets: ReturnType<typeof createEffectsComposition>['controls']['importEffectPresets'];
 	readonly importFiles: ReturnType<typeof createImportComposition>['importFiles'];
+	readonly pasteClipSpreadsheet: ReturnType<typeof createImportComposition>['pasteSpreadsheet'];
 	readonly inspectScape: ReturnType<typeof createScapeProjectFileService>['inspectScape'];
 	readonly listAudioEditorEffectPresets: typeof listAudioEditorEffectPresets;
 	readonly listProjects: ReturnType<typeof createProjectAdminService>['listProjects'];

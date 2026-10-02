@@ -192,4 +192,130 @@ test.describe('clip spreadsheet', () => {
 		await expect.poll(async () => Number(await cell(grid, 1, 'speed').textContent())).toBe(1);
 		expect(errors).toEqual([]);
 	});
+
+	test('appends rows using imported audio and creates named tracks in one undo step', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA]);
+		const panel = await openSpreadsheet(page, editor);
+		const grid = panel.getByRole('grid');
+		const row = ['New clip', 'Spreadsheet track', '2', toneA.name, '0.05', '0.1', '3', '1.5', '-6', '0.01', '0.02', 'true', 'false'];
+		await page.evaluate((value) => navigator.clipboard.writeText(value), row.join('\t'));
+		await panel.getByRole('button', { name: 'Paste new rows', exact: true }).click();
+		await expect(cell(grid, 1, 'name')).toHaveText('New clip');
+		await expect(cell(grid, 1, 'track')).toHaveText('Spreadsheet track');
+		await expect(cell(grid, 1, 'position')).toHaveText('2');
+		await expect(cell(grid, 1, 'offset')).toHaveText('0.05');
+		await expect(cell(grid, 1, 'duration')).toHaveText('0.1');
+		await expect(cell(grid, 1, 'pitch')).toHaveText('3');
+		await expect(cell(grid, 1, 'speed')).toHaveText('1.5');
+		await expect(cell(grid, 1, 'gain')).toHaveText('-6');
+		await expect(cell(grid, 1, 'reversed')).toHaveText('true');
+		await panel.getByRole('button', { name: 'Undo', exact: true }).click();
+		await expect(cell(grid, 1, 'name')).toHaveCount(0);
+		await expect(cell(grid, 0, 'name')).toHaveText(firstName);
+		await panel.getByRole('button', { name: 'Redo', exact: true }).click();
+		await expect(cell(grid, 1, 'name')).toHaveText('New clip');
+		expect(errors).toEqual([]);
+	});
+
+	test('loads a missing disk source for pasted rows in an empty project and rejects invalid media bounds atomically', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		const panel = await openSpreadsheet(page, editor);
+		const grid = panel.getByRole('grid');
+		const row = ['From disk', 'Imported row', '3', `/recordings/${toneA.name}`, '0.05', '0.1', '-2', '2'];
+		await page.evaluate((value) => navigator.clipboard.writeText(value), row.join('\t'));
+		await panel.getByRole('button', { name: 'Paste', exact: true }).click();
+		await expect(panel.getByText(`/recordings/${toneA.name}`, { exact: true })).toBeVisible();
+		const choose = page.waitForEvent('filechooser');
+		await panel.getByRole('button', { name: 'Load referenced files', exact: true }).click();
+		await (await choose).setFiles(toneA);
+		await expect(cell(grid, 0, 'name')).toHaveText('From disk');
+		await expect(cell(grid, 0, 'source')).toHaveText(toneA.name);
+		await expect(cell(grid, 0, 'position')).toHaveText('3');
+		await expect(cell(grid, 0, 'pitch')).toHaveText('-2');
+		await panel.getByRole('button', { name: 'Undo', exact: true }).click();
+		await expect(cell(grid, 0, 'name')).toHaveCount(0);
+		row[5] = '999';
+		await page.evaluate((value) => navigator.clipboard.writeText(value), row.join('\t'));
+		await panel.getByRole('button', { name: 'Paste', exact: true }).click();
+		const invalidChoose = page.waitForEvent('filechooser');
+		await panel.getByRole('button', { name: 'Load referenced files', exact: true }).click();
+		await (await invalidChoose).setFiles(toneA);
+		await expect(panel.getByRole('alert')).toBeVisible();
+		await expect(cell(grid, 0, 'name')).toHaveCount(0);
+		await expect(panel.getByRole('button', { name: 'Undo', exact: true })).toBeDisabled();
+		expect(errors).toEqual([]);
+	});
+
+	test('pastes a taller table to update existing rows and add clips beyond its end', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA]);
+		const panel = await openSpreadsheet(page, editor);
+		const grid = panel.getByRole('grid');
+		await grid.getByRole('button', { name: 'Select row 1', exact: true }).click();
+		const original = await copiedText(page);
+		const first = original.split('\t');
+		first[0] = 'Updated row';
+		const second = [...first];
+		second[0] = 'Added row';
+		second[2] = '2';
+		await pasteText(page, `${first.join('\t')}\n${second.join('\t')}`);
+		await expect(cell(grid, 0, 'name')).toHaveText('Updated row');
+		await expect(cell(grid, 1, 'name')).toHaveText('Added row');
+		await expect(cell(grid, 1, 'track')).toHaveText(firstName);
+		await panel.getByRole('button', { name: 'Undo', exact: true }).click();
+		await expect(cell(grid, 0, 'name')).toHaveText(firstName);
+		await expect(cell(grid, 1, 'name')).toHaveCount(0);
+		expect(errors).toEqual([]);
+	});
+
+	test('keeps missing-source pastes pending after a mismatched file and allows cancellation', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		const panel = await openSpreadsheet(page, editor);
+		await page.evaluate((value) => navigator.clipboard.writeText(value), ['Pending', 'New track', '0', toneA.name].join('\t'));
+		await panel.getByRole('button', { name: 'Paste', exact: true }).click();
+		const choose = page.waitForEvent('filechooser');
+		await panel.getByRole('button', { name: 'Load referenced files', exact: true }).click();
+		await (await choose).setFiles(toneB);
+		await expect(panel.getByRole('alert')).toBeVisible();
+		await expect(panel.getByRole('gridcell')).toHaveCount(0);
+		await panel.getByRole('button', { name: 'Cancel paste', exact: true }).click();
+		await expect(panel.getByRole('button', { name: 'Load referenced files', exact: true })).toHaveCount(0);
+		await expect(panel.getByRole('alert')).toHaveCount(0);
+		await expect(panel.getByRole('button', { name: 'Undo', exact: true })).toBeDisabled();
+		expect(errors).toEqual([]);
+	});
+
+	test('keyboard paste appends safely when clipboard reading is unavailable', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA]);
+		const panel = await openSpreadsheet(page, editor);
+		const grid = panel.getByRole('grid');
+		await grid.getByRole('button', { name: 'Select row 1', exact: true }).click();
+		const row = (await copiedText(page)).split('\t');
+		row[0] = 'Keyboard append';
+		row[2] = '2';
+		await page.evaluate(() => {
+			Object.defineProperty(navigator.clipboard, 'readText', { configurable: true,
+				value: () => Promise.reject(new DOMException('Clipboard permission denied', 'NotAllowedError')) });
+		});
+		await cell(grid, 0, 'name').click();
+		await panel.getByRole('button', { name: 'Paste new rows', exact: true }).click();
+		await expect(panel.locator('[data-clip-spreadsheet-append]')).toBeFocused();
+		await pasteText(page, row.join('\t'));
+		await expect(cell(grid, 0, 'name')).toHaveText(firstName);
+		await expect(cell(grid, 1, 'name')).toHaveText('Keyboard append');
+		row[0] = 'Second keyboard append';
+		row[2] = '4';
+		await pasteText(page, row.join('\t'));
+		await expect(cell(grid, 0, 'name')).toHaveText(firstName);
+		await expect(cell(grid, 1, 'name')).toHaveText('Keyboard append');
+		await expect(cell(grid, 2, 'name')).toHaveText('Second keyboard append');
+		expect(errors).toEqual([]);
+	});
 });

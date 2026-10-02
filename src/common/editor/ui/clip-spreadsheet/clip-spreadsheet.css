@@ -4,6 +4,9 @@
 .audio-editor-clip-spreadsheet__content { height: 100%; display: flex; flex-direction: column; gap: 12px; min-height: 0; }
 .audio-editor-clip-spreadsheet__content > p { margin: 0; }
 .audio-editor-clip-spreadsheet__actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.audio-editor-clip-spreadsheet__pending { overflow: auto; max-height: 45%; flex-shrink: 0; }
+.audio-editor-clip-spreadsheet__pending p { margin: 0; }
+.audio-editor-clip-spreadsheet__pending li { overflow-wrap: anywhere; }
 .audio-editor-clip-spreadsheet__scroll { overflow: auto; flex: 1; min-height: 80px; border: 1px solid var(--line); }
 .audio-editor-clip-spreadsheet table { border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%; font-variant-numeric: tabular-nums; }
 .audio-editor-clip-spreadsheet th, .audio-editor-clip-spreadsheet td { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); height: 34px; padding: 0 10px; white-space: pre; min-width: 90px; max-width: 340px; overflow: hidden; text-overflow: ellipsis; }

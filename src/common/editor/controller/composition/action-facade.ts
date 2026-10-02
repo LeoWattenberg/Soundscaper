@@ -43,7 +43,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 	fileService, findTrack, persistSetting, publishDocumentSnapshot, flushProject, generateSelectionSilence,
 	generateSignal, repeatLastGenerator, getClipVisualData, getVisibleClips,
 	handleClipAction, handleEdit, handleExportAction, handlePlayAtSpeed, handleTransport,
-	hasMissingTimelineSources, importFiles, inspectScape, labels, listProjects, makeStereoTrack,
+	hasMissingTimelineSources, importFiles, pasteClipSpreadsheet, inspectScape, labels, listProjects, makeStereoTrack,
 	materializeFreesoundUploadClip, mixAndRenderTracks, moveClips, moveClipsToNewTrack, moveTrack, newProject,
 	normalizePlaybackFrame, openAudacityProject, openAup4, openProject, openScape, openScapeFile, overwriteClips,
 	openDawproject, openSesx, saveDawproject, pasteEffectStack, pauseLoudnessMeasurement,
@@ -378,6 +378,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 		clipSourcePreview: Object.freeze({ ...scope.clipSourcePreviewService }),
 		clip: Object.freeze({
 			editSpreadsheet: restricted('audioEffects', createClipSpreadsheetAction(scope)),
+			pasteSpreadsheet: restricted('audioEffects', pasteClipSpreadsheet),
 			update: (clipId: string, changes: Readonly<Record<string, unknown>>) => commit({ type: 'clip/update', clipId, changes }, { selectClipId: clipId }),
 			setTimePitch: restricted('audioEffects', setClipTimePitch),
 			stretch: restricted('audioEffects', stretchClip),

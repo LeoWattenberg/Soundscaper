@@ -5,6 +5,16 @@ import type { FoundationTimeConversionSite } from './foundation-time-conversion-
 /** Focused WP-0.1 inventory for integer sample-rate changes of basis. */
 export const FOUNDATION_RATE_CONVERSION_AUDIT_SITES: readonly FoundationTimeConversionSite[] = [
 	{
+		id: 'clip-spreadsheet-time-cells',
+		file: 'src/common/editor/clip-spreadsheet-values.ts',
+		behavior: 'Spreadsheet time cells use point rounding on their owning sample grid. Source and timeline durations change sample-rate basis exactly at neutral speed; speed changes convert the authored seconds under the same explicit point policy.',
+		conversions: [
+			{ helper: 'sampleFrameToSeconds', policies: ['exact'] },
+			{ helper: 'scaleSampleFrame', policies: ['point'] },
+			{ helper: 'secondsToSampleFrame', policies: ['point'] },
+		],
+	},
+	{
 		id: 'export-source-working-set-cache-extent',
 		file: 'src/common/editor/export-source-working-set.ts',
 		behavior: 'Scalar export cache admission encloses the project-rate clip duration on the source sample grid so fractional final frames and large exact extents cannot undercount retained PCM.',

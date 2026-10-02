@@ -66,7 +66,7 @@ in semitones, and speed is a ratio: `1` is normal speed and `2` is twice as fast
 
 Double-click a cell or select it and press **Enter** to edit its value. Press
 **Enter** to apply the edit or **Escape** to cancel. Track, source file, sample
-rate, and channel count are read-only. Clips on locked tracks and video clips
+rate, and channel count are read-only for existing clips. Clips on locked tracks and video clips
 are also read-only.
 
 Changing duration trims or extends the source range at the current offset.
@@ -79,7 +79,24 @@ the selection. Click a row number or column heading to select the whole row
 or column. Use **Ctrl+C** and **Ctrl+V** (**Cmd+C** and **Cmd+V** on macOS) to
 exchange the selection with a spreadsheet editor. Values use tabs between
 columns and newlines between rows. Pasting starts at the selected cell and
-updates existing clips. **Undo** reverses a whole paste in one step; a paste
+updates existing clips. Rows extending beyond the table create new clips.
+Use **Paste new rows** to append rows without replacing existing clips, or
+**Paste** to start from an empty project. For keyboard pasting, focus the
+**Paste new rows** area at the bottom of the table and press **Ctrl+V** or
+**Cmd+V**. New rows follow the table's column
+order and need a source file name or source ID. A unique existing track name
+places the clip on that track; a new name creates an audio track. Blank track
+names use the source name. Blank numeric cells use defaults: position and
+offset `0`, speed `1`, pitch and gain `0`, and no fades. Blank duration uses
+the remaining audio at the requested speed.
+
+The panel first looks for the source in the project, including the Project
+Bin. If it is missing, choose **Load referenced files** and select the audio
+files listed in the panel. Disk paths also need this file selection: pasting
+a path does not grant the app access to the file. Selected files must match
+the referenced names unambiguously. The panel imports the audio, validates
+the source bounds and clip properties, and places the new clips at their
+specified positions. **Undo** reverses a whole paste in one step; a paste
 containing an invalid value leaves the clips unchanged.
 
 ## Build the mix

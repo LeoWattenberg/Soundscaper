@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { spreadsheetBoolean as booleanValue, spreadsheetFrames as frames, spreadsheetNumber as numeric, spreadsheetGain, spreadsheetDurationFrames, spreadsheetSourceDurationFrames } from './clip-spreadsheet-values.ts';
 import { envelopeForTrimmedBounds } from './commands/shared-runtime.js';
 import type { AudioEditorCommand, CommandObject } from './commands/protocol.ts';
 import { projectForRuntimeConsumers } from './project-current-runtime.ts';
@@ -189,15 +190,15 @@ function planClip(project: SpreadsheetProject, clip: SpreadsheetClip, source: Sp
 			if (clip.linkPitchAndTempo) throw new RangeError('Edit the speed of a clip whose pitch and tempo are linked.');
 			set(transform, 'pitchCents', numeric(raw, -12, 12, 'Pitch') * 100);
 		} else if (column === 'gain') {
-			const gain = raw.trim().toLowerCase() === '-infinity' || raw.trim() === '-∞' ? 0 : 10 ** (numeric(raw, -1_000, 20 * Math.log10(16), 'Gain') / 20);
+			const gain = spreadsheetGain(raw);
 			if (Math.abs(gain - clip.gain) > 1e-12) update.gain = gain;
 		} else if (column === 'reversed' || column === 'inverted') set(update, column, booleanValue(raw));
 	}
 	const speedChanged = speedRatio !== clip.speedRatio;
 	const durationRequested = fields.has('duration');
 	if (durationRequested && (durationFrames !== clip.durationFrames || speedChanged)) {
-		sourceDurationFrames = Math.round(durationFrames / project.sampleRate * speedRatio * sourceRate);
-	} else if (speedChanged) durationFrames = Math.round(sourceDurationFrames / sourceRate * project.sampleRate / speedRatio);
+		sourceDurationFrames = spreadsheetSourceDurationFrames(durationFrames, project.sampleRate, sourceRate, speedRatio);
+	} else if (speedChanged) durationFrames = spreadsheetDurationFrames(sourceDurationFrames, sourceRate, project.sampleRate, speedRatio);
 	if (!Number.isSafeInteger(durationFrames) || durationFrames < 1 || !Number.isSafeInteger(sourceDurationFrames) || sourceDurationFrames < 1) throw new RangeError('Clip duration must contain at least one sample.');
 	if (sourceStartFrame + sourceDurationFrames > source.frameCount) throw new RangeError('Clip offset and duration exceed the source file.');
 	set(transform, 'sourceStartFrame', sourceStartFrame);
@@ -218,7 +219,7 @@ function planClip(project: SpreadsheetProject, clip: SpreadsheetClip, source: Sp
 	if (clip.warpMap != null && ['sourceStartFrame', 'sourceDurationFrames', 'durationFrames', 'speedRatio'].some(key => Object.hasOwn(transform, key))) throw new RangeError('Edit warped clip timing in the source editor.');
 	if (durationFrames !== clip.durationFrames || speedChanged) {
 		const stretchedDuration = speedChanged
-			? Math.max(1, Math.round(clip.sourceDurationFrames / sourceRate * project.sampleRate / speedRatio))
+			? Math.max(1, spreadsheetDurationFrames(clip.sourceDurationFrames, sourceRate, project.sampleRate, speedRatio))
 			: clip.durationFrames;
 		const points = new Map<number, { frame: number; value: number }>();
 		for (const point of clip.envelope) {
@@ -236,18 +237,3 @@ function runtimeProject(project: unknown): SpreadsheetProject {
 	return projectForRuntimeConsumers(project as RuntimeClipProject) as unknown as SpreadsheetProject;
 }
 function numberText(value: number): string { return Number.isFinite(value) ? String(value) : ''; }
-function numeric(raw: string, minimum: number, maximum: number, label: string): number {
-	const value = Number(raw.trim());
-	if (!raw.trim() || !Number.isFinite(value) || value < minimum || value > maximum) throw new RangeError(`${label} must be between ${String(minimum)} and ${String(maximum)}.`);
-	return value;
-}
-function frames(raw: string, rate: number, positive: boolean): number {
-	const value = Math.round(numeric(raw, 0, Number.MAX_SAFE_INTEGER / rate, 'Time') * rate);
-	if (!Number.isSafeInteger(value) || value < (positive ? 1 : 0)) throw new RangeError('Time must resolve to a valid sample position.');
-	return value;
-}
-function booleanValue(raw: string): boolean {
-	if (/^(true|yes|1)$/i.test(raw.trim())) return true;
-	if (/^(false|no|0)$/i.test(raw.trim())) return false;
-	throw new RangeError('Boolean cells accept true or false.');
-}
