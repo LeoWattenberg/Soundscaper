@@ -2,8 +2,7 @@
 
 import { freezeProjectFeatureReportMetadata } from './project-feature-report-metadata.ts';
 import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from './project-schema-version.ts';
-import { collectHistorySourceIds } from './retention.js';
-import { collectHistoryLinkedOriginalSourceReferences, collectHistoryStorageKeys } from './session-retention-views.ts';
+import { collectSessionRetentionRoots, collectSessionLinkedOriginalSourceReferences, collectSessionStorageKeys, createSessionRetentionIndex } from './session-retention-index.ts';
 import { createProjectActivationReservations, projectHistoryChangedError } from './session-activation.js';
 import {
 	AUDIO_EDITOR_SESSION_CLIPBOARD_SCHEMA_VERSION,
@@ -14,7 +13,6 @@ import {
 import {
 	adoptImmutableHistory,
 	clone,
-	collectHistoryRetentionRoots,
 	createHistory,
 	nonEmptyString,
 	normalizeProject,
@@ -64,13 +62,14 @@ function normalizeTab(value) {
 		throw new RangeError('Project tab ID does not match its project history.');
 	}
 	const history = createHistory(project, value.history);
+	const retentionIndex = createSessionRetentionIndex(history);
 	const normalizedProject = history.present;
 	const readOnly = Boolean(value.readOnly);
 	return {
 		projectId: normalizedProject.id,
 		history,
 		historyToken: Object.freeze({}),
-		sourceIds: collectHistorySourceIds(history),
+		retentionIndex, sourceIds: retentionIndex.getSourceIds(),
 		readOnly,
 		readOnlyReason: readOnly ? String(value.readOnlyReason || 'read-only') : null,
 		lockMethod: value.lockMethod == null ? null : String(value.lockMethod),
@@ -83,7 +82,7 @@ function countsFor(tabs, clipboard) {
 	const counts = new Map();
 	const add = (sourceId) => counts.set(sourceId, (counts.get(sourceId) || 0) + 1);
 	for (const tab of tabs) {
-		for (const sourceId of tab.sourceIds || collectHistorySourceIds(tab.history)) add(sourceId);
+		for (const sourceId of tab.sourceIds) add(sourceId);
 	}
 	for (const sourceId of collectAudioEditorClipboardSourceIds(clipboard?.descriptor)) add(sourceId);
 	return counts;
@@ -232,7 +231,8 @@ export function createAudioEditorSessionController(options = {}) {
 			};
 		}
 		tab.historyToken = Object.freeze({});
-		tab.sourceIds = collectHistorySourceIds(tab.history);
+		tab.retentionIndex.update(tab.history);
+		tab.sourceIds = tab.retentionIndex.getSourceIds();
 		tab.dirty = updateOptions.dirty !== false;
 		return finishMutation(beforeCounts, 'project-update', { project: clone(next) });
 	}
@@ -250,7 +250,8 @@ export function createAudioEditorSessionController(options = {}) {
 		}
 		tab.history = nextHistory;
 		tab.historyToken = Object.freeze({});
-		tab.sourceIds = collectHistorySourceIds(nextHistory);
+		tab.retentionIndex.update(nextHistory);
+		tab.sourceIds = tab.retentionIndex.getSourceIds();
 		tab.dirty = updateOptions.dirty !== false;
 		return finishMutation(beforeCounts, 'history-update', updateOptions.returnHistory === false
 			? {} : { history: clone(tab.history) });
@@ -278,7 +279,8 @@ export function createAudioEditorSessionController(options = {}) {
 		const readOnly = Boolean(installOptions.readOnly);
 		tab.history = nextHistory;
 		tab.historyToken = Object.freeze({});
-		tab.sourceIds = collectHistorySourceIds(nextHistory);
+		tab.retentionIndex.update(nextHistory);
+		tab.sourceIds = tab.retentionIndex.getSourceIds();
 		tab.readOnly = readOnly;
 		tab.readOnlyReason = readOnly ? String(installOptions.reason || 'intrinsic-read-only') : null;
 		tab.dirty = Boolean(installOptions.dirty);
@@ -435,10 +437,10 @@ export function createAudioEditorSessionController(options = {}) {
 		return countsObject(countsFor(tabs, clipboard));
 	}
 
-	function sessionHistories() { ensureUsable(); return tabs.map((tab) => tab.history); }
-	function getHistoryRetentionRoots() { return collectHistoryRetentionRoots(sessionHistories()); }
-	function getHistoryLinkedOriginalSourceReferences() { return collectHistoryLinkedOriginalSourceReferences(sessionHistories()); }
-	function getHistoryStorageKeys() { return collectHistoryStorageKeys(sessionHistories()); }
+	function retentionIndices() { ensureUsable(); return tabs.map((tab) => tab.retentionIndex); }
+	function getHistoryRetentionRoots() { return collectSessionRetentionRoots(retentionIndices()); }
+	function getHistoryLinkedOriginalSourceReferences() { return collectSessionLinkedOriginalSourceReferences(retentionIndices()); }
+	function getHistoryStorageKeys() { return collectSessionStorageKeys(retentionIndices()); }
 
 	function getSnapshot(fresh = false) {
 		if (!fresh && snapshotCache) return snapshotCache;
