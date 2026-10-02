@@ -19,14 +19,16 @@ export type EditorActionFunctionInventoryIsExhaustive = AssertTrue<
 >;
 
 test('a missing or non-callable dependency fails during assembly with its name', () => {
-	assert.equal(EDITOR_ACTION_FUNCTION_NAMES.length, 195);
-	for (const invalid of [undefined, null, 1, {}]) {
-		const scope = new Proxy(createActionFacadeRuntime(), {
-			get(target, name, receiver) {
-				return name === 'saveNow' ? invalid : Reflect.get(target, name, receiver);
-			},
-		});
-		assert.throws(() => assertEditorActionRuntime(scope), /Missing editor action dependency: saveNow/u);
+	assert.equal(EDITOR_ACTION_FUNCTION_NAMES.length, 197);
+	for (const dependency of ['saveNow', 'setSourceSelection', 'loadSourceAudio'] as const) {
+		for (const invalid of [undefined, null, 1, {}]) {
+			const scope = new Proxy(createActionFacadeRuntime(), {
+				get(target, name, receiver) {
+					return name === dependency ? invalid : Reflect.get(target, name, receiver);
+				},
+			});
+			assert.throws(() => assertEditorActionRuntime(scope), { message: `Missing editor action dependency: ${dependency}.` });
+		}
 	}
 	assert.doesNotThrow(() => assertEditorActionRuntime(createActionFacadeRuntime()));
 });
