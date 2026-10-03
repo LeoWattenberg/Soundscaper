@@ -126,6 +126,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		const editor = await bootEditor(page, '/embed/en/');
 		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'History']);
 		await chooseCommandAction(page, editor, 'Edit', 'Metadata editor');
+		await expect(editor.locator('[data-workspace-panel="metadata"]')).toBeFocused();
 		const historyPanel = editor.locator('[data-workspace-panel="history"]');
 		if (!await historyPanel.isVisible()) await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'History']);
 		await dockWorkspacePanel(editor, 'history', 'left');
