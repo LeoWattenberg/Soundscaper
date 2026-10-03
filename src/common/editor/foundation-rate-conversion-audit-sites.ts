@@ -5,6 +5,12 @@ import type { FoundationTimeConversionSite } from './foundation-time-conversion-
 /** Focused WP-0.1 inventory for integer sample-rate changes of basis. */
 export const FOUNDATION_RATE_CONVERSION_AUDIT_SITES: readonly FoundationTimeConversionSite[] = [
 	{
+		id: 'external-video-companion-audio-rebuild',
+		file: 'src/common/editor/external-media-audio-decoder.ts',
+		behavior: 'Reopening a referenced video reconstructs its companion audio at the saved project rate using the same nearest-frame resampling length as the original import, before padding or trimming to the timeline extent.',
+		conversions: [{ helper: 'scaleSampleFrame', policies: ['point'] }],
+	},
+	{
 		id: 'clip-spreadsheet-source-replacement',
 		file: 'src/common/editor/clip-spreadsheet.ts',
 		behavior: 'Replacing a spreadsheet clip source rescales its source offset and duration onto the replacement sample grid with point rounding while preserving their seconds and timeline coordinates.',

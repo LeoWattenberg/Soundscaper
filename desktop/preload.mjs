@@ -1,11 +1,11 @@
 /* Electron sandbox preload: restricted require exposes only Electron; Framescaper shares this contextBridge. */
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webUtils } = require('electron');
 const PRELOAD_ARGUMENTS = typeof process === 'object' && Array.isArray(process?.argv)
 	? process.argv : (globalThis.process?.argv ?? []);
 const PRELOAD_PRODUCT_ID = PRELOAD_ARGUMENTS.includes('--soundscaper-product=framescaper') ? 'framescaper' : 'soundscaper';
 const SOAK_DEBUG_ENABLED = PRELOAD_PRODUCT_ID === 'soundscaper' && PRELOAD_ARGUMENTS.includes('--soundscaper-soak-debug');
 /* Keys main may hold but the renderer may never see, whatever the shape. */ const PLUGIN_PATH_KEYS = new Set(['binaryPath', 'rootPath', 'path', 'absolutePath', 'filePath']);
-const CHANNELS = Object.freeze({
+const CHANNELS = Object.freeze({ captureExternalMedia: 'soundscaper:v1:external-media:capture', resolveExternalMedia: 'soundscaper:v1:external-media:resolve',
 	environment: 'soundscaper:v1:environment', soakDebugProcessMetrics: 'soundscaper:v1:soak-debug:process-metrics', soakDebugCoverageCheckpoint: 'soundscaper:v1:soak-debug:coverage-checkpoint', chooseFiles: 'soundscaper:v1:files:choose', releaseRead: 'soundscaper:v1:files:release', sesxResolveMedia: 'soundscaper:v1:sesx:media:resolve', sesxChooseFolder: 'soundscaper:v1:sesx:folder:choose', sesxReleaseSession: 'soundscaper:v1:sesx:session:release', chooseLinkedVideoOriginal: 'soundscaper:v1:linked-video:choose', loadLinkedVideoOriginal: 'soundscaper:v1:linked-video:load', reconcileLinkedVideoOriginals: 'soundscaper:v1:linked-video:reconcile', releaseLinkedVideoOriginal: 'soundscaper:v1:linked-video:release', chooseLinkedAudioOriginal: 'soundscaper:v1:linked-audio:choose', loadLinkedAudioOriginal: 'soundscaper:v1:linked-audio:load', reconcileLinkedOriginals: 'soundscaper:v1:linked-original:reconcile', releaseLinkedOriginal: 'soundscaper:v1:linked-original:release', chooseSaveTarget: 'soundscaper:v1:save:choose', beginWrite: 'soundscaper:v1:save:begin', writeChunk: 'soundscaper:v1:save:chunk', patchFinalPrefix: 'soundscaper:v1:save:prefix', finishWrite: 'soundscaper:v1:save:finish', abortWrite: 'soundscaper:v1:save:abort',
 	helperProbeAvailability: 'soundscaper:v1:helper:probe-availability',
 	helperProbeBegin: 'soundscaper:v1:helper:probe-begin',
@@ -52,6 +52,7 @@ const MAX_MATERIALIZED_READ_DESCRIPTOR_BYTES = Number.MAX_SAFE_INTEGER; const MA
 const SHA256 = /^[a-f0-9]{64}$/u;
 const api = Object.freeze({
 	getEnvironment: () => ipcRenderer.invoke(CHANNELS.environment),
+	captureExternalMedia: (file) => { if (typeof file === 'string') return ipcRenderer.invoke(CHANNELS.captureExternalMedia, opaqueId(file, 64)).then((value) => value === null ? null : text(value, 32768)); const path = webUtils?.getPathForFile(file); return Promise.resolve(path ? text(btoa(Array.from(new TextEncoder().encode(JSON.stringify({ version: 1, path })), (byte) => String.fromCharCode(byte)).join('')), 32768) : null); }, resolveExternalMedia: (value) => ipcRenderer.invoke(CHANNELS.resolveExternalMedia, { projectReadId: opaqueId(value?.projectReadId, 64), sourceId: text(value?.sourceId, 256) }).then(sanitizeReadDescriptor),
 	readMcpStatus: () => ipcRenderer.invoke(CHANNELS.mcpStatus).then(mcpStatus), startMcp: () => ipcRenderer.invoke(CHANNELS.mcpStart).then(mcpStatus), stopMcp: () => ipcRenderer.invoke(CHANNELS.mcpStop).then(mcpStatus), onMcpRequest: (listener) => subscribe(CHANNELS.mcpRequest, listener, mcpRequest), respondMcpRequest: (response) => ipcRenderer.send(CHANNELS.mcpResponse, mcpResponse(response)),
 	...(SOAK_DEBUG_ENABLED ? { readSoakProcessMetrics: () => ipcRenderer.invoke(CHANNELS.soakDebugProcessMetrics).then(soakDebugProcessMetrics), checkpointSoakMainCoverage: () => ipcRenderer.invoke(CHANNELS.soakDebugCoverageCheckpoint).then((value) => strictBoolean(value, 'Desktop soak main coverage checkpoint acknowledgement must be a boolean')) } : {}),
 	chooseFiles: (options) => ipcRenderer.invoke(CHANNELS.chooseFiles, {

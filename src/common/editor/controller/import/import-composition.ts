@@ -70,6 +70,7 @@ export function createImportComposition(dependencies: ImportCompositionDependenc
 	let importVideoFile: ImportVideoFile | null = null;
 
 	const projectImportRuntime: ProjectImportRuntime = {
+		captureExternalMediaFile: dependencies.captureExternalMediaFile,
 		SOURCE_CHUNK_FRAMES: dependencies.sourceChunkFrames,
 		activateStoredSource: dependencies.activateStoredSource,
 		audioBufferChannels,

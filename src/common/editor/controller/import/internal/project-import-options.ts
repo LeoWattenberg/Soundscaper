@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { SourceProvenanceV1 } from '../../../source-provenance.ts';
+import type { ExternalMediaReference } from '../../../desktop-external-media.ts';
 
 type ImportOptionsRecord = Record<string, unknown>;
 
@@ -18,6 +19,7 @@ export interface NormalizedProjectImportOptions extends Readonly<Record<string, 
 	readonly linkedVideoLocatorId?: string;
 	readonly linkedVideoLocatorRevision?: string;
 	readonly sourceProvenance?: SourceProvenanceV1;
+	readonly externalMedia?: ExternalMediaReference;
 }
 
 export interface LinkedVideoImportLocatorReference {

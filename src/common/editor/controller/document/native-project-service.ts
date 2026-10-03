@@ -143,6 +143,7 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 				assertOwnership(operation.task, operation.projectToken);
 			}
 			const imported = await runtime.importScapeProject(file, runtime.store, {
+				...(runtime.fileService?.isDesktop ? { resolveExternalMedia: runtime.fileService.externalMediaResolver?.(file), decodeExternalAudio: runtime.decodeExternalAudio } : {}),
 				collision: options.collision || 'copy', acquireReplaceProjectWriteAuthority: runtime.acquireReplaceProjectWriteAuthority,
 				confirmFileSizeWarning: runtime.confirmFileSizeWarning,
 				assertCurrent: () => assertOwnership(operation.task, operation.projectToken),

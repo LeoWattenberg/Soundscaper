@@ -60,11 +60,10 @@ import {
 	indexScapeTimingReferences,
 	joinScapeTimingChunks,
 } from './scape-project-timing-assets.ts';
-
+import { importExternalScapeAsset } from './scape-external-media.ts';
 const PROJECT_ENTRY = SCAPE_PROJECT_ENTRY;
 const MANIFEST_ENTRY = SCAPE_MANIFEST_ENTRY;
-const AUDIO_ENCODING = 'audio-f32le-chunks-v1';
-const TEXT_ENCODER = new TextEncoder();
+const AUDIO_ENCODING = 'audio-f32le-chunks-v1'; const TEXT_ENCODER = new TextEncoder();
 
 export async function exportScapeProject(project, store, options = {}) {
 	if (!project || typeof project !== 'object') throw new TypeError('A project is required.');
@@ -82,7 +81,7 @@ export async function exportScapeProject(project, store, options = {}) {
 		assetExtension.planExportAssets({ project, store, signal, confirmFileSizeWarning: options.confirmFileSizeWarning, assertCurrent: options.assertCurrent }), signal,
 	) : [];
 	const plan = await prepareScapeExport(project, store, {
-		maximumBlobBytes: options.maximumBlobBytes, confirmFileSizeWarning: options.confirmFileSizeWarning, assertCurrent: options.assertCurrent,
+		maximumBlobBytes: options.maximumBlobBytes, confirmFileSizeWarning: options.confirmFileSizeWarning, assertCurrent: options.assertCurrent, externalMedia: options.externalMedia === true,
 		output: writable || createWritable ? 'stream' : 'blob',
 		signal,
 		currentProjectSchemaFamily: options.currentProjectSchemaFamily,
@@ -117,7 +116,7 @@ export async function exportScapeProject(project, store, options = {}) {
 
 	try {
 		for (const asset of plan.assets) {
-			if (asset.kind === 'audio') continue;
+			if (asset.kind === 'audio' || asset.body) continue;
 			const loaded = await awaitScapeOperation(store.loadMediaAsset(asset.storageKey, { signal }), signal);
 			if (!loaded) throw new Error(`Media source ${asset.source.name || asset.sourceId} is unavailable.`);
 			const mediaBlob = canonicalMediaContentBlob(loaded);
@@ -145,7 +144,7 @@ export async function exportScapeProject(project, store, options = {}) {
 			throwIfScapeAborted(signal);
 			const digest = createScapeDigest();
 			let size = 0;
-			if (asset.kind !== 'audio') {
+			if (asset.body) { size = asset.body.byteLength; digest.update(asset.body); await awaitScapeOperation(writer.add(asset.entry, scapeBytesStream(asset.body), { level: 0, zip64: true, signal }), signal); } else if (asset.kind !== 'audio') {
 				const media = mediaBySourceId.get(asset.sourceId);
 				if (!media) throw new Error(`Media source ${asset.source.name || asset.sourceId} is unavailable.`);
 				size = media.size;
@@ -349,6 +348,7 @@ async function importScapeProjectAttempt(input, store, options, remapAllSources)
 				const source = project.sources.find((candidate) => candidate.id === finalSourceId);
 				const entry = entryByName.get(asset.entry);
 				if (!entry) throw new Error(`The Scape archive is missing ${asset.entry}.`);
+				if (asset.encoding === 'external-file-v1') { await importExternalScapeAsset({ source, originalSourceId, asset, entry, store, transaction, resolveExternalMedia: options.resolveExternalMedia, decodeExternalAudio: options.decodeExternalAudio, signal }); continue; }
 				if (source.kind === 'video') {
 					let mediaWriter = null;
 					let mediaPublication = null;

@@ -26,6 +26,7 @@ import {
 	type ConsolidateRunResult,
 } from './consolidate-media-service.ts';
 import { saveCurrentScapeArchiveManifest } from './internal/scape/scape-archive-manifest-action.ts';
+import { prepareExternalMediaConsolidation } from './internal/native-project/consolidate-external-media.ts';
 import {
 	planProjectTrim,
 	trimProjectMedia,
@@ -48,6 +49,7 @@ export interface ProjectMediaActionRuntime {
 	readonly ffmpeg?: Partial<TrimMediaFfmpegHost> | null;
 	/** Applies a command batch through the project's own history. */
 	readonly commit?: (command: unknown) => unknown;
+	readonly saveScape?: () => PromiseLike<unknown>;
 }
 
 export interface ConsolidateActionResult {
@@ -75,6 +77,19 @@ export function createProjectMediaActionGroup(runtime: ProjectMediaActionRuntime
 			// behind is readable the moment the message says it finished.
 			runtime.state.deliveryReport = result.run.report;
 			runtime.publishDocumentSnapshot?.();
+			if (result.run.complete) {
+				const assertCurrent = projectFence(runtime, request.project);
+				const commands = await prepareExternalMediaConsolidation(request.project, request.store, assertCurrent, options.signal);
+				assertCurrent();
+				if (commands.length) {
+					if (!runtime.commit) throw new Error('Consolidation requires an editable project.');
+					runtime.commit({ type: 'batch', commands });
+				}
+				const saved = await runtime.saveScape?.();
+				if (saved && typeof saved === 'object' && 'cancelled' in saved && saved.cancelled) {
+					throw new DOMException('Media was consolidated, but the project save was cancelled.', 'AbortError');
+				}
+			}
 			if (runtime.setStatus) setLocalizedStatus(runtime.setStatus, copy,
 				result.run.complete ? 'consolidatedMedia' : 'consolidatedMediaIncomplete', undefined,
 				result.run.complete ? 'success' : 'warning', { fallback: result.run.complete
@@ -193,6 +208,7 @@ function consolidateRequest(runtime: ProjectMediaActionRuntime, signal?: AbortSi
 		projectId,
 		project,
 		store: runtime.store,
+		assertCurrent: projectFence(runtime, project),
 		...(signal ? { signal } : {}),
 	};
 }

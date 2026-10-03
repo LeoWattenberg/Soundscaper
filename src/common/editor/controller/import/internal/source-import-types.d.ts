@@ -31,6 +31,7 @@ export type ImportVideoMedia = Blob;
 export type ImportVideoDestination = 'timeline' | 'project-bin';
 
 export interface ImportVideoOptions {
+	readonly externalMedia?: import('../../../desktop-external-media.ts').ExternalMediaReference;
 	readonly destination: ImportVideoDestination;
 	readonly trackId: string | null;
 	readonly trackIndex?: number;

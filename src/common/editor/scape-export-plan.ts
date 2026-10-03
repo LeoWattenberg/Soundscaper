@@ -36,6 +36,8 @@ import {
 	type ProjectSchemaFamily,
 } from './project-schema-identity.ts';
 import { serializeScapeProjectDocument } from './scape-project-document.ts';
+import { planExternalScapeAsset } from './scape-external-media-plan.ts';
+import { withoutExternalMedia, externalMediaForSource } from './desktop-external-media.ts';
 import {
 	normalizeVideoTimingAssetReference,
 	type VideoTimingAssetReference,
@@ -67,6 +69,7 @@ interface ScapeExportMetadataStore {
 }
 
 export interface PlannedScapeExportAsset {
+	readonly body?: Uint8Array;
 	readonly source: ScapeExportSource;
 	readonly sourceId: string;
 	readonly storageKey: string;
@@ -92,6 +95,7 @@ export interface ScapeExportPlan {
 }
 
 export interface ScapeExportPlanOptions extends FileSizeWarningOptions {
+	readonly externalMedia?: boolean;
 	readonly maximumBlobBytes?: unknown;
 	readonly output: 'blob' | 'stream';
 	readonly signal?: AbortSignal;
@@ -131,6 +135,7 @@ export async function prepareScapeExport(
 		sources.push(snapshotScapeExportSource(
 			sourceInputs[index], index, additionalSourceKinds,
 		));
+		if (!options.externalMedia) sources[index] = withoutExternalMedia(sources[index]! as Readonly<Record<string, unknown>>);
 	}
 	const additionalAssets = normalizeAdditionalAssets(options.additionalAssets ?? []);
 	const canonicalSourceCount = sources.filter(
@@ -151,7 +156,7 @@ export async function prepareScapeExport(
 	project.sources = Object.freeze(sources);
 	let maximumBlobBytes = resolveScapeBlobMaximumBytes(options.maximumBlobBytes);
 	const audioChunkBudget = createScapeAudioExportChunkBudget(
-		sources.filter(({ kind }) => kind === 'audio'),
+		sources.filter((source) => source.kind === 'audio' && !(options.externalMedia && externalMediaForSource(source))),
 	);
 	const signal = options.signal;
 	throwIfScapeAborted(signal);
@@ -185,15 +190,17 @@ export async function prepareScapeExport(
 		if (sourceIds.has(sourceId)) throw new Error(`Duplicate Scape source ID: ${sourceId}.`);
 		sourceIds.add(sourceId);
 		const kind = source.kind === 'video' ? 'video' : 'audio';
-		const entry = kind === 'video'
+		const externalAsset = options.externalMedia ? planExternalScapeAsset(source as Readonly<Record<string, unknown>>) : null;
+		const entry = externalAsset?.entry ?? (kind === 'video'
 			? `media/${safeScapeEntryId(sourceId)}/original`
-			: `audio/${safeScapeEntryId(sourceId)}.f32c`;
+			: `audio/${safeScapeEntryId(sourceId)}.f32c`);
 		if (entryNames.has(entry)) throw new Error(`Duplicate Scape archive entry: ${entry}.`);
 		entryNames.add(entry);
 		const storageKey = nonEmptyString(source.storageKey || sourceId, `Storage key for ${sourceId}`);
 		let size: number;
 		let expectedSha256: string | undefined;
-		if (kind === 'video') {
+		if (externalAsset) size = externalAsset.size;
+		else if (kind === 'video') {
 			if (typeof store?.getMediaAssetMetadata !== 'function') {
 				throw new TypeError('A project store with media metadata is required for video export.');
 			}
@@ -209,7 +216,7 @@ export async function prepareScapeExport(
 		} else {
 			size = scapeAudioSourceLayout(source as ScapeAudioSource).archiveBytes;
 		}
-		assets.push(Object.freeze({
+		assets.push(Object.freeze(externalAsset ?? {
 			source,
 			sourceId,
 			storageKey,

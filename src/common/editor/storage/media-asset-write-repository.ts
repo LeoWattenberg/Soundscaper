@@ -9,7 +9,7 @@ import {
 	mediaAssetChunkRecord,
 } from './media-asset-chunk-records.ts';
 import { MediaAssetCleanupError } from './media-asset-cleanup-error.ts';
-import { MEDIA_ASSET_CHUNK_STORAGE_TYPE } from './media-asset-chunk-schema.ts';
+import { MEDIA_ASSET_CHUNK_STORAGE_TYPE, MEDIA_ASSET_STREAM_CHUNK_BYTES } from './media-asset-chunk-schema.ts';
 import { MediaAssetLifecycleCoordinator } from './media-asset-lifecycle-coordinator.ts';
 import { MediaAssetWriteAdmission } from './media-asset-write-admission.ts';
 import { MediaAssetDisposalRepository } from './media-asset-disposal-repository.ts';
@@ -63,7 +63,7 @@ export type {
 	VideoProxyClaimedMediaAssetWriter,
 } from './media-asset-write-contract.ts';
 
-export const MEDIA_ASSET_STREAM_CHUNK_BYTES = 4 * 1024 * 1024;
+export { MEDIA_ASSET_STREAM_CHUNK_BYTES } from './media-asset-chunk-schema.ts';
 export const MEDIA_ASSET_MEMORY_STREAM_MAXIMUM_BYTES = 64 * 1024 * 1024;
 export { MEDIA_ASSET_CHUNK_STORAGE_TYPE };
 

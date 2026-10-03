@@ -15,6 +15,8 @@ import {
 	freezeProjectImportOptions,
 	type NormalizedProjectImportOptions,
 } from './project-import-options.ts';
+import { externalMediaFileReference } from '../../../desktop-external-media.ts';
+import { digestMediaContent } from '../../../storage/media-content-digest.ts';
 
 export type ImportedMediaMetadataInspector = (
 	file: Blob,
@@ -67,8 +69,11 @@ export async function prepareAttributedImportOptions(
 		...(options.sourceProvenance ? { existing: options.sourceProvenance } : {}),
 		...(options.signal ? { signal: options.signal } : {}),
 	});
+	const reference = externalMediaFileReference(file);
+	const externalMedia = reference ? { reference, byteLength: file.size,
+		sha256: await digestMediaContent(file, { signal: options.signal }) } : null;
 	return freezeProjectImportOptions(
-		{ ...options, sourceProvenance },
+		{ ...options, sourceProvenance, ...(externalMedia ? { externalMedia } : {}) },
 		Boolean(options.timelineStartExplicit),
 	);
 }

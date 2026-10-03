@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { publishedCopyFor } from '../../shared/presentation-localization.ts'; import { inspectWavContainerSignature, inspectWavForImport } from './wav-import-routing.ts'; import { createLocalizedError, setLocalizedStatus } from '../../../../i18n/presentation-message.ts'; import { publishImportCompletionStatus, type LocalizedImportNotice } from './import-status-localization.ts';
-import { loadImportAdmissionExecution } from './import-admission-loader.ts';
+import { loadImportAdmissionExecution } from './import-admission-loader.ts'; import { attachExternalMedia } from '../../../desktop-external-media.ts';
 import { admitAudioImportChannelCount } from './audio-import-channel-admission.ts';
 import {
 	createImportedAdmPassthroughMetadata,
@@ -270,7 +270,7 @@ export function createProjectImportServiceRuntime(runtime: ProjectImportRuntime)
 		projectAdmCandidate: RuntimeValue = null,
 		wavDescriptor: RuntimeValue = null,
 	) {
-		const attributedSource = importOptions.sourceProvenance ? { ...source, provenance: importOptions.sourceProvenance } : source;
+		const attributedSource = attachExternalMedia(importOptions.sourceProvenance ? { ...source, provenance: importOptions.sourceProvenance } : source, importOptions.externalMedia, 'audio');
 		const projectAdm = createImportedAdmPassthroughMetadata({
 			candidate: projectAdmCandidate, source: attributedSource, descriptor: wavDescriptor, project: getProject(),
 		});
@@ -364,7 +364,7 @@ export function createProjectImportServiceRuntime(runtime: ProjectImportRuntime)
 		if (linkedOriginalLocator?.kind === 'audio' && videoFile) {
 			return rejectLinkedOriginalLocator(linkedOriginalLocator);
 		}
-		const { prepareAttributedImportOptions } = await import('./imported-source-provenance.ts'); const attributedImportOptions = await prepareAttributedImportOptions(file, normalizedImportOptions, () => createStableId('attribution')); assertRequestedProjectCurrent?.();
+		await runtime.captureExternalMediaFile?.(file); const { prepareAttributedImportOptions } = await import('./imported-source-provenance.ts'); const attributedImportOptions = await prepareAttributedImportOptions(file, normalizedImportOptions, () => createStableId('attribution')); assertRequestedProjectCurrent?.();
 		if (videoFile) return importVideoFile(file, attributedImportOptions);
 		if (linkedOriginalLocator?.kind === 'audio') {
 			return importLinkedAudio(file, attributedImportOptions, linkedOriginalLocator);

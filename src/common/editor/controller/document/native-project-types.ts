@@ -15,6 +15,7 @@ import type { ScapeManifest } from '../../scape-archive-envelope.ts';
 import type { ProjectFileExtension } from '../../../project-file-extensions.ts';
 import type { ProjectFlushOptions } from './project-save-service.ts';
 import type { ScapeReplaceWriteAuthority } from '../../scape-import-transaction.ts';
+import type { ExternalAudioDecoder, ExternalMediaResolver } from '../../scape-external-media.ts';
 
 export type NativeAwaitable<Value> = PromiseLike<Value> | Value;
 export type NativeSaveState = 'dirty' | 'saved' | 'saving' | string;
@@ -194,6 +195,7 @@ export interface NativeSesxReadDescriptor {
 
 export interface NativeProjectFileService {
 	readonly isDesktop: boolean;
+	externalMediaResolver?(input: object): ExternalMediaResolver;
 	resolveSesxMedia?(request: Readonly<{
 		sessionReadId: string; relativePath: string; mediaRootId?: string;
 	}>): Promise<Readonly<{ status: 'found'; descriptor: NativeSesxReadDescriptor } | { status: 'missing' | 'ambiguous' | 'scan-limited' }>>;
@@ -421,6 +423,8 @@ export interface NativeProjectServiceRuntime {
 		file: NativeScapeProjectFile,
 		store: NativeProjectStore,
 		options: Readonly<{
+			resolveExternalMedia?: ExternalMediaResolver;
+			decodeExternalAudio?: ExternalAudioDecoder;
 			confirmFileSizeWarning?: FileSizeWarningConfirmation;
 			assertCurrent?: () => void;
 			collision: string;
@@ -436,12 +440,14 @@ export interface NativeProjectServiceRuntime {
 		project: NativeProjectDocument,
 		store: NativeProjectStore,
 		options: Readonly<{
+			externalMedia?: boolean;
 			confirmFileSizeWarning?: FileSizeWarningConfirmation;
 			assertCurrent?: () => void;
 			createWritable?: (maximumBytes: number) => Promise<WritableStream<Uint8Array>>;
 			signal: AbortSignal;
 		}>,
 	) => Promise<ScapeExportResult>;
+	readonly decodeExternalAudio?: ExternalAudioDecoder;
 	readonly copyFutureScapeArchive: (
 		input: Blob,
 		write: (bytes: Uint8Array) => void | PromiseLike<void>,

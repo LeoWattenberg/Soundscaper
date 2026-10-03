@@ -13,11 +13,25 @@ the convenient working copy, not the only copy you should keep.
 
 ## Scape project files
 
-Use **File → Export project file** for a lossless portable project. Each
+Use **File → Export project file** to save the editing project. Each
 product writes its own suffix: Soundscaper saves `.sscape` and Framescaper
 saves `.fscape`, and the menu entry names whichever one applies. The format
 behind both is the same, so it is the appropriate choice when you need to
 preserve mixed-media editing state.
+
+On desktop, imported audio and video remain references to their original files
+by default. Keep those files at their original locations when reopening the
+project. The local library also keeps editing caches. Recordings and generated
+or processed media are bundled because they have no unchanged external original.
+
+Choose **File → Project management → Consolidate media** to bundle referenced
+media into the project file. Consolidation saves the project immediately; choose
+a destination in the save dialog. Once saved, the consolidated copy can be moved
+or shared without its original media files. If any media cannot be consolidated
+or the save fails, the editor reports the problem.
+
+Browser exports bundle their media automatically. Before opening a desktop
+project with external references in a browser, consolidate it on desktop.
 
 Either product opens either suffix. `.sscape`, `.fscape`, the reserved
 `.liscape`, and the older `.scape` files exported before products had their own

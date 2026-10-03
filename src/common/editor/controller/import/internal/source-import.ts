@@ -5,7 +5,7 @@ import {
 	VideoPreviewSourceGeometryTooLargeError,
 } from '../../../video-preview-capture-admission.ts';
 import { linkedVideoLocatorReferenceFromImportOptions } from './project-import-options.ts';
-import { sampleFrameToVideoFrame } from '../../../timeline-time.ts';
+import { sampleFrameToVideoFrame } from '../../../timeline-time.ts'; import { attachExternalMedia } from '../../../desktop-external-media.ts';
 import type {
 	OwnedMediaAssetPublication,
 } from '../../../storage/media-asset-write-contract.ts';
@@ -149,7 +149,7 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 		let canonicalAudio = null;
 		let audioDecodeNotice: string | null = null;
 		let audioContentIdentity: ImportedAudioContentIdentity | null = null;
-		let originalAudioSampleRate = sampleRate;
+		let originalAudioSampleRate = sampleRate, decodedAudioSampleRate = sampleRate;
 		let mediaPublication: OwnedMediaAssetPublication | null = null;
 		let timingAssetPublication: OwnedMediaAssetPublication | null = null;
 		let audioPersisted = false;
@@ -261,7 +261,7 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 						? audioBufferChannels(decodedAudio)
 						: null;
 				if (decodedChannels?.length) {
-					originalAudioSampleRate = declaredAudioSampleRate || decodedAudio.sampleRate || sampleRate;
+					originalAudioSampleRate = declaredAudioSampleRate || decodedAudio.sampleRate || sampleRate; decodedAudioSampleRate = decodedAudio.sampleRate;
 					const decodedBuffer = await bufferFromChannels(
 						decodedChannels,
 						decodedAudio.sampleRate,
@@ -326,7 +326,7 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 				...timingProbe.characteristics,
 				extractedAudioStreamIndex: extractedStream ? extractedStream.index : null,
 			}, { rate: sourceRate });
-			const videoSource: ImportVideoSource = {
+			const videoSource: ImportVideoSource = attachExternalMedia({
 				kind: 'video',
 				id: videoSourceId,
 				storageKey: videoSourceId,
@@ -356,10 +356,10 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 				posterStorageKey: null,
 				thumbnailStorageKey: null,
 				opaqueExtensions: {}, ...(importOptions.sourceProvenance ? { provenance: importOptions.sourceProvenance } : {}),
-			};
+			}, conformedAtIngest ? null : importOptions.externalMedia, 'video');
 			if (canonicalAudio && !audioContentIdentity) throw new Error(
 				'Extracted audio content identity is unavailable after persistence.');
-			const audioSource = canonicalAudio && audioContentIdentity ? {
+			const audioSource = canonicalAudio && audioContentIdentity ? attachExternalMedia({
 				kind: 'audio',
 				sampleFormat: 'float32',
 				chunkFrames: SOURCE_CHUNK_FRAMES,
@@ -374,7 +374,7 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 				contentSha256: audioContentIdentity.contentSha256,
 				byteLength: audioContentIdentity.byteLength,
 				opaqueExtensions: { originVideoSourceId: videoSourceId }, ...(importOptions.sourceProvenance ? { provenance: importOptions.sourceProvenance } : {}),
-			} : null;
+			}, conformedAtIngest || !importOptions.externalMedia ? null : { ...importOptions.externalMedia, decodeSampleRate: decodedAudioSampleRate }, 'video-audio') : null;
 			const videoClip = {
 				kind: 'video',
 				id: videoClipId,

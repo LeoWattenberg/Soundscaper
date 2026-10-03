@@ -16,6 +16,7 @@
 		"types": ["node"]
 	},
 	"include": [
+		"desktop/external-media-ipc.ts",
 		"desktop/application-lifecycle.ts",
 		"desktop/save-size-warning-dialog.ts",
 		"desktop/mcp-main-registration.ts",

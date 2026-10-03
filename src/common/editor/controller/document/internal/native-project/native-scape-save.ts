@@ -82,6 +82,7 @@ export async function publishNativeScape(
 		return publishDirectScape(runtime, { ...request, prepared });
 	}
 	const exported = await runtime.exportScapeProject(request.project, runtime.store, {
+		externalMedia: runtime.fileService?.isDesktop === true,
 		signal: request.signal, confirmFileSizeWarning: runtime.confirmFileSizeWarning, assertCurrent: request.assertReadyToCommit,
 	});
 	if (!(exported.blob instanceof Blob)) {
@@ -232,7 +233,7 @@ export async function publishNativeScapeArchiveCopy(
 
 async function publishDirectScape(
 	runtime: Pick<NativeProjectServiceRuntime,
-	'exportScapeProject' | 'publishDocumentSnapshot' | 'state' | 'store' | 'confirmFileSizeWarning'>,
+	'exportScapeProject' | 'fileService' | 'publishDocumentSnapshot' | 'state' | 'store' | 'confirmFileSizeWarning'>,
 	request: Readonly<{
 		assertReadyToCommit(): void;
 		fileName: string;
@@ -247,6 +248,7 @@ async function publishDirectScape(
 	let publication: Readonly<{ exported: ScapeExportResult; saved: NativeSavedFile }> | null = null;
 	try {
 		const exported = await runtime.exportScapeProject(request.project, runtime.store, {
+			externalMedia: runtime.fileService?.isDesktop === true,
 			createWritable: (maximumBytes) => request.prepared.createWritable(maximumBytes),
 			signal: request.signal, confirmFileSizeWarning: runtime.confirmFileSizeWarning, assertCurrent: request.assertReadyToCommit,
 		});

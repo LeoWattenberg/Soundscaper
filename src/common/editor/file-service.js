@@ -18,6 +18,7 @@ import { registerDesktopReadCapability } from './desktop-read-capability-registr
 import { releaseDownloadObjectUrl } from './object-url-revoke.ts';
 import { createDesktopLinkedVideoOriginalAccess } from './storage/desktop-linked-video-original-port.ts';
 import { bindSoundscaperPersistentDeliverySave } from './soundscaper-persistent-delivery-save-target.ts';
+import { createDesktopExternalMediaFiles } from './desktop-external-media-files.ts';
 
 const DEFAULT_WRITE_CHUNK_BYTES = 1024 * 1024;
 const NEVER_ABORTED_READ_SIGNAL = new AbortController().signal;
@@ -41,6 +42,7 @@ export function createAudioEditorFileService(options = {}) {
 	const fetchFile = options.fetch || scope.fetch?.bind(scope);
 	const setTimer = options.setTimeout || scope.setTimeout?.bind(scope);
 	const isDesktop = Boolean(bridge);
+	const externalMediaFiles = createDesktopExternalMediaFiles(bridge, fetchFile);
 	const nativeTierControlsAvailable = typeof bridge?.readNativeTierControls === 'function'
 		&& typeof bridge?.applyNativeTierControl === 'function';
 	const readMaximumBytes = desktopReadMaximum(options.readMaximumBytes);
@@ -62,6 +64,7 @@ export function createAudioEditorFileService(options = {}) {
 	return Object.freeze({
 		kind: isDesktop ? 'desktop' : 'browser',
 		isDesktop,
+		externalMediaResolver: externalMediaFiles.resolve, captureExternalMediaFile: (file) => externalMediaFiles.capture(file),
 		bridge,
 		helperTimingProbe: createDesktopHelperVideoTimingProbe({ bridge }),
 		linkedVideoOriginalsAvailable: linkedVideoOriginals.available,
@@ -146,7 +149,7 @@ export function createAudioEditorFileService(options = {}) {
 			if (!isReadDescriptor(descriptor)) throw new TypeError('A valid desktop read descriptor is required.');
 			assertDesktopMaterializedReadProfile(descriptor);
 			const blob = await materializeReadDescriptor(descriptor, request.signal);
-			return createNamedFile(blob, descriptor, scope);
+			const file = createNamedFile(blob, descriptor, scope); await externalMediaFiles.capture(file, descriptor.id); return file;
 		});
 	}
 
@@ -181,7 +184,7 @@ export function createAudioEditorFileService(options = {}) {
 					files.push(createNamedFile(blob, descriptor, scope));
 				}
 			}
-			try { return await consume(Object.freeze(files)); }
+			try { for (const [index, file] of files.entries()) await externalMediaFiles.capture(file, descriptors[index].id); return await consume(Object.freeze(files)); }
 			finally { for (const file of files) { audioRanges?.retireDesktopAudioRangeBlob(file); selectedRanges?.retireDesktopSelectedRangeBlob(file); } }
 		});
 	}
@@ -198,6 +201,7 @@ export function createAudioEditorFileService(options = {}) {
 			}
 			throwIfAborted(request.signal);
 			const source = createDesktopScapeArchiveByteSource(descriptor, { fetch: fetchFile });
+			registerDesktopReadCapability(source, descriptor.id);
 			return consume(source);
 		});
 	}

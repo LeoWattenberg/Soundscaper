@@ -144,6 +144,25 @@ test('an incomplete consolidate says so rather than reporting success', async ()
 	assert.equal(statuses.at(-1)?.[1], 'warning');
 });
 
+test('consolidate immediately saves after success and propagates save failures', async () => {
+	const events: string[] = [];
+	const runtime = {
+		state: {}, getProject: () => ({ id: 'project-1', sources: [{ id: 'linked', kind: 'audio' }] }),
+		store: createStore(), saveScape: async () => { events.push('save'); return {}; },
+		setStatus: (_message: string, tone?: string) => { if (tone === 'success') events.push('success'); },
+	};
+	await createProjectMediaActionGroup(runtime).consolidate();
+	assert.deepEqual(events, ['save', 'success']);
+	await assert.rejects(createProjectMediaActionGroup({ ...runtime,
+		saveScape: async () => { throw new Error('disk full'); },
+	}).consolidate(), /disk full/);
+	let saves = 0;
+	await createProjectMediaActionGroup({ ...runtime, store: createStore({ unreachable: true }),
+		saveScape: async () => { saves += 1; return {}; },
+	}).consolidate();
+	assert.equal(saves, 0);
+});
+
 test('planning answers without copying, and a project with no store answers null', async () => {
 	const store = createStore();
 	const planned = await createProjectMediaActionGroup({

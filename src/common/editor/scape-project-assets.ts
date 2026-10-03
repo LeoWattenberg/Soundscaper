@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { ScapeAssetDescriptor } from './scape-archive-envelope.ts';
+import { EXTERNAL_MEDIA_ENCODING, externalMediaForSource } from './desktop-external-media.ts';
 import {
 	normalizeProjectFeatureRequirements,
 	type ProjectFeatureFallback,
@@ -98,7 +99,10 @@ export function indexScapeProjectAssets(
 		if (source.kind !== asset.kind) {
 			throw new Error(`Source ${source.id} has an incompatible asset kind.`);
 		}
-		if (source.kind === 'video' && source.contentSha256 !== undefined) {
+		if (asset.encoding === EXTERNAL_MEDIA_ENCODING && !externalMediaForSource(source)) {
+			throw new Error(`Source ${source.id} has no matching external media reference.`);
+		}
+		if (source.kind === 'video' && source.contentSha256 !== undefined && asset.encoding !== EXTERNAL_MEDIA_ENCODING) {
 			if (typeof source.contentSha256 !== 'string' || !/^[a-f0-9]{64}$/u.test(source.contentSha256)) {
 				throw new TypeError(`Source ${source.id} has an invalid source content SHA-256.`);
 			}

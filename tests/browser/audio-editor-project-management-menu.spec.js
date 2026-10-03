@@ -125,6 +125,9 @@ test.describe('File project management submenu', () => {
 			managedAudioBodyCount: 1,
 		});
 		const bridgeState = await page.evaluate(() => globalThis.__projectMediaDesktopFixture);
+		expect(bridgeState.savedProjects).toHaveLength(1);
+		expect(bridgeState.savedProjects[0].name).toMatch(/\.fscape$/u);
+		expect(bridgeState.savedProjects[0].bytes).toBeGreaterThan(0);
 		expect(bridgeState.audioLoads).toBeGreaterThanOrEqual(3);
 		expect(bridgeState.rangeRequests.length).toBeGreaterThan(0);
 		await page.evaluate(() => sessionStorage.setItem('__projectMediaOriginalBlocked', 'true'));
@@ -226,7 +229,8 @@ async function installLinkedAudioDesktopBridge(page, fixture) {
 		const locatorRevision = 'a'.repeat(64);
 		const materializedReadId = 'b'.repeat(64);
 		const rangeReadId = 'c'.repeat(64);
-		const state = { audioLoads: 0, rangeRequests: [], releasedOriginals: [], releasedReads: [] };
+		const state = { audioLoads: 0, rangeRequests: [], releasedOriginals: [], releasedReads: [], savedProjects: [] };
+		let savedName, savedBytes = 0;
 		const materializedDescriptor = () => ({
 			id: materializedReadId,
 			readProfile: 'materialized-v1',
@@ -270,6 +274,12 @@ async function installLinkedAudioDesktopBridge(page, fixture) {
 			});
 		};
 		const bridge = Object.freeze({
+			chooseSaveTarget: async ({ suggestedName }) => { savedName = suggestedName; return { id: 'd'.repeat(48), name: savedName }; },
+			beginWrite: async () => { savedBytes = 0; return { writeId: 'e'.repeat(48), chunkSize: 1024 * 1024 }; },
+			writeChunk: async ({ bytes }) => { savedBytes += bytes.byteLength; return { nextOffset: savedBytes }; },
+			finishWrite: async () => { state.savedProjects.push({ name: savedName, bytes: savedBytes }); return { byteLength: savedBytes }; },
+			abortWrite: async () => true,
+			releaseSaveTarget: async () => true,
 			chooseLinkedAudioOriginal: async () => ({
 				locatorId, locatorRevision, name, size, mimeType, lastModified: 123,
 			}),

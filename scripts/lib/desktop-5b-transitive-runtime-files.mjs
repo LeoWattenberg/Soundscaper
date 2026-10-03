@@ -166,6 +166,7 @@ export const DESKTOP_RUNTIME_BUNDLED_LEAF_FILES = Object.freeze([
 	'src/common/editor/native-media-plan-canonical-form.js',
 	'src/common/editor/pffft.js',
 	'src/common/editor/scape-archive-media.js',
+	'src/common/editor/scape-archive-reader.js',
 	'src/common/editor/storage/media-content-digest.js',
 	'src/common/editor/video-caption-imsc-v27.js',
 	'src/common/editor/video-freeze-v24.js',

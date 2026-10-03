@@ -16,7 +16,7 @@ import type { generateWaveformPeaks, peakCacheKey } from '../../source/waveform-
 
 /** Only ports read by the audio and legacy-project import coordinator. */
 export interface ProjectImportRuntime extends Pick<ImportCompositionDependencies,
-	| 'activateStoredSource' | 'cacheSourceBuffer' | 'commit' | 'copy' | 'editingBlocked'
+	| 'activateStoredSource' | 'cacheSourceBuffer' | 'commit' | 'copy' | 'editingBlocked' | 'captureExternalMediaFile'
 	| 'engine' | 'ffmpeg' | 'handleError' | 'preflightStorage' | 'confirmFileSizeWarning' | 'getProject' | 'projectSampleRate'
 	| 'publishDocumentSnapshot' | 'retireSourceChunkProvider' | 'setStatus' | 'sourceBuffers'
 	| 'sourcePeaks' | 'state' | 'store' | 'switchProject' | 'warnEnvelope' | 'taskProgress'

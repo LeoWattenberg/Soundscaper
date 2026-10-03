@@ -95,6 +95,7 @@ export type ImportCompositionFfmpeg =
 	}>;
 
 export interface ImportCompositionDependencies {
+	readonly captureExternalMediaFile?: (file: File) => Promise<void>;
 	readonly adaptAudacityProject?: (value: unknown) => unknown;
 	readonly archiveRuntime: Pick<typeof deferredArchiveRuntime, 'decodeLegacyAupProject' | 'convertLegacyAupToProject'>;
 	readonly state: ImportCompositionState;

@@ -104,6 +104,7 @@ export const DESKTOP_EXPECTED_RUNTIME_FILES = Object.freeze([
 	'desktop/plugin-consent.js',
 	'desktop/helper-wire-admission.js',
 	'desktop/linked-original-locator-validation.js',
+	'desktop/external-media-ipc.js', 'src/common/editor/desktop-external-media.js', 'src/common/editor/scape-external-media-plan.js', 'src/common/editor/scape-project-input.js', 'src/common/editor/scape-archive-byte-source.js', 'src/common/editor/scape-archive-reader.js', 'src/common/editor/scape-archive-layout.js', 'src/common/editor/scape-archive-layout-witness.js',
 	'desktop/linked-video-locator-registry.js',
 	'desktop/linked-video-locator-store.js',
 	'desktop/main-window-recovery.js',

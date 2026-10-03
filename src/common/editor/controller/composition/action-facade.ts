@@ -446,7 +446,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 		}),
 		export: createExportActionGroup({ handleExportAction, state, productName: product.name, getProjectTitle: () => getProject()?.title ?? null, getProject, fileService, persistSetting, publishDocumentSnapshot, createId: createStableId }),
 		media: createProjectMediaActionGroup({
-			state, getProject, store, publishDocumentSnapshot, setStatus, copy, fileService, ffmpeg, commit,
+			state, getProject, store, publishDocumentSnapshot, setStatus, copy, fileService, ffmpeg, commit, saveScape: () => Promise.resolve(saveScape()),
 		}),
 	});
 	// A macro's bare commands walk this tree, and it does not exist until the

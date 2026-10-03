@@ -18,7 +18,7 @@ import {
 	type ScapeArchiveByteSource,
 } from './scape-archive-byte-source.ts';
 import { bindScapeArchiveByteSourceLayout } from './scape-archive-layout.ts';
-import { SCAPE_VIDEO_MAXIMUM_CHUNK_BYTES } from './scape-archive-video.ts';
+import { MEDIA_ASSET_STREAM_CHUNK_BYTES as SCAPE_VIDEO_MAXIMUM_CHUNK_BYTES } from './storage/media-asset-chunk-schema.ts';
 
 configure({ chunkSize: SCAPE_VIDEO_MAXIMUM_CHUNK_BYTES });
 

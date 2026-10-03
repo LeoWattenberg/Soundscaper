@@ -71,7 +71,7 @@ import {
 import { createMicrophoneMeterService } from './controller/recording/microphone-meter-service.ts'; import { createProjectVisualService } from './controller/document/project-visual-service.ts';
 
 import { createNativeProjectComposition } from './controller/document/native-project-composition.ts';
-import { createDawprojectAudioPreparer } from './controller/import/dawproject-audio-decode.ts';
+import { createDawprojectAudioPreparer } from './controller/import/dawproject-audio-decode.ts'; import { createDeferredExternalMediaAudioDecoder } from './deferred-external-media-audio-decoder.ts';
 
 import { createTakeCycleOpenRecoveryAppPort } from './controller/recording/take-cycle-open-recovery-app-port.ts';
 
@@ -419,7 +419,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		setStatus: bindings.setStatus,
 		publishDocumentSnapshot,
 		sourceBuffers,
-		prepareDawprojectAudio: createDawprojectAudioPreparer(ffmpeg, options.confirmFileSizeWarning), product,
+		prepareDawprojectAudio: createDawprojectAudioPreparer(ffmpeg, options.confirmFileSizeWarning), product, decodeExternalAudio: createDeferredExternalMediaAudioDecoder({ decodeNative: (encoded, sampleRate) => engine.decodeAudioData(encoded, { sampleRate }), decodeCodec: (file, settings) => ffmpeg.decode(file, settings) }),
 	});
 	const captureComposition = createCaptureComposition(framescaperCaptureRuntime, captureRuntime => ({
 		proxy: {
@@ -537,7 +537,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		normalizeTimelineFrame, snapTimelineFrame: bindings.selection.snapFrame, activeSelection, cacheSourceBuffer: bindings.cacheSourceBuffer, projectChanged: bindings.projectChanged, garbageCollectSources: bindings.garbageCollectSources, compactLiveSourceState: bindings.compactLiveSourceState,
 	});
 	const imports = createImportComposition({
-		state, copy, lifetime, projectGeneration, store, engine, ffmpeg, archiveRuntime: deferredArchiveRuntime, confirmFileSizeWarning: options.confirmFileSizeWarning, helperTimingProbe: fileService.helperTimingProbe, adaptAudacityProject: options.adaptAudacityProject,
+		state, copy, lifetime, projectGeneration, store, engine, ffmpeg, archiveRuntime: deferredArchiveRuntime, confirmFileSizeWarning: options.confirmFileSizeWarning, helperTimingProbe: fileService.helperTimingProbe, adaptAudacityProject: options.adaptAudacityProject, captureExternalMediaFile: fileService.captureExternalMediaFile,
 		sourceBuffers, sourceChunkProviders, sourcePeaks, sourceResolver: clipTimePitchSourceResolver, sourceChunkFrames: SOURCE_CHUNK_FRAMES,
 		protectedSourceIds: stagedProjectBinSourceIds, trackColors: AUDIO_EDITOR_TRACK_COLORS, taskProgress, projectVisual: sources.projectVisual,
 		createPreviewEngine: (previewOptions) => renderEngineFactory(previewOptions),

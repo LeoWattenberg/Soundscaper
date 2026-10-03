@@ -43,7 +43,7 @@ import {
 	OPENABLE_PROJECT_EXTENSIONS,
 } from './file-associations.js';
 import { registerSelectedReadCapability } from './read-selection-service.js';
-import { registerFileCapabilityIpc } from './main-file-capability-ipc.mjs'; import { SesxMediaSessionStore } from './sesx-media-session.mjs';
+import { registerFileCapabilityIpc } from './main-file-capability-ipc.mjs'; import { SesxMediaSessionStore } from './sesx-media-session.mjs'; import { registerExternalMediaIpc } from './project-library-runtime/desktop/external-media-ipc.js';
 import { createProtocolHandler, registerAppScheme } from './protocol.js'; import { createDesktopFreesoundIntegration } from './freesound-integration.js';
 import { createDesktopSmokeProbe } from './desktop-smoke.js';
 import { createDesktopNightlyTestsWindow } from './nightly-tests-window.mjs';
@@ -64,7 +64,7 @@ import {
 	runWindowAction, upgradePendingCloseRequestForQuit,
 } from './window-chrome.mjs';
 import {
-	assertEditorDocumentUrl,
+	assertEditorDocumentUrl, acceptsFile,
 	isEditorDocumentUrl,
 	validateLocale,
 } from './validation.js';
@@ -389,7 +389,7 @@ async function registerIpcHandlers(desktopSession) {
 		channels: IPC, desktopSmokeProbe, dialog, handle, opaqueId, ownerFor: rendererSaveOwnerFor,
 		pendingOpenProjects, readCapabilities, saves, saveTargets, sesxMediaSessions, windowFor: () => mainWindow,
 	});
-	handle(IPC.setLocale, async (_event, value) => {
+	registerExternalMediaIpc({ channels: IPC, handle, ownerFor: rendererSaveOwnerFor, readCapabilities, acceptsFile }); handle(IPC.setLocale, async (_event, value) => {
 		const locale = validateLocale(value);
 		await settings.setLocale(locale);
 		rendererReady = false;

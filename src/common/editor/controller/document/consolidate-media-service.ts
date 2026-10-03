@@ -31,9 +31,13 @@ import {
 	type ConsolidatePorts,
 	type ConsolidateRunResult,
 } from '../../consolidate-operation.ts';
+import { consolidateLinkedAudioCache, type ConsolidateAudioCacheStore } from './internal/native-project/consolidate-linked-audio-cache.ts';
 
 /** The narrow slice of the project store this needs, named rather than assumed. */
-export interface ConsolidateMediaStore {
+export interface ConsolidateMediaStore extends ConsolidateAudioCacheStore {
+	readSourceChunks?: Parameters<typeof import('../../scape-archive-media.ts').scapeAudioSourceStream>[0]['readSourceChunks'];
+	getSourceMetadata?(sourceId: string): Promise<unknown>;
+	getMediaAssetMetadata?(sourceId: string): Promise<unknown>;
 	getLinkedOriginalBinding(
 		projectId: string,
 		sourceId: string,
@@ -183,6 +187,11 @@ export function createConsolidateMediaPorts(request: ConsolidateProjectRequest):
 			// managed copy that was written under its own key and verified above.
 			const source = sources.get(rebindRequest.sourceId);
 			const kind = String(source?.kind ?? '') === 'video' ? 'video' : 'audio';
+			if (kind === 'audio' && source && store.beginSourceWrite) {
+				const original = await store.loadMediaAsset(rebindRequest.storageKey, { signal: request.signal });
+				if (!original) throw new Error('The consolidated audio original is unavailable.');
+				await consolidateLinkedAudioCache(store, source, original as Blob, request.signal, request.assertCurrent);
+			}
 			return kind === 'video'
 				? store.unlinkLinkedVideoOriginal(
 					projectId, rebindRequest.sourceId, rebindRequest.expectedBindingToken,
