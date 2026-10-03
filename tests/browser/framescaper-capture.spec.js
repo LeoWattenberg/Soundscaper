@@ -52,7 +52,7 @@ test.describe('Framescaper v1 recoverable capture', () => {
 		await expect(editor.getByRole('button', { name: 'Recording setup', exact: true })).toHaveCount(0);
 		await expectCaptureCalls(page, []);
 
-		const panels = await openNestedCommandMenu(page, editor, 'View', ['Panels']);
+		const panels = await openNestedCommandMenu(page, editor, 'Window', []);
 		const setupItem = getMenuItem(panels, 'Recording setup');
 		await expect(setupItem).toBeEnabled();
 		await expectCaptureCalls(page, []);

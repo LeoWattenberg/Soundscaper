@@ -48,10 +48,10 @@ test.describe('optional clock workspace panel', () => {
 		expect(errors).toEqual([]);
 	});
 
-	test('opens through View, follows playback and supports editable seeking and close', async ({ page }) => {
+	test('opens through Window, follows playback and supports editable seeking and close', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [longTone]);
-		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Clock']);
+		await chooseNestedCommandAction(page, editor, 'Window', ['Clock']);
 		const clock = editor.locator('[data-workspace-panel="clock"]');
 		await expect(clock).toBeVisible();
 		await chooseClockOption(page, clock, 'hh:mm:ss');

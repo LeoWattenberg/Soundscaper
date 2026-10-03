@@ -30,7 +30,7 @@ test.describe('Soundscaper native production workflows', () => {
 		const tracks = await openNestedCommandMenu(page, editor, 'Tracks', []);
 		await expect(getMenuItem(tracks, 'Automation')).toHaveCount(0);
 		await page.keyboard.press('Escape');
-		const viewPanels = await openNestedCommandMenu(page, editor, 'View', ['Panels']);
+		const viewPanels = await openNestedCommandMenu(page, editor, 'Window', []);
 		await expect(getMenuItem(viewPanels, 'Routing graph…')).toHaveCount(0);
 		await page.keyboard.press('Escape');
 		await page.keyboard.press('Escape');

@@ -23,11 +23,11 @@ test.describe('application submenu focus', () => {
 		});
 		const editor = await bootEditor(page, '/embed/en/');
 		await page.evaluate(() => { globalThis.__delaySubmenuTimers = true; });
-		const submenu = await openNestedCommandMenu(page, editor, 'View', ['Panels']);
-		const projectBin = getMenuItem(submenu, 'Project bin');
-		await projectBin.focus();
-		await expect(projectBin).toBeFocused();
+		const submenu = await openNestedCommandMenu(page, editor, 'View', ['Workspace']);
+		const audacity = getMenuItem(submenu, 'Audacity');
+		await audacity.focus();
+		await expect(audacity).toBeFocused();
 		await page.waitForTimeout(400);
-		await expect(projectBin).toBeFocused();
+		await expect(audacity).toBeFocused();
 	});
 });

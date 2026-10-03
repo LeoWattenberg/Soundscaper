@@ -19,8 +19,7 @@ interface WorkspaceSwitcherCopy {
 	readonly workspaceVideo: string;
 }
 
-// The single source for every workspace picker outside the application menus:
-// the lifecycle hook publishes it to the brand sidebar and the action-bar switcher.
+// Shared by Window, the brand sidebar and the action-bar workspace switcher.
 export function workspaceSwitcherOptions(
 	productId: string,
 	copy: WorkspaceSwitcherCopy,

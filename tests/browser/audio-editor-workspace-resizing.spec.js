@@ -18,7 +18,7 @@ test.describe('workspace panel resizing', () => {
 		const editor = await bootEditor(page, '/embed/en/');
 
 		const mixerPanel = editor.locator('[data-workspace-panel="mixer"]');
-		if (!await mixerPanel.isVisible()) await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Mixer']);
+		if (!await mixerPanel.isVisible()) await chooseNestedCommandAction(page, editor, 'Window', ['Mixer']);
 		const bottomDock = editor.locator('[data-panel-dock="bottom"]');
 		await expect(bottomDock).toHaveCSS('resize', 'none');
 		const dockResizeHandle = bottomDock.locator('[data-workspace-dock-resize-handle="bottom"]');
@@ -39,10 +39,10 @@ test.describe('workspace panel resizing', () => {
 		const resizedMixerSize = Number(await mixerPanel.getAttribute('data-workspace-panel-size'));
 		await expect.poll(async () => (await bottomDock.boundingBox())?.height).toBeGreaterThan(0);
 		await expect.poll(async () => (await bottomDock.boundingBox())?.height).toBeLessThanOrEqual(resizedMixerSize);
-		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Mixer']);
+		await chooseNestedCommandAction(page, editor, 'Window', ['Mixer']);
 		await expect(mixerPanel).toHaveCount(0);
-		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Mixer']);
-		if (!await mixerPanel.isVisible()) await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Mixer']);
+		await chooseNestedCommandAction(page, editor, 'Window', ['Mixer']);
+		if (!await mixerPanel.isVisible()) await chooseNestedCommandAction(page, editor, 'Window', ['Mixer']);
 		await expect(mixerPanel).toHaveAttribute('data-workspace-panel-size', String(resizedMixerSize));
 		await expect.poll(async () => Math.abs(
 			((await mixerPanel.boundingBox())?.height || 0) - ((await bottomDock.boundingBox())?.height || 0),
@@ -151,7 +151,7 @@ test.describe('workspace panel resizing', () => {
 
 	test('fills a side dock and resizes only the boundary between stacked panels', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/', { defaultWorkspace: true });
-		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Project bin']);
+		await chooseNestedCommandAction(page, editor, 'Window', ['Project bin']);
 		const leftDock = editor.locator('[data-panel-dock="left"]');
 		const projectBin = leftDock.locator('[data-workspace-panel="project-bin"]');
 		const dockResizeHandle = leftDock.locator('[data-workspace-dock-resize-handle="left"]');
@@ -164,7 +164,7 @@ test.describe('workspace panel resizing', () => {
 		expect(projectBounds).not.toBeNull();
 		expect(projectBounds.height).toBeCloseTo(dockBounds.height, 0);
 
-		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'History']);
+		await chooseNestedCommandAction(page, editor, 'Window', ['History']);
 		await dockWorkspacePanel(editor, 'history', 'left');
 		const history = leftDock.locator('[data-workspace-panel="history"]');
 		await expect(leftDock.locator('[data-workspace-panel-group]')).toHaveCount(2);
@@ -200,7 +200,7 @@ test.describe('workspace panel resizing', () => {
 	test('ignores horizontal edge drags on bottom-docked panel groups', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
 		const mixerPanel = editor.locator('[data-workspace-panel="mixer"]');
-		if (!await mixerPanel.isVisible()) await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Mixer']);
+		if (!await mixerPanel.isVisible()) await chooseNestedCommandAction(page, editor, 'Window', ['Mixer']);
 		await chooseCommandAction(page, editor, 'Edit', 'Metadata editor');
 		await expect(editor.locator('[data-workspace-panel="metadata"]')).toBeFocused();
 		await dockWorkspacePanel(editor, 'metadata', 'bottom');

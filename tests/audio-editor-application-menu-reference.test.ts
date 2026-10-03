@@ -62,6 +62,7 @@ interface ApplicationMenuState {
 
 const DYNAMIC_REFERENCE_LABELS = new Map([
 	['recent-project', 'Recent project'],
+	['window-project', 'Open project'],
 	['workspace-custom', 'Custom workspace'],
 	['framescaper-external-display', 'External display'],
 	['parallel-stack-workers', 'Worker limit'],
@@ -290,6 +291,7 @@ function applicationMenusForState(product: ProductId, state: ApplicationMenuStat
 		readOnly: false,
 		lockReadOnly: true,
 		recentProjects: [{ id: 'reference-fixture', title: 'Recent fixture' }],
+		projectTabs: [{ id: 'reference-fixture', title: 'Open fixture' }],
 		deliveryReport: {},
 		archiveManifest: { manifest: {} },
 		preferences,

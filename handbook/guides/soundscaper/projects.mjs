@@ -11,7 +11,7 @@ export const PROJECT_GUIDES = Object.freeze([
 		intro: 'The Freesound panel lets you find a sound without leaving Soundscaper. Search for what you need, check the creator and license shown with each result, and insert the sound where you want it on the timeline. Soundscaper imports the high-quality preview as a project clip.',
 		steps: [
 			open(),
-			menu(['View', 'Panels', 'Freesound']),
+			menu(['Window', 'Freesound']),
 			searchFreesound('harbor', { what: 'a word or phrase describing the sound you want' }),
 			insertFreesound('Harbor ambience', { which: 'the result you want' }),
 			check({ clips: 1 }, { see: 'The imported sound on the timeline, ready to edit with the rest of the project.' }),
@@ -114,7 +114,7 @@ export const PROJECT_GUIDES = Object.freeze([
 		steps: [
 			open(),
 			importAudio('music-loop', { what: 'the recording to split' }),
-			menu(['View', 'Panels', 'Project bin'], { why: 'The recording is on the timeline now, so hiding the bin leaves room for the Markers panel.' }),
+			menu(['Window', 'Project bin'], { why: 'The recording is on the timeline now, so hiding the bin leaves room for the Markers panel.' }),
 			menu(['View', 'Markers'], { why: 'The marker lane is where the chapter starts are shown and named.' }),
 			tool('Jump to project start', { why: 'The first chapter should begin at the very start, so the first marker goes at zero.' }),
 			marker('Part one'),

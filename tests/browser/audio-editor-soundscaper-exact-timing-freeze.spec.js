@@ -499,7 +499,7 @@ async function readFrozenRawPcm(page, projectId, trackId,
 }
 
 async function openHistoryPanel(page, editor) {
-	await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'History']);
+	await chooseNestedCommandAction(page, editor, 'Window', ['History']);
 	const panel = editor.locator('[data-workspace-panel="history"]');
 	await expect(panel).toBeVisible();
 	return panel;

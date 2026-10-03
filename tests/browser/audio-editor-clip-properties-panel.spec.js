@@ -205,7 +205,7 @@ test.describe('live dockable Clip properties', () => {
 		const editor = await bootEditor(page, '/embed/en/');
 		const panel = editor.locator(`[data-workspace-panel="${PANEL_ID}"]`);
 		await expect(panel).toHaveCount(0);
-		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Clip properties']);
+		await chooseNestedCommandAction(page, editor, 'Window', ['Clip properties']);
 		await expect(panel).toBeVisible();
 		await expect(panel.getByText(EMPTY_SELECTION, { exact: true })).toBeVisible();
 		await importFiles(editor, [toneA]);

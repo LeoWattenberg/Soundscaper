@@ -104,7 +104,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		page.on('download', (download) => downloads.push(download));
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [longTone]);
-		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Markers']);
+		await chooseNestedCommandAction(page, editor, 'Window', ['Markers']);
 		const markers = editor.getByRole('region', { name: 'Markers and named regions', exact: true });
 		await markers.getByRole('button', { name: 'Add marker at playhead', exact: true }).click();
 		await seekOnRuler(page, editor, 220);

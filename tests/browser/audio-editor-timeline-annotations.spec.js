@@ -45,7 +45,7 @@ test.describe('native timeline annotations', () => {
 		await expect(dialog).toContainText('album.cue');
 		await dialog.getByRole('button', { name: 'Markers', exact: true }).click();
 		await expect(editor.locator('[data-status]')).toHaveText('Markers: 2');
-		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Markers']);
+		await chooseNestedCommandAction(page, editor, 'Window', ['Markers']);
 		await expect(editor.locator('[data-timeline-annotation-panel] [data-timeline-annotation]')).toHaveCount(2);
 		await editor.getByRole('button', { name: 'Undo', exact: true }).click();
 
@@ -68,7 +68,7 @@ test.describe('native timeline annotations', () => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [toneA]);
-		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Markers']);
+		await chooseNestedCommandAction(page, editor, 'Window', ['Markers']);
 		const panel = editor.getByRole('region', { name: 'Markers and named regions', exact: true });
 		await panel.getByRole('button', { name: 'Add marker at playhead', exact: true }).click();
 
@@ -160,7 +160,7 @@ test.describe('native timeline annotations', () => {
 		await expect(editor).toHaveAttribute('data-product', 'soundscaper');
 		await expect(editor.locator('.audio-editor-timeline-panel')).toHaveAttribute('data-has-annotations', 'true');
 		await expect(editor.getByRole('region', { name: 'Markers and named regions' })).toHaveCount(0);
-		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Markers']);
+		await chooseNestedCommandAction(page, editor, 'Window', ['Markers']);
 		await expect(editor.locator('[data-workspace-panel="markers"]')).toBeVisible();
 		const panel = editor.getByRole('region', { name: 'Markers and named regions', exact: true });
 		await expect(panel).toBeVisible();
@@ -302,7 +302,7 @@ test.describe('native timeline annotations', () => {
 		const originErrors = collectClientErrors(page);
 		const origin = await bootEditor(page, '/embed/en/');
 		await importFiles(origin, [toneA]);
-		await chooseNestedCommandAction(page, origin, 'View', ['Panels', 'Markers']);
+		await chooseNestedCommandAction(page, origin, 'Window', ['Markers']);
 		const originPanel = origin.getByRole('region', { name: 'Markers and named regions', exact: true });
 		await originPanel.getByRole('button', { name: 'Add marker at playhead', exact: true }).click();
 		const originMarker = originPanel.locator('[data-timeline-annotation]');
@@ -341,7 +341,7 @@ test.describe('native timeline annotations', () => {
 			await expect(home).toHaveAttribute('data-project-id', projectId, { timeout: 20_000 });
 			await expect(home).not.toHaveAttribute('data-edit-block-reason', /.+/u);
 			await expect(home.locator('[data-project-feature-compatibility]')).toHaveCount(0);
-			await chooseNestedCommandAction(homePage, home, 'View', ['Panels', 'Markers']);
+			await chooseNestedCommandAction(homePage, home, 'Window', ['Markers']);
 			const returnedPanel = home.getByRole('region', { name: 'Markers and named regions', exact: true });
 			await expect(returnedPanel.locator('[data-timeline-annotation]')).toHaveCount(1);
 			await expect(returnedPanel.getByRole('button', { name: /Cross-product cue, Marker/u })).toBeVisible();

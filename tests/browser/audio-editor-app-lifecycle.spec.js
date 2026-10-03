@@ -64,7 +64,7 @@ test.describe('audio editor application lifecycle', () => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [toneA]);
-		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'History']);
+		await chooseNestedCommandAction(page, editor, 'Window', ['History']);
 		const history = editor.locator('[data-workspace-panel="history"] [data-history-list]');
 		const entriesBefore = await history.locator(':scope > li').count();
 

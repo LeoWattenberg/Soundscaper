@@ -207,6 +207,7 @@ export function createWorkspaceApplicationMenus({
 					? run(() => openDesktopFiles('project'))
 					: aup4InputRef.current?.click(),
 				openRecentProject: (projectId) => run(() => controller.actions.project.openRecent(projectId)),
+				switchProject: (projectId) => run(() => controller.actions.project.openById(projectId)),
 				clearRecentProjects: () => run(() => controller.actions.project.clearRecent()),
 				closeProject: () => run(() => controller.actions.project.close()),
 				claimProjectLock: () => run(() => controller.actions.project.claimLock()),

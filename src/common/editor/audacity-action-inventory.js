@@ -133,7 +133,7 @@ export const AUDACITY_ACTION_DEFINITIONS = [
 	implemented('project-properties', 'Project properties', ['File > Project management'], 'panels.metadata', { enableWhen: 'project-opened', source: UPSTREAM.project }),
 	implemented('revert-factory', 'Revert to factory settings', ['Help'], 'help.revertFactorySettings', { source: UPSTREAM.application }),
 	implemented('toggle-transport', 'Playback controls', ['View > Toolbars'], 'workspace.toggleTransportToolbar', { source: UPSTREAM.application }),
-	implemented('toggle-tracks', 'Tracks panel', ['View > Panels'], 'workspace.toggleTracksPanel', { source: UPSTREAM.application, enableWhen: 'project-opened' }),
+	implemented('toggle-tracks', 'Tracks panel', ['Window'], 'workspace.toggleTracksPanel', { source: UPSTREAM.application, enableWhen: 'project-opened' }),
 	implemented('toggle-statusbar', 'Status bar', ['View'], 'workspace.toggleStatusbar', { source: UPSTREAM.application, enableWhen: 'project-opened' }),
 	implemented('configure-workspaces', 'Configure workspaces', ['View > Workspaces'], 'workspace.configure', { source: UPSTREAM.menu }),
 
@@ -214,7 +214,7 @@ export const AUDACITY_ACTION_DEFINITIONS = [
 	implemented('increase-all-track-heights', 'Increase all track heights', ['View > Zoom'], 'track.increaseAllHeights', { shortcut: 'Ctrl+Shift+Up', enableWhen: 'project-opened', source: null, origin: 'local' }),
 	disabled('collapse-all-tracks', 'Collapse all tracks', ['View > Zoom'], DISABLED_REASONS.superseded, { source: UPSTREAM.project, menuVisible: false }),
 	disabled('expand-all-tracks', 'Expand all tracks', ['View > Zoom'], DISABLED_REASONS.superseded, { source: UPSTREAM.project, menuVisible: false }),
-	implemented('toggle-effects', 'Effects', ['View'], 'panels.effects', { enableWhen: 'project-opened' }),
+	implemented('toggle-effects', 'Effects', ['Window'], 'panels.effects', { enableWhen: 'project-opened' }),
 	implemented('toggle-history', 'History', ['View'], 'panels.history', { enableWhen: 'project-opened' }),
 	implemented('fullscreen', 'Fullscreen', ['View'], 'workspace.fullscreen', { shortcut: 'F11', source: UPSTREAM.menu }),
 	implemented('toggle-clipping-in-waveform', 'Show clipping in waveform', ['View'], 'view.toggleClipping', { enableWhen: 'project-opened', source: UPSTREAM.projectScene }),

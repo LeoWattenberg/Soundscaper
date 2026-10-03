@@ -60,7 +60,7 @@ for (const platform of ['web', 'desktop']) {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [longTone]);
-		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Mixer']);
+		await chooseNestedCommandAction(page, editor, 'Window', ['Mixer']);
 		const mixer = editor.locator('[data-mixer-panel]');
 		await expect(mixer).toBeVisible();
 		await editor.getByRole('button', { name: 'Play', exact: true }).click();

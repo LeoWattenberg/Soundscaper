@@ -236,7 +236,7 @@ export const EDITING_GUIDES = Object.freeze([
 			check({ clips: 2 }, { see: 'The split is back.' }),
 		],
 		tips: [
-			'**View → Panels → History** lists every step, and clicking one jumps straight to it.',
+			'**Window → History** lists every step, and clicking one jumps straight to it.',
 			'Undo covers edits to the project, not exports; a file you have already saved stays as it is.',
 		],
 	},

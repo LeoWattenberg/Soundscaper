@@ -16,7 +16,7 @@ test('video preview opens on import and panel Close updates the View menu eye', 
 	const panel = editor.locator('[data-workspace-panel="video-preview"]');
 	const preview = panel.locator('[data-video-preview]');
 	const menuItem = async (label = 'Video preview') => getMenuItem(
-		await openNestedCommandMenu(page, editor, 'View', ['Panels']), label,
+		await openNestedCommandMenu(page, editor, 'Window', []), label,
 	);
 	const eye = (item) => item.locator(':scope > .context-menu-item-content .context-menu-item-icon .musescore-icon');
 
@@ -26,7 +26,7 @@ test('video preview opens on import and panel Close updates the View menu eye', 
 	await expect(eye(item)).toHaveText('\uEF54');
 	await page.keyboard.press('Escape');
 
-	await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Video preview']);
+	await chooseNestedCommandAction(page, editor, 'Window', ['Video preview']);
 	await expect(preview).toBeVisible();
 	await expect(preview).toHaveCSS('background-color', 'rgb(0, 0, 0)');
 	await expect(preview.locator('.kw-audio-editor__video-preview-empty')).toHaveText('No video');
@@ -40,7 +40,7 @@ test('video preview opens on import and panel Close updates the View menu eye', 
 	await expect(item).toHaveAttribute('aria-checked', 'false');
 	await expect(eye(item)).toHaveText('\uEF54');
 	await page.keyboard.press('Escape');
-	await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'History']);
+	await chooseNestedCommandAction(page, editor, 'Window', ['History']);
 	await expect(editor.locator('[data-workspace-panel="history"]')).toBeVisible();
 	await closeWorkspacePanel(editor, 'history');
 	item = await menuItem('History');
