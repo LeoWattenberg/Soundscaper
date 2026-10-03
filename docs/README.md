@@ -40,6 +40,10 @@ belong in Git history, not in the maintained documentation set.
   and browser coverage is captured and combined.
 - [Quality diagnostics](development/quality-diagnostics.md) defines correctness
   thresholds, performance observations, and how budgets change.
+- [Editor performance](development/performance.md) records scaling behavior,
+  measured costs, reproduction methods, and correctness guardrails.
+- [Smaller performance candidates](development/performance-candidates.md)
+  records areas needing representative profiles before implementation.
 
 ## Operate and release
 
