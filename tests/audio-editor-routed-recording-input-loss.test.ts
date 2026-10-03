@@ -9,7 +9,6 @@ import { createRecordingSessionService } from '../src/common/editor/controller/r
 import {
 	createEndingRecordingStream,
 	createRecordingCaptureFixture,
-	createScope,
 } from './fixtures/recording-capture-fixture.ts';
 
 test('routed capture preserves a surviving input and finalizes once after both live inputs end', async () => {
