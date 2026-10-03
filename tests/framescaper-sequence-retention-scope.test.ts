@@ -101,3 +101,7 @@ test('no caller-owned target is accepted, so a refusal exposes no partial result
 		},
 	);
 });
+
+test('a valid sequence without later-generation finishing collections has an empty root set', () => {
+	assert.deepEqual(collect(scope()), []);
+});

@@ -127,7 +127,7 @@ export class FramescaperProjectRepository implements ProjectRepositoryPort {
 			|| !Array.isArray(snapshot.revisions)) {
 			throw new TypeError('An exact Framescaper project snapshot is required.');
 		}
-		const current = snapshot.current === null ? null : this.#exact(snapshot.current);
+		const current = snapshot.current === null ? null : this.#custody(snapshot.current);
 		if (current && current.id !== projectId) {
 			throw new Error('The Framescaper restore current document changed project identity.');
 		}
@@ -138,7 +138,7 @@ export class FramescaperProjectRepository implements ProjectRepositoryPort {
 				throw new TypeError('The Framescaper restore revision inventory is invalid.');
 			}
 			seen.add(entry.revision);
-			const project = this.#exact(entry.project);
+			const project = this.#custody(entry.project);
 			if (project.id !== projectId || project.revision !== entry.revision) {
 				throw new Error('The Framescaper restore revision changed its document identity.');
 			}
@@ -156,12 +156,12 @@ export class FramescaperProjectRepository implements ProjectRepositoryPort {
 	}>, writeFence: string): Promise<boolean> {
 		const expected = this.#exact(expectedValue);
 		if (expected.id !== projectId) throw new Error('The Framescaper restore expected document changed project identity.');
-		const current = snapshot.current === null ? null : this.#exact(snapshot.current);
+		const current = snapshot.current === null ? null : this.#custody(snapshot.current);
 		if (current && current.id !== projectId) throw new Error('The Framescaper restore current document changed project identity.');
 		const revisions = snapshot.revisions.map(({ revision, project }) => {
-			const exact = this.#exact(project);
-			if (exact.id !== projectId || exact.revision !== revision) throw new Error('The Framescaper restore revision changed its document identity.');
-			return { revision, project: exact as ProjectDocument };
+			const restorable = this.#custody(project);
+			if (restorable.id !== projectId || restorable.revision !== revision) throw new Error('The Framescaper restore revision changed its document identity.');
+			return { revision, project: restorable };
 		});
 		return this.#delegate.restoreIfCurrentAndFenced!(projectId, expected, { current, revisions }, writeFence);
 	}
