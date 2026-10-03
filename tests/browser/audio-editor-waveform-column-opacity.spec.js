@@ -1,13 +1,17 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-import { readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+import { build } from 'esbuild';
 import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, clipByName, importFiles, registerAudioEditorHooks } from './audio-editor-test-helpers.js';
 
 // Exercise Chromium's actual rasterizer: a recording context cannot detect
 // the transparency seams caused by adjacent subpixel fillRect calls.
 test('summary and RMS columns stay opaque at fractional clip widths and display scales', async ({ page }) => {
-	const source = await readFile(new URL('../../src/common/editor/audacity-waveform-renderer.js', import.meta.url), 'utf8');
-	await page.addScriptTag({ content: source.replaceAll('export ', '') });
+	const bundled = await build({
+		entryPoints: [fileURLToPath(new URL('../../src/common/editor/audacity-waveform-renderer.js', import.meta.url))],
+		bundle: true, write: false, format: 'iife', globalName: 'waveformRenderer', target: 'es2022',
+	});
+	await page.addScriptTag({ content: bundled.outputFiles[0].text });
 	const results = await page.evaluate(() => {
 		const results = [];
 		for (const width of [163, 163.5, 163.984, 480.25]) {
@@ -19,7 +23,7 @@ test('summary and RMS columns stay opaque at fractional clip widths and display 
 				const pixelRatioX = canvas.width / width;
 				context.scale(pixelRatioX, 1);
 				// Distinct opaque peak/RMS colors expose compositing errors in either pass.
-				globalThis.drawAudacityWaveformChannel(context, {
+				globalThis.waveformRenderer.drawAudacityWaveformChannel(context, {
 					mode: 'summary', pixelWidth: Math.ceil(width),
 					channels: [{ minimum: [-1], maximum: [1], rms: [0.5] }],
 				}, { width, centerY: 50, maxAmplitude: 40, pixelRatioX,
