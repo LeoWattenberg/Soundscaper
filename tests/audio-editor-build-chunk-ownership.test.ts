@@ -229,7 +229,7 @@ test('assistance domain modules default to the lazy owner, with a named eager ex
 	// own dedicated lazy owner so indexed search stays apart from the rest of assistance,
 	// so it is named here and asserted lazy rather than eager.
 	const exceptions = assistanceDomainModules()
-		.filter((path) => chunkGroupForModulePath(path) !== 'editor-optional-assistance');
+		.filter((path) => { const owner = chunkGroupForModulePath(path); return owner !== 'editor-optional-assistance' && owner !== 'editor-assistance-model-preflight'; });
 	assert.deepEqual(exceptions, [
 		'src/common/editor/assistance/assistance-asset-command-v1.ts',
 		'src/common/editor/assistance/assistance-asset-reference-v1.ts',
@@ -256,7 +256,7 @@ test('every local assistance controller module keeps the lazy assistance owner',
 	// into the product-ready startup graph, past its byte budget. Only the deferred facade
 	// that the composition root imports directly belongs on the eager side.
 	const misowned = localAssistanceControllerModules()
-		.filter((path) => chunkGroupForModulePath(path) !== 'editor-optional-assistance');
+		.filter((path) => { const owner = chunkGroupForModulePath(path); return owner !== 'editor-optional-assistance' && owner !== 'editor-assistance-model-preflight'; });
 	assert.deepEqual(misowned, [], 'these modules would join the eager startup graph');
 	assert.equal(
 		chunkGroupForModulePath('src/common/editor/controller/assistance/deferred-local-assistance-runtime.ts'),

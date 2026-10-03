@@ -22,6 +22,7 @@
 
 import {
 	DESIGN_SYSTEM_EDITOR_SHELL_COMPONENT_CHUNK_TEST,
+	EDITOR_ASSISTANCE_MODEL_PREFLIGHT_CHUNK_TEST,
 	EDITOR_ASSISTANCE_SEMANTIC_SEARCH_RUNTIME_CHUNK_TEST,
 	EDITOR_CODEC_FOUNDATION_CHUNK_TEST,
 	EDITOR_COMMUNITY_TRANSLATIONS_CHUNK_TEST,
@@ -89,6 +90,9 @@ export {
 
 /** @type {import('rolldown').CodeSplittingGroup[]} */
 export const chunkGroups = [
+	{ name: 'editor-assistance-model-preflight', test: EDITOR_ASSISTANCE_MODEL_PREFLIGHT_CHUNK_TEST,
+		priority: 100, minSize: 0, maxSize: 400_000,
+		includeDependenciesRecursively: false },
 	{
 		// DSP preparation and kernels load only after parallel playback is admitted.
 		name: 'editor-parallel-stacks',
@@ -449,7 +453,7 @@ export const chunkGroups = [
 	},
 	{
 		name: 'editor-shell',
-		test: new RegExp(`(?:${editorPath}(?!${editorOptionalSurfaceModule}$)ui[\\\\/](?!(?:dialogs[\\\\/](?!editor-dialog-model\\.js$)|inspector[\\\\/]))|src[\\\\/]common[\\\\/](?:products\\.js|url\\.ts)$|src[\\\\/]common[\\\\/]offline[\\\\/](?:file-handler-launch|install-prompt|share-target-launch)\\.ts$|src[\\\\/]soundscaper[\\\\/](?:editor-capture-toolbar-control|editor-framescaper-overlay-model|editor-video-preview-product-runtime|editor-application-menu-product-runtime|editor-workspace-application-menu-runtime|editor-workspace-panel-runtime)\\.(?:js|tsx?)$|src[\\\\/]framescaper[\\\\/]editor-soundscaper-workflow-product-runtime\\.tsx$)`),
+		test: new RegExp(`(?:${editorPath}(?!${editorOptionalSurfaceModule}$)ui[\\\\/](?!(?:dialogs[\\\\/](?!(?:editor-dialog-model\\.js|AssistanceLoadingDialog\\.tsx)$)|inspector[\\\\/]))|src[\\\\/]common[\\\\/](?:products\\.js|url\\.ts)$|src[\\\\/]common[\\\\/]offline[\\\\/](?:file-handler-launch|install-prompt|share-target-launch)\\.ts$|src[\\\\/]soundscaper[\\\\/](?:editor-capture-toolbar-control|editor-framescaper-overlay-model|editor-video-preview-product-runtime|editor-application-menu-product-runtime|editor-workspace-application-menu-runtime|editor-workspace-panel-runtime)\\.(?:js|tsx?)$|src[\\\\/]framescaper[\\\\/]editor-soundscaper-workflow-product-runtime\\.tsx$)`),
 		priority: 70,
 		maxSize: 400_000,
 		includeDependenciesRecursively: false,

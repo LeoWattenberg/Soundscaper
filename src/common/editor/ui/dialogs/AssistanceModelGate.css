@@ -1,0 +1,22 @@
+.kw-assistance-loading progress,
+.kw-assistance-model-prerequisites progress {
+	width: 100%;
+}
+
+.kw-assistance-model-prerequisites {
+	display: grid;
+	gap: 12px;
+}
+
+.kw-assistance-model-prerequisites ul {
+	margin: 0;
+	padding-inline-start: 20px;
+}
+
+.kw-assistance-model-prerequisites li + li {
+	margin-top: 8px;
+}
+
+.kw-assistance-model-prerequisites label {
+	display: block;
+}

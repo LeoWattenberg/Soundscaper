@@ -14,6 +14,24 @@ export function assistanceTaskModelFilter(settings: AssistanceWorkflowSettingsV1
 	return (model) => slots.some((slot) => localAssistanceGuidedModelMatches(slot.slotId, model, settings));
 }
 
+/** Include optional stages and selectable recognizers in a task's download catalog. */
+export function assistanceTaskAvailableModelFilter(
+	settings: AssistanceWorkflowSettingsV1,
+): (model: Model) => boolean {
+	const settingsOptions = settings.workflowId === 'transcribe-captions'
+		? [{ ...settings, recognizer: 'parakeet' as const }, { ...settings, recognizer: 'whisper' as const }]
+		: [settings];
+	const filters = settingsOptions.map(assistanceTaskModelFilter);
+	return (model) => filters.some((filter) => filter(model));
+}
+
+/** Model-free default paths can open without a model-download preflight. */
+export function assistanceTaskRequiresModels(settings: AssistanceWorkflowSettingsV1): boolean {
+	const graph = assistanceWorkflowStageGraph(settings.workflowId);
+	const stages = selectLocalAssistanceGuidedStages(graph, settings, [], []) ?? graph;
+	return stages.some((stage) => stage.modelSlots.some((slot) => slot.required || requiresAccurateModel(settings)));
+}
+
 export function assistanceTaskModelsReady(settings: AssistanceWorkflowSettingsV1,
 	models: readonly LocalAssistanceModel[], inventory: readonly Readonly<{ mediaKind: string }>[],
 ): boolean {
@@ -21,9 +39,12 @@ export function assistanceTaskModelsReady(settings: AssistanceWorkflowSettingsV1
 		assistanceWorkflowStageGraph(settings.workflowId), settings, models, inventory,
 	);
 	return stages !== null && stages.every((stage) => stage.modelSlots.every((slot) => {
-		const accurate = (settings.workflowId === 'mark-cuts' && settings.mode === 'accurate')
-			|| (settings.workflowId === 'index-video' && settings.shotMode === 'accurate');
-		if (!slot.required && !accurate) return true;
+		if (!slot.required && !requiresAccurateModel(settings)) return true;
 		return models.filter((model) => localAssistanceGuidedModelMatches(slot.slotId, model, settings)).length === 1;
 	}));
+}
+
+function requiresAccurateModel(settings: AssistanceWorkflowSettingsV1): boolean {
+	return (settings.workflowId === 'mark-cuts' && settings.mode === 'accurate')
+		|| (settings.workflowId === 'index-video' && settings.shotMode === 'accurate');
 }

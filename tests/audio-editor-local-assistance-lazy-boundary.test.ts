@@ -20,13 +20,14 @@ test('the workspace defers Local Assistance bridge resolution with its dialog', 
 	assert.doesNotMatch(workspace, /const localAssistanceBridge =/u);
 
 	const surface = source('src/common/editor/ui/dialogs/LocalAssistanceDialogSurface.tsx');
-	assert.match(surface, /import \{ useMemo \} from 'react'/u);
-	assert.match(surface,
-		/const bridge = useMemo\(\(\) => resolveLocalAssistanceBridge\(bridgeScope\), \[bridgeScope\]\)/u);
-	assert.match(surface, /<LocalAssistanceDialog \{\.\.\.props\} bridge=\{bridge\}/u);
-	assert.doesNotMatch(surface,
-		/<LocalAssistanceDialog \{\.\.\.props\} bridge=\{resolveLocalAssistanceBridge\(bridgeScope\)\}/u);
 	assert.match(surface, /<LocalAssistanceDialog/u);
+	assert.doesNotMatch(surface, /import LocalAssistanceDialog[^\n]*from/u);
+	assert.doesNotMatch(surface, /import \{ resolveLocalAssistanceBridge \}/u);
+	assert.match(surface, /lazyEditorModule\(\(\) => import\('\.\/LocalAssistanceRuntimeDialog\.tsx'\)\)/u);
+	assert.match(surface, /<AssistanceModelGate[\s\S]*<LocalAssistanceDialog/u);
+	const runtime = source('src/common/editor/ui/dialogs/LocalAssistanceRuntimeDialog.tsx');
+	assert.match(runtime, /const bridge = useMemo\(\(\) => resolveLocalAssistanceBridge\(bridgeScope\), \[bridgeScope\]\)/u);
+	assert.match(runtime, /<LocalAssistanceDialog \{\.\.\.props\} bridge=\{bridge\}/u);
 });
 
 function source(path: string): string {

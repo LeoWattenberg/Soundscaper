@@ -412,8 +412,6 @@ test('stateful local assistance implementations share one dedicated lazy owner',
 		'src/common/editor/assistance/visual-semantic-results-v1.ts',
 		'src/common/editor/assistance/workflow-custody-v1.ts',
 		'src/common/editor/assistance/workflow-fence-v1.ts',
-		'src/common/editor/assistance/workflow-recipes.ts',
-		'src/common/editor/assistance/workflow-settings-v1.ts',
 		'src/common/editor/assistance/workflow.ts',
 		'src/common/editor/controller/assistance/internal/selected-video/local-assistance-selected-video-frame-pack.ts',
 		'src/common/editor/controller/assistance/internal/selected-video/local-assistance-selected-video-timing.ts',
@@ -530,10 +528,10 @@ test('Framescaper session clipboard modules stay in one product-owned ready chun
 	assert.equal(group.includeDependenciesRecursively, false);
 });
 
-test('optional model-manager validation stays behind its desktop dialog', () => {
+test('optional model-manager validation stays behind the menu-requested preflight', () => {
 	assert.equal(
 		chunkGroupForModulePath('src/common/editor/ui/local-model-manager-bridge.ts'),
-		'editor-optional-surfaces',
+		'editor-assistance-model-preflight',
 	);
 	assert.notEqual(
 		chunkGroupForModulePath('src/common/editor/ui/local-model-manager-availability.ts'),

@@ -23,6 +23,10 @@ export async function installMilestone7LocalAssistanceFixture(page) {
 		const runtimeModels = Object.freeze(models.map(([modelId, version, task]) => Object.freeze({
 			modelId, version, task, artifactSha256s: Object.freeze([artifactSha256]),
 		})));
+		const managerModels = Object.freeze(runtimeModels.map(({ modelId, version, task }) => Object.freeze({
+			modelId, version, task, availability: 'installed', downloadBytes: 4_096,
+			installedBytes: 4_096, attributionRequired: true,
+		})));
 		const state = {
 			completeRun: () => undefined,
 			consents: [],
@@ -174,7 +178,7 @@ export async function installMilestone7LocalAssistanceFixture(page) {
 				audioHelperQuarantined: false, nativeEffectDiscoveryEnabled: false }),
 			applyNativeTierControl: async () => { throw new Error('Unsupported by fixture.'); },
 			listAssistanceModels: async () => Object.freeze({ runtimeAvailable: true,
-				runtimeReason: null, models: Object.freeze([]) }),
+				runtimeReason: null, models: managerModels }),
 			installAssistanceModel: async () => { throw new Error('Models are preinstalled by fixture.'); },
 			cancelAssistanceModelInstall: async (modelId) => Object.freeze({ contractVersion: 1,
 				modelId, outcome: 'not-active' }),
