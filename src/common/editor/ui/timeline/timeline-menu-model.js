@@ -80,7 +80,7 @@ export function createTimelineMenuModel({
 		? project.tracks.find((track) => track.id === trackRulerFlyout.trackId && track.type === 'audio')
 		: null;
 	const activeWaveformRuler = rulerFlyoutTrack
-		? normalizeWaveformRulerState(waveformRulerState[rulerFlyoutTrack.id])
+		? normalizeWaveformRulerState(waveformRulerState[rulerFlyoutTrack.id], snapshot.preferences?.waveformDisplay?.rulerFormat)
 		: DEFAULT_WAVEFORM_RULER_STATE;
 	const contextLocale = locale;
 	const unavailableReason = copy.unavailable;
@@ -88,7 +88,7 @@ export function createTimelineMenuModel({
 		setWaveformRulerState((current) => ({
 			...current,
 			[trackId]: {
-				...(current[trackId] || DEFAULT_WAVEFORM_RULER_STATE),
+				...current[trackId],
 				...changes,
 			},
 		}));
@@ -125,7 +125,7 @@ export function createTimelineMenuModel({
 		controller, project, track: menuTrack, copy, productId, capabilities,
 		mutationsBlocked, run, onOpenSurface, freezeRuntime,
 	}) : [];
-	const waveformOptions = resolveTrackWaveformOptions(menuTrack, snapshot.timeline?.view, Boolean(snapshot.timeline?.showRms));
+	const waveformOptions = resolveTrackWaveformOptions(menuTrack, snapshot.timeline?.view, Boolean(snapshot.timeline?.showRms), snapshot.preferences?.waveformDisplay?.halfWave);
 	const trackMenuItems = menuTrack ? [
 		...(menuTrack.type === 'audio' ? [
 			manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.showArmControls, copy.showArmControls, {

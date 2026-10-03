@@ -32,7 +32,7 @@ export function AudioTrackRow({
 	controller,
 	project,
 	track,
-	visualHeight,
+	visualHeight: trackHeight,
 	trackClips,
 	clipLookup,
 	sourceLookup,
@@ -59,6 +59,7 @@ export function AudioTrackRow({
 	asymmetricStereoHeightsAvailable,
 	channelHeightRatio,
 	showRms: globalShowRms,
+	waveformDisplay,
 	showFadeShapeHandles,
 	waveformRulerFormat,
 	waveformZoom,
@@ -96,10 +97,9 @@ export function AudioTrackRow({
 }) {
 	const trackWindowRef = useRef(null);
 	const [channelHeightRatioPreview, setChannelHeightRatioPreview] = useState(null);
-	const trackHeight = visualHeight;
 	const { top: channelBodyTop, height: channelBodyHeight } = audioEditorClipBodyGeometry(trackHeight);
 	const visualSelectedClipIds = selectedClipIdSet.size ? selectedClipIdSet : new Set([selectedClipId]);
-	const { displayMode, halfWave, showRms } = resolveTrackWaveformOptions(track, timelineView, globalShowRms);
+	const { displayMode, halfWave, showRms } = resolveTrackWaveformOptions(track, timelineView, globalShowRms, waveformDisplay?.halfWave);
 	const storedChannelHeightRatio = channelHeightRatio ?? 0.5;
 	const displayChannelHeightRatio = audioEditorStereoChannelHeightRatioForDisplay(
 		channelHeightRatioPreview ?? storedChannelHeightRatio,

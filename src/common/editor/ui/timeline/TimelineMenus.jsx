@@ -136,7 +136,7 @@ export function TimelineMenus({
 				onRulerFormatChange={(format) => {
 					if (rulerFlyoutTrack) updateWaveformRuler(rulerFlyoutTrack.id, { format: normalizeWaveformRulerFormat(format) });
 				}}
-				halfWave={resolveTrackWaveformOptions(rulerFlyoutTrack, snapshot.timeline?.view).halfWave}
+				halfWave={resolveTrackWaveformOptions(rulerFlyoutTrack, snapshot.timeline?.view, false, snapshot.preferences?.waveformDisplay?.halfWave).halfWave}
 				onHalfWaveChange={(enabled) => {
 					if (!rulerFlyoutTrack || mutationsBlocked) return;
 					run(() => controller.actions.track.update(

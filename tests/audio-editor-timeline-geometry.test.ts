@@ -47,6 +47,18 @@ test('waveform ruler formats retain logarithmic dB and preserve the existing def
 	});
 });
 
+test('waveform ruler defaults apply below individual format and zoom choices', () => {
+	assert.deepEqual(normalizeWaveformRulerState(undefined, 'logarithmic-db'), {
+		format: 'logarithmic-db', zoom: 0,
+	});
+	assert.deepEqual(normalizeWaveformRulerState({ zoom: 2 }, 'linear-amp'), {
+		format: 'linear-amp', zoom: 2,
+	});
+	assert.deepEqual(normalizeWaveformRulerState({ format: 'linear-db', zoom: 1 }, 'logarithmic-db'), {
+		format: 'linear-db', zoom: 1,
+	});
+});
+
 test('timeline frame, meter, and height geometry keeps existing bounds', () => {
 	assert.equal(secondsDeltaToFrames(-0.5, 48_000), -24_000);
 	assert.equal(secondsDeltaToFrames(Number.NaN, 48_000), 0);

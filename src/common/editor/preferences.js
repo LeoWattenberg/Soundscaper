@@ -38,6 +38,7 @@ import {
 } from './audio-editor-shortcut-normalization.ts';
 import { clone, finiteInRange, integer, nonEmptyString, oneOf } from './preferences-validators.js';
 import { normalizeWaveformVisualizationPreferences } from './waveform-visualization-preferences.ts';
+import { normalizeWaveformDisplayPreferences } from './waveform-display-preferences.ts';
 import { normalizeVideoPreviewResolution } from './video-preview-preferences.ts';
 import { normalizeAudioEditorTimeDisplayFormat } from './time-display-preferences.ts';
 import {
@@ -171,6 +172,7 @@ const FORBIDDEN_TOP_LEVEL_KEYS = new Set([
  * @property {{activeId: string, custom: Object[], timeDisplayFormat: import('./time-display-preferences.ts').AudioEditorTimeDisplayFormat | null, toolbars: Record<string, {visible: boolean, order: number}>, toolbarButtons: Record<string, boolean>, panels: Record<string, AudioEditorPanelStateV1>}} workspace
  * @property {Object} spectrogram
  * @property {import('./waveform-visualization-preferences.ts').WaveformVisualizationPreferences} waveformVisualization
+ * @property {import('./waveform-display-preferences.ts').WaveformDisplayPreferences} waveformDisplay
  * @property {{detectTempo: boolean}} import
  * @property {{retainInputs: boolean, soundActivation: import('./sound-activation-preferences.ts').SoundActivationPreferences}} recording
  * @property {{playAtSpeedMode: 'naive'|'staffpad'}} playback
@@ -219,6 +221,7 @@ function mergePreferences(preferences, patch = {}) {
 		},
 		spectrogram: { ...preferences.spectrogram, ...patch.spectrogram },
 		waveformVisualization: { ...preferences.waveformVisualization, ...patch.waveformVisualization },
+		waveformDisplay: { ...preferences.waveformDisplay, ...patch.waveformDisplay },
 		import: { ...preferences.import, ...patch.import },
 		recording: { ...preferences.recording, ...patch.recording },
 		playback: { ...preferences.playback, ...patch.playback },
@@ -287,6 +290,7 @@ export function createAudioEditorPreferencesV1(options = {}) {
 			range: finiteInRange(options.spectrogram?.range ?? 80, 1, 240, 'spectrogram.range'),
 		},
 		waveformVisualization: normalizeWaveformVisualizationPreferences(options.waveformVisualization),
+		waveformDisplay: normalizeWaveformDisplayPreferences(options.waveformDisplay),
 		import: {
 			detectTempo: options.import?.detectTempo !== false,
 		},
@@ -478,6 +482,7 @@ export function validateAudioEditorPreferencesV1(preferences) {
 	}
 	if (preferences.performance !== undefined) normalizeAudioEditorPerformancePreferences(preferences.performance);
 	if (preferences.waveformVisualization !== undefined) normalizeWaveformVisualizationPreferences(preferences.waveformVisualization);
+	if (preferences.waveformDisplay !== undefined) normalizeWaveformDisplayPreferences(preferences.waveformDisplay);
 	if (preferences.startup !== undefined) {
 		if (!preferences.startup || typeof preferences.startup !== 'object' || Array.isArray(preferences.startup)) {
 			throw new TypeError('preferences.startup must be an object.');
@@ -510,6 +515,7 @@ export function loadAudioEditorPreferencesV1(value) {
 			// appearance section without it; normalization supplies the default.
 			appearance: normalized.appearance,
 			waveformVisualization: normalized.waveformVisualization,
+			waveformDisplay: normalized.waveformDisplay,
 			view: normalized.view,
 			workspace: {
 				...clone(value.workspace),

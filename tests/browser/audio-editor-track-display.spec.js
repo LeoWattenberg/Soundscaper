@@ -3,7 +3,8 @@
 import { createWavFixture, expect, test, toneA } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor, chooseCommandAction, chooseDropdown, clipByName,
-	collectClientErrors, importFiles, registerAudioEditorHooks, setDocumentTheme,
+	collectClientErrors, getMenuItem, importFiles, openNestedCommandMenu,
+	registerAudioEditorHooks, setDocumentTheme,
 } from './audio-editor-test-helpers.js';
 import { chooseTrackMenuAction } from './helpers/track-menu.js';
 
@@ -179,6 +180,127 @@ test('Track display owns all six default views and persists the choice', async (
 	await expect(preferences.getByRole('group', { name: 'Default view', exact: true }).getByRole('button'))
 		.toContainText('Rainbow waveform');
 });
+
+test('Waveform preferences share RMS with View and persist ruler and half-wave defaults', async ({ page }) => {
+	await page.setViewportSize({ width: 1440, height: 1000 });
+	let editor = await bootEditor(page, '/embed/en/');
+	await importFiles(editor, [toneA]);
+	const clip = clipByName(editor, toneA.name);
+	const track = clip.locator('xpath=ancestor::div[@data-track-row]');
+	const waveform = clip.locator('canvas.clip-body__waveform');
+	await track.locator('[data-track-ruler]').click({ button: 'right', position: { x: 20, y: 70 } });
+	const rulerMenu = page.locator('.audio-editor-ruler-flyout');
+	await rulerMenu.getByRole('button', { name: 'Zoom in', exact: true }).click();
+	await expect(track.locator('[data-track-ruler]')).toHaveAttribute('data-ruler-zoom', '1');
+	await page.keyboard.press('Escape');
+	await expect(rulerMenu).toBeHidden();
+	const withoutRms = await waveform.evaluate(waveformChecksum);
+	let preferences = await openTrackDisplayPreferences(page, editor);
+	await expect(preferences.getByRole('heading', { name: '3-band waveform', exact: true })).toBeVisible();
+	await expect(preferences.getByRole('heading', { name: 'Frequency visualization', exact: true })).toHaveCount(0);
+	await expect(preferences.getByText('Choose the crossover frequencies used by 3-band waveforms.', { exact: true }))
+		.toHaveCount(0);
+	const waveformSection = preferences.getByRole('heading', { name: 'Waveform', exact: true }).locator('..');
+	const defaultView = preferences.getByRole('group', { name: 'Default view', exact: true });
+	await chooseDropdown(page, defaultView, 'Half-wave');
+	const halfWaveDefault = waveformSection.getByRole('checkbox', { name: 'Half-wave', exact: true });
+	await expect(halfWaveDefault).toHaveAttribute('aria-checked', 'true');
+	await expect(clip.locator('.clip-body')).toHaveAttribute('data-half-wave', 'true');
+	await halfWaveDefault.click();
+	await expect(defaultView.getByRole('button')).toContainText('Waveform');
+	await expect(clip.locator('.clip-body')).not.toHaveAttribute('data-half-wave');
+	const rms = waveformSection.getByRole('checkbox', { name: 'Show RMS', exact: true });
+	await expect(rms).toHaveAttribute('aria-checked', 'false');
+	await rms.click();
+	await closeTrackDisplayPreferences(preferences);
+	await expect.poll(() => waveform.evaluate(waveformChecksum)).not.toBe(withoutRms);
+	const view = await openNestedCommandMenu(page, editor, 'View', []);
+	await expect(getMenuItem(view, 'RMS in waveform')).toHaveAttribute('aria-checked', 'true');
+	await page.keyboard.press('Escape');
+	await chooseCommandAction(page, editor, 'View', 'RMS in waveform');
+	await expect.poll(() => waveform.evaluate(waveformChecksum)).toBe(withoutRms);
+	preferences = await openTrackDisplayPreferences(page, editor);
+	await expect(preferences.getByRole('checkbox', { name: 'Show RMS', exact: true }))
+		.toHaveAttribute('aria-checked', 'false');
+	await preferences.getByRole('checkbox', { name: 'Show RMS', exact: true }).click();
+	const formats = preferences.getByRole('group', { name: 'Ruler format', exact: true });
+	for (const [label, format, scale] of [
+		['Linear amp', 'linear-amp', 'linear'],
+		['Linear dB', 'linear-db', 'linear'],
+		['Logarithmic dB', 'logarithmic-db', 'db'],
+	]) {
+		await chooseDropdown(page, formats, label);
+		await expect(track.locator('[data-track-ruler]')).toHaveAttribute('data-ruler-format', format);
+		await expect(track.locator('[data-track-ruler]')).toHaveAttribute('data-ruler-zoom', '1');
+		await expect(waveform).toHaveAttribute('data-waveform-amplitude-scale', scale);
+	}
+	await preferences.getByRole('checkbox', { name: 'Half-wave', exact: true }).click();
+	await expect(clip.locator('.clip-body')).toHaveAttribute('data-half-wave', 'true');
+	await closeTrackDisplayPreferences(preferences);
+
+	editor = await bootEditor(page, '/embed/en/');
+	preferences = await openTrackDisplayPreferences(page, editor);
+	await expect(preferences.getByRole('checkbox', { name: 'Show RMS', exact: true }))
+		.toHaveAttribute('aria-checked', 'true');
+	await expect(preferences.getByRole('checkbox', { name: 'Half-wave', exact: true }))
+		.toHaveAttribute('aria-checked', 'true');
+	await expect(preferences.getByRole('group', { name: 'Ruler format', exact: true }).getByRole('button'))
+		.toContainText('Logarithmic dB');
+	await closeTrackDisplayPreferences(preferences);
+	const newTone = createWavFixture({ name: 'waveform-preferences-reloaded.wav', frequency: 330 });
+	await importFiles(editor, [newTone]);
+	const newClip = clipByName(editor, newTone.name);
+	await expect(newClip.locator('xpath=ancestor::div[@data-track-row]').locator('[data-track-ruler]'))
+		.toHaveAttribute('data-ruler-format', 'logarithmic-db');
+	await expect(newClip.locator('.clip-body')).toHaveAttribute('data-half-wave', 'true');
+	await expect(newClip.locator('canvas.clip-body__waveform')).toHaveAttribute('data-waveform-amplitude-scale', 'db');
+});
+
+test('Waveform preferences preserve individual ruler, half-wave and RMS overrides', async ({ page }) => {
+	await page.setViewportSize({ width: 1440, height: 1000 });
+	const editor = await bootEditor(page, '/embed/en/');
+	const overriddenTone = createWavFixture({ name: 'waveform-track-override.wav', frequency: 330 });
+	await importFiles(editor, [toneA, overriddenTone]);
+	const defaultClip = clipByName(editor, toneA.name);
+	const overrideClip = clipByName(editor, overriddenTone.name);
+	const overrideTrack = overrideClip.locator('xpath=ancestor::div[@data-track-row]');
+	await overrideTrack.locator('[data-track-ruler]').click({ button: 'right', position: { x: 20, y: 70 } });
+	const rulerMenu = page.locator('.audio-editor-ruler-flyout');
+	await rulerMenu.getByRole('radio', { name: 'Linear (amp)', exact: true }).click();
+	const halfWave = rulerMenu.getByRole('checkbox', { name: 'Half wave', exact: true });
+	await halfWave.click();
+	await halfWave.click();
+	await page.keyboard.press('Escape');
+	await chooseTrackMenuAction(page, editor, overrideTrack, ['Track visualization', 'Show RMS in waveform']);
+	await chooseTrackMenuAction(page, editor, overrideTrack, ['Track visualization', 'Show RMS in waveform']);
+	const overrideWaveform = overrideClip.locator('canvas.clip-body__waveform');
+	const overrideChecksum = await overrideWaveform.evaluate(waveformChecksum);
+	const preferences = await openTrackDisplayPreferences(page, editor);
+	await preferences.getByRole('checkbox', { name: 'Show RMS', exact: true }).click();
+	await preferences.getByRole('checkbox', { name: 'Half-wave', exact: true }).click();
+	await chooseDropdown(page, preferences.getByRole('group', { name: 'Ruler format', exact: true }), 'Logarithmic dB');
+	await closeTrackDisplayPreferences(preferences);
+	await expect(defaultClip.locator('xpath=ancestor::div[@data-track-row]').locator('[data-track-ruler]'))
+		.toHaveAttribute('data-ruler-format', 'logarithmic-db');
+	await expect(defaultClip.locator('.clip-body')).toHaveAttribute('data-half-wave', 'true');
+	await expect(defaultClip.locator('canvas.clip-body__waveform')).toHaveAttribute('data-waveform-amplitude-scale', 'db');
+	await expect(overrideTrack.locator('[data-track-ruler]')).toHaveAttribute('data-ruler-format', 'linear-amp');
+	await expect(overrideClip.locator('.clip-body')).not.toHaveAttribute('data-half-wave');
+	await expect(overrideWaveform).toHaveAttribute('data-waveform-amplitude-scale', 'linear');
+	await expect.poll(() => overrideWaveform.evaluate(waveformChecksum)).toBe(overrideChecksum);
+});
+
+async function openTrackDisplayPreferences(page, editor) {
+	await chooseCommandAction(page, editor, 'Edit', 'Preferences');
+	const preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
+	await preferences.getByRole('tab', { name: /Track display$/u }).click();
+	return preferences;
+}
+
+async function closeTrackDisplayPreferences(preferences) {
+	await preferences.getByRole('button', { name: 'Close', exact: true }).last().click();
+	await expect(preferences).toBeHidden();
+}
 
 function waveformChecksum(canvas) {
 	const pixels = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;

@@ -1,6 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { secondsToFrames } from '../../design-system-adapters.js';
+import type { WaveformRulerFormat } from '../../waveform-display-preferences.ts';
+
+export type { WaveformRulerFormat } from '../../waveform-display-preferences.ts';
 
 export const DEFAULT_WAVEFORM_RULER_STATE = Object.freeze({
 	format: 'linear-db' as const,
@@ -15,7 +18,6 @@ export const RECORDING_INPUT_CONTROLS_HEIGHT = 24;
 export const AUTOMATION_CONTROLS_HEIGHT = 24;
 
 export type SpectrogramScale = 'linear' | 'logarithmic' | 'mel' | 'bark' | 'erb' | 'period';
-export type WaveformRulerFormat = 'linear-amp' | 'linear-db' | 'logarithmic-db';
 
 export interface TimelineTrackGeometry {
 	readonly id?: string;
@@ -61,14 +63,17 @@ export function normalizeWaveformRulerFormat(value: unknown): WaveformRulerForma
 		? value : DEFAULT_WAVEFORM_RULER_STATE.format;
 }
 
-export function normalizeWaveformRulerState(value?: Readonly<{ format?: unknown; zoom?: number }> | null): Readonly<{
+export function normalizeWaveformRulerState(
+	value?: Readonly<{ format?: unknown; zoom?: number }> | null,
+	defaultFormat: WaveformRulerFormat = DEFAULT_WAVEFORM_RULER_STATE.format,
+): Readonly<{
 	format: WaveformRulerFormat;
 	zoom: number;
 }> {
 	return {
 		...DEFAULT_WAVEFORM_RULER_STATE,
 		...value,
-		format: normalizeWaveformRulerFormat(value?.format),
+		format: normalizeWaveformRulerFormat(value?.format ?? defaultFormat),
 	};
 }
 

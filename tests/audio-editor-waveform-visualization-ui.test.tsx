@@ -115,6 +115,9 @@ test('the waveform preferences page is routable, localized, and hidden without s
 	/>);
 	assert.match(markup, /Track display/u);
 	assert.match(markup, /Default view/u);
+	assert.match(markup, /data-waveform-display-settings="true"/u);
+	assert.match(markup, /3-band waveform/u);
+	assert.doesNotMatch(markup, /Frequency visualization|Choose the crossover frequencies/u);
 	assert.match(markup, /data-spectrogram-settings/u);
 	assert.doesNotMatch(markup, /aria-controls="dialog-panel-(?:spectrogram|waveform)"/u);
 	assert.match(markup, /data-waveform-visualization-settings="true"/u);
@@ -135,6 +138,7 @@ test('the waveform preferences page is routable, localized, and hidden without s
 		onClose={() => undefined}
 	/>);
 	assert.doesNotMatch(unavailable, /data-waveform-visualization-settings/u);
+	assert.match(unavailable, /data-waveform-display-settings="true"/u);
 	assert.equal(GERMAN_COPY.threeBandWaveformView, '3-Band-Wellenform');
 	assert.equal(GERMAN_COPY.rainbowWaveformView, 'Regenbogen-Wellenform');
 	assert.equal(GERMAN_COPY.preferencesWaveform, 'Wellenform');

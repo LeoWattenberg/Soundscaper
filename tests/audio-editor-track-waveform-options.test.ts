@@ -48,6 +48,20 @@ test('legacy half-wave projects and inherited display defaults remain compatible
 	assert.equal(Object.hasOwn(legacyTrack, 'showRms'), false);
 });
 
+test('global half-wave preferences apply beneath explicit and legacy track choices', () => {
+	assert.deepEqual(resolveTrackWaveformOptions({ displayMode: 'waveform' }, 'waveform', false, true), {
+		displayMode: 'waveform', halfWave: true, showRms: false,
+	});
+	assert.deepEqual(resolveTrackWaveformOptions({
+		displayMode: 'waveform-three-band', halfWave: false,
+	}, 'waveform', true, true), {
+		displayMode: 'waveform-three-band', halfWave: false, showRms: true,
+	});
+	assert.equal(resolveTrackWaveformOptions({ halfWave: true }, 'waveform', false, false).halfWave, true);
+	assert.equal(resolveTrackWaveformOptions({ displayMode: 'half-wave' }, 'waveform', false, false).halfWave, true);
+	assert.equal(resolveTrackWaveformOptions(null, 'waveform-rainbow', false, true).halfWave, true);
+});
+
 
 test('production Soundscaper track commands retain half-wave and RMS through reload', () => {
 	const project = createSoundscaperProject({

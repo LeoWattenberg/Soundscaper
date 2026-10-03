@@ -3,6 +3,7 @@
 import { PreferencePanel } from '@soundscaper/design-system/PreferencePanel';
 import { Separator } from '@soundscaper/design-system/Separator';
 import PreferenceDropdownField from './PreferenceDropdownField.jsx';
+import WaveformDisplayPreferencesPanel from './WaveformDisplayPreferencesPanel.tsx';
 import WaveformPreferencesPage from './WaveformPreferencesPage.tsx';
 
 export default function TrackDisplayPreferencesPage({ controller, snapshot, copy, run }) {
@@ -48,6 +49,10 @@ export default function TrackDisplayPreferencesPage({ controller, snapshot, copy
 			/>
 			<p className="kw-audio-editor-preferences__note">{copy.defaultTrackViewNote}</p>
 		</PreferencePanel>
+		<Separator />
+		<WaveformDisplayPreferencesPanel controller={controller} preferences={preferences}
+			showRms={Boolean(snapshot.timeline?.showRms)} copy={copy} run={run}
+			disabled={snapshot.preferencesReadOnly === true} />
 		{spectralAvailable && <>
 			<Separator />
 			<WaveformPreferencesPage controller={controller} preferences={preferences}

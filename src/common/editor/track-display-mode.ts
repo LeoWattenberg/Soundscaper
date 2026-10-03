@@ -37,18 +37,19 @@ interface TrackWaveformOptions {
 	readonly showRms?: boolean;
 }
 
-/** Optional track flags preserve legacy half-wave documents and global RMS defaults. */
+/** Optional track flags preserve legacy half-wave documents and global waveform defaults. */
 export function resolveTrackWaveformOptions(
 	track: TrackWaveformOptions | null | undefined,
 	timelineView: unknown = 'waveform',
 	globalShowRms = false,
+	globalHalfWave = false,
 ): Readonly<{ displayMode: TrackDisplayMode; halfWave: boolean; showRms: boolean }> {
 	const displayMode = isTrackDisplayMode(track?.displayMode) && track.displayMode !== 'waveform'
 		? track.displayMode
 		: isTrackDisplayMode(timelineView) ? timelineView : 'waveform';
 	return {
 		displayMode,
-		halfWave: track?.halfWave ?? displayMode === 'half-wave',
+		halfWave: track?.halfWave ?? (displayMode === 'half-wave' || globalHalfWave),
 		showRms: track?.showRms ?? globalShowRms,
 	};
 }

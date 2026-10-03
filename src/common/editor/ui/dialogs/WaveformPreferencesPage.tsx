@@ -59,9 +59,8 @@ export default function WaveformPreferencesPage({
 	};
 
 	return (
-		<PreferencePanel title={copy.waveformVisualization}>
+		<PreferencePanel title={copy.threeBandWaveformView}>
 			<div className="kw-audio-editor-preferences__waveform" data-waveform-visualization-settings>
-				<p>{copy.waveformVisualizationDescription}</p>
 				<label>
 					<span>{copy.waveformLowMidCrossover}</span>
 					<input
