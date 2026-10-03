@@ -164,7 +164,7 @@ test.describe('Soundscaper routed take-cycle recording', () => {
 			expect(recoveredAudio.frameCount).toBe(38_400);
 			expect(recoveredAudio.probeFrameCount).toBeGreaterThan(4_800);
 			expect(recoveredAudio.rms).toBeGreaterThan(0.02);
-			expect(Math.abs(recoveredAudio.frequency - 660)).toBeLessThan(3);
+			expect(Math.abs(recoveredAudio.frequency - 660), JSON.stringify(recoveredAudio)).toBeLessThan(3);
 			expect(initialErrors).toEqual([]);
 			expect(interruptedErrors).toEqual([]);
 			expect(recoveredErrors).toEqual([]);
@@ -444,12 +444,21 @@ async function decodeToneWindow(page, bytes, take) {
 				}
 			}
 			const crossings = [];
+			let negativeExcursion = false;
 			for (let frame = start; frame < end; frame += 1) {
-				if (frame > start && samples[frame - 1] <= 0 && samples[frame] > 0) crossings.push(frame);
+				if (samples[frame] < -0.01) negativeExcursion = true;
+				if (negativeExcursion && frame > start && samples[frame - 1] <= 0 && samples[frame] > 0) {
+					crossings.push(frame);
+					negativeExcursion = false;
+				}
 			}
 			if (crossings.length < 3) throw new Error('Recovered take decoded without a measurable tone.');
 			const periods = crossings.slice(1).map((frame, index) => frame - crossings[index]);
-			const meanPeriod = periods.reduce((sum, period) => sum + period, 0) / periods.length;
+			// Dither in silent capture gaps must not count as additional tone cycles.
+			// Measure the dominant period without stretching it over those gaps.
+			const medianPeriod = [...periods].sort((a, b) => a - b)[Math.floor(periods.length / 2)];
+			const stablePeriods = periods.filter((period) => Math.abs(period - medianPeriod) < medianPeriod * 0.2);
+			const meanPeriod = stablePeriods.reduce((sum, period) => sum + period, 0) / stablePeriods.length;
 			return {
 				sampleRate: audio.sampleRate,
 				frameCount: audio.length,
