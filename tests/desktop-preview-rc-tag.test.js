@@ -7,7 +7,7 @@ import test from 'node:test';
 import releaseLines from '../config/product-release-lines.json' with { type: 'json' };
 
 test('product-owned previews exclude the Soundscaper stable tag and any release-admission step', async () => {
-	assert.equal(releaseLines.products.soundscaper.candidate.version, '1.0.0-rc.Oct.3');
+	assert.equal(releaseLines.products.soundscaper.candidate.version, '1.0.0-rc.Oct.3.b');
 	assert.equal(releaseLines.products.framescaper.candidate.version, '1.0.0-rc.13');
 	assert.equal(releaseLines.products.framescaper.releaseChannel, 'candidate');
 	assert.equal(releaseLines.products.soundscaper.stable.tagPrefix, 'v');
