@@ -253,7 +253,7 @@ async function createWindow() {
 		title: APP_NAME,
 		width: 1440,
 		height: 900,
-		minWidth: 900,
+		minWidth: 400,
 		minHeight: 600,
 		show: false,
 		// The dark surface the editor actually paints (site.css --color-surface under
