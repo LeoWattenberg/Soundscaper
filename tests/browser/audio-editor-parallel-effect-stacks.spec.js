@@ -2,7 +2,7 @@
 
 import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js';
 import {
-	addRackEffect, bootEditor, chooseNestedCommandAction, closeDialog,
+	addRackEffect, bootEditor, chooseCommandAction, chooseNestedCommandAction, closeDialog,
 	closeEffectsPanel, collectClientErrors, commitInput, importFiles, openEffectsForTrack,
 	openNestedCommandMenu,
 } from './audio-editor-test-helpers.js';
@@ -21,7 +21,13 @@ async function installParallelStackProbe(page) {
 		Object.defineProperty(globalThis, '__parallelStackProbe', { configurable: true, value: probe });
 		Object.defineProperty(globalThis, 'soundscaperDesktop', {
 			configurable: true,
-			value: Object.freeze({ v1: Object.freeze({ getEnvironment: async () => ({ platform: 'linux' }) }) }),
+			value: Object.freeze({ v1: Object.freeze({
+				getEnvironment: async () => ({ platform: 'linux' }),
+				getExternalFfmpegStatus: async () => ({
+					state: 'unconfigured', location: null, version: null, detail: '',
+					canInstall: false, canBrowse: false, canClear: false,
+				}),
+			}) }),
 		});
 		const NativeWorker = globalThis.Worker;
 		globalThis.Worker = class extends NativeWorker {
@@ -183,10 +189,24 @@ async function installParallelStackProbe(page) {
 	});
 }
 
+async function openProcessingPreferences(page, editor) {
+	await chooseCommandAction(page, editor, 'Edit', 'Preferences');
+	const preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
+	await preferences.getByRole('tab', { name: /Audio settings$/u }).click();
+	return preferences;
+}
+
+async function closeProcessingPreferences(preferences) {
+	await preferences.getByRole('button', { name: 'Close', exact: true }).filter({ hasText: /^Close$/u }).click();
+	await expect(preferences).toBeHidden();
+}
+
 async function enableParallelStacks(page, editor) {
-	await chooseNestedCommandAction(page, editor, 'Tools', ['Audio setup', 'Processing', 'Parallel effect stacks']);
-	await chooseNestedCommandAction(page, editor, 'Tools', ['Audio setup', 'Processing', 'Worker limit', '2 workers']);
-	await chooseNestedCommandAction(page, editor, 'Tools', ['Audio setup', 'Processing', 'Buffering', 'Recommended']);
+	const preferences = await openProcessingPreferences(page, editor);
+	await preferences.getByRole('checkbox', { name: 'Parallel effect stacks', exact: true }).check();
+	await preferences.getByRole('combobox', { name: 'Worker limit', exact: true }).selectOption({ label: '2 workers' });
+	await preferences.getByRole('combobox', { name: 'Buffering', exact: true }).selectOption({ label: 'Recommended' });
+	await closeProcessingPreferences(preferences);
 }
 
 async function requireSharedMemoryAudioWorkers(page) {
@@ -194,6 +214,28 @@ async function requireSharedMemoryAudioWorkers(page) {
 		&& typeof SharedArrayBuffer === 'function' && typeof AudioWorkletNode === 'function');
 	test.skip(!supported, 'This browser cannot share audio buffers with workers.');
 }
+
+test('Audio setup processing settings live in Preferences and persist across reloads', async ({ page }) => {
+	await installParallelStackProbe(page);
+	const editor = await bootEditor(page, '/embed/en/');
+	const tools = await openNestedCommandMenu(page, editor, 'Tools', []);
+	await expect(tools.getByRole('menuitem', { name: 'Audio setup', exact: true })).toHaveCount(0);
+	await page.keyboard.press('Escape');
+	let preferences = await openProcessingPreferences(page, editor);
+	await expect(preferences.getByRole('checkbox', { name: 'Parallel effect stacks', exact: true })).not.toBeChecked();
+	await expect(preferences.getByRole('combobox', { name: 'Worker limit', exact: true })).toHaveValue('parallel-stack-workers-auto');
+	await closeProcessingPreferences(preferences);
+	await enableParallelStacks(page, editor);
+	await page.reload();
+	await expect(editor).toBeVisible();
+	preferences = await openProcessingPreferences(page, editor);
+	await expect(preferences.getByRole('checkbox', { name: 'Parallel effect stacks', exact: true })).toBeChecked();
+	await expect(preferences.getByRole('combobox', { name: 'Worker limit', exact: true })).toHaveValue('parallel-stack-workers-2');
+	await expect(preferences.getByRole('combobox', { name: 'Buffering', exact: true })).toHaveValue('parallel-stack-buffering-1536');
+	await expect(preferences.getByText('Ready for the next playback', { exact: true })).toBeVisible();
+	await preferences.getByRole('checkbox', { name: 'Parallel effect stacks', exact: true }).uncheck();
+	await expect(preferences.getByText('Parallel processing is off', { exact: true })).toBeVisible();
+});
 
 test('desktop effect stacks process in parallel through a main-thread stall and release each generation', async ({ page }) => {
 	test.setTimeout(120_000);
@@ -390,12 +432,10 @@ test('browsers without shared audio memory play through the standard engine', as
 		const fill = document.querySelector('[data-mixer-panel] .kw-audio-editor__mixer-channel--master .mixer-channel__meter-fill');
 		return 100 - Number.parseFloat(fill?.style.top ?? '100');
 	}), { timeout: 10_000 }).toBeGreaterThan(20);
-	const menu = await openNestedCommandMenu(page, editor, 'Tools', ['Audio setup', 'Processing']);
-	await expect(menu.getByRole('menuitem', { name: /Using standard processing: Shared-memory audio workers are unavailable/ })).toBeVisible();
+	const preferences = await openProcessingPreferences(page, editor);
+	await expect(preferences.getByText(/Using standard processing: Shared-memory audio workers are unavailable/)).toBeVisible();
 	expect(await page.evaluate(() => globalThis.__parallelStackProbe.workers.length)).toBe(0);
-	await page.keyboard.press('Escape');
-	await page.keyboard.press('Escape');
-	await page.keyboard.press('Escape');
+	await closeProcessingPreferences(preferences);
 	await editor.getByRole('button', { name: 'Stop', exact: true }).click();
 	expect(errors).toEqual([]);
 });
@@ -413,13 +453,14 @@ test('unsupported desktop racks explain the conventional playback fallback', asy
 	await enableParallelStacks(page, editor);
 	await editor.getByRole('button', { name: 'Play', exact: true }).click();
 	await expect(editor.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
-	const menu = await openNestedCommandMenu(page, editor, 'Tools', ['Audio setup', 'Processing']);
-	await expect(menu.getByRole('menuitem', { name: /Using standard processing:/ })).toBeVisible();
-	await expect(menu.getByRole('menuitemcheckbox', { name: /Parallel effect stacks/ })).toBeDisabled();
+	const preferences = await openProcessingPreferences(page, editor);
+	await expect(preferences.getByText(/Using standard processing:/)).toBeVisible();
+	await expect(preferences.getByRole('checkbox', { name: 'Parallel effect stacks', exact: true })).toBeDisabled();
+	await expect(preferences.getByRole('combobox', { name: 'Worker limit', exact: true })).toBeDisabled();
+	await expect(preferences.getByRole('combobox', { name: 'Buffering', exact: true })).toBeDisabled();
+	await expect(preferences.getByText('Stop playback and recording to change processing settings.', { exact: true })).toBeVisible();
 	expect(await page.evaluate(() => globalThis.__parallelStackProbe.workers.length)).toBe(0);
-	await page.keyboard.press('Escape');
-	await page.keyboard.press('Escape');
-	await page.keyboard.press('Escape');
+	await closeProcessingPreferences(preferences);
 	await editor.getByRole('button', { name: 'Stop', exact: true }).click();
 	expect(errors).toEqual([]);
 });

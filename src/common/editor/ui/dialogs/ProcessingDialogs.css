@@ -72,6 +72,17 @@
 }
 .kw-processing-list > li { display: grid; gap: 8px; }
 .kw-processing-preferences { display: grid; gap: 12px; justify-items: start; }
+.kw-processing-audio-preferences {
+	display: grid;
+	gap: 12px;
+	width: 100%;
+	min-width: 0;
+	margin: 0;
+	padding: 0;
+	border: 0;
+}
+.kw-processing-audio-preferences legend { margin-bottom: 12px; font-weight: 700; }
+.kw-processing-audio-preferences p { margin: 0; }
 .kw-processing-tabs {
 	display: flex;
 	gap: 4px;

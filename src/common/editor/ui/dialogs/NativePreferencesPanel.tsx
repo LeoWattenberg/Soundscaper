@@ -4,6 +4,7 @@ import { Checkbox } from '@soundscaper/design-system/Checkbox';
 import { PreferencePanel } from '@soundscaper/design-system/PreferencePanel';
 import type { AssistanceMenuEntry } from '../assistance-task-catalog.ts';
 import type { NativePreferenceEntry } from '../local-processing-menus.ts';
+import AudioProcessingPreferences from './AudioProcessingPreferences.tsx';
 
 export default function NativePreferencesPanel({ menus, section, copy, onNavigate }: {
 	readonly menus: readonly (AssistanceMenuEntry & { nativePreferences?: readonly NativePreferenceEntry[] })[];
@@ -22,7 +23,9 @@ export default function NativePreferencesPanel({ menus, section, copy, onNavigat
 	return <PreferencePanel title={section === 'effects' ? copy.assistancePlugins || 'Plugins'
 		: copy.assistanceDeviceProcessing || 'Device processing'}>
 		<div className="kw-processing-preferences">
-			{entries.map((entry) => typeof entry.checked === 'boolean'
+			{entries.map((entry) => entry.id === 'parallel-stack-processing'
+				? <AudioProcessingPreferences key={entry.id} entry={entry} />
+				: typeof entry.checked === 'boolean'
 				? <div className="kw-processing-checkbox" key={entry.id}>
 					<Checkbox checked={entry.checked} aria-label={entry.label} disabled={entry.disabled === true}
 						onChange={() => { void entry.onClick?.(); }} /><span>{entry.label}</span>

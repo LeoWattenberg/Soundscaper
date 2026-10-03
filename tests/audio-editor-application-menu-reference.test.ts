@@ -43,6 +43,7 @@ interface MenuItem {
 	readonly parityActionId?: string;
 	readonly items?: readonly MenuItem[];
 	readonly nativePreferences?: readonly MenuItem[];
+	readonly section?: string;
 	readonly onClick?: (...args: never[]) => unknown;
 }
 
@@ -125,8 +126,12 @@ test('every runnable application-menu leaf has one truthful handbook reference',
 				// Native preference controls are intentionally lifted out of Tools.items,
 				// but remain menu-derived actions rendered by NativePreferencesPanel.
 				for (const preference of materialized.nativePreferences ?? []) {
-					collectRunnableLeaves(preference, [menuLabel(materialized)], product,
-						sightings, manifestAliases, unresolved, invalidManifestRows);
+					const sectionLabel = preference.section === 'audio' ? 'Audio settings'
+						: preference.section === 'media' ? 'Media' : 'Effects';
+					for (const control of preference.items ?? [preference]) {
+						collectRunnableLeaves(control, ['Edit', 'Preferences', sectionLabel], product,
+							sightings, manifestAliases, unresolved, invalidManifestRows);
+					}
 				}
 			}
 		}

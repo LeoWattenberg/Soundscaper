@@ -53,7 +53,7 @@ test('parallel processing joins Audio setup and keeps status readable while play
 	assert.match(find(menus, 'parallel-stack-status').label, /Missed a deadline.*Next playback uses standard/);
 });
 
-test('native preference organization keeps Processing reachable in the Tools menu', () => {
+test('Audio setup moves entirely into Audio preferences with its processing controls intact', () => {
 	const menus = appendParallelStackProcessingMenu([{
 		id: 'native-audio', label: 'Audio setup', items: [{ id: 'native-device', label: 'Device' }],
 	}], { productId: 'soundscaper', desktop: true, blocked: false, preferences,
@@ -61,7 +61,21 @@ test('native preference organization keeps Processing reachable in the Tools men
 	}, () => undefined);
 	const adapt = (item: ParallelStackMenuItem): AssistanceMenuEntry => ({ ...item, items: item.items?.map(adapt) });
 	const [tools] = organizeNativePreferences([{ id: 'tools', label: 'Tools', items: menus.map(adapt) }]);
-	assert.ok(tools?.items?.some((item) => item.items?.some((child) => child.id === 'parallel-stack-processing')));
+	assert.deepEqual(tools?.items, []);
 	const native = tools?.nativePreferences as readonly ParallelStackMenuItem[];
 	assert.ok(native.some((item) => item.items?.some((child) => child.id === 'native-device')));
+	assert.ok(native.some((item) => item.items?.some((child) => child.id === 'parallel-stack-processing')));
+	assert.equal(find(native, 'parallel-stack-enabled').checked, false);
+});
+
+test('processing-only Audio setup moves into preferences without requiring native audio devices', () => {
+	const menus = appendParallelStackProcessingMenu([], {
+		productId: 'soundscaper', desktop: true, blocked: false, preferences, status: { state: 'off' },
+	}, () => undefined);
+	const adapt = (item: ParallelStackMenuItem): AssistanceMenuEntry => ({ ...item, items: item.items?.map(adapt) });
+	const [tools] = organizeNativePreferences([{ id: 'tools', label: 'Tools', items: menus.map(adapt) }]);
+	assert.deepEqual(tools?.items, []);
+	const native = tools?.nativePreferences as readonly ParallelStackMenuItem[];
+	assert.equal(find(native, 'parallel-stack-workers-auto').checked, true);
+	assert.equal(find(native, 'parallel-stack-buffering-768').checked, true);
 });

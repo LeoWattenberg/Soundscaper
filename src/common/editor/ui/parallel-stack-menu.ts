@@ -26,7 +26,7 @@ export interface ParallelStackMenuInput {
 	readonly isBlocked?: () => boolean;
 }
 
-/** The existing Audio setup submenu owns this opt-in; no persistent chrome. */
+/** Audio setup preferences own these menu-derived controls. */
 export function appendParallelStackProcessingMenu(
 	items: readonly ParallelStackMenuItem[],
 	input: ParallelStackMenuInput | null,
