@@ -45,7 +45,7 @@ test.describe('dockable meter panels', () => {
 	test('opens from View, widens the visible meter bars, and persists floating geometry', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
 		await chooseNestedCommandAction(page, editor, 'View', ['Workspace', 'Audacity']);
-		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Recording meter']);
+		await chooseNestedCommandAction(page, editor, 'Window', ['Recording meter']);
 		const panel = editor.locator('[data-workspace-panel="recording-meter"]');
 		await expect(panel).toBeVisible();
 		const channels = panel.locator('.kw-audio-editor__playback-meter-channels');

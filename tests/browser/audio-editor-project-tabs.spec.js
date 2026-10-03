@@ -5,7 +5,9 @@ import {
 	clipByName,
 	collectClientErrors,
 	commitInput,
+	getMenuItem,
 	importFiles,
+	openNestedCommandMenu,
 	waitForProjectActivation,
 } from './audio-editor-test-helpers.js';
 
@@ -19,6 +21,48 @@ async function renameProject(page, editor, title) {
 }
 
 test.describe('project tab close controls', () => {
+	test('Window switches projects and workspaces and toggles panels in three flat groups', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await renameProject(page, editor, 'First project');
+		await importFiles(editor, [toneA]);
+		await editor.getByRole('button', { name: 'New project', exact: true }).click();
+		await renameProject(page, editor, 'Second project');
+
+		const view = await openNestedCommandMenu(page, editor, 'View', []);
+		await expect(getMenuItem(view, 'Panels')).toHaveCount(0);
+		await page.keyboard.press('Escape');
+		let window = await openNestedCommandMenu(page, editor, 'Window', []);
+		await expect(window.getByRole('separator')).toHaveCount(2);
+		await expect(window.getByRole('menu')).toHaveCount(0);
+		await expect(getMenuItem(window, 'First project')).toHaveAttribute('aria-checked', 'false');
+		await expect(getMenuItem(window, 'Second project')).toHaveAttribute('aria-checked', 'true');
+		for (const name of ['Soundscaper', 'Audacity', 'Music', 'Classic', 'Tracks panel', 'Clip properties']) {
+			await expect(getMenuItem(window, name)).toBeVisible();
+		}
+		await getMenuItem(window, 'First project').press('Enter');
+		await expect(window).toBeHidden();
+		await expect(editor.getByRole('tab', { name: 'First project', exact: true })).toHaveAttribute('aria-selected', 'true');
+		await expect(clipByName(editor, toneA.name)).toHaveCount(1);
+
+		await chooseNestedCommandAction(page, editor, 'Window', ['Audacity']);
+		await expect(editor).toHaveAttribute('data-workspace-preset', 'audacity');
+		window = await openNestedCommandMenu(page, editor, 'Window', []);
+		await expect(getMenuItem(window, 'Audacity')).toHaveAttribute('aria-checked', 'true');
+		await expect(getMenuItem(window, 'Clock')).toHaveAttribute('aria-checked', 'false');
+		await getMenuItem(window, 'Clock').press('Enter');
+		const clock = editor.locator('[data-clock-panel]');
+		await expect(clock).toBeVisible();
+		await chooseNestedCommandAction(page, editor, 'Window', ['Clock']);
+		await expect(clock).toBeHidden();
+
+		await editor.getByRole('button', { name: 'Close project: Second project', exact: true }).click();
+		window = await openNestedCommandMenu(page, editor, 'Window', []);
+		await expect(getMenuItem(window, 'Second project')).toHaveCount(0);
+		await expect(getMenuItem(window, 'First project')).toHaveAttribute('aria-checked', 'true');
+		expect(errors).toEqual([]);
+	});
+
 	test('closes an inactive tab without activating it and preserves its saved audio', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');

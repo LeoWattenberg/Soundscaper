@@ -55,7 +55,7 @@ test.describe('Soundscaper mastering sequence delivery', () => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [longTone]);
-		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Markers']);
+		await chooseNestedCommandAction(page, editor, 'Window', ['Markers']);
 		const panel = editor.getByRole('region', { name: 'Markers and named regions', exact: true });
 		await addNamedRegion(page, editor, panel, 40, 150, 'Opening');
 		await addNamedRegion(page, editor, panel, 170, 280, 'Reprise');
@@ -138,7 +138,7 @@ test.describe('Soundscaper mastering sequence delivery', () => {
 		await closeDialog(exportDialog);
 
 		if (!await panel.isVisible()) {
-			await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Markers']);
+			await chooseNestedCommandAction(page, editor, 'Window', ['Markers']);
 		}
 		const removedRegion = panel.getByRole('button', { name: /Opening, Region/u });
 		await removedRegion.press('Enter');

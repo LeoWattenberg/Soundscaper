@@ -72,7 +72,7 @@ test.describe('Soundscaper inline track automation', () => {
 		await mode.selectOption('touch');
 		await expect(mode).toHaveValue('touch');
 
-		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'History']);
+		await chooseNestedCommandAction(page, editor, 'Window', ['History']);
 		const history = editor.locator('[data-workspace-panel="history"]');
 		await expect(history).toBeVisible();
 		const historyBeforeControlGesture = await history.locator('[data-history-list] > li').count();

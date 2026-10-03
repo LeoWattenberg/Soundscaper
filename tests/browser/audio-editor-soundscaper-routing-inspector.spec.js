@@ -215,7 +215,7 @@ test.describe('Soundscaper routing inspector', () => {
 });
 
 async function openRoutingGraph(page, editor) {
-	await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Mixer']);
+	await chooseNestedCommandAction(page, editor, 'Window', ['Mixer']);
 	const mixer = editor.locator('[data-mixer-panel]');
 	const toggle = mixer.getByRole('button', { name: 'Routing graph', exact: true });
 	if (await toggle.getAttribute('aria-pressed') !== 'true') await toggle.click();

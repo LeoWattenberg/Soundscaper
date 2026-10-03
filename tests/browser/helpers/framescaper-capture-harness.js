@@ -14,7 +14,7 @@ const SOURCE_LABELS = Object.freeze({
 
 async function openRecordingSetup(page, editor) {
 	if (!await recordingSetupWorkspacePanel(editor).isVisible()) {
-		const panels = await openNestedCommandMenu(page, editor, 'View', ['Panels']);
+		const panels = await openNestedCommandMenu(page, editor, 'Window', []);
 		const setup = getMenuItem(panels, 'Recording setup');
 		await expect(setup).toBeEnabled();
 		await setup.focus();

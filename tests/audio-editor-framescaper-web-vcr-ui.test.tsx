@@ -45,12 +45,10 @@ test('Web VCR is renderable but summon-only and hidden by default', () => {
 	})), false);
 
 	const menus = [{
-		id: 'view', items: [{
-			id: 'panels', items: [
-				{ id: 'panel-history', label: 'History' },
-				{ id: 'panel-web-vcr', label: 'Web VCR' },
-			],
-		}],
+		id: 'window', items: [
+			{ id: 'panel-history', label: 'History' },
+			{ id: 'panel-web-vcr', label: 'Web VCR' },
+		],
 	}];
 	const capabilities = {
 		audioGenerators: true, audioEffects: true, audioAnalysis: true,

@@ -179,7 +179,7 @@ export const TRACK_AND_EXPORT_GUIDES = Object.freeze([
 			open(),
 			importAudio('music-loop', { what: 'the first track of the mix' }),
 			importAudio('second-loop', { what: 'the second track' }),
-			menu(['View', 'Panels', 'Mixer']),
+			menu(['Window', 'Mixer']),
 			check({ panel: { id: 'mixer', name: 'Mixer' } }, { see: 'A strip for each track, with its Volume fader, Pan control and Mute/Solo buttons, and a Master strip at the end.' }),
 			note('Drag a strip’s **Volume** fader to set that track’s level and turn **Pan** to place it left or right. These are the same controls as the track header, so either view can be used.'),
 			play({ see: 'The meters on each strip move with its track while the project plays.' }),

@@ -521,7 +521,7 @@ export function describeStep(entry, { fixture, facet = 'howto' }) {
 			return `Choose ${menuPath(['Generate', entry.name])}.${fields} press ${bold('Generate')}.`;
 		}
 		case 'marker':
-			return `With the Markers panel open (${menuPath(['View', 'Panels', 'Markers'])} shows it), press ${bold('Add marker at playhead')}. Press Enter on the new marker, type \`${entry.name}\` and press Enter again to name it.`;
+			return `With the Markers panel open (${menuPath(['Window', 'Markers'])} shows it), press ${bold('Add marker at playhead')}. Press Enter on the new marker, type \`${entry.name}\` and press Enter again to name it.`;
 		case 'rack-effect':
 			return `Press ${bold('Effects')} in the track's header to open the Effects panel, press ${bold('Effects')} in the track's rack and choose ${bold(entry.name)}. Its settings window opens; press ${bold('Close')} when you are done with it.`;
 		case 'open-audacity-project':

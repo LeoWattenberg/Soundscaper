@@ -10,7 +10,7 @@ const cell = (grid, row, column) => grid.getByRole('gridcell')
 	.and(grid.locator(`[data-row="${row}"][data-column="${column}"]`));
 
 async function openSpreadsheet(page, editor) {
-	await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Clip spreadsheet']);
+	await chooseNestedCommandAction(page, editor, 'Window', ['Clip spreadsheet']);
 	return editor.locator('[data-workspace-panel="clip-spreadsheet"]');
 }
 
@@ -69,7 +69,7 @@ test.describe('clip spreadsheet', () => {
 		}
 	});
 
-	test('opens from View Panels for an empty project and closes through panel controls', async ({ page }) => {
+	test('opens from Window for an empty project and closes through panel controls', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		await expect(editor.locator('[data-workspace-panel="clip-spreadsheet"]')).toHaveCount(0);

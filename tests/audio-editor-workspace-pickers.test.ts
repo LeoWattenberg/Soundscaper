@@ -97,13 +97,13 @@ test('the View menu port routes the onboarding item to its editor surface', asyn
 	assert.match(runtime, /openWorkspaceOnboarding: \(\) => openSurface\('workspace-onboarding'\)/u);
 });
 
-test('both products expose the live Clip properties panel through View even without a clip selection', () => {
+test('both products expose the live Clip properties panel through Window even without a clip selection', () => {
 	for (const productId of ['soundscaper', 'framescaper']) {
 		const toggled: string[] = [];
 		const menus = filterProductMenus(createApplicationMenus(menuInput(productId, {
 			togglePanel: (panelId: string) => toggled.push(panelId),
 		})), {}, productId);
-		const panels = findMenuItem(menus, 'panels');
+		const panels = findMenuItem(menus, 'window');
 		const inspector = findMenuItem(panels?.items ?? [], 'panel-clip-properties');
 		assert.ok(inspector, productId);
 		assert.equal(inspector.label, ENGLISH_COPY.clipPropertiesCommand, productId);

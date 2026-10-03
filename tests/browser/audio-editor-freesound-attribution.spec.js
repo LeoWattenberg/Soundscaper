@@ -110,7 +110,7 @@ test.describe('Freesound discovery and attribution', () => {
 		await expect(freesoundPanel).toBeVisible();
 		await sfxButton.click();
 		await expect(freesoundPanel).toHaveCount(0);
-		const panelsMenu = await openNestedCommandMenu(page, editor, 'View', ['Panels']);
+		const panelsMenu = await openNestedCommandMenu(page, editor, 'Window', []);
 		const freesoundItem = getMenuItem(panelsMenu, 'Freesound');
 		await expect(freesoundItem).toBeVisible();
 		await freesoundItem.press('Enter');
@@ -195,10 +195,10 @@ test.describe('Freesound discovery and attribution', () => {
 			insertBeforeBin: true,
 		});
 		expect(resultLayout.metadataHeight).toBeLessThan(25);
-		const hideBinMenu = await openNestedCommandMenu(page, editor, 'View', ['Panels']);
+		const hideBinMenu = await openNestedCommandMenu(page, editor, 'Window', []);
 		await getMenuItem(hideBinMenu, 'Project bin').press('Enter');
 		await expect(result.getByRole('button', { name: /^Add to Project Bin/u })).toHaveCount(0);
-		const showBinMenu = await openNestedCommandMenu(page, editor, 'View', ['Panels']);
+		const showBinMenu = await openNestedCommandMenu(page, editor, 'Window', []);
 		await getMenuItem(showBinMenu, 'Project bin').press('Enter');
 		await expect(editor.locator('[data-workspace-panel="project-bin"]')).toBeVisible();
 		await expect(result.getByRole('button', { name: /^Add to Project Bin/u })).toBeVisible();
@@ -359,7 +359,7 @@ test.describe('Freesound discovery and attribution', () => {
 	test('queues authenticated uploads serially and publishes editable metadata', async ({ page }) => {
 		const probe = await mockAuthenticatedFreesoundUploads(page);
 		const editor = await bootEditor(page, '/embed/en/');
-		const panelsMenu = await openNestedCommandMenu(page, editor, 'View', ['Panels']);
+		const panelsMenu = await openNestedCommandMenu(page, editor, 'Window', []);
 		await getMenuItem(panelsMenu, 'Freesound').press('Enter');
 		const panel = editor.locator('[data-workspace-panel="freesound"]');
 		await expect(panel.getByText('Connected as browser-tester', { exact: true })).toBeVisible();

@@ -57,7 +57,7 @@ test.describe('Framescaper v1 audio finishing', () => {
 		expect(JSON.parse(await finishingDocument(dialog).inputValue())).toEqual([lane]);
 		await closeFinishing(dialog);
 
-		dialog = await openFinishing(page, editor, 'View', ['Panels'],
+		dialog = await openFinishing(page, editor, 'Window', [],
 			/^(?:Mixer & Routing|Routing graph)/u, 'Mixer & Routing');
 		const mixer = JSON.parse(await finishingDocument(dialog).inputValue());
 		mixer.outputs[0].name = 'Programme';
@@ -66,7 +66,7 @@ test.describe('Framescaper v1 audio finishing', () => {
 		await expect(dialog.getByRole('status')).toHaveText('Finishing state updated.');
 		await closeFinishing(dialog);
 
-		dialog = await openFinishing(page, editor, 'View', ['Panels'], /^Dialogue Chain/u, 'Dialogue Chain');
+		dialog = await openFinishing(page, editor, 'Window', [], /^Dialogue Chain/u, 'Dialogue Chain');
 		await expect(dialog).toContainText('Highpass → gate → EQ → compressor → limiter');
 		await expect(dialog.getByRole('checkbox', { name: /Include profiled noise reduction/u }))
 			.not.toBeChecked();

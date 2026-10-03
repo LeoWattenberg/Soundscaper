@@ -26,7 +26,7 @@ test.describe('audio I/O signal routing', () => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [longTone]);
-		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Mixer']);
+		await chooseNestedCommandAction(page, editor, 'Window', ['Mixer']);
 		const mixer = editor.locator('[data-mixer-panel]');
 		await mixer.getByRole('button', { name: 'Add group bus', exact: true }).click();
 		await mixer.getByRole('button', { name: 'Add send bus', exact: true }).click();

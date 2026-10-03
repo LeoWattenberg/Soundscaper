@@ -251,7 +251,7 @@ test('desktop effect stacks process in parallel through a main-thread stall and 
 		await closeEffectsPanel(panel);
 	}
 	await enableParallelStacks(page, editor);
-	await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Mixer']);
+	await chooseNestedCommandAction(page, editor, 'Window', ['Mixer']);
 	await editor.getByRole('button', { name: 'Play', exact: true }).click();
 	await expect.poll(() => page.evaluate(() => {
 		const probe = globalThis.__parallelStackProbe;
@@ -425,7 +425,7 @@ test('browsers without shared audio memory play through the standard engine', as
 	await closeDialog(page.getByRole('dialog', { name: 'Bitcrusher', exact: true }));
 	await closeEffectsPanel(panel);
 	await enableParallelStacks(page, editor);
-	await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Mixer']);
+	await chooseNestedCommandAction(page, editor, 'Window', ['Mixer']);
 	await editor.getByRole('button', { name: 'Play', exact: true }).click();
 	await expect(editor.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
 	await expect.poll(() => page.evaluate(() => {

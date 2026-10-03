@@ -54,17 +54,17 @@ export function filterProductMenus(menus, capabilities, productId) {
 			if (menu.id === 'tools' && !capabilities.audioMacros) {
 				return { ...menu, items: menu.items.filter((item) => !['manage-macros', 'macro-library', 'nyquist-prompt'].includes(item.id)) };
 			}
+			if (menu.id === 'window') {
+				return {
+					...menu,
+					items: menu.items.filter((item) => !item.id?.startsWith('panel-')
+						|| workspacePanelAvailable(productId, item.id.slice('panel-'.length))),
+				};
+			}
 			if (menu.id !== 'view') return menu;
 			return {
 				...menu,
 				items: menu.items.map((item) => {
-					if (item.id === 'panels') {
-						return {
-							...item,
-							items: item.items.filter((panel) => !panel.id?.startsWith('panel-')
-								|| workspacePanelAvailable(productId, panel.id.slice('panel-'.length))),
-						};
-					}
 					if (item.id !== 'workspace-preset') return item;
 					return {
 						...item,

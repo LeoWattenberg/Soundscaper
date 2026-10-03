@@ -34,7 +34,7 @@ test.describe('Soundscaper mixer routing graph', () => {
 	test('opts into a spatial graph with pointer and keyboard editing, validation, and focused inspectors', async ({ page }) => {
 		const clientErrors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
-		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Mixer']);
+		await chooseNestedCommandAction(page, editor, 'Window', ['Mixer']);
 		const mixer = editor.locator('[data-mixer-panel]');
 		const toggle = mixer.getByRole('button', { name: 'Routing graph', exact: true });
 		await expect(toggle).toHaveAttribute('aria-pressed', 'false');
@@ -185,7 +185,7 @@ test.describe('Soundscaper mixer routing graph', () => {
 		const reopened = await bootEditor(page, `/embed/en/?project=${encodeURIComponent(projectId)}`);
 		const reopenedMixer = reopened.locator('[data-mixer-panel]');
 		if (!await reopenedMixer.isVisible()) {
-			await chooseNestedCommandAction(page, reopened, 'View', ['Panels', 'Mixer']);
+			await chooseNestedCommandAction(page, reopened, 'Window', ['Mixer']);
 		}
 		await expect(reopenedMixer).toBeVisible();
 		await expect(reopenedMixer.getByRole('button', { name: 'Routing graph', exact: true }))

@@ -27,7 +27,7 @@ test.describe('Framescaper Web VCR', () => {
 		await installWebVcrHost(page);
 		const editor = await bootEditor(page, '/framescaper/en/');
 
-		const panels = await openNestedCommandMenu(page, editor, 'View', ['Panels']);
+		const panels = await openNestedCommandMenu(page, editor, 'Window', []);
 		await getMenuItem(panels, 'Recording setup').click();
 		const setup = editor.locator('[data-workspace-panel="recording-setup"] [data-framescaper-recording-setup]');
 		await expect(setup).toBeVisible();
@@ -108,7 +108,7 @@ test.describe('Framescaper Web VCR', () => {
 		const projectId = await editor.getAttribute('data-project-id');
 		expect(projectId).toBeTruthy();
 
-		const panels = await openNestedCommandMenu(page, editor, 'View', ['Panels']);
+		const panels = await openNestedCommandMenu(page, editor, 'Window', []);
 		await getMenuItem(panels, 'Recording setup').click();
 		const setup = editor.locator('[data-workspace-panel="recording-setup"] [data-framescaper-recording-setup]');
 		await expect(setup).toBeVisible();

@@ -86,7 +86,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		const editor = await bootStableEditor(page);
 
 		const mixerPanel = editor.locator('[data-workspace-panel="mixer"]');
-		if (!await mixerPanel.isVisible()) await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Mixer']);
+		if (!await mixerPanel.isVisible()) await chooseNestedCommandAction(page, editor, 'Window', ['Mixer']);
 		await expect(mixerPanel).toBeVisible();
 		const mixer = editor.locator('[data-mixer-panel]');
 		await expect(mixer.locator('.mixer-channel')).toHaveCount(2);

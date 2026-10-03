@@ -15,7 +15,7 @@ test.describe('Freesound account connection', () => {
 		test.setTimeout(90_000);
 		const requests = await mockFreesoundSession(page);
 		const editor = await bootEditor(page, '/embed/en/');
-		const panelsMenu = await openNestedCommandMenu(page, editor, 'View', ['Panels']);
+		const panelsMenu = await openNestedCommandMenu(page, editor, 'Window', []);
 		await getMenuItem(panelsMenu, 'Freesound').press('Enter');
 		const panel = editor.locator('[data-workspace-panel="freesound"]');
 		const credit = panel.locator('.kw-audio-editor__freesound-credit');

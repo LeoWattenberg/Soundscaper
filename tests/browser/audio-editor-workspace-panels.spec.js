@@ -124,11 +124,11 @@ test.describe('audio editor React/design-system workflows', () => {
 	test('keeps compact side docks separate without toolbar group controls', async ({ page }) => {
 		await page.setViewportSize({ width: 800, height: 900 });
 		const editor = await bootEditor(page, '/embed/en/');
-		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'History']);
+		await chooseNestedCommandAction(page, editor, 'Window', ['History']);
 		await chooseCommandAction(page, editor, 'Edit', 'Metadata editor');
 		await expect(editor.locator('[data-workspace-panel="metadata"]')).toBeFocused();
 		const historyPanel = editor.locator('[data-workspace-panel="history"]');
-		if (!await historyPanel.isVisible()) await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'History']);
+		if (!await historyPanel.isVisible()) await chooseNestedCommandAction(page, editor, 'Window', ['History']);
 		await dockWorkspacePanel(editor, 'history', 'left');
 
 		const leftDock = editor.locator('[data-panel-dock="left"]');
@@ -160,12 +160,12 @@ test.describe('audio editor React/design-system workflows', () => {
 	test('drags workspace panels between docks without subgroup toolbar grabbers', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
-		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'History']);
+		await chooseNestedCommandAction(page, editor, 'Window', ['History']);
 		await chooseCommandAction(page, editor, 'Edit', 'Metadata editor');
 
 		const historyPanel = editor.locator('[data-workspace-panel="history"]');
 		const metadataPanel = editor.locator('[data-workspace-panel="metadata"]');
-		if (!await historyPanel.isVisible()) await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'History']);
+		if (!await historyPanel.isVisible()) await chooseNestedCommandAction(page, editor, 'Window', ['History']);
 		await expect(historyPanel).toBeVisible();
 		await expect(metadataPanel).toBeVisible();
 		await metadataPanel.locator('[data-workspace-panel-drag-handle="metadata"]').dragTo(historyPanel, {
@@ -529,7 +529,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		const editor = await bootEditor(page, '/embed/en/', { defaultWorkspace: true });
 		const projectBinPanel = editor.locator('[data-workspace-panel="project-bin"]');
 		await expect(projectBinPanel).toHaveCount(0);
-		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Project bin']);
+		await chooseNestedCommandAction(page, editor, 'Window', ['Project bin']);
 		await expect(projectBinPanel).toBeVisible();
 	});
 });

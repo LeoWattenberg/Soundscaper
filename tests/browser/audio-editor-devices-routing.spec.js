@@ -455,7 +455,7 @@ test.describe('audio editor React/design-system workflows', () => {
 	test('mixes tracks through group and send buses with Audacity channel strips', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
-		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Mixer']);
+		await chooseNestedCommandAction(page, editor, 'Window', ['Mixer']);
 		const mixer = editor.locator('[data-mixer-panel]');
 		await expect(mixer).toBeVisible();
 		await expect(mixer.locator('.mixer-panel')).toBeVisible();
@@ -521,7 +521,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(trackSource).toHaveValue('device:default');
 		await expect(trackChannel).toHaveValue('0');
 
-		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Mixer']);
+		await chooseNestedCommandAction(page, editor, 'Window', ['Mixer']);
 		let mixer = editor.locator('[data-mixer-panel]');
 		const mixerSelectors = mixer.locator('.kw-recording-input-selectors--mixer').first();
 		const mixerSource = mixerSelectors.getByRole('combobox', { name: 'Recording source: Track 1', exact: true });
@@ -558,7 +558,7 @@ test.describe('audio editor React/design-system workflows', () => {
 			.getByRole('combobox', { name: 'Recording source: Track 1', exact: true })).toHaveValue('display');
 
 		mixer = editor.locator('[data-mixer-panel]');
-		if (!await mixer.isVisible()) await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Mixer']);
+		if (!await mixer.isVisible()) await chooseNestedCommandAction(page, editor, 'Window', ['Mixer']);
 		await expect(mixer.locator('.kw-recording-input-selectors--mixer').first()
 			.getByRole('combobox', { name: 'Recording source: Track 1', exact: true })).toHaveValue('display');
 		await expect(mixer.getByRole('button', { name: 'Disable microphones', exact: true })).toHaveCount(0);

@@ -38,7 +38,7 @@ This is Audacity's **Edit → Undo and Edit → Redo (Ctrl+Z, Ctrl+Y)**. The nam
 
 ## Tips
 
-- **View → Panels → History** lists every step, and clicking one jumps straight to it.
+- **Window → History** lists every step, and clicking one jumps straight to it.
 - Undo covers edits to the project, not exports; a file you have already saved stays as it is.
 
 ## Related guides

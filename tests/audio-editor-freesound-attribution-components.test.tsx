@@ -94,17 +94,17 @@ test('Freesound is a Soundscaper-only discoverable panel that remains hidden by 
 	assert.equal(soundscaperPanelAvailable('soundscaper', 'freesound'), true);
 	assert.equal(framescaperPanelAvailable('framescaper', 'freesound'), false);
 
-	const menus = [{ id: 'view', items: [{ id: 'panels', items: [
+	const menus = [{ id: 'window', items: [
 		{ id: 'panel-history', label: 'History' },
 		{ id: 'panel-freesound', label: 'Freesound' },
-	] }] }];
+	] }];
 	const capabilities = {
 		audioGenerators: true, audioEffects: true, audioAnalysis: true,
 		audioMacros: true, audioRecording: true,
 	};
-	assert.ok(filterProductMenus(menus, capabilities, 'soundscaper')[0].items[0].items
+	assert.ok(filterProductMenus(menus, capabilities, 'soundscaper')[0].items
 		.some((item: { id?: string }) => item.id === 'panel-freesound'));
-	assert.ok(!filterProductMenus(menus, capabilities, 'framescaper')[0].items[0].items
+	assert.ok(!filterProductMenus(menus, capabilities, 'framescaper')[0].items
 		.some((item: { id?: string }) => item.id === 'panel-freesound'));
 });
 

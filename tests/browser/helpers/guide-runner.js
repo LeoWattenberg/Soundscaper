@@ -221,7 +221,7 @@ async function runMarker(page, state, entry) {
 	// The Panels entry toggles, so a second marker in the same guide must not
 	// close the panel the first one opened.
 	const panel = editor.getByRole('region', { name: 'Markers and named regions', exact: true });
-	if (!await panel.isVisible()) await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Markers']);
+	if (!await panel.isVisible()) await chooseNestedCommandAction(page, editor, 'Window', ['Markers']);
 	await expect(panel).toBeVisible();
 	await panel.getByRole('button', { name: 'Add marker at playhead', exact: true }).click();
 	// A new marker is the one still called "Unnamed annotation"; earlier markers

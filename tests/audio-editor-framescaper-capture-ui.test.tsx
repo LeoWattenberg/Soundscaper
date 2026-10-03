@@ -36,14 +36,12 @@ test('recording setup is available only on the selected Framescaper route', () =
 	assert.equal(workspacePanelAvailable('soundscaper', FRAMESCAPER_CAPTURE_PANEL_ID), false);
 });
 
-test('View > Panels exposes recording setup only in Framescaper', () => {
+test('Window exposes recording setup only in Framescaper', () => {
 	const menus = [{
-		id: 'view', items: [{
-			id: 'panels', items: [
-				{ id: 'panel-history', label: 'History' },
-				{ id: 'panel-recording-setup', label: 'Recording setup' },
-			],
-		}],
+		id: 'window', items: [
+			{ id: 'panel-history', label: 'History' },
+			{ id: 'panel-recording-setup', label: 'Recording setup' },
+		],
 	}];
 	const capabilities = { audioGenerators: true, audioEffects: true, audioAnalysis: true, audioMacros: true, audioRecording: true };
 	const soundscaper = filterProductMenus(menus, capabilities, 'soundscaper');

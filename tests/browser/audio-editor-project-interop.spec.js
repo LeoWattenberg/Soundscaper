@@ -147,7 +147,7 @@ test.describe('audio editor React/design-system workflows', () => {
 			await expect(editor).not.toHaveAttribute('data-edit-block-reason', 'analysis-processing', { timeout: 30_000 });
 		}
 
-		const panelsMenu = await openNestedCommandMenu(page, editor, 'View', ['Panels']);
+		const panelsMenu = await openNestedCommandMenu(page, editor, 'Window', []);
 		for (const analyzerName of ['Analysis', 'Plot spectrum', 'Find clipping', 'Contrast', 'EBU R 128']) {
 			await expect(panelsMenu.getByRole('menuitem', { name: analyzerName, exact: true })).toHaveCount(0);
 		}

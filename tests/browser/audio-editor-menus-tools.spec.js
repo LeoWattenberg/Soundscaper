@@ -61,7 +61,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		const menubar = editor.getByRole('menubar', { name: 'Application menu' });
 		const headings = menubar.getByRole('menuitem');
 		// Every shipped menu must be present, ordered, and behave as a menubar heading.
-		const expectedHeadings = ['File', 'Edit', 'Select', 'View', 'Tracks', 'Generate', 'Effect', 'Analyze', 'Tools', 'Help'];
+		const expectedHeadings = ['File', 'Edit', 'Select', 'View', 'Tracks', 'Generate', 'Effect', 'Analyze', 'Tools', 'Window', 'Help'];
 		await expect(menubar).toBeVisible();
 		await expect(headings).toHaveText(expectedHeadings);
 		for (const heading of await headings.all()) {
@@ -283,7 +283,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await directTimecodeInput(regularDialog, 'Interval in frames').fill('2');
 		await regularDialog.getByRole('button', { name: 'Create annotations', exact: true }).click();
 		await expect(regularDialog).toBeHidden();
-		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Markers']);
+		await chooseNestedCommandAction(page, editor, 'Window', ['Markers']);
 		const markerList = editor.getByRole('list', { name: 'Marker and region list', exact: true });
 		await expect(markerList.getByRole('listitem')).toHaveCount(5);
 		expect(errors).toEqual([]);
@@ -457,7 +457,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(editor.getByRole('tab', { name: 'Untitled project' })).toHaveAttribute('aria-selected', 'true');
 		const menubar = editor.getByRole('menubar', { name: 'Application menu' });
 		await expect(menubar).toBeVisible();
-		for (const menu of ['File', 'Edit', 'Select', 'View', 'Tracks', 'Generate', 'Effect', 'Analyze', 'Tools', 'Help']) {
+		for (const menu of ['File', 'Edit', 'Select', 'View', 'Tracks', 'Generate', 'Effect', 'Analyze', 'Tools', 'Window', 'Help']) {
 			await expect(menubar.getByRole('menuitem', { name: menu, exact: true })).toBeVisible();
 		}
 		await expect(menubar.getByRole('menuitem', { name: 'Record', exact: true })).toHaveCount(0);
@@ -626,7 +626,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await page.evaluate(() => globalThis.dispatchEvent(new Event('blur')));
 		await expect(timeline).toHaveAttribute('data-split-tool', 'false');
 
-		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Tracks panel']);
+		await chooseNestedCommandAction(page, editor, 'Window', ['Tracks panel']);
 		await expect(timeline).toHaveCount(0);
 		await editor.evaluate((element) => { element.tabIndex = -1; element.focus(); });
 		await page.keyboard.down('k');

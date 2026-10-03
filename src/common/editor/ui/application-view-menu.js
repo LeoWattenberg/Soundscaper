@@ -3,16 +3,10 @@
 import { AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS } from './application-menu-registry.ts';
 import { createSnapMenu } from './application-menu-model.js';
 import { timelineAnnotationsAvailable } from './timeline/timeline-annotation-ui-model.ts';
-import {
-	ANALYZER_PANEL_ID_SET,
-	WORKSPACE_DISCOVERABLE_PANEL_IDS,
-	workspacePanelLabel,
-} from './workspace/workspace-panel-model.ts';
-import { extendApplicationMenuProductPanelItems } from './application-menu-product-runtime.js';
 import { createVideoPreviewResolutionMenu } from './video-preview-resolution-menu.ts';
 
 /**
- * The View menu: panel visibility, workspace presets, waveform and ruler display, snapping,
+ * The View menu: workspace presets, waveform and ruler display, snapping,
  * zoom and the desktop host's own view entries.
  *
  * It is the one menu whose entries are almost all about how the editor is drawn rather than
@@ -25,45 +19,13 @@ import { createVideoPreviewResolutionMenu } from './video-preview-resolution-men
 export function createApplicationViewMenu(context, viewMenu, actions = {}) {
 	const {
 		capabilities, clipSelectionNavigationMenus, compactLayout, copy, desktopHost, divider, editBlocked,
-		effectsPanelOpen, preferences, productItems, project, projectBinEffectivelyOpen, selectedAudioTrack,
+		preferences, productItems, project,
 		editSelectionActive, showArmControls, snapshot, uiFlags,
 	} = context;
 	return {
 		id: 'view',
 		label: copy.viewMenu,
 		items: [
-			{
-				id: 'panels',
-				label: copy.panels,
-				items: [
-					{ id: 'toggle-tracks', label: copy.tracksPanel, checked: uiFlags.tracksPanel, visibilityToggle: true },
-					...WORKSPACE_DISCOVERABLE_PANEL_IDS
-						.filter((panelId) => !ANALYZER_PANEL_ID_SET.has(panelId)
-							&& (capabilities.audioEffects || panelId !== 'effects')
-							&& (capabilities.audioRecording || panelId !== 'recording-meter')
-							&& (capabilities.audioAnalysis || panelId !== 'ebu-r128')
-							&& (panelId !== 'markers' || timelineAnnotationsAvailable(snapshot)))
-						.map((panelId) => panelId === 'effects'
-						? {
-							id: 'show-effects',
-							label: copy.effects,
-							checked: effectsPanelOpen,
-							visibilityToggle: true,
-							disabled: !selectedAudioTrack,
-							onClick: actions.openEffects,
-						}
-						: extendApplicationMenuProductPanelItems(panelId, {
-							id: `panel-${panelId}`,
-							label: workspacePanelLabel(copy, panelId),
-							checked: panelId === 'project-bin'
-								? projectBinEffectivelyOpen
-								: preferences.workspace.panels[panelId].visible,
-							visibilityToggle: true,
-							onClick: () => viewMenu.togglePanel(panelId),
-						}, productItems))
-						.flat(),
-				],
-			},
 			{
 				id: 'workspace-preset',
 				label: copy.workspace,

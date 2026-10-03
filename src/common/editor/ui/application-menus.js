@@ -4,6 +4,7 @@ import { createCommunityTranslationMenuItems } from './community-translations/co
 import { audacitySpectrogramTrackSelected } from '../audacity-action-enablement.ts';
 import { AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS } from './application-menu-registry.ts';
 import { createApplicationViewMenu } from './application-view-menu.js';
+import { createApplicationWindowMenu } from './application-window-menu.js';
 import { createEffectMenuEntries, resolveEffectMenuTargeting } from './effect-menu-organization.js';
 import { prepareLocalProcessingMenus } from './local-processing-menus.ts';
 import { filterProductMenus } from './application-menu-product-filter.js';
@@ -354,7 +355,7 @@ export default function createApplicationMenus({
 		}, selectionMenu, actions),
 		createApplicationViewMenu({
 			capabilities, clipSelectionNavigationMenus, compactLayout, copy, desktopHost, divider, editBlocked,
-			effectsPanelOpen, preferences, productItems, project, projectBinEffectivelyOpen, selectedAudioTrack,
+			preferences, productItems, project,
 			editSelectionActive, showArmControls, snapshot, uiFlags,
 		}, viewMenu, actions),
 		{
@@ -469,6 +470,10 @@ export default function createApplicationMenus({
 				{ id: 'nyquist-prompt', label: copy.nyquistPrompt, disabled: !project, onClick: () => actions.openNyquist() },
 			],
 		},
+		createApplicationWindowMenu({
+			blocked, capabilities, copy, divider, effectsPanelOpen, preferences, productId,
+			productItems, project, projectBinEffectivelyOpen, selectedAudioTrack, snapshot, uiFlags,
+		}, viewMenu, actions),
 		{
 			id: 'help',
 			label: copy.helpMenu,

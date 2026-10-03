@@ -27,7 +27,7 @@ test.describe('Framescaper deferred capture runtime', () => {
 		await expect(editor.locator('[data-workspace-panel="recording-setup"]')).toHaveCount(0);
 		expect(await captureChunkRequests(page)).toEqual([]);
 
-		const panels = await openNestedCommandMenu(page, editor, 'View', ['Panels']);
+		const panels = await openNestedCommandMenu(page, editor, 'Window', []);
 		const setupItem = getMenuItem(panels, 'Recording setup');
 		await setupItem.focus();
 		await setupItem.press('Enter');

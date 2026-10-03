@@ -19,7 +19,7 @@ test.describe('Audacity-style workspace panel snapping', () => {
 	test('untouched tablet docks retain their width and an explicit resize can exceed the old cap', async ({ page }) => {
 		await page.setViewportSize({ width: 1024, height: 900 });
 		const editor = await bootEditor(page, '/embed/en/', { defaultWorkspace: true });
-		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Project bin']);
+		await chooseNestedCommandAction(page, editor, 'Window', ['Project bin']);
 		const dock = editor.locator('[data-panel-dock="left"]');
 		await expect(dock).toHaveAttribute('data-workspace-dock-wide', 'false');
 		const before = await requiredBounds(dock);
@@ -210,7 +210,7 @@ test.describe('Audacity-style workspace panel snapping', () => {
 
 	test('a tab group keeps panel-specific frame geometry while its active tab changes', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
-		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'History']);
+		await chooseNestedCommandAction(page, editor, 'Window', ['History']);
 		const effects = await openEffectsForTrack(editor, 0);
 		const rightDock = editor.locator('[data-panel-dock="right"]');
 		if (!await rightDock.locator('[data-workspace-panel="history"]').isVisible()) {
@@ -234,11 +234,11 @@ test.describe('Audacity-style workspace panel snapping', () => {
 });
 
 async function openHistoryAndMetadata(page, editor) {
-	await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'History']);
+	await chooseNestedCommandAction(page, editor, 'Window', ['History']);
 	await chooseCommandAction(page, editor, 'Edit', 'Metadata editor');
 	await expect(editor.locator('[data-workspace-panel="metadata"]')).toBeFocused();
 	const history = editor.locator('[data-workspace-panel="history"]');
-	if (!await history.isVisible()) await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'History']);
+	if (!await history.isVisible()) await chooseNestedCommandAction(page, editor, 'Window', ['History']);
 	await expect(history).toBeVisible();
 	await expect(editor.locator('[data-workspace-panel="metadata"]')).toBeVisible();
 }

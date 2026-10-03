@@ -13,5 +13,6 @@ export const AUDACITY_MENU_ORDER = Object.freeze([
 	'tools',
 	'extra',
 	'project',
+	'window',
 	'help',
 ] as const);
