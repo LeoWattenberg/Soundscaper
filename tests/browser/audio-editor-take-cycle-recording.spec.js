@@ -1,5 +1,5 @@
-import { expect, longTone, test } from './audio-editor-test-fixtures.js';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { createWavFixture, expect, test, toneA } from './audio-editor-test-fixtures.js';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { chromium } from '@playwright/test';
@@ -8,12 +8,19 @@ import {
 	assertNoSeriousAxeViolations,
 	bootEditor,
 	chooseCommandAction,
+	chooseDropdown,
 	chooseNestedCommandAction,
+	clipByName,
 	collectClientErrors,
+	disableNativeSavePicker,
+	downloadBytes,
 	importFiles,
+	openExportDialog,
 	registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
 import { SOUNDSCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
+import { packagedRuntimeAudioArguments } from './helpers/packaged-runtime-audio-fixture.js';
+import { chooseTrackMenuAction } from './helpers/track-menu.js';
 
 const DATABASE_NAME = SOUNDSCAPER_DATABASE_NAME;
 const RAW_SPOOL_PREFIX = 'raw-pcm-spool-registry-v1:';
@@ -26,19 +33,20 @@ test.describe('Soundscaper routed take-cycle recording', () => {
 		test.skip(browserName !== 'chromium', 'The restart witness requires one persistent Chromium profile.');
 		test.setTimeout(180_000);
 		const userDataDir = await mkdtemp(join(tmpdir(), 'soundscaper-cycle-browser-'));
-		let context = await launchCycleContext(userDataDir, baseURL);
+		const inputPaths = await prepareCycleInputs(userDataDir, [330, 660, 990]);
+		let context = await launchCycleContext(userDataDir, baseURL, inputPaths[0]);
 		let page = context.pages()[0] ?? await context.newPage();
 		try {
 			const initialErrors = collectClientErrors(page);
 			let editor = await bootEditor(page, '/embed/en/');
-		await importFiles(editor, [longTone]);
+		await importFiles(editor, [toneA]);
 		await chooseCommandAction(page, editor, 'Select', 'Select all');
 		await chooseNestedCommandAction(page, editor, 'Select', ['Loop region', 'Set loop to selection']);
 		await chooseCommandAction(page, editor, 'Select', 'Select none');
 
 		await startTakeCycle(page, editor);
 		await expect.poll(() => rawCaptureState(page)).toMatchObject({ count: 1, hasPcm: true });
-		await page.waitForTimeout(200);
+		await page.waitForTimeout(1_000);
 		await stopTakeCycle(page, editor);
 		await expect.poll(() => durableCycleState(page), {
 			message: 'ordinary cycle capture settles its durable roots',
@@ -56,8 +64,9 @@ test.describe('Soundscaper routed take-cycle recording', () => {
 
 		await startTakeCycle(page, editor);
 		await expect.poll(() => rawCaptureState(page)).toMatchObject({ count: 1, hasPcm: true });
+		await page.waitForTimeout(1_000);
 		await context.browser()?.close();
-		context = await launchCycleContext(userDataDir, baseURL);
+		context = await launchCycleContext(userDataDir, baseURL, inputPaths[1]);
 		const recoveredPage = context.pages()[0] ?? await context.newPage();
 		const recoveredErrors = collectClientErrors(recoveredPage);
 		editor = await bootRecoveryEditor(recoveredPage);
@@ -82,14 +91,26 @@ test.describe('Soundscaper routed take-cycle recording', () => {
 		expect(afterRecovery.laneCount).toBeGreaterThan(settled.laneCount);
 		expect(afterRecovery.takeCount).toBe(afterRecovery.laneCount);
 		expect(afterRecovery.missingTakeSources).toEqual([]);
+		const recoveredSourceIds = afterRecovery.takeSourceIds.filter((sourceId) => (
+			!settled.takeSourceIds.includes(sourceId)
+		));
+		expect(recoveredSourceIds.length).toBeGreaterThan(0);
+		const recoveredTake = afterRecovery.takes.find(({ sourceId, startSample, endSample }) => (
+			recoveredSourceIds.includes(sourceId)
+			&& startSample === afterRecovery.takeGroupStartSample
+			&& endSample === afterRecovery.takeGroupEndSample
+		));
+		expect(recoveredTake).toBeTruthy();
+		expect(recoveredTake.endSample - recoveredTake.startSample).toBe(38_400);
 		await recoveredPage.emulateMedia({ forcedColors: 'none' });
 
 		await startTakeCycle(recoveredPage, editor);
 		await expect.poll(() => rawCaptureState(recoveredPage)).toMatchObject({ count: 1, hasPcm: true });
 		await context.browser()?.close();
-		context = await launchCycleContext(userDataDir, baseURL);
+		context = await launchCycleContext(userDataDir, baseURL, inputPaths[2]);
 		const discardedPage = context.pages()[0] ?? await context.newPage();
 		const discardedErrors = collectClientErrors(discardedPage);
+		await disableNativeSavePicker(discardedPage);
 		editor = await bootRecoveryEditor(discardedPage);
 		dialog = discardedPage.getByRole('dialog', { name: 'Interrupted take recording', exact: true });
 		await dialog.getByRole('button', { name: 'Close', exact: true }).last().click();
@@ -131,9 +152,16 @@ test.describe('Soundscaper routed take-cycle recording', () => {
 		const afterDiscard = await durableCycleState(discardedPage);
 		expect(afterDiscard.takeSourceIds).toEqual(afterRecovery.takeSourceIds);
 		expect(afterDiscard.missingTakeSources).toEqual([]);
-			expect(initialErrors).toEqual([]);
-			expect(recoveredErrors).toEqual([]);
-			expect(discardedErrors).toEqual([]);
+
+		const recoveredAudio = await exportRecoveredTake(discardedPage, editor, recoveredTake);
+		expect(recoveredAudio.sampleRate).toBe(48_000);
+		expect(recoveredAudio.frameCount).toBe(38_400);
+		expect(recoveredAudio.probeFrameCount).toBeGreaterThan(4_800);
+		expect(recoveredAudio.rms).toBeGreaterThan(0.02);
+		expect(Math.abs(recoveredAudio.frequency - 660)).toBeLessThan(3);
+		expect(initialErrors).toEqual([]);
+		expect(recoveredErrors).toEqual([]);
+		expect(discardedErrors).toEqual([]);
 		} finally {
 			await context.close().catch(() => undefined);
 			await rm(userDataDir, { force: true, recursive: true });
@@ -144,11 +172,12 @@ test.describe('Soundscaper routed take-cycle recording', () => {
 		test.skip(browserName !== 'chromium', 'The routed input fixture uses a persistent Chromium profile.');
 		test.setTimeout(90_000);
 		const userDataDir = await mkdtemp(join(tmpdir(), 'soundscaper-cycle-interruption-'));
-		const context = await launchCycleContext(userDataDir, baseURL);
+		const [inputPath] = await prepareCycleInputs(userDataDir, [440]);
+		const context = await launchCycleContext(userDataDir, baseURL, inputPath);
 		const page = context.pages()[0] ?? await context.newPage();
 		try {
 			const editor = await bootEditor(page, '/embed/en/');
-			await importFiles(editor, [longTone]);
+			await importFiles(editor, [toneA]);
 			await chooseCommandAction(page, editor, 'Select', 'Select all');
 			await chooseNestedCommandAction(page, editor, 'Select', ['Loop region', 'Set loop to selection']);
 			await chooseCommandAction(page, editor, 'Select', 'Select none');
@@ -193,8 +222,14 @@ async function startTakeCycle(page, editor) {
 	if (await errorToast.isVisible()) {
 		throw new Error(await errorToast.textContent() ?? 'Cycle recording failed.');
 	}
-	await expect(editor.locator('[data-transport="record"] .kw-audio-editor__split-button-main button'))
-		.toHaveAttribute('aria-pressed', 'true', { timeout: 20_000 });
+	try {
+		await expect(editor.locator('[data-transport="record"] .kw-audio-editor__split-button-main button'))
+			.toHaveAttribute('aria-pressed', 'true', { timeout: 20_000 });
+	} catch (error) {
+		const message = await errorToast.textContent();
+		if (message) throw new Error(message, { cause: error });
+		throw error;
+	}
 }
 
 async function stopTakeCycle(page, editor) {
@@ -218,10 +253,12 @@ async function bootRecoveryEditor(page) {
 	return editor;
 }
 
-async function launchCycleContext(userDataDir, baseURL) {
+async function launchCycleContext(userDataDir, baseURL, inputPath) {
 	const context = await chromium.launchPersistentContext(userDataDir, {
+		args: packagedRuntimeAudioArguments(inputPath),
 		baseURL,
 		headless: true,
+		permissions: ['microphone'],
 		serviceWorkers: 'block',
 	});
 	await installCycleBrowserPorts(context);
@@ -239,31 +276,31 @@ async function installCycleBrowserPorts(context) {
 
 		const streams = [];
 		Object.defineProperty(globalThis, '__takeCycleStreams', { configurable: true, value: streams });
-		Object.defineProperty(navigator, 'mediaDevices', {
+		const mediaDevices = navigator.mediaDevices;
+		const getUserMedia = mediaDevices.getUserMedia.bind(mediaDevices);
+		Object.defineProperty(mediaDevices, 'getUserMedia', {
 			configurable: true,
-			value: {
-				async getUserMedia() {
-					const context = new AudioContext({ sampleRate: 48_000 });
-					const oscillator = context.createOscillator();
-					const gain = context.createGain();
-					const destination = context.createMediaStreamDestination();
-					oscillator.frequency.value = 440;
-					gain.gain.value = 0.1;
-					oscillator.connect(gain).connect(destination);
-					oscillator.start();
-					await context.resume();
-					const [track] = destination.stream.getAudioTracks();
-					const getSettings = track.getSettings.bind(track);
-					Object.defineProperty(track, 'getSettings', {
-						configurable: true,
-						value: () => ({ ...getSettings(), channelCount: 1, sampleRate: 48_000, latency: 0 }),
-					});
-					streams.push({ context, oscillator, stream: destination.stream });
-					return destination.stream;
-				},
+			async value(...args) {
+				const stream = await getUserMedia(...args);
+				streams.push({ stream });
+				return stream;
 			},
 		});
 	});
+}
+
+async function prepareCycleInputs(directory, frequencies) {
+	return Promise.all(frequencies.map(async (frequency) => {
+		const path = join(directory, `cycle-input-${String(frequency)}.wav`);
+		await writeFile(path, createWavFixture({
+			name: `cycle-input-${String(frequency)}.wav`,
+			frequency,
+			duration: 5,
+			channelCount: 1,
+			channelAmplitudes: [0.1],
+		}).buffer);
+		return path;
+	}));
 }
 
 async function rawCaptureState(page) {
@@ -294,6 +331,7 @@ async function durableCycleState(page) {
 			const groups = project?.takeGroups ?? [];
 			const takes = groups.flatMap((group) => group.takes ?? []);
 			const sourceIds = new Set(sources.map((source) => source.id));
+			const sourceNames = new Map(sources.map((source) => [source.id, source.name]));
 			const rawSpools = analysis
 				.filter((row) => row.key?.startsWith(spoolPrefix))
 				.flatMap((row) => row.value?.records ?? []);
@@ -302,10 +340,21 @@ async function durableCycleState(page) {
 				rawSpoolCount: rawSpools.length,
 				rawSpools,
 				takeGroupCount: groups.length,
+				takeGroupStartSample: groups[0]?.startSample ?? null,
+				takeGroupEndSample: groups[0]?.endSample ?? null,
 				laneCount: groups.reduce((count, group) => count + (group.laneOrder?.length ?? 0), 0),
 				takeCount: takes.length,
 				takeSourceCount: new Set(takes.map((take) => take.sourceId)).size,
 				takeSourceIds: [...new Set(takes.map((take) => take.sourceId))].sort(),
+				takes: takes.map((take, laneIndex) => ({
+					id: take.id,
+					laneIndex,
+					laneId: take.laneId,
+					sourceId: take.sourceId,
+					sourceName: sourceNames.get(take.sourceId),
+					startSample: take.startSample,
+					endSample: take.endSample,
+				})),
 				missingTakeSources: takes.map((take) => take.sourceId).filter((sourceId) => !sourceIds.has(sourceId)),
 			};
 		} finally {
@@ -315,5 +364,99 @@ async function durableCycleState(page) {
 		databaseName: DATABASE_NAME,
 		envelopePrefix: RECOVERY_ENVELOPE_PREFIX,
 		spoolPrefix: RAW_SPOOL_PREFIX,
+	});
+}
+
+async function exportRecoveredTake(page, editor, take) {
+	const original = clipByName(editor, toneA.name);
+	const track = original.locator('xpath=ancestor::*[@data-track-row][1]');
+	await chooseTrackMenuAction(page, editor, track, 'Take lanes and comps');
+	const comp = page.getByRole('dialog', { name: 'Take lanes and comps', exact: true });
+	await expect(comp).toBeVisible();
+	const recoveredLane = comp.locator('.audio-editor-take-comp__lanes > [role="listitem"]')
+		.nth(take.laneIndex);
+	const select = recoveredLane.getByRole('button', {
+		name: `Select ${take.sourceName}`,
+		exact: true,
+	});
+	await select.click();
+	await expect(select).toHaveAttribute('aria-pressed', 'true');
+	await comp.getByRole('button', { name: 'Promote for full group', exact: true }).click();
+	await expect(comp.getByRole('table', { name: 'Comp regions', exact: true })
+		.getByText(take.id, { exact: true })).toBeVisible();
+
+	await comp.getByRole('button', { name: 'Flatten comp', exact: true }).click();
+	await expect(comp.locator('[data-take-comp-empty]')).toBeVisible({ timeout: 30_000 });
+	await comp.getByRole('button', { name: 'Close', exact: true }).last().click();
+	await expect(comp).toBeHidden();
+
+	await original.locator('.clip-header').click();
+	await editor.getByRole('region', { name: 'Timeline', exact: true }).first().press('Delete');
+	await expect(original).toHaveCount(0);
+	await expect(editor).toHaveAttribute('data-clip-count', '1');
+	await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', {
+		timeout: 30_000,
+	});
+
+	const dialog = await openExportDialog(page, editor);
+	await chooseDropdown(page, dialog.locator('[data-export-field="format"]'), 'WAV');
+	await chooseDropdown(page, dialog.locator('[data-export-field="bitDepth"]'), '16-bit PCM');
+	await dialog.getByRole('button', { name: 'Export', exact: true }).click();
+	const link = dialog.locator('[data-export-download]');
+	await expect(link).toBeVisible({ timeout: 30_000 });
+	const downloadPromise = page.waitForEvent('download');
+	await link.click();
+	const bytes = await downloadBytes(await downloadPromise);
+	await dialog.getByRole('button', { name: 'Close', exact: true }).last().click();
+	await expect(dialog).toBeHidden();
+	return decodeToneWindow(page, bytes, take);
+}
+
+async function decodeToneWindow(page, bytes, take) {
+	return page.evaluate(async ({ values, startSample, endSample }) => {
+		const context = new AudioContext({ sampleRate: 48_000 });
+		try {
+			const audio = await context.decodeAudioData(Uint8Array.from(values).buffer);
+			const margin = Math.round(audio.sampleRate * 0.05);
+			const start = startSample + margin;
+			const end = Math.min(endSample - margin, start + Math.round(audio.sampleRate * 0.5));
+			if (end <= start) throw new Error('Recovered take has no stable decoded probe window.');
+			let samples = audio.getChannelData(0);
+			let energy = windowEnergy(samples, start, end);
+			for (let channel = 1; channel < audio.numberOfChannels; channel += 1) {
+				const candidate = audio.getChannelData(channel);
+				const candidateEnergy = windowEnergy(candidate, start, end);
+				if (candidateEnergy > energy) {
+					samples = candidate;
+					energy = candidateEnergy;
+				}
+			}
+			const crossings = [];
+			for (let frame = start; frame < end; frame += 1) {
+				if (frame > start && samples[frame - 1] <= 0 && samples[frame] > 0) crossings.push(frame);
+			}
+			if (crossings.length < 3) throw new Error('Recovered take decoded without a measurable tone.');
+			const periods = crossings.slice(1).map((frame, index) => frame - crossings[index]);
+			const meanPeriod = periods.reduce((sum, period) => sum + period, 0) / periods.length;
+			return {
+				sampleRate: audio.sampleRate,
+				frameCount: audio.length,
+				probeFrameCount: end - start,
+				rms: Math.sqrt(energy / (end - start)),
+				frequency: audio.sampleRate / meanPeriod,
+			};
+		} finally {
+			await context.close();
+		}
+
+		function windowEnergy(samples, start, end) {
+			let energy = 0;
+			for (let frame = start; frame < end; frame += 1) energy += samples[frame] ** 2;
+			return energy;
+		}
+	}, {
+		values: Array.from(bytes),
+		startSample: take.startSample,
+		endSample: take.endSample,
 	});
 }
