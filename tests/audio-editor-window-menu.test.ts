@@ -65,7 +65,7 @@ function fixture({ productId = 'soundscaper', german = false, blocked = false,
 		} },
 		run: (operation: () => unknown) => operation(),
 		toggleWorkspacePanel: (id: string) => { calls.push(`panel:${id}`); },
-	}) : createApplicationMenus(input)) as readonly MenuItem[];
+	} as unknown as Parameters<typeof createWorkspaceApplicationMenus>[0]) : createApplicationMenus(input)) as readonly MenuItem[];
 	const window = menus.find((menu) => menu.id === 'window');
 	assert.ok(window, 'the application has a Window menu');
 	return { menus, window, items: window.items ?? [], calls };
