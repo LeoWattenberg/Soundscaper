@@ -251,6 +251,7 @@ export default function WorkspacePreferencesDialog({
 
 						{selectedPage === 'effects' && (
 							<EffectsPreferencesPage
+								productId={productId}
 								controller={controller}
 								snapshot={snapshot}
 								copy={copy}

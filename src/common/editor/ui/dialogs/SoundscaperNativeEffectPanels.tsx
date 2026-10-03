@@ -9,13 +9,10 @@ import NativePluginParameterControls from './NativePluginParameterControls.tsx';
 
 import type {
 	NativePluginEntryView,
-	NativePluginFormatConsentView,
 	NativePluginQuarantineRecord,
 } from '../soundscaper-native-services-bridge.ts';
 import type { SoundscaperNativeServicesCopy } from '../soundscaper-native-services-copy.ts';
 import {
-	soundscaperNativeServicesActionKey,
-	type SoundscaperNativeScanState,
 	type SoundscaperNativeServicesDialogAction,
 	type SoundscaperNativeServicesDialogState,
 } from '../soundscaper-native-services-dialog-model.ts';
@@ -25,113 +22,6 @@ export interface SoundscaperNativeEffectPanelProps {
 	readonly state: SoundscaperNativeServicesDialogState;
 	readonly disabled: boolean;
 	readonly perform: (action: SoundscaperNativeServicesDialogAction) => void;
-}
-
-export function SoundscaperNativeEffectScanPanel({
-	copy, state, disabled, perform,
-}: SoundscaperNativeEffectPanelProps) {
-	const plugins = state.plugins;
-	const formats = plugins?.consent.formats ?? [];
-	return <div className="audio-editor-soundscaper-native-scan">
-		{plugins !== null && !plugins.enabled && <p>{copy.discoveryDisabled}</p>}
-		{formats.map((format) => <section key={format.format} data-native-plugin-format={format.format}>
-			<h3>{format.format}</h3>
-			{!format.supported
-				? <p>{copy.formatUnsupported}</p>
-				: <FormatConsent copy={copy} format={format} disabled={disabled} perform={perform} />}
-			{format.supported && <RootList
-				copy={copy}
-				format={format}
-				scans={state.scans}
-				canScan={plugins?.enabled === true && !plugins.quarantined
-					&& plugins.payload.status === 'available' && plugins.consent.scanningEnabled}
-				disabled={disabled}
-				perform={perform}
-			/>}
-		</section>)}
-	</div>;
-}
-
-function FormatConsent({ copy, format, disabled, perform }: Readonly<{
-	copy: SoundscaperNativeServicesCopy;
-	format: NativePluginFormatConsentView;
-	disabled: boolean;
-	perform: (action: SoundscaperNativeServicesDialogAction) => void;
-}>) {
-	return <p>
-		<Button
-			variant="secondary"
-			disabled={disabled}
-			data-native-plugin-consent={format.granted ? 'revoke' : 'grant'}
-			onClick={() => perform({
-				type: 'consent',
-				format: format.format,
-				consent: format.granted ? 'revoke' : 'grant',
-			})}
-		>{format.granted ? copy.revokeFormat : copy.grantFormat}</Button>
-		<Button
-			variant="secondary"
-			disabled={disabled || !format.granted}
-			data-native-plugin-consent="add-custom-root"
-			onClick={() => perform({ type: 'consent', format: format.format, consent: 'add-custom-root' })}
-		>{copy.chooseFolder}</Button>
-	</p>;
-}
-
-function RootList({ copy, format, scans, disabled, canScan, perform }: Readonly<{
-	copy: SoundscaperNativeServicesCopy;
-	format: NativePluginFormatConsentView;
-	scans: Readonly<Record<string, SoundscaperNativeScanState>>;
-	canScan: boolean;
-	disabled: boolean;
-	perform: (action: SoundscaperNativeServicesDialogAction) => void;
-}>) {
-	if (!format.roots.length) return <p>{copy.noRoots}</p>;
-	return <ul>
-		{format.roots.map((root) => {
-			const scan = scans[soundscaperNativeServicesActionKey({
-				type: 'scan', format: format.format, rootId: root.rootId,
-			})];
-			return <li key={root.rootId} data-native-plugin-root={root.rootId}>
-				<span>{root.name}</span>
-				{root.admitted
-					? <Button
-						variant="secondary"
-						disabled={disabled || !canScan || !format.granted || scan?.running === true}
-						data-native-plugin-scan={root.rootId}
-						onClick={() => perform({ type: 'scan', format: format.format, rootId: root.rootId })}
-					>{scan?.running === true ? copy.scanRunning : copy.scanRoot}</Button>
-					: <Button
-						variant="secondary"
-						disabled={disabled || !format.granted}
-						data-native-plugin-admit={root.rootId}
-						onClick={() => perform({
-							type: 'consent',
-							format: format.format,
-							consent: 'add-standard-root',
-							rootId: root.rootId,
-						})}
-					>{copy.admitRoot}</Button>}
-				{scan && <ScanReport copy={copy} scan={scan} />}
-			</li>;
-		})}
-	</ul>;
-}
-
-function ScanReport({ copy, scan }: Readonly<{
-	copy: SoundscaperNativeServicesCopy;
-	scan: SoundscaperNativeScanState;
-}>) {
-	return <div data-native-plugin-scan-report={scan.rootId} aria-busy={scan.running ? 'true' : undefined}>
-		<p role="status" aria-live="polite">
-			{scan.running ? copy.scanRunning : `${scan.status}${scan.detail ? ` — ${scan.detail}` : ''}`}
-		</p>
-		{scan.entries.length > 0 && <ul aria-label={copy.scanEntries}>
-			{scan.entries.map((entry) => <li key={entry.stableId}>
-				{`${entry.name} — ${entry.vendor} ${entry.version} (${entry.compatibility})`}
-			</li>)}
-		</ul>}
-	</div>;
 }
 
 export function SoundscaperNativeEffectManagePanel({

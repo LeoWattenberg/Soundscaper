@@ -75,7 +75,8 @@ test('Plugin Manager stays available with processing off and supports keyboard a
 	const installed = dialog.getByRole('tab', { name: 'Installed', exact: true });
 	await installed.focus();
 	await installed.press('ArrowRight');
-	await expect(dialog.getByRole('tab', { name: 'Scanning & Settings' })).toBeFocused();
+	await expect(installed).toBeFocused();
+	await expect(dialog.getByRole('tab', { name: 'Scanning & Settings' })).toHaveCount(0);
 	await page.setViewportSize({ width: 390, height: 844 });
 	for (const theme of ['dark', 'light']) {
 		await page.evaluate((value) => { document.documentElement.dataset.theme = value; }, theme);
@@ -85,7 +86,7 @@ test('Plugin Manager stays available with processing off and supports keyboard a
 		expect(box.x + box.width).toBeLessThanOrEqual(390);
 	}
 	await page.emulateMedia({ forcedColors: 'active' });
-	await expect(dialog.getByRole('tab', { name: 'Scanning & Settings' })).toBeFocused();
+	await expect(installed).toBeFocused();
 	await page.setViewportSize({ width: 1280, height: 720 });
 	await page.keyboard.press('Escape');
 	await expect(dialog).toHaveCount(0);
@@ -130,8 +131,53 @@ test('Framescaper never exposes the Soundscaper native-services surface', async 
 	await expect.poll(() => page.evaluate(() => globalThis.__soundscaperNativeRuntimeCalls)).toEqual([]);
 });
 
-async function installNativeServicesFixture(page, withPlugins = false, withNativeAudio = false) {
-	await page.addInitScript(({ includePlugins, includeNativeAudio }) => {
+test('Effects preferences manages supported plugin folders without format switches', async ({ page }) => {
+	await installNativeServicesFixture(page, false, false, true);
+	const editor = await bootEditor(page, '/embed/en/');
+	await chooseCommandAction(page, editor, 'Edit', 'Preferences');
+	const preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
+	await preferences.getByRole('tab', { name: /Effects$/u }).click();
+	const folders = preferences.getByRole('group', { name: 'VST3', exact: true });
+	await expect(folders).toBeVisible();
+	await expect(preferences.getByText('Not available on this system', { exact: true })).toHaveCount(0);
+	await expect(preferences.getByRole('group', { name: 'Audio Units', exact: true })).toHaveCount(0);
+	await expect(preferences.getByRole('button', { name: /Allow scanning|Stop scanning|Admit folder/u })).toHaveCount(0);
+	const system = folders.getByRole('checkbox', { name: 'System VST3 folder', exact: true });
+	await expect(system).not.toBeChecked();
+	await system.click();
+	await expect(system).toBeChecked();
+	await expect.poll(() => page.evaluate(() => globalThis.__soundscaperNativeRuntimeCalls))
+		.toEqual(['consent:vst3:grant:', 'consent:vst3:add-standard-root:system-vst3']);
+	await folders.getByRole('button', { name: 'Add path: VST3', exact: true }).click();
+	await expect(folders.getByText('/opt/vendor/plugins', { exact: true })).toBeVisible();
+	await expect(folders.getByRole('checkbox')).toHaveCount(1);
+	await folders.getByRole('button', { name: 'Remove path: /opt/vendor/plugins', exact: true }).click();
+	await expect(folders.getByText('/opt/vendor/plugins', { exact: true })).toHaveCount(0);
+	await system.click();
+	await expect(system).not.toBeChecked();
+	await expect(preferences.getByRole('button', { name: 'Scan for plugins', exact: true })).toBeDisabled();
+	await system.click();
+	await expect(system).toBeChecked();
+	await preferences.getByRole('checkbox', { name: 'Enable plugin scanning', exact: true }).click();
+	await expect(preferences.getByRole('button', { name: 'Scan for plugins', exact: true })).toBeEnabled();
+	await preferences.getByRole('button', { name: 'Scan for plugins', exact: true }).click();
+	await expect.poll(() => page.evaluate(() => globalThis.__soundscaperNativeRuntimeCalls))
+		.toContain('scan:vst3:system-vst3');
+	await preferences.getByRole('button', { name: 'Close', exact: true }).filter({ hasText: /^Close$/u }).click();
+	await chooseCommandAction(page, editor, 'Edit', 'Preferences');
+	await preferences.getByRole('tab', { name: /Effects$/u }).click();
+	await expect(folders.getByRole('checkbox', { name: 'System VST3 folder', exact: true })).toBeChecked();
+	await folders.getByRole('button', { name: 'Add path: VST3', exact: true }).click();
+	await page.setViewportSize({ width: 390, height: 844 });
+	await expect(folders.getByText('/opt/vendor/plugins', { exact: true })).toBeVisible();
+	await expect(folders.getByRole('button', { name: 'Add path: VST3', exact: true })).toBeVisible();
+	const box = await folders.boundingBox();
+	expect(box.x).toBeGreaterThanOrEqual(0);
+	expect(box.x + box.width).toBeLessThanOrEqual(390);
+});
+
+async function installNativeServicesFixture(page, withPlugins = false, withNativeAudio = false, withPluginFolders = false) {
+	await page.addInitScript(({ includePlugins, includeNativeAudio, includePluginFolders }) => {
 		const runtimeCalls = [];
 		let probeCount = 0;
 		const unavailablePayload = Object.freeze({
@@ -146,11 +192,16 @@ async function installNativeServicesFixture(page, withPlugins = false, withNativ
 		const quarantine = Object.freeze({
 			loaded: true, degraded: false, records: Object.freeze([]), pendingFaults: 0,
 		});
-		const plugins = Object.freeze({
+		let plugins = Object.freeze({
 			enabled: false, quarantined: false,
-			payload: Object.freeze({ status: 'unavailable', reason: 'not-built' }),
+			payload: Object.freeze(includePluginFolders ? { status: 'available', reason: null } : { status: 'unavailable', reason: 'not-built' }),
 			formats: Object.freeze([]),
-			consent: Object.freeze({ scanningEnabled: false, formats: Object.freeze([]) }),
+			consent: Object.freeze({ scanningEnabled: false, formats: Object.freeze(includePluginFolders ? [
+				{ format: 'vst3', supported: true, granted: false, roots: [
+					{ rootId: 'system-vst3', origin: 'standard', name: 'System VST3 folder', admitted: false },
+				] },
+				{ format: 'au', supported: false, granted: false, roots: [] },
+			] : []) }),
 			quarantine,
 		});
 		let registry = { entries: includePlugins ? [
@@ -182,9 +233,14 @@ async function installNativeServicesFixture(page, withPlugins = false, withNativ
 			readNativeTierControls: async () => Object.freeze({
 				probeHelperEnabled: false, probeHelperQuarantined: false,
 				audioHelperEnabled: false, audioHelperQuarantined: false,
-				nativeEffectDiscoveryEnabled: false,
+				nativeEffectDiscoveryEnabled: plugins.enabled,
 			}),
-			applyNativeTierControl: async () => { throw new Error('No fixture tier control is changed.'); },
+			applyNativeTierControl: async ({ action, enabled }) => {
+				if (!includePluginFolders || action !== 'set-native-effect-discovery-enabled') throw new Error('No fixture tier control is changed.');
+				plugins = { ...plugins, enabled };
+				return { probeHelperEnabled: false, probeHelperQuarantined: false,
+					audioHelperEnabled: false, audioHelperQuarantined: false, nativeEffectDiscoveryEnabled: enabled };
+			},
 			nativeAudioHelperAvailability: async () => { probeCount += 1; return audio; },
 			setNativeAudioHelperEnabled: async () => includeNativeAudio,
 			describeNativeAudioBackend: async ({ backend }) => {
@@ -202,8 +258,24 @@ async function installNativeServicesFixture(page, withPlugins = false, withNativ
 				});
 			},
 			nativePluginAvailability: async () => plugins,
-			setNativePluginConsent: () => refused('setNativePluginConsent'),
-			scanNativePlugins: () => refused('scanNativePlugins'),
+			setNativePluginConsent: async ({ format, action, rootId = '' }) => {
+				if (!includePluginFolders) return refused('setNativePluginConsent');
+				runtimeCalls.push(`consent:${format}:${action}:${rootId}`);
+				const formats = plugins.consent.formats.map((entry) => {
+					if (entry.format !== format) return entry;
+					if (action === 'grant') return { ...entry, granted: true };
+					if (action === 'add-custom-root') return { ...entry, roots: [...entry.roots,
+						{ rootId: 'custom-vst3', origin: 'custom', name: 'plugins', displayPath: '/opt/vendor/plugins', admitted: true }] };
+					return { ...entry, roots: entry.roots.flatMap((root) => root.rootId !== rootId ? [root]
+						: action === 'remove-root' && root.origin === 'custom' ? [] : [{ ...root, admitted: action === 'add-standard-root' }]) };
+				});
+				plugins = { ...plugins, consent: { formats, scanningEnabled: formats.some((entry) => entry.granted && entry.roots.some((root) => root.admitted)) } };
+			},
+			scanNativePlugins: async ({ format, rootId }) => {
+				if (!includePluginFolders) return refused('scanNativePlugins');
+				runtimeCalls.push(`scan:${format}:${rootId}`);
+				return { status: 'described', scan: { format, status: 'complete', detail: '', entries: [] } };
+			},
 			listNativePlugins: async () => registry,
 			openNativeAudioSession: () => refused('openNativeAudioSession'),
 			bindNativeAudioSession: () => refused('bindNativeAudioSession'),
@@ -232,5 +304,5 @@ async function installNativeServicesFixture(page, withPlugins = false, withNativ
 		});
 		const surface = Object.freeze({ v1: bridge });
 		Object.defineProperty(globalThis, 'soundscaperDesktop', { configurable: true, value: surface });
-	}, { includePlugins: withPlugins, includeNativeAudio: withNativeAudio });
+	}, { includePlugins: withPlugins, includeNativeAudio: withNativeAudio, includePluginFolders: withPluginFolders });
 }

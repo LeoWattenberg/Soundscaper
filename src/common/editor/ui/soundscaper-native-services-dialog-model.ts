@@ -301,14 +301,21 @@ async function perform(
 		return Object.freeze({});
 	}
 	if (action.type === 'consent') {
-		await bridge.setNativePluginConsent({
+		if (action.consent === 'add-standard-root' || action.consent === 'add-custom-root') {
+			await grantFolderFormat(bridge, action.format);
+		}
+		const outcome = await bridge.setNativePluginConsent({
 			format: action.format,
 			action: action.consent,
 			rootId: action.rootId ?? '',
 		});
+		if (outcome && typeof outcome === 'object' && 'status' in outcome && outcome.status === 'refused') {
+			throw new Error('message' in outcome ? String(outcome.message) : 'The folder could not be added.');
+		}
 		return Object.freeze({ plugins: await bridge.nativePluginAvailability() });
 	}
 	if (action.type === 'scan') {
+		await grantFolderFormat(bridge, action.format);
 		const outcome = await bridge.scanNativePlugins({ format: action.format, rootId: action.rootId });
 		const [registry, plugins] = await Promise.all([
 			bridge.listNativePlugins(),
@@ -405,6 +412,14 @@ async function perform(
 	}
 	await clear.call(bridge, { digest: action.digest, clearance: action.clearance });
 	return Object.freeze({ plugins: await bridge.nativePluginAvailability() });
+}
+
+/** Choosing or scanning a folder is the user's consent; no separate format switch is needed. */
+async function grantFolderFormat(bridge: SoundscaperNativeServicesBridge, format: string): Promise<void> {
+	const plugins = await bridge.nativePluginAvailability();
+	if (!plugins.consent.formats.find((entry) => entry.format === format)?.granted) {
+		await bridge.setNativePluginConsent({ format, action: 'grant' });
+	}
 }
 
 function withScan(

@@ -193,7 +193,7 @@ export function registerDesktopPluginDiscovery({
 	});
 	const consent = createConsent(consentPath, async (format) => {
 		// The picker is the only way a custom root enters the model, and it is
-		// main-owned: the renderer can neither propose a path nor learn one.
+		// Main owns the picker. The selected custom path is display-only in preferences.
 		const window = parentWindow();
 		const result = await (window
 			? dialog.showOpenDialog(window, { title: pickerTitle(format), properties: ['openDirectory'] })

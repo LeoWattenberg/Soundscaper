@@ -57,7 +57,7 @@ test('Framescaper receives none of the Soundscaper native audio tier', () => {
 test('every native surface is reached from an existing menu family and none is always-visible chrome', () => {
 	const { items } = build();
 	const ids = [...flatten(items.tools), ...flatten(items.effect), ...flatten(items.analyze)].map(({ id }) => id);
-	for (const surface of SOUNDSCAPER_NATIVE_SERVICE_SURFACES.filter((id) => id !== 'native-effect-scan')) {
+	for (const surface of SOUNDSCAPER_NATIVE_SERVICE_SURFACES) {
 		assert.ok(ids.includes(surface), `${surface} must be menu-reached`);
 	}
 	assert.deepEqual(Object.keys(items), ['tools', 'effect', 'analyze']);

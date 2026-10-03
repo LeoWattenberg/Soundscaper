@@ -4,10 +4,8 @@
  * The one surface behind every milestone-5A native menu entry.
  *
  * It is opened from a menu and nowhere else — the editor gains no permanent
- * chrome from the native tier — and it is the only place a user can grant a
- * format, admit a folder, watch a scan, read what the scan found, or clear a
- * quarantined digest. Everything it draws came from the preload bridge, so it
- * names status and never mechanism.
+ * chrome from the native tier. It manages installed effects and quarantined
+ * versions; folder scanning settings live in Preferences → Effects.
  */
 
 import NativeProcessingTheme from './NativeProcessingTheme.tsx';
@@ -42,7 +40,6 @@ import {
 } from '../soundscaper-native-services-menu.ts';
 import {
 	SoundscaperNativeEffectManagePanel,
-	SoundscaperNativeEffectScanPanel,
 } from './SoundscaperNativeEffectPanels.tsx';
 import type { SoundscaperVampAnalyzerSurfaceInput } from '../workspace/SoundscaperNativeServicesSurface.tsx';
 
@@ -93,7 +90,7 @@ function NativeServicesDialog({
 
 	const surfaces: readonly SoundscaperNativeServiceSurface[] = initialSurface.startsWith('native-audio')
 		? ['native-audio-device', 'native-audio-preferences']
-		: initialSurface === 'native-effect-use' ? ['native-effect-use'] : ['native-effect-manage', 'native-effect-scan'];
+		: initialSurface === 'native-effect-use' ? ['native-effect-use'] : ['native-effect-manage'];
 	const busy = state.pending !== null || Object.values(state.scans).some((scan) => scan.running);
 	const handleTabKey = (event: KeyboardEvent<HTMLButtonElement>): void => {
 		const next = adjacentSurface(surface, event.key, surfaces);
@@ -157,12 +154,6 @@ function NativeServicesDialog({
 					copy={copy}
 					state={state}
 					disabled={state.pending !== null}
-					perform={perform}
-				/>}
-				{surface === 'native-effect-scan' && <SoundscaperNativeEffectScanPanel
-					copy={copy}
-					state={state}
-					disabled={state.pending !== null || processingBlocked}
 					perform={perform}
 				/>}
 				{(surface === 'native-effect-manage' || surface === 'native-effect-use') && <SoundscaperNativeEffectManagePanel
@@ -474,7 +465,6 @@ function surfaceLabel(
 	if (surface === 'native-audio-device') return copy.tabAudioDevice;
 	if (surface === 'native-audio-preferences') return copy.tabAudioPreferences;
 	if (surface === 'native-effect-use') return copy.audioPluginEffects;
-	if (surface === 'native-effect-scan') return copy.tabEffectScan;
 	return copy.tabEffectManage;
 }
 

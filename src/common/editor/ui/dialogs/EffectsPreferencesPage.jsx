@@ -1,19 +1,15 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { PreferencePanel } from '@soundscaper/design-system/PreferencePanel';
+import { lazy, Suspense } from 'react';
 
 import PreferenceDropdownField from './PreferenceDropdownField.jsx';
 
-/**
- * Audacity's Effects preferences page.
- *
- * Audacity 4 lists the page without a body; Audacity 3's page is mostly plug-in
- * providers, scanning and the plug-in manager, which this editor keeps behind
- * its own native-services surface. What survives the port is the one setting
- * that governs an editor this size: how the Effect menu is arranged.
- */
-export default function EffectsPreferencesPage({ controller, snapshot, copy, run }) {
+const PluginFoldersPreferences = lazy(() => import('./SoundscaperPluginFoldersPreferences.tsx'));
+
+export default function EffectsPreferencesPage({ controller, snapshot, copy, run, productId = 'soundscaper' }) {
 	return (
+		<>
 		<PreferencePanel title={copy.effectOptions}>
 			<div className="kw-audio-editor-preferences__grid">
 				<PreferenceDropdownField
@@ -29,5 +25,9 @@ export default function EffectsPreferencesPage({ controller, snapshot, copy, run
 				/>
 			</div>
 		</PreferencePanel>
+		<Suspense fallback={null}>
+			<PluginFoldersPreferences productId={productId} copy={copy} />
+		</Suspense>
+		</>
 	);
 }
