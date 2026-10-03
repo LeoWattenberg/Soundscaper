@@ -9,7 +9,7 @@ import { AudacityWaveformCanvases } from '../src/common/editor/ui/timeline/Timel
 import { resolveSkinTheme } from '../src/common/editor/ui/skins/skin-themes.ts';
 import { installReactTestDom } from './helpers/react-test-dom.ts';
 
-test('pending zoom preserves filled waveforms and aligns changed viewport ranges', async () => {
+test('scale changes repaint cached waveforms and pending zoom aligns changed viewport ranges', async () => {
 	const dom = installReactTestDom();
 	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
 	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
@@ -33,6 +33,7 @@ test('pending zoom preserves filled waveforms and aligns changed viewport ranges
 	let resizeWrites = 0;
 	let clears = 0;
 	let fills = 0;
+	const fillHeights: number[] = [];
 	let lineSegments = 0;
 	let painted = false;
 	const context = {
@@ -43,8 +44,9 @@ test('pending zoom preserves filled waveforms and aligns changed viewport ranges
 			clears += 1;
 			painted = false;
 		},
-		fillRect() {
+		fillRect(_x: number, _y: number, _width: number, height: number) {
 			fills += 1;
+			fillHeights.push(height);
 			painted = true;
 		},
 		beginPath() {},
@@ -122,9 +124,9 @@ test('pending zoom preserves filled waveforms and aligns changed viewport ranges
 	};
 	const { createRoot } = await import('react-dom/client');
 	const root = createRoot(dom.container as unknown as Element);
-	const render = async (clips: readonly Record<string, unknown>[], pixelsPerSecond: number) => {
+	const render = async (clips: readonly Record<string, unknown>[], pixelsPerSecond: number, waveformRulerFormat = 'linear-db') => {
 		await act(async () => root.render(<ThemeProvider theme={resolveSkinTheme('default', 'light')}>
-			<AudacityWaveformCanvases {...baseProps} clips={clips} pixelsPerSecond={pixelsPerSecond} />
+			<AudacityWaveformCanvases {...baseProps} clips={clips} pixelsPerSecond={pixelsPerSecond} waveformRulerFormat={waveformRulerFormat} />
 		</ThemeProvider>));
 	};
 
@@ -134,6 +136,17 @@ test('pending zoom preserves filled waveforms and aligns changed viewport ranges
 		assert.ok(fills > 0);
 		assert.equal(painted, true);
 		assert.strictEqual(canvas.__kwWaveformPlan, plan);
+		const originalHeight = fillHeights[0];
+		const unchangedClips = [{ ...clipBase, audacityWaveform: plan }];
+		await render(unchangedClips, 100, 'logarithmic-db');
+		assert.equal(clears, 2, 'changing only the scale repaints the cached linear plan');
+		assert.ok(fillHeights.at(-1)! > originalHeight!, 'dB spacing enlarges a quiet waveform');
+		assert.strictEqual(canvas.__kwWaveformPlan, plan, 'the display scale never alters source amplitudes');
+		assert.equal(canvas.dataset.waveformAmplitudeScale, 'db');
+		await render(unchangedClips, 100, 'linear-amp');
+		assert.equal(clears, 3);
+		assert.equal(fillHeights.at(-1), originalHeight);
+		assert.equal(canvas.dataset.waveformAmplitudeScale, 'linear');
 		const clearsAfterPaint = clears;
 		const resizeWritesAfterPaint = resizeWrites;
 

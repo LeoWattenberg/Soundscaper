@@ -6,6 +6,8 @@ import {
 	MAXIMUM_WAVEFORM_VERTICAL_ZOOM,
 } from './geometry.ts';
 import { audioEditorStereoChannelGeometry } from './stereo-channel-height-runtime.ts';
+import { audacityWaveformChannelGeometry } from '../../audacity-waveform-renderer.js';
+import { unscaleWaveformAmplitude } from '../../waveform-amplitude-scale.ts';
 
 export function samplePointAtPointer(event, lane, clip, source, frameAtClientX, lockedChannel = null) {
 	const rect = lane.getBoundingClientRect();
@@ -32,10 +34,18 @@ export function samplePointAtPointer(event, lane, clip, source, frameAtClientX, 
 		clip.timelineStartFrame,
 		Math.min(clip.timelineStartFrame + clip.durationFrames - 1, frameAtClientX(event.clientX, lane)),
 	);
+	let value = 1 - 2 * channelY / geometry.height;
+	if (lane.dataset?.waveformRulerFormat === 'logarithmic-db') {
+		const halfWave = lane.dataset.halfWave === 'true';
+		const { centerY, maxAmplitude } = audacityWaveformChannelGeometry(0, geometry.height, halfWave);
+		const zoom = Math.max(0, Math.min(MAXIMUM_WAVEFORM_VERTICAL_ZOOM, Number(lane.dataset.waveformZoom) || 0));
+		const scaled = maxAmplitude > 0 ? (centerY - channelY) / (maxAmplitude * 2 ** zoom) : 0;
+		value = unscaleWaveformAmplitude(Math.max(halfWave ? 0 : -1, Math.min(1, scaled)), 'db');
+	}
 	return {
 		channel,
 		timelineFrame,
-		value: Math.max(-1, Math.min(1, 1 - 2 * channelY / geometry.height)),
+		value: Math.max(-1, Math.min(1, value)),
 	};
 }
 

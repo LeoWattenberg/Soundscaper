@@ -10,6 +10,8 @@
  * are documented in THIRD_PARTY_LICENSES.md.
  */
 
+import { scaleWaveformAmplitude } from './waveform-amplitude-scale.ts';
+
 const CONNECTING_DOTS_THRESHOLD = 0.5;
 
 /** Audacity draws sample heads and zero-line stems from this scale upwards. */
@@ -65,6 +67,7 @@ export function drawAudacityWaveformChannel(context, rendering, options = {}) {
 	const centerY = finite(options.centerY, 'centerY');
 	const maxAmplitude = Math.max(0, finite(options.maxAmplitude, 'maxAmplitude'));
 	const halfWave = Boolean(options.halfWave);
+	const amplitudeScale = options.amplitudeScale === 'db' ? 'db' : 'linear';
 	const envelopeGain = typeof options.envelopeGain === 'function' ? options.envelopeGain : () => 1;
 	const sampleColor = typeof options.sampleColor === 'function' ? options.sampleColor : () => options.sampleColor || '#000';
 	const rmsColor = typeof options.rmsColor === 'function' ? options.rmsColor : () => options.rmsColor || '#000';
@@ -79,6 +82,7 @@ export function drawAudacityWaveformChannel(context, rendering, options = {}) {
 			centerY,
 			maxAmplitude,
 			halfWave,
+			amplitudeScale,
 			envelopeGain,
 			sampleColor,
 			centerLineColor,
@@ -92,6 +96,7 @@ export function drawAudacityWaveformChannel(context, rendering, options = {}) {
 		centerY,
 		maxAmplitude,
 		halfWave,
+		amplitudeScale,
 		envelopeGain,
 		sampleColor,
 		rmsColor,
@@ -126,8 +131,8 @@ function drawSummaryColumns(context, channel, options) {
 			rmsSquareSum += sourceRms * sourceRms;
 		}
 		const gain = finiteGain(options.envelopeGain(x, columnCount));
-		minimum *= gain;
-		maximum *= gain;
+		minimum = scaleWaveformAmplitude(minimum * gain, options.amplitudeScale);
+		maximum = scaleWaveformAmplitude(maximum * gain, options.amplitudeScale);
 		if (minimum > maximum) [minimum, maximum] = [maximum, minimum];
 		if (options.halfWave) {
 			minimum = Math.max(0, minimum);
@@ -136,7 +141,7 @@ function drawSummaryColumns(context, channel, options) {
 		fillAmplitudeSpan(context, x, minimum, maximum, options.centerY, options.maxAmplitude, options.sampleColor(x), options.pixelRatioX);
 
 		if (!options.showRms || !channel.rms) continue;
-		const rms = Math.max(0, Math.sqrt(rmsSquareSum / (sourceEnd - sourceStart)) * gain);
+		const rms = scaleWaveformAmplitude(Math.sqrt(rmsSquareSum / (sourceEnd - sourceStart)) * gain, options.amplitudeScale);
 		const rmsMinimum = options.halfWave ? minimum : Math.max(minimum, -rms);
 		const rmsMaximum = Math.min(maximum, rms);
 		if (rmsMinimum <= rmsMaximum) {
@@ -154,7 +159,7 @@ function drawIndividualSamples(context, channel, options) {
 	for (let index = 0; index < samples.length; index += 1) {
 		const x = firstSampleX + index * pixelsPerSample;
 		const gain = finiteGain(options.envelopeGain(x, options.width));
-		let value = finiteSample(samples[index]) * gain;
+		let value = scaleWaveformAmplitude(finiteSample(samples[index]) * gain, options.amplitudeScale);
 		if (options.halfWave) value = Math.max(0, value);
 		points[index] = {
 			x,

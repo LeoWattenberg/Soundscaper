@@ -97,10 +97,7 @@ export function AudioTrackRow({
 	const trackWindowRef = useRef(null);
 	const [channelHeightRatioPreview, setChannelHeightRatioPreview] = useState(null);
 	const trackHeight = visualHeight;
-	const {
-		top: channelBodyTop,
-		height: channelBodyHeight,
-	} = audioEditorClipBodyGeometry(trackHeight);
+	const { top: channelBodyTop, height: channelBodyHeight } = audioEditorClipBodyGeometry(trackHeight);
 	const visualSelectedClipIds = selectedClipIdSet.size ? selectedClipIdSet : new Set([selectedClipId]);
 	const { displayMode, halfWave, showRms } = resolveTrackWaveformOptions(track, timelineView, globalShowRms);
 	const storedChannelHeightRatio = channelHeightRatio ?? 0.5;
@@ -306,6 +303,9 @@ export function AudioTrackRow({
 				data-spectrogram-range={track.spectrogram?.range ?? 80}
 				data-channel-body-top={channelBodyTop}
 				data-channel-height-ratio={displayChannelHeightRatio}
+				data-waveform-ruler-format={waveformRulerFormat}
+				data-waveform-zoom={waveformZoom}
+				data-half-wave={halfWave}
 				aria-label={track.name}
 				data-selected={selectedTrackId === track.id}
 				style={{ marginLeft: panelWidth, width: timelineWidth + verticalRulerWidth, height: trackHeight }}
@@ -392,6 +392,7 @@ export function AudioTrackRow({
 						showRms={showRms}
 						halfWave={halfWave}
 						verticalZoom={waveformZoom}
+						waveformRulerFormat={waveformRulerFormat}
 						channelHeightRatio={displayChannelHeightRatio}
 						spectrogramOptions={spectrogramOptions}
 					/>

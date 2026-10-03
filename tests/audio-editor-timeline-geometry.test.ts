@@ -36,6 +36,17 @@ test('timeline frequency geometry round-trips every supported ruler scale', () =
 	assert.equal(normalizeSpectrogramScale('unsupported'), 'mel');
 });
 
+test('waveform ruler formats retain logarithmic dB and preserve the existing default', () => {
+	for (const format of ['linear-amp', 'linear-db', 'logarithmic-db'] as const) {
+		assert.equal(normalizeWaveformRulerFormat(format), format);
+		assert.deepEqual(normalizeWaveformRulerState({ format, zoom: 2 }), { format, zoom: 2 });
+	}
+	assert.deepEqual(normalizeWaveformRulerState(), { format: 'linear-db', zoom: 0 });
+	assert.deepEqual(normalizeWaveformRulerState({ format: 'unsupported', zoom: 3 }), {
+		format: 'linear-db', zoom: 3,
+	});
+});
+
 test('timeline frame, meter, and height geometry keeps existing bounds', () => {
 	assert.equal(secondsDeltaToFrames(-0.5, 48_000), -24_000);
 	assert.equal(secondsDeltaToFrames(Number.NaN, 48_000), 0);

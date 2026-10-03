@@ -379,9 +379,9 @@ test.describe('audio editor React/design-system workflows', () => {
 		const rulerFlyout = page.locator('.audio-editor-ruler-flyout');
 		await expect(rulerFlyout).toBeVisible();
 		const rulerFormats = rulerFlyout.getByRole('radiogroup', { name: 'Ruler format' });
-		await expect(rulerFormats.getByRole('radio')).toHaveCount(2);
-		await expect(rulerFormats.getByRole('radio', { name: 'Logarithmic (dB)', exact: true })).toHaveCount(0);
-		await rulerFormats.getByRole('radio').nth(1).click();
+		await expect(rulerFormats.getByRole('radio')).toHaveCount(3);
+		await expect(rulerFormats.getByRole('radio', { name: 'dB (logarithmic)', exact: true })).toBeVisible();
+		await rulerFormats.getByRole('radio', { name: 'Linear (dB)', exact: true }).click();
 		await expect(verticalRuler).toHaveAttribute('data-ruler-format', 'linear-db');
 		await rulerFlyout.getByRole('button', { name: 'Zoom in', exact: true }).click();
 		await expect(verticalRuler).toHaveAttribute('data-ruler-zoom', '1');

@@ -31,6 +31,10 @@ export interface RadioProps {
    * Additional CSS classes
    */
   className?: string;
+  /**
+   * Accessible label for screen readers
+   */
+  'aria-label'?: string;
 }
 
 export const Radio: React.FC<RadioProps> = ({
@@ -41,6 +45,7 @@ export const Radio: React.FC<RadioProps> = ({
   value,
   tabIndex,
   className = '',
+  'aria-label': ariaLabel,
 }) => {
   const { theme } = useTheme();
 
@@ -72,6 +77,7 @@ export const Radio: React.FC<RadioProps> = ({
       onClick={handleChange}
       role="radio"
       aria-checked={checked}
+      aria-label={ariaLabel}
       tabIndex={tabIndex !== undefined ? tabIndex : (disabled ? -1 : 0)}
       onKeyDown={handleKeyDown}
       style={style}

@@ -3,6 +3,7 @@
 export { reprojectPendingFrequencyWaveform } from './frequency-waveform-continuity.ts';
 
 import { drawAudacityWaveformChannel } from '../../audacity-waveform-renderer.js';
+import type { WaveformAmplitudeScale } from '../../waveform-amplitude-scale.ts';
 import type { WaveformRendering } from '../../design-system-adapters/types.ts';
 import {
 	frequencyWaveformColor,
@@ -11,6 +12,7 @@ import {
 import { frequencyWaveformRmsColor, frequencyWaveformTheme, type FrequencyWaveformTheme } from './frequency-waveform-palette.ts';
 
 export interface FrequencyWaveformChannelDrawingOptions {
+	readonly amplitudeScale?: WaveformAmplitudeScale;
 	readonly channel: number;
 	readonly width: number;
 	readonly pixelRatioX: number;

@@ -30,6 +30,7 @@ export function AudacityWaveformCanvases({
 	timeSelection,
 	showRms,
 	halfWave,
+	waveformRulerFormat = 'linear-db',
 	verticalZoom,
 	channelHeightRatio,
 	spectrogramOptions,
@@ -90,6 +91,7 @@ export function AudacityWaveformCanvases({
 				pixelsPerSecond,
 				showRms,
 				halfWave,
+				waveformRulerFormat,
 				verticalZoom,
 				channelHeightRatio,
 				spectrogramDrawKey,
@@ -118,6 +120,7 @@ export function AudacityWaveformCanvases({
 					timeSelection,
 					showRms,
 					halfWave,
+					waveformRulerFormat,
 					verticalZoom,
 					channelHeightRatio,
 					frequencyWaveformRenderer,
@@ -202,7 +205,7 @@ export function AudacityWaveformCanvases({
 			resizeObserver?.disconnect();
 			scheduler.dispose();
 		};
-	}, [channelHeightRatio, clips, displayMode, frequencyWaveformRenderer, halfWave, pixelsPerSecond, renderSpectrogramOptions, rootRef, showRms, spectrogramDrawKey, spectrogramRevision, themeDrawKey, timeSelection, verticalZoom]);
+	}, [channelHeightRatio, clips, displayMode, frequencyWaveformRenderer, halfWave, pixelsPerSecond, renderSpectrogramOptions, rootRef, showRms, spectrogramDrawKey, spectrogramRevision, themeDrawKey, timeSelection, verticalZoom, waveformRulerFormat]);
 	return null;
 }
 
@@ -242,6 +245,7 @@ export function resetAudacityClipCanvas(canvas) {
 	delete canvas.dataset.waveformSource;
 	delete canvas.dataset.spectrogramRenderer;
 	delete canvas.dataset.frequencyWaveformMode;
+	delete canvas.dataset.waveformAmplitudeScale;
 }
 
 export function audacityCanvasDrawKey(canvas, clip, drawKey, bounds = canvas.getBoundingClientRect()) {
@@ -308,7 +312,8 @@ export function drawAudacityClipCanvas(canvas, clip, options) {
 	const channelGeometry = channelCount > 1
 		? audioEditorStereoChannelGeometry(waveformHeight, options.channelHeightRatio)
 		: [{ top: 0, height: waveformHeight }];
-	const amplitudeScale = 2 ** Math.max(0, Math.min(MAXIMUM_WAVEFORM_VERTICAL_ZOOM, Number(options.verticalZoom) || 0));
+	const verticalMagnification = 2 ** Math.max(0, Math.min(MAXIMUM_WAVEFORM_VERTICAL_ZOOM, Number(options.verticalZoom) || 0));
+	const amplitudeScale = options.waveformRulerFormat === 'logarithmic-db' ? 'db' : 'linear';
 	const evaluateEnvelope = rendering.envelope?.length
 		? createEnvelopeValueEvaluator(rendering.envelope, rendering.durationFrames)
 		: null;
@@ -370,7 +375,8 @@ export function drawAudacityClipCanvas(canvas, clip, options) {
 			width,
 			pixelRatioX,
 			...geometry,
-			maxAmplitude: geometry.maxAmplitude * amplitudeScale,
+			maxAmplitude: geometry.maxAmplitude * verticalMagnification,
+			amplitudeScale,
 			halfWave: options.halfWave,
 			envelopeGain,
 			centerLineColor: divider,
@@ -403,6 +409,7 @@ export function drawAudacityClipCanvas(canvas, clip, options) {
 	canvas.dataset.waveformRenderer = 'audacity';
 	canvas.dataset.waveformMode = rendering.mode;
 	canvas.dataset.waveformOwner = 'audacity';
+	canvas.dataset.waveformAmplitudeScale = amplitudeScale;
 	const frequencyMode = frequencyPainted ? options.displayMode : null;
 	if (frequencyMode) canvas.dataset.frequencyWaveformMode = frequencyMode;
 	else delete canvas.dataset.frequencyWaveformMode;
