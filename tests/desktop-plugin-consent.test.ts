@@ -304,7 +304,7 @@ test('a persisted state may not carry more custom roots than the ceiling allows'
 	assert.equal(fine.scanTargets('vst3').length, MAXIMUM_CUSTOM_PLUGIN_ROOTS);
 });
 
-test('the renderer-facing projection never carries an absolute path', async () => {
+test('only custom folder display paths reach preferences; scan authority stays with opaque ids', async () => {
 	const platforms = [
 		{ platform: 'darwin', home: '/Users/tester', picks: ['/Users/tester/Secret Plug-Ins/Vendor A'] },
 		{ platform: 'linux', home: '/home/tester', picks: ['/srv/audio/vendor-b'] },
@@ -325,14 +325,15 @@ test('the renderer-facing projection never carries an absolute path', async () =
 		for (const _pick of target.picks) await consent.addCustomRoot('vst3');
 
 		const view = consent.describe();
-		const serialized = JSON.stringify(view);
-		for (const value of projectedStrings(view)) {
+		const labels = view.formats.flatMap((format) => format.roots.map(({ displayPath: _displayPath, ...root }) => root));
+		for (const value of projectedStrings(labels)) {
 			assert.equal(value.includes('/'), false, `${value} leaks a POSIX path separator`);
 			assert.equal(value.includes('\\'), false, `${value} leaks a Windows path separator`);
 			assert.equal(/^[A-Za-z]:/u.test(value), false, `${value} leaks a drive designator`);
 		}
-		for (const path of rawPaths) {
-			assert.equal(serialized.includes(path), false, `${path} reached renderer-facing state`);
+		for (const format of view.formats) for (const root of format.roots) {
+			assert.equal(root.displayPath, root.origin === 'custom'
+				? consent.resolveRoot(format.format, root.rootId).path : undefined);
 		}
 		// The paths are still there on the main side, which is the point.
 		assert.ok(consent.scanTargets('vst3').some((root) => rawPaths.includes(root.path)));

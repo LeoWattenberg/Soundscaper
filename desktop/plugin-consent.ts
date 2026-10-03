@@ -10,11 +10,10 @@
  * until admitted — and custom roots arrive only through a main-owned directory
  * picker injected as a seam, never from anything the renderer says.
  *
- * The raw paths stay on this side of the bridge. `describe()` is the entire
- * renderer-facing projection and carries opaque root ids, an origin, and a
- * display name that is provably free of path separators; `scanTargets()` and
- * `resolveRoot()` are the main-private accessors that hold the real path, and
- * both refuse a format the user has not granted.
+ * `describe()` carries opaque root ids, an origin, and a display name.
+ * Custom folders also expose the picker-selected path for display in preferences.
+ * Requests still use opaque ids; `scanTargets()` and `resolveRoot()` own path
+ * authority and both refuse a format the user has not granted.
  */
 
 import { createHash } from 'node:crypto';
@@ -148,12 +147,13 @@ export interface PluginRoot {
 	readonly path: string;
 }
 
-/** Renderer-facing. Opaque id, origin, display name — never a path. */
+/** Renderer-facing. Custom paths are display-only; requests use the opaque id. */
 export interface PluginRootView {
 	readonly rootId: string;
 	readonly origin: PluginRootOrigin;
 	readonly name: string;
 	readonly admitted: boolean;
+	readonly displayPath?: string;
 }
 
 export interface PluginFormatConsentView {
@@ -470,7 +470,8 @@ function customRootCount(state: FormatState): number {
 }
 
 function projectRoot(root: PluginRoot, admitted: boolean): PluginRootView {
-	return Object.freeze({ rootId: root.rootId, origin: root.origin, name: root.name, admitted });
+	return Object.freeze({ rootId: root.rootId, origin: root.origin, name: root.name, admitted,
+		...(root.origin === 'custom' ? { displayPath: root.path } : {}) });
 }
 
 function customRoot(format: PluginFormat, picked: string): PluginRoot {

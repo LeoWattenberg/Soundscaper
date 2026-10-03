@@ -5,7 +5,7 @@ import { acceptableTranslation } from './translation-catalog.js';
 import { MACRO_MANAGER_COPY_BY_LOCALE } from './editor-macro-manager-copy.ts';
 import { TRACK_AUTOMATION_COPY_BY_LOCALE } from './editor-track-automation-copy.ts';
 import { EFFECT_MACRO_TEMPLATE_COPY_BY_LOCALE } from './editor-effect-macro-template-copy.ts';
-import { SOUNDSCAPER_NATIVE_SERVICES_COPY } from './editor-soundscaper-native-services-copy.ts';
+import { SOUNDSCAPER_NATIVE_SERVICES_COPY, SOUNDSCAPER_NATIVE_SERVICES_GERMAN_COPY } from './editor-soundscaper-native-services-copy.ts';
 import { FRAMESCAPER_NATIVE_SERVICES_COPY } from './editor-framescaper-native-services-copy.ts';
 import { SOUNDSCAPER_MASTERING_SEQUENCE_COPY } from './editor-soundscaper-mastering-sequence-copy.ts';
 import { SOUNDSCAPER_ROUTING_GRAPH_COPY } from './editor-soundscaper-routing-graph-copy.ts';
@@ -115,7 +115,7 @@ const inventory = buildEditorCopyInventory(ENGLISH_COPY, GERMAN_COPY, [
 	{ owner: 'macroManager', ...MACRO_MANAGER_COPY_BY_LOCALE },
 	{ owner: 'trackAutomation', ...TRACK_AUTOMATION_COPY_BY_LOCALE },
 	{ owner: 'effectMacroTemplate', en: templateEnglish, de: templateGerman },
-	{ owner: 'soundscaperNative', en: SOUNDSCAPER_NATIVE_SERVICES_COPY, aliases: processingAliases },
+	{ owner: 'soundscaperNative', en: SOUNDSCAPER_NATIVE_SERVICES_COPY, de: SOUNDSCAPER_NATIVE_SERVICES_GERMAN_COPY, aliases: processingAliases },
 	{ owner: 'parallelStacks', ...PARALLEL_STACK_COPY_BY_LOCALE },
 	{ owner: 'clipSpreadsheet', ...CLIP_SPREADSHEET_COPY_BY_LOCALE },
 	{ owner: 'framescaperNative', en: FRAMESCAPER_NATIVE_SERVICES_COPY, aliases: processingAliases },

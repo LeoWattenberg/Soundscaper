@@ -440,7 +440,7 @@ test('consent and root admission go through the bridge and re-read what the tier
 	assert.equal(admitted.plugins?.consent.formats[0]?.format, 'fixture');
 });
 
-test('the dialog is an accessible modal that shows progress, results, consent and the quarantine exit', () => {
+test('the manager is an accessible modal for installed plugins and quarantine, with scanning settings in preferences', () => {
 	const action: SoundscaperNativeServicesDialogAction = { type: 'scan', format: 'fixture', rootId: 'r1' };
 	const seeded: SoundscaperNativeServicesDialogState = {
 		...EMPTY_SOUNDSCAPER_NATIVE_SERVICES_DIALOG_STATE,
@@ -465,7 +465,7 @@ test('the dialog is an accessible modal that shows progress, results, consent an
 
 	const markup = renderToStaticMarkup(<SoundscaperNativeServicesDialog
 		bridge={fakeBridge().bridge}
-		initialSurface="native-effect-scan"
+		initialSurface="native-effect-manage"
 		initialState={seeded}
 		onClose={() => {}}
 	/>);
@@ -473,11 +473,10 @@ test('the dialog is an accessible modal that shows progress, results, consent an
 	assert.match(markup, /role="dialog"/u);
 	assert.match(markup, /aria-modal="true"/u);
 	assert.match(markup, /role="tablist"/u);
-	assert.match(markup, /data-native-service-tab="native-effect-scan"/u);
+	assert.doesNotMatch(markup, /native-effect-scan|Allow scanning|Admit folder/u);
 	assert.match(markup, /aria-live="polite"/u, 'progress must be announced, not merely drawn');
 	assert.match(markup, /aria-busy="true"/u, 'a running scan must say so');
-	assert.match(markup, /System fixture folder/u, 'an admitted root must be nameable');
-	assert.match(markup, /User fixture folder/u, 'an offered root must be admittable');
+	assert.doesNotMatch(markup, /System fixture folder|User fixture folder/u);
 
 	const manage = renderToStaticMarkup(<SoundscaperNativeServicesDialog
 		bridge={fakeBridge().bridge}
@@ -534,7 +533,7 @@ test('the menu-opened surface mounts and unmounts one host, and nothing before i
 	assert.deepEqual(rendered, [], 'nothing is mounted until a menu entry asks for it');
 	host.open('native-effect-manage');
 	assert.equal(rendered.length, 1);
-	host.open('native-effect-scan');
+	host.open('native-effect-use');
 	assert.equal(rendered.length, 2, 'reopening reuses the one host rather than stacking dialogs');
 	assert.equal(appended.length, 1, 'one container, however often the menu opens the surface');
 	assert.equal(container.dataset.editorSurface, 'soundscaper-native-services');

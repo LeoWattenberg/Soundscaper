@@ -4,8 +4,8 @@
  * The renderer's whole view of the milestone-5A native tier.
  *
  * Everything the surfaces know arrives through the preload bridge, which
- * reports status and never mechanism, so this module holds no path, no library
- * name and no binary identity beyond the digests the quarantine is keyed by.
+ * reports status and picker-selected custom folder paths for preferences.
+ * Filesystem authority stays in main; requests use opaque ids, never paths.
  * A build without the bridge resolves to nothing and the tier stays invisible
  * rather than advertising itself as a permanently grey menu.
  */
@@ -43,6 +43,8 @@ export interface NativePluginRootView {
 	readonly origin: string;
 	readonly name: string;
 	readonly admitted: boolean;
+	/** Picker-selected custom folder path, for display only. */
+	readonly displayPath?: string;
 }
 
 export interface NativePluginFormatConsentView {
@@ -124,7 +126,7 @@ export interface NativePluginRegistryView {
 	readonly entries: readonly NativePluginEntryView[];
 }
 
-export type NativePluginConsentAction = 'grant' | 'revoke' | 'add-standard-root' | 'add-custom-root';
+export type NativePluginConsentAction = 'grant' | 'revoke' | 'add-standard-root' | 'add-custom-root' | 'remove-root';
 
 /** The quarantine's only exit, named by the clearance the store accepts. */
 export type NativePluginQuarantineClearance = 'rescan' | 're-enable';

@@ -27,7 +27,6 @@ import {
 export const SOUNDSCAPER_NATIVE_SERVICE_SURFACES = Object.freeze([
 	'native-audio-device',
 	'native-audio-preferences',
-	'native-effect-scan',
 	'native-effect-manage',
 	'native-effect-use',
 	'native-analyzer-use',
