@@ -53,6 +53,7 @@ export interface AssistanceHelperRuntimeOptions {
 	readonly host: AssistanceSpeechHostPort;
 	/** Prepares the optional native closure only for an actual inference request. */
 	readonly ensureRuntime?: (signal?: AbortSignal) => Promise<void>;
+	/** Authenticates installed bytes without loading the native module. */
 	readonly runtimeInstalled?: () => Promise<boolean>;
 	readonly mintJobId?: () => string;
 	/** Narrow stream seam used to keep grant capture independently abortable. */
@@ -88,8 +89,9 @@ export function createAssistanceHelperRuntimeAdapter(
 		async status(): Promise<SpeechRuntimeStatus> {
 			if (options.runtimeInstalled) {
 				try {
-					if (!await options.runtimeInstalled()) return Object.freeze({ available: false,
-						reason: 'The optional speech runtime is not installed.',
+					const installed = await options.runtimeInstalled();
+					return Object.freeze({ available: installed,
+						reason: installed ? null : 'The optional speech runtime is not installed.',
 						moduleId: SPEECH_RUNTIME_MODULE_ID });
 				} catch {
 					return Object.freeze({ available: false,

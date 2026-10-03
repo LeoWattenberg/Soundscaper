@@ -246,6 +246,37 @@ test('an absent downloadable speech runtime is reported without spawning or down
 	});
 });
 
+test('an installed speech runtime is reported without loading or spawning it', async () => {
+	let installationsChecked = 0;
+	const runtime = createAssistanceHelperRuntimeAdapter({
+		runtimeInstalled: async () => { installationsChecked += 1; return true; },
+		ensureRuntime: async () => { throw new Error('Status must not prepare a runtime.'); },
+		host: {
+			start() { throw new Error('Model browsing must not load the speech helper.'); },
+			dispose() {},
+		},
+	});
+	assert.deepEqual(await runtime.status(), {
+		available: true, reason: null, moduleId: SPEECH_RUNTIME_MODULE_ID,
+	});
+	assert.equal(installationsChecked, 1);
+});
+
+test('runtime inspection failures remain pathless without starting a helper', async () => {
+	const runtime = createAssistanceHelperRuntimeAdapter({
+		runtimeInstalled: async () => { throw new Error('Unreadable /private/runtime/native.node'); },
+		host: {
+			start() { throw new Error('A failed inspection must not start the helper.'); },
+			dispose() {},
+		},
+	});
+	assert.deepEqual(await runtime.status(), {
+		available: false,
+		reason: 'The optional speech runtime failed to load.',
+		moduleId: SPEECH_RUNTIME_MODULE_ID,
+	});
+});
+
 test('a missing or non-file grant is refused before any helper job starts', async (t) => {
 	const root = await mkdtemp(join(tmpdir(), 'scape-speech-grants-'));
 	t.after(() => rm(root, { recursive: true, force: true }));

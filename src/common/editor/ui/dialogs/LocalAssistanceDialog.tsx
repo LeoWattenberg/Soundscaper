@@ -36,6 +36,8 @@ import { assistanceTaskModelFilter, assistanceTaskModelsReady } from '../../cont
 import type { LocalModelManagerBridge } from '../local-model-manager-bridge.ts';
 import { lazyEditorModule } from '../../../offline/lazy-module.tsx';
 import LocalAssistanceTaskSummary, { LocalAssistanceTaskActions } from './LocalAssistanceTaskSummary.tsx';
+import { AssistanceLoadingProgress } from './AssistanceLoadingDialog.tsx';
+import AssistanceProcessingProgress from './AssistanceProcessingProgress.tsx';
 import './LocalAssistanceDialog.css';
 import './ProcessingDialogs.css';
 
@@ -239,6 +241,9 @@ export function LocalAssistanceDialogView({
 			</> : <Button variant="primary" onClick={onClose}>{text(copy, 'close', 'Close')}</Button>}
 		/>}
 	>
+		{(snapshot.phase === 'idle' || snapshot.phase === 'loading') && <AssistanceLoadingProgress
+			title={request?.mode === 'task' ? assistanceTaskLabel(request.workflowId, copy)
+				: copy.advancedLocalProcessing || 'Advanced Local Processing'} copy={copy} />}
 		<p>{request?.mode === 'task' ? copy[`assistanceDescription.${request.workflowId}`]
 			: text(copy, 'localAssistanceDescription',
 				'Process explicitly selected media locally with an installed, compatible model.')}</p>
@@ -337,6 +342,9 @@ export function LocalAssistanceDialogView({
 		{message && <p className={snapshot.phase === 'error' ? 'kw-local-assistance__error' : undefined}
 			role={snapshot.phase === 'error' ? 'alert' : 'status'} aria-live="polite">{message}</p>}
 		{snapshot.progress && <Progress copy={copy} progress={snapshot.progress} />}
+		{!snapshot.progress && (snapshot.phase === 'preparing' || snapshot.phase === 'running')
+			&& <AssistanceProcessingProgress label={text(copy, 'assistanceProcessingStatus', 'Processing status')}
+				progress={null} />}
 		{snapshot.result && <p role="status">{template(text(copy, 'localAssistanceOutputs',
 			'{count} validated outputs'), { count: String(snapshot.result.outputs.length) })}</p>}
 		{reviewOpen && snapshot.result && <LocalAssistanceOutputReviewList
@@ -374,7 +382,8 @@ function Progress({ copy, progress }: Readonly<{
 	progress: NonNullable<LocalAssistanceSnapshot['progress']>;
 }>) {
 	if (progress.completed === null || progress.total === null) {
-		return <p role="status" aria-live="polite">{progress.phase}</p>;
+		return <AssistanceProcessingProgress label={text(copy, 'assistanceProcessingStatus', 'Processing status')}
+			progress={progress} />;
 	}
 	return <div className="kw-local-assistance__progress">
 		<label htmlFor="local-assistance-progress">{template(text(copy, 'localAssistanceProgress',

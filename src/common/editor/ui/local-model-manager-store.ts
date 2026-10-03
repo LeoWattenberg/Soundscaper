@@ -56,6 +56,7 @@ export interface LocalModelManagerStore {
 	readonly connect: () => () => void;
 	readonly load: () => Promise<void>;
 	readonly install: (modelId: string) => Promise<void>;
+	readonly installAll: (modelIds: readonly string[], signal?: AbortSignal) => Promise<void>;
 	readonly installPreseeded: (modelId: string) => Promise<void>;
 	readonly cancelInstall: (modelId: string) => Promise<void>;
 	readonly remove: (modelId: string) => Promise<void>;
@@ -207,6 +208,27 @@ export function createLocalModelManagerStore(
 		}
 	};
 
+	const installAll = async (rawModelIds: readonly string[], signal?: AbortSignal): Promise<void> => {
+		const modelIds = rawModelIds.map(localModelId);
+		for (const modelId of modelIds) {
+			if (signal?.aborted) return;
+			let cancellation: Promise<void> | null = null;
+			const abortInstall = (): void => {
+				cancellation ??= cancelInstall(modelId).catch((error: unknown) => {
+					publishOperationState(managerError(modelId, error));
+				});
+			};
+			signal?.addEventListener('abort', abortInstall, { once: true });
+			try {
+				await install(modelId);
+				await cancellation;
+			} finally {
+				signal?.removeEventListener('abort', abortInstall);
+			}
+			if (signal?.aborted || snapshot.error) return;
+		}
+	};
+
 	const remove = async (rawModelId: string): Promise<void> => {
 		const modelId = localModelId(rawModelId);
 		const model = actionableModel(snapshot.models, modelId, 'installed');
@@ -334,7 +356,7 @@ export function createLocalModelManagerStore(
 			listeners.add(listener);
 			return () => listeners.delete(listener);
 		},
-		connect, load, install, installPreseeded, cancelInstall, remove,
+		connect, load, install, installAll, installPreseeded, cancelInstall, remove,
 		reconcile, garbageCollect, showNotices, relocate,
 	});
 }

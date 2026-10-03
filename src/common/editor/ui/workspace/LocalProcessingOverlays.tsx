@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { Suspense } from 'react';
 import { lazyEditorModule } from '../../../offline/lazy-module.tsx';
-import { assistanceDialogRequest } from '../assistance-task-catalog.ts';
+import { assistanceDialogRequest, assistanceTaskLabel } from '../assistance-task-catalog.ts';
+import AssistanceLoadingDialog from '../dialogs/AssistanceLoadingDialog.tsx';
 import { resolveLocalModelManagerBridge } from '../local-model-manager-availability.ts';
 import type { LocalAssistanceSelectedMediaPreparationPort } from '../../assistance/local-assistance-preparation.ts';
 import type { TextToSpeechProjectPort } from '../dialogs/text-to-speech-port-runtime.ts';
@@ -26,7 +27,11 @@ export default function LocalProcessingOverlays({ activeSurface, fileService, ca
 	if (!fileService.isDesktop) return null;
 	const request = assistanceDialogRequest(activeSurface);
 	const close = (): void => setActiveSurface(null);
-	return <Suspense fallback={<p role="status">{copy.loading}</p>}>
+	const title = request?.mode === 'task' ? assistanceTaskLabel(request.workflowId, copy)
+		: activeSurface === 'text-to-speech' ? copy['ui.textToSpeech.title'] || 'Text to Speech'
+			: request ? copy.advancedLocalProcessing || 'Advanced Local Processing'
+				: copy.manageLocalModels || 'Model Manager';
+	return <Suspense fallback={<AssistanceLoadingDialog title={title} copy={copy} onClose={close} />}>
 		{activeSurface === 'local-models' && <div data-editor-surface="local-models">
 			<LocalModelManagerDialog bridge={resolveLocalModelManagerBridge(fileService.bridge)}
 				copy={copy} locale={locale} onClose={close} />

@@ -19,6 +19,9 @@ import type {
 } from '../local-model-manager-bridge.ts';
 import './LocalModelManagerDialog.css';
 import { localModelDisplayName } from './local-model-display-name.ts';
+import { formatLocalModelBytes } from '../local-model-bytes.ts';
+
+export { formatLocalModelBytes } from '../local-model-bytes.ts';
 
 import './ProcessingDialogs.css';
 
@@ -406,19 +409,6 @@ function availabilityLabel(copy: Copy, availability: LocalModelAvailability): st
 		'insufficient-memory': text(copy, 'localModelsInsufficientMemory', 'Insufficient memory'),
 	};
 	return labels[availability];
-}
-
-export function formatLocalModelBytes(value: number | null, locale = 'en'): string | null {
-	if (value === null) return null;
-	const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB'];
-	let amount = value;
-	let unitIndex = 0;
-	while (amount >= 1024 && unitIndex < units.length - 1) {
-		amount /= 1024;
-		unitIndex += 1;
-	}
-	const maximumFractionDigits = unitIndex === 0 ? 0 : 1;
-	return `${new Intl.NumberFormat(locale, { maximumFractionDigits }).format(amount)} ${units[unitIndex]}`;
 }
 
 function formatBytes(value: number | null, locale: string, unavailable: string): string {

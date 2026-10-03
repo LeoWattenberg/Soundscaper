@@ -20,6 +20,7 @@ import {
 } from '../local-assistance-guided-session-store.ts';
 import LocalAssistanceGuidedSettings from './LocalAssistanceGuidedSettings.tsx';
 import { lazyEditorModule } from '../../../offline/lazy-module.tsx';
+import AssistanceProcessingProgress from './AssistanceProcessingProgress.tsx';
 
 const LocalAssistanceGuidedReview = lazyEditorModule(() => import('./LocalAssistanceGuidedReview.tsx'));
 
@@ -119,6 +120,8 @@ export default function LocalAssistanceGuidedPanel({
 		{message && <p role={snapshot.phase === 'error' ? 'alert' : 'status'} aria-label={text(copy, 'assistanceProcessingStatus', 'Processing status')} aria-live="polite">
 			{message}
 		</p>}
+		{(snapshot.phase === 'preparing' || snapshot.phase === 'running') && <AssistanceProcessingProgress
+			label={text(copy, 'assistanceProcessingStatus', 'Processing status')} progress={snapshot.progress} />}
 	</section>;
 }
 

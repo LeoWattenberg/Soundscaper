@@ -59,13 +59,10 @@ test.describe('menu-only Local Assistance workflows', () => {
 			.toHaveCount(0);
 
 		await openAssistanceTask(page, editor, 'Enhance Dialogue');
-		let assistance = page.getByRole('dialog', { name: 'Enhance Dialogue', exact: true });
-		await expect(assistance.getByRole('tablist')).toHaveCount(0);
-		const placement = assistance.getByRole('button', { name: 'Add result to', exact: true });
-		await placement.click();
-		await page.getByRole('option', { name: 'Replace selected range', exact: true }).click();
+		const prerequisite = page.locator('[data-assistance-model-prerequisites]');
+		await expect(prerequisite).toContainText('DeepFilterNet 3');
 		await expect.poll(() => fixtureSnapshot(page).then(({ installCalls }) => installCalls)).toBe(0);
-		await assistance.getByRole('button', { name: 'Manage Models', exact: true }).click();
+		await prerequisite.getByRole('button', { name: 'Open Model Manager', exact: true }).click();
 		const manager = page.getByRole('dialog', { name: 'Model Manager', exact: true });
 		const model = manager.locator('[data-local-model-id="deepfilternet3"]');
 		await manager.locator('details.kw-processing-details > summary').click();
@@ -81,6 +78,15 @@ test.describe('menu-only Local Assistance workflows', () => {
 		await expect(model).toHaveAttribute('data-local-model-availability', 'installed');
 		await expect(model.getByRole('button', { name: 'Remove', exact: true })).toBeVisible();
 		await expect.poll(() => fixtureSnapshot(page).then(({ installCalls }) => installCalls)).toBe(1);
+		await manager.locator('button').filter({ hasText: /^Close$/u }).click();
+		await expect(manager).toBeHidden();
+		let assistance = page.getByRole('dialog', { name: 'Enhance Dialogue', exact: true });
+		await expect(assistance.getByRole('tablist')).toHaveCount(0);
+		const placement = assistance.getByRole('button', { name: 'Add result to', exact: true });
+		await placement.click();
+		await page.getByRole('option', { name: 'Replace selected range', exact: true }).click();
+		await assistance.getByRole('button', { name: 'Manage Models', exact: true }).click();
+		await expect(manager).toBeVisible();
 		await manager.locator('button').filter({ hasText: /^Close$/u }).click();
 		await expect(manager).toBeHidden();
 		await expect(placement).toContainText('Replace selected range');
