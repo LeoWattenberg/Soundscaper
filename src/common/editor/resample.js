@@ -1,3 +1,5 @@
+import { createWindowedSincChannelSampler } from './windowed-sinc-kernel.ts';
+
 /**
  * Bounded, stateful linear resampler for recordings and streamed renders. It
  * retains only the interpolation boundary between chunks and preserves the
@@ -96,6 +98,7 @@ export function createStreamingWindowedSincResampler(inputSampleRate, outputSamp
 	const radius = Math.max(8, Math.min(64, Math.round(Number(options.radius) || 24)));
 	const step = inputRate / outputRate;
 	const cutoff = Math.min(1, outputRate / inputRate) * 0.94;
+	const sampleChannels = createWindowedSincChannelSampler(radius, cutoff);
 	const initialInputPosition = Number(options.initialInputPosition ?? 0);
 	if (!Number.isFinite(initialInputPosition) || initialInputPosition < 0) {
 		throw new RangeError('initialInputPosition must be finite and non-negative.');
@@ -158,9 +161,7 @@ export function createStreamingWindowedSincResampler(inputSampleRate, outputSamp
 		const output = Array.from({ length: channels }, () => new Float32Array(estimated));
 		let written = 0;
 		while (written < estimated && nextInputPosition < availableEnd && totalOutputFrames + written < targetFrames) {
-			for (let channel = 0; channel < channels; channel += 1) {
-				output[channel][written] = sincSample(buffered[channel], bufferStartFrame, totalInputFrames, nextInputPosition, radius, cutoff);
-			}
+			sampleChannels(buffered, bufferStartFrame, totalInputFrames, nextInputPosition, output, written);
 			written += 1;
 			nextInputPosition += step;
 		}
@@ -184,27 +185,6 @@ export function createStreamingWindowedSincResampler(inputSampleRate, outputSamp
 		buffered = buffered.map((values) => values.slice(Math.min(values.length, dropFrames)));
 		bufferStartFrame = retainFrom;
 	}
-}
-
-function sincSample(values, bufferStartFrame, inputEndFrame, position, radius, cutoff) {
-	const center = Math.floor(position);
-	let weighted = 0;
-	let weightSum = 0;
-	for (let frame = center - radius + 1; frame <= center + radius; frame += 1) {
-		if (frame < 0 || frame >= inputEndFrame) continue;
-		const distance = position - frame;
-		const normalizedDistance = Math.abs(distance) / radius;
-		if (normalizedDistance >= 1) continue;
-		const window = 0.5 + 0.5 * Math.cos(Math.PI * normalizedDistance);
-		const argument = Math.PI * distance * cutoff;
-		const sinc = argument === 0 ? 1 : Math.sin(argument) / argument;
-		const weight = cutoff * sinc * window;
-		const index = frame - bufferStartFrame;
-		if (index < 0 || index >= values.length) continue;
-		weighted += values[index] * weight;
-		weightSum += weight;
-	}
-	return weightSum ? weighted / weightSum : 0;
 }
 
 function appendChannels(previous, next) {

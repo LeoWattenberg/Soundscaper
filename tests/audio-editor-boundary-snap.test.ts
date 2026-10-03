@@ -183,6 +183,25 @@ test('an audio clip snaps into a two millisecond overlap at either same-track ed
 		preferRightEdge: true, microfadeNewClips: false }), { startFrame: 100, guideFrame: 200 });
 });
 
+test('indexed clip movement and microfade checks do not rescan unrelated project clips', () => {
+	const content = project([
+		{ id: 'moving', trackId: 'audio', start: 20, duration: 100 },
+		{ id: 'anchor', trackId: 'audio', start: 200, duration: 100 },
+		{ id: 'unrelated', trackId: 'other', start: 1_000, duration: 100 },
+	]);
+	let reads = 0;
+	const observed = { ...content, get clips() { reads += 1; return content.clips; } };
+	const movingClipIds = ['moving'];
+	const index = createBoundarySnapIndex(observed, movingClipIds);
+	reads = 0;
+	assert.deepEqual(resolveClipMoveBoundarySnap({
+		project: observed, index, clipId: 'moving', movingClipIds,
+		currentTrackId: 'audio', destinationTrackId: 'audio', pixelsPerSecond,
+		sampleRate, microfadeNewClips: true, rawStartFrame: 101, preferRightEdge: true,
+	}), { startFrame: 102, guideFrame: 200 });
+	assert.equal(reads, 0, 'a captured drag already owns the clip and track lookups');
+});
+
 test('the microfade overlap requires a single audio clip and an audio neighbor on its destination track', () => {
 	const content = project([
 		{ id: 'moving', trackId: 'audio', start: 20, duration: 100 },

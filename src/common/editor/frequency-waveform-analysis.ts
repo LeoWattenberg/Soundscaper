@@ -9,6 +9,7 @@
  */
 
 import { ComplementaryCrossover } from './complementary-crossover.ts';
+import { accumulateFrequencyWaveformBandPeaks, combineFrequencyWaveformBandPeaks } from './frequency-waveform-band-peaks.ts';
 import {
 	FREQUENCY_WAVEFORM_ANALYSIS_VERSION,
 	FREQUENCY_WAVEFORM_FFT_SIZE,
@@ -165,9 +166,8 @@ export class FrequencyWaveformAnalyzer {
 		}
 		const visualChannels = channels.slice(0, this.visualChannelCount);
 		const bands = this.splitter.process(visualChannels);
+		accumulateFrequencyWaveformBandPeaks(this.levels[0]!, bands, this.framesProcessed);
 		for (let frame = 0; frame < frames; frame += 1) {
-			const absoluteFrame = this.framesProcessed + frame;
-			for (const level of this.levels) this.accumulateBands(level, bands, frame, absoluteFrame);
 			this.appendSpectralFrame(visualChannels, frame);
 		}
 		this.framesProcessed += frames;
@@ -180,6 +180,7 @@ export class FrequencyWaveformAnalyzer {
 		}
 		while (this.nextCenterFrame < this.options.frameCount) this.appendSpectralSilence();
 		this.finished = true;
+		combineFrequencyWaveformBandPeaks(this.levels);
 		for (const level of this.levels) replaceEmptyExtrema(level);
 		return {
 			version: FREQUENCY_WAVEFORM_ANALYSIS_VERSION,
@@ -192,23 +193,6 @@ export class FrequencyWaveformAnalyzer {
 			hopSize: FREQUENCY_WAVEFORM_HOP_SIZE,
 			levels: this.levels,
 		};
-	}
-
-	private accumulateBands(
-		level: MutableLevel,
-		bands: FrequencyWaveformBands<Float32Array[]>,
-		frame: number,
-		absoluteFrame: number,
-	): void {
-		const bucket = Math.floor(absoluteFrame / level.blockSize);
-		for (const band of ['low', 'mid', 'high'] as const) {
-			for (let channel = 0; channel < this.visualChannelCount; channel += 1) {
-				const value = bands[band][channel]![frame]!;
-				const target = level.bands[band][channel]!;
-				target.minimums[bucket] = Math.min(target.minimums[bucket]!, value);
-				target.maximums[bucket] = Math.max(target.maximums[bucket]!, value);
-			}
-		}
 	}
 
 	private appendSpectralFrame(channels: readonly Float32Array[], frame: number): void {

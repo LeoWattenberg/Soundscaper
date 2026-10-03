@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { CLIP_CONTENT_OFFSET } from '@soundscaper/design-system/constants';
 
 import { secondsToFrames } from '../../design-system-adapters.js';
@@ -48,6 +48,8 @@ export function useTimelinePointerMove({
 		pixelsPerSecond,
 		sampleRate,
 	} = model;
+	const mediaTracks = useMemo(() => project?.tracks.filter((track) => Array.isArray(track.clipIds)) || [], [project?.tracks]);
+	const mediaTrackIndexById = useMemo(() => new Map(mediaTracks.map((track, index) => [track.id, index])), [mediaTracks]);
 	const {
 		frameAtClientX,
 		isOverOutputDock,
@@ -287,8 +289,8 @@ export function useTimelinePointerMove({
 			return;
 		}
 		if (session?.kind === 'sample-pencil') {
-			const clip = project?.clips.find((item) => item.id === session.clipId);
-			const source = clip ? project.sources.find((item) => item.id === clip.sourceId) : null;
+			const clip = projectIndex.clipById.get(session.clipId);
+			const source = clip ? projectIndex.sourceById.get(clip.sourceId) : null;
 			if (!clip || !source) return;
 			const point = samplePointAtPointer(event, session.lane, clip, source, frameAtClientX, session.channel);
 			const previous = session.points.at(-1);
@@ -370,12 +372,11 @@ export function useTimelinePointerMove({
 				{ sampleRate },
 			) * Math.sign(event.clientX - session.startX);
 			const movingClips = session.clipIds
-				.map((clipId) => project.clips.find((clip) => clip.id === clipId))
+				.map((clipId) => projectIndex.clipById.get(clipId))
 				.filter(Boolean);
-			const mediaTracks = project.tracks.filter((track) => Array.isArray(track.clipIds));
-			const sourceTrackIndices = movingClips.map((clip) => mediaTracks.findIndex((track) => track.clipIds.includes(clip.id)));
+			const sourceTrackIndices = movingClips.map((clip) => mediaTrackIndexById.get(projectIndex.trackByClipId.get(clip.id)?.id) ?? -1);
 			const activeClip = movingClips.find((clip) => clip.id === session.clipId);
-			const activeTrackIndex = mediaTracks.findIndex((track) => track.id === session.trackId);
+			const activeTrackIndex = mediaTrackIndexById.get(session.trackId) ?? -1;
 			const rawRequestedTrackId = trackAtClientY(event.clientY, session.trackId);
 			const createsTrack = rawRequestedTrackId === NEW_AUDIO_TRACK_DROP_TARGET;
 			const compatibleTrack = createsTrack
@@ -384,7 +385,7 @@ export function useTimelinePointerMove({
 			const requestedTrackId = compatibleTrack?.id || session.trackId;
 			const requestedTrackIndex = createsTrack
 				? mediaTracks.length
-				: mediaTracks.findIndex((track) => track.id === requestedTrackId);
+				: mediaTrackIndexById.get(requestedTrackId) ?? -1;
 			const minimumTrackDelta = -Math.min(...sourceTrackIndices);
 			const maximumTrackDelta = mediaTracks.length - 1 - Math.max(...sourceTrackIndices);
 			const trackDelta = createsTrack
@@ -516,7 +517,7 @@ export function useTimelinePointerMove({
 				setDraggingClipIds(new Set(preview.previews.map(({ clipId }) => clipId)));
 			}
 		}
-	}, [clearSplitToolGuideline, controller, frameAtClientX, isOverOutputDock, isOverProjectBin, panelWidth, pixelsPerSecond, project, projectIndex, resolveCurrentSplitToolGuideline, run, sampleRate, setBoundarySnapGuideFrames, setDraggingClipIds, setProjectBinDropActive, setSplitToolGuideline, snapshot.capabilities?.videoCompositing, splitToolActive, trackAtClientY]);
+	}, [clearSplitToolGuideline, controller, frameAtClientX, isOverOutputDock, isOverProjectBin, mediaTrackIndexById, mediaTracks, panelWidth, pixelsPerSecond, project, projectIndex, resolveCurrentSplitToolGuideline, run, sampleRate, setBoundarySnapGuideFrames, setDraggingClipIds, setProjectBinDropActive, setSplitToolGuideline, snapshot.capabilities?.videoCompositing, splitToolActive, trackAtClientY]);
 
 	return { onPointerMove, clearPointerHover };
 }

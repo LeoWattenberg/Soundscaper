@@ -233,7 +233,9 @@ function publishMemory(
 	}
 	const prior = changes.map(({ map, key }) => ({ map, key, had: map.has(key), value: map.get(key) }));
 	try {
-		for (const change of changes) change.map.set(change.key, clone(change.value));
+		// canonicalProject already detached the incoming document. Share that owned
+		// snapshot between current and revision rows, as ordinary memory saves do.
+		for (const change of changes) change.map.set(change.key, change.value);
 	} catch (error) {
 		for (const entry of prior.reverse()) {
 			if (entry.had) entry.map.set(entry.key, entry.value);

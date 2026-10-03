@@ -8,6 +8,7 @@ import {
 	rightmostVisibleClip,
 } from '../../design-system-adapters.js';
 import { waveformPeakLevelForResolution } from '../../design-system-adapters/waveform-internals.ts';
+import { createTimelineViewportClipIndex } from '../../design-system-adapters/timeline-viewport-index.ts';
 import { MAXIMUM_WAVEFORM_PEAK_WINDOW_BUCKETS } from '../../waveform-peak-contract.ts';
 import { isFrequencyWaveformDisplayMode } from '../../track-display-mode.ts';
 import { createAudioTrackRowClipViewModels } from './audio-track-row-view-model.js';
@@ -119,11 +120,15 @@ export function useAudioTrackRowViewModel({
 		clipDragPreview,
 		projectBinDragPreview,
 	}), [clipDragPreview, clipLookup, projectBinDragPreview, recordingPreview, trackClips, trackId, trackType]);
+	const viewportClipIndex = useMemo(() => clips.length > 128
+		&& !clipDragPreview && !projectBinDragPreview && !(recordingPreview?.durationFrames > 0)
+		? createTimelineViewportClipIndex(clips) : undefined,
+	[clipDragPreview, clips, projectBinDragPreview, recordingPreview]);
 	const projection = useMemo(() => projectClipsToViewport(clips, {
 		viewportStartFrame: renderViewportStartFrame,
 		viewportDurationFrames,
 		sampleRate,
-	}), [clips, renderViewportStartFrame, sampleRate, viewportDurationFrames]);
+	}, viewportClipIndex), [clips, renderViewportStartFrame, sampleRate, viewportClipIndex, viewportDurationFrames]);
 	const hasProject = project != null;
 	const projectId = project?.id;
 	const projectSampleRate = project?.sampleRate;

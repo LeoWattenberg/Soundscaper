@@ -100,8 +100,9 @@ interface ProjectSaveAdmissionGate {
 
 /**
  * Serializes project persistence independently from controller feature work.
- * Every queued snapshot is written, but only the newest generation for the
- * active project may publish a saved state. A terminal flush closes scheduling
+ * Explicit snapshots are written in order; queued autosaves keep the newest
+ * snapshot per project. Only the newest generation for the active project may
+ * publish a saved state. A terminal flush closes scheduling
  * before appending its final snapshot to the same queue. Temporary suspension
  * closes either all save admission or one exact project's admission while its
  * owner drains the stable queue.
@@ -121,6 +122,7 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 	const persistedSnapshots = new Map<string, Project>();
 	const persistedSnapshotEpochs = new Map<string, number>();
 	const queuedSaveCounts = new Map<string, number>();
+	const queuedAutosaveGenerations = new Map<string, number>();
 	dependencies.beforeUnloadTarget?.addEventListener('beforeunload', warnBeforeUnload, {
 		signal: dependencies.beforeUnloadSignal,
 	});
@@ -338,6 +340,7 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 		materialize = false,
 		allowFileSizeWarning = false,
 	): Promise<unknown> {
+		if (materialize) queuedAutosaveGenerations.set(snapshot.id, generation);
 		queuedSaveCounts.set(snapshot.id, (queuedSaveCounts.get(snapshot.id) ?? 0) + 1);
 		let pending = true;
 		const finishPublication = () => {
@@ -350,7 +353,12 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 		const operation = state.saveQueue
 			.catch(() => undefined)
 			.then(() => saveSnapshot(snapshot, generation, projectSaveEpoch, writeFence, preparationPurpose, materialize, finishPublication, allowFileSizeWarning))
-			.finally(finishPublication);
+			.finally(() => {
+				finishPublication();
+				if (materialize && queuedAutosaveGenerations.get(snapshot.id) === generation) {
+					queuedAutosaveGenerations.delete(snapshot.id);
+				}
+			});
 		state.saveQueue = operation;
 		return operation;
 	}
@@ -366,6 +374,9 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 		allowFileSizeWarning: boolean,
 	): Promise<void> {
 		if (!ownsProjectSaveEpoch(snapshotValue.id, projectSaveEpoch) || !ownsWriteFence(snapshotValue.id, writeFence)) return;
+		// Coalesce only after a successor timer has fired. Cancelled timers and
+		// explicit flushes must never erase an already queued recovery snapshot.
+		if (materialize && queuedAutosaveGenerations.get(snapshotValue.id) !== generation) return;
 		let snapshot = snapshotValue;
 		try {
 			if (materialize) snapshot = dependencies.cloneProject(snapshotValue);

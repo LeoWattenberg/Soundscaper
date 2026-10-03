@@ -2,8 +2,7 @@ import { CLIP_CONTENT_OFFSET } from '@soundscaper/design-system/constants';
 
 import { automaticClipCrossfadeRanges, findPartialClipOverlaps } from '../../audio-clip-overlap.ts';
 import { DEFAULT_CLIP_MICROFADE_SECONDS } from '../../clip-microfade.ts';
-import { compareCodeUnits } from '../../code-unit-order.ts';
-import { validateVideoTrackComposition } from '../../video-timeline.js';
+import { analyzeVideoClipOverlaps, projectVideoOverlapPresentation } from './video-overlap-presentation.ts';
 import {
 	clipCrossfadeCurvePath,
 	crossfadeIntersection,
@@ -18,67 +17,9 @@ export function createVideoOverlapPresentation(
 	pixelsPerSecond,
 	sampleRate,
 ) {
-	const ordered = clips
-		.filter((clip) => !clip.isRecordingPreview && Number(clip.durationFrames) > 0)
-		.slice()
-		.sort((left, right) => left.timelineStartFrame - right.timelineStartFrame
-			|| compareCodeUnits(String(left.id), String(right.id)));
-	const overlaps = [];
-	const invalidClipIds = new Set();
-	let invalid = false;
-	try {
-		validateVideoTrackComposition({
-			id: 'video-drag-preview',
-			type: 'video',
-			clipIds: ordered.map((clip) => clip.id),
-		}, new Map(ordered.map((clip) => [clip.id, clip])));
-	} catch {
-		invalid = true;
-	}
-	for (let leftIndex = 0; leftIndex < ordered.length; leftIndex += 1) {
-		const left = ordered[leftIndex];
-		const leftStart = left.timelineStartFrame;
-		const leftEnd = leftStart + left.durationFrames;
-		for (let rightIndex = leftIndex + 1; rightIndex < ordered.length; rightIndex += 1) {
-			const right = ordered[rightIndex];
-			const rightStart = right.timelineStartFrame;
-			const rightEnd = rightStart + right.durationFrames;
-			if (rightStart >= leftEnd) break;
-			const startFrame = Math.max(leftStart, rightStart);
-			const endFrame = Math.min(leftEnd, rightEnd);
-			if (endFrame <= startFrame) continue;
-			const thirdClipActive = ordered.some((candidate, candidateIndex) => {
-				if (candidateIndex === leftIndex || candidateIndex === rightIndex) return false;
-				const candidateStart = candidate.timelineStartFrame;
-				const candidateEnd = candidateStart + candidate.durationFrames;
-				return candidateStart < endFrame && candidateEnd > startFrame;
-			});
-			const valid = leftStart < rightStart && leftEnd < rightEnd && !thirdClipActive;
-			if (!valid) {
-				invalid = true;
-				invalidClipIds.add(left.id);
-				invalidClipIds.add(right.id);
-			}
-			const visibleStartFrame = Math.max(startFrame, overscanStartFrame);
-			const visibleEndFrame = Math.min(endFrame, overscanEndFrame);
-			if (visibleEndFrame <= visibleStartFrame) continue;
-			overlaps.push({
-				id: `${left.id}:${right.id}:${startFrame}:${endFrame}`,
-				left: CLIP_CONTENT_OFFSET
-					+ (visibleStartFrame - overscanStartFrame) / sampleRate * pixelsPerSecond,
-				width: Math.max(2, (visibleEndFrame - visibleStartFrame) / sampleRate * pixelsPerSecond),
-				valid,
-				label: valid
-					? `Automatic crossfade between ${left.title || left.id} and ${right.title || right.id}`
-					: `Invalid video overlap between ${left.title || left.id} and ${right.title || right.id}`,
-			});
-		}
-	}
-	return {
-		invalid,
-		invalidClipIds,
-		overlays: overlaps,
-	};
+	return projectVideoOverlapPresentation(
+		analyzeVideoClipOverlaps(clips), overscanStartFrame, overscanEndFrame, pixelsPerSecond, sampleRate,
+	);
 }
 
 export function createCrossfadeOverlays(clips, overscanStartFrame, pixelsPerSecond, sampleRate) {

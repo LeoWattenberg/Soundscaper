@@ -135,18 +135,20 @@ export class DynamicsLiveProcessor extends LiveProcessor {
 		}
 		let inputPeak = 0;
 		let outputPeak = 0;
-		for (let channel = 0; channel < output.length; channel += 1) {
-			for (let frame = 0; frame < frames; frame += 1) {
+		for (let frame = 0; frame < frames; frame += 1) {
+			const initialSilence = this.framesSeen + frame < this.lookaheadFrames;
+			const gain = initialSilence ? 0 : dbToLinear(transformed[frame] + this.makeupGainDb);
+			for (let channel = 0; channel < output.length; channel += 1) {
 				const source = combinedAudio[channel][frame];
-				const value = this.framesSeen + frame < this.lookaheadFrames
-					? 0
-					: source * dbToLinear(transformed[frame] + this.makeupGainDb);
+				const value = initialSilence ? 0 : source * gain;
 				output[channel][frame] = value;
 				const sourceMagnitude = source < 0 ? -source : source;
 				if (sourceMagnitude > inputPeak) inputPeak = sourceMagnitude;
 				const magnitude = value < 0 ? -value : value;
 				if (magnitude > outputPeak) outputPeak = magnitude;
 			}
+		}
+		for (let channel = 0; channel < output.length; channel += 1) {
 			if (this.lookaheadFrames > 0) {
 				this.audioHistory[channel].set(combinedAudio[channel].subarray(
 					frames, frames + this.lookaheadFrames,

@@ -236,6 +236,7 @@ test.describe('Audacity-style workspace panel snapping', () => {
 async function openHistoryAndMetadata(page, editor) {
 	await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'History']);
 	await chooseCommandAction(page, editor, 'Edit', 'Metadata editor');
+	await expect(editor.locator('[data-workspace-panel="metadata"]')).toBeFocused();
 	const history = editor.locator('[data-workspace-panel="history"]');
 	if (!await history.isVisible()) await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'History']);
 	await expect(history).toBeVisible();

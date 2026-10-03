@@ -67,6 +67,8 @@ export interface BoundarySnapIndex {
 	readonly project: BoundaryProject;
 	readonly excludedClipIds: readonly string[];
 	readonly points: readonly SnapPoint[];
+	readonly clipById: ReadonlyMap<string, BoundaryClip>;
+	readonly trackById: ReadonlyMap<string, BoundaryTrack>;
 }
 
 const NO_EXCLUDED_CLIPS: readonly string[] = [];
@@ -75,9 +77,8 @@ function pixelPosition(frame: number, pixelsPerSecond: number, sampleRate: numbe
 	return Math.round(frame * pixelsPerSecond / sampleRate);
 }
 
-function collectPoints(project: BoundaryProject, excludedClipIds: readonly string[]): SnapPoint[] {
+function collectPoints(project: BoundaryProject, excludedClipIds: readonly string[], clipById: ReadonlyMap<string, BoundaryClip>): SnapPoint[] {
 	const excluded = new Set(excludedClipIds);
-	const clipById = new Map(project.clips.map((clip) => [clip.id, clip]));
 	const points: SnapPoint[] = [{ frame: 0, trackId: null }];
 	for (const track of project.tracks) {
 		for (const clipId of track.clipIds ?? []) {
@@ -98,7 +99,9 @@ export function createBoundarySnapIndex(
 	project: BoundaryProject,
 	excludedClipIds: readonly string[] = NO_EXCLUDED_CLIPS,
 ): BoundarySnapIndex {
-	return { project, excludedClipIds, points: collectPoints(project, excludedClipIds) };
+	const clipById = new Map(project.clips.map((clip) => [clip.id, clip]));
+	const trackById = new Map(project.tracks.map((track) => [track.id, track]));
+	return { project, excludedClipIds, clipById, trackById, points: collectPoints(project, excludedClipIds, clipById) };
 }
 
 function indexFor(
@@ -156,11 +159,12 @@ export function resolveBoundarySnap(input: SnapInput): BoundarySnapResult {
 
 /** Move the grabbed clip by one snapped edge, keeping every moving clip together. */
 export function resolveClipMoveBoundarySnap(input: ClipMoveSnapInput): ClipMoveSnapResult {
-	const clip = input.project.clips.find(({ id }) => id === input.clipId);
+	const index = indexFor(input.project, input.movingClipIds, input.index);
+	const clip = index.clipById.get(input.clipId);
 	if (!clip) return { startFrame: input.rawStartFrame, guideFrame: null };
 	const common = {
 		project: input.project,
-		index: indexFor(input.project, input.movingClipIds, input.index),
+		index,
 		currentTrackId: input.currentTrackId,
 		pixelsPerSecond: input.pixelsPerSecond,
 		sampleRate: input.sampleRate,
@@ -170,8 +174,8 @@ export function resolveClipMoveBoundarySnap(input: ClipMoveSnapInput): ClipMoveS
 	const rightFrame = leftFrame + clip.durationFrames;
 	const left = resolveBoundarySnap({ ...common, frame: leftFrame });
 	const right = resolveBoundarySnap({ ...common, frame: rightFrame });
-	const leftOverlap = left.snapped ? microfadeOverlapFrames(input, clip, left.frame, 'left') : 0;
-	const rightOverlap = right.snapped ? microfadeOverlapFrames(input, clip, right.frame, 'right') : 0;
+	const leftOverlap = left.snapped ? microfadeOverlapFrames(input, index, clip, left.frame, 'left') : 0;
+	const rightOverlap = right.snapped ? microfadeOverlapFrames(input, index, clip, right.frame, 'right') : 0;
 	const leftChanged = left.snapped && (left.frame !== leftFrame || leftOverlap > 0);
 	const rightChanged = right.snapped && (right.frame !== rightFrame || rightOverlap > 0);
 	const useRight = rightChanged && (!leftChanged || input.preferRightEdge);
@@ -182,14 +186,18 @@ export function resolveClipMoveBoundarySnap(input: ClipMoveSnapInput): ClipMoveS
 
 function microfadeOverlapFrames(
 	input: ClipMoveSnapInput,
+	index: BoundarySnapIndex,
 	moving: BoundaryClip,
 	boundary: number,
 	edge: 'left' | 'right',
 ): number {
 	if (!input.microfadeNewClips || moving.kind !== 'audio' || input.movingClipIds.length !== 1) return 0;
-	const track = input.project.tracks.find(({ id }) => id === (input.destinationTrackId ?? input.currentTrackId));
-	const clipIds = new Set(track?.clipIds ?? []);
-	const clips = input.project.clips.filter((clip) => clipIds.has(clip.id) && clip.id !== moving.id);
+	const trackId = input.destinationTrackId ?? input.currentTrackId;
+	const track = trackId === null ? undefined : index.trackById.get(trackId);
+	const clips = (track?.clipIds ?? []).flatMap((clipId) => {
+		const clip = index.clipById.get(clipId);
+		return clip && clip.id !== moving.id ? [clip] : [];
+	});
 	const neighbors = clips.filter((clip) => clip.kind === 'audio' && (edge === 'left'
 		? clip.timelineStartFrame + clip.durationFrames === boundary
 		: clip.timelineStartFrame === boundary));
