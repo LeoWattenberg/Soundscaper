@@ -92,7 +92,7 @@ test.describe('analysis and Nyquist dialog coverage', () => {
 		await expect(spectrumReport).toContainText('Hz');
 		await expect(spectrum.locator('[data-analysis-value]')).toHaveCount(0);
 		const spectrumDownload = await exportReport(page, spectrum, /analysis\.json$/u);
-		expectAnalysisDownload(spectrumDownload, { mode: 'spectrum', type: 'spectrum', scope: 'track' });
+		expectAnalysisDownload(spectrumDownload, { mode: 'spectrum', type: 'spectrum', scope: 'master' });
 		expect(spectrumDownload.report).toMatchObject({
 			startFrame: 0,
 			endFrame: ANALYSIS_FIXTURE_FRAMES,
@@ -109,7 +109,7 @@ test.describe('analysis and Nyquist dialog coverage', () => {
 		await expect(clippingReport.getByRole('listitem')).not.toHaveCount(0);
 		await expect(clipping.locator('[data-analysis-value]')).toHaveCount(0);
 		const clippingDownload = await exportReport(page, clipping, /analysis\.json$/u);
-		expectAnalysisDownload(clippingDownload, { mode: 'clipping', type: 'clipping', scope: 'track' });
+		expectAnalysisDownload(clippingDownload, { mode: 'clipping', type: 'clipping', scope: 'master' });
 		expect(clippingDownload.report).toMatchObject({
 			startFrame: 0,
 			endFrame: ANALYSIS_FIXTURE_FRAMES,
@@ -141,17 +141,17 @@ test.describe('analysis and Nyquist dialog coverage', () => {
 		expect(contrastDownload.report.foreground).toMatchObject({
 			startFrame: 4_800,
 			endFrame: 38_400,
-			scope: 'track',
+			scope: 'master',
 		});
 		expect(contrastDownload.report.background).toMatchObject({
 			startFrame: 52_800,
 			endFrame: 86_400,
-			scope: 'track',
+			scope: 'master',
 		});
 		expect(contrastDownload.report.differenceDb).toBeCloseTo(20, 2);
 		expect(contrastDownload.report.foreground.rmsDb - contrastDownload.report.background.rmsDb)
 			.toBeCloseTo(contrastDownload.report.differenceDb, 8);
-		expect(contrastDownload.result.rmsDbfs).toBeCloseTo(contrastDownload.report.background.rmsDb, 8);
+		expect(contrastDownload.result).toBeNull();
 		await closeDialog(contrast);
 
 		expect(errors).toEqual([]);

@@ -141,7 +141,7 @@ test.describe('Framescaper v1 audio finishing', () => {
 		await expect(dialog.getByRole('status')).toHaveText('Finishing state updated.');
 		await closeFinishing(dialog);
 
-		dialog = await openFinishing(page, editor, 'View', ['Panels'],
+		dialog = await openFinishing(page, editor, 'Window', [],
 			/^(?:Mixer & Routing|Routing graph)/u, 'Mixer & Routing');
 		const mixer = JSON.parse(await finishingDocument(dialog).inputValue());
 		const mainOutput = mixer.outputs.find(({ role }) => role === 'main');
@@ -159,7 +159,7 @@ test.describe('Framescaper v1 audio finishing', () => {
 		await expect(dialog.getByRole('status')).toHaveText('Finishing state updated.');
 		await closeFinishing(dialog);
 
-		dialog = await openFinishing(page, editor, 'View', ['Panels'], /^Dialogue Chain/u, 'Dialogue Chain');
+		dialog = await openFinishing(page, editor, 'Window', [], /^Dialogue Chain/u, 'Dialogue Chain');
 		await dialog.getByRole('button', { name: 'Apply dialogue chain', exact: true }).click();
 		await expect(dialog.getByRole('status')).toHaveText('Dialogue chain applied.');
 		await closeFinishing(dialog);

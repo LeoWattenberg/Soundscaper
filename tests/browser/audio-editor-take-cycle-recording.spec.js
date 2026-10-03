@@ -39,129 +39,136 @@ test.describe('Soundscaper routed take-cycle recording', () => {
 		try {
 			const initialErrors = collectClientErrors(page);
 			let editor = await bootEditor(page, '/embed/en/');
-		await importFiles(editor, [toneA]);
-		await chooseCommandAction(page, editor, 'Select', 'Select all');
-		await chooseNestedCommandAction(page, editor, 'Select', ['Loop region', 'Set loop to selection']);
-		await chooseCommandAction(page, editor, 'Select', 'Select none');
+			await importFiles(editor, [toneA]);
+			await chooseCommandAction(page, editor, 'Select', 'Select all');
+			await chooseNestedCommandAction(page, editor, 'Select', ['Loop region', 'Set loop to selection']);
+			await chooseCommandAction(page, editor, 'Select', 'Select none');
 
-		await startTakeCycle(page, editor);
-		await expect.poll(() => rawCaptureState(page)).toMatchObject({ count: 1, hasPcm: true });
-		await page.waitForTimeout(1_000);
-		await stopTakeCycle(page, editor);
-		await expect.poll(() => durableCycleState(page), {
-			message: 'ordinary cycle capture settles its durable roots',
-			timeout: 30_000,
-		}).toMatchObject({
-			recoveryCount: 0,
-			rawSpoolCount: 0,
-			takeGroupCount: 1,
-		});
-		const settled = await durableCycleState(page);
-		expect(settled.laneCount).toBeGreaterThanOrEqual(1);
-		expect(settled.takeCount).toBe(settled.laneCount);
-		expect(settled.takeSourceCount).toBe(settled.laneCount);
-		expect(settled.missingTakeSources).toEqual([]);
+			await startTakeCycle(page, editor);
+			await expect.poll(() => rawCaptureState(page)).toMatchObject({ count: 1, hasPcm: true });
+			await expect.poll(async () => (await rawCaptureState(page)).frameCount).toBeGreaterThanOrEqual(48_000);
+			await stopTakeCycle(page, editor);
+			await expect.poll(() => durableCycleState(page), {
+				message: 'ordinary cycle capture settles its durable roots',
+				timeout: 30_000,
+			}).toMatchObject({
+				recoveryCount: 0,
+				rawSpoolCount: 0,
+				takeGroupCount: 1,
+			});
+			const settled = await durableCycleState(page);
+			expect(settled.laneCount).toBeGreaterThanOrEqual(1);
+			expect(settled.takeCount).toBe(settled.laneCount);
+			expect(settled.takeSourceCount).toBe(settled.laneCount);
+			expect(settled.missingTakeSources).toEqual([]);
 
-		await startTakeCycle(page, editor);
-		await expect.poll(() => rawCaptureState(page)).toMatchObject({ count: 1, hasPcm: true });
-		await page.waitForTimeout(1_000);
-		await context.browser()?.close();
-		context = await launchCycleContext(userDataDir, baseURL, inputPaths[1]);
-		const recoveredPage = context.pages()[0] ?? await context.newPage();
-		const recoveredErrors = collectClientErrors(recoveredPage);
-		editor = await bootRecoveryEditor(recoveredPage);
-		let dialog = recoveredPage.getByRole('dialog', { name: 'Interrupted take recording', exact: true });
-		await expect(dialog.getByRole('button', { name: 'Recover takes', exact: true })).toBeFocused();
-		await expect(dialog).toContainText(/Generation \d+ contains 1 unsettled recording lane/u);
-		await assertAccessibleBasics(dialog);
-		await assertNoSeriousAxeViolations(recoveredPage, '[data-take-cycle-recovery-dialog]');
-		await recoveredPage.emulateMedia({ forcedColors: 'active' });
-		await expect(dialog.getByRole('button', { name: 'Recover takes', exact: true })).toBeVisible();
-		await dialog.getByRole('button', { name: 'Recover takes', exact: true }).click();
-		await expect(dialog).toBeHidden({ timeout: 30_000 });
-		await expect.poll(() => durableCycleState(recoveredPage), {
-			message: 'explicit cycle recovery settles its durable roots',
-			timeout: 30_000,
-		}).toMatchObject({
-			recoveryCount: 0,
-			rawSpoolCount: 0,
-			takeGroupCount: 1,
-		});
-		const afterRecovery = await durableCycleState(recoveredPage);
-		expect(afterRecovery.laneCount).toBeGreaterThan(settled.laneCount);
-		expect(afterRecovery.takeCount).toBe(afterRecovery.laneCount);
-		expect(afterRecovery.missingTakeSources).toEqual([]);
-		const recoveredSourceIds = afterRecovery.takeSourceIds.filter((sourceId) => (
-			!settled.takeSourceIds.includes(sourceId)
-		));
-		expect(recoveredSourceIds.length).toBeGreaterThan(0);
-		const recoveredTake = afterRecovery.takes.find(({ sourceId, startSample, endSample }) => (
-			recoveredSourceIds.includes(sourceId)
-			&& startSample === afterRecovery.takeGroupStartSample
-			&& endSample === afterRecovery.takeGroupEndSample
-		));
-		expect(recoveredTake).toBeTruthy();
-		expect(recoveredTake.endSample - recoveredTake.startSample).toBe(38_400);
-		await recoveredPage.emulateMedia({ forcedColors: 'none' });
+			await context.close();
+			context = await launchCycleContext(userDataDir, baseURL, inputPaths[1]);
+			page = context.pages()[0] ?? await context.newPage();
+			const interruptedErrors = collectClientErrors(page);
+			editor = await bootEditor(page, '/embed/en/');
 
-		await startTakeCycle(recoveredPage, editor);
-		await expect.poll(() => rawCaptureState(recoveredPage)).toMatchObject({ count: 1, hasPcm: true });
-		await context.browser()?.close();
-		context = await launchCycleContext(userDataDir, baseURL, inputPaths[2]);
-		const discardedPage = context.pages()[0] ?? await context.newPage();
-		const discardedErrors = collectClientErrors(discardedPage);
-		await disableNativeSavePicker(discardedPage);
-		editor = await bootRecoveryEditor(discardedPage);
-		dialog = discardedPage.getByRole('dialog', { name: 'Interrupted take recording', exact: true });
-		await dialog.getByRole('button', { name: 'Close', exact: true }).last().click();
-		await expect(dialog).toBeHidden();
+			await startTakeCycle(page, editor);
+			await expect.poll(() => rawCaptureState(page)).toMatchObject({ count: 1, hasPcm: true });
+			await expect.poll(async () => (await rawCaptureState(page)).frameCount).toBeGreaterThanOrEqual(48_000);
+			await context.browser()?.close();
+			context = await launchCycleContext(userDataDir, baseURL, inputPaths[2]);
+			const recoveredPage = context.pages()[0] ?? await context.newPage();
+			const recoveredErrors = collectClientErrors(recoveredPage);
+			editor = await bootRecoveryEditor(recoveredPage);
+			let dialog = recoveredPage.getByRole('dialog', { name: 'Interrupted take recording', exact: true });
+			await expect(dialog.getByRole('button', { name: 'Recover takes', exact: true })).toBeFocused();
+			await expect(dialog).toContainText(/Generation \d+ contains 1 unsettled recording lane/u);
+			await assertAccessibleBasics(dialog);
+			await assertNoSeriousAxeViolations(recoveredPage, '[data-take-cycle-recovery-dialog]');
+			await recoveredPage.emulateMedia({ forcedColors: 'active' });
+			await expect(dialog.getByRole('button', { name: 'Recover takes', exact: true })).toBeVisible();
+			await dialog.getByRole('button', { name: 'Recover takes', exact: true }).click();
+			await expect(dialog).toBeHidden({ timeout: 30_000 });
+			await expect.poll(() => durableCycleState(recoveredPage), {
+				message: 'explicit cycle recovery settles its durable roots',
+				timeout: 30_000,
+			}).toMatchObject({
+				recoveryCount: 0,
+				rawSpoolCount: 0,
+				takeGroupCount: 1,
+			});
+			const afterRecovery = await durableCycleState(recoveredPage);
+			expect(afterRecovery.laneCount).toBeGreaterThan(settled.laneCount);
+			expect(afterRecovery.takeCount).toBe(afterRecovery.laneCount);
+			expect(afterRecovery.missingTakeSources).toEqual([]);
+			const recoveredSourceIds = afterRecovery.takeSourceIds.filter((sourceId) => (
+				!settled.takeSourceIds.includes(sourceId)
+			));
+			expect(recoveredSourceIds.length).toBeGreaterThan(0);
+			const recoveredTake = afterRecovery.takes.find(({ sourceId, startSample, endSample }) => (
+				recoveredSourceIds.includes(sourceId)
+				&& startSample === afterRecovery.takeGroupStartSample
+				&& endSample === afterRecovery.takeGroupEndSample
+			));
+			expect(recoveredTake).toBeTruthy();
+			expect(recoveredTake.endSample - recoveredTake.startSample).toBe(38_400);
+			await recoveredPage.emulateMedia({ forcedColors: 'none' });
 
-		const record = editor.locator('[data-transport="record"] .kw-audio-editor__split-button-main button');
-		await expect(record).toBeDisabled();
-		const recordOptions = editor.getByRole('button', { name: 'Record options', exact: true });
-		await expect(recordOptions).toBeEnabled();
-		await recordOptions.click();
-		const menu = discardedPage.getByRole('dialog', { name: 'Record options', exact: true });
-		await expect(menu.getByRole('button', { name: 'Resolve interrupted take recording', exact: true })).toBeEnabled();
-		for (const label of [
-			'Record to new track',
-			'Timed recording',
-			'Sound-activated recording',
-		]) {
-			await expect(menu.getByRole('button', { name: label, exact: true })).toBeDisabled();
-		}
-		await expect(menu.getByRole('checkbox', { name: 'Lead-in time' })).toBeDisabled();
-		await expect(menu.getByRole('checkbox', { name: 'Monitor input' })).toBeDisabled();
-		await expect(menu.getByRole('button', { name: 'Sound activation' })).toBeDisabled();
-		await expect(menu.getByRole('button', { name: 'Record loop into takes' })).toBeDisabled();
-		await menu.getByRole('button', { name: 'Resolve interrupted take recording', exact: true }).focus();
-		await discardedPage.keyboard.press('Enter');
-		dialog = discardedPage.getByRole('dialog', { name: 'Interrupted take recording', exact: true });
-		await expect(dialog).toBeVisible();
-		await dialog.getByRole('button', { name: 'Discard takes', exact: true }).click();
-		await expect(dialog).toBeHidden({ timeout: 30_000 });
-		await expect.poll(() => durableCycleState(discardedPage), {
-			message: 'explicit cycle discard settles its durable roots',
-			timeout: 30_000,
-		}).toMatchObject({
-			recoveryCount: 0,
-			rawSpoolCount: 0,
-			laneCount: afterRecovery.laneCount,
-			takeCount: afterRecovery.takeCount,
-		});
-		const afterDiscard = await durableCycleState(discardedPage);
-		expect(afterDiscard.takeSourceIds).toEqual(afterRecovery.takeSourceIds);
-		expect(afterDiscard.missingTakeSources).toEqual([]);
+			await startTakeCycle(recoveredPage, editor);
+			await expect.poll(() => rawCaptureState(recoveredPage)).toMatchObject({ count: 1, hasPcm: true });
+			await context.browser()?.close();
+			context = await launchCycleContext(userDataDir, baseURL, inputPaths[2]);
+			const discardedPage = context.pages()[0] ?? await context.newPage();
+			const discardedErrors = collectClientErrors(discardedPage);
+			await disableNativeSavePicker(discardedPage);
+			editor = await bootRecoveryEditor(discardedPage);
+			dialog = discardedPage.getByRole('dialog', { name: 'Interrupted take recording', exact: true });
+			await dialog.getByRole('button', { name: 'Close', exact: true }).last().click();
+			await expect(dialog).toBeHidden();
 
-		const recoveredAudio = await exportRecoveredTake(discardedPage, editor, recoveredTake);
-		expect(recoveredAudio.sampleRate).toBe(48_000);
-		expect(recoveredAudio.frameCount).toBe(38_400);
-		expect(recoveredAudio.probeFrameCount).toBeGreaterThan(4_800);
-		expect(recoveredAudio.rms).toBeGreaterThan(0.02);
-		expect(Math.abs(recoveredAudio.frequency - 660)).toBeLessThan(3);
-		expect(initialErrors).toEqual([]);
-		expect(recoveredErrors).toEqual([]);
-		expect(discardedErrors).toEqual([]);
+			const record = editor.locator('[data-transport="record"] .kw-audio-editor__split-button-main button');
+			await expect(record).toBeDisabled();
+			const recordOptions = editor.getByRole('button', { name: 'Record options', exact: true });
+			await expect(recordOptions).toBeEnabled();
+			await recordOptions.click();
+			const menu = discardedPage.getByRole('dialog', { name: 'Record options', exact: true });
+			await expect(menu.getByRole('button', { name: 'Resolve interrupted take recording', exact: true })).toBeEnabled();
+			for (const label of [
+				'Record to new track',
+				'Timed recording',
+				'Sound-activated recording',
+			]) {
+				await expect(menu.getByRole('button', { name: label, exact: true })).toBeDisabled();
+			}
+			await expect(menu.getByRole('checkbox', { name: 'Lead-in time' })).toBeDisabled();
+			await expect(menu.getByRole('checkbox', { name: 'Monitor input' })).toBeDisabled();
+			await expect(menu.getByRole('button', { name: 'Sound activation' })).toBeDisabled();
+			await expect(menu.getByRole('button', { name: 'Record loop into takes' })).toBeDisabled();
+			await menu.getByRole('button', { name: 'Resolve interrupted take recording', exact: true }).focus();
+			await discardedPage.keyboard.press('Enter');
+			dialog = discardedPage.getByRole('dialog', { name: 'Interrupted take recording', exact: true });
+			await expect(dialog).toBeVisible();
+			await dialog.getByRole('button', { name: 'Discard takes', exact: true }).click();
+			await expect(dialog).toBeHidden({ timeout: 30_000 });
+			await expect.poll(() => durableCycleState(discardedPage), {
+				message: 'explicit cycle discard settles its durable roots',
+				timeout: 30_000,
+			}).toMatchObject({
+				recoveryCount: 0,
+				rawSpoolCount: 0,
+				laneCount: afterRecovery.laneCount,
+				takeCount: afterRecovery.takeCount,
+			});
+			const afterDiscard = await durableCycleState(discardedPage);
+			expect(afterDiscard.takeSourceIds).toEqual(afterRecovery.takeSourceIds);
+			expect(afterDiscard.missingTakeSources).toEqual([]);
+
+			const recoveredAudio = await exportRecoveredTake(discardedPage, editor, recoveredTake);
+			expect(recoveredAudio.sampleRate).toBe(48_000);
+			expect(recoveredAudio.frameCount).toBe(38_400);
+			expect(recoveredAudio.probeFrameCount).toBeGreaterThan(4_800);
+			expect(recoveredAudio.rms).toBeGreaterThan(0.02);
+			expect(Math.abs(recoveredAudio.frequency - 660)).toBeLessThan(3);
+			expect(initialErrors).toEqual([]);
+			expect(interruptedErrors).toEqual([]);
+			expect(recoveredErrors).toEqual([]);
+			expect(discardedErrors).toEqual([]);
 		} finally {
 			await context.close().catch(() => undefined);
 			await rm(userDataDir, { force: true, recursive: true });
@@ -216,8 +223,7 @@ async function startTakeCycle(page, editor) {
 	const menu = page.getByRole('dialog', { name: 'Record options', exact: true });
 	const start = menu.getByRole('button', { name: 'Record loop into takes', exact: true });
 	await expect(start).toBeEnabled();
-	await start.focus();
-	await page.keyboard.press('Enter');
+	await start.click();
 	const errorToast = page.locator('[data-editor-toast="workspace-status-error"]');
 	if (await errorToast.isVisible()) {
 		throw new Error(await errorToast.textContent() ?? 'Cycle recording failed.');
@@ -226,8 +232,10 @@ async function startTakeCycle(page, editor) {
 		await expect(editor.locator('[data-transport="record"] .kw-audio-editor__split-button-main button'))
 			.toHaveAttribute('aria-pressed', 'true', { timeout: 20_000 });
 	} catch (error) {
-		const message = await errorToast.textContent();
-		if (message) throw new Error(message, { cause: error });
+		if (await errorToast.isVisible()) {
+			const message = await errorToast.textContent();
+			if (message) throw new Error(message, { cause: error });
+		}
 		throw error;
 	}
 }
@@ -255,7 +263,7 @@ async function bootRecoveryEditor(page) {
 
 async function launchCycleContext(userDataDir, baseURL, inputPath) {
 	const context = await chromium.launchPersistentContext(userDataDir, {
-		args: packagedRuntimeAudioArguments(inputPath),
+		args: [...packagedRuntimeAudioArguments(inputPath), '--use-fake-ui-for-media-stream'],
 		baseURL,
 		headless: true,
 		permissions: ['microphone'],
@@ -307,6 +315,7 @@ async function rawCaptureState(page) {
 	const state = await durableCycleState(page);
 	return {
 		count: state.rawSpoolCount,
+		frameCount: Math.max(0, ...state.rawSpools.map(({ frameCount }) => frameCount)),
 		hasPcm: state.rawSpools.some(({ frameCount, chunkCount }) => frameCount > 0 && chunkCount > 0),
 	};
 }
@@ -329,7 +338,9 @@ async function durableCycleState(page) {
 			]);
 			const project = projects[0] ?? null;
 			const groups = project?.takeGroups ?? [];
-			const takes = groups.flatMap((group) => group.takes ?? []);
+			const takes = groups.flatMap((group) => (group.takes ?? []).map((take) => ({
+				...take, trackId: group.trackId,
+			})));
 			const sourceIds = new Set(sources.map((source) => source.id));
 			const sourceNames = new Map(sources.map((source) => [source.id, source.name]));
 			const rawSpools = analysis
@@ -348,6 +359,7 @@ async function durableCycleState(page) {
 				takeSourceIds: [...new Set(takes.map((take) => take.sourceId))].sort(),
 				takes: takes.map((take, laneIndex) => ({
 					id: take.id,
+					trackId: take.trackId,
 					laneIndex,
 					laneId: take.laneId,
 					sourceId: take.sourceId,
@@ -369,7 +381,7 @@ async function durableCycleState(page) {
 
 async function exportRecoveredTake(page, editor, take) {
 	const original = clipByName(editor, toneA.name);
-	const track = original.locator('xpath=ancestor::*[@data-track-row][1]');
+	const track = editor.locator(`[data-track-row][data-track-id="${take.trackId}"]`);
 	await chooseTrackMenuAction(page, editor, track, 'Take lanes and comps');
 	const comp = page.getByRole('dialog', { name: 'Take lanes and comps', exact: true });
 	await expect(comp).toBeVisible();
