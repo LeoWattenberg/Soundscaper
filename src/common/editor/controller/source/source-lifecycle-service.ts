@@ -138,7 +138,10 @@ export function createSourceLifecycleService<
 		const excludedSourceIds = sourceIdSet(options.excludedAudioSourceIds ?? [], 'excluded audio source');
 		const usedSourceIds = options.onlyRequiredAudioSources
 			? new Set<string>()
-			: new Set<string>(allProjectClips(project).map((clip) => clip.sourceId));
+			: new Set<string>([
+				...allProjectClips(project).map((clip) => clip.sourceId),
+				...(project.takeGroups ?? []).flatMap((group) => group.takes.map((take) => take.sourceId)),
+			]);
 		for (const sourceId of excludedSourceIds) usedSourceIds.delete(sourceId);
 		for (const sourceId of requiredSourceIds) usedSourceIds.add(sourceId);
 		for (const sourceId of requiredVideoSourceIds) usedSourceIds.add(sourceId);
@@ -313,9 +316,12 @@ export function createSourceLifecycleService<
 		const requiredSourceIds = requiredAudioSourceIdSet(snapshot, options);
 		const requiredVideoSourceIds = requiredVideoSourceIdSet(snapshot, options);
 		const excludedAudioSourceIds = sourceIdSet(options.excludedAudioSourceIds ?? [], 'excluded audio source');
-		const usedSourceIds = new Set((snapshot?.clips || [])
+		const usedSourceIds = new Set([
+			...(snapshot?.clips || [])
 			.filter((clip) => clip.kind !== 'video')
-			.map((clip) => clip.sourceId));
+			.map((clip) => clip.sourceId),
+			...(snapshot.takeGroups ?? []).flatMap((group) => group.takes.map((take) => take.sourceId)),
+		]);
 		for (const sourceId of excludedAudioSourceIds) usedSourceIds.delete(sourceId);
 		for (const sourceId of requiredSourceIds) usedSourceIds.add(sourceId);
 		const transientBuffers = new Map<string, Buffer>();

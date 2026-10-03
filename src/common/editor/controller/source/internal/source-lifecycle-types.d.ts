@@ -50,6 +50,9 @@ export interface SourceLifecycleProject {
 	readonly id: string;
 	readonly sources: readonly SourceLifecycleSource[];
 	readonly clips: readonly SourceLifecycleClip[];
+	readonly takeGroups?: readonly Readonly<{
+		readonly takes: readonly Readonly<{ readonly sourceId: string }>[];
+	}>[];
 	readonly projectBin?: Readonly<{ readonly clips?: readonly SourceLifecycleClip[] }>;
 	readonly sampleRate?: number;
 	readonly tempoMap?: unknown;
