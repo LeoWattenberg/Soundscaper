@@ -6,8 +6,8 @@ import { RulerFlyout } from '../RulerFlyout';
 afterEach(cleanup);
 
 describe('RulerFlyout waveform formats', () => {
-  it('offers only the supported linear formats', () => {
-    const { getByText, queryByText } = render(
+  it('offers logarithmic dB alongside the supported linear formats', () => {
+    const { getByText } = render(
       <ThemeProvider>
         <RulerFlyout isOpen onClose={() => {}} x={0} y={0} mode="waveform" />
       </ThemeProvider>,
@@ -15,6 +15,6 @@ describe('RulerFlyout waveform formats', () => {
 
     expect(getByText('Linear (amp)')).toBeInTheDocument();
     expect(getByText('Linear (dB)')).toBeInTheDocument();
-    expect(queryByText('Logarithmic (dB)')).not.toBeInTheDocument();
+    expect(getByText('dB (logarithmic)')).toBeInTheDocument();
   });
 });

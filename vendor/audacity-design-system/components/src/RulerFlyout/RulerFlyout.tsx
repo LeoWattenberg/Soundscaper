@@ -110,6 +110,7 @@ export interface RulerFlyoutProps {
 const WAVEFORM_OPTIONS: { value: WaveformRulerFormat; label: string }[] = [
   { value: 'linear-amp', label: 'Linear (amp)' },
   { value: 'linear-db', label: 'Linear (dB)' },
+  { value: 'logarithmic-db', label: 'dB (logarithmic)' },
 ];
 
 const SPECTROGRAM_OPTIONS: { value: SpectrogramScale; label: string }[] = [
