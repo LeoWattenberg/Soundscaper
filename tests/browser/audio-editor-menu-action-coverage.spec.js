@@ -33,13 +33,7 @@ test.describe('application menu action journeys', () => {
 		for (const label of ['Project bin', 'Video preview', 'Effects']) {
 			await expect(eye(getMenuItem(panels, label))).toHaveCount(1);
 		}
-		const tracks = getMenuItem(panels, 'Tracks panel');
-		await expect(tracks).toHaveAttribute('aria-checked', 'true');
-		await expect(eye(tracks)).toHaveText('\uEF53');
-		await tracks.click();
-		const hiddenTracks = getMenuItem(await openNestedCommandMenu(page, editor, 'Window', []), 'Tracks panel');
-		await expect(hiddenTracks).toHaveAttribute('aria-checked', 'false');
-		await expect(eye(hiddenTracks)).toHaveText('\uEF54');
+		await expect(getMenuItem(panels, 'Tracks panel')).toHaveCount(0);
 
 		const snapping = await openNestedCommandMenu(page, editor, 'View', ['Snapping']);
 		await expect(eye(getMenuItem(snapping, 'Snap to grid'))).toHaveCount(0);
@@ -51,9 +45,9 @@ test.describe('application menu action journeys', () => {
 		await importFiles(editor, [toneA]);
 		await expect(editor).toHaveAttribute('data-track-count', '2');
 
-		await chooseNestedCommandAction(page, editor, 'Window', ['Tracks panel']);
-		await expect(editor.locator('[data-track-list]')).toHaveCount(0);
-		await chooseNestedCommandAction(page, editor, 'Window', ['Tracks panel']);
+		const windowMenu = await openNestedCommandMenu(page, editor, 'Window', []);
+		await expect(getMenuItem(windowMenu, 'Tracks panel')).toHaveCount(0);
+		await page.keyboard.press('Escape');
 		await expect(editor.locator('[data-track-list]')).toBeVisible();
 
 		await chooseCommandAction(page, editor, 'View', 'Master track');

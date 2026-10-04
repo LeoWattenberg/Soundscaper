@@ -37,9 +37,10 @@ test.describe('project tab close controls', () => {
 		await expect(window.getByRole('menu')).toHaveCount(0);
 		await expect(getMenuItem(window, 'First project')).toHaveAttribute('aria-checked', 'false');
 		await expect(getMenuItem(window, 'Second project')).toHaveAttribute('aria-checked', 'true');
-		for (const name of ['Soundscaper', 'Audacity', 'Music', 'Classic', 'Tracks panel', 'Clip properties']) {
+		for (const name of ['Soundscaper', 'Audacity', 'Music', 'Classic', 'Clip properties']) {
 			await expect(getMenuItem(window, name)).toBeVisible();
 		}
+		await expect(getMenuItem(window, 'Tracks panel')).toHaveCount(0);
 		await getMenuItem(window, 'First project').press('Enter');
 		await expect(window).toBeHidden();
 		await expect(editor.getByRole('tab', { name: 'First project', exact: true })).toHaveAttribute('aria-selected', 'true');

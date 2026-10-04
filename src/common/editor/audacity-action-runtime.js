@@ -27,7 +27,7 @@ const UI_FLAG_DEFAULTS = Object.freeze({
 	storagePanel: false,
 	// The compact layout keeps the track headers in a drawer; this is its open state.
 	trackHeaderDrawer: false,
-	tracksPanel: true,
+	tracksPanel: true, // Legacy callers may read this flag; the timeline stays visible.
 });
 /**
  * Small, framework-neutral UI command target used by manifest actions which
@@ -35,7 +35,7 @@ const UI_FLAG_DEFAULTS = Object.freeze({
  * the emitted snapshot; headless tests exercise the exact same command target.
  */
 export function createAudioEditorUiActionController(options = {}) {
-	let flags = Object.freeze({ ...UI_FLAG_DEFAULTS, ...(options.flags || {}) });
+	let flags = Object.freeze({ ...UI_FLAG_DEFAULTS, ...(options.flags || {}), tracksPanel: true });
 	let request = null;
 	let revision = 0;
 	let disposed = false;
@@ -59,7 +59,7 @@ export function createAudioEditorUiActionController(options = {}) {
 	function toggleFlag(name) {
 		ensureUsable();
 		if (!Object.hasOwn(flags, name)) throw new ReferenceError(`Unknown audio editor UI flag: ${name}.`);
-		flags = Object.freeze({ ...flags, [name]: !flags[name] });
+		flags = Object.freeze({ ...flags, [name]: name === 'tracksPanel' || !flags[name] });
 		publish();
 		return flags[name];
 	}
@@ -67,7 +67,7 @@ export function createAudioEditorUiActionController(options = {}) {
 	function setFlag(name, value) {
 		ensureUsable();
 		if (!Object.hasOwn(flags, name)) throw new ReferenceError(`Unknown audio editor UI flag: ${name}.`);
-		flags = Object.freeze({ ...flags, [name]: Boolean(value) });
+		flags = Object.freeze({ ...flags, [name]: name === 'tracksPanel' || Boolean(value) });
 		publish();
 		return flags[name];
 	}
@@ -312,7 +312,6 @@ export function createAudacityActionRuntime(controller, options = {}) {
 		workspace: {
 			toggleTransportToolbar: () => controllerActions.preferences.toggleToolbar('transport'),
 			toggleSelectionToolbar: () => ui.toggleFlag('selectionToolbar'),
-			toggleTracksPanel: () => ui.toggleFlag('tracksPanel'),
 			toggleStatusbar: () => ui.toggleFlag('statusbar'),
 			toggleTrackHeaderDrawer: () => ui.toggleFlag('trackHeaderDrawer'),
 			toggleMasterTrack: () => controllerActions.preferences.update({

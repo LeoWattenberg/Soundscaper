@@ -165,9 +165,6 @@ test.describe('Audacity action runtime browser routes', () => {
 		await expect(selectionToolbar).not.toHaveClass(/selection-surface--status-only/u);
 
 		const workspaceMain = editor.locator('.kw-audio-editor__workspace-main');
-		await invokeSearchCommand(page, editor, 'toggle-tracks');
-		await expect(workspaceMain).toHaveCount(0);
-		await invokeSearchCommand(page, editor, 'toggle-tracks');
 		await expect(workspaceMain).toBeVisible();
 
 		await invokeSearchCommand(page, editor, 'toggle-clipping-in-waveform');

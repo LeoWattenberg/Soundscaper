@@ -13,7 +13,7 @@ import { workspaceSwitcherOptions } from './workspace/workspace-switcher-options
 export function createApplicationWindowMenu(context, viewMenu, actions) {
 	const {
 		blocked, capabilities, copy, divider, effectsPanelOpen, preferences, productId,
-		productItems, project, projectBinEffectivelyOpen, selectedAudioTrack, snapshot, uiFlags,
+		productItems, project, projectBinEffectivelyOpen, selectedAudioTrack, snapshot,
 	} = context;
 	const seenProjects = new Set();
 	const customWorkspaceIds = new Set(preferences.workspace.custom.map((workspace) => workspace.id));
@@ -43,7 +43,6 @@ export function createApplicationWindowMenu(context, viewMenu, actions) {
 				onClick: () => viewMenu.setWorkspace(workspace.id),
 			})),
 			divider(),
-			{ id: 'toggle-tracks', label: copy.tracksPanel, checked: uiFlags.tracksPanel, visibilityToggle: true },
 			...WORKSPACE_DISCOVERABLE_PANEL_IDS
 				.filter((panelId) => !ANALYZER_PANEL_ID_SET.has(panelId)
 					&& (capabilities.audioEffects || panelId !== 'effects')

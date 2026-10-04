@@ -626,13 +626,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await page.evaluate(() => globalThis.dispatchEvent(new Event('blur')));
 		await expect(timeline).toHaveAttribute('data-split-tool', 'false');
 
-		await chooseNestedCommandAction(page, editor, 'Window', ['Tracks panel']);
-		await expect(timeline).toHaveCount(0);
-		await editor.evaluate((element) => { element.tabIndex = -1; element.focus(); });
-		await page.keyboard.down('k');
-		await page.waitForTimeout(300);
-		await page.keyboard.up('k');
-		await expect(splitButton).toHaveAttribute('aria-pressed', 'false');
+		await expect(timeline).toBeVisible();
 		expect(errors).toEqual([]);
 	});
 

@@ -503,7 +503,6 @@ Product availability follows each product profile’s command filters and each l
 | Track sample rate | `action://trackedit/track/change-rate?rate=%1` | — | Clip properties | Soundscaper, Framescaper | Audacity |
 | Track start to cursor | `select-track-start-to-cursor` | Shift+J | Select > Region | Soundscaper, Framescaper | Audacity |
 | Track start to end | `select-track-start-to-end` | — | Select > Region | Soundscaper, Framescaper | Audacity |
-| Tracks panel | `toggle-tracks` | — | Window | Soundscaper, Framescaper | Audacity |
 | Transcribe & Captions | `assistance-task-transcribe-captions` | — | Analyze > Speech | Soundscaper, Framescaper | Soundscaper local |
 | Transform and compositing | `video-composition-editor` | — | Edit > Audio clips | Framescaper | Soundscaper local |
 | Transport toolbar | `local://transport-toolbar` | — | View > Toolbars | Soundscaper, Framescaper | Soundscaper local |

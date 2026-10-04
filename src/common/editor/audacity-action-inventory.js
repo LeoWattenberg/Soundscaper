@@ -133,7 +133,7 @@ export const AUDACITY_ACTION_DEFINITIONS = [
 	implemented('project-properties', 'Project properties', ['File > Project management'], 'panels.metadata', { enableWhen: 'project-opened', source: UPSTREAM.project }),
 	implemented('revert-factory', 'Revert to factory settings', ['Help'], 'help.revertFactorySettings', { source: UPSTREAM.application }),
 	implemented('toggle-transport', 'Playback controls', ['View > Toolbars'], 'workspace.toggleTransportToolbar', { source: UPSTREAM.application }),
-	implemented('toggle-tracks', 'Tracks panel', ['Window'], 'workspace.toggleTracksPanel', { source: UPSTREAM.application, enableWhen: 'project-opened' }),
+	excluded('toggle-tracks', 'Tracks panel', ['Window'], EXCLUDED_REASONS.superseded, { source: UPSTREAM.application }),
 	implemented('toggle-statusbar', 'Status bar', ['View'], 'workspace.toggleStatusbar', { source: UPSTREAM.application, enableWhen: 'project-opened' }),
 	implemented('configure-workspaces', 'Configure workspaces', ['View > Workspaces'], 'workspace.configure', { source: UPSTREAM.menu }),
 

@@ -354,7 +354,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 			>
 				{!compactLayout && toolbarDock === 'left' && <div className="kw-audio-editor__side-toolbar" data-toolbar-dock="left">{editorToolbar}</div>}
 				<WorkspacePanelDock {...panelDockRuntime} dock="left" aboutLabel={overlayModel.aboutLabel} />
-				{uiFlags.tracksPanel && <div className="kw-audio-editor__workspace-main">
+				<div className="kw-audio-editor__workspace-main">
 				<WorkspacePanelDock {...panelDockRuntime} dock="top" />
 				<main className="kw-audio-editor__canvas">
 					<AudioEditorTimeline
@@ -395,7 +395,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 					<p className="kw-audio-editor__keyboard-help" tabIndex={-1}>{copy.keyboardHelp}</p>
 				</main>
 				<WorkspacePanelDock {...panelDockRuntime} dock="bottom" />
-				</div>}
+				</div>
 				<WorkspacePanelDock {...panelDockRuntime} dock="right" />
 				{!compactLayout && toolbarDock === 'right' && <div className="kw-audio-editor__side-toolbar" data-toolbar-dock="right">{editorToolbar}</div>}
 				{toolbarButtonPreferences['playback-volume'] !== false

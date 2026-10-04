@@ -4,6 +4,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import createApplicationMenus from '../src/common/editor/ui/application-menus.js';
+import { createAudioEditorUiActionController } from '../src/common/editor/audacity-action-runtime.js';
+import {
+	AUDACITY_ACTION_STATUS, audacityActionDefinition, resolveAudacityActionHandler,
+} from '../src/common/editor/audacity-action-parity.js';
 import { createWorkspaceApplicationMenus } from '../src/common/editor/ui/workspace/workspace-application-menu-runtime.js';
 import { WORKSPACE_PANEL_IDS } from '../src/common/editor/ui/workspace/workspace-panel-model.ts';
 import { ENGLISH_COPY, GERMAN_COPY } from '../src/common/i18n/catalogs.js';
@@ -81,7 +85,7 @@ test('Window lists projects, workspaces and panels as flat groups separated by t
 	assert.deepEqual(items.slice(3, 8).map((item) => item.id), [
 		'workspace-modern', 'workspace-audacity', 'workspace-music', 'workspace-classic', 'workspace-podcast',
 	]);
-	assert.equal(items[9]?.id, 'toggle-tracks');
+	assert.equal(items.some((item) => item.id === 'toggle-tracks'), false);
 	assert.ok(items.some((item) => item.id === 'panel-clip-properties'));
 	assert.equal(menus.at(-2)?.id, 'window');
 });
@@ -100,7 +104,7 @@ test('Window marks active projects and workspaces and invokes their switching ac
 
 test('Window preserves panel visibility indicators and toggle actions', () => {
 	const { items, calls } = fixture();
-	for (const [id, checked] of [['toggle-tracks', true], ['panel-project-bin', true], ['panel-history', true],
+	for (const [id, checked] of [['panel-project-bin', true], ['panel-history', true],
 		['panel-clip-properties', false], ['show-effects', false]] as const) {
 		const item = items.find((entry) => entry.id === id);
 		assert.ok(item, id);
@@ -110,6 +114,25 @@ test('Window preserves panel visibility indicators and toggle actions', () => {
 	assert.equal(items.find((item) => item.id === 'show-effects')?.disabled, true);
 	items.find((item) => item.id === 'panel-clip-properties')?.onClick?.();
 	assert.deepEqual(calls, ['panel:clip-properties']);
+});
+
+test('tracks remain visible when legacy UI flags or callers request a hidden panel', () => {
+	const ui = createAudioEditorUiActionController({ flags: { tracksPanel: false } });
+	assert.equal(ui.getSnapshot().flags.tracksPanel, true);
+	assert.equal(ui.actions.toggleFlag('tracksPanel'), true);
+	assert.equal(ui.actions.setFlag('tracksPanel', false), true);
+	assert.equal(ui.getSnapshot().flags.tracksPanel, true);
+	ui.dispose();
+});
+
+test('the retired tracks visibility action remains auditable and cannot execute', () => {
+	const action = audacityActionDefinition('toggle-tracks');
+	assert.equal(action?.status, AUDACITY_ACTION_STATUS.EXCLUDED);
+	assert.equal(action?.handler, null);
+	assert.equal(action?.shortcut, null);
+	assert.equal(resolveAudacityActionHandler('toggle-tracks', {
+		workspace: { toggleTracksPanel: () => false },
+	}), null);
 });
 
 test('Window uses the product workspace and panel availability rules', () => {
