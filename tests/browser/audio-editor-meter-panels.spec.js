@@ -123,31 +123,33 @@ test.describe('dockable playback and recording meters', () => {
 		});
 	}
 
-	test('resizes a meter dock down to 72 pixels and persists its width', async ({ page }) => {
+	test('resizes adjacent meter columns down to 72 pixels each and persists the dock width', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/', { defaultWorkspace: true });
 		const rightDock = editor.locator('[data-panel-dock="right"]');
 		await expect(rightDock).toBeVisible();
-		expect((await requiredBounds(rightDock)).width).toBeCloseTo(72, 0);
+		await expect(rightDock).toHaveAttribute('data-workspace-column-count', '2');
+		expect((await requiredBounds(rightDock)).width).toBeCloseTo(144, 0);
 		const channelWidths = await Promise.all(METERS.map(async (meter) => (
 			(await requiredBounds(meterPanel(editor, meter).getByRole('meter'))).width
 		)));
 		const resize = rightDock.getByRole('button', { name: 'Resize: Right', exact: true });
 		await resize.press('ArrowLeft');
 		await resize.press('ArrowLeft');
-		await expect.poll(async () => (await requiredBounds(rightDock)).width).toBeCloseTo(104, 0);
+		await expect.poll(async () => (await requiredBounds(rightDock)).width).toBeCloseTo(176, 0);
 		for (const [index, meter] of METERS.entries()) {
-			expect((await requiredBounds(meterPanel(editor, meter).getByRole('meter'))).width).toBeGreaterThan(channelWidths[index] + 30);
+			expect((await requiredBounds(meterPanel(editor, meter).getByRole('meter'))).width).toBeGreaterThanOrEqual(channelWidths[index] + 15);
 		}
 		await page.reload();
 		await waitForEditor(page);
-		expect((await requiredBounds(rightDock)).width).toBeCloseTo(104, 0);
+		expect((await requiredBounds(rightDock)).width).toBeCloseTo(176, 0);
 		await resize.press('Shift+ArrowRight');
 		await resize.press('Shift+ArrowRight');
-		await expect.poll(async () => (await requiredBounds(rightDock)).width).toBeCloseTo(72, 0);
+		await expect.poll(async () => (await requiredBounds(rightDock)).width).toBeCloseTo(144, 0);
 		await page.reload();
 		await waitForEditor(page);
-		expect((await requiredBounds(rightDock)).width).toBeCloseTo(72, 0);
+		expect((await requiredBounds(rightDock)).width).toBeCloseTo(144, 0);
 		for (const meter of METERS) {
+			expect((await requiredBounds(meterPanel(editor, meter))).width).toBeCloseTo(72, 0);
 			await expect(meterPanel(editor, meter).getByRole('slider', { name: meter.slider, exact: true })).toBeVisible();
 		}
 	});

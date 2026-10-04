@@ -199,6 +199,15 @@
 	padding-left: 17px;
 }
 
+/* Keep the stack controls clear of the side dock's 17px resize target. */
+.kw-audio-editor__panel-dock--left > .kw-audio-editor__workspace-panel-column:last-child .effects-stack-header {
+	padding-right: 17px;
+}
+
+.kw-audio-editor__panel-dock--right > .kw-audio-editor__workspace-panel-column:first-of-type .effects-stack-header {
+	padding-left: 17px;
+}
+
 .kw-audio-editor__panel-dock--bottom .kw-audio-editor__workspace-panel-header {
 	padding-top: 9px;
 }

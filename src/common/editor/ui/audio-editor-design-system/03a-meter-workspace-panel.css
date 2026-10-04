@@ -132,7 +132,16 @@
 #kw-audio-editor-design-system[data-layout='compact'] :is(.kw-audio-editor__panel-dock--left, .kw-audio-editor__panel-dock--right)[data-meter-dock] {
 	position: relative;
 	z-index: auto;
+	width: 72px;
+	min-width: 72px;
+	flex-direction: column;
 	inset: auto;
 	border: 0;
 	box-shadow: none;
+}
+
+/* Stack meter columns on phones to leave room beside the track-header drawer. */
+#kw-audio-editor-design-system[data-layout='compact'] [data-meter-dock] > .kw-audio-editor__workspace-panel-column {
+	flex-basis: 0;
+	border-left: 0;
 }

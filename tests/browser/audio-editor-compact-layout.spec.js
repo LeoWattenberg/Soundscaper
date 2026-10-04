@@ -149,6 +149,8 @@ test.describe('compact layout', () => {
 	test('a phone viewport keeps the track headers in a drawer that slides over full-width lanes', async ({ page }) => {
 		const editor = await bootCompactEditor(page);
 		await importFiles(editor, [toneA]);
+		// Meter columns stack on a phone so the open headers leave a tappable lane.
+		await expect.poll(async () => (await editor.locator('[data-meter-dock]').boundingBox())?.width).toBe(72);
 		const row = editor.locator('[data-track-row]').first();
 		const header = row.locator('[data-track-header]');
 		const lane = row.locator('[data-track-lane]');

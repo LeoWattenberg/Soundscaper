@@ -3,7 +3,7 @@
 import { expect, test } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor, chooseCommandAction, chooseNestedCommandAction, openWorkspacePanelMenu,
-	registerAudioEditorHooks, waitForEditor,
+	registerAudioEditorHooks, waitForEditor, waitForResponsiveEditorLayout,
 } from './audio-editor-test-helpers.js';
 
 test.describe('Workspace panel columns', () => {
@@ -29,6 +29,15 @@ test.describe('Workspace panel columns', () => {
 		await waitForEditor(page);
 		await assertAdjacent();
 		await page.setViewportSize({ width: 390, height: 844 });
+		await waitForResponsiveEditorLayout(editor);
+		const [top, bottom] = await Promise.all([playback.boundingBox(), recording.boundingBox()]);
+		expect(top.width).toBe(72);
+		expect(bottom.width).toBe(72);
+		expect(bottom.x).toBeCloseTo(top.x, 0);
+		expect(bottom.y).toBeCloseTo(top.y + top.height, 0);
+		// Compact presentation keeps the saved columns for the desktop layout.
+		await page.setViewportSize({ width: 1280, height: 800 });
+		await waitForResponsiveEditorLayout(editor);
 		await assertAdjacent();
 	});
 
