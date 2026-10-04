@@ -19,7 +19,8 @@
 	min-height: 0;
 	flex: 1 1 auto;
 	align-items: stretch;
-	padding: 5px;
+	gap: 2px;
+	padding: 3px 5px;
 	border: 0;
 }
 
@@ -108,11 +109,15 @@
 
 #kw-audio-editor-design-system .kw-audio-editor__meter-panel-grip {
 	width: 25px;
-	height: 18px;
-	min-height: 18px;
+	height: 12px;
+	min-height: 12px;
 	flex: 0 0 auto;
 	align-self: center;
-	line-height: 18px;
+	line-height: 12px;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__meter-panel-grip > span {
+	transform: rotate(90deg);
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__meter-workspace-panel > aside {

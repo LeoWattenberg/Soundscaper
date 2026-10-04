@@ -72,5 +72,5 @@ export function MeterPanelGrip() {
 		onDragEnd={grip.dragHandle.onDragEnd}
 		onKeyDown={grip.dragHandle.onKeyDown}
 		onPointerDown={grip.onPointerDown}
-	>⠿</button>;
+	><span aria-hidden="true">⠿</span></button>;
 }
