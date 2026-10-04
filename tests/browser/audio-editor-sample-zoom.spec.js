@@ -49,7 +49,8 @@ test.describe('audio editor sample-depth zoom', () => {
 			element.scrollLeft = scrollX;
 			element.dispatchEvent(new Event('scroll', { bubbles: true }));
 		}, target);
-		await expect.poll(() => timeline.evaluate((element) => element.scrollLeft)).toBe(target);
+		// Firefox quantizes large scroll offsets to fractional CSS pixels.
+		await expect.poll(() => timeline.evaluate((element) => element.scrollLeft)).toBeCloseTo(target, 0);
 		const clipBox = await clipByName(editor, longTone.name).boundingBox();
 		const timelineBox = await timeline.boundingBox();
 		expect(clipBox).not.toBeNull();
