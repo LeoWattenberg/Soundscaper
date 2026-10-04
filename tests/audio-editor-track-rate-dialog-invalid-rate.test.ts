@@ -104,7 +104,6 @@ async function mountedResampleDialog() {
 				controller,
 				snapshot: { project: { id: 'project-a' }, selectedTrackId: 'track-a', recordingInputs: {} },
 				copy: ENGLISH_COPY,
-				aboutLabel: 'About',
 				locale: 'en',
 				run: (operation: () => unknown) => operation(),
 				onClose: () => { state.closes += 1; },

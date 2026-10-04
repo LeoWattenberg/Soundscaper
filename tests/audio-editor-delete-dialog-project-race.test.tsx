@@ -35,7 +35,6 @@ test('delete confirmation cannot target a project activated after the prompt ope
 		controller={controller}
 		snapshot={{ project: { id: projectId }, recordingInputs: {} }}
 		copy={ENGLISH_COPY}
-		aboutLabel="About"
 		locale="en"
 		run={(operation: () => unknown) => operation()}
 		onClose={() => { closes += 1; }}
@@ -94,7 +93,6 @@ test('a mutation dialog stays open when the shared runner reports a synchronous 
 			controller={controller}
 			snapshot={{ project: { id: 'project-a' }, recordingInputs: {} }}
 			copy={ENGLISH_COPY}
-			aboutLabel="About"
 			locale="en"
 			run={run}
 			onClose={() => { closes += 1; }}
@@ -153,7 +151,6 @@ test('the track-rate dialog waits for async action success before closing', asyn
 			controller={controller}
 			snapshot={{ project: { id: 'project-a' }, recordingInputs: {} }}
 			copy={ENGLISH_COPY}
-			aboutLabel="About"
 			locale="en"
 			run={run}
 			onClose={() => { closes += 1; }}

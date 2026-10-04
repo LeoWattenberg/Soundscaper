@@ -1,5 +1,4 @@
 import { useRef } from 'react';
-import readmeMarkdown from '../../../../../README.md?raw';
 import { Button } from '@soundscaper/design-system/Button';
 import { DialogFooter } from '@soundscaper/design-system/Footer';
 import { NumberStepper } from '@soundscaper/design-system/NumberStepper';
@@ -30,7 +29,7 @@ import {
 } from './editor-dialog-model.js';
 import { timedRecordingDialogRange } from './timed-recording-dialog-model.ts';
 
-export default function EditorDialog({ type, value, onValueChange, trackId, controller, snapshot, copy, aboutLabel, locale, run, showArmControls = false, onClose }) {
+export default function EditorDialog({ type, value, onValueChange, trackId, controller, snapshot, copy, locale, run, showArmControls = false, onClose }) {
 	const cancelTimedRecordingOnClose = useRef(false);
 	const projectIdAtOpen = useRef(snapshot.project?.id ?? null);
 	cancelTimedRecordingOnClose.current = type === 'timed-recording' && snapshot.recordingScheduling;
@@ -52,7 +51,6 @@ export default function EditorDialog({ type, value, onValueChange, trackId, cont
 		resample: copy.resample,
 		'aup4-compatibility': audacityCompatibilityTitle(snapshot.aup4Compatibility?.report, copy),
 		'delivery-report': copy.deliveryReport,
-		about: aboutLabel,
 		'revert-factory': copy.revertFactorySettings,
 		clear: copy.clearData,
 	}[type] || copy.deleteTitle;
@@ -150,7 +148,6 @@ export default function EditorDialog({ type, value, onValueChange, trackId, cont
 		</>;
 		if (type === 'resample') return <>{dismiss()}{confirm(copy.resample, submitResample, trackSampleRate === null)}</>;
 		if (type === 'track-rate') return <>{dismiss()}{confirm(copy.save, submitTrackRate, trackSampleRate === null)}</>;
-		if (type === 'about') return confirm(copy.close, onClose);
 		if (type === 'aup4-compatibility') return confirm(copy.close, onClose);
 		if (type === 'delivery-report') return <>
 			<Button variant="secondary" onClick={() => run(() => controller.actions.export.saveReport())}>
@@ -234,9 +231,6 @@ export default function EditorDialog({ type, value, onValueChange, trackId, cont
 								<NumberStepper value={String(value)} min={8_000} max={384_000} step={1_000} width="100%" onChange={onValueChange} />
 							</label>
 						</form>
-					)}
-					{type === 'about' && (
-						<pre style={{ margin: 0, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontFamily: 'inherit' }}>{readmeMarkdown}</pre>
 					)}
 					{type === 'aup4-compatibility' && (
 						<Aup4CompatibilityReport report={snapshot.aup4Compatibility?.report} copy={copy} />

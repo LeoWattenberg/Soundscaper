@@ -53,6 +53,7 @@ const RawPcmImportDialog = lazyEditorModule(() => import('../dialogs/ImportAnaly
 const RegularIntervalAnnotationDialog = lazyEditorModule(() => import('../dialogs/ImportAnalysisDialogs.tsx').then((module) => ({ default: module.RegularIntervalAnnotationDialog })));
 const LocalDiagnosticsDialog = lazyEditorModule(() => import('../dialogs/LocalDiagnosticsDialog.tsx'));
 const PrivacyPolicyDialog = lazyEditorModule(() => import('../dialogs/PrivacyPolicyDialog.tsx'));
+const AboutDialog = lazyEditorModule(() => import('../dialogs/AboutDialog.tsx'));
 
 function LazyInspectorFallback({ copy }) {
 	return <span className="kw-audio-editor-sr-only" role="status" aria-live="polite">{copy.loading}</span>;
@@ -492,9 +493,10 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 				selectedMediaPreparation={selectedMediaPreparation}
 				textToSpeechProjectPort={controller?.textToSpeechProjectPort ?? null}
 				setActiveSurface={setActiveSurface} />
-			{dialog && dialog !== 'project-compatibility' && (
+			{dialog === 'about' && <AboutDialog title={aboutLabel} productId={productId}
+				copy={copy} onClose={() => setDialog(null)} />}
+			{dialog && dialog !== 'about' && dialog !== 'project-compatibility' && (
 				<EditorDialog
-					aboutLabel={aboutLabel}
 					type={dialog}
 					value={dialogValue}
 					onValueChange={setDialogValue}

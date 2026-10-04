@@ -54,7 +54,8 @@ test('custom track-rate dialog retains the track whose submenu opened it', async
 
 test('workspace overlays forward the product-specific About label to the dialog', async () => {
 	const overlays = await readFile(new URL('AudioEditorWorkspaceOverlays.jsx', WORKSPACE_ROOT), 'utf8');
-	assert.match(overlays, /<EditorDialog[\s\S]*aboutLabel=\{aboutLabel\}/u);
+	assert.match(overlays, /dialog === 'about' && <AboutDialog title=\{aboutLabel\} productId=\{productId\}/u);
+	assert.match(overlays, /dialog !== 'about'/u);
 });
 
 test('dialog surfaces use a drop shadow without blurring the editor behind them', async () => {
