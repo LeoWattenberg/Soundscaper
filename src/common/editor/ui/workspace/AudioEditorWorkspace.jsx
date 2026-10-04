@@ -15,6 +15,7 @@ import { resolveWorkspaceRuntimeProjection } from './workspace-runtime-projectio
 import { workspaceStatusPresentation } from './workspace-status-presentation.ts';
 import { withDesktopProjectReadDescriptor } from './desktop-project-file-routing.ts';
 import { workspacePreferencesPage } from './workspace-preferences-routing.ts';
+import { focusOpenedWorkspacePanel } from './workspace-panel-opening-focus.ts';
 import { useTimelineNavigation } from './useTimelineNavigation.js';
 import { useWorkspaceToolbarDocking } from './useWorkspaceToolbarDocking.js';
 import { useWorkspaceClipPropertiesPanel } from './useWorkspaceClipPropertiesPanel.ts';
@@ -303,10 +304,7 @@ const DEFERRED_WEB_VCR_PANEL_ID = 'web-vcr'; export default function AudioEditor
 		if (panelId === 'recording-meter') setRecordingMeterSettings((settings) => ({ ...settings, position: 'panel' }));
 		run(() => controller.actions.preferences.setPanelVisibility(panelId, true));
 		requestAnimationFrame(() => {
-			const panel = workspaceRef.current?.querySelector(`[data-workspace-panel="${panelId}"]`);
-			if (!panel) return;
-			panel.tabIndex = -1;
-			panel.focus({ preventScroll: false });
+			focusOpenedWorkspacePanel(workspaceRef.current?.querySelector(`[data-workspace-panel="${panelId}"]`) ?? null);
 		});
 	}, [controller, run]);
 	const toggleWorkspacePanel = useCallback((panelId) => {
