@@ -40,9 +40,8 @@
 
 /*
  * Comparison matrices. `src/plugins/rehype-verdict-tables.mjs` tags the cells
- * of a table whose every comparison cell reads Yes, Partial or No, so that a
- * column can be scanned by colour instead of read as prose. The verdict word
- * stays in the cell as text, so the colour only repeats what the cell says.
+ * of a table whose every comparison cell reads +, ~ or / (or a legacy verdict
+ * word). Distinct symbols and accessible labels repeat the colour's meaning.
  */
 :root {
 	--verdict-yes-text: #4ade80;
@@ -66,37 +65,33 @@
 	background-color: var(--verdict-tint);
 }
 
-.sl-markdown-content .verdict-cell--yes {
+.sl-markdown-content .verdict-cell--yes,
+.sl-markdown-content .verdict--yes {
 	--verdict-tint: var(--verdict-yes-tint);
 	--verdict-text: var(--verdict-yes-text);
 }
 
-.sl-markdown-content .verdict-cell--partial {
+.sl-markdown-content .verdict-cell--partial,
+.sl-markdown-content .verdict--partial {
 	--verdict-tint: var(--verdict-partial-tint);
 	--verdict-text: var(--verdict-partial-text);
 }
 
-.sl-markdown-content .verdict-cell--no {
+.sl-markdown-content .verdict-cell--no,
+.sl-markdown-content .verdict--no {
 	--verdict-tint: var(--verdict-no-tint);
 	--verdict-text: var(--verdict-no-text);
 }
 
 .sl-markdown-content .verdict {
-	color: var(--verdict-text);
-	font-weight: 600;
-	white-space: nowrap;
-}
-
-/* Decorative: a dot for readers scanning a column rather than reading it. */
-.sl-markdown-content .verdict::before {
-	content: '';
 	display: inline-block;
-	inline-size: 0.5em;
-	block-size: 0.5em;
-	margin-inline-end: 0.4em;
-	border-radius: 50%;
-	background-color: currentcolor;
-	vertical-align: middle;
+	min-inline-size: 1em;
+	color: var(--verdict-text);
+	font-size: 1.125em;
+	font-weight: 700;
+	line-height: 1;
+	text-align: center;
+	white-space: nowrap;
 }
 
 @media (prefers-contrast: more) {

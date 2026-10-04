@@ -59,7 +59,7 @@ const readsAsVerdicts = (rows) =>
  * cases that matter are the two ends: a table where every comparison cell is a
  * verdict earns the classes, and one where any of them is prose keeps none.
  */
-test('a comparison matrix has its verdict cells classed and its verdict word wrapped', () => {
+test('legacy comparison words render as accessible symbols with their original details', () => {
 	const tree = transform(table([
 		['Native project format', 'Yes — a lossless portable archive', 'Partial — one project tempo', 'No'],
 	]));
@@ -74,22 +74,57 @@ test('a comparison matrix has its verdict cells classed and its verdict word wra
 	const [badge, detail] = yes.children;
 	assert.equal(badge.tagName, 'span');
 	assert.deepEqual(classesOf(badge), ['verdict', 'verdict--yes']);
-	assert.deepEqual(badge.children, [text('Yes')]);
+	assert.deepEqual(badge.children, [text('+')]);
+	assert.equal(badge.properties.role, 'img');
+	assert.equal(badge.properties.ariaLabel, 'Supported');
 	// The em dash is dropped: the badge separates the verdict from its detail.
 	assert.deepEqual(detail, text(' a lossless portable archive'));
 	// A bare verdict is the badge and nothing else: no separator is left behind.
 	assert.equal(no.children.length, 1);
-	assert.deepEqual(no.children[0].children, [text('No')]);
+	assert.deepEqual(no.children[0].children, [text('/')]);
+	assert.equal(no.children[0].properties.ariaLabel, 'Unavailable');
+	assert.deepEqual(partial.children[0].children, [text('~')]);
+	assert.equal(partial.children[0].properties.ariaLabel, 'Limited');
+});
+
+test('symbol sources decorate every product column and expose each meaning without colour', () => {
+	const tree = transform(table([
+		['Local processing', '/ — unavailable in the browser', '+ — optional model install', '~ — limited engines', '+'],
+	]));
+
+	assert.deepEqual(classesOf(tree), ['verdict-table']);
+	const [label, ...products] = cellsOf(tree);
+	assert.deepEqual(classesOf(label), []);
+	for (const [index, state] of ['no', 'yes', 'partial', 'yes'].entries()) {
+		assert.deepEqual(classesOf(products[index]), ['verdict-cell', `verdict-cell--${state}`]);
+	}
+	for (const [index, [symbol, meaning]] of [['/', 'Unavailable'], ['+', 'Supported'], ['~', 'Limited'], ['+', 'Supported']].entries()) {
+		const badge = products[index].children[0];
+		assert.deepEqual(badge.children, [text(symbol)]);
+		assert.equal(badge.properties.role, 'img');
+		assert.equal(badge.properties.ariaLabel, meaning);
+	}
+	assert.deepEqual(products[0].children[1], text(' unavailable in the browser'));
+	assert.deepEqual(products[1].children[1], text(' optional model install'));
+	assert.equal(products[3].children.length, 1);
 });
 
 test('a verdict whose detail opens with markup keeps the word space the em dash held', () => {
 	const tree = transform(table([
-		['Native project format', [text('Yes — '), element('code', [text('.sscape')]), text(', a portable archive')]],
+		['Native project format', [text('+ — '), element('code', [text('.sscape')]), text(', a portable archive')]],
 	]));
 
 	const [, cell] = cellsOf(tree);
 	assert.deepEqual(cell.children[1], text(' '));
 	assert.equal(cell.children[2].tagName, 'code');
+});
+
+test('a symbol at the start of prose does not claim a whole table as a comparison', () => {
+	for (const prose of ['/home/user', '+20 dB', '~ approximate']) {
+		const tree = transform(table([['Path or value', '+', prose]]));
+		assert.deepEqual(classesOf(tree), []);
+		for (const cell of cellsOf(tree)) assert.deepEqual(classesOf(cell), []);
+	}
 });
 
 test('one prose cell leaves the whole table uncoloured', () => {

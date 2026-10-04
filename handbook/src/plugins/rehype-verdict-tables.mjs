@@ -1,13 +1,13 @@
 /**
- * Colour-codes the Yes/Partial/No cells of a comparison matrix.
+ * Renders comparison markers as colour-coded, accessible symbols.
  *
  * The comparison pages are written as ordinary Markdown tables whose cells
- * read `Yes`, `Partial` or `No`, optionally followed by an em-dash and the
- * detail that qualifies the verdict. Reading a column of a hundred such cells
- * as prose is slow, so this transform tags each one for the stylesheet: the
- * cell gets `verdict-cell verdict-cell--<state>` and the verdict word itself
- * is wrapped in `<span class="verdict verdict--<state>">`, with the em-dash
- * separator dropped because the styled word now does that work.
+ * read `+`, `~` or `/`, optionally followed by an em-dash and the detail that
+ * qualifies the verdict. Legacy `Yes`, `Partial` and `No` cells also work.
+ * This transform tags each one for the stylesheet: the cell gets
+ * `verdict-cell verdict-cell--<state>` and the source marker itself
+ * becomes a symbol in `<span class="verdict verdict--<state>">`, with the
+ * em-dash separator dropped because the styled symbol now does that work.
  *
  * A table is coloured when its page asked for it - `VERDICT_TABLE_PAGES` below
  * - and its own shape agrees: every body cell outside the first column has to
@@ -20,8 +20,8 @@
  * colouring off for that table instead of colouring part of it, which is the
  * failure that is noticed.
  *
- * Colour is redundant here: the word stays in the cell as text, so nothing is
- * conveyed by hue alone.
+ * Colour is redundant: distinct symbols and accessible labels convey the
+ * verdict without hue, and the qualifying detail stays readable as prose.
  */
 
 /**
@@ -60,10 +60,19 @@ function optedIn(file) {
 }
 
 const VERDICT_STATES = new Map([
+	['+', 'yes'],
+	['~', 'partial'],
+	['/', 'no'],
 	['Yes', 'yes'],
 	['Partial', 'partial'],
 	['No', 'no'],
 ]);
+
+const VERDICT_SYMBOLS = {
+	yes: { symbol: '+', label: 'Supported' },
+	partial: { symbol: '~', label: 'Limited' },
+	no: { symbol: '/', label: 'Unavailable' },
+};
 
 // The exact separator the comparison sources are written with.
 const DETAIL_SEPARATOR = ' — ';
@@ -87,18 +96,18 @@ const comparisonCells = (row) => elementChildren(row, ['td', 'th']).slice(1);
 
 /**
  * Reads a cell as a verdict, or returns null when it is anything else. Only the
- * leading text node is inspected, so `Yes — \`.sscape\`, a portable archive`
+ * leading text node is inspected, so `+ — \`.sscape\`, a portable archive`
  * still resolves even though the rest of the cell is markup.
  */
 function readVerdict(cell) {
 	const [first] = cell.children ?? [];
 	if (first?.type !== 'text') return null;
-	for (const [word, state] of VERDICT_STATES) {
-		if (first.value.startsWith(word + DETAIL_SEPARATOR)) {
-			return { word, state, detail: first.value.slice(word.length + DETAIL_SEPARATOR.length) };
+	for (const [marker, state] of VERDICT_STATES) {
+		if (first.value.startsWith(marker + DETAIL_SEPARATOR)) {
+			return { state, detail: first.value.slice(marker.length + DETAIL_SEPARATOR.length) };
 		}
-		if (cell.children.length === 1 && first.value.trim() === word) {
-			return { word, state, detail: '' };
+		if (cell.children.length === 1 && first.value.trim() === marker) {
+			return { state, detail: '' };
 		}
 	}
 	return null;
@@ -113,11 +122,12 @@ function addClasses(node, ...added) {
 
 function markCell(cell, verdict) {
 	addClasses(cell, 'verdict-cell', `verdict-cell--${verdict.state}`);
+	const { symbol, label } = VERDICT_SYMBOLS[verdict.state];
 	const badge = {
 		type: 'element',
 		tagName: 'span',
-		properties: { className: ['verdict', `verdict--${verdict.state}`] },
-		children: [{ type: 'text', value: verdict.word }],
+		properties: { className: ['verdict', `verdict--${verdict.state}`], role: 'img', ariaLabel: label },
+		children: [{ type: 'text', value: symbol }],
 	};
 	// The separator the badge replaced still has to leave a word space behind,
 	// including when the detail opens with markup rather than with text.
