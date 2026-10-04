@@ -94,6 +94,59 @@ test('states a local model purpose and keeps packaged-test mechanics collapsed',
 	await expect(disclosure.getByText(/silero-voice-activity/u)).toBeVisible();
 });
 
+test('compares Web and Desktop separately with accessible, coloured symbols', async ({ page }) => {
+	await page.goto(`${BASE}start/how-soundscaper-compares/`);
+	await expect(page.getByRole('heading', { level: 1, name: 'How Soundscaper compares' })).toBeVisible();
+	const tables = page.getByRole('table');
+	expect(await tables.count()).toBeGreaterThan(0);
+	for (const table of await tables.all()) {
+		await expect(table.getByRole('columnheader')).toHaveText([
+			'Capability', 'Soundscaper Web', 'Soundscaper Desktop', 'Audacity 4', 'Audition',
+		]);
+	}
+
+	const colours = [];
+	for (const [symbol, label] of [['+', 'Supported'], ['~', 'Limited'], ['/', 'Unavailable']]) {
+		const verdict = tables.getByRole('img', { name: label, exact: true }).first();
+		await expect(verdict).toHaveText(symbol);
+		await expect(verdict).toBeVisible();
+		colours.push(await verdict.evaluate((element) => getComputedStyle(element).color));
+	}
+	expect(new Set(colours).size).toBe(3);
+	await expect(tables.getByText(/^(?:Yes|No|Partial)(?:\s|$)/u)).toHaveCount(0);
+});
+
+test('explains corrected capabilities and the Desktop-only workflows', async ({ page }) => {
+	await page.goto(`${BASE}start/how-soundscaper-compares/`);
+	const row = (capability) => page.getByRole('row').filter({
+		has: page.getByRole('cell', { name: capability, exact: true }),
+	});
+	for (const [capability, web, desktop] of [
+		['Dedicated single-file editor', 'Supported', 'Supported'],
+		['Microphone and desktop audio together', 'Limited', 'Supported'],
+		['Third-party plug-in formats', 'Unavailable', 'Supported'],
+		['Speech enhancement', 'Unavailable', 'Supported'],
+		['Transcription and diarisation', 'Unavailable', 'Supported'],
+		['Source separation into stems', 'Unavailable', 'Supported'],
+		['Lossy output', 'Limited', 'Supported'],
+	]) {
+		await expect(row(capability).getByRole('cell').nth(1).getByRole('img', { name: web, exact: true })).toBeVisible();
+		await expect(row(capability).getByRole('cell').nth(2).getByRole('img', { name: desktop, exact: true })).toBeVisible();
+	}
+	await expect(row('Dedicated single-file editor').getByRole('cell').nth(1)).toContainText(/clip properties/iu);
+	await expect(row('Sample-level drawing').getByRole('cell').nth(3).getByRole('img', { name: 'Supported', exact: true })).toBeVisible();
+	const audacityAutomation = row('Automation lanes').getByRole('cell').nth(3);
+	await expect(audacityAutomation.getByRole('img', { name: 'Limited', exact: true })).toBeVisible();
+	await expect(audacityAutomation).toContainText(/clip[ -]gain/iu);
+	const audacityProjects = row('Opens Audacity projects').getByRole('cell').nth(3);
+	await expect(audacityProjects).toContainText(/\baup\b.*\baup3\b.*\baup4\b.*import/iu);
+	await expect(audacityProjects).toContainText(/aup4\s+export/iu);
+	await expect(audacityProjects).toContainText(/no\s+aup3\s+export/iu);
+	await expect(row('Lossy output').getByRole('cell').nth(2)).toContainText(/ffmpeg/iu);
+	await expect(row('Lossy output').getByRole('cell').nth(3)).toContainText(/ffmpeg/iu);
+	await expect(row('Lossy output').getByRole('cell').nth(4)).toContainText(/formats|mp3|aac/iu);
+});
+
 // The generated reference pages carry the widest and longest tables in the
 // handbook, so one of each shape is checked: a short one and the effect
 // inventory, whose parameter table is the largest the generator produces.
@@ -105,6 +158,7 @@ for (const route of [
 	`${BASE}guides/`,
 	`${BASE}guides/volume/normalize-peaks/`,
 	`${BASE}tutorials/clean-up-a-voice-recording/`,
+	`${BASE}start/how-soundscaper-compares/`,
 ]) {
 	test(`has no serious accessibility violations at ${route}`, async ({ page }) => {
 		await page.goto(route);
