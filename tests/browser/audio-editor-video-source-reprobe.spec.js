@@ -24,6 +24,7 @@ const FABRICATED_FRAME_COUNT = Math.round(
 test.describe('3B-2c re-import upgrade qualification', () => {
 	test('a source imported without a probe is re-read into exact timing', async ({ page }) => {
 		test.setTimeout(120_000);
+		await page.setViewportSize({ width: 1280, height: 720 });
 
 		let editor = await openFramescaper(page);
 		test.skip(
@@ -56,7 +57,7 @@ test.describe('3B-2c re-import upgrade qualification', () => {
 		// The panel discloses the staleness, and the action that repairs it is on
 		// the same surface as the disclosure.
 		await expect(properties.locator('[data-source-note="timing-unprobed"]')).toBeVisible();
-		await properties.locator('[data-source-reprobe]').click();
+		await properties.locator('[data-source-reprobe]').click({ timeout: 10_000 });
 		await expect(properties.locator('[data-source-reprobe-outcome]'))
 			.toHaveAttribute('data-source-reprobe-outcome', 'upgraded', { timeout: 60_000 });
 
@@ -87,6 +88,12 @@ test.describe('3B-2c re-import upgrade qualification', () => {
 		expect(await clipPlacement(page)).toEqual(placementBefore);
 		// The disclosure that motivated the action is gone.
 		await expect(properties.locator('[data-source-note="timing-unprobed"]')).toHaveCount(0);
+		await page.keyboard.press('Escape');
+		await expect(properties).toBeHidden();
+		await openSourceProperties(editor, page);
+		await editor.getByRole('menubar', { name: 'Application menu', exact: true })
+			.getByRole('menuitem', { name: 'File', exact: true }).click();
+		await expect(properties).toBeHidden();
 	});
 
 	test('re-reading a source the document already describes exactly changes nothing', async ({

@@ -79,7 +79,9 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 	const sourceById = new Map((project?.sources || []).map((source) => [source.id, source]));
 	const missingSourceIds = new Set(snapshot.missingSourceIds || []);
 	const mutationBlocked = selectAudioEditorEditBlock(snapshot).blocked;
-	const sourceProperties = useProjectBinSourceProperties({ project, controller, copy, disabled: mutationBlocked });
+	const overlayTarget = inputRef.current?.closest('#kw-audio-editor-design-system')
+		?.querySelector('[data-editor-overlay-layer]');
+	const sourceProperties = useProjectBinSourceProperties({ project, controller, copy, disabled: mutationBlocked, overlayTarget });
 	const { dropActive, dropHandlers, resetDropState } = useProjectBinFileDrop({
 		blocked: mutationBlocked,
 		onFiles: (files) => run(() => importFiles(files)), onFreesoundSound: (soundId) => run(() => import('./freesound-workspace-service.ts').then(({ importFreesoundSound }) => importFreesoundSound(controller, { soundId, destination: 'project-bin' }, { confirmFileSizeWarning }))),
@@ -466,8 +468,7 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 		{proxyDialogOpen && <ProjectBinVideoProxyDialog clipId={proxyClipId}
 			controller={controller} snapshot={snapshot} editingBlocked={mutationBlocked}
 			copy={copy} fileService={fileService} run={run} onClose={closeProxyDialog}
-			portalTarget={inputRef.current?.closest('#kw-audio-editor-design-system')
-				?.querySelector('[data-editor-overlay-layer]')} />}
+			portalTarget={overlayTarget} />}
 		{removeConfirmation && (
 			<div className="kw-audio-editor-dialog-backdrop" data-project-bin-remove-dialog>
 				<div className="kw-audio-editor-dialog kw-audio-editor__project-bin-confirm" role="alertdialog" aria-modal="true" aria-labelledby="project-bin-remove-title">
