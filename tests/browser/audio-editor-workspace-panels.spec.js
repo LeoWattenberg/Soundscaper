@@ -160,6 +160,12 @@ test.describe('audio editor React/design-system workflows', () => {
 	test('drags workspace panels between docks without subgroup toolbar grabbers', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
+		for (const [panelId, label] of [['playback-meter', 'Playback meter'], ['recording-meter', 'Recording meter']]) {
+			const meter = editor.locator(`[data-workspace-panel="${panelId}"]`);
+			await expect(meter).toBeVisible();
+			await chooseNestedCommandAction(page, editor, 'Window', [label]);
+			await expect(meter).toHaveCount(0);
+		}
 		await chooseNestedCommandAction(page, editor, 'Window', ['History']);
 		await chooseCommandAction(page, editor, 'Edit', 'Metadata editor');
 

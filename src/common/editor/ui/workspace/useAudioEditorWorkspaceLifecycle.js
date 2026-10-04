@@ -8,6 +8,7 @@ import {
 import { isExpectedWorkspaceCancellation } from './scape-open-decision-continuation.ts';
 import { useDesktopHostMenuRuntime } from './useDesktopHostMenuRuntime.ts';
 import { useWorkspaceViewDefaults } from './useWorkspaceViewDefaults.ts';
+import { useWorkspaceMeterPanels } from './useWorkspaceMeterPanels.ts';
 import { workspaceSwitcherOptions } from './workspace-switcher-options.ts';
 import { workspaceErrorMessage } from './workspace-error-presentation.ts';
 import { WebFileLoadLimitError } from '../../web-file-limit-failure.ts';
@@ -126,6 +127,10 @@ export function useAudioEditorWorkspaceLifecycle({
 		run,
 		setPlaybackMeterSettings,
 		setRecordingMeterSettings,
+	});
+	useWorkspaceMeterPanels({
+		ready: phase === 'ready', controller, run, meterPanels: preferences?.workspace?.panels || {},
+		playbackMeterSettings, recordingMeterSettings, setPlaybackMeterSettings, setRecordingMeterSettings,
 	});
 	const desktopHostRuntime = useDesktopHostMenuRuntime({
 		development: desktopEnvironment?.development === true,

@@ -46,6 +46,7 @@ export default function WorkspacePanelHeader({
 	resizeHandle,
 	floatingMoveHandle = false,
 	onPointerDown,
+	menuOnly = false,
 }) {
 	const menuButtonRef = useRef(null);
 	const [menu, setMenu] = useState(null);
@@ -61,7 +62,8 @@ export default function WorkspacePanelHeader({
 		openMenu({ x: bounds.left, y: bounds.bottom + 4, keyboard });
 	};
 	const ownerDocument = () => menuButtonRef.current?.ownerDocument ?? document;
-	const menuHost = () => menuButtonRef.current?.closest('[data-audio-editor]') ?? ownerDocument().body;
+	const menuHost = () => (menuOnly ? menuButtonRef.current?.closest('[role="dialog"]') : null)
+		?? menuButtonRef.current?.closest('[data-audio-editor]') ?? ownerDocument().body;
 	const grouped = tabs.length > 1;
 	const activeTab = grouped
 		? tabs.find((tab) => tab.id === activePanelId) ?? tabs[0]
@@ -83,10 +85,11 @@ export default function WorkspacePanelHeader({
 			?.querySelector(`[data-workspace-panel-tab="${next.id}"]`)?.focus();
 		onTabActivate?.(next.id);
 	};
+	const HeaderElement = menuOnly ? 'span' : 'header';
 	return (
 		<>
-			<header
-				className="kw-audio-editor__workspace-panel-header"
+			<HeaderElement
+				className={menuOnly ? undefined : "kw-audio-editor__workspace-panel-header"}
 				data-floating-panel-move-handle={floatingMoveHandle ? menuPanelId : undefined}
 				onPointerDown={onPointerDown}
 				onContextMenu={(event) => {
@@ -97,7 +100,7 @@ export default function WorkspacePanelHeader({
 					else openMenu({ x: event.clientX, y: event.clientY, keyboard: false });
 				}}
 			>
-				{grouped ? <div
+				{!menuOnly && (grouped ? <div
 					className="kw-audio-editor__workspace-panel-tabs"
 					role="tablist"
 					aria-label={copy.panels}
@@ -134,7 +137,7 @@ export default function WorkspacePanelHeader({
 					onDragEnd={dragHandle.onDragEnd}
 					onKeyDown={dragHandle.onKeyDown}
 				>⠿</button>}
-				<h2>{label}</h2></>}
+				<h2>{label}</h2></>)}
 				{resizeHandle && <button
 					type="button"
 					className="kw-audio-editor__workspace-resize-handle"
@@ -163,7 +166,7 @@ export default function WorkspacePanelHeader({
 						<Icon name="menu" size={16} />
 					</button>
 				</span>
-			</header>
+			</HeaderElement>
 			{menu && createPortal(<ContextMenu
 				isOpen
 				x={menu.x}
@@ -173,6 +176,10 @@ export default function WorkspacePanelHeader({
 				className="kw-audio-editor__workspace-panel-menu"
 				style={PANEL_MENU_STYLE}
 			>
+				{menuOnly && grouped && onTabActivate && <ContextMenuItem label={copy.panels} hasSubmenu onClose={closeMenu}>
+					{tabs.map((tab) => <ContextMenuItem key={tab.id} label={tab.label}
+						checked={tab.id === activePanelId} onClick={() => onTabActivate(tab.id)} onClose={closeMenu} />)}
+				</ContextMenuItem>}
 				{onDock && WORKSPACE_DOCK_IDS.map((dockId) => (
 					<ContextMenuItem
 						key={dockId}

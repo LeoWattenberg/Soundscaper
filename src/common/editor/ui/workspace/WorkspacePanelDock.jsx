@@ -6,14 +6,15 @@ import { timelineAnnotationsAvailable } from '../timeline/timeline-annotation-ui
 import { workspacePanelAvailable } from './workspace-product-panel-runtime.ts';
 import { workspaceSideDockAllowsWidePanels } from './workspace-side-dock-width.ts';
 import WorkspacePanelGroup from './WorkspacePanelGroup.jsx';
+import { useFloatingWorkspacePanelMove } from './useFloatingWorkspacePanelMove.ts';
 import {
 	ANALYZER_PANEL_ID_SET,
 	FLOATING_PANEL_MIN_HEIGHT,
-	FLOATING_PANEL_MIN_WIDTH,
 	WORKSPACE_PANEL_IDS,
 	clampFloatingPanelGeometry,
 	workspaceDockLabel,
 	workspacePanelLabel,
+	workspacePanelMinimumWidth,
 } from './workspace-panel-model.ts';
 
 export default function WorkspacePanelDock({
@@ -49,7 +50,6 @@ export default function WorkspacePanelDock({
 }) {
 	const dockRef = useRef(null);
 	const resizeSessionRef = useRef(null);
-	const moveSessionRef = useRef(null);
 	const [floatingBounds, setFloatingBounds] = useState({ width: 0, height: 0 });
 	const [activeFloatingPanelId, setActiveFloatingPanelId] = useState(null);
 	const availablePanels = WORKSPACE_PANEL_IDS
@@ -138,7 +138,7 @@ export default function WorkspacePanelDock({
 					y: bounds.top - containerBounds.top,
 					width: bounds.width,
 					height: bounds.height,
-				}, containerBounds);
+				}, containerBounds, session.panelId);
 				if (Math.abs(geometry.width - session.initialWidth) < 2
 					&& Math.abs(geometry.height - session.initialHeight) < 2) return;
 				Object.assign(session.element.style, {
@@ -187,58 +187,8 @@ export default function WorkspacePanelDock({
 			window.removeEventListener('pointercancel', cancelResize);
 		};
 	}, [controller, dock, run]);
-	useEffect(() => {
-		if (dock !== 'floating') return undefined;
-		const move = (event) => {
-			const session = moveSessionRef.current;
-			if (!session || event.pointerId !== session.pointerId) return;
-			event.preventDefault();
-			const geometry = clampFloatingPanelGeometry({
-				...session.startGeometry,
-				x: session.startGeometry.x + event.clientX - session.startClientX,
-				y: session.startGeometry.y + event.clientY - session.startClientY,
-			}, session.workspaceBounds);
-			session.geometry = geometry;
-			session.moved = session.moved
-				|| Math.abs(geometry.x - session.startGeometry.x) >= 1
-				|| Math.abs(geometry.y - session.startGeometry.y) >= 1;
-			Object.assign(session.element.style, {
-				left: `${geometry.x}px`,
-				top: `${geometry.y}px`,
-			});
-		};
-		const finish = (event) => {
-			const session = moveSessionRef.current;
-			if (!session || event.pointerId !== session.pointerId) return;
-			moveSessionRef.current = null;
-			session.element.classList.remove('kw-audio-editor__workspace-panel--moving');
-			if (!session.moved) return;
-			run(() => controller.actions.preferences.setPanel(session.panelId, {
-				x: Math.round(session.geometry.x),
-				y: Math.round(session.geometry.y),
-			}));
-		};
-		const cancel = (event) => {
-			const session = moveSessionRef.current;
-			if (!session || event.pointerId !== session.pointerId) return;
-			moveSessionRef.current = null;
-			session.element.classList.remove('kw-audio-editor__workspace-panel--moving');
-			Object.assign(session.element.style, {
-				left: `${session.startGeometry.x}px`,
-				top: `${session.startGeometry.y}px`,
-			});
-		};
-		window.addEventListener('pointermove', move, { passive: false });
-		window.addEventListener('pointerup', finish);
-		window.addEventListener('pointercancel', cancel);
-		return () => {
-			window.removeEventListener('pointermove', move);
-			window.removeEventListener('pointerup', finish);
-			window.removeEventListener('pointercancel', cancel);
-			moveSessionRef.current?.element?.classList.remove('kw-audio-editor__workspace-panel--moving');
-			moveSessionRef.current = null;
-		};
-	}, [controller, dock, run]);
+	const beginFloatingMove = useFloatingWorkspacePanelMove({ dock, dockRef, resizeSessionRef,
+		controller, run, setActiveFloatingPanelId, onPanelDragStart, onPanelDragEnd, onPanelMove });
 	const beginResize = (event) => {
 		if (event.button !== 0) return;
 		const dockResizeHandle = event.target.closest?.('[data-workspace-dock-resize-handle]');
@@ -247,8 +197,7 @@ export default function WorkspacePanelDock({
 			const bounds = element?.getBoundingClientRect();
 			const workspaceBounds = element?.parentElement?.getBoundingClientRect();
 			if (!element || !bounds) return;
-			const hasEffects = panels.some(([panelId]) => panelId === 'effects');
-			const minimumSize = hasEffects ? 360 : 240;
+			const minimumSize = Math.max(...panels.map(([id]) => id === 'effects' ? 360 : workspacePanelMinimumWidth(id)));
 			const maximumSize = Math.max(
 				minimumSize,
 				Math.round((workspaceBounds?.width || window.innerWidth) * 0.65),
@@ -322,13 +271,14 @@ export default function WorkspacePanelDock({
 				: event.clientY >= bounds.bottom - threshold;
 		if (!onResizeEdge) return;
 		const dockBounds = dockRef.current?.getBoundingClientRect();
+		const panelMinimumWidth = workspacePanelMinimumWidth(panelGroup.activePanelId);
 		const maximumWidth = dock === 'floating'
-			? Math.max(FLOATING_PANEL_MIN_WIDTH, (dockBounds?.right || bounds.right) - bounds.left)
+			? Math.max(panelMinimumWidth, (dockBounds?.right || bounds.right) - bounds.left)
 			: undefined;
 		const maximumHeight = dock === 'floating'
 			? Math.max(FLOATING_PANEL_MIN_HEIGHT, (dockBounds?.bottom || bounds.bottom) - bounds.top)
 			: undefined;
-		const minimumSize = horizontal ? FLOATING_PANEL_MIN_WIDTH : Math.max(
+		const minimumSize = horizontal ? panelMinimumWidth : Math.max(
 			FLOATING_PANEL_MIN_HEIGHT,
 			Number.parseFloat(window.getComputedStyle(element).minHeight) || 0,
 		);
@@ -345,7 +295,7 @@ export default function WorkspacePanelDock({
 			initialHeight: Math.round(bounds.height),
 			resizeWidth,
 			resizeHeight,
-			minimumWidth: FLOATING_PANEL_MIN_WIDTH,
+			minimumWidth: panelMinimumWidth,
 			minimumHeight: FLOATING_PANEL_MIN_HEIGHT,
 			maximumWidth,
 			maximumHeight,
@@ -367,43 +317,13 @@ export default function WorkspacePanelDock({
 		};
 		event.preventDefault();
 	};
-	const beginFloatingMove = (event, panelId) => {
-		if (dock !== 'floating' || event.button !== 0 || resizeSessionRef.current) return;
-		if (event.target.closest('button, select, input, label, a, [role="menu"]')) return;
-		const element = event.currentTarget.closest('[data-workspace-panel]');
-		const workspace = dockRef.current;
-		if (!element || !workspace) return;
-		const workspaceBounds = workspace.getBoundingClientRect();
-		const elementBounds = element.getBoundingClientRect();
-		const startGeometry = clampFloatingPanelGeometry({
-			x: elementBounds.left - workspaceBounds.left,
-			y: elementBounds.top - workspaceBounds.top,
-			width: elementBounds.width,
-			height: elementBounds.height,
-		}, workspaceBounds);
-		moveSessionRef.current = {
-			panelId,
-			element,
-			pointerId: event.pointerId,
-			startClientX: event.clientX,
-			startClientY: event.clientY,
-			startGeometry,
-			geometry: startGeometry,
-			workspaceBounds,
-			moved: false,
-		};
-		setActiveFloatingPanelId(panelId);
-		element.classList.add('kw-audio-editor__workspace-panel--moving');
-		event.currentTarget.setPointerCapture?.(event.pointerId);
-		event.preventDefault();
-	};
 	const adjustFloatingPanelGeometry = (event, panelId, panel, mode) => {
 		if (dock !== 'floating' || !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return false;
 		const workspaceBounds = dockRef.current?.getBoundingClientRect();
 		if (!workspaceBounds) return false;
 		event.preventDefault();
 		const step = event.shiftKey ? 48 : 16;
-		const current = clampFloatingPanelGeometry(panel, workspaceBounds);
+		const current = clampFloatingPanelGeometry(panel, workspaceBounds, panelId);
 		const next = { ...current };
 		if (mode === 'resize') {
 			if (event.key === 'ArrowLeft') next.width -= step;
@@ -416,7 +336,7 @@ export default function WorkspacePanelDock({
 			else if (event.key === 'ArrowUp') next.y -= step;
 			else next.y += step;
 		}
-		const geometry = clampFloatingPanelGeometry(next, workspaceBounds);
+		const geometry = clampFloatingPanelGeometry(next, workspaceBounds, panelId);
 		setActiveFloatingPanelId(panelId);
 		run(() => controller.actions.preferences.setPanel(panelId, {
 			x: Math.round(geometry.x),
@@ -442,8 +362,7 @@ export default function WorkspacePanelDock({
 		const workspaceBounds = dockRef.current?.parentElement?.getBoundingClientRect();
 		if (!bounds) return;
 		event.preventDefault();
-		const hasEffects = panels.some(([panelId]) => panelId === 'effects');
-		const minimumSize = hasEffects ? 360 : 240;
+		const minimumSize = Math.max(...panels.map(([id]) => id === 'effects' ? 360 : workspacePanelMinimumWidth(id)));
 		const maximumSize = Math.max(
 			minimumSize,
 			Math.round((workspaceBounds?.width || window.innerWidth) * 0.65),
@@ -467,6 +386,7 @@ export default function WorkspacePanelDock({
 			ref={dockRef}
 			className={`kw-audio-editor__panel-dock kw-audio-editor__panel-dock--${dock}`}
 			data-panel-dock={dock}
+			data-meter-dock={panels.every(([id]) => id === 'playback-meter' || id === 'recording-meter') ? '' : undefined}
 			data-workspace-dock-wide={workspaceSideDockAllowsWidePanels(panels, snapshot.preferences?.workspace?.activeId)}
 			style={dockStyle}
 			aria-label={copy.panels}

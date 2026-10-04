@@ -56,3 +56,11 @@ export function focusWorkspaceToolbarTimeCode(ownerDocument) {
 export function focusWorkspacePanelMenuButton(ownerDocument, panelId, previous = null) {
 	focusWhenMounted(ownerDocument, `[data-workspace-panel-menu="${panelId}"] button`, previous);
 }
+
+/**
+ * Meter panels carry their commands in a settings flyout instead of a header.
+ * @param {unknown} [previous] the settings button that is about to unmount
+ */
+export function focusWorkspaceMeterSettings(ownerDocument, panelId, previous = null) {
+	focusWhenMounted(ownerDocument, `[data-workspace-panel="${panelId}"] .kw-audio-editor__audacity-level-button`, previous);
+}

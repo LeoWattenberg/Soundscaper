@@ -275,6 +275,28 @@ test('a header without dock support offers Close only', async () => {
 	}
 });
 
+test('meter position menus retain panel commands without rendering a heading row', async () => {
+	const docks: string[] = [];
+	const mounted = await mountHeader({
+		menuOnly: true,
+		currentDock: 'right',
+		dragHandle: { onDragStart() {}, onDragEnd() {}, onKeyDown() {} },
+		onDock: (dock: string) => docks.push(dock),
+		onClose() {},
+	});
+	try {
+		assert.equal(mounted.dom.find('header'), null);
+		assert.equal(mounted.dom.find('h2'), null);
+		assert.equal(mounted.dom.find('[data-workspace-panel-drag-handle]'), null);
+		await mounted.openMenu();
+		assert.deepEqual(mounted.menuItemLabels(), ['Left', 'Right', 'Top', 'Bottom', 'Floating', 'Close']);
+		await act(async () => reactProps(mounted.menuItems()[2]!).onClick({}));
+		assert.deepEqual(docks, ['top']);
+	} finally {
+		await mounted.unmount();
+	}
+});
+
 test('a keyboard-opened menu focuses its first item while a pointer-opened one leaves focus on the button', async () => {
 	const mounted = await mountHeader({ currentDock: 'left', onDock() {}, onClose() {} });
 	try {
@@ -433,6 +455,7 @@ test('the menu button focus helper waits for the replacement instead of the butt
 
 test('both panel hosts render the shared header and no legacy dock picker or close button', async () => {
 	const dock = await readFile(new URL('WorkspacePanelDock.jsx', WORKSPACE_ROOT), 'utf8');
+	const floatingMove = await readFile(new URL('useFloatingWorkspacePanelMove.ts', WORKSPACE_ROOT), 'utf8');
 	const group = await readFile(new URL('WorkspacePanelGroup.jsx', WORKSPACE_ROOT), 'utf8');
 	const video = await readFile(new URL('VideoEditorWorkspacePanels.jsx', WORKSPACE_ROOT), 'utf8');
 	for (const [name, source] of [['WorkspacePanelGroup.jsx', group], ['VideoEditorWorkspacePanels.jsx', video]]) {
@@ -449,7 +472,7 @@ test('both panel hosts render the shared header and no legacy dock picker or clo
 		assert.doesNotMatch(source, /<select/u, `${name} renders no select`);
 	}
 	assert.match(
-		dock,
+		floatingMove,
 		/closest\('button, select, input, label, a, \[role="menu"\]'\)/u,
 		'clicks inside the panel menu never begin a floating drag',
 	);

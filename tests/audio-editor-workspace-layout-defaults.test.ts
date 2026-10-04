@@ -147,13 +147,13 @@ test('the Audacity preset mirrors the 4.0.0 Modern layout while the others keep 
 test('workspace view defaults describe the meter and ruler state of a preset without being persisted', () => {
 	assert.deepEqual(workspaceViewDefaults('audacity'), {
 		verticalRulers: false,
-		playbackMeterPosition: 'side',
+		playbackMeterPosition: 'panel',
 		recordingMeterPosition: 'flyout',
 	});
 	assert.deepEqual(workspaceViewDefaults('modern'), {
 		verticalRulers: true,
-		playbackMeterPosition: 'side',
-		recordingMeterPosition: 'side',
+		playbackMeterPosition: 'panel',
+		recordingMeterPosition: 'panel',
 	});
 	assert.equal(workspaceViewDefaults('classic'), null);
 	assert.equal(workspaceViewDefaults('music'), null);

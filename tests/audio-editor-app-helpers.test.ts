@@ -41,7 +41,7 @@ test('meter settings normalize persisted values at the module boundary', () => {
 		ebuUnit: 'relative',
 		ebuLiveValue: 'short-term',
 	}, DEFAULT_PLAYBACK_METER_SETTINGS), {
-		position: 'side',
+		position: 'panel',
 		style: 'rms',
 		type: 'ebu-r128',
 		dbRange: 84,

@@ -299,6 +299,8 @@ const DEFERRED_WEB_VCR_PANEL_ID = 'web-vcr'; export default function AudioEditor
 	}, [controller, setActiveSurface]);
 	const openWorkspacePanel = useCallback((panelId) => {
 		if (panelId === 'project-bin') setProjectBinSessionOpened(true);
+		if (panelId === 'playback-meter') setPlaybackMeterSettings((settings) => ({ ...settings, position: 'panel' }));
+		if (panelId === 'recording-meter') setRecordingMeterSettings((settings) => ({ ...settings, position: 'panel' }));
 		run(() => controller.actions.preferences.setPanelVisibility(panelId, true));
 		requestAnimationFrame(() => {
 			const panel = workspaceRef.current?.querySelector(`[data-workspace-panel="${panelId}"]`);
@@ -309,10 +311,16 @@ const DEFERRED_WEB_VCR_PANEL_ID = 'web-vcr'; export default function AudioEditor
 	}, [controller, run]);
 	const toggleWorkspacePanel = useCallback((panelId) => {
 		if (panelId === DEFERRED_WEB_VCR_PANEL_ID) return run(() => controller.actions.webVcr.close());
+		if (panelId === 'playback-meter' || panelId === 'recording-meter') {
+			const visible = !preferences.workspace.panels[panelId]?.visible;
+			const setSettings = panelId === 'playback-meter' ? setPlaybackMeterSettings : setRecordingMeterSettings;
+			setSettings((settings) => ({ ...settings, position: visible ? 'panel' : 'flyout' }));
+			return run(() => controller.actions.preferences.setPanelVisibility(panelId, visible));
+		}
 		if (panelId !== 'project-bin') return run(() => controller.actions.preferences.togglePanel(panelId));
 		if (!projectBinEffectivelyOpen) setProjectBinSessionOpened(true);
 		return run(() => controller.actions.preferences.setPanelVisibility(panelId, !projectBinEffectivelyOpen));
-	}, [controller, projectBinEffectivelyOpen, run]);
+	}, [controller, preferences.workspace.panels, projectBinEffectivelyOpen, run]);
 	const revealProjectBin = useCallback(
 		() => openWorkspacePanel('project-bin'),
 		[openWorkspacePanel],

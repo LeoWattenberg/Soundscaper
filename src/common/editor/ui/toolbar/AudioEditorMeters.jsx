@@ -8,6 +8,7 @@ import {
 	playbackMeterAmplitudeToDb,
 	playbackMeterPercent,
 } from '../../playback-meter.js';
+import { MeterPanelPositionMenu } from '../workspace/MeterPanelControls.jsx';
 import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
 import {
 	METER_DB_RANGES,
@@ -176,7 +177,6 @@ export function MeterSettingsFlyout({
 	const positions = [
 		['flyout', copy.meterPositionFlyout],
 		['top', copy.meterPositionTop],
-		['side', copy.meterPositionSide],
 		['panel', copy.meterPositionPanel],
 	];
 	const styles = [
@@ -196,7 +196,8 @@ export function MeterSettingsFlyout({
 			<fieldset>
 				<legend>{copy.position}</legend>
 				{positions.map(([value, label]) => (
-					<label key={value} className="kw-audio-editor__playback-meter-radio">
+					<div key={value} className="kw-audio-editor__meter-position-option">
+					<label className="kw-audio-editor__playback-meter-radio">
 						<input
 							type="radio"
 							name={`meter-position-${meterKind}`}
@@ -206,6 +207,8 @@ export function MeterSettingsFlyout({
 						/>
 						<span>{label}</span>
 					</label>
+					{value === 'panel' && <MeterPanelPositionMenu copy={copy} meterKind={meterKind} settings={settings} onChange={onChange} />}
+					</div>
 				))}
 			</fieldset>
 			<div className="kw-audio-editor__playback-meter-settings-row">

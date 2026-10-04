@@ -75,9 +75,9 @@ test('frame navigation stays Framescaper-only even with a video workspace prefer
 		toolbars={{}}
 		editItems={[]}
 		uiFlags={{}}
-		playbackMeterSettings={{ position: 'side' }}
+		playbackMeterSettings={{ position: 'panel' }}
 		onPlaybackMeterSettingsChange={() => undefined}
-		recordingMeterSettings={{ position: 'side' }}
+		recordingMeterSettings={{ position: 'panel' }}
 		onRecordingMeterSettingsChange={() => undefined}
 		automationToolEnabled={false}
 		onToggleAutomationTool={() => undefined}

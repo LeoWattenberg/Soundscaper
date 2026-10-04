@@ -4,19 +4,21 @@ import { useEffect, useState } from 'react';
 
 import WorkspacePanelContent from './WorkspacePanelContent.jsx';
 import WorkspacePanelHeader from './WorkspacePanelHeader.jsx';
+import { MeterPanelGripContext } from './MeterPanelControls.jsx';
 import EditorSurfaceBoundary from '../EditorSurfaceBoundary.jsx';
 import {
 	ANALYZER_PANEL_ID_SET,
 	FLOATING_PANEL_MIN_HEIGHT,
-	FLOATING_PANEL_MIN_WIDTH,
 	clampFloatingPanelGeometry,
 	workspacePanelLabel,
+	workspacePanelMinimumWidth,
 } from './workspace-panel-model.ts';
 import {
 	resolveWorkspacePanelDropIntent,
 	resolveWorkspacePanelDropPreview,
 } from './workspace-panel-drop-model.ts';
 import { closeWorkspacePanelAndRestoreFocus, focusWorkspacePanelMenuButton } from './workspace-panel-focus.js';
+import { formatResizeLabel } from '../localization-template.ts';
 
 const DOCK_END = Number.MAX_SAFE_INTEGER;
 
@@ -45,9 +47,10 @@ export default function WorkspacePanelGroup({
 	const activePanelId = group.activePanelId;
 	const activePanel = entries.find(([panelId]) => panelId === activePanelId)?.[1] ?? entries[0][1];
 	const grouped = entries.length > 1;
+	const meterPanel = activePanelId === 'playback-meter' || activePanelId === 'recording-meter';
 	const draggingCurrentSingleton = !grouped && draggedPanelId === activePanelId;
 	const geometry = dock === 'floating'
-		? clampFloatingPanelGeometry(activePanel, floatingBounds)
+		? clampFloatingPanelGeometry(activePanel, floatingBounds, activePanelId)
 		: null;
 	const panelStyle = geometry
 		? {
@@ -56,7 +59,7 @@ export default function WorkspacePanelGroup({
 			top: `${geometry.y}px`,
 			width: `${geometry.width}px`,
 			height: `${geometry.height}px`,
-			minWidth: `${Math.min(FLOATING_PANEL_MIN_WIDTH, floatingBounds.width || FLOATING_PANEL_MIN_WIDTH)}px`,
+			minWidth: `${Math.min(workspacePanelMinimumWidth(activePanelId), floatingBounds.width || workspacePanelMinimumWidth(activePanelId))}px`,
 			minHeight: `${Math.min(FLOATING_PANEL_MIN_HEIGHT, floatingBounds.height || FLOATING_PANEL_MIN_HEIGHT)}px`,
 			maxWidth: floatingBounds.width ? `${Math.max(1, floatingBounds.width - geometry.x)}px` : '100%',
 			maxHeight: floatingBounds.height ? `${Math.max(1, floatingBounds.height - geometry.y)}px` : '100%',
@@ -121,6 +124,7 @@ export default function WorkspacePanelGroup({
 	return <section
 		className={`kw-audio-editor__workspace-panel${entries.some(([panelId]) => draggedPanelId === panelId) ? ' kw-audio-editor__workspace-panel--dragging' : ''}${activeFloatingPanelId === activePanelId ? ' kw-audio-editor__workspace-panel--active' : ''}`}
 		data-workspace-panel={activePanelId}
+		data-meter-panel={meterPanel ? '' : undefined}
 		data-workspace-panel-group={group.id}
 		data-workspace-panel-members={entries.map(([panelId]) => panelId).join(' ')}
 		data-workspace-panel-size={activePanel.size}
@@ -170,7 +174,7 @@ export default function WorkspacePanelGroup({
 			onPanelMove(draggedPanelId, { kind: nextDrop.intent, targetPanelId });
 		}}
 	>
-		<WorkspacePanelHeader
+		{!meterPanel && <WorkspacePanelHeader
 			panelId={activePanelId}
 			activePanelId={activePanelId}
 			label={workspacePanelLabel(copy, activePanelId)}
@@ -198,7 +202,14 @@ export default function WorkspacePanelGroup({
 				activePanelId,
 				onTogglePanel,
 			)}
-		/>
+		/>}
+		{meterPanel && dock === 'floating' && <button
+			type="button"
+			className="kw-audio-editor__workspace-resize-handle"
+			data-floating-panel-resize-handle={activePanelId}
+			aria-label={formatResizeLabel(copy, workspacePanelLabel(copy, activePanelId))}
+			onKeyDown={(event) => adjustFloatingPanelGeometry(event, activePanelId, activePanel, 'resize')}
+		/>}
 		{entries.map(([panelId]) => {
 			const active = panelId === activePanelId;
 			return <div
@@ -207,17 +218,23 @@ export default function WorkspacePanelGroup({
 				className="kw-audio-editor__workspace-panel-content"
 				data-workspace-tab-panel={panelId}
 				role={grouped ? 'tabpanel' : undefined}
-				aria-labelledby={grouped ? `workspace-panel-tab-${panelId}` : undefined}
+				aria-labelledby={grouped && !meterPanel ? `workspace-panel-tab-${panelId}` : undefined}
+				aria-label={grouped && meterPanel ? workspacePanelLabel(copy, panelId) : undefined}
 				hidden={grouped && !active}
 				tabIndex={active && panelId === 'source-monitor' ? 0 : undefined}
 			>
 				<EditorSurfaceBoundary copy={copy} surface={`panel:${panelId}`} resetKey={contentProps.snapshot?.project}>
+					<MeterPanelGripContext.Provider value={meterPanel ? {
+						panelId, copy, dragHandle: dragHandle(panelId, activePanel),
+						onPointerDown: (event) => beginFloatingMove(event, panelId),
+					} : null}>
 					<WorkspacePanelContent
 						{...contentProps}
 						panelId={panelId}
 						panelActive={active}
 						dock={dock}
 					/>
+					</MeterPanelGripContext.Provider>
 				</EditorSurfaceBoundary>
 			</div>;
 		})}

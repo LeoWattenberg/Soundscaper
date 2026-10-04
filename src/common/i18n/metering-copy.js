@@ -5,9 +5,9 @@ export const METERING_COPY_BY_LOCALE = Object.freeze({
 	de: Object.freeze({
 			position: 'Position',
 			meterPositionFlyout: 'Nur im Flyout',
-			meterPositionTop: 'Obere Leiste (horizontal)',
+			meterPositionTop: 'Werkzeugleiste',
 			meterPositionSide: 'Seitenleiste (vertikal)',
-			meterPositionPanel: 'Andockbares Panel',
+			meterPositionPanel: 'Panel',
 			meterStyle: 'Pegelanzeigestil',
 			defaultOption: 'Standard',
 			gradient: 'Verlauf',
@@ -42,9 +42,9 @@ export const METERING_COPY_BY_LOCALE = Object.freeze({
 	en: Object.freeze({
 			position: 'Position',
 			meterPositionFlyout: 'Flyout only',
-			meterPositionTop: 'Top bar (horizontal)',
+			meterPositionTop: 'Toolbar',
 			meterPositionSide: 'Side bar (vertical)',
-			meterPositionPanel: 'Dockable panel',
+			meterPositionPanel: 'Panel',
 			meterStyle: 'Meter style',
 			defaultOption: 'Default',
 			gradient: 'Gradient',

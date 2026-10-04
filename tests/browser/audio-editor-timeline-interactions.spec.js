@@ -254,10 +254,10 @@ test.describe('audio editor React/design-system workflows', () => {
 		await page.setViewportSize({ width: 720, height: 900 });
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [longTone]);
+		await chooseNestedCommandAction(page, editor, 'View', ['Zoom', 'Zoom in']);
 		const clip = clipByName(editor, longTone.name);
 		const waveform = clip.locator('canvas.clip-body__waveform');
 		await expect(waveform).toHaveAttribute('data-waveform-renderer', 'audacity');
-
 		const clipBox = await clip.boundingBox();
 		expect(clipBox).not.toBeNull();
 		await page.mouse.move(clipBox.x + 28, clipBox.y + 12);

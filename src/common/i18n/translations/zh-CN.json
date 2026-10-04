@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "zh-CN",
 	"provenance": {
-		"machine": {"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"Codex","modelDigest":"sha256:0210e33ed2ed36e58f80600a07f7adbc0ef662b14a24adffcdb0a0a4a9e0afa6","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -1701,8 +1701,9 @@
 		"metadataValueColumn": ["machine","Value","值"],
 		"metadataYear": ["audacity","Year","年"],
 		"meterPositionFlyout": ["machine","Flyout only","仅弹出面板"],
+		"meterPositionPanel": ["machine","Panel","面板"],
 		"meterPositionSide": ["machine","Side bar (vertical)","侧边栏（垂直）"],
-		"meterPositionTop": ["machine","Top bar (horizontal)","顶部栏（水平）"],
+		"meterPositionTop": ["machine","Toolbar","工具栏"],
 		"meterStyle": ["machine","Meter style","电平表样式"],
 		"meterType": ["machine","Meter type","电平表类型"],
 		"meterTypeEbuR128": ["machine","EBU R 128","EBU R 128"],

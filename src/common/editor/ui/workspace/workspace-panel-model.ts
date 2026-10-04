@@ -1,3 +1,5 @@
+import { METER_PANEL_MIN_WIDTH, isMeterWorkspacePanel } from '../../workspace-layout-defaults.ts';
+
 const DEFERRED_WEB_VCR_PANEL_ID = 'web-vcr';
 
 export const ANALYZER_PANEL_IDS = Object.freeze(['analysis']);
@@ -31,6 +33,10 @@ export const WORKSPACE_DOCK_IDS = Object.freeze(['left', 'right', 'top', 'bottom
 export const FLOATING_PANEL_MIN_WIDTH = 240;
 export const FLOATING_PANEL_MIN_HEIGHT = 120;
 
+export function workspacePanelMinimumWidth(panelId = ''): number {
+	return isMeterWorkspacePanel(panelId) ? METER_PANEL_MIN_WIDTH : FLOATING_PANEL_MIN_WIDTH;
+}
+
 export interface FloatingPanelGeometry {
 	height: number;
 	width: number;
@@ -57,17 +63,19 @@ interface HistoryEntry {
 export function clampFloatingPanelGeometry(
 	panel: FloatingPanelGeometryInput | null | undefined,
 	workspaceBounds: Pick<Partial<FloatingPanelGeometry>, 'height' | 'width'> = {},
+	panelId = '',
 ): FloatingPanelGeometry {
+	const panelMinimumWidth = workspacePanelMinimumWidth(panelId);
 	const raw = {
 		x: Math.max(0, Number(panel?.x) || 0),
 		y: Math.max(0, Number(panel?.y) || 0),
-		width: Math.max(80, Number(panel?.width ?? panel?.size) || 320),
+		width: Math.max(isMeterWorkspacePanel(panelId) ? panelMinimumWidth : 80, Number(panel?.width ?? panel?.size) || (isMeterWorkspacePanel(panelId) ? panelMinimumWidth : 320)),
 		height: Math.max(80, Number(panel?.height) || 320),
 	};
 	const workspaceWidth = Math.max(0, Number(workspaceBounds.width) || 0);
 	const workspaceHeight = Math.max(0, Number(workspaceBounds.height) || 0);
 	if (!workspaceWidth || !workspaceHeight) return raw;
-	const minimumWidth = Math.min(FLOATING_PANEL_MIN_WIDTH, workspaceWidth);
+	const minimumWidth = Math.min(panelMinimumWidth, workspaceWidth);
 	const minimumHeight = Math.min(FLOATING_PANEL_MIN_HEIGHT, workspaceHeight);
 	const width = Math.min(workspaceWidth, Math.max(minimumWidth, raw.width));
 	const height = Math.min(workspaceHeight, Math.max(minimumHeight, raw.height));

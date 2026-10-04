@@ -263,7 +263,7 @@ export default function EditorToolToolbar({
 				/>}
 
 				{capabilities.audioRecording && isToolbarButtonVisible('monitor')
-					&& (recordingMeterSettings.position !== 'side' || snapshot.preferences?.workspace?.panels?.['recording-meter']?.visible) && <RecordingMeterToolbarGroup
+					&& recordingMeterSettings.position !== 'panel' && <RecordingMeterToolbarGroup
 					copy={copy}
 					snapshot={snapshot}
 					controller={controller}
@@ -273,7 +273,7 @@ export default function EditorToolToolbar({
 				/>}
 
 				{isToolbarButtonVisible('playback-volume')
-					&& (playbackMeterSettings.position !== 'side' || snapshot.preferences?.workspace?.panels?.['playback-meter']?.visible)
+					&& playbackMeterSettings.position !== 'panel'
 					&& <PlaybackMeterToolbarGroup
 						controller={controller}
 						copy={copy}

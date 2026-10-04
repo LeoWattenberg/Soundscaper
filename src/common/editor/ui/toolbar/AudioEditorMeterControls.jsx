@@ -15,6 +15,7 @@ import {
 import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
 import EditorHelpTooltip from '../EditorHelpTooltip.tsx';
 import PreferenceCheckbox from '../EditorPreferenceCheckbox.tsx';
+import { MeterPanelGrip } from '../workspace/MeterPanelControls.jsx';
 import { formatDb } from '../meter-settings.ts';
 import { AudacityAudioMeter, MeterSettingsFlyout } from './AudioEditorMeters.jsx';
 
@@ -459,7 +460,9 @@ export function SidePlaybackMeter({
 			data-side-playback-meter
 			aria-label={copy.playbackMeterSettings}
 		>
+			<MeterPanelGrip />
 			<AudacityToolbarFlyoutButton
+				overlayPortal
 				icon={iconNameToChar('AUDIO')}
 				ariaLabel={copy.playbackMeterSettings}
 				flyoutClassName="kw-audio-editor__playback-meter-flyout"
@@ -505,7 +508,9 @@ export function SideRecordingMeter({
 			data-side-recording-meter
 			aria-label={copy.recordLevel}
 		>
+			<MeterPanelGrip />
 			<AudacityToolbarFlyoutButton
+				overlayPortal
 				icon={iconNameToChar('MICROPHONE')}
 				ariaLabel={copy.recordLevel}
 				flyoutClassName="kw-audio-editor__microphone-level-flyout"

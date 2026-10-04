@@ -19,12 +19,12 @@
 	min-height: 0;
 	flex: 1 1 auto;
 	align-items: stretch;
-	padding: 8px;
+	padding: 5px;
 	border: 0;
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__meter-workspace-panel .kw-audio-editor__audacity-level-trigger {
-	align-self: flex-start;
+	align-self: center;
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__meter-workspace-panel > aside .kw-audio-editor__master-meter {
@@ -36,8 +36,8 @@
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__meter-workspace-panel .kw-audio-editor__playback-meter-ruler {
-	font-size: 12px;
-	line-height: 14px;
+	font-size: 9px;
+	line-height: 12px;
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__meter-workspace-panel .kw-audio-editor__playback-meter-surface--horizontal {
@@ -55,16 +55,16 @@
 
 #kw-audio-editor-design-system .kw-audio-editor__meter-workspace-panel .kw-audio-editor__playback-meter-surface--vertical .kw-audio-editor__playback-meter-channels,
 #kw-audio-editor-design-system .kw-audio-editor__meter-workspace-panel .kw-audio-editor__playback-meter-surface--vertical .kw-audio-editor__playback-meter-volume {
-	left: 30px;
+	left: 22px;
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__meter-workspace-panel .kw-audio-editor__playback-meter-surface--vertical .kw-audio-editor__playback-meter-ruler {
-	width: 26px;
+	width: 20px;
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__meter-workspace-panel .kw-audio-editor__ebu-compact-readout {
 	font-size: 11px;
-	line-height: 14px;
+	line-height: 12px;
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__meter-workspace-panel .kw-audio-editor__playback-meter-surface--horizontal[data-meter-type='ebu-r128'] {
@@ -82,4 +82,52 @@
 #kw-audio-editor-design-system .kw-audio-editor__meter-workspace-panel .kw-audio-editor__playback-meter-surface--vertical[data-meter-type='ebu-r128'] .kw-audio-editor__playback-meter-channels,
 #kw-audio-editor-design-system .kw-audio-editor__meter-workspace-panel .kw-audio-editor__playback-meter-surface--vertical[data-meter-type='ebu-r128'] .kw-audio-editor__playback-meter-ruler {
 	bottom: 58px;
+}
+
+#kw-audio-editor-design-system [data-meter-panel] {
+	min-width: 72px;
+}
+
+#kw-audio-editor-design-system :is(.kw-audio-editor__panel-dock--left, .kw-audio-editor__panel-dock--right)[data-meter-dock] {
+	width: var(--workspace-dock-width, 72px);
+	min-width: 72px;
+}
+
+#kw-audio-editor-design-system :is(.kw-audio-editor__panel-dock--left, .kw-audio-editor__panel-dock--right):has(> [data-meter-panel]) > .kw-audio-editor__workspace-panel:not([data-meter-panel]) {
+	min-height: 240px;
+}
+
+#kw-audio-editor-design-system :is(.kw-audio-editor__panel-dock--left, .kw-audio-editor__panel-dock--right):has(> .kw-audio-editor__workspace-panel:not([data-meter-panel])) > [data-meter-panel] {
+	flex-shrink: 1;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__meter-panel-grip {
+	width: 25px;
+	height: 18px;
+	min-height: 18px;
+	flex: 0 0 auto;
+	align-self: center;
+	line-height: 18px;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__meter-workspace-panel > aside {
+	flex-basis: auto;
+}
+
+.kw-audio-editor__meter-position-option {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.kw-audio-editor__meter-position-option > span {
+	display: flex;
+}
+
+#kw-audio-editor-design-system[data-layout='compact'] :is(.kw-audio-editor__panel-dock--left, .kw-audio-editor__panel-dock--right)[data-meter-dock] {
+	position: relative;
+	z-index: auto;
+	inset: auto;
+	border: 0;
+	box-shadow: none;
 }

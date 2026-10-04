@@ -15,6 +15,8 @@ import {
 	DEFAULT_PANELS,
 	DEFAULT_TOOLBAR_BUTTONS,
 	DEFAULT_TOOLBARS,
+	METER_PANEL_MIN_WIDTH,
+	isMeterWorkspacePanel,
 } from './workspace-layout-defaults.ts';
 import { canonicalizeWorkspacePanelGroups, normalizeWorkspacePanelGroupFields } from './workspace-panel-layout.ts';
 import { clone, finiteInRange, integer, nonEmptyString, oneOf } from './preferences-validators.js';
@@ -80,15 +82,18 @@ export function normalizePanelEntries(value = {}) {
 		const entry = value[id] || {};
 		if (!entry || typeof entry !== 'object') throw new TypeError(`workspace.panels.${id} must be an object.`);
 		const visible = entry.visible ?? defaults.visible;
+		const minimumWidth = isMeterWorkspacePanel(id) ? METER_PANEL_MIN_WIDTH : 80;
+		const legacyMeterGeometry = isMeterWorkspacePanel(id) && entry.size === 240 && entry.width === 240;
 		if (typeof visible !== 'boolean') throw new TypeError(`workspace.panels.${id}.visible must be boolean.`);
 		entries[id] = {
 			visible: id === 'analysis' && inheritedAnalysisVisibility ? true : visible,
 			dock: oneOf(entry.dock ?? defaults.dock, DOCK_SET, `workspace.panels.${id}.dock`),
 			order: integer(entry.order ?? defaults.order, 0, `workspace.panels.${id}.order`),
-			size: finiteInRange(entry.size ?? defaults.size, 80, 4_096, `workspace.panels.${id}.size`),
+			size: finiteInRange(legacyMeterGeometry ? defaults.size : entry.size ?? defaults.size, minimumWidth, 4_096, `workspace.panels.${id}.size`),
 			x: finiteInRange(entry.x ?? floatingDefaults.x, 0, 1_000_000, `workspace.panels.${id}.x`),
 			y: finiteInRange(entry.y ?? floatingDefaults.y, 0, 1_000_000, `workspace.panels.${id}.y`),
-			width: finiteInRange(entry.width ?? entry.size ?? floatingDefaults.width, 80, 4_096, `workspace.panels.${id}.width`),
+			width: finiteInRange(legacyMeterGeometry ? METER_PANEL_MIN_WIDTH : entry.width ?? entry.size ?? defaults.width ?? floatingDefaults.width,
+				minimumWidth, 4_096, `workspace.panels.${id}.width`),
 			height: finiteInRange(entry.height ?? floatingDefaults.height, 80, 4_096, `workspace.panels.${id}.height`),
 			...normalizeWorkspacePanelGroupFields(entry, `workspace.panels.${id}`),
 		};

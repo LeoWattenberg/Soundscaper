@@ -72,21 +72,27 @@ export const AUDACITY_TOOLBAR_BUTTONS = Object.freeze({
 // when a preset is activated and never enters the persisted preferences.
 export interface WorkspaceViewDefaults {
 	readonly verticalRulers?: boolean;
-	readonly playbackMeterPosition?: 'flyout' | 'top' | 'side';
-	readonly recordingMeterPosition?: 'flyout' | 'top' | 'side';
+	readonly playbackMeterPosition?: 'flyout' | 'top' | 'panel';
+	readonly recordingMeterPosition?: 'flyout' | 'top' | 'panel';
 }
 
 const MODERN_VIEW_DEFAULTS: WorkspaceViewDefaults = Object.freeze({
 	verticalRulers: true,
-	playbackMeterPosition: 'side',
-	recordingMeterPosition: 'side',
+	playbackMeterPosition: 'panel',
+	recordingMeterPosition: 'panel',
 });
 
 const AUDACITY_VIEW_DEFAULTS: WorkspaceViewDefaults = Object.freeze({
 	verticalRulers: false,
-	playbackMeterPosition: 'side',
+	playbackMeterPosition: 'panel',
 	recordingMeterPosition: 'flyout',
 });
+
+export const METER_PANEL_MIN_WIDTH = 72;
+
+export function isMeterWorkspacePanel(panelId: string): boolean {
+	return panelId === 'playback-meter' || panelId === 'recording-meter';
+}
 
 export const DEFAULT_PANELS = Object.freeze({
 	'project-bin': Object.freeze({ visible: false, dock: 'left', order: 0, size: 380 }),
@@ -104,8 +110,8 @@ export const DEFAULT_PANELS = Object.freeze({
 	freesound: Object.freeze({ visible: false, dock: 'right', order: 11, size: 400 }),
 	'recording-setup': Object.freeze({ visible: false, dock: 'bottom', order: 11, size: 420 }),
 	'web-vcr': Object.freeze({ visible: false, dock: 'bottom', order: 12, size: 640 }),
-	'playback-meter': Object.freeze({ visible: false, dock: 'right', order: 12, size: 240 }),
-	'recording-meter': Object.freeze({ visible: false, dock: 'right', order: 13, size: 240 }),
+	'playback-meter': Object.freeze({ visible: false, dock: 'right', order: 12, size: 260, width: METER_PANEL_MIN_WIDTH }),
+	'recording-meter': Object.freeze({ visible: false, dock: 'right', order: 13, size: 260, width: METER_PANEL_MIN_WIDTH }),
 	clock: Object.freeze({ visible: false, dock: 'floating', order: 14, size: 640 }),
 	'clip-properties': Object.freeze({ visible: false, dock: 'bottom', order: 15, size: 400 }),
 	'clip-spreadsheet': Object.freeze({ visible: false, dock: 'bottom', order: 16, size: 360, width: 1000 }),
@@ -125,8 +131,8 @@ export const DEFAULT_FLOATING_PANEL_GEOMETRY = Object.freeze({
 	freesound: Object.freeze({ x: 264, y: 208, width: 440, height: 560 }),
 	'recording-setup': Object.freeze({ x: 88, y: 88, width: 620, height: 520 }),
 	'web-vcr': Object.freeze({ x: 112, y: 64, width: 760, height: 620 }),
-	'playback-meter': Object.freeze({ x: 192, y: 96, width: 320, height: 520 }),
-	'recording-meter': Object.freeze({ x: 224, y: 128, width: 320, height: 520 }),
+	'playback-meter': Object.freeze({ x: 192, y: 96, width: METER_PANEL_MIN_WIDTH, height: 520 }),
+	'recording-meter': Object.freeze({ x: 224, y: 128, width: METER_PANEL_MIN_WIDTH, height: 520 }),
 	clock: Object.freeze({ x: 240, y: 160, width: 640, height: 200 }),
 	'clip-properties': Object.freeze({ x: 272, y: 192, width: 400, height: 520 }),
 	'clip-spreadsheet': Object.freeze({ x: 48, y: 96, width: 1000, height: 460 }),

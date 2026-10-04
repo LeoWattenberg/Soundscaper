@@ -24,7 +24,7 @@ test('meter and clock panels remain hidden until selected through a menu', () =>
 	assert.equal(workspacePanelLabel(ENGLISH_COPY, 'playback-meter'), 'Playback meter');
 	assert.equal(workspacePanelLabel(ENGLISH_COPY, 'recording-meter'), 'Recording meter');
 	assert.equal(normalizeMeterSettings({ position: 'panel' }, DEFAULT_PLAYBACK_METER_SETTINGS).position, 'panel');
-	assert.equal(normalizeMeterSettings({ position: 'side' }, DEFAULT_PLAYBACK_METER_SETTINGS).position, 'side');
+	assert.equal(normalizeMeterSettings({ position: 'side' }, DEFAULT_PLAYBACK_METER_SETTINGS).position, 'panel');
 });
 
 test('docked meters use their entire orientation and release telemetry in an inactive tab', async () => {

@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { METER_PANEL_MIN_WIDTH, isMeterWorkspacePanel } from './workspace-layout-defaults.ts';
+
 export const WORKSPACE_PANEL_DOCKS = Object.freeze([
 	'left',
 	'right',
@@ -72,10 +74,10 @@ function withGroup<Panel extends WorkspacePanelPreference>(
 	return { ...panel, tabGroup: groupId, tabActive: active };
 }
 
-function withFrameGeometry<Panel extends WorkspacePanelPreference>(panel: Panel, anchor: Panel): Panel {
+function withFrameGeometry<Panel extends WorkspacePanelPreference>(panel: Panel, anchor: Panel, minimum = 80): Panel {
 	const next: Record<string, unknown> = { ...panel };
 	for (const field of ['size', 'width'] as const) {
-		if (Object.hasOwn(anchor, field)) next[field] = anchor[field];
+		if (Object.hasOwn(anchor, field)) next[field] = Math.max(minimum, Number(anchor[field]));
 	}
 	return next as Panel;
 }
@@ -84,10 +86,13 @@ function withDockExtent<Panel extends WorkspacePanelPreference>(
 	panel: Panel,
 	anchor: Panel,
 	dock: unknown,
+	minimum = 80,
 ): Panel {
 	const field = dock === 'top' || dock === 'bottom' ? 'size' : dock === 'left' || dock === 'right' ? 'width' : null;
+	// Compact meter docks cannot dictate an ordinary panel's remembered width.
+	if (field === 'width' && Number(anchor.width) < minimum) return panel;
 	return field !== null && Object.hasOwn(anchor, field)
-		? { ...panel, [field]: anchor[field] } as Panel
+		? { ...panel, [field]: Math.max(minimum, Number(anchor[field])) } as Panel
 		: panel;
 }
 
@@ -217,8 +222,9 @@ export function canonicalizeWorkspacePanelGroups<Panel extends WorkspacePanelPre
 			const entries = group.members.map(({ id, panel }) => [id, panel] as const);
 			const activePanelId = selectedMember(entries);
 			const anchor = group.members[0]?.panel;
+			const minimum = group.members.every(({ id }) => isMeterWorkspacePanel(id)) ? METER_PANEL_MIN_WIDTH : 80;
 			for (const { id, panel } of group.members) {
-				const framedPanel = group.groupId !== null && anchor ? withFrameGeometry(panel, anchor) : panel;
+				const framedPanel = group.groupId !== null && anchor ? withFrameGeometry(panel, anchor, minimum) : panel;
 				const orderedPanel = { ...framedPanel, order: hasTabGroup ? order : panel.order } as Panel;
 				next[id] = group.groupId === null
 					? withoutGroup(orderedPanel)
@@ -313,10 +319,11 @@ function writeGroups<Panel extends WorkspacePanelPreference>(
 		let order = 0;
 		for (const group of dockGroups) {
 			const anchor = next[group.memberIds[0] ?? ''];
+			const minimum = group.memberIds.every(isMeterWorkspacePanel) ? METER_PANEL_MIN_WIDTH : 80;
 			for (const panelId of group.memberIds) {
 				const panel = next[panelId];
 				if (!panel) continue;
-				const framedPanel = group.memberIds.length > 1 && anchor ? withFrameGeometry(panel, anchor) : panel;
+				const framedPanel = group.memberIds.length > 1 && anchor ? withFrameGeometry(panel, anchor, minimum) : panel;
 				const moved = { ...framedPanel, dock, order } as Panel;
 				next[panelId] = group.memberIds.length > 1 && group.groupId !== null
 					? withGroup(moved, group.groupId, panelId === group.activePanelId)
@@ -384,7 +391,7 @@ export function placeWorkspacePanel<Panel extends WorkspacePanelPreference>(
 		}
 		const extentAnchor = canonical[visibleGroups[0]?.memberIds[0] ?? ''];
 		const next = extentAnchor
-			? { ...canonical, [panelId]: withDockExtent(source, extentAnchor, placement.dock) }
+			? { ...canonical, [panelId]: withDockExtent(source, extentAnchor, placement.dock, isMeterWorkspacePanel(panelId) ? METER_PANEL_MIN_WIDTH : 80) }
 			: canonical;
 		return writeGroups(next, groups, new Set([source.dock, placement.dock]));
 	}
@@ -411,7 +418,7 @@ export function placeWorkspacePanel<Panel extends WorkspacePanelPreference>(
 	});
 	return writeGroups({
 		...canonical,
-		[panelId]: withDockExtent(source, target, target.dock),
+		[panelId]: withDockExtent(source, target, target.dock, isMeterWorkspacePanel(panelId) ? METER_PANEL_MIN_WIDTH : 80),
 	}, groups, new Set([source.dock, target.dock]));
 }
 
@@ -462,10 +469,10 @@ export function setWorkspacePanelVisibility<Panel extends WorkspacePanelPreferen
 	return canonicalizeWorkspacePanelGroups(next);
 }
 
-function normalizedPanelExtent(value: unknown, name: string): number {
+function normalizedPanelExtent(value: unknown, name: string, minimum = 80): number {
 	const extent = Number(value);
-	if (!Number.isFinite(extent) || extent < 80 || extent > 4_096) {
-		throw new RangeError(`${name} must be between 80 and 4096.`);
+	if (!Number.isFinite(extent) || extent < minimum || extent > 4_096) {
+		throw new RangeError(`${name} must be between ${minimum} and 4096.`);
 	}
 	return extent;
 }
@@ -477,8 +484,10 @@ export function setWorkspacePanelFrameSize<Panel extends WorkspacePanelPreferenc
 ): Record<string, Panel> {
 	const canonical = canonicalizeWorkspacePanelGroups(panels);
 	const panel = requirePanel(canonical, panelId);
-	const nextSize = normalizedPanelExtent(size, 'Panel frame size');
 	const groupId = groupIdOf(panel);
+	const members = Object.entries(canonical).filter(([id, candidate]) => id === panelId || (groupId !== null && candidate.dock === panel.dock && groupIdOf(candidate) === groupId));
+	const minimum = members.every(([id]) => isMeterWorkspacePanel(id)) ? METER_PANEL_MIN_WIDTH : 80;
+	const nextSize = normalizedPanelExtent(size, 'Panel frame size', minimum);
 	const next = { ...canonical };
 	for (const [candidateId, candidate] of Object.entries(canonical)) {
 		if (candidateId === panelId || (groupId !== null
@@ -498,14 +507,16 @@ export function setWorkspacePanelDockExtent<Panel extends WorkspacePanelPreferen
 	if (!DOCK_SET.has(dock)) throw new RangeError(`Panel extent has an unsupported dock: ${String(dock)}.`);
 	if (dock === 'floating') throw new RangeError('Floating panels do not share a dock extent.');
 	if (!changes || typeof changes !== 'object') throw new TypeError('Panel dock extent changes are required.');
-	const patch: Record<string, number> = {};
-	if (changes.size !== undefined) patch.size = normalizedPanelExtent(changes.size, 'Panel dock size');
-	if (changes.width !== undefined) patch.width = normalizedPanelExtent(changes.width, 'Panel dock width');
-	if (!Object.keys(patch).length) throw new TypeError('Panel dock extent requires a size or width.');
 	const canonical = canonicalizeWorkspacePanelGroups(panels);
+	const visiblePanels = Object.entries(canonical).filter(([, panel]) => panel.visible && panel.dock === dock);
+	const minimum = visiblePanels.length && visiblePanels.every(([id]) => isMeterWorkspacePanel(id)) ? METER_PANEL_MIN_WIDTH : 80;
+	const patch: Record<string, number> = {};
+	if (changes.size !== undefined) patch.size = normalizedPanelExtent(changes.size, 'Panel dock size', minimum);
+	if (changes.width !== undefined) patch.width = normalizedPanelExtent(changes.width, 'Panel dock width', minimum);
+	if (!Object.keys(patch).length) throw new TypeError('Panel dock extent requires a size or width.');
 	const next = { ...canonical };
 	for (const [panelId, panel] of Object.entries(canonical)) {
-		if (panel.dock === dock) next[panelId] = { ...panel, ...patch } as Panel;
+		if (panel.dock === dock && (isMeterWorkspacePanel(panelId) || Object.values(patch).every((extent) => extent >= 80))) next[panelId] = { ...panel, ...patch } as Panel;
 	}
 	return canonicalizeWorkspacePanelGroups(next);
 }

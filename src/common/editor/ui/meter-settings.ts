@@ -4,7 +4,7 @@ import {
 	playbackMeterPercent,
 } from '../playback-meter.js';
 
-export const METER_POSITIONS = ['flyout', 'top', 'side', 'panel'] as const;
+export const METER_POSITIONS = ['flyout', 'top', 'panel'] as const;
 export const METER_STYLES = ['default', 'rms', 'gradient'] as const;
 export const METER_TYPES = ['db-log', 'db-linear', 'amplitude', 'ebu-r128'] as const;
 export const METER_DB_RANGES = [36, 48, 60, 72, 84, 96, 120, 144] as const;
@@ -27,7 +27,7 @@ export interface MeterSettings {
 }
 
 export const DEFAULT_PLAYBACK_METER_SETTINGS: Readonly<MeterSettings> = Object.freeze({
-	position: 'side',
+	position: 'panel',
 	style: 'default',
 	type: 'db-log',
 	dbRange: 60,
@@ -92,7 +92,7 @@ export function productStorageKey(soundscaperKey: string, productId: string): st
 
 export function normalizeMeterSettings(value: unknown, defaults: Readonly<MeterSettings>): MeterSettings {
 	const candidate = value && typeof value === 'object' ? value as Record<string, unknown> : {};
-	const position = METER_POSITIONS.includes(candidate.position as MeterSettings['position'])
+	const position = candidate.position === 'side' ? 'panel' : METER_POSITIONS.includes(candidate.position as MeterSettings['position'])
 		? candidate.position as MeterSettings['position']
 		: defaults.position;
 	const style = METER_STYLES.includes(candidate.style as MeterSettings['style'])

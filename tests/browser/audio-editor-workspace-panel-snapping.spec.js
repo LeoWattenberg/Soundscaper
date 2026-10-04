@@ -46,6 +46,12 @@ test.describe('Audacity-style workspace panel snapping', () => {
 
 	test('side panels split through vertical thirds, tab without unmounting, and restore their active tab', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
+		for (const [panelId, label] of [['playback-meter', 'Playback meter'], ['recording-meter', 'Recording meter']]) {
+			const meter = editor.locator(`[data-workspace-panel="${panelId}"]`);
+			await expect(meter).toBeVisible();
+			await chooseNestedCommandAction(page, editor, 'Window', [label]);
+			await expect(meter).toHaveCount(0);
+		}
 		await openHistoryAndMetadata(page, editor);
 		const rightDock = editor.locator('[data-panel-dock="right"]');
 		const history = () => editor.locator('[data-workspace-panel="history"]');

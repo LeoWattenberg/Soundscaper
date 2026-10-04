@@ -604,6 +604,12 @@ test.describe('audio editor React/design-system workflows', () => {
 
 	test('customizes toolbar button visibility from the toolbar gear', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
+		const toolbar = editor.getByRole('toolbar', { name: 'Tool toolbar', exact: true });
+		for (const [label, kind] of [['Playback meter settings', 'playback'], ['Record level', 'recording']]) {
+			await editor.getByRole('button', { name: label, exact: true }).click();
+			await editor.getByRole('dialog', { name: label, exact: true }).getByRole('radio', { name: 'Toolbar', exact: true }).click();
+			await expect(editor.locator(`[data-workspace-panel="${kind}-meter"]`)).toHaveCount(0);
+		}
 		const settings = editor.getByRole('button', { name: 'Customize toolbar', exact: true });
 		await settings.click();
 		const flyout = page.getByRole('dialog', { name: 'Customize toolbar', exact: true });
@@ -634,25 +640,25 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(playToggle).toHaveAttribute('aria-checked', 'true');
 		await playToggle.click();
 		await expect(playToggle).toHaveAttribute('aria-checked', 'false');
-		await expect(editor.getByRole('button', { name: 'Play', exact: true })).toHaveCount(0);
+		await expect(toolbar.getByRole('button', { name: 'Play', exact: true })).toHaveCount(0);
 		await playToggle.click();
-		await expect(editor.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
+		await expect(toolbar.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
 		const timeDisplayToggle = flyout.getByRole('checkbox', { name: 'Timecode', exact: true });
 		await expect(timeDisplayToggle).toHaveAttribute('aria-checked', 'true');
 		await timeDisplayToggle.click();
-		await expect(editor.locator('[data-time-display]')).toHaveCount(0);
+		await expect(toolbar.locator('[data-time-display]')).toHaveCount(0);
 		await timeDisplayToggle.click();
-		await expect(editor.locator('[data-time-display]')).toBeVisible();
+		await expect(toolbar.locator('[data-time-display]')).toBeVisible();
 		const monitorToggle = flyout.getByRole('checkbox', { name: 'Record level', exact: true });
 		await monitorToggle.click();
-		await expect(editor.getByRole('button', { name: 'Record level', exact: true })).toHaveCount(0);
+		await expect(toolbar.getByRole('button', { name: 'Record level', exact: true })).toHaveCount(0);
 		await monitorToggle.click();
-		await expect(editor.getByRole('button', { name: 'Record level', exact: true })).toBeVisible();
+		await expect(toolbar.getByRole('button', { name: 'Record level', exact: true })).toBeVisible();
 		const playbackVolumeToggle = flyout.getByRole('checkbox', { name: 'Playback volume', exact: true });
 		await playbackVolumeToggle.click();
-		await expect(editor.locator('[data-side-playback-meter]')).toHaveCount(0);
+		await expect(toolbar.locator('[data-audio-meter][data-meter-kind="playback"][data-meter-position="top"]')).toHaveCount(0);
 		await playbackVolumeToggle.click();
-		await expect(editor.locator('[data-side-playback-meter]')).toBeVisible();
+		await expect(toolbar.locator('[data-audio-meter][data-meter-kind="playback"][data-meter-position="top"]')).toBeVisible();
 		await page.keyboard.press('Escape');
 		await expect(flyout).toBeHidden();
 

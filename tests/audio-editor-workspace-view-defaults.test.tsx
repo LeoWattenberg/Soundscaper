@@ -27,7 +27,7 @@ test('workspace view transitions only carry a preset view block across a real sw
 	assert.deepEqual(resolveWorkspaceViewTransition('modern', 'modern'), {});
 	assert.deepEqual(resolveWorkspaceViewTransition('modern', 'audacity'), {
 		verticalRulers: false,
-		playbackMeterPosition: 'side',
+		playbackMeterPosition: 'panel',
 		recordingMeterPosition: 'flyout',
 	});
 	assert.deepEqual(resolveWorkspaceViewTransition('modern', 'audacity'), workspaceViewDefaults('audacity'));
@@ -56,7 +56,7 @@ test('switching from Soundscaper to Audacity hides the rulers once and moves onl
 		assert.equal(fixture.runs, 1);
 		assert.equal(fixture.showVerticalRulers, false);
 		assert.equal(fixture.playback, playbackBefore, 'a matching playback position keeps the settings object');
-		assert.equal(fixture.playback.position, 'side');
+		assert.equal(fixture.playback.position, 'panel');
 		assert.deepEqual(fixture.recording, {
 			...DEFAULT_RECORDING_METER_SETTINGS, dbRange: 84, style: 'rms', position: 'flyout',
 		});
@@ -65,7 +65,7 @@ test('switching from Soundscaper to Audacity hides the rulers once and moves onl
 	}
 });
 
-test('switching from Audacity back to Soundscaper restores the rulers and the side recording meter', async () => {
+test('switching from Audacity back to Soundscaper restores the rulers and the recording panel meter', async () => {
 	const fixture = await mountedViewDefaultsFixture({
 		showVerticalRulers: false,
 		recording: { position: 'flyout' },
@@ -75,8 +75,8 @@ test('switching from Audacity back to Soundscaper restores the rulers and the si
 		await fixture.render('modern');
 		assert.equal(fixture.toggles, 1);
 		assert.equal(fixture.showVerticalRulers, true);
-		assert.equal(fixture.playback.position, 'side');
-		assert.equal(fixture.recording.position, 'side');
+		assert.equal(fixture.playback.position, 'panel');
+		assert.equal(fixture.recording.position, 'panel');
 	} finally {
 		await fixture.cleanup();
 	}
@@ -95,7 +95,7 @@ test('a ruler state that already matches the preset is left alone while meters s
 		assert.equal(fixture.toggles, 0);
 		assert.equal(fixture.runs, 0);
 		assert.equal(fixture.showVerticalRulers, false);
-		assert.equal(fixture.playback.position, 'side');
+		assert.equal(fixture.playback.position, 'panel');
 		assert.equal(fixture.recording, recordingBefore);
 	} finally {
 		await fixture.cleanup();
@@ -143,7 +143,7 @@ test('the first mount and dependency identity changes never apply a preset view'
 test('the stored preset arriving at boot is not a switch, but a later switch still applies', async () => {
 	const fixture = await mountedViewDefaultsFixture({
 		showVerticalRulers: true,
-		recording: { position: 'side' },
+		recording: { position: 'panel' },
 	});
 	try {
 		// The tree mounts on the product default while the stored preferences load.
@@ -152,7 +152,7 @@ test('the stored preset arriving at boot is not a switch, but a later switch sti
 		await fixture.render('audacity', { ready: true });
 		assert.equal(fixture.toggles, 0, 'the stored Audacity user keeps the rulers they turned on');
 		assert.equal(fixture.recordingCalls, 0);
-		assert.equal(fixture.recording.position, 'side');
+		assert.equal(fixture.recording.position, 'panel');
 
 		await fixture.render('modern', { ready: true });
 		assert.equal(fixture.toggles, 0, 'rulers already match the Soundscaper preset');

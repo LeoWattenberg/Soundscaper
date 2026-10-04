@@ -10,7 +10,6 @@ import EditorOverlayHost from '../EditorOverlayHost.tsx';
 import AudioEditorMenuBar from '../AudioEditorMenuBar.jsx';
 import AudioEditorTimeline from '../AudioEditorTimeline.jsx';
 import { audacityCompatibilityTitle, formatAup4CompatibilitySummary } from '../dialogs/editor-dialog-model.js';
-import { SidePlaybackMeter, SideRecordingMeter } from '../toolbar/AudioEditorMeterControls.jsx';
 import { AccessibleSelectionToolbar, EditorActionBar } from '../toolbar/AudioEditorTransportControls.jsx';
 import EditorToolToolbar from '../toolbar/EditorToolToolbar.jsx';
 import TransportToolbarGroup, { COMPACT_BAR_TRANSPORT_BUTTONS, DRAWER_TRANSPORT_BUTTONS } from '../toolbar/TransportToolbarGroup.jsx';
@@ -29,6 +28,7 @@ import EditorSurfaceBoundary from '../EditorSurfaceBoundary.jsx';
 import { CueImportDestinationDialog, WorkspaceImportInput } from './cue-import-workspace.tsx';
 import WebFileLimitDialog from './WebFileLimitDialog.tsx';
 import { withWebFileLoadLimitContext } from '../../web-file-limit-failure.ts';
+import { MeterPanelControlsProvider } from './MeterPanelControls.jsx';
 import { createWorkspacePanelDockRuntime } from './workspace-model-boundaries.ts';
 const ProjectLockToast = lazyEditorModule(() => import('../ProjectLockToast.tsx'));
 
@@ -94,7 +94,6 @@ export default function AudioEditorWorkspaceView({ model }) {
 		toggleFullscreen,
 		toggleSplitTool,
 		uploadClipToFreesound,
-		toolbarButtonPreferences,
 		toolbarDock,
 		toolbarProps,
 		trackHeaderDrawer,
@@ -181,6 +180,8 @@ export default function AudioEditorWorkspaceView({ model }) {
 	);
 	return (
 		<TrackAutomationRuntimeProvider runtime={soundscaperWorkflow?.automationRuntime}>
+		<MeterPanelControlsProvider snapshot={snapshot} onPanelMove={moveWorkspacePanel}
+			onPanelActivate={(panelId) => run(() => controller.actions.preferences.activatePanelTab(panelId))}>
 		<div
 			ref={editorRef}
 			id="kw-audio-editor-design-system"
@@ -398,29 +399,6 @@ export default function AudioEditorWorkspaceView({ model }) {
 				</div>
 				<WorkspacePanelDock {...panelDockRuntime} dock="right" />
 				{!compactLayout && toolbarDock === 'right' && <div className="kw-audio-editor__side-toolbar" data-toolbar-dock="right">{editorToolbar}</div>}
-				{toolbarButtonPreferences['playback-volume'] !== false
-					&& playbackMeterSettings.position === 'side'
-					&& !preferences.workspace.panels['playback-meter']?.visible
-					&& <SidePlaybackMeter
-						controller={controller}
-						copy={copy}
-						snapshot={snapshot}
-						settings={playbackMeterSettings}
-						onSettingsChange={setPlaybackMeterSettings}
-						clippingEnabled={uiFlags.clipping}
-						run={run}
-					/>}
-				{capabilities.audioRecording && toolbarButtonPreferences.monitor !== false
-					&& recordingMeterSettings.position === 'side'
-					&& !preferences.workspace.panels['recording-meter']?.visible
-					&& <SideRecordingMeter
-						controller={controller}
-						copy={copy}
-						snapshot={snapshot}
-						settings={recordingMeterSettings}
-						onSettingsChange={setRecordingMeterSettings}
-						run={run}
-					/>}
 				<WorkspacePanelDock {...panelDockRuntime} dock="floating" />
 				<div
 					className={`kw-audio-editor__workspace-drop-targets${draggedWorkspacePanelId ? ' kw-audio-editor__workspace-drop-targets--active' : ''}`}
@@ -478,6 +456,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 			<AudioEditorButtonTooltips rootRef={editorRef} />
 			{webFileLimitPrompt && <WebFileLimitDialog copy={copy} productId={productId} onClose={dismissWebFileLimitPrompt} />}
 		</div>
+		</MeterPanelControlsProvider>
 		</TrackAutomationRuntimeProvider>
 	);
 }
