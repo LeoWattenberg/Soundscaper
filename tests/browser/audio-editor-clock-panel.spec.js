@@ -12,6 +12,20 @@ async function chooseClockOption(page, display, label) {
 }
 
 test.describe('optional clock workspace panel', () => {
+	test('fills its panel when docked beside the playback and recording meters', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		await chooseNestedCommandAction(page, editor, 'Window', ['Clock']);
+		await dockWorkspacePanel(editor, 'clock', 'right');
+		const dock = editor.locator('[data-panel-dock="right"]');
+		await expect(dock.locator('[data-workspace-panel="playback-meter"]')).toBeVisible();
+		await expect(dock.locator('[data-workspace-panel="recording-meter"]')).toBeVisible();
+		const clock = dock.locator('[data-clock-panel]');
+		await expect(clock).toBeVisible();
+		const content = dock.locator('[data-workspace-tab-panel="clock"]');
+		await expect.poll(async () => (await clock.boundingBox()).height)
+			.toBeCloseTo((await content.boundingBox()).height, 0);
+	});
+
 	test('undocks from the existing timer menu and retains its format through resize, reload and redock', async ({ page }) => {
 		await page.setViewportSize({ width: 1_440, height: 1_000 });
 		let editor = await bootEditor(page, '/embed/en/');

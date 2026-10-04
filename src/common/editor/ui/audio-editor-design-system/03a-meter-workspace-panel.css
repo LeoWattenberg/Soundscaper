@@ -97,6 +97,11 @@
 	min-height: 240px;
 }
 
+/* A definite basis lets percentage-height contents fill the remaining space. */
+#kw-audio-editor-design-system :is(.kw-audio-editor__panel-dock--left, .kw-audio-editor__panel-dock--right):has(> [data-meter-panel]) > .kw-audio-editor__workspace-panel:not([data-meter-panel]):last-child {
+	flex-basis: 0;
+}
+
 #kw-audio-editor-design-system :is(.kw-audio-editor__panel-dock--left, .kw-audio-editor__panel-dock--right):has(> .kw-audio-editor__workspace-panel:not([data-meter-panel])) > [data-meter-panel] {
 	flex-shrink: 1;
 }
