@@ -1,5 +1,5 @@
 export type WorkspacePanelDropDock = 'bottom' | 'top' | 'left' | 'right';
-export type WorkspacePanelDropIntent = 'after' | 'before' | 'tab';
+export type WorkspacePanelDropIntent = 'after' | 'before' | 'tab' | 'left' | 'right';
 
 export interface WorkspacePanelDropBounds {
 	readonly height: number;
@@ -20,7 +20,7 @@ function isDropDock(dock: string): dock is WorkspacePanelDropDock {
 }
 
 function isDropIntent(intent: string): intent is WorkspacePanelDropIntent {
-	return intent === 'before' || intent === 'tab' || intent === 'after';
+	return intent === 'before' || intent === 'tab' || intent === 'after' || intent === 'left' || intent === 'right';
 }
 
 function hasUsableBounds(bounds: WorkspacePanelDropBounds): boolean {
@@ -53,6 +53,11 @@ export function resolveWorkspacePanelDropIntent(
 		return null;
 	}
 
+	if (dock === 'left' || dock === 'right') {
+		const edge = Math.min(32, bounds.width / 5);
+		if (point.x - bounds.left <= edge) return 'left';
+		if (bounds.left + bounds.width - point.x <= edge) return 'right';
+	}
 	const position = dock === 'top' || dock === 'bottom'
 		? (point.x - bounds.left) / bounds.width
 		: (point.y - bounds.top) / bounds.height;
@@ -69,10 +74,10 @@ export function resolveWorkspacePanelDropPreview(
 	if (!isDropDock(dock) || !isDropIntent(intent) || !hasUsableBounds(bounds)) return null;
 	if (intent === 'tab') return { ...bounds };
 
-	if (dock === 'top' || dock === 'bottom') {
+	if (dock === 'top' || dock === 'bottom' || intent === 'left' || intent === 'right') {
 		const width = bounds.width / 2;
 		return {
-			left: intent === 'after' ? bounds.left + width : bounds.left,
+			left: intent === 'after' || intent === 'right' ? bounds.left + width : bounds.left,
 			top: bounds.top,
 			width,
 			height: bounds.height,

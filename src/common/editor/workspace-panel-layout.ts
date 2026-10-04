@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { insertWorkspacePanelColumn, resizedWorkspacePanelColumnWidths, withWorkspacePanelColumn, workspacePanelColumn } from './workspace-panel-columns.ts';
 import { METER_PANEL_MIN_WIDTH, isMeterWorkspacePanel } from './workspace-layout-defaults.ts';
 
 export const WORKSPACE_PANEL_DOCKS = Object.freeze([
@@ -16,13 +17,14 @@ export interface WorkspacePanelPreference extends Record<string, unknown> {
 	readonly visible: boolean;
 	readonly dock: unknown;
 	readonly order: number;
+	readonly column?: number;
 	readonly tabGroup?: string;
 	readonly tabActive?: boolean;
 }
 
 export type WorkspacePanelPlacement =
 	| Readonly<{ kind: 'dock'; dock: WorkspacePanelDock; groupIndex: number }>
-	| Readonly<{ kind: 'before' | 'tab' | 'after'; targetPanelId: string }>;
+	| Readonly<{ kind: 'before' | 'tab' | 'after' | 'left' | 'right'; targetPanelId: string }>;
 
 export interface WorkspacePanelDockExtent {
 	readonly size?: number;
@@ -79,7 +81,7 @@ function withFrameGeometry<Panel extends WorkspacePanelPreference>(panel: Panel,
 	for (const field of ['size', 'width'] as const) {
 		if (Object.hasOwn(anchor, field)) next[field] = Math.max(minimum, Number(anchor[field]));
 	}
-	return next as Panel;
+	return withWorkspacePanelColumn(next as Panel, anchor, anchor.dock);
 }
 
 function withDockExtent<Panel extends WorkspacePanelPreference>(
@@ -88,6 +90,7 @@ function withDockExtent<Panel extends WorkspacePanelPreference>(
 	dock: unknown,
 	minimum = 80,
 ): Panel {
+	panel = withWorkspacePanelColumn(panel, anchor, dock);
 	const field = dock === 'top' || dock === 'bottom' ? 'size' : dock === 'left' || dock === 'right' ? 'width' : null;
 	// Compact meter docks cannot dictate an ordinary panel's remembered width.
 	if (field === 'width' && Number(anchor.width) < minimum) return panel;
@@ -357,7 +360,9 @@ export function placeWorkspacePanel<Panel extends WorkspacePanelPreference>(
 			? activateWorkspacePanelTab(canonical, panelId)
 			: canonical;
 	}
-	const groups = mutableGroups(canonical);
+	const beside = placement.kind === 'left' || placement.kind === 'right';
+	const arranged = beside ? insertWorkspacePanelColumn(canonical, panelId, requirePanel(canonical, placement.targetPanelId), placement.kind) : canonical;
+	const groups = mutableGroups(arranged);
 	detachPanel(canonical, groups, panelId);
 
 	if (placement.kind === 'dock') {
@@ -389,14 +394,15 @@ export function placeWorkspacePanel<Panel extends WorkspacePanelPreference>(
 		} else {
 			groups.splice(absoluteIndex, 0, sourceGroup);
 		}
-		const extentAnchor = canonical[visibleGroups[0]?.memberIds[0] ?? ''];
+		const columnAnchor = canonical[(nextVisible ?? previousVisible ?? visibleGroups[0])?.memberIds[0] ?? ''];
+		const extentAnchor = canonical[visibleGroups.find((group) => workspacePanelColumn(canonical[group.memberIds[0]!]!) === (columnAnchor ? workspacePanelColumn(columnAnchor) : 0))?.memberIds[0] ?? ''];
 		const next = extentAnchor
 			? { ...canonical, [panelId]: withDockExtent(source, extentAnchor, placement.dock, isMeterWorkspacePanel(panelId) ? METER_PANEL_MIN_WIDTH : 80) }
-			: canonical;
+			: { ...canonical, [panelId]: withWorkspacePanelColumn(source, source, null) };
 		return writeGroups(next, groups, new Set([source.dock, placement.dock]));
 	}
 
-	if (placement.kind !== 'before' && placement.kind !== 'tab' && placement.kind !== 'after') {
+	if (placement.kind !== 'before' && placement.kind !== 'tab' && placement.kind !== 'after' && !beside) {
 		throw new RangeError(`Panel placement has an unsupported kind: ${String((placement as { kind?: unknown }).kind)}.`);
 	}
 	const target = requirePanel(canonical, placement.targetPanelId);
@@ -408,7 +414,7 @@ export function placeWorkspacePanel<Panel extends WorkspacePanelPreference>(
 		targetGroup.groupId ??= unusedGroupId(groups, placement.targetPanelId);
 		targetGroup.memberIds.push(panelId);
 		if (source.visible) targetGroup.activePanelId = panelId;
-		return writeGroups(canonical, groups, new Set([source.dock, target.dock]));
+		return writeGroups({ ...canonical, [panelId]: withWorkspacePanelColumn(source, target, target.dock) }, groups, new Set([source.dock, target.dock]));
 	}
 	groups.splice(targetGroupIndex + (placement.kind === 'after' ? 1 : 0), 0, {
 		dock: target.dock,
@@ -417,8 +423,8 @@ export function placeWorkspacePanel<Panel extends WorkspacePanelPreference>(
 		activePanelId: panelId,
 	});
 	return writeGroups({
-		...canonical,
-		[panelId]: withDockExtent(source, target, target.dock, isMeterWorkspacePanel(panelId) ? METER_PANEL_MIN_WIDTH : 80),
+		...arranged,
+		[panelId]: beside ? { ...source, column: arranged[panelId]?.column } : withDockExtent(source, target, target.dock, isMeterWorkspacePanel(panelId) ? METER_PANEL_MIN_WIDTH : 80),
 	}, groups, new Set([source.dock, target.dock]));
 }
 
@@ -514,9 +520,12 @@ export function setWorkspacePanelDockExtent<Panel extends WorkspacePanelPreferen
 	if (changes.size !== undefined) patch.size = normalizedPanelExtent(changes.size, 'Panel dock size', minimum);
 	if (changes.width !== undefined) patch.width = normalizedPanelExtent(changes.width, 'Panel dock width', minimum);
 	if (!Object.keys(patch).length) throw new TypeError('Panel dock extent requires a size or width.');
+	const widths = patch.width === undefined ? null : resizedWorkspacePanelColumnWidths(canonical, dock, patch.width);
 	const next = { ...canonical };
 	for (const [panelId, panel] of Object.entries(canonical)) {
-		if (panel.dock === dock && (isMeterWorkspacePanel(panelId) || Object.values(patch).every((extent) => extent >= 80))) next[panelId] = { ...panel, ...patch } as Panel;
+		if (panel.dock !== dock || (!isMeterWorkspacePanel(panelId) && Object.values(patch).some((extent) => extent < 80))) continue;
+		const width = widths?.get(workspacePanelColumn(panel));
+		next[panelId] = { ...panel, ...patch, ...(widths ? { width: width ?? panel.width } : {}) } as Panel;
 	}
 	return canonicalizeWorkspacePanelGroups(next);
 }

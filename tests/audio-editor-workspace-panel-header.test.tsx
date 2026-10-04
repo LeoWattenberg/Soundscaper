@@ -167,7 +167,7 @@ test('a grouped header exposes one roving tab stop and activates tabs with point
 	}
 });
 
-test('the panel menu offers target-relative Before, As tab, and After arrangement', async () => {
+test('the panel menu offers target-relative stacking, tabs, and side-by-side arrangement', async () => {
 	const arrangements: Array<[string, string]> = [];
 	const mounted = await mountHeader({
 		arrangeTargets: [{ panelId: 'metadata', label: 'Metadata', dock: 'right' }],
@@ -189,10 +189,10 @@ test('the panel menu offers target-relative Before, As tab, and After arrangemen
 		));
 		assert.ok(target);
 		await act(async () => reactProps(target).onClick({ stopPropagation() {} }));
-		const relationItems = mounted.menuItems().filter((item) => (
-			['Before', 'As tab', 'After'].includes(item.querySelector('.context-menu-item-label')?.textContent ?? '')
+		const relationItems = target.querySelectorAll('[role="menuitem"]').filter((item) => (
+			['Before', 'As tab', 'After', 'Left', 'Right'].includes(item.querySelector('.context-menu-item-label')?.textContent ?? '')
 		));
-		assert.deepEqual(relationItems.map((item) => item.textContent), ['Before', 'As tab', 'After']);
+		assert.deepEqual(relationItems.map((item) => item.textContent), ['Before', 'As tab', 'After', 'Left', 'Right']);
 		await act(async () => reactProps(relationItems[1]!).onClick({}));
 		assert.deepEqual(arrangements, [['metadata', 'tab']]);
 		assert.ok(!mounted.findMenu(), 'choosing a placement closes the complete menu tree');

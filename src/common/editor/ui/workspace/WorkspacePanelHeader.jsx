@@ -205,6 +205,9 @@ export default function WorkspacePanelHeader({
 							['before', copy.arrangeBefore],
 							['tab', copy.arrangeTab],
 							['after', copy.arrangeAfter],
+							...(target.dock === 'left' || target.dock === 'right' ? [
+								['left', copy.dockLeft], ['right', copy.dockRight],
+							] : []),
 						].map(([kind, placementLabel]) => <ContextMenuItem
 							key={kind}
 							label={placementLabel}

@@ -89,7 +89,7 @@
 
 :is(.kw-audio-editor__panel-dock--left, .kw-audio-editor__panel-dock--right):has([data-workspace-panel-members~='effects']) {
 	width: min(var(--workspace-dock-width-limit, 42vw), var(--workspace-dock-width, 440px));
-	min-width: 360px;
+	min-width: var(--workspace-dock-min-width, 360px);
 	max-width: var(--workspace-dock-max-width, 520px);
 }
 

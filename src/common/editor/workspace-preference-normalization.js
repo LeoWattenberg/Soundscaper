@@ -18,6 +18,7 @@ import {
 	METER_PANEL_MIN_WIDTH,
 	isMeterWorkspacePanel,
 } from './workspace-layout-defaults.ts';
+import { normalizeWorkspacePanelColumn } from './workspace-panel-columns.ts';
 import { canonicalizeWorkspacePanelGroups, normalizeWorkspacePanelGroupFields } from './workspace-panel-layout.ts';
 import { clone, finiteInRange, integer, nonEmptyString, oneOf } from './preferences-validators.js';
 
@@ -95,6 +96,7 @@ export function normalizePanelEntries(value = {}) {
 			width: finiteInRange(legacyMeterGeometry ? METER_PANEL_MIN_WIDTH : entry.width ?? entry.size ?? defaults.width ?? floatingDefaults.width,
 				minimumWidth, 4_096, `workspace.panels.${id}.width`),
 			height: finiteInRange(entry.height ?? floatingDefaults.height, 80, 4_096, `workspace.panels.${id}.height`),
+			...normalizeWorkspacePanelColumn(entry.column, defaults.column, entry.dock ?? defaults.dock, `workspace.panels.${id}`),
 			...normalizeWorkspacePanelGroupFields(entry, `workspace.panels.${id}`),
 		};
 	}

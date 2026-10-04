@@ -288,7 +288,7 @@ async function arrangePanelAsTab(editor, panelId, targetName) {
 }
 
 async function frameOrder(dock) {
-	return dock.locator(':scope > [data-workspace-panel-group]').evaluateAll((frames) => (
+	return dock.locator('[data-workspace-panel-group]').evaluateAll((frames) => (
 		frames.map((frame) => frame.dataset.workspacePanel)
 	));
 }

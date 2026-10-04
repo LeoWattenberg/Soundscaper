@@ -98,3 +98,13 @@ test('preview geometry rejects unsupported docks, intents, and unusable bounds',
 		width: -1,
 	}), null);
 });
+
+test('side dock edges place panels in adjacent columns while the center keeps vertical splitting', () => {
+	for (const dock of ['left', 'right']) {
+		assert.equal(resolveWorkspacePanelDropIntent(dock, { x: 44, y: 240 }, bounds), 'left');
+		assert.equal(resolveWorkspacePanelDropIntent(dock, { x: 336, y: 240 }, bounds), 'right');
+		assert.equal(resolveWorkspacePanelDropIntent(dock, { x: 190, y: 240 }, bounds), 'tab');
+		assert.deepEqual(resolveWorkspacePanelDropPreview(dock, 'left', bounds), { ...bounds, width: 150 });
+		assert.deepEqual(resolveWorkspacePanelDropPreview(dock, 'right', bounds), { ...bounds, left: 190, width: 150 });
+	}
+});

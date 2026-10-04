@@ -4,7 +4,7 @@ import { groupWorkspacePanelEntries } from '../../workspace-panel-layout.ts';
 import { formatResizeLabel } from '../localization-template.ts';
 import { timelineAnnotationsAvailable } from '../timeline/timeline-annotation-ui-model.ts';
 import { workspacePanelAvailable } from './workspace-product-panel-runtime.ts';
-import { workspaceSideDockAllowsWidePanels } from './workspace-side-dock-width.ts';
+import { workspaceSideDockAllowsWidePanels, workspaceSideDockColumns } from './workspace-side-dock-width.ts';
 import WorkspacePanelGroup from './WorkspacePanelGroup.jsx';
 import { useFloatingWorkspacePanelMove } from './useFloatingWorkspacePanelMove.ts';
 import {
@@ -69,6 +69,9 @@ export default function WorkspacePanelDock({
 		.filter(([, panel]) => panel.dock === dock)
 		.sort((left, right) => left[1].order - right[1].order);
 	const groups = groupWorkspacePanelEntries(panels);
+	const sideDock = dock === 'left' || dock === 'right';
+	const columns = sideDock ? workspaceSideDockColumns(groups) : [];
+	const minimumDockWidth = columns.reduce((total, column) => total + column.minimumWidth, 0);
 	const arrangeTargets = ['left', 'right', 'top', 'bottom'].flatMap((targetDock) => (
 		groupWorkspacePanelEntries(availablePanels
 			.filter(([, panel]) => panel.dock === targetDock)
@@ -197,7 +200,7 @@ export default function WorkspacePanelDock({
 			const bounds = element?.getBoundingClientRect();
 			const workspaceBounds = element?.parentElement?.getBoundingClientRect();
 			if (!element || !bounds) return;
-			const minimumSize = Math.max(...panels.map(([id]) => id === 'effects' ? 360 : workspacePanelMinimumWidth(id)));
+			const minimumSize = minimumDockWidth;
 			const maximumSize = Math.max(
 				minimumSize,
 				Math.round((workspaceBounds?.width || window.innerWidth) * 0.65),
@@ -256,9 +259,10 @@ export default function WorkspacePanelDock({
 		const element = event.target.closest?.('[data-workspace-panel-group]');
 		if (!element || event.target.closest?.('[role="menu"]')) return;
 		if (dock === 'top' || dock === 'bottom') return;
-		const panelIndex = groups.findIndex((group) => group.id === element.dataset.workspacePanelGroup);
-		if (panelIndex < 0 || (dock !== 'floating' && panelIndex === groups.length - 1)) return;
-		const panelGroup = groups[panelIndex];
+		const siblings = columns.find((column) => column.groups.some((group) => group.id === element.dataset.workspacePanelGroup))?.groups ?? groups;
+		const panelIndex = siblings.findIndex((group) => group.id === element.dataset.workspacePanelGroup);
+		if (panelIndex < 0 || (dock !== 'floating' && panelIndex === siblings.length - 1)) return;
+		const panelGroup = siblings[panelIndex];
 		const bounds = element.getBoundingClientRect();
 		const threshold = 14;
 		const horizontal = dock === 'floating';
@@ -283,7 +287,7 @@ export default function WorkspacePanelDock({
 			Number.parseFloat(window.getComputedStyle(element).minHeight) || 0,
 		);
 		const minimumFollowingHeight = dock === 'floating' ? 0 : Array.from(
-			dockRef.current?.querySelectorAll(':scope > [data-workspace-panel-group]') || [],
+			element.parentElement?.querySelectorAll(':scope > [data-workspace-panel-group]') || [],
 		).slice(panelIndex + 1).reduce((total, panel) => total + Math.max(
 			FLOATING_PANEL_MIN_HEIGHT,
 			Number.parseFloat(window.getComputedStyle(panel).minHeight) || 0,
@@ -362,7 +366,7 @@ export default function WorkspacePanelDock({
 		const workspaceBounds = dockRef.current?.parentElement?.getBoundingClientRect();
 		if (!bounds) return;
 		event.preventDefault();
-		const minimumSize = Math.max(...panels.map(([id]) => id === 'effects' ? 360 : workspacePanelMinimumWidth(id)));
+		const minimumSize = minimumDockWidth;
 		const maximumSize = Math.max(
 			minimumSize,
 			Math.round((workspaceBounds?.width || window.innerWidth) * 0.65),
@@ -372,6 +376,54 @@ export default function WorkspacePanelDock({
 		const width = Math.max(minimumSize, Math.min(maximumSize, bounds.width + (expands ? step : -step)));
 		run(() => controller.actions.preferences.setPanelDockExtent(dock, { width }));
 	};
+
+	const renderGroup = (group, groupIndex, siblings = groups) => <WorkspacePanelGroup
+		key={group.id}
+		group={group}
+		groupIndex={groupIndex}
+		groups={siblings}
+		dock={dock}
+		copy={copy}
+		contentProps={{
+			controller, snapshot, productId, capabilities, copy, locale, fileService, confirmFileSizeWarning, clipPropertiesFocusRequest,
+			playbackMeterSettings, recordingMeterSettings,
+			onPlaybackMeterSettingsChange, onRecordingMeterSettingsChange,
+			clippingEnabled,
+			run,
+			showArmControls,
+			displayAudioSupported,
+			onOpenEffects,
+			onRoutingGraphGesture,
+			onRoutingParameterGesture,
+			effectsPanelTarget,
+			onEffectWindowChange,
+			blocked,
+			projectBinVisible: availablePanels.some(([id]) => id === 'project-bin'),
+		}}
+		floatingBounds={floatingBounds}
+		activeFloatingPanelId={activeFloatingPanelId}
+		setActiveFloatingPanelId={setActiveFloatingPanelId}
+		draggedPanelId={draggedPanelId}
+		onPanelDragStart={onPanelDragStart}
+		onPanelDragEnd={onPanelDragEnd}
+		onPanelMove={onPanelMove}
+		onPanelActivate={(panelId) => run(() => controller.actions.preferences.activatePanelTab(panelId))}
+		onTogglePanel={onTogglePanel}
+		beginFloatingMove={beginFloatingMove}
+		adjustFloatingPanelGeometry={adjustFloatingPanelGeometry}
+		arrangeTargets={arrangeTargets
+			.filter((target) => target.groupId !== group.id || group.entries.length > 1)
+			.map((target) => {
+				const sameGroup = target.groupId === group.id && target.dock === dock;
+				return {
+					...target,
+					panelId: sameGroup
+						? target.panelIds.find((panelId) => panelId !== group.activePanelId)
+						: target.panelId,
+					tabDisabled: sameGroup,
+				};
+			})}
+	/>;
 	if (!panels.length) return null;
 	const dockStyle = dock === 'top' || dock === 'bottom'
 		? {
@@ -379,15 +431,17 @@ export default function WorkspacePanelDock({
 			'--workspace-panel-count': groups.length,
 		}
 		: (dock === 'left' || dock === 'right')
-			? { '--workspace-dock-width': `${panels[0][1].width}px` }
+			? { '--workspace-dock-width': `${columns.reduce((total, column) => total + column.width, 0)}px`,
+				'--workspace-dock-min-width': `${minimumDockWidth}px` }
 			: undefined;
 	return (
 		<aside
 			ref={dockRef}
 			className={`kw-audio-editor__panel-dock kw-audio-editor__panel-dock--${dock}`}
 			data-panel-dock={dock}
+			data-workspace-column-count={sideDock ? columns.length : undefined}
 			data-meter-dock={panels.every(([id]) => id === 'playback-meter' || id === 'recording-meter') ? '' : undefined}
-			data-workspace-dock-wide={workspaceSideDockAllowsWidePanels(panels, snapshot.preferences?.workspace?.activeId)}
+			data-workspace-dock-wide={columns.length > 1 || workspaceSideDockAllowsWidePanels(panels, snapshot.preferences?.workspace?.activeId)}
 			style={dockStyle}
 			aria-label={copy.panels}
 			onPointerDownCapture={beginResize}
@@ -416,53 +470,14 @@ export default function WorkspacePanelDock({
 				aria-label={formatResizeLabel(copy, workspaceDockLabel(copy, dock))}
 				onKeyDown={adjustHorizontalDockSize}
 			/>}
-			{groups.map((group, groupIndex) => <WorkspacePanelGroup
-				key={group.id}
-				group={group}
-				groupIndex={groupIndex}
-				groups={groups}
-				dock={dock}
-				copy={copy}
-				contentProps={{
-					controller, snapshot, productId, capabilities, copy, locale, fileService, confirmFileSizeWarning, clipPropertiesFocusRequest,
-					playbackMeterSettings, recordingMeterSettings,
-					onPlaybackMeterSettingsChange, onRecordingMeterSettingsChange,
-					clippingEnabled,
-					run,
-					showArmControls,
-					displayAudioSupported,
-					onOpenEffects,
-					onRoutingGraphGesture,
-					onRoutingParameterGesture,
-					effectsPanelTarget,
-					onEffectWindowChange,
-					blocked,
-					projectBinVisible: availablePanels.some(([id]) => id === 'project-bin'),
-				}}
-				floatingBounds={floatingBounds}
-				activeFloatingPanelId={activeFloatingPanelId}
-				setActiveFloatingPanelId={setActiveFloatingPanelId}
-				draggedPanelId={draggedPanelId}
-				onPanelDragStart={onPanelDragStart}
-				onPanelDragEnd={onPanelDragEnd}
-				onPanelMove={onPanelMove}
-				onPanelActivate={(panelId) => run(() => controller.actions.preferences.activatePanelTab(panelId))}
-				onTogglePanel={onTogglePanel}
-				beginFloatingMove={beginFloatingMove}
-				adjustFloatingPanelGeometry={adjustFloatingPanelGeometry}
-				arrangeTargets={arrangeTargets
-					.filter((target) => target.groupId !== group.id || group.entries.length > 1)
-					.map((target) => {
-						const sameGroup = target.groupId === group.id && target.dock === dock;
-						return {
-							...target,
-							panelId: sameGroup
-								? target.panelIds.find((panelId) => panelId !== group.activePanelId)
-								: target.panelId,
-							tabDisabled: sameGroup,
-						};
-					})}
-			/>)}
+			{sideDock ? columns.map((column) => <div
+				key={column.index}
+				className="kw-audio-editor__workspace-panel-column"
+				data-workspace-panel-column={column.index}
+				style={{ '--workspace-column-min-width': `${column.minimumWidth}px`, flexGrow: column.width }}
+			>
+				{column.groups.map((group, index) => renderGroup(group, index, column.groups))}
+			</div>) : groups.map((group, index) => renderGroup(group, index))}
 		</aside>
 	);
 }

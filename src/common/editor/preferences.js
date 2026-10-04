@@ -152,6 +152,7 @@ const FORBIDDEN_TOP_LEVEL_KEYS = new Set([
  * @property {boolean} visible
  * @property {'left'|'right'|'top'|'bottom'|'floating'} dock
  * @property {number} order
+ * @property {number} [column]
  * @property {number} [size]
  * @property {number} [x]
  * @property {number} [y]
