@@ -4,7 +4,7 @@ import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js'
 import {
 	addRackEffect, bootEditor, chooseCommandAction, chooseNestedCommandAction, closeDialog,
 	closeEffectsPanel, collectClientErrors, commitInput, importFiles, openEffectsForTrack,
-	openNestedCommandMenu,
+	openNestedCommandMenu, waitForEditor,
 } from './audio-editor-test-helpers.js';
 
 // Realtime deadline qualification must run without V8 coverage instrumentation.
@@ -227,7 +227,7 @@ test('Audio setup processing settings live in Preferences and persist across rel
 	await closeProcessingPreferences(preferences);
 	await enableParallelStacks(page, editor);
 	await page.reload();
-	await expect(editor).toBeVisible();
+	await waitForEditor(page);
 	preferences = await openProcessingPreferences(page, editor);
 	await expect(preferences.getByRole('checkbox', { name: 'Parallel effect stacks', exact: true })).toBeChecked();
 	await expect(preferences.getByRole('combobox', { name: 'Worker limit', exact: true })).toHaveValue('parallel-stack-workers-2');

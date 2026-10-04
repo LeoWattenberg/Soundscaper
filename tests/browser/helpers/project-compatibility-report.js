@@ -71,7 +71,11 @@ export async function inspectProjectCompatibilityReport(page, editor) {
 
 
 export async function openProjectCompatibilityReport(page, editor) {
-	await editor.locator('[data-project-feature-compatibility-summary]')
-		.getByRole('button', { name: 'View report', exact: true }).click();
+	const viewReport = editor.locator('[data-project-feature-compatibility-summary]')
+		.getByRole('button', { name: 'View report', exact: true });
+	// Opening a project can still change the toast stack's geometry. Keyboard
+	// activation keeps this setup action attached to the focused button.
+	await viewReport.focus();
+	await viewReport.press('Enter');
 	await expect(page.getByRole('dialog', { name: 'Project compatibility report', exact: true })).toBeVisible();
 }

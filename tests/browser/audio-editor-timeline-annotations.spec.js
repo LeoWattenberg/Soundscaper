@@ -317,6 +317,9 @@ test.describe('native timeline annotations', () => {
 		const projectId = await origin.getAttribute('data-project-id');
 		const outbound = await captureScapeArchive(page, origin);
 		const baseURL = new URL(page.url()).origin;
+		// The archive carries this handoff; release each editor before booting
+		// the next product so coverage runs keep one editor runtime alive.
+		await page.close({ runBeforeUnload: false });
 		const openedPages = [];
 		try {
 			const framesPage = await browser.newPage({ baseURL, serviceWorkers: 'block' });
@@ -333,6 +336,8 @@ test.describe('native timeline annotations', () => {
 			await expect(framescaper.getByRole('listbox', { name: 'Markers and named regions' })).toHaveCount(0);
 			await expect(framesPage.getByRole('dialog', { name: 'Project features unavailable' }))
 				.toHaveCount(0);
+			expect(frameErrors).toEqual([]);
+			await framesPage.close({ runBeforeUnload: false });
 			const homePage = await browser.newPage({ baseURL, serviceWorkers: 'block' });
 			openedPages.push(homePage);
 			const homeErrors = collectClientErrors(homePage);
@@ -345,7 +350,6 @@ test.describe('native timeline annotations', () => {
 			const returnedPanel = home.getByRole('region', { name: 'Markers and named regions', exact: true });
 			await expect(returnedPanel.locator('[data-timeline-annotation]')).toHaveCount(1);
 			await expect(returnedPanel.getByRole('button', { name: /Cross-product cue, Marker/u })).toBeVisible();
-			expect(frameErrors).toEqual([]);
 			expect(homeErrors).toEqual([]);
 		} finally {
 			for (const openedPage of openedPages.reverse()) {

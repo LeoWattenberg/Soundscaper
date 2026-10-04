@@ -26,7 +26,9 @@ async function openTrackMenuPath(page, editor, trackRow, path) {
 	let item = trackMenuItem(menu, steps[0]);
 	for (const step of steps.slice(1)) {
 		await expect(item).toBeEnabled();
-		await item.click();
+		// Open each submenu without moving the pointer through hover targets.
+		await item.focus();
+		await item.press('ArrowRight');
 		menu = item.getByRole('menu');
 		await expect(menu).toBeVisible();
 		item = trackMenuItem(menu, step);
