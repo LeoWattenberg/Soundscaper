@@ -1,4 +1,4 @@
-import { Suspense, useState } from 'react';
+import { Suspense } from 'react';
 
 import { bundledSiteCopyForLocale } from '../i18n/site-copy.js';
 import { productHref } from '../product-web-links.js';
@@ -26,15 +26,6 @@ const PrivacyPolicyRoute = lazyEditorModule(() => import('../editor/ui/PrivacyPo
 export default function App({ route }) {
 	const { desktop, direction, embedded, locale, productId } = route;
 	const copy = useSiteCopy(locale);
-	// The introduction starts folded at every width: a visitor came for the
-	// editor, and the heading above it says which one this is without spending
-	// the fold on prose they can open when they want it.
-	const [introExpanded, setIntroExpanded] = useState(false);
-	const intro = productId === 'framescaper' ? {
-		eyebrow: copy.framescaperEyebrow,
-		title: copy.framescaperTitle,
-		intro: copy.framescaperIntro,
-	} : copy;
 	if (route.privacyPolicy) {
 		return <>
 			<Suspense fallback={<div role="status" aria-live="polite">{copy.loading}</div>}>
@@ -52,29 +43,6 @@ export default function App({ route }) {
 		<div className={`website-site-shell${embedded ? ' website-embedded' : ''}${desktop ? ' website-desktop' : ''}`}>
 			{!embedded && <BrandSidebar locale={locale} productId={productId} />}
 			<main>
-				<section className="website-tool-intro" data-expanded={introExpanded ? 'true' : 'false'}>
-					<div className="website-container">
-						<div className="website-tool-intro-heading">
-							<div>
-								<p className="website-eyebrow">{intro.eyebrow}</p>
-								<h1>{intro.title}</h1>
-							</div>
-							<button
-								type="button"
-								className="website-tool-intro-toggle"
-								aria-expanded={introExpanded}
-								aria-controls="tool-intro-body"
-								onClick={() => setIntroExpanded((expanded) => !expanded)}
-							>
-								{introExpanded ? copy.introCollapse : copy.introExpand}
-							</button>
-						</div>
-						<div id="tool-intro-body" className="website-tool-intro-body">
-							<p className="website-tool-lede">{intro.intro}</p>
-							{copy.privacy && <p className="website-tool-note">{copy.privacy}</p>}
-						</div>
-					</div>
-				</section>
 				<section className="website-section website-audio-editor-section website-tool-workspace">
 					<div className="website-container website-audio-editor-container">
 						<Suspense fallback={<EditorStartupProgress copy={copy} locale={locale} />}>

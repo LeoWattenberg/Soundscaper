@@ -194,33 +194,36 @@ test.describe('compact layout', () => {
 		expect(timelineBox.y + timelineBox.height).toBeLessThanOrEqual(390);
 	});
 
-	test('the site introduction starts folded at every width and opens from its own toggle', async ({ page }) => {
-		await page.setViewportSize(PHONE_PORTRAIT);
-		const editor = await bootEditor(page, '/en/', { defaultWorkspace: true });
-		await waitForResponsiveEditorLayout(editor);
-		const intro = page.locator('.website-tool-intro');
-		const body = intro.locator('.website-tool-intro-body');
-		const toggle = intro.getByRole('button', { name: 'Show introduction', exact: true });
-		await expect(intro).toHaveAttribute('data-expanded', 'false');
-		await expect(body).toBeHidden();
-		await expect(toggle).toBeVisible();
-		await toggle.click();
-		await expect(intro).toHaveAttribute('data-expanded', 'true');
-		await expect(body).toBeVisible();
-		await expect(intro.getByRole('button', { name: 'Hide introduction', exact: true })).toBeVisible();
-
-		// The wide layout folds it too, and keeps the heading that names the
-		// product — only the prose below it waits to be asked for.
-		await page.setViewportSize({ width: 1280, height: 800 });
-		await waitForResponsiveEditorLayout(editor);
-		await waitForResponsiveEditorLayout(await bootEditor(page, '/en/', { defaultWorkspace: true }));
-		await expect(intro).toHaveAttribute('data-expanded', 'false');
-		await expect(body).toBeHidden();
-		await expect(intro.locator('h1')).toBeVisible();
-		await expect(intro.getByRole('button', { name: 'Show introduction', exact: true })).toBeVisible();
-		await intro.getByRole('button', { name: 'Show introduction', exact: true }).click();
-		await expect(body).toBeVisible();
-	});
+	for (const product of [
+		{ name: 'Soundscaper', path: '/en/' },
+		{ name: 'Framescaper', path: '/framescaper/en/' },
+	]) {
+		test(`${product.name} uses its logo as the H1 and Jost in the sidebar without an introduction`, async ({ page }) => {
+			for (const viewport of [PHONE_PORTRAIT, { width: 1280, height: 800 }]) {
+				await page.setViewportSize(viewport);
+				const editor = await bootEditor(page, product.path, { defaultWorkspace: true });
+				await waitForResponsiveEditorLayout(editor);
+				const heading = page.getByRole('heading', { level: 1, name: product.name, exact: true });
+				await expect(page.locator('h1')).toHaveCount(1);
+				await expect(heading.getByRole('link', { name: product.name, exact: true })).toBeVisible();
+				await expect(heading.locator('img')).toBeVisible();
+				await expect(page.locator('.website-tool-intro')).toHaveCount(0);
+				await expect(page.getByRole('button', { name: /^(Show|Hide) introduction$/u })).toHaveCount(0);
+				const sidebar = page.locator('[data-sidebar]');
+				for (const element of [sidebar, heading, sidebar.locator('select').first(), sidebar.locator('[data-theme-toggle]')]) {
+					await expect(element).toHaveCSS('font-family', /^Jost,/u);
+				}
+				const fonts = await page.evaluate(async () => (await document.fonts.load('800 16px Jost'))
+					.map(({ family, status }) => ({ family, status })));
+				expect(fonts).toContainEqual({ family: 'Jost', status: 'loaded' });
+				if (viewport.width > 900) {
+					await sidebar.getByRole('button', { name: 'Collapse navigation', exact: true }).click();
+					await expect(heading).toHaveAccessibleName(product.name);
+					await expect(heading.locator('img')).toBeVisible();
+				}
+			}
+		});
+	}
 
 	test('the desktop layout keeps the track header column and no drawer handle', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');

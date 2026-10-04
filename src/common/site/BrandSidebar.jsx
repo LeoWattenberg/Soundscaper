@@ -86,10 +86,12 @@ export default function BrandSidebar({ locale, productId = 'soundscaper' }) {
 
 	return (
 		<aside className="website-site-sidebar" data-sidebar data-product={productId} data-locale={localeDescriptor.locale} data-collapsed={String(collapsed)} aria-label={copy.label}>
-			<a className="website-brand" href={productHref(productId, locale)} aria-label={profile.name}>
-				<img src={productMark} alt="" width="48" height="48" />
-				<strong>{profile.name}</strong>
-			</a>
+			<h1 className="website-brand-heading">
+				<a className="website-brand" href={productHref(productId, locale)} aria-label={profile.name}>
+					<img src={productMark} alt="" width="48" height="48" />
+					<strong>{profile.name}</strong>
+				</a>
+			</h1>
 			<button className="website-sidebar-collapse" type="button" data-sidebar-collapse aria-label={collapsed ? copy.expand : copy.collapse} aria-expanded={String(!collapsed)} onClick={toggleCollapsed}>
 				<span aria-hidden="true">‹</span>
 			</button>

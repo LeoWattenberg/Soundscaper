@@ -17,16 +17,18 @@ function fontFileNames(family, weights) {
 	)));
 }
 
-test('the site loads only the four retained Ubuntu WOFF2 subsets', async () => {
+test('the site loads only the three variable Jost WOFF2 subsets', async () => {
 	const siteCss = await readFile(new URL('site.css', SITE_ROOT), 'utf8');
 	assert.match(siteCss, /^@import ['"]\.\/fonts\.css['"];$/m);
 
 	const fontsCss = await readFile(new URL('fonts.css', SITE_ROOT), 'utf8');
-	const expected = fontFileNames('ubuntu', [400, 700]);
+	const expected = ['cyrillic', 'latin-ext', 'latin'].map((subset) => `jost-${subset}-wght-normal.woff2`);
 	assert.deepEqual(fontUrls(fontsCss).map(fileName).sort(), expected.sort());
-	assert.doesNotMatch(fontsCss, /font-family:\s*['"]Inter|\.woff(?:['")])/u);
+	assert.equal((fontsCss.match(/font-family: 'Jost';/gu) ?? []).length, 3);
+	assert.equal((fontsCss.match(/font-weight: 100 900;/gu) ?? []).length, 3);
+	assert.doesNotMatch(fontsCss, /font-family:\s*['"](?:Inter|Ubuntu)|\.woff(?:['")])/u);
 	for (const name of expected) {
-		await access(new URL(`node_modules/@fontsource/ubuntu/files/${name}`, PROJECT_ROOT));
+		await access(new URL(`node_modules/@fontsource-variable/jost/files/${name}`, PROJECT_ROOT));
 	}
 });
 

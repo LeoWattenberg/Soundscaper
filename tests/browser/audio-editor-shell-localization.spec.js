@@ -55,7 +55,7 @@ test.describe('audio editor React/design-system workflows', () => {
 
 		await page.goto('/embed/en/');
 		await expect(page.locator('.website-site-sidebar')).toHaveCount(0);
-		await expect(page.locator('.website-tool-intro')).toBeHidden();
+		await expect(page.locator('.website-tool-intro')).toHaveCount(0);
 		await waitForEditor(page);
 		expect(errors).toEqual([]);
 	});

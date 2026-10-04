@@ -168,6 +168,24 @@ async function change(node: ReactTestElement, value: string): Promise<void> {
 	await act(async () => { reactProps(node).onChange?.({ target: { value } }); });
 }
 
+for (const productId of ['soundscaper', 'framescaper']) {
+	test(`${productId}'s brand link is the page's H1`, async () => {
+		const context = harness();
+		try {
+			await context.render(productId);
+			const headings = context.dom.container.querySelectorAll('h1');
+			assert.equal(headings.length, 1);
+			const brand = headings[0]!.querySelector('a');
+			const name = productId === 'framescaper' ? 'Framescaper' : 'Soundscaper';
+			assert.equal(brand?.getAttribute('aria-label'), name);
+			assert.equal(brand?.textContent, name);
+			assert.equal(brand?.querySelector('img')?.getAttribute('src'), `/logo/${productId}.svg`);
+		} finally {
+			await context.close();
+		}
+	});
+}
+
 test('the sidebar offers the built product\'s workspaces and both installed languages', async () => {
 	const context = harness();
 	try {
