@@ -37,7 +37,15 @@ async function chooseWaveformScale(page, track, label, format, amplitudeScale) {
 // a ruler label or a renderer option masquerading as a scale change.
 async function waveformTrace(canvas) {
 	return canvas.evaluate((element) => {
-		const { width, height, data } = element.getContext('2d')
+		// Chromium switches a GPU canvas to software after repeated direct
+		// readbacks, changing sample anti-aliasing between scale comparisons.
+		// Read a copy so measuring the trace preserves the editor's renderer.
+		const snapshot = document.createElement('canvas');
+		snapshot.width = element.width;
+		snapshot.height = element.height;
+		const context = snapshot.getContext('2d', { willReadFrequently: true });
+		context.drawImage(element, 0, 0);
+		const { width, height, data } = context
 			.getImageData(0, 0, element.width, element.height);
 		let top = height;
 		let bottom = -1;
