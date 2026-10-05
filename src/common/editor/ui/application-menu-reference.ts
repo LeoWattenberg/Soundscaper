@@ -50,6 +50,7 @@ const REFERENCE_SEEDS: readonly ReferenceSeed[] = Object.freeze([
 	['delete-project', 'Delete project', 'File > Project management', BOTH],
 	['clear-data', 'Clear all local editor data', 'File > Project management', BOTH],
 	['window-project', 'Open project', 'Window', BOTH, 'setting'],
+	['play-spectral-selection', 'Play selected frequencies', 'Select > Spectral', SOUNDSCAPER],
 
 	// Framescaper's selected-clip application-menu operations.
 	['trim-left-edge-to-playhead', 'Trim left edge to playhead', 'Edit > Audio clips', FRAMESCAPER],

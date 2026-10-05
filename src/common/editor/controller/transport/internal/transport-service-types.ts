@@ -31,7 +31,7 @@ export interface TransportProject {
 export type TransportEngine = Pick<EnginePublicApi,
 	| 'getAudioContext' | 'getPlaybackAudibleStartTime' | 'getPositionFrames' | 'getState'
 	| 'pause' | 'play' | 'playAtSpeed' | 'playCutPreview'
-	| 'seek' | 'setLoop' | 'setPlayRange' | 'stop'
+	| 'seek' | 'setLoop' | 'setPlayRange' | 'setPlaybackFrequencyRange' | 'stop'
 >;
 
 export interface TransportServiceState extends Pick<ControllerTransportState,
@@ -55,6 +55,7 @@ export interface TransportCopy {
 	readonly playAtSpeedPreparing: string;
 	readonly playAtSpeedPlaying: string;
 	readonly timeSelectionRequired: string;
+	readonly spectralSelectionRequired: string;
 	readonly timelineFramesFinite: string;
 }
 

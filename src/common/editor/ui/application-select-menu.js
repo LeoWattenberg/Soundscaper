@@ -1,13 +1,15 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS } from './application-menu-registry.ts';
+import { createSpectralPlaybackMenuItem } from './spectral-playback-menu.ts';
 
 /** @param {object} context
  * @param {import('./workspace/selection-view-menu-ports.ts').ApplicationSelectionMenuPort} selectionMenu
  * @param {object} actions Existing loop/transport callbacks. */
 export function createApplicationSelectMenu(context, selectionMenu, actions) {
-	const { copy, productId, project, snapshot, divider, editBlocked, durationFrames, editSelectionActive,
+	const { copy, productId, project, snapshot, blocked, divider, editBlocked, durationFrames, editSelectionActive,
 		clipSelectionNavigationMenus, spectralTrackSelected, uiFlags } = context;
+	const spectralPlayback = createSpectralPlaybackMenuItem(copy, snapshot, blocked, actions.playSpectralSelection);
 	return {
 		id: 'select',
 		label: copy.selectMenu,
@@ -23,6 +25,7 @@ export function createApplicationSelectMenu(context, selectionMenu, actions) {
 			{ id: 'menu-selection-spectral', label: copy.selectSpectral, items: [
 				{ id: 'toggle-spectral-selection', label: copy.toggleSpectralSelection, disabled: editBlocked || !spectralTrackSelected },
 				{ id: 'spectral-brush', label: copy.spectralBrush, checked: Boolean(uiFlags.spectralBrush), disabled: editBlocked || !spectralTrackSelected },
+				...(spectralPlayback ? [spectralPlayback] : []),
 			] },
 			{
 				id: 'select-region',

@@ -286,6 +286,7 @@ export function createWorkspaceApplicationMenus({
 				stop: () => run(() => controller.actions.transport.stop()),
 				playPause: () => run(() => controller.actions.transport.playPause()),
 				playSelection: () => run(() => controller.actions.transport.playSelection()),
+				playSpectralSelection: () => run(() => controller.actions.transport.playSpectralSelection()),
 				playAtSpeed: () => run(() => controller.actions.transport.playAtSpeed()),
 				previousVideoEdit: () => run(() => controller.actions.video.navigation.previousEdit()),
 				shuttleBackward: () => run(() => controller.actions.video.navigation.shuttleBackward()),

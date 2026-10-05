@@ -114,6 +114,27 @@ changes that can be undone while history is available.
 Use the playback meter and loudness analysis to inspect the result. Avoid
 treating a meter target as a substitute for listening to the complete export.
 
+### Listen to selected frequencies {#listen-to-selected-frequencies}
+
+Select the passage you want to hear. Choose **Track visualization → Spectrogram**
+from its track menu, then open **Spectrogram options → Select spectral frequency
+range**. Enter the minimum and maximum frequencies and choose **Select range**,
+or adjust the selection handles in the spectrogram.
+
+Choose **Play options → Play selected frequencies**, or **Select → Spectral →
+Play selected frequencies**. The selected time range plays once at normal speed,
+even if you previously chose another playback speed or enabled looping. The
+listening filter applies to the current mix, including mute, solo, gain, and
+effects settings. A spectral rectangle identifies the frequency band and time
+range; it does not solo its track. If playback is already running, the command
+pauses it; choose the command again to begin the frequency audition.
+
+The real-time frequency filters have tapered edges. Frequencies
+outside the band become quieter, and frequencies near its boundaries may also
+become quieter. **Pause** or **Stop** clears the filter, so the next regular
+playback uses the full frequency range. Audio, selections, undo history, and
+exported files stay unchanged.
+
 ### Reduce sibilance {#reduce-sibilance}
 
 Choose **Effect → Noise removal and repair → De-esser**. Set **Frequency** near

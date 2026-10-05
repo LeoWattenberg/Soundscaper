@@ -350,7 +350,7 @@ export default function createApplicationMenus({
 			],
 		},
 		createApplicationSelectMenu({
-			copy, productId, project, snapshot, divider, editBlocked, durationFrames, editSelectionActive,
+			copy, productId, project, snapshot, blocked, divider, editBlocked, durationFrames, editSelectionActive,
 			clipSelectionNavigationMenus, spectralTrackSelected, uiFlags,
 		}, selectionMenu, actions),
 		createApplicationViewMenu({
