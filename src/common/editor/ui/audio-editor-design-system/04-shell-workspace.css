@@ -247,45 +247,6 @@
 	overflow-wrap: anywhere;
 }
 
-.kw-audio-editor__video-workspace {
-	position: relative;
-	z-index: 1;
-	display: grid;
-	height: clamp(72px, 28%, 130px);
-	min-height: 72px;
-	max-height: 130px;
-	flex: 0 1 clamp(72px, 28%, 130px);
-	grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
-	overflow: hidden;
-	background: var(--panel);
-	border-bottom: 1px solid var(--line);
-}
-
-.kw-audio-editor__video-workspace > .kw-audio-editor__video-workspace-panel {
-	width: auto;
-	height: 100%;
-	min-width: 0;
-	min-height: 0;
-	flex: none;
-	border-bottom: 0;
-}
-
-.kw-audio-editor__video-workspace-panel + .kw-audio-editor__video-workspace-panel {
-	border-inline-start: 1px solid var(--line);
-}
-
-.kw-audio-editor__video-workspace-panel:only-child {
-	grid-column: 1 / -1;
-}
-
-.kw-audio-editor__video-workspace-panel .kw-audio-editor__workspace-panel-content {
-	min-height: 0;
-}
-
-.kw-audio-editor__video-workspace .kw-audio-editor__video-preview {
-	min-height: 0;
-}
-
 .kw-audio-editor__workspace {
 	position: relative;
 	z-index: 0;

@@ -68,7 +68,7 @@ test('frame navigation stays Framescaper-only even with a video workspace prefer
 		recordLabel="Record"
 		toggleRecording={() => undefined}
 		run={() => undefined}
-		transportButtons={[]}
+		transportButtons={['jump-start', 'jump-end']}
 		toolbarButtons={{ 'time-display': false, snap: false, 'playback-volume': false,
 			'volume-automation': false, 'split-tool': false,
 			'zoom-in': false, 'zoom-out': false, 'zoom-fit': false }}

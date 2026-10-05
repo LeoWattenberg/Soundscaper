@@ -25,6 +25,7 @@ import { PROCESSING_DIALOG_COPY_BY_LOCALE } from './processing-dialog-copy.js';
 import { LOCAL_MODEL_NAMES_COPY } from './editor-local-model-names-copy.ts';
 import { PARAMETRIC_EQ_BAND_COPY } from './editor-parametric-eq-copy.ts';
 import { VIDEO_FILMSTRIP_COPY } from './editor-video-filmstrip-copy.ts';
+import { FRAMESCAPER_INPUTS_COPY, FRAMESCAPER_INPUTS_GERMAN_COPY } from './editor-framescaper-inputs-copy.ts';
 import { SOUNDSCAPER_WORKFLOW_COPY } from './editor-soundscaper-workflow-copy.ts';
 import { TAKE_COMP_COPY } from './editor-take-comp-copy.ts';
 import { NATIVE_PROJECT_STATUS_COPY_BY_LOCALE } from './editor-native-project-status-copy.ts';
@@ -121,6 +122,7 @@ const inventory = buildEditorCopyInventory(ENGLISH_COPY, GERMAN_COPY, [
 	{ owner: 'parallelStacks', ...PARALLEL_STACK_COPY_BY_LOCALE },
 	{ owner: 'clipSpreadsheet', ...CLIP_SPREADSHEET_COPY_BY_LOCALE },
 	{ owner: 'framescaperNative', en: FRAMESCAPER_NATIVE_SERVICES_COPY, aliases: processingAliases },
+	{ owner: 'framescaperInputs', en: FRAMESCAPER_INPUTS_COPY, de: FRAMESCAPER_INPUTS_GERMAN_COPY },
 	{ owner: 'mastering', en: SOUNDSCAPER_MASTERING_SEQUENCE_COPY },
 	{ owner: 'routing', en: SOUNDSCAPER_ROUTING_GRAPH_COPY },
 	{ owner: 'communityTranslations', ...COMMUNITY_TRANSLATIONS_COPY_BY_LOCALE },

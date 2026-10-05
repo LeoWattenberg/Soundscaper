@@ -85,7 +85,7 @@ test.describe('timeline playback following', () => {
 			]);
 			if (scrollLeft < 50 || !currentRuler || !playhead) return Number.POSITIVE_INFINITY;
 			return playhead.x - currentRuler.x;
-		}, { timeout: 3_000 }).toBeLessThan(160);
+		}, { timeout: 3_000, intervals: [50] }).toBeLessThan(160);
 		await editor.getByRole('button', { name: 'Stop', exact: true }).click();
 		expect(errors).toEqual([]);
 	});

@@ -3,12 +3,11 @@
 /** Shared selected-V13 pixel resolver used by maintained preview and browser export. */
 
 import {
-	applyPreparedManagedSdrGradeStackLinearChannelsV1,
 	prepareManagedSdrGradeStackV1,
 	assertManagedVideoColorRenderAdmissionV1,
-	encodeManagedSdrLinearChannelsV1,
 	type ParsedCubeLutV1,
 } from './video-color-management-v27.ts';
+import { applyPreparedManagedSdrByteFrameV1 } from './video-color-byte-encoding.ts';
 import {
 	requireVideoMotionAnalysisBodyV1,
 	type VideoMotionAnalysisBodyV1,
@@ -279,7 +278,6 @@ function managedColor(
 	if (!interpretation) throw new ReferenceError('The V13 source color interpretation is unavailable.');
 	const grades = presentations.flatMap(({ grade }) => grade === null ? [] : [grade]);
 	const luts = grades.map(({ lut }) => lut === null ? undefined : lutBodies?.get(lut.sha256));
-	const pixels = new Uint8Array(frame.pixels.byteLength);
 	// The interpretation and the grade stack are the frame's, not the pixel's:
 	// admitting and normalizing them once here is what keeps a preview frame
 	// off the main thread for seconds at a time.
@@ -287,25 +285,8 @@ function managedColor(
 		decoding: frameEncoding === 'canvas-srgb' ? 'canvas-readback' : 'file',
 		interpretation, grades, luts,
 	});
-	for (let y = 0; y < frame.height; y += 1) {
-		throwIfAborted(signal);
-		for (let x = 0; x < frame.width; x += 1) {
-			const offset = (y * frame.width + x) * 4;
-			const linear = applyPreparedManagedSdrGradeStackLinearChannelsV1(prepared,
-				frame.pixels[offset]! / 255,
-				frame.pixels[offset + 1]! / 255,
-				frame.pixels[offset + 2]! / 255,
-				frame.pixels[offset + 3]! / 255);
-			const value = outputEncoding === 'linear-rec709-d65'
-				? linear
-				: encodeManagedSdrLinearChannelsV1(
-					linear[0], linear[1], linear[2], linear[3], finishing.colorContext.outputSpace,
-				);
-			for (let channel = 0; channel < 4; channel += 1) {
-				pixels[offset + channel] = Math.round(value[channel]! * 255);
-			}
-		}
-	}
+	const pixels = applyPreparedManagedSdrByteFrameV1(prepared, frame,
+		outputEncoding === 'linear-rec709-d65' ? outputEncoding : finishing.colorContext.outputSpace, signal);
 	return Object.freeze({ width: frame.width, height: frame.height, pixels });
 }
 

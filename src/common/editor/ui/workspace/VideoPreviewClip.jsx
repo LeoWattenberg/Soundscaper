@@ -50,6 +50,10 @@ export default function VideoPreviewClip({
 		requestFrameWhenPresented();
 		syncVideo();
 	}, [requestFrameWhenPresented, syncVideo]);
+	const handleSeeked = useCallback(() => {
+		const video = videoRef.current;
+		if (video) presentedFrameGateRef.current.seeked(video, () => onFrameReadyRef.current?.());
+	}, []);
 	const handleMediaError = useCallback(() => {
 		const video = videoRef.current;
 		video?.pause?.();
@@ -89,7 +93,7 @@ export default function VideoPreviewClip({
 			onLoadedMetadata={handleMediaReady}
 			onLoadedData={handleMediaReady}
 			onCanPlay={handleMediaReady}
-			onSeeked={requestFrameWhenPresented}
+			onSeeked={handleSeeked}
 			onError={handleMediaError}
 		/>
 	);

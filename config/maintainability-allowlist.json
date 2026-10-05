@@ -107,7 +107,6 @@
 		"src/common/editor/timeline-annotation-riff-interchange.ts": 583,
 		"src/common/editor/timeline-time.ts": 598,
 		"src/common/editor/track-hierarchy-v12.ts": 551,
-		"src/common/editor/ui/audio-editor-design-system/07-timeline-tracks.css": 592,
 		"src/common/editor/ui/audio-editor-design-system/08-timeline-clips-effects.css": 564,
 		"src/common/editor/ui/framescaper-native-image-sequence-source-resolver.ts": 551,
 		"src/common/editor/ui/inspector/AudioEditorEffectsOverlay.jsx": 579,

@@ -453,15 +453,16 @@ test('the menu button focus helper waits for the replacement instead of the butt
 	}
 });
 
-test('both panel hosts render the shared header and no legacy dock picker or close button', async () => {
+test('all panels use the shared dock and header without legacy dock pickers or close buttons', async () => {
 	const dock = await readFile(new URL('WorkspacePanelDock.jsx', WORKSPACE_ROOT), 'utf8');
 	const floatingMove = await readFile(new URL('useFloatingWorkspacePanelMove.ts', WORKSPACE_ROOT), 'utf8');
 	const group = await readFile(new URL('WorkspacePanelGroup.jsx', WORKSPACE_ROOT), 'utf8');
 	const video = await readFile(new URL('VideoEditorWorkspacePanels.jsx', WORKSPACE_ROOT), 'utf8');
-	for (const [name, source] of [['WorkspacePanelGroup.jsx', group], ['VideoEditorWorkspacePanels.jsx', video]]) {
+	for (const [name, source] of [['WorkspacePanelGroup.jsx', group]]) {
 		assert.match(source, /from '\.\/WorkspacePanelHeader\.jsx'/u, `${name} imports the shared header`);
 		assert.match(source, /<WorkspacePanelHeader\b/u, `${name} renders the shared header`);
 	}
+	assert.match(video, /<WorkspacePanelDock \{\.\.\.panelDockRuntime\} dock="top"/u, 'the video strip shares the movable dock host');
 	for (const [name, source] of [
 		['WorkspacePanelDock.jsx', dock],
 		['WorkspacePanelGroup.jsx', group],

@@ -19,9 +19,10 @@ import {
 } from '../framescaper-capture-ui-model.ts';
 import type { WebVcrUiSnapshot } from '../web-vcr-ui-model.ts';
 import { FramescaperCaptureSources } from './FramescaperCaptureSources.tsx';
+import type { FramescaperCaptureSetupOptions } from '../../framescaper-capture-setup-actions.ts';
 
 interface CaptureActions {
-	openSetup?(): unknown;
+	openSetup?(options?: FramescaperCaptureSetupOptions): unknown;
 	requestPreview?(roles: readonly CaptureSourceRole[]): unknown;
 	listDisplaySources?(): unknown;
 	selectDisplaySource?(sourceToken: string): unknown;
@@ -42,6 +43,8 @@ interface CaptureActions {
 }
 
 interface RecordingSetupPanelProps {
+	readonly idPrefix?: string;
+	readonly showPanelOnOpen?: boolean;
 	readonly controller: Readonly<{ actions: Readonly<{ capture?: CaptureActions }> }>;
 	readonly snapshot: Readonly<{
 		readonly productId?: string;
@@ -73,6 +76,8 @@ export default function RecordingSetupPanel({
 	locale,
 	run,
 	blocked,
+	idPrefix = 'framescaper-capture',
+	showPanelOnOpen = true,
 }: RecordingSetupPanelProps) {
 	const productId = snapshot.productId ?? 'framescaper';
 	const capture = snapshot.capture;
@@ -80,7 +85,7 @@ export default function RecordingSetupPanel({
 	// Opening this surface is the gesture the deferred capture runtime loads on,
 	// whichever menu, toolbar control or shortcut opened it. The action is a
 	// no-op once the runtime is up, so repeating it on every mount is harmless.
-	useEffect(() => { void actions?.openSetup?.(); }, [actions]);
+	useEffect(() => { void actions?.openSetup?.(showPanelOnOpen ? undefined : { showPanel: false }); }, [actions, showPanelOnOpen]);
 	const [selectedRoles, setSelectedRoles] = useState<readonly CaptureSourceRole[]>(() => (
 		capture?.requestedRoles.length ? capture.requestedRoles : defaultSourceRoles(capture)
 	));
@@ -151,9 +156,9 @@ export default function RecordingSetupPanel({
 		className="kw-framescaper-capture"
 		data-framescaper-recording-setup
 		data-capture-phase={phase}
-		aria-labelledby="framescaper-capture-setup-title"
+		aria-labelledby={`${idPrefix}-setup-title`}
 	>
-		<h3 id="framescaper-capture-setup-title" className="kw-audio-editor-sr-only">
+		<h3 id={`${idPrefix}-setup-title`} className="kw-audio-editor-sr-only">
 			{copy.panelRecordingSetup}
 		</h3>
 		<div className="kw-framescaper-capture__status" role="status" aria-live="polite">
@@ -179,6 +184,7 @@ export default function RecordingSetupPanel({
 			/>
 
 			{['previewing', 'armed'].includes(phase) && <CaptureSetupOptions
+				idPrefix={idPrefix}
 				copy={copy}
 				destination={destination}
 				countdownMs={countdownMs}
@@ -208,11 +214,12 @@ export default function RecordingSetupPanel({
 			/>}
 
 		{capture && ['recording', 'paused', 'finalizing', 'recovery'].includes(phase)
-			&& <CaptureSessionStatus capture={capture} copy={copy} locale={locale} />}
+			&& <CaptureSessionStatus capture={capture} copy={copy} locale={locale} idPrefix={idPrefix} />}
 	</section>;
 }
 
 function CaptureSetupOptions({
+	idPrefix,
 	copy,
 	destination,
 	countdownMs,
@@ -224,6 +231,7 @@ function CaptureSetupOptions({
 	onMonitoring,
 	onInputGain,
 }: Readonly<{
+	idPrefix: string;
 	copy: Readonly<Record<string, string | undefined>>;
 	destination: CaptureDestination;
 	countdownMs: number;
@@ -239,7 +247,7 @@ function CaptureSetupOptions({
 		<fieldset>
 			<legend>{copy.captureDestination}</legend>
 			{DESTINATIONS.map((value) => <label key={value}>
-				<input type="radio" name="framescaper-capture-destination" value={value}
+				<input type="radio" name={`${idPrefix}-destination`} value={value}
 					checked={destination === value} disabled={disabled}
 					onChange={() => onDestination(value)} />
 				<span>{destinationLabel(copy, value)}</span>
@@ -352,10 +360,12 @@ function CapturePanelActions({
 }
 
 function CaptureSessionStatus({
+	idPrefix,
 	capture,
 	copy,
 	locale,
 }: Readonly<{
+	idPrefix: string;
 	capture: FramescaperCaptureUiSnapshot;
 	copy: Readonly<Record<string, string | undefined>>;
 	locale: string;
@@ -364,8 +374,8 @@ function CaptureSessionStatus({
 	const elapsedText = `${String(Math.floor(elapsed / 60)).padStart(2, '0')}:${String(elapsed % 60).padStart(2, '0')}`;
 	const percentage = new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 3 });
 	const milliseconds = new Intl.NumberFormat(locale, { maximumFractionDigits: 1 });
-	return <section className="kw-framescaper-capture__session" aria-labelledby="framescaper-capture-metrics-title">
-		<h4 id="framescaper-capture-metrics-title">{copy.captureMetrics}</h4>
+	return <section className="kw-framescaper-capture__session" aria-labelledby={`${idPrefix}-metrics-title`}>
+		<h4 id={`${idPrefix}-metrics-title`}>{copy.captureMetrics}</h4>
 		<dl><div><dt>{copy.captureElapsed}</dt><dd>{elapsedText}</dd></div></dl>
 		{Boolean(capture.metrics?.length) && <table>
 			<thead><tr><th>{copy.captureSources}</th><th>{copy.captureDropped}</th><th>{copy.captureDrift}</th></tr></thead>

@@ -79,7 +79,7 @@ test.describe('Framescaper frame-canonical edge trim integration', () => {
 		expect(beforePointerBox).not.toBeNull();
 		expect(handleBox).not.toBeNull();
 		const startX = handleBox.x + handleBox.width / 2;
-		const pointerX = Math.max(beforePointerBox.x + 8, startX - 12);
+		const pointerX = Math.max(beforePointerBox.x + 8, beforePointerBox.x + beforePointerBox.width - 12);
 		const pointerY = handleBox.y + handleBox.height / 2;
 		const samplesPerSequenceFrame = right.sampleRate / right.sequence.rate.num;
 		const videoStartSample = right.video.sequenceStartFrame * samplesPerSequenceFrame;

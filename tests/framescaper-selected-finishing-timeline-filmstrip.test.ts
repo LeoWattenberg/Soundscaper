@@ -198,6 +198,26 @@ test('every requested cell is rendered through the exact preview session at its 
 	assert.ok(Object.isFrozen(rendered));
 });
 
+test('long imported videos render thumbnails beyond the export output-count boundary', async (t) => {
+	installDom(t);
+	const options = pictureOptions();
+	const source = (options.sources as Data[]).find(({ kind }) => kind === 'video')!;
+	Object.assign(source, { frameCount: 30_432_000, sampleFrameCount: 30_432_000, sourceFrameCount: 6_340 });
+	const clip = (options.clips as Data[]).find(({ kind }) => kind === 'video')!;
+	Object.assign(clip, { sequenceFrameCount: 6_340, sourceFrameCount: 6_340 });
+	const rendered = await cells({
+		project: projectOf(options),
+		frames: [0, 999_999, 1_000_000, 15_216_000, 30_431_999].map((timelineSample, index) => frame({
+			key: `long-cell-${String(index)}`, timelineSample,
+		})),
+		decodeSource: () => Promise.resolve(decoded([], WIDTH, HEIGHT)),
+	});
+	assert.deepEqual(rendered.map(({ timelineSample }) => timelineSample), [
+		0, 999_999, 1_000_000, 15_216_000, 30_431_999,
+	]);
+	assert.ok(rendered.every(({ pixels }) => pixels.length === WIDTH * HEIGHT * 4));
+});
+
 test('the authored clip presentation is carried into the cell the strip composites', async (t) => {
 	installDom(t, { plateFill: 255 });
 	const brightness = async (opacity: number): Promise<readonly number[]> => {

@@ -8,8 +8,6 @@ import { outputAtSequencePosition } from '../common/editor/unified-exact-render-
 import { collectProductVideoVisualPreviewEffectIds } from '../common/editor/ui/workspace/product-video-visual-preview-effect-ledger.ts';
 import type { ProductVideoVisualPreviewFrame } from '../common/editor/ui/workspace/product-video-visual-preview-runtime.ts';
 import { DEFAULT_VIDEO_CLIP_COMPOSITION } from '../common/editor/video-clip-composition.ts';
-import { createVideoKeyframeExportPresentationAuthority } from '../common/editor/video-keyframe-export-presentation-authority.ts';
-import { createVideoRetimeWebCoreOrdinalAuthority } from '../common/editor/video-retime-web-core-ordinal-authority.ts';
 import { resolveVideoRenderDescription } from '../common/editor/video-render-description.ts';
 import type { BoundVideoSourceTimingView, VideoSourceTimingView } from '../common/editor/video-source-timing-view.ts';
 import { framescaperProjectForRuntimeConsumersFinishing } from './editor-project-finishing-runtime.ts';
@@ -24,6 +22,7 @@ import {
 } from './video-frame-address-finishing.ts';
 import type { FramescaperSelectedOpenFxExecutionNativeMedia } from './selected-native-media-openfx-exact-planes.ts';
 import type { FramescaperOpenFxFrameDispositionNativeMedia } from './editor-openfx-frame-graph-native-media.ts';
+import { createSelectedFinishingPreviewSamplePresentation } from './selected-finishing-preview-sample-authority.ts';
 
 type Data = Readonly<Record<string, unknown>>;
 
@@ -90,13 +89,9 @@ export async function createFramescaperSelectedExactPreviewFinishing(options: Re
 		// document places still and generator clips in sequence frames only, so
 		// its composition must come from the same product runtime projection the
 		// export resolves — never from the canonical document.
-		const presentation = clips.size === 0 ? null : createVideoKeyframeExportPresentationAuthority({
+		const presentation = clips.size === 0 ? null : createSelectedFinishingPreviewSamplePresentation({
 			project, timingBySourceId: options.boundTimingViews,
-			exactOrdinalAuthority: createVideoRetimeWebCoreOrdinalAuthority({
-				project: framescaperProjectForRuntimeConsumersFinishing(options.profile, options.project),
-				timingBySourceId: options.boundTimingViews,
-				outputRate: { num: options.plan.timebase.sampleRate, den: 1 },
-			}),
+			runtimeProject: framescaperProjectForRuntimeConsumersFinishing(options.profile, options.project),
 		});
 		let disposed = false;
 		let active = false;
@@ -161,7 +156,7 @@ function enrichMediaLayers(
 	timelineSample: number,
 	clips: ReadonlyMap<string, Data>,
 	sources: ReadonlyMap<string, Data>,
-	presentation: ReturnType<typeof createVideoKeyframeExportPresentationAuthority> | null,
+	presentation: ReturnType<typeof createSelectedFinishingPreviewSamplePresentation> | null,
 ): readonly Data[] {
 	return Object.freeze(layersValue.map((layerValue, layerIndex) => {
 		const layer = record(layerValue, `Selected finishing preview media layer ${String(layerIndex)}`);

@@ -69,8 +69,8 @@ test('participant rows expose rate-stretch state and audio renders its changed g
 	assert.match(audioViewModel, /reuseCachedWaveform:\s*Boolean\([\s\S]*?clip\.waveformPreviewKind !== 'trim'[\s\S]*?clip\.waveformPreviewKind !== 'rate-stretch'/u);
 	assert.match(filmstrip, /data-rate-stretch-preview/u);
 	assert.match(filmstrip, /createVideoRateBadgeModel\(\{[\s\S]*?clip,[\s\S]*?source,[\s\S]*?projectSampleRate:\s*sampleRate/u);
-	assert.match(filmstrip, /data-video-rate-badge="true"/u);
-	assert.match(filmstrip, /data-video-playback-rate=\{rateBadge\.playbackRate\}/u);
+	assert.match(filmstrip, /data-video-rate-badge=\{rateBadge \? 'true' : undefined\}/u);
+	assert.match(filmstrip, /data-video-playback-rate=\{rateBadge\?\.playbackRate\}/u);
 	assert.doesNotMatch(filmstrip, /Number\(clip\.speedRatio\)/u);
 });
 

@@ -1,8 +1,5 @@
 
-import { TIMELINE_ADDITIONAL_COPY } from '../../../i18n/editor-timeline-additional-copy.ts';
 import { useMemo, useRef, useState } from 'react';
-import { GhostButton } from '@soundscaper/design-system/GhostButton';
-import { Icon } from '@soundscaper/design-system/Icon';
 
 import { framesToSeconds, projectClipsToViewport } from '../../design-system-adapters.js';
 import { createTimelineViewportClipIndex } from '../../design-system-adapters/timeline-viewport-index.ts';
@@ -10,9 +7,8 @@ import { isVisualTimelineClipKind } from '../timeline-media-presence.ts';
 import { AutomaticCrossfadeOverlays } from './TrackOverlapOverlays.jsx';
 import { analyzeVideoClipOverlaps, projectVideoOverlapPresentation } from './video-overlap-presentation.ts';
 import { TimeSelectionOverlay } from './TimelineOverlayComponents.jsx';
-import { TrackNameEditor } from './TrackControls.jsx';
-import { focusFirst } from './timeline-navigation.js';
 import { VideoFilmstripClip } from './VideoFilmstrip.jsx';
+import { VideoTrackControls } from './VideoTrackControls.jsx';
 import { timelineContentLeft } from './timeline-scroll-space.ts';
 import { useTrackRowFocusNavigation } from './useTrackRowFocusNavigation.js';
 
@@ -49,6 +45,8 @@ export function VideoTrackRow({
 	run,
 	onMenu,
 	onOpenClipMenu,
+	onOpenClipProperties = undefined,
+	clipStyle = 'colourful',
 	onFocusTimelineRuler,
 	onFocusTrackContainer,
 	onFocusTrackPanelControl,
@@ -116,6 +114,7 @@ export function VideoTrackRow({
 			: 'none';
 	const {
 		focusAfterPanel,
+		focusAfterTrack,
 		focusBeforeTrack,
 		focusCurrentPanel,
 		focusCurrentTrack,
@@ -162,7 +161,9 @@ export function VideoTrackRow({
 			if (event.key !== 'Tab') return false;
 			event.preventDefault();
 			event.stopPropagation();
-			if (event.shiftKey) router.focusCurrentPanel(true);
+			const fadeHandle = !event.shiftKey && event.target.querySelector('[data-video-clip-fade-handle]:not(:disabled)');
+			if (fadeHandle) fadeHandle.focus();
+			else if (event.shiftKey) router.focusCurrentPanel(true);
 			else router.focusAfterTrack();
 			return true;
 		},
@@ -191,6 +192,14 @@ export function VideoTrackRow({
 				copy={copy}
 				run={run}
 				onMenu={onMenu}
+				onOpenEffects={() => {
+					const clip = clips.find((candidate) => selectedClipIdSet.has(candidate.id))
+						|| clips.find((candidate) => candidate.kind === 'video');
+					if (!clip) return;
+					run(() => controller.actions.timeline.selectClip(clip.id));
+					onOpenClipProperties?.(clip.id);
+				}}
+				effectsAvailable={clips.some((clip) => clip.kind === 'video')}
 				onTabOut={focusAfterPanel}
 				onShiftTabOut={focusCurrentTrack}
 				onNavigateVertical={focusPanelVertical}
@@ -254,6 +263,10 @@ export function VideoTrackRow({
 								hidden={track.hidden}
 								blocked={blocked}
 								copy={copy}
+								color={clip.color === 'auto' ? track.color : clip.color}
+								clipStyle={clipStyle}
+								run={run}
+								onFadeTabOut={focusAfterTrack}
 								onOpenMenu={onOpenClipMenu}
 								onRename={(title) => {
 									const nextTitle = String(title).trim();
@@ -273,158 +286,6 @@ export function VideoTrackRow({
 					selection={timeSelection}
 					pixelsPerSecond={pixelsPerSecond}
 				/>}
-			</div>
-		</div>
-	);
-}
-
-export function VideoTrackControls({
-	controller,
-	track,
-	panelWidth,
-	selected,
-	blocked,
-	isFlatNavigation,
-	copy,
-	run,
-	onMenu,
-	onTabOut,
-	onShiftTabOut,
-	onNavigateVertical,
-}) {
-	const controlsRef = useRef(null);
-	const [editingName, setEditingName] = useState(false);
-	const controlTabIndex = isFlatNavigation ? 0 : -1;
-	// Targeting is controller session state, so it is read through on each
-	// render; toggling it republishes and this reads the new answer.
-	const targeted = controller.actions.video.targets().videoTrackId === track.id;
-	const handleKeyDown = (event) => {
-		if (event.key === 'Tab') {
-			const controls = [...controlsRef.current.querySelectorAll('button:not([disabled]), input:not([disabled])')];
-			const currentIndex = controls.indexOf(document.activeElement);
-			if (currentIndex < 0) return;
-			event.preventDefault();
-			if (event.shiftKey) {
-				if (currentIndex > 0) focusFirst(controls[currentIndex - 1]);
-				else onShiftTabOut?.();
-			} else if (currentIndex < controls.length - 1) {
-				focusFirst(controls[currentIndex + 1]);
-			} else onTabOut?.();
-		} else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
-			event.preventDefault();
-			onNavigateVertical?.(event.key === 'ArrowDown' ? 'down' : 'up');
-		}
-	};
-	return (
-		<div
-			ref={controlsRef}
-			className="audio-editor-video-track-controls track-control-panel"
-			data-track-header
-			data-selected={selected ? 'true' : 'false'}
-			style={{ width: panelWidth }}
-			onFocusCapture={() => !selected && run(() => controller.actions.timeline.selectTrack(track.id))}
-			onClick={() => !selected && run(() => controller.actions.timeline.selectTrack(track.id))}
-			onKeyDownCapture={handleKeyDown}
-		>
-			{selected && <span className="audio-editor-track-header-selection" aria-hidden="true" />}
-			<div className="audio-editor-video-track-controls__title">
-				<span className="audio-editor-video-track-controls__icon" aria-hidden="true">
-					<Icon name="play" size={14} />
-				</span>
-				{editingName ? (
-					<TrackNameEditor
-						track={track}
-						label={copy.trackName}
-						blocked={blocked}
-						controller={controller}
-						run={run}
-						onClose={() => setEditingName(false)}
-					/>
-				) : (
-					<span
-						data-track-name
-						className="track-control-panel__track-name-text"
-						title={track.name}
-						onDoubleClick={() => !blocked && setEditingName(true)}
-					>
-						{track.name}
-					</span>
-				)}
-				<GhostButton
-					ariaLabel={copy.trackMenu || copy.tracksMenu}
-					tabIndex={controlTabIndex}
-					onClick={(event) => onMenu(event.currentTarget)}
-				/>
-			</div>
-			<div className="audio-editor-video-track-controls__actions">
-				<button
-					type="button"
-					className="audio-editor-video-track-control"
-					data-track-action="target"
-					aria-pressed={targeted}
-					disabled={blocked}
-					tabIndex={controlTabIndex}
-					onClick={(event) => {
-						event.stopPropagation();
-						run(() => controller.actions.video.toggleTarget(track.id));
-					}}
-				>
-					{copy.editTarget}
-				</button>
-				<button
-					type="button"
-					className="audio-editor-video-track-control"
-					data-track-action="mute"
-					aria-pressed={Boolean(track.hidden)}
-					disabled={blocked}
-					tabIndex={controlTabIndex}
-					onClick={(event) => {
-						event.stopPropagation();
-						run(() => controller.actions.track.update(track.id, { hidden: !track.hidden }));
-					}}
-				>
-					{track.hidden ? (copy.videoVisible || 'Show video') : (copy.videoHidden || 'Hide video')}
-				</button>
-				<button
-					type="button"
-					className="audio-editor-video-track-control"
-					data-track-action="solo"
-					aria-pressed={Boolean(track.solo)}
-					disabled={blocked}
-					tabIndex={controlTabIndex}
-					onClick={(event) => {
-						event.stopPropagation();
-						run(() => controller.actions.track.update(track.id, { solo: !track.solo }));
-					}}
-				>
-					{(copy['ui.timeline.soloTrack'] || copy.soloTrack || TIMELINE_ADDITIONAL_COPY.soloTrack)}
-				</button>
-				<button
-					type="button"
-					className="audio-editor-video-track-control"
-					data-track-action="decrease-height"
-					disabled={blocked}
-					tabIndex={controlTabIndex}
-					onClick={(event) => {
-						event.stopPropagation();
-						run(() => controller.actions.track.decreaseHeight(track.id));
-					}}
-				>
-					{copy.decreaseTrackHeight}
-				</button>
-				<button
-					type="button"
-					className="audio-editor-video-track-control"
-					data-track-action="increase-height"
-					disabled={blocked}
-					tabIndex={controlTabIndex}
-					onClick={(event) => {
-						event.stopPropagation();
-						run(() => controller.actions.track.increaseHeight(track.id));
-					}}
-				>
-					{copy.increaseTrackHeight}
-				</button>
 			</div>
 		</div>
 	);

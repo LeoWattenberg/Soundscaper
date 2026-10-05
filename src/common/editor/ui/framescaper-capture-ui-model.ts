@@ -121,7 +121,7 @@ export function framescaperCaptureRecordVisible(
 	locallyOptedIn: boolean,
 ): boolean {
 	if (!workspacePanelAvailable(productId, FRAMESCAPER_CAPTURE_PANEL_ID, null, capture)) return false;
-	return locallyOptedIn || Boolean(capture && ACTIVE_OR_RECOVERY_PHASES.has(capture.phase));
+	return productId === 'framescaper' || locallyOptedIn || Boolean(capture && ACTIVE_OR_RECOVERY_PHASES.has(capture.phase));
 }
 
 /** Media ownership and recovery must retain a reachable status/release control. */

@@ -70,16 +70,16 @@ test('Record options expose Web VCR only when available and activate it with one
 	assert.deepEqual(calls, ['activate']);
 });
 
-test('a stale available Web VCR cannot reveal a Record entry on the selected Framescaper profile', () => {
+test('Framescaper Record visibility is independent of Web VCR availability', () => {
 	const capture = { phase: 'inactive' } as const;
 	assert.equal(framescaperCaptureRecordControlVisible({
 		productId: 'framescaper', capture, webVcr: webVcr(),
-	}, false), false);
+	}, false), true);
 	assert.equal(framescaperCaptureRecordControlVisible({
 		productId: 'framescaper', capture, webVcr: webVcr({
 			capability: { status: 'unavailable', reason: 'roadmap-gate' },
 		}),
-	}, false), false);
+	}, false), true);
 	assert.equal(framescaperCaptureRecordControlVisible({
 		productId: 'soundscaper', capture, webVcr: webVcr(),
 	}, false), false);

@@ -191,6 +191,8 @@ export function TrackListView({
 					run={run}
 					onMenu={(anchor) => setTrackMenu({ trackId: track.id, anchor })}
 					onOpenClipMenu={openClipMenu}
+					onOpenClipProperties={onOpenClipProperties}
+					clipStyle={snapshot.preferences?.appearance?.clipStyle}
 					onFocusTimelineRuler={focusTimelineRuler}
 					onFocusTrackContainer={focusTrackContainer}
 					onFocusTrackPanelControl={focusTrackPanelControl}

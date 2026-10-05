@@ -30,9 +30,9 @@ test.describe('3B-3a three-point editing qualification', () => {
 		await expect.poll(() => timelineVideoClips(page), { timeout: 30_000 }).not.toHaveLength(0);
 
 		// A video lane exists, so it can be targeted explicitly.
-		const target = editor.locator('[data-track-action="target"]').first();
-		await expect(target).toBeVisible();
-		await expect(target).toHaveAttribute('aria-pressed', 'true');
+		const target = await openVideoTarget(page, editor);
+		await expect(target.locator('.context-menu-item-checkmark > *')).toHaveCount(1);
+		await page.keyboard.press('Escape');
 
 		const binItem = page.locator('[data-bin-action="overwrite"]').first();
 		await expect(binItem).toBeVisible();
@@ -84,9 +84,10 @@ test.describe('3B-3a three-point editing qualification', () => {
 		await addToTimeline(editor);
 		await expect.poll(() => timelineVideoClips(page), { timeout: 30_000 }).not.toHaveLength(0);
 
-		const target = editor.locator('[data-track-action="target"]').first();
+		const target = await openVideoTarget(page, editor);
 		await target.click();
-		await expect(target).toHaveAttribute('aria-pressed', 'false');
+		await expect((await openVideoTarget(page, editor)).locator('.context-menu-item-checkmark > *')).toHaveCount(0);
+		await page.keyboard.press('Escape');
 
 		const before = await timelineVideoClips(page);
 		await page.locator('[data-bin-action="overwrite"]').first().click();
@@ -95,6 +96,13 @@ test.describe('3B-3a three-point editing qualification', () => {
 		expect(await timelineVideoClips(page)).toEqual(before);
 	});
 });
+
+async function openVideoTarget(page, editor) {
+	await editor.locator('[data-video-track]').first().getByRole('button', { name: 'Track options', exact: true }).click();
+	const target = page.locator('.audio-editor-track-menu').getByRole('menuitem', { name: 'Target', exact: true });
+	await expect(target).toBeVisible();
+	return target;
+}
 
 async function addToTimeline(editor) {
 	const name = CFR.file.name.replace(/\.[^.]+$/u, '');

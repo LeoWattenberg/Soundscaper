@@ -43,13 +43,13 @@ test.describe('Framescaper v1 recoverable capture', () => {
 	test.describe.configure({ mode: 'default' });
 	registerAudioEditorHooks();
 
-	test('is default-hidden and opens setup without implicit device access', async ({ page, browserName }) => {
+	test('keeps setup opt-in and exposes Record without implicit device access', async ({ page, browserName }) => {
 		await installCaptureHarness(page);
 		const editor = await bootEditor(page, '/framescaper/en/');
 		const workspacePanel = recordingSetupWorkspacePanel(editor);
 
 		await expect(workspacePanel).toHaveCount(0);
-		await expect(editor.getByRole('button', { name: 'Recording setup', exact: true })).toHaveCount(0);
+		await expect(editor.getByRole('button', { name: 'Record', exact: true })).toBeVisible();
 		await expectCaptureCalls(page, []);
 
 		const panels = await openNestedCommandMenu(page, editor, 'Window', []);
@@ -68,7 +68,7 @@ test.describe('Framescaper v1 recoverable capture', () => {
 		await assertCaptureForcedColorContract(page, panel.getByRole('status'), browserName);
 		await page.emulateMedia({ forcedColors: 'none' });
 
-		const toolbarRecord = editor.getByRole('button', { name: 'Recording setup', exact: true });
+		const toolbarRecord = editor.getByRole('button', { name: 'Record', exact: true });
 		await expect(toolbarRecord).toBeVisible();
 		await closeWorkspacePanel(editor, 'recording-setup');
 		await expect(workspacePanel).toHaveCount(0);
@@ -176,12 +176,12 @@ test.describe('Framescaper v1 recoverable capture', () => {
 		const settings = editor.getByRole('button', { name: 'Customize toolbar', exact: true });
 		await settings.click();
 		const toolbarFlyout = page.getByRole('dialog', { name: 'Customize toolbar', exact: true });
-		const recordToggle = toolbarFlyout.getByRole('checkbox', { name: 'Recording setup', exact: true });
+		const recordToggle = toolbarFlyout.getByRole('checkbox', { name: 'Record', exact: true });
 		await expect(recordToggle).toHaveAttribute('aria-checked', 'true');
 		await recordToggle.click();
 		await expect(recordToggle).toHaveAttribute('aria-checked', 'false');
 		await page.keyboard.press('Escape');
-		await expect(editor.getByRole('button', { name: 'Recording setup', exact: true })).toHaveCount(0);
+		await expect(editor.getByRole('button', { name: 'Record', exact: true })).toHaveCount(0);
 
 		await selectSourceRoles(panel, ['microphone']);
 		await panel.getByRole('button', { name: 'Preview sources', exact: true }).press('Enter');

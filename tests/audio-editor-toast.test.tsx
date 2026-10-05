@@ -14,6 +14,13 @@ test('error toasts use the ERROR glyph from the bundled MuseScore icon map', () 
 	assert.ok(markup.includes(`<div class="toast__icon">${iconNameToChar('ERROR')}</div>`));
 });
 
+test('every toast severity uses a glyph present in the bundled icon font', () => {
+	for (const [type, icon] of [['info', 'INFO'], ['warning', 'WARNING'], ['success', 'TICK_RIGHT_ANGLE']] as const) {
+		const markup = renderToStaticMarkup(<EditorToast id={type} title="Notification" type={type} />);
+		assert.ok(markup.includes(`<div class="toast__icon">${iconNameToChar(icon)}</div>`), type);
+	}
+});
+
 test('toast actions support pending operations and localized dismissal', () => {
 	const markup = renderToStaticMarkup(<EditorToast
 		id="project-lock"

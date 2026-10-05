@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Button } from '@soundscaper/design-system/Button';
 import { ContextMenuItem } from '@soundscaper/design-system/ContextMenuItem';
@@ -20,6 +20,9 @@ import { AudioDevicesFlyout } from './AudioEditorMeterControls.jsx';
 import EditorTaskProgressBar from './EditorTaskProgressBar.tsx';
 import WorkspaceSwitcherControl from './WorkspaceSwitcherControl.jsx';
 import TransportAuditionMenu from './TransportAuditionMenu.tsx';
+import { FRAMESCAPER_INPUTS_COPY } from '../../../i18n/editor-framescaper-inputs-copy.ts';
+import { lazyEditorModule } from '../../../offline/lazy-module.tsx';
+const FramescaperInputsSetupFlyout = lazyEditorModule(() => import('./FramescaperInputsSetupFlyout.tsx'));
 export { default as TelemetryTimeCode } from './TelemetryTimeCode.tsx';
 
 export function TelemetryPlayTransportControl({ copy, snapshot, blocked, controller, run }) {
@@ -184,6 +187,7 @@ export function EditorActionBar({
 					controller={controller}
 					run={run}
 					displayAudioSupported={displayAudioSupported}
+					blocked={blocked}
 				/>
 			</div>
 			<div className="kw-audio-editor__action-bar-right">
@@ -204,7 +208,9 @@ export function EditorActionBar({
 	);
 }
 
-function ActionBarAudioDevicesButton({ copy, snapshot, controller, run, displayAudioSupported }) {
+function ActionBarAudioDevicesButton({ copy, snapshot, controller, run, displayAudioSupported, blocked }) {
+	const framescaper = snapshot.productId === 'framescaper';
+	const label = framescaper ? copy['ui.framescaperInputs.title'] ?? FRAMESCAPER_INPUTS_COPY.title : copy.audioDevices;
 	const triggerRef = useRef(null);
 	const [position, setPosition] = useState(null);
 	const setTrigger = useCallback((element) => {
@@ -216,7 +222,7 @@ function ActionBarAudioDevicesButton({ copy, snapshot, controller, run, displayA
 			close();
 			return;
 		}
-		if (!snapshot.audioDevices?.inputAccess
+		if (!framescaper && !snapshot.audioDevices?.inputAccess
 			&& typeof controller.actions.recording.requestInputAccess === 'function') {
 			run(() => controller.actions.recording.requestInputAccess());
 		}
@@ -236,7 +242,7 @@ function ActionBarAudioDevicesButton({ copy, snapshot, controller, run, displayA
 
 	return (
 		<>
-			<span ref={setTrigger} className="kw-audio-editor__action-bar-toggle" data-action="audio-devices" data-translation-key="audioDevices">
+			<span ref={setTrigger} className="kw-audio-editor__action-bar-toggle" data-action="audio-devices" data-translation-key={framescaper ? 'ui.framescaperInputs.title' : 'audioDevices'}>
 				<Button
 					variant="secondary"
 					size="small"
@@ -245,7 +251,7 @@ function ActionBarAudioDevicesButton({ copy, snapshot, controller, run, displayA
 					aria-expanded={Boolean(position)}
 					onClick={toggle}
 				>
-					{copy.audioDevices}
+					{label}
 				</Button>
 			</span>
 			<Flyout
@@ -259,17 +265,19 @@ function ActionBarAudioDevicesButton({ copy, snapshot, controller, run, displayA
 				showArrow
 				closeOnOutsideClick
 				closeOnEscape
-				ariaLabel={copy.audioDevices}
+				ariaLabel={label}
 				role="dialog"
 				className="kw-audio-editor__audacity-level-flyout kw-audio-editor__audio-devices-flyout"
 			>
-				<AudioDevicesFlyout
+				{framescaper ? <Suspense fallback={<span role="status">{copy.captureRuntimeChecking}</span>}>
+					<FramescaperInputsSetupFlyout copy={copy} snapshot={snapshot} controller={controller} run={run} blocked={blocked} />
+				</Suspense> : <AudioDevicesFlyout
 					copy={copy}
 					snapshot={snapshot}
 					controller={controller}
 					run={run}
 					displayAudioSupported={displayAudioSupported}
-				/>
+				/>}
 			</Flyout>
 		</>
 	);

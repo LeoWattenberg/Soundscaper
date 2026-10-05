@@ -61,8 +61,6 @@ export default function WorkspacePanelDock({
 			&& (capabilities?.audioRecording || id !== 'recording-meter')
 			&& (capabilities?.audioAnalysis || (!ANALYZER_PANEL_ID_SET.has(id) && id !== 'ebu-r128'))
 			&& (id !== 'markers' || timelineAnnotationsAvailable(snapshot))
-			&& !(snapshot.preferences?.workspace?.activeId === 'video-editor'
-				&& (id === 'project-bin' || id === 'video-preview' || id === 'source-monitor'))
 			&& (id !== 'project-bin' || projectBinEffectivelyOpen)
 		));
 	const panels = availablePanels
@@ -439,6 +437,7 @@ export default function WorkspacePanelDock({
 			ref={dockRef}
 			className={`kw-audio-editor__panel-dock kw-audio-editor__panel-dock--${dock}`}
 			data-panel-dock={dock}
+			data-workspace-auto-size={panels.every(([, panel]) => panel.autoSize === true) && panels.some(([id]) => id === 'video-preview' || id === 'source-monitor')}
 			data-workspace-column-count={sideDock ? columns.length : undefined}
 			data-meter-dock={panels.every(([id]) => id === 'playback-meter' || id === 'recording-meter') ? '' : undefined}
 			data-workspace-dock-wide={columns.length > 1 || workspaceSideDockAllowsWidePanels(panels, snapshot.preferences?.workspace?.activeId)}

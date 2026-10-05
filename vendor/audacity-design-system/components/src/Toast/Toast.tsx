@@ -43,8 +43,8 @@ export interface ToastProps {
 const ICONS = {
   success: '\uEF31', // checkmark icon from MusescoreIcon
   error: '\uF3D0',   // MuseScore IconCode::ERROR
-  warning: '\uE802', // warning icon
-  info: '\uE803',    // info icon
+  warning: '\uF3CE', // MuseScore IconCode::WARNING
+  info: '\uF3CF',    // MuseScore IconCode::INFO
   upload: '\uEF25',  // upload icon
   syncing: '\uF450', // cloud-sync icon
 };

@@ -10,13 +10,6 @@
 		border-radius: 0;
 	}
 
-	.kw-audio-editor__video-workspace {
-		height: clamp(72px, 28%, 220px);
-		min-height: 72px;
-		max-height: 220px;
-		flex-basis: clamp(72px, 28%, 220px);
-		grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr);
-	}
 
 	:is(.kw-audio-editor__side-playback-meter, .kw-audio-editor__side-recording-meter) {
 		width: 44px;

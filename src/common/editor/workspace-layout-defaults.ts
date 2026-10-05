@@ -197,10 +197,10 @@ export const AUDIO_EDITOR_WORKSPACE_PRESETS = Object.freeze({
 		toolbarButtons: DEFAULT_TOOLBAR_BUTTONS,
 		panels: Object.freeze({
 			...DEFAULT_PANELS,
-			'project-bin': Object.freeze({ visible: true, dock: 'left', order: 0, size: 380 }),
+			'project-bin': Object.freeze({ visible: true, dock: 'top', order: 0, size: 320, autoSize: true }),
 			effects: Object.freeze({ visible: true, dock: 'left', order: 1, size: 360 }),
-			'video-preview': Object.freeze({ visible: true, dock: 'right', order: 0, size: 560 }),
-			'source-monitor': Object.freeze({ visible: true, dock: 'right', order: 1, size: 460 }),
+			'video-preview': Object.freeze({ visible: true, dock: 'top', order: 1, size: 320, autoSize: true }),
+			'source-monitor': Object.freeze({ visible: true, dock: 'top', order: 2, size: 320, autoSize: true }),
 		}),
 	}),
 });

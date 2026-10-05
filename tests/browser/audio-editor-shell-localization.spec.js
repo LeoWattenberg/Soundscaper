@@ -166,7 +166,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(actionBarBounds.y + actionBarBounds.height).toBeLessThanOrEqual(projectBinBounds.y + 1);
 		expect(projectBinBounds.y + projectBinBounds.height).toBeLessThanOrEqual(toolbarBounds.y + 1);
 		expect(toolbarBounds.y + toolbarBounds.height).toBeLessThanOrEqual(workspaceBounds.y + 1);
-		expect(videoWorkspaceBounds.height).toBeLessThanOrEqual(130);
+		expect(videoWorkspaceBounds.height).toBeGreaterThan(130);
 		expect(workspaceBounds.height).toBeGreaterThanOrEqual(96);
 
 		await expect(editor.locator('[data-side-playback-meter]')).toBeVisible();
