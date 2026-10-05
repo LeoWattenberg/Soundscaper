@@ -20,11 +20,8 @@ import {
 	createExportDialogRequest,
 	isVideoExportDialogFormat,
 } from '../export-dialog-model.js';
-import { exportChapterCount } from '../../export-chapters.ts';
-import {
-	exportDialogOutputNoLabelsHint, exportDialogOutputOptions,
-	exportDialogOutputSettings, exportDialogOutputValue,
-} from '../export-dialog-output-options.ts';
+import { exportDialogOutputSettings } from '../export-dialog-output-options.ts';
+import { useExportDialogOutput } from '../use-export-dialog-output.ts';
 import { createExportPresetActions } from '../export-preset-actions.js';
 import { projectHasTimelineVideo } from '../timeline-media-presence.ts';
 import { exportSurfaceDialogTitle } from '../export-surface-copy.ts';
@@ -124,32 +121,9 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 		&& !videoFormat
 		&& settings.mode === 'mix'
 		&& settings.adm?.mode === 'authored';
-	// A sequence delivers one spliced artifact, so it cannot also be a stem set, a
-	// chapter split, an ADM programme, or a sub-range of the project.
-	const projectMasteringSequences = snapshot.masteringSequences?.sequences;
-	const masteringSequences = useMemo(() => (
-		settings.mode !== 'mix' || settings.format === 'bw64' || isVideoExportDialogFormat(settings.format)
-			? []
-			: projectMasteringSequences ?? []
-	), [projectMasteringSequences, settings.format, settings.mode]);
-	const labelChapterCount = useMemo(() => exportChapterCount(snapshot.project, 'labels'), [snapshot.project]);
-	const markerChapterCount = useMemo(() => exportChapterCount(snapshot.project, 'markers'), [snapshot.project]);
-	// A picture delivery is one file whatever the audio dialog last held, so the
-	// control shows the span it delivers rather than a form it cannot.
-	const outputValue = exportDialogOutputValue(videoFormat ? { ...settings, mode: 'mix' } : settings);
-	const singleFileOnly = videoFormat || settings.format === 'bw64';
-	const outputOptions = exportDialogOutputOptions(copy, {
-		hasSelection,
-		hasLoop,
-		labelChapterCount,
-		markerChapterCount,
-		singleFileOnly,
-		masteringSequences,
-	});
-	// A chapter split greys out for two reasons, and only the missing labels or
-	// markers are one the user can answer, so only that one says what to do.
-	const outputNoLabelsHint = exportDialogOutputNoLabelsHint(copy, {
-		labelChapterCount, markerChapterCount, singleFileOnly,
+	const { outputValue, outputOptions, outputNoLabelsHint } = useExportDialogOutput({
+		project: snapshot.project, copy, hasSelection, hasLoop,
+		sequences: snapshot.masteringSequences?.sequences, settings, setSettings,
 	});
 	const chooseOutput = (value) => setSettings((current) => normalizeExportDialogAudioSettings(
 		{ ...current, ...exportDialogOutputSettings(value) }, desktop, projectChannelCount,
@@ -180,29 +154,6 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 			.catch(() => { if (current) setDesktopCodecStatus(null); });
 		return () => { current = false; };
 	}, [desktopCodecQuery, fileService, isOpen]);
-
-	useEffect(() => {
-		if (!hasSelection && settings.range === 'selection') setSettings((current) => ({ ...current, range: 'project' }));
-	}, [hasSelection, settings.range]);
-
-	useEffect(() => {
-		// The labels or markers are what a chapter delivery splits on; once the
-		// project has none of the chosen kind, the dialog would otherwise keep
-		// offering a delivery that refuses.
-		const chosenCount = settings.chapterSource === 'markers' ? markerChapterCount : labelChapterCount;
-		if (settings.mode === 'chapters' && chosenCount < 1) {
-			setSettings((current) => ({ ...current, mode: 'mix' }));
-		}
-	}, [labelChapterCount, markerChapterCount, settings.chapterSource, settings.mode]);
-
-	useEffect(() => {
-		// A sequence chosen and then made undeliverable — a stem mode, an ADM
-		// format, a deleted region — falls back to the ordinary range rather than
-		// starting a delivery that would refuse.
-		if (!settings.masteringSequenceId) return;
-		const chosen = masteringSequences.find(({ id }) => id === settings.masteringSequenceId);
-		if (!chosen?.deliverable) setSettings((current) => ({ ...current, masteringSequenceId: '' }));
-	}, [masteringSequences, settings.masteringSequenceId]);
 
 	useEffect(() => {
 		if (!isOpen) {

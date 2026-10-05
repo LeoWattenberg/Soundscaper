@@ -31,6 +31,7 @@ import { disposeGraph } from './dispose-project-graph.ts';
 import { cancelParallelStackPreparation, parallelStackSourceStartTime, setParallelStackEndFrame } from './parallel-stack-playback.ts';
 export { disposeGraph } from './dispose-project-graph.ts';
 import { playbackOutputDestination } from './playback-output.ts';
+import { isPlaybackLoopEnabled } from './playback-frequency-range.ts';
 import { observeActiveStreamCompletion, unexpectedActiveStreamAbort } from './playback-stream-failure.ts';
 import { sampleProductionMeterSessionV21, suspendParallelProductionMeterSessionV21 } from './production-meter-runtime-session-v21.ts';
 import { ensureLiveAnalysisTap } from './live-analysis-tap.ts';
@@ -127,12 +128,12 @@ async [ENGINE_SCHEDULE_PREPARED_SPEED_PLAYBACK](this: EngineRuntimeHost, fromFra
 		const outputFrameAt = (timelineFrame: number) => this.durationFrames > 0
 			? clampFrame(Math.round(timelineFrame / this.durationFrames * prepared.frameCount), 0, prepared.frameCount)
 			: 0;
-		if (this.loop.enabled && this.loop.endFrame > this.loop.startFrame) {
+		if (isPlaybackLoopEnabled(this) && this.loop.endFrame > this.loop.startFrame) {
 			source.loop = true;
 			source.loopStart = outputFrameAt(this.loop.startFrame) / prepared.sampleRate;
 			source.loopEnd = outputFrameAt(this.loop.endFrame) / prepared.sampleRate;
 		}
-		this.playEndFrame = Math.max(frame, this.loop.enabled
+		this.playEndFrame = Math.max(frame, isPlaybackLoopEnabled(this)
 			? this.loop.endFrame
 			: playRangeStopFrame(this.playRange, frame, this.playbackDurationFrames));
 		this.playbackStartFrame = frame;
@@ -219,9 +220,9 @@ async [ENGINE_SCHEDULE_PLAYBACK](this: EngineRuntimeHost, fromFrame, scheduledTi
 			this[ENGINE_HALT_GRAPH]();
 			return this[ENGINE_SCHEDULE_PLAYBACK](fromFrame, context.currentTime, minimumStartLeadSeconds, onBeforeStart);
 		}
-		if (this.loop.enabled && this.loop.endFrame > this.loop.startFrame
+		if (isPlaybackLoopEnabled(this) && this.loop.endFrame > this.loop.startFrame
 			&& (fromFrame < this.loop.startFrame || fromFrame >= this.loop.endFrame)) fromFrame = this.loop.startFrame;
-		const stopFrame = this.loop.enabled
+		const stopFrame = isPlaybackLoopEnabled(this)
 			? this.loop.endFrame
 			: playRangeStopFrame(this.playRange, fromFrame, this.playbackDurationFrames);
 		this.playEndFrame = Math.max(fromFrame, stopFrame);
@@ -276,9 +277,9 @@ async [ENGINE_SCHEDULE_PLAYBACK](this: EngineRuntimeHost, fromFrame, scheduledTi
 		recordWebCoreStreamPlayback(schedule.streamedClips);
 		scheduledTime = schedule.contextStartTime;
 		this.playbackStartTime = scheduledTime + (this.graph.latencyFrames || 0) / (context.sampleRate || DEFAULT_SAMPLE_RATE);
-		if (!this.loop.enabled) setParallelStackEndFrame(graph, () => Math.round(scheduledTime * context.sampleRate)
+		if (!isPlaybackLoopEnabled(this)) setParallelStackEndFrame(graph, () => Math.round(scheduledTime * context.sampleRate)
 			+ roundScheduledParameterContextFrameOffset(this.playEndFrame, fromFrame, this.sampleRate, context.sampleRate, this.playbackRate, graph.latencyFrames));
-		if (this.loop.enabled && this.loop.endFrame > this.loop.startFrame) {
+		if (isPlaybackLoopEnabled(this) && this.loop.endFrame > this.loop.startFrame) {
 			this.loopScheduleTime = scheduledTime + (this.loop.endFrame - fromFrame) / (this.sampleRate * this.playbackRate);
 			this[ENGINE_SCHEDULE_LOOP_AHEAD]();
 		}
@@ -383,7 +384,7 @@ async [ENGINE_ENSURE_MASTER_LOUDNESS_METER](context) {
 			const frame = this.getPositionFrames();
 			this[ENGINE_EMIT_POSITION](frame);
 			this[ENGINE_EMIT_METERS]();
-			if (!isCutPreviewActive(this) && this.loop.enabled && this.loop.endFrame > this.loop.startFrame) {
+			if (!isCutPreviewActive(this) && isPlaybackLoopEnabled(this) && this.loop.endFrame > this.loop.startFrame) {
 				this[ENGINE_SCHEDULE_LOOP_AHEAD]();
 				return;
 			}
@@ -403,7 +404,7 @@ async [ENGINE_ENSURE_MASTER_LOUDNESS_METER](context) {
 	},
 
 [ENGINE_SCHEDULE_LOOP_AHEAD]() {
-		if (!this.graph || !this.context || !this.project || !this.loop.enabled) return;
+		if (!this.graph || !this.context || !this.project || !isPlaybackLoopEnabled(this)) return;
 		if (this.playbackMode === 'staffpad' || this.playbackMode === 'audio-warp-exact') return;
 		const durationSeconds = (this.loop.endFrame - this.loop.startFrame) / (this.sampleRate * this.playbackRate);
 		if (!(durationSeconds > 0)) return;

@@ -40,6 +40,7 @@ import { TEXT_TO_SPEECH_COPY_BY_LOCALE } from './editor-text-to-speech-copy.ts';
 import { PARALLEL_STACK_COPY_BY_LOCALE } from './editor-parallel-stack-copy.ts';
 import { CLIP_SPREADSHEET_COPY_BY_LOCALE } from './editor-clip-spreadsheet-copy.ts';
 import { ABOUT_DIALOG_COPY_BY_LOCALE } from './editor-about-dialog-copy.ts';
+import { ORIGINAL_FILE_OVERWRITE_COPY_BY_LOCALE } from './editor-original-file-overwrite-copy.ts';
 
 export interface EditorCopyOwner {
 	readonly owner: string;
@@ -114,6 +115,7 @@ const { pressure: pressureEnglish, preflightStatus: preflightEnglish, operation:
 const { pressure: pressureGerman, preflightStatus: preflightGerman, operation: operationGerman,
 	...storageGerman } = STORAGE_CAPACITY_COPY_BY_LOCALE.de;
 const inventory = buildEditorCopyInventory(ENGLISH_COPY, GERMAN_COPY, [
+	{ owner: 'originalFileOverwrite', ...ORIGINAL_FILE_OVERWRITE_COPY_BY_LOCALE },
 	{ owner: 'about', ...ABOUT_DIALOG_COPY_BY_LOCALE },
 	{ owner: 'macroManager', ...MACRO_MANAGER_COPY_BY_LOCALE },
 	{ owner: 'trackAutomation', ...TRACK_AUTOMATION_COPY_BY_LOCALE },

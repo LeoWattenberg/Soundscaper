@@ -22,12 +22,15 @@ export function readProfileForSelectedPath(purpose, filePath) {
 	return acceptsFile(purpose, filePath) ? READ_PROFILE_SELECTED_RANGE_V1 : READ_PROFILE_MATERIALIZED_V1;
 }
 
-export function registerSelectedReadCapability(store, filePath, { owner, purpose } = {}) {
+export function registerSelectedReadCapability(store, filePath, { owner, purpose, originalFiles } = {}) {
 	if (!store || typeof store !== 'object') throw new TypeError('A desktop read capability store is required');
 	if (!acceptsFile(purpose, filePath)) throw new TypeError('The selected file type is not allowed');
 	const profile = readProfileForSelectedPath(purpose, filePath);
-	if (profile === READ_PROFILE_SELECTED_RANGE_V1) return store.registerSelectedRangePath(filePath, { owner });
-	return profile === READ_PROFILE_SCAPE_RANGE_V1
+	const registered = profile === READ_PROFILE_SELECTED_RANGE_V1 ? store.registerSelectedRangePath(filePath, { owner }) : profile === READ_PROFILE_SCAPE_RANGE_V1
 		? store.registerScapeRangePath(filePath, { owner })
 		: store.registerMaterializedPath(filePath, { owner });
+	return originalFiles ? Promise.resolve(registered).then(async (descriptor) => {
+		const originalFile = await originalFiles.registerRead(descriptor.id, { owner });
+		return originalFile ? Object.freeze({ ...descriptor, originalFile }) : descriptor;
+	}) : registered;
 }

@@ -47,7 +47,7 @@ test('explicit requests reject unsupported formats, split exports, sequences, an
 	for (const format of ['wav', 'flac', 'opus', 'ogg-vorbis', 'custom-ffmpeg']) {
 		assert.throws(() => createExportPlan(project, { ...options, format, extension: 'mka', customArguments: ['-c:a', 'aac'] }), /chapter.*format|MP3.*M4A/iu);
 	}
-	for (const mode of ['stems', 'chapters']) {
+	for (const mode of ['stems', 'chapters', 'clips']) {
 		assert.throws(() => createExportPlan(project, { ...options, format: 'mp3', mode }), /chapter.*mix|single.*mix/iu);
 	}
 	assert.throws(() => createExportPlan(project, {

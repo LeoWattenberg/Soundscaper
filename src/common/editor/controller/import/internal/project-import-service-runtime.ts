@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { publishedCopyFor } from '../../shared/presentation-localization.ts'; import { inspectWavContainerSignature, inspectWavForImport } from './wav-import-routing.ts'; import { createLocalizedError, setLocalizedStatus } from '../../../../i18n/presentation-message.ts'; import { publishImportCompletionStatus, type LocalizedImportNotice } from './import-status-localization.ts';
-import { loadImportAdmissionExecution } from './import-admission-loader.ts'; import { attachExternalMedia } from '../../../desktop-external-media.ts';
+import { loadImportAdmissionExecution } from './import-admission-loader.ts'; import { attachExternalMedia } from '../../../desktop-external-media.ts'; import { createDesktopOriginalImportRecorder } from '../../../desktop-overwrite-original.ts';
 import { admitAudioImportChannelCount } from './audio-import-channel-admission.ts';
 import {
 	createImportedAdmPassthroughMetadata,
@@ -347,7 +347,7 @@ export function createProjectImportServiceRuntime(runtime: ProjectImportRuntime)
 		return track;
 	}
 
-	async function importFile(file: RuntimeValue, importOptions: RuntimeValue = normalizeImportOptions(), assertRequestedProjectCurrent?: () => void) {
+	async function importMediaFile(file: RuntimeValue, importOptions: RuntimeValue = normalizeImportOptions(), assertRequestedProjectCurrent?: () => void) {
 		assertRequestedProjectCurrent?.(); const normalizedImportOptions = await normalizedImportOptionsForUse(importOptions); assertRequestedProjectCurrent?.();
 		const linkedOriginalLocator = linkedOriginalLocatorReferenceFromImportOptions(normalizedImportOptions);
 		const legacyFile = isLegacyAupFile(file);
@@ -529,7 +529,6 @@ export function createProjectImportServiceRuntime(runtime: ProjectImportRuntime)
 		warnEnvelope();
 		return importResultWithWarnings(importedResult, wavMetadata.warnings);
 	}
-
 	function requireProject() {
 		const project = getProject();
 		if (!project) throw new Error('Audio import requires an open project.');
@@ -540,6 +539,7 @@ export function createProjectImportServiceRuntime(runtime: ProjectImportRuntime)
 		return prepareImportedWavMetadata({ descriptor, importOptions, project: getProject(),
 			projectSampleRate: projectSampleRate(), copy, freezeImportOptions });
 	}
+	const importFile = createDesktopOriginalImportRecorder({ state, getProject, publishDocumentSnapshot }, importMediaFile);
 	return Object.freeze({
 		importFile,
 		importFiles,

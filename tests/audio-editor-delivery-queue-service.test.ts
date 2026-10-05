@@ -129,7 +129,8 @@ test('the export action group exposes every delivery surface the menus bind to',
 	assert.deepEqual(
 		Object.keys(group).sort(),
 		[
-			'cancel', 'exportEdl', 'exportFcpxml', 'exportOtio', 'presets',
+			'cancel', 'exportEdl', 'exportFcpxml', 'exportOtio', 'originalFile',
+			'overwriteOriginal', 'overwriteOriginalAvailable', 'presets',
 			'previewDeliveryCanvas', 'queue', 'saveReport', 'start',
 		],
 		'a surface missing here is a menu entry bound to undefined',

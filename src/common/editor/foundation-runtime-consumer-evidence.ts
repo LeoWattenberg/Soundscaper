@@ -232,6 +232,18 @@ const entries: FoundationRuntimeConsumerEvidence[] = [
 		evidence: 'Video timeline end navigation replaces the document with its projection before comparing resolved clip endpoints.',
 	},
 	{
+		id: 'audio-clip-export-boundaries', surface: 'audio-export',
+		file: 'src/common/editor/export-clip-boundaries.ts', entryPoint: 'resolveExportClips',
+		inputIdentifier: 'projectValue', projectedIdentifier: 'project', boundary: 'projectForRuntimeConsumers',
+		evidence: 'Individual clip delivery resolves persisted musical and sequence-backed geometry before intersecting each audio clip with the requested export range.',
+	},
+	{
+		id: 'audio-clip-export-snapshot', surface: 'audio-export',
+		file: 'src/common/editor/export-clips.ts', entryPoint: 'createExportClipProject',
+		inputIdentifier: 'projectValue', projectedIdentifier: 'project', boundary: 'projectForRuntimeConsumers',
+		evidence: 'Individual clip snapshots retain resolved clip timing after crossing the shared runtime boundary and preserve projection trust before isolating the chosen clip for rendering.',
+	},
+	{
 		id: 'audio-export-plan',
 		surface: 'audio-export',
 		file: 'src/common/editor/export.js',

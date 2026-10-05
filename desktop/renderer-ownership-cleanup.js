@@ -13,11 +13,12 @@ export class DesktopRendererOwnershipCleanup {
 	#ownership;
 	#projectLibraryIpc;
 	#readCapabilities;
+	#originalFiles;
 	#sesxMediaSessions;
 	#reportError;
 	#saves;
 
-	constructor({ linkedVideoLocators, ownership, projectLibraryIpc, readCapabilities, reportError, revokeAssistanceSemanticSearch, revokeCapture, revokeDesktopCodecs, revokeSoundscaperDelivery, revokeNativeServices, revokeNativeTier, saves, sesxMediaSessions }) {
+	constructor({ linkedVideoLocators, ownership, projectLibraryIpc, readCapabilities, originalFiles, reportError, revokeAssistanceSemanticSearch, revokeCapture, revokeDesktopCodecs, revokeSoundscaperDelivery, revokeNativeServices, revokeNativeTier, saves, sesxMediaSessions }) {
 		this.#revokeCapture = revokeCapture;
 		this.#revokeAssistanceSemanticSearch = revokeAssistanceSemanticSearch;
 		this.#revokeDesktopCodecs = revokeDesktopCodecs;
@@ -28,6 +29,7 @@ export class DesktopRendererOwnershipCleanup {
 		this.#ownership = ownership;
 		this.#projectLibraryIpc = projectLibraryIpc;
 		this.#readCapabilities = readCapabilities;
+		this.#originalFiles = originalFiles;
 		this.#sesxMediaSessions = sesxMediaSessions;
 		this.#reportError = reportError;
 		this.#saves = saves;
@@ -66,6 +68,7 @@ export class DesktopRendererOwnershipCleanup {
 			this.#linkedVideoLocators()?.revokeOwner(owner),
 			this.#projectLibraryIpc()?.revokeOwner(owner),
 			this.#readCapabilities.revokeOwner(owner),
+			this.#originalFiles?.revokeOwner(owner),
 			this.#sesxMediaSessions?.revokeOwner(owner),
 			this.#saves.revokeOwner(owner),
 		]);

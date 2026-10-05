@@ -3,6 +3,8 @@
 import { findStereoLimitedMultichannelRenderEffects } from './adm-render-safety.ts';
 import { planExportOfflineRenderStrategyAdmission } from './export-render-admission.ts';
 import { normalizeLoudnessNormalizationTarget } from './loudness-normalization.ts';
+import { createExportClipProject } from './export-clips.ts';
+import { estimateExportSourceWorkingSetBytes } from './export-source-working-set.ts';
 import { isSoundscaperProductionProject } from './project-schema-version.ts';
 
 /**
@@ -14,14 +16,15 @@ import { isSoundscaperProductionProject } from './project-schema-version.ts';
  */
 
 export function deliversMasterMix(mode) {
-	return mode !== 'stems';
+	return mode !== 'stems' && mode !== 'clips';
 }
 
-export function assertSoundscaperEffectChannelSafety(project, mode) {
+export function assertSoundscaperEffectChannelSafety(project, mode, outputs = []) {
 	if (!isSoundscaperProductionProject(project)) return;
-	const issues = findStereoLimitedMultichannelRenderEffects(project, Number(project.masterChannels), {
+	const targets = mode === 'clips' ? outputs.map((output) => ({ project: createExportClipProject(project, output), trackId: output.trackId })) : [{ project }];
+	const issues = targets.flatMap((target) => findStereoLimitedMultichannelRenderEffects(target.project, Number(project.masterChannels), {
 		includeMaster: deliversMasterMix(mode),
-	});
+	}).filter((issue) => target.trackId == null || issue.scope !== 'track' || issue.targetId === target.trackId));
 	if (!issues.length) return;
 	throw new Error(`Multichannel audio export cannot use effects that change terminal channel width: ${issues
 		.map(({ effectType, scope, targetId, channelCount }) => (
@@ -50,7 +53,9 @@ export function resolveExportLoudnessNormalization(options, { mode, admMetadata,
 		// topology change this slice stops at. Chapters are refused for the same
 		// reason read along the timeline: each one would be gained from its own
 		// measurement, so the split would change the programme's own dynamics.
-		throw new Error(mode === 'chapters'
+		throw new Error(mode === 'clips'
+			? 'Loudness normalization is mix-only; clips require independent measurements.'
+			: mode === 'chapters'
 			? 'Loudness normalization is mix-only; chapters normalized one by one would no longer share the delivery\'s level.'
 			: 'Loudness normalization is mix-only; normalized stems would no longer sum to the normalized mix.');
 	}
@@ -72,10 +77,13 @@ export function selectExportOfflineRenderAdmission({
 	const targets = deliversMasterMix(mode)
 		? [{ trackId: null, includeMaster: true }]
 		: outputs.map(({ trackId }) => ({ trackId, includeMaster: false }));
-	return ranges.flatMap((renderRange) => targets.map((target) => ({ renderRange, target })))
-		.reduce((selected, { renderRange, target }) => {
+	const renders = mode === 'clips'
+		? outputs.map((output) => ({ project: createExportClipProject(project, output), renderRange: output.range, target: { trackId: output.trackId, includeMaster: false } }))
+		: ranges.flatMap((renderRange) => targets.map((target) => ({ project, renderRange, target })));
+	return renders
+		.reduce((selected, { project: renderProject, renderRange, target }) => {
 			const candidate = planExportOfflineRenderStrategyAdmission({
-				project,
+				project: renderProject,
 				rangeStartFrame: renderRange.startFrame,
 				requestedRenderFrames: Math.max(1, renderRange.durationFrames + tailFrames),
 				...(channelCount == null ? {} : { channelCount }),
@@ -85,4 +93,10 @@ export function selectExportOfflineRenderAdmission({
 				? candidate
 				: selected;
 		}, null);
+}
+
+export function estimateExportPlanSourceWorkingSetBytes(project, mode, outputs, ranges) {
+	return mode === 'clips'
+		? Math.max(...outputs.map((output) => estimateExportSourceWorkingSetBytes(createExportClipProject(project, output), [output.range])))
+		: estimateExportSourceWorkingSetBytes(project, ranges);
 }

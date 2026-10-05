@@ -6,8 +6,8 @@
  * The dialog used to ask two questions — a form (one mix or a stem per track)
  * and a range (the project, the selection, the loop) — whose answers only make
  * sense in a few combinations. Here they are one choice, so every option names a
- * whole delivery: the project as one mix, one file per track, one file per
- * label, one file per marker, or one of the sub-ranges the timeline already has.
+ * whole delivery: the project as one mix, one file per track, clip, label, or
+ * marker, or one of the sub-ranges the timeline already has.
  */
 
 type DataRecord = Readonly<Record<string, unknown>>;
@@ -15,7 +15,7 @@ type DataRecord = Readonly<Record<string, unknown>>;
 export type ExportDialogChapterSource = 'labels' | 'markers';
 
 export interface ExportDialogOutputSettings {
-	readonly mode: 'mix' | 'stems' | 'chapters';
+	readonly mode: 'mix' | 'stems' | 'clips' | 'chapters';
 	/** What a chapter split cuts on. Labels and markers are different tools, so the split names its own. */
 	readonly chapterSource: ExportDialogChapterSource;
 	readonly range: 'project' | 'selection' | 'loop';
@@ -31,6 +31,8 @@ export interface ExportDialogOutputOption {
 export interface ExportDialogOutputContext {
 	readonly hasSelection: boolean;
 	readonly hasLoop: boolean;
+	/** Audio clips assigned to audio tracks that the batch would deliver. */
+	readonly audioClipCount: number;
 	/** Chapters a label split would deliver: the labels on the first populated label track. */
 	readonly labelChapterCount: number;
 	/** Chapters a marker split would deliver: the markers and named regions on the timeline. */
@@ -49,10 +51,11 @@ const LABEL_CHAPTERS = 'chapters';
 const MARKER_CHAPTERS = 'marker-chapters';
 
 /** The option the dialog's current settings are already on. */
-export function exportDialogOutputValue(settings: DataRecord): string {
+export function exportDialogOutputValue(settings: DataRecord | ExportDialogOutputSettings): string {
 	const sequenceId = settings.masteringSequenceId;
 	if (typeof sequenceId === 'string' && sequenceId !== '') return `${MASTERING_SEQUENCE_PREFIX}${sequenceId}`;
 	if (settings.mode === 'stems') return 'stems';
+	if (settings.mode === 'clips') return 'clips';
 	if (settings.mode === 'chapters') return settings.chapterSource === 'markers' ? MARKER_CHAPTERS : LABEL_CHAPTERS;
 	if (settings.range === 'selection') return 'selection';
 	if (settings.range === 'loop') return 'loop';
@@ -69,8 +72,8 @@ export function exportDialogOutputSettings(value: string): ExportDialogOutputSet
 			masteringSequenceId: value.slice(MASTERING_SEQUENCE_PREFIX.length),
 		});
 	}
-	if (value === 'stems') {
-		return Object.freeze({ mode: 'stems', chapterSource: 'labels', range: 'project', masteringSequenceId: '' });
+	if (value === 'stems' || value === 'clips') {
+		return Object.freeze({ mode: value, chapterSource: 'labels', range: 'project', masteringSequenceId: '' });
 	}
 	if (value === LABEL_CHAPTERS || value === MARKER_CHAPTERS) {
 		return Object.freeze({
@@ -96,7 +99,7 @@ export function exportDialogOutputSettings(value: string): ExportDialogOutputSet
  * while the request still named the sub-range.
  */
 export function conformExportDialogOutput<Settings extends DataRecord>(settings: Settings): Settings {
-	if (settings.mode !== 'stems' && settings.mode !== 'chapters') return settings;
+	if (settings.mode !== 'stems' && settings.mode !== 'clips' && settings.mode !== 'chapters') return settings;
 	if (settings.range === 'project' && !settings.masteringSequenceId) return settings;
 	return Object.freeze({ ...settings, range: 'project', masteringSequenceId: '' });
 }
@@ -112,6 +115,11 @@ export function exportDialogOutputOptions(
 			value: 'stems',
 			label: text('exportOutputStems', 'Individual stems (split by tracks)'),
 			disabled: context.singleFileOnly,
+		},
+		{
+			value: 'clips',
+			label: text('exportOutputClips', 'Individual clips (split by clips)'),
+			disabled: context.singleFileOnly || context.audioClipCount < 1,
 		},
 		{
 			value: 'loop',

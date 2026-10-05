@@ -30,6 +30,7 @@ import {
 } from '../track-folder-media-runtime.ts';
 import { resolveProjectGraphSelection } from './project-graph-selection.ts';
 import { playbackSessionStart, restorePlaybackSessionStart } from './playback-session.ts';
+import { disposePlaybackFrequencyOutput } from './playback-frequency-range.ts';
 import { resolveRuntimeProjectProjection } from '../runtime-clip-projection.ts';
 import {
 	ENGINE_ASSERT_ACTIVE,
@@ -51,7 +52,6 @@ import type { EngineAudioContext, EngineMeterSnapshot } from './public-api.ts';
 
 export class AudioEditorEngineDisposedError extends Error {
 	readonly code = 'ENGINE_DISPOSED';
-
 	constructor() {
 		super('The audio editor engine has been disposed.');
 		this.name = 'AudioEditorEngineDisposedError';
@@ -493,6 +493,7 @@ async [ENGINE_DISPOSE_RESOURCES]() {
 		this.masterLoudnessMeterPromise = null;
 		this.latestMasterLoudnessMeter = null;
 		this.masterLoudnessMeterError = null;
+		disposePlaybackFrequencyOutput(this);
 		this.playbackOutputNode?.disconnect();
 		this.playbackOutputNode = null;
 		this.playbackOutputDestination = null;
@@ -505,7 +506,6 @@ async [ENGINE_DISPOSE_RESOURCES]() {
 			this.chunkStreamClient = null;
 		}
 	},
-
 async [ENGINE_GET_CONTEXT]() {
 		this[ENGINE_ASSERT_ACTIVE]();
 		if (this.context) return this.context;

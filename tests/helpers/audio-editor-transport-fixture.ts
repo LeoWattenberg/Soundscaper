@@ -7,7 +7,7 @@ export function createTransportFixture() {
 		id: string;
 		schemaVersion: number;
 		sampleRate: number;
-		selection: { startFrame: number; endFrame: number; trackIds: string[]; clipIds: string[] } | null;
+		selection: { startFrame: number; endFrame: number; trackIds: string[]; clipIds: string[]; frequencyRange?: unknown } | null;
 		loop: { enabled: boolean; startFrame: number; endFrame: number } | null;
 		tempo: { bpm: number; timeSignature: { numerator: number } };
 		tempoMap: {
@@ -40,6 +40,7 @@ export function createTransportFixture() {
 	let beginPreparation: (snapshot: TestProject, options?: { abortController?: AbortController }) => Promise<void>
 		= async () => undefined;
 	let audioContext: unknown = null;
+	let stopPreview: () => Promise<void> = async () => undefined;
 	const state = {
 		playAtSpeedRate: 1,
 		playAtSpeedAbort: null as AbortController | null,
@@ -153,6 +154,7 @@ export function createTransportFixture() {
 			playAtSpeedPreparing: 'Preparing',
 			playAtSpeedPlaying: 'Playing at {rate}',
 			timeSelectionRequired: 'Select time',
+			spectralSelectionRequired: 'Select frequencies',
 			timelineFramesFinite: 'Frames must be finite.',
 		},
 		editorTimelineDurationFrames: () => 1_200,
@@ -177,7 +179,7 @@ export function createTransportFixture() {
 		setStatus: (...args: unknown[]) => { calls.statuses.push(args); },
 		startRecording: () => { calls.recordStarts += 1; return 'recording-started'; },
 		state,
-		stopProjectBinPreview: async () => { calls.previewStops += 1; state.projectBinPreview = null; },
+		stopProjectBinPreview: async () => { calls.previewStops += 1; await stopPreview(); state.projectBinPreview = null; },
 		stopRecording: () => { calls.recordStops += 1; return 'recording-stopped'; },
 		throwIfAborted: (signal: AbortSignal) => {
 			if (signal.aborted) throw Object.assign(new Error('Aborted'), { name: 'AbortError' });
@@ -195,6 +197,7 @@ export function createTransportFixture() {
 		setMissingSources(value: boolean) { missingSources = value; },
 		setBeginPreparation(value: typeof beginPreparation) { beginPreparation = value; },
 		setAudioContext(value: unknown) { audioContext = value; },
+		setStopPreview(value: typeof stopPreview) { stopPreview = value; },
 		setPositionFrame(value: number) { positionFrame = value; },
 		playRange: () => playRange,
 	};

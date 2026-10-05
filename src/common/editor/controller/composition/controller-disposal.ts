@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { EDITOR_PROJECT_CHANGED_CODE, type EditorControllerLifetime, type EditorControllerPhase } from '../shared/lifecycle.ts';
+import { resetDesktopOriginal } from '../../desktop-overwrite-original.ts';
 
 type Cleanup = () => unknown;
 interface DisposalState {
@@ -83,6 +84,7 @@ export function createControllerDisposal(d: ControllerDisposalDependencies): Con
 	let sourceRetirementBlocked = false;
 	let storeCloseBlocked = false;
 	const beginDisposal = (): void => {
+		resetDesktopOriginal(d.state);
 		d.lifetime.beginDisposal();
 		d.state.disposed = true;
 		d.state.phase = d.lifetime.phase;

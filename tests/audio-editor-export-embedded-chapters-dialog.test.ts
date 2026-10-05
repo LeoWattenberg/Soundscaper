@@ -30,6 +30,7 @@ test('the dialog attaches embedded chapters only for an opted-in supported mixed
 		{ ...chosen, format: 'video-mp4' },
 		{ ...chosen, mode: 'stems' },
 		{ ...chosen, mode: 'chapters' },
+		{ ...chosen, mode: 'clips' },
 		{ ...chosen, masteringSequenceId: 'album' },
 	]) {
 		assert.equal(Object.hasOwn(createExportDialogRequest(settings), 'embedLabelChapters'), false);

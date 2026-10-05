@@ -33,6 +33,7 @@ const REFERENCE_SEEDS: readonly ReferenceSeed[] = Object.freeze([
 	['cancel-switch-product-to-soundscaper', 'Cancel: Edit in Soundscaper', 'File', FRAMESCAPER],
 	['delivery-queue', 'Delivery queue', 'File', BOTH],
 	['delivery-report', 'Delivery Report', 'File', BOTH],
+	['overwrite-original-file', 'Overwrite original file', 'File', BOTH],
 	['save-aup3', 'Export AUP3', 'File > Export other', SOUNDSCAPER],
 	['save-aup4', 'Export AUP4', 'File > Export other', SOUNDSCAPER],
 	['export-edl', 'Export edit list (EDL)', 'File > Export other', BOTH],
@@ -50,6 +51,7 @@ const REFERENCE_SEEDS: readonly ReferenceSeed[] = Object.freeze([
 	['delete-project', 'Delete project', 'File > Project management', BOTH],
 	['clear-data', 'Clear all local editor data', 'File > Project management', BOTH],
 	['window-project', 'Open project', 'Window', BOTH, 'setting'],
+	['play-spectral-selection', 'Play selected frequencies', 'Select > Spectral', SOUNDSCAPER],
 
 	// Framescaper's selected-clip application-menu operations.
 	['trim-left-edge-to-playhead', 'Trim left edge to playhead', 'Edit > Audio clips', FRAMESCAPER],

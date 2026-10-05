@@ -188,7 +188,7 @@ export class ReadCapabilityStore {
 	 * helper-process grant. Neither this method nor its result may ever cross
 	 * IPC — the renderer keeps addressing media by opaque capability id only.
 	 */
-	async resolveHelperGrant(id, { owner } = {}) {
+	async resolveHelperGrant(id, { owner = /** @type {object | undefined} */ (undefined), fullIdentity = false } = {}) {
 		requireReadCapabilityOwner(owner);
 		const entry = this.#liveEntry(String(id || ''));
 		if (!entry || entry.owner !== owner) return null;
@@ -198,7 +198,7 @@ export class ReadCapabilityStore {
 		return Object.freeze({
 			path: entry.path,
 			size: safeReadFileSize(details.size),
-			identity: Object.freeze({ dev: details.dev, ino: details.ino }),
+			identity: fullIdentity ? entry.fileIdentity : Object.freeze({ dev: details.dev, ino: details.ino }),
 		});
 	}
 
@@ -309,7 +309,7 @@ export class ReadCapabilityStore {
 				handle,
 				owner,
 				state,
-				name,
+				name, fileIdentity: Object.freeze({ dev: details.dev, ino: details.ino, size: details.size, mtimeMs: details.mtimeMs, ctimeMs: details.ctimeMs }),
 				size,
 				mimeType: mimeType || mimeTypeForPath(filePath),
 				readProfile,

@@ -9,6 +9,7 @@ import { installEngineMethodMaps } from './method-installer.ts';
 import { engineRenderingMethods } from './rendering.ts';
 import { engineNativeEffectPdcControlMethods } from './native-effect-pdc-control.ts';
 import { enginePlaybackOutputMethods } from './playback-output.ts';
+import { enginePlaybackFrequencyMethods } from './playback-frequency-range.ts';
 import { enginePlaybackGraphLatencyMethods } from './playback-graph-latency.ts';
 import { enginePlaybackFailureMethods } from './playback-stream-failure.ts';
 import { enginePlaybackSessionMethods } from './playback-session.ts';
@@ -33,6 +34,7 @@ export const ENGINE_PUBLIC_METHOD_NAMES = [
 	'getOutputDeviceState',
 	'setPlaybackGain',
 	'getPlaybackGain',
+	'setPlaybackFrequencyRange',
 	'play',
 	'playCutPreview',
 	'playAtSpeed',
@@ -84,6 +86,7 @@ export function installEngineRuntimeMethods(target: object): void {
 	installEngineMethodMaps(target, [
 		engineLifecycleMethods,
 		enginePlaybackOutputMethods,
+		enginePlaybackFrequencyMethods,
 		enginePlaybackGraphLatencyMethods,
 		enginePlaybackFailureMethods,
 		engineTransportControlMethods,

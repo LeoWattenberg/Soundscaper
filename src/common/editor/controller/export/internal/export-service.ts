@@ -424,7 +424,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 				purpose: 'audio',
 				suggestedName: fileName,
 				mimeType: blob.type || 'application/octet-stream',
-				blob,
+				blob, target: requestedSettings?.saveTarget,
 			});
 			if (abort.signal.aborted || generation !== state.exportGeneration || state.disposed) {
 				await published.cleanup?.();

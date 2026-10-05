@@ -20,7 +20,7 @@ import {
 	APP_SCHEME,
 	DECLARED_APPLICATION_VERSION,
 	EXTERNAL_DESTINATIONS, FRAMESCAPER_WEB_VCR_ENABLED,
-	IPC,
+	IPC, MAX_READ_CAPABILITIES_PER_OWNER,
 	PRODUCT_ID, RELEASE_CHANNEL,
 	SESSION_PARTITION,
 	SUPPORTED_LOCALES,
@@ -37,13 +37,13 @@ import { disposeDesktopNativeTier, registerDesktopNativeTier, revokeDesktopNativ
 import { registerHostAffordances } from './host-affordances.mjs';
 import { registerExternalFfmpegPreferences } from './external-ffmpeg-registration.mjs';
 import { registerDesktopCodecProviders } from './desktop-codec-main-integration.mjs';
-import { ReadCapabilityStore } from './file-capabilities.js';
+import { ReadCapabilityStore } from './file-capabilities.js'; import { cleanReadCapabilityDisplayName } from './read-capability-support.js';
 import {
 	createPendingProjectDelivery, PendingProjectQueue, extractProjectPaths,
 	OPENABLE_PROJECT_EXTENSIONS,
 } from './file-associations.js';
 import { registerSelectedReadCapability } from './read-selection-service.js';
-import { registerFileCapabilityIpc } from './main-file-capability-ipc.mjs'; import { SesxMediaSessionStore } from './sesx-media-session.mjs'; import { registerExternalMediaIpc } from './project-library-runtime/desktop/external-media-ipc.js';
+import { registerFileCapabilityIpc } from './main-file-capability-ipc.mjs'; import { SesxMediaSessionStore } from './sesx-media-session.mjs'; import { registerExternalMediaIpc } from './project-library-runtime/desktop/external-media-ipc.js'; import { OriginalFileOverwriteStore } from './project-library-runtime/desktop/original-file-overwrite.js';
 import { createProtocolHandler, registerAppScheme } from './protocol.js'; import { createDesktopFreesoundIntegration } from './freesound-integration.js';
 import { createDesktopSmokeProbe } from './desktop-smoke.js';
 import { createDesktopNightlyTestsWindow } from './nightly-tests-window.mjs';
@@ -71,7 +71,7 @@ import {
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SOAK_DEBUG_ENABLED = PRODUCT_ID === 'soundscaper' && soakDebugProcessMetricsEnabled(process.argv); const dialog = createSoakDebugDialog(electronDialog, SOAK_DEBUG_ENABLED ? process.argv : []); const checkpointSoakMainCoverage = createSoakDebugMainCoverageCheckpoint(takeCoverage); const exitWithCoverage = (code) => exitAfterCoverageCheckpoint({ checkpoint: takeCoverage, exit: (exitCode) => app.exit(exitCode), reportError: (error) => console.error('Desktop V8 coverage checkpoint failed:', cleanError(error)) }, code);
 const readCapabilities = new ReadCapabilityStore({ confirmFileSizeWarning: createDesktopSaveSizeWarningConfirmation((options) => dialog.showMessageBox(options), 'loading') });
-const saveTargets = new SaveTargetStore();
+const saveTargets = new SaveTargetStore(); const originalFiles = new OriginalFileOverwriteStore({ reads: readCapabilities, targets: saveTargets, acceptsFile, cleanDisplayName: cleanReadCapabilityDisplayName, maximumCount: MAX_READ_CAPABILITIES_PER_OWNER });
 const saves = new AtomicSaveManager({ targets: saveTargets, confirmFileSizeWarning: createDesktopSaveSizeWarningConfirmation((options) => dialog.showMessageBox(options)) });
 if (DECLARED_APPLICATION_VERSION !== null && app.getVersion() !== DECLARED_APPLICATION_VERSION) throw new Error('Packaged application version does not match its selected product release line.');
 const rendererSaveOwnership = new RendererSaveOwnership();
@@ -93,7 +93,7 @@ const rendererOwnershipCleanup = new DesktopRendererOwnershipCleanup({
 	linkedVideoLocators: () => linkedVideoLocators,
 	ownership: rendererSaveOwnership,
 	projectLibraryIpc: () => projectLibraryIpc,
-	readCapabilities, sesxMediaSessions,
+	readCapabilities, originalFiles, sesxMediaSessions,
 	reportError: (error) => console.error('Desktop renderer ownership cleanup failed:', cleanError(error)),
 	saves,
 });
@@ -101,7 +101,7 @@ const pendingOpenProjects = new PendingProjectQueue(createPendingProjectDelivery
 	isReady: () => rendererReady && mainWindow && !mainWindow.isDestroyed(),
 	currentOwner: () => rendererSaveOwnership.currentOwnerFor(mainWindow.webContents),
 	isOwnerCurrent: isRendererSaveOwnerCurrent,
-	register: (filePath, owner) => registerSelectedReadCapability(readCapabilities, filePath, { owner, purpose: 'project' }),
+	register: (filePath, owner) => registerSelectedReadCapability(readCapabilities, filePath, { owner, purpose: 'project', originalFiles }),
 	release: (id, owner) => readCapabilities.release(id, { owner }),
 	send: (descriptor) => {
 		desktopSmokeProbe.observeProjectDescriptor(descriptor, (id) => readCapabilities.get(id));
@@ -119,7 +119,7 @@ const applicationShutdown = new DesktopApplicationShutdown({
 		{ name: 'linked-video locators', run: () => linkedVideoLocators?.dispose() },
 		{ name: 'native tier', run: () => disposeDesktopNativeTier(nativeTier) },
 		{ name: 'assistance semantic search', run: () => assistanceSemanticSearch?.dispose() }, { name: 'assistance', run: () => assistance?.dispose() },
-		{ name: 'read capabilities', run: () => readCapabilities.dispose() }, { name: 'SESX media sessions', run: () => sesxMediaSessions.dispose() },
+		{ name: 'read capabilities', run: () => readCapabilities.dispose() }, { name: 'original files', run: () => originalFiles.dispose() }, { name: 'SESX media sessions', run: () => sesxMediaSessions.dispose() },
 		{ name: 'save sessions', run: () => saves.dispose() },
 	],
 	exit: exitWithCoverage,
@@ -387,7 +387,7 @@ async function registerIpcHandlers(desktopSession) {
 	if (SOAK_DEBUG_ENABLED) { handle(IPC.soakDebugProcessMetrics, () => collectSoakDebugProcessMetrics(app)); handle(IPC.soakDebugCoverageCheckpoint, checkpointSoakMainCoverage); }
 	registerFileCapabilityIpc({
 		channels: IPC, desktopSmokeProbe, dialog, handle, opaqueId, ownerFor: rendererSaveOwnerFor,
-		pendingOpenProjects, readCapabilities, saves, saveTargets, sesxMediaSessions, windowFor: () => mainWindow,
+		pendingOpenProjects, readCapabilities, saves, saveTargets, originalFiles, sesxMediaSessions, windowFor: () => mainWindow,
 	});
 	registerExternalMediaIpc({ channels: IPC, handle, ownerFor: rendererSaveOwnerFor, readCapabilities, acceptsFile }); handle(IPC.setLocale, async (_event, value) => {
 		const locale = validateLocale(value);

@@ -12,6 +12,7 @@ import { confirmClockedPlaybackStart, type ClockedPlaybackStartHook } from './cl
 import { clampFrame, playRangeStopFrame } from './buffer-math.ts';
 import { createAnalyser } from './effect-rack.ts';
 import { playbackOutputDestination } from './playback-output.ts';
+import { isPlaybackLoopEnabled } from './playback-frequency-range.ts';
 import type { ProjectGraph } from './project-graph.ts';
 import { ScheduledParameterRegistry } from './scheduled-parameter-registry.ts';
 import {
@@ -65,7 +66,7 @@ export async function scheduleExactWarpPlayback(
 	}
 	const graph = exactGraph(nodes, masterAnalyser);
 	engine.graph = graph;
-	engine.playEndFrame = engine.loop.enabled
+	engine.playEndFrame = isPlaybackLoopEnabled(engine)
 		? engine.loop.endFrame
 		: playRangeStopFrame(engine.playRange, frame, engine.durationFrames);
 	engine.playbackStartFrame = frame;
@@ -96,7 +97,7 @@ async function exactWindowAt(
 	fromFrame: number,
 ): Promise<PreparedAudioWarpPlayback | null> {
 	if (fromFrame >= prepared.startFrame && fromFrame < prepared.endFrame) return prepared;
-	const boundary = engine.loop.enabled ? engine.loop.endFrame : engine.durationFrames;
+	const boundary = isPlaybackLoopEnabled(engine) ? engine.loop.endFrame : engine.durationFrames;
 	const requestedFrame = clampFrame(fromFrame, 0, engine.durationFrames);
 	if (requestedFrame >= boundary) {
 		engine[ENGINE_HALT_GRAPH]();
@@ -128,7 +129,7 @@ async function scheduleWindow(
 		|| playbackOutputDestination(
 			engine, context, soundscaperNativeAudioDestination(context, context.destination),
 		));
-	const wholeLoop = engine.loop.enabled
+	const wholeLoop = isPlaybackLoopEnabled(engine)
 		&& prepared.startFrame === engine.loop.startFrame
 		&& prepared.endFrame === engine.loop.endFrame
 		&& offsetFrames === 0;
@@ -187,10 +188,10 @@ async function prepareFollowingWindow(
 	requestedTime: number,
 ): Promise<ScheduledExactWarpWindow | null> {
 	if (!engine.context || !engine.project || engine.graph !== graph || graph.abortController.signal.aborted) return null;
-	const boundary = engine.loop.enabled ? engine.loop.endFrame : engine.durationFrames;
+	const boundary = isPlaybackLoopEnabled(engine) ? engine.loop.endFrame : engine.durationFrames;
 	const nextStart = prepared.endFrame < boundary
 		? prepared.endFrame
-		: engine.loop.enabled ? engine.loop.startFrame : null;
+		: isPlaybackLoopEnabled(engine) ? engine.loop.startFrame : null;
 	if (nextStart === null || nextStart >= boundary) return null;
 	const next = await prepareExactAudioWarpPlayback(
 		engine,

@@ -114,6 +114,27 @@ changes that can be undone while history is available.
 Use the playback meter and loudness analysis to inspect the result. Avoid
 treating a meter target as a substitute for listening to the complete export.
 
+### Listen to selected frequencies {#listen-to-selected-frequencies}
+
+Select the passage you want to hear. Choose **Track visualization → Spectrogram**
+from its track menu, then open **Spectrogram options → Select spectral frequency
+range**. Enter the minimum and maximum frequencies and choose **Select range**,
+or adjust the selection handles in the spectrogram.
+
+Choose **Play options → Play selected frequencies**, or **Select → Spectral →
+Play selected frequencies**. The selected time range plays once at normal speed,
+even if you previously chose another playback speed or enabled looping. The
+listening filter applies to the current mix, including mute, solo, gain, and
+effects settings. A spectral rectangle identifies the frequency band and time
+range; it does not solo its track. If playback is already running, the command
+pauses it; choose the command again to begin the frequency audition.
+
+The real-time frequency filters have tapered edges. Frequencies
+outside the band become quieter, and frequencies near its boundaries may also
+become quieter. **Pause** or **Stop** clears the filter, so the next regular
+playback uses the full frequency range. Audio, selections, undo history, and
+exported files stay unchanged.
+
 ### Reduce sibilance {#reduce-sibilance}
 
 Choose **Effect → Noise removal and repair → De-esser**. Set **Frequency** near
@@ -164,6 +185,21 @@ labels behind.
 Choose **File → Export audio** for a mixed delivery or **Export selected audio**
 when only a selection should be rendered. Soundscaper can also export stems and
 labels.
+
+### Export clips as separate files {#export-clips}
+
+Choose **File → Export audio** and set **Output** to **Individual clips (split
+by clips)**. Choose an audio format and press **Export** to download an archive
+containing one file for every audio clip across the project's audio tracks.
+Each file starts at the clip's audible beginning and ends at its audible end,
+without padding it to the project timeline or adding an effect tail. Trims,
+clip gain, fades, speed, and pitch edits are included. Overlapping clips stay
+separate.
+
+Files use the clip names with numbered prefixes. Unsupported filename
+characters are replaced, and the numbers keep repeated clip names distinct.
+Track effects are included; master effects, mute, and solo do not affect this
+export. Unfreeze frozen tracks first to export their editable clips individually.
 
 Compressed formats use the FFmpeg runtime. Exact formats and conditional
 availability are listed in the [generated format reference](/reference/).

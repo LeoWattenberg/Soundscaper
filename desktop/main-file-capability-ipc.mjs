@@ -5,6 +5,14 @@ import { redispatchPendingProjectsAfterReadRelease } from './file-associations.j
 import { registerSelectedReadCapability } from './read-selection-service.js';
 import { acceptsFile, validateFileChoice, validateSaveChoice } from './validation.js';
 
+/** @typedef {{id: string, name: string}} OriginalFileDescriptor */
+/**
+ * @typedef {object} OriginalFileCapabilityService
+ * @property {(id: string, options: {owner: object}) => Promise<OriginalFileDescriptor | null>} registerRead
+ * @property {(id: string, options: {owner: object}) => Promise<OriginalFileDescriptor>} prepare
+ * @property {(id: string, options: {owner: object}) => boolean} release
+ */
+
 // Save purposes that write a project rather than exporting something out of one.
 const SAVE_DIALOG_TITLES = new Map([
 	['project', 'Save project'],
@@ -23,7 +31,7 @@ const SAVE_DIALOG_TITLES = new Map([
  */
 export function registerFileCapabilityIpc({
 	channels, desktopSmokeProbe, dialog, handle, opaqueId, ownerFor, pendingOpenProjects,
-	readCapabilities, saves, saveTargets, sesxMediaSessions = null, windowFor,
+	readCapabilities, saves, saveTargets, originalFiles = /** @type {OriginalFileCapabilityService | null} */ (null), sesxMediaSessions = null, windowFor,
 }) {
 	async function chooseFiles(event, value) {
 		const owner = ownerFor(event);
@@ -39,12 +47,13 @@ export function registerFileCapabilityIpc({
 		try {
 			for (const filePath of result.filePaths) {
 				if (!acceptsFile(choice.purpose, filePath)) throw new TypeError('The selected file type is not allowed');
-				const descriptor = await registerSelectedReadCapability(readCapabilities, filePath, { owner, purpose: choice.purpose });
+				const descriptor = await registerSelectedReadCapability(readCapabilities, filePath, { owner, purpose: choice.purpose, originalFiles });
 				descriptors.push(descriptor);
 				if (choice.purpose === 'project' && /\.sesx$/iu.test(filePath)) await sesxMediaSessions?.registerSelection(descriptor.id, filePath, { owner });
 			}
 			return descriptors;
 		} catch (error) {
+			for (const descriptor of descriptors) if (descriptor.originalFile) originalFiles?.release(descriptor.originalFile.id, { owner });
 			for (const descriptor of descriptors) sesxMediaSessions?.release(descriptor.id, { owner });
 			await throwAfterReadCapabilityRollback(readCapabilities, descriptors, owner, error);
 		}
@@ -84,6 +93,10 @@ export function registerFileCapabilityIpc({
 		handle(channels.sesxReleaseSession, (event, id) => sesxMediaSessions.release(opaqueId(id, 64), { owner: ownerFor(event) }));
 	}
 	handle(channels.chooseSaveTarget, (event, value) => chooseSaveTarget(event, value));
+	if (originalFiles) {
+		handle(channels.prepareOriginalOverwrite, (event, id) => originalFiles.prepare(opaqueId(id, 48), { owner: ownerFor(event) }));
+		handle(channels.releaseOriginalFile, (event, id) => originalFiles.release(opaqueId(id, 48), { owner: ownerFor(event) }));
+	}
 	handle(channels.beginWrite, (event, value) => saves.begin({
 		owner: ownerFor(event),
 		targetId: opaqueId(value?.targetId, 48),

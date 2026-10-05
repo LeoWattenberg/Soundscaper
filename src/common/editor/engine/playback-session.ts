@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { clampFrame } from './buffer-math.ts';
+import { resetPlaybackFrequencyRange } from './playback-frequency-range.ts';
 import { ENGINE_ASSERT_ACTIVE, ENGINE_CANCEL_SCRUB, ENGINE_EMIT_POSITION, ENGINE_HALT_GRAPH, ENGINE_SET_STATE } from './runtime-symbols.ts';
 import type { EngineRuntimeHost, EngineRuntimeMethodMap } from './runtime-types.ts';
 
@@ -33,6 +34,7 @@ export const enginePlaybackSessionMethods = {
 		this[ENGINE_EMIT_POSITION]();
 	},
 	[ENGINE_SET_STATE](value) {
+		if (value !== 'playing') resetPlaybackFrequencyRange(this);
 		if (value === 'playing' && !sessionStarts.has(this)) sessionStarts.set(this, this.playbackStartFrame);
 		else if (value !== 'playing' && value !== 'paused') resetPlaybackSession(this);
 		if (this.state === value) return;

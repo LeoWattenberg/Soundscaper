@@ -19,12 +19,11 @@ import { releaseDownloadObjectUrl } from './object-url-revoke.ts';
 import { createDesktopLinkedVideoOriginalAccess } from './storage/desktop-linked-video-original-port.ts';
 import { bindSoundscaperPersistentDeliverySave } from './soundscaper-persistent-delivery-save-target.ts';
 import { createDesktopExternalMediaFiles } from './desktop-external-media-files.ts';
-
+import { registerDesktopOriginalFile, withDesktopOriginalReadCleanup } from './desktop-original-file-port.ts';
 const DEFAULT_WRITE_CHUNK_BYTES = 1024 * 1024;
 const NEVER_ABORTED_READ_SIGNAL = new AbortController().signal;
 const FRAMESCAPER_DESKTOP_BRIDGE_ENABLED = typeof __SCAPE_PRODUCT__ === 'undefined'
 	|| __SCAPE_PRODUCT__ === 'framescaper';
-
 export function resolveAudioEditorDesktopBridge(scope = globalThis) {
 	const bridge = scope?.window?.scapeDesktop?.v1 || scope?.scapeDesktop?.v1
 		|| scope?.window?.soundscaperDesktop?.v1 || scope?.soundscaperDesktop?.v1
@@ -33,7 +32,6 @@ export function resolveAudioEditorDesktopBridge(scope = globalThis) {
 			: null);
 	return bridge && typeof bridge === 'object' ? bridge : null;
 }
-
 export function createAudioEditorFileService(options = {}) {
 	const scope = options.scope || globalThis;
 	const bridge = options.bridge === undefined ? resolveAudioEditorDesktopBridge(scope) : options.bridge;
@@ -43,6 +41,7 @@ export function createAudioEditorFileService(options = {}) {
 	const setTimer = options.setTimeout || scope.setTimeout?.bind(scope);
 	const isDesktop = Boolean(bridge);
 	const externalMediaFiles = createDesktopExternalMediaFiles(bridge, fetchFile);
+	const registerOriginal = (file, descriptor) => registerDesktopOriginalFile(file, descriptor.originalFile, (id) => bridge?.releaseOriginalFile?.(id));
 	const nativeTierControlsAvailable = typeof bridge?.readNativeTierControls === 'function'
 		&& typeof bridge?.applyNativeTierControl === 'function';
 	const readMaximumBytes = desktopReadMaximum(options.readMaximumBytes);
@@ -60,10 +59,12 @@ export function createAudioEditorFileService(options = {}) {
 		linkedVideoOriginals.port,
 		linkedOriginals.port,
 	);
-
 	return Object.freeze({
 		kind: isDesktop ? 'desktop' : 'browser',
 		isDesktop,
+		originalOverwriteAvailable: typeof bridge?.prepareOriginalOverwrite === 'function',
+		prepareOriginalOverwrite: async (id) => { const target = await bridge?.prepareOriginalOverwrite?.(id); return target ? Object.freeze({ ...target, originalOverwrite: true }) : null; },
+		releaseOriginalFile: (id) => bridge?.releaseOriginalFile?.(id),
 		externalMediaResolver: externalMediaFiles.resolve, captureExternalMediaFile: (file) => externalMediaFiles.capture(file),
 		bridge,
 		helperTimingProbe: createDesktopHelperVideoTimingProbe({ bridge }),
@@ -129,7 +130,6 @@ export function createAudioEditorFileService(options = {}) {
 		onCloseRequested: (listener) => subscribeBridgeEvent(bridge, 'onCloseRequested', listener),
 		onWindowStateChanged: (listener) => subscribeBridgeEvent(bridge, 'onWindowStateChanged', listener),
 	});
-
 	async function chooseFiles(request = {}) {
 		if (!bridge?.chooseFiles) return [];
 		const descriptors = await bridge.chooseFiles({
@@ -138,26 +138,24 @@ export function createAudioEditorFileService(options = {}) {
 		});
 		return Array.isArray(descriptors) ? descriptors.filter(isReadDescriptor) : [];
 	}
-
 	async function openReadDescriptor(descriptor, request = {}) {
 		const FileConstructor = scope.File || globalThis.File;
 		if (typeof FileConstructor === 'function' && descriptor instanceof FileConstructor) {
 			throwIfAborted(request.signal);
 			return descriptor;
 		}
-		return withReadCleanup(uniqueReadIds([descriptor]), releaseRead, async () => {
+		return withDesktopOriginalReadCleanup([descriptor], bridge?.releaseOriginalFile?.bind(bridge), () => withReadCleanup(uniqueReadIds([descriptor]), releaseRead, async () => {
 			if (!isReadDescriptor(descriptor)) throw new TypeError('A valid desktop read descriptor is required.');
 			assertDesktopMaterializedReadProfile(descriptor);
 			const blob = await materializeReadDescriptor(descriptor, request.signal);
-			const file = createNamedFile(blob, descriptor, scope); await externalMediaFiles.capture(file, descriptor.id); return file;
-		});
+			const file = createNamedFile(blob, descriptor, scope); registerOriginal(file, descriptor); await externalMediaFiles.capture(file, descriptor.id); return file;
+		}), false);
 	}
-
 	async function withReadDescriptors(descriptors, request = {}, consume) {
 		if (!Array.isArray(descriptors)) throw new TypeError('Desktop read descriptors must be an array.');
 		if (typeof consume !== 'function') throw new TypeError('A desktop read consumer is required.');
 		const readIds = uniqueReadIds(descriptors);
-		return withReadCleanup(readIds, releaseRead, async () => {
+		return withDesktopOriginalReadCleanup(descriptors, bridge?.releaseOriginalFile?.bind(bridge), () => withReadCleanup(readIds, releaseRead, async () => {
 			let aggregateBytes = 0;
 			for (const descriptor of descriptors) {
 				if (!isReadDescriptor(descriptor)) throw new TypeError('A valid desktop read descriptor is required.');
@@ -184,11 +182,10 @@ export function createAudioEditorFileService(options = {}) {
 					files.push(createNamedFile(blob, descriptor, scope));
 				}
 			}
-			try { for (const [index, file] of files.entries()) await externalMediaFiles.capture(file, descriptors[index].id); return await consume(Object.freeze(files)); }
+			try { for (const [index, file] of files.entries()) { registerOriginal(file, descriptors[index]); await externalMediaFiles.capture(file, descriptors[index].id); } return await consume(Object.freeze(files)); }
 			finally { for (const file of files) { audioRanges?.retireDesktopAudioRangeBlob(file); selectedRanges?.retireDesktopSelectedRangeBlob(file); } }
-		});
+		}));
 	}
-
 	async function withScapeReadDescriptor(descriptor, request = {}, consume) {
 		const readIds = uniqueReadIds([descriptor]);
 		return withReadCleanup(readIds, releaseRead, async () => {
@@ -205,7 +202,6 @@ export function createAudioEditorFileService(options = {}) {
 			return consume(source);
 		});
 	}
-
 	async function materializeReadDescriptor(descriptor, signal) {
 		if (typeof fetchFile !== 'function') throw new Error('Desktop file reads are unavailable.');
 		return materializeDesktopReadBlob(descriptor, {
@@ -243,7 +239,7 @@ export function createAudioEditorFileService(options = {}) {
 	async function writeFile(target, input, request = {}) {
 		throwIfAborted(request.signal);
 		const blob = toBlob(input, request.mimeType);
-		const fileName = sanitizeSuggestedName(request.suggestedName || request.fileName || target?.name);
+		const fileName = sanitizeSuggestedName(target?.originalOverwrite ? target.name : request.suggestedName || request.fileName || target?.name);
 		if (!target) return { cancelled: true, fileName, size: blob.size };
 		if (bridge) return writeDesktopFile(target, blob, fileName, request.signal, request.onProgress);
 		if (typeof target.createWritable === 'function') return writeFileSystemHandle(target, blob, fileName, request.signal);
@@ -252,7 +248,7 @@ export function createAudioEditorFileService(options = {}) {
 
 	async function prepareSave(request = {}) {
 		throwIfAborted(request.signal);
-		const fileName = sanitizeSuggestedName(request.suggestedName || request.fileName);
+		const fileName = sanitizeSuggestedName(request.target?.originalOverwrite ? request.target.name : request.suggestedName || request.fileName);
 		let target = request.target;
 		if (target === undefined) {
 			try {

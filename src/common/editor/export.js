@@ -24,15 +24,17 @@ import { createRiffAnnotationExport } from './timeline-annotation-riff-interchan
 import { resolveBinauralDelivery } from './binaural-delivery.ts';
 import { resolveExportChapters } from './export-chapters.ts';
 import { assertEmbeddedChapterRequest, createEmbeddedChapterEncoding } from './export-embedded-chapter-encoding.ts';
+import { resolveExportClips } from './export-clip-boundaries.ts';
 import { resolveMasteringSequenceExport } from './mastering-sequence-export.ts';
 import {
 	assertSoundscaperEffectChannelSafety,
 	deliversMasterMix,
 	resolveExportLoudnessNormalization,
 	selectExportOfflineRenderAdmission,
+	estimateExportPlanSourceWorkingSetBytes,
 } from './export-plan-admission.js';
+import { inheritTrackFolderMediaStateProjectionV12 } from './track-folder-media-runtime.ts';
 import { scaleSampleFrame } from './timeline-time.ts';
-import { estimateExportSourceWorkingSetBytes } from './export-source-working-set.ts';
 
 export const FAST_RENDER_THRESHOLDS = Object.freeze({
 	mobile: { outputBytes: 96 * 1024 ** 2, totalBytes: 320 * 1024 ** 2 },
@@ -40,15 +42,13 @@ export const FAST_RENDER_THRESHOLDS = Object.freeze({
 });
 
 /**
- * One file a plan delivers. A chapter output also states the span it holds and
- * what that span renders to, because a chapter is rendered on its own rather
- * than as a slice of the plan's range; a mix or stem output takes both from the
- * plan itself and leaves them absent.
+ * One delivered file. Chapters and clips state their own render span and size.
  *
  * @typedef {Object} AudioExportPlanOutput
  * @property {string} kind
  * @property {string} fileName
  * @property {string | null} trackId
+ * @property {string} [clipId]
  * @property {boolean} [includeMaster]
  * @property {boolean} [respectMuteSolo]
  * @property {{startFrame: number, endFrame: number, durationFrames: number}} [range]
@@ -59,7 +59,7 @@ export const FAST_RENDER_THRESHOLDS = Object.freeze({
 
 /**
  * @typedef {Object} AudioExportPlan
- * @property {'mix' | 'stems' | 'chapters'} mode
+ * @property {'mix' | 'stems' | 'chapters' | 'clips'} mode
  * @property {import('./media-export.js').MediaExportFormatId} format
  * @property {number} sampleRate
  * @property {number} channelCount
@@ -160,9 +160,9 @@ export function sanitizeExportName(value, fallback = 'audio-project') {
 
 export function createExportFileName(project, options = {}) {
 	const extension = options.extension || exportExtension(options.format || 'wav');
-	if (options.mode === 'stem' || options.mode === 'chapter') {
+	if (options.mode === 'stem' || options.mode === 'chapter' || options.mode === 'clip') {
 		const index = Number(options.trackIndex ?? 0) + 1;
-		const fallback = options.mode === 'chapter' ? 'chapter' : 'track';
+		const fallback = options.mode === 'stem' ? 'track' : options.mode;
 		return `${String(index).padStart(2, '0')}-${sanitizeExportName(options.trackName, fallback)}.${extension}`;
 	}
 	const date = isoDate(options.date);
@@ -171,15 +171,14 @@ export function createExportFileName(project, options = {}) {
 
 /** @returns {AudioExportPlan} */
 export function createExportPlan(project, options = {}) {
-	const runtimeProject = projectForRuntimeConsumers(project);
+	const runtimeProject = inheritTrackFolderMediaStateProjectionV12(project, projectForRuntimeConsumers(project));
 	const mode = options.mode || 'mix';
-	if (mode !== 'mix' && mode !== 'stems' && mode !== 'chapters') {
-		throw new RangeError('Export mode must be mix, stems, or chapters.');
+	if (mode !== 'mix' && mode !== 'stems' && mode !== 'chapters' && mode !== 'clips') {
+		throw new RangeError('Export mode must be mix, stems, chapters, or clips.');
 	}
 	const format = canonicalMediaExportFormat(options.format || 'wav');
 	assertEmbeddedChapterRequest(format, options);
 	if (format === 'bw64' && mode !== 'mix') throw new RangeError('BW64 / ADM export is mix-only.');
-	assertSoundscaperEffectChannelSafety(runtimeProject, mode);
 	const bw64Adm = format === 'bw64' ? resolveBw64Adm(runtimeProject, options) : null;
 	const binaural = resolveBinauralBw64Delivery(runtimeProject, options, format, mode);
 	let encoding = normalizeMediaExportSettings(format, {
@@ -203,15 +202,11 @@ export function createExportPlan(project, options = {}) {
 	}
 	const sampleRate = encoding.sampleRate;
 	const requestedRange = resolveExportRange(runtimeProject, options.range || 'project');
-	// A chapter delivery reads the labels or markers inside the requested range
-	// and writes one file per chapter; the range the rest of the plan describes
-	// is then the span those chapters actually cover, not the range they were
-	// selected from.
-	const chapters = mode === 'chapters'
+	const spans = mode === 'chapters'
 		? resolveExportChapters(runtimeProject, requestedRange, options.chapterSource ?? 'labels')
-		: null;
-	const range = chapters
-		? normalizeFrameRange(chapters[0].startFrame, chapters[chapters.length - 1].endFrame, 'export chapters')
+		: mode === 'clips' ? resolveExportClips(runtimeProject, requestedRange) : null;
+	const range = spans
+		? normalizeFrameRange(Math.min(...spans.map((span) => span.startFrame)), Math.max(...spans.map((span) => span.endFrame)), 'export spans')
 		: requestedRange;
 	const masteringSequence = resolveMasteringSequenceExport(runtimeProject, {
 		masteringSequenceId: options.masteringSequenceId ?? null,
@@ -222,9 +217,8 @@ export function createExportPlan(project, options = {}) {
 	const markerExport = createRiffAnnotationExport(runtimeProject, {
 		range,
 		outputSampleRate: sampleRate,
-		// The labels are the split, so writing them into every chapter as cues
-		// would describe boundaries the file no longer crosses.
-		...(chapters
+		// Each span has its own timeline, so shared cues would describe other files.
+		...(spans
 			? { markerSource: 'none' }
 			: options.markerSource == null ? {} : { markerSource: options.markerSource }),
 		...(options.markerTrackId == null ? {} : { markerTrackId: options.markerTrackId }),
@@ -256,12 +250,8 @@ export function createExportPlan(project, options = {}) {
 	if (preservedRiffChunks?.ixml) ixml = null;
 	if (preservedRiffChunks?.cart) cart = null;
 	if (bext) encoding = Object.freeze({ ...encoding, bext });
-	// A sequence delivers exactly the regions it names: audio past the last one is
-	// audio the sequence did not ask for, so there is no tail to add.
-	// A chapter delivers exactly the span its label names, the way a sequence
-	// delivers exactly the regions it names: a tail would spill the end of one
-	// chapter into the audio the next chapter already starts with.
-	const tailFrames = masteringSequence || chapters
+	// Sequences, chapters and clips deliver their authored extents without tails.
+	const tailFrames = masteringSequence || spans
 		? 0
 		: determineTailFrames(runtimeProject, mode, options.includeTail !== false);
 	const outputFrameCount = (durationFrames) => scaleSampleFrame(
@@ -269,16 +259,14 @@ export function createExportPlan(project, options = {}) {
 	);
 	const rangeOutputFrames = outputFrameCount(range.durationFrames);
 	const tailOutputFrames = outputFrameCount(tailFrames);
-	const chapterOutputFrames = chapters
-		? chapters.map((chapter) => outputFrameCount(chapter.durationFrames))
+	const spanOutputFrames = spans
+		? spans.map((span) => outputFrameCount(span.durationFrames))
 		: null;
-	// The plan states one render's size, and chapters render one at a time, so
-	// the longest chapter is what the memory estimates and the render strategy
-	// have to hold — not the whole span the chapters were cut from.
+	// Spans render sequentially, so one render holds only the longest output.
 	const outputFrames = masteringSequence
 		? masteringSequence.outputFrames
-		: chapterOutputFrames
-			? Math.max(...chapterOutputFrames)
+		: spanOutputFrames
+			? Math.max(...spanOutputFrames)
 			: rangeOutputFrames + tailOutputFrames;
 	encoding = createEmbeddedChapterEncoding(encoding, runtimeProject, options, range, { rangeOutputFrames, deliveryOutputFrames: outputFrames });
 	const adm = bw64Adm ? createBw64AdmExport(runtimeProject, bw64Adm, {
@@ -287,8 +275,7 @@ export function createExportPlan(project, options = {}) {
 		encoding,
 	}) : null;
 	const outputBytes = estimatePcmBytes(outputFrames, encoding.channelCount);
-	// Each delivered file's container layout, which chapters need per file: they
-	// share every encoding decision and differ only in how many frames they hold.
+	// Spans share encoding settings but each file has its own container size.
 	const layoutForFrames = (totalFrames) => (format === 'aiff'
 		? inspectAiffLayout({
 			sampleRate, channelCount: encoding.channelCount, totalFrames,
@@ -312,27 +299,26 @@ export function createExportPlan(project, options = {}) {
 			})
 			: null);
 	const outputLayout = layoutForFrames(outputFrames);
-	const outputs = chapters
-		? chapters.map((chapter, chapterIndex) => ({
-			kind: 'chapter',
+	const outputs = spans
+		? spans.map((span, spanIndex) => ({
+			kind: mode === 'clips' ? 'clip' : 'chapter',
 			fileName: createExportFileName(runtimeProject, {
-				format, extension: encoding.extension, mode: 'chapter',
-				trackIndex: chapterIndex, trackName: chapter.name,
+				format, extension: encoding.extension, mode: mode === 'clips' ? 'clip' : 'chapter',
+				trackIndex: spanIndex, trackName: span.name,
 			}),
-			trackId: null,
-			includeMaster: true,
-			respectMuteSolo: true,
-			// The span this file holds, so the render reads the chapter rather
-			// than the whole delivery the plan's own range describes.
+			trackId: 'trackId' in span ? span.trackId : null,
+			...(mode === 'clips' ? { clipId: 'clipId' in span ? span.clipId : undefined } : {}),
+			includeMaster: mode !== 'clips',
+			respectMuteSolo: mode !== 'clips',
 			range: Object.freeze({
-				startFrame: chapter.startFrame,
-				endFrame: chapter.endFrame,
-				durationFrames: chapter.durationFrames,
+				startFrame: span.startFrame,
+				endFrame: span.endFrame,
+				durationFrames: span.durationFrames,
 			}),
-			outputFrames: chapterOutputFrames[chapterIndex],
-			outputFileBytes: layoutForFrames(chapterOutputFrames[chapterIndex])?.byteLength ?? null,
+			outputFrames: spanOutputFrames[spanIndex],
+			outputFileBytes: layoutForFrames(spanOutputFrames[spanIndex])?.byteLength ?? null,
 			// Where this file, rather than the whole delivery, sits on the timeline.
-			...(bext ? { bext: bwfMetadata(chapter.startFrame) } : {}),
+			...(bext ? { bext: bwfMetadata(span.startFrame) } : {}),
 		}))
 		: mode === 'mix'
 			? [{
@@ -349,13 +335,14 @@ export function createExportPlan(project, options = {}) {
 				includeMaster: false,
 				respectMuteSolo: false,
 			}));
+	assertSoundscaperEffectChannelSafety(runtimeProject, mode, outputs);
 	const renderStrategyOptions = {
 		mobile: Boolean(options.mobile),
 		outputBytes,
-		livePcmBytes: options.livePcmBytes ?? estimateExportSourceWorkingSetBytes(runtimeProject,
+		livePcmBytes: options.livePcmBytes ?? estimateExportPlanSourceWorkingSetBytes(runtimeProject, mode, outputs,
 			masteringSequence
 				? masteringSequence.plan.segments.map((segment) => ({ startFrame: segment.sourceStartFrame, endFrame: segment.sourceEndFrame }))
-				: chapters || [range])
+				: spans || [range])
 			// Sequence assembly retains its rendered regions beside the complete
 			// delivery, at the render width before the encoder's channel mapping.
 			+ (masteringSequence ? estimatePcmBytes(outputFrames, runtimeProject.masterChannels) * 2 : 0),
@@ -369,7 +356,7 @@ export function createExportPlan(project, options = {}) {
 				mode,
 				outputs,
 				range,
-				chapters,
+				chapters: spans,
 				renderRanges: masteringSequence?.plan.segments.map((segment) => ({
 					startFrame: segment.sourceStartFrame,
 					durationFrames: segment.sourceEndFrame - segment.sourceStartFrame,
@@ -413,19 +400,19 @@ export function createExportPlan(project, options = {}) {
 		&& encoding.channelMapping.mode === 'preserve'
 		? resolveAdmEbuChannelWeights(runtimeProject.metadata?.adm, encoding.channelCount)
 		: null;
-	const fallbackTemporaryBytes = chapters
-		? chapters.reduce(
-			(bytes, chapter, chapterIndex) => bytes
-				+ estimatePcmBytes(chapterOutputFrames[chapterIndex], encoding.channelCount),
+	const fallbackTemporaryBytes = spans
+		? spans.reduce(
+			(bytes, span, spanIndex) => bytes
+				+ estimatePcmBytes(spanOutputFrames[spanIndex], encoding.channelCount),
 			0,
 		)
 		: multiplySafeIntegers(outputBytes, outputs.length, 'Temporary export size');
-	const archive = mode === 'stems' || mode === 'chapters'
+	const archive = mode !== 'mix'
 		? createStemArchivePlan(
 			`${sanitizeExportName(runtimeProject.title)}-${mode}-${isoDate(options.date)}`,
 			outputs.map((output) => ({
 				fileName: output.fileName,
-				expectedByteLength: chapters
+				expectedByteLength: spans
 					? output.outputFileBytes
 					: outputLayout?.byteLength ?? null,
 			})),
@@ -467,9 +454,8 @@ export function createExportPlan(project, options = {}) {
 		tailFrames,
 		outputFrames,
 		outputBytesPerRender: outputBytes,
-		// Chapters differ in length, so there is no one delivered file size; each
-		// output states its own, and the archive plan carries them as entries.
-		outputFileBytesPerRender: chapters ? null : outputLayout?.byteLength ?? null,
+		// Spans differ in length; each output and archive entry states its own size.
+		outputFileBytesPerRender: spans ? null : outputLayout?.byteLength ?? null,
 		requiredTemporaryBytes,
 		render,
 		outputs,
@@ -478,7 +464,6 @@ export function createExportPlan(project, options = {}) {
 	};
 }
 
-/** Every mode but stems delivers the master mix, whole or in named spans. */
 function multiplySafeIntegers(left, right, name) {
 	if (!Number.isSafeInteger(left) || left < 0 || !Number.isSafeInteger(right) || right < 0
 		|| (right !== 0 && left > Math.floor(Number.MAX_SAFE_INTEGER / right))) {

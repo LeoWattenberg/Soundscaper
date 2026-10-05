@@ -99,6 +99,8 @@ export const IPC = Object.freeze({
 	chooseFiles: 'soundscaper:v1:files:choose',
 	captureExternalMedia: 'soundscaper:v1:external-media:capture', resolveExternalMedia: 'soundscaper:v1:external-media:resolve',
 	releaseRead: 'soundscaper:v1:files:release',
+	prepareOriginalOverwrite: 'soundscaper:v1:original-file:prepare-overwrite',
+	releaseOriginalFile: 'soundscaper:v1:original-file:release',
 	sesxResolveMedia: 'soundscaper:v1:sesx:media:resolve', sesxChooseFolder: 'soundscaper:v1:sesx:folder:choose', sesxReleaseSession: 'soundscaper:v1:sesx:session:release',
 	chooseLinkedVideoOriginal: 'soundscaper:v1:linked-video:choose',
 	loadLinkedVideoOriginal: 'soundscaper:v1:linked-video:load',

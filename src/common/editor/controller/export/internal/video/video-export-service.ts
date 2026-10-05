@@ -412,6 +412,7 @@ export function createEditorVideoExportAction(
 			state.outputCleanup = null;
 			state.exportOutput = null;
 			const published = await fileService.createDownload({
+				target: requestedSettings.saveTarget,
 				purpose: 'video',
 				suggestedName: fileName,
 				mimeType: encoded.mimeType,

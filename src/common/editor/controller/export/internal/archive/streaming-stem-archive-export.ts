@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { admitAudioExportBlobWithWarning as admitAudioExportBlob } from '../../../../audio-export-output.ts';
 import { createExportChapterPlan } from '../../../../export-chapters.ts';
+import { createExportClipPlan, createExportClipProject } from '../../../../export-clips.ts';
 import type { FileSizeWarningConfirmation } from '../../../shared/file-size-warning.ts';
 import type { DeliveryConformanceFinding } from '../../../../delivery-conformance.ts';
 
@@ -16,7 +17,7 @@ interface StreamingStemArchiveExport {
 }
 
 /**
- * Deliver every output of a stem or chapter plan into one archive the browser
+ * Deliver every output of a stem, chapter or clip plan into one archive the browser
  * downloads.
  *
  * A stem is one track of the project over the delivery's single range; a
@@ -61,11 +62,14 @@ export async function streamStemArchiveExport({
 	try {
 		const findings: DeliveryConformanceFinding[] = [];
 		const chapters = plan.mode === 'chapters';
+		const clips = plan.mode === 'clips';
 		for (let index = 0; index < plan.outputs.length; index += 1) {
 			throwIfAborted(abortSignal);
 			const output = plan.outputs[index];
-			const snapshot = chapters ? exportProject : stemProject(exportProject, output.trackId);
-			const outputPlan = chapters ? createExportChapterPlan(plan, output) : plan;
+			const trackSnapshot = chapters ? exportProject : stemProject(exportProject, output.trackId);
+			const snapshot = clips ? createExportClipProject(trackSnapshot, output) : trackSnapshot;
+			const outputPlan = chapters ? createExportChapterPlan(plan, output)
+				: clips ? createExportClipPlan(plan, output) : plan;
 			const encoded = await renderAndEncode(snapshot, outputPlan, settings, abortSignal, exportRenderSources, output, {
 				start: index / plan.outputs.length,
 				end: (index + 1) / plan.outputs.length,
