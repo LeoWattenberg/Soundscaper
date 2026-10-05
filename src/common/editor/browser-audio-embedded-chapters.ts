@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { confirmFileSizeWarning } from './controller/shared/file-size-warning.ts';
-import { isFileBackedAudioExport, registerFileBackedExport } from './file-backed-audio-export.ts';
 import type { BrowserAudioCodecRuntimeSettings } from './browser-audio-codec-runtime-settings.ts';
 
 /** Add container metadata after audio validation, retaining the staged file's owner. */
@@ -19,6 +18,7 @@ export async function embedBrowserAudioChapters(
 	};
 	assertCurrent();
 	const { embedAudioChapters } = await import('./audio-embedded-chapter-container.ts');
+	const { isFileBackedAudioExport, registerFileBackedExport } = await import('./file-backed-audio-export.ts');
 	assertCurrent();
 	const result = await embedAudioChapters(blob, format, settings.embeddedChapters, sampleRate, settings.signal);
 	assertCurrent();
