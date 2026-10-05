@@ -1,0 +1,29 @@
+[package]
+name = "soundscaper-tauri-prototype"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.90"
+license = "AGPL-3.0-only"
+publish = false
+
+[build-dependencies]
+tauri-build = "=2.7.1"
+
+[dependencies]
+rfd = { version = "=0.17.2", default-features = false, features = ["gtk3"] }
+serde = { version = "=1.0.228", features = ["derive"] }
+serde_json = "=1.0.145"
+tauri = "=2.12.1"
+tempfile = "=3.23.0"
+uuid = { version = "=1.18.1", features = ["v4"] }
+
+[features]
+custom-protocol = ["tauri/custom-protocol"]
+
+[profile.dev]
+debug = 0
+
+[profile.release]
+strip = true
+lto = "thin"
+codegen-units = 1

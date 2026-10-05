@@ -1,0 +1,31 @@
+{
+	"$schema": "https://schema.tauri.app/config/2",
+	"productName": "Soundscaper Tauri Prototype",
+	"version": "0.1.0",
+	"identifier": "org.soundscaper.tauri-prototype",
+	"build": {
+		"frontendDist": "../../../.tauri-prototype/renderer"
+	},
+	"app": {
+		"windows": [],
+		"withGlobalTauri": true,
+		"security": {
+			"csp": "default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://assets.soundscaper.org; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: https://mindscaper.org; media-src 'self' blob:; worker-src 'self' blob:; connect-src 'self' ipc: http://ipc.localhost https://assets.soundscaper.org; object-src 'none'; base-uri 'self'",
+			"headers": {
+				"Cross-Origin-Opener-Policy": "same-origin",
+				"Cross-Origin-Embedder-Policy": "require-corp",
+				"X-Content-Type-Options": "nosniff"
+			},
+			"capabilities": [{
+				"identifier": "prototype-main",
+				"description": "Only the local prototype window may subscribe to host lifecycle events.",
+				"windows": ["main"],
+				"permissions": ["core:event:allow-listen", "core:event:allow-unlisten"]
+			}]
+		}
+	},
+	"bundle": {
+		"active": false,
+		"icon": ["../../../.tauri-prototype/icons/icon.png", "../../../.tauri-prototype/icons/icon.ico"]
+	}
+}
