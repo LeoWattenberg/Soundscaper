@@ -29,7 +29,7 @@ const LIBRARIES = [
 	'libindicator.so.7',
 	'libnotify.so.4',
 ];
-const ICON_SIZES = [1024];
+const ICON_SIZES = [16, 24, 32, 48, 64, 96, 128, 256, 512, 1024];
 
 test('AppImage wrapper normalization authenticates x64 metadata and retains only the application', async (context) => {
 	const fixture = await appImageFixture(context, 'linux-x64');
@@ -44,17 +44,17 @@ test('AppImage arm64 normalization requires the exact empty compatibility-librar
 	await assert.rejects(normalizeFixture(fixture), /unsupported metadata/iu);
 });
 
-test('AppImage normalization authenticates the configured PNG through the real builder icon pipeline', async (context) => {
+test('AppImage normalization authenticates the Linux icon set through the real builder pipeline', async (context) => {
 	const fixture = await appImageFixture(context, 'linux-arm64');
 	const sourceRoot = await mkdtemp(join(tmpdir(), 'desktop-package-canonical-icon-'));
 	context.after(() => rm(sourceRoot, { recursive: true, force: true }));
-	const source = await generateDesktopIcon({ outputPath: join(sourceRoot, 'icon.png') });
+	await generateDesktopIcon({ outputPath: join(sourceRoot, 'icon.png') });
 	const { icons, isFallback } = await iconConverter.convertIcon({
-		sources: [source], fallbackSources: [], roots: [sourceRoot],
+		sources: [join(sourceRoot, 'linux')], fallbackSources: [], roots: [sourceRoot],
 		format: 'set', outDir: join(sourceRoot, 'converted'),
 	});
 	assert.equal(isFallback, false);
-	assert.deepEqual(icons.map(({ size }) => size), [1024]);
+	assert.deepEqual(icons.map(({ size }) => size), ICON_SIZES);
 	for (const path of ['.DirIcon', 'soundscaper.png', 'usr/share/icons']) {
 		await rm(join(fixture.root, path), { recursive: true });
 	}
@@ -129,10 +129,21 @@ test('AppImage wrapper normalization rejects missing, mislinked, mis-moded, and 
 
 	const extraIcon = await appImageFixture(context, 'linux-arm64');
 	await writeFixtureFile(
-		join(extraIcon.root, 'usr/share/icons/hicolor/512x512/apps/soundscaper.png'),
-		createPngFixture(512),
+		join(extraIcon.root, 'usr/share/icons/hicolor/192x192/apps/soundscaper.png'),
+		createPngFixture(192),
 	);
 	await assert.rejects(normalizeFixture(extraIcon), /unsupported metadata/iu);
+
+	const missingIcon = await appImageFixture(context, 'linux-arm64');
+	await rm(join(missingIcon.root, 'usr/share/icons/hicolor/48x48/apps/soundscaper.png'));
+	await assert.rejects(normalizeFixture(missingIcon), /incomplete compatibility-file inventory/iu);
+
+	const invalidSmallIcon = await appImageFixture(context, 'linux-arm64');
+	await writeFixtureFile(
+		join(invalidSmallIcon.root, 'usr/share/icons/hicolor/48x48/apps/soundscaper.png'),
+		createPngFixture(32),
+	);
+	await assert.rejects(normalizeFixture(invalidSmallIcon), /expected 48px PNG/iu);
 
 	for (const [name, bytes] of [
 		['truncated', createPngFixture(1024).subarray(0, 8)],

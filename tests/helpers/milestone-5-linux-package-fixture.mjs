@@ -167,7 +167,7 @@ async function stageAppImageWrapper(root, applicationVersion) {
 			'Categories=AudioVideo;Audio;',
 		].join('\n')}\n`),
 	);
-	for (const size of [1024]) {
+	for (const size of [16, 24, 32, 48, 64, 96, 128, 256, 512, 1024]) {
 		await writeBytes(
 			join(root, `usr/share/icons/hicolor/${size}x${size}/apps/soundscaper.png`),
 			createPngFixture(size),

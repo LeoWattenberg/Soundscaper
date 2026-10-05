@@ -9,6 +9,7 @@ import { Resvg } from '@resvg/resvg-js';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DEFAULT_SOURCE = resolve(ROOT, 'public/logo/soundscaper.svg');
 const DEFAULT_OUTPUT = resolve(ROOT, '.desktop-build/icons/icon.png');
+const LINUX_ICON_SIZES = Object.freeze([16, 24, 32, 48, 64, 96, 128, 256, 512, 1024]);
 
 export async function generateDesktopIcon({
 	sourcePath = DEFAULT_SOURCE,
@@ -48,7 +49,19 @@ export async function generateDesktopIcon({
 		throw new Error(`Desktop icon raster is ${rendered.width}x${rendered.height}; expected 1024x1024.`);
 	}
 	await mkdir(dirname(outputPath), { recursive: true });
-	await writeFile(outputPath, rendered.asPng());
+	const master = rendered.asPng();
+	await writeFile(outputPath, master);
+	// The Linux set converter passes a single PNG through without resizing it.
+	// Render the launcher and menu sizes from the vectors for both deb and AppImage.
+	const linuxDirectory = resolve(dirname(outputPath), 'linux');
+	await mkdir(linuxDirectory, { recursive: true });
+	for (const size of LINUX_ICON_SIZES) {
+		const bytes = size === 1024 ? master : new Resvg(squareSource, {
+			fitTo: { mode: 'width', value: size },
+			font: { loadSystemFonts: false },
+		}).render().asPng();
+		await writeFile(resolve(linuxDirectory, `${size}x${size}.png`), bytes);
+	}
 	return outputPath;
 }
 

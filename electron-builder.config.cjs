@@ -131,7 +131,7 @@ module.exports = {
 		artifactName: '${productName}-${version}-mac-${arch}.${ext}',
 	},
 	linux: {
-		icon: '.desktop-build/icons/icon.png',
+		icon: '.desktop-build/icons/linux',
 		executableName: framescaper ? 'framescaper' : 'soundscaper',
 		syncDesktopName: true,
 		category: framescaper ? 'AudioVideo;Video' : 'AudioVideo;Audio',

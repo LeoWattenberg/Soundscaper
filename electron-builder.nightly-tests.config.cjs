@@ -136,7 +136,7 @@ module.exports = {
 		target: ['zip'],
 	},
 	linux: {
-		icon: '.desktop-build/icons/icon.png',
+		icon: '.desktop-build/icons/linux',
 		executableName: 'soundscaper-nightly-tests',
 		syncDesktopName: true,
 		category: 'Development',

@@ -51,8 +51,8 @@ const NSIS_ELEVATE_HELPER_AUTHORITY = Object.freeze({
 	byteLength: 107_520,
 	sha256: '9b1fbf0c11c520ae714af8aa9af12cfd48503eedecd7398d8992ee94d1b4dc37',
 });
-// The configured PNG is passed through by electron-builder's set converter.
-const APPIMAGE_ICON_SIZES = Object.freeze([1024]);
+// The configured Linux directory supplies these exact raster sizes to the builder.
+const APPIMAGE_ICON_SIZES = Object.freeze([16, 24, 32, 48, 64, 96, 128, 256, 512, 1024]);
 const MAXIMUM_WRAPPER_FILE_BYTES = 64 * 1024 * 1024;
 const SCAPE_MIME_TYPE = 'application/vnd.soundscaper.scape+zip';
 const AUDACITY_MIME_TYPE = 'application/x-audacity-project';
