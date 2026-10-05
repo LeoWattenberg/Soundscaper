@@ -18,6 +18,7 @@ import {
 } from './scripts/lib/product-release-lines.mjs';
 import { authoredWildcardResponseHeaders } from './scripts/lib/static-response-headers.mjs';
 import { enforceStartupGraphBudgets } from './scripts/lib/startup-graph-budget.mjs';
+import { createTranslationCatalogBundlePlugin } from './scripts/lib/translation-catalog-bundle.mjs';
 import layerAudacityDesignSystemCss, {
 	getLayeredDesignSystemFiles,
 	isDesignSystemCssFile,
@@ -106,6 +107,7 @@ export default defineConfig({
 			productId, desktopCodecComposition, repositoryRoot: import.meta.dirname,
 		}),
 		createPffftNodeModuleBrowserShim(),
+		createTranslationCatalogBundlePlugin(),
 		react(),
 		assertDesignSystemCssLayered(),
 		enforceStartupGraphBudgets(productId),
