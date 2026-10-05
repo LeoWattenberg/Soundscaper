@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { BROWSER_PRODUCT_FIXTURE_ROOT } from '../../../scripts/lib/browser-product-site-plan.mjs';
 
 const NIGHTLY_PAYLOAD_ROOT = 'SOUNDSCAPER_NIGHTLY_TESTS_PAYLOAD_ROOT';
+const BROWSER_FIXTURE_ROOT = 'SCAPE_BROWSER_PRODUCT_FIXTURE_ROOT';
 
 /** Locate the verified Soundscaper assets in local and staged nightly layouts. */
 export function resolveSoundscaperProductionAssetsDirectory(environment = process.env) {
@@ -17,8 +18,14 @@ export function resolveSoundscaperProductionAssetsDirectory(environment = proces
 
 /** Locate the assets served by the ordinary or packaged browser-test site. */
 export function resolveSoundscaperBrowserAssetsDirectory(environment = process.env) {
+	const configuredRoot = environment[BROWSER_FIXTURE_ROOT];
+	if (configuredRoot !== undefined && (typeof configuredRoot !== 'string' || !isAbsolute(configuredRoot))) {
+		throw new TypeError(`${BROWSER_FIXTURE_ROOT} must be an absolute path.`);
+	}
+	const fixtureRoot = configuredRoot
+		?? fileURLToPath(new URL(`../../../${BROWSER_PRODUCT_FIXTURE_ROOT}/`, import.meta.url));
 	return resolveSoundscaperAssetsDirectory(
-		resolve(fileURLToPath(new URL(`../../../${BROWSER_PRODUCT_FIXTURE_ROOT}/soundscaper/assets/`, import.meta.url))),
+		join(fixtureRoot, 'soundscaper', 'assets'),
 		environment,
 	);
 }
