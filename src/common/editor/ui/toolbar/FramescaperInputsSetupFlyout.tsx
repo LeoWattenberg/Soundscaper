@@ -39,7 +39,7 @@ export default function FramescaperInputsSetupFlyout({ controller, snapshot, cop
 		<strong>{copy['ui.framescaperInputs.title'] ?? FRAMESCAPER_INPUTS_COPY.title}</strong>
 		<RecordingSetupPanel controller={controller} snapshot={snapshot} copy={copy} run={run}
 			blocked={blocked} locale={typeof document === 'undefined' ? 'en' : document.documentElement.lang || 'en'}
-			idPrefix="framescaper-inputs" />
+			idPrefix="framescaper-inputs" showPanelOnOpen={false} />
 		<label>
 			<span>{copy.audioOutputDevice}</span>
 			<select aria-label={copy.audioOutputDevice} value={preferred}

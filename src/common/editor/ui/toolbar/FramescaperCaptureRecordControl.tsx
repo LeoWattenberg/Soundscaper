@@ -170,7 +170,7 @@ export default function FramescaperCaptureRecordControl({
 		|| ((webVcrActive ? webVcrPrimary.kind === 'record' : capturePrimary.kind === 'start')
 			&& recordingBlocked);
 
-	return <span data-transport="framescaper-record" data-capture-active={active || undefined}>
+	return <span data-transport="framescaper-record" data-capture-active={active || undefined} data-capture-phase={capture.phase}>
 		<AudioEditorSplitButton
 			icon="record"
 			iconColor="#F08080"

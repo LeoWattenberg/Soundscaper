@@ -1,5 +1,6 @@
 // @ts-check
 import { createCaptureComposition } from './controller/capture/capture-composition.ts'; import { setLocalizedStatus } from '../i18n/presentation-message.ts';
+import { createFramescaperCaptureSetupActions } from './controller/capture/framescaper-capture-setup-actions.ts';
 import { startController } from './controller/composition/controller-startup.ts';
 import { createControllerResources } from './controller/composition/controller-resources.ts';
 import { bindSessionHistoryAdmission } from './controller/document/session-history-admission.ts'; import { createControllerDocumentScope } from './controller/document/controller-document-scope.ts';
@@ -39,7 +40,6 @@ import {
 	editorHistoryProjects,
 	evictUnreferencedSourceCaches,
 } from './retention.js';
-
 import { productProfile } from '../products.js';
 import { assertPlayAtSpeedStaffPadMemorySafe } from './engine.js';
 import {
@@ -596,7 +596,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		recoverTakeCycleRecording: (pending) => takeCycleOpenRecovery.resolve(pending, 'recover'), discardTakeCycleRecording: (pending) => takeCycleOpenRecovery.resolve(pending, 'discard'),
 		toggleStretchToTempo: clips.clipProperty.toggleStretchToTempo,
 		sequenceTimingService: clips.sequenceTiming, timelineAnnotationService: doc.timelineAnnotation, regularIntervalAnnotationController: doc.regularIntervalAnnotation, trackFolderService: doc.trackFolder, trackStructuralOperations: tracks.track.structuralOperations, soundActivationPolicyService,
-		audioWarpService: tracks.audioWarp, clipSourcePreviewService: clips.clipSourcePreview, sourceMonitorService: clips.sourceMonitor, takeCompService: tracks.takeComp, taskProgress, videoTrimServices: clips.videoTrim, videoEditService: clips.videoEdit, videoNavigationService, videoSourceReprobeService: clips.videoSourceReprobe, framescaperCaptureActions: framescaperCapture ? { ...framescaperCapture.actions, openSetup: () => { framescaperCapture.actions.openSetup(); void preferencesService.setPanelVisibility('recording-setup', true).catch(bindings.handleError); } } : undefined, framescaperWebVcrActions: framescaperCapture?.webVcrActions, ...productActionRuntime(options),
+		audioWarpService: tracks.audioWarp, clipSourcePreviewService: clips.clipSourcePreview, sourceMonitorService: clips.sourceMonitor, takeCompService: tracks.takeComp, taskProgress, videoTrimServices: clips.videoTrim, videoEditService: clips.videoEdit, videoNavigationService, videoSourceReprobeService: clips.videoSourceReprobe, framescaperCaptureActions: framescaperCapture ? createFramescaperCaptureSetupActions(framescaperCapture.actions, preferencesService.setPanelVisibility, bindings.handleError) : undefined, framescaperWebVcrActions: framescaperCapture?.webVcrActions, ...productActionRuntime(options),
 	}, () => lifetime.assertActive());
 	const disposeResources = createControllerDisposal({
 		lifetime, state, effectsState: effectsStatePorts.runtime, clearDiagnostics: () => state.localDiagnostics.clear(), clearTaskProgress: taskProgress.clear,
