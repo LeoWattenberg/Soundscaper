@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { expect, test } from './audio-editor-test-fixtures.js';
+import { AxeBuilder, expect, test } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
 	dockWorkspacePanel,
@@ -24,6 +24,10 @@ test('Framescaper monitors start at 16:9 and the top separator resizes and persi
 		}).toBeCloseTo(16 / 9, 1);
 		expect((await requiredBounds(monitor)).height).toBeGreaterThan(200);
 	}
+	const emptyMonitorContrast = await new AxeBuilder({ page })
+		.include('[data-source-monitor="empty"]')
+		.withRules(['color-contrast']).analyze();
+	expect(emptyMonitorContrast.violations).toEqual([]);
 	const initial = await requiredBounds(dock);
 	const separator = dock.locator('[data-workspace-dock-resize-handle="top"]');
 	await separator.press('ArrowUp');

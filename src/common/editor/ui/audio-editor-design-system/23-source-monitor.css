@@ -85,6 +85,7 @@
 }
 
 .kw-audio-editor__source-monitor[data-source-monitor='empty'] .kw-audio-editor__panel-empty {
+	color: #d7dce4;
 	max-width: 32ch;
 	padding: 24px;
 	text-align: center;
