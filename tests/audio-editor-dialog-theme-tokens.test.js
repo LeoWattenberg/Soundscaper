@@ -62,19 +62,21 @@ test('editor design-system styles do not read nonexistent theme-token aliases', 
 });
 
 test('the inline video clip rename field does not inherit its light-on-dark header colour', async () => {
-	const css = await readFile(
-		new URL('src/common/editor/ui/audio-editor-design-system/07-timeline-tracks.css', ROOT),
-		'utf8',
-	);
-	const rule = /\.audio-editor-video-clip__title-input\s*\{([^}]*)\}/u.exec(css);
+	const componentRoot = new URL('vendor/audacity-design-system/components/src/ClipHeader/', ROOT);
+	const [css, component] = await Promise.all([
+		readFile(new URL('ClipHeader.css', componentRoot), 'utf8'),
+		readFile(new URL('ClipHeader.tsx', componentRoot), 'utf8'),
+	]);
+	const rule = /\.clip-header__name-input\s*\{([^}]*)\}/u.exec(css);
 	assert.ok(rule, 'the rename field is styled');
-	assert.match(rule[1], /background:\s*rgb\(255 255 255/u, 'the field is a light surface');
+	assert.match(rule[1], /background:\s*rgba\(255,\s*255,\s*255/u, 'the field is a light surface');
 	assert.doesNotMatch(
 		rule[1],
 		/color:\s*inherit/u,
 		'inheriting the header colour puts near-white text on a near-white field',
 	);
-	assert.match(rule[1], /color:\s*#14151a/u);
+	assert.match(rule[1], /color:\s*var\(--clip-header-text\)/u);
+	assert.match(component, /'--clip-header-text':\s*'#14151A'/u, 'the shared header supplies dark text');
 });
 
 test('checkboxes keep their design-system appearance without editor border overrides', async () => {
