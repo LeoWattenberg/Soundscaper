@@ -45,6 +45,7 @@ for (const product of ['soundscaper', 'framescaper']) {
 					continue;
 				}
 				await expect(button).toHaveCSS('box-shadow', /inset/u);
+				await button.scrollIntoViewIfNeeded();
 				const bounds = await button.boundingBox();
 				if (await button.isEnabled() && await button.getAttribute('aria-pressed') !== 'true' && await button.getAttribute('aria-expanded') !== 'true') {
 					const raised = await button.evaluate((node) => getComputedStyle(node).boxShadow);
