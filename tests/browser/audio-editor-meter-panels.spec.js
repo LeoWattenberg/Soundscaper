@@ -34,6 +34,8 @@ test.describe('dockable playback and recording meters', () => {
 			const icon = panel.getByRole('button', { name: meter.settings, exact: true });
 			const gripBounds = await requiredBounds(grip);
 			const iconBounds = await requiredBounds(icon);
+			expect(gripBounds.width).toBeGreaterThanOrEqual(24);
+			expect(gripBounds.height).toBeGreaterThanOrEqual(24);
 			expect(gripBounds.y + gripBounds.height).toBeLessThanOrEqual(iconBounds.y);
 			expect(Math.abs(gripBounds.x + gripBounds.width / 2 - iconBounds.x - iconBounds.width / 2)).toBeLessThanOrEqual(1);
 			const surface = panel.locator('[data-audio-meter]');

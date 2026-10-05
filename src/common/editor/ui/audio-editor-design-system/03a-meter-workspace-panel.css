@@ -109,8 +109,8 @@
 
 #kw-audio-editor-design-system .kw-audio-editor__meter-panel-grip {
 	width: 25px;
-	height: 12px;
-	min-height: 12px;
+	height: 24px;
+	min-height: 24px;
 	flex: 0 0 auto;
 	align-self: center;
 	line-height: 12px;
