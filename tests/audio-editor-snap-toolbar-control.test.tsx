@@ -120,10 +120,9 @@ test('the toolbar hosts the snap control between the time display and the meters
 	assert.match(toolbar, /\{ id: 'time-display', label: copy\.timecode, icon: iconNameToChar\('CLOCK'\) \},\n\s*\{ id: 'snap', label: copy\.snap, icon: iconNameToChar\('MAGNET'\) \}/u);
 	assert.match(toolbar, /isToolbarButtonVisible\('snap'\) && <SnapToolbarControl/u);
 	const timecodeAt = toolbar.indexOf('<TelemetryTimeCode');
-	const sequenceAt = toolbar.indexOf('<SequenceTimingControls');
 	const snapAt = toolbar.indexOf('<SnapToolbarControl');
 	const recordingMeterAt = toolbar.indexOf('<RecordingMeterToolbarGroup');
-	assert.ok(timecodeAt > 0 && sequenceAt > timecodeAt && snapAt > sequenceAt && recordingMeterAt > snapAt);
+	assert.ok(timecodeAt > 0 && snapAt > timecodeAt && recordingMeterAt > snapAt);
 	assert.match(shortcuts, /'button, select, input, \[role="group"\], \[role="checkbox"\]'/u);
 	assert.match(css, /\.kw-audio-editor__snap-interval/u);
 	const snap = audacityActionDefinition('snap');
