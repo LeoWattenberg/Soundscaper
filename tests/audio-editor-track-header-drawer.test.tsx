@@ -112,12 +112,12 @@ test('the drawer dims the lanes under the reopened headers, never over them', ()
 
 	const dim = styleZIndex(compact, '.audio-editor-track-lane::after {');
 	const headers = [
-		'.audio-editor-track-controls {',
-		'.audio-editor-label-track-controls {',
-		'.audio-editor-video-track-controls {',
-	];
-	for (const header of headers) {
-		assert.ok(dim < styleZIndex(tracks, header), `${header} paints above the drawer dimming, not under it`);
+		[tracks, '.audio-editor-track-controls {'],
+		[tracks, '.audio-editor-label-track-controls {'],
+		[styles('08f-video-track-controls.css'), '.audio-editor-video-track-controls {'],
+	] as const;
+	for (const [css, header] of headers) {
+		assert.ok(dim < styleZIndex(css, header), `${header} paints above the drawer dimming, not under it`);
 	}
 	assert.ok(
 		dim < styleZIndex(compact, '.audio-editor-track-folder-row__panel {'),
