@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-
 import { resolveVideoExportCanvas } from '../../video-export.js';
 import {
 	FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
@@ -38,10 +37,7 @@ import {
 } from './video-preview-fallback.ts';
 import { publishEvaluatedVideoPreviewFrame } from './video-preview-external-display.ts';
 import { createExactPreviewRenderCoordinator } from '../../controller/clip-video/exact-preview-render-coordinator.ts';
-import {
-	areVideoPreviewMediaLayersReadyForExactRender,
-	shouldRenderExactProductVideoPreview,
-} from './video-preview-exact-render-policy.ts';
+import { areVideoPreviewMediaLayersReadyForExactRender, shouldRenderExactProductVideoPreview } from './video-preview-exact-render-policy.ts';
 import { bindFramescaperPreviewFreezeCapture } from './video-preview-freeze-capture.ts';
 import { resolveRegisteredVideoRetimePreview } from './video-preview-retime.ts';
 import {
