@@ -2,17 +2,14 @@
 
 /** Linear Rec.709/D65 premultiplied working buffers for exact V13 picture composition. */
 
-import {
-	encodeManagedSdrLinearChannelsV1,
-	type VideoColorOutputSpaceV1,
-} from './video-color-management-v27.ts';
+import type { VideoColorOutputSpaceV1 } from './video-color-management-v27.ts';
+import { createManagedSdrLinearByteEncoderV1 } from './video-color-byte-encoding.ts';
 import type { VideoClipCompositionBlendMode } from './video-clip-composition.ts';
 import {
 	videoPreviewRenderGeometry,
 	type VideoPreviewRenderGeometry,
 } from './video-preview-render-description.ts';
 import type { UnifiedExactRenderRgbaFrameV13 } from './unified-exact-render-finishing-consumers-v13.ts';
-import { sampleUnifiedExactRgbaChannelV13 } from './unified-exact-rgba-sampling-v13.ts';
 
 export interface UnifiedExactLinearPremultipliedFrameV13 {
 	readonly width: number;
@@ -183,17 +180,13 @@ export function encodeUnifiedExactLinearFrameV13(
 	if (!(pixels instanceof Uint8Array) || pixels.byteLength !== frame.pixels.length) {
 		throw new RangeError('A linear encoded target must match its frame geometry.');
 	}
+	const encode = createManagedSdrLinearByteEncoderV1(outputSpace);
 	for (let offset = 0; offset < pixels.length; offset += 4) {
 		const alpha = clamp(frame.pixels[offset + 3]!);
-		const encoded = encodeManagedSdrLinearChannelsV1(
-			alpha > 1e-12 ? frame.pixels[offset]! / alpha : 0,
-			alpha > 1e-12 ? frame.pixels[offset + 1]! / alpha : 0,
-			alpha > 1e-12 ? frame.pixels[offset + 2]! / alpha : 0,
-			alpha, outputSpace,
-		);
-		for (let channel = 0; channel < 4; channel += 1) {
-			pixels[offset + channel] = Math.round(encoded[channel]! * 255);
+		for (let channel = 0; channel < 3; channel += 1) {
+			pixels[offset + channel] = encode(alpha > 1e-12 ? frame.pixels[offset + channel]! / alpha : 0);
 		}
+		pixels[offset + 3] = Math.round(alpha * 255);
 	}
 	return pixels;
 }
@@ -220,30 +213,48 @@ function place(
 		const sourceY = (-b * dx + a * dy) / determinant;
 		if (sourceX < crop.x || sourceY < crop.y
 			|| sourceX >= crop.x + crop.width || sourceY >= crop.y + crop.height) continue;
-		const rgba = sample(source,
-			sourceX * source.width / displayWidth - 0.5,
-			sourceY * source.height / displayHeight - 0.5);
+		// Share the clamped bilinear addresses across all channels. The oracle's
+		// arithmetic order is preserved without allocating a frozen RGBA tuple.
+		const sx = Math.max(0, Math.min(source.width - 1, sourceX * source.width / displayWidth - 0.5));
+		const sy = Math.max(0, Math.min(source.height - 1, sourceY * source.height / displayHeight - 0.5));
+		const x0 = Math.floor(sx);
+		const y0 = Math.floor(sy);
+		const x1 = Math.min(source.width - 1, x0 + 1);
+		const y1 = Math.min(source.height - 1, y0 + 1);
+		const mixX = sx - x0;
+		const mixY = sy - y0;
+		const topLeft = (y0 * source.width + x0) * 4;
+		const topRight = (y0 * source.width + x1) * 4;
+		const bottomLeft = (y1 * source.width + x0) * 4;
+		const bottomRight = (y1 * source.width + x1) * 4;
 		const pixel = y * target.width + x;
-		const alpha = rgba[3] * opacity * (mask === undefined ? 1 : mask[pixel]! / 255);
+		const alpha = sampleChannel(source.pixels, topLeft, topRight, bottomLeft, bottomRight, mixX, mixY, 3)
+			/ 255 * opacity * (mask === undefined ? 1 : mask[pixel]! / 255);
 		const offset = pixel * 4;
-		target.pixels[offset] = rgba[0] * alpha;
-		target.pixels[offset + 1] = rgba[1] * alpha;
-		target.pixels[offset + 2] = rgba[2] * alpha;
+		for (let channel = 0; channel < 3; channel += 1) {
+			target.pixels[offset + channel] = sampleChannel(
+				source.pixels, topLeft, topRight, bottomLeft, bottomRight, mixX, mixY, channel,
+			) / 255 * alpha;
+		}
 		target.pixels[offset + 3] = alpha;
 	}
 }
 
-function sample(
-	frame: UnifiedExactRenderRgbaFrameV13,
-	xValue: number,
-	yValue: number,
-): readonly [number, number, number, number] {
-	return Object.freeze([
-		sampleUnifiedExactRgbaChannelV13(frame, xValue, yValue, 0) / 255,
-		sampleUnifiedExactRgbaChannelV13(frame, xValue, yValue, 1) / 255,
-		sampleUnifiedExactRgbaChannelV13(frame, xValue, yValue, 2) / 255,
-		sampleUnifiedExactRgbaChannelV13(frame, xValue, yValue, 3) / 255,
-	]);
+function sampleChannel(
+	pixels: Uint8Array,
+	topLeft: number,
+	topRight: number,
+	bottomLeft: number,
+	bottomRight: number,
+	mixX: number,
+	mixY: number,
+	channel: number,
+): number {
+	const top = pixels[topLeft + channel]!
+		+ (pixels[topRight + channel]! - pixels[topLeft + channel]!) * mixX;
+	const bottom = pixels[bottomLeft + channel]!
+		+ (pixels[bottomRight + channel]! - pixels[bottomLeft + channel]!) * mixX;
+	return top + (bottom - top) * mixY;
 }
 
 function blend(backdrop: number, source: number, mode: UnifiedExactLinearBlendModeV13): number {

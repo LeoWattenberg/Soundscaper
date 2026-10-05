@@ -38,7 +38,10 @@ import {
 } from './video-preview-fallback.ts';
 import { publishEvaluatedVideoPreviewFrame } from './video-preview-external-display.ts';
 import { createExactPreviewRenderCoordinator } from '../../controller/clip-video/exact-preview-render-coordinator.ts';
-import { shouldRenderExactProductVideoPreview } from './video-preview-exact-render-policy.ts';
+import {
+	areVideoPreviewMediaLayersReadyForExactRender,
+	shouldRenderExactProductVideoPreview,
+} from './video-preview-exact-render-policy.ts';
 import { bindFramescaperPreviewFreezeCapture } from './video-preview-freeze-capture.ts';
 import { resolveRegisteredVideoRetimePreview } from './video-preview-retime.ts';
 import {
@@ -310,6 +313,7 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 			const visualSession = visualSessionRef.current;
 			const productFrame = visualSession?.resolve(timelineFrame) ?? null;
 			if (shouldRenderExactProductVideoPreview(visualSession, playhead.transportState)) {
+				if (!layersSynchronized || !areVideoPreviewMediaLayersReadyForExactRender(compositorLayersRef.current)) return;
 				void exactRenders.run({
 					render: () => visualSession.renderExact({
 						timelineSample: timelineFrame, mediaLayers: compositorLayersRef.current,

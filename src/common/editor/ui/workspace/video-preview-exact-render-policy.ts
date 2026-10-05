@@ -11,3 +11,17 @@ export function shouldRenderExactProductVideoPreview(
 ): boolean {
 	return transportState !== 'playing' && typeof session?.renderExact === 'function';
 }
+
+/** Read back decoded media after its seek drains; readiness alone can still name the old picture. */
+export function areVideoPreviewMediaLayersReadyForExactRender(
+	layers: readonly Readonly<{
+		readonly entries: readonly Readonly<{ readonly video?: Readonly<{
+			readonly readyState?: number;
+			readonly seeking?: boolean;
+		}> | null }>[];
+	}>[],
+): boolean {
+	return layers.every((layer) => layer.entries.every(({ video }) => (
+		video != null && Number(video.readyState) >= 2 && video.seeking !== true
+	)));
+}
