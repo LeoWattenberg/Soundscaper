@@ -1,0 +1,10 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+[data-inputs-setup-flyout] .kw-framescaper-capture__setup-options,
+[data-inputs-setup-flyout] .kw-framescaper-capture__display-source {
+	grid-template-columns: 1fr;
+}
+
+[data-inputs-setup-flyout] .kw-framescaper-capture__setup-options fieldset {
+	grid-row: auto;
+}

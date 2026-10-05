@@ -9,6 +9,7 @@ test.describe('Framescaper inputs and transport', () => {
 
 	test('combined A/V capture is available through Inputs setup and the default Record control', async ({ page }) => {
 		test.setTimeout(120_000);
+		await page.setViewportSize({ width: 1280, height: 960 });
 		await installCaptureHarness(page, { persistentQuota: true, videoKind: 'cfr' });
 		const editor = await bootEditor(page, '/framescaper/en/');
 		await expect(editor.locator('[data-transport="framescaper-record"]').getByRole('button', { name: 'Record', exact: true })).toBeVisible();
@@ -21,9 +22,15 @@ test.describe('Framescaper inputs and transport', () => {
 		expect((await captureHarnessState(page)).requests).toHaveLength(0);
 		await setup.getByRole('button', { name: 'Preview sources', exact: true }).click();
 		await expectCapturePhase(setup.locator('[data-framescaper-recording-setup]'), 'previewing');
+		await expectInputsFitFlyout(setup);
+		await page.setViewportSize({ width: 640, height: 900 });
+		await expectInputsFitFlyout(setup);
 		await setup.getByRole('combobox', { name: 'Countdown', exact: true }).selectOption('0');
 		await setup.getByRole('button', { name: 'Arm capture', exact: true }).click();
 		await expectCapturePhase(setup.locator('[data-framescaper-recording-setup]'), 'armed');
+		await expectInputsFitFlyout(setup);
+		await page.setViewportSize({ width: 1280, height: 960 });
+		await expectInputsFitFlyout(setup);
 		await page.keyboard.press('Escape');
 		const record = editor.locator('[data-transport="framescaper-record"]');
 		await record.getByRole('button', { name: 'Start capture', exact: true }).click();
@@ -48,3 +55,15 @@ test.describe('Framescaper inputs and transport', () => {
 		expect(indices).toEqual([...indices].sort((left, right) => left - right));
 	});
 });
+
+async function expectInputsFitFlyout(setup) {
+	await expect.poll(() => setup.evaluate(flyout => flyout.scrollWidth - flyout.clientWidth)).toBeLessThanOrEqual(1);
+	expect(await setup.evaluate(flyout => {
+		const bounds = flyout.getBoundingClientRect();
+		return [...flyout.querySelectorAll('.kw-framescaper-capture__setup-options input, .kw-framescaper-capture__setup-options select')]
+			.every(control => {
+				const rect = control.getBoundingClientRect();
+				return rect.left >= bounds.left && rect.right <= bounds.right;
+			});
+	})).toBe(true);
+}

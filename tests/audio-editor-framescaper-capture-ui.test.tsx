@@ -109,6 +109,45 @@ test('Inputs setup exposes combined camera and microphone capture without implic
 	assert.match(markup, /aria-label="Speakers"/u);
 });
 
+test('Inputs setup retains output diagnostics and a missing preferred speaker without opening media', () => {
+	const calls: string[] = [];
+	for (const [outputStatus, outputSupported, message] of [
+		['unavailable', true, ENGLISH_COPY.audioDeviceOutputUnavailable],
+		['denied', true, ENGLISH_COPY.audioDeviceOutputDenied],
+		['unsupported', false, ENGLISH_COPY.audioDeviceOutputUnsupported],
+	] as const) {
+		const markup = render(<FramescaperInputsSetupFlyout
+			controller={{ ...controller(calls), actions: { ...controller(calls).actions,
+				audioDevices: { refresh: () => calls.push('refresh'), setOutput: () => calls.push('setOutput') },
+			} }}
+			snapshot={{ productId: 'framescaper', capture: capture('inactive'), audioDevices: {
+				outputStatus, outputSupported, outputs: [], preferredOutputDeviceId: 'missing-speaker',
+			} }} copy={ENGLISH_COPY} run={(operation) => operation()} />);
+		assert.ok(markup.includes(message));
+		assert.ok(markup.includes(`<option value="missing-speaker" selected="">${ENGLISH_COPY.audioDevicePreferredUnavailable}</option>`));
+		assert.match(markup, />Refresh devices<\/span>/u);
+	}
+	assert.deepEqual(calls, []);
+});
+
+test('Inputs output refresh only enumerates devices and stays disabled while capture owns sources', () => {
+	const calls: unknown[] = [];
+	for (const phase of ['inactive', 'previewing', 'permission-pending', 'armed', 'countdown', 'recording', 'paused', 'finalizing', 'recovery'] as const) {
+		const element = FramescaperInputsSetupFlyout({
+			controller: { actions: { audioDevices: { refresh: (options: unknown) => calls.push(options) } } },
+			snapshot: { productId: 'framescaper', capture: capture(phase) },
+			copy: ENGLISH_COPY, run: (operation) => operation(),
+		});
+		const refresh = React.Children.toArray(element.props.children).find((child) => (
+			React.isValidElement<{ readonly children?: React.ReactNode }>(child) && child.props.children === ENGLISH_COPY.audioDeviceRefresh
+		));
+		assert.ok(React.isValidElement<{ readonly disabled: boolean; readonly onClick: () => void }>(refresh));
+		assert.equal(refresh.props.disabled, !['inactive', 'previewing'].includes(phase));
+		if (!refresh.props.disabled) refresh.props.onClick();
+	}
+	assert.deepEqual(calls, [{ probe: false }, { probe: false }]);
+});
+
 test('recording setup presents explicit sources, destinations, capture controls and live status', () => {
 	const previewing = render(<RecordingSetupPanel
 		controller={controller([])}
