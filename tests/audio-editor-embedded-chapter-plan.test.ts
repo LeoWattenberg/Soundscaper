@@ -89,6 +89,7 @@ test('last point chapters include delivered effect tails and the final enclosing
 	});
 	const plan = createExportPlan(created, { format: 'mp3', range: { startFrame: 0, endFrame: 48_000 }, embedLabelChapters: true });
 	assert.ok(plan.tailFrames > 0);
+	assert.ok(plan.encoding.embeddedChapters);
 	assert.equal(plan.encoding.embeddedChapters[0].endFrame, plan.outputFrames);
 	const oneFrame = createExportPlan(created, { format: 'aac-m4a', sampleRate: 8_000, range: { startFrame: 0, endFrame: 1 }, embedLabelChapters: true, includeTail: false });
 	assert.equal(oneFrame.outputFrames, 1);
