@@ -132,12 +132,14 @@ export function VideoFilmstripClip({
 					if (edge === 'left' ? clippedAtStart : clippedAtEnd) return null;
 					return <span key={edge}>
 						<button type="button" tabIndex={-1} className={`clip-display__handle clip-display__handle--trim-${edge}`}
+							style={edge === 'left' ? { left: Math.max(-26, -left) } : undefined}
 							aria-label={edge === 'left'
 								? (copy['ui.videoFilmstrip.trimLeftEdge'] || VIDEO_FILMSTRIP_COPY.trimLeftEdge)
 								: (copy['ui.videoFilmstrip.trimRightEdge'] || VIDEO_FILMSTRIP_COPY.trimRightEdge)}>
 							<span className="musescore-icon" aria-hidden="true">{edge === 'left' ? '\uF4B1' : '\uF4B0'}</span>
 						</button>
 						<button type="button" tabIndex={-1} className={`clip-display__handle clip-display__handle--stretch-${edge}`}
+							style={edge === 'left' ? { left: Math.max(-26, -left) } : undefined}
 							aria-label={edge === 'left'
 								? (copy['ui.videoFilmstrip.stretchLeftEdge'] || VIDEO_FILMSTRIP_COPY.stretchLeftEdge)
 								: (copy['ui.videoFilmstrip.stretchRightEdge'] || VIDEO_FILMSTRIP_COPY.stretchRightEdge)}>

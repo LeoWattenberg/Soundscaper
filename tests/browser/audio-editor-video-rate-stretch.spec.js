@@ -186,6 +186,11 @@ async function dragStretchHandle(page, editor, timing, clip, edge, targetFrame, 
 	const [groupBox, handleBox] = await Promise.all([group.boundingBox(), handle.boundingBox()]);
 	expect(groupBox).not.toBeNull();
 	expect(handleBox).not.toBeNull();
+	expect(await handle.evaluate(button => {
+		const bounds = button.getBoundingClientRect();
+		const hit = document.elementFromPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+		return hit === button || button.contains(hit);
+	}), `${edge} stretch handle must receive pointer input`).toBe(true);
 	const start = sampleAtSequenceFrame(timing, clip.sequenceStartFrame);
 	const end = sampleAtSequenceFrame(timing, clip.sequenceStartFrame + clip.sequenceFrameCount);
 	const targetX = groupBox.x + (sampleAtSequenceFrame(timing, targetFrame) - start) / (end - start) * groupBox.width;
