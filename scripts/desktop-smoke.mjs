@@ -43,20 +43,41 @@ export function resolveDesktopProductId(value) {
 	return requested;
 }
 
-async function main() {
-	const executable = await findPackagedExecutable();
-	const useXvfb = process.platform === 'linux' && process.env.SOUNDSCAPER_SMOKE_XVFB === 'true';
-	const command = useXvfb ? 'xvfb-run' : executable;
-	const profile = await mkdtemp(join(tmpdir(), `${PRODUCT_ID}-desktop-smoke-`));
+export function resolveDesktopSmokeInvocation({ executable, flatpakId, platform, productId, profile, useXvfb }) {
+	if (flatpakId !== undefined) {
+		if (platform !== 'linux') throw new Error('Flatpak desktop smoke requires Linux.');
+		const expectedId = `org.${resolveDesktopProductId(productId)}.desktop`;
+		if (flatpakId !== expectedId) {
+			throw new Error(`SOUNDSCAPER_SMOKE_FLATPAK_ID must be ${expectedId}; received ${JSON.stringify(flatpakId)}.`);
+		}
+	}
 	const smokeAppData = join(profile, 'application-data');
 	const appArgs = [
 		`--user-data-dir=${profile}`,
 		'--soundscaper-smoke',
 		`--soundscaper-smoke-app-data=${smokeAppData}`,
 	];
-	const args = useXvfb ? ['-a', executable, ...appArgs] : appArgs;
+	const binary = flatpakId === undefined ? executable : 'flatpak';
+	// Flatpak has a private /tmp. Grant only this disposable smoke profile access
+	// so both Chromium and shared library state use the same isolated directory.
+	const launchArgs = flatpakId === undefined
+		? appArgs
+		: ['run', '--user', `--filesystem=${profile}`, flatpakId, ...appArgs];
+	return useXvfb
+		? { command: 'xvfb-run', args: ['-a', binary, ...launchArgs] }
+		: { command: binary, args: launchArgs };
+}
+
+async function main() {
+	const flatpakId = process.env.SOUNDSCAPER_SMOKE_FLATPAK_ID;
+	const executable = flatpakId === undefined ? await findPackagedExecutable() : undefined;
+	const useXvfb = process.platform === 'linux' && process.env.SOUNDSCAPER_SMOKE_XVFB === 'true';
+	const profile = await mkdtemp(join(tmpdir(), `${PRODUCT_ID}-desktop-smoke-`));
 	let result;
 	try {
+		const { command, args } = resolveDesktopSmokeInvocation({
+			executable, flatpakId, platform: process.platform, productId: PRODUCT_ID, profile, useXvfb,
+		});
 		result = await run(command, args);
 	} finally {
 		await rm(profile, { recursive: true, force: true });

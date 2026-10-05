@@ -885,6 +885,91 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+  flatpak:
+    name: Flatpak ${{ matrix.product }} / linux / ${{ matrix.target.arch }}
+    needs: [quality, package]
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        product: ${{ fromJSON(needs.quality.outputs.release-products) }}
+        target:
+          - runner: ubuntu-24.04
+            arch: x64
+            flatpak_arch: x86_64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+            flatpak_arch: aarch64
+    runs-on: ${{ matrix.target.runner }}
+    env:
+      SCAPE_PRODUCT: ${{ matrix.product }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Pin npm
+        run: npm install --global npm@12.0.1
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download the audited Linux packages
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: nightly-${{ matrix.product }}-linux-${{ matrix.target.arch }}
+          path: .desktop-build/flatpak-packages
+
+      - name: Install Flatpak packaging and smoke tools
+        timeout-minutes: 10
+        run: bash scripts/ci-apt-install.sh flatpak flatpak-builder xvfb xauth dbus-daemon
+
+      - name: Allow the Flatpak build sandbox on Ubuntu
+        run: |
+          if sysctl kernel.apparmor_restrict_unprivileged_userns >/dev/null 2>&1; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
+
+      - name: Install the Freedesktop runtime and Electron base app
+        timeout-minutes: 20
+        run: |
+          dbus-run-session -- flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          dbus-run-session -- flatpak install --user --noninteractive --arch="${{ matrix.target.flatpak_arch }}" flathub \
+            org.freedesktop.Platform//25.08 org.freedesktop.Sdk//25.08 org.electronjs.Electron2.BaseApp//25.08
+
+      - name: Build the Flatpak from the audited Debian application
+        run: >-
+          dbus-run-session -- node scripts/desktop-flatpak.mjs
+          --packages .desktop-build/flatpak-packages
+          --product "${{ matrix.product }}"
+          --arch "${{ matrix.target.arch }}"
+
+      - name: Install the generated Flatpak bundle
+        run: dbus-run-session -- flatpak install --user --noninteractive release/flatpak/*.flatpak
+
+      - name: Smoke the installed Flatpak editor
+        run: dbus-run-session -- npm run desktop:smoke
+        env:
+          SOUNDSCAPER_SMOKE_FLATPAK_ID: org.${{ matrix.product }}.desktop
+          SOUNDSCAPER_SMOKE_ARCH: ${{ matrix.target.arch }}
+          SOUNDSCAPER_SMOKE_XVFB: 'true'
+
+      - name: Upload the Flatpak bundle, checksum, and manifest
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          # Keep these separate from the nine-package release inventory.
+          name: flatpak-${{ matrix.product }}-linux-${{ matrix.target.arch }}
+          path: release/flatpak/
+          if-no-files-found: error
+          retention-days: 14
+
   soundscaper-project-library-lease-matrix:
     name: Soundscaper v1 + Framescaper v1 packaged lease matrix / ${{ matrix.target.platform }} / ${{ matrix.target.arch }}
     needs: [quality, tests, coverage, browser, firefox]

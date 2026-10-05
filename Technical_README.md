@@ -204,6 +204,37 @@ Actions run for 14 days; these are CI artifacts, not a public release channel.
 Publish changed AI runtime archives with **Update AI assets** before running
 desktop packaging; package workflows verify the published bytes without uploading.
 
+The workflow also repackages each audited Linux Debian application as a Flatpak
+for x64 and ARM64, then installs the bundle and runs the hardened editor smoke
+inside Flatpak. Download `flatpak-soundscaper-linux-<arch>` or
+`flatpak-framescaper-linux-<arch>` from the Actions run; each artifact contains a
+`.flatpak` bundle, its `.sha256` checksum, and the generated manifest. These
+artifacts have the same 14-day retention and stay separate from release assembly.
+
+For a local Linux Flatpak build, install `flatpak` and `flatpak-builder`, prepare
+the Debian package with `npm run desktop:dist`, and run:
+
+```sh
+flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+flatpak install --user flathub org.freedesktop.Platform//25.08 org.freedesktop.Sdk//25.08 org.electronjs.Electron2.BaseApp//25.08
+node scripts/desktop-flatpak.mjs --packages release/desktop --product soundscaper --arch x64
+flatpak install --user release/flatpak/Soundscaper-*-linux-x64.flatpak
+flatpak run org.soundscaper.desktop
+```
+
+Use `--product framescaper` with a Framescaper Debian package and run
+`org.framescaper.desktop`; use `--arch arm64` for an ARM64 package. Builds write
+staging files under `.desktop-build/flatpak/` and bundles under `release/flatpak/`.
+The [Electron BaseApp and Zypak launcher](https://docs.flatpak.org/en/latest/electron.html)
+provide sandboxed Electron startup through X11 or Xwayland. Packaging preserves
+the audited application bytes, including its ASAR, native payloads, codec
+libraries, and notices. The manifest grants display, GPU, audio, network, and
+host file access for reopening linked media and exporting to user-selected paths.
+The application runs with Flatpak's own application-data directories. Host-native
+plugins and external tools remain subject to the Flatpak environment's libraries
+and sandbox restrictions. Repackaging the existing Linux runtime closure does
+not require a manual **Update AI assets** run.
+
 Soundscaper Stable 1.0 has a separate exact `v1.0.0` workflow. Pushing that tag
 is the owner's release decision. The workflow verifies the checked-in version
 and channel, runs the canonical static, sharded Node, coverage, and browser
