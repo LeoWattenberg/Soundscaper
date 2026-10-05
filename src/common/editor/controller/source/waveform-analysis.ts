@@ -52,6 +52,7 @@ export interface StoredWaveformAnalysisOptions {
 }
 
 interface ClipSourceWindow {
+	readonly opaqueExtensions?: unknown;
 	readonly durationFrames?: unknown;
 	readonly sourceDurationFrames?: unknown;
 	readonly sourceStartFrame?: unknown;
@@ -122,6 +123,7 @@ export function clipSourceWindowRange(
 	const sourceDurationFrames = Math.max(1, Number(clip.sourceDurationFrames) || durationFrames);
 	const sourceStartFrame = Math.max(0, Number(clip.sourceStartFrame) || 0);
 	const range = projectUnwarpedClipSourceRange({
+		opaqueExtensions: clip.opaqueExtensions,
 		durationFrames,
 		sourceStartFrame,
 		sourceDurationFrames,

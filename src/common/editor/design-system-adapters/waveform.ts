@@ -1,5 +1,6 @@
 import { audacityWaveformMode } from '../audacity-waveform-renderer.js';
 import { projectUnwarpedClipSourceRange } from '../audio-clip-source-projection.ts';
+import { readClipLoop } from '../audio-clip-loop.ts';
 import type {
 	NumericChannel,
 	PeakPyramidWindowOptions,
@@ -41,6 +42,7 @@ export function prepareBoundedWaveformWindow(
 	if (!clip || typeof clip !== 'object') throw new TypeError('clip must be an object.');
 	const sourceStartFrame = nonNegativeSafeInteger(clip.sourceStartFrame, 'clip.sourceStartFrame');
 	const durationFrames = positiveSafeInteger(clip.durationFrames, 'clip.durationFrames');
+	const loop = readClipLoop(clip);
 	const sourceDurationFrames = positiveSafeInteger(clip.sourceDurationFrames ?? durationFrames, 'clip.sourceDurationFrames');
 	const sourceFrameOffset = nonNegativeSafeInteger(options.sourceFrameOffset ?? 0, 'sourceFrameOffset');
 
@@ -51,6 +53,7 @@ export function prepareBoundedWaveformWindow(
 	const reversed = Boolean(clip.reversed);
 	if (frameCount) {
 		const range = projectUnwarpedClipSourceRange({
+			opaqueExtensions: clip.opaqueExtensions,
 			durationFrames,
 			sourceStartFrame,
 			sourceDurationFrames,
@@ -102,7 +105,7 @@ export function prepareBoundedWaveformWindow(
 	const transformSample = (channel: number, localFrame: number): number => {
 		const mappedFrame = Math.min(
 			sourceDurationFrames - 1,
-			Math.floor(localFrame * sourceDurationFrames / durationFrames),
+			Math.floor((loop ? (localFrame + loop.offsetFrames) % loop.periodFrames : localFrame) * sourceDurationFrames / (loop?.periodFrames ?? durationFrames)),
 		);
 		const sourceLocalFrame = reversed ? sourceDurationFrames - mappedFrame - 1 : mappedFrame;
 		const sourceFrame = sourceStartFrame + sourceLocalFrame;
@@ -112,6 +115,7 @@ export function prepareBoundedWaveformWindow(
 			* fadeEnvelope(localFrame, durationFrames, fadeInFrames, fadeOutFrames, fadeInShape, fadeOutShape);
 	};
 	const rendering = pixelWidth == null ? null : prepareAudacityWaveformRendering(sourceChannels, {
+		opaqueExtensions: clip.opaqueExtensions,
 		sourceStartFrame,
 		sourceDurationFrames,
 		durationFrames,
@@ -229,6 +233,7 @@ export function preparePeakPyramidWaveformWindow(
 ): PreparedWaveformWindow {
 	if (!clip || typeof clip !== 'object') throw new TypeError('clip must be an object.');
 	const validatedPeaks = validateWaveformPeakLevels(peaks);
+	const loop = readClipLoop(clip);
 	const levels = validatedPeaks.levels;
 	const sourceStartFrame = nonNegativeSafeInteger(clip.sourceStartFrame, 'clip.sourceStartFrame');
 	const durationFrames = positiveSafeInteger(clip.durationFrames, 'clip.durationFrames');
@@ -257,7 +262,7 @@ export function preparePeakPyramidWaveformWindow(
 		throw new RangeError('channelCount exceeds the channels stored in the waveform peak pyramid.');
 	}
 	const columnCount = frameCount ? Math.max(1, Math.ceil(pixelWidth)) : 0;
-	const sourceSamplesPerTimelineFrame = sourceDurationFrames / durationFrames;
+	const sourceSamplesPerTimelineFrame = sourceDurationFrames / (loop?.periodFrames ?? durationFrames);
 	const visibleSourceStart = startFrame * sourceSamplesPerTimelineFrame;
 	const visibleSourceEnd = endFrame * sourceSamplesPerTimelineFrame;
 	const visibleSourceSamples = frameCount * sourceSamplesPerTimelineFrame;
@@ -290,12 +295,10 @@ export function preparePeakPyramidWaveformWindow(
 				visibleSourceEnd,
 				visibleSourceStart + (column + 1) * sourceSamplesPerPixel,
 			);
-			const absoluteStart = sourceStartFrame + (reversed
-				? sourceDurationFrames - visualEnd
-				: visualStart);
-			const absoluteEnd = sourceStartFrame + (reversed
-				? sourceDurationFrames - visualStart
-				: visualEnd);
+			const projected = projectUnwarpedClipSourceRange({ ...clip, sourceDurationFrames, reversed },
+				visualStart / sourceSamplesPerTimelineFrame, visualEnd / sourceSamplesPerTimelineFrame);
+			const absoluteStart = projected.startFrame;
+			const absoluteEnd = projected.endFrame;
 			const range = aggregateWaveformPeakRange(
 				channelLevel,
 				absoluteStart,

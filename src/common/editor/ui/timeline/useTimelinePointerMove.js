@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { clipStretchPointerPreview, loopPointerPreview } from './clip-loop-pointer.ts';
 import { CLIP_CONTENT_OFFSET } from '@soundscaper/design-system/constants';
 
 import { secondsToFrames } from '../../design-system-adapters.js';
@@ -288,6 +289,14 @@ export function useTimelinePointerMove({
 			event.preventDefault();
 			return;
 		}
+		const loopPreview = session?.original && loopPointerPreview(session, projectIndex.sourceById.get(session.original.sourceId)?.frameCount ?? 0, event.clientX, pixelsPerSecond, sampleRate);
+		if (loopPreview) {
+			session.preview = loopPreview;
+			setClipDragPreview(loopPreview);
+			setBoundarySnapGuideFrames(loopPreview.guideFrame === null ? [] : [loopPreview.guideFrame]);
+			event.preventDefault();
+			return;
+		}
 		if (session?.kind === 'sample-pencil') {
 			const clip = projectIndex.clipById.get(session.clipId);
 			const source = clip ? projectIndex.sourceById.get(clip.sourceId) : null;
@@ -454,23 +463,8 @@ export function useTimelinePointerMove({
 					controller.actions.video.trim.rateStretch.preview(request)
 				)),
 				clipKind: (clipId) => projectIndex.clipById.get(clipId)?.kind ?? null,
-				previewOrdinary: () => {
-					const deltaFrames = secondsToFrames(
-						Math.abs(event.clientX - session.startX) / pixelsPerSecond,
-						{ sampleRate },
-					) * Math.sign(event.clientX - session.startX);
-					const change = session.kind === 'stretch-left'
-						? Math.max(-session.original.timelineStartFrame, Math.min(session.original.durationFrames - 1, deltaFrames))
-						: 0;
-					return {
-						clipId: session.clipId,
-						trackId: session.trackId,
-						timelineStartFrame: session.original.timelineStartFrame + change,
-						durationFrames: session.kind === 'stretch-left'
-							? session.original.durationFrames - change
-							: Math.max(1, session.original.durationFrames + deltaFrames),
-					};
-				},
+				previewOrdinary: () => clipStretchPointerPreview(session, event.clientX, pixelsPerSecond, sampleRate,
+					(clipId) => projectIndex.trackByClipId.get(clipId)?.id),
 			});
 			if (!preview) {
 				session.preview = null;

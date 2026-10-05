@@ -99,6 +99,7 @@ export interface BoundedCanvasDimensions {
 }
 
 export interface WaveformClipLike {
+	readonly opaqueExtensions?: unknown;
 	readonly sourceStartFrame: number;
 	readonly durationFrames: number;
 	readonly sourceDurationFrames?: number;

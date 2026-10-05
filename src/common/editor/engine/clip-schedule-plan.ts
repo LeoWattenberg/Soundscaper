@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { AUDIO_EDITOR_STORAGE_CHUNK_FRAMES } from '../chunk-stream.js';
+import { readClipLoop, withoutClipLoop } from '../audio-clip-loop.ts';
 import { buildAudioWarpRuntimeSegments } from '../audio-warp-runtime.ts';
 import {
 	automaticClipCrossfadeRanges,
@@ -33,6 +34,8 @@ export { mergeFrameRanges };
 export type { ClipCrossfadeRanges, FrameRange };
 
 export interface ClipSchedulePlan extends ClipCrossfadeRanges {
+	readonly loopSourceStartFrame?: number;
+	readonly loopSourceEndFrame?: number;
 	readonly clip: EngineClip;
 	readonly trackInput: AudioNode;
 	readonly originalBuffer: AudioBuffer | null;
@@ -196,6 +199,36 @@ export function buildClipSchedulePlans({
 			const segmentStart = Math.max(start, fromFrame);
 			const segmentEnd = Math.min(end, toFrame);
 			if (segmentEnd <= segmentStart) continue;
+			const loop = readClipLoop(clip);
+			if (loop) {
+				const resolved = resolveClipSource(clip, project, sources, sourceResolver, chunkSources);
+				if (resolved.buffer) {
+					const sourceDuration = resolved.sourceDurationFrames ?? clip.sourceDurationFrames ?? loop.periodFrames;
+					const sourceSampleRate = resolved.buffer.sampleRate;
+					const loopSourceStartFrame = resolved.reversed ? resolved.buffer.length - resolved.sourceStartFrame - sourceDuration : resolved.sourceStartFrame;
+					const phase = (segmentStart - start + loop.offsetFrames) % loop.periodFrames;
+					plans.push({ clip, ...(crossfades.get(String(clip.id)) ?? { crossfadeInRanges: [], crossfadeOutRanges: [] }),
+						trackInput, originalBuffer: resolved.buffer, chunkSource: null, reversed: resolved.reversed,
+						loopSourceStartFrame, loopSourceEndFrame: loopSourceStartFrame + sourceDuration,
+						offsetFrame: loopSourceStartFrame + phase * sourceDuration / loop.periodFrames, sourceSampleRate,
+						playbackRate: sourceDuration * sampleRate / (loop.periodFrames * sourceSampleRate),
+						segmentStart, segmentEnd, segmentDuration: (segmentEnd - segmentStart) / sampleRate,
+						relativeStart: segmentStart - start, duration });
+					continue;
+				}
+				const origin = start - loop.offsetFrames;
+				let repeatStart = origin + Math.floor((segmentStart - origin) / loop.periodFrames) * loop.periodFrames;
+				for (; repeatStart < segmentEnd; repeatStart += loop.periodFrames) {
+					const shift = Math.max(0, -repeatStart);
+					const virtual = { ...clip, opaqueExtensions: withoutClipLoop(clip.opaqueExtensions),
+						timelineStartFrame: repeatStart + shift, durationFrames: loop.periodFrames };
+					const repeats = buildClipSchedulePlans({ project: { ...project, clips: [virtual], tracks: [{ ...track, clipIds: [String(clip.id)] }] },
+						sources, chunkSources, trackInputs, fromFrame: Math.max(segmentStart, repeatStart) + shift, toFrame: Math.min(segmentEnd, repeatStart + loop.periodFrames) + shift, sampleRate, sourceResolver });
+					const crossfade = crossfades.get(String(clip.id)) ?? { crossfadeInRanges: [], crossfadeOutRanges: [] };
+					plans.push(...repeats.map(plan => ({ ...plan, ...crossfade, clip, duration, segmentStart: plan.segmentStart - shift, segmentEnd: plan.segmentEnd - shift, relativeStart: plan.segmentStart - shift - start })));
+				}
+				continue;
+			}
 			// A scalar pitch/speed cache cannot stand in for an authored piecewise
 			// map. Warped clips resolve only their canonical source media here.
 			const resolvedSource = resolveClipSource(

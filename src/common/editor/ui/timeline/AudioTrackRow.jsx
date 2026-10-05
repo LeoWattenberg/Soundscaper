@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { TrackNew } from '@soundscaper/design-system/Track/TrackNew';
 import { TrackCrossfadeVisual } from '@soundscaper/design-system/Track/TrackCrossfadeVisual';
-
 import { resolveTrackWaveformOptions } from '../../track-display-mode.ts';
 import { editorTimelineDurationFrames } from '../../project.js';
 import { TrackControls } from './TrackControls.jsx';
 import { clipHeaderActions } from './clip-header-actions.ts';
 import { TrackAutomationOverlay } from '../soundscaper-workflow-product-runtime.tsx';
 import { ClipFadeOverlays } from './ClipFadeOverlays.tsx';
+import { ClipLoopOverlays } from './ClipLoopOverlays.tsx';
 import { crossfadedClipFadeEdges } from './clip-fade-crossfaded-edges.ts';
 import { crossfadeShapesAtKey, crossfadeShapesChanged } from './crossfade-visual-geometry.ts';
 import { AudacityWaveformCanvases } from './TimelineCanvasRenderer.jsx';
@@ -27,7 +27,6 @@ import { clipGroups, focusFirst } from './timeline-navigation.js';
 import { useAudioTrackRowNavigation } from './useAudioTrackRowNavigation.js';
 import { useAudioTrackRowViewModel } from './useAudioTrackRowViewModel.js';
 import { resolveAudioEditorColor, TimeSelectionOverlay } from './TimelineOverlayComponents.jsx';
-
 export function AudioTrackRow({
 	controller,
 	project,
@@ -255,7 +254,6 @@ export function AudioTrackRow({
 			],
 		}));
 	};
-
 	return (
 		<div
 			className="audio-editor-track-row"
@@ -429,6 +427,7 @@ export function AudioTrackRow({
 							}
 							else focusCurrentRuler();
 						}} />)}
+					<ClipLoopOverlays rootRef={trackWindowRef} clips={projection.clips} selectedIds={visualSelectedClipIds} startFrame={projection.overscanStartFrame} endFrame={projection.overscanEndFrame} pixelsPerSecond={pixelsPerSecond} sampleRate={sampleRate} blocked={blocked} copy={copy} onChange={(id, changes) => run(() => controller.actions.clip.update(id, changes))} />
 					<ClipFadeOverlays rootRef={trackWindowRef} clips={projection.clips}
 						showFadeShapeHandles={showFadeShapeHandles}
 						crossfadedFadeEdges={crossfadedFadeEdges}

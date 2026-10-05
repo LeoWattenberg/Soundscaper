@@ -1,4 +1,5 @@
 import { audacityWaveformMode } from '../audacity-waveform-renderer.js';
+import { readClipLoop } from '../audio-clip-loop.ts';
 import { WAVEFORM_PEAKS_VERSION } from '../waveform-peak-contract.ts';
 import type {
 	NumericChannel,
@@ -31,6 +32,7 @@ export class WaveformPeakResolutionError extends RangeError {
 }
 
 export interface AudacityWaveformRenderingOptions {
+	readonly opaqueExtensions?: unknown;
 	readonly sourceStartFrame: number;
 	readonly sourceDurationFrames: number;
 	readonly durationFrames: number;
@@ -271,18 +273,20 @@ export function prepareAudacityWaveformRendering(
 	sourceChannels: readonly NumericChannel[],
 	options: AudacityWaveformRenderingOptions,
 ): WaveformRendering {
-	const sourceSamplesPerTimelineFrame = options.sourceDurationFrames / options.durationFrames;
+	const loop = readClipLoop(options);
+	const sourceSamplesPerTimelineFrame = options.sourceDurationFrames / (loop?.periodFrames ?? options.durationFrames);
 	const visibleSourceStart = options.startFrame * sourceSamplesPerTimelineFrame;
 	const visibleSourceEnd = options.endFrame * sourceSamplesPerTimelineFrame;
 	const visibleSourceSamples = options.frameCount * sourceSamplesPerTimelineFrame;
 	const pixelsPerSample = options.pixelWidth / visibleSourceSamples;
 	const mode = audacityWaveformMode(pixelsPerSample) as string;
 	const transformSourceSample = (channel: number, visualOrdinal: number): number => {
-		const sourceLocalFrame = options.reversed
-			? options.sourceDurationFrames - visualOrdinal - 1
-			: visualOrdinal;
-		const sample = Number(sourceChannels[channel][options.sourceStartFrame + sourceLocalFrame - options.sourceFrameOffset]);
 		const timelineFrame = visualOrdinal / sourceSamplesPerTimelineFrame;
+		const sourceOrdinal = loop ? Math.floor(((timelineFrame + loop.offsetFrames) % loop.periodFrames) * sourceSamplesPerTimelineFrame) : visualOrdinal;
+		const sourceLocalFrame = options.reversed
+			? options.sourceDurationFrames - sourceOrdinal - 1
+			: sourceOrdinal;
+		const sample = Number(sourceChannels[channel][options.sourceStartFrame + sourceLocalFrame - options.sourceFrameOffset]);
 		return (Number.isFinite(sample) ? sample : 0)
 			* options.gain
 			* fadeEnvelope(timelineFrame, options.durationFrames, options.fadeInFrames, options.fadeOutFrames,
@@ -305,10 +309,10 @@ export function prepareAudacityWaveformRendering(
 		const lastAvailableSample = options.reversed
 			? options.sourceStartFrame + options.sourceDurationFrames - options.sourceFrameOffset - 1
 			: options.sourceFrameOffset + sourceLength - options.sourceStartFrame - 1;
-		const firstSample = Math.max(0, firstAvailableSample, Math.floor(visibleSourceStart));
+		const firstSample = Math.max(0, loop ? Math.floor(visibleSourceStart) : firstAvailableSample, Math.floor(visibleSourceStart));
 		const lastSample = Math.min(
-			options.sourceDurationFrames - 1,
-			lastAvailableSample,
+			loop ? Number.MAX_SAFE_INTEGER : options.sourceDurationFrames - 1,
+			loop ? Number.MAX_SAFE_INTEGER : lastAvailableSample,
 			Math.ceil(visibleSourceEnd),
 		);
 		return {
@@ -339,13 +343,13 @@ export function prepareAudacityWaveformRendering(
 			for (let column = 0; column < columnCount; column += 1) {
 				const rawStart = Math.min(visibleSourceEnd, visibleSourceStart + column * sourceSamplesPerPixel);
 				const rawEnd = Math.min(visibleSourceEnd, visibleSourceStart + (column + 1) * sourceSamplesPerPixel);
-				let bucketStart = clamp(Math.round(rawStart), 0, options.sourceDurationFrames);
-				let bucketEnd = clamp(Math.round(rawEnd), 0, options.sourceDurationFrames);
+				let bucketStart = clamp(Math.round(rawStart), 0, loop ? Math.ceil(visibleSourceEnd) : options.sourceDurationFrames);
+				let bucketEnd = clamp(Math.round(rawEnd), 0, loop ? Math.ceil(visibleSourceEnd) : options.sourceDurationFrames);
 				if (bucketEnd <= bucketStart) {
 					bucketStart = clamp(
 						Math.min(Math.floor(rawStart), lastVisibleSourceFrame),
 						0,
-						options.sourceDurationFrames - 1,
+						loop ? lastVisibleSourceFrame : options.sourceDurationFrames - 1,
 					);
 					bucketEnd = bucketStart + 1;
 				}

@@ -1,10 +1,12 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { readClipLoop } from './audio-clip-loop.ts';
 
 export interface UnwarpedClipSourceProjection {
 	readonly durationFrames: number;
 	readonly sourceStartFrame: number;
 	readonly sourceDurationFrames: number;
 	readonly reversed: boolean;
+	readonly opaqueExtensions?: unknown;
 }
 
 export interface ProjectedClipSourceRange {
@@ -21,7 +23,15 @@ export function projectUnwarpedClipSourceRange(
 	localStartFrame: number,
 	localEndFrame: number,
 ): ProjectedClipSourceRange {
-	const sourceFramesPerTimelineFrame = clip.sourceDurationFrames / clip.durationFrames;
+	const loop = readClipLoop(clip);
+	if (loop) {
+		const offset = (localStartFrame + loop.offsetFrames) % loop.periodFrames;
+		const span = localEndFrame - localStartFrame;
+		if (offset + span > loop.periodFrames) return { startFrame: clip.sourceStartFrame, endFrame: clip.sourceStartFrame + clip.sourceDurationFrames };
+		localStartFrame = offset;
+		localEndFrame = offset + span;
+	}
+	const sourceFramesPerTimelineFrame = clip.sourceDurationFrames / (loop?.periodFrames ?? clip.durationFrames);
 	const relativeStartFrame = localStartFrame * sourceFramesPerTimelineFrame;
 	const relativeEndFrame = localEndFrame * sourceFramesPerTimelineFrame;
 	const projectedStartFrame = clip.sourceStartFrame + (clip.reversed

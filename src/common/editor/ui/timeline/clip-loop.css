@@ -1,0 +1,28 @@
+.audio-editor-clip-loop-boundary {
+	position: absolute;
+	top: 20px;
+	bottom: 0;
+	border-left: 1px dashed currentColor;
+	opacity: 0.55;
+	pointer-events: none;
+	z-index: 4;
+}
+
+.clip-display__handle--loop-right {
+	position: absolute;
+	right: -26px;
+	top: 92px;
+	width: 20px;
+	height: 20px;
+	padding: 0;
+	border: 0;
+	background: transparent;
+	color: inherit;
+	cursor: ew-resize;
+	z-index: 10;
+}
+
+.clip-display__handle--loop-right:hover,
+.clip-display__handle--loop-right:focus-visible {
+	background: var(--clip-handle-hover-bg, rgba(128, 128, 128, 0.25));
+}

@@ -1,4 +1,5 @@
 import { useCallback, useEffect } from 'react';
+import { loopPointerPreview, sameLoopPointerClip } from './clip-loop-pointer.ts';
 
 import { secondsToFrames } from '../../design-system-adapters.js';
 import { createBoundarySnapIndex, resolveBoundarySnap } from './boundary-snap.ts';
@@ -261,6 +262,12 @@ export function useTimelinePointerFinish({
 		if (Math.hypot(event.clientX - session.startX, event.clientY - session.startY) < 3) return;
 		const clip = project.clips.find((item) => item.id === session.clipId);
 		if (!clip) return;
+		const loopChange = loopPointerPreview(session, projectIndex.sourceById.get(clip.sourceId)?.frameCount ?? 0, event.clientX, pixelsPerSecond, sampleRate);
+		if (loopChange) {
+			if (mutationsBlocked || !sameLoopPointerClip(clip, session.original)) return;
+			run(() => controller.actions.clip.update(clip.id, { loop: loopChange.loopChange }));
+			return;
+		}
 		if (session.kind === 'move') {
 			const moveOptions = session.boundarySnapped
 				? { ...session.moveOptions, exactFrame: true } : session.moveOptions;

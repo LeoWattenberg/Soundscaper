@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createEnvelopeValueEvaluator } from '../automation.js';
+import { clipLoopSegmentFields } from '../audio-clip-loop.ts';
 import { compareCodeUnits } from '../code-unit-order.ts';
 import {
 	clipEndFrame,
@@ -144,6 +145,7 @@ export function segmentOfClip(project, clip, segmentStartFrame, segmentEndFrame,
 		trimStartFrames: segmentStartFrame === clip.timelineStartFrame ? clip.trimStartFrames : 0,
 		trimEndFrames: segmentEndFrame === clipEndFrame(clip) ? clip.trimEndFrames : 0,
 		...(warpSegment ? { warpMap: warpSegment.warpMap } : {}),
+		...clipLoopSegmentFields(clip, offsetFrames, durationFrames),
 		...(envelope ? { envelope } : {}),
 		...(Number.isSafeInteger(clip.fadeInFrames) ? {
 			fadeInFrames: segmentStartFrame === clip.timelineStartFrame

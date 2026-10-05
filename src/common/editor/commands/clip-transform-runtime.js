@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { clipSourceTrimFields } from '../clip-source-trim.ts';
+import { clipHasLoopRepeats, clipLoopTransformFields, clipLoopUpdateFields, normalizeInactiveClipLoop, readClipLoop } from '../audio-clip-loop.ts';
 import { compareCodeUnits } from '../code-unit-order.ts';
 import { shapesForNewClipFades } from '../audio-clip-transition-gain.ts';
 import {
@@ -209,7 +210,7 @@ function buildClipTransformState(project, transforms) {
 		'renderCacheRevision',
 	]);
 	return transforms.map((transform, index) => {
-		const clip = requireClip(project, ids[index]);
+		const clip = normalizeInactiveClipLoop(requireClip(project, ids[index]));
 		const oldTrack = requireClipTrack(project, clip.id);
 		const track = requireTrack(project, transform.trackId || oldTrack.id);
 		if (!Array.isArray(track.clipIds)) throw new RangeError(`Media clips cannot be transformed onto track ${track.id}.`);
@@ -226,13 +227,15 @@ function buildClipTransformState(project, transforms) {
 			? assertFrame(changes.timelineStartFrame, 'clip transform destination')
 			: clip.timelineStartFrame;
 		const warpSegment = warpSegmentForExtent(project, clip, changes, timelineStartFrame, durationFrames);
+		const loopFields = clipLoopTransformFields(clip, changes);
 		let updated = normalizeClipForProject(project, {
 			...clip,
 			...shapesForNewClipFades(clip, changes),
 			...changes,
 			...(warpSegment ? warpSegmentFields(warpSegment) : {}),
+			...loopFields,
 			...(Object.hasOwn(changes, 'preserveFormants') ? {
-				opaqueExtensions: withoutImportedPitchPreset(clip.opaqueExtensions),
+				opaqueExtensions: withoutImportedPitchPreset(loopFields?.opaqueExtensions ?? clip.opaqueExtensions),
 			} : {}),
 			...(!Object.hasOwn(changes, 'envelope') && durationFrames !== clip.durationFrames ? {
 				envelope: envelopeForTrimmedBounds(clip, timelineStartFrame, durationFrames),
@@ -383,8 +386,19 @@ export function prepareOverwriteClipCommand(project, clipId, options = {}, idFac
 }
 
 export function trimClip(project, command) {
-	const clip = requireClip(project, command.clipId);
+	const clip = normalizeInactiveClipLoop(requireClip(project, command.clipId));
 	const track = requireClipTrack(project, clip.id);
+	const loop = readClipLoop(clip);
+	if (loop && clipHasLoopRepeats(clip) && command.sourceRange === true) {
+		const updated = normalizeClipForProject(project, { ...clip, ...clipLoopUpdateFields(clip, {
+			periodFrames: command.durationFrames ?? loop.periodFrames, offsetFrames: 0,
+			sourceStartFrame: command.sourceStartFrame ?? clip.sourceStartFrame,
+			sourceDurationFrames: command.sourceDurationFrames ?? clip.sourceDurationFrames,
+		}) });
+		assertClipSourceBounds(project, updated);
+		replaceClip(project, updated);
+		return;
+	}
 	const timelineStartFrame = command.timelineStartFrame == null
 		? clip.timelineStartFrame
 		: assertFrame(command.timelineStartFrame, 'clip trim destination');

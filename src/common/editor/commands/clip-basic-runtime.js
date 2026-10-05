@@ -7,6 +7,7 @@ import {
 	findClipTrack,
 } from '../project.js';
 import { shapesForNewClipFades } from '../audio-clip-transition-gain.ts';
+import { clipLoopUpdateFields } from '../audio-clip-loop.ts';
 import { collectRelatedClipIds } from './editing-selection-authority.ts';
 import { hasCoreEditingProjectAuthority, hasProjectBinMediaAuthority } from '../project-schema-version.ts';
 import {
@@ -14,6 +15,7 @@ import {
 	assertClipSpace,
 	assertUnusedClipId,
 	assertUnusedId,
+	envelopeForTrimmedBounds,
 	normalizeClipForProject,
 	normalizeCommandIds,
 	normalizeRangeReplacementSource,
@@ -113,18 +115,24 @@ export function updateClip(project, clipId, changes = {}) {
 			'gain', 'fadeInFrames', 'fadeOutFrames', 'fadeInShape', 'fadeOutShape',
 			'reversed', 'inverted', 'title', 'envelope',
 			'groupId', 'color', 'pitchCents', 'speedRatio', 'preserveFormants', 'linkPitchAndTempo',
-			'stretchToTempo', 'renderCacheRevision',
+			'stretchToTempo', 'renderCacheRevision', 'loop',
 		]);
 	for (const key of Object.keys(changes)) if (!allowed.has(key)) throw new RangeError(`Clip field cannot be updated: ${key}.`);
+	const { loop, ...fields } = changes;
+	const loopFields = Object.hasOwn(changes, 'loop') ? clipLoopUpdateFields(clip, loop) : {};
 	const updated = normalizeClipForProject(project, {
 		...clip,
 		...shapesForNewClipFades(clip, changes),
-		...changes,
+		...fields,
+		...loopFields,
+		...(loopFields.durationFrames !== undefined && loopFields.durationFrames !== clip.durationFrames
+			? { envelope: envelopeForTrimmedBounds(clip, clip.timelineStartFrame, loopFields.durationFrames) } : {}),
 		...(Object.hasOwn(changes, 'preserveFormants') ? {
-			opaqueExtensions: withoutImportedPitchPreset(clip.opaqueExtensions),
+			opaqueExtensions: withoutImportedPitchPreset(loopFields.opaqueExtensions ?? clip.opaqueExtensions),
 		} : {}),
 		id: clip.id,
 	});
+	assertClipSourceBounds(project, updated);
 	assertClipSpace(project, track, updated, clip.id);
 	replaceClip(project, updated);
 }
