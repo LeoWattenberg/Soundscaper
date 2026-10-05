@@ -35,6 +35,7 @@ export function VideoFilmstripClip({
 	color = 'blue',
 	clipStyle = 'colourful',
 	run = (operation) => operation(),
+	onFadeTabOut = undefined,
 }) {
 	const clipEndFrame = clip.timelineStartFrame + clip.durationFrames;
 	const visibleStartFrame = Math.max(clip.timelineStartFrame, overscanStartFrame);
@@ -201,7 +202,7 @@ export function VideoFilmstripClip({
 				</div>
 				<VideoClipFadeHandles controller={controller} project={project} clip={clip} selected={selected}
 					visibleStartFrame={visibleStartFrame} visibleEndFrame={visibleEndFrame} pixelsPerSecond={pixelsPerSecond}
-					sampleRate={sampleRate} blocked={blocked} copy={copy} run={run} />
+					sampleRate={sampleRate} blocked={blocked} copy={copy} run={run} onTabOut={onFadeTabOut} />
 				{blocked && <span className="audio-editor-video-clip__blocked" aria-hidden="true" />}
 			</div>
 		</div>

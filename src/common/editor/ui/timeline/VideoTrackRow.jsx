@@ -114,6 +114,7 @@ export function VideoTrackRow({
 			: 'none';
 	const {
 		focusAfterPanel,
+		focusAfterTrack,
 		focusBeforeTrack,
 		focusCurrentPanel,
 		focusCurrentTrack,
@@ -160,7 +161,9 @@ export function VideoTrackRow({
 			if (event.key !== 'Tab') return false;
 			event.preventDefault();
 			event.stopPropagation();
-			if (event.shiftKey) router.focusCurrentPanel(true);
+			const fadeHandle = !event.shiftKey && event.target.querySelector('[data-video-clip-fade-handle]:not(:disabled)');
+			if (fadeHandle) fadeHandle.focus();
+			else if (event.shiftKey) router.focusCurrentPanel(true);
 			else router.focusAfterTrack();
 			return true;
 		},
@@ -263,6 +266,7 @@ export function VideoTrackRow({
 								color={clip.color === 'auto' ? track.color : clip.color}
 								clipStyle={clipStyle}
 								run={run}
+								onFadeTabOut={focusAfterTrack}
 								onOpenMenu={onOpenClipMenu}
 								onRename={(title) => {
 									const nextTitle = String(title).trim();

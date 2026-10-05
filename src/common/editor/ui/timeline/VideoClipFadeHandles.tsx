@@ -20,11 +20,12 @@ interface Props {
 	readonly blocked: boolean;
 	readonly copy: Readonly<Record<string, string>>;
 	readonly run: (operation: () => unknown) => unknown;
+	readonly onTabOut?: () => unknown;
 }
 interface Gesture { readonly edge: 'in' | 'out'; readonly startX: number; readonly initial: number; readonly pointerId: number }
 
 /** Uses the audio quick-fade glyphs while committing video opacity keyframes. */
-export function VideoClipFadeHandles({ controller, project, clip, selected, visibleStartFrame, visibleEndFrame, pixelsPerSecond, sampleRate, blocked, copy, run }: Props) {
+export function VideoClipFadeHandles({ controller, project, clip, selected, visibleStartFrame, visibleEndFrame, pixelsPerSecond, sampleRate, blocked, copy, run, onTabOut }: Props) {
 	const rawClip = project.clips?.find(({ id }) => id === clip.id);
 	const envelope = useMemo(() => {
 		try { return rawClip?.videoKeyframes ? readVideoFadeEnvelope(rawClip) : null; } catch { return null; }
@@ -88,6 +89,17 @@ export function VideoClipFadeHandles({ controller, project, clip, selected, visi
 				onPointerCancel={() => { gesture.current = null; setPreview(null); }}
 				onKeyDown={event => {
 					event.stopPropagation();
+					if (event.key === 'Tab') {
+						const target = event.currentTarget.closest<HTMLElement>('[data-clip-id][role="group"]');
+						if (!target) return;
+						event.preventDefault();
+						const handles = [...target.querySelectorAll<HTMLButtonElement>('[data-video-clip-fade-handle]:not(:disabled)')];
+						const next = handles[handles.indexOf(event.currentTarget) + (event.shiftKey ? -1 : 1)];
+						if (next) next.focus();
+						else if (event.shiftKey) target.focus();
+						else onTabOut?.();
+						return;
+					}
 					if (event.altKey || event.ctrlKey || event.metaKey || blocked) return;
 					const delta = event.key === 'ArrowRight' || event.key === 'ArrowUp' ? 1 : event.key === 'ArrowLeft' || event.key === 'ArrowDown' ? -1 : 0;
 					const duration = event.key === 'Home' ? 0 : event.key === 'End' ? rawClip.sequenceFrameCount : delta ? value + delta * (event.shiftKey ? 10 : 1) : null;
