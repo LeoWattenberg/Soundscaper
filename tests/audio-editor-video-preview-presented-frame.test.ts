@@ -80,6 +80,40 @@ test('presented-frame gate falls back when the browser callback is unavailable o
 	gate.cancel();
 });
 
+test('a paused decoded seek publishes even when no later compositor frame callback arrives', () => {
+	const gate = createVideoPreviewPresentedFrameGate();
+	const source = { ...fakeSource(), readyState: 4, seeking: false };
+	let exactFrames = 0;
+	gate.request(source, {}, () => { exactFrames += 1; });
+	const stale = source.requested[0]!;
+	gate.seeked(source, () => { exactFrames += 1; });
+	assert.equal(exactFrames, 1);
+	assert.deepEqual(source.cancelled, [1]);
+	stale(0, metadata());
+	assert.equal(exactFrames, 1, 'the replaced callback must not repeat the expensive exact frame');
+});
+
+test('seek completion retries a frame whose presentation callback arrived while still seeking', () => {
+	const gate = createVideoPreviewPresentedFrameGate();
+	const source = { ...fakeSource(), readyState: 4, seeking: true };
+	let exactFrames = 0;
+	const renderWhenDecoded = (): void => { if (!source.seeking) exactFrames += 1; };
+	gate.request(source, {}, renderWhenDecoded);
+	source.present(1);
+	assert.equal(exactFrames, 0);
+	gate.seeked(source, renderWhenDecoded);
+	assert.equal(exactFrames, 0, 'an incomplete decoder seek must not authorize readback');
+	source.seeking = false;
+	source.readyState = 1;
+	gate.seeked(source, renderWhenDecoded);
+	assert.equal(exactFrames, 0, 'metadata readiness must not authorize a decoded picture');
+	gate.seeked({}, renderWhenDecoded);
+	assert.equal(exactFrames, 0, 'an unknown decoder state must not authorize readback');
+	source.readyState = 4;
+	gate.seeked(source, renderWhenDecoded);
+	assert.equal(exactFrames, 1);
+});
+
 interface FakeSource extends VideoPreviewPresentedFrameSource {
 	readonly requested: VideoFrameRequestCallback[];
 	readonly cancelled: number[];

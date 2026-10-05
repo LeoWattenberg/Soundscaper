@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 export interface VideoPreviewPresentedFrameSource {
+	readonly readyState?: number;
+	readonly seeking?: boolean;
 	readonly requestVideoFrameCallback?: (callback: VideoFrameRequestCallback) => number;
 	readonly cancelVideoFrameCallback?: (handle: number) => void;
 }
@@ -11,6 +13,7 @@ export interface VideoPreviewPresentedFrameGate {
 		presentationKey: object,
 		onPresented: () => void,
 	): void;
+	seeked(source: VideoPreviewPresentedFrameSource, onDecoded: () => void): void;
 	cancel(): void;
 }
 
@@ -68,5 +71,13 @@ export function createVideoPreviewPresentedFrameGate(): VideoPreviewPresentedFra
 			if (!presentedSynchronously) onPresented();
 		}
 	};
-	return Object.freeze({ request, cancel });
+	const seeked = (source: VideoPreviewPresentedFrameSource, onDecoded: () => void): void => {
+		if (source.seeking === true || !(Number(source.readyState) >= 2)) return;
+		// A paused or hidden video may have submitted its picture before `seeked`,
+		// leaving no future compositor callback. Decoder completion still owns a
+		// readable current picture, and must retry a render skipped while seeking.
+		cancel();
+		onDecoded();
+	};
+	return Object.freeze({ request, seeked, cancel });
 }
