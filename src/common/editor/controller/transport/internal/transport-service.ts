@@ -3,6 +3,7 @@
 import type { EngineAudioContext } from '../../../engine/public-api.ts'; import { createLocalizedError, setLocalizedStatus } from '../../../../i18n/presentation-message.ts';
 import { hasCoreEditingProjectAuthority } from '../../../project-schema-version.ts';
 import { resolveSelectionRange } from '../../../selection-range.ts';
+import { bindPlaybackToTimeSelection, playSpectralSelection, requireSpectralPlaybackSelection } from './selection-playback.ts';
 import type {
 	TransportLoopCommand,
 	TransportProject,
@@ -44,6 +45,7 @@ export function createEditorTransportService<Project extends TransportProject = 
 	} = runtime;
 	let metronomeSchedulerGeneration = 0;
 	let foregroundPlayPreparation: symbol | null = null;
+	let transportRequestGeneration = 0;
 
 	function requireProject(): Project {
 		const project = getProject();
@@ -74,12 +76,16 @@ export function createEditorTransportService<Project extends TransportProject = 
 	}
 
 	function retireTimelinePlayback() {
+		transportRequestGeneration += 1;
+		foregroundPlayPreparation = null;
 		cancelPlaybackCachePreparation();
 		cancelPlayAtSpeedPreparation();
 		return engine.stop();
 	}
 
 	async function handlePlayAtSpeed(requestedRate: unknown = state.playAtSpeedRate) {
+		transportRequestGeneration += 1;
+		foregroundPlayPreparation = null;
 		if (state.recordingStarting || state.timedRecordingPreparing || state.timedRecording || state.recorder) return false;
 		if (hasMissingTimelineSources()) throw createLocalizedError(Error, copy, 'localSourcesMissing');
 		const rate = setPlayAtSpeedRate(requestedRate);
@@ -132,31 +138,10 @@ export function createEditorTransportService<Project extends TransportProject = 
 			}
 		}
 	}
-
-	/**
-	 * Bind an explicit selection-only run to the active time
-	 * selection: it stops at the selection's end instead of running on to the end
-	 * of the timeline, and a playhead outside the selection is put back on its
-	 * start. A playhead the user left inside the selection keeps its place, so
-	 * playback resumes from there and still stops at the selection's end.
-	 *
-	 * An enabled loop region owns the transport instead — it already bounds
-	 * playback, and repeats it.
-	 */
-	function bindPlaybackToSelection() {
-		if (typeof engine.setPlayRange !== 'function') return null;
-		const selection = getProject()?.loop?.enabled ? null : activeSelection();
-		const range = engine.setPlayRange(selection && {
-			startFrame: selection.startFrame,
-			endFrame: selection.endFrame,
-		});
-		if (!range) return null;
-		const position = engine.getPositionFrames();
-		if (position < range.startFrame || position >= range.endFrame) engine.seek(range.startFrame);
-		return range;
-	}
-
 	async function handleTransport(action: string) {
+		const playbackStart = ['play', 'play-selection', 'play-spectral-selection', 'cut-preview'].includes(action);
+		const generation = playbackStart || ['stop', 'record', 'play-stop-select'].includes(action)
+			? ++transportRequestGeneration : transportRequestGeneration;
 		if ((state.recordingStarting || state.timedRecordingPreparing || state.timedRecording || state.recorder)
 			&& action !== 'stop' && action !== 'record') return;
 		if (action === 'play-stop-select') {
@@ -167,51 +152,58 @@ export function createEditorTransportService<Project extends TransportProject = 
 			engine.seek(frame);
 			return setExactSelection(frame, frame, { trackIds, clipIds: [], frequencyRange: null });
 		}
-		if ((action === 'play' || action === 'play-selection' || action === 'cut-preview' || action === 'record') && state.projectBinPreview) {
+		if ((playbackStart || action === 'record') && state.projectBinPreview) {
 			await stopProjectBinPreview();
+			if (generation !== transportRequestGeneration) return;
 		}
-		if (hasMissingTimelineSources() && (action === 'play' || action === 'play-selection' || action === 'cut-preview')) {
+		if (playbackStart && hasMissingTimelineSources()) {
 			throw createLocalizedError(Error, copy, 'localSourcesMissing');
 		}
 		if (action === 'cut-preview') {
+			foregroundPlayPreparation = null;
 			const selection = activeSelection();
 			if (!selection || selection.endFrame <= selection.startFrame) throw createLocalizedError(Error, copy, 'timeSelectionRequired');
 			cancelPlayAtSpeedPreparation();
 			cancelPlaybackCachePreparation();
 			const snapshot = requireProject();
 			await beginPlaybackCachePreparation(snapshot);
-			if (snapshot !== getProject()) return;
+			if (generation !== transportRequestGeneration || snapshot !== getProject()) return;
 			return engine.playCutPreview({ startFrame: selection.startFrame, endFrame: selection.endFrame, trackIds: selection.trackIds });
 		}
-		if (action === 'play' || action === 'play-selection') {
+		if (action === 'play' || action === 'play-selection' || action === 'play-spectral-selection') {
 			// The transport has a single play control. Once the speed slider leaves the
 			// neutral rate that control owns play-at-speed instead: it starts, pauses and
 			// cancels the rate-changed playback, so no separate command is needed.
 			if (action === 'play' && state.playAtSpeedRate !== 1 && !engine.getState().cutPreview) return handlePlayAtSpeed();
 			cancelPlayAtSpeedPreparation();
 			if (engine.getState().state === 'playing') {
+				foregroundPlayPreparation = null;
 				cancelPlaybackCachePreparation();
 				return engine.pause();
 			}
 			if (foregroundPlayPreparation !== null && runtime.playbackCachePreparationPending()) {
+				foregroundPlayPreparation = null;
 				cancelPlaybackCachePreparation();
 				return;
 			}
 			const snapshot = requireProject();
 			if (action === 'play-selection' && !activeSelection()) throw createLocalizedError(Error, copy, 'timeSelectionRequired');
+			const spectral = action === 'play-spectral-selection' ? requireSpectralPlaybackSelection(snapshot.selection, copy) : null;
 			const preparation = Symbol('foreground-play-preparation');
 			foregroundPlayPreparation = preparation;
 			try {
 				await beginPlaybackCachePreparation(snapshot);
+				if (generation !== transportRequestGeneration || foregroundPlayPreparation !== preparation || snapshot !== getProject()) return;
+				if (spectral) return await playSpectralSelection(engine, spectral, () => generation === transportRequestGeneration && foregroundPlayPreparation === preparation);
+				engine.setPlaybackFrequencyRange?.(null);
+				bindPlaybackToTimeSelection(engine, action === 'play-selection' && !snapshot.loop?.enabled ? activeSelection() : null);
+				return await engine.play();
 			} finally {
 				if (foregroundPlayPreparation === preparation) foregroundPlayPreparation = null;
 			}
-			if (snapshot !== getProject()) return;
-			if (action === 'play-selection') bindPlaybackToSelection();
-			else engine.setPlayRange?.(null);
-			return engine.play();
 		}
 		if (action === 'stop') {
+			foregroundPlayPreparation = null;
 			cancelPlaybackCachePreparation();
 			cancelPlayAtSpeedPreparation();
 			if (state.timedRecording || state.timedRecordingPreparing) return cancelTimedRecording();
@@ -371,16 +363,15 @@ export function createEditorTransportService<Project extends TransportProject = 
 	function scheduleMetronomeWindow(context: EngineAudioContext) {
 		const project = getProject();
 		const sampleRate = projectSampleRate();
-		const playbackRate = state.transportState === 'playing'
-			? Number(engine.getState?.().playbackRate) || 1
-			: 1;
+		const playback = state.transportState === 'playing' ? engine.getState() : null;
+		const playbackRate = Number(playback?.playbackRate) || 1;
 		const framesPerSecond = sampleRate * playbackRate;
 		if (!Number.isFinite(framesPerSecond) || framesPerSecond <= 0) return;
 		const position = Math.max(0, engine.getPositionFrames());
 		const playbackStartTime = engine.getPlaybackAudibleStartTime?.() ?? null;
 		const audibleStartTime = playbackStartTime !== null && Number.isFinite(playbackStartTime)
 			? playbackStartTime : null;
-		const loop = project?.loop?.enabled && project.loop.endFrame > project.loop.startFrame
+		const loop = (playback?.loop?.enabled ?? project?.loop?.enabled) && project?.loop && project.loop.endFrame > project.loop.startFrame
 			? project.loop : null;
 		let anchor = state.metronomeAnchor;
 		// The cursor is only meaningful while the playhead keeps advancing from where it

@@ -192,6 +192,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 			playStopSelect: yieldProgramPlayhead(() => handleTransport('play-stop-select')),
 			playCutPreview: yieldProgramPlayhead(() => handleTransport('cut-preview')),
 			playSelection: yieldProgramPlayhead(() => handleTransport('play-selection')),
+			playSpectralSelection: restricted('audioSpectralEditing', yieldProgramPlayhead(() => handleTransport('play-spectral-selection'))),
 			playAtSpeed: yieldProgramPlayhead((rate: number = state.playAtSpeedRate) => handlePlayAtSpeed(rate)),
 			setPlayAtSpeedRate,
 			stop: yieldProgramPlayhead(() => handleTransport('stop')),

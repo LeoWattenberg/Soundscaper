@@ -32,6 +32,7 @@ import {
 } from './project-graph.ts';
 import { playbackOutputDestination } from './playback-output.ts';
 import { resetPlaybackSession } from './playback-session.ts';
+import { isPlaybackLoopEnabled, resetPlaybackFrequencyRange } from './playback-frequency-range.ts';
 import { isCutPreviewActive, isCutPreviewPaused, pauseCutPreview, readCutPreviewPosition, resumeCutPreview } from './cut-preview.ts';
 import { resetProductionMeterSessionV21 } from './production-meter-runtime-session-v21.ts';
 import {
@@ -97,7 +98,7 @@ async play() {
 			const context = await this.getAudioContext();
 			if (!playbackRequestIsCurrent(this, generation)) return;
 			if (this.positionFrame >= this.playbackDurationFrames) this.positionFrame = 0;
-			if (this.loop.enabled && (this.positionFrame < this.loop.startFrame || this.positionFrame >= this.loop.endFrame)) this.positionFrame = this.loop.startFrame;
+			if (isPlaybackLoopEnabled(this) && (this.positionFrame < this.loop.startFrame || this.positionFrame >= this.loop.endFrame)) this.positionFrame = this.loop.startFrame;
 			if (projectHasAuthoredAudioWarp(this.project)
 				&& this.getAudioWarpRenderStatus().path === 'exact-offline') {
 				// Bounded exact windows exist over authored content only, never over
@@ -106,7 +107,7 @@ async play() {
 				await prepareExactAudioWarpPlayback(
 					this,
 					this.positionFrame,
-					this.loop.enabled ? this.loop.endFrame : this.durationFrames,
+					isPlaybackLoopEnabled(this) ? this.loop.endFrame : this.durationFrames,
 				);
 				if (!playbackRequestIsCurrent(this, generation)) return;
 				this.playbackMode = 'audio-warp-exact';
@@ -122,6 +123,7 @@ async play() {
 			if (!playbackRequestIsCurrent(this, generation)) return;
 			await this[ENGINE_SCHEDULE_PLAYBACK](this.positionFrame, context.currentTime);
 		} finally {
+			if (this.pendingPlayRequest === request && this.state !== 'playing') resetPlaybackFrequencyRange(this);
 			if (this.pendingPlayRequest === request) this.pendingPlayRequest = 0;
 		}
 	},
@@ -133,6 +135,7 @@ async playAtSpeed(rate, {
 		onProgress = null,
 	} = {}) {
 		this[ENGINE_ASSERT_ACTIVE]();
+		resetPlaybackFrequencyRange(this);
 		if (!this.project) throw new Error('Load an audio editor project before playback.');
 		if (this.state === 'playing') return;
 		this[ENGINE_CANCEL_SCRUB]();
@@ -156,7 +159,7 @@ async playAtSpeed(rate, {
 		try {
 			throwIfAborted(signal);
 			if (this.positionFrame >= this.playbackDurationFrames) this.positionFrame = 0;
-			if (this.loop.enabled && (this.positionFrame < this.loop.startFrame || this.positionFrame >= this.loop.endFrame)) {
+			if (isPlaybackLoopEnabled(this) && (this.positionFrame < this.loop.startFrame || this.positionFrame >= this.loop.endFrame)) {
 				this.positionFrame = this.loop.startFrame;
 			}
 			if (preservePitch) assertPlayAtSpeedStaffPadMemorySafe(
@@ -219,6 +222,7 @@ async playAtSpeed(rate, {
 
 async playAt(this: EngineRuntimeHost, contextTime, fromFrame = this.positionFrame, onBeforeStart) {
 		this[ENGINE_ASSERT_ACTIVE]();
+		resetPlaybackFrequencyRange(this);
 		if (!this.project) throw new Error('Load an audio editor project before playback.');
 		resetPlaybackSession(this);
 		// Recording and the other clocked starts run to their own end, never to
@@ -233,7 +237,7 @@ async playAt(this: EngineRuntimeHost, contextTime, fromFrame = this.positionFram
 		if (projectHasAuthoredAudioWarp(this.project)
 			&& this.getAudioWarpRenderStatus().path === 'exact-offline') {
 			let scheduledFrame = clampFrame(fromFrame, 0, this.durationFrames);
-			if (this.loop.enabled && (scheduledFrame < this.loop.startFrame || scheduledFrame >= this.loop.endFrame)) {
+			if (isPlaybackLoopEnabled(this) && (scheduledFrame < this.loop.startFrame || scheduledFrame >= this.loop.endFrame)) {
 				scheduledFrame = this.loop.startFrame;
 			}
 			if (scheduledFrame >= this.durationFrames) {
@@ -242,7 +246,7 @@ async playAt(this: EngineRuntimeHost, contextTime, fromFrame = this.positionFram
 			await prepareExactAudioWarpPlayback(
 				this,
 				scheduledFrame,
-				this.loop.enabled ? this.loop.endFrame : this.durationFrames,
+				isPlaybackLoopEnabled(this) ? this.loop.endFrame : this.durationFrames,
 			);
 			assertPlaybackRequestCurrent(this, generation);
 			this.playbackMode = 'audio-warp-exact';
@@ -269,7 +273,7 @@ async playAt(this: EngineRuntimeHost, contextTime, fromFrame = this.positionFram
 pause() {
 		this[ENGINE_ASSERT_ACTIVE]();
 		this[ENGINE_CANCEL_SCRUB]();
-		if (this.state !== 'playing') return;
+		if (this.state !== 'playing') return resetPlaybackFrequencyRange(this);
 		// A selection-only range retires on pause. A cut preview keeps its joined
 		// buffer so resuming can finish the same audition.
 		this.playRange = null;
@@ -288,7 +292,7 @@ seek(frame) {
 		// Rescheduling playback from outside an enabled loop would date the next
 		// loop iteration before the context clock, so land on the loop start the
 		// way play() and setLoop() already do.
-		if (wasPlaying && this.loop.enabled && this.loop.endFrame > this.loop.startFrame
+		if (wasPlaying && isPlaybackLoopEnabled(this) && this.loop.endFrame > this.loop.startFrame
 			&& (nextFrame < this.loop.startFrame || nextFrame >= this.loop.endFrame)) {
 			nextFrame = this.loop.startFrame;
 		}
@@ -332,6 +336,7 @@ getLoudnessMeasurementState() {
 
 async scrub(frame, { durationMs = DEFAULT_SCRUB_FRAME_MS } = {}) {
 		this[ENGINE_ASSERT_ACTIVE]();
+		resetPlaybackFrequencyRange(this);
 		if (!this.project) throw new Error('Load an audio editor project before scrubbing.');
 		const nextFrame = clampFrame(frame, 0, this.playbackDurationFrames);
 		const frameMs = clamp(Number(durationMs) || DEFAULT_SCRUB_FRAME_MS, 16, 250);
@@ -432,7 +437,7 @@ setLoop(loopOrEnabled, startFrame, endFrame) {
 		this.loop = normalizeLoop(value, this.durationFrames);
 		if (this.state === 'playing') {
 			const position = this.getPositionFrames();
-			if (this.loop.enabled && (position < this.loop.startFrame || position >= this.loop.endFrame)) {
+			if (isPlaybackLoopEnabled(this) && (position < this.loop.startFrame || position >= this.loop.endFrame)) {
 				this.seek(this.loop.startFrame);
 			} else {
 				this[ENGINE_HALT_GRAPH]();
@@ -463,7 +468,7 @@ getPositionFrames() {
 		if (previewPosition !== null) return previewPosition;
 		if (this.context.currentTime <= this.playbackStartTime) return this.playbackStartFrame;
 		const elapsedFrames = Math.floor((this.context.currentTime - this.playbackStartTime) * this.sampleRate * this.playbackRate);
-		if (this.loop.enabled && this.loop.endFrame > this.loop.startFrame) {
+		if (isPlaybackLoopEnabled(this) && this.loop.endFrame > this.loop.startFrame) {
 			const initialFrames = Math.max(0, this.loop.endFrame - this.playbackStartFrame);
 			if (elapsedFrames < initialFrames) return this.playbackStartFrame + elapsedFrames;
 			const loopFrames = this.loop.endFrame - this.loop.startFrame;
@@ -477,7 +482,7 @@ getState() {
 			cutPreview: isCutPreviewActive(this) || isCutPreviewPaused(this),
 			positionFrame: this.getPositionFrames(),
 			durationFrames: this.durationFrames,
-			loop: { ...this.loop },
+			loop: { ...this.loop, enabled: isPlaybackLoopEnabled(this) },
 			playbackRate: this.playbackRate,
 			playbackMode: this.playbackMode,
 		};

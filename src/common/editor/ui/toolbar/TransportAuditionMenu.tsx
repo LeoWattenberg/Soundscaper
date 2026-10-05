@@ -2,10 +2,11 @@
 
 import { ContextMenuItem } from '@soundscaper/design-system/ContextMenuItem';
 import { transportShortcutDisplayActionId } from '../../transport-shortcut-display.ts';
+import { createSpectralPlaybackMenuItem, type SpectralPlaybackMenuSnapshot } from '../spectral-playback-menu.ts';
 
 interface TransportAuditionMenuProps {
 	readonly copy: Readonly<Record<string, string>>;
-	readonly snapshot: Readonly<{
+	readonly snapshot: SpectralPlaybackMenuSnapshot & Readonly<{
 		recording?: unknown;
 		recordingKind?: string;
 		recordingOptions?: Readonly<{ paused?: boolean }>;
@@ -18,6 +19,7 @@ interface TransportAuditionMenuProps {
 		playPause(): unknown;
 		playCutPreview(): unknown;
 		playStopSelect(): unknown;
+		playSpectralSelection(): unknown;
 	}> }> }>;
 	readonly run: (operation: () => unknown) => unknown;
 	readonly close: () => void;
@@ -32,7 +34,10 @@ export default function TransportAuditionMenu({
 	const shortcuts = snapshot.preferences?.shortcuts;
 	const shortcut = (actionId: string) => shortcuts?.[transportShortcutDisplayActionId(actionId)]?.join(', ');
 	const selection = snapshot.selection;
+	const spectralPlayback = createSpectralPlaybackMenuItem(copy, snapshot, blocked,
+		() => controller.actions.transport.playSpectralSelection());
 	const items = [
+		...(spectralPlayback ? [spectralPlayback] : []),
 		{
 			id: 'action://playback/pause',
 			label: recording ? (paused ? copy.resumeRecording : copy.pauseRecording) : (paused ? copy.resumePlayback : copy.pause),

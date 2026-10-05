@@ -71,6 +71,11 @@ export interface EngineCutPreviewSelection {
 	readonly trackIds?: readonly string[];
 }
 
+export interface EnginePlaybackFrequencyRange {
+	readonly minimumFrequency: number;
+	readonly maximumFrequency: number;
+}
+
 export interface EngineLoudnessMeasurementState {
 	readonly manuallyPaused: boolean;
 	readonly running: boolean;
@@ -213,6 +218,8 @@ export interface EnginePublicApi {
 	getOutputDeviceState(): EngineOutputDeviceState;
 	setPlaybackGain(gain: number): number;
 	getPlaybackGain(): number;
+	/** Audition a band in device playback only; leaving playback retires it. */
+	setPlaybackFrequencyRange(range: EnginePlaybackFrequencyRange | null): EnginePlaybackFrequencyRange | null;
 	getAudioWarpRenderStatus(): Readonly<AudioWarpRenderPathStatus>;
 	play(): Promise<void>;
 	/** Audition the join around a selected gap without changing the project. */

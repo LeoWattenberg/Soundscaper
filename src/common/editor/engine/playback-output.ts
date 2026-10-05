@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { setParam } from './audio-node-utils.ts';
+import { connectPlaybackFrequencyOutput } from './playback-frequency-range.ts';
 import { ENGINE_ASSERT_ACTIVE } from './runtime-symbols.ts';
 import type { EngineRuntimeHost, EngineRuntimeMethodMap } from './runtime-types.ts';
 
@@ -28,7 +29,7 @@ export function playbackOutputDestination(
 	engine.playbackOutputNode?.disconnect();
 	const node = context.createGain();
 	setParam(node.gain, engine.playbackGain, context.currentTime);
-	node.connect(destination);
+	connectPlaybackFrequencyOutput(engine, context, node, destination);
 	engine.playbackOutputNode = node;
 	engine.playbackOutputDestination = destination;
 	if (engine.masterLoudnessMeter) {
