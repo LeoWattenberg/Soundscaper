@@ -25,6 +25,9 @@ test('measures arbitrary paused seeks and filmstrip presentation with an externa
 	await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success', { timeout: 300_000 });
 	const preview = editor.locator('[data-video-preview]');
 	await expect(preview).toHaveAttribute('data-video-preview-renderer', 'ready', { timeout: 30_000 });
+	await expect(preview).toHaveAttribute('data-video-preview-visual-pending', 'false', { timeout: 30_000 });
+	await expect(preview).toHaveAttribute('data-video-preview-visual-error', '');
+	await expect(editor.locator('[data-product-visual-thumbnail-canvas]').first()).toBeVisible({ timeout: 30_000 });
 	await editor.locator('[data-ruler]').click({ button: 'right', position: { x: 80, y: 20 } });
 	await page.getByRole('menuitem', { name: 'Click ruler to start playback', exact: true }).click();
 	const measurements = [];
@@ -55,6 +58,14 @@ test('measures arbitrary paused seeks and filmstrip presentation with an externa
 	const median = [...measurements].sort((a, b) => a - b)[3];
 	console.log(`FRAMESCAPER_REAL_VIDEO_SEEK ${JSON.stringify({ milliseconds: measurements, median })}`);
 	expect(median).toBeLessThan(Number(process.env.FRAMESCAPER_REAL_VIDEO_SEEK_LIMIT_MS || 1_000));
+	await expect(preview).toHaveAttribute('data-video-preview-visual-error', '');
 	console.log(`FRAMESCAPER_REAL_VIDEO_FILMSTRIP ${JSON.stringify(await editor.locator('.audio-editor-video-clip__thumbnail').evaluateAll((cells) => cells.map((cell) => ({ state: cell.dataset.productVisualThumbnailState, canvas: Boolean(cell.querySelector('canvas')), image: Boolean(cell.querySelector('img')) }))))}`);
 	await expect(editor.locator('[data-product-visual-thumbnail-canvas]').first()).toBeVisible({ timeout: 30_000 });
+	expect(await editor.locator('[data-product-visual-thumbnail-canvas]').evaluateAll((canvases) => canvases.some((canvas) => {
+		const pixels = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+		for (let offset = 0; offset < pixels.length; offset += 4) {
+			if (pixels[offset] > 32 || pixels[offset + 1] > 32 || pixels[offset + 2] > 32) return true;
+		}
+		return false;
+	}))).toBe(true);
 });

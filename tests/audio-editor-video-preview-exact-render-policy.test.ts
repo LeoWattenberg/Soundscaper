@@ -37,8 +37,9 @@ test('exact readback waits for every seek to drain rather than capturing the pre
 });
 
 test('exact product visuals and canvas-backed media do not require a decoder seek', () => {
+	const canvasBackedMedia = { readyState: 4, drawable: {} };
 	assert.equal(areVideoPreviewMediaLayersReadyForExactRender([]), true);
 	assert.equal(areVideoPreviewMediaLayersReadyForExactRender([
-		{ entries: [{ video: { readyState: 4, drawable: {} } }] },
+		{ entries: [{ video: canvasBackedMedia }] },
 	]), true);
 });
