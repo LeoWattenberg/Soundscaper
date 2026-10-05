@@ -13,6 +13,7 @@ import { createFramescaperVideoProxyApplicationMenuItems } from '../framescaper-
 import ProjectBinCard from './ProjectBinCard.jsx';
 import ProjectBinNotices from './ProjectBinNotices.tsx';
 import ProjectBinVideoProxyDialog from './ProjectBinVideoProxyDialog.jsx';
+import { WorkspacePanelOverlayPortal } from './WorkspacePanelOverlayPortal.tsx';
 import {
 	dispatchLinkedAudioChoice,
 	prepareLinkedAudioChoice,
@@ -472,65 +473,71 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 			copy={copy} fileService={fileService} run={run} onClose={closeProxyDialog}
 			portalTarget={overlayTarget} />}
 		{removeConfirmation && (
-			<div className="kw-audio-editor-dialog-backdrop" data-project-bin-remove-dialog>
-				<div className="kw-audio-editor-dialog kw-audio-editor__project-bin-confirm" role="alertdialog" aria-modal="true" aria-labelledby="project-bin-remove-title">
-					<DialogHeader os="windows" title={copy.projectBinRemoveFromProject} onClose={() => setRemoveConfirmation(null)} />
-					<div className="kw-audio-editor-dialog__body">
-						<p id="project-bin-remove-title">
-							{copy.projectBinRemoveConfirm
-								.replace('{name}', removeConfirmation.name)
-								.replace('{count}', String(removeConfirmation.count))}
-						</p>
-						<div className="kw-audio-editor-dialog__actions">
-							<Button variant="secondary" onClick={() => setRemoveConfirmation(null)}>{copy.cancel}</Button>
-							<Button variant="primary" onClick={() => {
-								const clipId = removeConfirmation.clipId;
-								setRemoveConfirmation(null);
-								run(() => controller.actions.projectBin.removeFromProject(clipId));
-							}}>{copy.projectBinRemoveFromProject}</Button>
+			<WorkspacePanelOverlayPortal target={overlayTarget}>
+				<div className="kw-audio-editor-dialog-backdrop" data-project-bin-remove-dialog>
+					<div className="kw-audio-editor-dialog kw-audio-editor__project-bin-confirm" role="alertdialog" aria-modal="true" aria-labelledby="project-bin-remove-title">
+						<DialogHeader os="windows" title={copy.projectBinRemoveFromProject} onClose={() => setRemoveConfirmation(null)} />
+						<div className="kw-audio-editor-dialog__body">
+							<p id="project-bin-remove-title">
+								{copy.projectBinRemoveConfirm
+									.replace('{name}', removeConfirmation.name)
+									.replace('{count}', String(removeConfirmation.count))}
+							</p>
+							<div className="kw-audio-editor-dialog__actions">
+								<Button variant="secondary" onClick={() => setRemoveConfirmation(null)}>{copy.cancel}</Button>
+								<Button variant="primary" onClick={() => {
+									const clipId = removeConfirmation.clipId;
+									setRemoveConfirmation(null);
+									run(() => controller.actions.projectBin.removeFromProject(clipId));
+								}}>{copy.projectBinRemoveFromProject}</Button>
+							</div>
 						</div>
 					</div>
 				</div>
-			</div>
+			</WorkspacePanelOverlayPortal>
 		)}
 		{relinkChangedChoice && (
-			<div className="kw-audio-editor-dialog-backdrop" data-project-bin-relink-changed-dialog>
-				<div className="kw-audio-editor-dialog kw-audio-editor__project-bin-confirm" role="alertdialog" aria-modal="true" aria-labelledby="project-bin-relink-changed-title">
-					<DialogHeader
-						os="windows"
-						title={relinkChangedChoice.kind === 'audio'
-							? copy.projectBinRelinkAudioChangedTitle
-							: copy.projectBinRelinkChangedTitle}
-						onClose={cancelRelinkChangedChoice}
-					/>
-					<div className="kw-audio-editor-dialog__body">
-						<p id="project-bin-relink-changed-title">
-							{relinkChangedChoice.kind === 'audio'
-								? copy.projectBinRelinkAudioChangedConfirm
-								: copy.projectBinRelinkChangedConfirm}
-						</p>
-						<div className="kw-audio-editor-dialog__actions">
-							<Button variant="secondary" onClick={cancelRelinkChangedChoice}>{copy.projectBinRelinkChangedCancel}</Button>
-							<Button variant="primary" onClick={applyRelinkChangedChoice}>{copy.projectBinRelinkChangedReplace}</Button>
+			<WorkspacePanelOverlayPortal target={overlayTarget}>
+				<div className="kw-audio-editor-dialog-backdrop" data-project-bin-relink-changed-dialog>
+					<div className="kw-audio-editor-dialog kw-audio-editor__project-bin-confirm" role="alertdialog" aria-modal="true" aria-labelledby="project-bin-relink-changed-title">
+						<DialogHeader
+							os="windows"
+							title={relinkChangedChoice.kind === 'audio'
+								? copy.projectBinRelinkAudioChangedTitle
+								: copy.projectBinRelinkChangedTitle}
+							onClose={cancelRelinkChangedChoice}
+						/>
+						<div className="kw-audio-editor-dialog__body">
+							<p id="project-bin-relink-changed-title">
+								{relinkChangedChoice.kind === 'audio'
+									? copy.projectBinRelinkAudioChangedConfirm
+									: copy.projectBinRelinkChangedConfirm}
+							</p>
+							<div className="kw-audio-editor-dialog__actions">
+								<Button variant="secondary" onClick={cancelRelinkChangedChoice}>{copy.projectBinRelinkChangedCancel}</Button>
+								<Button variant="primary" onClick={applyRelinkChangedChoice}>{copy.projectBinRelinkChangedReplace}</Button>
+							</div>
 						</div>
 					</div>
 				</div>
-			</div>
+			</WorkspacePanelOverlayPortal>
 		)}
 		{replacementChoice && (
-			<div className="kw-audio-editor-dialog-backdrop" data-project-bin-replacement-dialog>
-				<div className="kw-audio-editor-dialog kw-audio-editor__project-bin-confirm" role="alertdialog" aria-modal="true" aria-labelledby="project-bin-replacement-title">
-					<DialogHeader os="windows" title={copy.projectBinReplacementShortTitle} onClose={cancelReplacementChoice} />
-					<div className="kw-audio-editor-dialog__body">
-						<p id="project-bin-replacement-title">{copy.projectBinReplacementShortMessage}</p>
-						<div className="kw-audio-editor-dialog__actions">
-							<Button variant="secondary" onClick={cancelReplacementChoice}>{copy.cancel}</Button>
-							<Button variant="secondary" onClick={() => applyReplacementChoice('keep-spacing')}>{copy.projectBinKeepSpacing}</Button>
-							<Button variant="primary" onClick={() => applyReplacementChoice('contract-gaps')}>{copy.projectBinContractGaps}</Button>
+			<WorkspacePanelOverlayPortal target={overlayTarget}>
+				<div className="kw-audio-editor-dialog-backdrop" data-project-bin-replacement-dialog>
+					<div className="kw-audio-editor-dialog kw-audio-editor__project-bin-confirm" role="alertdialog" aria-modal="true" aria-labelledby="project-bin-replacement-title">
+						<DialogHeader os="windows" title={copy.projectBinReplacementShortTitle} onClose={cancelReplacementChoice} />
+						<div className="kw-audio-editor-dialog__body">
+							<p id="project-bin-replacement-title">{copy.projectBinReplacementShortMessage}</p>
+							<div className="kw-audio-editor-dialog__actions">
+								<Button variant="secondary" onClick={cancelReplacementChoice}>{copy.cancel}</Button>
+								<Button variant="secondary" onClick={() => applyReplacementChoice('keep-spacing')}>{copy.projectBinKeepSpacing}</Button>
+								<Button variant="primary" onClick={() => applyReplacementChoice('contract-gaps')}>{copy.projectBinContractGaps}</Button>
+							</div>
 						</div>
 					</div>
 				</div>
-			</div>
+			</WorkspacePanelOverlayPortal>
 		)}
 		</>
 	);
