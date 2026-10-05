@@ -133,3 +133,4 @@
 - Use tabs in existing JavaScript/JSX sources and keep changes narrowly scoped.
 - Before declaring an implementation task complete, commit your changes in atomic commits.
 - When committing, explicitly select your own files to avoid sweeping up someone else's changes.
+- Clean up your worktrees and branches after a merge.
