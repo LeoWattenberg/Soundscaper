@@ -181,6 +181,58 @@ test.describe('audio editor video composition workflow', () => {
 		expect(errors).toEqual([]);
 	});
 
+	test('video tracks share audio controls and clip handles, with undoable opacity fades', async ({ page }, testInfo) => {
+		test.skip(testInfo.project.name === 'webkit', WEBKIT_AV_IMPORT_DEFERRED);
+		await page.setViewportSize({ width: 1_440, height: 1_200 });
+		const errors = collectClientErrors(page);
+		const editor = await bootVideoEditor(page);
+		await importTimelineFiles(editor, [createDeterministicAvFixture('track-controls.webm')]);
+		const video = editor.locator('[data-video-track]').first();
+		const audio = await companionTrack(editor, video);
+		const controls = video.locator('[data-track-header]');
+		await expect(controls.getByRole('button', { name: 'Hide video', exact: true })).toHaveText('M');
+		await expect(controls.getByRole('button', { name: 'Solo', exact: true })).toHaveText('S');
+		await expect(controls.getByRole('button', { name: 'Increase track height', exact: true })).toHaveCount(0);
+		await expect(controls.getByRole('button', { name: 'Decrease track height', exact: true })).toHaveCount(0);
+		for (const panel of [controls, audio.locator('[data-track-header]')]) {
+			const effects = await panel.getByRole('button', { name: 'Effects', exact: true }).boundingBox();
+			const mute = await panel.getByRole('button', { name: /^(Hide video|Mute)$/u }).boundingBox();
+			const solo = await panel.getByRole('button', { name: 'Solo', exact: true }).boundingBox();
+			expect(effects).not.toBeNull(); expect(mute).not.toBeNull(); expect(solo).not.toBeNull();
+			expect(Math.abs(effects.y + effects.height / 2 - mute.y - mute.height / 2)).toBeLessThan(2);
+			expect(Math.abs(mute.y + mute.height / 2 - solo.y - solo.height / 2)).toBeLessThan(2);
+		}
+		await controls.getByRole('button', { name: 'Effects', exact: true }).click();
+		await expect(editor.locator('[data-video-effect-rack]')).toBeVisible();
+		await closeClipProperties(editor);
+		await controls.getByRole('button', { name: 'Track options', exact: true }).click();
+		const menu = page.locator('.audio-editor-track-menu');
+		await expect(menu.getByRole('menuitem', { name: 'Increase track height', exact: true })).toBeVisible();
+		await expect(menu.getByRole('menuitem', { name: 'Decrease track height', exact: true })).toBeVisible();
+		await page.keyboard.press('Escape');
+		const clip = video.locator('[data-clip-kind="video"]').first();
+		await clip.locator('.clip-header').click();
+		await expect(clip.getByRole('button', { name: 'Trim right edge', exact: true })).toBeVisible();
+		await expect(clip.getByRole('button', { name: 'Stretch right edge', exact: true })).toBeVisible();
+		const fadeIn = clip.getByRole('slider', { name: 'Fade in', exact: true });
+		await expect(fadeIn).toBeVisible();
+		await fadeIn.focus();
+		await fadeIn.press('ArrowRight');
+		await expect.poll(async () => Number(await fadeIn.getAttribute('aria-valuenow'))).toBeGreaterThan(0);
+		await editor.getByRole('button', { name: 'Undo', exact: true }).click();
+		await expect(fadeIn).toHaveAttribute('aria-valuenow', '0');
+		const handle = await fadeIn.boundingBox();
+		expect(handle).not.toBeNull();
+		await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2);
+		await page.mouse.down();
+		await page.mouse.move(handle.x + handle.width / 2 + 30, handle.y + handle.height / 2, { steps: 3 });
+		await page.mouse.up();
+		await expect.poll(async () => Number(await fadeIn.getAttribute('aria-valuenow'))).toBeGreaterThan(0);
+		await editor.getByRole('button', { name: 'Undo', exact: true }).click();
+		await expect(fadeIn).toHaveAttribute('aria-valuenow', '0');
+		expect(errors).toEqual([]);
+	});
+
 	test('renames a video clip from its header and F2', async ({ page }, testInfo) => {
 		test.skip(testInfo.project.name === 'webkit', WEBKIT_AV_IMPORT_DEFERRED);
 		const fixture = createDeterministicAvFixture('rename-video.webm');
@@ -188,7 +240,7 @@ test.describe('audio editor video composition workflow', () => {
 		await importTimelineFiles(editor, [fixture]);
 		const clip = editor.locator('[data-clip-kind="video"]').first();
 
-		await clip.locator('.audio-editor-video-clip__title').dblclick();
+		await clip.locator('.clip-header__name').dblclick();
 		const input = clip.getByRole('textbox', { name: 'Clip name', exact: true });
 		await expect(input).toBeFocused();
 		await input.fill('Header video rename');

@@ -1,12 +1,17 @@
 import { VIDEO_FILMSTRIP_COPY } from '../../../i18n/editor-video-filmstrip-copy.ts';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CLIP_CONTENT_OFFSET } from '@soundscaper/design-system/constants';
+import { ClipHeader } from '@soundscaper/design-system/ClipHeader';
+
+import { resolveAudioEditorColor } from './TimelineOverlayComponents.jsx';
+import { VideoClipFadeHandles } from './VideoClipFadeHandles.tsx';
 
 import { framesToSeconds } from '../../design-system-adapters.js';
 import { selectVideoThumbnailTimestamps } from '../../video-timeline.js';
 import { productVideoVisualPreviewRuntimeFor } from '../workspace/product-video-visual-preview-runtime.ts';
 import { selectProductVisualThumbnailPoints } from './product-visual-thumbnail-points.ts';
 import { createVideoRateBadgeModel } from './video-rate-badge-model.ts';
+import { createVideoFilmstripFrameRequests } from './video-filmstrip-frame-requests.ts';
 
 export function VideoFilmstripClip({
 	controller,
@@ -27,6 +32,9 @@ export function VideoFilmstripClip({
 	onRename,
 	renameRequestId,
 	onRenameFinished,
+	color = 'blue',
+	clipStyle = 'colourful',
+	run = (operation) => operation(),
 }) {
 	const clipEndFrame = clip.timelineStartFrame + clip.durationFrames;
 	const visibleStartFrame = Math.max(clip.timelineStartFrame, overscanStartFrame);
@@ -74,48 +82,20 @@ export function VideoFilmstripClip({
 		visibleStartFrame,
 	]);
 	const fallbackPosterUrl = videoPosterUrl(visualData, source);
+	const thumbnailData = useMemo(() => ({
+		thumbnails: visualData?.thumbnails, thumbnailUrls: visualData?.thumbnailUrls,
+		frames: visualData?.frames, thumbnailUrlAt: visualData?.thumbnailUrlAt,
+	}), [visualData?.thumbnails, visualData?.thumbnailUrls, visualData?.frames, visualData?.thumbnailUrlAt]);
 	const thumbnailModels = useMemo(() => thumbnailPoints.map((point, index) => ({
 		key: `${point.timelineFrame}:${point.sourceFrame}:${index}`,
 		point,
 		sourceUrl: clip.kind === 'image'
 			? `product-image:${String(clip.sourceId)}`
-			: videoThumbnailUrl(visualData, point, index),
-	})), [clip.kind, clip.sourceId, thumbnailPoints, visualData]);
+			: videoThumbnailUrl(thumbnailData, point, index),
+	})), [clip.kind, clip.sourceId, thumbnailPoints, thumbnailData]);
 	const presentationThumbnails = useProductTimelineFilmstrip({
 		controller, project, clip, thumbnailModels,
 	});
-	const [isRenaming, setIsRenaming] = useState(false);
-	const [renameDraft, setRenameDraft] = useState(clip.title);
-	const renameInputRef = useRef(null);
-	const consumedRenameRequestRef = useRef(undefined);
-
-	useEffect(() => {
-		if (!isRenaming) setRenameDraft(clip.title);
-	}, [clip.title, isRenaming]);
-	useEffect(() => {
-		if (!isRenaming) return undefined;
-		const frame = requestAnimationFrame(() => {
-			renameInputRef.current?.focus();
-			renameInputRef.current?.select();
-		});
-		return () => cancelAnimationFrame(frame);
-	}, [isRenaming]);
-	useEffect(() => {
-		if (renameRequestId === undefined || renameRequestId === consumedRenameRequestRef.current) return;
-		consumedRenameRequestRef.current = renameRequestId;
-		if (blocked || !onRename) {
-			onRenameFinished?.();
-			return;
-		}
-		setRenameDraft(clip.title);
-		setIsRenaming(true);
-	}, [blocked, clip.title, onRename, onRenameFinished, renameRequestId]);
-	const finishRename = (commit) => {
-		const title = renameDraft.trim();
-		if (commit && title && title !== clip.title) onRename(title);
-		setIsRenaming(false);
-		onRenameFinished?.();
-	};
 	return (
 		<div
 			className="audio-editor-video-clip"
@@ -147,77 +127,35 @@ export function VideoFilmstripClip({
 				data-hidden={hidden ? 'true' : 'false'}
 				data-unavailable={visualData?.available === false ? 'true' : 'false'}
 			>
-				{!clippedAtStart && <>
-					<span
-						className="clip-display__handle clip-display__handle--trim-left audio-editor-video-clip__trim-handle"
-						aria-hidden="true"
-					/>
-					<span
-						className="clip-display__handle clip-display__handle--stretch-left audio-editor-video-clip__stretch-handle"
-						aria-hidden="true"
-					/>
-				</>}
-				{!clippedAtEnd && <>
-					<span
-						className="clip-display__handle clip-display__handle--trim-right audio-editor-video-clip__trim-handle"
-						aria-hidden="true"
-					/>
-					<span
-						className="clip-display__handle clip-display__handle--stretch-right audio-editor-video-clip__stretch-handle"
-						aria-hidden="true"
-					/>
-				</>}
-				<div className="clip-header audio-editor-video-clip__header">
-					{isRenaming ? (
-						<input
-							ref={renameInputRef}
-							className="audio-editor-video-clip__title-input"
-							value={renameDraft}
-							onChange={(event) => setRenameDraft(event.target.value)}
-							onKeyDown={(event) => {
-								event.stopPropagation();
-								if (event.key === 'Enter') {
-									event.preventDefault();
-									finishRename(true);
-								} else if (event.key === 'Escape') {
-									event.preventDefault();
-									finishRename(false);
-								}
-							}}
-							onBlur={() => finishRename(true)}
-							onClick={(event) => event.stopPropagation()}
-							onMouseDown={(event) => event.stopPropagation()}
-							aria-label={copy.clipName}
-						/>
-					) : (
-						<span
-							className="audio-editor-video-clip__title"
-							title={clip.title}
-							onMouseDown={(event) => {
-								if (event.detail !== 2 || blocked || !onRename) return;
-								event.preventDefault();
-								event.stopPropagation();
-								setRenameDraft(clip.title);
-								setIsRenaming(true);
-							}}
-							onDoubleClick={(event) => {
-								event.stopPropagation();
-								if (blocked || !onRename) return;
-								setRenameDraft(clip.title);
-								setIsRenaming(true);
-							}}
-						>{clip.title}</span>
-					)}
-					{rateBadge && (
-						<span
-							className="audio-editor-video-clip__speed"
-							data-video-rate-badge="true"
-							data-video-playback-rate={rateBadge.playbackRate}
-							aria-label={rateBadge.label}
-						>
-							{rateBadge.label}
-						</span>
-					)}
+				{selected && !blocked && ['left', 'right'].map((edge) => {
+					if (edge === 'left' ? clippedAtStart : clippedAtEnd) return null;
+					return <span key={edge}>
+						<button type="button" tabIndex={-1} className={`clip-display__handle clip-display__handle--trim-${edge}`}
+							aria-label={edge === 'left'
+								? (copy['ui.videoFilmstrip.trimLeftEdge'] || VIDEO_FILMSTRIP_COPY.trimLeftEdge)
+								: (copy['ui.videoFilmstrip.trimRightEdge'] || VIDEO_FILMSTRIP_COPY.trimRightEdge)}>
+							<span className="musescore-icon" aria-hidden="true">{edge === 'left' ? '\uF4B1' : '\uF4B0'}</span>
+						</button>
+						<button type="button" tabIndex={-1} className={`clip-display__handle clip-display__handle--stretch-${edge}`}
+							aria-label={edge === 'left'
+								? (copy['ui.videoFilmstrip.stretchLeftEdge'] || VIDEO_FILMSTRIP_COPY.stretchLeftEdge)
+								: (copy['ui.videoFilmstrip.stretchRightEdge'] || VIDEO_FILMSTRIP_COPY.stretchRightEdge)}>
+							<span className="musescore-icon" aria-hidden="true">{'\uF475'}</span>
+						</button>
+					</span>;
+				})}
+				<div className="clip-display__inner">
+				<div className="audio-editor-video-clip__header" data-video-rate-badge={rateBadge ? 'true' : undefined}
+					data-video-playback-rate={rateBadge?.playbackRate}>
+					<ClipHeader name={clip.title} width={width} selected={selected}
+						color={clipStyle === 'classic' ? 'classic' : resolveAudioEditorColor(color)}
+						showStretch={Boolean(rateBadge)} stretchPercent={(rateBadge?.playbackRate ?? 1) * 100}
+						speedLabel={copy.clipSpeedIndicator} onRename={blocked ? undefined : onRename}
+						renameRequestId={renameRequestId} onRenameFinished={onRenameFinished}
+						onMenuClick={(event) => {
+							const rect = event.currentTarget.getBoundingClientRect();
+							onOpenMenu(clip.id, rect.right, rect.bottom);
+						}} />
 				</div>
 				<div className="audio-editor-video-clip__filmstrip" aria-hidden="true">
 					{thumbnailModels.length ? thumbnailModels.map((model, index) => {
@@ -260,6 +198,10 @@ export function VideoFilmstripClip({
 						</span>
 					)}
 				</div>
+				</div>
+				<VideoClipFadeHandles controller={controller} project={project} clip={clip} selected={selected}
+					visibleStartFrame={visibleStartFrame} visibleEndFrame={visibleEndFrame} pixelsPerSecond={pixelsPerSecond}
+					sampleRate={sampleRate} blocked={blocked} copy={copy} run={run} />
 				{blocked && <span className="audio-editor-video-clip__blocked" aria-hidden="true" />}
 			</div>
 		</div>
@@ -272,15 +214,14 @@ function useProductTimelineFilmstrip({ controller, project, clip, thumbnailModel
 	const supported = Boolean(
 		project && !clip.projectBinClipId && typeof createTimelineFilmstrip === 'function',
 	);
-	const frames = useMemo(() => supported ? thumbnailModels.flatMap((model) => (
-		model.sourceUrl ? [{
-			key: model.key,
-			clipId: clip.id,
-			sourceId: clip.sourceId,
-			timelineSample: model.point.timelineFrame,
-			sourceUrl: model.sourceUrl,
-		}] : []
-	)) : [], [clip.id, clip.sourceId, supported, thumbnailModels]);
+	const frames = useMemo(() => supported ? createVideoFilmstripFrameRequests({
+		id: clip.id,
+		sourceId: clip.sourceId,
+		timelineStartFrame: clip.timelineStartFrame,
+		durationFrames: clip.durationFrames,
+	}, thumbnailModels) : [], [
+		clip.durationFrames, clip.id, clip.sourceId, clip.timelineStartFrame, supported, thumbnailModels,
+	]);
 	const [state, setState] = useState(() => ({ pending: false, error: null, values: new Map() }));
 	useEffect(() => {
 		if (!supported || frames.length === 0) {
@@ -332,6 +273,7 @@ function ProductTimelineFilmstripCanvas({ value }) {
 }
 
 export function useVideoClipVisualData(controller, clip) {
+	const visualSnapshot = controller.getSnapshot?.();
 	const clipVisualRevision = [
 		clip.durationFrames,
 		clip.sourceDurationFrames,
@@ -340,6 +282,7 @@ export function useVideoClipVisualData(controller, clip) {
 	].join(':');
 	const request = useMemo(() => {
 		void clipVisualRevision;
+		void visualSnapshot;
 		const getter = controller.actions.video?.getClipVisualData
 			|| controller.actions.timeline?.getClipVisualData;
 		if (!getter) return null;
@@ -352,6 +295,7 @@ export function useVideoClipVisualData(controller, clip) {
 		clip.id,
 		clipVisualRevision,
 		controller,
+		visualSnapshot,
 	]);
 	const [asyncVisualData, setAsyncVisualData] = useState(null);
 	const pending = Boolean(request && typeof request.then === 'function');

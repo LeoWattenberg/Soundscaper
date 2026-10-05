@@ -245,7 +245,7 @@ async function expectVideoRateBadge(editor, clipId, timing, sourceTiming) {
 	const expected = Number(sourceDurationTicks) * timing.sampleRate
 		/ Number(sourceTiming.timescale) / programDuration;
 	expect(rate).toBeCloseTo(expected, 8);
-	await expect(badge).toContainText('×');
+	await expect(badge).toContainText('%');
 }
 
 function videoBoundaryTicks(timing, frame) {

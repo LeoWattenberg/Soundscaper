@@ -1,0 +1,106 @@
+/* Audio and video strips share a compact Effects, M, S row. */
+.audio-editor-track-controls .track-control-panel__main {
+	display: grid;
+	grid-template-columns: 26px minmax(0, 1fr) 20px 20px;
+	grid-template-rows: min-content min-content min-content;
+	align-content: start;
+	column-gap: 4px;
+}
+
+.audio-editor-track-controls .track-control-panel__header {
+	grid-column: 1 / -1;
+}
+
+.audio-editor-track-controls .track-control-panel__controls-row,
+.audio-editor-track-controls .track-control-panel__controls-row > .track-control-panel__button-group {
+	display: contents;
+}
+
+.audio-editor-track-controls .track-control-panel__slot--pan {
+	grid-row: 2;
+	grid-column: 1;
+}
+
+.audio-editor-track-controls .track-control-panel__slot--volume {
+	grid-row: 2;
+	grid-column: 2 / -1;
+}
+
+.audio-editor-track-controls .track-control-panel__controls-row .toggle-button:first-child {
+	grid-row: 3;
+	grid-column: 3;
+	align-self: center;
+}
+
+.audio-editor-track-controls .track-control-panel__controls-row .toggle-button:last-child {
+	grid-row: 3;
+	grid-column: 4;
+	align-self: center;
+}
+
+.audio-editor-track-controls .track-control-panel__main > .button {
+	grid-row: 3;
+	grid-column: 1 / 3;
+}
+
+.audio-editor-video-track-controls {
+	position: sticky;
+	z-index: 45;
+	left: 0;
+	height: 100%;
+	overflow: hidden;
+	background: var(--stage-raised);
+	border-right: 1px solid var(--stage-line);
+	color: var(--stage-text);
+}
+
+.audio-editor-video-track-controls__title {
+	min-width: 0;
+	gap: 4px;
+}
+
+.audio-editor-video-track-controls__icon {
+	display: grid;
+	width: 20px;
+	flex: 0 0 auto;
+	place-items: center;
+}
+
+.audio-editor-video-track-controls__title [data-track-name] {
+	min-width: 0;
+	flex: 1;
+}
+
+.audio-editor-video-track-controls__actions {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.audio-editor-video-track-controls__actions > .button {
+	min-width: 0;
+	flex: 1;
+}
+
+.audio-editor-video-clip__display {
+	position: absolute;
+	inset: 0;
+}
+
+.audio-editor-video-clip__display .clip-display__inner {
+	background: var(--stage-raised);
+}
+
+.audio-editor-video-clip__header {
+	position: relative;
+	z-index: 8;
+	height: 20px;
+}
+
+.audio-editor-video-clip[data-dragging='true'] .clip-header {
+	cursor: grabbing;
+}
+
+.audio-editor-video-track-row[data-collapsed='true'] .audio-editor-video-track-controls__actions {
+	display: none;
+}

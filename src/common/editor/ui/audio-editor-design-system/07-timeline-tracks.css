@@ -236,24 +236,6 @@
 	width: 100%;
 }
 
-.audio-editor-video-track-controls {
-	position: sticky;
-	z-index: 45;
-	left: 0;
-	display: flex;
-	height: 100%;
-	flex-direction: column;
-	justify-content: space-between;
-	gap: 8px;
-	padding: 9px;
-	overflow: hidden;
-	background:
-		linear-gradient(135deg, color-mix(in srgb, #181b22 96%, var(--accent)) 0 14px, transparent 14px),
-		var(--stage-raised);
-	border-right: 1px solid var(--stage-line);
-	color: var(--stage-text);
-}
-
 /* The header carries the outer, rounded end of that ring: the vendored panel
    paints its focus bars outside its own box, where this wrapper's overflow
    clip hides them. It stays open on the lane side so the ring is continuous. */
@@ -265,86 +247,6 @@
 	border-right: 0;
 	border-radius: 4px 0 0 4px;
 	pointer-events: none;
-}
-
-.audio-editor-video-track-controls__title {
-	display: flex;
-	min-width: 0;
-	align-items: center;
-	gap: 7px;
-}
-
-.audio-editor-video-track-controls__icon {
-	display: grid;
-	width: 22px;
-	height: 22px;
-	flex: 0 0 auto;
-	place-items: center;
-	border: 1px solid color-mix(in srgb, var(--stage-text) 22%, transparent);
-	border-radius: 4px;
-	background: color-mix(in srgb, #11151c 76%, var(--accent));
-	color: #f5f7fa;
-}
-
-.audio-editor-video-track-controls__title [data-track-name] {
-	min-width: 0;
-	flex: 1;
-	overflow: hidden;
-	font-size: var(--editor-font-size, 12px);
-	font-weight: 750;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-}
-
-.audio-editor-video-track-controls__title [data-track-name] .text-input__field {
-	height: 24px;
-	padding-inline: 6px;
-	font-size: var(--editor-font-size, 12px);
-}
-
-.audio-editor-video-track-controls__actions {
-	display: grid;
-	grid-template-columns: repeat(2, minmax(0, 1fr));
-	gap: 5px;
-}
-
-.audio-editor-video-track-control {
-	min-width: 0;
-	height: 26px;
-	padding: 3px 7px;
-	overflow: hidden;
-	border: 1px solid var(--line);
-	border-radius: 4px;
-	background: var(--control);
-	color: var(--text);
-	font: 650 var(--editor-font-size, 12px)/1.1 Inter, sans-serif;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-	cursor: pointer;
-}
-
-.audio-editor-video-track-control:hover:not(:disabled) {
-	border-color: color-mix(in srgb, var(--accent) 68%, var(--line));
-	background: color-mix(in srgb, var(--accent) 12%, var(--control));
-}
-
-.audio-editor-video-track-control:focus-visible {
-	outline: 2px solid var(--focus, var(--accent));
-	outline-offset: 1px;
-}
-
-.audio-editor-video-track-control:disabled {
-	opacity: 0.5;
-	cursor: not-allowed;
-}
-
-.audio-editor-video-track-row[data-collapsed='true'] .audio-editor-video-track-controls {
-	justify-content: center;
-	padding-block: 5px;
-}
-
-.audio-editor-video-track-row[data-collapsed='true'] .audio-editor-video-track-controls__actions {
-	display: none;
 }
 
 .audio-editor-video-track-lane {
@@ -388,17 +290,6 @@
 	opacity: 0.72;
 }
 
-.audio-editor-video-clip__display {
-	position: absolute;
-	inset: 0;
-	overflow: hidden;
-	border: 1px solid color-mix(in srgb, #d9e0eb 42%, #111);
-	border-radius: 5px;
-	background: #171c24;
-	box-shadow: 0 2px 7px rgb(0 0 0 / 28%);
-	color: #f6f8fb;
-}
-
 .audio-editor-video-clip[data-project-bin-preview='true'] .audio-editor-video-clip__display {
 	border-style: dashed;
 	border-color: var(--accent);
@@ -424,68 +315,9 @@
 	outline-offset: -3px;
 }
 
-.audio-editor-video-clip__header {
-	position: absolute;
-	z-index: 8;
-	top: 0;
-	right: 0;
-	left: 0;
-	display: flex;
-	height: 25px;
-	align-items: center;
-	justify-content: space-between;
-	gap: 8px;
-	padding: 3px 8px;
-	overflow: hidden;
-	background: linear-gradient(180deg, rgb(23 29 39 / 97%), rgb(18 23 31 / 91%));
-	border-bottom: 1px solid rgb(255 255 255 / 15%);
-	cursor: grab;
-	user-select: none;
-}
-
-.audio-editor-video-clip[data-dragging='true'] .audio-editor-video-clip__header {
-	cursor: grabbing;
-}
-
-.audio-editor-video-clip__title {
-	min-width: 0;
-	overflow: hidden;
-	font-size: var(--editor-font-size, 12px);
-	font-weight: 750;
-	letter-spacing: 0.01em;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-}
-
-.audio-editor-video-clip__title-input {
-	min-width: 0;
-	flex: 1 1 auto;
-	padding: 1px 3px;
-	border: 1px solid currentColor;
-	border-radius: 2px;
-	/*
-	 * The light field is borrowed from the audio clip header, whose text is dark
-	 * already. A video clip header is light-on-dark, so inheriting its colour
-	 * would put near-white text on this near-white field.
-	 */
-	color: #14151a;
-	background: rgb(255 255 255 / 90%);
-	font: inherit;
-	outline: none;
-}
-
-.audio-editor-video-clip__speed {
-	flex: 0 0 auto;
-	padding: 1px 4px;
-	border-radius: 8px;
-	background: rgb(255 255 255 / 13%);
-	font-size: var(--editor-font-size, 12px);
-	font-variant-numeric: tabular-nums;
-}
-
 .audio-editor-video-clip__filmstrip {
 	position: absolute;
-	top: 25px;
+	top: 20px;
 	right: 0;
 	bottom: 0;
 	left: 0;
@@ -525,48 +357,6 @@
 	font-variant-numeric: tabular-nums;
 	text-shadow: 0 1px 2px #000;
 	white-space: nowrap;
-}
-
-.audio-editor-video-clip__trim-handle {
-	position: absolute;
-	z-index: 20;
-	top: 0;
-	bottom: 0;
-	width: 7px;
-	cursor: ew-resize;
-}
-
-.audio-editor-video-clip__trim-handle.clip-display__handle--trim-left {
-	left: 0;
-}
-
-.audio-editor-video-clip__trim-handle.clip-display__handle--trim-right {
-	right: 0;
-}
-
-.audio-editor-video-clip__trim-handle:hover {
-	background: color-mix(in srgb, var(--accent) 42%, transparent);
-}
-
-.audio-editor-video-clip__stretch-handle {
-	position: absolute;
-	z-index: 21;
-	bottom: 1px;
-	width: 13px;
-	height: 13px;
-	background: color-mix(in srgb, var(--accent) 84%, white);
-	border: 1px solid #101319;
-	border-radius: 3px 3px 2px 2px;
-	box-shadow: 0 1px 2px rgb(0 0 0 / 45%);
-	cursor: col-resize;
-}
-
-.audio-editor-video-clip__stretch-handle.clip-display__handle--stretch-left {
-	left: 1px;
-}
-
-.audio-editor-video-clip__stretch-handle.clip-display__handle--stretch-right {
-	right: 1px;
 }
 
 .audio-editor-video-clip__blocked {

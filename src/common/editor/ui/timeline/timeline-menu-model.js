@@ -127,6 +127,11 @@ export function createTimelineMenuModel({
 	}) : [];
 	const waveformOptions = resolveTrackWaveformOptions(menuTrack, snapshot.timeline?.view, Boolean(snapshot.timeline?.showRms), snapshot.preferences?.waveformDisplay?.halfWave);
 	const trackMenuItems = menuTrack ? [
+		...(menuTrack.type === 'video' && controller.actions.video?.toggleTarget ? [{
+			id: 'video-track-target', label: copy.editTarget, disabled: mutationsBlocked,
+			checked: controller.actions.video.targets().videoTrackId === menuTrack.id,
+			onClick: () => run(() => controller.actions.video.toggleTarget(menuTrack.id)),
+		}] : []),
 		...(menuTrack.type === 'audio' ? [
 			manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.showArmControls, copy.showArmControls, {
 				checked: showArmControls,
