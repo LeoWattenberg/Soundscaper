@@ -356,6 +356,11 @@ function scheduleBufferPlan({
 		? getReversedBuffer(context, plan.originalBuffer, reversedBuffers)
 		: plan.originalBuffer;
 	source.buffer = buffer;
+	if (plan.loopSourceStartFrame !== undefined && plan.loopSourceEndFrame !== undefined) {
+		source.loop = true;
+		source.loopStart = plan.loopSourceStartFrame / buffer.sampleRate;
+		source.loopEnd = plan.loopSourceEndFrame / buffer.sampleRate;
+	}
 	connect(source, chain.input);
 	const timelineRate = sampleRate * transportRate;
 	const startTime = contextStartTime + (plan.segmentStart - fromFrame) / timelineRate;

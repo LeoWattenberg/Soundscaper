@@ -99,6 +99,7 @@ export async function generateSpectrogramPcmTiles(
 	const sourceSpan = (startFrame: number, endFrame: number): number => {
 		const range = clip.warpMap == null
 			? projectUnwarpedClipSourceRange({
+				opaqueExtensions: clip.opaqueExtensions,
 				durationFrames: clip.durationFrames,
 				sourceStartFrame: clip.sourceStartFrame,
 				sourceDurationFrames: clip.sourceDurationFrames ?? clip.durationFrames,

@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { readClipLoop } from '../audio-clip-loop.ts';
 
 interface WaveformSourceIdentity {
 	readonly id?: string;
@@ -9,6 +10,7 @@ interface WaveformSourceIdentity {
 }
 
 interface WaveformClipIdentity {
+	readonly opaqueExtensions?: unknown;
 	readonly id?: string;
 	readonly sourceId?: string;
 	readonly revision?: number | string;
@@ -106,5 +108,6 @@ export function createWaveformContentKey(
 		Boolean(clip.inverted),
 		(clip.envelope ?? []).map((point) => [point.frame ?? 0, point.value ?? 1]),
 		clip.warpMap ?? null,
+		readClipLoop(clip),
 	]);
 }

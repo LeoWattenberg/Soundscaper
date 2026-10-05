@@ -1,4 +1,5 @@
 import { secondsDeltaToFrames } from './geometry.ts';
+import { readClipLoop, trimClipLoopPeriod } from '../../audio-clip-loop.ts';
 import { routeClipFocusTrimKeyboard } from './clip-focus-trim-keyboard-routing.ts';
 import { useTrackRowFocusNavigation } from './useTrackRowFocusNavigation.js';
 
@@ -109,6 +110,10 @@ export function useAudioTrackRowNavigation({
 		const source = clip ? sourceLookup.get(clip.sourceId) : null;
 		const deltaFrames = secondsDeltaToFrames(deltaSeconds, sampleRate);
 		if (!clip || !source || !deltaFrames) return;
+		if (readClipLoop(clip)) {
+			run(() => controller.actions.clip.update(clip.id, { loop: trimClipLoopPeriod(clip, source.frameCount, edge, edge === 'left' ? deltaFrames : -deltaFrames) }));
+			return;
+		}
 		const sourceDurationFrames = clip.sourceDurationFrames || clip.durationFrames;
 		const sourceFramesPerTimelineFrame = sourceDurationFrames / clip.durationFrames;
 		if (edge === 'left') {

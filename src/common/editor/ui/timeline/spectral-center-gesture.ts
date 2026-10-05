@@ -112,6 +112,7 @@ export function selectedTrackSpectralPeaks(
 		const sourceDuration = clip.sourceDurationFrames || clip.durationFrames;
 		const ratio = sourceDuration / clip.durationFrames;
 		const sourceRange = projectUnwarpedClipSourceRange({
+			opaqueExtensions: clip.opaqueExtensions,
 			durationFrames: clip.durationFrames,
 			sourceStartFrame: clip.sourceStartFrame,
 			sourceDurationFrames: sourceDuration,

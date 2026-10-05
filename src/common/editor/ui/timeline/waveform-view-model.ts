@@ -11,6 +11,7 @@ import {
 	type AudioWarpRuntimeProject,
 } from '../../audio-warp-runtime.ts';
 import { audacityWaveformMode } from '../../audacity-waveform-renderer.js';
+import { readClipLoop } from '../../audio-clip-loop.ts';
 import { WaveformPeakResolutionError } from '../../design-system-adapters/waveform-internals.ts';
 import { WAVEFORM_PEAKS_VERSION } from '../../waveform-peak-contract.ts';
 import type { FrequencyWaveformDisplayMode } from '../../track-display-mode.ts';
@@ -54,6 +55,7 @@ export interface TimelineWaveformSource {
 }
 
 export interface TimelineWaveformClip {
+	readonly opaqueExtensions?: unknown;
 	readonly id: string;
 	readonly sourceId: string;
 	readonly projectBinClipId?: string;
@@ -266,7 +268,7 @@ export function createTimelineClipViewModel({
 		color,
 		trimStart: framesToSeconds(clip.waveformStartFrame, { sampleRate }),
 		fullDuration: sourceDurationFrames / sourceRate,
-		stretchFactor: (clip.durationFrames / sampleRate) / (sourceDurationFrames / sourceRate),
+		stretchFactor: ((readClipLoop(clip)?.periodFrames ?? clip.durationFrames) / sampleRate) / (sourceDurationFrames / sourceRate),
 		speedRatio: clip.speedRatio,
 		// The clip header draws a pitch badge beside the time-stretch one, so the
 		// shift the pitch commands step has to reach the design system too.

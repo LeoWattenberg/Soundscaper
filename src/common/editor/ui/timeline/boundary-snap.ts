@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { DEFAULT_CLIP_MICROFADE_SECONDS } from '../../clip-microfade.ts';
+import { readClipLoop } from '../../audio-clip-loop.ts';
 
 /** Audacity 3's boundary guide accepts points fewer than four screen pixels away. */
 export const BOUNDARY_SNAP_PIXEL_TOLERANCE = 4;
@@ -11,6 +12,7 @@ interface BoundaryClip {
 	readonly kind?: string;
 	readonly timelineStartFrame: number;
 	readonly durationFrames: number;
+	readonly opaqueExtensions?: unknown;
 }
 
 interface BoundaryTrack {
@@ -147,6 +149,18 @@ export function resolveBoundarySnap(input: SnapInput): BoundarySnapResult {
 	const last = firstPointAtOrAfterPixel(points, position + BOUNDARY_SNAP_PIXEL_TOLERANCE,
 		pixelsPerSecond, sampleRate);
 	const nearby = points.slice(first, last);
+	const excluded = new Set(input.excludedClipIds ?? []);
+	for (const track of input.project.tracks) for (const id of track.clipIds ?? []) {
+		if (excluded.has(id)) continue;
+		const clip = input.index?.clipById.get(id) ?? input.project.clips.find(item => item.id === id);
+		const loop = clip ? readClipLoop(clip) : null;
+		if (!clip || !loop) continue;
+		const origin = clip.timelineStartFrame - loop.offsetFrames;
+		const boundary = origin + Math.round((frame - origin) / loop.periodFrames) * loop.periodFrames;
+		if (boundary > clip.timelineStartFrame && boundary < clip.timelineStartFrame + clip.durationFrames
+			&& Math.abs(pixelPosition(boundary, pixelsPerSecond, sampleRate) - position) < BOUNDARY_SNAP_PIXEL_TOLERANCE) nearby.push({ frame: boundary, trackId: track.id });
+	}
+	nearby.sort((left, right) => left.frame - right.frame);
 	if (nearby.length === 0) return { frame, snapped: false };
 	if (nearby.length === 1) return { frame: nearby[0]!.frame, snapped: true };
 	const onCurrentTrack = nearby.filter(({ trackId }) => trackId === currentTrackId);

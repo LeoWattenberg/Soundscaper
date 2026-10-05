@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { readClipLoop } from '../../../../audio-clip-loop.ts';
 
 import { createLocalizedError } from '../../../../../i18n/presentation-message.ts'; import { isAudioMediaKind } from '../../../../audio-media-kind.ts';
 
@@ -351,9 +352,9 @@ function sourceTimelineFrames(project: ClipTransformProject, clip: TimePitchClip
 	const source = project.sources.find((item) => item.id === clip.sourceId);
 	const sourceSampleRate = Number(source?.sampleRate);
 	const projectSampleRate = Number(project.sampleRate);
-	if (!(sourceSampleRate > 0) || !(projectSampleRate > 0)) return clip.sourceDurationFrames;
-	if (sourceSampleRate === projectSampleRate) return clip.sourceDurationFrames;
-	return clip.sourceDurationFrames * projectSampleRate / sourceSampleRate;
+	const loop = readClipLoop(clip);
+	const frames = clip.sourceDurationFrames * (loop ? clip.durationFrames / loop.periodFrames : 1);
+	return sourceSampleRate > 0 && projectSampleRate > 0 ? frames * projectSampleRate / sourceSampleRate : frames;
 }
 
 function findClipTrack(project: ClipTransformProject, clipId: string): ClipTransformTrack | null {

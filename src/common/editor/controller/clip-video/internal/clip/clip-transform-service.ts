@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { readClipLoop, trimClipLoopPeriod } from '../../../../audio-clip-loop.ts';
 
 import { publishedCopyFor } from '../../../shared/presentation-localization.ts'; import { createLocalizedError } from '../../../../../i18n/presentation-message.ts'; import { clipTrimSourceFrameCount } from '../../clip-trim-source-frame-count.ts';
 import { hasProjectBinMediaAuthority } from '../../../../project-schema-version.ts';
@@ -323,6 +324,14 @@ export function createClipTransformService(
 		if (!clip || !track) throw createLocalizedError(Error, dependencies.copy, 'audioClipNotFound');
 		const timelineStartChanged = Object.hasOwn(changes, 'timelineStartFrame')
 			&& Math.round(Number(changes.timelineStartFrame)) !== clip.timelineStartFrame;
+		if (readClipLoop(clip) && (timelineStartChanged || Object.hasOwn(changes, 'durationFrames'))) {
+			const source = findSource(project, clip.sourceId);
+			if (!source) throw createLocalizedError(Error, dependencies.copy, 'audioClipNotFound');
+			const delta = timelineStartChanged ? Number(changes.timelineStartFrame) - clip.timelineStartFrame : Number(changes.durationFrames) - clip.durationFrames;
+			if (!Number.isSafeInteger(delta)) throw createLocalizedError(TypeError, dependencies.copy, 'timelineFramesFinite');
+			const loop = trimClipLoopPeriod(clip, clipTrimSourceFrameCount(source), timelineStartChanged ? 'left' : 'right', delta);
+			return dependencies.commit({ type: 'clip/update', clipId: clip.id, changes: { loop } }, { selectClipId: clip.id });
+		}
 		if (!timelineStartChanged && !Object.hasOwn(changes, 'durationFrames')) {
 			if (!Object.keys(changes).length) return project;
 			const command = options.overwrite

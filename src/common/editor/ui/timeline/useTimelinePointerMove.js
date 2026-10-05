@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { loopPointerPreview } from './clip-loop-pointer.ts';
 import { CLIP_CONTENT_OFFSET } from '@soundscaper/design-system/constants';
 
 import { secondsToFrames } from '../../design-system-adapters.js';
@@ -285,6 +286,14 @@ export function useTimelinePointerMove({
 					endFrame: Math.max(session.startFrame, endFrame),
 				});
 			}
+			event.preventDefault();
+			return;
+		}
+		const loopPreview = session?.original && loopPointerPreview(session, projectIndex.sourceById.get(session.original.sourceId)?.frameCount ?? 0, event.clientX, pixelsPerSecond, sampleRate);
+		if (loopPreview) {
+			session.preview = loopPreview;
+			setClipDragPreview(loopPreview);
+			setBoundarySnapGuideFrames(loopPreview.guideFrame === null ? [] : [loopPreview.guideFrame]);
 			event.preventDefault();
 			return;
 		}

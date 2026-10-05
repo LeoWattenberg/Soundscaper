@@ -175,6 +175,7 @@ export function pcmWindowCoversProjectedClip(
 		'id' | 'timelineStartFrame' | 'durationFrames' | 'sourceDurationFrames' | 'sourceStartFrame'
 		| 'waveformStartFrame' | 'waveformEndFrame' | 'reversed'
 	> & Readonly<{
+		opaqueExtensions?: unknown;
 		sourceId?: string;
 		kind?: unknown;
 		anchor?: unknown;
@@ -248,6 +249,7 @@ function projectedClipSourceRange(
 		}
 	}
 	return Object.freeze(projectUnwarpedClipSourceRange({
+		opaqueExtensions: clip.opaqueExtensions,
 		durationFrames: clip.durationFrames,
 		sourceStartFrame: clip.sourceStartFrame ?? 0,
 		sourceDurationFrames,

@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { projectUnwarpedClipSourceRange } from '../../audio-clip-source-projection.ts';
+import { readClipLoop } from '../../audio-clip-loop.ts';
 import {
 	createAudioWarpRuntimeEvaluator,
 	type AudioWarpRuntimeClip,
@@ -70,14 +71,16 @@ export function createSpectrogramSampleViews(
 		sourceStart = sourceAt(startFrame);
 		sourceEnd = sourceAt(endFrame);
 	} else {
+		const loop = readClipLoop(clip);
 		sourceFrameAt = (localFrame) => {
 			const mappedFrame = Math.min(sourceDurationFrames - 1,
-				Math.floor(localFrame * sourceDurationFrames / durationFrames));
+				Math.floor((loop ? (localFrame + loop.offsetFrames) % loop.periodFrames : localFrame) * sourceDurationFrames / (loop?.periodFrames ?? durationFrames)));
 			return sourceStartFrame + (clip.reversed
 				? sourceDurationFrames - mappedFrame - 1
 				: mappedFrame);
 		};
 		const range = projectUnwarpedClipSourceRange({
+			opaqueExtensions: clip.opaqueExtensions,
 			durationFrames,
 			sourceStartFrame,
 			sourceDurationFrames,

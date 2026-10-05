@@ -1,4 +1,6 @@
 import { ContextMenu } from '@soundscaper/design-system/ContextMenu';
+import { clipCanLoop, readClipLoop } from '../../audio-clip-loop.ts';
+import { TIMELINE_ADDITIONAL_COPY } from '../../../i18n/editor-timeline-additional-copy.ts';
 import { ContextMenuItem } from '@soundscaper/design-system/ContextMenuItem';
 import { RulerFlyout } from '@soundscaper/design-system/RulerFlyout';
 import { TimelineRulerContextMenu } from '@soundscaper/design-system/TimelineRulerContextMenu';
@@ -297,6 +299,10 @@ export function TimelineMenus({
 					onClose={() => setClipMenu(null)}
 				/>
 				{clipDragMenuItems.map((item, index) => renderTrackMenuItem(item, index, setClipMenu))}
+				{menuClip?.kind === 'audio' && <ContextMenuItem label={copy['ui.timeline.loopClip'] || TIMELINE_ADDITIONAL_COPY.loopClip}
+					checked={Boolean(readClipLoop(menuClip))} disabled={mutationsBlocked || !clipCanLoop(menuClip)}
+					onClick={() => run(() => controller.actions.clip.update(menuClip.id, { loop: !readClipLoop(menuClip) }))}
+					onClose={() => setClipMenu(null)} />}
 				<ContextMenuItem isDivider />
 				<ManifestContextMenuItem
 					actionId={AUDACITY_CLIP_CONTEXT_ACTION_IDS.split}

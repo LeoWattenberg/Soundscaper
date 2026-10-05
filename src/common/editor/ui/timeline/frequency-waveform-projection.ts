@@ -30,6 +30,7 @@ import { frequencyWaveformPaletteColor, type FrequencyWaveformTheme } from './fr
 type FrequencyBandName = 'low' | 'mid' | 'high';
 
 export interface FrequencyWaveformProjectionClip {
+	readonly opaqueExtensions?: unknown;
 	readonly timelineStartFrame: number;
 	readonly sourceStartFrame: number;
 	readonly sourceDurationFrames?: number;
@@ -353,6 +354,7 @@ function createSourceRangeProjector(
 		};
 	}
 	return (startFrame, endFrame) => projectUnwarpedClipSourceRange({
+		opaqueExtensions: clip.opaqueExtensions,
 		durationFrames,
 		sourceStartFrame,
 		sourceDurationFrames,
