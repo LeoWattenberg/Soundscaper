@@ -35,6 +35,7 @@ import ExportChannelsField from './ExportChannelsField.jsx';
 import ExportDialogMetadataPanel from './ExportDialogMetadataPanel.jsx';
 import ExportPresetSection from './ExportPresetSection.jsx';
 import ExportRenderingSection from './ExportRenderingSection.jsx';
+import ExportEmbeddedChaptersField from '../ExportEmbeddedChaptersField.tsx';
 import {
 	compactFields, parseJsonChannelMapping, parseJsonObject,
 } from './inspector-helpers.ts';
@@ -265,7 +266,6 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 		controller.actions.export.previewDeliveryCanvas(Object.keys(merged).length > 0 ? merged : null);
 		return () => controller.actions.export.previewDeliveryCanvas(null);
 	}, [controller, settings, videoFormat]);
-
 	const setVideoDeliverySetting = (name, value) => {
 		if (name !== 'deliveryTarget') return set(name, value);
 		const patch = dialogSettingsFromDeliveryTarget(value);
@@ -327,7 +327,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 				copyright: settings.metadataCopyright,
 			});
 			const request = createExportDialogRequest(admittedSettings, {
-				metadata: exportDialogMetadata(admittedSettings.format, desktop, metadata),
+				metadata: exportDialogMetadata(admittedSettings.format, desktop, metadata), desktop,
 				bext: admittedSettings.bext,
 				adm: admittedSettings.adm,
 				channelMapping: videoFormat
@@ -402,7 +402,6 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 			/>
 		);
 	}
-
 	return (
 		<AudioEditorDialogShell
 			isOpen={isOpen}
@@ -500,6 +499,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 						<LabeledDropdown label={copy.quality} hook="quality" value={settings.compressionLevel} onChange={(value) => setCodec('compressionLevel', value)} disabled={exporting} options={exportDialogCompressionLevels(settings.format, desktop).map((level) => ({ value: String(level), label: `${copy.level} ${level}` }))} />
 					)}
 					{!videoFormat && <label className="audio-editor-field" data-export-field="sampleRate"><span>{copy.sampleRate}</span><input type="number" min="8000" max={maximumAudioSampleRate} step="1" list="audio-editor-export-rates" value={settings.sampleRate} disabled={exporting || admPassthrough} onChange={(event) => set('sampleRate', event.currentTarget.value)} onBlur={() => setCodec('sampleRate', settings.sampleRate)} /><datalist id="audio-editor-export-rates">{exportDialogSampleRateSuggestions(maximumAudioSampleRate, snapshot.project?.sampleRate, settings.format, desktop).map((value) => <option key={value} value={value} />)}</datalist></label>}
+					<ExportEmbeddedChaptersField copy={copy} settings={settings} desktop={desktop} project={snapshot.project} exporting={exporting} onChange={set} />
 					{videoFormat && (
 						<VideoDeliveryFields
 							copy={copy}

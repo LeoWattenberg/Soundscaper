@@ -1,4 +1,5 @@
 import { normalizeBextMetadata } from './broadcast-wave.ts';
+import { embeddedChapterEncodingFields } from './export-embedded-chapter-encoding.ts';
 import { BIT_RATES, allowedNumber, integerInRange, numberInRange } from './media-export-values.js';
 import {
 	OPUS_VBR_MODES, mp3FfmpegRateArguments, normalizeMp3RateSettings,
@@ -14,7 +15,6 @@ const MAX_METADATA_FIELDS = 32;
 const MAX_METADATA_VALUE_LENGTH = 4_096;
 const MAX_CUSTOM_ARGUMENTS = 64;
 const MAX_CUSTOM_ARGUMENT_LENGTH = 256;
-
 /**
  * Legacy capability vocabulary used by provider-neutral export plans. Browser
  * and desktop compositions replace this with their exact provider report.
@@ -252,7 +252,6 @@ export function normalizeMediaExportSettings(format, options = {}) {
 	if (channelMapping.outputChannelCount > descriptor.maximumChannels) {
 		throw new RangeError(`${descriptor.label} supports at most ${descriptor.maximumChannels} output channels.`);
 	}
-
 	const sampleFormat = normalizeSampleFormat(descriptor, options);
 	const dither = normalizeDither(options.dither, Boolean(sampleFormat && sampleFormat !== 'float32'));
 	const metadata = normalizeMediaMetadata(options.metadata);
@@ -270,6 +269,7 @@ export function normalizeMediaExportSettings(format, options = {}) {
 		floatingPoint: sampleFormat === 'float32',
 		dither,
 		metadata,
+		...embeddedChapterEncodingFields(descriptor.id, options.embeddedChapters, sampleRate),
 	};
 	if (descriptor.id === 'bwf' || descriptor.id === 'bw64') {
 		settings.bext = normalizeBextMetadata(options.bext ?? {}, { version: 2 });

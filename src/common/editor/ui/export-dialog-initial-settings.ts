@@ -47,6 +47,7 @@ export function createExportDialogInitialSettings(projectValue: unknown) {
 		customMimeType: 'application/octet-stream',
 		customArguments: '',
 		includeTail: true,
+		embedLabelChapters: false,
 		binaural: false,
 		masteringSequenceId: '',
 		canvasWidth: '',

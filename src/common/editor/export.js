@@ -23,6 +23,7 @@ import { resolveAdmEbuChannelWeights } from './loudness-channel-layout.ts';
 import { createRiffAnnotationExport } from './timeline-annotation-riff-interchange.ts';
 import { resolveBinauralDelivery } from './binaural-delivery.ts';
 import { resolveExportChapters } from './export-chapters.ts';
+import { assertEmbeddedChapterRequest, createEmbeddedChapterEncoding } from './export-embedded-chapter-encoding.ts';
 import { resolveMasteringSequenceExport } from './mastering-sequence-export.ts';
 import {
 	assertSoundscaperEffectChannelSafety,
@@ -176,6 +177,7 @@ export function createExportPlan(project, options = {}) {
 		throw new RangeError('Export mode must be mix, stems, or chapters.');
 	}
 	const format = canonicalMediaExportFormat(options.format || 'wav');
+	assertEmbeddedChapterRequest(format, options);
 	if (format === 'bw64' && mode !== 'mix') throw new RangeError('BW64 / ADM export is mix-only.');
 	assertSoundscaperEffectChannelSafety(runtimeProject, mode);
 	const bw64Adm = format === 'bw64' ? resolveBw64Adm(runtimeProject, options) : null;
@@ -278,6 +280,7 @@ export function createExportPlan(project, options = {}) {
 		: chapterOutputFrames
 			? Math.max(...chapterOutputFrames)
 			: rangeOutputFrames + tailOutputFrames;
+	encoding = createEmbeddedChapterEncoding(encoding, runtimeProject, options, range, { rangeOutputFrames, deliveryOutputFrames: outputFrames });
 	const adm = bw64Adm ? createBw64AdmExport(runtimeProject, bw64Adm, {
 		range,
 		outputFrames,

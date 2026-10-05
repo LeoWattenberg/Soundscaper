@@ -7,7 +7,8 @@ import { LARGE_AUDIO_DURATION_SECONDS, LARGE_AUDIO_FILE_BYTES, LARGE_AUDIO_PCM_C
 import { openBrowserAudioEncodeStreamSession, type BrowserAudioEncodeStreamSession } from './browser-audio-encode-stream-client.ts';
 import { createTemporaryFileSink, type TemporaryFileSink } from './controller/export/temporary-export.ts';
 import type { BrowserDedicatedAudioFormat } from './browser-dedicated-audio-codec.ts';
-import type { BrowserAudioCodecRuntimeSettings } from './browser-audio-codec-runtime.ts';
+import type { BrowserAudioCodecRuntimeSettings } from './browser-audio-codec-runtime-settings.ts';
+import { embedBrowserAudioChapters } from './browser-audio-embedded-chapters.ts';
 import type { DedicatedAudioEncodeSessionRequest } from './dedicated-audio-encode-session.ts';
 import { validateProfile } from './browser-dedicated-audio-profiles.ts';
 import { mp3CodecRateSettings, opusCodecRateSettings } from './media-export.js';
@@ -130,7 +131,9 @@ export async function encodeBrowserAudioFileStreamed(
 			...(signal ? { signal } : {}),
 		});
 		assertCurrent();
-		return Object.freeze({ blob, bytes: new Uint8Array(new ArrayBuffer(0)), extension: `.${media.extension}`, mimeType: media.mimeType, cleanup: () => sink.remove() });
+		const delivered = await embedBrowserAudioChapters(blob, format, settings, media.sampleRate, maximum);
+		assertCurrent();
+		return Object.freeze({ blob: delivered, bytes: new Uint8Array(new ArrayBuffer(0)), extension: `.${media.extension}`, mimeType: media.mimeType, cleanup: () => sink.remove() });
 	} catch (error) {
 		try { await sink.abort(); }
 		catch (cleanupError) { throw cleanupFailure(error, cleanupError); }

@@ -57,6 +57,8 @@ export interface EditorExportSettings {
 	readonly mimeType: unknown;
 	readonly customArguments: unknown;
 	readonly includeTail: boolean;
+	/** Browser MP3/M4A only: include label titles and times in the mixed file. */
+	readonly embedLabelChapters?: boolean;
 	readonly measureLoudness: boolean;
 	/** Render an authored ADM programme to two channels for headphones. */
 	readonly binaural: boolean;
@@ -119,6 +121,7 @@ export function normalizeEditorExportSettings(
 		mimeType: value.mimeType,
 		customArguments: value.customArguments,
 		includeTail: value.includeTail !== false,
+		embedLabelChapters: value.embedLabelChapters === true,
 		measureLoudness: value.measureLoudness === true,
 		binaural: value.binaural === true,
 		loudnessNormalization: normalizeLoudnessNormalizationTarget(value.loudnessNormalization),

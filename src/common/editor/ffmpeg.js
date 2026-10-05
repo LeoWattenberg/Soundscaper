@@ -23,6 +23,7 @@ import { conformFfmpegVideoToCfr } from './ffmpeg-cfr-ingest.ts';
 import { createVideoKeyframeEncoderOperationRunner } from './video-keyframe-ffmpeg-operation.ts';
 import { probeFfmpegVideoTiming } from './ffmpeg-video-timing-operation.ts';
 import { runFfmpegMediaFileOperation } from './ffmpeg-media-file-operation.ts';
+import { execFfmpegAudioWithChapters } from './ffmpeg-audio-chapters.ts';
 import { safeFfmpegWorkerFsName } from './ffmpeg-workerfs-name.ts';
 import { decodeFloatWave, toUint8Array } from './ffmpeg-pcm-exchange.js';
 import {
@@ -45,8 +46,6 @@ export {
 	FfmpegEncodingError,
 	FfmpegVideoEncodingError,
 };
-
-
 
 /**
  * Lazy, single-thread FFmpeg runtime used only for editor decode and encoding.
@@ -230,10 +229,10 @@ export function createEditorFfmpeg(options = {}) {
 
 			try {
 				await instance.writeFile(input, toUint8Array(wav), { signal });
-				const code = await instance.exec(encoderArgs(input, output, normalizedFormat, {
+				const code = await execFfmpegAudioWithChapters(instance, encoderArgs(input, output, normalizedFormat, {
 					...normalized,
 					applyDither: settings.applyDither === true,
-				}), -1, { signal });
+				}), normalized, { signal });
 				if (code !== 0) throw new FfmpegEncodingError(normalizedFormat, code);
 				const data = await readBoundedFfmpegOutputFile(instance, output, {
 					label: 'Audio export', maximumBytes: settings.maximumOutputBytes, signal, confirmFileSizeWarning: settings.confirmFileSizeWarning, assertCurrent: settings.assertCurrent,
@@ -280,10 +279,10 @@ export function createEditorFfmpeg(options = {}) {
 				const mountOptions = { blobs: [{ name: inputName, data: file }] };
 				await instance.mount(module.FFFSType.WORKERFS, mountOptions, mountPoint);
 				mounted = true;
-				const code = await instance.exec(encoderArgs(`${mountPoint}/${inputName}`, output, normalizedFormat, {
+				const code = await execFfmpegAudioWithChapters(instance, encoderArgs(`${mountPoint}/${inputName}`, output, normalizedFormat, {
 					...normalized,
 					applyDither: settings.applyDither === true,
-				}), -1, { signal });
+				}), normalized, { signal });
 				if (code !== 0) throw new FfmpegEncodingError(normalizedFormat, code);
 				const data = await readBoundedFfmpegOutputFile(instance, output, {
 					label: 'Audio export', maximumBytes: settings.maximumOutputBytes, signal, confirmFileSizeWarning: settings.confirmFileSizeWarning, assertCurrent: settings.assertCurrent,
@@ -339,10 +338,10 @@ export function createEditorFfmpeg(options = {}) {
 						try { await instance.deleteFile(output); }
 						catch (error) { if (outputWasFinalized) throw error; }
 					});
-					const code = await instance.exec(encoderArgs(`${mountPoint}/${inputName}`, output, normalizedFormat, {
+					const code = await execFfmpegAudioWithChapters(instance, encoderArgs(`${mountPoint}/${inputName}`, output, normalizedFormat, {
 						...normalized,
 						applyDither: settings.applyDither === true,
-					}), -1, { signal });
+					}), normalized, { signal });
 					outputWasFinalized = code === 0;
 					assertFfmpegOutputReady(settings);
 					if (code !== 0) throw new FfmpegEncodingError(normalizedFormat, code);

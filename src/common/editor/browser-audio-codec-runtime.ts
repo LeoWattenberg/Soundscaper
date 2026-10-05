@@ -22,7 +22,11 @@ import {
 } from './media-export.js';
 import { inspectWavBlobPcm, streamWavBlobPcm } from './wav-import.js';
 import { writeInterleavedFloat32Pcm } from './interleaved-float32-pcm.ts';
-import type { WavPcmDescriptor } from './wav-pcm-chunk-reader.ts'; import type { FileSizeWarningConfirmation, FileSizeWarningOptions } from './controller/shared/file-size-warning.ts';
+import type { WavPcmDescriptor } from './wav-pcm-chunk-reader.ts'; import type { FileSizeWarningOptions } from './controller/shared/file-size-warning.ts';
+import type { BrowserAudioCodecRuntimeSettings } from './browser-audio-codec-runtime-settings.ts';
+import { embedBrowserAudioChapters } from './browser-audio-embedded-chapters.ts';
+
+export type { BrowserAudioCodecRuntimeSettings } from './browser-audio-codec-runtime-settings.ts';
 
 export interface BrowserDedicatedAudioCodecClient {
 	encode(request: DedicatedAudioEncodeRequest, options?: Readonly<{ signal?: AbortSignal }>): Promise<Uint8Array>;
@@ -37,27 +41,6 @@ export interface BrowserAudioCodecRuntimeOptions extends Pick<FileSizeWarningOpt
 	readonly audioEncoderProbe?: BrowserAudioEncoderProbe;
 	readonly createTrimMediaRuntime?: Parameters<typeof createLazyBrowserTrimMediaRuntime>[0]['createTrimMediaRuntime'];
 	readonly [key: string]: unknown;
-}
-
-export interface BrowserAudioCodecRuntimeSettings {
-	readonly capabilities?: unknown;
-	readonly sampleRate?: number;
-	readonly inputChannelCount?: number;
-	readonly channelCount?: number;
-	readonly channelMapping?: unknown;
-	readonly sampleFormat?: string;
-	readonly bitDepth?: number;
-	readonly dither?: unknown;
-	readonly metadata?: Readonly<Record<string, unknown>>;
-	readonly compressionLevel?: number;
-	readonly quality?: number;
-	readonly bitRate?: number;
-	readonly maximumOutputBytes?: number; readonly confirmFileSizeWarning?: FileSizeWarningConfirmation;
-	readonly maximumOutputChunkBytes?: number;
-	readonly frameCount?: number;
-	readonly signal?: AbortSignal;
-	readonly assertCurrent?: () => void;
-	readonly onProgress?: (value: number) => void;
 }
 
 interface NormalizedMediaSettings {
@@ -223,7 +206,7 @@ export function createBrowserAudioCodecRuntime(options: BrowserAudioCodecRuntime
 		throwIfAborted(signal);
 		settingsValue.assertCurrent?.();
 		const outputBound = maximumOutputBytes(settingsValue.maximumOutputBytes);
-		const bytes = format === 'aac-m4a'
+		let bytes = format === 'aac-m4a'
 			? await encodeAac({
 				input: staged.input,
 				frameCount: staged.frameCount,
@@ -249,6 +232,13 @@ export function createBrowserAudioCodecRuntime(options: BrowserAudioCodecRuntime
 		settingsValue.assertCurrent?.();
 		if (!(bytes instanceof Uint8Array) || bytes.byteLength < 1) {
 			throw new Error('The dedicated browser codec returned no file bytes.');
+		}
+		if (settingsValue.embeddedChapters?.length) {
+			const blob = await embedBrowserAudioChapters(new Blob([Uint8Array.from(bytes)], { type: staged.media.mimeType }),
+				format, operationSettings, staged.media.sampleRate, outputBound);
+			bytes = new Uint8Array(await blob.arrayBuffer());
+			throwIfAborted(signal);
+			settingsValue.assertCurrent?.();
 		}
 		return Object.freeze({
 			bytes: Uint8Array.from(bytes),

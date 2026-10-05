@@ -168,5 +168,20 @@ labels.
 Compressed formats use the FFmpeg runtime. Exact formats and conditional
 availability are listed in the [generated format reference](/reference/).
 
+### Embed chapter labels {#embedded-chapters}
+
+In the browser editor, choose **File → Export audio**, select **MP3** or
+**AAC / M4A**, and enable **Embed labels as chapters** under **Audio options**.
+The option starts unchecked and includes label titles and times inside one
+mixed file. Add labels before exporting; stems, chapter splits, and mastering
+sequences do not offer this option.
+
+Only labels intersecting the delivered range are included. Exporting a
+selection moves the chapter times to the start of the delivered file. MP3
+preserves region-label end times; a point label ends at the next chapter or at
+the end of the file. M4A stores chapter starts, with each chapter continuing to
+the next start or the file's end. M4A supports up to 255 chapters and 255 UTF-8
+bytes per title. Players vary in whether they display embedded chapters.
+
 Play the exported file in another application before delivering or deleting
 source material.

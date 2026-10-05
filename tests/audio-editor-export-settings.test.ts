@@ -23,6 +23,7 @@ test('export settings normalize formats, codec controls, and project defaults de
 		mimeType: undefined,
 		customArguments: undefined,
 		includeTail: true,
+		embedLabelChapters: false,
 		measureLoudness: false,
 		loudnessNormalization: null,
 		masteringSequenceId: null,

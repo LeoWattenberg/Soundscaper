@@ -58,7 +58,7 @@
 		"src/common/editor/audacity-effects/manifest.js": 577,
 		"src/common/editor/automation-lane-interval-edit-v21.ts": 568,
 		"src/common/editor/broadcast-wave.ts": 583,
-		"src/common/editor/browser-audio-codec-runtime.ts": 579,
+		"src/common/editor/browser-audio-codec-runtime.ts": 561,
 		"src/common/editor/chunk-stream-client.js": 580,
 		"src/common/editor/clip-time-pitch-cache.js": 576,
 		"src/common/editor/commands/range-runtime.js": 555,
