@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { expect, test } from './audio-editor-test-fixtures.js';
-import { bootEditor, registerAudioEditorHooks, trackNameText } from './audio-editor-test-helpers.js';
+import { bootEditor, openChromeDrawer, registerAudioEditorHooks, trackNameText, waitForResponsiveEditorLayout } from './audio-editor-test-helpers.js';
 import { captureHarnessState, installCaptureHarness, expectCapturePhase } from './helpers/framescaper-capture-harness.js';
 
 test.describe('Framescaper inputs and transport', () => {
@@ -26,14 +26,23 @@ test.describe('Framescaper inputs and transport', () => {
 		await expectCapturePhase(setup.locator('[data-framescaper-recording-setup]'), 'previewing');
 		await expect(recordingDock).toBeHidden();
 		await expectInputsFitFlyout(setup);
+		await page.keyboard.press('Escape');
 		await page.setViewportSize({ width: 640, height: 900 });
+		await waitForResponsiveEditorLayout(editor);
+		await openChromeDrawer(editor);
+		await editor.getByRole('button', { name: 'Inputs setup', exact: true }).click();
+		await expectCapturePhase(setup.locator('[data-framescaper-recording-setup]'), 'previewing');
 		await expectInputsFitFlyout(setup);
 		await setup.getByRole('combobox', { name: 'Countdown', exact: true }).selectOption('0');
 		await setup.getByRole('button', { name: 'Arm capture', exact: true }).click();
 		await expectCapturePhase(setup.locator('[data-framescaper-recording-setup]'), 'armed');
 		await expect(recordingDock).toBeHidden();
 		await expectInputsFitFlyout(setup);
+		await page.keyboard.press('Escape');
 		await page.setViewportSize({ width: 1280, height: 960 });
+		await waitForResponsiveEditorLayout(editor);
+		await editor.getByRole('button', { name: 'Inputs setup', exact: true }).click();
+		await expectCapturePhase(setup.locator('[data-framescaper-recording-setup]'), 'armed');
 		await expectInputsFitFlyout(setup);
 		await page.keyboard.press('Escape');
 		await expect(recordingDock).toBeHidden();
@@ -66,6 +75,7 @@ test.describe('Framescaper inputs and transport', () => {
 });
 
 async function expectInputsFitFlyout(setup) {
+	await expect(setup).toBeVisible();
 	await expect.poll(() => setup.evaluate(flyout => flyout.scrollWidth - flyout.clientWidth)).toBeLessThanOrEqual(1);
 	expect(await setup.evaluate(flyout => {
 		const bounds = flyout.getBoundingClientRect();
