@@ -21,6 +21,8 @@ test('clip drag menus select the source track and offer compatible time-preservi
 	items[0]?.onClick?.();
 	assert.deepEqual(selected, [['one', 'two']]);
 	assert.deepEqual(items[1]?.items?.map((item) => item.label), ['B']);
+	assert.equal(items[0]?.id, 'clip-select-track-clips');
+	assert.equal(items[1]?.items?.[0]?.id, 'clip-move-preserve-time-b');
 	items[1]?.items?.[0]?.onClick?.();
 	assert.deepEqual(moved, [['one', 'b']]);
 });

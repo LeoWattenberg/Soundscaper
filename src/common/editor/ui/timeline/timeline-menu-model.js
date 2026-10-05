@@ -3,7 +3,7 @@ import { createElement } from 'react';
 import { resolveTrackWaveformOptions } from '../../track-display-mode.ts';
 import { iconNameToChar } from '../../audacity-iconcodes.js';
 import { AUDACITY_TRACK_CONTEXT_ACTION_IDS } from '../../audacity-context-menu.js';
-import { trackSourceChannelCount } from '../application-menu-model.js';
+import { createTrackSelectionContextMenuItems } from './track-selection-context-menu.ts';
 import {
 	createSoundscaperWorkflowApplicationMenuItems,
 	resolveTrackAutomationCopy,
@@ -298,10 +298,16 @@ function createTrackOverflowItems({
 	freezeRuntime,
 }) {
 	const audioTrack = track.type === 'audio' ? track : null;
-	const channelCount = trackSourceChannelCount(project, audioTrack);
-	const compatibleMonoTrack = channelCount === 1 && project.tracks.some((candidate) => (
-		candidate.id !== track.id && candidate.type === 'audio' && trackSourceChannelCount(project, candidate) === 1
-	));
+	const selectionItems = createTrackSelectionContextMenuItems({
+		project, track, copy, blocked: mutationsBlocked, audioEffects: capabilities?.audioEffects !== false,
+		actions: {
+			update: (id, changes) => run(() => controller.actions.track.update(id, changes)),
+			makeStereo: (id) => run(() => controller.actions.track.makeStereo(id)),
+			swapChannels: (id) => run(() => controller.actions.track.swapChannels(id)),
+			splitStereoLR: (id) => run(() => controller.actions.track.splitStereoLR(id)),
+			splitStereoCenter: (id) => run(() => controller.actions.track.splitStereoCenter(id)),
+		},
+	});
 	const workflow = createSoundscaperWorkflowApplicationMenuItems({
 		productId,
 		capabilities,
@@ -328,13 +334,7 @@ function createTrackOverflowItems({
 		// Picture visibility is a track control, not a menu command: the video track
 		// control panel carries it as mute, with solo hiding every other video track.
 		display: [],
-		shared: [
-			{
-				id: 'track-lock-toggle', label: track.locked ? copy.unlockTrack : copy.lockTrack,
-				disabled: mutationsBlocked,
-				onClick: () => run(() => controller.actions.track.update(track.id, { locked: !track.locked })),
-			},
-		],
+		shared: selectionItems.shared,
 		audio: audioTrack ? [
 			...workflow.tracks,
 			...takeComp,
@@ -346,17 +346,7 @@ function createTrackOverflowItems({
 			// work whose handler refuses outright on a product without that
 			// capability, so offering it there only produced an error after the
 			// operator had chosen a value.
-			...(capabilities?.audioEffects === false ? [] : [
-			{
-				id: 'track-channels', label: copy.trackChannels, disabled: mutationsBlocked,
-				items: [
-					{ id: 'track-make-stereo', label: copy.makeStereoTrack, disabled: !compatibleMonoTrack, onClick: () => run(() => controller.actions.track.makeStereo(track.id)) },
-					{ id: 'track-swap-channels', label: copy.swapStereoChannels, disabled: channelCount !== 2, onClick: () => run(() => controller.actions.track.swapChannels(track.id)) },
-					{ id: 'track-split-stereo-to-lr', label: copy.splitStereoLr, disabled: channelCount !== 2, onClick: () => run(() => controller.actions.track.splitStereoLR(track.id)) },
-					{ id: 'track-split-stereo-to-center', label: copy.splitStereoCenter, disabled: channelCount !== 2, onClick: () => run(() => controller.actions.track.splitStereoCenter(track.id)) },
-				],
-			},
-			]),
+			...selectionItems.audio,
 		] : [],
 	};
 }

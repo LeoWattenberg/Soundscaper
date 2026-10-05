@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useRef, useState } from 'react';
 
 import { isSoundscaperProductionProject } from '../../project-schema-version.ts';
 import { Flyout } from '@soundscaper/design-system/Flyout';
@@ -8,6 +8,11 @@ import { Toolbar, ToolbarButtonGroup, ToolbarDivider } from '@soundscaper/design
 import { ToolButton } from '@soundscaper/design-system/ToolButton';
 
 import { iconNameToChar } from '../../audacity-iconcodes.js';
+import { productProfile } from '../../../products.js';
+import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-workspace-runner.ts';
+import { collectCustomToolbarButtonActions } from './custom-toolbar-button-actions.ts';
+import { createCustomToolbarContextMenus, CUSTOM_TOOLBAR_AUDIO_CONTEXT_ACTION_IDS } from './custom-toolbar-context-actions.ts';
+import { CustomToolbarButtonGroup, CustomToolbarButtonSettings } from './CustomToolbarButtons.tsx';
 import { FRAMESCAPER_INPUTS_COPY } from '../../../i18n/editor-framescaper-inputs-copy.ts';
 import {
 	PlaybackMeterToolbarGroup,
@@ -29,6 +34,8 @@ import {
 	handleEditorToolbarFocus,
 	handleEditorToolbarKeyDown,
 } from '../workspace-shortcuts.ts';
+
+const CustomToolbarButtonDialog = lazy(() => import('../dialogs/CustomToolbarButtonDialog.tsx'));
 
 export default function EditorToolToolbar({
 	capabilities,
@@ -59,6 +66,7 @@ export default function EditorToolToolbar({
 	onToggleSplitTool,
 	splitToolMomentary = false,
 	actionRuntime,
+	menus = [],
 	onOpenSpectralSelection,
 	onOpenTimedRecording,
 	onOpenTakeCycleRecovery,
@@ -77,11 +85,28 @@ export default function EditorToolToolbar({
 	);
 	const toolbarSettingsTriggerRef = useRef(null);
 	const [toolbarSettingsPosition, setToolbarSettingsPosition] = useState(null);
+	const [customButtonDraft, setCustomButtonDraft] = useState(undefined);
 	const setToolbarSettingsTrigger = useCallback((element) => {
 		toolbarSettingsTriggerRef.current = element?.querySelector('button') || null;
 	}, []);
 	const isToolbarButtonVisible = (buttonId) => toolbarButtons?.[buttonId] !== false;
 	const visibleEditItems = editItems.filter((item) => isToolbarButtonVisible(item.action));
+	const customButtons = snapshot.preferences?.workspace?.customButtons ?? [];
+	const visibleCustomButtons = customButtons.filter((button) => isToolbarButtonVisible(button.id));
+	const customActions = customButtons.length > 0 || customButtonDraft !== undefined ? collectCustomToolbarButtonActions([
+		...createCustomToolbarContextMenus({ controller, snapshot, copy, capabilities, productId, blocked }),
+		...menus,
+	], {
+		actionRuntime, copy, locale, disabledActionIds: [
+			...productProfile(productId).shortcuts.disabledCommandIds,
+			...(capabilities.audioEffects === false ? CUSTOM_TOOLBAR_AUDIO_CONTEXT_ACTION_IDS : []),
+		],
+	}) : [];
+	const customizeButton = (button) => {
+		setToolbarSettingsPosition(null);
+		setCustomButtonDraft(button);
+	};
+	const persistCustomButtons = (buttons) => runAwaitedAudioEditorOperation(run, () => controller.actions.preferences.update({ workspace: { customButtons: buttons } }));
 	const showMusicalTiming = snapshot.preferences?.workspace?.activeId === 'music';
 	const framescaperCaptureRecordVisible = useFramescaperCaptureRecordVisibility(snapshot);
 	const transportButtonsVisible = transportToolbarButtonsVisible(transportButtons, {
@@ -213,7 +238,7 @@ export default function EditorToolToolbar({
 				}
 				</WorkspaceToolbarSection>,
 
-				visibleEditItems.length > 0 && <WorkspaceToolbarSection key="edit" {...toolbarSectionProps('edit')}>
+				(visibleEditItems.length > 0 || visibleCustomButtons.length > 0) && <WorkspaceToolbarSection key="edit" {...toolbarSectionProps('edit')}>
 				<ToolbarButtonGroup className="kw-audio-editor__edit-actions" gap={2}>
 					{visibleEditItems.map((item) => (
 						<span key={item.action} data-edit={item.action === 'rippleDelete' ? 'ripple-delete' : item.action}>
@@ -221,6 +246,7 @@ export default function EditorToolToolbar({
 						</span>
 					))}
 				</ToolbarButtonGroup>
+				<CustomToolbarButtonGroup buttons={visibleCustomButtons} actions={customActions} copy={copy} run={run} />
 				</WorkspaceToolbarSection>,
 
 				<WorkspaceToolbarSection key="meter" {...toolbarSectionProps('meter')}>
@@ -291,6 +317,7 @@ export default function EditorToolToolbar({
 					{onToolbarDock && <ToolbarDockingMenu copy={copy} dock={toolbarDock} onDock={onToolbarDock} onClose={() => setToolbarSettingsPosition(null)} />}
 					<strong>{copy.toolbarButtons}</strong>
 					<div className="kw-audio-editor__toolbar-settings-list">
+						<CustomToolbarButtonSettings buttons={customButtons} toolbarButtons={toolbarButtons ?? {}} copy={copy} onCustomize={customizeButton} onToggle={(id, visible) => run(() => controller.actions.preferences.setToolbarButton(id, visible))} />
 						{toolbarButtonOptions.map((button) => <button
 							key={button.id}
 							type="button"
@@ -312,6 +339,18 @@ export default function EditorToolToolbar({
 					</div>
 				</div>
 			</Flyout>
+			{customButtonDraft !== undefined && <Suspense fallback={null}>
+				<CustomToolbarButtonDialog
+					button={customButtonDraft}
+					copy={copy}
+					actions={customActions}
+					onClose={() => setCustomButtonDraft(undefined)}
+					onSave={(button) => persistCustomButtons(customButtons.some((candidate) => candidate.id === button.id)
+						? customButtons.map((candidate) => candidate.id === button.id ? button : candidate)
+						: [...customButtons, button])}
+					onRemove={customButtonDraft ? () => persistCustomButtons(customButtons.filter((button) => button.id !== customButtonDraft.id)) : undefined}
+				/>
+			</Suspense>}
 		</div>
 	);
 }
