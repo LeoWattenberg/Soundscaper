@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { useProjectBinFileDrop } from './use-project-bin-file-drop.js';
+import { FRAMESCAPER_INPUTS_COPY } from '../../../i18n/editor-framescaper-inputs-copy.ts';
 import { Button } from '@soundscaper/design-system/Button';
 import { ContextMenu } from '@soundscaper/design-system/ContextMenu';
 import { ContextMenuItem } from '@soundscaper/design-system/ContextMenuItem';
@@ -23,6 +24,7 @@ import { useProjectBinSourceProperties } from './use-project-bin-source-properti
 
 const AUDIO_EDITOR_AUDIO_FILE_ACCEPT = 'audio/*,video/mp4,video/webm,.aac,.aif,.aiff,.bw64,.flac,.m4a,.m4v,.mp2,.mp3,.mp4,.oga,.ogg,.opus,.rf64,.wav,.wave,.wavpack,.webm,.wv';
 export default function ProjectBinPanel({ controller, snapshot, copy, locale, fileService, run, blocked, confirmFileSizeWarning = /** @type {import('../../controller/shared/file-size-warning.ts').FileSizeWarningConfirmation | undefined} */ (undefined) }) {
+	copy = snapshot.productId === 'framescaper' ? { ...copy, projectBinImport: copy['ui.framescaperInputs.addMedia'] ?? FRAMESCAPER_INPUTS_COPY.addMedia, projectBinDropTitle: copy['ui.framescaperInputs.dropFiles'] ?? FRAMESCAPER_INPUTS_COPY.dropFiles } : copy;
 	const inputRef = useRef(null);
 	const replacementInputRef = useRef(null);
 	const linkedAudioRelinkRequestRef = useRef(0);

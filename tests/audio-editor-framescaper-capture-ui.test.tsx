@@ -9,6 +9,7 @@ import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
 import { filterProductMenus } from '../src/common/editor/ui/application-menu-product-filter.js';
 import type { CapturePhase } from '../src/common/editor/framescaper-capture-domain.ts';
 import FramescaperCaptureRecordControl from '../src/common/editor/ui/toolbar/FramescaperCaptureRecordControl.tsx';
+import FramescaperInputsSetupFlyout from '../src/common/editor/ui/toolbar/FramescaperInputsSetupFlyout.tsx';
 import RecordingSetupPanel from '../src/common/editor/ui/workspace/RecordingSetupPanel.tsx';
 import { assignCapturePreviewStream } from '../src/common/editor/ui/workspace/FramescaperCaptureSources.tsx';
 import {
@@ -50,8 +51,8 @@ test('Window exposes recording setup only in Framescaper', () => {
 	assert.equal(findMenuItem(framescaper, 'panel-recording-setup')?.label, 'Recording setup');
 });
 
-test('record control remains default-hidden until opt-in, active capture or recovery ownership', () => {
-	assert.equal(framescaperCaptureRecordVisible('framescaper', capture('inactive'), false), false);
+test('Framescaper exposes Record by default and retains active capture or recovery controls', () => {
+	assert.equal(framescaperCaptureRecordVisible('framescaper', capture('inactive'), false), true);
 	assert.equal(framescaperCaptureRecordVisible('framescaper', capture('inactive'), true), true);
 	assert.equal(framescaperCaptureRecordVisible('framescaper', capture('recording'), false), true);
 	assert.equal(framescaperCaptureRecordVisible('framescaper', capture('recovery'), false), true);
@@ -92,6 +93,20 @@ test('selected route renders idle recording setup without opening any source', (
 	assert.deepEqual(calls, []);
 	assert.match(markup, /data-framescaper-recording-setup/u);
 	assert.match(markup, /Capture is unavailable/u);
+});
+
+test('Inputs setup exposes combined camera and microphone capture without implicit media access', () => {
+	const calls: string[] = [];
+	const markup = render(<FramescaperInputsSetupFlyout
+		controller={controller(calls)}
+		snapshot={{ productId: 'framescaper', project: { id: 'project-a' }, capture: capture('inactive') }}
+		copy={ENGLISH_COPY} run={(operation) => operation()} />);
+	assert.deepEqual(calls, []);
+	assert.match(markup, />Inputs setup</u);
+	assert.match(markup, /type="checkbox"[^>]*checked=""[^>]*\/><span>Camera<\/span>/u);
+	assert.match(markup, /type="checkbox"[^>]*checked=""[^>]*\/><span>Microphone<\/span>/u);
+	assert.match(markup, />Preview sources</u);
+	assert.match(markup, /aria-label="Speakers"/u);
 });
 
 test('recording setup presents explicit sources, destinations, capture controls and live status', () => {

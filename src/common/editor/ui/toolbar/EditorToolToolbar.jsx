@@ -8,6 +8,7 @@ import { Toolbar, ToolbarButtonGroup, ToolbarDivider } from '@soundscaper/design
 import { ToolButton } from '@soundscaper/design-system/ToolButton';
 
 import { iconNameToChar } from '../../audacity-iconcodes.js';
+import { FRAMESCAPER_INPUTS_COPY } from '../../../i18n/editor-framescaper-inputs-copy.ts';
 import {
 	PlaybackMeterToolbarGroup,
 	RecordingMeterToolbarGroup,
@@ -94,7 +95,7 @@ export default function EditorToolToolbar({
 	const toolbarButtonOptions = [
 		{ id: 'play', label: copy.play, icon: 'play' },
 		{ id: 'stop', label: copy.stop, icon: 'stop' },
-		...(capabilities.audioRecording || framescaperCaptureRecordVisible ? [{ id: 'record', label: capabilities.audioRecording ? recordLabel : copy.record, icon: 'record' }] : []),
+		...(capabilities.audioRecording || framescaperCaptureRecordVisible ? [{ id: 'record', label: capabilities.audioRecording ? recordLabel : copy['ui.framescaperInputs.record'] ?? FRAMESCAPER_INPUTS_COPY.record, icon: 'record' }] : []),
 		{ id: 'jump-start', label: copy.jumpStart, icon: 'skip-back' },
 		{ id: 'jump-end', label: copy.jumpEnd, icon: 'skip-forward' },
 		{ id: 'loop', label: copy.loop, icon: 'loop' },

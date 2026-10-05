@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { ContextMenuItem } from '@soundscaper/design-system/ContextMenuItem';
+import { FRAMESCAPER_INPUTS_COPY } from '../../../i18n/editor-framescaper-inputs-copy.ts';
 
 import AudioEditorSplitButton from '../AudioEditorSplitButton.tsx';
 import {
@@ -152,7 +153,7 @@ export default function FramescaperCaptureRecordControl({
 				? copy.captureStopImport
 				: capturePrimary.kind === 'finalizing'
 					? copy.captureFinalizing
-					: copy.panelRecordingSetup;
+					: copy['ui.framescaperInputs.record'] ?? FRAMESCAPER_INPUTS_COPY.record;
 	const actionAvailable = webVcrActive
 		? webVcrPrimary.kind === 'record'
 			? Boolean(webVcrActions?.record)

@@ -445,6 +445,7 @@ test('menu-opened execution and UI surfaces use dedicated lazy owners', () => {
 		'src/common/editor/ui/local-assistance-session-types.ts',
 		'src/common/editor/ui/local-assistance-transcript-cleanup-store.ts',
 		'src/common/editor/ui/workspace/RecordingSetupPanel.tsx',
+		'src/common/editor/ui/toolbar/FramescaperInputsSetupFlyout.tsx',
 		'src/common/editor/ui/workspace/SoundscaperRoutingGraphInspector.tsx',
 		'src/common/editor/ui/workspace/SoundscaperRoutingGraphView.tsx',
 		'src/common/editor/ui/workspace/soundscaper-routing-folder-authority.ts',
