@@ -43,7 +43,7 @@ export default function SourceMonitorPanel({ controller, snapshot, copy, run, bl
 
 	if (!view.sourceId) {
 		return <div className="kw-audio-editor__source-monitor" data-source-monitor="empty">
-			<p className="kw-audio-editor__panel-empty">{copy.sourceMonitorEmpty}</p>
+			<div className="kw-audio-editor__source-monitor-picture"><p className="kw-audio-editor__panel-empty">{copy.sourceMonitorEmpty}</p></div>
 		</div>;
 	}
 

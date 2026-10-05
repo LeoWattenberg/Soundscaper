@@ -277,22 +277,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 
 			{!compactLayout && actionBar}
 
-			{isVideoEditorWorkspace && <VideoEditorWorkspacePanels
-				controller={controller}
-				snapshot={snapshot}
-				copy={copy}
-				locale={locale}
-				fileService={fileService}
-				playbackMeterSettings={playbackMeterSettings}
-				run={run}
-				showArmControls={showArmControls}
-				displayAudioSupported={displayAudioSupported}
-				onOpenEffects={openEffects}
-				effectsPanelTarget={effectsPanelTarget}
-				onEffectWindowChange={setEffectWindow}
-				onTogglePanel={toggleWorkspacePanel}
-				blocked={blocked}
-			/>}
+			{isVideoEditorWorkspace && <VideoEditorWorkspacePanels panelDockRuntime={panelDockRuntime} />}
 
 			{!compactLayout && toolbarDock === 'top' && <div className="kw-audio-editor__toolbars" data-toolbar-dock="top">{editorToolbar}</div>}
 
@@ -356,7 +341,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 				{!compactLayout && toolbarDock === 'left' && <div className="kw-audio-editor__side-toolbar" data-toolbar-dock="left">{editorToolbar}</div>}
 				<WorkspacePanelDock {...panelDockRuntime} dock="left" aboutLabel={overlayModel.aboutLabel} />
 				<div className="kw-audio-editor__workspace-main">
-				<WorkspacePanelDock {...panelDockRuntime} dock="top" />
+				{!isVideoEditorWorkspace && <WorkspacePanelDock {...panelDockRuntime} dock="top" />}
 				<main className="kw-audio-editor__canvas">
 					<AudioEditorTimeline
 						controller={controller} confirmFileSizeWarning={confirmFileSizeWarning}

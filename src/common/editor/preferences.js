@@ -40,6 +40,7 @@ import { clone, finiteInRange, integer, nonEmptyString, oneOf } from './preferen
 import { normalizeWaveformVisualizationPreferences } from './waveform-visualization-preferences.ts';
 import { normalizeWaveformDisplayPreferences } from './waveform-display-preferences.ts';
 import { normalizeVideoPreviewResolution } from './video-preview-preferences.ts';
+import { migrateVideoWorkspacePanels } from './video-workspace-layout.ts';
 import { normalizeAudioEditorTimeDisplayFormat } from './time-display-preferences.ts';
 import {
 	BUILT_IN_WORKSPACE_SET,
@@ -154,6 +155,7 @@ const FORBIDDEN_TOP_LEVEL_KEYS = new Set([
  * @property {number} order
  * @property {number} [column]
  * @property {number} [size]
+ * @property {boolean} [autoSize]
  * @property {number} [x]
  * @property {number} [y]
  * @property {number} [width]
@@ -525,7 +527,7 @@ export function loadAudioEditorPreferencesV1(value) {
 				// entry as shown); stored choices win over the defaults.
 				toolbarButtons: normalized.workspace.toolbarButtons,
 				panels: {
-					...normalized.workspace.panels,
+					...migrateVideoWorkspacePanels(normalized.workspace.activeId, normalized.workspace.panels),
 					'web-vcr': { ...normalized.workspace.panels['web-vcr'], visible: false },
 				},
 			},

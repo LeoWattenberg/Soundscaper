@@ -66,12 +66,12 @@ test('workspace presets retain their product-specific layout defaults', () => {
 	assert.equal(modern.workspace.toolbarButtons['time-display'], true);
 	assert.equal(modern.workspace.toolbarButtons.metronome, false);
 	assert.deepEqual(video.workspace.panels['project-bin'], {
-		visible: true, dock: 'left', order: 0, size: 380,
-		x: 24, y: 24, width: 380, height: 520,
+		visible: true, dock: 'top', order: 0, size: 320, autoSize: true,
+		x: 24, y: 24, width: 320, height: 520,
 	});
 	assert.deepEqual(video.workspace.panels['video-preview'], {
-		visible: true, dock: 'right', order: 0, size: 560,
-		x: 72, y: 40, width: 560, height: 390,
+		visible: true, dock: 'top', order: 1, size: 320, autoSize: true,
+		x: 72, y: 40, width: 320, height: 390,
 	});
 	for (const id of AUDIO_EDITOR_BUILT_IN_WORKSPACES) {
 		const applied = applyAudioEditorWorkspace(preferences, id);

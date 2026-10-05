@@ -19,6 +19,7 @@ import {
 	isMeterWorkspacePanel,
 } from './workspace-layout-defaults.ts';
 import { normalizeWorkspacePanelColumn } from './workspace-panel-columns.ts';
+import { normalizeWorkspacePanelAutoSize } from './video-workspace-layout.ts';
 import { canonicalizeWorkspacePanelGroups, normalizeWorkspacePanelGroupFields } from './workspace-panel-layout.ts';
 import { clone, finiteInRange, integer, nonEmptyString, oneOf } from './preferences-validators.js';
 
@@ -98,6 +99,7 @@ export function normalizePanelEntries(value = {}) {
 			height: finiteInRange(entry.height ?? floatingDefaults.height, 80, 4_096, `workspace.panels.${id}.height`),
 			...normalizeWorkspacePanelColumn(entry.column, defaults.column, entry.dock ?? defaults.dock, `workspace.panels.${id}`),
 			...normalizeWorkspacePanelGroupFields(entry, `workspace.panels.${id}`),
+			...normalizeWorkspacePanelAutoSize(entry),
 		};
 	}
 	return canonicalizeWorkspacePanelGroups(entries);

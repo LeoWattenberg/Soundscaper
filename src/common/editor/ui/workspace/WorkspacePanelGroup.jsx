@@ -124,6 +124,7 @@ export default function WorkspacePanelGroup({
 	return <section
 		className={`kw-audio-editor__workspace-panel${entries.some(([panelId]) => draggedPanelId === panelId) ? ' kw-audio-editor__workspace-panel--dragging' : ''}${activeFloatingPanelId === activePanelId ? ' kw-audio-editor__workspace-panel--active' : ''}`}
 		data-workspace-panel={activePanelId}
+		data-video-workspace-panel={contentProps.productId === 'framescaper' && ['project-bin', 'video-preview', 'source-monitor'].includes(activePanelId) ? activePanelId : undefined}
 		data-meter-panel={meterPanel ? '' : undefined}
 		data-workspace-panel-group={group.id}
 		data-workspace-panel-members={entries.map(([panelId]) => panelId).join(' ')}

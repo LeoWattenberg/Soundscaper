@@ -304,7 +304,7 @@ const DEFERRED_WEB_VCR_PANEL_ID = 'web-vcr'; export default function AudioEditor
 		if (panelId === 'recording-meter') setRecordingMeterSettings((settings) => ({ ...settings, position: 'panel' }));
 		run(() => controller.actions.preferences.setPanelVisibility(panelId, true));
 		requestAnimationFrame(() => {
-			focusOpenedWorkspacePanel(workspaceRef.current?.querySelector(`[data-workspace-panel="${panelId}"]`) ?? null);
+			focusOpenedWorkspacePanel(editorRef.current?.querySelector(`[data-workspace-panel="${panelId}"]`) ?? null);
 		});
 	}, [controller, run]);
 	const toggleWorkspacePanel = useCallback((panelId) => {
@@ -331,7 +331,7 @@ const DEFERRED_WEB_VCR_PANEL_ID = 'web-vcr'; export default function AudioEditor
 		let attempts = 0;
 		const revealItem = () => {
 			attempts += 1;
-			const item = [...(workspaceRef.current?.querySelectorAll('[data-project-bin-item]') || [])]
+			const item = [...(editorRef.current?.querySelectorAll('[data-project-bin-item]') || [])]
 				.find((candidate) => String(candidate.dataset.projectBinItem) === String(binItemId));
 			if (item) {
 				item.focus({ preventScroll: true });

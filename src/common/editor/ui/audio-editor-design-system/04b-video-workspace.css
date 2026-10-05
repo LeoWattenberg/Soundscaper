@@ -1,0 +1,60 @@
+/* The width of the monitor row determines its initial 16:9 viewing area.
+   Explicit dock resizing takes over and persists through the shared panel model. */
+.kw-audio-editor__video-workspace {
+	position: relative;
+	z-index: 1;
+	display: flex;
+	min-width: 0;
+	min-height: 0;
+	flex: 0 0 auto;
+	container-type: inline-size;
+	background: var(--panel);
+}
+
+.kw-audio-editor__video-workspace > .kw-audio-editor__panel-dock--top {
+	width: 100%;
+	height: var(--workspace-panel-size, 320px);
+	max-height: 60vh;
+	padding-bottom: 6px;
+}
+
+.kw-audio-editor__video-workspace > [data-workspace-auto-size='true'] {
+	height: calc(max(160px, 100cqw / var(--workspace-panel-count, 1)) * 9 / 16 + 42px);
+}
+
+.kw-audio-editor__video-workspace .kw-audio-editor__workspace-panel {
+	min-width: 160px;
+	min-height: 0;
+	border-bottom: 0;
+}
+
+.kw-audio-editor__video-workspace .kw-audio-editor__workspace-panel + .kw-audio-editor__workspace-panel {
+	border-inline-start: 1px solid var(--line);
+}
+
+.kw-audio-editor__video-workspace .kw-audio-editor__workspace-panel-header h2 {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.kw-audio-editor__video-workspace [data-workspace-panel='video-preview'] .kw-audio-editor__video-preview {
+	min-height: 0;
+}
+
+.kw-audio-editor__video-workspace .kw-audio-editor__workspace-dock-resize-handle--top {
+	bottom: 0;
+	height: 8px;
+	background: var(--line);
+	touch-action: none;
+}
+
+.kw-audio-editor__video-workspace .kw-audio-editor__workspace-dock-resize-handle--top::after {
+	position: absolute;
+	top: 3px;
+	left: calc(50% - 20px);
+	width: 40px;
+	height: 2px;
+	background: var(--muted);
+	content: '';
+}

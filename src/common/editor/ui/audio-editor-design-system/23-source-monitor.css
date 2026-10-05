@@ -1,24 +1,18 @@
-/*
- * A third monitor joins the video strip as another column. Without this the
- * two-column template wraps it onto a row the strip's fixed height hides, and
- * it sits on top of the panels beside it.
- */
-.kw-audio-editor__video-workspace {
-	grid-auto-flow: column;
-	grid-auto-columns: minmax(0, 2fr);
-}
-
 .kw-audio-editor__source-monitor {
 	display: flex;
 	flex-direction: column;
 	gap: 6px;
 	min-width: 0;
+	min-height: 0;
+	height: 100%;
 }
 
 .kw-audio-editor__source-monitor-picture {
 	align-items: center;
+	flex: 0 0 auto;
+	width: 100%;
 	aspect-ratio: 16 / 9;
-	background: var(--surface-sunken, #000);
+	background: #000;
 	display: flex;
 	justify-content: center;
 	overflow: hidden;
@@ -28,13 +22,6 @@
 	height: 100%;
 	object-fit: contain;
 	width: 100%;
-}
-
-/* The video strip is short, so the picture gives its height to the controls. */
-.kw-audio-editor__video-workspace .kw-audio-editor__source-monitor-picture {
-	aspect-ratio: auto;
-	flex: 1 1 auto;
-	min-height: 48px;
 }
 
 .kw-audio-editor__source-monitor-readout {
@@ -85,4 +72,24 @@
 	.kw-audio-editor__source-monitor button {
 		border-color: CanvasText;
 	}
+}
+
+/* Empty and loaded source monitors share the same picture viewport. */
+[data-workspace-panel='source-monitor'] .kw-audio-editor__workspace-panel-content {
+	padding: 0;
+}
+
+.kw-audio-editor__source-monitor[data-source-monitor='empty'] .kw-audio-editor__source-monitor-picture {
+	min-height: 0;
+	flex: 1 1 auto;
+}
+
+.kw-audio-editor__source-monitor[data-source-monitor='empty'] .kw-audio-editor__panel-empty {
+	max-width: 32ch;
+	padding: 24px;
+	text-align: center;
+}
+
+.kw-audio-editor__source-monitor > :not(.kw-audio-editor__source-monitor-picture) {
+	margin-inline: 10px;
 }

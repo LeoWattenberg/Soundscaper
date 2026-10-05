@@ -17,6 +17,7 @@ export interface WorkspacePanelPreference extends Record<string, unknown> {
 	readonly visible: boolean;
 	readonly dock: unknown;
 	readonly order: number;
+	readonly autoSize?: boolean;
 	readonly column?: number;
 	readonly tabGroup?: string;
 	readonly tabActive?: boolean;
@@ -499,7 +500,7 @@ export function setWorkspacePanelFrameSize<Panel extends WorkspacePanelPreferenc
 		if (candidateId === panelId || (groupId !== null
 			&& candidate.dock === panel.dock
 			&& groupIdOf(candidate) === groupId)) {
-			next[candidateId] = { ...candidate, size: nextSize } as Panel;
+			next[candidateId] = { ...candidate, size: nextSize, ...(candidate.autoSize === undefined ? {} : { autoSize: false }) } as Panel;
 		}
 	}
 	return canonicalizeWorkspacePanelGroups(next);
@@ -525,7 +526,7 @@ export function setWorkspacePanelDockExtent<Panel extends WorkspacePanelPreferen
 	for (const [panelId, panel] of Object.entries(canonical)) {
 		if (panel.dock !== dock || (!isMeterWorkspacePanel(panelId) && Object.values(patch).some((extent) => extent < 80))) continue;
 		const width = widths?.get(workspacePanelColumn(panel));
-		next[panelId] = { ...panel, ...patch, ...(widths ? { width: width ?? panel.width } : {}) } as Panel;
+		next[panelId] = { ...panel, ...patch, ...(patch.size === undefined || panel.autoSize === undefined ? {} : { autoSize: false }), ...(widths ? { width: width ?? panel.width } : {}) } as Panel;
 	}
 	return canonicalizeWorkspacePanelGroups(next);
 }
