@@ -145,7 +145,7 @@ export function segmentOfClip(project, clip, segmentStartFrame, segmentEndFrame,
 		trimStartFrames: segmentStartFrame === clip.timelineStartFrame ? clip.trimStartFrames : 0,
 		trimEndFrames: segmentEndFrame === clipEndFrame(clip) ? clip.trimEndFrames : 0,
 		...(warpSegment ? { warpMap: warpSegment.warpMap } : {}),
-		...clipLoopSegmentFields(clip, offsetFrames),
+		...clipLoopSegmentFields(clip, offsetFrames, durationFrames),
 		...(envelope ? { envelope } : {}),
 		...(Number.isSafeInteger(clip.fadeInFrames) ? {
 			fadeInFrames: segmentStartFrame === clip.timelineStartFrame

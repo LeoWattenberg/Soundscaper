@@ -3,6 +3,7 @@ import {
 	getActiveProjectBinDragPayload,
 	parseProjectBinDragPayload,
 } from '../../project-bin-dnd.js';
+import { normalizeInactiveClipLoop } from '../../audio-clip-loop.ts';
 
 const VIEWPORT_MENU_MARGIN = 8;
 const VIEWPORT_MENU_WIDTH = 220;
@@ -57,7 +58,7 @@ export function projectBinPayloadFromDataTransfer(dataTransfer) {
 export function createClipTrimPreview(projectIndex, session, requestedDelta, edge) {
 	const originals = session.clipIds
 		.map((clipId) => session.originals?.[clipId])
-		.filter(Boolean);
+		.filter(Boolean).map(normalizeInactiveClipLoop);
 	if (!originals.length) return null;
 	let lowerBound = Number.NEGATIVE_INFINITY;
 	let upperBound = Number.POSITIVE_INFINITY;
@@ -109,6 +110,7 @@ export function createClipTrimPreview(projectIndex, session, requestedDelta, edg
 			clipId: clip.id,
 			trackId: track?.id,
 			waveformPreviewKind: 'trim',
+			opaqueExtensions: clip.opaqueExtensions,
 			...(edge === 'left' ? {
 				timelineStartFrame: clip.timelineStartFrame + deltaFrames,
 				sourceStartFrame: clip.sourceStartFrame + (clip.reversed ? 0 : removedSourceFrames),

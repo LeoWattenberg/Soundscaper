@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { readClipLoop } from '../../audio-clip-loop.ts';
+import { clipHasLoopRepeats, normalizeInactiveClipLoop } from '../../audio-clip-loop.ts';
 
 import { collectClipTransformIds, collectClipTrimIds } from '../../commands/clip-basic-runtime.js';
 import { createBoundarySnapIndex, resolveBoundarySnap } from './boundary-snap.ts';
@@ -321,7 +321,7 @@ export function useTimelinePointerStart({
 			? { allOnTrack: Boolean(event.shiftKey), preserveTime: Boolean(event.ctrlKey || event.metaKey) }
 			: undefined;
 		const transformClipIds = collectClipTransformIds(project, clip.id, moveOptions);
-		const interactionClipIds = readClipLoop(clip) && kind !== 'move' ? [clip.id] : kind === 'trim-left' || kind === 'trim-right'
+		const interactionClipIds = kind === 'clip-loop' || clipHasLoopRepeats(clip) && (kind === 'trim-left' || kind === 'trim-right') ? [clip.id] : kind === 'trim-left' || kind === 'trim-right'
 			? collectClipTrimIds(project, clip.id, kind === 'trim-left' ? 'left' : 'right')
 			: transformClipIds;
 		const session = {
@@ -330,10 +330,10 @@ export function useTimelinePointerStart({
 			clipId: clip.id,
 			clipIds: interactionClipIds,
 			trackId,
-			original: { ...clip },
+			original: { ...(kind === 'trim-left' || kind === 'trim-right' ? normalizeInactiveClipLoop(clip) : clip) },
 			originals: Object.fromEntries(interactionClipIds.map((selectedId) => {
 				const selectedClip = project.clips.find((item) => item.id === selectedId);
-				return [selectedId, { ...selectedClip }];
+				return [selectedId, { ...(kind === 'trim-left' || kind === 'trim-right' ? normalizeInactiveClipLoop(selectedClip) : selectedClip) }];
 			})),
 			startX: event.clientX,
 			startY: event.clientY,

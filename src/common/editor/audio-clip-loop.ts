@@ -56,6 +56,17 @@ export function clipCanLoop(clip: Pick<LoopAudioClip, 'kind' | 'anchor' | 'warpM
 	return clip.kind === 'audio' && clip.anchor !== 'musical' && clip.warpMap == null && !clip.avLinkId;
 }
 
+/** Reaching the first boundary at the end still plays the media only once. */
+export function clipHasLoopRepeats(clip: ClipLoopCarrier & { readonly durationFrames: number }): boolean {
+	const loop = readClipLoop(clip);
+	return loop !== null && clip.durationFrames + loop.offsetFrames > loop.periodFrames;
+}
+
+/** Older projects and partial split clips may retain a loop without repeating. */
+export function normalizeInactiveClipLoop<Clip extends LoopAudioClip>(clip: Clip): Clip {
+	return readClipLoop(clip) && !clipHasLoopRepeats(clip) ? { ...clip, ...clipLoopUpdateFields(clip, false) } : clip;
+}
+
 function frame(value: unknown, minimum: number, name: string): number {
 	if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < minimum) throw new RangeError(`Invalid loop ${name}.`);
 	return value;
@@ -71,15 +82,9 @@ export function clipLoopUpdateFields(clip: LoopAudioClip, change: unknown): {
 	let durationFrames = clip.durationFrames;
 	let sourceStartFrame = clip.sourceStartFrame;
 	let sourceDurationFrames = clip.sourceDurationFrames;
+	let loop = previous;
 	if (change === false) {
 		delete opaqueExtensions[LOOP_EXTENSION];
-		if (previous) {
-			durationFrames = Math.min(durationFrames, previous.periodFrames - previous.offsetFrames);
-			const ratio = clip.sourceDurationFrames / previous.periodFrames;
-			const offset = Math.round(previous.offsetFrames * ratio);
-			sourceDurationFrames = Math.max(1, Math.min(clip.sourceDurationFrames - offset, Math.round(durationFrames * ratio)));
-			sourceStartFrame += clip.reversed ? clip.sourceDurationFrames - offset - sourceDurationFrames : offset;
-		}
 	} else {
 		if (change !== true && (change === null || typeof change !== 'object' || Array.isArray(change))) throw new TypeError('Invalid loop edit.');
 		const values = change === true ? { periodFrames: previous?.periodFrames ?? durationFrames } : record(change);
@@ -90,7 +95,17 @@ export function clipLoopUpdateFields(clip: LoopAudioClip, change: unknown): {
 		if (!Number.isSafeInteger((clip.timelineStartFrame ?? 0) + durationFrames)) throw new RangeError('Loop end exceeds the safe frame range.');
 		sourceStartFrame = frame(values.sourceStartFrame ?? sourceStartFrame, 0, 'source start');
 		sourceDurationFrames = frame(values.sourceDurationFrames ?? sourceDurationFrames, 1, 'source duration');
-		opaqueExtensions[LOOP_EXTENSION] = { periodFrames, offsetFrames };
+		loop = { periodFrames, offsetFrames };
+		opaqueExtensions[LOOP_EXTENSION] = loop;
+	}
+	if (loop && (change === false || durationFrames + loop.offsetFrames <= loop.periodFrames)) {
+		delete opaqueExtensions[LOOP_EXTENSION];
+		durationFrames = Math.min(durationFrames, loop.periodFrames - loop.offsetFrames);
+		const ratio = sourceDurationFrames / loop.periodFrames;
+		const offset = Math.min(sourceDurationFrames - 1, Math.round(loop.offsetFrames * ratio));
+		const audibleSourceDuration = Math.max(1, Math.min(sourceDurationFrames - offset, Math.round(durationFrames * ratio)));
+		sourceStartFrame += clip.reversed ? sourceDurationFrames - offset - audibleSourceDuration : offset;
+		sourceDurationFrames = audibleSourceDuration;
 	}
 	const fades = record(clip);
 	return { durationFrames, sourceStartFrame, sourceDurationFrames, opaqueExtensions,
@@ -102,7 +117,7 @@ export function clipLoopUpdateFields(clip: LoopAudioClip, change: unknown): {
 /** Trimming edits one repeat's media; the clip's anchor and total extent stay fixed. */
 export function trimClipLoopPeriod(clip: LoopAudioClip, sourceFrameCount: number, edge: 'left' | 'right', deltaFrames: number): ClipLoopChange {
 	const loop = readClipLoop(clip);
-	if (!loop) throw new RangeError('The clip is not looping.');
+	if (!loop || !clipHasLoopRepeats(clip)) throw new RangeError('The clip is not looping.');
 	const ratio = clip.sourceDurationFrames / loop.periodFrames;
 	const trimsSourceStart = (edge === 'left') !== Boolean(clip.reversed);
 	const extension = trimsSourceStart ? clip.sourceStartFrame : sourceFrameCount - clip.sourceStartFrame - clip.sourceDurationFrames;
@@ -127,10 +142,12 @@ export function clipLoopBoundaries(clip: ClipLoopCarrier & { readonly timelineSt
 	return boundaries;
 }
 
-export function clipLoopSegmentFields(clip: LoopAudioClip, localStartFrame: number): Pick<ReturnType<typeof clipLoopUpdateFields>, 'sourceStartFrame' | 'sourceDurationFrames' | 'opaqueExtensions'> | null {
+export function clipLoopSegmentFields(clip: LoopAudioClip, localStartFrame: number, durationFrames: number): Pick<ReturnType<typeof clipLoopUpdateFields>, 'sourceStartFrame' | 'sourceDurationFrames' | 'opaqueExtensions'> | null {
 	const loop = readClipLoop(clip);
-	return loop ? { sourceStartFrame: clip.sourceStartFrame, sourceDurationFrames: clip.sourceDurationFrames,
-		opaqueExtensions: { ...record(clip.opaqueExtensions), [LOOP_EXTENSION]: { ...loop, offsetFrames: (loop.offsetFrames + localStartFrame) % loop.periodFrames } } } : null;
+	if (!loop) return null;
+	const segment = normalizeInactiveClipLoop({ ...clip, durationFrames,
+		opaqueExtensions: { ...record(clip.opaqueExtensions), [LOOP_EXTENSION]: { ...loop, offsetFrames: (loop.offsetFrames + localStartFrame) % loop.periodFrames } } });
+	return { sourceStartFrame: segment.sourceStartFrame, sourceDurationFrames: segment.sourceDurationFrames, opaqueExtensions: record(segment.opaqueExtensions) };
 }
 
 /** Stretch repeats with the clip; rendered replacements already contain the repetitions. */

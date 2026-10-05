@@ -11,7 +11,7 @@ import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts';
 import { applySoundscaperProjectCommand } from '../src/soundscaper/editor-project-commands.ts';
 import { resolveRuntimeClipProjection } from '../src/common/editor/runtime-clip-projection.ts';
 import { createSpectrogramSampleViews } from '../src/common/editor/ui/timeline/spectrogram-sample-view.ts';
-import { loopPointerPreview, sameLoopPointerClip } from '../src/common/editor/ui/timeline/clip-loop-pointer.ts';
+import { clipStretchPointerPreview, loopPointerPreview, sameLoopPointerClip } from '../src/common/editor/ui/timeline/clip-loop-pointer.ts';
 import { createTimelineClipViewModel } from '../src/common/editor/ui/timeline/waveform-view-model.ts';
 
 const original = { id: 'clip', kind: 'audio', anchor: 'sample', timelineStartFrame: 100, durationFrames: 100,
@@ -137,4 +137,81 @@ test('the loop pointer snaps full repeats but preserves partial repeats outside 
 	assert.equal(loopPointerPreview(session, 1000, 40, 100, 100)?.durationFrames, 390);
 	assert.equal(loopPointerPreview({ ...session, kind: 'trim-right' }, 1000, -25, 100, 100)?.durationFrames, 350);
 	assert.equal(sameLoopPointerClip({ ...looped, sourceId: 'replacement' }, looped), false);
+});
+
+test('a selected single-pass clip can start looping and regain ordinary trim behavior at one pass', () => {
+	const session = { kind: 'clip-loop', clipId: 'clip', trackId: 'track', startX: 0, original };
+	const doubled = loopPointerPreview(session, 1000, 100, 100, 100);
+	assert.equal(doubled?.durationFrames, 200);
+	assert.deepEqual(readClipLoop(doubled!), { periodFrames: 100, offsetFrames: 0 });
+	assert.equal(loopPointerPreview({ ...session, kind: 'trim-right' }, 1000, -25, 100, 100), null);
+	const single = loopPointerPreview({ ...session, original: looped }, 1000, -250, 100, 100);
+	assert.equal(single?.durationFrames, 100);
+	assert.equal(readClipLoop(single!), null);
+	assert.equal(loopPointerPreview({ ...session, kind: 'trim-right', original: { ...looped, ...single! } }, 1000, -25, 100, 100), null);
+});
+
+test('stretch previews scale the loop period and phase at both handles before commit', () => {
+	const repeated = { ...looped, ...clipLoopUpdateFields(looped, { periodFrames: 100, offsetFrames: 25, durationFrames: 400 }) };
+	const session = { kind: 'stretch-right', clipId: 'clip', trackId: 'track', startX: 0, original: repeated };
+	const right = clipStretchPointerPreview(session, 400, 100, 100);
+	assert.equal(right.durationFrames, 800);
+	assert.equal(right.timelineStartFrame, 100);
+	assert.deepEqual(readClipLoop(right), { periodFrames: 200, offsetFrames: 50 });
+	assert.equal(right.waveformPreviewKind, 'rate-stretch');
+	const left = clipStretchPointerPreview({ ...session, kind: 'stretch-left' }, -100, 100, 100);
+	assert.equal(left.timelineStartFrame, 0);
+	assert.equal(left.durationFrames, 500);
+	assert.deepEqual(readClipLoop(left), { periodFrames: 125, offsetFrames: 31 });
+	const plain = clipStretchPointerPreview({ ...session, original }, 100, 100, 100);
+	assert.equal(plain.durationFrames, 200);
+	assert.equal(plain.waveformPreviewKind, undefined);
+});
+
+test('re-looping a legacy single pass preserves its cropped phase and source speed', () => {
+	const legacy = { ...looped, durationFrames: 50, opaqueExtensions: { ...looped.opaqueExtensions, 'org.soundscaper.clip-loop/v1': { periodFrames: 100, offsetFrames: 25 } } };
+	const session = { kind: 'clip-loop', clipId: 'clip', trackId: 'track', startX: 0, original: legacy };
+	const preview = loopPointerPreview(session, 1000, 50, 100, 100)!;
+	assert.equal(preview.durationFrames, 100);
+	assert.deepEqual(readClipLoop(preview), { periodFrames: 50, offsetFrames: 0 });
+	assert.equal(preview.sourceStartFrame, 70);
+	assert.equal(preview.sourceDurationFrames, 100);
+	assert.deepEqual(clipLoopUpdateFields(legacy, preview.loopChange), clipLoopUpdateFields({ ...original, durationFrames: 50, sourceStartFrame: 70, sourceDurationFrames: 100 }, preview.loopChange));
+	assert.equal(sameLoopPointerClip(legacy, { ...legacy, ...clipLoopUpdateFields(legacy, false) }), true);
+});
+
+test('a held stretch gesture renders the same four repetitions as the committed stretch', () => {
+	const small = { ...original, timelineStartFrame: 0, durationFrames: 4, sourceStartFrame: 0, sourceDurationFrames: 4 };
+	const repeated = { ...small, ...clipLoopUpdateFields(small, { periodFrames: 4, durationFrames: 16 }) };
+	const preview = clipStretchPointerPreview({ kind: 'stretch-right', clipId: 'clip', trackId: 'track', startX: 0, original: repeated }, 16, 100, 100);
+	const waveform = prepareBoundedWaveformWindow([Float32Array.of(0.1, 0.8, -0.1, -0.8)], { ...repeated, ...preview }, { pixelWidth: 100 });
+	assert.deepEqual(clipLoopBoundaries({ ...repeated, ...preview }, 0, 32), [8, 16, 24]);
+	const samples = Array.from(waveform.channels[0]!);
+	assert.equal(samples.length, 32);
+	for (let offset = 8; offset < 32; offset += 8) assert.deepEqual(samples.slice(offset, offset + 8), samples.slice(0, 8));
+});
+
+test('legacy single-pass stretch previews override raw project metadata and audible source bounds', () => {
+	const legacy = { ...looped, durationFrames: 50, opaqueExtensions: { ...looped.opaqueExtensions, 'org.soundscaper.clip-loop/v1': { periodFrames: 100, offsetFrames: 25 } } };
+	const preview = clipStretchPointerPreview({ kind: 'stretch-right', clipId: 'clip', trackId: 'track', startX: 0, original: legacy }, 50, 100, 100);
+	const projected = { ...legacy, ...preview };
+	assert.equal(projected.durationFrames, 100);
+	assert.equal(projected.sourceStartFrame, 70);
+	assert.equal(projected.sourceDurationFrames, 100);
+	assert.equal(readClipLoop(projected), null);
+	assert.equal(preview.waveformPreviewKind, 'rate-stretch');
+});
+
+test('selected loop stretches preview every companion and share the left-edge bound used on commit', () => {
+	const repeated = { ...looped, durationFrames: 400 };
+	const companion = { ...repeated, id: 'companion', timelineStartFrame: 0, durationFrames: 200 };
+	const session = { kind: 'stretch-right', clipId: 'clip', clipIds: ['clip', 'companion'], trackId: 'track', startX: 0,
+		original: repeated, originals: { clip: repeated, companion } };
+	const right = clipStretchPointerPreview(session, 400, 100, 100, id => id === 'clip' ? 'track' : 'other');
+	assert.deepEqual(right.previews?.map(preview => [preview.clipId, preview.trackId, preview.durationFrames, readClipLoop(preview)?.periodFrames]),
+		[['clip', 'track', 800, 200], ['companion', 'other', 400, 200]]);
+	const left = clipStretchPointerPreview({ ...session, kind: 'stretch-left' }, -100, 100, 100);
+	assert.equal(left.timelineStartFrame, 100);
+	assert.equal(left.durationFrames, 400);
+	assert.deepEqual(left.previews?.map(preview => preview.timelineStartFrame), [100, 0]);
 });

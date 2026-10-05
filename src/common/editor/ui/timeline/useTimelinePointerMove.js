@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { loopPointerPreview } from './clip-loop-pointer.ts';
+import { clipStretchPointerPreview, loopPointerPreview } from './clip-loop-pointer.ts';
 import { CLIP_CONTENT_OFFSET } from '@soundscaper/design-system/constants';
 
 import { secondsToFrames } from '../../design-system-adapters.js';
@@ -463,23 +463,8 @@ export function useTimelinePointerMove({
 					controller.actions.video.trim.rateStretch.preview(request)
 				)),
 				clipKind: (clipId) => projectIndex.clipById.get(clipId)?.kind ?? null,
-				previewOrdinary: () => {
-					const deltaFrames = secondsToFrames(
-						Math.abs(event.clientX - session.startX) / pixelsPerSecond,
-						{ sampleRate },
-					) * Math.sign(event.clientX - session.startX);
-					const change = session.kind === 'stretch-left'
-						? Math.max(-session.original.timelineStartFrame, Math.min(session.original.durationFrames - 1, deltaFrames))
-						: 0;
-					return {
-						clipId: session.clipId,
-						trackId: session.trackId,
-						timelineStartFrame: session.original.timelineStartFrame + change,
-						durationFrames: session.kind === 'stretch-left'
-							? session.original.durationFrames - change
-							: Math.max(1, session.original.durationFrames + deltaFrames),
-					};
-				},
+				previewOrdinary: () => clipStretchPointerPreview(session, event.clientX, pixelsPerSecond, sampleRate,
+					(clipId) => projectIndex.trackByClipId.get(clipId)?.id),
 			});
 			if (!preview) {
 				session.preview = null;

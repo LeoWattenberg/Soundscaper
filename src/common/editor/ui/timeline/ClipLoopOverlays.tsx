@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { useLayoutEffect, useState, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
-import { clipLoopBoundaries, readClipLoop, type LoopAudioClip } from '../../audio-clip-loop.ts';
+import { Icon } from '@soundscaper/design-system/Icon';
+import { clipCanLoop, clipHasLoopRepeats, clipLoopBoundaries, normalizeInactiveClipLoop, readClipLoop, type LoopAudioClip } from '../../audio-clip-loop.ts';
 import { TIMELINE_ADDITIONAL_COPY } from '../../../i18n/editor-timeline-additional-copy.ts';
 import './clip-loop.css';
 
@@ -15,31 +16,42 @@ interface Props {
 	readonly blocked: boolean;
 	readonly selectedIds: ReadonlySet<string>;
 	readonly copy: Readonly<Record<string, string>>;
-	readonly onChange: (id: string, changes: { loop: { periodFrames: number; durationFrames: number } }) => void;
+	readonly onChange: (id: string, changes: { loop: {
+		periodFrames: number; durationFrames: number; offsetFrames?: number; sourceStartFrame?: number; sourceDurationFrames?: number;
+	} }) => void;
 }
 
 export function ClipLoopOverlays({ rootRef, clips, startFrame, endFrame, pixelsPerSecond, sampleRate, blocked, selectedIds, copy, onChange }: Props) {
 	const handleLabel = copy['ui.timeline.loopClipLength'] || TIMELINE_ADDITIONAL_COPY.loopClipLength;
 	const [targets, setTargets] = useState<ReadonlyMap<string, HTMLElement>>(new Map());
 	useLayoutEffect(() => {
-		const next = new Map<string, HTMLElement>();
-		for (const target of rootRef.current?.querySelectorAll<HTMLElement>('[data-clip-id]') ?? []) {
-			const clip = clips.find(item => item.id === target.dataset.clipId);
-			const loop = clip ? readClipLoop(clip) : null;
-			const trim = target.querySelector<HTMLElement>('.clip-display__handle--trim-right');
-			if (trim && clip) {
-				const firstEnd = clip.timelineStartFrame + (loop?.periodFrames ?? clip.durationFrames) - (loop?.offsetFrames ?? 0);
-				trim.style.right = loop ? `${Math.max(0, Math.min(clip.timelineStartFrame + clip.durationFrames, endFrame) - firstEnd) * pixelsPerSecond / sampleRate}px` : '';
-				trim.style.visibility = loop && (firstEnd < startFrame || firstEnd > endFrame) ? 'hidden' : '';
+		let active = true;
+		const refresh = () => {
+			if (!active) return;
+			const next = new Map<string, HTMLElement>();
+			for (const target of rootRef.current?.querySelectorAll<HTMLElement>('[data-clip-id]') ?? []) {
+				const clip = clips.find(item => item.id === target.dataset.clipId);
+				const loop = clip ? readClipLoop(clip) : null;
+				const trim = target.querySelector<HTMLElement>('.clip-display__handle--trim-right');
+				if (trim && clip) {
+					const hasRepeats = clipHasLoopRepeats(clip);
+					const firstEnd = clip.timelineStartFrame + (loop?.periodFrames ?? clip.durationFrames) - (loop?.offsetFrames ?? 0);
+					trim.style.right = hasRepeats ? `${Math.max(0, Math.min(clip.timelineStartFrame + clip.durationFrames, endFrame) - firstEnd) * pixelsPerSecond / sampleRate}px` : '';
+					trim.style.visibility = hasRepeats && (firstEnd < startFrame || firstEnd > endFrame) ? 'hidden' : '';
+				}
+				if (clip && clipCanLoop(clip)) next.set(clip.id, target);
 			}
-			if (clip && loop) next.set(clip.id, target);
-		}
-		setTargets(current => current.size === next.size && [...next].every(([id, target]) => current.get(id) === target) ? current : next);
+			setTargets(current => current.size === next.size && [...next].every(([id, target]) => current.get(id) === target) ? current : next);
+		};
+		if (rootRef.current) refresh();
+		else queueMicrotask(refresh);
+		return () => { active = false; };
 	}, [clips, rootRef, startFrame, endFrame, pixelsPerSecond, sampleRate, selectedIds]);
 	return clips.map(clip => {
 		const target = targets.get(clip.id);
-		const loop = readClipLoop(clip);
-		if (!target || !loop) return null;
+		if (!target || !clipCanLoop(clip)) return null;
+		const normalized = normalizeInactiveClipLoop(clip);
+		const loop = readClipLoop(normalized) ?? { periodFrames: normalized.durationFrames, offsetFrames: 0 };
 		const visibleStart = Math.max(startFrame, clip.timelineStartFrame);
 		const boundaries = clipLoopBoundaries(clip, startFrame, endFrame, sampleRate / pixelsPerSecond * 2);
 		return createPortal(<>
@@ -55,9 +67,10 @@ export function ClipLoopOverlays({ rootRef, clips, startFrame, endFrame, pixelsP
 					if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
 					event.preventDefault();
 					const delta = (event.key === 'ArrowRight' ? 1 : -1) * (event.shiftKey ? Math.max(1, Math.round(sampleRate / 100)) : loop.periodFrames);
-					onChange(clip.id, { loop: { periodFrames: loop.periodFrames, durationFrames: Math.max(1, clip.durationFrames + delta) } });
+					onChange(clip.id, { loop: { periodFrames: loop.periodFrames, durationFrames: Math.max(1, normalized.durationFrames + delta),
+						...(normalized === clip ? {} : { offsetFrames: 0, sourceStartFrame: normalized.sourceStartFrame, sourceDurationFrames: normalized.sourceDurationFrames }) } });
 				}}>
-				<svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 5h9l-2-2m2 2-2 2M13 11H4l2 2m-2-2 2-2" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+				<Icon name="loop" size={14} />
 			</button>}
 		</>, target, `loop-${clip.id}`);
 	});
