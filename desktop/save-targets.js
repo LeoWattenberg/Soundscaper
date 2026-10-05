@@ -20,7 +20,6 @@ import { validateDeclaredSize } from './validation.js';
 
 const DEFAULT_TTL_MS = 15 * 60 * 1000;
 const FINAL_PREFIX_BYTES = 32;
-
 export class SaveTargetStore {
 	#disposed = false;
 	#entries = new Map();
@@ -29,7 +28,6 @@ export class SaveTargetStore {
 	#randomBytes;
 	#revokedOwners = new WeakMap();
 	#ttlMs;
-
 	constructor({
 		ttlMs = DEFAULT_TTL_MS,
 		now = Date.now,
@@ -41,8 +39,7 @@ export class SaveTargetStore {
 		this.#randomBytes = randomBytesImpl;
 		this.#maximumTargets = boundedLimit(maximumTargets, MAX_SAVE_TARGETS, 'Save target capacity');
 	}
-
-	registerPath(filePath, { owner, purpose } = {}) {
+	registerPath(filePath, { owner, purpose, beforeCommit, afterCommit } = {}) {
 		if (this.#disposed) throw new Error('Save target store is disposed');
 		this.#assertOwnerActive(owner);
 		this.#sweepExpired();
@@ -50,7 +47,7 @@ export class SaveTargetStore {
 			throw new RangeError(`Save target capacity reached its product-wide limit of ${this.#maximumTargets}`);
 		}
 		const id = this.#newId();
-		const entry = { id, path: filePath, name: basename(filePath), owner, purpose, expiresAt: this.#now() + this.#ttlMs, timer: null };
+		const entry = { id, path: filePath, name: basename(filePath), owner, purpose, beforeCommit, afterCommit, expiresAt: this.#now() + this.#ttlMs, timer: null };
 		entry.timer = setTimeout(() => this.#releaseEntry(entry), this.#ttlMs);
 		entry.timer.unref?.();
 		this.#entries.set(id, entry);
@@ -244,7 +241,7 @@ export class AtomicSaveManager {
 			this.#sessions.set(writeId, {
 				id: writeId,
 				owner,
-				targetPath: target.path,
+				targetPath: target.path, beforeCommit: target.beforeCommit, afterCommit: target.afterCommit,
 				temporaryPath,
 				handle,
 				exactSize,
@@ -367,9 +364,12 @@ export class AtomicSaveManager {
 		try {
 			await session.handle.sync();
 			await restorePublishedFileMode(session.handle, session.targetPath);
+			const published = session.afterCommit ? await session.handle.stat() : null;
 			await session.handle.close();
 			handleClosed = true;
+			await session.beforeCommit?.();
 			await this.#rename(session.temporaryPath, session.targetPath);
+			await session.afterCommit?.(published);
 			this.#releaseReservation(session.reservation);
 			return Object.freeze({ byteLength: session.written });
 		} catch (error) {

@@ -8,11 +8,12 @@ const CORE_WASM = new URL('../../../node_modules/@ffmpeg/core/dist/esm/ffmpeg-co
 let corePromise = null;
 let operationOrdinal = 0;
 
-/** Decode the first displayed frame with the exact software decoder shipped by Soundscaper. */
-export async function decodePinnedVideoRgbFrame(bytes) {
+/** Decode a displayed frame with the exact software decoder shipped by Soundscaper. */
+export async function decodePinnedVideoRgbFrame(bytes, { timeSeconds = 0 } = {}) {
 	if (!(bytes instanceof Uint8Array) || bytes.byteLength === 0) {
 		throw new TypeError('Pinned video frame decoding requires nonempty Uint8Array bytes.');
 	}
+	if (!Number.isFinite(timeSeconds) || timeSeconds < 0) throw new RangeError('Pinned video decoding requires a nonnegative time.');
 	const core = await loadPinnedCore();
 	operationOrdinal += 1;
 	const inputPath = `nightly-video-frame-${String(operationOrdinal)}.input`;
@@ -25,7 +26,7 @@ export async function decodePinnedVideoRgbFrame(bytes) {
 	try {
 		core.FS.writeFile(inputPath, bytes.slice());
 		const exitCode = core.exec(
-			'-hide_banner', '-nostdin', '-y', '-i', inputPath,
+			'-hide_banner', '-nostdin', '-y', ...(timeSeconds === 0 ? [] : ['-ss', String(timeSeconds)]), '-i', inputPath,
 			'-frames:v', '1', '-c:v', 'ppm', '-f', 'image2', outputPath,
 		);
 		if (exitCode !== 0) {

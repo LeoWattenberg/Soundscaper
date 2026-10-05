@@ -326,6 +326,7 @@ Product availability follows each product profile’s command filters and each l
 | Open item context menu | `track-view-item-context-menu` | Shift+F10 | Keyboard navigation | Soundscaper, Framescaper | Audacity |
 | Open project | `window-project` | — | Window | Soundscaper, Framescaper | Soundscaper local |
 | Open recent | `file-open-recent` | — | File | Soundscaper, Framescaper | Audacity |
+| Overwrite original file | `overwrite-original-file` | — | File | Soundscaper, Framescaper | Soundscaper local |
 | PAL frames (25 fps) | `snap-video-pal` | — | View > Snapping > Video frames | Soundscaper, Framescaper | Soundscaper local |
 | Pan Left on Focused Track | `track-pan-left` | Alt+Shift+Left | Track context | Soundscaper, Framescaper | Audacity |
 | Pan Right on Focused Track | `track-pan-right` | Alt+Shift+Right | Track context | Soundscaper, Framescaper | Audacity |

@@ -67,6 +67,7 @@ const DYNAMIC_REFERENCE_LABELS = new Map([
 	['framescaper-external-display', 'External display'],
 	['parallel-stack-workers', 'Worker limit'],
 	['parallel-stack-buffering', 'Buffering'],
+	['overwrite-original-file', 'Overwrite original file'],
 ]);
 const APPLICATION_MENU_COPY = Object.freeze({
 	...ENGLISH_COPY,
@@ -277,6 +278,7 @@ function applicationMenusForState(product: ProductId, state: ApplicationMenuStat
 		},
 	});
 	const actions = richActions(state.freezeStatus ?? 'none');
+	const original = Object.freeze({ name: 'Voice.wav' });
 	actions.parallelStackProcessing = {
 		productId: product, desktop: true, blocked: false,
 		preferences: { enabled: false, workerLimit: 'auto', pipelineFrames: 768 },
@@ -317,6 +319,7 @@ function applicationMenusForState(product: ProductId, state: ApplicationMenuStat
 		locale: 'en',
 		copy: APPLICATION_MENU_COPY,
 		desktopHost: richDesktopHost(product, profile.name) as never,
+		desktopOriginalOverwrite: { originalFile: () => original, overwrite: () => undefined },
 		project,
 		snapshot,
 		blocked: false,

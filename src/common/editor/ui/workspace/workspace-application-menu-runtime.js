@@ -120,6 +120,11 @@ export function createWorkspaceApplicationMenus({
 			locale,
 		copy,
 		desktopHost,
+		desktopOriginalOverwrite: fileService.isDesktop === true ? {
+			originalFile: () => controller?.actions?.export?.originalFile?.() ?? null,
+			available: () => controller?.actions?.export?.overwriteOriginalAvailable?.() === true,
+			overwrite: () => run(() => controller.actions.export.overwriteOriginal()),
+		} : null,
 			project,
 			snapshot,
 			blocked,

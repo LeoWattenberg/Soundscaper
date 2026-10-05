@@ -6,9 +6,10 @@ import { saveCurrentDeliveryReport } from './internal/delivery/delivery-report-a
 import { exportProjectEdl, exportProjectFcpxml, exportProjectOtio } from './interchange-export-action.ts';
 import { createDeliveryReportStateAccess } from './export-state.ts';
 import type { DeliveryQueue } from '../../delivery-queue.ts';
+import { createOriginalOverwriteActions, type OriginalOverwriteState, type OriginalOverwriteFileService } from './internal/overwrite-original-action.ts';
 
 /** Delivery owns these optional workspace slots; reports remain inert domain data. */
-export interface ExportActionState {
+export interface ExportActionState extends OriginalOverwriteState {
 	deliveryReport?: unknown;
 	deliveryPresets?: unknown;
 	deliveryQueue?: DeliveryQueue;
@@ -28,7 +29,7 @@ export interface ExportActionGroupRuntime {
 	readonly state: ExportActionState;
 	readonly productName?: string | null;
 	readonly getProjectTitle?: () => string | null;
-	readonly fileService?: { saveFile?: (request: Readonly<Record<string, unknown>>) => unknown } | null;
+	readonly fileService?: (OriginalOverwriteFileService & { saveFile?: (request: Readonly<Record<string, unknown>>) => unknown }) | null;
 	readonly persistSetting: (
 		key: string, value: unknown, options?: Readonly<Record<string, unknown>>,
 	) => Promise<unknown> | unknown;
@@ -47,6 +48,7 @@ export function createExportActionGroup(runtime: ExportActionGroupRuntime) {
 		getProject: getProject ?? (() => null), state: interchangeState, fileService, publishDocumentSnapshot,
 	});
 	return Object.freeze({
+		...createOriginalOverwriteActions(runtime),
 		start: (settings: unknown) => handleExportAction('start', settings),
 		cancel: () => handleExportAction('cancel'),
 		/**

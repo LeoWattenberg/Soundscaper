@@ -37,6 +37,7 @@ import { selectAudioEditorLabelEditBlock } from '../label-edit-blocking.ts';
 import { createEffectMacroApplicationMenu } from './macro-application-menu.ts';
 import { resolveEditingActionAvailability } from '../commands/editing-selection-authority.ts';
 import { resolveSelectionRange } from '../selection-range.ts';
+import { createOriginalFileOverwriteMenuItems } from './original-file-overwrite-menu.ts';
 
 /**
  * The video tracks an edit list would describe.
@@ -70,6 +71,7 @@ export default function createApplicationMenus({
 	locale,
 	copy,
 	desktopHost = { view: [], tools: [], help: [] },
+	desktopOriginalOverwrite = /** @type {import('./original-file-overwrite-menu.ts').OriginalFileOverwriteMenuPort | null} */ (null),
 	project,
 	snapshot,
 	blocked,
@@ -221,6 +223,10 @@ export default function createApplicationMenus({
 					shortcut: 'Ctrl+Shift+E', disabled: blocked || !exportableTimelineMedia,
 					onClick: actions.exportAudio,
 				},
+				...createOriginalFileOverwriteMenuItems(desktopOriginalOverwrite, {
+					copy, blocked, materialAvailable: exportableTimelineMedia, importing: Boolean(snapshot.importing),
+					recording: Boolean(snapshot.recording || snapshot.recordingStarting || snapshot.recordingScheduling || snapshot.scheduledRecording),
+				}),
 				{ id: 'delivery-queue', label: copy.deliveryQueue, disabled: blocked, onClick: actions.openDeliveryQueue },
 				{ id: 'delivery-report', label: copy.deliveryReport, disabled: !snapshot.deliveryReport, onClick: actions.openDeliveryReport },
 				{

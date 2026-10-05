@@ -67,7 +67,7 @@ test('a source file cannot select two product stand-ins', () => {
 test('only desktop Soundscaper substitutes unavailable Framescaper copy owners', () => {
 	const copyModules = [
 		'native-services', 'finishing-additional', 'visual-inspector-additional',
-		'menus-additional', 'finishing-surface',
+		'menus-additional', 'finishing-surface', 'inputs',
 	];
 	for (const composition of COMPOSITIONS) {
 		const rows = productStandInAliasesFor(composition);
@@ -80,6 +80,19 @@ test('only desktop Soundscaper substitutes unavailable Framescaper copy owners',
 					? 'src/common/i18n/editor-desktop-copy.ts' : undefined, specifier);
 			}
 		}
+	}
+});
+
+test('desktop Soundscaper does not compose Framescaper capture setup surfaces', () => {
+	const standIn = resolve(repositoryRoot, 'src/soundscaper/editor-capture-toolbar-control.tsx');
+	for (const composition of COMPOSITIONS) {
+		const expected = composition.productId === 'soundscaper' && composition.desktopCodecComposition
+			? standIn : null;
+		assert.equal(productSubstitutionForImport('./framescaper-capture-setup-actions.ts',
+			resolve(repositoryRoot, 'src/common/editor/app.js'), { ...composition, repositoryRoot }), expected);
+		assert.equal(productSubstitutionForImport('./FramescaperInputsSetupFlyout.tsx',
+			resolve(repositoryRoot, 'src/common/editor/ui/toolbar/AudioEditorTransportControls.jsx'),
+			{ ...composition, repositoryRoot }), expected);
 	}
 });
 
