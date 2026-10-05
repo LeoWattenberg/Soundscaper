@@ -116,6 +116,9 @@ test('Framescaper capture and Web VCR stay behind their deferred product runtime
 		'src/common/editor/web-vcr-geometry.ts',
 	]) assert.equal(chunkGroupForModulePath(path), 'editor-optional-capture', path);
 	assert.equal(
+		chunkGroupForModulePath('src/common/editor/framescaper-capture-setup-actions.ts'),
+		'editor-domain', 'the eager setup UI adapter must not fetch the deferred capture owner');
+	assert.equal(
 		chunkGroupForModulePath('src/common/editor/framescaper-capture-session-manifest.ts'),
 		'editor-domain',
 		'the session manifest is storage the eager repositories read',
