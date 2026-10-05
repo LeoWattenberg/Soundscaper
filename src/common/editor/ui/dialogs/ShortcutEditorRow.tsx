@@ -1,8 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import type { MouseEvent } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 
+import { mouseShortcutBinding, mouseShortcutKey } from '../../mouse-shortcut.ts';
 import {
 	audioEditorShortcutConflictKey,
 	findAudioEditorShortcutConflicts,
@@ -179,6 +181,19 @@ export function ShortcutEditorRow({ command, preferences, controller, copy, run 
 								aria-invalid={error ? 'true' : 'false'}
 								aria-describedby={error ? errorId : undefined}
 								onChange={(event) => setEntry(index, event.currentTarget.value)}
+								onPointerDown={(event) => {
+									if (mouseShortcutKey(event.button)) event.stopPropagation();
+								}}
+								onMouseDown={(event) => {
+									const binding = mouseShortcutBinding(event);
+									if (!binding || command.disabled) return;
+									event.preventDefault();
+									event.stopPropagation();
+									event.currentTarget.focus();
+									setEntry(index, binding);
+								}}
+								onMouseUp={suppressExtraMouseButton}
+								onAuxClick={suppressExtraMouseButton}
 							/>
 						</label>
 						{entries.length > 1 && <button
@@ -209,6 +224,12 @@ export function ShortcutEditorRow({ command, preferences, controller, copy, run 
 			{command.disabledReason && <small data-shortcut-disabled-reason>{command.disabledReason}</small>}
 		</div>
 	);
+}
+
+function suppressExtraMouseButton(event: MouseEvent<HTMLInputElement>): void {
+	if (!mouseShortcutKey(event.button)) return;
+	event.preventDefault();
+	event.stopPropagation();
 }
 
 /** Keep one empty field so an unbound command still has somewhere to type. */

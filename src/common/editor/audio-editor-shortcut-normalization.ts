@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { mouseShortcutKey } from './mouse-shortcut.ts';
+
 type ShortcutMap = Readonly<Record<string, readonly string[]>>;
 
 export interface AudioEditorShortcutConflict {
@@ -35,7 +37,10 @@ export function normalizeAudioEditorShortcut(binding: string): string {
 	}
 	const modifiers = new Set(normalizedParts);
 	const ordered = MODIFIER_ORDER.filter((modifier) => modifiers.has(modifier));
-	const normalizedKey = KEY_ALIASES.get(key.toLowerCase()) || (key.length === 1 ? key.toUpperCase() : key);
+	const mouseMatch = /^mouse(\d+)$/iu.exec(key);
+	const mouseKey = mouseMatch ? mouseShortcutKey(Number(mouseMatch[1]) - 1) : null;
+	if (mouseMatch && !mouseKey) throw new TypeError('shortcut binding requires an extra mouse button.');
+	const normalizedKey = mouseKey || KEY_ALIASES.get(key.toLowerCase()) || (key.length === 1 ? key.toUpperCase() : key);
 	if (MODIFIERS.has(normalizedKey)) {
 		throw new TypeError('shortcut binding requires a non-modifier key.');
 	}

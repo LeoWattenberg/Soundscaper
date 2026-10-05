@@ -22,6 +22,7 @@ import WorkspacePanelDock from './WorkspacePanelDock.jsx';
 import AudioEditorWorkspaceOverlays from './AudioEditorWorkspaceOverlays.jsx';
 import { WORKSPACE_DOCK_IDS, workspaceDockLabel } from './workspace-panel-model.ts';
 import { handleWorkspaceKeyboard } from '../workspace-shortcuts.ts';
+import { useWorkspaceMouseShortcuts } from './useWorkspaceMouseShortcuts.ts';
 import { TrackAutomationRuntimeProvider } from '../soundscaper-workflow-product-runtime.tsx';
 import { useSplitToolShortcut } from '../timeline/useSplitToolShortcut.ts';
 import EditorSurfaceBoundary from '../EditorSurfaceBoundary.jsx';
@@ -120,6 +121,13 @@ export default function AudioEditorWorkspaceView({ model }) {
 		snapshot,
 		toggleWorkspacePanel,
 	} = overlayModel;
+	const shortcutRegistry = {
+		actionRuntime: parityRuntime.actions,
+		disabledActionIds: productProfile(productId).shortcuts.disabledCommandIds,
+		menus: applicationMenus,
+		videoNavigation: productId === 'framescaper' ? controller.actions.video.navigation : undefined,
+	};
+	const mouseShortcuts = useWorkspaceMouseShortcuts(snapshot, run, shortcutRegistry);
 	const panelDockRuntime = createWorkspacePanelDockRuntime({
 		controller,
 		clipPropertiesFocusRequest,
@@ -200,12 +208,8 @@ export default function AudioEditorWorkspaceView({ model }) {
 			data-clip-style={preferences?.appearance?.clipStyle || 'colorful'}
 			data-workspace-preset={preferences?.workspace?.activeId || 'modern'}
 			data-edit-block-reason={editBlock.reason || undefined}
-			onKeyDown={(event) => handleWorkspaceKeyboard(event, snapshot, run, {
-				actionRuntime: parityRuntime.actions,
-				disabledActionIds: productProfile(productId).shortcuts.disabledCommandIds,
-				menus: applicationMenus,
-				videoNavigation: productId === 'framescaper' ? controller.actions.video.navigation : undefined,
-			})}
+			onKeyDown={(event) => handleWorkspaceKeyboard(event, snapshot, run, shortcutRegistry)}
+			{...mouseShortcuts}
 			onContextMenu={(event) => event.preventDefault()}
 		>
 			<EditorSurfaceBoundary copy={copy} surface="menubar" resetKey={project}>

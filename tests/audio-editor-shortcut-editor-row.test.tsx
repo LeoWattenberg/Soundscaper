@@ -12,6 +12,7 @@ import {
 	shortcutFocusTargetAfterRemove,
 } from '../src/common/editor/ui/dialogs/ShortcutEditorRow.tsx';
 import { installReactTestDom, reactProps } from './helpers/react-test-dom.ts';
+import type { ReactTestDom } from './helpers/react-test-dom.ts';
 
 const ACTION_ID = 'delete-all-tracks-ripple';
 const IMPORTED_BINDINGS = Object.freeze(['Ctrl+Delete', 'Ctrl+Backspace']);
@@ -167,7 +168,108 @@ test('changing a binding count hands focus to the next useful control', async ()
 	}
 });
 
-function shortcutRow(shortcuts: Readonly<Record<string, readonly string[]>>) {
+test('pressing an extra mouse button captures its chord and keeps focus on the shortcut field', async () => {
+	const assigned: { id: string; bindings: string[] }[] = [];
+	await withMountedRow(async (dom) => {
+		const field = dom.one('[data-shortcut-binding="0"]');
+		let prevented = 0;
+		let stopped = 0;
+		await act(async () => {
+			reactProps(field).onMouseDown?.({
+				button: 4, ctrlKey: true, altKey: false, metaKey: false, shiftKey: true,
+				currentTarget: field,
+				preventDefault: () => { prevented += 1; },
+				stopPropagation: () => { stopped += 1; },
+			});
+		});
+		assert.equal(field.value, 'Ctrl+Shift+Mouse5');
+		assert.equal(dom.container.ownerDocument.activeElement === field, true);
+		assert.equal(prevented, 1, 'capture suppresses the mouse button browser action');
+		assert.equal(stopped, 1, 'capture stays inside the shortcut editor');
+		await act(async () => { reactProps(dom.one('.button')).onClick?.({}); });
+	}, (id, bindings) => assigned.push({ id, bindings }));
+	assert.deepEqual(assigned, [{ id: ACTION_ID, bindings: ['Ctrl+Shift+Mouse5'] }]);
+});
+
+test('mouse capture leaves the three standard buttons alone and suppresses extra button release', async () => {
+	await withMountedRow(async (dom) => {
+		const field = dom.one('[data-shortcut-binding="0"]');
+		let prevented = 0;
+		let stopped = 0;
+		const event = (button: number) => ({
+			button, ctrlKey: false, altKey: false, metaKey: false, shiftKey: false,
+			currentTarget: field,
+			preventDefault: () => { prevented += 1; },
+			stopPropagation: () => { stopped += 1; },
+		});
+		await act(async () => {
+			for (const button of [0, 1, 2]) {
+				reactProps(field).onPointerDown?.(event(button));
+				reactProps(field).onMouseDown?.(event(button));
+				reactProps(field).onMouseUp?.(event(button));
+				reactProps(field).onAuxClick?.(event(button));
+			}
+		});
+		assert.equal(field.value, 'Ctrl+Delete');
+		assert.equal(prevented, 0);
+		assert.equal(stopped, 0);
+		await act(async () => { reactProps(field).onPointerDown?.(event(3)); });
+		assert.equal(prevented, 0, 'pointer press preserves the compatibility mouse event that captures');
+		assert.equal(stopped, 1, 'pointer press stays inside the shortcut editor');
+		await act(async () => { reactProps(field).onMouseDown?.(event(3)); });
+		assert.equal(field.value, 'Mouse4');
+		await act(async () => { reactProps(field).onMouseUp?.(event(3)); });
+		await act(async () => { reactProps(field).onAuxClick?.(event(3)); });
+		assert.equal(prevented, 3, 'press, release and auxclick all suppress browser navigation');
+		assert.equal(stopped, 4);
+	});
+});
+
+test('a captured mouse binding can still be replaced by typed shortcut text', async () => {
+	await withMountedRow(async (dom) => {
+		const field = dom.one('[data-shortcut-binding="0"]');
+		await act(async () => {
+			reactProps(field).onMouseDown?.({
+				button: 3, ctrlKey: false, altKey: false, metaKey: false, shiftKey: false,
+				currentTarget: field, preventDefault() {}, stopPropagation() {},
+			});
+		});
+		assert.equal(field.value, 'Mouse4');
+		await act(async () => {
+			reactProps(field).onChange?.({ currentTarget: { value: 'Ctrl+K' } });
+		});
+		assert.equal(field.value, 'Ctrl+K');
+	});
+});
+
+async function withMountedRow(
+	operation: (dom: ReactTestDom) => Promise<void>,
+	setShortcut: (id: string, bindings: string[]) => unknown = () => undefined,
+): Promise<void> {
+	const dom = installReactTestDom();
+	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
+	const priorReact = Object.getOwnPropertyDescriptor(globalThis, 'React');
+	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
+	Object.defineProperty(globalThis, 'React', { configurable: true, value: React });
+	const { createRoot } = await import('react-dom/client');
+	const root = createRoot(dom.container as unknown as Element);
+	try {
+		await act(async () => root.render(shortcutRow({ [ACTION_ID]: ['Ctrl+Delete'] }, setShortcut)));
+		await operation(dom);
+	} finally {
+		await act(async () => root.unmount());
+		actGlobal.IS_REACT_ACT_ENVIRONMENT = priorAct;
+		if (priorReact) Object.defineProperty(globalThis, 'React', priorReact);
+		else Reflect.deleteProperty(globalThis, 'React');
+		dom.restore();
+	}
+}
+
+function shortcutRow(
+	shortcuts: Readonly<Record<string, readonly string[]>>,
+	setShortcut: (id: string, bindings: string[]) => unknown = () => undefined,
+) {
 	return <ShortcutEditorRow
 		command={{
 			id: ACTION_ID,
@@ -177,7 +279,7 @@ function shortcutRow(shortcuts: Readonly<Record<string, readonly string[]>>) {
 			disabledReason: null,
 		}}
 		preferences={{ shortcuts }}
-		controller={{ actions: { preferences: { setShortcut: () => undefined } } }}
+		controller={{ actions: { preferences: { setShortcut } } }}
 		copy={{
 			shortcutAddBinding: 'Add shortcut',
 			shortcutAssign: 'Assign',

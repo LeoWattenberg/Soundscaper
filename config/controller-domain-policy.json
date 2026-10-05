@@ -164,6 +164,7 @@
 		"import/project-bin-linked-video-relink-service.ts",
 		"import/project-bin-types.ts",
 		"import/raw-pcm-import.ts",
+		"preferences/mouse-shortcut-gesture.ts",
 		"preferences/preference-action-group.ts",
 		"preferences/preferences-composition.ts",
 		"preferences/setting-persistence.ts",

@@ -261,6 +261,7 @@ export default function WorkspacePreferencesDialog({
 
 						{selectedPage === 'shortcuts' && (
 							<PreferencePanel title={copy.shortcuts} className="kw-audio-editor-preferences__shortcuts">
+								<p>{copy.shortcutMouseHelp}</p>
 								<div className="kw-audio-editor-preferences__shortcut-controls">
 									<label className="kw-audio-editor-preferences__search">
 										<span className="kw-audio-editor-sr-only">{copy.shortcutSearch}</span>

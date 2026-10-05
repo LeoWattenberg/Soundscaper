@@ -57,6 +57,13 @@ test('the shortcuts page drops the rows that cannot take a shortcut', () => {
 	assert.match(markup, /data-shortcut-action="snap-enabled"/u);
 });
 
+test('the shortcuts page explains how to assign extra mouse buttons', () => {
+	const markup = renderShortcutsPage();
+
+	assert.match(markup, /Focus a shortcut field and press an extra mouse button/u);
+	assert.match(markup, /Mouse4 or Ctrl\+Mouse5/u);
+});
+
 test('a command with two bindings gets a field and a remove control for each', () => {
 	const row = shortcutRow(renderShortcutsPage(), 'delete-all-tracks-ripple');
 
