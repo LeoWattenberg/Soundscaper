@@ -65,6 +65,7 @@ export interface ProjectHierarchyMetadata extends Readonly<Record<string, unknow
 	readonly trackNumber: string;
 	readonly year: string;
 	readonly comments: string;
+	readonly recordingNotes?: string;
 	readonly tags: Readonly<Record<string, string>>;
 	readonly bext: ProjectBextMetadata | null;
 	readonly ixml?: IxmlMetadata;

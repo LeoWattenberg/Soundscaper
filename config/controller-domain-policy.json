@@ -111,6 +111,7 @@
 		"document/project-view-service.ts",
 		"document/project-visual-service.ts",
 		"document/project-visual-types.ts",
+		"document/recording-notes-action-facade.ts",
 		"document/regular-interval-annotation-service.ts",
 		"document/scape-open-request-service.ts",
 		"document/scape-project-file-service.ts",

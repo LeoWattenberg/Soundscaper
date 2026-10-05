@@ -13,8 +13,10 @@ import { SequenceTimingProjectProperties } from '../toolbar/SequenceTimingContro
 import { historyCommandLabel } from './workspace-panel-model.ts';
 import { consumeEffectsFocusSuppression, hasEffectsFocusSuppression } from './workspace-preset-focus.js';
 import { lazyEditorModule } from '../../../offline/lazy-module.tsx';
+import { readProjectRecordingNotes } from '../../recording-notes.ts';
 
 const RealtimeAnalysisPanel = lazyEditorModule(() => import('../inspector/RealtimeAnalysisPanel.jsx'));
+const RecordingNotesPanel = lazyEditorModule(() => import('./RecordingNotesPanel.tsx'));
 
 // The docked effects rack claims keyboard focus when it opens. Moving the
 // panel to another dock unmounts that rack and mounts a fresh one, which would
@@ -96,6 +98,17 @@ export default function WorkspacePanelContent({
 	projectBinVisible = false,
 }) {
 	const project = snapshot.project;
+	if (panelId === 'recording-notes') {
+		return <React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
+			<RecordingNotesPanel
+				key={project?.id}
+				value={readProjectRecordingNotes(project)}
+				copy={copy}
+				disabled={!project || snapshot.readOnly || blocked}
+				onChange={(notes) => run(() => controller.actions.recordingNotes.update(notes))}
+			/>
+		</React.Suspense>;
+	}
 	if (panelId === 'playback-meter' || panelId === 'recording-meter') {
 		const recording = panelId === 'recording-meter';
 		return <MeterWorkspacePanel

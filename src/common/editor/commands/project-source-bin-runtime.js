@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createEnvelopeValueEvaluator } from '../automation.js';
+import { setProjectRecordingNotes } from '../recording-notes.ts';
 import { processSourceAudio } from './source-process-audio-runtime.ts';
 import {
 	assertFrame,
@@ -525,6 +526,7 @@ export function createProjectSourceBinRuntimeHandlers(dispatchChild) {
 			project.title = String(command.title || '').trim();
 			if (!project.title) throw new RangeError('A project title is required.');
 		},
+		'project/recording-notes-set': setProjectRecordingNotes,
 		'selection/set': setSelection,
 		'loop/set': setLoop,
 		'snap/set': setSnap,

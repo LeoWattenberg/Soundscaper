@@ -72,6 +72,18 @@ test('an unowned importer the eager entries reach counts as eager', () => {
 	assert.equal(isEagerlyLoadedModule('src/common/editor/ui/AudioEditorMenuBar.jsx'), true);
 });
 
+test('recording notes presentation stays lazy while project note persistence remains eager', () => {
+	for (const path of [
+		'src/common/editor/ui/workspace/RecordingNotesPanel.tsx',
+		'src/common/editor/recording-notes-markdown.ts',
+	]) {
+		assert.equal(chunkGroupForModulePath(path), 'editor-optional-surfaces', path);
+		assert.equal(chunkGroupForModulePath(path.replaceAll('/', '\\')), 'editor-optional-surfaces', path);
+		assert.equal(isEagerlyLoadedModule(path), false, path);
+	}
+	assert.equal(chunkGroupForModulePath('src/common/editor/recording-notes.ts'), 'editor-domain');
+});
+
 test('the product composition groups the bootstraps import are classified eager', () => {
 	// Each is a size split of a product's own boot-time composition, not a deferred feature.
 	// Calling them lazy said the boot graph held no Soundscaper project foundations and no
