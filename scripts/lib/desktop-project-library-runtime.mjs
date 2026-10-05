@@ -164,6 +164,8 @@ export const DESKTOP_EXPECTED_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/commands/mastering-sequence.js',
 	'src/common/editor/commands/protocol.js',
 	'src/common/editor/commands/protocol-values.js',
+	'src/common/editor/export-embedded-chapter-encoding.js',
+	'src/common/editor/export-embedded-chapters.js',
 	'src/common/editor/ffmpeg-video-source-characteristics.js',
 	'src/common/editor/ffmpeg-video-timing-probe.js',
 	'src/common/editor/folder-bus-v13.js',
