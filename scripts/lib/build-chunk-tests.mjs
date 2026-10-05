@@ -159,7 +159,7 @@ export const EDITOR_OPTIONAL_ASSISTANCE_CHUNK_TEST = new RegExp(
 );
 
 /** Helpers reached only by optional surfaces; broad UI ownership must not hoist them. */
-const deferredSurfaceHelpers = String.raw`ui[\\/](?:clip-spreadsheet[\\/][^\\/]+|(?:AdmMetadataFields|BextMetadataFields|adm-metadata-editor-model|bext-metadata-editor-model|desktop-speed-warmup|export-channel-matrix|export-dialog-output-options|export-dialog-initial-settings|label-export-dialog-model|delivery-batch-dialog-model|audio-warp-dialog-model|take-comp-dialog-model|video-keyframe-dialog-input|video-retime-exact-map-input|ParametricEqNumericInput|useParametricEqSpectrum)\.[jt]sx?|skins[\\/](?:SkinCarousel|SkinPreferences|appearance-previews)\.tsx?|workspace[\\/]freesound-media-url\.ts)`;
+const deferredSurfaceHelpers = String.raw`ui[\\/](?:clip-spreadsheet[\\/][^\\/]+|(?:AdmMetadataFields|BextMetadataFields|adm-metadata-editor-model|bext-metadata-editor-model|desktop-speed-warmup|export-channel-matrix|export-dialog-output-options|export-dialog-initial-settings|use-export-dialog-output|label-export-dialog-model|delivery-batch-dialog-model|audio-warp-dialog-model|take-comp-dialog-model|video-keyframe-dialog-input|video-retime-exact-map-input|ParametricEqNumericInput|useParametricEqSpectrum)\.[jt]sx?|skins[\\/](?:SkinCarousel|SkinPreferences|appearance-previews)\.tsx?|workspace[\\/]freesound-media-url\.ts)`;
 
 /** Menu-opened UI, panel-only domain helpers, and deferred native authoring contracts. */
 export const EDITOR_OPTIONAL_SURFACE_CHUNK_TEST = new RegExp(

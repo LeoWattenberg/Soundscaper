@@ -186,6 +186,21 @@ Choose **File → Export audio** for a mixed delivery or **Export selected audio
 when only a selection should be rendered. Soundscaper can also export stems and
 labels.
 
+### Export clips as separate files {#export-clips}
+
+Choose **File → Export audio** and set **Output** to **Individual clips (split
+by clips)**. Choose an audio format and press **Export** to download an archive
+containing one file for every audio clip across the project's audio tracks.
+Each file starts at the clip's audible beginning and ends at its audible end,
+without padding it to the project timeline or adding an effect tail. Trims,
+clip gain, fades, speed, and pitch edits are included. Overlapping clips stay
+separate.
+
+Files use the clip names with numbered prefixes. Unsupported filename
+characters are replaced, and the numbers keep repeated clip names distinct.
+Track effects are included; master effects, mute, and solo do not affect this
+export. Unfreeze frozen tracks first to export their editable clips individually.
+
 Compressed formats use the FFmpeg runtime. Exact formats and conditional
 availability are listed in the [generated format reference](/reference/).
 

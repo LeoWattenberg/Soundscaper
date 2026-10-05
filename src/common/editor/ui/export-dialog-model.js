@@ -106,11 +106,11 @@ export function createExportDialogRequest(settings, options = {}) {
 		extension: settings.customExtension,
 		mimeType: settings.customMimeType,
 		customArguments: settings.customArguments.split(/\r?\n/).map((argument) => argument.trim()).filter(Boolean),
-		includeTail: settings.includeTail,
+		includeTail: settings.mode === 'clips' ? false : settings.includeTail,
 		// Stated only when a target was chosen: there is no default target, and an
 		// untouched dialog must keep producing the request it always produced.
-		...(settings.loudnessNormalization ? { loudnessNormalization: settings.loudnessNormalization } : {}),
-		...(settings.binaural ? { binaural: true } : {}),
+		...(settings.mode !== 'clips' && settings.loudnessNormalization ? { loudnessNormalization: settings.loudnessNormalization } : {}),
+		...(settings.mode !== 'clips' && settings.binaural ? { binaural: true } : {}),
 		...(settings.masteringSequenceId ? { masteringSequenceId: settings.masteringSequenceId } : {}),
 	};
 }

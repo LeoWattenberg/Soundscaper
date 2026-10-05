@@ -13,6 +13,7 @@ test('menu-opened panel and dialog helpers keep their deferred surface owner', (
 		'adm-metadata-editor-model.ts', 'bext-metadata-editor-model.ts',
 		'desktop-speed-warmup.ts', 'export-channel-matrix.ts',
 		'export-dialog-output-options.ts', 'export-dialog-initial-settings.ts',
+		'use-export-dialog-output.ts',
 		'label-export-dialog-model.ts', 'delivery-batch-dialog-model.ts',
 		'audio-warp-dialog-model.ts', 'take-comp-dialog-model.ts',
 		'video-keyframe-dialog-input.ts', 'video-retime-exact-map-input.ts',

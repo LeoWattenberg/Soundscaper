@@ -67,6 +67,7 @@ const DELIVERY_QUEUE_COPY_ENTRIES = Object.freeze([
 	// form and the span in the same words. The queue still asks the two questions
 	// separately and keeps the vocabulary above.
 	['exportOutputStems', 'Individual stems (split by tracks)', 'Einzelspuren (nach Spuren getrennt)'],
+	['exportOutputClips', 'Individual clips (split by clips)', 'Einzelne Clips (nach Clips getrennt)'],
 	['exportOutputChapters', 'Chapters (split by labels)', 'Kapitel (nach Beschriftungen getrennt)'],
 	['exportOutputMarkerChapters', 'Chapters (split by markers)', 'Kapitel (nach Markern getrennt)'],
 	['exportOutputLoop', 'In/Out (looping region)', 'In/Out (Loop-Bereich)'],

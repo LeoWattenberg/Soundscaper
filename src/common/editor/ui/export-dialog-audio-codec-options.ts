@@ -268,12 +268,18 @@ export function exportDialogOutputChannelCount(
 		: null;
 }
 
-/** Normalize stale browser preset/input values before they reach a codec request. */
+/** Normalize stale preset/input values before they reach a codec request. */
 export function normalizeExportDialogAudioSettings(
 	settings: Readonly<Record<string, unknown>>,
 	desktop: boolean,
 	inputChannelCount: unknown = 2,
 ): Readonly<Record<string, unknown>> {
+	// A clip preserves its own channels and span; an old mix's binaural toggle
+	// must not make the capability query describe stereo while the request
+	// delivers the clip's preserved layout.
+	if (settings.mode === 'clips' && (settings.binaural === true || settings.loudnessNormalization)) {
+		settings = Object.freeze({ ...settings, binaural: false, loudnessNormalization: '' });
+	}
 	if (desktop) return settings;
 	const format = String(settings.format ?? '');
 	if (!BROWSER_CODEC_FORMATS.has(format)) return settings;
@@ -293,7 +299,7 @@ export function normalizeExportDialogAudioSettings(
 	const outputChannels = exportDialogOutputChannelCount(projected, inputChannelCount);
 	if (BROWSER_STEREO_FORMATS.has(format) && (
 		(outputChannels !== null && outputChannels > 2)
-		|| (settings.mode === 'stems' && projected.channelMapping === 'preserve')
+		|| ((settings.mode === 'stems' || settings.mode === 'clips') && projected.channelMapping === 'preserve')
 	)) patch.channelMapping = 'stereo';
 	if (Object.hasOwn(BROWSER_BIT_RATES, format)) {
 		const options = exportDialogBitRateOptions(
