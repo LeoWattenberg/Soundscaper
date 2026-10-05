@@ -145,3 +145,33 @@ test('legacy linear shape dots sit on their line before the first shape edit', (
 	assert.equal(position?.gain, 0.5);
 	assert.ok(Math.abs((position?.baseGain ?? 0) - Math.SQRT1_2) < 1e-10);
 });
+
+test('fade shading follows each shaped curve and closes above it within its fade region', () => {
+	for (const shape of [undefined, 0.15, 1, 2, 6]) {
+		const geometry = fadeOverlayGeometry({
+			timelineStartFrame: 0, durationFrames: 100, fadeInFrames: 50, fadeOutFrames: 25,
+			fadeInShape: shape, fadeOutShape: shape,
+		}, 0, 100, 100, 100);
+		const [incoming, outgoing] = geometry.curves;
+		assert.ok(incoming && outgoing);
+		assert.equal(incoming.shadePath, `${incoming.path} L 50.000,0 L 0.000,0 Z`);
+		assert.equal(outgoing.shadePath, `${outgoing.path} L 100.000,0 L 75.000,0 Z`);
+	}
+});
+
+test('fade shading crops to the viewport without adding endpoint guides at the crop', () => {
+	const geometry = fadeOverlayGeometry({
+		timelineStartFrame: 0, durationFrames: 100, fadeInFrames: 100, fadeOutFrames: 100,
+	}, 25, 75, 100, 100);
+	assert.equal(geometry.fadeInX, null);
+	assert.equal(geometry.fadeOutX, null);
+	const [incoming, outgoing] = geometry.curves;
+	assert.ok(incoming && outgoing);
+	assert.match(incoming.shadePath, /^M 0\.000,75\.000 /u);
+	assert.match(outgoing.shadePath, /^M 0\.000,25\.000 /u);
+	for (const curve of geometry.curves) {
+		assert.ok(curve.shadePath.startsWith(curve.path));
+		assert.match(curve.shadePath, / L 50\.000,0 L 0\.000,0 Z$/u);
+	}
+	assert.deepEqual(fadeOverlayGeometry({ timelineStartFrame: 0, durationFrames: 100 }, 0, 100, 100, 100).curves, []);
+});

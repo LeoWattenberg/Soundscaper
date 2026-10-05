@@ -85,12 +85,13 @@ test.describe('non-destructive clip fade handles', () => {
 			await clip.click({ position: { x: 30, y: 50 } });
 			await expect(clip.getByRole('slider')).toHaveCount(0);
 			await expect(clip.locator('.audio-editor-clip-fade__curve')).toBeVisible();
-			await expect(clip.locator('.audio-editor-clip-fade__curve polygon')).toHaveCount(0);
+			await expect(clip.locator('[data-fade-boundary]')).toHaveCount(0);
+			await expect(clip.locator('[data-fade-shading]')).toHaveCSS('fill', 'rgba(0, 0, 0, 0.18)');
 			expect(errors).toEqual([]);
 		});
 	}
 
-	test('draws the design-system fade path without a filled area', async ({ page }) => {
+	test('shades above the fade curves and guides their actual endpoints only while selected', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [toneA]);
 		const clip = clipByName(editor, toneA.name);
@@ -100,10 +101,53 @@ test.describe('non-destructive clip fade handles', () => {
 		await expect(fadeOut).not.toHaveAttribute('title');
 		await fadeOut.hover();
 		await expect(editor.locator('[data-audio-editor-button-tooltip]')).toHaveText('Fade out');
+		await fadeIn.press('Home');
+		await fadeOut.press('Home');
+		await expect(clip.locator('[data-fade-boundary]')).toHaveCount(0);
+		await expect(clip.locator('[data-fade-shading]')).toHaveCount(0);
+		await fadeIn.press('Shift+ArrowRight');
+		await fadeOut.press('Shift+ArrowRight');
+		await expect(fadeIn).toHaveAttribute('aria-valuenow', '0.1');
+		await expect(fadeOut).toHaveAttribute('aria-valuenow', '0.1');
+		const curves = clip.locator('.audio-editor-clip-fade__curve');
+		const shading = curves.locator('[data-fade-shading]');
+		for (const theme of ['light', 'dark']) {
+			await setDocumentTheme(page, theme);
+			await expect(shading).toHaveCSS('fill', 'rgba(0, 0, 0, 0.18)');
+			for (const [edge, fraction] of [['in', 0.125], ['out', 0.875]]) {
+				const guide = curves.locator(`[data-fade-boundary="${edge}"]`);
+				await expect(guide).toHaveAttribute('stroke-dasharray', '4 3');
+				await expect(guide).toHaveAttribute('vector-effect', 'non-scaling-stroke');
+				const position = await guide.evaluate(line => ({
+					x1: line.x1.baseVal.value / line.ownerSVGElement.viewBox.baseVal.width,
+					x2: line.x2.baseVal.value / line.ownerSVGElement.viewBox.baseVal.width,
+					y1: line.y1.baseVal.value,
+					y2: line.y2.baseVal.value,
+				}));
+				expect(position.x1).toBeCloseTo(fraction, 5);
+				expect(position.x2).toBeCloseTo(fraction, 5);
+				expect(position.y1).toBe(0);
+				expect(position.y2).toBe(100);
+			}
+		}
+		for (const edge of ['in', 'out']) {
+			const shadedSide = await curves.locator(`[data-fade-curve="${edge}"]`).evaluate(curve => {
+				const point = curve.getPointAtLength(curve.getTotalLength() / 2);
+				const shade = curve.ownerSVGElement.querySelector('[data-fade-shading]');
+				return {
+					above: shade.isPointInFill(new DOMPoint(point.x, point.y / 2)),
+					below: shade.isPointInFill(new DOMPoint(point.x, (point.y + 100) / 2)),
+				};
+			});
+			expect(shadedSide).toEqual({ above: true, below: false });
+		}
+		const beforeShape = await shading.getAttribute('d');
+		const beforeBoundary = await curves.locator('[data-fade-boundary="in"]').getAttribute('x1');
+		await clip.getByRole('slider', { name: 'Fade in shape', exact: true }).press('End');
+		await expect(shading).not.toHaveAttribute('d', beforeShape);
+		await expect(curves.locator('[data-fade-boundary="in"]')).toHaveAttribute('x1', beforeBoundary);
 		await fadeIn.press('End');
 		await expect(fadeIn).toHaveAttribute('aria-valuenow', '0.8');
-		const curves = clip.locator('.audio-editor-clip-fade__curve');
-		await expect(curves.locator('polygon')).toHaveCount(0);
 		const curve = curves.locator('path[data-fade-curve="in"]');
 		await expect(curve).toHaveCount(1);
 		await expect(curve).toHaveAttribute('fill', 'none');
@@ -133,7 +177,8 @@ test.describe('non-destructive clip fade handles', () => {
 		await fadeIn.press('End');
 		await expect(fadeIn).toHaveAttribute('aria-valuenow', '0.8');
 		const curves = clip.locator('.audio-editor-clip-fade__curve');
-		await expect(curves.locator('polygon')).toHaveCount(0);
+		await expect(curves.locator('[data-fade-shading]')).toHaveCSS('fill', 'rgba(0, 0, 0, 0.18)');
+		await expect(curves.locator('[data-fade-boundary="in"]')).toHaveCount(1);
 		await expect(curves.locator('path[data-fade-curve="in"]')).toHaveCount(1);
 		const bounds = await curves.boundingBox();
 		const pathBounds = await curves.locator('path[data-fade-curve="in"]').boundingBox();

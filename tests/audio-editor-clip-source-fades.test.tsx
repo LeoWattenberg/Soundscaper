@@ -24,11 +24,19 @@ test('source fade portals remain attached after panning away and back to the act
 	try {
 		await act(async () => { root.render(<Subject startFrame={1_000} endFrame={2_000} />); });
 		assert.ok(dom.find('[data-clip-fade-handle="in"]'));
+		assert.equal(dom.one('[data-fade-boundary="in"]').getAttribute('x1'), '100');
+		assert.equal(dom.one('[data-fade-boundary="in"]').getAttribute('x2'), '100');
+		assert.ok(dom.find('[data-fade-shading]'));
+		assert.equal(dom.find('[data-fade-boundary="out"]'), null, 'zero-length fades have no guide');
+		await act(async () => { root.render(<Subject startFrame={1_025} endFrame={1_075} />); });
+		assert.ok(dom.find('[data-fade-shading]'), 'a cropped fade still shades the visible curve');
+		assert.equal(dom.find('[data-fade-boundary="in"]'), null, 'the cropped edge is not a fade endpoint');
 		await act(async () => { root.render(<Subject startFrame={0} endFrame={500} />); });
 		assert.equal(dom.find('[data-clip-fade-handle="in"]'), null);
 		await act(async () => { root.render(<Subject startFrame={1_000} endFrame={2_000} />); });
 		assert.ok(dom.find('[data-clip-fade-handle="in"]'));
 		assert.ok(dom.find('[data-fade-curve="in"]'));
+		assert.ok(dom.find('[data-fade-boundary="in"]'));
 	} finally {
 		await act(async () => { root.unmount(); });
 		actGlobal.IS_REACT_ACT_ENVIRONMENT = previousAct;

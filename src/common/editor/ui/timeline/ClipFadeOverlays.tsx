@@ -78,6 +78,14 @@ export function ClipFadeOverlays({ rootRef, clips, selectedIds, startFrame, endF
 		return createPortal(<div className="audio-editor-clip-fade">
 			{hasFade && <svg className="audio-editor-clip-fade__curve" viewBox={`0 0 ${geometry.width} 100`}
 				preserveAspectRatio="none" aria-hidden="true">
+				<path data-fade-shading d={curves.map(curve => curve.shadePath).join(' ')}
+					fill="rgba(0, 0, 0, 0.18)" stroke="none" />
+				{selected && curves.map(curve => {
+					const x = curve.edge === 'in' ? geometry.fadeInX : geometry.fadeOutX;
+					return x === null ? null : <line key={curve.edge} data-fade-boundary={curve.edge}
+						x1={x} x2={x} y1={0} y2={100} stroke="rgba(0, 0, 0, 0.55)"
+						strokeWidth={1} strokeDasharray="4 3" vectorEffect="non-scaling-stroke" />;
+				})}
 				{curves.map(curve => <path key={curve.edge} data-fade-curve={curve.edge}
 					d={curve.path} fill="none" stroke="rgba(0, 0, 0, 0.55)" strokeWidth={1.5}
 					vectorEffect="non-scaling-stroke" />)}

@@ -21,6 +21,7 @@ export interface FadeClip {
 export interface FadeCurveGeometry {
 	readonly edge: ClipFadeEdge;
 	readonly path: string;
+	readonly shadePath: string;
 	readonly midpointX: number | null;
 	readonly midpointGain: number;
 	readonly fadeStartX: number;
@@ -116,9 +117,11 @@ export function fadeOverlayGeometry(
 			points.push(`${((frame - start) * scale).toFixed(3)},${((1 - gain) * 100).toFixed(3)}`);
 		}
 		const midpoint = (fadeStart + fadeEnd) / 2;
+		const path = `M ${points.join(' L ')}`;
 		curves.push({
 			edge,
-			path: `M ${points.join(' L ')}`,
+			path,
+			shadePath: `${path} L ${((visibleEnd - start) * scale).toFixed(3)},0 L ${((visibleStart - start) * scale).toFixed(3)},0 Z`,
 			midpointX: handleX(midpoint),
 			midpointGain: evaluateClipFadeAt(midpoint, duration, fadeFrames, edge, shape),
 			fadeStartX: (fadeStart - start) * scale,
