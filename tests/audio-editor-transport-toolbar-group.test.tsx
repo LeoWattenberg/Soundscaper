@@ -28,14 +28,14 @@ const snapshot = {
 	readOnly: false,
 };
 
-function render(buttons: readonly string[], audioRecording = true, toolbarButtons: Record<string, boolean> = {}, recording = false) {
+function render(buttons: readonly string[], audioRecording = true, toolbarButtons: Record<string, boolean> = {}, recording = false, framescaper = false) {
 	return renderToStaticMarkup(
 		<TransportToolbarGroup
 			buttons={buttons}
 			blocked={false}
-			capabilities={{ audioRecording }}
+			capabilities={{ audioRecording, sequenceTiming: framescaper }}
 			controller={{
-				actions: { transport: {}, recording: {} },
+				actions: { transport: {}, recording: {}, video: { sourceTimecodeAtSample: () => null } },
 				getTelemetrySnapshot: () => ({ transportState: 'stopped' }),
 				subscribeTelemetry: () => () => undefined,
 			}}
@@ -47,7 +47,12 @@ function render(buttons: readonly string[], audioRecording = true, toolbarButton
 			onOpenTimedRecording={() => undefined}
 			recordLabel={ENGLISH_COPY.record}
 			run={() => undefined}
-			snapshot={{ ...snapshot, recording }}
+			snapshot={{ ...snapshot, recording, ...(framescaper ? {
+				productId: 'framescaper', project: { ...snapshot.project, sampleRate: 48_000, primarySequenceId: 'main', sequences: [{
+					id: 'main', name: 'Main sequence', rate: { num: 30, den: 1 }, dropFrame: false,
+					startTimecode: { negative: false, hours: 0, minutes: 0, seconds: 0, frames: 0 },
+				}] },
+			} : {}) }}
 			toggleRecording={() => undefined}
 			toolbarButtons={toolbarButtons}
 		/>,
@@ -75,6 +80,16 @@ test('the drawer set renders the secondary transport without the primary control
 	for (const label of [ENGLISH_COPY.jumpStart, ENGLISH_COPY.jumpEnd, ENGLISH_COPY.loop, ENGLISH_COPY.metronome]) {
 		assert.ok(markup.includes(`aria-label="${label}"`), `renders ${label}`);
 	}
+});
+
+test('Framescaper frame steps use transport buttons between the project endpoints', () => {
+	const markup = render(DRAWER_TRANSPORT_BUTTONS, false, {}, false, true);
+	const labels = [ENGLISH_COPY.jumpStart, ENGLISH_COPY.previousFrame, ENGLISH_COPY.nextFrame, ENGLISH_COPY.jumpEnd];
+	const offsets = labels.map((label) => markup.indexOf(`aria-label="${label}"`));
+	assert.ok(offsets.every((offset) => offset >= 0));
+	assert.deepEqual(offsets, [...offsets].sort((left, right) => left - right));
+	for (const label of labels) assert.match(markup, new RegExp(`<button[^>]*class="transport-button[^>]*aria-label="${label}"`, 'u'));
+	assert.doesNotMatch(render(COMPACT_BAR_TRANSPORT_BUTTONS, false, {}, false, true), /data-sequence-step/u);
 });
 
 test('record needs the audio recording capability and the button preference', () => {

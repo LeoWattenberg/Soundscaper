@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import React from 'react';
+import { TransportButton } from '@soundscaper/design-system/TransportButton';
 
 import {
 	formatSequenceTimecode,
@@ -26,7 +27,7 @@ const RATE_PRESETS = Object.freeze([
 ]);
 
 /** Framescaper frame navigation beside the shared time display. */
-export function SequenceTimingControls({ project, snapshot, controller, copy, run }) {
+export function SequenceTimingControls({ project, snapshot, controller, copy, run, blocked = false }) {
 	const view = React.useMemo(() => resolveSequenceTimingView(project), [project]);
 	const positionFrame = useAudioEditorTelemetrySelector(
 		controller,
@@ -43,22 +44,18 @@ export function SequenceTimingControls({ project, snapshot, controller, copy, ru
 		role="group"
 		aria-label={copy.videoNavigation}
 	>
-			<button
-				type="button"
-				className="kw-audio-editor__sequence-frame-step"
-				data-sequence-step="previous"
-				aria-label={copy.previousFrame}
-				disabled={snapshot.recording}
+			<span data-sequence-step="previous"><TransportButton
+				icon="chevron-left"
+				ariaLabel={copy.previousFrame}
+				disabled={blocked || Boolean(snapshot.recording)}
 				onClick={() => run(() => controller.actions.sequences.stepPlayhead(-1))}
-			><span className="musescore-icon" aria-hidden="true"></span></button>
-			<button
-				type="button"
-				className="kw-audio-editor__sequence-frame-step"
-				data-sequence-step="next"
-				aria-label={copy.nextFrame}
-				disabled={snapshot.recording}
+			/></span>
+			<span data-sequence-step="next"><TransportButton
+				icon="chevron-right"
+				ariaLabel={copy.nextFrame}
+				disabled={blocked || Boolean(snapshot.recording)}
 				onClick={() => run(() => controller.actions.sequences.stepPlayhead(1))}
-			><span className="musescore-icon" aria-hidden="true"></span></button>
+			/></span>
 	</div>;
 }
 

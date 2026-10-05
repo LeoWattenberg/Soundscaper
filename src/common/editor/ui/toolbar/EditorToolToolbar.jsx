@@ -14,7 +14,6 @@ import {
 } from './AudioEditorMeterControls.jsx';
 import TelemetryTimeCode from './TelemetryTimeCode.tsx';
 import { MusicalTimelineControls } from './MusicalTimelineControls.jsx';
-import { SequenceTimingControls } from './SequenceTimingControls.jsx';
 import SnapToolbarControl from './SnapToolbarControl.jsx';
 import ToolbarDockingMenu from '../workspace/ToolbarDockingMenu.tsx';
 import SpectrogramToolControl from './SpectrogramToolControl.jsx';
@@ -83,10 +82,6 @@ export default function EditorToolToolbar({
 	const isToolbarButtonVisible = (buttonId) => toolbarButtons?.[buttonId] !== false;
 	const visibleEditItems = editItems.filter((item) => isToolbarButtonVisible(item.action));
 	const showMusicalTiming = snapshot.preferences?.workspace?.activeId === 'music';
-	const showSequenceTiming = productId === 'framescaper'
-		&& Boolean(capabilities.sequenceTiming)
-		&& snapshot.preferences?.workspace?.activeId === 'video-editor'
-		&& Boolean(project?.sequences?.length);
 	const framescaperCaptureRecordVisible = useFramescaperCaptureRecordVisibility(snapshot);
 	const transportButtonsVisible = transportToolbarButtonsVisible(transportButtons, {
 		capabilities,
@@ -99,7 +94,7 @@ export default function EditorToolToolbar({
 	const toolbarButtonOptions = [
 		{ id: 'play', label: copy.play, icon: 'play' },
 		{ id: 'stop', label: copy.stop, icon: 'stop' },
-		...(capabilities.audioRecording || framescaperCaptureRecordVisible ? [{ id: 'record', label: capabilities.audioRecording ? recordLabel : copy.panelRecordingSetup, icon: 'record' }] : []),
+		...(capabilities.audioRecording || framescaperCaptureRecordVisible ? [{ id: 'record', label: capabilities.audioRecording ? recordLabel : copy.record, icon: 'record' }] : []),
 		{ id: 'jump-start', label: copy.jumpStart, icon: 'skip-back' },
 		{ id: 'jump-end', label: copy.jumpEnd, icon: 'skip-forward' },
 		{ id: 'loop', label: copy.loop, icon: 'loop' },
@@ -242,13 +237,6 @@ export default function EditorToolToolbar({
 					run={run}
 				/>}
 				{showMusicalTiming && <MusicalTimelineControls
-					project={project}
-					snapshot={snapshot}
-					controller={controller}
-					copy={copy}
-					run={run}
-				/>}
-				{showSequenceTiming && <SequenceTimingControls
 					project={project}
 					snapshot={snapshot}
 					controller={controller}

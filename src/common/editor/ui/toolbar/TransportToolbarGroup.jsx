@@ -6,6 +6,7 @@ import { ToolbarButtonGroup } from '@soundscaper/design-system/Toolbar';
 import { TransportButton } from '@soundscaper/design-system/TransportButton';
 
 import AudioEditorSplitButton from '../AudioEditorSplitButton.tsx';
+import { SequenceTimingControls } from './SequenceTimingControls.jsx';
 import { formatOptionsLabel } from '../localization-template.ts';
 import {
 	AccessibleTransportButton,
@@ -128,6 +129,9 @@ export default function TransportToolbarGroup({
 				run={run}
 			/>}
 			{wants('jump-start') && <TransportButton icon="skip-back" ariaLabel={copy.jumpStart} disabled={blocked} onClick={onJumpToStart} />}
+			{snapshot.productId === 'framescaper' && capabilities.sequenceTiming && project?.sequences?.length > 0
+				&& buttons.includes('jump-start') && <SequenceTimingControls
+					project={project} snapshot={snapshot} controller={controller} copy={copy} run={run} blocked={blocked} />}
 			{wants('jump-end') && <TransportButton icon="skip-forward" ariaLabel={copy.jumpEnd} disabled={blocked} onClick={onJumpToEnd} />}
 			{wants('loop') && <AccessibleTransportButton
 				icon="loop"
