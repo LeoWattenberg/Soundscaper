@@ -3,6 +3,8 @@
 import type { createFramescaperCaptureSetupActions as CreateCaptureSetupActions }
 	from '../common/editor/framescaper-capture-setup-actions.ts';
 
+export type { FramescaperCaptureSetupOptions } from '../common/editor/framescaper-capture-setup-actions.ts';
+
 export const createFramescaperCaptureSetupActions: typeof CreateCaptureSetupActions = () => {
 	throw new Error('Capture setup is unavailable in Soundscaper desktop.');
 };
