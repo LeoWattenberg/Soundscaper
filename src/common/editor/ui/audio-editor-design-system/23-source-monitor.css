@@ -94,3 +94,11 @@
 .kw-audio-editor__source-monitor > :not(.kw-audio-editor__source-monitor-picture) {
 	margin-inline: 10px;
 }
+
+@media (forced-colors: active) {
+	.kw-audio-editor__source-monitor[data-source-monitor='empty'] .kw-audio-editor__panel-empty {
+		forced-color-adjust: none;
+		color: CanvasText;
+		background: Canvas;
+	}
+}

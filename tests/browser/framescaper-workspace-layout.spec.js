@@ -24,10 +24,14 @@ test('Framescaper monitors start at 16:9 and the top separator resizes and persi
 		}).toBeCloseTo(16 / 9, 1);
 		expect((await requiredBounds(monitor)).height).toBeGreaterThan(200);
 	}
-	const emptyMonitorContrast = await new AxeBuilder({ page })
-		.include('[data-source-monitor="empty"]')
-		.withRules(['color-contrast']).analyze();
-	expect(emptyMonitorContrast.violations).toEqual([]);
+	for (const forcedColors of [null, 'active']) {
+		await page.emulateMedia({ forcedColors });
+		const emptyMonitorContrast = await new AxeBuilder({ page })
+			.include('[data-source-monitor="empty"]')
+			.withRules(['color-contrast']).analyze();
+		expect(emptyMonitorContrast.violations).toEqual([]);
+	}
+	await page.emulateMedia({ forcedColors: null });
 	const initial = await requiredBounds(dock);
 	const separator = dock.locator('[data-workspace-dock-resize-handle="top"]');
 	await separator.press('ArrowUp');
