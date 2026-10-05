@@ -84,6 +84,16 @@ test('resolved export ranges keep their bounds and refuse malformed objects', ()
 	}
 });
 
+test('clip splitting survives settings normalization and retains a resolved range', () => {
+	const value = normalizeEditorExportSettings({
+		mode: 'clips', range: { startFrame: 12_000, endFrame: 24_000 }, format: 'flac',
+	}, 48_000);
+	assert.equal(value.mode, 'clips');
+	assert.deepEqual(value.range, { startFrame: 12_000, endFrame: 24_000 });
+	assert.equal(value.format, 'flac');
+	assert.equal(normalizeEditorExportSettings({ mode: 'clips', format: 'bw64' }, 48_000).mode, 'mix');
+});
+
 test('BW64 export is mix-only and carries broadcast and ADM metadata', () => {
 	const bext = { description: 'Immersive master' };
 	const adm = { mode: 'authored' };

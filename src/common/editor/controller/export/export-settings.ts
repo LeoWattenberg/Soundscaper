@@ -30,7 +30,7 @@ export interface EditorExportFrameRange {
 }
 
 export interface EditorExportSettings {
-	readonly mode: 'mix' | 'stems' | 'chapters';
+	readonly mode: 'mix' | 'stems' | 'chapters' | 'clips';
 	/** What a chapter split cuts on; meaningful only when the mode is chapters. */
 	readonly chapterSource: 'labels' | 'markers';
 	readonly range: 'project' | 'selection' | 'loop' | EditorExportFrameRange;
@@ -83,7 +83,7 @@ export function normalizeEditorExportSettings(
 	const quality = numberOrDefault(value.quality, 5);
 	const compressionLevel = numberOrDefault(value.compressionLevel, format === 'flac' ? 5 : 2);
 	return Object.freeze({
-		mode: format === 'bw64' || (value.mode !== 'stems' && value.mode !== 'chapters')
+		mode: format === 'bw64' || (value.mode !== 'stems' && value.mode !== 'chapters' && value.mode !== 'clips')
 			? 'mix'
 			: value.mode,
 		chapterSource: value.chapterSource === 'markers' ? 'markers' : 'labels',

@@ -48,6 +48,7 @@ test('a project with labels and no markers is offered the label split alone', as
 			await fixture.outputOptionLabels(),
 			[
 				ENGLISH_COPY.entireProject, ENGLISH_COPY.exportOutputStems,
+				ENGLISH_COPY.exportOutputClips,
 				ENGLISH_COPY.exportOutputLoop, ENGLISH_COPY.exportOutputChapters,
 			],
 			'the label track has a label and the timeline has no marker, so only the label split is deliverable',
@@ -62,8 +63,8 @@ test('a project with no labels is not offered a chapter split', async () => {
 	try {
 		assert.deepEqual(
 			await fixture.outputOptionLabels(),
-			[ENGLISH_COPY.entireProject, ENGLISH_COPY.exportOutputStems, ENGLISH_COPY.exportOutputLoop],
-			'the loop is enabled and there is no selection, so only those three are deliverable',
+			[ENGLISH_COPY.entireProject, ENGLISH_COPY.exportOutputStems, ENGLISH_COPY.exportOutputClips, ENGLISH_COPY.exportOutputLoop],
+			'the loop is enabled and there is no selection, so only those four are deliverable',
 		);
 	} finally {
 		await fixture.unmount();
@@ -115,6 +116,41 @@ test('the channel choice is radio buttons, and only a custom one opens the mappi
 
 		await fixture.chooseChannels('custom');
 		assert.equal(fixture.editMappingButton().hasAttribute('disabled'), false);
+	} finally {
+		await fixture.unmount();
+	}
+});
+
+for (const productId of ['soundscaper', 'framescaper']) {
+	test(`${productId} delivers clips from the existing export output choice`, async () => {
+		const fixture = await mountedExportDialog({ productId, video: productId === 'framescaper' });
+		try {
+			await fixture.chooseField('loudnessNormalization', ENGLISH_COPY.loudnessNormalizationR128);
+			await fixture.chooseOutput(ENGLISH_COPY.exportOutputClips);
+			assert.deepEqual(fixture.sectionFields()[ENGLISH_COPY.renderingSection], ['dither']);
+			await fixture.startExport();
+			assert.equal(fixture.requests[0]?.mode, 'clips');
+			assert.equal(fixture.requests[0]?.range, 'project');
+			assert.equal(fixture.requests[0]?.includeTail, false);
+			assert.equal(Object.hasOwn(fixture.requests[0] ?? {}, 'loudnessNormalization'), false);
+			if (productId === 'framescaper') {
+				await fixture.chooseFormat(ENGLISH_COPY.videoExportMp4);
+				assert.equal((await fixture.outputOptionLabels()).includes(ENGLISH_COPY.exportOutputClips), false);
+			}
+		} finally {
+			await fixture.unmount();
+		}
+	});
+}
+
+test('removing the last audio clip retires a clips choice even when video remains', async () => {
+	const fixture = await mountedExportDialog({ video: true });
+	try {
+		await fixture.chooseOutput(ENGLISH_COPY.exportOutputClips);
+		await fixture.removeAudioClips();
+		await fixture.startExport();
+		assert.equal(fixture.requests[0]?.mode, 'mix');
+		assert.equal((await fixture.outputOptionLabels()).includes(ENGLISH_COPY.exportOutputClips), false);
 	} finally {
 		await fixture.unmount();
 	}
@@ -202,6 +238,7 @@ test('reopening the dialog does not restart its previous download', async () => 
 });
 
 interface ExportDialogFixtureOptions {
+	readonly productId?: string;
 	readonly labels?: readonly Readonly<Record<string, unknown>>[];
 	readonly masteringSequences?: readonly Readonly<Record<string, unknown>>[];
 	readonly output?: Readonly<Record<string, unknown>>;
@@ -291,7 +328,7 @@ async function mountedExportDialog(options: ExportDialogFixtureOptions = {}) {
 	const requests: Readonly<Record<string, unknown>>[] = [];
 	const { createRoot } = await import('react-dom/client');
 	const root = createRoot(dom.container as unknown as Element);
-	const project = exportProject(options.labels ?? [
+	let project = exportProject(options.labels ?? [
 		{ id: 'one', title: 'Intro', startFrame: 0, endFrame: SAMPLE_RATE },
 	], options.video === true);
 	const render = async (output: Readonly<Record<string, unknown>> | null = null) => {
@@ -311,7 +348,7 @@ async function mountedExportDialog(options: ExportDialogFixtureOptions = {}) {
 				project,
 			}}
 			copy={ENGLISH_COPY}
-			productId="soundscaper"
+			productId={options.productId ?? 'soundscaper'}
 			fileService={{ isDesktop: false }}
 			onClose={() => undefined}
 		/>));
@@ -342,6 +379,10 @@ async function mountedExportDialog(options: ExportDialogFixtureOptions = {}) {
 			dom.restore();
 		},
 		publish: (output: Readonly<Record<string, unknown>>) => render(output),
+		async removeAudioClips() {
+			project = { ...project, clips: project.clips.filter(({ kind }) => kind !== 'audio') };
+			await render();
+		},
 		async outputOptionLabels() {
 			const options = await outputDropdownOptions();
 			const labels = options.map((option) => option.textContent);
@@ -421,7 +462,10 @@ function exportProject(labels: readonly Readonly<Record<string, unknown>>[], vid
 		sampleRate: SAMPLE_RATE,
 		masterChannels: 2,
 		metadata: {},
-		clips: [{ id: 'clip', kind: 'audio' }, ...(video ? [{ id: 'video-clip', kind: 'video' }] : [])],
+		clips: [
+			{ id: 'clip', kind: 'audio', timelineStartFrame: 0, durationFrames: SAMPLE_RATE, sourceStartFrame: 0 },
+			...(video ? [{ id: 'video-clip', kind: 'video', timelineStartFrame: 0, durationFrames: SAMPLE_RATE, sourceStartFrame: 0 }] : []),
+		],
 		tracks: [
 			{ id: 'track', type: 'audio', clipIds: ['clip'] },
 			{ id: 'labels', type: 'label', labels },

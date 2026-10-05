@@ -42,6 +42,13 @@ export function admitAudioExportDelivery(
 	const canonicalProject = getProject();
 	const delivery = projectForAudioRenderedFallbackExport(canonicalProject, playbackProjects);
 	const settings = normalizeExportSettings(requestedSettings || {});
+	// A frozen lane is delivered as one rendered track. Its original overlapping
+	// clips cannot be separated again from that render.
+	if (settings.mode === 'clips' && canonicalProject.tracks.some(
+		(track: Readonly<Record<string, unknown>>) => track.audioFreeze != null,
+	)) {
+		throw new RangeError('Unfreeze audio tracks before exporting individual clips.');
+	}
 	assertAudioRenderedFallbackExportSettings(delivery, settings);
 	const deliveredProject = projectTrackFolderMediaStateV12(delivery.project);
 	return Object.freeze({

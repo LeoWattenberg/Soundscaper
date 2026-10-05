@@ -110,6 +110,26 @@ test('browser codec channel projection recognizes custom mappings without admitt
 	}, false, 6).channelMapping, 'custom');
 });
 
+test('browser compressed clip delivery maps each preserved clip to the supported stereo layout', () => {
+	for (const format of ['mp3', 'ogg-vorbis', 'opus', 'mp2']) {
+		assert.equal(normalizeExportDialogAudioSettings({
+			mode: 'clips', format, channelMapping: 'preserve', sampleRate: '48000',
+		}, false, 1).channelMapping, 'stereo', format);
+	}
+});
+
+test('clip codec queries clear stale mix rendering controls on browser and desktop', () => {
+	for (const desktop of [false, true]) {
+		const settings = normalizeExportDialogAudioSettings({
+			mode: 'clips', format: 'wav', channelMapping: 'preserve',
+			binaural: true, loudnessNormalization: 'ebu-r128',
+		}, desktop, 6);
+		assert.equal(settings.binaural, false);
+		assert.equal(settings.loudnessNormalization, '');
+		assert.equal(exportDialogOutputChannelCount(settings, 6), 6);
+	}
+});
+
 test('dedicated browser formats make unsupported metadata explicit and omit its tags', () => {
 	const metadata = Object.freeze({ title: 'No hidden tags' });
 	for (const format of ['flac', 'mp3', 'ogg-vorbis', 'opus', 'wavpack', 'mp2']) {
