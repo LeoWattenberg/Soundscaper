@@ -19,7 +19,7 @@ import {
 } from '../framescaper-capture-ui-model.ts';
 import type { WebVcrUiSnapshot } from '../web-vcr-ui-model.ts';
 import { FramescaperCaptureSources } from './FramescaperCaptureSources.tsx';
-import type { FramescaperCaptureSetupOptions } from '../../controller/capture/framescaper-capture-setup-actions.ts';
+import type { FramescaperCaptureSetupOptions } from '../../framescaper-capture-setup-actions.ts';
 
 interface CaptureActions {
 	openSetup?(options?: FramescaperCaptureSetupOptions): unknown;

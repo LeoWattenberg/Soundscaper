@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createFramescaperCaptureSetupActions } from '../src/common/editor/controller/capture/framescaper-capture-setup-actions.ts';
+import { createFramescaperCaptureSetupActions } from '../src/common/editor/framescaper-capture-setup-actions.ts';
 
 test('flyout setup loads capture without opening its dock or requesting source permissions', () => {
 	const calls: string[] = [];

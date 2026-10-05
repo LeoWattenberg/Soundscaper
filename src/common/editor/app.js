@@ -1,6 +1,6 @@
 // @ts-check
 import { createCaptureComposition } from './controller/capture/capture-composition.ts'; import { setLocalizedStatus } from '../i18n/presentation-message.ts';
-import { createFramescaperCaptureSetupActions } from './controller/capture/framescaper-capture-setup-actions.ts';
+import { createFramescaperCaptureSetupActions } from './framescaper-capture-setup-actions.ts';
 import { startController } from './controller/composition/controller-startup.ts';
 import { createControllerResources } from './controller/composition/controller-resources.ts';
 import { bindSessionHistoryAdmission } from './controller/document/session-history-admission.ts'; import { createControllerDocumentScope } from './controller/document/controller-document-scope.ts';

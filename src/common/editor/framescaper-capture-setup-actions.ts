@@ -2,7 +2,7 @@
 
 export interface FramescaperCaptureSetupOptions { readonly showPanel?: boolean }
 
-/** Setup surfaces share runtime initialization while choosing whether to open its dock. */
+/** UI setup surfaces share runtime initialization while choosing whether to open its dock. */
 export function createFramescaperCaptureSetupActions<Actions extends Readonly<{ openSetup(): unknown }>>(
 	actions: Actions,
 	setPanelVisibility: (panelId: string, visible: boolean) => Promise<unknown>,
