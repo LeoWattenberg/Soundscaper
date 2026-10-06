@@ -65,7 +65,9 @@ void test('drag overlays add offscreen clips entering the window and remove clip
 			draggingClipIds: emptySet, copy: {}, run: (operation: () => unknown) => operation(),
 			blocked: false, automationToolEnabled: false,
 		});
-		visible.push(model.projection.clips.map((clip: { id: string }) => clip.id));
+		visible.push(model.projection.clips.map(clip => {
+			assert.ok('id' in clip && typeof clip.id === 'string'); return clip.id;
+		}));
 		if (stage < 2) setStage(stage + 1);
 		return null;
 	}

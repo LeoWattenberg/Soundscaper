@@ -24,7 +24,7 @@ export function TimelineRulerCanvas({
 	pixelsPerSecond,
 	project,
 	rulerScale,
-	mappedTicks,
+	mappedTicks = null,
 	run,
 	sampleRate,
 	timeSelection,
