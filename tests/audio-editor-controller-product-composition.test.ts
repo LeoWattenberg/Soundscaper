@@ -13,7 +13,7 @@ import test from 'node:test';
 /** Module path under src/common/editor → the factory export the composition calls from it. */
 const GATED_FACTORIES = Object.freeze({
 	'controller/analysis/internal/deferred-analysis-service.ts': 'createDeferredAudioAnalysisService',
-	'controller/effects/internal/selection-effect-worker-service.ts': 'createSelectionEffectWorkerService',
+	'controller/effects/internal/bounded-selection-effect-workers.ts': 'createBoundedSelectionEffectWorkerService',
 	'controller/effects/internal/nyquist/nyquist-host-service.ts': 'createNyquistHostService',
 	'controller/effects/internal/nyquist/nyquist-generated-audio-service.ts': 'createNyquistGeneratedAudioService',
 	'controller/effects/internal/macro/effect-macro-service.ts': 'createEffectMacroService',
