@@ -10,6 +10,7 @@
  * silences reuse the primitives their unlabelled counterparts already use.
  */
 
+import { planLabeledAudioJoinRuns } from '../../../labeled-audio-join-plan.ts';
 import { createLocalizedError } from '../../../../i18n/presentation-message.ts'; import {
 	labeledAudioSpanRegions,
 	selectLabeledAudioTargets,
@@ -149,40 +150,11 @@ export function createLabeledAudioEditService(runtime: LabeledAudioEditRuntime):
 		for (const trackId of targets.trackIds) {
 			const track = project.tracks.find((candidate: { id: string }) => candidate.id === trackId);
 			if (!Array.isArray(track?.clipIds)) continue;
-			for (const region of targets.regions) {
-				const clips = track.clipIds
-					.map((clipId: string) => findClip(project, clipId))
-					.filter(Boolean)
-					.filter((clip: { timelineStartFrame: number; durationFrames: number }) => (
-						clip.timelineStartFrame <= region.endFrame + 1
-						&& clip.timelineStartFrame + clip.durationFrames >= region.startFrame - 1
-					))
-					.sort((left: { timelineStartFrame: number }, right: { timelineStartFrame: number }) => (
-						left.timelineStartFrame - right.timelineStartFrame
-					));
-				for (const run of adjacentRuns(clips)) commands.push({ type: 'clip/join', clipIds: run });
-			}
+			commands.push(...planLabeledAudioJoinRuns(track.clipIds, targets.regions,
+				(clipId) => findClip(project, clipId)));
 		}
 		if (commands.length === 0) return undefined;
 		return commit(commands.length === 1 ? commands[0] : { type: 'batch', commands });
 	}
 
-	/** Group ordered clips into the maximal runs that already touch end to start. */
-	function adjacentRuns(
-		clips: readonly { id: string; timelineStartFrame: number; durationFrames: number }[],
-	): readonly (readonly string[])[] {
-		const runs: string[][] = [];
-		let current: string[] = [];
-		let previousEndFrame: number | null = null;
-		for (const clip of clips) {
-			if (previousEndFrame !== null && clip.timelineStartFrame === previousEndFrame) current.push(clip.id);
-			else {
-				if (current.length > 1) runs.push(current);
-				current = [clip.id];
-			}
-			previousEndFrame = clip.timelineStartFrame + clip.durationFrames;
-		}
-		if (current.length > 1) runs.push(current);
-		return runs;
-	}
 }
