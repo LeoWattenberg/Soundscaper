@@ -69,6 +69,51 @@ export function createPlanarPcmChunkCoalescer(options = {}) {
 		throwIfAborted();
 	}
 
+	async function writePacket(inputChannels, owned) {
+		if (state !== 'open') throw closedError();
+		if (writeActive) throw new Error('A PCM packet write is already in progress; await it before writing again.');
+		throwIfAborted();
+		const channels = validatePlanarPcmPacket(inputChannels, channelCount);
+		if (channelCount === null) channelCount = channels.length;
+		const inputFrames = channels[0].length;
+		if (!inputFrames) return;
+		writeActive = true;
+		try {
+			if (owned && pendingFrames === 0 && inputFrames === chunkFrames) {
+				framesWritten += inputFrames;
+				await emit(channels, false);
+				return;
+			}
+			let inputOffset = 0;
+			while (inputOffset < inputFrames) {
+				throwIfAborted();
+				if (!pendingChannels) {
+					pendingChannels = Array.from({ length: channelCount }, () => new Float32Array(chunkFrames));
+				}
+				const copiedFrames = Math.min(inputFrames - inputOffset, chunkFrames - pendingFrames);
+				for (let channel = 0; channel < channelCount; channel += 1) {
+					pendingChannels[channel].set(
+						channels[channel].subarray(inputOffset, inputOffset + copiedFrames),
+						pendingFrames,
+					);
+				}
+				inputOffset += copiedFrames;
+				pendingFrames += copiedFrames;
+				framesWritten += copiedFrames;
+				if (pendingFrames !== chunkFrames) continue;
+				const output = pendingChannels;
+				pendingChannels = null;
+				pendingFrames = 0;
+				await emit(output, false);
+			}
+		} catch (error) {
+			if (state === 'open') fail(error);
+			throw error;
+		} finally {
+			writeActive = false;
+		}
+	}
+
 	const coalescer = {
 		get chunkFrames() { return chunkFrames; },
 		get channelCount() { return channelCount; },
@@ -77,45 +122,9 @@ export function createPlanarPcmChunkCoalescer(options = {}) {
 		get pendingFrames() { return pendingFrames; },
 		get closed() { return state !== 'open'; },
 		get state() { return state; },
-		async write(inputChannels) {
-			if (state !== 'open') throw closedError();
-			if (writeActive) throw new Error('A PCM packet write is already in progress; await it before writing again.');
-			throwIfAborted();
-			const channels = validatePlanarPcmPacket(inputChannels, channelCount);
-			if (channelCount === null) channelCount = channels.length;
-			const inputFrames = channels[0].length;
-			if (!inputFrames) return;
-			writeActive = true;
-			try {
-				let inputOffset = 0;
-				while (inputOffset < inputFrames) {
-					throwIfAborted();
-					if (!pendingChannels) {
-						pendingChannels = Array.from({ length: channelCount }, () => new Float32Array(chunkFrames));
-					}
-					const copiedFrames = Math.min(inputFrames - inputOffset, chunkFrames - pendingFrames);
-					for (let channel = 0; channel < channelCount; channel += 1) {
-						pendingChannels[channel].set(
-							channels[channel].subarray(inputOffset, inputOffset + copiedFrames),
-							pendingFrames,
-						);
-					}
-					inputOffset += copiedFrames;
-					pendingFrames += copiedFrames;
-					framesWritten += copiedFrames;
-					if (pendingFrames !== chunkFrames) continue;
-					const output = pendingChannels;
-					pendingChannels = null;
-					pendingFrames = 0;
-					await emit(output, false);
-				}
-			} catch (error) {
-				if (state === 'open') fail(error);
-				throw error;
-			} finally {
-				writeActive = false;
-			}
-		},
+		write(inputChannels) { return writePacket(inputChannels, false); },
+		/** Transfer private packet ownership; the producer must not retain or mutate its samples. */
+		writeOwned(inputChannels) { return writePacket(inputChannels, true); },
 		finalize() {
 			if (state === 'finalized') return Promise.resolve(finalizedResult);
 			if (finalizePromise) return finalizePromise;

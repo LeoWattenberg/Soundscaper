@@ -31,6 +31,7 @@ interface AudioCopy {
 export interface WritablePcmSource<Metadata = unknown, AbortResult = unknown> {
 	readonly framesWritten?: unknown;
 	write(channels: Float32Array[]): Promise<unknown> | unknown;
+	writeOwned?(channels: Float32Array[]): Promise<unknown> | unknown;
 	commit(metadata?: Record<string, unknown>): Promise<Metadata> | Metadata;
 	abort(reason?: unknown): AbortResult;
 }
@@ -94,14 +95,14 @@ interface AudacityNoiseProfile extends Record<string, unknown> {
 }
 
 export async function writeBuffer(
-	writer: Pick<WritablePcmSource, 'write'>,
+	writer: Pick<WritablePcmSource, 'write' | 'writeOwned'>,
 	buffer: AudioBufferLike,
 	signal: AbortSignal | null = null,
 ): Promise<void> {
 	for (let start = 0; start < buffer.length; start += SOURCE_CHUNK_FRAMES) {
 		throwIfAborted(signal);
 		const end = Math.min(buffer.length, start + SOURCE_CHUNK_FRAMES);
-		await writer.write(Array.from(
+		await (writer.writeOwned ?? writer.write).call(writer, Array.from(
 			{ length: buffer.numberOfChannels },
 			(_, channel) => buffer.getChannelData(channel).slice(start, end),
 		));
@@ -130,6 +131,9 @@ export function createCoalescingSourceWriter<Metadata = unknown, AbortResult = u
 		},
 		write(channels: Float32Array[]): Promise<unknown> {
 			return coalescer.write(channels);
+		},
+		writeOwned(channels: Float32Array[]): Promise<unknown> {
+			return coalescer.writeOwned(channels);
 		},
 		commit(metadata: Record<string, unknown> = {}): Promise<Metadata> {
 			const pending = commitPromise ||= coalescer.finalize()
