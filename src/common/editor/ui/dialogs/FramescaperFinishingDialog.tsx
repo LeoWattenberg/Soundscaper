@@ -15,7 +15,6 @@ import {
 	MotionAnalysisControls,
 	record,
 	records,
-	sequenceIds,
 	targetToken,
 	text,
 } from './FramescaperFinishingPanels.tsx';
@@ -43,6 +42,7 @@ import {
 	type FramescaperMotionAnalysisProgress,
 } from '../../../../framescaper/editor-motion-analysis-actions-finishing.ts';
 import { framescaperCubeLutActionsFor } from '../../../../framescaper/editor-cube-lut-actions-finishing.ts';
+import { useCaptionTrackFields } from './useCaptionTrackFields.ts';
 
 interface FramescaperFinishingControllerPort {
 	readonly actions: Readonly<{
@@ -75,10 +75,8 @@ export default function FramescaperFinishingDialog({
 	const [status, setStatus] = usePresentationFeedback(copy, FRAMESCAPER_FINISHING_ADDITIONAL_COPY, 'framescaperFinishing');
 	const [error, setError] = usePresentationFeedback(copy, FRAMESCAPER_FINISHING_ADDITIONAL_COPY, 'framescaperFinishing');
 	const [captionFormat, setCaptionFormat] = useState<VideoCaptionInterchangeFormatV1>('srt');
-	const [captionTrackId, setCaptionTrackId] = useState(() => firstCaptionTrackId(project) ?? 'captions-1');
-	const [captionSequenceId, setCaptionSequenceId] = useState(() => primarySequenceId(project));
-	const [captionTrackName, setCaptionTrackName] = useState('Captions');
-	const [captionLanguage, setCaptionLanguage] = useState('und');
+	const { captionTrackId, setCaptionTrackId, captionSequenceId, setCaptionSequenceId,
+		captionTrackName, setCaptionTrackName, captionLanguage, setCaptionLanguage } = useCaptionTrackFields(project);
 	const [captionSidecar, setCaptionSidecar] = useState('');
 	const [profiledNoiseReduction, setProfiledNoiseReduction] = useState(false);
 	const [noiseProfileText, setNoiseProfileText] = useState('');
@@ -383,18 +381,6 @@ function processorStacks(value: unknown): Array<Record<string, unknown>> {
 
 function motionAnalyses(value: unknown): Array<Record<string, unknown>> {
 	return records(record(value).videoMotionAnalyses);
-}
-
-function firstCaptionTrackId(value: unknown): string | null {
-	const id = captionTracks(value)[0]?.id;
-	return typeof id === 'string' ? id : null;
-}
-
-function primarySequenceId(value: unknown): string {
-	const project = record(value);
-	return typeof project.primarySequenceId === 'string'
-		? project.primarySequenceId
-		: sequenceIds(value)[0] ?? '';
 }
 
 function lossSummary(count: number): Exclude<PresentationFeedback, string | { failure: unknown }> {

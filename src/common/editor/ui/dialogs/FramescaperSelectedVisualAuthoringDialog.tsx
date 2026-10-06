@@ -19,6 +19,7 @@ import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-worksp
 import { SELECTED_VISUAL_AUTHORING_COPY } from '../../../i18n/editor-selected-visual-authoring-copy.ts';
 import { resolveEditorCopyScope } from '../../../i18n/editor-copy-scope.ts';
 import { publishedCopyFor } from '../../controller/shared/presentation-localization.ts';
+import { useAvailableAuthoringPreset } from './useAvailableAuthoringPreset.ts';
 
 interface Props {
 	readonly copy?: Readonly<Record<string, string>>;
@@ -49,8 +50,8 @@ export default function FramescaperSelectedVisualAuthoringDialog(props: Props) {
 	const [shape, setShape] = useState<'rectangle' | 'ellipse' | 'line'>(savedMask?.shape ?? 'rectangle');
 	const [maskWidth, setMaskWidth] = useState(String(savedMask?.width ?? 0.75));
 	const [maskHeight, setMaskHeight] = useState(String(savedMask?.height ?? 0.75));
-	const [visualPresetId, setVisualPresetId] = useState(model.visualPresets[0]?.id ?? '');
-	const [finishingPresetId, setFinishingPresetId] = useState(model.finishingPresets[0]?.id ?? '');
+	const [visualPresetId, setVisualPresetId] = useAvailableAuthoringPreset(model.visualPresets);
+	const [finishingPresetId, setFinishingPresetId] = useAvailableAuthoringPreset(model.finishingPresets);
 	const [presetName, setPresetName] = useState(() => publishedCopyFor(props.copy ?? {})['ui.selectedVisualAuthoring.presetDefaultName'] || SELECTED_VISUAL_AUTHORING_COPY.presetDefaultName);
 	const [freezeDuration, setFreezeDuration] = useState(24);
 	const [pending, setPending] = useState(false);
@@ -67,10 +68,6 @@ export default function FramescaperSelectedVisualAuthoringDialog(props: Props) {
 		setBrightness(String(model.adjustmentBrightness));
 		setAdjustmentLayerId(model.adjustmentLayerId);
 		setMaskId(model.selectedMaskId ?? '');
-		setVisualPresetId((current) => model.visualPresets.some(({ id }) => id === current)
-			? current : model.visualPresets[0]?.id ?? '');
-		setFinishingPresetId((current) => model.finishingPresets.some(({ id }) => id === current)
-			? current : model.finishingPresets[0]?.id ?? '');
 		// Keyed on what is actually reseeded, not on the model object: the model is
 		// rebuilt whenever the playhead moves, and only the freeze surface reads the
 		// playhead, so keying on the object discarded whatever the operator had

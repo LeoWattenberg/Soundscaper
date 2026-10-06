@@ -7,6 +7,7 @@ import { workspacePanelAvailable } from './workspace-product-panel-runtime.ts';
 import { workspaceSideDockAllowsWidePanels, workspaceSideDockColumns } from './workspace-side-dock-width.ts';
 import WorkspacePanelGroup from './WorkspacePanelGroup.jsx';
 import { useFloatingWorkspacePanelMove } from './useFloatingWorkspacePanelMove.ts';
+import { retainWorkspacePanelResizeLifecycle } from './workspace-panel-resize-lifecycle.ts';
 import {
 	ANALYZER_PANEL_ID_SET,
 	FLOATING_PANEL_MIN_HEIGHT,
@@ -169,7 +170,7 @@ export default function WorkspacePanelDock({
 		};
 		const cancelResize = (event) => {
 			const session = resizeSessionRef.current;
-			if (session?.pointerId !== undefined && event?.pointerId !== session.pointerId) return;
+			if (event && session?.pointerId !== undefined && event.pointerId !== session.pointerId) return;
 			resizeSessionRef.current = null;
 			if (session?.initialWide !== undefined) session.element.dataset.workspaceDockWide = session.initialWide;
 			if (session?.manual && dock === 'floating' && session.element) {
@@ -177,16 +178,10 @@ export default function WorkspacePanelDock({
 				session.element.style.height = `${session.initialHeight}px`;
 			} else if (session?.manual && session.sizeProperty) session.element?.style.removeProperty(session.sizeProperty);
 		};
-		window.addEventListener('pointermove', resize, { passive: false });
-		window.addEventListener('pointerup', finishResize);
-		window.addEventListener('mouseup', finishResize);
-		window.addEventListener('pointercancel', cancelResize);
-		return () => {
-			window.removeEventListener('pointermove', resize);
-			window.removeEventListener('pointerup', finishResize);
-			window.removeEventListener('mouseup', finishResize);
-			window.removeEventListener('pointercancel', cancelResize);
-		};
+		return retainWorkspacePanelResizeLifecycle(window, {
+			active: () => resizeSessionRef.current !== null,
+			resize, finish: finishResize, cancel: cancelResize,
+		});
 	}, [controller, dock, run]);
 	const beginFloatingMove = useFloatingWorkspacePanelMove({ dock, dockRef, resizeSessionRef,
 		controller, run, setActiveFloatingPanelId, onPanelDragStart, onPanelDragEnd, onPanelMove });
