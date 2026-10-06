@@ -9,6 +9,7 @@ import { AudacityWaveformCanvases } from '../src/common/editor/ui/timeline/Timel
 import { resolveSkinTheme } from '../src/common/editor/ui/skins/skin-themes.ts';
 import type { FrequencyWaveformProjection } from '../src/common/editor/ui/timeline/frequency-waveform-projection.ts';
 import { installReactTestDom } from './helpers/react-test-dom.ts';
+import { createTestAnimationFrames } from './helpers/animation-frame-driver.ts';
 
 type DisplayMode = 'waveform' | 'waveform-three-band' | 'waveform-rainbow';
 type Point = readonly [number, number];
@@ -89,9 +90,10 @@ async function createFixture(mode: DisplayMode, theme: 'light' | 'dark') {
 			getPropertyValue: (name: string) => name.includes('divider') ? '#888' : '',
 		}) },
 	});
+	const frames = createTestAnimationFrames();
 	Object.assign(window, {
-		requestAnimationFrame: globalThis.requestAnimationFrame,
-		cancelAnimationFrame: globalThis.cancelAnimationFrame,
+		requestAnimationFrame: frames.request,
+		cancelAnimationFrame: frames.cancel,
 		devicePixelRatio: theme === 'light' ? 1 : 2,
 	});
 	let liveWidth = 96;
@@ -136,6 +138,7 @@ async function createFixture(mode: DisplayMode, theme: 'light' | 'dark') {
 			if (mode !== 'waveform') {
 				await act(async () => { await import('../src/common/editor/ui/timeline/frequency-waveform-renderer.ts'); });
 			}
+			await act(async () => frames.flush());
 		},
 		assertFilledWithoutContours(stage: string) {
 			assert.equal(canvas.dataset.waveformError, undefined, stage);

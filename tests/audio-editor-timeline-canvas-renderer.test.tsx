@@ -8,6 +8,7 @@ import { ThemeProvider } from '@soundscaper/design-system/ThemeProvider';
 import { AudacityWaveformCanvases } from '../src/common/editor/ui/timeline/TimelineCanvasRenderer.jsx';
 import { resolveSkinTheme } from '../src/common/editor/ui/skins/skin-themes.ts';
 import { installReactTestDom } from './helpers/react-test-dom.ts';
+import { createTestAnimationFrames } from './helpers/animation-frame-driver.ts';
 
 test('scale changes repaint cached waveforms and pending zoom aligns changed viewport ranges', async () => {
 	const dom = installReactTestDom();
@@ -21,9 +22,10 @@ test('scale changes repaint cached waveforms and pending zoom aligns changed vie
 		configurable: true,
 		value: () => ({ getPropertyValue: () => '' }),
 	});
+	const frames = createTestAnimationFrames();
 	Object.assign(globalThis.window, {
-		requestAnimationFrame: globalThis.requestAnimationFrame,
-		cancelAnimationFrame: globalThis.cancelAnimationFrame,
+		requestAnimationFrame: frames.request,
+		cancelAnimationFrame: frames.cancel,
 		devicePixelRatio: 1,
 	});
 
@@ -128,6 +130,7 @@ test('scale changes repaint cached waveforms and pending zoom aligns changed vie
 		await act(async () => root.render(<ThemeProvider theme={resolveSkinTheme('default', 'light')}>
 			<AudacityWaveformCanvases {...baseProps} clips={clips} pixelsPerSecond={pixelsPerSecond} waveformRulerFormat={waveformRulerFormat} />
 		</ThemeProvider>));
+		await act(async () => frames.flush());
 	};
 
 	try {

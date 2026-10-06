@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 import { createAnimationFrameCoalescer } from '../src/common/editor/ui/timeline/animation-frame-coalescer.ts';
@@ -42,18 +41,6 @@ test('animation-frame coalescer keeps one pending draw and cancels it on disposa
 	assert.equal(draws, 1);
 	scheduler.schedule();
 	assert.equal(nextId, 3, 'disposed schedulers ignore future notifications');
-});
-
-test('waveform canvas drawing observes only the track root and relies on React for child changes', async () => {
-	const source = await readFile(new URL(
-		'../src/common/editor/ui/timeline/TimelineCanvasRenderer.jsx',
-		import.meta.url,
-	), 'utf8');
-
-	assert.match(source, /resizeObserver\?\.observe\(root\);/u);
-	assert.doesNotMatch(source, /resizeObserver\?\.observe\(canvas\)/u);
-	assert.doesNotMatch(source, /new MutationObserver/u);
-	assert.doesNotMatch(source, /cancelAnimationFrame\(animationFrame\)/u);
 });
 
 test('latest frame tasks collapse inputs and flush the final input before pointer ownership ends', async () => {

@@ -15,6 +15,13 @@ void test('a child acquires its canvas root after host attachment and retains th
 	let nextFrame = 0;
 	const previousRequest = window.requestAnimationFrame;
 	const previousCancel = window.cancelAnimationFrame;
+	const previousObserver = Object.getOwnPropertyDescriptor(globalThis, 'ResizeObserver');
+	const observedRoots: Element[] = [];
+	let disconnects = 0;
+	Object.defineProperty(globalThis, 'ResizeObserver', { configurable: true, value: class {
+		observe(element: Element) { observedRoots.push(element); }
+		disconnect() { disconnects++; }
+	} });
 	window.requestAnimationFrame = callback => { frames.set(++nextFrame, callback); return nextFrame; };
 	window.cancelAnimationFrame = frame => { frames.delete(frame); };
 	const draws: number[] = [];
@@ -36,6 +43,8 @@ void test('a child acquires its canvas root after host attachment and retains th
 		assert.deepEqual(draws, [1], 'the first available root paints immediately');
 		await act(async () => root.render(<Harness value={2} />));
 		await act(async () => root.render(<Harness value={3} />));
+		assert.equal(observedRoots.length, 1, 'only the retained root is observed across child commits');
+		assert.equal(observedRoots[0], dom.container.firstChild);
 		assert.equal(frames.size, 1);
 		await act(async () => { const [frame, callback] = [...frames.entries()][0]!; frames.delete(frame); callback(0); });
 		assert.deepEqual(draws, [1, 3]);
@@ -43,10 +52,13 @@ void test('a child acquires its canvas root after host attachment and retains th
 		assert.equal(frames.size, 1);
 		await act(async () => root.unmount());
 		assert.equal(frames.size, 0, 'unmount cancels the owned pending frame');
+		assert.equal(disconnects, 1, 'unmount disconnects the root observer');
 	} finally {
 		await act(async () => root.unmount());
 		window.requestAnimationFrame = previousRequest;
 		window.cancelAnimationFrame = previousCancel;
+		if (previousObserver) Object.defineProperty(globalThis, 'ResizeObserver', previousObserver);
+		else Reflect.deleteProperty(globalThis, 'ResizeObserver');
 		actGlobal.IS_REACT_ACT_ENVIRONMENT = previousAct;
 		dom.restore();
 	}
