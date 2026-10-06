@@ -12,9 +12,14 @@ import {
 
 export function LabelManagerRow({ label, sampleRate, controller, copy, disabled, run }) {
 	const [title, setTitle] = useState(label.title || '');
+	const blurCommitGuard = useRef(createDraftBlurCommitGuard()).current;
 	useEffect(() => {
 		setTitle(label.title || '');
 	}, [label.title]);
+	const commitTitle = () => {
+		if (!draftBlurShouldCommit(blurCommitGuard)) return;
+		if (title !== label.title) run(() => controller.actions.labels.update(label.trackId, label.id, { title }));
+	};
 	const updateRange = (edge, value) => {
 		const startFrame = edge === 'start' ? value : label.startFrame;
 		const endFrame = edge === 'end' ? value : label.endFrame;
@@ -29,8 +34,15 @@ export function LabelManagerRow({ label, sampleRate, controller, copy, disabled,
 					value={title}
 					disabled={disabled}
 					onChange={(event) => setTitle(event.currentTarget.value)}
-					onBlur={() => {
-						if (title !== label.title) run(() => controller.actions.labels.update(label.trackId, label.id, { title }));
+					onBlur={commitTitle}
+					onKeyDown={(event) => {
+						if (event.key === 'Enter') {
+							event.preventDefault();
+							event.stopPropagation();
+							event.currentTarget.blur();
+						} else if (event.key === 'Escape') {
+							cancelDraftEditOnEscape(blurCommitGuard, event, () => setTitle(label.title || ''));
+						}
 					}}
 				/>
 				<button
