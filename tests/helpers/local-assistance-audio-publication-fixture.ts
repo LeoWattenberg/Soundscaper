@@ -218,4 +218,3 @@ export function harness(currentValue = authority()) {
 		failCommit(error: Error) { commitFailure = error; },
 	};
 }
-

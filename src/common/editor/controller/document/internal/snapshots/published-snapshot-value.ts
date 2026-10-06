@@ -55,4 +55,3 @@ export function materializeSnapshotValue<Value>(
 function rejectSnapshotMutation(): never {
 	throw new TypeError('Published snapshot collections are read-only.');
 }
-

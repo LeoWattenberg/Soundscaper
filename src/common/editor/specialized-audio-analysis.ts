@@ -50,4 +50,3 @@ export function normalizeSpectrumSize(value: unknown): number {
 	const requested = Math.max(32, Math.min(65_536, Math.round(Number(value) || 2_048)));
 	return 2 ** Math.round(Math.log2(requested));
 }
-

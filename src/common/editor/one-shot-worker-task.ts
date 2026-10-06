@@ -58,4 +58,3 @@ export function runOneShotWorkerTask<Result>(
 		catch (error) { settle(() => reject(error)); }
 	});
 }
-
