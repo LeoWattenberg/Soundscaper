@@ -8,4 +8,5 @@ test('direct desktop PCM execution and realtime export keep their semantic lazy 
 	assert.equal(chunkGroupForModulePath('src/common/editor/desktop-audio-pcm-stream.ts'), 'editor-optional-execution');
 	assert.equal(chunkGroupForModulePath('src/common/editor/desktop-audio-pcm-stream-write.ts'), 'editor-optional-execution');
 	assert.equal(chunkGroupForModulePath('src/common/editor/controller/export/internal/audio/realtime-desktop-pcm-export.ts'), 'editor-optional-export');
+	assert.equal(chunkGroupForModulePath('src/common/editor/controller/export/internal/archive/render-conformed-stem.ts'), 'editor-optional-export');
 });
