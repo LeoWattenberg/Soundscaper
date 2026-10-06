@@ -177,6 +177,26 @@ test('generator publishes busy state before dispatching DSP and rejects a stale 
 	assert.equal(fixture.state.audacityEffectProcessing, false);
 });
 
+test('streamed generation admits storage before producing PCM and closes on preflight failure', async () => {
+	let closes = 0;
+	let blocks = 0;
+	const capacityFailure = new Error('Storage capacity');
+	const fixture = createFixture({
+		generateStream: async () => ({
+			type: 'noise', sampleRate: 48_000, frameCount: 10, channelCount: 1,
+			async *chunks() { blocks++; yield [new Float32Array(10)]; },
+			finish: async () => ({ version: 1, channelCount: 1, levels: [] }),
+			close() { closes++; },
+		}),
+		preflightStorage: async () => { throw capacityFailure; },
+	});
+	await assert.rejects(createAudioGeneratorService(fixture.dependencies).generateSignal('noise'), error => error === capacityFailure);
+	assert.equal(blocks, 0);
+	assert.equal(closes, 1);
+	assert.equal(fixture.commits.length, 0);
+	assert.equal(fixture.state.audacityEffectProcessing, false);
+});
+
 test('generator persists audio and commits a prepared range replacement exactly once', async () => {
 	const fixture = createFixture();
 	const service = createAudioGeneratorService(fixture.dependencies);

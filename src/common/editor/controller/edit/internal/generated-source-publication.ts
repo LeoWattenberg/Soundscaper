@@ -3,6 +3,8 @@
 import type { AudioBufferLike } from '../../source/source-audio.ts';
 import { createNonImportedSourceProvenance } from '../../../source-provenance-root.ts';
 import type { AudioGeneratorStore, AudioGeneratorWriter } from '../generator-service.ts';
+import type { GeneratedSignalStream } from '../../../signal-generator-stream-client.ts';
+import { SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES } from '../../../source-pcm-contract.ts';
 
 export type GeneratedAudioSource = Readonly<Record<string, unknown>> & Readonly<{
 	readonly sampleRate: number;
@@ -32,6 +34,7 @@ interface GeneratedAudioSourcePublisherDependencies<Context> {
 		sampleRate: number,
 		context: Context,
 	): Promise<AudioBufferLike>;
+	createEmptyBuffer?(channelCount: number, frames: number, sampleRate: number, context: Context): Promise<AudioBufferLike>;
 	writeBuffer(writer: AudioGeneratorWriter, buffer: AudioBufferLike, signal: AbortSignal): Promise<unknown>;
 	cacheSourceBuffer(sourceId: string, buffer: AudioBufferLike): unknown;
 	generatePeaks(channels: readonly Float32Array[]): Promise<unknown>;
@@ -49,7 +52,8 @@ interface GeneratedAudioSourcePublicationRequest<Prepared, Result> {
 	readonly sampleRate: number;
 	readonly channelCount: number;
 	readonly frameCount: number;
-	readonly channels: readonly Float32Array[];
+	readonly channels?: readonly Float32Array[];
+	readonly stream?: GeneratedSignalStream;
 	readonly ownership: GeneratedAudioSourceOwnership;
 	prepare(source: GeneratedAudioSource): Prepared;
 	accept(source: GeneratedAudioSource, prepared: Prepared): PromiseLike<Result> | Result;
@@ -63,10 +67,21 @@ export async function publishGeneratedAudioSource<Context, Prepared, Result>(
 	let writer: AudioGeneratorWriter | null = null;
 	let sourceId: string | null = null;
 	try {
-		const context = await dependencies.getAudioContext();
-		request.ownership.assertCurrent();
-		const buffer = await dependencies.createBuffer(request.channels, request.sampleRate, context);
-		request.ownership.assertCurrent();
+		let buffer: AudioBufferLike | null = null;
+		if (request.stream) {
+			const bytes = request.frameCount * request.channelCount * Float32Array.BYTES_PER_ELEMENT;
+			if (bytes <= SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES && dependencies.createEmptyBuffer) {
+				const context = await dependencies.getAudioContext(); request.ownership.assertCurrent();
+				buffer = await dependencies.createEmptyBuffer(request.channelCount, request.frameCount, request.sampleRate, context);
+				request.ownership.assertCurrent();
+			}
+		} else {
+			if (!request.channels) throw new TypeError('Generated PCM or a stream is required.');
+			const context = await dependencies.getAudioContext();
+			request.ownership.assertCurrent();
+			buffer = await dependencies.createBuffer(request.channels, request.sampleRate, context);
+			request.ownership.assertCurrent();
+		}
 		sourceId = dependencies.createId('generator');
 		writer = await dependencies.store.beginSourceWrite(sourceId, {
 			name: request.name,
@@ -76,7 +91,21 @@ export async function publishGeneratedAudioSource<Context, Prepared, Result>(
 			chunkFrames: dependencies.sourceChunkFrames,
 		});
 		request.ownership.assertCurrent();
-		await dependencies.writeBuffer(writer, buffer, request.ownership.signal);
+		if (request.stream) {
+			let frames = 0;
+			for await (const channels of request.stream.chunks()) {
+				request.ownership.assertCurrent();
+				if (channels.length !== request.channelCount || channels.some(channel => channel.length !== channels[0]!.length)
+					|| frames + channels[0]!.length > request.frameCount) throw new RangeError('Generated block geometry changed.');
+				if (buffer) channels.forEach((channel, index) => buffer.getChannelData(index).set(channel, frames));
+				await writer.write([...channels]);
+				request.ownership.assertCurrent();
+				frames += channels[0]!.length;
+			}
+			if (frames !== request.frameCount) throw new RangeError('Generated PCM is incomplete.');
+		} else {
+			await dependencies.writeBuffer(writer, buffer!, request.ownership.signal);
+		}
 		request.ownership.assertCurrent();
 		await writer.commit({ sampleRate: request.sampleRate, channelCount: request.channelCount });
 		request.ownership.assertCurrent();
@@ -94,8 +123,8 @@ export async function publishGeneratedAudioSource<Context, Prepared, Result>(
 			provenance: createNonImportedSourceProvenance('generated'),
 		};
 		const prepared = request.prepare(source);
-		dependencies.cacheSourceBuffer(sourceId, buffer);
-		const peaks = await dependencies.generatePeaks(request.channels);
+		if (buffer) dependencies.cacheSourceBuffer(sourceId, buffer);
+		const peaks = request.stream ? await request.stream.finish() : await dependencies.generatePeaks(request.channels!);
 		request.ownership.assertCurrent();
 		dependencies.sourcePeaks.set(sourceId, peaks);
 		await dependencies.store.saveAnalysis(dependencies.peakCacheKey(sourceId), peaks);

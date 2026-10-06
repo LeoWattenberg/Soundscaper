@@ -21,14 +21,14 @@ import { createEditorEditService } from './internal/edit-service.ts';
 import { createAudioGeneratorService, type AudioGeneratorService } from './generator-service.ts';
 import { createLabelService } from './internal/label-service.ts';
 import { bindControllerEditClipboardRuntime, type ControllerRuntimeHistory } from '../document/project-runtime.ts';
-import { bufferFromChannels, writeBuffer } from '../source/source-audio.ts';
+import { bufferFromChannels, createAudioBuffer, writeBuffer } from '../source/source-audio.ts';
 import { generateWaveformPeaks, peakCacheKey } from '../source/waveform-analysis.ts';
 import { EDITOR_PROJECT_TASK_SCOPE } from '../shared/lifecycle.ts';
 import { commitMonoConvertingPasteCommand } from './paste-mono-conversion-service.ts';
 import { commitPasteIntoExistingClipCommand } from './paste-existing-clip-service.ts';
 import { discoverPasteCommandTree } from './internal/paste-command-tree.ts';
 import { findControllerSource } from '../track-audio/track-domain-types.ts';
-import { generateAudioEditorSignalInWorker } from '../../signal-generator-worker-client.ts';
+import { generateAudioEditorSignalStream } from '../../signal-generator-stream-client.ts';
 
 export type {
 	EditCommandProject,
@@ -109,9 +109,10 @@ export function createEditComposition<History extends ControllerRuntimeHistory>(
 			effectTargets: dependencies.effectTargets,
 			persistEffectResults: dependencies.persistEffectResults,
 			preflightStorage: dependencies.preflightStorage,
-			generateChannels: (type, options, signal) => generateAudioEditorSignalInWorker(type, options, { signal }),
+			generateStream: (type, options, signal) => generateAudioEditorSignalStream(type, options, { signal }),
 			getAudioContext: () => engine.getAudioContext({ resume: false }),
 			createBuffer: (channels, sampleRate, context) => bufferFromChannels([...channels], sampleRate, context, copy),
+			createEmptyBuffer: (channelCount, frames, sampleRate, context) => createAudioBuffer(channelCount, frames, sampleRate, context, copy),
 			writeBuffer,
 			cacheSourceBuffer: dependencies.cacheSourceBuffer,
 			generatePeaks: (channels) => generateWaveformPeaks([...channels], copy),

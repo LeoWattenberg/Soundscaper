@@ -23,6 +23,7 @@ import { publishGeneratedAudioSource } from './internal/generated-source-publica
 import { projectForAudioGeneratorCommands, type AudioGeneratorSelection, type AudioGeneratorTrack,
 	type AudioGeneratorClip, type AudioGeneratorProject, type AudioGeneratorDocument } from './internal/generator-project-view.ts';
 import { createLabeledAudioSilence } from './internal/labeled-audio-silence.ts';
+import type { GeneratedSignalStream } from '../../signal-generator-stream-client.ts';
 
 export type AudioGeneratorType = 'silence' | 'tone' | 'chirp' | 'noise' | 'dtmf' | 'morse';
 
@@ -134,12 +135,14 @@ export interface AudioGeneratorServiceDependencies<Context = unknown, Target ext
 	): Promise<unknown>;
 	preflightStorage(bytes: number, operation: 'effect'): Promise<unknown>;
 	generateChannels?(type: AudioGeneratorType, options: AudioGeneratorOptions, signal: AbortSignal): Promise<GeneratedSignal>;
+	generateStream?(type: AudioGeneratorType, options: AudioGeneratorOptions, signal: AbortSignal): Promise<GeneratedSignalStream>;
 	getAudioContext(): Promise<Context>;
 	createBuffer(
 		channels: readonly Float32Array[],
 		sampleRate: number,
 		context: Context,
 	): Promise<AudioBufferLike>;
+	createEmptyBuffer?(channelCount: number, frames: number, sampleRate: number, context: Context): Promise<AudioBufferLike>;
 	writeBuffer(writer: AudioGeneratorWriter, buffer: AudioBufferLike, signal: AbortSignal): Promise<unknown>;
 	cacheSourceBuffer(sourceId: string, buffer: AudioBufferLike): unknown;
 	generatePeaks(channels: readonly Float32Array[]): Promise<unknown>;
@@ -249,6 +252,7 @@ export function createAudioGeneratorService<Context, Target extends AudioGenerat
 		if (dependencies.editingBlocked()) return null;
 		const ownership = beginOperation();
 		let processing = false;
+		let stream: GeneratedSignalStream | null = null;
 		try {
 			const project = ownership.project;
 			const selection = activeSelection(project);
@@ -268,7 +272,9 @@ export function createAudioGeneratorService<Context, Target extends AudioGenerat
 				sampleRate,
 				channelCount,
 			};
-			const generated = dependencies.generateChannels
+			const generated = dependencies.generateStream
+				? (stream = await dependencies.generateStream(type, generatorOptions, ownership.task.signal))
+				: dependencies.generateChannels
 				? await dependencies.generateChannels(type, generatorOptions, ownership.task.signal)
 				: generateAudioEditorSignal(type, generatorOptions) as GeneratedSignal;
 			assertOwnership(ownership);
@@ -283,7 +289,8 @@ export function createAudioGeneratorService<Context, Target extends AudioGenerat
 				sampleRate,
 				channelCount,
 				frameCount: generated.frameCount,
-				channels: generated.channels,
+				channels: 'channels' in generated ? generated.channels : undefined,
+				stream: stream ?? undefined,
 				ownership: {
 					signal: ownership.task.signal,
 					assertCurrent: () => assertOwnership(ownership),
@@ -315,6 +322,7 @@ export function createAudioGeneratorService<Context, Target extends AudioGenerat
 				},
 			});
 		} finally {
+			stream?.close();
 			finishOperation(ownership, processing);
 		}
 	}

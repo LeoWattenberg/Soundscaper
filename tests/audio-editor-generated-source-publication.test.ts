@@ -33,7 +33,7 @@ function publicationFixture(options: Readonly<{
 		getChannelData: () => channels[0]!,
 	};
 	const writer = {
-		write: async () => undefined,
+		write: async (_channels: Float32Array[]): Promise<void> => {},
 		commit: async () => {
 			events.push('commit');
 			if (options.failureStage === 'commit') throw primary;
@@ -187,5 +187,63 @@ test('generated audio rollback attempts every cleanup and aggregates its failure
 			return true;
 		},
 	);
+	assert.deepEqual(fixture.events.slice(-4), ['abort', 'buffer-delete', 'peak-delete', 'source-delete']);
+});
+
+test('stream publication persists each admitted block before requesting another and uses worker peaks', async () => {
+	const fixture = publicationFixture();
+	let writes = 0;
+	let finalized = false;
+	const request = { ...fixture.request, channels: undefined, stream: {
+		type: 'tone', sampleRate: 48_000, channelCount: 1, frameCount: 2,
+		async *chunks() {
+			yield [Float32Array.of(0.25)];
+			assert.equal(writes, 1);
+			yield [Float32Array.of(-0.5)];
+			assert.equal(writes, 2);
+		},
+		finish: async () => { finalized = true; return { version: 1, channelCount: 1, levels: [] }; },
+		close() {},
+	} };
+	fixture.dependencies.store.beginSourceWrite = async () => ({
+		write: async (channels: Float32Array[]) => { assert.equal(channels[0]?.length, 1); writes++; },
+		commit: async () => { assert.equal(writes, 2); }, abort: async () => undefined,
+	});
+	assert.equal(await publishGeneratedAudioSource(fixture.dependencies, request), 'accepted');
+	assert.equal(finalized, true);
+	assert.equal(fixture.events.includes('buffer'), false);
+	assert.equal(fixture.events.includes('peaks'), false);
+	assert.equal(fixture.buffers.size, 0);
+});
+
+test('short stream publication fills one resident buffer without retaining its input chunks', async () => {
+	const fixture = publicationFixture();
+	const resident = Float32Array.of(0, 0);
+	const dependencies = { ...fixture.dependencies, createEmptyBuffer: async () => ({
+		length: 2, sampleRate: 48_000, numberOfChannels: 1, getChannelData: () => resident,
+	}) };
+	const stream = {
+		type: 'tone', sampleRate: 48_000, channelCount: 1, frameCount: 2,
+		async *chunks() { yield [Float32Array.of(0.25)]; yield [Float32Array.of(-0.5)]; },
+		finish: async () => ({ version: 1, channelCount: 1, levels: [] }), close() {},
+	};
+	await publishGeneratedAudioSource(dependencies, { ...fixture.request, channels: undefined, stream });
+	assert.deepEqual(resident, fixture.channels[0]);
+	assert.equal(fixture.buffers.size, 1);
+});
+
+test('large streams never allocate a whole AudioBuffer and roll back an interrupted block producer', async () => {
+	const fixture = publicationFixture();
+	const failure = new Error('Worker interrupted');
+	const dependencies = { ...fixture.dependencies, createEmptyBuffer: async () => { throw new Error('Whole-result allocation'); } };
+	const stream = {
+		type: 'noise', sampleRate: 48_000, channelCount: 1, frameCount: 8_388_609,
+		async *chunks(): AsyncGenerator<readonly Float32Array[]> { yield [new Float32Array(65_536)]; throw failure; },
+		finish: async () => ({ version: 1, channelCount: 1, levels: [] }), close() {},
+	};
+	await assert.rejects(publishGeneratedAudioSource(dependencies, { ...fixture.request, frameCount: stream.frameCount,
+		channels: undefined, stream }), error => error === failure);
+	assert.equal(fixture.events.includes('context'), false);
+	assert.equal(fixture.acceptedSource(), null);
 	assert.deepEqual(fixture.events.slice(-4), ['abort', 'buffer-delete', 'peak-delete', 'source-delete']);
 });
