@@ -39,3 +39,22 @@ test('one nonfinite sample does not erase the rest of the plotted spectrum', () 
 	assert.deepEqual(spectrum, calculateAudioSpectrum([clean], rate, { size: 64 }));
 	assert.ok(spectrum.bins.some((bin) => bin.amplitude > 0.1));
 });
+
+test('selection spectra include windows after a silent lead-in', () => {
+	const samples = Float32Array.from({ length: 4096 }, (_, frame) => frame < 1024 ? 0
+		: Math.sin(2 * Math.PI * 512 * frame / 8192));
+	const spectrum = calculateAudioSpectrum([samples], 8192, { size: 1024, average: true });
+	const peak = spectrum.bins.reduce((best, bin) => best.amplitude > bin.amplitude ? best : bin);
+	assert.equal(peak.frequency, 512);
+	assert.ok(peak.amplitude > 0.3);
+});
+
+test('stereo spectra retain channel energy when the polarities are opposite', () => {
+	const left = Float32Array.from({ length: 1024 }, (_, frame) => Math.sin(2 * Math.PI * 512 * frame / 8192));
+	const right = Float32Array.from(left, sample => -sample);
+	const mono = calculateAudioSpectrum([left], 8192, { size: 1024 });
+	const stereo = calculateAudioSpectrum([left, right], 8192, { size: 1024 });
+	for (let index = 0; index < mono.bins.length; index += 1) {
+		assert.ok(Math.abs(stereo.bins[index]!.amplitude - mono.bins[index]!.amplitude) < 1e-12);
+	}
+});

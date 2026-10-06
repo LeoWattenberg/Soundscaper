@@ -148,12 +148,29 @@ Create and run a program containing
 Previously only the error survived. The sandbox error now carries the captured
 log, and the palette displays it before the failure message.
 
+## ROOT-020 — Plot Spectrum examines only the beginning of the selection
+
+Import an ordinary tone WAV, open its **Clip properties > Media settings**, and
+set its start to 24000 frames in a 48 kHz project. Choose **Select > Select all**,
+then **Analyze > Plot spectrum**. Previously the report showed 0 Hz at −120 dB
+because it examined only the silent first 2048 frames. The report now averages
+overlapping FFT windows throughout the selected audio.
+
 ## ROOT-021 — Generator knobs apply arrow keys twice
 
 Open **Generate > Morse code**, focus the first knob, and press Arrow Up once.
 Previously the value changed from 20 to 22 because both its native adapter and
 the shared knob handled the same arrow. The adapter now owns only Home/End;
 the knob changes by one step per arrow press.
+
+## ROOT-022 — Opposite-polarity stereo disappears from Plot Spectrum
+
+Import a mono tone, duplicate its track, select the copy, and apply
+**Effect > Special > Invert**. Select both and use **Track channels > Make stereo
+track**, then **Analyze > Plot spectrum**. The audible stereo tone previously
+reported 0 Hz because channels were summed before the FFT and canceled each
+other. The spectrum now combines channel powers after transforming each channel.
+This is independent of ROOT-020 and also affects a single FFT window.
 
 ## Regression coverage
 
@@ -165,6 +182,8 @@ the knob changes by one step per arrow press.
 - `tests/browser/audio-editor-mixer-keyboard-regressions.spec.js`
 - `tests/browser/audio-editor-macro-program-controls-regressions.spec.js`
 - `tests/browser/audio-editor-macro-program-outcomes-regressions.spec.js`
+- `tests/browser/audio-editor-analysis-selection-regressions.spec.js`
+- `tests/audio-editor-audio-spectrum.test.ts`
 - `tests/audio-editor-macro-command-service.test.ts`
 - `tests/audio-editor-macro-program-service.test.ts`
 - `tests/audio-editor-macro-script-sandbox-client.test.ts`

@@ -409,7 +409,7 @@ function spectrumReport(
 	options: Record<string, unknown>,
 ) {
 	const size = normalizeSpectrumSize(options.size);
-	const spectrum = calculateAudioSpectrum(channels, sampleRate, { size });
+	const spectrum = calculateAudioSpectrum(channels, sampleRate, { size, average: true });
 	type SpectrumBin = (typeof spectrum.bins)[number];
 	const peak = spectrum.bins.reduce<SpectrumBin | null>(
 		(best, bin) => !best || bin.amplitude > best.amplitude ? bin : best,

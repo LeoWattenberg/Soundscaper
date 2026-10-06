@@ -10,7 +10,7 @@ export function amplitudeToDb(amplitude: number): number {
 
 /** Windowed radix-2 spectrum shared by Plot Spectrum and spectral selection gestures. */
 export function calculateAudioSpectrum(
-	channels: readonly Float32Array[], sampleRate: number, options: Readonly<{ size?: number; offsetFrame?: number }> = {},
+	channels: readonly Float32Array[], sampleRate: number, options: Readonly<{ size?: number; offsetFrame?: number; average?: boolean }> = {},
 ) {
 	validateAnalysisChannels(channels);
 	if (!Number.isFinite(sampleRate) || sampleRate <= 0) throw new RangeError('Spectrum sample rate must be positive.');
@@ -22,19 +22,26 @@ export function calculateAudioSpectrum(
 	const offset = Math.max(0, Math.min(frameCount, Number(options.offsetFrame) || 0));
 	const real = new Float64Array(requestedSize);
 	const imaginary = new Float64Array(requestedSize);
-	for (let index = 0; index < requestedSize; index += 1) {
-		const frame = offset + index;
-		let sample = 0;
-		if (frame < frameCount) for (const channel of channels) {
-			const value = channel[frame] ?? 0;
-			if (Number.isFinite(value)) sample += value / channels.length;
+	const powers = new Float64Array(requestedSize / 2 + 1);
+	const window = Float64Array.from({ length: requestedSize }, (_, index) =>
+		0.5 - 0.5 * Math.cos(2 * Math.PI * index / (requestedSize - 1)));
+	const windowCount = options.average ? Math.max(1, Math.ceil((frameCount - offset) / (requestedSize / 2))) : 1;
+	for (let block = 0; block < windowCount; block += 1) {
+		const start = offset + block * (requestedSize / 2);
+		for (const channel of channels) {
+			for (let index = 0; index < requestedSize; index += 1) {
+				const value = channel[start + index] ?? 0;
+				real[index] = (Number.isFinite(value) ? value : 0) * window[index]!;
+			}
+			imaginary.fill(0);
+			fftRadixTwoFloat64V1(real, imaginary, false);
+			for (let index = 0; index < powers.length; index += 1) {
+				powers[index] = powers[index]! + real[index]! ** 2 + imaginary[index]! ** 2;
+			}
 		}
-		const window = 0.5 - 0.5 * Math.cos(2 * Math.PI * index / (requestedSize - 1));
-		real[index] = sample * window;
 	}
-	fftRadixTwoFloat64V1(real, imaginary, false);
 	const bins = Array.from({ length: requestedSize / 2 + 1 }, (_, index) => {
-		const amplitude = Math.hypot(real[index] ?? 0, imaginary[index] ?? 0) * 2 / requestedSize;
+		const amplitude = Math.sqrt(powers[index]! / (channels.length * windowCount)) * 2 / requestedSize;
 		return Object.freeze({ frequency: index * sampleRate / requestedSize, amplitude, db: amplitudeToDb(amplitude) });
 	});
 	return Object.freeze({ sampleRate, size: requestedSize, bins: Object.freeze(bins) });
