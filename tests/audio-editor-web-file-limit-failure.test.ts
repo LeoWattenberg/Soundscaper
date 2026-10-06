@@ -79,6 +79,49 @@ test('an OPFS audio source admission error keeps its cause for the load boundary
 		error instanceof BrowserFileStorageError && error.cause === failure);
 });
 
+test('a failed source staging admission retains both its primary failure and OPFS rollback failure', async (context) => {
+	for (const primary of [new Error('Source staging admission failed'), new DOMException('Cancelled', 'AbortError')]) {
+		await context.test(primary.name, async () => {
+			const cleanup = new AggregateError([new Error('OPFS close failed'), new Error('OPFS remove failed')], 'OPFS rollback failed');
+			const events: string[] = [];
+			const repository = new SourceWriteRepository({
+				database: async () => null,
+				deleteStoredSource: async () => undefined,
+				opfs: { createPcmWriter: async () => ({ path: 'pcm-stage', abort: async () => {
+					events.push('abort');
+					throw cleanup;
+				} }) } as never,
+				pcm: {} as never,
+				records: { put: async () => { events.push('publish'); } } as never,
+				staging: { acquire: async () => { events.push('admit'); throw primary; } } as never,
+			});
+			await assert.rejects(repository.begin('source'), (error: unknown) => {
+				assert.ok(error instanceof AggregateError);
+				assert.equal(error.cause, primary);
+				assert.deepEqual(error.errors, [primary, cleanup]);
+				assert.equal(error.name, primary.name === 'AbortError' ? 'AbortError' : 'AggregateError');
+				return true;
+			});
+			assert.deepEqual(events, ['admit', 'abort']);
+		});
+	}
+});
+
+test('successful OPFS rollback preserves the original source admission failure identity', async () => {
+	const primary = new Error('Source staging admission failed');
+	let aborted = 0;
+	const repository = new SourceWriteRepository({
+		database: async () => null,
+		deleteStoredSource: async () => undefined,
+		opfs: { createPcmWriter: async () => ({ path: 'pcm-stage', abort: async () => { aborted += 1; } }) } as never,
+		pcm: {} as never,
+		records: {} as never,
+		staging: { acquire: async () => { throw primary; } } as never,
+	});
+	await assert.rejects(repository.begin('source'), (error: unknown) => error === primary);
+	assert.equal(aborted, 1);
+});
+
 test('an OPFS media admission error releases its lease and keeps its cause', async () => {
 	const failure = new Error('OPFS media file creation failed');
 	let released = false;

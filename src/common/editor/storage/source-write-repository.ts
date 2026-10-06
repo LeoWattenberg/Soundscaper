@@ -133,7 +133,8 @@ export class SourceWriteRepository {
 			stage = await this.#options.staging.acquire(token,
 				opfsWriter ? { path: opfsWriter.path } : { mediaChunkToken: token }, database);
 		} catch (error) {
-			await opfsWriter?.abort();
+			try { await opfsWriter?.abort(); }
+			catch (cleanup) { throw cleanupFailure(error, cleanup); }
 			throw error;
 		}
 		const persistEncodedChunks = Boolean(opfsWriter || database);
