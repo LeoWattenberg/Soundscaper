@@ -26,8 +26,18 @@ export function useMenuTriggerDismissal(
 		const remember = (event: Event) => {
 			dismissedRef.current = openRef.current && containsTarget(triggerRef.current, event.target);
 		};
+		const release = (event: Event) => {
+			if (!containsTarget(triggerRef.current, event.target)) dismissedRef.current = false;
+		};
+		const cancel = () => { dismissedRef.current = false; };
 		ownerDocument.addEventListener('pointerdown', remember, true);
-		return () => ownerDocument.removeEventListener('pointerdown', remember, true);
+		ownerDocument.addEventListener('pointerup', release, true);
+		ownerDocument.addEventListener('pointercancel', cancel, true);
+		return () => {
+			ownerDocument.removeEventListener('pointerdown', remember, true);
+			ownerDocument.removeEventListener('pointerup', release, true);
+			ownerDocument.removeEventListener('pointercancel', cancel, true);
+		};
 	}, [triggerRef]);
 	return () => {
 		const dismissed = dismissedRef.current;

@@ -15,17 +15,21 @@ type Listener = (event: Event) => void;
 // registration order, exactly as a browser would.
 function fakeOwnerDocument() {
 	const listeners: Listener[] = [];
+	const byType = new Map<string, Listener[]>([['pointerdown', listeners]]);
 	return {
 		listeners,
 		addEventListener(type: string, listener: Listener, capture?: boolean) {
-			if (type === 'pointerdown' && capture) listeners.push(listener);
+			if (!capture) return;
+			if (!byType.has(type)) byType.set(type, []);
+			byType.get(type)?.push(listener);
 		},
 		removeEventListener(type: string, listener: Listener) {
-			const index = listeners.indexOf(listener);
-			if (index >= 0) listeners.splice(index, 1);
+			const group = byType.get(type);
+			const index = group?.indexOf(listener) ?? -1;
+			if (index >= 0) group?.splice(index, 1);
 		},
-		dispatch(target: unknown) {
-			for (const listener of [...listeners]) listener({ target } as unknown as Event);
+		dispatch(target: unknown, type = 'pointerdown') {
+			for (const listener of [...byType.get(type) ?? []]) listener({ target } as unknown as Event);
 		},
 	};
 }
@@ -75,6 +79,7 @@ test('a pointer press on the trigger of an open menu is remembered before the me
 		await guard.render(true);
 		ownerDocument.dispatch(node);
 		assert.equal(menuClosedBy, node, 'the menu still closes on the press');
+		ownerDocument.dispatch(node, 'pointerup');
 		assert.equal(guard.consume(), true, 'the click that follows is a dismissal, not a request to open');
 		assert.equal(guard.consume(), false, 'the record clears once consumed');
 
@@ -89,6 +94,27 @@ test('a pointer press on the trigger of an open menu is remembered before the me
 		await guard.cleanup();
 	}
 	assert.equal(ownerDocument.listeners.length, 1, 'unmounting removes the guard listener');
+});
+
+test('a cancelled trigger press clears the dismissal that no click will consume', async () => {
+	const ownerDocument = fakeOwnerDocument();
+	const node = {};
+	const trigger = { ownerDocument, contains: (candidate: unknown) => candidate === node };
+	const guard = await mountGuard(ownerDocument, trigger);
+	try {
+		await guard.render(true);
+		ownerDocument.dispatch(node);
+		await guard.render(false);
+		ownerDocument.dispatch({}, 'pointerup');
+		assert.equal(guard.consume(), false, 'a release outside the trigger cannot produce its click');
+
+		await guard.render(true);
+		ownerDocument.dispatch(node);
+		ownerDocument.dispatch(node, 'pointercancel');
+		assert.equal(guard.consume(), false, 'pointer cancellation cannot produce a click');
+	} finally {
+		await guard.cleanup();
+	}
 });
 
 test('toolbar roving focus skips the vendored checkbox when it is disabled', () => {
