@@ -9,7 +9,8 @@ import { useAudioTrackEnvelope } from '../src/common/editor/ui/timeline/useAudio
 import { useEnvelopeDragLifecycle } from '../vendor/audacity-design-system/components/src/EnvelopeInteractionLayer/useEnvelopeDragLifecycle.ts';
 import { installReactTestDom, reactProps } from './helpers/react-test-dom.ts';
 
-test('clip gain cancels a draft without history, and a subsequent ordinary drag still commits once', async () => {
+for (const nativeCheckpoint of [false, true]) test(`clip gain cancellation and publication survive native listener checkpoints: ${nativeCheckpoint}`, async (context) => {
+	context.mock.timers.enable({ apis: ['setTimeout'] });
 	const dom = installReactTestDom();
 	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
 	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
@@ -29,11 +30,12 @@ test('clip gain cancels a draft without history, and a subsequent ordinary drag 
 	document.removeEventListener = (type: string, listener: EventListenerOrEventListenerObject | null) => {
 		if (listener) listeners.get(type)?.delete(listener);
 	};
-	const dispatch = (type: string) => {
+	const dispatch = async (type: string) => {
 		const event = { key: 'Escape', preventDefault() {}, stopPropagation() {} } as unknown as Event;
-		for (const listener of listeners.get(type) ?? []) {
+		for (const listener of [...listeners.get(type) ?? []]) {
 			if (typeof listener === 'function') listener(event);
 			else listener.handleEvent(event);
+			if (nativeCheckpoint) await Promise.resolve();
 		}
 	};
 	try {
@@ -42,22 +44,46 @@ test('clip gain cancels a draft without history, and a subsequent ordinary drag 
 		await act(async () => reactProps(surface).onMouseDown?.({}));
 		await act(async () => reactProps(surface).onMouseMove?.({}));
 		assert.equal(surface.getAttribute('data-preview-value'), '-12');
-		await act(async () => dispatch('keydown'));
+		await act(async () => { await dispatch('keydown'); context.mock.timers.runAll(); });
 		assert.equal(surface.getAttribute('data-preview-value'), '0');
 		await act(async () => {
 			reactProps(surface).onMouseUp?.({});
-			dispatch('mouseup');
+			await dispatch('mouseup');
+			context.mock.timers.runAll();
 		});
 		assert.equal(updates.length, 0);
 		await act(async () => reactProps(surface).onMouseDown?.({}));
 		await act(async () => reactProps(surface).onMouseMove?.({}));
 		await act(async () => {
 			reactProps(surface).onMouseUp?.({});
-			dispatch('mouseup');
+			await dispatch('mouseup');
+			context.mock.timers.runAll();
 		});
 		assert.equal(updates.length, 1);
+		// The native vendor listener can publish a click's point only on mouseup,
+		// after the application's earlier listener and its microtask checkpoint.
+		const publishAtRelease: EventListener = () => {
+			reactProps(surface).onMouseMove?.({});
+			reactProps(surface).onMouseUp?.({});
+		};
+		document.addEventListener('mouseup', publishAtRelease);
+		await act(async () => {
+			reactProps(surface).onMouseDown?.({});
+			await dispatch('mouseup');
+			context.mock.timers.runAll();
+		});
+		document.removeEventListener('mouseup', publishAtRelease);
+		assert.equal(updates.length, 2, 'release publication completes without another pointer gesture');
+		await act(async () => {
+			reactProps(surface).onMouseDown?.({});
+			reactProps(surface).onMouseMove?.({});
+			reactProps(surface).onMouseUp?.({});
+			await dispatch('mouseup');
+		});
 	} finally {
-		await act(async () => root.unmount());
+		const committedBeforeUnmount = updates.length;
+		await act(async () => { root.unmount(); context.mock.timers.runAll(); });
+		assert.equal(updates.length, committedBeforeUnmount, 'disposed event tasks cannot commit');
 		assert.equal(listeners.get('keydown')?.size ?? 0, 0);
 		assert.equal(listeners.get('mouseup')?.size ?? 0, 0);
 		actGlobal.IS_REACT_ACT_ENVIRONMENT = priorAct;

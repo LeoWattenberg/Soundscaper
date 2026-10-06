@@ -15,15 +15,22 @@ export function useAudioTrackEnvelope({
 	const [envelopePreviewRevision, setEnvelopePreviewRevision] = useState(0);
 
 	useEffect(() => {
+		const pendingTasks = new Set();
+		// Native events can run microtasks between document listeners. Wait for
+		// the vendor's point publication before completing this gesture.
+		const afterEvent = (operation) => {
+			const task = setTimeout(() => { pendingTasks.delete(task); operation(); }, 0);
+			pendingTasks.add(task);
+		};
 		const discardEnvelopeEdit = (event) => {
 			if (event.key !== 'Escape') return;
-			queueMicrotask(() => {
+			afterEvent(() => {
 				if (!envelopePreviewRef.current.size) return;
 				envelopePreviewRef.current.clear();
 				setEnvelopePreviewRevision((revision) => revision + 1);
 			});
 		};
-		const finishEnvelopeEdit = () => queueMicrotask(() => {
+		const finishEnvelopeEdit = () => afterEvent(() => {
 			const previews = [...envelopePreviewRef.current.values()];
 			if (!previews.length) return;
 			envelopePreviewRef.current.clear();
@@ -35,6 +42,7 @@ export function useAudioTrackEnvelope({
 		document.addEventListener('mouseup', finishEnvelopeEdit);
 		document.addEventListener('keydown', discardEnvelopeEdit);
 		return () => {
+			for (const task of pendingTasks) clearTimeout(task);
 			document.removeEventListener('mouseup', finishEnvelopeEdit);
 			document.removeEventListener('keydown', discardEnvelopeEdit);
 		};
