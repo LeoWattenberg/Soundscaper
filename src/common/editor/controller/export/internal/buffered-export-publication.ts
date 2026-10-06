@@ -14,10 +14,11 @@ interface BufferedExportFileService {
 }
 
 /** A queued delivery has no export dialog to start its prepared download. */
-export function publishBufferedExport(
-	fileService: BufferedExportFileService,
+export function publishBufferedExport<FileService extends BufferedExportFileService>(
+	fileService: FileService,
 	request: Readonly<Record<string, unknown>>,
 	saveToFile: unknown,
-): Promise<BufferedExportPublication> {
-	return saveToFile === true ? fileService.saveFile(request) : fileService.createDownload(request);
+): ReturnType<FileService['saveFile']> | ReturnType<FileService['createDownload']> {
+	return (saveToFile === true ? fileService.saveFile(request) : fileService.createDownload(request)) as
+		ReturnType<FileService['saveFile']> | ReturnType<FileService['createDownload']>;
 }
