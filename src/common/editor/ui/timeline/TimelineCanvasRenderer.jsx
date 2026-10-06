@@ -15,6 +15,7 @@ import {
 } from '../../pffft-spectrogram.js';
 import { MAXIMUM_WAVEFORM_VERTICAL_ZOOM } from './geometry.ts';
 import { createAnimationFrameCoalescer } from './animation-frame-coalescer.ts';
+import { snapshotWaveformCanvasStyle } from './canvas-paint-measurements.ts';
 import { isFrequencyWaveformDisplayMode } from '../../track-display-mode.ts';
 import { reprojectPendingWaveform } from './waveform-plan-continuity.ts';
 import { spectrogramCanvasDrawKey } from './spectrogram-canvas-options.ts';
@@ -36,6 +37,9 @@ export function AudacityWaveformCanvases({
 	spectrogramOptions,
 }) {
 	const paintedCanvases = useRef(new Set());
+	const drawRef = useRef(null);
+	const schedulerRef = useRef(null);
+	const firstDrawRef = useRef(true);
 	useEffect(() => () => {
 		for (const canvas of paintedCanvases.current) releaseSpectrogramCanvas(canvas);
 		paintedCanvases.current.clear();
@@ -83,6 +87,25 @@ export function AudacityWaveformCanvases({
 	useLayoutEffect(() => {
 		const root = rootRef.current;
 		if (!root) return undefined;
+		const scheduler = createAnimationFrameCoalescer(
+			(callback) => window.requestAnimationFrame(callback),
+			(frame) => window.cancelAnimationFrame(frame),
+			() => drawRef.current?.(),
+		);
+		schedulerRef.current = scheduler;
+		firstDrawRef.current = true;
+		const resizeObserver = typeof ResizeObserver === 'function'
+			? new ResizeObserver(scheduler.schedule) : null;
+		resizeObserver?.observe(root);
+		return () => {
+			resizeObserver?.disconnect();
+			scheduler.dispose();
+			schedulerRef.current = null;
+		};
+	}, [rootRef]);
+	useLayoutEffect(() => {
+		const root = rootRef.current;
+		if (!root) return undefined;
 		const draw = () => {
 			const clipById = new Map(clips.map((clip) => [String(clip.id), clip]));
 			const editorRoot = root.closest('#kw-audio-editor-design-system');
@@ -100,17 +123,26 @@ export function AudacityWaveformCanvases({
 				editorRoot?.dataset.editorTheme || '',
 			].join('|');
 			const liveCanvases = new Set();
-			for (const clipElement of root.querySelectorAll('[data-clip-id]')) {
+			const measurements = [];
+			// Normalize every canvas before reading any geometry, then measure the
+			// whole row before resizing backing stores or painting its canvases.
+			const clipElements = root.querySelectorAll('[data-clip-id]');
+			for (const element of clipElements) {
+				const canvas = element.querySelector('canvas.clip-body__waveform');
+				if (canvas) normalizeAudacityCanvasStyle(canvas);
+			}
+			for (const clipElement of clipElements) {
 				const clip = clipById.get(String(clipElement.dataset.clipId));
 				const canvas = clipElement.querySelector('canvas.clip-body__waveform');
 				if (!canvas) continue;
 				liveCanvases.add(canvas);
-				normalizeAudacityCanvasStyle(canvas);
-				if (!clip) {
-					resetAudacityClipCanvas(canvas);
-					continue;
-				}
 				const bounds = canvas.getBoundingClientRect();
+				const color = canvas.closest('.clip-body')?.dataset.color || 'blue';
+				const style = snapshotWaveformCanvasStyle(getComputedStyle(canvas), color);
+				measurements.push({ canvas, clip, bounds, style });
+			}
+			for (const { canvas, clip, bounds, style } of measurements) {
+				if (!clip) { resetAudacityClipCanvas(canvas); continue; }
 				const selection = clipSelectionPixels(clip, timeSelection, pixelsPerSecond, bounds.width);
 				const clipDrawKey = `${drawKey}|${selection.start}|${selection.end}`;
 				const canvasDrawKey = audacityCanvasDrawKey(canvas, clip, clipDrawKey, bounds);
@@ -125,7 +157,7 @@ export function AudacityWaveformCanvases({
 					channelHeightRatio,
 					frequencyWaveformRenderer,
 					spectrogramOptions: renderSpectrogramOptions,
-					bounds,
+					bounds, style,
 				};
 				if (!clip.audacityWaveform) {
 					const oldPlan = canvas.__kwWaveformPlan;
@@ -190,21 +222,11 @@ export function AudacityWaveformCanvases({
 			}
 			paintedCanvases.current = liveCanvases;
 		};
-		const scheduler = createAnimationFrameCoalescer(
-			(callback) => window.requestAnimationFrame(callback),
-			(frame) => window.cancelAnimationFrame(frame),
-			draw,
-		);
-		const resizeObserver = typeof ResizeObserver === 'function'
-			? new ResizeObserver(scheduler.schedule)
-			: null;
-
-		draw();
-		resizeObserver?.observe(root);
-		return () => {
-			resizeObserver?.disconnect();
-			scheduler.dispose();
-		};
+		drawRef.current = draw;
+		if (firstDrawRef.current) {
+			firstDrawRef.current = false;
+			draw();
+		} else schedulerRef.current?.schedule();
 	}, [channelHeightRatio, clips, displayMode, frequencyWaveformRenderer, halfWave, pixelsPerSecond, renderSpectrogramOptions, rootRef, showRms, spectrogramDrawKey, spectrogramRevision, themeDrawKey, timeSelection, verticalZoom, waveformRulerFormat]);
 	return null;
 }
@@ -283,6 +305,9 @@ export function drawAudacityClipCanvas(canvas, clip, options) {
 	const width = bounds.width || canvas.clientWidth || rendering.pixelWidth;
 	const height = bounds.height || canvas.clientHeight;
 	if (!(width > 0) || !(height > 0)) return false;
+	const body = canvas.closest('.clip-body');
+	const color = body?.dataset.color || 'blue';
+	const style = options.style || snapshotWaveformCanvasStyle(getComputedStyle(canvas), color);
 	const dimensions = boundedCanvasDimensions(Math.max(1, width), Math.max(1, height), {
 		devicePixelRatio: window.devicePixelRatio || 1,
 		maximumBackingHeight: 2_048,
@@ -293,9 +318,6 @@ export function drawAudacityClipCanvas(canvas, clip, options) {
 	const pixelRatioY = canvas.height / height;
 	if (!(pixelRatioX > 0) || !(pixelRatioY > 0)) return false;
 
-	const body = canvas.closest('.clip-body');
-	const color = body?.dataset.color || 'blue';
-	const style = getComputedStyle(canvas);
 	const frequencyDisplay = isFrequencyWaveformDisplayMode(options.displayMode);
 	const baseWaveform = cssColor(style, frequencyDisplay ? '--frequency-sample' : `--clip-${color}-waveform`, '#172533');
 	const selectedWaveform = cssColor(style, frequencyDisplay ? '--frequency-selected-sample' : `--clip-${color}-time-selection-waveform`, baseWaveform);
