@@ -6,6 +6,32 @@ import { createMemoryFfmpeg } from './helpers/audio-editor-controller-fixtures.j
 import { COPY, createAudioEditorController, createMemoryEngine, createProjectStore } from './helpers/audio-editor-controller-harness.js';
 import { createDocumentTrackFolderSnapshot } from '../src/common/editor/controller/document/document-track-folder-snapshot.ts';
 
+test('a flat video controller duplicates tracks without requiring folder authority', async (context) => {
+	type Options = NonNullable<Parameters<typeof createAudioEditorController>[1]>;
+	const controller = createAudioEditorController(null, { headless: true, productId: 'framescaper', locale: 'en', copy: COPY,
+		store: createProjectStore({ indexedDB: null, preferOpfs: false }),
+		engine: createMemoryEngine() as unknown as Options['engine'],
+		ffmpeg: createMemoryFfmpeg() as unknown as Options['ffmpeg'] });
+	context.after(async () => { await controller.dispose(); });
+	await controller.ready;
+	const capabilities = controller.getSnapshot().capabilities;
+	assert.ok(capabilities && typeof capabilities === 'object');
+	assert.equal((capabilities as Readonly<Record<string, unknown>>).trackFolders, false);
+	const sourceId = controller.actions.track.addVideo({ name: 'Flat video track' });
+	assert.ok(sourceId);
+	assert.throws(() => controller.actions.edit.commit({ type: 'track/add',
+		track: { id: 'unsupported', name: 'Unsupported folder placement', type: 'video', clipIds: [] },
+		parentFolderId: null }), /does not support trackFolders/u);
+	controller.actions.track.duplicate(sourceId);
+	const copiedId = controller.getSnapshot().selectedTrackId;
+	assert.notEqual(copiedId, sourceId);
+	assert.equal(controller.getSnapshot().project?.tracks?.filter(track => 'type' in track && track.type === 'video').length, 2);
+	controller.actions.edit.undo();
+	assert.equal(controller.getSnapshot().project?.tracks?.some(track => track.id === copiedId), false);
+	controller.actions.edit.redo();
+	assert.equal(controller.getSnapshot().project?.tracks?.some(track => track.id === copiedId), true);
+});
+
 test('duplicated tracks retain their source folder and follow their source among siblings', async (context) => {
 	type Options = NonNullable<Parameters<typeof createAudioEditorController>[1]>;
 	const controller = createAudioEditorController(null, { headless: true, locale: 'en', copy: COPY,

@@ -244,6 +244,7 @@ export function createDocumentComposition(dependencies: DocumentCompositionDepen
 	});
 	const trackDuplication = createTrackDuplicationService({
 		lifetime,
+		supportsTrackFolders: dependencies.capabilities.trackFolders,
 		copySuffix: publishedCopyFor(copy).projectCopySuffix,
 		editingBlocked: dependencies.editingBlocked,
 		getProject: requireProject,
