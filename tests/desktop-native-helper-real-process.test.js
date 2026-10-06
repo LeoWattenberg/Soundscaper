@@ -26,9 +26,9 @@ import {
 import { validateHelperAudioDeviceOpenResult } from '../desktop/native-helper-results.ts';
 import {
 	DESKTOP_RUNTIME_PACKAGE_IMPORTS,
-	compileDesktopProjectLibraryRuntime,
 	stageDesktopApplicationSources,
 } from '../scripts/lib/desktop-project-library-runtime.mjs';
+import { compileDesktopRuntimeTestFixture } from '../scripts/lib/node-test-desktop-runtime-fixture.ts';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const ELECTRON = join(ROOT, 'node_modules/.bin/electron');
@@ -57,7 +57,7 @@ test('the native helper runs the verified addon across a real Electron utility p
 	const temporaryRoot = await mkdtemp(join(tmpdir(), 'soundscaper-native-helper-'));
 	context.after(() => rm(temporaryRoot, { recursive: true, force: true }));
 	const applicationRoot = join(temporaryRoot, 'application');
-	await compileDesktopProjectLibraryRuntime({ repositoryRoot: ROOT, outputRoot: join(temporaryRoot, 'runtime') });
+	await compileDesktopRuntimeTestFixture({ repositoryRoot: ROOT, outputRoot: join(temporaryRoot, 'runtime') });
 	await stageDesktopApplicationSources({
 		desktopSourceRoot: join(ROOT, 'desktop'),
 		applicationDesktopRoot: join(applicationRoot, 'desktop'),

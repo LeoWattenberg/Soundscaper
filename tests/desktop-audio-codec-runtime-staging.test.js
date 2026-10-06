@@ -8,7 +8,7 @@ import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { compileDesktopProjectLibraryRuntime } from '../scripts/lib/desktop-project-library-runtime.mjs';
+import { compileDesktopRuntimeTestFixture } from '../scripts/lib/node-test-desktop-runtime-fixture.ts';
 import { stageDesktopBundledFlacRuntime } from '../scripts/lib/desktop-bundled-flac-runtime.mjs';
 import { stageDesktopBundledLameRuntime } from '../scripts/lib/desktop-bundled-lame-runtime.mjs';
 import { stageDesktopBundledMpg123Runtime } from '../scripts/lib/desktop-bundled-mpg123-runtime.mjs';
@@ -191,7 +191,7 @@ test('compiled desktop audio main entry points are importable from the staged ru
 	const temporaryRoot = await mkdtemp(join(tmpdir(), 'soundscaper-audio-codec-runtime-'));
 	context.after(() => rm(temporaryRoot, { recursive: true, force: true }));
 	const outputRoot = join(temporaryRoot, 'runtime');
-	const result = await compileDesktopProjectLibraryRuntime({ repositoryRoot: ROOT, outputRoot });
+	const result = await compileDesktopRuntimeTestFixture({ repositoryRoot: ROOT, outputRoot });
 	for (const file of AUDIO_CODEC_RUNTIME_FILES) assert.equal(result.files.includes(file), true, file);
 	assert.equal(result.files.includes('src/common/editor/wavpack/runtime.js'), true);
 	assert.deepEqual(

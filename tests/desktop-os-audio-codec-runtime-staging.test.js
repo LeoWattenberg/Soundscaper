@@ -8,9 +8,9 @@ import test from 'node:test';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import {
-	compileDesktopProjectLibraryRuntime,
 	stageDesktopApplicationSources,
 } from '../scripts/lib/desktop-project-library-runtime.mjs';
+import { compileDesktopRuntimeTestFixture } from '../scripts/lib/node-test-desktop-runtime-fixture.ts';
 import {
 	DESKTOP_AUDIO_CODEC_RUNTIME_FILES,
 } from '../scripts/lib/desktop-external-ffmpeg-runtime-files.mjs';
@@ -40,7 +40,7 @@ test('desktop staging ships importable OS codec runtime plus its exact helper pr
 	context.after(() => rm(temporaryRoot, { recursive: true, force: true }));
 	const runtimeRoot = join(temporaryRoot, 'runtime');
 	const applicationDesktopRoot = join(temporaryRoot, 'application', 'desktop');
-	await compileDesktopProjectLibraryRuntime({ repositoryRoot: ROOT, outputRoot: runtimeRoot });
+	await compileDesktopRuntimeTestFixture({ repositoryRoot: ROOT, outputRoot: runtimeRoot });
 	await stageDesktopApplicationSources({
 		desktopSourceRoot: join(ROOT, 'desktop'), applicationDesktopRoot, runtimeRoot,
 	});

@@ -9,10 +9,10 @@ import test from 'node:test';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import {
-	compileDesktopProjectLibraryRuntime,
 	DESKTOP_EXPECTED_RUNTIME_FILES,
 	DESKTOP_RUNTIME_PACKAGE_IMPORTS,
 } from '../scripts/lib/desktop-project-library-runtime.mjs';
+import { compileDesktopRuntimeTestFixture } from '../scripts/lib/node-test-desktop-runtime-fixture.ts';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -20,7 +20,7 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 	const temporaryRoot = await mkdtemp(join(tmpdir(), 'scape-desktop-runtime-'));
 	context.after(() => rm(temporaryRoot, { recursive: true, force: true }));
 	const outputRoot = join(temporaryRoot, 'runtime');
-	const result = await compileDesktopProjectLibraryRuntime({ repositoryRoot: ROOT, outputRoot });
+	const result = await compileDesktopRuntimeTestFixture({ repositoryRoot: ROOT, outputRoot });
 	// The compile fails closed on its own manifest, so a second hand-maintained
 	// copy of the same 450-line list here carried no independent signal — both
 	// copies are written by the same change — and a slice that added five

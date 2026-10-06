@@ -17,10 +17,10 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import {
-	compileDesktopProjectLibraryRuntime,
 	DESKTOP_RUNTIME_PACKAGE_IMPORTS,
 	stageDesktopApplicationSources,
 } from '../scripts/lib/desktop-project-library-runtime.mjs';
+import { compileDesktopRuntimeTestFixture } from '../scripts/lib/node-test-desktop-runtime-fixture.ts';
 import {
 	assertDesktopProductPackageIsolation,
 	desktopProductRuntimePackageImports,
@@ -38,7 +38,7 @@ test('the staged desktop tree carries no TypeScript specifier and resolves every
 	context.after(() => rm(temporaryRoot, { recursive: true, force: true }));
 	const runtimeRoot = join(temporaryRoot, 'runtime');
 	const applicationDesktopRoot = join(temporaryRoot, 'application', 'desktop');
-	await compileDesktopProjectLibraryRuntime({ repositoryRoot: ROOT, outputRoot: runtimeRoot });
+	await compileDesktopRuntimeTestFixture({ repositoryRoot: ROOT, outputRoot: runtimeRoot });
 	const stagedRuntime = await stageDesktopApplicationSources({
 		desktopSourceRoot: join(ROOT, 'desktop'),
 		applicationDesktopRoot,
