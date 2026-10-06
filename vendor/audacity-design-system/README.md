@@ -325,6 +325,10 @@ application overrides and source patches against the pin and upstream master.
     a portalled menu does not leave keyboard focus on the document body.
     Covered by `tests/vendored-design-system-context-menu-focus.test.tsx` and
     `tests/browser/audio-editor-context-menu-tab-regressions.spec.js`.
+43. `EnvelopeInteractionLayer` delegates drag completion and Escape cancellation
+    to `useEnvelopeDragLifecycle`. Escape restores the drag's original point set,
+    clears its pointer editing state, and a subsequent mouse release cannot
+    finish the canceled drag.
 
 ## Application-side adaptations
 
