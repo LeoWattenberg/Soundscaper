@@ -135,7 +135,7 @@ function AnalysisContent({ mode, controller, snapshot, copy, fileService }) {
 				) : (
 					<span data-analyze="master"><Button disabled={blocked} onClick={() => run('master')}>{copy.analyzeMaster}</Button></span>
 				)}
-				<Button variant="secondary" disabled={!result && !report} onClick={exportReport}>{copy.export}</Button>
+				<Button variant="secondary" disabled={snapshot.analysisProcessing || (!result && !report)} onClick={exportReport}>{copy.export}</Button>
 			</div>
 		</div>
 	);

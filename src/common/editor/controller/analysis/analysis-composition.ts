@@ -8,6 +8,7 @@ import { createDeferredAudioAnalysisService } from './internal/deferred-analysis
 import type { EditorProjectGeneration } from '../shared/lifecycle.ts';
 import type { EditorTaskProgressCoordinator } from '../shared/task-progress.ts';
 import { resolveSelectionRange } from '../../selection-range.ts';
+import { calculateAudioAnalysisReportInWorker } from '../../audio-analysis-report-worker-client.ts';
 
 interface AnalysisWorkerCopy {
 	readonly audioAnalysisWorkerFailed: string;
@@ -45,12 +46,15 @@ export interface AnalysisCompositionDependencies<Project extends AnalysisProject
 	readonly projectGeneration: Pick<EditorProjectGeneration, 'capture' | 'assertCurrent'>;
 	readonly getProject: () => Project | null;
 	readonly getActiveSelection: AnalysisDependencies['getActiveSelection'];
+	/** The owner may attest an immutable document/render generation; mutable callers leave this absent. */
+	readonly getImmutableProjectGeneration?: () => object | null;
 	readonly projectDurationFrames: (project: Project) => number;
 	readonly store: Pick<AnalysisDependencies, 'loadAnalysis' | 'saveAnalysis'>;
 	readonly taskProgress: Pick<EditorTaskProgressCoordinator, 'run'>;
 	readonly showAnalysis: AnalysisDependencies['showAnalysis'];
 	readonly setStatus: AnalysisDependencies['setStatus'];
 	readonly publish: AnalysisDependencies['publish'];
+	readonly batchPresentation?: AnalysisDependencies['batchPresentation'];
 	readonly handleError: AnalysisDependencies['handleError'];
 	/** Browser worker transport supplied by the application composition root. */
 	readonly analyzeChannels: AnalysisWorkerPort;
@@ -83,6 +87,10 @@ export function createAnalysisComposition<Project extends AnalysisProject, Buffe
 			});
 		},
 		getActiveSelection: currentSelection,
+		captureLoudnessGeneration: dependencies.getImmutableProjectGeneration ? () => {
+			const generation = dependencies.hasMissingTimelineSources() ? null : dependencies.getImmutableProjectGeneration?.();
+			return generation ? { generation, sampleRate: dependencies.projectSampleRate() } : null;
+		} : undefined,
 		getSpectrumWindowSize: () => state.preferences?.spectrogram?.windowSize ?? 2048,
 		getContrastSelections: () => state.contrastSelections,
 		setContrastSelections: (value) => { state.contrastSelections = value; },
@@ -100,9 +108,15 @@ export function createAnalysisComposition<Project extends AnalysisProject, Buffe
 			return result;
 		},
 		createVisuals: createEditorAnalysisVisuals,
+		createSpecializedReport: (kind, scope, range, channels, sampleRate, options, signal) => calculateAudioAnalysisReportInWorker({ kind, scope, range, channels, sampleRate, options }, { signal }),
+		measureLoudnessChannels: async (channels, sampleRate, range, channelWeights, signal) => {
+			const report = await calculateAudioAnalysisReportInWorker({ kind: 'loudness', scope: 'master', range, channels, sampleRate, options: {}, channelWeights }, { signal });
+			if (!('subject' in report)) throw new TypeError('The loudness worker returned an invalid report.');
+			return report;
+		},
 		showAnalysis: dependencies.showAnalysis,
 		setProcessing: (processing) => { state.analysisProcessing = processing; },
-		setStatus: dependencies.setStatus, publish: dependencies.publish, handleError: dependencies.handleError,
+		setStatus: dependencies.setStatus, publish: dependencies.publish, batchPresentation: dependencies.batchPresentation, handleError: dependencies.handleError,
 	}) : createAbsentAnalysisService({ productName: dependencies.productName });
 	return Object.freeze({
 		...service,

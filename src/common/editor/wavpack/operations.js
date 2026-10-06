@@ -7,6 +7,7 @@ import {
 	crc32,
 	exactArrayBuffer,
 	minimumWavPackSavings,
+	maximumWavPackPayloadBytes,
 	pcmRawByteLength,
 } from './pcm.js';
 
@@ -15,6 +16,7 @@ export function encodePcmAdaptively(rawInput, {
 	channelCount,
 	sampleRate,
 	runtime,
+	requireWavPack,
 } = {}) {
 	if (!runtime?.encode) throw new TypeError('A WavPack runtime is required.');
 	const raw = exactArrayBuffer(rawInput);
@@ -22,14 +24,17 @@ export function encodePcmAdaptively(rawInput, {
 	if (raw.byteLength !== rawBytes) throw new RangeError('Raw PCM does not match its declared geometry.');
 	const pcmCrc32 = crc32(raw);
 	const minimumSavings = minimumWavPackSavings(rawBytes);
-	if (rawBytes <= minimumSavings) return rawCodecResult(raw, pcmCrc32);
+	if (!requireWavPack && rawBytes <= minimumSavings) return rawCodecResult(raw, pcmCrc32);
 	const compressed = runtime.encode(raw, {
 		frames,
 		channelCount,
 		sampleRate,
-		maximumOutputBytes: rawBytes - minimumSavings,
+		maximumOutputBytes: requireWavPack ? maximumWavPackPayloadBytes(frames, channelCount) : rawBytes - minimumSavings,
 	});
-	if (!compressed) return rawCodecResult(raw, pcmCrc32);
+	if (!compressed) {
+		if (requireWavPack) throw new RangeError('Required WavPack encoding exceeded the bounded PCM packet capacity.');
+		return rawCodecResult(raw, pcmCrc32);
+	}
 	return {
 		encoding: PCM_ENCODING_WAVPACK_F32_V1,
 		payload: compressed,

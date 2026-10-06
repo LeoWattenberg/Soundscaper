@@ -88,6 +88,8 @@ test('three-band RMS uses the full-band summary when enabled', () => {
 	assert.equal(drawFrequencyWaveformChannel(context as unknown as CanvasRenderingContext2D,
 		'waveform-three-band', rendering, projection, drawing, lightStyle, true), true);
 	assert.ok(context.fills.some(({ color }) => color === 'rgba(0, 0, 0, 0.28)'));
+	assert.equal(context.fills.length, 8, 'three peak bands plus one RMS span per column');
+	assert.ok(context.fills.every(({ color }) => color !== 'transparent'));
 });
 
 test('three-band renderer overlays low, mid, and high without RMS recoloring', () => {

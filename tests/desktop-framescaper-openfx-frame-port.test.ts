@@ -206,16 +206,18 @@ test('a zero-input Generator uses a closed null ingress binding and bounded outp
 	assert.deepEqual((controlValue as { inputs: unknown[] }).inputs, []);
 });
 
-test('renderer close aborts main execution after ingress, including a zero-input Generator', async (context) => {
+test('renderer close aborts main execution after ingress, including a zero-input Generator', { timeout: 10_000 }, async (context) => {
 	let listener: ((offer: never, port: never) => void) | null = null;
 	let executionStarted!: () => void;
 	const started = new Promise<void>((resolve) => { executionStarted = resolve; });
+	let observeAbort!: () => void;
+	const aborted = new Promise<void>((resolve) => { observeAbort = resolve; });
 	let mainAborted = false;
 	const broker = createFramescaperOpenFxFramePortBroker({
 		service: { execute: async (request) => {
 			executionStarted();
 			await new Promise<void>((_resolve, reject) => request.signal?.addEventListener('abort', () => {
-				mainAborted = true; reject(request.signal?.reason);
+				mainAborted = true; observeAbort(); reject(request.signal?.reason);
 			}, { once: true }));
 			throw new Error('unreachable');
 		} },
@@ -243,7 +245,7 @@ test('renderer close aborts main execution after ingress, including a zero-input
 	await started;
 	abort.abort(new Error('renderer cancelled'));
 	await assert.rejects(execution, /renderer cancelled/iu);
-	await new Promise((resolve) => setTimeout(resolve, 10));
+	await aborted;
 	assert.equal(mainAborted, true);
 });
 

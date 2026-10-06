@@ -439,7 +439,7 @@ export const chunkGroups = [
 	},
 	{
 		name: 'editor-timeline',
-		test: new RegExp(`${editorPath}(?:ui[\\\\/](?:AudioEditorTimeline|AudioEditorSampleTools)|audacity-waveform-renderer\\.js)`),
+		test: new RegExp(`${editorPath}(?:ui[\\\\/](?:AudioEditorTimeline|AudioEditorSampleTools)|audacity-waveform-renderer\\.js|waveform-stem-batch-capability\\.ts)`),
 		priority: 80,
 		maxSize: 400_000,
 		includeDependenciesRecursively: false,

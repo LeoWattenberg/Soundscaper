@@ -1,5 +1,23 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createBoundedWorkQueue } from './internal/bounded-work-queue.ts';
+import { createSpectrogramColumnCache } from './internal/spectrogram-column-cache.ts';
+
+export type { SpectrogramColumnCacheView } from './internal/spectrogram-column-cache.ts';
+
+const jobs = createBoundedWorkQueue(2, 128);
+const completedColumns = createSpectrogramColumnCache(32 * 1024 ** 2);
+const columnOwners = new WeakMap<object, number>();
+let nextColumnOwner = 0;
+export function timelineSpectrogramColumnCache(owner: object, key: string) {
+	let identity = columnOwners.get(owner);
+	if (identity === undefined) { identity = nextColumnOwner++; columnOwners.set(owner, identity); }
+	return completedColumns.forKey(`${identity}:${key}`);
+}
+export function queueTimelineSpectrogramJob<Result>(operation: () => Promise<Result>, options: Readonly<{ signal?: AbortSignal; priority?: number }> = {}): Promise<Result> {
+	return jobs.run(operation, options);
+}
+
 export type SpectrogramChannels = readonly (readonly (readonly number[])[])[];
 
 interface CacheEntry<Value> {

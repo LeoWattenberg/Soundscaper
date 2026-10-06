@@ -7,12 +7,21 @@ import {
 	type EditorTaskScope,
 } from '../../shared/lifecycle.ts'; import { publishedCopyFor } from '../../shared/presentation-localization.ts'; import { createLocalizedError, setLocalizedStatus } from '../../../../i18n/presentation-message.ts';
 import { createSelectionEffectPreviewService } from './effect-preview-service.ts';
+import { createPreparedSelectionPcmCache, preparedSelectionPcmKey } from './prepared-selection-pcm-cache.ts';
+import { tryPrepareCoalescedEffectContext, type SimpleDryRangeRenderer } from './coalesced-effect-context.ts';
 
 const SELECTION_EFFECT_TASK = 'selection-effect-apply';
 /** The registry name a Nyquist evaluation holds while the evaluator runs. */
+import { processIndependentSelectionTargets, type IndependentSelectionPorts } from './independent-selection-targets.ts';
+
 export const NYQUIST_EVALUATION_TASK = 'nyquist-evaluation';
 
 export interface SelectionEffectExecutionRuntime {
+	readonly batchPresentation?: (mutation: () => void) => void;
+	readonly runIndependentSelectionEffects?: IndependentSelectionPorts['runIndependentSelectionEffects'];
+	/** Stable canonical audio ownership until an edit; absent for untrusted ports or memory mode. */
+	readonly getPreparedAudioAuthority?: () => object | null;
+	readonly tryRenderSimpleDryTrackRange?: SimpleDryRangeRenderer;
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	readonly [name: string]: any;
@@ -34,11 +43,21 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 		publishDocumentSnapshot, renderDryTrackRange, resolveInteractiveAudacityParams, runSelectionEffectWorker,
 		setAudacityEffectType, setStatus, state, throwIfAborted, updateTaskProgress,
 	} = runtime;
-	const previewAudacityEffectFromController = createSelectionEffectPreviewService(runtime);
+	const batchPresentation = runtime.batchPresentation ?? ((mutation: () => void) => mutation());
+	const preparedAudio = createPreparedSelectionPcmCache({
+		authority: () => runtime.getPreparedAudioAuthority?.() ?? null,
+		captureProject: () => runtime.captureProject(),
+		assertProject: (token) => runtime.assertProject(token),
+		startTask: (name, options) => runtime.lifetime.startTask(name, options),
+	});
+	const previewAudacityEffectFromController = createSelectionEffectPreviewService({
+		...runtime, releasePreparedPcm: () => preparedAudio.clear(),
+	});
 	let preparationGeneration = 0;
 
 	async function prepareAudacityEffectFromController(type: string) {
 		const generation = ++preparationGeneration;
+		preparedAudio.clear();
 		setAudacityEffectType(type);
 		if (type !== 'audacity-amplify') return currentAudacityEffectParams(type);
 		// Amplify is the one destructive effect whose dialog default belongs to
@@ -47,6 +66,7 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 		state.audacityEffectTouchedParams.get(type)?.delete('gainDb');
 		const previewGeneration = state.audacityPreviewGeneration;
 		const projectToken = runtime.captureProject();
+		const authority = runtime.getPreparedAudioAuthority?.() ?? null;
 		const targets = audacityEffectTargets();
 		if (!targets.length) return currentAudacityEffectParams(type);
 		const sampleRate = targets[0]?.sourceSampleRate ?? projectSampleRate();
@@ -58,9 +78,9 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 			})
 		), 0);
 		if (estimatedPeakBytes > AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES) throw audacityEffectMemoryError(copy);
-		const channels = [];
+		const channelSets: Float32Array[][] = [];
 		for (const target of targets) {
-			channels.push(...await renderDryTrackRange(
+			channelSets.push(await renderDryTrackRange(
 				target.track.id,
 				target.startFrame,
 				target.endFrame,
@@ -77,8 +97,10 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 		const resolved = resolveInteractiveAudacityParams(
 			type,
 			normalizeAudioSelectionEffectParams(type, currentAudacityEffectParams(type)),
-			channels,
+			channelSets.flat(),
 		);
+		preparedAudio.retain(authority, preparedSelectionPcmKey(targets), channelSets,
+			AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES - estimatedPeakBytes);
 		publishDocumentSnapshot();
 		return resolved;
 	}
@@ -130,22 +152,36 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 			assertSelectionEffectOwnership(runtime, ownership);
 			return channels;
 		};
-		state.audacityEffectProcessing = true;
-		setLocalizedStatus(setStatus, copy, "audacityProcessing");
-		publishDocumentSnapshot();
+		batchPresentation(() => {
+			state.audacityEffectProcessing = true;
+			setLocalizedStatus(setStatus, copy, "audacityProcessing");
+			publishDocumentSnapshot();
+		});
+		let finished = false;
 		try {
 			await preflightStorage(estimatedOutputBytes, 'effect');
 			assertSelectionEffectOwnership(runtime, ownership);
+			const preparedChannels = type === 'audacity-amplify'
+				? preparedAudio.take(preparedSelectionPcmKey(targets)) : null;
+			if (type !== 'audacity-amplify') preparedAudio.clear();
 			const dryResults = [];
-			for (const target of targets) {
-				const channels = await renderCurrentDryTrackRange(
+			for (const [index, target] of targets.entries()) {
+				const coalesced = contextFrames > 0 && runtime.tryRenderSimpleDryTrackRange
+					? await tryPrepareCoalescedEffectContext(target, contextFrames, afterContextFrames,
+						target.sourceFrameCount ?? projectDurationFrames(getProject()),
+						AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES - estimatedPeakBytes, async (...args) => {
+							const channels = await runtime.tryRenderSimpleDryTrackRange!(...args);
+							assertSelectionEffectOwnership(runtime, ownership);
+							return channels;
+						}) : null;
+				const channels = coalesced?.channels ?? preparedChannels?.[index] ?? await renderCurrentDryTrackRange(
 					target.track.id,
 					target.startFrame,
 					target.endFrame,
 					target.channelCount,
 					target.clipIds,
 				);
-				dryResults.push({ target, channels });
+				dryResults.push({ target, channels, neighbourContext: coalesced?.context });
 			}
 			params = resolveInteractiveAudacityParams(
 				type,
@@ -168,7 +204,7 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 				const linkedChannels = dryResults.flatMap(({ channels }: RuntimeValue) => channels);
 				const result = await runSelectionEffectWorker({
 					operation: 'apply', effectType: type, channels: linkedChannels, sampleRate, params, context: {},
-				});
+				}, { pcmOwnership: 'transfer' });
 				assertSelectionEffectOwnership(runtime, ownership);
 				const processedChannels = Array.isArray(result.channels) ? result.channels : [];
 				let channelOffset = 0;
@@ -179,36 +215,14 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 				});
 				if (channelOffset !== processedChannels.length) throw createLocalizedError(Error, copy, 'effectChannelLayoutChanged');
 			} else {
-				for (const { target, channels } of dryResults) {
-					const effectContext: RuntimeValue = {};
-					const spectralSelection = spectralSelections.get(target.track.id);
-					if (spectralSelection) effectContext.spectralSelection = spectralSelection;
-					if (definition.requiresControlTrack) {
-						effectContext.controlChannels = controlChannels || await renderCurrentDryTrackRange(
-							state.audacityControlTrackId,
-							target.startFrame,
-							target.endFrame,
-						);
-					}
-					if (definition.requiresNoiseProfile) effectContext.noiseProfile = state.audacityNoiseProfile;
-					if (contextFrames > 0) {
-						const beforeStart = Math.max(0, target.startFrame - contextFrames);
-						effectContext.beforeChannels = beforeStart < target.startFrame
-							? await renderCurrentDryTrackRange(target.track.id, beforeStart, target.startFrame, target.channelCount, target.clipIds)
-							: channels.map(() => new Float32Array(0));
-						if (afterContextFrames > 0) {
-							const afterEnd = Math.min(target.sourceFrameCount ?? projectDurationFrames(getProject()), target.endFrame + afterContextFrames);
-							effectContext.afterChannels = target.endFrame < afterEnd
-								? await renderCurrentDryTrackRange(target.track.id, target.endFrame, afterEnd, target.channelCount, target.clipIds)
-								: channels.map(() => new Float32Array(0));
-						}
-					}
-					const result = await runSelectionEffectWorker({
-						operation: 'apply', effectType: type, channels, sampleRate, params, context: effectContext,
-					});
-					assertSelectionEffectOwnership(runtime, ownership);
-					results.push({ target, channels: result.channels });
-				}
+				results = await processIndependentSelectionTargets({ dryResults, effectType: type, sampleRate, params,
+					definition, spectralSelections, controlChannels, controlTrackId: state.audacityControlTrackId,
+					noiseProfile: state.audacityNoiseProfile, contextFrames, afterContextFrames,
+					projectFrameCount: () => projectDurationFrames(getProject()), renderDryRange: renderCurrentDryTrackRange,
+					assertCurrent: () => assertSelectionEffectOwnership(runtime, ownership), runSelectionEffectWorker,
+					// The admitted peak above sums every target's PCM and DSP workspace.
+					runIndependentSelectionEffects: runtime.getPreparedAudioAuthority?.() ? runtime.runIndependentSelectionEffects : undefined,
+				});
 			}
 			await persistAudacityEffectResults(results, type, {
 				allowIndependentLengths: type === 'audacity-truncate-silence' && params.independent === true,
@@ -216,14 +230,15 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 				selectionDetails: audacityEffectSelectionDetails(selection, targets),
 			});
 			assertSelectionEffectOwnership(runtime, ownership);
-			state.lastAudacityEffect = {
+			batchPresentation(() => { state.lastAudacityEffect = {
 				type,
 				params: structuredClone(params),
 				controlTrackId: state.audacityControlTrackId,
 			};
 			setLocalizedStatus(setStatus, copy, "audacityApplied", undefined, 'success');
+				finishSelectionEffectProcessing(runtime, ownership); finished = true; });
 		} finally {
-			finishSelectionEffectProcessing(runtime, ownership);
+			if (!finished) finishSelectionEffectProcessing(runtime, ownership);
 		}
 	}
 
@@ -438,12 +453,13 @@ function finishSelectionEffectProcessing(
 	runtime: SelectionEffectExecutionRuntime,
 	ownership: SelectionEffectOwnership,
 ): void {
-	const taskCurrent = selectionEffectTaskIsCurrent(ownership.task);
-	if (taskCurrent) runtime.state.audacityEffectProcessing = false;
-	if (taskCurrent && selectionEffectProjectIsCurrent(runtime, ownership.project)) {
-		runtime.publishDocumentSnapshot();
-	}
-	ownership.task.finish();
+	const finish = (): void => {
+		const taskCurrent = selectionEffectTaskIsCurrent(ownership.task);
+		if (taskCurrent) runtime.state.audacityEffectProcessing = false;
+		if (taskCurrent && selectionEffectProjectIsCurrent(runtime, ownership.project)) runtime.publishDocumentSnapshot();
+		ownership.task.finish();
+	};
+	if (runtime.batchPresentation) runtime.batchPresentation(finish); else finish();
 }
 
 function selectionEffectTaskIsCurrent(task: EditorTaskScope): boolean {

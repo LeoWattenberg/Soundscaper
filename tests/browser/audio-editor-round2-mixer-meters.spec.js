@@ -14,11 +14,19 @@ async function playingMixer(page, amplitudes) {
 	return strip;
 }
 
+async function fillScale(fill) {
+	return fill.evaluate((element) => {
+		const match = /^scaleY\(([^)]+)\)$/u.exec(element.style.transform);
+		return match ? Number(match[1]) : Number.NaN;
+	});
+}
+
 test('mixer stereo bars show independent left and right levels', async ({ page }) => {
 	const strip = await playingMixer(page, [0.8, 0]);
 	const fills = strip.locator('.mixer-channel__meter-fill');
-	await expect.poll(async () => Number.parseFloat(await fills.first().evaluate((element) => element.style.top))).toBeLessThan(20);
-	await expect.poll(async () => Number.parseFloat(await fills.nth(1).evaluate((element) => element.style.top))).toBe(100);
+	await expect(fills).toHaveCount(2);
+	await expect.poll(() => fillScale(fills.first())).toBeGreaterThan(0.8);
+	await expect.poll(() => fillScale(fills.nth(1))).toBe(0);
 	const trackMeters = page.getByRole('group', { name: 'channel-meter track controls', exact: true }).locator('.track-meter');
 	await expect(trackMeters).toHaveCount(2);
 	await expect.poll(async () => Number.parseFloat(await trackMeters.first().evaluate((element) => element.style.getPropertyValue('--tm-volume-position')))).toBeLessThan(20);
@@ -27,6 +35,6 @@ test('mixer stereo bars show independent left and right levels', async ({ page }
 
 test('mixer clipping indicators stay clear for a loud signal below full scale', async ({ page }) => {
 	const strip = await playingMixer(page, [0.9, 0.9]);
-	await expect.poll(async () => Number.parseFloat(await strip.locator('.mixer-channel__meter-fill').first().evaluate((element) => element.style.top))).toBeLessThan(5);
+	await expect.poll(() => fillScale(strip.locator('.mixer-channel__meter-fill').first())).toBeGreaterThan(0.95);
 	await expect(strip.locator('.mixer-channel__meter-clip--active')).toHaveCount(0);
 });

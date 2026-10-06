@@ -35,21 +35,28 @@ export function validateNoiseProfile(profile, sampleRate) {
 	}
 }
 
-export function reduceNoiseChannel(channel, sampleRate, params, meanPowers, window, attenuation) {
+export function reduceNoiseChannel(channel, sampleRate, params, meanPowers, window, attenuation,
+	normalization = noiseReductionNormalization(channel.length, window)) {
 	const starts = paddedFrameStarts(channel.length, NOISE_WINDOW_SIZE, NOISE_HOP_SIZE);
-	const powers = starts.map((start) => powerSpectrum(channel, start, window));
 	const binCount = meanPowers.length;
-	const gains = powers.map(() => new Float32Array(binCount));
+	const workspace = createPowerSpectrumWorkspace(window);
+	const powers = Array.from({ length: NOISE_STEPS_PER_WINDOW + 1 }, () => new Float32Array(binCount));
+	const gains = starts.map(() => new Float32Array(binCount));
 	const sensitivity = params.sensitivity * Math.log(10);
+	let nextPower = 0;
 
-	for (let frame = 0; frame < powers.length; frame += 1) {
+	for (let frame = 0; frame < starts.length; frame += 1) {
 		const first = Math.max(0, frame - NOISE_STEPS_PER_WINDOW / 2);
-		const last = Math.min(powers.length - 1, frame + NOISE_STEPS_PER_WINDOW / 2);
+		const last = Math.min(starts.length - 1, frame + NOISE_STEPS_PER_WINDOW / 2);
+		while (nextPower <= last) {
+			workspace.read(channel, starts[nextPower], powers[nextPower % powers.length]);
+			nextPower += 1;
+		}
 		for (let bin = 0; bin < binCount; bin += 1) {
 			let greatest = 0;
 			let secondGreatest = 0;
 			for (let neighbor = first; neighbor <= last; neighbor += 1) {
-				const power = powers[neighbor][bin];
+				const power = powers[neighbor % powers.length][bin];
 				if (power >= greatest) {
 					secondGreatest = greatest;
 					greatest = power;
@@ -76,15 +83,16 @@ export function reduceNoiseChannel(channel, sampleRate, params, meanPowers, wind
 
 	const smoothingBins = Math.floor(params.frequencySmoothingBands);
 	if (smoothingBins > 0) {
-		for (const frameGains of gains) applyGeometricFrequencySmoothing(frameGains, smoothingBins);
+		const prefix = new Float64Array(binCount + 1);
+		for (const frameGains of gains) applyGeometricFrequencySmoothing(frameGains, smoothingBins, prefix);
 	}
 
 	const accumulated = new Float64Array(channel.length);
-	const normalization = new Float64Array(channel.length);
+	const { real, imaginary } = workspace;
 	for (let frame = 0; frame < starts.length; frame += 1) {
 		const start = starts[frame];
-		const real = new Float64Array(NOISE_WINDOW_SIZE);
-		const imaginary = new Float64Array(NOISE_WINDOW_SIZE);
+		real.fill(0);
+		imaginary.fill(0);
 		for (let index = 0; index < NOISE_WINDOW_SIZE; index += 1) {
 			const sourceIndex = start + index;
 			if (sourceIndex >= 0 && sourceIndex < channel.length) real[index] = channel[sourceIndex] * window[index];
@@ -104,7 +112,6 @@ export function reduceNoiseChannel(channel, sampleRate, params, meanPowers, wind
 			const outputIndex = start + index;
 			if (outputIndex < 0 || outputIndex >= channel.length) continue;
 			accumulated[outputIndex] += real[index] * window[index];
-			normalization[outputIndex] += window[index] * window[index];
 		}
 	}
 
@@ -120,12 +127,9 @@ export function reduceNoiseChannel(channel, sampleRate, params, meanPowers, wind
 	return residue;
 }
 
-function applyGeometricFrequencySmoothing(gains, radius) {
-	const logs = new Float64Array(gains.length);
-	const prefix = new Float64Array(gains.length + 1);
+function applyGeometricFrequencySmoothing(gains, radius, prefix) {
 	for (let bin = 0; bin < gains.length; bin += 1) {
-		logs[bin] = Math.log(gains[bin]);
-		prefix[bin + 1] = prefix[bin] + logs[bin];
+		prefix[bin + 1] = prefix[bin] + Math.log(gains[bin]);
 	}
 	for (let bin = 0; bin < gains.length; bin += 1) {
 		const first = Math.max(0, bin - radius);
@@ -135,17 +139,39 @@ function applyGeometricFrequencySmoothing(gains, radius) {
 }
 
 export function powerSpectrum(channel, start, window) {
+	return createPowerSpectrumWorkspace(window).read(channel, start);
+}
+
+export function createPowerSpectrumWorkspace(window) {
 	const size = window.length;
 	const real = new Float64Array(size);
 	const imaginary = new Float64Array(size);
-	for (let index = 0; index < size; index += 1) {
-		const sourceIndex = start + index;
-		if (sourceIndex >= 0 && sourceIndex < channel.length) real[index] = channel[sourceIndex] * window[index];
+	return {
+		real,
+		imaginary,
+		read(channel, start, powers = new Float32Array(size / 2 + 1)) {
+			real.fill(0);
+			imaginary.fill(0);
+			for (let index = 0; index < size; index += 1) {
+				const sourceIndex = start + index;
+				if (sourceIndex >= 0 && sourceIndex < channel.length) real[index] = channel[sourceIndex] * window[index];
+			}
+			fft(real, imaginary, false);
+			for (let bin = 0; bin < powers.length; bin += 1) powers[bin] = real[bin] ** 2 + imaginary[bin] ** 2;
+			return powers;
+		},
+	};
+}
+
+export function noiseReductionNormalization(frameCount, window) {
+	const normalization = new Float64Array(frameCount);
+	for (const start of paddedFrameStarts(frameCount, window.length, NOISE_HOP_SIZE)) {
+		for (let index = 0; index < window.length; index += 1) {
+			const outputIndex = start + index;
+			if (outputIndex >= 0 && outputIndex < frameCount) normalization[outputIndex] += window[index] * window[index];
+		}
 	}
-	fft(real, imaginary, false);
-	const powers = new Float32Array(size / 2 + 1);
-	for (let bin = 0; bin < powers.length; bin += 1) powers[bin] = real[bin] ** 2 + imaginary[bin] ** 2;
-	return powers;
+	return normalization;
 }
 
 function paddedFrameStarts(frameCount, windowSize, hopSize) {

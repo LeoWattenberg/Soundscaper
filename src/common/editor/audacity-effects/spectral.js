@@ -28,16 +28,17 @@ import { fft } from '../pffft.js';
 import { dbToLinear } from './basic-channel-math.js';
 import {
 	buildEqualizationKernel,
-	convolveSame,
 	createGraphicEqCurve,
 	interpolateLinearFrequencyCurve,
 	interpolateLogFrequencyCurve,
 } from './spectral-equalization-curves.js';
+import { createSameConvolver } from './spectral-convolution.ts';
 import {
 	NOISE_HOP_SIZE,
 	NOISE_STEPS_PER_WINDOW,
 	NOISE_WINDOW_SIZE,
-	powerSpectrum,
+	createPowerSpectrumWorkspace,
+	noiseReductionNormalization,
 	reduceNoiseChannel,
 	validateNoiseProfile,
 } from './spectral-noise-reduction.js';
@@ -86,7 +87,7 @@ export function applyAudacityFilterCurveEq(channels, sampleRate, params = {}) {
 			? interpolateLinearFrequencyCurve(points, frequency)
 			: interpolateLogFrequencyCurve(points, frequency),
 	);
-	return channels.map((channel) => convolveSame(channel, kernel));
+	return channels.map(createSameConvolver(kernel));
 }
 
 export function applyAudacityGraphicEq(channels, sampleRate, params = {}) {
@@ -98,7 +99,7 @@ export function applyAudacityGraphicEq(channels, sampleRate, params = {}) {
 		sampleRate / 2,
 	);
 	const kernel = buildEqualizationKernel(sampleRate, normalized.filterLength, gainAtFrequency);
-	return channels.map((channel) => convolveSame(channel, kernel));
+	return channels.map(createSameConvolver(kernel));
 }
 
 export function captureAudacityNoiseProfile(channels, sampleRate, params = {}) {
@@ -113,10 +114,12 @@ export function captureAudacityNoiseProfile(channels, sampleRate, params = {}) {
 	const window = periodicHann(NOISE_WINDOW_SIZE);
 	const binCount = NOISE_WINDOW_SIZE / 2 + 1;
 	const sums = new Float64Array(binCount);
+	const workspace = createPowerSpectrumWorkspace(window);
+	const powers = new Float32Array(binCount);
 	let windowCount = 0;
 	for (const channel of channels) {
 		for (let start = 0; start + NOISE_WINDOW_SIZE <= frameCount; start += NOISE_HOP_SIZE) {
-			const powers = powerSpectrum(channel, start, window);
+			workspace.read(channel, start, powers);
 			for (let bin = 0; bin < binCount; bin += 1) sums[bin] += powers[bin];
 			windowCount += 1;
 		}
@@ -150,6 +153,7 @@ export function applyAudacityNoiseReduction(channels, sampleRate, params = {}, p
 	}
 
 	const window = periodicHann(NOISE_WINDOW_SIZE);
+	const normalization = noiseReductionNormalization(channels[0].length, window);
 	return channels.map((channel) => reduceNoiseChannel(
 		channel,
 		sampleRate,
@@ -157,6 +161,7 @@ export function applyAudacityNoiseReduction(channels, sampleRate, params = {}, p
 		profile.meanPowers,
 		window,
 		attenuation,
+		normalization,
 	));
 }
 
@@ -175,12 +180,14 @@ export function applyAudacityPaulstretch(channels, sampleRate, params = {}, cont
 		throw new RangeError('The Paulstretch output is too large.');
 	}
 	const baseSeed = seedToUint32(context?.seed);
+	const window = periodicHann(inputBufferSize * 2);
 	return channels.map((channel, channelIndex) => paulstretchChannel(
 		channel,
 		normalized.stretchFactor,
 		inputBufferSize,
 		outputFrames,
 		baseSeed ^ Math.imul(channelIndex + 1, 0x9e37_79b9),
+		window,
 	));
 }
 
@@ -283,20 +290,21 @@ function paulstretchBufferSize(sampleRate, timeResolution) {
 	return Math.max(128, powerOfTwo);
 }
 
-function paulstretchChannel(input, stretchFactor, inputBufferSize, outputFrames, seed) {
+function paulstretchChannel(input, stretchFactor, inputBufferSize, outputFrames, seed, window) {
 	const fftSize = inputBufferSize * 2;
 	const outputHop = inputBufferSize;
-	const window = periodicHann(fftSize);
 	const accumulated = new Float64Array(outputFrames);
 	const normalization = new Float64Array(outputFrames);
 	const random = createRandom(seed);
+	const real = new Float64Array(fftSize);
+	const imaginary = new Float64Array(fftSize);
 
 	for (let outputStart = -outputHop; outputStart < outputFrames; outputStart += outputHop) {
 		const outputCenter = outputStart + inputBufferSize;
 		const inputCenter = outputCenter / stretchFactor;
 		const inputStart = Math.round(inputCenter - inputBufferSize);
-		const real = new Float64Array(fftSize);
-		const imaginary = new Float64Array(fftSize);
+		real.fill(0);
+		imaginary.fill(0);
 		for (let index = 0; index < fftSize; index += 1) {
 			const sourceIndex = inputStart + index;
 			if (sourceIndex >= 0 && sourceIndex < input.length) real[index] = input[sourceIndex] * window[index];

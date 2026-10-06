@@ -30,7 +30,9 @@ export function multiplyChannels(channels, gain) {
 }
 
 export function multiplyChannel(channel, gain) {
-	return Float32Array.from(channel, (sample) => sample * gain);
+	const output = new Float32Array(channel.length);
+	for (let frame = 0; frame < channel.length; frame += 1) output[frame] = channel[frame] * gain;
+	return output;
 }
 
 export function channelPeak(channels) {

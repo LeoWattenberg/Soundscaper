@@ -17,7 +17,10 @@ test('a real maintenance-aborted opening reopens once and later provider reads r
 	let captures = 0;
 	let openings = 0;
 	const reader = new SourceReadRepository({
-		records: { getMetadata() { captures++; started.resolve(); return captures === 1 ? gate.promise : Promise.resolve(metadata); } } as never,
+		records: {
+			getMetadata() { captures++; started.resolve(); return captures === 1 ? gate.promise : Promise.resolve(metadata); },
+			getMetadataMany(ids: readonly string[]) { return Promise.resolve(ids.map(() => metadata)); },
+		} as never,
 		pcm: {} as never,
 		opfs: { readLegacyChunk() { return Promise.resolve({ index: 0, frames: 1, channels: [Float32Array.of(0.25)] }); } } as never,
 	});
@@ -45,6 +48,7 @@ test('bulk cleanup preserves successor sessions opened while older admission is 
 	const gate = deferred<typeof metadata>();
 	const reader = new SourceReadRepository({
 		records: {
+			getMetadataMany(ids: readonly string[]) { return Promise.resolve(ids.map(() => metadata)); },
 			getMetadata(id: string) {
 				if (id === 'blocked') { started.resolve(); return gate.promise; }
 				return Promise.resolve(metadata);

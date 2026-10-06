@@ -61,7 +61,7 @@ export function drawFrequencyWaveformChannel(
 		});
 		if (showRms) drawAudacityWaveformChannel(context, rendering, {
 			...options,
-			sampleColor: 'transparent',
+			drawPeaks: false,
 			rmsColor: style.getPropertyValue('--frequency-rms-overlay').trim()
 				|| (dark ? 'rgba(255, 255, 255, 0.38)' : 'rgba(0, 0, 0, 0.28)'),
 			showRms: true,

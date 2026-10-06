@@ -2,6 +2,7 @@
 
 import { normalizeBandDynamicsParams } from '../dynamics/definition.ts';
 import { BandCompressor, ComplementaryCrossover, validateChannels, validateGeometry, type BandDynamicsOptions } from '../dynamics/core.ts';
+import type { SelectionInputValidation } from '../../audacity-effects/pcm-channel-validation.ts';
 
 /** Three complementary bands, each with independent stereo-linked compression.
  * The mid band is the difference of the two low-pass outputs. At unity gains
@@ -91,8 +92,9 @@ export function createMultibandCompressorProcessor({ sampleRate, channelCount, p
 	};
 }
 
-export function applyMultibandCompressor(channels: readonly Float32Array[], sampleRate: number, params: Readonly<Record<string, unknown>> = {}) {
-	const frames = validateChannels(channels, sampleRate);
+export function applyMultibandCompressor(channels: readonly Float32Array[], sampleRate: number, params: Readonly<Record<string, unknown>> = {},
+	validation?: SelectionInputValidation) {
+	const frames = validateChannels(channels, sampleRate, validation);
 	const processor = createMultibandCompressorProcessor({ sampleRate, channelCount: channels.length, params });
 	const output = channels.map(() => new Float32Array(frames));
 	processor.processBlock(channels, output, frames);

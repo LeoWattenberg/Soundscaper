@@ -14,6 +14,7 @@
 import { fft } from '../pffft.js';
 import { dbToLinear } from './basic-channel-math.js';
 import { filterCurveGain } from './filter-curve.ts';
+import { createSameConvolver } from './spectral-convolution.ts';
 
 const AUDACITY_EQ_FFT_SIZE = 16_384;
 const AUDACITY_GRAPHIC_EQ_POINTS = 180;
@@ -192,35 +193,5 @@ function createNaturalCubicSpline(x, y) {
 }
 
 export function convolveSame(input, kernel) {
-	const fftSize = nextPowerOfTwo(kernel.length * 2);
-	const blockSize = fftSize - kernel.length + 1;
-	const kernelReal = new Float64Array(fftSize);
-	const kernelImaginary = new Float64Array(fftSize);
-	kernelReal.set(kernel);
-	fft(kernelReal, kernelImaginary, false);
-	const full = new Float64Array(input.length + kernel.length - 1);
-	for (let inputOffset = 0; inputOffset < input.length; inputOffset += blockSize) {
-		const count = Math.min(blockSize, input.length - inputOffset);
-		const real = new Float64Array(fftSize);
-		const imaginary = new Float64Array(fftSize);
-		for (let index = 0; index < count; index += 1) real[index] = input[inputOffset + index];
-		fft(real, imaginary, false);
-		for (let bin = 0; bin < fftSize; bin += 1) {
-			const re = real[bin];
-			const im = imaginary[bin];
-			real[bin] = re * kernelReal[bin] - im * kernelImaginary[bin];
-			imaginary[bin] = re * kernelImaginary[bin] + im * kernelReal[bin];
-		}
-		fft(real, imaginary, true);
-		const convolutionFrames = count + kernel.length - 1;
-		for (let index = 0; index < convolutionFrames; index += 1) full[inputOffset + index] += real[index];
-	}
-	const delay = (kernel.length - 1) / 2;
-	const output = new Float32Array(input.length);
-	for (let frame = 0; frame < output.length; frame += 1) output[frame] = full[frame + delay];
-	return output;
-}
-
-function nextPowerOfTwo(value) {
-	return 2 ** Math.ceil(Math.log2(value));
+	return createSameConvolver(kernel)(input);
 }

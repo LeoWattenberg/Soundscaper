@@ -4,6 +4,7 @@
  */
 
 import { fft } from './pffft.js';
+import { spectralBinInterval } from './spectral-bin-interval.ts';
 
 const DEFAULT_WINDOW_SIZE = 2048;
 const DEFAULT_HOP_DIVISOR = 4;
@@ -35,6 +36,7 @@ export function applySpectralGain(channels, options = {}) {
 	if (gain === 1) return input.map((channel) => channel.slice());
 
 	const window = createHannWindow(windowSize);
+	const [firstBin, endBin] = spectralBinInterval(sampleRate, windowSize, minimumFrequency, maximumFrequency);
 	const firstWindow = Math.floor((startFrame - windowSize + 1) / hopSize) * hopSize;
 	const lastWindow = Math.ceil((endFrame - 1) / hopSize) * hopSize;
 	const output = input.map((channel) => channel.slice());
@@ -52,9 +54,7 @@ export function applySpectralGain(channels, options = {}) {
 				if (sourceFrame >= 0 && sourceFrame < frameCount) real[frame] = source[sourceFrame] * window[frame];
 			}
 			fft(real, imaginary, false);
-			for (let bin = 0; bin <= windowSize / 2; bin += 1) {
-				const frequency = bin * sampleRate / windowSize;
-				if (frequency < minimumFrequency || frequency > maximumFrequency) continue;
+			for (let bin = firstBin; bin < endBin; bin += 1) {
 				real[bin] *= gain;
 				imaginary[bin] *= gain;
 				if (bin > 0 && bin < windowSize / 2) {
@@ -113,6 +113,7 @@ export function applySpectralReplacement(channels, replacementChannels, options 
 	if (hopSize > windowSize) throw new RangeError('hopSize cannot exceed windowSize.');
 
 	const window = createHannWindow(windowSize);
+	const [firstBin, endBin] = spectralBinInterval(sampleRate, windowSize, minimumFrequency, maximumFrequency);
 	const firstWindow = Math.floor((startFrame - windowSize + 1) / hopSize) * hopSize;
 	const lastWindow = Math.ceil((endFrame - 1) / hopSize) * hopSize;
 	const output = input.map((channel) => channel.slice());
@@ -139,9 +140,7 @@ export function applySpectralReplacement(channels, replacementChannels, options 
 			}
 			fft(real, imaginary, false);
 			fft(replacementReal, replacementImaginary, false);
-			for (let bin = 0; bin <= windowSize / 2; bin += 1) {
-				const frequency = bin * sampleRate / windowSize;
-				if (frequency < minimumFrequency || frequency > maximumFrequency) continue;
+			for (let bin = firstBin; bin < endBin; bin += 1) {
 				real[bin] = replacementReal[bin];
 				imaginary[bin] = replacementImaginary[bin];
 				if (bin > 0 && bin < windowSize / 2) {

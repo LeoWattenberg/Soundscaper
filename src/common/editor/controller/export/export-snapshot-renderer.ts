@@ -27,7 +27,15 @@ export interface ExportSnapshotRendererRuntime {
 	updateExportProgress(value: RuntimeValue): void;
 }
 
-export function createExportSnapshotRenderer(runtime: ExportSnapshotRendererRuntime) {
+export interface ExportSnapshotRenderer {
+	observeExportProgress(observer: (value: RuntimeValue) => void): () => void;
+	renderSnapshot(snapshot: RuntimeValue, range: RuntimeValue, sourceMap?: RuntimeValue, signal?: RuntimeValue, chunkSources?: RuntimeValue, prepareTimePitchCaches?: boolean): Promise<RuntimeValue>;
+	withRenderProgress(range: RuntimeValue): RuntimeValue;
+	/** Explicit private-entry capability; custom supplied renderers without it remain sequential. */
+	createOwnedEntryRenderer?(taskProgress: RuntimeValue, reportProgress: (value: number) => void): ExportSnapshotRenderer;
+}
+
+export function createExportSnapshotRenderer(runtime: ExportSnapshotRendererRuntime): ExportSnapshotRenderer {
 	const {
 		options, sourceBuffers, taskProgress,
 		createCacheAwareRenderEngine, prepareCommittedTimePitchCaches,
@@ -85,5 +93,7 @@ function withRenderProgress(range: RuntimeValue) {
 	};
 }
 
-	return { observeExportProgress, renderSnapshot, withRenderProgress };
+	return { observeExportProgress, renderSnapshot, withRenderProgress,
+		createOwnedEntryRenderer: (ownedTaskProgress, reportProgress) => createExportSnapshotRenderer({ ...runtime, taskProgress: ownedTaskProgress, updateExportProgress: reportProgress }),
+	};
 }

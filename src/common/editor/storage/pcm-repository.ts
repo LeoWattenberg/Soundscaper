@@ -8,13 +8,16 @@ import {
 	crc32,
 	exactArrayBuffer,
 	minimumWavPackSavings,
+	maximumWavPackPayloadBytes,
 	pcmRawByteLength,
+	unpackOwnedPlanarFloat32,
 	unpackPlanarFloat32,
 } from '../wavpack/index.js';
 import {
 	sourceChunkFromLegacyRecord,
 	type StorageRecord,
 } from './media-records.ts';
+import type { AudioEditorOptimizationMode } from '../performance-preferences.ts';
 
 interface CodecResult {
 	readonly encoding?: unknown;
@@ -53,11 +56,18 @@ export class PcmRepository {
 	readonly #codecFactory: () => PcmCodec;
 	readonly #ownsCodec: boolean;
 	#circuitOpen = false;
+	#optimizationMode: AudioEditorOptimizationMode = 'memory';
+	#checksumUnavailable = false;
 
 	constructor({ codec = null, codecFactory = null }: PcmRepositoryOptions = {}) {
 		this.#codec = codec;
 		this.#codecFactory = codecFactory || (() => new WavPackCodecClient() as PcmCodec);
 		this.#ownsCodec = !codec;
+	}
+
+	setOptimizationMode(mode: AudioEditorOptimizationMode): void {
+		if (mode !== 'memory' && mode !== 'speed') throw new RangeError('PCM optimization mode must be memory or speed.');
+		this.#optimizationMode = mode;
 	}
 
 	async encode(rawInput: unknown, {
@@ -67,6 +77,7 @@ export class PcmRepository {
 		priority,
 		signal,
 		allowRawOnFailure,
+		requireWavPack = false,
 	}: {
 		readonly frames: number;
 		readonly channelCount: number;
@@ -74,23 +85,22 @@ export class PcmRepository {
 		readonly priority: string;
 		readonly signal?: AbortSignal;
 		readonly allowRawOnFailure: boolean;
+		readonly requireWavPack?: boolean;
 	}): Promise<EncodedPcm> {
 		const rawPayload = exactBuffer(rawInput);
 		const rawBytes = pcmRawByteLength(frames, channelCount);
 		if (rawPayload.byteLength !== rawBytes) {
 			throw new RangeError('Raw PCM payload does not match its declared geometry.');
 		}
+		if (!requireWavPack && (rawBytes <= minimumWavPackSavings(rawBytes)
+			|| (this.#optimizationMode === 'speed' && priority !== 'migration'))) {
+			const checked = await this.#checksum(rawPayload, { frames, channelCount, sampleRate, priority, signal });
+			return rawEncodedPcm(checked.payload, checked.pcmCrc32);
+		}
 		const pcmCrc32 = crc32(rawPayload);
-		const rawResult = (): EncodedPcm => ({
-			encoding: PCM_ENCODING_RAW_F32LE,
-			payload: rawPayload,
-			pcmCrc32,
-			uncompressedBytes: rawBytes,
-			storedBytes: rawBytes,
-		});
-		if (rawBytes <= minimumWavPackSavings(rawBytes)) return rawResult();
+		const rawResult = (): EncodedPcm => rawEncodedPcm(rawPayload, pcmCrc32);
 		if (this.#circuitOpen) {
-			if (allowRawOnFailure) return rawResult();
+			if (allowRawOnFailure && !requireWavPack) return rawResult();
 			throw new Error('WavPack encoding is disabled for this session after a codec failure.');
 		}
 		try {
@@ -102,6 +112,7 @@ export class PcmRepository {
 				priority,
 				signal,
 				transferInput: true,
+				requireWavPack,
 			});
 			const encoding = encoded?.encoding;
 			const payload = exactBuffer(encoded?.payload);
@@ -109,7 +120,22 @@ export class PcmRepository {
 			if (resultCrc32 !== pcmCrc32) throw new Error('PCM codec returned an unexpected source CRC-32.');
 			if (encoding === PCM_ENCODING_WAVPACK_F32_V1) {
 				const minimumSavings = minimumWavPackSavings(rawBytes);
-				if (!payload.byteLength || payload.byteLength > rawBytes - minimumSavings) return rawResult();
+				const maximumPayloadBytes = requireWavPack ? maximumWavPackPayloadBytes(frames, channelCount) : rawBytes - minimumSavings;
+				if (!payload.byteLength || payload.byteLength > maximumPayloadBytes) {
+					if (requireWavPack) throw new RangeError('Required WavPack payload exceeds its PCM packet capacity.');
+					return rawResult();
+				}
+				if (requireWavPack) {
+					const decoded = await this.#codecInstance().decode(payload.slice(0), {
+						encoding, frames, channelCount, sampleRate, pcmCrc32, priority, signal, transferInput: true,
+					});
+					const verified = exactBuffer(decoded?.payload);
+					const expectedBits = new Uint8Array(rawPayload), actualBits = new Uint8Array(verified);
+					if (verified.byteLength !== rawBytes || expectedBits.some((byte, index) => byte !== actualBits[index])) {
+						throw new Error('Required WavPack PCM did not preserve its exact source sample bits.');
+					}
+					throwIfAborted(signal);
+				}
 				return {
 					encoding,
 					payload,
@@ -119,6 +145,7 @@ export class PcmRepository {
 				};
 			}
 			if (encoding === PCM_ENCODING_RAW_F32LE) {
+				if (requireWavPack) throw new Error('Required WavPack encoding returned a raw fallback.');
 				if (payload.byteLength !== rawBytes || crc32(payload) !== pcmCrc32) {
 					throw new Error('PCM codec returned invalid raw fallback data.');
 				}
@@ -134,7 +161,7 @@ export class PcmRepository {
 		} catch (error) {
 			if (isAbortError(error)) throw error;
 			this.#circuitOpen = true;
-			if (allowRawOnFailure) return rawResult();
+			if (allowRawOnFailure && !requireWavPack) return rawResult();
 			throw error;
 		}
 	}
@@ -169,16 +196,19 @@ export class PcmRepository {
 			);
 		}
 		let rawPayload: ArrayBuffer;
+		let ownsDecodedPayload: boolean;
 		if (record.encoding === PCM_ENCODING_RAW_F32LE) {
 			if (payload.byteLength !== rawBytes) {
 				throw new PcmStorageCorruptionError('Raw persisted PCM has invalid geometry.', 'PCM_RECORD_GEOMETRY');
 			}
-			rawPayload = payload;
-			if (crc32(rawPayload) !== expectedCrc32) {
-				throw new PcmStorageCorruptionError('Raw persisted PCM failed its CRC-32.', 'PCM_CRC_MISMATCH');
-			}
+			const checked = await this.#checksum(payload, {
+				frames, channelCount, sampleRate: Number(source.sampleRate) || 48_000,
+				priority, signal, pcmCrc32: expectedCrc32,
+			});
+			rawPayload = checked.payload;
+			ownsDecodedPayload = checked.owned;
 		} else if (record.encoding === PCM_ENCODING_WAVPACK_F32_V1) {
-			if (!payload.byteLength || payload.byteLength > rawBytes) {
+			if (!payload.byteLength || payload.byteLength > maximumWavPackPayloadBytes(frames, channelCount)) {
 				throw new PcmStorageCorruptionError(
 					'Persisted WavPack PCM has invalid bounded geometry.',
 					'PCM_RECORD_GEOMETRY',
@@ -204,12 +234,18 @@ export class PcmRepository {
 					{ cause: error },
 				);
 			}
-			if (rawPayload.byteLength !== rawBytes || crc32(rawPayload) !== expectedCrc32) {
+			if (rawPayload.byteLength !== rawBytes) {
 				throw new PcmStorageCorruptionError(
 					'Decoded WavPack PCM failed its geometry or CRC-32.',
 					'PCM_CRC_MISMATCH',
 				);
 			}
+			const checked = await this.#checksum(rawPayload, {
+				frames, channelCount, sampleRate: Number(source.sampleRate) || 48_000,
+				priority, signal, pcmCrc32: expectedCrc32,
+			});
+			rawPayload = checked.payload;
+			ownsDecodedPayload = checked.owned;
 		} else {
 			throw new PcmStorageCorruptionError(
 				`Persisted PCM uses unsupported encoding ${String(record.encoding)}.`,
@@ -220,7 +256,8 @@ export class PcmRepository {
 		return {
 			index: record.index as number,
 			frames,
-			channels: unpackPlanarFloat32(rawPayload, frames, channelCount),
+			channels: ownsDecodedPayload ? unpackOwnedPlanarFloat32(rawPayload, frames, channelCount)
+				: unpackPlanarFloat32(rawPayload, frames, channelCount),
 		};
 	}
 
@@ -229,6 +266,45 @@ export class PcmRepository {
 		this.#codec?.close?.();
 		this.#codec = null;
 		this.#circuitOpen = false;
+		this.#checksumUnavailable = false;
+	}
+
+	async #checksum(payload: ArrayBuffer, options: {
+		readonly frames: number;
+		readonly channelCount: number;
+		readonly sampleRate: number;
+		readonly priority: string;
+		readonly signal?: AbortSignal;
+		readonly pcmCrc32?: number;
+	}): Promise<{ readonly payload: ArrayBuffer; readonly pcmCrc32: number; readonly owned: boolean }> {
+		throwIfAborted(options.signal);
+		if (payload.byteLength > 4_096 && !this.#checksumUnavailable
+			&& (this.#codec instanceof WavPackCodecClient || (this.#ownsCodec && typeof Worker === 'function'))) {
+			try {
+				const codec = this.#codecInstance();
+				if (codec instanceof WavPackCodecClient) {
+					const result = await codec.checksum(payload, options) as CodecResult;
+					const checked = exactBuffer(result.payload);
+					const checksum = Number(result.pcmCrc32);
+					if (checked.byteLength !== payload.byteLength || checked === payload
+						|| !Number.isSafeInteger(checksum) || checksum < 0 || checksum > 0xffffffff
+						|| options.pcmCrc32 !== undefined && checksum !== options.pcmCrc32) {
+						throw new Error('The PCM checksum worker returned an invalid result.');
+					}
+					throwIfAborted(options.signal);
+					return { payload: checked, pcmCrc32: checksum, owned: true };
+				}
+			} catch (error) {
+				if (isAbortError(error)) throw error;
+				this.#checksumUnavailable = true;
+			}
+		}
+		throwIfAborted(options.signal);
+		const checksum = crc32(payload);
+		if (options.pcmCrc32 !== undefined && checksum !== options.pcmCrc32) {
+			throw new PcmStorageCorruptionError('Raw persisted PCM failed its CRC-32.', 'PCM_CRC_MISMATCH');
+		}
+		return { payload, pcmCrc32: checksum, owned: false };
 	}
 
 	#codecInstance(): PcmCodec {
@@ -238,6 +314,13 @@ export class PcmRepository {
 		}
 		return this.#codec;
 	}
+}
+
+function rawEncodedPcm(payload: ArrayBuffer, pcmCrc32: number): EncodedPcm {
+	return {
+		encoding: PCM_ENCODING_RAW_F32LE, payload, pcmCrc32,
+		uncompressedBytes: payload.byteLength, storedBytes: payload.byteLength,
+	};
 }
 
 function throwIfAborted(signal?: AbortSignal): void {

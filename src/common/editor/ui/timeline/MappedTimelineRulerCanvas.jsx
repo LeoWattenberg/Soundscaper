@@ -16,7 +16,7 @@ export function MappedTimelineRulerCanvas({
 	height = DEFAULT_HEIGHT,
 	timeSelection = null,
 	sampleRate,
-	buildTicks,
+	buildTicks, mappedTicks = null,
 	minorLabelMinimumPixels = null,
 	dataAttribute,
 	loopRegionEnabled = false,
@@ -36,10 +36,12 @@ export function MappedTimelineRulerCanvas({
 			MAXIMUM_CANVAS_DIMENSION / renderWidth,
 			MAXIMUM_CANVAS_DIMENSION / height,
 		));
-		canvas.width = Math.max(1, Math.floor(renderWidth * ratio));
-		canvas.height = Math.max(1, Math.floor(height * ratio));
-		canvas.style.width = `${renderWidth}px`;
-		canvas.style.height = `${height}px`;
+		const backingWidth = Math.max(1, Math.floor(renderWidth * ratio));
+		const backingHeight = Math.max(1, Math.floor(height * ratio));
+		if (canvas.width !== backingWidth) canvas.width = backingWidth;
+		if (canvas.height !== backingHeight) canvas.height = backingHeight;
+		if (canvas.style.width !== `${renderWidth}px`) canvas.style.width = `${renderWidth}px`;
+		if (canvas.style.height !== `${height}px`) canvas.style.height = `${height}px`;
 		context.setTransform(ratio, 0, 0, ratio, 0, 0);
 		const styles = getComputedStyle(canvas);
 		const background = skinTheme?.background.panel.timeline ?? cssColor(styles, '--stage-raised', '#202124');
@@ -80,7 +82,7 @@ export function MappedTimelineRulerCanvas({
 		const endFrame = Math.max(startFrame, Math.ceil(
 			(scrollX + renderWidth) / pixelsPerSecond * sampleRate,
 		));
-		const ticks = buildTicks({
+		const ticks = mappedTicks ?? buildTicks({
 			sampleRate,
 			startFrame,
 			endFrame,
@@ -105,7 +107,7 @@ export function MappedTimelineRulerCanvas({
 			if (tick.major || labelRoom) context.fillText(tick.label, x + 4, middle / 2 + 4);
 		}
 	}, [
-		buildTicks, height, loopRegionEnabled, loopRegionEnd, loopRegionStart,
+		buildTicks, mappedTicks, height, loopRegionEnabled, loopRegionEnd, loopRegionStart,
 		minorLabelMinimumPixels, pixelsPerSecond, renderWidth, sampleRate, scrollX,
 		skinTheme, timeSelection,
 	]);

@@ -163,7 +163,7 @@
 			"id": "wavpack",
 			"sourceManifest": {
 				"path": "src/common/editor/wavpack/source-manifest.json",
-				"sha256": "e84eee22e06ba5562510e37b36e4b83b11b2306eb3841d3687a8fce2998ed381"
+				"sha256": "1af2636c80d774d75ebf85a9efe7cfd4b753821700d6b5ee3c6d217111705db3"
 			},
 			"buildScript": {
 				"path": "scripts/build-wavpack-wasm.mjs",

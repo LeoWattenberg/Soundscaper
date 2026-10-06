@@ -25,6 +25,8 @@ import {
 import type { EffectTarget } from '../../effect-selection-service.ts';
 import type { PersistEffectResultOptions, SelectionEffectResult } from '../effect-result-service.ts';
 import { createIsolatedTrackRenderProjectV21 } from '../../../shared/isolated-track-render-project-v21.ts';
+import type { RunOfflineSelectionChain } from './offline-selection-chain.ts';
+import { MACRO_NEIGHBOUR_PCM_CACHE_LIMIT_BYTES } from './macro-neighbour-pcm-cache.ts';
 
 const EFFECT_MACRO_TASK = 'selection-effect-macro';
 
@@ -104,6 +106,7 @@ export interface EffectMacroServiceRuntime<Buffer = MacroRenderBuffer> {
 	readonly projectGeneration: Pick<EditorProjectGeneration, 'capture' | 'assertCurrent'>;
 	readonly copy: MacroCopy;
 	readonly memoryLimitBytes: number;
+	readonly runSelectionEffectChain?: RunOfflineSelectionChain;
 	readonly getProject: () => MacroProject;
 	readonly audacityEffectTarget: (trackId?: string | null) => EffectTarget | null;
 	readonly audacityEffectTargets?: () => readonly EffectTarget[];
@@ -216,6 +219,7 @@ export function createEffectMacroService<Buffer = MacroRenderBuffer>(runtime: Ef
 		if (targets.length > 1 && !runtime.persistAudacityEffectResults) throw new Error('The macro result adapter cannot commit multiple targets.');
 		const selectionDetails = runtime.effectSelectionDetails?.(targets)
 			?? { trackIds: targets.map(({ track }) => track.id), clipIds: [] };
+		const contextCacheBytes = Math.min(MACRO_NEIGHBOUR_PCM_CACHE_LIMIT_BYTES, runtime.memoryLimitBytes - estimatedPeakBytes);
 
 		const ownership = captureOwnership(runtime, project.id);
 		activeOwnership = ownership;
@@ -228,7 +232,7 @@ export function createEffectMacroService<Buffer = MacroRenderBuffer>(runtime: Ef
 			assertOwnership(runtime, ownership);
 			const results: SelectionEffectResult[] = [];
 			for (const { target, effects, preRollFrames } of plans) {
-				const channels = await runChain(effects, target, project, sampleRate, preRollFrames, ownership);
+				const channels = await runChain(effects, target, project, sampleRate, preRollFrames, ownership, contextCacheBytes);
 				results.push({ target, channels });
 			}
 			const effectName = String(request.name || publishedCopyFor(runtime.copy).untitledMacro || publishedCopyFor(runtime.copy).macrosPalette).trim()
@@ -395,6 +399,7 @@ export function createEffectMacroService<Buffer = MacroRenderBuffer>(runtime: Ef
 		sampleRate: number,
 		preRollFrames: number,
 		ownership: EffectMacroOwnership,
+		contextCacheBytes: number,
 	): Promise<readonly Float32Array[]> {
 		const segments = planEffectMacroChain(effects as unknown as readonly EffectMacroChainStep[]);
 		const leadsWithRack = segments[0]?.realtime === true && !target.sourceId;
@@ -421,12 +426,13 @@ export function createEffectMacroService<Buffer = MacroRenderBuffer>(runtime: Ef
 		const remaining = segments.slice(leadsWithRack ? 1 : 0);
 		if (!remaining.length) return channels;
 		const chain = createEffectMacroChainRunner({
+			contextCacheBytes,
 			copy: runtime.copy,
 			sampleRate,
 			assertCurrent: () => assertOwnership(runtime, ownership),
 			projectFrameCount: () => target.sourceFrameCount ?? runtime.projectFrameCount(),
 			renderDryRange: runtime.renderDryTrackRange,
-			runSelectionEffect: runtime.runSelectionEffectWorker,
+			runSelectionEffect: runtime.runSelectionEffectWorker, runSelectionEffectChain: runtime.runSelectionEffectChain,
 			createAudioBuffer: runtime.createAudioBuffer,
 			renderSnapshot: runtime.renderStagedSnapshot,
 			audioBufferChannels: runtime.audioBufferChannels,

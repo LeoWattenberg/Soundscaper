@@ -2,7 +2,6 @@
 
 import {
 	evaluateAutomationLaneAtFrameV21,
-	resolveAutomationLanePointFramesV21,
 	type AutomationLaneV21,
 } from '../../automation-lane-v21.ts';
 import type { ParameterDescriptor } from '../../parameter-address.ts';
@@ -10,6 +9,8 @@ import type { HoldTempoMap } from '../../timeline-time.ts';
 import {
 	automationValueToNormalizedV21,
 } from '../../track-automation-targets-v21.ts';
+import { automationSampleFrames } from './automation-sample-frames.ts';
+import { automationFrameIndex } from './automation-frame-index.ts';
 import { CLIP_HEADER_HEIGHT } from './geometry.ts';
 
 const CLIP_CONTENT_OFFSET = 12;
@@ -84,10 +85,8 @@ export function projectTrackAutomationOverlayV21(
 	}
 	const bodyTop = Math.min(CLIP_HEADER_HEIGHT, Math.max(0, options.height));
 	const bodyHeight = Math.max(1, options.height - bodyTop);
-	const points = options.lane ? resolveAutomationLanePointFramesV21(options.lane, {
-		sampleRate,
-		tempoMap: options.tempoMap,
-	}) : [];
+	const pointIndex = options.lane ? automationFrameIndex(options.lane, sampleRate, options.tempoMap) : null;
+	const points = pointIndex?.points ?? [];
 	const samplesPerPixel = sampleRate / pixelsPerSecond;
 	const sampleStep = Math.max(1, Math.floor(samplesPerPixel * SAMPLE_SPACING_PIXELS));
 	const spans: TrackAutomationOverlaySpanV21[] = [];
@@ -98,21 +97,19 @@ export function projectTrackAutomationOverlayV21(
 		const startFrame = Math.max(clipStart, projectionStartFrame);
 		const endFrame = Math.min(clipEnd, projectionEndFrame);
 		if (endFrame <= startFrame) continue;
-		const authoredFrames = points
-			.filter((point) => point.frame >= startFrame && point.frame <= endFrame)
-			.map(({ frame: pointFrame }) => pointFrame);
-		const sampleFrames = uniqueSorted([
-			startFrame,
-			...rangeFrames(startFrame, endFrame, sampleStep),
-			...authoredFrames,
-			endFrame,
-		]);
+		const authoredPoints = pointIndex?.between(startFrame, endFrame) ?? [];
+		const authoredFrames = authoredPoints.map(({ frame: pointFrame }) => pointFrame);
+		const sampleFrames = automationSampleFrames({
+			lane: options.lane, descriptor: options.descriptor, start: startFrame, end: endFrame, step: sampleStep,
+			authoredFrames, pixelsPerFrame: pixelsPerSecond / sampleRate,
+			yAtFrame: value => sample(options, value, bodyTop, bodyHeight).y,
+		});
 		const samples = sampleFrames.flatMap((sampleFrame) => {
-			const pointIndex = points.findIndex(({ frame: pointFrame }) => pointFrame === sampleFrame);
-			const heldValue = options.lane && pointIndex > 0
-				&& options.lane.segments[pointIndex - 1]?.kind === 'hold'
+			const authoredIndex = pointIndex?.indexByFrame.get(sampleFrame) ?? -1;
+			const heldValue = options.lane && authoredIndex > 0
+				&& options.lane.segments[authoredIndex - 1]?.kind === 'hold'
 				&& sampleFrame > startFrame
-				? points[pointIndex - 1]!.value
+				? points[authoredIndex - 1]!.value
 				: null;
 			return heldValue === null
 				? [sample(options, sampleFrame, bodyTop, bodyHeight)]
@@ -121,9 +118,7 @@ export function projectTrackAutomationOverlayV21(
 					sample(options, sampleFrame, bodyTop, bodyHeight),
 				];
 		});
-		const projectedPoints = points
-			.filter((point) => point.frame >= startFrame && point.frame <= endFrame)
-			.map((point) => Object.freeze({
+		const projectedPoints = authoredPoints.map((point) => Object.freeze({
 				id: point.id,
 				...sample(options, point.frame, bodyTop, bodyHeight),
 			}));
@@ -160,16 +155,6 @@ function sample(
 		y: canonical(bodyTop + (1 - normalized) * bodyHeight),
 		value,
 	});
-}
-
-function rangeFrames(start: number, end: number, step: number): number[] {
-	const values: number[] = [];
-	for (let value = start + step; value < end; value += step) values.push(value);
-	return values;
-}
-
-function uniqueSorted(values: readonly number[]): number[] {
-	return [...new Set(values)].sort((left, right) => left - right);
 }
 
 function canonical(value: number): number {

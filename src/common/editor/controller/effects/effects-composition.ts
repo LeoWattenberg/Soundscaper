@@ -37,6 +37,7 @@ import { deferredEffectRuntime } from './deferred-effect-runtime.ts';
 import { createEffectAudioService } from './internal/effect-audio-service.ts';
 import { createEffectControlsService } from './effect-controls-service.ts';
 import { createSelectionEffectExecutionService } from './internal/effect-execution-service.ts';
+import { canSliceSimpleDryTrackPcm } from './internal/direct-dry-track-pcm.ts';
 import { createEffectMacroService, type EffectMacroServiceRuntime } from './internal/macro/effect-macro-service.ts';
 import { createMacroStagedRenderer } from './internal/macro/macro-staged-renderer.ts';
 import {
@@ -59,7 +60,7 @@ import {
 import { createNyquistGeneratedAudioService } from './internal/nyquist/nyquist-generated-audio-service.ts';
 import { createNyquistHostService } from './internal/nyquist/nyquist-host-service.ts';
 import { createRackEffectService } from './internal/rack-effect-service.ts';
-import { createSelectionEffectWorkerService } from './internal/selection-effect-worker-service.ts';
+import { createBoundedSelectionEffectWorkerService } from './internal/bounded-selection-effect-workers.ts';
 import {
 	SOURCE_CHUNK_FRAMES,
 	audioBufferChannels,
@@ -122,8 +123,8 @@ export function createEffectsComposition(dependencies: EffectsCompositionDepende
 	});
 
 	const worker = dependencies.composition.selectionEffectWorkers
-		? createSelectionEffectWorkerService({
-			state,
+		? createBoundedSelectionEffectWorkerService({
+			state, reuseWorkers: true,
 			copy,
 			captureProject,
 			assertProject,
@@ -328,6 +329,11 @@ export function createEffectsComposition(dependencies: EffectsCompositionDepende
 				if (!outcome.channels) throw createLocalizedError(Error, copy, 'effectProcessingFailed');
 				return { channels: outcome.channels };
 			},
+			get runSelectionEffectChain(): EffectMacroServiceRuntime['runSelectionEffectChain'] { return state.preferences?.performance?.optimizeFor === 'speed' ? async (request) => {
+				const outcome = await worker.runSelectionEffectWorker({ ...request, channels: [...request.channels], params: undefined }, { pcmOwnership: 'transfer' });
+				if (!outcome.channels) throw createLocalizedError(Error, copy, 'effectProcessingFailed');
+				return { channels: outcome.channels };
+			} : undefined; },
 			projectFrameCount: () => dependencies.projectDurationFrames(dependencies.getProject()),
 			createAudioBuffer: async (channels, sampleRate) => bufferFromChannels(
 				[...channels], sampleRate, await engine.getAudioContext({ resume: false }), copy,
@@ -341,7 +347,7 @@ export function createEffectsComposition(dependencies: EffectsCompositionDepende
 		: createAbsentEffectMacroService(absentSubsystem);
 	const execution = dependencies.composition.effects
 		? createSelectionEffectExecutionService({
-			pauseSourcePreview: dependencies.pauseSourcePreview,
+			pauseSourcePreview: dependencies.pauseSourcePreview, batchPresentation: dependencies.batchPresentation,
 			AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES,
 			AUDIO_SELECTION_EFFECT_DEFINITIONS,
 			NYQUIST_AGGREGATE_AUDIO_LIMIT_BYTES,
@@ -381,12 +387,17 @@ export function createEffectsComposition(dependencies: EffectsCompositionDepende
 			playNyquistPreview: nyquistHost.playNyquistPreview,
 			preflightStorage: dependencies.preflightStorage,
 			getProject: dependencies.getProject,
+			getPreparedAudioAuthority: () => state.preferences?.performance?.optimizeFor === 'speed'
+				? dependencies.getProject() : null,
+			canSliceDryPcm: canSliceSimpleDryTrackPcm,
+			tryRenderSimpleDryTrackRange: audio.tryRenderSimpleDryTrackRange,
 			projectDurationFrames: dependencies.projectDurationFrames,
 			projectSampleRate: dependencies.projectSampleRate,
 			publishDocumentSnapshot: dependencies.publishDocumentSnapshot,
 			renderDryTrackRange: audio.renderDryTrackRange,
 			resolveInteractiveAudacityParams: controls.resolveInteractiveAudacityParams,
 			runSelectionEffectWorker: worker.runSelectionEffectWorker,
+			runIndependentSelectionEffects: 'runIndependentSelectionEffects' in worker ? worker.runIndependentSelectionEffects : undefined,
 			setAudacityControlTrack: controls.setAudacityControlTrack,
 			setAudacityEffectParamsFromController: controls.setAudacityEffectParamsFromController,
 			setAudacityEffectType: controls.setAudacityEffectType,

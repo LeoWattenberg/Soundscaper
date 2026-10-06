@@ -111,3 +111,12 @@ test('streamed column changes, stereo ratio and device scale invalidate spectrog
 	});
 	assert.ok(h.snapshot().paints > beforeColumns.paints);
 });
+
+test('worker-backed canvas leaves FFT work out of the synchronous paint path', async () => {
+	await preparePffftSpectrogram(64);
+	const h = harness();
+	const channel = { length: 1_024, sampleAt() { throw new Error('Synchronous FFT access'); } };
+	drawAudacityClipSpectrogram(h.context, [channel], { ...OPTIONS, deferAnalysis: true });
+	assert.equal(h.context.canvas.dataset.spectrogramRenderer, 'loading-worker');
+	assert.equal(h.snapshot().allocations, 0);
+});

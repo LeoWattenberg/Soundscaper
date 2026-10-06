@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 import { CLIP_CONTENT_OFFSET } from '@soundscaper/design-system/constants';
 import { GhostButton } from '@soundscaper/design-system/GhostButton';
@@ -8,6 +8,7 @@ import { LabelMarker } from '@soundscaper/design-system/LabelMarker';
 import { framesToSeconds } from '../../design-system-adapters.js';
 import { TimeSelectionOverlay } from './TimelineOverlayComponents.jsx';
 import { TrackNameEditor } from './TrackControls.jsx';
+import { createLabelViewportIndex } from './label-viewport-model.ts';
 import { timelineContentLeft } from './timeline-scroll-space.ts';
 import { LabelContextMenu } from './LabelContextMenu.tsx';
 import { selectAudioEditorLabelEditBlock } from '../../label-edit-blocking.ts';
@@ -25,6 +26,7 @@ export function LabelTrackRow({
 	pixelsPerSecond,
 	sampleRate,
 	renderOriginX = 0,
+	renderViewportStartFrame = 0, viewportDurationFrames,
 	timeSelection,
 	rangeSelected,
 	selected,
@@ -39,6 +41,12 @@ export function LabelTrackRow({
 	const [editingName, setEditingName] = useState(false);
 	const [selectedLabelId, setSelectedLabelId] = useState(null);
 	const [editingLabelId, setEditingLabelId] = useState(null);
+	const labelIndex = useMemo(() => track.labels.length > 128 ? createLabelViewportIndex(track.labels) : null, [track.labels]);
+	const visibleLabels = useMemo(() => labelIndex && viewportDurationFrames > 0
+		? labelIndex.query(Math.max(0, renderViewportStartFrame - viewportDurationFrames),
+			Math.min(Number.MAX_SAFE_INTEGER, renderViewportStartFrame + viewportDurationFrames * 2),
+			Math.ceil(128 / pixelsPerSecond * sampleRate), [selectedLabelId, editingLabelId])
+		: track.labels, [editingLabelId, labelIndex, pixelsPerSecond, renderViewportStartFrame, sampleRate, selectedLabelId, track.labels, viewportDurationFrames]);
 	const addLabel = (event = null) => {
 		if (labelBlocked) return;
 		const pointerFrame = event?.clientX != null && laneRef.current
@@ -125,7 +133,7 @@ export function LabelTrackRow({
 					selection={timeSelection}
 					pixelsPerSecond={pixelsPerSecond}
 				/>}
-				{track.labels.map((label) => (
+				{visibleLabels.map((label) => (
 					<AudacityLabelMarker
 						key={label.id}
 						controller={controller}

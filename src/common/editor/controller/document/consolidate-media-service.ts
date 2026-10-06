@@ -32,9 +32,10 @@ import {
 	type ConsolidateRunResult,
 } from '../../consolidate-operation.ts';
 import { consolidateLinkedAudioCache, type ConsolidateAudioCacheStore } from './internal/native-project/consolidate-linked-audio-cache.ts';
+import type { ConsolidateManagedAudioStore } from './internal/native-project/consolidate-managed-audio.ts';
 
 /** The narrow slice of the project store this needs, named rather than assumed. */
-export interface ConsolidateMediaStore extends ConsolidateAudioCacheStore {
+export interface ConsolidateMediaStore extends ConsolidateAudioCacheStore, ConsolidateManagedAudioStore {
 	readSourceChunks?: Parameters<typeof import('../../scape-archive-media.ts').scapeAudioSourceStream>[0]['readSourceChunks'];
 	getSourceMetadata?(sourceId: string): Promise<unknown>;
 	getMediaAssetMetadata?(sourceId: string): Promise<unknown>;

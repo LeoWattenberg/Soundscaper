@@ -163,6 +163,29 @@ test('Kokoro adapter consumes offline phonemes and publishes authenticated mono 
 	assert.equal(result.outputs[0]?.sha256, sha256(wav));
 });
 
+test('Kokoro snapshots reused ONNX waveform buffers into bounded encoded chunks', async (t) => {
+	const { job, outputPath } = await fixture(t);
+	const engine = runtime(() => {});
+	const waveform = Float32Array.of(0.25);
+	let calls = 0;
+	const adapter = createAssistanceOnnxKokoroWorkerAdapterV1(async () => ({
+		...engine,
+		InferenceSession: { create: async () => ({
+			inputNames: ['input_ids', 'style', 'speed'], outputNames: ['waveform'],
+			run: async () => {
+				waveform[0] = calls++ === 0 ? 0.25 : -0.5;
+				return { waveform: new engine.Tensor('float32', waveform, [1, 1]) };
+			},
+		}) },
+	}), async () => ['hɑ!', 'hɑ!']);
+	const result = await runAssistanceRuntimeFamilyWorkerJobV1({ job, execute: adapter });
+	const wav = await readFile(outputPath);
+	assert.equal(wav.byteLength, 48);
+	assert.equal(wav.readInt16LE(44), 8_192);
+	assert.equal(wav.readInt16LE(46), -16_384);
+	assert.equal(result.outputs[0]?.sha256, sha256(wav));
+});
+
 test('every published language group admits its own selected voice and phonemizer request', async (t) => {
 	for (const [language, voices] of Object.entries(KOKORO_VOICES_BY_LANGUAGE)) {
 		const voice = voices[0]!;

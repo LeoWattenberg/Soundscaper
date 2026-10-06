@@ -16,12 +16,21 @@ export interface ControllerProjectQueryDependencies {
 export function createCommandProjectReader<Project extends object, Projection>(
 	getProject: () => Project | null,
 	projectForCommandConsumers: (project: Project) => Projection,
+	options: Readonly<{ immutableGenerations?: boolean }> = {},
 ): () => NonNullable<Projection> {
+	let retainedProject: Project | null = null;
+	let retainedProjection: NonNullable<Projection> | undefined;
 	return () => {
 		const project = getProject();
-		if (!project) throw new Error('Clip editing requires an open project.');
+		if (!project) {
+			retainedProject = null;
+			retainedProjection = undefined;
+			throw new Error('Clip editing requires an open project.');
+		}
+		if (options.immutableGenerations && project === retainedProject && retainedProjection !== undefined) return retainedProjection;
 		const projection = projectForCommandConsumers(project);
 		if (projection == null) throw new TypeError('The project runtime did not produce a command projection.');
+		if (options.immutableGenerations) { retainedProject = project; retainedProjection = projection; }
 		return projection;
 	};
 }
@@ -30,13 +39,16 @@ export function createCommandProjectReader<Project extends object, Projection>(
 export function createResolvedCommandProjectReader<Project extends object, Projection extends RuntimeClipProject>(
 	getProject: () => Project | null,
 	projectForCommandConsumers: (project: Project) => Projection,
+	options: Readonly<{ immutableGenerations?: boolean }> = {},
 ) {
-	const readProjection = createCommandProjectReader(getProject, projectForCommandConsumers);
+	const readProjection = createCommandProjectReader(getProject, project => {
+		const projection = projectForCommandConsumers(project);
+		return projectForRuntimeConsumers(projection);
+	}, options);
 	return readResolvedCommandProject;
 
 	function readResolvedCommandProject() {
-		const projection = readProjection();
-		return projectForRuntimeConsumers(projection);
+		return readProjection();
 	}
 }
 

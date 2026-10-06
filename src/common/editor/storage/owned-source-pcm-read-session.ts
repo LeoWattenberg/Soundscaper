@@ -7,6 +7,7 @@ import {
 	type StorageRecord,
 } from './media-records.ts';
 import type { OpfsRepository } from './opfs-repository.ts';
+import type { OpfsPcmReadView } from './opfs-pcm-read-view.ts';
 import type { PcmRepository } from './pcm-repository.ts';
 import {
 	combineSourceReadAbortSignals,
@@ -62,9 +63,21 @@ export class OwnedSourcePcmReadSessionRepository {
 			);
 			if (!generation) return null;
 			throwIfAborted(signals.signal);
+			const physical = generation.at(-1)!;
+			const view = physical.storage === PCM_CONTAINER_STORAGE_TYPE && typeof this.#options.opfs.openPcmContainerReadView === 'function'
+				? await this.#options.opfs.openPcmContainerReadView(physical, this.#options.pcm.decodeRecord.bind(this.#options.pcm), signals.signal) : null;
+			try {
+				throwIfAborted(signals.signal);
+				if (view) await this.#assertGenerationCurrent(generation, signals.signal);
+			} catch (error) {
+				try { await view?.release(); }
+				catch (cleanup) { throw new AggregateError([error, cleanup], 'Owned PCM session admission and cleanup both failed.', { cause: cleanup }); }
+				throw error;
+			}
 			const session = createSourcePcmReadSession({
-				readChunk: (chunkIndex, signal) => this.#readChunk(generation, chunkIndex, signal),
-				release: noOpRelease,
+				maximumConcurrentReads: generation.length === 1 ? view?.maximumConcurrentReads : 1,
+				readChunk: (chunkIndex, signal) => this.#readChunk(generation, chunkIndex, signal, view),
+				release: () => view?.release() ?? noOpRelease(),
 				onRelease: () => { this.#sessions.delete(session); },
 			});
 			this.#sessions.set(session, sourceId);
@@ -144,6 +157,7 @@ export class OwnedSourcePcmReadSessionRepository {
 		generation: readonly StorageRecord[],
 		chunkIndex: number,
 		signal?: AbortSignal,
+		view: OpfsPcmReadView | null = null,
 	): Promise<SourcePcmChunk> {
 		const root = generation[0];
 		if (!root || chunkIndex >= nonNegativeInteger(root.chunkCount, 0)) {
@@ -151,20 +165,25 @@ export class OwnedSourcePcmReadSessionRepository {
 		}
 		await this.#assertGenerationCurrent(generation, signal);
 		let chunk: SourcePcmChunk | null = null;
-		for (const source of generation) {
+		const cow = generation.slice(0, -1);
+		if (cow.length && typeof this.#options.records.firstChunk === 'function') {
+			const found = await this.#options.records.firstChunk(cow.map((source) => nonEmptySourceToken(source.sourceToken)), chunkIndex, signal);
 			throwIfAborted(signal);
-			if (source.storage === 'copy-on-write') {
-				const replacement = await this.#options.records.chunk(
-					nonEmptySourceToken(source.sourceToken),
-					chunkIndex,
-				);
+			chunk = found ? await this.#options.pcm.decodeRecord(found.record, cow[found.ownerIndex]!, signal)
+				: await this.#readPhysicalChunk(generation.at(-1)!, chunkIndex, signal, view);
+		} else {
+			for (const source of generation) {
 				throwIfAborted(signal);
-				if (!replacement) continue;
-				chunk = await this.#options.pcm.decodeRecord(replacement, source, signal);
+				if (source.storage === 'copy-on-write') {
+					const replacement = await this.#options.records.chunk(nonEmptySourceToken(source.sourceToken), chunkIndex);
+					throwIfAborted(signal);
+					if (!replacement) continue;
+					chunk = await this.#options.pcm.decodeRecord(replacement, source, signal);
+					break;
+				}
+				chunk = await this.#readPhysicalChunk(source, chunkIndex, signal, view);
 				break;
 			}
-			chunk = await this.#readPhysicalChunk(source, chunkIndex, signal);
-			break;
 		}
 		if (!chunk) throw new Error(`Source storage chunk ${chunkIndex} is missing.`);
 		throwIfAborted(signal);
@@ -176,8 +195,10 @@ export class OwnedSourcePcmReadSessionRepository {
 		source: StorageRecord,
 		chunkIndex: number,
 		signal?: AbortSignal,
+		view: OpfsPcmReadView | null = null,
 	): Promise<SourcePcmChunk> {
 		if (source.storage === PCM_CONTAINER_STORAGE_TYPE) {
+			if (view) return view.chunk(chunkIndex, signal);
 			return this.#options.opfs.readPcmContainerChunk(
 				source,
 				chunkIndex,
@@ -201,11 +222,11 @@ export class OwnedSourcePcmReadSessionRepository {
 		generation: readonly StorageRecord[],
 		signal?: AbortSignal,
 	): Promise<void> {
-		for (const expected of generation) {
-			throwIfAborted(signal);
-			const current = await this.#options.records.getMetadata(expected.id as string);
-			throwIfAborted(signal);
-			if (!sameStoredSourceIdentity(current, expected)) throw generationChangedError();
+		throwIfAborted(signal);
+		const current = await this.#options.records.getMetadataMany(generation.map((expected) => expected.id as string));
+		throwIfAborted(signal);
+		for (let index = 0; index < generation.length; index += 1) {
+			if (!sameStoredSourceIdentity(current[index], generation[index])) throw generationChangedError();
 		}
 	}
 }

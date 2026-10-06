@@ -23,6 +23,7 @@ import { publishGeneratedAudioSource } from './internal/generated-source-publica
 import { projectForAudioGeneratorCommands, type AudioGeneratorSelection, type AudioGeneratorTrack,
 	type AudioGeneratorClip, type AudioGeneratorProject, type AudioGeneratorDocument } from './internal/generator-project-view.ts';
 import { createLabeledAudioSilence } from './internal/labeled-audio-silence.ts';
+import type { GeneratedSignalStream } from '../../signal-generator-stream-client.ts';
 
 export type AudioGeneratorType = 'silence' | 'tone' | 'chirp' | 'noise' | 'dtmf' | 'morse';
 
@@ -134,12 +135,15 @@ export interface AudioGeneratorServiceDependencies<Context = unknown, Target ext
 		options: PersistEffectOptions,
 	): Promise<unknown>;
 	preflightStorage(bytes: number, operation: 'effect'): Promise<unknown>;
+	generateChannels?(type: AudioGeneratorType, options: AudioGeneratorOptions, signal: AbortSignal): Promise<GeneratedSignal>;
+	generateStream?(type: AudioGeneratorType, options: AudioGeneratorOptions, signal: AbortSignal): Promise<GeneratedSignalStream>;
 	getAudioContext(): Promise<Context>;
 	createBuffer(
 		channels: readonly Float32Array[],
 		sampleRate: number,
 		context: Context,
 	): Promise<AudioBufferLike>;
+	createEmptyBuffer?(channelCount: number, frames: number, sampleRate: number, context: Context): Promise<AudioBufferLike>;
 	writeBuffer(writer: AudioGeneratorWriter, buffer: AudioBufferLike, signal: AbortSignal): Promise<unknown>;
 	cacheSourceBuffer(sourceId: string, buffer: AudioBufferLike): unknown;
 	generatePeaks(channels: readonly Float32Array[]): Promise<unknown>;
@@ -148,6 +152,7 @@ export interface AudioGeneratorServiceDependencies<Context = unknown, Target ext
 	commit(command: AudioEditorCommand, selection?: CommitSelection): unknown;
 	setStatus(message: string, state?: string, localization?: import('../../../i18n/presentation-message.ts').LocalizedPresentationMessage): void;
 	publish(): void;
+	batchPresentation?(operation: () => void): void;
 }
 
 export interface AudioGeneratorService {
@@ -252,6 +257,7 @@ export function createAudioGeneratorService<Context, Target extends AudioGenerat
 		if (signal?.aborted) cancel();
 		signal?.addEventListener('abort', cancel, { once: true });
 		let processing = false;
+		let stream: GeneratedSignalStream | null = null;
 		try {
 			assertOwnership(ownership);
 			const project = ownership.project;
@@ -265,25 +271,32 @@ export function createAudioGeneratorService<Context, Target extends AudioGenerat
 				?? (selection ? (selection.endFrame - selection.startFrame) / sampleRate : 30);
 			const channelCount = Number(options.channelCount
 				|| dependencies.trackChannelCount(project, targetTrack, project.masterChannels || 2));
-			const generated = generateAudioEditorSignal(type, {
-				...options,
+			processing = markProcessing();
+			const generatorOptions = {
+				...generationOptions,
 				durationSeconds,
 				sampleRate,
 				channelCount,
-			}) as GeneratedSignal;
+			};
+			const generated = dependencies.generateStream
+				? (stream = await dependencies.generateStream(type, generatorOptions, ownership.task.signal))
+				: dependencies.generateChannels
+				? await dependencies.generateChannels(type, generatorOptions, ownership.task.signal)
+				: generateAudioEditorSignal(type, generatorOptions) as GeneratedSignal;
+			assertOwnership(ownership);
 			await dependencies.preflightStorage(
 				generated.frameCount * generated.channelCount * Float32Array.BYTES_PER_ELEMENT,
 				'effect',
 			);
 			assertOwnership(ownership);
-			processing = markProcessing();
 			const name = generatorName(type, publishedCopyFor(dependencies.copy));
 			return await publishGeneratedAudioSource(dependencies, {
 				name,
 				sampleRate,
 				channelCount,
 				frameCount: generated.frameCount,
-				channels: generated.channels,
+				channels: 'channels' in generated ? generated.channels : undefined,
+				stream: stream ?? undefined,
 				ownership: {
 					signal: ownership.task.signal,
 					assertCurrent: () => assertOwnership(ownership),
@@ -302,20 +315,26 @@ export function createAudioGeneratorService<Context, Target extends AudioGenerat
 					return prepared;
 				},
 				accept: (_source, prepared) => {
-					dependencies.commit(prepared.command, {
-						selectTrackId: prepared.trackId,
-						selectClipId: prepared.clipId,
-					});
-					dependencies.state.lastGeneratorRequest = Object.freeze({
-						type,
-						options: Object.freeze(generationOptions),
-					});
-					setLocalizedStatus(dependencies.setStatus, dependencies.copy, "done", undefined, 'success');
+					const publish = (): void => {
+						dependencies.commit(prepared.command, {
+							selectTrackId: prepared.trackId,
+							selectClipId: prepared.clipId,
+						});
+						dependencies.state.lastGeneratorRequest = Object.freeze({
+							type,
+							options: Object.freeze(generationOptions),
+						});
+						setLocalizedStatus(dependencies.setStatus, dependencies.copy, "done", undefined, 'success');
+						finishOperation(ownership, processing);
+						processing = false;
+					};
+					if (dependencies.batchPresentation) dependencies.batchPresentation(publish); else publish();
 					return prepared.clipId;
 				},
 			});
 		} finally {
 			signal?.removeEventListener('abort', cancel);
+			stream?.close();
 			finishOperation(ownership, processing);
 		}
 	}
@@ -392,9 +411,12 @@ export function createAudioGeneratorService<Context, Target extends AudioGenerat
 	}
 
 	function markProcessing(): true {
-		dependencies.setEffectProcessing(true);
-		setLocalizedStatus(dependencies.setStatus, dependencies.copy, "generatingAudio");
-		dependencies.publish();
+		const update = (): void => {
+			dependencies.setEffectProcessing(true);
+			setLocalizedStatus(dependencies.setStatus, dependencies.copy, "generatingAudio");
+			dependencies.publish();
+		};
+		if (dependencies.batchPresentation) dependencies.batchPresentation(update); else update();
 		return true;
 	}
 

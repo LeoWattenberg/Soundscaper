@@ -10,6 +10,7 @@ export function useTimelineInteractionState() {
 	const navigationRootRef = useRef(null);
 	const scrollRef = useRef(null);
 	const pointerSession = useRef(null);
+	const pointerMoveFlushRef = useRef(null);
 	const touchPointers = useRef(new Map());
 	const pinchSession = useRef(null);
 	const pendingPinchAnchorRef = useRef(null);
@@ -48,7 +49,7 @@ export function useTimelineInteractionState() {
 		timelineScrollSize,
 		navigationRootRef,
 		scrollRef,
-		pointerSession,
+		pointerSession, pointerMoveFlushRef,
 		touchPointers,
 		pinchSession,
 		pendingPinchAnchorRef,

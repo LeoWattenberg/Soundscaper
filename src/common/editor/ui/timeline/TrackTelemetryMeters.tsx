@@ -21,6 +21,12 @@ interface MeterTelemetryController {
 	readonly subscribeTelemetry: (listener: () => void) => () => void;
 }
 
+/** Only each displayed channel's level and clipping invalidate the meter leaves. */
+export function sameTrackMeterDisplay(left: ChannelMeterSource, right: ChannelMeterSource): boolean {
+	const previous = meterChannelReadings(left), next = meterChannelReadings(right);
+	return previous.every((reading, index) => reading.level === next[index]?.level && reading.clipped === next[index]?.clipped);
+}
+
 export function TrackTelemetryMeters({
 	controller,
 	trackId,
@@ -32,6 +38,7 @@ export function TrackTelemetryMeters({
 		controller,
 		(telemetry: MeterTelemetrySnapshot) => productionStripMeter(telemetry.meters?.productionMeters, 'track', trackId)
 			?? telemetry.meters?.tracks?.[trackId],
+		sameTrackMeterDisplay,
 	);
 	return <StereoTrackMeters meter={meter} />;
 }
@@ -56,6 +63,7 @@ export function OutputTelemetryMeters({
 				? telemetry.meters?.groups?.[busId]
 				: telemetry.meters?.sends?.[busId];
 		},
+		sameTrackMeterDisplay,
 	);
 	return <StereoTrackMeters meter={meter} />;
 }

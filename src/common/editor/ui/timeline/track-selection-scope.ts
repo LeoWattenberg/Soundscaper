@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { readTimelineLaneGeometry } from './timeline-lane-geometry.ts';
+
 interface TrackSelectionScopeSelection {
 	readonly trackIds?: unknown;
 }
@@ -43,6 +45,8 @@ export function timelineSelectionDragTrackIds(
 ): string[] | undefined {
 	const startTrackId = startLane.dataset.trackId;
 	if (!startTrackId || startLane.dataset.rulerInteraction !== undefined) return undefined;
+	const indexed = readTimelineLaneGeometry(scrollRoot)?.selection(startTrackId, clientY);
+	if (indexed) return indexed;
 	const startRect = startLane.getBoundingClientRect();
 	const anchorY = (startRect.top + startRect.bottom) / 2;
 	const top = Math.min(anchorY, clientY);

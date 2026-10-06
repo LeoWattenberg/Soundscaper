@@ -35,3 +35,29 @@ test('snapshot channels isolate listener failures and respect terminal publicati
 	channel.publish({ force: true });
 	assert.equal(healthyCalls, 2);
 });
+
+test('nested synchronous presentation batches build and notify once after all fields are updated', () => {
+	const state = { busy: false, message: '' };
+	let builds = 0;
+	const channel = createSnapshotChannel({ build: () => { builds++; return Object.freeze({ ...state }); } });
+	const observations: unknown[] = [];
+	channel.subscribe(() => { observations.push(channel.get()); });
+	channel.batch(() => {
+		state.busy = true; channel.publish();
+		channel.batch(() => { state.message = 'Working'; channel.publish(); });
+		assert.equal(observations.length, 0);
+	});
+	assert.deepEqual(observations, [{ busy: true, message: 'Working' }]);
+	assert.equal(builds, 1);
+	channel.publish();
+	assert.equal(builds, 2, 'publications outside a batch remain immediate');
+});
+
+test('a failed synchronous batch still publishes its completed state mutations', () => {
+	let state = 0;
+	const channel = createSnapshotChannel({ build: () => state });
+	assert.throws(() => channel.batch(() => { state++; channel.publish(); throw new Error('Failed'); }), /Failed/u);
+	assert.equal(channel.get(), 1);
+	channel.batch(() => { state++; channel.publish(); });
+	assert.equal(channel.get(), 2);
+});

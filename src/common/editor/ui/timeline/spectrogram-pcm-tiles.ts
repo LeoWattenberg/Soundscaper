@@ -10,7 +10,10 @@ import {
 	pffftSpectrogramBandEnergies,
 	preparePffftSpectrogram,
 } from '../../pffft-spectrogram.js';
+import { analyzeTimelineSpectrogramTileInWorker } from '../../timeline-spectrogram-worker-client.ts';
+import type { SpectrogramColumnCacheView } from '../../controller/source/timeline-spectrogram-cache.ts';
 import { pcmWindowCoversProjectedClip } from './preview.ts';
+import { alignedSpectrogramFramesPerPixel } from './spectrogram-column-reuse.ts';
 import {
 	createSpectrogramSampleViews,
 	type SpectrogramSampleView,
@@ -52,6 +55,7 @@ export interface SpectrogramPcmTileOptions {
 	) => Promise<TimelinePcmWindow | null>;
 	readonly analyze?: SpectrogramPcmTileAnalyzer;
 	readonly signal?: AbortSignal;
+	readonly columnCache?: SpectrogramColumnCacheView;
 }
 
 export interface SpectrogramPcmColumns {
@@ -84,8 +88,10 @@ export async function generateSpectrogramPcmTiles(
 		throw new RangeError('Invalid projected spectrogram clip range.');
 	}
 	if (frameCount === 0) return { width, pixelSkip, channels: [] };
+	const columnCache = alignedSpectrogramFramesPerPixel(clip, width, pixelSkip) === null ? null : options.columnCache;
 	const analyze = options.analyze ?? analyzePffft;
-	if (!options.analyze) await preparePffftSpectrogram(fftWindowSize);
+	const useWorker = !options.analyze && typeof Worker === 'function';
+	if (!options.analyze && !useWorker) await preparePffftSpectrogram(fftWindowSize);
 	const pixelPositions: number[] = [];
 	for (let pixel = 0; pixel < width; pixel += pixelSkip) pixelPositions.push(pixel);
 	const localStartAt = (pixel: number): number => clip.waveformStartFrame
@@ -116,8 +122,15 @@ export async function generateSpectrogramPcmTiles(
 	};
 	const sourceLimit = maximumSourceFrames - SOURCE_REQUEST_PADDING_FRAMES;
 	let columnsByChannel: Array<Array<readonly number[]>> | null = null;
+	const appendColumn = (column: readonly (readonly number[])[]): void => {
+		if (columnsByChannel === null) columnsByChannel = column.map(() => []);
+		if (columnsByChannel.length !== column.length) throw new Error('Spectrogram PCM channel count changed between tiles.');
+		for (let channel = 0; channel < column.length; channel += 1) columnsByChannel[channel]!.push(column[channel]!);
+	};
 	for (let first = 0; first < pixelPositions.length;) {
 		signal?.throwIfAborted();
+		const cached = columnCache?.read(localStartAt(pixelPositions[first]!));
+		if (cached) { appendColumn(cached); first += 1; continue; }
 		const startFrame = contextStartAt(pixelPositions[first]!);
 		let last = first;
 		let endFrame = contextEndAt(pixelPositions[first]!);
@@ -125,6 +138,7 @@ export async function generateSpectrogramPcmTiles(
 			throw new RangeError('One spectrogram FFT window exceeds the bounded PCM request limit.');
 		}
 		while (last + 1 < pixelPositions.length) {
+			if (columnCache?.read(localStartAt(pixelPositions[last + 1]!))) break;
 			const candidateEnd = contextEndAt(pixelPositions[last + 1]!);
 			if (sourceSpan(startFrame, candidateEnd) > sourceLimit) break;
 			last += 1;
@@ -134,41 +148,47 @@ export async function generateSpectrogramPcmTiles(
 		signal?.throwIfAborted();
 		const tileClip = { ...clip, waveformStartFrame: startFrame, waveformEndFrame: endFrame };
 		if (!pcm || !pcmWindowCoversProjectedClip(pcm, tileClip, project)) return null;
-		const views = createSpectrogramSampleViews(pcm.channels, tileClip, {
-			project,
-			sourceFrameOffset: pcm.startFrame,
-		});
+
 		const pixelStart = pixelPositions[first]!;
 		const pixelEnd = Math.min(width, pixelPositions[last]! + pixelSkip);
 		const tileChannels: Array<readonly (readonly number[])[]> = [];
-		for (const view of views) {
-			const offset = startFrame - clip.waveformStartFrame;
-			const globalView: SpectrogramSampleView = {
-				length: frameCount,
-				sampleAt: (index) => view.sampleAt(index - offset),
-			};
-			const columns = analyze(globalView, width, {
-				fftWindowSize,
-				frequencyBands: options.frequencyBands,
-				windowType: options.windowType,
-				pixelSkip,
-				pixelStart,
-				pixelEnd,
-			});
-			if (columns === null) return null;
-			tileChannels.push(columns);
+		if (useWorker && pcm.channels.length <= 8) {
+			tileChannels.push(...await analyzeTimelineSpectrogramTileInWorker({
+				channels: pcm.channels, clip: tileClip, project: project ? { sampleRate: project.sampleRate, tempoMap: project.tempoMap } : null,
+				sourceFrameOffset: pcm.startFrame, frameCount, offset: startFrame - clip.waveformStartFrame, width,
+				options: { fftWindowSize, frequencyBands: options.frequencyBands, windowType: options.windowType, pixelSkip, pixelStart, pixelEnd },
+			}, { signal }));
+			signal?.throwIfAborted();
+		} else {
+			if (useWorker) await preparePffftSpectrogram(fftWindowSize);
+			const views = createSpectrogramSampleViews(pcm.channels, tileClip, { project, sourceFrameOffset: pcm.startFrame });
+			for (const view of views) {
+				const offset = startFrame - clip.waveformStartFrame;
+				const globalView: SpectrogramSampleView = {
+					length: frameCount,
+					sampleAt: (index) => view.sampleAt(index - offset),
+				};
+				const columns = analyze(globalView, width, {
+					fftWindowSize,
+					frequencyBands: options.frequencyBands,
+					windowType: options.windowType,
+					pixelSkip,
+					pixelStart,
+					pixelEnd,
+				});
+				if (columns === null) return null;
+				tileChannels.push(columns);
+			}
 		}
 		const expectedColumns = last - first + 1;
 		if (tileChannels.some((columns) => columns.length !== expectedColumns)) {
 			throw new Error('Spectrogram PCM tile analysis returned incomplete columns.');
 		}
-		if (columnsByChannel === null) {
-			columnsByChannel = tileChannels.map(() => []);
-		} else if (columnsByChannel.length !== tileChannels.length) {
-			throw new Error('Spectrogram PCM channel count changed between tiles.');
-		}
-		for (let channel = 0; channel < tileChannels.length; channel += 1) {
-			columnsByChannel[channel]!.push(...tileChannels[channel]!);
+		signal?.throwIfAborted();
+		for (let offset = 0; offset < expectedColumns; offset += 1) {
+			const column = tileChannels.map((channel) => channel[offset]!);
+			appendColumn(column);
+			columnCache?.write(localStartAt(pixelPositions[first + offset]!), column);
 		}
 		first = last + 1;
 	}

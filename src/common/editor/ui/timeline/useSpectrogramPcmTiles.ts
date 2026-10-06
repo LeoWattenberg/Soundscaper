@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useReducer, useRef } from 'react';
 
 import type { AudioWarpRuntimeProject } from '../../audio-warp-runtime.ts';
+import { queueTimelineSpectrogramJob, timelineSpectrogramColumnCache, type SpectrogramColumnCacheView } from '../../controller/source/timeline-spectrogram-cache.ts';
+import { immutableWaveformKeyJson } from '../immutable-waveform-key-json.ts';
 import { createWaveformContentKey } from '../waveform-preview-cache.ts';
 import {
 	MINIMUM_VISIBLE_CLIP_PIXELS,
@@ -10,6 +12,7 @@ import {
 	projectedClipVisibleSourceSamples,
 } from './preview.ts';
 import { spectrogramPcmContextClip } from './spectrogram-pcm-context.ts';
+import { spectrogramColumnReuseKey } from './spectrogram-column-reuse.ts';
 import {
 	generateSpectrogramPcmTiles,
 	type SpectrogramPcmColumns,
@@ -48,12 +51,16 @@ export interface SpectrogramPcmTileHookOptions {
 	readonly windowType: string;
 	/** Rerenders when visual data behind the controller changes; it is not a request key. */
 	readonly visualRevision: unknown;
+	readonly viewportStartFrame?: number;
+	readonly viewportDurationFrames?: number;
 }
 
 interface TileRequest {
 	readonly clip: SpectrogramProjectedClip;
 	readonly key: string;
 	readonly width: number;
+	readonly priority: number;
+	readonly columnCache?: SpectrogramColumnCacheView;
 }
 
 interface ActiveTileRequest {
@@ -81,7 +88,7 @@ export function useSpectrogramPcmTiles({
 	displayMode,
 	fftWindowSize,
 	windowType,
-	visualRevision,
+	visualRevision, viewportStartFrame = 0, viewportDurationFrames = Number.MAX_SAFE_INTEGER,
 }: SpectrogramPcmTileHookOptions): ReadonlyMap<string, SpectrogramPcmColumns> {
 	const active = useRef(new Map<string, ActiveTileRequest>());
 	const completed = useRef(new Map<string, CompletedTileRequest>());
@@ -96,18 +103,20 @@ export function useSpectrogramPcmTiles({
 			if (clip.isRecordingPreview) continue;
 			const visual = controller.getClipVisualData(clip.id)
 				?? controller.getProjectBinClipVisualData?.(clip.projectBinClipId ?? clip.id);
-			if (!visual?.available || visual.buffer) continue;
+			if (!visual?.available) continue;
+			const workerMode = typeof Worker === 'function' && (visual.buffer?.numberOfChannels ?? visual.source?.channelCount ?? 2) <= 8;
+			if (!workerMode && visual.buffer) continue;
 			const contextClip = spectrogramPcmContextClip(clip, fftWindowSize);
-			if (pcmWindowCoversProjectedClip(visual.pcmWindow, contextClip, project)) continue;
-			if (!(projectedClipVisibleSourceSamples(contextClip, project)
+			if (!workerMode && pcmWindowCoversProjectedClip(visual.pcmWindow, contextClip, project)) continue;
+			if (!workerMode && !(projectedClipVisibleSourceSamples(contextClip, project)
 				> MAXIMUM_WHOLE_CLIP_PCM_FRAMES)) continue;
 			const frameCount = clip.waveformEndFrame - clip.waveformStartFrame;
 			if (!(frameCount > 0)) continue;
 			const width = Math.max(MINIMUM_VISIBLE_CLIP_PIXELS,
 				frameCount / sampleRate * pixelsPerSecond);
+			if (width > 32_768) continue;
 			const source = visual.source ?? sourceLookup.get(clip.sourceId);
-			const key = JSON.stringify([
-				createWaveformContentKey(source, clip),
+			const key = `[${createWaveformContentKey(source, clip)},${JSON.stringify([
 				source?.sampleRate ?? null,
 				source?.frameCount ?? null,
 				clip.waveformStartFrame,
@@ -118,13 +127,16 @@ export function useSpectrogramPcmTiles({
 				sampleRate,
 				project?.id ?? null,
 				project?.sampleRate ?? null,
-				project?.tempoMap ?? null,
-			]);
-			output.push({ clip, key, width });
+			]).slice(1, -1)},${immutableWaveformKeyJson(project?.tempoMap)}]`;
+			const start = clip.timelineStartFrame + clip.waveformStartFrame;
+			const end = clip.timelineStartFrame + clip.waveformEndFrame;
+			const priority = end > viewportStartFrame && start < viewportStartFrame + viewportDurationFrames ? 0 : 1;
+			const columnKey = spectrogramColumnReuseKey({ clip, source, width, fftWindowSize, windowType, sampleRate, project });
+			output.push({ clip, key, width, priority, columnCache: columnKey === null ? undefined : timelineSpectrogramColumnCache(controller, columnKey) });
 		}
 		return output;
 	}, [controller, displayMode, fftWindowSize, pixelsPerSecond, project, projectedClips,
-		sampleRate, sourceLookup, visualRevision, windowType]);
+		sampleRate, sourceLookup, visualRevision, viewportDurationFrames, viewportStartFrame, windowType]);
 	const latestRequests = useRef(requests);
 
 	useEffect(() => {
@@ -147,12 +159,13 @@ export function useSpectrogramPcmTiles({
 			const abort = new AbortController();
 			const job: ActiveTileRequest = { key: request.key, abort };
 			active.current.set(clipId, job);
-			void generateSpectrogramPcmTiles({
+			void queueTimelineSpectrogramJob(() => generateSpectrogramPcmTiles({
 				clip: request.clip,
 				project,
 				width: request.width,
 				fftWindowSize,
 				windowType,
+				columnCache: request.columnCache,
 				signal: abort.signal,
 				requestPcmWindow: async (startFrame, endFrame) => {
 					abort.signal.throwIfAborted();
@@ -164,7 +177,7 @@ export function useSpectrogramPcmTiles({
 					abort.signal.throwIfAborted();
 					return pcmWindowOrNull(value);
 				},
-			}).then((columns) => {
+			}), { signal: abort.signal, priority: request.priority }).then((columns) => {
 				if (!columns || abort.signal.aborted || active.current.get(clipId) !== job) return;
 				completed.current.set(clipId, { key: request.key, columns });
 				automaticRetries.current.delete(clipId);

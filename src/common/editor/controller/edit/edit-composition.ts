@@ -21,13 +21,14 @@ import { createEditorEditService } from './internal/edit-service.ts';
 import { createAudioGeneratorService, type AudioGeneratorService } from './generator-service.ts';
 import { createLabelService } from './internal/label-service.ts';
 import { bindControllerEditClipboardRuntime, type ControllerRuntimeHistory } from '../document/project-runtime.ts';
-import { bufferFromChannels, writeBuffer } from '../source/source-audio.ts';
+import { bufferFromChannels, createAudioBuffer, writeBuffer } from '../source/source-audio.ts';
 import { generateWaveformPeaks, peakCacheKey } from '../source/waveform-analysis.ts';
 import { EDITOR_PROJECT_TASK_SCOPE } from '../shared/lifecycle.ts';
 import { commitMonoConvertingPasteCommand } from './paste-mono-conversion-service.ts';
 import { commitPasteIntoExistingClipCommand } from './paste-existing-clip-service.ts';
 import { discoverPasteCommandTree } from './internal/paste-command-tree.ts';
 import { findControllerSource } from '../track-audio/track-domain-types.ts';
+import { generateAudioEditorSignalStream } from '../../signal-generator-stream-client.ts';
 
 export type {
 	EditCommandProject,
@@ -108,8 +109,10 @@ export function createEditComposition<History extends ControllerRuntimeHistory>(
 			effectTargets: dependencies.effectTargets,
 			persistEffectResults: dependencies.persistEffectResults,
 			preflightStorage: dependencies.preflightStorage,
+			generateStream: typeof Worker === 'function' ? (type, options, signal) => generateAudioEditorSignalStream(type, options, { signal }) : undefined,
 			getAudioContext: () => engine.getAudioContext({ resume: false }),
 			createBuffer: (channels, sampleRate, context) => bufferFromChannels([...channels], sampleRate, context, copy),
+			createEmptyBuffer: (channelCount, frames, sampleRate, context) => createAudioBuffer(channelCount, frames, sampleRate, context, copy),
 			writeBuffer,
 			cacheSourceBuffer: dependencies.cacheSourceBuffer,
 			generatePeaks: (channels) => generateWaveformPeaks([...channels], copy),
@@ -118,6 +121,7 @@ export function createEditComposition<History extends ControllerRuntimeHistory>(
 			commit: dependencies.commit,
 			setStatus: dependencies.setStatus,
 			publish: dependencies.publishDocumentSnapshot,
+			batchPresentation: dependencies.batchPresentation,
 		})
 		: createAbsentAudioGeneratorService(dependencies.absentSubsystem);
 	const generate = <Result>(work: () => Promise<Result>) => (

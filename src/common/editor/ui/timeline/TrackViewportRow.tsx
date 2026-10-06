@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { flushSync } from 'react-dom';
 
 import {
@@ -17,12 +17,13 @@ interface TrackViewportRowProps {
 	panelWidth: number;
 	headerWidth: number;
 	tabIndex: number;
-	children: ReactNode;
+	trackType?: string;
+	children: ReactNode | (() => ReactNode);
 }
 
 /** Keep layout, tab order and pointer ownership while offscreen content sleeps. */
 export function TrackViewportRow({
-	enabled, trackId, trackIndex, trackName, height, panelWidth, headerWidth, tabIndex, children,
+	enabled, trackId, trackIndex, trackName, height, panelWidth, headerWidth, tabIndex, children, trackType,
 }: TrackViewportRowProps) {
 	const slotRef = useRef<HTMLDivElement>(null);
 	const nativeDragRef = useRef(false);
@@ -77,7 +78,7 @@ export function TrackViewportRow({
 				reveal();
 				const slot = slotRef.current;
 				const candidates = slot?.querySelectorAll<HTMLElement>('[tabindex]:not([tabindex="-1"]), button:not([disabled]):not([tabindex="-1"]), input:not([disabled]):not([tabindex="-1"]), select:not([disabled]):not([tabindex="-1"])');
-				const target = reverse ? candidates?.item((candidates?.length || 1) - 1) : slot?.querySelector<HTMLElement>('.track');
+				const target = reverse ? candidates?.item((candidates?.length || 1) - 1) : slot?.querySelector<HTMLElement>('.track') || candidates?.item(0);
 				target?.focus({ preventScroll: true });
 			}
 		}}
@@ -87,8 +88,9 @@ export function TrackViewportRow({
 			}
 		}}
 	>
-		{mounted ? children : <div
-			className="audio-editor-track-row"
+		{mounted ? (typeof children === 'function' ? children() : children) : <div
+			className={`audio-editor-track-row${trackType === 'label' ? ' audio-editor-label-track-row' : ''}`}
+			data-label-track={trackType === 'label' ? 'true' : undefined}
 			data-track-row
 			data-track-id={trackId}
 			data-track-index={trackIndex}

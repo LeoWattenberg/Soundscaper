@@ -24,6 +24,7 @@ export function TimelineRulerCanvas({
 	pixelsPerSecond,
 	project,
 	rulerScale,
+	mappedTicks = null,
 	run,
 	sampleRate,
 	timeSelection,
@@ -35,6 +36,7 @@ export function TimelineRulerCanvas({
 	const skinTheme = decoration === 'sakura' ? theme : null;
 	const hasLoopRegion = displayedLoop.endFrame > displayedLoop.startFrame;
 	const shared = {
+		mappedTicks,
 		height: markerLaneVisible ? TIMELINE_RULER_HEIGHT_WITH_ANNOTATIONS : undefined,
 		pixelsPerSecond,
 		scrollX: contentScrollX,

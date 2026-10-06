@@ -59,6 +59,17 @@ export class SourceRecordRepository {
 		return value ? clone(value as StorageRecord) : null;
 	}
 
+	/** Read generation fences together from one readonly database snapshot. */
+	async getMetadataMany(sourceIds: readonly string[]): Promise<readonly (StorageRecord | null)[]> {
+		const database = await this.#port.database();
+		const values = !database
+			? sourceIds.map((sourceId) => this.#port.memory.sources.get(sourceId))
+			: await transact(database, 'sources', 'readonly', ({ sources }) => Promise.all(
+				sourceIds.map((sourceId) => request(sources.get(sourceId))),
+			));
+		return values.map((value) => value ? clone(value as StorageRecord) : null);
+	}
+
 	async list(): Promise<StorageRecord[]> {
 		const database = await this.#port.database();
 		const values = !database
@@ -305,6 +316,38 @@ export class SourceRecordRepository {
 			: await transact(database, 'sourceChunks', 'readonly', ({ sourceChunks }) => request(sourceChunks.get(key)));
 		const record = asChunk(value);
 		return record ? cloneChunk(record) as SourceChunkRecord : null;
+	}
+
+	/** Fresh bounded owner discovery reads keys together and only one newest PCM payload. */
+	async firstChunk(tokens: readonly string[], index: number, signal?: AbortSignal): Promise<{
+		readonly ownerIndex: number; readonly record: SourceChunkRecord;
+	} | null> {
+		if (tokens.length > 4_094 || !Number.isSafeInteger(index) || index < 0
+			|| tokens.some((token) => typeof token !== 'string' || !token)) {
+			throw new RangeError('COW owner lookup requires bounded source generations and a valid chunk index.');
+		}
+		const database = await this.#port.database();
+		for (let offset = 0; offset < tokens.length; offset += 64) {
+			signal?.throwIfAborted();
+			const keys = tokens.slice(offset, offset + 64).map((token) => `${token}:${String(index).padStart(10, '0')}`);
+			const read = async (store: IDBObjectStore | null) => {
+				const present = store ? await Promise.all(keys.map((key) => request(store.getKey(key))))
+					: keys.map((key) => this.#port.memory.sourceChunks.has(key) ? key : undefined);
+				const position = present.findIndex((key) => key !== undefined);
+				if (position === -1) return null;
+				const key = keys[position]!;
+				const value = store ? await request(store.get(key)) : this.#port.memory.sourceChunks.get(key);
+				const record = asChunk(value);
+				if (!record || record.sourceToken !== tokens[offset + position] || record.index !== index || record.key !== key) {
+					throw new Error('The COW owner record does not match its immutable source generation.');
+				}
+				return { ownerIndex: offset + position, record: cloneChunk(record) as SourceChunkRecord };
+			};
+			const found = database ? await transact(database, 'sourceChunks', 'readonly', ({ sourceChunks }) => read(sourceChunks)) : await read(null);
+			signal?.throwIfAborted();
+			if (found) return found;
+		}
+		return null;
 	}
 
 	async deleteChunks(token: string | null | undefined): Promise<void> {

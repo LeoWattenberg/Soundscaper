@@ -404,6 +404,28 @@ function documentRuntimeFixture(project: SnapshotProject) {
 	};
 }
 
+test('macro and script snapshots retain detached identities until their owned libraries are replaced', () => {
+	const runtime = documentRuntimeFixture({ id: 'project' });
+	const owner = {
+		effectMacros: { schemaVersion: 1 as const, macros: [{ id: 'macro', name: 'Original', effects: [] }] },
+		macroScripts: { scripts: [{ id: 'script', name: 'Original', source: 'text',
+			trust: 'authored' as const, trustedSource: null, origin: null }] },
+	};
+	const state = exposeOwnedFields(runtime.state, owner);
+	const first = createEditorDocumentSnapshot({ ...runtime, state });
+	const second = createEditorDocumentSnapshot({ ...runtime, state });
+	assert.equal(first.macros.library, second.macros.library);
+	assert.equal(first.macros.scripts, second.macros.scripts);
+	owner.effectMacros = { schemaVersion: 1, macros: [{ id: 'other', name: 'Updated', effects: [] }] };
+	const changed = createEditorDocumentSnapshot({ ...runtime, state });
+	assert.notEqual(changed.macros.library, first.macros.library);
+	assert.equal(changed.macros.scripts, first.macros.scripts);
+	assert.equal(first.macros.library[0]?.name, 'Original');
+	assert.deepEqual(structuredClone(first.macros), {
+		library: [{ id: 'macro', name: 'Original', effects: [] }], scripts: owner.macroScripts.scripts,
+	});
+});
+
 
 test('the delivery canvas an open export dialog states rides the snapshot to the preview', () => {
 	const project: SnapshotProject = { id: 'project', selection: { startFrame: 0, endFrame: 0 } };

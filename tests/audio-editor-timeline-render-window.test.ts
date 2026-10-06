@@ -52,7 +52,7 @@ test('only expensive clip projections consume the anchored viewport', async () =
 
 	assert.match(workspace, /renderViewportStartFrame=\{renderViewportStartFrame\}/u);
 	assert.match(workspace, /scrollX=\{contentScrollX\}/u, 'rulers and overlays retain exact scroll');
-	assert.match(trackList, /<AudioTrackRow[\s\S]*renderViewportStartFrame=\{renderViewportStartFrame\}/u);
+	assert.match(trackList, /<MemoizedAudioTrackRow[\s\S]*renderViewportStartFrame=\{renderViewportStartFrame\}/u);
 	assert.match(trackList, /<VideoTrackRow[\s\S]*renderViewportStartFrame=\{renderViewportStartFrame\}/u);
 	assert.match(audioRow, /useAudioTrackRowViewModel\(\{/u);
 	assert.doesNotMatch(audioRow, /projectClipsToViewport|createAudioTrackRowClipViewModels/u);

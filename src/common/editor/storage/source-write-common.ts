@@ -3,7 +3,7 @@
 export const PENDING_SOURCE_RETENTION_MS = 24 * 60 * 60 * 1000;
 
 export function cleanupFailure(primary: unknown, cleanup: unknown): AggregateError {
-	const aggregate = new AggregateError([primary, cleanup], 'The source write and its cleanup both failed.');
+	const aggregate = new AggregateError([primary, cleanup], 'The source write and its cleanup both failed.', { cause: primary });
 	if (primary instanceof Error && primary.name === 'AbortError') aggregate.name = 'AbortError';
 	return aggregate;
 }

@@ -461,6 +461,14 @@
 	transition: width 60ms linear, height 60ms linear;
 }
 
+.kw-audio-editor__playback-meter-surface:not([data-meter-style='gradient']):not([data-meter-type='ebu-r128']) .kw-audio-editor__playback-meter-peak {
+	width: 100%;
+	height: 100%;
+	transform: var(--playback-meter-peak-transform);
+	transform-origin: var(--playback-meter-peak-origin);
+	transition: transform 60ms linear;
+}
+
 .kw-audio-editor__playback-meter-rms {
 	z-index: 2;
 	background: color-mix(in srgb, #f0d64c 58%, #48b05e);

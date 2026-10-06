@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 
 import {
@@ -60,9 +60,10 @@ export function AudacityAudioMeter({
 		: settings.type === 'amplitude'
 			? Math.max(0, Math.min(1, Number(meter?.peak) || 0))
 			: Math.max(-range, Math.min(0, peakDb));
-	const ticks = isEbu
+	const ticks = useMemo(() => isEbu
 		? ebuMeterTicks(settings.ebuScale, settings.ebuUnit, meterSize)
-		: playbackMeterTicks(settings.type, range, meterSize);
+		: playbackMeterTicks(settings.type, range, meterSize),
+	[isEbu, meterSize, range, settings.ebuScale, settings.ebuUnit, settings.type]);
 	const ebuMinimum = settings.ebuUnit === 'relative'
 		? ebuBounds.minimumLufs + 23
 		: ebuBounds.minimumLufs;
@@ -74,6 +75,8 @@ export function AudacityAudioMeter({
 	const style = {
 		'--playback-meter-peak': `${peakPercent}%`,
 		'--playback-meter-rms': `${rmsPercent}%`,
+		'--playback-meter-peak-transform': `${orientation === 'vertical' ? 'scaleY' : 'scaleX'}(${peakPercent / 100})`,
+		'--playback-meter-peak-origin': orientation === 'vertical' ? 'bottom' : 'left',
 	};
 	useEffect(() => {
 		const element = meterRef.current;
@@ -126,15 +129,7 @@ export function AudacityAudioMeter({
 					</span>
 				))}
 			</div>
-			<div className="kw-audio-editor__playback-meter-ruler" aria-hidden="true">
-				{ticks.map((tick) => (
-					<span
-						key={`${tick.label}-${tick.position}`}
-						data-ebu-target={isEbu && tick.target ? '' : undefined}
-						style={{ '--playback-meter-tick': `${tick.position}%` }}
-					>{tick.label}</span>
-				))}
-			</div>
+			<StaticMeterRuler ticks={ticks} isEbu={isEbu} />
 			{isEbu && <div className="kw-audio-editor__ebu-compact-readout" aria-hidden="true">
 				<span>{settings.ebuLiveValue === 'short-term' ? 'S' : 'M'} {formatEbuLoudness(liveLufs, settings.ebuUnit)}</span>
 				<span>I {formatEbuLoudness(loudness.integratedLufs, settings.ebuUnit)}</span>
@@ -164,6 +159,15 @@ export function AudacityAudioMeter({
 		</div>
 	);
 }
+
+const StaticMeterRuler = memo(function StaticMeterRuler({ ticks, isEbu }) {
+	return <div className="kw-audio-editor__playback-meter-ruler" aria-hidden="true">
+		{ticks.map(tick => <span key={`${tick.label}-${tick.position}`}
+			data-ebu-target={isEbu && tick.target ? '' : undefined}
+			style={{ '--playback-meter-tick': `${tick.position}%` }}
+		>{tick.label}</span>)}
+	</div>;
+});
 
 export function MeterSettingsFlyout({
 	copy,

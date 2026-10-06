@@ -40,6 +40,14 @@ export const AUDACITY_ACTION_SOURCE = deepFreeze({
 export { AUDACITY_ACTION_ALIASES, AUDACITY_ACTION_STATUS };
 
 export const AUDACITY_ACTION_MANIFEST = deepFreeze(toManifest(AUDACITY_ACTION_DEFINITIONS));
+const DYNAMIC_ACTION_MATCHERS = Object.freeze(Object.values(AUDACITY_ACTION_MANIFEST).flatMap((definition) => {
+	const markerIndex = definition.id.indexOf('%1');
+	if (markerIndex < 0) return [];
+	const prefix = definition.id.slice(0, markerIndex);
+	return [Object.freeze({ definition, prefix, suffix: definition.id.slice(markerIndex + 2),
+		parameterName: prefix.match(/[?&]([^?&=]+)=$/)?.[1] || '',
+	})];
+}));
 
 export function resolveAudacityActionId(id) {
 	return Object.hasOwn(AUDACITY_ACTION_ALIASES, id) ? AUDACITY_ACTION_ALIASES[id] : id;
@@ -345,11 +353,7 @@ function matchAudacityAction(id) {
 	const exact = Object.hasOwn(AUDACITY_ACTION_MANIFEST, resolvedId) ? AUDACITY_ACTION_MANIFEST[resolvedId] : undefined;
 	if (exact) return { definition: exact, dynamic: exact.id.includes('%1'), template: true, valid: true, parameters: [] };
 
-	for (const definition of Object.values(AUDACITY_ACTION_MANIFEST)) {
-		const markerIndex = definition.id.indexOf('%1');
-		if (markerIndex < 0) continue;
-		const prefix = definition.id.slice(0, markerIndex);
-		const suffix = definition.id.slice(markerIndex + 2);
+	for (const { definition, prefix, suffix, parameterName } of DYNAMIC_ACTION_MATCHERS) {
 		if (!resolvedId.startsWith(prefix) || !resolvedId.endsWith(suffix)) continue;
 		const encodedValue = resolvedId.slice(prefix.length, suffix ? -suffix.length : undefined);
 		if (!encodedValue) return { definition, dynamic: true, template: false, valid: false, parameters: [] };
@@ -359,7 +363,6 @@ function matchAudacityAction(id) {
 		} catch {
 			return { definition, dynamic: true, template: false, valid: false, parameters: [] };
 		}
-		const parameterName = definition.id.slice(0, markerIndex).match(/[?&]([^?&=]+)=$/)?.[1] || '';
 		if (parameterName === 'rate') {
 			const rate = Number(value);
 			if (!Number.isSafeInteger(rate) || rate <= 0) {

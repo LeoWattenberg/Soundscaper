@@ -38,6 +38,7 @@ export function createSelectionEffectPreviewService(runtime: SelectionEffectPrev
 
 	return async function previewAudacityEffectFromController(request: RuntimeValue = {}) {
 		if (state.audacityEffectProcessing) return false;
+		runtime.releasePreparedPcm?.();
 		runtime.pauseSourcePreview?.();
 		cancelAudacityEffectPreview({ publish: false });
 		const previewGeneration = state.audacityPreviewGeneration;
@@ -120,10 +121,16 @@ export function createSelectionEffectPreviewService(runtime: SelectionEffectPrev
 			for (let index = 0; index < targets.length; index += 1) {
 				const { full, fullIndex, preview } = targets[index]!;
 				const reusable = fullChannelSets?.[fullIndex];
-				previewChannelSets.push(reusable
-					&& preview.startFrame === full.startFrame && preview.endFrame === full.endFrame
-					? reusable
-					: await renderOneTarget(preview, renderDryTrackRange, requireCurrentPreview));
+				if (reusable && preview.startFrame === full.startFrame && preview.endFrame === full.endFrame) {
+					previewChannelSets.push(reusable);
+				} else if (reusable && runtime.canSliceDryPcm?.(reusable)
+					&& preview.startFrame >= full.startFrame && preview.endFrame <= full.endFrame) {
+					const start = preview.startFrame - full.startFrame;
+					const end = preview.endFrame - full.startFrame;
+					previewChannelSets.push(reusable.map((channel: Float32Array) => channel.subarray(start, end)));
+				} else {
+					previewChannelSets.push(await renderOneTarget(preview, renderDryTrackRange, requireCurrentPreview));
+				}
 			}
 			params = resolveInteractiveAudacityParams(
 				type,

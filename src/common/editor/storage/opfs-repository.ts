@@ -4,7 +4,6 @@ import { copyUint8ArrayToArrayBuffer } from './binary-copy.ts';
 
 import {
 	PCM_CONTAINER_EXTENSION,
-	containerCodecToEncoding,
 	parsePcmContainerIndex,
 	readPcmContainerPayload,
 } from '../wavpack/index.js';
@@ -23,6 +22,7 @@ import { OpfsSyncRepositoryBridge, sharedReadable } from './opfs-sync-repository
 import type { OpfsSyncStoragePort } from './opfs-sync-worker-client.ts';
 import type { OpfsSyncOperationId } from './opfs-sync-worker-protocol.ts';
 import { syncBinaryWriter, syncPcmWriter } from './opfs-sync-writer-adapters.ts';
+import { containerRecord, createOpfsPcmReadView, type OpfsPcmReadView } from './opfs-pcm-read-view.ts';
 
 export const DEFAULT_OPFS_DIRECTORY_NAME = 'audio-editor-sources';
 const throwIfAborted = createAbortGuard('Audio storage was cancelled.');
@@ -32,6 +32,7 @@ interface PcmIndexEntry {
 	readonly frames: number;
 	readonly codec: number;
 	readonly pcmCrc32: number;
+	readonly length: number;
 }
 
 interface PcmContainerIndex {
@@ -304,6 +305,14 @@ export class OpfsRepository {
 		return decode(containerRecord(entry, payload), source, signal, priority);
 	}
 
+	async openPcmContainerReadView(source: StorageRecord, decode: DecodeChunk, signal?: AbortSignal): Promise<OpfsPcmReadView | null> {
+		const directory = await this.directory();
+		if (!directory || !source.path) return null;
+		const file = await this.#sync.readable(directory, 'canonical-pcm-chunk-read', source.path, signal);
+		if (!file) return null;
+		return createOpfsPcmReadView(file, await this.#containerIndex(source, file), source, decode);
+	}
+
 	async *readLegacyChunks(
 		source: StorageRecord,
 		{ signal }: { readonly signal?: AbortSignal } = {},
@@ -325,12 +334,8 @@ export class OpfsRepository {
 			if (!frames || !channelCount || offset + channelBytes * channelCount > file.size) {
 				throw new Error('The local audio source contains an invalid chunk.');
 			}
-			const channels: Float32Array[] = [];
-			for (let channel = 0; channel < channelCount; channel += 1) {
-				channels.push(new Float32Array(await file.slice(offset, offset + channelBytes).arrayBuffer()));
-				throwIfAborted(signal);
-				offset += channelBytes;
-			}
+			const channels = await readLegacyPlanarPayload(file, offset, frames, channelCount, signal);
+			offset += channelBytes * channelCount;
 			yield { index, frames, channels };
 			index += 1;
 		}
@@ -360,12 +365,7 @@ export class OpfsRepository {
 		offset += 8;
 		const channelBytes = frames * Float32Array.BYTES_PER_ELEMENT;
 		if (offset + channelBytes * channelCount > file.size) throw new Error('The local audio source is truncated.');
-		const channels: Float32Array[] = [];
-		for (let channel = 0; channel < channelCount; channel += 1) {
-			throwIfAborted(signal);
-			channels.push(new Float32Array(await file.slice(offset, offset + channelBytes).arrayBuffer()));
-			offset += channelBytes;
-		}
+		const channels = await readLegacyPlanarPayload(file, offset, frames, channelCount, signal);
 		return { index: chunkIndex, frames, channels };
 	}
 
@@ -425,6 +425,23 @@ export class OpfsRepository {
 			throw new Error('The requested local audio source is missing.');
 		}
 	}
+}
+
+async function readLegacyPlanarPayload(
+	file: BlobLike,
+	offset: number,
+	frames: number,
+	channelCount: number,
+	signal?: AbortSignal,
+): Promise<readonly Float32Array[]> {
+	throwIfAborted(signal);
+	const channelBytes = frames * Float32Array.BYTES_PER_ELEMENT;
+	const bytes = await file.slice(offset, offset + channelBytes * channelCount).arrayBuffer();
+	throwIfAborted(signal);
+	if (bytes.byteLength !== channelBytes * channelCount) throw new Error('The local audio source is truncated.');
+	return Array.from({ length: channelCount }, (_, channel) => new Float32Array(
+		bytes.slice(channel * channelBytes, (channel + 1) * channelBytes),
+	));
 }
 
 async function openBinaryWriter(
@@ -488,17 +505,6 @@ async function openBinaryWriter(
 		},
 	};
 }
-
-function containerRecord(entry: PcmIndexEntry, payload: unknown): Record<string, unknown> {
-	return {
-		index: entry.index,
-		frames: entry.frames,
-		encoding: containerCodecToEncoding(entry.codec),
-		payload,
-		pcmCrc32: entry.pcmCrc32,
-	};
-}
-
 
 function createId(prefix: string): string {
 	if (globalThis.crypto?.randomUUID) return `${prefix}-${globalThis.crypto.randomUUID()}`;

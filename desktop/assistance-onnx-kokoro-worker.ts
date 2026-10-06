@@ -109,7 +109,7 @@ async function executeKokoro(
 	const session = await createAssistanceOnnxCpuSessionV1(
 		runtime, models.network.path, SESSION_ERRORS,
 	);
-	const chunks: Float32Array[] = [];
+	const chunks: Uint8Array[] = [];
 	let samples = 0;
 	try {
 		assertNames(session.inputNames, INPUT_NAMES, 'input');
@@ -129,7 +129,7 @@ async function executeKokoro(
 				|| WAV_HEADER_BYTES + samples * 2 > MAXIMUM_WAV_BYTES) {
 				throw new RangeError('Kokoro audio exceeds its authenticated output reservation.');
 			}
-			chunks.push(audio);
+			chunks.push(encodePcm16Samples(audio));
 			context.onProgress((index + 1) / (tokenChunks.length + 1));
 		}
 		return await publishAssistanceOnnxOutputV1(context,
@@ -274,10 +274,10 @@ function assertNames(actual: readonly string[], expected: readonly string[], lab
 	}
 }
 
-function encodePcm16Wave(chunks: readonly Float32Array[], samples: number): Uint8Array {
-	const output = Buffer.alloc(WAV_HEADER_BYTES + samples * 2);
+function encodePcm16Wave(chunks: readonly Uint8Array[], samples: number): readonly Uint8Array[] {
+	const output = Buffer.alloc(WAV_HEADER_BYTES);
 	output.write('RIFF', 0, 'ascii');
-	output.writeUInt32LE(output.byteLength - 8, 4);
+	output.writeUInt32LE(WAV_HEADER_BYTES + samples * 2 - 8, 4);
 	output.write('WAVEfmt ', 8, 'ascii');
 	output.writeUInt32LE(16, 16);
 	output.writeUInt16LE(1, 20);
@@ -288,13 +288,16 @@ function encodePcm16Wave(chunks: readonly Float32Array[], samples: number): Uint
 	output.writeUInt16LE(16, 34);
 	output.write('data', 36, 'ascii');
 	output.writeUInt32LE(samples * 2, 40);
-	let offset = WAV_HEADER_BYTES;
-	for (const chunk of chunks) {
-		for (const value of chunk) {
-			const clamped = Math.max(-1, Math.min(1, value));
-			output.writeInt16LE(Math.round(clamped < 0 ? clamped * 32_768 : clamped * 32_767), offset);
-			offset += 2;
-		}
+	return [output, ...chunks];
+}
+
+function encodePcm16Samples(samples: Float32Array): Uint8Array {
+	const output = Buffer.alloc(samples.length * 2);
+	let offset = 0;
+	for (const value of samples) {
+		const clamped = Math.max(-1, Math.min(1, value));
+		output.writeInt16LE(Math.round(clamped < 0 ? clamped * 32_768 : clamped * 32_767), offset);
+		offset += 2;
 	}
 	return output;
 }

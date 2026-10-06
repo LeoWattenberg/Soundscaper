@@ -100,3 +100,67 @@ function createFixture(cached: unknown) {
 	const service = createAudioAnalysisService(dependencies);
 	return { service, dependencies, saved, renders: () => renders };
 }
+
+test('computed levels are published before their cache write completes', async () => {
+	const f = createFixture(null);
+	let release!: () => void;
+	let shown = false;
+	const saved = new Promise<void>(resolve => { release = resolve; });
+	const service = createAudioAnalysisService({ ...f.dependencies,
+		showAnalysis: () => { shown = true; }, saveAnalysis: async () => saved,
+	});
+	const pending = service.run();
+	await new Promise<void>(resolve => setImmediate(resolve));
+	assert.equal(shown, true);
+	release();
+	assert.deepEqual(await pending, { rmsDbfs: -12 });
+});
+
+test('specialized reports appear before generic meters and repeated reports reuse complete cached results', async () => {
+	const f = createFixture(null);
+	let release!: (result: Record<string, unknown>) => void;
+	const meters = new Promise<Record<string, unknown>>(resolve => { release = resolve; });
+	const shown: unknown[][] = [];
+	let reportJobs = 0;
+	const report = Object.freeze({ type: 'spectrum', size: 32 });
+	const service = createAudioAnalysisService({ ...f.dependencies,
+		analyzeChannels: async () => meters,
+		createSpecializedReport: async () => { reportJobs++; return report; },
+		showAnalysis: (...args) => { shown.push(args); },
+	});
+	const pending = service.plotSpectrum();
+	await new Promise<void>(resolve => setImmediate(resolve));
+	assert.equal(shown.length, 1);
+	assert.equal(shown[0]?.[0], null, 'partial publication clears previous meters');
+	assert.equal(shown[0]?.[2], report);
+	release({ rmsDbfs: -12 });
+	await pending;
+	assert.equal(shown.at(-1)?.[0] && (shown.at(-1)?.[0] as Record<string, unknown>).rmsDbfs, -12);
+	await service.plotSpectrum();
+	assert.equal(reportJobs, 1);
+	assert.equal(f.renders(), 1);
+});
+
+for (const cachedLevels of [false, true]) {
+	test(`complete analysis publication releases busy state in the same batch (cached levels: ${cachedLevels})`, async () => {
+		const f = createFixture(cachedLevels ? { result: { rmsDbfs: -24 } } : null);
+		let batch = 0; let nextBatch = 0;
+		const observed: Array<{ kind: string; batch: number }> = [];
+		const service = createAudioAnalysisService({ ...f.dependencies,
+			batchPresentation(operation) {
+				const prior = batch; batch = ++nextBatch;
+				try { operation(); } finally { batch = prior; }
+			},
+			createSpecializedReport: async () => ({ type: 'spectrum', size: 32 }),
+			showAnalysis: () => { observed.push({ kind: 'show', batch }); },
+			setStatus: (_status, status) => { if (status === 'success') observed.push({ kind: 'success', batch }); },
+			setProcessing: processing => { if (!processing) observed.push({ kind: 'idle', batch }); },
+		});
+		if (cachedLevels) await service.run(); else await service.plotSpectrum();
+		const completion = observed.slice(-3);
+		assert.deepEqual(completion.map(value => value.kind), ['show', 'success', 'idle']);
+		assert.ok(completion[0]!.batch > 0);
+		assert.equal(new Set(completion.map(value => value.batch)).size, 1);
+		assert.equal(observed.filter(value => value.kind === 'idle').length, 1);
+	});
+}

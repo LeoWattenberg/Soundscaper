@@ -16,6 +16,7 @@ const MAX_CHANNEL_COUNT = 64;
 const WAVE_FORMAT_PCM = 0x0001;
 const WAVE_FORMAT_IEEE_FLOAT = 0x0003;
 const WAVE_FORMAT_EXTENSIBLE = 0xfffe;
+const LITTLE_ENDIAN = new Uint8Array(Uint32Array.of(1).buffer)[0] === 1;
 const EXTENSIBLE_GUID_TAIL = Object.freeze([
 	0x00, 0x00, 0x10, 0x00, 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71,
 ]);
@@ -320,27 +321,76 @@ function decodeInterleavedPcm(
 	descriptor: WavPcmDescriptor,
 ): readonly Float32Array[] {
 	const channels = Array.from({ length: descriptor.channelCount }, () => new Float32Array(frameCount));
+	const sampleCount = frameCount * descriptor.channelCount;
+	const { sampleFormat, bytesPerSample } = descriptor;
+	if (sampleFormat === 'uint8') {
+		deinterleaveIntegerSamples(bytes, channels, 128, 128);
+		return channels;
+	}
+	if (sampleFormat === 'int20' || sampleFormat === 'int24') {
+		for (let channel = 0; channel < channels.length; channel += 1) {
+			const output = channels[channel];
+			let offset = channel * 3;
+			for (let frame = 0; frame < frameCount; frame += 1, offset += channels.length * 3) {
+				const value = bytes[offset] | (bytes[offset + 1] << 8) | (bytes[offset + 2] << 16);
+				output[frame] = ((value << 8) >> 8) / 0x800000;
+			}
+		}
+		return channels;
+	}
+	if (LITTLE_ENDIAN && bytes.byteOffset % bytesPerSample === 0) {
+		if (sampleFormat === 'int16') {
+			deinterleaveIntegerSamples(new Int16Array(bytes.buffer, bytes.byteOffset, sampleCount), channels, 0x8000);
+		} else if (sampleFormat === 'int32') {
+			deinterleaveIntegerSamples(new Int32Array(bytes.buffer, bytes.byteOffset, sampleCount), channels, 0x80000000);
+		} else if (sampleFormat === 'float32') {
+			deinterleaveFloatSamples(new Float32Array(bytes.buffer, bytes.byteOffset, sampleCount), channels);
+		} else {
+			deinterleaveFloatSamples(new Float64Array(bytes.buffer, bytes.byteOffset, sampleCount), channels);
+		}
+		return channels;
+	}
 	const view = dataView(bytes);
-	let byteOffset = 0;
-	for (let frame = 0; frame < frameCount; frame += 1) {
-		for (let channel = 0; channel < descriptor.channelCount; channel += 1) {
-			channels[channel][frame] = readPcmSample(view, byteOffset, descriptor.sampleFormat);
-			byteOffset += descriptor.bytesPerSample;
+	const readSample = sampleFormat === 'int16' ? (offset: number) => view.getInt16(offset, true) / 0x8000
+		: sampleFormat === 'int32' ? (offset: number) => view.getInt32(offset, true) / 0x80000000
+			: sampleFormat === 'float32' ? (offset: number) => finiteFloatSample(view.getFloat32(offset, true))
+				: (offset: number) => finiteFloatSample(view.getFloat64(offset, true));
+	for (let channel = 0; channel < channels.length; channel += 1) {
+		const output = channels[channel];
+		let offset = channel * bytesPerSample;
+		for (let frame = 0; frame < frameCount; frame += 1, offset += channels.length * bytesPerSample) {
+			output[frame] = readSample(offset);
 		}
 	}
 	return channels;
 }
 
-function readPcmSample(view: DataView, offset: number, sampleFormat: WavPcmSampleFormat): number {
-	if (sampleFormat === 'uint8') return (view.getUint8(offset) - 128) / 128;
-	if (sampleFormat === 'int16') return view.getInt16(offset, true) / 0x8000;
-	if (sampleFormat === 'int20' || sampleFormat === 'int24') {
-		let value = view.getUint8(offset) | (view.getUint8(offset + 1) << 8) | (view.getUint8(offset + 2) << 16);
-		if (value & 0x800000) value |= 0xff000000;
-		return value / 0x800000;
+function deinterleaveIntegerSamples(
+	samples: Uint8Array | Int16Array | Int32Array,
+	channels: readonly Float32Array[],
+	scale: number,
+	bias = 0,
+): void {
+	for (let channel = 0; channel < channels.length; channel += 1) {
+		const output = channels[channel];
+		let offset = channel;
+		for (let frame = 0; frame < output.length; frame += 1, offset += channels.length) {
+			output[frame] = (samples[offset] - bias) / scale;
+		}
 	}
-	if (sampleFormat === 'int32') return view.getInt32(offset, true) / 0x80000000;
-	const value = sampleFormat === 'float32' ? view.getFloat32(offset, true) : view.getFloat64(offset, true);
+}
+
+function deinterleaveFloatSamples(samples: Float32Array | Float64Array, channels: readonly Float32Array[]): void {
+	for (let channel = 0; channel < channels.length; channel += 1) {
+		const output = channels[channel];
+		let offset = channel;
+		for (let frame = 0; frame < output.length; frame += 1, offset += channels.length) {
+			output[frame] = finiteFloatSample(samples[offset]);
+		}
+	}
+}
+
+function finiteFloatSample(value: number): number {
 	const sample = Math.fround(value);
 	return Number.isFinite(sample) ? sample : 0;
 }

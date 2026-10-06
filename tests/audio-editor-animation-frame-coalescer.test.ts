@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 import { createAnimationFrameCoalescer } from '../src/common/editor/ui/timeline/animation-frame-coalescer.ts';
@@ -44,14 +43,21 @@ test('animation-frame coalescer keeps one pending draw and cancels it on disposa
 	assert.equal(nextId, 3, 'disposed schedulers ignore future notifications');
 });
 
-test('waveform canvas drawing observes only the track root and relies on React for child changes', async () => {
-	const source = await readFile(new URL(
-		'../src/common/editor/ui/timeline/TimelineCanvasRenderer.jsx',
-		import.meta.url,
-	), 'utf8');
-
-	assert.match(source, /resizeObserver\?\.observe\(root\);/u);
-	assert.doesNotMatch(source, /resizeObserver\?\.observe\(canvas\)/u);
-	assert.doesNotMatch(source, /new MutationObserver/u);
-	assert.doesNotMatch(source, /cancelAnimationFrame\(animationFrame\)/u);
+test('latest frame tasks collapse inputs and flush the final input before pointer ownership ends', async () => {
+	const { createLatestFrameTask } = await import('../src/common/editor/ui/timeline/animation-frame-coalescer.ts');
+	let callback: FrameRequestCallback | null = null;
+	const outputs: number[] = [];
+	let requests = 0;
+	const task = createLatestFrameTask<number>(value => { callback = value; return ++requests; },
+		() => { callback = null; }, value => outputs.push(value));
+	task.schedule(1); task.schedule(2); task.schedule(3);
+	assert.equal(requests, 1);
+	task.flush();
+	assert.deepEqual(outputs, [3]);
+	assert.equal(callback, null);
+	task.schedule(4); task.flush(true);
+	assert.deepEqual(outputs, [3]);
+	task.schedule(5); task.dispose(); task.schedule(6);
+	assert.equal(callback, null);
+	assert.deepEqual(outputs, [3]);
 });

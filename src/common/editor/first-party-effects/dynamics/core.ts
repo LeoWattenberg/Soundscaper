@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 export { ComplementaryCrossover } from '../../complementary-crossover.ts';
+import { isSelectionInputValidated, type SelectionInputValidation } from '../../audacity-effects/pcm-channel-validation.ts';
 
 export interface BandDynamicsOptions {
 	readonly sampleRate: number;
@@ -48,14 +49,15 @@ export class BandCompressor {
 	reset(): void { this.energy = 0; this.reduction = 0; }
 }
 
-export function validateChannels(channels: readonly Float32Array[], sampleRate: number): number {
+export function validateChannels(channels: readonly Float32Array[], sampleRate: number, token?: SelectionInputValidation): number {
 	validateGeometry(sampleRate, channels.length);
+	const validated = isSelectionInputValidated(token, channels);
 	const frames = channels[0].length;
 	for (const channel of channels) {
 		if (!(channel instanceof Float32Array) || channel.length !== frames) {
 			throw new TypeError('Every channel must be a Float32Array of the same length.');
 		}
-		if (!channel.every(Number.isFinite)) throw new TypeError('Audio samples must be finite.');
+		if (!validated && !channel.every(Number.isFinite)) throw new TypeError('Audio samples must be finite.');
 	}
 	return frames;
 }

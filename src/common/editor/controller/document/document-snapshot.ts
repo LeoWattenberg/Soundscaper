@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { materializeSnapshotValue } from './internal/snapshots/published-snapshot-value.ts';
 import { projectFeatureAffectedObjects } from '../../project-feature-affected-objects.ts';
 import type { ProjectFeatureRequirementsReport } from '../../project-feature-requirements.ts';
 import type { MacroScriptRecord } from '../../macro-script-library.ts';
@@ -21,6 +22,8 @@ const VIDEO_PREVIEW_PROJECTS = new WeakMap<object, object>();
 const PUBLISHED_PROJECTS = new WeakMap<object, object>();
 const PUBLISHED_PREFERENCES = new WeakMap<object, object>();
 const PUBLISHED_PROJECT_LISTS = new WeakMap<object, object>();
+const PUBLISHED_LIBRARIES = new WeakMap<object, object>();
+const EMPTY_SCRIPTS = Object.freeze([]);
 
 interface SnapshotSelection extends Readonly<Record<string, unknown>> {
 	readonly startFrame: number;
@@ -389,11 +392,11 @@ export function createEditorDocumentSnapshot<Project extends SnapshotProject>(
 			canRepeatLast: Boolean(state.lastAudacityEffect),
 			lastSelectionType: lastSelectionEffectType(state.lastAudacityEffect),
 			previewing: Boolean(state.audacityPreviewSource),
-			presets: runtime.getEffectPresets(),
+			presets: publishStableValue(runtime.getEffectPresets(), PUBLISHED_LIBRARIES),
 		}),
 		macros: Object.freeze({
-			library: materializeSnapshotValue(state.effectMacros.macros),
-			scripts: materializeSnapshotValue(state.macroScripts?.scripts ?? []),
+			library: publishStableValue(state.effectMacros.macros, PUBLISHED_LIBRARIES),
+			scripts: publishStableValue(state.macroScripts?.scripts ?? EMPTY_SCRIPTS, PUBLISHED_LIBRARIES),
 		}),
 		generators: Object.freeze({ canRepeatLast: Boolean(state.lastGeneratorRequest) }),
 		nyquist: Object.freeze({
@@ -433,62 +436,6 @@ function publishStableValue<Value extends object>(value: Value, cache: WeakMap<o
 	const detached = materializeSnapshotValue(value, new WeakMap<object, object>(), true);
 	cache.set(value, detached);
 	return detached;
-}
-
-/** Detach plain snapshot data from recursive read-only state proxies. */
-function materializeSnapshotValue<Value>(
-	value: Value,
-	seen = new WeakMap<object, object>(),
-	strict = false,
-): Value {
-	if (value === null || typeof value !== 'object') return value;
-	const existing = seen.get(value);
-	if (existing) return existing as Value;
-	if (Array.isArray(value)) {
-		const copy: unknown[] = [];
-		seen.set(value, copy);
-		for (const entry of value) copy.push(materializeSnapshotValue(entry, seen, strict));
-		return Object.freeze(copy) as Value;
-	}
-	if (value instanceof Map) {
-		const copy = new Map<unknown, unknown>();
-		seen.set(value, copy);
-		for (const [key, entry] of value) {
-			copy.set(materializeSnapshotValue(key, seen, strict), materializeSnapshotValue(entry, seen, strict));
-		}
-		Object.defineProperties(copy, {
-			set: { value: rejectSnapshotMutation },
-			delete: { value: rejectSnapshotMutation },
-			clear: { value: rejectSnapshotMutation },
-		});
-		return Object.freeze(copy) as Value;
-	}
-	if (value instanceof Set) {
-		const copy = new Set<unknown>();
-		seen.set(value, copy);
-		for (const entry of value) copy.add(materializeSnapshotValue(entry, seen, strict));
-		Object.defineProperties(copy, {
-			add: { value: rejectSnapshotMutation },
-			delete: { value: rejectSnapshotMutation },
-			clear: { value: rejectSnapshotMutation },
-		});
-		return Object.freeze(copy) as Value;
-	}
-	const prototype = Object.getPrototypeOf(value) as object | null;
-	if (prototype !== null && prototype !== Object.prototype) {
-		if (strict) throw new TypeError('A published document contains a mutable non-plain value.');
-		return value;
-	}
-	const copy = Object.create(prototype) as Record<string, unknown>;
-	seen.set(value, copy);
-	for (const key of Object.keys(value)) {
-		copy[key] = materializeSnapshotValue((value as Record<string, unknown>)[key], seen, strict);
-	}
-	return Object.freeze(copy) as Value;
-}
-
-function rejectSnapshotMutation(): never {
-	throw new TypeError('Published snapshot collections are read-only.');
 }
 
 function lastSelectionEffectType(value: unknown): string | null {

@@ -257,8 +257,9 @@ test('desktop effect stacks process in parallel through a main-thread stall and 
 		const probe = globalThis.__parallelStackProbe;
 		const signal = probe.signal();
 		const fill = document.querySelector('[data-mixer-panel] .kw-audio-editor__mixer-channel--master .mixer-channel__meter-fill');
+		const level = fill ? fill.getBoundingClientRect().height / fill.parentElement.getBoundingClientRect().height * 100 : 0;
 		return probe.workers.filter((worker) => worker.ready && worker.started).length === 2
-			&& signal.peak > 0.05 && signal.changed && 100 - Number.parseFloat(fill?.style.top ?? '100') > 20;
+			&& signal.peak > 0.05 && signal.changed && level > 20;
 	}), { timeout: 20_000, message: 'two real workers must execute audible bitcrusher stacks and drive the output meter' }).toBe(true);
 	const stall = await page.evaluate(() => {
 		const probe = globalThis.__parallelStackProbe;
@@ -433,7 +434,7 @@ test('browsers without shared audio memory play through the standard engine', as
 	await expect(editor.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
 	await expect.poll(() => page.evaluate(() => {
 		const fill = document.querySelector('[data-mixer-panel] .kw-audio-editor__mixer-channel--master .mixer-channel__meter-fill');
-		return 100 - Number.parseFloat(fill?.style.top ?? '100');
+		return fill ? fill.getBoundingClientRect().height / fill.parentElement.getBoundingClientRect().height * 100 : 0;
 	}), { timeout: 10_000 }).toBeGreaterThan(20);
 	const preferences = await openProcessingPreferences(page, editor);
 	await expect(preferences.getByText(/Using standard processing: Shared-memory audio workers are unavailable/)).toBeVisible();

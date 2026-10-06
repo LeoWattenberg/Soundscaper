@@ -60,3 +60,24 @@ export function checkPublicPreferenceActions(actions: ReturnType<typeof createAu
 	// @ts-expect-error Shortcut bindings retain the owning service's input type.
 	void actions.preferences.setShortcut('play', 42);
 }
+
+test('PCM optimization follows initial, loaded, changed, and reverted preferences', async () => {
+	const state = { preferences: createAudioEditorPreferencesV1({ performance: { optimizeFor: 'speed' } }),
+		preferencesReadOnly: false, timelineView: 'waveform' };
+	const modes: string[] = [];
+	const preferences = createPreferencesComposition({
+		productId: 'soundscaper', defaultWorkspace: 'modern', defaultOptimizationMode: 'speed',
+		state, lifetime: new EditorControllerLifetime(),
+		copy: { preferencesNewerSchema: 'Newer', shortcutActionRequired: 'Action', shortcutConflict: 'Conflict' },
+		loadSetting: async () => createAudioEditorPreferencesV1({ performance: { optimizeFor: 'memory' } }),
+		persistSetting: async () => undefined, publish: () => {},
+		setPcmOptimizationMode: mode => { modes.push(mode); },
+	});
+	assert.deepEqual(modes, ['speed']);
+	await preferences.load();
+	assert.equal(modes.at(-1), 'memory');
+	await preferences.service.update({ performance: { optimizeFor: 'speed' } });
+	assert.equal(modes.at(-1), 'speed');
+	await preferences.service.revertFactorySettings();
+	assert.equal(modes.at(-1), 'speed');
+});

@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createLocalizedError } from '../../../../i18n/presentation-message.ts'; import { cloneAudacityWorkerPayload } from './nyquist/nyquist-audio.ts';
+import { createLocalizedError } from '../../../../i18n/presentation-message.ts';
+import { prepareSelectionWorkerPayload } from './selection-worker-payload.ts';
 import { WorkerRequestCancelledError, WorkerRequestTimeoutError } from '../../../worker-protocol.ts';
 import { loadDeferredSpectralEditAdmission } from './deferred-spectral-edit-admission.ts';
 import type { EditorProjectToken } from '../../shared/lifecycle.ts';
@@ -8,6 +9,8 @@ import {
 	REVIEWED_UTILITY_GAIN_SELECTION_EFFECT_TYPE,
 } from '../../../reviewed-effects/selection-effect-contract.ts';
 import type { ReviewedEffectOfflineOptions } from '../../../reviewed-effects/offline-worker-client.ts';
+import type { SelectionEffectChainStep } from '../../../selection-effect-chain-contract.ts';
+import { createIdleEffectWorkerSlot } from './idle-effect-worker.ts';
 
 const DEFAULT_EFFECT_WORKER_TIMEOUT_MS = 120_000;
 const INTRINSIC_TYPED_ARRAY_SET = intrinsicTypedArraySet();
@@ -33,7 +36,8 @@ export interface SelectionEffectWorkerContext extends Readonly<Record<string, un
 }
 
 export interface SelectionEffectWorkerRequest extends Readonly<Record<string, unknown>> {
-	readonly operation: 'apply' | 'capture-noise-profile';
+	readonly operation: 'apply' | 'capture-noise-profile' | 'apply-chain';
+	readonly steps?: readonly SelectionEffectChainStep[];
 	readonly effectType?: string;
 	readonly channels: Float32Array[];
 	readonly sampleRate: number;
@@ -66,6 +70,7 @@ export interface SelectionEffectWorkerServiceRuntime {
 	readonly state: EffectWorkerState;
 	readonly copy: EffectWorkerCopy;
 	readonly workerAvailable?: () => boolean;
+	readonly reuseWorkers?: boolean;
 	readonly createSelectionWorker?: () => EffectWorkerLike;
 	readonly createSpectralWorker?: () => EffectWorkerLike;
 	readonly captureProject: () => EditorProjectToken;
@@ -107,6 +112,7 @@ interface WorkerOwner {
 }
 
 export interface EffectWorkerRunOptions {
+	readonly pcmOwnership?: 'borrow' | 'transfer';
 	readonly signal?: AbortSignal | null;
 	readonly timeoutMs?: number;
 	readonly onProgress?: (value: number) => void;
@@ -116,6 +122,9 @@ export function createSelectionEffectWorkerService(runtime: SelectionEffectWorke
 	let selectionOwner: WorkerOwner | null = null;
 	let spectralOwner: WorkerOwner | null = null;
 	let reviewedOwner: AbortController | null = null;
+	let requestSequence = 0;
+	const selectionSlot = createIdleEffectWorkerSlot(runtime.reuseWorkers === true);
+	const spectralSlot = createIdleEffectWorkerSlot(runtime.reuseWorkers === true);
 	const scheduleTimeout = runtime.setTimeout ?? ((callback, delay) => globalThis.setTimeout(callback, delay));
 	const clearScheduledTimeout = runtime.clearTimeout ?? ((handle) => globalThis.clearTimeout(handle));
 
@@ -166,7 +175,11 @@ export function createSelectionEffectWorkerService(runtime: SelectionEffectWorke
 				runtime.assertProject(projectToken);
 				return { profile };
 			}
-			const channels = await runtime.applySelectionEffect(
+			const channels = request.operation === 'apply-chain'
+				? await (await import('../../../selection-effect-chain.ts')).runSelectionEffectChain(request.steps ?? [], request.channels,
+					request.sampleRate, runtime.applySelectionEffect, options.onProgress ?? runtime.onProgress,
+					() => { runtime.assertProject(projectToken); throwIfAborted(options.signal); })
+				: await runtime.applySelectionEffect(
 				request.effectType || '',
 				request.channels,
 				request.sampleRate,
@@ -179,19 +192,18 @@ export function createSelectionEffectWorkerService(runtime: SelectionEffectWorke
 		}
 
 		selectionOwner?.cancel(new WorkerRequestCancelledError());
-		const worker = (runtime.createSelectionWorker ?? createDefaultSelectionWorker)();
-		runtime.state.audacityEffectWorker = worker;
 		const transfer: ArrayBuffer[] = [];
-		const message = (cloneAudacityWorkerPayload as (
-			request: SelectionEffectWorkerRequest,
-			transfer: ArrayBuffer[],
-		) => unknown)(request, transfer);
+		const message = prepareSelectionWorkerPayload(request, transfer, options.pcmOwnership ?? 'borrow');
+		const worker = selectionSlot.acquire(runtime.createSelectionWorker ?? createDefaultSelectionWorker);
+		runtime.state.audacityEffectWorker = worker;
 		const result = await executeWorker<SelectionEffectWorkerResult>({
 			worker,
+			requestId: runtime.reuseWorkers ? `selection-${++requestSequence}` : undefined,
+			releaseWorker: selectionSlot.release,
 			message,
 			transfer,
 			signal: options.signal,
-			timeoutMs: normalizeTimeout(options.timeoutMs ?? runtime.timeoutMs),
+			timeoutMs: normalizeTimeout(options.timeoutMs ?? runtime.timeoutMs), chainStepCount: request.operation === 'apply-chain' ? request.steps?.length : undefined,
 			processingFailedMessage: runtime.copy.effectProcessingFailed,
 			acceptMessage: selectionWorkerMessage,
 			setOwner: (owner) => { selectionOwner = owner; },
@@ -254,10 +266,12 @@ export function createSelectionEffectWorkerService(runtime: SelectionEffectWorke
 		const timeoutMs = normalizeTimeout(options.timeoutMs ?? runtime.timeoutMs);
 		spectralOwner?.cancel(new WorkerRequestCancelledError());
 		const workerChannels = cloneSpectralChannels(input.channels, geometry.frameCount);
-		const worker = (runtime.createSpectralWorker ?? createDefaultSpectralWorker)();
+		const worker = spectralSlot.acquire(runtime.createSpectralWorker ?? createDefaultSpectralWorker);
 		runtime.state.spectralWorker = worker;
 		const result = await executeWorker<Readonly<{ channels: Float32Array[] }>>({
 			worker,
+			requestId: runtime.reuseWorkers ? `spectral-${++requestSequence}` : undefined,
+			releaseWorker: spectralSlot.release,
 			message: { channels: workerChannels, options: spectralOptions },
 			transfer: workerChannels.map((channel) => channel.buffer),
 			signal: options.signal,
@@ -282,6 +296,8 @@ export function createSelectionEffectWorkerService(runtime: SelectionEffectWorke
 		selectionOwner?.cancel(reason);
 		spectralOwner?.cancel(reason);
 		reviewedOwner?.abort(reason);
+		selectionSlot.clear();
+		spectralSlot.clear();
 	}
 
 	return Object.freeze({ cancelWorkers, runSelectionEffectWorker, runSpectralEditWorker });
@@ -301,10 +317,13 @@ async function applyReviewedSelectionEffect(
 
 interface ExecuteWorkerOptions<Result> {
 	readonly worker: EffectWorkerLike;
+	readonly requestId?: string;
+	readonly releaseWorker: (worker: EffectWorkerLike, success: boolean) => void;
 	readonly message: unknown;
 	readonly transfer: readonly Transferable[];
 	readonly signal?: AbortSignal | null;
 	readonly timeoutMs: number;
+	readonly chainStepCount?: number;
 	readonly processingFailedMessage: string;
 	readonly acceptMessage: (data: unknown) => Result | Error | null;
 	readonly setOwner: (owner: WorkerOwner) => void;
@@ -316,33 +335,39 @@ interface ExecuteWorkerOptions<Result> {
 
 function executeWorker<Result>(options: ExecuteWorkerOptions<Result>): Promise<Result> {
 	return new Promise<Result>((resolve, reject) => {
-		let settled = false;
+		let settled = false; let completedSteps = 0;
 		let timer: ReturnType<typeof globalThis.setTimeout> | null = null;
 		const onAbort = () => settle(null, abortReason(options.signal));
 		const owner: WorkerOwner = {
 			worker: options.worker,
 			cancel: (error) => settle(null, error),
 		};
-		function cleanup(): void {
+		function cleanup(success: boolean): void {
 			if (timer != null) options.clearScheduledTimeout(timer);
 			timer = null;
 			options.signal?.removeEventListener('abort', onAbort);
 			options.worker.onmessage = null;
 			options.worker.onerror = null;
 			options.worker.onmessageerror = null;
-			options.worker.terminate();
+			options.releaseWorker(options.worker, success);
 			options.clearOwner(owner);
 		}
 		function settle(result: Result | null, error: Error | null): void {
 			if (settled) return;
 			settled = true;
-			cleanup();
+			cleanup(error === null);
 			if (error) reject(error);
 			else resolve(result as Result);
 		}
 		options.setOwner(owner);
 		options.signal?.addEventListener('abort', onAbort, { once: true });
 		options.worker.onmessage = ({ data }) => {
+			if (options.requestId && (!isRecord(data) || data.requestId !== options.requestId)) return;
+			if (isRecord(data) && data.type === 'chain-step' && options.chainStepCount && data.completed === completedSteps + 1 && completedSteps < options.chainStepCount) {
+				completedSteps++; if (timer != null) options.clearScheduledTimeout(timer);
+				timer = options.scheduleTimeout(() => settle(null, new WorkerRequestTimeoutError(options.timeoutMs)), options.timeoutMs);
+				unrefTimer(timer); return;
+			}
 			if (isRecord(data) && data.type === 'progress') {
 				const value = Number(data.ratio ?? data.progress);
 				if (Number.isFinite(value)) options.onProgress?.(Math.max(0, Math.min(1, value)));
@@ -373,7 +398,8 @@ function executeWorker<Result>(options: ExecuteWorkerOptions<Result>): Promise<R
 			return;
 		}
 		try {
-			options.worker.postMessage(options.message, options.transfer);
+			options.worker.postMessage(options.requestId && isRecord(options.message)
+				? { ...options.message, requestId: options.requestId } : options.message, options.transfer);
 		} catch (error) {
 			settle(null, error instanceof Error ? error : new Error(String(error)));
 		}

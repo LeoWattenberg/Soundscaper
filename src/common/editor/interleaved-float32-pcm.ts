@@ -2,6 +2,8 @@
 
 /** Write mapped planar WAV samples into the codec bridge's frame-major f32le carrier. */
 
+const LITTLE_ENDIAN = new Uint8Array(Uint32Array.of(1).buffer)[0] === 1;
+
 export function writeInterleavedFloat32Pcm(
 	destination: Uint8Array,
 	channels: readonly Float32Array[],
@@ -24,18 +26,39 @@ export function writeInterleavedFloat32Pcm(
 	if (channels.some((channel) => !(channel instanceof Float32Array) || channel.length < frameCount)) {
 		throw new RangeError('Each PCM channel must contain the requested frames.');
 	}
-	const bytesPerFrame = channels.length * Float32Array.BYTES_PER_ELEMENT;
+	const channelCount = channels.length;
+	const bytesPerFrame = channelCount * Float32Array.BYTES_PER_ELEMENT;
 	if (destinationFrameOffset > Math.floor(destination.byteLength / bytesPerFrame)
 		|| frameCount > Math.floor(destination.byteLength / bytesPerFrame) - destinationFrameOffset) {
 		throw new RangeError('PCM frames exceed the destination buffer.');
 	}
+	if (LITTLE_ENDIAN && destination.byteOffset % Float32Array.BYTES_PER_ELEMENT === 0) {
+		const samples = new Float32Array(destination.buffer, destination.byteOffset,
+			Math.floor(destination.byteLength / Float32Array.BYTES_PER_ELEMENT));
+		let offset = destinationFrameOffset * channelCount;
+		if (options.nonFinite === 'preserve') {
+			for (let frame = 0; frame < frameCount; frame += 1) {
+				for (let channel = 0; channel < channelCount; channel += 1) {
+					samples[offset++] = channels[channel]![frame]!;
+				}
+			}
+		} else {
+			for (let frame = 0; frame < frameCount; frame += 1) {
+				for (let channel = 0; channel < channelCount; channel += 1) {
+					const sample = channels[channel]![frame]!;
+					samples[offset++] = Number.isFinite(sample) ? sample : 0;
+				}
+			}
+		}
+		return;
+	}
 	const view = new DataView(destination.buffer, destination.byteOffset, destination.byteLength);
 	for (let frame = 0; frame < frameCount; frame += 1) {
-		for (let channel = 0; channel < channels.length; channel += 1) {
-			const sample = channels[channel]?.[frame];
+		for (let channel = 0; channel < channelCount; channel += 1) {
+			const sample = channels[channel]![frame]!;
 			view.setFloat32(
-				((destinationFrameOffset + frame) * channels.length + channel) * Float32Array.BYTES_PER_ELEMENT,
-				options.nonFinite === 'zero' && !Number.isFinite(sample) ? 0 : Number(sample),
+				((destinationFrameOffset + frame) * channelCount + channel) * Float32Array.BYTES_PER_ELEMENT,
+				options.nonFinite === 'zero' && !Number.isFinite(sample) ? 0 : sample,
 				true,
 			);
 		}

@@ -43,6 +43,23 @@ test('an effect macro renders every selected track before one atomic result batc
 	assert.deepEqual(batch.map(({ channels }) => Array.from(channels[0]!)), [[0.25, 0.5], [0.25, 0.5]]);
 });
 
+test('multiple selected macro targets reuse their own neighbours before one atomic result batch', async () => {
+	const harness = createHarness({ multipleTargets: true, memoryLimitBytes: 128 * 1024 ** 2 });
+	assert.equal(await harness.service.runEffectMacro({ effects: [
+		{ id: 'first', type: 'audacity-repair', params: {} },
+		{ id: 'second', type: 'audacity-repair', params: {} },
+	] }), true);
+	assert.deepEqual(harness.dryRanges, [
+		['track-a', 100, 300], ['track-a', 0, 100], ['track-a', 300, 428],
+		['track-b', 100, 300], ['track-b', 0, 100], ['track-b', 300, 428],
+	]);
+	assert.equal(harness.selectionEffectCalls.length, 4);
+	assert.equal(harness.persisted.length, 0);
+	assert.equal(harness.persistedBatches.length, 1);
+	assert.deepEqual(harness.persistedBatches[0]!.map(({ target }) => target.track.id), ['track-a', 'track-b']);
+	assert.deepEqual(harness.persistedBatches[0]!.map(({ channels }) => [...channels[0]!]), [[3, 4], [3, 4]]);
+});
+
 test('a realtime macro renders only the selected clip on an overlapping track', async () => {
 	const harness = createHarness({ targetClipIds: ['selected'], project: {
 		id: 'project-a', master: {}, mixer: {}, tracks: [{

@@ -94,3 +94,14 @@ test('bulk spectral raster accepts half CSS pixels aligned to double-density bac
 test('bulk spectral raster declines contexts without ImageData support', () => {
 	assert.equal(paintSpectrogramImageData({}, columns, 0, 0, 10, 17), false);
 });
+
+test('fractional density bulk paints only when every frequency span and column is physically aligned', () => {
+	const h = harness(1.25);
+	assert.equal(paintSpectrogramImageData(h.context, columns.slice(0, 2), 0, 0, 8, 16,
+		{ pixelSkip: 4, minFreq: 12_000, maxFreq: 12_001, sampleRate: 48_000 }), true);
+	assert.deepEqual(h.counts(), { allocations: 1, writes: 1 });
+	const unaligned = harness(1.25);
+	assert.equal(paintSpectrogramImageData(unaligned.context, columns.slice(0, 2), 0, 0, 8, 16,
+		{ pixelSkip: 4, minFreq: 0, maxFreq: 24_000, sampleRate: 48_000 }), false);
+	assert.deepEqual(unaligned.counts(), { allocations: 0, writes: 0 });
+});

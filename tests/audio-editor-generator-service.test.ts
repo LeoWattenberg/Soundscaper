@@ -7,15 +7,8 @@ import {
 	createAudioGeneratorService,
 	type AudioGeneratorProject,
 	type AudioGeneratorService,
-	type AudioGeneratorState,
-	type AudioGeneratorServiceDependencies,
 } from '../src/common/editor/controller/edit/generator-service.ts';
-import {
-	EditorControllerLifetime,
-	EditorProjectGeneration,
-} from '../src/common/editor/controller/shared/lifecycle.ts';
-import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
-import type { AudioBufferLike } from '../src/common/editor/controller/source/source-audio.ts';
+import { createFixture, project } from './helpers/audio-editor-generator-service-fixture.ts';
 
 interface Deferred<Value> {
 	readonly promise: Promise<Value>;
@@ -28,125 +21,6 @@ function deferred<Value>(): Deferred<Value> {
 	return { promise, resolve };
 }
 
-function project(id = 'project-a', selection: AudioGeneratorProject['selection'] = {
-	startFrame: 10,
-	endFrame: 20,
-	trackIds: ['track-a'],
-}): AudioGeneratorProject {
-	return {
-		id,
-		schemaVersion: 5,
-		title: id,
-		sampleRate: 1_000,
-		masterChannels: 2,
-		selection,
-		sources: [{ id: 'existing-source', channelCount: 1 }],
-		clips: [{
-			id: 'existing-clip', sourceId: 'existing-source', timelineStartFrame: 0,
-			sourceStartFrame: 0, sourceDurationFrames: 100, durationFrames: 100,
-		}],
-		tracks: [{ id: 'track-a', type: 'audio', clipIds: ['existing-clip'] }],
-	};
-}
-
-function createFixture(overrides: Partial<AudioGeneratorServiceDependencies> = {}) {
-	const lifetime = new EditorControllerLifetime();
-	lifetime.markReady();
-	const projectGeneration = new EditorProjectGeneration();
-	let activeProject = project();
-	projectGeneration.activate(activeProject.id);
-	const state: Omit<AudioGeneratorState, 'audacityEffectProcessing'> & { audacityEffectProcessing: boolean } = {
-		selectedTrackId: 'track-a', audacityEffectProcessing: false, lastGeneratorRequest: null,
-	};
-	const commits: Array<Readonly<{
-		command: AudioEditorCommand;
-		selection?: Readonly<{ selectTrackId?: string | null; selectClipId?: string | null }>;
-	}>> = [];
-	const statuses: Array<Readonly<{ message: string; state?: string }>> = [];
-	const preflights: number[] = [];
-	const deletedSources: string[] = [];
-	const sourceBuffers = new Map<string, AudioBufferLike>();
-	const sourcePeaks = new Map<string, unknown>();
-	let publishes = 0;
-	let nextId = 0;
-	const writer = {
-		write: async () => undefined,
-		commit: async () => undefined,
-		abort: async () => undefined,
-	};
-	const dependencies: AudioGeneratorServiceDependencies = {
-		lifetime,
-		projectGeneration,
-		state,
-		copy: {
-			audioBufferUnsupported: 'Audio buffers unsupported.',
-			audacityProjectTooLong: 'Too long.',
-			chirpGenerator: 'Chirp',
-			decodedAudioEmpty: 'Empty audio.',
-			decodedChannelLengthsMismatch: 'Channel mismatch.',
-			done: 'Done.',
-			dtmfGenerator: 'DTMF',
-			generatingAudio: 'Generating audio.',
-			morseGenerator: 'Morse code',
-			noiseGenerator: 'Noise',
-			silenceAudio: 'Silence',
-			silenceGenerator: 'Silence',
-			timeSelectionRequired: 'Select time.',
-			toneGenerator: 'Tone',
-		},
-		getProject: () => activeProject,
-		editingBlocked: () => false,
-		getPositionFrames: () => 40,
-		snapFrame: (value) => Math.round(Number(value)),
-		trackChannelCount: () => 1,
-		effectTargets: () => [],
-		persistEffectResults: async () => undefined,
-		preflightStorage: async (bytes) => { preflights.push(bytes); },
-		getAudioContext: async () => ({}),
-		createBuffer: async (channels, sampleRate) => ({
-			length: channels[0]?.length ?? 0,
-			numberOfChannels: channels.length,
-			sampleRate,
-			getChannelData: (channel) => channels[channel] ?? new Float32Array(),
-		}),
-		store: {
-			beginSourceWrite: async () => writer,
-			saveAnalysis: async () => undefined,
-			deleteSource: async (sourceId) => { deletedSources.push(sourceId); },
-		},
-		writeBuffer: async () => undefined,
-		cacheSourceBuffer: (sourceId, buffer) => { sourceBuffers.set(sourceId, buffer); },
-		generatePeaks: async (channels) => ({ frameCount: channels[0]?.length ?? 0 }),
-		peakCacheKey: (sourceId) => `peaks:${sourceId}`,
-		sourceBuffers,
-		sourcePeaks,
-		sourceChunkFrames: 65_536,
-		createId: (prefix) => `${prefix}-${++nextId}`,
-		commit: (command, selectionValue) => { commits.push({ command, selection: selectionValue }); },
-		setStatus: (message, nextState) => { statuses.push({ message, state: nextState }); },
-		publish: () => { publishes += 1; },
-		setEffectProcessing: (processing) => { state.audacityEffectProcessing = processing; },
-		...overrides,
-	};
-	return {
-		commits,
-		deletedSources,
-		dependencies,
-		lifetime,
-		preflights,
-		projectGeneration,
-		publishes: () => publishes,
-		replaceProject(id: string) {
-			activeProject = project(id);
-			projectGeneration.activate(id);
-		},
-		sourceBuffers,
-		sourcePeaks,
-		state,
-		statuses,
-		writer,
-	};
-}
 
 function runGeneratedSourceOperation(
 	service: Readonly<AudioGeneratorService>,
@@ -156,6 +30,46 @@ function runGeneratedSourceOperation(
 		? service.generateSignal('silence')
 		: service.generateLabeledSilence([{ startFrame: 20, endFrame: 40 }], ['track-a']);
 }
+
+test('generator publishes busy state before dispatching DSP and rejects a stale worker result', async () => {
+	const generated = deferred<{ frameCount: number; channelCount: number; channels: Float32Array[] }>();
+	const fixture = createFixture({
+		generateChannels: (_type, _options, signal) => {
+			assert.equal(fixture.state.audacityEffectProcessing, true);
+			assert.equal(fixture.statuses.at(-1)?.message, 'Generating audio.');
+			assert.ok(fixture.publishes() > 0);
+			assert.equal(signal.aborted, false);
+			return generated.promise;
+		},
+	});
+	const pending = createAudioGeneratorService(fixture.dependencies).generateSignal('noise');
+	fixture.replaceProject('replacement');
+	generated.resolve({ frameCount: 10, channelCount: 1, channels: [new Float32Array(10)] });
+	await assert.rejects(pending, { name: 'AbortError' });
+	assert.equal(fixture.commits.length, 0);
+	assert.deepEqual(fixture.preflights, []);
+	assert.equal(fixture.state.audacityEffectProcessing, false);
+});
+
+test('streamed generation admits storage before producing PCM and closes on preflight failure', async () => {
+	let closes = 0;
+	let blocks = 0;
+	const capacityFailure = new Error('Storage capacity');
+	const fixture = createFixture({
+		generateStream: async () => ({
+			type: 'noise', sampleRate: 48_000, frameCount: 10, channelCount: 1,
+			async *chunks() { blocks++; yield [new Float32Array(10)]; },
+			finish: async () => ({ version: 1, channelCount: 1, levels: [] }),
+			close() { closes++; },
+		}),
+		preflightStorage: async () => { throw capacityFailure; },
+	});
+	await assert.rejects(createAudioGeneratorService(fixture.dependencies).generateSignal('noise'), error => error === capacityFailure);
+	assert.equal(blocks, 0);
+	assert.equal(closes, 1);
+	assert.equal(fixture.commits.length, 0);
+	assert.equal(fixture.state.audacityEffectProcessing, false);
+});
 
 test('generator persists audio and commits a prepared range replacement exactly once', async () => {
 	const fixture = createFixture();
@@ -242,6 +156,55 @@ test('canceling the dialog generation signal rolls back an unfinished source', a
 	assert.deepEqual(fixture.deletedSources, ['generator-1']);
 	assert.equal(fixture.state.audacityEffectProcessing, false);
 	assert.equal(fixture.state.lastGeneratorRequest, null);
+});
+
+test('streamed dialog cancellation stops at the durable ACK and keeps signals out of worker options', async () => {
+	const writing = deferred<void>();
+	let blocks = 0;
+	let closes = 0;
+	let aborts = 0;
+	let writerCommits = 0;
+	let taskSignal: AbortSignal | undefined;
+	const fixture = createFixture({
+		generateStream: async (_type, options, signal) => {
+			assert.equal(Object.hasOwn(options, 'signal'), false);
+			taskSignal = signal;
+			return {
+				type: 'noise', sampleRate: 1_000, frameCount: 20, channelCount: 1,
+				async *chunks() { blocks++; yield [new Float32Array(10)]; blocks++; yield [new Float32Array(10)]; },
+				finish: async () => { throw new Error('Canceled stream cannot publish peaks.'); },
+				close() { closes++; },
+			};
+		},
+		store: {
+			beginSourceWrite: async () => ({
+				write: () => writing.promise,
+				commit: async () => { writerCommits++; },
+				abort: async () => { aborts++; },
+			}),
+			saveAnalysis: async () => undefined,
+			deleteSource: async (sourceId) => { fixture.deletedSources.push(sourceId); },
+		},
+	});
+	const cancellation = new AbortController();
+	const generating = createAudioGeneratorService(fixture.dependencies).generateSignal('noise', {
+		durationSeconds: 0.02, signal: cancellation.signal,
+	});
+	await new Promise<void>((resolve) => setImmediate(resolve));
+	assert.equal(blocks, 1);
+	assert.equal(fixture.state.audacityEffectProcessing, true);
+	cancellation.abort();
+	assert.equal(taskSignal?.aborted, true);
+	writing.resolve();
+	await assert.rejects(generating, { name: 'AbortError' });
+	assert.equal(blocks, 1);
+	assert.equal(writerCommits, 0);
+	assert.equal(aborts, 1);
+	assert.equal(closes, 1);
+	assert.deepEqual(fixture.deletedSources, ['generator-1']);
+	assert.equal(fixture.commits.length, 0);
+	assert.equal(fixture.state.lastGeneratorRequest, null);
+	assert.equal(fixture.state.audacityEffectProcessing, false);
 });
 
 test('selection silence with only clip headers selected uses scoped effect persistence', async () => {
@@ -473,7 +436,9 @@ test('repeat generator replays the last successful closed request', async () => 
 	const fixture = createFixture();
 	const service = createAudioGeneratorService(fixture.dependencies);
 	assert.equal(await service.repeatLast(), null);
-	await service.generateSignal('tone', { durationSeconds: 0.01, frequency: 220 });
+	const cancellation = new AbortController();
+	await service.generateSignal('tone', { durationSeconds: 0.01, frequency: 220, signal: cancellation.signal });
+	cancellation.abort();
 	await service.repeatLast();
 	assert.equal(fixture.commits.length, 2);
 	assert.deepEqual(fixture.state.lastGeneratorRequest, {

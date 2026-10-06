@@ -14,6 +14,8 @@ import { createLocalizedError } from '../../../../../i18n/presentation-message.t
 import { createAudioPreviewProject } from '../../../../engine/audio-preview-project.ts';
 import { createStableId } from '../../../../project.js';
 import { isRealtimeEffectMacroStepType } from '../../../../effect-macro-steps.ts';
+import { runOfflineSelectionSegment, type RunOfflineSelectionChain } from './offline-selection-chain.ts';
+import { createMacroNeighbourPcmCache, type MacroNeighbourPcmCache } from './macro-neighbour-pcm-cache.ts';
 
 const selectionEffectDefinitions = AUDIO_SELECTION_EFFECT_DEFINITIONS as unknown as
 	Readonly<Record<string, SelectionEffectDefinition | undefined>>;
@@ -61,6 +63,9 @@ interface ChainCopy {
 }
 
 export interface EffectMacroChainRuntime<Buffer = MacroRenderBuffer> {
+	readonly contextCacheBytes?: number;
+	/** Opt-in private worker port guarantees the canonical per-step channel match. */
+	readonly runSelectionEffectChain?: RunOfflineSelectionChain;
 	readonly copy: ChainCopy;
 	readonly sampleRate: number;
 	readonly assertCurrent: () => void;
@@ -126,6 +131,7 @@ export function createEffectMacroChainRunner<Buffer = MacroRenderBuffer>(runtime
 		step: EffectMacroChainStep,
 		channels: readonly Float32Array[],
 		target: EffectMacroChainTarget,
+		cache?: MacroNeighbourPcmCache,
 	): Promise<readonly Float32Array[]> {
 		const definition = selectionEffectDefinitions[step.type];
 		if (!definition) throw new RangeError(`Unsupported macro effect: ${step.type}.`);
@@ -147,6 +153,7 @@ export function createEffectMacroChainRunner<Buffer = MacroRenderBuffer>(runtime
 				Math.max(0, target.startFrame - contextFrames),
 				target.startFrame,
 				channels.length,
+				cache,
 			);
 			if (!definition.preRollSeconds) {
 				const afterEnd = Math.min(runtime.projectFrameCount(), target.endFrame + contextFrames);
@@ -155,6 +162,7 @@ export function createEffectMacroChainRunner<Buffer = MacroRenderBuffer>(runtime
 					target.endFrame,
 					afterEnd,
 					channels.length,
+					cache,
 				);
 			}
 		}
@@ -241,13 +249,15 @@ export function createEffectMacroChainRunner<Buffer = MacroRenderBuffer>(runtime
 		initialChannels: readonly Float32Array[],
 		target: EffectMacroChainTarget,
 	): Promise<readonly Float32Array[]> {
+		const cache = createMacroNeighbourPcmCache(runtime.contextCacheBytes ?? 0);
 		let channels = initialChannels;
 		for (const segment of segments) {
 			if (segment.realtime) {
 				channels = await renderRackSegment(segment.steps, channels);
 				continue;
 			}
-			for (const step of segment.steps) channels = await applyOfflineStep(step, channels, target);
+			channels = await runOfflineSelectionSegment(segment.steps, channels,
+				(step, current) => applyOfflineStep(step, current, target, cache), runtime.sampleRate, runtime.assertCurrent, runtime.runSelectionEffectChain);
 		}
 		return channels;
 	}
@@ -257,10 +267,15 @@ export function createEffectMacroChainRunner<Buffer = MacroRenderBuffer>(runtime
 		startFrame: number,
 		endFrame: number,
 		channelCount: number,
+		cache?: MacroNeighbourPcmCache,
 	): Promise<readonly Float32Array[]> {
+		runtime.assertCurrent();
 		if (endFrame <= startFrame) {
 			return Array.from({ length: channelCount }, () => new Float32Array(0));
 		}
+		const key = JSON.stringify([target.track.id, startFrame, endFrame, target.channelCount, channelCount, target.clipIds ?? null]);
+		const retained = cache?.get(key);
+		if (retained) return retained;
 		const rendered = await runtime.renderDryRange(
 			target.track.id,
 			startFrame,
@@ -269,7 +284,9 @@ export function createEffectMacroChainRunner<Buffer = MacroRenderBuffer>(runtime
 			target.clipIds,
 		);
 		runtime.assertCurrent();
-		return runtime.matchSelectionChannels(rendered, channelCount);
+		const channels = runtime.matchSelectionChannels(rendered, channelCount);
+		cache?.retain(key, channels);
+		return channels;
 	}
 
 	return Object.freeze({ applyOfflineStep, renderRackSegment, runSegments });

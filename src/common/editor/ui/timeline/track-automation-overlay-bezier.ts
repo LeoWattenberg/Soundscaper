@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import {
-	resolveAutomationLanePointFramesV21,
 	type AutomationLaneV21,
 } from '../../automation-lane-v21.ts';
+import { automationFrameIndex, automationSpanContains } from './automation-frame-index.ts';
 import { createIndexedBeatFrameProjector } from '../../indexed-tempo-projector.ts';
 import type { InterpolationShape } from '../../interpolation-curve.ts';
 import type { ParameterDescriptor } from '../../parameter-address.ts';
@@ -79,10 +79,8 @@ export function projectTrackAutomationBezierHandlesV21(options: Readonly<{
 	tempoMap?: HoldTempoMap;
 }>): readonly ProjectedTrackAutomationBezierHandle[] {
 	if (!options.lane) return [];
-	const points = resolveAutomationLanePointFramesV21(options.lane, {
-		sampleRate: options.sampleRate,
-		tempoMap: options.tempoMap,
-	});
+	const points = automationFrameIndex(options.lane, options.sampleRate, options.tempoMap).points;
+	const containsFrame = automationSpanContains(options.spans);
 	const projectBeat = options.lane.timebase === 'musical-beats'
 		? createIndexedBeatFrameProjector(requiredTempoMap(options.tempoMap), options.sampleRate)
 		: null;
@@ -96,7 +94,7 @@ export function projectTrackAutomationBezierHandlesV21(options: Readonly<{
 			const frame = projectBeat
 				? Number(projectBeat(authored.position))
 				: Math.round(authored.position.num / authored.position.den);
-			if (!options.spans.some((span) => frame >= span.startFrame && frame <= span.endFrame)) continue;
+			if (!containsFrame(frame)) continue;
 			const anchor = control === 'control1' ? points[segmentIndex]! : points[segmentIndex + 1]!;
 			result.push(Object.freeze({
 				key: `${String(segmentIndex)}:${control}`,

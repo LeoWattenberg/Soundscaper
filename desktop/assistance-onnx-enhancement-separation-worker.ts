@@ -5,11 +5,10 @@
 import { readFile } from 'node:fs/promises';
 
 import {
-	analyzeAssistanceDeepFilterChannelV1,
+	createAssistanceDeepFilterChannelAnalyzerV1,
+	reviewAssistanceDeepFilterConfigurationV1,
 	ASSISTANCE_DEEPFILTER_BINS,
 	ASSISTANCE_DEEPFILTER_ERB_BANDS,
-	ASSISTANCE_DEEPFILTER_FREQUENCY_BINS,
-	ASSISTANCE_DEEPFILTER_FFT_SIZE,
 	ASSISTANCE_DEEPFILTER_HOP_FRAMES,
 	ASSISTANCE_DEEPFILTER_ORDER,
 	ASSISTANCE_DEEPFILTER_SAMPLE_RATE,
@@ -67,11 +66,6 @@ const DEEPFILTER_ARTIFACT_ROLES = Object.freeze([
 const TIGER_INPUT_NAMES = Object.freeze(['spectrum_ri']);
 const TIGER_OUTPUT_NAMES = Object.freeze(['complex_masks']);
 const TIGER_STEM_COUNT = 3;
-const CONFIG_FIELDS = Object.freeze([
-	'architectures', 'conv_lookahead', 'df_bins', 'df_lookahead', 'df_order',
-	'erb_bands', 'fft_bins', 'fft_size', 'hop_size', 'library_name',
-	'min_nb_erb_freqs', 'model_type', 'norm_tau', 'normalization_alpha', 'sample_rate',
-]);
 const ENHANCEMENT_RUNTIME_ERRORS = Object.freeze({
 	value: 'The enhancement ONNX runtime is invalid.',
 	surface: 'The enhancement ONNX runtime surface is invalid.',
@@ -169,7 +163,7 @@ async function executeDeepFilterNet3(
 	const [configurationBytes, auxiliaryBytes] = await Promise.all([
 		readFile(models.config.path), readFile(models.auxiliary.path),
 	]);
-	reviewDeepFilterConfig(configurationBytes);
+	reviewAssistanceDeepFilterConfigurationV1(configurationBytes);
 	reviewAssistanceDeepFilterAuxiliaryV1(auxiliaryBytes);
 	const source = await options.waveStorage.openSource(
 		input, ASSISTANCE_DEEPFILTER_SAMPLE_RATE, context.signal,
@@ -194,6 +188,7 @@ async function executeDeepFilterNet3(
 			const chunkCount = Math.ceil(source.geometry.frameCount / options.deepFilterChunkFrames);
 			const workUnits = chunkCount * source.geometry.channelCount;
 			let completedUnits = 0;
+			const analyzers = Array.from({ length: source.geometry.channelCount }, () => createAssistanceDeepFilterChannelAnalyzerV1(Math.floor(32 * 1024 ** 2 / source.geometry.channelCount)));
 			for (let coreStart = 0; coreStart < source.geometry.frameCount;
 				coreStart += options.deepFilterChunkFrames) {
 				context.signal?.throwIfAborted();
@@ -206,9 +201,9 @@ async function executeDeepFilterNet3(
 					frameCount: readEnd - readStart, channelStart: 0,
 					channelCount: source.geometry.channelCount }, context.signal);
 				const enhanced: Float32Array[] = [];
-				for (const channel of channels) {
+				for (const [channelIndex, channel] of channels.entries()) {
 					context.signal?.throwIfAborted();
-					const analysis = analyzeAssistanceDeepFilterChannelV1(channel, context.signal);
+					const analysis = analyzers[channelIndex]!.analyze(channel, readStart, context.signal);
 					const result = exactOutputs(await session.run({
 						feat_erb: new runtime.Tensor('float32', analysis.erbFeatures,
 							[1, 1, analysis.frameCount, ASSISTANCE_DEEPFILTER_ERB_BANDS]),
@@ -454,32 +449,6 @@ function exactDeepFilterModels(models: AssistanceRuntimeFamilyWorkerExecutionCon
 	});
 }
 
-function reviewDeepFilterConfig(value: Uint8Array): void {
-	let parsed: unknown;
-	try {
-		parsed = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(value)) as unknown;
-	} catch (error) {
-		throw new TypeError('The DeepFilterNet3 configuration is malformed UTF-8 JSON.', { cause: error });
-	}
-	if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)
-		|| Object.keys(parsed).length !== CONFIG_FIELDS.length
-		|| Object.keys(parsed).some((key) => !CONFIG_FIELDS.includes(key))) {
-		throw new TypeError('The DeepFilterNet3 configuration fields are invalid.');
-	}
-	const config = parsed as Record<string, unknown>;
-	const expected = Object.freeze({ architectures: ['DeepFilterNet3'], conv_lookahead: 2,
-		df_bins: ASSISTANCE_DEEPFILTER_BINS, df_lookahead: 2,
-		df_order: ASSISTANCE_DEEPFILTER_ORDER, erb_bands: ASSISTANCE_DEEPFILTER_ERB_BANDS,
-		fft_bins: ASSISTANCE_DEEPFILTER_FREQUENCY_BINS,
-		fft_size: ASSISTANCE_DEEPFILTER_FFT_SIZE, hop_size: ASSISTANCE_DEEPFILTER_HOP_FRAMES,
-		library_name: 'onnxruntime', min_nb_erb_freqs: 2, model_type: 'deepfilternet3',
-		norm_tau: 1, normalization_alpha: 0.99,
-		sample_rate: ASSISTANCE_DEEPFILTER_SAMPLE_RATE });
-	if (CONFIG_FIELDS.some((field) => JSON.stringify(config[field])
-		!== JSON.stringify((expected as Record<string, unknown>)[field]))) {
-		throw new TypeError('The DeepFilterNet3 configuration does not match the pinned DSP contract.');
-	}
-}
 
 function assertRuntimeJob(
 	context: AssistanceRuntimeFamilyWorkerExecutionContext,

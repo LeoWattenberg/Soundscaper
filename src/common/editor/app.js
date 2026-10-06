@@ -217,7 +217,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		getSelectionEffectParams: bindings.currentAudacityEffectParams,
 	};
 	const { document: documentChannel, telemetry: telemetryChannel } = createSnapshotComposition({
-		document: documentSnapshotRuntime, telemetry: state, audioDevices: state, engine, mediaDevices, copy,
+		document: documentSnapshotRuntime, telemetry: state, audioDevices: state, engine, mediaDevices, copy, presentationRevision: () => localization.port.getSnapshot().revision,
 		videoEffectGestures: state.videoEffectGestures, videoEffectGestureKey: bindings.videoEffectGestureKey,
 	});
 	/** @type {((value: number) => void) | null} */
@@ -260,7 +260,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		},
 	});
 	let removeDeviceChangeListener = () => {};
-	const getCommandProject = createResolvedCommandProjectReader(() => documentState.project, (project) => projectRuntime.projectForCommandConsumers(project));
+	const getCommandProject = createResolvedCommandProjectReader(() => documentState.project, (project) => projectRuntime.projectForCommandConsumers(project), { immutableGenerations: true });
 	/** @type {ReturnType<typeof createSourceRuntimeComposition<import('./engine/public-api.ts').EnginePublicApi>>} */
 	const sources = createSourceRuntimeComposition({
 		state, playbackCacheState: transportAccess, copy, lifetime, projectGeneration, store, engine, sourceBuffers, sourceChunkProviders, sourcePeaks,
@@ -270,7 +270,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	});
 	const preferences = createPreferencesComposition({
 		productId, defaultWorkspace: product.defaultWorkspace, defaultOptimizationMode, state, lifetime, copy,
-		loadSetting: (key, fallback) => store.loadSetting(key, fallback), persistSetting, publish: publishDocumentSnapshot,
+		loadSetting: (key, fallback) => store.loadSetting(key, fallback), persistSetting, publish: publishDocumentSnapshot, setPcmOptimizationMode: (mode) => store.setPcmOptimizationMode?.(mode),
 	});
 	const preferencesService = preferences.service;
 	const doc = createDocumentComposition({
@@ -304,9 +304,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 		bindProjectAdministrationActions(projectAdminService, () => documentState.project, () => framescaperCapture);
 	const analysisService = createAnalysisComposition({
 		enabled: composition.analysis, productName: product.name, state, copy, lifetime, projectGeneration, store, taskProgress,
-		getProject: () => documentState.project, getActiveSelection: activeSelection, projectDurationFrames,
+		getProject: () => documentState.project, getActiveSelection: activeSelection, projectDurationFrames, getImmutableProjectGeneration: getCommandProject,
 		cloneProject: projectRuntime.cloneProject, projectSampleRate: () => projectSampleRate(), sourceBuffers, hasMissingTimelineSources: bindings.hasMissingTimelineSources, analyzeChannels: analyzeChannelsInWorker,
-		renderSnapshot: (...args) => renderSnapshot(...args), showAnalysis: bindings.showAnalysis, setStatus: bindings.setStatus, publish: publishDocumentSnapshot, handleError: bindings.handleError,
+		renderSnapshot: (...args) => renderSnapshot(...args), showAnalysis: bindings.showAnalysis, setStatus: bindings.setStatus, publish: publishDocumentSnapshot, batchPresentation: documentChannel.batch, handleError: bindings.handleError,
 	});
 	const unsubscribeParametricEqErrors = typeof engine.subscribeParametricEqErrors === 'function' ? engine.subscribeParametricEqErrors((error) => bindings.handleError(error)) : () => {};
 	const unsubscribePlaybackErrors = typeof engine.subscribePlaybackErrors === 'function'
@@ -508,7 +508,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		export: {
 			state: createEditorExportStateAccess(state),
 			ffmpeg, fileService, playbackProjects: playbackProjectService, productName: product.name, prepareProjectForExport: options.prepareProjectForExport,
-			normalizeExportSettings, toggleExport: bindings.toggleExport, updateExportProgress: bindings.updateExportProgress, setPersistentExportProgressObserver: (observer) => { persistentExportProgressObserver = observer; },
+			normalizeExportSettings, getPerformanceOptimizationMode: () => state.preferences.performance.optimizeFor, toggleExport: bindings.toggleExport, updateExportProgress: bindings.updateExportProgress, setPersistentExportProgressObserver: (observer) => { persistentExportProgressObserver = observer; },
 		},
 		createRenderEngine: bindings.createCacheAwareRenderEngine, createPreviewEngine: (previewOptions) => playbackPreviews.create(previewOptions), prepareCommittedTimePitchCaches: bindings.prepareCommittedTimePitchCaches,
 		getProject: () => documentState.project, getCommandProject, getSpectrogramDefaults: () => state.preferences.spectrogram, editingBlocked, labelEditingBlocked: () => selectAudioEditorControllerLabelEditBlock(state).blocked || Boolean(framescaperCapture?.originSnapshot(documentState.project?.id ?? null).editBlocked), commit: bindings.commit, setStatus: bindings.setStatus, publishDocumentSnapshot, publishProjectState: bindings.publishProjectState, handleError: bindings.handleError, preflightStorage: bindings.preflightStorage,
@@ -525,11 +525,11 @@ export function createAudioEditorController(_root = null, options = {}) {
 	const effects = createEffectsComposition({
 		state: effectsAccess, copy, locale, composition, absentSubsystem, lifetime, projectGeneration, projectRuntime, store, engine, sourceBuffers, sourcePeaks, pauseSourcePreview: () => clips.clipSourcePreview.stop(),
 		taskProgress, nyquistEvaluator, getProject: () => documentState.project, getCommandProject, activeSelection, selectedTracksTimeRange: bindings.selectedTracksTimeRange, editingBlocked, setSelection: bindings.selection.setSelection,
-		persistSetting, publishDocumentSnapshot, setStatus: bindings.setStatus, preflightStorage: bindings.preflightStorage, renderSnapshot, prepareCommittedTimePitchCaches: bindings.prepareCommittedTimePitchCaches,
+		persistSetting, publishDocumentSnapshot, batchPresentation: documentChannel.batch, setStatus: bindings.setStatus, preflightStorage: bindings.preflightStorage, renderSnapshot, prepareCommittedTimePitchCaches: bindings.prepareCommittedTimePitchCaches,
 		createRenderEngine: bindings.createCacheAwareRenderEngine, commit: bindings.commit, cacheSourceBuffer: bindings.cacheSourceBuffer, snapTimelineFrame: bindings.selection.snapFrame, projectDurationFrames, projectSampleRate, handleError: bindings.handleError,
 	});
 	const edits = createEditComposition({
-		state, copy, lifetime, projectGeneration, projectRuntime, composition, absentSubsystem, session: sessionController, store, engine, setEffectProcessing: effectsStatePorts.processing.set, supportsTrackFolders: capabilities.trackFolders,
+		state, copy, lifetime, projectGeneration, projectRuntime, composition, absentSubsystem, session: sessionController, store, engine, setEffectProcessing: effectsStatePorts.processing.set, supportsTrackFolders: capabilities.trackFolders, batchPresentation: documentChannel.batch,
 		sourceBuffers, sourcePeaks, sourceChunkFrames: SOURCE_CHUNK_FRAMES, taskProgress, saveLabelFile: options.saveLabelFile, fileService, derivedSources: tracks.derivedAudio.derivedSources, updatePreferences: bindings.updatePreferences, confirmMonoConversion: options.confirmMonoConversion || (({ title, body }) => ({ accepted: typeof globalThis.confirm === 'function' ? globalThis.confirm(`${title}\n\n${body}`) : false, dontShowAgain: false })),
 		effectTargets: (...args) => effects.selection.audacityEffectTargets(...args),
 		persistEffectResults: (results, type, scope) => effects.result.persistAudacityEffectResults(results, type, scope),

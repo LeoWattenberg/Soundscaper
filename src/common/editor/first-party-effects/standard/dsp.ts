@@ -6,9 +6,10 @@ import { isStandardFilterEffect } from './filters-definition.ts';
 import { createStandardFilterProcessor } from './filters-dsp.ts';
 import { createTremoloProcessor } from './tremolo-dsp.ts';
 import { createVocoderProcessor } from './vocoder-dsp.ts';
-import { createNoiseGateProcessor } from './noise-gate-dsp.ts';
+import { createNoiseGateProcessor, createOfflineNoiseGateProcessor } from './noise-gate-dsp.ts';
 import { createStandardDelayProcessor } from './delay-dsp.ts';
 import type { StaffPadWasmRuntime } from '../../staffpad/runtime.js';
+import type { SelectionInputValidation } from '../../audacity-effects/pcm-channel-validation.ts';
 
 export interface StandardEffectOptions {
 	readonly type: StandardEffectType;
@@ -39,22 +40,30 @@ export function createStandardEffectProcessor(options: StandardEffectOptions): S
 
 /** Selection processing uses exactly the state machine hosted in the worklet. */
 export function applyStandardEffect(type: StandardEffectType, channels: readonly Float32Array[], sampleRate: number,
-	params: Readonly<Record<string, unknown>> = {}, staffPadRuntime?: StaffPadWasmRuntime): Float32Array[] {
-	const frames = validateChannels(channels, sampleRate);
-	const processor = createStandardEffectProcessor({ type, sampleRate, channelCount: channels.length, params, staffPadRuntime });
+	params: Readonly<Record<string, unknown>> = {}, staffPadRuntime?: StaffPadWasmRuntime,
+	validation?: SelectionInputValidation): Float32Array[] {
+	const frames = validateChannels(channels, sampleRate, validation);
+	const options = { type, sampleRate, channelCount: channels.length, params, staffPadRuntime };
+	const processor: StandardEffectProcessor = type === 'noise-gate'
+		? createOfflineNoiseGateProcessor(options) : createStandardEffectProcessor(options);
 	const output = channels.map(() => new Float32Array(frames));
 	const latency = processor.latencyFrames ?? 0;
 	const blockSize = 1024;
 	const zeros = channels.map(() => new Float32Array(blockSize));
 	const scratch = channels.map(() => new Float32Array(blockSize));
+	const input: Float32Array[] = [...zeros];
 	try {
 		for (let offset = 0; offset < frames + latency; offset += blockSize) {
 			const count = Math.min(blockSize, frames + latency - offset);
-			const input = zeros.map((zero, channel) => {
-				zero.fill(0);
-				zero.set(channels[channel].subarray(offset, Math.min(frames, offset + count)));
-				return zero;
-			});
+			for (let channel = 0; channel < channels.length; channel += 1) {
+				if (offset + count <= frames) input[channel] = channels[channel].subarray(offset, offset + count);
+				else {
+					const zero = zeros[channel];
+					zero.fill(0);
+					zero.set(channels[channel].subarray(offset, Math.min(frames, offset + count)));
+					input[channel] = zero;
+				}
+			}
 			processor.processBlock(input, scratch, count);
 			const start = Math.max(0, latency - offset);
 			const end = Math.min(count, frames + latency - offset);

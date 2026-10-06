@@ -175,6 +175,8 @@ export type EnginePcmChunkSink = (
 ) => void | Promise<void>;
 
 export interface EngineRealtimeRenderOptions extends EngineRenderMixOptions {
+	/** Export may replace the live clock with bounded offline windows for admitted stateless graphs. */
+	readonly preferBoundedOffline?: boolean;
 	readonly sampleRate?: number;
 	readonly chunkFrames?: number;
 	readonly maximumPendingChunks?: number;

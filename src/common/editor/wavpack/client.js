@@ -5,6 +5,7 @@ import {
 	exactArrayBuffer,
 	normalizePcmSampleRate,
 	pcmRawByteLength,
+	maximumWavPackPayloadBytes,
 	validatePcmGeometry,
 } from './pcm.js';
 import { WorkerRequestBroker } from '../worker-request-broker.ts';
@@ -43,7 +44,16 @@ export class WavPackCodecClient {
 
 	encode(payload, options = {}) {
 		const geometry = normalizeRequestGeometry(payload, options, false);
-		return this.#enqueue('encode', geometry, options);
+		return this.#enqueue('encode', { ...geometry, requireWavPack: options.requireWavPack === true }, options);
+	}
+
+	checksum(payload, options = {}) {
+		const geometry = normalizeRequestGeometry(payload, options, false);
+		if (options.pcmCrc32 !== undefined && (!Number.isSafeInteger(options.pcmCrc32)
+			|| options.pcmCrc32 < 0 || options.pcmCrc32 > 0xffffffff)) {
+			throw new RangeError('PCM CRC-32 is outside its unsigned 32-bit range.');
+		}
+		return this.#enqueue('checksum', { ...geometry, pcmCrc32: options.pcmCrc32 }, options);
 	}
 
 	decode(payload, options = {}) {
@@ -192,7 +202,7 @@ function normalizeRequestGeometry(payload, options, compressed) {
 	const buffer = exactArrayBuffer(payload);
 	const rawBytes = pcmRawByteLength(frames, channelCount);
 	if ((!compressed && buffer.byteLength !== rawBytes)
-		|| (compressed && (!buffer.byteLength || buffer.byteLength > rawBytes))) {
+		|| (compressed && (!buffer.byteLength || buffer.byteLength > maximumWavPackPayloadBytes(frames, channelCount)))) {
 		throw new RangeError('PCM codec payload does not match its bounded geometry.');
 	}
 	return {

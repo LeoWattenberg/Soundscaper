@@ -20,6 +20,7 @@ const MINOR_LINE_ALPHA = 0.45;
 export function TimelineGridLines({
 	variant = 'viewport',
 	scale,
+	mappedTicks = null,
 	pixelsPerSecond,
 	scrollX = 0,
 	viewportWidth,
@@ -35,11 +36,12 @@ export function TimelineGridLines({
 	const canvasHeight = Math.max(1, Math.floor(height));
 	const lines = useMemo(() => createTimelineGridLines({
 		scale,
+		mappedTicks,
 		pixelsPerSecond,
 		scrollX,
 		viewportWidth: width,
 		sampleRate,
-	}), [pixelsPerSecond, sampleRate, scale, scrollX, width]);
+	}), [mappedTicks, pixelsPerSecond, sampleRate, scale, scrollX, width]);
 
 	useEffect(() => {
 		const canvas = canvasRef.current;
@@ -50,8 +52,10 @@ export function TimelineGridLines({
 			MAXIMUM_CANVAS_DIMENSION / width,
 			MAXIMUM_CANVAS_DIMENSION / canvasHeight,
 		));
-		canvas.width = Math.max(1, Math.floor(width * ratio));
-		canvas.height = Math.max(1, Math.floor(canvasHeight * ratio));
+		const backingWidth = Math.max(1, Math.floor(width * ratio));
+		const backingHeight = Math.max(1, Math.floor(canvasHeight * ratio));
+		if (canvas.width !== backingWidth) canvas.width = backingWidth;
+		if (canvas.height !== backingHeight) canvas.height = backingHeight;
 		context.setTransform(ratio, 0, 0, ratio, 0, 0);
 		context.clearRect(0, 0, width, canvasHeight);
 		context.lineWidth = 1;

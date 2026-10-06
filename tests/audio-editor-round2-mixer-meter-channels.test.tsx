@@ -29,9 +29,10 @@ function renderedMeter(peaks: readonly number[], strip: StripMeterSnapshot['stri
 
 test('stereo meter leaves retain the silent channel for tracks, master and buses', () => {
 	for (const strip of [{ kind: 'track', id: 'track' }, { kind: 'master' }, { kind: 'mixer-node', id: 'bus' }] as const) {
-		const tops = [...renderedMeter([0.8, 0], strip).matchAll(/style="top:([\d.]+)%"/gu)].map((match) => Number(match[1]));
-		assert.ok(tops[0]! < 20);
-		assert.equal(tops[1], 100);
+		const scales = [...renderedMeter([0.8, 0], strip).matchAll(/transform:scaleY\(([\d.]+)\)/gu)].map((match) => Number(match[1]));
+		assert.equal(scales.length, 2);
+		assert.ok(scales[0]! > 0.8);
+		assert.equal(scales[1], 0);
 	}
 });
 

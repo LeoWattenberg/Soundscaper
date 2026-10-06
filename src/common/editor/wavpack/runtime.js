@@ -9,6 +9,7 @@ import {
 	exactArrayBuffer,
 	normalizePcmSampleRate,
 	pcmRawByteLength,
+	maximumWavPackPayloadBytes,
 	validatePcmGeometry,
 } from './pcm.js';
 
@@ -95,8 +96,9 @@ export class WavPackWasmRuntime {
 		if (input.byteLength !== rawBytes) {
 			throw new RangeError(`Raw PCM has ${input.byteLength} bytes; expected ${rawBytes}.`);
 		}
-		if (!Number.isSafeInteger(outputCapacity) || outputCapacity < 1 || outputCapacity > rawBytes) {
-			throw new RangeError('WavPack output capacity must be a positive integer no larger than raw PCM.');
+		if (!Number.isSafeInteger(outputCapacity) || outputCapacity < 1
+			|| outputCapacity > maximumWavPackPayloadBytes(frames, channelCount)) {
+			throw new RangeError('WavPack output capacity must fit the bounded PCM expansion and framing budget.');
 		}
 		const inputPointer = this.#allocate(rawBytes);
 		let outputPointer = 0;
@@ -129,7 +131,7 @@ export class WavPackWasmRuntime {
 		const normalizedSampleRate = normalizePcmSampleRate(sampleRate);
 		const input = exactArrayBuffer(encodedInput);
 		const rawBytes = pcmRawByteLength(frames, channelCount);
-		if (!input.byteLength || input.byteLength > rawBytes) {
+		if (!input.byteLength || input.byteLength > maximumWavPackPayloadBytes(frames, channelCount)) {
 			throw new WavPackRuntimeError(
 				'The persisted WavPack payload has an invalid bounded length.',
 				'WAVPACK_INVALID_STREAM',
@@ -173,6 +175,7 @@ export class WavPackWasmRuntime {
 	}
 }
 
+/** @param {URL | string | Request | Response | WebAssembly.Module | ArrayBuffer | ArrayBufferView<ArrayBuffer>} [source] */
 export async function loadWavPackWasm(source = WAVPACK_WASM_URL) {
 	const module = await compileModule(source);
 	const imports = createImports(module);

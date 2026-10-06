@@ -10,7 +10,7 @@ import {
 } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { constants } from 'node:fs';
-import { access, lstat, open, readFile, readdir, realpath } from 'node:fs/promises';
+import { access, lstat, open, readdir, realpath } from 'node:fs/promises';
 import { isAbsolute, resolve } from 'node:path';
 
 import { isKokoroVoiceForLanguage } from '../src/common/editor/assistance/kokoro-voices-v1.ts';
@@ -79,16 +79,27 @@ export function createAssistanceKokoroOfflinePhonemizerV1(
 		throw new RangeError('The offline Kokoro G2P duration bound is invalid.');
 	}
 	const start = options.spawn ?? spawn;
+	let cached: { readonly digest: string; readonly manifest: Manifest } | null = null;
+	let timer: ReturnType<typeof setTimeout> | null = null;
+	const clearCache = (): void => { cached = null; if (timer) clearTimeout(timer); timer = null; };
 	return async (request) => {
-		request.signal?.throwIfAborted();
-		const input = requestBytes(request);
-		const manifest = await loadManifest(options.manifestPath, targetId);
-		const directory = resolve(options.runtimeRoot, PREFIX, targetId);
-		await authenticateClosure(directory, manifest, request.signal);
-		request.signal?.throwIfAborted();
-		const executable = resolve(directory, manifest.executable);
-		const output = await invoke(start, executable, directory, input, duration, request.signal);
-		return reviewResponse(output);
+		try {
+			request.signal?.throwIfAborted();
+			const input = requestBytes(request);
+			const bytes = await readManifestBytes(options.manifestPath, request.signal);
+			const digest = createHash('sha256').update(bytes).digest('hex');
+			// Only immutable parsed metadata is reused; every request still authenticates the full closure.
+			const manifest = cached?.digest === digest ? cached.manifest : reviewManifest(bytes, targetId);
+			cached = { digest, manifest };
+			if (timer) clearTimeout(timer);
+			timer = setTimeout(clearCache, 30_000); timer.unref();
+			const directory = resolve(options.runtimeRoot, PREFIX, targetId);
+			await authenticateClosure(directory, manifest, request.signal);
+			request.signal?.throwIfAborted();
+			const executable = resolve(directory, manifest.executable);
+			const output = await invoke(start, executable, directory, input, duration, request.signal);
+			return reviewResponse(output);
+		} catch (error) { clearCache(); throw error; }
 	};
 }
 
@@ -114,13 +125,38 @@ function requestBytes(request: KokoroPhonemizeRequestV1): Uint8Array {
 	return bytes;
 }
 
-async function loadManifest(path: string, targetId: string): Promise<Manifest> {
-	const stat = await lstat(path);
-	if (!stat.isFile() || stat.isSymbolicLink() || stat.size < 2
-		|| stat.size > MAXIMUM_MANIFEST_BYTES || await realpath(path) !== path) {
+async function readManifestBytes(path: string, signal?: AbortSignal): Promise<Uint8Array> {
+	signal?.throwIfAborted();
+	const before = await lstat(path, { bigint: true });
+	if (!before.isFile() || before.isSymbolicLink() || before.size < 2n
+		|| before.size > BigInt(MAXIMUM_MANIFEST_BYTES) || await realpath(path) !== path) {
 		throw new TypeError('The offline Kokoro G2P manifest is not a regular packaged file.');
 	}
-	const value: unknown = JSON.parse(await readFile(path, 'utf8'));
+	const handle = await open(path, constants.O_RDONLY | (process.platform === 'win32' ? 0 : constants.O_NOFOLLOW));
+	try {
+		const opened = await handle.stat({ bigint: true });
+		if (opened.dev !== before.dev || opened.ino !== before.ino || opened.size !== before.size) {
+			throw new Error('The offline Kokoro G2P manifest changed during admission.');
+		}
+		const bytes = Buffer.alloc(Number(opened.size));
+		let offset = 0;
+		while (offset < bytes.length) {
+			signal?.throwIfAborted();
+			const { bytesRead } = await handle.read(bytes, offset, bytes.length - offset, offset);
+			if (!bytesRead) throw new Error('The offline Kokoro G2P manifest was truncated.');
+			offset += bytesRead;
+		}
+		const after = await handle.stat({ bigint: true });
+		if (after.size !== before.size || after.mtimeNs !== before.mtimeNs || after.ctimeNs !== before.ctimeNs) {
+			throw new Error('The offline Kokoro G2P manifest changed during its bounded read.');
+		}
+		signal?.throwIfAborted();
+		return bytes;
+	} finally { await handle.close(); }
+}
+
+function reviewManifest(bytes: Uint8Array, targetId: string): Manifest {
+	const value: unknown = JSON.parse(Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength).toString('utf8'));
 	const root = record(value, ['schemaVersion', 'runtimeVersion', 'targetId',
 		'runtimePrefix', 'executable', 'files'], 'manifest');
 	if (root.schemaVersion !== 1 || root.runtimeVersion !== VERSION

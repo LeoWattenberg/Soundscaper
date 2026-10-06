@@ -27,6 +27,8 @@ import {
 } from './consolidate-media-service.ts';
 import { saveCurrentScapeArchiveManifest } from './internal/scape/scape-archive-manifest-action.ts';
 import { prepareExternalMediaConsolidation } from './internal/native-project/consolidate-external-media.ts';
+import { prepareManagedAudioConsolidation, reportConsolidatedPcm } from './internal/native-project/consolidate-managed-audio.ts';
+import { cleanupConsolidation, type ConsolidationFailure } from './internal/native-project/consolidation-cleanup.ts';
 import {
 	planProjectTrim,
 	trimProjectMedia,
@@ -72,7 +74,7 @@ export function createProjectMediaActionGroup(runtime: ProjectMediaActionRuntime
 			const copy = runtime.copy ?? {};
 			if (runtime.setStatus) setLocalizedStatus(runtime.setStatus, copy, 'consolidatingMedia',
 				undefined, undefined, { fallback: 'Consolidating media' });
-			const result = await consolidateProjectMedia(request);
+			let result = await consolidateProjectMedia(request);
 			// Published before the status settles, so a run that left something
 			// behind is readable the moment the message says it finished.
 			runtime.state.deliveryReport = result.run.report;
@@ -80,10 +82,33 @@ export function createProjectMediaActionGroup(runtime: ProjectMediaActionRuntime
 			if (result.run.complete) {
 				const assertCurrent = projectFence(runtime, request.project);
 				const commands = await prepareExternalMediaConsolidation(request.project, request.store, assertCurrent, options.signal);
-				assertCurrent();
-				if (commands.length) {
-					if (!runtime.commit) throw new Error('Consolidation requires an editable project.');
-					runtime.commit({ type: 'batch', commands });
+				let audio: Awaited<ReturnType<typeof prepareManagedAudioConsolidation>> | undefined;
+				let bound = false;
+				let failure: ConsolidationFailure | undefined;
+				try {
+					audio = await prepareManagedAudioConsolidation(request.project, request.store, assertCurrent, options.signal);
+					assertCurrent();
+					if (commands.length || audio.commands.length) {
+						if (!runtime.commit) throw new Error('Consolidation requires an editable project.');
+						runtime.commit({ type: 'batch', commands: [...commands, ...audio.commands] });
+					}
+					bound = true;
+				} catch (error) {
+					failure = { error };
+					runtime.state.deliveryReport = reportConsolidatedPcm(result.run.report, [], error);
+					runtime.publishDocumentSnapshot?.();
+					if (runtime.setStatus) setLocalizedStatus(runtime.setStatus, copy, 'consolidatedMediaIncomplete',
+						undefined, 'warning', { fallback: 'Some media could not be consolidated.' });
+					throw error;
+				} finally {
+					const unbound = audio;
+					if (!bound && unbound) await cleanupConsolidation(() => unbound.discard(), failure);
+				}
+				if (audio.commands.length) {
+					const ids = audio.commands.flatMap((command) => command.type === 'source/rewrite-media' ? [command.sourceId] : []);
+					result = { ...result, run: { ...result.run, report: reportConsolidatedPcm(result.run.report, ids) } };
+					runtime.state.deliveryReport = result.run.report;
+					runtime.publishDocumentSnapshot?.();
 				}
 				const saved = await runtime.saveScape?.();
 				if (saved && typeof saved === 'object' && 'cancelled' in saved && saved.cancelled) {

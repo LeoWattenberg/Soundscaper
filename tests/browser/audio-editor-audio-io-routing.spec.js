@@ -71,8 +71,7 @@ test.describe('audio I/O signal routing', () => {
 
 async function mixerSignalLevel(mixer, scope) {
 	const fill = mixer.locator(`.kw-audio-editor__mixer-channel--${scope} .mixer-channel__meter-fill`).first();
-	const top = Number.parseFloat((await fill.getAttribute('style'))?.match(/top:\s*([\d.]+)%/u)?.[1] ?? '100');
-	return 100 - top;
+	return fill.evaluate(element => element.getBoundingClientRect().height / element.parentElement.getBoundingClientRect().height * 100);
 }
 
 async function exportWavPeak(page, editor) {

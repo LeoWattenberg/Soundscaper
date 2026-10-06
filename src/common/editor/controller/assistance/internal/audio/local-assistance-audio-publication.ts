@@ -140,12 +140,11 @@ export function createLocalAssistanceAudioPublicationAcceptance(
 		);
 		const publishedIds: string[] = [];
 		try {
-			for (const plan of plans) {
-				await publishSource(dependencies.store, plan);
+			await publishSourcesBoundedly(dependencies.store, plans, (plan) => {
 				publishedIds.push(String(plan.source.id));
 				assertLocalAssistanceAudioResultCurrent(value, result);
 				assertAuthorityCurrent(dependencies, result, initial);
-			}
+			});
 			const command = publicationCommand(result, initial, plans, choice, dependencies.createId);
 			const token = dependencies.captureProject();
 			assertAuthorityCurrent(dependencies, result, initial);
@@ -198,6 +197,27 @@ function createPublicationPlans(
 		}) as unknown as DataRecord;
 		return Object.freeze({ output, source, binClipId, timelineClipId, trackId });
 	}));
+}
+
+/** Two bounded stereo separation writers overlap storage without publishing project references early. */
+async function publishSourcesBoundedly(
+	store: LocalAssistanceAudioPublicationStore,
+	plans: readonly PublicationPlan[],
+	onPublished: (plan: PublicationPlan) => void,
+): Promise<void> {
+	let next = 0;
+	let failed = false;
+	let primaryFailure: unknown;
+	async function drain(): Promise<void> {
+		while (!failed && next < plans.length) {
+			const plan = plans[next++]!;
+			try { await publishSource(store, plan); onPublished(plan); }
+			catch (error) { if (!failed) { primaryFailure = error; failed = true; } }
+		}
+	}
+	await Promise.all(Array.from({ length: Math.min(2, plans.length) }, () => drain()));
+	// Every already-admitted writer settles before rollback can delete published source IDs.
+	if (failed) throw primaryFailure;
 }
 
 async function publishSource(

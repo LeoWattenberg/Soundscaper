@@ -10,7 +10,16 @@ interface Options {
 }
 
 /** Previewed peak gate with a complementary split for frequency-selective gating. */
-export function createNoiseGateProcessor({ sampleRate, channelCount, params = {} }: Options) {
+export function createNoiseGateProcessor(options: Options) {
+	return createNoiseGateState(options, false);
+}
+
+/** Fixed selection jobs can share linked gains and omit unused crossover history. */
+export function createOfflineNoiseGateProcessor(options: Options) {
+	return createNoiseGateState(options, true);
+}
+
+function createNoiseGateState({ sampleRate, channelCount, params = {} }: Options, fixed: boolean) {
 	validateGeometry(sampleRate, channelCount);
 	let current: Readonly<Record<string, unknown>> = {};
 	let threshold = 0;
@@ -63,7 +72,7 @@ export function createNoiseGateProcessor({ sampleRate, channelCount, params = {}
 	reset();
 	return {
 		reset,
-		updateParams: configure,
+		updateParams: fixed ? () => { throw new Error('Offline noise-gate parameters are fixed.'); } : configure,
 		get latencyFrames() { return latencyFrames; },
 		processBlock(input: readonly Float32Array[], output: readonly Float32Array[], frames: number) {
 			for (let frame = 0; frame < frames; frame += 1) {
@@ -72,32 +81,35 @@ export function createNoiseGateProcessor({ sampleRate, channelCount, params = {}
 					const sample = channel[frame];
 					if (Number.isFinite(sample)) peak = Math.max(peak, Math.abs(sample));
 				}
-				for (const crossover of crossovers) crossover.tick();
+				if (!fixed || frequency > 0) for (const crossover of crossovers) crossover.tick();
 				for (let channel = 0; channel < channelCount; channel += 1) {
 					const sample = input[channel]?.[frame] ?? 0;
 					const sanitized = Number.isFinite(sample) ? sample : 0;
 					const dry = latencyFrames > 0 ? history[channel][cursor] : sanitized;
 					if (latencyFrames > 0) history[channel][cursor] = sanitized;
 					const detector = linked ? peak : Math.abs(sanitized);
-					// Keep hold relative to delayed audio, rather than ending it early by the preview window.
-					if (detector >= threshold) held[channel] = hold + latencyFrames;
-					const target = detector >= threshold || held[channel] > 0 ? 1 : floor;
-					if (detector < threshold && held[channel] > 0) held[channel] -= 1;
-					if (target > gains[channel]) {
-						if (opening[channel] === 0) openingGain[channel] = gains[channel];
-						opening[channel] += 1;
-						const progress = Math.min(1, opening[channel] / attackFrames);
-						// Finish the exponential attack on time, so full preview preserves the first transient.
-						gains[channel] = progress === 1 ? 1
-							: openingGain[channel] + (1 - openingGain[channel]) * -Math.expm1(-progress) / -Math.expm1(-1);
-					} else {
-						opening[channel] = 0;
-						gains[channel] = target + release * (gains[channel] - target);
+					if (!fixed || !linked || channel === 0) {
+						// Keep hold relative to delayed audio, rather than ending it early by the preview window.
+						if (detector >= threshold) held[channel] = hold + latencyFrames;
+						const target = detector >= threshold || held[channel] > 0 ? 1 : floor;
+						if (detector < threshold && held[channel] > 0) held[channel] -= 1;
+						if (target > gains[channel]) {
+							if (opening[channel] === 0) openingGain[channel] = gains[channel];
+							opening[channel] += 1;
+							const progress = Math.min(1, opening[channel] / attackFrames);
+							// Finish the exponential attack on time, so full preview preserves the first transient.
+							gains[channel] = progress === 1 ? 1
+								: openingGain[channel] + (1 - openingGain[channel]) * -Math.expm1(-progress) / -Math.expm1(-1);
+						} else {
+							opening[channel] = 0;
+							gains[channel] = target + release * (gains[channel] - target);
+						}
 					}
+					const gain = fixed && linked ? gains[0] : gains[channel];
 					let low = dry;
-					for (const crossover of crossovers) low = crossover.low(low, channel);
-					if (output[channel]) output[channel][frame] = floor === 1 || gains[channel] === 1 ? dry
-						: frequency > 0 ? dry + (dry - low) * (gains[channel] - 1) : dry * gains[channel];
+					if (!fixed || frequency > 0) for (const crossover of crossovers) low = crossover.low(low, channel);
+					if (output[channel]) output[channel][frame] = floor === 1 || gain === 1 ? dry
+						: frequency > 0 ? dry + (dry - low) * (gain - 1) : dry * gain;
 				}
 				if (latencyFrames > 0) cursor = (cursor + 1) % latencyFrames;
 			}

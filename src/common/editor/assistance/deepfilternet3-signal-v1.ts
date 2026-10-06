@@ -20,6 +20,12 @@ const ERB_WIDTHS = Object.freeze(createErbWidths());
 const WINDOW = createVorbisWindow();
 const FFT_PLAN = createBluesteinPlan(ASSISTANCE_DEEPFILTER_FFT_SIZE);
 
+const CONFIG_FIELDS = Object.freeze([
+	'architectures', 'conv_lookahead', 'df_bins', 'df_lookahead', 'df_order',
+	'erb_bands', 'fft_bins', 'fft_size', 'hop_size', 'library_name',
+	'min_nb_erb_freqs', 'model_type', 'norm_tau', 'normalization_alpha', 'sample_rate',
+]);
+
 export interface AssistanceDeepFilterAnalysisV1 {
 	readonly sampleCount: number;
 	readonly frameCount: number;
@@ -27,6 +33,99 @@ export interface AssistanceDeepFilterAnalysisV1 {
 	readonly spectrumImaginary: Float32Array;
 	readonly erbFeatures: Float32Array;
 	readonly spectrumFeatures: Float32Array;
+}
+
+interface DeepFilterSpectrumCache {
+	readonly startFrame: number;
+	readonly sampleBits: Uint32Array;
+	readonly real: Float32Array;
+	readonly imaginary: Float32Array;
+	readonly frames: number;
+}
+
+/** Reuse exact interior spectra while restarting each window's feature normalization. */
+export function createAssistanceDeepFilterChannelAnalyzerV1(maximumCacheBytes: number): Readonly<{
+	analyze(value: Float32Array, startFrame: number, signal?: AbortSignal): AssistanceDeepFilterAnalysisV1;
+	readonly cachedBytes: number;
+	readonly reusedFrames: number;
+}> {
+	if (!Number.isSafeInteger(maximumCacheBytes) || maximumCacheBytes < 0 || maximumCacheBytes > 32 * 1024 ** 2) {
+		throw new RangeError('The DeepFilterNet3 spectrum cache byte bound is invalid.');
+	}
+	let cache: DeepFilterSpectrumCache | null = null;
+	let reusedFrames = 0;
+	return Object.freeze({
+		get cachedBytes() { return cache ? cache.sampleBits.byteLength + cache.real.byteLength + cache.imaginary.byteLength : 0; },
+		get reusedFrames() { return reusedFrames; },
+		analyze(value: Float32Array, startFrame: number, signal?: AbortSignal) {
+			try {
+				if (!Number.isSafeInteger(startFrame) || startFrame < 0 || !Number.isSafeInteger(startFrame + value.length)) {
+					throw new RangeError('The DeepFilterNet3 source window offset is invalid.');
+				}
+				const previous = cache;
+				const bits = new Uint32Array(value.buffer, value.byteOffset, value.length);
+				let hits = 0;
+				const analysis = analyzeAssistanceDeepFilterChannelV1(value, signal, (frame, real, imaginary) => {
+					const sampleOffset = frame * ASSISTANCE_DEEPFILTER_HOP_FRAMES - ASSISTANCE_DEEPFILTER_HOP_FRAMES;
+					const cachedFrame = previous ? (startFrame + sampleOffset - previous.startFrame) / ASSISTANCE_DEEPFILTER_HOP_FRAMES : -1;
+					if (!previous || sampleOffset < 0 || sampleOffset + ASSISTANCE_DEEPFILTER_FFT_SIZE > bits.length
+						|| !Number.isSafeInteger(cachedFrame) || cachedFrame < 0 || cachedFrame >= previous.frames) return false;
+					const cachedOffset = cachedFrame * ASSISTANCE_DEEPFILTER_HOP_FRAMES;
+					for (let index = 0; index < ASSISTANCE_DEEPFILTER_FFT_SIZE; index += 1) {
+						if (bits[sampleOffset + index] !== previous.sampleBits[cachedOffset + index]) return false;
+					}
+					const begin = cachedFrame * ASSISTANCE_DEEPFILTER_FREQUENCY_BINS;
+					const end = begin + ASSISTANCE_DEEPFILTER_FREQUENCY_BINS;
+					real.set(previous.real.subarray(begin, end), frame * ASSISTANCE_DEEPFILTER_FREQUENCY_BINS);
+					imaginary.set(previous.imaginary.subarray(begin, end), frame * ASSISTANCE_DEEPFILTER_FREQUENCY_BINS);
+					hits += 1;
+					return true;
+				});
+				const lastFrame = Math.floor((value.length - ASSISTANCE_DEEPFILTER_HOP_FRAMES) / ASSISTANCE_DEEPFILTER_HOP_FRAMES);
+				const maximumFrames = Math.floor((maximumCacheBytes - ASSISTANCE_DEEPFILTER_FFT_SIZE * 4)
+					/ (ASSISTANCE_DEEPFILTER_HOP_FRAMES * 4 + ASSISTANCE_DEEPFILTER_FREQUENCY_BINS * 8));
+				const frames = Math.max(0, Math.min(lastFrame, maximumFrames));
+				if (!frames) cache = null;
+				else {
+					const firstFrame = lastFrame - frames + 1;
+					const offset = firstFrame * ASSISTANCE_DEEPFILTER_HOP_FRAMES - ASSISTANCE_DEEPFILTER_HOP_FRAMES;
+					cache = { startFrame: startFrame + offset, frames,
+						sampleBits: bits.slice(offset, lastFrame * ASSISTANCE_DEEPFILTER_HOP_FRAMES + ASSISTANCE_DEEPFILTER_HOP_FRAMES),
+						real: analysis.spectrumReal.slice(firstFrame * ASSISTANCE_DEEPFILTER_FREQUENCY_BINS, (lastFrame + 1) * ASSISTANCE_DEEPFILTER_FREQUENCY_BINS),
+						imaginary: analysis.spectrumImaginary.slice(firstFrame * ASSISTANCE_DEEPFILTER_FREQUENCY_BINS, (lastFrame + 1) * ASSISTANCE_DEEPFILTER_FREQUENCY_BINS) };
+				}
+				reusedFrames = hits;
+				return analysis;
+			} catch (error) { cache = null; reusedFrames = 0; throw error; }
+		},
+	});
+}
+
+export function reviewAssistanceDeepFilterConfigurationV1(value: Uint8Array): void {
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(value)) as unknown;
+	} catch (error) {
+		throw new TypeError('The DeepFilterNet3 configuration is malformed UTF-8 JSON.', { cause: error });
+	}
+	if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)
+		|| Object.keys(parsed).length !== CONFIG_FIELDS.length
+		|| Object.keys(parsed).some((key) => !CONFIG_FIELDS.includes(key))) {
+		throw new TypeError('The DeepFilterNet3 configuration fields are invalid.');
+	}
+	const config = parsed as Record<string, unknown>;
+	const expected = Object.freeze({ architectures: ['DeepFilterNet3'], conv_lookahead: 2,
+		df_bins: ASSISTANCE_DEEPFILTER_BINS, df_lookahead: 2,
+		df_order: ASSISTANCE_DEEPFILTER_ORDER, erb_bands: ASSISTANCE_DEEPFILTER_ERB_BANDS,
+		fft_bins: ASSISTANCE_DEEPFILTER_FREQUENCY_BINS,
+		fft_size: ASSISTANCE_DEEPFILTER_FFT_SIZE, hop_size: ASSISTANCE_DEEPFILTER_HOP_FRAMES,
+		library_name: 'onnxruntime', min_nb_erb_freqs: 2, model_type: 'deepfilternet3',
+		norm_tau: 1, normalization_alpha: 0.99,
+		sample_rate: ASSISTANCE_DEEPFILTER_SAMPLE_RATE });
+	if (CONFIG_FIELDS.some((field) => JSON.stringify(config[field])
+		!== JSON.stringify((expected as Record<string, unknown>)[field]))) {
+		throw new TypeError('The DeepFilterNet3 configuration does not match the pinned DSP contract.');
+	}
 }
 
 export function reviewAssistanceDeepFilterAuxiliaryV1(value: Uint8Array): void {
@@ -66,6 +165,7 @@ export function reviewAssistanceDeepFilterAuxiliaryV1(value: Uint8Array): void {
 export function analyzeAssistanceDeepFilterChannelV1(
 	value: Float32Array,
 	signal?: AbortSignal,
+	reuseSpectrum?: (frame: number, real: Float32Array, imaginary: Float32Array) => boolean,
 ): AssistanceDeepFilterAnalysisV1 {
 	if (!(value instanceof Float32Array) || value.length < 1) {
 		throw new TypeError('DeepFilterNet3 requires one non-empty Float32 channel.');
@@ -87,14 +187,16 @@ export function analyzeAssistanceDeepFilterChannelV1(
 	padded.set(value, history);
 	const frameReal = new Float64Array(ASSISTANCE_DEEPFILTER_FFT_SIZE);
 	const frameImaginary = new Float64Array(ASSISTANCE_DEEPFILTER_FFT_SIZE);
+	const workspace = createBluesteinWorkspace();
 	for (let frame = 0; frame < frameCount; frame += 1) {
 		if ((frame & 63) === 0) signal?.throwIfAborted();
+		if (reuseSpectrum?.(frame, spectrumReal, spectrumImaginary)) continue;
 		const sourceStart = frame * ASSISTANCE_DEEPFILTER_HOP_FRAMES;
 		for (let index = 0; index < ASSISTANCE_DEEPFILTER_FFT_SIZE; index += 1) {
 			frameReal[index] = padded[sourceStart + index]! * WINDOW[index]!;
 			frameImaginary[index] = 0;
 		}
-		transformBluestein(frameReal, frameImaginary, false);
+		transformBluestein(frameReal, frameImaginary, false, workspace);
 		for (let frequency = 0; frequency < ASSISTANCE_DEEPFILTER_FREQUENCY_BINS;
 			frequency += 1) {
 			const output = frame * ASSISTANCE_DEEPFILTER_FREQUENCY_BINS + frequency;
@@ -211,6 +313,7 @@ function synthesize(
 		- ASSISTANCE_DEEPFILTER_HOP_FRAMES);
 	const frameReal = new Float64Array(ASSISTANCE_DEEPFILTER_FFT_SIZE);
 	const frameImaginary = new Float64Array(ASSISTANCE_DEEPFILTER_FFT_SIZE);
+	const workspace = createBluesteinWorkspace();
 	const delay = ASSISTANCE_DEEPFILTER_FFT_SIZE - ASSISTANCE_DEEPFILTER_HOP_FRAMES;
 	for (let frame = 0; frame < frameCount; frame += 1) {
 		if ((frame & 63) === 0) signal?.throwIfAborted();
@@ -225,7 +328,7 @@ function synthesize(
 			frameReal[ASSISTANCE_DEEPFILTER_FFT_SIZE - frequency] = frameReal[frequency]!;
 			frameImaginary[ASSISTANCE_DEEPFILTER_FFT_SIZE - frequency] = -frameImaginary[frequency]!;
 		}
-		transformBluestein(frameReal, frameImaginary, true);
+		transformBluestein(frameReal, frameImaginary, true, workspace);
 		const rawStart = frame * ASSISTANCE_DEEPFILTER_HOP_FRAMES;
 		for (let index = 0; index < ASSISTANCE_DEEPFILTER_HOP_FRAMES; index += 1) {
 			const sample = frameReal[index]! * ASSISTANCE_DEEPFILTER_FFT_SIZE * WINDOW[index]!
@@ -273,20 +376,36 @@ function createBluesteinPlan(size: number): BluesteinPlan {
 	return { size, convolutionSize, cosine, sine, kernelReal, kernelImaginary };
 }
 
-function transformBluestein(real: Float64Array, imaginary: Float64Array, inverse: boolean): void {
+interface BluesteinWorkspace {
+	readonly real: Float64Array;
+	readonly imaginary: Float64Array;
+}
+
+function createBluesteinWorkspace(): BluesteinWorkspace {
+	return { real: new Float64Array(FFT_PLAN.convolutionSize), imaginary: new Float64Array(FFT_PLAN.convolutionSize) };
+}
+
+function transformBluestein(
+	real: Float64Array,
+	imaginary: Float64Array,
+	inverse: boolean,
+	workspace: BluesteinWorkspace,
+): void {
 	if (inverse) {
 		for (let index = 0; index < imaginary.length; index += 1) {
 			imaginary[index] = (imaginary[index] ?? 0) * -1;
 		}
-		transformBluestein(real, imaginary, false);
+		transformBluestein(real, imaginary, false, workspace);
 		for (let index = 0; index < imaginary.length; index += 1) {
 			real[index] = (real[index] ?? 0) / FFT_PLAN.size;
 			imaginary[index] = -imaginary[index]! / FFT_PLAN.size;
 		}
 		return;
 	}
-	const workReal = new Float64Array(FFT_PLAN.convolutionSize);
-	const workImaginary = new Float64Array(FFT_PLAN.convolutionSize);
+	const workReal = workspace.real;
+	const workImaginary = workspace.imaginary;
+	workReal.fill(0, FFT_PLAN.size);
+	workImaginary.fill(0, FFT_PLAN.size);
 	for (let index = 0; index < FFT_PLAN.size; index += 1) {
 		const cosine = FFT_PLAN.cosine[index]!;
 		const sine = FFT_PLAN.sine[index]!;

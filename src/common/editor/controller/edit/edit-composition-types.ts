@@ -110,6 +110,7 @@ export interface EditCompositionDependencies<History extends ControllerRuntimeHi
 		& AudioGeneratorServiceDependencies['commit'];
 	readonly setStatus: (message: string, state?: string, localization?: import('../../../i18n/presentation-message.ts').LocalizedPresentationMessage) => void;
 	readonly publishDocumentSnapshot: () => void;
+	readonly batchPresentation?: (operation: () => void) => void;
 	readonly handleError: (error: unknown) => void;
 	readonly preflightStorage: AudioGeneratorServiceDependencies['preflightStorage'];
 	readonly normalizeTimelineFrame: (frame: unknown) => number;

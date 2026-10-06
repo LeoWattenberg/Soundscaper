@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { DEFAULT_CLIP_MICROFADE_SECONDS } from '../../clip-microfade.ts';
-import { readClipLoop } from '../../audio-clip-loop.ts';
+import { createBoundarySnapGeometry, type LoopSnapGeometry, type SnapIntervalIndex, type TrackSnapGeometry } from './boundary-snap-geometry.ts';
 
 /** Audacity 3's boundary guide accepts points fewer than four screen pixels away. */
 export const BOUNDARY_SNAP_PIXEL_TOLERANCE = 4;
@@ -71,6 +71,8 @@ export interface BoundarySnapIndex {
 	readonly points: readonly SnapPoint[];
 	readonly clipById: ReadonlyMap<string, BoundaryClip>;
 	readonly trackById: ReadonlyMap<string, BoundaryTrack>;
+	readonly loops: SnapIntervalIndex<LoopSnapGeometry>;
+	readonly trackGeometry: ReadonlyMap<string, TrackSnapGeometry<BoundaryClip>>;
 }
 
 const NO_EXCLUDED_CLIPS: readonly string[] = [];
@@ -103,7 +105,9 @@ export function createBoundarySnapIndex(
 ): BoundarySnapIndex {
 	const clipById = new Map(project.clips.map((clip) => [clip.id, clip]));
 	const trackById = new Map(project.tracks.map((track) => [track.id, track]));
-	return { project, excludedClipIds, clipById, trackById, points: collectPoints(project, excludedClipIds, clipById) };
+	const geometry = createBoundarySnapGeometry(project.tracks, clipById, new Set(excludedClipIds));
+	return { project, excludedClipIds, clipById, trackById, ...geometry,
+		points: collectPoints(project, excludedClipIds, clipById) };
 }
 
 function indexFor(
@@ -143,22 +147,22 @@ export function resolveBoundarySnap(input: SnapInput): BoundarySnapResult {
 		return { frame, snapped: false };
 	}
 	const position = pixelPosition(frame, pixelsPerSecond, sampleRate);
-	const points = indexFor(input.project, input.excludedClipIds ?? NO_EXCLUDED_CLIPS, input.index).points;
+	const index = indexFor(input.project, input.excludedClipIds ?? NO_EXCLUDED_CLIPS, input.index);
+	const points = index.points;
 	const first = firstPointAtOrAfterPixel(points, position - BOUNDARY_SNAP_PIXEL_TOLERANCE + 1,
 		pixelsPerSecond, sampleRate);
 	const last = firstPointAtOrAfterPixel(points, position + BOUNDARY_SNAP_PIXEL_TOLERANCE,
 		pixelsPerSecond, sampleRate);
 	const nearby = points.slice(first, last);
-	const excluded = new Set(input.excludedClipIds ?? []);
-	for (const track of input.project.tracks) for (const id of track.clipIds ?? []) {
-		if (excluded.has(id)) continue;
-		const clip = input.index?.clipById.get(id) ?? input.project.clips.find(item => item.id === id);
-		const loop = clip ? readClipLoop(clip) : null;
-		if (!clip || !loop) continue;
-		const origin = clip.timelineStartFrame - loop.offsetFrames;
+	const framesPerPixel = sampleRate / pixelsPerSecond;
+	for (const { trackId, start, end, loop } of index.loops.query(
+		(position - BOUNDARY_SNAP_PIXEL_TOLERANCE) * framesPerPixel,
+		(position + BOUNDARY_SNAP_PIXEL_TOLERANCE) * framesPerPixel,
+	)) {
+		const origin = start - loop.offsetFrames;
 		const boundary = origin + Math.round((frame - origin) / loop.periodFrames) * loop.periodFrames;
-		if (boundary > clip.timelineStartFrame && boundary < clip.timelineStartFrame + clip.durationFrames
-			&& Math.abs(pixelPosition(boundary, pixelsPerSecond, sampleRate) - position) < BOUNDARY_SNAP_PIXEL_TOLERANCE) nearby.push({ frame: boundary, trackId: track.id });
+		if (boundary > start && boundary < end
+			&& Math.abs(pixelPosition(boundary, pixelsPerSecond, sampleRate) - position) < BOUNDARY_SNAP_PIXEL_TOLERANCE) nearby.push({ frame: boundary, trackId });
 	}
 	nearby.sort((left, right) => left.frame - right.frame);
 	if (nearby.length === 0) return { frame, snapped: false };
@@ -207,14 +211,8 @@ function microfadeOverlapFrames(
 ): number {
 	if (!input.microfadeNewClips || moving.kind !== 'audio' || input.movingClipIds.length !== 1) return 0;
 	const trackId = input.destinationTrackId ?? input.currentTrackId;
-	const track = trackId === null ? undefined : index.trackById.get(trackId);
-	const clips = (track?.clipIds ?? []).flatMap((clipId) => {
-		const clip = index.clipById.get(clipId);
-		return clip && clip.id !== moving.id ? [clip] : [];
-	});
-	const neighbors = clips.filter((clip) => clip.kind === 'audio' && (edge === 'left'
-		? clip.timelineStartFrame + clip.durationFrames === boundary
-		: clip.timelineStartFrame === boundary));
+	const geometry = trackId === null ? undefined : index.trackGeometry.get(trackId);
+	const neighbors = (edge === 'left' ? geometry?.ends : geometry?.starts)?.get(boundary) ?? [];
 	if (neighbors.length !== 1) return 0;
 	const neighbor = neighbors[0]!;
 	const overlap = Math.min(
@@ -224,7 +222,6 @@ function microfadeOverlapFrames(
 	if (overlap < 1) return 0;
 	const start = edge === 'left' ? boundary - overlap : boundary - moving.durationFrames + overlap;
 	const end = start + moving.durationFrames;
-	if (clips.some((clip) => clip.id !== neighbor.id && clip.timelineStartFrame < end
-		&& clip.timelineStartFrame + clip.durationFrames > start)) return 0;
+	if (geometry?.intervals.query(start, end).some((clip) => clip.id !== neighbor.id)) return 0;
 	return overlap;
 }

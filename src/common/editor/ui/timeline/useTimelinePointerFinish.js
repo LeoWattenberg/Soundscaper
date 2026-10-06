@@ -34,7 +34,7 @@ export function useTimelinePointerFinish({
 	menuActions,
 }) {
 	const {
-		pointerSession,
+		pointerSession, pointerMoveFlushRef,
 		scrollRef,
 		touchPointers,
 		pinchSession,
@@ -64,6 +64,7 @@ export function useTimelinePointerFinish({
 		const session = pointerSession.current;
 		if ((session?.kind === 'fade' || session?.kind === 'fade-shape' || session?.kind === 'crossfade-shape')
 			&& event.pointerId !== session.pointerId) return;
+		pointerMoveFlushRef?.current?.(cancelled);
 		pointerSession.current = null;
 		setDraggingClipIds(null);
 		setProjectBinDropActive(false);
@@ -325,6 +326,7 @@ export function useTimelinePointerFinish({
 
 	const cancelPointerSession = useCallback(() => {
 		if (!pointerSession.current) return false;
+		pointerMoveFlushRef?.current?.(true);
 		pointerSession.current = null;
 		setDraggingClipIds(null);
 		setClipDragPreview(null);

@@ -68,3 +68,32 @@ void test('resolved command readers retain product fields and resolve musical ti
 	const closed = createResolvedCommandProjectReader(() => null, () => project);
 	assert.throws(closed, /open project/u);
 });
+
+void test('owned command projections reuse the current generation and release it across activation', () => {
+	let project: { id: string } | null = { id: 'first' };
+	let reads = 0;
+	const reader = createCommandProjectReader(() => project, value => {
+		reads++;
+		return { ...value, resolved: reads };
+	}, { immutableGenerations: true });
+	const first = reader();
+	assert.equal(reader(), first);
+	assert.equal(reads, 1);
+	project = { id: 'first' };
+	const changed = reader();
+	assert.notEqual(changed, first);
+	assert.equal(reads, 2);
+	project = null;
+	assert.throws(reader, /open project/u);
+	project = { id: 'second' };
+	assert.equal(reader().id, 'second');
+	assert.equal(reads, 3);
+});
+
+void test('untrusted mutable command reader inputs continue to be freshly projected', () => {
+	const project = { id: 'first' };
+	const reader = createCommandProjectReader(() => project, value => ({ ...value }));
+	assert.equal(reader().id, 'first');
+	project.id = 'mutated';
+	assert.equal(reader().id, 'mutated');
+});

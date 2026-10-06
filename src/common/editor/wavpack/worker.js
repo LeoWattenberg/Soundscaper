@@ -1,6 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { PCM_ENCODING_WAVPACK_F32_V1, exactArrayBuffer } from './pcm.js';
+import {
+	PCM_ENCODING_WAVPACK_F32_V1, PcmStorageCorruptionError, crc32, exactArrayBuffer,
+	normalizePcmSampleRate, pcmRawByteLength,
+} from './pcm.js';
 import { decodePcmWithWavPack, encodePcmAdaptively } from './operations.js';
 import { createWavPackRuntimeCache } from './runtime.js';
 import { serializeWorkerError } from '../worker-error-transport.ts';
@@ -20,6 +23,7 @@ async function processMessage(message) {
 	try {
 		if (message.type === 'encode') await encode(message);
 		else if (message.type === 'decode') await decode(message);
+		else if (message.type === 'checksum') checksum(message);
 	} catch (error) {
 		self.postMessage({
 			type: 'error',
@@ -29,6 +33,19 @@ async function processMessage(message) {
 	}
 }
 
+function checksum(message) {
+	const raw = exactArrayBuffer(message.payload);
+	if (raw.byteLength !== pcmRawByteLength(message.frames, message.channelCount)) {
+		throw new RangeError('Raw PCM payload does not match its declared geometry.');
+	}
+	normalizePcmSampleRate(message.sampleRate);
+	const pcmCrc32 = crc32(raw);
+	if (message.pcmCrc32 !== undefined && pcmCrc32 !== message.pcmCrc32) {
+		throw new PcmStorageCorruptionError('Raw persisted PCM failed its CRC-32.', 'PCM_CRC_MISMATCH');
+	}
+	postCodecResult(message.id, { payload: raw, pcmCrc32 });
+}
+
 async function encode(message) {
 	const raw = exactArrayBuffer(message.payload);
 	const result = await runtimeCache.use(message.wasmUrl || undefined, (runtime) => (
@@ -36,6 +53,7 @@ async function encode(message) {
 			frames: message.frames,
 			channelCount: message.channelCount,
 			sampleRate: message.sampleRate,
+			requireWavPack: message.requireWavPack === true,
 			runtime,
 		})
 	));

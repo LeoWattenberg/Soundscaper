@@ -94,6 +94,30 @@ test('64-bit IEEE float samples that overflow the editor buffer decode to silenc
 	assert.deepEqual([...((await reader.readChunk(0)).channels[0])], [0, 0, 0.5]);
 });
 
+test('aligned little-endian WAV chunks decode typed samples without byte-view sample reads', async (t) => {
+	if (new Uint8Array(Uint32Array.of(1).buffer)[0] !== 1) return t.skip('Native typed samples require little-endian byte order.');
+	const fixtures = [
+		{ formatTag: 1, bitDepth: 16, method: 'getInt16', samples: [-32_768, 0, 16_384], expected: [-1, 0, 0.5] },
+		{ formatTag: 1, bitDepth: 32, method: 'getInt32', samples: [-2_147_483_648, 0, 1_073_741_824], expected: [-1, 0, 0.5] },
+		{ formatTag: 3, bitDepth: 32, method: 'getFloat32', samples: [-0, Infinity, 0.5], expected: [-0, 0, 0.5] },
+		{ formatTag: 3, bitDepth: 64, method: 'getFloat64', samples: [-0, 1e100, 0.1], expected: [-0, 0, Math.fround(0.1)] },
+	] as const;
+	for (const fixture of fixtures) {
+		await t.test(fixture.method, async (context) => {
+			const blob = createWaveBlob({ ...fixture, channels: [fixture.samples, [...fixture.samples].reverse()] });
+			const descriptor = await inspectWavBlobPcm(blob);
+			const reader = createWavBlobPcmChunkReader(blob, { descriptor });
+			const getter = context.mock.method(DataView.prototype, fixture.method);
+			const chunk = await reader.readChunk(0);
+			assert.deepEqual([...chunk.channels[0]], fixture.expected);
+			assert.deepEqual([...chunk.channels[1]], [...fixture.expected].reverse());
+			assert.equal(getter.mock.callCount(), 0);
+			chunk.channels[0][0] = 0.25;
+			assert.deepEqual([...((await reader.readChunk(0)).channels[0])], fixture.expected);
+		});
+	}
+});
+
 test('RF64 integer and IEEE float descriptors drive the same bounded random-access reader', async (t) => {
 	for (const fixture of [
 		{ name: 'integer PCM', formatTag: 1, bitDepth: 24, raw: [-8_388_608, 0, 8_388_607], expected: [-1, 0, 8_388_607 / 8_388_608] },

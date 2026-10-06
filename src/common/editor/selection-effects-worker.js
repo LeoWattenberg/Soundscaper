@@ -4,6 +4,7 @@ import {
 	asFloat32Array,
 	normalizeSelectionEffectWorkerContext,
 } from './selection-effects-worker-context.ts';
+import { runSelectionEffectChain } from './selection-effect-chain.ts';
 import { initializePffft } from './pffft.js';
 
 globalThis.onmessage = async ({ data }) => {
@@ -12,23 +13,27 @@ globalThis.onmessage = async ({ data }) => {
 		if (data.operation === 'capture-noise-profile') {
 			await initializePffft();
 			const profile = captureAudacityNoiseProfile(channels, data.sampleRate, data.params || {});
-			globalThis.postMessage({ type: 'noise-profile', profile }, transferableBuffers(profile));
+			globalThis.postMessage({ type: 'noise-profile', requestId: data.requestId, profile }, transferableBuffers(profile));
 			return;
 		}
 		const context = normalizeSelectionEffectWorkerContext(data.context);
-		context.onProgress = (progress) => globalThis.postMessage({ type: 'progress', ratio: progress });
+		context.onProgress = (progress) => globalThis.postMessage({ type: 'progress', requestId: data.requestId, ratio: progress });
 		if (data.wasmModule instanceof WebAssembly.Module) context.wasmModule = data.wasmModule;
-		const output = await applyAudioSelectionEffectAsync(
+		const output = data.operation === 'apply-chain'
+			? await runSelectionEffectChain(data.steps, channels, data.sampleRate, applyAudioSelectionEffectAsync, context.onProgress, undefined,
+				(completed) => globalThis.postMessage({ type: 'chain-step', requestId: data.requestId, completed }))
+			: await applyAudioSelectionEffectAsync(
 			data.effectType,
 			channels,
 			data.sampleRate,
 			data.params || {},
 			context,
 		);
-		globalThis.postMessage({ type: 'result', channels: output }, output.map((channel) => channel.buffer));
+		globalThis.postMessage({ type: 'result', requestId: data.requestId, channels: output }, output.map((channel) => channel.buffer));
 	} catch (error) {
 		globalThis.postMessage({
 			type: 'error',
+			requestId: data.requestId,
 			name: error instanceof Error ? error.name : 'Error',
 			code: typeof error?.code === 'string' ? error.code : null,
 			message: error instanceof Error ? error.message : String(error),
