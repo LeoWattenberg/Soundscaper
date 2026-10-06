@@ -129,7 +129,7 @@ test('render-engine cleanup failure fences source-provider retirement and storag
 	assert.equal(events.includes('store:close'), false);
 });
 
-test('Project Bin preview cleanup failure fences source-provider retirement and storage close', async () => {
+test('Project Bin preview cleanup failure fences source-provider retirement and storage close', async (context) => {
 	const events = [];
 	const store = new SessionStore(events);
 	const engine = new SessionEngine(events);
@@ -141,6 +141,7 @@ test('Project Bin preview cleanup failure fences source-provider retirement and 
 			: new SessionRenderEngine(events, deferred(), null),
 		sourceBufferCacheMaxBytes: 64 * 1024 * 1024,
 	});
+	context.after(async () => { await controller.dispose().catch(() => undefined); });
 	await controller.ready;
 	await openLongSourceFixture(controller, store, 'preview-owned.wav');
 	const snapshot = controller.getSnapshot(), sourceId = snapshot.project.sources[0].id;
@@ -289,6 +290,7 @@ class SessionEngine {
 	}
 	getState() { return { state: 'stopped', loop: { enabled: false } }; }
 	getPositionFrames() { return 0; }
+	getPlaybackGain() { return 1; }
 	stop() {}
 	async dispose() { this.events.push('engine:dispose'); }
 }
@@ -316,6 +318,7 @@ class SessionRenderEngine {
 
 class FailingPreviewEngine {
 	constructor(failure) { this.failure = failure; }
+	setPlaybackGain(gain) { return gain; }
 	setSourceResolver() { return this; }
 	loadProject() {}
 	async play() {}
