@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { addRationals, compareRationals, normalizeRational, type Rational } from '../../timeline-time.ts';
+import { compileInterpolationCurve, evaluateInterpolationCurveAtExactPosition } from '../../interpolation-curve.ts';
 import { mapVideoKeyframeVisiblePosition } from '../../video-keyframe-time-domain.ts';
 import { normalizeVideoKeyframeCurves, type VideoKeyframeCurves } from '../../video-keyframe-curves.ts';
 
@@ -22,12 +23,18 @@ export function readVideoFadeEnvelope(clip: VideoFadeClip): VideoFadeEnvelope | 
 	const entry = curves.find(({ target }) => target.kind === 'composition' && target.parameterId === 'opacity');
 	if (!entry) return { fadeInFrames: 0, fadeOutFrames: 0, peak: clip.videoComposition.opacity };
 	const end = addRationals(timeDomain.viewStart, timeDomain.viewDuration);
-	const anchors = entry.curve.anchors.filter(({ position }) => compareRationals(position, timeDomain.viewStart) >= 0 && compareRationals(position, end) <= 0);
-	if (anchors.length < 2 || anchors.length > 4 || entry.curve.segments.some(({ kind }) => kind !== 'linear')) return null;
+	if (entry.curve.segments.some(({ kind }) => kind !== 'linear')) return null;
+	const curve = compileInterpolationCurve(entry.curve);
+	// Trims and splits retain authored anchors, so the visible edges can lie
+	// inside a segment even when this view is still a standard fade envelope.
+	const anchors = [
+		{ position: timeDomain.viewStart, value: evaluateInterpolationCurveAtExactPosition(curve, timeDomain.viewStart) },
+		...entry.curve.anchors.filter(({ position }) => compareRationals(position, timeDomain.viewStart) > 0 && compareRationals(position, end) < 0),
+		{ position: end, value: evaluateInterpolationCurveAtExactPosition(curve, end) },
+	];
+	if (anchors.length > 4) return null;
 	const first = anchors[0]!;
 	const last = anchors.at(-1)!;
-	if (compareRationals(first.position, timeDomain.viewStart) !== 0
-		|| compareRationals(last.position, end) !== 0) return null;
 	const peak = Math.max(...anchors.map(({ value }) => value));
 	if (peak <= 0 || first.value !== 0 && first.value !== peak || last.value !== 0 && last.value !== peak
 		|| anchors.slice(1, -1).some(({ value }) => value !== peak)) return null;

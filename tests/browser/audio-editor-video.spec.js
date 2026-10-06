@@ -5,6 +5,7 @@ import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.
 import { closeClipProperties, collectClientErrors } from './audio-editor-test-helpers.js';
 import { resolveBrowserProductTestUrl } from './helpers/browser-product-test-url.js';
 import { closeWorkspacePanel } from './helpers/workspace-panel-chrome.js';
+import { seekFramescaperTimecode } from './helpers/framescaper-standard-timecode.js';
 
 const WEBKIT_AV_IMPORT_DEFERRED = 'Playwright WebKit rejects the IndexedDB Blob write that persists an imported A/V source.';
 
@@ -246,6 +247,37 @@ test.describe('audio editor video composition workflow', () => {
 		await expect.poll(async () => Number(await fadeIn.getAttribute('aria-valuenow'))).toBeGreaterThan(0);
 		await editor.getByRole('button', { name: 'Undo', exact: true }).click();
 		await expect(fadeIn).toHaveAttribute('aria-valuenow', '0');
+		expect(errors).toEqual([]);
+	});
+
+	test('split video clips retain editable fades at their new visible boundaries', async ({ page }, testInfo) => {
+		test.skip(testInfo.project.name === 'webkit', WEBKIT_AV_IMPORT_DEFERRED);
+		await page.setViewportSize({ width: 1_440, height: 1_200 });
+		const errors = collectClientErrors(page);
+		const editor = await bootVideoEditor(page);
+		await importTimelineFiles(editor, [createDeterministicAvFixture('split-fade.webm')]);
+		const video = editor.locator('[data-video-track]').first();
+		const clips = video.locator('[data-clip-kind="video"]');
+		await clips.first().locator('.clip-header').click();
+		const fadeIn = clips.first().getByRole('slider', { name: 'Fade in', exact: true });
+		await fadeIn.press('ArrowRight');
+		await expect.poll(async () => Number(await fadeIn.getAttribute('aria-valuenow'))).toBeGreaterThan(0);
+		const originalFade = await fadeIn.getAttribute('aria-valuenow');
+		await seekFramescaperTimecode(page, editor, '00:00:01:00');
+		await expect(editor.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
+		await clips.first().getByRole('button', { name: 'Clip menu', exact: true }).click();
+		await page.locator('.audio-editor-clip-context-menu [data-action-id="split"]').click();
+		await expect(clips).toHaveCount(2);
+		await clips.first().press('Enter');
+		await expect(clips.first().getByRole('slider', { name: 'Fade in', exact: true })).toHaveAttribute('aria-valuenow', originalFade);
+		await clips.last().press('Enter');
+		await expect(clips.last().locator('.clip-display')).toHaveClass(/clip-display--selected/u);
+		const newFadeIn = clips.last().getByRole('slider', { name: 'Fade in', exact: true });
+		await expect(newFadeIn).toHaveAttribute('aria-valuenow', '0');
+		await newFadeIn.press('ArrowRight');
+		await expect.poll(async () => Number(await newFadeIn.getAttribute('aria-valuenow'))).toBeGreaterThan(0);
+		await editor.getByRole('button', { name: 'Undo', exact: true }).click();
+		await expect(newFadeIn).toHaveAttribute('aria-valuenow', '0');
 		expect(errors).toEqual([]);
 	});
 

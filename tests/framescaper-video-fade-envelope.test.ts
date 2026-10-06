@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { DEFAULT_VIDEO_CLIP_COMPOSITION } from '../src/common/editor/video-clip-composition.ts';
-import { createDefaultVideoKeyframeCurves, evaluateVideoKeyframeCurves, normalizeVideoKeyframeCurves } from '../src/common/editor/video-keyframe-curves.ts';
+import { createDefaultVideoKeyframeCurves, evaluateVideoKeyframeCurves, normalizeVideoKeyframeCurves, splitVideoKeyframeCurvesAt, trimVideoKeyframeCurvesToRange } from '../src/common/editor/video-keyframe-curves.ts';
 import { createVideoFadeKeyframes, readVideoFadeEnvelope } from '../src/common/editor/ui/timeline/video-fade-envelope.ts';
 
 const clip = {
@@ -77,6 +77,40 @@ test('removing a visible fade retains authored opacity outside the trimmed view'
 	const cleared = createVideoFadeKeyframes(faded, 'out', 0);
 	assert.deepEqual(cleared.curves[0]?.curve.anchors[0], { position: { num: 0, den: 1 }, value: 0 });
 	assert.equal(opacityAt({ ...trimmed, videoKeyframes: cleared }, 60), 1);
+});
+
+test('splitting an existing fade keeps both visible envelopes editable without boundary anchors', () => {
+	const original = { ...clip, videoKeyframes: createVideoFadeKeyframes(clip, 'in', 20) };
+	const split = splitVideoKeyframeCurvesAt(original.videoKeyframes, {
+		duration: 120, composition: original.videoComposition, videoEffects: [],
+	}, 60);
+	const left = { ...original, sequenceFrameCount: 60, videoKeyframes: split.left };
+	const right = { ...original, sequenceFrameCount: 60, videoKeyframes: split.right };
+	assert.deepEqual(readVideoFadeEnvelope(left), { fadeInFrames: 20, fadeOutFrames: 0, peak: 1 });
+	assert.deepEqual(readVideoFadeEnvelope(right), { fadeInFrames: 0, fadeOutFrames: 0, peak: 1 });
+	const faded = { ...right, videoKeyframes: createVideoFadeKeyframes(right, 'in', 15) };
+	assert.equal(opacityAt(faded, 0), 0);
+	assert.equal(opacityAt(faded, 7.5), 0.5);
+	assert.equal(opacityAt(faded, 15), 1);
+	assert.deepEqual(faded.videoKeyframes.curves[0]?.curve.anchors.slice(0, 2),
+		original.videoKeyframes.curves[0]?.curve.anchors.slice(0, 2));
+});
+
+test('persisted snapshot fades remain readable and editable after compiled curve identity is lost', () => {
+	const snapshot = structuredClone({ ...clip, videoKeyframes: createVideoFadeKeyframes(clip, 'in', 20) });
+	assert.deepEqual(readVideoFadeEnvelope(snapshot), { fadeInFrames: 20, fadeOutFrames: 0, peak: 1 });
+	assert.deepEqual(readVideoFadeEnvelope({ ...snapshot, videoKeyframes: createVideoFadeKeyframes(snapshot, 'out', 10) }),
+		{ fadeInFrames: 20, fadeOutFrames: 10, peak: 1 });
+});
+
+test('trimming through a partial fade keeps the authored opacity protected', () => {
+	const original = { ...clip, videoKeyframes: createVideoFadeKeyframes(clip, 'in', 20) };
+	const trimmed = { ...original, sequenceFrameCount: 60, videoKeyframes: trimVideoKeyframeCurvesToRange(original.videoKeyframes, {
+		duration: 120, composition: original.videoComposition, videoEffects: [],
+	}, { start: 10, end: 70 }) };
+	assert.equal(opacityAt(trimmed, 0), 0.5);
+	assert.equal(readVideoFadeEnvelope(trimmed), null);
+	assert.throws(() => createVideoFadeKeyframes(trimmed, 'out', 10), /custom opacity curve/u);
 });
 
 function opacityAt(value: typeof clip, position: number): number {
