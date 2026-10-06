@@ -27,6 +27,7 @@ import {
 	masterNoiseProfileChannelCount,
 } from './master-noise-profile-channels.ts';
 import { normalizeAudacityEffectParams } from '../../../audacity-effects/manifest.js';
+import { renderSimpleDryTrackPcm } from './direct-dry-track-pcm.ts';
 
 export type * from './effect-audio-service-types.ts';
 
@@ -56,6 +57,12 @@ export function createEffectAudioService<Buffer = EffectAudioBuffer>(runtime: Ef
 		if (!track) throw createLocalizedError(Error, runtime.copy, 'audioTrackNotFound');
 		const channelCount = requestedChannelCount
 			?? (runtime.audacitySelectionChannelCount(project, trackId, startFrame, endFrame) || 1);
+		if (processing === 'dry') {
+			const direct = await renderSimpleDryTrackPcm(project, runtime.sourceBuffers,
+				trackId, startFrame, endFrame, channelCount, requestedClipIds, signal);
+			runtime.assertProject(token);
+			if (direct) return direct;
+		}
 		// Flatten folder state before narrowing to one track: the snapshot keeps the
 		// authored folders and sequence nodes, so a hierarchy that still names the
 		// tracks this render drops is one the engine refuses to load.

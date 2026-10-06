@@ -32,6 +32,7 @@ export function createHarness(options: Readonly<{
 	spectralWorkerFrameDelta?: number;
 	validateRenderSnapshot?: (project: EffectAudioProject) => void;
 	cloneProject?: (project: EffectAudioProject) => EffectAudioProject;
+	sourceBuffers?: ReadonlyMap<unknown, AudioBuffer>;
 }> = {}) {
 	let project: EffectAudioProject = options.project ?? baselineHarnessProject(options.masterChannels);
 	const state: EffectAudioState = {
@@ -123,7 +124,7 @@ export function createHarness(options: Readonly<{
 			}),
 			dispose: async () => { prefixDisposals += 1; },
 		}),
-		sourceBuffers: new Map(),
+		sourceBuffers: options.sourceBuffers ?? new Map(),
 		audioBufferChannels: (buffer) => [...buffer.channels ?? []],
 		matchAudacitySelectionChannels,
 		runSelectionEffectWorker: async ({ channels, params }) => {
