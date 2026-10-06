@@ -200,4 +200,19 @@ build 11 failed at 0.8 seconds; build 12 passes at 1.6 seconds in Chromium,
 Firefox and WebKit. Strict regressions cover expansion, contraction, and the
 six-second limit alongside existing Repair context and cancellation checks.
 
+## R2-ROOT-015 — Change Pitch silently substitutes an unsupported frequency
+
+Import a WAV, **Select > Select all**, open **Effect > Pitch and tempo > Change
+pitch**, and change **To frequency** from 440 to 1760 Hz. Previously the field
+accepted that value, but silently replaced it with 880 Hz when the semitone
+model clamped the requested two-octave change to its one-octave limit. Alternate
+frequency and note/octave inputs now offer only the supported interval around
+the retained other pitch. An unsupported draft is marked invalid and leaves
+the effect unchanged; Escape restores the saved frequency.
+
+Proof: `audio-editor-round2-pitch-target-bounds.spec.js` failed against build 12
+because the entered 1760 Hz became 880 Hz. Build 13 passes in Chromium, Firefox
+and WebKit, including cancellation and a valid 880-Hz/12-semitone change.
+Nine strict helper and derived-value regressions pass.
+
 These changes do not require a manual **Update AI assets** run.

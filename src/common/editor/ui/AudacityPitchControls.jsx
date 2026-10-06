@@ -12,6 +12,7 @@ import {
 	audacitySemitonesFromPercent,
 } from './audacity-derived-controls.ts';
 import { formatLocalizedTemplate } from './localization-template.ts';
+import { pitchFrequencyAvailable, pitchFrequencyBounds, pitchOctaveBounds } from './audacity-pitch-frequency-bounds.ts';
 
 const PITCHES = ['C', 'C♯/D♭', 'D', 'D♯/E♭', 'E', 'F', 'F♯/G♭', 'G', 'G♯/A♭', 'A', 'A♯/B♭', 'B'];
 const noteFrequency = (note, octave) => 440 * 2 ** ((note + (octave + 1) * 12 - 69) / 12);
@@ -36,10 +37,13 @@ export default function AudacityPitchControls({ parameters, effectContext = {}, 
 		return control?.props?.onCommit?.(value, { controlValue: value });
 	};
 	const changeFrom = next => {
+		if (!pitchFrequencyAvailable(toFrequency, next)) return;
 		setFromFrequency(next);
 		void commit(audacitySemitonesFromFrequencies(next, toFrequency));
 	};
-	const changeTo = next => { void commit(audacitySemitonesFromFrequencies(fromFrequency, next)); };
+	const changeTo = next => {
+		if (pitchFrequencyAvailable(fromFrequency, next)) void commit(audacitySemitonesFromFrequencies(fromFrequency, next));
+	};
 	const label = key => canonicalCopyValue(key, copy);
 	const number = (key, value, range, onCommit, unit, step = 1, presentation = 'number', gesture = {}) => <ParameterNumber
 		label={`${label(key)}${unit ? ` (${unit})` : ''}`} displayLabel={label(key)} valueUnit={unit}
@@ -48,10 +52,13 @@ export default function AudacityPitchControls({ parameters, effectContext = {}, 
 		timeCodeUnit={null} onCommit={onCommit} {...gesture} />;
 	const pitch = (side, value, frequencyChange) => <div className="audio-editor-audacity-pitch__note">
 		<LabeledDropdown label={label(side === 'from' ? 'effectAudacityFromPitch' : 'effectAudacityToPitch')}
-			value={String(value.note)} options={PITCHES.map((name, index) => ({ value: String(index), label: name }))}
+			value={String(value.note)} options={PITCHES.map((name, index) => ({ value: String(index), label: name,
+				disabled: !pitchFrequencyAvailable(side === 'from' ? toFrequency : fromFrequency, noteFrequency(index, value.octave)),
+			}))}
 			onChange={next => frequencyChange(noteFrequency(Number(next), value.octave))}
 			disabled={disabled} hook={`effect-${side}-pitch`} />
-		{number(side === 'from' ? 'effectAudacityFromOctave' : 'effectAudacityToOctave', value.octave, [-1, 9],
+		{number(side === 'from' ? 'effectAudacityFromOctave' : 'effectAudacityToOctave', value.octave,
+			pitchOctaveBounds(side === 'from' ? toFrequency : fromFrequency, noteFrequency(value.note, 0)),
 			next => frequencyChange(noteFrequency(value.note, next)))}
 	</div>;
 	const estimated = Number.isFinite(detected) && detected > 0
@@ -75,8 +82,8 @@ export default function AudacityPitchControls({ parameters, effectContext = {}, 
 		</section>
 		<section className="audio-editor-audacity-port__section audio-editor-audacity-port__section--boxed">
 			<div className="audio-editor-audacity-pitch__pair">
-				{number('effectAudacityFromFrequency', Number(fromFrequency.toFixed(3)), [1, 100_000], changeFrom, 'Hz')}
-				{number('effectAudacityToFrequency', Number(toFrequency.toFixed(3)), [1, 100_000], changeTo, 'Hz')}
+				{number('effectAudacityFromFrequency', Number(fromFrequency.toFixed(3)), pitchFrequencyBounds(toFrequency), changeFrom, 'Hz')}
+				{number('effectAudacityToFrequency', Number(toFrequency.toFixed(3)), pitchFrequencyBounds(fromFrequency), changeTo, 'Hz')}
 			</div>
 			{number('effectAudacityPercentageChange', Number(audacityPitchPercent(semitones).toFixed(3)), [-50, 100],
 				next => commit(audacitySemitonesFromPercent(next)), null, 0.1, 'slider',
