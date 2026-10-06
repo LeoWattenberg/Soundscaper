@@ -52,6 +52,24 @@ const entries: FoundationRuntimeConsumerEvidence[] = [
 	{"id": "bin-replacement-geometry", "file": "src/common/editor/controller/import/internal/project-bin/project-bin-runtime.ts", "entryPoint": "projectBinReplacementShortensClip", "inputIdentifier": "project", "projectedIdentifier": "resolved", "boundary": "resolveRuntimeClipProjection", "surface": "composition", "evidence": "Project Bin reads resolved clip geometry at its audio preview and replacement boundary while retaining authored documents for checkpoint ownership."},
 	{"id": "bin-replacement-ranges", "file": "src/common/editor/controller/import/internal/project-bin/project-bin-replacement-service.ts", "entryPoint": "prepareProjectBinReplacement", "inputIdentifier": "baseProject", "projectedIdentifier": null, "boundary": "projectBinReplacementShortensClip", "surface": "composition", "evidence": "Project Bin reads resolved clip geometry at its audio preview and replacement boundary while retaining authored documents for checkpoint ownership."},
 	{
+		id: 'bin-video-replacement-ranges', surface: 'composition',
+		file: 'src/common/editor/project-bin-video-replacement.ts', entryPoint: 'projectBinVideoReplacementRange',
+		inputIdentifier: 'project', projectedIdentifier: 'resolved', boundary: 'resolveRuntimeClipProjection',
+		evidence: 'Video replacement resolves the existing clip before comparing its retained source times, then conforms the new source boundaries and derives sample duration from its authored sequence-frame span.',
+	},
+	{
+		id: 'bin-video-preview-geometry', surface: 'preview',
+		file: 'src/common/editor/ui/workspace/project-bin-video-preview-model.ts', entryPoint: 'projectBinVideoPreviewModel',
+		inputIdentifier: 'project', projectedIdentifier: 'resolved', boundary: 'resolveRuntimeClipProjection',
+		evidence: 'Video cards resolve authored clip geometry before mapping their preview start, end, duration, and playback rate through the verified source clock.',
+	},
+	{
+		id: 'regular-interval-dialog-range', surface: 'timeline',
+		file: 'src/common/editor/ui/regular-interval-dialog-defaults.ts', entryPoint: 'regularIntervalDialogDefaults',
+		inputIdentifier: 'project', projectedIdentifier: null, boundary: 'resolveRuntimeClipProjection',
+		evidence: 'The regular-interval marker dialog resolves every clip before choosing its default sample range, so native video and musical audio contribute their current timeline ends.',
+	},
+	{
 		id: 'audio-generator-placement', surface: 'composition',
 		file: 'src/common/editor/controller/edit/generator-service.ts', entryPoint: 'prepareGeneratorCommand',
 		inputIdentifier: 'persistedProject', projectedIdentifier: 'project', boundary: 'projectForAudioGeneratorCommands',

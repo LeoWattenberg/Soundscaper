@@ -117,6 +117,8 @@ export const FOUNDATION_RUNTIME_SHIELDED_OWNERS: readonly FoundationRuntimeShiel
 	{ file: 'src/common/editor/controller/import/internal/project-bin/project-bin-runtime.ts', surfaces: ['preview', 'composition'] },
 	{ file: 'src/common/editor/controller/import/internal/project-bin/project-bin-preview-service.ts', surfaces: ['preview'] },
 	{ file: 'src/common/editor/controller/import/internal/project-bin/project-bin-replacement-service.ts', surfaces: ['composition'] },
+	{ file: 'src/common/editor/project-bin-video-replacement.ts', surfaces: ['composition'] },
+	{ file: 'src/common/editor/ui/workspace/project-bin-video-preview-model.ts', surfaces: ['preview'] },
 	{ file: 'src/common/editor/engine/lifecycle.ts', surfaces: ['playback'] },
 	{ file: 'src/common/editor/export.js', surfaces: ['audio-export'] },
 	{ file: 'src/common/editor/export-clip-boundaries.ts', surfaces: ['audio-export'] },
@@ -141,12 +143,17 @@ export const FOUNDATION_RUNTIME_SHIELDED_OWNERS: readonly FoundationRuntimeShiel
 	{ file: 'src/common/editor/controller/track-audio/internal/clip-selection-navigation-service.ts', surfaces: ['navigation'] },
 	{ file: 'src/common/editor/ui/timeline/useTimelineViewportModel.js', surfaces: ['timeline'] },
 	{ file: 'src/common/editor/ui/framescaper-edit-control-menu-model.ts', surfaces: ['timeline'] },
+	{ file: 'src/common/editor/ui/regular-interval-dialog-defaults.ts', surfaces: ['timeline'] },
 	{ file: 'src/common/editor/controller/document/project-visual-service.ts', surfaces: ['waveform'] },
 	{ file: 'src/common/editor/ui/inspector/ClipPropertiesPanel.tsx', surfaces: ['waveform'] },
 ]);
 
 /** Exact non-consumer readers co-located with a shield owner. No wildcard exclusions are admitted. */
 export const FOUNDATION_RUNTIME_TIMING_READER_EXCLUSIONS: readonly FoundationRuntimeTimingReaderExclusion[] = deepFreeze([
+	{
+		file: 'src/common/editor/ui/workspace/project-bin-video-preview-model.ts', entryPoint: 'projectBinVisualDurationFrames',
+		reason: 'Image, still, and generator cards read their authored sequence-frame count and explicitly convert that extent at the primary sequence clock; these leaves have no legacy audio or video runtime timing aliases to project.',
+	},
 	{
 		file: 'src/common/editor/clip-spreadsheet.ts', entryPoint: 'rowsForProject',
 		reason: 'Private table projection receives the resolved project captured by getClipSpreadsheetRows or planEdits before converting sample coordinates into spreadsheet seconds.',
@@ -173,6 +180,14 @@ export const FOUNDATION_RUNTIME_TIMING_READER_EXCLUSIONS: readonly FoundationRun
 
 /** Non-shield importers discovered beside the owned consumer and boundary files. */
 export const FOUNDATION_RUNTIME_PROJECTION_IMPORTER_EXCLUSIONS: readonly FoundationRuntimeProjectionImporterExclusion[] = deepFreeze([
+	{
+		file: 'src/common/editor/commands/project-source-bin-runtime.js',
+		reason: 'The bin replacement command resolves its verified replacement template to populate command-domain video aliases before normalizing the persisted result; it is an edit reconciliation adapter rather than a runtime media consumer.',
+	},
+	{
+		file: 'src/common/editor/controller/composition/internal/mixer-parameter-actions.ts',
+		reason: 'The mixer parameter gesture adapter locates master, track, group, or send values in the owned runtime project view; it reads strip gain and pan authority without consuming any clip timing coordinates.',
+	},
 	{
 		file: 'src/common/editor/video-keyframe-export-frame-source.ts',
 		reason: 'The immutable export snapshot preserves an existing runtime-projection brand after inheriting exact folder media state; projection and timing consumption remain owned by the upstream keyed-export inventory.',

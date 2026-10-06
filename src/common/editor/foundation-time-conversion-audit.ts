@@ -44,6 +44,18 @@ export interface FoundationTimeConversionSite {
  */
 const FOUNDATION_TIME_CONVERSION_EDITOR_SITES: readonly FoundationTimeConversionSite[] = deepFreezeAuditSites([
 	{
+		id: 'bin-video-replacement-sequence-extent',
+		file: 'src/common/editor/project-bin-video-replacement.ts',
+		behavior: 'Video replacement preserves source times on the verified source clock and derives its retained sample duration from the difference between absolute sequence-frame endpoints, each resolved as a nearest sample point.',
+		conversions: [{ helper: 'videoFrameToSampleFrame', policies: ['point'] }],
+	},
+	{
+		id: 'bin-visual-preview-duration',
+		file: 'src/common/editor/ui/workspace/project-bin-video-preview-model.ts',
+		behavior: 'Image, still, and generator bin cards convert their authored sequence-frame extent to the nearest sample count at the primary sequence rate before presenting their duration.',
+		conversions: [{ helper: 'videoFrameToSampleFrame', policies: ['point'] }],
+	},
+	{
 		id: 'musical-timecode-project-map',
 		file: 'src/common/editor/ui/time-code-musical-map.ts',
 		behavior: 'Musical timecode resolves seconds to nearest project sample instants, recovers exact tempo-map beats, and maps edited bar/beat positions back through nearest sample instants to seconds.',

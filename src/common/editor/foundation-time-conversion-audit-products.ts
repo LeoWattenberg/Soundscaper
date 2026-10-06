@@ -15,6 +15,12 @@ import type { FoundationTimeConversionSite } from './foundation-time-conversion-
  */
 export const FOUNDATION_TIME_CONVERSION_PRODUCT_SITES: readonly FoundationTimeConversionSite[] = deepFreezeAuditSites([
 	{
+		id: 'framescaper-bin-visual-placement',
+		file: 'src/framescaper/editor-project-bin-visual-actions.ts',
+		behavior: 'Placing an owned visual bin leaf converts the requested exact sample position or current playhead once to the nearest sequence frame, retaining the leaf\'s authored frame extent on its destination timeline.',
+		conversions: [{ helper: 'sampleFrameToVideoFrame', policies: ['point'] }],
+	},
+	{
 		id: 'desktop-owned-audio-cut-source-bounds',
 		file: 'desktop/assistance-workflow-owned-audio-cut-source-normalization.ts',
 		behavior: 'Raw model timing is bounded by the fenced audio extent restated at the model\'s own analysis rate: the fenced source span is scaled from the capture rate to that rate as a nearest-point sample count, and a voice-activity row, speaker turn or aligned word that ends past it is refused rather than clamped.',

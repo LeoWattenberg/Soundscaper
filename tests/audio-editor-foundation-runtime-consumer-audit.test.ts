@@ -81,11 +81,27 @@ test('every shielded consumer surface crosses a registered runtime projection bo
 			.sort((left, right) => left.position - right.position)[0];
 		if (firstTimingRead) {
 			assert.ok(
-				boundaryCall.getStart() < firstTimingRead.position,
+				boundaryCall.getEnd() < firstTimingRead.position,
 				`${consumer.surface} reads ${firstTimingRead.name} before runtime projection`,
 			);
 		}
 		assert.ok(consumer.evidence.length > 20, `${consumer.surface} must explain its projection ownership`);
+	}
+});
+
+test('timing-read order admits a completed inline projection and rejects pre-projection argument reads', () => {
+	for (const [body, expected] of [
+		['return resolveRuntimeClipProjection(project, clip).timelineEndFrame;', true],
+		['const resolved = resolveRuntimeClipProjection(project, clip); return resolved.timelineEndFrame;', true],
+		['const end = clip.timelineEndFrame; return resolveRuntimeClipProjection(project, clip);', false],
+		['return resolveRuntimeClipProjection(project, clip.timelineEndFrame);', false],
+	] as const) {
+		const source = createSourceFile('fixture.ts', `function read(project, clip) { ${body} }`, ScriptTarget.Latest, true, ScriptKind.TS);
+		const entryPoint = findFunction(source, 'read');
+		const boundaryCall = findCalls(entryPoint, 'resolveRuntimeClipProjection')[0];
+		const timingRead = propertyReads(entryPoint).find(({ name }) => TIMING_FIELDS.has(name));
+		assert.ok(boundaryCall && timingRead);
+		assert.equal(boundaryCall.getEnd() < timingRead.position, expected, body);
 	}
 });
 
@@ -458,7 +474,7 @@ function propertyReads(node: Node): readonly { readonly name: string; readonly p
 	const reads: { name: string; position: number }[] = [];
 	visit(node, (candidate) => {
 		if (isPropertyAccessExpression(candidate)) {
-			reads.push({ name: candidate.name.text, position: candidate.getStart() });
+			reads.push({ name: candidate.name.text, position: candidate.name.getStart() });
 		}
 	});
 	return reads;
