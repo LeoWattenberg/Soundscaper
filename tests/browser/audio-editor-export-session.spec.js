@@ -393,10 +393,11 @@ test.describe('audio editor React/design-system workflows', () => {
 		await importFiles(editor, [longTone]);
 		const exportDialog = await openExportDialog(page, editor);
 
-		// One delivery choice: the whole project, or one file per track. There is
-		// no selection, no loop and no label, so nothing else is deliverable.
+		// The whole project, one file per track, or one file per clip are available.
+		// Selection, loop and chapter outputs require their own timeline ranges.
 		await exportDialog.locator('[data-export-field="output"]').getByRole('button').click();
-		await expect(page.getByRole('option')).toHaveCount(2);
+		await expect(page.getByRole('option')).toHaveCount(3);
+		await expect(page.getByRole('option', { name: 'Individual clips (split by clips)', exact: true })).toBeVisible();
 		await expect(page.getByRole('option', { name: 'Current selection' })).toHaveCount(0);
 		await expect(page.getByRole('option', { name: 'Chapters (split by labels)' })).toHaveCount(0);
 		await expect(exportDialog.locator('[data-export-field="output"]').getByRole('button')).toContainText('Entire project');
