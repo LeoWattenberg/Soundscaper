@@ -2,6 +2,8 @@
 
 import { conformClipboardVideoPlacement } from './clipboard-time-runtime.js';
 import { clipLoopTransformFields } from '../audio-clip-loop.ts';
+import { normalizeAudioWarpMap } from '../audio-warp-domain.ts';
+import { multiplyDivideRationals } from '../timeline-time.ts';
 import { cloneVideoCompositionCarrierFields } from './video-composition-carrier.ts';
 import { rebindVideoKeyframeCarrierEffects } from './video-keyframe-carrier.ts';
 import { cloneVideoEffectsWithCommandIds } from './shared-runtime.js';
@@ -34,6 +36,13 @@ export function scaleClipboardClip(
 		timelineStartFrame,
 		durationFrames: timelineDurationFrames,
 		...clipLoopTransformFields(descriptor, { durationFrames: timelineDurationFrames }),
+		...(descriptor.anchor !== 'musical' && descriptor.warpMap?.feature === 'audio-warp'
+			&& timelineDurationFrames !== descriptor.durationFrames ? {
+				warpMap: { ...descriptor.warpMap, points: normalizeAudioWarpMap(descriptor.warpMap).points.map((point) => ({
+					...point,
+					outer: multiplyDivideRationals(point.outer, timelineDurationFrames, descriptor.durationFrames),
+				})) },
+			} : {}),
 		...(videoPlacement || {}),
 		fadeInFrames: Math.min(timelineDurationFrames, Math.round((descriptor.fadeInFrames || 0) * scale)),
 		fadeOutFrames: Math.min(timelineDurationFrames, Math.round((descriptor.fadeOutFrames || 0) * scale)),

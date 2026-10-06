@@ -15,6 +15,14 @@ export function useAudioTrackEnvelope({
 	const [envelopePreviewRevision, setEnvelopePreviewRevision] = useState(0);
 
 	useEffect(() => {
+		const discardEnvelopeEdit = (event) => {
+			if (event.key !== 'Escape') return;
+			queueMicrotask(() => {
+				if (!envelopePreviewRef.current.size) return;
+				envelopePreviewRef.current.clear();
+				setEnvelopePreviewRevision((revision) => revision + 1);
+			});
+		};
 		const finishEnvelopeEdit = () => queueMicrotask(() => {
 			const previews = [...envelopePreviewRef.current.values()];
 			if (!previews.length) return;
@@ -25,7 +33,11 @@ export function useAudioTrackEnvelope({
 			}
 		});
 		document.addEventListener('mouseup', finishEnvelopeEdit);
-		return () => document.removeEventListener('mouseup', finishEnvelopeEdit);
+		document.addEventListener('keydown', discardEnvelopeEdit);
+		return () => {
+			document.removeEventListener('mouseup', finishEnvelopeEdit);
+			document.removeEventListener('keydown', discardEnvelopeEdit);
+		};
 	}, [controller, run]);
 
 	useEffect(() => {

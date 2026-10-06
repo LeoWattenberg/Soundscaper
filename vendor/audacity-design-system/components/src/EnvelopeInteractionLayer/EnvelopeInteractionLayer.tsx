@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Tooltip } from '../Tooltip/Tooltip';
+import { useEnvelopeDragLifecycle } from './useEnvelopeDragLifecycle';
 
 const EMPTY_NUMBER_ARRAY: number[] = [];
 
@@ -175,7 +176,10 @@ const EnvelopeInteractionLayerComponent: React.FC<EnvelopeInteractionLayerProps>
   const [isNearEnvelope, setIsNearEnvelope] = useState(false);
   const [isHoveringPoint, setIsHoveringPoint] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-
+  const { rememberBeforeDrag, finishDrag } = useEnvelopeDragLifecycle(
+    dragStateRef, envelopePoints, onEnvelopePointsChange,
+    setLocalHiddenIndices, onHiddenPointsChange, onHoveredPointsChange, setTooltip, setIsDragging,
+  );
   // Helper function to check if mouse is near the envelope (within actual hit thresholds)
   const checkProximityToEnvelope = (mouseX: number, mouseY: number): boolean => {
     // Check proximity to existing points (10px hit area)
@@ -216,7 +220,7 @@ const EnvelopeInteractionLayerComponent: React.FC<EnvelopeInteractionLayerProps>
       return;
     }
 
-    // Stop propagation only when near envelope
+    rememberBeforeDrag();
     e.stopPropagation();
 
     // Check for existing point click
@@ -477,12 +481,7 @@ const EnvelopeInteractionLayerComponent: React.FC<EnvelopeInteractionLayerProps>
         // If dragged, segment movement already happened in mousemove
       }
 
-      setLocalHiddenIndices([]);
-      onHiddenPointsChange?.([]);
-      onHoveredPointsChange?.([]); // Clear hovered points
-      setTooltip(null); // Hide tooltip on mouse up
-      setIsDragging(false); // Reset dragging state
-      dragStateRef.current = null;
+      finishDrag();
     };
 
     document.addEventListener('mousemove', handleMouseMove);

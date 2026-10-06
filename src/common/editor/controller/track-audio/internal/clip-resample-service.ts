@@ -4,7 +4,8 @@ import { hasCoreEditingProjectAuthority } from '../../../project-schema-version.
 
 import { createAddClipCommand, createAddSourceCommand } from '../../../commands/factories.ts';
 import type { AudioEditorCommand } from '../../../commands/protocol.ts';
-import { scaleSampleFrame } from '../../../timeline-time.ts';
+import { addMultiplyDivideRationals, scaleSampleFrame, subtractRationals } from '../../../timeline-time.ts';
+import { normalizeAudioWarpMap } from '../../../audio-warp-domain.ts';
 import type { DerivedSourceService } from './derived-audio/derived-source-service.ts';
 import {
 	isCurrentAssertion,
@@ -96,6 +97,7 @@ export function resampledClipCommands(
 		replacement.frameCount - sourceStartFrame - sourceDurationFrames,
 		Math.max(0, Math.round((clip.trimEndFrames || 0) * ratio)),
 	);
+	const warpMap = clip.warpMap == null ? null : normalizeAudioWarpMap(clip.warpMap);
 	return [
 		// Removal expands group membership; detach only this clip before replacing it.
 		...(typeof clip.groupId === 'string' && clip.groupId
@@ -109,6 +111,12 @@ export function resampledClipCommands(
 			sourceDurationFrames,
 			trimStartFrames,
 			trimEndFrames,
+			...(warpMap ? { warpMap: { ...warpMap, points: warpMap.points.map((point) => ({
+				...point,
+				source: addMultiplyDivideRationals(sourceStartFrame,
+					subtractRationals(point.source, clip.sourceStartFrame),
+					sourceDurationFrames, clip.sourceDurationFrames),
+			})) } } : {}),
 		}),
 	];
 }
