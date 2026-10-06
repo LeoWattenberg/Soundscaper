@@ -31,3 +31,14 @@ test('Enter commits a label title draft in Manage labels', async ({ page }) => {
 	await title.press('Enter');
 	await expect(editor.getByRole('group', { name: 'Edit labels: Committed', exact: true })).toBeVisible();
 });
+
+test('New label in Manage labels uses the playhead when no range is selected', async ({ page }) => {
+	const editor = await bootEditor(page, '/embed/en/');
+	await importFiles(editor, [toneA]);
+	await editor.getByRole('button', { name: 'Jump to project end', exact: true }).click();
+	await expect(editor.getByRole('slider', { name: 'Playhead' })).toHaveAttribute('aria-valuenow', '38400');
+	await chooseCommandAction(page, editor, 'Edit', 'Manage labels');
+	const panel = editor.locator('[data-workspace-panel="labels"]');
+	await panel.getByRole('button', { name: 'New label', exact: true }).click();
+	await expect(panel.locator('.timecode__display').first()).toHaveText('00h00m00.800s');
+});

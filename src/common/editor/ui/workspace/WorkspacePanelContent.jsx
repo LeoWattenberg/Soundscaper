@@ -5,6 +5,7 @@ import AudioEditorMixerPanel from './AudioEditorMixerPanel.jsx';
 import ClockPanel from './ClockPanel.tsx';
 import MeterWorkspacePanel from './MeterWorkspacePanel.jsx';
 import { LabelManagerRow } from './LabelManagerRows.jsx';
+import { newLabelRange } from './new-label-range.ts';
 import ProjectBinPanel from './ProjectBinPanel.jsx';
 import SourceMonitorPanel from './SourceMonitorPanel.jsx';
 import TimelineAnnotationWorkspacePanel from './TimelineAnnotationWorkspacePanel.tsx';
@@ -210,8 +211,7 @@ export default function WorkspacePanelContent({
 						disabled={snapshot.readOnly}
 						onClick={() => run(() => controller.actions.labels.add(targetTrack?.id || null, {
 							title: publishedCopyFor(copy).newLabel || publishedCopyFor(copy).untitledLabel,
-							startFrame: snapshot.selection?.startFrame || 0,
-							endFrame: snapshot.selection?.endFrame || snapshot.selection?.startFrame || 0,
+							...newLabelRange(snapshot.selection, controller.getTelemetrySnapshot().positionFrame),
 						}))}
 					>{copy.newLabel || copy.addLabelTrack}</Button>
 				</div>
