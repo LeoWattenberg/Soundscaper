@@ -125,4 +125,43 @@ prefixes, live echoes and cancellation; all three focused numeric-field and
 existing Nyquist-dialog lifecycle tests pass. This is the Nyquist binding
 owner's defect, independent of the earlier video-effect numeric control.
 
+## R3-ROOT-007 — Nyquist preview pulls staggered clips to the same start
+
+Import two ordinary 0.8-second WAVs. Open the second clip's **Clip properties**,
+expand **Media settings**, and set **Start** to 0.4 seconds. Close Properties,
+select both clip headers, choose **Tools > Nyquist prompt**, enter the identity
+expression `*track*`, and click **Preview**.
+
+Previously both clips played from the beginning of a 0.8-second preview. Their
+authored placement calls for a 1.2-second mix, with the second clip entering
+after 0.4 seconds. The preview mixer now carries each evaluated target's offset
+relative to the selection's earliest target and retains its complete extent
+within the existing six-second preview window.
+
+Proof: `audio-editor-round3-nyquist-preview-placement.spec.js` failed on the
+immutable baseline with an observed 0.8-second playback buffer and passes on
+green build 8 in Chromium, Firefox and WebKit at 1.2 seconds. The audio observer
+only records buffers started by the actual Preview control. Two strict pulse
+regressions verify the gap, overlap, unchanged inputs, mono/stereo expansion,
+and omission of audio positioned beyond the preview window.
+
+## R3-ROOT-008 — Rhythm Track silently truncates a valid 128-second request
+
+Choose **Generate > Nyquist > Rhythm Track**, set **Tempo (bpm)** to **30**, keep
+the default **16 bars** and **4 beats per bar**, and apply. Open the generated
+clip's **Clip properties** and inspect its duration.
+
+Previously the clip contained only one minute, although the requested 64 beats
+at 30 beats per minute last 128 seconds. Generator output inherited the
+process-effect inference of 60 seconds when there was no input sound. Generator
+evaluation now uses its existing 300-second hard ceiling instead of that
+input-based inference. Explicit smaller ceilings, process inference and the
+six-second preview ceiling remain intact.
+
+Proof: the immutable baseline's public Properties readout was **00h01m00.000s**;
+the same workflow reads **00h02m08.000s** on green build 8 in Chromium, Firefox
+and WebKit. Two strict regressions cover generator inference, previews, explicit
+limits, and unchanged process inference. All 25 focused Nyquist preview,
+controller, host and ownership tests pass for these two extent fixes.
+
 These changes do not require a manual **Update AI assets** run.

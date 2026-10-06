@@ -18,6 +18,7 @@ interface NyquistFrameLimit {
 	readonly sampleRate: number;
 	readonly inputFrames: number;
 	readonly preview: boolean;
+	readonly generate?: boolean;
 	readonly requested?: unknown;
 }
 
@@ -46,7 +47,7 @@ export function nyquistAudioResultBytes(result: NyquistAudioResult | null | unde
 	return result.channels.reduce((sum, channel) => sum + (channel?.byteLength || 0), 0);
 }
 
-export function mixNyquistPreviewChannels(channelSets: Float32Array[][], maximumFrames: unknown): Float32Array[] {
+export function mixNyquistPreviewChannels(channelSets: Float32Array[][], maximumFrames: unknown, offsets: readonly number[] = []): Float32Array[] {
 	if (!Array.isArray(channelSets) || !channelSets.length) return [];
 	const frameLimit = Math.max(0, Math.round(Number(maximumFrames) || 0));
 	if (!frameLimit) return [];
@@ -54,16 +55,18 @@ export function mixNyquistPreviewChannels(channelSets: Float32Array[][], maximum
 	const channelCount = Math.max(...channelSets.map((channels) => channels.length));
 	const frameCount = Math.min(
 		frameLimit,
-		Math.max(...channelSets.map((channels) => channels[0]?.length || 0)),
+		Math.max(...channelSets.map((channels, index) => (offsets[index] ?? 0) + (channels[0]?.length || 0))),
 	);
 	if (!frameCount) return [];
 	const mixed = Array.from({ length: channelCount }, () => new Float32Array(frameCount));
-	for (const channels of channelSets) {
+	for (let index = 0; index < channelSets.length; index += 1) {
+		const channels = channelSets[index]!;
+		const offset = offsets[index] ?? 0;
 		for (let outputChannel = 0; outputChannel < channelCount; outputChannel += 1) {
 			const input = channels.length === 1 ? channels[0] : channels[outputChannel];
 			if (!input) continue;
-			const frames = Math.min(frameCount, input.length);
-			for (let frame = 0; frame < frames; frame += 1) mixed[outputChannel]![frame] += input[frame]!;
+			const frames = Math.min(frameCount - offset, input.length);
+			for (let frame = 0; frame < frames; frame += 1) mixed[outputChannel]![offset + frame] += input[frame]!;
 		}
 	}
 	return mixed;
@@ -73,10 +76,11 @@ export function nyquistMaximumOutputFrames({
 	sampleRate,
 	inputFrames,
 	preview,
+	generate = false,
 	requested,
 }: NyquistFrameLimit): number {
 	const hardMaximum = Math.max(1, Math.round(sampleRate * (preview ? 6 : 300)));
-	const inferred = preview
+	const inferred = preview || generate
 		? hardMaximum
 		: Math.max(Math.round(sampleRate * 60), Math.max(0, inputFrames) * 4);
 	const value = requested == null ? inferred : Number(requested);

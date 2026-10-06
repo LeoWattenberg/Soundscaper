@@ -287,6 +287,7 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 					sampleRate,
 					inputFrames: channels[0]?.length || 0,
 					preview,
+					generate: role === 'generate' || !runTarget,
 					requested: request.maxOutputFrames,
 				});
 				const hostTargets = availableTargets.length ? availableTargets : targets;
@@ -324,9 +325,11 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 				? result.labels.map((label: RuntimeValue) => ({ ...label, baseFrame: target?.startFrame ?? selection?.startFrame ?? 0 }))
 				: []);
 			if (preview) {
+				const previewStart = Math.min(...evaluations.map(({ target }: RuntimeValue) => target?.startFrame ?? selection?.startFrame ?? 0));
 				const previewChannels = mixNyquistPreviewChannels(
 					audio.map(({ result }: RuntimeValue) => result.channels),
 					sampleRate * 6,
+					audio.map(({ target }: RuntimeValue) => Math.max(0, (target?.startFrame ?? previewStart) - previewStart)),
 				);
 				if (previewChannels.length) await playNyquistPreview(previewChannels, sampleRate, abort.signal);
 				assertNyquistCurrent();
