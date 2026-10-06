@@ -55,8 +55,10 @@ for (const clearingValue of [undefined, null]) {
 			assert.deepEqual(restored.clips, history.present.clips);
 			const restoredClip = restored.clips[0]!;
 			const fadeFrames = edge === 'in' ? restoredClip.fadeInFrames : restoredClip.fadeOutFrames;
-			const quarterFrame = edge === 'in' ? fadeFrames / 4 : restoredClip.durationFrames - fadeFrames / 4;
-			assert.equal(evaluateClipFadeAt(quarterFrame, restoredClip.durationFrames, fadeFrames, edge, restoredClip[shapeField]), 0.25);
+			const durationFrames = restoredClip.durationFrames;
+			assert.ok(typeof fadeFrames === 'number' && typeof durationFrames === 'number');
+			const quarterFrame = edge === 'in' ? fadeFrames / 4 : durationFrames - fadeFrames / 4;
+			assert.equal(evaluateClipFadeAt(quarterFrame, durationFrames, fadeFrames, edge), 0.25);
 		});
 	}
 }
