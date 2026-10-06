@@ -16,6 +16,7 @@ interface CueImportController {
 interface PendingCueImport {
 	readonly file: File;
 	readonly projectIdentity: unknown;
+	readonly beforeImport?: () => unknown;
 	readonly resolve: (value: unknown) => void;
 	readonly reject: (reason: unknown) => void;
 }
@@ -29,14 +30,13 @@ export function useCueImportWorkspace(controller: CueImportController, projectId
 	const importInputRef = useRef<HTMLInputElement>(null);
 	const pendingRef = useRef<PendingCueImport | null>(null);
 	const [fileName, setFileName] = useState<string | null>(null);
-	// File Open may create a project before showing this choice. Its caller still
-	// holds the callback from the previous render, so it supplies the new id.
-	const requestCueImport = useCallback((file: File, expectedProjectIdentity: unknown = projectIdentity) => new Promise<unknown>((resolve, reject) => {
+	// File Open defers its new project until the destination is accepted.
+	const requestCueImport = useCallback((file: File, expectedProjectIdentity: unknown = projectIdentity, beforeImport?: () => unknown) => new Promise<unknown>((resolve, reject) => {
 		if (pendingRef.current) {
 			reject(new Error('Finish choosing a destination for the current CUE sheet first.'));
 			return;
 		}
-		pendingRef.current = { file, projectIdentity: expectedProjectIdentity, resolve, reject };
+		pendingRef.current = { file, projectIdentity: expectedProjectIdentity, beforeImport, resolve, reject };
 		setFileName(file.name);
 	}), [projectIdentity]);
 	const settle = useCallback((destination: CueImportDestination | null) => {
@@ -48,8 +48,10 @@ export function useCueImportWorkspace(controller: CueImportController, projectId
 			pending.resolve(null);
 			return;
 		}
-		Promise.resolve(controller.actions.labels.importCueFile(pending.file, destination))
-			.then(pending.resolve, pending.reject);
+		void (async () => {
+			await pending.beforeImport?.();
+			return controller.actions.labels.importCueFile(pending.file, destination);
+		})().then(pending.resolve, pending.reject);
 	}, [controller]);
 	useEffect(() => {
 		const pending = pendingRef.current;

@@ -101,7 +101,7 @@ test('File Open creates a new project before opening labels or CUE sheets', asyn
 				},
 				labels: { importFile: (input: File) => { assert.equal(input, file); calls.push('labels'); } },
 			},
-		}, file, unexpected, undefined, false, (input) => { assert.equal(input, file); calls.push('cue'); });
+		}, file, unexpected, undefined, false, async (input, prepare) => { assert.equal(input, file); await prepare(); calls.push('cue'); });
 		assert.deepEqual(calls, ['create', expected]);
 	}
 });
