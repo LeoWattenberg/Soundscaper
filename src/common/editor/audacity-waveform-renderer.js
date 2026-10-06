@@ -88,6 +88,8 @@ export function drawAudacityWaveformChannel(context, rendering, options = {}) {
 			sampleColor,
 			centerLineColor,
 			mode: rendering.mode,
+			pixelRatioX: positiveFinite(options.pixelRatioX ?? 1, 'pixelRatioX'),
+			batchSampleStems: options.batchSampleStems !== false,
 		});
 		return;
 	}
@@ -197,16 +199,28 @@ function drawIndividualSamples(context, channel, options) {
 		heights = new Float64Array(samples.length);
 		sampleHeightScratch.set(channel, heights);
 	}
+	// Chromium rasterizes scaled individual strokes differently from a compound
+	// path. Batch disjoint stems only at unit scale; retain exact pixels elsewhere.
+	const transform = typeof context.getTransform === 'function' ? context.getTransform() : null;
+	const batchStems = options.batchSampleStems && options.pixelRatioX === 1
+		&& (!transform || (transform.a === 1 && transform.b === 0 && transform.c === 0 && transform.d === 1))
+		&& pixelsPerSample > 3;
+	let strokeColor;
 	for (let index = 0; index < samples.length; index += 1) {
 		const x = firstSampleX + index * pixelsPerSample;
 		const y = heights[index] = heightAt(index);
 		const color = options.sampleColor(x);
-		context.strokeStyle = color;
-		context.beginPath();
+		if (!batchStems || color !== strokeColor) {
+			if (batchStems && index > 0) context.stroke();
+			context.strokeStyle = color;
+			strokeColor = color;
+			context.beginPath();
+		}
 		context.moveTo(x, options.centerY);
 		context.lineTo(x, y);
-		context.stroke();
+		if (!batchStems) context.stroke();
 	}
+	if (batchStems) context.stroke();
 	drawCenterLine(context, options);
 	let fillColor;
 	for (let index = 0; index < samples.length; index += 1) {

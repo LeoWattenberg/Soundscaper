@@ -36,3 +36,22 @@ void test('RMS-only painting retains the same extrema clipping and physical boun
 	assert.deepEqual(rms.fills, both.fills.filter((_, index) => index % 2 === 1));
 	assert.equal(rms.assignments, 1);
 });
+
+void test('separated sample stems share one stroke per contiguous color without changing their subpaths', () => {
+	const canvas = {
+		fillRect() {}, beginPath() {}, moveTo() {}, lineTo() {}, arc() {}, fill() {},
+		strokes: 0, stroke() { this.strokes += 1; },
+	};
+	const rendering = { mode: 'stem', pixelWidth: 4_000, pixelsPerSample: 4,
+		channels: [{ firstSampleX: 0, samples: new Float32Array(1_000).fill(0.5) }] };
+	drawAudacityWaveformChannel(canvas, rendering, { ...options, width: 4_000, centerLineColor: '#777' });
+	assert.equal(canvas.strokes, 2, 'one disjoint stem path and one center line');
+	canvas.strokes = 0;
+	drawAudacityWaveformChannel(canvas, rendering, { ...options, width: 4_000,
+		sampleColor: (x: number) => x < 2_000 ? '#000' : '#fff', centerLineColor: '#777' });
+	assert.equal(canvas.strokes, 3, 'a selected range splits the color runs');
+	canvas.strokes = 0;
+	drawAudacityWaveformChannel(canvas, rendering, { ...options, width: 4_000,
+		pixelRatioX: 0.25, centerLineColor: '#777' });
+	assert.equal(canvas.strokes, 1_001, 'overlapping physical strokes preserve individual compositing');
+});

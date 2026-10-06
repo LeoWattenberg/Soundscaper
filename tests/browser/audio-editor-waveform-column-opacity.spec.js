@@ -66,3 +66,39 @@ for (const product of ['soundscaper', 'framescaper']) test.describe(`${product} 
 		await page.screenshot({ path: testInfo.outputPath('waveform-without-gradient.png') });
 	});
 });
+
+test('batched sample stems match individual round-cap compositing at every admitted scale', async ({ page }) => {
+	const bundled = await build({
+		entryPoints: [fileURLToPath(new URL('../../src/common/editor/audacity-waveform-renderer.js', import.meta.url))],
+		bundle: true, write: false, format: 'iife', globalName: 'waveformRenderer', target: 'es2022',
+	});
+	await page.addScriptTag({ content: bundled.outputFiles[0].text });
+	const mismatches = await page.evaluate(() => {
+		const mismatches = [];
+		for (const ratio of [0.25, 0.5, 1, 1.25, 1.5, 2]) for (const width of [163, 163.5, 480, 480.25]) {
+			for (const offset of [0, 0.375]) for (const halfWave of [false, true]) for (const amplitudeScale of ['linear', 'db']) {
+				const paint = (batchSampleStems) => {
+					const canvas = document.createElement('canvas');
+					canvas.width = Math.round(width * ratio); canvas.height = Math.round(100 * ratio);
+					const context = canvas.getContext('2d');
+					context.scale(canvas.width / width, ratio);
+					context.translate(offset, offset);
+					globalThis.waveformRenderer.drawAudacityWaveformChannel(context, {
+						mode: 'stem', pixelWidth: width, pixelsPerSample: 4.05,
+						channels: [{ firstSampleX: -0.375, samples: Float32Array.from({ length: 130 }, (_, index) => Math.sin(index) * 0.8) }],
+					}, { width, centerY: 50, maxAmplitude: 40, pixelRatioX: canvas.width / width,
+						halfWave, amplitudeScale, batchSampleStems, centerLineColor: 'rgba(0,255,0,0.3)',
+						sampleColor: x => x < width / 2 ? 'rgba(30,60,90,0.4)' : 'rgba(60,90,120,0.6)',
+						envelopeGain: x => 0.2 + Math.max(0, Math.min(1, x / width)) * 0.8 });
+					return context.getImageData(0, 0, canvas.width, canvas.height).data;
+				};
+				const individual = paint(false); const batched = paint(true);
+				let changed = 0;
+				for (let index = 0; index < individual.length; index++) if (individual[index] !== batched[index]) changed++;
+				if (changed) mismatches.push({ ratio, width, offset, halfWave, amplitudeScale, changed });
+			}
+		}
+		return mismatches;
+	});
+	expect(mismatches).toEqual([]);
+});
