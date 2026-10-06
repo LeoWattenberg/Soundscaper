@@ -13,7 +13,7 @@ function fixture() {
 	const clipIds = clips.map((clip) => clip.id).reverse();
 	const track = { id: 'track', type: 'audio', clipIds };
 	const project = Object.freeze({ clips: Object.freeze(clips), tracks: Object.freeze([track]) });
-	const buffer = { length: 1000, sampleRate: 48000, numberOfChannels: 1, getChannelData: () => new Float32Array(1000) } as AudioBuffer;
+	const buffer = { length: 1000, sampleRate: 48000, numberOfChannels: 1, getChannelData: () => new Float32Array(1000) } as unknown as AudioBuffer;
 	const input = {} as AudioNode;
 	const options = { project, sources: new Map([['audio', buffer]]), trackInputs: new Map([['track', input]]), fromFrame: 491, toFrame: 501, sampleRate: 48000 };
 	return { project, track, options, geometryReads: () => geometryReads, reset: () => { geometryReads = 0; } };
@@ -33,7 +33,7 @@ test('retained schedule geometry avoids complete clip and crossfade preparation 
 
 test('mutable track membership invalidates prepared geometry and exposed crossfade ranges cannot poison later plans', () => {
 	const subject = fixture(); const first = buildClipSchedulePlans(subject.options);
-	(first[0]!.crossfadeInRanges as number[][])[0]![1] = 999;
+	(first[0]!.crossfadeInRanges as unknown as number[][])[0]![1] = 999;
 	subject.track.clipIds.push('clip-12'); subject.track.clipIds.splice(subject.track.clipIds.indexOf('clip-11'), 1);
 	const current = buildClipSchedulePlans(subject.options);
 	const fresh = buildClipSchedulePlans({ ...subject.options, project: { ...subject.project } });
