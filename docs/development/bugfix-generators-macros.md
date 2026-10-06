@@ -176,8 +176,8 @@ This is independent of ROOT-020 and also affects a single FFT window.
 
 ## ROOT-023 — Routing maps offer channels their source does not have
 
-Open **Window > Mixer routing graph**, create a route from a two-channel track
-to Master, and select that authored edge. Its channel-map list previously
+Open **Window > Mixer**, click **Routing graph**, create a route from a two-channel
+track to Master, and select that authored edge. Its channel-map list previously
 offered **Source 3** through **Source 32**; choosing one and saving failed because
 those source channels do not exist. The list now derives its choices from the
 selected endpoint's actual channel width.
