@@ -158,4 +158,17 @@ with a peak residual of 0.24747 against the ordinary effect's export. It passes
 against build 9 in all three browsers. The strict service regression verifies
 that the render contains only the selected clip.
 
+## R2-ROOT-011 — Escape saves a canceled program name and closes the palette
+
+Choose **Tools > Macros palette > New program**, edit **Program name**, and
+press Escape. Previously Escape bubbled to the palette and its resulting blur
+saved the canceled draft. The program name now handles Enter and Escape at its
+own field: Enter commits, Escape restores the saved name and keeps the palette
+open. This name input is separate from the previously fixed source-editor exit.
+
+Proof: `audio-editor-round2-program-name.spec.js` failed against build 9 because
+the palette closed. It passes against build 11 in Chromium, Firefox and WebKit,
+including a library check that the canceled name was never saved. The mounted
+strict regression covers both commit and cancel through the input handlers.
+
 These changes do not require a manual **Update AI assets** run.

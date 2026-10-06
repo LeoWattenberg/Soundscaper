@@ -34,6 +34,7 @@ export default function MacroScriptEditor({
 }) {
 	const sourceRef = useRef(null);
 	const nameFocusedRef = useRef(false);
+	const nameCancelledRef = useRef(false);
 	const [nameDraft, setNameDraft] = useState(script.name || '');
 	const [tabEscapes, setTabEscapes] = useState(false);
 	const [reviewed, setReviewed] = useState(false);
@@ -42,6 +43,10 @@ export default function MacroScriptEditor({
 	}, [script.name]);
 	const finishName = () => {
 		nameFocusedRef.current = false;
+		if (nameCancelledRef.current) {
+			nameCancelledRef.current = false;
+			return;
+		}
 		if (String(nameDraft).trim()) onChange({ ...script, name: nameDraft });
 		else setNameDraft(script.name || '');
 	};
@@ -69,11 +74,20 @@ export default function MacroScriptEditor({
 
 	return (
 		<section className="audio-editor-macro-script" data-macro-script>
-			<label className="audio-editor-field">
+			<label className="audio-editor-field" onKeyDown={(event) => {
+				if (event.key !== 'Enter' && event.key !== 'Escape') return;
+				event.preventDefault();
+				event.stopPropagation();
+				if (event.key === 'Escape') {
+					nameCancelledRef.current = true;
+					setNameDraft(script.name || '');
+				}
+				event.target.blur();
+			}}>
 				<span>{copy.programName}</span>
 				<TextInput
 					value={nameDraft}
-					onFocus={() => { nameFocusedRef.current = true; }}
+					onFocus={() => { nameFocusedRef.current = true; nameCancelledRef.current = false; }}
 					onChange={setNameDraft}
 					onBlur={finishName}
 					width="100%"
