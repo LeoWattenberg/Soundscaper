@@ -124,6 +124,24 @@ test('a frequency range keeps the edge it was not given', () => {
 	assert.deepEqual(fresh.applied[0]?.[2], { trackIds: [], frequencyRange: { minimumFrequency: 0, maximumFrequency: 4_000 } });
 });
 
+test('a frequency-only command retains the header-selected clip target', () => {
+	const harness = createHarness({
+		startFrame: 0, endFrame: 0, trackIds: ['track-a'], clipIds: ['clip-a'],
+	});
+	harness.run('SelectFrequencies', { low: 100, high: 1_000 });
+	assert.deepEqual(harness.applied[0]?.[2], {
+		trackIds: ['track-a'], clipIds: ['clip-a'],
+		frequencyRange: { minimumFrequency: 100, maximumFrequency: 1_000 },
+	});
+});
+
+test('a time-only command retains the existing spectral selection', () => {
+	const frequencyRange = { minimumFrequency: 100, maximumFrequency: 1_000 };
+	const harness = createHarness({ startFrame: 0, endFrame: 10, frequencyRange });
+	harness.run('SelectTime', { start: 1, end: 3 });
+	assert.deepEqual(harness.applied[0]?.[2], { trackIds: [], frequencyRange });
+});
+
 test('Select applies time, frequency and track parameters together', () => {
 	const harness = createHarness({ startFrame: 0, endFrame: 0, trackIds: [] });
 	harness.run('Select', { start: 1, end: 2, high: 5_000, low: 50, track: 2, trackCount: 1 });

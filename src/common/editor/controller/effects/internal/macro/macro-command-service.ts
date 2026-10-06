@@ -20,6 +20,7 @@ export interface MacroCommandSelection {
 	readonly startFrame: number;
 	readonly endFrame: number;
 	readonly trackIds?: readonly string[];
+	readonly clipIds?: readonly string[];
 	readonly frequencyRange?: Readonly<{ minimumFrequency: number; maximumFrequency: number }> | null;
 }
 
@@ -79,11 +80,13 @@ export function createMacroCommandService(runtime: MacroCommandServiceRuntime) {
 		const wantsTime = step.command === 'Select' || step.command === 'SelectTime';
 		const wantsFrequencies = step.command === 'Select' || step.command === 'SelectFrequencies';
 		const wantsTracks = step.command === 'Select' || step.command === 'SelectTracks';
+		const changesTime = wantsTime && (has(params, 'start') || has(params, 'end'));
+		const changesTracks = wantsTracks && (has(params, 'track') || has(params, 'trackCount') || has(params, 'mode'));
 
 		// Audacity leaves the selection alone entirely when a time command carries
 		// neither edge, so an unrelated Select that only names tracks does not
 		// silently collapse the range to zero.
-		const range = wantsTime && (has(params, 'start') || has(params, 'end'))
+		const range = changesTime
 			? timeRange(params, selection)
 			: { startFrame: selection.startFrame, endFrame: selection.endFrame };
 
@@ -91,10 +94,14 @@ export function createMacroCommandService(runtime: MacroCommandServiceRuntime) {
 		// time or frequency command does not touch it — and a selection written
 		// without it would drop whatever the reader or an earlier step selected.
 		const details: Record<string, unknown> = {
-			trackIds: wantsTracks && (has(params, 'track') || has(params, 'trackCount') || has(params, 'mode'))
+			trackIds: changesTracks
 				? trackIds(params, project, selection)
 				: [...(selection.trackIds ?? [])],
 		};
+		if (!changesTime && !changesTracks && selection.clipIds?.length) {
+			details.clipIds = [...selection.clipIds];
+		}
+		if (selection.frequencyRange) details.frequencyRange = selection.frequencyRange;
 		if (wantsFrequencies && (has(params, 'high') || has(params, 'low'))) {
 			details.frequencyRange = frequencyRange(params, selection);
 		}

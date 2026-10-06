@@ -200,7 +200,7 @@ export function createSelectionViewService<
 			type: 'selection/set',
 			startFrame: start,
 			endFrame: end,
-			...(Object.keys(details).length ? { ...details, clipIds: [] } : {}),
+			...(Object.keys(details).length ? { ...details, clipIds: details.clipIds ?? [] } : {}),
 			...clearedAnnotationSelectionDetails(project),
 		};
 		const next = updateSelection(command);
