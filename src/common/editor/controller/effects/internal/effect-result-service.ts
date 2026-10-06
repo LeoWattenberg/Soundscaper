@@ -150,7 +150,7 @@ export interface SelectionEffectResultRuntime<Buffer extends AudioBufferLike = A
 		copy: EffectResultCopy,
 	) => Promise<Buffer>;
 	readonly cacheSourceBuffer: (sourceId: string, buffer: Buffer) => unknown;
-	readonly commit: (command: AudioEditorCommand, options: EffectResultCommitOptions) => unknown;
+	readonly commit: (command: AudioEditorCommand, options: EffectResultCommitOptions, behavior?: Readonly<{ microfadeNewClips: boolean }>) => unknown;
 	readonly copy: EffectResultCopy;
 	readonly createStableId: (prefix: 'audacity-effect') => string;
 	readonly engine: Readonly<{
@@ -420,7 +420,7 @@ export function createSelectionEffectResultService<Buffer extends AudioBufferLik
 				...(entries.length === 1 && firstEntry.replacement
 					? { selectClipId: firstEntry.replacement.clipId }
 					: {}),
-			});
+			}, { microfadeNewClips: false });
 			return entries.map((entry) => entry.replacement);
 		} catch (error) {
 			for (const entry of entries) {

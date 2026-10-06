@@ -505,7 +505,7 @@ test('a playhead that moved after the short seek is left where it is', async () 
 	assert.deepEqual(seeks, [50_000], 'playback has moved on and is not yanked backwards');
 });
 
-test('every command records the playhead it was run from', () => {
+test('rendered audio can opt out of new microfades while recording its command playhead', () => {
 	const moments: unknown[] = [];
 	const fixture = mutationFixture({
 		playheadFrame: () => 48_000.4,
@@ -515,9 +515,9 @@ test('every command records the playhead it was run from', () => {
 		},
 	});
 
-	fixture.service.commit({ type: 'project/rename', title: 'Changed' });
+	fixture.service.commit({ type: 'project/rename', title: 'Changed' }, {}, { microfadeNewClips: false });
 
-	assert.deepEqual(moments, [{ playheadFrame: 48_000 }]);
+	assert.deepEqual(moments, [{ playheadFrame: 48_000, microfadeNewClips: false }]);
 });
 
 test('a runtime without a transport commits without a playhead', () => {

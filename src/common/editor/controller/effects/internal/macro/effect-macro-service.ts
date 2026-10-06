@@ -23,6 +23,7 @@ import {
 	type EditorTaskScope,
 } from '../../../shared/lifecycle.ts';
 import type { EffectTarget } from '../../effect-selection-service.ts';
+import type { PersistEffectResultOptions, SelectionEffectResult } from '../effect-result-service.ts';
 import { createIsolatedTrackRenderProjectV21 } from '../../../shared/isolated-track-render-project-v21.ts';
 
 const EFFECT_MACRO_TASK = 'selection-effect-macro';
@@ -50,6 +51,7 @@ export interface MaterializedMacroEffect extends Readonly<Record<string, unknown
 interface MacroTrack extends Record<string, unknown> {
 	id: string;
 	name: string;
+	clipIds: string[];
 	effects: MaterializedMacroEffect[];
 	gain: number;
 	pan: number;
@@ -103,6 +105,8 @@ export interface EffectMacroServiceRuntime<Buffer = MacroRenderBuffer> {
 	readonly memoryLimitBytes: number;
 	readonly getProject: () => MacroProject;
 	readonly audacityEffectTarget: (trackId?: string | null) => EffectTarget | null;
+	readonly audacityEffectTargets?: () => readonly EffectTarget[];
+	readonly effectSelectionDetails?: (targets: readonly EffectTarget[]) => PersistEffectResultOptions['selectionDetails'];
 	readonly editingBlocked: () => boolean;
 	readonly materializeRackEffect: (
 		effect: EffectMacroRequestEffect & Readonly<{ readonly type: string }>,
@@ -162,6 +166,9 @@ export interface EffectMacroServiceRuntime<Buffer = MacroRenderBuffer> {
 		channels: readonly Float32Array[],
 		options: Readonly<{ effectName: string; assertCurrent?: () => void }>,
 	) => Promise<unknown>;
+	readonly persistAudacityEffectResults?: (
+		results: readonly SelectionEffectResult[], type: null, options: PersistEffectResultOptions,
+	) => Promise<unknown>;
 	readonly handleError: (error: unknown) => void;
 }
 
@@ -174,26 +181,35 @@ export function createEffectMacroService<Buffer = MacroRenderBuffer>(runtime: Ef
 		if (runtime.editingBlocked()) return null;
 		const project = runtime.getProject();
 		const target = runtime.audacityEffectTarget(request.trackId);
-		if (!target) throw createLocalizedError(Error, runtime.copy, runtime.copy.macroSelectionRequired ? 'macroSelectionRequired' : 'audacitySelectionHint');
+		const targets = request.trackId || !runtime.audacityEffectTargets
+			? (target ? [target] : []) : runtime.audacityEffectTargets();
+		if (!targets.length) throw createLocalizedError(Error, runtime.copy, runtime.copy.macroSelectionRequired ? 'macroSelectionRequired' : 'audacitySelectionHint');
 		const enabledEffects = (Array.isArray(request.effects) ? request.effects : []).filter((effect) => (
 			effect?.enabled !== false && effect?.type !== 'missing'
 		));
 		if (!enabledEffects.length) {
 			throw createLocalizedError(Error, runtime.copy, runtime.copy.macroEffectsRequired ? 'macroEffectsRequired' : 'effectRackEmpty');
 		}
-		const effects = enabledEffects.map((effect) => materializeStep(effect, target.track.id));
 		const sampleRate = runtime.projectSampleRate();
-		const preRollFrames = Math.min(target.startFrame, sampleRate * 10);
-		const outputFrames = chainOutputFrames(effects, target.durationFrames);
-		const outputBytes = outputFrames * target.channelCount * Float32Array.BYTES_PER_ELEMENT;
-		const processingFrames = target.durationFrames + preRollFrames;
-		const latencyFrames = runtime.effectRackLatencyFrames(effects, sampleRate);
-		const offlineBytes = (processingFrames + latencyFrames) * 2 * Float32Array.BYTES_PER_ELEMENT;
-		const estimatedPeakBytes = Math.max(
-			offlineBytes * 2 + outputBytes * 3,
-			chainPeakBytes(effects, target, sampleRate, processingFrames),
-		);
+		const plans = targets.map((target) => {
+			const effects = enabledEffects.map((effect) => materializeStep(effect, target.track.id));
+			const preRollFrames = Math.min(target.startFrame, sampleRate * 10);
+			const outputFrames = chainOutputFrames(effects, target.durationFrames);
+			const outputBytes = outputFrames * target.channelCount * Float32Array.BYTES_PER_ELEMENT;
+			const processingFrames = target.durationFrames + preRollFrames;
+			const latencyFrames = runtime.effectRackLatencyFrames(effects, sampleRate);
+			const offlineBytes = (processingFrames + latencyFrames) * 2 * Float32Array.BYTES_PER_ELEMENT;
+			return { target, effects, preRollFrames, outputBytes, peakBytes: Math.max(
+				offlineBytes * 2 + outputBytes * 3,
+				chainPeakBytes(effects, target, sampleRate, processingFrames),
+			) };
+		});
+		const outputBytes = plans.reduce((sum, plan) => sum + plan.outputBytes, 0);
+		const estimatedPeakBytes = plans.reduce((sum, plan) => sum + plan.peakBytes, 0);
 		if (estimatedPeakBytes > runtime.memoryLimitBytes) throw runtime.audacityEffectMemoryError();
+		if (targets.length > 1 && !runtime.persistAudacityEffectResults) throw new Error('The macro result adapter cannot commit multiple targets.');
+		const selectionDetails = runtime.effectSelectionDetails?.(targets)
+			?? { trackIds: targets.map(({ track }) => track.id), clipIds: [] };
 
 		const ownership = captureOwnership(runtime, project.id);
 		activeOwnership = ownership;
@@ -204,14 +220,17 @@ export function createEffectMacroService<Buffer = MacroRenderBuffer>(runtime: Ef
 		try {
 			await runtime.preflightStorage(outputBytes, 'effect');
 			assertOwnership(runtime, ownership);
-			const channels = await runChain(effects, target, project, sampleRate, preRollFrames, ownership);
+			const results: SelectionEffectResult[] = [];
+			for (const { target, effects, preRollFrames } of plans) {
+				const channels = await runChain(effects, target, project, sampleRate, preRollFrames, ownership);
+				results.push({ target, channels });
+			}
 			const effectName = String(request.name || publishedCopyFor(runtime.copy).untitledMacro || publishedCopyFor(runtime.copy).macrosPalette).trim()
 				|| publishedCopyFor(runtime.copy).untitledMacro
 				|| publishedCopyFor(runtime.copy).macrosPalette;
-			await runtime.persistAudacityEffectResult(target, null, channels, {
-				assertCurrent: () => assertOwnership(runtime, ownership),
-				effectName,
-			});
+			const options = { assertCurrent: () => assertOwnership(runtime, ownership), effectName, selectionDetails };
+			if (results.length > 1) await runtime.persistAudacityEffectResults!(results, null, options);
+			else await runtime.persistAudacityEffectResult(results[0]!.target, null, results[0]!.channels, options);
 			assertOwnership(runtime, ownership);
 			setLocalizedStatus(runtime.setStatus, runtime.copy, (runtime.copy.macroApplied ? "macroApplied" : "audacityApplied"), undefined, 'success');
 			return true;
@@ -327,8 +346,13 @@ export function createEffectMacroService<Buffer = MacroRenderBuffer>(runtime: Ef
 			snapshot = createIsolatedTrackRenderProjectV21(snapshot as never, {
 				trackId: target.track.id,
 				effects,
+				clipIds: target.clipIds,
 			}) as unknown as MutableMacroProject;
 		} else {
+			if (target.clipIds?.length) {
+				const selected = new Set(target.clipIds);
+				snapshotTrack.clipIds = snapshotTrack.clipIds.filter((clipId) => selected.has(clipId));
+			}
 			snapshotTrack.effects = [...effects];
 			snapshotTrack.gain = 1;
 			snapshotTrack.pan = 0;

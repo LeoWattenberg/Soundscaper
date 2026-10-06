@@ -105,6 +105,7 @@ export interface RackEffectPreviewEngine {
 
 export interface RackEffectCommitOptions {
 	readonly skipPlaybackEngine?: boolean;
+	readonly microfadeNewClips?: boolean;
 }
 
 export interface RackEffectServiceRuntime {

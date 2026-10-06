@@ -82,6 +82,8 @@ export interface CommitSelection {
 
 export interface ProjectChangedOptions {
 	readonly skipPlaybackEngine?: boolean;
+	/** Rendered audio already carries its authored clip fades. */
+	readonly microfadeNewClips?: boolean;
 	/**
 	 * Where the playhead belongs for the document that just replaced the present
 	 * one, when an undo or a redo restored a position along with it.
@@ -216,7 +218,10 @@ export function createProjectMutationService<
 		assertWritable();
 		assertEditorCommandCapabilities(command, dependencies.capabilities, dependencies.productName);
 		const history = requireHistory();
-		const nextHistory = dependencies.executeEditorCommand(history, command, commandMoment());
+		const nextHistory = dependencies.executeEditorCommand(history, command, {
+			...commandMoment(),
+			...(options.microfadeNewClips === undefined ? {} : { microfadeNewClips: options.microfadeNewClips }),
+		});
 		dependencies.setHistory(nextHistory);
 		dependencies.state.history = nextHistory;
 		dependencies.setProject(nextHistory.present);

@@ -7,6 +7,7 @@ import { createEffectMacroService } from '../src/common/editor/controller/effect
 import { createEffectMacroTemplateDraft } from '../src/common/editor/effect-macro-templates.ts';
 import { EditorControllerLifetime, EditorProjectGeneration } from '../src/common/editor/controller/shared/lifecycle.ts';
 import type { EffectTarget } from '../src/common/editor/controller/effects/effect-selection-service.ts';
+import type { SelectionEffectResult } from '../src/common/editor/controller/effects/internal/effect-result-service.ts';
 import { projectGraphLatencyFramesV21 } from '../src/common/editor/engine/project-graph-v21.ts';
 import {
 	createAudioTrack,
@@ -28,6 +29,8 @@ function createHarness(options: Readonly<{
 	audacityRack?: boolean;
 	project?: Readonly<Record<string, unknown>>;
 	validateRenderSnapshot?: (project: Readonly<Record<string, unknown>>) => void;
+	multipleTargets?: boolean;
+	targetClipIds?: readonly string[];
 }> = {}) {
 	const defaultProject = {
 		id: 'project-a',
@@ -38,10 +41,12 @@ function createHarness(options: Readonly<{
 		master: { gain: 0.7, pan: 0.1, mute: true, effects: [{ id: 'master-fx', type: 'delay' }] },
 		mixer: { groups: [{ id: 'group-a' }], sends: [{ id: 'send-a' }], routes: { 'track-a': {} } },
 	};
+	if (options.multipleTargets) defaultProject.tracks.push({ ...defaultProject.tracks[0]!, id: 'track-b', name: 'Second track' });
 	let project = (options.project ?? defaultProject) as typeof defaultProject;
 	const target: EffectTarget = {
 		track: project.tracks[0], startFrame: 100, endFrame: 300, durationFrames: 200,
 		channelCount: 1, hasAudio: true,
+		...(options.targetClipIds ? { clipIds: options.targetClipIds } : {}),
 	};
 	const lifetime = new EditorControllerLifetime();
 	lifetime.markReady();
@@ -60,6 +65,7 @@ function createHarness(options: Readonly<{
 	const persistence = deferred<void>();
 	const persistenceStarted = deferred<void>();
 	const persisted: unknown[] = [];
+	const persistedBatches: Array<readonly SelectionEffectResult[]> = [];
 	const persistedProjects: string[] = [];
 	const statuses: Array<readonly [string, string | undefined]> = [];
 	const errors: unknown[] = [];
@@ -89,6 +95,8 @@ function createHarness(options: Readonly<{
 		memoryLimitBytes: options.memoryLimitBytes ?? 1_000_000,
 		getProject: () => project,
 		audacityEffectTarget: () => options.target === false ? null : target,
+		audacityEffectTargets: () => options.target === false ? [] : options.multipleTargets
+			? [target, { ...target, track: project.tracks[1]! }] : [target],
 		editingBlocked: () => Boolean(options.blocked || processing),
 		materializeRackEffect: (effect) => ({
 			id: String(effect.id), type: String(effect.type), enabled: true,
@@ -147,6 +155,7 @@ function createHarness(options: Readonly<{
 			persistenceCommits += 1;
 			persistedProjects.push(project.id);
 		},
+		persistAudacityEffectResults: async (results: readonly SelectionEffectResult[]) => { persistedBatches.push(results); },
 		handleError: (error) => { errors.push(error); },
 	});
 	return {
@@ -161,6 +170,7 @@ function createHarness(options: Readonly<{
 		get persistenceCommits() { return persistenceCommits; },
 		persistenceStarted,
 		persisted,
+		persistedBatches,
 		persistedProjects,
 		render,
 		service,
@@ -194,6 +204,32 @@ test('macro rendering neutralizes mixer state and commits one immutable result',
 	assert.equal(harness.persisted.length, 1);
 	assert.equal(harness.processing, false);
 	assert.deepEqual(harness.statuses.at(-1), ['Macro applied', 'success']);
+});
+
+test('an effect macro renders every selected track before one atomic result batch', async () => {
+	const harness = createHarness({ multipleTargets: true });
+	const pending = harness.service.runEffectMacro(REQUEST);
+	harness.render.resolve({ channels: [new Float32Array([0.25, 0.5])] });
+	assert.equal(await pending, true);
+	assert.equal(harness.snapshots.length, 2);
+	assert.equal(harness.persisted.length, 0);
+	assert.equal(harness.persistedBatches.length, 1);
+	const batch = harness.persistedBatches[0]!;
+	assert.deepEqual(batch.map(({ target }) => target.track.id), ['track-a', 'track-b']);
+	assert.deepEqual(batch.map(({ channels }) => Array.from(channels[0]!)), [[0.25, 0.5], [0.25, 0.5]]);
+});
+
+test('a realtime macro renders only the selected clip on an overlapping track', async () => {
+	const harness = createHarness({ targetClipIds: ['selected'], project: {
+		id: 'project-a', master: {}, mixer: {}, tracks: [{
+			id: 'track-a', name: 'Track', type: 'audio', clipIds: ['selected', 'overlap'], effects: [],
+		}],
+	} });
+	const pending = harness.service.runEffectMacro(REQUEST);
+	harness.render.resolve({ channels: [new Float32Array([0.25, 0.5])] });
+	assert.equal(await pending, true);
+	const snapshot = harness.snapshots[0] as { tracks: Array<{ clipIds: string[] }> };
+	assert.deepEqual(snapshot.tracks[0]!.clipIds, ['selected']);
 });
 
 test('V21 macro rendering isolates the selected track through the exact engine graph', async () => {

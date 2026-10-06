@@ -303,6 +303,8 @@ export function createEffectsComposition(dependencies: EffectsCompositionDepende
 			memoryLimitBytes: AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES,
 			getProject: requireProject,
 			audacityEffectTarget: (...args) => selection.audacityEffectTarget(...args),
+			audacityEffectTargets: selection.audacityEffectTargets,
+			effectSelectionDetails: (targets) => selection.audacityEffectSelectionDetails(dependencies.activeSelection(), targets),
 			editingBlocked: dependencies.editingBlocked,
 			materializeRackEffect: (...args) => rack.materializeRackEffect(...args),
 			projectSampleRate: dependencies.projectSampleRate,
@@ -330,6 +332,7 @@ export function createEffectsComposition(dependencies: EffectsCompositionDepende
 			audioBufferChannels,
 			matchAudacitySelectionChannels,
 			persistAudacityEffectResult,
+			persistAudacityEffectResults: (...args) => result.persistAudacityEffectResults(...args),
 			handleError: dependencies.handleError,
 		})
 		: createAbsentEffectMacroService(absentSubsystem);

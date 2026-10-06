@@ -204,3 +204,23 @@ test('cancellation drains an effect dispatch before rolling its transaction back
 	await assert.rejects(run, (error: Error) => error.name === 'AbortError');
 	assert.equal(harness.settled(), 'rollback');
 });
+
+test('concurrent authored effect calls execute in order instead of colliding with the busy guard', async () => {
+	let release!: () => void;
+	const harness = createHarness(new Promise<void>((resolve) => { release = resolve; }));
+	const run = harness.host.runMacroScript({
+		name: 'Two inversions',
+		run: async (dispatch) => {
+			await Promise.all([
+				dispatch('effect.apply', ['audacity-invert']),
+				dispatch('effect.apply', ['audacity-invert']),
+			]);
+		},
+	});
+	await new Promise<void>((resolve) => { setImmediate(resolve); });
+	assert.equal(harness.events.length, 1, 'only the first effect enters the editor while it is busy');
+	release();
+	await run;
+	assert.equal(harness.events.length, 2);
+	assert.equal(harness.settled(), 'commit');
+});

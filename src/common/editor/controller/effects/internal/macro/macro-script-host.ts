@@ -81,8 +81,12 @@ export function createMacroScriptHost(runtime: MacroScriptHostRuntime) {
 		};
 		let mutations = 0;
 		const dispatch = createDispatch(() => { mutations += 1; }, assertCurrent);
+		let dispatchTail: Promise<unknown> = Promise.resolve();
 		const trackedDispatch: MacroScriptDispatch = (method, args) => {
-			const work = dispatch(method, args);
+			// Authored Promise.all calls still share one editor and its busy state.
+			// Preserve message order, including reads of a preceding async edit.
+			const work = dispatchTail.then(() => dispatch(method, args));
+			dispatchTail = work.then(() => undefined, () => undefined);
 			pending.add(work);
 			void work.then(() => pending.delete(work), () => pending.delete(work));
 			return work;
