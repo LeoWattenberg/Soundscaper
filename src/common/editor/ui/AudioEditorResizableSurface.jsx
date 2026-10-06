@@ -1,4 +1,5 @@
 import React, { useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { retainResizableSurfaceMouseLifecycle } from './resizable-surface-mouse-lifecycle.ts';
 
 const RESIZE_STEP = 16;
 
@@ -66,17 +67,17 @@ const AudioEditorResizableSurface = React.forwardRef(function AudioEditorResizab
 			if (drag?.size) setSize(drag.size);
 			setIsResizing(false);
 		};
-		document.addEventListener('mousemove', handleMouseMove);
-		document.addEventListener('mouseup', handleMouseUp);
-		return () => {
-			document.removeEventListener('mousemove', handleMouseMove);
-			document.removeEventListener('mouseup', handleMouseUp);
+		const cancelResize = () => {
 			const drag = dragRef.current;
-			if (drag?.frame) {
-				cancelAnimationFrame(drag.frame);
-				drag.frame = 0;
-			}
+			if (!drag) return;
+			if (drag.frame) cancelAnimationFrame(drag.frame);
+			dragRef.current = null;
+			if (surfaceRef.current) Object.assign(surfaceRef.current.style, drag.initialStyle);
+			setIsResizing(false);
 		};
+		return retainResizableSurfaceMouseLifecycle(surfaceRef.current.ownerDocument, {
+			move: handleMouseMove, finish: handleMouseUp, cancel: cancelResize,
+		});
 	}, [isResizing, minHeight, minWidth]);
 
 	const renderedSize = dragRef.current?.size || size;
@@ -106,6 +107,7 @@ const AudioEditorResizableSurface = React.forwardRef(function AudioEditorResizab
 						y: event.clientY,
 						width: rect.width,
 						height: rect.height,
+						initialStyle: { width: surfaceRef.current.style.width, height: surfaceRef.current.style.height },
 						maxWidth: Math.max(minWidth, window.innerWidth - rect.left - 8),
 						maxHeight: Math.max(minHeight, window.innerHeight - rect.top - 8),
 						frame: 0,
