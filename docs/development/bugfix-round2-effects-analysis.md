@@ -46,4 +46,22 @@ and passes against build 5 in Chromium, Firefox and WebKit. Strict generator
 regressions cover exact totals at 8,000, 44,100 and 48,000 Hz and the unchanged
 per-symbol mode.
 
+## R2-ROOT-004 — A single static mixer drag creates several Undo entries
+
+Import an ordinary WAV, open the track's **Effects** rack, and drag **Master
+gain** continuously to a lower value. Press Undo once. It previously undid only
+the final pointer move rather than restoring the gain before the drag. Static
+mixer controls now preview the gesture without writing the document and commit
+one history entry on release; cancellation restores the original preview.
+Mixer strip faders and pans use the same lifecycle alongside the existing
+parameter automation router.
+
+Proof: `audio-editor-round2-mixer-undo.spec.js` reproduced the master-gain
+failure on build 3, and its master and group-bus workflows pass on build 5 in
+Chromium, Firefox and WebKit. Strict controller regressions verify one final
+edit, canceled preview restoration, and no edit when returning to the original
+value. Existing mixer keyboard workflows pass. The extracted master control
+shares the effect-dialog shell's semantic chunk owner; the ownership test and
+ordinary Export audio opening guard its lazy loading.
+
 These changes do not require a manual **Update AI assets** run.

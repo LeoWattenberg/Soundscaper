@@ -9,6 +9,7 @@ import {
 	createRecordingPreferenceActionFacade,
 } from '../recording/recording-action-facade.ts';
 import { createClipSpreadsheetAction } from './internal/clip-spreadsheet-action.ts';
+import { createMixerParameterActions } from './internal/mixer-parameter-actions.ts';
 import { createProjectOwnedFeatureActionFacades } from './internal/project-owned-feature-action-facades.ts';
 import { createTimelineAnnotationActionFacade } from '../document/timeline-annotation-action-facade.ts';
 import { createVideoActionGroup } from '../clip-video/video-action-group.ts';
@@ -350,6 +351,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 			remove: (trackId: string | null) => commit({ type: 'track/remove', trackId }),
 		}),
 		mixer: Object.freeze({
+			...createMixerParameterActions(scope),
 			addBus: (busType: AudioEditorCommandPayloads['mixer/bus-add']['busType'], options: Readonly<Record<string, unknown>> = {}) => {
 				const id = options.id || createStableId(`${busType}-bus`);
 				commit({ type: 'mixer/bus-add', busType, bus: { ...options, id } });

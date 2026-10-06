@@ -14,7 +14,7 @@ import LazyEffectParameterEditor from './LazyEffectParameterEditor.jsx';
 import EffectPicker from './EffectPicker.jsx';
 import { createAudacityRealtimeEffectShortcutHandler } from './audacity-realtime-effect-shortcut.ts';
 import { nativeRackEffectCommit, supportsLiveRackEffectGesture } from './live-rack-effect-gesture.ts';
-import { SteppedSlider } from './inspector-controls.jsx';
+import MasterGainControl from './MasterGainControl.tsx';
 import {
 	effectHasEditableSettings,
 	effectPresetChoices,
@@ -22,17 +22,10 @@ import {
 	samePresetParams,
 	safeEffectLabel,
 } from './effect-helpers.ts';
-import { downloadTextFile, formatDb, linearToDb, macroFileName } from './inspector-helpers.ts';
+import { downloadTextFile, macroFileName } from './inspector-helpers.ts';
 import { useTrackAutomationRuntime } from '../soundscaper-workflow-product-runtime.tsx';
 const EMPTY_EFFECTS = Object.freeze([]);
 // The master fader spans silence to the +12 dB ceiling the master gain accepts.
-const MASTER_GAIN_MIN_DB = -60;
-const MASTER_GAIN_MAX_DB = 12;
-
-function masterGainFromDb(db) {
-	return db <= MASTER_GAIN_MIN_DB ? 0 : 10 ** (db / 20);
-}
-
 export function AudioEditorEffectsOverlay({
 	isOpen,
 	controller,
@@ -67,10 +60,6 @@ export function AudioEditorEffectsOverlay({
 	const targetId = scope === 'master' ? null : channel?.id || null;
 	const masterEffects = project?.master?.effects || EMPTY_EFFECTS;
 	const blocked = !snapshot.ready || !project || selectAudioEditorEditBlock(snapshot).blocked;
-	// Snap to the fader's own step so the range input and its readout never
-	// disagree after a gain set elsewhere round-trips through the linear value.
-	const masterGainDb = project ? Math.round(linearToDb(project.master.gain) * 10) / 10 : 0;
-	const masterGainText = masterGainDb <= MASTER_GAIN_MIN_DB ? '−∞ dB' : formatDb(masterGainDb, 'dB');
 	const [picker, setPicker] = useState(null);
 	const [internalSelectedEffect, setInternalSelectedEffect] = useState(null);
 	const selectedEffect = controlledSelectedEffect === undefined
@@ -383,20 +372,9 @@ export function AudioEditorEffectsOverlay({
 							<p className="audio-editor-panel-hint" data-effect-empty>{copy.effectRackEmpty}</p>
 						)}
 						{message && <p className="audio-editor-field-error" role="alert">{message}</p>}
-						<div className="audio-editor-master-gain" data-master-gain>
-							<span>{copy.masterGain}</span>
-							<SteppedSlider
-								value={masterGainDb} defaultValue={0}
-								min={MASTER_GAIN_MIN_DB}
-								max={MASTER_GAIN_MAX_DB}
-								step={0.1}
-								ariaLabel={copy.masterGain}
-								valueText={masterGainText}
-								disabled={blocked || !project}
-								onChange={(db) => controller.actions.effects.setMasterGain(masterGainFromDb(db))}
-							/>
-							<output data-master-gain-value>{masterGainText}</output>
-						</div>
+						<MasterGainControl actions={controller.actions.mixer} projectId={projectIdentity}
+							gain={project?.master?.gain ?? 1} label={copy.masterGain} disabled={blocked || !project}
+							onError={(error) => setMessage(error instanceof Error ? error.message : String(error))} />
 					</div>
 				)}
 				<ContextMenu

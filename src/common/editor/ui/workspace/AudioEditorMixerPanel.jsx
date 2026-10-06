@@ -18,6 +18,7 @@ import {
 } from './mixer-panel-model.ts';
 import { MixerTelemetryMeters } from './MixerTelemetryMeters.tsx';
 import { mixerEffectReplacement } from './mixer-effect-replacement.ts';
+import { useMixerParameterGestures } from '../useMixerParameterGestures.ts';
 import {
 	createParameterAutomationControlRouterV21,
 	resolveSoundscaperRoutingGraphCopy,
@@ -31,6 +32,8 @@ const SoundscaperRoutingGraphView = SOUNDSCAPER_BUILD
 
 export default function AudioEditorMixerPanel({ controller, snapshot, copy, run, showArmControls, displayAudioSupported, onOpenEffects, productId = snapshot.productId, capabilities = snapshot.capabilities, onRoutingGraphGesture = /** @type {import('./soundscaper-routing-graph-gesture.ts').SoundscaperRoutingGraphGestureHandler | undefined} */ (undefined), onRoutingParameterGesture = /** @type {import('./soundscaper-routing-graph-gesture.ts').SoundscaperRoutingParameterGestureHandler | undefined} */ (undefined), automationRuntime: automationRuntimeProp }) {
 	const project = snapshot.project;
+	const staticGestures = useMixerParameterGestures(controller.actions.mixer, project?.id ?? null,
+		(error) => run(() => { throw error; }));
 	const inheritedAutomationRuntime = useTrackAutomationRuntime();
 	const automationRuntime = automationRuntimeProp ?? inheritedAutomationRuntime;
 	const automationRouterRef = useRef(null);
@@ -119,12 +122,14 @@ export default function AudioEditorMixerPanel({ controller, snapshot, copy, run,
 			if (isMaster) return controller.actions.mixer.updateMaster(changes);
 			return controller.actions.mixer.updateBus(type, targetId, changes);
 		};
-		const stripAddress = (parameterId) => isTrack ? {
-			kind: 'strip', strip: { kind: 'track', id: targetId }, parameterId,
-		} : null;
+		const stripAddress = (parameterId) => ({
+			kind: 'strip', strip: isMaster ? { kind: 'master' }
+				: { kind: isTrack ? 'track' : 'mixer-node', id: targetId }, parameterId,
+		});
 		const updateContinuous = (address, value, changes) => {
 			if (address && (automationRouter.preview(address, value)
 				|| automationRouter.captureAvailable(address))) return;
+			if (address && staticGestures.preview(address, value)) return;
 			run(() => busUpdate(changes));
 		};
 		const updateAtomic = (address, value, changes) => {
@@ -136,8 +141,8 @@ export default function AudioEditorMixerPanel({ controller, snapshot, copy, run,
 			trackName: isMaster ? copy.master : channel.name,
 			trackColor: mixerChannelColor(channel.color, type),
 			variant: 'stereo',
-			volume: linearMixerGainToDb(channel.gain),
-			pan: Math.round((channel.pan || 0) * 100),
+			volume: linearMixerGainToDb(staticGestures.value(stripAddress('gain'), channel.gain ?? 1)),
+			pan: Math.round(staticGestures.value(stripAddress('pan'), channel.pan || 0) * 100),
 			muted: Boolean(channel.mute),
 			soloed: Boolean(channel.solo),
 			meterContent: <MixerTelemetryMeters controller={controller} scope={type} targetId={targetId} />,
@@ -154,21 +159,21 @@ export default function AudioEditorMixerPanel({ controller, snapshot, copy, run,
 				stripAddress('mute'), channel.mute ? 0 : 1, { mute: !channel.mute },
 			),
 			onSoloToggle: () => run(() => update({ solo: !channel.solo })),
+			onVolumeGestureStart: (value) => automationRouter.begin(
+					stripAddress('gain'), mixerDbToLinearGain(value),
+				) || staticGestures.begin(stripAddress('gain')),
+			onVolumeGestureEnd: (value) => automationRouter.release(
+					stripAddress('gain'), mixerDbToLinearGain(value),
+				) || staticGestures.release(stripAddress('gain'), mixerDbToLinearGain(value)),
+			onVolumeGestureCancel: () => automationRouter.cancel(stripAddress('gain')) || staticGestures.cancel(stripAddress('gain')),
+			onPanGestureStart: (value) => automationRouter.begin(
+					stripAddress('pan'), Math.max(-1, Math.min(1, Number(value) / 100)),
+				) || staticGestures.begin(stripAddress('pan')),
+			onPanGestureEnd: (value) => automationRouter.release(
+					stripAddress('pan'), Math.max(-1, Math.min(1, Number(value) / 100)),
+				) || staticGestures.release(stripAddress('pan'), Math.max(-1, Math.min(1, Number(value) / 100))),
+			onPanGestureCancel: () => automationRouter.cancel(stripAddress('pan')) || staticGestures.cancel(stripAddress('pan')),
 			...(isTrack ? {
-				onVolumeGestureStart: (value) => automationRouter.begin(
-					stripAddress('gain'), mixerDbToLinearGain(value),
-				),
-				onVolumeGestureEnd: (value) => automationRouter.release(
-					stripAddress('gain'), mixerDbToLinearGain(value),
-				),
-				onVolumeGestureCancel: () => automationRouter.cancel(stripAddress('gain')),
-				onPanGestureStart: (value) => automationRouter.begin(
-					stripAddress('pan'), Math.max(-1, Math.min(1, Number(value) / 100)),
-				),
-				onPanGestureEnd: (value) => automationRouter.release(
-					stripAddress('pan'), Math.max(-1, Math.min(1, Number(value) / 100)),
-				),
-				onPanGestureCancel: () => automationRouter.cancel(stripAddress('pan')),
 				onAddEffect: () => onOpenEffects(targetId, null, scope),
 				...(sends.length ? {
 					effectFooter: <MixerSendControls
