@@ -8,10 +8,11 @@ import { test } from './audio-editor-test-fixtures.js';
 test.use({ browserCoverage: false });
 const ROOT = '/__direct-dry-track-pcm__';
 
-test('neutral stereo PCM preserves the real engine source scheduling at frame boundaries', async ({ page }) => {
+async function routeParityModules(page) {
 	const bundle = await build({
 		stdin: {
 			contents: `export { renderSimpleDryTrackPcm } from './src/common/editor/controller/effects/internal/direct-dry-track-pcm.ts';
+export { createEffectAudioService } from './src/common/editor/controller/effects/internal/effect-audio-service.ts';
 export { createAudioEditorEngine } from './src/common/editor/engine/runtime-class.ts';
 export { createSoundscaperProject } from './src/soundscaper/editor-project.ts';
 export { createAudioClip, createAudioTrack, createAudioSource } from './src/common/editor/project-media-factory.ts';`,
@@ -34,6 +35,10 @@ export { createAudioClip, createAudioTrack, createAudioSource } from './src/comm
 			body: html ? '<!doctype html><title>Direct dry PCM parity</title>' : bundle.outputFiles[0].text });
 	});
 	await page.goto(`${ROOT}/index.html`);
+}
+
+test('neutral stereo PCM preserves the real engine source scheduling at frame boundaries', async ({ page }) => {
+	await routeParityModules(page);
 	const result = await page.evaluate(async (root) => {
 		const { createAudioEditorEngine, createSoundscaperProject, createAudioSource, createAudioTrack,
 			createAudioClip, renderSimpleDryTrackPcm } = await import(`${root}/entry.js`);
@@ -43,7 +48,7 @@ export { createAudioClip, createAudioTrack, createAudioSource } from './src/comm
 			for (let channel = 0; channel < 2; channel += 1) {
 				const input = buffer.getChannelData(channel);
 				for (let frame = 0; frame < input.length; frame += 1) input[frame] = Math.sin(frame * 0.17 + channel) * 0.3;
-				input.set([-0, 1e-40, -1e-40, 1.1754943508222875e-38], 201);
+				input.set([0, 2 ** -126, -(2 ** -126)], 201);
 			}
 			for (const [clipStart, sourceStart, start, end] of [[101, 17, 89, 2_900], [1_337, 1_101, 1_501, 2_801], [129, 131, 129, 2_830]]) {
 				const project = createSoundscaperProject({ sampleRate, masterChannels: 2,
@@ -120,5 +125,65 @@ export { createAudioClip, createAudioTrack, createAudioSource } from './src/comm
 			expect(comparison.maximumError, JSON.stringify(comparison)).toBeLessThanOrEqual(1e-7);
 			expect(comparison.offset).toBe(comparison.length);
 		} else expect(comparison.different, JSON.stringify(comparison)).toBe(0);
+	}
+});
+
+test('signed-zero and subnormal PCM use the owning dry-render native fallback with exact engine parity', async ({ page }) => {
+	await routeParityModules(page);
+	const results = await page.evaluate(async (root) => {
+		const { createEffectAudioService, createAudioEditorEngine, createSoundscaperProject,
+			createAudioSource, createAudioTrack, createAudioClip, renderSimpleDryTrackPcm } = await import(`${root}/entry.js`);
+		const comparisons = [];
+		for (const sampleRate of [8_000, 44_100, 48_000, 96_000]) {
+		for (const [name, sample] of [['negative zero', -0], ['positive subnormal', 1e-40], ['negative subnormal', -1e-40]]) {
+			const buffer = new AudioBuffer({ length: 4_003, numberOfChannels: 2, sampleRate });
+			for (let channel = 0; channel < 2; channel += 1) {
+				const input = buffer.getChannelData(channel);
+				for (let frame = 0; frame < input.length; frame += 1) input[frame] = Math.sin(frame * 0.17 + channel) * 0.3;
+				input[201] = sample;
+			}
+			const project = createSoundscaperProject({ sampleRate, masterChannels: 2,
+				sources: [createAudioSource({ id: 'source', sampleRate, channelCount: 2, frameCount: buffer.length })],
+				tracks: [createAudioTrack({ id: 'track', clipIds: ['clip'] }, sampleRate)],
+				clips: [createAudioClip({ id: 'clip', sourceId: 'source', timelineStartFrame: 101,
+					sourceStartFrame: 17, durationFrames: 2_701 })],
+			});
+			const sources = new Map([['source', buffer]]);
+			const rejected = await renderSimpleDryTrackPcm(project, sources, 'track', 89, 2_900, 2) === null;
+			let snapshots = 0;
+			const renderSnapshot = async (snapshot, options, sourceBuffers, signal) => {
+				const engine = createAudioEditorEngine();
+				try {
+					engine.loadProject(snapshot, sourceBuffers);
+					return await engine.renderMix({ ...options, signal });
+				} finally { await engine.dispose(); }
+			};
+			const expected = await renderSnapshot(project, { startFrame: 89, endFrame: 2_900,
+				outputFrames: 2_811, trackId: 'track', includeMaster: false, includeTrackPan: false, respectMuteSolo: false }, sources);
+			const service = createEffectAudioService({
+				state: { selectedClipId: 'clip' }, copy: {}, getProject: () => project,
+				captureProject: () => project, assertProject: (token) => { if (token !== project) throw new Error('Project changed'); },
+				sourceBuffers: sources, cloneProject: (value) => structuredClone(value),
+				renderSnapshot: async (...args) => { snapshots += 1; return await renderSnapshot(...args); },
+				audioBufferChannels: (audio) => [audio.getChannelData(0).slice(), audio.getChannelData(1).slice()],
+				matchAudacitySelectionChannels: (channels) => channels,
+			});
+			const actual = await service.renderDryTrackRange('track', 89, 2_900, 2);
+			let different = 0;
+			for (let channel = 0; channel < 2; channel += 1) {
+				const actualWords = new Uint32Array(actual[channel].buffer);
+				const expectedWords = new Uint32Array(expected.getChannelData(channel).buffer);
+				for (let frame = 0; frame < actualWords.length; frame += 1) if (actualWords[frame] !== expectedWords[frame]) different += 1;
+			}
+			comparisons.push({ name, sampleRate, rejected, snapshots, different });
+		}
+		}
+		return comparisons;
+	}, ROOT);
+	expect(results).toHaveLength(12);
+	for (const result of results) {
+		expect(result.rejected, JSON.stringify(result)).toBe(true);
+		expect(result.snapshots, JSON.stringify(result)).toBe(1);
+		expect(result.different, JSON.stringify(result)).toBe(0);
 	}
 });

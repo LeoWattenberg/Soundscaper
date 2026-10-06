@@ -66,9 +66,10 @@ export async function renderSimpleDryTrackPcm(project: EffectAudioProject, sourc
 			const target = output[channel]!;
 			for (let index = 0; index < frames; index += 1) {
 				const sample = input[offset + frame + index]!;
-				if (!Number.isFinite(sample)) return null;
-				// A unity WebAudio graph sums into zero and flushes Float32 subnormals.
-				target[destination + frame + index] = sample < 2 ** -126 && sample > -(2 ** -126) ? 0 : sample;
+				// Native graphs differ in signed-zero and subnormal handling across engines.
+				if (!Number.isFinite(sample) || (sample === 0 ? Object.is(sample, -0)
+					: sample < 2 ** -126 && sample > -(2 ** -126))) return null;
+				target[destination + frame + index] = sample;
 			}
 			if (performance.now() - lastYield >= 4) {
 				await new Promise<void>((resolve) => setTimeout(resolve, 0));

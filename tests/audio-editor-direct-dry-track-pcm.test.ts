@@ -34,15 +34,23 @@ test('the admitted direct path copies exact source frames, silence and independe
 	assert.notEqual(channels[0][17], output[0][12]);
 });
 
-test('unity WebAudio rendering flushes signed zero and subnormal samples, and nonfinite PCM uses the engine', async () => {
+test('positive zero and both minimum-normal signs remain directly admitted without changing sample bits', async () => {
 	const { project, sources, channels } = fixture();
-	channels[0].set([-0, 1e-40, -1e-40, 2 ** -126], 17);
+	channels[0].set([0, 2 ** -126, -(2 ** -126)], 17);
 	const output = await renderSimpleDryTrackPcm(project, sources, 'track', 101, 1_602, 2);
 	assert.ok(output);
-	assert.deepEqual(output[0].subarray(0, 4), new Float32Array([0, 0, 0, 2 ** -126]));
-	for (const value of [NaN, Infinity, -Infinity]) {
+	assert.deepEqual(new Uint32Array(output[0].buffer).subarray(0, 3),
+		new Uint32Array(channels[0].buffer).subarray(17, 20));
+});
+
+test('signed zero, subnormal and nonfinite PCM fall back through the owning dry-render service', async () => {
+	for (const value of [-0, 1e-40, -1e-40, NaN, Infinity, -Infinity]) {
+		const { project, sources, channels } = fixture();
 		channels[0][17] = value;
 		assert.equal(await renderSimpleDryTrackPcm(project, sources, 'track', 101, 1_602, 2), null);
+		const harness = createHarness({ project, sourceBuffers: sources });
+		await harness.service.renderDryTrackRange('track', 101, 1_602, 2);
+		assert.equal(harness.snapshots.length, 1);
 	}
 });
 
