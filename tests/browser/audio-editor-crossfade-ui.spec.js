@@ -1,7 +1,7 @@
 import { expect, test, toneA, toneB } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor, clipByName, clipField, closeClipProperties, collectClientErrors,
-	importFiles, openClipProperties, registerAudioEditorHooks,
+	importFiles, openClipProperties, registerAudioEditorHooks, waitForEditor,
 } from './audio-editor-test-helpers.js';
 
 async function overlapStereoClips(page) {
@@ -41,8 +41,82 @@ async function curveMidpointGains(region) {
 	}));
 }
 
+async function expectCrossfadeShapes(page, editor, outgoing, incoming, value) {
+	for (const [clip, field] of [[outgoing, 'fadeOutShape'], [incoming, 'fadeInShape']]) {
+		const properties = await openClipProperties(page, editor, clip);
+		await properties.getByText('Fading', { exact: true }).click();
+		await expect(properties.locator(`[data-clip-field="${field}"]`).getByRole('slider')).toHaveValue(value);
+		await closeClipProperties(properties);
+	}
+}
+
 test.describe('design-system audio crossfade visuals', () => {
 	registerAudioEditorHooks();
+
+	test('crossfade shape context menus apply constant power or volume to both edges in one undo', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const { editor, outgoing, incoming, track } = await overlapStereoClips(page);
+		const region = track.locator('[data-automatic-crossfade="true"]');
+		const handle = track.getByRole('slider', { name: /^Automatic crossfade between .+ and .+$/u });
+		const menu = page.getByRole('menu').filter({
+			has: page.getByRole('menuitemradio', { name: 'Constant volume', exact: true }),
+		});
+		await handle.click({ button: 'right' });
+		await expect(menu).toBeVisible();
+		await expect(menu.getByRole('menuitemradio', { name: 'Constant power', exact: true })).toHaveAttribute('aria-checked', 'true');
+		await expect(menu.getByRole('menuitemradio', { name: 'Constant volume', exact: true })).toHaveAttribute('aria-checked', 'false');
+		await expect(menu.getByRole('menuitemradio', { name: 'Linear', exact: true })).toHaveCount(0);
+		await expect(page.getByRole('menuitem', { name: 'Clip properties', exact: true })).toHaveCount(0);
+		await menu.getByRole('menuitemradio', { name: 'Constant volume', exact: true }).click();
+		await expect(menu).toHaveCount(0);
+		for (const gain of await curveMidpointGains(region)) expect(gain).toBeCloseTo(0.5, 2);
+		await expectCrossfadeShapes(page, editor, outgoing, incoming, '2');
+		await handle.click({ button: 'right' });
+		await expect(menu.getByRole('menuitemradio', { name: 'Constant volume', exact: true })).toHaveAttribute('aria-checked', 'true');
+		await menu.getByRole('menuitemradio', { name: 'Constant volume', exact: true }).click();
+		await editor.getByRole('button', { name: 'Undo', exact: true }).click();
+		for (const gain of await curveMidpointGains(region)) expect(gain).toBeCloseTo(Math.SQRT1_2, 2);
+		await expectCrossfadeShapes(page, editor, outgoing, incoming, '1');
+		await editor.getByRole('button', { name: 'Redo', exact: true }).click();
+		await expectCrossfadeShapes(page, editor, outgoing, incoming, '2');
+		expect(errors).toEqual([]);
+	});
+
+	test('crossfade shape presets persist and support keyboard access with focus restoration', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const { editor, track } = await overlapStereoClips(page);
+		const handle = track.getByRole('slider', { name: /^Automatic crossfade between .+ and .+$/u });
+		const menu = page.getByRole('menu').filter({
+			has: page.getByRole('menuitemradio', { name: 'Constant volume', exact: true }),
+		});
+		await handle.click({ button: 'right' });
+		await menu.getByRole('menuitemradio', { name: 'Constant volume', exact: true }).click();
+		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved');
+		await page.reload();
+		const restored = await waitForEditor(page);
+		const restoredOutgoing = clipByName(restored, toneA.name);
+		const restoredIncoming = clipByName(restored, toneB.name);
+		const restoredTrack = restoredOutgoing.locator('xpath=ancestor::*[@data-track-row][1]');
+		const restoredRegion = restoredTrack.locator('[data-automatic-crossfade="true"]');
+		const restoredHandle = restoredTrack.getByRole('slider', { name: /^Automatic crossfade between .+ and .+$/u });
+		for (const gain of await curveMidpointGains(restoredRegion)) expect(gain).toBeCloseTo(0.5, 2);
+		await expectCrossfadeShapes(page, restored, restoredOutgoing, restoredIncoming, '2');
+		await restoredHandle.focus();
+		await restoredHandle.press('Shift+F10');
+		await expect(menu).toBeVisible();
+		await expect(menu.getByRole('menuitemradio', { name: 'Constant volume', exact: true })).toHaveAttribute('aria-checked', 'true');
+		await expect(menu.getByRole('menuitemradio').first()).toBeFocused();
+		await page.keyboard.press('Escape');
+		await expect(menu).toHaveCount(0);
+		await expect(restoredHandle).toBeFocused();
+		await restoredHandle.press('Shift+F10');
+		await menu.getByRole('menuitemradio', { name: 'Constant power', exact: true }).press('Enter');
+		await expect(menu).toHaveCount(0);
+		await expect(restoredHandle).toBeFocused();
+		for (const gain of await curveMidpointGains(restoredRegion)) expect(gain).toBeCloseTo(Math.SQRT1_2, 2);
+		await expectCrossfadeShapes(page, restored, restoredOutgoing, restoredIncoming, '1');
+		expect(errors).toEqual([]);
+	});
 
 	test('draws the design-system equal-power crossover and edits it from the shared handle', async ({ page }) => {
 		const errors = collectClientErrors(page);

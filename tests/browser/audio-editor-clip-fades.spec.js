@@ -276,6 +276,99 @@ test.describe('non-destructive clip fade handles', () => {
 		await expect(clip.getByRole('slider', { name: 'Fade out shape', exact: true })).toHaveAttribute('aria-valuenow', '0.15');
 	});
 
+	test('shape handle context menus apply end fade presets, undo once and save both edges', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA]);
+		let clip = clipByName(editor, toneA.name);
+		await selectClip(clip);
+		const fadeIn = clip.getByRole('slider', { name: 'Fade in', exact: true });
+		await fadeIn.press('End');
+		let shape = clip.getByRole('slider', { name: 'Fade in shape', exact: true });
+		const curve = clip.locator('path[data-fade-curve="in"]');
+		const originalCurve = await curve.getAttribute('d');
+		const menu = page.getByRole('menu').filter({
+			has: page.getByRole('menuitemradio', { name: 'Linear', exact: true }),
+		});
+		await shape.click({ button: 'right' });
+		await expect(menu).toBeVisible();
+		for (const name of ['Linear', 'Logarithmic', 'Exponential', 'S-curve', 'Constant power']) {
+			await expect(menu.getByRole('menuitemradio', { name, exact: true })).toBeVisible();
+		}
+		await expect(page.getByRole('menuitem', { name: 'Clip properties', exact: true })).toHaveCount(0);
+		await expect(menu.getByRole('menuitemradio', { name: 'Constant volume', exact: true })).toHaveCount(0);
+		await menu.getByRole('menuitemradio', { name: 'Logarithmic', exact: true }).click();
+		await expect(menu).toHaveCount(0);
+		await expect(shape).toHaveAttribute('aria-valuenow', '0.5');
+		await expect(curve).not.toHaveAttribute('d', originalCurve);
+		await expect(fadeIn).toHaveAttribute('aria-valuenow', '0.8');
+		await shape.click({ button: 'right' });
+		await expect(menu.getByRole('menuitemradio', { name: 'Logarithmic', exact: true })).toHaveAttribute('aria-checked', 'true');
+		await menu.getByRole('menuitemradio', { name: 'Logarithmic', exact: true }).click();
+		await editor.getByRole('button', { name: 'Undo', exact: true }).click();
+		await expect(shape).toHaveAttribute('aria-valuenow', '1');
+		await expect(curve).toHaveAttribute('d', originalCurve);
+		await editor.getByRole('button', { name: 'Redo', exact: true }).click();
+		await expect(shape).toHaveAttribute('aria-valuenow', '0.5');
+		for (const [name, value] of [['Exponential', '3'], ['S-curve', '2'], ['Constant power', '1'], ['Linear', '2']]) {
+			const previousCurve = await curve.getAttribute('d');
+			await shape.click({ button: 'right' });
+			await menu.getByRole('menuitemradio', { name, exact: true }).click();
+			await expect(shape).toHaveAttribute('aria-valuenow', value);
+			await expect(curve).not.toHaveAttribute('d', previousCurve);
+			await shape.click({ button: 'right' });
+			await expect(menu.getByRole('menuitemradio', { name, exact: true })).toHaveAttribute('aria-checked', 'true');
+			await page.keyboard.press('Escape');
+		}
+		const linearCurve = await curve.getAttribute('d');
+		const fadeOut = clip.getByRole('slider', { name: 'Fade out', exact: true });
+		await fadeOut.press('End');
+		const outgoingShape = clip.getByRole('slider', { name: 'Fade out shape', exact: true });
+		await outgoingShape.click({ button: 'right' });
+		await menu.getByRole('menuitemradio', { name: 'Exponential', exact: true }).click();
+		await expect(outgoingShape).toHaveAttribute('aria-valuenow', '3');
+		await expect(shape).toHaveAttribute('aria-valuenow', '2');
+		await expect(curve).toHaveAttribute('d', linearCurve);
+		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved');
+		await page.reload();
+		const restored = await waitForEditor(page);
+		clip = clipByName(restored, toneA.name);
+		await selectClip(clip);
+		shape = clip.getByRole('slider', { name: 'Fade in shape', exact: true });
+		await expect(shape).toHaveAttribute('aria-valuenow', '2');
+		await expect(clip.getByRole('slider', { name: 'Fade out shape', exact: true })).toHaveAttribute('aria-valuenow', '3');
+		await shape.click({ button: 'right' });
+		await expect(menu.getByRole('menuitemradio', { name: 'Linear', exact: true })).toHaveAttribute('aria-checked', 'true');
+		await expect(menu.getByRole('menuitemradio', { name: 'Constant power', exact: true })).toHaveAttribute('aria-checked', 'false');
+		await page.keyboard.press('Escape');
+		expect(errors).toEqual([]);
+	});
+
+	test('end fade shape preset menus support keyboard access and restore focus on Escape', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA]);
+		const clip = clipByName(editor, toneA.name);
+		await selectClip(clip);
+		await clip.getByRole('slider', { name: 'Fade in', exact: true }).press('End');
+		const shape = clip.getByRole('slider', { name: 'Fade in shape', exact: true });
+		const menu = page.getByRole('menu').filter({
+			has: page.getByRole('menuitemradio', { name: 'Linear', exact: true }),
+		});
+		await shape.focus();
+		await shape.press('Shift+F10');
+		await expect(menu).toBeVisible();
+		await expect(menu.getByRole('menuitemradio').first()).toBeFocused();
+		await page.keyboard.press('Escape');
+		await expect(menu).toHaveCount(0);
+		await expect(shape).toBeFocused();
+		await expect(shape).toHaveAttribute('aria-valuenow', '1');
+		await shape.press('Shift+F10');
+		await menu.getByRole('menuitemradio', { name: 'Exponential', exact: true }).press('Enter');
+		await expect(menu).toHaveCount(0);
+		await expect(shape).toBeFocused();
+		await expect(shape).toHaveAttribute('aria-valuenow', '3');
+	});
+
 	test('both shape dots remain draggable when the two authored fades overlap', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [toneA]);

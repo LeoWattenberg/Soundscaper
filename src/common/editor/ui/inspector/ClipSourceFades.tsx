@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { useEffect, useMemo, useState, type RefObject } from 'react';
 import { ClipFadeOverlays } from '../timeline/ClipFadeOverlays.tsx';
+import type { ClipFadeChanges } from '../timeline/ClipFadeOverlays.tsx';
 import type { FadeClip } from '../timeline/clip-fade-geometry.ts';
 
 interface Props {
@@ -12,7 +13,7 @@ interface Props {
 	readonly sampleRate: number;
 	readonly blocked: boolean;
 	readonly copy: Readonly<Record<string, string>>;
-	readonly onChange: (id: string, changes: Readonly<Record<string, number>>) => void;
+	readonly onChange: (id: string, changes: ClipFadeChanges) => void;
 }
 const NO_CROSSFADES: ReadonlySet<string> = new Set();
 
@@ -30,6 +31,6 @@ export default function ClipSourceFades({ rootRef, clip, startFrame, endFrame, w
 		{mounted && <ClipFadeOverlays rootRef={rootRef} clips={clips} selectedIds={selectedIds} startFrame={startFrame} endFrame={endFrame}
 			pixelsPerSecond={width * sampleRate / (endFrame - startFrame)} sampleRate={sampleRate} blocked={blocked} showFadeShapeHandles
 			crossfadedFadeEdges={NO_CROSSFADES} handleTabIndex={0} onChange={onChange} onTabOut={() => rootRef.current?.focus()}
-			copy={{ fadeIn: copy.fadeIn, fadeOut: copy.fadeOut, fadeInShape: copy.fadeInShape, fadeOutShape: copy.fadeOutShape, legacyLinearFadeShape: copy.legacyLinearFadeShape }} />}
+			copy={{ ...copy, fadeIn: copy.fadeIn, fadeOut: copy.fadeOut, fadeInShape: copy.fadeInShape, fadeOutShape: copy.fadeOutShape, legacyLinearFadeShape: copy.legacyLinearFadeShape }} />}
 	</>;
 }

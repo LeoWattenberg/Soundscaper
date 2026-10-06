@@ -1,11 +1,21 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-import { useLayoutEffect, useMemo, useState } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
 import type { RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { TrackFadeHandle } from '@soundscaper/design-system/Track/TrackFadeHandle';
 import { TrackFadeShapeHandle } from '@soundscaper/design-system/Track/TrackFadeShapeHandle';
 import { fadeDurationAtKey, fadeField, fadeOverlayGeometry, fadeShapeAtKey, fadeShapeField, placeFadeShapeHandles } from './clip-fade-geometry.ts';
 import type { ClipFadeEdge, FadeClip } from './clip-fade-geometry.ts';
+import { END_FADE_SHAPE_PRESETS, selectedEndFadeShapePreset } from '../../clip-fade-presets.ts';
+import { FadeShapeMenu, isFadeShapeMenuKey, keyboardFadeShapeMenuPosition } from './FadeShapeMenu.tsx';
+import type { FadeShapeMenuCopy, FadeShapeMenuPosition } from './FadeShapeMenu.tsx';
+
+export type ClipFadeChanges = Readonly<{
+	readonly fadeInFrames?: number;
+	readonly fadeOutFrames?: number;
+	readonly fadeInShape?: number | undefined;
+	readonly fadeOutShape?: number | undefined;
+}>;
 
 interface OverlayClip extends FadeClip {
 	readonly id: string;
@@ -27,8 +37,8 @@ interface Props {
 	readonly handleTabIndex?: 0 | -1;
 	readonly showFadeShapeHandles: boolean;
 	readonly crossfadedFadeEdges: ReadonlySet<string>;
-	readonly copy: { readonly fadeIn: string; readonly fadeOut: string; readonly fadeInShape: string; readonly fadeOutShape: string; readonly legacyLinearFadeShape: string };
-	readonly onChange: (id: string, changes: { fadeInFrames?: number; fadeOutFrames?: number; fadeInShape?: number; fadeOutShape?: number }) => void;
+	readonly copy: FadeShapeMenuCopy & { readonly fadeIn: string; readonly fadeOut: string; readonly fadeInShape: string; readonly fadeOutShape: string; readonly legacyLinearFadeShape: string };
+	readonly onChange: (id: string, changes: ClipFadeChanges) => void;
 	readonly onTabOut: (id: string) => void;
 }
 
@@ -48,6 +58,9 @@ function moveFadeFocus(target: HTMLElement, current: HTMLElement, backwards: boo
 
 export function ClipFadeOverlays({ rootRef, clips, selectedIds, startFrame, endFrame, pixelsPerSecond, sampleRate, blocked, handleTabIndex = -1, showFadeShapeHandles, crossfadedFadeEdges, copy, onChange, onTabOut }: Props) {
 	const [targets, setTargets] = useState<ReadonlyMap<string, HTMLElement>>(new Map());
+	const [menu, setMenu] = useState<(FadeShapeMenuPosition & { readonly clipId: string; readonly edge: ClipFadeEdge }) | null>(null);
+	const close = useCallback(() => setMenu(null), []);
+	const menuClip = menu && clips.find(clip => clip.id === menu.clipId);
 	const geometries = useMemo(() => new Map(clips.map(clip => [
 		clip.id, fadeOverlayGeometry(clip, startFrame, endFrame, pixelsPerSecond, sampleRate),
 	])), [clips, startFrame, endFrame, pixelsPerSecond, sampleRate]);
@@ -58,7 +71,7 @@ export function ClipFadeOverlays({ rootRef, clips, selectedIds, startFrame, endF
 		}
 		setTargets(current => current.size === next.size && [...next].every(([id, element]) => current.get(id) === element) ? current : next);
 	}, [clips, rootRef]);
-	return clips.filter(clip => !clip.isRecordingPreview && clip.kind === 'audio').map(clip => {
+	return <>{clips.filter(clip => !clip.isRecordingPreview && clip.kind === 'audio').map(clip => {
 		const target = targets.get(clip.id);
 		if (!target) return null;
 		const geometry = geometries.get(clip.id);
@@ -130,12 +143,25 @@ export function ClipFadeOverlays({ rootRef, clips, selectedIds, startFrame, endF
 					data-fade-shape-start-gain={position.gain}
 					aria-label={position.edge === 'in' ? copy.fadeInShape : copy.fadeOutShape}
 					aria-valuemin={0.15} aria-valuemax={6} aria-valuenow={value}
-					aria-valuetext={clip[field] === undefined ? copy.legacyLinearFadeShape : undefined}
+					aria-valuetext={clip[field] === undefined ? copy.fadeShapeLinear || copy.legacyLinearFadeShape : undefined}
 					aria-orientation="vertical" disabled={blocked}
+					aria-haspopup="menu" aria-expanded={menu?.clipId === clip.id && menu.edge === position.edge}
+					onContextMenu={event => {
+						event.preventDefault();
+						event.stopPropagation();
+						if (blocked) return;
+						event.currentTarget.focus({ preventScroll: true });
+						setMenu({ target: event.currentTarget, x: event.clientX, y: event.clientY, clipId: clip.id, edge: position.edge });
+					}}
 					onClick={event => { event.stopPropagation(); }}
 					onDoubleClick={event => { event.stopPropagation(); }}
 					onKeyDown={event => {
 						event.stopPropagation();
+						if (isFadeShapeMenuKey(event) && !blocked) {
+							event.preventDefault();
+							setMenu({ ...keyboardFadeShapeMenuPosition(event.currentTarget), clipId: clip.id, edge: position.edge });
+							return;
+						}
 						if (event.key === 'Tab' && handleTabIndex < 0) {
 							event.preventDefault();
 							moveFadeFocus(target, event.currentTarget, event.shiftKey, clip.id, onTabOut);
@@ -149,5 +175,14 @@ export function ClipFadeOverlays({ rootRef, clips, selectedIds, startFrame, endF
 					}} />;
 			})}
 		</div>, target, clip.id);
-	});
+	})}
+		{menu && menuClip && !blocked && showFadeShapeHandles && selectedIds.has(menu.clipId)
+			&& !crossfadedFadeEdges.has(`${menu.clipId}:${menu.edge}`) && <FadeShapeMenu
+				position={menu} presets={END_FADE_SHAPE_PRESETS} copy={copy}
+				selectedId={selectedEndFadeShapePreset(menuClip[fadeShapeField(menu.edge)])}
+				onClose={close} onSelect={preset => {
+					const field = fadeShapeField(menu.edge);
+					if (selectedEndFadeShapePreset(menuClip[field]) !== preset.id) onChange(menu.clipId, { [field]: preset.shape });
+				}} />}
+	</>;
 }

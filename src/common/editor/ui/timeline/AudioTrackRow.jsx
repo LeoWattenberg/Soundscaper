@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { TrackNew } from '@soundscaper/design-system/Track/TrackNew';
-import { TrackCrossfadeVisual } from '@soundscaper/design-system/Track/TrackCrossfadeVisual';
+import { CrossfadeOverlays } from './CrossfadeOverlays.tsx';
 import { resolveTrackWaveformOptions } from '../../track-display-mode.ts';
 import { editorTimelineDurationFrames } from '../../project.js';
 import { TrackControls } from './TrackControls.jsx';
@@ -9,7 +9,6 @@ import { TrackAutomationOverlay } from '../soundscaper-workflow-product-runtime.
 import { ClipFadeOverlays } from './ClipFadeOverlays.tsx';
 import { ClipLoopOverlays } from './ClipLoopOverlays.tsx';
 import { crossfadedClipFadeEdges } from './clip-fade-crossfaded-edges.ts';
-import { crossfadeShapesAtKey, crossfadeShapesChanged } from './crossfade-visual-geometry.ts';
 import { AudacityWaveformCanvases } from './TimelineCanvasRenderer.jsx';
 import { SpectralBrushOverlay } from './SpectralBrushOverlay.jsx';
 import { SpectralSelectionOverlay } from './SpectralSelectionOverlay.jsx';
@@ -228,32 +227,6 @@ export function AudioTrackRow({
 		].filter(Boolean);
 		return focusFirst(controls[controls.length - 1]);
 	};
-	const commitCrossfadeKeyboardChange = (overlay, key, fine) => {
-		if (blocked) return;
-		const outgoing = clipLookup.get(overlay.outgoingClipId);
-		const incoming = clipLookup.get(overlay.incomingClipId);
-		if (!outgoing || !incoming) return;
-		const shapes = crossfadeShapesAtKey({
-			key,
-			shiftKey: fine,
-			initialPosition: overlay.intersectionPosition,
-			initialGain: overlay.intersectionGain,
-			width: overlay.width,
-			height: Math.max(1, channelBodyHeight - 2),
-		});
-		if (!shapes || !crossfadeShapesChanged(
-			outgoing.fadeOutShape ?? 1,
-			incoming.fadeInShape ?? 1,
-			shapes,
-		)) return;
-		run(() => controller.actions.edit.commit({
-			type: 'batch',
-			commands: [
-				{ type: 'clip/update', clipId: outgoing.id, changes: { fadeOutShape: shapes.outShape } },
-				{ type: 'clip/update', clipId: incoming.id, changes: { fadeInShape: shapes.inShape } },
-			],
-		}));
-	};
 	return (
 		<div
 			className="audio-editor-track-row"
@@ -408,25 +381,16 @@ export function AudioTrackRow({
 							controller.actions.timeline.setChannelHeightRatio(track.id, ratio)
 						))}
 					/>)}
-					{crossfadeOverlays.map((overlay, index) => <TrackCrossfadeVisual key={overlay.id}
-						left={overlay.left} top={channelBodyTop + 1} width={overlay.width}
-						height={Math.max(0, channelBodyHeight - 2)}
-						outgoingPath={overlay.outgoingPath} incomingPath={overlay.incomingPath}
-						intersectionPosition={overlay.intersectionPosition}
-						intersectionGain={overlay.intersectionGain}
-						minimumPosition={overlay.minimumPosition} maximumPosition={overlay.maximumPosition}
-						outgoingClipId={overlay.outgoingClipId} incomingClipId={overlay.incomingClipId}
-						outgoingSelected={visualSelectedClipIds.has(overlay.outgoingClipId)}
-						incomingSelected={visualSelectedClipIds.has(overlay.incomingClipId)}
-						label={overlay.label} disabled={blocked}
-						onKeyboardAdjust={(key, fine) => commitCrossfadeKeyboardChange(overlay, key, fine)}
-						onTabOut={(backwards) => {
+					<CrossfadeOverlays overlays={crossfadeOverlays} clipLookup={clipLookup}
+						selectedIds={visualSelectedClipIds} top={channelBodyTop + 1} height={Math.max(0, channelBodyHeight - 2)}
+						blocked={blocked} copy={copy} controller={controller} run={run}
+						onTabOut={(index, backwards) => {
 							if (focusCrossfadeHandle(index + (backwards ? -1 : 1))) return;
 							if (backwards) {
 								if (!focusLastClipFadeControl()) focusBeforeRuler();
 							}
 							else focusCurrentRuler();
-						}} />)}
+						}} />
 					<ClipLoopOverlays rootRef={trackWindowRef} clips={projection.clips} selectedIds={visualSelectedClipIds} startFrame={projection.overscanStartFrame} endFrame={projection.overscanEndFrame} pixelsPerSecond={pixelsPerSecond} sampleRate={sampleRate} blocked={blocked} copy={copy} onChange={(id, changes) => run(() => controller.actions.clip.update(id, changes))} />
 					<ClipFadeOverlays rootRef={trackWindowRef} clips={projection.clips}
 						showFadeShapeHandles={showFadeShapeHandles}
