@@ -86,13 +86,7 @@ async function requireWebgl2(page) {
 }
 
 async function chooseMp4Video(page, dialog) {
-	const format = dialog.getByRole('group', { name: 'Format', exact: true }).getByRole('button');
-	await format.click();
-	const mp4Index = (await page.getByRole('option').allTextContents()).indexOf('MP4 video');
-	expect(mp4Index).toBeGreaterThan(0);
-	for (let index = 0; index < mp4Index; index += 1) await page.keyboard.press('ArrowDown');
-	await page.keyboard.press('Enter');
-	await expect(format).toContainText('MP4 video');
+	await chooseDropdown(page, dialog.getByRole('group', { name: 'Format', exact: true }), 'MP4 video');
 }
 
 async function readExportedPixelEvidence(page, dialog) {
