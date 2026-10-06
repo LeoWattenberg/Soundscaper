@@ -40,6 +40,7 @@ export function RawPcmImportDialog({ controller, copy, run, onClose, fileService
 	const [importing, setImporting] = useState(false);
 	const importingRef = useRef(false);
 	const pendingImport = useRef<AbortController | null>(null);
+	const formId = 'audio-editor-raw-pcm-import-form';
 	useEffect(() => () => { pendingImport.current?.abort(); }, []);
 	const close = (): void => {
 		pendingImport.current?.abort();
@@ -85,13 +86,13 @@ export function RawPcmImportDialog({ controller, copy, run, onClose, fileService
 				<Button
 					className="audio-editor-raw-pcm-import-confirm"
 					variant="primary"
+					type="submit" form={formId}
 					disabled={!file || importing}
-					onClick={importRawPcm}
 				>{copy.importFile}</Button>
 			</>}
 		/>}
 	>
-		<form className="kw-audio-editor-dialog__form" onSubmit={(event) => {
+		<form id={formId} className="kw-audio-editor-dialog__form" onSubmit={(event) => {
 			event.preventDefault();
 			importRawPcm();
 		}} aria-busy={importing}>
@@ -119,6 +120,7 @@ export function RegularIntervalAnnotationDialog({ controller, copy, run, onClose
 	const [endFrame, setEndFrame] = useState(defaults.endFrame);
 	const [intervalFrames, setIntervalFrames] = useState(defaults.intervalFrames);
 	const [namePrefix, setNamePrefix] = useState(defaults.namePrefix);
+	const formId = 'audio-editor-regular-interval-form';
 	useEffect(() => {
 		if (stateProjectIdentity.current === projectIdentity) return;
 		stateProjectIdentity.current = projectIdentity;
@@ -152,11 +154,11 @@ export function RegularIntervalAnnotationDialog({ controller, copy, run, onClose
 			className="audio-editor-dialog-footer"
 			rightContent={<>
 				<Button variant="secondary" onClick={onClose}>{copy.cancel}</Button>
-				<Button variant="primary" disabled={!project} onClick={create}>{copy.regularIntervalCreate}</Button>
+				<Button variant="primary" type="submit" form={formId} disabled={!project}>{copy.regularIntervalCreate}</Button>
 			</>}
 		/>}
 	>
-		<form className="kw-audio-editor-dialog__form" onSubmit={(event) => {
+		<form id={formId} className="kw-audio-editor-dialog__form" onSubmit={(event) => {
 			event.preventDefault();
 			create();
 		}}>
