@@ -11,6 +11,7 @@ import { selectAudioEditorEditBlock } from '../edit-blocking.ts';
 import { ActionHook, CommitField, DesignCheckbox } from './inspector-controls.jsx';
 import ClipPropertyKnob from './ClipPropertyKnob.tsx';
 import ClipFadeShapeField from './ClipFadeShapeField.tsx';
+import ClipSourceInTimeCodeField from './ClipSourceInTimeCodeField.tsx';
 import { clipPropertiesMediaRange } from './clip-properties-media-range.ts';
 import { clipLinkedPitchSpeed } from './clip-properties-linked-pitch.ts';
 import ClipResampleDialog from './ClipResampleDialog.jsx';
@@ -171,8 +172,8 @@ export default function ClipPropertiesBody({ controller, snapshot, copy, clipId 
 						<ClipTimeCodeField name="startFrame" label={copy.clipStart} value={clip?.timelineStartFrame ?? 0}
 							sampleRate={sampleRate} disabled={disabled}
 							onCommit={(value) => commitField('startFrame', value)} />
-						<ClipTimeCodeField name="sourceInFrame" label={copy.clipIn} value={clip?.sourceStartFrame ?? 0}
-							sampleRate={source?.sampleRate || sampleRate} disabled={disabled}
+						<ClipSourceInTimeCodeField label={copy.clipIn} value={clip?.sourceStartFrame ?? 0}
+							source={source} sampleRate={source?.sampleRate || sampleRate} disabled={disabled}
 							onCommit={(value) => commitField('sourceInFrame', value)} />
 						<ClipTimeCodeField name="durationFrame" label={copy.clipDuration} value={clip?.durationFrames ?? 1}
 							sampleRate={sampleRate} minimum={1} disabled={disabled}
