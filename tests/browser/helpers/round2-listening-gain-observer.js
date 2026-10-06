@@ -3,6 +3,7 @@
 export async function observeListeningGains(page) {
 	await page.addInitScript(() => {
 		const outputs = new WeakMap();
+		const listeningDestinations = [];
 		const scheduledValues = new WeakMap();
 		const setValueAtTime = AudioParam.prototype.setValueAtTime;
 		AudioParam.prototype.setValueAtTime = function (value, time) {
@@ -17,11 +18,17 @@ export async function observeListeningGains(page) {
 				const list = outputs.get(this) ?? [];
 				list.push(args[0]);
 				outputs.set(this, list);
+				if (this instanceof GainNode && args[0] instanceof AudioDestinationNode
+					&& this.context instanceof AudioContext) listeningDestinations.push(this);
 			}
 			return result;
 		};
 		const start = AudioBufferSourceNode.prototype.start;
 		window.__round2PreviewListeningGains = [];
+		window.__round2ListeningDestinationGains = () => listeningDestinations.map(node => {
+			const scheduled = scheduledValues.get(node.gain);
+			return scheduled && scheduled.time <= node.context.currentTime ? scheduled.value : node.gain.value;
+		});
 		AudioBufferSourceNode.prototype.start = function (...args) {
 			const gains = [];
 			const visited = new Set();

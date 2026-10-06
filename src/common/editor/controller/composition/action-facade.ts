@@ -237,6 +237,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 			setOutput: setAudioOutputDevice,
 			setPlaybackGain: (gain: number) => {
 				const value = engine.setPlaybackGain(Number(gain));
+				scope.playbackPreviews?.setGain(value);
 				publishDocumentSnapshot();
 				return value;
 			},

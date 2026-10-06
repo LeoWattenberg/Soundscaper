@@ -149,7 +149,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	const productSettingKey = (name) => productId === 'soundscaper' ? name : `${productId}:${name}`;
 	const {
 		fileService, store, sourceBuffers, mixRenderMemoryLimitBytes, sourceChunkProviders, sourcePeaks,
-		stagedProjectBinSourceIds, sessionController: rawSessionController, engine, renderEngineFactory, clipTimePitchCache,
+		stagedProjectBinSourceIds, sessionController: rawSessionController, engine, renderEngineFactory, playbackPreviews, clipTimePitchCache,
 		clipTimePitchSourceResolver, ffmpeg, nyquistClient, nyquistEvaluator, playAtSpeedPitchPreserver,
 	} = createControllerResources(options, {
 		copy, onPosition: updatePlayhead, onMeter: bindings.updateMeters, onState: bindings.updateTransportState,
@@ -489,7 +489,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	const { adjustAllTrackHeights } = viewStateService;
 	const clips = createClipVideoComposition({
 		state, copy, lifetime, projectGeneration, projectRuntime, store, engine, ffmpeg, helperTimingProbe: fileService.helperTimingProbe, setEffectProcessing: effectsStatePorts.processing.set,
-		sourceBuffers, sourcePeaks, sourceChunkFrames: SOURCE_CHUNK_FRAMES, taskProgress, currentTimeMs, monotonicNow: options.monotonicNow, sourcePreview: { sourceBuffers, sourceChunkProviders, sourceResolver: clipTimePitchSourceResolver, createEngine: (previewOptions) => renderEngineFactory(previewOptions), prepare: bindings.prepareCommittedTimePitchCaches, retirePlayback: () => { retireTimelinePlayback(); void bindings.projectBin.stopPreview().catch(bindings.handleError); }, subscribeTimelineState: (listener) => engine.subscribeState(listener) },
+		sourceBuffers, sourcePeaks, sourceChunkFrames: SOURCE_CHUNK_FRAMES, taskProgress, currentTimeMs, monotonicNow: options.monotonicNow, sourcePreview: { sourceBuffers, sourceChunkProviders, sourceResolver: clipTimePitchSourceResolver, createEngine: (previewOptions) => playbackPreviews.create(previewOptions), prepare: bindings.prepareCommittedTimePitchCaches, retirePlayback: () => { retireTimelinePlayback(); void bindings.projectBin.stopPreview().catch(bindings.handleError); }, subscribeTimelineState: (listener) => engine.subscribeState(listener) },
 		setInterval: scheduleInterval, clearInterval: clearScheduledInterval, createVideoRetimeProgramOrdinalBridge: options.createProductVideoRetimeProgramOrdinalBridge,
 		prepareCommittedOutput: (clip, source, prepareOptions) => clipTimePitchCache.prepareCommittedOutput(clip, source, prepareOptions),
 		materializeTimePitchCacheEntry: (entry, signal) => sources.timePitchCaches.materializeTimePitchCacheEntry(entry, signal), createLinkedRenderEngine: () => sources.timePitchCaches.createCacheAwareRenderEngine(),
@@ -510,7 +510,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			ffmpeg, fileService, playbackProjects: playbackProjectService, productName: product.name, prepareProjectForExport: options.prepareProjectForExport,
 			normalizeExportSettings, toggleExport: bindings.toggleExport, updateExportProgress: bindings.updateExportProgress, setPersistentExportProgressObserver: (observer) => { persistentExportProgressObserver = observer; },
 		},
-		createRenderEngine: bindings.createCacheAwareRenderEngine, createPreviewEngine: (previewOptions) => renderEngineFactory(previewOptions), prepareCommittedTimePitchCaches: bindings.prepareCommittedTimePitchCaches,
+		createRenderEngine: bindings.createCacheAwareRenderEngine, createPreviewEngine: (previewOptions) => playbackPreviews.create(previewOptions), prepareCommittedTimePitchCaches: bindings.prepareCommittedTimePitchCaches,
 		getProject: () => documentState.project, getCommandProject, getSpectrogramDefaults: () => state.preferences.spectrogram, editingBlocked, labelEditingBlocked: () => selectAudioEditorControllerLabelEditBlock(state).blocked || Boolean(framescaperCapture?.originSnapshot(documentState.project?.id ?? null).editBlocked), commit: bindings.commit, setStatus: bindings.setStatus, publishDocumentSnapshot, publishProjectState: bindings.publishProjectState, handleError: bindings.handleError, preflightStorage: bindings.preflightStorage,
 		projectSampleRate, projectDurationFrames, editorTimelineDurationFrames, normalizeTimelineFrame, persistSetting, productSettingKey, activeSelection,
 		activateStoredSource: bindings.activateStoredSource, cacheSourceBuffer: bindings.cacheSourceBuffer, retireSourceChunkProvider: sources.sourceLifecycle.retireSourceChunkProvider, renderDryTrackRange: bindings.renderDryTrackRange,
@@ -540,7 +540,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		state, copy, lifetime, projectGeneration, store, engine, ffmpeg, archiveRuntime: deferredArchiveRuntime, confirmFileSizeWarning: options.confirmFileSizeWarning, helperTimingProbe: fileService.helperTimingProbe, adaptAudacityProject: options.adaptAudacityProject, captureExternalMediaFile: fileService.captureExternalMediaFile,
 		sourceBuffers, sourceChunkProviders, sourcePeaks, sourceResolver: clipTimePitchSourceResolver, sourceChunkFrames: SOURCE_CHUNK_FRAMES,
 		protectedSourceIds: stagedProjectBinSourceIds, trackColors: AUDIO_EDITOR_TRACK_COLORS, taskProgress, projectVisual: sources.projectVisual,
-		createPreviewEngine: (previewOptions) => renderEngineFactory(previewOptions),
+		createPreviewEngine: (previewOptions) => playbackPreviews.create(previewOptions),
 		getProject: () => documentState.project, editingBlocked, commit: bindings.commit, updateSelection: bindings.updateSelection, setStatus: bindings.setStatus, publishDocumentSnapshot, handleError: bindings.handleError, preflightStorage: bindings.preflightStorage, projectSampleRate,
 		activateStoredSource: bindings.activateStoredSource, invalidateSourceRuntime: sources.sourceLifecycle.invalidateSourceRuntime, retireSourceChunkProvider: sources.sourceLifecycle.retireSourceChunkProvider,
 		retireTimelinePlayback, cacheSourceBuffer: bindings.cacheSourceBuffer,
@@ -567,7 +567,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		continueLoudnessMeasurement, copy,
 		createStableId,
 		deleteProject,
-		engine,
+		engine, playbackPreviews,
 		exportVideo, ffmpeg, fileService, findClip, findTrack,
 		getVideoSourceVisualData: sources.projectVisual.getVideoSourceVisualData, handleEdit: edits.handleEdit,
 		handleExportAction, handlePlayAtSpeed, handleTransport,

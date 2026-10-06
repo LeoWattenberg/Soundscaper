@@ -316,4 +316,20 @@ normally exported PCM against the original waveform with its polarity inverted.
 The strict regression exercises the real snapshot renderer and cache admission;
 20 macro and staged-renderer regressions pass together.
 
+## R2-ROOT-022 — Source and Project Bin previews start at full listening volume
+
+Import an ordinary WAV and mute **Playback volume**. Open **Clip properties**
+and play its source, or move the clip to **Project Bin** and play the bin card.
+Previously those auditions remained at full listening level because their new
+audio engines started with their own default gain. Preview engines now inherit
+the editor's current level and receive subsequent volume changes. The same
+factory supplies recorded-take auditions; offline render engines are separate.
+
+Proof: both source and bin workflows in
+`audio-editor-round2-preview-engine-gain.spec.js` reproduced gain 1 instead of 0
+against build 17. Build 18 passes both in Chromium, Firefox and WebKit, including
+unmuting during playback. The native observer only records device connections
+and scheduled gains. Two strict factory regressions verify inheritance, live
+updates, and disposal; 35 existing controller and preview regressions also pass.
+
 These changes do not require a manual **Update AI assets** run.

@@ -17,6 +17,7 @@ import { audioBufferChannels, normalizeByteLimit, type createStoredChunkProvider
 import { SourceChunkProviderRegistry } from '../source/source-chunk-provider-registry.ts';
 import { deferredEffectRuntime, type DeferredNyquistClient } from '../effects/deferred-effect-runtime.ts';
 import type { FileSizeWarningConfirmation } from '../shared/file-size-warning.ts';
+import { createPlaybackPreviewEngines } from './internal/playback-preview-engines.ts';
 
 type ControllerCodecRuntime = ReturnType<typeof createEditorCodecRuntime>
 	& Readonly<{ probeVideoTiming?: VideoTimingProbePort['probe'] }>;
@@ -76,6 +77,7 @@ export function createControllerResources(options: ControllerResourceOptions, ca
 	if (options.productId === 'soundscaper') enableParallelProductionMeterSessionV21(engine);
 	if (options.productId === 'soundscaper' && fileService.isDesktop) enableParallelEffectStackPlayback(engine);
 	const renderEngineFactory = options.engineFactory || createAudioEditorEngine;
+	const playbackPreviews = createPlaybackPreviewEngines(renderEngineFactory, () => engine.getPlaybackGain());
 	const clipTimePitchCache = options.clipTimePitchCache || new ClipTimePitchRenderCacheCoordinator({
 		store, client: options.staffPadRenderClient,
 		loadSourceChannels: async (source: Readonly<{ id: string; frameCount: number; channelCount: number; storageKey?: string }>, context = {}) => {
@@ -108,7 +110,7 @@ export function createControllerResources(options: ControllerResourceOptions, ca
 	));
 	return Object.freeze({
 		fileService, store, sourceBuffers, sourceChunkProviders, sourcePeaks, stagedProjectBinSourceIds,
-		sessionController, engine, renderEngineFactory, clipTimePitchCache, clipTimePitchSourceResolver,
+		sessionController, engine, renderEngineFactory, playbackPreviews, clipTimePitchCache, clipTimePitchSourceResolver,
 		ffmpeg, nyquistClient, nyquistEvaluator, playAtSpeedPitchPreserver,
 		mixRenderMemoryLimitBytes: normalizeByteLimit(options.mixRenderMemoryLimitBytes, AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES),
 	});
