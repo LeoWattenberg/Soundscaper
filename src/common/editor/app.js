@@ -304,7 +304,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		bindProjectAdministrationActions(projectAdminService, () => documentState.project, () => framescaperCapture);
 	const analysisService = createAnalysisComposition({
 		enabled: composition.analysis, productName: product.name, state, copy, lifetime, projectGeneration, store, taskProgress,
-		getProject: () => documentState.project, getActiveSelection: activeSelection, projectDurationFrames,
+		getProject: () => documentState.project, getActiveSelection: activeSelection, projectDurationFrames, getImmutableProjectGeneration: getCommandProject,
 		cloneProject: projectRuntime.cloneProject, projectSampleRate: () => projectSampleRate(), sourceBuffers, hasMissingTimelineSources: bindings.hasMissingTimelineSources, analyzeChannels: analyzeChannelsInWorker,
 		renderSnapshot: (...args) => renderSnapshot(...args), showAnalysis: bindings.showAnalysis, setStatus: bindings.setStatus, publish: publishDocumentSnapshot, batchPresentation: documentChannel.batch, handleError: bindings.handleError,
 	});
@@ -525,7 +525,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	const effects = createEffectsComposition({
 		state: effectsAccess, copy, locale, composition, absentSubsystem, lifetime, projectGeneration, projectRuntime, store, engine, sourceBuffers, sourcePeaks, pauseSourcePreview: () => clips.clipSourcePreview.stop(),
 		taskProgress, nyquistEvaluator, getProject: () => documentState.project, getCommandProject, activeSelection, selectedTracksTimeRange: bindings.selectedTracksTimeRange, editingBlocked, setSelection: bindings.selection.setSelection,
-		persistSetting, publishDocumentSnapshot, setStatus: bindings.setStatus, preflightStorage: bindings.preflightStorage, renderSnapshot, prepareCommittedTimePitchCaches: bindings.prepareCommittedTimePitchCaches,
+		persistSetting, publishDocumentSnapshot, batchPresentation: documentChannel.batch, setStatus: bindings.setStatus, preflightStorage: bindings.preflightStorage, renderSnapshot, prepareCommittedTimePitchCaches: bindings.prepareCommittedTimePitchCaches,
 		createRenderEngine: bindings.createCacheAwareRenderEngine, commit: bindings.commit, cacheSourceBuffer: bindings.cacheSourceBuffer, snapTimelineFrame: bindings.selection.snapFrame, projectDurationFrames, projectSampleRate, handleError: bindings.handleError,
 	});
 	const edits = createEditComposition({
