@@ -9,6 +9,11 @@ export async function calculateAudioAnalysisReportInWorker(
 	client: Readonly<{ signal?: AbortSignal; workerFactory?: () => OneShotWorkerPort }> = {},
 ): Promise<ReturnType<typeof calculateAudioAnalysisReport>> {
 	if (client.signal?.aborted) throw client.signal.reason;
+	if (typeof Worker === 'undefined' && !client.workerFactory) {
+		const { calculateAudioAnalysisReport } = await import('./audio-analysis-report-worker-runtime.ts');
+		client.signal?.throwIfAborted();
+		return freezeReport(calculateAudioAnalysisReport(request));
+	}
 	const channels = request.channels.map(channel => channel.slice());
 	const result = await runOneShotWorkerTask<ReturnType<typeof calculateAudioAnalysisReport>>({ ...request, channels },
 		client.workerFactory ?? defaultWorkerFactory, { signal: client.signal, transfer: channels.map(channel => channel.buffer) });

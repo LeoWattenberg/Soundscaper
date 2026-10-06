@@ -109,7 +109,7 @@ export function createEditComposition<History extends ControllerRuntimeHistory>(
 			effectTargets: dependencies.effectTargets,
 			persistEffectResults: dependencies.persistEffectResults,
 			preflightStorage: dependencies.preflightStorage,
-			generateStream: (type, options, signal) => generateAudioEditorSignalStream(type, options, { signal }),
+			generateStream: typeof Worker === 'function' ? (type, options, signal) => generateAudioEditorSignalStream(type, options, { signal }) : undefined,
 			getAudioContext: () => engine.getAudioContext({ resume: false }),
 			createBuffer: (channels, sampleRate, context) => bufferFromChannels([...channels], sampleRate, context, copy),
 			createEmptyBuffer: (channelCount, frames, sampleRate, context) => createAudioBuffer(channelCount, frames, sampleRate, context, copy),
