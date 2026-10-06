@@ -45,7 +45,7 @@ export const FRAMESCAPER_BASELINE_ARTIFACT_LIBRARY_IDENTITY = Object.freeze({
 	storageDatabaseName: 'kw-media-framescaper-editor-v1',
 	desktopLibrarySchemaVersion: 1,
 	desktopDatabaseUserVersion: 1,
-	desktopLibraryScope: Object.freeze(['kw.media', 'framescaper-project-library', 'v1']),
+	desktopLibraryScope: Object.freeze(['Framescaper', 'project-library', 'v1']),
 });
 
 

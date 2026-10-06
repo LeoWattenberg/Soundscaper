@@ -16,5 +16,5 @@ export const SOUNDSCAPER_PROJECT_RUNTIME_PROFILE_PREREQUISITE =
 		desktopLibrarySchemaVersion: 1,
 		desktopProjectSchemaVersion: 1,
 		desktopDatabaseUserVersion: 1,
-		desktopLibraryScope: ['kw.media', 'soundscaper-project-library', 'v1'],
+		desktopLibraryScope: ['Soundscaper', 'project-library', 'v1'],
 	});

@@ -1,5 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { mkdir } from 'node:fs/promises';
+import { join } from 'node:path';
+
 import { throwAfterReadCapabilityRollback } from './file-capabilities.js';
 import { redispatchPendingProjectsAfterReadRelease } from './file-associations.js';
 import { registerSelectedReadCapability } from './read-selection-service.js';
@@ -32,6 +35,7 @@ const SAVE_DIALOG_TITLES = new Map([
 export function registerFileCapabilityIpc({
 	channels, desktopSmokeProbe, dialog, handle, opaqueId, ownerFor, pendingOpenProjects,
 	readCapabilities, saves, saveTargets, originalFiles = /** @type {OriginalFileCapabilityService | null} */ (null), sesxMediaSessions = null, windowFor,
+	projectDirectory = /** @type {(() => Promise<string | null>) | null} */ (null),
 }) {
 	async function chooseFiles(event, value) {
 		const owner = ownerFor(event);
@@ -66,9 +70,21 @@ export function registerFileCapabilityIpc({
 		if (smokeFilePath !== null) {
 			return saveTargets.registerPath(smokeFilePath, { owner, purpose: choice.purpose });
 		}
+		let defaultPath = choice.suggestedName;
+		if (projectDirectory && SAVE_DIALOG_TITLES.has(choice.purpose)) {
+			const directory = await projectDirectory();
+			if (directory) {
+				try {
+					await mkdir(directory, { recursive: true, mode: 0o700 });
+					defaultPath = join(directory, choice.suggestedName);
+				} catch {
+					// An unavailable default directory must not prevent choosing another location.
+				}
+			}
+		}
 		const result = await dialog.showSaveDialog(windowFor(), {
 			title: SAVE_DIALOG_TITLES.get(choice.purpose) ?? 'Export',
-			defaultPath: choice.suggestedName,
+			defaultPath,
 			filters: choice.filters,
 		});
 		return result.canceled || !result.filePath

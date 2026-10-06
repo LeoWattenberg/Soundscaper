@@ -39,7 +39,7 @@ const DEFINITION_FIELDS = [
 	'desktopLibraryScope',
 ] as const;
 const OWNER = /^[a-z][a-z0-9-]{0,63}$/u;
-const DESKTOP_SCOPE_SEGMENT = /^[a-z0-9](?:[a-z0-9.-]{0,126}[a-z0-9])?$/u;
+const DESKTOP_SCOPE_SEGMENT = /^[A-Za-z0-9](?:[A-Za-z0-9.-]{0,126}[A-Za-z0-9])?$/u;
 const PROFILE_DEFINITIONS = new WeakMap<
 	EditorProjectRuntimeProfilePrerequisite,
 	Readonly<EditorProjectRuntimeProfilePrerequisiteDefinition>

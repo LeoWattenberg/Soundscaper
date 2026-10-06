@@ -88,7 +88,7 @@ function installDesktopProjectLibrary() {
 		storageDatabaseName: 'kw-media-soundscaper-editor-v1',
 		desktopLibrarySchemaVersion: 1,
 		desktopDatabaseUserVersion: 1,
-		desktopLibraryScope: ['kw.media', 'soundscaper-project-library', 'v1'],
+		desktopLibraryScope: ['Soundscaper', 'project-library', 'v1'],
 	});
 	const digest = async (bytes) => Array.from(
 		new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)),

@@ -15,7 +15,7 @@ export const DESKTOP_PROJECT_LIBRARY_APPLICATION_ID =
 	SOUNDSCAPER_DESKTOP_PROJECT_LIBRARY_APPLICATION_ID;
 export const DESKTOP_PROJECT_LIBRARY_DATABASE_VERSION = 1 as const;
 
-const LIBRARY_SCOPE = Object.freeze(['kw.media', 'soundscaper-project-library', 'v1'] as const);
+const LIBRARY_SCOPE = Object.freeze(['Soundscaper', 'project-library', 'v1'] as const);
 
 const OWNER_FIELDS = Object.freeze(['product', 'processId', 'instanceId'] as const);
 const HANDSHAKE_FIELDS = Object.freeze([
@@ -57,7 +57,7 @@ export interface SoundscaperDesktopProjectLibraryHandshake {
 	readonly storageDatabaseName: typeof SOUNDSCAPER_DESKTOP_LIBRARY_STORAGE_DATABASE_NAME;
 	readonly desktopLibrarySchemaVersion: 1;
 	readonly desktopDatabaseUserVersion: 1;
-	readonly desktopLibraryScope: readonly ['kw.media', 'soundscaper-project-library', 'v1'];
+	readonly desktopLibraryScope: readonly ['Soundscaper', 'project-library', 'v1'];
 }
 
 /** Derive the Soundscaper-only library without observing a product-specific userData path. */
@@ -157,7 +157,7 @@ function freezeHandshake(value: SoundscaperDesktopProjectLibraryHandshake):
 		...value,
 		scapeFormatVersions: Object.freeze([...value.scapeFormatVersions]) as readonly [1],
 		desktopLibraryScope: Object.freeze([...value.desktopLibraryScope]) as
-			readonly ['kw.media', 'soundscaper-project-library', 'v1'],
+			readonly ['Soundscaper', 'project-library', 'v1'],
 	});
 }
 

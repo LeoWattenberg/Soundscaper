@@ -42,7 +42,7 @@ test('baseline storage and desktop identities are exact and predecessor-free', a
 		schemaFamily: 'soundscaper', currentVersion: 1, minimumReadableVersion: 1,
 		retainedMigrationSources: [], futureMigrationFloorVersion: 1,
 		browserDatabase: 'kw-media-soundscaper-editor-v1',
-		desktopLibraryRoot: 'kw.media/soundscaper-project-library/v1',
+		desktopLibraryRoot: 'Soundscaper/project-library/v1',
 		desktopLibrarySchemaVersion: 1, sqliteUserVersion: 1,
 		ipcNamespace: 'soundscaper:v1:project-library:*',
 	});
@@ -50,7 +50,7 @@ test('baseline storage and desktop identities are exact and predecessor-free', a
 		schemaFamily: 'framescaper', currentVersion: 1, minimumReadableVersion: 1,
 		retainedMigrationSources: [], futureMigrationFloorVersion: 1,
 		browserDatabase: 'kw-media-framescaper-editor-v1',
-		desktopLibraryRoot: 'kw.media/framescaper-project-library/v1',
+		desktopLibraryRoot: 'Framescaper/project-library/v1',
 		desktopLibrarySchemaVersion: 1, sqliteUserVersion: 1,
 		ipcNamespace: 'framescaper:v1:project-library:*',
 	});

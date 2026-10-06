@@ -98,7 +98,7 @@ test('Framescaper desktop renderer admits the exact preload v1 tuple and catalog
 		desktopLibrarySchemaVersion: 1 as const,
 		desktopDatabaseUserVersion: 1 as const,
 		desktopLibraryScope: Object.freeze([
-			'kw.media', 'framescaper-project-library', 'v1',
+			'Framescaper', 'project-library', 'v1',
 		] as const),
 	});
 	assert.deepEqual(FRAMESCAPER_DESKTOP_PROJECT_LIBRARY_HANDSHAKE, handshake);

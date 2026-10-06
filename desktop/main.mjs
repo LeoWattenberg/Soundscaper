@@ -387,7 +387,7 @@ async function registerIpcHandlers(desktopSession) {
 	if (SOAK_DEBUG_ENABLED) { handle(IPC.soakDebugProcessMetrics, () => collectSoakDebugProcessMetrics(app)); handle(IPC.soakDebugCoverageCheckpoint, checkpointSoakMainCoverage); }
 	registerFileCapabilityIpc({
 		channels: IPC, desktopSmokeProbe, dialog, handle, opaqueId, ownerFor: rendererSaveOwnerFor,
-		pendingOpenProjects, readCapabilities, saves, saveTargets, originalFiles, sesxMediaSessions, windowFor: () => mainWindow,
+		pendingOpenProjects, readCapabilities, saves, saveTargets, originalFiles, sesxMediaSessions, windowFor: () => mainWindow, projectDirectory: desktopStorage.projectsDirectory,
 	});
 	registerExternalMediaIpc({ channels: IPC, handle, ownerFor: rendererSaveOwnerFor, readCapabilities, acceptsFile }); handle(IPC.setLocale, async (_event, value) => {
 		const locale = validateLocale(value);

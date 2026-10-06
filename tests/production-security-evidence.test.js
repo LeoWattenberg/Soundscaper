@@ -105,7 +105,7 @@ test('threat-model documentation defines the limits of enforced controls', async
 	]) assertOrderedClaim(documentation, claim);
 	assert.match(
 		documentation,
-		/shared-desktop-project-library-integrity.*current authority is product-isolated.*Soundscaper and Framescaper desktop libraries.*family-v1 handshakes.*library schema 1.*SQLite user_version 1.*distinct kw\.media.*project-library\/v1 roots.*SSCP and FSCP application IDs.*schemaFamily and schemaVersion.*disjoint product:v1:project-library.*pre-release roots.*untouched and invisible.*no migration or copy-forward marker.*Historical pre-freeze provenance.*grants no current project, migration, storage, IPC, or package authority/isu,
+		/shared-desktop-project-library-integrity.*current authority is product-isolated.*Soundscaper and Framescaper desktop libraries.*family-v1 handshakes.*library schema 1.*SQLite user_version 1.*distinct Soundscaper\/project-library\/v1 and Framescaper\/project-library\/v1 roots.*SSCP and FSCP application IDs.*schemaFamily and schemaVersion.*disjoint product:v1:project-library.*pre-release roots.*untouched and invisible.*no pre-release migration or copy-forward marker.*Historical pre-freeze provenance.*grants no current project, migration, storage, IPC, or package authority/isu,
 	);
 	assert.match(
 		documentation,

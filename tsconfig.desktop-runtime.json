@@ -19,6 +19,8 @@
 		"desktop/external-media-ipc.ts",
 		"desktop/application-lifecycle.ts",
 		"desktop/desktop-storage-paths.ts",
+		"desktop/desktop-project-library-migration.ts",
+		"desktop/desktop-projects-directory.ts",
 		"desktop/desktop-storage-migration.ts",
 		"desktop/desktop-storage-migration-sync.ts",
 		"desktop/desktop-storage-bootstrap.ts",

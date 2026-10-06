@@ -216,11 +216,20 @@ state overrides are ignored. The defaults are:
 | State | `~/.local/state/Soundscaper` | Delivery queues, authentication sessions, quarantine, logs and crash reports |
 
 The native project library is stored beneath
-`$XDG_DATA_HOME/kw.media/soundscaper-project-library/v1`, defaulting to
-`~/.local/share/kw.media/soundscaper-project-library/v1`. Framescaper uses its
-own `framescaper-project-library/v1` directory. Browser IndexedDB and OPFS stay
+`$XDG_DATA_HOME/Soundscaper/project-library/v1`, defaulting to
+`~/.local/share/Soundscaper/project-library/v1`. Framescaper uses its
+own `Framescaper/project-library/v1` directory. Browser IndexedDB and OPFS stay
 in the data directory; only disposable Chromium cache directories are linked
 to the cache directory. Large audio scratch files do not use `XDG_RUNTIME_DIR`.
+
+Native project, project-copy, and Audacity project save dialogs start in the
+configured XDG Projects directory, including localized directory names. Missing
+or invalid configuration falls back to `~/Projects`. The directory is created
+only when a project save dialog opens; if it is unavailable, the chooser keeps
+its existing default. A Projects directory explicitly disabled by pointing to
+the home directory keeps the chooser's existing behavior. Ordinary audio exports retain
+their existing chooser behavior. These user-selected project files remain
+separate from the native managed library in the application's data directory.
 
 Startup migrates the known legacy files from the configuration directory after
 acquiring the single-instance lock and before opening services or editor
@@ -232,4 +241,6 @@ directories retain their setting. Pending Framescaper render-input carriers
 retain their legacy directory until the queue drains, preserving their pinned
 filesystem identities; subsequent startups use the state directory. Explicit `--user-data-dir` profiles and
 artifact smoke, nightly, and soak runs retain their isolated layout. macOS and
-Windows retain their existing directories.
+Windows retain their platform storage bases. Current family-v1 native libraries
+move from the former `kw.media` folders into each application's data directory;
+archived pre-release libraries remain untouched.

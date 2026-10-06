@@ -38,7 +38,7 @@ test('Framescaper desktop baseline handshake is the exact family-qualified tuple
 		storageDatabaseName: 'kw-media-framescaper-editor-v1',
 		desktopLibrarySchemaVersion: 1,
 		desktopDatabaseUserVersion: 1,
-		desktopLibraryScope: ['kw.media', 'framescaper-project-library', 'v1'],
+		desktopLibraryScope: ['Framescaper', 'project-library', 'v1'],
 	});
 	assert.deepEqual(validateFramescaperDesktopProjectLibraryHandshake(handshake), handshake);
 	assert.ok(Object.isFrozen(handshake));
@@ -48,6 +48,10 @@ test('Framescaper desktop baseline handshake is the exact family-qualified tuple
 		...handshake,
 		schemaFamily: 'soundscaper',
 	}), /identity is unsupported/u);
+	assert.throws(() => validateFramescaperDesktopProjectLibraryHandshake({
+		...handshake,
+		desktopLibraryScope: ['kw.media', 'framescaper-project-library', 'v1'],
+	}), /scope is unsupported/u);
 });
 
 test('Framescaper desktop baseline leaves every pre-release library root untouched', async (context) => {
@@ -71,7 +75,7 @@ test('Framescaper desktop baseline leaves every pre-release library root untouch
 		await writeFile(join(retiredRoot, 'untouched.bin'), new Uint8Array([0, 255, userVersion]));
 	}
 	const paths = createFramescaperDesktopProjectLibraryPaths(root);
-	assert.equal(paths.libraryRoot, join(root, 'kw.media', 'framescaper-project-library', 'v1'));
+	assert.equal(paths.libraryRoot, join(root, 'Framescaper', 'project-library', 'v1'));
 	const main = await FramescaperDesktopProjectLibraryMain.start({
 		appDataPath: root,
 		owner: { product: 'framescaper', processId: 933, instanceId: 'baseline-isolation' },

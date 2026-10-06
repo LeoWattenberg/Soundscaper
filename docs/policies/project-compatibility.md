@@ -509,17 +509,19 @@ The lock does not imply mute, hidden, bypass, or project read-only state.
 The direct unversioned Soundscaper and Framescaper libraries authenticate {
 schemaFamily: 'soundscaper', schemaVersion: 1 } or { schemaFamily:
 'framescaper', schemaVersion: 1 } before renderer use. They use
-kw.media/soundscaper-project-library/v1 and
-kw.media/framescaper-project-library/v1, library schema 1, SQLite user_version
-1, the retained SSCP and FSCP application IDs, and disjoint
+Soundscaper/project-library/v1 and Framescaper/project-library/v1 beneath
+XDG_DATA_HOME on Linux and platform appData elsewhere, library schema 1, SQLite
+user_version 1, the retained SSCP and FSCP application IDs, and disjoint
 soundscaper:v1:project-library:* and framescaper:v1:project-library:* IPC
 namespaces. Catalog summaries repeat schemaFamily and schemaVersion; each
 product refuses the other family as writable authority. Main retains the bounded
 pathless publication, immutable-body, list, duplicate, delete, lease-fencing,
 recovery, and plug-in-state mechanics behind the owning product boundary.
-Baseline tests seed every prior root and prove first start leaves those bytes
-and versions untouched. The runtime inventory stages only the direct baseline
-libraries and public *Desktop.v1 bridges; no migration or copy-forward marker
+Startup relocates existing current family-v1 production libraries from their
+former kw.media folders without changing their schemas. Baseline tests seed
+archived pre-release roots and prove first start leaves those bytes and versions
+untouched. The runtime inventory stages only the direct baseline libraries and
+public *Desktop.v1 bridges; no pre-release migration or copy-forward marker
 exists.
 <!-- /policy-narrative:family-v1-desktop-project-libraries -->
 

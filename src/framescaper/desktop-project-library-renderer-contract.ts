@@ -17,5 +17,5 @@ export const FRAMESCAPER_DESKTOP_PROJECT_LIBRARY_HANDSHAKE = Object.freeze({
 	storageDatabaseName: editorProjectStorageProfileNames(FRAMESCAPER_PROJECT_STORAGE_PROFILE).databaseName,
 	desktopLibrarySchemaVersion: 1 as const,
 	desktopDatabaseUserVersion: 1 as const,
-	desktopLibraryScope: Object.freeze(['kw.media', 'framescaper-project-library', 'v1'] as const),
+	desktopLibraryScope: Object.freeze(['Framescaper', 'project-library', 'v1'] as const),
 });

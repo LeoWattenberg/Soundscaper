@@ -15,7 +15,7 @@ export const DESKTOP_PROJECT_LIBRARY_APPLICATION_ID = 0x46534350;
 export const DESKTOP_PROJECT_LIBRARY_DATABASE_VERSION = 1 as const;
 
 const LIBRARY_SCOPE = Object.freeze([
-	'kw.media', 'framescaper-project-library', 'v1',
+	'Framescaper', 'project-library', 'v1',
 ] as const);
 
 const OWNER_FIELDS = Object.freeze(['product', 'processId', 'instanceId'] as const);
@@ -59,7 +59,7 @@ export interface FramescaperDesktopProjectLibraryHandshake {
 	readonly desktopLibrarySchemaVersion: 1;
 	readonly desktopDatabaseUserVersion: 1;
 	readonly desktopLibraryScope: readonly [
-		'kw.media', 'framescaper-project-library', 'v1',
+		'Framescaper', 'project-library', 'v1',
 	];
 }
 
@@ -133,7 +133,7 @@ function freezeHandshake(
 		...value,
 		scapeFormatVersions: Object.freeze([1]) as readonly [1],
 		desktopLibraryScope: Object.freeze([...LIBRARY_SCOPE]) as
-			readonly ['kw.media', 'framescaper-project-library', 'v1'],
+			readonly ['Framescaper', 'project-library', 'v1'],
 	});
 }
 

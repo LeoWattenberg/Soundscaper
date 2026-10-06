@@ -33,7 +33,7 @@ test('the packaged artifact smoke expects the shipped desktop library baseline',
 		storageDatabaseName: 'kw-media-framescaper-editor-v1',
 		desktopLibrarySchemaVersion: FRAMESCAPER_DESKTOP_LIBRARY_SCHEMA_VERSION,
 		desktopDatabaseUserVersion: DESKTOP_PROJECT_LIBRARY_DATABASE_VERSION,
-		desktopLibraryScope: ['kw.media', 'framescaper-project-library', 'v1'],
+		desktopLibraryScope: ['Framescaper', 'project-library', 'v1'],
 	});
 });
 

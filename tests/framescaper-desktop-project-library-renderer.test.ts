@@ -76,7 +76,7 @@ test('connecting refuses a handshake identity or state the desktop bridge does n
 	const refusals: readonly (readonly [Data, RegExp])[] = [
 		[{ connect: async () => ({ ...handshake, version: 2 }) }, identity],
 		[{ connect: async () => ({ ...handshake, storageDatabaseName: 'kw-media-soundscaper-editor-v1' }) }, identity],
-		[{ connect: async () => ({ ...handshake, desktopLibraryScope: ['kw.media', 'framescaper'] }) }, identity],
+		[{ connect: async () => ({ ...handshake, desktopLibraryScope: ['kw.media', 'framescaper-project-library', 'v1'] }) }, identity],
 		[{ connect: async () => ({ ...handshake, scapeFormatVersions: [1, 2] }) }, identity],
 		[{ connect: async () => ({ ...handshake, extra: 1 }) }, /handshake has unsupported fields/u],
 		[{ handshakeState: () => 'pending' }, /did not retain its admitted handshake/u],

@@ -25,7 +25,7 @@ const prerequisite = createEditorProjectRuntimeProfilePrerequisite({
 	desktopLibrarySchemaVersion: 1,
 	desktopProjectSchemaVersion: 1,
 	desktopDatabaseUserVersion: 1,
-	desktopLibraryScope: ['kw.media', 'framescaper-project-library', 'v1'],
+	desktopLibraryScope: ['Framescaper', 'project-library', 'v1'],
 });
 
 export const FRAMESCAPER_PROJECT_RUNTIME_PROFILE = createEditorProjectRuntimeProfile({

@@ -17,10 +17,10 @@ test('desktop compatibility authority is split between two fresh family-v1 libra
 		rule.currentBehavior,
 		/schemaFamily: 'soundscaper'.*schemaVersion: 1.*schemaFamily: 'framescaper'.*schemaVersion: 1/isu,
 	);
-	assert.match(rule.currentBehavior, /soundscaper-project-library\/v1.*framescaper-project-library\/v1/isu);
+	assert.match(rule.currentBehavior, /Soundscaper\/project-library\/v1.*Framescaper\/project-library\/v1/isu);
 	assert.match(rule.currentBehavior, /SQLite user_version 1.*SSCP and FSCP/isu);
 	assert.match(rule.currentBehavior, /soundscaper:v1:project-library.*framescaper:v1:project-library/isu);
-	assert.match(rule.currentBehavior, /no migration or copy-forward marker/iu);
+	assert.match(rule.currentBehavior, /no pre-release migration or copy-forward marker/iu);
 	assert.doesNotMatch(rule.currentBehavior, /\b(?:S30|F31|V(?:1[5-9]|2\d|3[0-2]))\b/u);
 	for (const path of rule.evidence) {
 		await assert.doesNotReject(access(new URL(`../${path}`, import.meta.url)), path);

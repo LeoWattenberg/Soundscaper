@@ -172,7 +172,7 @@ const api = Object.freeze({
 });
 const FRAMESCAPER_PROJECT_LIBRARY_HANDSHAKE = Object.freeze({ kind: 'framescaper-project-library-handshake', version: 1, owner: 'framescaper', schemaFamily: 'framescaper', schemaVersion: 1,
 	scapeFormatVersions: Object.freeze([1]), attachedScapeFormatVersion: 1, storageDatabaseName: 'kw-media-framescaper-editor-v1', desktopLibrarySchemaVersion: 1,
-	desktopDatabaseUserVersion: 1, desktopLibraryScope: Object.freeze(['kw.media', 'framescaper-project-library', 'v1']) });
+	desktopDatabaseUserVersion: 1, desktopLibraryScope: Object.freeze(['Framescaper', 'project-library', 'v1']) });
 const framescaperProjectPublications = new Set(); let framescaperProjectState = 'pending'; let framescaperProjectConnection = null;
 const framescaperProjectLibrary = Object.freeze({
 	connect: connectFramescaperProjectLibrary, handshakeState: () => framescaperProjectState,

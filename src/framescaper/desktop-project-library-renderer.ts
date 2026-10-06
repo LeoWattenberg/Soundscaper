@@ -65,7 +65,7 @@ const IDENTITY = Object.freeze({
 	schemaFamily: 'framescaper',
 	schemaVersion: 1,
 	databaseName: 'kw-media-framescaper-editor-v1',
-	scope: Object.freeze(['kw.media', 'framescaper-project-library', 'v1']),
+	scope: Object.freeze(['Framescaper', 'project-library', 'v1']),
 });
 
 interface Bridge extends FramescaperDesktopBodyBridge {

@@ -5,6 +5,8 @@ import { mkdir, readFile } from 'node:fs/promises';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 
 import { configureDesktopBrowserCachesSync, migrateDesktopBrowserCaches } from './desktop-browser-cache.ts';
+import { migrateDesktopProjectLibraries } from './desktop-project-library-migration.ts';
+import { resolveDesktopProjectsDirectory } from './desktop-projects-directory.ts';
 import { migrateDesktopStorageEntries } from './desktop-storage-migration.ts';
 import { migrateDesktopStorageEntriesSync } from './desktop-storage-migration-sync.ts';
 import { resolveDesktopStoragePaths } from './desktop-storage-paths.ts';
@@ -72,6 +74,12 @@ export function configureDesktopStorage(options: DesktopStorageBootstrapOptions)
 		...paths,
 		xdgEnabled: enabled,
 		renderInputRoot,
+		projectsDirectory(): Promise<string | null> {
+			return isolated ? Promise.resolve(null) : resolveDesktopProjectsDirectory({
+				platform: options.platform, homePath: app.getPath('home'),
+				configHomePath: legacyAppData, environment,
+			});
+		},
 		prepareBeforeReady(): void {
 			if (prepared || !enabled) { prepared = true; return; }
 			// Electron starts writing Local State and Crashpad before asynchronous I/O
@@ -97,8 +105,12 @@ export function configureDesktopStorage(options: DesktopStorageBootstrapOptions)
 			prepared = true;
 		},
 		async migrate(): Promise<void> {
-			if (!enabled) return;
+			if (isolated) return;
 			if (!prepared) throw new Error('Desktop storage must be prepared under the single-instance lock before ready.');
+			await migrateDesktopProjectLibraries({
+				legacyAppDataPath: legacyAppData, projectLibraryAppDataPath: paths.projectLibraryAppData, appName,
+			});
+			if (!enabled) return;
 			const preserveModels = await hasChosenLegacyModels(paths.configRoot);
 			await migrateDesktopStorageEntries([{
 				source: join(paths.configRoot, 'runtime', '.archives'),
@@ -111,10 +123,6 @@ export function configureDesktopStorage(options: DesktopStorageBootstrapOptions)
 				...entries(DATA_FILES.filter((name) => name !== 'models' || !preserveModels), paths.dataRoot),
 				...entries(STATE_FILES, paths.stateRoot),
 				...entries(CACHE_FILES, paths.cacheRoot),
-				{
-					source: join(legacyAppData, 'kw.media', `${appName.toLowerCase()}-project-library`),
-					destination: join(paths.projectLibraryAppData, 'kw.media', `${appName.toLowerCase()}-project-library`),
-				},
 			]);
 			await mkdir(join(paths.sessionDataRoot, 'Partitions', `${appName.toLowerCase()}-production`),
 				{ recursive: true, mode: 0o700 });

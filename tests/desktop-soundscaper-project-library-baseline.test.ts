@@ -70,11 +70,11 @@ test('Soundscaper desktop baseline freezes the exact family-qualified v1 identit
 		storageDatabaseName: 'kw-media-soundscaper-editor-v1',
 		desktopLibrarySchemaVersion: 1,
 		desktopDatabaseUserVersion: 1,
-		desktopLibraryScope: ['kw.media', 'soundscaper-project-library', 'v1'],
+		desktopLibraryScope: ['Soundscaper', 'project-library', 'v1'],
 	})
 	assert.match(createSoundscaperDesktopProjectLibraryPaths(
 		join(tmpdir(), 'soundscaper-baseline-contract'),
-	).libraryRoot, /soundscaper-project-library[/\\]v1$/u)
+	).libraryRoot, /Soundscaper[/\\]project-library[/\\]v1$/u)
 })
 
 test('Soundscaper desktop baseline handshake rejects accessors and pre-release identities', () => {
@@ -85,6 +85,10 @@ test('Soundscaper desktop baseline handshake rejects accessors and pre-release i
 		...createSoundscaperDesktopProjectLibraryHandshake(),
 		schemaVersion: 30,
 	}), /unsupported/iu)
+	assert.throws(() => validateSoundscaperDesktopProjectLibraryHandshake({
+		...createSoundscaperDesktopProjectLibraryHandshake(),
+		desktopLibraryScope: ['kw.media', 'soundscaper-project-library', 'v1'],
+	}), /scope is unsupported/iu)
 })
 
 test('Soundscaper desktop baseline admits only current family v1 documents', () => {

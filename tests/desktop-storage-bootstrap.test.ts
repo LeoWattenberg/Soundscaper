@@ -111,7 +111,7 @@ test('Linux migrates existing projects, browser storage, models and state before
 		assert.equal(await readFile(join(f.storage.stateRoot, path), 'utf8'), bytes);
 	}
 	assert.equal(await readFile(join(f.storage.cacheRoot, 'desktop-audio-codecs/scratch'), 'utf8'), 'codec scratch');
-	assert.equal(await readFile(join(f.storage.projectLibraryAppData, library), 'utf8'), 'project library');
+	assert.equal(await readFile(join(f.storage.projectLibraryAppData, 'Soundscaper/project-library/v1/library.sqlite3'), 'utf8'), 'project library');
 	await assert.rejects(readFile(join(f.userData, 'models/blobs/model')), { code: 'ENOENT' });
 	f.storage.prepareBeforeReady();
 	await f.storage.migrate();
@@ -127,8 +127,42 @@ test('explicit desktop profiles and non-Linux platforms retain their storage lay
 		assert.equal(f.paths.has('sessionData'), false);
 		assert.equal(f.switches.size, 0);
 		f.storage.prepareBeforeReady();
-	await f.storage.migrate();
+		await f.storage.migrate();
 	}
+});
+
+test('non-Linux production profiles also relocate the former library namespace', async (t) => {
+	for (const platform of ['darwin', 'win32'] as const) {
+		const f = await fixture(t, platform);
+		const legacy = join(f.appData, 'kw.media/soundscaper-project-library/v1');
+		await mkdir(legacy, { recursive: true });
+		await writeFile(join(legacy, 'library.sqlite3'), 'existing library');
+		f.storage.prepareBeforeReady();
+		await f.storage.migrate();
+		assert.equal(await readFile(join(f.appData, 'Soundscaper/project-library/v1/library.sqlite3'), 'utf8'), 'existing library');
+	}
+});
+
+test('isolated profiles leave production libraries and Projects directory untouched', async (t) => {
+	const f = await fixture(t, 'linux', true);
+	const legacy = join(f.appData, 'kw.media/soundscaper-project-library/v1');
+	await mkdir(legacy, { recursive: true });
+	await writeFile(join(legacy, 'library.sqlite3'), 'production library');
+	f.storage.prepareBeforeReady();
+	await f.storage.migrate();
+	assert.equal(await readFile(join(legacy, 'library.sqlite3'), 'utf8'), 'production library');
+	assert.equal(await f.storage.projectsDirectory(), null);
+});
+
+test('Projects resolution uses the user-dirs configuration without creating its directory', async (t) => {
+	const f = await fixture(t);
+	await mkdir(f.appData, { recursive: true });
+	const directory = join(f.home, 'Projekte');
+	await writeFile(join(f.appData, 'user-dirs.dirs'), 'XDG_PROJECTS_DIR="$HOME/Projekte"\n');
+	assert.equal(await f.storage.projectsDirectory(), directory);
+	await assert.rejects(lstat(directory), { code: 'ENOENT' });
+	await writeFile(join(f.appData, 'user-dirs.dirs'), 'XDG_PROJECTS_DIR="$HOME"\n');
+	assert.equal(await f.storage.projectsDirectory(), null);
 });
 
 test('an explicitly chosen legacy models directory retains its path and bytes', async (t) => {

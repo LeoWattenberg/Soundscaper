@@ -31,7 +31,7 @@ test('security selects family-v1 admission and desktop isolation', async () => {
 	for (const [riskId, controlId, claim] of [
 		['external-project-document-validation', 'framescaper-v1-editorial-document-admission', /schemaFamily.*framescaper.*schemaVersion.*1.*direct unversioned domain validators/iu],
 		['external-media-parser-bounds', 'framescaper-v1-proxy-revalidation', /originals as authority.*proxy\/timing pair.*current source/iu],
-		['shared-desktop-project-library-integrity', 'framescaper-v1-desktop-isolation', /FSCP.*user_version 1.*framescaper-project-library\/v1/iu],
+		['shared-desktop-project-library-integrity', 'framescaper-v1-desktop-isolation', /FSCP.*user_version 1.*Framescaper\/project-library\/v1/iu],
 		['shared-desktop-project-library-integrity', 'family-v1-desktop-library-isolation', /Soundscaper and Framescaper.*family-v1 handshakes.*user_version 1/iu],
 	]) {
 		const control = risks.get(riskId)?.currentControls.find(({ id }) => id === controlId);
