@@ -1,6 +1,7 @@
 import { AUDACITY_WAVEFORM_STEM_PIXELS_PER_SAMPLE } from './audacity-waveform-renderer.js';
 import { createStableId } from './project.js';
 import { AUDIO_EDITOR_SOURCE_CHUNK_FRAMES } from './project-audio-factory.js';
+import { createLoopPencilSampleEdits } from './sample-pencil-loop-projection.ts';
 import { loadSourceProvenanceDerivation } from './source-provenance-derivation-loader.ts';
 import {
 	createImmutablePcmChunks,
@@ -64,6 +65,8 @@ export function createPencilSampleEdits({ clip, source, channel = 0, points, max
 	const channelIndex = boundedInteger(channel, 0, source.channelCount - 1, 'channel');
 	if (!Array.isArray(points) || points.length < 1) throw new TypeError('A pencil stroke requires at least one point.');
 	const maximum = positiveInteger(maximumFrames, 'maximumFrames');
+	const loopEdits = createLoopPencilSampleEdits(clip, channelIndex, points, maximum);
+	if (loopEdits) return loopEdits;
 	const normalized = points.map((point, index) => ({
 		frame: timelineFrameToSourceFrame(clip, source, point?.timelineFrame),
 		value: sampleValue(point?.value, `points[${index}].value`),

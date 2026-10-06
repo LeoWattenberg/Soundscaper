@@ -25,6 +25,7 @@ test('Cursor to track end uses the selected track end on either side of the curs
 		controller.actions.transport.seek(cursor);
 		controller.actions.timeline.selectCursorToTrackEnd();
 		const selection = controller.getSnapshot().project!.selection;
+		assert.ok(selection);
 		assert.equal(selection.startFrame, Math.min(cursor, 38_400));
 		assert.equal(selection.endFrame, Math.max(cursor, 38_400));
 	}

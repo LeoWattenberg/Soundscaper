@@ -11,6 +11,7 @@ export interface SampleEditClip {
 	readonly sourceDurationFrames: number;
 	readonly durationFrames: number;
 	readonly reversed?: boolean;
+	readonly opaqueExtensions?: unknown;
 }
 
 export type SampleEditSource = AudioSourceLeaf & Readonly<Record<string, unknown>>;

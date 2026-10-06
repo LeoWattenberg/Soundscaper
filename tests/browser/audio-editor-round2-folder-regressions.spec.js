@@ -57,3 +57,17 @@ test('committing a folder rename keeps keyboard navigation on the folder row', a
 	await page.keyboard.press('ArrowLeft');
 	await expect(folder).toHaveAttribute('aria-expanded', 'false');
 });
+
+test('duplicating a foldered track keeps its copy in the same folder', async ({ page }) => {
+	const editor = await bootEditor(page, '/embed/en/');
+	await importFiles(editor, [toneA]);
+	const original = clipByName(editor, toneA.name);
+	const track = original.locator('xpath=ancestor::div[@data-track-row][1]');
+	await original.locator('.clip-header').click();
+	await chooseTrackMenuAction(page, editor, track, 'Move selection into new folder');
+	await chooseTrackMenuAction(page, editor, track, 'Duplicate track');
+	await expect(clipByName(editor, toneA.name)).toHaveCount(2);
+	const folder = editor.getByRole('treeitem', { name: 'Folder Folder 1, level 1', exact: true });
+	await folder.getByRole('button', { name: 'Collapse folder', exact: true }).click();
+	await expect(clipByName(editor, toneA.name)).toHaveCount(0);
+});

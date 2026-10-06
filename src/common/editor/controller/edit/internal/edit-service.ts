@@ -6,6 +6,7 @@ import { createLocalizedError } from '../../../../i18n/presentation-message.ts';
 } from './labeled-audio-edit-service.ts';
 import { prepareSplitRangeIntoNewTrackCommand } from '../../track-audio/split-into-new-track-plan.ts';
 import { prepareDuplicateSelectionCommand } from './duplicate-selection-command.ts';
+import { trackHierarchyPlacement } from '../../../track-hierarchy-placement.ts';
 import {
 	normalizeAudioEditorEditingPreferences,
 	resolveAudioEditorDefaultDelete,
@@ -256,7 +257,7 @@ export function createEditorEditService(runtime: EditServiceRuntime): HandleEdit
 				commit({
 					type: 'batch',
 					commands: [
-						createAddTrackCommand({ ...sourceTrack, id: trackId, name: `${sourceTrack.name} 2`, clipIds: [], effects: [] }),
+						{ ...createAddTrackCommand({ ...sourceTrack, id: trackId, name: `${sourceTrack.name} 2`, clipIds: [], effects: [] }), ...trackHierarchyPlacement(getProject(), sourceTrack.id, 1) },
 						split,
 						{ type: 'clip/move', clipId: split.rightClipId, trackId, timelineStartFrame: split.atFrame },
 					],

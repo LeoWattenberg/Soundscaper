@@ -3,6 +3,7 @@
 import { hasCoreEditingProjectAuthority } from '../../../project-schema-version.ts'; import { createLocalizedError, setLocalizedStatus } from '../../../../i18n/presentation-message.ts';
 import type { AudioEditorCommand } from '../../../commands/protocol.ts';
 import type { AudioTrackLeaf } from '../../../project-media-types.ts';
+import { readClipLoop } from '../../../audio-clip-loop.ts';
 import type {
 	PersistedSampleEdit,
 	SampleEditClip,
@@ -159,7 +160,8 @@ export function createSampleEditService<Project extends ControllerRuntimeProject
 			? track.displayMode
 			: state.timelineView;
 		if (!clip || !source || displayMode !== 'waveform' || !clip.durationFrames || !clip.sourceDurationFrames) return false;
-		const visibleSourceSamplesPerSecond = projectSampleRate() * clip.sourceDurationFrames / clip.durationFrames;
+		const visibleSourceSamplesPerSecond = projectSampleRate() * clip.sourceDurationFrames
+			/ (readClipLoop(clip)?.periodFrames ?? clip.durationFrames);
 		return canEditAudioSamplesAtZoom(state.pixelsPerSecond, visibleSourceSamplesPerSecond);
 	}
 

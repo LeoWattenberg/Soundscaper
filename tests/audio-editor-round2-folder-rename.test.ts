@@ -25,7 +25,7 @@ test('ordinary blur navigation and disconnected rows do not steal focus', async 
 	const event = { key: 'Tab', currentTarget: { value: 'Rhythm', closest: () => row },
 		preventDefault() {}, stopPropagation() {} };
 	assert.equal(finishTrackFolderRenameFromKeyboard(event as never, 'folder', () => calls.push('rename')), false);
-	assert.deepEqual(calls, []);
+	assert.equal(calls.length, 0);
 	finishTrackFolderRenameFromKeyboard({ ...event, key: 'Escape' } as never,
 		'folder', () => calls.push('cancel'));
 	await Promise.resolve();

@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { AudioEditorCommand, CommandObject } from '../../../commands/protocol.ts';
+import { trackHierarchyPlacement } from '../../../track-hierarchy-placement.ts';
 import type {
 	ControllerTrackDuplicateCarrier,
 	ControllerTrackDuplicateRequest,
@@ -92,6 +93,7 @@ export function createTrackDuplicationService(dependencies: TrackDuplicationServ
 			: legacyDuplicateCarrier(duplicateRequest);
 		const commands: AudioEditorCommand[] = [{
 			...addTrack,
+			...trackHierarchyPlacement(project, track.id, 1),
 			productionDuplicate,
 		}];
 		let selectedClipId: string | null = null;

@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { trackHierarchyPlacement } from '../../track-hierarchy-placement.ts';
+
 /**
  * Plan the time-range half of "Split into new track".
  *
@@ -61,13 +63,13 @@ export function prepareSplitRangeIntoNewTrackCommand(
 		const sourceTrack = project.tracks.find((track: RuntimeValue) => track.id === trackId);
 		if (!sourceTrack) continue;
 		const newTrackId = runtime.createStableId('track');
-		commands.push(runtime.createAddTrackCommand({
+		commands.push({ ...runtime.createAddTrackCommand({
 			...sourceTrack,
 			id: newTrackId,
 			name: `${sourceTrack.name} 2`,
 			clipIds: [],
 			effects: [],
-		}));
+		}), ...trackHierarchyPlacement(project, trackId, 1) });
 		for (const entry of entries) {
 			commands.push(...entry.splits);
 			moves.push({
