@@ -120,6 +120,7 @@ export function createEditComposition<History extends ControllerRuntimeHistory>(
 			commit: dependencies.commit,
 			setStatus: dependencies.setStatus,
 			publish: dependencies.publishDocumentSnapshot,
+			batchPresentation: dependencies.batchPresentation,
 		})
 		: createAbsentAudioGeneratorService(dependencies.absentSubsystem);
 	const generate = <Result>(work: () => Promise<Result>) => (

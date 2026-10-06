@@ -52,6 +52,7 @@ export interface AnalysisCompositionDependencies<Project extends AnalysisProject
 	readonly showAnalysis: AnalysisDependencies['showAnalysis'];
 	readonly setStatus: AnalysisDependencies['setStatus'];
 	readonly publish: AnalysisDependencies['publish'];
+	readonly batchPresentation?: AnalysisDependencies['batchPresentation'];
 	readonly handleError: AnalysisDependencies['handleError'];
 	/** Browser worker transport supplied by the application composition root. */
 	readonly analyzeChannels: AnalysisWorkerPort;
@@ -109,7 +110,7 @@ export function createAnalysisComposition<Project extends AnalysisProject, Buffe
 		},
 		showAnalysis: dependencies.showAnalysis,
 		setProcessing: (processing) => { state.analysisProcessing = processing; },
-		setStatus: dependencies.setStatus, publish: dependencies.publish, handleError: dependencies.handleError,
+		setStatus: dependencies.setStatus, publish: dependencies.publish, batchPresentation: dependencies.batchPresentation, handleError: dependencies.handleError,
 	}) : createAbsentAnalysisService({ productName: dependencies.productName });
 	return Object.freeze({
 		...service,

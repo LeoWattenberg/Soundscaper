@@ -3,6 +3,7 @@
 export interface SnapshotChannel<Snapshot> {
 	get(): Snapshot;
 	publish(options?: Readonly<{ force?: boolean }>): boolean;
+	batch(operation: () => void): void;
 	subscribe(listener: () => void): () => void;
 	clear(): void;
 }
@@ -23,22 +24,39 @@ export function createSnapshotChannel<Snapshot>({
 	if (typeof build !== 'function') throw new TypeError('A snapshot builder is required.');
 	const listeners = new Set<() => void>();
 	let snapshot: Snapshot | undefined;
+	let batchDepth = 0;
+	let pending = false;
+	let pendingForce = false;
+	function publish({ force = false } = {}): boolean {
+		if (!force && !canPublish()) return false;
+		if (batchDepth) { pending = true; pendingForce ||= force; return true; }
+		snapshot = build();
+		for (const listener of [...listeners]) {
+			try {
+				listener();
+			} catch (error) {
+				onListenerError(error);
+			}
+		}
+		return true;
+	}
+
 	return Object.freeze({
 		get(): Snapshot {
 			snapshot ??= build();
 			return snapshot;
 		},
-		publish({ force = false } = {}): boolean {
-			if (!force && !canPublish()) return false;
-			snapshot = build();
-			for (const listener of [...listeners]) {
-				try {
-					listener();
-				} catch (error) {
-					onListenerError(error);
+		publish,
+		batch(operation: () => void): void {
+			batchDepth++;
+			try { operation(); } finally {
+				batchDepth--;
+				if (!batchDepth && pending) {
+					const force = pendingForce;
+					pending = pendingForce = false;
+					publish({ force });
 				}
 			}
-			return true;
 		},
 		subscribe(listener: () => void): () => void {
 			if (typeof listener !== 'function') throw new TypeError('Audio editor subscribers must be functions.');
@@ -47,6 +65,7 @@ export function createSnapshotChannel<Snapshot>({
 		},
 		clear(): void {
 			listeners.clear();
+			pending = pendingForce = false;
 		},
 	});
 }

@@ -148,6 +148,7 @@ export interface AudioGeneratorServiceDependencies<Context = unknown, Target ext
 	commit(command: AudioEditorCommand, selection?: CommitSelection): unknown;
 	setStatus(message: string, state?: string, localization?: import('../../../i18n/presentation-message.ts').LocalizedPresentationMessage): void;
 	publish(): void;
+	batchPresentation?(operation: () => void): void;
 }
 
 export interface AudioGeneratorService {
@@ -390,9 +391,12 @@ export function createAudioGeneratorService<Context, Target extends AudioGenerat
 	}
 
 	function markProcessing(): true {
-		dependencies.setEffectProcessing(true);
-		setLocalizedStatus(dependencies.setStatus, dependencies.copy, "generatingAudio");
-		dependencies.publish();
+		const update = (): void => {
+			dependencies.setEffectProcessing(true);
+			setLocalizedStatus(dependencies.setStatus, dependencies.copy, "generatingAudio");
+			dependencies.publish();
+		};
+		if (dependencies.batchPresentation) dependencies.batchPresentation(update); else update();
 		return true;
 	}
 

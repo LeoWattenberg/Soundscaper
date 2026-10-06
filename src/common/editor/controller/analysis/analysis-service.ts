@@ -112,6 +112,7 @@ export interface AnalysisDependencies {
 	setProcessing(processing: boolean): void;
 	setStatus(message: string, status?: string, localization?: import('../../../i18n/presentation-message.ts').LocalizedPresentationMessage): void;
 	publish(): void;
+	batchPresentation?(operation: () => void): void;
 	handleError(error: unknown): void;
 }
 
@@ -384,9 +385,12 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 
 	function begin(key: keyof AnalysisCopy): EditorTaskScope {
 		const task = lifetime.startTask('analysis', { scope: EDITOR_PROJECT_TASK_SCOPE });
-		dependencies.setProcessing(true);
-		setLocalizedStatus(dependencies.setStatus, copy, key);
-		dependencies.publish();
+		const update = (): void => {
+			dependencies.setProcessing(true);
+			setLocalizedStatus(dependencies.setStatus, copy, key);
+			dependencies.publish();
+		};
+		if (dependencies.batchPresentation) dependencies.batchPresentation(update); else update();
 		return task;
 	}
 
