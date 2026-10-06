@@ -307,9 +307,9 @@ export function createSelectionViewService<
 	function selectCursorToTrackEnd() {
 		const range = selectedTracksTimeRange();
 		const playbackFrame = normalizeTimelineFrame(engine.getPositionFrames());
-		return range && range.endFrame > playbackFrame
+		return range
 			? setPlayheadAnchoredSelection(playbackFrame, range.endFrame)?.selection ?? null
-			: selectTrackStartToCursor();
+			: null;
 	}
 
 	function selectTrackStartToEnd() {

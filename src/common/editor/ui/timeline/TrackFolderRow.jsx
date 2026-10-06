@@ -2,6 +2,7 @@ import { Icon } from '@soundscaper/design-system/Icon';
 import React from 'react';
 
 import { trackFolderRowTabIndex } from './track-folder-ui-model.ts';
+import { finishTrackFolderRenameFromKeyboard } from './track-folder-rename-keyboard.ts';
 
 /**
  * One folder header row in the timeline track list. The row is a treeitem in
@@ -99,8 +100,7 @@ export function TrackFolderRow({
 						onClick={(event) => event.stopPropagation()}
 						onKeyDown={(event) => {
 							event.stopPropagation();
-							if (event.key === 'Enter') onRename(row.id, event.currentTarget.value);
-							if (event.key === 'Escape') onRename(row.id, null);
+							finishTrackFolderRenameFromKeyboard(event, row.id, onRename);
 						}}
 						onBlur={(event) => onRename(row.id, event.currentTarget.value)}
 					/>

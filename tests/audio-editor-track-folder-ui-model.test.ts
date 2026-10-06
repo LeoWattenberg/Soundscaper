@@ -151,7 +151,8 @@ test('the roving tab index rests on the first visible row until a row is active'
 	assert.equal(trackFolderRowTabIndex(voices, null, rows), -1);
 	assert.equal(trackFolderRowTabIndex(voices, 'voices', rows), 0);
 	assert.equal(trackFolderRowTabIndex(band, 'voices', rows), -1);
-	assert.equal(trackFolderRowTabIndex(drums, 'drums', rows), 0);
+	assert.equal(trackFolderRowTabIndex(drums, 'drums', rows), -1);
+	assert.equal(trackFolderRowTabIndex(band, 'drums', rows), 0);
 });
 
 test('alt-modified keys resolve structural moves identical to a pointer drop', () => {

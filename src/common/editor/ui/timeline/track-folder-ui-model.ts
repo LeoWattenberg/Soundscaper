@@ -171,7 +171,12 @@ export function trackFolderRowTabIndex(
 	activeFolderId: string | null,
 	plan: TrackListRowPlan,
 ): 0 | -1 {
-	if (activeFolderId !== null) return row.id === activeFolderId ? 0 : -1;
+	let active = plan.folderRows.find((candidate) => candidate.id === activeFolderId);
+	while (active?.rowHidden && active.parentFolderId !== null) {
+		const parentId = active.parentFolderId;
+		active = plan.folderRows.find((candidate) => candidate.id === parentId);
+	}
+	if (active && !active.rowHidden) return row.id === active.id ? 0 : -1;
 	const first = plan.folderRows.find((candidate) => !candidate.rowHidden);
 	return first?.id === row.id ? 0 : -1;
 }

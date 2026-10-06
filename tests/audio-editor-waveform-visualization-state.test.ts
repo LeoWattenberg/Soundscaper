@@ -99,7 +99,7 @@ test('waveform visualization preferences default, update, validate, and migrate 
 	});
 });
 
-test('track display commands persist special modes while mapping the global timeline to waveform', () => {
+test('track display commands persist special modes without changing the global timeline view', () => {
 	const project = createAudioEditorProjectV17({
 		id: 'frequency-waveform-display-project',
 		now: '2026-09-22T00:00:00.000Z',
@@ -137,7 +137,7 @@ test('track display commands persist special modes while mapping the global time
 	service.setTrackDisplayMode('audio-track', 'waveform-three-band');
 	service.setTrackDisplayMode('audio-track', 'waveform-rainbow');
 
-	assert.deepEqual(timelineViews, ['waveform', 'waveform']);
+	assert.deepEqual(timelineViews, []);
 	assert.deepEqual(commands.map((command) => (
 		command.type === 'track/update' ? command.changes.displayMode : null
 	)), ['waveform-three-band', 'waveform-rainbow']);

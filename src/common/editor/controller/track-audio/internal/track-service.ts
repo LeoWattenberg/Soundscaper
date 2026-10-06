@@ -4,7 +4,6 @@ import { createLocalizedError } from '../../../../i18n/presentation-message.ts';
 import { hasCoreEditingProjectAuthority } from '../../../project-schema-version.ts';
 import {
 	isTrackDisplayMode,
-	timelineViewForTrackDisplayMode,
 	type TimelineDisplayMode,
 } from '../../../track-display-mode.ts';
 
@@ -315,7 +314,6 @@ export function createEditorTrackService(
 		const track = findControllerTrack(project, trackId);
 		if (!track || track.type !== 'audio') throw createLocalizedError(Error, dependencies.copy, 'audioTrackRequired');
 		if (!isTrackDisplayMode(displayMode)) throw createLocalizedError(RangeError, dependencies.copy, 'unknownTrackDisplay');
-		dependencies.setTimelineView(timelineViewForTrackDisplayMode(displayMode));
 		const changes = displayMode === 'half-wave' ? { displayMode, halfWave: true } : { displayMode };
 		return dependencies.commit({ type: 'track/update', trackId: track.id, changes }, { selectTrackId: track.id });
 	}
