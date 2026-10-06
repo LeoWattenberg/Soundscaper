@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useContext } from 'react';
 import { TimeCodeDigit } from './TimeCodeDigit';
 import { TimeCodeUnit } from './TimeCodeUnit';
 import type { TimeCodeUnitType } from './TimeCodeUnit';
@@ -9,6 +9,7 @@ import { TimeCodeFormatMenuItems } from './TimeCodeFormatMenuItems';
 import { timeCodeFrameFormat, timeCodeFrameCount, timeCodeLabelledFrameCount, timeCodeFrameSeconds } from './time-code-frames';
 import { useTheme } from '../ThemeProvider';
 import { timeCodeWholeUnits } from './time-code-precision';
+import { TimeCodeMusicalContext, type TimeCodeMusicalMap } from './time-code-musical-context';
 import './TimeCode.css';
 import './TimeCodeDigit.css';
 import './TimeCodeUnit.css';
@@ -115,6 +116,7 @@ export function TimeCode({
   className = '',
 }: TimeCodeProps) {
   const { theme } = useTheme();
+  const musicalMap = useContext(TimeCodeMusicalContext);
   const formatOptions = timeCodeFormatOptionsForDomain(formatDomain, frameRate);
   const [isEditing, setIsEditing] = useState(false);
   const [editingDigitIndex, setEditingDigitIndex] = useState<number | null>(null);
@@ -128,7 +130,7 @@ export function TimeCode({
   useTimeCodeSubmenuPosition(containerRef, showMenu);
 
 
-  const segments = formatTimeToSegments(value, format, sampleRate, frameRate);
+  const segments = formatTimeToSegments(value, format, sampleRate, frameRate, musicalMap);
   const segmentsRef = useRef(segments);
 
   // Keep segmentsRef up to date
@@ -179,8 +181,8 @@ export function TimeCode({
     newSegments[targetSegmentIndex] = { ...targetSegment, value: newValue };
 
     // Convert segments back to seconds
-    const newSeconds = value + segmentsToSeconds(newSegments, format, sampleRate, frameRate)
-      - segmentsToSeconds(segments, format, sampleRate, frameRate);
+    const newSeconds = value + segmentsToSeconds(newSegments, format, sampleRate, frameRate, musicalMap)
+      - segmentsToSeconds(segments, format, sampleRate, frameRate, musicalMap);
     onChange(newSeconds);
 
     // Move to next digit (only if autoAdvance is true)
@@ -194,7 +196,7 @@ export function TimeCode({
         setEditingDigitIndex(nextDigitIndex);
       }
     }
-  }, [onChange, value, segments, format, sampleRate, frameRate]);
+  }, [onChange, value, segments, format, sampleRate, frameRate, musicalMap]);
 
   const handleFormatSelect = (newFormat: TimeCodeFormat) => {
     onFormatChange?.(newFormat);
@@ -508,7 +510,8 @@ function formatTimeToSegments(
   seconds: number,
   format: TimeCodeFormat,
   sampleRate: number,
-  frameRate: number
+  frameRate: number,
+  musicalMap?: TimeCodeMusicalMap
 ): TimeCodeSegment[] {
   const frameFormat = timeCodeFrameFormat(format, frameRate);
   if (frameFormat) {
@@ -535,7 +538,7 @@ function formatTimeToSegments(
     case 'seconds+milliseconds':
       return formatSecondsMilliseconds(seconds);
     case 'beats:bars':
-      return formatBeatsBar(seconds);
+      return formatBeatsBar(seconds, musicalMap);
     case 'Hz':
       return formatHz(seconds);
     default:
@@ -774,19 +777,20 @@ function formatFilmFrames(seconds: number, frameRate: number, sampleRate: number
   return parts.length ? parts : [{ value: '0', type: 'unit', editable: true }];
 }
 
-function formatBeatsBar(seconds: number): TimeCodeSegment[] {
+function formatBeatsBar(seconds: number, musicalMap?: TimeCodeMusicalMap): TimeCodeSegment[] {
   // Assuming 120 BPM and 4/4 time signature for now
   const bpm = 120;
-  const beatsPerBar = 4;
+  const musicalPosition = musicalMap?.fromSeconds(seconds);
+  const beatsPerBar = musicalPosition?.beatsPerBar ?? 4;
   const secondsPerBeat = 60 / bpm;
 
   const totalBeats = Math.floor(seconds / secondsPerBeat);
-  const bars = Math.floor(totalBeats / beatsPerBar);
-  const beats = totalBeats % beatsPerBar;
+  const bars = musicalPosition?.bar ?? Math.floor(totalBeats / beatsPerBar);
+  const beat = musicalPosition?.beat ?? totalBeats % beatsPerBar + 1;
 
   return [
     { value: pad(bars, 3), type: 'unit', maxLength: 3, max: 999, editable: true },
-    { value: (beats + 1).toString(), type: 'unit', maxLength: 1, max: beatsPerBar, editable: true },
+    { value: String(beat).padStart(String(beatsPerBar).length, '0'), type: 'unit', maxLength: String(beatsPerBar).length, max: beatsPerBar, editable: true },
   ];
 }
 
@@ -884,7 +888,8 @@ function segmentsToSeconds(
   segments: TimeCodeSegment[],
   format: TimeCodeFormat,
   sampleRate: number,
-  frameRate: number
+  frameRate: number,
+  musicalMap?: TimeCodeMusicalMap
 ): number {
   // Extract unit values from segments
   const unitValues: number[] = [];
@@ -935,6 +940,7 @@ function segmentsToSeconds(
     }
     case 'beats:bars': {
       const [bars, beats] = unitValues;
+      if (musicalMap) return musicalMap.toSeconds(bars || 0, beats || 1);
       const bpm = 120;
       const beatsPerBar = 4;
       const secondsPerBeat = 60 / bpm;

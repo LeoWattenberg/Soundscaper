@@ -13,6 +13,7 @@ import { DialogHeader } from '@soundscaper/design-system/DialogHeader';
 import AudioEditorResizableSurface from './AudioEditorResizableSurface.jsx';
 import { retainAudioEditorDialogEscapeOwner } from './dialog-escape-ownership.ts';
 import { resolveEditorReturnFocus } from './focus-restoration.ts';
+import { constrainDialogDragOffset } from './dialog-drag-bounds.ts';
 
 interface ResizableSurfaceProps extends React.HTMLAttributes<HTMLElement> {
 	readonly children?: ReactNode;
@@ -66,6 +67,7 @@ interface DragSession {
 	readonly startX: number;
 	readonly startY: number;
 	readonly startOffset: Readonly<{ x: number; y: number }>;
+	readonly headerBounds: DOMRect;
 }
 
 /**
@@ -124,14 +126,17 @@ export default function AudioEditorDialogShell({
 			startX: event.clientX,
 			startY: event.clientY,
 			startOffset: dragOffset,
+			headerBounds: event.currentTarget.getBoundingClientRect(),
 		};
 		const handleMouseMove = (moveEvent: MouseEvent) => {
 			const drag = dragRef.current;
 			if (!drag) return;
-			setDragOffset({
+			setDragOffset(constrainDialogDragOffset({
 				x: drag.startOffset.x + moveEvent.clientX - drag.startX,
 				y: drag.startOffset.y + moveEvent.clientY - drag.startY,
-			});
+			}, drag.startOffset, drag.headerBounds, {
+				width: window.innerWidth, height: window.innerHeight,
+			}));
 		};
 		const handleMouseUp = () => stopDragging();
 		window.addEventListener('mousemove', handleMouseMove);

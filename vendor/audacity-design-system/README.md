@@ -289,6 +289,11 @@ application overrides and source patches against the pin and upstream master.
     `aria-invalid` on both input and textarea fields. Covered by
     `tests/audio-editor-effect-number-input.test.tsx` and
     `tests/browser/audio-editor-effect-control-regressions.spec.js`.
+35. `TimeCodeMusicalContext` lets the host supply its authoritative tempo and
+    time-signature map for beats:bars displays and edits, including changing
+    tempo/signature events. Standalone controls retain the upstream default.
+    Covered by `tests/audio-editor-musical-timecode-map.test.tsx` and
+    `tests/browser/audio-editor-musical-timecode-regressions.spec.js`.
 
 ## Application-side adaptations
 

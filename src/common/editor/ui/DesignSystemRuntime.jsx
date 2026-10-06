@@ -3,6 +3,7 @@ import { AccessibilityProfileProvider } from '@soundscaper/design-system/context
 import { useTheme } from '@soundscaper/design-system/ThemeProvider';
 
 import { EditorSkinProvider, useEditorSkin } from './skins/EditorSkinProvider.tsx';
+import EditorMusicalTimeCodeProvider from './EditorMusicalTimeCodeProvider.tsx';
 
 import { wcagContrastRatio } from './theme-contrast.ts';
 
@@ -22,7 +23,7 @@ export function DesignSystemProviders({ children, copy, controller = undefined }
 	return (
 		<AccessibilityProfileProvider initialProfileId={accessibilityProfile}>
 			<EditorSkinProvider controller={controller} mode={theme}>
-				{children}
+				<EditorMusicalTimeCodeProvider controller={controller}>{children}</EditorMusicalTimeCodeProvider>
 			</EditorSkinProvider>
 		</AccessibilityProfileProvider>
 	);

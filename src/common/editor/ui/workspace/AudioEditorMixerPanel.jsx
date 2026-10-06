@@ -17,6 +17,7 @@ import {
 	removableMixerBuses,
 } from './mixer-panel-model.ts';
 import { MixerTelemetryMeters } from './MixerTelemetryMeters.tsx';
+import { mixerEffectReplacement } from './mixer-effect-replacement.ts';
 import {
 	createParameterAutomationControlRouterV21,
 	resolveSoundscaperRoutingGraphCopy,
@@ -96,7 +97,8 @@ export default function AudioEditorMixerPanel({ controller, snapshot, copy, run,
 			: effect.enabled !== false && effect.bypassed !== true,
 		onToggle: () => run(() => controller.actions.effects.update(scope, targetId, effect.id, { enabled: effect.enabled === false })),
 		onRemoveEffect: () => run(() => controller.actions.effects.remove(scope, targetId, effect.id)),
-		...(scope !== 'master' ? { onClick: () => onOpenEffects(targetId, null, scope) } : {}),
+		onClick: () => onOpenEffects(scope === 'master' ? null : targetId, null, scope),
+		onReplaceEffect: (candidate) => run(() => controller.actions.effects.update(scope, targetId, effect.id, mixerEffectReplacement(candidate, copy))),
 	}));
 	const channelProps = (channel, type) => {
 		const isTrack = type === 'track';
@@ -194,9 +196,9 @@ export default function AudioEditorMixerPanel({ controller, snapshot, copy, run,
 						/>
 					),
 				} : {}),
-			} : !isMaster ? {
-				onAddEffect: () => onOpenEffects(targetId, null, scope),
-			} : {}),
+			} : {
+				onAddEffect: () => onOpenEffects(isMaster ? null : targetId, null, scope),
+			}),
 		};
 	};
 	const channels = [

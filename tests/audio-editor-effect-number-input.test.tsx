@@ -18,6 +18,9 @@ async function mountNumber() {
 	const commits: number[] = [];
 	await act(async () => root.render(<ParameterNumber label="Gain" value={-6}
 		range={[-50, 50]} step={0.1} presentation="slider" hook="gainDb"
+		valueUnit={undefined} defaultValue={-6} disabled={false} timeCodeUnit={undefined}
+		onGestureBegin={undefined} onGesturePreview={undefined}
+		onGestureCommit={undefined} onGestureCancel={undefined}
 		copy={{ parameterRangeError: '{label}: {minimum} to {maximum}' }}
 		onCommit={(value: number) => commits.push(value)} />));
 	return { dom, commits, async dispose() {
