@@ -44,4 +44,24 @@ verify candidate order, omission of nonsignal tracks and the effect's own track,
 and the absence of a usable control when only one audio track and labels exist.
 All 25 focused control-track, overlay, rack and effect-control tests pass.
 
+## R3-ROOT-003 — Reopening Contrast hides its captured report
+
+Import a WAV, choose **Select > Select all**, then **Analyze > Contrast**.
+Click **Measure foreground** and **Measure background**, close Contrast, and
+reopen it through the same menu.
+
+Previously the saved measurements disappeared and **Export** became disabled,
+although the controller still retained the report. Contrast now restores its
+current saved report when opened, without recapturing either range. A different
+project or another report kind does not restore those measurements; explicit
+**Repeat last analyzer** still performs its remembered capture.
+
+Proof: `audio-editor-round3-contrast-reopen.spec.js` failed on the immutable
+baseline because its reopened report was absent. The same final regression
+passes on green build 6 in Chromium, Firefox and WebKit, comparing all displayed
+measurements and checking Export. Its strict mounted regression verifies report
+restoration, project replacement, and omission of another analysis kind. Both
+existing repeat regressions pass, for three focused Node tests. The initial
+green-run whitespace assertion mistake was corrected and adds no defect count.
+
 These changes do not require a manual **Update AI assets** run.
