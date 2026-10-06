@@ -8,6 +8,7 @@ import {
 	resolveFloatingPanelPointerDrop,
 	type FloatingPanelPointerDropTarget,
 } from '../src/common/editor/ui/workspace/floating-workspace-panel-move.ts';
+import { retainFloatingPanelMoveLifecycle } from '../src/common/editor/ui/workspace/floating-panel-move-lifecycle.ts';
 
 const bounds = { left: 100, top: 100, width: 200, height: 300 };
 
@@ -72,6 +73,36 @@ test('floating meter drops dock instead of persisting coordinates and cancellati
 function pointer(pointerId: number, clientX: number, clientY: number) {
 	return { pointerId, clientX, clientY, preventDefault: () => undefined };
 }
+
+test('Escape cancels the live floating move and a later release cannot persist it', () => {
+	const target = new EventTarget();
+	const fixture = moveFixture([]);
+	const ref: { current: FloatingWorkspacePanelMove | null } = { current: fixture.session };
+	const release = retainFloatingPanelMoveLifecycle(target as unknown as Window, ref);
+	const move = new Event('pointermove', { cancelable: true });
+	Object.defineProperties(move, { pointerId: { value: 7 }, clientX: { value: 250 }, clientY: { value: 120 } });
+	target.dispatchEvent(move);
+	assert.equal(fixture.element.style.left, '250px');
+	const escape = new Event('keydown', { cancelable: true });
+	Object.defineProperty(escape, 'key', { value: 'Escape' });
+	target.dispatchEvent(escape);
+	assert.equal(escape.defaultPrevented, true);
+	assert.equal(ref.current, null);
+	assert.equal(fixture.element.style.left, '200px');
+	const up = new Event('pointerup');
+	Object.defineProperties(up, { pointerId: { value: 7 }, clientX: { value: 250 }, clientY: { value: 120 } });
+	target.dispatchEvent(up);
+	assert.deepEqual(fixture.calls, ['start', 'end']);
+	release();
+	const another = moveFixture([]);
+	ref.current = another.session;
+	const removed = new Event('keydown', { cancelable: true });
+	Object.defineProperty(removed, 'key', { value: 'Escape' });
+	target.dispatchEvent(removed);
+	assert.equal(removed.defaultPrevented, false);
+	assert.equal(ref.current, another.session);
+	another.session.cancel();
+});
 
 function moveFixture(targets: readonly FloatingPanelPointerDropTarget[]) {
 	const calls: unknown[] = [];

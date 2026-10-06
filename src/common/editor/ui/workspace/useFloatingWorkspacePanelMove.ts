@@ -4,6 +4,7 @@ import { useEffect, useRef, type PointerEvent as ReactPointerEvent, type RefObje
 
 import type { WorkspacePanelPlacement } from '../../workspace-panel-layout.ts';
 import { FloatingWorkspacePanelMove } from './floating-workspace-panel-move.ts';
+import { retainFloatingPanelMoveLifecycle } from './floating-panel-move-lifecycle.ts';
 import { clampFloatingPanelGeometry } from './workspace-panel-model.ts';
 import { focusWorkspaceMeterSettings } from './workspace-panel-focus.js';
 
@@ -28,23 +29,7 @@ export function useFloatingWorkspacePanelMove(input: Readonly<{
 	const { dock } = input;
 	useEffect(() => {
 		if (dock !== 'floating') return undefined;
-		const move = (event: PointerEvent) => sessionRef.current?.move(event);
-		const finish = (event: PointerEvent) => {
-			if (sessionRef.current?.finish(event)) sessionRef.current = null;
-		};
-		const cancel = (event: PointerEvent) => {
-			if (sessionRef.current?.cancel(event)) sessionRef.current = null;
-		};
-		window.addEventListener('pointermove', move, { passive: false });
-		window.addEventListener('pointerup', finish);
-		window.addEventListener('pointercancel', cancel);
-		return () => {
-			window.removeEventListener('pointermove', move);
-			window.removeEventListener('pointerup', finish);
-			window.removeEventListener('pointercancel', cancel);
-			sessionRef.current?.cancel();
-			sessionRef.current = null;
-		};
+		return retainFloatingPanelMoveLifecycle(window, sessionRef);
 	}, [dock]);
 
 	return (event: ReactPointerEvent<HTMLElement>, panelId: string): void => {
