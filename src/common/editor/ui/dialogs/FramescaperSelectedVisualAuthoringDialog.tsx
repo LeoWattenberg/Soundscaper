@@ -215,7 +215,6 @@ function MaskFields({ text, model, blocked, values, setters, onPerform }: Parame
 		<label><span>{text.shape}</span><select data-framescaper-authoring-mask-shape value={values.shape}
 			onChange={(event) => setters.setShape(event.currentTarget.value as Values['shape'])}>
 			<option value="rectangle">{text.rectangle}</option><option value="ellipse">{text.ellipse}</option>
-			<option value="line">{text.line}</option>
 		</select></label>
 		<label><span>{text.width}</span><input data-framescaper-authoring-mask-width type="number" min="0.01"
 			max="1" step="0.01" value={values.maskWidth}
