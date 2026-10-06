@@ -49,6 +49,10 @@ belong in Git history, not in the maintained documentation set.
   [dialogs](development/bugfix-dialogs.md),
   [import and export](development/bugfix-io.md), and
   [generators, macros, mixer and labels](development/bugfix-generators-macros.md).
+- Further regression audits cover [editing](development/bugfix-round2-editing.md),
+  [dialogs](development/bugfix-round2-dialogs.md),
+  [effects and analysis](development/bugfix-round2-effects-analysis.md), and
+  [import and export](development/bugfix-round2-io.md).
 
 ## Operate and release
 
