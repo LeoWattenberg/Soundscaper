@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { waveformPeakBlockSizes } from '../src/common/editor/waveform-peak-contract.ts';
 import {
 	ControllerEngine,
 	LONG_MONO_SOURCE_FRAMES,
@@ -17,6 +18,27 @@ import {
 } from './helpers/audio-editor-disk-backed-harness.js';
 
 restoreWorkerAfterSuite();
+
+const ImmediateAnalysisWorker = globalThis.Worker;
+globalThis.Worker = class StoredAnalysisWorker extends ImmediateAnalysisWorker {
+	postMessage(message) {
+		if (message.type === 'start' && message.frameCount === LONG_MONO_SOURCE_FRAMES && message.channelCount === 1) {
+			this.levels = waveformPeakBlockSizes(message.frameCount, message.channelCount).map((blockSize) => ({
+				blockSize,
+				channels: Array.from({ length: message.channelCount }, () => ({
+					minimums: new Float32Array(Math.ceil(message.frameCount / blockSize)),
+					maximums: new Float32Array(Math.ceil(message.frameCount / blockSize)),
+					rms: new Float32Array(Math.ceil(message.frameCount / blockSize)),
+				})),
+			}));
+		}
+		if (message.type === 'finish' && this.levels) {
+			queueMicrotask(() => this.onmessage?.({ data: { type: 'result', levels: this.levels } }));
+		} else super.postMessage(message);
+	}
+};
+
+let importedLongMonoFixture = null;
 
 test('decoded imports route to the visible project bin and honor exact timeline lane placement', async () => {
 	const store = new LogicalPcmStore();
@@ -93,7 +115,7 @@ test('native decoded imports preserve the encoded source sample rate metadata', 
 
 test('an imported source over 32 MiB is persisted and immediately represented by a chunk provider', async () => {
 	const store = new LogicalPcmStore();
-	const decoded = logicalAudioBuffer({ frameCount: LONG_MONO_SOURCE_FRAMES });
+	const decoded = longMonoAudioBuffer();
 	const engine = new ControllerEngine({ decoded: [decoded] });
 	const controller = createTestController({
 		store,
@@ -105,7 +127,7 @@ test('an imported source over 32 MiB is persisted and immediately represented by
 
 	try {
 		await controller.ready;
-		await controller.actions.project.importFiles([audioFile('long.wav')]);
+		await openLongMonoFixture(controller, store, engine, 'long.wav');
 
 		const snapshot = controller.getSnapshot();
 		const source = snapshot.project.sources[0];
@@ -125,7 +147,7 @@ test('an imported source over 32 MiB is persisted and immediately represented by
 
 test('sample-level waveform zoom demand-loads a bounded PCM window across stored chunks', async () => {
 	const store = new LogicalPcmStore();
-	const decoded = logicalAudioBuffer({ frameCount: LONG_MONO_SOURCE_FRAMES });
+	const decoded = longMonoAudioBuffer();
 	const engine = new ControllerEngine({ decoded: [decoded] });
 	const controller = createTestController({
 		store,
@@ -135,7 +157,7 @@ test('sample-level waveform zoom demand-loads a bounded PCM window across stored
 
 	try {
 		await controller.ready;
-		await controller.actions.project.importFiles([audioFile('sample-zoom.wav')]);
+		await openLongMonoFixture(controller, store, engine, 'sample-zoom.wav');
 		const clip = controller.getSnapshot().project.clips[0];
 		store.readSourceChunkCalls.length = 0;
 
@@ -165,7 +187,7 @@ test('sample-level waveform zoom demand-loads a bounded PCM window across stored
 
 test('summary zoom demand-loads a bounded fine peak window when exact PCM would be too large', async () => {
 	const store = new LogicalPcmStore();
-	const decoded = logicalAudioBuffer({ frameCount: LONG_MONO_SOURCE_FRAMES });
+	const decoded = longMonoAudioBuffer();
 	const engine = new ControllerEngine({ decoded: [decoded] });
 	const controller = createTestController({
 		store,
@@ -175,7 +197,7 @@ test('summary zoom demand-loads a bounded fine peak window when exact PCM would 
 
 	try {
 		await controller.ready;
-		await controller.actions.project.importFiles([audioFile('fine-summary.wav')]);
+		await openLongMonoFixture(controller, store, engine, 'fine-summary.wav');
 		const clip = controller.getSnapshot().project.clips[0];
 		store.readSourceChunkCalls.length = 0;
 
@@ -265,3 +287,41 @@ test('sample editing a long source rebuilds peaks from chunks without rehydratin
 		await controller.dispose();
 	}
 });
+
+function longMonoAudioBuffer() {
+	const decoded = logicalAudioBuffer({ frameCount: LONG_MONO_SOURCE_FRAMES });
+	// Canonical PCM and the synthetic stored chunks both represent silence. Keep
+	// the source logical while providing real bounded slices to the importer.
+	decoded.getChannelData(0).slice = (start = 0, end = decoded.length) => (
+		new Float32Array(Math.max(0, Math.min(decoded.length, end) - Math.max(0, start)))
+	);
+	return decoded;
+}
+
+async function openLongMonoFixture(controller, store, engine, name) {
+	// Authenticate the full-size import once. The zoom cases activate private
+	// stored copies through the public project path, with fresh chunk providers.
+	if (importedLongMonoFixture === null) {
+		await controller.actions.project.importFiles([audioFile(name)]);
+		importedLongMonoFixture = structuredClone({
+			project: controller.getSnapshot().project,
+			sources: store.sources,
+			analysis: store.analysis,
+		});
+		assert.equal(engine.decodeCalls, 1);
+		assert.equal(store.sourceWriteCalls.reduce((frames, { frameCount }) => frames + frameCount, 0), LONG_MONO_SOURCE_FRAMES);
+	} else {
+		const fixture = structuredClone(importedLongMonoFixture);
+		store.sources = fixture.sources;
+		store.analysis = fixture.analysis;
+		await store.saveProject(fixture.project);
+		await controller.actions.project.open(fixture.project);
+		assert.equal(engine.decodeCalls, 0);
+		assert.equal(store.sourceWriteCalls.length, 0);
+	}
+	const snapshot = controller.getSnapshot();
+	assert.deepEqual(snapshot.missingSourceIds, []);
+	assert.deepEqual(snapshot.project.sources, importedLongMonoFixture.project.sources);
+	assert.equal(snapshot.project.sources[0].frameCount, LONG_MONO_SOURCE_FRAMES);
+	assert.equal(store.loadSourceAudioBufferCalls, 0);
+}
