@@ -9,6 +9,8 @@ import {
 	PROJECT_TRANSFER_DEFAULT_MAXIMUM_ENTRY_BYTES,
 } from '../src/common/transfer/project-transfer-bundle-admission.ts';
 
+import { assertOrderedClaim } from './helpers/ordered-evidence-claim.js';
+
 const matrix = JSON.parse(
 	await readFile(new URL('../config/production-security-matrix.json', import.meta.url), 'utf8'),
 );
@@ -48,7 +50,7 @@ test('cross-origin project transfer owns a bounded authenticated security bounda
 	assert.equal(risk.status, 'partial');
 	assert.equal(risk.surfaceDisposition, 'conditional');
 	assert.ok(control);
-	assert.match(control.summary,
+	assertOrderedClaim(control.summary,
 		/exact origin.*window identity.*versioned.*session.*strict sequence and acknowledgement.*one-shot terminal.*closed record.*512 entries.*512 MiB archive.*256 MiB wire-payload.*1 GiB aggregate.*explicit user confirmation.*Protocol v3.*safe-integer per-entry and cumulative byte bounds.*metadata-only size-offer\/size-accept.*before.*oversized payload.*both origins.*independently.*cancellation publishes nothing.*declared and actual lengths.*SharedArrayBuffer.*one archive/isu);
 	assert.ok(control.evidence.some(({ kind }: { kind: string }) => kind === 'implementation'));
 	assert.ok(control.evidence.some(({ kind }: { kind: string }) => kind === 'test'));

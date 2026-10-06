@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
+import { assertOrderedClaim } from './helpers/ordered-evidence-claim.js';
+
 const CONTROL_ID = 'framescaper-web-vcr-dormant-isolated-guest';
 const FIXTURE_ID = 'm8plus-web-vcr-loopback-https-v1';
 const WORKLOAD_ID = 'm8plus-web-vcr-long-session';
@@ -62,15 +64,15 @@ test('Web VCR isolated-guest control records the active lazy security boundary',
 	const control = risk?.currentControls.find(({ id }) => id === CONTROL_ID);
 	assert.ok(control);
 	assert.match(control.summary, /integrated.*active.*framescaperWebVcr.*true/isu);
-	assert.match(control.summary, /default-hidden.*Record.*no.*guest.*until.*direct user.*summon/isu);
+	assertOrderedClaim(control.summary, /default-hidden.*Record.*no.*guest.*until.*direct user.*summon/isu);
 	assert.match(control.summary, /persist:framescaper-web-vcr-v1.*sandbox.*context isolation.*Node.*web security/isu);
-	assert.match(control.summary, /HTTPS.*about:blank.*credentials.*downloads.*permissions.*four.*popup/isu);
-	assert.match(control.summary, /remote.*no preload.*IPC.*filesystem.*project.*helper.*shell.*DevTools/isu);
-	assert.match(control.summary, /closed.*owner.*generation.*10-second.*single-use.*no media bytes/isu);
-	assert.match(control.summary, /destroy.*guest.*popup.*before.*cookies.*cache.*site storage/isu);
-	assert.match(control.summary, /720p.*1080p.*enabled.*4K.*unavailable.*no platform claim/isu);
-	assert.match(control.summary, /packaged feasibility smoke.*TLS.*authentication.*scaled input.*owned guest.*page audio.*visual marker/isu);
-	assert.match(control.summary, /Electron 43.*display.*camera.*preflight.*10-second.*metadata.*no.*camera capture.*guest-partition/isu);
+	assertOrderedClaim(control.summary, /HTTPS.*about:blank.*credentials.*downloads.*permissions.*four.*popup/isu);
+	assertOrderedClaim(control.summary, /remote.*no preload.*IPC.*filesystem.*project.*helper.*shell.*DevTools/isu);
+	assertOrderedClaim(control.summary, /closed.*owner.*generation.*10-second.*single-use.*no media bytes/isu);
+	assertOrderedClaim(control.summary, /destroy.*guest.*popup.*before.*cookies.*cache.*site storage/isu);
+	assertOrderedClaim(control.summary, /720p.*1080p.*enabled.*4K.*unavailable.*no platform claim/isu);
+	assertOrderedClaim(control.summary, /packaged feasibility smoke.*TLS.*authentication.*scaled input.*owned guest.*page audio.*visual marker/isu);
+	assertOrderedClaim(control.summary, /Electron 43.*display.*camera.*preflight.*10-second.*metadata.*no.*camera capture.*guest-partition/isu);
 	assert.match(control.summary, /optional owner QA.*never disable/isu);
 	assert.match(control.summary, /diagnosticOnly.*true.*no broader runtime or platform-support claim/isu);
 	assertEvidence(control, [
@@ -111,11 +113,11 @@ test('Web VCR isolated-guest control records the active lazy security boundary',
 		'tests/production-security-framescaper-web-vcr-policy.test.js',
 	]);
 	assert.match(threatModel, new RegExp(`policy-narrative:${CONTROL_ID}`, 'u'));
-	assert.match(captureDocumentation,
+	assertOrderedClaim(captureDocumentation,
 		/framescaperWebVcr: true.*desktop-only source adapter.*Record menu.*no guest.*direct action.*lazily/isu);
 	assert.match(webVcrDocumentation,
 		/persistent HTTPS authentication.*URL, page title, login state, crop gestures, and diagnostics stay out of.*project state/isu);
-	assert.match(webVcrDocumentation,
+	assertOrderedClaim(webVcrDocumentation,
 		/deterministic Linux x64\/Xvfb packaged smoke.*loopback HTTPS fixture.*diagnosticOnly: true.*proves only the paths it executed.*does not establish behavior.*public providers.*other operating systems/isu);
 });
 

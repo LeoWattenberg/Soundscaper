@@ -152,7 +152,7 @@ test('disposable video preview cache evidence binds current originals without cl
 	);
 	const decoderResidual = mediaRisk?.residualRisks.find(({ id }) => id === 'compressed-media-corpus');
 	assert.ok(decoderResidual);
-	assert.match(
+	assertOrderedClaim(
 		decoderResidual.exposure,
 		/dedicated audio WebAssembly.*WebCodecs.*Mediabunny.*decoders.*heap.*RSS.*GC.*diagnostics/isu,
 	);
@@ -204,9 +204,9 @@ test('project identities fail closed before traversal and expose no predecessor 
 			`${risk.id}/${candidate.id} cites a retired cross-family semantic workflow`,
 		);
 	}
-	assert.match(control.summary, /own enumerable data properties.*schemaFamily.*soundscaper.*framescaper.*schemaVersion.*positive safe integer/isu);
+	assertOrderedClaim(control.summary, /own enumerable data properties.*schemaFamily.*soundscaper.*framescaper.*schemaVersion.*positive safe integer/isu);
 	assert.match(control.summary, /exact family v1.*other known family.*later version.*opaque read-only custody.*without domain traversal/isu);
-	assert.match(control.summary, /numeric-only.*REIMPORT_REQUIRED.*unknown.*malformed.*accessor-backed.*manifest\/root-disagreeing.*before project traversal, asset reads, or persistence/isu);
+	assertOrderedClaim(control.summary, /numeric-only.*REIMPORT_REQUIRED.*unknown.*malformed.*accessor-backed.*manifest\/root-disagreeing.*before project traversal, asset reads, or persistence/isu);
 	assert.match(control.summary, /Format-1 Scape inspection.*tuple.*before any body read/isu);
 	assert.match(control.summary, /no project migration, copy-forward, predecessor-validator dispatch.*family inferred from a bare number, suffix, feature wire, or native protocol version/isu);
 

@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
+import { assertOrderedClaim } from './helpers/ordered-evidence-claim.js';
+
 interface SecurityEvidence {
 	readonly kind: string;
 	readonly path: string;
@@ -70,7 +72,7 @@ test('StaffPad clip-cache render admission remains narrowly evidenced and docume
 		);
 	}
 	assert.match(admission.summary, /non-raiseable 256 MiB.*useful-binary.*lower-only/isu);
-	assert.match(admission.summary, /full source.*first phase.*one input.*borrowed.*reverse.*two/isu);
+	assertOrderedClaim(admission.summary, /full source.*first phase.*one input.*borrowed.*reverse.*two/isu);
 	assert.match(admission.summary, /64 MiB.*WASM.*one bounded chunk/isu);
 	assert.match(admission.summary, /serializ(?:e|es|ed|ation).*distinct.*render/isu);
 	assert.match(admission.summary, /before.*quota.*source load.*worker.*writer/isu);
@@ -110,7 +112,7 @@ test('StaffPad clip-cache render admission remains narrowly evidenced and docume
 		/StaffPad.*clip[- ]cache.*non-raiseable 256 MiB.*useful-binary/isu,
 		`${name} must state the narrow StaffPad useful-binary ceiling`,
 	);
-	assert.match(
+	assertOrderedClaim(
 		threatModel,
 		/serializ(?:e|es|ed|ation).*distinct.*render.*before.*(?:source load|source loader).*worker.*writer/isu,
 		`${name} must state the distinct-render serialization boundary`,
@@ -125,7 +127,7 @@ test('StaffPad clip-cache render admission remains narrowly evidenced and docume
 		/other render paths.*dedicated audio-codec\s+WebAssembly.*WebCodecs.*Mediabunny/isu,
 		`${name} must retain other render paths as residuals`,
 	);
-	assert.match(
+	assertOrderedClaim(
 		threatModel,
 		/selected Framescaper V27 activation\s+candidate locally implements.*general editorial proxy lifecycle.*Optional owner QA may record\s+observations but does not gate or activate either route.*Neither.*pre-encode end-to-end working-set.*process-RSS.*GC-headroom coverage/isu,
 		`${name} must separate optional owner QA from the proxy lifecycle's unverified resource behavior`,

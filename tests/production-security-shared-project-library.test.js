@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import { access, readFile } from 'node:fs/promises';
 import test from 'node:test';
 
+import { assertOrderedClaim } from './helpers/ordered-evidence-claim.js';
+
 const matrixUrl = new URL('../config/production-security-matrix.json', import.meta.url);
 const threatModelUrl = new URL('../docs/policies/security.md', import.meta.url);
 
@@ -18,7 +20,7 @@ test('desktop project-library security is product-isolated at family v1', async 
 	assert.ok(boundary);
 	assert.match(boundary.data, /Soundscaper-v1 and Framescaper-v1/iu);
 	assert.match(boundary.data, /library-schema-1.*SQLite-user_version-1/iu);
-	assert.match(boundary.data, /pre-release roots.*never opened.*enumerated.*migrated.*mutated.*deleted/isu);
+	assertOrderedClaim(boundary.data, /pre-release roots.*never opened.*enumerated.*migrated.*mutated.*deleted/isu);
 	assert.ok(risk);
 	assert.equal(risk.status, 'partial');
 	assert.match(risk.summary, /fresh family-v1 desktop library.*disjoint root and IPC namespace/iu);

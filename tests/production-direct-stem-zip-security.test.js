@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import { access, readFile } from 'node:fs/promises';
 import test from 'node:test';
 
+import { assertOrderedClaim } from './helpers/ordered-evidence-claim.js';
+
 const matrixUrl = new URL('../config/production-security-matrix.json', import.meta.url);
 const budgetsUrl = new URL('../config/quality-budgets.json', import.meta.url);
 const offlineStagingFormula = 'max(outputFrames × inputChannels × offlineBytesPerSample, outputBytesPerRender)';
@@ -44,7 +46,7 @@ test('direct stem archives use browser-native complete-file codecs and exact rol
 		'tests/audio-editor-export-direct-compressed-stem-service.test.ts',
 	]) assert.ok(rollback.evidence.some((item) => item.path === path), path);
 
-	assert.match(
+	assertOrderedClaim(
 		publication.summary,
 		/exact ZIP32 and 7z Copy.*WAV, AIFF, or BWF.*exact names.*sizes.*order.*recomputed layouts.*fixed 32-byte/isu,
 	);
@@ -52,7 +54,7 @@ test('direct stem archives use browser-native complete-file codecs and exact rol
 		publication.summary,
 		/Compressed stems remain ZIP32-only.*seven canonical.*realtime.*offline.*per-entry refusal/isu,
 	);
-	assert.match(
+	assertOrderedClaim(
 		publication.summary,
 		/WebAssembly providers.*complete FLAC.*MP3.*Ogg Vorbis.*Opus.*WavPack.*MP2.*WebCodecs.*Mediabunny.*AAC\/M4A/isu,
 	);
@@ -60,11 +62,11 @@ test('direct stem archives use browser-native complete-file codecs and exact rol
 		publication.summary,
 		/Unsupported profiles.*custom FFmpeg.*fail closed.*without a browser FFmpeg fallback/isu,
 	);
-	assert.match(
+	assertOrderedClaim(
 		publication.summary,
 		/sequential.*current complete result.*at-most-64-KiB.*backpressure.*recomputes actual.*closes before commit.*byte-count agreement/isu,
 	);
-	assert.match(
+	assertOrderedClaim(
 		publication.summary,
 		/no final archive Blob.*continuous codec.*temporary file storage.*does not retain the whole staged PCM or encoded file.*whole-buffer.*separately bounded.*Prepared Blob mode.*1,000,000,000 bytes.*512 MiB/isu,
 	);
@@ -204,11 +206,11 @@ test('the direct stem-archive fixture records native ZIP32/7z and compressed ZIP
 	assert.deepEqual(fixture.specification.compressedFixtureActualEntryBytes, [3, 5]);
 	assert.equal(fixture.specification.compressedFixtureActualZip32Bytes, 262);
 	assert.doesNotMatch(JSON.stringify(fixture.specification), /qualified/iu);
-	assert.match(
+	assertOrderedClaim(
 		fixture.limitation,
 		/Node.*provider-injected.*prepared streaming destination.*not.*File System Access.*Electron filesystem.*native picker/isu,
 	);
-	assert.match(
+	assertOrderedClaim(
 		fixture.limitation,
 		/small Node correctness fixture.*151-byte 7z.*small injected golden correctness fixture.*not.*reference-scale.*actual FFmpeg codec execution.*codec conformance.*codec expansion.*MEMFS.*garbage collection.*CPU.*elapsed time.*not a reference-scale.*renderer-heap.*process-RSS.*filesystem-durability.*crash.*power-loss/isu,
 	);
@@ -240,7 +242,7 @@ test('the threat and quality documents separate current codecs from historical f
 		readFile(new URL('../docs/development/quality-diagnostics.md', import.meta.url), 'utf8'),
 	]);
 
-	assert.match(
+	assertOrderedClaim(
 		threatModel.replace(/\s+/gu, ' '),
 		/direct stem-archive.*ZIP32.*7z Copy.*Compressed stems.*ZIP32-only.*complete FLAC.*MP3.*Vorbis.*Opus.*WavPack.*MP2.*WebCodecs.*Mediabunny.*AAC\/M4A/isu,
 	);
@@ -256,7 +258,7 @@ test('the threat and quality documents separate current codecs from historical f
 		qualityBudgets,
 		/direct stem-archive publication.*small focused Node correctness/isu,
 	);
-	assert.match(
+	assertOrderedClaim(
 		qualityBudgets,
 		/provider-injected FFmpeg\/MEMFS fixtures.*retained historical.*do not describe the production\s+browser codec runtime.*dedicated reviewed audio WASMs.*WebCodecs\/Mediabunny.*no FFmpeg fallback/isu,
 	);

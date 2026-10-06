@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
+import { assertOrderedClaim } from './helpers/ordered-evidence-claim.js';
+
 const repositoryUrl = new URL('../', import.meta.url);
 
 async function readJson(path) {
@@ -37,23 +39,23 @@ test('local-assistance policy records conditional workflow activation and its ma
 
 	assert.equal(matrix.groundedAt, '2026-10-02');
 	assert.ok(control);
-	assert.match(control.summary,
+	assertOrderedClaim(control.summary,
 		/Parakeet.*speech-recognition.*Silero.*voice-activity-detection.*Pyannote.*ERes2Net.*speaker-diarization.*authenticated Sherpa/isu);
-	assert.match(control.summary,
+	assertOrderedClaim(control.summary,
 		/model-free shot-detection.*current.*external FFmpeg.*exact.*pair.*scdet.*canary/isu);
 	assert.match(control.summary,
 		/AssistanceWorkflow.*aggregate fence.*guided recipes.*Advanced.*fifteen primitive operations/isu);
-	assert.match(control.summary,
+	assertOrderedClaim(control.summary,
 		/Whisper.*alignment.*enhancement.*TIGER.*PANNs.*Beat This.*TransNetV2.*embedding.*OCR.*reframe.*highlight.*Qwen/isu);
-	assert.match(control.summary,
+	assertOrderedClaim(control.summary,
 		/Retained Linux x64 conversions.*both Beat This checkpoints.*passing source-framework parity.*selected-target.*immutable R2 archive.*distribution manifest.*packages omit.*Model Manager installation.*first execution.*exact catalog entry/isu);
 	assert.match(control.summary,
 		/EU R2 release gates.*immutable publication.*full-digest public read-back.*model and target runtime archive/isu);
-	assert.match(control.summary,
+	assertOrderedClaim(control.summary,
 		/explicit reviewed acceptance.*content-addressed transcript body.*cleanup.*speaker attribution.*derived audio.*reactions.*beats.*tempo.*shot.*indexes.*reframe.*secondary sequences/isu);
 	assert.match(control.summary,
 		/owner-device observations.*unrecorded.*owner QA.*optional.*nonblocking/isu);
-	assert.match(control.summary,
+	assertOrderedClaim(control.summary,
 		/licensing.*catalog publication.*artifact digest.*runtime.*selected-media.*consent.*fail[- ]closed/isu);
 	for (const path of [
 		'desktop/assistance-workflow-service.ts',
@@ -80,22 +82,22 @@ test('local-assistance policy records conditional workflow activation and its ma
 		'tests/audio-editor-assistance-transcript-scape-v1.test.ts',
 	]) assert.ok(control.evidence.some(({ path: evidencePath }) => evidencePath === path), path);
 
-	assert.match(threatClaims,
+	assertOrderedClaim(threatClaims,
 		/Parakeet.*speech[- ]recognition.*Silero.*voice[- ]activity.*diarization.*Pyannote.*ERes2Net/isu);
-	assert.match(threatClaims,
+	assertOrderedClaim(threatClaims,
 		/external FFmpeg.*shot.*admission.*scdet.*canary.*typed unavailable/isu);
-	assert.match(threatClaims,
+	assertOrderedClaim(threatClaims,
 		/AssistanceWorkflow.*aggregate.*fence.*Guided.*Advanced.*runtime families/isu);
-	assert.match(threatClaims,
+	assertOrderedClaim(threatClaims,
 		/CPU runtime families.*Whisper.*TIGER.*PANNs.*Beat This.*TransNetV2.*OCR.*Qwen.*selected-target CPU engine.*generated file manifest/isu);
-	assert.match(threatClaims,
+	assertOrderedClaim(threatClaims,
 		/semantic review.*explicit acceptance.*transcript.*cleanup.*speaker.*derived audio.*reactions.*beats.*tempo.*shots.*indexes.*reframe.*highlight/isu);
 	assert.match(threatClaims,
 		/No complete five-target packaged privacy\/cancellation workload or owner-device observation set.*Optional owner QA does not grant runtime authority/isu);
 	assert.ok(supplyControl);
-	assert.match(supplyControl.summary,
+	assertOrderedClaim(supplyControl.summary,
 		/stream.*disk.*multipart.*public.*SHA-256 read-back.*machine-verified catalog output.*recorded per artifact.*unit tests.*do not establish remote availability/isu);
-	assert.match(supplyControl.summary,
+	assertOrderedClaim(supplyControl.summary,
 		/reviewed wav2vec2.*TIGER.*PANNs.*Beat This.*TransNetV2.*Qwen3.*Dereverb.*complete versioned notices.*immutable public read-back.*catalog tasks recompute.*canonical offered entry.*ready.*all five selected-target runtime closures.*no assistance native payloads/isu);
 	for (const path of [
 		'config/milestone-7-model-catalog-tasks.json',
@@ -104,18 +106,18 @@ test('local-assistance policy records conditional workflow activation and its ma
 	]) assert.ok(supplyControl.evidence.some(({ path: evidencePath }) =>
 		evidencePath === path), path);
 	assert.ok(diagnosticsRisk);
-	assert.match(diagnosticsRisk.exposure,
+	assertOrderedClaim(diagnosticsRisk.exposure,
 		/Retained Linux x64 conversions.*TIGER.*both Beat This checkpoints.*passing source-framework\/ONNX comparisons.*direct production-worker smoke.*target closures.*ASAR distribution manifest.*packages omit.*Model Manager installation.*first use/isu);
 	assert.match(diagnosticsRisk.exposure,
 		/do not create an operating-system sandbox.*No complete five-target.*Optional owner QA does not grant runtime authority/isu);
-	assert.match(diagnosticsRisk.requiredControl,
+	assertOrderedClaim(diagnosticsRisk.requiredControl,
 		/digest-pinned catalog entries.*verified converted artifacts and parity.*exact selected-target native runtime closure.*artifact.*platform.*selected-media.*consent check/isu);
 	assert.ok(externalExecutableRisk);
-	assert.match(externalExecutableRisk.exposure,
+	assertOrderedClaim(externalExecutableRisk.exposure,
 		/assistance shot.*scdet.*canary.*path-based runners.*replacement.*dynamically loaded libraries/isu);
-	assert.match(activationClaims,
+	assertOrderedClaim(activationClaims,
 		/workflow becomes available only when all of these agree.*missing or mismatched condition returns a typed unavailable result.*never causes.*implicit installation.*substitute model.*fail closed.*Owner-device observations are optional QA/isu);
-	assert.match(historicalClaims,
+	assertOrderedClaim(historicalClaims,
 		/local-models.*distribution gate is enabled.*only a complete evidence row.*distributionStatus.*permitted.*catalog contains 22 published identities/isu);
 });
 

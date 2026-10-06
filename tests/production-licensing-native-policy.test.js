@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import { access, readFile } from 'node:fs/promises';
 import test from 'node:test';
 
+import { assertOrderedClaim } from './helpers/ordered-evidence-claim.js';
+
 const matrixUrl = new URL('../config/production-licensing-matrix.json', import.meta.url);
 const noticesUrl = new URL('../THIRD_PARTY_LICENSES.md', import.meta.url);
 const repositoryUrl = new URL('../', import.meta.url);
@@ -95,7 +97,7 @@ test('active native policy records CI closure without a reviewer or manual-acqui
 	assert.doesNotMatch(threatModel, /there is no libwebm, libvpx[\s\S]{0,100}five-target AV1 evidence/iu);
 	assert.doesNotMatch(nativeServices, /terms a person must accept[\s\S]{0,80}Steinberg ASIO/iu);
 	assert.doesNotMatch(provisioner, /terms a person has to read and accept[\s\S]{0,100}acquiring those bytes by hand/iu);
-	assert.match(nativeServices, /supported producer matrix.*Windows x64.*Windows ARM64.*macOS ARM64.*Linux x64.*Linux ARM64/isu);
+	assertOrderedClaim(nativeServices, /supported producer matrix.*Windows x64.*Windows ARM64.*macOS ARM64.*Linux x64.*Linux ARM64/isu);
 });
 
 test('native policy rows separate distribution requirements from test activation', async () => {

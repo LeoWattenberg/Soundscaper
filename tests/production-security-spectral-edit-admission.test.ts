@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
+import { assertOrderedClaim } from './helpers/ordered-evidence-claim.js';
+
 interface SecurityEvidence {
 	readonly kind: string;
 	readonly path: string;
@@ -70,19 +72,19 @@ test('spectral edit admission remains narrowly evidenced and documented', async 
 		);
 	}
 	assert.match(admission.summary, /non-raiseable 256 MiB.*lower-only.*useful-binary/isu);
-	assert.match(admission.summary, /before.*storage preflight.*dry render.*worker.*retention.*persistence/isu);
+	assertOrderedClaim(admission.summary, /before.*storage preflight.*dry render.*worker.*retention.*persistence/isu);
 	assert.match(admission.summary, /earlier completed outputs.*dry.*transfer copy.*equal-shape output/isu);
-	assert.match(admission.summary, /two.*Float64.*Hann.*real.*imaginary.*PFFFT.*input.*output.*work/isu);
+	assertOrderedClaim(admission.summary, /two.*Float64.*Hann.*real.*imaginary.*PFFFT.*input.*output.*work/isu);
 	assert.match(admission.summary, /worker boundary.*before.*FFT initialization.*copying.*worker creation/isu);
-	assert.match(admission.summary, /1–32.*tight.*distinct.*non-shared.*non-resizable.*exact.*channel.*frame/isu);
-	assert.match(admission.summary, /task.*project.*current.*persistence.*await.*before.*commit/isu);
+	assertOrderedClaim(admission.summary, /1–32.*tight.*distinct.*non-shared.*non-resizable.*exact.*channel.*frame/isu);
+	assertOrderedClaim(admission.summary, /task.*project.*current.*persistence.*await.*before.*commit/isu);
 
 	const residual = cancellation.residualRisks.find(
 		({ id }) => id === 'render-worker-resident-set-accounting',
 	);
 	assert.ok(residual, 'render and worker resident-set residual is required');
 	assert.equal(residual.ownerMilestone, '2');
-	assert.match(residual.exposure, /spectral.*useful-binary upper bound.*not.*browser heap.*RSS.*GC/isu);
+	assertOrderedClaim(residual.exposure, /spectral.*useful-binary upper bound.*not.*browser heap.*RSS.*GC/isu);
 	assert.match(residual.exposure, /no product-wide reservation.*concurrent.*overlap/isu);
 	assert.match(residual.exposure, /persistence.*AudioBuffer.*generic selection effects.*injected renderers/isu);
 	assert.match(residual.exposure, /worker.*message objects.*PFFFT module heap.*setup.*concurrent/isu);
@@ -92,13 +94,13 @@ test('spectral edit admission remains narrowly evidenced and documented', async 
 	const threatModel = await readFile(new URL(`../${matrix.modelDocument}`, import.meta.url), 'utf8');
 	const scope = spectralEditDocumentation(threatModel, 'production threat model');
 	assert.match(scope, /non-raiseable 256 MiB.*lower-only.*useful-binary/isu);
-	assert.match(scope, /before.*storage preflight.*dry render.*worker.*retention.*persistence/isu);
+	assertOrderedClaim(scope, /before.*storage preflight.*dry render.*worker.*retention.*persistence/isu);
 	assert.match(scope, /earlier completed outputs.*dry.*transfer copy.*equal-shape output/isu);
-	assert.match(scope, /two.*Float64.*Hann.*real.*imaginary.*PFFFT.*input.*output.*work/isu);
+	assertOrderedClaim(scope, /two.*Float64.*Hann.*real.*imaginary.*PFFFT.*input.*output.*work/isu);
 	assert.match(scope, /worker boundary.*before.*FFT initialization.*copying.*worker creation/isu);
-	assert.match(scope, /1–32.*tight.*distinct.*non-shared.*non-resizable.*exact.*channel.*frame/isu);
-	assert.match(scope, /task.*project.*current.*persistence.*await.*before.*commit/isu);
-	assert.match(scope, /upper bound.*not.*browser[- ]heap.*RSS.*GC.*product-wide reservation/isu);
+	assertOrderedClaim(scope, /1–32.*tight.*distinct.*non-shared.*non-resizable.*exact.*channel.*frame/isu);
+	assertOrderedClaim(scope, /task.*project.*current.*persistence.*await.*before.*commit/isu);
+	assertOrderedClaim(scope, /upper bound.*not.*browser[- ]heap.*RSS.*GC.*product-wide reservation/isu);
 	assert.match(scope, /persistence.*AudioBuffer.*generic selection effects.*injected renderers/isu);
 	assert.match(scope, /worker.*message objects.*PFFFT module heap.*setup.*concurrent/isu);
 });

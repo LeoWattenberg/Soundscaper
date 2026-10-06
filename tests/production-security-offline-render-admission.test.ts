@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
+import { assertOrderedClaim } from './helpers/ordered-evidence-claim.js';
+
 interface SecurityEvidence {
 	readonly kind: string;
 	readonly path: string;
@@ -68,10 +70,10 @@ test('central offline-render output admission remains narrowly evidenced and doc
 	assert.match(admission.summary, /non-raiseable 256 MiB.*useful-binary.*lower-only/isu);
 	assert.match(admission.summary, /exact Float32 output.*crop\s+copy.*coexist/isu);
 	assert.match(admission.summary, /software-renderer fallback.*(?:before|precedes).*context factory/isu);
-	assert.match(admission.summary, /context length.*sample rate.*before.*worklets.*graph.*source/isu);
+	assertOrderedClaim(admission.summary, /context length.*sample rate.*before.*worklets.*graph.*source/isu);
 	assert.match(admission.summary, /rendered AudioBuffer.*channels.*length.*sample rate.*Float32/isu);
 	assert.match(admission.summary, /createExportPlan.*mobile.*output.*live[- ]PCM.*heuristics/isu);
-	assert.match(
+	assertOrderedClaim(
 		admission.summary,
 		/project-rate requested frames.*effective\s+pre-roll.*(?:maximum|max).*mix.*per-stem.*graph\s+latency.*actual\s+render\s+width/isu,
 	);
@@ -91,7 +93,7 @@ test('central offline-render output admission remains narrowly evidenced and doc
 	assert.match(residual.exposure, /no product-wide reservation.*overlap/isu);
 	assert.match(residual.exposure, /factory.*allocate before.*geometry.*checked/isu);
 	assert.match(residual.exposure, /cancellation.*not prove.*startRendering.*stopped/isu);
-	assert.match(
+	assertOrderedClaim(
 		residual.exposure,
 		/export strategy.*central.*admission.*before.*offline\s+render.*context\s+work/isu,
 	);
@@ -102,15 +104,15 @@ test('central offline-render output admission remains narrowly evidenced and doc
 	const threatModel = await readFile(new URL(`../${matrix.modelDocument}`, import.meta.url), 'utf8');
 	const scope = offlineRenderDocumentation(threatModel, 'production threat model');
 	assert.match(scope, /non-raiseable 256 MiB.*lower-only/isu);
-	assert.match(scope, /exact.*Float32.*context.*output.*crop\s+copy.*coexist/isu);
+	assertOrderedClaim(scope, /exact.*Float32.*context.*output.*crop\s+copy.*coexist/isu);
 	assert.match(scope, /software-renderer fallback.*(?:before|precedes).*context factory/isu);
-	assert.match(scope, /context.*length.*sample rate.*before.*worklets.*graph.*source/isu);
-	assert.match(scope, /rendered.*channel.*length.*sample rate.*Float32.*before.*(?:return|crop)/isu);
-	assert.match(scope, /source.*reverse.*graph.*worklet.*WASM.*browser[- ]heap.*RSS.*GC/isu);
+	assertOrderedClaim(scope, /context.*length.*sample rate.*before.*worklets.*graph.*source/isu);
+	assertOrderedClaim(scope, /rendered.*channel.*length.*sample rate.*Float32.*before.*(?:return|crop)/isu);
+	assertOrderedClaim(scope, /source.*reverse.*graph.*worklet.*WASM.*browser[- ]heap.*RSS.*GC/isu);
 	assert.match(scope, /(?:separate|other).*engines?.*overlap.*product-wide reservation/isu);
 	assert.match(scope, /(?:abort|cancellation).*not.*prove.*startRendering\(\).*stop/isu);
 	assert.match(scope, /createExportPlan.*mobile.*output.*live[- ]PCM.*heuristics/isu);
-	assert.match(
+	assertOrderedClaim(
 		scope,
 		/project-rate requested frames.*effective\s+pre-roll.*(?:maximum|max).*mix.*per-stem.*graph\s+latency.*actual\s+render\s+width/isu,
 	);

@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
+import { assertOrderedClaim } from './helpers/ordered-evidence-claim.js';
+
 const SECURITY_CONTROL = 'framescaper-capture-durability-and-atomic-publication';
 const DESKTOP_CONTROL = 'framescaper-capture-desktop-consent-authority';
 
@@ -17,28 +19,28 @@ test('Framescaper capture policy binds consent, recovery, origin, and publicatio
 	const capture = cancellation?.currentControls.find(({ id }) => id === SECURITY_CONTROL);
 	assert.ok(capture);
 	assert.equal(cancellation.status, 'partial');
-	assert.match(capture.summary, /Framescaper family v1.*active.*standalone web and desktop.*framescaperCapture true.*capture route authority.*controller.*app binding.*runtime probe.*Recording Setup.*default-hidden.*View > Panels.*opt-in.*active or recovery-owned.*Record.*source.*video encoder.*audio packet.*cross-context Web Locks.*encoded\/raw\/manifest.*video probe.*canonical publication store.*partial stack.*unavailable/isu);
-	assert.match(capture.summary, /family v1.*direct user action.*getDisplayMedia.*before.*getUserMedia.*later.*failure.*releases/isu);
-	assert.match(capture.summary, /before.*recorder.*accept.*creation inventory.*origin project ID.*tokens.*spools.*manifest.*contiguous packet sequence.*manifest-acknowledged prefix/isu);
+	assertOrderedClaim(capture.summary, /Framescaper family v1.*active.*standalone web and desktop.*framescaperCapture true.*capture route authority.*controller.*app binding.*runtime probe.*Recording Setup.*default-hidden.*View > Panels.*opt-in.*active or recovery-owned.*Record.*source.*video encoder.*audio packet.*cross-context Web Locks.*encoded\/raw\/manifest.*video probe.*canonical publication store.*partial stack.*unavailable/isu);
+	assertOrderedClaim(capture.summary, /family v1.*direct user action.*getDisplayMedia.*before.*getUserMedia.*later.*failure.*releases/isu);
+	assertOrderedClaim(capture.summary, /before.*recorder.*accept.*creation inventory.*origin project ID.*tokens.*spools.*manifest.*contiguous packet sequence.*manifest-acknowledged prefix/isu);
 	assert.match(capture.summary, /partial creation.*cleanup-pending.*startup globally retries.*origin project is absent.*changed storage ownership fails closed/isu);
-	assert.match(capture.summary, /outer project\/session Web Lock.*before.*nested exact spool Web Lock.*previous-to-next.*before writing the body.*manifest.*session lock remains held/isu);
-	assert.match(capture.summary, /Passive spool inspection.*cannot roll metadata-next.*without an authoritative manifest prefix.*next prefix retires.*previous prefix restores.*physical tail.*other prefix.*fails closed.*Multi-stream.*total order/isu);
-	assert.match(capture.summary, /Tail rollback.*metadata rewind.*physical-tail cleanup.*OPFS.*fallback.*raw cleanup.*Terminal retirement.*deleting state.*raw global reservation/isu);
-	assert.match(capture.summary, /encoded presentation time.*prior acknowledged end.*PCM.*non-pause hole.*one microsecond.*1,048,576.*zero-valued.*1,048,576/isu);
+	assertOrderedClaim(capture.summary, /outer project\/session Web Lock.*before.*nested exact spool Web Lock.*previous-to-next.*before writing the body.*manifest.*session lock remains held/isu);
+	assertOrderedClaim(capture.summary, /Passive spool inspection.*cannot roll metadata-next.*without an authoritative manifest prefix.*next prefix retires.*previous prefix restores.*physical tail.*other prefix.*fails closed.*Multi-stream.*total order/isu);
+	assertOrderedClaim(capture.summary, /Tail rollback.*metadata rewind.*physical-tail cleanup.*OPFS.*fallback.*raw cleanup.*Terminal retirement.*deleting state.*raw global reservation/isu);
+	assertOrderedClaim(capture.summary, /encoded presentation time.*prior acknowledged end.*PCM.*non-pause hole.*one microsecond.*1,048,576.*zero-valued.*1,048,576/isu);
 	assert.match(capture.summary, /one through four.*4,096 pause spans.*1,000,000 encoded packets.*16,000,000 chunks/isu);
-	assert.match(capture.summary, /browser PCM.*32 channels.*16,384 frames.*durable raw store independently.*64 channels.*65,536 frames.*8 MiB/isu);
+	assertOrderedClaim(capture.summary, /browser PCM.*32 channels.*16,384 frames.*durable raw store independently.*64 channels.*65,536 frames.*8 MiB/isu);
 	assert.match(capture.summary, /stored project IDs current-first.*one global recovery.*closed exact-origin project.*inactive tab/isu);
-	assert.match(capture.summary, /origin.*project ID.*revision.*SHA-256.*playhead.*edit.*close.*delete.*handoff.*successful live or recovery publication.*explicit discard.*failed Stop.*protected recovery/isu);
-	assert.match(capture.summary, /canonical publication materializes each acknowledged spool.*one ordinary durable source.*before project mutation.*fence.*one project batch.*CAS mismatch.*rolls back.*indeterminate.*retryable recovery/isu);
+	assertOrderedClaim(capture.summary, /origin.*project ID.*revision.*SHA-256.*playhead.*edit.*close.*delete.*handoff.*successful live or recovery publication.*explicit discard.*failed Stop.*protected recovery/isu);
+	assertOrderedClaim(capture.summary, /canonical publication materializes each acknowledged spool.*one ordinary durable source.*before project mutation.*fence.*one project batch.*CAS mismatch.*rolls back.*indeterminate.*retryable recovery/isu);
 	assert.match(capture.summary, /Project Bin.*one bin item.*timeline.*one dedicated track, lane, and clip.*reuse the same ordinary sources/isu);
-	assert.match(capture.summary, /after canonical capture and manifest commit.*without awaiting.*zero audio proxies.*exactly one captured-video proxy.*warning sink.*without rolling back/isu);
-	assert.match(capture.summary, /proxy request.*session.*origin.*source.*revision.*content digest.*Framescaper family v1.*owned revision lineage.*inactive-origin.*active app.*reclaim.*determinate failure/isu);
-	assert.match(capture.summary, /landed proxy target.*claim cleanup.*session-history.*playback.*app-snapshot.*without regenerating.*later project edit/isu);
-	assert.match(capture.summary, /Framescaper family v1 capture-derived scheduler.*post-commit generation.*separate from Framescaper family v1's menu-reached general editorial proxy lifecycle.*generation.*adaptive Original\/Proxy\/Auto preview selection.*offline editing.*relink.*regeneration.*cancellation.*atomic cleanup.*Neither route.*memory.*RSS/isu);
-	assert.match(capture.summary, /implementation.*active on Framescaper family-v1 web and desktop.*default-hidden Record-menu surface enabled for testing.*optional owner QA.*never disable.*implemented route.*synthetic media.*packaged no-device smoke.*control-plane/isu);
+	assertOrderedClaim(capture.summary, /after canonical capture and manifest commit.*without awaiting.*zero audio proxies.*exactly one captured-video proxy.*warning sink.*without rolling back/isu);
+	assertOrderedClaim(capture.summary, /proxy request.*session.*origin.*source.*revision.*content digest.*Framescaper family v1.*owned revision lineage.*inactive-origin.*active app.*reclaim.*determinate failure/isu);
+	assertOrderedClaim(capture.summary, /landed proxy target.*claim cleanup.*session-history.*playback.*app-snapshot.*without regenerating.*later project edit/isu);
+	assertOrderedClaim(capture.summary, /Framescaper family v1 capture-derived scheduler.*post-commit generation.*separate from Framescaper family v1's menu-reached general editorial proxy lifecycle.*generation.*adaptive Original\/Proxy\/Auto preview selection.*offline editing.*relink.*regeneration.*cancellation.*atomic cleanup.*Neither route.*memory.*RSS/isu);
+	assertOrderedClaim(capture.summary, /implementation.*active on Framescaper family-v1 web and desktop.*default-hidden Record-menu surface enabled for testing.*optional owner QA.*never disable.*implemented route.*synthetic media.*packaged no-device smoke.*control-plane/isu);
 	assert.match(capture.summary,
 		/Configured Chromium, Firefox, and WebKit.*eight-case workflow.*synthetic media.*24 configured-engine cases.*neither establishes behavior on other devices/isu);
-	assert.match(capture.summary, /no aggregate duration.*global byte.*browser heap.*RSS.*quota reservation.*capture-device-diagnostics.*unavailable with a reason/isu);
+	assertOrderedClaim(capture.summary, /no aggregate duration.*global byte.*browser heap.*RSS.*quota reservation.*capture-device-diagnostics.*unavailable with a reason/isu);
 	assertEvidence(capture, [
 		'src/common/editor/framescaper-capture-domain.ts',
 		'src/common/editor/framescaper-capture-session-manifest.ts',
@@ -60,26 +62,26 @@ test('Framescaper capture policy binds consent, recovery, origin, and publicatio
 		'tests/framescaper-capture-cloudflare-policy.test.js',
 	]);
 	assert.match(threatModel, /policy-narrative:framescaper-capture-durability-and-atomic-publication/u);
-	assert.match(privacy, /after canonical capture and manifest commit.*without awaiting.*audio.*never a proxy job.*every valid owned captured video.*one\s+proxy job.*warning.*does not roll back/isu);
-	assert.match(privacy, /outer project\/session Web\s+Lock.*authoritative manifest.*nested.*spool Web Locks.*next manifest.*prefix.*previous prefix.*unacknowledged tail.*fails closed/isu);
-	assert.match(privacy, /Record is available.*Framescaper family-v1.*standalone web and desktop.*cross-context Web Locks.*complete\s+encoded\/raw\/manifest.*video probe.*canonical publication\s+store.*partial stack.*unavailable/isu);
+	assertOrderedClaim(privacy, /after canonical capture and manifest commit.*without awaiting.*audio.*never a proxy job.*every valid owned captured video.*one\s+proxy job.*warning.*does not roll back/isu);
+	assertOrderedClaim(privacy, /outer project\/session Web\s+Lock.*authoritative manifest.*nested.*spool Web Locks.*next manifest.*prefix.*previous prefix.*unacknowledged tail.*fails closed/isu);
+	assertOrderedClaim(privacy, /Record is available.*Framescaper family-v1.*standalone web and desktop.*cross-context Web Locks.*complete\s+encoded\/raw\/manifest.*video probe.*canonical publication\s+store.*partial stack.*unavailable/isu);
 	assert.match(privacy, /Framescaper recording is unavailable in Soundscaper.*Soundscaper.*microphone\/display policy.*camera denied/isu);
 
 	const ipc = matrix.risks.find(({ id }) => id === 'electron-renderer-ipc-boundary');
 	const desktop = ipc?.currentControls.find(({ id }) => id === DESKTOP_CONTROL);
 	assert.ok(desktop);
 	assert.equal(ipc.status, 'enforced');
-	assert.match(desktop.summary, /Framescaper.*control plane.*no media bytes.*native source IDs.*filesystem paths.*Electron objects/isu);
+	assertOrderedClaim(desktop.summary, /Framescaper.*control plane.*no media bytes.*native source IDs.*filesystem paths.*Electron objects/isu);
 	assert.match(desktop.summary, /current owner.*focused trusted main document/isu);
 	assert.match(desktop.summary, /64.*five minutes.*owner- and generation-bound.*15-second single-use/isu);
-	assert.match(desktop.summary, /macOS 15.*system picker.*Windows.*loopback.*other.*unavailable/isu);
-	assert.match(desktop.summary, /standalone Framescaper.*camera.*microphone.*display.*Soundscaper.*camera.*embedded.*deny/isu);
-	assert.match(desktop.summary, /packaged Soundscaper route.*separate strict session boundary.*audio permission check.*singular `mediaType` value `audio`.*audio permission request.*nonempty `mediaTypes` array.*only `audio`.*speaker-selection request.*plain permission detail shape.*without a media field/isu);
-	assert.match(desktop.summary, /Audio and speaker permissions.*exact live Soundscaper main editor WebContents.*main-frame detail.*trusted document URL.*origin.*backgrounded.*device enumeration is complete.*Fullscreen and display permission.*focused/isu);
-	assert.match(desktop.summary, /Windows only.*direct-user-gesture main-frame display request.*both video and audio.*first valid screen.*Chromium loopback audio.*capture pool retains.*live video companion/isu);
-	assert.match(desktop.summary, /Non-Windows.*rejected without screen enumeration.*desktop audio is unavailable.*package transformation retains `desktopCapturer`.*self `display-capture` policy.*runtime staging.*strict capture module.*disposal clears both permission handlers.*display handler.*download listener/isu);
-	assert.match(desktop.summary, /Framescaper family v1.*framescaperCapture true.*active on standalone web and desktop.*Recording Setup.*default-hidden.*capture route authority.*desktop control plane/isu);
-	assert.match(desktop.summary, /real packaged, no-device smoke.*control-plane.*status.*grant.*teardown.*does not establish general device behavior.*actual packaged cameras.*remain unverified/isu);
+	assertOrderedClaim(desktop.summary, /macOS 15.*system picker.*Windows.*loopback.*other.*unavailable/isu);
+	assertOrderedClaim(desktop.summary, /standalone Framescaper.*camera.*microphone.*display.*Soundscaper.*camera.*embedded.*deny/isu);
+	assertOrderedClaim(desktop.summary, /packaged Soundscaper route.*separate strict session boundary.*audio permission check.*singular `mediaType` value `audio`.*audio permission request.*nonempty `mediaTypes` array.*only `audio`.*speaker-selection request.*plain permission detail shape.*without a media field/isu);
+	assertOrderedClaim(desktop.summary, /Audio and speaker permissions.*exact live Soundscaper main editor WebContents.*main-frame detail.*trusted document URL.*origin.*backgrounded.*device enumeration is complete.*Fullscreen and display permission.*focused/isu);
+	assertOrderedClaim(desktop.summary, /Windows only.*direct-user-gesture main-frame display request.*both video and audio.*first valid screen.*Chromium loopback audio.*capture pool retains.*live video companion/isu);
+	assertOrderedClaim(desktop.summary, /Non-Windows.*rejected without screen enumeration.*desktop audio is unavailable.*package transformation retains `desktopCapturer`.*self `display-capture` policy.*runtime staging.*strict capture module.*disposal clears both permission handlers.*display handler.*download listener/isu);
+	assertOrderedClaim(desktop.summary, /Framescaper family v1.*framescaperCapture true.*active on standalone web and desktop.*Recording Setup.*default-hidden.*capture route authority.*desktop control plane/isu);
+	assertOrderedClaim(desktop.summary, /real packaged, no-device smoke.*control-plane.*status.*grant.*teardown.*does not establish general device behavior.*actual packaged cameras.*remain unverified/isu);
 	assertEvidence(desktop, [
 		'desktop/framescaper-capture-artifact-smoke.js',
 		'desktop/framescaper-capture-desktop-port.ts',
@@ -174,7 +176,7 @@ test('capability activates the Framescaper family-v1 baseline while real-device 
 		roadmap.indexOf('### 8A. Framescaper recording setup'),
 		roadmap.indexOf('## 8+. Post-milestone-8 Framescaper Web VCR extension'),
 	);
-	assert.match(capture, /Status:.*Implemented and active on selected Framescaper F31 web and desktop.*framescaperCapture: true.*Recording Setup.*default-hidden.*View > Panels.*optional Framescaper owner QA.*framescaperWebVcr: true/isu);
+	assertOrderedClaim(capture, /Status:.*Implemented and active on selected Framescaper F31 web and desktop.*framescaperCapture: true.*Recording Setup.*default-hidden.*View > Panels.*optional Framescaper owner QA.*framescaperWebVcr: true/isu);
 	assert.doesNotMatch(roadmap, /Blocked until milestone 8:\*\*[^\n]*(?:Framescaper camera|Framescaper capture)/iu);
 	assert.doesNotMatch(capture, /— Planned:/u);
 	assert.equal((capture.match(/— Implemented \(active\):/gu) ?? []).length, 11);
@@ -191,15 +193,15 @@ test('capability activates the Framescaper family-v1 baseline while real-device 
 		'capture.unrecoverableDurableFragments', 'capture.unauthorizedDeviceOpens',
 	]);
 	assert.equal(Object.hasOwn(quality, 'environments'), false);
-	assert.match(
+	assertOrderedClaim(
 		roadmap.slice(roadmap.indexOf('## 9+. Post-1.0 extensions')),
 		/### 8B\. MIDI.*Status:.*Planned.*not implemented.*excluded from stable 1\.0.*Audacity.*post-1\.0/isu,
 	);
-	assert.match(documentation,
+	assertOrderedClaim(documentation,
 		/Framescaper family v1 provides local-first capture.*standalone web and\s+desktop.*framescaperCapture: true.*Recording Setup.*default-hidden.*View > Panels.*Web VCR.*Record-menu source adapter/isu);
 	assert.match(documentation,
 		/short-lived closed creation inventory.*closed CAS manifest.*previous-to-next durable\s+intent.*outer project\/session Web\s+Lock.*changed token fails closed/isu);
-	assert.match(documentation,
+	assertOrderedClaim(documentation,
 		/after canonical capture and manifest commit.*Audio.*never a proxy job.*valid owned captured video.*one\s+proxy job.*warning.*does not roll back/isu);
 	assert.match(documentation,
 		/Chromium, Firefox, and WebKit.*eight-case browser\s+workflow.*synthetic media.*24 configured-engine cases/isu);

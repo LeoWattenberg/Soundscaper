@@ -7,6 +7,8 @@ import test from 'node:test';
 import { PRODUCT_IDS } from '../src/common/products.js';
 import { OPFS_SYNC_OPERATION_IDS } from '../src/common/editor/storage/opfs-sync-worker-protocol.ts';
 
+import { assertOrderedClaim } from './helpers/ordered-evidence-claim.js';
+
 const closureUrl = new URL('../config/milestone-2-closure.json', import.meta.url);
 const capabilitiesUrl = new URL('../config/production-capabilities.json', import.meta.url);
 const qualityBudgetsUrl = new URL('../docs/development/quality-diagnostics.md', import.meta.url);
@@ -68,11 +70,11 @@ test('both web products pin worker and IndexedDB fallback evidence', async () =>
 
 test('quality policy limits the dedicated OPFS worker claim to proved behavior', async () => {
 	const documentation = await readFile(qualityBudgetsUrl, 'utf8');
-	assert.match(
+	assertOrderedClaim(
 		documentation,
 		/dedicated OPFS storage worker.*six closed operation IDs.*synchronous access handles.*only after capability detection.*16 MiB.*canonical PCM.*exact bounded ranges.*media and derivative writes.*slices.*worker-owned `File` snapshots.*exact synchronous size check.*store close.*terminates.*asynchronous OPFS.*IndexedDB.*correctness fallback/isu,
 	);
-	assert.match(
+	assertOrderedClaim(
 		documentation,
 		/automated test runs Chromium, Firefox, and WebKit.*Chromium and Firefox witness.*main-realm.*`createWritable`.*`getFile`.*persisted PCM, original video, and derivatives.*reload.*playback.*second tab.*read-only.*writer lock.*WebKit.*supported fallback.*broader browser support.*release readiness/isu,
 	);

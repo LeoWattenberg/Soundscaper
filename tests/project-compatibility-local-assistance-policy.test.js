@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import { access, readFile } from 'node:fs/promises';
 import test from 'node:test';
 
+import { assertOrderedClaim } from './helpers/ordered-evidence-claim.js';
+
 const policyUrl = new URL('../config/project-compatibility.json', import.meta.url);
 const documentationUrl = new URL('../docs/policies/project-compatibility.md', import.meta.url);
 
@@ -14,7 +16,7 @@ test('compatibility policy records family-qualified local-assistance custody', a
 	);
 	assert.ok(localAssistance);
 	assert.equal(localAssistance.policyAuthority, 'family-v1-active');
-	assert.match(
+	assertOrderedClaim(
 		localAssistance.requiredOutcome,
 		/Soundscaper family v1.*Framescaper family v1.*explicitly reviewed.*aggregate-fenced.*ordinary editable state.*bounded assistance bodies and derivatives.*family-qualified custody.*deterministic editing.*unavailable/isu,
 	);
@@ -22,7 +24,7 @@ test('compatibility policy records family-qualified local-assistance custody', a
 		localAssistance.currentBehavior,
 		/Both family-v1 products.*closed assistanceAssets collection.*independently versioned AssistanceWorkflow v1 bridge/isu,
 	);
-	assert.match(
+	assertOrderedClaim(
 		localAssistance.currentBehavior,
 		/Main-owned consent and publication fences.*schemaFamily, projectId.*project revision.*selected media.*model\/runtime inputs.*accepted output.*ordinary one-step project commands/isu,
 	);

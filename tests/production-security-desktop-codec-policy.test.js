@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
+import { assertOrderedClaim } from './helpers/ordered-evidence-claim.js';
+
 const matrixUrl = new URL('../config/production-security-matrix.json', import.meta.url);
 const architectureUrl = new URL('../docs/architecture/desktop-codec-providers.md', import.meta.url);
 const ELECTRON_EVIDENCE = [
@@ -188,23 +190,23 @@ test('desktop codec security separates Electron framework, application, and exte
 		packageIntegrity.summary,
 		/exactly seven reviewed compressed-audio WASM files.*libFLAC.*libopus.*libvorbis.*WavPack.*mpg123.*LAME.*TwoLAME.*complete authenticated isolation runtime closure.*exact-length.*SHA-256.*undeclared codec WASM.*deterministic seven-codec corresponding-source ZIP.*target-native OS audio codec.*mac-arm64.*win-x64.*win-arm64.*no mac-x64.*alternate Chromium libffmpeg.*five supported targets.*external-video runner.*ffmpeg\/ffprobe bytes stay outside.*WinGet\/Homebrew.*neither patent clearance nor non-infringement/iu,
 	);
-	assert.match(
+	assertOrderedClaim(
 		architecture,
 		/Current implementation.*seven\s+reviewed compressed-audio WebAssembly payloads.*libFLAC 1\.5\.0.*libopus 1\.6\.1.*libvorbis 1\.3\.7.*WavPack 5\.9\.0.*mpg123 1\.33\.7.*LAME 4\.0.*TwoLAME 0\.4\.0/isu,
 	);
-	assert.match(
+	assertOrderedClaim(
 		architecture,
 		/libsndfile is intentionally not added.*runtime manifest.*WASM.*transitive JavaScript.*fresh.*supervised Electron utility process/isu,
 	);
 	assert.match(architecture, /existing canary and small-buffer operations.*32 MiB.*128 MiB.*contract/isu);
 	assert.match(architecture, /small-buffer helpers.*synchronous WASM.*shared reservation.*aggregate.*RSS/isu);
-	assert.match(architecture, /continuous-session route.*16,384.*same codec instance persists.*1 MiB.*one hour.*1,000,000,000 final file bytes.*cancellation.*progress.*validation/isu);
-	assert.match(
+	assertOrderedClaim(architecture, /continuous-session route.*16,384.*same codec instance persists.*1 MiB.*one hour.*1,000,000,000 final file bytes.*cancellation.*progress.*validation/isu);
+	assertOrderedClaim(
 		architecture,
 		/Media Foundation.*AudioToolbox.*target-native.*mac-arm64.*win-x64.*win-arm64.*native codec canar.*identity-free ad-hoc code seal.*no\s+certificate.*package.*Linux.*no uniform OS tier.*FFmpeg CLI.*4\.4 through 9\.x.*Edit > Preferences > General.*BtbN\.FFmpeg\.GPL\.8\.1.*brew install ffmpeg/isu,
 	);
-	assert.match(architecture, /live.*16x16.*48 kHz stereo.*exact.*ffprobe.*exactly two streams.*yuv420p.*H\.264.*AAC.*yuv420p.*VP9.*Opus/isu);
-	assert.match(
+	assertOrderedClaim(architecture, /live.*16x16.*48 kHz stereo.*exact.*ffprobe.*exactly two streams.*yuv420p.*H\.264.*AAC.*yuv420p.*VP9.*Opus/isu);
+	assertOrderedClaim(
 		architecture,
 		/Bundled and operating-system video execution are not implemented.*no\s+libwebm\/libvpx\/dav1d\/SVT-AV1\/libaom payload.*external\s+WebM.*VP9.*not AV1.*Media Foundation video.*VideoToolbox video.*no execution capability.*fail\s+closed/isu,
 	);
@@ -212,7 +214,7 @@ test('desktop codec security separates Electron framework, application, and exte
 		architecture,
 		/time-of-check\/time-of-use replacement.*does not authenticate dynamically\s+loaded libraries.*not an operating-system filesystem,\s+network, RSS, or CPU sandbox.*malicious selected executable/isu,
 	);
-	assert.match(
+	assertOrderedClaim(
 		architecture,
 		/Provider boundary.*Only `unavailable` and `unsupported` preflight results may.*fall through.*Cancellation.*security failure.*partial output is terminal/isu,
 	);

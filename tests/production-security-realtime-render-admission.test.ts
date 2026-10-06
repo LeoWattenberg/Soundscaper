@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
+import { assertOrderedClaim } from './helpers/ordered-evidence-claim.js';
+
 interface SecurityEvidence {
 	readonly kind: string;
 	readonly path: string;
@@ -75,8 +77,8 @@ test('realtime render PCM admission remains narrowly evidenced and documented', 
 	);
 	assert.ok(residual, 'render and worker resident-set residual is required');
 	assert.equal(residual.ownerMilestone, '2');
-	assert.match(residual.exposure, /realtime.*32 MiB.*2 MiB.*not account.*structured-clone.*AudioContext.*graph.*encoder.*WASM/isu);
-	assert.match(residual.exposure, /sink.*retain.*after.*promise settles.*outside.*queue contract/isu);
+	assertOrderedClaim(residual.exposure, /realtime.*32 MiB.*2 MiB.*not account.*structured-clone.*AudioContext.*graph.*encoder.*WASM/isu);
+	assertOrderedClaim(residual.exposure, /sink.*retain.*after.*promise settles.*outside.*queue contract/isu);
 	assert.match(residual.exposure, /job-local.*product-wide reservation.*concurrent.*overlap/isu);
 
 	const threatModel = await readFile(
@@ -89,9 +91,9 @@ test('realtime render PCM admission remains narrowly evidenced and documented', 
 	assert.match(scope, /credit before.*transfer.*fails closed/isu);
 	assert.match(scope, /after.*sink promise settles.*count\/frame\/byte.*references.*drop/isu);
 	assert.match(scope, /32 MiB.*plus one.*2 MiB.*staging or replacement/isu);
-	assert.match(scope, /exact.*channel.*tight distinct non-shared fixed.*ArrayBuffer.*frame.*offset.*completion/isu);
-	assert.match(scope, /not.*structured-clone.*AudioContext.*graph.*source.*encoder.*WASM.*heap.*RSS.*GC/isu);
-	assert.match(scope, /sink.*retain.*after.*promise settles.*outside.*queue contract/isu);
+	assertOrderedClaim(scope, /exact.*channel.*tight distinct non-shared fixed.*ArrayBuffer.*frame.*offset.*completion/isu);
+	assertOrderedClaim(scope, /not.*structured-clone.*AudioContext.*graph.*source.*encoder.*WASM.*heap.*RSS.*GC/isu);
+	assertOrderedClaim(scope, /sink.*retain.*after.*promise settles.*outside.*queue contract/isu);
 	assert.match(scope, /concurrent render.*overlap.*product-wide reservation/isu);
 });
 

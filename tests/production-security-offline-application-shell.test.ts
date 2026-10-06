@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import { readdir, readFile } from 'node:fs/promises';
 import test from 'node:test';
 
+import { assertOrderedClaim } from './helpers/ordered-evidence-claim.js';
+
 const matrixUrl = new URL('../config/production-security-matrix.json', import.meta.url);
 const roadmapUrl = new URL('../roadmap.md', import.meta.url);
 const dialogsUrl = new URL('../src/common/editor/ui/dialogs/', import.meta.url);
@@ -90,7 +92,7 @@ test('the offline application shell explicitly excludes an FFmpeg runtime cache'
 	const scope = offlineThreatModelScope(threatModel);
 	assert.match(scope, /4,?096.*25 MiB.*256 MiB.*SHA-256/isu);
 	assert.match(scope, /readiness.*last.*failed.*candidate/isu);
-	assert.match(scope, /no FFmpeg.*(?:installer|runtime).*no.*fetch.*cache.*serve/isu);
+	assertOrderedClaim(scope, /no FFmpeg.*(?:installer|runtime).*no.*fetch.*cache.*serve/isu);
 	assert.match(scope, /ordinary\s+digest-bound application assets/isu);
 	assert.doesNotMatch(scope, /explicit Web FFmpeg download follows/iu);
 	assert.doesNotMatch(scope, /retains one previous complete release/iu);

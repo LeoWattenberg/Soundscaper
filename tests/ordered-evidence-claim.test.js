@@ -26,6 +26,60 @@ test('an ordered claim keeps regex syntax that is not a top-level wildcard', () 
 	assert.throws(() => assertOrderedClaim('project scape', /project\.scape/u), /did not match/u);
 });
 
+for (const { name, document, claim } of [
+	{ name: 'a greedy repeated segment', document: 'aab', claim: /a+.*ab/u },
+	{ name: 'an optional segment suffix', document: 'workersecurity', claim: /workers?.*security/u },
+	{ name: 'a repeated character class', document: 'ab', claim: /[ab]+.*b/u },
+	{ name: 'nested wildcard alternatives', document: 'beta alpha gamma', claim: /(?:alpha.*beta|beta.*alpha).*gamma/su },
+	{ name: 'a top-level alternative', document: 'gamma', claim: /alpha.*beta|gamma/u },
+	{ name: 'a zero-width anchor', document: 'a', claim: /^.*a/u },
+	{ name: 'a zero-width lookahead', document: 'a', claim: /(?=a).*a/u },
+	{ name: 'a numbered backreference', document: 'aa', claim: /(a).*\1/u },
+	{ name: 'a named backreference', document: 'aa', claim: /(?<word>a).*\k<word>/u },
+	{ name: 'a greedy capture inside a lookahead', document: 'ab', claim: /^(?=(a.*))\1b$/u },
+	{ name: 'a line break without dotAll', document: 'alpha\nbeta', claim: /alpha.*beta/u },
+	{ name: 'a Unicode line separator without dotAll', document: 'alpha\u2028beta', claim: /alpha.*beta/u },
+]) {
+	test(`an ordered claim preserves the original match for ${name}`, () => {
+		if (claim.test(document)) assertOrderedClaim(document, claim);
+		else assert.throws(() => assertOrderedClaim(document, claim));
+	});
+}
+
+test('an ordered claim preserves global and sticky regex state', () => {
+	for (const claim of [/alpha.*beta/gu, /alpha.*beta/yu]) {
+		claim.lastIndex = 2;
+		const original = new RegExp(claim);
+		original.lastIndex = claim.lastIndex;
+		assert.throws(() => assert.match('alpha beta', original));
+		assert.throws(() => assertOrderedClaim('alpha beta', claim));
+		assert.equal(claim.lastIndex, original.lastIndex);
+	}
+});
+
+test('an ordered claim keeps complete matching for overlapping and variable-length segments', () => {
+	const documents = [''];
+	for (let length = 1; length <= 5; length += 1) {
+		for (let value = 0; value < 2 ** length; value += 1) {
+			documents.push(value.toString(2).padStart(length, '0').replace(/0/gu, 'a').replace(/1/gu, 'b'));
+		}
+	}
+	for (const claim of [/a+.*ab/u, /a?.*ab/u, /[ab]+.*b/u, /(?:a|ab).*b/u, /a.*a?b/u, /a.*b.*a/u]) {
+		for (const document of documents) {
+			if (claim.test(document)) assertOrderedClaim(document, claim);
+			else assert.throws(() => assertOrderedClaim(document, claim), `${claim} must reject ${document}`);
+		}
+	}
+});
+
+test('an ordered claim rejects a missing variable-length segment before whole-document matching', () => {
+	const phrases = Array.from({ length: 26 }, (_, index) => `phrase ${String(index)}`);
+	const filler = 'the evidence repeats phrase 0 and phrase 1. '.repeat(200);
+	const document = `${filler}${phrases.join(filler)}${filler}`;
+	const pattern = [...phrases, 'phrase absent'].map(phrase => phrase.replace(' ', '\\s+')).join('.*');
+	assert.throws(() => assertOrderedClaim(document, new RegExp(pattern, 'isu')), /segment 27 of 27/u);
+});
+
 test('an ordered claim resolves a long pattern over a large document in linear time', () => {
 	// The regex form of this claim does not terminate: twenty-six greedy wildcards over a
 	// 300 KB document make the engine explore every way to split the text between them.

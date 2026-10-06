@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
+import { assertOrderedClaim } from './helpers/ordered-evidence-claim.js';
+
 interface CompatibilityRule {
 	readonly id: string;
 	readonly status: string;
@@ -83,15 +85,15 @@ test('disposable video previews remain reproducible local relationships, not dur
 		documentation,
 		/after a portable-archive transfer.*recipient regenerates a preview\s+bound to the exact admitted original digest.*neither transfer direction\s+carries it/isu,
 	);
-	assert.match(
+	assertOrderedClaim(
 		documentation,
 		/poster.*thumbnail.*trusted retained original.*versioned recipe.*output.*SHA-256/isu,
 	);
-	assert.match(
+	assertOrderedClaim(
 		documentation,
 		/reproducible.*not.*project history.*\.scape.*managed handoff.*rendered fallbacks.*durable/isu,
 	);
-	assert.match(documentation, /maintained exact-schema role-defined audio whole-mix fallback.*separately qualified.*fresh-recipient managed acquisition.*activation.*role-defined whole-project video render.*one closed\s+videoEffects-only clip-target render relationship.*separately qualified.*controller\s+activation.*bounded video delivery.*independent\s+route-specific relationship.*source.*digest admissions.*Framescaper family\s+v1\s+proxy attachment preservation.*isolated revalidation.*verified.*Framescaper family v1\s+retains.*direct\s+unversioned Framescaper baseline domain.*generation.*Original\/Proxy\/Auto.*offline editing.*relink\/regenerate.*resource-\s+and externally unqualified.*grant no delivery or native-runtime authority.*browser export.*V14 carrier producer.*delivery.*original-authoritative.*refuse.*original.*unavailable/isu);
+	assertOrderedClaim(documentation, /maintained exact-schema role-defined audio whole-mix fallback.*separately qualified.*fresh-recipient managed acquisition.*activation.*role-defined whole-project video render.*one closed\s+videoEffects-only clip-target render relationship.*separately qualified.*controller\s+activation.*bounded video delivery.*independent\s+route-specific relationship.*source.*digest admissions.*Framescaper family\s+v1\s+proxy attachment preservation.*isolated revalidation.*verified.*Framescaper family v1\s+retains.*direct\s+unversioned Framescaper baseline domain.*generation.*Original\/Proxy\/Auto.*offline editing.*relink\/regenerate.*resource-\s+and externally unqualified.*grant no delivery or native-runtime authority.*browser export.*V14 carrier producer.*delivery.*original-authoritative.*refuse.*original.*unavailable/isu);
 	assert.match(
 		documentation,
 		/not editorial proxies.*decoder.*RSS/isu,

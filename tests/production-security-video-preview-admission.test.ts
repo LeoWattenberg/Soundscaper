@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
+import { assertOrderedClaim } from './helpers/ordered-evidence-claim.js';
+
 interface SecurityEvidence {
 	readonly kind: string;
 	readonly path: string;
@@ -117,7 +119,7 @@ test('disposable video-preview admission remains narrowly evidenced and document
 		/(?:multiple|another|separate)\s+(?:concurrent\s+)?extractors?.*(?:overlap|concurrent|serializ|reservation)/isu,
 		`${name} must retain multiple-extractor overlap as a residual`,
 	);
-	assert.match(
+	assertOrderedClaim(
 		previewScope,
 		/selected Framescaper V27 activation\s+candidate locally implements.*general editorial proxy lifecycle.*Optional owner QA may record\s+observations but does not gate or activate either route.*Neither.*pre-encode end-to-end working-set.*process-RSS.*GC-headroom coverage/isu,
 		`${name} must separate optional owner QA from the proxy lifecycle's unverified resource behavior`,

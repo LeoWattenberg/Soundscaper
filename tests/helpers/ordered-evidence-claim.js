@@ -3,67 +3,77 @@
 import assert from 'node:assert/strict';
 
 /**
- * Assert that a document contains the phrases of an evidence claim, in order.
+ * Assert the original evidence claim while avoiding document-wide wildcard backtracking.
  *
- * These claims are long `A.*B.*C…` patterns applied to whole documents. A regex engine
- * answers that by backtracking over every way to split the text between the wildcards,
- * which grows explosively with both the segment count and the document length. As the
- * production threat model passed 325 KB, one twenty-six-segment claim stopped finishing:
- * `tests/production-security-scape-byte-source.test.js` hung, the Node test runner never
- * started the files queued behind it, and CI cancelled the whole `common` shard after
- * forty-five minutes with no failure to point at.
- *
- * Matching one segment at a time from a moving offset answers the same question - do these
- * phrases appear in this order - in linear time. Taking the earliest match of each segment
- * leaves the most room for the rest, so the scan finds an ordering whenever one exists.
+ * Fixed phrases separated by top-level `.*` can be scanned from a moving offset: the
+ * earliest occurrence of each phrase leaves the most room for the remaining phrases.
+ * Other regular segments retain a complete regex match with lazy top-level wildcards.
+ * Changing wildcard greediness preserves whether those regular patterns match, including
+ * variable-length segments that may need to backtrack to leave text for the next segment.
+ * Context-sensitive syntax and stateful regex flags use the original regex unchanged.
  */
 export function assertOrderedClaim(text, claim, message) {
-	const segments = orderedClaimSegments(claim.source);
-	if (segments.length < 2) {
+	const parsed = orderedClaimSegments(claim.source);
+	if (!parsed || parsed.segments.length < 2 || /[gyv]/u.test(claim.flags)) {
 		assert.match(text, claim, message);
 		return;
 	}
-	const flags = `${claim.flags.replace(/[gy]/gu, '')}g`;
+	const { segments, lazySource } = parsed;
+	const fixedPhrases = segments.every(segment => !/[\\.^$*+?()[\]{}|]/u.test(segment));
+	const scanInOrder = fixedPhrases && (claim.dotAll || !/[\n\r\u2028\u2029]/u.test(text));
+	const flags = `${claim.flags}g`;
 	let offset = 0;
 	for (const [index, segment] of segments.entries()) {
 		const pattern = new RegExp(segment, flags);
-		pattern.lastIndex = offset;
+		// With variable-length segments, independent existence is only a necessary check.
+		// The complete regex below determines whether they can all match in order.
+		pattern.lastIndex = scanInOrder ? offset : 0;
 		const found = pattern.exec(text);
 		assert.ok(
 			found,
 			message ?? `Claim /${claim.source}/${claim.flags} has no match for segment ${index + 1} of ${segments.length}: /${segment}/`,
 		);
-		offset = found.index + Math.max(found[0].length, 1);
+		if (scanInOrder) offset = found.index + found[0].length;
 	}
+	if (!scanInOrder) assert.match(text, new RegExp(lazySource, claim.flags), message);
 }
 
-/**
- * Split a claim on its top-level `.*` wildcards.
- *
- * Only an unescaped `.` immediately followed by `*` outside a character class separates
- * segments, so `\.scape`, `.{0,32}` and `[- ]` stay inside the segment that owns them.
- */
+/** Only top-level wildcards separate segments; groups and character classes stay intact. */
 function orderedClaimSegments(source) {
 	const segments = [];
 	let segment = '';
+	let lazySource = '';
 	let inClass = false;
+	let depth = 0;
 	for (let index = 0; index < source.length; index += 1) {
 		const character = source[index];
 		if (character === '\\') {
-			segment += character + (source[index + 1] ?? '');
+			const escaped = source[index + 1] ?? '';
+			if (!inClass && /[1-9kbB]/u.test(escaped)) return null;
+			segment += character + escaped;
+			lazySource += character + escaped;
 			index += 1;
 			continue;
 		}
 		if (character === '[') inClass = true;
 		else if (character === ']') inClass = false;
-		if (!inClass && character === '.' && source[index + 1] === '*') {
-			segments.push(segment);
-			segment = '';
-			index += 1;
-			continue;
+		if (!inClass) {
+			if (character === '^' || character === '$' || (character === '|' && depth === 0)) return null;
+			if (character === '(') {
+				if (/^\(\?(?:[=!]|<)/u.test(source.slice(index))) return null;
+				depth += 1;
+			} else if (character === ')') depth -= 1;
+			if (depth === 0 && character === '.' && source[index + 1] === '*') {
+				segments.push(segment);
+				segment = '';
+				lazySource += '.*?';
+				index += source[index + 2] === '?' ? 2 : 1;
+				continue;
+			}
 		}
 		segment += character;
+		lazySource += character;
 	}
 	segments.push(segment);
-	return segments.filter(Boolean);
+	return { segments: segments.filter(Boolean), lazySource };
 }

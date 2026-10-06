@@ -6,6 +6,8 @@ import test from 'node:test';
 
 import { CANONICAL_VIDEO_EXPORT_PLAN_VERSION } from '../src/common/editor/video-export-plan-version.ts';
 
+import { assertOrderedClaim } from './helpers/ordered-evidence-claim.js';
+
 const matrixUrl = new URL('../config/production-security-matrix.json', import.meta.url);
 const budgetsUrl = new URL('../config/quality-budgets.json', import.meta.url);
 
@@ -121,11 +123,11 @@ test('exact direct MP4 and WebM publication separates browser-native and desktop
 		false,
 	);
 
-	assert.match(
+	assertOrderedClaim(
 		publication.summary,
 		/exact MP4 route.*`mp4`.*`\.mp4`.*`video\/mp4`.*WebM.*`webm`.*`\.webm`.*`video\/webm`/isu,
 	);
-	assert.match(
+	assertOrderedClaim(
 		publication.summary,
 		/production browser.*exact keyed-frame path.*WebCodecs.*H\.264.*VP9.*Mediabunny.*AAC.*Opus.*complete container/isu,
 	);
@@ -137,15 +139,15 @@ test('exact direct MP4 and WebM publication separates browser-native and desktop
 		publication.summary,
 		/512 MiB.*at-most-1-MiB.*no production browser imports, fetches, caches, or executes FFmpeg WebAssembly/isu,
 	);
-	assert.match(
+	assertOrderedClaim(
 		publication.summary,
 		/Desktop Soundscaper family v1.*external ffmpeg\/ffprobe.*`libx264`.*`aac`.*`libvpx-vp9`.*`libopus`.*two-stream probe/isu,
 	);
-	assert.match(
+	assertOrderedClaim(
 		publication.summary,
 		/pathless.*main-private pipes.*main-private scratch.*bundled video.*operating-system video.*AV1 remain disabled/isu,
 	);
-	assert.match(
+	assertOrderedClaim(
 		rollback.summary,
 		/production browser.*exact keyed WebCodecs.*cancels Mediabunny.*disposes the producer.*aborts.*exactly once/isu,
 	);
@@ -157,7 +159,7 @@ test('exact direct MP4 and WebM publication separates browser-native and desktop
 		rollback.summary,
 		/Desktop cleanup remains unchanged.*external process tree.*owner session.*main-private scratch/isu,
 	);
-	assert.match(
+	assertOrderedClaim(
 		fallback.summary,
 		/only an exact keyed-frame delivery.*WebCodecs.*Mediabunny.*composed-graph.*typed unavailability.*never falls back to FFmpeg WebAssembly.*Desktop delivery/isu,
 	);
@@ -232,7 +234,7 @@ test('Framescaper family-v1 admission and encoding reuse the existing video publ
 		encoder.summary,
 		/1,280.*720.*1 through 30.*2,000,000.*1 TiB/isu,
 	);
-	assert.match(
+	assertOrderedClaim(
 		encoder.summary,
 		/WebCodecs.*H\.264.*VP9.*dynamically loads Mediabunny.*AAC.*Opus.*complete container/isu,
 	);
@@ -240,7 +242,7 @@ test('Framescaper family-v1 admission and encoding reuse the existing video publ
 		encoder.summary,
 		/Missing WebCodecs.*non-keyed route.*refuses without browser FFmpeg.*512 MiB/isu,
 	);
-	assert.match(
+	assertOrderedClaim(
 		encoder.summary,
 		/AbortSignal.*currentness.*audio reads.*frame production.*mux writes.*finalization.*publication/isu,
 	);
@@ -252,7 +254,7 @@ test('Framescaper family-v1 admission and encoding reuse the existing video publ
 		encoder.summary,
 		/Desktop Soundscaper family-v1 plans.*pathless.*external-FFmpeg pipes.*main-private scratch.*process-tree cancellation/isu,
 	);
-	assert.match(encoder.summary, /complete-container.*heap.*RSS.*GC.*CPU.*conformance.*scale.*unqualified/isu);
+	assertOrderedClaim(encoder.summary, /complete-container.*heap.*RSS.*GC.*CPU.*conformance.*scale.*unqualified/isu);
 	assert.match(publication.summary, /publication boundaries.*production browser.*exact keyed-frame path/isu);
 	assert.match(rollback.summary, /exact keyed WebCodecs.*exactly once.*whole-file digest/isu);
 
@@ -323,11 +325,11 @@ test('the direct video fixture records exact MP4 and WebM transport without code
 		'filesystemDurabilityQualified',
 		'crashPowerLossQualified',
 	]) assert.equal(Object.hasOwn(fixture.specification, field), false, field);
-	assert.match(
+	assertOrderedClaim(
 		fixture.limitation,
 		/small Node.*mock FFmpeg.*2,097,169-byte.*transport.*three.*not.*actual codecs.*conformance.*reference-scale/isu,
 	);
-	assert.match(
+	assertOrderedClaim(
 		fixture.limitation,
 		/complete.*worker MEMFS.*does not bound.*source-video.*audio.*Blob residency.*codec memory.*heap.*RSS.*CPU.*elapsed time/isu,
 	);
@@ -351,15 +353,15 @@ test('the threat and quality documents limit direct video claims to the proved t
 	assert.ok(qualityStart >= 0 && qualityEnd > qualityStart);
 	const qualityDocumentation = qualityBudgets.slice(qualityStart, qualityEnd).replace(/\s+/gu, ' ');
 
-	assert.match(
+	assertOrderedClaim(
 		threatDocumentation,
 		/exact MP4.*WebM.*production browser.*keyed-frame.*WebCodecs.*H\.264.*VP9.*Mediabunny.*AAC.*Opus.*no browser FFmpeg fallback.*Desktop Soundscaper family v1.*external ffmpeg\/ffprobe.*main-private pipes.*main-private scratch/isu,
 	);
-	assert.match(
+	assertOrderedClaim(
 		threatDocumentation,
 		/bundled video.*operating-system video.*AV1 remain disabled.*external WebM is VP9.*codec conformance.*packaged UI.*scale.*memory.*RSS.*CPU.*durability.*crash.*power loss.*unqualified/isu,
 	);
-	assert.match(
+	assertOrderedClaim(
 		qualityDocumentation,
 		/direct MP4 and WebM.*2,097,169-byte.*three.*1,048,576.*1,048,576.*17.*one stat.*zero.*`readFile`.*transport slice.*not codec conformance.*packaged UI.*reference-scale memory.*crash recovery.*filesystem durability/isu,
 	);

@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import { access, readFile } from 'node:fs/promises';
 import test from 'node:test';
 
+import { assertOrderedClaim } from './helpers/ordered-evidence-claim.js';
+
 const matrixUrl = new URL('../config/production-security-matrix.json', import.meta.url);
 const threatModelUrl = new URL('../docs/policies/security.md', import.meta.url);
 
@@ -33,16 +35,16 @@ test('rendered fallback uses selected browser-native encoding or fails closed', 
 		assert.ok(control.evidence.some((item) => item.path === path), path);
 	}
 	assert.equal(control.evidence.some(({ path }) => path === 'src/common/editor/ffmpeg.js'), false);
-	assert.match(
+	assertOrderedClaim(
 		control.summary,
 		/authenticates the selected relationship.*source.*body geometry.*SHA-256.*private immutable providers.*canonical project/isu,
 	);
-	assert.match(
+	assertOrderedClaim(
 		control.summary,
 		/production browser.*exact keyed-frame delivery.*WebCodecs.*Mediabunny.*composed-graph.*typed unavailability.*never falls back to FFmpeg WebAssembly/isu,
 	);
 	assert.match(control.summary, /Desktop delivery.*external provider/isu);
-	assert.match(
+	assertOrderedClaim(
 		control.summary,
 		/Task.*generation.*operation.*relationship currentness.*AbortSignal.*verification.*rendering.*encoding.*publication/isu,
 	);
@@ -56,7 +58,7 @@ test('rendered fallback uses selected browser-native encoding or fails closed', 
 		documentation,
 		/final video rendered-fallback delivery.*relationship role.*source ID.*SHA-256.*canonical native `Blob`/isu,
 	);
-	assert.match(
+	assertOrderedClaim(
 		documentation,
 		/browser.*keyed.*WebCodecs.*Mediabunny.*unsupported.*fail.*no FFmpeg WebAssembly fallback/isu,
 	);
