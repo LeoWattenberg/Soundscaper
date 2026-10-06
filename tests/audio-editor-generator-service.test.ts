@@ -157,6 +157,26 @@ function runGeneratedSourceOperation(
 		: service.generateLabeledSilence([{ startFrame: 20, endFrame: 40 }], ['track-a']);
 }
 
+test('generator publishes busy state before dispatching DSP and rejects a stale worker result', async () => {
+	const generated = deferred<{ frameCount: number; channelCount: number; channels: Float32Array[] }>();
+	const fixture = createFixture({
+		generateChannels: (_type, _options, signal) => {
+			assert.equal(fixture.state.audacityEffectProcessing, true);
+			assert.equal(fixture.statuses.at(-1)?.message, 'Generating audio.');
+			assert.ok(fixture.publishes() > 0);
+			assert.equal(signal.aborted, false);
+			return generated.promise;
+		},
+	});
+	const pending = createAudioGeneratorService(fixture.dependencies).generateSignal('noise');
+	fixture.replaceProject('replacement');
+	generated.resolve({ frameCount: 10, channelCount: 1, channels: [new Float32Array(10)] });
+	await assert.rejects(pending, { name: 'AbortError' });
+	assert.equal(fixture.commits.length, 0);
+	assert.deepEqual(fixture.preflights, []);
+	assert.equal(fixture.state.audacityEffectProcessing, false);
+});
+
 test('generator persists audio and commits a prepared range replacement exactly once', async () => {
 	const fixture = createFixture();
 	const service = createAudioGeneratorService(fixture.dependencies);

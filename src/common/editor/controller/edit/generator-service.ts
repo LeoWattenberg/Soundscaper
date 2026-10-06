@@ -133,6 +133,7 @@ export interface AudioGeneratorServiceDependencies<Context = unknown, Target ext
 		options: PersistEffectOptions,
 	): Promise<unknown>;
 	preflightStorage(bytes: number, operation: 'effect'): Promise<unknown>;
+	generateChannels?(type: AudioGeneratorType, options: AudioGeneratorOptions, signal: AbortSignal): Promise<GeneratedSignal>;
 	getAudioContext(): Promise<Context>;
 	createBuffer(
 		channels: readonly Float32Array[],
@@ -259,18 +260,22 @@ export function createAudioGeneratorService<Context, Target extends AudioGenerat
 				?? (selection ? (selection.endFrame - selection.startFrame) / sampleRate : 30);
 			const channelCount = Number(options.channelCount
 				|| dependencies.trackChannelCount(project, targetTrack, project.masterChannels || 2));
-			const generated = generateAudioEditorSignal(type, {
+			processing = markProcessing();
+			const generatorOptions = {
 				...options,
 				durationSeconds,
 				sampleRate,
 				channelCount,
-			}) as GeneratedSignal;
+			};
+			const generated = dependencies.generateChannels
+				? await dependencies.generateChannels(type, generatorOptions, ownership.task.signal)
+				: generateAudioEditorSignal(type, generatorOptions) as GeneratedSignal;
+			assertOwnership(ownership);
 			await dependencies.preflightStorage(
 				generated.frameCount * generated.channelCount * Float32Array.BYTES_PER_ELEMENT,
 				'effect',
 			);
 			assertOwnership(ownership);
-			processing = markProcessing();
 			const name = generatorName(type, publishedCopyFor(dependencies.copy));
 			return await publishGeneratedAudioSource(dependencies, {
 				name,
