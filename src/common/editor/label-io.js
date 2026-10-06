@@ -348,7 +348,11 @@ function serializeTimed(labels, context, format) {
 	const lines = format === 'vtt' ? ['WEBVTT', ''] : [];
 	labels.forEach((label, index) => {
 		if (context.includeCueIdentifiers) lines.push(String(format === 'srt' ? index + 1 : label.opaqueExtensions?.cueIdentifier || index + 1));
-		lines.push(`${formatTimestamp(label.startFrame, context.sampleRate, format)} --> ${formatTimestamp(label.endFrame, context.sampleRate, format)}`);
+		const startMilliseconds = Math.round(label.startFrame * 1000 / context.sampleRate);
+		// Subtitle cues must last at least one representable millisecond. A point
+		// label or a shorter range would otherwise disappear during playback.
+		const endMilliseconds = Math.max(startMilliseconds + 1, Math.round(label.endFrame * 1000 / context.sampleRate));
+		lines.push(`${formatTimestamp(startMilliseconds, format)} --> ${formatTimestamp(endMilliseconds, format)}`);
 		// Timed-text cues need a payload line distinct from their blank block
 		// separator, so a blank line anywhere in a title would end the cue early
 		// and split the label in two. Drop blank, leading and trailing cue lines
@@ -373,8 +377,7 @@ function serializePodcastJson(labels, context) {
 	return withEncodingOptions(text, context);
 }
 
-function formatTimestamp(frame, sampleRate, format) {
-	const totalMilliseconds = Math.round(frame * 1000 / sampleRate);
+function formatTimestamp(totalMilliseconds, format) {
 	const milliseconds = totalMilliseconds % 1000;
 	const totalSeconds = Math.floor(totalMilliseconds / 1000);
 	const seconds = totalSeconds % 60;

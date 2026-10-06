@@ -12,6 +12,7 @@ import LocalDiagnosticsDialog, { LocalDiagnosticsDialogView } from '../src/commo
 import { ENGLISH_COPY, GERMAN_COPY } from '../src/common/i18n/catalogs.js';
 import { WORKSPACE_PANEL_IDS } from '../src/common/editor/ui/workspace/workspace-panel-model.ts';
 import { installReactTestDom, reactProps } from './helpers/react-test-dom.ts';
+import { createAudioEditorFileService } from '../src/common/editor/file-service.js';
 
 const REPORT = buildLocalDiagnosticsReport({
 	generatedAt: '2026-08-29T10:11:12.000Z',
@@ -142,6 +143,66 @@ test('Help reaches local diagnostics in both product menus', () => {
 		assert.equal(diagnostics.disabled, undefined);
 		diagnostics.onClick?.();
 		assert.deepEqual(opened, [productId]);
+	}
+});
+
+test('cancelling the desktop diagnostic report save leaves the report ready for retry', async () => {
+	const dom = installReactTestDom();
+	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
+	const priorReact = Object.getOwnPropertyDescriptor(globalThis, 'React');
+	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
+	Object.defineProperty(globalThis, 'React', { configurable: true, value: React });
+	const { createRoot } = await import('react-dom/client');
+	const root = createRoot(dom.container as unknown as Element);
+	let cancelPicker = true;
+	let saveRequests = 0;
+	let writtenSize = 0;
+	let writes = 0;
+	const errors: unknown[] = [];
+	const fileService = createAudioEditorFileService({ bridge: {
+		getEnvironment: () => ({}),
+		chooseSaveTarget: (request: { purpose: string; suggestedName: string }) => {
+			assert.equal(request.purpose, 'report');
+			saveRequests += 1;
+			return cancelPicker ? null : { id: 'chosen-report', name: request.suggestedName };
+		},
+		beginWrite: (request: { size: number }) => {
+			writtenSize = request.size;
+			writes += 1;
+			return { writeId: 'report-write', chunkSize: 1024 * 1024 };
+		},
+		writeChunk: (request: { offset: number; bytes: Uint8Array }) => ({ nextOffset: request.offset + request.bytes.byteLength }),
+		finishWrite: () => ({ byteLength: writtenSize }),
+	} });
+	try {
+		await act(async () => root.render(<LocalDiagnosticsDialog
+			controller={{
+				getSnapshot: () => ({ project: null, projects: [], projectTabs: [], storage: {} }),
+				getLocalDiagnosticsSnapshot: () => ({ recentErrors: [] }),
+				recordLocalDiagnosticError: (error) => { errors.push(error); },
+			}}
+			copy={ENGLISH_COPY} fileService={fileService} locale="en" productId="soundscaper"
+			onClose={() => undefined}
+		/>));
+		await act(async () => { reactProps(dom.one('[data-local-diagnostics-generate]')).onClick(); });
+		await act(async () => { reactProps(dom.one('[data-local-diagnostics-export]')).onClick(); });
+		assert.equal(saveRequests, 1);
+		assert.equal(writes, 0);
+		assert.equal(errors.length, 0);
+		assert.equal(dom.one('[role="status"]').textContent, '');
+		assert.equal(dom.one('[data-local-diagnostics-export]').hasAttribute('disabled'), false);
+		cancelPicker = false;
+		await act(async () => { reactProps(dom.one('[data-local-diagnostics-export]')).onClick(); });
+		assert.equal(saveRequests, 2);
+		assert.equal(writes, 1);
+		assert.match(dom.one('[role="status"]').textContent, /report was exported/u);
+	} finally {
+		await act(async () => root.unmount());
+		actGlobal.IS_REACT_ACT_ENVIRONMENT = priorAct;
+		if (priorReact) Object.defineProperty(globalThis, 'React', priorReact);
+		else Reflect.deleteProperty(globalThis, 'React');
+		dom.restore();
 	}
 });
 

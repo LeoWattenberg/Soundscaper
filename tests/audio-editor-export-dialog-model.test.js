@@ -252,7 +252,7 @@ test('a delivery target keeps the request in the dialog format namespace', () =>
 test('a stated canvas field refines the delivery target rather than replacing it', () => {
 	const settings = {
 		mode: 'mix', range: 'project', format: 'video-mp4',
-		canvasWidth: '', canvasHeight: '', canvasFit: 'contain',
+		canvasWidth: '', canvasHeight: '', canvasFit: 'cover',
 		canvasFrameRate: '', canvasBackgroundColor: '', videoQuality: 'balanced',
 		deliveryTarget: 'web-vertical-1080',
 	};

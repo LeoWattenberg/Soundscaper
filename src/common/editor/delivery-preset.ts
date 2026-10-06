@@ -31,7 +31,7 @@ export const DELIVERY_PRESET_SETTINGS: Readonly<Record<DeliveryPresetKind, reado
 	audio: Object.freeze([
 		'sampleRate', 'channelMapping', 'sampleFormat', 'dither',
 		'bitRate', 'quality', 'compressionLevel', 'mode', 'chapterSource', 'includeTail',
-		'loudnessNormalization',
+		'loudnessNormalization', 'embedLabelChapters',
 		/* MP3 carries Audacity's bit-rate mode plus the value each mode keeps. */
 		'bitRateMode', 'bitRatePreset', 'vbrQuality', 'averageBitRate',
 		/* Opus carries Audacity's VBR Mode. */

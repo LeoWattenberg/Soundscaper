@@ -81,8 +81,8 @@ export default function LocalDiagnosticsDialog({
 		if (!report) return;
 		setPhase('exporting');
 		try {
-			await saveLocalDiagnosticsReport(report, fileService);
-			setPhase('saved');
+			const saved = await saveLocalDiagnosticsReport(report, fileService);
+			setPhase(saved.cancelled ? 'ready' : 'saved');
 		} catch (error) {
 			controller.recordLocalDiagnosticError(error, 'workspace');
 			setPhase('error');

@@ -22,6 +22,46 @@ async function applyDeliveryPreset(page, dialog, name) {
 	await page.getByRole('option', { name: `${name} (custom)` }).click();
 }
 
+test('a point label exports as a WebVTT cue with a playable duration', async ({ page }) => {
+	await disableNativeSavePicker(page);
+	const editor = await bootEditor(page, '/embed/en/');
+	await importFiles(editor, [toneA]);
+	await editor.getByRole('slider', { name: 'Playhead', exact: true }).focus();
+	await page.keyboard.press('Control+b');
+	const title = editor.getByRole('textbox', { name: /^Edit labels:/u });
+	await title.fill('Cue at the playhead');
+	await title.press('Enter');
+	await chooseNestedCommandAction(page, editor, 'File', ['Export other', 'Export labels']);
+	const dialog = page.getByRole('dialog', { name: 'Export labels', exact: true });
+	await chooseDropdown(page, dialog.getByRole('group', { name: 'Format', exact: true }), 'As WebVTT');
+	const downloaded = page.waitForEvent('download');
+	await dialog.getByRole('button', { name: 'Export labels', exact: true }).click();
+	const text = await readFile(await (await downloaded).path(), 'utf8');
+	const timings = await page.evaluate(async (vtt) => {
+		const video = document.createElement('video');
+		video.hidden = true;
+		const track = document.createElement('track');
+		const url = URL.createObjectURL(new Blob([vtt], { type: 'text/vtt' }));
+		try {
+			const loaded = new Promise((resolve, reject) => {
+				track.onload = resolve;
+				track.onerror = () => reject(new Error('The exported WebVTT could not be read.'));
+			});
+			track.src = url;
+			video.append(track);
+			document.body.append(video);
+			track.track.mode = 'hidden';
+			await loaded;
+			return [...(track.track.cues || [])].map((cue) => ({ start: cue.startTime, end: cue.endTime }));
+		} finally {
+			video.remove();
+			URL.revokeObjectURL(url);
+		}
+	}, text);
+	expect(timings).toHaveLength(1);
+	expect(timings[0].end).toBeGreaterThan(timings[0].start);
+});
+
 test('Cancel in the raw PCM import dialog stops a pending ordinary recording import', async ({ page }) => {
 	test.setTimeout(90_000);
 	const editor = await bootEditor(page, '/embed/en/');
@@ -157,6 +197,20 @@ test('a saved marker chapter preset keeps its marker source', async ({ page }) =
 	await applyDeliveryPreset(page, dialog, 'Marker programme');
 	await expect(dialog.getByRole('group', { name: 'Output', exact: true }).getByRole('button'))
 		.toContainText('Chapters (split by markers)');
+});
+
+test('a saved delivery preset keeps embedded label chapters enabled', async ({ page }) => {
+	const editor = await bootEditor(page, '/embed/en/');
+	await importFiles(editor, [toneA, captionLabels]);
+	let dialog = await openExportDialog(page, editor);
+	await chooseDropdown(page, dialog.getByRole('group', { name: 'Format', exact: true }), 'MP3');
+	const chapterOption = dialog.getByRole('checkbox', { name: /Embed labels as chapters/u });
+	await chapterOption.check();
+	await saveDeliveryPreset(page, dialog, 'Single-file chapters');
+	await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+	dialog = await openExportDialog(page, editor);
+	await applyDeliveryPreset(page, dialog, 'Single-file chapters');
+	await expect(dialog.getByRole('checkbox', { name: /Embed labels as chapters/u })).toBeChecked();
 });
 
 test('switching from a normalized mix to label chapters exports after normalization hides', async ({ page }) => {

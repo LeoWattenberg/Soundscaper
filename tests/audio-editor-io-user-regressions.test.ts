@@ -10,11 +10,41 @@ import {
 	serializeSubRipLabels, parseSubRipLabels, serializeWebVttLabels, parseWebVttLabels,
 } from '../src/common/editor/label-io.js';
 import {
-	dialogSettingsFromPreset, presetSettingsFromDialog,
+	dialogSettingsFromDeliveryTarget, dialogSettingsFromPreset, presetSettingsFromDialog,
 } from '../src/common/editor/ui/export-preset-model.ts';
 import { validateDeliveryPreset } from '../src/common/editor/delivery-preset.ts';
 import { createExportDialogRequest } from '../src/common/editor/ui/export-dialog-model.js';
 import { normalizeExportDialogAudioSettings, exportDialogOutputChannelCount } from '../src/common/editor/ui/export-dialog-audio-codec-options.ts';
+
+test('timed label exports give points and submillisecond ranges the minimum cue duration', () => {
+	const labels = [
+		{ id: 'point', title: 'At the playhead', startFrame: 48_000, endFrame: 48_000 },
+		{ id: 'short', title: 'A very short selection', startFrame: 96_000, endFrame: 96_001 },
+	];
+	for (const [serialize, parse] of [
+		[serializeSubRipLabels, parseSubRipLabels],
+		[serializeWebVttLabels, parseWebVttLabels],
+	] as const) {
+		const parsed = parse(serialize(labels, { sampleRate: 48_000 }), { sampleRate: 48_000 });
+		assert.deepEqual(parsed.labels.map(({ startFrame, endFrame }) => [startFrame, endFrame]), [
+			[48_000, 48_048], [96_000, 96_048],
+		]);
+	}
+	assert.deepEqual(labels.map(({ startFrame, endFrame }) => [startFrame, endFrame]), [
+		[48_000, 48_000], [96_000, 96_001],
+	], 'serialization must leave the original point and range untouched');
+});
+
+test('the explicit letterbox choice overrides a vertical delivery target crop', () => {
+	const settings = {
+		...createExportDialogInitialSettings({}),
+		...dialogSettingsFromDeliveryTarget('web-vertical-1080'),
+		deliveryTarget: 'web-vertical-1080',
+	};
+	assert.equal(settings.canvasFit, 'cover');
+	const request = createExportDialogRequest({ ...settings, canvasFit: 'contain' });
+	assert.equal((request.canvas as { fit: string }).fit, 'contain');
+});
 
 test('importing an ordinary legacy Audacity project reaches the project opener', () => {
 	const project = { name: 'Album.AUP', type: 'application/x-audacity-project' };
@@ -66,6 +96,19 @@ test('marker chapter presets retain their source when applied in a new export di
 		schemaVersion: 1, id: 'markers', label: 'Marker chapters', kind: 'audio', format: 'wav', settings,
 	});
 	assert.equal(dialogSettingsFromPreset(preset).chapterSource, 'markers');
+});
+
+test('delivery presets retain and reset the embedded label chapter option', () => {
+	const stored = presetSettingsFromDialog({ embedLabelChapters: true }, 'audio');
+	assert.equal(stored.embedLabelChapters, true);
+	assert.equal(dialogSettingsFromPreset(validateDeliveryPreset({
+		schemaVersion: 1, id: 'single-file-chapters', label: 'Single-file chapters',
+		kind: 'audio', format: 'mp3', settings: stored,
+	})).embedLabelChapters, true);
+	assert.equal(dialogSettingsFromPreset(validateDeliveryPreset({
+		schemaVersion: 1, id: 'ordinary-mp3', label: 'Ordinary MP3',
+		kind: 'audio', format: 'mp3', settings: {},
+	})).embedLabelChapters, false);
 });
 
 test('applying a saved video preset clears a previously chosen platform delivery target', () => {

@@ -35,7 +35,7 @@ export const PRESET_SETTING_KEYS: Readonly<Record<DeliveryPresetKind, readonly s
 	audio: Object.freeze([
 		'sampleRate', 'channelMapping', 'sampleFormat', 'dither',
 		'bitRate', 'quality', 'compressionLevel', 'mode', 'chapterSource', 'includeTail',
-		'loudnessNormalization',
+		'loudnessNormalization', 'embedLabelChapters',
 		'bitRateMode', 'bitRatePreset', 'vbrQuality', 'averageBitRate', 'vbrMode',
 	]),
 	// The video canvas is nested rather than flat, so it is translated below
@@ -68,7 +68,7 @@ const AUDIO_LAYOUT_DEFAULT = DEFAULT_VIDEO_DELIVERY_AUDIO_LAYOUT;
 
 const AUDIO_PRESET_DIALOG_DEFAULTS = Object.freeze({
 	loudnessNormalization: '', bitRatePreset: '2', vbrQuality: '2', averageBitRate: '192',
-	vbrMode: 'on', chapterSource: 'labels',
+	vbrMode: 'on', chapterSource: 'labels', embedLabelChapters: false,
 });
 const VIDEO_PRESET_DIALOG_DEFAULTS = Object.freeze({
 	canvasWidth: '', canvasHeight: '', canvasFit: CANVAS_FIT_DEFAULT, canvasFrameRate: '',
@@ -259,7 +259,9 @@ export function statedVideoCanvas(
 	if (Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0) {
 		stated.size = Object.freeze({ width, height });
 	}
-	if (typeof fit === 'string' && fit && fit !== CANVAS_FIT_DEFAULT) stated.fit = fit;
+	// A target can begin at cover; choosing contain must then state the change.
+	if (typeof fit === 'string' && fit && (fit !== CANVAS_FIT_DEFAULT
+		|| findPlatformDeliveryPreset(settings?.deliveryTarget))) stated.fit = fit;
 	// A rate the product offers by name is delivered as the rational that name
 	// means; `29.97` is 30000/1001, not 2997/100.
 	const statedRate = resolveVideoDeliveryFrameRate(settings?.canvasFrameRate);

@@ -152,15 +152,18 @@ export async function saveLocalDiagnosticsReport(
 	fileService: Readonly<{
 		saveFile?: (request: Readonly<Record<string, unknown>>) => PromiseLike<unknown> | unknown;
 	}> | null | undefined,
-): Promise<Readonly<SerializedLocalDiagnosticsReport>> {
+): Promise<Readonly<SerializedLocalDiagnosticsReport & { cancelled?: boolean }>> {
 	const serialized = serializeLocalDiagnosticsReport(report);
 	if (fileService?.saveFile) {
-		await fileService.saveFile({
+		const saved = await fileService.saveFile({
 			purpose: 'report',
 			suggestedName: serialized.fileName,
 			mimeType: serialized.mimeType,
 			blob: new Blob([serialized.text], { type: serialized.mimeType }),
 		});
+		if (saved && typeof saved === 'object' && 'cancelled' in saved && saved.cancelled === true) {
+			return Object.freeze({ ...serialized, cancelled: true });
+		}
 	}
 	return serialized;
 }

@@ -157,7 +157,7 @@ test('SubRip serialization uses millisecond rounding and round-trips ranges', ()
 	assert.match(text, /Hello\r\nworld\r\n\r\n2/);
 	const parsed = parseAudioEditorLabels(text, { filename: 'captions.srt', sampleRate: 44_100 });
 	assert.deepEqual(parsed.labels.map(({ startFrame, endFrame }) => [startFrame, endFrame]), [
-		[44_100, 110_250], [132_300, 132_300],
+		[44_100, 110_250], [132_300, 132_344],
 	]);
 });
 
