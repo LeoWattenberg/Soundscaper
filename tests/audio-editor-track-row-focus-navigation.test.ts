@@ -12,11 +12,11 @@ import {
 test('audio and video rows share routing while retaining their ruler difference', () => {
 	const audio = fixture({ trackIndex: 1, trackCount: 3, hasTrackRuler: true });
 	audio.router.focusBeforeTrack();
-	assert.deepEqual(audio.calls, ['ruler:0:first', 'clip:0:last', 'panel:0:last', 'track:0']);
+	assert.deepEqual(audio.calls, ['ruler:0:first', 'clip:0:last', 'panel:0:last', 'track:0', 'timeline']);
 
 	const video = fixture({ trackIndex: 1, trackCount: 3, hasTrackRuler: false });
 	video.router.focusBeforeTrack();
-	assert.deepEqual(video.calls, ['clip:0:last', 'panel:0:last', 'track:0']);
+	assert.deepEqual(video.calls, ['clip:0:last', 'panel:0:last', 'track:0', 'timeline']);
 
 	const audioAfterPanel = fixture({ trackIndex: 1, trackCount: 3, hasTrackRuler: true });
 	audioAfterPanel.router.focusAfterPanel();
@@ -24,7 +24,7 @@ test('audio and video rows share routing while retaining their ruler difference'
 
 	const videoAfterPanel = fixture({ trackIndex: 1, trackCount: 3, hasTrackRuler: false });
 	videoAfterPanel.router.focusAfterPanel();
-	assert.deepEqual(videoAfterPanel.calls, ['clip:1:first', 'track:2']);
+	assert.deepEqual(videoAfterPanel.calls, ['clip:1:first', 'track:2', 'toolbar']);
 });
 
 test('shared row routing preserves boundaries, successful short-circuiting and vertical focus', () => {

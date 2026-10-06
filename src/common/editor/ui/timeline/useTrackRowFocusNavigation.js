@@ -3,6 +3,7 @@
 import { useCallback, useEffect } from 'react';
 
 import { clipGroups, focusFirst, normalizeClipSemantics } from './timeline-navigation.js';
+import { focusTrackRowNeighbor } from './track-row-neighbor-focus.ts';
 
 export function createTrackRowFocusRouter({
 	trackIndex,
@@ -14,18 +15,19 @@ export function createTrackRowFocusRouter({
 	onFocusTrackClip,
 	onFocusTrackRuler,
 	onFocusSelectionToolbar,
+	onExtendTrackSelection = /** @type {((index: number) => unknown) | null} */ (null),
 }) {
 	const focusAfterTrack = () => {
-		if (trackIndex + 1 < trackCount) return onFocusTrackContainer(trackIndex + 1);
-		return onFocusSelectionToolbar();
+		return focusTrackRowNeighbor(trackIndex, trackCount, 1, onFocusTrackContainer)
+			|| onFocusSelectionToolbar();
 	};
 	const focusBeforeTrack = () => {
-		if (trackIndex === 0) return onFocusTimelineRuler();
-		const previousTrack = trackIndex - 1;
-		if (hasTrackRuler && onFocusTrackRuler(previousTrack)) return true;
-		if (onFocusTrackClip(previousTrack, true)) return true;
-		if (onFocusTrackPanelControl(previousTrack, true)) return true;
-		return onFocusTrackContainer(previousTrack);
+		return focusTrackRowNeighbor(trackIndex, trackCount, -1, (previousTrack) => {
+			if (hasTrackRuler && onFocusTrackRuler(previousTrack)) return true;
+			if (onFocusTrackClip(previousTrack, true)) return true;
+			if (onFocusTrackPanelControl(previousTrack, true)) return true;
+			return onFocusTrackContainer(previousTrack);
+		}) || onFocusTimelineRuler();
 	};
 	const focusAfterPanel = () => {
 		if (onFocusTrackClip(trackIndex)) return true;
@@ -38,21 +40,17 @@ export function createTrackRowFocusRouter({
 		return onFocusTrackContainer(trackIndex);
 	};
 	const focusPanelVertical = (direction) => {
-		const targetIndex = trackIndex + (direction === 'down' ? 1 : -1);
-		if (targetIndex >= 0 && targetIndex < trackCount) {
-			return onFocusTrackPanelControl(targetIndex);
-		}
-		return false;
+		return focusTrackRowNeighbor(trackIndex, trackCount, direction === 'down' ? 1 : -1, onFocusTrackPanelControl);
 	};
-	const focusTrackVertical = (direction) => {
-		const targetIndex = trackIndex + direction;
-		if (targetIndex >= 0 && targetIndex < trackCount) return onFocusTrackContainer(targetIndex);
-		return false;
+	const focusTrackVertical = (direction, extend = false) => {
+		return focusTrackRowNeighbor(trackIndex, trackCount, direction, (targetIndex) => {
+			if (!onFocusTrackContainer(targetIndex)) return false;
+			if (extend) onExtendTrackSelection?.(targetIndex);
+			return true;
+		});
 	};
 	const focusRulerVertical = (direction) => {
-		const targetIndex = trackIndex + (direction === 'down' ? 1 : -1);
-		if (targetIndex >= 0 && targetIndex < trackCount) return onFocusTrackRuler(targetIndex);
-		return false;
+		return focusTrackRowNeighbor(trackIndex, trackCount, direction === 'down' ? 1 : -1, onFocusTrackRuler);
 	};
 
 	return {
@@ -124,6 +122,7 @@ export function useTrackRowFocusNavigation({
 	onFocusTrackRuler = () => false,
 	onFocusSelectionToolbar,
 	onSelectClip,
+	onExtendTrackSelection,
 	routeClipKey,
 }) {
 	const tabIndexFor = useCallback(
@@ -159,6 +158,7 @@ export function useTrackRowFocusNavigation({
 		onFocusTrackClip,
 		onFocusTrackRuler,
 		onFocusSelectionToolbar,
+		onExtendTrackSelection,
 	});
 	const handleClipFocusCapture = (event) => {
 		if (isFlatNavigation || !isClipGroup(event.target)) return;

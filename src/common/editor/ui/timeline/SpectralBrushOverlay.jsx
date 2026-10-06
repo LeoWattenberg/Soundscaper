@@ -7,6 +7,7 @@ import '../audio-editor-design-system/25-spectral-brush.css';
 
 import { audioEditorClipBodyGeometry, normalizeSpectrogramScale } from './geometry.ts';
 import { planSpectralBrushGesture } from './spectral-brush-model.ts';
+import { useSpectralBrushCancellation } from './useSpectralBrushCancellation.ts';
 
 export function SpectralBrushOverlay({
 	track,
@@ -21,7 +22,9 @@ export function SpectralBrushOverlay({
 	onCommit,
 }) {
 	const dragRef = useRef(null);
+	const surfaceRef = useRef(null);
 	const [preview, setPreview] = useState(null);
+	useSpectralBrushCancellation(surfaceRef, dragRef, () => setPreview(null));
 	const { top: clipBodyTop, height: clipBodyHeight } = audioEditorClipBodyGeometry(trackHeight);
 	const laneHeight = displayMode === 'multiview'
 		? Math.max(1, Math.floor(clipBodyHeight / 2))
@@ -100,6 +103,7 @@ export function SpectralBrushOverlay({
 
 	return (
 		<div
+			ref={surfaceRef}
 			className="audio-editor-spectral-brush"
 			data-spectral-brush
 			role="button"

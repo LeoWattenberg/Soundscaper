@@ -2,6 +2,7 @@ import { secondsDeltaToFrames } from './geometry.ts';
 import { clipHasLoopRepeats, normalizeInactiveClipLoop, trimClipLoopPeriod } from '../../audio-clip-loop.ts';
 import { routeClipFocusTrimKeyboard } from './clip-focus-trim-keyboard-routing.ts';
 import { useTrackRowFocusNavigation } from './useTrackRowFocusNavigation.js';
+import { extendTrackRowSelection } from './track-row-selection-extension.ts';
 
 export function useAudioTrackRowNavigation({
 	controller,
@@ -40,6 +41,7 @@ export function useAudioTrackRowNavigation({
 		onFocusTrackClip,
 		onFocusTrackRuler,
 		onFocusSelectionToolbar,
+		onExtendTrackSelection: (index) => run(() => extendTrackRowSelection(controller, track.id, index)),
 		onSelectClip: (clipId, options) => run(() => (
 			controller.actions.timeline.selectClip(clipId, options)
 		)),

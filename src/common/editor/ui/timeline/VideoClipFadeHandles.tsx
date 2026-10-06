@@ -89,6 +89,13 @@ export function VideoClipFadeHandles({ controller, project, clip, selected, visi
 				onPointerCancel={() => { gesture.current = null; setPreview(null); }}
 				onKeyDown={event => {
 					event.stopPropagation();
+					if (event.key === 'Escape' && gesture.current) {
+						event.preventDefault();
+						const pointerId = gesture.current.pointerId;
+						gesture.current = null; setPreview(null);
+						if (event.currentTarget.hasPointerCapture?.(pointerId)) event.currentTarget.releasePointerCapture(pointerId);
+						return;
+					}
 					if (event.key === 'Tab') {
 						const target = event.currentTarget.closest<HTMLElement>('[data-clip-id][role="group"]');
 						if (!target) return;

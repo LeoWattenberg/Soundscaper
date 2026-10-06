@@ -11,6 +11,7 @@ import { VideoFilmstripClip } from './VideoFilmstrip.jsx';
 import { VideoTrackControls } from './VideoTrackControls.jsx';
 import { timelineContentLeft } from './timeline-scroll-space.ts';
 import { useTrackRowFocusNavigation } from './useTrackRowFocusNavigation.js';
+import { extendTrackRowSelection } from './track-row-selection-extension.ts';
 
 export function VideoTrackRow({
 	controller,
@@ -136,6 +137,7 @@ export function VideoTrackRow({
 		onFocusTrackPanelControl,
 		onFocusTrackClip,
 		onFocusSelectionToolbar,
+		onExtendTrackSelection: (index) => run(() => extendTrackRowSelection(controller, track.id, index)),
 		onSelectClip: (clipId, options) => run(() => (
 			controller.actions.timeline.selectClip(clipId, options)
 		)),
@@ -240,7 +242,7 @@ export function VideoTrackRow({
 								else focusCurrentPanel();
 							} else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
 								event.preventDefault();
-								focusTrackVertical(event.key === 'ArrowDown' ? 1 : -1);
+								focusTrackVertical(event.key === 'ArrowDown' ? 1 : -1, event.shiftKey);
 							}
 						}}
 					>

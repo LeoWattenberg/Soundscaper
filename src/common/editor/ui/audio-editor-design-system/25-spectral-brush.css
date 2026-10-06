@@ -23,6 +23,10 @@
 	pointer-events: none;
 }
 
+.audio-editor-track-window:has([data-spectral-brush], [data-spectral-selection]) [data-clip-id]:has(.clip-display--selected) {
+	z-index: 2 !important;
+}
+
 .audio-editor-spectral-selection__handle--frequency-center {
 	z-index: 3;
 	left: calc(50% - 9px);
