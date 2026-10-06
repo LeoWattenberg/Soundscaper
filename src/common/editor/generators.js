@@ -142,18 +142,27 @@ function generateDtmf(options, sampleRate, channelCount) {
 	const amplitude = finiteInRange(options.amplitude ?? 0.8, 0, 1, 'amplitude');
 	const toneFrames = boundedFrameCount(toneSeconds, sampleRate);
 	const silenceFrames = Math.round(silenceSeconds * sampleRate);
-	const frameCount = sequence.length * toneFrames + Math.max(0, sequence.length - 1) * silenceFrames;
+	const naturalDuration = sequence.length * toneSeconds + Math.max(0, sequence.length - 1) * silenceSeconds;
+	const frameCount = options.durationSeconds === undefined
+		? sequence.length * toneFrames + Math.max(0, sequence.length - 1) * silenceFrames
+		: boundedFrameCount(finiteInRange(options.durationSeconds, 1 / sampleRate, MAX_GENERATOR_SECONDS, 'durationSeconds'), sampleRate);
 	if (!Number.isSafeInteger(frameCount) || frameCount <= 0 || frameCount > 0x7fff_ffff) throw new RangeError('DTMF output is too large.');
 	const mono = new Float32Array(frameCount);
-	const fadeFrames = Math.min(Math.round(sampleRate * 0.005), Math.floor(toneFrames / 2));
 	let offset = 0;
-	for (const symbol of sequence) {
+	for (const [index, symbol] of [...sequence].entries()) {
+		const start = options.durationSeconds === undefined ? offset
+			: Math.round(index * (toneSeconds + silenceSeconds) / naturalDuration * frameCount);
+		const end = options.durationSeconds === undefined ? start + toneFrames
+			: index === sequence.length - 1 ? frameCount
+				: Math.round((index * (toneSeconds + silenceSeconds) + toneSeconds) / naturalDuration * frameCount);
+		const symbolFrames = end - start;
+		const fadeFrames = Math.min(Math.round(sampleRate * 0.005), Math.floor(symbolFrames / 2));
 		const [low, high] = DTMF_FREQUENCIES[symbol];
-		for (let frame = 0; frame < toneFrames; frame += 1) {
+		for (let frame = 0; frame < symbolFrames; frame += 1) {
 			const fade = fadeFrames
-				? Math.min(1, (frame + 1) / fadeFrames, (toneFrames - frame) / fadeFrames)
+				? Math.min(1, (frame + 1) / fadeFrames, (symbolFrames - frame) / fadeFrames)
 				: 1;
-			mono[offset + frame] = amplitude * fade * 0.5 * (
+			mono[start + frame] = amplitude * fade * 0.5 * (
 				Math.sin(2 * Math.PI * low * frame / sampleRate)
 				+ Math.sin(2 * Math.PI * high * frame / sampleRate)
 			);
