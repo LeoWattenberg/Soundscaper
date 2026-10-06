@@ -3,6 +3,7 @@
 import type { AudioEditorCommand } from '../../../commands/protocol.ts';
 import type { EditorControllerLifetime } from '../../shared/lifecycle.ts';
 import type { ControllerProject } from '../track-domain-types.ts';
+import { resolveSelectionRange } from '../../../selection-range.ts';
 import {
 	planTrackAlignment,
 	planTrackSort,
@@ -92,7 +93,8 @@ export function createTrackStructuralOperationService(
 	}
 
 	function selectionEnd(project: ControllerProject): number {
-		return project.selection?.endFrame ?? dependencies.getPositionFrames();
+		return resolveSelectionRange(project)?.endFrame
+			?? project.selection?.endFrame ?? dependencies.getPositionFrames();
 	}
 
 	function assertWritable(): void {

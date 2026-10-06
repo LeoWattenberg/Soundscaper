@@ -89,6 +89,27 @@ function createFixture(project: ClipSelectionNavigationProject) {
 	return { commands, seeks, service, state };
 }
 
+for (const [action, expectedClipIds, expectedRange] of [
+	['selectPreviousClip', ['first'], [0, 10]],
+	['selectNextClip', ['next'], [20, 30]],
+	['selectPreviousClipBoundaryToCursor', ['current'], [0, 20]],
+	['selectCursorToNextClipBoundary', ['current'], [10, 30]],
+] as const) {
+	test(`${action} resolves a header-selected clip instead of its collapsed time range`, () => {
+		const clips = [sampleClip('first', 0, 10), sampleClip('current', 10, 10), sampleClip('next', 20, 10)];
+		const project = projectFixture({
+			clips,
+			tracks: [{ id: 'audio', type: 'audio', clipIds: clips.map((clip) => clip.id) }],
+			selection: { startFrame: 0, endFrame: 0, trackIds: ['audio'], clipIds: ['current'] },
+		});
+		const fixture = createFixture(project);
+		fixture.state.selectedClipId = 'current';
+		fixture.service[action]();
+		assert.deepEqual(fixture.commands[0]?.clipIds, expectedClipIds);
+		assert.deepEqual([fixture.commands[0]?.startFrame, fixture.commands[0]?.endFrame], expectedRange);
+	});
+}
+
 test('previous clip boundary uses projected musical timing and selected audio tracks', () => {
 	const project = projectFixture();
 	const before = structuredClone(project);
@@ -106,6 +127,18 @@ test('previous clip boundary uses projected musical timing and selected audio tr
 		frequencyRange: { minimumFrequency: 120, maximumFrequency: 4_000 },
 	}]);
 	assert.deepEqual(project, before);
+});
+
+test('header-selected musical clips use projected bounds for adjacency', () => {
+	const clips = [musicalClip('first', 0, 1), musicalClip('current', 2, 1), musicalClip('next', 4, 1)];
+	const fixture = createFixture(projectFixture({
+		clips,
+		tracks: [{ id: 'audio', type: 'audio', clipIds: clips.map((clip) => clip.id) }],
+		selection: { startFrame: 0, endFrame: 0, trackIds: ['audio'], clipIds: ['current'] },
+	}));
+	fixture.service.selectPreviousClip();
+	fixture.service.selectNextClip();
+	assert.deepEqual(fixture.commands.map((command) => command.clipIds), [['first'], ['next']]);
 });
 
 test('next clip boundary is strictly after the selection end and preserves selection facets', () => {

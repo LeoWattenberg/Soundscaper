@@ -205,6 +205,20 @@ test('controller service commits one transform or batch for every structural act
 	assert.ok(mute.commands.every((command) => command.type === 'track/update' && command.changes.mute === true));
 });
 
+test('alignment to selection end resolves selected clip bounds instead of its collapsed time cursor', () => {
+	const project = structuralProject({ selection: {
+		startFrame: 0, endFrame: 0, trackIds: ['music'], clipIds: ['music-clip'],
+	} });
+	const commits: AudioEditorCommand[] = [];
+	const service = createTrackStructuralOperationService(serviceDependencies(project, commits));
+	service.alignStartToSelectionEnd();
+	assert.equal(commits[0]?.type, 'clip/transform-many');
+	if (commits[0]?.type !== 'clip/transform-many') assert.fail('Expected an alignment command.');
+	const clip = project.clips.find((candidate) => candidate.id === 'music-clip')!;
+	assert.equal(commits[0].transforms[0]?.changes.timelineStartFrame,
+		Number(clip.timelineStartFrame) + Number(clip.durationFrames));
+});
+
 function serviceDependencies(
 	project: ControllerProject,
 	commits: AudioEditorCommand[],

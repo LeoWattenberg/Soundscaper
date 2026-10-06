@@ -118,7 +118,13 @@ export function createTimelineMenuModel({
 		{
 			label: copy.wrapTracksInFolder,
 			disabled: mutationsBlocked,
-			onClick: () => run(() => controller.actions.trackFolders.wrapSelection([menuTrack.id])),
+			onClick: () => run(() => {
+				const selected = snapshot.selection?.trackIds || project.selection?.trackIds || [];
+				const trackIds = selected.includes(menuTrack.id)
+					? project.tracks.filter((track) => selected.includes(track.id)).map((track) => track.id)
+					: [menuTrack.id];
+				return controller.actions.trackFolders.wrapSelection(trackIds);
+			}),
 		},
 	] : [];
 	const trackOverflowItems = menuTrack ? createTrackOverflowItems({

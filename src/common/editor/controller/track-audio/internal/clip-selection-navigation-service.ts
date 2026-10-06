@@ -93,8 +93,9 @@ export function createClipSelectionNavigationService<
 		const project = dependencies.getProject();
 		const selection = project?.selection;
 		if (!project || !selection) return null;
-		const startFrame = selectionFrame(selection.startFrame, 'selection.startFrame');
-		const endFrame = selectionFrame(selection.endFrame, 'selection.endFrame');
+		const range = resolveSelectionRange(resolveRuntimeProjectProjection(project)) ?? selection;
+		const startFrame = selectionFrame(range.startFrame, 'selection.startFrame');
+		const endFrame = selectionFrame(range.endFrame, 'selection.endFrame');
 		const pivot = next ? endFrame : startFrame;
 		const boundary = nearestClipBoundary(project, selection, pivot, next);
 		if (boundary === null) return null;
@@ -109,8 +110,9 @@ export function createClipSelectionNavigationService<
 		const project = dependencies.getProject();
 		const selection = project?.selection;
 		if (!project || !selection) return null;
-		const startFrame = selectionFrame(selection.startFrame, 'selection.startFrame');
-		const endFrame = selectionFrame(selection.endFrame, 'selection.endFrame');
+		const range = resolveSelectionRange(resolveRuntimeProjectProjection(project)) ?? selection;
+		const startFrame = selectionFrame(range.startFrame, 'selection.startFrame');
+		const endFrame = selectionFrame(range.endFrame, 'selection.endFrame');
 		const candidate = adjacentClip(project, selection, startFrame, endFrame, next);
 		if (!candidate) return null;
 		const command = exactClipSelectionCommand(selection, candidate);
