@@ -25,6 +25,7 @@ import {
 	type DirectNativeStemArchiveOutput,
 	type DirectNativeStemArchivePlan,
 } from './direct-native-stem-archive-plan.ts';
+import { streamDirectStemEntries } from '../archive/direct-stem-entry-stream.ts';
 import { type Zip32Layout } from '../archive/zip32.ts';
 
 const ZIP_CONTAINER_LABEL = 'ZIP';
@@ -61,6 +62,8 @@ export interface DirectStemArchiveStreamOptions {
 		output: DirectStemArchiveOutput,
 		index: number,
 	) => Awaitable<DirectStemArchiveEncodedOutput>;
+	/** Private caller has admitted combined staging/heap and owns per-entry progress and cancellation. */
+	readonly renderOneAhead?: (output: DirectStemArchiveOutput, index: number, signal: AbortSignal) => Awaitable<DirectStemArchiveEncodedOutput>;
 	readonly onStemComplete?: (progress: number, index: number) => Awaitable<void>;
 }
 
@@ -182,21 +185,15 @@ export async function streamDirectStemArchive(
 	const archive = await createDirectSequentialStemArchive(options, contract);
 	let finished = false;
 	try {
-		for (const [index, output] of contract.outputs.entries()) {
-			assertReady(options);
-			const encoded = await options.renderStem(output, index);
-			await consumeEncodedStem(encoded, async () => {
-				assertReady(options);
-				const input = encoded.blob ?? encoded.bytes;
-				const inputBytes = zipInputByteLength(input);
-				if (!validEntryByteLength(contract, inputBytes, encoded.byteLength)) {
-					throw new Error(`Direct stem archive input byte length does not match its plan: ${output.fileName}`);
-				}
-				await archive.add(output.fileName, input!, signal);
-				assertReady(options);
-			});
-			await options.onStemComplete?.((index + 1) / contract.outputs.length, index);
-		}
+		await streamDirectStemEntries({ entries: contract.outputs, signal, assertCurrent: () => assertReady(options),
+			render: options.renderStem, renderOneAhead: options.renderOneAhead,
+			validate(encoded, output) {
+				const inputBytes = zipInputByteLength(encoded.blob ?? encoded.bytes);
+				if (!validEntryByteLength(contract, inputBytes, encoded.byteLength)) throw new Error(`Direct stem archive input byte length does not match its plan: ${output.fileName}`);
+			},
+			consume: (encoded, output, _index, entrySignal) => archive.add(output.fileName, (encoded.blob ?? encoded.bytes)!, entrySignal),
+			onComplete: options.onStemComplete,
+		});
 		assertReady(options);
 		const result = await archive.finish();
 		finished = true;
@@ -380,29 +377,6 @@ function zipInputByteLength(input: Zip32StreamInput | null | undefined): number 
 	if (input instanceof ArrayBuffer) return input.byteLength;
 	if (ArrayBuffer.isView(input)) return input.byteLength;
 	throw new TypeError('Direct stem archive render output has no valid input bytes.');
-}
-
-async function consumeEncodedStem(
-	encoded: DirectStemArchiveEncodedOutput,
-	consume: () => Promise<void>,
-): Promise<void> {
-	let primary: unknown;
-	let failed = false;
-	try {
-		await consume();
-	} catch (error) {
-		primary = error;
-		failed = true;
-	}
-	try {
-		await encoded.cleanup?.();
-	} catch (cleanupError) {
-		if (failed) {
-			throw combineErrors(primary, cleanupError, 'Direct stem input cleanup also failed.');
-		}
-		throw cleanupError;
-	}
-	if (failed) throw primary;
 }
 
 function assertArchiveResult(

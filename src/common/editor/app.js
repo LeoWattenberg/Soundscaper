@@ -508,7 +508,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		export: {
 			state: createEditorExportStateAccess(state),
 			ffmpeg, fileService, playbackProjects: playbackProjectService, productName: product.name, prepareProjectForExport: options.prepareProjectForExport,
-			normalizeExportSettings, toggleExport: bindings.toggleExport, updateExportProgress: bindings.updateExportProgress, setPersistentExportProgressObserver: (observer) => { persistentExportProgressObserver = observer; },
+			normalizeExportSettings, getPerformanceOptimizationMode: () => state.preferences.performance.optimizeFor, toggleExport: bindings.toggleExport, updateExportProgress: bindings.updateExportProgress, setPersistentExportProgressObserver: (observer) => { persistentExportProgressObserver = observer; },
 		},
 		createRenderEngine: bindings.createCacheAwareRenderEngine, createPreviewEngine: (previewOptions) => renderEngineFactory(previewOptions), prepareCommittedTimePitchCaches: bindings.prepareCommittedTimePitchCaches,
 		getProject: () => documentState.project, getCommandProject, getSpectrogramDefaults: () => state.preferences.spectrogram, editingBlocked, labelEditingBlocked: () => selectAudioEditorControllerLabelEditBlock(state).blocked || Boolean(framescaperCapture?.originSnapshot(documentState.project?.id ?? null).editBlocked), commit: bindings.commit, setStatus: bindings.setStatus, publishDocumentSnapshot, publishProjectState: bindings.publishProjectState, handleError: bindings.handleError, preflightStorage: bindings.preflightStorage,

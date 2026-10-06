@@ -24,14 +24,14 @@ import {
 	type DirectCompressedDestination,
 } from './direct/direct-compressed-export.ts';
 import { commitDirectPcmDestination, type DirectPcmDestination } from './direct/direct-pcm-export.ts';
-import { commitPreparedDirectStemArchiveDestination, directStemArchiveTemporaryBytes, prepareDirectStemArchiveDestination, streamDirectStemArchive } from './direct/direct-stem-archive-export.ts';
+import { commitPreparedDirectStemArchiveDestination, directStemArchiveTemporaryBytes, prepareDirectStemArchiveDestination } from './direct/direct-stem-archive-export.ts';
 import { createEditorVideoExportAction } from './video/video-export-service.ts';
 import { createExportOperationAvailability } from './export-operation-availability.ts';
 import { beginExportTask, handleExportFailure } from './export-task-lifecycle.ts';
 import { createExportSnapshotRenderer } from '../export-snapshot-renderer.ts';
 import type { EditorExportState } from '../export-state.ts';
 import { streamStemArchiveExport } from './archive/streaming-stem-archive-export.ts';
-import { renderConformedStem } from './archive/render-conformed-stem.ts';
+import { executeDirectStemRenderArchive } from './direct/direct-stem-render-execution.ts';
 import { assertDesktopAudioExportCapability } from './desktop-audio-export-capability.ts';
 import { createDeliveryReportForPlan } from '../../../delivery-conversion-inventory.ts';
 import {
@@ -330,30 +330,18 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 				fileName = plan.outputs[0].fileName;
 			} else if (directStemArchive) {
 				if (!plan.archive) throw new Error('The stem export plan has no archive descriptor.');
-				const findings: DeliveryConformanceFinding[] = [];
-				directOutput = await streamDirectStemArchive({
-					destination: pendingDirectDestination as DirectPcmDestination, plan, signal: abort.signal,
-					assertCurrent: assertExportCurrent,
-					async renderStem(output, index) {
-						const renderOutput = plan.outputs[index];
-						if (!renderOutput || renderOutput.trackId !== output.trackId) {
-							throw new Error('The direct stem archive output changed before rendering.');
-						}
-						const snapshot = stemProject(exportProject, renderOutput.trackId);
-						const { encoded, conformance } = await renderConformedStem({ render: () => renderAndEncode(
-							snapshot, plan, settings, abort.signal, exportRenderSources, renderOutput, {
-								start: index / plan.outputs.length,
-								end: (index + 1) / plan.outputs.length,
-							}, null, null, assertExportCurrent,
-						), conform: (candidate) => conformPersistentExport(
-							plan, candidate, index / plan.outputs.length, (index + 1) / plan.outputs.length,
-						) });
-						findings.push(...conformance);
-						return encoded;
-					},
-						onStemComplete(progress) { reportExportProgress(progress); },
+				const streamed = await executeDirectStemRenderArchive({
+					destination: pendingDirectDestination as DirectPcmDestination, plan, snapshot: exportProject, settings, renderSources: exportRenderSources,
+					signal: abort.signal, assertCurrent: assertExportCurrent, getPerformanceOptimizationMode: runtime.getPerformanceOptimizationMode,
+					preflightStorage, stemProject, presentation: { task: progressTask, assertCurrent: assertExportCurrent, reportProgress: reportExportProgress, setStatus },
+					resources: { suppliedSnapshotRenderer: suppliedExportSnapshotRenderer, snapshot: { options, sourceBuffers, taskProgress, createCacheAwareRenderEngine, prepareCommittedTimePitchCaches, throwIfAborted, updateExportProgress: reportExportProgress },
+						realtime: { ...runtime, withRenderProgress }, normalizeProjectSampleRate,
+						encoding: { applyMediaChannelMapping, audioBufferChannels, copy, createAiffStreamEncoder, createWavStreamEncoder, encodeAiff, encodeWav, ffmpeg, resampleBuffer, setStatus, throwIfAborted, confirmFileSizeWarning: options.confirmFileSizeWarning } },
+					renderSequential: (snapshot, output, index) => renderAndEncode(snapshot, plan, settings, abort.signal, exportRenderSources, output,
+						{ start: index / plan.outputs.length, end: (index + 1) / plan.outputs.length }, null, null, assertExportCurrent),
+					conformSequential: conformPersistentExport,
 				});
-				stemConformance = Object.freeze(findings);
+				directOutput = streamed.result; stemConformance = streamed.conformance;
 				fileName = plan.archive.fileName;
 			} else {
 				const archived = await streamStemArchiveExport({

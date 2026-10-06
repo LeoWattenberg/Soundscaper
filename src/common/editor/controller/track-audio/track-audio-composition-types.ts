@@ -80,6 +80,7 @@ export type TrackAudioExportPorts = Readonly<{
 	readonly productName: string;
 	readonly prepareProjectForExport: unknown;
 	readonly normalizeExportSettings: (value?: unknown) => unknown;
+	readonly getPerformanceOptimizationMode?: () => string | undefined;
 	readonly toggleExport: (active: boolean) => void;
 	readonly updateExportProgress: ExportSnapshotRendererRuntime['updateExportProgress'];
 	readonly setPersistentExportProgressObserver: (observer: ((value: number) => void) | null) => void;

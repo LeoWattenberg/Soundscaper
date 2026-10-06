@@ -163,7 +163,7 @@ export function createTrackAudioComposition(dependencies: TrackAudioCompositionD
 		handleError: dependencies.handleError,
 		hasMissingTimelineSources: dependencies.hasMissingTimelineSources,
 		lifetime,
-		normalizeExportSettings: dependencies.export.normalizeExportSettings,
+		normalizeExportSettings: dependencies.export.normalizeExportSettings, getPerformanceOptimizationMode: dependencies.export.getPerformanceOptimizationMode,
 		playbackProjects: dependencies.export.playbackProjects,
 		normalizeProjectSampleRate,
 		options: dependencies.controllerOptions,
