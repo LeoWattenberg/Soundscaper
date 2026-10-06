@@ -110,8 +110,9 @@ export default function FramescaperFinishingDialog({
 	useEffect(() => () => { motionAbortRef.current?.abort(); }, []);
 
 	const blocked = pending || editingBlocked || readOnly;
-	const perform = (operation: () => unknown, success: PresentationFeedback | (() => PresentationFeedback)): void => {
-		if (blocked) return;
+	const exportBlocked = pending || (editingBlocked && !readOnly);
+	const perform = (operation: () => unknown, success: PresentationFeedback | (() => PresentationFeedback), readOperation = false): void => {
+		if (readOperation ? exportBlocked : blocked) return;
 		setPending(true);
 		setStatus('');
 		setError('');
@@ -177,7 +178,7 @@ export default function FramescaperFinishingDialog({
 				fileService, format: captionFormat, trackId: captionTrackId, text: exported.text,
 			});
 			captionImportSummary = lossSummary(exported.losses.length);
-		}, () => captionImportSummary);
+		}, () => captionImportSummary, true);
 	let cubeLutSummary: PresentationFeedback = '';
 	const importCubeLutFile = (file?: Blob): void => {
 		if (!file && !fileService.isDesktop) {
@@ -303,6 +304,7 @@ export default function FramescaperFinishingDialog({
 			</>}
 			{surface === 'captions' && <CaptionSidecarEditor
 				blocked={blocked}
+				exportBlocked={exportBlocked}
 				format={captionFormat}
 				trackId={captionTrackId}
 				sequenceId={captionSequenceId}
