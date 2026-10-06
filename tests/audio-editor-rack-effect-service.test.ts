@@ -9,7 +9,7 @@ import { EditorProjectChangedError, EditorProjectGeneration } from '../src/commo
 import {
 	ParameterGestureAuthorityChangedError,
 	ParameterGesturePreviewSupersededError,
-} from '../src/common/editor/controller/effects/internal/parameter-gesture-adapter.ts';
+} from '../src/common/editor/controller/shared/parameter-gesture-adapter.ts';
 import {
 	createRackEffectService,
 	type ControllerRackEffect,

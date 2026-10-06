@@ -3,7 +3,7 @@
 import type { AudioEditorCommand } from '../../../commands/protocol.ts';
 import type { EngineEffectScope } from '../../../engine/public-api.ts';
 import type { EditorProjectToken } from '../../shared/lifecycle.ts';
-import type { ParameterGestureSession } from './parameter-gesture-adapter.ts';
+import type { ParameterGestureSession } from '../../shared/parameter-gesture-adapter.ts';
 import type { TerminalWidthProject } from '../../../terminal-channel-widths.ts';
 
 export type RackEffectScope = EngineEffectScope;

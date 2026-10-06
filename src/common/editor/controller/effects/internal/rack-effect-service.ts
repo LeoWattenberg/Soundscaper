@@ -6,7 +6,7 @@ import {
 	ParameterGestureAuthorityChangedError,
 	createParameterGestureAdapter,
 	type ParameterGestureTarget,
-} from './parameter-gesture-adapter.ts';
+} from '../../shared/parameter-gesture-adapter.ts';
 import { audioEffectTypes, createEffect, normalizeEffect } from '../../../effects.js';
 import { createStableId } from '../../../stable-id.js';
 import { serializeAudacityNoiseProfile } from '../../source/source-audio.ts';

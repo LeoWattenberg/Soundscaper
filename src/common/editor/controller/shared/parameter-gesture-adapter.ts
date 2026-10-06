@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { EditorProjectToken } from '../../shared/lifecycle.ts';
+import type { EditorProjectToken } from './lifecycle.ts';
 
 export const PARAMETER_GESTURE_PREVIEW_SUPERSEDED_CODE = 'PARAMETER_GESTURE_PREVIEW_SUPERSEDED' as const;
 export const PARAMETER_GESTURE_AUTHORITY_CHANGED_CODE = 'PARAMETER_GESTURE_AUTHORITY_CHANGED' as const;
@@ -87,8 +87,8 @@ export interface ParameterGestureAdapter<Value, Result> {
 }
 
 /**
- * Runtime-first gesture lifecycle shared by rack controls and future write-mode
- * automation. Document state remains unchanged until commitValue executes.
+ * Runtime-first gesture lifecycle shared by effect rack and mixer controls.
+ * Document state remains unchanged until commitValue executes.
  */
 export function createParameterGestureAdapter<Value, Result, Authority>(
 	options: ParameterGestureAdapterOptions<Value, Result, Authority>,

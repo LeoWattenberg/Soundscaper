@@ -9,7 +9,7 @@ import {
 	ParameterGesturePreviewSupersededError,
 	createParameterGestureAdapter,
 	type ParameterGestureTarget,
-} from '../src/common/editor/controller/effects/internal/parameter-gesture-adapter.ts';
+} from '../src/common/editor/controller/shared/parameter-gesture-adapter.ts';
 import {
 	EditorProjectChangedError,
 	EditorProjectGeneration,

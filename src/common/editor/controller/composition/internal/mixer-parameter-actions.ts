@@ -4,7 +4,7 @@ import type { AudioEditorCommand } from '../../../commands/protocol.ts';
 import type { EditorActionRuntime } from '../action-facade-runtime.ts';
 import { projectForRuntimeConsumers } from '../../../project-current-runtime.ts';
 import { canonicalParameterAddressKey, normalizeParameterAddress, type ParameterAddress } from '../../../parameter-address.ts';
-import { createParameterGestureAdapter, type ParameterGestureSession } from '../../effects/internal/parameter-gesture-adapter.ts';
+import { createParameterGestureAdapter, type ParameterGestureSession } from '../../shared/parameter-gesture-adapter.ts';
 import { createLocalizedError } from '../../../../i18n/presentation-message.ts';
 import type { EditorProjectToken } from '../../shared/lifecycle.ts';
 

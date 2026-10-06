@@ -193,6 +193,7 @@
 		"shared/isolated-track-render-project-v21.ts",
 		"shared/lifecycle.ts",
 		"shared/owned-state.ts",
+		"shared/parameter-gesture-adapter.ts",
 		"shared/presentation-localization.ts",
 		"shared/storage-capacity-runtime.ts",
 		"shared/storage-capacity-service.ts",
