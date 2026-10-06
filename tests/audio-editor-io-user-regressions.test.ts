@@ -8,6 +8,7 @@ import { createExportDialogInitialSettings } from '../src/common/editor/ui/expor
 import { labelExportFileName } from '../src/common/editor/controller/shared/app-helpers.ts';
 import {
 	serializeSubRipLabels, parseSubRipLabels, serializeWebVttLabels, parseWebVttLabels,
+	parseAudacityLabelsTxt, serializeAudacityLabelsTxt,
 } from '../src/common/editor/label-io.js';
 import {
 	dialogSettingsFromDeliveryTarget, dialogSettingsFromPreset, presetSettingsFromDialog,
@@ -15,6 +16,19 @@ import {
 import { validateDeliveryPreset } from '../src/common/editor/delivery-preset.ts';
 import { createExportDialogRequest } from '../src/common/editor/ui/export-dialog-model.js';
 import { normalizeExportDialogAudioSettings, exportDialogOutputChannelCount } from '../src/common/editor/ui/export-dialog-audio-codec-options.ts';
+
+test('Audacity extended label imports retain undefined spectral bounds in TXT roundtrips', () => {
+	const text = '0\t0.5\tBelow 1000 Hz\n\\\t-1\t1000\n1\t1.5\tAbove 2000 Hz\n\\\t2000\t-1\n';
+	const imported = parseAudacityLabelsTxt(text, { sampleRate: 48_000 });
+	assert.deepEqual(imported.labels.map(({ opaqueExtensions }) => opaqueExtensions.frequencyRange), [
+		{ minimumFrequency: -1, maximumFrequency: 1000 },
+		{ minimumFrequency: 2000, maximumFrequency: -1 },
+	]);
+	assert.equal(serializeAudacityLabelsTxt(imported.labels, { sampleRate: 48_000 }), text);
+	for (const range of ['-2\t1000', '2000\t-2', '2000\t1000']) {
+		assert.throws(() => parseAudacityLabelsTxt(`0\t0.5\tRange\n\\\t${range}\n`), /frequency continuation is malformed/u);
+	}
+});
 
 test('timed label exports give points and submillisecond ranges the minimum cue duration', () => {
 	const labels = [

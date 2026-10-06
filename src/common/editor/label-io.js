@@ -166,7 +166,8 @@ function parseTxtEntries(text, context) {
 			if (fields[0] === '\\' && fields.length >= 3) {
 				const minimumFrequency = parseFiniteNumber(fields[1]);
 				const maximumFrequency = parseFiniteNumber(fields[2]);
-				if (minimumFrequency != null && maximumFrequency != null && minimumFrequency >= 0 && maximumFrequency >= minimumFrequency) {
+				if (minimumFrequency != null && maximumFrequency != null
+					&& isValidFrequencyRange({ minimumFrequency, maximumFrequency })) {
 					previous.frequencyRange = { minimumFrequency, maximumFrequency };
 				} else {
 					recoverableError(context, 'A TXT frequency continuation is malformed.', 'INVALID_CONTINUATION', { line: index + 1 });
@@ -444,8 +445,11 @@ function singleLineTxtTitle(title) {
 function isValidFrequencyRange(value) {
 	return Number.isFinite(value.minimumFrequency)
 		&& Number.isFinite(value.maximumFrequency)
-		&& value.minimumFrequency >= 0
-		&& value.maximumFrequency >= value.minimumFrequency;
+		// Audacity's extended TXT format uses -1 for an undefined spectral bound.
+		&& (value.minimumFrequency === -1 || value.minimumFrequency >= 0)
+		&& (value.maximumFrequency === -1 || value.maximumFrequency >= 0)
+		&& (value.minimumFrequency === -1 || value.maximumFrequency === -1
+			|| value.maximumFrequency >= value.minimumFrequency);
 }
 
 function withEncodingOptions(text, context) {

@@ -22,6 +22,27 @@ async function applyDeliveryPreset(page, dialog, name) {
 	await page.getByRole('option', { name: `${name} (custom)` }).click();
 }
 
+test('Audacity extended labels with an undefined spectral bound import and export', async ({ page }) => {
+	await disableNativeSavePicker(page);
+	const editor = await bootEditor(page, '/embed/en/');
+	const choosing = page.waitForEvent('filechooser');
+	await chooseCommandAction(page, editor, 'File', 'Import');
+	// Audacity writes -1 when a spectral selection is dragged to a track edge.
+	// Both cases are documented in its extended-label format manual.
+	await (await choosing).setFiles({
+		name: 'audacity-spectral-labels.txt', mimeType: 'text/plain',
+		buffer: Buffer.from('0\t0.5\tBelow 1000 Hz\n\\\t-1\t1000\n1\t1.5\tAbove 2000 Hz\n\\\t2000\t-1\n'),
+	});
+	await expect(editor.locator('[data-label-track] .audio-editor-label-marker')).toHaveCount(2);
+	await chooseNestedCommandAction(page, editor, 'File', ['Export other', 'Export labels']);
+	const dialog = page.getByRole('dialog', { name: 'Export labels', exact: true });
+	const downloading = page.waitForEvent('download');
+	await dialog.getByRole('button', { name: 'Export labels', exact: true }).click();
+	const text = await readFile(await (await downloading).path(), 'utf8');
+	expect(text).toContain('\\\t-1\t1000');
+	expect(text).toContain('\\\t2000\t-1');
+});
+
 test('a point label exports as a WebVTT cue with a playable duration', async ({ page }) => {
 	await disableNativeSavePicker(page);
 	const editor = await bootEditor(page, '/embed/en/');
