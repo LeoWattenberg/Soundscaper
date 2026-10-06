@@ -7,6 +7,7 @@ import {
 } from './geometry.ts';
 import { audioEditorStereoChannelGeometry } from './stereo-channel-height-runtime.ts';
 import { samplePointerAmplitude } from './sample-pointer-amplitude.ts';
+import { samplePointerSourceAmplitude } from './sample-pointer-source-amplitude.ts';
 
 export function samplePointAtPointer(event, lane, clip, source, frameAtClientX, lockedChannel = null) {
 	const rect = lane.getBoundingClientRect();
@@ -38,7 +39,7 @@ export function samplePointAtPointer(event, lane, clip, source, frameAtClientX, 
 	return {
 		channel,
 		timelineFrame,
-		value: Math.max(-1, Math.min(1, value)),
+		value: samplePointerSourceAmplitude(clip, timelineFrame, value),
 	};
 }
 

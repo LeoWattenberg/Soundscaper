@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import React, { useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { CLIP_CONTENT_OFFSET } from '@soundscaper/design-system/constants';
 
 import {
@@ -15,6 +15,7 @@ import {
 	timelineAnnotationRegionWidth,
 } from './timeline-annotation-ui-model.ts';
 import { useTimelineAnnotationInteractions } from './useTimelineAnnotationInteractions.js';
+import { useTimelineAnnotationDragCancellation } from './useTimelineAnnotationDragCancellation.ts';
 
 export function TimelineAnnotationLayer({
 	controller,
@@ -40,6 +41,8 @@ export function TimelineAnnotationLayer({
 	const hitCycleRef = useRef(null);
 	const lastPointerTargetRef = useRef(null);
 	const [preview, setPreview] = useState(null);
+	const clearPreview = useCallback(() => setPreview(null), []);
+	useTimelineAnnotationDragCancellation(layerRef, dragRef, clearPreview);
 	const statusId = React.useId();
 	const {
 		actions,
@@ -123,6 +126,7 @@ export function TimelineAnnotationLayer({
 			? timelineAnnotationEditBounds(row.id, [], projected)
 			: timelineAnnotationEditBounds(row.id, selectedIds, projected);
 		dragRef.current = {
+			pointerId: event.pointerId, target: event.currentTarget,
 			annotation: row.annotation,
 			gesture: { ...gesture, dragIds: bounds.ids },
 			idSet: new Set(bounds.ids),

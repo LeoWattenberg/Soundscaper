@@ -11,6 +11,7 @@ import { TrackNameEditor } from './TrackControls.jsx';
 import { timelineContentLeft } from './timeline-scroll-space.ts';
 import { LabelContextMenu } from './LabelContextMenu.tsx';
 import { selectAudioEditorLabelEditBlock } from '../../label-edit-blocking.ts';
+import { useLabelMarkerDragCancellation } from './useLabelMarkerDragCancellation.ts';
 
 export function LabelTrackRow({
 	controller,
@@ -184,6 +185,8 @@ export function AudacityLabelMarker({
 	const pendingRef = useRef(null);
 	const [preview, setPreview] = useState(null);
 	const [contextMenu, setContextMenu] = useState(null);
+	const clearPreview = useCallback(() => setPreview(null), []);
+	const dragCancellation = useLabelMarkerDragCancellation(markerRef, pendingRef, clearPreview);
 	const point = label.startFrame === label.endFrame;
 	const displayed = preview || label;
 	const displayedLeft = left + (displayed.startFrame - label.startFrame) / sampleRate * pixelsPerSecond;
@@ -213,6 +216,7 @@ export function AudacityLabelMarker({
 	}, [finishDrag]);
 
 	const previewRange = (startFrame, endFrame) => {
+		if (dragCancellation.cancelledRef.current) return;
 		const changes = {
 			startFrame: Math.max(0, Math.min(startFrame, endFrame)),
 			endFrame: Math.max(0, Math.max(startFrame, endFrame)),
@@ -233,6 +237,7 @@ export function AudacityLabelMarker({
 			data-label-id={label.id}
 			data-selected-label={selected ? 'true' : 'false'}
 			data-point-label={point ? 'true' : 'false'}
+			onMouseDownCapture={dragCancellation.onMouseDownCapture}
 			onMouseUp={finishDrag}
 			onPointerUp={finishDrag}
 			style={{ left: timelineContentLeft(displayedLeft), width: displayedWidth }}
