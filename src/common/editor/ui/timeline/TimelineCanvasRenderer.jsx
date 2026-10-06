@@ -14,7 +14,7 @@ import {
 	subscribePffftSpectrogram,
 } from '../../pffft-spectrogram.js';
 import { MAXIMUM_WAVEFORM_VERTICAL_ZOOM } from './geometry.ts';
-import { createAnimationFrameCoalescer } from './animation-frame-coalescer.ts';
+import { useRetainedCanvasFrame } from './useRetainedCanvasFrame.ts';
 import { snapshotWaveformCanvasStyle } from './canvas-paint-measurements.ts';
 import { isFrequencyWaveformDisplayMode } from '../../track-display-mode.ts';
 import { reprojectPendingWaveform } from './waveform-plan-continuity.ts';
@@ -37,9 +37,7 @@ export function AudacityWaveformCanvases({
 	spectrogramOptions,
 }) {
 	const paintedCanvases = useRef(new Set());
-	const drawRef = useRef(null);
-	const schedulerRef = useRef(null);
-	const firstDrawRef = useRef(true);
+	const scheduleDraw = useRetainedCanvasFrame(rootRef);
 	useEffect(() => () => {
 		for (const canvas of paintedCanvases.current) releaseSpectrogramCanvas(canvas);
 		paintedCanvases.current.clear();
@@ -84,25 +82,6 @@ export function AudacityWaveformCanvases({
 		if (displayMode !== 'spectrogram' && displayMode !== 'multiview') return;
 		preparePffftSpectrogram(renderSpectrogramOptions.fftWindowSize).catch(() => {});
 	}, [displayMode, renderSpectrogramOptions.fftWindowSize]);
-	useLayoutEffect(() => {
-		const root = rootRef.current;
-		if (!root) return undefined;
-		const scheduler = createAnimationFrameCoalescer(
-			(callback) => window.requestAnimationFrame(callback),
-			(frame) => window.cancelAnimationFrame(frame),
-			() => drawRef.current?.(),
-		);
-		schedulerRef.current = scheduler;
-		firstDrawRef.current = true;
-		const resizeObserver = typeof ResizeObserver === 'function'
-			? new ResizeObserver(scheduler.schedule) : null;
-		resizeObserver?.observe(root);
-		return () => {
-			resizeObserver?.disconnect();
-			scheduler.dispose();
-			schedulerRef.current = null;
-		};
-	}, [rootRef]);
 	useLayoutEffect(() => {
 		const root = rootRef.current;
 		if (!root) return undefined;
@@ -222,12 +201,8 @@ export function AudacityWaveformCanvases({
 			}
 			paintedCanvases.current = liveCanvases;
 		};
-		drawRef.current = draw;
-		if (firstDrawRef.current) {
-			firstDrawRef.current = false;
-			draw();
-		} else schedulerRef.current?.schedule();
-	}, [channelHeightRatio, clips, displayMode, frequencyWaveformRenderer, halfWave, pixelsPerSecond, renderSpectrogramOptions, rootRef, showRms, spectrogramDrawKey, spectrogramRevision, themeDrawKey, timeSelection, verticalZoom, waveformRulerFormat]);
+		scheduleDraw(draw);
+	}, [channelHeightRatio, clips, displayMode, frequencyWaveformRenderer, halfWave, pixelsPerSecond, renderSpectrogramOptions, rootRef, scheduleDraw, showRms, spectrogramDrawKey, spectrogramRevision, themeDrawKey, timeSelection, verticalZoom, waveformRulerFormat]);
 	return null;
 }
 
