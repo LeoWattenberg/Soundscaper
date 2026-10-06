@@ -274,10 +274,9 @@ export function normalizeExportDialogAudioSettings(
 	desktop: boolean,
 	inputChannelCount: unknown = 2,
 ): Readonly<Record<string, unknown>> {
-	// A clip preserves its own channels and span; an old mix's binaural toggle
-	// must not make the capability query describe stereo while the request
-	// delivers the clip's preserved layout.
-	if (settings.mode === 'clips' && (settings.binaural === true || settings.loudnessNormalization)) {
+	// Split output preserves its channel layout; an old mix's rendering choices
+	// must not make the capability query describe a different delivery.
+	if (['clips', 'chapters', 'stems'].includes(String(settings.mode)) && (settings.binaural === true || settings.loudnessNormalization)) {
 		settings = Object.freeze({ ...settings, binaural: false, loudnessNormalization: '' });
 	}
 	if (desktop) return settings;

@@ -227,6 +227,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 		return normalizeExportDialogAudioSettings({
 			...current,
 			format,
+			deliveryTarget: '',
 			mode: format === 'bw64' ? 'mix' : current.mode,
 			range: passthrough ? 'project' : current.range,
 			sampleFormat: passthrough

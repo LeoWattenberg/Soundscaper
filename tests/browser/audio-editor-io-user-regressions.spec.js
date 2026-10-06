@@ -188,3 +188,33 @@ test('applying a video preset replaces the previous platform target', async ({ p
 	await expect(dialog.getByRole('group', { name: 'Format', exact: true }).getByRole('button'))
 		.toContainText('MP4 video');
 });
+
+test('choosing a video format replaces the previous platform target', async ({ page }) => {
+	const editor = await bootEditor(page, '/embed/en/');
+	await importFiles(editor, [createDeterministicAvFixture('delivery.webm')]);
+	const dialog = await openExportDialog(page, editor);
+	await chooseDropdown(page, dialog.getByRole('group', { name: 'Format', exact: true }), 'MP4 video');
+	await chooseDropdown(page, dialog.getByRole('group', { name: 'Delivery target', exact: true }), 'Web 1080p (WebM)');
+	await chooseDropdown(page, dialog.getByRole('group', { name: 'Format', exact: true }), 'MP4 video');
+	await expect(dialog.getByRole('group', { name: 'Delivery target', exact: true }).getByRole('button'))
+		.toContainText('Custom');
+});
+
+test('switching from a headphone mix to stems exports after its binaural control hides', async ({ page }) => {
+	await disableNativeSavePicker(page);
+	const editor = await bootEditor(page, '/embed/en/');
+	await importFiles(editor, [toneA]);
+	await chooseCommandAction(page, editor, 'Edit', 'Metadata editor');
+	const metadata = editor.locator('[data-workspace-panel="metadata"]');
+	await metadata.getByRole('tab', { name: 'ADM', exact: true }).click();
+	await metadata.getByRole('button', { name: 'Enable ADM', exact: true }).click();
+	await closeWorkspacePanel(editor, 'metadata');
+	const dialog = await openExportDialog(page, editor);
+	await dialog.getByRole('checkbox', { name: 'Render for headphones', exact: true }).check();
+	await chooseDropdown(page, dialog.getByRole('group', { name: 'Output', exact: true }), 'Individual stems (split by tracks)');
+	await expect(dialog.getByRole('checkbox', { name: 'Render for headphones', exact: true })).toHaveCount(0);
+	const downloads = [];
+	page.on('download', (download) => downloads.push(download));
+	await dialog.getByRole('button', { name: 'Export', exact: true }).click();
+	await expect.poll(() => downloads.length, { timeout: 15_000 }).toBe(1);
+});

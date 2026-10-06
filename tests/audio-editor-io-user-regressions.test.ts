@@ -14,6 +14,7 @@ import {
 } from '../src/common/editor/ui/export-preset-model.ts';
 import { validateDeliveryPreset } from '../src/common/editor/delivery-preset.ts';
 import { createExportDialogRequest } from '../src/common/editor/ui/export-dialog-model.js';
+import { normalizeExportDialogAudioSettings, exportDialogOutputChannelCount } from '../src/common/editor/ui/export-dialog-audio-codec-options.ts';
 
 test('importing an ordinary legacy Audacity project reaches the project opener', () => {
 	const project = { name: 'Album.AUP', type: 'application/x-audacity-project' };
@@ -74,10 +75,18 @@ test('applying a saved video preset clears a previously chosen platform delivery
 	assert.equal(dialogSettingsFromPreset(preset).deliveryTarget, '');
 });
 
-test('chapter and stem requests omit the loudness target hidden by their output selection', () => {
-	const mix = { ...createExportDialogInitialSettings({ sampleRate: 48_000 }), loudnessNormalization: 'streaming-14' };
+test('chapter and stem requests omit the mix rendering options hidden by their output selection', () => {
+	const mix = { ...createExportDialogInitialSettings({ sampleRate: 48_000 }), loudnessNormalization: 'streaming-14', binaural: true };
 	assert.equal(createExportDialogRequest(mix).loudnessNormalization, 'streaming-14');
+	assert.equal(createExportDialogRequest(mix).binaural, true);
 	for (const mode of ['chapters', 'stems']) {
 		assert.equal(createExportDialogRequest({ ...mix, mode }).loudnessNormalization, undefined);
+		assert.equal(createExportDialogRequest({ ...mix, mode }).binaural, undefined);
+		for (const desktop of [false, true]) {
+			const split = normalizeExportDialogAudioSettings({ ...mix, mode }, desktop, 6);
+			assert.equal(split.binaural, false);
+			assert.equal(split.loudnessNormalization, '');
+			assert.equal(exportDialogOutputChannelCount(split, 6), 6);
+		}
 	}
 });
