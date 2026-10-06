@@ -17,6 +17,29 @@ test('an invalid typed video canvas size is refused instead of exporting the aut
 	await expect(dialog.locator('[data-export-download]')).not.toBeVisible();
 });
 
+test('a saved video preset tolerates an invalid canvas draft while refusing submission', async ({ page }) => {
+	const editor = await bootEditor(page, '/embed/en/');
+	await importFiles(editor, [videoRetimePreviewMedia.file]);
+	const dialog = await openExportDialog(page, editor);
+	await chooseDropdown(page, dialog.getByRole('group', { name: 'Format', exact: true }), 'MP4 video');
+	await dialog.getByRole('spinbutton', { name: 'Width', exact: true }).fill('54');
+	await dialog.getByRole('spinbutton', { name: 'Height', exact: true }).fill('96');
+	await dialog.getByRole('button', { name: 'Save preset', exact: true }).click();
+	await page.getByRole('menuitem', { name: 'Save as new preset', exact: true }).click();
+	const naming = page.getByRole('dialog', { name: 'Save as new preset', exact: true });
+	await naming.getByRole('textbox', { name: 'Preset name', exact: true }).fill('Small portrait');
+	await naming.getByRole('button', { name: 'Save preset', exact: true }).click();
+	await expect(dialog.getByRole('button', { name: 'Preset', exact: true })).toContainText('Small portrait');
+	const width = dialog.getByRole('spinbutton', { name: 'Width', exact: true });
+	await width.fill('0');
+	await expect(width).toHaveValue('0');
+	await dialog.getByRole('button', { name: 'Export', exact: true }).click();
+	await expect(dialog.getByRole('alert')).toContainText(/canvas|width|size/iu);
+	await expect(dialog.locator('[data-export-download]')).not.toBeVisible();
+	await width.fill('54');
+	await expect(dialog.getByRole('spinbutton', { name: 'Height', exact: true })).toHaveValue('96');
+});
+
 test('choosing letterbox after a vertical delivery target keeps the source visible', async ({ page }) => {
 	test.setTimeout(90_000);
 	await disableNativeSavePicker(page);

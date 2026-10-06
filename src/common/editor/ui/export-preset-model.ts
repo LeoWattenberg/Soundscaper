@@ -107,6 +107,15 @@ export function presetSettingsFromDialog(
 	return Object.freeze(result);
 }
 
+/** Incomplete typing differs from a saved preset without blocking presentation. */
+export function previewPresetSettingsFromDialog(
+	settings: Readonly<Record<string, unknown>>,
+	kind: DeliveryPresetKind,
+): Readonly<Record<string, unknown>> | null {
+	try { return presetSettingsFromDialog(settings, kind); }
+	catch { return null; }
+}
+
 /**
  * The delivery quality tier a video dialog is asking for, or nothing.
  *

@@ -9,7 +9,7 @@ import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
 import VideoDeliveryFields from '../VideoDeliveryFields.jsx';
 import {
-	dialogSettingsFromDeliveryTarget, presetSettingsFromDialog,
+	dialogSettingsFromDeliveryTarget, previewPresetSettingsFromDialog,
 	statedVideoCanvas, statedVideoDeliveryTarget,
 } from '../export-preset-model.ts';
 import {
@@ -94,6 +94,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 	}, [desktopCodecQuery, desktopCodecStatus]);
 	const presetKind = isVideoExportDialogFormat(settings.format) ? 'video' : 'audio';
 	const presets = controller.actions.export.presets.list(presetKind);
+	const previewPresetSettings = presetId ? previewPresetSettingsFromDialog(settings, presetKind) : null;
 	const presetActions = createExportPresetActions({
 		controller, settings, presetId, presetName, presetKind, desktop, projectChannelCount,
 		setSettings, setPresetId, setPresetName,
@@ -386,10 +387,10 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 					selectedId={presetId}
 					disabled={exporting || blocked}
 					resetKey={projectIdentity}
-					unsaved={Boolean(presetId) && !samePresetParams(
-						presetSettingsFromDialog(settings, presetKind),
+					unsaved={Boolean(presetId) && (previewPresetSettings === null || !samePresetParams(
+						previewPresetSettings,
 						presets.find((preset) => preset.id === presetId)?.settings,
-					)}
+					))}
 					onError={(cause) => setError(
 						cause == null ? '' : (cause instanceof Error ? cause.message : String(cause)),
 					)}

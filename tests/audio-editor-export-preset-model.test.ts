@@ -8,6 +8,7 @@ import {
 	dialogSettingsFromPreset,
 	presetFormatFromDialog,
 	presetSettingsFromDialog,
+	previewPresetSettingsFromDialog,
 	runDeliveryPresetAction,
 } from '../src/common/editor/ui/export-preset-model.ts';
 import { createExportPlan } from '../src/common/editor/export.js';
@@ -121,6 +122,19 @@ const VIDEO_DIALOG = {
 	canvasBackgroundColor: '',
 	videoQuality: 'balanced',
 };
+
+test('preset comparisons tolerate incomplete dialog drafts while saving remains strict', () => {
+	const invalidCanvas = { ...VIDEO_DIALOG, canvasWidth: '0' };
+	assert.equal(previewPresetSettingsFromDialog(invalidCanvas, 'video'), null);
+	assert.throws(() => presetSettingsFromDialog(invalidCanvas, 'video'), /width|canvas|size/iu);
+	const missingMatrix = { ...DIALOG, channelMapping: 'custom', channelMatrix: '' };
+	assert.equal(previewPresetSettingsFromDialog(missingMatrix, 'audio'), null);
+	assert.throws(() => presetSettingsFromDialog(missingMatrix, 'audio'), SyntaxError);
+	assert.deepEqual(
+		previewPresetSettingsFromDialog(VIDEO_DIALOG, 'video'),
+		presetSettingsFromDialog(VIDEO_DIALOG, 'video'),
+	);
+});
 
 test('a video preset carries the canvas the dialog states and nothing the dialog cannot deliver', () => {
 	const settings = presetSettingsFromDialog(VIDEO_DIALOG, 'video');
