@@ -71,7 +71,7 @@ test('the clock renders live sample telemetry in the selected toolbar format', (
 	assert.match(markup, /data-clock-panel="true"/u);
 	assert.match(markup, /data-time-display="true"/u);
 	const digits = [...markup.matchAll(/class="timecode-digit[^>]*>(\d)<\/span>/gu)].map((match) => match[1]).join('');
-	assert.equal(digits, '48000');
+	assert.equal(digits, '000000048000');
 });
 
 test('the existing timecode format dropdown exposes undocking beside grouped format choices', async () => {

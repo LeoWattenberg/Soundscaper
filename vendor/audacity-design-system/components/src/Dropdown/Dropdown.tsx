@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useId } from 'react';
 import { createPortal } from 'react-dom';
 import { useTheme } from '../ThemeProvider';
 import '../assets/fonts/musescore-icon.css';
@@ -57,10 +57,11 @@ export const Dropdown: React.FC<DropdownProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [hoveredIndex, setHoveredIndex] = useState<number>(-1);
-  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number; width: number } | null>(null);
+  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number; width: number; maxHeight: number } | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuId = useId();
 
   const selectedOption = options.find((opt) => opt.value === value);
   const displayText = selectedOption ? selectedOption.label : placeholder;
@@ -90,13 +91,14 @@ export const Dropdown: React.FC<DropdownProps> = ({
       const newIsOpen = !isOpen;
       setIsOpen(newIsOpen);
       if (newIsOpen) {
-        // Set initial hovered index to the first item when opening
-        setHoveredIndex(0);
+        const selectedIndex = options.findIndex((option) => option.value === value && !option.disabled);
+        setHoveredIndex(selectedIndex >= 0 ? selectedIndex : options.findIndex((option) => !option.disabled));
       }
     }
   };
 
   const handleSelect = (optionValue: string) => {
+    if (!options.some((option) => option.value === optionValue && !option.disabled)) return;
     onChange?.(optionValue);
     setIsOpen(false);
     setHoveredIndex(-1);
@@ -122,6 +124,10 @@ export const Dropdown: React.FC<DropdownProps> = ({
         // If dropdown is closed, open it
         handleToggle();
       }
+    } else if (e.key === 'Tab' && isOpen) {
+      setIsOpen(false);
+      setHoveredIndex(-1);
+      triggerRef.current?.focus();
     } else if (e.key === 'Escape' && isOpen) {
       // Only handle Escape if dropdown is open
       e.preventDefault();
@@ -135,11 +141,11 @@ export const Dropdown: React.FC<DropdownProps> = ({
     } else if (e.key === 'ArrowDown' && isOpen) {
       // Only handle arrow keys when dropdown is already open
       e.preventDefault();
-      setHoveredIndex((prev) => (prev < options.length - 1 ? prev + 1 : prev));
+      setHoveredIndex((prev) => nextEnabledOption(options, prev, 1));
     } else if (e.key === 'ArrowUp' && isOpen) {
       // Only handle arrow keys when dropdown is already open
       e.preventDefault();
-      setHoveredIndex((prev) => (prev > 0 ? prev - 1 : prev));
+      setHoveredIndex((prev) => nextEnabledOption(options, prev, -1));
     }
     // When dropdown is closed, arrow keys will be handled by parent (TabGroupField)
   };
@@ -149,10 +155,16 @@ export const Dropdown: React.FC<DropdownProps> = ({
     const updatePosition = () => {
       if (triggerRef.current) {
         const rect = triggerRef.current.getBoundingClientRect();
+        const desiredHeight = Math.min(240, options.reduce((height, option) => height + (option.disabled ? 8 : 28), 10));
+        const below = Math.max(0, window.innerHeight - rect.bottom - 12);
+        const above = Math.max(0, rect.top - 12);
+        const opensAbove = below < desiredHeight && above > below;
+        const maxHeight = Math.min(240, opensAbove ? above : below);
         setMenuPosition({
-          top: rect.bottom + 4,
-          left: rect.left,
-          width: rect.width,
+          top: opensAbove ? Math.max(8, rect.top - Math.min(desiredHeight, maxHeight) - 4) : rect.bottom + 4,
+          left: Math.max(8, Math.min(rect.left, window.innerWidth - rect.width - 8)),
+          width: Math.min(rect.width, window.innerWidth - 16),
+          maxHeight,
         });
       }
     };
@@ -168,14 +180,18 @@ export const Dropdown: React.FC<DropdownProps> = ({
     } else {
       setMenuPosition(null);
     }
-  }, [isOpen]);
+  }, [isOpen, options]);
 
   // Focus management: when dropdown opens, focus the menu
   useEffect(() => {
     if (isOpen && menuRef.current) {
       menuRef.current.focus();
     }
-  }, [isOpen]);
+  }, [isOpen, menuPosition]);
+
+  useEffect(() => {
+    menuRef.current?.querySelector('.dropdown__option--hover')?.scrollIntoView({ block: 'nearest' });
+  }, [hoveredIndex, menuPosition]);
 
   const { theme } = useTheme();
 
@@ -219,6 +235,7 @@ export const Dropdown: React.FC<DropdownProps> = ({
         disabled={disabled}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
+        aria-controls={isOpen ? menuId : undefined}
         tabIndex={tabIndex}
       >
         <span className="dropdown__text">{displayText}</span>
@@ -228,14 +245,19 @@ export const Dropdown: React.FC<DropdownProps> = ({
       {isOpen && !disabled && menuPosition && createPortal(
         <div
           ref={menuRef}
+          id={menuId}
           className="dropdown__menu"
           role="listbox"
+          aria-label={triggerRef.current?.getAttribute('aria-label') || displayText}
+          aria-activedescendant={hoveredIndex >= 0 ? `${menuId}-${hoveredIndex}` : undefined}
           tabIndex={-1}
           style={{
             position: 'fixed',
             top: `${menuPosition.top}px`,
             left: `${menuPosition.left}px`,
             width: `${menuPosition.width}px`,
+            maxHeight: `${menuPosition.maxHeight}px`,
+            boxSizing: 'border-box',
             '--dropdown-menu-bg': controlBg,
             '--dropdown-border': theme.border.input.idle,
             '--dropdown-menu-shadow': '0px 10px 30px 0px rgba(20, 21, 26, 0.3)',
@@ -258,6 +280,7 @@ export const Dropdown: React.FC<DropdownProps> = ({
             return (
               <div
                 key={option.value}
+                id={`${menuId}-${index}`}
                 className={`dropdown__option ${
                   option.value === value ? 'dropdown__option--selected' : ''
                 } ${hoveredIndex === index ? 'dropdown__option--hover' : ''}`}
@@ -277,5 +300,12 @@ export const Dropdown: React.FC<DropdownProps> = ({
     </div>
   );
 };
+
+function nextEnabledOption(options: DropdownOption[], current: number, direction: 1 | -1): number {
+  for (let index = current + direction; index >= 0 && index < options.length; index += direction) {
+    if (!options[index].disabled) return index;
+  }
+  return current;
+}
 
 export default Dropdown;

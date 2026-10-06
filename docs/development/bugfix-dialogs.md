@@ -1,0 +1,32 @@
+# Dialog and control bug audit
+
+Each numbered entry is one underlying defect, reached through ordinary editor
+controls. Repeated symptoms in several formats or controls are counted once.
+No entry depends on modifying application internals or a malformed input file.
+
+| ID | Ordinary reproduction | Expected / observed before the fix | Fix and regression |
+| --- | --- | --- | --- |
+| D01 | Edit → Preferences → Keyboard shortcuts. Set Sort commands to Alphabetical. Focus it and press Enter twice. | Reopening and accepting the current choice preserves Alphabetical; it changed to By category. | Initialize the dropdown's active row from its selected value. Browser: `reopening a preferences dropdown preserves the selected keyboard option`. |
+| D02 | Open the same Sort commands dropdown and press Tab. | The list closes while focus proceeds to the next control; its portal remained open after focus left it. | Close the list on Tab and restore the trigger before native tab navigation. Browser: `Tab dismisses a preferences dropdown before moving to the next field`. |
+| D03 | Use a 1100 × 600 browser window. Edit → Preferences → Editing. Scroll Zoom state 2 into view and open it. | Every choice remains reachable inside the viewport; the list extended to y=629.5, below the 600-pixel window. | Position the list in the available space above or below the control, constrain its height, and scroll the active row into view. Browser: `preferences dropdown choices stay inside a short viewport`. |
+| D04 | Edit → Preferences → Track display. Set minimum frequency to 1000 Hz. Select the maximum frequency's contents and type 8000. | A complete valid 8000-Hz value can be entered; each intermediate digit below the minimum was discarded, leaving the original 20000-Hz value. | Keep a local text draft and validate the completed number on blur or Enter. Browser: `spectrogram frequency settings accept a typed multi-digit maximum above the minimum`; Node: `audio-editor-dialog-number-input.test.tsx`. |
+| D05 | Focus Search commands and media, type `track`, press Home, and type `mono `. Then press End and append ` extra`. | Home and End move the text caret; they navigated search results, producing `trackmono ` instead of `mono track`. | Reserve Alt+Home and Alt+End for result navigation. Browser: `search Home and End leave query editing to the text input`. |
+| D06 | Generate → Tone. Click the duration's format button and choose samples. | Changing presentation leaves the dialog open for explicit Generate; clicking the format button submitted the containing form and generated audio. | Give the format button an explicit button type. The shared Knob receives the same default to avoid the same underlying HTML form defect. Browser: `the duration format button leaves generation to the Generate button`; Node checks the button type. |
+| D07 | Generate → Tone. Click an individual duration digit. | The digit receives focus for editing; its enclosing label also activated the format button, opening the format menu. | Cancel the enclosing label's default activation when clicking the digit display. Browser: `clicking a timecode digit edits it without activating its enclosing label`. |
+| D08 | Generate → Tone. Enter 0.001 seconds, switch duration to samples, and attempt to replace 48 samples with 48000 samples using its digits. | The editor provides enough editable leading digits for the new value; total-unit displays had only as many digits as the old value, preventing a larger entry. | Give total samples and total frames twelve editable digits, and seconds-plus-milliseconds six whole-second digits. One root defect across these formats. Browser: `sample timecode permits replacing a small duration with a larger sample count`; Node checks zero-value widths and existing frame boundary tests retain their numeric assertions. |
+| D09 | Generate → Tone. Set the fractional milliseconds to 015, switch to whole seconds, and increase the last second digit. | The duration increases by exactly one second and retains its hidden 15 milliseconds; rebuilding the value solely from visible digits discarded the fraction. | Apply the difference between old and new visible values to the underlying value. Browser: `editing whole seconds preserves undisplayed fractional time`. |
+| D10 | File → Open a normal 44.1-kHz Audacity project containing audio. Switch the playhead display to samples and enter sample 15. | The display continues to show sample 15; converting 15/44100 seconds back to samples truncated the floating result 14.999999999999998 to 14. | Allow floating-point round-trip tolerance when extracting whole display units. Browser: `an exact sample entered in the playhead stays exact after its seconds conversion`; Node: exact 15-sample regression. |
+| D11 | File → Open a normal 44.1-kHz Audacity project. Generate → Tone. Switch duration from seconds to samples. | The count uses the project's 44100 samples per second; seconds-based inputs used a fixed 48000-Hz display rate. | Let the time-input adapter receive display sample/frame rates and pass the generator's project sample rate. Browser: `duration sample display uses the rate of a normally opened Audacity project`; Node: supplied 44100-Hz display rate. Generator-specific wiring supports this same defect and is not counted separately. |
+| D12 | Edit → Preferences → Keyboard shortcuts. Search New mono track. Type `Ctrl+Backspacee` in its binding field. | An impossible key name is rejected before assignment; the editor accepted the spelling and saved a shortcut no keyboard could trigger. | Validate the key against Unicode characters, named keyboard keys, and the editor's supported aliases before enabling Assign. Browser: `shortcut preferences reject a misspelled key instead of assigning an unusable binding`; Node tests preserve valid native, Unicode, mouse, and media keys. |
+
+Browser setup uses menus and visible controls. The AUP3 fixture is an ordinary
+valid Audacity recording opened through File → Open; it exists to exercise a
+normal project sample rate, without injecting editor state. Hidden direct-entry
+fields are read only as an observation of duration commits, never manipulated.
+
+The disabled timecode tab-stop correction and disabled dropdown-row handling
+are support changes and are not counted as separate defects without an
+independent user reproduction.
+
+These UI, browser, test, and documentation changes use the existing assistance
+runtime closure. A manual **Update AI assets** run is not required.

@@ -198,7 +198,7 @@ export default function AudioEditorSearch({
 			event.preventDefault();
 			event.stopPropagation();
 			moveActive(event.key === 'ArrowDown' ? 1 : -1);
-		} else if (event.key === 'Home' || event.key === 'End') {
+		} else if ((event.key === 'Home' || event.key === 'End') && event.altKey) {
 			event.preventDefault();
 			event.stopPropagation();
 			const enabledIndexes = orderedEntries

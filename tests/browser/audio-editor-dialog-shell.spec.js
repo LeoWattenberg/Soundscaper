@@ -101,7 +101,7 @@ test.describe('shared audio editor dialog behavior', () => {
 		await chooseTimeCodeFormat(page, playback, 'CD frames', 'hh:mm:ss + CDDA frames (75 fps)', true);
 		await expect(playback.locator('.timecode-digit')).toHaveCount(8);
 		await chooseTimeCodeFormat(page, playback, 'CD frames', 'CDDA frames (75 fps)');
-		await expect(playback.locator('.timecode-digit')).toHaveCount(1);
+		await expect(playback.locator('.timecode-digit')).toHaveCount(12);
 
 		await importFiles(editor, [longTone]);
 		await chooseCommand(page, editor, 'Select', 'Select all');
@@ -110,14 +110,14 @@ test.describe('shared audio editor dialog behavior', () => {
 		await expect(timers.nth(0).locator('.timecode-digit')).toHaveCount(8);
 		await expect(timers.nth(1).locator('.timecode-digit')).toHaveCount(8);
 		await chooseTimeCodeFormat(page, timers.nth(2), 'CD frames', 'CDDA frames (75 fps)');
-		await expect(timers.nth(2).locator('.timecode-digit')).toHaveText(['6', '0', '0']);
+		await expect(timers.nth(2).locator('.timecode-digit')).toHaveText([...('600'.padStart(12, '0'))]);
 		for (const [label, expected] of [
 			['film frames (24fps)', ['1', '9', '2']],
 			['NTSC frames (29.97 fps)', ['2', '3', '9']],
 			['PAL frames (25 fps)', ['2', '0', '0']],
 		]) {
 			await chooseTimeCodeFormat(page, timers.nth(2), 'Video frames', label);
-			await expect(timers.nth(2).locator('.timecode-digit')).toHaveText(expected);
+			await expect(timers.nth(2).locator('.timecode-digit')).toHaveText([...expected.join('').padStart(12, '0')]);
 		}
 		await chooseTimeCodeFormat(page, timers.nth(2), 'Video frames', 'hh:mm:ss + NTSC drop frames (29.97 fps)');
 		await expect(timers.nth(2).locator('.timecode-digit')).toHaveText(['0', '0', '0', '0', '0', '7', '2', '9']);
@@ -131,18 +131,18 @@ test.describe('shared audio editor dialog behavior', () => {
 		await page.keyboard.press('Enter');
 		await expect(playback.locator('.timecode-digit')).toHaveText(['0', '0', '0', '0', '0', '1', '0', '1']);
 		await chooseTimeCodeFormat(page, playback, 'CD frames', 'CDDA frames (75 fps)');
-		await expect(playback.locator('.timecode-digit')).toHaveText(['7', '6']);
+		await expect(playback.locator('.timecode-digit')).toHaveText([...('76'.padStart(12, '0'))]);
 		await playback.locator('.timecode-digit').last().click();
 		await page.keyboard.press('7');
 		await page.keyboard.press('Enter');
-		await expect(playback.locator('.timecode-digit')).toHaveText(['7', '7']);
+		await expect(playback.locator('.timecode-digit')).toHaveText([...('77'.padStart(12, '0'))]);
 		await chooseTimeCodeFormat(page, playback, 'Video frames', 'NTSC frames (29.97 fps)');
 		await playback.locator('.timecode-digit').last().click();
 		await page.keyboard.press('2');
-		await playback.locator('.timecode-digit').first().click();
+		await playback.locator('.timecode-digit').nth(10).click();
 		await page.keyboard.press('0');
 		await page.keyboard.press('Enter');
-		await expect(playback.locator('.timecode-digit')).toHaveText(['2']);
+		await expect(playback.locator('.timecode-digit')).toHaveText([...('2'.padStart(12, '0'))]);
 	});
 
 	test('offers Tone waveforms and amplitude endpoints in the Chirp generator', async ({ page }) => {

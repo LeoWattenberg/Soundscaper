@@ -277,6 +277,14 @@ application overrides and source patches against the pin and upstream master.
     Opening another control immediately after dismissing a menu keeps that control's
     focus, so its keyboard activation reaches the intended target. Covered by
     `tests/vendored-design-system-context-menu-focus.test.tsx`. Upstream-PR candidate.
+33. `Dropdown` restores its selected keyboard row when opening, closes on Tab,
+    keeps its list inside the viewport, and exposes the active row through ARIA.
+    `TimeCode` supplies editable leading digits in total-unit formats, preserves
+    hidden fractions when editing a coarser format, and tolerates exact sample
+    round trips. Its digit clicks suppress enclosing-label activation, and its
+    format button and `Knob` explicitly avoid submitting containing forms.
+    Covered by `tests/audio-editor-timecode-editing-regressions.test.tsx` and
+    `tests/browser/audio-editor-dialog-regressions.spec.js`. Upstream-PR candidates.
 
 ## Application-side adaptations
 

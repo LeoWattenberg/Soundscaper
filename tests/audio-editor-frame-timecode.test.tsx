@@ -29,13 +29,13 @@ test('CDDA displays preserve exact frame boundaries and roll over at 75 frames',
 	assert.equal(digits(76 / 75, 'hh:mm:ss+cdda-frames'), '00000101');
 	assert.equal(digits(4_501 / 75, 'hh:mm:ss+cdda-frames'), '00010001');
 	assert.equal(digits(270_001 / 75, 'hh:mm:ss+cdda-frames'), '01000001');
-	assert.equal(digits(76 / 75, 'cdda-frames'), '76');
-	assert.equal(digits(76 / 75 - 1 / 44_100, 'cdda-frames'), '75');
+	assert.equal(digits(76 / 75, 'cdda-frames'), '000000000076');
+	assert.equal(digits(76 / 75 - 1 / 44_100, 'cdda-frames'), '000000000075');
 });
 
 test('existing frame displays retain their rate and label configurable frame rates accurately', () => {
 	assert.equal(digits(25 / 24, 'hh:mm:ss+frames'), '00000101');
-	assert.equal(digits(25 / 24, 'film-frames'), '25');
+	assert.equal(digits(25 / 24, 'film-frames'), '000000000025');
 	const options = timeCodeFormatOptionsForDomain('time', 30);
 	assert.equal(options.find(({ format }) => format === 'hh:mm:ss+frames')?.label,
 		'hh:mm:ss + frames (30fps)');
@@ -55,8 +55,8 @@ test('frame choices are grouped into Video frames and CD frames submenus', () =>
 
 test('PAL, NTSC and NTSC drop-frame clocks count their own frames', () => {
 	assert.equal(digits(26 / 25, 'hh:mm:ss+pal-frames'), '00000101');
-	assert.equal(digits(26 / 25, 'pal-frames'), '26');
-	assert.equal(digits(1_800 * 1_001 / 30_000, 'ntsc-frames'), '1800');
+	assert.equal(digits(26 / 25, 'pal-frames'), '000000000026');
+	assert.equal(digits(1_800 * 1_001 / 30_000, 'ntsc-frames'), '000000001800');
 	assert.equal(digits(1_800 * 1_001 / 30_000, 'hh:mm:ss+ntsc-frames'), '00010000');
 	assert.equal(digits(1_799 * 1_001 / 30_000, 'hh:mm:ss+ntsc-drop-frames'), '00005929');
 	assert.equal(digits(1_800 * 1_001 / 30_000, 'hh:mm:ss+ntsc-drop-frames'), '00010002');

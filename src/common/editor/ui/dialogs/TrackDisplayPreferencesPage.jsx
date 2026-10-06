@@ -5,6 +5,7 @@ import { Separator } from '@soundscaper/design-system/Separator';
 import PreferenceDropdownField from './PreferenceDropdownField.jsx';
 import WaveformDisplayPreferencesPanel from './WaveformDisplayPreferencesPanel.tsx';
 import WaveformPreferencesPage from './WaveformPreferencesPage.tsx';
+import PreferenceNumberInput from './PreferenceNumberInput.tsx';
 
 export default function TrackDisplayPreferencesPage({ controller, snapshot, copy, run }) {
 	const preferences = snapshot.preferences;
@@ -66,12 +67,9 @@ export default function TrackDisplayPreferencesPage({ controller, snapshot, copy
 							<option value="mel">{copy.spectrogramMel}</option><option value="linear">{copy.linear}</option><option value="log">{copy.logarithmic}</option>
 						</select>
 					</label>
-					<label><span>{copy.minimumFrequency}</span><input aria-label={copy.minimumFrequency} disabled={spectrogramSettingsDisabled} type="number" min="0" max={Math.max(0, spectrogram.maximumFrequency - 1)} step="1" value={spectrogram.minimumFrequency} onChange={(event) => updateSpectrogramFrequency('minimumFrequency', event.currentTarget.value)} /></label>
-					<label><span>{copy.maximumFrequency}</span><input aria-label={copy.maximumFrequency} disabled={spectrogramSettingsDisabled} type="number" min={Math.min(spectrogramNyquist, spectrogram.minimumFrequency + 1)} max={spectrogramNyquist} step="1" value={spectrogram.maximumFrequency} onChange={(event) => updateSpectrogramFrequency('maximumFrequency', event.currentTarget.value)} /></label>
-					<label><span>{copy.spectrogramRange}</span><input aria-label={copy.spectrogramRange} disabled={spectrogramSettingsDisabled} type="number" min="1" max="240" value={spectrogram.range} onChange={(event) => {
-						const value = Number(event.currentTarget.value);
-						if (Number.isFinite(value) && value >= 1 && value <= 240) updateSpectrogram({ range: value });
-					}} /></label>
+					<label><span>{copy.minimumFrequency}</span><PreferenceNumberInput label={copy.minimumFrequency} disabled={spectrogramSettingsDisabled} minimum={0} maximum={Math.max(0, spectrogram.maximumFrequency - 1)} value={spectrogram.minimumFrequency} onCommit={(value) => updateSpectrogramFrequency('minimumFrequency', value)} /></label>
+					<label><span>{copy.maximumFrequency}</span><PreferenceNumberInput label={copy.maximumFrequency} disabled={spectrogramSettingsDisabled} minimum={Math.min(spectrogramNyquist, spectrogram.minimumFrequency + 1)} maximum={spectrogramNyquist} value={spectrogram.maximumFrequency} onCommit={(value) => updateSpectrogramFrequency('maximumFrequency', value)} /></label>
+					<label><span>{copy.spectrogramRange}</span><PreferenceNumberInput label={copy.spectrogramRange} disabled={spectrogramSettingsDisabled} minimum={1} maximum={240} value={spectrogram.range} onCommit={(range) => updateSpectrogram({ range })} /></label>
 					<label><span>{copy.spectrogramWindow}</span>
 						<select aria-label={copy.spectrogramWindow} disabled={spectrogramSettingsDisabled} value={spectrogram.windowSize} onChange={(event) => updateSpectrogram({ windowSize: Number(event.currentTarget.value) })}>
 							{[512, 1024, 2048, 4096, 8192].map((value) => <option key={value} value={value}>{value}</option>)}

@@ -5,6 +5,7 @@ import type { MouseEvent } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 
 import { mouseShortcutBinding, mouseShortcutKey } from '../../mouse-shortcut.ts';
+import { recognizedShortcutKey } from '../shortcut-key-validation.ts';
 import {
 	audioEditorShortcutConflictKey,
 	findAudioEditorShortcutConflicts,
@@ -71,6 +72,7 @@ export function shortcutEditorDraft({
 	for (const binding of bindings) {
 		try {
 			if (!String(binding).trim()) continue;
+			if (!recognizedShortcutKey(binding)) return { bindings: [], conflict: null, invalid: true };
 			const value = normalizeAudioEditorShortcut(binding);
 			const key = audioEditorShortcutConflictKey(value);
 			if (seen.has(key)) continue;

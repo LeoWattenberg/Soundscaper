@@ -288,6 +288,7 @@ export const Knob: React.FC<KnobProps> = ({
 
   return (
     <button
+      type="button"
       ref={knobRef}
       className={`knob ${isDragging ? 'knob--dragging' : ''} ${className}`}
       tabIndex={tabIndex}

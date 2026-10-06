@@ -199,6 +199,8 @@ export class ReactTestElement extends ReactTestNode {
 	getAttribute(name: string): string | null { return this.attributes.get(name) ?? null; }
 	hasAttribute(name: string): boolean { return this.attributes.has(name); }
 	focus(): void { this.ownerDocument.activeElement = this; }
+	// Layout stays empty, so scrolling a selected overlay row has no effect.
+	scrollIntoView(_options?: ScrollIntoViewOptions): void {}
 	// Nothing dispatches here, so a programmatic click is only ever recorded.
 	// A surface that starts a download by pressing its own link is verified by
 	// counting the presses rather than by a navigation the fake tree cannot make.

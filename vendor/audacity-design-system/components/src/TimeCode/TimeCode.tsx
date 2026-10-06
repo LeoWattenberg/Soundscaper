@@ -8,6 +8,7 @@ import { useTimeCodeSubmenuPosition } from './useTimeCodeSubmenuPosition';
 import { TimeCodeFormatMenuItems } from './TimeCodeFormatMenuItems';
 import { timeCodeFrameFormat, timeCodeFrameCount, timeCodeLabelledFrameCount, timeCodeFrameSeconds } from './time-code-frames';
 import { useTheme } from '../ThemeProvider';
+import { timeCodeWholeUnits } from './time-code-precision';
 import './TimeCode.css';
 import './TimeCodeDigit.css';
 import './TimeCodeUnit.css';
@@ -178,7 +179,8 @@ export function TimeCode({
     newSegments[targetSegmentIndex] = { ...targetSegment, value: newValue };
 
     // Convert segments back to seconds
-    const newSeconds = segmentsToSeconds(newSegments, format, sampleRate, frameRate);
+    const newSeconds = value + segmentsToSeconds(newSegments, format, sampleRate, frameRate)
+      - segmentsToSeconds(segments, format, sampleRate, frameRate);
     onChange(newSeconds);
 
     // Move to next digit (only if autoAdvance is true)
@@ -192,7 +194,7 @@ export function TimeCode({
         setEditingDigitIndex(nextDigitIndex);
       }
     }
-  }, [onChange, segments, format, sampleRate, frameRate]);
+  }, [onChange, value, segments, format, sampleRate, frameRate]);
 
   const handleFormatSelect = (newFormat: TimeCodeFormat) => {
     onFormatChange?.(newFormat);
@@ -418,10 +420,10 @@ export function TimeCode({
       aria-disabled={disabled}
       aria-description={ariaDescription}
       aria-describedby={ariaDescribedBy}
-      tabIndex={0}
+      tabIndex={disabled ? -1 : 0}
       onKeyDown={handleContainerKeyDown}
     >
-      <div className="timecode__display">
+      <div className="timecode__display" onClick={(event) => event.preventDefault()}>
         {segments.map((segment, index) => (
           <React.Fragment key={index}>
             {segment.type === 'unit' ? (
@@ -463,6 +465,7 @@ export function TimeCode({
       {showFormatSelector && (
         <>
           <button
+            type="button"
             ref={buttonRef}
             className="timecode__format-button"
             onClick={handleMenuButtonClick}
@@ -578,10 +581,12 @@ function formatHHMMSS(seconds: number): TimeCodeSegment[] {
 }
 
 function formatHHMMSSHundredths(seconds: number): TimeCodeSegment[] {
+
+	seconds = timeCodeWholeUnits(seconds, 100) / 100;
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
   const secs = Math.floor(seconds % 60);
-  const hundredths = Math.floor((seconds % 1) * 100);
+  const hundredths = timeCodeWholeUnits(seconds, 100) % 100;
 
   return [
     { value: pad(hours, 2), type: 'unit', maxLength: 2, max: 99, editable: true },
@@ -596,10 +601,12 @@ function formatHHMMSSHundredths(seconds: number): TimeCodeSegment[] {
 }
 
 function formatHHMMSSMilliseconds(seconds: number): TimeCodeSegment[] {
+
+	seconds = timeCodeWholeUnits(seconds, 1000) / 1000;
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
   const secs = Math.floor(seconds % 60);
-  const milliseconds = Math.floor((seconds % 1) * 1000);
+  const milliseconds = timeCodeWholeUnits(seconds, 1000) % 1000;
 
   return [
     { value: pad(hours, 2), type: 'unit', maxLength: 2, max: 99, editable: true },
@@ -614,10 +621,12 @@ function formatHHMMSSMilliseconds(seconds: number): TimeCodeSegment[] {
 }
 
 function formatHHMMSSSamples(seconds: number, sampleRate: number): TimeCodeSegment[] {
+
+	seconds = timeCodeWholeUnits(seconds, sampleRate) / sampleRate;
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
   const secs = Math.floor(seconds % 60);
-  const samples = Math.floor((seconds % 1) * sampleRate);
+  const samples = timeCodeWholeUnits(seconds, sampleRate) % sampleRate;
 
   return [
     { value: pad(hours, 2), type: 'unit', maxLength: 2, max: 99, editable: true },
@@ -652,8 +661,8 @@ function formatHHMMSSFrames(seconds: number, frameRate: number): TimeCodeSegment
 }
 
 function formatSamples(seconds: number, sampleRate: number): TimeCodeSegment[] {
-  const totalSamples = Math.floor(seconds * sampleRate);
-  const samplesStr = totalSamples.toString();
+  const totalSamples = timeCodeWholeUnits(seconds, sampleRate);
+  const samplesStr = totalSamples.toString().padStart(12, '0');
 
   // Add commas for thousands separators
   const parts: TimeCodeSegment[] = [];
@@ -710,8 +719,8 @@ function formatSeconds(seconds: number): TimeCodeSegment[] {
 
 function formatSecondsMilliseconds(seconds: number): TimeCodeSegment[] {
   const totalSeconds = Math.floor(seconds);
-  const milliseconds = Math.floor((seconds % 1) * 1000);
-  const secondsStr = totalSeconds.toString();
+  const milliseconds = timeCodeWholeUnits(seconds, 1000) % 1000;
+  const secondsStr = totalSeconds.toString().padStart(6, '0');
 
   // Add commas for thousands separators
   const parts: TimeCodeSegment[] = [];
@@ -741,7 +750,7 @@ function formatSecondsMilliseconds(seconds: number): TimeCodeSegment[] {
 
 function formatFilmFrames(seconds: number, frameRate: number, sampleRate: number): TimeCodeSegment[] {
   const totalFrames = timeCodeFrameCount(seconds, frameRate, sampleRate);
-  const framesStr = totalFrames.toString();
+  const framesStr = totalFrames.toString().padStart(12, '0');
 
   // Add commas for thousands separators
   const parts: TimeCodeSegment[] = [];

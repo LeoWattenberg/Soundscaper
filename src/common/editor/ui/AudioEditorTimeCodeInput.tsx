@@ -15,6 +15,8 @@ interface AudioEditorTimeCodeInputProps {
 	readonly onCommit?: (value: number) => unknown;
 	readonly unit?: AudioEditorTimeUnit;
 	readonly rate?: number;
+	readonly sampleRate?: number;
+	readonly frameRate?: number;
 	readonly format?: TimeCodeFormat;
 	readonly variant?: 'dark' | 'light';
 	readonly minimum?: number;
@@ -41,6 +43,8 @@ export default function AudioEditorTimeCodeInput({
 	onCommit,
 	unit = 'seconds',
 	rate = unit === 'frames' ? DEFAULT_FRAME_RATE : DEFAULT_SAMPLE_RATE,
+	sampleRate = unit === 'frames' ? DEFAULT_SAMPLE_RATE : rate,
+	frameRate = unit === 'frames' ? rate : DEFAULT_FRAME_RATE,
 	format = unit === 'samples' ? 'samples'
 		: unit === 'frames' ? 'hh:mm:ss+frames' : 'hh:mm:ss+milliseconds',
 	variant = 'dark',
@@ -113,8 +117,8 @@ export default function AudioEditorTimeCodeInput({
 			value={timeCodeSecondsFromEditorValue(Math.abs(normalizedValue), unit, normalizedRate)}
 			format={displayFormat}
 			formatDomain="time"
-			sampleRate={unit === 'samples' ? normalizedRate : DEFAULT_SAMPLE_RATE}
-			frameRate={unit === 'frames' ? normalizedRate : DEFAULT_FRAME_RATE}
+			sampleRate={sampleRate}
+			frameRate={frameRate}
 			showFormatSelector={showFormatSelector}
 			disabled={disabled}
 			variant={variant}
