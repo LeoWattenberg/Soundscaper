@@ -1,0 +1,3627 @@
+{
+	"date": "2026-10-06",
+	"baseRevision": "25d7cbdb4",
+	"finalCodeRevision": "474e46e6265c6b848313c954deca2ca3dd0bac90",
+	"node": "v26.5.0",
+	"method": "Raw helper observations from one local host. Helper paths were measured before final UI/controller integration; their arithmetic is unchanged. Synthetic ONNX data is not a real model workflow. No startup timing is included. Shared-host and GC variance remain; no population p95 or GPU presentation FPS claim.",
+	"electron": {
+		"node": "v26.5.0",
+		"platform": "linux",
+		"arch": "x64",
+		"cpu": "AMD Ryzen 9 9900X 12-Core Processor",
+		"logicalCpus": 24,
+		"runtime": {
+			"versions": {
+				"node": "24.21.0",
+				"acorn": "8.18.0",
+				"ada": "4.0.0",
+				"amaro": "1.1.11",
+				"ares": "1.34.8",
+				"brotli": "1.2.0",
+				"cldr": "48.0",
+				"icu": "78.2",
+				"llhttp": "9.4.3",
+				"merve": "1.2.2",
+				"modules": "148",
+				"napi": "10",
+				"nbytes": "0.1.4",
+				"ncrypto": "0.0.1",
+				"nghttp2": "1.70.0",
+				"nghttp3": "",
+				"ngtcp2": "",
+				"openssl": "0.0.0",
+				"simdjson": "4.6.7",
+				"simdutf": "7.7.0",
+				"sqlite": "3.53.4",
+				"tz": "2025c",
+				"undici": "7.29.1",
+				"unicode": "17.0",
+				"uv": "1.52.1",
+				"uvwasi": "0.0.23",
+				"v8": "15.0.245.31-electron.0",
+				"zlib": "1.3.2.1-motley",
+				"zstd": "1.6.0",
+				"electron": "43.7.7",
+				"chrome": "150.0.7871.250"
+			},
+			"gpu": {
+				"2d_canvas": "unavailable_software",
+				"direct_rendering_display_compositor": "disabled_off_ok",
+				"gpu_compositing": "disabled_software",
+				"multiple_raster_threads": "enabled_on",
+				"opengl": "unavailable_off",
+				"rasterization": "unavailable_off",
+				"raw_draw": "disabled_off_ok",
+				"skia_graphite": "unavailable_off",
+				"trees_in_viz": "disabled_off",
+				"video_decode": "unavailable_off",
+				"video_encode": "disabled_software",
+				"vulkan": "disabled_off",
+				"webgl": "unavailable_off",
+				"webgpu": "unavailable_software",
+				"webgpu_on_vk_via_gl_interop": "disabled_off",
+				"webnn": "disabled_off"
+			},
+			"packaged": false
+		},
+		"viewport": {
+			"width": 1280,
+			"height": 900,
+			"dpr": 1
+		},
+		"preference": "speed",
+		"method": "Actual Electron development app with freshly staged production renderer and real preload/SQLite/PCM path. First trial includes first-use processing engines; subsequent trials are warm. Capture click to dialog closed, success status, usable waveform and two animation frames. Xvfb RAF gaps are a renderer responsiveness proxy, not GPU presentation FPS. Startup excluded.",
+		"results": [
+			{
+				"operation": "Generate Tone",
+				"seconds": 30,
+				"trial": 0,
+				"durationMs": 406.815000012517,
+				"frames": 21,
+				"medianFrameMs": 16.664999999999964,
+				"p95FrameMs": 16.670000000000073,
+				"maxFrameMs": 66.66499999999996,
+				"framesOver33Ms": 1,
+				"longTaskCount": 1,
+				"maxLongTaskMs": 69
+			},
+			{
+				"operation": "Generate Tone",
+				"seconds": 30,
+				"trial": 1,
+				"durationMs": 356.9649999886751,
+				"frames": 19,
+				"medianFrameMs": 16.664999999999964,
+				"p95FrameMs": 50,
+				"maxFrameMs": 50,
+				"framesOver33Ms": 1,
+				"longTaskCount": 1,
+				"maxLongTaskMs": 55
+			},
+			{
+				"operation": "Generate Tone",
+				"seconds": 30,
+				"trial": 2,
+				"durationMs": 362.875,
+				"frames": 20,
+				"medianFrameMs": 16.664999999999964,
+				"p95FrameMs": 49.99499999999989,
+				"maxFrameMs": 49.99499999999989,
+				"framesOver33Ms": 1,
+				"longTaskCount": 1,
+				"maxLongTaskMs": 53
+			},
+			{
+				"operation": "Generate Noise pink",
+				"seconds": 30,
+				"trial": 0,
+				"durationMs": 397.9399999976158,
+				"frames": 20,
+				"medianFrameMs": 16.664999999999964,
+				"p95FrameMs": 50,
+				"maxFrameMs": 50,
+				"framesOver33Ms": 1,
+				"longTaskCount": 1,
+				"maxLongTaskMs": 52
+			},
+			{
+				"operation": "Generate Noise pink",
+				"seconds": 30,
+				"trial": 1,
+				"durationMs": 400.4299999922514,
+				"frames": 20,
+				"medianFrameMs": 16.664999999999964,
+				"p95FrameMs": 49.99499999999989,
+				"maxFrameMs": 49.99499999999989,
+				"framesOver33Ms": 1,
+				"longTaskCount": 1,
+				"maxLongTaskMs": 51
+			},
+			{
+				"operation": "Generate Noise pink",
+				"seconds": 30,
+				"trial": 2,
+				"durationMs": 384.32999999821186,
+				"frames": 20,
+				"medianFrameMs": 16.664999999999964,
+				"p95FrameMs": 49.99499999999989,
+				"maxFrameMs": 49.99499999999989,
+				"framesOver33Ms": 1,
+				"longTaskCount": 1,
+				"maxLongTaskMs": 54
+			},
+			{
+				"operation": "Generate Noise pink",
+				"seconds": 120,
+				"trial": 0,
+				"durationMs": 734.4749999940395,
+				"frames": 42,
+				"medianFrameMs": 16.664999999999964,
+				"p95FrameMs": 16.670000000000073,
+				"maxFrameMs": 50,
+				"framesOver33Ms": 1,
+				"longTaskCount": 1,
+				"maxLongTaskMs": 50
+			},
+			{
+				"operation": "Generate Noise pink",
+				"seconds": 120,
+				"trial": 1,
+				"durationMs": 734.375,
+				"frames": 42,
+				"medianFrameMs": 16.665000000000873,
+				"p95FrameMs": 16.670000000000073,
+				"maxFrameMs": 49.99499999999898,
+				"framesOver33Ms": 1,
+				"longTaskCount": 0,
+				"maxLongTaskMs": 0
+			},
+			{
+				"operation": "Generate Noise pink",
+				"seconds": 120,
+				"trial": 2,
+				"durationMs": 759.75,
+				"frames": 43,
+				"medianFrameMs": 16.665000000000873,
+				"p95FrameMs": 16.670000000000073,
+				"maxFrameMs": 50,
+				"framesOver33Ms": 1,
+				"longTaskCount": 1,
+				"maxLongTaskMs": 50
+			},
+			{
+				"operation": "Apply Amplify",
+				"seconds": 120,
+				"trial": 0,
+				"durationMs": 2011.1199999898672,
+				"frames": 118,
+				"medianFrameMs": 16.665000000000873,
+				"p95FrameMs": 16.670000000000073,
+				"maxFrameMs": 50,
+				"framesOver33Ms": 1,
+				"longTaskCount": 1,
+				"maxLongTaskMs": 61
+			},
+			{
+				"operation": "Apply Amplify",
+				"seconds": 120,
+				"trial": 1,
+				"durationMs": 1975.7700000107288,
+				"frames": 116,
+				"medianFrameMs": 16.665000000000873,
+				"p95FrameMs": 16.670000000000073,
+				"maxFrameMs": 50,
+				"framesOver33Ms": 1,
+				"longTaskCount": 1,
+				"maxLongTaskMs": 56
+			},
+			{
+				"operation": "Apply Amplify",
+				"seconds": 120,
+				"trial": 2,
+				"durationMs": 1969.4749999940395,
+				"frames": 115,
+				"medianFrameMs": 16.665000000000873,
+				"p95FrameMs": 16.67000000000189,
+				"maxFrameMs": 66.66500000000087,
+				"framesOver33Ms": 1,
+				"longTaskCount": 1,
+				"maxLongTaskMs": 61
+			},
+			{
+				"operation": "Apply Compressor",
+				"seconds": 120,
+				"trial": 0,
+				"durationMs": 2185.030000001192,
+				"frames": 126,
+				"medianFrameMs": 16.665000000000873,
+				"p95FrameMs": 16.67000000000189,
+				"maxFrameMs": 66.65999999999985,
+				"framesOver33Ms": 1,
+				"longTaskCount": 2,
+				"maxLongTaskMs": 58
+			},
+			{
+				"operation": "Apply Compressor",
+				"seconds": 120,
+				"trial": 1,
+				"durationMs": 2122.7150000035763,
+				"frames": 125,
+				"medianFrameMs": 16.665000000000873,
+				"p95FrameMs": 16.67000000000189,
+				"maxFrameMs": 50,
+				"framesOver33Ms": 1,
+				"longTaskCount": 1,
+				"maxLongTaskMs": 59
+			},
+			{
+				"operation": "Apply Compressor",
+				"seconds": 120,
+				"trial": 2,
+				"durationMs": 2096.6350000053644,
+				"frames": 123,
+				"medianFrameMs": 16.665000000000873,
+				"p95FrameMs": 16.67000000000189,
+				"maxFrameMs": 49.99500000000262,
+				"framesOver33Ms": 1,
+				"longTaskCount": 1,
+				"maxLongTaskMs": 57
+			},
+			{
+				"operation": "Idle timeline",
+				"clips": "8",
+				"frames": 181,
+				"medianFrameMs": 16.665000000000873,
+				"p95FrameMs": 16.67000000000189,
+				"maxFrameMs": 16.67000000000189,
+				"framesOver33Ms": 0
+			},
+			{
+				"operation": "Playback timeline",
+				"clips": "8",
+				"playheadBefore": 0,
+				"playheadAfter": 144000,
+				"frames": 181,
+				"medianFrameMs": 16.665000000000873,
+				"p95FrameMs": 16.67000000000189,
+				"maxFrameMs": 16.67000000000553,
+				"framesOver33Ms": 0
+			}
+		],
+		"compiledCodeRevision": "474e46e6265c6b848313c954deca2ca3dd0bac90",
+		"invokedFromRevision": "6ce7eca75",
+		"comparisonToBase": [
+			{
+				"operation": "Generate Tone",
+				"seconds": 30,
+				"baselineMedianMs": 441.0949999988079,
+				"implementedMedianMs": 362.875,
+				"baselineLongestTaskMs": 91,
+				"implementedLongestTaskMs": 69,
+				"baselineLargestRafGapMs": 99.99499999999989,
+				"implementedLargestRafGapMs": 66.66499999999996
+			},
+			{
+				"operation": "Generate Noise pink",
+				"seconds": 30,
+				"baselineMedianMs": 760.7900000065565,
+				"implementedMedianMs": 397.9399999976158,
+				"baselineLongestTaskMs": 238,
+				"implementedLongestTaskMs": 54,
+				"baselineLargestRafGapMs": 233.32499999999982,
+				"implementedLargestRafGapMs": 50
+			},
+			{
+				"operation": "Generate Noise pink",
+				"seconds": 120,
+				"baselineMedianMs": 1941.469999998808,
+				"implementedMedianMs": 734.4749999940395,
+				"baselineLongestTaskMs": 843,
+				"implementedLongestTaskMs": 50,
+				"baselineLargestRafGapMs": 849.9650000000001,
+				"implementedLargestRafGapMs": 50
+			},
+			{
+				"operation": "Apply Amplify",
+				"seconds": 120,
+				"baselineMedianMs": 4755.319999992847,
+				"implementedMedianMs": 1975.7700000107288,
+				"baselineLongestTaskMs": 61,
+				"implementedLongestTaskMs": 61,
+				"baselineLargestRafGapMs": 50,
+				"implementedLargestRafGapMs": 66.66500000000087
+			},
+			{
+				"operation": "Apply Compressor",
+				"seconds": 120,
+				"baselineMedianMs": 3113.3400000035763,
+				"implementedMedianMs": 2122.7150000035763,
+				"baselineLongestTaskMs": 62,
+				"implementedLongestTaskMs": 59,
+				"baselineLargestRafGapMs": 50,
+				"implementedLargestRafGapMs": 66.65999999999985
+			}
+		]
+	},
+	"kernels": {
+		"node": "v26.5.0",
+		"baselineRevision": "25d7cbdb4",
+		"method": "Frozen baseline arithmetic compared with current application helpers. One warm-up per case, five measurements; fixture construction and full numerical parity checks outside timed intervals. Local kernel measurements, not end-to-end Electron performance or guaranteed speedups. Tone retains its original phase arithmetic.",
+		"parity": {
+			"pinkSamples": 2880000,
+			"gainSamples": 1440000,
+			"toneSamples": 1440000,
+			"dynamicsSamples": 3840000,
+			"unequalSamples": 0
+		},
+		"cases": [
+			{
+				"name": "pink-baseline-30s-stereo",
+				"medianMs": 178.55064100000004,
+				"milliseconds": [
+					178.55064100000004,
+					183.78572099999997,
+					198.49830100000008,
+					170.7737219999999,
+					170.69327799999996
+				]
+			},
+			{
+				"name": "pink-current-30s-stereo",
+				"medianMs": 13.544869999999946,
+				"milliseconds": [
+					29.39413300000001,
+					13.529420000000073,
+					12.913475000000062,
+					13.544869999999946,
+					17.10867899999994
+				]
+			},
+			{
+				"name": "gain-baseline-30s-mono",
+				"medianMs": 118.87319699999989,
+				"milliseconds": [
+					100.19143399999984,
+					108.92340899999999,
+					137.1085380000004,
+					126.982888,
+					118.87319699999989
+				]
+			},
+			{
+				"name": "gain-current-30s-mono",
+				"medianMs": 3.947167000000263,
+				"milliseconds": [
+					3.947167000000263,
+					4.388680999999906,
+					4.153767000000244,
+					3.672508999999991,
+					3.8774750000002314
+				]
+			},
+			{
+				"name": "tone-baseline-30s-mono",
+				"medianMs": 22.503489000000172,
+				"milliseconds": [
+					22.503489000000172,
+					22.561157000000094,
+					22.208341999999902,
+					21.7616680000001,
+					23.28808600000002
+				]
+			},
+			{
+				"name": "tone-current-30s-mono",
+				"medianMs": 22.499917000000096,
+				"milliseconds": [
+					32.54135700000006,
+					18.52294400000028,
+					18.77066100000002,
+					23.161277000000155,
+					22.499917000000096
+				]
+			},
+			{
+				"name": "destructive-linked-compressor-baseline-10s-eight-channels",
+				"medianMs": 49.2835869999999,
+				"milliseconds": [
+					49.2835869999999,
+					63.32996400000002,
+					61.30148099999997,
+					43.43167200000016,
+					45.41704299999992
+				]
+			},
+			{
+				"name": "destructive-linked-compressor-current-10s-eight-channels",
+				"medianMs": 20.474121000000196,
+				"milliseconds": [
+					20.474121000000196,
+					35.091325000000325,
+					33.672925999999734,
+					18.533543999999893,
+					19.444424000000254
+				]
+			}
+		]
+	},
+	"pcmHelpers": {
+		"environment": {
+			"node": "v26.5.0",
+			"repository": "/home/splowatt/git/Soundscaper-editing-performance",
+			"baselineCommit": "25d7cbdb45045405670bfab37c833240b0b880ab",
+			"platform": "linux",
+			"architecture": "x64"
+		},
+		"type": "Isolated warmed Node CPU probes against the committed baseline. No Electron, UI, I/O or end-to-end export measurement.",
+		"limitations": "Shared host and uncontrolled GC. Worker CRC dispatch and result custody are covered by regression tests, not this synchronous helper probe.",
+		"byteParity": {
+			"aligned": true,
+			"misaligned": true,
+			"nonFinite": [
+				"zero",
+				"preserve"
+			],
+			"destinationOffsetAndGuardBytes": true
+		},
+		"packet": {
+			"frames": 65536,
+			"channels": 8,
+			"baselineInterleave": {
+				"medianMs": 5.4,
+				"samplesMs": [
+					5.79,
+					5.19,
+					5.46,
+					5.18,
+					5.24,
+					5.4,
+					5.71
+				],
+				"warmupIterations": 3,
+				"repeat": 20
+			},
+			"currentInterleave": {
+				"medianMs": 0.6,
+				"samplesMs": [
+					0.92,
+					0.59,
+					0.6,
+					0.6,
+					0.61,
+					0.63,
+					0.59
+				],
+				"warmupIterations": 3,
+				"repeat": 20
+			}
+		},
+		"longPcm": {
+			"seconds": 60,
+			"sampleRate": 48000,
+			"channels": 8,
+			"bytes": 92160000,
+			"baselineInterleave": {
+				"medianMs": 250.03,
+				"samplesMs": [
+					243.64,
+					232.23,
+					311.98,
+					255.91,
+					258.58,
+					250.03,
+					223.28
+				],
+				"warmupIterations": 3,
+				"repeat": 1
+			},
+			"currentInterleave": {
+				"medianMs": 30.41,
+				"samplesMs": [
+					29.08,
+					30.41,
+					31.23,
+					29.32,
+					28.69,
+					45.21,
+					34.06
+				],
+				"warmupIterations": 3,
+				"repeat": 1
+			},
+			"baselineProjection": {
+				"medianMs": 40.83,
+				"samplesMs": [
+					221.51,
+					32.32,
+					49.53,
+					43.15,
+					40.83,
+					38.03,
+					36.4
+				],
+				"warmupIterations": 3,
+				"repeat": 1
+			},
+			"currentProjection": {
+				"medianMs": 43.8,
+				"samplesMs": [
+					124.68,
+					46.14,
+					42.02,
+					44.82,
+					37.09,
+					38.35,
+					43.8
+				],
+				"warmupIterations": 3,
+				"repeat": 1
+			},
+			"baselineCrc32": {
+				"medianMs": 140.95,
+				"samplesMs": [
+					141.73,
+					140.79,
+					144.62,
+					140.58,
+					142.1,
+					140.18,
+					140.95
+				],
+				"warmupIterations": 3,
+				"repeat": 1
+			},
+			"currentCrc32": {
+				"medianMs": 141.57,
+				"samplesMs": [
+					141.21,
+					141.17,
+					141.57,
+					141.85,
+					141.69,
+					142.41,
+					141.49
+				],
+				"warmupIterations": 3,
+				"repeat": 1
+			},
+			"baselineUnpackPacket": {
+				"medianMs": 0.41,
+				"samplesMs": [
+					0.46,
+					0.42,
+					0.41,
+					0.41,
+					0.4,
+					0.2,
+					0.16
+				],
+				"warmupIterations": 3,
+				"repeat": 1
+			},
+			"currentUnpackPacket": {
+				"medianMs": 0.15,
+				"samplesMs": [
+					0.67,
+					0.14,
+					0.16,
+					0.14,
+					0.15,
+					0.18,
+					0.14
+				],
+				"warmupIterations": 3,
+				"repeat": 1
+			},
+			"privateOwnedUnpackPacket": {
+				"medianMs": 0,
+				"samplesMs": [
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0
+				],
+				"warmupIterations": 3,
+				"repeat": 1
+			}
+		}
+	},
+	"clipSchedules": {
+		"fixture": {
+			"clips": 10000,
+			"tracks": 1,
+			"requestedFrames": 10,
+			"membership": "mutable",
+			"warmups": 3,
+			"samples": 9
+		},
+		"parity": "exact plans at six ranges",
+		"uncachedMedianMs": 10.31519800000001,
+		"retainedMedianMs": 0.055495000000064465
+	},
+	"consolidateWavPack": {
+		"node": "v26.5.0",
+		"maximumEncodedPacketBytes": 33816576,
+		"fixtureSeed": "0x6d2b79f5",
+		"interpretation": "Native codec packet probes; not Apply or Generate latency.",
+		"results": [
+			{
+				"frames": 1,
+				"channels": 1,
+				"pattern": "random-bits",
+				"rawBytes": 4,
+				"payloadBytes": 190,
+				"budgetBytes": 4104,
+				"expansionRatio": 47.5,
+				"encodeMs": 3.443566999999973,
+				"nativeMemoryBytes": 8388608,
+				"exactSampleBits": true
+			},
+			{
+				"frames": 1,
+				"channels": 64,
+				"pattern": "random-bits",
+				"rawBytes": 256,
+				"payloadBytes": 3252,
+				"budgetBytes": 262656,
+				"expansionRatio": 12.703125,
+				"encodeMs": 9.701817000000005,
+				"nativeMemoryBytes": 25755648,
+				"exactSampleBits": true
+			},
+			{
+				"frames": 16,
+				"channels": 8,
+				"pattern": "random-bits",
+				"rawBytes": 512,
+				"payloadBytes": 1128,
+				"budgetBytes": 33792,
+				"expansionRatio": 2.203125,
+				"encodeMs": 0.3365959999999859,
+				"nativeMemoryBytes": 25755648,
+				"exactSampleBits": true
+			},
+			{
+				"frames": 1024,
+				"channels": 1,
+				"pattern": "normalized-noise",
+				"rawBytes": 4096,
+				"payloadBytes": 3544,
+				"budgetBytes": 12288,
+				"expansionRatio": 0.865234375,
+				"encodeMs": 0.4279589999999871,
+				"nativeMemoryBytes": 25755648,
+				"exactSampleBits": true
+			},
+			{
+				"frames": 1024,
+				"channels": 64,
+				"pattern": "random-bits",
+				"rawBytes": 262144,
+				"payloadBytes": 337716,
+				"budgetBytes": 786432,
+				"expansionRatio": 1.2882843017578125,
+				"encodeMs": 8.644759000000022,
+				"nativeMemoryBytes": 27328512,
+				"exactSampleBits": true
+			},
+			{
+				"frames": 65536,
+				"channels": 1,
+				"pattern": "random-bits",
+				"rawBytes": 262144,
+				"payloadBytes": 299150,
+				"budgetBytes": 528384,
+				"expansionRatio": 1.1411666870117188,
+				"encodeMs": 6.920208000000002,
+				"nativeMemoryBytes": 27328512,
+				"exactSampleBits": true
+			},
+			{
+				"frames": 65536,
+				"channels": 8,
+				"pattern": "normalized-noise",
+				"rawBytes": 2097152,
+				"payloadBytes": 1724746,
+				"budgetBytes": 4227072,
+				"expansionRatio": 0.822422981262207,
+				"encodeMs": 34.18507800000003,
+				"nativeMemoryBytes": 27328512,
+				"exactSampleBits": true
+			},
+			{
+				"frames": 65536,
+				"channels": 64,
+				"pattern": "random-bits",
+				"rawBytes": 16777216,
+				"payloadBytes": 21398652,
+				"budgetBytes": 33816576,
+				"expansionRatio": 1.2754590511322021,
+				"encodeMs": 296.370224,
+				"nativeMemoryBytes": 96534528,
+				"exactSampleBits": true
+			},
+			{
+				"frames": 65536,
+				"channels": 64,
+				"pattern": "edge-bits",
+				"rawBytes": 16777216,
+				"payloadBytes": 19484606,
+				"budgetBytes": 33816576,
+				"expansionRatio": 1.1613730192184448,
+				"encodeMs": 194.53055400000017,
+				"nativeMemoryBytes": 96534528,
+				"exactSampleBits": true
+			}
+		]
+	},
+	"syntheticOnnxResidency": {
+		"node": "v26.5.0",
+		"model": "synthetic 4-layer 768x768 MatMul",
+		"modelBytes": 2359586,
+		"modelSha256": "70644862da1eb99d54999672b7e8a3042cd570303d4fb21807da80826e01a809",
+		"runtimeEntrySha256": "019eb02133b94b1f7fdf2d89eb93b590ce1288d271f7b280647fb3978e6391fa",
+		"exactFloatBits": true,
+		"warmupSamples": 2,
+		"freshNativeSessionMedianMs": 101.89749200000006,
+		"residentNativeSessionMedianMs": 54.31400299999996,
+		"freshSamplesMs": [
+			204.76984399999992,
+			145.13382500000012,
+			120.1018959999999,
+			74.70268799999985,
+			101.89749200000006,
+			147.886078,
+			79.73186299999998,
+			129.91418599999997,
+			74.99925799999983
+		],
+		"residentSamplesMs": [
+			127.65081000000009,
+			41.59525699999995,
+			44.00306599999999,
+			89.81438800000001,
+			42.93374400000039,
+			89.58524499999976,
+			60.27803899999981,
+			34.29292299999997,
+			54.31400299999996
+		],
+		"idleNativeSessions": 1,
+		"processRssBytes": 254976000,
+		"threadRuns": [
+			{
+				"threads": 1,
+				"medianMs": 47.562124999999924,
+				"samplesMs": [
+					80.993426,
+					38.25456200000008,
+					44.632530000000315,
+					54.71115899999995,
+					61.384289999999964,
+					43.08813800000007,
+					62.62967099999969,
+					47.562124999999924,
+					39.58002099999976
+				]
+			},
+			{
+				"threads": 2,
+				"medianMs": 12.503533999999945,
+				"samplesMs": [
+					29.746802000000116,
+					27.45908499999996,
+					13.040553000000273,
+					10.39507599999979,
+					14.344742000000224,
+					10.744996999999785,
+					12.503533999999945,
+					12.404246000000057,
+					17.269000999999662
+				]
+			},
+			{
+				"threads": 4,
+				"medianMs": 30.111225000000104,
+				"samplesMs": [
+					24.778393999999935,
+					60.950816999999915,
+					53.609342999999626,
+					29.941737999999987,
+					30.148870999999872,
+					16.296397999999954,
+					30.111225000000104,
+					26.3185110000004,
+					31.69535199999973
+				]
+			}
+		]
+	},
+	"commandDrafts": {
+		"node": "v26.5.0",
+		"baselineRevision": "25d7cbdb4",
+		"date": "2026-10-06T19:15:07.766Z",
+		"semanticParity": "deepEqual including metadata, mixer, automation, revision and timestamps",
+		"method": "three warmups per version, eight trials each in alternating order on the same project",
+		"observations": [
+			{
+				"name": "baseline",
+				"clipCount": 1000,
+				"milliseconds": [
+					56.03651000000002,
+					48.74732999999992,
+					46.36400000000003,
+					50.1988409999999,
+					61.804849000000104,
+					47.34246899999994,
+					51.416929999999866,
+					52.09467299999983
+				],
+				"medianMilliseconds": 50.807885499999884
+			},
+			{
+				"name": "candidate",
+				"clipCount": 1000,
+				"milliseconds": [
+					37.893804000000046,
+					38.03347299999996,
+					45.59585000000004,
+					39.801986000000056,
+					40.65900600000009,
+					35.16189600000007,
+					36.2087919999999,
+					33.990072000000055
+				],
+				"medianMilliseconds": 37.9636385
+			},
+			{
+				"name": "baseline",
+				"clipCount": 2000,
+				"milliseconds": [
+					94.70811700000013,
+					92.79908100000011,
+					98.99155400000018,
+					110.36617699999988,
+					105.63718300000028,
+					90.05543799999987,
+					98.09320600000001,
+					94.20419500000025
+				],
+				"medianMilliseconds": 96.40066150000007
+			},
+			{
+				"name": "candidate",
+				"clipCount": 2000,
+				"milliseconds": [
+					72.14749799999981,
+					74.68589100000008,
+					68.23269600000003,
+					73.39673300000004,
+					82.119279,
+					75.52456500000017,
+					76.64689799999996,
+					75.18657899999971
+				],
+				"medianMilliseconds": 74.9362349999999
+			}
+		]
+	},
+	"independentGeneratorParity": {
+		"baselineRevision": "25d7cbdb4",
+		"baselineGeneratorSourceSha256": "9aeaf4a9257904e15778a63f248a1c5d629d210f574c1b0ab8f77b89cde070c0",
+		"unchangedMorseHelperSha256": "b14bb1e1cfceb8ee6a6d33b26e53b990ec7aebc153d2f69b3b0199ae747c4b80",
+		"reviewedRevision": "474e46e6265c6b848313c954deca2ca3dd0bac90",
+		"jobs": 144,
+		"samples": 44561614,
+		"exactFloat32Comparison": "passed",
+		"transferredPriorBlocks": true,
+		"adaptiveBlockFrames": [
+			1,
+			127,
+			255,
+			4096,
+			65536
+		],
+		"seed": 752342,
+		"method": "Compare each streamed channel byte-for-byte through assert.deepEqual against generators.js from the baseline Git revision, bundled with its unchanged Morse helper; transfer every emitted block before requesting the next.",
+		"reproductionCommand": "node --import tsx scripts/performance/verify-generator-stream-parity.mjs",
+		"cases": [
+			{
+				"iteration": 0,
+				"type": "silence",
+				"options": {
+					"sampleRate": 8000,
+					"durationSeconds": 0.000125,
+					"channelCount": 1,
+					"amplitude": 0.8080361031461507
+				},
+				"frameCount": 1,
+				"channelCount": 1,
+				"samples": 1,
+				"baselineSha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+				"streamedSha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 0,
+				"type": "tone",
+				"options": {
+					"sampleRate": 8000,
+					"durationSeconds": 0.000125,
+					"channelCount": 1,
+					"amplitude": 0.8080361031461507,
+					"frequency": 2122.6339708349296,
+					"waveform": "sine"
+				},
+				"frameCount": 1,
+				"channelCount": 1,
+				"samples": 1,
+				"baselineSha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+				"streamedSha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 0,
+				"type": "chirp",
+				"options": {
+					"sampleRate": 8000,
+					"durationSeconds": 0.000125,
+					"channelCount": 1,
+					"amplitude": 0.8080361031461507,
+					"startFrequency": 2442.2535417175504,
+					"endFrequency": 2538.5169360307373,
+					"startAmplitude": 0.9413788767997175,
+					"endAmplitude": 0.9109730226919055,
+					"waveform": "sine",
+					"interpolation": "logarithmic"
+				},
+				"frameCount": 1,
+				"channelCount": 1,
+				"samples": 1,
+				"baselineSha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+				"streamedSha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 0,
+				"type": "noise",
+				"options": {
+					"sampleRate": 8000,
+					"durationSeconds": 0.000125,
+					"channelCount": 1,
+					"amplitude": 0.8080361031461507,
+					"color": "white",
+					"seed": 0
+				},
+				"frameCount": 1,
+				"channelCount": 1,
+				"samples": 1,
+				"baselineSha256": "d20fe95c7c375e5745f4edf4865ed8e335f8346cfd25344ccaf3532ac530abf2",
+				"streamedSha256": "d20fe95c7c375e5745f4edf4865ed8e335f8346cfd25344ccaf3532ac530abf2",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 0,
+				"type": "dtmf",
+				"options": {
+					"sampleRate": 8000,
+					"durationSeconds": 0.000125,
+					"channelCount": 1,
+					"amplitude": 0.8080361031461507,
+					"sequence": "11AB1#D",
+					"toneSeconds": 0.075875,
+					"silenceSeconds": 0.02475
+				},
+				"frameCount": 5437,
+				"channelCount": 1,
+				"samples": 5437,
+				"baselineSha256": "ddf1281955e13600e24a34f94c035d3df49c97cdd2074514f1c182fd71b047db",
+				"streamedSha256": "ddf1281955e13600e24a34f94c035d3df49c97cdd2074514f1c182fd71b047db",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 0,
+				"type": "morse",
+				"options": {
+					"sampleRate": 8000,
+					"durationSeconds": 0.000125,
+					"channelCount": 1,
+					"amplitude": 0.8080361031461507,
+					"text": "SOS",
+					"wordsPerMinute": 98.0604663840495,
+					"frequency": 1985.3315950351207
+				},
+				"frameCount": 2643,
+				"channelCount": 1,
+				"samples": 2643,
+				"baselineSha256": "9a952e73f5c107f893faeafc9d27f980efb004a0209027602f5c0ea0176d1149",
+				"streamedSha256": "9a952e73f5c107f893faeafc9d27f980efb004a0209027602f5c0ea0176d1149",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 1,
+				"type": "silence",
+				"options": {
+					"sampleRate": 11025,
+					"durationSeconds": 1.4333786848072563,
+					"channelCount": 2,
+					"amplitude": 0.6949833226390183
+				},
+				"frameCount": 15803,
+				"channelCount": 2,
+				"samples": 31606,
+				"baselineSha256": "0199bdaae2d57c2b48d90c64469ad9fedd7ff314169885d08e345efb6b169a9d",
+				"streamedSha256": "0199bdaae2d57c2b48d90c64469ad9fedd7ff314169885d08e345efb6b169a9d",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 1,
+				"type": "tone",
+				"options": {
+					"sampleRate": 11025,
+					"durationSeconds": 1.4333786848072563,
+					"channelCount": 2,
+					"amplitude": 0.6949833226390183,
+					"frequency": 1935.9065504886792,
+					"waveform": "square"
+				},
+				"frameCount": 15803,
+				"channelCount": 2,
+				"samples": 31606,
+				"baselineSha256": "ade1d5fe960bfce5f02321169f925d11f6c82e47f2842790bb871729347ea878",
+				"streamedSha256": "ade1d5fe960bfce5f02321169f925d11f6c82e47f2842790bb871729347ea878",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 1,
+				"type": "chirp",
+				"options": {
+					"sampleRate": 11025,
+					"durationSeconds": 1.4333786848072563,
+					"channelCount": 2,
+					"amplitude": 0.6949833226390183,
+					"startFrequency": 1427.574508377658,
+					"endFrequency": 4175.239661146149,
+					"startAmplitude": 0.5279577164910734,
+					"endAmplitude": 0.05411027674563229,
+					"waveform": "square",
+					"interpolation": "linear"
+				},
+				"frameCount": 15803,
+				"channelCount": 2,
+				"samples": 31606,
+				"baselineSha256": "2675e17511e35fc847410be2b429d183dd1af59b69b10a8364745460d60d6c22",
+				"streamedSha256": "2675e17511e35fc847410be2b429d183dd1af59b69b10a8364745460d60d6c22",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 1,
+				"type": "noise",
+				"options": {
+					"sampleRate": 11025,
+					"durationSeconds": 1.4333786848072563,
+					"channelCount": 2,
+					"amplitude": 0.6949833226390183,
+					"color": "pink",
+					"seed": 1
+				},
+				"frameCount": 15803,
+				"channelCount": 2,
+				"samples": 31606,
+				"baselineSha256": "4e5658be8752b838614e9e2366e6acfdfc9d48e58495b02688ca8a9b62e85713",
+				"streamedSha256": "4e5658be8752b838614e9e2366e6acfdfc9d48e58495b02688ca8a9b62e85713",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 1,
+				"type": "dtmf",
+				"options": {
+					"sampleRate": 11025,
+					"durationSeconds": 1.4333786848072563,
+					"channelCount": 2,
+					"amplitude": 0.6949833226390183,
+					"sequence": "11AB1#D",
+					"toneSeconds": 1.6326530612244898,
+					"silenceSeconds": 0.0025396825396825397
+				},
+				"frameCount": 126168,
+				"channelCount": 2,
+				"samples": 252336,
+				"baselineSha256": "8cc58caceae5abbc3221ab855d714d092a046a42c36d2165b8e83acc26c47865",
+				"streamedSha256": "8cc58caceae5abbc3221ab855d714d092a046a42c36d2165b8e83acc26c47865",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 1,
+				"type": "morse",
+				"options": {
+					"sampleRate": 11025,
+					"durationSeconds": 1.4333786848072563,
+					"channelCount": 2,
+					"amplitude": 0.6949833226390183,
+					"text": "P0?",
+					"wordsPerMinute": 114.83493720414117,
+					"frequency": 171.22100578507872
+				},
+				"frameCount": 5876,
+				"channelCount": 2,
+				"samples": 11752,
+				"baselineSha256": "ac6a0eb6b6d39bdbab7d1523bf7be612d97c66de2529b191587eb5ae3abd994f",
+				"streamedSha256": "ac6a0eb6b6d39bdbab7d1523bf7be612d97c66de2529b191587eb5ae3abd994f",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 2,
+				"type": "silence",
+				"options": {
+					"sampleRate": 44100,
+					"durationSeconds": 0.1572562358276644,
+					"channelCount": 7,
+					"amplitude": 0.31473866011947393
+				},
+				"frameCount": 6935,
+				"channelCount": 7,
+				"samples": 48545,
+				"baselineSha256": "f3ede87f74f02302e922f205531860003f2999164df8c83046601b087a39df26",
+				"streamedSha256": "f3ede87f74f02302e922f205531860003f2999164df8c83046601b087a39df26",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 2,
+				"type": "tone",
+				"options": {
+					"sampleRate": 44100,
+					"durationSeconds": 0.1572562358276644,
+					"channelCount": 7,
+					"amplitude": 0.31473866011947393,
+					"frequency": 13324.892608260767,
+					"waveform": "sawtooth"
+				},
+				"frameCount": 6935,
+				"channelCount": 7,
+				"samples": 48545,
+				"baselineSha256": "03bccef95df75d065beb6c4e246ccceca71e09cf2c69c948c7e596bdd7b79d3d",
+				"streamedSha256": "03bccef95df75d065beb6c4e246ccceca71e09cf2c69c948c7e596bdd7b79d3d",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 2,
+				"type": "chirp",
+				"options": {
+					"sampleRate": 44100,
+					"durationSeconds": 0.1572562358276644,
+					"channelCount": 7,
+					"amplitude": 0.31473866011947393,
+					"startFrequency": 5587.601692295601,
+					"endFrequency": 5484.924775229589,
+					"startAmplitude": 0.30213281139731407,
+					"endAmplitude": 0.8539590870495886,
+					"waveform": "sawtooth",
+					"interpolation": "logarithmic"
+				},
+				"frameCount": 6935,
+				"channelCount": 7,
+				"samples": 48545,
+				"baselineSha256": "880329cecc3edbf0b828cb97fed1339da2e0c0934061db9ff56499d2a7bb6d66",
+				"streamedSha256": "880329cecc3edbf0b828cb97fed1339da2e0c0934061db9ff56499d2a7bb6d66",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 2,
+				"type": "noise",
+				"options": {
+					"sampleRate": 44100,
+					"durationSeconds": 0.1572562358276644,
+					"channelCount": 7,
+					"amplitude": 0.31473866011947393,
+					"color": "brown",
+					"seed": 2147483648
+				},
+				"frameCount": 6935,
+				"channelCount": 7,
+				"samples": 48545,
+				"baselineSha256": "adc05f2982f6c32058e3394032a82692cfcb68924b999b4ce7dd30ad208ff5f9",
+				"streamedSha256": "adc05f2982f6c32058e3394032a82692cfcb68924b999b4ce7dd30ad208ff5f9",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 2,
+				"type": "dtmf",
+				"options": {
+					"sampleRate": 44100,
+					"durationSeconds": 0.1572562358276644,
+					"channelCount": 7,
+					"amplitude": 0.31473866011947393,
+					"sequence": "11AB1#D",
+					"toneSeconds": 0.011020408163265306,
+					"silenceSeconds": 0.004081632653061225
+				},
+				"frameCount": 4482,
+				"channelCount": 7,
+				"samples": 31374,
+				"baselineSha256": "86e6bca9997c0f18d78ceb3335303afa4731bce31543a2533e32b48820ac0592",
+				"streamedSha256": "86e6bca9997c0f18d78ceb3335303afa4731bce31543a2533e32b48820ac0592",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 2,
+				"type": "morse",
+				"options": {
+					"sampleRate": 44100,
+					"durationSeconds": 0.1572562358276644,
+					"channelCount": 7,
+					"amplitude": 0.31473866011947393,
+					"text": "E EE",
+					"wordsPerMinute": 90.83445603959262,
+					"frequency": 7365.693101079849
+				},
+				"frameCount": 7574,
+				"channelCount": 7,
+				"samples": 53018,
+				"baselineSha256": "a324152f7b3bb15343ecb0f466b8b0328b8507691bed3407626d193983b11fa0",
+				"streamedSha256": "a324152f7b3bb15343ecb0f466b8b0328b8507691bed3407626d193983b11fa0",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 3,
+				"type": "silence",
+				"options": {
+					"sampleRate": 48000,
+					"durationSeconds": 0.025625,
+					"channelCount": 32,
+					"amplitude": 0.7637486078310758
+				},
+				"frameCount": 1230,
+				"channelCount": 32,
+				"samples": 39360,
+				"baselineSha256": "502e5b586e5563abd3d4d2b3b07db7f947db445a7dab194cb284b42c4b1119fb",
+				"streamedSha256": "502e5b586e5563abd3d4d2b3b07db7f947db445a7dab194cb284b42c4b1119fb",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 3,
+				"type": "tone",
+				"options": {
+					"sampleRate": 48000,
+					"durationSeconds": 0.025625,
+					"channelCount": 32,
+					"amplitude": 0.7637486078310758,
+					"frequency": 21300.432987293545,
+					"waveform": "sine"
+				},
+				"frameCount": 1230,
+				"channelCount": 32,
+				"samples": 39360,
+				"baselineSha256": "3e42bfa86f4a2678e18ab99e9034da88b79fa1fd8ec0f85b43651c9cb7a1e2c5",
+				"streamedSha256": "3e42bfa86f4a2678e18ab99e9034da88b79fa1fd8ec0f85b43651c9cb7a1e2c5",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 3,
+				"type": "chirp",
+				"options": {
+					"sampleRate": 48000,
+					"durationSeconds": 0.025625,
+					"channelCount": 32,
+					"amplitude": 0.7637486078310758,
+					"startFrequency": 3011.5237758394546,
+					"endFrequency": 11722.008154804684,
+					"startAmplitude": 0.19891988509334624,
+					"endAmplitude": 0.3578029749915004,
+					"waveform": "sine",
+					"interpolation": "linear"
+				},
+				"frameCount": 1230,
+				"channelCount": 32,
+				"samples": 39360,
+				"baselineSha256": "446a5bd6f32a7879c4f4abe79abc3ccb0d18fabfc204ba7d173ed20986a5d19f",
+				"streamedSha256": "446a5bd6f32a7879c4f4abe79abc3ccb0d18fabfc204ba7d173ed20986a5d19f",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 3,
+				"type": "noise",
+				"options": {
+					"sampleRate": 48000,
+					"durationSeconds": 0.025625,
+					"channelCount": 32,
+					"amplitude": 0.7637486078310758,
+					"color": "white",
+					"seed": 4294967295
+				},
+				"frameCount": 1230,
+				"channelCount": 32,
+				"samples": 39360,
+				"baselineSha256": "382dcd53c1f49c0a5fa71e877685ccd70a02a14afe0a0fda97e85de9029a8f5b",
+				"streamedSha256": "382dcd53c1f49c0a5fa71e877685ccd70a02a14afe0a0fda97e85de9029a8f5b",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 3,
+				"type": "dtmf",
+				"options": {
+					"sampleRate": 48000,
+					"durationSeconds": 0.025625,
+					"channelCount": 32,
+					"amplitude": 0.7637486078310758,
+					"sequence": "11AB1#D",
+					"toneSeconds": 0.375,
+					"silenceSeconds": 0.0009583333333333333
+				},
+				"frameCount": 126276,
+				"channelCount": 32,
+				"samples": 4040832,
+				"baselineSha256": "7d26c0777b0c3aa3838ba4734c2810363a609ea49f7026b7df974a32c040b769",
+				"streamedSha256": "7d26c0777b0c3aa3838ba4734c2810363a609ea49f7026b7df974a32c040b769",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 3,
+				"type": "morse",
+				"options": {
+					"sampleRate": 48000,
+					"durationSeconds": 0.025625,
+					"channelCount": 32,
+					"amplitude": 0.7637486078310758,
+					"text": "TEST 123",
+					"wordsPerMinute": 110.82384264562279,
+					"frequency": 19009.39764711878
+				},
+				"frameCount": 41060,
+				"channelCount": 32,
+				"samples": 1313920,
+				"baselineSha256": "75f0625386ce40770662cfffaf5481ff5afd34908d15e0c4a95f22b1d3148a91",
+				"streamedSha256": "75f0625386ce40770662cfffaf5481ff5afd34908d15e0c4a95f22b1d3148a91",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 4,
+				"type": "silence",
+				"options": {
+					"sampleRate": 8000,
+					"durationSeconds": 2.477875,
+					"channelCount": 1,
+					"amplitude": 0.592621095245704
+				},
+				"frameCount": 19823,
+				"channelCount": 1,
+				"samples": 19823,
+				"baselineSha256": "9421e180a269daaa18f2e6f15cbbe6aa4c9b93e9fbf7eedfeee0e03cccdc28f8",
+				"streamedSha256": "9421e180a269daaa18f2e6f15cbbe6aa4c9b93e9fbf7eedfeee0e03cccdc28f8",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 4,
+				"type": "tone",
+				"options": {
+					"sampleRate": 8000,
+					"durationSeconds": 2.477875,
+					"channelCount": 1,
+					"amplitude": 0.592621095245704,
+					"frequency": 3458.528667227062,
+					"waveform": "square"
+				},
+				"frameCount": 19823,
+				"channelCount": 1,
+				"samples": 19823,
+				"baselineSha256": "6a36b62ead7ce3f4c452451168d10ce3ac1d5abf8a969cd338f21fce363b4b31",
+				"streamedSha256": "6a36b62ead7ce3f4c452451168d10ce3ac1d5abf8a969cd338f21fce363b4b31",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 4,
+				"type": "chirp",
+				"options": {
+					"sampleRate": 8000,
+					"durationSeconds": 2.477875,
+					"channelCount": 1,
+					"amplitude": 0.592621095245704,
+					"startFrequency": 2120.855656734014,
+					"endFrequency": 2386.574714459805,
+					"startAmplitude": 0.8767186261247844,
+					"endAmplitude": 0.30721832951530814,
+					"waveform": "square",
+					"interpolation": "logarithmic"
+				},
+				"frameCount": 19823,
+				"channelCount": 1,
+				"samples": 19823,
+				"baselineSha256": "883667d9636135fff0b83b55b21c512eda7c80a6a3078ee21af5ace9f71189a8",
+				"streamedSha256": "883667d9636135fff0b83b55b21c512eda7c80a6a3078ee21af5ace9f71189a8",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 4,
+				"type": "noise",
+				"options": {
+					"sampleRate": 8000,
+					"durationSeconds": 2.477875,
+					"channelCount": 1,
+					"amplitude": 0.592621095245704,
+					"color": "pink",
+					"seed": 1319492678
+				},
+				"frameCount": 19823,
+				"channelCount": 1,
+				"samples": 19823,
+				"baselineSha256": "fb29aad46ae7f4118551dfeeb1831449375ae2881e43f8f725e4445eaf1dee4a",
+				"streamedSha256": "fb29aad46ae7f4118551dfeeb1831449375ae2881e43f8f725e4445eaf1dee4a",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 4,
+				"type": "dtmf",
+				"options": {
+					"sampleRate": 8000,
+					"durationSeconds": 2.477875,
+					"channelCount": 1,
+					"amplitude": 0.592621095245704,
+					"sequence": "11AB1#D",
+					"toneSeconds": 0.103375,
+					"silenceSeconds": 0.006875
+				},
+				"frameCount": 6119,
+				"channelCount": 1,
+				"samples": 6119,
+				"baselineSha256": "c79cafe8d8ab9cdbd75bac990da8a4026069ee32cd61700bebff5b3d80fe1ca0",
+				"streamedSha256": "c79cafe8d8ab9cdbd75bac990da8a4026069ee32cd61700bebff5b3d80fe1ca0",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 4,
+				"type": "morse",
+				"options": {
+					"sampleRate": 8000,
+					"durationSeconds": 2.477875,
+					"channelCount": 1,
+					"amplitude": 0.592621095245704,
+					"text": "SOS",
+					"wordsPerMinute": 112.13694987120107,
+					"frequency": 1808.8588303090025
+				},
+				"frameCount": 2311,
+				"channelCount": 1,
+				"samples": 2311,
+				"baselineSha256": "7d98bde606696a3e3e514f28aceb7495a0b77d1807b6d19f7e1aafb56c5d2111",
+				"streamedSha256": "7d98bde606696a3e3e514f28aceb7495a0b77d1807b6d19f7e1aafb56c5d2111",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 5,
+				"type": "silence",
+				"options": {
+					"sampleRate": 11025,
+					"durationSeconds": 1.399092970521542,
+					"channelCount": 2,
+					"amplitude": 0.003377026878297329
+				},
+				"frameCount": 15425,
+				"channelCount": 2,
+				"samples": 30850,
+				"baselineSha256": "b22e5236b9d78470ad85895a317b19854bf457276f0819c799becec87800060b",
+				"streamedSha256": "b22e5236b9d78470ad85895a317b19854bf457276f0819c799becec87800060b",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 5,
+				"type": "tone",
+				"options": {
+					"sampleRate": 11025,
+					"durationSeconds": 1.399092970521542,
+					"channelCount": 2,
+					"amplitude": 0.003377026878297329,
+					"frequency": 2104.3069786907618,
+					"waveform": "sawtooth"
+				},
+				"frameCount": 15425,
+				"channelCount": 2,
+				"samples": 30850,
+				"baselineSha256": "f7c62e8d1259fa04d7a80d141094cfe10e7640116265b3fbab2a46920392ffd8",
+				"streamedSha256": "f7c62e8d1259fa04d7a80d141094cfe10e7640116265b3fbab2a46920392ffd8",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 5,
+				"type": "chirp",
+				"options": {
+					"sampleRate": 11025,
+					"durationSeconds": 1.399092970521542,
+					"channelCount": 2,
+					"amplitude": 0.003377026878297329,
+					"startFrequency": 3546.3175795895186,
+					"endFrequency": 1308.5085832701739,
+					"startAmplitude": 0.18262529745697975,
+					"endAmplitude": 0.6093175520654768,
+					"waveform": "sawtooth",
+					"interpolation": "linear"
+				},
+				"frameCount": 15425,
+				"channelCount": 2,
+				"samples": 30850,
+				"baselineSha256": "7760b4d325360336a5434e3eaf326b887e1ede76ca752f4ea8478042419d0c26",
+				"streamedSha256": "7760b4d325360336a5434e3eaf326b887e1ede76ca752f4ea8478042419d0c26",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 5,
+				"type": "noise",
+				"options": {
+					"sampleRate": 11025,
+					"durationSeconds": 1.399092970521542,
+					"channelCount": 2,
+					"amplitude": 0.003377026878297329,
+					"color": "brown",
+					"seed": 0
+				},
+				"frameCount": 15425,
+				"channelCount": 2,
+				"samples": 30850,
+				"baselineSha256": "32df3f8d71941b771f287c316deeaa72910fdb507988cd7d3bc1e1d7d535bccd",
+				"streamedSha256": "32df3f8d71941b771f287c316deeaa72910fdb507988cd7d3bc1e1d7d535bccd",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 5,
+				"type": "dtmf",
+				"options": {
+					"sampleRate": 11025,
+					"durationSeconds": 1.399092970521542,
+					"channelCount": 2,
+					"amplitude": 0.003377026878297329,
+					"sequence": "11AB1#D",
+					"toneSeconds": 1.6326530612244898,
+					"silenceSeconds": 0.009614512471655328
+				},
+				"frameCount": 126636,
+				"channelCount": 2,
+				"samples": 253272,
+				"baselineSha256": "1268cb7e782b7e557a71a33b4ea775e9020eab014557f07073d6e4ef7d9e57e7",
+				"streamedSha256": "1268cb7e782b7e557a71a33b4ea775e9020eab014557f07073d6e4ef7d9e57e7",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 5,
+				"type": "morse",
+				"options": {
+					"sampleRate": 11025,
+					"durationSeconds": 1.399092970521542,
+					"channelCount": 2,
+					"amplitude": 0.003377026878297329,
+					"text": "P0?",
+					"wordsPerMinute": 98.64110509632155,
+					"frequency": 4142.185724953124
+				},
+				"frameCount": 6840,
+				"channelCount": 2,
+				"samples": 13680,
+				"baselineSha256": "87daa45f5098682de932f1fe2f10b235aca2b002a5b283942e03a1cf9c9f6f54",
+				"streamedSha256": "87daa45f5098682de932f1fe2f10b235aca2b002a5b283942e03a1cf9c9f6f54",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 6,
+				"type": "silence",
+				"options": {
+					"sampleRate": 44100,
+					"durationSeconds": 0.39192743764172333,
+					"channelCount": 7,
+					"amplitude": 0.17090952908620238
+				},
+				"frameCount": 17284,
+				"channelCount": 7,
+				"samples": 120988,
+				"baselineSha256": "82014235e1ef5e3a52bb88c5b60b2faaeec36308426e2048770e9143b5cfe292",
+				"streamedSha256": "82014235e1ef5e3a52bb88c5b60b2faaeec36308426e2048770e9143b5cfe292",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 6,
+				"type": "tone",
+				"options": {
+					"sampleRate": 44100,
+					"durationSeconds": 0.39192743764172333,
+					"channelCount": 7,
+					"amplitude": 0.17090952908620238,
+					"frequency": 9260.348354545635,
+					"waveform": "sine"
+				},
+				"frameCount": 17284,
+				"channelCount": 7,
+				"samples": 120988,
+				"baselineSha256": "5ecc4a73b62df6b3da1e10ff843993761e1bdd161c71bc57aabd89f988504080",
+				"streamedSha256": "5ecc4a73b62df6b3da1e10ff843993761e1bdd161c71bc57aabd89f988504080",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 6,
+				"type": "chirp",
+				"options": {
+					"sampleRate": 44100,
+					"durationSeconds": 0.39192743764172333,
+					"channelCount": 7,
+					"amplitude": 0.17090952908620238,
+					"startFrequency": 2345.4165115988444,
+					"endFrequency": 20199.535506484957,
+					"startAmplitude": 0.0837795534171164,
+					"endAmplitude": 0.3972195985261351,
+					"waveform": "sine",
+					"interpolation": "logarithmic"
+				},
+				"frameCount": 17284,
+				"channelCount": 7,
+				"samples": 120988,
+				"baselineSha256": "afd34efbcaf60cb19f92db18a84d6defc8c8ed87c0221d583d0c13f0dbcd7112",
+				"streamedSha256": "afd34efbcaf60cb19f92db18a84d6defc8c8ed87c0221d583d0c13f0dbcd7112",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 6,
+				"type": "noise",
+				"options": {
+					"sampleRate": 44100,
+					"durationSeconds": 0.39192743764172333,
+					"channelCount": 7,
+					"amplitude": 0.17090952908620238,
+					"color": "white",
+					"seed": 1
+				},
+				"frameCount": 17284,
+				"channelCount": 7,
+				"samples": 120988,
+				"baselineSha256": "a77be51204c7a8c0b11af990ba9322270f5fda89f57be201b6f6c26b9fc6555c",
+				"streamedSha256": "a77be51204c7a8c0b11af990ba9322270f5fda89f57be201b6f6c26b9fc6555c",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 6,
+				"type": "dtmf",
+				"options": {
+					"sampleRate": 44100,
+					"durationSeconds": 0.39192743764172333,
+					"channelCount": 7,
+					"amplitude": 0.17090952908620238,
+					"sequence": "11AB1#D",
+					"toneSeconds": 0.004285714285714286,
+					"silenceSeconds": 0.0004308390022675737
+				},
+				"frameCount": 1437,
+				"channelCount": 7,
+				"samples": 10059,
+				"baselineSha256": "a8727dd5d94615775d1d3b12162be92df940b2b2c09388cb288e4599137cd93d",
+				"streamedSha256": "a8727dd5d94615775d1d3b12162be92df940b2b2c09388cb288e4599137cd93d",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 6,
+				"type": "morse",
+				"options": {
+					"sampleRate": 44100,
+					"durationSeconds": 0.39192743764172333,
+					"channelCount": 7,
+					"amplitude": 0.17090952908620238,
+					"text": "E EE",
+					"wordsPerMinute": 119.23432676587254,
+					"frequency": 10908.877383937024
+				},
+				"frameCount": 5770,
+				"channelCount": 7,
+				"samples": 40390,
+				"baselineSha256": "a68a6ea21929701f2d5034a30a9467898e3de59c98cbcb5bd031bedf28c3e847",
+				"streamedSha256": "a68a6ea21929701f2d5034a30a9467898e3de59c98cbcb5bd031bedf28c3e847",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 7,
+				"type": "silence",
+				"options": {
+					"sampleRate": 48000,
+					"durationSeconds": 0.206875,
+					"channelCount": 32,
+					"amplitude": 0.18677856004796922
+				},
+				"frameCount": 9930,
+				"channelCount": 32,
+				"samples": 317760,
+				"baselineSha256": "7024400db4c4b8f22ce09931bd1b89c017caadc02861ed3834b58160b2ce1214",
+				"streamedSha256": "7024400db4c4b8f22ce09931bd1b89c017caadc02861ed3834b58160b2ce1214",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 7,
+				"type": "tone",
+				"options": {
+					"sampleRate": 48000,
+					"durationSeconds": 0.206875,
+					"channelCount": 32,
+					"amplitude": 0.18677856004796922,
+					"frequency": 19649.565464213745,
+					"waveform": "square"
+				},
+				"frameCount": 9930,
+				"channelCount": 32,
+				"samples": 317760,
+				"baselineSha256": "7b771769e3d975e6820483c84ac840d724e6ff2e5d26241c05b4821a71679b64",
+				"streamedSha256": "7b771769e3d975e6820483c84ac840d724e6ff2e5d26241c05b4821a71679b64",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 7,
+				"type": "chirp",
+				"options": {
+					"sampleRate": 48000,
+					"durationSeconds": 0.206875,
+					"channelCount": 32,
+					"amplitude": 0.18677856004796922,
+					"startFrequency": 19602.69937414659,
+					"endFrequency": 9791.630339547648,
+					"startAmplitude": 0.3875966004561633,
+					"endAmplitude": 0.4674422680400312,
+					"waveform": "square",
+					"interpolation": "linear"
+				},
+				"frameCount": 9930,
+				"channelCount": 32,
+				"samples": 317760,
+				"baselineSha256": "6c97a79a2bd9bbf0cc4e89fc5478af987009be39f442cd79390596a972a63e31",
+				"streamedSha256": "6c97a79a2bd9bbf0cc4e89fc5478af987009be39f442cd79390596a972a63e31",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 7,
+				"type": "noise",
+				"options": {
+					"sampleRate": 48000,
+					"durationSeconds": 0.206875,
+					"channelCount": 32,
+					"amplitude": 0.18677856004796922,
+					"color": "pink",
+					"seed": 2147483648
+				},
+				"frameCount": 9930,
+				"channelCount": 32,
+				"samples": 317760,
+				"baselineSha256": "a24dcb0f0aee7236b1658ed889ed3853b61695e9ee738584bd70ca64e857a614",
+				"streamedSha256": "a24dcb0f0aee7236b1658ed889ed3853b61695e9ee738584bd70ca64e857a614",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 7,
+				"type": "dtmf",
+				"options": {
+					"sampleRate": 48000,
+					"durationSeconds": 0.206875,
+					"channelCount": 32,
+					"amplitude": 0.18677856004796922,
+					"sequence": "11AB1#D",
+					"toneSeconds": 0.375,
+					"silenceSeconds": 0.002395833333333333
+				},
+				"frameCount": 126690,
+				"channelCount": 32,
+				"samples": 4054080,
+				"baselineSha256": "0e5f6ee10aa91506a0340a69903465492de94ea61433582055f5d8683142b468",
+				"streamedSha256": "0e5f6ee10aa91506a0340a69903465492de94ea61433582055f5d8683142b468",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 7,
+				"type": "morse",
+				"options": {
+					"sampleRate": 48000,
+					"durationSeconds": 0.206875,
+					"channelCount": 32,
+					"amplitude": 0.18677856004796922,
+					"text": "TEST 123",
+					"wordsPerMinute": 112.30358367785811,
+					"frequency": 23762.74086921288
+				},
+				"frameCount": 40519,
+				"channelCount": 32,
+				"samples": 1296608,
+				"baselineSha256": "16af9fdac3386a3592e06cff2c7afa92d5698feae3038306dd93fe2b992c31f7",
+				"streamedSha256": "16af9fdac3386a3592e06cff2c7afa92d5698feae3038306dd93fe2b992c31f7",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 8,
+				"type": "silence",
+				"options": {
+					"sampleRate": 8000,
+					"durationSeconds": 0.218375,
+					"channelCount": 1,
+					"amplitude": 0.6076760033611208
+				},
+				"frameCount": 1747,
+				"channelCount": 1,
+				"samples": 1747,
+				"baselineSha256": "30b6331be7652e670bf78a3d35b487a1f4f8b5f8d3e7da4412af3899558cab15",
+				"streamedSha256": "30b6331be7652e670bf78a3d35b487a1f4f8b5f8d3e7da4412af3899558cab15",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 8,
+				"type": "tone",
+				"options": {
+					"sampleRate": 8000,
+					"durationSeconds": 0.218375,
+					"channelCount": 1,
+					"amplitude": 0.6076760033611208,
+					"frequency": 542.2592142833862,
+					"waveform": "sawtooth"
+				},
+				"frameCount": 1747,
+				"channelCount": 1,
+				"samples": 1747,
+				"baselineSha256": "65afb00f72fdb9a99ea028c4b9db859a6f6d408cdf7952aa1a51b3f620418a96",
+				"streamedSha256": "65afb00f72fdb9a99ea028c4b9db859a6f6d408cdf7952aa1a51b3f620418a96",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 8,
+				"type": "chirp",
+				"options": {
+					"sampleRate": 8000,
+					"durationSeconds": 0.218375,
+					"channelCount": 1,
+					"amplitude": 0.6076760033611208,
+					"startFrequency": 2574.154584188212,
+					"endFrequency": 3670.1154145686,
+					"startAmplitude": 0.6079876024741679,
+					"endAmplitude": 0.80007628723979,
+					"waveform": "sawtooth",
+					"interpolation": "logarithmic"
+				},
+				"frameCount": 1747,
+				"channelCount": 1,
+				"samples": 1747,
+				"baselineSha256": "97dda296f47d0074b1c9e773659ea07f080f80566eb7603552d5ac8fc9d08713",
+				"streamedSha256": "97dda296f47d0074b1c9e773659ea07f080f80566eb7603552d5ac8fc9d08713",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 8,
+				"type": "noise",
+				"options": {
+					"sampleRate": 8000,
+					"durationSeconds": 0.218375,
+					"channelCount": 1,
+					"amplitude": 0.6076760033611208,
+					"color": "brown",
+					"seed": 4294967295
+				},
+				"frameCount": 1747,
+				"channelCount": 1,
+				"samples": 1747,
+				"baselineSha256": "a54376390c026a016a098407dc91b39d66c7c29f1023b2a374b8ef7525c309a6",
+				"streamedSha256": "a54376390c026a016a098407dc91b39d66c7c29f1023b2a374b8ef7525c309a6",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 8,
+				"type": "dtmf",
+				"options": {
+					"sampleRate": 8000,
+					"durationSeconds": 0.218375,
+					"channelCount": 1,
+					"amplitude": 0.6076760033611208,
+					"sequence": "11AB1#D",
+					"toneSeconds": 0.027375,
+					"silenceSeconds": 0.011875
+				},
+				"frameCount": 2103,
+				"channelCount": 1,
+				"samples": 2103,
+				"baselineSha256": "233832f8b47a8465cbcf0839e7a24c1c4c8dd545ea36fb4a9a674f47bd4b009d",
+				"streamedSha256": "233832f8b47a8465cbcf0839e7a24c1c4c8dd545ea36fb4a9a674f47bd4b009d",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 8,
+				"type": "morse",
+				"options": {
+					"sampleRate": 8000,
+					"durationSeconds": 0.218375,
+					"channelCount": 1,
+					"amplitude": 0.6076760033611208,
+					"text": "SOS",
+					"wordsPerMinute": 117.19847443280742,
+					"frequency": 3698.3084807629043
+				},
+				"frameCount": 2212,
+				"channelCount": 1,
+				"samples": 2212,
+				"baselineSha256": "9ce8211621f15373aaf6ca2d326a5a43713c0f6b13db061c1d9044bbb65877c4",
+				"streamedSha256": "9ce8211621f15373aaf6ca2d326a5a43713c0f6b13db061c1d9044bbb65877c4",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 9,
+				"type": "silence",
+				"options": {
+					"sampleRate": 11025,
+					"durationSeconds": 1.4219501133786847,
+					"channelCount": 2,
+					"amplitude": 0.7846613950096071
+				},
+				"frameCount": 15677,
+				"channelCount": 2,
+				"samples": 31354,
+				"baselineSha256": "3f2e4efb1534688c0998b1f839da1b55968dc086a6ce55e35c052738e2872389",
+				"streamedSha256": "3f2e4efb1534688c0998b1f839da1b55968dc086a6ce55e35c052738e2872389",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 9,
+				"type": "tone",
+				"options": {
+					"sampleRate": 11025,
+					"durationSeconds": 1.4219501133786847,
+					"channelCount": 2,
+					"amplitude": 0.7846613950096071,
+					"frequency": 4104.58987312536,
+					"waveform": "sine"
+				},
+				"frameCount": 15677,
+				"channelCount": 2,
+				"samples": 31354,
+				"baselineSha256": "540c3b3e6b8c804b29a3fc17724b3cd044c5c72424de7f8e72e10bee60262ef8",
+				"streamedSha256": "540c3b3e6b8c804b29a3fc17724b3cd044c5c72424de7f8e72e10bee60262ef8",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 9,
+				"type": "chirp",
+				"options": {
+					"sampleRate": 11025,
+					"durationSeconds": 1.4219501133786847,
+					"channelCount": 2,
+					"amplitude": 0.7846613950096071,
+					"startFrequency": 2521.1363292824294,
+					"endFrequency": 2379.751174871938,
+					"startAmplitude": 0.4496472650207579,
+					"endAmplitude": 0.3498766499105841,
+					"waveform": "sine",
+					"interpolation": "linear"
+				},
+				"frameCount": 15677,
+				"channelCount": 2,
+				"samples": 31354,
+				"baselineSha256": "109078a5842f08750d0301573602b89f0ff51959fb46f100691ef7c5abac1cbc",
+				"streamedSha256": "109078a5842f08750d0301573602b89f0ff51959fb46f100691ef7c5abac1cbc",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 9,
+				"type": "noise",
+				"options": {
+					"sampleRate": 11025,
+					"durationSeconds": 1.4219501133786847,
+					"channelCount": 2,
+					"amplitude": 0.7846613950096071,
+					"color": "white",
+					"seed": 1502708769
+				},
+				"frameCount": 15677,
+				"channelCount": 2,
+				"samples": 31354,
+				"baselineSha256": "5fa2ab393fb609591e6d6dcf518d644d39558ad5d814ad88df68fcaea058006e",
+				"streamedSha256": "5fa2ab393fb609591e6d6dcf518d644d39558ad5d814ad88df68fcaea058006e",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 9,
+				"type": "dtmf",
+				"options": {
+					"sampleRate": 11025,
+					"durationSeconds": 1.4219501133786847,
+					"channelCount": 2,
+					"amplitude": 0.7846613950096071,
+					"sequence": "11AB1#D",
+					"toneSeconds": 1.6326530612244898,
+					"silenceSeconds": 0.012063492063492064
+				},
+				"frameCount": 126798,
+				"channelCount": 2,
+				"samples": 253596,
+				"baselineSha256": "2ac6ecc0e70e5768082e281b80a735d0f891e441f3283eb0986b24d762250053",
+				"streamedSha256": "2ac6ecc0e70e5768082e281b80a735d0f891e441f3283eb0986b24d762250053",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 9,
+				"type": "morse",
+				"options": {
+					"sampleRate": 11025,
+					"durationSeconds": 1.4219501133786847,
+					"channelCount": 2,
+					"amplitude": 0.7846613950096071,
+					"text": "P0?",
+					"wordsPerMinute": 107.11864289129153,
+					"frequency": 4803.348703918155
+				},
+				"frameCount": 6299,
+				"channelCount": 2,
+				"samples": 12598,
+				"baselineSha256": "604533b63c82ba39b0ac688a2d085c63074d20178153ef7b86d93aca5d2e7f1d",
+				"streamedSha256": "604533b63c82ba39b0ac688a2d085c63074d20178153ef7b86d93aca5d2e7f1d",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 10,
+				"type": "silence",
+				"options": {
+					"sampleRate": 44100,
+					"durationSeconds": 0.17267573696145125,
+					"channelCount": 7,
+					"amplitude": 0.17429238557815552
+				},
+				"frameCount": 7615,
+				"channelCount": 7,
+				"samples": 53305,
+				"baselineSha256": "ff446274a3951c81b70b7afa543fb681cc5db62208e5283967a2e0166159cb70",
+				"streamedSha256": "ff446274a3951c81b70b7afa543fb681cc5db62208e5283967a2e0166159cb70",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 10,
+				"type": "tone",
+				"options": {
+					"sampleRate": 44100,
+					"durationSeconds": 0.17267573696145125,
+					"channelCount": 7,
+					"amplitude": 0.17429238557815552,
+					"frequency": 5935.2598783453395,
+					"waveform": "square"
+				},
+				"frameCount": 7615,
+				"channelCount": 7,
+				"samples": 53305,
+				"baselineSha256": "9a094dfe8567405324d0046e3beb642c483ffcbd4cbbb196bcde8a1bd9e2e408",
+				"streamedSha256": "9a094dfe8567405324d0046e3beb642c483ffcbd4cbbb196bcde8a1bd9e2e408",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 10,
+				"type": "chirp",
+				"options": {
+					"sampleRate": 44100,
+					"durationSeconds": 0.17267573696145125,
+					"channelCount": 7,
+					"amplitude": 0.17429238557815552,
+					"startFrequency": 11289.499216095131,
+					"endFrequency": 1315.0171867362387,
+					"startAmplitude": 0.4143076064065099,
+					"endAmplitude": 0.6046217686962336,
+					"waveform": "square",
+					"interpolation": "logarithmic"
+				},
+				"frameCount": 7615,
+				"channelCount": 7,
+				"samples": 53305,
+				"baselineSha256": "95aaa2e509efc7cd98947a1dc322d24d8dee5d813eb02dcf76e9b00402848452",
+				"streamedSha256": "95aaa2e509efc7cd98947a1dc322d24d8dee5d813eb02dcf76e9b00402848452",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 10,
+				"type": "noise",
+				"options": {
+					"sampleRate": 44100,
+					"durationSeconds": 0.17267573696145125,
+					"channelCount": 7,
+					"amplitude": 0.17429238557815552,
+					"color": "pink",
+					"seed": 0
+				},
+				"frameCount": 7615,
+				"channelCount": 7,
+				"samples": 53305,
+				"baselineSha256": "8e1e7ba135f2d7d87e879fa70ac4a3f062fb9da63ad908c711fff3970bad5fa7",
+				"streamedSha256": "8e1e7ba135f2d7d87e879fa70ac4a3f062fb9da63ad908c711fff3970bad5fa7",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 10,
+				"type": "dtmf",
+				"options": {
+					"sampleRate": 44100,
+					"durationSeconds": 0.17267573696145125,
+					"channelCount": 7,
+					"amplitude": 0.17429238557815552,
+					"sequence": "11AB1#D",
+					"toneSeconds": 0.006485260770975057,
+					"silenceSeconds": 0.001564625850340136
+				},
+				"frameCount": 2416,
+				"channelCount": 7,
+				"samples": 16912,
+				"baselineSha256": "abc72879b513b7aea36dad7843f94f59a4652342a7dc175d7cda47f4bc617d51",
+				"streamedSha256": "abc72879b513b7aea36dad7843f94f59a4652342a7dc175d7cda47f4bc617d51",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 10,
+				"type": "morse",
+				"options": {
+					"sampleRate": 44100,
+					"durationSeconds": 0.17267573696145125,
+					"channelCount": 7,
+					"amplitude": 0.17429238557815552,
+					"text": "E EE",
+					"wordsPerMinute": 111.71146748587489,
+					"frequency": 20211.740173904935
+				},
+				"frameCount": 6158,
+				"channelCount": 7,
+				"samples": 43106,
+				"baselineSha256": "cfc3f834b1930541984080b2bc0d67671404a11e74f24cae07e443cc68acfb7e",
+				"streamedSha256": "cfc3f834b1930541984080b2bc0d67671404a11e74f24cae07e443cc68acfb7e",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 11,
+				"type": "silence",
+				"options": {
+					"sampleRate": 48000,
+					"durationSeconds": 0.199125,
+					"channelCount": 32,
+					"amplitude": 0.1928065235260874
+				},
+				"frameCount": 9558,
+				"channelCount": 32,
+				"samples": 305856,
+				"baselineSha256": "a14fdfcc43aac45c1f08a62a1b56ca8f88623c1ee1726589bec3ae62bada65b1",
+				"streamedSha256": "a14fdfcc43aac45c1f08a62a1b56ca8f88623c1ee1726589bec3ae62bada65b1",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 11,
+				"type": "tone",
+				"options": {
+					"sampleRate": 48000,
+					"durationSeconds": 0.199125,
+					"channelCount": 32,
+					"amplitude": 0.1928065235260874,
+					"frequency": 12351.37045710423,
+					"waveform": "sawtooth"
+				},
+				"frameCount": 9558,
+				"channelCount": 32,
+				"samples": 305856,
+				"baselineSha256": "9e056325041208ad4e1ec085ab675cd0e8854c85b8291c5fa5fe39a0d4ba119f",
+				"streamedSha256": "9e056325041208ad4e1ec085ab675cd0e8854c85b8291c5fa5fe39a0d4ba119f",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 11,
+				"type": "chirp",
+				"options": {
+					"sampleRate": 48000,
+					"durationSeconds": 0.199125,
+					"channelCount": 32,
+					"amplitude": 0.1928065235260874,
+					"startFrequency": 18496.810406526896,
+					"endFrequency": 5190.813171762271,
+					"startAmplitude": 0.6214667831081897,
+					"endAmplitude": 0.2332211323082447,
+					"waveform": "sawtooth",
+					"interpolation": "linear"
+				},
+				"frameCount": 9558,
+				"channelCount": 32,
+				"samples": 305856,
+				"baselineSha256": "b49d87bfb8e2a9384609b734635f7483b191035a6d5062806d453238f2599f1c",
+				"streamedSha256": "b49d87bfb8e2a9384609b734635f7483b191035a6d5062806d453238f2599f1c",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 11,
+				"type": "noise",
+				"options": {
+					"sampleRate": 48000,
+					"durationSeconds": 0.199125,
+					"channelCount": 32,
+					"amplitude": 0.1928065235260874,
+					"color": "brown",
+					"seed": 1
+				},
+				"frameCount": 9558,
+				"channelCount": 32,
+				"samples": 305856,
+				"baselineSha256": "821aba0cea3dec97cb70f204c630fa888d79aa7ac8a24e74f3cf463db5b50c0b",
+				"streamedSha256": "821aba0cea3dec97cb70f204c630fa888d79aa7ac8a24e74f3cf463db5b50c0b",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 11,
+				"type": "dtmf",
+				"options": {
+					"sampleRate": 48000,
+					"durationSeconds": 0.199125,
+					"channelCount": 32,
+					"amplitude": 0.1928065235260874,
+					"sequence": "11AB1#D",
+					"toneSeconds": 0.375,
+					"silenceSeconds": 0.0026666666666666666
+				},
+				"frameCount": 126768,
+				"channelCount": 32,
+				"samples": 4056576,
+				"baselineSha256": "ad9ae8e84fd0f92d43439924978047457855f3d6a7aec15ecbc5163e5c79a769",
+				"streamedSha256": "ad9ae8e84fd0f92d43439924978047457855f3d6a7aec15ecbc5163e5c79a769",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 11,
+				"type": "morse",
+				"options": {
+					"sampleRate": 48000,
+					"durationSeconds": 0.199125,
+					"channelCount": 32,
+					"amplitude": 0.1928065235260874,
+					"text": "TEST 123",
+					"wordsPerMinute": 119.7496730228886,
+					"frequency": 1256.3797434118553
+				},
+				"frameCount": 37999,
+				"channelCount": 32,
+				"samples": 1215968,
+				"baselineSha256": "3c9d4fbdb2b629daa53f00cba88c5d0cdfdc9a9d223bd392f5d57e6ced4fb916",
+				"streamedSha256": "3c9d4fbdb2b629daa53f00cba88c5d0cdfdc9a9d223bd392f5d57e6ced4fb916",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 12,
+				"type": "silence",
+				"options": {
+					"sampleRate": 8000,
+					"durationSeconds": 0.173125,
+					"channelCount": 1,
+					"amplitude": 0.7055167600046843
+				},
+				"frameCount": 1385,
+				"channelCount": 1,
+				"samples": 1385,
+				"baselineSha256": "69afe952f4099beb8efe6801c3c14f4511fa197d15586d51e668204e452470ee",
+				"streamedSha256": "69afe952f4099beb8efe6801c3c14f4511fa197d15586d51e668204e452470ee",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 12,
+				"type": "tone",
+				"options": {
+					"sampleRate": 8000,
+					"durationSeconds": 0.173125,
+					"channelCount": 1,
+					"amplitude": 0.7055167600046843,
+					"frequency": 2084.0638699613,
+					"waveform": "sine"
+				},
+				"frameCount": 1385,
+				"channelCount": 1,
+				"samples": 1385,
+				"baselineSha256": "3c43b20567763e3265043ef90bc41f06dd05983b0322563385126d58d6d8df91",
+				"streamedSha256": "3c43b20567763e3265043ef90bc41f06dd05983b0322563385126d58d6d8df91",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 12,
+				"type": "chirp",
+				"options": {
+					"sampleRate": 8000,
+					"durationSeconds": 0.173125,
+					"channelCount": 1,
+					"amplitude": 0.7055167600046843,
+					"startFrequency": 1384.5968634699354,
+					"endFrequency": 2154.9068250662276,
+					"startAmplitude": 0.3873091915156692,
+					"endAmplitude": 0.0680755921639502,
+					"waveform": "sine",
+					"interpolation": "logarithmic"
+				},
+				"frameCount": 1385,
+				"channelCount": 1,
+				"samples": 1385,
+				"baselineSha256": "c3309235ff5cd9623073beb3e5f5e6c3dbe6bf0b6d016b735e94b707c85b7b05",
+				"streamedSha256": "c3309235ff5cd9623073beb3e5f5e6c3dbe6bf0b6d016b735e94b707c85b7b05",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 12,
+				"type": "noise",
+				"options": {
+					"sampleRate": 8000,
+					"durationSeconds": 0.173125,
+					"channelCount": 1,
+					"amplitude": 0.7055167600046843,
+					"color": "white",
+					"seed": 2147483648
+				},
+				"frameCount": 1385,
+				"channelCount": 1,
+				"samples": 1385,
+				"baselineSha256": "69b760d5293be9d68d63bcb2310fbf0062162d34ec0d130c195599cd68894997",
+				"streamedSha256": "69b760d5293be9d68d63bcb2310fbf0062162d34ec0d130c195599cd68894997",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 12,
+				"type": "dtmf",
+				"options": {
+					"sampleRate": 8000,
+					"durationSeconds": 0.173125,
+					"channelCount": 1,
+					"amplitude": 0.7055167600046843,
+					"sequence": "11AB1#D",
+					"toneSeconds": 0.09525,
+					"silenceSeconds": 0.015875
+				},
+				"frameCount": 6096,
+				"channelCount": 1,
+				"samples": 6096,
+				"baselineSha256": "f367e612e440ee9e33cc589487771b0caaed542ce6f86e8ec66324b67481a2d4",
+				"streamedSha256": "f367e612e440ee9e33cc589487771b0caaed542ce6f86e8ec66324b67481a2d4",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 12,
+				"type": "morse",
+				"options": {
+					"sampleRate": 8000,
+					"durationSeconds": 0.173125,
+					"channelCount": 1,
+					"amplitude": 0.7055167600046843,
+					"text": "SOS",
+					"wordsPerMinute": 106.31515700602904,
+					"frequency": 506.3420238347398
+				},
+				"frameCount": 2438,
+				"channelCount": 1,
+				"samples": 2438,
+				"baselineSha256": "70df274dce8d5aab5c131bdbe1402455f8acd4b7c28412f642214907f7c8d4c8",
+				"streamedSha256": "70df274dce8d5aab5c131bdbe1402455f8acd4b7c28412f642214907f7c8d4c8",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 13,
+				"type": "silence",
+				"options": {
+					"sampleRate": 11025,
+					"durationSeconds": 0.7419501133786848,
+					"channelCount": 2,
+					"amplitude": 0.85047397762537
+				},
+				"frameCount": 8180,
+				"channelCount": 2,
+				"samples": 16360,
+				"baselineSha256": "8fa38957f253802ba2e3f7722f1edd5351df4fad284a0ffbdc9b43c7ea37562a",
+				"streamedSha256": "8fa38957f253802ba2e3f7722f1edd5351df4fad284a0ffbdc9b43c7ea37562a",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 13,
+				"type": "tone",
+				"options": {
+					"sampleRate": 11025,
+					"durationSeconds": 0.7419501133786848,
+					"channelCount": 2,
+					"amplitude": 0.85047397762537,
+					"frequency": 2390.6382291502855,
+					"waveform": "square"
+				},
+				"frameCount": 8180,
+				"channelCount": 2,
+				"samples": 16360,
+				"baselineSha256": "62d5abf21349b1bc27bd95be6288eb2c5e15be1052b5ff2b9a8b09d2a1a8f6af",
+				"streamedSha256": "62d5abf21349b1bc27bd95be6288eb2c5e15be1052b5ff2b9a8b09d2a1a8f6af",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 13,
+				"type": "chirp",
+				"options": {
+					"sampleRate": 11025,
+					"durationSeconds": 0.7419501133786848,
+					"channelCount": 2,
+					"amplitude": 0.85047397762537,
+					"startFrequency": 4698.0787185617955,
+					"endFrequency": 2746.1564123468684,
+					"startAmplitude": 0.415050913579762,
+					"endAmplitude": 0.8579943261574954,
+					"waveform": "square",
+					"interpolation": "linear"
+				},
+				"frameCount": 8180,
+				"channelCount": 2,
+				"samples": 16360,
+				"baselineSha256": "6491804993821ecbe10dbec89a35e7f46f0545137fb61a7672becb2dd689ff6a",
+				"streamedSha256": "6491804993821ecbe10dbec89a35e7f46f0545137fb61a7672becb2dd689ff6a",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 13,
+				"type": "noise",
+				"options": {
+					"sampleRate": 11025,
+					"durationSeconds": 0.7419501133786848,
+					"channelCount": 2,
+					"amplitude": 0.85047397762537,
+					"color": "pink",
+					"seed": 4294967295
+				},
+				"frameCount": 8180,
+				"channelCount": 2,
+				"samples": 16360,
+				"baselineSha256": "1ff70ff705dcb543cc8b1f217447fb2a0ad23bad35a89bb260aafa16433930d7",
+				"streamedSha256": "1ff70ff705dcb543cc8b1f217447fb2a0ad23bad35a89bb260aafa16433930d7",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 13,
+				"type": "dtmf",
+				"options": {
+					"sampleRate": 11025,
+					"durationSeconds": 0.7419501133786848,
+					"channelCount": 2,
+					"amplitude": 0.85047397762537,
+					"sequence": "11AB1#D",
+					"toneSeconds": 1.6326530612244898,
+					"silenceSeconds": 0.004353741496598639
+				},
+				"frameCount": 126288,
+				"channelCount": 2,
+				"samples": 252576,
+				"baselineSha256": "7b39517a948b9b9aa891fffc4beec99b52b53d5841eb250f75c33f3cbf08b6ef",
+				"streamedSha256": "7b39517a948b9b9aa891fffc4beec99b52b53d5841eb250f75c33f3cbf08b6ef",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 13,
+				"type": "morse",
+				"options": {
+					"sampleRate": 11025,
+					"durationSeconds": 0.7419501133786848,
+					"channelCount": 2,
+					"amplitude": 0.85047397762537,
+					"text": "P0?",
+					"wordsPerMinute": 114.34248501202092,
+					"frequency": 4032.7039033387787
+				},
+				"frameCount": 5901,
+				"channelCount": 2,
+				"samples": 11802,
+				"baselineSha256": "d9594271afbe6e5daf250491ba247022d2acc11521df04d83dcae60a6177f232",
+				"streamedSha256": "d9594271afbe6e5daf250491ba247022d2acc11521df04d83dcae60a6177f232",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 14,
+				"type": "silence",
+				"options": {
+					"sampleRate": 44100,
+					"durationSeconds": 0.06272108843537415,
+					"channelCount": 7,
+					"amplitude": 0.38716874876990914
+				},
+				"frameCount": 2766,
+				"channelCount": 7,
+				"samples": 19362,
+				"baselineSha256": "7f23aa088ed6acdd3d90b3e8b0e379bcec5bbd26fc6e2c6ecfc6405bb534387d",
+				"streamedSha256": "7f23aa088ed6acdd3d90b3e8b0e379bcec5bbd26fc6e2c6ecfc6405bb534387d",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 14,
+				"type": "tone",
+				"options": {
+					"sampleRate": 44100,
+					"durationSeconds": 0.06272108843537415,
+					"channelCount": 7,
+					"amplitude": 0.38716874876990914,
+					"frequency": 6562.400263103226,
+					"waveform": "sawtooth"
+				},
+				"frameCount": 2766,
+				"channelCount": 7,
+				"samples": 19362,
+				"baselineSha256": "b7dc44a5dce282efb308dea000e18a743eb144e2cd2e076d637eea080868097e",
+				"streamedSha256": "b7dc44a5dce282efb308dea000e18a743eb144e2cd2e076d637eea080868097e",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 14,
+				"type": "chirp",
+				"options": {
+					"sampleRate": 44100,
+					"durationSeconds": 0.06272108843537415,
+					"channelCount": 7,
+					"amplitude": 0.38716874876990914,
+					"startFrequency": 11511.858337355789,
+					"endFrequency": 14549.1835817879,
+					"startAmplitude": 0.38297078339383006,
+					"endAmplitude": 0.6792965878266841,
+					"waveform": "sawtooth",
+					"interpolation": "logarithmic"
+				},
+				"frameCount": 2766,
+				"channelCount": 7,
+				"samples": 19362,
+				"baselineSha256": "33d7aa4a79376f1aa61b944db3d6d8d7a17e9268fc3b878f097e7c45e2f98b5d",
+				"streamedSha256": "33d7aa4a79376f1aa61b944db3d6d8d7a17e9268fc3b878f097e7c45e2f98b5d",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 14,
+				"type": "noise",
+				"options": {
+					"sampleRate": 44100,
+					"durationSeconds": 0.06272108843537415,
+					"channelCount": 7,
+					"amplitude": 0.38716874876990914,
+					"color": "brown",
+					"seed": 2917556629
+				},
+				"frameCount": 2766,
+				"channelCount": 7,
+				"samples": 19362,
+				"baselineSha256": "1d239f899f30579f97f1f570bace87492f0bc00f9630c47cd71e1c8d04202416",
+				"streamedSha256": "1d239f899f30579f97f1f570bace87492f0bc00f9630c47cd71e1c8d04202416",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 14,
+				"type": "dtmf",
+				"options": {
+					"sampleRate": 44100,
+					"durationSeconds": 0.06272108843537415,
+					"channelCount": 7,
+					"amplitude": 0.38716874876990914,
+					"sequence": "11AB1#D",
+					"toneSeconds": 0.008820861678004535,
+					"silenceSeconds": 0.0027437641723356007
+				},
+				"frameCount": 3449,
+				"channelCount": 7,
+				"samples": 24143,
+				"baselineSha256": "ac156d163a9b4bdc13c7496a912839d66e2dfc13689d7a34b79b28477e782ff8",
+				"streamedSha256": "ac156d163a9b4bdc13c7496a912839d66e2dfc13689d7a34b79b28477e782ff8",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 14,
+				"type": "morse",
+				"options": {
+					"sampleRate": 44100,
+					"durationSeconds": 0.06272108843537415,
+					"channelCount": 7,
+					"amplitude": 0.38716874876990914,
+					"text": "E EE",
+					"wordsPerMinute": 111.46755093242973,
+					"frequency": 9038.919611332676
+				},
+				"frameCount": 6172,
+				"channelCount": 7,
+				"samples": 43204,
+				"baselineSha256": "9b473678b4caa4a518426dc9e47b36edd667d68c926892080e49123ec99e39c9",
+				"streamedSha256": "9b473678b4caa4a518426dc9e47b36edd667d68c926892080e49123ec99e39c9",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 15,
+				"type": "silence",
+				"options": {
+					"sampleRate": 48000,
+					"durationSeconds": 0.3696041666666667,
+					"channelCount": 32,
+					"amplitude": 0.4651458978187293
+				},
+				"frameCount": 17741,
+				"channelCount": 32,
+				"samples": 567712,
+				"baselineSha256": "981906828c8cd9ee7af70e30871b5873618fa28dab3df2340440bb4daae65f94",
+				"streamedSha256": "981906828c8cd9ee7af70e30871b5873618fa28dab3df2340440bb4daae65f94",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 15,
+				"type": "tone",
+				"options": {
+					"sampleRate": 48000,
+					"durationSeconds": 0.3696041666666667,
+					"channelCount": 32,
+					"amplitude": 0.4651458978187293,
+					"frequency": 5079.24052049222,
+					"waveform": "sine"
+				},
+				"frameCount": 17741,
+				"channelCount": 32,
+				"samples": 567712,
+				"baselineSha256": "e751c099bfde5cc4e0c68c10dd57ef2ca484a3abd16b0e99a951dba3e81248e1",
+				"streamedSha256": "e751c099bfde5cc4e0c68c10dd57ef2ca484a3abd16b0e99a951dba3e81248e1",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 15,
+				"type": "chirp",
+				"options": {
+					"sampleRate": 48000,
+					"durationSeconds": 0.3696041666666667,
+					"channelCount": 32,
+					"amplitude": 0.4651458978187293,
+					"startFrequency": 11370.471299027882,
+					"endFrequency": 6645.413372957949,
+					"startAmplitude": 0.763497477164492,
+					"endAmplitude": 0.8742451989091933,
+					"waveform": "sine",
+					"interpolation": "linear"
+				},
+				"frameCount": 17741,
+				"channelCount": 32,
+				"samples": 567712,
+				"baselineSha256": "178d771e0f910fc313fad31f96f78a4909c34f32d4d6a1c37f3df522330805d3",
+				"streamedSha256": "178d771e0f910fc313fad31f96f78a4909c34f32d4d6a1c37f3df522330805d3",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 15,
+				"type": "noise",
+				"options": {
+					"sampleRate": 48000,
+					"durationSeconds": 0.3696041666666667,
+					"channelCount": 32,
+					"amplitude": 0.4651458978187293,
+					"color": "white",
+					"seed": 0
+				},
+				"frameCount": 17741,
+				"channelCount": 32,
+				"samples": 567712,
+				"baselineSha256": "82407739dfa45b5c7f847cf989c680058e318c4d572b0be11381ca989fd0917f",
+				"streamedSha256": "82407739dfa45b5c7f847cf989c680058e318c4d572b0be11381ca989fd0917f",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 15,
+				"type": "dtmf",
+				"options": {
+					"sampleRate": 48000,
+					"durationSeconds": 0.3696041666666667,
+					"channelCount": 32,
+					"amplitude": 0.4651458978187293,
+					"sequence": "11AB1#D",
+					"toneSeconds": 0.375,
+					"silenceSeconds": 0.0009375
+				},
+				"frameCount": 126270,
+				"channelCount": 32,
+				"samples": 4040640,
+				"baselineSha256": "a2a5881feedf53415b4f54bc5cff935cc2c62526125332fd748b46cdd785b972",
+				"streamedSha256": "a2a5881feedf53415b4f54bc5cff935cc2c62526125332fd748b46cdd785b972",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 15,
+				"type": "morse",
+				"options": {
+					"sampleRate": 48000,
+					"durationSeconds": 0.3696041666666667,
+					"channelCount": 32,
+					"amplitude": 0.4651458978187293,
+					"text": "TEST 123",
+					"wordsPerMinute": 105.458629662171,
+					"frequency": 10096.377296725375
+				},
+				"frameCount": 43149,
+				"channelCount": 32,
+				"samples": 1380768,
+				"baselineSha256": "50e5d20c01b9cfb63ed51884b76e818969c65f397f3b01485f352527cbc3a283",
+				"streamedSha256": "50e5d20c01b9cfb63ed51884b76e818969c65f397f3b01485f352527cbc3a283",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 16,
+				"type": "silence",
+				"options": {
+					"sampleRate": 8000,
+					"durationSeconds": 0.555375,
+					"channelCount": 1,
+					"amplitude": 0.7871980157215148
+				},
+				"frameCount": 4443,
+				"channelCount": 1,
+				"samples": 4443,
+				"baselineSha256": "7b3dcebfaf401ac26f18f5da6a9095d6f33e4f42f9a130d5b53ca5d2c4a4e91d",
+				"streamedSha256": "7b3dcebfaf401ac26f18f5da6a9095d6f33e4f42f9a130d5b53ca5d2c4a4e91d",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 16,
+				"type": "tone",
+				"options": {
+					"sampleRate": 8000,
+					"durationSeconds": 0.555375,
+					"channelCount": 1,
+					"amplitude": 0.7871980157215148,
+					"frequency": 52.757177339643235,
+					"waveform": "square"
+				},
+				"frameCount": 4443,
+				"channelCount": 1,
+				"samples": 4443,
+				"baselineSha256": "7d3c5f760f66273a566f2bf81e4572a6f59c290a64ba0b7f50fbb5aba98740bf",
+				"streamedSha256": "7d3c5f760f66273a566f2bf81e4572a6f59c290a64ba0b7f50fbb5aba98740bf",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 16,
+				"type": "chirp",
+				"options": {
+					"sampleRate": 8000,
+					"durationSeconds": 0.555375,
+					"channelCount": 1,
+					"amplitude": 0.7871980157215148,
+					"startFrequency": 159.14080036215717,
+					"endFrequency": 2801.942350361082,
+					"startAmplitude": 0.7623754835221916,
+					"endAmplitude": 0.2877777488902211,
+					"waveform": "square",
+					"interpolation": "logarithmic"
+				},
+				"frameCount": 4443,
+				"channelCount": 1,
+				"samples": 4443,
+				"baselineSha256": "22154b5234100f8e42aba2227d884a99671af22992b2a58993cbbe93ada2b6eb",
+				"streamedSha256": "22154b5234100f8e42aba2227d884a99671af22992b2a58993cbbe93ada2b6eb",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 16,
+				"type": "noise",
+				"options": {
+					"sampleRate": 8000,
+					"durationSeconds": 0.555375,
+					"channelCount": 1,
+					"amplitude": 0.7871980157215148,
+					"color": "pink",
+					"seed": 1
+				},
+				"frameCount": 4443,
+				"channelCount": 1,
+				"samples": 4443,
+				"baselineSha256": "92adb32023bc13c2644902dfd4a33a738ec35f814ade5ca4af970afed93adf92",
+				"streamedSha256": "92adb32023bc13c2644902dfd4a33a738ec35f814ade5ca4af970afed93adf92",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 16,
+				"type": "dtmf",
+				"options": {
+					"sampleRate": 8000,
+					"durationSeconds": 0.555375,
+					"channelCount": 1,
+					"amplitude": 0.7871980157215148,
+					"sequence": "11AB1#D",
+					"toneSeconds": 0.06175,
+					"silenceSeconds": 0.000375
+				},
+				"frameCount": 3476,
+				"channelCount": 1,
+				"samples": 3476,
+				"baselineSha256": "834d2940436e265829db79fc410d0ddb870238f709fe7004b87b78652516eedb",
+				"streamedSha256": "834d2940436e265829db79fc410d0ddb870238f709fe7004b87b78652516eedb",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 16,
+				"type": "morse",
+				"options": {
+					"sampleRate": 8000,
+					"durationSeconds": 0.555375,
+					"channelCount": 1,
+					"amplitude": 0.7871980157215148,
+					"text": "SOS",
+					"wordsPerMinute": 98.77719538053498,
+					"frequency": 2429.713814719971
+				},
+				"frameCount": 2624,
+				"channelCount": 1,
+				"samples": 2624,
+				"baselineSha256": "f3e2a8de1126513731ca8b0a5356ee8b30a1af3764bf3b1a404bff7de9cf1a02",
+				"streamedSha256": "f3e2a8de1126513731ca8b0a5356ee8b30a1af3764bf3b1a404bff7de9cf1a02",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 17,
+				"type": "silence",
+				"options": {
+					"sampleRate": 11025,
+					"durationSeconds": 0.978140589569161,
+					"channelCount": 2,
+					"amplitude": 0.4513783068396151
+				},
+				"frameCount": 10784,
+				"channelCount": 2,
+				"samples": 21568,
+				"baselineSha256": "e539dffc53dc4852b96e4b09d07232e314996d512f5ce4d0a96f34af141ce2c4",
+				"streamedSha256": "e539dffc53dc4852b96e4b09d07232e314996d512f5ce4d0a96f34af141ce2c4",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 17,
+				"type": "tone",
+				"options": {
+					"sampleRate": 11025,
+					"durationSeconds": 0.978140589569161,
+					"channelCount": 2,
+					"amplitude": 0.4513783068396151,
+					"frequency": 3926.3371371765456,
+					"waveform": "sawtooth"
+				},
+				"frameCount": 10784,
+				"channelCount": 2,
+				"samples": 21568,
+				"baselineSha256": "6f47cf0196876a59e8d77d3c306068d6f99f4e1934020185b4d6ef77d261aba1",
+				"streamedSha256": "6f47cf0196876a59e8d77d3c306068d6f99f4e1934020185b4d6ef77d261aba1",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 17,
+				"type": "chirp",
+				"options": {
+					"sampleRate": 11025,
+					"durationSeconds": 0.978140589569161,
+					"channelCount": 2,
+					"amplitude": 0.4513783068396151,
+					"startFrequency": 647.5911295273062,
+					"endFrequency": 3986.3587789516037,
+					"startAmplitude": 0.9640991198830307,
+					"endAmplitude": 0.3235912744421512,
+					"waveform": "sawtooth",
+					"interpolation": "linear"
+				},
+				"frameCount": 10784,
+				"channelCount": 2,
+				"samples": 21568,
+				"baselineSha256": "37a622ef83b1d5010d7e02282d47d5c57edeee24839ee2886cce60db73acb8d2",
+				"streamedSha256": "37a622ef83b1d5010d7e02282d47d5c57edeee24839ee2886cce60db73acb8d2",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 17,
+				"type": "noise",
+				"options": {
+					"sampleRate": 11025,
+					"durationSeconds": 0.978140589569161,
+					"channelCount": 2,
+					"amplitude": 0.4513783068396151,
+					"color": "brown",
+					"seed": 2147483648
+				},
+				"frameCount": 10784,
+				"channelCount": 2,
+				"samples": 21568,
+				"baselineSha256": "6ab8d30087f3afb03f110cfe7687c5924a1204b88dbffb07b22cd17fabcbe446",
+				"streamedSha256": "6ab8d30087f3afb03f110cfe7687c5924a1204b88dbffb07b22cd17fabcbe446",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 17,
+				"type": "dtmf",
+				"options": {
+					"sampleRate": 11025,
+					"durationSeconds": 0.978140589569161,
+					"channelCount": 2,
+					"amplitude": 0.4513783068396151,
+					"sequence": "11AB1#D",
+					"toneSeconds": 1.6326530612244898,
+					"silenceSeconds": 0
+				},
+				"frameCount": 126000,
+				"channelCount": 2,
+				"samples": 252000,
+				"baselineSha256": "a1ea4463f12df65dfae237bbb7fdc561a632dc774c8aaabb2756126ef3966d87",
+				"streamedSha256": "a1ea4463f12df65dfae237bbb7fdc561a632dc774c8aaabb2756126ef3966d87",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 17,
+				"type": "morse",
+				"options": {
+					"sampleRate": 11025,
+					"durationSeconds": 0.978140589569161,
+					"channelCount": 2,
+					"amplitude": 0.4513783068396151,
+					"text": "P0?",
+					"wordsPerMinute": 108.10709360288456,
+					"frequency": 1297.5363330989378
+				},
+				"frameCount": 6241,
+				"channelCount": 2,
+				"samples": 12482,
+				"baselineSha256": "cccc10c0f68d3e811d9b0ffe66ad578e1ad944ddb0146af53e3cd4e50a308922",
+				"streamedSha256": "cccc10c0f68d3e811d9b0ffe66ad578e1ad944ddb0146af53e3cd4e50a308922",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 18,
+				"type": "silence",
+				"options": {
+					"sampleRate": 44100,
+					"durationSeconds": 0.02977324263038549,
+					"channelCount": 7,
+					"amplitude": 0.6357983807101846
+				},
+				"frameCount": 1313,
+				"channelCount": 7,
+				"samples": 9191,
+				"baselineSha256": "d328929959de4d1a10e7f040d5a3d8c2b19caf0ef2d2ef9bde68084def944513",
+				"streamedSha256": "d328929959de4d1a10e7f040d5a3d8c2b19caf0ef2d2ef9bde68084def944513",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 18,
+				"type": "tone",
+				"options": {
+					"sampleRate": 44100,
+					"durationSeconds": 0.02977324263038549,
+					"channelCount": 7,
+					"amplitude": 0.6357983807101846,
+					"frequency": 11812.621664544953,
+					"waveform": "sine"
+				},
+				"frameCount": 1313,
+				"channelCount": 7,
+				"samples": 9191,
+				"baselineSha256": "07e1b902702a5c7db74cc18f17fc4af5ceacf97efcad7399866f8ca8109dd702",
+				"streamedSha256": "07e1b902702a5c7db74cc18f17fc4af5ceacf97efcad7399866f8ca8109dd702",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 18,
+				"type": "chirp",
+				"options": {
+					"sampleRate": 44100,
+					"durationSeconds": 0.02977324263038549,
+					"channelCount": 7,
+					"amplitude": 0.6357983807101846,
+					"startFrequency": 19653.413126163246,
+					"endFrequency": 379.98331622193336,
+					"startAmplitude": 0.9263637196272612,
+					"endAmplitude": 0.8064805397298187,
+					"waveform": "sine",
+					"interpolation": "logarithmic"
+				},
+				"frameCount": 1313,
+				"channelCount": 7,
+				"samples": 9191,
+				"baselineSha256": "a3f8df6a7298b761fb3a97f25dcd904895b2e45356055ebdbecf2d168da1d358",
+				"streamedSha256": "a3f8df6a7298b761fb3a97f25dcd904895b2e45356055ebdbecf2d168da1d358",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 18,
+				"type": "noise",
+				"options": {
+					"sampleRate": 44100,
+					"durationSeconds": 0.02977324263038549,
+					"channelCount": 7,
+					"amplitude": 0.6357983807101846,
+					"color": "white",
+					"seed": 4294967295
+				},
+				"frameCount": 1313,
+				"channelCount": 7,
+				"samples": 9191,
+				"baselineSha256": "e5b47f555ea96ece3afa61753b9faa7fe8432965b496145624b28860a0a09557",
+				"streamedSha256": "e5b47f555ea96ece3afa61753b9faa7fe8432965b496145624b28860a0a09557",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 18,
+				"type": "dtmf",
+				"options": {
+					"sampleRate": 44100,
+					"durationSeconds": 0.02977324263038549,
+					"channelCount": 7,
+					"amplitude": 0.6357983807101846,
+					"sequence": "11AB1#D",
+					"toneSeconds": 0.00582766439909297,
+					"silenceSeconds": 0.0010204081632653062
+				},
+				"frameCount": 2069,
+				"channelCount": 7,
+				"samples": 14483,
+				"baselineSha256": "3851cdadec90528f80614f3b76282d983d037b05114e7d1a03308676bf5b6958",
+				"streamedSha256": "3851cdadec90528f80614f3b76282d983d037b05114e7d1a03308676bf5b6958",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 18,
+				"type": "morse",
+				"options": {
+					"sampleRate": 44100,
+					"durationSeconds": 0.02977324263038549,
+					"channelCount": 7,
+					"amplitude": 0.6357983807101846,
+					"text": "E EE",
+					"wordsPerMinute": 99.13646028377116,
+					"frequency": 2672.3830656357045
+				},
+				"frameCount": 6940,
+				"channelCount": 7,
+				"samples": 48580,
+				"baselineSha256": "11f6066550b17ef93256b8b3ad8393c238e939d50d5ee4d96dbfec8b0885ebe6",
+				"streamedSha256": "11f6066550b17ef93256b8b3ad8393c238e939d50d5ee4d96dbfec8b0885ebe6",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 19,
+				"type": "silence",
+				"options": {
+					"sampleRate": 48000,
+					"durationSeconds": 0.0975,
+					"channelCount": 32,
+					"amplitude": 0.01883830246515572
+				},
+				"frameCount": 4680,
+				"channelCount": 32,
+				"samples": 149760,
+				"baselineSha256": "086f5c0d1dbcbe2a8946eeed678de3a910a0f7d5981c3cb6a8418dbcda19cb64",
+				"streamedSha256": "086f5c0d1dbcbe2a8946eeed678de3a910a0f7d5981c3cb6a8418dbcda19cb64",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 19,
+				"type": "tone",
+				"options": {
+					"sampleRate": 48000,
+					"durationSeconds": 0.0975,
+					"channelCount": 32,
+					"amplitude": 0.01883830246515572,
+					"frequency": 1475.5002533037216,
+					"waveform": "square"
+				},
+				"frameCount": 4680,
+				"channelCount": 32,
+				"samples": 149760,
+				"baselineSha256": "65ea9dc4ae544b6c0de8c966f14fb03e33a396abaa46f9b05ea5a36fba34e87b",
+				"streamedSha256": "65ea9dc4ae544b6c0de8c966f14fb03e33a396abaa46f9b05ea5a36fba34e87b",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 19,
+				"type": "chirp",
+				"options": {
+					"sampleRate": 48000,
+					"durationSeconds": 0.0975,
+					"channelCount": 32,
+					"amplitude": 0.01883830246515572,
+					"startFrequency": 5102.849364695701,
+					"endFrequency": 20898.239098214464,
+					"startAmplitude": 0.8728897145483643,
+					"endAmplitude": 0.9881765889003873,
+					"waveform": "square",
+					"interpolation": "linear"
+				},
+				"frameCount": 4680,
+				"channelCount": 32,
+				"samples": 149760,
+				"baselineSha256": "f5aad4d242ed5a73a02cac815dc229d5de79829d44b1a6825c2135f6e3c16f0f",
+				"streamedSha256": "f5aad4d242ed5a73a02cac815dc229d5de79829d44b1a6825c2135f6e3c16f0f",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 19,
+				"type": "noise",
+				"options": {
+					"sampleRate": 48000,
+					"durationSeconds": 0.0975,
+					"channelCount": 32,
+					"amplitude": 0.01883830246515572,
+					"color": "pink",
+					"seed": 4244186132
+				},
+				"frameCount": 4680,
+				"channelCount": 32,
+				"samples": 149760,
+				"baselineSha256": "9fb187959a05706694a955627ac289c540d665991fdb814b8a3c45adfc54f27d",
+				"streamedSha256": "9fb187959a05706694a955627ac289c540d665991fdb814b8a3c45adfc54f27d",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 19,
+				"type": "dtmf",
+				"options": {
+					"sampleRate": 48000,
+					"durationSeconds": 0.0975,
+					"channelCount": 32,
+					"amplitude": 0.01883830246515572,
+					"sequence": "11AB1#D",
+					"toneSeconds": 0.375,
+					"silenceSeconds": 0.003625
+				},
+				"frameCount": 127044,
+				"channelCount": 32,
+				"samples": 4065408,
+				"baselineSha256": "6c0b24842bd6a1ee53191c3821dc6ba2e418a27ba70cd5665315d29d98464292",
+				"streamedSha256": "6c0b24842bd6a1ee53191c3821dc6ba2e418a27ba70cd5665315d29d98464292",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 19,
+				"type": "morse",
+				"options": {
+					"sampleRate": 48000,
+					"durationSeconds": 0.0975,
+					"channelCount": 32,
+					"amplitude": 0.01883830246515572,
+					"text": "TEST 123",
+					"wordsPerMinute": 105.13191175181419,
+					"frequency": 17992.58465848234
+				},
+				"frameCount": 43283,
+				"channelCount": 32,
+				"samples": 1385056,
+				"baselineSha256": "885e790ce99f421d53b80e092b82704f160b331a5081942c29f946a362314f8b",
+				"streamedSha256": "885e790ce99f421d53b80e092b82704f160b331a5081942c29f946a362314f8b",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 20,
+				"type": "silence",
+				"options": {
+					"sampleRate": 8000,
+					"durationSeconds": 1.55975,
+					"channelCount": 1,
+					"amplitude": 0.04790689214132726
+				},
+				"frameCount": 12478,
+				"channelCount": 1,
+				"samples": 12478,
+				"baselineSha256": "a7bf8de8eac5a2859528b28f3eae600dc269b227acc72a7e9ee10fb5b33fff55",
+				"streamedSha256": "a7bf8de8eac5a2859528b28f3eae600dc269b227acc72a7e9ee10fb5b33fff55",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 20,
+				"type": "tone",
+				"options": {
+					"sampleRate": 8000,
+					"durationSeconds": 1.55975,
+					"channelCount": 1,
+					"amplitude": 0.04790689214132726,
+					"frequency": 1822.8435053253313,
+					"waveform": "sawtooth"
+				},
+				"frameCount": 12478,
+				"channelCount": 1,
+				"samples": 12478,
+				"baselineSha256": "0f04a6fc09690bc51e5005c7e935e0ef153a13886149fe136ae1beaba5aae0e0",
+				"streamedSha256": "0f04a6fc09690bc51e5005c7e935e0ef153a13886149fe136ae1beaba5aae0e0",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 20,
+				"type": "chirp",
+				"options": {
+					"sampleRate": 8000,
+					"durationSeconds": 1.55975,
+					"channelCount": 1,
+					"amplitude": 0.04790689214132726,
+					"startFrequency": 470.1311778679094,
+					"endFrequency": 3354.1901126383336,
+					"startAmplitude": 0.888521934626624,
+					"endAmplitude": 0.20930235413834453,
+					"waveform": "sawtooth",
+					"interpolation": "logarithmic"
+				},
+				"frameCount": 12478,
+				"channelCount": 1,
+				"samples": 12478,
+				"baselineSha256": "c375163a38900fde99093b0aa65e2616dd3709cfe7cff75a5149d9402b69db89",
+				"streamedSha256": "c375163a38900fde99093b0aa65e2616dd3709cfe7cff75a5149d9402b69db89",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 20,
+				"type": "noise",
+				"options": {
+					"sampleRate": 8000,
+					"durationSeconds": 1.55975,
+					"channelCount": 1,
+					"amplitude": 0.04790689214132726,
+					"color": "brown",
+					"seed": 0
+				},
+				"frameCount": 12478,
+				"channelCount": 1,
+				"samples": 12478,
+				"baselineSha256": "4122eab15b6129a8e658e62efcb4c42e755146f087d52216896c8ede04eaeffd",
+				"streamedSha256": "4122eab15b6129a8e658e62efcb4c42e755146f087d52216896c8ede04eaeffd",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 20,
+				"type": "dtmf",
+				"options": {
+					"sampleRate": 8000,
+					"durationSeconds": 1.55975,
+					"channelCount": 1,
+					"amplitude": 0.04790689214132726,
+					"sequence": "11AB1#D",
+					"toneSeconds": 0.02975,
+					"silenceSeconds": 0.015875
+				},
+				"frameCount": 2428,
+				"channelCount": 1,
+				"samples": 2428,
+				"baselineSha256": "260cf1e3cfa5132b2d11b0c2c6eee01848bec007451d6651bebbda975cbe5625",
+				"streamedSha256": "260cf1e3cfa5132b2d11b0c2c6eee01848bec007451d6651bebbda975cbe5625",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 20,
+				"type": "morse",
+				"options": {
+					"sampleRate": 8000,
+					"durationSeconds": 1.55975,
+					"channelCount": 1,
+					"amplitude": 0.04790689214132726,
+					"text": "SOS",
+					"wordsPerMinute": 116.78468371974304,
+					"frequency": 366.76167969055007
+				},
+				"frameCount": 2219,
+				"channelCount": 1,
+				"samples": 2219,
+				"baselineSha256": "eefcbdf2e77b9c9d176f64d3ad2d381a3b5e3cb196a086bb3b7d47847dba746b",
+				"streamedSha256": "eefcbdf2e77b9c9d176f64d3ad2d381a3b5e3cb196a086bb3b7d47847dba746b",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 21,
+				"type": "silence",
+				"options": {
+					"sampleRate": 11025,
+					"durationSeconds": 0.9851247165532879,
+					"channelCount": 2,
+					"amplitude": 0.49220546428114176
+				},
+				"frameCount": 10861,
+				"channelCount": 2,
+				"samples": 21722,
+				"baselineSha256": "96cad4fad043f4496cd2667f5be42d68349e828283258518518737c57c88b9ef",
+				"streamedSha256": "96cad4fad043f4496cd2667f5be42d68349e828283258518518737c57c88b9ef",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 21,
+				"type": "tone",
+				"options": {
+					"sampleRate": 11025,
+					"durationSeconds": 0.9851247165532879,
+					"channelCount": 2,
+					"amplitude": 0.49220546428114176,
+					"frequency": 2957.463863559,
+					"waveform": "sine"
+				},
+				"frameCount": 10861,
+				"channelCount": 2,
+				"samples": 21722,
+				"baselineSha256": "9671e0c4d1e8879e0331b3405fc25a133d1cad3fe3933e9923594af1694a06dc",
+				"streamedSha256": "9671e0c4d1e8879e0331b3405fc25a133d1cad3fe3933e9923594af1694a06dc",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 21,
+				"type": "chirp",
+				"options": {
+					"sampleRate": 11025,
+					"durationSeconds": 0.9851247165532879,
+					"channelCount": 2,
+					"amplitude": 0.49220546428114176,
+					"startFrequency": 4398.752883648328,
+					"endFrequency": 2794.467072043524,
+					"startAmplitude": 0.06978254579007626,
+					"endAmplitude": 0.0280991995241493,
+					"waveform": "sine",
+					"interpolation": "linear"
+				},
+				"frameCount": 10861,
+				"channelCount": 2,
+				"samples": 21722,
+				"baselineSha256": "ee84e1da4a0ea35aaab3dc71b7fefb51b9bc9e35f94710c7693da31d316cd243",
+				"streamedSha256": "ee84e1da4a0ea35aaab3dc71b7fefb51b9bc9e35f94710c7693da31d316cd243",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 21,
+				"type": "noise",
+				"options": {
+					"sampleRate": 11025,
+					"durationSeconds": 0.9851247165532879,
+					"channelCount": 2,
+					"amplitude": 0.49220546428114176,
+					"color": "white",
+					"seed": 1
+				},
+				"frameCount": 10861,
+				"channelCount": 2,
+				"samples": 21722,
+				"baselineSha256": "6a6ace062493720c0fbdc9dd0e241a28cd6dcd383b14bb851a446de7a4a18382",
+				"streamedSha256": "6a6ace062493720c0fbdc9dd0e241a28cd6dcd383b14bb851a446de7a4a18382",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 21,
+				"type": "dtmf",
+				"options": {
+					"sampleRate": 11025,
+					"durationSeconds": 0.9851247165532879,
+					"channelCount": 2,
+					"amplitude": 0.49220546428114176,
+					"sequence": "11AB1#D",
+					"toneSeconds": 1.6326530612244898,
+					"silenceSeconds": 0.000997732426303855
+				},
+				"frameCount": 126066,
+				"channelCount": 2,
+				"samples": 252132,
+				"baselineSha256": "73ddfaa3203cbdf16c023ba2e358c1f75cb07ea8b9ac45dc64ad0117dfc6fdd8",
+				"streamedSha256": "73ddfaa3203cbdf16c023ba2e358c1f75cb07ea8b9ac45dc64ad0117dfc6fdd8",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 21,
+				"type": "morse",
+				"options": {
+					"sampleRate": 11025,
+					"durationSeconds": 0.9851247165532879,
+					"channelCount": 2,
+					"amplitude": 0.49220546428114176,
+					"text": "P0?",
+					"wordsPerMinute": 94.43777673644945,
+					"frequency": 3198.0402271469216
+				},
+				"frameCount": 7145,
+				"channelCount": 2,
+				"samples": 14290,
+				"baselineSha256": "158e65a7e086210be96d9a3dd62ad5d75f1e2165b55f467e2e0404b53578761c",
+				"streamedSha256": "158e65a7e086210be96d9a3dd62ad5d75f1e2165b55f467e2e0404b53578761c",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 22,
+				"type": "silence",
+				"options": {
+					"sampleRate": 44100,
+					"durationSeconds": 0.044126984126984126,
+					"channelCount": 7,
+					"amplitude": 0.007453359197825193
+				},
+				"frameCount": 1946,
+				"channelCount": 7,
+				"samples": 13622,
+				"baselineSha256": "d084922638bf91b8327bda357f90eeba0664c001e3d07d98bf9f8f0d6bd4d051",
+				"streamedSha256": "d084922638bf91b8327bda357f90eeba0664c001e3d07d98bf9f8f0d6bd4d051",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 22,
+				"type": "tone",
+				"options": {
+					"sampleRate": 44100,
+					"durationSeconds": 0.044126984126984126,
+					"channelCount": 7,
+					"amplitude": 0.007453359197825193,
+					"frequency": 11880.252070913322,
+					"waveform": "square"
+				},
+				"frameCount": 1946,
+				"channelCount": 7,
+				"samples": 13622,
+				"baselineSha256": "520a0cc0f2cd7c389fca07b8cc31707b3086dbfbb70daf4301c8cb12bcda48da",
+				"streamedSha256": "520a0cc0f2cd7c389fca07b8cc31707b3086dbfbb70daf4301c8cb12bcda48da",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 22,
+				"type": "chirp",
+				"options": {
+					"sampleRate": 44100,
+					"durationSeconds": 0.044126984126984126,
+					"channelCount": 7,
+					"amplitude": 0.007453359197825193,
+					"startFrequency": 4906.633437516988,
+					"endFrequency": 18586.579403865842,
+					"startAmplitude": 0.13029603334143758,
+					"endAmplitude": 0.24096562922932208,
+					"waveform": "square",
+					"interpolation": "logarithmic"
+				},
+				"frameCount": 1946,
+				"channelCount": 7,
+				"samples": 13622,
+				"baselineSha256": "5a57e80769cbdb20cc006655dab1c5c4931844ba32bdc633a8fb46215fdee9f9",
+				"streamedSha256": "5a57e80769cbdb20cc006655dab1c5c4931844ba32bdc633a8fb46215fdee9f9",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 22,
+				"type": "noise",
+				"options": {
+					"sampleRate": 44100,
+					"durationSeconds": 0.044126984126984126,
+					"channelCount": 7,
+					"amplitude": 0.007453359197825193,
+					"color": "pink",
+					"seed": 2147483648
+				},
+				"frameCount": 1946,
+				"channelCount": 7,
+				"samples": 13622,
+				"baselineSha256": "33407791181661059bb64012a6c9d819832453441f3ee872ca92d7e6d5e4b333",
+				"streamedSha256": "33407791181661059bb64012a6c9d819832453441f3ee872ca92d7e6d5e4b333",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 22,
+				"type": "dtmf",
+				"options": {
+					"sampleRate": 44100,
+					"durationSeconds": 0.044126984126984126,
+					"channelCount": 7,
+					"amplitude": 0.007453359197825193,
+					"sequence": "11AB1#D",
+					"toneSeconds": 0.012494331065759636,
+					"silenceSeconds": 0.0016780045351473922
+				},
+				"frameCount": 4301,
+				"channelCount": 7,
+				"samples": 30107,
+				"baselineSha256": "cb4b7cbba890f9690690e6d5b6a58494b4133edf6c160a589a01c45a9cc7b1e5",
+				"streamedSha256": "cb4b7cbba890f9690690e6d5b6a58494b4133edf6c160a589a01c45a9cc7b1e5",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 22,
+				"type": "morse",
+				"options": {
+					"sampleRate": 44100,
+					"durationSeconds": 0.044126984126984126,
+					"channelCount": 7,
+					"amplitude": 0.007453359197825193,
+					"text": "E EE",
+					"wordsPerMinute": 113.59802131075412,
+					"frequency": 17275.67897304534
+				},
+				"frameCount": 6056,
+				"channelCount": 7,
+				"samples": 42392,
+				"baselineSha256": "cb9f385c29700bcf7eebddfd0583b7152a5f44cfda94fbf1a41099421cbac996",
+				"streamedSha256": "cb9f385c29700bcf7eebddfd0583b7152a5f44cfda94fbf1a41099421cbac996",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 23,
+				"type": "silence",
+				"options": {
+					"sampleRate": 48000,
+					"durationSeconds": 0.48285416666666664,
+					"channelCount": 32,
+					"amplitude": 0.3056664706673473
+				},
+				"frameCount": 23177,
+				"channelCount": 32,
+				"samples": 741664,
+				"baselineSha256": "82c14bf25efe847085999dec655656ad9b945647657843c6d166383ffb8a680c",
+				"streamedSha256": "82c14bf25efe847085999dec655656ad9b945647657843c6d166383ffb8a680c",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 23,
+				"type": "tone",
+				"options": {
+					"sampleRate": 48000,
+					"durationSeconds": 0.48285416666666664,
+					"channelCount": 32,
+					"amplitude": 0.3056664706673473,
+					"frequency": 17235.735757538914,
+					"waveform": "sawtooth"
+				},
+				"frameCount": 23177,
+				"channelCount": 32,
+				"samples": 741664,
+				"baselineSha256": "1d8f82b8454476e371263b9b5ed3280ada0dc70f439e9d251488163abf8f1a9c",
+				"streamedSha256": "1d8f82b8454476e371263b9b5ed3280ada0dc70f439e9d251488163abf8f1a9c",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 23,
+				"type": "chirp",
+				"options": {
+					"sampleRate": 48000,
+					"durationSeconds": 0.48285416666666664,
+					"channelCount": 32,
+					"amplitude": 0.3056664706673473,
+					"startFrequency": 2036.0864479957872,
+					"endFrequency": 19227.35917497822,
+					"startAmplitude": 0.5994285668712109,
+					"endAmplitude": 0.07133927522227168,
+					"waveform": "sawtooth",
+					"interpolation": "linear"
+				},
+				"frameCount": 23177,
+				"channelCount": 32,
+				"samples": 741664,
+				"baselineSha256": "509f23a942fbfd36f0ce743f747715474dc891d9128a98509be160a0d9a9e29f",
+				"streamedSha256": "509f23a942fbfd36f0ce743f747715474dc891d9128a98509be160a0d9a9e29f",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 23,
+				"type": "noise",
+				"options": {
+					"sampleRate": 48000,
+					"durationSeconds": 0.48285416666666664,
+					"channelCount": 32,
+					"amplitude": 0.3056664706673473,
+					"color": "brown",
+					"seed": 4294967295
+				},
+				"frameCount": 23177,
+				"channelCount": 32,
+				"samples": 741664,
+				"baselineSha256": "1b7302caedd110558702251cc3f4b670263e5e747743387fba31f20224290a3a",
+				"streamedSha256": "1b7302caedd110558702251cc3f4b670263e5e747743387fba31f20224290a3a",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 23,
+				"type": "dtmf",
+				"options": {
+					"sampleRate": 48000,
+					"durationSeconds": 0.48285416666666664,
+					"channelCount": 32,
+					"amplitude": 0.3056664706673473,
+					"sequence": "11AB1#D",
+					"toneSeconds": 0.375,
+					"silenceSeconds": 0.001
+				},
+				"frameCount": 126288,
+				"channelCount": 32,
+				"samples": 4041216,
+				"baselineSha256": "7be817f7071e2d408e8141f2e7c26f9dd5342491817cd84717f762d89ec54d44",
+				"streamedSha256": "7be817f7071e2d408e8141f2e7c26f9dd5342491817cd84717f762d89ec54d44",
+				"exactFloat32Comparison": "passed"
+			},
+			{
+				"iteration": 23,
+				"type": "morse",
+				"options": {
+					"sampleRate": 48000,
+					"durationSeconds": 0.48285416666666664,
+					"channelCount": 32,
+					"amplitude": 0.3056664706673473,
+					"text": "TEST 123",
+					"wordsPerMinute": 110.45463290065527,
+					"frequency": 11928.806948068182
+				},
+				"frameCount": 41197,
+				"channelCount": 32,
+				"samples": 1318304,
+				"baselineSha256": "31ca6717cedc5b865fcad3a6243554df43b3421ee19ec2e96062848389eb820a",
+				"streamedSha256": "31ca6717cedc5b865fcad3a6243554df43b3421ee19ec2e96062848389eb820a",
+				"exactFloat32Comparison": "passed"
+			}
+		]
+	},
+	"validation": {
+		"canonicalStatic": "passed in final second gate run; source unchanged afterward",
+		"nodeCoverage": "22100pass,1stalefactoryfixturefail,32skip; fixture fixed6ce7eca75 and focused4pass; full rerun pending",
+		"browser": "pending full suite; targeted actual pixel/engine tests passed"
+	}
+}
