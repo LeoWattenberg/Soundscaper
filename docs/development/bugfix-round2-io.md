@@ -20,6 +20,8 @@ export controls. No entry requires malformed files or injected application state
 | R2-IO-012 | In Framescaper import a normal video with audio. Select its video clip, Edit → Audio clips → Unlink audio, select and Delete the audio clip, then right-click the remaining video → Move to Project bin. Play its card. | The card said “No audio” but played the original recording’s audio through its unmuted video element, restoring the audio the user had removed. | Mute the embedded original when the bin item has no audio companion. The ordinary editing and Play workflow was red and passes in Chromium, Firefox and WebKit. Strict TypeScript renderer coverage checks the video-only item stays silent while an item retaining its companion still permits normal audio. This counts missing-companion playback only; speculative timeline-gain preview behavior is excluded. |
 | R2-IO-013 | Import normal A/V media in Soundscaper. Export audio → Save preset → Save as new preset, name it My WAV and wait for it to appear. Change Format to MP4 video, then open More options in the preset row. | The row displayed No preset, yet Export preset stayed enabled and used the previous WAV preset's hidden ID. It should have no authority to reset or export an audio preset while displaying an empty video selection. | Retire a selected ID when it is absent from the displayed preset kind. The actual menu workflow was red at the enabled Export preset action and now passes in all three browsers. Strict TypeScript mounted coverage also checks Reset loses the obsolete preset's authority; the existing dialog and preset suite passed 35 focused tests. |
 
+| R2-IO-014 | Import an ordinary one-second broadcast WAV with CART cues at 0.1, 0.5, and 1 second. Drag a selection from 0.25 to 0.75 seconds; Export audio → Broadcast WAV → Current selection, at 96 kHz. Inspect the downloaded CART cue positions. | The 0.5-second cue was written at 48,000 samples rather than 24,000; cues before and after the delivered cut remained. | Rebase CART cues from each file's own head before converting its sample clock, and omit cues outside that file. Chapter and clip writer plans carry their own conformed CART metadata; source metadata stays intact. The actual picker/selection/download workflow was red on build 15 and passes in all three browsers on build 16. Strict domain tests verify chapter writer plans and end-of-data boundary cues. This range-origin defect is distinct from IO-007's sample-rate conversion; all per-span variants count once. |
+
 The first two workflows passed all six browser cases against the production
 build. Focused export-name checks passed 10 tests; the dither, encoder and
 Bitcrusher suite passed 27 tests. Targeted lint passed.
@@ -55,6 +57,11 @@ renderer and video-clock tests. Targeted lint passed.
 
 The cross-kind preset workflow passed all three browser cases and 35 focused
 mounted-dialog and preset-model tests. Targeted lint passed.
+
+CART range-origin conformance passed all nine range and sample-clock browser
+cases and 30 focused Node tests. Targeted lint passed. Red and green browser
+diagnostics are retained under `/tmp/soundscaper-r2-io-cart-range-red` and
+`/tmp/soundscaper-r2-io-cart-range-green`.
 
 These source, test and documentation changes keep the existing assistance
 runtime closure. A manual **Update AI assets** run is not required.
