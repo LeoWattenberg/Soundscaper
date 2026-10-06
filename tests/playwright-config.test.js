@@ -213,6 +213,20 @@ test('desktop verification isolates browser engines and tests packages with ever
 test('quality verification keeps Chromium and WebKit in the pinned container and gives Firefox real audio', async () => {
 	const workflow = await readFile(new URL('../.github/workflows/quality.yml', import.meta.url), 'utf8');
 	assertBrowserCoverage(workflow, 'quality', SITE_WORKFLOWS.get('quality.yml'));
+	const browserJob = extractJob(workflow, 'browser');
+	const browserRunStep = browserJob.match(
+		/ {6}- name: Run browser workflows against the existing build\n(?<step>[\s\S]*?)(?=\n {6}- name:)/u,
+	);
+	assert.ok(browserRunStep, 'weights must belong to the existing shared browser step');
+	const weightedShards = browserRunStep.groups.step.match(
+		/^\s+PWTEST_SHARD_WEIGHTS: \$\{\{ matrix\.project == 'chromium' && '(?<weights>[^']+)' \|\| '' \}\}$/mu,
+	);
+	assert.ok(weightedShards, 'only Chromium should use the measured four-way shard weights');
+	const weights = weightedShards.groups.weights.split(':');
+	assert.equal(weights.length, SITE_WORKFLOWS.get('quality.yml').browserShardCount);
+	assert.ok(weights.every(weight => /^[1-9]\d*$/u.test(weight) && Number.isSafeInteger(Number(weight))),
+		'Playwright parses weights as integers, so decimals and zero-weight shards must be rejected');
+	assert.doesNotMatch(extractJob(workflow, 'firefox'), /PWTEST_SHARD_WEIGHTS/u);
 });
 
 test('Firefox CI audio helpers configure a null sink/source and reject a stalled clock', async () => {

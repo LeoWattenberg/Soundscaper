@@ -591,6 +591,12 @@ jobs:
           # it is the only one that records. Every other project runs exactly as
           # it did before, with the collector inert.
           SCAPE_BROWSER_COVERAGE: ${{ matrix.project == 'chromium' && '1' || '' }}
+          # 2026-10-06 Quality runs 37445798396 and 37459997191 both put
+          # Chromium's slowest workload on shard 4. Coarse weights leave
+          # shard 1 room for reciprocal-origin and handbook workflows.
+          # This internal option is verified for pinned Playwright 1.62.1;
+          # recheck --list coverage and serial groups when upgrading it.
+          PWTEST_SHARD_WEIGHTS: ${{ matrix.project == 'chromium' && '24:28:28:20' || '' }}
 
       - name: Run the reciprocal-origin editable-copy workflow
         if: matrix.project == 'chromium' && matrix.shard == 1
