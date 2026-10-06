@@ -4,6 +4,7 @@
 
 import React, { useState } from 'react';
 import { useTheme } from '../ThemeProvider';
+import { stepNumberStepperValue } from './number-stepper-value';
 import './NumberStepper.css';
 
 export interface NumberStepperProps {
@@ -107,47 +108,16 @@ export const NumberStepper = React.forwardRef<HTMLInputElement, NumberStepperPro
     onChange?.(newValue);
   };
 
-  const handleIncrement = () => {
+  const handleStep = (delta: number) => {
     if (disabled) return;
-
-    // Extract numeric value from string (e.g., "20 dB" -> 20)
-    const match = currentValue.match(/-?\d+\.?\d*/);
-    const numericValue = match ? parseFloat(match[0]) : 0;
-    const unit = currentValue.replace(match?.[0] || '', '').trim();
-
-    let newValue = numericValue + step;
-    if (max !== undefined && newValue > max) {
-      newValue = max;
-    }
-
-    const newStringValue = unit ? `${newValue} ${unit}` : newValue.toString();
-
+    const newStringValue = stepNumberStepperValue(currentValue, delta, min, max);
     if (!isControlled) {
       setInternalValue(newStringValue);
     }
     onChange?.(newStringValue);
   };
-
-  const handleDecrement = () => {
-    if (disabled) return;
-
-    // Extract numeric value from string
-    const match = currentValue.match(/-?\d+\.?\d*/);
-    const numericValue = match ? parseFloat(match[0]) : 0;
-    const unit = currentValue.replace(match?.[0] || '', '').trim();
-
-    let newValue = numericValue - step;
-    if (min !== undefined && newValue < min) {
-      newValue = min;
-    }
-
-    const newStringValue = unit ? `${newValue} ${unit}` : newValue.toString();
-
-    if (!isControlled) {
-      setInternalValue(newStringValue);
-    }
-    onChange?.(newStringValue);
-  };
+  const handleIncrement = () => handleStep(step);
+  const handleDecrement = () => handleStep(-step);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     // Enter toggles edit mode

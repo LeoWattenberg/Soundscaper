@@ -298,6 +298,11 @@ application overrides and source patches against the pin and upstream master.
     power and menu controls while keyboard focus is inside the slot. `MixerFader`
     follows slider keyboard conventions: Home selects the minimum and End the
     maximum. Covered by `tests/browser/audio-editor-mixer-keyboard-regressions.spec.js`.
+37. `NumberStepper` parses signed decimal and scientific numeric entries as
+    complete numbers, preserving optional display units, and applies both bounds
+    to either step direction. Covered by
+    `tests/audio-editor-number-stepper-regressions.test.tsx` and
+    `tests/browser/audio-editor-number-stepper-regressions.spec.js`.
 
 ## Application-side adaptations
 
