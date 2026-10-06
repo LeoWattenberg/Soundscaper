@@ -341,7 +341,7 @@ export function createEffectsComposition(dependencies: EffectsCompositionDepende
 		: createAbsentEffectMacroService(absentSubsystem);
 	const execution = dependencies.composition.effects
 		? createSelectionEffectExecutionService({
-			pauseSourcePreview: dependencies.pauseSourcePreview,
+			pauseSourcePreview: dependencies.pauseSourcePreview, batchPresentation: dependencies.batchPresentation,
 			AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES,
 			AUDIO_SELECTION_EFFECT_DEFINITIONS,
 			NYQUIST_AGGREGATE_AUDIO_LIMIT_BYTES,

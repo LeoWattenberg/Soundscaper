@@ -120,6 +120,7 @@ export interface EffectsCompositionDependencies {
 	readonly setSelection: EffectSelectionServiceRuntime['setSelection'];
 	readonly persistSetting: EffectControlsServiceRuntime['persistSetting'];
 	readonly publishDocumentSnapshot: () => void;
+	readonly batchPresentation?: (mutation: () => void) => void;
 	readonly setStatus: (message: string, status?: string, localization?: import('../../../i18n/presentation-message.ts').LocalizedPresentationMessage) => void;
 	readonly preflightStorage: (bytes: number, kind: 'effect') => Promise<unknown>;
 	readonly renderSnapshot: (

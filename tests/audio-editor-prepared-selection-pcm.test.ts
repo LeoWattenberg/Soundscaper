@@ -6,7 +6,7 @@ import { createSelectionEffectExecutionService } from '../src/common/editor/cont
 import { EditorControllerLifetime, EditorProjectGeneration } from '../src/common/editor/controller/shared/lifecycle.ts';
 import { AUDIO_SELECTION_EFFECT_DEFINITIONS, normalizeAudioSelectionEffectParams } from '../src/common/editor/effects.js';
 
-function fixture(owned = true, headroom = 1_000_000, simplePcm: 'admit' | 'fallback' | null = null) {
+function fixture(owned = true, headroom = 1_000_000, simplePcm: 'admit' | 'fallback' | null = null, presentation = false) {
 	const lifetime = new EditorControllerLifetime();
 	lifetime.markReady();
 	const generation = new EditorProjectGeneration();
@@ -17,6 +17,7 @@ function fixture(owned = true, headroom = 1_000_000, simplePcm: 'admit' | 'fallb
 	let renders = 0;
 	const input = new Float32Array([0.1, -0.2, 0.3, -0.4]);
 	const retained: Float32Array[][] = [];
+	let batchDepth = 0; const presentationEvents: Array<{ kind: string; depth: number; processing: boolean; last: unknown }> = [];
 	const simpleCalls: number[][] = [];
 	const jobContexts: Array<{ beforeChannels?: Float32Array[]; afterChannels?: Float32Array[] }> = [];
 	const state = { audacityEffectType: 'audacity-amplify', audacityEffectProcessing: false,
@@ -48,9 +49,10 @@ function fixture(owned = true, headroom = 1_000_000, simplePcm: 'admit' | 'fallb
 			return simplePcm === 'admit' ? [Float32Array.from({ length: to - from }, (_, index) => (from + index) / 1_000)] : null;
 		} : undefined,
 		resolveInteractiveAudacityParams: (_type: string, params: unknown) => params,
-		publishDocumentSnapshot: () => undefined,
-		setStatus: () => undefined,
-		preflightStorage: async () => undefined,
+		batchPresentation: presentation ? (callback: () => void) => { batchDepth++; try { callback(); } finally { batchDepth--; } } : undefined,
+		publishDocumentSnapshot: () => { presentationEvents.push({ kind: 'publish', depth: batchDepth, processing: state.audacityEffectProcessing, last: state.lastAudacityEffect }); },
+		setStatus: () => { presentationEvents.push({ kind: 'status', depth: batchDepth, processing: state.audacityEffectProcessing, last: state.lastAudacityEffect }); },
+		preflightStorage: async () => { assert.equal(batchDepth, 0, 'no batch spans storage awaits'); },
 		runSelectionEffectWorker: async (request: { channels: Float32Array[];
 			context: { beforeChannels?: Float32Array[]; afterChannels?: Float32Array[] } }, options: { pcmOwnership: string }) => {
 			assert.equal(options.pcmOwnership, 'transfer');
@@ -62,7 +64,7 @@ function fixture(owned = true, headroom = 1_000_000, simplePcm: 'admit' | 'fallb
 			retained.push(results[0]!.channels);
 		},
 	});
-	return { service, lifetime, input, retained, simpleCalls, jobContexts, renders: () => renders,
+	return { service, lifetime, input, retained, simpleCalls, jobContexts, presentationEvents, renders: () => renders,
 		edit: () => { project = {}; }, select: () => { start += 1; }, disable: () => { enabled = false; } };
 }
 
@@ -102,4 +104,14 @@ test('untrusted input, changed audio or selection, memory mode and exhausted adm
 		await value.service.applySelectedAudacityEffect();
 		assert.equal(value.renders(), 2, change);
 	}
+});
+
+
+test('Apply presents synchronous busy and completion mutations together without holding a batch across awaits', async () => {
+	const value = fixture(true, 1_000_000, null, true);
+	await value.service.applySelectedAudacityEffect();
+	assert.equal(value.presentationEvents.length, 4);
+	assert.equal(value.presentationEvents.every((event) => event.depth > 0), true);
+	assert.deepEqual(value.presentationEvents.filter((event) => event.kind === 'publish').map((event) => event.processing), [true, false]);
+	assert.equal(value.presentationEvents[3]!.last !== null, true);
 });

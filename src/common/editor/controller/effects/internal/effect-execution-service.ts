@@ -17,6 +17,7 @@ import { processIndependentSelectionTargets, type IndependentSelectionPorts } fr
 export const NYQUIST_EVALUATION_TASK = 'nyquist-evaluation';
 
 export interface SelectionEffectExecutionRuntime {
+	readonly batchPresentation?: (mutation: () => void) => void;
 	readonly runIndependentSelectionEffects?: IndependentSelectionPorts['runIndependentSelectionEffects'];
 	/** Stable canonical audio ownership until an edit; absent for untrusted ports or memory mode. */
 	readonly getPreparedAudioAuthority?: () => object | null;
@@ -42,6 +43,7 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 		publishDocumentSnapshot, renderDryTrackRange, resolveInteractiveAudacityParams, runSelectionEffectWorker,
 		setAudacityEffectType, setStatus, state, throwIfAborted, updateTaskProgress,
 	} = runtime;
+	const batchPresentation = runtime.batchPresentation ?? ((mutation: () => void) => mutation());
 	const preparedAudio = createPreparedSelectionPcmCache({
 		authority: () => runtime.getPreparedAudioAuthority?.() ?? null,
 		captureProject: () => runtime.captureProject(),
@@ -150,9 +152,12 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 			assertSelectionEffectOwnership(runtime, ownership);
 			return channels;
 		};
-		state.audacityEffectProcessing = true;
-		setLocalizedStatus(setStatus, copy, "audacityProcessing");
-		publishDocumentSnapshot();
+		batchPresentation(() => {
+			state.audacityEffectProcessing = true;
+			setLocalizedStatus(setStatus, copy, "audacityProcessing");
+			publishDocumentSnapshot();
+		});
+		let finished = false;
 		try {
 			await preflightStorage(estimatedOutputBytes, 'effect');
 			assertSelectionEffectOwnership(runtime, ownership);
@@ -225,14 +230,15 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 				selectionDetails: audacityEffectSelectionDetails(selection, targets),
 			});
 			assertSelectionEffectOwnership(runtime, ownership);
-			state.lastAudacityEffect = {
+			batchPresentation(() => { state.lastAudacityEffect = {
 				type,
 				params: structuredClone(params),
 				controlTrackId: state.audacityControlTrackId,
 			};
 			setLocalizedStatus(setStatus, copy, "audacityApplied", undefined, 'success');
+				finishSelectionEffectProcessing(runtime, ownership); finished = true; });
 		} finally {
-			finishSelectionEffectProcessing(runtime, ownership);
+			if (!finished) finishSelectionEffectProcessing(runtime, ownership);
 		}
 	}
 
@@ -444,12 +450,13 @@ function finishSelectionEffectProcessing(
 	runtime: SelectionEffectExecutionRuntime,
 	ownership: SelectionEffectOwnership,
 ): void {
-	const taskCurrent = selectionEffectTaskIsCurrent(ownership.task);
-	if (taskCurrent) runtime.state.audacityEffectProcessing = false;
-	if (taskCurrent && selectionEffectProjectIsCurrent(runtime, ownership.project)) {
-		runtime.publishDocumentSnapshot();
-	}
-	ownership.task.finish();
+	const finish = (): void => {
+		const taskCurrent = selectionEffectTaskIsCurrent(ownership.task);
+		if (taskCurrent) runtime.state.audacityEffectProcessing = false;
+		if (taskCurrent && selectionEffectProjectIsCurrent(runtime, ownership.project)) runtime.publishDocumentSnapshot();
+		ownership.task.finish();
+	};
+	if (runtime.batchPresentation) runtime.batchPresentation(finish); else finish();
 }
 
 function selectionEffectTaskIsCurrent(task: EditorTaskScope): boolean {
