@@ -35,10 +35,7 @@ import {
 } from '../common/editor/project-current-runtime.ts';
 import { reconcileProjectOwnedFeatureRequirements } from '../common/editor/project-owned-feature-requirements.ts';
 import { resolveTerminalChannelWidths } from '../common/editor/terminal-channel-widths.ts';
-import {
-	cloneSoundscaperProject,
-	type SoundscaperProject,
-} from './editor-project.ts';
+import type { SoundscaperProject } from './editor-project.ts';
 import { preserveAutomationLanesAfterInheritedCommand } from './editor-automation-edit-preservation.ts';
 import { applySoundscaperMixerSurfaceCommand } from './editor-project-mixer-surface.ts';
 import { reconcileSoundscaperProjectFeatureRequirements } from './editor-project-feature-requirements.ts';
@@ -73,12 +70,11 @@ export function applySoundscaperProjectFoundationCommand(
 	validateSoundscaperProject(projectValue);
 	const project = projectValue as SoundscaperProject;
 	const command = snapshotSoundscaperProjectFoundationCommand(commandValue);
-	const working = cloneSoundscaperProject(project);
 	const transaction = createEditorCommandMutationTransaction(
 		project,
-		projectForCommandConsumers(working as unknown as Record<string, unknown>),
+		projectForCommandConsumers(project as unknown as Record<string, unknown>),
 	);
-	const applied = applyCommandTree(working, command, options, transaction, true);
+	const applied = applyCommandTree(project, command, options, transaction, true);
 	if (JSON.stringify(applied) === JSON.stringify(project)) return project;
 	const draft = structuredClone(applied) as Record<string, unknown>;
 	const revision = Number(project.revision) + 1;
