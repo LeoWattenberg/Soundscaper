@@ -26,6 +26,8 @@ export interface AssistanceOnnxOutputPublicationOptionsV1 {
 	readonly exactOutputCount?: number;
 }
 
+type AssistanceOnnxOutputBody = Uint8Array | readonly Uint8Array[];
+
 /** Admit only the authenticated, task-bound CPU ONNX job; callers own their error wording. */
 export function assertAssistanceOnnxCpuJobV1(
 	context: AssistanceRuntimeFamilyWorkerExecutionContext,
@@ -74,28 +76,32 @@ export async function createAssistanceOnnxCpuSessionV1(
 
 export async function publishAssistanceOnnxOutputV1(
 	context: AssistanceRuntimeFamilyWorkerExecutionContext,
-	bodyValue: Uint8Array | (() => Uint8Array),
+	bodyValue: AssistanceOnnxOutputBody | (() => AssistanceOnnxOutputBody),
 	reservationError: string,
 	options: AssistanceOnnxOutputPublicationOptionsV1 = {},
 ): Promise<AssistanceRuntimeFamilyJobResultV1> {
 	context.signal?.throwIfAborted();
 	const body = typeof bodyValue === 'function' ? bodyValue() : bodyValue;
+	const chunks: readonly Uint8Array[] = body instanceof Uint8Array ? [body] : body;
+	const byteLength = chunks.reduce((total, chunk) => total + chunk.byteLength, 0);
 	const output = context.grant.outputs[0]!;
 	if (options.exactOutputCount !== undefined
 		&& context.grant.outputs.length !== options.exactOutputCount
-		|| body.byteLength < 1 || body.byteLength > output.maximumByteLength) {
+		|| !Number.isSafeInteger(byteLength) || byteLength < 1 || byteLength > output.maximumByteLength) {
 		throw new RangeError(reservationError);
 	}
-	await writeFile(output.path, body);
+	await writeFile(output.path, chunks);
 	context.signal?.throwIfAborted();
 	context.onProgress(1);
+	const digest = createHash('sha256');
+	for (const chunk of chunks) digest.update(chunk);
 	return Object.freeze({
 		resultVersion: 1, jobId: context.grant.jobId,
 		familyId: context.grant.familyId, task: context.grant.task,
 		outputs: Object.freeze([Object.freeze({
 			claimId: output.claimId, role: output.role, mediaType: output.mediaType,
-			byteLength: body.byteLength,
-			sha256: createHash('sha256').update(body).digest('hex'),
+			byteLength,
+			sha256: digest.digest('hex'),
 		})]),
 	});
 }
