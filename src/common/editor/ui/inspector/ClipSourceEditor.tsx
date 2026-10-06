@@ -16,6 +16,7 @@ import { clipSourceStretchFeedback, formatSourceStretchSpeed } from './clip-sour
 import ClipSourceRuler, { INITIAL_SOURCE_RULER_OPTIONS } from './ClipSourceRuler.tsx';
 import { clipSourceSelection } from './clip-source-selection.ts';
 import { clipSourceTrim } from './clip-source-view.ts';
+import { useClipSourceMarkerDeletion } from './useClipSourceMarkerDeletion.ts';
 import type { TimelineAudioBuffer } from '../timeline/waveform-view-model.ts';
 import type { ClipSourceController, ClipSourceProject, SourceSelection } from './clip-source-editor-types.ts';
 
@@ -38,6 +39,7 @@ export default function ClipSourceEditor({ controller, project, clipId, copy, bl
 	const range = clipSourceDisplayRange(clip, source, project.sampleRate);
 	const rootRef = useRef<HTMLDivElement>(null);
 	const waveRef = useRef<HTMLDivElement>(null);
+	const deleteMarker = useClipSourceMarkerDeletion(waveRef, clip.warpMap);
 	const [size, setSize] = useState({ width: 600, height: 210 });
 	const [view, setView] = useState<SourceSelection | null>(null);
 	const startFrame = Math.min(view?.startFrame ?? 0, Math.max(0, range.totalFrames - 1));
@@ -259,7 +261,7 @@ export default function ClipSourceEditor({ controller, project, clipId, copy, bl
 					onFocus={() => setFocusedMarker(index + 1)} onBlur={() => setFocusedMarker(null)}
 					data-source-sample={marker.source.num / marker.source.den} style={{ left: pixel(index + 1 === markerIndex && markerFeedback ? markerFeedback.displayFrame : clipSourceFrameToDisplay(project, clip, source, marker.source.num / marker.source.den)) }}
 					onPointerDown={event => begin(event, 'marker', index + 1)} onKeyDown={event => {
-						if (event.key === 'Delete' || event.key === 'Backspace') { event.preventDefault(); event.stopPropagation(); run(() => controller.actions.audioWarp.deleteSourceMarker(clipId, index + 1)); }
+						if (event.key === 'Delete' || event.key === 'Backspace') { event.preventDefault(); event.stopPropagation(); deleteMarker(event.currentTarget, () => run(() => controller.actions.audioWarp.deleteSourceMarker(clipId, index + 1))); }
 						if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') { event.preventDefault(); event.stopPropagation(); moveMarker(index + 1, clipSourceFrameToDisplay(project, clip, source, marker.source.num / marker.source.den) + (event.key === 'ArrowLeft' ? -1 : 1) * (event.shiftKey ? Math.round(project.sampleRate / 10) : 1)); }
 					}} />)}
 				{markerFeedback && <div className="audio-editor-source-stretch-feedback" role="status" aria-live="polite"

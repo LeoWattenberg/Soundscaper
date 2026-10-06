@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { clipSourceDisplayRange } from '../../clip-source-timing.ts';
-import { withoutClipLoop } from '../../audio-clip-loop.ts';
+import { readClipLoop, withoutClipLoop } from '../../audio-clip-loop.ts';
 import type { ClipLoopCarrier } from '../../audio-clip-loop.ts';
 import type { AudioWarpRuntimeClip } from '../../audio-warp-runtime.ts';
 
@@ -28,7 +28,8 @@ export function clipSourceTrim(clip: Clip, source: Source, _sampleRate: number, 
 	const start = edge === 'start' ? Math.max(0, Math.min(oldEnd - 1, Math.round(sourceFrame))) : clip.sourceStartFrame;
 	const end = edge === 'end' ? Math.max(start + 1, Math.min(source.frameCount, Math.round(sourceFrame))) : oldEnd;
 	const sourceDurationFrames = end - start;
-	return { sourceStartFrame: start, sourceDurationFrames, durationFrames: Math.max(1, Math.round(clip.durationFrames * sourceDurationFrames / clip.sourceDurationFrames)) };
+	const extent = readClipLoop(clip)?.periodFrames ?? clip.durationFrames;
+	return { sourceStartFrame: start, sourceDurationFrames, durationFrames: Math.max(1, Math.round(extent * sourceDurationFrames / clip.sourceDurationFrames)) };
 }
 
 export function sourceRulerTicks({ startFrame, endFrame, width, sampleRate, originFrame }: {
