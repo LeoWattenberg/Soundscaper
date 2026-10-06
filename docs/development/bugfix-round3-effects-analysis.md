@@ -186,3 +186,24 @@ The internal metadata union describes the completed Nyquist operation without
 adding a public controller action or changing macro command execution.
 
 These changes do not require a manual **Update AI assets** run.
+
+## R3-ROOT-010 — Source-editor Nyquist labels lose their clip placement
+
+Import an ordinary WAV, open **Edit > Audio clips > Clip properties**, and set
+its **Start** to one second. Focus the source waveform, select all with Ctrl+A,
+then choose **Tools > Nyquist prompt**, enter `'((0.2 0.4 "Analysis"))`, and run.
+Open **Tools > Manage labels**.
+
+Previously the annotation appeared at project time 0.2–0.4 seconds instead of
+1.2–1.4 seconds. Annotation publication used a project-clock offset even though
+the prompt ran over native source samples. Labels now retain their actual source
+target and use the owning clip's runtime projection, including trimmed source
+windows, native sample rates, stretch, reversal and authored warp markers.
+Timeline-only labels retain their existing placement.
+
+Proof: `audio-editor-round3-nyquist-source-labels.spec.js` fails on the immutable
+baseline at 0.2 seconds and passes on green build 10 in Chromium, Firefox and
+WebKit at 1.2 seconds. Two strict host regressions cover a moved, trimmed
+44.1 kHz source and nonlinear warp projection; all 23 focused Nyquist tests pass.
+This is the annotation publication defect, distinct from the earlier host
+property timestamp correction. No manual **Update AI assets** run is required.

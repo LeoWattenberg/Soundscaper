@@ -325,7 +325,8 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 			const returnedResult = freezeNyquistResult(evaluations);
 			const audio = evaluations.filter(({ result }: RuntimeValue) => result?.type === 'audio');
 			const labels = evaluations.flatMap(({ target, result }: RuntimeValue) => result?.type === 'labels'
-				? result.labels.map((label: RuntimeValue) => ({ ...label, baseFrame: target?.startFrame ?? selection?.startFrame ?? 0 }))
+				? result.labels.map((label: RuntimeValue) => ({ ...label, baseFrame: target?.startFrame ?? selection?.startFrame ?? 0,
+					...(target?.sourceClipId ? { sourceTarget: target } : {}) }))
 				: []);
 			if (preview) {
 				const previewStart = Math.min(...evaluations.map(({ target }: RuntimeValue) => target?.startFrame ?? selection?.startFrame ?? 0));
