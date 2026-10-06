@@ -23,6 +23,8 @@ export interface AudioEditorCueParseOptions {
 	readonly sampleRate: number;
 	readonly maxInputChars?: number;
 	readonly maxCues?: number;
+	/** Ordinary Windows CUE writers may use ANSI when all titles fit it. */
+	readonly legacyTextEncoding?: 'windows-1252';
 }
 
 export class AudioEditorCueImportError extends Error {
@@ -55,7 +57,7 @@ export function parseAudioEditorCueSheet(
 	const sampleRate = positiveSafeInteger(options?.sampleRate, 'sampleRate');
 	const maxInputChars = positiveSafeInteger(options?.maxInputChars ?? DEFAULT_MAX_INPUT_CHARS, 'maxInputChars');
 	const maxCues = positiveSafeInteger(options?.maxCues ?? DEFAULT_MAX_CUES, 'maxCues');
-	const text = normalizeInput(input, maxInputChars);
+	const text = normalizeInput(input, maxInputChars, options.legacyTextEncoding);
 	let albumTitle = '';
 	let albumPerformer = '';
 	let activeFile: string | null = null;
@@ -177,14 +179,15 @@ export function parseAudioEditorCueSheet(
 	});
 }
 
-function normalizeInput(input: string | Uint8Array | ArrayBuffer, maximum: number): string {
+function normalizeInput(input: string | Uint8Array | ArrayBuffer, maximum: number, legacyTextEncoding?: 'windows-1252'): string {
 	let text: string;
 	if (typeof input === 'string') text = input;
 	else if (input instanceof Uint8Array || input instanceof ArrayBuffer) {
 		try {
 			text = new TextDecoder('utf-8', { fatal: true }).decode(input);
 		} catch (error) {
-			throw cueError('CUE data is not valid UTF-8.', 'INVALID_UTF8', {}, error);
+			if (!legacyTextEncoding) throw cueError('CUE data is not valid UTF-8.', 'INVALID_UTF8', {}, error);
+			text = new TextDecoder(legacyTextEncoding).decode(input);
 		}
 	} else throw new TypeError('CUE data must be a string, Uint8Array, or ArrayBuffer.');
 	if (text.length > maximum) throw cueError('CUE data exceeds the configured input limit.', 'INPUT_LIMIT', { limit: maximum });

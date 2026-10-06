@@ -201,7 +201,9 @@ export function createLabelService(dependencies: LabelServiceDependencies): Read
 		try {
 			const data = await readLabelFile(file);
 			assertOwnership(ownership);
-			const parsed = parseAudioEditorCueSheet(data, { sampleRate: ownership.project.sampleRate });
+			const parsed = parseAudioEditorCueSheet(data, {
+				sampleRate: ownership.project.sampleRate, legacyTextEncoding: 'windows-1252',
+			});
 			if (!parsed.cues.length) throw createLocalizedError(Error, dependencies.copy, 'labelsImportEmpty');
 			if (destination === 'labels') {
 				const labels = parsed.cues.map((cue) => ({
