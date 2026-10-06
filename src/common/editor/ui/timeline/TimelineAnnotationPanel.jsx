@@ -145,7 +145,6 @@ export function TimelineAnnotationPanel({
 								<option value="sample">{copy.sampleAnchor}</option><option value="musical">{copy.musicalAnchor}</option>
 							</select></label>
 							<label>{copy.annotationStartFrame}<TimelineAnnotationFrameInput
-								key={`start-${annotation.timelineStartFrame}`}
 								disabled={blocked}
 								value={annotation.timelineStartFrame}
 								minimum={0}
@@ -157,7 +156,6 @@ export function TimelineAnnotationPanel({
 									: moveTo(annotation, frame)}
 							/></label>
 							{annotation.kind === 'region' && <label>{copy.annotationEndFrame}<TimelineAnnotationFrameInput
-								key={`end-${annotation.timelineEndFrame}`}
 								disabled={blocked}
 								value={annotation.timelineEndFrame}
 								minimum={annotation.timelineStartFrame + 1}
