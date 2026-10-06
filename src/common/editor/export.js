@@ -1,5 +1,6 @@
 import { projectEffectTailFrames } from './effects.js';
 import { createBwfExportMetadata, projectBextMetadata } from './broadcast-wave-project.ts';
+import { scaleCartPostTimers } from './cart-sample-clock.ts';
 import { inspectPreservedAdmRiffChunks, sameBextMetadata } from './adm-riff-passthrough.ts';
 import { createBw64AdmExport, resolveBw64Adm } from './export-bw64-adm.js';
 import {
@@ -59,6 +60,7 @@ export const FAST_RENDER_THRESHOLDS = Object.freeze({
 
 /**
  * @typedef {Object} AudioExportPlan
+ * @property {import('./cart-metadata.ts').CartMetadata | null} cart
  * @property {'mix' | 'stems' | 'chapters' | 'clips'} mode
  * @property {import('./media-export.js').MediaExportFormatId} format
  * @property {number} sampleRate
@@ -228,7 +230,8 @@ export function createExportPlan(project, options = {}) {
 	});
 	let markers = masteringSequence ? masteringSequence.cues : markerExport.markers;
 	let ixml = runtimeProject.metadata?.ixml ?? null;
-	let cart = format === 'bwf' || format === 'bw64' ? runtimeProject.metadata?.cart ?? null : null;
+	let cart = format === 'bwf' || format === 'bw64'
+		? scaleCartPostTimers(runtimeProject.metadata?.cart, runtimeProject.sampleRate, sampleRate) : null;
 	// The TimeReference states where the delivered audio sits on the project's
 	// timeline, so it is derived per delivered span, not once for the whole plan.
 	const bwfMetadata = (rangeStartFrame) => createBwfExportMetadata(runtimeProject, {

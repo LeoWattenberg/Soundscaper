@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { scaleBextTimeReference } from '../../../broadcast-wave-project.ts';
+import { scaleCartPostTimers } from '../../../cart-sample-clock.ts';
 import { isNeutralAdmSignalPath } from '../../../adm-passthrough-project.ts';
 import { normalizeAdmProjectMetadata } from '../../../adm-project-metadata.ts';
 import { normalizeProjectBextMetadata } from '../../../project-bext-metadata.ts';
@@ -14,9 +15,17 @@ export function prepareImportedWavMetadata(options: Readonly<Record<string, any>
 	const sourceCart = descriptor?.cart || null;
 	const sourceAdm = descriptor?.adm || null;
 	const warnings = Array.isArray(descriptor?.metadataWarnings) ? [...descriptor.metadataWarnings] : [];
+	let projectCart: ReturnType<typeof scaleCartPostTimers> = null;
+	if (project.metadata?.cart == null && sourceCart) {
+		try { projectCart = scaleCartPostTimers(sourceCart, descriptor.sampleRate, projectSampleRate); }
+		catch {
+			warnings.push(warning('cart-post-timer-conversion', copy.cartPostTimerConversionWarning
+				|| 'The CART post timers cannot be represented at the project sample rate. Source metadata was retained.'));
+		}
+	}
 	const extensions = (resolvedImportOptions: Readonly<Record<string, unknown>>) => ({
 		projectIxml: project.metadata?.ixml == null ? sourceIxml : null,
-		projectCart: project.metadata?.cart == null ? sourceCart : null,
+		projectCart,
 		projectAdmCandidate: shouldPromoteAdm(project, descriptor, resolvedImportOptions, sourceAdm, projectSampleRate, warnings)
 			? sourceAdm
 			: null,
