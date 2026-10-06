@@ -13,6 +13,7 @@ import { Flyout } from '@soundscaper/design-system/Flyout';
 import './audio-editor-design-system/37-help-tooltip.css';
 
 import { retainAudioEditorDialogEscapeOwner } from './dialog-escape-ownership.ts';
+import { withinHelpTooltipPointerPath } from './help-tooltip-pointer-path.ts';
 
 interface TooltipAnchor {
 	readonly direction: 'down' | 'up';
@@ -53,6 +54,7 @@ export default function EditorHelpTooltip({
 	className,
 }: EditorHelpTooltipProps) {
 	const tooltipId = useId();
+	const wrapperRef = useRef<HTMLSpanElement | null>(null);
 	const helpRef = useRef<HTMLButtonElement | null>(null);
 	const visibilityReasonsRef = useRef(new Set<TooltipVisibilityReason>());
 	const [tooltip, setTooltip] = useState<TooltipAnchor | null>(null);
@@ -80,6 +82,22 @@ export default function EditorHelpTooltip({
 		visibilityReasonsRef.current.clear();
 		setTooltip(null);
 	}, []);
+	const pointerWithinPath = useCallback((point: Readonly<{ clientX: number; clientY: number }>): boolean => {
+		const trigger = helpRef.current;
+		const explanation = wrapperRef.current?.querySelector('[role="tooltip"]');
+		return Boolean(trigger && explanation && withinHelpTooltipPointerPath(
+			point, trigger.getBoundingClientRect(), explanation.getBoundingClientRect(),
+		));
+	}, []);
+	useEffect(() => {
+		if (!tooltipOpen) return undefined;
+		const owner = helpRef.current?.ownerDocument;
+		const move = (event: PointerEvent): void => {
+			if (visibilityReasonsRef.current.has('pointer') && !pointerWithinPath(event)) hideTooltip('pointer');
+		};
+		owner?.addEventListener('pointermove', move);
+		return () => owner?.removeEventListener('pointermove', move);
+	}, [hideTooltip, pointerWithinPath, tooltipOpen]);
 	useEffect(() => {
 		if (!tooltip) return undefined;
 		window.addEventListener('resize', positionTooltip);
@@ -96,9 +114,10 @@ export default function EditorHelpTooltip({
 	const triggerAttributes = hook ? { [hookAttribute]: hook } : {};
 	const tooltipAttributes = hook ? { [tooltipHookAttribute]: hook } : {};
 	return <span
+		ref={wrapperRef}
 		className={`audio-editor-help-wrap${className ? ` ${className}` : ''}`}
 		onPointerEnter={() => showTooltip('pointer')}
-		onPointerLeave={() => hideTooltip('pointer')}
+		onPointerLeave={(event) => { if (!pointerWithinPath(event)) hideTooltip('pointer'); }}
 	>
 		<button
 			ref={helpRef}
