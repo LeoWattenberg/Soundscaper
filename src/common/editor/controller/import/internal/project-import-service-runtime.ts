@@ -3,6 +3,7 @@
 import { publishedCopyFor } from '../../shared/presentation-localization.ts'; import { inspectWavContainerSignature, inspectWavForImport } from './wav-import-routing.ts'; import { createLocalizedError, setLocalizedStatus } from '../../../../i18n/presentation-message.ts'; import { publishImportCompletionStatus, type LocalizedImportNotice } from './import-status-localization.ts';
 import { loadImportAdmissionExecution } from './import-admission-loader.ts'; import { attachExternalMedia } from '../../../desktop-external-media.ts'; import { createDesktopOriginalImportRecorder } from '../../../desktop-overwrite-original.ts';
 import { admitAudioImportChannelCount } from './audio-import-channel-admission.ts';
+import { resolveMediaImportVideoRoute } from './media-import-video-route.ts';
 import {
 	createImportedAdmPassthroughMetadata,
 	prepareImportedWavMetadata,
@@ -339,7 +340,6 @@ export function createProjectImportServiceRuntime(runtime: ProjectImportRuntime)
 			}),
 		};
 	}
-
 	function validateImportTimelineTrack(importOptions: RuntimeValue) {
 		if (importOptions.destination !== 'timeline' || !importOptions.trackId) return null;
 		const track = findTrack(getProject(), importOptions.trackId);
@@ -357,7 +357,7 @@ export function createProjectImportServiceRuntime(runtime: ProjectImportRuntime)
 		if (legacyFile) {
 			return importLegacyAudacityProject(file);
 		}
-		const videoFile = isAudioEditorVideoFile(file);
+		const videoFile = await resolveMediaImportVideoRoute(file, isAudioEditorVideoFile(file), normalizedImportOptions.signal, assertRequestedProjectCurrent);
 		if (linkedOriginalLocator?.kind === 'video' && !videoFile) {
 			return rejectLinkedVideoLocator(linkedVideoLocatorReferenceFromImportOptions(normalizedImportOptions));
 		}
