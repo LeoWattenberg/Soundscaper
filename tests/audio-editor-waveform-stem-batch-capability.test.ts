@@ -6,14 +6,18 @@ import { canBatchRoundCapStems } from '../src/common/editor/waveform-stem-batch-
 
 // Recording fixtures test admission/ownership only. Native pixel parity and
 // batching savings are proved separately by the browser renderer spec.
-function fixture({ mismatched = false, unreadable = false, unavailable = false } = {}) {
+function fixture({ mismatched = false, unreadable = false, unavailable = false, unreleasable = false } = {}) {
 	const surfaces: { width: number; height: number }[] = [];
 	const settings: CanvasRenderingContext2DSettings[] = [];
 	let readbacks = 0;
 	let failCreation = false;
 	const document = { createElement() {
 		if (failCreation) throw new Error('No native surface');
-		const canvas = { width: 0, height: 0, getContext(_kind: string, attributes: CanvasRenderingContext2DSettings) {
+		let width = 0;
+		const canvas = { get width() { return width; }, set width(value: number) {
+			if (unreleasable && width && value === 0) throw new Error('Native surface release unavailable');
+			width = value;
+		}, height: 0, getContext(_kind: string, attributes: CanvasRenderingContext2DSettings) {
 			settings.push(attributes);
 			if (unavailable) return null;
 			return {
@@ -79,4 +83,13 @@ void test('pixel mismatch and failed native surfaces remain conservative and cac
 	absent.failCreation = false;
 	assert.equal(canBatchRoundCapStems(absent.native), false);
 	assert.equal(absent.surfaces.length, 0, 'failed creation does not repeatedly allocate on later waveform draws');
+});
+
+void test('failed surface release declines batching and still attempts every other cleanup', () => {
+	const value = fixture({ unreleasable: true });
+	assert.equal(canBatchRoundCapStems(value.native), false);
+	assert.equal(value.surfaces.length, 2);
+	assert.ok(value.surfaces.every(surface => surface.height === 0));
+	assert.equal(canBatchRoundCapStems(value.native), false);
+	assert.equal(value.surfaces.length, 2, 'release failure is cached as a conservative rejection');
 });

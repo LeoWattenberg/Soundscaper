@@ -45,6 +45,7 @@ function probeOwner(canvas: NativeCanvas | undefined): ProbeOwner | null {
 
 function probe(owner: ProbeOwner, attributes: CanvasRenderingContext2DSettings): boolean {
 	const surfaces: NativeCanvas[] = [];
+	let supported: boolean;
 	try {
 		const pixels = [false, true].map(batch => {
 			const canvas = owner.create(); surfaces.push(canvas);
@@ -54,9 +55,14 @@ function probe(owner: ProbeOwner, attributes: CanvasRenderingContext2DSettings):
 			paintProbe(context, batch);
 			return context.getImageData(0, 0, WIDTH, HEIGHT).data;
 		});
-		return pixels[0]!.length === pixels[1]!.length && pixels[0]!.every((value, index) => value === pixels[1]![index]);
-	} catch { return false; }
-	finally { for (const surface of surfaces) { surface.width = 0; surface.height = 0; } }
+		supported = pixels[0]!.length === pixels[1]!.length && pixels[0]!.every((value, index) => value === pixels[1]![index]);
+	} catch { supported = false; }
+	finally {
+		for (const surface of surfaces) for (const dimension of ['width', 'height'] as const) {
+			try { surface[dimension] = 0; } catch { supported = false; }
+		}
+	}
+	return supported;
 }
 
 function paintProbe(context: NativeContext, batch: boolean): void {
