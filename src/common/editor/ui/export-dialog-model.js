@@ -1,6 +1,7 @@
 import { videoExportRequestFormat } from '../video-export-request-format.ts';
 import { exportDialogSupportsEmbeddedChapters } from './export-dialog-embedded-chapters.ts';
 import {
+	assertVideoDialogCanvasSize,
 	statedVideoAudioLayout,
 	statedVideoCanvas,
 	statedVideoCaptions,
@@ -38,6 +39,7 @@ export function isVideoExportDialogFormat(format) {
 export function createExportDialogRequest(settings, options = {}) {
 	const metadata = options.metadata || {};
 	if (isVideoExportDialogFormat(settings.format)) {
+		assertVideoDialogCanvasSize(settings);
 		const canvas = statedVideoCanvas(settings);
 		const quality = statedVideoQuality(settings);
 		const audioLayout = statedVideoAudioLayout(settings);

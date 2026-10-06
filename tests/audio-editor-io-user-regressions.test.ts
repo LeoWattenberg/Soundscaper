@@ -147,3 +147,16 @@ test('chapter and stem requests omit the mix rendering options hidden by their o
 		}
 	}
 });
+
+
+test('video submission and preset saving refuse an incomplete or nonpositive stated canvas', () => {
+	const defaults = { ...createExportDialogInitialSettings({}), format: 'video-mp4' };
+	for (const [canvasWidth, canvasHeight] of [['0', '96'], ['54', '0'], ['-2', '96'], ['54', ''], ['', '96']]) {
+		const settings = { ...defaults, canvasWidth, canvasHeight };
+		assert.throws(() => createExportDialogRequest(settings), /canvas.*width.*height/iu);
+		assert.throws(() => presetSettingsFromDialog(settings, 'video'), /canvas.*width.*height/iu);
+	}
+	assert.equal(createExportDialogRequest({ ...defaults, canvasWidth: '', canvasHeight: '' }).canvas, undefined);
+	assert.deepEqual(createExportDialogRequest({ ...defaults, canvasWidth: '54', canvasHeight: '96' }).canvas,
+		{ size: { width: 54, height: 96 } });
+});

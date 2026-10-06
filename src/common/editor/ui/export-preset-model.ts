@@ -97,6 +97,7 @@ export function presetSettingsFromDialog(
 		result[key] = value;
 	}
 	if (kind === 'video') {
+		assertVideoDialogCanvasSize(settings);
 		Object.assign(result, statedVideoCanvas(settings));
 		const quality = statedVideoQuality(settings);
 		if (quality) result.quality = quality;
@@ -248,6 +249,16 @@ export function statedVideoAudioLayout(
  * it was actually asked for: an untouched dialog must leave existing deliveries
  * byte-identical rather than start stating their geometry.
  */
+export function assertVideoDialogCanvasSize(settings: Readonly<Record<string, unknown>>): void {
+	const width = settings.canvasWidth;
+	const height = settings.canvasHeight;
+	if ((width == null || width === '') && (height == null || height === '')) return;
+	if (!Number.isFinite(Number(width)) || Number(width) <= 0
+		|| !Number.isFinite(Number(height)) || Number(height) <= 0) {
+		throw new RangeError('A stated video canvas requires a positive width and height.');
+	}
+}
+
 export function statedVideoCanvas(
 	settings: Readonly<Record<string, unknown>> | undefined,
 ): Readonly<Record<string, unknown>> {

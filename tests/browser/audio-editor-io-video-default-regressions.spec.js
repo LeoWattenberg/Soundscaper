@@ -4,6 +4,19 @@ import { expect, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseDropdown, disableNativeSavePicker, importFiles, openExportDialog, readDownloadBytes } from './audio-editor-test-helpers.js';
 import { videoRetimePreviewMedia } from './fixtures/video-retime-preview-media.js';
 
+test('an invalid typed video canvas size is refused instead of exporting the automatic size', async ({ page }) => {
+	await disableNativeSavePicker(page);
+	const editor = await bootEditor(page, '/embed/en/');
+	await importFiles(editor, [videoRetimePreviewMedia.file]);
+	const dialog = await openExportDialog(page, editor);
+	await chooseDropdown(page, dialog.getByRole('group', { name: 'Format', exact: true }), 'MP4 video');
+	await dialog.getByRole('spinbutton', { name: 'Width', exact: true }).fill('0');
+	await dialog.getByRole('spinbutton', { name: 'Height', exact: true }).fill('96');
+	await dialog.getByRole('button', { name: 'Export', exact: true }).click();
+	await expect(dialog.getByRole('alert')).toContainText(/canvas|width|size/iu);
+	await expect(dialog.locator('[data-export-download]')).not.toBeVisible();
+});
+
 test('choosing letterbox after a vertical delivery target keeps the source visible', async ({ page }) => {
 	test.setTimeout(90_000);
 	await disableNativeSavePicker(page);
@@ -52,4 +65,3 @@ test('choosing letterbox after a vertical delivery target keeps the source visib
 	expect(pixel.center.slice(0, 3).some((channel) => channel > 100)).toBe(true);
 	expect(pixel.top.slice(0, 3).every((channel) => channel < 8)).toBe(true);
 });
-
