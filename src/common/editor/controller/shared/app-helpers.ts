@@ -146,7 +146,8 @@ export function labelMimeType(format: string): string {
 }
 
 export function labelExportFileName(value: unknown, format: string): string {
-	const base = sanitizeFileName(stripExtension(String(value || 'labels')), 'labels');
+	const knownFileSuffix = /\.(?:txt|srt|vtt|json|wav|wave|rf64|bw64|aif|aiff|flac|mp2|mp3|m4a|aac|ogg|oga|opus|wv|wavpack|mp4|m4v|webm|aup|aup3|aup4|scape|sscape|fscape|liscape|dawproject)$/iu;
+	const base = sanitizeFileName(String(value || 'labels').replace(knownFileSuffix, ''), 'labels');
 	return `${base}.${format}`;
 }
 

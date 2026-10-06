@@ -1,3 +1,5 @@
+import { decodeWebVttLabelText, encodeWebVttLabelText } from './label-cue-text.ts';
+
 export const AUDIO_EDITOR_LABEL_FORMATS = Object.freeze(['txt', 'srt', 'vtt']);
 export const AUDIO_EDITOR_LABEL_EXPORT_FORMATS = Object.freeze([...AUDIO_EDITOR_LABEL_FORMATS, 'json']);
 
@@ -223,7 +225,7 @@ function parseTimedEntries(text, context, format) {
 			const timing = parseCueTiming(timingLine, format, cueStartLine + (identifier == null ? 0 : 1));
 			entries.push(validateEntry({
 				...timing,
-				title: titleLines.join('\n'),
+				title: format === 'vtt' ? decodeWebVttLabelText(titleLines.join('\n')) : titleLines.join('\n'),
 				identifier,
 				line: cueStartLine,
 			}, context));
@@ -345,9 +347,6 @@ function serializeTxt(labels, context) {
 function serializeTimed(labels, context, format) {
 	const lines = format === 'vtt' ? ['WEBVTT', ''] : [];
 	labels.forEach((label, index) => {
-		if (label.title.includes('-->')) {
-			throw labelError('A timed-text label title contains a timing arrow.', 'INVALID_CHARACTER', { index, format });
-		}
 		if (context.includeCueIdentifiers) lines.push(String(format === 'srt' ? index + 1 : label.opaqueExtensions?.cueIdentifier || index + 1));
 		lines.push(`${formatTimestamp(label.startFrame, context.sampleRate, format)} --> ${formatTimestamp(label.endFrame, context.sampleRate, format)}`);
 		// Timed-text cues need a payload line distinct from their blank block
@@ -357,7 +356,7 @@ function serializeTimed(labels, context, format) {
 		// caption exporter does, which keeps an unnamed label visually empty.
 		const titleLines = label.title.replace(/\r\n?/g, '\n').split('\n')
 			.filter((line) => line.trim().length > 0);
-		lines.push(...(titleLines.length ? titleLines : [' ']), '');
+		lines.push(...(titleLines.length ? titleLines.map((line) => format === 'vtt' ? encodeWebVttLabelText(line) : line) : [' ']), '');
 	});
 	let text = lines.join(context.lineEnding);
 	if (format === 'vtt' && labels.length === 0) text += context.lineEnding;

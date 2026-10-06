@@ -32,7 +32,7 @@ export function createExportDialogInitialSettings(projectValue: unknown) {
 		dither: 'triangular',
 		loudnessNormalization: '',
 		quality: '5',
-		metadataTitle: String(metadata.title || project.title || ''),
+		metadataTitle: String(metadata.title ?? project.title ?? ''),
 		metadataArtist: String(metadata.artist || ''),
 		metadataAlbum: String(metadata.album || ''),
 		metadataTrack: String(metadata.trackNumber || ''),

@@ -34,7 +34,7 @@ import {
 export const PRESET_SETTING_KEYS: Readonly<Record<DeliveryPresetKind, readonly string[]>> = Object.freeze({
 	audio: Object.freeze([
 		'sampleRate', 'channelMapping', 'sampleFormat', 'dither',
-		'bitRate', 'quality', 'compressionLevel', 'mode', 'includeTail',
+		'bitRate', 'quality', 'compressionLevel', 'mode', 'chapterSource', 'includeTail',
 		'loudnessNormalization',
 		'bitRateMode', 'bitRatePreset', 'vbrQuality', 'averageBitRate', 'vbrMode',
 	]),
@@ -68,11 +68,12 @@ const AUDIO_LAYOUT_DEFAULT = DEFAULT_VIDEO_DELIVERY_AUDIO_LAYOUT;
 
 const AUDIO_PRESET_DIALOG_DEFAULTS = Object.freeze({
 	loudnessNormalization: '', bitRatePreset: '2', vbrQuality: '2', averageBitRate: '192',
-	vbrMode: 'on',
+	vbrMode: 'on', chapterSource: 'labels',
 });
 const VIDEO_PRESET_DIALOG_DEFAULTS = Object.freeze({
 	canvasWidth: '', canvasHeight: '', canvasFit: CANVAS_FIT_DEFAULT, canvasFrameRate: '',
 	canvasBackgroundColor: '', videoQuality: VIDEO_QUALITY_DEFAULT, videoAudioLayout: AUDIO_LAYOUT_DEFAULT,
+	deliveryTarget: '',
 });
 
 /** The preset-worthy subset of the dialog's settings, with numbers as numbers. */
@@ -84,6 +85,10 @@ export function presetSettingsFromDialog(
 	for (const key of PRESET_SETTING_KEYS[kind]) {
 		const value = settings?.[key];
 		if (value === undefined || value === '') continue;
+		if (key === 'channelMapping' && value === 'custom') {
+			result[key] = JSON.parse(String(settings.channelMatrix ?? '')) as unknown;
+			continue;
+		}
 		if (NUMERIC_KEYS.includes(key)) {
 			const numeric = Number(value);
 			if (Number.isFinite(numeric)) result[key] = numeric;
@@ -333,6 +338,11 @@ export function dialogSettingsFromPreset(
 		...(preset.kind === 'video' ? {} : { bitRateMode: impliedBitRateMode(preset.settings) }),
 	};
 	for (const [key, value] of Object.entries(preset.settings ?? {})) {
+		if (key === 'channelMapping' && value && typeof value === 'object') {
+			patch.channelMapping = 'custom';
+			patch.channelMatrix = JSON.stringify(value);
+			continue;
+		}
 		if (key === 'size') {
 			const size = value as Readonly<{ width?: unknown; height?: unknown }> | null;
 			patch.canvasWidth = size?.width == null ? '' : String(size.width);

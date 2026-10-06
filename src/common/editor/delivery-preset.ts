@@ -30,7 +30,7 @@ export type DeliveryPresetKind = (typeof DELIVERY_PRESET_KINDS)[number];
 export const DELIVERY_PRESET_SETTINGS: Readonly<Record<DeliveryPresetKind, readonly string[]>> = Object.freeze({
 	audio: Object.freeze([
 		'sampleRate', 'channelMapping', 'sampleFormat', 'dither',
-		'bitRate', 'quality', 'compressionLevel', 'mode', 'includeTail',
+		'bitRate', 'quality', 'compressionLevel', 'mode', 'chapterSource', 'includeTail',
 		'loudnessNormalization',
 		/* MP3 carries Audacity's bit-rate mode plus the value each mode keeps. */
 		'bitRateMode', 'bitRatePreset', 'vbrQuality', 'averageBitRate',

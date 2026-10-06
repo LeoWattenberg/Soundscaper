@@ -112,7 +112,7 @@ export function createExportDialogRequest(settings, options = {}) {
 			? { embedLabelChapters: true } : {}),
 		// Stated only when a target was chosen: there is no default target, and an
 		// untouched dialog must keep producing the request it always produced.
-		...(settings.mode !== 'clips' && settings.loudnessNormalization ? { loudnessNormalization: settings.loudnessNormalization } : {}),
+		...(settings.mode === 'mix' && settings.loudnessNormalization ? { loudnessNormalization: settings.loudnessNormalization } : {}),
 		...(settings.mode !== 'clips' && settings.binaural ? { binaural: true } : {}),
 		...(settings.masteringSequenceId ? { masteringSequenceId: settings.masteringSequenceId } : {}),
 	};

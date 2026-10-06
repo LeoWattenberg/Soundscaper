@@ -20,7 +20,7 @@ interface DialogController {
 		readonly clips: readonly Readonly<{ readonly timelineStartFrame: number; readonly durationFrames: number }>[];
 	}>;
 	readonly actions: Readonly<{
-		readonly project: Readonly<{ importFiles(files: readonly File[]): unknown }>;
+		readonly project: Readonly<{ importFiles(files: readonly File[], options?: Readonly<{ signal: AbortSignal }>): unknown }>;
 		readonly timelineAnnotations: Readonly<{ regularInterval(options: RegularIntervalAnnotationOptions): unknown }>;
 	}>;
 }
@@ -43,38 +43,49 @@ export function RawPcmImportDialog({ controller, copy, run, onClose, fileService
 	const [offsetBytes, setOffsetBytes] = useState(0);
 	const [importing, setImporting] = useState(false);
 	const importingRef = useRef(false);
+	const pendingImport = useRef<AbortController | null>(null);
+	useEffect(() => () => { pendingImport.current?.abort(); }, []);
+	const close = (): void => {
+		pendingImport.current?.abort();
+		onClose();
+	};
 	// The import button sits in the shared footer, outside the form, so the
 	// import path is a named handler the footer click and the form's Enter
 	// submit both enter through.
 	const importRawPcm = (): void => {
 		if (!file || importingRef.current) return;
+		const cancellation = new AbortController();
+		pendingImport.current = cancellation;
 		const projectId = controller.project?.id ?? null;
-		const projectIsCurrent = (): boolean => (controller.project?.id ?? null) === projectId;
+		const projectIsCurrent = (): boolean => !cancellation.signal.aborted && (controller.project?.id ?? null) === projectId;
 		importingRef.current = true;
 		setImporting(true);
 		run(async () => {
 			try {
 				const wav = await withWebFileLoadLimitContext(() => prepareRawPcmWaveFile(file, { sampleFormat, byteOrder, sampleRate, channelCount, offsetBytes },
-					{ desktop: fileService?.isDesktop === true, confirmFileSizeWarning, assertCurrent: () => { if (!projectIsCurrent()) throw new DOMException('The project changed.', 'AbortError'); } }));
+					{ desktop: fileService?.isDesktop === true, confirmFileSizeWarning, signal: cancellation.signal, assertCurrent: () => { if (!projectIsCurrent()) throw new DOMException('The project changed.', 'AbortError'); } }));
 				if (!projectIsCurrent()) return;
-				await controller.actions.project.importFiles([wav]);
+				await controller.actions.project.importFiles([wav], { signal: cancellation.signal });
 				if (!projectIsCurrent()) return;
+			} catch (error) {
+				if (!cancellation.signal.aborted) throw error;
 			} finally {
+				if (pendingImport.current === cancellation) pendingImport.current = null;
 				importingRef.current = false;
 				setImporting(false);
 			}
-			onClose();
+			if (projectIsCurrent()) onClose();
 		});
 	};
 	return <AudioEditorDialogShell
 		title={copy.audacityParityLabelImportRawData}
-		onClose={onClose}
+		onClose={close}
 		width={560}
 		dataAttributes={{ 'data-import-surface': 'raw-pcm' }}
 		footer={<DialogFooter
 			className="audio-editor-dialog-footer"
 			rightContent={<>
-				<Button variant="secondary" onClick={onClose}>{copy.cancel}</Button>
+				<Button variant="secondary" onClick={close}>{copy.cancel}</Button>
 				<Button
 					className="audio-editor-raw-pcm-import-confirm"
 					variant="primary"

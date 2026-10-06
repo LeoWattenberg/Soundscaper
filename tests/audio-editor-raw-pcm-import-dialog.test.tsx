@@ -174,6 +174,66 @@ test('raw PCM import cannot cross a project switch while conversion is pending',
 	}
 });
 
+test('Cancel aborts the in-progress import and completion does not close a later surface', async () => {
+	const dom = installReactTestDom();
+	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
+	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
+	const importPending = deferred<void>();
+	const importStarted = deferred<void>();
+	const running: Promise<unknown>[] = [];
+	let importSignal: AbortSignal | undefined;
+	let closes = 0;
+	const { createRoot } = await import('react-dom/client');
+	const root = createRoot(dom.container as unknown as Element);
+	try {
+		await act(async () => root.render(<RawPcmImportDialog
+			controller={{
+				project: null,
+				actions: {
+					project: { importFiles: (_files: readonly File[], options?: Readonly<{ signal: AbortSignal }>) => {
+						importSignal = options?.signal;
+						importStarted.resolve();
+						return importPending.promise;
+					} },
+					timelineAnnotations: { regularInterval: () => undefined },
+				},
+			}}
+			copy={ENGLISH_COPY}
+			run={(operation) => {
+				const result = Promise.resolve(operation());
+				running.push(result);
+				return result;
+			}}
+			onClose={() => { closes += 1; }}
+		/>));
+		await act(async () => {
+			reactProps(dom.one('input')).onChange({ currentTarget: {
+				files: [new File([new Uint8Array([0, 0])], 'voice.raw')],
+			} });
+		});
+		await act(async () => {
+			reactProps(dom.one('form')).onSubmit({ preventDefault() {} });
+			await importStarted.promise;
+		});
+		const cancel = dom.container.querySelectorAll('button').find((button) => button.textContent === ENGLISH_COPY.cancel);
+		assert.ok(cancel);
+		await act(async () => reactProps(cancel).onClick());
+		assert.equal(importSignal?.aborted, true, 'Cancel must propagate to the running project import');
+		assert.equal(closes, 1);
+		await act(async () => {
+			importPending.resolve();
+			await Promise.all(running);
+		});
+		assert.equal(closes, 1, 'a canceled import must not close the next opened surface');
+	} finally {
+		importPending.resolve();
+		await act(async () => root.unmount());
+		actGlobal.IS_REACT_ACT_ENVIRONMENT = priorAct;
+		dom.restore();
+	}
+});
+
 function deferred<Value>(): Readonly<{
 	readonly promise: Promise<Value>;
 	readonly resolve: (value: Value) => void;
