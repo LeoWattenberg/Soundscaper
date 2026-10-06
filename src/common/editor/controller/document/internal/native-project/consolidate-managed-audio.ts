@@ -5,6 +5,7 @@ import { createStableId } from '../../../../stable-id.js';
 import { sameStoredSourceIdentity, type StorageRecord } from '../../../../storage/media-records.ts';
 import type { SourcePcmReadSession, SourceReadOptions } from '../../../../storage/source-read-repository.ts';
 import type { ConsolidateAudioCacheStore } from './consolidate-linked-audio-cache.ts';
+import { cleanupConsolidation, withConsolidationCleanup, type ConsolidationFailure } from './consolidation-cleanup.ts';
 import { addDeliveryReportItem, createDeliveryReport, sealDeliveryReport, type DeliveryReport } from '../../../../delivery-report.ts';
 
 export interface ConsolidateManagedAudioStore extends ConsolidateAudioCacheStore {
@@ -57,6 +58,7 @@ export async function prepareManagedAudioConsolidation(
 				|| Number(metadata.sampleRate) !== Number(source.sampleRate)) throw new Error('Consolidation source geometry changed.');
 			const input = await store.openSourceReadSession(key, { expectedSource: metadata, signal });
 			if (!input) throw new Error('Consolidation requires the exact stored audio generation.');
+			let failure: ConsolidationFailure | undefined;
 			try {
 				const replacementId = createStableId('consolidated-audio');
 				const writer = await store.beginSourceWrite(replacementId, {
@@ -91,12 +93,13 @@ export async function prepareManagedAudioConsolidation(
 						.map((clip) => ({ clipId: String(clip.id), sourceStartFrame: Number(clip.sourceStartFrame) }));
 					commands.push({ type: 'source/rewrite-media', sourceId: String(source.id),
 						changes: { storageKey: replacementId }, clips });
-				} catch (error) { await writer.abort(); throw error; }
-			} finally { await input.release(); }
+				} catch (error) { await cleanupConsolidation(() => writer.abort(), { error }); throw error; }
+			} catch (error) { failure = { error }; throw error; }
+			finally { await cleanupConsolidation(() => input.release(), failure); }
 		}
 		return { commands, discard };
 	} catch (error) {
-		try { await discard(); } catch (cleanup) { throw new AggregateError([error, cleanup], 'Consolidation and cleanup failed.', { cause: cleanup }); }
+		await cleanupConsolidation(discard, { error });
 		throw error;
 	}
 }
@@ -107,7 +110,7 @@ async function verifyCopy(
 ): Promise<void> {
 	const copy = await store.openSourceReadSession?.(String(replacement.id), { expectedSource: replacement, signal });
 	if (!copy) throw new Error('Consolidation requires a fresh read of its published PCM.');
-	try {
+	await withConsolidationCleanup(async () => {
 		for (let index = 0; index < chunkCount; index += 1) {
 			const expected = await original.chunk(index, { signal });
 			const actual = await copy.chunk(index, { signal });
@@ -124,7 +127,7 @@ async function verifyCopy(
 				}
 			}
 		}
-	} finally { await copy.release(); }
+	}, () => copy.release());
 }
 
 function record(value: unknown): Record<string, unknown> | null {

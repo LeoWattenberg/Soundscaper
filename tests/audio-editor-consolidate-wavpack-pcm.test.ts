@@ -194,6 +194,29 @@ test('cancelled WavPack conversion retires the unpublished stage and preserves t
 	assert.equal((await store.readSourceChunk('raw', 1))?.channels[0][0], 0);
 });
 
+test('a failed binding preserves its primary error alongside failed published-source cleanup', async (context) => {
+	const store = createProjectStore({ indexedDB: createInstrumentedIndexedDB(), preferOpfs: false,
+		memoryFallback: false, databaseName: `consolidate-cleanup-${crypto.randomUUID()}`, pcmCodec: await codec() });
+	context.after(async () => { await store.close(); });
+	store.setPcmOptimizationMode('speed');
+	const writer = await store.beginSourceWrite('raw', { sampleRate: 48_000, channelCount: 1, chunkFrames: 1_024 });
+	await writer.write([new Float32Array(1_024)]); await writer.write([new Float32Array(1_024)]);
+	const raw = await writer.commit(), original = project();
+	const primary = new Error('Binding refused before publication.'), cleanup = new Error('Discard storage failed.');
+	context.mock.method(store, 'discardSourceIfCurrent', async () => { throw cleanup; });
+	await assert.rejects(createProjectMediaActionGroup({ state: {}, store, getProject: () => original,
+		commit: () => { throw primary; },
+	}).consolidate(), (error: unknown) => {
+		assert.ok(error instanceof AggregateError);
+		assert.strictEqual(error.errors[0], primary);
+		assert.ok(error.errors[1] instanceof AggregateError && error.errors[1].errors.includes(cleanup));
+		return true;
+	});
+	assert.equal(original.sources[0].storageKey, 'raw');
+	assert.equal((await store.getSourceMetadata('raw'))?.sourceToken, raw.sourceToken);
+	assert.equal((await store.readSourceChunk('raw', 1))?.channels[0][0], 0);
+});
+
 function project() {
 	return createCurrentAudioEditorProject({ id: 'consolidate-project', now: '2026-10-06T12:00:00Z', sampleRate: 48_000,
 		sources: [createAudioSource({ id: 'source', storageKey: 'raw', name: 'Take', frameCount: 2_048, channelCount: 1, sampleRate: 48_000 })],

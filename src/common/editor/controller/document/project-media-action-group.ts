@@ -28,6 +28,7 @@ import {
 import { saveCurrentScapeArchiveManifest } from './internal/scape/scape-archive-manifest-action.ts';
 import { prepareExternalMediaConsolidation } from './internal/native-project/consolidate-external-media.ts';
 import { prepareManagedAudioConsolidation, reportConsolidatedPcm } from './internal/native-project/consolidate-managed-audio.ts';
+import { cleanupConsolidation, type ConsolidationFailure } from './internal/native-project/consolidation-cleanup.ts';
 import {
 	planProjectTrim,
 	trimProjectMedia,
@@ -83,6 +84,7 @@ export function createProjectMediaActionGroup(runtime: ProjectMediaActionRuntime
 				const commands = await prepareExternalMediaConsolidation(request.project, request.store, assertCurrent, options.signal);
 				let audio: Awaited<ReturnType<typeof prepareManagedAudioConsolidation>> | undefined;
 				let bound = false;
+				let failure: ConsolidationFailure | undefined;
 				try {
 					audio = await prepareManagedAudioConsolidation(request.project, request.store, assertCurrent, options.signal);
 					assertCurrent();
@@ -92,12 +94,16 @@ export function createProjectMediaActionGroup(runtime: ProjectMediaActionRuntime
 					}
 					bound = true;
 				} catch (error) {
+					failure = { error };
 					runtime.state.deliveryReport = reportConsolidatedPcm(result.run.report, [], error);
 					runtime.publishDocumentSnapshot?.();
 					if (runtime.setStatus) setLocalizedStatus(runtime.setStatus, copy, 'consolidatedMediaIncomplete',
 						undefined, 'warning', { fallback: 'Some media could not be consolidated.' });
 					throw error;
-				} finally { if (!bound) await audio?.discard(); }
+				} finally {
+					const unbound = audio;
+					if (!bound && unbound) await cleanupConsolidation(() => unbound.discard(), failure);
+				}
 				if (audio.commands.length) {
 					const ids = audio.commands.flatMap((command) => command.type === 'source/rewrite-media' ? [command.sourceId] : []);
 					result = { ...result, run: { ...result.run, report: reportConsolidatedPcm(result.run.report, ids) } };
