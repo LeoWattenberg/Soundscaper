@@ -67,7 +67,7 @@ for (const platform of ['web', 'desktop']) {
 		await expect.poll(() => page.evaluate(() => {
 			const probe = globalThis.__productionStripMeterWorkerProbe;
 			const fill = document.querySelector('[data-mixer-panel] .kw-audio-editor__mixer-channel--master .mixer-channel__meter-fill');
-			const level = 100 - Number.parseFloat(fill?.style.top ?? '100');
+			const level = fill ? fill.getBoundingClientRect().height / fill.parentElement.getBoundingClientRect().height * 100 : 0;
 			return probe.created > 0 && probe.submissions > 0 && probe.results > 0
 				&& probe.transferredBuffers > 0 && probe.maximumPeak > 0.05 && level > 20;
 		}), {

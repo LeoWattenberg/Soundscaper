@@ -75,6 +75,8 @@ export function AudacityAudioMeter({
 	const style = {
 		'--playback-meter-peak': `${peakPercent}%`,
 		'--playback-meter-rms': `${rmsPercent}%`,
+		'--playback-meter-peak-transform': `${orientation === 'vertical' ? 'scaleY' : 'scaleX'}(${peakPercent / 100})`,
+		'--playback-meter-peak-origin': orientation === 'vertical' ? 'bottom' : 'left',
 	};
 	useEffect(() => {
 		const element = meterRef.current;

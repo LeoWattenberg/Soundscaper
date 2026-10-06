@@ -48,11 +48,10 @@ export function MixerTelemetryMeters({
 
 function MixerMeterBar({ level }: Readonly<{ level: number }>) {
 	const clampedLevel = Math.max(0, Math.min(100, level));
-	const fillPercent = 100 - clampedLevel;
 	const isClipping = clampedLevel >= 95;
 	return <div className="mixer-channel__meter-bar">
 		<div className={`mixer-channel__meter-clip ${isClipping ? 'mixer-channel__meter-clip--active' : ''}`} />
-		<div className="mixer-channel__meter-fill" style={{ top: `${fillPercent}%` }} />
+		<div className="mixer-channel__meter-fill" style={{ top: 0, height: '100%', transformOrigin: 'bottom', transform: `scaleY(${clampedLevel / 100})` }} />
 	</div>;
 }
 
