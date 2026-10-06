@@ -121,6 +121,12 @@
 	padding: 12px;
 }
 
+.audio-editor-macros-palette__detail:has(> .audio-editor-macro-script) {
+	display: flex;
+	flex-direction: column;
+	overflow-y: auto;
+}
+
 .audio-editor-macros-palette__detail > [data-macro-unselected] {
 	display: grid;
 	margin: 0;
@@ -247,6 +253,7 @@
 
 .audio-editor-macro-script {
 	display: flex;
+	flex-shrink: 0;
 	flex-direction: column;
 	gap: 8px;
 	min-height: 0;

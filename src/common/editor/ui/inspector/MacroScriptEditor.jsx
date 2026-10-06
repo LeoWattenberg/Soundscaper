@@ -47,6 +47,8 @@ export default function MacroScriptEditor({
 
 	const handleKeyDown = (event) => {
 		if (event.key === 'Escape') {
+			event.preventDefault();
+			event.stopPropagation();
 			setTabEscapes(true);
 			return;
 		}
@@ -124,7 +126,10 @@ export default function MacroScriptEditor({
 					<p className="audio-editor-panel-hint">{copy.reviewRisk}</p>
 					<div
 						className="audio-editor-macro-script__review-acknowledge"
-						onClick={() => setReviewed((current) => !current)}
+						onClick={(event) => {
+							if (event.target.closest('[role="checkbox"]')) return;
+							setReviewed((current) => !current);
+							}}
 					>
 						<Checkbox
 							checked={reviewed}

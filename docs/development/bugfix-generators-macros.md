@@ -112,6 +112,27 @@ Open **Window > Mixer**, focus an audio track's volume fader, and press Home.
 Previously the gain jumped to maximum +12 dB instead of minimum -60 dB. End did
 the reverse. Both keys now follow the slider's minimum/maximum conventions.
 
+## ROOT-015 — Clicking the program review checkbox toggles it twice
+
+Create a program in **Tools > Macros palette**, export it, delete it, and import
+that exact download. In a tall window, click its review checkbox. Previously it
+remained unchecked because the checkbox and enclosing text wrapper both toggled
+the same state. The wrapper now handles only clicks outside the checkbox.
+
+## ROOT-016 — The documented Escape/Tab program exit closes the palette
+
+Create a program, focus its source, and follow the visible hint: press Escape,
+then Tab to leave the textarea. Previously Escape closed the entire palette.
+The source editor now consumes its own Escape before enabling native Tab exit.
+
+## ROOT-017 — Import feedback covers the program review controls
+
+In a normal 1280 × 720 window, export and reimport a program through the palette.
+The import status previously overlapped its review checkbox and intercepted
+ordinary clicks. The program detail now scrolls as a column, placing feedback
+after the program instead of in a shrinking overlapping grid row. This is
+independent of ROOT-015: resizing exposed a checkbox that still toggled twice.
+
 ## Regression coverage
 
 - `tests/browser/audio-editor-bug-audit-macros.spec.js`
@@ -120,6 +141,7 @@ the reverse. Both keys now follow the slider's minimum/maximum conventions.
 - `tests/browser/audio-editor-bug-audit-macro-availability.spec.js`
 - `tests/browser/audio-editor-bug-audit-mixer.spec.js`
 - `tests/browser/audio-editor-mixer-keyboard-regressions.spec.js`
+- `tests/browser/audio-editor-macro-program-controls-regressions.spec.js`
 - `tests/audio-editor-macro-command-service.test.ts`
 - `tests/audio-editor-macro-program-service.test.ts`
 - `tests/audio-editor-generator-service.test.ts`
