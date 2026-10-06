@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 
-import { AudioTrackRow } from './AudioTrackRow.jsx';
+import { MemoizedAudioTrackRow } from './MemoizedAudioTrackRow.jsx';
 import { EMPTY_TIMELINE_CLIPS } from './constants.ts';
 import { normalizeWaveformRulerState } from './geometry.ts';
 import { LabelTrackRow } from './LabelTrackRow.jsx';
@@ -201,7 +201,7 @@ export function TrackListView({
 					onFocusSelectionToolbar={focusSelectionToolbar}
 				/>
 			) : (
-				<AudioTrackRow
+				<MemoizedAudioTrackRow
 					key={track.id}
 					controller={controller}
 					project={project}
