@@ -167,6 +167,8 @@ export interface EffectMacroServiceRuntime<Buffer = MacroRenderBuffer> {
 
 export function createEffectMacroService<Buffer = MacroRenderBuffer>(runtime: EffectMacroServiceRuntime<Buffer>) {
 	let running = false;
+	let activeOwnership: EffectMacroOwnership | null = null;
+	let cancelledOwnership: EffectMacroOwnership | null = null;
 
 	async function runEffectMacro(request: EffectMacroRequest = {}): Promise<true | null> {
 		if (runtime.editingBlocked()) return null;
@@ -194,6 +196,7 @@ export function createEffectMacroService<Buffer = MacroRenderBuffer>(runtime: Ef
 		if (estimatedPeakBytes > runtime.memoryLimitBytes) throw runtime.audacityEffectMemoryError();
 
 		const ownership = captureOwnership(runtime, project.id);
+		activeOwnership = ownership;
 		running = true;
 		runtime.setProcessing(true);
 		setLocalizedStatus(runtime.setStatus, runtime.copy, (runtime.copy.macroProcessing ? "macroProcessing" : "audacityProcessing"));
@@ -216,10 +219,16 @@ export function createEffectMacroService<Buffer = MacroRenderBuffer>(runtime: Ef
 			if (ownershipIsCurrent(runtime, ownership) && !isCancellation(error)) runtime.handleError(error);
 			throw error;
 		} finally {
-			running = false;
-			const taskCurrent = taskIsCurrent(ownership.task);
-			if (taskCurrent) runtime.setProcessing(false);
-			if (taskCurrent && projectIsCurrent(runtime, ownership.project)) runtime.publishDocumentSnapshot();
+			if (activeOwnership === ownership) {
+				activeOwnership = null;
+				running = false;
+				const projectCurrent = projectIsCurrent(runtime, ownership.project);
+				const taskCurrent = taskIsCurrent(ownership.task)
+					|| (cancelledOwnership === ownership && projectCurrent);
+				if (taskCurrent) runtime.setProcessing(false);
+				if (taskCurrent && projectCurrent) runtime.publishDocumentSnapshot();
+				if (cancelledOwnership === ownership) cancelledOwnership = null;
+			}
 			ownership.task.finish();
 		}
 	}
@@ -410,6 +419,7 @@ export function createEffectMacroService<Buffer = MacroRenderBuffer>(runtime: Ef
 	 */
 	function cancelEffectMacro(): boolean {
 		if (!running) return false;
+		cancelledOwnership = activeOwnership;
 		runtime.lifetime.cancelTask(EFFECT_MACRO_TASK);
 		return true;
 	}

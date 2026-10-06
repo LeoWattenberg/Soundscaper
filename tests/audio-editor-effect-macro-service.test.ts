@@ -319,6 +319,7 @@ test('cancelling a run aborts it without persisting anything', async () => {
 	assert.equal(harness.persistenceCommits, 0);
 	assert.deepEqual(harness.persistedProjects, []);
 	assert.equal(harness.errors.length, 0, 'a cancellation is not an error to report');
+	assert.equal(harness.processing, false, 'canceling must release the editor busy state');
 	assert.deepEqual(harness.statuses, [['Macro processing', undefined]]);
 });
 

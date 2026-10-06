@@ -180,6 +180,16 @@ offered **Source 3** through **Source 32**; choosing one and saving failed becau
 those source channels do not exist. The list now derives its choices from the
 selected endpoint's actual channel width.
 
+## ROOT-024 — Canceling an effect macro permanently blocks editing
+
+Import an ordinary 30-second WAV, select all, and create a macro containing
+Reverb through **Tools > Macros palette**. Click **Run macro**, then **Cancel run**.
+Previously the palette said it was canceled but **Run macro** remained disabled
+and editor actions stayed blocked: the retired task never released its processing
+flag. Cancellation now releases the current project's busy state without letting
+an obsolete run clear a replacement task's state. This effect-runner defect is
+separate from ROOT-018's program-result presentation.
+
 ## Regression coverage
 
 - `tests/browser/audio-editor-bug-audit-macros.spec.js`
@@ -192,6 +202,8 @@ selected endpoint's actual channel width.
 - `tests/browser/audio-editor-macro-program-outcomes-regressions.spec.js`
 - `tests/browser/audio-editor-analysis-selection-regressions.spec.js`
 - `tests/browser/audio-editor-routing-map-regressions.spec.js`
+- `tests/browser/audio-editor-macro-effect-cancel-regressions.spec.js`
+- `tests/audio-editor-effect-macro-service.test.ts`
 - `tests/audio-editor-audio-spectrum.test.ts`
 - `tests/audio-editor-macro-command-service.test.ts`
 - `tests/audio-editor-macro-program-service.test.ts`
