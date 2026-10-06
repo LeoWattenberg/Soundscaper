@@ -18,6 +18,7 @@ import {
 	projectBinWaveformPath,
 } from './project-bin-model.ts';
 import { productVideoVisualPreviewRuntimeFor } from './product-video-visual-preview-runtime.ts';
+import { projectBinVideoPreviewModel } from './project-bin-video-preview-model.ts';
 
 export default function ProjectBinCard({
 	clip,
@@ -51,7 +52,6 @@ export default function ProjectBinCard({
 		projectBinTransformBadges(itemClip, sources[index], copy)
 	)))];
 	const format = formatProjectBinSource(source, copy);
-	const duration = formatProjectBinDuration(clip.durationFrames, project?.sampleRate, locale);
 	const videoClip = itemClips.find((itemClip) => itemClip.kind === 'video') || null;
 	const visualClip = itemClips.find((itemClip) => (
 		itemClip.kind === 'still' || itemClip.kind === 'generator' || itemClip.kind === 'image'
@@ -66,12 +66,11 @@ export default function ProjectBinCard({
 	const videoSource = videoClip
 		? sources[itemClips.indexOf(videoClip)] || project?.sources?.find((candidate) => candidate.id === videoClip.sourceId)
 		: null;
-	const videoStartSeconds = videoClip && videoSource
-		? videoClip.sourceStartFrame / Math.max(1, videoSource.sampleRate || project?.sampleRate || 48_000)
-		: 0;
-	const videoEndSeconds = videoClip && videoSource
-		? (videoClip.sourceStartFrame + videoClip.sourceDurationFrames) / Math.max(1, videoSource.sampleRate || project?.sampleRate || 48_000)
-		: 0;
+	const videoPreview = projectBinVideoPreviewModel(project, videoClip, videoSource);
+	const duration = formatProjectBinDuration(videoPreview?.durationFrames ?? clip.durationFrames, project?.sampleRate, locale);
+	const videoStartSeconds = videoPreview?.startSeconds ?? 0;
+	const videoEndSeconds = videoPreview?.endSeconds ?? 0;
+	const videoPlaybackRate = videoPreview?.playbackRate ?? 1;
 
 	useEffect(() => {
 		const media = videoRef.current;
@@ -83,9 +82,10 @@ export default function ProjectBinCard({
 		if (Math.abs(media.currentTime - videoStartSeconds) > .1 && (media.currentTime < videoStartSeconds || media.currentTime >= videoEndSeconds)) {
 			media.currentTime = videoStartSeconds;
 		}
+		media.playbackRate = videoPlaybackRate;
 		if (previewPlaying) void media.play().catch(() => controller.actions.projectBin.stopPreview());
 		else media.pause();
-	}, [controller, previewActive, previewPlaying, videoEndSeconds, videoStartSeconds]);
+	}, [controller, previewActive, previewPlaying, videoEndSeconds, videoStartSeconds, videoPlaybackRate]);
 
 	return (
 		<li
