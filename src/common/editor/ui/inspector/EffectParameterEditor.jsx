@@ -14,6 +14,7 @@ import {
 	audacityEffectParameterLabel,
 } from '../../audacity-effects/manifest.js';
 import { AUDIO_EDITOR_SAMPLE_RATE } from '../../project.js';
+import { audioEffectControlTracks } from '../../audio-effect-control-tracks.ts';
 import { canonicalCopyValue } from '../../../i18n/canonical-extras.js';
 import { AudacityEffectLayout } from '../AudacityEffectLayout.jsx';
 import AudacityDynamicsEffectLayout from '../AudacityDynamicsEffectLayout.jsx';
@@ -283,7 +284,7 @@ export default function EffectParameterEditor({
 		);
 	}
 
-	const candidates = tracks.filter((track) => track.id !== targetTrackId);
+	const candidates = audioEffectControlTracks(tracks, targetTrackId);
 	const renderParameter = (name) => (
 		audacityParameterVisible(effect, name) && (advancedSettings || !audacityAdvancedParameters(effect.type).includes(name)) ? (
 			<AudacityParameter

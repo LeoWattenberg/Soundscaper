@@ -3,6 +3,7 @@ import { ContextMenu } from '@soundscaper/design-system/ContextMenu';
 import { ContextMenuItem } from '@soundscaper/design-system/ContextMenuItem';
 import { EffectsPanel } from '@soundscaper/design-system/EffectsPanel';
 import { audioSelectionEffectDefaults, createEffect } from '../../effects.js';
+import { audioEffectControlTracks } from '../../audio-effect-control-tracks.ts';
 import { serializeAudacityEffectMacro } from '../../effect-macros.js';
 import { AUDIO_EDITOR_SAMPLE_RATE, findTrack } from '../../project.js';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
@@ -169,8 +170,7 @@ export function AudioEditorEffectsOverlay({
 		};
 		if (type === 'audacity-noise-reduction') changes.enabled = false;
 		if (type === 'audacity-auto-duck') {
-			const targetTrackId = scope === 'track' ? targetId : null;
-			const controlTrack = project?.tracks.find((track) => track.id !== targetTrackId);
+			const controlTrack = audioEffectControlTracks(project?.tracks || [], scope === 'track' ? targetId : null)[0];
 			if (!controlTrack) {
 				setMessage({ key: 'autoDuckSecondControlTrack' });
 				return;

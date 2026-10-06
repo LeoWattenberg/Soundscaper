@@ -24,4 +24,24 @@ result with the independent EBU meter, preserve stereo balance and compare the
 same waveform before and after a preceding gain. All 26 focused loudness, basic
 effect and realtime effect tests pass. Gain and stereo variants count once.
 
+## R3-ROOT-002 — Auto Duck replacement chooses a label track as its audio control
+
+In a fresh project choose **Tracks > Remove tracks**, then **Tracks > Add new
+track > New label track**. Import two ordinary WAVs. Open the first audio track's
+**Effects** rack, add **Invert**, open its **More options**, and choose **Auto
+Duck**. Open that slot's **Select effect** settings.
+
+Previously **Control track** selected the preceding **Labels** track, even
+though the second audio track was available. An annotation track supplies no
+sidechain signal, so the resulting effect could not render. Replacement defaults
+and the shared control-track chooser now admit audio tracks and omit the effect's
+own audio track. Both manifestations count as this one admission defect.
+
+Proof: `audio-editor-round3-auto-duck-replacement.spec.js` failed on the immutable
+baseline with **Labels**, then passed on green build 4 in Chromium, Firefox and
+WebKit with the other imported audio track selected. Two strict regressions
+verify candidate order, omission of nonsignal tracks and the effect's own track,
+and the absence of a usable control when only one audio track and labels exist.
+All 25 focused control-track, overlay, rack and effect-control tests pass.
+
 These changes do not require a manual **Update AI assets** run.
