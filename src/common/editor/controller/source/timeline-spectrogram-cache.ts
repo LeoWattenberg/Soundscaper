@@ -1,5 +1,12 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createBoundedWorkQueue } from './internal/bounded-work-queue.ts';
+
+const jobs = createBoundedWorkQueue(2, 128);
+export function queueTimelineSpectrogramJob<Result>(operation: () => Promise<Result>, options: Readonly<{ signal?: AbortSignal; priority?: number }> = {}): Promise<Result> {
+	return jobs.run(operation, options);
+}
+
 export type SpectrogramChannels = readonly (readonly (readonly number[])[])[];
 
 interface CacheEntry<Value> {

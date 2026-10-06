@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { immutableWaveformKeyJson, waveformEnvelopeKeyJson } from './immutable-waveform-key-json.ts';
 import { readClipLoop } from '../audio-clip-loop.ts';
 
 interface WaveformSourceIdentity {
@@ -66,8 +67,7 @@ export function createWaveformPreviewCacheKey({
 		tempoMap?: unknown;
 	}>;
 }): string {
-	return JSON.stringify([
-		createWaveformContentKey(source, clip),
+	return `[${createWaveformContentKey(source, clip)},${JSON.stringify([
 		sourceWindow.startFrame,
 		sourceWindow.endFrame,
 		rendering.showRms,
@@ -79,8 +79,7 @@ export function createWaveformPreviewCacheKey({
 		rendering.frequencyWaveformMode ?? null,
 		timeAuthority?.sampleRate ?? null,
 		timeAuthority?.projectSampleRate ?? null,
-		timeAuthority?.tempoMap ?? null,
-	]);
+	]).slice(1, -1)},${immutableWaveformKeyJson(timeAuthority?.tempoMap)}]`;
 }
 
 /** Source and audio edits invalidate retained previews independently of zoom or viewport. */
@@ -88,7 +87,7 @@ export function createWaveformContentKey(
 	source: WaveformSourceIdentity | null | undefined,
 	clip: WaveformClipIdentity,
 ): string {
-	return JSON.stringify([
+	return `[${JSON.stringify([
 		'waveform-content-v1',
 		source?.id ?? clip.sourceId ?? '',
 		source?.storageKey ?? '',
@@ -106,8 +105,5 @@ export function createWaveformContentKey(
 		clip.fadeOutShape ?? 'legacy-linear',
 		Boolean(clip.reversed),
 		Boolean(clip.inverted),
-		(clip.envelope ?? []).map((point) => [point.frame ?? 0, point.value ?? 1]),
-		clip.warpMap ?? null,
-		readClipLoop(clip),
-	]);
+	]).slice(1, -1)},${waveformEnvelopeKeyJson(clip.envelope)},${immutableWaveformKeyJson(clip.warpMap)},${JSON.stringify(readClipLoop(clip))}]`;
 }

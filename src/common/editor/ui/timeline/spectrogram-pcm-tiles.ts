@@ -10,6 +10,7 @@ import {
 	pffftSpectrogramBandEnergies,
 	preparePffftSpectrogram,
 } from '../../pffft-spectrogram.js';
+import { analyzeTimelineSpectrogramTileInWorker } from '../../timeline-spectrogram-worker-client.ts';
 import { pcmWindowCoversProjectedClip } from './preview.ts';
 import {
 	createSpectrogramSampleViews,
@@ -85,7 +86,8 @@ export async function generateSpectrogramPcmTiles(
 	}
 	if (frameCount === 0) return { width, pixelSkip, channels: [] };
 	const analyze = options.analyze ?? analyzePffft;
-	if (!options.analyze) await preparePffftSpectrogram(fftWindowSize);
+	const useWorker = !options.analyze && typeof Worker === 'function';
+	if (!options.analyze && !useWorker) await preparePffftSpectrogram(fftWindowSize);
 	const pixelPositions: number[] = [];
 	for (let pixel = 0; pixel < width; pixel += pixelSkip) pixelPositions.push(pixel);
 	const localStartAt = (pixel: number): number => clip.waveformStartFrame
@@ -134,29 +136,37 @@ export async function generateSpectrogramPcmTiles(
 		signal?.throwIfAborted();
 		const tileClip = { ...clip, waveformStartFrame: startFrame, waveformEndFrame: endFrame };
 		if (!pcm || !pcmWindowCoversProjectedClip(pcm, tileClip, project)) return null;
-		const views = createSpectrogramSampleViews(pcm.channels, tileClip, {
-			project,
-			sourceFrameOffset: pcm.startFrame,
-		});
+
 		const pixelStart = pixelPositions[first]!;
 		const pixelEnd = Math.min(width, pixelPositions[last]! + pixelSkip);
 		const tileChannels: Array<readonly (readonly number[])[]> = [];
-		for (const view of views) {
-			const offset = startFrame - clip.waveformStartFrame;
-			const globalView: SpectrogramSampleView = {
-				length: frameCount,
-				sampleAt: (index) => view.sampleAt(index - offset),
-			};
-			const columns = analyze(globalView, width, {
-				fftWindowSize,
-				frequencyBands: options.frequencyBands,
-				windowType: options.windowType,
-				pixelSkip,
-				pixelStart,
-				pixelEnd,
-			});
-			if (columns === null) return null;
-			tileChannels.push(columns);
+		if (useWorker && pcm.channels.length <= 8) {
+			tileChannels.push(...await analyzeTimelineSpectrogramTileInWorker({
+				channels: pcm.channels, clip: tileClip, project: project ? { sampleRate: project.sampleRate, tempoMap: project.tempoMap } : null,
+				sourceFrameOffset: pcm.startFrame, frameCount, offset: startFrame - clip.waveformStartFrame, width,
+				options: { fftWindowSize, frequencyBands: options.frequencyBands, windowType: options.windowType, pixelSkip, pixelStart, pixelEnd },
+			}, { signal }));
+			signal?.throwIfAborted();
+		} else {
+			if (useWorker) await preparePffftSpectrogram(fftWindowSize);
+			const views = createSpectrogramSampleViews(pcm.channels, tileClip, { project, sourceFrameOffset: pcm.startFrame });
+			for (const view of views) {
+				const offset = startFrame - clip.waveformStartFrame;
+				const globalView: SpectrogramSampleView = {
+					length: frameCount,
+					sampleAt: (index) => view.sampleAt(index - offset),
+				};
+				const columns = analyze(globalView, width, {
+					fftWindowSize,
+					frequencyBands: options.frequencyBands,
+					windowType: options.windowType,
+					pixelSkip,
+					pixelStart,
+					pixelEnd,
+				});
+				if (columns === null) return null;
+				tileChannels.push(columns);
+			}
 		}
 		const expectedColumns = last - first + 1;
 		if (tileChannels.some((columns) => columns.length !== expectedColumns)) {

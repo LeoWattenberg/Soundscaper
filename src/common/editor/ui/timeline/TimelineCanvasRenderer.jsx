@@ -338,7 +338,7 @@ export function drawAudacityClipCanvas(canvas, clip, options) {
 	context.clearRect(0, 0, width, height);
 	if (splitY > 0) {
 		drawAudacityClipSpectrogram(context, clip.spectrogramWaveform, {
-			columns: clip.spectrogramColumns,
+			columns: clip.spectrogramColumns, deferAnalysis: clip.spectrogramDeferred,
 			width,
 			height: splitY,
 			backgroundColor: cssColor(style, '--spectrogram-background', '#010101'),

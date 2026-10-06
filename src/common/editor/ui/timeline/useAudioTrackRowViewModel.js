@@ -166,7 +166,7 @@ export function useAudioTrackRowViewModel({
 	const spectrogramTiles = useSpectrogramPcmTiles({
 		controller,
 		project: waveformProject,
-		projectedClips: projection.clips,
+		projectedClips: projection.clips, viewportStartFrame: renderViewportStartFrame, viewportDurationFrames,
 		sourceLookup,
 		pixelsPerSecond,
 		sampleRate,
@@ -276,7 +276,9 @@ export function useAudioTrackRowViewModel({
 			frequencyWaveformPreferences,
 		}).map((clip) => {
 			const columns = spectrogramTiles.get(String(clip.id));
-			if (!columns) return clip;
+			const spectralWorker = typeof Worker === 'function' && !clip.isRecordingPreview
+				&& (sourceLookup.get(clip.sourceId)?.channelCount ?? 2) <= 8 && clip.duration * pixelsPerSecond <= 32_768;
+			if (!columns) return spectralWorker ? { ...clip, spectrogramDeferred: true } : clip;
 			return {
 				...clip,
 				spectrogramColumns: columns,

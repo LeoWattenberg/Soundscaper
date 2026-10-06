@@ -40,7 +40,7 @@ export function drawAudacityClipSpectrogram(context, channels, options) {
 		rangeDb: options.rangeDb,
 		sampleRate: options.sampleRate,
 	};
-	const columns = options.columns?.channels ?? cache.analysis(owner, [
+	const columns = options.columns?.channels ?? (options.deferAnalysis ? null : cache.analysis(owner, [
 		...channels.slice(0, channelCount), options.width,
 		options.fftWindowSize, options.windowType, pffftSpectrogramRevision(),
 	], () => {
@@ -48,7 +48,7 @@ export function drawAudacityClipSpectrogram(context, channels, options) {
 			pffftSpectrogramBandEnergies(channel, options.width, spectrogramOptions)
 		));
 		return analyzed.every(Boolean) ? analyzed : null;
-	});
+	}));
 	const geometry = channelCount > 1
 		? audioEditorStereoChannelGeometry(options.height, options.channelHeightRatio)
 		: [{ top: 0, height: options.height }];
@@ -94,5 +94,5 @@ export function drawAudacityClipSpectrogram(context, channels, options) {
 	}) : null;
 	if (image) context.drawImage(image, 0, 0, options.width, options.height);
 	else paint(context);
-	owner.dataset.spectrogramRenderer = columns ? 'pffft-wasm' : 'loading-pffft';
+	owner.dataset.spectrogramRenderer = columns ? 'pffft-wasm' : options.deferAnalysis ? 'loading-worker' : 'loading-pffft';
 }
