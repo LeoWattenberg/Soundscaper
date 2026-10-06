@@ -399,6 +399,9 @@ test('parallel effect controls preview and cancel on workers without rebuilding 
 		return probe.generations.length === 1 && current > revision
 			&& differences?.[0] > 0.1 && differences?.[1] > 0.1;
 	}, previewRevision), { timeout: 20_000, message: 'Escape must restore the original audible effect without replacing workers' }).toBe(true);
+	await expect(dialog).toBeVisible();
+	await expect(dialog.locator('[data-effect-param="depth"]').getByRole('spinbutton')).toHaveValue('100');
+	await page.keyboard.press('Escape');
 	await expect(dialog).toBeHidden();
 	await panel.locator('[data-effect-rack]').getByRole('group', { name: 'Tremolo', exact: true })
 		.getByRole('button', { name: 'Select effect', exact: true }).click();
