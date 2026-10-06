@@ -74,6 +74,21 @@ test('neutral stereo PCM preserves the real engine source scheduling at frame bo
 				} finally { await engine.dispose(); }
 				results.push({ sampleRate, clipStart, sourceStart, start, end, different });
 			}
+		}
+		return results;
+	}, ROOT);
+	expect(result).toHaveLength(12);
+	for (const comparison of result) expect(comparison.different, JSON.stringify(comparison)).toBe(0);
+});
+
+test('bounded native stereo PCM retains strict scheduling parity across render windows', async ({ page, browserName }) => {
+	test.skip(browserName === 'webkit', 'WebKit native OfflineAudioContext produces intermittent dropped quanta independently of Soundscaper; retain realtime capture.');
+	await routeParityModules(page);
+	const result = await page.evaluate(async (root) => {
+		const { createAudioEditorEngine, createSoundscaperProject, createAudioSource, createAudioTrack,
+			createAudioClip } = await import(`${root}/entry.js`);
+		const results = [];
+		for (const sampleRate of [8_000, 44_100, 48_000, 96_000]) {
 			const longBuffer = new AudioBuffer({ length: sampleRate * 9 + 137, numberOfChannels: 2, sampleRate });
 			for (let channel = 0; channel < 2; channel++) {
 				const input = longBuffer.getChannelData(channel);
@@ -91,6 +106,9 @@ test('neutral stereo PCM preserves the real engine source scheduling at frame bo
 				[sampleRate * 5 - 7, sampleRate * 5 + 13], [111, sampleRate * 7 - 1]]) {
 			const engine = createAudioEditorEngine();
 			try {
+				let offlineRenders = 0;
+				const renderMix = engine.renderMix.bind(engine);
+				engine.renderMix = async (options) => { offlineRenders += 1; return await renderMix(options); };
 				const provider = { sampleRate, channelCount: 2, frameCount: longBuffer.length, chunkFrames: 65_536,
 					readStorageChunk(index) { return [0, 1].map(channel => longBuffer.getChannelData(channel).subarray(index * 65_536, (index + 1) * 65_536)); } };
 				engine.loadProject(project, sourceMode === 'buffer' ? new Map([['source', longBuffer]]) : new Map(),
@@ -111,7 +129,7 @@ test('neutral stereo PCM preserves the real engine source scheduling at frame bo
 					}
 					offset += channels[0].length;
 				}
-				results.push({ sampleRate, sourceMode, startFrame, endFrame, elapsed,
+				results.push({ sampleRate, sourceMode, startFrame, endFrame, elapsed, offlineRenders,
 					windows: blocks.length, offset, length: whole.length, different, maximumError, mismatches });
 			} finally { await engine.dispose(); }
 			}
@@ -119,8 +137,9 @@ test('neutral stereo PCM preserves the real engine source scheduling at frame bo
 		}
 		return results;
 	}, ROOT);
-	expect(result).toHaveLength(44);
+	expect(result).toHaveLength(32);
 	for (const comparison of result) {
+		expect(comparison.offlineRenders, JSON.stringify(comparison)).toBeGreaterThanOrEqual(2);
 		if (comparison.sourceMode === 'chunks') {
 			expect(comparison.maximumError, JSON.stringify(comparison)).toBeLessThanOrEqual(1e-7);
 			expect(comparison.offset).toBe(comparison.length);
