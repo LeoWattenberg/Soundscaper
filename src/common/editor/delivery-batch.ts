@@ -66,6 +66,14 @@ export class DeliveryBatchError extends Error {
 	}
 }
 
+/** ADM describes one programme; delivering its source tracks changes that artifact. */
+export function deliveryBatchPresetSupportsMode(
+	preset: Pick<DeliveryPreset, 'kind' | 'format'>,
+	mode: DeliveryBatchMode,
+): boolean {
+	return preset.kind === 'audio' && (mode !== 'stems' || preset.format !== 'bw64');
+}
+
 /**
  * Build the batch: every preset against every target, in a stable order.
  *
@@ -97,6 +105,9 @@ export function createDeliveryBatch(
 				// builder; mixing them in one batch would make "the batch's report"
 				// two vocabularies pretending to be one.
 				throw new DeliveryBatchError(`Delivery batch preset ${preset.id} is not an audio preset.`);
+			}
+			if (!deliveryBatchPresetSupportsMode(preset, mode)) {
+				throw new DeliveryBatchError('A BW64 / ADM programme cannot be delivered as stems.');
 			}
 			const presetOptions = { ...resolveDeliveryPresetPlanOptions(preset) };
 			// A saved mix target cannot normalize stems independently; the batch's

@@ -77,7 +77,7 @@ export function createExportActionGroup(runtime: ExportActionGroupRuntime) {
 			state, persistSetting, publishDocumentSnapshot, createId, fileService,
 		}),
 		queue: createDeliveryQueueService({
-			handleExportAction, publishDocumentSnapshot, createId, state,
+			handleExportAction, publishDocumentSnapshot, createId, state, getProject,
 		}),
 	});
 }

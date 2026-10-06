@@ -4,7 +4,7 @@ import { Button } from '@soundscaper/design-system/Button';
 import { DialogFooter } from '@soundscaper/design-system/Footer';
 
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
-import { createDeliveryBatch } from '../../delivery-batch.ts';
+import { createDeliveryBatch, deliveryBatchPresetSupportsMode } from '../../delivery-batch.ts';
 import { summarizeDeliveryBatchReport } from '../../delivery-batch-report.ts';
 import {
 	deliveryBatchTargetOptions,
@@ -73,7 +73,9 @@ export function DeliveryQueueDialog({ isOpen, controller, snapshot, copy, onClos
 
 	const selectable = selectableDeliveryBatchTargets(targets, mode);
 	const chosenTargets = selectable.filter(({ key }) => targetKeys.includes(key));
-	const chosenPresets = presets.filter(({ id }) => presetIds.includes(id));
+	const chosenPresets = presets.filter((preset) => (
+		presetIds.includes(preset.id) && deliveryBatchPresetSupportsMode(preset, mode)
+	));
 	const queue = queueActions.list();
 	const report = batchId ? queueActions.batchReport(batchId) : null;
 
@@ -180,9 +182,13 @@ export function DeliveryQueueDialog({ isOpen, controller, snapshot, copy, onClos
 						<div key={preset.id} data-delivery-batch-preset={preset.id}>
 							<DesignCheckbox
 								label={preset.label}
-								checked={presetIds.includes(preset.id)}
+								checked={presetIds.includes(preset.id) && deliveryBatchPresetSupportsMode(preset, mode)}
+								disabled={!deliveryBatchPresetSupportsMode(preset, mode)}
 								onChange={(checked) => toggle(setPresetIds, preset.id, checked)}
 							/>
+							{!deliveryBatchPresetSupportsMode(preset, mode) && (
+								<p className="audio-editor-panel-hint">{copy.deliveryPresetStemsUnsupported}</p>
+							)}
 						</div>
 					))}
 					{!presets.length && <p role="status">{copy.deliveryBatchNoFormats}</p>}
@@ -196,6 +202,9 @@ export function DeliveryQueueDialog({ isOpen, controller, snapshot, copy, onClos
 						<li key={entry.jobId} data-delivery-queue-job={entry.jobId}>
 							<span>{entry.label}</span>
 							<span data-delivery-queue-state={entry.state}>{copy[STATE_COPY_KEYS[entry.state]]}</span>
+							{entry.lastFailureCode === 'DeliveryProjectChanged' && entry.state === 'failed' && (
+								<p className="audio-editor-panel-hint">{copy.deliveryQueueProjectChanged}</p>
+							)}
 							{entry.progress !== null && entry.progress !== undefined && (
 								<span>{copy.deliveryQueueProgress.replace('{percent}', String(Math.round(entry.progress * 100)))}</span>
 							)}

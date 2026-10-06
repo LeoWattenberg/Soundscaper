@@ -64,6 +64,14 @@ const TARGETS: readonly DeliveryBatchTarget[] = [
 	{ kind: 'mastering-sequence', id: 'album-order' },
 ];
 
+test('a BW64 programme preset refuses stems rather than silently normalizing them to mix', () => {
+	const programme = preset('programme', 'bw64');
+	const request = { batchId: 'programme', presets: [programme], targets: [{ kind: 'project' as const }] };
+	assert.throws(() => createDeliveryBatch(albumProject(), { ...request, mode: 'stems' }),
+		/ADM.*programme.*stems/iu);
+	assert.equal(createDeliveryBatch(albumProject(), request).members[0]?.mode, 'mix');
+});
+
 test('stems batches omit a saved mix-only loudness target without changing the preset', () => {
 	const project = albumProject();
 	const streaming = preset('streaming', 'wav', { loudnessNormalization: 'streaming' });

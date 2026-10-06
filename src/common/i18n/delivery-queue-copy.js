@@ -23,6 +23,7 @@ const DELIVERY_QUEUE_COPY_ENTRIES = Object.freeze([
 	['deliveryQueueResume', 'Resume', 'Fortsetzen'],
 	['deliveryQueueCancelJob', 'Cancel', 'Abbrechen'],
 	['deliveryQueueRetryJob', 'Retry', 'Wiederholen'],
+	['deliveryQueueProjectChanged', 'Reopen the original project before retrying this delivery.', 'Öffne das ursprüngliche Projekt, bevor du diese Auslieferung erneut versuchst.'],
 	['deliveryQueueSelectDestination', 'Choose destination', 'Ziel auswählen'],
 	['deliveryQueueReauthorizeDestination', 'Reauthorize destination', 'Ziel erneut autorisieren'],
 	['deliveryQueueMoveEarlier', 'Move earlier', 'Nach vorn verschieben'],
@@ -46,6 +47,7 @@ const DELIVERY_QUEUE_COPY_ENTRIES = Object.freeze([
 	['deliveryBatchQueued', '{members} deliveries queued.', '{members} Auslieferungen eingereiht.'],
 	['deliveryBatchNoFormats', 'Save a delivery preset to queue a batch.', 'Speichere eine Auslieferungsvorgabe, um einen Stapel einzureihen.'],
 	['deliveryBatchNoTargets', 'Choose at least one thing to deliver.', 'Wähle mindestens etwas zum Ausliefern.'],
+	['deliveryPresetStemsUnsupported', 'A BW64 / ADM programme cannot be delivered as stems.', 'Ein BW64-/ADM-Programm kann nicht als Einzelspuren ausgeliefert werden.'],
 	[
 		'deliveryBatchSummary',
 		'{delivered} delivered, {failed} failed, {cancelled} cancelled, {notStarted} not started.',

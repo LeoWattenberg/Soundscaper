@@ -30,6 +30,7 @@ export interface DeliveryQueueServiceRuntime {
 	readonly publishDocumentSnapshot?: () => void;
 	readonly createId?: (prefix: string) => string;
 	readonly state?: { deliveryQueue?: DeliveryQueue; deliveryReport?: unknown };
+	readonly getProject?: () => Readonly<{ id?: unknown }> | null | undefined;
 }
 
 /** Raised when an export resolved without publishing anything. */
@@ -74,12 +75,17 @@ export function createDeliveryQueueService(runtime: DeliveryQueueServiceRuntime)
 		throw new TypeError('A delivery queue service requires the export action.');
 	}
 	const settingsByJob = new Map<string, unknown>();
+	const projectIdByJob = new Map<string, unknown>();
 	const batches = new Map<string, DeliveryBatch>();
 	const batchIdByJob = new Map<string, string>();
 	const results = new Map<string, { fileName: string | null; report: DeliveryReport | null }>();
 
 	const runner = createDeliveryQueueRunner({
 		runJob: async (entry) => {
+			if (runtime.getProject && projectIdByJob.get(entry.jobId) !== runtime.getProject()?.id) {
+				throw Object.assign(new Error('Reopen the original project before retrying this delivery.'),
+					{ name: 'DeliveryProjectChanged' });
+			}
 			const settings = settingsByJob.get(entry.jobId);
 			const output = await runtime.handleExportAction('start', {
 				...(settings && typeof settings === 'object' ? settings : {}), saveToFile: true,
@@ -106,6 +112,7 @@ export function createDeliveryQueueService(runtime: DeliveryQueueServiceRuntime)
 
 	function enqueueJob(jobId: string, label: string, settings: unknown): void {
 		settingsByJob.set(jobId, settings ?? {});
+		projectIdByJob.set(jobId, runtime.getProject?.()?.id);
 		results.delete(jobId);
 		runner.enqueue({
 			jobId,

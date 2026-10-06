@@ -334,3 +334,26 @@ test('a batch killed mid-flight publishes nothing partial and returns the member
 		inFlight?.();
 	});
 });
+
+
+test('paused jobs refuse a different active project and can retry after the original is reopened', async () => {
+	let project = { id: 'original' };
+	let starts = 0;
+	const service = createDeliveryQueueService({
+		getProject: () => project,
+		handleExportAction: () => { starts += 1; return delivered(); },
+	});
+	service.pause();
+	const jobId = service.enqueue({ label: 'Original project master', settings: { format: 'wav' } });
+	project = { id: 'other' };
+	service.resume();
+	await service.settled();
+	assert.equal(starts, 0, 'no other project may render under this delivery');
+	assert.equal(service.list().entries[0]?.state, 'failed');
+	assert.equal(service.list().entries[0]?.lastFailureCode, 'DeliveryProjectChanged');
+	project = { id: 'original' };
+	service.retry(jobId);
+	await service.settled();
+	assert.equal(starts, 1);
+	assert.equal(service.list().entries[0]?.state, 'completed');
+});
