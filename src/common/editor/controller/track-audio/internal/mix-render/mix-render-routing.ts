@@ -26,9 +26,23 @@ export function preserveProductionMixRenderRouting(
 	previewCommand: MixRenderCommandPreview,
 	createId: (prefix: string) => string,
 ): Readonly<MixRenderOperationCommit> {
-	if ((!prepared.routingCopies.length && !prepared.directRoutingTrackIds.length)
-		|| !isSoundscaperProductionProject(project)) return prepared;
-	const staged = previewCommand(project, prepared.command);
+	const command = preserveProductionTrackRouting(project, prepared.command, prepared.routingCopies,
+		previewCommand, createId, prepared.directRoutingTrackIds);
+	return command === prepared.command ? prepared : Object.freeze({ ...prepared, command });
+}
+
+/** Preserve an authored track's outgoing topology when deriving replacement tracks. */
+export function preserveProductionTrackRouting(
+	project: ControllerProject,
+	command: Extract<AudioEditorCommand, { readonly type: 'batch' }>,
+	routingCopies: readonly Readonly<{ readonly sourceTrackId: string; readonly targetTrackId: string }>[],
+	previewCommand: MixRenderCommandPreview | undefined,
+	createId: (prefix: string) => string,
+	directRoutingTrackIds: readonly string[] = [],
+): Extract<AudioEditorCommand, { readonly type: 'batch' }> {
+	if ((!routingCopies.length && !directRoutingTrackIds.length)
+		|| !isSoundscaperProductionProject(project) || !previewCommand) return command;
+	const staged = previewCommand(project, command);
 	const originalGraph = normalizeMixerGraphV21(project.mixer as never);
 	const stagedGraph = normalizeMixerGraphV21(staged.mixer as never);
 	const desired = restateRoutes(
@@ -36,8 +50,8 @@ export function preserveProductionMixRenderRouting(
 		staged,
 		stagedGraph,
 		originalGraph,
-		prepared.routingCopies,
-		prepared.directRoutingTrackIds,
+		routingCopies,
+		directRoutingTrackIds,
 		createId,
 	);
 	const graphCommand: AudioEditorCommand = {
@@ -45,13 +59,7 @@ export function preserveProductionMixRenderRouting(
 		expected: stagedGraph as unknown as Readonly<Record<string, unknown>>,
 		mixer: desired as unknown as Readonly<Record<string, unknown>>,
 	};
-	return Object.freeze({
-		...prepared,
-		command: Object.freeze({
-			type: 'batch',
-			commands: Object.freeze([...prepared.command.commands, graphCommand]),
-		}),
-	});
+	return Object.freeze({ type: 'batch', commands: Object.freeze([...command.commands, graphCommand]) });
 }
 
 function restateRoutes(

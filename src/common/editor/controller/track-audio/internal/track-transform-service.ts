@@ -17,6 +17,7 @@ import { copyDerivedTrackStripAutomation } from '../../../derived-track-strip-au
 import { copyDerivedTrackEffectAutomation } from '../../../derived-track-effect-automation.ts';
 import type { DerivedSourceService } from './derived-audio/derived-source-service.ts';
 import { v21StripLaneRemovalCommands } from '../mix-render-model.ts';
+import { preserveProductionTrackRouting, type MixRenderCommandPreview } from './mix-render/mix-render-routing.ts';
 import {
 	isCurrentAssertion,
 	type EditorControllerLifetime,
@@ -58,6 +59,7 @@ interface CommitSelection {
 }
 
 export interface TrackTransformServiceDependencies {
+	readonly previewCommand?: MixRenderCommandPreview;
 	readonly lifetime: Pick<EditorControllerLifetime, 'assertActive' | 'startTask'>;
 	readonly copy: TrackTransformCopy;
 	readonly derivedSources: DerivedSourceService;
@@ -288,7 +290,11 @@ export function createTrackTransformService(
 				];
 				for (const clip of clips) addSplitClipCommands(commands, track, rightTrackId, clip, sourcePairs);
 				assertOwned(ownership);
-				dependencies.commit({ type: 'batch', commands }, { selectTrackId: track.id });
+				const command = preserveProductionTrackRouting(project, { type: 'batch', commands }, [
+					{ sourceTrackId: track.id, targetTrackId: track.id },
+					{ sourceTrackId: track.id, targetTrackId: rightTrackId },
+				], dependencies.previewCommand, dependencies.createId);
+				dependencies.commit(command, { selectTrackId: track.id });
 				setLocalizedStatus(dependencies.setStatus, dependencies.copy, "done", undefined, 'success');
 				return Object.freeze({ leftTrackId: track.id, rightTrackId });
 			} catch (error) {

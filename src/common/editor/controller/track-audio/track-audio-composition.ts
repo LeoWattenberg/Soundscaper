@@ -74,6 +74,9 @@ export function createTrackAudioComposition(dependencies: TrackAudioCompositionD
 		bufferFromChannels(channels, sampleRate, isAudioBufferContext(context) ? context : null, copy)
 	);
 	const setProcessing = dependencies.setEffectProcessing;
+	const mixPreview = createDocumentCommandPreview(
+		requireProject, dependencies.getCommandProject, dependencies.projectRuntime.applyCommand,
+	);
 
 	const derivedAudio: DerivedAudio = createDerivedAudioComposition({
 		lifetime,
@@ -83,7 +86,7 @@ export function createTrackAudioComposition(dependencies: TrackAudioCompositionD
 		sourceBuffers: dependencies.sourceBuffers,
 		sourcePeaks: dependencies.sourcePeaks,
 		sourceChunkFrames: dependencies.sourceChunkFrames,
-		getProject: dependencies.getCommandProject,
+		getProject: mixPreview.getProject,
 		getSelectedTrackId: () => state.selectedTrackId,
 		getSelectedClipId: () => state.selectedClipId,
 		editingBlocked: dependencies.editingBlocked,
@@ -91,6 +94,7 @@ export function createTrackAudioComposition(dependencies: TrackAudioCompositionD
 		assertProject,
 		createId: createStableId,
 		commit: dependencies.commit,
+		previewCommand: mixPreview.previewCommand,
 		projectSampleRate: dependencies.projectSampleRate,
 		normalizeProjectSampleRate,
 		audioTrackChannelCount,
@@ -242,9 +246,6 @@ export function createTrackAudioComposition(dependencies: TrackAudioCompositionD
 		setAnalysisProcessing: (processing) => { state.analysisProcessing = processing; },
 		publish: dependencies.publishDocumentSnapshot,
 	});
-	const mixPreview = createDocumentCommandPreview(
-		requireProject, dependencies.getCommandProject, dependencies.projectRuntime.applyCommand,
-	);
 	const mixRender: MixRender = createMixRenderService({
 		lifetime,
 		copy,
