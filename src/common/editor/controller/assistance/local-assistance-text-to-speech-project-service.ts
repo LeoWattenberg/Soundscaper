@@ -20,6 +20,8 @@ import type { MediaAssetWriter, OwnedMediaAssetPublication } from
 	'../../storage/media-asset-write-contract.ts';
 import { inspectWavBlobPcm, streamWavBlobPcm } from '../../wav-import.js';
 import type { TextToSpeechProjectPort, TextToSpeechRequest, TextToSpeechReviewed } from '../../assistance/text-to-speech-port-contract.ts';
+import { canonicalMediaContentBlob } from '../../storage/media-content-digest.ts';
+import { digestMediaContentInWorker } from '../../media-content-digest-worker-client.ts';
 
 type RecordValue = Readonly<Record<string, unknown>>;
 type Awaitable<T> = T | PromiseLike<T>;
@@ -106,7 +108,8 @@ export function createTextToSpeechProjectPort(
 			|| reviewed.audio.size > MAXIMUM_OUTPUT_BYTES) {
 			throw new TypeError('Reviewed speech audio has an invalid size.');
 		}
-		const descriptor = await inspectWavBlobPcm(reviewed.audio) as Readonly<{
+		const audio = canonicalMediaContentBlob(reviewed.audio);
+		const descriptor = await inspectWavBlobPcm(audio) as Readonly<{
 			sampleRate: number; channelCount: number; frameCount: number; sampleFormat: string;
 		}>;
 		if (descriptor.sampleRate !== 24_000 || descriptor.channelCount !== 1
@@ -116,13 +119,14 @@ export function createTextToSpeechProjectPort(
 		await dependencies.preflightStorage(descriptor.frameCount * 4, 'effect');
 		assertCurrent(project);
 		const sourceId = dependencies.createId('tts-source');
-		const digest = bytesToHex(sha256(new Uint8Array(await reviewed.audio.arrayBuffer())));
+		const digest = await digestMediaContentInWorker(audio);
+		assertCurrent(project);
 		const source = createAudioSource({ id: sourceId, storageKey: sourceId,
 			name: 'Generated Speech', kind: 'audio', mimeType: 'audio/wav',
 			frameCount: descriptor.frameCount, channelCount: 1,
 			sampleRate: 24_000, originalSampleRate: 24_000, sampleFormat: 'float32',
 			chunkFrames: SOURCE_CHUNK_FRAMES, contentSha256: digest,
-			byteLength: reviewed.audio.size,
+			byteLength: audio.size,
 			provenance: createNonImportedSourceProvenance('generated'),
 		});
 		const selected = target;
@@ -143,7 +147,7 @@ export function createTextToSpeechProjectPort(
 		let sourcePublished = false;
 		let ownedBody: OwnedMediaAssetPublication | null = null;
 		try {
-			await publishSource(dependencies.store, sourceId, reviewed.audio, descriptor.frameCount, digest);
+			await publishSource(dependencies.store, sourceId, audio, descriptor.frameCount, digest);
 			sourcePublished = true;
 			assertCurrent(project);
 			ownedBody = await publishBody(dependencies.store, publication);
