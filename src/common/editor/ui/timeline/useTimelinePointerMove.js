@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useTimelinePointerFrame } from './useTimelinePointerFrame.ts';
 import { clipStretchPointerPreview, loopPointerPreview } from './clip-loop-pointer.ts';
 import { CLIP_CONTENT_OFFSET } from '@soundscaper/design-system/constants';
 
@@ -29,7 +30,7 @@ export function useTimelinePointerMove({
 	menuActions,
 }) {
 	const {
-		pointerSession,
+		pointerSession, pointerMoveFlushRef,
 		touchPointers,
 		pinchSession,
 		pendingPinchAnchorRef,
@@ -75,6 +76,7 @@ export function useTimelinePointerMove({
 		setSplitToolGuideline(null);
 	}, [setSplitToolGuideline]);
 	const clearPointerHover = useCallback(() => {
+		if (!pointerSession.current) pointerMoveFlushRef?.current?.(true);
 		clearSplitToolGuideline();
 		setBoundarySnapGuideFrames((current) => current.length ? [] : current);
 	}, [clearSplitToolGuideline, setBoundarySnapGuideFrames]);
@@ -138,7 +140,7 @@ export function useTimelinePointerMove({
 		};
 	}, [resolveCurrentSplitToolGuideline, setSplitToolGuideline, splitToolActive]);
 
-	const onPointerMove = useCallback((event) => {
+	const applyPointerMove = useCallback((event) => {
 		if (touchPointers.current.has(event.pointerId)) {
 			clearSplitToolGuideline();
 			touchPointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
@@ -513,6 +515,7 @@ export function useTimelinePointerMove({
 		}
 	}, [clearSplitToolGuideline, controller, frameAtClientX, isOverOutputDock, isOverProjectBin, mediaTrackIndexById, mediaTracks, panelWidth, pixelsPerSecond, project, projectIndex, resolveCurrentSplitToolGuideline, run, sampleRate, setBoundarySnapGuideFrames, setDraggingClipIds, setProjectBinDropActive, setSplitToolGuideline, snapshot.capabilities?.videoCompositing, splitToolActive, trackAtClientY]);
 
+	const onPointerMove = useTimelinePointerFrame(applyPointerMove, pointerSession, touchPointers, pointerMoveFlushRef);
 	return { onPointerMove, clearPointerHover };
 }
 

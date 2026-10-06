@@ -40,6 +40,7 @@ import {
 	type TrackAutomationCurveMenuState,
 } from './TrackAutomationCurveMenu.tsx';
 import { useTrackAutomationEditFeedback } from './useTrackAutomationEditFeedback.ts';
+import { useTimelinePointerFrame } from './useTimelinePointerFrame.ts';
 import { useTrackAutomationDragLifecycle } from './useTrackAutomationDragLifecycle.ts';
 
 type SegmentKind = TrackAutomationSegmentKind;
@@ -109,7 +110,7 @@ export function TrackAutomationOverlay({
 }: TrackAutomationOverlayProps) {
 	const svgRef = useRef<SVGSVGElement>(null);
 	const dragRef = useRef<DragState | null>(null);
-	const draftLaneRef = useRef<AutomationLaneV21 | null>(null);
+	const draftLaneRef = useRef<AutomationLaneV21 | null>(null), draftMoveFlushRef = useRef<((cancel?: boolean) => void) | null>(null);
 	const [draftLane, setDraftLane] = useState<AutomationLaneV21 | null>(null);
 	const [curveMenu, setCurveMenu] = useState<TrackAutomationCurveMenuState | null>(null);
 	const { feedback, attempt } = useTrackAutomationEditFeedback();
@@ -117,7 +118,7 @@ export function TrackAutomationOverlay({
 	useEffect(() => {
 		dragRef.current = null;
 		draftLaneRef.current = null;
-		setDraftLane(null);
+		draftMoveFlushRef.current?.(true); setDraftLane(null);
 		setCurveMenu(null);
 	}, [target.key, target.lane]);
 	const projection = useMemo(() => projectTrackAutomationOverlayV21({
@@ -219,7 +220,7 @@ export function TrackAutomationOverlay({
 		};
 		svgRef.current?.setPointerCapture?.(event.pointerId);
 	};
-	const movePoint = (event: React.PointerEvent<SVGSVGElement>) => {
+	const applyPointMove = (event: React.PointerEvent<SVGSVGElement>) => {
 		const drag = dragRef.current;
 		const current = draftLaneRef.current;
 		if (!drag || !current) return;
@@ -245,8 +246,9 @@ export function TrackAutomationOverlay({
 			...editOptions, pointId: drag.pointId, frame: nextFrame, value,
 		}));
 	};
+	const movePoint = useTimelinePointerFrame(applyPointMove, dragRef, null, draftMoveFlushRef);
 	const finishPointDrag = useTrackAutomationDragLifecycle(
-		svgRef, dragRef, draftLaneRef, updateDraftLane, commitLane,
+		svgRef, dragRef, draftLaneRef, updateDraftLane, commitLane, draftMoveFlushRef,
 	);
 	const removePoint = (pointId: string, explicitLaneDelete = false) => {
 		if (!interactive || !lane) return;

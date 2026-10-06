@@ -16,17 +16,19 @@ export function useTrackAutomationDragLifecycle<
 	draftLaneRef: RefObject<Lane | null>,
 	updateDraftLane: (lane: Lane | null) => void,
 	commitLane: (lane: Lane, expected: Lane | null) => void,
+	flushDraft?: RefObject<((cancel?: boolean) => void) | null>,
 ) {
 	const finishDrag = useCallback((event: DragEvent, cancel = false) => {
 		const drag = dragRef.current;
 		if (!drag) return;
+		flushDraft?.current?.(cancel);
 		event.preventDefault();
 		event.stopPropagation();
 		dragRef.current = null;
 		const replacement = draftLaneRef.current;
 		updateDraftLane(null);
 		if (!cancel && replacement) commitLane(replacement, drag.expected);
-	}, [commitLane, dragRef, draftLaneRef, updateDraftLane]);
+	}, [commitLane, dragRef, draftLaneRef, flushDraft, updateDraftLane]);
 	useEffect(() => {
 		const document = svgRef.current?.ownerDocument;
 		if (!document) return;

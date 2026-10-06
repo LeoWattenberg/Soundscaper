@@ -228,6 +228,8 @@ test('pointer cancellation discards its draft and a later release creates one hi
 
 test('Escape restores an automation draft and prevents its later pointer release from committing', async () => {
 	const dom = installReactTestDom();
+	let frame: FrameRequestCallback | null = null;
+	globalThis.requestAnimationFrame = callback => { frame = callback; return 1; };
 	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
 	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
 	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
@@ -256,6 +258,8 @@ test('Escape restores an automation draft and prevents its later pointer release
 		await act(async () => reactProps(svg).onPointerMove?.({
 			clientX: 32, clientY: 70, preventDefault() {}, stopPropagation() {},
 		}));
+		assert.equal(point.getAttribute('aria-valuenow'), before, 'draft waits for its frame');
+		await act(async () => { (frame as FrameRequestCallback | null)?.(0); });
 		assert.notEqual(point.getAttribute('aria-valuenow'), before);
 		await act(async () => {
 			const event = { key: 'Escape', preventDefault() {}, stopPropagation() {} } as KeyboardEvent;
