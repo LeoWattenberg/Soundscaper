@@ -250,7 +250,8 @@ export function createSelectionViewService<
 	function selectAllTracks() {
 		const project = getProject();
 		if (!project) return null;
-		const selection = project.selection || { startFrame: 0, endFrame: 0 };
+		const selection = resolveSelectionRange(project, { selectedClipId: state.selectedClipId })
+			|| project.selection || { startFrame: 0, endFrame: 0 };
 		const trackIds = project.tracks.map((track) => track.id);
 		// Widening the selection's track scope leaves its time range exactly as it
 		// was, so it is not a new time selection and does not move the playhead.
