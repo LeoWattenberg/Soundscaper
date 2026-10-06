@@ -36,9 +36,10 @@ export default function AboutDialog({ title, productId, copy: editorCopy, onClos
 	const panelId = (tab: AboutTab) => `${prefix}-${tab}-panel`;
 	const handleTabKey = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
 		let nextIndex: number;
-		if (event.key === 'ArrowRight') nextIndex = (index + 1) % ABOUT_TABS.length;
-		else if (event.key === 'ArrowLeft') nextIndex = (index + ABOUT_TABS.length - 1) % ABOUT_TABS.length;
-		else if (event.key === 'Home') nextIndex = 0;
+		if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+			const forward = window.getComputedStyle(event.currentTarget).direction === 'rtl' ? 'ArrowLeft' : 'ArrowRight';
+			nextIndex = (index + (event.key === forward ? 1 : -1) + ABOUT_TABS.length) % ABOUT_TABS.length;
+		} else if (event.key === 'Home') nextIndex = 0;
 		else if (event.key === 'End') nextIndex = ABOUT_TABS.length - 1;
 		else return;
 		event.preventDefault();

@@ -45,8 +45,9 @@ interface MountedHeader {
 	unmount(): Promise<void>;
 }
 
-async function mountHeader(props: Record<string, unknown>): Promise<MountedHeader> {
+async function mountHeader(props: Record<string, unknown>, direction: 'ltr' | 'rtl' = 'ltr'): Promise<MountedHeader> {
 	const dom = installReactTestDom();
+	Object.defineProperty(window, 'getComputedStyle', { configurable: true, value: () => ({ direction }) });
 	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
 	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
 	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
@@ -162,6 +163,37 @@ test('a grouped header exposes one roving tab stop and activates tabs with point
 		await act(async () => reactProps(metadataDrag).onDragStart({}));
 		await act(async () => reactProps(metadataDrag).onDragEnd({}));
 		assert.deepEqual(dragged, ['start:metadata', 'end:metadata']);
+	} finally {
+		await mounted.unmount();
+	}
+});
+
+test('RTL panel tabs follow physical arrows while Home and End keep the reading-order endpoints', async () => {
+	const activated: string[] = [];
+	const mounted = await mountHeader({
+		activePanelId: 'history', currentDock: 'right', onClose() {},
+		onTabActivate: (panelId: string) => activated.push(panelId),
+		tabs: [
+			{ id: 'history', label: 'History' },
+			{ id: 'metadata', label: 'Metadata' },
+			{ id: 'project-bin', label: 'Project bin' },
+		],
+	}, 'rtl');
+	try {
+		const tabs = mounted.dom.one('[role="tablist"]').querySelectorAll('[role="tab"]');
+		const press = async (index: number, key: string, targetIndex: number): Promise<void> => {
+			const tab = tabs[index];
+			assert.ok(tab);
+			await act(async () => reactProps(tab).onKeyDown({ key, currentTarget: tab, preventDefault() {} }));
+			assert.equal(mounted.dom.container.ownerDocument.activeElement, tabs[targetIndex]);
+		};
+		await press(1, 'ArrowRight', 0);
+		await press(0, 'ArrowLeft', 1);
+		await press(1, 'ArrowLeft', 2);
+		await press(2, 'ArrowLeft', 0);
+		await press(1, 'Home', 0);
+		await press(0, 'End', 2);
+		assert.deepEqual(activated, ['history', 'metadata', 'project-bin', 'history', 'history', 'project-bin']);
 	} finally {
 		await mounted.unmount();
 	}

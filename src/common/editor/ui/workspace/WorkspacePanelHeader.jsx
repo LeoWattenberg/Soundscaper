@@ -77,8 +77,10 @@ export default function WorkspacePanelHeader({
 		let nextIndex;
 		if (event.key === 'Home') nextIndex = 0;
 		else if (event.key === 'End') nextIndex = tabs.length - 1;
-		else if (event.key === 'ArrowLeft') nextIndex = (tabIndex - 1 + tabs.length) % tabs.length;
-		else nextIndex = (tabIndex + 1) % tabs.length;
+		else {
+			const forward = window.getComputedStyle(event.currentTarget).direction === 'rtl' ? 'ArrowLeft' : 'ArrowRight';
+			nextIndex = (tabIndex + (event.key === forward ? 1 : -1) + tabs.length) % tabs.length;
+		}
 		const next = tabs[nextIndex];
 		if (!next) return;
 		event.currentTarget.closest('[role="tablist"]')

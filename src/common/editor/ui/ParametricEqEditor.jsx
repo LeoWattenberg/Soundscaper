@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 import { ParametricEqNumericInput } from './ParametricEqNumericInput.jsx';
 import { useParametricEqSpectrum } from './useParametricEqSpectrum.ts';
+import { useParametricEqBandDeletionFocus } from './useParametricEqBandDeletionFocus.ts';
 import { useNonPassiveWheel } from './useNonPassiveWheel.js';
 import {
 	ParametricEqWasmRuntime,
@@ -53,6 +54,7 @@ export function ParametricEqEditor({
 	const previewFrameRef = useRef(0);
 	const pendingPreviewRef = useRef(null);
 	const graphRef = useRef(null);
+	const restoreDeletedBandFocus = useParametricEqBandDeletionFocus({ graphRef, bands: draft.bands, disabled, owner: effectId });
 	const auditionCallbackRef = useRef(onAudition);
 	const cancelCallbackRef = useRef(onCancel);
 	const responseRuntimeRef = useRef(null);
@@ -259,15 +261,18 @@ export function ParametricEqEditor({
 		commit(next, true);
 	};
 
-	const removeSelected = () => {
-		if (!selectedBand || disabled) return;
+	const removeSelected = (band = selectedBand, control = null) => {
+		if (!band || disabled) return;
 		const next = normalizeParametricEqParams({
 			...draft,
-			bands: draft.bands.filter((band) => band.id !== selectedBand.id),
+			bands: draft.bands.filter((candidate) => candidate.id !== band.id),
 		}, effectId);
+		const removedIndex = draft.bands.findIndex((candidate) => candidate.id === band.id);
+		const nextId = next.bands[Math.min(removedIndex, next.bands.length - 1)]?.id || null;
+		if (control) restoreDeletedBandFocus(control, nextId);
 		setDraft(next);
-		setSelectedId(next.bands[Math.min(selectedIndex, next.bands.length - 1)]?.id || null);
-		if (auditionedId === selectedBand.id) {
+		setSelectedId(nextId);
+		if (auditionedId === band.id) {
 			setAuditionedId(null);
 			onAudition?.(null);
 		}
@@ -323,14 +328,8 @@ export function ParametricEqEditor({
 	const handleBandKeyDown = (event, band) => {
 		if (disabled) return;
 		if (event.key === 'Delete' || event.key === 'Backspace') {
-			event.preventDefault();
-			setSelectedId(band.id);
-			const next = normalizeParametricEqParams({
-				...draft,
-				bands: draft.bands.filter((candidate) => candidate.id !== band.id),
-			}, effectId);
-			setDraft(next);
-			commit(next, true);
+			event.preventDefault(); event.stopPropagation();
+			removeSelected(band, event.currentTarget);
 			return;
 		}
 		if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
@@ -368,6 +367,7 @@ export function ParametricEqEditor({
 		}}>
 			<div
 				ref={graphRef}
+				tabIndex={-1}
 				className="audio-editor-parametric-eq__graph"
 				dir="ltr"
 				onDoubleClick={addBand}
@@ -400,6 +400,7 @@ export function ParametricEqEditor({
 							key={band.id}
 							className="audio-editor-parametric-eq__handle"
 							data-band-index={index}
+							data-band-id={band.id}
 							data-selected={band.id === selectedId ? 'true' : 'false'}
 							data-enabled={band.enabled ? 'true' : 'false'}
 							data-nyquist-limited={nyquistLimited ? 'true' : 'false'}
@@ -433,7 +434,7 @@ export function ParametricEqEditor({
 					setSelectedId(id);
 					commit(next, true);
 				}}>{copy.eqAddBand || 'Add band'}</Button>
-				<Button variant="secondary" disabled={disabled || !selectedBand} onClick={removeSelected}>{copy.eqDeleteBand || 'Delete band'}</Button>
+				<Button variant="secondary" disabled={disabled || !selectedBand} onClick={() => removeSelected()}>{copy.eqDeleteBand || 'Delete band'}</Button>
 				<Button variant="secondary" disabled={disabled} onClick={reset}>{copy.reset || 'Reset'}</Button>
 				<label><input type="checkbox" checked={showInput} onChange={(event) => setShowInput(event.currentTarget.checked)} /> {copy.eqInputSpectrum || 'Input spectrum'}</label>
 				<label><input type="checkbox" checked={showOutput} onChange={(event) => setShowOutput(event.currentTarget.checked)} /> {copy.eqOutputSpectrum || 'Output spectrum'}</label>
