@@ -30,7 +30,7 @@ export default function MacroManagerStepList({
 	onSelectEffect,
 }) {
 	const [picker, setPicker] = useState(null);
-	const [draggedIndex, setDraggedIndex] = useState(null);
+	const [drag, setDrag] = useState(null);
 	const stackRef = useRef(null);
 	const stepTabGroup = useContainerTabGroup({
 		containerRef: stackRef,
@@ -64,6 +64,18 @@ export default function MacroManagerStepList({
 					onFocus={stepTabGroup.onFocus}
 					onClickCapture={stepTabGroup.onClickCapture}
 					data-macro-effect-stack
+					onDragOver={(event) => {
+						if (!drag) return;
+						event.preventDefault();
+						event.dataTransfer.dropEffect = 'move';
+					}}
+					onDrop={(event) => {
+						event.preventDefault();
+						if (!drag) return;
+						event.dataTransfer.dropEffect = 'move';
+						onReorderEffect(drag.fromIndex, drag.toIndex);
+						setDrag(null);
+					}}
 				>
 					{effects.map((effect, index) => (
 						<EffectSlot
@@ -71,7 +83,8 @@ export default function MacroManagerStepList({
 							className="audio-editor-macros-palette__effect"
 							effectName={stepLabel(effect, copy)}
 							enabled
-							isDragging={draggedIndex === index}
+							isDragging={drag?.fromIndex === index}
+							style={drag?.toIndex === index && drag.fromIndex !== index ? { outline: '1px solid var(--accent)' } : undefined}
 							onSelectEffect={() => onSelectEffect(effect.id)}
 							onRemoveEffect={() => onRemoveEffect(effect.id)}
 							{...(isMacroCommandStep(effect) ? {} : {
@@ -80,16 +93,16 @@ export default function MacroManagerStepList({
 								onChangeEffect: () => setPicker({ replaceId: effect.id, anchor: null }),
 							})}
 							onDragStart={(event) => {
-								setDraggedIndex(index);
+								setDrag({ fromIndex: index, toIndex: index });
 								event.dataTransfer.effectAllowed = 'move';
+								event.dataTransfer.setData('text/plain', effect.id);
 							}}
 							onDragOver={(event) => {
 								event.preventDefault();
-								if (draggedIndex === null || draggedIndex === index) return;
-								onReorderEffect(draggedIndex, index);
-								setDraggedIndex(index);
+								if (!drag || drag.toIndex === index) return;
+								setDrag({ ...drag, toIndex: index });
 							}}
-							onDragEnd={() => setDraggedIndex(null)}
+							onDragEnd={() => setDrag(null)}
 							onReorder={(direction) => onReorderEffect(index, index + direction)}
 						/>
 					))}

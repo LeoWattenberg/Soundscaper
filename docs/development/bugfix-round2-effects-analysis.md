@@ -200,6 +200,20 @@ build 11 failed at 0.8 seconds; build 12 passes at 1.6 seconds in Chromium,
 Firefox and WebKit. Strict regressions cover expansion, contraction, and the
 six-second limit alongside existing Repair context and cancellation checks.
 
+## R2-ROOT-014 — Escape saves a canceled macro-step drag
+
+Choose **Tools > Macros palette > New macro**, add Invert, Fade In and Fade Out,
+then drag the first step over the third. While holding the mouse button, press
+Escape and release. Previously the changed order was already saved during
+Drag Over, so canceling the native drag could not restore the macro. The list
+now keeps its target as a local gesture draft, highlights that target, and
+commits exactly once on Drop. Canceling discards the draft without a write.
+
+Proof: `audio-editor-round2-macro-drag-cancel.spec.js` reproduced the saved
+canceled order against build 12. Build 16 passes cancellation, a completed
+native drop, and closing/reopening the library in Chromium, Firefox and WebKit.
+Two mounted strict regressions verify no library write before a completed drop.
+
 ## R2-ROOT-015 — Change Pitch silently substitutes an unsupported frequency
 
 Import a WAV, **Select > Select all**, open **Effect > Pitch and tempo > Change
