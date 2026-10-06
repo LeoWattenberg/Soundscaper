@@ -5,6 +5,7 @@ import {
 	clampSourceFrame,
 	markSourceIn,
 	markSourceOut,
+	mediaSecondsToSourceFrame,
 	normalizeSourceMonitorMarks,
 	resolveSourceMonitorPoints,
 	sourceFrameToMediaSeconds,
@@ -65,6 +66,7 @@ export interface SourceMonitorService {
 	openSource(sourceId: string, options?: SourceMonitorOpenOptions): SourceMonitorView;
 	close(): SourceMonitorView;
 	seek(frame: number): SourceMonitorView;
+	seekMediaTime(seconds: number): SourceMonitorView;
 	step(frameDelta: number): SourceMonitorView;
 	markIn(frame?: number | null): SourceMonitorView;
 	markOut(frame?: number | null): SourceMonitorView;
@@ -135,7 +137,7 @@ export function createSourceMonitorService(
 			markIn: stated.markIn,
 			markOut: stated.markOut,
 			timecodeLabel: sourceMonitorTimecodeLabel(opened.source, position),
-			mediaSeconds: sourceFrameToMediaSeconds(position, rate),
+			mediaSeconds: sourceFrameToMediaSeconds(position, rate, opened.source),
 		});
 	}
 
@@ -206,6 +208,9 @@ export function createSourceMonitorService(
 
 		seek: (frame: number) => mutate((opened) => {
 			positionFrame = clampSourceFrame(frame, opened.sourceFrameCount);
+		}),
+		seekMediaTime: (seconds: number) => mutate((opened) => {
+			positionFrame = mediaSecondsToSourceFrame(seconds, normalizeSourceFrameRate(opened.source.frameRate), opened.sourceFrameCount, opened.source);
 		}),
 
 		step: (frameDelta: number) => mutate((opened) => {

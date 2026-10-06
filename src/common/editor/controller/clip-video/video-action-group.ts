@@ -92,6 +92,7 @@ export function createVideoActionGroup(
 			open: (...args: Parameters<typeof sourceMonitorService.open>) => sourceMonitorService.open(...args),
 			close: () => sourceMonitorService.close(),
 			seek: (...args: Parameters<typeof sourceMonitorService.seek>) => sourceMonitorService.seek(...args),
+			seekMediaTime: (...args: Parameters<typeof sourceMonitorService.seekMediaTime>) => sourceMonitorService.seekMediaTime(...args),
 			step: (...args: Parameters<typeof sourceMonitorService.step>) => sourceMonitorService.step(...args),
 			markIn: (...args: Parameters<typeof sourceMonitorService.markIn>) => sourceMonitorService.markIn(...args),
 			markOut: (...args: Parameters<typeof sourceMonitorService.markOut>) => sourceMonitorService.markOut(...args),

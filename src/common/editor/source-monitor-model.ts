@@ -4,6 +4,8 @@ import { sequenceFrameAtSample } from './sequence-frame-navigation.ts';
 import { proportionalSourceFrame, sourceFrameTimecodeLabel } from './source-properties-model.ts';
 import { normalizeVideoSourceCharacteristicsForConsumer } from './video-source-characteristics-consumer.ts';
 import { videoFrameToSampleFrame, type RationalRate } from './timeline-time.ts';
+import { videoBoundaryTime, videoSourceTimingView, type VideoSourceTimingView } from './video-source-timing-view.ts';
+import { resolveVideoSourceTimingViews } from './video-source-timing-views.ts';
 import {
 	resolveVideoRetimeProgramOrdinal,
 	VideoRetimeProgramOrdinalUnavailableError,
@@ -135,8 +137,14 @@ export function resolveSourceMonitorPoints(
  * that frame's presentation interval, so a decoder rounding either way still
  * lands inside the frame that was asked for.
  */
-export function sourceFrameToMediaSeconds(frame: number, rate: RationalRate): number {
+export function sourceFrameToMediaSeconds(frame: number, rate: RationalRate, sourceValue?: unknown): number {
 	const { num, den } = frameRate(rate);
+	const timing = monitorTimingView(sourceValue);
+	if (timing) {
+		const source = record(sourceValue, 'source');
+		const position = clampSourceFrame(frame, Number(source.sourceFrameCount));
+		return (boundarySeconds(timing, position) + boundarySeconds(timing, position + 1)) / 2;
+	}
 	const position = Math.max(0, Math.trunc(frame));
 	return (position * 2 + 1) * den / (num * 2);
 }
@@ -146,10 +154,34 @@ export function mediaSecondsToSourceFrame(
 	seconds: number,
 	rate: RationalRate,
 	sourceFrameCount: number,
+	sourceValue?: unknown,
 ): number {
 	const { num, den } = frameRate(rate);
 	if (!Number.isFinite(seconds)) throw new RangeError('A media position must be a finite number.');
+	const timing = monitorTimingView(sourceValue);
+	if (timing) {
+		let lower = 0;
+		let upper = positiveSafeInteger(sourceFrameCount, 'sourceFrameCount');
+		while (lower + 1 < upper) {
+			const middle = lower + Math.floor((upper - lower) / 2);
+			if (boundarySeconds(timing, middle) <= seconds) lower = middle;
+			else upper = middle;
+		}
+		return lower;
+	}
 	return clampSourceFrame(Math.floor(Math.max(0, seconds) * num / den), sourceFrameCount);
+}
+
+function monitorTimingView(sourceValue: unknown): VideoSourceTimingView | null {
+	if (sourceValue == null) return null;
+	const source = record(sourceValue, 'source');
+	if (source.timingDecision == null) return null;
+	return videoSourceTimingView(resolveVideoSourceTimingViews({ sources: [source] }), source);
+}
+
+function boundarySeconds(timing: VideoSourceTimingView, frame: number): number {
+	const time = videoBoundaryTime(timing, frame);
+	return Number(time.numerator) / Number(time.denominator);
 }
 
 /** The SMPTE label this source's own origin gives one of its frames. */
