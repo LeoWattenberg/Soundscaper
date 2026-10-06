@@ -200,8 +200,8 @@ export function createAudioGeneratorService<Context, Target extends AudioGenerat
 		dependencies.lifetime.assertActive();
 		if (dependencies.editingBlocked()) return null;
 		const currentProject = dependencies.getProject();
-		const selection = activeSelection(currentProject);
-		if (selection) {
+		const selection = currentProject.selection;
+		if (selection && selection.endFrame > selection.startFrame) {
 			const trackIds = selection.trackIds?.length
 				? selection.trackIds : [dependencies.state.selectedTrackId].filter((id): id is string => Boolean(id));
 			return await labeledSilence.generateLabeledSilence([selection], trackIds) ? true : null;

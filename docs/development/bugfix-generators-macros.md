@@ -63,7 +63,9 @@ Import two ordinary WAV files, choose **Select > Select all**, then
 Originally the output still contained one original tone because only the focused
 track was silenced. The command now silences the occupied spans of every selected
 audio track in one edit. The browser regression reads the downloaded WAV's PCM
-and verifies that the entire selected mix is silent.
+and verifies that the entire selected mix is silent. Header-selected grouped
+clips retain their separate targets, leaving unselected audio between them intact;
+the follow-up regression checks that intervening audio in a downloaded WAV.
 
 ## ROOT-008 — Label title keyboard drafts do not commit or cancel correctly
 
