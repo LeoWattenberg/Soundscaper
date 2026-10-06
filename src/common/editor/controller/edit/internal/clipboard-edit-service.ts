@@ -19,7 +19,7 @@ import type { EditorControllerLifetime } from '../../shared/lifecycle.ts';
 import type { ControllerEditSessionClipboardCarrier } from '../../document/project-runtime.ts';
 import { resolveEditingSelectionAuthority } from '../../../commands/editing-selection-authority.ts';
 import { missingClipboardSourcesForPaste } from './clipboard-source-identity.ts';
-
+import type { RuntimeClipProject } from '../../../runtime-clip-projection.ts';
 export interface ClipboardEditClip extends Readonly<Record<string, unknown>> {
 	readonly id: string;
 	readonly sourceId: string;
@@ -56,7 +56,7 @@ export interface ClipboardEditSource extends Readonly<Record<string, unknown>> {
 	readonly id: string;
 }
 
-export interface ClipboardEditProject {
+export interface ClipboardEditProject extends RuntimeClipProject {
 	readonly id: string;
 	readonly revision?: number;
 	readonly schemaFamily?: 'soundscaper' | 'framescaper';
@@ -391,7 +391,7 @@ export function createClipboardEditService(
 			const current = dependencies.getProject();
 			if (current.id !== project.id || current.revision !== project.revision) return;
 			if (!buffer) continue;
-			commands.push(...detachCommandsForClip(clip, findClipSilenceRegions(clip, buffer, authority.range)));
+			commands.push(...detachCommandsForClip(clip, findClipSilenceRegions(clip, buffer, authority.range, project)));
 		}
 		if (!commands.length) {
 			setLocalizedStatus(dependencies.setStatus, dependencies.copy, "noSilencesFound", undefined, 'info');
@@ -445,7 +445,7 @@ export function createClipboardEditService(
 				if (!clip || !buffer) continue;
 				for (const region of [...regions].reverse()) {
 					if (region.endFrame <= region.startFrame) continue;
-					commands.push(...detachCommandsForClip(clip, findClipSilenceRegions(clip, buffer, region)));
+					commands.push(...detachCommandsForClip(clip, findClipSilenceRegions(clip, buffer, region, project)));
 				}
 			}
 		}
