@@ -102,6 +102,45 @@ async function waveformChecksum(waveform) {
 	});
 }
 
+test('spectral center snapping keeps the audible frequency when a clip is looped', async ({ page }) => {
+	const errors = collectClientErrors(page);
+	await page.setViewportSize({ width: 1920, height: 900 });
+	const editor = await bootEditor(page, '/embed/en/');
+	await importFiles(editor, [spectralTone]);
+	const clip = clipByName(editor, spectralTone.name);
+	await clip.locator('.clip-header').click();
+	const loop = clip.getByRole('slider', { name: 'Looped clip length', exact: true });
+	await loop.press('ArrowRight');
+	await loop.press('ArrowRight');
+	await loop.press('ArrowRight');
+	await expect(loop).toHaveAttribute('aria-valuenow', '16');
+	const track = clip.locator('xpath=ancestor::div[@data-track-row]');
+	await setSpectrogramPreferences(page, editor);
+	await track.getByRole('button', { name: 'Track menu', exact: true }).click();
+	const display = page.locator('.audio-editor-track-menu').getByRole('menuitem', { name: /^Track visualization(?:\s|$)/u });
+	await display.focus();
+	await page.keyboard.press('ArrowRight');
+	await display.getByRole('menu').getByRole('menuitem', { name: 'Spectrogram', exact: true }).click();
+	await clip.focus();
+	await page.keyboard.press('Control+a');
+	await openSpectralDialog(page, editor);
+	const dialog = page.getByRole('dialog', { name: 'Spectral selection', exact: true });
+	await dialog.getByRole('textbox', { name: /^Minimum frequency \(Hz\)/u }).fill('100');
+	await dialog.getByRole('textbox', { name: /^Maximum frequency \(Hz\)/u }).fill('300');
+	await dialog.getByRole('button', { name: 'Select range', exact: true }).click();
+	await expect(clip.locator('canvas.clip-body__waveform')).toHaveAttribute('data-spectrogram-renderer', 'pffft-wasm');
+	const center = track.getByRole('slider', { name: 'Spectral selection center-frequency handle', exact: true });
+	const centerBox = await center.boundingBox();
+	const laneBox = await track.locator('[data-track-lane]').boundingBox();
+	const bodyTop = Number(await track.locator('[data-track-lane]').getAttribute('data-channel-body-top'));
+	await page.mouse.move(centerBox.x + centerBox.width / 2, centerBox.y + centerBox.height / 2);
+	await page.mouse.down();
+	await page.mouse.move(centerBox.x + centerBox.width / 2, laneBox.y + bodyTop + (laneBox.height - bodyTop) * 0.6, { steps: 4 });
+	await page.mouse.up();
+	await expect.poll(async () => Number(await center.getAttribute('aria-valuenow'))).toBeCloseTo(512, 0);
+	expect(errors).toEqual([]);
+});
+
 async function openSpectralDialog(page, editor) {
 	await editor.getByRole('button', { name: 'Spectrogram options', exact: true }).click();
 	await page.getByRole('menuitem', { name: 'Select spectral frequency range', exact: true }).click();

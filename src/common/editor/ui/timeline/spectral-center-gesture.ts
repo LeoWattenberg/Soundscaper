@@ -2,6 +2,7 @@
 
 import { calculateAudioSpectrum } from '../../audio-spectrum.ts';
 import { projectUnwarpedClipSourceRange } from '../../audio-clip-source-projection.ts';
+import { readClipLoop } from '../../audio-clip-loop.ts';
 import {
 	spectrogramFrequencyAtFraction,
 	spectrogramFrequencyFraction,
@@ -110,7 +111,7 @@ export function selectedTrackSpectralPeaks(
 		const visual = controller.getClipVisualData(clip.id);
 		if (!visual) continue;
 		const sourceDuration = clip.sourceDurationFrames || clip.durationFrames;
-		const ratio = sourceDuration / clip.durationFrames;
+		const ratio = sourceDuration / (readClipLoop(clip)?.periodFrames ?? clip.durationFrames);
 		const sourceRange = projectUnwarpedClipSourceRange({
 			opaqueExtensions: clip.opaqueExtensions,
 			durationFrames: clip.durationFrames,

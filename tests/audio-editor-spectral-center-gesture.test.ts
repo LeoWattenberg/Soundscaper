@@ -11,6 +11,7 @@ import {
 	selectedTrackSpectralPeaks,
 } from '../src/common/editor/ui/timeline/spectral-center-gesture.ts';
 import { spectrogramFrequencyFraction, spectrogramScaleValue } from '../src/common/editor/ui/timeline/geometry.ts';
+import { clipLoopUpdateFields } from '../src/common/editor/audio-clip-loop.ts';
 
 test('moving a spectral band preserves its displayed bandwidth and time selection', () => {
 	const band = { startFrame: 10, endFrame: 100, minimumFrequency: 200, maximumFrequency: 800 };
@@ -47,6 +48,23 @@ test('linked source playback ignores the retained independent pitch when snappin
 		speedRatio: 2, pitchCents: 1200, linkPitchAndTempo: true };
 	const peaks = selectedTrackSpectralPeaks(controller, [clip], { startFrame: 0, endFrame: sampleRate / 2 }, sampleRate);
 	assert.equal(snapSpectralCenterToPeak(500, peaks), 512);
+});
+
+test('looped spectral snapping keeps the repeat speed through later repetitions and splits', () => {
+	const sampleRate = 8192;
+	const samples = Float32Array.from({ length: sampleRate }, (_, frame) => Math.sin(2 * Math.PI * 256 * frame / sampleRate));
+	const controller = { getClipVisualData: () => ({ buffer: { numberOfChannels: 1, getChannelData: () => samples } }) };
+	for (const periodFrames of [sampleRate, sampleRate / 2]) {
+		for (const offsetFrames of [0, periodFrames / 4]) {
+			const original = { id: 'audio', kind: 'audio', sourceId: 'source', timelineStartFrame: 0,
+				sourceStartFrame: 0, sourceDurationFrames: sampleRate, durationFrames: periodFrames,
+				waveformStartFrame: 0, waveformEndFrame: periodFrames };
+			const clip = { ...original, ...clipLoopUpdateFields(original, { periodFrames, offsetFrames, durationFrames: periodFrames * 4 }) };
+			const peaks = selectedTrackSpectralPeaks(controller, [clip], { startFrame: periodFrames * 2, endFrame: periodFrames * 3 }, sampleRate);
+			const expectedFrequency = 256 * sampleRate / periodFrames;
+			assert.equal(snapSpectralCenterToPeak(expectedFrequency, peaks), expectedFrequency);
+		}
+	}
 });
 
 test('spectral center movement clamps the entire band at display limits', () => {
