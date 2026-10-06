@@ -64,6 +64,7 @@ function fixture(start: number, end: number, projectEnd: number, cancelOnRender 
 		currentAudacityEffectParams: () => ({}),
 		engine: {
 			pause: () => undefined,
+			getPlaybackDestination: () => ({}),
 			getAudioContext: async () => ({ createBufferSource: () => source, destination: {} }),
 		},
 		estimateAudioSelectionEffectPeakBytes: () => 0,

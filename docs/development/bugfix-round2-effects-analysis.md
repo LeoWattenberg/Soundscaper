@@ -270,4 +270,21 @@ exported spectrum report. Build 16 passes in Chromium, Firefox and WebKit
 within the graph's rounding precision. Strict regressions check actual FFTs
 of 100-Hz, 440-Hz, 1-kHz, 10-kHz and 22-kHz tones, plus silence and empty reports.
 
+## R2-ROOT-020 — Effect previews ignore the playback listening volume
+
+Import an ordinary WAV, move **Playback volume** to its mute position, select
+all, open **Effect > Pitch and tempo > Change tempo**, and click **Preview**.
+Previously that preview played at full listening level: temporary effect audio
+connected directly to the device destination. Parametric EQ and Nyquist previews
+used the same bypass. All three now share the engine's listening output, so mute
+and subsequent volume changes apply without changing rendered project audio.
+
+Proof: `audio-editor-round2-preview-monitor-gain.spec.js` reproduced the direct
+full-gain connection against build 16. Build 17 passes all three workflows in
+Chromium, Firefox and WebKit. Its observer records native connections and
+scheduled parameter values, without adding audio nodes or editor state. The
+engine regression checks that the output is reused and volume changes stay live;
+47 focused preview, Nyquist, and engine regressions pass. Preview-length follow-up
+checks also preserve intentional gaps in unchanged six-second auditions.
+
 These changes do not require a manual **Update AI assets** run.

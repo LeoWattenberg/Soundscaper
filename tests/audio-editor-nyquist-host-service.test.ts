@@ -67,6 +67,7 @@ function createHarness(options: Readonly<{ deferContext?: boolean }> = {}) {
 		projectSampleRate: () => project.sampleRate,
 		getPositionFrames: () => 250,
 		getAudioContext: async () => options.deferContext ? contextDeferred.promise : context,
+		getPlaybackDestination: () => context.destination,
 		pauseTransport: () => undefined,
 		assertAudioOutput: () => undefined,
 		bufferFromChannels: async () => ({ audio: true }),

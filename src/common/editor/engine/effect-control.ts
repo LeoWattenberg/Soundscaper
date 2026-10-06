@@ -173,7 +173,7 @@ async createParametricEqPreview(buffer, params, { effectId = 'selection-preview-
 					previewErrorListener?.(error);
 				},
 			});
-			connect(output, context.destination);
+			connect(output, this.getPlaybackDestination());
 		} catch (error) {
 			for (const node of nodes.reverse()) {
 				try { node.disconnect(); } catch { /* The partially built graph may already be disconnected. */ }

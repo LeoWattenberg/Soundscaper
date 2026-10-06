@@ -242,6 +242,7 @@ export function createEffectsComposition(dependencies: EffectsCompositionDepende
 			projectSampleRate: dependencies.projectSampleRate,
 			getPositionFrames: () => engine.getPositionFrames(),
 			getAudioContext: () => engine.getAudioContext({ resume: true }),
+			getPlaybackDestination: () => engine.getPlaybackDestination(),
 			pauseTransport: () => engine.pause(),
 			assertAudioOutput: assertAudacityEffectOutput,
 			bufferFromChannels: (channels, sampleRate, context) => bufferFromChannels([...channels], sampleRate, context, copy),

@@ -218,6 +218,8 @@ export interface EnginePublicApi {
 	getOutputDeviceState(): EngineOutputDeviceState;
 	setPlaybackGain(gain: number): number;
 	getPlaybackGain(): number;
+	/** Listening destination shared by transport and temporary audio auditions. */
+	getPlaybackDestination(): AudioNode;
 	/** Audition a band in device playback only; leaving playback retires it. */
 	setPlaybackFrequencyRange(range: EnginePlaybackFrequencyRange | null): EnginePlaybackFrequencyRange | null;
 	getAudioWarpRenderStatus(): Readonly<AudioWarpRenderPathStatus>;

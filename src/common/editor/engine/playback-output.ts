@@ -52,4 +52,10 @@ export const enginePlaybackOutputMethods = {
 	getPlaybackGain() {
 		return this.playbackGain;
 	},
-} satisfies EngineRuntimeMethodMap<'setPlaybackGain' | 'getPlaybackGain'>;
+
+	getPlaybackDestination() {
+		this[ENGINE_ASSERT_ACTIVE]();
+		if (!this.context) throw new Error('Open the audio context before connecting a preview.');
+		return playbackOutputDestination(this, this.context, this.context.destination);
+	},
+} satisfies EngineRuntimeMethodMap<'setPlaybackGain' | 'getPlaybackGain' | 'getPlaybackDestination'>;

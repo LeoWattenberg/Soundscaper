@@ -34,6 +34,7 @@ export const ENGINE_PUBLIC_METHOD_NAMES = [
 	'getOutputDeviceState',
 	'setPlaybackGain',
 	'getPlaybackGain',
+	'getPlaybackDestination',
 	'setPlaybackFrequencyRange',
 	'play',
 	'playCutPreview',

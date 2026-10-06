@@ -83,7 +83,7 @@ export type EffectsCompositionStore =
 	& Readonly<{ readonly assistanceDerivativeRepository?: AssistanceDerivativeRepositoryPort }>;
 
 export type EffectsCompositionEngine = Pick<EnginePublicApi,
-	| 'configureParametricEq' | 'configureRackEffect' | 'getAudioContext' | 'getPositionFrames' | 'pause'
+	| 'configureParametricEq' | 'configureRackEffect' | 'getAudioContext' | 'getPlaybackDestination' | 'getPositionFrames' | 'pause'
 >;
 
 export interface EffectsCompositionDependencies {

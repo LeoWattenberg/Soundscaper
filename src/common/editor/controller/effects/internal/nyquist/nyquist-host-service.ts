@@ -109,6 +109,7 @@ export interface NyquistHostServiceRuntime {
 	readonly projectSampleRate: () => number;
 	readonly getPositionFrames: () => number;
 	readonly getAudioContext: () => Promise<NyquistAudioContext>;
+	readonly getPlaybackDestination: () => unknown;
 	readonly pauseTransport: () => void;
 	readonly assertAudioOutput: (channels: readonly Float32Array[]) => void;
 	readonly bufferFromChannels: (
@@ -223,7 +224,7 @@ export function createNyquistHostService(runtime: NyquistHostServiceRuntime) {
 		assertCurrent(runtime, projectToken, signal);
 		const source = context.createBufferSource();
 		source.buffer = buffer;
-		source.connect(context.destination);
+		source.connect(runtime.getPlaybackDestination());
 		source.onended = () => {
 			if (runtime.state.audacityPreviewSource !== source) return;
 			runtime.state.audacityPreviewSource = null;

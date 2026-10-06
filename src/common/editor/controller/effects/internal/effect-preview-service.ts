@@ -175,7 +175,8 @@ export function createSelectionEffectPreviewService(runtime: SelectionEffectPrev
 				assertAudacityEffectOutput(result.channels);
 				resultChannelSets.push(result.channels);
 			}
-			const resultFrameCount = Math.min(maximumFrames, Math.max(...resultChannelSets.map((channels, index) => (
+			const changedDuration = resultChannelSets.some((channels, index) => channels[0]!.length !== targets[index]!.preview.durationFrames);
+			const resultFrameCount = Math.min(maximumFrames, Math.max(changedDuration ? 0 : previewFrameCount, ...resultChannelSets.map((channels, index) => (
 				targets[index]!.offsetFrames + channels[0]!.length
 			))));
 			const mixedChannels = mixNyquistPreviewChannels(resultChannelSets.map((channels, index) => (
@@ -188,7 +189,7 @@ export function createSelectionEffectPreviewService(runtime: SelectionEffectPrev
 			requireCurrentPreview();
 			const source = context.createBufferSource();
 			source.buffer = buffer;
-			source.connect(context.destination);
+			source.connect(engine.getPlaybackDestination());
 			attachPreviewSource(source, runtime);
 			engine.pause();
 			state.audacityPreviewSource = source;

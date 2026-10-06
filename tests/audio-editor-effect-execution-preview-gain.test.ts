@@ -87,6 +87,7 @@ test('Amplify preview and dialog preparation derive automatic gain from every co
 		currentAudacityEffectParams: controls.currentAudacityEffectParams,
 		engine: {
 			pause() {},
+			getPlaybackDestination: () => ({}),
 			getAudioContext: async () => ({
 				resume: async () => undefined,
 				createBufferSource: () => previewSource,
@@ -110,9 +111,9 @@ test('Amplify preview and dialog preparation derive automatic gain from every co
 					? new Float32Array([0.1, 0.9])
 					: new Float32Array([0.1, 0.95])];
 			}
-			return [trackId === 'track-a'
-				? new Float32Array([0.1, -0.1])
-				: new Float32Array([0.2, 0.3])];
+			const preview = new Float32Array(endFrame - startFrame);
+			preview.set(trackId === 'track-a' ? [0.1, -0.1] : [0.2, 0.3]);
+			return [preview];
 		},
 		resolveInteractiveAudacityParams: controls.resolveInteractiveAudacityParams,
 		runSelectionEffectWorker: async (request: Readonly<{
@@ -239,6 +240,7 @@ async function previewDisjointTargets(effectType: string): Promise<Readonly<{
 		currentAudacityEffectParams: () => ({}),
 		engine: {
 			pause() {},
+			getPlaybackDestination: () => ({}),
 			getAudioContext: async () => ({
 				resume: async () => undefined,
 				createBufferSource: () => source,
