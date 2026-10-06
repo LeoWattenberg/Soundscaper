@@ -8,8 +8,9 @@ import {
 import { createDeterministicSilentVideoFixture } from './fixtures/deterministic-av-media.js';
 import { seekFramescaperTimecode } from './helpers/framescaper-standard-timecode.js';
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
+import { readDawprojectArchive } from '../../src/common/editor/dawproject-archive.ts';
 
-for (const format of ['FCPXML', 'edit list (EDL)']) {
+for (const format of ['FCPXML', 'edit list (EDL)', 'OpenTimelineIO', 'DAWproject']) {
 	test(`${format} carries a normal video trim into its source in-point`, async ({ page }) => {
 		await disableNativeSavePicker(page);
 		const editor = await bootEditor(page, '/framescaper/embed/en/');
@@ -22,15 +23,27 @@ for (const format of ['FCPXML', 'edit list (EDL)']) {
 		await expect.poll(() => savedSourceInPoint(page, editor)).toBe(6);
 		const downloading = page.waitForEvent('download');
 		await chooseNestedCommandAction(page, editor, 'File', ['Export other', `Export ${format}`]);
-		const text = new TextDecoder().decode(await downloadBytes(await downloading));
+		const bytes = await downloadBytes(await downloading);
+		const text = new TextDecoder().decode(bytes);
 		if (format === 'FCPXML') {
 			const sourceStart = /<asset-clip[^>]*\bstart="([^"]+)"/u.exec(text)?.[1];
 			// The captured WebM's sixth source ordinal has PTS 456/1000s;
 			// its nearest boundary on the 30 fps interchange grid is frame 14.
 			expect(sourceStart).toBe('7/15s');
-		} else {
+		} else if (format === 'edit list (EDL)') {
 			const event = text.split('\n').find((line) => /^001\s/u.test(line));
 			expect(event?.trim().split(/\s+/u)[4]).toBe('00:00:00:14');
+		} else if (format === 'OpenTimelineIO') {
+			const timeline = JSON.parse(text);
+			const video = timeline.tracks.children.find((track) => track.kind === 'Video');
+			const delivered = video.children.find((child) => child.OTIO_SCHEMA === 'Clip.1');
+			expect(delivered.source_range.start_time).toEqual({ OTIO_SCHEMA: 'RationalTime.1', value: 14, rate: 30 });
+		} else {
+			const archive = await readDawprojectArchive(new Blob([bytes]));
+			try {
+				const projectXml = archive.projectXml;
+				expect(/<Clip[^>]*\bplayStart="([^"]+)"/u.exec(projectXml)?.[1]).toBe('0.456');
+			} finally { await archive.close(); }
 		}
 	});
 }

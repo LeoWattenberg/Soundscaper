@@ -5,6 +5,7 @@ import { compareCodeUnits } from './code-unit-order.ts';
 import { addDeliveryReportItem } from './delivery-report.ts';
 import { reportOmittedClipFeatures } from './dawproject-export-clip-omissions.ts';
 import { interchangeClipTimeEffect } from './interchange-omission-inventory.ts';
+import { interchangeSourceInSeconds } from './interchange-source-in-point.ts';
 import { barStartBeat } from './musical-grid.ts';
 import { xmlElement, type XmlElement } from './dawproject-xml.ts';
 import { isHexColor, panToNormalized, rationalToNumber } from './dawproject-format.ts';
@@ -278,7 +279,7 @@ function buildVideoClip(clip: DataRecord, context: DawprojectExportContext): Xml
 		time: nonNegativeInteger(clip.timelineStartFrame ?? 0, 'clip.timelineStartFrame') / sampleRate,
 		duration: durationFrames / sampleRate,
 		contentTimeUnit: 'seconds',
-		playStart: nonNegativeInteger(clip.sourceStartFrame ?? 0, 'clip.sourceStartFrame') / sampleRate,
+		playStart: interchangeSourceInSeconds(clip, source, sampleRate),
 		enable: true,
 		name: String(clip.title ?? source.name ?? clipId),
 	}, [

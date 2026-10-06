@@ -9,7 +9,7 @@ import {
 } from './delivery-report.ts';
 import { type SequenceRationalRate } from './sequence-timecode.ts';
 import { sequenceFrameAtSample } from './sequence-frame-navigation.ts';
-import { roundRational } from './timeline-time.ts';
+import { interchangeSourceInPoint } from './interchange-source-in-point.ts';
 import {
 	interchangeClipTimeEffect,
 	reportInterchangeAnnotationOmission,
@@ -427,11 +427,7 @@ function sourceStartInTimebase(
 		});
 		return stated;
 	}
-	return roundRational(
-		BigInt(stated) * BigInt(context.sequenceRate.num) * BigInt(sourceRate.den),
-		BigInt(context.sequenceRate.den) * BigInt(sourceRate.num),
-		'point',
-	);
+	return interchangeSourceInPoint(clip, source, context.sequenceRate, context.sampleRate);
 }
 
 function exactRate(value: unknown): SequenceRationalRate | null {
