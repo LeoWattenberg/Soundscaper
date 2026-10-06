@@ -107,8 +107,10 @@ test('a native watch claim imports one video into the Project Bin and acknowledg
 	dialog = page.locator('[data-framescaper-native-services-dialog="true"]');
 	await expect(dialog.getByRole('checkbox', { name: 'Generate proxies', exact: true })).not.toBeChecked();
 	await dialog.getByRole('button', { name: 'Add watch folder', exact: true }).click();
+	// Completion follows the video probe and durable save, which can exceed the
+	// default assertion budget on a loaded WebKit CI worker.
 	await expect.poll(() => page.evaluate(() => globalThis.__framescaperNativeCalls
-		.filter(([kind]) => kind === 'completeWatchImport'))).toHaveLength(1);
+		.filter(([kind]) => kind === 'completeWatchImport')), { timeout: 30_000 }).toHaveLength(1);
 	await dialog.locator('button').filter({ hasText: /^Close$/u }).click();
 	const card = editor.locator('[data-project-bin-item][data-project-bin-media-kind="video"]');
 	await expect(card).toHaveCount(1);
