@@ -30,6 +30,26 @@ export interface TimelineGridLineOptions {
 	readonly scrollX: number;
 	readonly viewportWidth: number;
 	readonly sampleRate: number;
+	/** A single viewport model owned by the timeline, shared with its ruler. */
+	readonly mappedTicks?: readonly MappedTimelineTick[] | null;
+}
+
+export interface MappedTimelineTick {
+	readonly frame: number;
+	readonly major: boolean;
+	readonly label: string;
+}
+
+export function createMappedTimelineTicks(options: TimelineGridLineOptions): readonly MappedTimelineTick[] | null {
+	const { scale, sampleRate, pixelsPerSecond, scrollX, viewportWidth } = options;
+	if (scale.kind !== 'musical-map' && scale.kind !== 'timecode') return null;
+	const startFrame = Math.max(0, Math.floor(scrollX / pixelsPerSecond * sampleRate));
+	const endFrame = Math.max(startFrame, Math.ceil((scrollX + viewportWidth) / pixelsPerSecond * sampleRate));
+	const coordinates = { sampleRate, startFrame, endFrame, pixelsPerSample: pixelsPerSecond / sampleRate };
+	return scale.kind === 'timecode'
+		? createSequenceRulerTicks({ view: scale.view, ...coordinates })
+		: createMusicalRulerTicks({ tempoMap: scale.tempoMap, signatureMap: scale.signatureMap,
+			...coordinates, pixelsPerFrame: coordinates.pixelsPerSample });
 }
 
 type LooseRecord<Fields> = Readonly<Fields> & Readonly<Record<string, unknown>>;
@@ -119,24 +139,7 @@ export function createTimelineGridLines(options: TimelineGridLineOptions): reado
 	} else if (scale.kind === 'beats-measures') {
 		placeBeatsAndMeasures(place, scale, pixelsPerSecond, scrollX, viewportWidth);
 	} else {
-		const startFrame = Math.max(0, Math.floor(scrollX / pixelsPerSecond * sampleRate));
-		const endFrame = Math.max(startFrame, Math.ceil((scrollX + viewportWidth) / pixelsPerSecond * sampleRate));
-		const ticks = scale.kind === 'timecode'
-			? createSequenceRulerTicks({
-				view: scale.view,
-				sampleRate,
-				startFrame,
-				endFrame,
-				pixelsPerSample: pixelsPerSecond / sampleRate,
-			})
-			: createMusicalRulerTicks({
-				tempoMap: scale.tempoMap,
-				signatureMap: scale.signatureMap,
-				sampleRate,
-				startFrame,
-				endFrame,
-				pixelsPerFrame: pixelsPerSecond / sampleRate,
-			});
+		const ticks = options.mappedTicks ?? createMappedTimelineTicks(options)!;
 		for (const tick of ticks) {
 			place(CLIP_CONTENT_OFFSET + tick.frame / sampleRate * pixelsPerSecond - scrollX, tick.major);
 		}

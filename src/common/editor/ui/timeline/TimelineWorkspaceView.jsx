@@ -15,7 +15,7 @@ import {
 	useTimelineAnnotationCreateFeedback,
 } from './useTimelineAnnotationCreateFeedback.js';
 import { timelineAnnotationCreateKind } from './timeline-annotation-ui-model.ts';
-import { resolveTimelineRulerScale } from './timeline-grid-model.ts';
+import { useTimelineRulerModels } from './useTimelineRulerModels.ts';
 import { timelineSelectedTrackIds } from './track-selection-scope.ts';
 import { TimelineGridLines } from './TimelineGridLines.jsx';
 import { OutputTrackDock } from './OutputTrackRows.jsx';
@@ -149,7 +149,7 @@ export function TimelineWorkspaceView({
 	const { displayedLoop } = menuModel;
 	// One resolved scale feeds the ruler canvas and the grid lines behind the
 	// tracks, so a tick and its line can never come from different models.
-	const rulerScale = useMemo(() => resolveTimelineRulerScale(project), [project]);
+	const { rulerScale, mappedTicks } = useTimelineRulerModels(project, pixelsPerSecond, sampleRate, contentScrollX, viewportWidth);
 	const timelinePanelRef = useRef(null);
 	const pointerPosition = useTimelinePointerPositionIndicators(timelinePanelRef, scrollRef);
 	const setTimelinePanelNode = useCallback((node) => {
@@ -312,7 +312,7 @@ export function TimelineWorkspaceView({
 								controller={controller}
 								run={run}
 								project={project}
-								rulerScale={rulerScale}
+								rulerScale={rulerScale} mappedTicks={mappedTicks}
 								markerLaneVisible={markerLaneVisible}
 								pixelsPerSecond={pixelsPerSecond}
 								contentScrollX={contentScrollX}
@@ -350,7 +350,7 @@ export function TimelineWorkspaceView({
 					</div>
 
 					<TimelineGridLines
-						scale={rulerScale}
+						scale={rulerScale} mappedTicks={mappedTicks}
 						pixelsPerSecond={pixelsPerSecond}
 						scrollX={contentScrollX}
 						viewportWidth={viewportWidth}
@@ -519,7 +519,7 @@ export function TimelineWorkspaceView({
 				scrollX={contentScrollX}
 				pixelsPerSecond={pixelsPerSecond}
 				sampleRate={sampleRate}
-				rulerScale={rulerScale}
+				rulerScale={rulerScale} mappedTicks={mappedTicks}
 				durationFrames={durationFrames}
 				selection={timeSelection}
 				height={outputDockHeight}

@@ -43,7 +43,7 @@ export function OutputTrackDock({
 	scrollX,
 	pixelsPerSecond,
 	sampleRate,
-	rulerScale,
+	rulerScale, mappedTicks,
 	durationFrames,
 	selection,
 	height,
@@ -117,7 +117,7 @@ export function OutputTrackDock({
 				scrollX={scrollX}
 				pixelsPerSecond={pixelsPerSecond}
 				sampleRate={sampleRate}
-				rulerScale={rulerScale}
+				rulerScale={rulerScale} mappedTicks={mappedTicks}
 				durationFrames={durationFrames}
 				selection={selection}
 				automationToolEnabled={automationToolEnabled}
@@ -154,7 +154,7 @@ export function OutputTrackRow({
 	scrollX,
 	pixelsPerSecond,
 	sampleRate,
-	rulerScale,
+	rulerScale, mappedTicks,
 	durationFrames,
 	selection,
 	automationToolEnabled,
@@ -295,7 +295,7 @@ export function OutputTrackRow({
 			>
 				{rulerScale && <TimelineGridLines
 					variant="fill"
-					scale={rulerScale}
+					scale={rulerScale} mappedTicks={mappedTicks}
 					pixelsPerSecond={pixelsPerSecond}
 					scrollX={scrollX}
 					viewportWidth={viewportWidth}
