@@ -21,4 +21,3 @@ export async function exportSamples(page, editor) {
 	await dialog.getByRole('button', { name: 'Close', exact: true }).click();
 	return samples;
 }
-

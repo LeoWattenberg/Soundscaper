@@ -45,12 +45,10 @@ for (const selection of ['clip', 'range']) {
 		await controller.ready;
 		await controller.actions.generators.generate('tone', { amplitude: 0.4, channelCount: 1,
 			durationSeconds: 0.8, frequency: 440 });
-		const project = controller.getSnapshot().project!;
+		const clipId = controller.getSnapshot().selectedClipId!;
 		const sourceId = controller.getSnapshot().selectedTrackId!;
 		const folderId = controller.actions.trackFolders.wrapSelection([sourceId]);
-		const sourceTrack = project.tracks.find(track => track.id === sourceId)!;
-		assert.ok('clipIds' in sourceTrack);
-		controller.actions.timeline.selectClip(sourceTrack.clipIds[0]!);
+		controller.actions.timeline.selectClip(clipId);
 		if (selection === 'range') controller.actions.timeline.setSelection(10_000, 30_000, { trackIds: [sourceId] });
 		else controller.actions.transport.seek(20_000);
 		controller.actions.edit.splitIntoNewTrack();
@@ -60,7 +58,8 @@ for (const selection of ['clip', 'range']) {
 		assert.equal(rows.find(row => row.id === copyId)?.parentFolderId, folderId);
 		assert.deepEqual(rows.filter(row => row.parentFolderId === folderId).map(row => row.id), [sourceId, copyId]);
 		controller.actions.edit.undo();
-		assert.equal(controller.getSnapshot().project!.tracks.some(track => track.id === copyId), false);
+		assert.equal(createDocumentTrackFolderSnapshot(controller.getSnapshot().project).sequences[0]!.rows
+			.some(row => row.id === copyId), false);
 		controller.actions.edit.redo();
 		assert.equal(createDocumentTrackFolderSnapshot(controller.getSnapshot().project).sequences[0]!.rows
 			.find(row => row.id === copyId)?.parentFolderId, folderId);

@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { clipSourceDisplayRange, clipDisplayFrameToSource, type ClipSourceTimingClip, type ClipSourceTimingProject, type ClipSourceTimingSource } from '../../clip-source-timing.ts';
 import type { SourceSelection } from './clip-source-editor-types.ts';
+import { readClipLoop } from '../../audio-clip-loop.ts';
+import { projectUnwarpedClipSourceRange } from '../../audio-clip-source-projection.ts';
 
 /** A destructive edit must touch exactly the contiguous media the highlight represents. */
 export function clipSourceSelection(project: ClipSourceTimingProject, clip: ClipSourceTimingClip, source: ClipSourceTimingSource, requested: SourceSelection | null): {
@@ -13,6 +15,7 @@ export function clipSourceSelection(project: ClipSourceTimingProject, clip: Clip
 	if (endFrame <= startFrame) return clipSourceSelection(project, clip, source, null);
 	const nativeRate = source.sampleRate / project.sampleRate;
 	const sourceEnd = clip.sourceStartFrame + clip.sourceDurationFrames;
+	const loop = readClipLoop(clip);
 	let first: number;
 	let last: number;
 	if (endFrame <= range.startFrame) {
@@ -20,13 +23,19 @@ export function clipSourceSelection(project: ClipSourceTimingProject, clip: Clip
 	} else if (startFrame >= range.endFrame) {
 		first = sourceEnd + (startFrame - range.endFrame) * nativeRate;
 		last = sourceEnd + (endFrame - range.endFrame) * nativeRate;
-	} else if (clip.reversed && (startFrame < range.startFrame || endFrame > range.endFrame)) {
-		// One reversed seam has two disjoint source runs. Include the whole clip,
+	} else if ((clip.reversed || loop) && (startFrame < range.startFrame || endFrame > range.endFrame)
+		|| loop && (startFrame - range.startFrame + loop.offsetFrames) % loop.periodFrames
+			+ endFrame - startFrame > loop.periodFrames) {
+		// A reversed or repeated seam has disjoint source runs. Include the whole clip,
 		// visibly, so the single-range effect API cannot silently edit other samples.
 		startFrame = Math.min(startFrame, range.startFrame);
 		endFrame = Math.max(endFrame, range.endFrame);
 		first = startFrame < range.startFrame ? startFrame * nativeRate : clip.sourceStartFrame;
 		last = endFrame > range.endFrame ? sourceEnd + (endFrame - range.endFrame) * nativeRate : sourceEnd;
+	} else if (loop) {
+		const projected = projectUnwarpedClipSourceRange({ ...clip, reversed: clip.reversed === true },
+			startFrame - range.startFrame, endFrame - range.startFrame);
+		first = projected.startFrame; last = projected.endFrame;
 	} else {
 		first = clipDisplayFrameToSource(project, clip, source, startFrame);
 		last = clipDisplayFrameToSource(project, clip, source, endFrame);

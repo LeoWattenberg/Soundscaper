@@ -4,6 +4,7 @@ import type { AudioEditorCommand } from '../../../commands/protocol.ts';
 import type { EditorControllerLifetime } from '../../shared/lifecycle.ts';
 import type { ControllerProject } from '../track-domain-types.ts';
 import { resolveSelectionRange } from '../../../selection-range.ts';
+import { planMuteAllTracks } from './track-mute-all-plan.ts';
 import {
 	planTrackAlignment,
 	planTrackSort,
@@ -78,18 +79,8 @@ export function createTrackStructuralOperationService(
 
 	function setAllMuted(mute: boolean): unknown {
 		assertWritable();
-		const tracks = dependencies.getProject().tracks.filter((track) => (
-			track.type !== 'label' && track.mute !== mute
-		));
-		if (tracks.length === 0) return null;
-		return dependencies.commit({
-			type: 'batch',
-			commands: tracks.map((track) => ({
-				type: 'track/update' as const,
-				trackId: track.id,
-				changes: { mute },
-			})),
-		});
+		const commands = planMuteAllTracks(dependencies.getProject(), mute);
+		return commands.length ? dependencies.commit({ type: 'batch', commands }) : null;
 	}
 
 	function selectionEnd(project: ControllerProject): number {
