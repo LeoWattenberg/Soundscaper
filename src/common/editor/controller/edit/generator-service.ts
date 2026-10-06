@@ -309,15 +309,20 @@ export function createAudioGeneratorService<Context, Target extends AudioGenerat
 					return prepared;
 				},
 				accept: (_source, prepared) => {
-					dependencies.commit(prepared.command, {
-						selectTrackId: prepared.trackId,
-						selectClipId: prepared.clipId,
-					});
-					dependencies.state.lastGeneratorRequest = Object.freeze({
-						type,
-						options: Object.freeze({ ...options }),
-					});
-					setLocalizedStatus(dependencies.setStatus, dependencies.copy, "done", undefined, 'success');
+					const publish = (): void => {
+						dependencies.commit(prepared.command, {
+							selectTrackId: prepared.trackId,
+							selectClipId: prepared.clipId,
+						});
+						dependencies.state.lastGeneratorRequest = Object.freeze({
+							type,
+							options: Object.freeze({ ...options }),
+						});
+						setLocalizedStatus(dependencies.setStatus, dependencies.copy, "done", undefined, 'success');
+						finishOperation(ownership, processing);
+						processing = false;
+					};
+					if (dependencies.batchPresentation) dependencies.batchPresentation(publish); else publish();
 					return prepared.clipId;
 				},
 			});
