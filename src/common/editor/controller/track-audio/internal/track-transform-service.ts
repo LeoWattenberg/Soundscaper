@@ -13,6 +13,7 @@ import { scaleSampleFrame } from '../../../timeline-time.ts';
 import { loadSourceProvenanceDerivation } from '../../../source-provenance-derivation-loader.ts';
 import { resampledClipCommands } from './clip-resample-service.ts';
 import { trackReplacementPlacement } from './track-replacement-placement.ts';
+import { copyDerivedTrackStripAutomation } from '../../../derived-track-strip-automation.ts';
 import type { DerivedSourceService } from './derived-audio/derived-source-service.ts';
 import { v21StripLaneRemovalCommands } from '../mix-render-model.ts';
 import {
@@ -277,6 +278,8 @@ export function createTrackTransformService(
 						...trackReplacementPlacement(project, track.id) },
 					{ ...createAddTrackCommand(rightTrack), index: trackIndex + 1,
 						...trackReplacementPlacement(project, track.id, 1) },
+					...copyDerivedTrackStripAutomation(project, track.id, track.id, dependencies.createId, true),
+					...copyDerivedTrackStripAutomation(project, track.id, rightTrackId, dependencies.createId, true),
 				];
 				for (const clip of clips) addSplitClipCommands(commands, track, rightTrackId, clip, sourcePairs);
 				assertOwned(ownership);

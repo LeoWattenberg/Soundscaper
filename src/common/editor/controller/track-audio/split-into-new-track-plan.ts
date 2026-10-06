@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { trackHierarchyPlacement } from '../../track-hierarchy-placement.ts';
+import { copyDerivedTrackStripAutomation } from '../../derived-track-strip-automation.ts';
 
 /**
  * Plan the time-range half of "Split into new track".
@@ -70,6 +71,7 @@ export function prepareSplitRangeIntoNewTrackCommand(
 			clipIds: [],
 			effects: [],
 		}), ...trackHierarchyPlacement(project, trackId, 1) });
+		commands.push(...copyDerivedTrackStripAutomation(project, trackId, newTrackId, runtime.createStableId));
 		for (const entry of entries) {
 			commands.push(...entry.splits);
 			moves.push({
