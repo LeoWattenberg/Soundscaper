@@ -6,6 +6,7 @@ import { createSnapshotComposition } from '../src/common/editor/controller/compo
 import { stateFixture } from './helpers/audio-editor-snapshot-state.ts';
 import { DEFAULT_SOUND_ACTIVATION_PREFERENCES } from '../src/common/editor/sound-activation-preferences.ts';
 import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
+import { createAudioEditorEffectPresets, saveAudioEditorEffectPreset } from '../src/common/editor/effect-presets.js';
 
 function fixture() {
 	const project = { id: 'project', clips: [{ id: 'clip', kind: 'video', videoEffects: [{ id: 'effect', params: { amount: 0 } }] }] };
@@ -15,6 +16,8 @@ function fixture() {
 		recordingPreviews: [],
 		timedRecording: null, timedRecordingCancelling: false, meters: null, inputMeterDb: -Infinity,
 		inputMeter: null, inputMeters: {}, exportProgress: 0 };
+	let presentationRevision = 0;
+	const copy = { ...ENGLISH_COPY };
 	const channels = createSnapshotComposition({
 		document: {
 			state, product: null, productId: 'framescaper', capabilities: {}, locale: 'en',
@@ -29,11 +32,34 @@ function fixture() {
 		telemetry, audioDevices: { preferredInputDeviceId: 'default', preferredInputChannelCount: 1,
 			preferredOutputDeviceId: 'default', activeOutputDeviceId: 'default', audioInputAccess: false,
 			audioInputDevices: [], audioOutputDevices: [], recordingPoolSources: [], audioOutputStatus: '' },
-		engine: {}, mediaDevices: undefined, copy: ENGLISH_COPY, videoEffectGestures: gestures,
+		engine: {}, mediaDevices: undefined, copy, presentationRevision: () => presentationRevision, videoEffectGestures: gestures,
 		videoEffectGestureKey: (clip, effect) => `${clip}:${effect}`,
 	});
-	return { channels, project, state, gestures, telemetry };
+	return { channels, project, state, gestures, telemetry, copy, updatePresentation: () => { presentationRevision++; } };
 }
+
+test('unrelated publications reuse effect catalogs and presets while presentation and CRUD invalidate them', () => {
+	const f = fixture();
+	const first = f.channels.document.get();
+	f.channels.document.publish();
+	const second = f.channels.document.get();
+	assert.equal(second.effects.rackTypes, first.effects.rackTypes);
+	assert.equal(second.effects.videoTypes, first.effects.videoTypes);
+	assert.equal(second.effects.selectionTypes, first.effects.selectionTypes);
+	assert.equal(second.effects.presets, first.effects.presets);
+	f.copy.amplifyEffect = 'Translated amplify';
+	f.updatePresentation();
+	f.channels.document.publish();
+	const translated = f.channels.document.get();
+	assert.notEqual(translated.effects.selectionTypes, second.effects.selectionTypes);
+	assert.deepEqual(first.effects.selectionTypes, second.effects.selectionTypes);
+	f.state.effectPresets = saveAudioEditorEffectPreset(createAudioEditorEffectPresets(), {
+		effectType: 'audacity-normalize', name: 'Saved', params: {}, idFactory: () => 'saved',
+	}).state;
+	f.channels.document.publish();
+	assert.notEqual(f.channels.document.get().effects.presets, second.effects.presets);
+	assert.equal(second.effects.presets.length, 0);
+});
 
 test('snapshot composition separates realtime publication from document notifications', () => {
 	const f = fixture();

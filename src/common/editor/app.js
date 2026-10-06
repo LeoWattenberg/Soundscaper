@@ -217,7 +217,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		getSelectionEffectParams: bindings.currentAudacityEffectParams,
 	};
 	const { document: documentChannel, telemetry: telemetryChannel } = createSnapshotComposition({
-		document: documentSnapshotRuntime, telemetry: state, audioDevices: state, engine, mediaDevices, copy,
+		document: documentSnapshotRuntime, telemetry: state, audioDevices: state, engine, mediaDevices, copy, presentationRevision: () => localization.port.getSnapshot().revision,
 		videoEffectGestures: state.videoEffectGestures, videoEffectGestureKey: bindings.videoEffectGestureKey,
 	});
 	/** @type {((value: number) => void) | null} */
@@ -260,7 +260,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		},
 	});
 	let removeDeviceChangeListener = () => {};
-	const getCommandProject = createResolvedCommandProjectReader(() => documentState.project, (project) => projectRuntime.projectForCommandConsumers(project));
+	const getCommandProject = createResolvedCommandProjectReader(() => documentState.project, (project) => projectRuntime.projectForCommandConsumers(project), { immutableGenerations: true });
 	/** @type {ReturnType<typeof createSourceRuntimeComposition<import('./engine/public-api.ts').EnginePublicApi>>} */
 	const sources = createSourceRuntimeComposition({
 		state, playbackCacheState: transportAccess, copy, lifetime, projectGeneration, store, engine, sourceBuffers, sourceChunkProviders, sourcePeaks,
