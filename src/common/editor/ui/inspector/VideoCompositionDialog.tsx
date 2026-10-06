@@ -134,6 +134,9 @@ export default function VideoCompositionDialog({
 		applyDraft();
 	};
 	const reset = (): void => {
+		if (disabled) return;
+		setDraft(createVideoCompositionDraft(DEFAULT_VIDEO_CLIP_COMPOSITION));
+		setError('');
 		commit(
 			DEFAULT_VIDEO_CLIP_COMPOSITION,
 			{ key: 'videoCompositionResetStatus', fallback: 'Composition reset.' },

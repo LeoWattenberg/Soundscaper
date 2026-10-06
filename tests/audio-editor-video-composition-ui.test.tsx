@@ -250,6 +250,37 @@ test('the composition submit path commits successive drafts once', async () => {
 	}
 });
 
+test('Reset restores the default composition draft without recording an unchanged edit', async () => {
+	const dom = installReactTestDom();
+	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
+	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
+	const commands: unknown[] = [];
+	const { createRoot } = await import('react-dom/client');
+	const root = createRoot(dom.container as unknown as Element);
+	try {
+		await act(async () => root.render(<VideoCompositionDialog
+			productId="framescaper" capability
+			controller={{ actions: { edit: { commit: (command: unknown) => { commands.push(command); } } } }}
+			snapshot={{ project: project(), selectedClipId: 'video' }}
+			copy={{}} run={(operation) => operation()} onClose={() => undefined}
+		/>));
+		await act(async () => reactProps(dom.one('[data-video-composition-field="opacity"]')).onChange({
+			currentTarget: { value: '50' },
+		}));
+		assert.equal(dom.one('[data-video-composition-field="opacity"]').value, '50');
+		const reset = dom.container.querySelectorAll('button').find((button) => button.textContent === 'Reset');
+		assert.ok(reset);
+		await act(async () => reactProps(reset).onClick());
+		assert.equal(dom.one('[data-video-composition-field="opacity"]').value, '100');
+		assert.equal(commands.length, 0);
+	} finally {
+		await act(async () => root.unmount());
+		actGlobal.IS_REACT_ACT_ENVIRONMENT = priorAct;
+		dom.restore();
+	}
+});
+
 test('an unrelated controller snapshot preserves an in-progress composition draft', async () => {
 	const dom = installReactTestDom();
 	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
