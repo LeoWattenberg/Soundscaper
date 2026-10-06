@@ -80,7 +80,7 @@ export interface EffectMacroChainRuntime<Buffer = MacroRenderBuffer> {
 		params: Readonly<Record<string, unknown>>;
 		context: Readonly<Record<string, unknown>>;
 	}>) => Promise<Readonly<{ channels: readonly Float32Array[] }>>;
-	readonly createAudioBuffer: (channels: readonly Float32Array[]) => Promise<unknown>;
+	readonly createAudioBuffer: (channels: readonly Float32Array[], sampleRate: number) => Promise<unknown>;
 	readonly renderSnapshot: (
 		project: unknown,
 		range: Readonly<Record<string, unknown>>,
@@ -181,7 +181,7 @@ export function createEffectMacroChainRunner<Buffer = MacroRenderBuffer>(runtime
 	): Promise<readonly Float32Array[]> {
 		const frames = channels[0]?.length ?? 0;
 		if (!frames) throw createLocalizedError(Error, runtime.copy, 'effectInvalidAudio');
-		const buffer = await runtime.createAudioBuffer(channels);
+		const buffer = await runtime.createAudioBuffer(channels, runtime.sampleRate);
 		runtime.assertCurrent();
 		const sourceId = createStableId('macro-step-source');
 		const clipId = createStableId('macro-step-clip');

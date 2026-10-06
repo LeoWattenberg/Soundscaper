@@ -38,6 +38,7 @@ import { createEffectAudioService } from './internal/effect-audio-service.ts';
 import { createEffectControlsService } from './effect-controls-service.ts';
 import { createSelectionEffectExecutionService } from './internal/effect-execution-service.ts';
 import { createEffectMacroService, type EffectMacroServiceRuntime } from './internal/macro/effect-macro-service.ts';
+import { createMacroStagedRenderer } from './internal/macro/macro-staged-renderer.ts';
 import {
 	createSelectionEffectResultService,
 	type EffectResultProject,
@@ -319,6 +320,7 @@ export function createEffectsComposition(dependencies: EffectsCompositionDepende
 			preflightStorage: dependencies.preflightStorage,
 			cloneProject: dependencies.projectRuntime.cloneProject,
 			renderSnapshot: dependencies.renderSnapshot,
+			renderStagedSnapshot: createMacroStagedRenderer(dependencies.renderSnapshot),
 			renderDryTrackRange: (...args) => audio.renderDryTrackRange(...args),
 			// The worker answers an apply request with channels; a reply without them is a failed effect.
 			runSelectionEffectWorker: async (request) => {
@@ -327,8 +329,8 @@ export function createEffectsComposition(dependencies: EffectsCompositionDepende
 				return { channels: outcome.channels };
 			},
 			projectFrameCount: () => dependencies.projectDurationFrames(dependencies.getProject()),
-			createAudioBuffer: async (channels) => bufferFromChannels(
-				[...channels], dependencies.projectSampleRate(), await engine.getAudioContext({ resume: false }), copy,
+			createAudioBuffer: async (channels, sampleRate) => bufferFromChannels(
+				[...channels], sampleRate, await engine.getAudioContext({ resume: false }), copy,
 			),
 			audioBufferChannels,
 			matchAudacitySelectionChannels,

@@ -139,6 +139,11 @@ export interface EffectMacroServiceRuntime<Buffer = MacroRenderBuffer> {
 		options: Readonly<Record<string, unknown>>,
 		sourceBuffers?: ReadonlyMap<string, unknown>,
 	) => Promise<Buffer>;
+	readonly renderStagedSnapshot: (
+		project: unknown,
+		options: Readonly<Record<string, unknown>>,
+		sourceBuffers: ReadonlyMap<string, unknown>,
+	) => Promise<Buffer>;
 	readonly projectFrameCount: () => number;
 	readonly renderDryTrackRange: (
 		trackId: string,
@@ -155,7 +160,7 @@ export interface EffectMacroServiceRuntime<Buffer = MacroRenderBuffer> {
 		params: Readonly<Record<string, unknown>>;
 		context: Readonly<Record<string, unknown>>;
 	}>) => Promise<Readonly<{ channels: readonly Float32Array[] }>>;
-	readonly createAudioBuffer: (channels: readonly Float32Array[]) => Promise<unknown>;
+	readonly createAudioBuffer: (channels: readonly Float32Array[], sampleRate: number) => Promise<unknown>;
 	readonly audioBufferChannels: (buffer: Buffer) => readonly Float32Array[];
 	readonly matchAudacitySelectionChannels: (
 		channels: readonly Float32Array[],
@@ -191,9 +196,9 @@ export function createEffectMacroService<Buffer = MacroRenderBuffer>(runtime: Ef
 		if (!enabledEffects.length) {
 			throw createLocalizedError(Error, runtime.copy, runtime.copy.macroEffectsRequired ? 'macroEffectsRequired' : 'effectRackEmpty');
 		}
-		const sampleRate = runtime.projectSampleRate();
+		const sampleRate = targets[0]?.sourceSampleRate ?? runtime.projectSampleRate();
 		const plans = targets.map((target) => {
-			const effects = enabledEffects.map((effect) => materializeStep(effect, target.track.id));
+			const effects = enabledEffects.map((effect) => materializeStep(effect, target.sourceTrackId ?? target.track.id));
 			const preRollFrames = Math.min(target.startFrame, sampleRate * 10);
 			const outputFrames = chainOutputFrames(effects, target.durationFrames);
 			const outputBytes = outputFrames * target.channelCount * Float32Array.BYTES_PER_ELEMENT;
@@ -392,7 +397,7 @@ export function createEffectMacroService<Buffer = MacroRenderBuffer>(runtime: Ef
 		ownership: EffectMacroOwnership,
 	): Promise<readonly Float32Array[]> {
 		const segments = planEffectMacroChain(effects as unknown as readonly EffectMacroChainStep[]);
-		const leadsWithRack = segments[0]?.realtime === true;
+		const leadsWithRack = segments[0]?.realtime === true && !target.sourceId;
 		let channels: readonly Float32Array[];
 		if (leadsWithRack) {
 			channels = await renderTimelineRack(
@@ -419,11 +424,11 @@ export function createEffectMacroService<Buffer = MacroRenderBuffer>(runtime: Ef
 			copy: runtime.copy,
 			sampleRate,
 			assertCurrent: () => assertOwnership(runtime, ownership),
-			projectFrameCount: runtime.projectFrameCount,
+			projectFrameCount: () => target.sourceFrameCount ?? runtime.projectFrameCount(),
 			renderDryRange: runtime.renderDryTrackRange,
 			runSelectionEffect: runtime.runSelectionEffectWorker,
 			createAudioBuffer: runtime.createAudioBuffer,
-			renderSnapshot: runtime.renderSnapshot,
+			renderSnapshot: runtime.renderStagedSnapshot,
 			audioBufferChannels: runtime.audioBufferChannels,
 			matchSelectionChannels: runtime.matchAudacitySelectionChannels,
 		});

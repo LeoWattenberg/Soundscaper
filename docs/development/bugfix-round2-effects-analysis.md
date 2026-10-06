@@ -270,6 +270,20 @@ exported spectrum report. Build 16 passes in Chromium, Firefox and WebKit
 within the graph's rounding precision. Strict regressions check actual FFTs
 of 100-Hz, 440-Hz, 1-kHz, 10-kHz and 22-kHz tones, plus silence and empty reports.
 
+## R2-ROOT-019 — Macros cannot apply effects to a source-editor selection
+
+Import a normal 44.1-kHz WAV, open its **Clip properties**, and select part of
+the **Source waveform**. Open **Tools > Macros palette**, create a program with
+`await sound.effect('audacity-invert');`, and run it. Previously it failed with
+"Audio track could not be found." The macro treated the source editor's target
+as a project track. Source targets now retain their owning track and native
+sample clock throughout the macro, including staged audio and offline effects.
+
+Proof: `audio-editor-round2-source-macro.spec.js` reproduced the missing-track
+error against build 16. Build 18 passes in Chromium, Firefox and WebKit, comparing
+the exported PCM with the same selection inverted through the ordinary effect
+menu. Strict tests also verify a 44.1-kHz offline effect's worker input and output.
+
 ## R2-ROOT-020 — Effect previews ignore the playback listening volume
 
 Import an ordinary WAV, move **Playback volume** to its mute position, select
@@ -286,5 +300,20 @@ scheduled parameter values, without adding audio nodes or editor state. The
 engine regression checks that the output is reused and volume changes stay live;
 47 focused preview, Nyquist, and engine regressions pass. Preview-length follow-up
 checks also preserve intentional gaps in unchanged six-second auditions.
+
+## R2-ROOT-021 — Mixed offline and realtime macros reject their staged audio
+
+Import an ordinary WAV, select all, and run a macro program that applies Amplify
+followed by Invert. Previously it failed with "Invalid time-pitch cache project
+inventory." Its temporary audio snapshot entered a cache-preparation path that
+requires a saved project identity. The staged renderer now uses its explicit PCM
+sources without preparing document caches, while retaining normal rendering and
+cleanup.
+
+Proof: `audio-editor-round2-macro-staged-render.spec.js` reproduced the error
+against build 17. Build 18 passes in Chromium, Firefox and WebKit, checking the
+normally exported PCM against the original waveform with its polarity inverted.
+The strict regression exercises the real snapshot renderer and cache admission;
+20 macro and staged-renderer regressions pass together.
 
 These changes do not require a manual **Update AI assets** run.

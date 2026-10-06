@@ -126,6 +126,8 @@ export interface EffectsCompositionDependencies {
 		options: Readonly<Record<string, unknown>>,
 		sourceMap?: unknown,
 		signal?: AbortSignal | null,
+		chunkSources?: unknown,
+		prepareTimePitchCaches?: boolean,
 	) => Promise<RenderedAudio>;
 	readonly prepareCommittedTimePitchCaches: EffectAudioServiceRuntime['prepareCommittedTimePitchCaches'];
 	readonly createRenderEngine: EffectAudioServiceRuntime<RenderedAudio>['createRenderEngine'];
