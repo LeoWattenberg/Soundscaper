@@ -24,6 +24,7 @@ import {
 } from '../../../shared/lifecycle.ts';
 import type { EffectTarget } from '../../effect-selection-service.ts';
 import { createIsolatedTrackRenderProjectV21 } from '../../../shared/isolated-track-render-project-v21.ts';
+import { MACRO_NEIGHBOUR_PCM_CACHE_LIMIT_BYTES } from './macro-neighbour-pcm-cache.ts';
 
 const EFFECT_MACRO_TASK = 'selection-effect-macro';
 
@@ -194,6 +195,7 @@ export function createEffectMacroService<Buffer = MacroRenderBuffer>(runtime: Ef
 			chainPeakBytes(effects, target, sampleRate, processingFrames),
 		);
 		if (estimatedPeakBytes > runtime.memoryLimitBytes) throw runtime.audacityEffectMemoryError();
+		const contextCacheBytes = Math.min(MACRO_NEIGHBOUR_PCM_CACHE_LIMIT_BYTES, runtime.memoryLimitBytes - estimatedPeakBytes);
 
 		const ownership = captureOwnership(runtime, project.id);
 		activeOwnership = ownership;
@@ -204,7 +206,7 @@ export function createEffectMacroService<Buffer = MacroRenderBuffer>(runtime: Ef
 		try {
 			await runtime.preflightStorage(outputBytes, 'effect');
 			assertOwnership(runtime, ownership);
-			const channels = await runChain(effects, target, project, sampleRate, preRollFrames, ownership);
+			const channels = await runChain(effects, target, project, sampleRate, preRollFrames, ownership, contextCacheBytes);
 			const effectName = String(request.name || publishedCopyFor(runtime.copy).untitledMacro || publishedCopyFor(runtime.copy).macrosPalette).trim()
 				|| publishedCopyFor(runtime.copy).untitledMacro
 				|| publishedCopyFor(runtime.copy).macrosPalette;
@@ -365,6 +367,7 @@ export function createEffectMacroService<Buffer = MacroRenderBuffer>(runtime: Ef
 		sampleRate: number,
 		preRollFrames: number,
 		ownership: EffectMacroOwnership,
+		contextCacheBytes: number,
 	): Promise<readonly Float32Array[]> {
 		const segments = planEffectMacroChain(effects as unknown as readonly EffectMacroChainStep[]);
 		const leadsWithRack = segments[0]?.realtime === true;
@@ -391,6 +394,7 @@ export function createEffectMacroService<Buffer = MacroRenderBuffer>(runtime: Ef
 		const remaining = segments.slice(leadsWithRack ? 1 : 0);
 		if (!remaining.length) return channels;
 		const chain = createEffectMacroChainRunner({
+			contextCacheBytes,
 			copy: runtime.copy,
 			sampleRate,
 			assertCurrent: () => assertOwnership(runtime, ownership),
