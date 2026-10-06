@@ -30,7 +30,8 @@ export function normalizeAudioEditorShortcut(binding: string): string {
 		throw new TypeError('shortcut binding must be a non-empty string.');
 	}
 	const value = binding.trim();
-	const { key, modifiers: parts } = splitShortcut(value);
+	const { key: originalKey, modifiers: parts } = splitShortcut(value);
+	const key = originalKey.normalize('NFC');
 	const normalizedParts = parts.map((part) => KEY_ALIASES.get(part.toLowerCase()) || part);
 	if (normalizedParts.some((part) => !MODIFIERS.has(part))) {
 		throw new TypeError('shortcut binding contains an unsupported modifier.');
@@ -40,7 +41,9 @@ export function normalizeAudioEditorShortcut(binding: string): string {
 	const mouseMatch = /^mouse(\d+)$/iu.exec(key);
 	const mouseKey = mouseMatch ? mouseShortcutKey(Number(mouseMatch[1]) - 1) : null;
 	if (mouseMatch && !mouseKey) throw new TypeError('shortcut binding requires an extra mouse button.');
-	const normalizedKey = mouseKey || KEY_ALIASES.get(key.toLowerCase()) || (key.length === 1 ? key.toUpperCase() : key);
+	const uppercaseKey = key.toUpperCase();
+	const normalizedKey = mouseKey || KEY_ALIASES.get(key.toLowerCase())
+		|| (key.length === 1 && uppercaseKey.length === 1 ? uppercaseKey : key);
 	if (MODIFIERS.has(normalizedKey)) {
 		throw new TypeError('shortcut binding requires a non-modifier key.');
 	}

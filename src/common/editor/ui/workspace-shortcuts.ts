@@ -209,12 +209,12 @@ export function matchesAudioEditorShortcutBinding(
 ): boolean {
 	const parts = audioEditorShortcutParts(candidate);
 	const configuredKey = parts.key;
-	const eventKeyValue = configuredKey === '+' && event.key === '+'
+	const eventKeyValue = configuredKey === event.key && event.key.length === 1
 		? event.key
 		: keyboardShortcutEventKey(event);
 	const eventKey = eventKeyValue === ' '
 		? 'Space'
-		: eventKeyValue.length === 1 ? eventKeyValue.toUpperCase() : eventKeyValue;
+		: eventKeyValue;
 	const modifiers = new Set(parts.modifiers);
 	if (!configuredKey || SHORTCUT_MODIFIER_EVENT_KEYS.has(eventKey.toLowerCase())) return false;
 	if (normalizeAudioEditorShortcut(configuredKey).toLowerCase()
