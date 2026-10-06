@@ -18,8 +18,7 @@ import {
 	resolveRuntimeProjectProjection,
 } from './helpers/audio-editor-controller-harness.js';
 
-
-test('controller moves transformed selections through the reusable project bin and places stable copies', async () => {
+test('controller moves transformed selections through the reusable project bin and places stable copies', async (context) => {
 	const engine = createMemoryEngine();
 	const controller = createAudioEditorController(null, {
 		headless: true,
@@ -29,6 +28,7 @@ test('controller moves transformed selections through the reusable project bin a
 		engine,
 		ffmpeg: createMemoryFfmpeg(),
 	});
+	context.after(controller.dispose.bind(controller));
 	await controller.ready;
 
 	const firstTrackId = controller.project.tracks[0].id;
@@ -171,10 +171,9 @@ test('controller moves transformed selections through the reusable project bin a
 		'project-bin-first',
 		'project-bin-second',
 	]);
-	await controller.dispose();
 });
 
-test('controller opens persisted compound video bin items, restores visuals, and places paired lanes', async () => {
+test('controller opens persisted compound video bin items, restores visuals, and places paired lanes', async (context) => {
 	const store = createMemoryStore();
 	const fixture = createPersistedVideoProject({ projectBin: true });
 	store.projects.set(fixture.project.id, structuredClone(fixture.project));
@@ -210,6 +209,7 @@ test('controller opens persisted compound video bin items, restores visuals, and
 		engine,
 		ffmpeg: createMemoryFfmpeg(),
 	});
+	context.after(controller.dispose.bind(controller));
 	await controller.ready;
 
 	const snapshot = controller.getSnapshot();
@@ -273,10 +273,9 @@ test('controller opens persisted compound video bin items, restores visuals, and
 
 	assert.equal(controller.actions.projectBin.remove('persisted-bin-video'), 'persisted-bin-video');
 	assert.deepEqual(controller.getSnapshot().project.projectBin.clips, []);
-	await controller.dispose();
 });
 
-test('desktop video export API and generic FFmpeg dispatch stage raw media and audio for MP4 and WebM', async () => {
+test('desktop video export API and generic FFmpeg dispatch stage raw media and audio for MP4 and WebM', async (context) => {
 	const store = createMemoryStore();
 	const fixture = createPersistedVideoProject({ timeline: true });
 	store.projects.set(fixture.project.id, structuredClone(fixture.project));
@@ -316,6 +315,7 @@ test('desktop video export API and generic FFmpeg dispatch stage raw media and a
 			return new MockAudioBuffer(2, range.outputFrames, project.sampleRate);
 		},
 	});
+	context.after(controller.dispose.bind(controller));
 	await controller.ready;
 
 	const mp4 = await controller.actions.video.export({ format: 'video-mp4' });
@@ -357,12 +357,11 @@ test('desktop video export API and generic FFmpeg dispatch stage raw media and a
 
 	await controller.dispose();
 	assert.deepEqual(cleanups, [
-		'Persisted-video-project.mp4',
-		'Persisted-video-project.webm',
+		'Persisted-video-project.mp4', 'Persisted-video-project.webm',
 	]);
 });
 
-test('bin-only missing audio is unavailable without blocking timeline transport', async () => {
+test('bin-only missing audio is unavailable without blocking timeline transport', async (context) => {
 	const store = createMemoryStore();
 	let controller = createAudioEditorController(null, {
 		headless: true,
@@ -372,6 +371,7 @@ test('bin-only missing audio is unavailable without blocking timeline transport'
 		engine: createMemoryEngine(),
 		ffmpeg: createMemoryFfmpeg(),
 	});
+	context.after(controller.dispose.bind(controller));
 	await controller.ready;
 	controller.actions.edit.commit({
 		type: 'batch',
@@ -411,6 +411,7 @@ test('bin-only missing audio is unavailable without blocking timeline transport'
 		engine,
 		ffmpeg: createMemoryFfmpeg(),
 	});
+	context.after(controller.dispose.bind(controller));
 	await controller.ready;
 	const visuals = controller.actions.projectBin.getVisualData('missing-bin-clip');
 	assert.equal(visuals.available, false);
@@ -421,10 +422,9 @@ test('bin-only missing audio is unavailable without blocking timeline transport'
 	);
 	await assert.doesNotReject(() => controller.actions.transport.playPause());
 	assert.equal(engine.state, 'playing');
-	await controller.dispose();
 });
 
-test('video effect gestures publish transient previews and commit one undo entry or cancel cleanly', async () => {
+test('video effect gestures publish transient previews and commit one undo entry or cancel cleanly', async (context) => {
 	const controller = createAudioEditorController(null, {
 		headless: true,
 		productId: 'framescaper',
@@ -434,6 +434,7 @@ test('video effect gestures publish transient previews and commit one undo entry
 		engine: createMemoryEngine(),
 		ffmpeg: createMemoryFfmpeg(),
 	});
+	context.after(controller.dispose.bind(controller));
 	await controller.ready;
 	controller.actions.edit.commit({
 		type: 'batch',
@@ -586,5 +587,4 @@ test('video effect gestures publish transient previews and commit one undo entry
 	assert.equal(controller.getSnapshot().project.tracks.filter((track) => track.type === 'video').length, 2);
 	assert.equal(controller.getSnapshot().project.clips
 		.find((clip) => clip.id === 'gesture-video-clip').videoEffects[0].params.blockSize, 32);
-	await controller.dispose();
 });
