@@ -31,6 +31,7 @@ import { beginExportTask, handleExportFailure } from './export-task-lifecycle.ts
 import { createExportSnapshotRenderer } from '../export-snapshot-renderer.ts';
 import type { EditorExportState } from '../export-state.ts';
 import { streamStemArchiveExport } from './archive/streaming-stem-archive-export.ts';
+import { renderConformedStem } from './archive/render-conformed-stem.ts';
 import { assertDesktopAudioExportCapability } from './desktop-audio-export-capability.ts';
 import { createDeliveryReportForPlan } from '../../../delivery-conversion-inventory.ts';
 import {
@@ -339,20 +340,15 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 							throw new Error('The direct stem archive output changed before rendering.');
 						}
 						const snapshot = stemProject(exportProject, renderOutput.trackId);
-						const encoded = await renderAndEncode(
+						const { encoded, conformance } = await renderConformedStem({ render: () => renderAndEncode(
 							snapshot, plan, settings, abort.signal, exportRenderSources, renderOutput, {
 								start: index / plan.outputs.length,
 								end: (index + 1) / plan.outputs.length,
 							}, null, null, assertExportCurrent,
-						);
-						// Only the archive container streams: each stem still reaches it
-						// as readable bytes, so it is conformed from its own bytes just
-						// as the browser stem route conforms it. Reporting the delivery
-						// as unverified here would let a stem that fails conformance on
-						// the download route publish silently through Save As.
-						findings.push(...await conformPersistentExport(
-							plan, encoded, index / plan.outputs.length, (index + 1) / plan.outputs.length,
-						));
+						), conform: (candidate) => conformPersistentExport(
+							plan, candidate, index / plan.outputs.length, (index + 1) / plan.outputs.length,
+						) });
+						findings.push(...conformance);
 						return encoded;
 					},
 						onStemComplete(progress) { reportExportProgress(progress); },
