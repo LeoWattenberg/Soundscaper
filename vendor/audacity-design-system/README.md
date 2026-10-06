@@ -309,6 +309,10 @@ application overrides and source patches against the pin and upstream master.
     callers retain the upstream interface. Covered by
     `tests/audio-editor-effect-preset-bar.test.tsx` and
     `tests/browser/audio-editor-preset-identity-regressions.spec.js`.
+39. `TimeCode` accepts an `onCommit` callback when Enter confirms a digit edit.
+    Hosts that persist on confirmation no longer have to wait for focus to
+    leave the whole field. Covered by `tests/audio-editor-timecode-commit.test.tsx`
+    and `tests/browser/audio-editor-timecode-commit-regressions.spec.js`.
 
 ## Application-side adaptations
 

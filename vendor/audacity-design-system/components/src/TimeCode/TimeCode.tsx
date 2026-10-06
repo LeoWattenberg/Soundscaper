@@ -58,6 +58,8 @@ export interface TimeCodeProps {
    * Callback when value changes
    */
   onChange?: (value: number) => void;
+  /** Confirm the current value when digit editing ends with Enter. */
+  onCommit?: () => void;
   /**
    * Callback when format changes
    */
@@ -109,6 +111,7 @@ export function TimeCode({
   sampleRate = 44100,
   frameRate = 24,
   onChange,
+  onCommit,
   onFormatChange,
   showFormatSelector = true,
   disabled = false,
@@ -342,6 +345,7 @@ export function TimeCode({
         setIsEditing(false);
         setEditingDigitIndex(null);
         containerRef.current?.focus();
+        onCommit?.();
       }
     };
 
@@ -361,7 +365,7 @@ export function TimeCode({
       document.removeEventListener('keydown', handleKeyDown, true);
       document.removeEventListener('click', handleClick);
     };
-  }, [isEditing, editingDigitIndex, disabled, segments, handleDigitChange]);
+  }, [isEditing, editingDigitIndex, disabled, segments, handleDigitChange, onCommit]);
 
 
   const caretColor = variant === 'light' ? theme.foreground.text.primary : '#f4f5f9';

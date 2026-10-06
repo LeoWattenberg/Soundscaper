@@ -64,6 +64,7 @@ export default function AudioEditorTimeCodeInput({
 	const [draft, setDraft] = useState(value);
 	const [displayFormat, setDisplayFormat] = useState(format);
 	const editRevision = useRef(0);
+	const lastCommittedRevision = useRef(-1);
 	useEffect(() => {
 		editRevision.current += 1;
 		setDraft(value);
@@ -81,26 +82,31 @@ export default function AudioEditorTimeCodeInput({
 	const directEntryMaximum = Number.isFinite(maximum)
 		? editorValueInUnit(maximum, unit, directEntryUnit, normalizedRate) : undefined;
 	const signed = minimum < 0;
+	const commitDraft = () => {
+		if (!onCommit || normalizedValue === value
+			|| lastCommittedRevision.current === editRevision.current) return;
+		const committedRevision = editRevision.current;
+		lastCommittedRevision.current = committedRevision;
+		const restoreRejectedDraft = () => {
+			if (editRevision.current === committedRevision) setDraft(value);
+		};
+		try {
+			const outcome = onCommit(normalizedValue);
+			if (outcome && typeof (outcome as PromiseLike<unknown>).then === 'function') {
+				void Promise.resolve(outcome).then((accepted) => {
+					if (accepted === false) restoreRejectedDraft();
+				}, restoreRejectedDraft);
+			} else if (outcome === false) restoreRejectedDraft();
+		} catch {
+			restoreRejectedDraft();
+		}
+	};
 	return <span
 		className={`audio-editor-timecode-input${className ? ` ${className}` : ''}`}
 		data-timecode-input={unit}
 		onBlur={(event) => {
 			if (event.currentTarget.contains(event.relatedTarget)) return;
-			if (!onCommit || normalizedValue === value) return;
-			const committedRevision = editRevision.current;
-			const restoreRejectedDraft = () => {
-				if (editRevision.current === committedRevision) setDraft(value);
-			};
-			try {
-				const outcome = onCommit(normalizedValue);
-				if (outcome && typeof (outcome as PromiseLike<unknown>).then === 'function') {
-					void Promise.resolve(outcome).then((accepted) => {
-						if (accepted === false) restoreRejectedDraft();
-					}, restoreRejectedDraft);
-				} else if (outcome === false) restoreRejectedDraft();
-			} catch {
-				restoreRejectedDraft();
-			}
+			commitDraft();
 		}}
 	>
 		{signed ? <button type="button" className="audio-editor-timecode-input__sign"
@@ -122,6 +128,7 @@ export default function AudioEditorTimeCodeInput({
 			showFormatSelector={showFormatSelector}
 			disabled={disabled}
 			variant={variant}
+			onCommit={commitDraft}
 			onFormatChange={(nextFormat) => {
 				setDisplayFormat(nextFormat);
 				onFormatChange?.(nextFormat);
