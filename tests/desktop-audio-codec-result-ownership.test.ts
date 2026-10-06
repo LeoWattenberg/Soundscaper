@@ -15,7 +15,8 @@ for (const operation of ['audio-encode', 'audio-decode'] as const) test(`${opera
 	} });
 	const runtimes = (['bundled', 'operating-system', 'external-ffmpeg'] as const).map((kind): DesktopAudioCodecProviderRuntime => ({
 		provider: { kind, id: kind, implementation: kind,
-			version: '1.0.0', capabilityGeneration: 'same', preflight: async () => ({ disposition: kind === 'operating-system' ? 'supported' : 'unsupported', reason: kind === 'operating-system' ? null : 'Not selected.' }) },
+			version: '1.0.0', capabilityGeneration: 'same', preflight: async () => kind === 'operating-system'
+				? { disposition: 'supported' as const, reason: null } : { disposition: 'unsupported' as const, reason: 'Not selected.' } },
 		execute: async () => operation === 'audio-decode'
 			? { status: 'executed', output, decodedGeometry: { sampleRate: 48_000, channelCount: 2, frameCount: 1 } }
 			: { status: 'executed', output },
