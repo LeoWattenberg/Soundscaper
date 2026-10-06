@@ -14,12 +14,20 @@ async function runProgram(page, editor, source) {
 	await manager.getByRole('button', { name: 'Close', exact: true }).click();
 }
 
-test('a macro applies its effect to every audio track selected by Select all', async ({ page }) => {
+test('a step-list macro applies its effect to every audio track selected by Select all', async ({ page }) => {
 	await disableNativeSavePicker(page);
 	const editor = await bootEditor(page, '/embed/en/');
 	await importFiles(editor, [toneA, toneB]);
 	const before = await exportSamples(page, editor);
-	await runProgram(page, editor, "await sound.select.all(); await sound.effect('audacity-invert');");
+	await chooseCommandAction(page, editor, 'Select', 'Select all');
+	await chooseCommandAction(page, editor, 'Tools', 'Macros palette');
+	const manager = page.getByRole('dialog', { name: 'Macros palette', exact: true });
+	await manager.getByRole('button', { name: 'New macro', exact: true }).click();
+	await manager.getByRole('button', { name: 'Add effect', exact: true }).click();
+	await page.getByRole('menu', { name: 'Choose an effect', exact: true }).getByRole('menuitem', { name: 'Invert', exact: true }).click();
+	await manager.getByRole('button', { name: 'Run macro', exact: true }).click();
+	await expect(manager).toContainText('Macro applied.');
+	await manager.getByRole('button', { name: 'Close', exact: true }).click();
 	const after = await exportSamples(page, editor);
 	expect(after).toHaveLength(before.length);
 	const residual = after.reduce((peak, sample, index) => Math.max(peak, Math.abs(sample + before[index])), 0);

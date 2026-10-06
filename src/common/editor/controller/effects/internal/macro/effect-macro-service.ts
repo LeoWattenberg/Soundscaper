@@ -38,6 +38,7 @@ export interface EffectMacroRequestEffect extends Readonly<Record<string, unknow
 export interface EffectMacroRequest {
 	readonly name?: unknown;
 	readonly trackId?: string | null;
+	readonly focusedTrack?: boolean;
 	readonly effects?: readonly EffectMacroRequestEffect[];
 }
 
@@ -181,7 +182,7 @@ export function createEffectMacroService<Buffer = MacroRenderBuffer>(runtime: Ef
 		if (runtime.editingBlocked()) return null;
 		const project = runtime.getProject();
 		const target = runtime.audacityEffectTarget(request.trackId);
-		const targets = request.trackId || !runtime.audacityEffectTargets
+		const targets = request.focusedTrack || request.trackId || !runtime.audacityEffectTargets
 			? (target ? [target] : []) : runtime.audacityEffectTargets();
 		if (!targets.length) throw createLocalizedError(Error, runtime.copy, runtime.copy.macroSelectionRequired ? 'macroSelectionRequired' : 'audacitySelectionHint');
 		const enabledEffects = (Array.isArray(request.effects) ? request.effects : []).filter((effect) => (

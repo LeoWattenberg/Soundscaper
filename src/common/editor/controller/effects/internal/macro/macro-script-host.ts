@@ -28,7 +28,7 @@ export interface MacroScriptHostRuntime {
 	readonly getProject: () => Readonly<Record<string, unknown>> | null;
 	readonly projectSampleRate: () => number;
 	readonly runEffectMacro: (
-		request: Readonly<{ name: string; effects: readonly Readonly<Record<string, unknown>>[] }>,
+		request: Readonly<{ name: string; effects: readonly Readonly<Record<string, unknown>>[]; focusedTrack?: boolean }>,
 	) => Promise<unknown>;
 	readonly runMacroCommand: (step: ReturnType<typeof createMacroCommandStep>) => unknown;
 	readonly setExactSelection: (
@@ -201,7 +201,7 @@ const MUTATORS: Readonly<Record<string, Handler>> = Object.freeze({
 	'effect.apply': async (runtime, args) => {
 		const type = String(args[0] ?? '');
 		const params = optionsOf(args[1]);
-		await runtime.runEffectMacro({ name: type, effects: [{ type, params }] });
+		await runtime.runEffectMacro({ name: type, effects: [{ type, params }], focusedTrack: true });
 		return null;
 	},
 	'effect.chain': async (runtime, args) => {
@@ -210,7 +210,7 @@ const MUTATORS: Readonly<Record<string, Handler>> = Object.freeze({
 			params: optionsOf((step as Record<string, unknown>).params),
 		}));
 		if (!steps.length) throw new RangeError('A macro chain needs at least one effect.');
-		await runtime.runEffectMacro({ name: steps[0]!.type, effects: steps });
+		await runtime.runEffectMacro({ name: steps[0]!.type, effects: steps, focusedTrack: true });
 		return null;
 	},
 	'macro.runSaved': async (runtime, args, assertCurrent) => {

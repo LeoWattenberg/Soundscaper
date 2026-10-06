@@ -7,6 +7,7 @@ import { createMacroScriptHost } from '../src/common/editor/controller/effects/i
 
 function createHarness(effectGate?: Promise<unknown>) {
 	const events: string[] = [];
+	const focusedRequests: Array<boolean | undefined> = [];
 	let settled: string | null = null;
 	let project = {
 		id: 'project-a',
@@ -21,7 +22,8 @@ function createHarness(effectGate?: Promise<unknown>) {
 	const host = createMacroScriptHost({
 		getProject: () => project,
 		projectSampleRate: () => 100,
-		runEffectMacro: async ({ name, effects }) => {
+		runEffectMacro: async ({ name, effects, focusedTrack }) => {
+			focusedRequests.push(focusedTrack);
 			events.push(`effects:${name}:${effects.map((step) => String(step.type)).join('+')}`);
 			await effectGate;
 			return true;
@@ -56,7 +58,7 @@ function createHarness(effectGate?: Promise<unknown>) {
 		}),
 	});
 	return {
-		events, host, project, settled: () => settled, dispatch: host.createDispatch(),
+		events, focusedRequests, host, project, settled: () => settled, dispatch: host.createDispatch(),
 		switchProject: () => { project = { ...project, id: 'project-b' }; },
 	};
 }
@@ -102,6 +104,7 @@ test('effects and saved macros run through the paths a step list uses', async ()
 	await harness.dispatch('effect.chain', [[{ type: 'audacity-amplify', params: { gainDb: 2 } }, { type: 'audacity-invert' }]]);
 	// A saved macro may itself hold commands, so it takes the same split.
 	await harness.dispatch('macro.runSaved', ['Cleanup']);
+	assert.deepEqual(harness.focusedRequests, [true, true, undefined], 'direct effects keep their documented focused track; saved macros use their selection');
 
 	assert.deepEqual(harness.events, [
 		'effects:audacity-invert:audacity-invert',

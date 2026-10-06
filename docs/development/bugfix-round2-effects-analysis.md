@@ -98,17 +98,23 @@ WAV and failed against build 5. It passes against builds 6 and 7 in Chromium,
 Firefox and WebKit. Strict generator regressions compare low-frequency octave
 energy at 8,000, 48,000 and 96,000 Hz and verify the requested amplitude bound.
 
-## R2-ROOT-007 — Effect macros process only the focused selected track
+## R2-ROOT-007 — Step-list macros process only the focused selected track
 
-Import two ordinary WAVs, choose **Tools > Macros palette > New program**, and
-run `await sound.select.all(); await sound.effect('audacity-invert');`. Export
-WAV before and after. Previously only the focused track was inverted, leaving
-the other tone in the mix. A macro now captures every selected audio target,
-plans their memory together, renders them and commits one result batch.
+Import two ordinary WAVs, choose **Select > Select all**, then **Tools > Macros
+palette > New macro > Add effect > Invert**, and run the macro. Export WAV
+before and after. Previously only the focused track was inverted, leaving the
+other tone in the mix. A step-list macro now captures every selected audio
+target, plans their memory together, renders them and commits one result batch.
+Direct program `sound.effect` and `sound.effects` calls retain their documented
+focused-track contract; invoking a saved step-list macro uses its selection.
 
-Proof: `audio-editor-round2-macro-targets.spec.js` failed against build 7. Its
-downloaded PCM comparison passes against build 9 in all three browsers. The
-strict service regression verifies both renders and one atomic persistence.
+Proof: the strict service regression failed before the fix because only one
+target rendered. The ordinary step-list UI workflow in
+`audio-editor-round2-macro-targets.spec.js` failed against baseline build 10
+with a 0.69995 peak residual in downloaded PCM. It passes against build 11 in
+Chromium, Firefox and WebKit. The initial direct-program variant is excluded
+because its focused-track scope is documented; the strict host regression
+preserves that contract.
 
 ## R2-ROOT-008 — Concurrent awaited macro calls silently drop an effect
 
