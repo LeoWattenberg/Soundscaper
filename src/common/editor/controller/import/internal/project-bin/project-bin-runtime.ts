@@ -2,6 +2,7 @@
 
 import { resolveRuntimeClipProjection } from '../../../../runtime-clip-projection.ts';
 import { scaleSampleFrame } from '../../../../timeline-time.ts';
+import { isNativeProjectBinVideo, projectBinVideoReplacementRange } from '../../../../project-bin-video-replacement.ts';
 import type { ProjectBinClip, ProjectBinProject, ProjectBinSource } from '../../project-bin-types.ts';
 
 /** Preview geometry is sample anchored even when the authored bin clip follows beats. */
@@ -13,6 +14,7 @@ export function resolveProjectBinAudioPreviewClip(project: ProjectBinProject, cl
 export function projectBinReplacementShortensClip(
 	project: ProjectBinProject, clip: ProjectBinClip, oldSource: ProjectBinSource, newSource: ProjectBinSource,
 ): boolean {
+	if (isNativeProjectBinVideo(clip)) return projectBinVideoReplacementRange(project, clip, oldSource, newSource)?.shortens ?? true;
 	const resolved = resolveRuntimeClipProjection(project, clip);
 	const count = newSource.sampleFrameCount ?? newSource.frameCount;
 	if (typeof count !== 'number' || !Number.isSafeInteger(count) || count < 1) {

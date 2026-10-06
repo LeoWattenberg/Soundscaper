@@ -37,6 +37,8 @@ export interface ProjectBinSource {
 	readonly frameCount?: number;
 	readonly sampleFrameCount?: number;
 	readonly channelCount?: number;
+	readonly sourceFrameCount?: number;
+	readonly frameRate?: Readonly<{ num: number; den: number }>;
 }
 
 export interface ProjectBinTrack {

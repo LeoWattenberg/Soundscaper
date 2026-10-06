@@ -17,6 +17,8 @@ import {
 	isTimelineAnnotationProjectSchema,
 } from '../project-schema-version.ts';
 import { scaleSampleFrame } from '../timeline-time.ts';
+import { isNativeProjectBinVideo, projectBinVideoReplacementRange } from '../project-bin-video-replacement.ts';
+import { resolveRuntimeClipProjection } from '../runtime-clip-projection.ts';
 import {
 	collectRelatedClipIds,
 	removeClips,
@@ -352,6 +354,16 @@ function replaceProjectBinMedia(project, command) {
 		if (itemId === targetItemId) {
 			const template = templateByKind.get(clip.kind || 'audio');
 			if (!template) return [];
+			if (isNativeProjectBinVideo(clip)) {
+				const resolved = resolveRuntimeClipProjection(project, template);
+				return [normalizeClipForProject(project, { ...clip, sourceId: template.sourceId,
+					sourceStartFrame: resolved.sourceStartFrame, sourceDurationFrames: resolved.sourceDurationFrames,
+					sourceInFrame: resolved.sourceStartFrame, sourceFrameCount: resolved.sourceDurationFrames,
+					durationFrames: resolved.durationFrames, sequenceFrameCount: template.sequenceFrameCount,
+					id: clip.id,
+					title: targetTitle, color: targetColor, groupId: null, avLinkId: null, binItemId: clip.binItemId,
+				})];
+			}
 			return [normalizeClipForProject(project, {
 				...template,
 				...clip,
@@ -427,6 +439,15 @@ function truncatedEnvelope(envelope, originalDurationFrames, durationFrames) {
 }
 
 function remapReplacementClip(project, clip, oldSource, newSource) {
+	if (isNativeProjectBinVideo(clip)) {
+		const range = projectBinVideoReplacementRange(project, clip, oldSource, newSource);
+		return range ? normalizeClipForProject(project, { ...clip,
+			sourceStartFrame: range.sourceStartFrame, sourceDurationFrames: range.sourceDurationFrames,
+			sourceInFrame: range.sourceInFrame, sourceFrameCount: range.sourceFrameCount,
+			durationFrames: range.durationFrames, sequenceFrameCount: range.sequenceFrameCount,
+			sourceId: newSource.id, id: clip.id,
+		}) : null;
+	}
 	const oldRate = Math.max(1, Number(oldSource.sampleRate) || project.sampleRate);
 	const newRate = Math.max(1, Number(newSource.sampleRate) || project.sampleRate);
 	const sourceStartFrame = Math.max(0, scaleSampleFrame(clip.sourceStartFrame, oldRate, newRate, 'point'));

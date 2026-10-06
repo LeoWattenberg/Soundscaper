@@ -317,14 +317,14 @@ test('replacement cancellation continues cleanup when runtime retirement fails',
 	});
 	const base = { ...projectFixture({
 		projectBinClips: [target],
-		sources: [{ id: 'old-video', kind: 'video', sampleRate: 48_000, frameCount: 1_000 }],
+		sources: [{ id: 'old-video', kind: 'video', sampleRate: 48_000, frameCount: 2_000_000, sourceFrameCount: 1_000, frameRate: { num: 24, den: 1 } }],
 	}), primarySequenceId: 'main', sequences: [{ id: 'main', rate: { num: 24, den: 1 } }] };
 	const imported = projectFixture({
 		id: base.id,
 		projectBinClips: [clipFixture({
 			id: 'new-video-bin', sourceId: 'new-video', kind: 'video', binItemId: 'new-item',
 		})],
-		sources: [{ id: 'new-video', kind: 'video', sampleRate: 48_000, frameCount: 1_000 }],
+		sources: [{ id: 'new-video', kind: 'video', sampleRate: 48_000, frameCount: 2_000_000, sourceFrameCount: 1_000, frameRate: { num: 24, den: 1 } }],
 	});
 	const events: string[] = [];
 	const harnessRef: { current?: ReturnType<typeof createHarness> } = {};
