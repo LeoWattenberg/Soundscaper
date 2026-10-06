@@ -13,16 +13,34 @@ interface CanvasFrameOwner {
 export function useRetainedCanvasFrame(rootRef: RefObject<HTMLElement | null>) {
 	const ownerRef = useRef<CanvasFrameOwner | null>(null);
 	const drawRef = useRef<(() => void) | null>(null);
+	const attachmentFrame = useRef<number | null>(null);
+	const active = useRef(true);
 	const release = useCallback(() => {
+		if (attachmentFrame.current !== null) window.cancelAnimationFrame(attachmentFrame.current);
+		attachmentFrame.current = null;
 		ownerRef.current?.observer?.disconnect();
 		ownerRef.current?.scheduler.dispose();
 		ownerRef.current = null;
 	}, []);
-	useLayoutEffect(() => release, [release]);
-	return useCallback((draw: () => void) => {
-		drawRef.current = draw;
+	useLayoutEffect(() => {
+		active.current = true;
+		return () => { active.current = false; release(); drawRef.current = null; };
+	}, [release, rootRef]);
+	const acquire = useCallback((allowAttachmentRetry = true) => {
+		if (!active.current) return;
 		const root = rootRef.current;
-		if (!root) { release(); return; }
+		if (!root) {
+			if (ownerRef.current) release();
+			if (allowAttachmentRetry && attachmentFrame.current === null) {
+				const frame = window.requestAnimationFrame(() => {
+					if (attachmentFrame.current !== frame || !active.current) return;
+					attachmentFrame.current = null;
+					acquire(false);
+				});
+				attachmentFrame.current = frame;
+			}
+			return;
+		}
 		if (ownerRef.current?.root === root) {
 			ownerRef.current.scheduler.schedule();
 			return;
@@ -31,11 +49,19 @@ export function useRetainedCanvasFrame(rootRef: RefObject<HTMLElement | null>) {
 		const scheduler = createAnimationFrameCoalescer(
 			callback => window.requestAnimationFrame(callback),
 			frame => window.cancelAnimationFrame(frame),
-			() => drawRef.current?.(),
+			() => {
+				if (rootRef.current !== ownerRef.current?.root) acquire();
+				else drawRef.current?.();
+			},
 		);
 		const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(scheduler.schedule) : null;
 		ownerRef.current = { root, scheduler, observer };
 		observer?.observe(root);
-		draw();
+		drawRef.current?.();
 	}, [release, rootRef]);
+	return useCallback((draw: () => void) => {
+		if (!active.current) return;
+		drawRef.current = draw;
+		acquire();
+	}, [acquire]);
 }

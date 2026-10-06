@@ -84,9 +84,9 @@ export function AudacityWaveformCanvases({
 		preparePffftSpectrogram(renderSpectrogramOptions.fftWindowSize).catch(() => {});
 	}, [displayMode, renderSpectrogramOptions.fftWindowSize]);
 	useLayoutEffect(() => {
-		const root = rootRef.current;
-		if (!root) return undefined;
 		const draw = () => {
+			const root = rootRef.current;
+			if (!root) return;
 			const clipById = new Map(clips.map((clip) => [String(clip.id), clip]));
 			const editorRoot = root.closest('#kw-audio-editor-design-system');
 			const drawKey = [
