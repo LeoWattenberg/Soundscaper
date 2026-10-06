@@ -92,11 +92,10 @@ export function createTrackDuplicationService(dependencies: TrackDuplicationServ
 		const productionDuplicate = dependencies.prepareTrackDuplicateCarrier
 			? dependencies.prepareTrackDuplicateCarrier(project, duplicateRequest)
 			: legacyDuplicateCarrier(duplicateRequest);
-		const placement = trackHierarchyPlacement(project, track.id, 1);
-		const sequencePlacement = placement.sequenceId ? { sequenceId: placement.sequenceId } : {};
+		const placement = trackHierarchyPlacement(project, track.id, 1, dependencies.supportsTrackFolders);
 		const commands: AudioEditorCommand[] = [{
 			...addTrack,
-			...(dependencies.supportsTrackFolders === false ? sequencePlacement : placement),
+			...placement,
 			productionDuplicate,
 		}];
 		let selectedClipId: string | null = null;

@@ -71,6 +71,7 @@ export interface EditCompositionRuntime<History extends ControllerRuntimeHistory
 }
 
 export interface EditCompositionDependencies<History extends ControllerRuntimeHistory = ControllerRuntimeHistory> {
+	readonly supportsTrackFolders?: boolean;
 	readonly state: EditCompositionState<History>;
 	readonly copy: EditCompositionCopy;
 	readonly lifetime: EditorControllerLifetime;

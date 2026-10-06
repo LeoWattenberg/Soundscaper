@@ -26,6 +26,7 @@ type RuntimeValue = any;
 
 export interface SplitIntoNewTrackRuntime {
 	readonly getProject: () => RuntimeValue;
+	readonly supportsTrackFolders?: boolean;
 	readonly findClip: (project: RuntimeValue, clipId: string) => RuntimeValue;
 	readonly createStableId: (prefix?: string) => string;
 	readonly createAddTrackCommand: (track: RuntimeValue) => RuntimeValue;
@@ -70,7 +71,7 @@ export function prepareSplitRangeIntoNewTrackCommand(
 			name: `${sourceTrack.name} 2`,
 			clipIds: [],
 			effects: [],
-		}), ...trackHierarchyPlacement(project, trackId, 1) });
+		}), ...trackHierarchyPlacement(project, trackId, 1, runtime.supportsTrackFolders) });
 		commands.push(...copyDerivedTrackStripAutomation(project, trackId, newTrackId, runtime.createStableId));
 		for (const entry of entries) {
 			commands.push(...entry.splits);

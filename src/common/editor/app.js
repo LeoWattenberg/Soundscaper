@@ -529,7 +529,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		createRenderEngine: bindings.createCacheAwareRenderEngine, commit: bindings.commit, cacheSourceBuffer: bindings.cacheSourceBuffer, snapTimelineFrame: bindings.selection.snapFrame, projectDurationFrames, projectSampleRate, handleError: bindings.handleError,
 	});
 	const edits = createEditComposition({
-		state, copy, lifetime, projectGeneration, projectRuntime, composition, absentSubsystem, session: sessionController, store, engine, setEffectProcessing: effectsStatePorts.processing.set,
+		state, copy, lifetime, projectGeneration, projectRuntime, composition, absentSubsystem, session: sessionController, store, engine, setEffectProcessing: effectsStatePorts.processing.set, supportsTrackFolders: capabilities.trackFolders,
 		sourceBuffers, sourcePeaks, sourceChunkFrames: SOURCE_CHUNK_FRAMES, taskProgress, saveLabelFile: options.saveLabelFile, fileService, derivedSources: tracks.derivedAudio.derivedSources, updatePreferences: bindings.updatePreferences, confirmMonoConversion: options.confirmMonoConversion || (({ title, body }) => ({ accepted: typeof globalThis.confirm === 'function' ? globalThis.confirm(`${title}\n\n${body}`) : false, dontShowAgain: false })),
 		effectTargets: (...args) => effects.selection.audacityEffectTargets(...args),
 		persistEffectResults: (results, type, scope) => effects.result.persistAudacityEffectResults(results, type, scope),

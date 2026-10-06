@@ -39,10 +39,11 @@ the browser before its corresponding source fix.
 | R2-EDIT-029 | Track menu → Move selection into new folder. Focus the folder row, press Shift+F10, then use the menu’s Mute folder command. | Shift+F10 opens no menu, leaving the folder audibility controls outside the tree’s keyboard tab order. | Route Shift+F10 and ContextMenu from the focused folder row to its existing menu at the row’s visible bounds. Preserve tree arrows, modified keys and descendant control behavior. | Five mounted strict TypeScript cases cover both menu gestures, row geometry, tree navigation, modifiers and descendant controls. Browser: `Shift+F10 opens the focused folder menu for keyboard audibility controls` passed in all three engines. |
 
 Initial four fixes: 12 browser cases passed across Chromium, Firefox, and WebKit.
-R2-EDIT-007's capability follow-up keeps flat Framescaper duplication free of
-unsupported folder-placement fields while retaining sequence placement.
-Its strict public-controller regression verifies Duplicate, Undo and Redo;
-direct unsupported folder commands remain rejected. All 17 focused duplication,
+R2-EDIT-007's capability follow-up keeps flat Framescaper duplication and both
+Split planners free of unsupported folder fields while retaining sequence placement.
+Strict public-controller regressions import an ordinary stereo WAV and verify
+Duplicate, clip/range Split, Undo and Redo; unsupported folder and stereo-effect
+commands remain rejected. All 24 focused hierarchy, duplication, automation,
 folder-placement and video-controller cases pass. This adds no counted root.
 The following three fixes add 15 browser cases and 7 focused TypeScript cases.
 The folder-mute and source-effect fixes add 6 browser cases across all three

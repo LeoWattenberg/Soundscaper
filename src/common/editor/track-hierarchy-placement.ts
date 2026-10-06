@@ -15,7 +15,7 @@ interface TrackHierarchyProject {
 }
 
 /** Capture a track's sequence and child-relative position for derived tracks. */
-export function trackHierarchyPlacement(project: object, trackId: string, offset = 0): Readonly<{
+export function trackHierarchyPlacement(project: object, trackId: string, offset = 0, supportsTrackFolders = true): Readonly<{
 	sequenceId?: string; parentFolderId?: string | null; parentIndex?: number;
 }> {
 	const hierarchy = project as TrackHierarchyProject;
@@ -26,7 +26,7 @@ export function trackHierarchyPlacement(project: object, trackId: string, offset
 		const parentIndex = sequence.trackNodes.slice(0, index)
 			.filter(node => node.parentFolderId === parentFolderId).length;
 		return { ...(sequence.id !== hierarchy.primarySequenceId ? { sequenceId: sequence.id } : {}),
-			parentFolderId, parentIndex: parentIndex + offset };
+			...(supportsTrackFolders ? { parentFolderId, parentIndex: parentIndex + offset } : {}) };
 	}
 	return {};
 }

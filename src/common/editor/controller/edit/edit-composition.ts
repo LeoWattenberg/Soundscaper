@@ -203,6 +203,7 @@ export function createEditComposition<History extends ControllerRuntimeHistory>(
 		}
 	};
 	const handleEdit = createEditorEditService({
+		supportsTrackFolders: dependencies.supportsTrackFolders,
 		activeSelection: dependencies.activeSelection,
 		commit: dependencies.commit,
 		commitPreparedPaste,

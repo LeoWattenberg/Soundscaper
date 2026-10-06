@@ -5,6 +5,17 @@ import test from 'node:test';
 import { createMemoryFfmpeg } from './helpers/audio-editor-controller-fixtures.js';
 import { COPY, createAudioEditorController, createMemoryEngine, createProjectStore } from './helpers/audio-editor-controller-harness.js';
 import { createDocumentTrackFolderSnapshot } from '../src/common/editor/controller/document/document-track-folder-snapshot.ts';
+import { encodeWav } from '../src/common/editor/wav.js';
+import { trackHierarchyPlacement } from '../src/common/editor/track-hierarchy-placement.ts';
+
+test('flat hierarchy placement retains a derived track’s non-primary sequence', () => {
+	const project = { primarySequenceId: 'primary', sequences: [{ id: 'alternate',
+		trackNodes: [{ kind: 'track', id: 'source', parentFolderId: null }] }] };
+	assert.deepEqual(trackHierarchyPlacement(project, 'source', 1, false), { sequenceId: 'alternate' });
+	assert.deepEqual(trackHierarchyPlacement(project, 'source', 1, true), {
+		sequenceId: 'alternate', parentFolderId: null, parentIndex: 1,
+	});
+});
 
 test('a flat video controller duplicates tracks without requiring folder authority', async (context) => {
 	type Options = NonNullable<Parameters<typeof createAudioEditorController>[1]>;
@@ -31,6 +42,40 @@ test('a flat video controller duplicates tracks without requiring folder authori
 	controller.actions.edit.redo();
 	assert.equal(controller.getSnapshot().project?.tracks?.some(track => track.id === copiedId), true);
 });
+
+for (const selection of ['clip', 'range']) {
+	test(`flat Framescaper lifts a ${selection} selection without folder authority`, async context => {
+		type Options = NonNullable<Parameters<typeof createAudioEditorController>[1]>;
+		const controller = createAudioEditorController(null, { headless: true, productId: 'framescaper', locale: 'en', copy: COPY,
+			store: createProjectStore({ indexedDB: null, preferOpfs: false }),
+			engine: createMemoryEngine() as unknown as Options['engine'],
+			ffmpeg: createMemoryFfmpeg() as unknown as Options['ffmpeg'] });
+		context.after(async () => { await controller.dispose(); });
+		await controller.ready;
+		const samples = new Float32Array(40_000).fill(0.2);
+		await controller.actions.project.importFiles([new File([Uint8Array.from(encodeWav([samples, samples],
+			{ sampleRate: 48_000, bitDepth: 32, float: true }))], 'Stereo recording.wav', { type: 'audio/wav' })]);
+		const clipId = controller.getSnapshot().selectedClipId!;
+		const sourceId = controller.getSnapshot().selectedTrackId!;
+		const clip = controller.getSnapshot().project?.clips?.find(item => item.id === clipId);
+		assert.ok(clip && 'durationFrames' in clip);
+		const duration = Number(clip.durationFrames);
+		assert.ok(duration > 4);
+		assert.throws(() => { void controller.actions.track.splitStereoLR(sourceId); }, /does not support audioEffects/u);
+		controller.actions.timeline.selectClip(clipId);
+		if (selection === 'range') controller.actions.timeline.setSelection(Math.floor(duration / 4), Math.floor(duration * 3 / 4), { trackIds: [sourceId] });
+		else controller.actions.transport.seek(Math.floor(duration / 2));
+		controller.actions.edit.splitIntoNewTrack();
+		const copyId = controller.getSnapshot().selectedTrackId;
+		assert.ok(copyId);
+		assert.notEqual(copyId, sourceId);
+		assert.equal(controller.getSnapshot().project?.tracks?.some(track => track.id === copyId), true);
+		controller.actions.edit.undo();
+		assert.equal(controller.getSnapshot().project?.tracks?.some(track => track.id === copyId), false);
+		controller.actions.edit.redo();
+		assert.equal(controller.getSnapshot().project?.tracks?.some(track => track.id === copyId), true);
+	});
+}
 
 test('duplicated tracks retain their source folder and follow their source among siblings', async (context) => {
 	type Options = NonNullable<Parameters<typeof createAudioEditorController>[1]>;

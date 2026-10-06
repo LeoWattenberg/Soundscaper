@@ -16,6 +16,7 @@ import {
 import { mergeEditingRanges, resolveEditingActionAvailability, resolveEditingSelectionAuthority } from '../../../commands/editing-selection-authority.ts';
 
 export interface EditServiceRuntime {
+	readonly supportsTrackFolders?: boolean;
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	readonly [name: string]: any;
@@ -36,7 +37,7 @@ export function createEditorEditService(runtime: EditServiceRuntime): HandleEdit
 		prepareControllerPaste, prepareDisjointRangeDeleteCommand, prepareGroupClipsCommand, prepareKeepRangeCommand,
 		prepareLinkedSplitCommand, prepareRangeDeleteCommand, getProject, projectChanged,
 		publishDocumentSnapshot, redoEditorCommand, resolveEditingSelection, setSessionClipboard,
-		state, undoEditorCommand,
+		state, supportsTrackFolders, undoEditorCommand,
 	} = runtime;
 	const executeLabeledAudioEdit = createLabeledAudioEditService(runtime);
 
@@ -238,7 +239,7 @@ export function createEditorEditService(runtime: EditServiceRuntime): HandleEdit
 				// always done with one.
 				if (baseSelection) {
 					const plan = prepareSplitRangeIntoNewTrackCommand({
-						getProject, findClip, createStableId, createAddTrackCommand, prepareLinkedSplitCommand,
+						getProject, findClip, createStableId, createAddTrackCommand, prepareLinkedSplitCommand, supportsTrackFolders,
 					}, { startFrame: baseSelection.startFrame, endFrame: baseSelection.endFrame, trackIds });
 					if (!plan) return;
 					commit(plan.command, { selectTrackId: plan.selectTrackId, selectClipId: plan.selectClipId });
@@ -258,7 +259,7 @@ export function createEditorEditService(runtime: EditServiceRuntime): HandleEdit
 				commit({
 					type: 'batch',
 					commands: [
-						{ ...createAddTrackCommand({ ...sourceTrack, id: trackId, name: `${sourceTrack.name} 2`, clipIds: [], effects: [] }), ...trackHierarchyPlacement(getProject(), sourceTrack.id, 1) },
+						{ ...createAddTrackCommand({ ...sourceTrack, id: trackId, name: `${sourceTrack.name} 2`, clipIds: [], effects: [] }), ...trackHierarchyPlacement(getProject(), sourceTrack.id, 1, supportsTrackFolders) },
 						...copyDerivedTrackStripAutomation(getProject(), sourceTrack.id, trackId, createStableId),
 						split,
 						{ type: 'clip/move', clipId: split.rightClipId, trackId, timelineStartFrame: split.atFrame },
