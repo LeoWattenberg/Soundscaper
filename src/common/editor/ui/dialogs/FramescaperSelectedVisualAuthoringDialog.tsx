@@ -42,12 +42,12 @@ export default function FramescaperSelectedVisualAuthoringDialog(props: Props) {
 	const frameRate = audioEditorProjectFrameRate(props.project);
 	const [pairId, setPairId] = useState(model.selectedPairId ?? '');
 	const [durationFrames, setDurationFrames] = useState(() => selectedPair(model, pairId)?.durationFrames ?? 12);
-	const [brightness, setBrightness] = useState(model.adjustmentBrightness);
+	const [brightness, setBrightness] = useState(String(model.adjustmentBrightness));
 	const [adjustmentLayerId, setAdjustmentLayerId] = useState(model.adjustmentLayerId);
 	const [maskId, setMaskId] = useState(model.selectedMaskId ?? '');
 	const [shape, setShape] = useState<'rectangle' | 'ellipse' | 'line'>('rectangle');
-	const [maskWidth, setMaskWidth] = useState(0.75);
-	const [maskHeight, setMaskHeight] = useState(0.75);
+	const [maskWidth, setMaskWidth] = useState('0.75');
+	const [maskHeight, setMaskHeight] = useState('0.75');
 	const [visualPresetId, setVisualPresetId] = useState(model.visualPresets[0]?.id ?? '');
 	const [finishingPresetId, setFinishingPresetId] = useState(model.finishingPresets[0]?.id ?? '');
 	const [presetName, setPresetName] = useState(() => publishedCopyFor(props.copy ?? {})['ui.selectedVisualAuthoring.presetDefaultName'] || SELECTED_VISUAL_AUTHORING_COPY.presetDefaultName);
@@ -58,7 +58,7 @@ export default function FramescaperSelectedVisualAuthoringDialog(props: Props) {
 	useEffect(() => {
 		setPairId(model.selectedPairId ?? '');
 		setDurationFrames(model.transitionPairs.find(({ id }) => id === model.selectedPairId)?.durationFrames ?? 12);
-		setBrightness(model.adjustmentBrightness);
+		setBrightness(String(model.adjustmentBrightness));
 		setAdjustmentLayerId(model.adjustmentLayerId);
 		setMaskId(model.selectedMaskId ?? '');
 		setVisualPresetId((current) => model.visualPresets.some(({ id }) => id === current)
@@ -124,20 +124,20 @@ export default function FramescaperSelectedVisualAuthoringDialog(props: Props) {
 
 type Model = ReturnType<typeof createFramescaperSelectedVisualAuthoringModel>;
 interface Values {
-	readonly pairId: string; readonly durationFrames: number; readonly brightness: number;
+	readonly pairId: string; readonly durationFrames: number; readonly brightness: string;
 	readonly adjustmentLayerId: string | null; readonly maskId: string;
-	readonly shape: 'rectangle' | 'ellipse' | 'line'; readonly maskWidth: number;
-	readonly maskHeight: number; readonly visualPresetId: string;
+	readonly shape: 'rectangle' | 'ellipse' | 'line'; readonly maskWidth: string;
+	readonly maskHeight: string; readonly visualPresetId: string;
 	readonly finishingPresetId: string; readonly presetName: string; readonly freezeDuration: number;
 }
 interface Setters {
 	readonly setPairId: (value: string) => void;
 	readonly setDurationFrames: (value: number) => void;
-	readonly setBrightness: (value: number) => void;
+	readonly setBrightness: (value: string) => void;
 	readonly setMaskId: (value: string) => void;
 	readonly setShape: (value: 'rectangle' | 'ellipse' | 'line') => void;
-	readonly setMaskWidth: (value: number) => void;
-	readonly setMaskHeight: (value: number) => void;
+	readonly setMaskWidth: (value: string) => void;
+	readonly setMaskHeight: (value: string) => void;
 	readonly setVisualPresetId: (value: string) => void;
 	readonly setFinishingPresetId: (value: string) => void;
 	readonly setPresetName: (value: string) => void;
@@ -193,7 +193,7 @@ function AdjustmentFields({ text, model, blocked, values, setters, onPerform }: 
 		<legend>{text.selectedVideo}</legend>
 		<label><span>{text.brightness}</span><input data-framescaper-authoring-brightness type="number"
 			min="-1" max="1" step="0.05" value={values.brightness}
-			onChange={(event) => setters.setBrightness(event.currentTarget.valueAsNumber)} /></label>
+			onChange={(event) => setters.setBrightness(event.currentTarget.value)} /></label>
 		<div><button data-framescaper-authoring-apply type="button" onClick={() => onPerform('apply')}>
 			{values.adjustmentLayerId ? text.updateAdjustment : text.applyAdjustment}</button>
 		<button data-framescaper-authoring-remove type="button" disabled={!values.adjustmentLayerId}
@@ -219,10 +219,10 @@ function MaskFields({ text, model, blocked, values, setters, onPerform }: Parame
 		</select></label>
 		<label><span>{text.width}</span><input data-framescaper-authoring-mask-width type="number" min="0.01"
 			max="1" step="0.01" value={values.maskWidth}
-			onChange={(event) => setters.setMaskWidth(event.currentTarget.valueAsNumber)} /></label>
+			onChange={(event) => setters.setMaskWidth(event.currentTarget.value)} /></label>
 		<label><span>{text.height}</span><input data-framescaper-authoring-mask-height type="number" min="0.01"
 			max="1" step="0.01" value={values.maskHeight}
-			onChange={(event) => setters.setMaskHeight(event.currentTarget.valueAsNumber)} /></label>
+			onChange={(event) => setters.setMaskHeight(event.currentTarget.value)} /></label>
 		<div><button data-framescaper-authoring-apply type="button" onClick={() => onPerform('apply')}>
 			{values.maskId ? text.updateMask : text.createMask}</button>
 		<button data-framescaper-authoring-remove type="button" disabled={!values.maskId}
@@ -286,10 +286,10 @@ function requestFor(operation: string, model: Model, values: Values) {
 		return { ...base, pairId: values.pairId, durationFrames: values.durationFrames };
 	}
 	if (model.surface === 'video-adjustment-layer') return { ...base,
-		adjustmentLayerId: values.adjustmentLayerId, brightness: values.brightness };
+		adjustmentLayerId: values.adjustmentLayerId, brightness: numericDraft(values.brightness) };
 	if (model.surface === 'video-mask-matte') return { ...base,
 		maskId: values.maskId || null, shape: values.shape,
-		width: values.maskWidth, height: values.maskHeight };
+		width: numericDraft(values.maskWidth), height: numericDraft(values.maskHeight) };
 	if (model.surface === 'video-freeze') return { ...base,
 		playheadSample: model.fence.playheadSample, durationFrames: values.freezeDuration };
 	const finishing = operation === 'apply-finishing' || operation === 'remove-finishing';
@@ -300,6 +300,8 @@ function requestFor(operation: string, model: Model, values: Values) {
 function selectedPair(model: Model, pairId: string) {
 	return model.transitionPairs.find(({ id }) => id === pairId) ?? null;
 }
+
+function numericDraft(value: string): number { return value.trim() ? Number(value) : NaN; }
 
 function initialFocus(surface: FramescaperSelectedVisualAuthoringSurface): string {
 	if (surface === 'video-adjustment-layer') return '[data-framescaper-authoring-brightness]';

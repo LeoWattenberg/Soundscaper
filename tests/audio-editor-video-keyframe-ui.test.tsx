@@ -63,6 +63,24 @@ test('blocked keyframe UI is explained and disables its complete editing surface
 	assert.match(markup, new RegExp('<fieldset[^>]*disabled=""[^>]*>[\\s\\S]*?<legend>Edit curve</legend>', 'u'));
 });
 
+test('new curve values start at the selected existing curve target base value', () => {
+	const original = project();
+	const value = { ...original, clips: original.clips.map((clip) => ({
+		...clip, videoKeyframes: { ...clip.videoKeyframes, curves: [{
+			...clip.videoKeyframes.curves[0], target: { kind: 'composition', parameterId: 'transform.scaleX' },
+			curve: { ...clip.videoKeyframes.curves[0].curve,
+				anchors: [{ position: { num: 0, den: 1 }, value: 1 }, { position: { num: 20, den: 1 }, value: 1.2 }],
+			},
+		}] },
+	})) };
+	const markup = renderToStaticMarkup(<VideoKeyframeDialog productId="framescaper" capability
+		controller={{ actions: { edit: { commit: () => undefined } } }} snapshot={{ project: value, selectedClipId: 'video' }}
+		copy={{}} run={(operation) => operation()} onClose={() => undefined} />);
+	for (const field of ['start-value', 'end-value']) {
+		assert.match(markup, new RegExp(`data-video-keyframe-field="${field}"[^>]*value="1"`, 'u'));
+	}
+});
+
 test('an unrelated controller snapshot preserves the selected keyframe anchor draft', async () => {
 	const dom = installReactTestDom();
 	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };

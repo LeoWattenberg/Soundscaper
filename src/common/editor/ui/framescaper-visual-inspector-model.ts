@@ -45,7 +45,7 @@ export interface FramescaperVisualInspectorModel {
 	readonly blendMode: VideoVisualPresentationV1['blendMode'];
 	readonly maskId: string | null;
 	readonly maskWidth: number;
-	readonly masks: readonly Readonly<{ readonly id: string; readonly name: string }>[];
+	readonly masks: readonly Readonly<{ readonly id: string; readonly name: string; readonly width: number }>[];
 	readonly presets: readonly FramescaperVisualInspectorPreset[];
 }
 
@@ -96,7 +96,7 @@ export function createFramescaperVisualInspectorModel(input: Readonly<{
 		blendMode: presentation?.blendMode ?? 'normal',
 		maskId,
 		maskWidth: maskId === null ? 1 : maskWidth(project, maskId),
-		masks: Object.freeze(masks.map(({ id }) => Object.freeze({ id, name: id }))),
+		masks: Object.freeze(masks.map(({ id }) => Object.freeze({ id, name: id, width: maskWidth(project, id) }))),
 		presets: boundGeneratorPresets(project),
 	});
 }
@@ -165,7 +165,7 @@ function emptyModel(project: Data): FramescaperVisualInspectorModel {
 		clipId: null, sourceId: null, kind: null, generator: null,
 		audioSources: Object.freeze([]),
 		opacity: 1, blendMode: 'normal', maskId: null, maskWidth: 1,
-		masks: Object.freeze(supportedMasks(project).map(({ id }) => Object.freeze({ id, name: id }))),
+		masks: Object.freeze(supportedMasks(project).map(({ id }) => Object.freeze({ id, name: id, width: maskWidth(project, id) }))),
 		presets: boundGeneratorPresets(project),
 	});
 }

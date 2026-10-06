@@ -50,11 +50,12 @@ export default function VideoKeyframeDialog({
 	const firstTarget = model.keyframes?.curves[0]
 		? videoKeyframeTargetKey(model.keyframes.curves[0].target)
 		: choices[0]?.key ?? '';
+	const firstChoice = choices.find(({ key }) => key === firstTarget) ?? choices[0];
 	const [targetKey, setTargetKey] = useState(firstTarget);
 	const [startText, setStartText] = useState('0');
 	const [endText, setEndText] = useState(() => String(model.sequenceFrameCount));
-	const [startValue, setStartValue] = useState(() => String(choices[0]?.baseValue ?? 0));
-	const [endValue, setEndValue] = useState(() => String(choices[0]?.baseValue ?? 0));
+	const [startValue, setStartValue] = useState(() => String(firstChoice?.baseValue ?? 0));
+	const [endValue, setEndValue] = useState(() => String(firstChoice?.baseValue ?? 0));
 	const [kind, setKind] = useState<CurveKind>('linear');
 	const [transferText, setTransferText] = useState('');
 	const [status, setStatus] = usePresentationFeedback(copy);

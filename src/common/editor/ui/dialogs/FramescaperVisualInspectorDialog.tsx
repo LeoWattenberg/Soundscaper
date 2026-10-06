@@ -142,7 +142,8 @@ export default function FramescaperVisualInspectorDialog({
 						<select data-visual-inspector-mask value={draft.maskId ?? ''}
 							onChange={(event) => {
 								const maskId = event.currentTarget.value || null;
-								setDraft((current) => ({ ...current, maskId }));
+								const maskWidth = model.masks.find(({ id }) => id === maskId)?.width ?? 1;
+								setDraft((current) => ({ ...current, maskId, maskWidth }));
 							}}>
 							<option value="">{label(copy, 'none', 'None')}</option>
 							{model.masks.map(({ id, name }) => <option key={id} value={id}>{name}</option>)}

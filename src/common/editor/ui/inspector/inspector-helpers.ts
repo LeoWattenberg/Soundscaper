@@ -89,7 +89,7 @@ export function linearToDb(value: unknown): number {
 
 export function dbToLinear(value: unknown, maximum: number, copy: InspectorCopy): number {
 	const db = Number(value);
-	if (!Number.isFinite(db) || db < -60 || db > (maximum === 4 ? 12 : 24)) {
+	if ((typeof value === 'string' && !value.trim()) || !Number.isFinite(db) || db < -60 || db > (maximum === 4 ? 12 : 24)) {
 		throw new RangeError(copy.invalidGainValue);
 	}
 	return Math.max(0, Math.min(maximum, 10 ** (db / 20)));

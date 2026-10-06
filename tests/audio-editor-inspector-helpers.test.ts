@@ -42,6 +42,15 @@ test('Inspector serialization helpers validate boundary input without UI state',
 	assert.throws(() => parseJsonChannelMapping('{}', 'Channels', copy), /wrong shape/);
 });
 
+test('a clip gain draft must state its decibel value while explicit zero remains valid', () => {
+	for (const value of ['', ' ', '\t']) {
+		assert.throws(() => inspectorHelpers.dbToLinear(value, 16, ENGLISH_COPY), /Invalid gain value/u);
+	}
+	assert.equal(inspectorHelpers.dbToLinear(0, 16, ENGLISH_COPY), 1);
+	assert.equal(inspectorHelpers.dbToLinear('0', 16, ENGLISH_COPY), 1);
+	assert.ok(Math.abs(inspectorHelpers.dbToLinear('-6', 16, ENGLISH_COPY) - 0.5011872336272722) < 1e-12);
+});
+
 test('the inspector helper surface carries only operations a shipped inspector calls', () => {
 	for (const name of [
 		'bitrateOption',

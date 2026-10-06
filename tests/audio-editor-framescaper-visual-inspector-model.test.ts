@@ -40,6 +40,18 @@ test('resizing an inspector mask changes only its width and retains its authored
 	assert.equal(output?.width, 0.4);
 });
 
+test('the inspector projects each selectable mask width independently', () => {
+	const original = project(['mask-primary']);
+	const value = { ...original, videoMaskMattes: original.videoMaskMattes.map((graph, index) => ({
+		...graph, nodes: graph.nodes.map((node) => ({ ...node, width: index === 0 ? 0.25 : 0.5 })),
+	})) };
+	const model = createFramescaperVisualInspectorModel({ project: value, selectedClipId: 'clip-title' });
+	assert.equal(model.maskWidth, 0.25);
+	assert.deepEqual(model.masks.map(({ id, width }) => ({ id, width })), [
+		{ id: 'mask-primary', width: 0.25 }, { id: 'mask-secondary', width: 0.5 },
+	]);
+});
+
 test('the visual inspector edits test image patterns and noise settings', () => {
 	const testImage = generatorProject({ kind: 'test-image', pattern: 'color-bars' });
 	const imageModel = createFramescaperVisualInspectorModel({
