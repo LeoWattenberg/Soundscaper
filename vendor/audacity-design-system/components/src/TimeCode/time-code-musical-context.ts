@@ -12,4 +12,4 @@ export interface TimeCodeMusicalMap {
 }
 
 /** Hosts supply their tempo and signature authority to every time display. */
-export const TimeCodeMusicalContext = createContext<TimeCodeMusicalMap | undefined>(undefined);
+export const TimeCodeMusicalContext = /* @__PURE__ */ createContext<TimeCodeMusicalMap | undefined>(undefined);

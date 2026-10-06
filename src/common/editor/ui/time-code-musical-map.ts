@@ -3,7 +3,8 @@
 import type { TimeCodeMusicalMap } from '../../../../vendor/audacity-design-system/components/src/TimeCode/time-code-musical-context.ts';
 import { barStartBeat, surroundingBarBoundaries, type SignatureEvent, type SignatureMap } from '../musical-grid.ts';
 import { sampleFrameToBeat } from '../timeline-tempo-inverse.ts';
-import { addRationals, beatToSampleFrame, divideRationals, subtractRationals, type HoldTempoMap } from '../timeline-time.ts';
+import { addRationals, beatToSampleFrame, divideRationals, sampleFrameToSeconds,
+	secondsToSampleFrame, subtractRationals, type HoldTempoMap } from '../timeline-time.ts';
 
 export interface MusicalTimeCodeProject {
 	readonly sampleRate: number;
@@ -23,7 +24,7 @@ export function createMusicalTimeCodeMap(project: MusicalTimeCodeProject): TimeC
 	};
 	return {
 		fromSeconds(seconds) {
-			const quarterBeat = sampleFrameToBeat(Math.max(0, Math.round(seconds * project.sampleRate)),
+			const quarterBeat = sampleFrameToBeat(secondsToSampleFrame(Math.max(0, seconds), project.sampleRate),
 				project.tempoMap, project.sampleRate);
 			const bars = surroundingBarBoundaries(quarterBeat, project.signatureMap);
 			const signature = signatureAtBar(bars.lowerBar);
@@ -36,7 +37,7 @@ export function createMusicalTimeCodeMap(project: MusicalTimeCodeProject): TimeC
 			const signature = signatureAtBar(bar);
 			const quarterBeat = addRationals(barStartBeat(bar, project.signatureMap),
 				{ num: Math.max(0, beat - 1) * 4, den: signature.denominator });
-			return beatToSampleFrame(quarterBeat, project.tempoMap, project.sampleRate) / project.sampleRate;
+			return sampleFrameToSeconds(beatToSampleFrame(quarterBeat, project.tempoMap, project.sampleRate), project.sampleRate);
 		},
 	};
 }

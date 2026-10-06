@@ -44,6 +44,17 @@ export interface FoundationTimeConversionSite {
  */
 const FOUNDATION_TIME_CONVERSION_EDITOR_SITES: readonly FoundationTimeConversionSite[] = deepFreezeAuditSites([
 	{
+		id: 'musical-timecode-project-map',
+		file: 'src/common/editor/ui/time-code-musical-map.ts',
+		behavior: 'Musical timecode resolves seconds to nearest project sample instants, recovers exact tempo-map beats, and maps edited bar/beat positions back through nearest sample instants to seconds.',
+		conversions: [
+			{ helper: 'secondsToSampleFrame', policies: ['point'] },
+			{ helper: 'sampleFrameToBeat', policies: ['exact'] },
+			{ helper: 'beatToSampleFrame', policies: ['point'] },
+			{ helper: 'sampleFrameToSeconds', policies: ['exact'] },
+		],
+	},
+	{
 		id: 'desktop-original-source-bitrate',
 		file: 'src/common/editor/desktop-original-export-settings.ts',
 		behavior: 'Remembered compressed export settings derive source duration exactly from decoded sample frames and their own sample rate before estimating the original bitrate.',
