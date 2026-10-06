@@ -31,7 +31,7 @@ test('retained summary selection layers preserve pixels and read only fractional
 				const canvases = [document.createElement('canvas'), document.createElement('canvas')];
 				const options = { displayMode: 'waveform', pixelsPerSecond: 1, style, bounds: { width, height: 80 },
 					showRms, halfWave, waveformRulerFormat, verticalZoom: 0, channelHeightRatio: 0.7 };
-				for (const [startTime, endTime] of [[0, 0], [1.3, 87.4], [3, 19], [0.25, 0.5], [0, width], [119.25, width], [75, 75]]) {
+				for (const [startTime, endTime] of [[0, width], [0, 0], [1.3, 87.4], [3, 19], [0.25, 0.5], [0, width], [119.25, width], [75, 75]]) {
 					for (let index = 0; index < canvases.length; index++) globalThis.waveformCanvas.drawAudacityClipCanvas(canvases[index], clip,
 						{ ...options, timeSelection: { startTime, endTime }, cacheSelectionLayers: index === 1 });
 					const pixels = canvases.map(canvas => canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data);
@@ -52,10 +52,17 @@ test('retained summary selection layers preserve pixels and read only fractional
 			audacityWaveform: { mode: 'summary', pixelWidth: 1_000, channels: [{ minimum: values, maximum: values }] } };
 		const options = { displayMode: 'waveform', pixelsPerSecond: 1, style, bounds: { width: 1_000, height: 80 },
 			showRms: false, halfWave: false, waveformRulerFormat: 'linear-db', verticalZoom: 0 };
+		const fullCanvas = document.createElement('canvas');
+		globalThis.waveformCanvas.drawAudacityClipCanvas(fullCanvas, clip, { ...options, timeSelection: { startTime: 0, endTime: 1_000 } });
+		const coldFullSelectionReads = reads;
+		reads = 0;
+		globalThis.waveformCanvas.drawAudacityClipCanvas(fullCanvas, clip, { ...options, timeSelection: { startTime: 0, endTime: 1_000 } });
+		const hotFullSelectionReads = reads;
 		globalThis.waveformCanvas.drawAudacityClipCanvas(canvas, clip, { ...options, timeSelection: { startTime: 1, endTime: 900 } });
 		reads = 0;
 		globalThis.waveformCanvas.drawAudacityClipCanvas(canvas, clip, { ...options, timeSelection: { startTime: 2.25, endTime: 899.75 } });
-		return { failures, comparisons, hotReads: reads };
+		return { failures, comparisons, hotReads: reads, coldFullSelectionReads, hotFullSelectionReads };
 	});
-	expect(result.failures).toEqual([]); expect(result.comparisons).toBe(448); expect(result.hotReads).toBe(4);
+	expect(result.failures).toEqual([]); expect(result.comparisons).toBe(512); expect(result.hotReads).toBe(4);
+	expect(result.coldFullSelectionReads).toBe(2_000); expect(result.hotFullSelectionReads).toBe(0);
 });

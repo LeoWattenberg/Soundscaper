@@ -2,12 +2,12 @@
 
 import { createTimelineSpectrogramCache } from '../../controller/source/timeline-spectrogram-cache.ts';
 
-interface SelectionLayers { readonly base: HTMLCanvasElement; selected: HTMLCanvasElement | null; }
+interface SelectionLayers { base: HTMLCanvasElement | null; selected: HTMLCanvasElement | null; }
 interface ColumnRange { readonly start: number; readonly end: number; }
 
 const cache = createTimelineSpectrogramCache<SelectionLayers>({
 	releaseImage(layers) {
-		layers.base.width = 0; layers.base.height = 0;
+		if (layers.base) { layers.base.width = 0; layers.base.height = 0; }
 		if (layers.selected) { layers.selected.width = 0; layers.selected.height = 0; }
 	},
 });
@@ -28,6 +28,10 @@ export function paintWaveformSelectionLayers(context: CanvasRenderingContext2D, 
 	if (owner.width !== options.width || !owner.ownerDocument || typeof context.drawImage !== 'function') {
 		cache.release(owner); return false;
 	}
+	const selected = options.end > options.start;
+	const start = selected ? Math.ceil(options.start) : 0;
+	const end = selected ? Math.floor(options.end) : 0;
+	const wholeSelection = selected && start <= 0 && end >= owner.width;
 	const make = (selected: boolean) => {
 		const surface = owner.ownerDocument.createElement('canvas');
 		surface.width = owner.width; surface.height = owner.height;
@@ -37,21 +41,21 @@ export function paintWaveformSelectionLayers(context: CanvasRenderingContext2D, 
 	};
 	// Reserve both layers in the byte budget even before selection first needs one.
 	const layers = cache.image(owner, options.key, owner.width * 2, owner.height, () => {
-		const base = make(false); return base ? { base, selected: null } : null;
+		const image = make(wholeSelection);
+		return image ? { base: wholeSelection ? null : image, selected: wholeSelection ? image : null } : null;
 	});
 	if (!layers) return false;
-	const selected = options.end > options.start;
-	const start = selected ? Math.ceil(options.start) : 0;
-	const end = selected ? Math.floor(options.end) : 0;
+	if (!wholeSelection && !layers.base) layers.base = make(false);
 	if (end > start && !layers.selected) layers.selected = make(true);
-	if (end > start && !layers.selected) return false;
+	const dominantImage = wholeSelection ? layers.selected : layers.base;
+	if (!dominantImage || (end > start && !layers.selected)) return false;
 	context.save();
 	try {
 	context.setTransform(1, 0, 0, 1, 0, 0);
 	context.globalAlpha = 1; context.globalCompositeOperation = 'source-over';
 	context.clearRect(0, 0, owner.width, owner.height);
-	context.drawImage(layers.base, 0, 0);
-	if (end > start && layers.selected) {
+	context.drawImage(dominantImage, 0, 0);
+	if (!wholeSelection && end > start && layers.selected) {
 		context.clearRect(start, 0, end - start, owner.height);
 		context.drawImage(layers.selected, start, 0, end - start, owner.height, start, 0, end - start, owner.height);
 	}
