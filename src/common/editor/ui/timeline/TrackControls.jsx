@@ -16,6 +16,7 @@ import {
 } from './geometry.ts';
 import { TrackTelemetryMeters } from './TrackTelemetryMeters.tsx';
 import { focusCandidate, focusFirst, focusPanelControl } from './timeline-navigation.js';
+import { finishInlineTrackRename } from './track-name-keyboard-focus.ts';
 import {
 	beginParameterAutomationGestureV21,
 	cancelParameterAutomationGestureV21,
@@ -325,14 +326,10 @@ export function TrackNameEditor({ track, label, blocked, controller, run, onClos
 	};
 	return (
 		<label ref={editorRef} data-track-name onBlur={commit} onKeyDown={(event) => {
-			if (event.key === 'Enter') {
-				event.preventDefault();
-				event.currentTarget.querySelector('input')?.blur();
-			} else if (event.key === 'Escape') {
-				event.preventDefault();
+			finishInlineTrackRename(event, commit, () => {
 				setName(track.name);
 				onClose();
-			}
+			});
 		}}>
 			<span className="kw-audio-editor-sr-only">{label}: {track.name}</span>
 			<TextInput value={name} disabled={blocked} width="100%" onChange={setName} />
