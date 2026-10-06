@@ -169,12 +169,16 @@ test('the production host refuses to rehost an instance whose state was oversize
 	runtime.service.dispose();
 });
 
-test('repeated host crashes quarantine the digest durably, and the explicit clear rehosts it', async (t) => {
-	const { mkdtemp, rm } = await import('node:fs/promises');
+test('repeated host crashes quarantine the digest durably, and the explicit clear rehosts it', (t) => verifyQuarantineStorage(t, false));
+test('plug-in quarantine writes use the state directory', (t) => verifyQuarantineStorage(t, true));
+
+async function verifyQuarantineStorage(t, separateStateDirectory) {
+	const { mkdtemp, readFile, rm } = await import('node:fs/promises');
 	const { tmpdir } = await import('node:os');
 	const { join } = await import('node:path');
 	const userDataPath = await mkdtemp(join(tmpdir(), 'plugin-quarantine-'));
 	t.after(() => rm(userDataPath, { recursive: true, force: true }));
+	const stateDataPath = separateStateDirectory ? join(userDataPath, 'state') : undefined;
 	const digest = 'ab'.repeat(32);
 	const owner = {};
 	const sessions = [];
@@ -193,6 +197,7 @@ test('repeated host crashes quarantine the digest durably, and the explicit clea
 		},
 		describePayload: async () => ({ status: 'available' }),
 		userDataPath,
+		...(stateDataPath === undefined ? {} : { stateDataPath }),
 		parentWindow: () => null,
 		desktopRoot: userDataPath,
 		packaged: false,
@@ -239,6 +244,9 @@ test('repeated host crashes quarantine the digest durably, and the explicit clea
 	assert.equal(registration.quarantine.isQuarantined(digest), true,
 		'two qualifying host faults within the window must reach the durable store');
 	assert.equal(registration.quarantine.describe(digest).scope, 'host');
+	const quarantinePath = join(stateDataPath ?? userDataPath, 'native-plugin-quarantine-v1.json');
+	assert.match(await readFile(quarantinePath, 'utf8'), new RegExp(digest, 'u'));
+	if (stateDataPath !== undefined) await assert.rejects(readFile(join(userDataPath, 'native-plugin-quarantine-v1.json')), { code: 'ENOENT' });
 	await assert.rejects(instantiate, /quarantined/u);
 	const outcome = await handlers.get('nativePluginClearQuarantine')(event, { digest, clearance: 're-enable' });
 	assert.deepEqual(outcome, { cleared: true });
@@ -246,7 +254,7 @@ test('repeated host crashes quarantine the digest durably, and the explicit clea
 	// The clear must release the in-memory hold too, not only the durable file.
 	const rehosted = await instantiate();
 	assert.equal(rehosted.state, 'hosted');
-});
+}
 
 test('active revocation kills the matching host and only an explicit re-allow rehosts it', async (t) => {
 	const { mkdtemp, rm } = await import('node:fs/promises');

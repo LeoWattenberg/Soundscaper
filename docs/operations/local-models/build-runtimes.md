@@ -100,10 +100,13 @@ snapshots of previously published target handoffs. Its package jobs download
 the exact public archives without rebuilding them. Desktop package workflows
 verify staged archives against their published immutable URLs before packaging.
 
-On request, the main process downloads a pinned archive into the user's app
-data directory, checks its compressed digest, extracts only the listed regular
-files, checks every file digest, and installs the closure under
-`<userData>/runtime/assistance/`. Main and the inference worker authenticate
+On request, the main process downloads a pinned archive, checks its compressed
+digest, extracts only the listed regular files, checks every file digest, and
+installs the closure under `<userData>/runtime/assistance/` on macOS and Windows.
+Linux installs under `$XDG_DATA_HOME/Soundscaper/runtime/assistance/` and caches
+archives under `$XDG_CACHE_HOME/Soundscaper/runtime-archives/`, defaulting to
+`~/.local/share` and `~/.cache` respectively. Framescaper uses the same layout
+under `Framescaper`. Main and the inference worker authenticate
 engine bytes again before execution. Missing, extra or altered files fail
 authentication; a missing runtime cannot execute while offline.
 

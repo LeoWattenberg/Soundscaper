@@ -126,6 +126,17 @@ test('owner revocation fences both services and repeated disposal cleans live re
 	assert.equal(harness.listeners.size, 0);
 });
 
+test('image-sequence decode reclaims and uses its separate cache directory', async (t) => {
+	const fixture = await registrationFixture(t, true);
+	assert.equal(await exists(join(fixture.cacheScratchRoot, 'stale')), false);
+	const owner = {}, event = {};
+	const harness = rendererBridge(new Map([[event, owner]]));
+	fixture.registration.registerRendererBridge(harness.bridge);
+	await stageOwnedResources(harness, event, 1);
+	assert.equal(await exists(fixture.cacheScratchRoot), true);
+	assert.equal(await exists(join(fixture.userDataPath, 'framescaper-native-image-sequence-decode-helper')), false);
+});
+
 type Handler = (event: unknown, request?: unknown) => unknown;
 type Listener = (event: unknown, request?: unknown) => void;
 
@@ -202,9 +213,13 @@ async function stageOwnedResources(
 	});
 }
 
-async function registrationFixture(t: TestContext) {
+async function registrationFixture(t: TestContext, separateCacheDirectory = false) {
 	const directory = await mkdtemp(join(tmpdir(), 'framescaper-sequence-registration-'));
 	const userDataPath = join(directory, 'user-data');
+	const cacheDataPath = separateCacheDirectory ? join(directory, 'cache') : undefined;
+	const cacheScratchRoot = join(cacheDataPath ?? userDataPath, 'framescaper-native-image-sequence-decode-helper');
+	await mkdir(cacheScratchRoot, { recursive: true });
+	await writeFile(join(cacheScratchRoot, 'stale'), 'stale');
 	const root = join(userDataPath, 'framescaper-native-image-sequence-import-v1');
 	const packBytes = Uint8Array.of(1, 2, 3);
 	const inventoryBytes = new TextEncoder().encode('{"schemaVersion":1}');
@@ -265,6 +280,7 @@ async function registrationFixture(t: TestContext) {
 	let jobCount = 0;
 	const registration = await createFramescaperNativeImageSequenceRegistration({
 		userDataPath,
+		...(cacheDataPath === undefined ? {} : { cacheDataPath }),
 		route: Object.freeze({
 			...PROJECT_IDENTITY,
 			projectMutationSurface: 'image-sequence-import' as const,
@@ -314,7 +330,7 @@ async function registrationFixture(t: TestContext) {
 		await registration.dispose().catch(() => undefined);
 		await rm(directory, { recursive: true, force: true });
 	});
-	return Object.freeze({ registration, root, jobs: () => jobCount });
+	return Object.freeze({ registration, root, userDataPath, cacheScratchRoot, jobs: () => jobCount });
 }
 
 async function runDecodeJob(

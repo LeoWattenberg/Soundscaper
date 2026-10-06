@@ -8,6 +8,7 @@ import {
 	framescaperImageSequenceImportAuthorityMounted,
 	startFramescaperNativeServicesRegistration,
 } from '../desktop/framescaper-native-services-registration.mjs';
+import { registrationOptions } from '../desktop/framescaper-native-services-options.mjs';
 
 test('Soundscaper never starts the Framescaper service database', async () => {
 	const registration = await startFramescaperNativeServicesRegistration(options('soundscaper'), {
@@ -22,7 +23,19 @@ test('Soundscaper never starts the Framescaper service database', async () => {
 	assert.equal(registration, null);
 });
 
-test('Framescaper owns one runtime, authenticates every IPC caller, and closes idempotently', async () => {
+test('Framescaper owns one runtime, authenticates every IPC caller, and closes idempotently', () => verifyNativeRegistration(false));
+test('Framescaper separates data, cache, and restart state directories', () => verifyNativeRegistration(true));
+
+test('Framescaper accepts optional absolute storage roots and refuses malformed overrides', () => {
+	for (const field of ['cacheDataPath', 'dataDataPath', 'renderInputDataPath']) {
+		assert.throws(() => registrationOptions(Object.defineProperty(options('framescaper'), field, { enumerable: true, get: () => '/tmp/cache' })), /options are invalid/u);
+		for (const path of [undefined, null, 'relative', '/tmp/nul\0path']) {
+			assert.throws(() => registrationOptions({ ...options('framescaper'), [field]: path }), /options are invalid/u);
+		}
+	}
+});
+
+async function verifyNativeRegistration(splitDirectories) {
 	let runtimeOptions;
 	let ipcOptions;
 	let closes = 0;
@@ -142,6 +155,8 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 		complete: async () => true, dispose: async () => { brokerDisposals += 1; },
 	};
 	const registrationInput = options('framescaper');
+	if (splitDirectories) Object.assign(registrationInput, { cacheDataPath: '/tmp/native-cache', dataDataPath: '/tmp/native-data', renderInputDataPath: '/tmp/native-legacy-render-inputs' });
+	const cacheRoot = registrationInput.cacheDataPath ?? registrationInput.userDataPath;
 	const authoredEffect = Object.freeze({ instanceId: 'authored-effect', state: 'current' });
 	registrationInput.projectAuthority.projectRecord = (projectId) => projectId === 'project-1'
 		? { schemaFamily: 'framescaper', schemaVersion: 1,
@@ -216,7 +231,10 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 		},
 	});
 	assert.ok(registration);
-	assert.match(runtimeOptions.databasePath, /framescaper-native-services-v1\.sqlite$/u);
+	assert.equal(runtimeOptions.databasePath, `${registrationInput.userDataPath}/framescaper-native-services-v1.sqlite`);
+	assert.equal(nodePortOptions.scratchRoot, `${cacheRoot}/framescaper-native-scratch`);
+	assert.equal(mediaRuntimeStartOptions.v14.scratchRoot, `${cacheRoot}/framescaper-native-v14-helper`);
+	assert.equal(openFxServiceOptions.scratchRoot, `${cacheRoot}/framescaper-openfx-scratch`);
 	assert.equal(runtimeOptions.runtimeAvailable(), false);
 	assert.equal(renderInputReclaims, 1);
 	mediaAvailable = true;
@@ -253,6 +271,8 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 	assert.equal(verifiedCapabilities.value.imageSequenceImportMounted, true,
 		'the baseline route mounts only after its main-owned authority recovers');
 	assert.equal(imageSequenceImportOptions.route.schemaFamily, 'framescaper');
+	assert.equal(imageSequenceImportOptions.userDataPath, registrationInput.dataDataPath ?? registrationInput.userDataPath);
+	assert.equal(imageSequenceImportOptions.cacheDataPath, registrationInput.cacheDataPath);
 	assert.equal(imageSequenceImportOptions.route.schemaVersion, 1);
 	assert.equal(imageSequenceImportOptions.project, registrationInput.projectAuthority);
 	assert.equal(imageSequenceImportOptions.controller, controller);
@@ -287,7 +307,7 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 		{ project: { schemaFamily: 'framescaper', schemaVersion: 1,
 			id: 'project-1', revision: 7 } }, { ...authoredEffect, state: 'stale' },
 	), false);
-	assert.match(renderInputOptions.root, /framescaper-native-render-inputs$/u);
+	assert.equal(renderInputOptions.root, registrationInput.renderInputDataPath ?? `${registrationInput.userDataPath}/framescaper-native-render-inputs`);
 	assert.equal(renderInputOptions.mintStageId, nodePorts.mintOpaqueId);
 	assert.equal(typeof renderInputOptions.storageAdmission, 'function');
 	assert.equal(projectMediaAuthorityOptions.project, registrationInput.projectAuthority);
@@ -377,7 +397,7 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 	assert.equal(imageSequenceImportDisposals, 1);
 	assert.equal(proxyOutputDisposals, 1);
 	assert.equal(openFxFrameDisposals, 1);
-});
+}
 
 test('a runtime startup failure releases the session display subscription', async () => {
 	let disposals = 0;

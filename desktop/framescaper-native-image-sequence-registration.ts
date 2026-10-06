@@ -2,7 +2,7 @@
 
 /** Production main-process ownership for baseline image-sequence import. */
 
-import { resolve } from 'node:path';
+import { isAbsolute, resolve } from 'node:path';
 
 import {
 	FramescaperNativeImageSequenceImportAuthority,
@@ -50,6 +50,7 @@ interface RendererBridge {
 
 export interface FramescaperNativeImageSequenceRegistrationOptions {
 	readonly userDataPath: string;
+	readonly cacheDataPath?: string;
 	readonly route: Readonly<{
 		readonly schemaFamily: 'framescaper';
 		readonly schemaVersion: 1;
@@ -91,7 +92,7 @@ export async function createFramescaperNativeImageSequenceRegistration(
 	});
 	const decodeAuthority = new FramescaperNativeImageSequenceDecodeAuthority({
 		root,
-		scratchRoot: resolve(options.userDataPath, 'framescaper-native-image-sequence-decode-helper'),
+		scratchRoot: resolve(options.cacheDataPath ?? options.userDataPath, 'framescaper-native-image-sequence-decode-helper'),
 		project: options.project,
 		executable: options.executable,
 		createMessageChannel: options.createMessageChannel,
@@ -220,7 +221,9 @@ function assertOptions(options: FramescaperNativeImageSequenceRegistrationOption
 	}
 	assertCurrentFramescaper(options.route, 'image-sequence route');
 	assertCurrentFramescaper(options.project, 'image-sequence project authority');
-	if (options.route.projectMutationSurface !== 'image-sequence-import'
+	if ((options.cacheDataPath !== undefined && (typeof options.cacheDataPath !== 'string'
+		|| !isAbsolute(options.cacheDataPath) || options.cacheDataPath.includes('\0')))
+		|| options.route.projectMutationSurface !== 'image-sequence-import'
 		|| options.route.professionalCharacteristicsContract !== 'video-source-characteristics-v25'
 		|| options.route.isRouted() !== true
 		|| !options.project || ['projectState', 'projectRecord', 'readProjectBundle']

@@ -18,6 +18,11 @@
 	"include": [
 		"desktop/external-media-ipc.ts",
 		"desktop/application-lifecycle.ts",
+		"desktop/desktop-storage-paths.ts",
+		"desktop/desktop-storage-migration.ts",
+		"desktop/desktop-storage-migration-sync.ts",
+		"desktop/desktop-storage-bootstrap.ts",
+		"desktop/desktop-browser-cache.ts",
 		"desktop/original-file-overwrite.ts",
 		"desktop/save-size-warning-dialog.ts",
 		"desktop/mcp-main-registration.ts",

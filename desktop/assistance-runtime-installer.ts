@@ -21,6 +21,7 @@ import { FileLocalModelStore } from './local-model-store.ts';
 
 export interface AssistanceRuntimeInstallerOptions {
 	readonly runtimeRoot: string;
+	readonly archiveCacheRoot?: string;
 	readonly distribution?: unknown;
 	readonly distributionPath?: string;
 	readonly platform?: string;
@@ -113,7 +114,9 @@ export function createAssistanceRuntimeInstaller(options: AssistanceRuntimeInsta
 	if (options.distributionPath !== undefined) absoluteRoot(options.distributionPath);
 	const targetId = runtimeDistributionTargetFor(options.platform ?? process.platform,
 		options.architecture ?? process.arch);
-	const cache = new FileLocalModelStore(join(runtimeRoot, '.archives'));
+	const archiveCacheRoot = options.archiveCacheRoot === undefined
+		? join(runtimeRoot, '.archives') : absoluteRoot(options.archiveCacheRoot);
+	const cache = new FileLocalModelStore(archiveCacheRoot);
 	const active = new Map<AssistanceRuntimeDistributionFamily, ActiveRuntimeInstall>();
 	const pending = new Map<AssistanceRuntimeDistributionFamily, Promise<number>>();
 	let distributionPromise: Promise<AssistanceRuntimeDistribution> | null = null;

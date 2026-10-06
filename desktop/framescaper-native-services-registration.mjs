@@ -17,7 +17,8 @@ export async function startFramescaperNativeServicesRegistration(value, dependen
 		platform: options.externalDisplay.platform,
 		hardwareEncodeEnabled: () => options.settings.snapshot().nativeHardwareEncodeEnabled === true,
 	});
-	const scratchRoot = resolve(options.userDataPath, 'framescaper-native-scratch');
+	const cacheDataPath = options.cacheDataPath ?? options.userDataPath;
+	const scratchRoot = resolve(cacheDataPath, 'framescaper-native-scratch');
 	const nodePorts = modules.createNodePorts({
 		scratchRoot,
 		selectDirectory: options.selectDirectory,
@@ -27,7 +28,7 @@ export async function startFramescaperNativeServicesRegistration(value, dependen
 	});
 	let storageAuthority = null;
 	const renderInputStaging = modules.createRenderInputStaging({
-		root: resolve(options.userDataPath, 'framescaper-native-render-inputs'),
+		root: options.renderInputDataPath ?? resolve(options.userDataPath, 'framescaper-native-render-inputs'),
 		mintStageId: nodePorts.mintOpaqueId, createMessageChannel: options.createMessageChannel,
 		storageAdmission: (...args) => storageAuthority === null
 			? Promise.reject(new Error('Selected V14 storage admission is unavailable.'))
@@ -39,7 +40,7 @@ export async function startFramescaperNativeServicesRegistration(value, dependen
 	const mediaRuntime = await modules.startMediaRuntime({
 		enabled: () => options.settings.snapshot().nativeMediaEnabled === true,
 		v14: Object.freeze({
-			scratchRoot: resolve(options.userDataPath, 'framescaper-native-v14-helper'),
+			scratchRoot: resolve(cacheDataPath, 'framescaper-native-v14-helper'),
 			createMessageChannel: options.createMessageChannel,
 		}),
 	});
@@ -102,7 +103,7 @@ export async function startFramescaperNativeServicesRegistration(value, dependen
 	try {
 		openFxService = modules.createOpenFxService({
 			runtime: openFxRuntime,
-			scratchRoot: resolve(options.userDataPath, 'framescaper-openfx-scratch'),
+			scratchRoot: resolve(cacheDataPath, 'framescaper-openfx-scratch'),
 			preferences: () => preferenceSnapshot(options.settings.snapshot()),
 			selectPluginBinary: options.selectOpenFxPluginBinary,
 			createMessageChannel: options.createMessageChannel,
@@ -227,7 +228,8 @@ export async function startFramescaperNativeServicesRegistration(value, dependen
 		await runtime.ready;
 		await renderInputStaging.reclaim(runtime.queue.list());
 		if (framescaperImageSequenceImportAuthorityMounted(options.imageSequenceImportAuthority)) imageSequenceImport = await modules.createImageSequenceImportRegistration({
-			userDataPath: options.userDataPath, route: options.imageSequenceImportAuthority,
+			userDataPath: options.dataDataPath ?? options.userDataPath, route: options.imageSequenceImportAuthority,
+			...(options.cacheDataPath === undefined ? {} : { cacheDataPath: options.cacheDataPath }),
 			project: options.projectAuthority, controller: runtime.controller, mediaRuntime,
 			executable: () => mediaExecutable(mediaRuntime), createMessageChannel: options.createMessageChannel,
 			mintOpaqueId: nodePorts.mintOpaqueId, runtimeAvailable: () => mediaRuntime.available() && options.settings.snapshot().nativeMediaEnabled === true,

@@ -138,12 +138,15 @@ function assistanceBackgroundPriority(pid) {
 
 export function registerAssistance({
 	channels, handle, on, sendToRenderer, app, settings, dialog, windowFor,
-	externalFfmpegPreferences, onOperationError,
+	externalFfmpegPreferences, onOperationError, storagePaths,
 }) {
 	let child = null;
-	const runtimeRoot = join(app.getPath('userData'), 'runtime');
+	const dataRoot = storagePaths?.dataRoot ?? app.getPath('userData');
+	const cacheRoot = storagePaths?.cacheRoot ?? app.getPath('userData');
+	const runtimeRoot = join(dataRoot, 'runtime');
 	const runtimeInstaller = createAssistanceRuntimeInstaller({
 		runtimeRoot,
+		...(storagePaths?.xdgEnabled ? { archiveCacheRoot: join(cacheRoot, 'runtime-archives') } : {}),
 		distributionPath: resolve(import.meta.dirname, '..', 'config',
 			'assistance-runtime-distribution.json'),
 	});
@@ -235,7 +238,7 @@ export function registerAssistance({
 	let service = null;
 	const createService = () => {
 		service ??= assistanceServiceFrom({
-			userDataPath: app.getPath('userData'),
+			userDataPath: dataRoot,
 			settingsDirectory: settings.snapshot().modelsDirectory,
 			catalog: assistanceCatalog,
 			licensingMatrix,
@@ -263,7 +266,7 @@ export function registerAssistance({
 		createService,
 	});
 	const staging = new AssistanceStagingRegistry({
-		root: resolve(join(app.getPath('userData'), 'assistance-staging-v1')),
+		root: resolve(join(cacheRoot, 'assistance-staging-v1')),
 	});
 	let semanticQueryExecutor = null;
 	const semanticQuery = Object.freeze({ embed: (request) => {

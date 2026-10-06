@@ -168,7 +168,7 @@ export function observeScannedPlugins(supervisor, registry, {
 
 export function registerDesktopPluginDiscovery({
 	channels, handle, ownerFor, settings, supervisor: injectedSupervisor, describePayload: injectedDescribePayload,
-	userDataPath, parentWindow, desktopRoot, packaged, resourcesPath,
+	userDataPath, stateDataPath, parentWindow, desktopRoot, packaged, resourcesPath,
 	nativePluginStateAuthority = null,
 	isPluginHostFormatActivated = productionPluginFormatActivated,
 	createPluginHostHelper = null,
@@ -188,7 +188,7 @@ export function registerDesktopPluginDiscovery({
 	const durable = createDurableFileSystem();
 	const consentPath = join(userDataPath, CONSENT_FILE);
 	const quarantine = new DesktopPluginQuarantine({
-		filePath: join(userDataPath, QUARANTINE_FILE),
+		filePath: join(stateDataPath ?? userDataPath, QUARANTINE_FILE),
 		fileSystem: durable,
 	});
 	const consent = createConsent(consentPath, async (format) => {

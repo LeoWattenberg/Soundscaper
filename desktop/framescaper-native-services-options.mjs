@@ -23,7 +23,18 @@ export function registrationOptions(value) {
 		'selectDirectory', 'selectImageSequenceFiles', 'selectOpenFxPluginBinary',
 		'imageSequenceImportAuthority',
 		'externalDisplay', 'projectAuthority', 'watchImportAuthority', 'createMessageChannel',
-	].sort();
+	];
+	for (const field of ['cacheDataPath', 'dataDataPath', 'renderInputDataPath']) {
+		const descriptor = Object.getOwnPropertyDescriptor(value, field);
+		if (descriptor !== undefined || field in value) {
+			if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')
+				|| typeof descriptor.value !== 'string' || !isAbsolute(descriptor.value) || descriptor.value.includes('\0')) {
+				throw new TypeError('Framescaper native-services registration options are invalid.');
+			}
+			fields.push(field);
+		}
+	}
+	fields.sort();
 	const actual = Object.keys(value).sort();
 	if (actual.length !== fields.length || actual.some((field, index) => field !== fields[index])
 		|| !['framescaper', 'soundscaper'].includes(value.productId)

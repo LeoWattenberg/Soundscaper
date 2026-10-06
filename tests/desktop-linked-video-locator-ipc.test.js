@@ -345,7 +345,7 @@ test('desktop main wires linked-video grants into renderer revocation and shutdo
 		readFile(new URL('../desktop/linked-video-locator-runtime.js', import.meta.url), 'utf8'),
 		readFile(new URL('../desktop/renderer-ownership-cleanup.js', import.meta.url), 'utf8'),
 	]);
-	assert.match(source, /createDesktopLinkedVideoLocatorRuntime\(\{ readCapabilities, registryPath: resolve\(app\.getPath\('userData'\)/u);
+	assert.match(source, /createDesktopLinkedVideoLocatorRuntime\(\{ readCapabilities, registryPath: resolve\(desktopStorage\.dataRoot/u);
 	assert.match(source, /await linkedVideoLocators\.ready\(\)/u);
 	assert.match(source, /linkedVideoLocators\.registerIpc\(/u);
 	assert.match(cleanupSource, /this\.#linkedVideoLocators\(\)\?\.revokeOwner\(owner\)/u);

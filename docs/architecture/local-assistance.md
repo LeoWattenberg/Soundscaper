@@ -100,7 +100,9 @@ JavaScript chunks. The full catalog is not installed with the application.
 ## Model lifecycle
 
 Models live in a content-addressed store in a user-settable filesystem
-directory, defaulting to `<userData>/models`. Per-model manifests point at
+directory, defaulting to `<userData>/models` on macOS and Windows and
+`$XDG_DATA_HOME/Soundscaper/models` on Linux (or
+`~/.local/share/Soundscaper/models` when unset). Per-model manifests point at
 plain `blobs/sha256-<hex>` files that users can inspect and delete. Model
 bytes never live in browser storage or the installation directory.
 

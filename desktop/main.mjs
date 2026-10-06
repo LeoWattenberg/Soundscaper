@@ -26,6 +26,7 @@ import {
 	SUPPORTED_LOCALES,
 	UPDATE_TAG_PREFIX,
 } from './constants.js';
+import { configureDesktopStorage } from './project-library-runtime/desktop/desktop-storage-bootstrap.js';
 import { DesktopApplicationShutdown, resolveDesktopProjectLibraryAppData } from './project-library-runtime/desktop/application-lifecycle.js';
 import { registerAssistanceSemanticSearchMainIpc } from './project-library-runtime/desktop/assistance-semantic-search-main-ipc.js'; import { registerAssistance } from './assistance-registration.mjs'; import { exitAfterCoverageCheckpoint } from './coverage-checkpoint-exit.mjs';
 import { disposeDesktopCaptureSecurity, registerDesktopCaptureSecurity, revokeDesktopCaptureOwner } from './framescaper-capture-registration.mjs';
@@ -137,19 +138,17 @@ const desktopSmokeProbe = createDesktopSmokeProbe({
 	projectLibrarySnapshot: () => projectLibraryRuntime?.snapshot(),
 });
 app.setName(APP_NAME);
+const desktopStorage = configureDesktopStorage({ app, appName: APP_NAME, platform: process.platform, environment: process.env, argv: process.argv });
 app.commandLine.appendSwitch('enable-gpu');
 app.enableSandbox();
 registerAppScheme(protocol);
-
 app.on('open-file', (event, filePath) => {
 	event.preventDefault();
 	enqueueProjectPath(filePath);
 });
-
 app.on('before-quit', () => {
 	applicationIsQuitting = true;
 });
-
 app.on('will-quit', (event) => {
 	event.preventDefault();
 	void exitApplication(0);
@@ -158,6 +157,7 @@ app.on('will-quit', (event) => {
 if (!app.requestSingleInstanceLock()) {
 	app.quit();
 } else {
+	desktopStorage.prepareBeforeReady();
 	app.on('second-instance', (_event, argv, workingDirectory) => {
 		for (const filePath of extractProjectPaths(argv, workingDirectory)) enqueueProjectPath(filePath);
 		if (mainWindow && !mainWindow.isDestroyed()) {
@@ -174,14 +174,14 @@ if (!app.requestSingleInstanceLock()) {
 }
 
 async function startApplication() {
-	await app.whenReady(); if (await desktopSmokeProbe.professionalNativeUtilitySmoke({ argv: process.argv, packaged: app.isPackaged, productId: PRODUCT_ID, userDataPath: app.getPath('userData'), nativePayloadLocation: Object.freeze({ applicationRoot: dirname(__dirname), packaged: app.isPackaged, resourcesPath: process.resourcesPath, platform: process.platform, arch: process.arch }), utilityProcess, helperPath: resolve(__dirname, 'soundscaper-professional-native-utility-smoke-helper.js'), log: console.log })) { await exitApplication(0); return; }
-	linkedVideoLocators = createDesktopLinkedVideoLocatorRuntime({ readCapabilities, registryPath: resolve(app.getPath('userData'), 'linked-video-locators-project-v1.json'), confirmFileSizeWarning: createDesktopSaveSizeWarningConfirmation((options) => dialog.showMessageBox(options), 'linking') });
+	await desktopStorage.migrate(); await app.whenReady(); if (await desktopSmokeProbe.professionalNativeUtilitySmoke({ argv: process.argv, packaged: app.isPackaged, productId: PRODUCT_ID, userDataPath: app.getPath('userData'), nativePayloadLocation: Object.freeze({ applicationRoot: dirname(__dirname), packaged: app.isPackaged, resourcesPath: process.resourcesPath, platform: process.platform, arch: process.arch }), utilityProcess, helperPath: resolve(__dirname, 'soundscaper-professional-native-utility-smoke-helper.js'), log: console.log })) { await exitApplication(0); return; }
+	linkedVideoLocators = createDesktopLinkedVideoLocatorRuntime({ readCapabilities, registryPath: resolve(desktopStorage.dataRoot, 'linked-video-locators-project-v1.json'), confirmFileSizeWarning: createDesktopSaveSizeWarningConfirmation((options) => dialog.showMessageBox(options), 'linking') });
 	await linkedVideoLocators.ready();
 	if (applicationShutdown.requested) return;
 	const libraryStartup = startDesktopProjectLibraryProductRuntime({
 		productId: PRODUCT_ID, confirmFileSizeWarning: createDesktopSaveSizeWarningConfirmation((options) => dialog.showMessageBox(options)),
 		appDataPath: resolveDesktopProjectLibraryAppData({
-			applicationDataPath: app.getPath('appData'),
+			applicationDataPath: desktopStorage.projectLibraryAppData,
 			argv: process.argv,
 		}),
 		processId: process.pid,
@@ -201,11 +201,11 @@ async function startApplication() {
 	if (applicationShutdown.requested) return;
 	if (process.platform === 'win32') app.setAppUserModelId(APP_ID);
 	const resources = resourceRoots();
-	settings = new DesktopSettingsStore(resolve(app.getPath('userData'), 'desktop-settings.json'));
+	settings = new DesktopSettingsStore(resolve(desktopStorage.configRoot, 'desktop-settings.json'));
 	await settings.load([app.getLocale(), ...app.getPreferredSystemLanguages()]);
 	if (applicationShutdown.requested) return;
 	nativeServices = await startFramescaperNativeServicesRegistration({
-		productId: PRODUCT_ID, userDataPath: app.getPath('userData'), instanceId: randomUUID(),
+		productId: PRODUCT_ID, userDataPath: desktopStorage.stateRoot, dataDataPath: desktopStorage.dataRoot, cacheDataPath: desktopStorage.cacheRoot, renderInputDataPath: desktopStorage.renderInputRoot, instanceId: randomUUID(),
 		processId: process.pid, settings,
 		projectAuthority: projectLibraryRuntime.nativeServicesAuthority(),
 		imageSequenceImportAuthority: PRODUCT_ID === 'framescaper' ? FRAMESCAPER_IMAGE_SEQUENCE_IMPORT_AUTHORITY : null,
@@ -214,7 +214,7 @@ async function startApplication() {
 		...createFramescaperNativeServicesElectronPorts(settings, (error) => console.error('Framescaper native service failed:', cleanError(error))),
 	});
 	releaseChecker = new ReleaseChecker({ currentVersion: app.getVersion(), settings, tagPrefix: UPDATE_TAG_PREFIX });
-	freesound = await createDesktopFreesoundIntegration({ appOrigin: APP_ORIGIN, apiOrigin: 'https://soundscaper.org', channels: IPC, filePath: resolve(app.getPath('userData'), 'freesound-session.json'), handle, platform: process.platform, productId: PRODUCT_ID, safeStorage, shell });
+	freesound = await createDesktopFreesoundIntegration({ appOrigin: APP_ORIGIN, apiOrigin: 'https://soundscaper.org', channels: IPC, filePath: resolve(desktopStorage.stateRoot, 'freesound-session.json'), handle, platform: process.platform, productId: PRODUCT_ID, safeStorage, shell });
 	const desktopSession = session.fromPartition(SESSION_PARTITION);
 	await desktopSession.protocol.handle(APP_SCHEME, createProtocolHandler({
 		productId: PRODUCT_ID,
@@ -367,14 +367,14 @@ async function registerIpcHandlers(desktopSession) {
 		removeHandler: (channel) => ipcMain.removeHandler(channel),
 		session: desktopSession,
 	});
-	soundscaperDelivery = await startSoundscaperDeliveryRegistration({ productId: PRODUCT_ID, applicationVersion: app.getVersion(), declaredApplicationVersion: DECLARED_APPLICATION_VERSION, releaseChannel: RELEASE_CHANNEL, nativePayloadLocation: Object.freeze({ applicationRoot: dirname(__dirname), packaged: app.isPackaged, resourcesPath: process.resourcesPath, platform: process.platform, arch: process.arch }), userDataPath: app.getPath('userData'), instanceId: randomUUID(), processId: process.pid, projectLibraryRuntime, handle, removeHandler: (channel) => ipcMain.removeHandler(channel), on: (channel, listener) => ipcMain.on(channel, listener), removeListener: (channel, listener) => ipcMain.removeListener(channel, listener), ownerFor: rendererSaveOwnerFor, dialog, windowFor: () => mainWindow });
+	soundscaperDelivery = await startSoundscaperDeliveryRegistration({ productId: PRODUCT_ID, applicationVersion: app.getVersion(), declaredApplicationVersion: DECLARED_APPLICATION_VERSION, releaseChannel: RELEASE_CHANNEL, nativePayloadLocation: Object.freeze({ applicationRoot: dirname(__dirname), packaged: app.isPackaged, resourcesPath: process.resourcesPath, platform: process.platform, arch: process.arch }), userDataPath: desktopStorage.stateRoot, instanceId: randomUUID(), processId: process.pid, projectLibraryRuntime, handle, removeHandler: (channel) => ipcMain.removeHandler(channel), on: (channel, listener) => ipcMain.on(channel, listener), removeListener: (channel, listener) => ipcMain.removeListener(channel, listener), ownerFor: rendererSaveOwnerFor, dialog, windowFor: () => mainWindow });
 	nativeServices?.registerRendererBridge({ handle, ownerFor: rendererSaveOwnerFor, removeHandler: (channel) => ipcMain.removeHandler(channel), on: (channel, listener) => ipcMain.on(channel, listener), removeListener: (channel, listener) => ipcMain.removeListener(channel, listener) });
 	linkedVideoLocators.registerIpc({ dialog, handle, ownerFor: rendererSaveOwnerFor, windowFor: () => mainWindow });
-	nativeTier = registerDesktopNativeTier({ channels: IPC, handle, ownerFor: rendererSaveOwnerFor, readCapabilities, settings, desktopRoot: __dirname, packaged: app.isPackaged, resourcesPath: process.resourcesPath, userDataPath: app.getPath('userData'), parentWindow: () => mainWindow, productId: PRODUCT_ID, nativePluginStateAuthority: () => projectLibraryRuntime.nativePluginStateAuthority() });
+	nativeTier = registerDesktopNativeTier({ channels: IPC, handle, ownerFor: rendererSaveOwnerFor, readCapabilities, settings, desktopRoot: __dirname, packaged: app.isPackaged, resourcesPath: process.resourcesPath, userDataPath: desktopStorage.configRoot, stateDataPath: desktopStorage.stateRoot, parentWindow: () => mainWindow, productId: PRODUCT_ID, nativePluginStateAuthority: () => projectLibraryRuntime.nativePluginStateAuthority() });
 	await nativeTier.ready();
 	registerDesktopNativeTierControls({ channels: IPC, handle, ownerFor: rendererSaveOwnerFor, settings, tier: nativeTier });
-	externalFfmpegPreferences = await registerExternalFfmpegPreferences({ channels: IPC, handle, removeHandler: (channel) => ipcMain.removeHandler(channel), settings, dialog, windowFor: () => mainWindow, platform: process.platform, architecture: process.arch, userDataPath: app.getPath('userData'), environment: process.env });
-	desktopCodecs = await registerDesktopCodecProviders({ channels: IPC, handle, removeHandler: (channel) => ipcMain.removeHandler(channel), ownerFor: rendererSaveOwnerFor, productId: PRODUCT_ID, externalFfmpegPreferences: externalFfmpegPreferences.service, platform: process.platform, architecture: process.arch, operatingSystemVersion: process.getSystemVersion(), userDataPath: app.getPath('userData'), desktopRoot: __dirname, runtimeRoot: resourceRoots().runtime, packaged: app.isPackaged, resourcesPath: process.resourcesPath, forkUtilityProcess: (modulePath, arguments_, options) => utilityProcess.fork(modulePath, arguments_, options), environment: process.env });
+	externalFfmpegPreferences = await registerExternalFfmpegPreferences({ channels: IPC, handle, removeHandler: (channel) => ipcMain.removeHandler(channel), settings, dialog, windowFor: () => mainWindow, platform: process.platform, architecture: process.arch, userDataPath: desktopStorage.cacheRoot, environment: process.env });
+	desktopCodecs = await registerDesktopCodecProviders({ channels: IPC, handle, removeHandler: (channel) => ipcMain.removeHandler(channel), ownerFor: rendererSaveOwnerFor, productId: PRODUCT_ID, externalFfmpegPreferences: externalFfmpegPreferences.service, platform: process.platform, architecture: process.arch, operatingSystemVersion: process.getSystemVersion(), userDataPath: desktopStorage.cacheRoot, desktopRoot: __dirname, runtimeRoot: resourceRoots().runtime, packaged: app.isPackaged, resourcesPath: process.resourcesPath, forkUtilityProcess: (modulePath, arguments_, options) => utilityProcess.fork(modulePath, arguments_, options), environment: process.env });
 	handle(IPC.environment, () => ({
 		platform: process.platform,
 		arch: process.arch,
@@ -397,7 +397,7 @@ async function registerIpcHandlers(desktopSession) {
 		return locale;
 	});
 	handle(IPC.checkForUpdates, () => checkForUpdates(true));
-	assistance = registerAssistance({ channels: IPC, handle, on, sendToRenderer, app, settings, dialog, windowFor: () => mainWindow, externalFfmpegPreferences: externalFfmpegPreferences.service }); assistanceSemanticSearch = registerAssistanceSemanticSearchMainIpc({ handle, removeHandler: (channel) => ipcMain.removeHandler(channel), ownerFor: rendererSaveOwnerFor, query: assistance.semanticQuery });
+	assistance = registerAssistance({ channels: IPC, handle, on, sendToRenderer, app, storagePaths: desktopStorage, settings, dialog, windowFor: () => mainWindow, externalFfmpegPreferences: externalFfmpegPreferences.service }); assistanceSemanticSearch = registerAssistanceSemanticSearchMainIpc({ handle, removeHandler: (channel) => ipcMain.removeHandler(channel), ownerFor: rendererSaveOwnerFor, query: assistance.semanticQuery });
 	registerHostAffordances({ channels: IPC, handle, windowFor: () => mainWindow });
 	handle(IPC.windowAction, (_event, action) => runCurrentWindowAction(action));
 	on(IPC.rendererReady, () => {

@@ -76,6 +76,51 @@ test('runtime installer downloads once, verifies, and installs only on explicit 
 	assert.equal(fetches, 1);
 });
 
+test('runtime installer keeps archives in its explicit cache and reuses them after reinstall', async (t) => {
+	const root = await mkdtemp(join(tmpdir(), 'scape-runtime-separate-cache-'));
+	t.after(() => rm(root, { recursive: true, force: true }));
+	const archive = tar([{ path: 'bin/runtime', bytes: PAYLOAD }]);
+	const pinned = distribution(archive);
+	const runtimeRoot = join(root, 'data', 'runtime');
+	const archiveCacheRoot = join(root, 'cache', 'runtime-archives');
+	const installedRoot = join(runtimeRoot, pinned.bundles[0]!.installPath);
+	let fetches = 0;
+	const options = {
+		distribution: pinned, runtimeRoot, archiveCacheRoot,
+		platform: 'linux', architecture: 'x64',
+		fetchImpl: (async () => {
+			fetches++;
+			return { status: 200, headers: { get: () => String(archive.byteLength) },
+				body: (async function* () { yield archive; })() };
+		}) as unknown as typeof fetch,
+	};
+	const installer = createAssistanceRuntimeInstaller(options);
+	await installer.ensure('onnxruntime-node');
+	assert.equal(fetches, 1);
+	assert.deepEqual(await readFile(join(installedRoot, 'bin/runtime')), PAYLOAD);
+	assert.deepEqual(await readFile(join(archiveCacheRoot, 'blobs', `sha256-${sha256(archive)}`)), archive);
+	await assert.rejects(lstat(join(runtimeRoot, '.archives')), { code: 'ENOENT' });
+
+	await rm(installedRoot, { recursive: true });
+	const restartedInstaller = createAssistanceRuntimeInstaller(options);
+	assert.equal(await restartedInstaller.isInstalled('onnxruntime-node'), false);
+	assert.equal(await restartedInstaller.pendingDownloadBytes('onnxruntime-node'), 0);
+	await restartedInstaller.ensure('onnxruntime-node');
+	assert.equal(fetches, 1, 'the verified cached archive permits an offline reinstall');
+	assert.deepEqual(await readFile(join(installedRoot, 'bin/runtime')), PAYLOAD);
+	await assert.rejects(lstat(join(runtimeRoot, '.archives')), { code: 'ENOENT' });
+});
+
+test('runtime installer rejects an invalid explicit archive cache root', () => {
+	const archive = tar([{ path: 'bin/runtime', bytes: PAYLOAD }]);
+	for (const archiveCacheRoot of ['', 'relative/cache', '/invalid\0cache', `${tmpdir()}/cache/..`]) {
+		assert.throws(() => createAssistanceRuntimeInstaller({
+			distribution: distribution(archive), runtimeRoot: tmpdir(), archiveCacheRoot,
+			platform: 'linux', architecture: 'x64',
+		}), /absolute canonical path/iu);
+	}
+});
+
 test('runtime installer accepts the pinned Kokoro directory depth on Windows', async (t) => {
 	const root = await mkdtemp(join(tmpdir(), 'scape-runtime-kokoro-depth-'));
 	t.after(() => rm(root, { recursive: true, force: true }));

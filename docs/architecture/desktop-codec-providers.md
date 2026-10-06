@@ -201,3 +201,35 @@ territory, or distribution method.
   generation, normalized settings, and input/output digests in each bounded
   in-memory receipt. Receipt timing is deliberately `null`; the current broker
   does not claim elapsed-time or padding measurement.
+
+## Linux storage
+
+The desktop application respects the XDG base directories, with separate
+`Soundscaper` and `Framescaper` directories. Empty or relative data, cache, and
+state overrides are ignored. The defaults are:
+
+| Class | Default directory | Contents |
+| --- | --- | --- |
+| Configuration | `~/.config/Soundscaper` | Settings and plug-in permissions |
+| Data | `~/.local/share/Soundscaper` | Browser projects, models and installed AI engines |
+| Cache | `~/.cache/Soundscaper` | Codec scratch, browser caches and downloaded engine archives |
+| State | `~/.local/state/Soundscaper` | Delivery queues, authentication sessions, quarantine, logs and crash reports |
+
+The native project library is stored beneath
+`$XDG_DATA_HOME/kw.media/soundscaper-project-library/v1`, defaulting to
+`~/.local/share/kw.media/soundscaper-project-library/v1`. Framescaper uses its
+own `framescaper-project-library/v1` directory. Browser IndexedDB and OPFS stay
+in the data directory; only disposable Chromium cache directories are linked
+to the cache directory. Large audio scratch files do not use `XDG_RUNTIME_DIR`.
+
+Startup migrates the known legacy files from the configuration directory after
+acquiring the single-instance lock and before opening services or editor
+sessions. Electron-owned profile files move synchronously before Electron
+becomes ready. Cross-filesystem copies are verified before source files are removed.
+Existing destinations are never overwritten; conflicting or unsupported paths
+stop startup with an error so both copies remain available. User-selected model
+directories retain their setting. Pending Framescaper render-input carriers
+retain their legacy directory until the queue drains, preserving their pinned
+filesystem identities; subsequent startups use the state directory. Explicit `--user-data-dir` profiles and
+artifact smoke, nightly, and soak runs retain their isolated layout. macOS and
+Windows retain their existing directories.
