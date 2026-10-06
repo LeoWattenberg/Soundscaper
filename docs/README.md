@@ -53,6 +53,8 @@ belong in Git history, not in the maintained documentation set.
   [dialogs](development/bugfix-round2-dialogs.md),
   [effects and analysis](development/bugfix-round2-effects-analysis.md), and
   [import and export](development/bugfix-round2-io.md).
+- The [second audit index](development/bugfix-round2.md) records the additional
+  100 defects, counting criteria, and combined validation.
 
 ## Operate and release
 
