@@ -174,7 +174,7 @@ body[data-editor-skin]:not([data-editor-skin='default'], [data-editor-skin='high
 	cursor: pointer;
 }
 
-.editor-skin-carousel__step:disabled {
+.editor-skin-carousel__step[aria-disabled='true'] {
 	opacity: .4;
 	cursor: default;
 }

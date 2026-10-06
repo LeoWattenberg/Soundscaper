@@ -48,11 +48,11 @@ export default function SkinCarousel({ current, copy, children }: {
 	};
 	return <div className="editor-skin-carousel" role="group" aria-label={copy.skin} aria-roledescription={copy.skinCarousel}>
 		<button type="button" className="editor-skin-carousel__step" aria-label={copy.skinPrevious} aria-controls={id}
-			disabled={edges.start} onClick={() => { browse(-1); }}><span aria-hidden="true">‹</span></button>
+			aria-disabled={edges.start} onClick={() => { if (!edges.start) browse(-1); }}><span aria-hidden="true">‹</span></button>
 		<div ref={viewport} id={id} className="editor-skin-choices" onScroll={updateEdges} onKeyDown={navigate}>
 			{children}
 		</div>
 		<button type="button" className="editor-skin-carousel__step" aria-label={copy.skinNext} aria-controls={id}
-			disabled={edges.end} onClick={() => { browse(1); }}><span aria-hidden="true">›</span></button>
+			aria-disabled={edges.end} onClick={() => { if (!edges.end) browse(1); }}><span aria-hidden="true">›</span></button>
 	</div>;
 }
