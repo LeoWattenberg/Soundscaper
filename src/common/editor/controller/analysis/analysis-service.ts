@@ -125,6 +125,7 @@ interface StoredAnalysis {
 
 export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 	let specializedCache: Readonly<{ key: string; result: unknown; visuals: unknown; report: unknown }> | null = null;
+	const finishedTasks = new WeakSet<EditorTaskScope>();
 	const {
 		lifetime,
 		copy,
@@ -168,9 +169,11 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 			const cached = readStoredAnalysis(await dependencies.loadAnalysis(key));
 			assertCurrent(task, projectToken, request);
 			if (cached?.result) {
-				dependencies.showAnalysis(cached.result, cached.visuals, cached.report || levelsReport(scope, request.range));
-				remember({ type: 'levels', scope });
-				setLocalizedStatus(dependencies.setStatus, copy, "analysisCached", undefined, 'success');
+				complete(task, () => {
+					dependencies.showAnalysis(cached.result, cached.visuals, cached.report || levelsReport(scope, request.range));
+					remember({ type: 'levels', scope });
+					setLocalizedStatus(dependencies.setStatus, copy, "analysisCached", undefined, 'success');
+				});
 				return cached.result;
 			}
 			const { channels, sampleRate, result } = await renderAndAnalyze(request, task, projectToken);
@@ -184,8 +187,10 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 				createdAt: new Date().toISOString(),
 			});
 			assertCurrent(task, projectToken, request);
-			remember({ type: 'levels', scope });
-			setLocalizedStatus(dependencies.setStatus, copy, "done", undefined, 'success');
+			complete(task, () => {
+				remember({ type: 'levels', scope });
+				setLocalizedStatus(dependencies.setStatus, copy, "done", undefined, 'success');
+			});
 			return result;
 		} catch (error) {
 			handleTaskError(error);
@@ -208,10 +213,13 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 				: { threshold: Number(options.threshold ?? 1), minimumConsecutiveSamples: Number(options.minimumConsecutiveSamples ?? 3) };
 			const key = JSON.stringify([request, type, reportOptions]);
 			if (specializedCache?.key === key) {
-				dependencies.showAnalysis(specializedCache.result, specializedCache.visuals, specializedCache.report);
-				remember({ type, scope, options: Object.freeze({ ...options }) });
-				setLocalizedStatus(dependencies.setStatus, copy, 'analysisCached', undefined, 'success');
-				return specializedCache.report;
+				const cached = specializedCache;
+				complete(task, () => {
+					dependencies.showAnalysis(cached.result, cached.visuals, cached.report);
+					remember({ type, scope, options: Object.freeze({ ...options }) });
+					setLocalizedStatus(dependencies.setStatus, copy, 'analysisCached', undefined, 'success');
+				});
+				return cached.report;
 			}
 			const { channels, sampleRate } = await renderChannels(request, task, projectToken);
 			const visuals = dependencies.createVisuals(channels, sampleRate);
@@ -233,10 +241,12 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 				]);
 			} catch (error) { abort.abort(error); throw error; }
 			assertCurrent(task, projectToken, request);
-			dependencies.showAnalysis(result, visuals, report);
-			specializedCache = { key, result, visuals, report };
-			remember({ type, scope, options: Object.freeze({ ...options }) });
-			setLocalizedStatus(dependencies.setStatus, copy, "done", undefined, 'success');
+			complete(task, () => {
+				dependencies.showAnalysis(result, visuals, report);
+				specializedCache = { key, result, visuals, report };
+				remember({ type, scope, options: Object.freeze({ ...options }) });
+				setLocalizedStatus(dependencies.setStatus, copy, "done", undefined, 'success');
+			});
 			return report;
 		} catch (error) {
 			handleTaskError(error);
@@ -280,10 +290,12 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 				differenceDb,
 				passes: Number.isFinite(differenceDb) ? Number(differenceDb) >= minimumDifferenceDb : null,
 			});
-			dependencies.showAnalysis(result, dependencies.createVisuals(channels, sampleRate), report);
-			remember({ type: 'contrast', role, scope, options: Object.freeze({ ...options }) });
 			const roleLabel = { key: role === 'foreground' ? 'contrastForegroundRole' : 'contrastBackgroundRole' };
-			setLocalizedStatus(dependencies.setStatus, copy, "contrastStored", { role: roleLabel }, 'success');
+			complete(task, () => {
+				dependencies.showAnalysis(result, dependencies.createVisuals(channels, sampleRate), report);
+				remember({ type: 'contrast', role, scope, options: Object.freeze({ ...options }) });
+				setLocalizedStatus(dependencies.setStatus, copy, "contrastStored", { role: roleLabel }, 'success');
+			});
 			return report;
 		} catch (error) {
 			handleTaskError(error);
@@ -335,8 +347,10 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 				scope: loudnessMeasurementScope(range),
 			});
 			assertCurrent(task, projectToken);
-			dependencies.state.deliveryReport = report;
-			setLocalizedStatus(dependencies.setStatus, copy, "loudnessMeasured", undefined, 'success');
+			complete(task, () => {
+				dependencies.state.deliveryReport = report;
+				setLocalizedStatus(dependencies.setStatus, copy, "loudnessMeasured", undefined, 'success');
+			});
 			return report;
 		} catch (error) {
 			handleTaskError(error);
@@ -395,6 +409,8 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 	}
 
 	function finish(task: EditorTaskScope): void {
+		if (finishedTasks.has(task)) return;
+		finishedTasks.add(task);
 		try {
 			task.assertCurrent();
 			dependencies.setProcessing(false);
@@ -404,6 +420,11 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 		} finally {
 			task.finish();
 		}
+	}
+
+	function complete(task: EditorTaskScope, operation: () => void): void {
+		const update = (): void => { operation(); finish(task); };
+		if (dependencies.batchPresentation) dependencies.batchPresentation(update); else update();
 	}
 
 	function handleTaskError(error: unknown): void {

@@ -140,3 +140,27 @@ test('specialized reports appear before generic meters and repeated reports reus
 	assert.equal(reportJobs, 1);
 	assert.equal(f.renders(), 1);
 });
+
+for (const cachedLevels of [false, true]) {
+	test(`complete analysis publication releases busy state in the same batch (cached levels: ${cachedLevels})`, async () => {
+		const f = createFixture(cachedLevels ? { result: { rmsDbfs: -24 } } : null);
+		let batch = 0; let nextBatch = 0;
+		const observed: Array<{ kind: string; batch: number }> = [];
+		const service = createAudioAnalysisService({ ...f.dependencies,
+			batchPresentation(operation) {
+				const prior = batch; batch = ++nextBatch;
+				try { operation(); } finally { batch = prior; }
+			},
+			createSpecializedReport: async () => ({ type: 'spectrum', size: 32 }),
+			showAnalysis: () => { observed.push({ kind: 'show', batch }); },
+			setStatus: (_status, status) => { if (status === 'success') observed.push({ kind: 'success', batch }); },
+			setProcessing: processing => { if (!processing) observed.push({ kind: 'idle', batch }); },
+		});
+		if (cachedLevels) await service.run(); else await service.plotSpectrum();
+		const completion = observed.slice(-3);
+		assert.deepEqual(completion.map(value => value.kind), ['show', 'success', 'idle']);
+		assert.ok(completion[0]!.batch > 0);
+		assert.equal(new Set(completion.map(value => value.batch)).size, 1);
+		assert.equal(observed.filter(value => value.kind === 'idle').length, 1);
+	});
+}
