@@ -177,6 +177,21 @@ test('generator persists audio and commits a prepared range replacement exactly 
 	]);
 });
 
+test('Silence audio covers every selected track in one edit', async () => {
+	const base = project();
+	const activeProject = { ...base,
+		selection: { startFrame: 10, endFrame: 20, trackIds: ['track-a', 'track-b'] },
+		tracks: [...base.tracks, { id: 'track-b', type: 'audio' as const, clipIds: ['clip-b'] }],
+		clips: [...base.clips, { ...base.clips[0]!, id: 'clip-b' }],
+	};
+	const fixture = createFixture({ getProject: () => activeProject });
+	const service = createAudioGeneratorService(fixture.dependencies);
+	await service.generateSelectionSilence();
+	const command = fixture.commits[0]?.command;
+	assert.ok(command?.type === 'batch');
+	assert.deepEqual(command.commands.filter((item) => item.type === 'clip/add').map((item) => item.trackId), ['track-a', 'track-b']);
+});
+
 test('late writer completion after a project switch rolls back and cannot commit', async () => {
 	const committing = deferred<void>();
 	const fixture = createFixture({

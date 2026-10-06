@@ -23,11 +23,13 @@ export function GeneratorNumberField({ name, label, ariaLabel = label, value, mi
 		if (!input) return undefined;
 		input.setAttribute('aria-label', ariaLabel);
 		const handleBlur = () => {
-			setDraft((current) => current.trim() && Number.isFinite(Number(current)) ? current : String(valueRef.current));
+			const number = input.value.trim() ? Number(input.value) : Number.NaN;
+			setDraft(String(Number.isFinite(number)
+				? Math.max(min ?? -Infinity, Math.min(max ?? Infinity, number)) : valueRef.current));
 		};
 		input.addEventListener('blur', handleBlur);
 		return () => input.removeEventListener('blur', handleBlur);
-	}, [ariaLabel]);
+	}, [ariaLabel, max, min]);
 	useEffect(() => {
 		if (document.activeElement !== inputRef.current) setDraft(String(value));
 	}, [value]);
@@ -43,7 +45,9 @@ export function GeneratorNumberField({ name, label, ariaLabel = label, value, mi
 				width="100%"
 				onChange={(next) => {
 					setDraft(next);
-					if (next.trim() && Number.isFinite(Number(next))) onChange(Number(next));
+					if (next.trim() && Number.isFinite(Number(next))) {
+						onChange(Math.max(min ?? -Infinity, Math.min(max ?? Infinity, Number(next))));
+					}
 				}}
 			/>
 		</label>

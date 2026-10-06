@@ -22,8 +22,10 @@ import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-worksp
 const MORSE_SPEED_RANGE = Object.freeze({ minimum: 5, maximum: 60 });
 
 export default function GeneratorDialog({ type, controller, copy, locale, run, onClose }) {
-	const [params, setParams] = useState(() => generatorDefaults(type));
-	useEffect(() => setParams(generatorDefaults(type)), [type]);
+	const project = controller.project;
+	const sampleRate = project?.sampleRate || 48_000;
+	const [params, setParams] = useState(() => generatorDefaults(type, project));
+	useEffect(() => setParams(generatorDefaults(type, controller.project)), [controller, type]);
 	const [pending, setPending] = useState(false);
 	const activeGenerationRef = useRef(null);
 	useEffect(() => {
@@ -80,6 +82,7 @@ export default function GeneratorDialog({ type, controller, copy, locale, run, o
 		<AudioEditorTimeCodeInput
 			label={label}
 			value={params[name]}
+			sampleRate={sampleRate}
 			minimum={options.min}
 			maximum={options.max}
 			onChange={(value) => update(name, value)}
@@ -147,7 +150,7 @@ export default function GeneratorDialog({ type, controller, copy, locale, run, o
 						{type === 'tone' && (
 							<div className="kw-audio-editor-generator__standard-grid" data-generator-layout="tone">
 								<GeneratorSelect label={copy.generatorWaveform} value={params.waveform} onChange={(value) => update('waveform', value)} options={waveformOptions} />
-								{numberField('frequency', copy.generatorFrequency, { min: 0.01, max: 96_000, step: 1 })}
+								{numberField('frequency', copy.generatorFrequency, { min: 0.01, max: sampleRate / 2, step: 1 })}
 								{numberField('amplitude', copy.generatorAmplitude, { min: 0, max: 1, step: 0.01 })}
 								{timeField('durationSeconds', copy.generatorDuration, { min: 0.001, max: 86_400 })}
 							</div>
@@ -174,8 +177,8 @@ export default function GeneratorDialog({ type, controller, copy, locale, run, o
 										/>
 										<Separator />
 										<div className="kw-audio-editor-generator__pair">
-											{numberField('startFrequency', copy.generatorStartFrequency, { min: 0.01, max: 96_000, step: 1 })}
-											{numberField('endFrequency', copy.generatorEndFrequency, { min: 0.01, max: 96_000, step: 1 })}
+											{numberField('startFrequency', copy.generatorStartFrequency, { min: 0.01, max: sampleRate / 2, step: 1 })}
+											{numberField('endFrequency', copy.generatorEndFrequency, { min: 0.01, max: sampleRate / 2, step: 1 })}
 										</div>
 									</PreferencePanel>
 								</div>
@@ -256,7 +259,7 @@ export default function GeneratorDialog({ type, controller, copy, locale, run, o
 									</PreferencePanel>
 								</div>
 								<div className="kw-audio-editor-generator__pair">
-									{numberField('frequency', copy.generatorFrequency, { min: 0.01, max: 96_000, step: 1 })}
+									{numberField('frequency', copy.generatorFrequency, { min: 0.01, max: sampleRate / 2, step: 1 })}
 									{numberField('amplitude', copy.generatorAmplitude, { min: 0, max: 1, step: 0.01 })}
 								</div>
 								<label className="kw-audio-editor-dialog__field" data-generator-field="durationSeconds">
@@ -264,6 +267,7 @@ export default function GeneratorDialog({ type, controller, copy, locale, run, o
 									<AudioEditorTimeCodeInput
 										label={copy.generatorDuration}
 										value={morse.durationSeconds}
+										sampleRate={sampleRate}
 										disabled
 									/>
 								</label>
@@ -292,6 +296,7 @@ export default function GeneratorDialog({ type, controller, copy, locale, run, o
 											<AudioEditorTimeCodeInput
 												label={copy.generatorDuration}
 												value={dtmfTiming.totalSeconds}
+												sampleRate={sampleRate}
 												minimum={0.001}
 												maximum={86_400}
 												onChange={(value) => updateDtmfTiming({ totalSeconds: value })}
@@ -410,19 +415,22 @@ function generatorWaveformOptions(copy) {
 	return [['sine', copy.generatorSine], ['square', copy.generatorSquare], ['sawtooth', copy.generatorSawtooth]];
 }
 
-function generatorDefaults(type) {
-	const common = { durationSeconds: 30 };
+function generatorDefaults(type, project) {
+	const selection = project?.selection;
+	const durationSeconds = selection?.endFrame > selection?.startFrame
+		? (selection.endFrame - selection.startFrame) / project.sampleRate : 30;
+	const common = { durationSeconds };
 	if (type === 'tone') return { ...common, amplitude: 0.8, frequency: 440, waveform: 'sine' };
 	if (type === 'chirp') return { ...common, startAmplitude: 0.8, endAmplitude: 0.8, startFrequency: 440, endFrequency: 1320, interpolation: 'logarithmic', waveform: 'sine' };
 	if (type === 'noise') return { ...common, amplitude: 0.8, color: 'white' };
 	if (type === 'dtmf') {
-		const durations = generatorDtmfDurations(30, 2 / 3 * 100, 3);
+		const durations = generatorDtmfDurations(durationSeconds, 2 / 3 * 100, 3);
 		return { ...common, amplitude: 0.8, sequence: '123', toneSeconds: durations.toneSeconds, silenceSeconds: durations.silenceSeconds };
 	}
 	// Morse takes its length from the message and the sending speed, so the
 	// shared duration default would only describe a clip it never produces.
 	if (type === 'morse') return { amplitude: 0.8, frequency: 700, text: 'SOS', wordsPerMinute: 20 };
-	return { durationSeconds: 30 };
+	return common;
 }
 
 function generatorLabel(type, copy) {
