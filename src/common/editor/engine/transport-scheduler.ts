@@ -36,6 +36,7 @@ import { observeActiveStreamCompletion, unexpectedActiveStreamAbort } from './pl
 import { sampleProductionMeterSessionV21, suspendParallelProductionMeterSessionV21 } from './production-meter-runtime-session-v21.ts';
 import { ensureLiveAnalysisTap } from './live-analysis-tap.ts';
 import { readEngineMeter, readMasterMeter } from './engine-meter-reading.ts';
+import { reconcileEngineChannelMeters } from './engine-channel-meter-aggregate.ts';
 import type { MutableEngineMeterReading } from './engine-meter-reading.ts';
 import { ScheduledParameterRegistry, roundScheduledParameterContextFrameOffset } from './scheduled-parameter-registry.ts';
 import { isCutPreviewActive, releaseCutPreview } from './cut-preview.ts';
@@ -511,7 +512,7 @@ async [ENGINE_ENSURE_MASTER_LOUDNESS_METER](context) {
 				this.latestMasterLoudnessMeter,
 			)
 			: null;
-		const meter = { master, tracks, groups, sends, ...(production ?? {}) };
+		const meter = reconcileEngineChannelMeters({ master, tracks, groups, sends, ...(production ?? {}) });
 		for (const listener of this.meterListeners) listener(meter);
 	},
 

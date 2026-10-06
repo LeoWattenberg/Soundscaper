@@ -85,4 +85,25 @@ source-effect tests pass. The existing large test's unchanged harness moved to
 a focused strict helper so the frozen file shrinks. The two selection variants
 count as one result-admission defect.
 
+## R3-ROOT-005 — Live Analysis understates a stereo recording's peak
+
+Import an ordinary stereo WAV whose left channel peaks at 0.8 and whose right
+channel is silent. Choose **Analyze > Analysis**, play it and read **Peak** in
+the live Levels section.
+
+Previously the displayed level was about −8 dBFS instead of −1.94 dBFS. The
+legacy scalar reader measured the analyser's mono downmix even though the
+engine already had independent channel measurements. Published scalar peak now
+uses the greatest channel peak, and RMS summarizes channel power. Track and
+bus readings use their own channel banks. Existing analysis metadata and the
+legacy fallback when no channel bank is available remain intact.
+
+Proof: `audio-editor-round3-live-levels.spec.js` failed on the immutable baseline
+at −8 dBFS and passes on green build 7 in Chromium, Firefox and WebKit. Two
+strict regressions use the real channel meter store to verify master, track,
+group and send aggregation, metadata preservation and the fallback. All 18
+focused live/master/playback/worker meter tests pass. This scalar measurement
+defect differs from the earlier duplicate per-channel meter display and static
+Plot Spectrum transform; its channel variants count once.
+
 These changes do not require a manual **Update AI assets** run.
