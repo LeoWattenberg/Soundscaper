@@ -46,6 +46,15 @@ export class WavPackCodecClient {
 		return this.#enqueue('encode', geometry, options);
 	}
 
+	checksum(payload, options = {}) {
+		const geometry = normalizeRequestGeometry(payload, options, false);
+		if (options.pcmCrc32 !== undefined && (!Number.isSafeInteger(options.pcmCrc32)
+			|| options.pcmCrc32 < 0 || options.pcmCrc32 > 0xffffffff)) {
+			throw new RangeError('PCM CRC-32 is outside its unsigned 32-bit range.');
+		}
+		return this.#enqueue('checksum', { ...geometry, pcmCrc32: options.pcmCrc32 }, options);
+	}
+
 	decode(payload, options = {}) {
 		if (options.encoding !== PCM_ENCODING_WAVPACK_F32_V1) {
 			return Promise.reject(new TypeError('WavPack decode requires wavpack-f32-v1 encoding.'));

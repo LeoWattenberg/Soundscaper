@@ -92,6 +92,15 @@ export function packPlanarFloat32(channels) {
 }
 
 export function unpackPlanarFloat32(payload, frames, channelCount) {
+	return unpackFloat32(payload, frames, channelCount, false);
+}
+
+/** Consume a private, validated payload whose bytes are no longer retained by its producer. */
+export function unpackOwnedPlanarFloat32(payload, frames, channelCount) {
+	return unpackFloat32(payload, frames, channelCount, true);
+}
+
+function unpackFloat32(payload, frames, channelCount, owned) {
 	const buffer = exactArrayBuffer(payload);
 	const expectedBytes = pcmRawByteLength(frames, channelCount);
 	if (buffer.byteLength !== expectedBytes) {
@@ -104,10 +113,8 @@ export function unpackPlanarFloat32(payload, frames, channelCount) {
 	const channels = [];
 	if (littleEndian) {
 		for (let channel = 0; channel < channelCount; channel += 1) {
-			channels.push(new Float32Array(buffer.slice(
-				channel * channelBytes,
-				(channel + 1) * channelBytes,
-			)));
+			channels.push(owned ? new Float32Array(buffer, channel * channelBytes, frames)
+				: new Float32Array(buffer.slice(channel * channelBytes, (channel + 1) * channelBytes)));
 		}
 	} else {
 		const source = new DataView(buffer);
