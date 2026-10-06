@@ -24,6 +24,12 @@ interface MeterTelemetryController {
 	readonly subscribeTelemetry: (listener: () => void) => () => void;
 }
 
+/** The track surface paints only these two values; precision stays unchanged. */
+export function sameTrackMeterDisplay(left: MeterSnapshot | undefined, right: MeterSnapshot | undefined): boolean {
+	return meterPercent(left?.dbfs) === meterPercent(right?.dbfs)
+		&& ((left?.peak || 0) >= 1) === ((right?.peak || 0) >= 1);
+}
+
 export function TrackTelemetryMeters({
 	controller,
 	trackId,
@@ -34,6 +40,7 @@ export function TrackTelemetryMeters({
 	const meter = useAudioEditorTelemetrySelector(
 		controller,
 		(telemetry: MeterTelemetrySnapshot) => telemetry.meters?.tracks?.[trackId],
+		sameTrackMeterDisplay,
 	);
 	return <StereoTrackMeters meter={meter} />;
 }
@@ -56,6 +63,7 @@ export function OutputTelemetryMeters({
 				? telemetry.meters?.groups?.[busId]
 				: telemetry.meters?.sends?.[busId];
 		},
+		sameTrackMeterDisplay,
 	);
 	return <StereoTrackMeters meter={meter} />;
 }
