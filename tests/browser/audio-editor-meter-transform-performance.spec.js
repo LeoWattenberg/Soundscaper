@@ -3,7 +3,7 @@
 import { readFile } from 'node:fs/promises';
 import { expect, test } from './audio-editor-test-fixtures.js';
 
-test('solid meter transforms retain visible bounds without repeated layout', async ({ page }) => {
+test('solid meter transforms retain visible bounds', async ({ page }) => {
 	const styles = await Promise.all(['02-overlays-search.css', '03-shell-toolbars-meters.css'].map(name =>
 		readFile(new URL(`../../src/common/editor/ui/audio-editor-design-system/${name}`, import.meta.url), 'utf8')));
 	await page.addStyleTag({ content: styles.join('\n') });
@@ -35,6 +35,10 @@ test('solid meter transforms retain visible bounds without repeated layout', asy
 		expect(result.x).toBe(0); expect(result.bottom).toBe(0);
 		expect(result.layoutWidth).toBe(100); expect(result.layoutHeight).toBe(100);
 	}
+});
+
+test('solid meter transforms avoid repeated layout in Chromium', async ({ page, browserName }) => {
+	test.skip(browserName !== 'chromium', 'LayoutCount is measured through Chromium CDP.');
 	const client = await page.context().newCDPSession(page);
 	await client.send('Performance.enable');
 	const layoutCount = async () => (await client.send('Performance.getMetrics')).metrics.find(metric => metric.name === 'LayoutCount').value;
