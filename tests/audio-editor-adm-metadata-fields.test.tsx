@@ -44,11 +44,22 @@ test('ADM numeric fields ignore invalid typed values before committing', async (
 		));
 		assert.ok(azimuth);
 		const onChange = reactProps(azimuth).onChange;
+		// Chromium reports an incomplete minus sign as an empty numeric value.
+		// Keeping that draft prevents React from restoring 0 over the typed sign.
+		await act(async () => onChange({
+			currentTarget: { value: '', checkValidity: () => false },
+		}));
+		assert.equal(azimuth.value, '');
+		assert.equal(commits.length, 0);
 
 		await act(async () => onChange({
 			currentTarget: { value: '200', checkValidity: () => false },
 		}));
 		assert.equal(commits.length, 0);
+		await act(async () => reactProps(azimuth).onBlur({
+			currentTarget: { value: '200', checkValidity: () => false },
+		}));
+		assert.equal(azimuth.value, '0', 'an invalid draft reverts when focus leaves');
 		await act(async () => onChange({
 			currentTarget: { value: '45', checkValidity: () => true },
 		}));

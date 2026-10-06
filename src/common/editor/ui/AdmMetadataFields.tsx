@@ -96,6 +96,33 @@ function validNumberInput(input: HTMLInputElement): number | null {
 	return Number.isFinite(value) ? value : null;
 }
 
+/** Keep incomplete number input local while committing valid positions live. */
+function DraftNumberInput({ value, onCommit, ...props }: Readonly<{
+	value: number;
+	min: number;
+	max: number;
+	step: number;
+	disabled: boolean;
+	'aria-label'?: string;
+	onCommit: (value: number) => void;
+}>) {
+	const [draft, setDraft] = useState(String(value));
+	useEffect(() => setDraft(String(value)), [value]);
+	return <input {...props} type="number" value={draft}
+		onChange={(event) => {
+			setDraft(event.currentTarget.value);
+			const next = validNumberInput(event.currentTarget);
+			if (next != null) onCommit(next);
+		}}
+		onBlur={(event) => {
+			if (validNumberInput(event.currentTarget) == null) setDraft(String(value));
+		}}
+		onKeyDown={(event) => {
+			if (event.key === 'Enter') event.currentTarget.blur();
+		}}
+	/>;
+}
+
 export function AdmMetadataFields({
 	value,
 	project,
@@ -194,17 +221,14 @@ export function AdmMetadataFields({
 							<option value="">{copy.none}</option>
 							{ADM_BED_CHANNEL_ORDER[authored.bed.layout].map((channel) => <option key={channel} value={channel}>{channel}</option>)}
 						</select>
-						<input
-							type="number"
-							min="0"
-							max="4"
-							step="0.01"
+						<DraftNumberInput
+							min={0}
+							max={4}
+							step={0.01}
 							aria-label={`${source.label} ${copy.gain}`}
 							value={assignment?.gain ?? 1}
 							disabled={disabled || !assignment}
-							onChange={(event) => {
-								const gain = validNumberInput(event.currentTarget);
-								if (gain == null) return;
+							onCommit={(gain) => {
 								onCommit(setAdmEditorAssignment(authored, {
 									...source,
 									bedChannel: assignment?.bedChannel ?? null,
@@ -272,16 +296,13 @@ function AdmObjectFields({ authored, copy, disabled, sourceChannels, createId, o
 					] as const).map(([coordinate, label, minimum, maximum]) => (
 						<label key={coordinate}>
 							<span>{label}</span>
-							<input
-								type="number"
+							<DraftNumberInput
 								min={minimum}
 								max={maximum}
 								step={coordinate === 'distance' ? 0.01 : 1}
 								value={object.position[coordinate]}
 								disabled={disabled}
-								onChange={(event) => {
-									const value = validNumberInput(event.currentTarget);
-									if (value == null) return;
+								onCommit={(value) => {
 									onCommit(setAdmEditorObject(authored, object.id, {
 										position: { ...object.position, [coordinate]: value },
 									}));
@@ -291,13 +312,11 @@ function AdmObjectFields({ authored, copy, disabled, sourceChannels, createId, o
 					))}
 					<label>
 						<span>{copy.gain}</span>
-						<input
-							type="number" min="0" max="4" step="0.01"
+						<DraftNumberInput
+							min={0} max={4} step={0.01}
 							value={object.gain}
 							disabled={disabled}
-							onChange={(event) => {
-								const gain = validNumberInput(event.currentTarget);
-								if (gain == null) return;
+							onCommit={(gain) => {
 								onCommit(setAdmEditorObject(authored, object.id, { gain }));
 							}}
 						/>
