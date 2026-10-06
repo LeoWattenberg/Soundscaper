@@ -11,6 +11,7 @@
 
 import React, { useCallback, useRef } from 'react';
 import { useAccessibilityProfile } from '../contexts/AccessibilityProfileContext';
+import { controlOwnsNavigationKeys } from './control-navigation-ownership';
 
 const DEFAULT_SELECTOR = 'button, select, input, [role="group"]';
 
@@ -130,6 +131,7 @@ export function useContainerTabGroup({
     (e: React.KeyboardEvent) => {
       if (!useArrows) return;
       if (e.defaultPrevented) return;
+      if (controlOwnsNavigationKeys(e.target)) return;
 
       const arrowKeys = ['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp'];
       const navKeys = [...arrowKeys, 'Home', 'End'];

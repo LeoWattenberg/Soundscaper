@@ -151,15 +151,10 @@ export const Knob: React.FC<KnobProps> = ({
 
   // Keyboard adjustment — fired when the knob's button has DOM focus,
   // not when the surrounding slot has it. Arrow up/right increases,
-  // down/left decreases; Shift accelerates 10×.
+  // down/left decreases; Shift accelerates 10×; Home/End set the endpoints.
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (disabled || !onChange) return;
-    if (
-      e.key === 'ArrowUp' ||
-      e.key === 'ArrowRight' ||
-      e.key === 'ArrowDown' ||
-      e.key === 'ArrowLeft'
-    ) {
+    if (['ArrowUp', 'ArrowRight', 'ArrowDown', 'ArrowLeft', 'Home', 'End'].includes(e.key)) {
       e.preventDefault();
       e.stopPropagation();
       if (!keyGestureRef.current) {
@@ -169,7 +164,8 @@ export const Knob: React.FC<KnobProps> = ({
       }
       const direction = e.key === 'ArrowUp' || e.key === 'ArrowRight' ? 1 : -1;
       const stepSize = e.shiftKey ? step * 10 : step;
-      const newValue = Math.max(min, Math.min(max, clampedValue + direction * stepSize));
+      const newValue = e.key === 'Home' ? min : e.key === 'End' ? max
+        : Math.max(min, Math.min(max, clampedValue + direction * stepSize));
       if (newValue !== clampedValue) {
         gestureValueRef.current = newValue;
         onChange(newValue);
@@ -182,7 +178,7 @@ export const Knob: React.FC<KnobProps> = ({
   };
 
   const finishKeyGesture = (e?: React.KeyboardEvent) => {
-    if (e && !['ArrowUp', 'ArrowRight', 'ArrowDown', 'ArrowLeft'].includes(e.key)) return;
+    if (e && !['ArrowUp', 'ArrowRight', 'ArrowDown', 'ArrowLeft', 'Home', 'End'].includes(e.key)) return;
     if (!keyGestureRef.current) return;
     keyGestureRef.current = false;
     onGestureEnd?.(gestureValueRef.current);

@@ -8,6 +8,7 @@ import {
 import { audacityShortcutCommandUnassignable } from '../audacity-shortcut-command-inventory.ts';
 import { audioEditorShortcutParts, normalizeAudioEditorShortcut } from '../preferences.js';
 import { keyboardShortcutEventKey } from './keyboard-shortcut-key.ts';
+import { controlOwnsNavigationKeys } from '@soundscaper/design-system/hooks/control-navigation-ownership';
 import type { FocusEvent as ReactFocusEvent, KeyboardEvent as ReactKeyboardEvent } from 'react';
 
 type ShortcutHandler = () => unknown;
@@ -270,6 +271,7 @@ export function findShortcutMenuHandler(
 }
 
 export function handleEditorToolbarKeyDown(event: ReactKeyboardEvent<HTMLElement>): void {
+	if (controlOwnsNavigationKeys(event.target)) return;
 	if (event.target instanceof Element && event.target.closest('[role="menu"], [role="dialog"]')) return;
 	if (!['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
 	const toolbar = event.currentTarget.querySelector('.toolbar[role="toolbar"]');

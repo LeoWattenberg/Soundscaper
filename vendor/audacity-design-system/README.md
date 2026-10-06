@@ -313,6 +313,14 @@ application overrides and source patches against the pin and upstream master.
     Hosts that persist on confirmation no longer have to wait for focus to
     leave the whole field. Covered by `tests/audio-editor-timecode-commit.test.tsx`
     and `tests/browser/audio-editor-timecode-commit-regressions.spec.js`.
+40. `useContainerTabGroup` lets editable controls and sliders own their
+    navigation keys, keeping native stepping and caret movement available
+    inside toolbars. Covered by `tests/audio-editor-toolbar-field-navigation.test.tsx`
+    and `tests/browser/audio-editor-toolbar-field-navigation-regressions.spec.js`.
+41. `Knob` implements Home and End to reach its advertised minimum and maximum
+    using the same keyboard gesture lifecycle as arrow adjustments. Covered by
+    `tests/audio-editor-knob-endpoint.test.tsx` and
+    `tests/browser/audio-editor-knob-endpoint-regressions.spec.js`.
 
 ## Application-side adaptations
 
