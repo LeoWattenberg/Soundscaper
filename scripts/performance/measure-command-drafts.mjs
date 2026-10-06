@@ -43,18 +43,25 @@ export { applySoundscaperProjectFoundationCommand } from './${authorityPath}';`,
 		const options = { now: '2026-10-06T00:00:00Z' };
 		const expected = versions[0].runtime.applySoundscaperProjectFoundationCommand(project, command, options);
 		assert.deepEqual(versions[1].runtime.applySoundscaperProjectFoundationCommand(project, command, options), expected);
-		for (const { name, runtime } of versions) {
-			const milliseconds = [];
-			for (let repeat = 0; repeat < 5; repeat++) {
+		for (let warmup = 0; warmup < 3; warmup++) {
+			for (const { runtime } of versions) runtime.applySoundscaperProjectFoundationCommand(project, command, options);
+		}
+		const trials = new Map(versions.map(({ name }) => [name, []]));
+		for (let repeat = 0; repeat < 8; repeat++) {
+			for (const { name, runtime } of repeat % 2 === 0 ? versions : versions.toReversed()) {
 				const started = performance.now();
 				runtime.applySoundscaperProjectFoundationCommand(project, command, options);
-				milliseconds.push(performance.now() - started);
+				trials.get(name).push(performance.now() - started);
 			}
-			observations.push({ name, clipCount, milliseconds, medianMilliseconds: [...milliseconds].sort((a, b) => a - b)[2] });
+		}
+		for (const [name, milliseconds] of trials) {
+			const sorted = milliseconds.toSorted((a, b) => a - b);
+			observations.push({ name, clipCount, milliseconds, medianMilliseconds: (sorted[3] + sorted[4]) / 2 });
 		}
 	}
 	const report = { node: process.version, baselineRevision, date: new Date().toISOString(),
-		semanticParity: 'deepEqual including metadata, mixer, automation, revision and timestamps', observations };
+		semanticParity: 'deepEqual including metadata, mixer, automation, revision and timestamps',
+		method: 'three warmups per version, eight trials each in alternating order on the same project', observations };
 	if (process.argv[3]) await writeFile(resolve(process.argv[3]), `${JSON.stringify(report, null, '\t')}\n`);
 	process.stdout.write(`${JSON.stringify(report, null, '\t')}\n`);
 } finally { await rm(temporary, { recursive: true, force: true }); }
