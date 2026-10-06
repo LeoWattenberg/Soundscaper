@@ -201,11 +201,11 @@ export class OwnedSourcePcmReadSessionRepository {
 		generation: readonly StorageRecord[],
 		signal?: AbortSignal,
 	): Promise<void> {
-		for (const expected of generation) {
-			throwIfAborted(signal);
-			const current = await this.#options.records.getMetadata(expected.id as string);
-			throwIfAborted(signal);
-			if (!sameStoredSourceIdentity(current, expected)) throw generationChangedError();
+		throwIfAborted(signal);
+		const current = await this.#options.records.getMetadataMany(generation.map((expected) => expected.id as string));
+		throwIfAborted(signal);
+		for (let index = 0; index < generation.length; index += 1) {
+			if (!sameStoredSourceIdentity(current[index], generation[index])) throw generationChangedError();
 		}
 	}
 }

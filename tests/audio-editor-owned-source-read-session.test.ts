@@ -7,12 +7,10 @@ import { createStoredChunkProvider } from '../src/common/editor/controller/sourc
 import { createProjectStore } from '../src/common/editor/storage.js';
 import type { StorageRecord } from '../src/common/editor/storage/media-records.ts';
 import { OWNED_SOURCE_PCM_MAXIMUM_DEPENDENCY_COUNT } from '../src/common/editor/storage/owned-source-pcm-read-session.ts';
-import {
-	SourceReadRepository,
-	type SourceReadOptions,
-} from '../src/common/editor/storage/source-read-repository.ts';
+import type { SourceReadOptions } from '../src/common/editor/storage/source-read-repository.ts';
 import { PCM_CONTAINER_STORAGE_TYPE } from '../src/common/editor/wavpack/index.js';
 import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
+import { chunkRecord, copyOnWriteFixture, sourceFixture, sourceRecord } from './helpers/owned-source-read-session-fixture.ts';
 
 test('project stores open and close owned PCM sessions on memory and IndexedDB backends', async (t) => {
 	for (const backend of ['memory', 'indexeddb'] as const) {
@@ -170,6 +168,19 @@ test('copy-on-write sessions snapshot and fence every root-to-base generation', 
 			assert.deepEqual(fixture.decoded, ['derived-token:0']);
 		});
 	}
+});
+
+test('copy-on-write chunk fences batch every expected identity before and after decoding', async () => {
+	const fixture = copyOnWriteFixture();
+	const session = await fixture.reader.openSession('derived');
+	assert.ok(session);
+	fixture.metadataReads.length = 0;
+	fixture.metadataBatches.length = 0;
+
+	assert.deepEqual([...((await session.chunk(1)).channels[0])], [0.75]);
+	assert.deepEqual(fixture.metadataReads, []);
+	assert.deepEqual(fixture.metadataBatches, [['derived', 'base'], ['derived', 'base']]);
+	await session.release();
 });
 
 test('owned session admission rejects an invalid or over-bound dependency chain before PCM reads', async (t) => {
@@ -481,103 +492,6 @@ test('bulk cleanup releases owned sessions even when linked-session cleanup fail
 	await assert.rejects(fixture.reader.releaseSessions(), (error: unknown) => error === cleanupFailure);
 	await assert.rejects(session.chunk(0), /released|closed/iu);
 });
-
-function copyOnWriteFixture() {
-	return sourceFixture([
-		sourceRecord('derived', 'derived-token', {
-			storage: 'copy-on-write', baseSourceId: 'base', chunkCount: 2,
-		}),
-		sourceRecord('base', 'base-token', { chunkCount: 2 }),
-	], [
-		chunkRecord('derived-token', 0, -0.5),
-		chunkRecord('base-token', 0, 0.25),
-		chunkRecord('base-token', 1, 0.75),
-	]);
-}
-
-function sourceFixture(
-	sources: readonly StorageRecord[],
-	chunks: readonly Readonly<Record<string, unknown>>[],
-	options: Readonly<{
-		afterDecode?: () => void;
-		fallback?: ConstructorParameters<typeof SourceReadRepository>[0]['fallback'];
-		opfs?: ConstructorParameters<typeof SourceReadRepository>[0]['opfs'];
-	}> = {},
-) {
-	const metadata = new Map(sources.map((source) => [String(source.id), clone(source)]));
-	const storedChunks = new Map(chunks.map((chunk) => [String(chunk.key), clone(chunk)]));
-	const decoded: string[] = [];
-	const records = {
-		async getMetadata(sourceId: string) {
-			const value = metadata.get(sourceId);
-			return value ? clone(value) : null;
-		},
-		async chunk(sourceToken: string, chunkIndex: number) {
-			const value = storedChunks.get(chunkKey(sourceToken, chunkIndex));
-			return value ? clone(value) : null;
-		},
-		async *chunks(sourceToken: string) {
-			for (const value of [...storedChunks.values()]
-				.filter((chunk) => chunk.sourceToken === sourceToken)
-				.sort((left, right) => Number(left.index) - Number(right.index))) {
-				yield clone(value);
-			}
-		},
-	};
-	const reader = new SourceReadRepository({
-		records: records as never,
-		pcm: {
-			async decodeRecord(record: Readonly<Record<string, unknown>>) {
-				decoded.push(`${String(record.sourceToken)}:${String(record.index)}`);
-				const channels = (record.channels as readonly Float32Array[]).map((channel) => channel.slice());
-				options.afterDecode?.();
-				return { index: record.index, frames: Number(record.frames), channels };
-			},
-		} as never,
-		opfs: options.opfs ?? {
-			readPcmContainerChunk: async () => { throw new Error('Unexpected OPFS PCM-container read.'); },
-			readLegacyChunk: async () => { throw new Error('Unexpected legacy OPFS read.'); },
-		} as never,
-		fallback: options.fallback,
-	});
-	return { decoded, metadata, reader, records };
-}
-
-function sourceRecord(
-	id: string,
-	sourceToken: string,
-	overrides: Readonly<Record<string, unknown>> = {},
-): StorageRecord {
-	return Object.freeze({
-		id,
-		storage: 'indexeddb-chunks',
-		sourceToken,
-		baseSourceId: null,
-		path: null,
-		pcmEncodingVersion: 1,
-		frameCount: 1,
-		frameLength: 1,
-		channelCount: 1,
-		sampleRate: 48_000,
-		chunkFrames: 1,
-		chunkCount: 1,
-		...overrides,
-	});
-}
-
-function chunkRecord(sourceToken: string, index: number, sample: number) {
-	return Object.freeze({
-		key: chunkKey(sourceToken, index),
-		sourceToken,
-		index,
-		frames: 1,
-		channels: [Float32Array.of(sample)],
-	});
-}
-
-function chunkKey(sourceToken: string, index: number): string {
-	return `${sourceToken}:${String(index).padStart(10, '0')}`;
-}
 
 function clone<Value>(value: Value): Value {
 	return structuredClone(value);

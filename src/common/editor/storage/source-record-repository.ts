@@ -59,6 +59,17 @@ export class SourceRecordRepository {
 		return value ? clone(value as StorageRecord) : null;
 	}
 
+	/** Read generation fences together from one readonly database snapshot. */
+	async getMetadataMany(sourceIds: readonly string[]): Promise<readonly (StorageRecord | null)[]> {
+		const database = await this.#port.database();
+		const values = !database
+			? sourceIds.map((sourceId) => this.#port.memory.sources.get(sourceId))
+			: await transact(database, 'sources', 'readonly', ({ sources }) => Promise.all(
+				sourceIds.map((sourceId) => request(sources.get(sourceId))),
+			));
+		return values.map((value) => value ? clone(value as StorageRecord) : null);
+	}
+
 	async list(): Promise<StorageRecord[]> {
 		const database = await this.#port.database();
 		const values = !database
