@@ -15,11 +15,18 @@ function technicalText(text) {
 
 /** Audit static presentation references; projected domain copy is checked at its UI caller. */
 export function auditEditorCopySource(path, content, inventory) {
-	const source = ts.createSourceFile(path, content, ts.ScriptTarget.Latest, true);
+	return auditEditorCopySourceWithKeys(path, content, createCopyKeyLookup(inventory));
+}
+
+function createCopyKeyLookup(inventory) {
 	const canonical = new Set(Object.keys(inventory));
 	const scoped = new Set([...canonical].filter(key => key.startsWith('ui.')).map(key => key.split('.').at(-1)));
+	return key => canonical.has(key) || scoped.has(key) || HOST_ALIASES.has(key);
+}
+
+function auditEditorCopySourceWithKeys(path, content, registered) {
+	const source = ts.createSourceFile(path, content, ts.ScriptTarget.Latest, true);
 	const issues = [];
-	const registered = key => canonical.has(key) || scoped.has(key) || HOST_ALIASES.has(key);
 	const issue = (node, kind, key) => issues.push({ path,
 		line: source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1, kind, key });
 	const fullUiCopy = /\.[jt]sx$/u.test(path);
@@ -70,11 +77,17 @@ export function auditEditorCopySource(path, content, inventory) {
 }
 
 export async function auditEditorCopyTree(directory, inventory) {
+	// Every source in this invocation uses the same inventory. Keep the ownership
+	// lookup local to this walk so subsequent audits observe inventory changes.
+	return auditEditorCopyTreeWithKeys(directory, createCopyKeyLookup(inventory));
+}
+
+async function auditEditorCopyTreeWithKeys(directory, registered) {
 	const issues = [];
 	for (const entry of await readdir(directory, { withFileTypes: true })) {
 		const path = join(directory, entry.name);
-		if (entry.isDirectory()) issues.push(...await auditEditorCopyTree(path, inventory));
-		else if (/\.[jt]sx?$/u.test(entry.name)) issues.push(...auditEditorCopySource(path, await readFile(path, 'utf8'), inventory));
+		if (entry.isDirectory()) issues.push(...await auditEditorCopyTreeWithKeys(path, registered));
+		else if (/\.[jt]sx?$/u.test(entry.name)) issues.push(...auditEditorCopySourceWithKeys(path, await readFile(path, 'utf8'), registered));
 	}
 	return issues;
 }
