@@ -365,13 +365,14 @@ export async function showToolbarButton(page, editor, label) {
 }
 
 export async function chooseCommandAction(page, editor, menu, action, options = {}) {
-	const commandMenu = await openCommandMenu(page, editor, menu, options);
+	const { openWithKeyboard = true, ...interactionOptions } = options;
+	const commandMenu = await openCommandMenu(page, editor, menu, interactionOptions, { openWithKeyboard });
 	const item = getMenuItem(commandMenu, action);
-	await item.press('Enter', options);
-	await expect(commandMenu).toBeHidden(options);
+	await item.press('Enter', interactionOptions);
+	await expect(commandMenu).toBeHidden(interactionOptions);
 }
 export async function chooseNestedCommandAction(page, editor, menu, actions, options = {}) {
-	const { openWithKeyboard = false, ...interactionOptions } = options;
+	const { openWithKeyboard = true, ...interactionOptions } = options;
 	const commandMenu = await openCommandMenu(page, editor, menu, interactionOptions, { openWithKeyboard });
 	let currentMenu = commandMenu;
 	for (const [index, action] of actions.entries()) {
@@ -391,18 +392,24 @@ export async function chooseNestedCommandAction(page, editor, menu, actions, opt
 	}
 }
 export async function openNestedCommandMenu(page, editor, menu, actions, options = {}) {
-	let currentMenu = await openCommandMenu(page, editor, menu, options);
-	for (const action of actions) currentMenu = await openMenuItemSubmenu(page, getMenuItem(currentMenu, action), options);
+	const { openWithKeyboard = true, ...interactionOptions } = options;
+	let currentMenu = await openCommandMenu(page, editor, menu, interactionOptions, { openWithKeyboard });
+	for (const action of actions) currentMenu = await openMenuItemSubmenu(page, getMenuItem(currentMenu, action), interactionOptions);
 	return currentMenu;
 }
-async function openCommandMenu(page, editor, menu, options, { openWithKeyboard = false } = {}) {
+async function openCommandMenu(page, editor, menu, options, { openWithKeyboard = true } = {}) {
 	await waitForProjectActivation(editor, options);
 	await openChromeDrawer(editor);
 	if (openWithKeyboard) await page.mouse.move(1, 1);
 	const menuItem = editor.getByRole('menubar', { name: /^(Application menu|Anwendungsmenü)$/ })
 		.getByRole('menuitem', { name: menu, exact: true });
-	if (openWithKeyboard) await menuItem.press('Enter');
-	else await menuItem.click();
+	// Opening the real menu by keyboard avoids waiting for pointer stability in busy previews.
+	// Pointer-specific workflows can keep their opening path with openWithKeyboard: false.
+	if (openWithKeyboard) {
+		await expect(menuItem).toBeVisible(options);
+		await expect(menuItem).toBeEnabled(options);
+		await menuItem.press('Enter', options);
+	} else await menuItem.click(options);
 	const commandMenu = page.getByRole('menu', { name: menu, exact: true });
 	await expect(commandMenu).toBeVisible(options);
 	return commandMenu;
