@@ -16,6 +16,7 @@ interface RasterContext<Image extends RasterImage> {
 
 const littleEndian = new Uint32Array(new Uint8Array([1, 0, 0, 0]).buffer)[0] === 1;
 const packedColors = new Map<string, number>();
+const verticalAlignment = new Map<string, boolean>();
 
 /** Bulk paint a dedicated offscreen canvas when every rectangle is backing-pixel aligned. */
 export function paintSpectrogramImageData<Image extends RasterImage>(
@@ -30,8 +31,8 @@ export function paintSpectrogramImageData<Image extends RasterImage>(
 	const transform = context.getTransform?.();
 	if (!transform || !context.createImageData || !context.putImageData || !columns.length
 		|| transform.b !== 0 || transform.c !== 0
-		|| !Number.isSafeInteger(transform.a) || transform.a <= 0
-		|| !Number.isSafeInteger(transform.d) || transform.d <= 0) return false;
+		|| !Number.isFinite(transform.a) || transform.a <= 0
+		|| !Number.isFinite(transform.d) || transform.d <= 0) return false;
 	const pixelSkip = Math.max(1, Math.floor(Number(options.pixelSkip) || 1));
 	const paintWidth = Math.min(width, columns.length * pixelSkip);
 	const backingWidth = paintWidth * transform.a;
@@ -39,7 +40,8 @@ export function paintSpectrogramImageData<Image extends RasterImage>(
 	const left = x * transform.a + transform.e;
 	const top = y * transform.d + transform.f;
 	if (![backingWidth, backingHeight, left, top].every(Number.isSafeInteger)
-		|| backingWidth <= 0 || backingHeight <= 0) return false;
+		|| backingWidth <= 0 || backingHeight <= 0 || !Number.isSafeInteger(pixelSkip * transform.a)) return false;
+	if (!Number.isSafeInteger(transform.d) && !alignedVerticalSpans(columns[0]!, height, transform.d, options)) return false;
 	const image = context.createImageData(backingWidth, backingHeight);
 	const pixels = new Uint32Array(image.data.buffer, image.data.byteOffset, image.data.byteLength / 4);
 	let color = 0;
@@ -60,6 +62,23 @@ export function paintSpectrogramImageData<Image extends RasterImage>(
 	}, columns, 0, 0, width, height, options);
 	context.putImageData(image, left, top);
 	return true;
+}
+
+function alignedVerticalSpans(column: readonly number[], height: number, scale: number, options: Readonly<Record<string, unknown>>) {
+	const key = JSON.stringify([height, scale, column.length, options.scale, options.minFreq, options.maxFreq,
+		options.nyquistFrequency, options.sampleRate, options.frequencyBands, options.fftWindowSize]);
+	const cached = verticalAlignment.get(key);
+	if (cached !== undefined) return cached;
+	let aligned = true;
+	// A one-column geometry probe reuses the exact painter's bounded row-span cache.
+	paintSpectrogram({ set fillStyle(_color: string) {},
+		fillRect(_x: number, y: number, _width: number, spanHeight: number) {
+			aligned &&= Number.isSafeInteger(y * scale) && Number.isSafeInteger(spanHeight * scale);
+		},
+	}, [column], 0, 0, 1, height, { ...options, pixelSkip: 1 });
+	verticalAlignment.set(key, aligned);
+	if (verticalAlignment.size > 64) verticalAlignment.delete(verticalAlignment.keys().next().value!);
+	return aligned;
 }
 
 function packedSpectrogramColor(value: string): number {

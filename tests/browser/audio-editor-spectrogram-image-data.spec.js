@@ -250,3 +250,29 @@ async function openPainterHarness(page) {
 	});
 	await page.goto(`${ROOT}/index.html`);
 }
+
+syntheticRouteTest('fractional-density bulk painting admits aligned columns and narrow frequency spans with exact pixels', async ({ page }) => {
+	await openPainterHarness(page);
+	const result = await page.evaluate(async root => {
+		const { paintSpectrogram, paintSpectrogramImageData } = await import(`${root}/painter.js`);
+		const failures = [];
+		let puts = 0;
+		for (const density of [1.25, 1.5]) for (const scale of ['linear', 'logarithmic', 'mel', 'bark', 'erb', 'period']) {
+			const canvases = [document.createElement('canvas'), document.createElement('canvas')];
+			const contexts = canvases.map(canvas => {
+				canvas.width = 8 * density; canvas.height = 16 * density;
+				const context = canvas.getContext('2d'); context.setTransform(density, 0, 0, density, 0, 0); return context;
+			});
+			const columns = [[0, 0.0001, 0.01, 1], [1, 0.01, 0.0001, 0]];
+			const options = { pixelSkip: 4, minFreq: 12_000, maxFreq: 12_001, sampleRate: 48_000, scale };
+			paintSpectrogram(contexts[0], columns, 0, 0, 8, 16, options);
+			const originalPut = contexts[1].putImageData.bind(contexts[1]);
+			contexts[1].putImageData = (...args) => { puts++; originalPut(...args); };
+			if (!paintSpectrogramImageData(contexts[1], columns, 0, 0, 8, 16, options)) failures.push(`declined ${density}/${scale}`);
+			const pixels = contexts.map(context => context.getImageData(0, 0, context.canvas.width, context.canvas.height).data);
+			if (pixels[0].some((value, index) => value !== pixels[1][index])) failures.push(`pixels ${density}/${scale}`);
+		}
+		return { failures, puts };
+	}, ROOT);
+	expect(result.failures).toEqual([]); expect(result.puts).toBe(12);
+});
