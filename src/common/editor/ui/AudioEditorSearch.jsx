@@ -110,6 +110,9 @@ export default function AudioEditorSearch({
 
 	const activate = useCallback((entry) => {
 		if (!entry || entry.disabled) return;
+		const returnTarget = previousFocusRef.current?.isConnected
+			? previousFocusRef.current : compactTriggerRef.current;
+		returnTarget?.focus?.({ preventScroll: true });
 		setQuery('');
 		setActiveKey(null);
 		onOpenChange?.(false);
