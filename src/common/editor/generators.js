@@ -62,7 +62,7 @@ function generateFixedDuration(type, options, sampleRate, channelCount) {
 		}), channelCount);
 	}
 	const amplitude = finiteInRange(options.amplitude ?? 0.8, 0, 1, 'amplitude');
-	return renderNoise(frameCount, channelCount, amplitude, options);
+	return renderNoise(frameCount, channelCount, amplitude, options, sampleRate);
 }
 
 function renderTone(frameCount, sampleRate, frequency, amplitude, waveform) {
@@ -98,13 +98,18 @@ function renderChirp(frameCount, sampleRate, {
 	return output;
 }
 
-function renderNoise(frameCount, channelCount, amplitude, options) {
+function renderNoise(frameCount, channelCount, amplitude, options, sampleRate) {
 	const color = enumValue(options.color ?? 'white', ['white', 'pink', 'brown'], 'color');
 	let state = (Number(options.seed ?? 0x6d2b79f5) >>> 0) || 1;
 	return Array.from({ length: channelCount }, () => {
 		const output = new Float32Array(frameCount);
 		let brown = 0;
-		const pinkBins = new Float64Array(7);
+		// The slowest row must reach below the audible band at this project rate.
+		// Seven rows flattened the lower octaves at common 48/96 kHz rates.
+		const pinkBins = color === 'pink'
+			? Float64Array.from({ length: Math.max(8, Math.ceil(Math.log2(sampleRate / 20)) + 2) }, randomSigned)
+			: new Float64Array();
+		let pinkSum = pinkBins.reduce((sum, bin) => sum + bin, 0);
 		let counter = 0;
 		for (let frame = 0; frame < frameCount; frame += 1) {
 			const white = randomSigned();
@@ -117,8 +122,12 @@ function renderNoise(frameCount, channelCount, amplitude, options) {
 				let zeroes = 0;
 				let value = counter;
 				while ((value & 1) === 0 && zeroes < pinkBins.length) { zeroes += 1; value >>= 1; }
-				if (zeroes < pinkBins.length) pinkBins[zeroes] = white;
-				output[frame] = Math.max(-1, Math.min(1, (pinkBins.reduce((sum, bin) => sum + bin, 0) + white) / 4)) * amplitude;
+				if (zeroes < pinkBins.length) {
+					const next = randomSigned();
+					pinkSum += next - pinkBins[zeroes];
+					pinkBins[zeroes] = next;
+				}
+				output[frame] = (pinkSum + white) / (pinkBins.length + 1) * amplitude;
 			}
 		}
 		return output;

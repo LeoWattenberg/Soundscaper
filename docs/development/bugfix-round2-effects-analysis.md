@@ -79,4 +79,23 @@ and passes against build 7 in Chromium, Firefox and WebKit. Strict mounted
 control regressions cover live echoes, cancellation, one commit and bounded
 display. The existing slider keyboard/Undo workflow also passes in all engines.
 
+## R2-ROOT-006 — Pink noise loses its low-frequency octave balance
+
+Open **Generate > Noise**, select **Pink**, enter 16 seconds, generate, then
+export WAV. Its 20–40 Hz octave previously had about 28% of the energy in
+80–160 Hz rather than comparable energy per octave. The fixed seven-row
+generator flattened its lower spectrum at common project sample rates. Pink
+noise now chooses enough random rows for the project rate, initializes them
+independently and maintains their sum without clipping its spectral shape.
+White and brown noise retain their random sequences.
+
+The expected octave balance follows the [original Voss–McCartney implementation
+discussion](https://www.firstpr.com.au/dsp/pink-noise/) and the
+[Audacity noise manual](https://manual.audacityteam.org/man/noise.html).
+
+Proof: `audio-editor-round2-pink-noise.spec.js` measured the actual UI-exported
+WAV and failed against build 5. It passes against builds 6 and 7 in Chromium,
+Firefox and WebKit. Strict generator regressions compare low-frequency octave
+energy at 8,000, 48,000 and 96,000 Hz and verify the requested amplitude bound.
+
 These changes do not require a manual **Update AI assets** run.
