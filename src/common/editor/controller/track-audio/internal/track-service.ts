@@ -15,6 +15,7 @@ import {
 import type { AudioEditorCommand, CommandObject } from '../../../commands/protocol.ts';
 import type { EditorControllerLifetime } from '../../shared/lifecycle.ts';
 import { spectrogramSettingsForNewTrack } from '../../../spectrogram-track-defaults.ts';
+import { resolveSelectionRange } from '../../../selection-range.ts';
 import {
 	createTrackStructuralOperationService,
 	type TrackStructuralOperationService,
@@ -365,7 +366,7 @@ export function createEditorTrackService(
 function timeSelectionRegion(
 	project: ControllerProject,
 ): Readonly<{ startFrame: number; endFrame: number }> | null {
-	const selection = project.selection;
+	const selection = resolveSelectionRange(project);
 	if (!selection) return null;
 	if (!Number.isSafeInteger(selection.startFrame) || !Number.isSafeInteger(selection.endFrame)) return null;
 	return selection.endFrame > selection.startFrame
