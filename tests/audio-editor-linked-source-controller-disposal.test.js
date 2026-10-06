@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import { register } from 'node:module';
 import test from 'node:test';
+import { waveformPeakBlockSizes } from '../src/common/editor/waveform-peak-contract.ts';
 
 const assetLoader = `
 	export async function resolve(specifier, context, nextResolve) {
@@ -18,11 +19,21 @@ register(`data:text/javascript,${encodeURIComponent(assetLoader)}`, import.meta.
 const previousWorker = globalThis.Worker;
 globalThis.Worker = class ImmediateAnalysisWorker {
 	postMessage(message) {
+		if (message.type === 'start' && Number.isSafeInteger(message.frameCount)) {
+			this.levels = waveformPeakBlockSizes(message.frameCount, message.channelCount).map((blockSize) => ({
+				blockSize,
+				channels: Array.from({ length: message.channelCount }, () => ({
+					minimums: new Float32Array(Math.ceil(message.frameCount / blockSize)),
+					maximums: new Float32Array(Math.ceil(message.frameCount / blockSize)),
+					rms: new Float32Array(Math.ceil(message.frameCount / blockSize)),
+				})),
+			}));
+		}
 		const data = message.type === 'start'
 			? { type: 'ready' }
 			: message.type === 'chunk'
 				? { type: 'ack' }
-				: { type: 'result', levels: [] };
+				: { type: 'result', levels: this.levels || [] };
 		queueMicrotask(() => this.onmessage?.({ data }));
 	}
 
@@ -38,6 +49,7 @@ const { createAudioEditorController } = await import('../src/common/editor/app.j
 
 const SOURCE_CHUNK_FRAMES = 65_536;
 const LONG_SOURCE_FRAMES = (32 * 1024 * 1024 / Float32Array.BYTES_PER_ELEMENT) + 1;
+let importedLongSourceFixture = null;
 
 test('controller disposal releases an opened long-source session after the engine and before storage', async () => {
 	const events = [];
@@ -59,12 +71,7 @@ test('controller disposal releases an opened long-source session after the engin
 	});
 
 	await controller.ready;
-	await controller.actions.project.importFiles([{
-		name: 'session-owned.wav',
-		type: 'audio/wav',
-		size: 1,
-		async arrayBuffer() { return new ArrayBuffer(1); },
-	}]);
+	await openLongSourceFixture(controller, store, 'session-owned.wav');
 	const sourceId = controller.getSnapshot().project.sources[0].id;
 	await engine.chunkSources.get(sourceId).readStorageChunk(0);
 	await controller.dispose();
@@ -83,7 +90,7 @@ test('controller disposal awaits tracked render engines before releasing source 
 		sourceBufferCacheMaxBytes: 64 * 1024 * 1024,
 	});
 	await controller.ready;
-	await controller.actions.project.importFiles([longWavFile('render-owned.wav')]);
+	await openLongSourceFixture(controller, store, 'render-owned.wav');
 	const sourceId = controller.getSnapshot().project.sources[0].id;
 	await engine.chunkSources.get(sourceId).readStorageChunk(0);
 	const exporting = controller.actions.export.start({ format: 'wav', bitDepth: 16 }).catch(() => undefined);
@@ -110,7 +117,7 @@ test('render-engine cleanup failure fences source-provider retirement and storag
 		sourceBufferCacheMaxBytes: 64 * 1024 * 1024,
 	});
 	await controller.ready;
-	await controller.actions.project.importFiles([longWavFile('failed-render-owned.wav')]);
+	await openLongSourceFixture(controller, store, 'failed-render-owned.wav');
 	const sourceId = controller.getSnapshot().project.sources[0].id;
 	await engine.chunkSources.get(sourceId).readStorageChunk(0);
 	const exporting = controller.actions.export.start({ format: 'wav', bitDepth: 16 }).catch(() => undefined);
@@ -135,7 +142,7 @@ test('Project Bin preview cleanup failure fences source-provider retirement and 
 		sourceBufferCacheMaxBytes: 64 * 1024 * 1024,
 	});
 	await controller.ready;
-	await controller.actions.project.importFiles([longWavFile('preview-owned.wav')]);
+	await openLongSourceFixture(controller, store, 'preview-owned.wav');
 	const snapshot = controller.getSnapshot(), sourceId = snapshot.project.sources[0].id;
 	await engine.chunkSources.get(sourceId).readStorageChunk(0);
 	const clipId = snapshot.project.clips[0].id;
@@ -148,6 +155,29 @@ test('Project Bin preview cleanup failure fences source-provider retirement and 
 
 function longWavFile(name) {
 	return { name, type: 'audio/wav', size: 1, async arrayBuffer() { return new ArrayBuffer(1); } };
+}
+
+async function openLongSourceFixture(controller, store, name) {
+	// Import and authenticate the full-size source once. Fresh controllers own
+	// private stored copies so each cleanup case keeps its session lifetime.
+	if (importedLongSourceFixture === null) {
+		await controller.actions.project.importFiles([longWavFile(name)]);
+		importedLongSourceFixture = structuredClone({
+			project: controller.getSnapshot().project,
+			sources: store.sources,
+			analysis: store.analysis,
+		});
+	} else {
+		const fixture = structuredClone(importedLongSourceFixture);
+		store.sources = fixture.sources;
+		store.analysis = fixture.analysis;
+		await store.saveProject(fixture.project);
+		await controller.actions.project.open(fixture.project);
+	}
+	const snapshot = controller.getSnapshot();
+	assert.equal(snapshot.project.sources[0].frameCount, LONG_SOURCE_FRAMES);
+	assert.deepEqual(snapshot.missingSourceIds, []);
+	assert.deepEqual(snapshot.project.sources, importedLongSourceFixture.project.sources);
 }
 
 function deferred() {
@@ -166,6 +196,7 @@ class SessionStore {
 		this.projects = new Map();
 		this.settings = new Map();
 		this.sources = new Map();
+		this.analysis = new Map();
 	}
 
 	async ready() { return this; }
@@ -176,9 +207,9 @@ class SessionStore {
 	async saveProject(project) { this.projects.set(project.id, structuredClone(project)); return project; }
 	async loadProject(projectId) { return structuredClone(this.projects.get(projectId) || null); }
 	async listProjects() { return [...this.projects.values()].map((project) => structuredClone(project)); }
-	async loadAnalysis() { return null; }
-	async saveAnalysis() {}
-	async deleteAnalysis() {}
+	async loadAnalysis(key) { return this.analysis.get(key) || null; }
+	async saveAnalysis(key, value) { this.analysis.set(key, structuredClone(value)); }
+	async deleteAnalysis(key) { this.analysis.delete(key); }
 	async estimateStorage() { return { usage: 0, quota: 1024 * 1024 * 1024 }; }
 	async pruneUnreferencedSources() { return { deletedSourceIds: [] }; }
 
@@ -302,7 +333,7 @@ function logicalAudioBuffer(frameCount) {
 		length: frameCount,
 		buffer: new ArrayBuffer(0),
 		slice(start = 0, end = frameCount) {
-			return { ...this, length: Math.max(0, Math.min(frameCount, end) - Math.max(0, start)) };
+			return new Float32Array(Math.max(0, Math.min(frameCount, end) - Math.max(0, start)));
 		},
 	};
 	return {
