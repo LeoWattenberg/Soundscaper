@@ -7,6 +7,9 @@ import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-workspace-runner.ts';
 import { normalizeSpectrogramScale } from '../timeline/geometry.ts';
 import { moveSpectralBandCenter, spectralBandCenter } from '../timeline/spectral-center-gesture.ts';
+import {
+	SPECTRAL_SELECTION_MINIMUM_GAIN_DB, SPECTRAL_SELECTION_MAXIMUM_GAIN_DB, spectralSelectionGainValid,
+} from './spectral-selection-gain.ts';
 
 export default function SpectralSelectionDialog({ controller, snapshot, copy, run, onClose }) {
 	const project = snapshot.project;
@@ -61,6 +64,7 @@ export default function SpectralSelectionDialog({ controller, snapshot, copy, ru
 		maximumFrequency: Number(maximumFrequency),
 	});
 	const submit = (operation) => {
+		if (operation === 'amplify' && !spectralSelectionGainValid(gainDb)) return;
 		const projectOwnership = currentProjectOwnership.current;
 		if (!projectIdentity || stateProjectIdentity.current !== projectIdentity || !projectOwnership) return;
 		const options = selectionOptions();
@@ -93,7 +97,7 @@ export default function SpectralSelectionDialog({ controller, snapshot, copy, ru
 					<Button variant="secondary" onClick={onClose}>{copy.cancel}</Button>
 					<Button variant="secondary" disabled={!validRange} onClick={() => submit('select')}>{copy.selectFrequencyRange}</Button>
 					<Button variant="secondary" disabled={!validRange} onClick={() => submit('delete')}>{copy.spectralDelete}</Button>
-					<Button variant="primary" disabled={!validRange || !Number.isFinite(Number(gainDb))} onClick={() => submit('amplify')}>{copy.spectralAmplify}</Button>
+					<Button variant="primary" disabled={!validRange || !spectralSelectionGainValid(gainDb)} onClick={() => submit('amplify')}>{copy.spectralAmplify}</Button>
 				</>}
 			/>}
 		>
@@ -118,7 +122,7 @@ export default function SpectralSelectionDialog({ controller, snapshot, copy, ru
 					</label>
 					<label className="kw-audio-editor-dialog__field">
 						<span>{copy.spectralGain}</span>
-						<NumberStepper value={String(gainDb)} min={-60} max={60} step={1} width="100%" onChange={setGainDb} />
+						<NumberStepper value={String(gainDb)} min={SPECTRAL_SELECTION_MINIMUM_GAIN_DB} max={SPECTRAL_SELECTION_MAXIMUM_GAIN_DB} step={1} width="100%" onChange={setGainDb} />
 					</label>
 		</AudioEditorDialogShell>
 	);

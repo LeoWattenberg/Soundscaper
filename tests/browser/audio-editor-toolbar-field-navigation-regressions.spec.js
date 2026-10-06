@@ -15,4 +15,8 @@ test('toolbar number fields retain native arrow stepping instead of moving focus
 	await expect(numerator).toHaveValue('5');
 	await numerator.press('Enter');
 	await expect(numerator).toHaveValue('5');
+	const zoom = editor.getByRole('button', { name: 'Zoom in', exact: true });
+	await zoom.focus();
+	await zoom.press('ArrowRight');
+	await expect(editor.getByRole('button', { name: 'Zoom out', exact: true })).toBeFocused();
 });

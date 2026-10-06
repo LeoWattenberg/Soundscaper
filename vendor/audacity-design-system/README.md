@@ -321,6 +321,10 @@ application overrides and source patches against the pin and upstream master.
     using the same keyboard gesture lifecycle as arrow adjustments. Covered by
     `tests/audio-editor-knob-endpoint.test.tsx` and
     `tests/browser/audio-editor-knob-endpoint-regressions.spec.js`.
+42. `ContextMenu` restores its trigger before native Tab continues, so closing
+    a portalled menu does not leave keyboard focus on the document body.
+    Covered by `tests/vendored-design-system-context-menu-focus.test.tsx` and
+    `tests/browser/audio-editor-context-menu-tab-regressions.spec.js`.
 
 ## Application-side adaptations
 

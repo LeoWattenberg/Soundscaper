@@ -103,6 +103,23 @@ test('the menu dialog moves a spectral center while keeping its bandwidth', asyn
 	}
 });
 
+test('spectral amplification accepts only gains inside the declared dialog range', async () => {
+	const fixture = await mountedSpectralSelectionFixture();
+	try {
+		await fixture.render(spectralSnapshot('project-a', 48_000, 100, 9_000));
+		for (const value of ['100', '-100']) {
+			await change(fixture.field(ENGLISH_COPY.spectralGain), value);
+			assert.equal(fixture.button(ENGLISH_COPY.spectralAmplify).hasAttribute('disabled'), true);
+		}
+		for (const value of ['-60', '60', '0']) {
+			await change(fixture.field(ENGLISH_COPY.spectralGain), value);
+			assert.equal(fixture.button(ENGLISH_COPY.spectralAmplify).hasAttribute('disabled'), false);
+		}
+	} finally {
+		await fixture.cleanup();
+	}
+});
+
 async function mountedSpectralSelectionFixture(options: Readonly<{ deferRun?: boolean }> = {}) {
 	const dom = installReactTestDom();
 	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };

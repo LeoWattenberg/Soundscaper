@@ -173,10 +173,13 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
           break;
 
         case 'Tab':
-          // Tab (with or without Shift) closes menu and moves focus outside
-          e.preventDefault();
+          // Restore the DOM anchor before native Tab advances past the menu.
           e.stopPropagation();
           e.stopImmediatePropagation();
+          if (triggerElementRef.current?.isConnected) {
+            triggerElementRef.current.focus();
+            triggerElementRef.current = null;
+          }
           onClose();
           break;
 

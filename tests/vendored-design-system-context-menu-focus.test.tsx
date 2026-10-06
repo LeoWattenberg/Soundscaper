@@ -34,6 +34,18 @@ test('Escape does not take focus back from the next menu trigger', async (contex
 	}
 });
 
+test('Tab restores the trigger before letting the browser advance focus', async (context) => {
+	const menu = await mountMenu(context);
+	try {
+		await menu.flushTimers();
+		assert.equal(menu.focused(), menu.item);
+		assert.equal(await menu.tab(), false, 'native Tab must remain available');
+		assert.equal(menu.focused(), menu.trigger);
+	} finally {
+		await menu.dispose();
+	}
+});
+
 test('closing a menu cancels its pending initial autofocus', async (context) => {
 	const menu = await mountMenu(context);
 	let focusCalls = 0;
@@ -68,6 +80,7 @@ async function mountMenu(context: TestContext): Promise<{
 	focused(): Element | null;
 	close(): Promise<void>;
 	escape(): Promise<void>;
+	tab(): Promise<boolean>;
 	flushTimers(): Promise<void>;
 	dispose(): Promise<void>;
 }> {
@@ -110,6 +123,18 @@ async function mountMenu(context: TestContext): Promise<{
 		trigger, next, item,
 		focused: () => ownerDocument.activeElement,
 		close: () => act(async () => close()),
+		tab: async () => {
+			let prevented = false;
+			await act(async () => {
+				const event = { key: 'Tab', preventDefault() { prevented = true; },
+					stopPropagation() {}, stopImmediatePropagation() {} } as KeyboardEvent;
+				for (const listener of [...keyListeners]) {
+					if (typeof listener === 'function') listener(event);
+					else listener.handleEvent(event);
+				}
+			});
+			return prevented;
+		},
 		escape: () => act(async () => {
 			const event = {
 				key: 'Escape', preventDefault() {}, stopPropagation() {}, stopImmediatePropagation() {},
