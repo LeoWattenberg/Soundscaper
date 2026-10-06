@@ -3,9 +3,11 @@
 import { execFile } from 'node:child_process';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join, resolve, sep } from 'node:path';
+import { isAbsolute, join, resolve, sep } from 'node:path';
 import { promisify } from 'node:util';
-import { authoredWildcardResponseHeaders } from '../../../scripts/lib/static-response-headers.mjs';
+import { parseWildcardResponseHeaders } from '../../../scripts/lib/static-response-headers.mjs';
+import { resolvePackagedProductExecutable } from '../../../scripts/lib/desktop-packaged-product-executable.mjs';
+import { resolvePackagedResourcesPath } from '../../../scripts/lib/packaged-executable-resource-identity.mjs';
 import {
 	createDesktopExternalFfmpegVideoWorkload,
 	normalizeDesktopVideoCodecOperationPlan,
@@ -21,8 +23,17 @@ const contentTypes = { '.html': 'text/html', '.js': 'text/javascript', '.css': '
 /** Exercise the Electron codec composition while retaining the browser suite's origin and CSP. */
 export async function installOriginalOverwriteDesktopRenderer(page) {
 	const supplied = process.env.SCAPE_BROWSER_DESKTOP_FRAMESCAPER_RENDERER;
-	const directory = supplied || await mkdtemp(join(tmpdir(), 'framescaper-overwrite-renderer-'));
-	if (!supplied) {
+	const payloadRoot = process.env.SOUNDSCAPER_NIGHTLY_TESTS_PAYLOAD_ROOT;
+	let packaged = null;
+	if (!supplied && payloadRoot !== undefined) {
+		if (!isAbsolute(payloadRoot)) throw new TypeError('SOUNDSCAPER_NIGHTLY_TESTS_PAYLOAD_ROOT must be absolute.');
+		const executable = resolvePackagedProductExecutable({ productRoot: join(payloadRoot, 'products'),
+			productId: 'framescaper', platform: process.platform, arch: process.arch });
+		packaged = join(resolvePackagedResourcesPath(executable, process.platform), 'renderer');
+	}
+	const directory = supplied || packaged || await mkdtemp(join(tmpdir(), 'framescaper-overwrite-renderer-'));
+	const owned = !supplied && !packaged;
+	if (owned) {
 		try {
 			await executeFile(process.execPath, ['node_modules/vite/bin/vite.js', 'build',
 				'--outDir', directory, '--emptyOutDir'], {
@@ -34,6 +45,9 @@ export async function installOriginalOverwriteDesktopRenderer(page) {
 		} catch (error) { await rm(directory, { recursive: true, force: true }); throw error; }
 	}
 	const root = resolve(directory);
+	let headers;
+	try { headers = parseWildcardResponseHeaders(await readFile(join(root, '_headers'), 'utf8')); }
+	catch (error) { if (owned) await rm(directory, { recursive: true, force: true }); throw error; }
 	const handler = async (route) => {
 		let pathname = new URL(route.request().url()).pathname;
 		if (pathname.startsWith('/__e2e-overwrite/') || pathname === '/.offline-build-manifest.json') {
@@ -47,14 +61,14 @@ export async function installOriginalOverwriteDesktopRenderer(page) {
 		try { body = await readFile(path); }
 		catch (error) { if (error.code !== 'ENOENT') throw error; await route.fallback(); return; }
 		const extension = path.slice(path.lastIndexOf('.'));
-		await route.fulfill({ body, headers: authoredWildcardResponseHeaders(),
+		await route.fulfill({ body, headers,
 			contentType: contentTypes[extension] || 'application/octet-stream' });
 	};
-	renderers.set(page, { directory, handler, owned: !supplied });
+	renderers.set(page, { directory, handler, owned });
 	try { await page.route('**/*', handler); }
 	catch (error) {
 		renderers.delete(page);
-		if (!supplied) await rm(directory, { recursive: true, force: true });
+		if (owned) await rm(directory, { recursive: true, force: true });
 		throw error;
 	}
 }
