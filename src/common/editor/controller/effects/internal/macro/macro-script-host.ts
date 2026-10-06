@@ -30,7 +30,7 @@ export interface MacroScriptHostRuntime {
 	readonly runEffectMacro: (
 		request: Readonly<{ name: string; effects: readonly Readonly<Record<string, unknown>>[] }>,
 	) => Promise<unknown>;
-	readonly runMacroCommand: (step: ReturnType<typeof createMacroCommandStep>) => void;
+	readonly runMacroCommand: (step: ReturnType<typeof createMacroCommandStep>) => unknown;
 	readonly setExactSelection: (
 		startFrame: number, endFrame: number, details?: Readonly<Record<string, unknown>>,
 	) => unknown;
@@ -217,7 +217,7 @@ const MUTATORS: Readonly<Record<string, Handler>> = Object.freeze({
 		// split a step list takes rather than being handed over as effects.
 		for (const run of splitRuns(saved.effects)) {
 			assertCurrent();
-			if (run.command) runtime.runMacroCommand(run.command);
+			if (run.command) await runtime.runMacroCommand(run.command);
 			else await runtime.runEffectMacro({ name: saved.name, effects: run.effects });
 			assertCurrent();
 		}
@@ -228,12 +228,12 @@ const MUTATORS: Readonly<Record<string, Handler>> = Object.freeze({
 	),
 });
 
-function runCommand(
+async function runCommand(
 	runtime: MacroScriptHostRuntime,
 	command: string,
 	params: Readonly<Record<string, unknown>>,
-): MacroValue {
-	runtime.runMacroCommand(createMacroCommandStep(command, { params }));
+): Promise<MacroValue> {
+	await runtime.runMacroCommand(createMacroCommandStep(command, { params }));
 	return readSelection(runtime);
 }
 

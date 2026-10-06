@@ -65,14 +65,13 @@ export function isRunnableMacroCommand(command: string): boolean {
 export function createMacroCommandService(runtime: MacroCommandServiceRuntime) {
 	return Object.freeze({ runMacroCommand });
 
-	function runMacroCommand(step: MacroCommandStep): void {
+	function runMacroCommand(step: MacroCommandStep): unknown {
 		if (!isRunnableMacroCommand(step.command)) {
 			throw new RangeError(`This build cannot run the macro command ${step.command}.`);
 		}
 		const menuCommand = audacityMacroMenuCommand(step.command);
 		if (menuCommand) {
-			runMenuCommand(menuCommand.command, menuCommand.path);
-			return;
+			return runMenuCommand(menuCommand.command, menuCommand.path);
 		}
 		const project = runtime.getProject();
 		const selection = project.selection ?? { startFrame: 0, endFrame: 0 };
@@ -109,7 +108,7 @@ export function createMacroCommandService(runtime: MacroCommandServiceRuntime) {
 	 * editor, and saying so is better than a step that quietly does nothing —
 	 * which is exactly how a macro produces a plausible-looking wrong result.
 	 */
-	function runMenuCommand(command: string, path: string): void {
+	function runMenuCommand(command: string, path: string): unknown {
 		const actions = runtime.getActions?.();
 		let target: unknown = actions;
 		for (const segment of path.split('.')) {
@@ -121,7 +120,7 @@ export function createMacroCommandService(runtime: MacroCommandServiceRuntime) {
 		if (typeof target !== 'function') {
 			throw new RangeError(`The macro command ${command} has no editor action (${path}).`);
 		}
-		(target as () => unknown)();
+		return (target as () => unknown)();
 	}
 
 	/**

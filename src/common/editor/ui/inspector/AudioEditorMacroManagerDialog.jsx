@@ -6,6 +6,7 @@ import { DialogFooter } from '@soundscaper/design-system/Footer';
 import { Icon } from '@soundscaper/design-system/Icon';
 import { TextInput } from '@soundscaper/design-system/TextInput';
 import { createEffectMacroStep, effectMacroStepTypes } from '../../effect-macro-steps.ts';
+import { isMacroCommandStep } from '../../macro-command-steps.ts';
 import { parseAudacityEffectMacro, serializeAudacityEffectMacro } from '../../effect-macros.js';
 import {
 	effectMacroMissingEmbeddedNoiseProfile,
@@ -16,6 +17,7 @@ import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import { selectAudioEditorEditBlock } from '../edit-blocking.ts';
 import { takeSelectedFile } from '../file-input-selection.ts';
 import EffectParameterEditor from './EffectParameterEditor.jsx';
+import MacroCommandParameterEditor from './MacroCommandParameterEditor.tsx';
 import MacroManagerLibraryList from './MacroManagerLibraryList.jsx';
 import MacroManagerStepList from './MacroManagerStepList.jsx';
 import MacroScriptPanel from './MacroScriptPanel.jsx';
@@ -472,14 +474,15 @@ export function AudioEditorMacroManagerDialog({
 			{selectedEffect && (
 				<AudioEditorDialogShell
 					isOpen
-					title={safeEffectLabel(selectedEffect, copy)}
+					title={isMacroCommandStep(selectedEffect) ? selectedEffect.command : safeEffectLabel(selectedEffect, copy)}
 					onClose={() => setSelectedEffectId(null)}
 					width={selectedEffect.type === 'audacity-graphic-eq' ? 1120 : selectedEffect.type === 'eq' ? 920 : 620}
 					className="audio-editor-effect-settings-dialog audio-editor-macro-effect-settings-dialog"
 					dataAttributes={{ 'data-macro-effect': selectedEffect.id }}
 				>
 					<section className="audio-editor-effect-settings">
-						<EffectParameterEditor
+						{isMacroCommandStep(selectedEffect) ? <MacroCommandParameterEditor step={selectedEffect}
+							onChange={(next) => setEffects((current) => current.map((step) => step.id === next.id ? next : step))} /> : <EffectParameterEditor
 							effect={selectedEffect}
 							copy={copy}
 							disabled={false}
@@ -495,7 +498,7 @@ export function AudioEditorMacroManagerDialog({
 								? copy.replaceNoiseProfile
 								: copy.getNoiseProfile}
 							onChange={(changes) => updateEffect(selectedEffect.id, changes)}
-						/>
+						/>}
 						{message && <p className={`audio-editor-macros-palette__message audio-editor-macros-palette__message--${messageState}`} role={messageState === 'error' ? 'alert' : 'status'}>{message}</p>}
 					</section>
 				</AudioEditorDialogShell>

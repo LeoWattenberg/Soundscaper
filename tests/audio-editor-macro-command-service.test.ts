@@ -17,6 +17,19 @@ import {
 const SAMPLE_RATE = 100;
 const PROJECT_END = 1_000;
 
+test('a bare asynchronous command returns its editor action completion', async () => {
+	const mixed = Promise.resolve('mixed');
+	const service = createMacroCommandService({
+		getActions: () => ({ track: { mixAndRender: () => mixed } }),
+		getProject: () => ({ tracks: [] }),
+		projectSampleRate: () => SAMPLE_RATE,
+		timelineDurationFrames: () => PROJECT_END,
+		setExactSelection: () => undefined,
+	});
+	assert.equal(service.runMacroCommand(createMacroCommandStep('MixAndRender')), mixed);
+	assert.equal(await mixed, 'mixed');
+});
+
 function createHarness(selection: MacroCommandSelection = { startFrame: 200, endFrame: 400 }) {
 	const applied: Array<[number, number, Record<string, unknown>]> = [];
 	const ran: string[] = [];

@@ -9,6 +9,15 @@ import { createMacroCommandStep } from '../src/common/editor/macro-command-steps
 const effect = (type: string, id = type) => ({ id, type, enabled: true, params: {} });
 const select = (params?: Record<string, unknown>) => createMacroCommandStep('SelectTime', { id: `select-${JSON.stringify(params ?? {})}`, params });
 
+test('track commands in one macro share a single undo transaction', async () => {
+	const harness = createHarness();
+	await harness.service.runMacroProgram({ effects: [
+		createMacroCommandStep('NewMonoTrack'), createMacroCommandStep('NewMonoTrack'),
+	] });
+	assert.equal(harness.transactions(), 1);
+	assert.equal(harness.settled(), 'commit');
+});
+
 function createHarness(options: { readonly failOnRun?: number } = {}) {
 	const events: string[] = [];
 	const runs: Array<readonly string[]> = [];

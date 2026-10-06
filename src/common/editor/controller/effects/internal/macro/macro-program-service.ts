@@ -18,6 +18,7 @@ import type { MacroTransactionMetadata } from '../../macro-transaction-metadata.
  */
 
 import { isMacroCommandStep, type MacroCommandStep } from '../../../../macro-command-steps.ts';
+import { audacityMacroMenuCommand } from '../../../../audacity-macro-menu-commands.ts';
 
 export interface MacroProgramStep extends Readonly<Record<string, unknown>> {
 	readonly id?: string;
@@ -36,7 +37,7 @@ export interface MacroProgramServiceRuntime {
 		request: Readonly<{ name: string; effects: readonly MacroProgramStep[] }>,
 	) => Promise<unknown>;
 	readonly cancelEffectMacro: () => boolean;
-	readonly runMacroCommand: (step: MacroCommandStep) => void;
+	readonly runMacroCommand: (step: MacroCommandStep) => unknown;
 	readonly beginMacroTransaction: () => Readonly<{
 		commit(command: MacroTransactionMetadata): unknown;
 		rollback(): unknown;
@@ -58,12 +59,13 @@ export function createMacroProgramService(runtime: MacroProgramServiceRuntime) {
 		assertRunnable(steps);
 		const name = String(request.name || runtime.untitledMacroName).trim() || runtime.untitledMacroName;
 
-		// A single run of effects already commits exactly once, and a command step
-		// changes the selection without committing at all. Only a macro that runs
-		// effects more than once has anything to fold together, so an ordinary
-		// effect chain keeps producing exactly the history entry it always has.
+		// Parameterized selection steps don't commit. Bare editor commands can
+		// insert, remove or render material, so they join the macro transaction
+		// even when the macro has no effects at all.
 		const runs = countEffectRuns(steps);
-		const transaction = runs > 1 ? runtime.beginMacroTransaction() : null;
+		const transaction = runs > 1 || steps.some((step) => isMacroCommandStep(step)
+			&& audacityMacroMenuCommand(step.command) !== null)
+			? runtime.beginMacroTransaction() : null;
 		cancelled = false;
 		running = true;
 		let applied = false;
@@ -83,7 +85,7 @@ export function createMacroProgramService(runtime: MacroProgramServiceRuntime) {
 				// The run just awaited may itself have been cancelled, so ask again
 				// before the command that would otherwise follow it.
 				assertNotCancelled();
-				runtime.runMacroCommand(step);
+				await runtime.runMacroCommand(step);
 				applied = true;
 			}
 			assertNotCancelled();
