@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 import { VIDEO_EFFECT_TYPES, videoEffectDefinition } from '../../video-effects.js';
 import { DesignCheckbox, LabeledDropdown } from './inspector-controls.jsx';
+import VideoEffectNumberInput from './VideoEffectNumberInput.tsx';
 
 export function VideoEffectRack({ clip, controller, copy, disabled, onError }) {
 	const effects = clip.videoEffects || [];
@@ -180,7 +181,9 @@ function VideoEffectSlider({ clipId, effectId, name, parameter, value, actions, 
 		<div className="audio-editor-video-effect__param" data-video-effect-param={name} role="group" aria-label={label}>
 			<span>{label}</span>
 			<div className="audio-editor-video-effect__value">
-				<input type="number" value={numericValue} min={parameter.min} max={parameter.max} step={parameter.step} aria-label={`${copy.videoEffectExactValue}: ${label}`} disabled={disabled} onFocus={gesture.begin} onPointerDown={pointerDown} onChange={(event) => { if (Number.isFinite(event.currentTarget.valueAsNumber)) gesture.preview({ [name]: event.currentTarget.valueAsNumber }); }} onPointerUp={gesture.commit} onPointerCancel={gesture.cancel} onBlur={gesture.commit} onKeyDown={keyDown} />
+				<VideoEffectNumberInput value={numericValue} minimum={parameter.min} maximum={parameter.max} step={parameter.step}
+					label={`${copy.videoEffectExactValue}: ${label}`} disabled={disabled} onBegin={gesture.begin}
+					onPreview={(next) => gesture.preview({ [name]: next })} onCommit={gesture.commit} onCancel={gesture.cancel} />
 				<output>{parameterUnit(parameter, copy)}</output>
 			</div>
 			<div className={`slider audio-editor-stepped-slider${disabled ? ' slider--disabled' : ''}`} style={{ '--slider-track-bg': 'var(--line)', '--slider-fill-bg': 'var(--accent)', '--slider-handle-bg': 'var(--panel)', '--slider-handle-border': 'var(--accent-strong)' }}>

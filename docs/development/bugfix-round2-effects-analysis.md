@@ -64,4 +64,19 @@ value. Existing mixer keyboard workflows pass. The extracted master control
 shares the effect-dialog shell's semantic chunk owner; the ownership test and
 ordinary Export audio opening guard its lazy loading.
 
+## R2-ROOT-005 — Video numeric fields lose a typed negative fraction
+
+Import an ordinary video in Framescaper, open **Clip properties**, add a color
+effect, clear its exact **Brightness** field, and type `-0.5`. Previously the
+live numeric echo discarded the incomplete minus prefix and saved positive
+`0.5`. The control now retains its string draft throughout the gesture, previews
+only complete numbers, and commits or restores the original value on Enter,
+blur or Escape. Its final display follows the parameter's canonical bounds.
+Adjustment-layer authoring has the same draft defect and uses the same rule.
+
+Proof: `audio-editor-round2-video-effect-input.spec.js` failed against build 5
+and passes against build 7 in Chromium, Firefox and WebKit. Strict mounted
+control regressions cover live echoes, cancellation, one commit and bounded
+display. The existing slider keyboard/Undo workflow also passes in all engines.
+
 These changes do not require a manual **Update AI assets** run.
