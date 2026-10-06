@@ -411,6 +411,12 @@ export function createSelectionViewService<
 		const projectAtStart = getProject();
 		const selection = resolveSelectionRange(projectAtStart, { selectedClipId: state.selectedClipId });
 		if (!projectAtStart || !selection || state.analysisProcessing) return null;
+		const requestedTrackIds = selection.trackIds?.length
+			? selection.trackIds : state.selectedTrackId ? [state.selectedTrackId] : [];
+		const audioTrackIds = [...new Set(requestedTrackIds)].filter((trackId) => (
+			findTrack(projectAtStart, trackId)?.type === 'audio'
+		));
+		if (!audioTrackIds.length) return null;
 		const generation = ++zeroCrossingGeneration;
 		const radius = Math.max(1, Math.round(projectSampleRate() * 0.01));
 		const renderStart = Math.max(0, selection.startFrame - radius);
@@ -419,14 +425,15 @@ export function createSelectionViewService<
 		state.analysisProcessing = true;
 		publishDocumentSnapshot();
 		try {
-			const rendered = await renderSnapshot(cloneProject(projectAtStart), {
+			const rendered = await Promise.all(audioTrackIds.map((trackId) => renderSnapshot(cloneProject(projectAtStart), {
 				startFrame: renderStart,
 				endFrame: renderEnd,
 				includeTail: false,
 				outputFrames: renderEnd - renderStart,
-			});
+				trackId, includeMaster: false, includeTrackPan: false, respectMuteSolo: false,
+			})));
 			if (getProject() !== projectAtStart) return null;
-			const channels = audioBufferChannels(rendered);
+			const channels = rendered.flatMap(audioBufferChannels);
 			const snapEdge = (frame: number) => frame < renderStart || frame >= renderEnd
 				? frame
 				: renderStart + findNearestAudioZeroCrossing(

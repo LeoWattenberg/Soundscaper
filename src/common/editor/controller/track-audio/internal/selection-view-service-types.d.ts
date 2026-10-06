@@ -68,6 +68,10 @@ export interface SelectionViewRenderRange {
 	readonly endFrame: number;
 	readonly includeTail: false;
 	readonly outputFrames: number;
+	readonly trackId?: string;
+	readonly includeMaster?: false;
+	readonly includeTrackPan?: false;
+	readonly respectMuteSolo?: false;
 }
 
 export interface SelectionViewZeroCrossingOptions {

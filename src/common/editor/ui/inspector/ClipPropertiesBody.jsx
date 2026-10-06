@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 import { TrackFadeHandleGlyph } from '@soundscaper/design-system/Track/TrackFadeHandle';
 import { AUDIO_EDITOR_SAMPLE_RATE, findClip, findClipTrack, findSource } from '../../project.js';
+import { readClipLoop } from '../../audio-clip-loop.ts';
 import AudioEditorTimeCodeInput from '../AudioEditorTimeCodeInput.tsx';
 import { selectAudioEditorEditBlock } from '../edit-blocking.ts';
 import { ActionHook, CommitField, DesignCheckbox, SteppedSlider } from './inspector-controls.jsx';
@@ -96,6 +97,9 @@ export default function ClipPropertiesBody({ controller, snapshot, copy, clipId 
 			} else if (name === 'startFrame') {
 				const timelineStartFrame = nonNegativeFrame(rawValue, copy);
 				controller.actions.clip.move(clip.id, track.id, timelineStartFrame, { exactFrame: true });
+			} else if (name === 'durationFrame' && readClipLoop(clip)) {
+				const durationFrames = Math.max(1, nonNegativeFrame(rawValue, copy));
+				controller.actions.clip.update(clip.id, { loop: { ...readClipLoop(clip), durationFrames } });
 			} else if ((name === 'sourceInFrame' || name === 'durationFrame') && !isVideoClip
 				&& source && controller.actions.clipSourcePreview?.trim) {
 				const value = nonNegativeFrame(rawValue, copy);

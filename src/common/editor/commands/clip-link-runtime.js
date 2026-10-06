@@ -28,6 +28,8 @@ import {
 } from '../timeline-time.ts';
 import { resolveAudioWarpEditFrame } from '../audio-warp-clip-edit.ts';
 import { videoCompositionCarriersEqual } from './video-composition-carrier.ts';
+import { readClipLoop } from '../audio-clip-loop.ts';
+import { clipLoopJoinFields } from './clip-loop-join.ts';
 import {
 	joinVideoKeyframeCarrierSequenceFields,
 	videoKeyframeCarriersJoinable,
@@ -320,6 +322,10 @@ function createSingleTrackJoinRun(project, values) {
 	if (clips.some((clip) => requireClipTrack(project, clip.id).id !== track.id)) {
 		throw new RangeError('Joined clips must belong to the same track.');
 	}
+	const loopFields = clipLoopJoinFields(clips);
+	if (!loopFields && clips.some((clip) => readClipLoop(clip))) {
+		throw new RangeError('Joined loop clips must have matching source periods and phases.');
+	}
 	for (let index = 1; index < clips.length; index += 1) {
 		const previous = clips[index - 1];
 		const current = clips[index];
@@ -329,14 +335,14 @@ function createSingleTrackJoinRun(project, values) {
 		if (previous.kind === 'audio' && ((previous.fadeOutFrames ?? 0) > 0 || (current.fadeInFrames ?? 0) > 0)) {
 			throw new RangeError('Clips with internal fades must be rendered before joining.');
 		}
-		if (!clipsHaveContiguousSource(previous, current)) {
+		if (!clipsHaveContiguousSource(previous, current, loopFields !== null)) {
 			throw new RangeError('Clips with different processing or source regions must be rendered before joining.');
 		}
 	}
-	return { clips, track };
+	return { clips, track, loopFields };
 }
 
-function applyClipJoinRun(project, { clips, track }) {
+function applyClipJoinRun(project, { clips, track, loopFields }) {
 	const first = clips[0];
 	const last = clips.at(-1);
 	const joinedDurationFrames = clipEndFrame(last) - first.timelineStartFrame;
@@ -349,6 +355,7 @@ function applyClipJoinRun(project, { clips, track }) {
 		sourceStartFrame: joinedSourceStartFrame,
 		durationFrames: joinedDurationFrames,
 		sourceDurationFrames: joinedSourceDurationFrames,
+		...loopFields,
 		trimEndFrames: last.trimEndFrames,
 		...(Number.isSafeInteger(last.fadeOutFrames) ? { fadeOutFrames: last.fadeOutFrames } : {}),
 		...(first.kind === 'audio' ? { fadeOutShape: last.fadeOutShape } : {}),
@@ -371,7 +378,7 @@ function applyClipJoinRun(project, { clips, track }) {
 	sortTrack(project, track);
 }
 
-function clipsHaveContiguousSource(left, right) {
+function clipsHaveContiguousSource(left, right, loopJoin = false) {
 	if (
 		left.sourceId !== right.sourceId
 		|| left.reversed !== right.reversed
@@ -388,6 +395,7 @@ function clipsHaveContiguousSource(left, right) {
 		|| !videoCompositionCarriersEqual(left, right)
 		|| !videoKeyframeCarriersJoinable(left, right)
 	) return false;
+	if (loopJoin) return true;
 	const leftDuration = left.sourceDurationFrames ?? left.durationFrames;
 	const rightDuration = right.sourceDurationFrames ?? right.durationFrames;
 	return left.reversed

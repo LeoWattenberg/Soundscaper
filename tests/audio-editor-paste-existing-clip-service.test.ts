@@ -227,7 +227,8 @@ test('pasting into an existing clip renders the copied loop period and phase', a
 	const descriptor = clipboard();
 	const looped = { ...descriptor, durationFrames: 4, tracks: descriptor.tracks.map((track) => ({
 		...track, clips: track.clips.map((clip) => ({ ...clip,
-			...clipLoopUpdateFields({ ...clip, sourceDurationFrames: 2 },
+			...clipLoopUpdateFields({ ...clip, durationFrames: Number(clip.durationFrames ?? 2),
+				sourceStartFrame: Number(clip.sourceStartFrame ?? 0), sourceDurationFrames: 2 },
 				{ periodFrames: 2, durationFrames: 4, offsetFrames: 1 }),
 		})),
 	})) };
