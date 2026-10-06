@@ -4,6 +4,7 @@ import { hasCoreEditingProjectAuthority } from '../../../project-schema-version.
 import type { AudioEditorCommand } from '../../../commands/protocol.ts';
 import type { AudioTrackLeaf } from '../../../project-media-types.ts';
 import { readClipLoop } from '../../../audio-clip-loop.ts';
+import type { AudioWarpRuntimeProject } from '../../../audio-warp-runtime.ts';
 import type {
 	PersistedSampleEdit,
 	SampleEditClip,
@@ -105,6 +106,7 @@ export interface SampleEditServiceRuntime<Project extends ControllerRuntimeProje
 	readonly createPencilSampleEdits: (request: Readonly<{
 		readonly clip: SampleEditClip;
 		readonly source: SampleEditSource;
+		readonly project?: AudioWarpRuntimeProject;
 		readonly channel: number;
 		readonly points: readonly SamplePencilPoint[] | undefined;
 	}>) => readonly SamplePencilEdit[];
@@ -112,6 +114,7 @@ export interface SampleEditServiceRuntime<Project extends ControllerRuntimeProje
 	readonly createSmoothSampleRange: (request: Readonly<{
 		readonly clip: SampleEditClip;
 		readonly source: SampleEditSource;
+		readonly project?: AudioWarpRuntimeProject;
 		readonly startFrame: number;
 		readonly endFrame: number;
 		readonly channel: number | null;
@@ -194,6 +197,7 @@ export function createSampleEditService<Project extends ControllerRuntimeProject
 		const edits = createPencilSampleEdits({
 			clip,
 			source,
+			project: project as unknown as AudioWarpRuntimeProject,
 			channel: options.channel ?? 0,
 			points: options.points,
 		});
@@ -211,6 +215,7 @@ export function createSampleEditService<Project extends ControllerRuntimeProject
 		const smooth = createSmoothSampleRange({
 			clip,
 			source,
+			project: project as unknown as AudioWarpRuntimeProject,
 			startFrame: selection.startFrame,
 			endFrame: selection.endFrame,
 			channel: options.channel ?? null,

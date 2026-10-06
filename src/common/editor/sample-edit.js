@@ -2,6 +2,7 @@ import { AUDACITY_WAVEFORM_STEM_PIXELS_PER_SAMPLE } from './audacity-waveform-re
 import { createStableId } from './project.js';
 import { AUDIO_EDITOR_SOURCE_CHUNK_FRAMES } from './project-audio-factory.js';
 import { createLoopPencilSampleEdits } from './sample-pencil-loop-projection.ts';
+import { createWarpPencilSampleEdits, warpedSampleSourceFrame } from './sample-pencil-warp-projection.ts';
 import { loadSourceProvenanceDerivation } from './source-provenance-derivation-loader.ts';
 import {
 	createImmutablePcmChunks,
@@ -36,14 +37,18 @@ export function canEditAudioSamplesAtZoom(pixelsPerSecond, sampleRate, options =
 		&& pixels / rate >= minimum;
 }
 
-/** Convert a visible project frame to the immutable source frame under a clip. */
-export function timelineFrameToSourceFrame(clip, source, timelineFrame) {
+/** Convert a visible project frame to the immutable source frame under a clip.
+ * @param {import('./audio-warp-runtime.ts').AudioWarpRuntimeProject | null} [project]
+ */
+export function timelineFrameToSourceFrame(clip, source, timelineFrame, project = null) {
 	validateClipAndSource(clip, source);
 	const frame = safeInteger(timelineFrame, 'timelineFrame');
 	const clipEnd = clip.timelineStartFrame + clip.durationFrames;
 	if (frame < clip.timelineStartFrame || frame >= clipEnd) {
 		throw new RangeError('The sample-edit frame must be inside the selected clip.');
 	}
+	const warpedFrame = warpedSampleSourceFrame(clip, project, frame);
+	if (warpedFrame !== null) return warpedFrame;
 	const relativeTimelineFrame = frame - clip.timelineStartFrame;
 	const relativeSourceFrame = Math.min(
 		clip.sourceDurationFrames - 1,
@@ -60,11 +65,13 @@ export function timelineFrameToSourceFrame(clip, source, timelineFrame) {
  * @param {CreatePencilSampleEditsRequest} [request]
  * @returns {readonly SamplePencilEdit[]}
  */
-export function createPencilSampleEdits({ clip, source, channel = 0, points, maximumFrames = AUDIO_EDITOR_SAMPLE_EDIT_MAX_FRAMES } = {}) {
+export function createPencilSampleEdits({ clip, source, project, channel = 0, points, maximumFrames = AUDIO_EDITOR_SAMPLE_EDIT_MAX_FRAMES } = {}) {
 	validateClipAndSource(clip, source);
 	const channelIndex = boundedInteger(channel, 0, source.channelCount - 1, 'channel');
 	if (!Array.isArray(points) || points.length < 1) throw new TypeError('A pencil stroke requires at least one point.');
 	const maximum = positiveInteger(maximumFrames, 'maximumFrames');
+	const warpEdits = createWarpPencilSampleEdits(clip, project, channelIndex, points, maximum);
+	if (warpEdits) return warpEdits;
 	const loopEdits = createLoopPencilSampleEdits(clip, channelIndex, points, maximum);
 	if (loopEdits) return loopEdits;
 	const normalized = points.map((point, index) => ({
@@ -98,7 +105,7 @@ export function createPencilSampleEdits({ clip, source, channel = 0, points, max
  * Map a project selection to the selected clip's source interval.
  * @param {CreateSmoothSampleRangeRequest} [request]
  */
-export function createSmoothSampleRange({ clip, source, startFrame, endFrame, channel = null, maximumFrames = AUDIO_EDITOR_SAMPLE_EDIT_MAX_FRAMES } = {}) {
+export function createSmoothSampleRange({ clip, source, project, startFrame, endFrame, channel = null, maximumFrames = AUDIO_EDITOR_SAMPLE_EDIT_MAX_FRAMES } = {}) {
 	validateClipAndSource(clip, source);
 	const start = safeInteger(startFrame, 'startFrame');
 	const end = safeInteger(endFrame, 'endFrame');
@@ -106,8 +113,8 @@ export function createSmoothSampleRange({ clip, source, startFrame, endFrame, ch
 	const intersectionStart = Math.max(start, clip.timelineStartFrame);
 	const intersectionEnd = Math.min(end, clip.timelineStartFrame + clip.durationFrames);
 	if (intersectionEnd <= intersectionStart) throw new RangeError('The smoothing selection must overlap the selected clip.');
-	const first = timelineFrameToSourceFrame(clip, source, intersectionStart);
-	const last = timelineFrameToSourceFrame(clip, source, intersectionEnd - 1);
+	const first = timelineFrameToSourceFrame(clip, source, intersectionStart, project);
+	const last = timelineFrameToSourceFrame(clip, source, intersectionEnd - 1, project);
 	const sourceStartFrame = Math.min(first, last);
 	const sourceEndFrame = Math.max(first, last) + 1;
 	const length = sourceEndFrame - sourceStartFrame;

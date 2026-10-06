@@ -2,8 +2,9 @@
 
 import type { AudioSourceLeaf } from './project-media-types.ts';
 import type { SourcePcmChunk } from './storage/source-read-repository.ts';
+import type { AudioWarpRuntimeClip, AudioWarpRuntimeProject } from './audio-warp-runtime.ts';
 
-export interface SampleEditClip {
+export interface SampleEditClip extends AudioWarpRuntimeClip {
 	readonly id: string;
 	readonly sourceId: string;
 	readonly timelineStartFrame: number;
@@ -30,6 +31,7 @@ export interface SamplePencilEdit {
 export interface CreatePencilSampleEditsRequest {
 	readonly clip: SampleEditClip;
 	readonly source: SampleEditSource;
+	readonly project?: AudioWarpRuntimeProject;
 	readonly channel?: number;
 	readonly points?: readonly SamplePencilPoint[];
 	readonly maximumFrames?: number;
@@ -44,6 +46,7 @@ export interface SmoothSampleRange {
 export interface CreateSmoothSampleRangeRequest {
 	readonly clip: SampleEditClip;
 	readonly source: SampleEditSource;
+	readonly project?: AudioWarpRuntimeProject;
 	readonly startFrame: number;
 	readonly endFrame: number;
 	readonly channel?: number | null;
