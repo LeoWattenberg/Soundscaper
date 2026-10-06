@@ -6,6 +6,7 @@ import { Separator } from '@soundscaper/design-system/Separator';
 import { TextInput } from '@soundscaper/design-system/TextInput';
 
 import { summarizeMorseCode } from '../../morse-code.ts';
+import { resolveSelectionRange } from '../../selection-range.ts';
 import {
 	GeneratorKnob,
 	GeneratorNumberField,
@@ -416,7 +417,7 @@ function generatorWaveformOptions(copy) {
 }
 
 function generatorDefaults(type, project) {
-	const selection = project?.selection;
+	const selection = resolveSelectionRange(project);
 	const durationSeconds = selection?.endFrame > selection?.startFrame
 		? (selection.endFrame - selection.startFrame) / project.sampleRate : 30;
 	const common = { durationSeconds };

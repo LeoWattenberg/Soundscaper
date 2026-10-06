@@ -34,8 +34,9 @@ it into an audio effect. Clearing a parameter keeps it absent.
 
 Import a 0.8-second WAV, choose **Select > Select all**, then **Generate > Tone**.
 The duration previously read 30 seconds, so accepting defaults replaced the
-short selection with 30 seconds of tone. Generator defaults now use the selected
-duration. Morse continues to derive its duration from the message.
+short selection with 30 seconds of tone. Generator defaults and range replacement
+now resolve the selected duration, including a clip selected through its header.
+Morse continues to derive its duration from the message.
 
 ## ROOT-005 — Generator numeric fields accept values they cannot generate
 
@@ -146,6 +147,13 @@ Create and run a program containing
 `sound.log.info('before error'); throw new Error('example error');`.
 Previously only the error survived. The sandbox error now carries the captured
 log, and the palette displays it before the failure message.
+
+## ROOT-021 — Generator knobs apply arrow keys twice
+
+Open **Generate > Morse code**, focus the first knob, and press Arrow Up once.
+Previously the value changed from 20 to 22 because both its native adapter and
+the shared knob handled the same arrow. The adapter now owns only Home/End;
+the knob changes by one step per arrow press.
 
 ## Regression coverage
 

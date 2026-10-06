@@ -177,6 +177,16 @@ test('generator persists audio and commits a prepared range replacement exactly 
 	]);
 });
 
+test('generation reads a selected clip even when its drawn time selection is collapsed', async () => {
+	const selected = { ...project(), selection: {
+		startFrame: 0, endFrame: 0, trackIds: ['track-a'], clipIds: ['existing-clip'],
+	} };
+	const fixture = createFixture({ getProject: () => selected });
+	await createAudioGeneratorService(fixture.dependencies).generateSignal('silence');
+	assert.deepEqual(fixture.preflights, [400]);
+	assert.equal(fixture.commits[0]?.command.type, 'range/replace');
+});
+
 test('Silence audio covers every selected track in one edit', async () => {
 	const base = project();
 	const activeProject = { ...base,

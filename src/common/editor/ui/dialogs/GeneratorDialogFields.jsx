@@ -124,15 +124,14 @@ export function GeneratorKnob({ value, defaultValue, label, minimum = 1, maximum
 		if (!knob) return undefined;
 		knob.setAttribute('type', 'button');
 		const handleKeyDown = (event) => {
-			if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return;
+			if (!['Home', 'End'].includes(event.key)) return;
 			event.preventDefault();
 			if (event.key === 'Home') onChange(minimum);
-			else if (event.key === 'End') onChange(maximum);
-			else onChange(Math.max(minimum, Math.min(maximum, value + (['ArrowRight', 'ArrowUp'].includes(event.key) ? 1 : -1))));
+			else onChange(maximum);
 		};
 		knob.addEventListener('keydown', handleKeyDown);
 		return () => knob.removeEventListener('keydown', handleKeyDown);
-	}, [maximum, minimum, onChange, value]);
+	}, [maximum, minimum, onChange]);
 	return (
 		<div ref={wrapperRef} className="kw-audio-editor-generator__knob">
 			<Knob value={value} defaultValue={defaultValue} min={minimum} max={maximum} step={1} label={label} mode="unipolar" onChange={onChange} />

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { expect, test, toneA, toneB } from './audio-editor-test-fixtures.js';
-import { bootEditor, chooseCommandAction, chooseNestedCommandAction, importFiles, openExportDialog, chooseDropdown, readDownloadBytes, closeDialog, disableNativeSavePicker } from './audio-editor-test-helpers.js';
+import { bootEditor, chooseCommandAction, chooseNestedCommandAction, clipByName, importFiles, openExportDialog, chooseDropdown, readDownloadBytes, closeDialog, disableNativeSavePicker } from './audio-editor-test-helpers.js';
 
 test('Tone defaults to the selected duration', async ({ page }) => {
 	const editor = await bootEditor(page, '/embed/en/');
@@ -10,6 +10,26 @@ test('Tone defaults to the selected duration', async ({ page }) => {
 	await chooseCommandAction(page, editor, 'Generate', 'Tone');
 	const dialog = page.getByRole('dialog', { name: 'Tone', exact: true });
 	await expect(dialog.getByRole('group', { name: 'Duration (seconds)', exact: true }).locator('.timecode__display')).toHaveText('00h00m00.800s');
+});
+
+test('Tone also reads the duration of a clip selected through its header', async ({ page }) => {
+	const editor = await bootEditor(page, '/embed/en/');
+	await importFiles(editor, [toneA]);
+	await clipByName(editor, toneA.name).locator('.clip-header').click();
+	await chooseCommandAction(page, editor, 'Generate', 'Tone');
+	const dialog = page.getByRole('dialog', { name: 'Tone', exact: true });
+	await expect(dialog.getByRole('group', { name: 'Duration (seconds)', exact: true }).locator('.timecode__display')).toHaveText('00h00m00.800s');
+});
+
+test('a generator knob changes by one step for one arrow key press', async ({ page }) => {
+	const editor = await bootEditor(page, '/embed/en/');
+	await chooseCommandAction(page, editor, 'Generate', 'Morse code');
+	const dialog = page.getByRole('dialog', { name: 'Morse code', exact: true });
+	const knob = dialog.getByRole('slider').first();
+	const initial = Number(await knob.getAttribute('aria-valuenow'));
+	await knob.focus();
+	await knob.press('ArrowUp');
+	await expect(knob).toHaveAttribute('aria-valuenow', String(initial + 1));
 });
 
 test('generator frequency entries respect the project Nyquist limit', async ({ page }) => {

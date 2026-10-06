@@ -9,6 +9,7 @@ import type { AudioEditorCommand } from '../../commands/protocol.ts';
 import { prepareRangeReplacementCommand as prepareLegacyRangeReplacementCommand } from '../../commands/range-runtime.js';
 import type { LabeledAudioRegion } from '../../labeled-audio-regions.ts';
 import { generateAudioEditorSignal } from '../../generators.js';
+import { resolveSelectionRange } from '../../selection-range.ts';
 import { generatorName, normalizeProjectSampleRate } from '../shared/app-helpers.ts';
 import {
 	EditorProjectChangedError,
@@ -400,8 +401,7 @@ export function createAudioGeneratorService<Context, Target extends AudioGenerat
 }
 
 function activeSelection(project: AudioGeneratorDocument): AudioGeneratorSelection | null {
-	const selection = project.selection;
-	return selection && selection.endFrame > selection.startFrame ? selection : null;
+	return resolveSelectionRange(project);
 }
 
 function findTrack(
