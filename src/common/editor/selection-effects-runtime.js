@@ -53,7 +53,6 @@ export async function applyAudioSelectionEffectAsync(type, channels, sampleRate,
 		));
 	}
 	if (type !== 'eq') return applyAudacityEffectAsync(type, channels, sampleRate, params, context);
-	await initializePffft();
 	const input = assertAudacityEffectOutput(channels);
 	const normalized = normalizeAudioSelectionEffectParams(type, params);
 	const contextual = prependContextChannels(input, context.beforeChannels);
@@ -71,6 +70,7 @@ export async function applyAudioSelectionEffectAsync(type, channels, sampleRate,
 		? contextualOutput.map((channel) => channel.slice(contextual.beforeFrames))
 		: contextualOutput;
 	if (!context?.spectralSelection) return assertAudacityEffectOutput(output);
+	await initializePffft();
 	return assertAudacityEffectOutput(applySpectralReplacement(input, output, {
 		...context.spectralSelection,
 		sampleRate,

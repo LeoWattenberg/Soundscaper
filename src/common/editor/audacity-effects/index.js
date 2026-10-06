@@ -57,6 +57,9 @@ import {
 } from './contracts.js';
 
 let defaultStaffPadRuntimePromise;
+const FFT_EFFECT_TYPES = new Set([
+	'audacity-filter-curve-eq', 'audacity-graphic-eq', 'audacity-noise-reduction', 'audacity-paulstretch',
+]);
 
 export class AudacityStaffPadError extends Error {
 	constructor(code, message, options) {
@@ -128,7 +131,7 @@ export function applyAudacityEffect(type, channels, sampleRate, params = {}, con
 
 export async function applyAudacityEffectAsync(type, channels, sampleRate, params = {}, context = {}) {
 	const staffPad = isAudacityStaffPadEffect(type);
-	if (!staffPad || context?.spectralSelection) await initializePffft();
+	if (FFT_EFFECT_TYPES.has(type) || context?.spectralSelection) await initializePffft();
 	if (!staffPad) {
 		return applyAudacitySpectralContext(
 			channels,
