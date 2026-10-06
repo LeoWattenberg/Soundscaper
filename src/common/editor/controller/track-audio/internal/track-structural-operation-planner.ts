@@ -16,6 +16,7 @@ import type {
 	ControllerProject,
 	ControllerTrack,
 } from '../track-domain-types.ts';
+import { moveTrackLabelContent, trackLabelContent, type TrackLabelContent } from './track-label-content.ts';
 
 export type TrackAlignmentMode =
 	| 'end-to-end'
@@ -37,6 +38,7 @@ export interface TrackAlignmentTransform {
 export interface TrackAlignmentPlan {
 	readonly transforms: readonly TrackAlignmentTransform[];
 	readonly trackIds: readonly string[];
+	readonly labelCommands?: readonly Extract<AudioEditorCommand, { readonly type: 'label/update' }>[];
 }
 
 type StructuralCommand = Extract<AudioEditorCommand, {
@@ -74,6 +76,7 @@ interface StructuralBlock {
 
 interface TimedStructuralBlock extends StructuralBlock {
 	readonly clips: readonly Readonly<{ clip: ControllerClip; trackId: string; start: number; end: number }>[];
+	readonly labels: readonly TrackLabelContent[];
 	readonly start: number;
 	readonly end: number;
 }
@@ -90,6 +93,7 @@ export function planTrackAlignment(
 	if (blocks.length === 0) return Object.freeze({ transforms: Object.freeze([]), trackIds: Object.freeze([]) });
 	const starts = alignedBlockStarts(blocks, mode, targetFrame);
 	const transforms: TrackAlignmentTransform[] = [];
+	const labelCommands: Extract<AudioEditorCommand, { readonly type: 'label/update' }>[] = [];
 	for (const [index, block] of blocks.entries()) {
 		const delta = starts[index] - block.start;
 		if (delta === 0) continue;
@@ -101,10 +105,12 @@ export function planTrackAlignment(
 				changes: Object.freeze({ timelineStartFrame }),
 			}));
 		}
+		labelCommands.push(...moveTrackLabelContent(block.labels, delta));
 	}
 	return Object.freeze({
 		transforms: Object.freeze(transforms),
 		trackIds: Object.freeze(blocks.flatMap(({ trackIds }) => trackIds)),
+		...(labelCommands.length ? { labelCommands: Object.freeze(labelCommands) } : {}),
 	});
 }
 
@@ -152,7 +158,7 @@ function selectedTimedBlocks(
 	return structuralBlocks(project)
 		.filter((block) => block.trackIds.some((trackId) => requested.has(trackId)))
 		.map((block) => timedBlock(project, block))
-		.filter(({ clips }) => clips.length > 0);
+		.filter(({ clips, labels }) => clips.length > 0 || labels.length > 0);
 }
 
 function alignedBlockStarts(
@@ -262,11 +268,17 @@ function timedBlock(project: ControllerProject, block: StructuralBlock): TimedSt
 			return [{ clip, trackId, start: resolved.timelineStartFrame, end: resolved.timelineEndFrame }];
 		});
 	});
+	const labels = block.trackIds.flatMap(trackId => {
+		const track = trackById.get(trackId);
+		return track ? trackLabelContent(track) : [];
+	});
+	const content = [...clips, ...labels];
 	return Object.freeze({
 		...block,
 		clips: Object.freeze(clips),
-		start: clips.length ? Math.min(...clips.map(({ start }) => start)) : Number.POSITIVE_INFINITY,
-		end: clips.length ? Math.max(...clips.map(({ end }) => end)) : Number.POSITIVE_INFINITY,
+		labels: Object.freeze(labels),
+		start: content.length ? Math.min(...content.map(({ start }) => start)) : Number.POSITIVE_INFINITY,
+		end: content.length ? Math.max(...content.map(({ end }) => end)) : Number.POSITIVE_INFINITY,
 	});
 }
 

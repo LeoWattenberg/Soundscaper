@@ -64,11 +64,14 @@ export function createTrackStructuralOperationService(
 			: selectedTrackId ? [selectedTrackId] : [];
 		const targetFrame = typeof target === 'function' ? target(project) : target;
 		const plan = planTrackAlignment(project, selectedTrackIds, mode, targetFrame);
-		if (plan.transforms.length === 0) return null;
-		return dependencies.commit({
+		if (plan.transforms.length === 0 && !plan.labelCommands?.length) return null;
+		const clipCommand: AudioEditorCommand = {
 			type: 'clip/transform-many', transforms: plan.transforms, overwrite: false,
 			splitClipIds: {}, splitAvLinkIds: {}, videoEffectIds: {},
-		});
+		};
+		return dependencies.commit(plan.labelCommands?.length ? { type: 'batch', commands: [
+			...(plan.transforms.length ? [clipCommand] : []), ...plan.labelCommands,
+		] } : clipCommand);
 	}
 
 	function sort(criterion: 'time' | 'name'): unknown {
