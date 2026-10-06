@@ -41,9 +41,10 @@ export function createResolvedCommandProjectReader<Project extends object, Proje
 	projectForCommandConsumers: (project: Project) => Projection,
 	options: Readonly<{ immutableGenerations?: boolean }> = {},
 ) {
-	const readProjection = createCommandProjectReader(getProject, project => (
-		projectForRuntimeConsumers(projectForCommandConsumers(project))
-	), options);
+	const readProjection = createCommandProjectReader(getProject, project => {
+		const projection = projectForCommandConsumers(project);
+		return projectForRuntimeConsumers(projection);
+	}, options);
 	return readResolvedCommandProject;
 
 	function readResolvedCommandProject() {

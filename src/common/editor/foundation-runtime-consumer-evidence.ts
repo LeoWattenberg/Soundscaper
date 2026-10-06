@@ -67,7 +67,7 @@ const entries: FoundationRuntimeConsumerEvidence[] = [
 		id: 'controller-command-reader',
 		surface: 'composition',
 		file: 'src/common/editor/controller/composition/controller-project-queries.ts',
-		entryPoint: 'readResolvedCommandProject',
+		entryPoint: 'createResolvedCommandProjectReader',
 		inputIdentifier: 'projection',
 		projectedIdentifier: null,
 		boundary: 'projectForRuntimeConsumers',
