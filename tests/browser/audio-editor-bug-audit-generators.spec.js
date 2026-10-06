@@ -30,6 +30,10 @@ test('a generator knob changes by one step for one arrow key press', async ({ pa
 	await knob.focus();
 	await knob.press('ArrowUp');
 	await expect(knob).toHaveAttribute('aria-valuenow', String(initial + 1));
+	await knob.press('Home');
+	await expect(knob).toHaveAttribute('aria-valuenow', '5');
+	await knob.press('End');
+	await expect(knob).toHaveAttribute('aria-valuenow', '60');
 });
 
 test('generator frequency entries respect the project Nyquist limit', async ({ page }) => {

@@ -118,22 +118,8 @@ export function GeneratorRadioGroup({ label, value, onChange, options }) {
 }
 
 export function GeneratorKnob({ value, defaultValue, label, minimum = 1, maximum = 100, onChange }) {
-	const wrapperRef = useRef(null);
-	useEffect(() => {
-		const knob = wrapperRef.current?.querySelector('.knob');
-		if (!knob) return undefined;
-		knob.setAttribute('type', 'button');
-		const handleKeyDown = (event) => {
-			if (!['Home', 'End'].includes(event.key)) return;
-			event.preventDefault();
-			if (event.key === 'Home') onChange(minimum);
-			else onChange(maximum);
-		};
-		knob.addEventListener('keydown', handleKeyDown);
-		return () => knob.removeEventListener('keydown', handleKeyDown);
-	}, [maximum, minimum, onChange]);
 	return (
-		<div ref={wrapperRef} className="kw-audio-editor-generator__knob">
+		<div className="kw-audio-editor-generator__knob">
 			<Knob value={value} defaultValue={defaultValue} min={minimum} max={maximum} step={1} label={label} mode="unipolar" onChange={onChange} />
 		</div>
 	);

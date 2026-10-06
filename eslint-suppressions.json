@@ -747,7 +747,7 @@
   },
   "src/common/editor/ui/dialogs/GeneratorDialogFields.jsx": {
     "no-restricted-syntax": {
-      "count": 5
+      "count": 4
     }
   },
   "src/common/editor/ui/dialogs/PreferenceDropdownField.jsx": {
