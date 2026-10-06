@@ -3,6 +3,7 @@ import { useTheme } from '../ThemeProvider';
 import { Icon } from '../Icon';
 import { ToggleButton } from '../ToggleButton';
 import { Dropdown } from '../Dropdown';
+import type { DropdownOption } from '../Dropdown/Dropdown';
 import './EffectHeader.css';
 
 export interface EffectHeaderProps {
@@ -30,6 +31,11 @@ export interface EffectHeaderProps {
    * Available presets
    */
   presets?: string[];
+
+  /** Stable preset identity, independent of its display name. */
+  presetValue?: string;
+  /** Named choices with distinct identities, including equal display names. */
+  presetOptions?: DropdownOption[];
 
   /**
    * Called when preset is changed
@@ -81,6 +87,8 @@ export const EffectHeader: React.FC<EffectHeaderProps> = ({
   onToggleAutomation,
   presetName = 'Default preset',
   presets = ['Default preset', 'Preset 1', 'Preset 2'],
+  presetValue,
+  presetOptions,
   onPresetChange,
   onSavePreset,
   onUndo,
@@ -119,8 +127,8 @@ export const EffectHeader: React.FC<EffectHeaderProps> = ({
         {/* Preset dropdown */}
         <div className="effect-header__preset">
           <Dropdown
-            value={presetName}
-            options={presets.map(p => ({ value: p, label: p }))}
+            value={presetValue ?? presetName}
+            options={presetOptions ?? presets.map(p => ({ value: p, label: p }))}
             onChange={(value) => onPresetChange?.(value)}
             placeholder="Select preset"
           />

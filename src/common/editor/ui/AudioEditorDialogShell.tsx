@@ -12,6 +12,7 @@ import { DialogHeader } from '@soundscaper/design-system/DialogHeader';
 
 import AudioEditorResizableSurface from './AudioEditorResizableSurface.jsx';
 import { retainAudioEditorDialogEscapeOwner } from './dialog-escape-ownership.ts';
+import { retainAudioEditorDialogFocusOwner } from './dialog-focus-ownership.ts';
 import { resolveEditorReturnFocus } from './focus-restoration.ts';
 import { constrainDialogDragOffset } from './dialog-drag-bounds.ts';
 
@@ -166,14 +167,16 @@ export default function AudioEditorDialogShell({
 		if (!isOpen) return undefined;
 		const previouslyFocused = resolveEditorReturnFocus(document, document.activeElement);
 		const panel = panelRef.current;
+		const focusOwnership = modal ? retainAudioEditorDialogFocusOwner(document) : null;
 		const focusableElements = () => [...(panel?.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR) || [])]
 			.filter(isAvailableFocusTarget);
 		const frame = requestAnimationFrame(() => {
+			if (modal && !focusOwnership?.isCurrent()) return;
 			if (panel?.contains(document.activeElement)) return;
 			(resolveInitialFocus(panel, initialFocus, focusableElements) || panel)?.focus({ preventScroll: true });
 		});
 		const handleKeyDown = (event: KeyboardEvent) => {
-			if (!modal || event.key !== 'Tab' || !panel) return;
+			if (!modal || !focusOwnership?.isCurrent() || event.key !== 'Tab' || !panel) return;
 			const focusable = focusableElements();
 			if (!focusable.length) {
 				event.preventDefault();
@@ -195,9 +198,11 @@ export default function AudioEditorDialogShell({
 		};
 		document.addEventListener('keydown', handleKeyDown);
 		return () => {
+			const restoreFocus = !modal || focusOwnership?.isCurrent();
+			focusOwnership?.release();
 			cancelAnimationFrame(frame);
 			document.removeEventListener('keydown', handleKeyDown);
-			if (previouslyFocused instanceof HTMLElement && previouslyFocused.isConnected) {
+			if (restoreFocus && previouslyFocused instanceof HTMLElement && previouslyFocused.isConnected) {
 				previouslyFocused.focus({ preventScroll: true });
 			}
 		};

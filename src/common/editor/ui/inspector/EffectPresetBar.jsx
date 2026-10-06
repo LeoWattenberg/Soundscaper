@@ -111,10 +111,12 @@ export default function EffectPresetBar({
 				automationEnabled={automation?.enabled ?? false}
 				onToggleAutomation={automation?.onToggle}
 				presetName={selected ? labelFor(selected) : baselineDisplay}
-				presets={[baselineDisplay, ...options.map(({ display }) => display)]}
+				presetValue={selected?.id || ''}
+				presetOptions={[{ value: '', label: baselineDisplay },
+					...options.map(({ id, display }) => ({ value: id, label: display }))]}
 				onPresetChange={(value) => {
 					if (disabled) return;
-					const choice = options.find((option) => option.display === value);
+					const choice = options.find((option) => option.id === value);
 					if (!choice && hasDefault && onDefault) onDefault();
 					else onSelect(choice?.id || '');
 				}}

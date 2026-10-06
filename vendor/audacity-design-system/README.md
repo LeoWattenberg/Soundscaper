@@ -303,6 +303,12 @@ application overrides and source patches against the pin and upstream master.
     to either step direction. Covered by
     `tests/audio-editor-number-stepper-regressions.test.tsx` and
     `tests/browser/audio-editor-number-stepper-regressions.spec.js`.
+38. `EffectHeader` accepts `presetValue` and `presetOptions` so hosts can keep
+    preset identity independent of display names. Delivery presets with equal
+    user-entered names remain separately selectable. Existing string-only
+    callers retain the upstream interface. Covered by
+    `tests/audio-editor-effect-preset-bar.test.tsx` and
+    `tests/browser/audio-editor-preset-identity-regressions.spec.js`.
 
 ## Application-side adaptations
 
