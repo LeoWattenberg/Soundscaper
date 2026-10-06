@@ -228,7 +228,7 @@ export function AudacityLabelMarker({
 		onSelect();
 		baselineRef.current = preview || label;
 		run(() => controller.actions.timeline.selectTrack(trackId));
-		run(() => controller.actions.timeline.setSelection(label.startFrame, label.endFrame));
+		run(() => controller.actions.timeline.setExactSelection(label.startFrame, label.endFrame));
 	};
 	return (
 		<div

@@ -38,7 +38,7 @@ test('label Escape restores the draft, suppresses continued mouse motion and per
 	const controller = {
 		getSnapshot: () => ({ project: { schemaFamily: 'soundscaper' } }),
 		actions: { labels: { update: (_track: string, _label: string, value: unknown) => changes.push(value) },
-			timeline: { selectTrack() {}, setSelection() {} }, edit: {} },
+			timeline: { selectTrack() {}, setExactSelection() {} }, edit: {} },
 	};
 	try {
 		await act(async () => root.render(<AudacityLabelMarker controller={controller} trackId="labels"
