@@ -136,14 +136,17 @@ export function setAdmEditorLayout(
 			&& assignment.stripId === source.stripId
 			&& assignment.sourceChannel === source.sourceChannel
 		));
-		const bedChannel = current && bedChannels.includes(current.bedChannel as never)
+		// None is an explicit routing choice, not a request for the new layout's
+		// default assignment. Only channels already in the bed are remapped.
+		if (!current) return [];
+		const bedChannel = bedChannels.includes(current.bedChannel as never)
 			? current.bedChannel
 			: defaultBedChannel(bedChannels, source.sourceChannel);
 		return bedChannel === null ? [] : [{
 			...source,
 			label: undefined,
 			bedChannel,
-			gain: current?.gain ?? 1,
+			gain: current.gain,
 		}];
 	}).map(({ label: _label, ...assignment }) => assignment);
 	return normalizeAdmProjectMetadata({

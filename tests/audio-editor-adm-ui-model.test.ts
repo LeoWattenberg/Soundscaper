@@ -145,6 +145,10 @@ test('ADM editor layout and routing updates remain normalized', () => {
 		stripKind: 'track', stripId: 'track-1', sourceChannel: 1, bedChannel: null, gain: 1,
 	});
 	assert.equal(mutedRight.bed.assignments.length, 1);
+	const changedLayout = setAdmEditorLayout(mutedRight, PROJECT, 'stereo');
+	assert.equal(changedLayout.bed.assignments.length, 1,
+		'a source assigned to None must stay excluded when the bed layout changes');
+	assert.equal(changedLayout.bed.assignments[0]?.sourceChannel, 0);
 	const restored = setAdmEditorAssignment(mutedRight, {
 		stripKind: 'track', stripId: 'track-1', sourceChannel: 1, bedChannel: 'M', gain: 0.5,
 	});

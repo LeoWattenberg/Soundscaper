@@ -3,6 +3,20 @@
 import { expect, test, toneA } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseCommandAction, closeWorkspacePanel, importFiles } from './audio-editor-test-helpers.js';
 
+test('changing the ADM bed layout preserves a source channel deliberately assigned to None', async ({ page }) => {
+	const editor = await bootEditor(page, '/embed/en/');
+	await importFiles(editor, [toneA]);
+	await chooseCommandAction(page, editor, 'Edit', 'Metadata editor');
+	const metadata = editor.locator('[data-workspace-panel="metadata"]');
+	await metadata.getByRole('tab', { name: 'ADM', exact: true }).click();
+	await metadata.getByRole('button', { name: 'Enable ADM', exact: true }).click();
+	const routing = metadata.getByRole('combobox', { name: /browser-tone-a.*bed channel/u }).first();
+	await routing.selectOption('');
+	await expect(routing).toHaveValue('');
+	await metadata.getByRole('combobox', { name: 'Bed layout', exact: true }).selectOption('5.1');
+	await expect(routing).toHaveValue('');
+});
+
 test('typing a negative ADM object angle keeps its sign', async ({ page }) => {
 	const editor = await bootEditor(page, '/embed/en/');
 	await importFiles(editor, [toneA]);
