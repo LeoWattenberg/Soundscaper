@@ -8,6 +8,7 @@ import {
 	audacityEffectDefaults,
 	normalizeAudacityEffectParams,
 } from './manifest.js';
+export { assertAudacityEffectOutput } from './pcm-channel-validation.ts';
 import {
 	STAFFPAD_MAXIMUM_MEMORY_BYTES,
 	createStaffPadChangePitchTransform,
@@ -187,27 +188,6 @@ export function estimateAudacityEffectPeakBytes(type, inputFrames, params = {}, 
 }
 
 /** Validate the shape and every PCM value returned by an effect. */
-export function assertAudacityEffectOutput(channels) {
-	if (!Array.isArray(channels) || channels.length === 0) {
-		throw new TypeError('Audacity effect output must be a non-empty array of Float32Array channels.');
-	}
-	let frameCount = null;
-	for (let channelIndex = 0; channelIndex < channels.length; channelIndex += 1) {
-		const channel = channels[channelIndex];
-		if (!(channel instanceof Float32Array)) {
-			throw new TypeError(`Audacity effect output channel ${channelIndex} must be a Float32Array.`);
-		}
-		if (frameCount == null) frameCount = channel.length;
-		else if (channel.length !== frameCount) throw new RangeError('Audacity effect output channels must have matching lengths.');
-		for (let frame = 0; frame < channel.length; frame += 1) {
-			if (!Number.isFinite(channel[frame])) {
-				throw new RangeError(`Audacity effect output channel ${channelIndex} contains a non-finite sample at frame ${frame}.`);
-			}
-		}
-	}
-	return channels;
-}
-
 export function createAudacityEffectSelection(type, params = {}) {
 	if (!AUDACITY_EFFECT_DEFINITIONS[type]) throw new RangeError(`Unsupported Audacity effect: ${type}.`);
 	return { type, params: normalizeAudacityEffectParams(type, { ...audacityEffectDefaults(type), ...params }) };

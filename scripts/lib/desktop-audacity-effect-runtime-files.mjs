@@ -15,6 +15,7 @@ export const DESKTOP_AUDACITY_EFFECT_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/audacity-effects/live-capabilities.js',
 	'src/common/editor/audacity-effects/live-capability-policy.js',
 	'src/common/editor/audacity-effects/manifest.js',
+	'src/common/editor/audacity-effects/pcm-channel-validation.js',
 	'src/common/editor/audacity-effects/spectral.js',
 	'src/common/editor/audacity-effects/spectral-convolution.js',
 	'src/common/editor/audacity-effects/spectral-equalization-curves.js',

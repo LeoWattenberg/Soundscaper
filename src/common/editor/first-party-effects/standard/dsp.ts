@@ -9,6 +9,7 @@ import { createVocoderProcessor } from './vocoder-dsp.ts';
 import { createNoiseGateProcessor, createOfflineNoiseGateProcessor } from './noise-gate-dsp.ts';
 import { createStandardDelayProcessor } from './delay-dsp.ts';
 import type { StaffPadWasmRuntime } from '../../staffpad/runtime.js';
+import type { SelectionInputValidation } from '../../audacity-effects/pcm-channel-validation.ts';
 
 export interface StandardEffectOptions {
 	readonly type: StandardEffectType;
@@ -39,8 +40,9 @@ export function createStandardEffectProcessor(options: StandardEffectOptions): S
 
 /** Selection processing uses exactly the state machine hosted in the worklet. */
 export function applyStandardEffect(type: StandardEffectType, channels: readonly Float32Array[], sampleRate: number,
-	params: Readonly<Record<string, unknown>> = {}, staffPadRuntime?: StaffPadWasmRuntime): Float32Array[] {
-	const frames = validateChannels(channels, sampleRate);
+	params: Readonly<Record<string, unknown>> = {}, staffPadRuntime?: StaffPadWasmRuntime,
+	validation?: SelectionInputValidation): Float32Array[] {
+	const frames = validateChannels(channels, sampleRate, validation);
 	const options = { type, sampleRate, channelCount: channels.length, params, staffPadRuntime };
 	const processor: StandardEffectProcessor = type === 'noise-gate'
 		? createOfflineNoiseGateProcessor(options) : createStandardEffectProcessor(options);

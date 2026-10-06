@@ -2,6 +2,7 @@
 
 import { applyAudacityEffectAsync } from './audacity-effects/index.js';
 import { assertAudacityEffectOutput } from './audacity-effects/contracts.js';
+import { withValidatedSelectionInput } from './audacity-effects/pcm-channel-validation.ts';
 import {
 	AUDIO_SELECTION_EFFECT_DEFINITIONS,
 	normalizeAudioSelectionEffectParams,
@@ -30,7 +31,9 @@ export async function applyAudioSelectionEffectAsync(type, channels, sampleRate,
 		const normalized = normalizeAudioSelectionEffectParams(type, params);
 		const output = type === 'multi-tap-delay'
 			? await applyStandardDelaySelection(assertAudacityEffectOutput(channels), sampleRate, normalized, context)
-			: applyStandardEffect(type, assertAudacityEffectOutput(channels), sampleRate, normalized);
+			: withValidatedSelectionInput(channels, (input, validation) => (
+				applyStandardEffect(type, input, sampleRate, normalized, undefined, validation)
+			));
 		if (!context?.spectralSelection) return assertAudacityEffectOutput(output);
 		await initializePffft();
 		return assertAudacityEffectOutput(applySpectralReplacement(channels, output, {
@@ -39,8 +42,9 @@ export async function applyAudioSelectionEffectAsync(type, channels, sampleRate,
 	}
 	if (isBandDynamicsEffect(type)) {
 		const apply = type === 'deesser' ? applyDeesser : applyMultibandCompressor;
-		return assertAudacityEffectOutput(apply(assertAudacityEffectOutput(channels), sampleRate,
-			normalizeAudioSelectionEffectParams(type, params)));
+		return assertAudacityEffectOutput(withValidatedSelectionInput(channels, (input, validation) => (
+			apply(input, sampleRate, normalizeAudioSelectionEffectParams(type, params), validation)
+		)));
 	}
 	if (type === REVIEWED_UTILITY_GAIN_SELECTION_EFFECT_TYPE) {
 		return applyReviewedUtilityGainSelection(channels, sampleRate, params);
@@ -69,7 +73,8 @@ export async function applyAudioSelectionEffectAsync(type, channels, sampleRate,
 	const output = contextual.beforeFrames > 0
 		? contextualOutput.map((channel) => channel.slice(contextual.beforeFrames))
 		: contextualOutput;
-	if (!context?.spectralSelection) return assertAudacityEffectOutput(output);
+	// Every sample in this exact slice was already checked in contextualOutput.
+	if (!context?.spectralSelection) return output;
 	await initializePffft();
 	return assertAudacityEffectOutput(applySpectralReplacement(input, output, {
 		...context.spectralSelection,

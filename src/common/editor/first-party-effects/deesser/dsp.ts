@@ -2,6 +2,7 @@
 
 import { normalizeBandDynamicsParams } from '../dynamics/definition.ts';
 import { BandCompressor, ComplementaryCrossover, validateChannels, validateGeometry, type BandDynamicsOptions } from '../dynamics/core.ts';
+import type { SelectionInputValidation } from '../../audacity-effects/pcm-channel-validation.ts';
 
 /** Split-band de-essing. A second high-pass in the detector rejects vocal body;
  * only the complementary upper audio band is attenuated. All channels share
@@ -45,8 +46,9 @@ export function createDeesserProcessor({ sampleRate, channelCount, params = {} }
 	};
 }
 
-export function applyDeesser(channels: readonly Float32Array[], sampleRate: number, params: Readonly<Record<string, unknown>> = {}) {
-	const frames = validateChannels(channels, sampleRate);
+export function applyDeesser(channels: readonly Float32Array[], sampleRate: number, params: Readonly<Record<string, unknown>> = {},
+	validation?: SelectionInputValidation) {
+	const frames = validateChannels(channels, sampleRate, validation);
 	const processor = createDeesserProcessor({ sampleRate, channelCount: channels.length, params });
 	const output = channels.map(() => new Float32Array(frames));
 	processor.processBlock(channels, output, frames);
