@@ -205,7 +205,7 @@ test('controller imports and exports label formats and applies the project snap 
 	await controller.dispose();
 });
 
-test('V2 controller exposes model-backed track creation, ordering, display, and collapse actions', async () => {
+test('V2 controller exposes model-backed track creation, ordering, display, and collapse actions', async (context) => {
 	const controller = createAudioEditorController(null, {
 		headless: true,
 		copy: COPY,
@@ -214,6 +214,7 @@ test('V2 controller exposes model-backed track creation, ordering, display, and 
 		engine: createMemoryEngine(),
 		ffmpeg: createMemoryFfmpeg(),
 	});
+	context.after(() => controller.dispose());
 	await controller.ready;
 	const initialTrackId = controller.getSnapshot().project.tracks[0].id;
 	const monoId = controller.actions.track.addMono({ name: 'Mono' });
@@ -231,7 +232,8 @@ test('V2 controller exposes model-backed track creation, ordering, display, and 
 	controller.actions.track.setSpectrogramView(stereoId);
 	snapshot = controller.getSnapshot();
 	assert.equal(snapshot.project.tracks.find((track) => track.id === stereoId).displayMode, 'spectrogram');
-	assert.equal(snapshot.timeline.view, 'spectrogram');
+	assert.equal(snapshot.selectedTrackId, stereoId);
+	assert.equal(snapshot.timeline.view, 'waveform', 'a per-track display change keeps the global timeline default');
 	controller.actions.track.setMultiView(stereoId);
 	assert.equal(controller.getSnapshot().project.tracks.find((track) => track.id === stereoId).displayMode, 'multiview');
 	const initialHeights = controller.getSnapshot().project.tracks.map((track) => track.height);

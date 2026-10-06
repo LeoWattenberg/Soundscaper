@@ -103,8 +103,12 @@ test('changing the default view preference retunes the running session and is pe
 		// A rejected value must leave both the stored preference and the view alone.
 		assert.throws(() => controller.actions.preferences.setDefaultView('unknown'), RangeError);
 		assert.equal(controller.getSnapshot().timeline.view, 'waveform-rainbow');
-		await controller.actions.track.setWaveformView(controller.getSnapshot().project.tracks[0].id);
-		assert.equal(controller.getSnapshot().timeline.view, 'waveform');
+		const trackId = controller.getSnapshot().project.tracks[0].id;
+		await controller.actions.track.setWaveformView(trackId);
+		const snapshot = controller.getSnapshot();
+		assert.equal(snapshot.timeline.view, 'waveform-rainbow');
+		assert.equal(snapshot.preferences.appearance.defaultView, 'waveform-rainbow');
+		assert.equal(snapshot.project.tracks.find(({ id }) => id === trackId).displayMode, 'waveform');
 	} finally {
 		await controller.dispose();
 	}
