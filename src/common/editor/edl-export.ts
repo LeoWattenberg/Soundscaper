@@ -13,6 +13,7 @@ import {
 	sealDeliveryReport,
 } from './delivery-report.ts';
 import { portableFileStem } from './portable-file-stem.ts';
+import { allocateEdlReelNames, type EdlReelName } from './edl-reel-names.ts';
 
 /**
  * CMX3600 EDL export.
@@ -40,6 +41,8 @@ export type EdlTrackKind = 'V' | 'A' | 'A2' | 'B';
 export interface EdlEvent {
 	/** Source reel/tape identity. Longer names are truncated and reported. */
 	readonly reel: string;
+	/** Stable source identity when distinct sources have the same display name. */
+	readonly reelIdentity?: string;
 	readonly trackKind: EdlTrackKind;
 	readonly sourceInFrames: number;
 	readonly sourceOutFrames: number;
@@ -111,8 +114,9 @@ export function createEdlExport(request: EdlExportRequest): EdlExportResult {
 	];
 
 	let emitted = 0;
+	const reels = allocateEdlReelNames(events, EDL_REEL_LENGTH);
 	for (const [index, event] of events.entries()) {
-		const reel = normalizeReel(event?.reel, index, draft);
+		const reel = reportReel(reels[index]!, index, draft);
 		const number = String(emitted + 1).padStart(3, '0');
 		lines.push([
 			number,
@@ -197,24 +201,21 @@ function trackKind(value: unknown): EdlTrackKind {
 	return value === 'A' || value === 'A2' || value === 'B' ? value : 'V';
 }
 
-function normalizeReel(
-	value: unknown,
+function reportReel(
+	reel: EdlReelName,
 	index: number,
 	draft: Parameters<typeof addDeliveryReportItem>[0],
 ): string {
-	const raw = String(value ?? '').trim().toUpperCase().replaceAll(/[^A-Z0-9_]+/gu, '_');
-	const reel = raw || `REEL${index + 1}`;
-	if (reel.length <= EDL_REEL_LENGTH) return reel;
-	const truncated = reel.slice(0, EDL_REEL_LENGTH);
-	addDeliveryReportItem(draft, {
-		code: 'edl.reel-truncated',
+	if (reel.truncated || reel.collisionResolved) addDeliveryReportItem(draft, {
+		code: reel.collisionResolved ? 'edl.reel-collision-resolved' : 'edl.reel-truncated',
 		disposition: 'converted',
 		severity: 'info',
 		scope: { kind: 'event', index },
-		data: { from: reel, to: truncated },
-		message: `CMX3600 reels are ${EDL_REEL_LENGTH} characters.`,
+		data: { from: reel.normalized, to: reel.name },
+		message: reel.collisionResolved ? 'A distinct source requires a unique CMX3600 reel.'
+			: `CMX3600 reels are ${EDL_REEL_LENGTH} characters.`,
 	});
-	return truncated;
+	return reel.name;
 }
 
 function sanitizeTitle(value: string): string {

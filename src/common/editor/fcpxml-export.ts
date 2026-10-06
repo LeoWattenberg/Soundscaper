@@ -9,6 +9,7 @@ import {
 } from './delivery-report.ts';
 import { type SequenceRationalRate } from './sequence-timecode.ts';
 import { sequenceFrameAtSample } from './sequence-frame-navigation.ts';
+import { interchangeSourceInPoint } from './interchange-source-in-point.ts';
 import {
 	interchangeClipTimeEffect,
 	reportInterchangeAnnotationOmission,
@@ -156,7 +157,7 @@ export function createFcpxmlExport(request: FcpxmlExportRequest): FcpxmlExportRe
 			));
 		for (const clip of ordered) {
 			const emitted = buildClip(clip, {
-				rate, sampleRate, type, assetIdFor, draft, lane,
+				rate, sampleRate, type, assetIdFor, sourceById, draft, lane,
 			});
 			if (!emitted) continue;
 			spine.push(emitted.xml);
@@ -237,6 +238,7 @@ function buildClip(clip: Readonly<Record<string, unknown>>, context: {
 	sampleRate: number;
 	type: string;
 	assetIdFor: (sourceId: string) => string | null;
+	sourceById: ReadonlyMap<string, Readonly<Record<string, unknown>>>;
 	draft: Draft;
 	lane: number;
 }): { xml: string; endFrames: number } | null {
@@ -282,8 +284,9 @@ function buildClip(clip: Readonly<Record<string, unknown>>, context: {
 			message: 'The profile emits no timeMap; the clip carries its rendered duration.',
 		});
 	}
-	const startFrames = toFrames(
-		nonNegativeInteger(clip.sourceStartFrame ?? 0, 'clip.sourceStartFrame'),
+	const startFrames = interchangeSourceInPoint(
+		clip,
+		context.sourceById.get(sourceId),
 		context.rate,
 		context.sampleRate,
 	);

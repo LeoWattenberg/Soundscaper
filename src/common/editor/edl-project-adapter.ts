@@ -9,6 +9,7 @@ import {
 } from './edl-export.ts';
 import { resolveSequenceTimingView } from './sequence-timing-model.ts';
 import { sequenceFrameAtSample } from './sequence-frame-navigation.ts';
+import { interchangeSourceInPoint } from './interchange-source-in-point.ts';
 import {
 	interchangeAnnotationOmission,
 	interchangeCaptionTrackOmission,
@@ -25,10 +26,9 @@ import { createVisibleVideoTrackPredicate } from './video-track-visibility.js';
  *
  * Three conversions carry the risk, and each is deliberate:
  *
- * 1. **Sample frames become sequence frames.** Clip timing is stored in the
- *    project's sample domain; an EDL counts sequence frames. The conversion
- *    goes through the shared `sequenceFrameAtSample`, so a boundary here is the
- *    boundary the ruler, the playhead, and the exporter already agree on.
+ * 1. **Timeline samples and native video ordinals become sequence frames.**
+ *    Timeline boundaries use `sequenceFrameAtSample`; source in-points use
+ *    their source's timing grid before crossing to the EDL's sequence grid.
  * 2. **Record timecode carries the sequence's start timecode.** A list whose
  *    record side starts at 00:00:00:00 when the sequence starts at 01:00:00:00
  *    is wrong in a way that only shows up downstream, so the sequence's own
@@ -132,7 +132,6 @@ export function createProjectEdlExport(request: EdlProjectExportRequest): EdlExp
 	for (const clip of clips) {
 		const timelineStart = nonNegativeInteger(clip.timelineStartFrame, 'clip.timelineStartFrame');
 		const duration = positiveInteger(clip.durationFrames, 'clip.durationFrames');
-		const sourceStart = nonNegativeInteger(clip.sourceStartFrame ?? 0, 'clip.sourceStartFrame');
 
 		// Both ends resolve from the origin, never by accumulating a duration.
 		const recordIn = sequenceFrameAtSample(timelineStart, sequence.rate, sampleRate);
@@ -150,11 +149,12 @@ export function createProjectEdlExport(request: EdlProjectExportRequest): EdlExp
 			});
 			continue;
 		}
-		const sourceIn = sequenceFrameAtSample(sourceStart, sequence.rate, sampleRate);
-
 		const source = sourceById.get(String(clip.sourceId));
+		const sourceIn = interchangeSourceInPoint(clip, source, sequence.rate, sampleRate);
 		events.push(Object.freeze({
 			reel: String(reelNames[String(clip.sourceId)] ?? source?.name ?? clip.sourceId ?? ''),
+			reelIdentity: reelNames[String(clip.sourceId)] === undefined ? String(clip.sourceId)
+				: `explicit:${reelNames[String(clip.sourceId)]}`,
 			trackKind: 'V' as const,
 			sourceInFrames: sourceIn,
 			// Derived, so the cut's two sides can never disagree by a rounded frame.
