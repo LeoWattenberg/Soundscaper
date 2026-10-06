@@ -1,7 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 type NativeCanvas = HTMLCanvasElement | OffscreenCanvas;
-type NativeContext = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
+type NativeContext = (CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D) & {
+	getContextAttributes?: () => CanvasRenderingContext2DSettings;
+};
 interface ProbeOwner { readonly key: object; readonly kind: string; create(): NativeCanvas; }
 
 const capabilities = new WeakMap<object, Map<string, boolean>>();
@@ -32,7 +34,7 @@ export function canBatchRoundCapStems(context: NativeContext): boolean {
 
 function probeOwner(canvas: NativeCanvas | undefined): ProbeOwner | null {
 	if (!canvas) return null;
-	if ('ownerDocument' in canvas && canvas.ownerDocument?.createElement) {
+	if ('ownerDocument' in canvas && typeof canvas.ownerDocument?.createElement === 'function') {
 		const document = canvas.ownerDocument;
 		return { key: document, kind: 'html', create: () => document.createElement('canvas') };
 	}
