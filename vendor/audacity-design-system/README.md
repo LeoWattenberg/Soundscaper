@@ -278,13 +278,17 @@ application overrides and source patches against the pin and upstream master.
     focus, so its keyboard activation reaches the intended target. Covered by
     `tests/vendored-design-system-context-menu-focus.test.tsx`. Upstream-PR candidate.
 33. `Dropdown` restores its selected keyboard row when opening, closes on Tab,
-    keeps its list inside the viewport, and exposes the active row through ARIA.
+    keeps its list inside the viewport, preserves user wheel scrolling, and
+    exposes the active row through ARIA. Position updates ignore the menu's own
+    scroll events, and only opening or keyboard navigation scrolls the active
+    row, so delayed pointer highlighting cannot undo wheel navigation.
     `TimeCode` supplies editable leading digits in total-unit formats, preserves
     hidden fractions when editing a coarser format, and tolerates exact sample
     round trips. Its digit clicks suppress enclosing-label activation, and its
     format button and `Knob` explicitly avoid submitting containing forms.
     Covered by `tests/audio-editor-timecode-editing-regressions.test.tsx` and
-    `tests/browser/audio-editor-dialog-regressions.spec.js`. Upstream-PR candidates.
+    `tests/browser/audio-editor-dialog-regressions.spec.js` and
+    `tests/browser/audio-editor-dropdown-wheel-regressions.spec.js`. Upstream-PR candidates.
 34. `TextInput` exposes its existing rejected-value error state through
     `aria-invalid` on both input and textarea fields. Covered by
     `tests/audio-editor-effect-number-input.test.tsx` and

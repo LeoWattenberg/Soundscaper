@@ -61,6 +61,7 @@ export const Dropdown: React.FC<DropdownProps> = ({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const scrollActiveRowRef = useRef(true);
   const menuId = useId();
 
   const selectedOption = options.find((opt) => opt.value === value);
@@ -91,6 +92,7 @@ export const Dropdown: React.FC<DropdownProps> = ({
       const newIsOpen = !isOpen;
       setIsOpen(newIsOpen);
       if (newIsOpen) {
+        scrollActiveRowRef.current = true;
         const selectedIndex = options.findIndex((option) => option.value === value && !option.disabled);
         setHoveredIndex(selectedIndex >= 0 ? selectedIndex : options.findIndex((option) => !option.disabled));
       }
@@ -141,10 +143,12 @@ export const Dropdown: React.FC<DropdownProps> = ({
     } else if (e.key === 'ArrowDown' && isOpen) {
       // Only handle arrow keys when dropdown is already open
       e.preventDefault();
+      scrollActiveRowRef.current = true;
       setHoveredIndex((prev) => nextEnabledOption(options, prev, 1));
     } else if (e.key === 'ArrowUp' && isOpen) {
       // Only handle arrow keys when dropdown is already open
       e.preventDefault();
+      scrollActiveRowRef.current = true;
       setHoveredIndex((prev) => nextEnabledOption(options, prev, -1));
     }
     // When dropdown is closed, arrow keys will be handled by parent (TabGroupField)
@@ -152,7 +156,8 @@ export const Dropdown: React.FC<DropdownProps> = ({
 
   // Calculate menu position when dropdown opens and update on scroll
   useEffect(() => {
-    const updatePosition = () => {
+    const updatePosition = (event?: Event) => {
+      if (event?.target === menuRef.current) return;
       if (triggerRef.current) {
         const rect = triggerRef.current.getBoundingClientRect();
         const desiredHeight = Math.min(240, options.reduce((height, option) => height + (option.disabled ? 8 : 28), 10));
@@ -190,7 +195,7 @@ export const Dropdown: React.FC<DropdownProps> = ({
   }, [isOpen, menuPosition]);
 
   useEffect(() => {
-    menuRef.current?.querySelector('.dropdown__option--hover')?.scrollIntoView({ block: 'nearest' });
+    if (scrollActiveRowRef.current) menuRef.current?.querySelector('.dropdown__option--hover')?.scrollIntoView({ block: 'nearest' });
   }, [hoveredIndex, menuPosition]);
 
   const { theme } = useTheme();
@@ -285,8 +290,8 @@ export const Dropdown: React.FC<DropdownProps> = ({
                   option.value === value ? 'dropdown__option--selected' : ''
                 } ${hoveredIndex === index ? 'dropdown__option--hover' : ''}`}
                 onClick={() => handleSelect(option.value)}
-                onMouseEnter={() => setHoveredIndex(index)}
-                onMouseLeave={() => setHoveredIndex(-1)}
+                onMouseEnter={() => { scrollActiveRowRef.current = false; setHoveredIndex(index); }}
+                onMouseLeave={() => { scrollActiveRowRef.current = false; setHoveredIndex(-1); }}
                 role="option"
                 aria-selected={option.value === value}
               >
