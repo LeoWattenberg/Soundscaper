@@ -9,11 +9,8 @@ import {
 import {
 	normalizeAudioEditorSnapSettings,
 } from '../snap-grid.js';
-import { normalizeProjectBextMetadata } from '../project-bext-metadata.ts';
-import { authoredAdmChannelCount, normalizeAdmProjectMetadata } from '../adm-project-metadata.ts';
+import { updateProjectMetadata } from './project-metadata-runtime.ts';
 import {
-	hasAdmMetadataProjectAuthority,
-	hasBextMetadataProjectAuthority,
 	hasCoreEditingProjectAuthority,
 	hasProjectBinMediaAuthority,
 	hasVideoEffectsProjectAuthority,
@@ -467,47 +464,6 @@ function recordReplacementContraction(project, clip, frames, contractionsByTrack
 	contractionsByTrack.set(track.id, contractions);
 }
 
-function updateMetadata(project, changes = {}) {
-	if (!hasCoreEditingProjectAuthority(project)) throw new RangeError('Metadata editing requires an active editing project.');
-	if (!changes || typeof changes !== 'object' || Array.isArray(changes)) throw new TypeError('Metadata changes must be an object.');
-	const allowed = new Set([
-		'title', 'artist', 'album', 'trackNumber', 'year', 'comments', 'tags',
-		...(hasBextMetadataProjectAuthority(project) ? ['bext'] : []),
-		...(hasAdmMetadataProjectAuthority(project) ? ['adm'] : []),
-	]);
-	for (const key of Object.keys(changes)) if (!allowed.has(key)) throw new RangeError(`Metadata field cannot be updated: ${key}.`);
-	const next = { ...project.metadata };
-	for (const key of allowed) {
-		if (!Object.hasOwn(changes, key)) continue;
-		if (key === 'bext') {
-			next.bext = changes.bext == null ? null : normalizeProjectBextMetadata(changes.bext);
-		} else if (key === 'adm') {
-			next.adm = changes.adm == null ? null : normalizeAdmProjectMetadata(changes.adm);
-			const authoredChannels = authoredAdmChannelCount(next.adm);
-			const passthroughChannels = next.adm?.mode === 'passthrough'
-				&& next.adm.valid
-				&& Number.isSafeInteger(next.adm.geometry.channelCount)
-				&& next.adm.geometry.channelCount >= 1
-				&& next.adm.geometry.channelCount <= 32
-				? next.adm.geometry.channelCount
-				: null;
-			if (authoredChannels != null || passthroughChannels != null) {
-				project.masterChannels = authoredChannels ?? passthroughChannels;
-			}
-		} else if (key === 'tags') {
-			if (!changes.tags || typeof changes.tags !== 'object' || Array.isArray(changes.tags)) {
-				throw new TypeError('metadata.tags must be an object.');
-			}
-			next.tags = Object.fromEntries(Object.entries(changes.tags).map(([name, value]) => {
-				const normalizedName = String(name).trim();
-				if (!normalizedName) throw new RangeError('A metadata tag name is required.');
-				return [normalizedName, String(value ?? '')];
-			}));
-		} else next[key] = String(changes[key] ?? '');
-	}
-	project.metadata = next;
-}
-
 function setTimeDisplay(project, command) {
 	if (!hasCoreEditingProjectAuthority(project)) throw new RangeError('Time-display settings require an active editing project.');
 	if (typeof command.format !== 'string' || !command.format.trim()) throw new TypeError('A time-display format is required.');
@@ -529,7 +485,7 @@ export function createProjectSourceBinRuntimeHandlers(dispatchChild) {
 		'loop/set': setLoop,
 		'snap/set': setSnap,
 		'time-display/set': setTimeDisplay,
-		'metadata/update': (project, command) => updateMetadata(project, command.changes),
+		'metadata/update': (project, command) => updateProjectMetadata(project, command.changes),
 		'source/add': (project, command) => addSource(project, command.source),
 		'source/remove': (project, command) => removeSource(project, command.sourceId),
 		'source/update': (project, command) => updateSource(project, command.sourceId, command.changes),
