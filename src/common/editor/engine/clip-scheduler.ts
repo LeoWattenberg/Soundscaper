@@ -297,6 +297,7 @@ export async function scheduleProjectClips({
 				reversedBuffers,
 				activeSources,
 				allNodes,
+				mode,
 				beforeStart: beforeSharedStart,
 			});
 		}
@@ -332,6 +333,7 @@ interface BufferPlanOptions {
 	readonly reversedBuffers: WeakMap<AudioBuffer, AudioBuffer>;
 	readonly activeSources: Set<AudioScheduledSourceNode>;
 	readonly allNodes: AudioNodeArray;
+	readonly mode: 'live' | 'offline';
 	readonly beforeStart?: ((startTime: number) => void) | null;
 }
 
@@ -345,6 +347,7 @@ function scheduleBufferPlan({
 	reversedBuffers,
 	activeSources,
 	allNodes,
+	mode,
 	beforeStart = null,
 }: BufferPlanOptions): void {
 	if (!plan.originalBuffer) return;
@@ -389,7 +392,8 @@ function scheduleBufferPlan({
 		activeSources.add(source);
 		source.onended = (): void => {
 			activeSources.delete(source);
-			releaseTransientNodes(transientNodes, scheduledNodes);
+			// Offline rendering owns connected nodes until its graph is disposed.
+			if (mode === 'live') releaseTransientNodes(transientNodes, scheduledNodes);
 		};
 	} catch {
 		// A malformed or out-of-range clip is skipped without stopping the mix.
