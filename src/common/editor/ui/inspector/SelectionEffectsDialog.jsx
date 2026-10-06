@@ -9,6 +9,7 @@ import {
 	audioSelectionEffectDefaults,
 } from '../../effects.js';
 import { AUDIO_EDITOR_SAMPLE_RATE, findTrack } from '../../project.js';
+import { resolveSelectionRange } from '../../selection-range.ts';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import { audacityEffectDialogWidth, isAudacityNyquistPort } from '../audacity-port-layouts.ts';
 import { useAudacityEffectOptions } from './audacity-effect-options.ts';
@@ -21,6 +22,9 @@ import { effectPresetChoices, safeEffectLabel, samePresetParams } from './effect
 export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, fileService, onClose }) {
 	const project = snapshot.project;
 	const selectedTrack = project ? findTrack(project, snapshot.selectedTrackId) : null;
+	const effectRange = resolveSelectionRange(project, { selectedClipId: snapshot.selectedClipId ?? null });
+	const selectionDuration = controller.actions.effects.readSourceSelectionDuration?.()
+		?? (effectRange ? (effectRange.endFrame - effectRange.startFrame) / (project?.sampleRate || AUDIO_EDITOR_SAMPLE_RATE) : 0);
 	const blocked = !snapshot.ready || !project || selectAudioEditorEditBlock(snapshot).blocked;
 	const initialType = snapshot.effects?.selectionType || audacityEffectTypes()[0];
 	const [selectionType, setSelectionType] = useState(initialType);
@@ -290,7 +294,7 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, fil
 						type: selectionType,
 						params: selectionEffectParams,
 						context: { noiseProfile: Boolean(snapshot.effects?.noiseProfileReady),
-							selectionDuration: Math.max(0, (project?.selection?.endFrame - project?.selection?.startFrame) / (project?.sampleRate || AUDIO_EDITOR_SAMPLE_RATE)) },
+							selectionDuration },
 					}}
 					copy={copy}
 					disabled={blocked}

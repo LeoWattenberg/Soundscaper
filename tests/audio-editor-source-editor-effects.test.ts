@@ -66,13 +66,17 @@ test('source selection is project scoped, clamps dragged ranges, and exposes ful
 
 test('source effect targeting uses the native media sample rate and follows shared replacements', () => {
 	const { service, replaceSource, undo } = fixture(44_100);
+	assert.equal(service.readSourceSelectionDuration(), null);
 	service.setSourceSelection({ clipId: 'clip', startFrame: 1, endFrame: 4 });
 	assert.equal(service.target()!.sourceSampleRate, 44_100);
+	assert.equal(service.readSourceSelectionDuration(), 3 / 44_100);
 	replaceSource();
 	assert.equal(service.target()!.sourceId, 'processed');
 	assert.equal(service.target()!.startFrame, 1);
 	assert.equal(service.target()!.endFrame, 5);
+	assert.equal(service.readSourceSelectionDuration(), 4 / 44_100);
 	undo();
 	assert.equal(service.target()!.sourceId, 'source');
 	assert.equal(service.target()!.endFrame, 4);
+	assert.equal(service.readSourceSelectionDuration(), 3 / 44_100);
 });

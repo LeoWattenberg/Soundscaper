@@ -171,4 +171,18 @@ the palette closed. It passes against build 11 in Chromium, Firefox and WebKit,
 including a library check that the canceled name was never saved. The mounted
 strict regression covers both commit and cancel through the input handlers.
 
+## R2-ROOT-012 — Change Tempo hides duration controls for a selected clip
+
+Import a WAV, click its clip header, then choose **Effect > Pitch and tempo >
+Change tempo**. Previously **Current duration** and **Desired duration** were
+missing because the dialog read the empty time-range selection instead of the
+selected clip. The dialog now resolves the actual effect range, including a
+source-editor selection using its native media clock.
+
+Proof: `audio-editor-round2-effect-duration.spec.js` failed against build 10
+with the missing fields. It passes against build 11 in Chromium, Firefox and
+WebKit, verifies the imported 800-ms duration and that entering 400 ms sets the
+tempo change to 100%. Strict source-selection tests retain the native 44.1-kHz
+duration through replacement and Undo. The selection dialog suite also passes.
+
 These changes do not require a manual **Update AI assets** run.

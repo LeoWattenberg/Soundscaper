@@ -124,7 +124,7 @@ export function createControllerBindings<RenderEngine extends ClipTimePitchRende
 	const { runEffectMacro, applyAudacityEffectFromController, repeatLastAudacityEffect, applySpectralSelection, captureSelectedNoiseProfile, runNyquistEvaluation } = deferControllerMethods(() => services.effects(), ['runEffectMacro', 'applyAudacityEffectFromController', 'repeatLastAudacityEffect', 'applySpectralSelection', 'captureSelectedNoiseProfile', 'runNyquistEvaluation']);
 	const { currentAudacityEffectParams, setAudacityEffectType, setAudacityEffectParamsFromController, setAudacityControlTrack, applyEffectPreset, saveEffectPreset, deleteEffectPreset, importEffectPresets, exportEffectPreset, cancelAudacityEffectPreview, captureRackNoiseProfileFromController } = deferControllerMethods(() => services.effects().controls, ['currentAudacityEffectParams', 'setAudacityEffectType', 'setAudacityEffectParamsFromController', 'setAudacityControlTrack', 'applyEffectPreset', 'saveEffectPreset', 'deleteEffectPreset', 'importEffectPresets', 'exportEffectPreset', 'cancelAudacityEffectPreview', 'captureRackNoiseProfileFromController']);
 	const { renderDryTrackRange } = deferControllerMethods(() => services.effects().audio, ['renderDryTrackRange']);
-	const { setSourceSelection, loadSourceAudio, loadSourceAudioWindow } = deferControllerMethods(() => services.effects().sourceEditor, ['setSourceSelection', 'loadSourceAudio', 'loadSourceAudioWindow']);
+	const { setSourceSelection, readSourceSelectionDuration, loadSourceAudio, loadSourceAudioWindow } = deferControllerMethods(() => services.effects().sourceEditor, ['setSourceSelection', 'readSourceSelectionDuration', 'loadSourceAudio', 'loadSourceAudioWindow']);
 	const { cancelNyquistEvaluation } = deferControllerMethods(() => services.effects().nyquistHost, ['cancelNyquistEvaluation']);
 	const { toggleRecordingPause, toggleLeadInRecording, cancelRecordingStart } = deferControllerMethods(() => services.recording().session, ['toggleRecordingPause', 'toggleLeadInRecording', 'cancelRecordingStart']);
 	const { updateTransportState, updateMeters, updateZoom, setTimelineViewportWidth, setAutoFitTrackHeight, adjustTrackHeight } = deferControllerMethods(() => services.viewStateService(), ['updateTransportState', 'updateMeters', 'updateZoom', 'setTimelineViewportWidth', 'setAutoFitTrackHeight', 'adjustTrackHeight']);
@@ -132,7 +132,7 @@ export function createControllerBindings<RenderEngine extends ClipTimePitchRende
 	const { refreshStorageUsage, estimateStorageForPreflight, preflightStorage } = deferControllerMethods(() => services.storageCapacityService(), ['refreshStorageUsage', 'estimateStorageForPreflight', 'preflightStorage']);
 	const { openScape, saveScape, openAup4, openAudacityProject, saveAup3, saveAup4 } = deferAsyncControllerMethods(() => services.nativeProjectService(), ['openScape', 'saveScape', 'openAup4', 'openAudacityProject', 'saveAup3', 'saveAup4']);
 	return Object.freeze({
-		setSourceSelection, loadSourceAudio, loadSourceAudioWindow,
+		setSourceSelection, readSourceSelectionDuration, loadSourceAudio, loadSourceAudioWindow,
 		openScape, saveScape, openAup4, openAudacityProject, saveAup3, saveAup4,
 		loadPreferences, switchProject, labels, selection, projectBin,
 		get preferenceActions() { return services.preferences().actions; },
