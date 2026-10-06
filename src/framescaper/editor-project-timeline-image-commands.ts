@@ -19,6 +19,7 @@ import {
 	type FramescaperImageCommandTimelineImage,
 } from './editor-project-timeline-image-image-command.ts';
 import { framescaperProjectNativeMediaFoundationShapeTimelineImage } from './editor-project-timeline-image-foundation.ts';
+import { prepareTimelineImageMoveCommand } from './editor-timeline-image-move-command.ts';
 import {
 	validateFramescaperProjectTimelineImage,
 	type FramescaperProjectTimelineImage,
@@ -52,7 +53,8 @@ export function applyFramescaperProjectCommandTimelineImage(
 	assertFramescaperProjectTimelineImageProfile(profile);
 	validateFramescaperProjectTimelineImage(profile, projectValue);
 	const prior = projectValue as FramescaperProjectTimelineImage;
-	const draft = applyBody(profile, prior, snapshotFramescaperProjectCommandTimelineImage(commandValue), options);
+	const command = prepareTimelineImageMoveCommand(prior, snapshotFramescaperProjectCommandTimelineImage(commandValue));
+	const draft = applyBody(profile, prior, command, options);
 	return finalize(profile, prior, draft, options);
 }
 

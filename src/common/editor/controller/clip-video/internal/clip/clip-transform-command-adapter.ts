@@ -54,14 +54,19 @@ export function prepareTransformClipsCommand(
 	options: Readonly<{ overwrite?: boolean }>,
 	idFactory: (prefix: string) => string,
 ): Extract<AudioEditorCommand, { readonly type: 'clip/transform-many' }> {
-	return (prepareLegacyTransformClipsCommand as unknown as (
+	const imageIds = new Set(project.clips.filter(clip => clip.kind === 'image').map(clip => clip.id));
+	const imageMoves = transforms.filter(transform => imageIds.has(transform.clipId));
+	if (imageMoves.length && options.overwrite) throw new RangeError('Still image moves cannot overwrite other media.');
+	const inherited = transforms.filter(transform => !imageIds.has(transform.clipId));
+	const prepared = inherited.length ? (prepareLegacyTransformClipsCommand as unknown as (
 		project: ClipTransformProject,
 		transforms: readonly PreparedTransform[],
 		options: Readonly<{ overwrite?: boolean }>,
 		idFactory: (prefix: string) => string,
 	) => Extract<AudioEditorCommand, { readonly type: 'clip/transform-many' }>)(
-		project, transforms, options, idFactory,
-	);
+		project, inherited, options, idFactory,
+	) : { type: 'clip/transform-many' as const, transforms: [], overwrite: false, splitClipIds: {} };
+	return imageMoves.length ? { ...prepared, transforms: [...prepared.transforms, ...imageMoves] } : prepared;
 }
 
 export function prepareOverwriteClipCommand(

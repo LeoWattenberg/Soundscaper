@@ -11,6 +11,7 @@ import {
 import { framescaperProjectNativeMediaFoundationShapeTimelineImage } from './editor-project-timeline-image-foundation.ts';
 import type { FramescaperImageCommandTimelineImage } from './editor-project-timeline-image-image-command.ts';
 import { validateFramescaperProjectTimelineImage } from './editor-project-timeline-image.ts';
+import { prepareTimelineImageMoveCommand } from './editor-timeline-image-move-command.ts';
 
 /** Allocate inherited transition identities without allowing nativeMedia to observe image commands. */
 export function prepareFramescaperVideoTransitionAllocationsTimelineImage(
@@ -20,6 +21,7 @@ export function prepareFramescaperVideoTransitionAllocationsTimelineImage(
 	createId: (prefix?: string) => string,
 ): FramescaperProjectCommandTimelineImage {
 	validateFramescaperProjectTimelineImage(profile, project);
+	command = prepareTimelineImageMoveCommand(project as Parameters<typeof prepareTimelineImageMoveCommand>[0], command);
 	if (isImage(command) || command.type === 'selection/set') return command;
 	if (!isBatch(command)) {
 		return prepareFramescaperVideoTransitionAllocationsNativeMedia(

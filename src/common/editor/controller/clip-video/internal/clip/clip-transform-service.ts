@@ -4,6 +4,7 @@ import { clipHasLoopRepeats, normalizeInactiveClipLoop, trimClipLoopPeriod } fro
 import { publishedCopyFor } from '../../../shared/presentation-localization.ts'; import { createLocalizedError } from '../../../../../i18n/presentation-message.ts'; import { clipTrimSourceFrameCount } from '../../clip-trim-source-frame-count.ts';
 import { hasProjectBinMediaAuthority } from '../../../../project-schema-version.ts';
 import { clipMoveSelection, type ClipMoveOptions } from './clip-move-options.ts';
+import { prepareMediaNewTrackPlan } from './media-new-track-plan.ts';
 
 import {
 	collectClipTransformIds, collectClipTrimIds, prepareOverwriteClipCommand,
@@ -181,7 +182,7 @@ export function createClipTransformService(
 			...(selection && movesClipSelection ? [selection.startFrame] : []),
 		);
 		const deltaFrames = Math.max(requestedDelta, -earliestMovingFrame);
-		if (hasProjectBinMediaAuthority(project) && clips.some((item) => item.kind === 'video')) {
+		if (hasProjectBinMediaAuthority(project) && clips.some((item) => item.kind === 'video' || item.kind === 'image')) {
 			return moveMediaClipsToNewTracks(
 				project, clip, sourceTrack, clips, clipSelection,
 				selection, movesClipSelection, deltaFrames,
@@ -239,45 +240,9 @@ export function createClipTransformService(
 		movesClipSelection: boolean,
 		deltaFrames: number,
 	): string {
-		const movingTrackIds = new Set(clips
-			.map((item) => findClipTrack(project, item.id)?.id)
-			.filter(isString));
-		const destinationTrackIds = new Map<string, string>();
-		const newTrackCommands: AudioEditorCommand[] = [];
-		for (const track of project.tracks) {
-			if (!movingTrackIds.has(track.id) || destinationTrackIds.has(track.id)) continue;
-			if (track.type === 'video') {
-				const companion = track.laneGroupId
-					? project.tracks.find((candidate) => (
-						candidate.type === 'audio' && candidate.laneGroupId === track.laneGroupId
-					))
-					: null;
-				const laneGroupId = dependencies.createId('media-lane');
-				const videoTrackId = dependencies.createId('video-track');
-				const audioTrackId = dependencies.createId('track');
-				newTrackCommands.push(createAddTrackCommand({
-					type: 'video', id: videoTrackId, name: track.name,
-					height: track.height, laneGroupId,
-				}), createAddTrackCommand({
-					type: 'audio', id: audioTrackId,
-					name: companion?.name || `${track.name} Audio`,
-					channelCount: companion?.channelCount || 2,
-					color: companion?.color, armed: false, laneGroupId,
-				}));
-				destinationTrackIds.set(track.id, videoTrackId);
-				if (companion) destinationTrackIds.set(companion.id, audioTrackId);
-				continue;
-			}
-			if (track.type === 'audio') {
-				const trackId = dependencies.createId('track');
-				newTrackCommands.push(createAddTrackCommand({
-					type: 'audio', id: trackId,
-					name: `${publishedCopyFor(dependencies.copy).track} ${project.tracks.length + newTrackCommands.length + 1}`,
-					channelCount: track.channelCount, color: track.color, armed: false,
-				}));
-				destinationTrackIds.set(track.id, trackId);
-			}
-		}
+		const { commands: newTrackCommands, destinationTrackIds } = prepareMediaNewTrackPlan(
+			project, clips, dependencies.createId, publishedCopyFor(dependencies.copy).track,
+		);
 		const transforms = clips.map((item): PreparedTransform => {
 			const itemSourceTrack = findClipTrack(project, item.id);
 			const trackId = itemSourceTrack ? destinationTrackIds.get(itemSourceTrack.id) : undefined;
@@ -535,8 +500,4 @@ function findSource(project: ClipTransformProject, sourceId: string): ClipTransf
 
 function isClip(value: ClipTransformClip | null): value is ClipTransformClip {
 	return value !== null;
-}
-
-function isString(value: string | undefined): value is string {
-	return typeof value === 'string';
 }
