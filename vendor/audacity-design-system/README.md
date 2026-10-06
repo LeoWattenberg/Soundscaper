@@ -285,6 +285,10 @@ application overrides and source patches against the pin and upstream master.
     format button and `Knob` explicitly avoid submitting containing forms.
     Covered by `tests/audio-editor-timecode-editing-regressions.test.tsx` and
     `tests/browser/audio-editor-dialog-regressions.spec.js`. Upstream-PR candidates.
+34. `TextInput` exposes its existing rejected-value error state through
+    `aria-invalid` on both input and textarea fields. Covered by
+    `tests/audio-editor-effect-number-input.test.tsx` and
+    `tests/browser/audio-editor-effect-control-regressions.spec.js`.
 
 ## Application-side adaptations
 

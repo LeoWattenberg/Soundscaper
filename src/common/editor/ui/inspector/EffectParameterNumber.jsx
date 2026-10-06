@@ -89,7 +89,7 @@ export default function ParameterNumber({
 		gestureCallbacksRef.current.cancel?.();
 	};
 	const commit = (raw) => {
-		const next = Number(raw);
+		const next = typeof raw === 'string' && !raw.trim() ? Number.NaN : Number(raw);
 		if (!Number.isFinite(next) || (range && (next < range[0] || next > range[1]))) {
 			throw new RangeError(copy.parameterRangeError
 				.replace('{label}', label)

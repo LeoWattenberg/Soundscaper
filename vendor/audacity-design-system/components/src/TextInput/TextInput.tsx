@@ -172,6 +172,7 @@ export function TextInput({
           value={currentValue}
           placeholder={placeholder}
           disabled={disabled}
+          aria-invalid={error || undefined}
           onChange={handleChange}
           onFocus={handleFocus}
           onBlur={handleBlur}
@@ -191,6 +192,7 @@ export function TextInput({
           value={currentValue}
           placeholder={placeholder}
           disabled={disabled}
+          aria-invalid={error || undefined}
           onChange={handleChange}
           onFocus={handleFocus}
           onBlur={handleBlur}
