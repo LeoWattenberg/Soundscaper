@@ -104,9 +104,11 @@ test('batched sample stems match individual round-cap compositing at every admit
 });
 
 test('native stem capability proof preserves owner pixels and caches exact batching admission', async ({ page, browserName }) => {
+	const rendererModule = './src/common/editor/audacity-waveform-renderer.js';
+	const capabilityModule = './src/common/editor/waveform-stem-batch-capability.ts';
 	const bundled = await build({
-		stdin: { contents: "export { drawAudacityWaveformChannel } from './audacity-waveform-renderer.js'; export { canBatchRoundCapStems } from './waveform-stem-batch-capability.ts';",
-			resolveDir: fileURLToPath(new URL('../../src/common/editor/', import.meta.url)) },
+		stdin: { contents: `export { drawAudacityWaveformChannel } from '${rendererModule}'; export { canBatchRoundCapStems } from '${capabilityModule}';`,
+			resolveDir: fileURLToPath(new URL('../..', import.meta.url)) },
 		bundle: true, write: false, format: 'iife', globalName: 'nativeWaveform', target: 'es2022',
 	});
 	await page.addScriptTag({ content: bundled.outputFiles[0].text });
