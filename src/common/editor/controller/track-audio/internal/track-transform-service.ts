@@ -14,6 +14,7 @@ import { loadSourceProvenanceDerivation } from '../../../source-provenance-deriv
 import { resampledClipCommands } from './clip-resample-service.ts';
 import { trackReplacementPlacement } from './track-replacement-placement.ts';
 import { copyDerivedTrackStripAutomation } from '../../../derived-track-strip-automation.ts';
+import { copyDerivedTrackEffectAutomation } from '../../../derived-track-effect-automation.ts';
 import type { DerivedSourceService } from './derived-audio/derived-source-service.ts';
 import { v21StripLaneRemovalCommands } from '../mix-render-model.ts';
 import {
@@ -260,6 +261,8 @@ export function createTrackTransformService(
 				};
 				const laneTracks = track.laneGroupId == null ? [] : project.tracks
 					.filter((candidate) => candidate.laneGroupId === track.laneGroupId);
+				const leftEffectIds = new Map((track.effects ?? []).map(effect => [effect.id, effect.id]));
+				const rightEffectIds = new Map((track.effects ?? []).map((effect, index) => [effect.id, rightTrack.effects[index]!.id]));
 				const avLinkClipIds = new Map(clips.flatMap((clip) => (
 					typeof clip.avLinkId === 'string' && clip.avLinkId
 						? [[clip.avLinkId, clip.id] as const]
@@ -280,6 +283,8 @@ export function createTrackTransformService(
 						...trackReplacementPlacement(project, track.id, 1) },
 					...copyDerivedTrackStripAutomation(project, track.id, track.id, dependencies.createId, true),
 					...copyDerivedTrackStripAutomation(project, track.id, rightTrackId, dependencies.createId, true),
+					...copyDerivedTrackEffectAutomation(project, track.id, track.id, leftEffectIds, dependencies.createId),
+					...copyDerivedTrackEffectAutomation(project, track.id, rightTrackId, rightEffectIds, dependencies.createId),
 				];
 				for (const clip of clips) addSplitClipCommands(commands, track, rightTrackId, clip, sourcePairs);
 				assertOwned(ownership);
