@@ -437,8 +437,11 @@ export function normalizeClipForProject(project, value) {
 		const durationFrames = Number(value.durationFrames);
 		const sourceStartFrame = Number(value.sourceStartFrame);
 		const sourceDurationFrames = Number(value.sourceDurationFrames);
+		const normalizedValue = { ...value };
+		if (normalizedValue.fadeInShape == null) delete normalizedValue.fadeInShape;
+		if (normalizedValue.fadeOutShape == null) delete normalizedValue.fadeOutShape;
 		return detachVideoKeyframeCarrier(detachVideoCompositionCarrier({
-			...value,
+			...normalizedValue,
 			timelineEndFrame: timelineStartFrame + durationFrames,
 			sourceEndFrame: sourceStartFrame + sourceDurationFrames,
 		}, value, `Clip ${String(value?.id ?? '')}`), value, `Clip ${String(value?.id ?? '')}`);
