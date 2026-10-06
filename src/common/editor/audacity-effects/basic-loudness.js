@@ -20,9 +20,8 @@ import {
 	multiplyChannel,
 	multiplyChannels,
 } from './basic-channel-math.js';
+import { createLoudnessPowerHistogram } from './loudness-power-histogram.ts';
 
-const EBU_HISTOGRAM_BIN_COUNT = 65_536;
-const EBU_ABSOLUTE_GATE = (-70 + 0.691) / 10;
 const EBU_POWER_SCALE = 0.8529037031;
 
 export function normalizeRms(channels, targetDb, independent) {
@@ -44,7 +43,7 @@ export function integratedLoudnessPower(channels, sampleRate) {
 	const blockSize = Math.ceil(0.4 * sampleRate);
 	const blockOverlap = Math.ceil(0.1 * sampleRate);
 	const ring = new Float64Array(blockSize);
-	const histogram = new Uint32Array(EBU_HISTOGRAM_BIN_COUNT);
+	const histogram = createLoudnessPowerHistogram();
 	const filters = channels.map(() => weightingFilters(sampleRate));
 	let ringPosition = 0;
 	let ringSize = 0;
@@ -74,15 +73,7 @@ export function integratedLoudnessPower(channels, sampleRate) {
 		histogramCount += addLoudnessBlock(histogram, ring, Math.min(ringSize, blockSize));
 	}
 	if (histogramCount === 0) return 0;
-	const absolute = histogramSums(histogram, 0);
-	if (absolute.count === 0 || absolute.power === 0) return 0;
-	const relativeGate = Math.log10(absolute.power / absolute.count) - 1;
-	const relativeIndex = Math.round(
-		(relativeGate - EBU_ABSOLUTE_GATE) * EBU_HISTOGRAM_BIN_COUNT
-		/ -EBU_ABSOLUTE_GATE - 1,
-	);
-	const gated = histogramSums(histogram, Math.max(0, relativeIndex + 1));
-	return gated.count === 0 ? 0 : EBU_POWER_SCALE * gated.power / gated.count;
+	return EBU_POWER_SCALE * histogram.meanPower();
 }
 
 export function weightingFilters(sampleRate) {
@@ -129,31 +120,10 @@ export function processBiquad(input, filter) {
 	return Math.fround(output);
 }
 
-export function addLoudnessBlock(histogram, ring, validLength) {
+function addLoudnessBlock(histogram, ring, validLength) {
 	if (validLength <= 0) return 0;
 	let blockPower = 0;
 	for (let index = 0; index < validLength; index += 1) blockPower += ring[index];
 	if (!(blockPower > 0)) return 0;
-	const logPower = Math.log10(blockPower / validLength);
-	const histogramIndex = Math.round(
-		(logPower - EBU_ABSOLUTE_GATE) * EBU_HISTOGRAM_BIN_COUNT
-		/ -EBU_ABSOLUTE_GATE - 1,
-	);
-	if (histogramIndex < 0 || histogramIndex >= EBU_HISTOGRAM_BIN_COUNT) return 0;
-	histogram[histogramIndex] += 1;
-	return 1;
+	return histogram.add(blockPower / validLength);
 }
-
-export function histogramSums(histogram, startIndex) {
-	let power = 0;
-	let count = 0;
-	for (let index = startIndex; index < EBU_HISTOGRAM_BIN_COUNT; index += 1) {
-		if (histogram[index] === 0) continue;
-		const value = -EBU_ABSOLUTE_GATE / EBU_HISTOGRAM_BIN_COUNT * (index + 1)
-			+ EBU_ABSOLUTE_GATE;
-		power += 10 ** value * histogram[index];
-		count += histogram[index];
-	}
-	return { power, count };
-}
-
