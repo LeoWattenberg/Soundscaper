@@ -32,7 +32,7 @@ export async function installDirectPcmTarget(page, options) {
 							commits: 0,
 							maxConcurrentWrites: 0,
 							maximumWriteBytes: 0,
-							nonzeroPcmBytes: 0,
+							hasNonzeroPcm: false,
 							opens: 1,
 							prefix: new Uint8Array(configuration.prefixBytes || 2 * 1024),
 							prefixBytes: 0,
@@ -56,11 +56,17 @@ export async function installDirectPcmTarget(page, options) {
 									session.prefixBytes += prefixBytes;
 								}
 								if (session.suffix.length > 0) retainSuffix(session, chunk);
-								for (let index = Math.max(0, configuration.pcmOffset - session.totalBytes); index < chunk.byteLength; index += 1) {
-									if (chunk[index] !== 0) session.nonzeroPcmBytes += 1;
+								// The assertions need a nonzero PCM witness, not a count of
+								// every byte in the potentially multi-gigabyte export.
+								if (!session.hasNonzeroPcm) {
+									for (let index = Math.max(0, configuration.pcmOffset - session.totalBytes); index < chunk.byteLength; index += 1) {
+										if (chunk[index] === 0) continue;
+										session.hasNonzeroPcm = true;
+										break;
+									}
 								}
 								session.totalBytes += chunk.byteLength;
-								const pcmReady = sessionIndex === configuration.stallAfterPcmSession && session.nonzeroPcmBytes > 0;
+								const pcmReady = sessionIndex === configuration.stallAfterPcmSession && session.hasNonzeroPcm;
 								const bytesReady = sessionIndex === configuration.stallAfterBytesSession && session.totalBytes > 4;
 								if ((pcmReady || bytesReady) && !session.writeHeld) {
 									session.writeHeld = true;

@@ -78,7 +78,7 @@ test.describe('direct native PCM File System Access publication', () => {
 		expect(saved.maxConcurrentWrites).toBe(1);
 		expect(saved.writeCalls).toBeGreaterThan(1);
 		expect(saved.maximumWriteBytes).toBeLessThanOrEqual(4 * 1024 * 1024);
-		expect(saved.nonzeroPcmBytes).toBeGreaterThan(0);
+		expect(saved.hasNonzeroPcm).toBe(true);
 		expect(saved.header).toMatchObject({
 			bitsPerSample: 16,
 			blockAlign: 64,
@@ -160,7 +160,7 @@ test.describe('direct native PCM File System Access publication', () => {
 			totalBytes: saved.totalBytes,
 		});
 		expect(admitted.header).toEqual(saved.header);
-		expect(admitted.nonzeroPcmBytes).toBeGreaterThan(0);
+		expect(admitted.hasNonzeroPcm).toBe(true);
 		expect(admitted.riffBytes).toBe(admitted.totalBytes);
 		expect(await page.evaluate(() => globalThis.__directPcmSave.sessions.length)).toBe(3);
 		const publicationMutations = await page.evaluate(async () => {
@@ -218,7 +218,7 @@ test.describe('direct native PCM File System Access publication', () => {
 		expect(saved.maxConcurrentWrites).toBe(1);
 		expect(saved.writeCalls).toBeGreaterThan(1);
 		expect(saved.maximumWriteBytes).toBeLessThanOrEqual(4 * 1024 * 1024);
-		expect(saved.nonzeroPcmBytes).toBeGreaterThan(0);
+		expect(saved.hasNonzeroPcm).toBe(true);
 		expect(saved.header).toMatchObject({
 			bitsPerSample: 16,
 			channelCount: CHANNEL_COUNT,
@@ -316,7 +316,7 @@ test.describe('direct native PCM File System Access publication', () => {
 		expect(saved.prefixCapacityBytes).toBe(RETAINED_PREFIX_BYTES);
 		expect(saved.prefixBytes).toBe(RETAINED_PREFIX_BYTES);
 		expect(saved.totalBytes).toBeGreaterThan(saved.prefixBytes);
-		expect(saved.nonzeroPcmBytes).toBeGreaterThan(0);
+		expect(saved.hasNonzeroPcm).toBe(true);
 		expect(saved.header).toMatchObject({
 			bitsPerSample: 16,
 			blockAlign: 64,
@@ -361,9 +361,9 @@ test.describe('direct native PCM File System Access publication', () => {
 		expect(downloads).toBe(0);
 
 		await exportDialog.getByRole('button', { name: 'Export', exact: true }).click();
-		await expect.poll(() => page.evaluate(() => globalThis.__directPcmSave.sessions[1]?.nonzeroPcmBytes || 0), {
+		await expect.poll(() => page.evaluate(() => globalThis.__directPcmSave.sessions[1]?.hasNonzeroPcm || false), {
 			timeout: PCM_COMPLETION_TIMEOUT_MS / 2,
-		}).toBeGreaterThan(0);
+		}).toBe(true);
 		await exportDialog.getByRole('button', { name: 'Cancel export' }).click();
 		await expect(exportDialog.getByRole('button', { name: 'Export', exact: true })).toBeVisible({ timeout: 15_000 });
 		const cancelled = await inspectDirectBwfTarget(page, 1);
@@ -372,7 +372,7 @@ test.describe('direct native PCM File System Access publication', () => {
 		expect(cancelled.commits).toBe(0);
 		expect(cancelled.publications).toBe(0);
 		expect(cancelled.aborts).toBe(1);
-		expect(cancelled.nonzeroPcmBytes).toBeGreaterThan(0);
+		expect(cancelled.hasNonzeroPcm).toBe(true);
 		expect(cancelled.totalBytes).toBeGreaterThan(RETAINED_PREFIX_BYTES);
 		expect(cancelled.totalBytes).toBeLessThan(saved.totalBytes);
 		expect(cancelled.objectUrls).toEqual([]);
@@ -488,9 +488,9 @@ test.describe('direct native PCM File System Access publication', () => {
 		expect(downloads).toBe(0);
 
 		await exportDialog.getByRole('button', { name: 'Export', exact: true }).click();
-		await expect.poll(() => page.evaluate(() => globalThis.__directPcmSave.sessions[1]?.nonzeroPcmBytes || 0), {
+		await expect.poll(() => page.evaluate(() => globalThis.__directPcmSave.sessions[1]?.hasNonzeroPcm || false), {
 			timeout: BW64_COMPLETION_TIMEOUT_MS,
-		}).toBeGreaterThan(0);
+		}).toBe(true);
 		await cancelHeldDirectWrite(page, exportDialog.getByRole('button', { name: 'Cancel export' }), 1);
 		await expect(exportDialog.getByRole('button', { name: 'Export', exact: true })).toBeVisible({ timeout: 15_000 });
 		const cancelled = await inspectDirectBw64Target(page, 1);
@@ -499,7 +499,7 @@ test.describe('direct native PCM File System Access publication', () => {
 		expect(cancelled.commits).toBe(0);
 		expect(cancelled.publications).toBe(0);
 		expect(cancelled.aborts).toBe(1);
-		expect(cancelled.nonzeroPcmBytes).toBeGreaterThan(0);
+		expect(cancelled.hasNonzeroPcm).toBe(true);
 		expect(cancelled.totalBytes).toBeGreaterThan(RETAINED_PREFIX_BYTES);
 		expect(cancelled.totalBytes).toBeLessThan(saved.totalBytes);
 		expect(cancelled.objectUrls).toEqual([]);

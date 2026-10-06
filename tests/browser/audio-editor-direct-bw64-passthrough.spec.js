@@ -125,7 +125,7 @@ test.describe('direct pristine BW64 passthrough publication', () => {
 		});
 		expect(saved.writeCalls).toBeGreaterThan(1);
 		expect(saved.maximumWriteBytes).toBeLessThanOrEqual(4 * 1024 * 1024);
-		expect(saved.nonzeroPcmBytes).toBeGreaterThan(0);
+		expect(saved.hasNonzeroPcm).toBe(true);
 		expect(saved.totalBytes).toBe(source.totalBytes);
 		expect(saved.chunkOrder).toEqual(['ds64', 'fmt ', 'JUNK', 'bext', 'chna', 'data', 'PEAK', 'axml']);
 		expect(saved.sequence).toEqual(source.sequence);
@@ -165,9 +165,9 @@ test.describe('direct pristine BW64 passthrough publication', () => {
 		expect(downloads).toBe(0);
 
 		await exportDialog.getByRole('button', { name: 'Export', exact: true }).click();
-		await expect.poll(() => page.evaluate(() => globalThis.__directPcmSave.sessions[1]?.nonzeroPcmBytes || 0), {
+		await expect.poll(() => page.evaluate(() => globalThis.__directPcmSave.sessions[1]?.hasNonzeroPcm || false), {
 			timeout: 30_000,
-		}).toBeGreaterThan(0);
+		}).toBe(true);
 		await exportDialog.getByRole('button', { name: 'Cancel export' }).click();
 		await expect(exportDialog.getByRole('button', { name: 'Export', exact: true })).toBeVisible({ timeout: 30_000 });
 		const cancelled = await inspectDirectSession(page, 1);
@@ -176,7 +176,7 @@ test.describe('direct pristine BW64 passthrough publication', () => {
 		expect(cancelled.commits).toBe(0);
 		expect(cancelled.publications).toBe(0);
 		expect(cancelled.aborts).toBe(1);
-		expect(cancelled.nonzeroPcmBytes).toBeGreaterThan(0);
+		expect(cancelled.hasNonzeroPcm).toBe(true);
 		expect(cancelled.totalBytes).toBeGreaterThan(PREFIX_BYTES);
 		expect(cancelled.totalBytes).toBeLessThan(saved.totalBytes);
 		expect(cancelled.objectUrls).toEqual([]);
