@@ -16,6 +16,7 @@ import {
 	type VideoKeyframeTargetChoice,
 } from '../video-keyframe-dialog-model.ts';
 import { linearVideoKeyframeBezierControls } from './video-keyframe-bezier-controls.ts';
+import { parseVideoKeyframeNumber as parseNumber, parseVideoKeyframePosition as parseRational } from './video-keyframe-exact-input.ts';
 
 interface VideoKeyframeCurveEditorProps {
 	readonly model: VideoKeyframeDialogModel;
@@ -220,22 +221,6 @@ function ControlField({ hook, label: fieldLabel, value, onChange }: Readonly<{
 	hook: string; label: string; value: string; onChange(value: string): void;
 }>) {
 	return <label className="audio-editor-field"><span>{fieldLabel}</span><input type="text" data-video-keyframe-field={hook} value={value} onChange={(event) => onChange(event.currentTarget.value)} /></label>;
-}
-
-function parseRational(value: string): number | Rational {
-	const parts = value.trim().split('/');
-	if (parts.length === 1) return parseNumber(parts[0] ?? '');
-	if (parts.length !== 2) throw new TypeError('An exact rational uses num/den.');
-	const num = Number(parts[0]); const den = Number(parts[1]);
-	if (!Number.isSafeInteger(num) || !Number.isSafeInteger(den) || den === 0) throw new TypeError('An exact rational uses safe integer num/den.');
-	return { num, den };
-}
-
-function parseNumber(value: string): number {
-	if (!value.trim()) throw new TypeError('A finite number is required.');
-	const number = Number(value);
-	if (!Number.isFinite(number) || Object.is(number, -0)) throw new TypeError('A finite number without negative zero is required.');
-	return number;
 }
 
 function rationalText(value: Rational): string { return value.den === 1 ? String(value.num) : `${String(value.num)}/${String(value.den)}`; }

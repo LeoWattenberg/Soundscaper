@@ -27,5 +27,15 @@ Entry 007 passed Chromium, Firefox, and WebKit against immutable green batch 3.
 Its two strict lifecycle regressions and the existing modal Escape regressions
 passed, and all changed source and tests passed targeted lint.
 
+Uncounted follow-through to R2-DIALOG-012: in Framescaper, import a normal WebM,
+select its clip, then Edit → Audio clips → Video keyframes. Choose Scale X,
+enter `/2` as Start and 20 as End, and Add curve. The baseline created a curve
+starting at zero; the exact-position grammar must reject the omitted numerator.
+Both creation and anchor editing now use one strict parser. The regression keeps
+valid `0/2` input working, refuses `/2`, and verifies the saved anchor values are
+unchanged after refusal. All three engines passed against green batch 3, with
+strict parser and targeted lint checks. This is the earlier omitted-fraction-token
+defect's sibling surface and adds no new ID or count.
+
 UI, tests, and documentation keep the same assistance runtime closure. A manual
 **Update AI assets** run is not required.
