@@ -1,6 +1,6 @@
 # Soundscaper editing responsiveness opportunities
 
-This audit now records **73 implemented candidates, 20 partial implementations and 7 excluded proposals**. Changes target Generate and Apply completion, timeline interaction, audio rendering, source publication and local assistance. Implementation details, commits, parity tests and remaining limits are in the [structured register](editing-performance-opportunities.json). This is not a claim that all 100 proposals are implemented.
+This audit now records **74 implemented candidates, 19 partial implementations and 7 excluded proposals**. Changes target Generate and Apply completion, timeline interaction, audio rendering, source publication and local assistance. Implementation details, commits, parity tests and remaining limits are in the [structured register](editing-performance-opportunities.json). This is not a claim that all 100 proposals are implemented.
 
 The scope excludes initial editor loading and its expected lazy boundary. Electron's fresh profile used its default **Speed** preference, verified in General preferences, and completed Speed preparation before timing. The audit starts at committed revision `25d7cbdb4` on 6 October 2026; concurrent uncommitted changes in the original checkout are outside this baseline. Earlier fixes in [Editor performance](performance.md), including indexed viewport queries, live dynamics gains and autosave coalescing, remain in place and are excluded from these candidates.
 
@@ -12,7 +12,7 @@ Speed now publishes foreground lossless raw PCM; **File > Project management > C
 
 Implemented work includes bounded generator streaming, exact scalar/dynamics loops, two owned effect-worker lanes, offline macro batches, direct neutral dry PCM, schedule indexes, waveform/selection painting, bounded spectrogram workers and retained columns, source-read and checksum ownership, direct desktop compressed PCM export, resident authenticated ONNX sessions, controller snapshots and analysis reports. No new UI controls were added.
 
-Partial implementations keep fallback paths where changing render boundaries or canvas antialiasing changed output, where public inputs are mutable, or where the current protocol admits only one representation. Entry 63 improves failure cleanup but does not overlap stem rendering/archive emission. That overlap needs per-entry progress/cancellation and fallback-inclusive memory/storage reservation. Entries 74/79/83/84/87 need reviewed native custody/continuation/session or model geometry work. Entry 76's typed WAV loop was slower and was discarded; entry 85's synthetic thread experiments do not justify one default for every model.
+Partial implementations keep fallback paths where changing render boundaries or canvas antialiasing changed output, where public inputs are mutable, or where the current protocol admits only one representation. Entry 63 now overlaps one next native same-rate stem render with ordered archive writes, using private progress/cancellation and aggregate archive/entry/retry storage admission. Other native formats, rate conversion, unsupported resources and Memory retain sequential execution. Entries 74/79/83/84/87 need reviewed native custody/continuation/session or model geometry work. Entry 76's typed WAV loop was slower and was discarded; entry 85's synthetic thread experiments do not justify one default for every model.
 
 No manual **Update AI assets** run is required. Native engine/WASM bytes, source pins, archive recipes and AI target inventories are unchanged; desktop changes are application glue using the existing runtime closure.
 
@@ -459,7 +459,7 @@ Each numbered entry retains the baseline work, proposed change and validation ta
 
    Validate with render-complete-to-encoder-start latency, total export p50/p95, max renderer long task, peak binary bytes and codec output/reference equality.
 
-63. **Pipeline independent stem render and ordered archive emission** (P2 candidate). **Partial.** [direct-stem-archive-export.ts:185](../../src/common/editor/controller/export/internal/direct/direct-stem-archive-export.ts).
+63. **Pipeline independent stem render and ordered archive emission** (P2 candidate). **Implemented.** [direct-stem-archive-export.ts:185](../../src/common/editor/controller/export/internal/direct/direct-stem-archive-export.ts).
 
    Each stem fully awaits renderStem and archive.add before the following stem starts. Use a memory-admitted pipeline with at most one next stem render/encode in progress while the previous completed stem drains into the sequential archive. Retain deterministic archive order.
 

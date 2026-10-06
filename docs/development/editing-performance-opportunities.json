@@ -101,12 +101,13 @@
 			"status": "implemented",
 			"implementation": {
 				"change": "Retain one waveform animation-frame scheduler and its observer across commits, reading the latest paint closure.",
-				"proof": "retained-canvas-frame tests cover child-before-parent host attachment, one scheduled latest paint across commits and cancellation/disconnect on unmount; waveform raster regression fixtures drain actual retained frames.",
-				"limits": "Painting occurs at the next display frame; parent host ownership must be acquired after attachment.",
+				"proof": "12 focused canvas/row/cache tests pass, including actual cached initial mount and virtualized remount without media publications, one total attachment retry per explicit draw, ref/host replacement, stale callback rejection, unmount and StrictMode reacquisition; existing scale/zoom raster and independent cache eviction protections still pass.",
+				"limits": "Committed row changes paint at the next display frame. Initial parent-host attachment receives one cancellable frame retry; a still-absent host waits for another explicit invalidation.",
 				"commits": [
 					"b5d17bb03",
 					"41a541557",
-					"c113d3ac4"
+					"c113d3ac4",
+					"dad1e9b19"
 				]
 			}
 		},
@@ -2033,14 +2034,15 @@
 			"existingProtection": "Current sequential path intentionally stages only one render and has hard byte contracts; keep that path on memory-constrained hosts.",
 			"correctness": "May provide little gain for shared single-thread codec contention; benchmark before enabling concurrency. Preserve abort cleanup for the speculative next stem.",
 			"evidenceLevel": "code-supported hypothesis; end-to-end impact unmeasured",
-			"status": "partial",
+			"status": "implemented",
 			"implementation": {
-				"change": "Render/archive overlap remains unimplemented protocol work. The encoded-stem producer now owns cleanup until conformance succeeds, releasing its completed spool after conformance failure and preserving combined cleanup errors.",
-				"proof": "Two focused conformance/cleanup tests fail on the extracted prior behavior, then all three pass;22 stem admission/archive/service tests pass with the canonical style loader and focused type-aware lint passes. export-service.ts shrank below its frozen prior line count.",
-				"limits": "No speed gain or overlap claim. Existing storage preflight reserves one entry, not two including realtime retry spools. withRenderProgress overwrites per-range onProgress and shared taskProgress/withRenderProgress is also captured by realtime fallback. A safe pipeline needs owned per-entry progress/cancellation adapters, fallback-inclusive aggregate memory/storage admission, monotonic progress and drained speculative spool ownership before ordered cleanup. This is not evidence that bounded overlap is intrinsically regressive or invalid.",
+				"change": "For admitted native same-rate multi-stem direct ZIP/7z exports in Speed mode, render/conform at most one following entry while the current archive entry is written. One active render and at most current+next owned outputs; deterministic archive order. Private per-entry phase/cancellation adapters preserve the owning export task, and one export-wide absolute adapter keeps raw observer progress monotonic. The default snapshot factory explicitly creates compatible owned-entry renderers; custom supplied renderers without that capability stay sequential. Full plan/settings plus source-rate/width fences guard awaited preflight/render/conformance/archive boundaries. Both archive/speculative failure orderings retain nested cleanup errors and drain/remove late outputs.",
+				"proof": "75 focused tests pass across direct ZIP/native 7z/compressed sequential contracts, service, deferred facade and semantic chunk ownership; 17 new focused tests pass. Controlled archive backpressure shows Speed starts stem two before stem-one write ACK, while Memory waits; actual encodeWav ZIP output matches sequential exact bytes/order. Private offline failures retry through the real streaming WAV encoder and same-rate resampler with exact ZIP parity, two staging removes and two renderer disposals. Real createExportPlan short 48kHz stereo two-stem plan admits with entry384044B, archive768350B, retry384000B, heap19465304B and combined temporary1920438B under unchanged desktop thresholds. Actual 32-channel8kHz40s -> mono192kHz float32 plan (983040000B target-rate master PCM per buffer) is excluded. Missing preference/private progress/retry resources/custom capability or failing combined capacity preserves sequential execution. Mutable preflight aborts before any renderer; protocol tests cover bounded outputs, cancellation, late successful spool cleanup, and both nested AggregateError orderings. npm run lint:changed, explicit owned-file ESLint, source tsc, full tests tsc and latest-three-test strict typing pass; size and whitespace checks pass.",
+				"limits": "Native WAV/BWF/AIFF direct archives only, at least two entries, each encoded entry <=32MiB; same source/output rate, existing offline fast/admitted plan, Speed preference and compatible owned resources required. Loudness normalization, binaural/mastering/ADM graphs, Memory/unknown preference, custom renderer without owned-entry capability, rate conversion and capacity failures remain sequential. Combined storage includes full archive + two encoded entries + source-width retry F32 spool; summed heap thresholds unchanged. Overlap proven using controlled write backpressure and exact bytes; no measured end-to-end Electron speedup claimed. No UI entry changes, codec ABI changes or assistance-runtime closure changes; manual Update AI assets is not required.",
 				"commits": [
 					"b17eb4842",
-					"474e46e62"
+					"474e46e62",
+					"f1c94c685"
 				]
 			}
 		},
@@ -2066,11 +2068,13 @@
 			"status": "partial",
 			"implementation": {
 				"change": "Speed commits canonical raw PCM with worker CRC before optional compression; Consolidate explicitly creates verified WavPack generations.",
-				"proof": "1693173e0; ebd85c2ea; Speed persistence and tiny/noisy WavPack consolidation/undo/cancel tests.",
+				"proof": "1693173e0; ebd85c2ea; Speed persistence and tiny/noisy WavPack consolidation/undo/cancel tests. Independent final review adds conversion/verification/binding cleanup regressions; 51 focused consolidation tests pass. Primary errors and all owned cleanup failures remain available, and successful/cancelled publication stays atomic. Linked-audio cache writes also retain simultaneous write/abort failures; 17 linked/managed tests pass.",
 				"limits": "Automatic background compression is not implemented; existing raw generations retained for Undo/COW must not be replaced in place.",
 				"commits": [
 					"1693173e0",
-					"ebd85c2ea"
+					"ebd85c2ea",
+					"58a8f06bb",
+					"cdd83d00c"
 				]
 			}
 		},
@@ -3232,14 +3236,14 @@
 		}
 	],
 	"implementation": {
-		"codeRevision": "474e46e6265c6b848313c954deca2ca3dd0bac90",
+		"codeRevision": "f1c94c685",
 		"counts": {
-			"implemented": 73,
-			"partial": 20,
+			"implemented": 74,
+			"partial": 19,
 			"rejected": 7
 		},
 		"requiresManualAiAssets": false,
 		"measurementFile": "editing-performance-implementation-measurements.json",
-		"limits": "Unimplemented work is explicit in each partial/rejected record;100 completed optimizations are not claimed. No native AI engine/archive closure changed."
+		"limits": "Unimplemented work is explicit in each partial/rejected record; 100 completed optimizations are not claimed. No native AI engine/archive closure changed."
 	}
 }

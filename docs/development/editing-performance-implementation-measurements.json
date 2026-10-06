@@ -1,7 +1,7 @@
 {
 	"date": "2026-10-06",
 	"baseRevision": "25d7cbdb4",
-	"finalCodeRevision": "474e46e6265c6b848313c954deca2ca3dd0bac90",
+	"finalCodeRevision": "f1c94c685",
 	"node": "v26.5.0",
 	"method": "Raw helper observations from one local host. Helper paths were measured before final UI/controller integration; their arithmetic is unchanged. Synthetic ONNX data is not a real model workflow. No startup timing is included. Shared-host and GC variance remain; no population p95 or GPU presentation FPS claim.",
 	"electron": {
@@ -3623,5 +3623,16 @@
 		"canonicalStatic": "passed in final second gate run; source unchanged afterward",
 		"nodeCoverage": "22100pass,1stalefactoryfixturefail,32skip; fixture fixed6ce7eca75 and focused4pass; full rerun pending",
 		"browser": "pending full suite; targeted actual pixel/engine tests passed"
+	},
+	"stemPipeline": {
+		"codeRevision": "f1c94c685",
+		"mode": "speed",
+		"entryByteLength": 384044,
+		"archiveByteLength": 768350,
+		"retryPcmBytes": 384000,
+		"heapBytes": 19465304,
+		"combinedTemporaryBytes": 1920438,
+		"proof": "Controlled archive backpressure starts the following render before current entry ACK. Exact native WAV ZIP bytes match sequential, including private offline-to-realtime retry. This is an overlap/admission proof, not an Electron latency benchmark.",
+		"limits": "Native WAV/BWF/AIFF direct archives only, at least two entries, each encoded entry <=32MiB; same source/output rate, existing offline fast/admitted plan, Speed preference and compatible owned resources required. Loudness normalization, binaural/mastering/ADM graphs, Memory/unknown preference, custom renderer without owned-entry capability, rate conversion and capacity failures remain sequential. Combined storage includes full archive + two encoded entries + source-width retry F32 spool; summed heap thresholds unchanged. Overlap proven using controlled write backpressure and exact bytes; no measured end-to-end Electron speedup claimed. No UI entry changes, codec ABI changes or assistance-runtime closure changes; manual Update AI assets is not required."
 	}
 }
