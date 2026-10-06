@@ -131,8 +131,8 @@ test('each mode stays inside the amplitude its header documents', () => {
 					const noise = noiseOf(mode, random, channel, state);
 					assert.ok(Number.isFinite(noise), `mode ${mode} produced ${String(noise)}`);
 					assert.ok(Math.abs(noise) <= peak, `mode ${mode} reached ${String(noise)} past ${String(peak)} LSB`);
-					// The high-pass variant differences against the previous triangular
-					// draw, so its carried state has to stay a triangular value.
+					// The high-pass variant differences successive centred uniform
+					// draws, so its carried state remains a bounded uniform value.
 					assert.ok(Math.abs(state[channel]) <= 1, `carried state reached ${String(state[channel])}`);
 				}
 				if (mode === 'none') assert.equal(state.every((value) => value === 0), true);

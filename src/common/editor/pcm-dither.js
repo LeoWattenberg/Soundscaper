@@ -41,7 +41,7 @@ export function normalizePcmEncoderDither(value) {
 /**
  * One dither sample in LSB units.
  *
- * `state` carries the previous triangular draw per channel so the high-pass
+ * `state` carries the previous centred uniform draw per channel so the high-pass
  * variant can difference against it; pass a Float64Array sized to the channel
  * count and reuse it across the whole stream.
  */
@@ -62,9 +62,12 @@ export function pcmDitherNoise(mode, random, channel, state) {
 export function ditherFromUniforms(mode, first, second, channel, state) {
 	if (mode === 'none') return 0;
 	if (mode === 'rectangular') return first - 0.5;
-	const current = first - second;
-	if (mode !== 'triangular-highpass') return current;
-	const noise = (current - state[channel]) * 0.5;
+	if (mode !== 'triangular-highpass') return first - second;
+	// Differencing consecutive uniform draws has a triangular PDF and the
+	// same 1/6-LSB² power as white TPDF. Filtering TPDF itself and halving it
+	// instead reduces the power and stops linearizing the quantizer.
+	const current = first - 0.5;
+	const noise = current - state[channel];
 	state[channel] = current;
 	return noise;
 }

@@ -150,8 +150,9 @@ export function sanitizeExportName(value, fallback = 'audio-project') {
 	const normalized = String(value || '')
 		.normalize('NFKD')
 		.replace(/[aouAOU]\u0308/g, (letter) => letter.normalize('NFC'))
-		.replace(/[\u0300-\u036f]/g, '')
-		.replace(/[^a-zA-Z0-9äöüÄÖÜß_-]+/g, '-')
+		.replace(/([a-zA-Z])[\u0300-\u036f]+/g, '$1')
+		.normalize('NFC')
+		.replace(/[^\p{L}\p{N}\p{M}_-]+/gu, '-')
 		.replace(/-{2,}/g, '-')
 		.replace(/^[-_.]+|[-_.]+$/g, '')
 		.slice(0, 96);
