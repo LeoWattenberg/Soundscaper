@@ -18,13 +18,14 @@ test('coverage-bearing browser specs opt out when they serve test-only executabl
 		.filter((name) => name.endsWith('.spec.js'))
 		.sort();
 	const violations = [];
+	const readSource = browserSourceReader();
 	for (const name of names) {
 		const url = new URL(name, BROWSER_SPECS);
-		const source = await readFile(url, 'utf8');
+		const source = await readSource(url);
 		if (!COVERAGE_FIXTURE.test(source)) continue;
 		assertDirectSyntheticTestsAreExcluded(name, source);
 		assertStrictHarnessCallsAreExcluded(name, source);
-		const executableSources = await sourceWithLocalBrowserHelpers(url, source);
+		const executableSources = await sourceWithLocalBrowserHelpers(url, source, readSource);
 		const executableMimes = [...executableSources.matchAll(EXECUTABLE_MIME)].length
 			- authenticatedProductionRouteCount(name, source);
 		const signals = [
@@ -42,7 +43,49 @@ test('coverage-bearing browser specs opt out when they serve test-only executabl
 	].join('\n'));
 });
 
-async function sourceWithLocalBrowserHelpers(entryUrl, entrySource) {
+test('browser helper traversal keeps independent entry closures while sharing source reads', async () => {
+	const shared = new URL('helpers/synthetic-shared.js', BROWSER_SPECS);
+	const cycle = new URL('helpers/synthetic-cycle.js', BROWSER_SPECS);
+	const exclusive = new URL('helpers/synthetic-exclusive.js', BROWSER_SPECS);
+	const contents = new Map([
+		[shared.href, 'import "./synthetic-cycle.js"; const html = "<script>shared()</script>";'],
+		[cycle.href, 'import "./synthetic-shared.js";'],
+		[exclusive.href, 'const html = "<button onclick=exclusive()>Open</button>";'],
+	]);
+	const reads = [];
+	const readSource = browserSourceReader(async (url) => {
+		reads.push(url.href);
+		assert.ok(contents.has(url.href), `Unexpected helper ${url.href}`);
+		return contents.get(url.href);
+	});
+	const first = await sourceWithLocalBrowserHelpers(
+		new URL('synthetic-first.spec.js', BROWSER_SPECS),
+		'import "./helpers/synthetic-shared.js";\nimport "./helpers/synthetic-exclusive.js";',
+		readSource,
+	);
+	const second = await sourceWithLocalBrowserHelpers(
+		new URL('synthetic-second.spec.js', BROWSER_SPECS),
+		'import "./helpers/synthetic-shared.js";',
+		readSource,
+	);
+	assert.match(first, EXECUTABLE_SCRIPT_TAG);
+	assert.match(second, EXECUTABLE_SCRIPT_TAG);
+	assert.match(first, EXECUTABLE_HTML_ATTRIBUTE);
+	assert.doesNotMatch(second, EXECUTABLE_HTML_ATTRIBUTE);
+	assert.deepEqual(reads.sort(), [shared.href, cycle.href, exclusive.href].sort());
+});
+
+function browserSourceReader(readSource = (url) => readFile(url, 'utf8')) {
+	// Helpers are immutable during this audit and many specs share them. Keep
+	// the read snapshot local to one audit without sharing traversal state.
+	const sources = new Map();
+	return (url) => {
+		if (!sources.has(url.href)) sources.set(url.href, readSource(url));
+		return sources.get(url.href);
+	};
+}
+
+async function sourceWithLocalBrowserHelpers(entryUrl, entrySource, readSource) {
 	const pending = [{ source: entrySource, url: entryUrl }];
 	const sources = [];
 	const visited = new Set();
@@ -55,7 +98,7 @@ async function sourceWithLocalBrowserHelpers(entryUrl, entrySource) {
 			const dependency = new URL(match[1], url);
 			if (!dependency.href.startsWith(BROWSER_SPECS.href)
 				|| !dependency.pathname.endsWith('.js')) continue;
-			pending.push({ source: await readFile(dependency, 'utf8'), url: dependency });
+			pending.push({ source: await readSource(dependency), url: dependency });
 		}
 	}
 	return sources.join('\n');
