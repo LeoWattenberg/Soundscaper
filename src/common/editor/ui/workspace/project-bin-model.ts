@@ -24,11 +24,13 @@ interface ProjectBinClip {
 }
 
 interface ProjectBinSource {
+	canonical?: Readonly<{ width?: number; height?: number }>;
 	channelCount?: number;
 	frameCount?: number;
 	height?: number;
 	kind?: string;
 	mimeType?: string;
+	original?: Readonly<{ recognizedFormat?: string }>;
 	width?: number;
 }
 
@@ -125,12 +127,14 @@ export function formatProjectBinDuration(durationFrames: number, sampleRate: num
 export function formatProjectBinSource(source: ProjectBinSource | null | undefined, copy: ProjectBinCopy): string {
 	if (!source) return copy.projectBinUnknownFormat || '';
 	const mimeSubtype = String(source.mimeType || '')
-		.replace(/^(?:audio|video)\//i, '')
+		.replace(/^(?:audio|video|image)\//i, '')
 		.replace(/^x-/i, '')
 		.replace('mpeg', 'mp3');
-	const format = mimeSubtype ? mimeSubtype.toUpperCase() : copy.projectBinUnknownFormat || '';
-	if (source.kind === 'video') {
-		const resolution = source.width && source.height ? `${source.width}×${source.height}` : copy.videoResolution || '';
+	const subtype = source.kind === 'image' ? source.original?.recognizedFormat : mimeSubtype;
+	const format = subtype ? subtype.toUpperCase() : copy.projectBinUnknownFormat || '';
+	if (['video', 'image', 'still', 'generator'].includes(source.kind || '')) {
+		const width = source.canonical?.width ?? source.width, height = source.canonical?.height ?? source.height;
+		const resolution = width && height ? `${width}×${height}` : copy.videoResolution || '';
 		return `${format} · ${resolution}`;
 	}
 	const channels = Number(source.channelCount) === 1

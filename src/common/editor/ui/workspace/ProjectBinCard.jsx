@@ -18,7 +18,7 @@ import {
 	projectBinWaveformPath,
 } from './project-bin-model.ts';
 import { productVideoVisualPreviewRuntimeFor } from './product-video-visual-preview-runtime.ts';
-import { projectBinVideoPreviewModel } from './project-bin-video-preview-model.ts';
+import { projectBinVideoPreviewModel, projectBinVisualDurationFrames } from './project-bin-video-preview-model.ts';
 
 export default function ProjectBinCard({
 	clip,
@@ -67,7 +67,7 @@ export default function ProjectBinCard({
 		? sources[itemClips.indexOf(videoClip)] || project?.sources?.find((candidate) => candidate.id === videoClip.sourceId)
 		: null;
 	const videoPreview = projectBinVideoPreviewModel(project, videoClip, videoSource);
-	const duration = formatProjectBinDuration(videoPreview?.durationFrames ?? clip.durationFrames, project?.sampleRate, locale);
+	const duration = formatProjectBinDuration(videoPreview?.durationFrames ?? projectBinVisualDurationFrames(project, visualClip) ?? clip.durationFrames, project?.sampleRate, locale);
 	const videoStartSeconds = videoPreview?.startSeconds ?? 0;
 	const videoEndSeconds = videoPreview?.endSeconds ?? 0;
 	const videoPlaybackRate = videoPreview?.playbackRate ?? 1;
@@ -79,7 +79,7 @@ export default function ProjectBinCard({
 			media.pause();
 			return;
 		}
-		if (Math.abs(media.currentTime - videoStartSeconds) > .1 && (media.currentTime < videoStartSeconds || media.currentTime >= videoEndSeconds)) {
+		if (media.currentTime < videoStartSeconds || media.currentTime >= videoEndSeconds) {
 			media.currentTime = videoStartSeconds;
 		}
 		media.playbackRate = videoPlaybackRate;

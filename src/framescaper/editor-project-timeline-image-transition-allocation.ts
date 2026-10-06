@@ -20,7 +20,7 @@ export function prepareFramescaperVideoTransitionAllocationsTimelineImage(
 	createId: (prefix?: string) => string,
 ): FramescaperProjectCommandTimelineImage {
 	validateFramescaperProjectTimelineImage(profile, project);
-	if (isImage(command)) return command;
+	if (isImage(command) || command.type === 'selection/set') return command;
 	if (!isBatch(command)) {
 		return prepareFramescaperVideoTransitionAllocationsNativeMedia(
 			FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE,
@@ -69,7 +69,7 @@ export function prepareFramescaperVideoTransitionAllocationsTimelineImage(
 }
 
 function isInheritedTree(command: FramescaperProjectCommandTimelineImage): command is FramescaperProjectCommandNativeMedia {
-	return isBatch(command) ? command.commands.every(isInheritedTree) : !isImage(command);
+	return isBatch(command) ? command.commands.every(isInheritedTree) : !isImage(command) && command.type !== 'selection/set';
 }
 
 function isBatch(command: FramescaperProjectCommandTimelineImage): command is FramescaperProjectCommandBatchTimelineImage {

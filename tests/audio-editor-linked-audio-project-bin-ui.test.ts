@@ -58,8 +58,8 @@ test('a binding-backed Project Bin audio member exposes exact-content relink wit
 
 	assert.equal(ENGLISH_COPY.projectBinRelink, 'Relink');
 	assert.equal(GERMAN_COPY.projectBinRelink, 'Neu verknüpfen');
-	assert.match(source, /const menuAudioClip = menuItem\?\.clips\.find\(\(clip\) => clip\.kind !== 'video'\) \|\| null;/u);
-	assert.match(source, /const audioClip = item\.clips\.find\(\(clip\) => clip\.kind !== 'video'\) \|\| null;/u);
+	assert.match(source, /const menuAudioClip = menuItem\?\.clips\.find\(\(clip\) => clip\.kind === 'audio' \|\| clip\.kind == null\) \|\| null;/u);
+	assert.match(source, /const audioClip = item\.clips\.find\(\(clip\) => clip\.kind === 'audio' \|\| clip\.kind == null\) \|\| null;/u);
 	assert.match(source, /controller\.actions\.projectBin\.canRelinkLinkedAudio\(audioClip\.id\)/u);
 	assert.match(source, /const closeItemMenu = \(\) => \{\s*linkedAudioRelinkRequestRef\.current \+= 1;\s*setItemMenu\(null\);/u);
 	assert.match(source, /useEffect\(\(\) => \{\s*linkedAudioRelinkRequestRef\.current \+= 1;\s*setItemMenu\(null\);[\s\S]*\}, \[fileService, projectId, projectRevision, run\]\);/u);

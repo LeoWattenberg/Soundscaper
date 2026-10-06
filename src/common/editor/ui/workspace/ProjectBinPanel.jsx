@@ -98,7 +98,7 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 	const menuItem = menuProjectCurrent
 		? items.find((item) => item.id === itemMenu.itemId) || null
 		: null;
-	const menuAudioClip = menuItem?.clips.find((clip) => clip.kind !== 'video') || null;
+	const menuAudioClip = menuItem?.clips.find((clip) => clip.kind === 'audio' || clip.kind == null) || null;
 	const menuUploadClip = menuItem?.clips.find((clip) => clip.kind === 'audio') || null;
 	const menuAudioRelinkEligible = Boolean(menuAudioClip
 		&& itemMenu?.audioClipId === menuAudioClip.id
@@ -225,7 +225,7 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 	const closeItemMenu = () => { linkedAudioRelinkRequestRef.current += 1; setItemMenu(null); };
 	const openItemMenu = (event, item) => {
 		const rect = event.currentTarget.getBoundingClientRect();
-		const audioClip = item.clips.find((clip) => clip.kind !== 'video') || null;
+		const audioClip = item.clips.find((clip) => clip.kind === 'audio' || clip.kind == null) || null;
 		const videoClip = item.clips.find((clip) => clip.kind === 'video') || null;
 		const requestId = ++linkedAudioRelinkRequestRef.current;
 		const requestedProjectId = projectId;
@@ -384,6 +384,7 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 				</p>
 			)}
 		</div>
+		<WorkspacePanelOverlayPortal target={overlayTarget}>
 		<ContextMenu
 			isOpen={Boolean(itemMenu && menuItem)}
 			x={itemMenu?.x || 0}
@@ -392,7 +393,7 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 			onClose={closeItemMenu}
 			className="kw-audio-editor__project-bin-menu"
 		>
-			<ContextMenuItem label={copy.clipColor} hasSubmenu onClose={closeItemMenu}>
+			<ContextMenuItem label={copy.clipColor} hasSubmenu disabled={menuItem?.clips.some(clip => ['image', 'still', 'generator'].includes(clip.kind))} onClose={closeItemMenu}>
 				{AUDIO_EDITOR_TRACK_COLORS.map((color) => (
 					<ContextMenuItem
 						key={color}
@@ -437,7 +438,7 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 			/>
 			<ContextMenuItem
 				label={copy.projectBinReplace}
-				disabled={mutationBlocked || !menuItem || menuItem.clips.some((clip) => missingSourceIds.has(clip.sourceId))}
+				disabled={mutationBlocked || !menuItem || menuItem.clips.some((clip) => missingSourceIds.has(clip.sourceId) || ['image', 'still', 'generator'].includes(clip.kind))}
 				onClick={() => menuItem && openReplacementPicker(menuItem.primaryClip.id)}
 				onClose={closeItemMenu}
 			/>
@@ -467,6 +468,7 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 			)}
 			{sourceProperties.menuItem(menuVideoClip, itemMenu, closeItemMenu)}
 		</ContextMenu>
+		</WorkspacePanelOverlayPortal>
 		{sourceProperties.flyout}
 		{proxyDialogOpen && <ProjectBinVideoProxyDialog clipId={proxyClipId}
 			controller={controller} snapshot={snapshot} editingBlocked={mutationBlocked}

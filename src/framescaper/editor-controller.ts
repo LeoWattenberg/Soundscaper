@@ -19,6 +19,7 @@ import type { FramescaperCapturedVideoProxyRuntimeComposition } from
 	'./editor-captured-video-proxy-scheduler.ts';
 import { bindFramescaperInheritedProductRuntimesAssistance } from
 	'./editor-controller-assistance-inherited-bindings.ts';
+import { bindFramescaperProjectBinVisualActions } from './editor-project-bin-visual-actions.ts';
 import {
 	assertFramescaperEditorProjectEnvironment,
 	type FramescaperEditorProjectEnvironment,
@@ -215,6 +216,15 @@ export function createFramescaperAudioEditorController(
 			environment.runtime.profile,
 			framescaperProjectTimelineImageFoundationShapeAssistance(project),
 		) as never,
+	});
+	const binController = controller;
+	bindFramescaperProjectBinVisualActions({
+		get project() { return binController.project; },
+		getSnapshot: () => binController.getSnapshot(),
+		getTelemetrySnapshot: () => binController.getTelemetrySnapshot(),
+		selectClips: ids => { ids.forEach((id, index) => { binController.actions.timeline.selectClip(id, { additive: index > 0 }); }); },
+		actions: { projectBin: binController.actions.projectBin,
+			edit: { commit: command => binController.actions.edit.commit(command as never) } },
 	});
 	return controller;
 }

@@ -10,6 +10,18 @@ import {
 	videoClipPlaybackRate,
 	videoSourceCoordinateRate,
 } from '../../video-source-time.ts';
+import { resolveSequenceTimingView, type SequenceTimingProject } from '../../sequence-timing-model.ts';
+import { videoFrameToSampleFrame } from '../../timeline-time.ts';
+
+/** Image and generator leaves use the same authored sequence clock as video. */
+export function projectBinVisualDurationFrames(project: SequenceTimingProject, clip: Readonly<Record<string, unknown>> | null): number | null {
+	if (!clip || !['image', 'still', 'generator'].includes(String(clip.kind))) return null;
+	const count = Number(clip.sequenceFrameCount);
+	if (!Number.isSafeInteger(count) || count < 0) return null;
+	const sequence = resolveSequenceTimingView(project);
+	const sampleRate = Number(project.sampleRate);
+	return videoFrameToSampleFrame(count, sequence.rate, sampleRate, 'point');
+}
 
 export interface ProjectBinVideoPreviewModel {
 	readonly durationFrames: number;

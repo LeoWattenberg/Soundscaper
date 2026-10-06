@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { projectBinVideoPreviewModel } from '../src/common/editor/ui/workspace/project-bin-video-preview-model.ts';
+import { projectBinVideoPreviewModel, projectBinVisualDurationFrames } from '../src/common/editor/ui/workspace/project-bin-video-preview-model.ts';
 import { registerVideoTimingIndex, unregisterVideoTimingIndex } from '../src/common/editor/video-source-time.ts';
 import { createVideoTimingAssetPublication, validateVideoTimingAssetBytes } from '../src/common/editor/video-timing-asset.ts';
 
@@ -50,4 +50,10 @@ test('audio and unavailable source cards do not acquire a video preview clock', 
 	assert.equal(projectBinVideoPreviewModel(project, { ...clip, kind: 'audio' }, null), null);
 	assert.equal(projectBinVideoPreviewModel(project, clip, null), null);
 	assert.equal(projectBinVideoPreviewModel(project, clip, { id: 'other' }), null);
+});
+
+test('owned visual card duration counts its authored sequence frames', () => {
+	assert.equal(projectBinVisualDurationFrames(project, { kind: 'image', sequenceFrameCount: 150 }), 240_000);
+	assert.equal(projectBinVisualDurationFrames(project, { kind: 'generator', sequenceFrameCount: 30 }), 48_000);
+	assert.equal(projectBinVisualDurationFrames(project, { kind: 'audio' }), null);
 });
