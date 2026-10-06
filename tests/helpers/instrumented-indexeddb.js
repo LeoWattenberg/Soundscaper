@@ -284,6 +284,9 @@ class FakeObjectStore {
 			return clone(value);
 		});
 	}
+	getKey(key) {
+		return fakeRequest(this.transaction, () => this.data.records.has(key) ? key : undefined);
+	}
 	getAll(query, count) {
 		if (this.data.name === 'sourceChunks') this.transaction.database.stats.sourceChunkGetAllCalls += 1;
 		return fakeGetAllRequest(this.transaction, this.data, null, query, count, valuesForStore(this.data, query));

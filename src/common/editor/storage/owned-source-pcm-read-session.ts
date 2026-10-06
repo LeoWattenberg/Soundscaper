@@ -151,20 +151,25 @@ export class OwnedSourcePcmReadSessionRepository {
 		}
 		await this.#assertGenerationCurrent(generation, signal);
 		let chunk: SourcePcmChunk | null = null;
-		for (const source of generation) {
+		const cow = generation.slice(0, -1);
+		if (cow.length && typeof this.#options.records.firstChunk === 'function') {
+			const found = await this.#options.records.firstChunk(cow.map((source) => nonEmptySourceToken(source.sourceToken)), chunkIndex, signal);
 			throwIfAborted(signal);
-			if (source.storage === 'copy-on-write') {
-				const replacement = await this.#options.records.chunk(
-					nonEmptySourceToken(source.sourceToken),
-					chunkIndex,
-				);
+			chunk = found ? await this.#options.pcm.decodeRecord(found.record, cow[found.ownerIndex]!, signal)
+				: await this.#readPhysicalChunk(generation.at(-1)!, chunkIndex, signal);
+		} else {
+			for (const source of generation) {
 				throwIfAborted(signal);
-				if (!replacement) continue;
-				chunk = await this.#options.pcm.decodeRecord(replacement, source, signal);
+				if (source.storage === 'copy-on-write') {
+					const replacement = await this.#options.records.chunk(nonEmptySourceToken(source.sourceToken), chunkIndex);
+					throwIfAborted(signal);
+					if (!replacement) continue;
+					chunk = await this.#options.pcm.decodeRecord(replacement, source, signal);
+					break;
+				}
+				chunk = await this.#readPhysicalChunk(source, chunkIndex, signal);
 				break;
 			}
-			chunk = await this.#readPhysicalChunk(source, chunkIndex, signal);
-			break;
 		}
 		if (!chunk) throw new Error(`Source storage chunk ${chunkIndex} is missing.`);
 		throwIfAborted(signal);
