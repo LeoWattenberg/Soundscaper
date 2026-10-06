@@ -228,6 +228,22 @@ test('late writer completion after a project switch rolls back and cannot commit
 	assert.equal(fixture.sourcePeaks.has('generator-1'), false);
 });
 
+test('canceling the dialog generation signal rolls back an unfinished source', async () => {
+	const writing = deferred<void>();
+	const fixture = createFixture({ writeBuffer: () => writing.promise });
+	const service = createAudioGeneratorService(fixture.dependencies);
+	const cancellation = new AbortController();
+	const generating = service.generateSignal('silence', { signal: cancellation.signal });
+	await new Promise<void>((resolve) => setImmediate(resolve));
+	cancellation.abort();
+	writing.resolve();
+	await assert.rejects(generating, (error: unknown) => error instanceof Error && error.name === 'AbortError');
+	assert.equal(fixture.commits.length, 0);
+	assert.deepEqual(fixture.deletedSources, ['generator-1']);
+	assert.equal(fixture.state.audacityEffectProcessing, false);
+	assert.equal(fixture.state.lastGeneratorRequest, null);
+});
+
 test('selection silence with only clip headers selected uses scoped effect persistence', async () => {
 	let activeProject = project('project-a', {
 		startFrame: 0, endFrame: 0, trackIds: ['track-a'], clipIds: ['existing-clip'],

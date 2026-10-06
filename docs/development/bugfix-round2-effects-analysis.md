@@ -17,4 +17,18 @@ Proof: `audio-editor-round2-macro-selection.spec.js` failed against the prior
 build and passed against round-two build 1. Strict controller regressions verify
 that clip targets and spectral bounds are carried through the command adapter.
 
+## R2-ROOT-002 — Cancel closes the generator but still adds its audio
+
+Open **Generate > Tone**, enter ten minutes through the visible duration digits,
+press **Generate**, then **Cancel** before generation finishes. Previously the
+dialog disappeared but the tone was added to the project and Undo became
+available. The dialog now owns an abort signal, which the generator carries into
+its existing task and source cleanup. Canceling or closing cannot publish the
+unfinished audio. A completed request retains only its reusable options.
+
+Proof: `audio-editor-round2-generator-cancel.spec.js` failed on build 1 and passed
+on build 2 in Chromium, Firefox and WebKit. The controller regression cancels
+while writing and verifies source rollback, no edit, and released processing.
+The macro target regression also passes in all three engines.
+
 These changes do not require a manual **Update AI assets** run.

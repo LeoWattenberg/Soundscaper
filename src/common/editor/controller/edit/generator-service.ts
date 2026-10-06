@@ -32,6 +32,7 @@ export type {
 } from './internal/generator-project-view.ts';
 
 export interface AudioGeneratorOptions extends Readonly<Record<string, unknown>> {
+	readonly signal?: AbortSignal;
 	readonly atFrame?: unknown;
 	readonly channelCount?: unknown;
 	readonly durationSeconds?: number;
@@ -246,8 +247,13 @@ export function createAudioGeneratorService<Context, Target extends AudioGenerat
 		dependencies.lifetime.assertActive();
 		if (dependencies.editingBlocked()) return null;
 		const ownership = beginOperation();
+		const { signal, ...generationOptions } = options;
+		const cancel = () => ownership.task.abort(signal?.reason);
+		if (signal?.aborted) cancel();
+		signal?.addEventListener('abort', cancel, { once: true });
 		let processing = false;
 		try {
+			assertOwnership(ownership);
 			const project = ownership.project;
 			const selection = activeSelection(project);
 			let targetTrack = findTrack(project, options.trackId || dependencies.state.selectedTrackId);
@@ -302,13 +308,14 @@ export function createAudioGeneratorService<Context, Target extends AudioGenerat
 					});
 					dependencies.state.lastGeneratorRequest = Object.freeze({
 						type,
-						options: Object.freeze({ ...options }),
+						options: Object.freeze(generationOptions),
 					});
 					setLocalizedStatus(dependencies.setStatus, dependencies.copy, "done", undefined, 'success');
 					return prepared.clipId;
 				},
 			});
 		} finally {
+			signal?.removeEventListener('abort', cancel);
 			finishOperation(ownership, processing);
 		}
 	}

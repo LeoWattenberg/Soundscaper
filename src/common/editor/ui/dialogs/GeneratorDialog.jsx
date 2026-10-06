@@ -30,10 +30,19 @@ export default function GeneratorDialog({ type, controller, copy, locale, run, o
 	const [pending, setPending] = useState(false);
 	const activeGenerationRef = useRef(null);
 	useEffect(() => {
+		activeGenerationRef.current?.abort();
 		activeGenerationRef.current = null;
 		setPending(false);
-		return () => { activeGenerationRef.current = null; };
+		return () => {
+			activeGenerationRef.current?.abort();
+			activeGenerationRef.current = null;
+		};
 	}, [type]);
+	const cancelAndClose = () => {
+		activeGenerationRef.current?.abort();
+		activeGenerationRef.current = null;
+		onClose();
+	};
 	const update = (name, value) => setParams((current) => ({ ...current, [name]: value }));
 	const labels = generatorLayoutLabels(copy);
 	const waveformOptions = generatorWaveformOptions(copy);
@@ -49,12 +58,12 @@ export default function GeneratorDialog({ type, controller, copy, locale, run, o
 		const options = type === 'dtmf'
 			? { ...params, durationSeconds: dtmfTiming.totalSeconds, toneSeconds: dtmfTiming.toneSeconds, silenceSeconds: dtmfTiming.silenceSeconds }
 			: params;
-		const generationId = Symbol('generator');
+		const generationId = new AbortController();
 		activeGenerationRef.current = generationId;
 		setPending(true);
 		void runAwaitedAudioEditorOperation(
 			run,
-			() => controller.actions.generators.generate(type, options),
+			() => controller.actions.generators.generate(type, { ...options, signal: generationId.signal }),
 		).then(() => {
 			if (activeGenerationRef.current === generationId) onClose();
 		}).catch(() => undefined).finally(() => {
@@ -127,7 +136,7 @@ export default function GeneratorDialog({ type, controller, copy, locale, run, o
 		<AudioEditorDialogShell
 			title={title}
 			headerOs={null}
-			onClose={onClose}
+			onClose={cancelAndClose}
 			width={680}
 			className="kw-audio-editor-dialog--generator"
 			overlayClassName="kw-audio-editor-dialog-layer"
@@ -138,7 +147,7 @@ export default function GeneratorDialog({ type, controller, copy, locale, run, o
 			footer={<DialogFooter
 				className="audio-editor-dialog-footer"
 				rightContent={<>
-					<Button variant="secondary" onClick={onClose}>{copy.cancel}</Button>
+					<Button variant="secondary" onClick={cancelAndClose}>{copy.cancel}</Button>
 					<Button variant="primary" disabled={unsendable || pending} onClick={generate}>{copy.generate}</Button>
 				</>}
 			/>}
