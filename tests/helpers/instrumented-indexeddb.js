@@ -5,6 +5,7 @@ import { createRequestFailurePlan } from './instrumented-indexeddb-failures.js';
 import {
 	cancelableErrorEvent,
 	clone,
+	cloneKey,
 	compareKeys,
 	fakeCursorRequest,
 	fakeGetAllRequest,
@@ -248,7 +249,7 @@ class FakeObjectStore {
 			if (failure) throw failure;
 			const stored = clone(value);
 			this.data.records.set(stored[this.data.keyPath], stored);
-			return stored[this.data.keyPath];
+			return cloneKey(stored[this.data.keyPath]);
 		});
 	}
 
@@ -262,7 +263,7 @@ class FakeObjectStore {
 				throw new DOMException(`Store ${this.data.name} already contains ${String(key)}.`, 'ConstraintError');
 			}
 			this.data.records.set(key, stored);
-			return key;
+			return cloneKey(key);
 		});
 	}
 
@@ -416,11 +417,13 @@ function cloneStores(stores) {
 }
 
 function cloneRecords(records) {
-	return new Map([...records].map(([key, value]) => [key, clone(value)]));
+	// Writes replace a cloned value, and every read returns a clone. Stored
+	// values therefore stay private and immutable; rollback only needs a
+	// separate map of those values, not another copy of their PCM payloads.
+	return new Map(records);
 }
 
 function failOpenRequest(request, error) {
 	request.error = error;
 	request.onerror?.(requestEvent('error', request));
 }
-

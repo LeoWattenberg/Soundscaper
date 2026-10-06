@@ -82,8 +82,8 @@ export function fakeCursorRequest(transaction, data, entries, { index, query }) 
 		if (payload.count) requestStats.blobValuesDelivered += 1;
 		requestStats.blobBytesDelivered += payload.bytes;
 		const cursor = {
-			key: entry.key,
-			primaryKey: entry.primaryKey,
+			key: cloneKey(entry.key),
+			primaryKey: cloneKey(entry.primaryKey),
 			value: clone(entry.value),
 			continue(targetKey) {
 				if (continued) throw new Error('The cursor has already advanced.');
@@ -141,8 +141,8 @@ export function fakeKeyCursorRequest(transaction, data, entries, { index, query,
 		let continued = false;
 		requestStats.delivered += 1;
 		request.result = {
-			key: entry.key,
-			primaryKey: entry.primaryKey,
+			key: cloneKey(entry.key),
+			primaryKey: cloneKey(entry.primaryKey),
 			delete() {
 				data.records.delete(entry.primaryKey);
 			},
@@ -178,6 +178,10 @@ export function compareKeys(left, right) {
 
 export function clone(value) {
 	return value === undefined ? undefined : structuredClone(value);
+}
+
+export function cloneKey(value) {
+	return value !== null && typeof value === 'object' ? clone(value) : value;
 }
 
 export function cancelableErrorEvent(target) {
