@@ -94,6 +94,10 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 	}, [desktopCodecQuery, desktopCodecStatus]);
 	const presetKind = isVideoExportDialogFormat(settings.format) ? 'video' : 'audio';
 	const presets = controller.actions.export.presets.list(presetKind);
+	useEffect(() => {
+		if (!presetId || presets.some((preset) => preset.id === presetId)) return;
+		setPresetId(''); setPresetName('');
+	}, [presetId, presets]);
 	const previewPresetSettings = presetId ? previewPresetSettingsFromDialog(settings, presetKind) : null;
 	const presetActions = createExportPresetActions({
 		controller, settings, presetId, presetName, presetKind, desktop, projectChannelCount,

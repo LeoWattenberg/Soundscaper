@@ -5,6 +5,7 @@ import React, { act } from 'react';
 
 import { ExportDialog } from '../../src/common/editor/ui/inspector/ExportDialog.jsx';
 import { ENGLISH_COPY } from '../../src/common/i18n/catalogs.js';
+import type { DeliveryPreset, DeliveryPresetKind } from '../../src/common/editor/delivery-preset.ts';
 import {
 	installReactTestDom, reactProps, type ReactTestElement,
 } from './react-test-dom.ts';
@@ -17,6 +18,7 @@ interface ExportDialogFixtureOptions {
 	readonly masteringSequences?: readonly Readonly<Record<string, unknown>>[];
 	readonly output?: Readonly<Record<string, unknown>>;
 	readonly video?: boolean;
+	readonly presets?: readonly DeliveryPreset[];
 }
 
 export async function mountedExportDialog(options: ExportDialogFixtureOptions = {}) {
@@ -35,7 +37,7 @@ export async function mountedExportDialog(options: ExportDialogFixtureOptions = 
 	const render = async (output: Readonly<Record<string, unknown>> | null = null) => {
 		await act(async () => root.render(React.createElement(ExportDialog, {
 			isOpen: true,
-			controller: exportController(requests),
+			controller: exportController(requests, options.presets ?? []),
 			snapshot: {
 				ready: true,
 				importing: false,
@@ -179,15 +181,15 @@ function exportProject(labels: readonly Readonly<Record<string, unknown>>[], vid
 	};
 }
 
-function exportController(requests: Readonly<Record<string, unknown>>[]) {
+function exportController(requests: Readonly<Record<string, unknown>>[], presets: readonly DeliveryPreset[]) {
 	return {
 		subscribeTelemetry: () => () => undefined,
 		getTelemetrySnapshot: () => ({ exportProgress: 0 }),
 		actions: {
 			export: {
 				presets: {
-					list: () => [],
-					apply: () => { throw new Error('not used'); },
+					list: (kind: DeliveryPresetKind) => presets.filter(preset => preset.kind === kind),
+					apply: (id: string) => { const preset = presets.find(preset => preset.id === id); if (!preset) throw new Error('Preset not found'); return preset; },
 					save: () => { throw new Error('not used'); },
 					delete: () => { throw new Error('not used'); },
 					import: () => { throw new Error('not used'); },
