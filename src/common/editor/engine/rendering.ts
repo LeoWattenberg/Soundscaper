@@ -56,11 +56,13 @@ import {
 } from './native-plugin-realtime-render.ts';
 import { realtimeRenderUnderrunError, resolveRenderTailSeconds } from './rendering-range.ts';
 import { renderMix } from './rendering-offline-mix.ts';
+import { canStreamStatelessOffline, renderStatelessOfflineToSink } from './stateless-offline-stream.ts';
 
 export const engineRenderingMethods = {
 	renderMix,
 
 async renderMixRealtime(this: EngineRuntimeHost, {
+		preferBoundedOffline = false,
 		startFrame = 0,
 		endFrame = this.durationFrames,
 		includeTail = false,
@@ -83,6 +85,11 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 		admitNativePluginRealtimeRender(this.project, { trackId, includeMaster });
 		if (typeof onChunk !== 'function') throw new TypeError('Realtime rendering requires an onChunk callback.');
 		if (signal?.aborted) throw createAbortError();
+		if (preferBoundedOffline && sampleRate === this.sampleRate && canStreamStatelessOffline(this.project)
+			&& resolveRenderTailSeconds(this.project, includeTail, { trackId, includeMaster }) === 0) {
+			return renderStatelessOfflineToSink(this, { startFrame, endFrame, includeTail, trackId, includeMaster, includeTrackPan,
+				respectMuteSolo, sampleRate, outputFrames: requestedOutputFrames, chunkFrames, onChunk, onProgress, signal });
+		}
 		if (projectHasAuthoredAudioWarp(this.project)
 			&& this.getAudioWarpRenderStatus().path === 'exact-offline') {
 			return renderExactAudioWarpToSink(this, {

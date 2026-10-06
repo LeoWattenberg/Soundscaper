@@ -69,9 +69,56 @@ export { createAudioClip, createAudioTrack, createAudioSource } from './src/comm
 				} finally { await engine.dispose(); }
 				results.push({ sampleRate, clipStart, sourceStart, start, end, different });
 			}
+			const longBuffer = new AudioBuffer({ length: sampleRate * 9 + 137, numberOfChannels: 2, sampleRate });
+			for (let channel = 0; channel < 2; channel++) {
+				const input = longBuffer.getChannelData(channel);
+				for (let frame = 0; frame < input.length; frame++) input[frame] = Math.sin(frame * 0.037 + channel) * 0.3;
+				input.set([-0, 1e-40, -1e-40, 1.1754943508222875e-38], sampleRate * 5 + 13);
+			}
+			const project = createSoundscaperProject({ sampleRate, masterChannels: 2,
+				sources: [createAudioSource({ id: 'source', sampleRate, channelCount: 2, frameCount: longBuffer.length })],
+				tracks: [createAudioTrack({ id: 'left', clipIds: ['a'] }, sampleRate)],
+				clips: [createAudioClip({ id: 'a', sourceId: 'source', timelineStartFrame: 0,
+					sourceStartFrame: 137, durationFrames: sampleRate * 7 })],
+			});
+			for (const sourceMode of ['buffer', 'chunks']) {
+			for (const [startFrame, endFrame] of [[111, sampleRate * 7], [0, sampleRate * 7],
+				[sampleRate * 5 - 7, sampleRate * 5 + 13], [111, sampleRate * 7 - 1]]) {
+			const engine = createAudioEditorEngine();
+			try {
+				const provider = { sampleRate, channelCount: 2, frameCount: longBuffer.length, chunkFrames: 65_536,
+					readStorageChunk(index) { return [0, 1].map(channel => longBuffer.getChannelData(channel).subarray(index * 65_536, (index + 1) * 65_536)); } };
+				engine.loadProject(project, sourceMode === 'buffer' ? new Map([['source', longBuffer]]) : new Map(),
+					sourceMode === 'chunks' ? { chunkSources: new Map([['source', provider]]) } : undefined);
+				const range = { startFrame, endFrame, includeTail: false };
+				const whole = await engine.renderMix(range);
+				const blocks = [];
+				const begun = performance.now();
+				await engine.renderMixRealtime({ ...range, preferBoundedOffline: true,
+					onChunk: (channels) => { blocks.push(channels); } });
+				const elapsed = performance.now() - begun;
+				let different = 0; let offset = 0; let maximumError = 0; const mismatches = [];
+				for (const channels of blocks) {
+					for (let channel = 0; channel < 2; channel++) {
+						const actual = new Uint32Array(channels[channel].buffer);
+						const expected = new Uint32Array(whole.getChannelData(channel).buffer);
+						for (let frame = 0; frame < actual.length; frame++) if (actual[frame] !== expected[offset + frame]) { maximumError = Math.max(maximumError, Math.abs(channels[channel][frame] - whole.getChannelData(channel)[offset + frame])); different++; if (mismatches.length < 8) mismatches.push({ frame: offset + frame, channel, actual: actual[frame], expected: expected[offset + frame] }); }
+					}
+					offset += channels[0].length;
+				}
+				results.push({ sampleRate, sourceMode, startFrame, endFrame, elapsed,
+					windows: blocks.length, offset, length: whole.length, different, maximumError, mismatches });
+			} finally { await engine.dispose(); }
+			}
+		}
 		}
 		return results;
 	}, ROOT);
-	expect(result).toHaveLength(12);
-	for (const comparison of result) expect(comparison.different, JSON.stringify(comparison)).toBe(0);
+	expect(result).toHaveLength(44);
+	for (const comparison of result) {
+		if (comparison.sourceMode === 'chunks') {
+			expect(comparison.maximumError, JSON.stringify(comparison)).toBeLessThanOrEqual(1e-7);
+			expect(comparison.offset).toBe(comparison.length);
+		} else expect(comparison.different, JSON.stringify(comparison)).toBe(0);
+	}
 });

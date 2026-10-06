@@ -142,6 +142,7 @@ export function createRealtimeEncodedAudioExport(runtime: RealtimeEncodedExportR
 			chunkSources: renderSources.chunkSources,
 		});
 		await renderEngine.renderMixRealtime({
+			preferBoundedOffline: true,
 			...renderTarget,
 			startFrame: plan.range.startFrame,
 			endFrame: plan.range.endFrame,
