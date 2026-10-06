@@ -26,12 +26,14 @@ export function createPreferencesComposition(d: {
 	readonly persistSetting: (key: string, value: unknown,
 		options?: Parameters<ReturnType<typeof createSettingPersistence>['persist']>[2]) => Promise<unknown>;
 	readonly publish: () => void;
+	readonly setPcmOptimizationMode?: (mode: AudioEditorOptimizationMode) => void;
 }) {
+	d.setPcmOptimizationMode?.(d.state.preferences.performance.optimizeFor);
 	const service = createEditorPreferencesService<Preferences>({
 		productId: d.productId, preferenceSettingKey: `${d.productId}:audio-editor-preferences-v1`, defaultWorkspace: d.defaultWorkspace,
 		get newerSchemaMessage() { return d.copy.preferencesNewerSchema; }, get shortcutActionRequired() { return d.copy.shortcutActionRequired; }, get shortcutConflict() { return d.copy.shortcutConflict; },
 		getPreferences: () => d.state.preferences,
-		setPreferences: (value) => { d.state.preferences = value; },
+		setPreferences: (value) => { d.state.preferences = value; d.setPcmOptimizationMode?.(value.performance.optimizeFor); },
 		getReadOnly: () => d.state.preferencesReadOnly,
 		setReadOnly: (value) => { d.state.preferencesReadOnly = value; },
 		loadSetting: d.loadSetting, persistSetting: (key, value) => d.persistSetting(key, value),
