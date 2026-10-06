@@ -393,7 +393,7 @@ function semanticEdgeKind(graph: MixerGraphV21, destination: MixerEdgeV21['desti
 	return 'assignment';
 }
 
-function endpointWidth(
+export function endpointWidth(
 	projectValue: unknown,
 	graph: MixerGraphV21,
 	endpoint: MixerEndpointV21 | StripRef,

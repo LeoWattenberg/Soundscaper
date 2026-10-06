@@ -15,6 +15,7 @@ import {
 } from './soundscaper-routing-folder-authority.ts';
 import {
 	connectSoundscaperRoutingEdge,
+	endpointWidth,
 	removeSoundscaperRoutingItem,
 	rewireSoundscaperRoutingEdge,
 	routingDeleteSummary,
@@ -366,7 +367,7 @@ function EdgeInspector(props: SoundscaperRoutingGraphInspectorProps & Readonly<{
 			<label><input name="enabled" type="checkbox" defaultChecked={edge.enabled} disabled={controlDisabled} /> {copy.enabled}</label>
 			<fieldset><legend>{copy.channelMap}</legend>{edge.channelMap.map((channel, index) => <label key={index}>
 				{fill(copy.destinationChannel, { index: String(index + 1) })} <select name={`map-${index}`} defaultValue={channel} disabled={controlDisabled}>
-					<option value={-1}>{copy.silence}</option>{Array.from({ length: 32 }, (_value, source) => <option key={source} value={source}>{fill(copy.sourceChannel, { index: String(source + 1) })}</option>)}
+					<option value={-1}>{copy.silence}</option>{Array.from({ length: endpointWidth(project, graph, edge.source) }, (_value, source) => <option key={source} value={source}>{fill(copy.sourceChannel, { index: String(source + 1) })}</option>)}
 				</select>
 				<span><input type="checkbox" name={`remove-map-${index}`} disabled={controlDisabled} /> {copy.removeMapRow}</span>
 			</label>)}</fieldset>

@@ -172,6 +172,14 @@ reported 0 Hz because channels were summed before the FFT and canceled each
 other. The spectrum now combines channel powers after transforming each channel.
 This is independent of ROOT-020 and also affects a single FFT window.
 
+## ROOT-023 — Routing maps offer channels their source does not have
+
+Open **Window > Mixer routing graph**, create a route from a two-channel track
+to Master, and select that authored edge. Its channel-map list previously
+offered **Source 3** through **Source 32**; choosing one and saving failed because
+those source channels do not exist. The list now derives its choices from the
+selected endpoint's actual channel width.
+
 ## Regression coverage
 
 - `tests/browser/audio-editor-bug-audit-macros.spec.js`
@@ -183,6 +191,7 @@ This is independent of ROOT-020 and also affects a single FFT window.
 - `tests/browser/audio-editor-macro-program-controls-regressions.spec.js`
 - `tests/browser/audio-editor-macro-program-outcomes-regressions.spec.js`
 - `tests/browser/audio-editor-analysis-selection-regressions.spec.js`
+- `tests/browser/audio-editor-routing-map-regressions.spec.js`
 - `tests/audio-editor-audio-spectrum.test.ts`
 - `tests/audio-editor-macro-command-service.test.ts`
 - `tests/audio-editor-macro-program-service.test.ts`
