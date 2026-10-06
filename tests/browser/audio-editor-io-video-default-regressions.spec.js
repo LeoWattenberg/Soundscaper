@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { writeFile } from 'node:fs/promises';
 import { expect, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseDropdown, disableNativeSavePicker, importFiles, openExportDialog, readDownloadBytes } from './audio-editor-test-helpers.js';
 import { videoRetimePreviewMedia } from './fixtures/video-retime-preview-media.js';
@@ -9,7 +10,7 @@ test('an invalid typed video canvas size is refused instead of exporting the aut
 	const editor = await bootEditor(page, '/embed/en/');
 	await importFiles(editor, [videoRetimePreviewMedia.file]);
 	const dialog = await openExportDialog(page, editor);
-	await chooseDropdown(page, dialog.getByRole('group', { name: 'Format', exact: true }), 'MP4 video');
+	await chooseMp4Video(page, dialog);
 	await dialog.getByRole('spinbutton', { name: 'Width', exact: true }).fill('0');
 	await dialog.getByRole('spinbutton', { name: 'Height', exact: true }).fill('96');
 	await dialog.getByRole('button', { name: 'Export', exact: true }).click();
@@ -21,7 +22,7 @@ test('a saved video preset tolerates an invalid canvas draft while refusing subm
 	const editor = await bootEditor(page, '/embed/en/');
 	await importFiles(editor, [videoRetimePreviewMedia.file]);
 	const dialog = await openExportDialog(page, editor);
-	await chooseDropdown(page, dialog.getByRole('group', { name: 'Format', exact: true }), 'MP4 video');
+	await chooseMp4Video(page, dialog);
 	await dialog.getByRole('spinbutton', { name: 'Width', exact: true }).fill('54');
 	await dialog.getByRole('spinbutton', { name: 'Height', exact: true }).fill('96');
 	await dialog.getByRole('button', { name: 'Save preset', exact: true }).click();
@@ -42,23 +43,73 @@ test('a saved video preset tolerates an invalid canvas draft while refusing subm
 
 test('choosing letterbox after a vertical delivery target keeps the source visible', async ({ page }) => {
 	test.setTimeout(90_000);
+	await requireWebgl2(page);
 	await disableNativeSavePicker(page);
 	const editor = await bootEditor(page, '/embed/en/');
 	await importFiles(editor, [videoRetimePreviewMedia.file]);
 	const dialog = await openExportDialog(page, editor);
-	await chooseDropdown(page, dialog.getByRole('group', { name: 'Format', exact: true }), 'MP4 video');
+	await chooseMp4Video(page, dialog);
 	await chooseDropdown(page, dialog.getByRole('group', { name: 'Delivery target', exact: true }), 'Vertical 1080x1920');
 	// A small portrait canvas keeps the actual encoder regression inexpensive.
 	await dialog.getByRole('spinbutton', { name: 'Width', exact: true }).fill('54');
 	await dialog.getByRole('spinbutton', { name: 'Height', exact: true }).fill('96');
 	await chooseDropdown(page, dialog.getByRole('group', { name: 'Fit', exact: true }), 'Fit inside (letterbox)');
+	const pixel = await readExportedPixelEvidence(page, dialog);
+	// The source is coloured; the top margin of a letterboxed portrait is black.
+	expect(pixel.center.slice(0, 3).some((channel) => channel > 100), JSON.stringify(pixel)).toBe(true);
+	expect(pixel.top.slice(0, 3).every((channel) => channel < 8)).toBe(true);
+});
+
+test('resizing a video export preserves its source picture while the private decoder stays invisible', async ({ page }) => {
+	test.setTimeout(90_000);
+	await requireWebgl2(page);
+	await disableNativeSavePicker(page);
+	const editor = await bootEditor(page, '/embed/en/');
+	await importFiles(editor, [videoRetimePreviewMedia.file]);
+	const dialog = await openExportDialog(page, editor);
+	await chooseMp4Video(page, dialog);
+	await dialog.getByRole('spinbutton', { name: 'Width', exact: true }).fill('54');
+	await dialog.getByRole('spinbutton', { name: 'Height', exact: true }).fill('96');
+	const pixel = await readExportedPixelEvidence(page, dialog);
+	expect(pixel.center.slice(0, 3).some((channel) => channel > 100), JSON.stringify(pixel)).toBe(true);
+	expect(pixel.top.slice(0, 3).every((channel) => channel < 8)).toBe(true);
+});
+
+async function requireWebgl2(page) {
+	const webgl2Available = await page.evaluate(() => {
+		const context = document.createElement('canvas').getContext('webgl2');
+		if (!context) return false;
+		context.getExtension('WEBGL_lose_context')?.loseContext();
+		return true;
+	});
+	test.skip(!webgl2Available, 'The encoded-pixel regression needs WebGL2; this headless host disables its creation.');
+}
+
+async function chooseMp4Video(page, dialog) {
+	const format = dialog.getByRole('group', { name: 'Format', exact: true }).getByRole('button');
+	await format.click();
+	const mp4Index = (await page.getByRole('option').allTextContents()).indexOf('MP4 video');
+	expect(mp4Index).toBeGreaterThan(0);
+	for (let index = 0; index < mp4Index; index += 1) await page.keyboard.press('ArrowDown');
+	await page.keyboard.press('Enter');
+	await expect(format).toContainText('MP4 video');
+}
+
+async function readExportedPixelEvidence(page, dialog) {
 	await dialog.getByRole('button', { name: 'Export', exact: true }).click();
 	const link = dialog.locator('[data-export-download]');
-	await expect(link).toBeVisible({ timeout: 60_000 });
+	await expect(link.filter({ visible: true }).or(page.locator(
+		'[data-editor-toast="workspace-error"], [data-editor-toast="workspace-status-error"]',
+	))).toBeVisible({ timeout: 60_000 });
+	await expect(link).toBeVisible();
 	const bytes = await readDownloadBytes(page, link);
+	const videoPath = test.info().outputPath('letterbox.mp4');
+	await writeFile(videoPath, bytes);
+	await test.info().attach('letterbox-video', { path: videoPath, contentType: 'video/mp4' });
 	const pixel = await page.evaluate(async (data) => {
 		const url = URL.createObjectURL(new Blob([Uint8Array.from(data)], { type: 'video/mp4' }));
 		const video = document.createElement('video');
+		document.body.append(video);
 		try {
 			await new Promise((resolve, reject) => {
 				video.onloadeddata = resolve;
@@ -81,10 +132,9 @@ test('choosing letterbox after a vertical delivery target keeps the source visib
 		} finally {
 			video.removeAttribute('src');
 			video.load();
+			video.remove();
 			URL.revokeObjectURL(url);
 		}
 	}, [...bytes]);
-	// The source is coloured; the top margin of a letterboxed portrait is black.
-	expect(pixel.center.slice(0, 3).some((channel) => channel > 100)).toBe(true);
-	expect(pixel.top.slice(0, 3).every((channel) => channel < 8)).toBe(true);
-});
+	return pixel;
+}

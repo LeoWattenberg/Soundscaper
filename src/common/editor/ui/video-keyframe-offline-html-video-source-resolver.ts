@@ -26,7 +26,7 @@ interface OfflineHtmlVideoElement extends EventTarget {
 	autoplay: boolean;
 	readonly style: Pick<
 		CSSStyleDeclaration,
-		'position' | 'left' | 'top' | 'width' | 'height' | 'pointerEvents'
+		'position' | 'left' | 'top' | 'width' | 'height' | 'pointerEvents' | 'opacity'
 	>;
 	readonly paused: boolean;
 	readonly readyState: number;
@@ -378,17 +378,20 @@ function snapshotOptions(value: unknown): NormalizedOptions {
 	});
 }
 
-/** Keep Firefox's decoded frame surface live without exposing export-owned media in the UI. */
+/** Keep decoded frame surfaces live without exposing export-owned media in the UI. */
 function mountOffscreenVideo(
 	video: OfflineHtmlVideoElement,
 	document: OfflineHtmlVideoDocument,
 ): void {
 	video.style.position = 'fixed';
-	video.style.left = '-10000px';
+	// WebKit culls decoded pixels outside the viewport despite frame callbacks.
+	// Keep the private decoder paintable while opacity hides its one-pixel surface.
+	video.style.left = '0px';
 	video.style.top = '0px';
 	video.style.width = '1px';
 	video.style.height = '1px';
 	video.style.pointerEvents = 'none';
+	video.style.opacity = '0';
 	document.append(video);
 }
 

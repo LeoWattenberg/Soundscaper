@@ -48,11 +48,12 @@ test('resolver owns one digest-bound paused video lifecycle and exact ordinary p
 	assert.equal(harness.videos[0]?.isConnected, true);
 	assert.deepEqual(harness.videos[0]?.style, {
 		position: 'fixed',
-		left: '-10000px',
+		left: '0px',
 		top: '0px',
 		width: '1px',
 		height: '1px',
 		pointerEvents: 'none',
+		opacity: '0',
 	});
 	first.dispose();
 	assert.deepEqual(harness.revoked, ['blob:offline-1']);
