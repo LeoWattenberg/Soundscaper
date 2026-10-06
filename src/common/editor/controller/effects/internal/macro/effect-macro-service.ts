@@ -24,6 +24,7 @@ import {
 } from '../../../shared/lifecycle.ts';
 import type { EffectTarget } from '../../effect-selection-service.ts';
 import { createIsolatedTrackRenderProjectV21 } from '../../../shared/isolated-track-render-project-v21.ts';
+import type { RunOfflineSelectionChain } from './offline-selection-chain.ts';
 import { MACRO_NEIGHBOUR_PCM_CACHE_LIMIT_BYTES } from './macro-neighbour-pcm-cache.ts';
 
 const EFFECT_MACRO_TASK = 'selection-effect-macro';
@@ -102,6 +103,7 @@ export interface EffectMacroServiceRuntime<Buffer = MacroRenderBuffer> {
 	readonly projectGeneration: Pick<EditorProjectGeneration, 'capture' | 'assertCurrent'>;
 	readonly copy: MacroCopy;
 	readonly memoryLimitBytes: number;
+	readonly runSelectionEffectChain?: RunOfflineSelectionChain;
 	readonly getProject: () => MacroProject;
 	readonly audacityEffectTarget: (trackId?: string | null) => EffectTarget | null;
 	readonly editingBlocked: () => boolean;
@@ -400,7 +402,7 @@ export function createEffectMacroService<Buffer = MacroRenderBuffer>(runtime: Ef
 			assertCurrent: () => assertOwnership(runtime, ownership),
 			projectFrameCount: runtime.projectFrameCount,
 			renderDryRange: runtime.renderDryTrackRange,
-			runSelectionEffect: runtime.runSelectionEffectWorker,
+			runSelectionEffect: runtime.runSelectionEffectWorker, runSelectionEffectChain: runtime.runSelectionEffectChain,
 			createAudioBuffer: runtime.createAudioBuffer,
 			renderSnapshot: runtime.renderSnapshot,
 			audioBufferChannels: runtime.audioBufferChannels,

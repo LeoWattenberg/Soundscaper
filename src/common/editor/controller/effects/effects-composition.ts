@@ -324,6 +324,11 @@ export function createEffectsComposition(dependencies: EffectsCompositionDepende
 				if (!outcome.channels) throw createLocalizedError(Error, copy, 'effectProcessingFailed');
 				return { channels: outcome.channels };
 			},
+			get runSelectionEffectChain(): EffectMacroServiceRuntime['runSelectionEffectChain'] { return state.preferences?.performance?.optimizeFor === 'speed' ? async (request) => {
+				const outcome = await worker.runSelectionEffectWorker({ ...request, channels: [...request.channels], params: undefined }, { pcmOwnership: 'transfer' });
+				if (!outcome.channels) throw createLocalizedError(Error, copy, 'effectProcessingFailed');
+				return { channels: outcome.channels };
+			} : undefined; },
 			projectFrameCount: () => dependencies.projectDurationFrames(dependencies.getProject()),
 			createAudioBuffer: async (channels) => bufferFromChannels(
 				[...channels], dependencies.projectSampleRate(), await engine.getAudioContext({ resume: false }), copy,

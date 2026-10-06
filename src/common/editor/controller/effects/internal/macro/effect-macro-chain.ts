@@ -14,6 +14,7 @@ import { createLocalizedError } from '../../../../../i18n/presentation-message.t
 import { createAudioPreviewProject } from '../../../../engine/audio-preview-project.ts';
 import { createStableId } from '../../../../project.js';
 import { isRealtimeEffectMacroStepType } from '../../../../effect-macro-steps.ts';
+import { runOfflineSelectionSegment, type RunOfflineSelectionChain } from './offline-selection-chain.ts';
 import { createMacroNeighbourPcmCache, type MacroNeighbourPcmCache } from './macro-neighbour-pcm-cache.ts';
 
 const selectionEffectDefinitions = AUDIO_SELECTION_EFFECT_DEFINITIONS as unknown as
@@ -63,6 +64,8 @@ interface ChainCopy {
 
 export interface EffectMacroChainRuntime<Buffer = MacroRenderBuffer> {
 	readonly contextCacheBytes?: number;
+	/** Opt-in private worker port guarantees the canonical per-step channel match. */
+	readonly runSelectionEffectChain?: RunOfflineSelectionChain;
 	readonly copy: ChainCopy;
 	readonly sampleRate: number;
 	readonly assertCurrent: () => void;
@@ -253,7 +256,8 @@ export function createEffectMacroChainRunner<Buffer = MacroRenderBuffer>(runtime
 				channels = await renderRackSegment(segment.steps, channels);
 				continue;
 			}
-			for (const step of segment.steps) channels = await applyOfflineStep(step, channels, target, cache);
+			channels = await runOfflineSelectionSegment(segment.steps, channels,
+				(step, current) => applyOfflineStep(step, current, target, cache), runtime.sampleRate, runtime.assertCurrent, runtime.runSelectionEffectChain);
 		}
 		return channels;
 	}
