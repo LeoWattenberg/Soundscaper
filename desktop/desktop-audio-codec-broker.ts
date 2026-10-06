@@ -8,8 +8,8 @@ import {
 	DESKTOP_AUDIO_CODEC_INPUT_LIMIT_BYTES,
 	DESKTOP_AUDIO_CODEC_OUTPUT_LIMIT_BYTES,
 	createDesktopAudioCodecResult,
+	assertDesktopAudioCodecResult,
 	normalizeDesktopAudioCodecRequest,
-	normalizeDesktopAudioCodecResult,
 	type DesktopAudioCodecFormat,
 	type DesktopAudioCodecRequest,
 	type DesktopAudioCodecResult,
@@ -316,10 +316,9 @@ async function runSelectedRuntime(
 	}
 	let result: DesktopAudioCodecResult;
 	try {
-		result = normalizeDesktopAudioCodecResult(
-			createDesktopAudioCodecResult(request, inspected.output, inspected.decodedGeometry),
-			request.maximumOutputBytes,
-		);
+		// The factory snapshots borrowed provider bytes once; validation preserves that owned result.
+		result = createDesktopAudioCodecResult(request, inspected.output, inspected.decodedGeometry);
+		assertDesktopAudioCodecResult(result, request.maximumOutputBytes);
 	} catch {
 		throw providerError(
 			runtime.provider, 'result-failed',
@@ -407,11 +406,11 @@ function inspectProviderResult(
 		if (keys.length !== expectedKeys || !keys.includes('status') || !keys.includes('output')
 			|| decode !== keys.includes('decodedGeometry')
 			|| !(value.output instanceof Uint8Array)) return failedResult();
-		if (!decode) return Object.freeze({ status: 'executed', output: new Uint8Array(value.output) });
+		if (!decode) return Object.freeze({ status: 'executed', output: value.output });
 		const geometry = cloneDecodedGeometry(value.decodedGeometry);
 		if (geometry === null) return failedResult();
 		return Object.freeze({
-			status: 'executed', output: new Uint8Array(value.output), decodedGeometry: geometry,
+			status: 'executed', output: value.output, decodedGeometry: geometry,
 		});
 	}
 	if (value.status === 'failed') {
