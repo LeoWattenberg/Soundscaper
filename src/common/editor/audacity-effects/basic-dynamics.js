@@ -69,10 +69,13 @@ export function applyLinkedDynamics(channels, sampleRate, settings) {
 	if (lookaheadFrames > 0) {
 		applyAudacityLookaheadEnvelopeInPlace(envelope, lookaheadFrames, envelope.length);
 	}
+	for (let index = 0; index < frameCount; index += 1) {
+		envelope[index] = dbToLinear(envelope[index] + settings.makeupGainDb);
+	}
 	return channels.map((channel) => {
 		const output = new Float32Array(frameCount);
 		for (let index = 0; index < frameCount; index += 1) {
-			output[index] = channel[index] * dbToLinear(envelope[index] + settings.makeupGainDb);
+			output[index] = channel[index] * envelope[index];
 		}
 		return output;
 	});

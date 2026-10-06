@@ -105,6 +105,7 @@ function renderNoise(frameCount, channelCount, amplitude, options) {
 		const output = new Float32Array(frameCount);
 		let brown = 0;
 		const pinkBins = new Float64Array(7);
+		let pinkTotal = 0;
 		let counter = 0;
 		for (let frame = 0; frame < frameCount; frame += 1) {
 			const white = randomSigned();
@@ -117,8 +118,11 @@ function renderNoise(frameCount, channelCount, amplitude, options) {
 				let zeroes = 0;
 				let value = counter;
 				while ((value & 1) === 0 && zeroes < pinkBins.length) { zeroes += 1; value >>= 1; }
-				if (zeroes < pinkBins.length) pinkBins[zeroes] = white;
-				output[frame] = Math.max(-1, Math.min(1, (pinkBins.reduce((sum, bin) => sum + bin, 0) + white) / 4)) * amplitude;
+				if (zeroes < pinkBins.length) {
+					pinkTotal += white - pinkBins[zeroes];
+					pinkBins[zeroes] = white;
+				}
+				output[frame] = Math.max(-1, Math.min(1, (pinkTotal + white) / 4)) * amplitude;
 			}
 		}
 		return output;
@@ -146,8 +150,15 @@ function generateDtmf(options, sampleRate, channelCount) {
 	if (!Number.isSafeInteger(frameCount) || frameCount <= 0 || frameCount > 0x7fff_ffff) throw new RangeError('DTMF output is too large.');
 	const mono = new Float32Array(frameCount);
 	const fadeFrames = Math.min(Math.round(sampleRate * 0.005), Math.floor(toneFrames / 2));
+	const tones = new Map();
 	let offset = 0;
 	for (const symbol of sequence) {
+		const cached = tones.get(symbol);
+		if (cached) {
+			mono.set(cached, offset);
+			offset += toneFrames + silenceFrames;
+			continue;
+		}
 		const [low, high] = DTMF_FREQUENCIES[symbol];
 		for (let frame = 0; frame < toneFrames; frame += 1) {
 			const fade = fadeFrames
@@ -158,6 +169,7 @@ function generateDtmf(options, sampleRate, channelCount) {
 				+ Math.sin(2 * Math.PI * high * frame / sampleRate)
 			);
 		}
+		tones.set(symbol, mono.subarray(offset, offset + toneFrames));
 		offset += toneFrames + silenceFrames;
 	}
 	return duplicateChannels(mono, channelCount);
@@ -205,8 +217,9 @@ function oscillator(phase, waveform) {
 	return Math.sin(phase * Math.PI * 2);
 }
 
+/** @param {Float32Array} mono @param {number} channelCount */
 function duplicateChannels(mono, channelCount) {
-	return Array.from({ length: channelCount }, () => new Float32Array(mono));
+	return Array.from({ length: channelCount }, (_, channel) => channel === 0 ? mono : new Float32Array(mono));
 }
 
 function allocate(channelCount, frameCount) {

@@ -202,7 +202,11 @@ export function applyAudacityFadeOut(channels, sampleRate = 48_000, params = {})
 export function applyAudacityInvert(channels, sampleRate = 48_000, params = {}) {
 	validateAudio(channels, sampleRate);
 	effectParams('audacity-invert', params);
-	return channels.map((channel) => Float32Array.from(channel, (sample) => -sample));
+	return channels.map((channel) => {
+		const output = new Float32Array(channel.length);
+		for (let frame = 0; frame < channel.length; frame += 1) output[frame] = -channel[frame];
+		return output;
+	});
 }
 
 /** Audacity's current linked-channel brick-wall limiter. */
