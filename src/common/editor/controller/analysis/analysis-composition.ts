@@ -8,6 +8,7 @@ import { createDeferredAudioAnalysisService } from './internal/deferred-analysis
 import type { EditorProjectGeneration } from '../shared/lifecycle.ts';
 import type { EditorTaskProgressCoordinator } from '../shared/task-progress.ts';
 import { resolveSelectionRange } from '../../selection-range.ts';
+import { calculateAudioAnalysisReportInWorker } from '../../audio-analysis-report-worker-client.ts';
 
 interface AnalysisWorkerCopy {
 	readonly audioAnalysisWorkerFailed: string;
@@ -100,6 +101,12 @@ export function createAnalysisComposition<Project extends AnalysisProject, Buffe
 			return result;
 		},
 		createVisuals: createEditorAnalysisVisuals,
+		createSpecializedReport: (kind, scope, range, channels, sampleRate, options, signal) => calculateAudioAnalysisReportInWorker({ kind, scope, range, channels, sampleRate, options }, { signal }),
+		measureLoudnessChannels: async (channels, sampleRate, range, channelWeights, signal) => {
+			const report = await calculateAudioAnalysisReportInWorker({ kind: 'loudness', scope: 'master', range, channels, sampleRate, options: {}, channelWeights }, { signal });
+			if (!('subject' in report)) throw new TypeError('The loudness worker returned an invalid report.');
+			return report;
+		},
 		showAnalysis: dependencies.showAnalysis,
 		setProcessing: (processing) => { state.analysisProcessing = processing; },
 		setStatus: dependencies.setStatus, publish: dependencies.publish, handleError: dependencies.handleError,

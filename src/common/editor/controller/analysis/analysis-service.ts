@@ -1,7 +1,5 @@
-import {
-	calculateAudioSpectrum,
-	findAudioClippingRegions,
-} from '../../analysis.js'; import { createLocalizedError, setLocalizedStatus } from '../../../i18n/presentation-message.ts';
+import { spectrumReport, clippingReport, normalizeSpectrumSize } from '../../specialized-audio-analysis.ts';
+import { createLocalizedError, setLocalizedStatus } from '../../../i18n/presentation-message.ts';
 import { measureBextLoudness } from '../../broadcast-loudness.ts';
 import { EBU_R128_MAXIMUM_CHANNELS } from '../../ebu-r128.js';
 import { resolveAdmEbuChannelWeights } from '../../loudness-channel-layout.ts';
@@ -108,6 +106,8 @@ export interface AnalysisDependencies {
 		options?: AnalysisChannelOptions,
 	): Promise<Record<string, unknown>>;
 	createVisuals(channels: Float32Array[], sampleRate: number): unknown;
+	createSpecializedReport?(type: 'spectrum' | 'clipping', scope: string, range: AnalysisRange, channels: Float32Array[], sampleRate: number, options: Readonly<Record<string, unknown>>, signal: AbortSignal): Promise<unknown>;
+	measureLoudnessChannels?(channels: Float32Array[], sampleRate: number, range: AnalysisRange, channelWeights: readonly number[] | undefined, signal: AbortSignal): Promise<DeliveryReport>;
 	showAnalysis(result: unknown, visuals?: unknown, report?: unknown): void;
 	setProcessing(processing: boolean): void;
 	setStatus(message: string, status?: string, localization?: import('../../../i18n/presentation-message.ts').LocalizedPresentationMessage): void;
@@ -123,6 +123,7 @@ interface StoredAnalysis {
 }
 
 export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
+	let specializedCache: Readonly<{ key: string; result: unknown; visuals: unknown; report: unknown }> | null = null;
 	const {
 		lifetime,
 		copy,
@@ -174,6 +175,7 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 			const { channels, sampleRate, result } = await renderAndAnalyze(request, task, projectToken);
 			const visuals = dependencies.createVisuals(channels, sampleRate);
 			const report = levelsReport(scope, request.range);
+			dependencies.showAnalysis(result, visuals, report);
 			await dependencies.saveAnalysis(key, {
 				result,
 				visuals,
@@ -181,7 +183,6 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 				createdAt: new Date().toISOString(),
 			});
 			assertCurrent(task, projectToken, request);
-			dependencies.showAnalysis(result, visuals, report);
 			remember({ type: 'levels', scope });
 			setLocalizedStatus(dependencies.setStatus, copy, "done", undefined, 'success');
 			return result;
@@ -201,14 +202,38 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 		const task = begin('analysisRendering');
 		try {
 			assertAnalysisChannelAdmission(project);
-			const { channels, sampleRate, result } = await renderAndAnalyze(request, task, projectToken);
-			const report = type === 'spectrum'
-				? spectrumReport(scope, request.range, channels, sampleRate, {
-					...options,
-					size: options.size ?? dependencies.getSpectrumWindowSize(),
-				})
-				: clippingReport(scope, request.range, channels, options);
-			dependencies.showAnalysis(result, dependencies.createVisuals(channels, sampleRate), report);
+			const reportOptions = type === 'spectrum'
+				? { size: normalizeSpectrumSize(options.size ?? dependencies.getSpectrumWindowSize()) }
+				: { threshold: Number(options.threshold ?? 1), minimumConsecutiveSamples: Number(options.minimumConsecutiveSamples ?? 3) };
+			const key = JSON.stringify([request, type, reportOptions]);
+			if (specializedCache?.key === key) {
+				dependencies.showAnalysis(specializedCache.result, specializedCache.visuals, specializedCache.report);
+				remember({ type, scope, options: Object.freeze({ ...options }) });
+				setLocalizedStatus(dependencies.setStatus, copy, 'analysisCached', undefined, 'success');
+				return specializedCache.report;
+			}
+			const { channels, sampleRate } = await renderChannels(request, task, projectToken);
+			const visuals = dependencies.createVisuals(channels, sampleRate);
+			const abort = new AbortController();
+			const signal = AbortSignal.any([task.signal, abort.signal]);
+			let result: Record<string, unknown>;
+			let report: unknown;
+			try {
+				[result, report] = await Promise.all([
+					analyzeRenderedChannels(channels, sampleRate, signal),
+					(dependencies.createSpecializedReport
+						? dependencies.createSpecializedReport(type, scope, request.range, channels, sampleRate, reportOptions, signal)
+						: Promise.resolve(type === 'spectrum' ? spectrumReport(scope, request.range, channels, sampleRate, reportOptions)
+							: clippingReport(scope, request.range, channels, reportOptions))).then(partial => {
+							assertCurrent(task, projectToken, request);
+							dependencies.showAnalysis(null, visuals, partial);
+							return partial;
+						}),
+				]);
+			} catch (error) { abort.abort(error); throw error; }
+			assertCurrent(task, projectToken, request);
+			dependencies.showAnalysis(result, visuals, report);
+			specializedCache = { key, result, visuals, report };
 			remember({ type, scope, options: Object.freeze({ ...options }) });
 			setLocalizedStatus(dependencies.setStatus, copy, "done", undefined, 'success');
 			return report;
@@ -297,7 +322,9 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 				(_, channel) => rendered.getChannelData(channel),
 			);
 			const channelWeights = resolveAdmEbuChannelWeights(project.metadata?.adm, channels.length);
-			const report = createLoudnessMeasurementReport({
+			const report = dependencies.measureLoudnessChannels
+				? await dependencies.measureLoudnessChannels(channels, rendered.sampleRate, range, channelWeights ?? undefined, task.signal)
+				: createLoudnessMeasurementReport({
 				measurement: measureBextLoudness(channels, rendered.sampleRate, {
 					...(channelWeights ? { channelWeights } : {}),
 				}),
@@ -323,18 +350,27 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 		task: EditorTaskScope,
 		projectToken: EditorProjectToken,
 	) {
+		const { channels, sampleRate } = await renderChannels(request, task, projectToken);
+		const result = await analyzeRenderedChannels(channels, sampleRate, task.signal);
+		assertCurrent(task, projectToken, request);
+		return { channels, sampleRate, result };
+	}
+
+	async function renderChannels(request: AnalysisRequestSnapshot, task: EditorTaskScope, projectToken: EditorProjectToken) {
 		const rendered = await dependencies.renderAudio(request.scope, request.range, task.signal, request.selectedTrackId);
 		assertCurrent(task, projectToken, request);
 		const channels = Array.from({ length: rendered.numberOfChannels }, (_, channel) => rendered.getChannelData(channel));
+		return { channels, sampleRate: rendered.sampleRate };
+	}
+
+	async function analyzeRenderedChannels(channels: Float32Array[], sampleRate: number, signal: AbortSignal) {
 		const channelWeights = resolveAdmEbuChannelWeights(
 			dependencies.getProject().metadata?.adm,
 			channels.length,
 		);
-		const result = await dependencies.analyzeChannels(channels, rendered.sampleRate, task.signal, {
+		return dependencies.analyzeChannels(channels, sampleRate, signal, {
 			...(channelWeights ? { channelWeights } : {}),
 		});
-		assertCurrent(task, projectToken, request);
-		return { channels, sampleRate: rendered.sampleRate, result };
 	}
 
 	function assertCurrent(task: EditorTaskScope, projectToken: EditorProjectToken, request?: AnalysisRequestSnapshot): void {
@@ -399,54 +435,6 @@ function assertAnalysisChannelAdmission(project: AnalysisProjectIdentity): void 
 
 function levelsReport(scope: string, range: AnalysisRange) {
 	return Object.freeze({ type: 'levels', scope, ...range });
-}
-
-function spectrumReport(
-	scope: string,
-	range: AnalysisRange,
-	channels: Float32Array[],
-	sampleRate: number,
-	options: Record<string, unknown>,
-) {
-	const size = normalizeSpectrumSize(options.size);
-	const spectrum = calculateAudioSpectrum(channels, sampleRate, { size, average: true });
-	type SpectrumBin = (typeof spectrum.bins)[number];
-	const peak = spectrum.bins.reduce<SpectrumBin | null>(
-		(best, bin) => !best || bin.amplitude > best.amplitude ? bin : best,
-		null,
-	);
-	return Object.freeze({ type: 'spectrum', scope, ...range, sampleRate: spectrum.sampleRate, size: spectrum.size, bins: spectrum.bins, peak });
-}
-
-function clippingReport(
-	scope: string,
-	range: AnalysisRange,
-	channels: Float32Array[],
-	options: Record<string, unknown>,
-) {
-	const threshold = Number(options.threshold ?? 1);
-	const minimumConsecutiveSamples = Number(options.minimumConsecutiveSamples ?? 3);
-	const regions = findAudioClippingRegions(channels, { threshold, minimumConsecutiveSamples })
-		.map((region) => Object.freeze({
-			...region,
-			startFrame: region.startFrame + range.startFrame,
-			endFrame: region.endFrame + range.startFrame,
-		}));
-	return Object.freeze({
-		type: 'clipping',
-		scope,
-		...range,
-		threshold,
-		minimumConsecutiveSamples,
-		regions: Object.freeze(regions),
-		regionCount: regions.length,
-		clippedSamples: regions.reduce((sum, region) => sum + region.clippedSamples, 0),
-	});
-}
-
-function normalizeSpectrumSize(value: unknown): number {
-	const requested = Math.max(32, Math.min(65_536, Math.round(Number(value) || 2_048)));
-	return 2 ** Math.round(Math.log2(requested));
 }
 
 function isAbortError(error: unknown): boolean {
