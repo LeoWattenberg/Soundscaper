@@ -8,18 +8,19 @@ interface PreferenceNumberInputProps {
 	readonly minimum: number;
 	readonly maximum: number;
 	readonly disabled?: boolean;
+	readonly integer?: boolean;
 	readonly onCommit: (value: number) => unknown;
 }
 
 /** Retain incomplete keystrokes until the user commits a bounded number. */
 export default function PreferenceNumberInput({
-	label, value, minimum, maximum, disabled, onCommit,
+	label, value, minimum, maximum, disabled, integer = false, onCommit,
 }: PreferenceNumberInputProps) {
 	const [draft, setDraft] = useState(String(value));
 	useEffect(() => setDraft(String(value)), [value]);
 	const commit = () => {
 		const next = Number(draft);
-		if (!draft.trim() || !Number.isFinite(next) || next < minimum || next > maximum) {
+		if (!draft.trim() || !Number.isFinite(next) || (integer && !Number.isSafeInteger(next)) || next < minimum || next > maximum) {
 			setDraft(String(value));
 			return;
 		}

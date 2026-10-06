@@ -16,6 +16,7 @@ import {
 import { AUDIO_EDITOR_BUILT_IN_WORKSPACES } from '../../workspace-layout-defaults.ts';
 import PreferenceCheckbox from '../EditorPreferenceCheckbox.tsx';
 import PreferenceDropdownField from './PreferenceDropdownField.jsx';
+import PreferenceNumberInput from './PreferenceNumberInput.tsx';
 
 interface EditingPreferencesCopy {
 	readonly allTracks: string;
@@ -349,20 +350,13 @@ export default function EditingPreferencesPage({
 						/>
 						<label className="kw-audio-editor-preferences__field">
 							<span>{copy.mouseZoomPrecision}</span>
-							<input
-								type="number"
-								min={AUDIO_EDITOR_MINIMUM_ZOOM_PRECISION}
-								max={AUDIO_EDITOR_MAXIMUM_ZOOM_PRECISION}
-								step="1"
-								aria-label={copy.mouseZoomPrecision}
+							<PreferenceNumberInput
+								minimum={AUDIO_EDITOR_MINIMUM_ZOOM_PRECISION}
+								maximum={AUDIO_EDITOR_MAXIMUM_ZOOM_PRECISION}
+								integer
+								label={copy.mouseZoomPrecision}
 								value={editing.zoomPrecision ?? AUDIO_EDITOR_DEFAULT_ZOOM_PRECISION}
-								onChange={(event) => {
-									const zoomPrecision = Number(event.currentTarget.value);
-									if (!Number.isInteger(zoomPrecision)
-										|| zoomPrecision < AUDIO_EDITOR_MINIMUM_ZOOM_PRECISION
-										|| zoomPrecision > AUDIO_EDITOR_MAXIMUM_ZOOM_PRECISION) return;
-									updateEditing({ zoomPrecision });
-								}}
+								onCommit={(zoomPrecision) => updateEditing({ zoomPrecision })}
 							/>
 						</label>
 					</div>

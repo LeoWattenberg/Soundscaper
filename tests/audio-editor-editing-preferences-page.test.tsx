@@ -180,6 +180,7 @@ test('every editing control persists through the preferences action', async () =
 		await act(async () => {
 			reactProps(precision).onChange({ currentTarget: { value: '8' } });
 		});
+		await act(async () => { reactProps(precision).onBlur({}); });
 
 		assert.deepEqual(mounted.updates, [
 			{ editing: { applyEffectsToAllAudio: false } },
@@ -201,6 +202,23 @@ test('every editing control persists through the preferences action', async () =
 	} finally {
 		await mounted.unmount();
 	}
+});
+
+test('zoom precision retains replacement drafts until blur and refuses fractional precision', async () => {
+	const mounted = await mountPage();
+	try {
+		const precision = mounted.dom.one('[aria-label="Mouse zoom precision"]');
+		await act(async () => { reactProps(precision).onChange({ currentTarget: { value: '' } }); });
+		assert.equal(precision.value, '');
+		await act(async () => { reactProps(precision).onChange({ currentTarget: { value: '3' } }); });
+		assert.deepEqual(mounted.updates, []);
+		await act(async () => { reactProps(precision).onBlur({}); });
+		assert.deepEqual(mounted.updates, [{ editing: { zoomPrecision: 3 } }]);
+		await act(async () => { reactProps(precision).onChange({ currentTarget: { value: '3.5' } }); });
+		await act(async () => { reactProps(precision).onBlur({}); });
+		assert.equal(precision.value, '1');
+		assert.equal(mounted.updates.length, 1);
+	} finally { await mounted.unmount(); }
 });
 
 function renderPage(overrides: Readonly<Record<string, unknown>> = {}): string {
