@@ -83,3 +83,34 @@ test('zero-frame PCM writes leave even a non-frame-aligned destination untouched
 	});
 	assert.deepEqual([...destination], [0x7f, 0x7f, 0x7f]);
 });
+
+test('aligned little-endian PCM interleaving avoids per-sample byte-view writes', (t) => {
+	if (new Uint8Array(Uint32Array.of(1).buffer)[0] !== 1) return t.skip('Requires a little-endian host.');
+	const writes = t.mock.method(DataView.prototype, 'setFloat32');
+	const backing = new Uint8Array(29).fill(0x7f);
+	const destination = backing.subarray(4, 25);
+	writeInterleavedFloat32Pcm(destination, [
+		Float32Array.of(-0, Number.NaN, 0.5),
+		Float32Array.of(Number.POSITIVE_INFINITY, -0.25, 1),
+	], { destinationFrameOffset: 1, frameCount: 1, nonFinite: 'zero' });
+	assert.equal(writes.mock.callCount(), 0);
+	assert.equal(Object.is(new DataView(backing.buffer).getFloat32(12, true), -0), true);
+	assert.equal(new DataView(backing.buffer).getFloat32(16, true), 0);
+	assert.deepEqual([...backing.subarray(0, 12)], new Array(12).fill(0x7f));
+	assert.deepEqual([...backing.subarray(20)], new Array(9).fill(0x7f));
+});
+
+test('unaligned PCM destinations preserve sample values and byte guards', () => {
+	for (const nonFinite of ['zero', 'preserve'] as const) {
+		const backing = new Uint8Array(23).fill(0x7f);
+		writeInterleavedFloat32Pcm(backing.subarray(1, 22), [
+			Float32Array.of(-0, Number.NaN, Number.NEGATIVE_INFINITY),
+		], { destinationFrameOffset: 1, nonFinite });
+		const view = new DataView(backing.buffer);
+		assert.equal(Object.is(view.getFloat32(5, true), -0), true);
+		assert.equal(Number.isNaN(view.getFloat32(9, true)), nonFinite === 'preserve');
+		assert.equal(view.getFloat32(13, true), nonFinite === 'preserve' ? Number.NEGATIVE_INFINITY : 0);
+		assert.deepEqual([...backing.subarray(0, 5)], new Array(5).fill(0x7f));
+		assert.deepEqual([...backing.subarray(17)], new Array(6).fill(0x7f));
+	}
+});
