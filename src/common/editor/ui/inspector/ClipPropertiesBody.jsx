@@ -95,7 +95,7 @@ export default function ClipPropertiesBody({ controller, snapshot, copy, clipId 
 				if (title !== null) controller.actions.clip.update(clip.id, { title });
 			} else if (name === 'startFrame') {
 				const timelineStartFrame = nonNegativeFrame(rawValue, copy);
-				controller.actions.clip.move(clip.id, track.id, timelineStartFrame);
+				controller.actions.clip.move(clip.id, track.id, timelineStartFrame, { exactFrame: true });
 			} else if ((name === 'sourceInFrame' || name === 'durationFrame') && !isVideoClip
 				&& source && controller.actions.clipSourcePreview?.trim) {
 				const value = nonNegativeFrame(rawValue, copy);

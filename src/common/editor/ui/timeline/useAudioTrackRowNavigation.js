@@ -77,7 +77,7 @@ export function useAudioTrackRowNavigation({
 		}
 		const targetTrack = project.tracks[targetTrackIndex];
 		if (!clip || !targetTrack || targetTrack.type === 'label') return;
-		const moved = run(() => controller.actions.clip.move(clip.id, targetTrack.id, clip.timelineStartFrame));
+		const moved = run(() => controller.actions.clip.move(clip.id, targetTrack.id, clip.timelineStartFrame, { preserveTime: true }));
 		if (!moved) return;
 		requestAnimationFrame(() => requestAnimationFrame(() => {
 			onFocusTrackClip(targetTrackIndex, false, clip.id);

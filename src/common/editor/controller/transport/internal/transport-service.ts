@@ -210,7 +210,7 @@ export function createEditorTransportService<Project extends TransportProject = 
 			return state.recorder || state.recordingStarting ? stopRecording() : engine.stop();
 		}
 		if (action === 'jump-start') return engine.seek(0);
-		if (action === 'jump-end') return engine.seek(editorTimelineDurationFrames(getProject(), projectSampleRate()));
+		if (action === 'jump-end') return engine.seek(projectDurationFrames(getProject()));
 		if (action === 'rewind') return engine.seek(engine.getPositionFrames() - projectSampleRate() * 5);
 		if (action === 'forward') return engine.seek(engine.getPositionFrames() + projectSampleRate() * 5);
 		if (action === 'loop') {

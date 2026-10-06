@@ -8,7 +8,7 @@ import {
 } from '../project.js';
 import { shapesForNewClipFades } from '../audio-clip-transition-gain.ts';
 import { clipLoopUpdateFields } from '../audio-clip-loop.ts';
-import { collectRelatedClipIds } from './editing-selection-authority.ts';
+import { collectRelatedClipIds, mergeEditingRanges } from './editing-selection-authority.ts';
 import { hasCoreEditingProjectAuthority, hasProjectBinMediaAuthority } from '../project-schema-version.ts';
 import {
 	assertClipSourceBounds,
@@ -79,11 +79,14 @@ export function removeClips(project, clipIds, rippleMode = 'none') {
 	for (const track of project.tracks) {
 		const removed = removedByTrack.get(track.id) || [];
 		if (!removed.length || !Array.isArray(track.clipIds)) continue;
+		const removedRanges = mergeEditingRanges(removed.map((clip) => ({
+			startFrame: clip.timelineStartFrame, endFrame: clipEndFrame(clip),
+		})));
 		for (const clipId of track.clipIds) {
 			const clip = requireClip(project, clipId);
-			const shiftFrames = removed.reduce((sum, removedClip) => (
-				clip.timelineStartFrame >= clipEndFrame(removedClip)
-					? sum + removedClip.durationFrames
+			const shiftFrames = removedRanges.reduce((sum, range) => (
+				clip.timelineStartFrame >= range.endFrame
+					? sum + range.durationFrames
 					: sum
 			), 0);
 			if (shiftFrames > 0) clip.timelineStartFrame -= shiftFrames;

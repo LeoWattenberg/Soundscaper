@@ -27,6 +27,7 @@ import { EDITOR_PROJECT_TASK_SCOPE } from '../shared/lifecycle.ts';
 import { commitMonoConvertingPasteCommand } from './paste-mono-conversion-service.ts';
 import { commitPasteIntoExistingClipCommand } from './paste-existing-clip-service.ts';
 import { discoverPasteCommandTree } from './internal/paste-command-tree.ts';
+import { findControllerSource } from '../track-audio/track-domain-types.ts';
 
 export type {
 	EditCommandProject,
@@ -70,6 +71,13 @@ export function createEditComposition<History extends ControllerRuntimeHistory>(
 		copy,
 		session: dependencies.session,
 		sourceBuffers: dependencies.sourceBuffers,
+		loadSourceBuffer: async (sourceId) => {
+			const source = findControllerSource(dependencies.getCommandProject(), sourceId);
+			if (!source) return null;
+			const channels = await dependencies.derivedSources.sourceChannelsForEdit(source);
+			return { sampleRate: source.sampleRate, numberOfChannels: channels.length,
+				getChannelData: (channel) => channels[channel]! };
+		},
 		getProject: dependencies.getCommandProject,
 		editingBlocked: dependencies.editingBlocked,
 		getPositionFrames: () => engine.getPositionFrames(),

@@ -255,7 +255,7 @@ export function createSelectionViewService<
 		// Widening the selection's track scope leaves its time range exactly as it
 		// was, so it is not a new time selection and does not move the playhead.
 		const next = applySelectionRange(
-			project, selection.startFrame, selection.endFrame, { trackIds }, true, false,
+			project, selection.startFrame, selection.endFrame, { trackIds }, false, false,
 		);
 		if (!state.selectedTrackId && trackIds.length) {
 			state.selectedTrackId = trackIds[0];
@@ -315,7 +315,7 @@ export function createSelectionViewService<
 	function selectTrackStartToEnd() {
 		const range = selectedTracksTimeRange();
 		if (!range) return null;
-		return setSelection(range.startFrame, range.endFrame).selection;
+		return setExactSelection(range.startFrame, range.endFrame).selection;
 	}
 
 	function selectedTracksTimeRange() {

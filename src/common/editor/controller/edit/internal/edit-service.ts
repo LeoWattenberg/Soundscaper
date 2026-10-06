@@ -11,7 +11,7 @@ import {
 	resolveAudioEditorDefaultDelete,
 	resolveAudioEditorDefaultPaste,
 } from '../../../editing-preferences.ts';
-import { resolveEditingActionAvailability } from '../../../commands/editing-selection-authority.ts';
+import { mergeEditingRanges, resolveEditingActionAvailability, resolveEditingSelectionAuthority } from '../../../commands/editing-selection-authority.ts';
 
 export interface EditServiceRuntime {
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
@@ -127,6 +127,11 @@ export function createEditorEditService(runtime: EditServiceRuntime): HandleEdit
 			const selectedRangeTrackIds = Array.isArray(getProject().selection?.trackIds)
 				? getProject().selection.trackIds
 				: [];
+			const rangeAuthority = baseSelection ? resolveEditingSelectionAuthority({
+				project: getProject(), focusedTrackId: state.selectedTrackId,
+			}) : null;
+			if (rangeAuthority && !rangeAuthority.trackIds.length
+				&& !action.startsWith('paste') && !action.endsWith('all-tracks-ripple')) return;
 			const hasOnlyLabelRange = Boolean(baseSelection
 				&& selectedClipIds.length === 0
 				&& selectedRangeTrackIds.length > 0
@@ -290,13 +295,24 @@ export function createEditorEditService(runtime: EditServiceRuntime): HandleEdit
 				// what falls between two selected clips was not selected.
 				if (!editingSelection || editingSelection.kind !== 'clips') return;
 				const keptTrackIds = selectedClipTrackIds.length ? selectedClipTrackIds : trackIds;
-				const discarded = discardedRanges(editingSelection.ranges, keptTrackIds);
-				if (!discarded.length) return;
-				commit(prepareDisjointRangeDeleteCommand(getProject(), {
-					ranges: discarded,
-					trackIds: keptTrackIds,
-					rippleMode: 'none',
-				}));
+				const groups = new Map<string, { ranges: readonly RuntimeValue[]; trackIds: string[] }>();
+				for (const trackId of keptTrackIds) {
+					const ids = new Set(findTrack(getProject(), trackId)?.clipIds || []);
+					const ranges = mergeEditingRanges(selectedClips.filter((clip: RuntimeValue) => ids.has(clip.id))
+						.map((clip: RuntimeValue) => ({ startFrame: clip.timelineStartFrame,
+							endFrame: clip.timelineStartFrame + clip.durationFrames })));
+					const key = JSON.stringify(ranges);
+					const group = groups.get(key) ?? { ranges, trackIds: [] };
+					group.trackIds.push(trackId);
+					groups.set(key, group);
+				}
+				const commands = [...groups.values()].flatMap((group) => {
+					const discarded = discardedRanges(group.ranges, group.trackIds);
+					return discarded.length ? [prepareDisjointRangeDeleteCommand(getProject(), {
+						ranges: discarded, trackIds: group.trackIds, rippleMode: 'none',
+					})] : [];
+				});
+				if (commands.length) commit(commands.length === 1 ? commands[0] : { type: 'batch', commands });
 				return;
 			}
 			if (action === 'delete' && !selection && selectedTrack) {

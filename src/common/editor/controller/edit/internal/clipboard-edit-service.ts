@@ -58,6 +58,7 @@ export interface ClipboardEditSource extends Readonly<Record<string, unknown>> {
 
 export interface ClipboardEditProject {
 	readonly id: string;
+	readonly revision?: number;
 	readonly schemaFamily?: 'soundscaper' | 'framescaper';
 	readonly schemaVersion: number;
 	readonly sampleRate: number;
@@ -120,6 +121,7 @@ export interface ClipboardEditServiceDependencies {
 	readonly sourceBuffers: Readonly<{
 		get(sourceId: string): ClipboardEditAudioBuffer | undefined;
 	}>;
+	loadSourceBuffer?(sourceId: string): Promise<ClipboardEditAudioBuffer | null>;
 	getProject(): ClipboardEditProject;
 	editingBlocked(): boolean;
 	getPositionFrames(): number;
@@ -320,7 +322,7 @@ export function createClipboardEditService(
 			return { id: trackId, type, name: clipboardTrack.sourceTrackName, laneGroupId, clipIds: [] };
 		};
 
-		for (const [index, clipboardTrack] of clipboardTracks.entries()) {
+		for (const clipboardTrack of clipboardTracks) {
 			if (trackMap[clipboardTrack.sourceTrackId]) continue;
 			const grouped = clipboardTrack.sourceLaneGroupId
 				? laneGroups.get(clipboardTrack.sourceLaneGroupId)
@@ -330,16 +332,13 @@ export function createClipboardEditService(
 			if (grouped?.length === 2 && videoClipboardTrack && audioClipboardTrack) {
 				const existingVideo = findMediaTrack(project, videoClipboardTrack.sourceTrackId);
 				const existingAudio = findMediaTrack(project, audioClipboardTrack.sourceTrackId);
-				let targetPair: readonly [ClipboardEditMediaTrack, ClipboardEditMediaTrack] | null = (
+				let targetPair = findTargetLanePair(selected);
+				if (!targetPair && (
 					targetMatches(existingVideo, videoClipboardTrack)
 					&& targetMatches(existingAudio, audioClipboardTrack)
 					&& existingVideo.laneGroupId
 					&& existingVideo.laneGroupId === existingAudio.laneGroupId
-				) ? [existingVideo, existingAudio] : null;
-				if (!targetPair && (
-					targetMatches(selected, videoClipboardTrack)
-					|| targetMatches(selected, audioClipboardTrack)
-				)) targetPair = findTargetLanePair(selected);
+				)) targetPair = [existingVideo, existingAudio];
 				if (!targetPair) {
 					const laneGroupId = dependencies.createId('media-lanes');
 					targetPair = [
@@ -352,9 +351,11 @@ export function createClipboardEditService(
 				continue;
 			}
 
-			let target = findMediaTrack(project, clipboardTrack.sourceTrackId);
+			const anchorIndex = selected ? project.tracks.indexOf(selected) : -1;
+			let target = anchorIndex < 0 ? null : project.tracks.slice(anchorIndex)
+				.filter(isMediaTrack).find((track) => targetMatches(track, clipboardTrack)) ?? null;
+			if (!target) target = findMediaTrack(project, clipboardTrack.sourceTrackId);
 			if (!targetMatches(target, clipboardTrack)) target = null;
-			if (!target && index === 0 && targetMatches(selected, clipboardTrack)) target = selected;
 			if (!target) target = createTargetTrack(clipboardTrack);
 			assignTarget(clipboardTrack, target);
 		}
@@ -366,15 +367,7 @@ export function createClipboardEditService(
 		) as AudioEditorCommand;
 	}
 
-	/**
-	 * Detach at silences in whatever the document has selected.
-	 *
-	 * Upstream reads the time selection first and the selected clips otherwise
-	 * (`doGlobalSplitIntoNewTrack` and its neighbours in
-	 * `trackeditactionscontroller.cpp` all share that shape), so a drawn range
-	 * scans every clip it touches within its own bounds, and a clip selection
-	 * scans those clips end to end.
-	 */
+	/** Detach a drawn range or selected clips, reading streamed audio on demand. */
 	async function disjoinSelectedClip(): Promise<void> {
 		dependencies.lifetime.assertActive();
 		if (dependencies.editingBlocked()) return;
@@ -392,7 +385,11 @@ export function createClipboardEditService(
 		);
 		const commands: AudioEditorCommand[] = [];
 		for (const clip of clips) {
-			const buffer = dependencies.sourceBuffers.get(clip.sourceId);
+			const buffer = dependencies.sourceBuffers.get(clip.sourceId)
+				?? await dependencies.loadSourceBuffer?.(clip.sourceId);
+			dependencies.lifetime.assertActive();
+			const current = dependencies.getProject();
+			if (current.id !== project.id || current.revision !== project.revision) return;
 			if (!buffer) continue;
 			commands.push(...detachCommandsForClip(clip, findClipSilenceRegions(clip, buffer, authority.range)));
 		}
@@ -426,11 +423,7 @@ export function createClipboardEditService(
 				&& clip.timelineStartFrame + clip.durationFrames > region.startFrame);
 	}
 
-	/**
-	 * Detach at silences inside labelled regions. Upstream's OnDisjoinLabels
-	 * runs the same scan the selected-clip command runs, once per labelled
-	 * region on every track being edited.
-	 */
+	/** Detach at silences inside labelled regions using the same source reader. */
 	async function disjoinLabeledRegions(
 		regions: readonly Readonly<{ startFrame: number; endFrame: number }>[],
 		trackIds: readonly string[],
@@ -444,7 +437,11 @@ export function createClipboardEditService(
 			if (!targetTrackIds.has(track.id) || !Array.isArray((track as ClipboardEditMediaTrack).clipIds)) continue;
 			for (const clipId of (track as ClipboardEditMediaTrack).clipIds) {
 				const clip = findClip(project, clipId);
-				const buffer = clip ? dependencies.sourceBuffers.get(clip.sourceId) : null;
+				const buffer = clip ? dependencies.sourceBuffers.get(clip.sourceId)
+					?? await dependencies.loadSourceBuffer?.(clip.sourceId) : null;
+				dependencies.lifetime.assertActive();
+				const current = dependencies.getProject();
+				if (current.id !== project.id || current.revision !== project.revision) return false;
 				if (!clip || !buffer) continue;
 				for (const region of [...regions].reverse()) {
 					if (region.endFrame <= region.startFrame) continue;

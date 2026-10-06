@@ -7,6 +7,8 @@
  * each clip a label covers (au3/src/menus/LabelMenus.cpp, OnDisjoinLabels).
  */
 
+import { readClipLoop } from './audio-clip-loop.ts';
+
 export interface ClipSilenceScanClip {
 	readonly timelineStartFrame: number;
 	readonly durationFrames: number;
@@ -46,15 +48,21 @@ export function findClipSilenceRegions(
 ): readonly ClipSilenceRegion[] {
 	const sourceDurationFrames = clip.sourceDurationFrames ?? clip.durationFrames;
 	if (!(sourceDurationFrames > 0) || !(clip.durationFrames > 0)) return Object.freeze([]);
+	const loop = readClipLoop(clip);
+	const timelineFramesPerSourceFrame = (loop?.periodFrames ?? clip.durationFrames) / sourceDurationFrames;
+	const scanSourceDuration = Math.ceil(clip.durationFrames / timelineFramesPerSourceFrame);
 	const minimumSilenceFrames = Math.max(1, Math.round(buffer.sampleRate * MINIMUM_SILENCE_SECONDS));
-	const scan = scanBounds(clip, sourceDurationFrames, bounds);
+	const scan = scanBounds(clip, scanSourceDuration, timelineFramesPerSourceFrame, bounds);
 	if (!scan) return Object.freeze([]);
 	const regions: ClipSilenceRegion[] = [];
 	let silenceStart: number | null = null;
 	for (let relativeSourceFrame = scan.start; relativeSourceFrame < scan.end; relativeSourceFrame += 1) {
+		const loopSourceFrame = loop
+			? Math.floor(relativeSourceFrame + loop.offsetFrames / timelineFramesPerSourceFrame) % sourceDurationFrames
+			: relativeSourceFrame;
 		const sourceFrame = clip.reversed
-			? clip.sourceStartFrame + sourceDurationFrames - 1 - relativeSourceFrame
-			: clip.sourceStartFrame + relativeSourceFrame;
+			? clip.sourceStartFrame + sourceDurationFrames - 1 - loopSourceFrame
+			: clip.sourceStartFrame + loopSourceFrame;
 		let peak = 0;
 		for (let channel = 0; channel < buffer.numberOfChannels; channel += 1) {
 			peak = Math.max(peak, Math.abs(buffer.getChannelData(channel)?.[sourceFrame] ?? 0));
@@ -69,8 +77,8 @@ export function findClipSilenceRegions(
 	const clipEndFrame = clip.timelineStartFrame + clip.durationFrames;
 	return Object.freeze(regions
 		.map(([start, end]) => Object.freeze([
-			clip.timelineStartFrame + Math.round(start / sourceDurationFrames * clip.durationFrames),
-			clip.timelineStartFrame + Math.round(end / sourceDurationFrames * clip.durationFrames),
+			clip.timelineStartFrame + Math.round(start * timelineFramesPerSourceFrame),
+			clip.timelineStartFrame + Math.round(end * timelineFramesPerSourceFrame),
 		]) as ClipSilenceRegion)
 		.filter(([start, end]) => start > clip.timelineStartFrame && end < clipEndFrame && end > start)
 		.slice(0, MAXIMUM_REGIONS));
@@ -80,6 +88,7 @@ export function findClipSilenceRegions(
 function scanBounds(
 	clip: ClipSilenceScanClip,
 	sourceDurationFrames: number,
+	timelineFramesPerSourceFrame: number,
 	bounds: ClipSilenceScanBounds | null,
 ): Readonly<{ start: number; end: number }> | null {
 	if (!bounds) return Object.freeze({ start: 0, end: sourceDurationFrames });
@@ -88,7 +97,7 @@ function scanBounds(
 	const endFrame = Math.min(bounds.endFrame, clipEndFrame);
 	if (endFrame <= startFrame) return null;
 	const toSource = (frame: number) => Math.round(
-		(frame - clip.timelineStartFrame) / clip.durationFrames * sourceDurationFrames,
+		(frame - clip.timelineStartFrame) / timelineFramesPerSourceFrame,
 	);
 	const start = Math.max(0, toSource(startFrame));
 	const end = Math.min(sourceDurationFrames, toSource(endFrame));

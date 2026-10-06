@@ -146,10 +146,10 @@ test('transport dispatch coordinates preview, playback, seeking, stop, loop, and
 	assert.equal(fixture.state.playbackCacheAbort, null);
 
 	assert.equal(await fixture.service.handleTransport('jump-start'), 0);
-	assert.equal(await fixture.service.handleTransport('jump-end'), 1_200);
+	assert.equal(await fixture.service.handleTransport('jump-end'), 1_000);
 	assert.equal(await fixture.service.handleTransport('rewind'), -239_960);
 	assert.equal(await fixture.service.handleTransport('forward'), 240_040);
-	assert.deepEqual(fixture.calls.seeks, [0, 1_200, -239_960, 240_040]);
+	assert.deepEqual(fixture.calls.seeks, [0, 1_000, -239_960, 240_040]);
 
 	fixture.state.timedRecording = true;
 	assert.equal(await fixture.service.handleTransport('stop'), 'timed-cancelled');

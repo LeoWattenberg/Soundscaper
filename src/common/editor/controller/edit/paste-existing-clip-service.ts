@@ -2,6 +2,7 @@
 
 import { createEnvelopeValueEvaluator } from '../../automation.js';
 import { evaluateClipFadeAt } from '../../audio-clip-transition-gain.ts';
+import { readClipLoop } from '../../audio-clip-loop.ts';
 import type {
 	AudioEditorClipboardTrack,
 	AudioEditorCommand,
@@ -331,6 +332,8 @@ function renderClipPcm(
 		'clip sourceDurationFrames',
 	);
 	const reversed = clip.reversed === true;
+	const loop = readClipLoop(clip);
+	const clipDuration = positiveFrame(clip.durationFrames, 'clip durationFrames');
 	const gain = Math.max(0, finiteDefault(clip.gain, 1)) * (clip.inverted === true ? -1 : 1);
 	const fadeIn = boundedFrame(clip.fadeInFrames, outputFrames);
 	const fadeOut = boundedFrame(clip.fadeOutFrames, outputFrames);
@@ -342,7 +345,10 @@ function renderClipPcm(
 		const input = channels[Math.min(channelIndex, channels.length - 1)]!;
 		const output = new Float32Array(outputFrames);
 		for (let frame = 0; frame < outputFrames; frame += 1) {
-			const sourceOffset = Math.min(sourceDuration - 1, Math.floor(frame * sourceDuration / outputFrames));
+			const sourceOffset = Math.min(sourceDuration - 1, Math.floor(loop
+				? ((frame * clipDuration / outputFrames + loop.offsetFrames) % loop.periodFrames)
+					* sourceDuration / loop.periodFrames
+				: frame * sourceDuration / outputFrames));
 			const sourceFrame = reversed
 				? sourceStart + sourceDuration - 1 - sourceOffset
 				: sourceStart + sourceOffset;

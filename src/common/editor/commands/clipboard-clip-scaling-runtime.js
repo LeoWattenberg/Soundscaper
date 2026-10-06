@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { conformClipboardVideoPlacement } from './clipboard-time-runtime.js';
+import { clipLoopTransformFields } from '../audio-clip-loop.ts';
 import { cloneVideoCompositionCarrierFields } from './video-composition-carrier.ts';
 import { rebindVideoKeyframeCarrierEffects } from './video-keyframe-carrier.ts';
 import { cloneVideoEffectsWithCommandIds } from './shared-runtime.js';
@@ -32,6 +33,7 @@ export function scaleClipboardClip(
 		avLinkId: descriptor.avLinkId ? avLinkIds[descriptor.avLinkId] || null : null,
 		timelineStartFrame,
 		durationFrames: timelineDurationFrames,
+		...clipLoopTransformFields(descriptor, { durationFrames: timelineDurationFrames }),
 		...(videoPlacement || {}),
 		fadeInFrames: Math.min(timelineDurationFrames, Math.round((descriptor.fadeInFrames || 0) * scale)),
 		fadeOutFrames: Math.min(timelineDurationFrames, Math.round((descriptor.fadeOutFrames || 0) * scale)),

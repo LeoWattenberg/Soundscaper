@@ -25,6 +25,7 @@ import {
 } from '../src/common/editor/project-media-factory.ts';
 import { projectForCommand } from '../src/common/editor/project-command-projection.ts';
 import { createImportedSourceProvenance } from '../src/common/editor/source-provenance.ts';
+import { clipLoopUpdateFields } from '../src/common/editor/audio-clip-loop.ts';
 
 const NOW = '2026-09-10T12:00:00.000Z';
 
@@ -220,6 +221,20 @@ test('a different-source paste in the middle renders one extended existing clip'
 	assert.deepEqual(rewrittenPaste?.clipboard.tracks, []);
 	assert.deepEqual(rewrittenPaste?.collisionClipIds, []);
 	assert.deepEqual(rewrittenPaste?.collisionTrackIds, []);
+});
+
+test('pasting into an existing clip renders the copied loop period and phase', async () => {
+	const descriptor = clipboard();
+	const looped = { ...descriptor, durationFrames: 4, tracks: descriptor.tracks.map((track) => ({
+		...track, clips: track.clips.map((clip) => ({ ...clip,
+			...clipLoopUpdateFields({ ...clip, sourceDurationFrames: 2 },
+				{ periodFrames: 2, durationFrames: 4, offsetFrames: 1 }),
+		})),
+	})) };
+	const fixture = request(paste(looped));
+	await commitPasteIntoExistingClipCommand(fixture.input);
+	assert.deepEqual(Array.from(fixture.derived.persisted[0]?.channels?.[0] ?? []),
+		[1, 2, 8, 9, 8, 9, 3, 4]);
 });
 
 function importedProvenance(id: string) {

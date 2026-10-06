@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
 	createClipPropertyService,
 	type ClipAnalysisResult,
+	type ClipPropertyServiceDependencies,
 } from '../src/common/editor/controller/clip-video/internal/clip/clip-property-service.ts';
 import type { ClipTransformProject } from '../src/common/editor/controller/clip-video/internal/clip/clip-domain-types.ts';
 import {
@@ -16,6 +17,45 @@ import {
 	brandRuntimeProjectProjection,
 	RUNTIME_CLIP_PROJECTION_VERSION,
 } from '../src/common/editor/runtime-clip-projection.ts';
+
+test('clip normalization loads stored PCM when an imported recording is not buffer-cached', async () => {
+	let analyzed = false;
+	const commits: AudioEditorCommand[] = [];
+	const lifetime = new EditorControllerLifetime();
+	lifetime.markReady();
+	const generation = new EditorProjectGeneration();
+	generation.activate('project');
+	const dependencies: ClipPropertyServiceDependencies = {
+		lifetime, copy: { audioClipNotFound: '', clipPitchRange: '', clipSpeedPositive: '', timelineFramesFinite: '' },
+		sourceBuffers: new Map(), getProject: () => projectFixture(), getSelectedClipId: () => 'active',
+		editingBlocked: () => false, captureProject: () => generation.capture(),
+		assertProject: (token) => { generation.assertCurrent(token); }, createId: (prefix) => prefix,
+		commit: (command) => { commits.push(command); },
+		analyzeChannels: (channels) => {
+			analyzed = true;
+			assert.equal(channels[0]?.length, 1_000);
+			return Promise.resolve({ peakAmplitude: 0.5, integratedLufs: -20 });
+		},
+		loadSourceBuffer: () => Promise.resolve({ length: 4_000, sampleRate: 48_000,
+			numberOfChannels: 1, getChannelData: () => new Float32Array(4_000).fill(0.5) }),
+	};
+	await createClipPropertyService(dependencies).handleClipAction('normalize-peak');
+	assert.equal(analyzed, true);
+	assert.equal(commits[0]?.type, 'clip/update');
+});
+
+test('Reset clears stored independent pitch while retaining linked pitch mode', () => {
+	const harness = createHarness(projectFixture({ clips: [clipFixture({
+		pitchCents: 600, speedRatio: 1.5, linkPitchAndTempo: true,
+	})] }));
+	harness.service.resetClipPitchSpeed('active');
+	const command = harness.commits[0]?.command;
+	assert.equal(command?.type, 'clip/transform-many');
+	if (command?.type !== 'clip/transform-many') assert.fail('Expected a reset transform.');
+	assert.equal(command.transforms[0]?.changes.pitchCents, 0);
+	assert.equal(command.transforms[0]?.changes.speedRatio, 1);
+	assert.equal(command.transforms[0]?.changes.linkPitchAndTempo, undefined);
+});
 
 test('time/pitch edits and grouped stretching preserve render revisions and envelopes', () => {
 	const project = projectFixture();

@@ -87,6 +87,7 @@ export interface ClipPropertyServiceDependencies {
 	readonly lifetime: Pick<EditorControllerLifetime, 'assertActive' | 'startTask'>;
 	readonly copy: ClipPropertyCopy;
 	readonly sourceBuffers: Pick<Map<string, AudioBufferLike>, 'get'>;
+	loadSourceBuffer?(sourceId: string, signal: AbortSignal): Promise<AudioBufferLike | null>;
 	getProject(): ClipTransformProject;
 	getSelectedClipId(): string | null;
 	editingBlocked(): boolean;
@@ -139,12 +140,14 @@ export function createClipPropertyService(
 				type: 'clip/update', clipId: clip.id, changes: { inverted: !clip.inverted },
 			}, { selectClipId: clip.id });
 		}
-		const buffer = dependencies.sourceBuffers.get(clip.sourceId);
-		if (!buffer) return undefined;
 		const task = dependencies.lifetime.startTask(`clip-normalize:${clip.id}`);
 		const projectToken = dependencies.captureProject();
 		const fingerprint = fingerprintClip(project, clip);
 		try {
+			const buffer = dependencies.sourceBuffers.get(clip.sourceId)
+				?? await dependencies.loadSourceBuffer?.(clip.sourceId, task.signal);
+			assertOwned(task, projectToken, fingerprint);
+			if (!buffer) return undefined;
 			const channels = Array.from({ length: buffer.numberOfChannels }, (_, channel) => (
 				buffer.getChannelData(channel).subarray(
 					clip.sourceStartFrame,
@@ -182,7 +185,7 @@ export function createClipPropertyService(
 		if (!clip || !track) throw createLocalizedError(Error, dependencies.copy, 'audioClipNotFound');
 		const linked = changes.linkPitchAndTempo == null ? Boolean(clip.linkPitchAndTempo) : Boolean(changes.linkPitchAndTempo);
 		const requestedPitch = changes.pitchCents == null ? clip.pitchCents : Number(changes.pitchCents);
-		const pitchCents = linked ? clip.pitchCents : requestedPitch;
+		const pitchCents = linked && changes.speedRatio == null ? clip.pitchCents : requestedPitch;
 		const speedRatio = linked && changes.pitchCents != null && changes.speedRatio == null
 			? 2 ** (requestedPitch / 1_200) : changes.speedRatio == null ? clip.speedRatio : Number(changes.speedRatio);
 		if (!Number.isFinite(requestedPitch) || (!linked && (pitchCents < -1_200 || pitchCents > 1_200))) {
