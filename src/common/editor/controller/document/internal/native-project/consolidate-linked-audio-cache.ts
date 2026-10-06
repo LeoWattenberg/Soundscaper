@@ -19,7 +19,7 @@ export async function consolidateLinkedAudioCache(
 	const reader = await openExternalMediaPcm(original, source, signal);
 	if (!reader) throw new Error('The linked audio original is not a supported PCM container.');
 	assertCurrent?.();
-	const writer = await store.beginSourceWrite(String(source.storageKey || source.id), source);
+	const writer = await store.beginSourceWrite(String(source.storageKey || source.id), { ...source, pcmEncodingPolicy: 'wavpack-required' });
 	try {
 		await reader.stream(async (channels) => { assertCurrent?.(); await writer.write(channels, { signal }); });
 		assertCurrent?.();

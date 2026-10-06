@@ -6,6 +6,7 @@ import {
 	type OpfsPcmWriter,
 } from './opfs-pcm-writer-lifecycle.ts';
 import type { OpfsSyncWriter } from './opfs-sync-worker-client.ts';
+import { MAXIMUM_OPFS_SYNC_CHUNK_BYTES } from './opfs-sync-worker-protocol.ts';
 
 export function syncBinaryWriter(
 	path: string,
@@ -37,7 +38,12 @@ export function syncPcmWriter(
 	remove: () => Promise<void>,
 ): OpfsPcmWriter {
 	const writable = {
-		write: (input: unknown) => writer.write(binaryBytes(input)),
+		async write(input: unknown): Promise<void> {
+			const bytes = binaryBytes(input);
+			for (let offset = 0; offset < bytes.byteLength; offset += MAXIMUM_OPFS_SYNC_CHUNK_BYTES) {
+				await writer.write(bytes.subarray(offset, Math.min(bytes.byteLength, offset + MAXIMUM_OPFS_SYNC_CHUNK_BYTES)));
+			}
+		},
 		close: () => writer.close(),
 	};
 	return createOpfsPcmWriterLifecycle({

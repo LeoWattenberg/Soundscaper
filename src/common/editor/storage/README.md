@@ -24,6 +24,17 @@ change can be reviewed without loading the complete storage implementation:
 
 ## Compatibility invariants
 
+Foreground Speed writes publish checksummed raw float PCM. Consolidate media
+uses an explicit required WavPack policy, reads the decoded samples back and
+compares their exact bits before binding a new immutable physical source through
+history. Existing raw sources remain available to undo. Unlike optional adaptive
+compression, this policy permits entropy expansion: each encoded packet is bounded
+by twice its raw geometry plus 4,096 bytes per channel for framing, with a global
+33,816,576-byte maximum (64 channels × 65,536 frames). The same limit governs
+encoding, persisted container indexes, worker admission and decoding. Native
+overflow and failed verification abort conversion; stored byte counts include the
+actual expanded payload. Existing raw and WavPack packets remain readable.
+
 - Change the IndexedDB version, store names, indexes, or keys only in
   `indexeddb-backend.ts`, with schema tests.
 - Version 1 is the first shipped browser schema. Append future upgrades to

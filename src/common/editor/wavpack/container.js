@@ -8,6 +8,7 @@ import {
 	exactArrayBuffer,
 	normalizePcmSampleRate,
 	pcmRawByteLength,
+	maximumWavPackPayloadBytes,
 	validatePcmGeometry,
 } from './pcm.js';
 
@@ -25,6 +26,10 @@ const HEADER_MAGIC = 'SSPCMWV1';
 const FOOTER_MAGIC = 'SSPCMIDX';
 
 export class PcmContainerWriter {
+	/**
+	 * @param {{ write(input: ArrayBuffer | ArrayBufferView<ArrayBuffer>): Promise<unknown>; close(): Promise<unknown>; abort?(reason?: unknown): Promise<unknown> }} writable
+	 * @param {{ channelCount?: number; sampleRate?: number; chunkFrames?: number; flags?: number }} [options]
+	 */
 	constructor(writable, {
 		channelCount,
 		sampleRate,
@@ -58,6 +63,7 @@ export class PcmContainerWriter {
 		}));
 	}
 
+	/** @param {{ encoding?: string; payload?: ArrayBuffer | ArrayBufferView<ArrayBuffer>; frames?: number; pcmCrc32?: number; flags?: number }} [chunk] */
 	async write({
 		encoding,
 		payload: input,
@@ -78,7 +84,7 @@ export class PcmContainerWriter {
 		const codec = encodingToContainerCodec(encoding);
 		if ((codec === PCM_CONTAINER_CODEC_RAW && payload.byteLength !== rawBytes)
 			|| (codec === PCM_CONTAINER_CODEC_WAVPACK
-				&& (!payload.byteLength || payload.byteLength > rawBytes))) {
+				&& (!payload.byteLength || payload.byteLength > maximumWavPackPayloadBytes(geometry.frames, this.channelCount)))) {
 			throw new RangeError('A PCM container payload has invalid bounded geometry.');
 		}
 		await this.ready;
@@ -378,7 +384,7 @@ function parseEntries(bytes, { channelCount, chunkFrames, indexOffset }) {
 		if (reserved !== 0 || offset !== expectedOffset || !length
 			|| offset + length > indexOffset
 			|| (codec === PCM_CONTAINER_CODEC_RAW && length !== rawBytes)
-			|| (codec === PCM_CONTAINER_CODEC_WAVPACK && length > rawBytes)
+			|| (codec === PCM_CONTAINER_CODEC_WAVPACK && length > maximumWavPackPayloadBytes(frames, channelCount))
 			|| (codec !== PCM_CONTAINER_CODEC_RAW && codec !== PCM_CONTAINER_CODEC_WAVPACK)) {
 			throw corruption('PCM container index entry is invalid.', 'PCM_CONTAINER_INDEX_ENTRY');
 		}

@@ -53,6 +53,7 @@ async function encode(message) {
 			frames: message.frames,
 			channelCount: message.channelCount,
 			sampleRate: message.sampleRate,
+			requireWavPack: message.requireWavPack === true,
 			runtime,
 		})
 	));

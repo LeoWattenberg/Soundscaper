@@ -75,13 +75,13 @@
 		"soundscaper_wavpack.c"
 	],
 	"localExtensions": [
-		{ "path": "client.js", "sha256": "ccc79e7ec04c3b160b2599866d5adc99520ced5b0a501bffba8d4b1edf600d97" },
-		{ "path": "container.js", "sha256": "f3563d38b7e569b1b7e3e58e0f5e0fea048597054b5205ad77d7fb5a945a09ef" },
+		{ "path": "client.js", "sha256": "929679261c7dc669b246b64d3329b257765a7903ffffc105b0554bc808a9177f" },
+		{ "path": "container.js", "sha256": "de62b2e84f2da0161173766bde3043ce4c54c73882d0c09abf905ddfdd584a67" },
 		{ "path": "index.js", "sha256": "18faaa40904cb5f581f2463aa4ffd6b057a474815afca31b37818fcf08e5bfce" },
-		{ "path": "operations.js", "sha256": "aa8ce719ceb58c353dfcad3f84c8f3ca221bb62562473ae371c66f6a26482e17" },
-		{ "path": "pcm.js", "sha256": "153f1d0d7a12557fc728ce26c3190756d255b7d31e34f8d4f650c559cf9ec157" },
-		{ "path": "runtime.js", "sha256": "1aa431c8ec042134bb3ae46036255b7e836e09a98f13168034cdba504018acd2" },
-		{ "path": "worker.js", "sha256": "132c54bc024e7528f164fabc9ee09b7c7693597106ca6c6fb628e6fd168a9307" }
+		{ "path": "operations.js", "sha256": "1ca692aa37c89bf288c24f98efec9739f68489ab68fe4dd182e1295d3dcf47cc" },
+		{ "path": "pcm.js", "sha256": "150d1c5da5b7d4b1cc6cfaa435865f0dabef23ccf27aa708ec851117f5b78bce" },
+		{ "path": "runtime.js", "sha256": "8ef2da6b24524e2d82c08f8f563ce5ebc78d747529573440fb9679f11a4613f5" },
+		{ "path": "worker.js", "sha256": "c78fadca497b37f7f4c9d2158bc38647ec892e674658775020a57bd00813152a" }
 	],
 	"wasm": {
 		"path": "wavpack.wasm",

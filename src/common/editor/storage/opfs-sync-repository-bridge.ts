@@ -2,6 +2,7 @@
 
 import type { BlobLike } from './media-records.ts';
 import { copyUint8ArrayToArrayBuffer } from './binary-copy.ts';
+import { WAVPACK_PCM_MAXIMUM_ENCODED_BYTES } from '../wavpack/pcm.js';
 import {
 	OpfsSyncWorkerClient,
 	type OpfsSyncStoragePort,
@@ -181,6 +182,30 @@ class OpfsSyncReadableBlob implements BlobLike {
 
 	async arrayBuffer(): Promise<ArrayBuffer> {
 		throwIfAborted(this.signal);
+		if (this.size > MAXIMUM_OPFS_SYNC_CHUNK_BYTES && this.size <= WAVPACK_PCM_MAXIMUM_ENCODED_BYTES
+			&& this.operationId === 'canonical-pcm-chunk-read') {
+			const bytes = new Uint8Array(this.size);
+			for (let offset = 0; offset < this.size; offset += MAXIMUM_OPFS_SYNC_CHUNK_BYTES) {
+				throwIfAborted(this.signal);
+				const length = Math.min(MAXIMUM_OPFS_SYNC_CHUNK_BYTES, this.size - offset);
+				let result;
+				try {
+					result = await this.client.read(this.operationId, this.path, { offset: this.start + offset, length }, this.signal);
+				} catch {
+					throwIfAborted(this.signal);
+					const file = await (await this.directory.getFileHandle(this.path)).getFile();
+					throwIfAborted(this.signal);
+					if (file.size !== this.fileSize) throw new Error('The OPFS file changed during a bounded read.');
+					const segment = await file.slice(this.start + offset, this.start + offset + length).arrayBuffer();
+					result = { size: file.size, bytes: new Uint8Array(segment) };
+				}
+				throwIfAborted(this.signal);
+				if (result.size !== this.fileSize) throw new Error('The OPFS file changed during a bounded read.');
+				if (result.bytes.byteLength !== length) throw new Error('The OPFS PCM packet is truncated.');
+				bytes.set(result.bytes, offset);
+			}
+			return bytes.buffer;
+		}
 		let result;
 		try {
 			result = await this.client.read(

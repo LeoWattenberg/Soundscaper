@@ -113,7 +113,11 @@ export class SourceWriteRepository {
 		receiptValue: unknown,
 		metadata: Record<string, unknown> = {},
 	): Promise<OwnedAudioSourceWriter> {
-		const { requirePersistentPcm, ...persistedMetadata } = metadata;
+		const { requirePersistentPcm, pcmEncodingPolicy, ...persistedMetadata } = metadata;
+		if (pcmEncodingPolicy !== undefined && pcmEncodingPolicy !== 'wavpack-required') {
+			throw new RangeError('The explicit PCM encoding policy must require WavPack.');
+		}
+		const requireWavPack = pcmEncodingPolicy === 'wavpack-required';
 		const stageReceipt = normalizeAudioSourceStageReceipt(receiptValue);
 		const { sourceId, sourceToken: token } = stageReceipt;
 		const writeSampleRate = normalizePcmSampleRate(metadata.sampleRate ?? 48_000);
@@ -133,7 +137,7 @@ export class SourceWriteRepository {
 			throw error;
 		}
 		const persistEncodedChunks = Boolean(opfsWriter || database);
-		if (requirePersistentPcm && !persistEncodedChunks) {
+		if ((requirePersistentPcm || requireWavPack) && !persistEncodedChunks) {
 			await stage.release();
 			throw new Error('Large audio imports require IndexedDB or OPFS storage.');
 		}
@@ -218,9 +222,10 @@ export class SourceWriteRepository {
 							frames: frameLength,
 							channelCount,
 							sampleRate: writeSampleRate,
-							priority: 'foreground',
+							priority: requireWavPack ? 'migration' : 'foreground',
 							signal,
-							allowRawOnFailure: true,
+							allowRawOnFailure: !requireWavPack,
+							requireWavPack,
 						});
 						throwIfAborted(signal);
 						assertWriteOpen();

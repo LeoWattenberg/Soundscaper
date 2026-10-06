@@ -5,6 +5,7 @@ import {
 	exactArrayBuffer,
 	normalizePcmSampleRate,
 	pcmRawByteLength,
+	maximumWavPackPayloadBytes,
 	validatePcmGeometry,
 } from './pcm.js';
 import { WorkerRequestBroker } from '../worker-request-broker.ts';
@@ -43,7 +44,7 @@ export class WavPackCodecClient {
 
 	encode(payload, options = {}) {
 		const geometry = normalizeRequestGeometry(payload, options, false);
-		return this.#enqueue('encode', geometry, options);
+		return this.#enqueue('encode', { ...geometry, requireWavPack: options.requireWavPack === true }, options);
 	}
 
 	checksum(payload, options = {}) {
@@ -201,7 +202,7 @@ function normalizeRequestGeometry(payload, options, compressed) {
 	const buffer = exactArrayBuffer(payload);
 	const rawBytes = pcmRawByteLength(frames, channelCount);
 	if ((!compressed && buffer.byteLength !== rawBytes)
-		|| (compressed && (!buffer.byteLength || buffer.byteLength > rawBytes))) {
+		|| (compressed && (!buffer.byteLength || buffer.byteLength > maximumWavPackPayloadBytes(frames, channelCount)))) {
 		throw new RangeError('PCM codec payload does not match its bounded geometry.');
 	}
 	return {

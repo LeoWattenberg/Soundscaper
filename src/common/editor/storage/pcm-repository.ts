@@ -8,6 +8,7 @@ import {
 	crc32,
 	exactArrayBuffer,
 	minimumWavPackSavings,
+	maximumWavPackPayloadBytes,
 	pcmRawByteLength,
 	unpackOwnedPlanarFloat32,
 	unpackPlanarFloat32,
@@ -76,6 +77,7 @@ export class PcmRepository {
 		priority,
 		signal,
 		allowRawOnFailure,
+		requireWavPack = false,
 	}: {
 		readonly frames: number;
 		readonly channelCount: number;
@@ -83,21 +85,22 @@ export class PcmRepository {
 		readonly priority: string;
 		readonly signal?: AbortSignal;
 		readonly allowRawOnFailure: boolean;
+		readonly requireWavPack?: boolean;
 	}): Promise<EncodedPcm> {
 		const rawPayload = exactBuffer(rawInput);
 		const rawBytes = pcmRawByteLength(frames, channelCount);
 		if (rawPayload.byteLength !== rawBytes) {
 			throw new RangeError('Raw PCM payload does not match its declared geometry.');
 		}
-		if (rawBytes <= minimumWavPackSavings(rawBytes)
-			|| (this.#optimizationMode === 'speed' && priority !== 'migration')) {
+		if (!requireWavPack && (rawBytes <= minimumWavPackSavings(rawBytes)
+			|| (this.#optimizationMode === 'speed' && priority !== 'migration'))) {
 			const checked = await this.#checksum(rawPayload, { frames, channelCount, sampleRate, priority, signal });
 			return rawEncodedPcm(checked.payload, checked.pcmCrc32);
 		}
 		const pcmCrc32 = crc32(rawPayload);
 		const rawResult = (): EncodedPcm => rawEncodedPcm(rawPayload, pcmCrc32);
 		if (this.#circuitOpen) {
-			if (allowRawOnFailure) return rawResult();
+			if (allowRawOnFailure && !requireWavPack) return rawResult();
 			throw new Error('WavPack encoding is disabled for this session after a codec failure.');
 		}
 		try {
@@ -109,6 +112,7 @@ export class PcmRepository {
 				priority,
 				signal,
 				transferInput: true,
+				requireWavPack,
 			});
 			const encoding = encoded?.encoding;
 			const payload = exactBuffer(encoded?.payload);
@@ -116,7 +120,22 @@ export class PcmRepository {
 			if (resultCrc32 !== pcmCrc32) throw new Error('PCM codec returned an unexpected source CRC-32.');
 			if (encoding === PCM_ENCODING_WAVPACK_F32_V1) {
 				const minimumSavings = minimumWavPackSavings(rawBytes);
-				if (!payload.byteLength || payload.byteLength > rawBytes - minimumSavings) return rawResult();
+				const maximumPayloadBytes = requireWavPack ? maximumWavPackPayloadBytes(frames, channelCount) : rawBytes - minimumSavings;
+				if (!payload.byteLength || payload.byteLength > maximumPayloadBytes) {
+					if (requireWavPack) throw new RangeError('Required WavPack payload exceeds its PCM packet capacity.');
+					return rawResult();
+				}
+				if (requireWavPack) {
+					const decoded = await this.#codecInstance().decode(payload.slice(0), {
+						encoding, frames, channelCount, sampleRate, pcmCrc32, priority, signal, transferInput: true,
+					});
+					const verified = exactBuffer(decoded?.payload);
+					const expectedBits = new Uint8Array(rawPayload), actualBits = new Uint8Array(verified);
+					if (verified.byteLength !== rawBytes || expectedBits.some((byte, index) => byte !== actualBits[index])) {
+						throw new Error('Required WavPack PCM did not preserve its exact source sample bits.');
+					}
+					throwIfAborted(signal);
+				}
 				return {
 					encoding,
 					payload,
@@ -126,6 +145,7 @@ export class PcmRepository {
 				};
 			}
 			if (encoding === PCM_ENCODING_RAW_F32LE) {
+				if (requireWavPack) throw new Error('Required WavPack encoding returned a raw fallback.');
 				if (payload.byteLength !== rawBytes || crc32(payload) !== pcmCrc32) {
 					throw new Error('PCM codec returned invalid raw fallback data.');
 				}
@@ -141,7 +161,7 @@ export class PcmRepository {
 		} catch (error) {
 			if (isAbortError(error)) throw error;
 			this.#circuitOpen = true;
-			if (allowRawOnFailure) return rawResult();
+			if (allowRawOnFailure && !requireWavPack) return rawResult();
 			throw error;
 		}
 	}
@@ -188,7 +208,7 @@ export class PcmRepository {
 			rawPayload = checked.payload;
 			ownsDecodedPayload = checked.owned;
 		} else if (record.encoding === PCM_ENCODING_WAVPACK_F32_V1) {
-			if (!payload.byteLength || payload.byteLength > rawBytes) {
+			if (!payload.byteLength || payload.byteLength > maximumWavPackPayloadBytes(frames, channelCount)) {
 				throw new PcmStorageCorruptionError(
 					'Persisted WavPack PCM has invalid bounded geometry.',
 					'PCM_RECORD_GEOMETRY',
