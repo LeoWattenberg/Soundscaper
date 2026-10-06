@@ -178,11 +178,11 @@ export const MixerFader: React.FC<MixerFaderProps> = ({
         break;
       case 'Home':
         e.preventDefault();
-        newValue = max;
+        newValue = min;
         break;
       case 'End':
         e.preventDefault();
-        newValue = min;
+        newValue = max;
         break;
       default:
         return;

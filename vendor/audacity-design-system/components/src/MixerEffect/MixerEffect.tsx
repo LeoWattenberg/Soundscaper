@@ -117,13 +117,11 @@ export const MixerEffect: React.FC<MixerEffectProps> = ({
         </button>
       )}
 
-      <div
-        className="mixer-effect__name"
-        onClick={onClick}
-        role={populated ? 'button' : undefined}
-      >
-        {effectName ?? ''}
-      </div>
+      {populated ? (
+        <button type="button" className="mixer-effect__name" onClick={onClick}>
+          {effectName}
+        </button>
+      ) : <div className="mixer-effect__name" />}
 
       <button
         className="mixer-effect__dropdown"

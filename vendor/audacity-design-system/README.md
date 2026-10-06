@@ -294,6 +294,10 @@ application overrides and source patches against the pin and upstream master.
     tempo/signature events. Standalone controls retain the upstream default.
     Covered by `tests/audio-editor-musical-timecode-map.test.tsx` and
     `tests/browser/audio-editor-musical-timecode-regressions.spec.js`.
+36. `MixerEffect` renders its populated name as a native button and reveals its
+    power and menu controls while keyboard focus is inside the slot. `MixerFader`
+    follows slider keyboard conventions: Home selects the minimum and End the
+    maximum. Covered by `tests/browser/audio-editor-mixer-keyboard-regressions.spec.js`.
 
 ## Application-side adaptations
 

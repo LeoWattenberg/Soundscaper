@@ -99,6 +99,19 @@ and click **New label**. Previously the point label appeared at zero despite the
 playhead being at 0.8 seconds. New labels now use a positive selected range or,
 when there is none, read the live playhead position at the moment of creation.
 
+## ROOT-013 — Keyboard navigation skips populated mixer effects
+
+Add Reverb to the second audio track and open **Window > Mixer**. Click the first
+track's Solo button, then press Tab. Previously focus skipped the Reverb control
+because its apparent button was an unfocusable div. The name is now a native
+button; Enter opens its rack, and keyboard focus reveals its power/menu controls.
+
+## ROOT-014 — Mixer fader Home and End reverse slider bounds
+
+Open **Window > Mixer**, focus an audio track's volume fader, and press Home.
+Previously the gain jumped to maximum +12 dB instead of minimum -60 dB. End did
+the reverse. Both keys now follow the slider's minimum/maximum conventions.
+
 ## Regression coverage
 
 - `tests/browser/audio-editor-bug-audit-macros.spec.js`
@@ -106,6 +119,7 @@ when there is none, read the live playhead position at the moment of creation.
 - `tests/browser/audio-editor-bug-audit-label-manager.spec.js`
 - `tests/browser/audio-editor-bug-audit-macro-availability.spec.js`
 - `tests/browser/audio-editor-bug-audit-mixer.spec.js`
+- `tests/browser/audio-editor-mixer-keyboard-regressions.spec.js`
 - `tests/audio-editor-macro-command-service.test.ts`
 - `tests/audio-editor-macro-program-service.test.ts`
 - `tests/audio-editor-generator-service.test.ts`

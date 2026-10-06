@@ -38,7 +38,7 @@
   border-right-color: var(--me-active-border);
 }
 
-.mixer-effect:hover .mixer-effect__power {
+.mixer-effect:is(:hover, :focus-within) .mixer-effect__power {
   display: flex;
 }
 
@@ -47,6 +47,9 @@
   flex: 1 1 0;
   min-width: 0;
   padding: 0 4px;
+  border: none;
+  background: transparent;
+  font-family: inherit;
   font-size: 12px;
   line-height: 16px;
   color: var(--me-text);
@@ -80,7 +83,7 @@
   border-left-color: var(--me-active-border);
 }
 
-.mixer-effect:hover .mixer-effect__dropdown {
+.mixer-effect:is(:hover, :focus-within) .mixer-effect__dropdown {
   display: flex;
 }
 
@@ -89,15 +92,15 @@
   display: none;
 }
 
-.mixer-effect--empty:hover .mixer-effect__dropdown {
+.mixer-effect--empty:is(:hover, :focus-within) .mixer-effect__dropdown {
   display: flex;
 }
 
 /* Hover border color */
-.mixer-effect:hover {
+.mixer-effect:is(:hover, :focus-within) {
   border-color: var(--me-hover-border);
 }
 
-.mixer-effect--enabled:hover {
+.mixer-effect--enabled:is(:hover, :focus-within) {
   border-color: var(--me-active-border);
 }
