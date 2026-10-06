@@ -95,15 +95,22 @@ export function createTrackDuplicationService(dependencies: TrackDuplicationServ
 			productionDuplicate,
 		}];
 		let selectedClipId: string | null = null;
+		const groupIds = new Map<string, string>();
 		for (const clipId of track.clipIds ?? []) {
 			const clip = dependencies.findClip(project, clipId);
 			if (!clip) continue;
 			const nextClipId = dependencies.createId('clip');
 			selectedClipId ||= nextClipId;
+			let groupId: string | null = null;
+			if (typeof clip.groupId === 'string' && clip.groupId) {
+				groupId = groupIds.get(clip.groupId) ?? dependencies.createId('clip-group');
+				groupIds.set(clip.groupId, groupId);
+			}
 			commands.push(dependencies.createAddClipCommand(trackId, {
 				...clip,
 				id: nextClipId,
 				avLinkId: null,
+				groupId,
 				...(clip.kind === 'video' ? {
 					videoEffects: dependencies.cloneVideoEffects(clip.videoEffects || [], {
 						regenerateIds: true,

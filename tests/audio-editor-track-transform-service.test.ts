@@ -334,6 +334,36 @@ test('stereo splitting detaches a media lane and its A/V links without removing 
 	assert.ok(clipAdds.every((command) => command.clip.avLinkId === null));
 });
 
+for (const operation of ['splitStereoTrack', 'makeStereoTrack'] as const) {
+	test(`${operation} preserves the replaced track's folder placement`, async () => {
+		const clips = [clipFixture('left-clip', 'source'), clipFixture('right-clip', 'source')];
+		const left = trackFixture({ id: 'left', clipIds: [clips[0]!.id], channelCount: operation === 'splitStereoTrack' ? 2 : 1 });
+		const right = trackFixture({ id: 'right', clipIds: [clips[1]!.id] });
+		const fixture = createTransformFixture(projectFixture({
+			tracks: [left, right, trackFixture({ id: 'outside' })], clips,
+			sources: [sourceFixture('source', { channelCount: Number(left.channelCount) })],
+			trackFolders: [{ id: 'band', name: 'Band' }],
+			primarySequenceId: 'sequence',
+			sequences: [{ id: 'sequence', trackNodes: [
+				{ kind: 'folder', id: 'band', parentFolderId: null },
+				{ kind: 'track', id: 'left', parentFolderId: 'band' },
+				{ kind: 'track', id: 'right', parentFolderId: 'band' },
+				{ kind: 'track', id: 'outside', parentFolderId: null },
+			] }],
+		}));
+		await fixture.service[operation]('left');
+		const batch = fixture.calls.commits[0]?.command;
+		assert.equal(batch?.type, 'batch');
+		if (batch?.type !== 'batch') assert.fail('Expected a channel transform batch.');
+		const trackAdds = batch.commands.filter((command) => command.type === 'track/add');
+		assert.deepEqual(trackAdds.map(({ sequenceId, parentFolderId, parentIndex }) => (
+			{ sequenceId, parentFolderId, parentIndex }
+		)), operation === 'splitStereoTrack'
+			? [{ sequenceId: undefined, parentFolderId: 'band', parentIndex: 0 }, { sequenceId: undefined, parentFolderId: 'band', parentIndex: 1 }]
+			: [{ sequenceId: undefined, parentFolderId: 'band', parentIndex: 0 }]);
+	});
+}
+
 test('joining mono tracks renders their shared range and uses a synthetic source template when needed', async () => {
 	const leftClip = clipFixture('left-clip', 'missing-left', { timelineStartFrame: 10, durationFrames: 20 });
 	const rightClip = clipFixture('right-clip', 'missing-right', { timelineStartFrame: 5, durationFrames: 40 });

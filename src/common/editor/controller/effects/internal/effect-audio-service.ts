@@ -59,10 +59,10 @@ export function createEffectAudioService<Buffer = EffectAudioBuffer>(runtime: Ef
 		// Flatten folder state before narrowing to one track: the snapshot keeps the
 		// authored folders and sequence nodes, so a hierarchy that still names the
 		// tracks this render drops is one the engine refuses to load.
-		const mediaProject = projectTrackFolderMediaStateV12(project);
+		const mediaProject = projectTrackFolderMediaStateV12(runtime.cloneProject(project));
 		let snapshot = inheritTrackFolderMediaStateProjectionV12(
 			mediaProject,
-			runtime.cloneProject(mediaProject),
+			{ ...mediaProject },
 		) as unknown as MutableEffectAudioProject;
 		const clipIdSet = requestedClipIds?.length ? new Set(requestedClipIds) : null;
 		if (hasProductionMixerProjectAuthority(snapshot)) {

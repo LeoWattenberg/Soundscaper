@@ -31,6 +31,7 @@ export function createHarness(options: Readonly<{
 	spectralTargetCount?: 1 | 2;
 	spectralWorkerFrameDelta?: number;
 	validateRenderSnapshot?: (project: EffectAudioProject) => void;
+	cloneProject?: (project: EffectAudioProject) => EffectAudioProject;
 }> = {}) {
 	let project: EffectAudioProject = options.project ?? baselineHarnessProject(options.masterChannels);
 	const state: EffectAudioState = {
@@ -99,7 +100,7 @@ export function createHarness(options: Readonly<{
 		audacityEffectMemoryError: () => new Error('Too large'),
 		preflightStorage: async (bytes) => { preflightBytes.push(bytes); },
 		createId: (prefix) => `${prefix}-id`,
-		cloneProject: (value) => structuredClone(value),
+		cloneProject: options.cloneProject ?? ((value) => structuredClone(value)),
 		audacitySelectionChannelCount: () => 1,
 		renderSnapshot: async (snapshot, renderOptions) => {
 			snapshots.push(structuredClone(snapshot));

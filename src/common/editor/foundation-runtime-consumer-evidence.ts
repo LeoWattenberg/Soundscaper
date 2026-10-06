@@ -364,6 +364,20 @@ const entries: FoundationRuntimeConsumerEvidence[] = [
 		evidence: 'Clip-boundary and adjacent-clip navigation collect audio candidates only after resolving musical and sequence-backed clip timing at the owned service boundary.',
 	},
 	{
+		id: 'clip-header-boundary-navigation', surface: 'navigation',
+		file: 'src/common/editor/controller/track-audio/internal/clip-selection-navigation-service.ts',
+		entryPoint: 'selectClipBoundary', inputIdentifier: 'project', projectedIdentifier: null,
+		boundary: 'resolveRuntimeProjectProjection',
+		evidence: 'Boundary navigation resolves header-selected clips into current musical timing before using their endpoints in place of a collapsed time cursor.',
+	},
+	{
+		id: 'clip-header-adjacent-navigation', surface: 'navigation',
+		file: 'src/common/editor/controller/track-audio/internal/clip-selection-navigation-service.ts',
+		entryPoint: 'selectAdjacentClip', inputIdentifier: 'project', projectedIdentifier: null,
+		boundary: 'resolveRuntimeProjectProjection',
+		evidence: 'Previous and next clip navigation resolve the selected clip timing before choosing an adjacent projected candidate.',
+	},
+	{
 		id: 'timeline-viewport',
 		surface: 'timeline',
 		file: 'src/common/editor/ui/timeline/useTimelineViewportModel.js',

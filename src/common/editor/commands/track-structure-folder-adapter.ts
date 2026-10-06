@@ -46,9 +46,9 @@ export function folderAwareInsertTrackNode(
 ): void {
 	const candidate = markFolderAware(project);
 	const node: MutableTrackNodeV12 = { kind: 'track', id: trackId, parentFolderId: null };
-	if (placement.sequenceId !== undefined) {
+	if (placement.sequenceId !== undefined || placement.parentFolderId !== undefined || placement.parentIndex !== undefined) {
 		insertTrackNodeV12(candidate.sequences, {
-			sequenceId: placement.sequenceId,
+			sequenceId: placement.sequenceId ?? String(candidate.primarySequenceId),
 			node,
 			parentFolderId: placement.parentFolderId ?? null,
 			index: placement.parentIndex ?? Number.MAX_SAFE_INTEGER,

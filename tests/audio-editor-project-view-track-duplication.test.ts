@@ -272,10 +272,10 @@ test('track duplication is a no-op while editing is blocked or the track is abse
 	assert.equal(commits, 0);
 });
 
-test('track duplication skips missing clips and keeps the first generated clip selected', () => {
+test('track duplication skips missing clips, keeps the first selected, and copies groups independently', () => {
 	const clips = [
-		{ id: 'first', kind: 'video', videoEffects: [] },
-		{ id: 'second', kind: 'video' },
+		{ id: 'first', kind: 'video', videoEffects: [], groupId: 'original-group' },
+		{ id: 'second', kind: 'video', groupId: 'original-group' },
 	];
 	let sequence = 0;
 	const batches: AudioEditorCommand[] = [];
@@ -302,5 +302,10 @@ test('track duplication skips missing clips and keeps the first generated clip s
 	assert.equal(batch.type, 'batch');
 	if (batch.type !== 'batch') assert.fail('Expected one atomic batch.');
 	assert.deepEqual(batch.commands.map((command) => command.type), ['track/add', 'clip/add', 'clip/add']);
+	const copiedGroups = batch.commands.filter((command) => command.type === 'clip/add')
+		.map((command) => command.clip.groupId);
+	assert.notEqual(copiedGroups[0], 'original-group');
+	assert.equal(copiedGroups[0], copiedGroups[1]);
+	assert.match(String(copiedGroups[0]), /^clip-group-/u);
 	assert.deepEqual(selections[0], { selectTrackId: 'track-1', selectClipId: 'clip-2' });
 });

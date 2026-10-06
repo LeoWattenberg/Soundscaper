@@ -12,6 +12,7 @@ import type { AudioEditorCommand } from '../../../commands/protocol.ts';
 import { scaleSampleFrame } from '../../../timeline-time.ts';
 import { loadSourceProvenanceDerivation } from '../../../source-provenance-derivation-loader.ts';
 import { resampledClipCommands } from './clip-resample-service.ts';
+import { trackReplacementPlacement } from './track-replacement-placement.ts';
 import type { DerivedSourceService } from './derived-audio/derived-source-service.ts';
 import { v21StripLaneRemovalCommands } from '../mix-render-model.ts';
 import {
@@ -272,8 +273,10 @@ export function createTrackTransformService(
 						type: 'clip/unlink-av', clipId: linkedClipId,
 					})),
 					{ type: 'track/remove', trackId: track.id },
-					{ ...createAddTrackCommand({ ...leftTrack, laneGroupId: null }), index: trackIndex },
-					{ ...createAddTrackCommand(rightTrack), index: trackIndex + 1 },
+					{ ...createAddTrackCommand({ ...leftTrack, laneGroupId: null }), index: trackIndex,
+						...trackReplacementPlacement(project, track.id) },
+					{ ...createAddTrackCommand(rightTrack), index: trackIndex + 1,
+						...trackReplacementPlacement(project, track.id, 1) },
 				];
 				for (const clip of clips) addSplitClipCommands(commands, track, rightTrackId, clip, sourcePairs);
 				assertOwned(ownership);
@@ -354,7 +357,8 @@ export function createTrackTransformService(
 					...v21StripLaneRemovalCommands(project, partner.id),
 					{ type: 'track/remove', trackId: track.id },
 					{ type: 'track/remove', trackId: partner.id },
-					{ ...createAddTrackCommand(mergedTrack), index: insertIndex },
+					{ ...createAddTrackCommand(mergedTrack), index: insertIndex,
+						...trackReplacementPlacement(project, project.tracks[insertIndex]!.id) },
 					createAddClipCommand(track.id, {
 						id: clipId,
 						sourceId: stereo.source.id,
