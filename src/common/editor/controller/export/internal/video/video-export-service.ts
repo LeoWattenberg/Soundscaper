@@ -42,6 +42,7 @@ import {
 	stagedAudioChannelLayout,
 } from './video-export-staged-audio.ts';
 import { beginExportTask, handleExportFailure } from '../export-task-lifecycle.ts';
+import { publishBufferedExport } from '../buffered-export-publication.ts';
 
 export interface VideoExportServiceRuntime {
 	readonly state: EditorExportState;
@@ -411,14 +412,14 @@ export function createEditorVideoExportAction(
 			state.outputUrl = null;
 			state.outputCleanup = null;
 			state.exportOutput = null;
-			const published = await fileService.createDownload({
+			const published = await publishBufferedExport(fileService, {
 				target: requestedSettings.saveTarget,
 				purpose: 'video',
 				suggestedName: fileName,
 				mimeType: encoded.mimeType,
 				blob,
 				signal: abort.signal,
-			});
+			}, requestedSettings.saveToFile);
 			await assertVideoExportPublicationCurrent(published, assertVideoExportCurrent);
 			if (published.cancelled) return published;
 			const publishedCleanup = published.cleanup || null;

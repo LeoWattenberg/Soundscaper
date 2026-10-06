@@ -5,6 +5,7 @@ import { isVideoExportRequestFormat } from '../../../video-export-request-format
 import { inheritTrackFolderMediaStateProjectionV12 } from '../../../track-folder-media-runtime.ts';
 import { createExportRenderProject } from '../export-render-project.ts';
 import { createBw64RenderProject } from './bw64-render-project.ts';
+import { publishBufferedExport } from './buffered-export-publication.ts';
 import {
 	admitAudioRenderedFallbackExport,
 	audioRenderedFallbackRenderSources,
@@ -419,13 +420,12 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 			}
 			blob = admitAudioExportBlob(blob, 'Audio export', Math.max(1, blob?.size ?? 0));
 			await clearPreviousExportOutput();
-			const published = await fileService.createDownload({
+			const published = await publishBufferedExport(fileService, {
 				...audioExportPublicationProgress(progressTask, copy.save, abort.signal, { key: 'save' }),
-				purpose: 'audio',
-				suggestedName: fileName,
+				purpose: 'audio', suggestedName: fileName,
 				mimeType: blob.type || 'application/octet-stream',
 				blob, target: requestedSettings?.saveTarget,
-			});
+			}, requestedSettings?.saveToFile);
 			if (abort.signal.aborted || generation !== state.exportGeneration || state.disposed) {
 				await published.cleanup?.();
 				await outputCleanup?.();

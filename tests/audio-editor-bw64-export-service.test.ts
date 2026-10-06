@@ -40,6 +40,21 @@ test('offline and realtime BW64 exports forward ADM chunks and retain six channe
 	assert.deepEqual(realtime.errors, []);
 });
 
+
+test('a queued buffered BW64 export writes its artifact instead of only preparing a dialog link', async () => {
+	const fixture = harness('offline');
+	let savedName = '';
+	fixture.runtime.fileService.saveFile = async ({ suggestedName }: { suggestedName: string }) => {
+		savedName = suggestedName;
+		return { fileName: suggestedName, method: 'download' };
+	};
+	const output = await createEditorExportService(fixture.runtime).handleExportAction('start', { saveToFile: true });
+	assert.equal(savedName, 'adm.wav');
+	assert.equal(output.method, 'download');
+	assert.equal(output.url, null);
+	assert.deepEqual(fixture.errors, []);
+});
+
 function harness(strategy: 'offline' | 'realtime-stream') {
 	const channels = Array.from({ length: 6 }, (_, channel) => Float32Array.of(channel / 10, 0));
 	const audio = { sampleRate: 48_000, length: 2, numberOfChannels: 6, channels };

@@ -81,7 +81,9 @@ export function createDeliveryQueueService(runtime: DeliveryQueueServiceRuntime)
 	const runner = createDeliveryQueueRunner({
 		runJob: async (entry) => {
 			const settings = settingsByJob.get(entry.jobId);
-			const output = await runtime.handleExportAction('start', settings ?? {});
+			const output = await runtime.handleExportAction('start', {
+				...(settings && typeof settings === 'object' ? settings : {}), saveToFile: true,
+			});
 			const fileName = publishedDelivery(output);
 			// Recorded per member so the batch report can say which artifact each
 			// conversion belongs to. Both are small: a name and a sealed report.

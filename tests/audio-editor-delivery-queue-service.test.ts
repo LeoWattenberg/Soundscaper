@@ -39,7 +39,7 @@ test('a queued delivery runs through the ordinary export action', async () => {
 	const { service, calls } = harness();
 	service.enqueue({ label: 'Master', settings: { format: 'wav' } });
 	await service.settled();
-	assert.deepEqual(calls, [['start', { format: 'wav' }]], 'a batch member is one ordinary export');
+	assert.deepEqual(calls, [['start', { format: 'wav', saveToFile: true }]], 'a batch member is one ordinary export');
 	assert.equal(service.list().entries[0].state, 'completed');
 });
 
@@ -48,7 +48,7 @@ test('members run one at a time in order, each with its own settings', async () 
 	service.enqueue({ label: 'A', settings: { format: 'wav' } });
 	service.enqueue({ label: 'B', settings: { format: 'mp3' } });
 	await service.settled();
-	assert.deepEqual(calls.map(([, settings]) => settings), [{ format: 'wav' }, { format: 'mp3' }]);
+	assert.deepEqual(calls.map(([, settings]) => settings), [{ format: 'wav', saveToFile: true }, { format: 'mp3', saveToFile: true }]);
 	assert.deepEqual(service.list().entries.map(({ state }) => state), ['completed', 'completed']);
 });
 
@@ -291,7 +291,7 @@ test('a member report is captured per member rather than shared with the batch',
 	await service.settled();
 
 	const reports = service.batchReport('b').items.map(({ data }) => (data.report as { subject: unknown }).subject);
-	assert.deepEqual(reports, [{ format: 'wav' }, { format: 'mp3' }],
+	assert.deepEqual(reports, [{ format: 'wav', saveToFile: true }, { format: 'mp3', saveToFile: true }],
 		'each member carries the report of its own delivery');
 });
 
