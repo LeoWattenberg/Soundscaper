@@ -7,6 +7,7 @@ import { crc32, PCM_ENCODING_RAW_F32LE } from '../src/common/editor/wavpack/inde
 import { OpfsRepository } from '../src/common/editor/storage/opfs-repository.ts';
 import { OpfsSyncRepositoryBridge } from '../src/common/editor/storage/opfs-sync-repository-bridge.ts';
 import { PcmRepository } from '../src/common/editor/storage/pcm-repository.ts';
+import { boundedPositionalReadConcurrency } from '../src/common/editor/storage/opfs-pcm-read-view.ts';
 import {
 	syncBinaryWriter,
 	syncPcmWriter,
@@ -135,6 +136,14 @@ test('canonical positional view admission retains no asynchronous File snapshot'
 	const root = { async getDirectoryHandle() { return directory; } } as unknown as FileSystemDirectoryHandle;
 	const repository = new OpfsRepository({ preferOpfs: true, opfsRoot: root, syncWorkerClient: null });
 	assert.equal(await repository.openPcmContainerReadView({ path: 'not-a-container' }, async () => ({ index: 0, frames: 0, channels: [] })), null);
+});
+
+test('two positional read packets stay within encoded and decoded geometry admission', () => {
+	const entry = { index: 0, frames: 65_536, codec: 0, pcmCrc32: 0, length: 524_288 };
+	assert.equal(boundedPositionalReadConcurrency([entry], 2), 2);
+	assert.equal(boundedPositionalReadConcurrency([{ ...entry, length: 2 * 16 * 1024 ** 2 }], 64), 1,
+		'two expanded multichannel packets would exceed64MiB, so this source remains serial');
+	assert.equal(boundedPositionalReadConcurrency([], 1), 1);
 });
 
 test('OPFS worker read failure falls back to the durable async file', async () => {

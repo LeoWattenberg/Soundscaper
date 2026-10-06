@@ -19,6 +19,7 @@ function fixture() {
 				openings += 1;
 				afterOpen();
 				return {
+					maximumConcurrentReads: 2,
 					async chunk(index: number, signal?: AbortSignal) {
 						signal?.throwIfAborted();
 						reads.push(index);

@@ -75,6 +75,7 @@ export class OwnedSourcePcmReadSessionRepository {
 				throw error;
 			}
 			const session = createSourcePcmReadSession({
+				maximumConcurrentReads: generation.length === 1 ? view?.maximumConcurrentReads : 1,
 				readChunk: (chunkIndex, signal) => this.#readChunk(generation, chunkIndex, signal, view),
 				release: () => view?.release() ?? noOpRelease(),
 				onRelease: () => { this.#sessions.delete(session); },

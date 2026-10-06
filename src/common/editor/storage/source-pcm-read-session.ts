@@ -26,16 +26,21 @@ export function isSourcePcmReadSessionReleasedError(error: unknown): boolean {
 }
 
 export interface SourcePcmReadSessionFactoryOptions {
+	/** Two is reserved for independently bounded positional backend requests. */
+	readonly maximumConcurrentReads?: number;
 	readChunk(chunkIndex: number, signal?: AbortSignal): Promise<SourcePcmChunk>;
 	release(): Promise<void>;
 	onRelease(): void;
 }
 
-/** Serialize one exact source identity while keeping request cancellation local. */
+/** Read one exact source identity with bounded backend admission and local cancellation. */
 export function createSourcePcmReadSession(
 	options: SourcePcmReadSessionFactoryOptions,
 ): SourcePcmReadSession {
-	let queue = Promise.resolve();
+	const maximumConcurrentReads = options.maximumConcurrentReads ?? 1;
+	if (maximumConcurrentReads !== 1 && maximumConcurrentReads !== 2) throw new RangeError('PCM sessions admit one or two independent reads.');
+	const queues = Array.from({ length: maximumConcurrentReads }, () => Promise.resolve());
+	const queuedCounts = Array.from({ length: maximumConcurrentReads }, () => 0);
 	let closed = false;
 	let primaryFailure: unknown = NO_PRIMARY_FAILURE;
 	let releasePromise: Promise<void> | null = null;
@@ -45,7 +50,7 @@ export function createSourcePcmReadSession(
 	const release = (): Promise<void> => {
 		closed = true;
 		if (!lifetime.signal.aborted) lifetime.abort(closedError);
-		releasePromise ??= queue
+		releasePromise ??= Promise.all(queues)
 			.then(() => releaseSession(options.release, primaryFailure))
 			.then(options.onRelease);
 		return releasePromise;
@@ -58,7 +63,10 @@ export function createSourcePcmReadSession(
 			return Promise.reject(new RangeError('Source chunk index must be a non-negative integer.'));
 		}
 		if (closed) return Promise.reject(closedError);
-		const operation = queue.then(async () => {
+		let lane = 0;
+		for (let index = 1; index < queues.length; index += 1) if (queuedCounts[index]! < queuedCounts[lane]!) lane = index;
+		queuedCounts[lane]! += 1;
+		const operation = queues[lane]!.then(async () => {
 			if (closed) throw closedError;
 			const readSignals = combineSourceReadAbortSignals(lifetime.signal, signal);
 			try {
@@ -72,7 +80,7 @@ export function createSourcePcmReadSession(
 				}
 				// Backend AbortError may omit the maintenance-release reason; closed
 				// without a primary failure identifies an intentional session release.
-				if (closed && primaryFailure === NO_PRIMARY_FAILURE && isAbortError(error)) throw closedError;
+				if (closed && isAbortError(error)) throw primaryFailure === NO_PRIMARY_FAILURE ? closedError : primaryFailure;
 				if (!closed) {
 					closed = true;
 					primaryFailure = error;
@@ -83,7 +91,7 @@ export function createSourcePcmReadSession(
 				readSignals.dispose();
 			}
 		});
-		queue = operation.then(() => undefined, () => undefined);
+		queues[lane] = operation.then(() => { queuedCounts[lane]! -= 1; }, () => { queuedCounts[lane]! -= 1; });
 		return operation.catch(async (error: unknown) => {
 			if (isRequestCancellation(error, signal)) {
 				throw requestCancellationReason(error, signal);

@@ -32,6 +32,7 @@ interface PcmIndexEntry {
 	readonly frames: number;
 	readonly codec: number;
 	readonly pcmCrc32: number;
+	readonly length: number;
 }
 
 interface PcmContainerIndex {
