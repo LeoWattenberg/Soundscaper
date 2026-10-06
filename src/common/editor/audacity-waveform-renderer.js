@@ -106,6 +106,7 @@ export function drawAudacityWaveformChannel(context, rendering, options = {}) {
 		showRms: Boolean(options.showRms),
 		drawPeaks: options.drawPeaks !== false,
 		pixelRatioX: positiveFinite(options.pixelRatioX ?? 1, 'pixelRatioX'),
+		columnRanges: options.columnRanges,
 	});
 }
 
@@ -118,46 +119,48 @@ function drawSummaryColumns(context, channel, options) {
 	if (!sourceColumnCount) return;
 	const rmsValues = options.showRms ? channel.rms : null;
 	let fillColor;
-	for (let x = 0; x < columnCount; x += 1) {
-		const sourceStart = Math.min(
-			sourceColumnCount - 1,
-			Math.floor(x * sourceColumnCount / columnCount),
-		);
-		const sourceEnd = Math.min(
-			sourceColumnCount,
-			Math.max(sourceStart + 1, Math.ceil((x + 1) * sourceColumnCount / columnCount)),
-		);
-		let minimum = Number.POSITIVE_INFINITY;
-		let maximum = Number.NEGATIVE_INFINITY;
-		let rmsSquareSum = 0;
-		for (let sourceColumn = sourceStart; sourceColumn < sourceEnd; sourceColumn += 1) {
-			minimum = Math.min(minimum, finiteSample(channel.minimum[sourceColumn]));
-			maximum = Math.max(maximum, finiteSample(channel.maximum[sourceColumn]));
-			if (rmsValues) {
-				const sourceRms = finiteSample(rmsValues[sourceColumn]);
-				rmsSquareSum += sourceRms * sourceRms;
+	for (const range of options.columnRanges || [{ start: 0, end: columnCount }]) {
+		for (let x = Math.max(0, range.start); x < Math.min(columnCount, range.end); x += 1) {
+			const sourceStart = Math.min(
+				sourceColumnCount - 1,
+				Math.floor(x * sourceColumnCount / columnCount),
+			);
+			const sourceEnd = Math.min(
+				sourceColumnCount,
+				Math.max(sourceStart + 1, Math.ceil((x + 1) * sourceColumnCount / columnCount)),
+			);
+			let minimum = Number.POSITIVE_INFINITY;
+			let maximum = Number.NEGATIVE_INFINITY;
+			let rmsSquareSum = 0;
+			for (let sourceColumn = sourceStart; sourceColumn < sourceEnd; sourceColumn += 1) {
+				minimum = Math.min(minimum, finiteSample(channel.minimum[sourceColumn]));
+				maximum = Math.max(maximum, finiteSample(channel.maximum[sourceColumn]));
+				if (rmsValues) {
+					const sourceRms = finiteSample(rmsValues[sourceColumn]);
+					rmsSquareSum += sourceRms * sourceRms;
+				}
+			}
+			const gain = finiteGain(options.envelopeGain(x, columnCount));
+			minimum = scaleWaveformAmplitude(minimum * gain, options.amplitudeScale);
+			maximum = scaleWaveformAmplitude(maximum * gain, options.amplitudeScale);
+			if (minimum > maximum) [minimum, maximum] = [maximum, minimum];
+			if (options.halfWave) {
+				minimum = Math.max(0, minimum);
+				maximum = Math.max(0, maximum);
+			}
+			if (options.drawPeaks) fillColor = fillAmplitudeSpan(context, x, minimum, maximum,
+				options.centerY, options.maxAmplitude, options.sampleColor(x), options.pixelRatioX, fillColor);
+
+			if (!rmsValues) continue;
+			const rms = scaleWaveformAmplitude(Math.sqrt(rmsSquareSum / (sourceEnd - sourceStart)) * gain, options.amplitudeScale);
+			const rmsMinimum = options.halfWave ? minimum : Math.max(minimum, -rms);
+			const rmsMaximum = Math.min(maximum, rms);
+			if (rmsMinimum <= rmsMaximum) {
+				fillColor = fillAmplitudeSpan(context, x, rmsMinimum, rmsMaximum,
+					options.centerY, options.maxAmplitude, options.rmsColor(x), options.pixelRatioX, fillColor);
 			}
 		}
-		const gain = finiteGain(options.envelopeGain(x, columnCount));
-		minimum = scaleWaveformAmplitude(minimum * gain, options.amplitudeScale);
-		maximum = scaleWaveformAmplitude(maximum * gain, options.amplitudeScale);
-		if (minimum > maximum) [minimum, maximum] = [maximum, minimum];
-		if (options.halfWave) {
-			minimum = Math.max(0, minimum);
-			maximum = Math.max(0, maximum);
 		}
-		if (options.drawPeaks) fillColor = fillAmplitudeSpan(context, x, minimum, maximum,
-			options.centerY, options.maxAmplitude, options.sampleColor(x), options.pixelRatioX, fillColor);
-
-		if (!rmsValues) continue;
-		const rms = scaleWaveformAmplitude(Math.sqrt(rmsSquareSum / (sourceEnd - sourceStart)) * gain, options.amplitudeScale);
-		const rmsMinimum = options.halfWave ? minimum : Math.max(minimum, -rms);
-		const rmsMaximum = Math.min(maximum, rms);
-		if (rmsMinimum <= rmsMaximum) {
-			fillColor = fillAmplitudeSpan(context, x, rmsMinimum, rmsMaximum,
-				options.centerY, options.maxAmplitude, options.rmsColor(x), options.pixelRatioX, fillColor);
-		}
-	}
 }
 
 function drawIndividualSamples(context, channel, options) {
