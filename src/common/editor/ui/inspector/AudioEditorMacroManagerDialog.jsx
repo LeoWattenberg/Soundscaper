@@ -18,6 +18,7 @@ import { selectAudioEditorEditBlock } from '../edit-blocking.ts';
 import { takeSelectedFile } from '../file-input-selection.ts';
 import EffectParameterEditor from './EffectParameterEditor.jsx';
 import MacroCommandParameterEditor from './MacroCommandParameterEditor.tsx';
+import { macroStartsWithCommand } from './macro-run-target.ts';
 import MacroManagerLibraryList from './MacroManagerLibraryList.jsx';
 import MacroManagerStepList from './MacroManagerStepList.jsx';
 import MacroScriptPanel from './MacroScriptPanel.jsx';
@@ -117,6 +118,7 @@ export function AudioEditorMacroManagerDialog({
 	};
 	const blocked = selectAudioEditorEditBlock(snapshot).blocked;
 	const hasRunTarget = Boolean(snapshot.selection || snapshot.selectedClipId);
+	const canStartRun = hasRunTarget || macroStartsWithCommand(effects);
 	const templatesAvailable = productId === 'soundscaper';
 	const missingEmbeddedNoiseProfile = templatesAvailable
 		&& effectMacroMissingEmbeddedNoiseProfile(effects);
@@ -392,7 +394,7 @@ export function AudioEditorMacroManagerDialog({
 								{isRunning && (
 									<Button variant="secondary" onClick={() => controller.actions.macros.cancel()}>{managerCopy.cancelRun}</Button>
 								)}
-								<Button variant="primary" icon={<Icon name="play" size={14} />} disabled={blocked || isRunning || !hasRunTarget || !effects.length || missingEmbeddedNoiseProfile} onClick={runMacro}>{copy.runMacro}</Button>
+								<Button variant="primary" icon={<Icon name="play" size={14} />} disabled={blocked || isRunning || !canStartRun || !effects.length || missingEmbeddedNoiseProfile} onClick={runMacro}>{copy.runMacro}</Button>
 							</>
 						)}
 					/>
@@ -462,7 +464,7 @@ export function AudioEditorMacroManagerDialog({
 								onSelectEffect={setSelectedEffectId}
 							/>
 						</> : <p className="audio-editor-panel-hint" data-macro-unselected>{copy.macroNotSelected}</p>}
-						{!hasRunTarget && <p className="audio-editor-panel-hint">{copy.macroSelectionHint}</p>}
+						{!canStartRun && <p className="audio-editor-panel-hint">{copy.macroSelectionHint}</p>}
 						{missingEmbeddedNoiseProfile && <p className="audio-editor-panel-hint" data-macro-noise-profile-required>{templateCopy.profileRequired}</p>}
 						{message && <p className={`audio-editor-macros-palette__message audio-editor-macros-palette__message--${messageState}`} role={messageState === 'error' ? 'alert' : 'status'}>{message}</p>}
 					</section>
