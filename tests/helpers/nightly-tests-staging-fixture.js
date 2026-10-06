@@ -155,6 +155,7 @@ export async function createFixture(context) {
 		['tests/browser/audio-editor-soak-debug.spec.js', 'export const debugSoak = true;\n'],
 		['tests/browser/handbook/handbook.spec.js', 'export const handbook = true;\n'],
 		['tests/aup3-fixture.js', 'export const fixture = true;\n'],
+		['tests/helpers/png-fixture.mjs', await readFile(new URL('./png-fixture.mjs', import.meta.url), 'utf8')],
 		['tests/fixtures/aup4-native-rich.js', 'export const fixture = true;\n'],
 		['src/common/editor/example.ts', 'export const source = true;\n'],
 	]) await writeFixtureFile(repositoryRoot, path, body);

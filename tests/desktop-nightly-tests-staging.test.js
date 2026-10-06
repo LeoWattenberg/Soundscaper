@@ -180,6 +180,7 @@ test('nightly test staging creates a hermetic, manifest-bound Playwright payload
 		'tests/electron/local-assistance-models/example.spec.js',
 		'tests/browser/example.spec.js-snapshots/example-chromium-linux.png',
 		'tests/aup3-fixture.js',
+		'tests/helpers/png-fixture.mjs',
 		'tests/fixtures/aup4-native-rich.js',
 		'tests/fixtures/nyquist-archive/manifest.json.gz',
 		'tests/fixtures/nyquist-archive/10bandeq.ny.gz',
