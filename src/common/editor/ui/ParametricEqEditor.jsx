@@ -334,6 +334,7 @@ export function ParametricEqEditor({
 		}
 		if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
 		event.preventDefault();
+		setSelectedId(band.id);
 		const fine = event.shiftKey ? 0.1 : 1;
 		const changes = {};
 		if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
