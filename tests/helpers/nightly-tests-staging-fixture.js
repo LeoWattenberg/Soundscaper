@@ -118,6 +118,7 @@ export async function createFixture(context) {
 		['scripts/lib/browser-ffmpeg-coverage.mjs', 'export const ffmpegCoverage = true;\n'],
 		['scripts/lib/browser-service-worker-coverage.mjs', 'export const serviceWorkerCoverage = true;\n'],
 		['scripts/lib/browser-target-coverage-state.mjs', 'export const targetCoverageState = true;\n'],
+		['scripts/lib/browser-target-source-coverage.mjs', 'export const targetSourceCoverage = true;\n'],
 		['scripts/lib/browser-target-coverage.mjs', 'export const targetCoverage = true;\n'],
 		['scripts/lib/e2e-coverage-integrity.mjs', 'export const coverageIntegrity = true;\n'],
 		['scripts/lib/canonical-json.mjs', 'export const canonicalJson = true;\n'],

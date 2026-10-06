@@ -99,10 +99,11 @@ export function excludeCdpJavaScriptCoverage(state, scriptId) {
 }
 
 /** Record a parsed URL and authenticate it when CDP types it as WebAssembly. */
-export function observeCdpScript({ event, session, state }) {
+export function observeCdpScript({ event, isActive = () => true, session, state }) {
 	return captureCdpWebAssemblyScript({
 		authenticateWebAssembly: state.authenticateWebAssembly,
 		event,
+		isActive,
 		scriptIdentities: state.scriptIdentities,
 		scriptUrls: state.scriptUrls,
 		session,
@@ -148,6 +149,7 @@ export function appendCdpJavaScriptCoverage(target, result, state) {
  *   scriptUrls: Map<string, string>,
  *   session: { send(method: string, parameters: object): Promise<unknown> },
  *   authenticateWebAssembly?: (input: { bytes: Buffer, url: string }) => Promise<boolean> | boolean,
+ *   isActive?: () => boolean,
  *   webAssemblyScriptUrls: Map<string, string>,
  * }} options
  * @returns {Promise<void> | null}
@@ -155,6 +157,7 @@ export function appendCdpJavaScriptCoverage(target, result, state) {
 export function captureCdpWebAssemblyScript({
 	authenticateWebAssembly,
 	event,
+	isActive = () => true,
 	scriptIdentities,
 	scriptUrls,
 	session,
@@ -197,7 +200,12 @@ export function captureCdpWebAssemblyScript({
 		// Register synchronously before the first await: a navigation checkpoint
 		// can take coverage while the source reply is still in flight.
 		webAssemblyScriptUrls.set(scriptId, url);
-		const source = await session.send('Debugger.getScriptSource', { scriptId });
+		let source;
+		try { source = await session.send('Debugger.getScriptSource', { scriptId }); }
+		catch (error) {
+			if (isActive()) throw error;
+			return;
+		}
 		const bytes = authenticatedWebAssemblyBytes(source);
 		if (bytes === null) {
 			throw new Error(`CDP supplied no authenticated non-JavaScript WebAssembly bytes for ${url}.`);

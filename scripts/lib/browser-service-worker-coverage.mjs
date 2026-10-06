@@ -6,12 +6,9 @@ import {
 	appendCdpJavaScriptCoverage,
 	attachCdpExecutionContextLifecycle,
 	createCdpJavaScriptCoverageState,
-	excludeCdpJavaScriptCoverage,
-	isBrowserInternalCdpScript,
-	observeCdpScript,
-	readCdpScriptSourceUntilTeardown,
 } from './cdp-javascript-coverage.mjs';
 import { countTargetTypes, createBrowserTargetSessionOwnership } from './browser-target-coverage-state.mjs';
+import { attachBrowserTargetScriptCoverage } from './browser-target-source-coverage.mjs';
 
 const DEFAULT_TARGET_TYPES = Object.freeze(['service_worker']);
 const ACTIVE_PLAYWRIGHT_ROOTS = new WeakSet();
@@ -101,6 +98,7 @@ export function createBrowserServiceWorkerCoverageCollector({
 			return;
 		}
 		const recorder = {
+			acceptsScripts: true,
 			active: true,
 			cdpState: createCdpJavaScriptCoverageState({ authenticateWebAssembly }),
 			coverageHookScriptIds: new Set(),
@@ -118,30 +116,9 @@ export function createBrowserServiceWorkerCoverageCollector({
 			session,
 			state: recorder.cdpState,
 		});
-		session.on('Debugger.scriptParsed', (event) => {
-			const { scriptId, url } = event;
-			const webAssembly = observeCdpScript({ event, session, state: recorder.cdpState });
-			if (webAssembly !== null) {
-				pending.push(webAssembly.catch((error) => { failures.push(error); }));
-				return;
-			}
-			if (isBrowserInternalCdpScript(event)) {
-				excludeCdpJavaScriptCoverage(recorder.cdpState, scriptId);
-				return;
-			}
-			if (url === WORKLET_COVERAGE_CHECKPOINT_URL) recorder.coverageHookScriptIds.add(String(scriptId));
-			if (typeof url !== 'string' || !captureSource(url)) return;
-			const work = readCdpScriptSourceUntilTeardown({
-				isActive: () => recorder.active, scriptId, session,
-			}).then((response) => {
-				if (response === null) return;
-				const { scriptSource } = response;
-				if (typeof scriptSource !== 'string') throw new Error(`Browser target supplied no source bytes for ${url}.`);
-				const previous = recorder.sources.get(url);
-				if (previous !== undefined && previous !== scriptSource) throw new Error(`Browser target supplied conflicting source bytes for ${url}.`);
-				recorder.sources.set(url, scriptSource);
-			}).catch((error) => { failures.push(error); });
-			pending.push(work);
+		attachBrowserTargetScriptCoverage({
+			captureSource, failures, pending, recorder,
+			workletCoverageCheckpointUrl: WORKLET_COVERAGE_CHECKPOINT_URL,
 		});
 		session.on('Profiler.preciseCoverageDeltaUpdate', ({ result }) => {
 			try { appendCdpJavaScriptCoverage(recorder.taken, result, recorder.cdpState); }
@@ -275,6 +252,8 @@ export function createBrowserServiceWorkerCoverageCollector({
 			if (releaseWorklets) {
 				for (const recorder of recorders.values()) {
 					if (!recorder.active || recorder.type !== 'worklet') continue;
+					recorder.acceptsScripts = false;
+					await settle();
 					await recorder.session.detach?.();
 					recorder.active = false;
 				}
@@ -294,10 +273,14 @@ export function createBrowserServiceWorkerCoverageCollector({
 					try {
 						await recorder.session.send('Profiler.stopPreciseCoverage');
 						await recorder.session.send('Profiler.disable');
-						await recorder.session.send('Debugger.disable');
 					} catch (error) {
 						if (recorder.active) throw error;
 					}
+					recorder.acceptsScripts = false;
+					await settle();
+					if (!recorder.active) continue;
+					try { await recorder.session.send('Debugger.disable'); }
+					catch (error) { if (recorder.active) throw error; }
 				}
 				await settle();
 			} catch (error) {

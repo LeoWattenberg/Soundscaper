@@ -227,9 +227,7 @@ test('final worker checkpoint awaits late WebAssembly authentication failure', a
 	const child = new FakeTargetSession();
 	let rejectAuthentication!: (error: Error) => void;
 	let authenticationStarted!: () => void;
-	let debuggerDisabled!: () => void;
 	const started = new Promise<void>((resolvePromise) => { authenticationStarted = resolvePromise; });
-	const disabled = new Promise<void>((resolvePromise) => { debuggerDisabled = resolvePromise; });
 	const authentication = new Promise<boolean>((_resolvePromise, reject) => {
 		rejectAuthentication = reject;
 	});
@@ -254,10 +252,10 @@ test('final worker checkpoint awaits late WebAssembly authentication failure', a
 		scriptLanguage: 'WebAssembly',
 		url: 'http://127.0.0.1:4322/assets/late.wasm',
 	});
-	child.onDebuggerDisabled = debuggerDisabled;
 
 	const collection = collector.collect();
-	await Promise.all([started, disabled]);
+	await started;
+	assert.equal(child.calls.some(([method]) => method === 'Debugger.disable'), false);
 	rejectAuthentication(new Error('late WebAssembly authentication failed'));
 	await assert.rejects(collection, /late WebAssembly authentication failed/u);
 });

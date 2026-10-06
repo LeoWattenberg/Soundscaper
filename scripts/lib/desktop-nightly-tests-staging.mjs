@@ -118,6 +118,7 @@ export const NIGHTLY_TEST_PAYLOAD_INPUTS = Object.freeze([
 	{ source: 'scripts/lib/browser-ffmpeg-coverage.mjs', destination: 'scripts/lib/browser-ffmpeg-coverage.mjs', kind: 'file', label: 'browser FFmpeg coverage admission' },
 	{ source: 'scripts/lib/browser-service-worker-coverage.mjs', destination: 'scripts/lib/browser-service-worker-coverage.mjs', kind: 'file', label: 'browser service-worker coverage recorder' },
 	{ source: 'scripts/lib/browser-target-coverage-state.mjs', destination: 'scripts/lib/browser-target-coverage-state.mjs', kind: 'file', label: 'browser target coverage state' },
+	{ source: 'scripts/lib/browser-target-source-coverage.mjs', destination: 'scripts/lib/browser-target-source-coverage.mjs', kind: 'file', label: 'browser target source coverage' },
 	{ source: 'scripts/lib/browser-target-coverage.mjs', destination: 'scripts/lib/browser-target-coverage.mjs', kind: 'file', label: 'browser worker coverage recorder' },
 	{ source: 'scripts/lib/e2e-coverage-integrity.mjs', destination: 'scripts/lib/e2e-coverage-integrity.mjs', kind: 'file', label: 'E2E coverage source integrity' },
 	{ source: 'scripts/lib/canonical-json.mjs', destination: 'scripts/lib/canonical-json.mjs', kind: 'file', label: 'Canonical evidence JSON' },
