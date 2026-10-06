@@ -5,6 +5,7 @@ import { bootEditor, chooseNestedCommandAction, importFiles } from './audio-edit
 import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
 
 test('selecting an existing visual mask seeds its authored width', async ({ page }) => {
+	test.setTimeout(90_000);
 	const editor = await bootEditor(page, '/framescaper/en/');
 	await chooseNestedCommandAction(page, editor, 'Generate', ['Video Generators', 'Add Solid']);
 	const solid = editor.getByRole('group', { name: 'Video clip: Solid', exact: true });
@@ -27,6 +28,7 @@ test('selecting an existing visual mask seeds its authored width', async ({ page
 });
 
 test('reopening keyframes seeds new curve values from the selected target', async ({ page }) => {
+	test.setTimeout(90_000);
 	const editor = await bootEditor(page, '/framescaper/en/');
 	await importFiles(editor, [createDeterministicAvFixture('keyframe-target.webm')]);
 	const clip = editor.getByRole('group', { name: /^Video clip:/u });

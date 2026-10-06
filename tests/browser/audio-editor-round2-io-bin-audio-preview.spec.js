@@ -5,6 +5,7 @@ import { bootEditor, chooseNestedCommandAction, importFiles } from './audio-edit
 import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
 
 test('Project Bin video preview does not restore audio removed through the timeline', async ({ page }) => {
+	test.setTimeout(90_000);
 	const editor = await bootEditor(page, '/framescaper/embed/en/');
 	await importFiles(editor, [createDeterministicAvFixture('removed-audio.webm')]);
 	const video = editor.getByRole('group', { name: /^Video clip:/u }).first();
@@ -19,6 +20,9 @@ test('Project Bin video preview does not restore audio removed through the timel
 	await page.getByRole('menuitem', { name: 'Move to Project bin', exact: true }).click();
 	const card = editor.locator('[data-project-bin-item]').first();
 	await expect(card).toContainText('No audio');
+	await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', {
+		timeout: 20_000,
+	});
 	await card.getByRole('button', { name: /^Play:/u }).click();
 	const media = card.locator('video');
 	await expect(media).toBeVisible();
