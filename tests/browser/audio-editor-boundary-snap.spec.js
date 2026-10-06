@@ -63,7 +63,7 @@ async function beginNearBoundaryClipDrag(page, anchor, moving, targetAnchorTrack
 }
 
 async function expectYellowGuide(editor) {
-	const guide = editor.locator('[data-smart-snap-guide]');
+	const guide = editor.locator(`[data-smart-snap-guide][data-smart-snap-frame="${ANCHOR_START_FRAME}"]`);
 	await expect(guide).toBeVisible();
 	await expect(guide).toHaveAttribute('data-smart-snap-frame', String(ANCHOR_START_FRAME));
 	await expect(guide).toHaveCSS('background-color', 'rgb(245, 211, 79)');
@@ -203,7 +203,7 @@ test.describe('Audacity 3 boundary snapping', () => {
 		await page.mouse.move(clipEndX + NEAR_BOUNDARY_PIXELS, y);
 		await page.mouse.down();
 		await page.mouse.move(clipEndX + 70, y, { steps: 6 });
-		await expect(editor.locator('[data-smart-snap-guide]')).toHaveAttribute('data-smart-snap-frame', '38400');
+		await expect(editor.locator('[data-smart-snap-guide][data-smart-snap-frame="38400"]')).toHaveAttribute('data-smart-snap-frame', '38400');
 		await page.mouse.up();
 		await expect.poll(async () => {
 			const box = await editor.locator('[data-time-selection-overlay]').first().boundingBox();
@@ -222,5 +222,28 @@ test.describe('Audacity 3 boundary snapping', () => {
 		await expectYellowGuide(editor);
 		await page.mouse.move(anchorBox.x - 30, y);
 		await expect(editor.locator('[data-smart-snap-guide]')).toHaveCount(0);
+	});
+
+	test('selection start and end align independently to separate clip boundaries', async ({ page }) => {
+		const { editor, anchor, moving } = await setupBoundaryClips(page);
+		const anchorBox = await anchor.boundingBox();
+		const movingBox = await moving.boundingBox();
+		const laneBox = await editor.locator('.audio-editor-track-lane[data-track-lane]').first().boundingBox();
+		expect(anchorBox).not.toBeNull();
+		expect(movingBox).not.toBeNull();
+		expect(laneBox).not.toBeNull();
+		const y = laneBox.y + laneBox.height / 2;
+		const clipEndX = movingBox.x + movingBox.width;
+		await page.mouse.move(clipEndX + NEAR_BOUNDARY_PIXELS, y);
+		await page.mouse.down();
+		await page.mouse.move(anchorBox.x - NEAR_BOUNDARY_PIXELS, y, { steps: 6 });
+		await expectYellowGuide(editor);
+		await expect(editor.locator('[data-smart-snap-guide][data-smart-snap-frame="38400"]')).toBeVisible();
+		await expect(editor.locator('[data-smart-snap-guide]')).toHaveCount(2);
+		await page.mouse.up();
+		await expect.poll(async () => {
+			const box = await editor.locator('[data-time-selection-overlay]').first().boundingBox();
+			return box ? Math.max(Math.abs(box.x - clipEndX), Math.abs(box.x + box.width - anchorBox.x)) : Infinity;
+		}).toBeLessThan(1);
 	});
 });
