@@ -109,10 +109,8 @@ function applyCommandTree(
 		for (const child of command.commands) {
 			result = applyCommandTree(result, child, options, transaction, false);
 		}
-		return finalizeIntermediate(
-			result as unknown as Record<string, unknown>,
-			validateResult,
-		);
+		if (result === project) return project;
+		return finalizeIntermediate(result as unknown as Record<string, unknown>, validateResult);
 	}
 	if (command.type === 'automation-lane/set' || command.type === 'mixer-graph/set'
 		|| command.type === 'audio-freeze/install' || command.type === 'audio-freeze/remove'

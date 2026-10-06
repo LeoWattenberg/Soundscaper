@@ -39,3 +39,12 @@ test('failed inherited commands leave the original nested authority unchanged', 
 		{ type: 'selection/set', startFrame: 0, endFrame: 10, trackIds: ['missing'] }));
 	assert.deepEqual(project, prior);
 });
+
+test('empty nested batches preserve the untouched input even when it is frozen', () => {
+	const project = Object.freeze(createSoundscaperProject());
+	const features = project.featureRequirements;
+	const result = applySoundscaperProjectFoundationCommand(project,
+		{ type: 'batch', commands: [{ type: 'batch', commands: [] }] });
+	assert.equal(result, project);
+	assert.equal(project.featureRequirements, features);
+});
