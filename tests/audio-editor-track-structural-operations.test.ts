@@ -198,11 +198,16 @@ test('controller service commits one transform or batch for every structural act
 	assert.equal(alignment?.type, 'clip/transform-many');
 	if (alignment?.type !== 'clip/transform-many') assert.fail('Expected one conformed transform command.');
 	assert.deepEqual(alignment.transforms.map(({ changes }) => changes.timelineStartFrame), [200, 220, 200, 200, 200]);
-	const mute = commits[9];
-	assert.equal(mute?.type, 'batch');
-	if (mute?.type !== 'batch') assert.fail('Expected one atomic mute batch.');
-	assert.equal(mute.commands.length, 5);
-	assert.ok(mute.commands.every((command) => command.type === 'track/update' && command.changes.mute === true));
+	for (const [index, muted] of [[9, true], [10, false]] as const) {
+		const command = commits[index];
+		if (command?.type !== 'batch') assert.fail('Expected one atomic mute or unmute batch.');
+		assert.deepEqual(command.commands, [
+			...['dialogue', 'fx', 'video', 'audio', 'music'].map(trackId => ({
+				type: 'track/update', trackId, changes: { mute: muted },
+			})),
+			{ type: 'track-folder/update', folderId: 'folder', changes: { mute: muted } },
+		]);
+	}
 });
 
 test('alignment to selection end resolves selected clip bounds instead of its collapsed time cursor', () => {
