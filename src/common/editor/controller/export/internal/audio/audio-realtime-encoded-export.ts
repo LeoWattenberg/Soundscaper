@@ -25,6 +25,7 @@ import {
 } from '../direct/direct-compressed-export.ts';
 import type { ExportRenderSources } from './audio-export-render-orchestration.ts';
 import type { AudioEncodingProgressRange } from './audio-export-progress.ts';
+import { tryRenderRealtimeDesktopPcmExport } from './realtime-desktop-pcm-export.ts';
 import { confirmFileSizeWarning } from '../../../shared/file-size-warning.ts';
 
 export interface RealtimeEncodedExportRuntime {
@@ -60,6 +61,11 @@ export function createRealtimeEncodedAudioExport(runtime: RealtimeEncodedExportR
 	const nativeAiff = plan.format === 'aiff';
 	const nativeWav = plan.format === 'wav' || plan.format === 'bwf' || plan.format === 'bw64';
 	const nativePcm = nativeWav || nativeAiff;
+	if (!nativePcm && !directDestination) {
+		const directNative = await tryRenderRealtimeDesktopPcmExport(runtime, snapshot, plan, settings, signal,
+			renderSources, renderTarget, directCompressedDestination, assertDirectCurrent, encodingProgressRange);
+		if (directNative) return directNative;
+	}
 	const containerLabel = directPcmContainerLabel(plan.format);
 	const broadcast = plan.format === 'bwf' || plan.format === 'bw64';
 	const sink = directDestination

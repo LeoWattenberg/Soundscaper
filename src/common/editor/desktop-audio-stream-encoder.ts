@@ -7,6 +7,7 @@ import { inspectWavBlobPcm, streamWavBlobPcm } from './wav-import.js';
 import type { WavPcmDescriptor } from './wav-pcm-chunk-reader.ts';
 import { applyMediaChannelMapping } from './media-export.js';
 import { writeInterleavedFloat32Pcm } from './interleaved-float32-pcm.ts';
+import { writeDesktopPcmStream, type DesktopPcmStreamProducer } from './desktop-audio-pcm-stream.ts';
 import { confirmFileSizeWarning, type FileSizeWarningOptions } from './controller/shared/file-size-warning.ts';
 import { LARGE_AUDIO_FILE_BYTES } from './large-audio-policy.ts';
 import { assertFfmpegOutputReady, abortFfmpegOutputSink, streamFfmpegOutputFile,
@@ -21,11 +22,14 @@ export interface DesktopAudioStreamFileResult {
 	readonly blob: Blob; readonly bytes: null; readonly extension: string; readonly mimeType: string;
 	cleanup(): Promise<void>;
 }
-export interface DesktopAudioStreamEncoderRequest {
-	readonly file: Blob; readonly plan: DesktopAudioStreamPlan; readonly channelMapping: unknown;
+interface DesktopAudioStreamEncoderRequestBase {
+	readonly plan: DesktopAudioStreamPlan; readonly channelMapping: unknown;
 	readonly extension: string; readonly mimeType: string;
 	readonly settings: DesktopAudioStreamEncoderSettings;
 }
+export type DesktopAudioStreamEncoderRequest = DesktopAudioStreamEncoderRequestBase & (
+	Readonly<{ file: Blob }> | Readonly<{ producePcm: DesktopPcmStreamProducer }>
+);
 export type DesktopAudioStreamCommandBridge = (command: DesktopAudioStreamCommand) => Promise<unknown> | unknown;
 
 /** Preserve runtime disposal and task cancellation throughout native stream work. */
@@ -61,21 +65,28 @@ export async function encodeDesktopAudioStreamFile(request: DesktopAudioStreamEn
 	request.settings.signal?.addEventListener('abort', abort, { once: true });
 	try {
 		assertFfmpegOutputReady(request.settings);
-		const descriptor = await inspectWavBlobPcm(request.file, { signal: request.settings.signal }) as WavPcmDescriptor;
 		let offset = 0;
-		await streamWavBlobPcm(request.file, { descriptor, signal: request.settings.signal,
-			chunkFrames: DESKTOP_AUDIO_STREAM_MAXIMUM_PACKET_FRAMES,
-			async onChunk(packet: readonly Float32Array[]) {
-				assertFfmpegOutputReady(request.settings);
-				const channels = applyMediaChannelMapping(packet, request.channelMapping as string) as readonly Float32Array[];
-				if (channels.length !== request.plan.tuple.channelCount) throw new Error('Desktop audio streaming channel mapping drifted.');
-				const frames = channels[0]?.length ?? 0; const bytes = new Uint8Array(frames * channels.length * 4);
-				writeInterleavedFloat32Pcm(bytes, channels, { frameCount: frames, nonFinite: 'preserve' });
-				const acknowledgement = audioStreamRecord(await bridge(normalizeDesktopAudioStreamCommand({ type: 'write', operationId, offset, bytes })), ['offset']);
-				if (acknowledgement.offset !== offset + bytes.byteLength) throw new Error('Desktop audio stream acknowledgement drifted.');
-				offset += bytes.byteLength; assertFfmpegOutputReady(request.settings);
-			},
-		});
+		const write = async (bytes: Uint8Array): Promise<void> => {
+			assertFfmpegOutputReady(request.settings);
+			const acknowledgement = audioStreamRecord(await bridge(normalizeDesktopAudioStreamCommand({ type: 'write', operationId, offset, bytes })), ['offset']);
+			if (acknowledgement.offset !== offset + bytes.byteLength) throw new Error('Desktop audio stream acknowledgement drifted.');
+			offset += bytes.byteLength; assertFfmpegOutputReady(request.settings);
+		};
+		if ('producePcm' in request) await writeDesktopPcmStream(request.producePcm, request.plan, request.settings, write);
+		else {
+			const descriptor = await inspectWavBlobPcm(request.file, { signal: request.settings.signal }) as WavPcmDescriptor;
+			await streamWavBlobPcm(request.file, { descriptor, signal: request.settings.signal,
+				chunkFrames: DESKTOP_AUDIO_STREAM_MAXIMUM_PACKET_FRAMES,
+				async onChunk(packet: readonly Float32Array[]) {
+					assertFfmpegOutputReady(request.settings);
+					const channels = applyMediaChannelMapping(packet, request.channelMapping as string) as readonly Float32Array[];
+					if (channels.length !== request.plan.tuple.channelCount) throw new Error('Desktop audio streaming channel mapping drifted.');
+					const frames = channels[0]?.length ?? 0; const bytes = new Uint8Array(frames * channels.length * 4);
+					writeInterleavedFloat32Pcm(bytes, channels, { frameCount: frames, nonFinite: 'preserve' });
+					await write(bytes);
+				},
+			});
+		}
 		const result = audioStreamRecord(await executeWithProgress(operationId, request, bridge), ['byteLength']);
 		assertFfmpegOutputReady(request.settings);
 		const byteLength = audioStreamInteger(result.byteLength, 1, request.plan.maximumOutputBytes, 'output length');

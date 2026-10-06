@@ -23,6 +23,7 @@ import {
 	FFMPEG_OUTPUT_STREAM_MAXIMUM_CHUNK_BYTES, abortFfmpegOutputSink,
 	assertFfmpegOutputReady, streamFfmpegOutputFile, type FfmpegOutputSink,
 } from './ffmpeg-output-stream.ts';
+import type { DesktopPcmStreamGeometry, PreparedDesktopPcmStream } from './desktop-audio-pcm-stream.ts';
 import type { DesktopAudioStreamCommandBridge } from './desktop-audio-stream-encoder.ts';
 import { DESKTOP_MAIN_AUDIO_CODEC_RUNTIME_MARKER } from './desktop-main-audio-codec-runtime-marker.ts';
 import type { FileSizeWarningOptions } from './controller/shared/file-size-warning.ts';
@@ -69,6 +70,7 @@ export interface DesktopAudioCodecRuntime {
 	encodeFileToSink<Output>(
 		file: Blob, format: string, sink: FfmpegOutputSink<Output>, settings?: DesktopAudioCodecRuntimeSettings,
 	): Promise<DesktopAudioCodecStreamResult<Output>>;
+	preparePcmStream(geometry: DesktopPcmStreamGeometry, format: string, settings?: DesktopAudioCodecRuntimeSettings): Promise<PreparedDesktopPcmStream | null>;
 	decode(file: Blob | ArrayBuffer | ArrayBufferView,
 		settings?: DesktopAudioCodecRuntimeSettings): Promise<DesktopAudioCodecDecodedResult>;
 	encodeVideo(...arguments_: unknown[]): Promise<never>;
@@ -189,6 +191,18 @@ export function createDesktopAudioCodecRuntime(bridgeValue: DesktopAudioCodecRen
 				const primary = settings.signal?.aborted ? abortReason(settings.signal) : error;
 				throw await abortFfmpegOutputSink(sink, primary);
 			}
+		},
+		async preparePcmStream(geometry: DesktopPcmStreamGeometry, formatValue: string,
+			settingsValue: DesktopAudioCodecRuntimeSettings = {}): Promise<PreparedDesktopPcmStream | null> {
+			assertActive();
+			const settings = withWarningDefault(settingsRecord(settingsValue, ENCODE_SETTING_FIELDS, 'encode'));
+			assertFfmpegOutputReady(settings);
+			if (!bridge.stream) return null;
+			const { prepareDesktopPcmStream } = await import('./desktop-audio-pcm-stream.ts');
+			return await prepareDesktopPcmStream(geometry, desktopFormat(formatValue), settings, {
+				bridge: bridge.stream, queryCapability: bridge.capabilities, active, assertActive,
+				mintRequestId: () => mintRequestId(active),
+			});
 		},
 		async decode(file: Blob | ArrayBuffer | ArrayBufferView,
 			settingsValue: DesktopAudioCodecRuntimeSettings = {}): Promise<DesktopAudioCodecDecodedResult> {

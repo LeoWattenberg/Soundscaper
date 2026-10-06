@@ -184,6 +184,19 @@ export async function encodeDirectCompressedStagedFile(
 	return result!;
 }
 
+/** Preserve the canonical prepared target when a native encoder accepts final PCM directly. */
+export async function encodeDirectCompressedPcmStream(options: Readonly<{
+	destination: DirectCompressedDestination; plan: DirectCompressedPlan; signal: AbortSignal;
+	assertCurrent: () => void;
+	encodeToSink(sink: FfmpegOutputSink<DirectCompressedDestination>, assertCurrent: () => void): PromiseLike<DirectCompressedFfmpegResult>;
+}>): Promise<DirectCompressedEncodedOutput> {
+	try {
+		assertActive(options);
+		const encoded = await options.encodeToSink(options.destination, () => { assertActive(options); });
+		return validateEncodedResult(encoded, options.destination, assertActive(options));
+	} catch (error) { throw await abortWithPrimary(options.destination, error); }
+}
+
 /** Publish only a sealed target whose statted, emitted, prepared, and committed sizes agree. */
 export async function commitDirectCompressedDestination(
 	destination: DirectCompressedDestination,
@@ -362,7 +375,7 @@ function assertSamePlan(contract: DirectCompressedContract, plan: DirectCompress
 	}
 }
 
-function assertActive(options: DirectCompressedEncodeOptions): DirectCompressedContract {
+function assertActive(options: Pick<DirectCompressedEncodeOptions, 'destination' | 'plan' | 'signal' | 'assertCurrent'>): DirectCompressedContract {
 	if (options.signal.aborted) throw options.signal.reason ?? abortError();
 	options.assertCurrent();
 	return assertPreparedPlan(options.destination, options.plan);
