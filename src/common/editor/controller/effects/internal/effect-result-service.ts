@@ -10,6 +10,7 @@ import type { EffectSelectionFrequencyRange, EffectTarget } from '../effect-sele
 import type { AudioBufferLike } from '../../source/source-audio.ts';
 import { loadSourceProvenanceDerivation } from '../../../source-provenance-derivation-loader.ts';
 import type { SourceProvenanceV1 } from '../../../source-provenance.ts';
+import { prepareExactClipEffectResultCommands } from './effect-result-clip-commands.ts';
 
 type RangeReplacementCommand = Extract<AudioEditorCommand, { readonly type: 'range/replace' }>;
 type SelectionCommand = Extract<AudioEditorCommand, { readonly type: 'selection/set' }>;
@@ -26,6 +27,8 @@ export interface EffectResultProject {
 		readonly sourceId?: unknown;
 		readonly timelineStartFrame?: unknown;
 		readonly durationFrames?: unknown;
+		readonly groupId?: string | null;
+		readonly avLinkId?: string | null;
 	}>[];
 	readonly tracks?: readonly Readonly<{
 		readonly id?: unknown;
@@ -265,7 +268,7 @@ export function createSelectionEffectResultService<Buffer extends AudioBufferLik
 			const firstChannelLength = rawChannels?.[0] == null
 				? undefined
 				: (rawChannels[0] as Readonly<{ length?: unknown }>).length;
-			if (!targetValue || !rawChannels?.length || rawChannels.length > 2 || !firstChannelLength) {
+			if (!targetValue || !rawChannels?.length || rawChannels.length > 2 || firstChannelLength == null) {
 				throw createLocalizedError(Error, copy, 'effectInvalidAudio');
 			}
 			if (!rawChannels.every((channel): channel is Float32Array => (
@@ -280,7 +283,8 @@ export function createSelectionEffectResultService<Buffer extends AudioBufferLik
 			const frameCount = channels[0]!.length;
 			assertAudacityEffectOutput(channels);
 			if (channels.length !== target.channelCount) throw createLocalizedError(Error, copy, 'effectChannelLayoutChanged');
-			if (target.hasAudio === false) {
+			if (frameCount === 0 && target.sourceId) throw createLocalizedError(Error, copy, 'decodedAudioEmpty');
+			if (target.hasAudio === false || frameCount === 0) {
 				entries.push({
 					target,
 					channels,
@@ -289,7 +293,7 @@ export function createSelectionEffectResultService<Buffer extends AudioBufferLik
 					sourceId: null,
 					sourceName: null,
 					replacement: null,
-					command: prepareSilentAudacityRippleCommand(target, frameCount),
+					command: target.clipId ? null : prepareSilentAudacityRippleCommand(target, frameCount),
 				});
 				continue;
 			}
@@ -338,6 +342,11 @@ export function createSelectionEffectResultService<Buffer extends AudioBufferLik
 		const firstEntry = entries[0]!;
 		const exactClipEntries = getExactClipEntries(entries);
 		const exactClipReplacement = exactClipEntries !== null;
+		const exactClipCommands = exactClipEntries ? prepareExactClipEffectResultCommands({
+			clips: (getProject().clips ?? []).flatMap(clip => typeof clip.id === 'string'
+				? [{ id: clip.id, groupId: clip.groupId, avLinkId: clip.avLinkId }] : []), tracks: [],
+		}, exactClipEntries, entry => isPersistedEntry(entry)
+			? entry.replacement?.source || entry.source : effectCommandSource(entry, sampleRate)) : null;
 		if (!exactClipReplacement && (entries.some((entry) => entry.target.startFrame !== firstEntry.target.startFrame)
 			|| (!options.allowIndependentLengths && entries.some((entry) => entry.frameCount !== firstEntry.frameCount)))) {
 			throw createLocalizedError(Error, { effectTrackLengthsMismatch: copy.effectTrackLengthsMismatch || 'Selected tracks produced different effect lengths and cannot be rippled together.' }, 'effectTrackLengthsMismatch');
@@ -381,24 +390,14 @@ export function createSelectionEffectResultService<Buffer extends AudioBufferLik
 				assertOperationCurrent();
 			}
 			assertOperationCurrent();
-			const replacementCommands: AudioEditorCommand[] = exactClipEntries
-				? [{
-					type: 'clip/render-replace-many',
-					entries: exactClipEntries.map((entry) => ({
-						clipId: entry.target.clipId,
-						source: isPersistedEntry(entry)
-							? entry.replacement?.source || entry.source
-							: effectCommandSource(entry, sampleRate),
-					})),
-				}]
-				: entries.map((entry) => entry.command).filter(isCommand);
+			const replacementCommands = exactClipCommands ?? entries.map((entry) => entry.command).filter(isCommand);
 			const selectionCommand: SelectionCommand = exactClipEntries
 				? {
 					type: 'selection/set',
 					startFrame: 0,
 					endFrame: 0,
 					trackIds: [...new Set(exactClipEntries.map((entry) => entry.target.track.id))],
-					clipIds: exactClipEntries.map((entry) => entry.target.clipId),
+					clipIds: exactClipEntries.filter(entry => entry.frameCount > 0).map(entry => entry.target.clipId),
 					frequencyRange: null,
 				}
 				: {

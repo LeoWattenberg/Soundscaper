@@ -64,4 +64,25 @@ restoration, project replacement, and omission of another analysis kind. Both
 existing repeat regressions pass, for three focused Node tests. The initial
 green-run whitespace assertion mistake was corrected and adds no defect count.
 
+## R3-ROOT-004 — Truncate Silence refuses a completely silent selection
+
+Choose **Generate > Silence** and create one second. Choose **Select > Select
+all**, then **Effect > Special > Truncate Silence**, set **Truncate to** to zero,
+and apply. Selecting the clip through its header reproduces the same defect.
+
+Previously the effect stayed open with **The effect did not produce valid
+audio**, because its valid zero-frame result failed the persistence validator.
+Time selections now ripple-delete their occupied range, and exact clip
+selections remove their clip without creating an empty audio source. The
+operation remains undoable. Related clips with inconsistent duration ratios
+retain their existing refusal.
+
+Proof: both public selection workflows failed against the immutable baseline
+and pass on green build 6 in Chromium, Firefox and WebKit, checking removal and
+Undo. Four strict regressions cover time selection, exact clip selection, a
+zero-frame macro result and related-clip refusal. All 24 focused persistence and
+source-effect tests pass. The existing large test's unchanged harness moved to
+a focused strict helper so the frozen file shrinks. The two selection variants
+count as one result-admission defect.
+
 These changes do not require a manual **Update AI assets** run.
