@@ -6,6 +6,7 @@ import test from 'node:test';
 import { crc32, PCM_ENCODING_RAW_F32LE } from '../src/common/editor/wavpack/index.js';
 import { OpfsRepository } from '../src/common/editor/storage/opfs-repository.ts';
 import { OpfsSyncRepositoryBridge } from '../src/common/editor/storage/opfs-sync-repository-bridge.ts';
+import { PcmRepository } from '../src/common/editor/storage/pcm-repository.ts';
 import {
 	syncBinaryWriter,
 	syncPcmWriter,
@@ -93,6 +94,48 @@ class MemorySyncWorker implements OpfsSyncStoragePort {
 		return bytes;
 	}
 }
+
+test('a canonical positional read view acquires size once and still reads fresh CRC-checked bytes', async () => {
+	const worker = new MemorySyncWorker();
+	const repository = new OpfsRepository({ preferOpfs: true, opfsRoot: workerOnlyRoot(), syncWorkerClient: worker });
+	const writer = await repository.createPcmWriter('retained', { sampleRate: 48_000, chunkFrames: 2 });
+	assert.ok(writer);
+	const samples = Float32Array.of(0.25, -0.5);
+	await writer.write({ encoding: PCM_ENCODING_RAW_F32LE, payload: samples.buffer,
+		pcmCrc32: crc32(new Uint8Array(samples.buffer)), frames: 2, channelCount: 1, sampleRate: 48_000, chunkFrames: 2 });
+	await writer.close();
+	const source = { storage: 'opfs-pcm-v1', path: writer.path, channelCount: 1,
+		sampleRate: 48_000, chunkFrames: 2, chunkCount: 1, frameCount: 2 };
+	const pcm = new PcmRepository();
+	const admission = new AbortController();
+	const view = await repository.openPcmContainerReadView(source, pcm.decodeRecord.bind(pcm), admission.signal);
+	assert.ok(view);
+	admission.abort(new Error('the session admission is finished'));
+	worker.calls.length = 0;
+	for (let index = 0; index < 10; index += 1) assert.deepEqual([...(await view.chunk(0)).channels[0]!], [...samples]);
+	assert.equal(worker.calls.filter((call) => call.length === 0).length, 0, 'the view retains its positional size authority');
+	assert.equal(worker.calls.filter((call) => call.type === 'read').length, 10, 'every requested payload is freshly read');
+	const request = new AbortController();
+	const reason = new Error('withdraw only this packet');
+	request.abort(reason);
+	await assert.rejects(view.chunk(0, request.signal), (error) => error === reason);
+	assert.deepEqual([...(await view.chunk(0)).channels[0]!], [...samples], 'cancelled requests do not poison the retained view');
+	const bytes = worker.files.get(writer.path)!;
+	// The first PCM payload begins after the container's32-byte header.
+	bytes[32] = bytes[32]! ^ 1;
+	await assert.rejects(view.chunk(0), /CRC|checksum/iu);
+	await view.release();
+	await assert.rejects(view.chunk(0), /released/iu);
+});
+
+test('canonical positional view admission retains no asynchronous File snapshot', async () => {
+	const worker = new MemorySyncWorker();
+	worker.files.set('not-a-container', Uint8Array.of(1));
+	const directory = { async getFileHandle() { throw new Error('getFile must not run for session admission'); } } as unknown as FileSystemDirectoryHandle;
+	const root = { async getDirectoryHandle() { return directory; } } as unknown as FileSystemDirectoryHandle;
+	const repository = new OpfsRepository({ preferOpfs: true, opfsRoot: root, syncWorkerClient: null });
+	assert.equal(await repository.openPcmContainerReadView({ path: 'not-a-container' }, async () => ({ index: 0, frames: 0, channels: [] })), null);
+});
 
 test('OPFS worker read failure falls back to the durable async file', async () => {
 	const worker = new MemorySyncWorker();

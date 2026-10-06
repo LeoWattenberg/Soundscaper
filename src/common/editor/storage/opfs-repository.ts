@@ -4,7 +4,6 @@ import { copyUint8ArrayToArrayBuffer } from './binary-copy.ts';
 
 import {
 	PCM_CONTAINER_EXTENSION,
-	containerCodecToEncoding,
 	parsePcmContainerIndex,
 	readPcmContainerPayload,
 } from '../wavpack/index.js';
@@ -23,6 +22,7 @@ import { OpfsSyncRepositoryBridge, sharedReadable } from './opfs-sync-repository
 import type { OpfsSyncStoragePort } from './opfs-sync-worker-client.ts';
 import type { OpfsSyncOperationId } from './opfs-sync-worker-protocol.ts';
 import { syncBinaryWriter, syncPcmWriter } from './opfs-sync-writer-adapters.ts';
+import { containerRecord, createOpfsPcmReadView, type OpfsPcmReadView } from './opfs-pcm-read-view.ts';
 
 export const DEFAULT_OPFS_DIRECTORY_NAME = 'audio-editor-sources';
 const throwIfAborted = createAbortGuard('Audio storage was cancelled.');
@@ -304,6 +304,14 @@ export class OpfsRepository {
 		return decode(containerRecord(entry, payload), source, signal, priority);
 	}
 
+	async openPcmContainerReadView(source: StorageRecord, decode: DecodeChunk, signal?: AbortSignal): Promise<OpfsPcmReadView | null> {
+		const directory = await this.directory();
+		if (!directory || !source.path) return null;
+		const file = await this.#sync.readable(directory, 'canonical-pcm-chunk-read', source.path, signal);
+		if (!file) return null;
+		return createOpfsPcmReadView(file, await this.#containerIndex(source, file), source, decode);
+	}
+
 	async *readLegacyChunks(
 		source: StorageRecord,
 		{ signal }: { readonly signal?: AbortSignal } = {},
@@ -496,17 +504,6 @@ async function openBinaryWriter(
 		},
 	};
 }
-
-function containerRecord(entry: PcmIndexEntry, payload: unknown): Record<string, unknown> {
-	return {
-		index: entry.index,
-		frames: entry.frames,
-		encoding: containerCodecToEncoding(entry.codec),
-		payload,
-		pcmCrc32: entry.pcmCrc32,
-	};
-}
-
 
 function createId(prefix: string): string {
 	if (globalThis.crypto?.randomUUID) return `${prefix}-${globalThis.crypto.randomUUID()}`;

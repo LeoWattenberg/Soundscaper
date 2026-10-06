@@ -144,6 +144,11 @@ export function sharedReadable(file: BlobLike): BlobLike {
 	return file instanceof OpfsSyncReadableBlob ? file.withoutSignal() : file;
 }
 
+/** Rebind request lifetime while retaining fresh positional reads and size checks. */
+export function positionalReadableWithSignal(file: BlobLike, signal?: AbortSignal): BlobLike | null {
+	return file instanceof OpfsSyncReadableBlob ? file.withSignal(signal) : null;
+}
+
 class OpfsSyncReadableBlob implements BlobLike {
 	readonly type = '';
 
@@ -174,9 +179,13 @@ class OpfsSyncReadableBlob implements BlobLike {
 	}
 
 	withoutSignal(): BlobLike {
-		if (!this.signal) return this;
+		return this.withSignal();
+	}
+
+	withSignal(signal?: AbortSignal): BlobLike {
+		if (this.signal === signal) return this;
 		return new OpfsSyncReadableBlob(
-			this.client, this.directory, this.operationId, this.path, this.fileSize, this.start, this.size,
+			this.client, this.directory, this.operationId, this.path, this.fileSize, this.start, this.size, signal,
 		);
 	}
 
