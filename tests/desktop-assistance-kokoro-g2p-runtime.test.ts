@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, readFile, rm, stat, utimes, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
@@ -107,6 +107,36 @@ test('the helper closure is reauthenticated for each speech request', async (t) 
 	await writeFile(files.executable, `${GOOD_PROGRAM}\n// modified`);
 	await assert.rejects(phonemize({ language: 'a', voice: 'af_heart', text: 'again' }),
 		/authenticat|digest|length/iu);
+});
+
+test('the parsed G2P manifest cache uses fresh bytes and retires after failed authentication', async (t) => {
+	const files = await fixture(t, GOOD_PROGRAM), phonemize = port(files);
+	const parse = JSON.parse;
+	let reviews = 0;
+	t.mock.method(JSON, 'parse', (text: string, reviver?: Parameters<typeof parse>[1]): unknown => {
+		if (text.includes('"runtimeVersion"')) reviews += 1;
+		return Reflect.apply(parse, JSON, [text, reviver]) as unknown;
+	});
+	assert.deepEqual(await phonemize({ language: 'a', voice: 'af_heart', text: 'one' }), ['af_heartone']);
+	assert.deepEqual(await phonemize({ language: 'a', voice: 'af_heart', text: 'two' }), ['af_hearttwo']);
+	assert.equal(reviews, 1, 'identical authenticated manifest bytes reuse immutable parsed metadata');
+	const original = await readFile(files.manifestPath), metadata = await stat(files.manifestPath);
+	const changed = Buffer.from(original.toString('utf8').replace('0.9.4', '0.9.5'));
+	assert.equal(changed.byteLength, original.byteLength);
+	await writeFile(files.manifestPath, changed);
+	await utimes(files.manifestPath, metadata.atime, metadata.mtime);
+	await assert.rejects(phonemize({ language: 'a', voice: 'af_heart', text: 'three' }), /manifest|runtime|version/iu);
+	assert.equal(reviews, 2, 'same-size and same-mtime replacement is freshly parsed');
+	await writeFile(files.manifestPath, original);
+	assert.deepEqual(await phonemize({ language: 'a', voice: 'af_heart', text: 'four' }), ['af_heartfour']);
+	assert.equal(reviews, 3, 'authentication failure retires previously admitted metadata');
+	const executableMetadata = await stat(files.executable);
+	const changedProgram = GOOD_PROGRAM.replace('let body', 'let Body');
+	assert.equal(Buffer.byteLength(changedProgram), Buffer.byteLength(GOOD_PROGRAM));
+	await writeFile(files.executable, changedProgram);
+	await utimes(files.executable, executableMetadata.atime, executableMetadata.mtime);
+	await assert.rejects(phonemize({ language: 'a', voice: 'af_heart', text: 'five' }), /digest|authenticat/iu);
+	assert.equal(reviews, 3, 'parsed metadata reuse never skips executable digest authentication');
 });
 
 test('the helper refuses unlisted closure files and foreign target manifests', async (t) => {

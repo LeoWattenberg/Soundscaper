@@ -23,6 +23,7 @@ import {
 } from './assistance-runtime-family-worker-entry.ts';
 import {
 	createAssistanceOnnxRuntimeWorkerAdapterV1,
+	type AssistanceOnnxRuntimeWorkerAdapterOptionsV1,
 } from './assistance-onnx-runtime-worker.ts';
 import { createAssistanceKokoroOfflinePhonemizerV1 } from './assistance-kokoro-g2p-runtime.ts';
 import { bindAssistanceRuntimeFamilyCancellationV1 } from './assistance-runtime-family-cancellation.ts';
@@ -36,6 +37,7 @@ export interface AssistanceRuntimeFamilyInferenceWorkerOptions {
 	readonly execute?: AssistanceRuntimeFamilyWorkerJobOptions['execute'];
 	readonly runJob?: (options: AssistanceRuntimeFamilyWorkerJobOptions) => Promise<unknown>;
 	readonly sessionCache?: AssistanceOnnxSessionLeaseCacheV1;
+	readonly phonemizeKokoro?: AssistanceOnnxRuntimeWorkerAdapterOptionsV1['phonemizeKokoro'];
 }
 
 export async function runAssistanceRuntimeFamilyInferenceWorkerV1(
@@ -43,7 +45,8 @@ export async function runAssistanceRuntimeFamilyInferenceWorkerV1(
 ): Promise<void> {
 	if (!options || typeof options.post !== 'function'
 		|| options.execute !== undefined && typeof options.execute !== 'function'
-		|| options.runJob !== undefined && typeof options.runJob !== 'function') {
+		|| options.runJob !== undefined && typeof options.runJob !== 'function'
+		|| options.phonemizeKokoro !== undefined && typeof options.phonemizeKokoro !== 'function') {
 		throw new TypeError('The runtime-family inference-worker ports are invalid.');
 	}
 	const job = validateAdmittedJob(options.job);
@@ -53,7 +56,7 @@ export async function runAssistanceRuntimeFamilyInferenceWorkerV1(
 		? createAssistanceOnnxRuntimeWorkerAdapterV1({
 			sessionCache: options.sessionCache,
 			...(job.task === 'text-to-speech' ? {
-				phonemizeKokoro: packagedKokoroPhonemizer(),
+				phonemizeKokoro: options.phonemizeKokoro ?? packagedKokoroPhonemizer(),
 			} : {}),
 		})
 		: unavailableAssistanceRuntimeFamilyWorkerAdapter);
@@ -155,6 +158,7 @@ if (parentPort !== null) {
 function bindResidentOnnxThread(port: NonNullable<typeof parentPort>, initial: AssistanceRuntimeFamilyAdmittedJob): void {
 	if (initial.familyId !== 'onnxruntime-node') throw new TypeError('Only ONNX jobs may retain an inner thread.');
 	const cache = createAssistanceOnnxSessionLeaseCacheV1();
+	const phonemizer = initial.task === 'text-to-speech' ? packagedKokoroPhonemizer() : undefined;
 	let busy = false;
 	let closed = false;
 	let currentJobId: string | null = null;
@@ -172,7 +176,7 @@ function bindResidentOnnxThread(port: NonNullable<typeof parentPort>, initial: A
 		const cancellation = bindAssistanceRuntimeFamilyCancellationV1(port, job.jobId);
 		let succeeded = false;
 		try {
-			await runAssistanceRuntimeFamilyInferenceWorkerV1({ job, sessionCache: cache,
+			await runAssistanceRuntimeFamilyInferenceWorkerV1({ job, sessionCache: cache, phonemizeKokoro: phonemizer,
 				signal: cancellation.signal, post: (message) => {
 					const checked = validateAssistanceRuntimeFamilyProcessMessageV1(message, requestFrom(job));
 					if (checked.type === 'result') succeeded = true;
