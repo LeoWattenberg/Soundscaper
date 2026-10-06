@@ -491,6 +491,9 @@ test.describe('clip spreadsheet', () => {
 		await expect(cell(grid, 1, 'name')).toHaveText('Keyboard append');
 		row[0] = 'Second keyboard append';
 		row[2] = '4';
+		await expect(grid).toHaveAttribute('aria-busy', 'false');
+		await expect(grid).toHaveAttribute('aria-readonly', 'false');
+		await expect(grid).toBeFocused();
 		await pasteText(page, row.join('\t'));
 		await expect(cell(grid, 0, 'name')).toHaveText(firstName);
 		await expect(cell(grid, 1, 'name')).toHaveText('Keyboard append');
