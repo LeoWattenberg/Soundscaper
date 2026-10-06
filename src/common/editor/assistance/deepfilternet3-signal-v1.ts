@@ -87,6 +87,7 @@ export function analyzeAssistanceDeepFilterChannelV1(
 	padded.set(value, history);
 	const frameReal = new Float64Array(ASSISTANCE_DEEPFILTER_FFT_SIZE);
 	const frameImaginary = new Float64Array(ASSISTANCE_DEEPFILTER_FFT_SIZE);
+	const workspace = createBluesteinWorkspace();
 	for (let frame = 0; frame < frameCount; frame += 1) {
 		if ((frame & 63) === 0) signal?.throwIfAborted();
 		const sourceStart = frame * ASSISTANCE_DEEPFILTER_HOP_FRAMES;
@@ -94,7 +95,7 @@ export function analyzeAssistanceDeepFilterChannelV1(
 			frameReal[index] = padded[sourceStart + index]! * WINDOW[index]!;
 			frameImaginary[index] = 0;
 		}
-		transformBluestein(frameReal, frameImaginary, false);
+		transformBluestein(frameReal, frameImaginary, false, workspace);
 		for (let frequency = 0; frequency < ASSISTANCE_DEEPFILTER_FREQUENCY_BINS;
 			frequency += 1) {
 			const output = frame * ASSISTANCE_DEEPFILTER_FREQUENCY_BINS + frequency;
@@ -211,6 +212,7 @@ function synthesize(
 		- ASSISTANCE_DEEPFILTER_HOP_FRAMES);
 	const frameReal = new Float64Array(ASSISTANCE_DEEPFILTER_FFT_SIZE);
 	const frameImaginary = new Float64Array(ASSISTANCE_DEEPFILTER_FFT_SIZE);
+	const workspace = createBluesteinWorkspace();
 	const delay = ASSISTANCE_DEEPFILTER_FFT_SIZE - ASSISTANCE_DEEPFILTER_HOP_FRAMES;
 	for (let frame = 0; frame < frameCount; frame += 1) {
 		if ((frame & 63) === 0) signal?.throwIfAborted();
@@ -225,7 +227,7 @@ function synthesize(
 			frameReal[ASSISTANCE_DEEPFILTER_FFT_SIZE - frequency] = frameReal[frequency]!;
 			frameImaginary[ASSISTANCE_DEEPFILTER_FFT_SIZE - frequency] = -frameImaginary[frequency]!;
 		}
-		transformBluestein(frameReal, frameImaginary, true);
+		transformBluestein(frameReal, frameImaginary, true, workspace);
 		const rawStart = frame * ASSISTANCE_DEEPFILTER_HOP_FRAMES;
 		for (let index = 0; index < ASSISTANCE_DEEPFILTER_HOP_FRAMES; index += 1) {
 			const sample = frameReal[index]! * ASSISTANCE_DEEPFILTER_FFT_SIZE * WINDOW[index]!
@@ -273,20 +275,36 @@ function createBluesteinPlan(size: number): BluesteinPlan {
 	return { size, convolutionSize, cosine, sine, kernelReal, kernelImaginary };
 }
 
-function transformBluestein(real: Float64Array, imaginary: Float64Array, inverse: boolean): void {
+interface BluesteinWorkspace {
+	readonly real: Float64Array;
+	readonly imaginary: Float64Array;
+}
+
+function createBluesteinWorkspace(): BluesteinWorkspace {
+	return { real: new Float64Array(FFT_PLAN.convolutionSize), imaginary: new Float64Array(FFT_PLAN.convolutionSize) };
+}
+
+function transformBluestein(
+	real: Float64Array,
+	imaginary: Float64Array,
+	inverse: boolean,
+	workspace: BluesteinWorkspace,
+): void {
 	if (inverse) {
 		for (let index = 0; index < imaginary.length; index += 1) {
 			imaginary[index] = (imaginary[index] ?? 0) * -1;
 		}
-		transformBluestein(real, imaginary, false);
+		transformBluestein(real, imaginary, false, workspace);
 		for (let index = 0; index < imaginary.length; index += 1) {
 			real[index] = (real[index] ?? 0) / FFT_PLAN.size;
 			imaginary[index] = -imaginary[index]! / FFT_PLAN.size;
 		}
 		return;
 	}
-	const workReal = new Float64Array(FFT_PLAN.convolutionSize);
-	const workImaginary = new Float64Array(FFT_PLAN.convolutionSize);
+	const workReal = workspace.real;
+	const workImaginary = workspace.imaginary;
+	workReal.fill(0, FFT_PLAN.size);
+	workImaginary.fill(0, FFT_PLAN.size);
 	for (let index = 0; index < FFT_PLAN.size; index += 1) {
 		const cosine = FFT_PLAN.cosine[index]!;
 		const sine = FFT_PLAN.sine[index]!;
