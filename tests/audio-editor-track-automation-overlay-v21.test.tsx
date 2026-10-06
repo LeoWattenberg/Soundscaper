@@ -226,6 +226,57 @@ test('pointer cancellation discards its draft and a later release creates one hi
 	}
 });
 
+test('Escape restores an automation draft and prevents its later pointer release from committing', async () => {
+	const dom = installReactTestDom();
+	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
+	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
+	const commands: unknown[] = [];
+	const { createRoot } = await import('react-dom/client');
+	const root = createRoot(dom.container as unknown as Element);
+	const document = dom.container.ownerDocument as unknown as Document;
+	const listeners = new Set<EventListenerOrEventListenerObject>();
+	document.addEventListener = (type: string, listener: EventListenerOrEventListenerObject | null) => {
+		if (type === 'keydown' && listener) listeners.add(listener);
+	};
+	document.removeEventListener = (type: string, listener: EventListenerOrEventListenerObject | null) => {
+		if (type === 'keydown' && listener) listeners.delete(listener);
+	};
+	try {
+		await act(async () => root.render(<TrackAutomationOverlay {...overlayProps(commands)} />));
+		const svg = dom.one('[data-track-automation-overlay]');
+		(svg as unknown as { getBoundingClientRect: () => object }).getBoundingClientRect = () => ({
+			left: 0, top: 0, width: 112, height: 100,
+		});
+		const point = dom.one('[data-automation-point-id="origin"]');
+		const before = point.getAttribute('aria-valuenow');
+		await act(async () => reactProps(point).onPointerDown?.({
+			button: 0, pointerId: 1, preventDefault() {}, stopPropagation() {},
+		}));
+		await act(async () => reactProps(svg).onPointerMove?.({
+			clientX: 32, clientY: 70, preventDefault() {}, stopPropagation() {},
+		}));
+		assert.notEqual(point.getAttribute('aria-valuenow'), before);
+		await act(async () => {
+			const event = { key: 'Escape', preventDefault() {}, stopPropagation() {} } as KeyboardEvent;
+			for (const listener of listeners) {
+				if (typeof listener === 'function') listener(event);
+				else listener.handleEvent(event);
+			}
+		});
+		assert.equal(point.getAttribute('aria-valuenow'), before);
+		await act(async () => reactProps(svg).onPointerUp?.({
+			pointerId: 1, preventDefault() {}, stopPropagation() {},
+		}));
+		assert.equal(commands.length, 0);
+	} finally {
+		await act(async () => root.unmount());
+		assert.equal(listeners.size, 0);
+		actGlobal.IS_REACT_ACT_ENVIRONMENT = priorAct;
+		dom.restore();
+	}
+});
+
 test('a stale drag release is announced without adding a history entry', async () => {
 	const dom = installReactTestDom();
 	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };

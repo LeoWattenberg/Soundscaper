@@ -40,6 +40,7 @@ import {
 	type TrackAutomationCurveMenuState,
 } from './TrackAutomationCurveMenu.tsx';
 import { useTrackAutomationEditFeedback } from './useTrackAutomationEditFeedback.ts';
+import { useTrackAutomationDragLifecycle } from './useTrackAutomationDragLifecycle.ts';
 
 type SegmentKind = TrackAutomationSegmentKind;
 
@@ -244,16 +245,9 @@ export function TrackAutomationOverlay({
 			...editOptions, pointId: drag.pointId, frame: nextFrame, value,
 		}));
 	};
-	const finishPointDrag = (event: React.PointerEvent<SVGSVGElement>, cancel = false) => {
-		const drag = dragRef.current;
-		if (!drag) return;
-		event.preventDefault();
-		event.stopPropagation();
-		dragRef.current = null;
-		const replacement = draftLaneRef.current;
-		updateDraftLane(null);
-		if (!cancel && replacement) commitLane(replacement, drag.expected);
-	};
+	const finishPointDrag = useTrackAutomationDragLifecycle(
+		svgRef, dragRef, draftLaneRef, updateDraftLane, commitLane,
+	);
 	const removePoint = (pointId: string, explicitLaneDelete = false) => {
 		if (!interactive || !lane) return;
 		if (lane.points.length === 1) {

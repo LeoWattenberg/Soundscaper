@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useLayoutEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 
 import type { AutomationLaneV21 } from '../../automation-lane-v21.ts';
 import type { ParameterDescriptor } from '../../parameter-address.ts';
@@ -86,6 +86,16 @@ export function TrackAutomationCurveMenu({
 }>) {
 	const surfaceRef = useRef<HTMLDivElement>(null);
 	const returnFocus = menu.returnFocus;
+	useEffect(() => {
+		const surface = surfaceRef.current;
+		const document = surface?.ownerDocument;
+		if (!surface || !document) return;
+		const closeOutside = (event: PointerEvent) => {
+			if (!surface.contains(event.target as Node | null)) onClose();
+		};
+		document.addEventListener('pointerdown', closeOutside, true);
+		return () => document.removeEventListener('pointerdown', closeOutside, true);
+	}, [onClose]);
 	useLayoutEffect(() => {
 		surfaceRef.current?.querySelector<HTMLButtonElement>('[role="menuitemradio"], [role="menuitem"]')
 			?.focus({ preventScroll: true });
