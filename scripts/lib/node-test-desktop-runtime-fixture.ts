@@ -87,5 +87,8 @@ function readFixtureManifest(source: string): FixtureManifest {
 if (process.argv[1] !== undefined && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
 	const [repositoryRoot, fixtureRoot] = process.argv.slice(2);
 	if (!repositoryRoot || !fixtureRoot) throw new Error('Expected repository root and desktop runtime test fixture directory.');
+	// V8 coverage is already active in this process. Stop passing it to tsc,
+	// whose dependency internals do not contribute to repository coverage.
+	delete process.env.NODE_V8_COVERAGE;
 	await prepareDesktopRuntimeTestFixture({ repositoryRoot, fixtureRoot });
 }

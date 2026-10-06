@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { access, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
+import { access, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import test, { type TestContext } from 'node:test';
@@ -138,4 +139,34 @@ test('copying a fixture refuses to overwrite another test output', async (contex
 		environment: { [DESKTOP_RUNTIME_TEST_FIXTURE_ENV]: fixtureRoot },
 	}), { code: 'ERR_FS_CP_EEXIST' });
 	assert.equal(await readFile(join(outputRoot, 'runtime.js'), 'utf8'), 'preserve');
+});
+
+test('the fixture CLI records repository coverage without profiling the TypeScript compiler dependency', async (context) => {
+	const root = await temporaryRoot(context);
+	const repositoryRoot = join(root, 'repository');
+	const compilerRoot = join(repositoryRoot, 'node_modules/typescript/bin');
+	const fixtureRoot = join(root, 'fixture');
+	const coverageRoot = join(root, 'coverage');
+	await mkdir(compilerRoot, { recursive: true });
+	await mkdir(coverageRoot);
+	await writeFile(join(compilerRoot, 'tsc'), [
+		"require('node:fs').writeFileSync('compiler-env.json', JSON.stringify({ coverage: process.env.NODE_V8_COVERAGE ?? null }));",
+		'process.exit(7);',
+	].join('\n'));
+	const run = spawnSync(process.execPath, [
+		join(ROOT, 'scripts/lib/node-test-desktop-runtime-fixture.ts'), repositoryRoot, fixtureRoot,
+	], { env: { ...process.env, NODE_V8_COVERAGE: coverageRoot }, encoding: 'utf8' });
+	assert.equal(run.status, 1, run.stderr);
+	assert.match(run.stderr, /Desktop runtime compiler exited with code 7/u);
+	assert.deepEqual(JSON.parse(await readFile(join(repositoryRoot, 'compiler-env.json'), 'utf8')), { coverage: null });
+	await assert.rejects(access(fixtureRoot), { code: 'ENOENT' });
+	const profiles = await readdir(coverageRoot);
+	assert.equal(profiles.length, 1, 'only the repository fixture CLI should emit a profile');
+	const profile = JSON.parse(await readFile(join(coverageRoot, profiles[0]!), 'utf8')) as {
+		result: { url: string; functions: { functionName: string; ranges: { count: number }[] }[] }[];
+	};
+	const compilerScript = profile.result.find((script) => script.url.endsWith('/scripts/lib/desktop-project-library-runtime.mjs'));
+	assert.ok(compilerScript, 'the repository compiler wrapper must remain covered');
+	const compilation = compilerScript.functions.find((entry) => entry.functionName === 'compileDesktopProjectLibraryRuntime');
+	assert.equal(compilation?.ranges[0]?.count, 1, 'the fixture compile must remain in the CLI coverage profile');
 });
