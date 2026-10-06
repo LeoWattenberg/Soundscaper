@@ -325,12 +325,8 @@ export class OpfsRepository {
 			if (!frames || !channelCount || offset + channelBytes * channelCount > file.size) {
 				throw new Error('The local audio source contains an invalid chunk.');
 			}
-			const channels: Float32Array[] = [];
-			for (let channel = 0; channel < channelCount; channel += 1) {
-				channels.push(new Float32Array(await file.slice(offset, offset + channelBytes).arrayBuffer()));
-				throwIfAborted(signal);
-				offset += channelBytes;
-			}
+			const channels = await readLegacyPlanarPayload(file, offset, frames, channelCount, signal);
+			offset += channelBytes * channelCount;
 			yield { index, frames, channels };
 			index += 1;
 		}
@@ -360,12 +356,7 @@ export class OpfsRepository {
 		offset += 8;
 		const channelBytes = frames * Float32Array.BYTES_PER_ELEMENT;
 		if (offset + channelBytes * channelCount > file.size) throw new Error('The local audio source is truncated.');
-		const channels: Float32Array[] = [];
-		for (let channel = 0; channel < channelCount; channel += 1) {
-			throwIfAborted(signal);
-			channels.push(new Float32Array(await file.slice(offset, offset + channelBytes).arrayBuffer()));
-			offset += channelBytes;
-		}
+		const channels = await readLegacyPlanarPayload(file, offset, frames, channelCount, signal);
 		return { index: chunkIndex, frames, channels };
 	}
 
@@ -425,6 +416,23 @@ export class OpfsRepository {
 			throw new Error('The requested local audio source is missing.');
 		}
 	}
+}
+
+async function readLegacyPlanarPayload(
+	file: BlobLike,
+	offset: number,
+	frames: number,
+	channelCount: number,
+	signal?: AbortSignal,
+): Promise<readonly Float32Array[]> {
+	throwIfAborted(signal);
+	const channelBytes = frames * Float32Array.BYTES_PER_ELEMENT;
+	const bytes = await file.slice(offset, offset + channelBytes * channelCount).arrayBuffer();
+	throwIfAborted(signal);
+	if (bytes.byteLength !== channelBytes * channelCount) throw new Error('The local audio source is truncated.');
+	return Array.from({ length: channelCount }, (_, channel) => new Float32Array(
+		bytes.slice(channel * channelBytes, (channel + 1) * channelBytes),
+	));
 }
 
 async function openBinaryWriter(
