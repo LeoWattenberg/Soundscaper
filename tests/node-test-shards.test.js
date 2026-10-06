@@ -1,8 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { readdir } from 'node:fs/promises';
+import { syncBuiltinESMExports } from 'node:module';
 import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 import test, { after } from 'node:test';
@@ -115,6 +117,40 @@ test('a product reference reached only through a helper still shelves the test',
 		writeFileSync(join(root, 'tests', name), source);
 		assert.equal(classifyNodeTestFile(root, join(root, 'tests', name)), 'framescaper', name);
 	}
+});
+
+test('one classification reads shared cyclic helpers once and keeps each product closure separate', (context) => {
+	const root = mkdtempSync(join(tmpdir(), 'soundscaper-shard-shared-helpers-'));
+	workspaces.push(root);
+	mkdirSync(join(root, 'tests/helpers'), { recursive: true });
+	const shared = join(root, 'tests/helpers/shared.js');
+	const cycle = join(root, 'tests/helpers/cycle.js');
+	const exclusive = join(root, 'tests/helpers/exclusive.js');
+	writeFileSync(shared, "import './cycle.js'; export { thing } from '../../src/framescaper/thing.ts';\n");
+	writeFileSync(cycle, "import './shared.js';\n");
+	writeFileSync(exclusive, "export { other } from '../../src/soundscaper/other.ts';\n");
+	writeFileSync(join(root, 'tests/first.test.js'), "import './helpers/shared.js'; import './helpers/exclusive.js';\n");
+	writeFileSync(join(root, 'tests/second.test.js'), "import './helpers/shared.js';\n");
+	const reads = new Map();
+	const originalRead = fs.readFileSync;
+	context.mock.method(fs, 'readFileSync', (path, ...options) => {
+		reads.set(path, (reads.get(path) ?? 0) + 1);
+		return originalRead(path, ...options);
+	});
+	syncBuiltinESMExports();
+	try {
+		const classified = classifyNodeTestFiles(root);
+		assert.deepEqual(classified.get('common').map((file) => basename(file)), ['first.test.js']);
+		assert.deepEqual(classified.get('framescaper').map((file) => basename(file)), ['second.test.js']);
+		assert.deepEqual(classified.get('soundscaper'), []);
+		for (const path of [shared, cycle, exclusive]) assert.equal(reads.get(path), 1, path);
+	} finally {
+		context.mock.restoreAll();
+		syncBuiltinESMExports();
+	}
+	writeFileSync(shared, "export { thing } from '../../src/soundscaper/thing.ts';\n");
+	assert.deepEqual(classifyNodeTestFiles(root).get('soundscaper').map((file) => basename(file)), ['first.test.js', 'second.test.js']);
+	assert.equal(classifyNodeTestFile(root, join(root, 'tests/second.test.js')), 'soundscaper');
 });
 
 test('no test file names both products, so the filename signal is never ambiguous', () => {

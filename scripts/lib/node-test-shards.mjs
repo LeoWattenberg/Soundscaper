@@ -48,16 +48,21 @@ export function listNodeTestFiles(repositoryRoot) {
 // at the `tests/` boundary on purpose: `src/common` imports both products, so
 // following it would collapse every shard into one.
 export function classifyNodeTestFile(repositoryRoot, testFile) {
-	const text = `${localTestClosure(repositoryRoot, testFile)}\n${basename(testFile)}`;
+	return classifyTestText(testFile, testClosureReader(repositoryRoot)(testFile));
+}
+
+function classifyTestText(testFile, source) {
+	const text = `${source}\n${basename(testFile)}`;
 	const owners = PRODUCTS.filter(
-		(product) => product.reference.test(text) || product.name.test(basename(testFile)),
+		(product) => (text.includes(`/${product.id}`) && product.reference.test(text)) || product.name.test(basename(testFile)),
 	);
 	return owners.length === 1 ? owners[0].id : 'common';
 }
 
 export function classifyNodeTestFiles(repositoryRoot, testFiles = listNodeTestFiles(repositoryRoot)) {
 	const owners = new Map(NODE_TEST_OWNER_IDS.map((owner) => [owner, []]));
-	for (const testFile of testFiles) owners.get(classifyNodeTestFile(repositoryRoot, testFile)).push(testFile);
+	const readClosure = testClosureReader(repositoryRoot);
+	for (const testFile of testFiles) owners.get(classifyTestText(testFile, readClosure(testFile))).push(testFile);
 	return owners;
 }
 
@@ -116,27 +121,36 @@ function commonShardFor(testFile) {
 	return `common-${1 + (firstByte & 1)}`;
 }
 
-function localTestClosure(repositoryRoot, testFile) {
+function testClosureReader(repositoryRoot) {
 	const testDirectory = resolve(repositoryRoot, 'tests');
-	const visited = new Set([testFile]);
-	const pending = [testFile];
-	const sources = [];
-	while (pending.length > 0) {
-		const file = pending.pop();
-		const source = readSource(file);
-		sources.push(source);
-		for (const [, specifier] of source.matchAll(RELATIVE_SPECIFIER)) {
-			const resolved = resolve(dirname(file), specifier);
-			if (!resolved.startsWith(`${testDirectory}/`)) continue;
-			const helper = HELPER_EXTENSIONS
-				.map((extension) => `${resolved}${extension}`)
-				.find((candidate) => !visited.has(candidate) && existsSync(candidate));
-			if (helper === undefined) continue;
-			visited.add(helper);
-			pending.push(helper);
+	// Share immutable reads within this classification, with a separate visited
+	// set per entry. The next invocation observes any changed helper sources.
+	const records = new Map();
+	return (testFile) => {
+		const visited = new Set([testFile]);
+		const pending = [testFile];
+		const sources = [];
+		while (pending.length > 0) {
+			const file = pending.pop();
+			if (!records.has(file)) {
+				const source = readSource(file);
+				records.set(file, { source, specifiers: [...source.matchAll(RELATIVE_SPECIFIER)].map((match) => match[1]) });
+			}
+			const { source, specifiers } = records.get(file);
+			sources.push(source);
+			for (const specifier of specifiers) {
+				const resolved = resolve(dirname(file), specifier);
+				if (!resolved.startsWith(`${testDirectory}/`)) continue;
+				const helper = HELPER_EXTENSIONS
+					.map((extension) => `${resolved}${extension}`)
+					.find((candidate) => !visited.has(candidate) && existsSync(candidate));
+				if (helper === undefined) continue;
+				visited.add(helper);
+				pending.push(helper);
+			}
 		}
-	}
-	return sources.join('\n');
+		return sources.join('\n');
+	};
 }
 
 function readSource(file) {
