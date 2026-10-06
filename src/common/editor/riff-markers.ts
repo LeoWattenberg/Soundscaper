@@ -26,7 +26,6 @@ export function normalizeRiffMarkers(input: readonly RiffMarkerInput[] = []): re
 	return Object.freeze(input.map((value, index) => {
 		if (!value || typeof value !== 'object') throw new TypeError(`RIFF marker ${index} must be an object.`);
 		let id = value.id == null ? index + 1 : uint32(value.id, `RIFF marker ${index} id`);
-		if (id === 0) throw new RangeError('RIFF marker IDs must be non-zero.');
 		while (used.has(id)) {
 			id += 1;
 			if (id > UINT32_MAX) id = 1;
@@ -77,7 +76,7 @@ export function parseRiffMarkers(cuePayload: Uint8Array | null, adtlPayloads: re
 	for (let index = 0; index < count; index += 1) {
 		const offset = 4 + index * 24;
 		const id = view.getUint32(offset, true);
-		if (!id || markers.has(id)) throw new Error('The WAV cue table contains duplicate or zero IDs.');
+		if (markers.has(id)) throw new Error('The WAV cue table contains duplicate IDs.');
 		markers.set(id, Object.freeze({
 			id,
 			sampleOffset: view.getUint32(offset + 20, true),
