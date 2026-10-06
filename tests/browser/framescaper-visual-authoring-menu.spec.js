@@ -329,10 +329,13 @@ test.describe('Framescaper visual authoring menus', () => {
 		await expect(dialog.getByRole('button', { name: 'Update attached mask', exact: true }))
 			.toBeVisible(UI_OPTIONS);
 
-		await dialog.getByRole('combobox', { name: 'Shape', exact: true }).selectOption('line');
+		await expect(dialog.getByRole('combobox', { name: 'Shape', exact: true })
+			.getByRole('option', { name: 'Line', exact: true })).toHaveCount(0);
+		await width.fill('0');
 		await dialog.getByRole('spinbutton', { name: 'Height', exact: true }).fill('0.25');
 		await dialog.getByRole('button', { name: 'Update attached mask', exact: true }).click();
-		await expect(status).toHaveText('video mask/matte graph nodes[0].shape is unsupported.', UI_OPTIONS);
+		await expect(status).toHaveText('mask width is outside its finite bound.', UI_OPTIONS);
+		await width.fill('0.5');
 		await dialog.getByRole('combobox', { name: 'Shape', exact: true }).selectOption('rectangle');
 		await dialog.getByRole('button', { name: 'Update attached mask', exact: true }).click();
 		await expect(status).toHaveText(

@@ -107,12 +107,12 @@ test('Amplify preview and dialog preparation derive automatic gain from every co
 			}
 			if (endFrame === 8) {
 				return [trackId === 'track-a'
-					? new Float32Array([0.1, 0.9])
-					: new Float32Array([0.1, 0.95])];
+					? new Float32Array([0.1, 0.9, 0, 0, 0, 0, 0, 0])
+					: new Float32Array([0.1, 0.95, 0, 0, 0, 0, 0, 0])];
 			}
 			return [trackId === 'track-a'
-				? new Float32Array([0.1, -0.1])
-				: new Float32Array([0.2, 0.3])];
+				? new Float32Array([0.1, -0.1, 0, 0, 0, 0])
+				: new Float32Array([0.2, 0.3, 0, 0, 0, 0])];
 		},
 		resolveInteractiveAudacityParams: controls.resolveInteractiveAudacityParams,
 		runSelectionEffectWorker: async (request: Readonly<{
@@ -175,7 +175,8 @@ test('multi-clip previews preserve disjoint timeline offsets for processed and E
 		], effectType);
 		assert.deepEqual(preview.channels.map((channel) => Array.from(channel)), [[
 			Math.fround(0.1), Math.fround(0.2), 0,
-			Math.fround(0.3), Math.fround(0.4), 0,
+			Math.fround(0.3), Math.fround(0.4),
+			...(effectType === 'eq' ? [0] : []),
 		]], effectType);
 	}
 });

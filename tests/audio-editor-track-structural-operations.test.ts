@@ -201,8 +201,9 @@ test('controller service commits one transform or batch for every structural act
 	const mute = commits[9];
 	assert.equal(mute?.type, 'batch');
 	if (mute?.type !== 'batch') assert.fail('Expected one atomic mute batch.');
-	assert.equal(mute.commands.length, 5);
-	assert.ok(mute.commands.every((command) => command.type === 'track/update' && command.changes.mute === true));
+	assert.equal(mute.commands.length, 6);
+	assert.ok(mute.commands.slice(0, 5).every((command) => command.type === 'track/update' && command.changes.mute === true));
+	assert.deepEqual(mute.commands[5], { type: 'track-folder/update', folderId: 'folder', changes: { mute: true } });
 });
 
 test('alignment to selection end resolves selected clip bounds instead of its collapsed time cursor', () => {
