@@ -12,6 +12,7 @@ import {
 import {
 	buildMacroSandboxModule,
 	createMacroSandboxClient,
+	MacroSandboxError,
 } from '../src/common/editor/macro-script/sandbox-client.ts';
 import { MACRO_SANDBOX_SOURCE_URL_PREFIX } from '../src/common/editor/macro-script/dynamic-source-contract.js';
 
@@ -123,6 +124,22 @@ test('a compile error carries the author\'s own line', async () => {
 	await assert.rejects(run, (error: Error & { line?: number; code?: string }) => {
 		assert.equal(error.line, 4);
 		assert.equal(error.code, 'MACRO_COMPILE_FAILED');
+		return true;
+	});
+});
+
+test('a program failure retains the preceding diagnostic log', async () => {
+	const harness = createHarness();
+	const run = harness.client.runMacroSandbox({ runId: 'run-1', source: '', env: ENV });
+	harness.message({ protocolVersion: MACRO_PROTOCOL_VERSION, type: 'log', runId: 'run-1',
+		entries: [{ level: 'info', text: 'before error', at: 0 }] });
+	harness.message({ protocolVersion: MACRO_PROTOCOL_VERSION, type: 'failed', runId: 'run-1',
+		message: 'example error', line: 1, column: null });
+	await assert.rejects(run, (error: unknown) => {
+		assert.ok(error instanceof MacroSandboxError);
+		assert.equal(error.message, 'example error');
+		assert.deepEqual(error.log, [{ level: 'info', text: 'before error', at: 0 }]);
+		assert.equal(Object.isFrozen(error.log), true);
 		return true;
 	});
 });

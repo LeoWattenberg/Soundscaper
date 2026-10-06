@@ -133,6 +133,20 @@ ordinary clicks. The program detail now scrolls as a column, placing feedback
 after the program instead of in a shrinking overlapping grid row. This is
 independent of ROOT-015: resizing exposed a checkbox that still toggled twice.
 
+## ROOT-018 — Canceling a program is presented as failure
+
+Create a program in **Tools → Macros palette** with
+`for (let i = 0; i < 10000; i++) await sound.project.tracks();`, run it, and
+click **Cancel run**. Previously the log said the program failed and displayed
+a failure alert. Cancellation now has its own outcome and leaves Run available.
+
+## ROOT-019 — Program errors discard preceding diagnostic logs
+
+Create and run a program containing
+`sound.log.info('before error'); throw new Error('example error');`.
+Previously only the error survived. The sandbox error now carries the captured
+log, and the palette displays it before the failure message.
+
 ## Regression coverage
 
 - `tests/browser/audio-editor-bug-audit-macros.spec.js`
@@ -142,8 +156,10 @@ independent of ROOT-015: resizing exposed a checkbox that still toggled twice.
 - `tests/browser/audio-editor-bug-audit-mixer.spec.js`
 - `tests/browser/audio-editor-mixer-keyboard-regressions.spec.js`
 - `tests/browser/audio-editor-macro-program-controls-regressions.spec.js`
+- `tests/browser/audio-editor-macro-program-outcomes-regressions.spec.js`
 - `tests/audio-editor-macro-command-service.test.ts`
 - `tests/audio-editor-macro-program-service.test.ts`
+- `tests/audio-editor-macro-script-sandbox-client.test.ts`
 - `tests/audio-editor-generator-service.test.ts`
 - `tests/audio-editor-mixer-effect-replacement.test.ts`
 - `tests/audio-editor-new-label-range.test.ts`

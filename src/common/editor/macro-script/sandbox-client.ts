@@ -61,12 +61,14 @@ export interface MacroSandboxRunResult {
 export class MacroSandboxError extends Error {
 	readonly line: number | null;
 	readonly code: string;
+	readonly log: readonly MacroLogEntry[];
 
-	constructor(message: string, options: Readonly<{ line?: number | null; code?: string }> = {}) {
+	constructor(message: string, options: Readonly<{ line?: number | null; code?: string; log?: readonly MacroLogEntry[] }> = {}) {
 		super(message);
 		this.name = 'MacroSandboxError';
 		this.line = options.line ?? null;
 		this.code = options.code ?? 'MACRO_FAILED';
+		this.log = Object.freeze([...(options.log ?? [])]);
 	}
 }
 
@@ -119,19 +121,22 @@ export function createMacroSandboxClient(runtime: MacroSandboxRuntime) {
 				};
 				// A terminated worker sends nothing more, so cancelling has to settle
 				// the run itself or the caller waits for a message that never comes.
-				abandon = (reason) => finish(() => reject(reason));
-				const deadline = runtime.setTimer?.(() => finish(() => reject(new MacroSandboxError(
+				const fail = (reason: MacroSandboxError) => finish(() => reject(new MacroSandboxError(
+					reason.message, { line: reason.line, code: reason.code, log },
+				)));
+				abandon = fail;
+				const deadline = runtime.setTimer?.(() => fail(new MacroSandboxError(
 					`The macro ran for longer than ${Math.round(limits.deadlineMs / 1_000)} seconds.`,
 					{ code: 'MACRO_DEADLINE_EXCEEDED' },
-				))), limits.deadlineMs);
+				)), limits.deadlineMs);
 
 				worker.addEventListener('error', ((event: { message?: string; lineno?: number }) => {
 					// A compile error arrives here rather than as a message, because the
 					// program never began running.
-					finish(() => reject(new MacroSandboxError(
+					fail(new MacroSandboxError(
 						String(event?.message || 'The macro could not be compiled.'),
 						{ line: authorLine(event?.lineno), code: 'MACRO_COMPILE_FAILED' },
-					)));
+					));
 				}) as (event: never) => void);
 
 				worker.addEventListener('message', ((event: { data?: unknown }) => {
@@ -141,10 +146,10 @@ export function createMacroSandboxClient(runtime: MacroSandboxRuntime) {
 					} catch (cause) {
 						// A worker that speaks the protocol wrongly is not one to keep
 						// answering; it is either broken or trying something.
-						finish(() => reject(new MacroSandboxError(
+						fail(new MacroSandboxError(
 							cause instanceof Error ? cause.message : String(cause),
 							{ code: 'MACRO_PROTOCOL_FAILURE' },
-						)));
+						));
 						return;
 					}
 					switch (message.type) {
@@ -162,7 +167,7 @@ export function createMacroSandboxClient(runtime: MacroSandboxRuntime) {
 							finish(() => resolve({ calls: message.calls, log: Object.freeze([...log]) }));
 							return;
 						default:
-							finish(() => reject(new MacroSandboxError(message.message, { line: message.line })));
+							fail(new MacroSandboxError(message.message, { line: message.line }));
 					}
 				}) as (event: never) => void);
 

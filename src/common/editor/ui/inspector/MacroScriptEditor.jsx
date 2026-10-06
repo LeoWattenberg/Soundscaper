@@ -24,6 +24,7 @@ export default function MacroScriptEditor({
 	failure,
 	running,
 	completed = false,
+	cancelled = false,
 	blocked,
 	onChange,
 	onRun,
@@ -105,7 +106,7 @@ export default function MacroScriptEditor({
 			<div
 				className="audio-editor-macro-script__log"
 				data-macro-script-log
-				data-outcome={running ? 'running' : failure ? 'failed' : completed ? 'completed' : 'idle'}
+				data-outcome={running ? 'running' : failure ? 'failed' : cancelled ? 'cancelled' : completed ? 'completed' : 'idle'}
 				aria-live="polite"
 			>
 				{log.map((entry, index) => (

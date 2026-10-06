@@ -23,6 +23,7 @@ export default function MacroScriptPanel({ controller, copy, script, blocked, on
 	// A run that logged nothing still ran. Inferring completion from the log
 	// would leave a silent program indistinguishable from one nobody started.
 	const [completed, setCompleted] = useState(false);
+	const [cancelled, setCancelled] = useState(false);
 	const runRef = useRef(null);
 	useEffect(() => () => {
 		if (runRef.current) controller.actions.macros.cancel();
@@ -35,6 +36,7 @@ export default function MacroScriptPanel({ controller, copy, script, blocked, on
 		setLog([]);
 		setFailure(null);
 		setCompleted(false);
+		setCancelled(false);
 		setRunning(true);
 		try {
 			const result = await controller.actions.macros.runScript({
@@ -49,6 +51,13 @@ export default function MacroScriptPanel({ controller, copy, script, blocked, on
 			setCompleted(true);
 		} catch (cause) {
 			if (runRef.current !== operation) return;
+			const precedingLog = Array.isArray(cause?.log) ? cause.log : [];
+			if (cause?.name === 'AbortError' || cause?.code === 'MACRO_CANCELLED') {
+				setCancelled(true);
+				setLog([...precedingLog, { level: 'warn', text: copy.runCancelled, at: 0 }]);
+				return;
+			}
+			setLog(precedingLog);
 			setFailure({
 				message: cause instanceof Error ? cause.message : String(cause),
 				line: typeof cause?.line === 'number' ? cause.line : null,
@@ -59,7 +68,7 @@ export default function MacroScriptPanel({ controller, copy, script, blocked, on
 				setRunning(false);
 			}
 		}
-	}, [controller, copy.programApplied, script.name, script.source]);
+	}, [controller, copy.programApplied, copy.runCancelled, script.name, script.source]);
 
 	return (
 		<MacroScriptEditor
@@ -70,6 +79,7 @@ export default function MacroScriptPanel({ controller, copy, script, blocked, on
 			failure={failure}
 			running={running}
 			completed={completed}
+			cancelled={cancelled}
 			blocked={blocked}
 			runnable={runnable}
 			onChange={onChange}
