@@ -85,12 +85,15 @@ export function SteppedSlider({ value, defaultValue, min, max, step, ariaLabel, 
 	onGestureStart, onGestureEnd, onGestureCancel }) {
 	const clampedValue = Math.max(min, Math.min(max, Number(value) || 0));
 	const gestureActiveRef = useRef(false);
+	const pointerActiveRef = useRef(false);
+	const canceledPointerRef = useRef(false);
 	const gestureValueRef = useRef(clampedValue);
 	const cancelRef = useRef(onGestureCancel);
 	cancelRef.current = onGestureCancel;
 	if (!gestureActiveRef.current) gestureValueRef.current = clampedValue;
 	const beginGesture = () => {
 		if (disabled || gestureActiveRef.current) return;
+		canceledPointerRef.current = false;
 		gestureActiveRef.current = true;
 		gestureValueRef.current = clampedValue;
 		onGestureStart?.(clampedValue);
@@ -103,6 +106,7 @@ export function SteppedSlider({ value, defaultValue, min, max, step, ariaLabel, 
 	const cancelGesture = () => {
 		if (!gestureActiveRef.current) return;
 		gestureActiveRef.current = false;
+		canceledPointerRef.current = pointerActiveRef.current;
 		onGestureCancel?.();
 	};
 	useEffect(() => () => {
@@ -132,6 +136,11 @@ export function SteppedSlider({ value, defaultValue, min, max, step, ariaLabel, 
 				aria-valuetext={valueText}
 				disabled={disabled}
 				onChange={(event) => {
+					if (canceledPointerRef.current) {
+						event.currentTarget.value = String(clampedValue);
+						if (!pointerActiveRef.current) canceledPointerRef.current = false;
+						return;
+					}
 					const next = Number(event.currentTarget.value);
 					const standalone = !gestureActiveRef.current;
 					if (standalone) beginGesture();
@@ -139,12 +148,22 @@ export function SteppedSlider({ value, defaultValue, min, max, step, ariaLabel, 
 					onChange(next);
 					if (standalone) endGesture();
 				}}
-				onPointerDown={beginGesture}
-				onPointerUp={endGesture}
-				onPointerCancel={cancelGesture}
+				onPointerDown={() => { pointerActiveRef.current = true; beginGesture(); }}
+				onPointerUp={() => {
+					pointerActiveRef.current = false;
+					endGesture();
+					if (canceledPointerRef.current) requestAnimationFrame(() => {
+						if (!pointerActiveRef.current) canceledPointerRef.current = false;
+					});
+				}}
+				onPointerCancel={() => { cancelGesture(); pointerActiveRef.current = false; }}
 				onKeyDown={(event) => {
 					if (['ArrowLeft', 'ArrowRight', 'ArrowDown', 'ArrowUp', 'Home', 'End', 'PageDown', 'PageUp'].includes(event.key)) beginGesture();
-					else if (event.key === 'Escape') cancelGesture();
+					else if (event.key === 'Escape' && gestureActiveRef.current) {
+						event.preventDefault();
+						event.stopPropagation();
+						cancelGesture();
+					}
 				}}
 				onKeyUp={(event) => {
 					if (['ArrowLeft', 'ArrowRight', 'ArrowDown', 'ArrowUp', 'Home', 'End', 'PageDown', 'PageUp'].includes(event.key)) endGesture();

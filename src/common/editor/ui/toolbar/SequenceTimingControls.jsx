@@ -93,6 +93,7 @@ function SequenceTimingEditor({ project, view, disabled, controller, copy, run }
 	React.useEffect(() => setNameDraft(view.name), [view.name]);
 	const update = (changes) => run(() => controller.actions.sequences.update(view.id, changes));
 	const startLabel = formatSequenceTimecode(view.startTimecode, view.rate, view.dropFrame);
+	React.useEffect(() => setStartTimecodeError(false), [startLabel]);
 
 	return <div className="kw-audio-editor__sequence-timing-editor" data-sequence-timing-editor>
 		<header>

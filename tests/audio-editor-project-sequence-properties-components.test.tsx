@@ -70,6 +70,36 @@ test('the sequence name refreshes when the authoritative saved name changes', as
 	}
 });
 
+test('replacing a rejected timecode draft clears its obsolete validation state', async () => {
+	const dom = installReactTestDom();
+	const globals = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+	const priorAct = globals.IS_REACT_ACT_ENVIRONMENT;
+	globals.IS_REACT_ACT_ENVIRONMENT = true;
+	const { createRoot } = await import('react-dom/client');
+	const root = createRoot(dom.container as unknown as Element);
+	const renderTiming = (dropFrame: boolean) => <SequenceTimingProjectProperties
+		project={{ primarySequenceId: 'primary', sequences: [{ id: 'primary', name: 'Main',
+			rate: { num: 30_000, den: 1_001 }, startTimecode, dropFrame }] }}
+		snapshot={{ readOnly: false, recording: false }} controller={{ actions: {} }} copy={ENGLISH_COPY} run={() => undefined} />;
+	try {
+		await act(async () => root.render(renderTiming(false)));
+		const timecode = dom.container.querySelectorAll('input').find((input) => input.hasAttribute('data-sequence-start-timecode'));
+		assert.ok(timecode);
+		await act(async () => reactProps(timecode).onBlur({ currentTarget: { value: 'bad' } }));
+		assert.equal(timecode.getAttribute('aria-invalid'), 'true');
+		await act(async () => root.render(renderTiming(true)));
+		const replacement = dom.container.querySelectorAll('input').find((input) => input.hasAttribute('data-sequence-start-timecode'));
+		assert.ok(replacement);
+		assert.notEqual(replacement, timecode);
+		assert.equal(replacement.getAttribute('aria-invalid'), 'false');
+		assert.equal(dom.container.textContent.includes(ENGLISH_COPY.sequenceTimecodeInvalid), false);
+	} finally {
+		await act(async () => root.unmount());
+		globals.IS_REACT_ACT_ENVIRONMENT = priorAct;
+		dom.restore();
+	}
+});
+
 test('frame navigation stays Framescaper-only even with a video workspace preference', () => {
 	const project = {
 		id: 'project', sampleRate: 48_000, tracks: [], primarySequenceId: 'primary',

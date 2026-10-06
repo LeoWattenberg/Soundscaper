@@ -416,10 +416,11 @@ export const ContextMenuItem: React.FC<ContextMenuItemProps> = ({
 
     const handleSubmenuKeyboard = (e: KeyboardEvent) => {
       // Only handle if focus is within the submenu
-      if (document.activeElement?.closest('[role="menu"]') !== submenuRef.current) return;
+      const submenu = submenuRef.current;
+      if (!submenu || document.activeElement?.closest('[role="menu"]') !== submenu) return;
 
       const items = Array.from(
-        submenuRef.current.querySelectorAll(':scope > [role="menuitem"]:not([aria-disabled="true"]), :scope > [role="menuitemradio"]:not([aria-disabled="true"])')
+        submenu.querySelectorAll(':scope > [role="menuitem"]:not([aria-disabled="true"]), :scope > [role="menuitemradio"]:not([aria-disabled="true"])')
       ) as HTMLElement[];
 
       if (items.length === 0) return;

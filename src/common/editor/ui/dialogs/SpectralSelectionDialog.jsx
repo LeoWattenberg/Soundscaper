@@ -10,6 +10,7 @@ import { moveSpectralBandCenter, spectralBandCenter } from '../timeline/spectral
 import {
 	SPECTRAL_SELECTION_MINIMUM_GAIN_DB, SPECTRAL_SELECTION_MAXIMUM_GAIN_DB, spectralSelectionGainValid,
 } from './spectral-selection-gain.ts';
+import { spectralSelectionFrequencyRangeValid } from './spectral-selection-frequency-range.ts';
 
 export default function SpectralSelectionDialog({ controller, snapshot, copy, run, onClose }) {
 	const project = snapshot.project;
@@ -64,7 +65,7 @@ export default function SpectralSelectionDialog({ controller, snapshot, copy, ru
 		maximumFrequency: Number(maximumFrequency),
 	});
 	const submit = (operation) => {
-		if (operation === 'amplify' && !spectralSelectionGainValid(gainDb)) return;
+		if (!validRange || (operation === 'amplify' && !spectralSelectionGainValid(gainDb))) return;
 		const projectOwnership = currentProjectOwnership.current;
 		if (!projectIdentity || stateProjectIdentity.current !== projectIdentity || !projectOwnership) return;
 		const options = selectionOptions();
@@ -79,11 +80,7 @@ export default function SpectralSelectionDialog({ controller, snapshot, copy, ru
 			if (currentProjectOwnership.current === projectOwnership) onClose();
 		}).catch(() => undefined);
 	};
-	const validRange = Number.isFinite(Number(minimumFrequency))
-		&& Number.isFinite(Number(maximumFrequency))
-		&& Number(minimumFrequency) >= 0
-		&& Number(maximumFrequency) <= nyquist
-		&& Number(maximumFrequency) > Number(minimumFrequency);
+	const validRange = spectralSelectionFrequencyRangeValid(minimumFrequency, maximumFrequency, nyquist);
 
 	return (
 		<AudioEditorDialogShell

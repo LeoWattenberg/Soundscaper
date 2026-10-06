@@ -13,6 +13,7 @@ import AudioEditorTimeCodeInput, {
 } from '../AudioEditorTimeCodeInput.tsx';
 import { createAudioWarpDialogModel } from '../audio-warp-dialog-model.ts';
 import { useOwnedDialogOperation } from '../useOwnedDialogOperation.ts';
+import { useOperationFocusRecovery } from '../useOperationFocusRecovery.ts';
 
 interface AudioWarpDialogActions {
 	view(): Readonly<{
@@ -84,6 +85,7 @@ export default function AudioWarpDialog({
 	});
 
 	const disabled = operationState.disabled;
+	const captureOperationFocus = useOperationFocusRecovery(operationState.pending !== null, operationOwner);
 	const gridValid = Number.isSafeInteger(gridOrigin)
 		&& Number.isSafeInteger(gridInterval) && gridInterval > 0;
 	const blockMessage = model.blockReason === 'read-only'
@@ -104,7 +106,7 @@ export default function AudioWarpDialog({
 		onSuccess?: (result: unknown) => void,
 	): void => {
 		operationState.perform(name, operation, {
-			onStart: () => { setError(''); },
+			onStart: () => { captureOperationFocus(); setError(''); },
 			onSuccess: (result) => {
 				onSuccess?.(result);
 				setStatus(success);
@@ -265,7 +267,7 @@ function WarpMapEditor({
 		<table className="audio-editor-audio-warp__map" aria-label={copy.audioWarpMapPoints}>
 		<caption>{copy.audioWarpMapPoints}</caption>
 		<thead><tr><th scope="col">{copy.audioWarpOuter}</th><th scope="col">{copy.audioWarpSource}</th><th scope="col">{copy.audioWarpMarkerActions}</th></tr></thead>
-		<tbody>{model.warpPoints.map((point, index) => <tr key={`${point.outer}:${point.source}:${String(index)}`}>
+		<tbody>{model.warpPoints.map((point, index) => <tr key={index}>
 			{index === 0 || index === model.warpPoints.length - 1 ? <>
 				<td>{point.outer}</td><td>{point.source}</td><td>{copy.audioWarpEndpoint}</td>
 			</> : <MarkerRow

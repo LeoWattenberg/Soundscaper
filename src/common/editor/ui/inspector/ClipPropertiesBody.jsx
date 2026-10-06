@@ -8,8 +8,9 @@ import { AUDIO_EDITOR_SAMPLE_RATE, findClip, findClipTrack, findSource } from '.
 import { readClipLoop } from '../../audio-clip-loop.ts';
 import AudioEditorTimeCodeInput from '../AudioEditorTimeCodeInput.tsx';
 import { selectAudioEditorEditBlock } from '../edit-blocking.ts';
-import { ActionHook, CommitField, DesignCheckbox, SteppedSlider } from './inspector-controls.jsx';
+import { ActionHook, CommitField, DesignCheckbox } from './inspector-controls.jsx';
 import ClipPropertyKnob from './ClipPropertyKnob.tsx';
+import ClipFadeShapeField from './ClipFadeShapeField.tsx';
 import { clipPropertiesMediaRange } from './clip-properties-media-range.ts';
 import { clipLinkedPitchSpeed } from './clip-properties-linked-pitch.ts';
 import ClipResampleDialog from './ClipResampleDialog.jsx';
@@ -306,19 +307,5 @@ function ClipTimeCodeField({ name, label, value, sampleRate, minimum = 0,
 		<AudioEditorTimeCodeInput label={label} value={value} unit="samples" rate={sampleRate}
 			format="hh:mm:ss+milliseconds" minimum={minimum} maximum={maximum}
 			disabled={disabled} onCommit={onCommit} />
-	</label>;
-}
-
-function ClipFadeShapeField({ name, label, value, fadeFrames, legacyLabel, disabled, onCommit }) {
-	const legacy = value === undefined && fadeFrames > 0;
-	const shape = value ?? (legacy ? 2 : 1);
-	return <label className="audio-editor-field" data-clip-field={name}>
-		<span>{label}</span>
-		<div className="audio-editor-clip-fade-shape__row">
-			<SteppedSlider value={shape} min={0.15} max={6} step={0.01} defaultValue={1}
-				ariaLabel={label} valueText={legacy ? legacyLabel : undefined}
-				disabled={disabled} onChange={(next) => onCommit(name, next)} />
-			<output>{legacy ? legacyLabel : shape.toFixed(2)}</output>
-		</div>
 	</label>;
 }
