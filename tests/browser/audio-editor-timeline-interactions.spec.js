@@ -15,7 +15,7 @@ import {
 	closeChromeDrawer,
 	closeClipProperties,
 	closeEffectsPanel,
-	collectClientErrors,
+	collectClientErrors, commitInput,
 	dispatchPinch,
 	expectSurfaceWithinViewport,
 	getMenuItem,
@@ -692,7 +692,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await settings.getByLabel('Scale', { exact: true }).selectOption('linear');
 		await settings.getByLabel('Minimum frequency (Hz)', { exact: true }).fill('1000');
 		await settings.getByLabel('Maximum frequency (Hz)', { exact: true }).fill('8000');
-		await settings.getByLabel('Dynamic range (dB)', { exact: true }).fill('96');
+		await commitInput(settings.getByLabel('Dynamic range (dB)', { exact: true }), '96');
 		await settings.getByLabel('Window size', { exact: true }).selectOption('4096');
 		await settings.getByLabel('Window type', { exact: true }).selectOption('blackman');
 		await expect(targetLane).toHaveAttribute('data-spectrogram-scale', 'linear');
