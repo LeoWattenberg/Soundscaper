@@ -4,7 +4,7 @@
 // and the mock runtime they are executed against. Split out of
 // audio-editor-video-ffmpeg.test.js so its suites can sit in separate files.
 
-import { register } from 'node:module';
+import { registerMockModuleUrls } from './mock-module-urls.ts';
 import test from 'node:test';
 
 export const ffmpegModuleUrl = `data:text/javascript,${encodeURIComponent(`
@@ -17,17 +17,7 @@ export const ffmpegModuleUrl = `data:text/javascript,${encodeURIComponent(`
 
 `)}`;
 
-export const ffmpegLoader = `
-	export async function resolve(specifier, context, nextResolve) {
-		if (specifier === '@ffmpeg/ffmpeg') {
-			return { url: ${JSON.stringify(ffmpegModuleUrl)}, shortCircuit: true };
-		}
-		return nextResolve(specifier, context);
-	}
-
-`;
-
-register(`data:text/javascript,${encodeURIComponent(ffmpegLoader)}`, import.meta.url);
+registerMockModuleUrls({ '@ffmpeg/ffmpeg': ffmpegModuleUrl });
 
 export const {
 	FfmpegVideoEncodingError,

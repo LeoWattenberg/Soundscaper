@@ -5,24 +5,14 @@
 // Split out of audio-editor-disk-backed-sources.test.js so its suites can sit in
 // separate files.
 
-import { register } from 'node:module';
+import { registerMockModuleUrls } from './mock-module-urls.ts';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-export const assetLoader = `
-	export async function resolve(specifier, context, nextResolve) {
-		if (specifier === '@ffmpeg/core?url' || specifier === '@ffmpeg/core/wasm?url') {
-			return {
-				url: 'data:text/javascript,export default "mock-ffmpeg-asset"',
-				shortCircuit: true,
-			};
-		}
-		return nextResolve(specifier, context);
-	}
-
-`;
-
-register(`data:text/javascript,${encodeURIComponent(assetLoader)}`, import.meta.url);
+registerMockModuleUrls({
+	'@ffmpeg/core?url': 'data:text/javascript,export default "mock-ffmpeg-asset"',
+	'@ffmpeg/core/wasm?url': 'data:text/javascript,export default "mock-ffmpeg-asset"',
+});
 
 export const previousWorker = globalThis.Worker;
 

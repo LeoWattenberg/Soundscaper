@@ -4,22 +4,12 @@
 // audio-editor-multitrack-selection-effects.test.js so its suites can sit in
 // separate files.
 
-import { register } from 'node:module';
+import { registerMockModuleUrls } from './mock-module-urls.ts';
 
-export const assetLoader = `
-	export async function resolve(specifier, context, nextResolve) {
-		if (specifier === '@ffmpeg/core?url' || specifier === '@ffmpeg/core/wasm?url') {
-			return {
-				url: 'data:text/javascript,export default "mock-ffmpeg-asset"',
-				shortCircuit: true,
-			};
-		}
-		return nextResolve(specifier, context);
-	}
-
-`;
-
-register(`data:text/javascript,${encodeURIComponent(assetLoader)}`, import.meta.url);
+registerMockModuleUrls({
+	'@ffmpeg/core?url': 'data:text/javascript,export default "mock-ffmpeg-asset"',
+	'@ffmpeg/core/wasm?url': 'data:text/javascript,export default "mock-ffmpeg-asset"',
+});
 
 export const { ENGLISH_COPY } = await import('../../src/common/i18n/catalogs.js');
 

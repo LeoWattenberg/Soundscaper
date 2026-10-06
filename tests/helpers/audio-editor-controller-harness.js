@@ -6,23 +6,14 @@
 // clip cache they drive it with. Split out of audio-editor-controller.test.js so
 // its suites can sit in separate files.
 
-import { register } from 'node:module';
+import { registerMockModuleUrls } from './mock-module-urls.ts';
 
 import { MockAudioBuffer, abortError, waitWithSignal } from './audio-editor-controller-fixtures.js';
 
-const assetLoader = `
-	export async function resolve(specifier, context, nextResolve) {
-		if (specifier === '@ffmpeg/core?url' || specifier === '@ffmpeg/core/wasm?url') {
-			return {
-				url: 'data:text/javascript,export default "mock-ffmpeg-asset"',
-				shortCircuit: true,
-			};
-		}
-		return nextResolve(specifier, context);
-	}
-`;
-
-register(`data:text/javascript,${encodeURIComponent(assetLoader)}`, import.meta.url);
+registerMockModuleUrls({
+	'@ffmpeg/core?url': 'data:text/javascript,export default "mock-ffmpeg-asset"',
+	'@ffmpeg/core/wasm?url': 'data:text/javascript,export default "mock-ffmpeg-asset"',
+});
 
 export const { createAudioEditorController } = await import('../../src/common/editor/app.js');
 export const {
