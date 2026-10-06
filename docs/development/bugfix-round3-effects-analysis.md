@@ -164,4 +164,25 @@ and WebKit. Two strict regressions cover generator inference, previews, explicit
 limits, and unchanged process inference. All 25 focused Nyquist preview,
 controller, host and ownership tests pass for these two extent fixes.
 
+## R3-ROOT-009 — One mixed Nyquist result requires two Undos
+
+Import two ordinary WAVs, choose **Select > Select all**, and open **Tools >
+Nyquist prompt**. Run `(if (= (get '*track* 'index) 1) (mult *track* -1)
+'((0 "Analysis")))`, which inverts the first track and returns a label for the
+second. Close the prompt, choose **Edit > Undo** once, and export WAV.
+
+Previously Undo removed the label but left the first track inverted. One Run
+published its audio and labels as two independent history entries. Mixed results
+now use the document's existing checkpoint transaction to settle into one history
+operation. Cancellation during publication restores the opening document, and
+the transaction's existing project and controller fences remain in force.
+
+Proof: the public regression failed against the immutable baseline with a
+0.69995 maximum difference from the original exported PCM after one Undo. The
+same test passes on green build 9 in Chromium, Firefox and WebKit. Two strict
+regressions exercise real history commands, collapse, Undo and cancellation;
+all 36 focused Nyquist, mutation and transaction checkpoint/fence tests pass.
+The internal metadata union describes the completed Nyquist operation without
+adding a public controller action or changing macro command execution.
+
 These changes do not require a manual **Update AI assets** run.

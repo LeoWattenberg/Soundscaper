@@ -6,6 +6,8 @@ The scope excludes initial editor loading and its expected lazy boundary. Electr
 
 The original proposal descriptions and source locations below refer to the audited base revision. The new status beside each entry refers to its implementation, with the precise scope in the register. P1/P2/P3 retain the audit priorities. [Baseline measurements](editing-performance-measurements.json) and [implementation measurements](editing-performance-implementation-measurements.json) preserve the raw trials and their limits.
 
+The recorded timings describe audit source `4d13b36f1`, before integration with later fixes on `main`. The merge retains rate-dependent pink-noise initialization and RNG draws, duration-scaled DTMF, caller cancellation, independent stereo meters and atomic multi-track macros. The current generator verifier compares against `main` revision `9c6d92863`: 144 jobs and 21,174,675 exact Float32 samples pass. The original 25d comparison remains historical evidence. The kernel tool reports the corrected pink reference and its other baseline revisions separately.
+
 ## Implementation coverage
 
 Speed now publishes foreground lossless raw PCM; **File > Project management > Consolidate media converts it to WavPack**, including tiny or incompressible sources. Conversion verifies exact decoded Float32 bits before one rewrite command and keeps prior raw generations available for Undo. The global Speed preference remains unchanged.

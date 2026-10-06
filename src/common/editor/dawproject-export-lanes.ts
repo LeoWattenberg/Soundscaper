@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { resolveAutomationLanePointFramesV21, type AutomationLaneV21 } from './automation-lane-v21.ts';
+import { readClipLoop } from './audio-clip-loop.ts';
 import { compareCodeUnits } from './code-unit-order.ts';
 import { addDeliveryReportItem } from './delivery-report.ts';
 import { reportOmittedClipFeatures } from './dawproject-export-clip-omissions.ts';
@@ -149,7 +150,9 @@ function buildAudioClip(clip: DataRecord, context: DawprojectExportContext): Xml
 	const durationSeconds = durationFrames / sampleRate;
 	const playStart = sourceStart / sourceRate;
 	const sourceSpan = sourceDurationFrames / sourceRate;
-	const stretched = Math.abs(sourceSpan - durationSeconds) * sampleRate > 0.5;
+	const loop = readClipLoop(clip);
+	const contentDurationSeconds = loop ? loop.periodFrames / sampleRate : durationSeconds;
+	const stretched = Math.abs(sourceSpan - contentDurationSeconds) * sampleRate > 0.5;
 
 	const entry = context.media.register(source, 'audio');
 	const audio = xmlElement('Audio', {
@@ -163,7 +166,7 @@ function buildAudioClip(clip: DataRecord, context: DawprojectExportContext): Xml
 	const timeEffect = interchangeClipTimeEffect(clip);
 	const warpPoints = records(record(clip.warpMap).points);
 	let content = audio;
-	let contentPlayStart = playStart;
+	let contentPlayStart = playStart + (loop ? loop.offsetFrames / loop.periodFrames * sourceSpan : 0);
 	if (warpPoints.length >= 2 && warpPoints.every((point) => point.mode === undefined || point.mode === 'forward')) {
 		content = buildWarps(context, clipId, audio, warpPoints.map((point) => ({
 			time: rationalValue(point.outer) / sampleRate,
@@ -181,15 +184,15 @@ function buildAudioClip(clip: DataRecord, context: DawprojectExportContext): Xml
 	} else if (stretched) {
 		content = buildWarps(context, clipId, audio, [
 			{ time: 0, contentTime: playStart },
-			{ time: durationSeconds, contentTime: playStart + sourceSpan },
+			{ time: contentDurationSeconds, contentTime: playStart + sourceSpan },
 		]);
-		contentPlayStart = 0;
+		contentPlayStart = loop ? loop.offsetFrames / sampleRate : 0;
 		addDeliveryReportItem(draft, {
 			code: 'dawproject.speed-change-converted',
 			disposition: 'converted',
 			severity: 'info',
 			scope: { kind: 'clip', id: clipId },
-			data: { speedRatio: sourceSpan / durationSeconds, ...(timeEffect?.data ?? {}) },
+			data: { speedRatio: sourceSpan / contentDurationSeconds, ...(timeEffect?.data ?? {}) },
 			message: 'The clip\'s speed change is written as a two-point Warp, which the receiving DAW renders with its own stretch algorithm.',
 		});
 	} else if (timeEffect) {
@@ -211,6 +214,7 @@ function buildAudioClip(clip: DataRecord, context: DawprojectExportContext): Xml
 		duration: durationSeconds,
 		contentTimeUnit: 'seconds',
 		playStart: contentPlayStart,
+		...(loop ? { loopStart: content === audio ? playStart : 0, loopEnd: content === audio ? playStart + sourceSpan : contentDurationSeconds } : {}),
 		fadeTimeUnit: 'seconds',
 		fadeInTime: fadeIn / sampleRate,
 		fadeOutTime: fadeOut / sampleRate,

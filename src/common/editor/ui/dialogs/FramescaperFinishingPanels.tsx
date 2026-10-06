@@ -62,6 +62,7 @@ export function CubeLutControls(props: Readonly<{
 
 export function CaptionSidecarEditor(props: Readonly<{
 	readonly blocked: boolean;
+	readonly exportBlocked: boolean;
 	readonly format: VideoCaptionInterchangeFormatV1;
 	readonly trackId: string;
 	readonly sequenceId: string;
@@ -81,26 +82,26 @@ export function CaptionSidecarEditor(props: Readonly<{
 	readonly onChooseFile: (file?: Blob) => void;
 	readonly fileRef: React.RefObject<HTMLInputElement | null>;
 	}>) {
-	return <fieldset disabled={props.blocked}>
+	return <fieldset disabled={props.exportBlocked}>
 		<legend>{text(props.copy, 'captionSidecarInterchange', FRAMESCAPER_FINISHING_ADDITIONAL_COPY.captionSidecarInterchange)}</legend>
 		<label><span>{text(props.copy, 'format', 'Format')}</span><select value={props.format} onChange={(event) => props.onFormat(
 			event.currentTarget.value as VideoCaptionInterchangeFormatV1,
 		)}>{CAPTION_FORMATS.map(({ value, label }) => <option key={value} value={value}>{label}</option>)}</select></label>
 		<label><span>{text(props.copy, 'captionTrackId', FRAMESCAPER_FINISHING_ADDITIONAL_COPY.captionTrackId)}</span><input value={props.trackId}
 			onChange={(event) => props.onTrackId(event.currentTarget.value)} /></label>
-		<label><span>{text(props.copy, 'sequence', FRAMESCAPER_FINISHING_ADDITIONAL_COPY.sequence)}</span><select value={props.sequenceId}
+		<label><span>{text(props.copy, 'sequence', FRAMESCAPER_FINISHING_ADDITIONAL_COPY.sequence)}</span><select value={props.sequenceId} disabled={props.blocked}
 			onChange={(event) => props.onSequenceId(event.currentTarget.value)}>{
 			sequenceIds(props.project).map((id) => <option key={id} value={id}>{id}</option>)
 		}</select></label>
-		<label><span>{text(props.copy, 'captionTrackName', FRAMESCAPER_FINISHING_ADDITIONAL_COPY.captionTrackName)}</span><input value={props.trackName}
+		<label><span>{text(props.copy, 'captionTrackName', FRAMESCAPER_FINISHING_ADDITIONAL_COPY.captionTrackName)}</span><input value={props.trackName} disabled={props.blocked}
 			onChange={(event) => props.onTrackName(event.currentTarget.value)} /></label>
-		<label><span>{text(props.copy, 'language', FRAMESCAPER_FINISHING_ADDITIONAL_COPY.language)}</span><input value={props.language}
+		<label><span>{text(props.copy, 'language', FRAMESCAPER_FINISHING_ADDITIONAL_COPY.language)}</span><input value={props.language} disabled={props.blocked}
 			onChange={(event) => props.onLanguage(event.currentTarget.value)} /></label>
-		<label><span>{text(props.copy, 'captionSidecarText', FRAMESCAPER_FINISHING_ADDITIONAL_COPY.captionSidecarText)}</span><textarea rows={10} maxLength={16 * 1024 * 1024}
+		<label><span>{text(props.copy, 'captionSidecarText', FRAMESCAPER_FINISHING_ADDITIONAL_COPY.captionSidecarText)}</span><textarea rows={10} maxLength={16 * 1024 * 1024} disabled={props.blocked}
 			value={props.sidecar} onChange={(event) => props.onSidecar(event.currentTarget.value)} /></label>
-		<div><button type="button" onClick={() => { props.onChooseFile(); }}>{
+		<div><button type="button" disabled={props.blocked} onClick={() => { props.onChooseFile(); }}>{
 			text(props.copy, 'captionChooseSidecarFile', FRAMESCAPER_FINISHING_ADDITIONAL_COPY.captionChooseSidecarFile)
-		}</button><button type="button" onClick={props.onImport}>{
+		}</button><button type="button" disabled={props.blocked} onClick={props.onImport}>{
 			text(props.copy, 'captionImportSidecar', FRAMESCAPER_FINISHING_ADDITIONAL_COPY.captionImportSidecar)
 		}</button><button type="button" onClick={props.onExport}>{
 			text(props.copy, 'captionExportSelectedTrack', FRAMESCAPER_FINISHING_ADDITIONAL_COPY.captionExportSelectedTrack)

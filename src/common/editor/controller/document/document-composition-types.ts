@@ -4,7 +4,7 @@ import type { FileSizeWarningConfirmation } from '../shared/file-size-warning.ts
 import type { MediaSourceLeaf, MediaClipLeaf } from '../../project-media-types.ts';
 import type { FramescaperImageSourceV1, FramescaperImageClipV1 } from '../../timeline-image-model.ts';
 import type { ProjectDocumentBody } from '../../project-document-body-types.ts';
-import type { MacroTransactionMetadata } from '../effects/macro-transaction-metadata.ts';
+import type { HistoryOperationMetadata } from './internal/history-operation-metadata.ts';
 
 import type { EnginePublicApi } from '../../engine/public-api.ts';
 import type { EditorCommandCapabilities } from './internal/command-capability-policy.ts';
@@ -129,7 +129,7 @@ export interface DocumentCompositionDependencies {
 		readonly cloneProject: (project: DocumentProject) => DocumentProject;
 		readonly applyCommand: (project: DocumentProject, command: AudioEditorCommand) => DocumentProject;
 		readonly executeCommand: (history: DocumentHistory, command: unknown, options?: EditorCommandMoment) => DocumentHistory;
-		readonly collapseHistory?: (history: DocumentHistory, depth: number, command: MacroTransactionMetadata) => DocumentHistory;
+		readonly collapseHistory?: (history: DocumentHistory, depth: number, command: HistoryOperationMetadata) => DocumentHistory;
 		readonly rollbackHistory?: (history: DocumentHistory, depth: number) => DocumentHistory;
 		readonly prepareTrackDuplicateCarrier: ControllerProjectRuntime['prepareTrackDuplicateCarrier'];
 	}>;

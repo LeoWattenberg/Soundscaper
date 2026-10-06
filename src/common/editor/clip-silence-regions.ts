@@ -8,6 +8,9 @@
  */
 
 import { readClipLoop } from './audio-clip-loop.ts';
+import { createClipSilenceWarpProjection } from './clip-silence-warp-projection.ts';
+import type { RuntimeClipProject } from './runtime-clip-projection.ts';
+import type { AudioWarpRuntimeClip } from './audio-warp-runtime.ts';
 
 export interface ClipSilenceScanClip {
 	readonly timelineStartFrame: number;
@@ -15,6 +18,11 @@ export interface ClipSilenceScanClip {
 	readonly sourceStartFrame: number;
 	readonly sourceDurationFrames?: number;
 	readonly reversed?: boolean;
+	readonly warpMap?: unknown;
+	readonly anchor?: unknown;
+	readonly musicalStartBeat?: AudioWarpRuntimeClip['musicalStartBeat'];
+	readonly musicalExtent?: unknown;
+	readonly musicalDurationBeats?: AudioWarpRuntimeClip['musicalDurationBeats'];
 }
 
 export interface ClipSilenceScanBuffer {
@@ -45,7 +53,12 @@ export function findClipSilenceRegions(
 	clip: ClipSilenceScanClip,
 	buffer: ClipSilenceScanBuffer,
 	bounds: ClipSilenceScanBounds | null = null,
+	project: RuntimeClipProject | null = null,
 ): readonly ClipSilenceRegion[] {
+	if (clip.warpMap != null) {
+		const projection = createClipSilenceWarpProjection(clip, bounds, project);
+		return projection.toTimeline(findClipSilenceRegions(projection.clip, buffer, projection.bounds));
+	}
 	const sourceDurationFrames = clip.sourceDurationFrames ?? clip.durationFrames;
 	if (!(sourceDurationFrames > 0) || !(clip.durationFrames > 0)) return Object.freeze([]);
 	const loop = readClipLoop(clip);

@@ -77,7 +77,8 @@ export function createFramescaperFinishingMenuItems(
 		surface: FramescaperFinishingSurface,
 		capability: string,
 	): FramescaperFinishingMenuItem => {
-		const enabled = mutable && input.capabilities[capability] === true;
+		const enabled = (mutable || (surface === 'captions' && input.readOnly === true))
+			&& input.capabilities[capability] === true;
 		return Object.freeze({
 			id, label: copy[`ui.framescaperMenus.${labelKey}`] ?? copy[labelKey] ?? fallback, disabled: !enabled,
 			onClick: () => enabled ? actions.open(surface) : undefined,

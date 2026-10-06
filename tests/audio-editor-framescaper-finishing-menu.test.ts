@@ -62,7 +62,9 @@ test('Framescaper finishing menus fail closed outside current mutable capability
 			...CAPABILITIES, videoDenoise: false,
 		}, editingBlocked: false, readOnly: true,
 	}, { open: () => { throw new Error('disabled action ran'); } });
-	assert.equal(disabled.tracks.every(({ disabled: value }) => value), true);
+	assert.equal(disabled.tracks.find(({ id }) => id === 'framescaper-caption-tracks')?.disabled, false,
+		'caption inspection and sidecar export stay available without an editing lease');
+	assert.equal(disabled.tracks.filter(({ id }) => id !== 'framescaper-caption-tracks').every(({ disabled: value }) => value), true);
 	assert.equal(disabled.effect[0]?.items?.every(({ disabled: value }) => value), true);
 	disabled.effect[0]?.items?.[0]?.onClick?.();
 });

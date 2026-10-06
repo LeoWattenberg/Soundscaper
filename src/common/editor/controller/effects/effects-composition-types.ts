@@ -30,6 +30,7 @@ import type { SelectionEffectWorkerServiceRuntime } from './internal/selection-e
 import type { EditorTaskProgressCoordinator } from '../shared/task-progress.ts';
 import type { RenderedAudio } from '../source/source-audio.ts';
 import type { generateWaveformPeaks } from '../source/waveform-analysis.ts';
+import type { MacroTransaction } from '../document/project-mutation-service.ts';
 
 /** The document shape every effect service reads; the controller supplies its current project. */
 export type EffectsCompositionProject =
@@ -88,6 +89,7 @@ export type EffectsCompositionEngine = Pick<EnginePublicApi,
 >;
 
 export interface EffectsCompositionDependencies {
+	readonly beginResultTransaction: () => Pick<MacroTransaction<unknown>, 'commit' | 'rollback'>;
 	readonly pauseSourcePreview?: () => void;
 	readonly state: EffectsCompositionState;
 	readonly copy: EffectsCompositionCopy;
