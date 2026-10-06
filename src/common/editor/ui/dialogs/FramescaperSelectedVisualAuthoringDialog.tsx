@@ -45,9 +45,10 @@ export default function FramescaperSelectedVisualAuthoringDialog(props: Props) {
 	const [brightness, setBrightness] = useState(String(model.adjustmentBrightness));
 	const [adjustmentLayerId, setAdjustmentLayerId] = useState(model.adjustmentLayerId);
 	const [maskId, setMaskId] = useState(model.selectedMaskId ?? '');
-	const [shape, setShape] = useState<'rectangle' | 'ellipse' | 'line'>('rectangle');
-	const [maskWidth, setMaskWidth] = useState('0.75');
-	const [maskHeight, setMaskHeight] = useState('0.75');
+	const savedMask = model.maskDrafts.find(({ id }) => id === maskId);
+	const [shape, setShape] = useState<'rectangle' | 'ellipse' | 'line'>(savedMask?.shape ?? 'rectangle');
+	const [maskWidth, setMaskWidth] = useState(String(savedMask?.width ?? 0.75));
+	const [maskHeight, setMaskHeight] = useState(String(savedMask?.height ?? 0.75));
 	const [visualPresetId, setVisualPresetId] = useState(model.visualPresets[0]?.id ?? '');
 	const [finishingPresetId, setFinishingPresetId] = useState(model.finishingPresets[0]?.id ?? '');
 	const [presetName, setPresetName] = useState(() => publishedCopyFor(props.copy ?? {})['ui.selectedVisualAuthoring.presetDefaultName'] || SELECTED_VISUAL_AUTHORING_COPY.presetDefaultName);
@@ -55,6 +56,11 @@ export default function FramescaperSelectedVisualAuthoringDialog(props: Props) {
 	const [pending, setPending] = useState(false);
 	const [status, setStatus] = useState('');
 	const [error, setError] = useState('');
+	useEffect(() => {
+		setShape(savedMask?.shape ?? 'rectangle');
+		setMaskWidth(String(savedMask?.width ?? 0.75));
+		setMaskHeight(String(savedMask?.height ?? 0.75));
+	}, [maskId, savedMask?.shape, savedMask?.width, savedMask?.height]);
 	useEffect(() => {
 		setPairId(model.selectedPairId ?? '');
 		setDurationFrames(model.transitionPairs.find(({ id }) => id === model.selectedPairId)?.durationFrames ?? 12);

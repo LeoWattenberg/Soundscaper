@@ -337,10 +337,7 @@ test.describe('Framescaper visual authoring menus', () => {
 		await dialog.getByRole('spinbutton', { name: 'Height', exact: true }).fill('0.25');
 		await dialog.getByRole('combobox', { name: 'Shape', exact: true }).selectOption('rectangle');
 		await dialog.getByRole('button', { name: 'Update attached mask', exact: true }).click();
-		await expect(status).toHaveText(
-			'A finishing visual presentation command must mutate state; no-op commands are unsupported.',
-			UI_OPTIONS,
-		);
+		await expect(status).toHaveText('Selected authored state applied.', UI_OPTIONS);
 		await dialog.getByRole('button', { name: 'Remove attachment', exact: true }).click();
 		await expect(status).toHaveText('Selected authored state removed.', UI_OPTIONS);
 		await expect(dialog.getByRole('button', { name: 'Remove attachment', exact: true })).toBeDisabled();

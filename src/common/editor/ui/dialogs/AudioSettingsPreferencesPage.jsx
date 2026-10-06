@@ -1,10 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { PreferencePanel } from '@soundscaper/design-system/PreferencePanel';
 
 import { AudioDevicesFlyout } from '../toolbar/AudioEditorMeterControls.jsx';
 import { recordingOffsetSources } from './editor-dialog-model.js';
+import RecordingOffsetInput from './RecordingOffsetInput.tsx';
 
 /**
  * Audacity's Audio settings preferences page: the playback and recording
@@ -20,21 +21,6 @@ export default function AudioSettingsPreferencesPage({ controller, snapshot, cop
 	const sourceOffset = sourceKey === 'global'
 		? snapshot.monitor?.latencyOffsetMs ?? 0
 		: snapshot.recordingInputs?.offsets?.[sourceKey] ?? 0;
-	const [offsetDraft, setOffsetDraft] = useState(String(sourceOffset));
-	useEffect(() => setOffsetDraft(String(sourceOffset)), [sourceKey, sourceOffset]);
-	const saveOffset = () => {
-		const offset = Number(offsetDraft);
-		if (!offsetDraft.trim() || !Number.isFinite(offset)) {
-			setOffsetDraft(String(sourceOffset));
-			return;
-		}
-		const boundedOffset = Math.max(-500, Math.min(500, offset));
-		setOffsetDraft(String(boundedOffset));
-		if (boundedOffset === sourceOffset) return;
-		run(() => sourceKey === 'global'
-			? controller.actions.recording.setLatencyOffset(boundedOffset)
-			: controller.actions.recording.setSourceOffset(sourceKey, boundedOffset));
-	};
 	return (
 		<>
 			<PreferencePanel title={copy.preferencesAudioSettings}>
@@ -59,9 +45,10 @@ export default function AudioSettingsPreferencesPage({ controller, snapshot, cop
 					</label>
 					<label className="kw-audio-editor-preferences__field">
 						<span>{copy.latencyOffset}</span>
-						<input type="number" min="-500" max="500" step="any" value={offsetDraft}
-							onChange={(event) => setOffsetDraft(event.currentTarget.value)}
-							onBlur={saveOffset} onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur(); }} />
+						<RecordingOffsetInput key={sourceKey} label={copy.latencyOffset} value={sourceOffset}
+							onCommit={(offset) => run(() => sourceKey === 'global'
+								? controller.actions.recording.setLatencyOffset(offset)
+								: controller.actions.recording.setSourceOffset(sourceKey, offset))} />
 					</label>
 				</div>
 			</PreferencePanel>

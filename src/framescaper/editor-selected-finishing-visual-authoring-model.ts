@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { normalizeVideoVisualPresetV1 } from '../common/editor/video-visual-preset-v24.ts';
+import { normalizeVideoMaskMatteGraphV1 } from '../common/editor/video-mask-matte-v24.ts';
 import {
 	normalizeVideoFinishingPresetV1,
 	normalizeVideoVisualPresentationV1,
@@ -60,6 +61,10 @@ export interface FramescaperSelectedVisualAuthoringModelFinishing {
 	readonly adjustmentBrightness: number;
 	readonly attachedMaskIds: readonly string[];
 	readonly selectedMaskId: string | null;
+	readonly maskDrafts: readonly Readonly<{
+		readonly id: string; readonly shape: 'rectangle' | 'ellipse';
+		readonly width: number; readonly height: number;
+	}>[];
 	readonly visualPresets: readonly Readonly<{
 		readonly id: string; readonly name: string; readonly modelKind: string;
 	}>[];
@@ -111,6 +116,13 @@ export function createFramescaperSelectedVisualAuthoringModelFinishing(input: Re
 		adjustmentBrightness: adjustmentBrightness(project, selectedClip, adjustment),
 		attachedMaskIds,
 		selectedMaskId: attachedMaskIds[0] ?? null,
+		maskDrafts: Object.freeze(records(project.videoMaskMattes, 'video masks')
+			.filter(({ id }) => attachedMaskIds.includes(String(id)))
+			.map(normalizeVideoMaskMatteGraphV1).flatMap((mask) => {
+				const node = mask.nodes.find(({ id }) => id === mask.outputNodeId);
+				return node?.kind === 'vector-shape' ? [Object.freeze({ id: mask.id,
+					shape: node.shape, width: node.width, height: node.height })] : [];
+			})),
 		visualPresets: Object.freeze(records(project.videoVisualPresets, 'visual presets')
 			.map(normalizeVideoVisualPresetV1)
 			.map(({ id, name, modelKind }) => Object.freeze({ id, name, modelKind }))),

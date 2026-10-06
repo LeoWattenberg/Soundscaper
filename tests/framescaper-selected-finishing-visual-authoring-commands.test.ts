@@ -6,6 +6,8 @@ import test from 'node:test';
 import { fingerprintNativeMediaPlan } from '../src/common/editor/native-media-plan-canonical-form.ts';
 import { createVideoSource } from '../src/common/editor/project-media-factory.ts';
 import type { AudioEditorProjectStore } from '../src/common/editor/storage.js';
+import { snapshotFramescaperOwnedFinishingCommandFinishing } from '../src/framescaper/editor-project-finishing-finishing-command.ts';
+import { snapshotFramescaperOwnedVisualCommandVisual } from '../src/framescaper/editor-project-visual-visual-command.ts';
 import {
 	prepareFramescaperSelectedVisualAuthoringFinishing as prepare,
 	type FramescaperSelectedPreparedVisualAuthoringFinishing,
@@ -276,12 +278,15 @@ test('applying onto an attached mask reuses that mask node identity', async () =
 		videoVisualPresentations: [presentation('pres-1', 'clip-1', ['mask-1'])],
 	});
 	const request = maskRequest(source, { maskId: 'mask-1', width: 0.8, height: 0.8 });
-	const authored = steps(await command('video-mask-matte', request, source));
+	const prepared = await command('video-mask-matte', request, source);
+	const authored = prepared.type === 'batch' ? steps(prepared) : [prepared];
 	assert.equal((authored[0]?.maskMatte as Data).id, 'mask-1');
 	assert.equal(((authored[0]?.maskMatte as Data).nodes as Data[])[0]?.id, 'node-1');
 	assert.equal((authored[0]?.expectedMaskMatte as Data).id, 'mask-1');
-	assert.equal(authored[1]?.presentationId, 'pres-1');
-	assert.deepEqual((authored[1]?.presentation as Data).maskMatteIds, ['mask-1']);
+	for (const step of authored) assert.doesNotThrow(() => step.type === 'video-mask-matte/set'
+		? snapshotFramescaperOwnedVisualCommandVisual(step)
+		: snapshotFramescaperOwnedFinishingCommandFinishing(step));
+	assert.deepEqual((source.videoVisualPresentations as Data[])[0]?.maskMatteIds, ['mask-1']);
 });
 
 test('removing the last reference to a mask deletes its graph as well', async () => {

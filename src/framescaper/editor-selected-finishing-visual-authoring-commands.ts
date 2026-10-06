@@ -191,7 +191,7 @@ function maskCommand(project: Data, request: Data): unknown {
 	return batch([
 		{ type: 'video-mask-matte/set', maskMatteId: maskId,
 			expectedMaskMatte: currentMask, maskMatte: mask },
-		presentationSet(currentPresentation, presentation),
+		...(currentPresentation?.maskMatteIds.includes(maskId) ? [] : [presentationSet(currentPresentation, presentation)]),
 	]);
 }
 

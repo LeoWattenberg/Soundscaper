@@ -89,6 +89,18 @@ test('an authoring model carries a fence bound to the project it read', () => {
 	assert.deepEqual(bound.selectedClipIds, ['clip-1']);
 });
 
+test('mask authoring carries the saved geometry of its attached masks', () => {
+	const built = model('video-mask-matte', { project: project({
+		videoVisualPresentations: [{ schemaVersion: 1, id: 'presentation-1',
+			owner: { kind: 'clip', id: 'clip-1' }, enabled: true, opacity: 1,
+			blendMode: 'normal', grade: null, processorStackId: null, maskMatteIds: ['mask-1'] }],
+		videoMaskMattes: [{ schemaVersion: 1, id: 'mask-1', kind: 'mask', inputs: [],
+			nodes: [{ id: 'shape-1', kind: 'vector-shape', shape: 'ellipse',
+				x: 0.25, y: 0.375, width: 0.5, height: 0.25 }], outputNodeId: 'shape-1' }],
+	}) });
+	assert.deepEqual(built.maskDrafts, [{ id: 'mask-1', shape: 'ellipse', width: 0.5, height: 0.25 }]);
+});
+
 test('an unsupported authoring surface is refused', () => {
 	assert.throws(() => model('video-nonsense'), RangeError);
 });
