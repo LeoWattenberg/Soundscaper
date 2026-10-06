@@ -93,6 +93,8 @@ export interface AnalysisDependencies {
 	getSelectedTrackId(): string | null;
 	getRange(): AnalysisRange;
 	getActiveSelection(): AnalysisRange | null;
+	/** Opt in only when this opaque generation binds all immutable render inputs. */
+	captureLoudnessGeneration?(): Readonly<{ generation: object; sampleRate: number }> | null;
 	getSpectrumWindowSize(): number;
 	getContrastSelections(): Readonly<{ foreground: ContrastSelection | null; background: ContrastSelection | null }>;
 	setContrastSelections(value: Readonly<{ foreground: ContrastSelection | null; background: ContrastSelection | null }>): void;
@@ -125,6 +127,7 @@ interface StoredAnalysis {
 
 export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 	let specializedCache: Readonly<{ key: string; result: unknown; visuals: unknown; report: unknown }> | null = null;
+	let loudnessCache: Readonly<{ generation: WeakRef<object>; key: string; report: DeliveryReport }> | null = null;
 	const finishedTasks = new WeakSet<EditorTaskScope>();
 	const {
 		lifetime,
@@ -324,12 +327,21 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 		if (!project.clips.length) return null;
 		const projectToken = dependencies.captureProject();
 		const task = begin('measuringLoudness');
-		const range = dependencies.getActiveSelection();
+		const selectedRange = dependencies.getActiveSelection();
+		const range = selectedRange ? Object.freeze({ ...selectedRange }) : null;
 		try {
 			assertAnalysisChannelAdmission(project);
 			if (!range || !(range.endFrame > range.startFrame)) throw createLocalizedError(RangeError, copy, 'timeSelectionRequired');
+			const request = captureRequest(project, 'master', range, null);
+			const identity = loudnessIdentity(project, range, projectToken);
+			assertCurrent(task, projectToken, request);
+			if (identity && loudnessCache?.generation.deref() === identity.generation && loudnessCache.key === identity.key) {
+				const report = structuredClone(loudnessCache.report);
+				complete(task, () => { dependencies.state.deliveryReport = report; setLocalizedStatus(dependencies.setStatus, copy, 'loudnessMeasured', undefined, 'success'); });
+				return report;
+			}
 			const rendered = await dependencies.renderAudio('master', range, task.signal);
-			assertCurrent(task, projectToken);
+			assertCurrent(task, projectToken, request);
 			const channels = Array.from(
 				{ length: rendered.numberOfChannels },
 				(_, channel) => rendered.getChannelData(channel),
@@ -346,18 +358,36 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 				range,
 				scope: loudnessMeasurementScope(range),
 			});
-			assertCurrent(task, projectToken);
+			assertCurrent(task, projectToken, request);
+			const currentIdentity = loudnessIdentity(dependencies.getProject(), range, projectToken);
+			if (identity && currentIdentity?.generation === identity.generation && currentIdentity.key === identity.key
+				&& rendered.sampleRate === identity.sampleRate && channels.length === identity.channelCount) {
+				loudnessCache = { generation: new WeakRef(identity.generation), key: identity.key, report: structuredClone(report) };
+			}
 			complete(task, () => {
 				dependencies.state.deliveryReport = report;
 				setLocalizedStatus(dependencies.setStatus, copy, "loudnessMeasured", undefined, 'success');
 			});
 			return report;
 		} catch (error) {
+			loudnessCache = null;
 			handleTaskError(error);
 			return null;
 		} finally {
 			finish(task);
 		}
+	}
+
+	function loudnessIdentity(project: AnalysisProjectIdentity, range: AnalysisRange, token: EditorProjectToken) {
+		const authority = dependencies.captureLoudnessGeneration?.();
+		const channelCount = Number(project.masterChannels ?? 2);
+		if (!authority || !Number.isSafeInteger(authority.sampleRate) || authority.sampleRate < 1
+			|| !Number.isSafeInteger(project.revision) || !Number.isSafeInteger(range.startFrame) || range.startFrame < 0
+			|| !Number.isSafeInteger(range.endFrame)
+			|| !Number.isSafeInteger(channelCount) || channelCount < 1 || channelCount > EBU_R128_MAXIMUM_CHANNELS) return null;
+		const key = JSON.stringify([token.generation, project.id, project.revision, range.startFrame, range.endFrame,
+			authority.sampleRate, channelCount, resolveAdmEbuChannelWeights(project.metadata?.adm, channelCount)]);
+		return { generation: authority.generation, sampleRate: authority.sampleRate, channelCount, key };
 	}
 
 	async function renderAndAnalyze(

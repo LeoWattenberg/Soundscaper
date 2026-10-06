@@ -46,6 +46,8 @@ export interface AnalysisCompositionDependencies<Project extends AnalysisProject
 	readonly projectGeneration: Pick<EditorProjectGeneration, 'capture' | 'assertCurrent'>;
 	readonly getProject: () => Project | null;
 	readonly getActiveSelection: AnalysisDependencies['getActiveSelection'];
+	/** The owner may attest an immutable document/render generation; mutable callers leave this absent. */
+	readonly getImmutableProjectGeneration?: () => object | null;
 	readonly projectDurationFrames: (project: Project) => number;
 	readonly store: Pick<AnalysisDependencies, 'loadAnalysis' | 'saveAnalysis'>;
 	readonly taskProgress: Pick<EditorTaskProgressCoordinator, 'run'>;
@@ -85,6 +87,10 @@ export function createAnalysisComposition<Project extends AnalysisProject, Buffe
 			});
 		},
 		getActiveSelection: currentSelection,
+		captureLoudnessGeneration: dependencies.getImmutableProjectGeneration ? () => {
+			const generation = dependencies.hasMissingTimelineSources() ? null : dependencies.getImmutableProjectGeneration?.();
+			return generation ? { generation, sampleRate: dependencies.projectSampleRate() } : null;
+		} : undefined,
 		getSpectrumWindowSize: () => state.preferences?.spectrogram?.windowSize ?? 2048,
 		getContrastSelections: () => state.contrastSelections,
 		setContrastSelections: (value) => { state.contrastSelections = value; },

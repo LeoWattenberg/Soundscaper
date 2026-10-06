@@ -120,6 +120,18 @@ test('malformed worker results cannot be cached or published as successful analy
 	assert.equal(f.state.analysisProcessing, false);
 });
 
+test('the immutable composition opts loudness into repeat caching while missing sources still refuse', async () => {
+	const f = fixture(), project = { ...f.dependencies.getProject()!, masterChannels: 1 };
+	let missing = false;
+	const actions = createAnalysisComposition({ ...f.dependencies, getProject: () => project,
+		getImmutableProjectGeneration: () => project, hasMissingTimelineSources: () => missing });
+	assert.ok(await actions.measureLoudness()); assert.ok(await actions.measureLoudness());
+	assert.equal(f.renders.length, 1); assert.deepEqual(f.errors, []);
+	missing = true;
+	assert.equal(await actions.measureLoudness(), null); assert.equal(f.renders.length, 1);
+	assert.equal(f.errors.length, 1);
+});
+
 /** Compile-time checks only: a numeric scope must fail at both public boundaries. */
 export function checkAnalysisScopeTypes(
 	actions: ReturnType<typeof createAnalysisComposition>,
