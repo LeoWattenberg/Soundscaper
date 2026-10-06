@@ -3,16 +3,18 @@ import { Dropdown } from '@soundscaper/design-system/Dropdown';
 import { TextInput } from '@soundscaper/design-system/TextInput';
 
 import PreferenceCheckbox from '../EditorPreferenceCheckbox.tsx';
+import { cancelDraftEditOnEscape, createDraftBlurCommitGuard, draftBlurShouldCommit } from '../draft-blur-commit.ts';
 
 export function CommitField({ label, name, value, type = 'text', disabled, readOnly, multiline, hookName = 'clip-field', visuallyHiddenLabel = false, onCommit }) {
 	const [draft, setDraft] = useState(String(value ?? ''));
 	const [error, setError] = useState(false);
+	const blurCommitGuard = useRef(createDraftBlurCommitGuard()).current;
 	useEffect(() => {
 		setDraft(String(value ?? ''));
 		setError(false);
 	}, [name, value]);
 	const commit = () => {
-		if (disabled || readOnly) return;
+		if (disabled || readOnly || !draftBlurShouldCommit(blurCommitGuard)) return;
 		try {
 			onCommit(name, draft);
 			setError(false);
@@ -22,7 +24,20 @@ export function CommitField({ label, name, value, type = 'text', disabled, readO
 	};
 	const hook = { [`data-${hookName}`]: name };
 	return (
-		<label className="audio-editor-field" {...hook}>
+		<label className="audio-editor-field" {...hook} onKeyDown={(event) => {
+			if (disabled || readOnly || event.nativeEvent?.isComposing) return;
+			if (event.key === 'Enter' && !multiline) {
+				event.preventDefault();
+				event.stopPropagation();
+				event.target.blur();
+			} else if (event.key === 'Escape') {
+				cancelDraftEditOnEscape(blurCommitGuard, { currentTarget: event.target,
+					preventDefault: () => event.preventDefault(), stopPropagation: () => event.stopPropagation() }, () => {
+					setDraft(String(value ?? ''));
+					setError(false);
+				});
+			}
+		}}>
 			<span className={visuallyHiddenLabel ? 'kw-audio-editor-sr-only' : undefined}>{label}</span>
 			<TextInput
 				value={draft}

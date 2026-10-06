@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { formatPresentationMessage } from '../../../i18n/presentation-message.ts'; import { timelineAnnotationNavigationMessage } from './timeline-annotation-presentation.ts'; import React, { useRef } from 'react';
+import { formatPresentationMessage } from '../../../i18n/presentation-message.ts'; import { timelineAnnotationNavigationMessage } from './timeline-annotation-presentation.ts'; import React, { useEffect, useRef } from 'react';
 
 import { AUDIO_EDITOR_TIMELINE_ANNOTATION_COLORS } from '../../timeline-annotation.ts';
 import AudioEditorTimeCodeInput from '../AudioEditorTimeCodeInput.tsx';
@@ -19,6 +19,7 @@ export function TimelineAnnotationPanel({
 	createAnnotation,
 }) {
 	const addMarkerRef = useRef(null);
+	const renameRef = useRef(null);
 	const titleId = React.useId();
 	const {
 		actions,
@@ -63,6 +64,11 @@ export function TimelineAnnotationPanel({
 		);
 	};
 	const expandedId = editingId ?? model.focusedId;
+	useEffect(() => {
+		if (!editingId) return;
+		renameRef.current?.focus();
+		renameRef.current?.select();
+	}, [editingId]);
 
 	return (
 		<section className="audio-editor-timeline-annotation-panel" data-timeline-annotation-panel aria-labelledby={titleId}>
@@ -119,6 +125,7 @@ export function TimelineAnnotationPanel({
 						</button>
 						{expanded && <div className="audio-editor-timeline-annotation-list__editor" role="group" aria-label={copy.editTimelineAnnotation}>
 							<label>{copy.annotationName}<input
+								ref={renameRef}
 								disabled={blocked}
 								value={editingId === annotation.id ? draftName : annotation.name}
 								onFocus={() => {
