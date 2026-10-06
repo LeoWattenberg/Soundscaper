@@ -63,25 +63,25 @@ test('threat-model documentation defines the limits of enforced controls', async
 	for (const risk of matrix.risks) assert.match(documentation, new RegExp(`\\b${risk.id}\\b`, 'u'));
 	assert.match(documentation, /enforced does not mean risk-free/iu);
 	assert.match(documentation, /workers? provide fault isolation, not an operating-system security boundary/iu);
-	assert.match(documentation, /native plug-ins? execute arbitrary code.*exact per-OS launcher.*rather than.*same-UID/isu);
+	assertOrderedClaim(documentation, /native plug-ins? execute arbitrary code.*exact per-OS launcher.*rather than.*same-UID/isu);
 	assert.match(documentation, /local operating-system compromise is out of scope/iu);
-	assert.match(
+	assertOrderedClaim(
 		documentation,
 		/desktop-read-path-capabilities.*enforced for the current versioned materialized, selected-file range, Scape range, linked-audio range, and linked-video playback range profiles.*`?materialized-v1`?.*`?selected-range-v1`?.*`?scape-range-v1`?.*`?linked-audio-range-v1`?.*`?linked-video-range-v1`?.*all five profiles.*128 pending\/live.*`?materialized-v1`?.*512 MiB.*per-owner.*`?scape-range-v1`?.*at most four capabilities.*safe-integer aggregate declared bytes.*globally and per owner.*other accepted desktop selections.*`?selected-range-v1`?.*safe-integer aggregate bytes.*128 capabilities.*four active requests.*4 MiB per requested range.*linked audio and video share.*128 capabilities.*64 GiB.*512 MiB per file.*16 active range requests.*count.*before open.*bytes.*after stat.*before descriptor publication.*cleanup failure.*retains the range charge.*fences.*expiry for the expiring profiles.*owner-pinned without wall-clock expiry.*OS-open dispatch.*four Scape descriptors.*fifth.*unopened.*acknowledged release.*redispatches.*renderer-send failure.*releases.*descriptor/isu,
 	);
-	assert.match(
+	assertOrderedClaim(
 		documentation,
 		/bounded desktop materializer.*forwards a supplied signal.*releases its capability on abort.*open.*import orchestration does not consistently own or provide that signal/isu,
 	);
-	assert.match(
+	assertOrderedClaim(
 		documentation,
 		/`?scape-range-v1`? protocol.*only `GET`.*closed `?bytes=start-end`? range.*at most 16 MiB.*wholly inside.*always responds `206`.*full-file.*`HEAD`.*suffix.*open-ended.*multiple.*oversized.*end-of-file-overrun.*refuse.*profile parsing.*descriptor\/profile comparison.*range validation.*before acquisition.*cannot renew.*TTL.*store repeats.*expected-profile.*before renewal.*one active range request globally.*successful Web response body.*`?done`?.*preserves.*pinned handle.*cancellation.*request abort.*inner stream failure.*retires.*whole capability.*native stream close.*pinned handle close.*cleanup barrier.*preload validation.*exact profile.*name.*MIME.*profile-specific size.*canonical URL-path.*no query or fragment.*renderer repeats.*generic materialization rejects Scape.*strict archive adapter.*partial-response contract.*exactly once.*invalid or mismatched renderer route.*released before refusal.*Browser Blob.*Audacity/isu,
 	);
-	assert.match(
+	assertOrderedClaim(
 		documentation,
 		/separately admitted `?linked-audio-range-v1`? and `?linked-video-range-v1`? profiles.*exact current locator revision.*pathname stat.*opens an owner-scoped handle.*same identity.*pathname-replacement race.*128-capability.*64 GiB.*16-active-request.*512 MiB per file.*protocol admits `HEAD`.*start-based closed or open-ended `GET`.*4 MiB.*rejects a full-body `GET`.*successful response or ordinary cancellation.*preserves the pinned capability.*inner stream failure retires.*maintained WAV\/RF64 MIME\/name contract.*exact `?\.aif`? or `?\.aiff`? name.*`?audio\/aiff`?.*`?\.aifc`?.*hashes the entire admitted handle sequentially.*at-most-4-MiB `206` responses.*binding and CAS fence.*linked-PCM path.*without constructing a second whole-original Blob.*FORM\/AIFF.*COMM.*SSND.*signed big-endian integer PCM.*8.*16.*24.*32.*FORM\/AIFC.*FVER v1.*0xA2805140.*44-byte\s+COMM.*32-bit `?fl32`?.*Pascal compression name `?32-bit\s+floating point`?.*first-party label.*maintained fixture.*not authenticated provenance.*producer-neutral.*any producer.*exact tuple.*broader.*compressed.*other AIFC profiles reject.*broader third-party interoperability.*producer provenance.*unqualified.*release.*once.*aggregate error.*provider-owned stable PCM\s+read session.*one full-container digest,? and one parsed descriptor.*serialized random or sequential chunk reads.*complete alias group.*exact binding.*before and after.*per-read.*cancellation.*local.*provider retirement.*terminal.*exact-once release.*backing cleanup.*aggregate.*linked-PCM range control.*initial binding.*materialized the complete external WAV or AIFF.*512 MiB.*not a content-frozen, durable,.*cross-process lease.*same-inode mutation.*unfenced.*Float32 arrays.*source-container metadata.*does not preserve WAV or AIFF ancillary metadata.*no packaged-executable.*operating-system.*reference-scale qualification/isu,
 	);
-	assert.match(
+	assertOrderedClaim(
 		documentation,
 		/`?materialized-v1`? tier.*whole `?Blob`?.*512 MiB.*excludes Scape and linked-original range descriptors.*declared `?Content-Length`?.*emitted-byte.*final `?Blob`?-size.*16 MiB.*caller.*`?AbortSignal`?.*never calls `?response\.blob\(\)`?.*not decoder amplification or whole-process RSS/isu,
 	);
@@ -103,19 +103,19 @@ test('threat-model documentation defines the limits of enforced controls', async
 		/verified reference evidence.*opt-in.*`npm run test:reference:scape-8gib`.*routine Node.*coverage.*fast-skip.*measured all-files coverage.*passed.*525 seconds.*does not demote.*refusal inspection.*corrupted-CRC negative rollback.*routine coverage.*sparse-file support.*Node protocol shim.*(?:not|rather than) packaged UI/isu,
 		/OPFS.*IndexedDB.*durable.*real production browser or filesystem quota accuracy.*reservation.*write-time success.*concurrent writers.*browser heap.*process RSS.*whole-storage atomicity.*publisher authentication/isu,
 	]) assertOrderedClaim(documentation, claim);
-	assert.match(
+	assertOrderedClaim(
 		documentation,
 		/shared-desktop-project-library-integrity.*current authority is product-isolated.*Soundscaper and Framescaper desktop libraries.*family-v1 handshakes.*library schema 1.*SQLite user_version 1.*distinct Soundscaper\/project-library\/v1 and Framescaper\/project-library\/v1 roots.*SSCP and FSCP application IDs.*schemaFamily and schemaVersion.*disjoint product:v1:project-library.*pre-release roots.*untouched and invisible.*no pre-release migration or copy-forward marker.*Historical pre-freeze provenance.*grants no current project, migration, storage, IPC, or package authority/isu,
 	);
-	assert.match(
+	assertOrderedClaim(
 		documentation,
 		/family-qualified handshake.*current fenced lease.*only the current lease may publish.*immutable bodies.*digest-bound.*recovery roots.*before host exposure/isu,
 	);
-	assert.match(
+	assertOrderedClaim(
 		documentation,
 		/Version-bearing S21–S30, F18–F32.*historical implementation provenance.*not runtime, migration, storage, or packaging authorities/isu,
 	);
-	assert.match(
+	assertOrderedClaim(
 		documentation,
 		/Historical pre-freeze provenance.*shared-library description.*grants no current project, migration, storage, IPC, or package authority/isu,
 	);
@@ -159,7 +159,7 @@ test('disposable video preview cache evidence binds current originals without cl
 
 	const documentation = await readFile(new URL(`../${matrix.modelDocument}`, import.meta.url), 'utf8');
 	const normalizedDocumentation = documentation.replace(/\s+/gu, ' ');
-	assert.match(
+	assertOrderedClaim(
 		normalizedDocumentation,
 		/original-bound-disposable-video-preview-cache.*repository-trusted current SHA-256.*media-content token.*content-addressed key.*original storage key and digest.*poster or thumbnail type.*normalized non-negative source time.*versioned recipe.*revalidates.*immediately before publication.*payload and scalar companion.*failed publication.*staged OPFS output.*output size and SHA-256.*older original generation.*cache miss.*same digest.*malformed pair or binding.*reject.*legacy or unbound.*cache misses.*exact derivative deletion.*media-asset cascade.*full agreement.*scalar companion.*before deleting any row.*paths re-projected from validated payloads.*after the transaction commits.*mismatch.*without disposing any OPFS path.*corrupt companion path.*cannot delete an unrelated.*recipe.*normalized recipe ID and version.*omitting the recipe.*all revisions.*posterStorageKey.*thumbnailStorageKey.*null.*future read-only.*opaque.*durable desktop recipient binding.*no longer part of maintained durable binding identity.*not an editorial proxy or relink relationship/isu,
 	);
@@ -219,10 +219,10 @@ test('project identities fail closed before traversal and expose no predecessor 
 
 	const documentation = await readFile(new URL(`../${matrix.modelDocument}`, import.meta.url), 'utf8');
 	const normalizedDocumentation = documentation.replace(/\s+/gu, ' ');
-	assert.match(normalizedDocumentation, /1\.0 project-identity boundary.*schemaFamily:'soundscaper'.*schemaVersion:1.*schemaFamily:'framescaper'.*schemaVersion:1/isu);
+	assertOrderedClaim(normalizedDocumentation, /1\.0 project-identity boundary.*schemaFamily:'soundscaper'.*schemaVersion:1.*schemaFamily:'framescaper'.*schemaVersion:1/isu);
 	assert.match(normalizedDocumentation, /no project migration, copy-forward, predecessor-validator dispatch/isu);
-	assert.match(normalizedDocumentation, /Fallback admission.*owning family-v1 identity.*same family.*foreign-family archive never enters those domain controls.*byte-exact Save Copy/isu);
-	assert.match(normalizedDocumentation, /known security-boundary failure.*owner.*hold the release/isu);
+	assertOrderedClaim(normalizedDocumentation, /Fallback admission.*owning family-v1 identity.*same family.*foreign-family archive never enters those domain controls.*byte-exact Save Copy/isu);
+	assertOrderedClaim(normalizedDocumentation, /known security-boundary failure.*owner.*hold the release/isu);
 });
 
 async function readMatrix() {

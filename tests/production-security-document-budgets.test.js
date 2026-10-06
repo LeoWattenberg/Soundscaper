@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
+import { assertOrderedClaim } from './helpers/ordered-evidence-claim.js';
+
 const matrixUrl = new URL('../config/production-security-matrix.json', import.meta.url);
 
 test('legacy AUP evidence pins structural and block-materialization budgets', async () => {
@@ -81,11 +83,11 @@ test('legacy AUP evidence pins structural and block-materialization budgets', as
 	);
 
 	const documentation = (await readFile(new URL(`../${matrix.modelDocument}`, import.meta.url), 'utf8')).replace(/\s+/gu, ' ');
-	assert.match(
+	assertOrderedClaim(
 		documentation,
 		/external-project-document-validation.*partial.*legacy `?\.aup`? XML.*`File\.size`.*UTF-8 (?:byte length|text length).*16 MiB warning threshold.*cancellation and currentness.*confirmation.*100,000.*400,000.*128.*canonical, default-sized simple\/silent `?_data`?.*65,536.*2 MiB.*1 MiB.*524,288.*512 MiB.*retained Float32 PCM.*exact\/basename indexes.*positive block lengths.*24-byte AU header.*equal-length paired linked clips.*precedes retained-PCM allocation or block reads.*precedes decoded-block allocation.*native-endian.*unique file.*preallocated output.*logically reachable parser-owned window.*precedes conversion.*persistence.*publication.*do not qualify.*customized Audacity block-size.*garbage-collection lag.*total renderer RSS.*streaming-scale.*corpus/isu,
 	);
-	assert.match(
+	assertOrderedClaim(
 		documentation,
 		/1\.0 project-identity boundary.*own\s+enumerable data properties.*numeric-only.*REIMPORT_REQUIRED.*no project migration, copy-forward, predecessor-validator dispatch/isu,
 	);
@@ -121,7 +123,7 @@ test('desktop save admission evidence pins product-wide capacity before staging'
 	));
 
 	const documentation = (await readFile(new URL(`../${matrix.modelDocument}`, import.meta.url), 'utf8')).replace(/\s+/gu, ' ');
-	assert.match(
+	assertOrderedClaim(
 		documentation,
 		/desktop-write-path-capabilities.*partial.*16 outstanding product-wide targets.*4 pending or live sessions.*65 GiB.*warning threshold.*owner-bound target.*native user confirmation.*exact declared size.*owner.*shutdown.*revocation.*before staging.*larger save.*budget alone.*count and byte reservations.*synchronous.*BigInt `statfs`.*before staging open.*point-in-time.*not an operating-system reservation.*cleanup failure.*charged.*active chunk.*parent-directory/isu,
 	);

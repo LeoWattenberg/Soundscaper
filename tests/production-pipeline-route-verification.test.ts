@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import { access, readFile } from 'node:fs/promises';
 import test from 'node:test';
 
+import { assertOrderedClaim } from './helpers/ordered-evidence-claim.js';
+
 import { BROWSER_EXPORT_BLOB_MAXIMUM_BYTES } from '../src/common/editor/browser-export-output.ts';
 import { SCAPE_WEB_CORE_BLOB_MAXIMUM_BYTES } from '../src/common/editor/scape-export-estimate.ts';
 
@@ -143,15 +145,15 @@ test('the threat model owns the route-level claim without promoting resource gua
 	for (const routeId of Object.keys(ROUTE_CONTROL)) {
 		assert.match(documentation, new RegExp(`\\b${routeId}\\b`, 'u'));
 	}
-	assert.match(
+	assertOrderedClaim(
 		documentation,
 		/five browser-Blob fallbacks.*user-overridable\s+512 MiB warning threshold.*Storage-backed audio mix and stem archives.*user-overridable 1,000,000,000-byte warning threshold.*exact operation size.*structural format.*safe-integer arithmetic.*actual storage capacity.*byte-count.*digest.*cancellation.*currentness.*completed native file bytes before Blob\s+construction and download publication/isu,
 	);
-	assert.match(
+	assertOrderedClaim(
 		documentation,
 		/other eleven IDs.*direct publication routes.*None performs final renderer-sized\s+Blob\s+construction or download publication/isu,
 	);
-	assert.match(
+	assertOrderedClaim(
 		documentation,
 		/does\s+not add browser\s+heap.*codec worker.*Mediabunny.*RSS.*reference-scale.*durability.*packaged.*cross-platform claims/isu,
 	);

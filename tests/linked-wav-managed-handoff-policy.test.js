@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
+import { assertOrderedClaim } from './helpers/ordered-evidence-claim.js';
+
 const compatibilityUrl = new URL('../config/project-compatibility.json', import.meta.url);
 const compatibilityDocumentUrl = new URL('../docs/policies/project-compatibility.md', import.meta.url);
 const securityUrl = new URL('../config/production-security-matrix.json', import.meta.url);
@@ -219,42 +221,42 @@ test('linked PCM compatibility and threat documentation own the detailed limits'
 		assert.match(documentation, /narrow linked-PCM managed-handoff exception/iu);
 		assertMaintainedAiffProfile(documentation);
 		assert.match(documentation, /canonical `audio-f32le-chunks-v1`/iu);
-		assert.match(documentation, /fresh (?:portless )?recipient.*owned (?:canonical )?PCM/isu);
-		assert.match(documentation, /external (?:source-)?container bytes.*locator identity.*(?:absent|do not cross)/isu);
-		assert.match(documentation, /same-inode.*mutation.*not fenced/isu);
-		assert.match(documentation, /packaged executable or UI.*operating-system/isu);
+		assertOrderedClaim(documentation, /fresh (?:portless )?recipient.*owned (?:canonical )?PCM/isu);
+		assertOrderedClaim(documentation, /external (?:source-)?container bytes.*locator identity.*(?:absent|do not cross)/isu);
+		assertOrderedClaim(documentation, /same-inode.*mutation.*not fenced/isu);
+		assertOrderedClaim(documentation, /packaged executable or UI.*operating-system/isu);
 		assert.match(documentation, /metadata preservation/iu);
 		assert.match(documentation, /reference-scale/iu);
-		assert.match(
+		assertOrderedClaim(
 			documentation,
 			/provider-owned stable PCM\s+read session.*one full-container digest,? and one parsed descriptor.*serialized random\s+or sequential chunk reads.*complete alias group.*exact\s+binding.*before and after.*per-read.*cancellation.*local.*exact-once release.*backing/isu,
 		);
-		assert.match(
+		assertOrderedClaim(
 			documentation,
 			/binding-backed.*Project Bin.*(?:linked-PCM\s+)?relink.*exactly\s+one audio source.*(?:does not|must not|not).*missing-source\s+state.*pathless.*selected\s+`?File`?.*opaque locator ID\s+and\s+(?:exact\s+)?revision/isu,
 		);
-		assert.match(documentation, /classif.*byte length and SHA-256.*exact\s+project\s+and\s+project\s+revision.*changed choice.*localized confirmation/isu);
+		assertOrderedClaim(documentation, /classif.*byte length and SHA-256.*exact\s+project\s+and\s+project\s+revision.*changed choice.*localized confirmation/isu);
 		assert.match(documentation, /(?:structural(?:ly)? (?:probe|inspect).*before.*timeline\s+transport.*Project\s+Bin\s+preview.*(?:provider.*drain|drain.*provider)|Before timeline\s+transport.*Project\s+Bin\s+preview.*structural probe.*controller.*(?:provider.*drain|drain.*provider))/isu);
-		assert.match(documentation, /same\s+maintained\s+(?:container|MIME\s+and\s+file)\s+identity.*exact\s+frame\s+count,\s+channel\s+count,\s+sample\s+rate,\s+and\s+original\s+sample\s+rate/isu);
+		assertOrderedClaim(documentation, /same\s+maintained\s+(?:container|MIME\s+and\s+file)\s+identity.*exact\s+frame\s+count,\s+channel\s+count,\s+sample\s+rate,\s+and\s+original\s+sample\s+rate/isu);
 		assert.match(documentation, /timeline\s+transport.*Project\s+Bin\s+preview.*(?:provider.*drain|drain.*provider).*before.*storage/isu);
-		assert.match(documentation, /default.*(?:same\s+byte\s+length\s+and\s+SHA-256|exact\s+byte-length\s+and\s+SHA-256\s+equality).*changed.*candidate.*exact\s+revision.*measured.*byte length.*SHA-256/isu);
-		assert.match(documentation, /synchronous.*assertCanPublish/isu);
-		assert.match(documentation, /same\s+compensated\s+memory\s+batch\s+or\s+IndexedDB.*binding-and-provisional-root/isu);
-		assert.match(documentation, /(?:guard|assertCanPublish).*rechecks.*task.*project\s+generation.*writable/isu);
-		assert.match(documentation, /project,\s+source,\s+clip,\s+and\s+history.*unchanged.*reactivat.*before.*availability/isu);
+		assertOrderedClaim(documentation, /default.*(?:same\s+byte\s+length\s+and\s+SHA-256|exact\s+byte-length\s+and\s+SHA-256\s+equality).*changed.*candidate.*exact\s+revision.*measured.*byte length.*SHA-256/isu);
+		assertOrderedClaim(documentation, /synchronous.*assertCanPublish/isu);
+		assertOrderedClaim(documentation, /same\s+compensated\s+memory\s+batch\s+or\s+IndexedDB.*binding-and-provisional-root/isu);
+		assertOrderedClaim(documentation, /(?:guard|assertCanPublish).*rechecks.*task.*project\s+generation.*writable/isu);
+		assertOrderedClaim(documentation, /project,\s+source,\s+clip,\s+and\s+history.*unchanged.*reactivat.*before.*availability/isu);
 		assertLinkedAudioTargetAndRecovery(documentation);
 	}
 });
 
 function assertLinkedAudioTargetAndRecovery(text) {
-	assert.match(text, /pathless.*selected\s+`File`.*opaque\s+locator\s+ID.*revision.*exact\s+`?\{projectId, projectRevision\}`?\s+target/isu);
-	assert.match(text, /target.*before.*shared.*relink\s+task.*(?:without|does not).*cancell?ing\s+current\s+work.*(?:recheck|rechecks|validate).*target.*storage\s+publication/isu);
-	assert.match(text, /current\s+audio-operation\s+ownership.*active\s+project.*controller\s+lifetime.*rather\s+than\s+shared-task\s+currentness/isu);
-	assert.match(text, /shared\s+video.*project-lock\s+cancellation.*before\s+publication.*restore.*old\s+runtime/isu);
-	assert.match(text, /after\s+publication.*activation.*(?:did\s+not\s+complete|is\s+incomplete|incomplete).*(?:source\s+missing|missing\s+state)/isu);
-	assert.match(text, /completed\s+owned\s+activation.*availability/isu);
-	assert.match(text, /recovery.*rechecks.*operation\s+ownership.*after\s+metadata.*before\s+activation/isu);
-	assert.match(text, /cross-store.*(?:cross-process|process) coordination.*(?:unqualified|not qualified)/isu);
+	assertOrderedClaim(text, /pathless.*selected\s+`File`.*opaque\s+locator\s+ID.*revision.*exact\s+`?\{projectId, projectRevision\}`?\s+target/isu);
+	assertOrderedClaim(text, /target.*before.*shared.*relink\s+task.*(?:without|does not).*cancell?ing\s+current\s+work.*(?:recheck|rechecks|validate).*target.*storage\s+publication/isu);
+	assertOrderedClaim(text, /current\s+audio-operation\s+ownership.*active\s+project.*controller\s+lifetime.*rather\s+than\s+shared-task\s+currentness/isu);
+	assertOrderedClaim(text, /shared\s+video.*project-lock\s+cancellation.*before\s+publication.*restore.*old\s+runtime/isu);
+	assertOrderedClaim(text, /after\s+publication.*activation.*(?:did\s+not\s+complete|is\s+incomplete|incomplete).*(?:source\s+missing|missing\s+state)/isu);
+	assertOrderedClaim(text, /completed\s+owned\s+activation.*availability/isu);
+	assertOrderedClaim(text, /recovery.*rechecks.*operation\s+ownership.*after\s+metadata.*before\s+activation/isu);
+	assertOrderedClaim(text, /cross-store.*(?:cross-process|process) coordination.*(?:unqualified|not qualified)/isu);
 }
 
 function assertMaintainedAiffProfile(text) {
@@ -263,10 +265,10 @@ function assertMaintainedAiffProfile(text) {
 	assert.match(text, /audio\/aiff/iu);
 	assert.match(text, /FORM\/AIFF/iu);
 	assert.match(text, /COMM.*SSND|SSND.*COMM/isu);
-	assert.match(text, /signed big-endian.*8.*16.*24.*32/isu);
-	assert.match(text, /FORM\/AIFC.*FVER v1.*0xA2805140.*44-byte\s+COMM.*32-bit `?fl32`?.*Pascal compression name `?32-bit\s+floating point`?.*SSND/isu);
-	assert.match(text, /first-party\s+label.*maintained fixture.*not authenticated provenance.*producer-neutral.*any producer.*exact\s+tuple.*broader.*compressed.*other (?:AIFC|AIFF-C) profiles.*reject.*broader\s+third-party interoperability.*producer provenance.*unqualified/isu);
-	assert.match(text, /third-party AIFC interoperability.*provenance.*`?\.aifc`? extension/isu);
+	assertOrderedClaim(text, /signed big-endian.*8.*16.*24.*32/isu);
+	assertOrderedClaim(text, /FORM\/AIFC.*FVER v1.*0xA2805140.*44-byte\s+COMM.*32-bit `?fl32`?.*Pascal compression name `?32-bit\s+floating point`?.*SSND/isu);
+	assertOrderedClaim(text, /first-party\s+label.*maintained fixture.*not authenticated provenance.*producer-neutral.*any producer.*exact\s+tuple.*broader.*compressed.*other (?:AIFC|AIFF-C) profiles.*reject.*broader\s+third-party interoperability.*producer provenance.*unqualified/isu);
+	assertOrderedClaim(text, /third-party AIFC interoperability.*provenance.*`?\.aifc`? extension/isu);
 }
 
 function requiredRule(rules, id) {
