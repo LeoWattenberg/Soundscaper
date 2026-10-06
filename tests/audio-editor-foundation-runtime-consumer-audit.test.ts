@@ -37,6 +37,7 @@ import {
 	isPropertyAccessExpression,
 	isStringLiteral,
 	isVariableDeclaration,
+	preProcessFile,
 	ScriptKind,
 	ScriptTarget,
 	SyntaxKind,
@@ -53,6 +54,8 @@ const TIMING_FIELDS = new Set([
 ]);
 const REPOSITORY_ROOT = new URL('../', import.meta.url);
 const EDITOR_ROOT = new URL('../src/common/editor/', import.meta.url);
+const PROJECTION_IMPORT = /(?:runtime-clip-projection|project-current-runtime|generator-project-view|project-bin-runtime)\.ts$/u;
+const parsedSources = new Map<string, Promise<SourceFile>>();
 
 test('every shielded consumer surface crosses a registered runtime projection boundary before timing reads', async () => {
 	assert.deepEqual(
@@ -167,15 +170,16 @@ test('unregistered raw-project timing readers fail unless they have one exact pe
 
 test('every projection or runtime-wrapper importer is an owned boundary or one exact non-consumer adapter', async () => {
 	const discovered: string[] = [];
-	for (const absoluteFile of await sourceFiles(EDITOR_ROOT.pathname)) {
-		const sourceText = await readFile(absoluteFile, 'utf8');
-		const file = relative(REPOSITORY_ROOT.pathname, absoluteFile).replaceAll('\\', '/');
-		const source = createSourceFile(file, sourceText, ScriptTarget.Latest, true, scriptKind(file));
-		if (source.statements.some((statement) => isImportDeclaration(statement)
-			&& isStringLiteral(statement.moduleSpecifier)
-			&& /(?:runtime-clip-projection|project-current-runtime|generator-project-view|project-bin-runtime)\.ts$/u.test(statement.moduleSpecifier.text))) {
-			discovered.push(file);
-		}
+	const files = await sourceFiles(EDITOR_ROOT.pathname);
+	// Bound concurrent reads so small source files do not serialize the complete
+	// inventory, while keeping source text and candidate trees out of a huge cache.
+	for (let index = 0; index < files.length; index += 32) {
+		const matches = await Promise.all(files.slice(index, index + 32).map(async (absoluteFile) => {
+			const sourceText = await readFile(absoluteFile, 'utf8');
+			const file = relative(REPOSITORY_ROOT.pathname, absoluteFile).replaceAll('\\', '/');
+			return importsRuntimeProjection(file, sourceText) ? file : null;
+		}));
+		for (const file of matches) if (file !== null) discovered.push(file);
 	}
 	const classified = new Set([
 		...FOUNDATION_RUNTIME_SHIELDED_OWNERS.map(({ file }) => file),
@@ -185,6 +189,22 @@ test('every projection or runtime-wrapper importer is an owned boundary or one e
 	assert.deepEqual(discovered.sort(), [...classified].sort());
 	for (const exclusion of FOUNDATION_RUNTIME_PROJECTION_IMPORTER_EXCLUSIONS) {
 		assert.ok(exclusion.reason.length > 30);
+	}
+});
+
+test('runtime importer discovery preserves escaped and type-only static imports without counting other references', () => {
+	for (const [source, expected] of [
+		['import { view } from "./runtime-clip-projection.ts";', true],
+		['import type { View } from "./project-current-runtime.ts";', true],
+		['import "./generator-project-view.ts";', true],
+		['import { view } from "./runtime\\x2dclip-projection.ts";', true],
+		['const element = <div>{`ignored ${`template`}`}</div>; import "./project-bin-runtime.ts";', true],
+		['export { view } from "./runtime-clip-projection.ts";', false],
+		['const view = import("./runtime-clip-projection.ts");', false],
+		['const view = require("./runtime-clip-projection.ts");', false],
+		['// import "./runtime-clip-projection.ts";\nconst text = "project-current-runtime.ts";', false],
+	] as const) {
+		assert.equal(importsRuntimeProjection('fixture.tsx', source), expected, source);
 	}
 });
 
@@ -352,9 +372,24 @@ test('the runtime consumer audit is immutable and uniquely identifies each surfa
 	for (const exclusion of FOUNDATION_RUNTIME_PROJECTION_IMPORTER_EXCLUSIONS) assert.ok(Object.isFrozen(exclusion));
 });
 
-async function parsedSource(file: string): Promise<SourceFile> {
-	const source = await readFile(new URL(`../${file}`, import.meta.url), 'utf8');
-	return createSourceFile(file, source, ScriptTarget.Latest, true, scriptKind(file));
+function parsedSource(file: string): Promise<SourceFile> {
+	let parsed = parsedSources.get(file);
+	if (parsed === undefined) {
+		parsed = readFile(new URL(`../${file}`, import.meta.url), 'utf8')
+			.then((source) => createSourceFile(file, source, ScriptTarget.Latest, true, scriptKind(file)));
+		parsedSources.set(file, parsed);
+	}
+	return parsed;
+}
+
+function importsRuntimeProjection(file: string, sourceText: string): boolean {
+	// TypeScript's scanner decodes escaped specifiers without allocating a whole
+	// syntax tree for thousands of unrelated files. Parse candidates to retain
+	// the audit's exact static-import semantics, excluding exports and calls.
+	if (!preProcessFile(sourceText, true, true).importedFiles.some(({ fileName }) => PROJECTION_IMPORT.test(fileName))) return false;
+	const source = createSourceFile(file, sourceText, ScriptTarget.Latest, false, scriptKind(file));
+	return source.statements.some((statement) => isImportDeclaration(statement)
+		&& isStringLiteral(statement.moduleSpecifier) && PROJECTION_IMPORT.test(statement.moduleSpecifier.text));
 }
 
 function findFunction(source: SourceFile, name: string): FunctionLikeDeclaration {

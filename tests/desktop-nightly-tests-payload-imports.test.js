@@ -119,6 +119,9 @@ test('the nightly test payload satisfies every import its browser specs reach', 
 		logLimit: 0,
 		platform: 'node',
 		format: 'esm',
+		// Only the import graph matters here. Shared chunks avoid regenerating every
+		// dependency into hundreds of disposable per-spec bundles.
+		splitting: true,
 		outdir: join(REPOSITORY_ROOT, '.nightly-test-payload-imports'),
 		plugins: [{
 			name: 'nightly-test-payload-imports',

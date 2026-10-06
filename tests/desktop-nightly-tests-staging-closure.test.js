@@ -44,6 +44,10 @@ const SOURCE_EXTENSION_SUBSTITUTIONS = Object.freeze({
 	'.mjs': Object.freeze(['.mts']),
 	'.cjs': Object.freeze(['.cts']),
 });
+// These audits change the staging inventory, while their repository sources stay
+// fixed. Reuse parsed imports and filesystem resolution, never inventory verdicts.
+const sourceImports = new Map();
+const resolvedDependencies = new Map();
 
 test('nightly payload production modules have a closed local-import graph', () => {
 	const result = inspectLocalImportClosure(NIGHTLY_TEST_PAYLOAD_INPUTS);
@@ -82,28 +86,28 @@ test('nightly payload production-module audit rejects an unstaged local dependen
 
 function inspectLocalImportClosure(inputs) {
 	const pending = entryModules(inputs);
+	const destinationInputs = inputs.map((input) => ({
+		...input,
+		sourceRoot: resolve(REPOSITORY_ROOT, input.source),
+		destinationRoot: resolve(REPOSITORY_ROOT, input.destination),
+	}));
+	const destinations = new Map();
 	const visited = new Set();
 	const queryImports = [];
-	while (pending.length > 0) {
-		const sourcePath = pending.shift();
+	for (let index = 0; index < pending.length; index += 1) {
+		const sourcePath = pending[index];
 		const sourceRelative = repositoryPath(sourcePath);
 		if (visited.has(sourceRelative)) continue;
 		visited.add(sourceRelative);
-		const destinationPath = stagedDestination(sourcePath, inputs);
+		const destinationPath = destinationOf(sourcePath);
 		if (destinationPath === null) {
 			throw new Error(`Unstaged nightly payload entry module ${sourceRelative}.`);
 		}
-		const sourceFile = createSourceFile(
-			sourcePath,
-			readFileSync(sourcePath, 'utf8'),
-			ScriptTarget.Latest,
-			true,
-		);
-		for (const specifier of localModuleSpecifiers(sourceFile)) {
+		for (const specifier of importsOf(sourcePath)) {
 			const queryless = withoutQueryOrFragment(specifier);
 			if (queryless !== specifier) queryImports.push({ importer: sourceRelative, specifier });
 			const dependency = resolveLocalDependency(sourcePath, queryless);
-			const dependencyDestination = stagedDestination(dependency, inputs);
+			const dependencyDestination = destinationOf(dependency);
 			if (dependencyDestination === null) {
 				throw new Error(
 					`Unstaged local import ${sourceRelative} -> ${specifier} `
@@ -120,6 +124,23 @@ function inspectLocalImportClosure(inputs) {
 		}
 	}
 	return { queryImports, visited };
+
+	function destinationOf(sourcePath) {
+		if (!destinations.has(sourcePath)) {
+			destinations.set(sourcePath, stagedDestination(sourcePath, destinationInputs));
+		}
+		return destinations.get(sourcePath);
+	}
+}
+
+function importsOf(sourcePath) {
+	if (!sourceImports.has(sourcePath)) {
+		const sourceFile = createSourceFile(
+			sourcePath, readFileSync(sourcePath, 'utf8'), ScriptTarget.Latest, true,
+		);
+		sourceImports.set(sourcePath, localModuleSpecifiers(sourceFile));
+	}
+	return sourceImports.get(sourcePath);
 }
 
 function entryModules(inputs) {
@@ -180,8 +201,12 @@ function localModuleSpecifiers(sourceFile) {
 
 function resolveLocalDependency(importer, specifier) {
 	const base = resolve(importer, '..', specifier);
+	if (resolvedDependencies.has(base)) return resolvedDependencies.get(base);
 	for (const candidate of resolutionCandidates(base)) {
-		if (existsSync(candidate) && lstatSync(candidate).isFile()) return candidate;
+		if (existsSync(candidate) && lstatSync(candidate).isFile()) {
+			resolvedDependencies.set(base, candidate);
+			return candidate;
+		}
 	}
 	throw new Error(
 		`Local import ${repositoryPath(importer)} -> ${specifier} does not resolve in the repository.`,
@@ -207,15 +232,15 @@ function resolutionCandidates(base) {
 function stagedDestination(sourcePath, inputs) {
 	const destinations = new Set();
 	for (const input of inputs) {
-		const sourceRoot = resolve(REPOSITORY_ROOT, input.source);
+		const sourceRoot = input.sourceRoot;
 		if (input.kind === 'file') {
-			if (sourcePath === sourceRoot) destinations.add(resolve(REPOSITORY_ROOT, input.destination));
+			if (sourcePath === sourceRoot) destinations.add(input.destinationRoot);
 			continue;
 		}
 		const child = relative(sourceRoot, sourcePath);
 		if (child === '' || child === '..' || child.startsWith(`..${sep}`) || isAbsolute(child)) continue;
 		if ((input.exclude ?? new Set()).has(child.split(sep)[0])) continue;
-		destinations.add(resolve(REPOSITORY_ROOT, input.destination, child));
+		destinations.add(resolve(input.destinationRoot, child));
 	}
 	if (destinations.size > 1) {
 		throw new Error(`Nightly payload stages ${repositoryPath(sourcePath)} at conflicting destinations.`);
