@@ -23,7 +23,7 @@ import {
 	snapshotPlatformImageSequenceCompanionAudioChoiceV1,
 } from '../src/common/editor/platform-image-sequence-companion-audio.ts';
 import { createExportDialogRequest } from '../src/common/editor/ui/export-dialog-model.js';
-import { statedVideoDeliveryTarget } from '../src/common/editor/ui/export-preset-model.ts';
+import { dialogSettingsFromDeliveryTarget, statedVideoDeliveryTarget } from '../src/common/editor/ui/export-preset-model.ts';
 import { inventoryVideoDeliveryConversions } from '../src/common/editor/delivery-video-conversion-inventory.ts';
 
 const MATRIX = JSON.parse(
@@ -256,7 +256,7 @@ test('the dialog resolves a blocked target to what will actually be delivered', 
 		captionTrackId: '', captionDelivery: 'mux',
 	};
 	const request = (deliveryTarget: string) => (
-		createExportDialogRequest({ ...dialog, deliveryTarget }, { metadata: {} })
+		createExportDialogRequest({ ...dialog, ...dialogSettingsFromDeliveryTarget(deliveryTarget), deliveryTarget }, { metadata: {} })
 	);
 
 	const vertical = request('web-vertical-1080');

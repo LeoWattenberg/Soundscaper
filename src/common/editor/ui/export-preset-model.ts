@@ -255,13 +255,14 @@ export function statedVideoCanvas(
 	const height = Number(settings?.canvasHeight);
 	const fit = settings?.canvasFit;
 	const backgroundColor = settings?.canvasBackgroundColor;
+	const targetCanvas = statedVideoDeliveryTarget(settings)?.options.canvas as Readonly<{ fit?: unknown }> | undefined;
 	const stated: Record<string, unknown> = {};
 	if (Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0) {
 		stated.size = Object.freeze({ width, height });
 	}
 	// A target can begin at cover; choosing contain must then state the change.
 	if (typeof fit === 'string' && fit && (fit !== CANVAS_FIT_DEFAULT
-		|| findPlatformDeliveryPreset(settings?.deliveryTarget))) stated.fit = fit;
+		|| (targetCanvas?.fit && targetCanvas.fit !== fit))) stated.fit = fit;
 	// A rate the product offers by name is delivered as the rational that name
 	// means; `29.97` is 30000/1001, not 2997/100.
 	const statedRate = resolveVideoDeliveryFrameRate(settings?.canvasFrameRate);
