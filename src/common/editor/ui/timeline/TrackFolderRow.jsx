@@ -3,6 +3,7 @@ import React from 'react';
 
 import { trackFolderRowTabIndex } from './track-folder-ui-model.ts';
 import { finishTrackFolderRenameFromKeyboard } from './track-folder-rename-keyboard.ts';
+import { openTrackFolderMenuFromKeyboard } from './track-folder-context-keyboard.ts';
 
 /**
  * One folder header row in the timeline track list. The row is a treeitem in
@@ -71,7 +72,9 @@ export function TrackFolderRow({
 				onDropNode(nodeId, row);
 			}}
 			onClick={() => onSelect(row.id)}
-			onKeyDown={(event) => onKeyDown(event, row.id)}
+			onKeyDown={(event) => {
+				if (!openTrackFolderMenuFromKeyboard(event, row.id, onMenu)) onKeyDown(event, row.id);
+			}}
 			onContextMenu={(event) => {
 				event.preventDefault();
 				onMenu(row.id, { x: event.clientX, y: event.clientY });

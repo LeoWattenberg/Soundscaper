@@ -261,7 +261,7 @@ export function TrackAutomationOverlay({
 	};
 	const deletePointFromKeyboard = useTrackAutomationKeyboardDeletion(svgRef, lane, removePoint);
 	const editPointFromKeyboard = (event: React.KeyboardEvent<SVGCircleElement>, pointId: string) => {
-		if (!interactive || !lane) return;
+		if (!interactive || !lane || event.ctrlKey || event.metaKey || event.altKey) return;
 		if (event.key === 'Delete' || event.key === 'Backspace') {
 			deletePointFromKeyboard(event, lane.points.map(point => point.id), pointId);
 			return;
@@ -316,7 +316,7 @@ export function TrackAutomationOverlay({
 		event: React.KeyboardEvent<SVGPathElement>,
 		span: Readonly<{ startFrame: number; endFrame: number }>,
 	) => {
-		if (!interactive) return;
+		if (!interactive || event.ctrlKey || event.metaKey || event.altKey) return;
 		if (event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey)) {
 			event.preventDefault();
 			event.stopPropagation();
@@ -357,7 +357,7 @@ export function TrackAutomationOverlay({
 		event: React.KeyboardEvent<SVGCircleElement>,
 		handle: ProjectedTrackAutomationBezierHandle,
 	) => {
-		if (!interactive || !lane
+		if (!interactive || !lane || event.ctrlKey || event.metaKey || event.altKey
 			|| !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
 		event.preventDefault();
 		event.stopPropagation();

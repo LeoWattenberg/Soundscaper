@@ -30,6 +30,7 @@ import { resolveAudioWarpEditFrame } from '../audio-warp-clip-edit.ts';
 import { videoCompositionCarriersEqual } from './video-composition-carrier.ts';
 import { readClipLoop } from '../audio-clip-loop.ts';
 import { clipLoopJoinFields } from './clip-loop-join.ts';
+import { joinClipEnvelopes } from './joined-clip-envelope.ts';
 import {
 	joinVideoKeyframeCarrierSequenceFields,
 	videoKeyframeCarriersJoinable,
@@ -414,19 +415,4 @@ function videoEffectStacksEquivalent(left, right) {
 			&& effect.enabled === candidate.enabled
 			&& JSON.stringify(effect.params) === JSON.stringify(candidate.params);
 	});
-}
-
-function joinClipEnvelopes(clips) {
-	const result = [];
-	let offset = 0;
-	for (const clip of clips) {
-		for (const point of clip.envelope || []) {
-			const frame = offset + point.frame;
-			const previous = result.at(-1);
-			if (previous?.frame === frame) result[result.length - 1] = { ...point, frame };
-			else result.push({ ...point, frame });
-		}
-		offset += clip.durationFrames;
-	}
-	return result;
 }
