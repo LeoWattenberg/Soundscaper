@@ -147,6 +147,7 @@ export function TrackListView({
 					pixelsPerSecond={pixelsPerSecond}
 					sampleRate={sampleRate}
 					renderOriginX={renderOriginX}
+					renderViewportStartFrame={renderViewportStartFrame} viewportDurationFrames={viewportDurationFrames}
 					selection={documentSelection}
 					timeSelection={timeSelection}
 					rangeSelected={selectedTrackIds?.has(track.id) === true}
@@ -317,11 +318,12 @@ export function TrackListView({
 				if (track === undefined) return null;
 				// Small sessions keep their stable row instances; deep sessions only
 				// mount heavy waveform/spectrogram content near the scroll viewport.
-				return track.type === 'label' ? renderTrack(track, trackIndex) : (
+				return (
 					<TrackViewportRow
 						key={track.id}
 						enabled={project.tracks.length > 24}
 						trackId={track.id}
+						trackType={track.type}
 						trackIndex={trackIndex}
 						trackName={track.name}
 						height={visualTrackHeight(track)}
@@ -329,7 +331,7 @@ export function TrackListView({
 						headerWidth={trackHeaderWidth}
 						tabIndex={isFlatNavigation ? 0 : trackBaseTabIndex + trackIndex * 4}
 					>
-						{renderTrack(track, trackIndex)}
+						{() => renderTrack(track, trackIndex)}
 					</TrackViewportRow>
 				);
 			})}
