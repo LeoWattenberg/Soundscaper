@@ -215,7 +215,7 @@ for (const failure of ['retired', 'rejected'] as const) test(`${failure} later P
 		) => {
 			calls += 1;
 			// Stop an unfixed implementation's third attempt so the regression fails finitely.
-			if (unavailable && calls > 6) return new Promise<null>(() => {});
+			if (unavailable && calls > 4) return new Promise<null>(() => {});
 			if (unavailable && startFrame >= 500_000) {
 				if (failure === 'rejected') throw new Error('The final source chunk is unavailable.');
 				return null;
@@ -238,14 +238,14 @@ for (const failure of ['retired', 'rejected'] as const) test(`${failure} later P
 	}
 	try {
 		await act(async () => root.render(<Harness />));
-		await waitFor(() => calls >= 6);
+		await waitFor(() => calls >= 4);
 		await act(async () => { await new Promise((resolve) => setImmediate(resolve)); });
-		assert.equal(calls, 6, 'PCM publications allow one automatic retry, never an endless reload loop');
+		assert.equal(calls, 4, 'the two valid FFT tiles are reused; PCM publications allow one final-tile retry');
 		assert.equal(latest.has(clip.id), false, 'unavailable final tiles cannot publish a partial spectrum');
 		unavailable = false;
 		await act(async () => publish());
 		await waitFor(() => latest.has(clip.id));
-		assert.equal(calls, 9, 'a later source publication can recover after the automatic retry is spent');
+		assert.equal(calls, 5, 'a later source publication recovers the final tile after the automatic retry is spent');
 	} finally {
 		await act(async () => root.unmount());
 		actGlobal.IS_REACT_ACT_ENVIRONMENT = previousAct;

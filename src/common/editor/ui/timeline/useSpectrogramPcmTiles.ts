@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useReducer, useRef } from 'react';
 
 import type { AudioWarpRuntimeProject } from '../../audio-warp-runtime.ts';
-import { queueTimelineSpectrogramJob } from '../../controller/source/timeline-spectrogram-cache.ts';
+import { queueTimelineSpectrogramJob, timelineSpectrogramColumnCache, type SpectrogramColumnCacheView } from '../../controller/source/timeline-spectrogram-cache.ts';
 import { immutableWaveformKeyJson } from '../immutable-waveform-key-json.ts';
 import { createWaveformContentKey } from '../waveform-preview-cache.ts';
 import {
@@ -12,6 +12,7 @@ import {
 	projectedClipVisibleSourceSamples,
 } from './preview.ts';
 import { spectrogramPcmContextClip } from './spectrogram-pcm-context.ts';
+import { spectrogramColumnReuseKey } from './spectrogram-column-reuse.ts';
 import {
 	generateSpectrogramPcmTiles,
 	type SpectrogramPcmColumns,
@@ -59,6 +60,7 @@ interface TileRequest {
 	readonly key: string;
 	readonly width: number;
 	readonly priority: number;
+	readonly columnCache?: SpectrogramColumnCacheView;
 }
 
 interface ActiveTileRequest {
@@ -129,7 +131,8 @@ export function useSpectrogramPcmTiles({
 			const start = clip.timelineStartFrame + clip.waveformStartFrame;
 			const end = clip.timelineStartFrame + clip.waveformEndFrame;
 			const priority = end > viewportStartFrame && start < viewportStartFrame + viewportDurationFrames ? 0 : 1;
-			output.push({ clip, key, width, priority });
+			const columnKey = spectrogramColumnReuseKey({ clip, source, width, fftWindowSize, windowType, sampleRate, project });
+			output.push({ clip, key, width, priority, columnCache: columnKey === null ? undefined : timelineSpectrogramColumnCache(controller, columnKey) });
 		}
 		return output;
 	}, [controller, displayMode, fftWindowSize, pixelsPerSecond, project, projectedClips,
@@ -162,6 +165,7 @@ export function useSpectrogramPcmTiles({
 				width: request.width,
 				fftWindowSize,
 				windowType,
+				columnCache: request.columnCache,
 				signal: abort.signal,
 				requestPcmWindow: async (startFrame, endFrame) => {
 					abort.signal.throwIfAborted();
