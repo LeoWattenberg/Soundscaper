@@ -52,8 +52,21 @@ const POLICY_ARGUMENT = Object.freeze<Record<string, number | FoundationTimeConv
 	sampleFrameToBeat: 'exact',
 });
 
+interface TimeConversionAudit {
+	conversions: Map<string, Map<string, Set<FoundationTimeConversionPolicy>>>;
+	rawSampleRateChanges: Map<string, string[]>;
+}
+
+// Both inventories inspect the same immutable checkout. Keep only their small
+// results, so the second assertion does not parse every maintained source again
+// or retain the entire repository's syntax trees in memory.
+let audit: Promise<TimeConversionAudit> | undefined;
+function timeConversionAudit(): Promise<TimeConversionAudit> {
+	return audit ??= collectTimeConversionAudit();
+}
+
 test('every shared timeline/timebase conversion call is classified under named policies', async () => {
-	const actual = await collectConversionSites();
+	const actual = (await timeConversionAudit()).conversions;
 	const expected = new Map(FOUNDATION_TIME_CONVERSION_SITES.map((site) => [site.file, site]));
 	assert.deepEqual([...actual.keys()].sort(), [...expected.keys()].sort());
 	for (const [file, conversions] of actual) {
@@ -103,7 +116,7 @@ test('the helper inventory is discovered from exported frame-conversion APIs', a
 test('raw sample-rate changes of basis cannot bypass shared timeline policy', async () => {
 	// Resampler state owns a fractional input phase, so these are DSP buffer
 	// geometry rather than integer timeline conversions.
-	assert.deepEqual(await collectRawSampleRateChanges(), new Map([
+	assert.deepEqual((await timeConversionAudit()).rawSampleRateChanges, new Map([
 		['src/common/editor/resample.js', [
 			'Math.ceil((combined[0].length + 1) * outputRate / inputRate)',
 			'Math.round(totalInputFrames * outputRate / inputRate)',
@@ -112,50 +125,51 @@ test('raw sample-rate changes of basis cannot bypass shared timeline policy', as
 	]));
 });
 
-async function collectRawSampleRateChanges(): Promise<Map<string, string[]>> {
-	const result = new Map<string, string[]>();
+async function collectTimeConversionAudit(): Promise<TimeConversionAudit> {
+	const conversions = new Map<string, Map<string, Set<FoundationTimeConversionPolicy>>>();
+	const rawSampleRateChanges = new Map<string, string[]>();
 	for (const absoluteFile of await auditedSourceFiles()) {
 		const source = await readFile(absoluteFile, 'utf8');
 		const file = relative(new URL('.', REPOSITORY_ROOT).pathname, absoluteFile).replaceAll('\\', '/');
 		const parsed = createSourceFile(file, source, ScriptTarget.Latest, true, scriptKind(file));
-		visit(parsed, (node) => {
-			if (!isCallExpression(node)) return;
-			if (!/^Math\.(?:round|ceil|floor|trunc)$/u.test(node.expression.getText(parsed))) return;
-			const arithmetic = node.arguments[0]?.getText(parsed) ?? '';
-			const rateOccurrences = arithmetic.match(
-				/\b(?:inputRate|outputRate|oldRate|newRate|projectSampleRate|sourceSampleRate|sampleRate)\b/gu,
-			)?.length ?? 0;
-			if (rateOccurrences < 2 || !/(?:frame|length|duration|selection|start|tail|warmup)/iu.test(arithmetic)
-				|| !/[*/]/u.test(arithmetic)) return;
-			const calls = result.get(file) ?? [];
-			calls.push(node.getText(parsed).replace(/\s+/gu, ' '));
-			result.set(file, calls);
-		});
+		const calls = collectRawSampleRateChanges(parsed);
+		if (calls.length) rawSampleRateChanges.set(file, calls);
+		const sites = collectConversionSites(parsed);
+		if (sites.size) conversions.set(file, sites);
 	}
+	return { conversions, rawSampleRateChanges };
+}
+
+function collectRawSampleRateChanges(parsed: SourceFile): string[] {
+	const result: string[] = [];
+	visit(parsed, (node) => {
+		if (!isCallExpression(node)) return;
+		if (!/^Math\.(?:round|ceil|floor|trunc)$/u.test(node.expression.getText(parsed))) return;
+		const arithmetic = node.arguments[0]?.getText(parsed) ?? '';
+		const rateOccurrences = arithmetic.match(
+			/\b(?:inputRate|outputRate|oldRate|newRate|projectSampleRate|sourceSampleRate|sampleRate)\b/gu,
+		)?.length ?? 0;
+		if (rateOccurrences < 2 || !/(?:frame|length|duration|selection|start|tail|warmup)/iu.test(arithmetic)
+			|| !/[*/]/u.test(arithmetic)) return;
+		result.push(node.getText(parsed).replace(/\s+/gu, ' '));
+	});
 	return result;
 }
 
-async function collectConversionSites(): Promise<Map<string, Map<string, Set<FoundationTimeConversionPolicy>>>> {
-	const result = new Map<string, Map<string, Set<FoundationTimeConversionPolicy>>>();
-	for (const absoluteFile of await auditedSourceFiles()) {
-		const source = await readFile(absoluteFile, 'utf8');
-		const file = relative(new URL('.', REPOSITORY_ROOT).pathname, absoluteFile).replaceAll('\\', '/');
-		const parsed = createSourceFile(file, source, ScriptTarget.Latest, true, scriptKind(file));
-		const aliases = conversionAliases(parsed);
-		if (!aliases.size) continue;
-		const conversions = new Map<string, Set<FoundationTimeConversionPolicy>>();
-		visit(parsed, (node) => {
-			if (!isCallExpression(node) || !isIdentifier(node.expression)) return;
-			const helper = aliases.get(node.expression.text);
-			if (!helper) return;
-			const policies = conversionPolicies(helper, node);
-			const owned = conversions.get(helper) ?? new Set<FoundationTimeConversionPolicy>();
-			for (const policy of policies) owned.add(policy);
-			conversions.set(helper, owned);
-		});
-		if (conversions.size) result.set(file, conversions);
-	}
-	return result;
+function collectConversionSites(parsed: SourceFile): Map<string, Set<FoundationTimeConversionPolicy>> {
+	const conversions = new Map<string, Set<FoundationTimeConversionPolicy>>();
+	const aliases = conversionAliases(parsed);
+	if (!aliases.size) return conversions;
+	visit(parsed, (node) => {
+		if (!isCallExpression(node) || !isIdentifier(node.expression)) return;
+		const helper = aliases.get(node.expression.text);
+		if (!helper) return;
+		const policies = conversionPolicies(helper, node);
+		const owned = conversions.get(helper) ?? new Set<FoundationTimeConversionPolicy>();
+		for (const policy of policies) owned.add(policy);
+		conversions.set(helper, owned);
+	});
+	return conversions;
 }
 
 function conversionAliases(source: SourceFile): Map<string, string> {

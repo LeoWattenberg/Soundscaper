@@ -9,6 +9,7 @@ import test from 'node:test';
 import { promisify } from 'node:util';
 
 import { ESLint } from 'eslint';
+import ts from 'typescript';
 
 const execFileAsync = promisify(execFile);
 const ROOT = new URL('..', import.meta.url).pathname;
@@ -60,21 +61,30 @@ test('a new JavaScript UI localization violation is not hidden by the legacy bas
 });
 
 test('a new TypeScript core-recommended violation is not hidden by the legacy baseline', async () => {
+	const source = 'const value = NaN;\nif (value === NaN) {}\n';
+	const filePath = 'src/common/editor/project-media-types.ts';
+	const absolutePath = path.join(ROOT, filePath);
+	const compilerOptions = { noLib: true, noResolve: true };
+	const host = ts.createCompilerHost(compilerOptions);
+	host.getSourceFile = (name, languageVersion) => name === absolutePath
+		? ts.createSourceFile(name, source, languageVersion, true) : undefined;
+	const program = ts.createProgram([absolutePath], compilerOptions, host);
 	const eslint = new ESLint({
 		cwd: ROOT,
 		applySuppressions: true,
-		// CI makes typescript-eslint infer a single CLI run. Its project Program then
-		// reads this path from disk instead of using lintText's virtual first body.
+		// This import-free body only needs its own Program to keep the real typed
+		// rules enabled. Supplying it also prevents CI's single-run inference from
+		// replacing lintText's virtual violation with the file on disk.
 		overrideConfig: {
 			files: ['**/*.{cts,mts,ts,tsx}'],
 			languageOptions: {
-				parserOptions: { disallowAutomaticSingleRunInference: true },
+				parserOptions: { project: null, programs: [program] },
 			},
 		},
 	});
 	const [result] = await eslint.lintText(
-		'const value = NaN;\nif (value === NaN) {}\n',
-		{ filePath: 'src/common/editor/project-media-types.ts' },
+		source,
+		{ filePath },
 	);
 	const diagnostics = JSON.stringify({
 		messages: result.messages,
@@ -94,6 +104,10 @@ test('a new TypeScript core-recommended violation is not hidden by the legacy ba
 });
 
 test('the lint CLI rejects a stale bulk suppression', async t => {
+	// Bulk suppression validation is independent of type-aware parsing. Keep this
+	// CLI integration on a small JavaScript input; the regression above covers
+	// TypeScript rule reporting and suppression matching separately.
+	const inputPath = 'scripts/node-style-asset-loader.mjs';
 	const fixtureDirectory = await mkdtemp(path.join(tmpdir(), 'soundscaper-eslint-suppressions-'));
 	t.after(async () => {
 		await rm(fixtureDirectory, { force: true, recursive: true });
@@ -102,7 +116,7 @@ test('the lint CLI rejects a stale bulk suppression', async t => {
 	await writeFile(
 		suppressionsPath,
 		`${JSON.stringify({
-			'src/common/editor/project-media-types.ts': {
+			[inputPath]: {
 				'use-isnan': { count: 1 },
 			},
 		}, null, 2)}\n`,
@@ -112,7 +126,7 @@ test('the lint CLI rejects a stale bulk suppression', async t => {
 		execFileAsync(
 			path.join(ROOT, 'node_modules/.bin/eslint'),
 			[
-				'src/common/editor/project-media-types.ts',
+				inputPath,
 				'--suppressions-location',
 				suppressionsPath,
 			],
