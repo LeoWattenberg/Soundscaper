@@ -1,15 +1,18 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { clipSourceDisplayRange } from '../../clip-source-timing.ts';
+import { withoutClipLoop } from '../../audio-clip-loop.ts';
+import type { ClipLoopCarrier } from '../../audio-clip-loop.ts';
 import type { AudioWarpRuntimeClip } from '../../audio-warp-runtime.ts';
 
-type Clip = AudioWarpRuntimeClip & { readonly id: string; readonly sourceId: string };
+type Clip = AudioWarpRuntimeClip & ClipLoopCarrier & { readonly id: string; readonly sourceId: string };
 type Source = { readonly sampleRate: number; readonly frameCount: number };
 
 /** The untrimmed source surrounds the clip's processed output on one continuous axis. */
 export function clipSourceSegments<T extends Clip>(clip: T, source: Source, sampleRate: number) {
 	const range = clipSourceDisplayRange(clip, source, sampleRate);
 	const plain = { ...clip, anchor: 'sample', warpMap: null, reversed: false, pitchCents: 0, speedRatio: 1,
-		gain: 1, inverted: false, fadeInFrames: 0, fadeOutFrames: 0, envelope: [] };
+		gain: 1, inverted: false, fadeInFrames: 0, fadeOutFrames: 0, envelope: [],
+		opaqueExtensions: withoutClipLoop(clip.opaqueExtensions) };
 	return [
 		{ ...plain, id: `${clip.id}:before`, active: false, timelineStartFrame: 0, durationFrames: range.startFrame, sourceStartFrame: 0, sourceDurationFrames: clip.sourceStartFrame },
 		{ ...clip, id: `${clip.id}:source`, active: true, timelineStartFrame: range.startFrame },

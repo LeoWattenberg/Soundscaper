@@ -41,6 +41,7 @@ import {
 } from './TrackAutomationCurveMenu.tsx';
 import { useTrackAutomationEditFeedback } from './useTrackAutomationEditFeedback.ts';
 import { useTrackAutomationDragLifecycle } from './useTrackAutomationDragLifecycle.ts';
+import { useTrackAutomationKeyboardDeletion } from './useTrackAutomationKeyboardDeletion.ts';
 
 type SegmentKind = TrackAutomationSegmentKind;
 
@@ -258,11 +259,11 @@ export function TrackAutomationOverlay({
 			pointId, descriptor: target.descriptor,
 		}));
 	};
+	const deletePointFromKeyboard = useTrackAutomationKeyboardDeletion(svgRef, lane, removePoint);
 	const editPointFromKeyboard = (event: React.KeyboardEvent<SVGCircleElement>, pointId: string) => {
 		if (!interactive || !lane) return;
 		if (event.key === 'Delete' || event.key === 'Backspace') {
-			event.preventDefault();
-			removePoint(pointId, event.shiftKey);
+			deletePointFromKeyboard(event, lane.points.map(point => point.id), pointId);
 			return;
 		}
 		const kind = trackAutomationSegmentKindKey(event.key);
