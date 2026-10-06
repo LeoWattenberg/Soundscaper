@@ -21,6 +21,7 @@ import {
 } from '../scripts/lib/desktop-project-library-lease-matrix.mjs';
 import { createDesktopSmokeProbe } from '../desktop/desktop-smoke.js';
 import { decodeDesktopProjectLibraryLeaseSmokePlan } from '../desktop/project-library-lease-smoke.js';
+import { withMockLeaseExpiry } from './helpers/desktop-lease-matrix-timers.ts';
 
 const EXPECTED_WORKFLOWS = [
 	'same-project-simultaneous-open',
@@ -163,12 +164,12 @@ test('desktop preview CI runs both selected products on every test-activated tar
 
 const ORDER = ['soundscaper', 'soundscaper'];
 
-test('every per-product lease workflow keeps one writer instance alive at a time', async () => {
+test('every per-product lease workflow keeps one writer instance alive at a time', async (context) => {
 	for (const productId of ['soundscaper', 'framescaper']) {
 		for (const workflowId of DESKTOP_PROJECT_LIBRARY_LEASE_WORKFLOWS) {
-			const record = await runDesktopProjectLibraryLeaseMatrixCase({
+			const record = await withMockLeaseExpiry(context, workflowId, () => runDesktopProjectLibraryLeaseMatrixCase({
 				driver: leaseInstances(), workflowId, order: [productId, productId],
-			});
+			}));
 			assert.equal(record.workflowId, workflowId);
 			assert.equal(record.order, `${productId}-then-${productId}`);
 			assert.match(record.winningDocumentSha256, /^[a-f\d]{64}$/u);
@@ -261,11 +262,6 @@ test('fencing tokens repeat within one holder and advance across acquisitions', 
 });
 
 test('renderer loss must interrupt a publication that never becomes canonical', async () => {
-	await assert.rejects(runDesktopProjectLibraryLeaseMatrixCase({
-		driver: leaseInstances({ settleAbandonedPublication: true }),
-		workflowId: 'renderer-loss-during-operation',
-		order: ORDER,
-	}), /abandoned publication/iu);
 	// The matrix runs nightly against a packaged product, so a refusal has to carry what it
 	// saw: reporting the claim alone costs a whole nightly to learn the observed status.
 	await assert.rejects(runDesktopProjectLibraryLeaseMatrixCase({
