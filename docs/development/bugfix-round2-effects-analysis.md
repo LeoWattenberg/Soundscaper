@@ -332,4 +332,19 @@ unmuting during playback. The native observer only records device connections
 and scheduled gains. Two strict factory regressions verify inheritance, live
 updates, and disposal; 35 existing controller and preview regressions also pass.
 
+## R2-ROOT-023 — Nyquist reports source selections in the project sample clock
+
+Import an ordinary 44.1-kHz, 0.8-second WAV, open **Clip properties**, focus its
+**Source waveform**, and select all. Open **Tools > Nyquist prompt** and run
+`(format nil "~a" (- (get '*selection* 'end) (get '*selection* 'start)))`.
+Previously it reported 0.735 seconds because selection timestamps divided native
+source frames by the project's 48-kHz clock. Source selections now use their own
+sample rate; project rate and project-clip timestamps retain the project clock.
+The source's owning track also supplies its normal Nyquist track index.
+
+Proof: `audio-editor-round2-nyquist-source-clock.spec.js` reported 0.735 against
+build 18. Build 19 passes in Chromium, Firefox and WebKit, reporting 0.8 through
+the real prompt. Twelve host-property regressions pass, including independent
+source timestamps, owning-track identity, and unchanged project-clock properties.
+
 These changes do not require a manual **Update AI assets** run.

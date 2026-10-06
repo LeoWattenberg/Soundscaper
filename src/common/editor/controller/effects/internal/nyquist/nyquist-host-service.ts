@@ -147,7 +147,8 @@ export function createNyquistHostService(runtime: NyquistHostServiceRuntime) {
 	): NyquistHostProperties {
 		const persistedProject = runtime.getProject();
 		const project = projectForRuntimeConsumers(persistedProject);
-		const sampleRate = runtime.projectSampleRate();
+		const projectRate = runtime.projectSampleRate();
+		const sampleRate = target?.sourceSampleRate ?? projectRate;
 		const selection = runtime.activeSelection();
 		const frequencyRange = selection?.frequencyRange;
 		const startFrame = target?.startFrame ?? selection?.startFrame ?? runtime.getPositionFrames();
@@ -157,14 +158,14 @@ export function createNyquistHostService(runtime: NyquistHostServiceRuntime) {
 			?.map((clipId) => project.clips.find((clip) => clip.id === clipId) ?? null)
 			.filter(isPresent)
 			.map((clip) => [
-				clip.timelineStartFrame / sampleRate,
-				(clip.timelineStartFrame + clip.durationFrames) / sampleRate,
+				clip.timelineStartFrame / projectRate,
+				(clip.timelineStartFrame + clip.durationFrames) / projectRate,
 			] as const) ?? [];
 		const stats = nyquistChannelStats([...channels]);
 		const lowHz = Number(frequencyRange?.minimumFrequency);
 		const highHz = Number(frequencyRange?.maximumFrequency);
 		const selectedTrackIndices = targets.map((candidate) => {
-			const projectIndex = project.tracks.findIndex((projectTrack) => projectTrack.id === candidate?.track.id);
+			const projectIndex = project.tracks.findIndex((projectTrack) => projectTrack.id === (candidate?.sourceTrackId ?? candidate?.track.id));
 			return projectIndex >= 0 ? projectIndex + 1 : null;
 		}).filter(isInteger);
 		const selectionProperties: Record<string, unknown> & {
@@ -191,7 +192,7 @@ export function createNyquistHostService(runtime: NyquistHostServiceRuntime) {
 			AUDACITY: { VERSION: [3, 7, 7], LANGUAGE: runtime.locale },
 			PROJECT: {
 				NAME: project.title || '',
-				RATE: sampleRate,
+				RATE: projectRate,
 				TEMPO: projectTempo(project, startFrame, sampleRate),
 				TRACKS: project.tracks.length,
 				WAVETRACKS: project.tracks.filter((candidate) => candidate.type === 'audio').length,

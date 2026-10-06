@@ -196,6 +196,22 @@ test('Nyquist resolves the active event in a maximum-size tempo map without orig
 	assert.ok(elapsed < 750, `Nyquist tempo lookup took ${String(Math.round(elapsed))} ms`);
 });
 
+test('Nyquist source selection uses native frame seconds and retains the owning track identity', () => {
+	const harness = createHarness();
+	const target = { ...harness.target, sourceId: 'source-a', sourceSampleRate: 44_100,
+		sourceTrackId: 'track-a', sourceFrameCount: 35_280,
+		track: { ...harness.target.track, id: 'source-editor:source-a' },
+		startFrame: 8_820, endFrame: 17_640, durationFrames: 8_820 };
+	const properties = harness.service.nyquistHostProperties(
+		target, [target], 0, [new Float32Array([0.25])], {},
+	);
+	assert.equal(properties.SELECTION.START, 0.2);
+	assert.equal(properties.SELECTION.END, 0.4);
+	assert.deepEqual(properties.SELECTION.TRACKS, [1]);
+	assert.equal(properties.PROJECT.RATE, 1_000);
+	assert.deepEqual(properties.TRACK.CLIPS, [[0.1, 0.5]]);
+});
+
 test('Nyquist host properties fall back to the cursor and request for an untargeted stereo result', () => {
 	const harness = createHarness();
 	harness.updateProject({ title: '', tempo: 0, selection: null });
