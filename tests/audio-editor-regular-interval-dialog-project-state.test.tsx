@@ -6,6 +6,7 @@ import test from 'node:test';
 import React, { act } from 'react';
 
 import { RegularIntervalAnnotationDialog } from '../src/common/editor/ui/dialogs/ImportAnalysisDialogs.tsx';
+import type { RegularIntervalDialogProject } from '../src/common/editor/ui/regular-interval-dialog-defaults.ts';
 import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
 import {
 	installReactTestDom, reactProps, type ReactTestElement,
@@ -58,6 +59,20 @@ test('regular interval dialog refuses a stale submit before the project rerender
 	} finally {
 		await fixture.cleanup();
 	}
+});
+
+test('regular interval dialog can open and submit the visible native video extent', async () => {
+	const fixture = await mountedRegularIntervalFixture();
+	try {
+		await fixture.render({ ...annotationProject('video-project', 'main', 48_000, 44_800), schemaVersion: 17,
+			sequences: [{ id: 'main', rate: { num: 30, den: 1 } }],
+			clips: [{ id: 'video', kind: 'video', sequenceId: 'main', sequenceStartFrame: 0, sequenceFrameCount: 28, sourceInFrame: 0, sourceFrameCount: 22 }],
+		});
+		assert.equal(fixture.endFrame().value, '44800');
+		await fixture.submit();
+		assert.equal((fixture.requests[0] as { endFrame: number }).endFrame, 44_800);
+		assert.equal(fixture.closes.count, 1);
+	} finally { await fixture.cleanup(); }
 });
 
 type AnnotationProject = ReturnType<typeof annotationProject>;
@@ -118,13 +133,13 @@ function annotationProject(
 	primarySequenceId: string,
 	sampleRate: number,
 	durationFrames: number,
-) {
+): RegularIntervalDialogProject & { readonly revision: number } {
 	return {
 		id,
 		revision: 1,
 		primarySequenceId,
 		sampleRate,
-		clips: [{ timelineStartFrame: 0, durationFrames }],
+		clips: [{ id: 'audio', kind: 'audio', timelineStartFrame: 0, durationFrames, sourceStartFrame: 0, sourceDurationFrames: durationFrames }],
 	};
 }
 

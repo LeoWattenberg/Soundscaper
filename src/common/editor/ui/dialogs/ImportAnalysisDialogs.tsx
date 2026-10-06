@@ -11,14 +11,10 @@ import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import AudioEditorTimeCodeInput from '../AudioEditorTimeCodeInput.tsx';
 import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-workspace-runner.ts';
 import { withWebFileLoadLimitContext } from '../../web-file-limit-failure.ts';
+import { regularIntervalDialogDefaults, type RegularIntervalDialogProject } from '../regular-interval-dialog-defaults.ts';
 
 interface DialogController {
-	readonly project: null | Readonly<{
-		readonly id: string;
-		readonly primarySequenceId: string;
-		readonly sampleRate: number;
-		readonly clips: readonly Readonly<{ readonly timelineStartFrame: number; readonly durationFrames: number }>[];
-	}>;
+	readonly project: RegularIntervalDialogProject | null;
 	readonly actions: Readonly<{
 		readonly project: Readonly<{ importFiles(files: readonly File[], options?: Readonly<{ signal: AbortSignal }>): unknown }>;
 		readonly timelineAnnotations: Readonly<{ regularInterval(options: RegularIntervalAnnotationOptions): unknown }>;
@@ -174,16 +170,6 @@ export function RegularIntervalAnnotationDialog({ controller, copy, run, onClose
 			<label className="kw-audio-editor-dialog__field"><span>{copy.regularIntervalNamePrefix}</span><input value={namePrefix} onChange={(event) => setNamePrefix(event.currentTarget.value)} /></label>
 		</form>
 	</AudioEditorDialogShell>;
-}
-
-function regularIntervalDialogDefaults(project: DialogController['project']) {
-	return {
-		kind: 'marker' as const,
-		startFrame: 0,
-		endFrame: Math.max(1, ...(project?.clips.map((clip) => clip.timelineStartFrame + clip.durationFrames) ?? [1])),
-		intervalFrames: Math.max(1, Math.round(project?.sampleRate ?? 48_000)),
-		namePrefix: 'Cue',
-	};
 }
 
 function NumberField({ label, value, minimum, maximum, onChange }: Readonly<{
