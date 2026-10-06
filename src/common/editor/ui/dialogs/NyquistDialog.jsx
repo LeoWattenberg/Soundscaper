@@ -9,6 +9,7 @@ import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import AudioEditorTimeCodeInput from '../AudioEditorTimeCodeInput.tsx';
 import NyquistGetEffectsDialog from './NyquistGetEffectsDialog.jsx';
 import { loadNyquistPromptDraft, storeNyquistPromptDraft } from './nyquist-prompt-draft.ts';
+import NyquistNumberInput from './NyquistNumberInput.tsx';
 
 export default function NyquistDialog({ controller, snapshot, copy, target, run, onClose }) {
 	if (target?.pluginId === '__get-effects__') return <NyquistGetEffectsDialog copy={copy} onClose={onClose} />;
@@ -218,14 +219,13 @@ function NyquistControl({ control, value, sampleRate, disabled, onChange }) {
 				minimum={Number.isFinite(control.min) ? control.min : 0}
 				maximum={Number.isFinite(control.max) ? control.max : undefined}
 				onChange={(next) => onChange(integer ? Math.round(next) : next)}
-			/> : <input
-				type="number"
-				value={String(value ?? control.defaultValue ?? 0)}
+			/> : <NyquistNumberInput
+				value={Number(value ?? control.defaultValue ?? 0)}
 				disabled={disabled}
-				min={Number.isFinite(control.min) ? control.min : undefined}
-				max={Number.isFinite(control.max) ? control.max : undefined}
-				step={integer ? 1 : 'any'}
-				onChange={(event) => onChange(integer ? Math.round(Number(event.currentTarget.value)) : Number(event.currentTarget.value))}
+				minimum={Number.isFinite(control.min) ? control.min : undefined}
+				maximum={Number.isFinite(control.max) ? control.max : undefined}
+				integer={integer}
+				onChange={onChange}
 			/>}
 		</label>
 	);

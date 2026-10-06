@@ -106,4 +106,23 @@ focused live/master/playback/worker meter tests pass. This scalar measurement
 defect differs from the earlier duplicate per-channel meter display and static
 Plot Spectrum transform; its channel variants count once.
 
+## R3-ROOT-006 — Nyquist controls discard a typed negative number
+
+Import a WAV, choose **Select > Select all**, then **Effect > Nyquist >
+Adjustable Fade**. Clear **Mid-fade Adjust (%)**, type `-0.5`, and tab away.
+
+Previously the displayed and bound value became positive `0.5`. The Nyquist
+control converted each incomplete input event directly into a numeric binding,
+discarding the minus prefix. Its focused strict field now keeps the text draft
+through live echoes, publishes complete numbers, and commits or restores a
+bounded canonical value on Enter, blur or Escape. Integer controls retain their
+rounding behavior.
+
+Proof: the immutable baseline failed with `0.5` after the actual negative
+keystrokes. Both that workflow and the positive Risset Drum fraction pass in
+Chromium, Firefox and WebKit on green build 8. A strict mounted regression covers
+prefixes, live echoes and cancellation; all three focused numeric-field and
+existing Nyquist-dialog lifecycle tests pass. This is the Nyquist binding
+owner's defect, independent of the earlier video-effect numeric control.
+
 These changes do not require a manual **Update AI assets** run.
