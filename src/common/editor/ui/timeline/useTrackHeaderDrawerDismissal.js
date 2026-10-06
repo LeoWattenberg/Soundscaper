@@ -35,7 +35,9 @@ export function useTrackHeaderDrawerDismissal({ drawer, onPointerDown }) {
 		if (!drawer?.isOpen || event.key !== 'Escape' || event.defaultPrevented) return;
 		if (!isWithinTrackHeaderDrawer(event.target)) return;
 		event.preventDefault();
+		const toggle = event.currentTarget.querySelector('[data-track-header-toggle]');
 		drawer.close();
+		queueMicrotask(() => { if (toggle?.isConnected) toggle.focus({ preventScroll: true }); });
 	}, [drawer]);
 	return { onPointerDownCapture, onKeyDown };
 }

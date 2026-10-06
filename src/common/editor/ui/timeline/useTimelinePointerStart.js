@@ -74,6 +74,7 @@ export function useTimelinePointerStart({
 		if (event.target.closest?.('[data-timeline-annotation-interactive]')) return;
 		if (event.target.closest?.('[data-track-automation-interactive]')) return;
 		if (event.target.closest?.('[data-spectral-brush], [data-spectral-selection]')) return;
+		if (event.target.closest?.('[data-stereo-channel-divider]')) return;
 		if (pointerSession.current?.kind === 'fade' || pointerSession.current?.kind === 'fade-shape'
 			|| pointerSession.current?.kind === 'crossfade-shape') {
 			event.preventDefault();

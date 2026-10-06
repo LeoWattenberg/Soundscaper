@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useRef, type KeyboardEvent, type PointerEvent } from 'react';
+import { useEffect, useRef, type KeyboardEvent, type PointerEvent } from 'react';
 
 import {
 	audioEditorStereoChannelHeightRatioAtPointer,
@@ -28,6 +28,20 @@ export function StereoChannelDivider({
 }: StereoChannelDividerProps) {
 	const rootRef = useRef<HTMLDivElement>(null);
 	const pointerIdRef = useRef<number | null>(null);
+	useEffect(() => {
+		const owner = rootRef.current?.ownerDocument.defaultView;
+		const cancelOnEscape = (event: globalThis.KeyboardEvent) => {
+			const pointerId = pointerIdRef.current;
+			if (event.key !== 'Escape' || pointerId === null) return;
+			pointerIdRef.current = null;
+			rootRef.current?.querySelector('[data-stereo-channel-divider]')?.releasePointerCapture?.(pointerId);
+			onPreview(null);
+			event.preventDefault();
+			event.stopPropagation();
+		};
+		owner?.addEventListener?.('keydown', cancelOnEscape, true);
+		return () => owner?.removeEventListener?.('keydown', cancelOnEscape, true);
+	}, [enabled, onPreview]);
 	if (!enabled || !(height > 0)) return null;
 	const minimumRatio = audioEditorStereoChannelHeightRatioAtPointer(0, 0, height);
 	const maximumRatio = audioEditorStereoChannelHeightRatioAtPointer(height, 0, height);
