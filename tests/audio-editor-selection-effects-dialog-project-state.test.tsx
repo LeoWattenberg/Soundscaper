@@ -362,7 +362,9 @@ async function mountedSelectionEffectsFixture() {
 		startPresetSaveAs: async () => {
 			const prompt = dom.container.querySelector('[data-preset-name-dialog]');
 			assert.ok(prompt, 'Missing mounted Save as… prompt.');
-			await click(elementNamed(prompt, 'button', ENGLISH_COPY.saveEffectPreset));
+			const form = descendantByTag(prompt, 'form');
+			assert.equal(elementNamed(prompt, 'button', ENGLISH_COPY.saveEffectPreset).getAttribute('form'), form.getAttribute('id'));
+			await act(async () => { reactProps(form).onSubmit({ preventDefault() {} }); });
 		},
 		startPresetImport: async (text: Promise<string>, name = 'preset.json') => {
 			const input = dom.one('[data-effect-preset-file]');

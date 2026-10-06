@@ -94,6 +94,29 @@ test('effect action buttons retain localized accessible names without native too
 	}
 });
 
+test('preset naming submits one trimmed name through its associated form', async () => {
+	const fixture = await mountedBar();
+	try {
+		await fixture.open(0);
+		await fixture.choose(ENGLISH_COPY.saveEffectPresetAs);
+		const prompt = fixture.dom.one('[data-preset-name-dialog]');
+		const input = prompt.querySelector('input');
+		assert.ok(input);
+		await act(async () => { reactProps(input).onChange({ currentTarget: { value: '  Keyboard preset  ' }, target: { value: '  Keyboard preset  ' } }); });
+		const form = prompt.querySelector('form');
+		assert.ok(form);
+		const save = prompt.querySelectorAll('button').find(button => button.textContent === ENGLISH_COPY.saveEffectPreset);
+		assert.ok(save);
+		assert.equal(save.getAttribute('type'), 'submit');
+		assert.equal(save.getAttribute('form'), form.getAttribute('id'));
+		await act(async () => { reactProps(form).onSubmit({ preventDefault() {} }); });
+		assert.deepEqual(fixture.calls, ['save:Keyboard preset']);
+		assert.equal(fixture.dom.find('[data-preset-name-dialog]'), null);
+	} finally {
+		await fixture.cleanup();
+	}
+});
+
 async function mountedBar() {
 	const dom = installReactTestDom();
 	const body = (globalThis.document as unknown as { body: ReactTestElement }).body;
@@ -111,7 +134,7 @@ async function mountedBar() {
 				<EffectPresetBar copy={ENGLISH_COPY} presets={[{ id: 'mine', label: 'Mine', custom: true }]}
 					aboutEffect="noise-gate"
 					selectedId="mine" resetKey={resetKey} onSelect={() => undefined}
-					onSave={() => { calls.push('save'); }} onSaveAs={() => undefined}
+					onSave={() => { calls.push('save'); }} onSaveAs={(name: string) => { calls.push(`save:${name}`); }}
 					onAdvancedSettings={() => { calls.push('advanced'); }}
 					onReset={() => undefined} onDelete={() => undefined} onImport={() => undefined}
 					onExport={() => { calls.push('export'); }} />

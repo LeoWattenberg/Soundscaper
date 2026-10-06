@@ -13,6 +13,7 @@ import {
 } from './sound-activation-ui-model.ts';
 import AudioEditorTimeCodeInput from './AudioEditorTimeCodeInput.tsx';
 import EditorHelpTooltip from './EditorHelpTooltip.tsx';
+import { useOperationFocusRecovery } from './useOperationFocusRecovery.ts';
 
 interface SoundActivationActions {
 	setThresholdDb(value: number): unknown;
@@ -61,11 +62,12 @@ export default function SoundActivationSettings({
 	const titleId = useId();
 	const statusId = useId();
 	const timestampDescriptionId = useId();
+	const rememberFocus = useOperationFocusRecovery(soundActivation.preferenceMutationBlockReason === 'preference-update', controller);
 	if (productId !== 'soundscaper') return null;
 	const model = createSoundActivationUiModel(soundActivation, readOnly, locale, copy);
 	const actions = controller.actions.recording.soundActivation;
 	const update = (operation: () => unknown) => {
-		if (!model.controlsDisabled) void run(operation);
+		if (!model.controlsDisabled) { rememberFocus(); void run(operation); }
 	};
 	return (
 		<section

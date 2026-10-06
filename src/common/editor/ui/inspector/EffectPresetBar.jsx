@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 import { ContextMenu } from '@soundscaper/design-system/ContextMenu';
 import { ContextMenuItem } from '@soundscaper/design-system/ContextMenuItem';
@@ -49,6 +49,7 @@ export default function EffectPresetBar({
 	resetKey = /** @type {unknown} */ (null),
 	dataAttribute = 'data-effect-presets',
 }) {
+	const saveFormId = useId();
 	const fileRef = useRef(null);
 	const barRef = useRef(null);
 	const saveTriggerRef = useRef(null);
@@ -101,6 +102,12 @@ export default function EffectPresetBar({
 	const close = () => {
 		setSaveMenu(null);
 		setOptionsMenu(null);
+	};
+	const saveAs = () => {
+		const name = saveAsName?.trim();
+		if (!name || disabled) return;
+		setSaveAsName(null);
+		onSaveAs(name);
 	};
 
 	return (
@@ -208,21 +215,19 @@ export default function EffectPresetBar({
 								<Button variant="secondary" onClick={() => setSaveAsName(null)}>{copy.cancel}</Button>
 								<Button
 									variant="primary"
-									disabled={!saveAsName.trim()}
-									onClick={() => {
-										const name = saveAsName.trim();
-										setSaveAsName(null);
-										if (name) onSaveAs(name);
-									}}
+									type="submit" form={saveFormId}
+									disabled={disabled || !saveAsName.trim()}
 								>{copy.saveEffectPreset}</Button>
 							</>}
 						/>
 					)}
 				>
-					<label className="audio-editor-field">
-						<span>{copy.effectPresetName}</span>
-						<TextInput value={saveAsName} onChange={setSaveAsName} width="100%" data-preset-name />
-					</label>
+					<form id={saveFormId} onSubmit={(event) => { event.preventDefault(); saveAs(); }}>
+						<label className="audio-editor-field">
+							<span>{copy.effectPresetName}</span>
+							<TextInput value={saveAsName} onChange={setSaveAsName} width="100%" data-preset-name />
+						</label>
+					</form>
 				</AudioEditorDialogShell>
 			)}
 			{aboutOpen && about && <EffectPresetMenuPortal target={fileRef.current}>

@@ -1,6 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import React from 'react';
+import { resolveParametricEqNumericCommit } from './parametric-eq-numeric-commit.ts';
+
+export { resolveParametricEqNumericCommit } from './parametric-eq-numeric-commit.ts';
 
 export function ParametricEqNumericInput({ value, onCommit, disabled, min, max, step }) {
 	const formattedValue = String(roundForInput(value));
@@ -14,7 +17,7 @@ export function ParametricEqNumericInput({ value, onCommit, disabled, min, max, 
 
 	const finish = () => {
 		editingRef.current = false;
-		const result = resolveParametricEqNumericCommit(text, formattedValue, cancelRef.current);
+		const result = resolveParametricEqNumericCommit(text, formattedValue, cancelRef.current, min, max);
 		cancelRef.current = false;
 		if (!result.commit) {
 			setText(result.replacement);
@@ -46,15 +49,6 @@ export function ParametricEqNumericInput({ value, onCommit, disabled, min, max, 
 			}
 		},
 	});
-}
-
-export function resolveParametricEqNumericCommit(text, formattedValue, cancelled) {
-	if (cancelled) return { commit: false, replacement: formattedValue };
-	const number = Number(text);
-	if (!text.trim() || !Number.isFinite(number)) {
-		return { commit: false, replacement: formattedValue };
-	}
-	return { commit: true, value: number };
 }
 
 function roundForInput(value) {
