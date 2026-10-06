@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import './FilterCurveEqEditor.css';
-import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 import { canonicalCopyValue } from '../../../i18n/canonical-extras.js';
 import { formatAudacityCurve, parseAudacityCurve } from '../../audacity-effects/manifest.js';
@@ -37,6 +37,7 @@ export default function FilterCurveEqEditor({
 	const svgRef = useRef<SVGSVGElement>(null);
 	const gesture = useRef(createFilterCurveGesture());
 	const pointer = useRef<number | null>(null);
+	const deletionFocus = useRef<{ index: number; count: number; control: SVGCircleElement } | null>(null);
 	const [draft, setDraft] = useState<readonly FilterCurvePoint[] | null>(null);
 	const [response, setResponse] = useState<readonly FilterCurvePoint[]>(EMPTY);
 	const [responseError, setResponseError] = useState('');
@@ -44,6 +45,16 @@ export default function FilterCurveEqEditor({
 	const [minimumDb, setMinimumDb] = useState(-30);
 	const [maximumDb, setMaximumDb] = useState(30);
 	const points = draft ?? value;
+	useLayoutEffect(() => {
+		const request = deletionFocus.current;
+		const svg = svgRef.current;
+		if (!request || !svg || disabled || points.length !== request.count) return;
+		deletionFocus.current = null;
+		const active = svg.ownerDocument.activeElement;
+		if (active !== svg.ownerDocument.body && active !== request.control) return;
+		const remaining = svg.querySelectorAll<SVGCircleElement>('.audio-editor-filter-curve__point');
+		(remaining[Math.min(request.index, remaining.length - 1)] ?? svg).focus();
+	}, [disabled, points]);
 	const viewport = useMemo<FilterCurveViewport>(() => ({
 		sampleRate, linearFrequencyScale, minimumDb, maximumDb,
 	}), [sampleRate, linearFrequencyScale, minimumDb, maximumDb]);
@@ -116,6 +127,7 @@ export default function FilterCurveEqEditor({
 		if (disabled || pointer.current !== null) return;
 		if (event.key === 'Delete' || event.key === 'Backspace') {
 			event.preventDefault(); event.stopPropagation();
+			deletionFocus.current = { index, count: points.length - 1, control: event.currentTarget };
 			onCommit(points.filter((_, entry) => entry !== index));
 			return;
 		}
