@@ -151,6 +151,11 @@ export interface ContextMenuItemProps {
   checked?: boolean;
 
   /**
+   * Accessible menu item role
+   */
+  role?: 'menuitem' | 'menuitemradio';
+
+  /**
    * Keyboard shortcut to display on the right
    */
   shortcut?: string;
@@ -178,6 +183,7 @@ export const ContextMenuItem: React.FC<ContextMenuItemProps> = ({
   hasSubmenu = false,
   icon,
   checked,
+  role = 'menuitem',
   shortcut,
   onClose,
   isDivider = false,
@@ -288,7 +294,7 @@ export const ContextMenuItem: React.FC<ContextMenuItemProps> = ({
           setSubmenuOpen(true);
           // Focus first submenu item after opening
           setTimeout(() => {
-            const firstSubmenuItem = submenuRef.current?.querySelector('[role="menuitem"]') as HTMLElement;
+            const firstSubmenuItem = submenuRef.current?.querySelector('[role="menuitem"], [role="menuitemradio"]') as HTMLElement;
             // Another focus target may have been chosen before this timer runs.
             if (firstSubmenuItem && itemRef.current?.ownerDocument.activeElement === itemRef.current) {
               firstSubmenuItem.focus();
@@ -350,7 +356,7 @@ export const ContextMenuItem: React.FC<ContextMenuItemProps> = ({
     if (rel && rel !== itemRef.current) {
       const parentMenu = itemRef.current?.closest('[role="menu"]');
       const relParentMenu = rel.closest?.('[role="menu"]');
-      const relItem = rel.closest?.('[role="menuitem"]');
+      const relItem = rel.closest?.('[role="menuitem"], [role="menuitemradio"]');
       if (
         parentMenu
         && relParentMenu === parentMenu
@@ -414,7 +420,7 @@ export const ContextMenuItem: React.FC<ContextMenuItemProps> = ({
       if (!submenuRef.current?.contains(document.activeElement)) return;
 
       const items = Array.from(
-        submenuRef.current.querySelectorAll('[role="menuitem"]:not([aria-disabled="true"])')
+        submenuRef.current.querySelectorAll('[role="menuitem"]:not([aria-disabled="true"]), [role="menuitemradio"]:not([aria-disabled="true"])')
       ) as HTMLElement[];
 
       if (items.length === 0) return;
@@ -473,9 +479,10 @@ export const ContextMenuItem: React.FC<ContextMenuItemProps> = ({
     <div
       ref={itemRef}
       className={`context-menu-item ${disabled ? 'disabled' : ''} ${submenuOpen ? 'submenu-open' : ''}`}
-      role="menuitem"
+      role={role}
       tabIndex={disabled ? -1 : 0}
       aria-disabled={disabled}
+      aria-checked={role === 'menuitemradio' ? Boolean(checked) : undefined}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       onMouseEnter={handleMouseEnter}

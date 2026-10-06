@@ -84,7 +84,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
 
     // Find first focusable menu item
     const menu = menuRef.current;
-    const firstItem = menu.querySelector('[role="menuitem"]') as HTMLElement;
+    const firstItem = menu.querySelector('[role="menuitem"], [role="menuitemradio"]') as HTMLElement;
     if (firstItem) {
       const focusedElement = document.activeElement;
       // Use setTimeout to ensure menu is rendered and positioned
@@ -130,7 +130,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
       // Only select direct children menu items, not nested submenu items
       // This ensures submenu navigation is isolated
       const items = Array.from(
-        menuRef.current.querySelectorAll(':scope > [role="menuitem"]:not([aria-disabled="true"])')
+        menuRef.current.querySelectorAll(':scope > [role="menuitem"]:not([aria-disabled="true"]), :scope > [role="menuitemradio"]:not([aria-disabled="true"])')
       ) as HTMLElement[];
 
       if (items.length === 0) return;
