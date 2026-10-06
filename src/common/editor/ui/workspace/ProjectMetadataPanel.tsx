@@ -84,6 +84,7 @@ export function ProjectMetadataPanel({
 								name={key}
 								label={label}
 								value={String(metadata[key] || '')}
+								multiline={key === 'comments'}
 								disabled={disabled}
 								onCommit={(value: string) => onUpdate({ [key]: value })}
 							/>
