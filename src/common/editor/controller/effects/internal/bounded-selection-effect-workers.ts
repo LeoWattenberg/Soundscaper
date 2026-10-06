@@ -22,14 +22,9 @@ export function createBoundedSelectionEffectWorkerService(runtime: SelectionEffe
 		const owner = new AbortController(); ordinary = owner;
 		const forwardAbort = (): void => owner.abort(options.signal?.reason);
 		options.signal?.addEventListener('abort', forwardAbort, { once: true }); if (options.signal?.aborted) forwardAbort();
-		let cancelPending: () => void = () => undefined;
-		const aborted = new Promise<never>((_resolve, reject) => {
-			cancelPending = () => reject(owner.signal.reason instanceof Error ? owner.signal.reason : new WorkerRequestCancelledError());
-			owner.signal.addEventListener('abort', cancelPending, { once: true }); if (owner.signal.aborted) cancelPending();
-		});
 		// The signal fences a resumed WASM preflight; the race releases UI ownership before that shared load completes.
-		return Promise.race([primary.runSelectionEffectWorker(request, { ...options, signal: owner.signal }), aborted]).finally(() => {
-			options.signal?.removeEventListener('abort', forwardAbort); owner.signal.removeEventListener('abort', cancelPending);
+		return racePendingOwner(primary.runSelectionEffectWorker(request, { ...options, signal: owner.signal }), owner.signal).finally(() => {
+			options.signal?.removeEventListener('abort', forwardAbort);
 			if (ordinary === owner) ordinary = null;
 		});
 	};
@@ -52,7 +47,7 @@ export function createBoundedSelectionEffectWorkerService(runtime: SelectionEffe
 		let next = 0;
 		let primaryFailure: unknown; let failed = false;
 		try {
-			await Promise.all(lanes.map(async (lane) => {
+			await racePendingOwner(Promise.all(lanes.map(async (lane) => {
 				try {
 					for (;;) {
 						assertCurrent(); const index = next++; if (index >= requests.length) break;
@@ -62,7 +57,7 @@ export function createBoundedSelectionEffectWorkerService(runtime: SelectionEffe
 				} catch (error) {
 					if (!failed) { failed = true; primaryFailure = error; owner.abort(error); }
 				}
-			}));
+			})), owner.signal);
 			if (failed) throw primaryFailure;
 			assertCurrent(); return results;
 		} finally {
@@ -75,4 +70,14 @@ export function createBoundedSelectionEffectWorkerService(runtime: SelectionEffe
 		runSpectralEditWorker: primary.runSpectralEditWorker,
 		cancelWorkers(reason: Error = new WorkerRequestCancelledError()) { cancelBatch(reason); },
 	});
+}
+
+/** Cancel this request immediately; leave the shared loader alive and fence its later continuation with the same signal. */
+function racePendingOwner<Value>(pending: Promise<Value>, signal: AbortSignal): Promise<Value> {
+	let cancelPending: () => void = () => undefined;
+	const aborted = new Promise<never>((_resolve, reject) => {
+		cancelPending = () => reject(signal.reason instanceof Error ? signal.reason : new WorkerRequestCancelledError());
+		signal.addEventListener('abort', cancelPending, { once: true }); if (signal.aborted) cancelPending();
+	});
+	return Promise.race([pending, aborted]).finally(() => { signal.removeEventListener('abort', cancelPending); });
 }

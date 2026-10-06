@@ -88,3 +88,21 @@ test('supersession cancels an ordinary request while its EQ WASM preflight is st
 		subject.service.cancelWorkers();
 	}
 });
+
+test('a cancelled batch rejects promptly while both lane preflights await shared EQ WASM', async () => {
+	let resolveWasm: (value: unknown) => void = () => undefined;
+	const wasm = new Promise<unknown>((resolve) => { resolveWasm = resolve; });
+	const subject = fixture({ loadParametricEqWasmModule: () => wasm });
+	const old = subject.service.runIndependentSelectionEffects([{ ...request(1), effectType: 'eq' }, { ...request(2), effectType: 'eq' }]);
+	void old.catch(() => undefined);
+	const current = subject.service.runSelectionEffectWorker(request(3));
+	void current.catch(() => undefined);
+	const pending = Symbol('loader pending');
+	const outcome = await Promise.race([old.then(() => null, (error: unknown) => error), new Promise<symbol>((resolve) => { setImmediate(() => resolve(pending)); })]);
+	resolveWasm({});
+	await assert.rejects(old, { name: 'AbortError' });
+	await new Promise<void>((resolve) => { setImmediate(resolve); });
+	assert.notEqual(outcome, pending, 'cancelled batch must release caller ownership before shared preflight completes');
+	assert.equal(subject.workers.length, 1); assert.equal(subject.workers[0]!.terminated, false);
+	subject.workers[0]!.complete(); await current; subject.service.cancelWorkers();
+});
