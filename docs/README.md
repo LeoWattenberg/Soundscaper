@@ -44,6 +44,11 @@ belong in Git history, not in the maintained documentation set.
   measured costs, reproduction methods, and correctness guardrails.
 - [Smaller performance candidates](development/performance-candidates.md)
   records areas needing representative profiles before implementation.
+- User workflow regression audits record reproducible defects and their checks
+  for [editing](development/bugfix-editing.md),
+  [dialogs](development/bugfix-dialogs.md),
+  [import and export](development/bugfix-io.md), and
+  [generators, macros, mixer and labels](development/bugfix-generators-macros.md).
 
 ## Operate and release
 
