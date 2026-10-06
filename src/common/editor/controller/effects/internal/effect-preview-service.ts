@@ -141,7 +141,7 @@ export function createSelectionEffectPreviewService(runtime: SelectionEffectPrev
 					runtime,
 				);
 			}
-			const resultChannelSets = [];
+			const resultChannelSets: Float32Array[][] = [];
 			for (let index = 0; index < targets.length; index += 1) {
 				const { preview, spectralSelection } = targets[index]!;
 				const channels = previewChannelSets[index];
@@ -173,13 +173,14 @@ export function createSelectionEffectPreviewService(runtime: SelectionEffectPrev
 				});
 				requireCurrentPreview();
 				assertAudacityEffectOutput(result.channels);
-				resultChannelSets.push(alignPreviewChannels(
-					result.channels,
-					targets[index]!.offsetFrames,
-					previewFrameCount,
-				));
+				resultChannelSets.push(result.channels);
 			}
-			const mixedChannels = mixNyquistPreviewChannels(resultChannelSets, previewFrameCount);
+			const resultFrameCount = Math.min(maximumFrames, Math.max(...resultChannelSets.map((channels, index) => (
+				targets[index]!.offsetFrames + channels[0]!.length
+			))));
+			const mixedChannels = mixNyquistPreviewChannels(resultChannelSets.map((channels, index) => (
+				alignPreviewChannels(channels, targets[index]!.offsetFrames, resultFrameCount)
+			)), resultFrameCount);
 			const context = await engine.getAudioContext({ resume: true });
 			await context.resume?.();
 			requireCurrentPreview();

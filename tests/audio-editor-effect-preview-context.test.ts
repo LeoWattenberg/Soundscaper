@@ -23,7 +23,7 @@ interface WorkerInput {
 	}>;
 }
 
-function fixture(start: number, end: number, projectEnd: number, cancelOnRender = 0) {
+function fixture(start: number, end: number, projectEnd: number, cancelOnRender = 0, outputRatio = 1) {
 	const renders: RenderCall[] = [];
 	const jobs: WorkerInput[] = [];
 	const played: Float32Array[][] = [];
@@ -83,7 +83,10 @@ function fixture(start: number, end: number, projectEnd: number, cancelOnRender 
 		resolveInteractiveAudacityParams: (_type: string, params: unknown) => params,
 		runSelectionEffectWorker: async (request: WorkerInput) => {
 			jobs.push(request);
-			return { channels: request.channels.map((channel) => channel.map((value) => -value)) };
+			return { channels: request.channels.map((channel) => Float32Array.from(
+				{ length: Math.round(channel.length * outputRatio) },
+				(_, index) => -channel[Math.floor(index / outputRatio)]!,
+			)) };
 		},
 		setStatus: () => undefined,
 	});
@@ -94,6 +97,16 @@ test('effect previews pause the clip source transport before auditioning their r
 	const value = fixture(20, 24, 50);
 	await value.preview();
 	assert.equal(value.sourcePaused(), true);
+});
+
+test('duration-changing previews use the rendered length within the six-second audition limit', async () => {
+	for (const [inputFrames, ratio, outputFrames] of [[80, 2, 160], [80, 0.5, 40], [500, 2, 600]] as const) {
+		const value = fixture(0, inputFrames, inputFrames, 0, ratio);
+		value.state.audacityEffectType = 'audacity-change-tempo';
+		await value.preview();
+		assert.equal(value.played[0]![0]!.length, outputFrames);
+		assert.notEqual(value.played[0]![0]!.at(-1), 0, 'the preview neither drops the tail nor appends silence');
+	}
 });
 
 test('Repair previews supply clip-scoped context clipped to the project and play only the selection', async () => {

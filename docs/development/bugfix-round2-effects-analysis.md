@@ -185,4 +185,19 @@ WebKit, verifies the imported 800-ms duration and that entering 400 ms sets the
 tempo change to 100%. Strict source-selection tests retain the native 44.1-kHz
 duration through replacement and Undo. The selection dialog suite also passes.
 
+## R2-ROOT-013 — A slower effect preview cuts off the processed audio
+
+Import a 0.8-second WAV, **Select > Select all**, open **Effect > Pitch and tempo
+> Change tempo**, set **Percent change** to -50 and click **Preview**. The
+result should last 1.6 seconds. Previously playback stopped at 0.8 seconds,
+because preview alignment used the input length instead of the rendered length.
+Previews now align and mix the processed lengths, retaining the six-second
+audition limit. Faster effects also avoid an appended silent tail.
+
+Proof: `audio-editor-round2-effect-preview-length.spec.js` uses only the normal
+menus and observes the browser's played audio-buffer duration. Its baseline
+build 11 failed at 0.8 seconds; build 12 passes at 1.6 seconds in Chromium,
+Firefox and WebKit. Strict regressions cover expansion, contraction, and the
+six-second limit alongside existing Repair context and cancellation checks.
+
 These changes do not require a manual **Update AI assets** run.
