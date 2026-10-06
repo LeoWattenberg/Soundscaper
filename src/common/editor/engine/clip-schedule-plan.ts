@@ -4,7 +4,6 @@ import { AUDIO_EDITOR_STORAGE_CHUNK_FRAMES } from '../chunk-stream.js';
 import { readClipLoop, withoutClipLoop } from '../audio-clip-loop.ts';
 import { buildAudioWarpRuntimeSegments } from '../audio-warp-runtime.ts';
 import {
-	automaticClipCrossfadeRanges,
 	mergeFrameRanges,
 } from '../audio-clip-overlap.ts';
 import type {
@@ -25,12 +24,14 @@ import type {
 	EngineClip,
 	EngineProject,
 	EngineSourceResolver,
-	EngineTrack,
 	ResolvedClipSource,
 	UnknownRecord,
 } from './types.ts';
 
-export { mergeFrameRanges };
+import { getTrackClips, automaticCrossfadeRanges } from './clip-schedule-geometry.ts';
+import { indexedClipScheduleRange } from './clip-schedule-index.ts';
+
+export { mergeFrameRanges, getTrackClips, automaticCrossfadeRanges };
 export type { ClipCrossfadeRanges, FrameRange };
 
 export interface ClipSchedulePlan extends ClipCrossfadeRanges {
@@ -133,35 +134,6 @@ export function resolveClipSource(
 	};
 }
 
-export function getTrackClips(
-	track: EngineTrack,
-	clipsById: ReadonlyMap<string, EngineClip>,
-): EngineClip[] {
-	if (Array.isArray(track.clipIds)) {
-		return track.clipIds
-			.map((id) => clipsById.get(String(id)))
-			.filter((clip): clip is EngineClip => Boolean(clip));
-	}
-	if (Array.isArray(track.clips)) {
-		return track.clips
-			.map((clip) => clip && typeof clip === 'object'
-				? clip as EngineClip
-				: clipsById.get(String(clip)))
-			.filter((clip): clip is EngineClip => Boolean(clip));
-	}
-	return [];
-}
-
-/** Derive complementary, clip-local crossfade ranges for proper partial overlaps. */
-export function automaticCrossfadeRanges(clips: readonly EngineClip[]): Map<string, ClipCrossfadeRanges> {
-	if (!Array.isArray(clips)) throw new TypeError('clips must be an array.');
-	return automaticClipCrossfadeRanges<EngineClip>(clips, {
-		id: (clip) => clip.id,
-		startFrame: clipStart,
-		durationFrames: clipDuration,
-	});
-}
-
 export interface BuildClipSchedulePlansOptions {
 	readonly project: EngineProject;
 	readonly sources: ReadonlyMap<unknown, AudioBuffer>;
@@ -183,15 +155,17 @@ export function buildClipSchedulePlans({
 	sampleRate,
 	sourceResolver = null,
 }: BuildClipSchedulePlansOptions): ClipSchedulePlan[] {
-	const clipsById = new Map(getProjectClips(project).map((clip) => [String(clip.id), clip]));
+	let clipsById: ReadonlyMap<string, EngineClip> | null = null;
 	const plans: ClipSchedulePlan[] = [];
 	const audioTracks = (project.tracks || [])
 		.filter((track) => track.type !== 'label' && track.type !== 'video');
 	for (const [trackIndex, track] of audioTracks.entries()) {
 		const trackInput = trackInputs.get(String(track.id ?? trackIndex));
 		if (!trackInput) continue;
-		const trackClips = getTrackClips(track, clipsById);
-		const crossfades = automaticCrossfadeRanges(trackClips);
+		const indexed = indexedClipScheduleRange(project, track, fromFrame, toFrame);
+		if (!indexed) clipsById ||= new Map(getProjectClips(project).map((clip) => [String(clip.id), clip]));
+		const trackClips = indexed?.clips ?? getTrackClips(track, clipsById!);
+		const crossfades = indexed?.crossfades ?? automaticCrossfadeRanges(trackClips);
 		for (const clip of trackClips) {
 			const start = clipStart(clip);
 			const duration = clipDuration(clip);
