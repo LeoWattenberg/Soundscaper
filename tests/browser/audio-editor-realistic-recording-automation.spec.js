@@ -158,6 +158,7 @@ test.describe('realistic recording and automation sessions', () => {
 							.not.toEqual(beforeRide);
 					}
 					const beforeRecording = await persistedAutomationState(page, projectId);
+					const recordingMode = activeMode;
 					const clipsBeforeRecording = Number(await editor.getAttribute('data-clip-count'));
 					const recorded = await recordPass(page, editor, {
 						newTrack: Boolean(pass.newTrack),
@@ -172,8 +173,11 @@ test.describe('realistic recording and automation sessions', () => {
 						.toBeGreaterThanOrEqual(clipsBeforeRecording);
 					await expect(editor).toHaveAttribute('data-track-count', String(expectedTracks));
 					await expect(recorded.clip).toBeVisible();
+					// Publishing the recorded clip invalidates an active Write capture
+					// through the established project-revision authority boundary.
+					activeMode = recordingMode === 'write' ? 'read' : recordingMode;
 					await expect(automation.modeSelect).toHaveValue(activeMode);
-					if (activeMode !== 'write') {
+					if (recordingMode !== 'write') {
 						await expect.poll(() => persistedAutomationState(page, projectId))
 							.toEqual(beforeRecording);
 					} else {
