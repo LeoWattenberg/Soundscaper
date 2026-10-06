@@ -23,6 +23,7 @@ export interface AssistanceRuntimeFamilyHelperProcessOptions {
 	readonly post: (message: unknown) => void;
 	readonly exit: (code: number) => void;
 	readonly workerEntry?: string | URL;
+	readonly residentOnnx?: boolean;
 	readonly createWorker?: (
 		entry: string | URL,
 		job: Parameters<ReturnType<typeof createAssistanceRuntimeFamilyThreadWorkerSpawner>>[0],
@@ -58,6 +59,7 @@ export function createAssistanceRuntimeFamilyHelperProcessV1(
 		workerEntry: options.workerEntry
 			?? new URL('./assistance-runtime-family-inference-worker.js', import.meta.url),
 		createWorker: options.createWorker,
+		residentOnnx: options.residentOnnx,
 	});
 	const spawnWhisperWorker = options.spawnWhisperWorker
 		?? createAssistanceWhisperCppWorkerSpawnerV1();
@@ -89,6 +91,7 @@ const utilityParentPort = (globalThis.process as typeof process & {
 if (utilityParentPort && typeof utilityParentPort.postMessage === 'function'
 	&& typeof utilityParentPort.on === 'function') {
 	const helper = createAssistanceRuntimeFamilyHelperProcessV1({
+		residentOnnx: true,
 		post: (message) => utilityParentPort.postMessage(message),
 		exit: (code) => process.exit(code),
 	});

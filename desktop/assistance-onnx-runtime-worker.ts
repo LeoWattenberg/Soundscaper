@@ -43,6 +43,7 @@ import {
 	createAssistanceOnnxCpuSessionV1,
 	publishAssistanceOnnxOutputV1,
 	reviewAssistanceOnnxRuntimeModuleV1,
+	type AssistanceOnnxSessionLeaseCacheV1,
 } from './assistance-onnx-worker-common.ts';
 import {
 	createAssistanceOnnxOcrWorkerAdapterV1,
@@ -94,6 +95,7 @@ export interface AssistanceOnnxRuntimeModuleV1 {
 export interface AssistanceOnnxRuntimeWorkerAdapterOptionsV1 {
 	readonly loadRuntime?: (entrypoint: string) => PromiseLike<AssistanceOnnxRuntimeModuleV1>;
 	readonly phonemizeKokoro?: KokoroOfflinePhonemizerV1;
+	readonly sessionCache?: AssistanceOnnxSessionLeaseCacheV1;
 }
 
 const TRANSNET_INPUT_NAMES = Object.freeze(['frames']);
@@ -118,7 +120,9 @@ export function createAssistanceOnnxRuntimeWorkerAdapterV1(
 	if (options.phonemizeKokoro !== undefined && typeof options.phonemizeKokoro !== 'function') {
 		throw new TypeError('The offline Kokoro phonemizer port is invalid.');
 	}
-	const loadRuntime = options.loadRuntime ?? loadOnnxRuntime;
+	const baseLoader = options.loadRuntime ?? loadOnnxRuntime;
+	const loadRuntime = options.sessionCache === undefined ? baseLoader
+		: async (entrypoint: string) => options.sessionCache!.wrapRuntime(await baseLoader(entrypoint));
 	const executeAudio = createAssistanceOnnxAudioRuntimeWorkerAdapterV1(loadRuntime);
 	const executeEnhancementSeparation =
 		createAssistanceOnnxEnhancementSeparationWorkerAdapterV1(loadRuntime);
@@ -132,7 +136,7 @@ export function createAssistanceOnnxRuntimeWorkerAdapterV1(
 	const executeOcr = createAssistanceOnnxOcrWorkerAdapterV1(loadRuntime);
 	const executeSubjects = createAssistanceOnnxSubjectWorkerAdapterV1(loadRuntime);
 	const executeSaliency = createAssistanceOnnxSaliencyWorkerAdapterV1(loadRuntime);
-	return async (context) => {
+	const execute = async (context: AssistanceRuntimeFamilyWorkerExecutionContext) => {
 		if (context.grant.task === 'word-alignment') return executeWordAlignment(context);
 		if (context.grant.task === 'speech-enhancement'
 			|| context.grant.task === 'source-separation') {
@@ -151,6 +155,8 @@ export function createAssistanceOnnxRuntimeWorkerAdapterV1(
 		if (context.grant.task === 'saliency-detection') return executeSaliency(context);
 		throw new AssistanceRuntimeFamilyAdapterUnavailableError();
 	};
+	return (context) => options.sessionCache === undefined ? execute(context)
+		: options.sessionCache.runAuthenticated(context, () => execute(context));
 }
 
 async function executeTransNetV2(
