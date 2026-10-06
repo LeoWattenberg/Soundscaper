@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createLocalizedError } from '../../../i18n/presentation-message.ts'; import type { MacroTransactionMetadata } from '../effects/macro-transaction-metadata.ts'; import { assertProjectActivationEditAllowed } from './project-activation-edit-fence.ts';
+import { createLocalizedError } from '../../../i18n/presentation-message.ts'; import type { HistoryOperationMetadata } from './internal/history-operation-metadata.ts'; import { assertProjectActivationEditAllowed } from './project-activation-edit-fence.ts';
 
 import type { AudioEditorCommand } from '../../commands/protocol.ts';
 import type { ProjectFlushOptions } from './project-save-service.ts';
@@ -117,7 +117,7 @@ export interface ProjectMutationServiceDependencies<
 	 * by the `audioMacros` capability long before a transaction could be opened.
 	 */
 	readonly collapseEditorHistory?: (
-		history: History, depth: number, command: MacroTransactionMetadata, checkpoint?: History,
+		history: History, depth: number, command: HistoryOperationMetadata, checkpoint?: History,
 	) => History;
 	readonly rollbackEditorHistory?: (
 		history: History, depth: number, options?: Readonly<Record<string, unknown>>, checkpoint?: History,
@@ -170,7 +170,7 @@ export interface MacroTransaction<Project> {
 	readonly depth: number;
 	/** Refuse each command after the owning project or controller changes. */
 	assertCurrent(): void;
-	commit(command: MacroTransactionMetadata): Project;
+	commit(command: HistoryOperationMetadata): Project;
 	rollback(): Project;
 }
 
@@ -279,7 +279,7 @@ export function createProjectMutationService<
 				dependencies.assertProject(openedProject);
 				if (settled) throw new Error('A macro transaction has already settled.');
 			},
-			commit: (command: MacroTransactionMetadata) => settle((history) => collapse(history, depth, command, opened)),
+			commit: (command: HistoryOperationMetadata) => settle((history) => collapse(history, depth, command, opened)),
 			rollback: () => settle((history) => rollback(history, depth, {}, opened)),
 		});
 	}

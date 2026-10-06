@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import type { MacroTransactionMetadata } from '../src/common/editor/controller/effects/macro-transaction-metadata.ts';
+import type { HistoryOperationMetadata } from '../src/common/editor/controller/document/internal/history-operation-metadata.ts';
 import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
 import { snapshotInertEditorCommand } from '../src/common/editor/commands/editor-command-snapshot.ts';
 import {
@@ -333,7 +333,7 @@ test('save aliases delegate to the single serialized project save service', asyn
 
 interface FixtureOverrides {
 	readonly macroHistory?: false;
-	readonly collapseHistory?: (history: TestHistory, depth: number, command: MacroTransactionMetadata) => TestHistory;
+	readonly collapseHistory?: (history: TestHistory, depth: number, command: HistoryOperationMetadata) => TestHistory;
 	readonly rollbackHistory?: (history: TestHistory, depth: number) => TestHistory;
 	readonly project?: TestProject;
 	readonly readOnly?: boolean;

@@ -7,12 +7,14 @@ import {
 	type EditorTaskScope,
 } from '../../shared/lifecycle.ts'; import { publishedCopyFor } from '../../shared/presentation-localization.ts'; import { createLocalizedError, setLocalizedStatus } from '../../../../i18n/presentation-message.ts';
 import { createSelectionEffectPreviewService } from './effect-preview-service.ts';
+import type { MacroTransaction } from '../../document/project-mutation-service.ts';
 
 const SELECTION_EFFECT_TASK = 'selection-effect-apply';
 /** The registry name a Nyquist evaluation holds while the evaluator runs. */
 export const NYQUIST_EVALUATION_TASK = 'nyquist-evaluation';
 
 export interface SelectionEffectExecutionRuntime {
+	readonly beginResultTransaction?: () => Pick<MacroTransaction<unknown>, 'commit' | 'rollback'>;
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	readonly [name: string]: any;
@@ -264,6 +266,7 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 		state.nyquistResult = null;
 		setLocalizedStatus(setStatus, copy, (copy.nyquistProcessing ? "nyquistProcessing" : "audacityProcessing"));
 		publishDocumentSnapshot();
+		let resultTransaction: Pick<MacroTransaction<unknown>, 'commit' | 'rollback'> | null = null;
 		try {
 			const evaluations = [];
 			let aggregateAudioBytes = 0;
@@ -338,6 +341,10 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 				return returnedResult;
 			}
 
+			if (audio.length && labels.length) {
+				if (!runtime.beginResultTransaction) throw new Error('Nyquist results require document history transactions.');
+				resultTransaction = runtime.beginResultTransaction();
+			}
 			const replacements = audio.filter(({ target }: RuntimeValue) => target);
 			if (replacements.length) {
 				await preflightStorage(replacements.reduce((sum: RuntimeValue, { result }: RuntimeValue) => (
@@ -370,17 +377,25 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 			}
 			assertNyquistCurrent();
 			if (labels.length) persistNyquistLabels(labels, request.name);
+			resultTransaction?.commit({ type: 'nyquist/run', name: request.name || publishedCopyFor(copy).nyquistPrompt });
+			resultTransaction = null;
 			state.nyquistResult = freezeNyquistResult(evaluations, { summarizeAudio: true });
 			if (labels.length || audio.length) setLocalizedStatus(setStatus, copy,
 				labels.length && !audio.length ? 'nyquistLabelsAdded' : 'nyquistApplied', undefined, 'success');
 			else publishNyquistStatus(evaluations);
 			return returnedResult;
 		} catch (error) {
-			if ((error as Readonly<{ name?: string }>)?.name === 'AbortError') {
+			let failure = error;
+			try { resultTransaction?.rollback(); }
+			catch (rollbackError) {
+				if ((rollbackError as Readonly<{ name?: string }>)?.name !== 'AbortError') throw rollbackError;
+				failure = rollbackError;
+			}
+			if ((failure as Readonly<{ name?: string }>)?.name === 'AbortError') {
 				setLocalizedStatus(setStatus, copy, (copy.audacityPreviewCancelled ? "audacityPreviewCancelled" : "ready"));
 				return null;
 			}
-			throw error;
+			throw failure;
 		} finally {
 			abort.finish();
 			if (state.nyquistAbort === abort) state.nyquistAbort = null;

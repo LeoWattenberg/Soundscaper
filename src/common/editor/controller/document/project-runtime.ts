@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { MacroTransactionMetadata } from '../effects/macro-transaction-metadata.ts';
+import type { HistoryOperationMetadata } from './internal/history-operation-metadata.ts';
 
 import type { AudioEditorClipboard, AudioEditorCommand } from '../../commands/protocol.ts';
 import { applyEditorCommand } from '../../commands.js';
@@ -154,7 +154,7 @@ export interface ControllerProjectRuntime<
 	readonly collapseHistory?: (
 		history: History,
 		depth: number,
-		command: MacroTransactionMetadata,
+		command: HistoryOperationMetadata,
 	) => History;
 	/** Put a failed macro's project back and drop what it committed. */
 	readonly rollbackHistory?: (
