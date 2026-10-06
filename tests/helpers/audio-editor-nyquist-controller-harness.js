@@ -134,6 +134,8 @@ export function createMemoryEngine() {
 
 export function createPreviewEngine(playback) {
 	const engine = createMemoryEngine();
+	const listeningDestination = {};
+	engine.getPlaybackDestination = () => listeningDestination;
 	engine.pause = () => { playback.pauseCalls += 1; };
 	engine.getAudioContext = async () => ({
 		destination: {},
@@ -144,7 +146,7 @@ export function createPreviewEngine(playback) {
 		createBufferSource: () => ({
 			buffer: null,
 			onended: null,
-			connect() {},
+			connect(destination) { playback.connectedToListeningDestination = destination === listeningDestination; },
 			disconnect() {},
 			start() {
 				playback.buffer = this.buffer;

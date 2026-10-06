@@ -90,6 +90,7 @@ test('Nyquist preview keeps full selection context, evaluates every selected tra
 		}
 		assert.equal(playback.pauseCalls, 1);
 		assert.equal(playback.starts, 1);
+		assert.equal(playback.connectedToListeningDestination, true);
 		assert.equal(playback.buffer.numberOfChannels, 2);
 		assert.equal(playback.buffer.length, sampleRate * 6);
 		assert.ok(Math.abs(playback.buffer.getChannelData(0)[0] - 0.75) < 1e-6);
