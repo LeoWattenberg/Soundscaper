@@ -49,6 +49,7 @@ export default function FramescaperVisualInspectorDialog({
 		setError('');
 	}, [model, setError, setStatus]);
 	const blocked = pending || editingBlocked || readOnly || model.clipId === null;
+	const formId = 'framescaper-visual-inspector-form';
 	const updateGenerator = (changes: Readonly<Record<string, unknown>>): void => {
 		setDraft((current) => current.generator === null ? current : {
 			...current, presetId: null,
@@ -88,13 +89,13 @@ export default function FramescaperVisualInspectorDialog({
 		footer={<DialogFooter
 			className="audio-editor-dialog-footer"
 			rightContent={<span data-visual-inspector-apply>
-				<Button variant="primary" disabled={blocked} onClick={applyDraft}>{
+				<Button variant="primary" type="submit" form={formId} disabled={blocked}>{
 					label(copy, 'apply', FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY.apply)
 				}</Button>
 			</span>}
 		/>}
 	>
-		<form className="audio-editor-clip-inspector" onSubmit={apply}>
+		<form id={formId} noValidate className="audio-editor-clip-inspector" onSubmit={apply}>
 			{model.clipId === null ? <p role="status">{label(copy, 'visualInspectorSelection',
 				FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY.visualInspectorSelection)}</p> : <>
 				<p data-visual-inspector-kind>{model.kind}</p>

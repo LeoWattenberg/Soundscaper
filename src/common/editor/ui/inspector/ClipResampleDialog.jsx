@@ -6,6 +6,7 @@ import { DialogFooter } from '@soundscaper/design-system/Footer';
 import { NumberStepper } from '@soundscaper/design-system/NumberStepper';
 
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
+import { MAXIMUM_CLIP_RESAMPLE_RATE, MINIMUM_CLIP_RESAMPLE_RATE, parseClipResampleRate } from './clip-resample-rate.ts';
 
 /**
  * Ask for the rate one clip should be resampled to.
@@ -17,10 +18,14 @@ import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
  */
 export default function ClipResampleDialog({ sampleRate, copy, disabled, onCancel, onApply }) {
 	const [rate, setRate] = useState(String(sampleRate));
+	const sampleRateValue = parseClipResampleRate(rate);
 	// The confirm button lives in the shared footer, outside the form element,
 	// so the apply path is a named handler both entry points call: the footer
 	// button by click and the field by Enter through the form's submit.
-	const apply = () => onApply({ sampleRate: Number(rate) });
+	const apply = () => {
+		if (disabled || sampleRateValue === null) return;
+		onApply({ sampleRate: sampleRateValue });
+	};
 	return (
 		<AudioEditorDialogShell
 			title={copy.resampleClip}
@@ -32,7 +37,7 @@ export default function ClipResampleDialog({ sampleRate, copy, disabled, onCance
 				className="audio-editor-dialog-footer"
 				rightContent={<>
 					<Button variant="secondary" onClick={onCancel}>{copy.cancel}</Button>
-					<Button variant="primary" disabled={disabled} onClick={apply}>{copy.resample}</Button>
+					<Button variant="primary" disabled={disabled || sampleRateValue === null} onClick={apply}>{copy.resample}</Button>
 				</>}
 			/>}
 		>
@@ -42,8 +47,9 @@ export default function ClipResampleDialog({ sampleRate, copy, disabled, onCance
 			}}>
 				<label className="kw-audio-editor-dialog__field" data-clip-resample-field="sampleRate">
 					<span>{copy.sampleRateHz}</span>
-					<NumberStepper value={rate} min={8_000} max={384_000} step={1_000} width="100%" onChange={setRate} />
+					<NumberStepper value={rate} min={MINIMUM_CLIP_RESAMPLE_RATE} max={MAXIMUM_CLIP_RESAMPLE_RATE} step={1_000} width="100%" disabled={disabled} onChange={setRate} />
 				</label>
+				{sampleRateValue === null && <p role="alert">{copy.invalidClipSampleRate}</p>}
 			</form>
 		</AudioEditorDialogShell>
 	);

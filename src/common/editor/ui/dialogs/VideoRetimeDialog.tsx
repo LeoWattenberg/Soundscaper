@@ -198,7 +198,9 @@ function RationalField({ label: fieldLabel, value, onChange }: Readonly<{
 
 function parseRational(value: string, name: string): Readonly<{ readonly num: number; readonly den: number }> {
 	const parts = value.trim().split('/');
-	if (parts.length < 1 || parts.length > 2) throw new RangeError(`${name} must be an integer or fraction.`);
+	if (parts.length < 1 || parts.length > 2 || parts.some((part) => !part.trim())) {
+		throw new RangeError(`${name} must be a safe-integer fraction with a positive denominator.`);
+	}
 	const num = Number(parts[0]);
 	const den = parts.length === 2 ? Number(parts[1]) : 1;
 	if (!Number.isSafeInteger(num) || !Number.isSafeInteger(den) || den <= 0 || Object.is(num, -0)) {
