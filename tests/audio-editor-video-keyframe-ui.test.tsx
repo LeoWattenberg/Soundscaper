@@ -81,12 +81,12 @@ test('new curve values start at the selected existing curve target base value', 
 	}
 });
 
-test('an unrelated controller snapshot preserves the selected keyframe anchor draft', async () => {
+test('keyframe anchor selection survives saved curve edits and unrelated snapshots preserve its draft', async () => {
 	const dom = installReactTestDom();
 	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
 	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
 	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
-	const document = project();
+	let document = project();
 	const controller = { actions: { edit: { commit: () => undefined } } };
 	const { createRoot } = await import('react-dom/client');
 	const root = createRoot(dom.container as unknown as Element);
@@ -101,6 +101,9 @@ test('an unrelated controller snapshot preserves the selected keyframe anchor dr
 	try {
 		await act(async () => render(1));
 		await act(async () => {
+			reactProps(dom.one('[data-video-keyframe-field="anchor"]')).onChange({ currentTarget: { value: '1' } });
+		});
+		await act(async () => {
 			reactProps(dom.one('[data-video-keyframe-field="anchor-position"]')).onChange({
 				currentTarget: { value: '7/2' },
 			});
@@ -108,6 +111,49 @@ test('an unrelated controller snapshot preserves the selected keyframe anchor dr
 		assert.equal(dom.one('[data-video-keyframe-field="anchor-position"]').value, '7/2');
 		await act(async () => render(2));
 		assert.equal(dom.one('[data-video-keyframe-field="anchor-position"]').value, '7/2');
+		document = { ...document, clips: document.clips.map(clip => ({ ...clip,
+			videoKeyframes: { ...clip.videoKeyframes, curves: clip.videoKeyframes.curves.map(curve => ({ ...curve,
+				curve: { ...curve.curve, anchors: curve.curve.anchors.map((anchor, index) => index === 1 ? { ...anchor, value: 0.65 } : anchor) },
+			})) },
+		})) };
+		await act(async () => render(3));
+		assert.equal(reactProps(dom.one('[data-video-keyframe-field="anchor"]')).value, 1);
+		assert.equal(dom.one('[data-video-keyframe-field="anchor-value"]').value, '0.65');
+	} finally {
+		await act(async () => root.unmount());
+		actGlobal.IS_REACT_ACT_ENVIRONMENT = priorAct;
+		dom.restore();
+	}
+});
+
+test('curve transfer reads the active editing curve without changing the add target', async () => {
+	const dom = installReactTestDom();
+	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
+	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
+	const value = project();
+	const scaleKey = JSON.stringify(['composition', 'transform.scaleX']);
+	value.clips[0]!.videoKeyframes.curves.push({
+		target: { kind: 'composition', parameterId: 'transform.scaleX' },
+		curve: {
+			anchors: [{ position: { num: 0, den: 1 }, value: 1 }, { position: { num: 20, den: 1 }, value: 1.2 }],
+			segments: [{ kind: 'linear' }],
+		},
+	});
+	const { createRoot } = await import('react-dom/client');
+	const root = createRoot(dom.container as unknown as Element);
+	try {
+		await act(async () => root.render(<VideoKeyframeDialog productId="framescaper" capability
+			controller={{ actions: { edit: { commit: () => undefined } } }} snapshot={{ project: value, selectedClipId: 'video' }}
+			copy={ENGLISH_COPY} run={(operation) => operation()} onClose={() => undefined} />));
+		await act(async () => { reactProps(dom.one('[data-video-keyframe-field="curve"]')).onChange({ currentTarget: { value: scaleKey } }); });
+		for (const action of ['Copy curve', 'Prepare preset']) {
+			const button = dom.container.querySelectorAll('button').find((element) => element.textContent === action)!;
+			await act(async () => { reactProps(button).onClick(); });
+			const transfer = JSON.parse(dom.one('[data-video-keyframe-field="transfer"]').value) as { curve: { anchors: { value: number }[] } };
+			assert.deepEqual(transfer.curve.anchors.map(({ value: anchorValue }) => anchorValue), [1, 1.2]);
+		}
+		assert.equal(reactProps(dom.one('[data-video-keyframe-field="target"]')).value, JSON.stringify(['composition', 'opacity']));
 	} finally {
 		await act(async () => root.unmount());
 		actGlobal.IS_REACT_ACT_ENVIRONMENT = priorAct;
@@ -154,8 +200,8 @@ test('keyframe UI stays lazy, menu-reached, and guarded by its capability', asyn
 	assert.match(dialog, /controller\.actions\.edit\.commit\(command\)/u);
 	const curveEditor = await readFile(new URL('../src/common/editor/ui/inspector/VideoKeyframeCurveEditor.tsx', import.meta.url), 'utf8');
 	assert.match(curveEditor, /const curveResetKey = JSON\.stringify/u);
-	assert.match(curveEditor, /useEffect\(\(\) => \{[\s\S]*setAnchorIndex\(0\); setSegmentIndex\(0\);[\s\S]*\}, \[curveResetKey\]\)/u,
-		'curve content changes reset local fields without following snapshot-only object identity');
+	assert.match(curveEditor, /useEffect\(\(\) => \{[\s\S]*\}, \[curveResetKey, subjectKey\]\)/u,
+		'curve content changes refresh local fields without following snapshot-only object identity');
 });
 
 test('English and German catalogs own all keyframe interaction and target copy', () => {

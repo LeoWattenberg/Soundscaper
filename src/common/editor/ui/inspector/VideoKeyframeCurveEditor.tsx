@@ -15,21 +15,23 @@ import {
 	type VideoKeyframeDialogModel,
 	type VideoKeyframeTargetChoice,
 } from '../video-keyframe-dialog-model.ts';
+import { linearVideoKeyframeBezierControls } from './video-keyframe-bezier-controls.ts';
 
 interface VideoKeyframeCurveEditorProps {
 	readonly model: VideoKeyframeDialogModel;
 	readonly choices: readonly VideoKeyframeTargetChoice[];
 	readonly copy: Readonly<Record<string, string>>;
 	readonly disabled: boolean;
+	readonly curveKey: string;
+	onCurveChange(key: string): void;
 	commit(keyframes: VideoKeyframeCurves): void;
 	reportInvalid(): void;
 }
 
 export default function VideoKeyframeCurveEditor({
-	model, choices, copy, disabled, commit, reportInvalid,
+	model, choices, copy, disabled, curveKey, onCurveChange, commit, reportInvalid,
 }: VideoKeyframeCurveEditorProps) {
 	const curves = model.keyframes?.curves ?? [];
-	const [curveKey, setCurveKey] = useState(() => curves[0] ? videoKeyframeTargetKey(curves[0].target) : '');
 	const curve = curves.find(({ target }) => videoKeyframeTargetKey(target) === curveKey) ?? curves[0] ?? null;
 	const stableKey = curve ? videoKeyframeTargetKey(curve.target) : '';
 	const choice = choices.find(({ key }) => key === stableKey) ?? null;
@@ -47,20 +49,26 @@ export default function VideoKeyframeCurveEditor({
 	const [control2Position, setControl2Position] = useState(() => segment?.kind === 'bezier'
 		? optionalRationalText(visiblePositionForVideoKeyframeAnchor(model, segment.control2.position)) : '0');
 	const [control2Value, setControl2Value] = useState(() => String(segment?.kind === 'bezier' ? segment.control2.value : 0));
-	const resetSourceRef = useRef({ curve, model });
-	resetSourceRef.current = { curve, model };
+	const resetSourceRef = useRef({ curve, model, anchorIndex, segmentIndex });
+	resetSourceRef.current = { curve, model, anchorIndex, segmentIndex };
+	const subjectKey = JSON.stringify([stableKey, model.clipId, model.keyframes?.timeDomain, model.sequenceStartFrame, model.sequenceFrameCount]);
+	const previousSubjectKey = useRef(subjectKey);
 	const curveResetKey = JSON.stringify([
 		stableKey, curve, model.keyframes?.timeDomain,
 		model.sequenceStartFrame, model.sequenceFrameCount,
 	]);
 	useEffect(() => {
-		const { curve: resetCurve, model: resetModel } = resetSourceRef.current;
-		setAnchorIndex(0); setSegmentIndex(0);
-		const nextAnchor = resetCurve?.curve.anchors[0];
+		const { curve: resetCurve, model: resetModel, anchorIndex: savedAnchor, segmentIndex: savedSegment } = resetSourceRef.current;
+		const sameSubject = previousSubjectKey.current === subjectKey;
+		previousSubjectKey.current = subjectKey;
+		const nextAnchorIndex = sameSubject ? Math.min(savedAnchor, Math.max(0, (resetCurve?.curve.anchors.length ?? 0) - 1)) : 0;
+		const nextSegmentIndex = sameSubject ? Math.min(savedSegment, Math.max(0, (resetCurve?.curve.segments.length ?? 0) - 1)) : 0;
+		setAnchorIndex(nextAnchorIndex); setSegmentIndex(nextSegmentIndex);
+		const nextAnchor = resetCurve?.curve.anchors[nextAnchorIndex];
 		const nextVisible = nextAnchor
 			? visiblePositionForVideoKeyframeAnchor(resetModel, nextAnchor.position) : null;
 		setPositionText(nextVisible ? rationalText(nextVisible) : ''); setValueText(String(nextAnchor?.value ?? ''));
-		const nextSegment = resetCurve?.curve.segments[0];
+		const nextSegment = resetCurve?.curve.segments[nextSegmentIndex];
 		setSegmentKind(nextSegment?.kind ?? 'linear');
 		if (nextSegment?.kind === 'bezier') {
 			const first = visiblePositionForVideoKeyframeAnchor(resetModel, nextSegment.control1.position);
@@ -68,7 +76,7 @@ export default function VideoKeyframeCurveEditor({
 			setControl1Position(first ? rationalText(first) : ''); setControl1Value(String(nextSegment.control1.value));
 			setControl2Position(second ? rationalText(second) : ''); setControl2Value(String(nextSegment.control2.value));
 		}
-	}, [curveResetKey]);
+	}, [curveResetKey, subjectKey]);
 
 	const selectAnchor = (index: number): void => {
 		setAnchorIndex(index);
@@ -90,7 +98,7 @@ export default function VideoKeyframeCurveEditor({
 		}
 	};
 	const selectCurve = (key: string): void => {
-		setCurveKey(key); setAnchorIndex(0); setSegmentIndex(0);
+		onCurveChange(key); setAnchorIndex(0); setSegmentIndex(0);
 		const next = curves.find(({ target }) => videoKeyframeTargetKey(target) === key);
 		const nextAnchor = next?.curve.anchors[0];
 		const nextVisible = nextAnchor ? visiblePositionForVideoKeyframeAnchor(model, nextAnchor.position) : null;
@@ -130,6 +138,17 @@ export default function VideoKeyframeCurveEditor({
 				} : { kind: segmentKind },
 			}));
 		} catch { reportInvalid(); }
+	};
+	const changeSegmentKind = (kind: typeof segmentKind): void => {
+		setSegmentKind(kind);
+		const start = curve?.curve.anchors[segmentIndex];
+		const end = curve?.curve.anchors[segmentIndex + 1];
+		if (kind !== 'bezier' || segment?.kind === 'bezier' || !start || !end) return;
+		const controls = linearVideoKeyframeBezierControls(start, end);
+		setControl1Position(optionalRationalText(visiblePositionForVideoKeyframeAnchor(model, controls.control1.position)));
+		setControl1Value(String(controls.control1.value));
+		setControl2Position(optionalRationalText(visiblePositionForVideoKeyframeAnchor(model, controls.control2.position)));
+		setControl2Value(String(controls.control2.value));
 	};
 
 	if (!model.keyframes) return null;
@@ -180,7 +199,7 @@ export default function VideoKeyframeCurveEditor({
 						</select>
 					</label>
 					<label className="audio-editor-field"><span>{label(copy, 'videoKeyframesInterpolation', 'Interpolation')}</span>
-						<select data-video-keyframe-field="segment-kind" value={segmentKind || segment?.kind} onChange={(event) => setSegmentKind(event.currentTarget.value as typeof segmentKind)}>
+						<select data-video-keyframe-field="segment-kind" value={segmentKind || segment?.kind} onChange={(event) => changeSegmentKind(event.currentTarget.value as typeof segmentKind)}>
 							{(['hold', 'linear', 'eased', 'bezier'] as const).map((kind) => <option key={kind} value={kind}>{label(copy, `videoKeyframes${titleCase(kind)}`, titleCase(kind))}</option>)}
 						</select>
 					</label>

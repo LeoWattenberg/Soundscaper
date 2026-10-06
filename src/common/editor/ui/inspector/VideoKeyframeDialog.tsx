@@ -52,6 +52,8 @@ export default function VideoKeyframeDialog({
 		: choices[0]?.key ?? '';
 	const firstChoice = choices.find(({ key }) => key === firstTarget) ?? choices[0];
 	const [targetKey, setTargetKey] = useState(firstTarget);
+	const [curveKey, setCurveKey] = useState(() => model.keyframes?.curves[0]
+		? videoKeyframeTargetKey(model.keyframes.curves[0].target) : '');
 	const [startText, setStartText] = useState('0');
 	const [endText, setEndText] = useState(() => String(model.sequenceFrameCount));
 	const [startValue, setStartValue] = useState(() => String(firstChoice?.baseValue ?? 0));
@@ -62,6 +64,8 @@ export default function VideoKeyframeDialog({
 	const [error, setError] = usePresentationFeedback(copy);
 	const [pending, setPending] = useState(false);
 	const selected = choices.find(({ key }) => key === targetKey) ?? choices[0] ?? null;
+	const editingCurve = model.keyframes?.curves.find(({ target }) => videoKeyframeTargetKey(target) === curveKey)
+		?? model.keyframes?.curves[0] ?? null;
 	const disabled = model.operationsBlocked || pending;
 
 	const commit = (keyframes: unknown, message: PresentationFeedback): void => {
@@ -98,10 +102,10 @@ export default function VideoKeyframeDialog({
 		}
 	};
 	const copyCurve = (role: 'clipboard' | 'preset'): void => {
-		if (!selected) return;
+		if (!editingCurve) return;
 		try {
 			setTransferText(serializeVideoKeyframeCurveTransfer(createVideoKeyframeCurveTransfer(model, {
-				role, target: selected.target,
+				role, target: editingCurve.target,
 			})));
 			setStatus({ key: role === 'preset'
 				? 'videoKeyframesPresetSaved'
@@ -161,7 +165,9 @@ export default function VideoKeyframeDialog({
 				choices={choices}
 				copy={copy}
 				disabled={disabled}
-				commit={(keyframes) => commit(keyframes, 'videoKeyframesApplied')}
+				curveKey={curveKey}
+				onCurveChange={setCurveKey}
+				commit={(keyframes) => commit(keyframes, { key: 'videoKeyframesApplied', fallback: 'Video keyframes applied.' })}
 				reportInvalid={() => setError({ key: 'videoKeyframesInvalid', fallback: 'Check the exact positions, values, and curve shape.' })}
 			/>
 			<fieldset disabled={disabled} onKeyDown={(event) => {
@@ -176,9 +182,9 @@ export default function VideoKeyframeDialog({
 					<textarea data-video-keyframe-field="transfer" value={transferText} maxLength={262_144} onChange={(event) => setTransferText(event.currentTarget.value)} />
 				</label>
 				<div className="audio-editor-panel-actions">
-					<button type="button" aria-keyshortcuts="Control+Shift+C" onClick={() => copyCurve('clipboard')}>{label(copy, 'videoKeyframesCopy', 'Copy curve')}</button>
+					<button type="button" disabled={!editingCurve} aria-keyshortcuts="Control+Shift+C" onClick={() => copyCurve('clipboard')}>{label(copy, 'videoKeyframesCopy', 'Copy curve')}</button>
 					<button type="button" aria-keyshortcuts="Control+Shift+V" onClick={() => applyTransfer('clipboard')}>{label(copy, 'videoKeyframesPaste', 'Paste curve')}</button>
-					<button type="button" onClick={() => copyCurve('preset')}>{label(copy, 'videoKeyframesSavePreset', 'Prepare preset')}</button>
+					<button type="button" disabled={!editingCurve} onClick={() => copyCurve('preset')}>{label(copy, 'videoKeyframesSavePreset', 'Prepare preset')}</button>
 					<button type="button" onClick={() => applyTransfer('preset')}>{label(copy, 'videoKeyframesApplyPreset', 'Apply preset')}</button>
 				</div>
 			</fieldset>
