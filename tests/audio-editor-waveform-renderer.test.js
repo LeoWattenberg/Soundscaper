@@ -299,7 +299,7 @@ test('stem rendering includes the end boundary and adds a sample head to each po
 	});
 
 	assert.deepEqual(context.calls.strokes.slice(0, -1).flatMap((path) => path.filter(([kind]) => kind === 'moveTo').map((point) => point[1])), [0, 4, 8]);
-	assert.deepEqual(context.calls.strokeColors, ['#2e5da8', '#d63c70']);
+	assert.deepEqual(context.calls.strokeColors, ['#2e5da8', '#2e5da8', '#2e5da8', '#d63c70']);
 	assert.deepEqual(context.calls.fillColors, ['#2e5da8', '#2e5da8', '#2e5da8']);
 	assert.deepEqual(context.calls.strokes.at(-1), [['moveTo', 0, 20], ['lineTo', 8, 20]]);
 	assert.deepEqual(context.calls.arcs.map(({ x }) => x), [0, 4, 8]);

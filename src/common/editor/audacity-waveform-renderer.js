@@ -11,6 +11,7 @@
  */
 
 import { scaleWaveformAmplitude } from './waveform-amplitude-scale.ts';
+import { canBatchRoundCapStems } from './waveform-stem-batch-capability.ts';
 
 const CONNECTING_DOTS_THRESHOLD = 0.5;
 
@@ -202,12 +203,12 @@ function drawIndividualSamples(context, channel, options) {
 		heights = new Float64Array(samples.length);
 		sampleHeightScratch.set(channel, heights);
 	}
-	// Chromium rasterizes scaled individual strokes differently from a compound
-	// path. Batch disjoint stems only at unit scale; retain exact pixels elsewhere.
+	// Native compound paths vary by raster backend, even at unit scale.
+	// Batch only after an exact private-surface capability proof.
 	const transform = typeof context.getTransform === 'function' ? context.getTransform() : null;
 	const batchStems = options.batchSampleStems && options.pixelRatioX === 1
 		&& (!transform || (transform.a === 1 && transform.b === 0 && transform.c === 0 && transform.d === 1))
-		&& pixelsPerSample > 3;
+		&& pixelsPerSample > 3 && canBatchRoundCapStems(context);
 	let strokeColor;
 	for (let index = 0; index < samples.length; index += 1) {
 		const x = firstSampleX + index * pixelsPerSample;

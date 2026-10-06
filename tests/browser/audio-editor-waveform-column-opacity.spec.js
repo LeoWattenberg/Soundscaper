@@ -4,7 +4,7 @@ import { build } from 'esbuild';
 import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, clipByName, importFiles, registerAudioEditorHooks } from './audio-editor-test-helpers.js';
 
-// Exercise Chromium's actual rasterizer: a recording context cannot detect
+// Exercise each browser's actual rasterizer: a recording context cannot detect
 // the transparency seams caused by adjacent subpixel fillRect calls.
 test('summary and RMS columns stay opaque at fractional clip widths and display scales', async ({ page }) => {
 	const bundled = await build({
@@ -101,4 +101,59 @@ test('batched sample stems match individual round-cap compositing at every admit
 		return mismatches;
 	});
 	expect(mismatches).toEqual([]);
+});
+
+test('native stem capability proof preserves owner pixels and caches exact batching admission', async ({ page, browserName }) => {
+	const bundled = await build({
+		stdin: { contents: "export { drawAudacityWaveformChannel } from './audacity-waveform-renderer.js'; export { canBatchRoundCapStems } from './waveform-stem-batch-capability.ts';",
+			resolveDir: fileURLToPath(new URL('../../src/common/editor/', import.meta.url)) },
+		bundle: true, write: false, format: 'iife', globalName: 'nativeWaveform', target: 'es2022',
+	});
+	await page.addScriptTag({ content: bundled.outputFiles[0].text });
+	const result = await page.evaluate(() => {
+		const canvas = document.createElement('canvas');
+		canvas.width = 4_000; canvas.height = 100;
+		const context = canvas.getContext('2d');
+		context.fillStyle = 'rgba(18,52,86,0.5)'; context.fillRect(1, 2, 7, 9);
+		const before = context.getImageData(0, 0, canvas.width, canvas.height).data;
+		const surfaces = [];
+		const createElement = document.createElement.bind(document);
+		document.createElement = (name, ...args) => {
+			const element = createElement(name, ...args);
+			if (name === 'canvas') surfaces.push(element);
+			return element;
+		};
+		let supported; let coldAllocations; let warmAllocations;
+		try {
+			supported = globalThis.nativeWaveform.canBatchRoundCapStems(context);
+			coldAllocations = surfaces.length;
+			globalThis.nativeWaveform.canBatchRoundCapStems(context);
+			warmAllocations = surfaces.length;
+		} finally { document.createElement = createElement; }
+		const after = context.getImageData(0, 0, canvas.width, canvas.height).data;
+		const ownerUnchanged = before.every((value, index) => value === after[index]);
+		let strokes = 0;
+		const stroke = context.stroke.bind(context);
+		context.stroke = (...args) => { strokes++; return stroke(...args); };
+		const rendering = { mode: 'stem', pixelWidth: 4_000, pixelsPerSample: 4,
+			channels: [{ firstSampleX: 0, samples: new Float32Array(1_000).fill(0.5) }] };
+		const paint = (batchSampleStems, sampleColor = '#123456') => {
+			context.clearRect(0, 0, canvas.width, canvas.height); strokes = 0;
+			globalThis.nativeWaveform.drawAudacityWaveformChannel(context, rendering,
+				{ width: 4_000, centerY: 50, maxAmplitude: 40, centerLineColor: '#777', batchSampleStems, sampleColor });
+			return strokes;
+		};
+		return { supported, coldAllocations, warmAllocations, ownerUnchanged,
+			released: surfaces.every(surface => surface.width === 0 && surface.height === 0),
+			individualStrokes: paint(false), batchedStrokes: paint(true),
+			selectedStrokes: paint(true, x => x < 2_000 ? '#123456' : '#654321') };
+	});
+	expect(result.coldAllocations).toBe(2);
+	expect(result.warmAllocations).toBe(2);
+	expect(result.ownerUnchanged).toBe(true);
+	expect(result.released).toBe(true);
+	expect(result.individualStrokes).toBe(1_001);
+	expect(result.batchedStrokes).toBe(result.supported ? 2 : 1_001);
+	expect(result.selectedStrokes).toBe(result.supported ? 3 : 1_001);
+	if (browserName === 'chromium' || browserName === 'firefox') expect(result.supported).toBe(true);
 });

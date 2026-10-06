@@ -37,7 +37,7 @@ void test('RMS-only painting retains the same extrema clipping and physical boun
 	assert.equal(rms.assignments, 1);
 });
 
-void test('separated sample stems share one stroke per contiguous color without changing their subpaths', () => {
+void test('unprobed recording contexts retain individual sample-stem compositing', () => {
 	const canvas = {
 		fillRect() {}, beginPath() {}, moveTo() {}, lineTo() {}, arc() {}, fill() {},
 		strokes: 0, stroke() { this.strokes += 1; },
@@ -45,11 +45,11 @@ void test('separated sample stems share one stroke per contiguous color without 
 	const rendering = { mode: 'stem', pixelWidth: 4_000, pixelsPerSample: 4,
 		channels: [{ firstSampleX: 0, samples: new Float32Array(1_000).fill(0.5) }] };
 	drawAudacityWaveformChannel(canvas, rendering, { ...options, width: 4_000, centerLineColor: '#777' });
-	assert.equal(canvas.strokes, 2, 'one disjoint stem path and one center line');
+	assert.equal(canvas.strokes, 1_001, 'native raster support must be proved before batching');
 	canvas.strokes = 0;
 	drawAudacityWaveformChannel(canvas, rendering, { ...options, width: 4_000,
 		sampleColor: (x: number) => x < 2_000 ? '#000' : '#fff', centerLineColor: '#777' });
-	assert.equal(canvas.strokes, 3, 'a selected range splits the color runs');
+	assert.equal(canvas.strokes, 1_001, 'color runs alone do not prove native compositing');
 	canvas.strokes = 0;
 	drawAudacityWaveformChannel(canvas, rendering, { ...options, width: 4_000,
 		pixelRatioX: 0.25, centerLineColor: '#777' });
