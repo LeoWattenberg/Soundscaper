@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { decodeAiffMetadataText } from './aiff-metadata-text.ts';
+
 const MAXIMUM_METADATA_STRING_LENGTH = 65_536;
 const MAXIMUM_METADATA_ARRAY_LENGTH = 512;
 const MAXIMUM_METADATA_RECORD_KEYS = 1_024;
@@ -363,7 +365,7 @@ async function inspectAiffMetadata(file: Blob, signal?: AbortSignal): Promise<Ai
 				}
 				else if (id === 'COMT') comments.push(...parseAiffComments(bytes));
 				else {
-					const text = decodeAiffText(bytes);
+					const text = decodeAiffMetadataText(bytes);
 					const rawKey = Object.hasOwn(raw, id) ? `${id}[${String(chunkCount)}]` : id;
 					raw[rawKey] = text;
 					if (id === 'NAME' && title === undefined) title = text;
@@ -455,15 +457,11 @@ function parseAiffComments(bytes: Uint8Array): Readonly<Record<string, unknown>>
 		comments.push(Object.freeze({
 			timestamp: Number.isNaN(date.getTime()) ? String(timestamp) : date.toISOString(),
 			markerId,
-			text: decodeAiffText(bytes.subarray(textStart, textEnd)),
+			text: decodeAiffMetadataText(bytes.subarray(textStart, textEnd)),
 		}));
 		offset = textEnd + textLength % 2;
 	}
 	return comments;
-}
-
-function decodeAiffText(bytes: Uint8Array): string {
-	return new TextDecoder('iso-8859-1').decode(bytes).replace(/\0+$/u, '').trim();
 }
 
 function ascii(bytes: Uint8Array, start: number, end: number): string {
