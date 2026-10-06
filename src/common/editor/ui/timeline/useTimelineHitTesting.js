@@ -8,6 +8,7 @@ import {
 	NEW_AUDIO_TRACK_DROP_ZONE_HEIGHT,
 } from './constants.ts';
 import { readTimelineContentScrollX } from './timeline-scroll-space.ts';
+import { useTimelineLaneGeometry } from './useTimelineLaneGeometry.ts';
 
 export function useTimelineHitTesting({ state, model }) {
 	const {
@@ -17,6 +18,7 @@ export function useTimelineHitTesting({ state, model }) {
 		setProjectBinDragPreview,
 	} = state;
 	const { contentScrollX, durationFrames, pixelsPerSecond, renderOriginX, sampleRate } = model;
+	const laneGeometry = useTimelineLaneGeometry(scrollRef);
 
 	const frameAtClientX = useCallback((clientX, lane) => {
 		const rect = lane.getBoundingClientRect();
@@ -32,6 +34,8 @@ export function useTimelineHitTesting({ state, model }) {
 	}, [contentScrollX, durationFrames, pixelsPerSecond, renderOriginX, sampleRate]);
 
 	const isInNewTrackDropZone = useCallback((clientY) => {
+		const indexed = laneGeometry();
+		if (indexed) return indexed.isInDropZone(clientY, NEW_AUDIO_TRACK_DROP_ZONE_HEIGHT);
 		const surface = scrollRef.current?.querySelector('.audio-editor-timeline-inner');
 		const rect = surface?.getBoundingClientRect();
 		if (!rect) return false;
@@ -43,9 +47,11 @@ export function useTimelineHitTesting({ state, model }) {
 			?.getBoundingClientRect().height || 0;
 		const bottom = rect.bottom - previewHeight;
 		return clientY >= Math.max(rect.top, bottom - NEW_AUDIO_TRACK_DROP_ZONE_HEIGHT) && clientY < bottom;
-	}, []);
+	}, [laneGeometry]);
 
 	const trackAtClientY = useCallback((clientY, fallbackTrackId) => {
+		const indexed = laneGeometry();
+		if (indexed) return indexed.trackAt(clientY, fallbackTrackId, NEW_AUDIO_TRACK_DROP_TARGET, NEW_AUDIO_TRACK_DROP_ZONE_HEIGHT);
 		if (isInNewTrackDropZone(clientY)) return NEW_AUDIO_TRACK_DROP_TARGET;
 		for (const lane of scrollRef.current?.querySelectorAll('[data-track-lane]') || []) {
 			if (lane.closest('[data-label-track]')) continue;
@@ -62,7 +68,7 @@ export function useTimelineHitTesting({ state, model }) {
 			return NEW_AUDIO_TRACK_DROP_TARGET;
 		}
 		return fallbackTrackId;
-	}, [isInNewTrackDropZone]);
+	}, [isInNewTrackDropZone, laneGeometry]);
 
 	const projectBinDropTarget = useCallback(() => {
 		const editor = navigationRootRef.current?.closest('#kw-audio-editor-design-system');
