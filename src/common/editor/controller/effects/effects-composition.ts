@@ -122,7 +122,7 @@ export function createEffectsComposition(dependencies: EffectsCompositionDepende
 
 	const worker = dependencies.composition.selectionEffectWorkers
 		? createSelectionEffectWorkerService({
-			state,
+			state, reuseWorkers: true,
 			copy,
 			captureProject,
 			assertProject,

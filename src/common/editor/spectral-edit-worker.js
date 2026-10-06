@@ -11,16 +11,17 @@ function handleWorkerMessage({ data }) { void handleMessage(data); }
 
 /** @param {unknown} data */
 async function handleMessage(data) {
+	const request = isRecord(data) ? data : {};
 	try {
 		await initializePffft();
-		const request = isRecord(data) ? data : {};
 		const channels = (Array.isArray(request.channels) ? request.channels : []).map(asFloat32Array);
 		const options = isRecord(request.options) ? request.options : {};
 		const output = applySpectralGain(channels, options);
-		postWorkerMessage({ type: 'result', channels: output }, output.map((channel) => channel.buffer));
+		postWorkerMessage({ type: 'result', requestId: request.requestId, channels: output }, output.map((channel) => channel.buffer));
 	} catch (error) {
 		postWorkerMessage({
 			type: 'error',
+			requestId: request.requestId,
 			name: error instanceof Error ? error.name : 'Error',
 			message: error instanceof Error ? error.message : String(error),
 		});
