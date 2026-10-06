@@ -37,6 +37,7 @@ import { deferredEffectRuntime } from './deferred-effect-runtime.ts';
 import { createEffectAudioService } from './internal/effect-audio-service.ts';
 import { createEffectControlsService } from './effect-controls-service.ts';
 import { createSelectionEffectExecutionService } from './internal/effect-execution-service.ts';
+import { canSliceSimpleDryTrackPcm } from './internal/direct-dry-track-pcm.ts';
 import { createEffectMacroService, type EffectMacroServiceRuntime } from './internal/macro/effect-macro-service.ts';
 import {
 	createSelectionEffectResultService,
@@ -375,6 +376,9 @@ export function createEffectsComposition(dependencies: EffectsCompositionDepende
 			playNyquistPreview: nyquistHost.playNyquistPreview,
 			preflightStorage: dependencies.preflightStorage,
 			getProject: dependencies.getProject,
+			getPreparedAudioAuthority: () => state.preferences?.performance?.optimizeFor === 'speed'
+				? dependencies.getProject() : null,
+			canSliceDryPcm: canSliceSimpleDryTrackPcm,
 			projectDurationFrames: dependencies.projectDurationFrames,
 			projectSampleRate: dependencies.projectSampleRate,
 			publishDocumentSnapshot: dependencies.publishDocumentSnapshot,

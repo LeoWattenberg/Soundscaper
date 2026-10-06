@@ -4,6 +4,13 @@ import { readClipLoop } from '../../../audio-clip-loop.ts';
 import type { EngineSourceBufferInput } from '../../../engine/public-api.ts';
 import type { EffectAudioProject } from './effect-audio-service-types.ts';
 
+const EXACT_RANGE_PCM = new WeakSet<readonly Float32Array[]>();
+
+/** Only this renderer's owned neutral PCM supports arbitrary exact frame slicing. */
+export function canSliceSimpleDryTrackPcm(channels: readonly Float32Array[]): boolean {
+	return EXACT_RANGE_PCM.has(channels);
+}
+
 /** Admit only a neutral, same-rate stereo clip; every richer graph uses the engine. */
 export async function renderSimpleDryTrackPcm(project: EffectAudioProject, sourceBuffers: EngineSourceBufferInput,
 	trackId: string, startFrame: number, endFrame: number, channelCount: number,
@@ -71,6 +78,7 @@ export async function renderSimpleDryTrackPcm(project: EffectAudioProject, sourc
 		}
 	}
 	signal?.throwIfAborted();
+	EXACT_RANGE_PCM.add(output);
 	return output;
 }
 

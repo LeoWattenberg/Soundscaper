@@ -23,7 +23,7 @@ interface WorkerInput {
 	}>;
 }
 
-function fixture(start: number, end: number, projectEnd: number, cancelOnRender = 0) {
+function fixture(start: number, end: number, projectEnd: number, cancelOnRender = 0, exactRangePcm = false) {
 	const renders: RenderCall[] = [];
 	const jobs: WorkerInput[] = [];
 	const played: Float32Array[][] = [];
@@ -44,6 +44,7 @@ function fixture(start: number, end: number, projectEnd: number, cancelOnRender 
 		start: () => { started += 1; },
 	};
 	const preview = createSelectionEffectPreviewService({
+		canSliceDryPcm: () => exactRangePcm,
 		pauseSourcePreview: () => { sourcePaused = true; },
 		state,
 		AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES: 1_000_000,
@@ -94,6 +95,19 @@ test('effect previews pause the clip source transport before auditioning their r
 	const value = fixture(20, 24, 50);
 	await value.preview();
 	assert.equal(value.sourcePaused(), true);
+});
+
+test('Amplify previews reuse an admitted full-selection render and preserve its frame offset', async () => {
+	for (const admitted of [false, true]) {
+		const value = fixture(20, 724, 1_000, 0, admitted);
+		value.state.audacityEffectType = 'audacity-amplify';
+		assert.equal(await value.preview(), true);
+		assert.equal(value.renders.length, admitted ? 1 : 2);
+		assert.deepEqual(value.renders[0], { trackId: 'selected-track', start: 20, end: 724,
+			channels: 1, clipIds: ['selected-clip'] });
+		assert.equal(value.jobs[0]!.channels[0]!.length, 600);
+		assert.deepEqual(value.jobs[0]!.channels[0], Float32Array.from({ length: 600 }, (_, index) => (20 + index) / 1_000));
+	}
 });
 
 test('Repair previews supply clip-scoped context clipped to the project and play only the selection', async () => {

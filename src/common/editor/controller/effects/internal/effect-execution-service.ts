@@ -7,12 +7,15 @@ import {
 	type EditorTaskScope,
 } from '../../shared/lifecycle.ts'; import { publishedCopyFor } from '../../shared/presentation-localization.ts'; import { createLocalizedError, setLocalizedStatus } from '../../../../i18n/presentation-message.ts';
 import { createSelectionEffectPreviewService } from './effect-preview-service.ts';
+import { createPreparedSelectionPcmCache, preparedSelectionPcmKey } from './prepared-selection-pcm-cache.ts';
 
 const SELECTION_EFFECT_TASK = 'selection-effect-apply';
 /** The registry name a Nyquist evaluation holds while the evaluator runs. */
 export const NYQUIST_EVALUATION_TASK = 'nyquist-evaluation';
 
 export interface SelectionEffectExecutionRuntime {
+	/** Stable canonical audio ownership until an edit; absent for untrusted ports or memory mode. */
+	readonly getPreparedAudioAuthority?: () => object | null;
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	readonly [name: string]: any;
@@ -34,11 +37,20 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 		publishDocumentSnapshot, renderDryTrackRange, resolveInteractiveAudacityParams, runSelectionEffectWorker,
 		setAudacityEffectType, setStatus, state, throwIfAborted, updateTaskProgress,
 	} = runtime;
-	const previewAudacityEffectFromController = createSelectionEffectPreviewService(runtime);
+	const preparedAudio = createPreparedSelectionPcmCache({
+		authority: () => runtime.getPreparedAudioAuthority?.() ?? null,
+		captureProject: () => runtime.captureProject(),
+		assertProject: (token) => runtime.assertProject(token),
+		startTask: (name, options) => runtime.lifetime.startTask(name, options),
+	});
+	const previewAudacityEffectFromController = createSelectionEffectPreviewService({
+		...runtime, releasePreparedPcm: () => preparedAudio.clear(),
+	});
 	let preparationGeneration = 0;
 
 	async function prepareAudacityEffectFromController(type: string) {
 		const generation = ++preparationGeneration;
+		preparedAudio.clear();
 		setAudacityEffectType(type);
 		if (type !== 'audacity-amplify') return currentAudacityEffectParams(type);
 		// Amplify is the one destructive effect whose dialog default belongs to
@@ -47,6 +59,7 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 		state.audacityEffectTouchedParams.get(type)?.delete('gainDb');
 		const previewGeneration = state.audacityPreviewGeneration;
 		const projectToken = runtime.captureProject();
+		const authority = runtime.getPreparedAudioAuthority?.() ?? null;
 		const targets = audacityEffectTargets();
 		if (!targets.length) return currentAudacityEffectParams(type);
 		const sampleRate = targets[0]?.sourceSampleRate ?? projectSampleRate();
@@ -58,9 +71,9 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 			})
 		), 0);
 		if (estimatedPeakBytes > AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES) throw audacityEffectMemoryError(copy);
-		const channels = [];
+		const channelSets: Float32Array[][] = [];
 		for (const target of targets) {
-			channels.push(...await renderDryTrackRange(
+			channelSets.push(await renderDryTrackRange(
 				target.track.id,
 				target.startFrame,
 				target.endFrame,
@@ -77,8 +90,10 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 		const resolved = resolveInteractiveAudacityParams(
 			type,
 			normalizeAudioSelectionEffectParams(type, currentAudacityEffectParams(type)),
-			channels,
+			channelSets.flat(),
 		);
+		preparedAudio.retain(authority, preparedSelectionPcmKey(targets), channelSets,
+			AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES - estimatedPeakBytes);
 		publishDocumentSnapshot();
 		return resolved;
 	}
@@ -136,9 +151,12 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 		try {
 			await preflightStorage(estimatedOutputBytes, 'effect');
 			assertSelectionEffectOwnership(runtime, ownership);
+			const preparedChannels = type === 'audacity-amplify'
+				? preparedAudio.take(preparedSelectionPcmKey(targets)) : null;
+			if (type !== 'audacity-amplify') preparedAudio.clear();
 			const dryResults = [];
-			for (const target of targets) {
-				const channels = await renderCurrentDryTrackRange(
+			for (const [index, target] of targets.entries()) {
+				const channels = preparedChannels?.[index] ?? await renderCurrentDryTrackRange(
 					target.track.id,
 					target.startFrame,
 					target.endFrame,

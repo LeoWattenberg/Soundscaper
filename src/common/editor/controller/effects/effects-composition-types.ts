@@ -52,6 +52,7 @@ export type EffectsCompositionState =
 	& RackEffectServiceRuntime['state']
 	& SelectionEffectResultRuntime['state']
 	& {
+		preferences?: Readonly<{ performance?: Readonly<{ optimizeFor?: string }> }>;
 		audacityEffectProcessing: boolean;
 		audacityPreviewGeneration: number;
 	};
