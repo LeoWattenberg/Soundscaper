@@ -143,6 +143,7 @@ export default function ProjectBinCard({
 							ref={videoRef}
 							src={visual.mediaUrl}
 							poster={posterUrl || undefined}
+							muted={!itemClips.some((itemClip) => itemClip.kind === 'audio')}
 							playsInline
 							preload="metadata"
 							onTimeUpdate={(event) => {
