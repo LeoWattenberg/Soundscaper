@@ -11,6 +11,7 @@ import {
 } from './geometry.ts';
 import { clamp } from './track-row-helpers.jsx';
 import { moveSpectralBandCenter, spectralBandCenter, snapSpectralCenterToPeak } from './spectral-center-gesture.ts';
+import { useSpectralBandCancellation } from './useSpectralBandCancellation.ts';
 
 export function SpectralSelectionOverlay({
 	selection,
@@ -28,6 +29,7 @@ export function SpectralSelectionOverlay({
 	onCommit,
 }) {
 	const dragRef = useRef(null);
+	const surfaceRef = useRef(null);
 	const initial = spectralSelectionState(selection);
 	const previewRef = useRef(initial);
 	const [preview, setPreview] = useState(initial);
@@ -53,6 +55,7 @@ export function SpectralSelectionOverlay({
 		previewRef.current = next;
 		setPreview(next);
 	};
+	useSpectralBandCancellation(surfaceRef, dragRef, setPreviewState);
 	const publish = (next) => {
 		setPreviewState(next);
 		onCommit(next);
@@ -69,6 +72,7 @@ export function SpectralSelectionOverlay({
 			band: previewRef.current,
 			peaks: kind === 'center-frequency' ? onFindPeaks?.() || [] : [],
 			pointerId: event.pointerId,
+			target: event.currentTarget,
 			windowRect: event.currentTarget.closest('.audio-editor-track-window')?.getBoundingClientRect(),
 			laneRect: event.currentTarget.closest('[data-track-lane]')?.getBoundingClientRect(),
 		};
@@ -185,6 +189,7 @@ export function SpectralSelectionOverlay({
 
 	return (
 		<div
+			ref={surfaceRef}
 			className="audio-editor-spectral-selection"
 			data-spectral-selection
 			style={{ left, top, width: Math.max(2, right - left), height }}
