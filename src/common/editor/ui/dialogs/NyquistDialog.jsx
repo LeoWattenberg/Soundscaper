@@ -8,6 +8,7 @@ import { nyquistArchiveStore } from '../../nyquist/archive-store.js';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import AudioEditorTimeCodeInput from '../AudioEditorTimeCodeInput.tsx';
 import NyquistGetEffectsDialog from './NyquistGetEffectsDialog.jsx';
+import { loadNyquistPromptDraft, storeNyquistPromptDraft } from './nyquist-prompt-draft.ts';
 
 export default function NyquistDialog({ controller, snapshot, copy, target, run, onClose }) {
 	if (target?.pluginId === '__get-effects__') return <NyquistGetEffectsDialog copy={copy} onClose={onClose} />;
@@ -22,8 +23,8 @@ function NyquistRunnerDialog({ controller, snapshot, copy, target, run, onClose 
 	const targetIdentity = plugin?.id || 'prompt';
 	const submissionRef = useRef(null);
 	const targetIdentityRef = useRef(targetIdentity);
-	const [source, setSource] = useState(() => loadNyquistPromptSource(publishedCopyFor(copy).nyquistPromptDefault));
-	const [language, setLanguage] = useState('lisp');
+	const [source, setSource] = useState(() => loadNyquistPromptDraft(publishedCopyFor(copy).nyquistPromptDefault).source);
+	const [language, setLanguage] = useState(() => loadNyquistPromptDraft(publishedCopyFor(copy).nyquistPromptDefault).language);
 	const [debug, setDebug] = useState(false);
 	const [controls, setControls] = useState(() => nyquistControlDefaults(plugin));
 	const [output, setOutput] = useState('');
@@ -42,11 +43,15 @@ function NyquistRunnerDialog({ controller, snapshot, copy, target, run, onClose 
 		setControls(nyquistControlDefaults(plugin));
 		setOutput('');
 		setDebug(Boolean(plugin?.debugEnabled));
-		if (prompt) setSource(loadNyquistPromptSource(copy.nyquistPromptDefault));
+		if (prompt) {
+			const draft = loadNyquistPromptDraft(copy.nyquistPromptDefault);
+			setSource(draft.source);
+			setLanguage(draft.language);
+		}
 	}, [controller, copy.nyquistPromptDefault, plugin, prompt, targetIdentity]);
 	useEffect(() => {
-		if (prompt) storeNyquistPromptSource(source);
-	}, [prompt, source]);
+		if (prompt) storeNyquistPromptDraft({ source, language });
+	}, [prompt, source, language]);
 	const cancelAndClose = useCallback(() => {
 		submissionRef.current?.abort();
 		submissionRef.current = null;
@@ -68,7 +73,6 @@ function NyquistRunnerDialog({ controller, snapshot, copy, target, run, onClose 
 		if (prompt) {
 			setLanguage('lisp');
 			setSource(copy.nyquistPromptDefault);
-			storeNyquistPromptSource(copy.nyquistPromptDefault);
 		}
 	};
 	const submit = async (preview = false) => {
@@ -88,7 +92,6 @@ function NyquistRunnerDialog({ controller, snapshot, copy, target, run, onClose 
 							: await loadNyquistPluginSource(plugin, { signal: submission.signal });
 					if (evaluationSource === null) throw new Error('Installed Nyquist plug-in is no longer available.');
 					if (submission.signal.aborted) return null;
-					if (prompt) storeNyquistPromptSource(source);
 					const request = {
 						source: evaluationSource,
 						language: prompt ? language : 'lisp',
@@ -251,16 +254,4 @@ function formatNyquistDialogResult(result) {
 	else if (result.type === 'labels') summary = `${result.labels?.length || 0} label(s)`;
 	else if (result.type === 'audio') summary = `${result.frameCount || result.channels?.[0]?.length || 0} frames, ${result.channelCount || result.channels?.length || 0} channel(s)`;
 	return [summary, output && output !== summary ? output : ''].filter(Boolean).join('\n');
-}
-
-const NYQUIST_PROMPT_STORAGE_KEY = 'soundscaper-nyquist-prompt-v1';
-
-function loadNyquistPromptSource(fallback) {
-	try { return globalThis.localStorage?.getItem(NYQUIST_PROMPT_STORAGE_KEY) || fallback; }
-	catch { return fallback; }
-}
-
-function storeNyquistPromptSource(source) {
-	try { globalThis.localStorage?.setItem(NYQUIST_PROMPT_STORAGE_KEY, String(source)); }
-	catch { /* Local persistence can be unavailable in privacy modes. */ }
 }

@@ -1,4 +1,4 @@
-# Generator, macro, mixer and label bug audit
+# Generator, macro, mixer, label and analysis bug audit
 
 Only ordinary editor workflows count. Each entry below was reproduced before its
 fix through menus, fields, or the user-authored macro editor.
@@ -160,8 +160,8 @@ overlapping FFT windows throughout the selected audio.
 
 Open **Generate > Morse code**, focus the first knob, and press Arrow Up once.
 Previously the value changed from 20 to 22 because both its native adapter and
-the shared knob handled the same arrow. The adapter now owns only Home/End;
-the knob changes by one step per arrow press.
+the shared knob handled the same arrow. The shared knob now owns all of its
+keyboard handling, changing by one step per arrow and retaining Home/End bounds.
 
 ## ROOT-022 — Opposite-polarity stereo disappears from Plot Spectrum
 
@@ -190,6 +190,14 @@ flag. Cancellation now releases the current project's busy state without letting
 an obsolete run clear a replacement task's state. This effect-runner defect is
 separate from ROOT-018's program-result presentation.
 
+## ROOT-025 — Nyquist restores SAL code with the Lisp interpreter selected
+
+Import an ordinary WAV, select all, and open **Tools > Nyquist prompt**. Select
+SAL, enter `return 42`, and run it successfully. Close and reopen the prompt.
+Previously the saved source was restored but Language reverted to Lisp, so Run
+could no longer evaluate the same program. The prompt now saves and restores
+the language alongside its source, retaining existing saved Lisp prompts.
+
 ## Regression coverage
 
 - `tests/browser/audio-editor-bug-audit-macros.spec.js`
@@ -203,6 +211,8 @@ separate from ROOT-018's program-result presentation.
 - `tests/browser/audio-editor-analysis-selection-regressions.spec.js`
 - `tests/browser/audio-editor-routing-map-regressions.spec.js`
 - `tests/browser/audio-editor-macro-effect-cancel-regressions.spec.js`
+- `tests/browser/audio-editor-nyquist-language-regressions.spec.js`
+- `tests/audio-editor-nyquist-prompt-draft.test.ts`
 - `tests/audio-editor-effect-macro-service.test.ts`
 - `tests/audio-editor-audio-spectrum.test.ts`
 - `tests/audio-editor-macro-command-service.test.ts`
