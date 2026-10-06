@@ -40,10 +40,10 @@ async function mount(context: TestContext) {
 	globals.IS_REACT_ACT_ENVIRONMENT = true;
 	const document = dom.container.ownerDocument as unknown as Document;
 	const listeners = new Set<EventListenerOrEventListenerObject>();
-	document.addEventListener = (type, listener) => {
+	document.addEventListener = (type: string, listener: EventListenerOrEventListenerObject | null) => {
 		if (type === 'keydown' && listener) listeners.add(listener);
 	};
-	document.removeEventListener = (type, listener) => {
+	document.removeEventListener = (type: string, listener: EventListenerOrEventListenerObject | null) => {
 		if (type === 'keydown' && listener) listeners.delete(listener);
 	};
 	const { createRoot } = await import('react-dom/client');
