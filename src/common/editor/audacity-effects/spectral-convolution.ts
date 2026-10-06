@@ -33,15 +33,16 @@ export function createSameConvolver(kernel: Float64Array): (input: Float32Array)
 			real.set(input.subarray(inputOffset, inputOffset + count));
 			fft(real, imaginary, false);
 			for (let bin = 0; bin < fftSize; bin += 1) {
-				const re = real[bin];
-				const im = imaginary[bin];
-				real[bin] = re * kernelReal[bin] - im * kernelImaginary[bin];
-				imaginary[bin] = re * kernelImaginary[bin] + im * kernelReal[bin];
+				const re = real[bin]!;
+				const im = imaginary[bin]!;
+				real[bin] = re * kernelReal[bin]! - im * kernelImaginary[bin]!;
+				imaginary[bin] = re * kernelImaginary[bin]! + im * kernelReal[bin]!;
 			}
 			fft(real, imaginary, true);
 			const convolutionFrames = count + kernel.length - 1;
 			for (let index = 0; index < convolutionFrames; index += 1) {
-				accumulated[(inputOffset + index) & mask] += real[index];
+				const slot = (inputOffset + index) & mask;
+				accumulated[slot] = accumulated[slot]! + real[index]!;
 			}
 			// No later input block contributes before its own start. Flush those
 			// samples now, including the final tail, then recycle their ring slots.
@@ -50,7 +51,7 @@ export function createSameConvolver(kernel: Float64Array): (input: Float32Array)
 			for (let frame = inputOffset; frame < end; frame += 1) {
 				const destination = frame - delay;
 				const slot = frame & mask;
-				if (destination >= 0 && destination < output.length) output[destination] = accumulated[slot];
+				if (destination >= 0 && destination < output.length) output[destination] = accumulated[slot]!;
 				accumulated[slot] = 0;
 			}
 		}
