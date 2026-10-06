@@ -6,6 +6,27 @@ import { createMemoryFfmpeg } from './helpers/audio-editor-controller-fixtures.j
 import { COPY, createAudioEditorController, createMemoryEngine, createProjectStore } from './helpers/audio-editor-controller-harness.js';
 import { createDocumentTrackFolderSnapshot } from '../src/common/editor/controller/document/document-track-folder-snapshot.ts';
 
+test('Framescaper duplicates a root track without requiring folder support', async (context) => {
+	type Options = NonNullable<Parameters<typeof createAudioEditorController>[1]>;
+	const controller = createAudioEditorController(null, { headless: true, productId: 'framescaper', locale: 'en', copy: COPY,
+		store: createProjectStore({ indexedDB: null, preferOpfs: false }),
+		engine: createMemoryEngine() as unknown as Options['engine'],
+		ffmpeg: createMemoryFfmpeg() as unknown as Options['ffmpeg'] });
+	context.after(async () => { await controller.dispose(); });
+	await controller.ready;
+	const sourceId = controller.actions.track.add({ name: 'Picture', type: 'video' })!;
+	const historyLength = controller.getSnapshot().history.undoEntries.length;
+	controller.actions.track.duplicate(sourceId);
+	const copyId = controller.getSnapshot().selectedTrackId!;
+	assert.notEqual(copyId, sourceId);
+	assert.equal(controller.getSnapshot().project?.tracks?.some(track => track.id === copyId), true);
+	assert.equal(controller.getSnapshot().history.undoEntries.length, historyLength + 1);
+	controller.actions.edit.undo();
+	assert.equal(controller.getSnapshot().project?.tracks?.some(track => track.id === copyId), false);
+	controller.actions.edit.redo();
+	assert.equal(controller.getSnapshot().project?.tracks?.some(track => track.id === copyId), true);
+});
+
 test('duplicated tracks retain their source folder and follow their source among siblings', async (context) => {
 	type Options = NonNullable<Parameters<typeof createAudioEditorController>[1]>;
 	const controller = createAudioEditorController(null, { headless: true, locale: 'en', copy: COPY,

@@ -39,6 +39,7 @@ interface TrackDuplicationSelection {
 export interface TrackDuplicationServiceDependencies {
 	readonly lifetime: Readonly<{ assertActive(): void }>;
 	readonly copySuffix: string;
+	readonly trackFoldersSupported?: boolean;
 	readonly editingBlocked: () => boolean;
 	readonly getProject: () => TrackDuplicationProject;
 	readonly createId: (prefix: string) => string;
@@ -91,9 +92,13 @@ export function createTrackDuplicationService(dependencies: TrackDuplicationServ
 		const productionDuplicate = dependencies.prepareTrackDuplicateCarrier
 			? dependencies.prepareTrackDuplicateCarrier(project, duplicateRequest)
 			: legacyDuplicateCarrier(duplicateRequest);
+		const hierarchyPlacement = trackHierarchyPlacement(project, track.id, 1);
+		const placement = dependencies.trackFoldersSupported === false
+			? { ...(hierarchyPlacement.sequenceId ? { sequenceId: hierarchyPlacement.sequenceId } : {}) }
+			: hierarchyPlacement;
 		const commands: AudioEditorCommand[] = [{
 			...addTrack,
-			...trackHierarchyPlacement(project, track.id, 1),
+			...placement,
 			productionDuplicate,
 		}];
 		let selectedClipId: string | null = null;
