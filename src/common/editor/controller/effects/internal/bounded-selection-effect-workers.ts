@@ -12,15 +12,26 @@ export function createBoundedSelectionEffectWorkerService(runtime: SelectionEffe
 	const primary = createSelectionEffectWorkerService(runtime);
 	let secondary: ReturnType<typeof createSelectionEffectWorkerService> | null = null;
 	let batch: AbortController | null = null;
-	let ordinary: object | null = null;
+	let ordinary: AbortController | null = null;
 	function cancelBatch(reason: Error): void {
-		batch?.abort(reason); batch = null;
+		batch?.abort(reason); batch = null; ordinary?.abort(reason); ordinary = null;
 		primary.cancelWorkers(reason); secondary?.cancelWorkers(reason);
 	}
-	const runSelectionEffectWorker: typeof primary.runSelectionEffectWorker = (request, options) => {
-		if (batch) cancelBatch(new WorkerRequestCancelledError());
-		const marker = {}; ordinary = marker;
-		return primary.runSelectionEffectWorker(request, options).finally(() => { if (ordinary === marker) ordinary = null; });
+	const runSelectionEffectWorker: typeof primary.runSelectionEffectWorker = (request, options = {}) => {
+		if (batch) cancelBatch(new WorkerRequestCancelledError()); else ordinary?.abort(new WorkerRequestCancelledError());
+		const owner = new AbortController(); ordinary = owner;
+		const forwardAbort = (): void => owner.abort(options.signal?.reason);
+		options.signal?.addEventListener('abort', forwardAbort, { once: true }); if (options.signal?.aborted) forwardAbort();
+		let cancelPending: () => void = () => undefined;
+		const aborted = new Promise<never>((_resolve, reject) => {
+			cancelPending = () => reject(owner.signal.reason instanceof Error ? owner.signal.reason : new WorkerRequestCancelledError());
+			owner.signal.addEventListener('abort', cancelPending, { once: true }); if (owner.signal.aborted) cancelPending();
+		});
+		// The signal fences a resumed WASM preflight; the race releases UI ownership before that shared load completes.
+		return Promise.race([primary.runSelectionEffectWorker(request, { ...options, signal: owner.signal }), aborted]).finally(() => {
+			options.signal?.removeEventListener('abort', forwardAbort); owner.signal.removeEventListener('abort', cancelPending);
+			if (ordinary === owner) ordinary = null;
+		});
 	};
 	async function runIndependentSelectionEffects(requests: readonly SelectionEffectWorkerRequest[],
 		options: IndependentSelectionEffectOptions = {}): Promise<SelectionEffectWorkerResult[]> {

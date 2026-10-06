@@ -4,7 +4,7 @@ import test from 'node:test';
 import { createBoundedSelectionEffectWorkerService } from '../src/common/editor/controller/effects/internal/bounded-selection-effect-workers.ts';
 import type { EffectWorkerLike, SelectionEffectWorkerServiceRuntime, SelectionEffectWorkerRequest } from '../src/common/editor/controller/effects/internal/selection-effect-worker-service.ts';
 
-function fixture() {
+function fixture(overrides: Partial<SelectionEffectWorkerServiceRuntime> = {}) {
 	const workers: Array<EffectWorkerLike & { message: SelectionEffectWorkerRequest & { requestId?: string }; terminated: boolean; complete(): void }> = [];
 	const runtime: SelectionEffectWorkerServiceRuntime = { state: { audacityEffectWorker: null, spectralWorker: null }, copy: { effectProcessingFailed: 'failed' },
 		workerAvailable: () => true, reuseWorkers: true, captureProject: () => ({ projectId: 'project', generation: 1 }), assertProject() {},
@@ -18,7 +18,7 @@ function fixture() {
 			workers.push(worker); return worker;
 		},
 	};
-	const service = createBoundedSelectionEffectWorkerService(runtime);
+	const service = createBoundedSelectionEffectWorkerService({ ...runtime, ...overrides });
 	return { service, workers };
 }
 function request(sample: number): SelectionEffectWorkerRequest {
@@ -60,4 +60,31 @@ test('a failed lane cancels the sibling and current authority fences every queue
 	current = false; subject.workers[1]!.complete();
 	await assert.rejects(running, (error: unknown) => error === reason);
 	assert.equal(subject.workers.length, 2); assert.equal(subject.workers.every((worker) => worker.terminated), true);
+});
+
+
+test('supersession cancels an ordinary request while its EQ WASM preflight is still pending', async () => {
+	for (const supersede of ['batch', 'single', 'cancel', 'caller-abort'] as const) {
+		let resolveWasm: (value: unknown) => void = () => undefined;
+		const wasm = new Promise<unknown>((resolve) => { resolveWasm = resolve; });
+		const subject = fixture({ loadParametricEqWasmModule: () => wasm });
+		const caller = new AbortController();
+		const old = subject.service.runSelectionEffectWorker({ ...request(.5), effectType: 'eq' }, { signal: caller.signal });
+		void old.catch(() => undefined);
+		assert.equal(subject.workers.length, 0);
+		let current: Promise<unknown> | null = null;
+		if (supersede === 'batch') current = subject.service.runIndependentSelectionEffects([request(1), request(2)]);
+		else if (supersede === 'single') current = subject.service.runSelectionEffectWorker(request(3));
+		else if (supersede === 'caller-abort') caller.abort();
+		else subject.service.cancelWorkers();
+		if (current) void current.catch(() => undefined);
+		await assert.rejects(old, { name: 'AbortError' });
+		resolveWasm({});
+		await new Promise<void>((resolve) => { setImmediate(resolve); });
+		assert.equal(subject.workers.length, supersede === 'batch' ? 2 : supersede === 'single' ? 1 : 0, 'stale preflight must not allocate or supersede a worker');
+		assert.equal(subject.workers.some((worker) => worker.terminated), false);
+		for (const worker of subject.workers) worker.complete();
+		if (current) await current;
+		subject.service.cancelWorkers();
+	}
 });
