@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { openExternalMediaPcm } from '../../../../external-media-pcm-reader.ts';
+import { cleanupConsolidation } from './consolidation-cleanup.ts';
 
 export interface ConsolidateAudioCacheStore {
 	beginSourceWrite?(id: string, source: Readonly<Record<string, unknown>>): Promise<{
@@ -24,5 +25,5 @@ export async function consolidateLinkedAudioCache(
 		await reader.stream(async (channels) => { assertCurrent?.(); await writer.write(channels, { signal }); });
 		assertCurrent?.();
 		await writer.commit(source, { signal });
-	} catch (error) { await writer.abort(); throw error; }
+	} catch (error) { await cleanupConsolidation(() => writer.abort(), { error }); throw error; }
 }
