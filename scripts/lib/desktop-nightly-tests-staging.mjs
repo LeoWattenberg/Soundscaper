@@ -155,6 +155,7 @@ export const NIGHTLY_TEST_PAYLOAD_INPUTS = Object.freeze([
 	{ source: 'tests/browser', destination: 'tests/browser', kind: 'directory', label: 'browser test tree', exclude: new Set(['AGENTS.md', 'handbook']) },
 	{ source: 'tests/electron/local-assistance-models', destination: 'tests/electron/local-assistance-models', kind: 'directory', label: 'real local assistance model tests', exclude: new Set(['AGENTS.md']) },
 	{ source: 'tests/aup3-fixture.js', destination: 'tests/aup3-fixture.js', kind: 'file', label: 'AUP3 browser support fixture' },
+	{ source: 'tests/helpers/png-fixture.mjs', destination: 'tests/helpers/png-fixture.mjs', kind: 'file', label: 'timeline image browser support fixture' },
 	{ source: 'tests/fixtures/aup4-native-rich.js', destination: 'tests/fixtures/aup4-native-rich.js', kind: 'file', label: 'AUP4 browser support fixture' },
 	{ source: 'tests/fixtures/nyquist-archive', destination: 'tests/fixtures/nyquist-archive', kind: 'directory', label: 'Nyquist browser archive and notices' },
 	{ source: 'evidence/nyquist-plugin-publication/catalog-metadata-ed168a19631ec48d0029dfb5c17d16c339a174c1.json', destination: 'evidence/nyquist-plugin-publication/catalog-metadata-ed168a19631ec48d0029dfb5c17d16c339a174c1.json', kind: 'file', label: 'Nyquist browser catalog metadata' },
