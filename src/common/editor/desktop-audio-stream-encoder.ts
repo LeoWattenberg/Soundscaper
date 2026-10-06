@@ -7,7 +7,7 @@ import { inspectWavBlobPcm, streamWavBlobPcm } from './wav-import.js';
 import type { WavPcmDescriptor } from './wav-pcm-chunk-reader.ts';
 import { applyMediaChannelMapping } from './media-export.js';
 import { writeInterleavedFloat32Pcm } from './interleaved-float32-pcm.ts';
-import { writeDesktopPcmStream, type DesktopPcmStreamProducer } from './desktop-audio-pcm-stream.ts';
+import { writeDesktopPcmStream, type DesktopPcmStreamProducer } from './desktop-audio-pcm-stream-write.ts';
 import { confirmFileSizeWarning, type FileSizeWarningOptions } from './controller/shared/file-size-warning.ts';
 import { LARGE_AUDIO_FILE_BYTES } from './large-audio-policy.ts';
 import { assertFfmpegOutputReady, abortFfmpegOutputSink, streamFfmpegOutputFile,
