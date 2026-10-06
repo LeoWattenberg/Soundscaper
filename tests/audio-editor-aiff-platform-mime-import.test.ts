@@ -21,7 +21,7 @@ test('maintained AIFF identity canonicalises the platform MIME spellings a picke
 	}
 	assert.equal(maintainedAiffMimeType({ name: 'field.AIF' }), 'audio/aiff');
 	assert.equal(maintainedAiffMimeType({ name: 'field.aiff', type: 'audio/wav' }), null);
-	assert.equal(maintainedAiffMimeType({ name: 'field.aifc', type: 'audio/x-aiff' }), null);
+	assert.equal(maintainedAiffMimeType({ name: 'field.aifc', type: 'audio/x-aiff' }), 'audio/aiff');
 	assert.equal(maintainedAiffMimeType({ name: 'field.wav', type: 'audio/x-aiff' }), null);
 	assert.equal(maintainedAiffMimeType('field.aiff'), null);
 	assert.equal(maintainedAiffMimeType(null), null);

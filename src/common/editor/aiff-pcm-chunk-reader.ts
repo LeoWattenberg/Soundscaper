@@ -2,23 +2,20 @@
 
 import { AUDIO_EDITOR_PCM_CHUNK_FRAMES } from './pcm-chunks.js';
 import { parseAiffMarkChunk } from './aiff-markers.ts';
+import { aiffIntegerSampleFormat, parseAiffCommLayout, validateAiffCommByteLength, type AiffCommLayout, type AiffPcmSampleFormat } from './aiff-comm-layout.ts';
+export type { AiffPcmSampleFormat } from './aiff-comm-layout.ts';
 import { normalizeRiffMarkers, type RiffMarker } from './riff-markers.ts';
 
 const FORM_HEADER_BYTES = 12;
 const CHUNK_HEADER_BYTES = 8;
-const COMM_BYTES = 18;
-const AIFC_COMM_BYTES = 44;
 const AIFC_VERSION_BYTES = 4;
 const AIFC_VERSION_1 = 0xa2805140;
-const AIFC_FLOAT_COMPRESSION = 'fl32';
-const AIFC_FLOAT_COMPRESSION_NAME = '32-bit floating point';
 const SSND_PREFIX_BYTES = 8;
 const DEFAULT_MAXIMUM_CHUNKS = 4_096;
 const MAXIMUM_CHUNKS = 65_536;
 const MAXIMUM_CHANNELS = 64;
 const MAXIMUM_MARK_BYTES = 16 * 1024 * 1024;
 
-export type AiffPcmSampleFormat = 'int8' | 'int16' | 'int24' | 'int32' | 'float32';
 
 export interface AiffBlobPcmSource {
 	readonly size: number;
@@ -74,17 +71,6 @@ export interface AiffBlobPcmStreamOptions {
 	) => unknown | PromiseLike<unknown>;
 }
 
-interface AiffComm {
-	readonly sampleFormat: AiffPcmSampleFormat;
-	readonly sampleRate: number;
-	readonly channelCount: number;
-	readonly frameCount: number;
-	readonly bitDepth: number;
-	readonly bytesPerSample: number;
-	readonly blockAlign: number;
-	readonly byteRate: number;
-}
-
 interface AiffSoundData {
 	readonly dataOffset: number;
 	readonly dataByteLength: number;
@@ -124,7 +110,7 @@ export async function inspectAiffBlobPcm(
 	const formByteLength = 8 + formPayloadBytes;
 	if (formByteLength > source.size) throw new Error('The AIFF FORM payload is truncated.');
 
-	let comm: AiffComm | null = null;
+	let comm: AiffCommLayout | null = null;
 	let sound: AiffSoundData | null = null;
 	let mark: Uint8Array | null = null;
 	let aifcVersion = false;
@@ -166,13 +152,8 @@ export async function inspectAiffBlobPcm(
 			if (isAifc && !aifcVersion) {
 				throw new Error('The AIFF-C FVER chunk must precede its COMM chunk.');
 			}
-			const expectedCommBytes = isAifc ? AIFC_COMM_BYTES : COMM_BYTES;
-			if (chunkBytes !== expectedCommBytes) {
-				throw new Error(
-					`The ${isAifc ? 'AIFF-C float32' : 'classic AIFF'} COMM chunk must contain exactly ${expectedCommBytes} bytes.`,
-				);
-			}
-			comm = parseComm(
+			validateAiffCommByteLength(chunkBytes, isAifc);
+			comm = parseAiffCommLayout(
 				await readSourceBytes(source, payloadOffset, payloadEnd, signal),
 				isAifc,
 			);
@@ -320,65 +301,6 @@ export async function streamAiffBlobPcm(
 	});
 }
 
-function parseComm(bytes: Uint8Array, isAifc: boolean): AiffComm {
-	const view = dataView(bytes);
-	const channelCount = view.getUint16(0, false);
-	const frameCount = view.getUint32(2, false);
-	const bitDepth = view.getUint16(6, false);
-	if (channelCount < 1 || channelCount > MAXIMUM_CHANNELS) {
-		throw new RangeError(`AIFF channel count must be between 1 and ${MAXIMUM_CHANNELS}.`);
-	}
-	if (frameCount < 1) throw new RangeError('AIFF frame count must be positive.');
-	const sampleFormat = isAifc
-		? aifcSampleFormat(bytes, bitDepth)
-		: sampleFormatForBitDepth(bitDepth);
-	const bytesPerSample = bitDepth / 8;
-	const blockAlign = channelCount * bytesPerSample;
-	const sampleRate = readExtended80(view, 8);
-	const byteRate = sampleRate * blockAlign;
-	if (!Number.isSafeInteger(byteRate)) throw new RangeError('AIFF byte rate exceeds integer precision.');
-	return Object.freeze({
-		sampleFormat,
-		sampleRate,
-		channelCount,
-		frameCount,
-		bitDepth,
-		bytesPerSample,
-		blockAlign,
-		byteRate,
-	});
-}
-
-function aifcSampleFormat(bytes: Uint8Array, bitDepth: number): AiffPcmSampleFormat {
-	if (bitDepth !== 32 || ascii(bytes, COMM_BYTES, 4) !== AIFC_FLOAT_COMPRESSION) {
-		throw new Error('AIFF-C linked originals require the first-party fl32 compression tuple.');
-	}
-	const nameLength = bytes[COMM_BYTES + 4];
-	const name = ascii(bytes, COMM_BYTES + 5, AIFC_FLOAT_COMPRESSION_NAME.length);
-	if (nameLength !== AIFC_FLOAT_COMPRESSION_NAME.length
-		|| name !== AIFC_FLOAT_COMPRESSION_NAME) {
-		throw new Error('The AIFF-C float32 compression name is unsupported.');
-	}
-	return 'float32';
-}
-
-function readExtended80(view: DataView, offset: number): number {
-	const signAndExponent = view.getUint16(offset, false);
-	if ((signAndExponent & 0x8000) !== 0) throw new RangeError('AIFF sample rate must be positive.');
-	const exponent = signAndExponent & 0x7fff;
-	const high = view.getUint32(offset + 2, false);
-	const low = view.getUint32(offset + 6, false);
-	if (exponent === 0 || exponent === 0x7fff || (high & 0x8000_0000) === 0) {
-		throw new RangeError('AIFF sample rate has an invalid extended-float encoding.');
-	}
-	const mantissa = high * 0x1_0000_0000 + low;
-	const value = mantissa * 2 ** (exponent - 16_383 - 63);
-	if (!Number.isSafeInteger(value) || value < 1) {
-		throw new RangeError('AIFF sample rate must be a positive safe integer.');
-	}
-	return value;
-}
-
 function validateAiffPcmDescriptor(
 	source: AiffBlobPcmSource,
 	value: unknown,
@@ -386,13 +308,13 @@ function validateAiffPcmDescriptor(
 	const candidate = closedDescriptor(value);
 	const floatingPoint = candidate.container === 'aifc'
 		&& candidate.encoding === 'ieee-float';
-	const integerPcm = candidate.container === 'aiff'
+	const integerPcm = (candidate.container === 'aiff' || candidate.container === 'aifc')
 		&& candidate.encoding === 'pcm-integer';
 	if (!floatingPoint && !integerPcm) {
 		throw new TypeError('An AIFF PCM descriptor is required.');
 	}
 	const bitDepth = positiveSafeInteger(candidate.bitDepth, 'bitDepth');
-	const sampleFormat = floatingPoint ? 'float32' : sampleFormatForBitDepth(bitDepth);
+	const sampleFormat = floatingPoint ? 'float32' : aiffIntegerSampleFormat(bitDepth);
 	if (floatingPoint && bitDepth !== 32) {
 		throw new TypeError('AIFF-C float PCM descriptors must use 32-bit samples.');
 	}
@@ -441,16 +363,16 @@ function validateAiffPcmDescriptor(
 		formByteLength,
 		sourceByteLength,
 		...(markers ? { markers } : {}),
-	}, floatingPoint);
+	}, candidate.container === 'aifc');
 }
 
 function descriptorFromFields(
 	fields: Omit<AiffPcmDescriptor, 'container' | 'encoding'>,
-	floatingPoint = false,
+	aifcContainer = false,
 ): AiffPcmDescriptor {
 	return Object.freeze({
-		container: floatingPoint ? 'aifc' as const : 'aiff' as const,
-		encoding: floatingPoint ? 'ieee-float' as const : 'pcm-integer' as const,
+		container: aifcContainer ? 'aifc' as const : 'aiff' as const,
+		encoding: fields.sampleFormat === 'float32' ? 'ieee-float' as const : 'pcm-integer' as const,
 		...fields,
 	});
 }
@@ -512,14 +434,6 @@ function readSample(view: DataView, offset: number, format: AiffPcmSampleFormat)
 		return value / 0x800000;
 	}
 	return view.getInt32(offset, false) / 0x80000000;
-}
-
-function sampleFormatForBitDepth(value: number): AiffPcmSampleFormat {
-	if (value === 8) return 'int8';
-	if (value === 16) return 'int16';
-	if (value === 24) return 'int24';
-	if (value === 32) return 'int32';
-	throw new RangeError(`AIFF integer PCM bit depth ${value} is unsupported.`);
 }
 
 async function readSourceBytes(

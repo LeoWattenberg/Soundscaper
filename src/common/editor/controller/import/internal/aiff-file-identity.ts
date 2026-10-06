@@ -9,7 +9,7 @@ const CANONICAL_AIFF_MIME_TYPE = 'audio/aiff';
  * Windows has no registry content type.
  */
 const PLATFORM_AIFF_MIME_TYPES: ReadonlySet<string> = new Set([
-	'', 'audio/aiff', 'audio/x-aiff', 'audio/aif', 'audio/x-aif',
+	'', 'audio/aiff', 'audio/x-aiff', 'audio/aif', 'audio/x-aif', 'audio/aifc', 'audio/x-aifc',
 ]);
 
 interface NamedAudioFile {
@@ -21,7 +21,7 @@ interface NamedAudioFile {
 export function maintainedAiffMimeType(value: unknown): 'audio/aiff' | null {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
 	const file = value as NamedAudioFile;
-	if (typeof file.name !== 'string' || !/\.(?:aif|aiff)$/iu.test(file.name)) return null;
+	if (typeof file.name !== 'string' || !/\.(?:aif|aiff|aifc)$/iu.test(file.name)) return null;
 	if (file.type === undefined) return CANONICAL_AIFF_MIME_TYPE;
 	if (typeof file.type !== 'string') return null;
 	const type = file.type.split(';', 1)[0]?.trim().toLowerCase() ?? '';
