@@ -112,6 +112,9 @@ export const FOUNDATION_RUNTIME_PROJECTION_BOUNDARIES: readonly FoundationRuntim
 
 /** Files that own the raw-project boundary for every WP-0.2 consumer surface. */
 export const FOUNDATION_RUNTIME_SHIELDED_OWNERS: readonly FoundationRuntimeShieldedOwner[] = deepFreeze([
+	{ file: 'src/common/editor/project-bin-video-replacement.ts', surfaces: ['composition'] },
+	{ file: 'src/common/editor/ui/workspace/project-bin-video-preview-model.ts', surfaces: ['preview'] },
+	{ file: 'src/common/editor/ui/regular-interval-dialog-defaults.ts', surfaces: ['timeline'] },
 	{ file: 'src/common/editor/clip-spreadsheet.ts', surfaces: ['timeline', 'composition'] },
 	{ file: 'src/common/editor/controller/track-audio/internal/audio-warp/audio-warp-composition.ts', surfaces: ['composition'] },
 	{ file: 'src/common/editor/controller/import/internal/project-bin/project-bin-runtime.ts', surfaces: ['preview', 'composition'] },
@@ -173,6 +176,14 @@ export const FOUNDATION_RUNTIME_TIMING_READER_EXCLUSIONS: readonly FoundationRun
 
 /** Non-shield importers discovered beside the owned consumer and boundary files. */
 export const FOUNDATION_RUNTIME_PROJECTION_IMPORTER_EXCLUSIONS: readonly FoundationRuntimeProjectionImporterExclusion[] = deepFreeze([
+	{
+		file: 'src/common/editor/controller/composition/internal/mixer-parameter-actions.ts',
+		reason: 'Mixer parameter gestures project static strip values to locate track, bus, or send controls; they read no clip timing and remain edit adapters rather than runtime media consumers.',
+	},
+	{
+		file: 'src/common/editor/commands/project-source-bin-runtime.js',
+		reason: 'Project Bin replacement commands resolve clip geometry to preserve authored source bounds while reconciling a command draft; they are edit adapters rather than runtime media consumers.',
+	},
 	{
 		file: 'src/common/editor/video-keyframe-export-frame-source.ts',
 		reason: 'The immutable export snapshot preserves an existing runtime-projection brand after inheriting exact folder media state; projection and timing consumption remain owned by the upstream keyed-export inventory.',

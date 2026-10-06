@@ -12,7 +12,10 @@ export interface RegularIntervalDialogProject extends RuntimeClipProject {
 export function regularIntervalDialogDefaults(project: RegularIntervalDialogProject | null) {
 	let endFrame = 1;
 	if (project) {
-		for (const clip of project.clips) endFrame = Math.max(endFrame, resolveRuntimeClipProjection(project, clip).timelineEndFrame);
+		for (const clip of project.clips) {
+			const resolved = resolveRuntimeClipProjection(project, clip);
+			endFrame = Math.max(endFrame, resolved.timelineEndFrame);
+		}
 	}
 	return {
 		kind: 'marker' as const,

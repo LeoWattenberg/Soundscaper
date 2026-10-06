@@ -30,6 +30,24 @@ export interface FoundationRuntimeConsumerEvidence {
  */
 const entries: FoundationRuntimeConsumerEvidence[] = [
 	{
+		id: 'project-bin-video-replacement-span', surface: 'composition',
+		file: 'src/common/editor/project-bin-video-replacement.ts', entryPoint: 'projectBinVideoReplacementRange',
+		inputIdentifier: 'project', projectedIdentifier: 'resolved', boundary: 'resolveRuntimeClipProjection',
+		evidence: 'Video replacement resolves the old clip source and timeline bounds before retaining its source times and conforming the replacement to the new source frame grid.',
+	},
+	{
+		id: 'project-bin-video-preview-clock', surface: 'preview',
+		file: 'src/common/editor/ui/workspace/project-bin-video-preview-model.ts', entryPoint: 'projectBinVideoPreviewModel',
+		inputIdentifier: 'project', projectedIdentifier: 'resolved', boundary: 'resolveRuntimeClipProjection',
+		evidence: 'Project Bin video preview resolves authored sequence geometry before mapping preview endpoints and playback rate onto the source video clock.',
+	},
+	{
+		id: 'regular-interval-dialog-range', surface: 'timeline',
+		file: 'src/common/editor/ui/regular-interval-dialog-defaults.ts', entryPoint: 'regularIntervalDialogDefaults',
+		inputIdentifier: 'project', projectedIdentifier: 'resolved', boundary: 'resolveRuntimeClipProjection',
+		evidence: 'Regular interval annotation defaults resolve each persisted clip before using its timeline endpoint to initialize the dialog range.',
+	},
+	{
 		id: 'clip-spreadsheet-display', surface: 'timeline',
 		file: 'src/common/editor/clip-spreadsheet.ts', entryPoint: 'getClipSpreadsheetRows',
 		inputIdentifier: 'projectValue', projectedIdentifier: 'project', boundary: 'runtimeProject',

@@ -44,6 +44,12 @@ export interface FoundationTimeConversionSite {
  */
 const FOUNDATION_TIME_CONVERSION_EDITOR_SITES: readonly FoundationTimeConversionSite[] = deepFreezeAuditSites([
 	{
+		id: 'project-bin-video-replacement-span',
+		file: 'src/common/editor/project-bin-video-replacement.ts',
+		behavior: 'Video replacement resolves the retained source span onto the replacement source grid and converts the conformed sequence endpoints to nearest project sample instants.',
+		conversions: [{ helper: 'videoFrameToSampleFrame', policies: ['point'] }],
+	},
+	{
 		id: 'musical-timecode-project-map',
 		file: 'src/common/editor/ui/time-code-musical-map.ts',
 		behavior: 'Musical timecode resolves seconds to nearest project sample instants, recovers exact tempo-map beats, and maps edited bar/beat positions back through nearest sample instants to seconds.',
