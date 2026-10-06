@@ -10,9 +10,15 @@ import test from 'node:test';
 
 import { createVideoExportPlan } from '../src/common/editor/video-export.js';
 import { createVideoKeyframeExportPlanV7 } from '../src/common/editor/video-keyframe-export-plan-v7.ts';
+import { createPrivateNativeFixtureArtifact } from './helpers/native-fixture-compiler.ts';
 
 const repositoryRoot = resolve(import.meta.dirname, '..');
 const sourceRoot = join(repositoryRoot, 'native/framescaper-media-host/src');
+const contractHost = createPrivateNativeFixtureArtifact({
+	prefix: 'framescaper-legacy-host-build-', fileName: 'framescaper-media-host',
+	build: buildContractHostExecutable,
+});
+test.after(() => contractHost.cleanup());
 
 test('V7 admission closes keyed plan metadata, identities, nested fields, and source digests', (context) => {
 	const fixture = buildContractHost(context);
@@ -160,7 +166,18 @@ function buildContractHost(context) {
 		return null;
 	}
 	const directory = mkdtempSync(join(tmpdir(), 'framescaper-legacy-plans-'));
-	const executable = join(directory, 'framescaper-media-host');
+	try {
+		return {
+			directory, executable: contractHost.copyTo(join(directory, 'framescaper-media-host')),
+			cleanup: () => rmSync(directory, { recursive: true, force: true }),
+		};
+	} catch (error) {
+		rmSync(directory, { recursive: true, force: true });
+		throw error;
+	}
+}
+
+function buildContractHostExecutable(executable) {
 	const files = [
 		'media_host.cpp', 'image_sequence_pack.cpp', 'legacy_plan_semantics.cpp',
 		'legacy_plan_v8_filter_semantics.cpp', 'media_file_grants.cpp',
@@ -173,10 +190,6 @@ function buildContractHost(context) {
 		...files, '-o', executable,
 	], { encoding: 'utf8' });
 	assert.equal(built.status, 0, built.stderr);
-	return {
-		directory, executable,
-		cleanup: () => rmSync(directory, { recursive: true, force: true }),
-	};
 }
 
 function operationPaths(directory) {

@@ -5,6 +5,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { createNativeFixtureCompiler, lazyNativeFixtureValue } from './native-fixture-compiler.ts';
 
 import {
 	boostClosureIncludeArguments,
@@ -67,6 +68,11 @@ export function buildOpenFxNativeContractFixture(context) {
 		return null;
 	}
 	const directory = mkdtempSync(join(tmpdir(), 'framescaper-openfx-runtime-'));
+	retainedCleanup = () => rmSync(directory, { recursive: true, force: true });
+	const compiler = createNativeFixtureCompiler({
+		directory,
+		invoke: (arguments_, label) => assertBuilt(spawnSync('c++', arguments_, { encoding: 'utf8' }), label),
+	});
 	const extension = process.platform === 'darwin' ? '.dylib'
 		: process.platform === 'win32' ? '.dll' : '.so';
 	const plugin = join(directory, `conformance${extension}`);
@@ -97,22 +103,22 @@ export function buildOpenFxNativeContractFixture(context) {
 	];
 	const common = [...abiCommon, '-DFRAMESCAPER_OPENFX_CONFORMANCE_FIXTURE=1'];
 	const shared = process.platform === 'darwin' ? ['-dynamiclib'] : ['-shared', '-fPIC'];
-	assertBuilt(spawnSync('c++', [...common, ...shared, fixture, '-o', plugin], {
-		encoding: 'utf8',
-	}), 'OpenFX conformance plug-in');
-	assertBuilt(spawnSync('c++', [
+	const buildPlugin = lazyNativeFixtureValue(() => compiler.artifact({
+		arguments: [...common, ...shared, fixture], outputPath: plugin, label: 'OpenFX conformance plug-in',
+	}));
+	const buildMismatch = lazyNativeFixtureValue(() => compiler.artifact({ arguments: [
 		...common, '-DFRAMESCAPER_OPENFX_CONTEXT_MISMATCH_FIXTURE=1',
-		...shared, fixture, '-o', mismatchPlugin,
-	], { encoding: 'utf8' }), 'OpenFX context-mismatch plug-in');
-	assertBuilt(spawnSync('c++', [
+		...shared, fixture,
+	], outputPath: mismatchPlugin, label: 'OpenFX context-mismatch plug-in' }));
+	const buildSpoof = lazyNativeFixtureValue(() => compiler.artifact({ arguments: [
 		...common, '-DFRAMESCAPER_OPENFX_STANDARD_PARAMETER_SPOOF_FIXTURE=1',
-		...shared, fixture, '-o', spoofPlugin,
-	], { encoding: 'utf8' }), 'OpenFX standard-parameter-spoof plug-in');
-	for (const [name, value] of mediaDeclarationPlugins) {
-		assertBuilt(spawnSync('c++', [
-			...common, `-D${value.definition}=1`, ...shared, fixture, '-o', value.path,
-		], { encoding: 'utf8' }), `OpenFX ${name} plug-in`);
-	}
+		...shared, fixture,
+	], outputPath: spoofPlugin, label: 'OpenFX standard-parameter-spoof plug-in' }));
+	const buildMediaDeclarations = lazyNativeFixtureValue(() => Object.freeze([...mediaDeclarationPlugins].map(([name, value]) => {
+		compiler.artifact({ arguments: [...common, `-D${value.definition}=1`, ...shared, fixture],
+			outputPath: value.path, label: `OpenFX ${name} plug-in` });
+		return Object.freeze({ name, path: value.path, sha256: digest(readFileSync(value.path)) });
+	})));
 	const hostSources = [
 		join(repositoryRoot, 'native/common/sha256.cpp'),
 		join(sources, 'sha256.cpp'), join(sources, 'dynamic_library.cpp'),
@@ -132,31 +138,34 @@ export function buildOpenFxNativeContractFixture(context) {
 		join(repositoryRoot, 'native/framescaper-media-host/src/legacy_plan_semantics.cpp'),
 		join(repositoryRoot, 'native/framescaper-media-host/src/legacy_plan_v8_filter_semantics.cpp'),
 	];
-	for (const [entry, output] of [
-		['ofx_scanner.cpp', scanner], ['ofx_runtime_host.cpp', runtime],
-	]) {
+	function hostExecutable(entry, outputPath, flags) {
 		const link = process.platform === 'linux' ? ['-ldl', '-pthread'] : ['-pthread'];
-		assertBuilt(spawnSync('c++', [
-			...common, '-I', join(repositoryRoot, 'native/framescaper-media-host/src'),
-			...hostSources, join(sources, entry), ...link, '-o', output,
-		], { encoding: 'utf8' }), `OpenFX ${entry}`);
+		return lazyNativeFixtureValue(() => compiler.executable({
+			arguments: [...flags, '-I', join(repositoryRoot, 'native/framescaper-media-host/src')],
+			sources: [...hostSources, join(sources, entry)],
+			objectArguments: ['-pthread'], linkArguments: link,
+			outputPath, label: `OpenFX ${entry}`,
+		}));
 	}
-	assertBuilt(spawnSync('c++', [
-		...abiCommon, '-I', join(repositoryRoot, 'native/framescaper-media-host/src'),
-		...hostSources, join(sources, 'ofx_scanner.cpp'),
-		...(process.platform === 'linux' ? ['-ldl', '-pthread'] : ['-pthread']),
-		'-o', blockedScanner,
-	], { encoding: 'utf8' }), 'blocked OpenFX scanner');
-	const bytes = readFileSync(plugin);
-	retainedCleanup = () => rmSync(directory, { recursive: true, force: true });
+	const buildScanner = hostExecutable('ofx_scanner.cpp', scanner, common);
+	const buildRuntime = hostExecutable('ofx_runtime_host.cpp', runtime, common);
+	const buildBlockedScanner = hostExecutable('ofx_scanner.cpp', blockedScanner, abiCommon);
+	const pluginDigest = lazyNativeFixtureValue(() => digest(readFileSync(buildPlugin())));
+	const mismatchDigest = lazyNativeFixtureValue(() => digest(readFileSync(buildMismatch())));
+	const spoofDigest = lazyNativeFixtureValue(() => digest(readFileSync(buildSpoof())));
 	retainedBuild = {
-		directory, plugin, mismatchPlugin, spoofPlugin, scanner, runtime, blockedScanner,
+		directory,
+		get plugin() { return buildPlugin(); },
+		get mismatchPlugin() { return buildMismatch(); },
+		get spoofPlugin() { return buildSpoof(); },
+		get scanner() { return buildScanner(); },
+		get runtime() { return buildRuntime(); },
+		get blockedScanner() { return buildBlockedScanner(); },
 		exactRetimeAvailable,
-		sha256: digest(bytes), mismatchSha256: digest(readFileSync(mismatchPlugin)),
-		spoofSha256: digest(readFileSync(spoofPlugin)),
-		mediaDeclarationPlugins: Object.freeze([...mediaDeclarationPlugins].map(([name, value]) => Object.freeze({
-			name, path: value.path, sha256: digest(readFileSync(value.path)),
-		}))),
+		get sha256() { return pluginDigest(); },
+		get mismatchSha256() { return mismatchDigest(); },
+		get spoofSha256() { return spoofDigest(); },
+		get mediaDeclarationPlugins() { return buildMediaDeclarations(); },
 		cleanup: () => undefined,
 	};
 	return retainedBuild;

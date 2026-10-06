@@ -15,6 +15,7 @@ import {
 import {
 	mediaHostUnifiedPlanGeneration,
 } from './helpers/framescaper-media-host-unified-plan-fixture.js';
+import { createPrivateNativeFixtureArtifact } from './helpers/native-fixture-compiler.ts';
 
 const repositoryRoot = resolve(import.meta.dirname, '..');
 const sourceRoot = join(repositoryRoot, 'native/framescaper-media-host/src');
@@ -24,6 +25,11 @@ const fixtureSource = join(
 );
 const SOURCE_SHA256 = 'ab'.repeat(32);
 const TIMING_SHA256 = 'cd'.repeat(32);
+const validator = createPrivateNativeFixtureArtifact({
+	prefix: 'framescaper-unified-validator-build-', fileName: 'unified-plan-admission',
+	build: buildValidatorExecutable,
+});
+test.after(() => validator.cleanup());
 
 test('native unified validators admit canonical V9-V12 plans without dispatch authority', (context) => {
 	const fixture = buildFixture(context);
@@ -500,9 +506,21 @@ function buildFixture(context) {
 		return null;
 	}
 	if (!requireExactRetimeClosure(context)) return null;
-	const boostArguments = boostClosureIncludeArguments();
 	const directory = mkdtempSync(join(tmpdir(), 'framescaper-unified-validator-'));
-	const executable = join(directory, 'unified-plan-admission');
+	try {
+		return {
+			directory, executable: validator.copyTo(join(directory, 'unified-plan-admission')),
+			plan: join(directory, 'plan.json'),
+			cleanup: () => rmSync(directory, { recursive: true, force: true }),
+		};
+	} catch (error) {
+		rmSync(directory, { recursive: true, force: true });
+		throw error;
+	}
+}
+
+function buildValidatorExecutable(executable) {
+	const boostArguments = boostClosureIncludeArguments();
 	const files = [
 		'media_plan.cpp', 'legacy_plan_semantics.cpp', 'legacy_plan_v8_filter_semantics.cpp',
 		'media_file_grants.cpp', 'sha256.cpp', 'strict_json.cpp',
@@ -513,12 +531,6 @@ function buildFixture(context) {
 		...boostArguments, '-I', sourceRoot, fixtureSource, ...files, '-o', executable,
 	], { encoding: 'utf8' });
 	assert.equal(built.status, 0, built.stderr);
-	return {
-		directory,
-		executable,
-		plan: join(directory, 'plan.json'),
-		cleanup: () => rmSync(directory, { recursive: true, force: true }),
-	};
 }
 
 function admit(fixture, plan) {
