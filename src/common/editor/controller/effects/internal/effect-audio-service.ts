@@ -35,6 +35,14 @@ const NOISE_PROFILE_TASK = 'selection-effect-noise-profile';
 const SPECTRAL_EFFECT_TASK = 'selection-effect-spectral';
 
 export function createEffectAudioService<Buffer = EffectAudioBuffer>(runtime: EffectAudioServiceRuntime<Buffer>) {
+	async function tryRenderSimpleDryTrackRange(trackId: string, startFrame: number, endFrame: number,
+		channelCount: number, clipIds?: readonly string[] | null): Promise<Float32Array[] | null> {
+		const token = runtime.captureProject();
+		const channels = await renderSimpleDryTrackPcm(runtime.getProject(), runtime.sourceBuffers,
+			trackId, startFrame, endFrame, channelCount, clipIds);
+		runtime.assertProject(token);
+		return channels;
+	}
 	async function renderDryTrackRange(
 		trackId: string,
 		startFrame: number,
@@ -355,6 +363,7 @@ export function createEffectAudioService<Buffer = EffectAudioBuffer>(runtime: Ef
 	});
 
 	return Object.freeze({
+		tryRenderSimpleDryTrackRange,
 		applySpectralSelection,
 		captureRackNoiseProfile,
 		captureSelectedNoiseProfile,

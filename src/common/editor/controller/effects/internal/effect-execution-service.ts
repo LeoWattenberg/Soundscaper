@@ -8,6 +8,7 @@ import {
 } from '../../shared/lifecycle.ts'; import { publishedCopyFor } from '../../shared/presentation-localization.ts'; import { createLocalizedError, setLocalizedStatus } from '../../../../i18n/presentation-message.ts';
 import { createSelectionEffectPreviewService } from './effect-preview-service.ts';
 import { createPreparedSelectionPcmCache, preparedSelectionPcmKey } from './prepared-selection-pcm-cache.ts';
+import { tryPrepareCoalescedEffectContext, type SimpleDryRangeRenderer } from './coalesced-effect-context.ts';
 
 const SELECTION_EFFECT_TASK = 'selection-effect-apply';
 /** The registry name a Nyquist evaluation holds while the evaluator runs. */
@@ -16,6 +17,7 @@ export const NYQUIST_EVALUATION_TASK = 'nyquist-evaluation';
 export interface SelectionEffectExecutionRuntime {
 	/** Stable canonical audio ownership until an edit; absent for untrusted ports or memory mode. */
 	readonly getPreparedAudioAuthority?: () => object | null;
+	readonly tryRenderSimpleDryTrackRange?: SimpleDryRangeRenderer;
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	readonly [name: string]: any;
@@ -156,14 +158,22 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 			if (type !== 'audacity-amplify') preparedAudio.clear();
 			const dryResults = [];
 			for (const [index, target] of targets.entries()) {
-				const channels = preparedChannels?.[index] ?? await renderCurrentDryTrackRange(
+				const coalesced = contextFrames > 0 && runtime.tryRenderSimpleDryTrackRange
+					? await tryPrepareCoalescedEffectContext(target, contextFrames, afterContextFrames,
+						target.sourceFrameCount ?? projectDurationFrames(getProject()),
+						AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES - estimatedPeakBytes, async (...args) => {
+							const channels = await runtime.tryRenderSimpleDryTrackRange!(...args);
+							assertSelectionEffectOwnership(runtime, ownership);
+							return channels;
+						}) : null;
+				const channels = coalesced?.channels ?? preparedChannels?.[index] ?? await renderCurrentDryTrackRange(
 					target.track.id,
 					target.startFrame,
 					target.endFrame,
 					target.channelCount,
 					target.clipIds,
 				);
-				dryResults.push({ target, channels });
+				dryResults.push({ target, channels, neighbourContext: coalesced?.context });
 			}
 			params = resolveInteractiveAudacityParams(
 				type,
@@ -197,7 +207,7 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 				});
 				if (channelOffset !== processedChannels.length) throw createLocalizedError(Error, copy, 'effectChannelLayoutChanged');
 			} else {
-				for (const { target, channels } of dryResults) {
+				for (const { target, channels, neighbourContext } of dryResults) {
 					const effectContext: RuntimeValue = {};
 					const spectralSelection = spectralSelections.get(target.track.id);
 					if (spectralSelection) effectContext.spectralSelection = spectralSelection;
@@ -209,7 +219,8 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 						);
 					}
 					if (definition.requiresNoiseProfile) effectContext.noiseProfile = state.audacityNoiseProfile;
-					if (contextFrames > 0) {
+					if (neighbourContext) Object.assign(effectContext, neighbourContext);
+					else if (contextFrames > 0) {
 						const beforeStart = Math.max(0, target.startFrame - contextFrames);
 						effectContext.beforeChannels = beforeStart < target.startFrame
 							? await renderCurrentDryTrackRange(target.track.id, beforeStart, target.startFrame, target.channelCount, target.clipIds)

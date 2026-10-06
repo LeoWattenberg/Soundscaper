@@ -379,6 +379,7 @@ export function createEffectsComposition(dependencies: EffectsCompositionDepende
 			getPreparedAudioAuthority: () => state.preferences?.performance?.optimizeFor === 'speed'
 				? dependencies.getProject() : null,
 			canSliceDryPcm: canSliceSimpleDryTrackPcm,
+			tryRenderSimpleDryTrackRange: audio.tryRenderSimpleDryTrackRange,
 			projectDurationFrames: dependencies.projectDurationFrames,
 			projectSampleRate: dependencies.projectSampleRate,
 			publishDocumentSnapshot: dependencies.publishDocumentSnapshot,
