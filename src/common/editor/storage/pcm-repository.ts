@@ -15,6 +15,7 @@ import {
 	sourceChunkFromLegacyRecord,
 	type StorageRecord,
 } from './media-records.ts';
+import type { AudioEditorOptimizationMode } from '../performance-preferences.ts';
 
 interface CodecResult {
 	readonly encoding?: unknown;
@@ -53,11 +54,17 @@ export class PcmRepository {
 	readonly #codecFactory: () => PcmCodec;
 	readonly #ownsCodec: boolean;
 	#circuitOpen = false;
+	#optimizationMode: AudioEditorOptimizationMode = 'memory';
 
 	constructor({ codec = null, codecFactory = null }: PcmRepositoryOptions = {}) {
 		this.#codec = codec;
 		this.#codecFactory = codecFactory || (() => new WavPackCodecClient() as PcmCodec);
 		this.#ownsCodec = !codec;
+	}
+
+	setOptimizationMode(mode: AudioEditorOptimizationMode): void {
+		if (mode !== 'memory' && mode !== 'speed') throw new RangeError('PCM optimization mode must be memory or speed.');
+		this.#optimizationMode = mode;
 	}
 
 	async encode(rawInput: unknown, {
@@ -88,7 +95,8 @@ export class PcmRepository {
 			uncompressedBytes: rawBytes,
 			storedBytes: rawBytes,
 		});
-		if (rawBytes <= minimumWavPackSavings(rawBytes)) return rawResult();
+		if (rawBytes <= minimumWavPackSavings(rawBytes)
+			|| (this.#optimizationMode === 'speed' && priority !== 'migration')) return rawResult();
 		if (this.#circuitOpen) {
 			if (allowRawOnFailure) return rawResult();
 			throw new Error('WavPack encoding is disabled for this session after a codec failure.');

@@ -110,7 +110,7 @@ export class AudioEditorProjectStore {
 	}
 
 	async ready() { await (this.retentionRepository.ensureSession?.() ?? this.#database()); return this; }
-
+	setPcmOptimizationMode(/** @type {import('./performance-preferences.ts').AudioEditorOptimizationMode} */ mode) { this.sourceRepository.setPcmOptimizationMode(mode); }
 	getStatus() {
 		return Object.freeze({
 			state: this.storeState,

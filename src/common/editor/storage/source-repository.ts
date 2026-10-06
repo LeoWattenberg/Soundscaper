@@ -20,6 +20,7 @@ import {
 import type { TransientAnalysisCacheRepository } from './transient-analysis-cache-repository.ts';
 import { normalizePcmChunkFrames } from './pcm-chunk-geometry.ts';
 import { SOURCE_ANALYSIS_CACHE_PREFIXES } from '../source-analysis-cache.ts';
+import type { AudioEditorOptimizationMode } from '../performance-preferences.ts';
 
 const IMMUTABLE_SOURCE_METADATA_FIELDS = Object.freeze([
 	'channelCount', 'sampleRate', 'frameCount', 'frameLength', 'chunkFrames', 'chunkCount',
@@ -46,6 +47,8 @@ export class SourceRepository {
 	constructor(options: SourceRepositoryOptions) {
 		this.#options = options;
 	}
+
+	setPcmOptimizationMode(mode: AudioEditorOptimizationMode): void { this.#options.pcm.setOptimizationMode(mode); }
 
 	beginWrite(sourceId: string, metadata: Record<string, unknown> = {}): Promise<OwnedAudioSourceWriter> {
 		return this.#writeLifecycle.begin(() => this.#options.writer.begin(sourceId, metadata));
