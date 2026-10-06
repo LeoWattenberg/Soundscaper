@@ -15,6 +15,7 @@ import { retainAudioEditorDialogEscapeOwner } from './dialog-escape-ownership.ts
 import { retainAudioEditorDialogFocusOwner } from './dialog-focus-ownership.ts';
 import { resolveEditorReturnFocus } from './focus-restoration.ts';
 import { constrainDialogDragOffset } from './dialog-drag-bounds.ts';
+import { retainDialogMoveLifecycle } from './dialog-move-lifecycle.ts';
 
 interface ResizableSurfaceProps extends React.HTMLAttributes<HTMLElement> {
 	readonly children?: ReactNode;
@@ -139,13 +140,15 @@ export default function AudioEditorDialogShell({
 				width: window.innerWidth, height: window.innerHeight,
 			}));
 		};
-		const handleMouseUp = () => stopDragging();
-		window.addEventListener('mousemove', handleMouseMove);
-		window.addEventListener('mouseup', handleMouseUp);
-		dragCleanupRef.current = () => {
-			window.removeEventListener('mousemove', handleMouseMove);
-			window.removeEventListener('mouseup', handleMouseUp);
-		};
+		dragCleanupRef.current = retainDialogMoveLifecycle(event.currentTarget.ownerDocument, window, {
+			move: handleMouseMove,
+			finish: stopDragging,
+			cancel: () => {
+				const original = dragRef.current?.startOffset;
+				stopDragging();
+				if (original) setDragOffset(original);
+			},
+		});
 	};
 
 	useEffect(() => () => stopDragging(), [stopDragging]);

@@ -2,8 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import '../audio-editor-design-system/23-source-monitor.css';
 
-import { mediaSecondsToSourceFrame } from '../../source-monitor-model.ts';
-
 /**
  * The source monitor: one video source shown on its own frame grid.
  *
@@ -26,9 +24,7 @@ export default function SourceMonitorPanel({ controller, snapshot, copy, run, bl
 		videoRef.current?.pause?.();
 		setPlaying(false);
 	}, []);
-	useEffect(() => {
-		if (!view.sourceId) stop();
-	}, [stop, view.sourceId]);
+	useEffect(() => { stop(); }, [stop, view.sourceId]);
 	useEffect(() => {
 		const media = videoRef.current;
 		if (!media || playing || !Number.isFinite(view.mediaSeconds)) return;
@@ -48,20 +44,28 @@ export default function SourceMonitorPanel({ controller, snapshot, copy, run, bl
 	}
 
 	const publish = (frame) => run(() => controller.actions.video.sourceMonitor.seek(frame));
+	const capturePlayback = () => {
+		if (playing && videoRef.current) {
+			controller.actions.video.sourceMonitor.seekMediaTime(Number(videoRef.current.currentTime) || 0);
+		}
+	};
+	const mark = (operation) => run(() => {
+		capturePlayback();
+		return operation();
+	});
 	const step = (delta) => {
-		stop();
-		run(() => controller.actions.video.sourceMonitor.step(delta));
+		run(() => {
+			capturePlayback();
+			stop();
+			return controller.actions.video.sourceMonitor.step(delta);
+		});
 	};
 	const togglePlay = () => {
 		const media = videoRef.current;
 		if (!media) return;
 		if (playing) {
 			stop();
-			publish(mediaSecondsToSourceFrame(
-				Number(media.currentTime) || 0,
-				view.frameRate,
-				view.sourceFrameCount,
-			));
+			run(() => controller.actions.video.sourceMonitor.seekMediaTime(Number(media.currentTime) || 0));
 			return;
 		}
 		setPlaying(true);
@@ -86,7 +90,7 @@ export default function SourceMonitorPanel({ controller, snapshot, copy, run, bl
 					preload="auto"
 					aria-label={`${copy.panelSourceMonitor}: ${view.sourceName || copy.videoClip}`}
 					onLoadedMetadata={(event) => { event.currentTarget.currentTime = view.mediaSeconds; }}
-					onEnded={stop}
+					onEnded={() => run(() => { capturePlayback(); stop(); })}
 				/>
 				: <p className="kw-audio-editor__panel-empty" role="status">{copy.videoPreviewUnavailable}</p>}
 		</div>
@@ -141,12 +145,12 @@ export default function SourceMonitorPanel({ controller, snapshot, copy, run, bl
 			<button
 				type="button"
 				data-source-monitor-action="mark-in"
-				onClick={() => run(() => controller.actions.video.sourceMonitor.markIn())}
+				onClick={() => mark(() => controller.actions.video.sourceMonitor.markIn())}
 			>{copy.sourceMarkIn}</button>
 			<button
 				type="button"
 				data-source-monitor-action="mark-out"
-				onClick={() => run(() => controller.actions.video.sourceMonitor.markOut())}
+				onClick={() => mark(() => controller.actions.video.sourceMonitor.markOut())}
 			>{copy.sourceMarkOut}</button>
 			<button
 				type="button"
