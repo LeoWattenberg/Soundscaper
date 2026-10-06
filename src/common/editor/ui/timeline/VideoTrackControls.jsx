@@ -27,6 +27,7 @@ export function VideoTrackControls({
 			} else if (currentIndex < controls.length - 1) focusFirst(controls[currentIndex + 1]);
 			else onTabOut?.();
 		} else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+			if (event.target.closest?.('input,textarea,select,[contenteditable="true"]')) return;
 			event.preventDefault();
 			onNavigateVertical?.(event.key === 'ArrowDown' ? 'down' : 'up');
 		}
