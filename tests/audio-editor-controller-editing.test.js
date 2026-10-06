@@ -301,7 +301,7 @@ test('controller trims forward, reversed, and stretched clips without changing p
 	await controller.dispose();
 });
 
-test('cut and delete accept clip selections without a time range', async () => {
+test('cut and delete accept clip selections without a time range', async (t) => {
 	const store = createProjectStore({
 		indexedDB: null,
 		preferOpfs: false,
@@ -315,6 +315,7 @@ test('cut and delete accept clip selections without a time range', async () => {
 		engine: createMemoryEngine(),
 		ffmpeg: createMemoryFfmpeg(),
 	});
+	t.after(() => controller.dispose());
 	await controller.ready;
 	const trackId = controller.getSnapshot().project.tracks[0].id;
 	controller.actions.edit.commit({
@@ -382,5 +383,4 @@ test('cut and delete accept clip selections without a time range', async () => {
 	assert.equal(duplicateSelection.includes('clip-edit-companion'), true);
 	assert.equal(controller.getSnapshot().project.clips.length, 5);
 	assert.equal(controller.getSnapshot().project.tracks.length, 2);
-	await controller.dispose();
 });
