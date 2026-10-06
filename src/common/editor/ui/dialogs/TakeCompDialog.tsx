@@ -108,15 +108,22 @@ export default function TakeCompDialog({
 	}, [initialGroupId, projectId]);
 	const draftIdentity = JSON.stringify([projectId, takeCompDialogDraftIdentity(group)]);
 	const draftedIdentity = useRef(draftIdentity);
+	const draftOwner = JSON.stringify([projectId, group?.id ?? null]);
+	const draftedOwner = useRef(draftOwner);
 	useEffect(() => {
 		if (draftedIdentity.current === draftIdentity) return;
 		draftedIdentity.current = draftIdentity;
-		setTakeId(group?.takes[0]?.id ?? null);
-		setPromotionStart(group?.startSample ?? 0);
-		setPromotionEnd(group?.endSample ?? 1);
+		const sameOwner = draftedOwner.current === draftOwner;
+		draftedOwner.current = draftOwner;
+		setTakeId((current) => sameOwner && group?.takes.some(({ id }) => id === current)
+			? current : group?.takes[0]?.id ?? null);
+		setPromotionStart((current) => sameOwner && group
+			? Math.max(group.startSample, Math.min(group.endSample - 1, current)) : group?.startSample ?? 0);
+		setPromotionEnd((current) => sameOwner && group
+			? Math.max(group.startSample + 1, Math.min(group.endSample, current)) : group?.endSample ?? 1);
 		setBoundaries(boundaryDrafts(group));
 		setSharedBoundaries(sharedBoundaryDrafts(group));
-	}, [draftIdentity, group]);
+	}, [draftIdentity, draftOwner, group]);
 
 	const disabled = operationState.disabled;
 	const selectedTake = group?.takes.find(({ id }) => id === takeId) ?? null;

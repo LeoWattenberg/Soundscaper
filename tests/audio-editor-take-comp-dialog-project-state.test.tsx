@@ -121,6 +121,51 @@ test('a successful remove reports after its own group leaves the project', async
 	}
 });
 
+test('comp edits retain the chosen take within its group and a different project resets the choice', async () => {
+	const dom = installReactTestDom();
+	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
+	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
+	const controller = { actions: { takeComp: {
+		auditionTake() {}, auditionLane() {}, stopAudition() {}, promoteTake() {},
+		editCompBoundary() {}, editSharedCompBoundary() {}, flatten() {}, removeGroup() {},
+	} } };
+	const { createRoot } = await import('react-dom/client');
+	const root = createRoot(dom.container as unknown as Element);
+	const render = (currentProject: unknown) => <TakeCompDialog productId="soundscaper"
+		controller={controller} snapshot={{ project: currentProject }} copy={ENGLISH_COPY}
+		run={(operation) => operation()} onClose={() => undefined} />;
+	const selectedTake = (id: string, suffix: string): ReactTestElement => {
+		const button = dom.container.querySelectorAll('button').find((candidate) => (
+			candidate.getAttribute('aria-label') === `Select ${id} take ${suffix}`
+		));
+		assert.ok(button);
+		return button;
+	};
+	try {
+		const original = project('project-a');
+		await act(async () => root.render(render(original)));
+		await act(async () => reactProps(selectedTake('project-a', 'B')).onClick({}));
+		await act(async () => reactProps(dom.one('[data-timecode-direct-entry]')).onChange({
+			currentTarget: { valueAsNumber: 200 },
+		}));
+		assert.equal(selectedTake('project-a', 'B').getAttribute('aria-pressed'), 'true');
+		await act(async () => root.render(render({ ...original, takeGroups: original.takeGroups.map((group) => ({
+			...group, compRegions: [{ id: 'promoted', takeId: 'take-b', startSample: 100, endSample: 500 }],
+		})) })));
+		assert.equal(selectedTake('project-a', 'B').getAttribute('aria-pressed'), 'true');
+		assert.equal(dom.one('[data-timecode-direct-entry]').value, '200');
+		await act(async () => root.render(render(project('project-b'))));
+		assert.equal(selectedTake('project-b', 'A').getAttribute('aria-pressed'), 'true');
+		assert.equal(selectedTake('project-b', 'B').getAttribute('aria-pressed'), 'false');
+		assert.equal(dom.one('[data-timecode-direct-entry]').value, '100');
+	} finally {
+		await act(async () => root.unmount());
+		actGlobal.IS_REACT_ACT_ENVIRONMENT = priorAct;
+		dom.restore();
+	}
+});
+
 function project(id: string) {
 	const sources = [
 		createAudioSource({
