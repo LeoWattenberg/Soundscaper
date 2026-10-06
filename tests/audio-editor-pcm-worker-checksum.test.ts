@@ -7,6 +7,11 @@ import { WavPackCodecClient } from '../src/common/editor/wavpack/client.js';
 import { crc32, packPlanarFloat32, PCM_ENCODING_RAW_F32LE } from '../src/common/editor/wavpack/pcm.js';
 import { PcmRepository } from '../src/common/editor/storage/pcm-repository.ts';
 
+class ChecksumOnlyCodec extends WavPackCodecClient {
+	async encode(): Promise<never> { throw new Error('This test must only use the checksum operation.'); }
+	async decode(): Promise<never> { throw new Error('This test must only use the checksum operation.'); }
+}
+
 test('the PCM worker checks raw data without loading WASM and keeps returned payload custody', async (context) => {
 	let receive!: (event: { data: Record<string, unknown> }) => void;
 	const listeners = new Map<string, (event: { data: unknown }) => void>();
@@ -24,7 +29,7 @@ test('the PCM worker checks raw data without loading WASM and keeps returned pay
 	});
 	const fetch = context.mock.method(globalThis, 'fetch', async () => { throw new Error('Checksums must not initialize WASM.'); });
 	await import('../src/common/editor/wavpack/worker.js');
-	const client = new WavPackCodecClient({ workerFactory: () => ({
+	const client = new ChecksumOnlyCodec({ workerFactory: () => ({
 		addEventListener(type: string, listener: (event: { data: unknown }) => void) { listeners.set(type, listener); },
 		postMessage(message: Record<string, unknown>, transfer: ArrayBuffer[]) {
 			if (failNextPost) { failNextPost = false; throw new Error('The checksum worker is unavailable.'); }
@@ -36,6 +41,8 @@ test('the PCM worker checks raw data without loading WASM and keeps returned pay
 	const input = packPlanarFloat32([new Float32Array(8_192).fill(0.25), new Float32Array(8_192).fill(-0.5)]) as ArrayBuffer;
 	const options = { frames: 8_192, channelCount: 2, sampleRate: 48_000, priority: 'foreground' };
 	const checked = await client.checksum(input, { ...options, pcmCrc32: crc32(input) });
+	assert.ok(checked && typeof checked === 'object' && 'pcmCrc32' in checked && 'payload' in checked);
+	assert.ok(checked.payload instanceof ArrayBuffer);
 	assert.equal(checked.pcmCrc32, crc32(input));
 	assert.deepEqual(new Uint8Array(checked.payload), new Uint8Array(input));
 	assert.notEqual(checked.payload, input);
