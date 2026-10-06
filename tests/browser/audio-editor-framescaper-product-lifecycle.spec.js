@@ -145,7 +145,9 @@ test.describe('Framescaper v1 product lifecycle', () => {
 				{ position: String(frameCount), value: 0.8 },
 			] }],
 		});
-		await expect(anchorPosition).toHaveValue('0');
+		await expect(anchor).toHaveValue('1');
+		await expect(anchorPosition).toHaveValue(String(movedFrame));
+		await expect(anchorValue).toHaveValue('0.6');
 
 		const segment = dialog.locator('[data-video-keyframe-field="segment"]');
 		const segmentKind = dialog.locator('[data-video-keyframe-field="segment-kind"]');
@@ -164,8 +166,8 @@ test.describe('Framescaper v1 product lifecycle', () => {
 			curves: [{ target: 'opacity', segments: ['linear', 'eased'] }],
 		});
 
-		await expect(segment).toHaveValue('0');
-		await expect(segmentKind).toHaveValue('linear');
+		await expect(segment).toHaveValue('1');
+		await expect(segmentKind).toHaveValue('eased');
 		await segment.selectOption({ value: '0' });
 		await segmentKind.selectOption('bezier');
 		const firstControl = Math.max(1, Math.floor(movedFrame / 3));
