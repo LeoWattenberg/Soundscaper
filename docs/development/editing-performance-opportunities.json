@@ -178,10 +178,11 @@
 			"status": "partial",
 			"implementation": {
 				"change": "Cache bounded base/full-selected summary waveform layers and redraw only fractional selection-edge columns.",
-				"proof": "Chromium waveform-selection-layers spec compares 448 exact RGBA images across stereo, translucent palettes, fractional selection, RMS, half-wave and dB scales. A 1,000-column selection move reads four extrema rather than 2,000.",
+				"proof": "Chromium waveform-selection-layers spec compares 448 exact RGBA images across stereo, translucent palettes, fractional selection, RMS, half-wave and dB scales. A 1,000-column selection move reads four extrema rather than 2,000. Cold fully-selected 1,000-column canvases now read 2,000 extrema instead of 4,000, render/copy/clear one initial layer instead of two, and lazily acquire the base only when needed. Chromium 512 exact RGBA cases pass, including cold full selections and existing transitions; hot full selections read 0 and fractional moves read 4. Raw operation counts and pixel cases are retained in the implementation measurements.",
 				"limits": "Admitted only for regular summary waveforms at unit horizontal backing scale; sample/frequency/scaled modes retain exact original rendering. Shared retained pixels bounded to32MiB.",
 				"commits": [
-					"9503363f0"
+					"9503363f0",
+					"ee7645979"
 				]
 			}
 		},
@@ -3236,7 +3237,7 @@
 		}
 	],
 	"implementation": {
-		"codeRevision": "f1c94c685",
+		"codeRevision": "f70c0315b",
 		"counts": {
 			"implemented": 74,
 			"partial": 19,
@@ -3244,6 +3245,19 @@
 		},
 		"requiresManualAiAssets": false,
 		"measurementFile": "editing-performance-implementation-measurements.json",
-		"limits": "Unimplemented work is explicit in each partial/rejected record; 100 completed optimizations are not claimed. No native AI engine/archive closure changed."
+		"limits": "Unimplemented work is explicit in each partial/rejected record; 100 completed optimizations are not claimed. No native AI engine/archive closure changed.",
+		"supplementalImprovements": [
+			{
+				"id": "renderer-publication-dynamic-action-index",
+				"status": "implemented",
+				"change": "A private frozen ordered index precomputes the seven dynamic action templates, avoiding repeated enumeration and parsing of 381 manifest definitions. Public results, parameters, handlers and menus retain fresh caller ownership.",
+				"proof": "TDD observes 2,000 manifest enumerations before and zero after; 36 focused tests, 1,613 exact before/after matching cases and 841 independently checked adversarial cases pass. Two sets of nine alternating warmed trials are retained in the implementation measurements.",
+				"limits": "This removes measured renderer publication work. Isolated lookup timings do not establish a whole-operation speedup or explain the entire observed Tone regression.",
+				"commits": [
+					"ba50d2b69",
+					"7240a829e"
+				]
+			}
+		]
 	}
 }

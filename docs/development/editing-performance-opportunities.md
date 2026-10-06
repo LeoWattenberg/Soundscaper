@@ -18,17 +18,21 @@ No manual **Update AI assets** run is required. Native engine/WASM bytes, source
 
 ## Implemented Electron measurements
 
-A fresh default **Speed** profile ran the same menu workflows after rebuilding desktop application code and the production renderer. Each operation has three raw trials, including first-use effects. These are local observations on the same host; they do not establish a population p95. Startup is excluded.
+Two fresh default **Speed** profiles ran the same menu workflows after rebuilding desktop application code and the production renderer at `f1c94c685`. Each operation has six raw trials across those profiles, including first-use effects. Later canvas and menu-lookup changes have focused proofs; their rebuilt Electron measurement is pending. The baseline has three trials per operation. These are local observations on the same host with background validation in another checkout; they do not establish a population p95 or isolate shared-host variation. The later Xvfb screen also produced an actual 1279 × 899 viewport, versus the baseline 1280 × 900; a contemporaneous equal-viewport comparison is pending. Startup is excluded. Earlier faster trials from `474e46e62` remain in the raw artifact, but the table uses the later measured build.
 
 | Operation | Input duration | Baseline median | Implemented median | Longest renderer task |
 | --- | --- | --- | --- | --- |
-| Generate Tone | 30 s | 441.09 ms | 362.88 ms | 91 → 69 ms |
-| Generate Noise pink | 30 s | 760.79 ms | 397.94 ms | 238 → 54 ms |
-| Generate Noise pink | 120 s | 1941.47 ms | 734.47 ms | 843 → 50 ms |
-| Apply Amplify | 120 s | 4755.32 ms | 1975.77 ms | 61 → 61 ms |
-| Apply Compressor | 120 s | 3113.34 ms | 2122.72 ms | 62 → 59 ms |
+| Generate Tone | 30 s | 441.09 ms | 533.54 ms | 91 → 103 ms |
+| Generate Noise pink | 30 s | 760.79 ms | 596.59 ms | 238 → 79 ms |
+| Generate Noise pink | 120 s | 1941.47 ms | 1023.41 ms | 843 → 81 ms |
+| Apply Amplify | 120 s | 4755.32 ms | 2634.66 ms | 61 → 84 ms |
+| Apply Compressor | 120 s | 3113.34 ms | 2812.40 ms | 62 → 87 ms |
 
-For 120-second pink noise, the largest RAF gap fell from 849.97 ms to 50 ms. The eight-clip playback fixture retained 16.67 ms median/p95 RAF intervals: no playback FPS gain is claimed for this already-small workload. Xvfb uses software compositing, and RAF scheduling is not GPU presentation FPS. Apply completion improved while its worst RAF gap was slightly higher (50 → 66.67 ms); faster total processing is not a claim that every frame improved.
+Tone completion regressed in these repeats (441.09 → 533.54 ms). Pink-noise and Apply completion improved, while Apply's longest renderer tasks and RAF gaps increased. For 120-second pink noise, the largest RAF gap fell from 849.97 ms to 83.33 ms. The eight-clip playback fixture retained 16.67 ms median/p95 RAF intervals: no playback FPS gain is claimed for this workload. Xvfb uses software compositing, and RAF scheduling is not GPU presentation FPS.
+
+The cold fully-selected waveform path halves extrema reads (4,000 → 2,000 for 1,000 columns) and initial layer renders/copies/clears (two → one), with 512 exact Chromium RGBA comparisons. No-selection cold work is unchanged; this operation-count proof alone does not explain the measured Tone regression.
+
+A supplemental menu-action index removes repeated scans of 381 definitions by retaining seven immutable dynamic templates. Two thousand lookups perform zero repeat enumerations; 1,613 exact matching cases and 841 independent adversarial cases pass. Public results and handlers remain fresh. Isolated warm lookup trials and the reproducible tool are in the measurement artifact; no whole-operation speedup is claimed from them.
 
 Isolated implemented helpers retain exact parity: pink noise 178.55 → 13.54 ms, indexed gain 118.87 → 3.95 ms and linked dynamics 49.28 → 20.47 ms; command drafts on 1,000/2,000 clips 50.81 → 37.96 ms and 96.40 → 74.94 ms; retained 10,000-clip scheduling 10.32 → 0.055 ms. These timings exclude application storage/publication. The native ONNX residency probe uses a synthetic graph; its 101.90 → 54.31 ms session/lease comparison is not a real-model Generate speedup. Raw observations and reproduction methods are in the [implementation measurements](editing-performance-implementation-measurements.json).
 
@@ -700,6 +704,7 @@ node --import tsx scripts/performance/measure-editing-kernels.mjs
 node --import tsx scripts/performance/measure-pcm-helpers.mjs
 node --import tsx scripts/performance/measure-timeline-work.mjs
 node --import tsx scripts/performance/measure-controller-work.mjs
+node --import tsx scripts/performance/measure-action-matching.mjs
 node scripts/performance/verify-generator-stream-parity.mjs
 ```
 
