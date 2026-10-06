@@ -196,7 +196,7 @@ export class PcmRepository {
 			);
 		}
 		let rawPayload: ArrayBuffer;
-		let ownsDecodedPayload = false;
+		let ownsDecodedPayload: boolean;
 		if (record.encoding === PCM_ENCODING_RAW_F32LE) {
 			if (payload.byteLength !== rawBytes) {
 				throw new PcmStorageCorruptionError('Raw persisted PCM has invalid geometry.', 'PCM_RECORD_GEOMETRY');
@@ -234,12 +234,18 @@ export class PcmRepository {
 					{ cause: error },
 				);
 			}
-			if (rawPayload.byteLength !== rawBytes || crc32(rawPayload) !== expectedCrc32) {
+			if (rawPayload.byteLength !== rawBytes) {
 				throw new PcmStorageCorruptionError(
 					'Decoded WavPack PCM failed its geometry or CRC-32.',
 					'PCM_CRC_MISMATCH',
 				);
 			}
+			const checked = await this.#checksum(rawPayload, {
+				frames, channelCount, sampleRate: Number(source.sampleRate) || 48_000,
+				priority, signal, pcmCrc32: expectedCrc32,
+			});
+			rawPayload = checked.payload;
+			ownsDecodedPayload = checked.owned;
 		} else {
 			throw new PcmStorageCorruptionError(
 				`Persisted PCM uses unsupported encoding ${String(record.encoding)}.`,
