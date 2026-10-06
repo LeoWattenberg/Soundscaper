@@ -1,5 +1,5 @@
 import { expect, test, monoTone, createWavFixture } from './audio-editor-test-fixtures.js';
-import { bootEditor, clipByName, collectClientErrors, disableNativeSavePicker, importFiles, openExportDialog, readDownloadBytes, registerAudioEditorHooks } from './audio-editor-test-helpers.js';
+import { bootEditor, clipByName, clipField, closeClipProperties, collectClientErrors, commitInput, disableNativeSavePicker, importFiles, openClipProperties, openExportDialog, readDownloadBytes, registerAudioEditorHooks } from './audio-editor-test-helpers.js';
 
 async function selectClip(clip) {
 	await clip.locator('.clip-header').click();
@@ -211,6 +211,35 @@ test.describe('clip looping', () => {
 			const committed = await waveformRepeatProfile(waveform);
 			return committed && committed.every((pair, repeat) => pair.every((value, phase) => Math.abs(value - during[repeat][phase]) < 0.01));
 		}).toBe(true);
+		expect(errors).toEqual([]);
+	});
+
+	test('preserves loop length and repeat count when rendering pitch and speed from the clip menu', async ({ page }) => {
+		test.setTimeout(90_000);
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [monoTone]);
+		const clip = clipByName(editor, monoTone.name);
+		await selectClip(clip);
+		const loop = clip.getByRole('slider', { name: 'Looped clip length', exact: true });
+		for (let repeat = 1; repeat < 4; repeat++) await loop.press('ArrowRight');
+		const initialLength = Number(await loop.getAttribute('aria-valuenow'));
+		const properties = await openClipProperties(page, editor, clip);
+		await properties.getByText('Pitch and tempo', { exact: true }).click();
+		await commitInput(clipField(properties, 'pitchCents'), '2');
+		await commitInput(clipField(properties, 'speedRatio'), '2');
+		await closeClipProperties(properties);
+		await expect(loop).toHaveAttribute('aria-valuenow', String(initialLength / 2));
+		await expect(clip.locator('[data-loop-boundary-frame]')).toHaveCount(3);
+		await clip.getByRole('button', { name: 'Clip menu', exact: true }).click();
+		await page.locator('.audio-editor-clip-context-menu')
+			.getByRole('menuitem', { name: 'Render pitch and speed', exact: true }).click();
+		const rendered = clipByName(editor, `${monoTone.name} — Render pitch and speed`);
+		await expect(rendered).toBeVisible({ timeout: 60_000 });
+		await expect(rendered.getByRole('button', { name: 'Clip pitch', exact: true })).toHaveCount(0);
+		await expect(rendered.getByRole('button', { name: 'Clip speed', exact: true })).toHaveCount(0);
+		await expect(rendered.getByRole('slider', { name: 'Looped clip length', exact: true })).toHaveAttribute('aria-valuenow', String(initialLength / 2));
+		await expect(rendered.locator('[data-loop-boundary-frame]')).toHaveCount(3);
 		expect(errors).toEqual([]);
 	});
 

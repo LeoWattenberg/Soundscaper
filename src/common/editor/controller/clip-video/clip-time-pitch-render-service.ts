@@ -7,6 +7,7 @@ import {
 } from '../../clip-time-pitch-cache.js';
 import { estimatePcmRenderPublication } from '../../publication-byte-estimates.ts';
 import { scaleSampleFrame } from '../../timeline-time.ts';
+import { readClipLoop, withoutClipLoop } from '../../audio-clip-loop.ts';
 import { loadSourceProvenanceDerivation } from '../../source-provenance-derivation-loader.ts';
 import type { SourceProvenanceV1 } from '../../source-provenance.ts';
 import {
@@ -76,6 +77,7 @@ interface RenderSource extends ClipTransformSource {
 interface RenderFingerprint {
 	readonly linkPitchAndTempo: boolean;
 	readonly warpMap: string;
+	readonly loop: string;
 	readonly projectId: string;
 	readonly clipId: string;
 	readonly sourceId: string;
@@ -308,12 +310,16 @@ function renderedClip(
 	projectSampleRate: number,
 ): RenderClip {
 	const frameCount = buffer.length;
-	const durationFrames = Math.max(
+	const loop = readClipLoop(clip);
+	// Scalar caches contain one period; linked offline output contains the
+	// complete audible clip, including its repeat phase and final partial pass.
+	const durationFrames = loop && !clip.linkPitchAndTempo ? clip.durationFrames : Math.max(
 		1,
 		scaleSampleFrame(frameCount, buffer.sampleRate, projectSampleRate, 'point'),
 	);
 	return {
 		...clip,
+		...(loop && clip.linkPitchAndTempo ? { opaqueExtensions: withoutClipLoop(clip.opaqueExtensions) } : {}),
 		sourceId,
 		sourceStartFrame: 0,
 		sourceDurationFrames: frameCount,
@@ -334,6 +340,7 @@ function renderedClip(
 function fingerprintClip(project: ClipTransformProject, clip: RenderClip): RenderFingerprint {
 	return Object.freeze({
 		linkPitchAndTempo: Boolean(clip.linkPitchAndTempo), warpMap: JSON.stringify(clip.warpMap ?? null),
+		loop: JSON.stringify(readClipLoop(clip)),
 		projectId: project.id,
 		clipId: clip.id,
 		sourceId: clip.sourceId,
@@ -350,6 +357,7 @@ function fingerprintClip(project: ClipTransformProject, clip: RenderClip): Rende
 function matchesFingerprint(clip: RenderClip, value: RenderFingerprint): boolean {
 	return clip.id === value.clipId
 		&& Boolean(clip.linkPitchAndTempo) === value.linkPitchAndTempo && JSON.stringify(clip.warpMap ?? null) === value.warpMap
+		&& JSON.stringify(readClipLoop(clip)) === value.loop
 		&& clip.sourceId === value.sourceId
 		&& clip.sourceStartFrame === value.sourceStartFrame
 		&& clip.sourceDurationFrames === value.sourceDurationFrames

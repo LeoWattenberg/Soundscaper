@@ -13,6 +13,7 @@ import {
 } from '../src/common/editor/controller/shared/lifecycle.ts';
 import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
 import type { AudioBufferLike } from '../src/common/editor/controller/source/source-audio.ts';
+import { readClipLoop } from '../src/common/editor/audio-clip-loop.ts';
 
 test('rendering commits persisted StaffPad output as one source/clip replacement batch', async () => {
 	const harness = createHarness(projectFixture());
@@ -188,6 +189,80 @@ test('link toggles and stretch marker changes retire an in-flight naive render',
 	}
 });
 
+test('rendering one scalar loop period preserves the full repeat extent and phase', async () => {
+	for (const sampleRate of [24_000, 48_000, 96_000]) {
+		const clip = clipFixture({
+			sourceDurationFrames: sampleRate, durationFrames: 96_000,
+			pitchCents: 200, speedRatio: 2,
+			opaqueExtensions: { 'org.soundscaper.clip-loop/v1': { periodFrames: 24_000, offsetFrames: 6_000 } },
+		});
+		const rendered = audioBufferFixture(sampleRate / 2, sampleRate);
+		const harness = createHarness(projectFixture({
+			clips: [clip], sources: [sourceFixture({ frameCount: sampleRate, sampleRate })],
+		}), { materialize: async () => cacheEntry('loop-period', rendered) });
+		await harness.service.renderClipPitchSpeed('clip');
+		const replacement = addedClip(harness.commits);
+		assert.equal(replacement.durationFrames, 96_000, 'four repeats retain their timeline extent');
+		assert.equal(replacement.sourceDurationFrames, rendered.length);
+		assert.deepEqual(readClipLoop(replacement), { periodFrames: 24_000, offsetFrames: 6_000 });
+		assert.equal(replacement.speedRatio, 1);
+		assert.equal(replacement.reversed, false, 'the rendered period already includes direction');
+	}
+});
+
+test('rendering linked loop playback removes the repetition metadata baked into the output', async () => {
+	const clip = clipFixture({
+		sourceDurationFrames: 48_000, durationFrames: 96_000,
+		linkPitchAndTempo: true, pitchCents: 0, speedRatio: 2,
+		opaqueExtensions: {
+			'org.soundscaper.clip-loop/v1': { periodFrames: 24_000, offsetFrames: 6_000 },
+			'example.other': { retained: true },
+		},
+	});
+	const harness = createHarness(projectFixture({
+		clips: [clip], sources: [sourceFixture({ frameCount: 48_000 })],
+	}), { renderLinked: async () => audioBufferFixture(96_000) });
+	await harness.service.renderClipPitchSpeed('clip');
+	const replacement = addedClip(harness.commits);
+	assert.equal(replacement.durationFrames, 96_000);
+	assert.equal(replacement.sourceDurationFrames, 96_000);
+	assert.equal(readClipLoop(replacement), null, 'baked repetitions must play once');
+	assert.deepEqual(replacement.opaqueExtensions, { 'example.other': { retained: true } });
+});
+
+test('loop period and phase edits retire scalar and linked renders before publication', async () => {
+	for (const linked of [false, true]) {
+		for (const change of [{ periodFrames: 3, offsetFrames: 1 }, { periodFrames: 4, offsetFrames: 2 }]) {
+			const clip = clipFixture({
+				durationFrames: 16, speedRatio: 2, linkPitchAndTempo: linked,
+				opaqueExtensions: { 'org.soundscaper.clip-loop/v1': { periodFrames: 4, offsetFrames: 1 } },
+			});
+			const gate = deferred<AudioBufferLike>();
+			const harness = createHarness(projectFixture({ clips: [clip] }), {
+				materialize: async () => cacheEntry('loop-period', await gate.promise),
+				renderLinked: () => gate.promise,
+			});
+			const pending = harness.service.renderClipPitchSpeed('clip');
+			await Promise.resolve();
+			harness.replaceWithinProject(projectFixture({ clips: [{ ...clip,
+				opaqueExtensions: { 'org.soundscaper.clip-loop/v1': change },
+			}] }));
+			gate.resolve(audioBufferFixture());
+			await assert.rejects(pending, { name: 'AbortError' });
+			assert.deepEqual(harness.commits, []);
+			assert.deepEqual(harness.writerEvents, []);
+		}
+	}
+});
+
+function addedClip(commits: readonly { readonly command: AudioEditorCommand }[]) {
+	const command = commits[0]?.command;
+	if (command?.type !== 'batch') assert.fail('Expected a render replacement batch.');
+	const added = command.commands.find((entry) => entry.type === 'clip/add');
+	if (added?.type !== 'clip/add') assert.fail('Expected a rendered clip.');
+	return added.clip;
+}
+
 function createHarness(
 	initialProject: ClipTransformProject,
 	options: Readonly<{
@@ -336,10 +411,11 @@ function cacheEntry(cacheKey: string, audioBuffer: AudioBufferLike): ClipTimePit
 	return { cacheKey, sampleRate: audioBuffer.sampleRate, audioBuffer };
 }
 
-function audioBufferFixture(): AudioBufferLike {
-	const channel = Float32Array.from([0, 0.25, -0.25, 0]);
+function audioBufferFixture(length = 4, sampleRate = 48_000): AudioBufferLike {
+	const channel = new Float32Array(length);
+	channel.set([0, 0.25, -0.25, 0].slice(0, length));
 	return {
-		length: channel.length, numberOfChannels: 1, sampleRate: 48_000,
+		length: channel.length, numberOfChannels: 1, sampleRate,
 		getChannelData: () => channel,
 	};
 }
