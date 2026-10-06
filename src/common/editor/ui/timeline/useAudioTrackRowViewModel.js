@@ -111,24 +111,35 @@ export function useAudioTrackRowViewModel({
 }) {
 	const trackId = track.id;
 	const trackType = track.type;
+	const trackClipIds = useMemo(() => new Set(trackClips.map(clip => clip.id)), [trackClips]);
+	const rowClipDragPreview = useMemo(() => clipDragPreview
+		&& (clipDragPreview.previews || [clipDragPreview]).some(preview => (
+			preview.trackId === trackId || trackClipIds.has(preview.clipId)
+		)) ? clipDragPreview : null, [clipDragPreview, trackClipIds, trackId]);
+	const rowProjectBinPreview = useMemo(() => projectBinDragPreview
+		&& (projectBinDragPreview.previews || [projectBinDragPreview]).some(preview => (
+			preview.trackId === trackId && preview.clip?.kind === trackType
+		)) ? projectBinDragPreview : null, [projectBinDragPreview, trackId, trackType]);
+	const viewportClipIndex = useMemo(() => trackClips.length > 128
+		? createTimelineViewportClipIndex(trackClips) : undefined, [trackClips]);
+	const visibleTrackClips = useMemo(() => viewportClipIndex?.query(
+		Math.max(0, renderViewportStartFrame - viewportDurationFrames),
+		Math.min(Number.MAX_SAFE_INTEGER, renderViewportStartFrame + viewportDurationFrames * 2),
+	) ?? trackClips, [renderViewportStartFrame, trackClips, viewportClipIndex, viewportDurationFrames]);
 	const clips = useMemo(() => projectAudioTrackRowClips({
 		trackId,
 		trackType,
-		trackClips,
+		trackClips: visibleTrackClips,
 		clipLookup,
 		recordingPreview,
-		clipDragPreview,
-		projectBinDragPreview,
-	}), [clipDragPreview, clipLookup, projectBinDragPreview, recordingPreview, trackClips, trackId, trackType]);
-	const viewportClipIndex = useMemo(() => clips.length > 128
-		&& !clipDragPreview && !projectBinDragPreview && !(recordingPreview?.durationFrames > 0)
-		? createTimelineViewportClipIndex(clips) : undefined,
-	[clipDragPreview, clips, projectBinDragPreview, recordingPreview]);
+		clipDragPreview: rowClipDragPreview,
+		projectBinDragPreview: rowProjectBinPreview,
+	}), [rowClipDragPreview, clipLookup, rowProjectBinPreview, recordingPreview, visibleTrackClips, trackId, trackType]);
 	const projection = useMemo(() => projectClipsToViewport(clips, {
 		viewportStartFrame: renderViewportStartFrame,
 		viewportDurationFrames,
 		sampleRate,
-	}, viewportClipIndex), [clips, renderViewportStartFrame, sampleRate, viewportClipIndex, viewportDurationFrames]);
+	}), [clips, renderViewportStartFrame, sampleRate, viewportDurationFrames]);
 	const hasProject = project != null;
 	const projectId = project?.id;
 	const projectSampleRate = project?.sampleRate;
@@ -395,6 +406,7 @@ function projectAudioTrackRowClips({
 		sourceDurationFrames: recordingPreview.durationFrames,
 		isRecordingPreview: true,
 	}] : trackClips;
+	if (!clipDragPreview && !projectBinDragPreview) return withRecordingPreview;
 	const projected = [...withRecordingPreview];
 	if (clipDragPreview) {
 		const previews = clipDragPreview.previews || [clipDragPreview];
