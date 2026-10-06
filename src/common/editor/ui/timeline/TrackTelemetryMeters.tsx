@@ -3,19 +3,16 @@
 import { TrackMeter } from '@soundscaper/design-system/TrackMeter';
 
 import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
-import { meterPercent } from './geometry.ts';
-
-interface MeterSnapshot {
-	readonly dbfs?: number;
-	readonly peak?: number;
-}
+import { meterChannelReadings, productionStripMeter, type ScalarMeterSnapshot, type ChannelMeterSource } from '../meter-channel-readings.ts';
+import type { StripMeterSnapshot } from '../../production-audio/strip-meter-session.ts';
 
 interface MeterTelemetrySnapshot {
 	readonly meters?: Readonly<{
-		readonly master?: MeterSnapshot;
-		readonly groups?: Readonly<Record<string, MeterSnapshot>>;
-		readonly sends?: Readonly<Record<string, MeterSnapshot>>;
-		readonly tracks?: Readonly<Record<string, MeterSnapshot>>;
+		readonly master?: ScalarMeterSnapshot;
+		readonly groups?: Readonly<Record<string, ScalarMeterSnapshot>>;
+		readonly sends?: Readonly<Record<string, ScalarMeterSnapshot>>;
+		readonly tracks?: Readonly<Record<string, ScalarMeterSnapshot>>;
+		readonly productionMeters?: readonly StripMeterSnapshot[];
 	}>;
 }
 
@@ -33,7 +30,8 @@ export function TrackTelemetryMeters({
 }>) {
 	const meter = useAudioEditorTelemetrySelector(
 		controller,
-		(telemetry: MeterTelemetrySnapshot) => telemetry.meters?.tracks?.[trackId],
+		(telemetry: MeterTelemetrySnapshot) => productionStripMeter(telemetry.meters?.productionMeters, 'track', trackId)
+			?? telemetry.meters?.tracks?.[trackId],
 	);
 	return <StereoTrackMeters meter={meter} />;
 }
@@ -50,6 +48,8 @@ export function OutputTelemetryMeters({
 	const meter = useAudioEditorTelemetrySelector(
 		controller,
 		(telemetry: MeterTelemetrySnapshot) => {
+			const production = productionStripMeter(telemetry.meters?.productionMeters, scope, busId ?? '');
+			if (production) return production;
 			if (scope === 'master') return telemetry.meters?.master;
 			if (!busId) return undefined;
 			return scope === 'group'
@@ -60,11 +60,8 @@ export function OutputTelemetryMeters({
 	return <StereoTrackMeters meter={meter} />;
 }
 
-function StereoTrackMeters({ meter }: Readonly<{ meter?: MeterSnapshot }>) {
-	const volume = meterPercent(meter?.dbfs);
-	const clipped = (meter?.peak || 0) >= 1;
-	return <>
-		<TrackMeter variant="stereo" volume={volume} clipped={clipped} />
-		<TrackMeter variant="stereo" volume={volume} clipped={clipped} />
-	</>;
+function StereoTrackMeters({ meter }: Readonly<{ meter?: ChannelMeterSource }>) {
+	return <>{meterChannelReadings(meter).map(({ level, clipped }, index) => (
+		<TrackMeter key={index} variant="stereo" volume={level} clipped={clipped} />
+	))}</>;
 }

@@ -215,4 +215,31 @@ because the entered 1760 Hz became 880 Hz. Build 13 passes in Chromium, Firefox
 and WebKit, including cancellation and a valid 880-Hz/12-semitone change.
 Nine strict helper and derived-value regressions pass.
 
+## R2-ROOT-016 — Stereo meters duplicate one aggregate level
+
+Import an ordinary stereo WAV whose left channel has a tone and whose right
+channel is silent. Open **Window > Mixer** and play it. Previously both channel
+bars showed the same level because the UI repeated the aggregate scalar meter.
+The mixer and track-header meters now read the existing per-channel strip
+telemetry, so the silent channel stays empty. Master and bus strips use the
+same channel-aware path; scalar telemetry remains supported.
+
+Proof: the first `audio-editor-round2-mixer-meters.spec.js` workflow failed
+against build 14 because the silent right bar had a nonzero level. Build 15
+passes in Chromium, Firefox and WebKit, checking both mixer and track-header
+bars. The strict rendered-component regression covers tracks, buses and master.
+
+## R2-ROOT-017 — Mixer clipping lights turn on below full scale
+
+Import a stereo tone with 0.9 peak amplitude, open **Window > Mixer** and play
+it. Previously both clipping lights turned on even though the audio was below
+full scale: the UI tested whether the meter reached 95% of its displayed range,
+which corresponds to -3 dBFS. Clipping now tests each channel's actual peak
+against full scale, independently of the meter's display range.
+
+Proof: the second `audio-editor-round2-mixer-meters.spec.js` workflow failed
+against build 14 with two active clipping indicators. Build 15 passes in
+Chromium, Firefox and WebKit. The strict rendered regression also verifies
+that only the channel with a 1.01 peak lights its indicator.
+
 These changes do not require a manual **Update AI assets** run.

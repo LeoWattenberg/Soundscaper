@@ -1,17 +1,16 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
-
-interface MixerMeterSnapshot {
-	readonly dbfs?: number;
-}
+import { meterChannelReadings, productionStripMeter, type ScalarMeterSnapshot } from '../meter-channel-readings.ts';
+import type { StripMeterSnapshot } from '../../production-audio/strip-meter-session.ts';
 
 interface MixerMeterTelemetrySnapshot {
 	readonly meters?: Readonly<{
-		readonly master?: MixerMeterSnapshot;
-		readonly groups?: Readonly<Record<string, MixerMeterSnapshot>>;
-		readonly sends?: Readonly<Record<string, MixerMeterSnapshot>>;
-		readonly tracks?: Readonly<Record<string, MixerMeterSnapshot>>;
+		readonly master?: ScalarMeterSnapshot;
+		readonly groups?: Readonly<Record<string, ScalarMeterSnapshot>>;
+		readonly sends?: Readonly<Record<string, ScalarMeterSnapshot>>;
+		readonly tracks?: Readonly<Record<string, ScalarMeterSnapshot>>;
+		readonly productionMeters?: readonly StripMeterSnapshot[];
 	}>;
 }
 
@@ -31,32 +30,25 @@ export function MixerTelemetryMeters({
 	scope: MixerMeterScope;
 	targetId: string;
 }>) {
-	const level = useAudioEditorTelemetrySelector(
+	const meter = useAudioEditorTelemetrySelector(
 		controller,
 		(telemetry: MixerMeterTelemetrySnapshot) => {
-			if (scope === 'track') return mixerMeterPercent(telemetry.meters?.tracks?.[targetId]);
-			if (scope === 'master') return mixerMeterPercent(telemetry.meters?.master);
-			return mixerMeterPercent(telemetry.meters?.[`${scope}s`]?.[targetId]);
+			const production = productionStripMeter(telemetry.meters?.productionMeters, scope, targetId);
+			if (production) return production;
+			if (scope === 'track') return telemetry.meters?.tracks?.[targetId];
+			if (scope === 'master') return telemetry.meters?.master;
+			return telemetry.meters?.[`${scope}s`]?.[targetId];
 		},
 	);
 
-	return <>
-		<MixerMeterBar level={level} />
-		<MixerMeterBar level={level} />
-	</>;
+	return <>{meterChannelReadings(meter).map((reading, index) => <MixerMeterBar key={index} {...reading} />)}</>;
 }
 
-function MixerMeterBar({ level }: Readonly<{ level: number }>) {
+function MixerMeterBar({ level, clipped }: Readonly<{ level: number; clipped: boolean }>) {
 	const clampedLevel = Math.max(0, Math.min(100, level));
 	const fillPercent = 100 - clampedLevel;
-	const isClipping = clampedLevel >= 95;
 	return <div className="mixer-channel__meter-bar">
-		<div className={`mixer-channel__meter-clip ${isClipping ? 'mixer-channel__meter-clip--active' : ''}`} />
+		<div className={`mixer-channel__meter-clip ${clipped ? 'mixer-channel__meter-clip--active' : ''}`} />
 		<div className="mixer-channel__meter-fill" style={{ top: `${fillPercent}%` }} />
 	</div>;
-}
-
-function mixerMeterPercent(meter: MixerMeterSnapshot | undefined): number {
-	const db = Number(meter?.dbfs);
-	return Number.isFinite(db) ? Math.max(0, Math.min(100, (db + 60) / 60 * 100)) : 0;
 }
