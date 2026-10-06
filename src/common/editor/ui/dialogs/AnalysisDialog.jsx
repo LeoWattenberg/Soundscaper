@@ -7,6 +7,7 @@ import { resolveSelectionRange } from '../../selection-range.ts';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import { formatDb, formatLoudness, macroFileName } from '../inspector/inspector-helpers.ts';
 import { formatLocalizedTemplate } from '../localization-template.ts';
+import { spectrumPlotPoints } from './spectrum-plot-points.ts';
 import './analysis-dialog.css';
 
 const MODES = Object.freeze({ levels: 'analyzeSelection', spectrum: 'plotSpectrum', clipping: 'findClipping', contrast: 'contrast' });
@@ -127,10 +128,7 @@ function LevelsResult({ result, copy }) {
 
 function SpectrumResult({ report, copy }) {
 	const bins = report.bins || [];
-	const points = Array.from({ length: 128 }, (_, index) => {
-		const bin = bins[Math.min(bins.length - 1, Math.round((bins.length - 1) ** (index / 127)))];
-		return `${index * 5},${Math.round(-Math.max(-120, Math.min(0, Number(bin?.db ?? -120))) / 120 * 150)}`;
-	}).join(' ');
+	const points = spectrumPlotPoints(bins);
 	return <section className="audio-editor-analysis-report" data-analysis-report="spectrum">
 		<h4>{copy.plotSpectrum}</h4>
 		<svg className="audio-editor-analysis-dialog__plot" viewBox="0 0 635 150" role="img" aria-label={copy.plotSpectrum} data-analysis-spectrum>

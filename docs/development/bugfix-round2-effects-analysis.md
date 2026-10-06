@@ -256,4 +256,18 @@ against build 14 with two active clipping indicators. Build 15 passes in
 Chromium, Firefox and WebKit. The strict rendered regression also verifies
 that only the channel with a 1.01 peak lights its indicator.
 
+## R2-ROOT-018 — Plot Spectrum drops narrow high-frequency peaks
+
+Import a normal 10-kHz tone WAV, **Select > Select all**, then **Analyze > Plot
+spectrum**. Previously the graph's highest point understated the reported peak
+by about 10.5 dB. The logarithmic curve sampled one FFT bin per column, skipping
+bins between those samples. Each display column now retains the maximum of
+its covered bins, so narrow tones remain visible across the audio range.
+
+Proof: `audio-editor-round2-spectrum-plot-peaks.spec.js` failed against build 15
+with a 10.494-dB discrepancy between the visible curve and the normally
+exported spectrum report. Build 16 passes in Chromium, Firefox and WebKit
+within the graph's rounding precision. Strict regressions check actual FFTs
+of 100-Hz, 440-Hz, 1-kHz, 10-kHz and 22-kHz tones, plus silence and empty reports.
+
 These changes do not require a manual **Update AI assets** run.
