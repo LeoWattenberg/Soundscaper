@@ -97,7 +97,7 @@ try {
 	expect(errors).toEqual([]);
 	const report = { node: process.version, platform: process.platform, arch: process.arch,
 		cpu: cpus()[0]?.model, logicalCpus: cpus().length, runtime, viewport, preference: 'speed',
-		method: 'Actual Electron development app with freshly staged production renderer and real preload/SQLite/PCM path. First trial includes first-use processing engines; subsequent trials are warm. Capture click to dialog closed, success status, usable waveform and two animation frames. Xvfb RAF gaps are a renderer responsiveness proxy, not GPU presentation FPS. Startup excluded.',
+		method: 'Actual Electron development app with freshly staged production renderer and real preload/SQLite/PCM path. First trial includes first-use processing engines; subsequent trials are warm. Capture click to dialog closed, success status, cleared waveform pending state, explicit successful canvas paint and two animation frames. Xvfb RAF gaps are a renderer responsiveness proxy, not GPU presentation FPS. Startup excluded.',
 		results };
 	await writeFile(output, JSON.stringify(report, null, '\t') + '\n');
 	process.stdout.write(`Saved ${results.length} observations to ${output}\n`);
@@ -135,6 +135,9 @@ async function armOperation(page, buttonLabel, surface) {
 			if (metrics.start === null || metrics.finished || document.querySelector(surface)) return;
 			if (document.querySelector('[data-status]')?.dataset.state !== 'success') return;
 			if (document.querySelector('[data-waveform-pending="true"]')) return;
+			const canvases = document.querySelectorAll('canvas.clip-body__waveform');
+			if (!canvases.length || [...canvases].some(canvas => !(canvas instanceof HTMLCanvasElement)
+				|| canvas.dataset.waveformRenderer !== 'audacity' || canvas.dataset.waveformError)) return;
 			if (metrics.completion !== null) return;
 			metrics.completion = performance.now();
 			requestAnimationFrame(() => requestAnimationFrame(() => {
