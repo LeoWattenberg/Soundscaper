@@ -1,0 +1,2404 @@
+{
+	"schemaVersion": 1,
+	"title": "Soundscaper editing responsiveness opportunities",
+	"date": "2026-10-06",
+	"baseRevision": "25d7cbdb4",
+	"scope": "100 proposed Soundscaper editing responsiveness and processing-throughput improvements. Editor initial/lazy load, bundle/network startup and Framescaper-only features excluded. Default Electron Speed preference verified.",
+	"interpretation": "Source work and operation counts support candidates; most end-to-end benefits remain unmeasured. Pure Node kernel prototypes have numerical checks but are not production implementations. Existing October 2 fixes are excluded.",
+	"auditRequiresManualAiAssets": false,
+	"findings": [
+		{
+			"number": 1,
+			"key": "timeline-01",
+			"group": "Timeline and display",
+			"title": "Index looped clips for boundary snapping",
+			"priority": "P1",
+			"evidence": [
+				{
+					"file": "src/common/editor/ui/timeline/boundary-snap.ts",
+					"line": 152
+				},
+				{
+					"file": "src/common/editor/ui/timeline/boundary-snap.ts",
+					"line": 189
+				}
+			],
+			"observedWork": "Every snap query traverses every track clip ID to discover loop boundaries, including documents with no loops. Move snapping runs this scan for both edges. The existing sorted edge index only bounds the normal edge lookup.",
+			"proposedChange": "Store loop-bearing clips and track IDs in BoundarySnapIndex; query only indexed loop extents intersecting the pointer's tolerance window.",
+			"scenario": "Move or range-select in a 10,000-100,000-clip project, with snapping active.",
+			"validation": "Membership iterations per pointer update, handler CPU time, p95 drag frame interval; preserve coincident-boundary and exclusion behavior.",
+			"existingProtection": "Clip/source map lookups and normal boundary binary searches already exist; do not redo them.",
+			"correctness": null,
+			"evidenceLevel": "operation-count verified",
+			"status": "proposed",
+			"measurement": "Membership-read fixture: 50,000 clipIds reads and 5,000,000 memberships across 500 indexed queries on 10,000 loop-free clips. Larger 100,000-clip fixture, 100 queries: median 373.49 ms over five trials after warm-up; 10,000,000 memberships. Moving a clip resolves two edges. Node work probe, not Electron drag FPS."
+		},
+		{
+			"number": 2,
+			"key": "timeline-02",
+			"group": "Timeline and display",
+			"title": "Index microfade neighbors and collision intervals",
+			"priority": "P2",
+			"evidence": [
+				{
+					"file": "src/common/editor/ui/timeline/boundary-snap.ts",
+					"line": 211
+				},
+				{
+					"file": "src/common/editor/ui/timeline/boundary-snap.ts",
+					"line": 227
+				}
+			],
+			"observedWork": "After a successful edge snap, microfadeOverlapFrames materializes every destination-track clip, filters for the one touching neighbor, then scans all clips for collisions. A dense destination track repeats this cost as a clip stays snapped while dragging.",
+			"proposedChange": "Extend the immutable snap index with per-track start/end neighbor maps and a bounded interval collision query.",
+			"scenario": "Drag one audio clip around a dense track with applyMicrofadesToNewClips enabled.",
+			"validation": "Destination clip property reads and allocations per successful snapped move; p95 snapped-handler duration.",
+			"existingProtection": "The existing implementation already avoids project.clips.find through clipById; remaining work is scanning destination geometry.",
+			"correctness": null,
+			"evidenceLevel": "code-confirmed cost; impact unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 3,
+			"key": "timeline-03",
+			"group": "Timeline and display",
+			"title": "Coalesce canvas invalidations across React commits",
+			"priority": "P2",
+			"evidence": [
+				{
+					"file": "src/common/editor/ui/timeline/TimelineCanvasRenderer.jsx",
+					"line": 83
+				},
+				{
+					"file": "src/common/editor/ui/timeline/TimelineCanvasRenderer.jsx",
+					"line": 202
+				}
+			],
+			"observedWork": "Each changed layout-effect dependency immediately calls draw(), before paint. Several visual publications or selection commits within one display frame can repeat DOM scanning and draw-key construction even where unchanged canvases skip painting.",
+			"proposedChange": "Keep a persistent dirty renderer and latest-input ref, coalesce updates once per animation frame, and retain an explicit immediate path where first-frame correctness requires it.",
+			"scenario": "Multitrack recording publications, spectral tile completions, or rapidly changing selection.",
+			"validation": "Renderer scans/draws per display frame and main-thread time until the next paint; check no blank initial waveform.",
+			"existingProtection": "ResizeObserver redraws already use createAnimationFrameCoalescer and canvas draw keys already skip identical paint; this concerns dependency-driven synchronous draws.",
+			"correctness": null,
+			"evidenceLevel": "code-confirmed cost; impact unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 4,
+			"key": "timeline-04",
+			"group": "Timeline and display",
+			"title": "Batch waveform geometry and palette reads before canvas writes",
+			"priority": "P2",
+			"evidence": [
+				{
+					"file": "src/common/editor/ui/timeline/TimelineCanvasRenderer.jsx",
+					"line": 103
+				},
+				{
+					"file": "src/common/editor/ui/timeline/TimelineCanvasRenderer.jsx",
+					"line": 113
+				},
+				{
+					"file": "src/common/editor/ui/timeline/TimelineCanvasRenderer.jsx",
+					"line": 298
+				}
+			],
+			"observedWork": "The renderer reads one canvas rectangle, mutates backing dimensions and dataset/style, reads computed styles, paints, then reads the next canvas rectangle. Mixed reads and writes can trigger repeated style/layout work across clips.",
+			"proposedChange": "Collect live canvases, geometry, and theme/color palette first; then size and paint them in a write phase, caching palettes by theme/color revision.",
+			"scenario": "Zoom, resize, or selection paint across many visible clips at high DPI.",
+			"validation": "Forced layout/style-recalculation events and duration in an Electron trace; canvas paint CPU per frame.",
+			"existingProtection": "Canvas paint caching and bounded backing dimensions remain; this candidate is also acknowledged in performance-candidates.md and still needs a representative trace.",
+			"correctness": null,
+			"evidenceLevel": "code-confirmed read/write sequence; layout impact unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 5,
+			"key": "timeline-05",
+			"group": "Timeline and display",
+			"title": "Paint selection with cached waveform layers",
+			"priority": "P2",
+			"evidence": [
+				{
+					"file": "src/common/editor/ui/timeline/TimelineCanvasRenderer.jsx",
+					"line": 114
+				},
+				{
+					"file": "src/common/editor/ui/timeline/TimelineCanvasRenderer.jsx",
+					"line": 337
+				},
+				{
+					"file": "src/common/editor/ui/timeline/TimelineCanvasRenderer.jsx",
+					"line": 390
+				}
+			],
+			"observedWork": "Selection pixel endpoints are part of the draw key. Every changed selection clears the complete clip and redraws all waveform columns in selected/unselected colors, although PCM geometry and envelope have not changed.",
+			"proposedChange": "Retain unselected and selected-color waveform images, and composite clipped selection regions plus body fill; invalidate these images only on geometry/audio/theme changes.",
+			"scenario": "Drag a time selection across a long visible stereo waveform.",
+			"validation": "Waveform column evaluations versus selection-only drawImage calls, p95 selection frame time, bounded cache bytes.",
+			"existingProtection": "Waveform plans and spectrogram raster images are already cached; selection currently changes the full waveform paint, not its analysis.",
+			"correctness": null,
+			"evidenceLevel": "code-confirmed cost; impact unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 6,
+			"key": "timeline-06",
+			"group": "Timeline and display",
+			"title": "Memoize unaffected mounted audio rows with narrow inputs",
+			"priority": "P2",
+			"evidence": [
+				{
+					"file": "src/common/editor/ui/timeline/TrackListView.jsx",
+					"line": 219
+				},
+				{
+					"file": "src/common/editor/ui/timeline/TrackListView.jsx",
+					"line": 239
+				},
+				{
+					"file": "src/common/editor/ui/timeline/AudioTrackRow.jsx",
+					"line": 29
+				}
+			],
+			"observedWork": "AudioTrackRow receives the full snapshot as viewModelRevision and freshly bound per-row callbacks. It is not memoized, so parent viewport, selection, or unrelated document changes still execute unchanged row render functions and their hooks.",
+			"proposedChange": "Pass stable track-specific visual revisions and callbacks, separate exact viewport/ruler ownership, and add memo boundaries with explicit relevant props.",
+			"scenario": "Many visible tracks while editing one track, opening a menu, or scrolling within an existing render anchor.",
+			"validation": "React Profiler unchanged-row render/commit counts and render duration, while exercising selection and recording changes.",
+			"existingProtection": "Expensive waveform view models are memoized and use a render anchor; telemetry selectors already isolate meters. This targets remaining row React work and is an existing unmeasured candidate.",
+			"correctness": null,
+			"evidenceLevel": "code-confirmed invalidation; impact unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 7,
+			"key": "timeline-07",
+			"group": "Timeline and display",
+			"title": "Construct virtualized row children only when mounted",
+			"priority": "P3",
+			"evidence": [
+				{
+					"file": "src/common/editor/ui/timeline/TrackListView.jsx",
+					"line": 332
+				},
+				{
+					"file": "src/common/editor/ui/timeline/TrackViewportRow.tsx",
+					"line": 90
+				}
+			],
+			"observedWork": "TrackListView calls renderTrack for every nonhidden track before TrackViewportRow decides whether to discard the resulting child element. Offscreen slots avoid heavy component execution, but parent construction of props, callbacks, and recording-preview searches still scales with all tracks.",
+			"proposedChange": "Provide a stable deferred row factory or move track-child creation into the mounted slot owner.",
+			"scenario": "A thousand-track project undergoing repeated scroll or selection updates.",
+			"validation": "Offscreen row-element constructions/allocations per update and parent render CPU.",
+			"existingProtection": "Mounted-row virtualization, shared IntersectionObserver, focus pinning, and accessible placeholder rows already exist; preserve them. Existing performance-candidates.md recognizes this remaining work.",
+			"correctness": null,
+			"evidenceLevel": "code-confirmed cost; impact unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 8,
+			"key": "timeline-08",
+			"group": "Timeline and display",
+			"title": "Window label markers horizontally",
+			"priority": "P2",
+			"evidence": [
+				{
+					"file": "src/common/editor/ui/timeline/LabelTrackRow.jsx",
+					"line": 127
+				}
+			],
+			"observedWork": "A mounted label track maps every label into a full interactive marker even when almost all labels are outside the time viewport.",
+			"proposedChange": "Index point/range labels against the viewport and render visible/overscan markers plus the active edit/focus marker; retain list-wide keyboard navigation.",
+			"scenario": "An imported annotation/label track with tens of thousands of points or regions.",
+			"validation": "Mounted label DOM count, zoom/selection React duration, p95 scroll frame interval.",
+			"existingProtection": "Audio/video clip viewports already bound their heavy content; label marker rendering does not share that bound.",
+			"correctness": null,
+			"evidenceLevel": "code-confirmed unbounded marker count; impact unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 9,
+			"key": "timeline-09",
+			"group": "Timeline and display",
+			"title": "Include label tracks in vertical row virtualization",
+			"priority": "P2",
+			"evidence": [
+				{
+					"file": "src/common/editor/ui/timeline/TrackListView.jsx",
+					"line": 320
+				}
+			],
+			"observedWork": "The vertical virtualizer explicitly returns label rows directly. Every label track remains mounted below/above the viewport, including all of its markers and their listeners.",
+			"proposedChange": "Use TrackViewportRow for label rows with label-aware focus/edit pinning and placeholders.",
+			"scenario": "Large projects with many independently imported label tracks.",
+			"validation": "Offscreen label component/DOM counts, retained heap and vertical scrolling frame time.",
+			"existingProtection": "Audio/video rows already virtualize only in sessions over 24 tracks; preserve accessibility and active label edit state when generalizing it.",
+			"correctness": null,
+			"evidenceLevel": "code-confirmed exemption; impact unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 10,
+			"key": "timeline-10",
+			"group": "Timeline and display",
+			"title": "Coalesce ordinary pointer preview work to display frames",
+			"priority": "P2",
+			"evidence": [
+				{
+					"file": "src/common/editor/ui/timeline/useTimelinePointerMove.js",
+					"line": 159
+				},
+				{
+					"file": "src/common/editor/ui/timeline/useTimelinePointerMove.js",
+					"line": 276
+				},
+				{
+					"file": "src/common/editor/ui/timeline/useTimelinePointerMove.js",
+					"line": 329
+				},
+				{
+					"file": "src/common/editor/ui/timeline/useTimelinePointerMove.js",
+					"line": 509
+				}
+			],
+			"observedWork": "Pinch zoom commits, track resize, selection, loop, stretch, and trim update previews/actions at raw pointer event rate. A 120-240 Hz pointer can drive more expensive projection/React work than the display can present.",
+			"proposedChange": "Keep the latest pointer sample/session result and publish once per animation frame; flush the latest canonical geometry on pointer-up and cancel stale scheduled work.",
+			"scenario": "High-polling mouse or touch drag of a selection, track edge, or clip trim.",
+			"validation": "Preview publications/action invocations per display frame, input-to-paint p95 and missed frames.",
+			"existingProtection": "Fade/crossfade previews already have RAF coalescing and ordinary move uses a small value-equality guard. Preserve those rather than claiming they are absent.",
+			"correctness": null,
+			"evidenceLevel": "code-confirmed uncoalesced paths; impact unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 11,
+			"key": "timeline-11",
+			"group": "Timeline and display",
+			"title": "Use a maintained lane geometry table for pointer hit testing",
+			"priority": "P2",
+			"evidence": [
+				{
+					"file": "src/common/editor/ui/timeline/useTimelineHitTesting.js",
+					"line": 48
+				},
+				{
+					"file": "src/common/editor/ui/timeline/track-selection-scope.ts",
+					"line": 51
+				}
+			],
+			"observedWork": "Track targeting queries every lane and reads rectangles until finding the destination; range selection reads every lane rectangle on each move. Placeholder virtualized rows are still included, so these DOM reads can scale with total track count.",
+			"proposedChange": "Maintain row top/height prefix geometry invalidated by track resize/folder/dock changes, transform clientY through current scroll, and binary-search the destination/span. Reuse measured container bounds within a frame.",
+			"scenario": "Move clips vertically or drag a range across a thousand-track session.",
+			"validation": "getBoundingClientRect calls and lane iterations per event, forced layouts, p95 gesture CPU.",
+			"existingProtection": "Project clip/track indexes optimize document lookup; they do not index DOM lane geometry. Keep captured pointer and scrolling behavior covered.",
+			"correctness": null,
+			"evidenceLevel": "code-confirmed DOM scan; impact unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 12,
+			"key": "timeline-12",
+			"group": "Timeline and display",
+			"title": "Patch only affected track projections during drag",
+			"priority": "P1",
+			"evidence": [
+				{
+					"file": "src/common/editor/ui/timeline/useAudioTrackRowViewModel.js",
+					"line": 123
+				},
+				{
+					"file": "src/common/editor/ui/timeline/useAudioTrackRowViewModel.js",
+					"line": 398
+				},
+				{
+					"file": "src/common/editor/ui/timeline/useAudioTrackRowViewModel.js",
+					"line": 402
+				}
+			],
+			"observedWork": "Any clipDragPreview invalidates every mounted row's clip collection, copies/filter-scans its complete track, and disables the viewport clip index even for rows unrelated to the move. Large static tracks therefore fall back to full projection scans during a drag elsewhere.",
+			"proposedChange": "Compute affected source/destination track IDs once, retain unchanged row collections/indexes, and query the stable viewport index before applying a small dragged-clip overlay/exclusion.",
+			"scenario": "Move one clip while other visible tracks each hold thousands of clips.",
+			"validation": "Static-track clip reads/copies per move and p95 drag frame CPU; verify clips entering/leaving the viewport and cross-track previews.",
+			"existingProtection": "Static scroll projections already use an index above 128 clips; drag currently opts out globally. This is additional incremental drag ownership, not replacing the existing index.",
+			"correctness": null,
+			"evidenceLevel": "code-confirmed index bypass; impact unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 13,
+			"key": "timeline-13",
+			"group": "Timeline and display",
+			"title": "Skip RMS reductions when RMS is hidden",
+			"priority": "P3",
+			"evidence": [
+				{
+					"file": "src/common/editor/audacity-waveform-renderer.js",
+					"line": 127
+				},
+				{
+					"file": "src/common/editor/audacity-waveform-renderer.js",
+					"line": 143
+				}
+			],
+			"observedWork": "drawSummaryColumns reads every source RMS value and squares/adds it before checking showRms. Ordinary waveforms with RMS disabled still perform this work, including three frequency-band passes.",
+			"proposedChange": "Guard RMS reads and accumulation with showRms && channel.rms, leaving extrema unchanged.",
+			"scenario": "Zoom or select across many summary waveforms with Show RMS disabled.",
+			"validation": "RMS element reads and summary-render CPU; numerical/screenshot parity for both toggle states.",
+			"existingProtection": "The actual RMS paint and sqrt are already skipped when disabled; only its source reduction remains.",
+			"correctness": null,
+			"evidenceLevel": "operation-count verified",
+			"status": "proposed",
+			"measurement": "Fake-canvas operation probe: 1,000 RMS reads for 1,000 columns while showRms=false. CPU/paint gains unmeasured."
+		},
+		{
+			"number": 14,
+			"key": "timeline-14",
+			"group": "Timeline and display",
+			"title": "Avoid repeated canvas fill-style assignments across uniform waveform runs",
+			"priority": "P3",
+			"evidence": [
+				{
+					"file": "src/common/editor/audacity-waveform-renderer.js",
+					"line": 141
+				},
+				{
+					"file": "src/common/editor/audacity-waveform-renderer.js",
+					"line": 217
+				}
+			],
+			"observedWork": "Every min/max column assigns fillStyle, even while the complete waveform uses the same base color. Selected waveforms generally have only three color runs; RMS-on alternation also prevents simple style reuse.",
+			"proposedChange": "Draw min/max and RMS as separate passes or color runs and set style once per run, preserving physical-pixel alignment and layering.",
+			"scenario": "Wide stereo summary canvases and three-band waveforms.",
+			"validation": "fillStyle setter count and canvas CPU per 1,000 columns; verify RMS compositing and selected colors.",
+			"existingProtection": "Physical-pixel boundary rounding already prevents fractional-width seams; this must be retained.",
+			"correctness": null,
+			"evidenceLevel": "code-confirmed repeated setter; impact unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 15,
+			"key": "timeline-15",
+			"group": "Timeline and display",
+			"title": "Batch connecting-dot and sample-stem paths by color",
+			"priority": "P2",
+			"evidence": [
+				{
+					"file": "src/common/editor/audacity-waveform-renderer.js",
+					"line": 175
+				},
+				{
+					"file": "src/common/editor/audacity-waveform-renderer.js",
+					"line": 187
+				}
+			],
+			"observedWork": "Connecting-dot mode begins and strokes a separate path for every adjacent pair; stem mode also strokes each sample individually. Most ordinary waveform samples share a color.",
+			"proposedChange": "Batch same-color segments/stems into paths, with separate groups at selection/color boundaries; validate joins/caps and rainbow rendering before adopting.",
+			"scenario": "Sample-level zoom into a visible mono/stereo clip.",
+			"validation": "stroke calls, canvas CPU and p95 zoom/selection paint; screenshot parity at joins and selection boundaries.",
+			"existingProtection": "Sample plans are already bounded; the remaining per-sample canvas call overhead is within that bound.",
+			"correctness": "Keep each original segment as a separate subpath where necessary and verify line caps, joins, clipping and overlapping alpha/compositing. A continuous polyline can change rendered pixels.",
+			"evidenceLevel": "operation-count verified",
+			"status": "proposed",
+			"measurement": "Fake-canvas operation probe: 1,999 stroke calls for 2,000 connecting-dot samples. Actual painting/compositing gain unmeasured."
+		},
+		{
+			"number": 16,
+			"key": "timeline-16",
+			"group": "Timeline and display",
+			"title": "Reuse sample coordinate scratch instead of allocating point objects per paint",
+			"priority": "P3",
+			"evidence": [
+				{
+					"file": "src/common/editor/audacity-waveform-renderer.js",
+					"line": 158
+				},
+				{
+					"file": "src/common/editor/audacity-waveform-renderer.js",
+					"line": 164
+				}
+			],
+			"observedWork": "Every individual-sample redraw creates a new array and one {x,y} object per sample, followed by multiple traversals.",
+			"proposedChange": "Stream previous/current coordinates for connecting dots and retain bounded numeric scratch for stems/heads when a second pass is needed.",
+			"scenario": "Repeated selection/envelope edits at sample zoom across multiple clips.",
+			"validation": "Allocated objects/bytes per redraw and GC pauses, with exact coordinate parity.",
+			"existingProtection": "The waveform planner already bounds sample count, so quantify allocation before prioritizing this P3 candidate.",
+			"correctness": null,
+			"evidenceLevel": "code-confirmed allocation; impact unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 17,
+			"key": "timeline-17",
+			"group": "Timeline and display",
+			"title": "Draw three-band RMS directly without a transparent peak pass",
+			"priority": "P3",
+			"evidence": [
+				{
+					"file": "src/common/editor/ui/timeline/frequency-waveform-renderer.ts",
+					"line": 62
+				},
+				{
+					"file": "src/common/editor/audacity-waveform-renderer.js",
+					"line": 141
+				}
+			],
+			"observedWork": "Three-band RMS requests the complete ordinary waveform renderer with sampleColor='transparent'. The renderer still evaluates extrema, writes fillStyle, and issues transparent min/max rectangles before drawing RMS.",
+			"proposedChange": "Add an explicit RMS-only paint mode that retains clipping to waveform extrema but omits transparent peak canvas writes.",
+			"scenario": "Three-band waveform mode with RMS enabled.",
+			"validation": "Peak fillRect calls eliminated per channel and canvas CPU; compare RMS envelope/extrema clipping pixels.",
+			"existingProtection": "Frequency analysis and palette caches already exist; this candidate only removes an unnecessary paint pass.",
+			"correctness": null,
+			"evidenceLevel": "code-confirmed transparent paint; impact unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 18,
+			"key": "timeline-18",
+			"group": "Timeline and display",
+			"title": "Keep ruler and grid backing buffers when dimensions are unchanged",
+			"priority": "P2",
+			"evidence": [
+				{
+					"file": "src/common/editor/ui/timeline/MappedTimelineRulerCanvas.jsx",
+					"line": 39
+				},
+				{
+					"file": "src/common/editor/ui/timeline/TimelineGridLines.jsx",
+					"line": 53
+				}
+			],
+			"observedWork": "Both canvases assign width and height on every redraw, even for selection-only or scroll-only changes. Canvas dimension assignment clears/resets the drawing context and can recreate backing resources despite unchanged geometry.",
+			"proposedChange": "Compare backing dimensions before assignments and otherwise clear/repaint the existing buffer; keep ratio/theme invalidation explicit.",
+			"scenario": "Pinned playback, horizontal scrolling, or selection drag with musical/timecode rulers.",
+			"validation": "Backing-dimension writes/resource allocations per scroll frame and paint CPU.",
+			"existingProtection": "Both canvases are viewport-sized and have a dimension ceiling; normal clip canvases already compare dimensions before writes.",
+			"correctness": null,
+			"evidenceLevel": "code-confirmed unconditional reset; impact unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 19,
+			"key": "timeline-19",
+			"group": "Timeline and display",
+			"title": "Share viewport tick generation between rulers and grid canvases",
+			"priority": "P3",
+			"evidence": [
+				{
+					"file": "src/common/editor/ui/timeline/MappedTimelineRulerCanvas.jsx",
+					"line": 83
+				},
+				{
+					"file": "src/common/editor/ui/timeline/timeline-grid-model.ts",
+					"line": 124
+				},
+				{
+					"file": "src/common/editor/ui/timeline/TimelineWorkspaceView.jsx",
+					"line": 352
+				}
+			],
+			"observedWork": "Mapped ruler drawing builds musical/timecode ticks, and grid-line generation separately calls the same tick generators for the same sample-rate/zoom/viewport. Output-dock grids can repeat the same preparation.",
+			"proposedChange": "Resolve an immutable viewport tick model once at its owning timeline and pass/project it into ruler and all grid paints.",
+			"scenario": "Scrolling a musical tempo-map project or timecode project with output lanes open.",
+			"validation": "Tick-builder calls and allocations per viewport change, preserving exact tick/grid alignment.",
+			"existingProtection": "Grid lines are memoized and painted as two batched paths; this concerns repeated tick-model construction across consumers.",
+			"correctness": null,
+			"evidenceLevel": "code-confirmed duplicate generation; impact unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 20,
+			"key": "timeline-20",
+			"group": "Timeline and display",
+			"title": "Move timeline spectrogram FFT work off the renderer thread",
+			"priority": "P1",
+			"evidence": [
+				{
+					"file": "src/common/editor/ui/timeline/spectrogram-canvas-renderer.js",
+					"line": 47
+				},
+				{
+					"file": "src/common/editor/ui/timeline/spectrogram-pcm-tiles.ts",
+					"line": 150
+				},
+				{
+					"file": "src/common/editor/pffft-spectrogram.js",
+					"line": 64
+				}
+			],
+			"observedWork": "Each visible spectrogram column fills FFT input, calls PFFFT, and groups magnitudes synchronously. Whole-buffer analysis is called inside a layout-effect painter; streamed tile analysis also runs synchronously after its read resolves. Bounded PCM memory does not bound renderer-thread CPU per tile.",
+			"proposedChange": "Run column analysis in a dedicated worker with transferred bounded PCM windows and cancellation/version keys; publish ready raster/columns back to the renderer.",
+			"scenario": "Switch a long stereo clip to spectrogram/multiview or zoom its FFT window while playing.",
+			"validation": "Renderer long-task duration and p95 interaction latency during analysis, plus time to final spectrogram and worker transfer bytes.",
+			"existingProtection": "PFFFT windows/scratch, per-canvas analysis/image cache, streamed bounded tiles, and abort handling already exist; preserve those. This is not a startup import candidate.",
+			"correctness": null,
+			"evidenceLevel": "code-confirmed synchronous analysis; impact unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 21,
+			"key": "timeline-21",
+			"group": "Timeline and display",
+			"title": "Support bulk spectrogram rasterization at fractional backing ratios",
+			"priority": "P2",
+			"evidence": [
+				{
+					"file": "src/common/editor/ui/timeline/spectrogram-image-data.ts",
+					"line": 33
+				},
+				{
+					"file": "src/common/editor/ui/timeline/spectrogram-canvas-renderer.js",
+					"line": 90
+				}
+			],
+			"observedWork": "The ImageData fast path requires integer transform scales and integer rectangle geometry. A fractional devicePixelRatio, fractional clip width, or unequal stereo channel height often fails those checks and falls back to per-frequency-span fillRect writes.",
+			"proposedChange": "Rasterize directly in backing-pixel coordinates with shared rounded boundaries, or rasterize at logical pixels and draw the cached image at the requested ratio; choose by verified visual parity.",
+			"scenario": "Spectrogram display in Electron on 125%/150% scaling and asymmetrically sized stereo channels.",
+			"validation": "Bulk-path hit ratio and canvas calls/paint CPU at fractional DPI, screenshot seam/antialiasing parity.",
+			"existingProtection": "The bulk painter and cached offscreen images already improve integer-aligned geometry; this targets the remaining fallback cases.",
+			"correctness": null,
+			"evidenceLevel": "code-confirmed fast-path exclusions; impact unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 22,
+			"key": "timeline-22",
+			"group": "Timeline and display",
+			"title": "Retain reusable fixed spectrogram tiles across viewport shifts",
+			"priority": "P2",
+			"evidence": [
+				{
+					"file": "src/common/editor/ui/timeline/useSpectrogramPcmTiles.ts",
+					"line": 113
+				},
+				{
+					"file": "src/common/editor/ui/timeline/useSpectrogramPcmTiles.ts",
+					"line": 133
+				},
+				{
+					"file": "src/common/editor/ui/timeline/useSpectrogramPcmTiles.ts",
+					"line": 138
+				}
+			],
+			"observedWork": "Completed tile columns are keyed to the entire projected clip start/end/width. Crossing a render anchor replaces that viewport key, discards completed columns, aborts old jobs, and regenerates the overlapping analysis.",
+			"proposedChange": "Cache fixed source/time tiles by immutable audio content, FFT/window, and resolution; assemble the current window from retained intersections and analyze only new coverage under a byte-budgeted LRU.",
+			"scenario": "Slow horizontal scrolling or back-and-forth scrubbing across a long streamed spectrogram.",
+			"validation": "Overlapping FFT columns recomputed/read bytes per anchor transition and time until a new viewport is painted; cache memory cap.",
+			"existingProtection": "Within one request key, completed tiles survive visual publications and exact scroll uses render anchors. This targets reuse between distinct anchors, not absence of existing caching.",
+			"correctness": null,
+			"evidenceLevel": "code-confirmed viewport-key invalidation; impact unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 23,
+			"key": "timeline-23",
+			"group": "Timeline and display",
+			"title": "Bound and prioritize multitrack spectrogram jobs",
+			"priority": "P2",
+			"evidence": [
+				{
+					"file": "src/common/editor/ui/timeline/useSpectrogramPcmTiles.ts",
+					"line": 144
+				},
+				{
+					"file": "src/common/editor/ui/timeline/useSpectrogramPcmTiles.ts",
+					"line": 150
+				}
+			],
+			"observedWork": "Each mounted row starts every projected clip request immediately, with no scheduler shared across rows. A viewport revealing many spectrogram clips can queue simultaneous reads and analysis, increasing contention and slowing the selected visible clip's response.",
+			"proposedChange": "Use a controller-owned bounded queue across rows, prioritize selected/onscreen clips over overscan, and cancel superseded jobs before admitting more work.",
+			"scenario": "Reveal several long spectrogram tracks or change FFT settings across a multitrack view.",
+			"validation": "Concurrent read/analysis count, selected-clip first/final paint latency, renderer long tasks and peak PCM memory.",
+			"existingProtection": "Each job uses bounded PCM tiles and AbortController; this candidate only adds cross-job admission/prioritization.",
+			"correctness": null,
+			"evidenceLevel": "code-confirmed unrestricted admission; impact unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 24,
+			"key": "timeline-24",
+			"group": "Timeline and display",
+			"title": "Memoize immutable waveform content identity and time authority keys",
+			"priority": "P3",
+			"evidence": [
+				{
+					"file": "src/common/editor/ui/timeline/waveform-view-model.ts",
+					"line": 253
+				},
+				{
+					"file": "src/common/editor/ui/timeline/waveform-view-model.ts",
+					"line": 379
+				},
+				{
+					"file": "src/common/editor/ui/waveform-preview-cache.ts",
+					"line": 109
+				},
+				{
+					"file": "src/common/editor/ui/timeline/useSpectrogramPcmTiles.ts",
+					"line": 109
+				}
+			],
+			"observedWork": "A clip projection serializes content identity, maps its entire envelope, and may serialize a full tempo map before testing a waveform cache hit. It constructs another content identity for cacheSignature; spectrogram request keys serialize overlapping content again.",
+			"proposedChange": "Cache normalized content identity by immutable clip/source identity and a separate tempo-map revision key; combine scalar window/resolution keys without reserializing whole envelopes/maps.",
+			"scenario": "Select/scroll warped clips with dense envelope points and large tempo maps.",
+			"validation": "JSON/string allocations, envelope entries visited per cache hit, projection CPU; mutation-safe fallback for noncanonical callers.",
+			"existingProtection": "Waveform plans already cache by explicit content signature and object-source identity. Preserve all source/audio/time invalidations while making cache-key construction cheaper.",
+			"correctness": null,
+			"evidenceLevel": "code-confirmed repeated serialization; impact unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 25,
+			"key": "timeline-25",
+			"group": "Timeline and display",
+			"title": "Index authored automation points and visible spans during overlay projection",
+			"priority": "P2",
+			"evidence": [
+				{
+					"file": "src/common/editor/ui/timeline/track-automation-overlay-projection.ts",
+					"line": 101
+				},
+				{
+					"file": "src/common/editor/ui/timeline/track-automation-overlay-projection.ts",
+					"line": 111
+				},
+				{
+					"file": "src/common/editor/ui/timeline/track-automation-overlay-bezier.ts",
+					"line": 99
+				}
+			],
+			"observedWork": "Each clip scans all automation points twice to find its authored points. Each generated curve sample additionally findIndex-scans those points to discover hold boundaries; Bezier handles scan every projected span to test visibility.",
+			"proposedChange": "Build one frame-to-point-index map, range-query sorted point frames, and binary-query merged visible spans for handles.",
+			"scenario": "Render or drag a lane with thousands of authored points across many clips.",
+			"validation": "Point/span comparisons per overlay projection, CPU and allocations; preserve duplicate-position/hold-transition behavior.",
+			"existingProtection": "Lane normalization compiles/caches interpolation curves, so do not claim interpolation recompiles per sample. The remaining scans occur in the visual projector.",
+			"correctness": null,
+			"evidenceLevel": "code-confirmed repeated linear scans; impact unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 26,
+			"key": "timeline-26",
+			"group": "Timeline and display",
+			"title": "Use compact segment geometry for simple automation curves",
+			"priority": "P2",
+			"evidence": [
+				{
+					"file": "src/common/editor/ui/timeline/track-automation-overlay-projection.ts",
+					"line": 92
+				},
+				{
+					"file": "src/common/editor/ui/timeline/track-automation-overlay-projection.ts",
+					"line": 104
+				},
+				{
+					"file": "src/common/editor/ui/timeline/TrackAutomationOverlay.tsx",
+					"line": 396
+				}
+			],
+			"observedWork": "Even a constant lane/current value emits samples every two CSS pixels, freezes sample objects, and creates a long SVG path. This work is unnecessary for constant spans; linear or hold segments can often be represented by endpoints under a linear descriptor taper.",
+			"proposedChange": "Emit exact minimal geometry for constant/hold/linear-in-screen-space segments and use error-bounded adaptive subdivision for nonlinear taper/eased/Bezier segments.",
+			"scenario": "Wide timeline with automation overlay enabled on several nearly constant tracks.",
+			"validation": "Sample objects/path bytes per span, overlay CPU and SVG paint time; numerical pixel-error threshold and exact hold corners.",
+			"existingProtection": "The current fixed two-pixel sampling bounds visual density; replacement must retain nonlinear curve/taper accuracy rather than simply reducing quality.",
+			"correctness": null,
+			"evidenceLevel": "code-confirmed oversampling of constant spans; impact unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 27,
+			"key": "timeline-27",
+			"group": "Timeline and display",
+			"title": "Limit automation draft normalization and React publication to one per frame",
+			"priority": "P2",
+			"evidence": [
+				{
+					"file": "src/common/editor/ui/timeline/TrackAutomationOverlay.tsx",
+					"line": 154
+				},
+				{
+					"file": "src/common/editor/ui/timeline/TrackAutomationOverlay.tsx",
+					"line": 233
+				},
+				{
+					"file": "src/common/editor/ui/timeline/TrackAutomationOverlay.tsx",
+					"line": 244
+				}
+			],
+			"observedWork": "Every captured pointer move creates a replacement automation lane and setDraftLane state. This recomputes point projection, sampled paths, and handle geometry at event rate.",
+			"proposedChange": "Retain latest drag coordinates in refs, create/publish one draft per RAF, and synchronously flush final coordinates before commit; optionally update only affected segment geometry.",
+			"scenario": "Drag a point or Bezier control in a dense automation lane with a high-polling mouse.",
+			"validation": "Lane replacements and overlay projections per display frame, p95 drag latency, final committed point parity.",
+			"existingProtection": "The final edit is already one undoable commit and drag lifecycle handles cancellation. Preserve those semantics; this is separate from ordinary timeline pointer previews.",
+			"correctness": null,
+			"evidenceLevel": "code-confirmed event-rate draft work; impact unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 28,
+			"key": "timeline-28",
+			"group": "Timeline and display",
+			"title": "Select track meter display values instead of entire telemetry objects",
+			"priority": "P3",
+			"evidence": [
+				{
+					"file": "src/common/editor/ui/timeline/TrackTelemetryMeters.tsx",
+					"line": 34
+				},
+				{
+					"file": "src/common/editor/ui/timeline/TrackTelemetryMeters.tsx",
+					"line": 64
+				},
+				{
+					"file": "src/common/editor/ui/DesignSystemRuntime.jsx",
+					"line": 48
+				}
+			],
+			"observedWork": "Track/output meters subscribe to full meter objects with Object.is, although their display only uses dbfs and peak clipping. A fresh object with spectrum/RMS/loudness changes can rerender these components despite identical rendered values.",
+			"proposedChange": "Select an equality-stable pair of rendered meterPercent and clipped state, using a comparator or scalar encoding; quantize only to actual display pixel precision.",
+			"scenario": "Playback with many mounted track/output meters and active analysis telemetry.",
+			"validation": "Unchanged meter React renders per telemetry tick and commit time; clipping and level precision parity.",
+			"existingProtection": "Telemetry selectors already keep meters out of whole-editor rendering; mixer meters already select a scalar percentage. This narrows track/output selectors further.",
+			"correctness": null,
+			"evidenceLevel": "code-confirmed broad selector; impact depends on telemetry identity",
+			"status": "proposed"
+		},
+		{
+			"number": 29,
+			"key": "timeline-29",
+			"group": "Timeline and display",
+			"title": "Memoize static meter ruler ticks",
+			"priority": "P3",
+			"evidence": [
+				{
+					"file": "src/common/editor/ui/toolbar/AudioEditorMeters.jsx",
+					"line": 63
+				},
+				{
+					"file": "src/common/editor/ui/toolbar/AudioEditorMeters.jsx",
+					"line": 130
+				}
+			],
+			"observedWork": "Every live AudacityAudioMeter render recomputes tick arrays and reconciles all tick-label elements although type/range/size usually remain stable throughout playback.",
+			"proposedChange": "Memoize tick calculation by type/range/EBU scale/unit/meterSize and isolate the static ruler component from live values.",
+			"scenario": "Playback/recording with top and docked meter panels open.",
+			"validation": "Tick-generator invocations and static-ruler renders per second; preserve resize tick density.",
+			"existingProtection": "ResizeObserver size updates already avoid equal state values; live level updates still recompute ticks.",
+			"correctness": null,
+			"evidenceLevel": "code-confirmed repeated static work; impact unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 30,
+			"key": "timeline-30",
+			"group": "Timeline and display",
+			"title": "Animate meter fills with fixed geometry and transforms",
+			"priority": "P2",
+			"evidence": [
+				{
+					"file": "src/common/editor/ui/workspace/MixerTelemetryMeters.tsx",
+					"line": 55
+				},
+				{
+					"file": "src/common/editor/ui/audio-editor-design-system/03-shell-toolbars-meters.css",
+					"line": 30
+				},
+				{
+					"file": "src/common/editor/ui/audio-editor-design-system/03-shell-toolbars-meters.css",
+					"line": 251
+				}
+			],
+			"observedWork": "Live mixer fills update top; ordinary horizontal/vertical meters update width/height and peak-marker left/bottom through CSS variables. These properties require layout/paint rather than a transform-only update.",
+			"proposedChange": "Keep fill geometry fixed and use scale/translate or a clipped fixed-gradient layer, with measured selective compositing and bounded layer count.",
+			"scenario": "Playback while many mixer/track/output meter bars are visible.",
+			"validation": "Per-tick layout/paint duration, compositor layer memory and p95 playback frame time; pixel parity of RMS and gradient scales.",
+			"existingProtection": "Gradient variants already use clip-path for their full-scale gradient; preserve their visual mapping rather than scaling gradient colors incorrectly.",
+			"correctness": null,
+			"evidenceLevel": "code-confirmed geometry-changing styles; GPU benefit unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 31,
+			"key": "operations-01",
+			"group": "Generate Apply and DSP",
+			"title": "Run long built-in generators off the renderer thread",
+			"priority": "P1",
+			"evidence": [
+				{
+					"file": "src/common/editor/controller/edit/generator-service.ts",
+					"line": 262
+				}
+			],
+			"observedWork": "generateSignal calls synchronous generateAudioEditorSignal before the first storage await; markProcessing is not called until line 273. All tone, chirp, noise and DTMF sample loops therefore block the renderer and even delay the busy feedback.",
+			"proposedChange": "Use a cancelable dedicated generator worker with transferable chunks; publish processing state before dispatch. Keep short jobs on a measured low-overhead path if appropriate.",
+			"scenario": "Generate several minutes of stereo pink noise while dragging the timeline or attempting Cancel in Electron with speed preference.",
+			"validation": "Click-to-first-busy-paint, renderer long-task maximum, dropped animation frames, and click-to-committed-generated-clip p50/p95.",
+			"existingProtection": null,
+			"correctness": "Preserve deterministic seed sequence, exact PCM and channel order, project/task ownership and transactional source publication.",
+			"evidenceLevel": "source-verified candidate",
+			"status": "proposed"
+		},
+		{
+			"number": 32,
+			"key": "operations-02",
+			"group": "Generate Apply and DSP",
+			"title": "Generate bounded PCM blocks instead of materializing the complete signal",
+			"priority": "P1",
+			"evidence": [
+				{
+					"file": "src/common/editor/generators.js",
+					"line": 38
+				}
+			],
+			"observedWork": "generateFixedDuration allocates the entire duration; generator-service retains all channels while createBuffer subsequently copies them. Generation supports up to 24 hours subject to frame bounds.",
+			"proposedChange": "Give each generator a stateful block iterator (phase, noise bins/RNG, segment offset) that writes bounded blocks and feeds incremental peak construction, with backpressure.",
+			"scenario": "Generate a long chirp or noise selection that creates large arrays and GC pauses before publication.",
+			"validation": "Peak process RSS, allocated PCM bytes, longest renderer task and Generate-to-clip latency for 30 s, 5 min and 30 min inputs.",
+			"existingProtection": null,
+			"correctness": "Chunk partitions must yield the same seeded PCM and segment boundaries as the one-shot result. Coordinate with existing chunked writers; this is a generator producer change.",
+			"evidenceLevel": "source-verified candidate",
+			"status": "proposed"
+		},
+		{
+			"number": 33,
+			"key": "operations-03",
+			"group": "Generate Apply and DSP",
+			"title": "Keep the already-owned mono generator result as channel zero",
+			"priority": "P2",
+			"evidence": [
+				{
+					"file": "src/common/editor/generators.js",
+					"line": 208
+				}
+			],
+			"observedWork": "duplicateChannels creates a new Float32Array(mono) for every channel including channel zero, discarding the freshly generated mono array afterward. A mono tone/chirp/DTMF/Morse therefore incurs a needless full PCM copy.",
+			"proposedChange": "Return mono as the first independently owned channel, and clone it only for channels 1..channelCount-1.",
+			"scenario": "Generate long mono tone/chirp, or eight identical generated channels.",
+			"validation": "Copied bytes and allocation count: one fewer frameCount*4 buffer for every such generation; exact channel independence regression.",
+			"existingProtection": null,
+			"correctness": "The returned channels must never alias one another and the generator must retain no mutable reference to mono.",
+			"evidenceLevel": "source-verified candidate",
+			"status": "proposed"
+		},
+		{
+			"number": 34,
+			"key": "operations-04",
+			"group": "Generate Apply and DSP",
+			"title": "Maintain a running pink-noise bin sum",
+			"priority": "P1",
+			"evidence": [
+				{
+					"file": "src/common/editor/generators.js",
+					"line": 121
+				}
+			],
+			"observedWork": "Pink noise calls pinkBins.reduce(callback) across seven bins for every sample even though at most one bin changes each frame.",
+			"proposedChange": "Maintain the bin total when the selected bin changes, then use (total + white)/4. Keep the existing RNG calls and counter ordering.",
+			"scenario": "Generate the default 30-second stereo pink-noise signal.",
+			"validation": "Kernel wall-clock median and full bitwise PCM equality, plus Electron Generate latency.",
+			"existingProtection": null,
+			"correctness": "For the tested dyadic RNG values, the running-sum prototype is bitwise identical; cover long counter boundaries and multiple channels.",
+			"evidenceLevel": "source verified plus paired Node prototype",
+			"status": "proposed",
+			"measurement": "Isolated Node 26.5.0 kernel, one warm-up and median five trials: 178.8 ms current versus 13.67 ms prototype; 2,880,000 samples identical on tested input. No integrated speedup measured. See editing-performance-measurements.json for fixture and raw trials."
+		},
+		{
+			"number": 35,
+			"key": "operations-05",
+			"group": "Generate Apply and DSP",
+			"title": "Share the gain envelope of fixed offline linked noise gates",
+			"priority": "P2",
+			"evidence": [
+				{
+					"file": "src/common/editor/first-party-effects/standard/noise-gate-dsp.ts",
+					"line": 81
+				}
+			],
+			"observedWork": "In linked mode every freshly initialized channel sees the same detector peak and starts with identical gain/hold/opening state, but lines 81–96 repeat threshold, attack/release and exponential-envelope work per channel.",
+			"proposedChange": "For an explicitly fixed-parameter linked offline job, compute the gain/hold/attack envelope once per frame and use it across channels; retain independent delayed audio and crossover states.",
+			"scenario": "Apply a linked stereo noise gate to a long voice recording; more channels increase duplicate detector-envelope work.",
+			"validation": "Envelope update/transcendental count per frame: channelCount→one; exact PCM and worker Apply CPU. Representative Electron profiling required for user impact.",
+			"existingProtection": null,
+			"correctness": "A live processor switched from unlinked to linked can have different historical envelopes. Do not merge those states without a transition contract. Restrict initial optimization to fresh fixed offline processing.",
+			"evidenceLevel": "source-confirmed duplicate envelope work; meaningful end-to-end improvement unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 36,
+			"key": "operations-06",
+			"group": "Generate Apply and DSP",
+			"title": "Reuse identical DTMF digit waveforms within one Generate job",
+			"priority": "P2",
+			"evidence": [
+				{
+					"file": "src/common/editor/generators.js",
+					"line": 150
+				}
+			],
+			"observedWork": "Each occurrence of a digit recomputes two Math.sin calls and the same fade envelope for every frame; its phase resets to zero on every occurrence.",
+			"proposedChange": "Render each distinct symbol once for the fixed toneFrames/rate/amplitude/fade, then copy its PCM to each occurrence. Bound the per-job cache to the 16 valid symbols.",
+			"scenario": "Generate a long repeated dialing or test sequence such as 111111111111 or repeated 1234.",
+			"validation": "Sin evaluations scale with distinct symbols*toneFrames instead of sequence length*toneFrames; compare wall-clock and exact PCM.",
+			"existingProtection": null,
+			"correctness": "Preserve inter-symbol silence, reset phase, partial last tone boundaries and channel independence.",
+			"evidenceLevel": "source-verified candidate",
+			"status": "proposed"
+		},
+		{
+			"number": 37,
+			"key": "operations-07",
+			"group": "Generate Apply and DSP",
+			"title": "Retain a bounded selection/spectral worker pool across successful operations",
+			"priority": "P1",
+			"evidence": [
+				{
+					"file": "src/common/editor/controller/effects/internal/selection-effect-worker-service.ts",
+					"line": 182
+				}
+			],
+			"observedWork": "Each apply constructs a new selection worker; executeWorker cleanup terminates it even on success at line 333. PFFFT ready/plans and the StaffPad runtime promise are per-worker module caches and disappear with it.",
+			"proposedChange": "Retain one idle worker per required execution class, with request IDs and resettable per-job state; terminate on cancellation, faults or project disposal. Avoid eagerly creating workers at editor startup.",
+			"scenario": "Apply several short EQ/noise-reduction/change-tempo effects, or run multiple offline macro steps.",
+			"validation": "Warm repeated Apply latency, worker creations, WASM instantiations and FFT-plan creations per operation.",
+			"existingProtection": null,
+			"correctness": "Keep memory bounded, reset deterministic DSP/RNG state and ownership between jobs, and preserve hard cancellation/timeout/error semantics.",
+			"evidenceLevel": "source-verified candidate",
+			"status": "proposed"
+		},
+		{
+			"number": 38,
+			"key": "operations-08",
+			"group": "Generate Apply and DSP",
+			"title": "Transfer consumed dry-effect buffers without another full PCM clone",
+			"priority": "P1",
+			"evidence": [
+				{
+					"file": "src/common/editor/controller/effects/internal/nyquist/nyquist-audio.ts",
+					"line": 142
+				}
+			],
+			"observedWork": "cloneAudacityWorkerPayload Float32Array.from-copies all selection and context channels before transferring them. renderDryTrackRange already returns newly rendered channel arrays, so some one-shot paths have no remaining reader for that PCM.",
+			"proposedChange": "Introduce an explicit owned/consumed-buffer request path that transfers exclusively owned dry/context buffers directly; keep cloning for preview caches, borrowed source data, linked jobs or fallback paths.",
+			"scenario": "Apply an effect to a multi-minute stereo selection, including EQ preroll.",
+			"validation": "Renderer clone time, copied bytes, peak RSS and click-to-result latency.",
+			"existingProtection": null,
+			"correctness": "Never detach cached AudioBuffer storage, retained history, source PCM, control buffers reused by another target or a preview cache. Ownership must be proven by API contract.",
+			"evidenceLevel": "source-verified candidate",
+			"status": "proposed"
+		},
+		{
+			"number": 39,
+			"key": "operations-09",
+			"group": "Generate Apply and DSP",
+			"title": "Process independent target tracks through bounded concurrent jobs",
+			"priority": "P1",
+			"evidence": [
+				{
+					"file": "src/common/editor/controller/effects/internal/effect-execution-service.ts",
+					"line": 140
+				}
+			],
+			"observedWork": "All target dry renders finish serially before processing starts, then each target effect worker is awaited serially at lines 182–211. Independent tracks do not overlap render/DSP work.",
+			"proposedChange": "Use a memory-budgeted pipeline with a small worker/render concurrency limit; retain input order and commit all targets atomically. Keep shared-peak parameter resolution and linked truncate-silence as barriers.",
+			"scenario": "Apply EQ, noise reduction or compressor to several selected independent tracks on a multicore Electron machine.",
+			"validation": "Total Apply latency, CPU utilization, peak RSS, per-target completion times and renderer frame gaps at 1/2/4 concurrent jobs.",
+			"existingProtection": null,
+			"correctness": "The current worker service cancels a prior selection job, so it needs multiple isolated owners rather than Promise.all around the current API. Linked effects and aggregate parameter analysis cannot be split freely.",
+			"evidenceLevel": "source-verified candidate",
+			"status": "proposed"
+		},
+		{
+			"number": 40,
+			"key": "operations-10",
+			"group": "Generate Apply and DSP",
+			"title": "Render effect selection and neighboring context in one extended range",
+			"priority": "P1",
+			"evidence": [
+				{
+					"file": "src/common/editor/controller/effects/internal/effect-execution-service.ts",
+					"line": 195
+				}
+			],
+			"observedWork": "The selection is rendered at lines 140–149, then preroll and postroll each call renderDryTrackRange again at lines 197 and 202, constructing separate isolated snapshots and offline renders.",
+			"proposedChange": "Plan one extended dry range per target and split its owned PCM into before/selection/after views; retain the exact original start/end and requested clip scope.",
+			"scenario": "Apply parametric EQ (10-second preroll), Repair (128-sample selection), or StaffPad pitch/tempo changes.",
+			"validation": "Offline render/context constructions per target: up to three→one; Apply latency especially for tiny repaired ranges.",
+			"existingProtection": null,
+			"correctness": "Preserve boundary padding, authored clip fades and channel mapping. An extended render must not accidentally include neighboring clips outside requestedClipIds.",
+			"evidenceLevel": "source-verified candidate",
+			"status": "proposed"
+		},
+		{
+			"number": 41,
+			"key": "operations-11",
+			"group": "Generate Apply and DSP",
+			"title": "Reuse immutable neighbor context across offline macro steps",
+			"priority": "P2",
+			"evidence": [
+				{
+					"file": "src/common/editor/controller/effects/internal/macro/effect-macro-chain.ts",
+					"line": 145
+				}
+			],
+			"observedWork": "Every context-requiring offline step renders before/after PCM again through renderNeighbouringRange, although the documented neighbors remain authored project audio and are unchanged by the chain.",
+			"proposedChange": "Keep a per-run, per-target cache of bounded neighboring dry PCM keyed by track/clip scope/range/channels and captured project revision; a larger context can serve smaller slices.",
+			"scenario": "Run a macro with several EQ, Repair or StaffPad steps over the same target.",
+			"validation": "Neighbor renders and copied context bytes per chain; macro Apply latency.",
+			"existingProtection": null,
+			"correctness": "Share only unchanged neighboring PCM, never the evolving selection; retain project ownership and bound cache lifetime to the macro run.",
+			"evidenceLevel": "source-verified candidate",
+			"status": "proposed"
+		},
+		{
+			"number": 42,
+			"key": "operations-12",
+			"group": "Generate Apply and DSP",
+			"title": "Run consecutive offline macro steps inside one worker request",
+			"priority": "P1",
+			"evidence": [
+				{
+					"file": "src/common/editor/controller/effects/internal/macro/effect-macro-chain.ts",
+					"line": 250
+				}
+			],
+			"observedWork": "Each offline step crosses runtime.runSelectionEffect, returning PCM to the renderer before the next step clones/transfers it back into a freshly created worker.",
+			"proposedChange": "Dispatch an offline segment as an ordered list of steps with its immutable context; keep intermediate owned PCM inside one worker and transfer only the final result.",
+			"scenario": "Run a macro containing normalize→noise reduction→fade or several destructive effects.",
+			"validation": "Worker round trips, intermediate PCM transferred/copied bytes, worker creations and macro click-to-result time.",
+			"existingProtection": null,
+			"correctness": "Preserve step order, shared parameter semantics, length changes, error identity, cancellation and the existing single undo/transactional publication.",
+			"evidenceLevel": "source-verified candidate",
+			"status": "proposed"
+		},
+		{
+			"number": 43,
+			"key": "operations-13",
+			"group": "Generate Apply and DSP",
+			"title": "Slice already-rendered full-selection PCM for short previews",
+			"priority": "P2",
+			"evidence": [
+				{
+					"file": "src/common/editor/controller/effects/internal/effect-preview-service.ts",
+					"line": 123
+				}
+			],
+			"observedWork": "When preview needs full-selection analysis, fullChannelSets already hold the complete dry PCM. Reuse occurs only if preview bounds equal the full bounds; a shorter preview invokes another offline render.",
+			"proposedChange": "For a contained preview range, use owned subarray views at preview.startFrame-full.startFrame instead of rerendering; retain aligned preview offsets.",
+			"scenario": "Preview Amplify over a long selection where parameter resolution requires the full peak but playback previews only a few seconds.",
+			"validation": "Dry renders per preview and Preview-to-audible-result latency.",
+			"existingProtection": null,
+			"correctness": "Only reuse the identical captured dry rendering/clip scope and channel mapping; worker transfer must clone views if the full-selection buffer is retained.",
+			"evidenceLevel": "source-verified candidate",
+			"status": "proposed"
+		},
+		{
+			"number": 44,
+			"key": "operations-14",
+			"group": "Generate Apply and DSP",
+			"title": "Reuse dry selection analysis between dialog preparation, Preview and Apply",
+			"priority": "P2",
+			"evidence": [
+				{
+					"file": "src/common/editor/controller/effects/internal/effect-execution-service.ts",
+					"line": 61
+				}
+			],
+			"observedWork": "Amplify preparation renders the entire selection for its default gain; Apply rerenders it at line 141. Preview also renders its own dry selection and no reusable revision-keyed dry-result cache is retained by these services.",
+			"proposedChange": "Keep a bounded speed-preference cache of owned dry PCM and peak statistics keyed by project/audio revision, selection, track/clip scope, sample rate and channel count; invalidate on any audio-affecting edit.",
+			"scenario": "Open Amplify, adjust gain, preview repeatedly, then click Apply without changing the project.",
+			"validation": "Repeat dry render count, Preview/Apply p50/p95 latency and retained cache bytes.",
+			"existingProtection": null,
+			"correctness": "Cache only immutable controller-owned derivations. Memory preference should use a much smaller cache or statistics only; borrowed/transfer ownership must stay explicit.",
+			"evidenceLevel": "source-verified candidate",
+			"status": "proposed"
+		},
+		{
+			"number": 45,
+			"key": "operations-15",
+			"group": "Generate Apply and DSP",
+			"title": "Initialize FFT only for effect types that actually use it",
+			"priority": "P2",
+			"evidence": [
+				{
+					"file": "src/common/editor/audacity-effects/index.js",
+					"line": 131
+				}
+			],
+			"observedWork": "applyAudacityEffectAsync awaits initializePffft for every non-StaffPad Audacity effect, including Amplify, Invert, fades, DC removal, echo and compressor whose implementations perform no FFT.",
+			"proposedChange": "Classify FFT-requiring effects explicitly and initialize PFFFT only for those or spectral-selection compositing; preserve worker-local lazy ownership.",
+			"scenario": "Apply a short amplitude/fade/invert effect in a newly created worker.",
+			"validation": "PFFFT instantiations/FFT-plan work for a scalar Apply should be zero; measure Apply runtime setup CPU and latency after the editor is already ready.",
+			"existingProtection": null,
+			"correctness": "This concerns unnecessary DSP runtime setup during an operation, not editor startup/lazy-loading or a promise to improve network load time.",
+			"evidenceLevel": "source-verified candidate",
+			"status": "proposed"
+		},
+		{
+			"number": 46,
+			"key": "operations-16",
+			"group": "Generate Apply and DSP",
+			"title": "Use indexed sample loops instead of Float32Array.from mapping callbacks",
+			"priority": "P1",
+			"evidence": [
+				{
+					"file": "src/common/editor/audacity-effects/basic-channel-math.js",
+					"line": 33
+				}
+			],
+			"observedWork": "multiplyChannel creates a typed array with Float32Array.from(channel, callback). Amplify, normalize, legacy-compressor makeup and RMS normalization use it; Invert repeats the same pattern in basic.js:205.",
+			"proposedChange": "Allocate one destination array and fill it with an indexed loop, preserving Float32 writes and exact arithmetic.",
+			"scenario": "Apply Amplify/Normalize/Invert to a 30-second or several-minute selection.",
+			"validation": "Kernel time, exact PCM and end-to-end Apply latency.",
+			"existingProtection": null,
+			"correctness": "The measured prototype changes only allocation/fill strategy; cover zero length, infinities rejected at the normal boundary and exact rounding.",
+			"evidenceLevel": "source verified plus paired Node prototype",
+			"status": "proposed",
+			"measurement": "Isolated Node 26.5.0 kernel, one warm-up and median five trials: 117.94 ms current versus 2.38 ms prototype; 1,440,000 samples identical on tested input. No integrated speedup measured. See editing-performance-measurements.json for fixture and raw trials."
+		},
+		{
+			"number": 47,
+			"key": "operations-17",
+			"group": "Generate Apply and DSP",
+			"title": "Calculate destructive linked dynamics gain once per frame",
+			"priority": "P1",
+			"evidence": [
+				{
+					"file": "src/common/editor/audacity-effects/basic-dynamics.js",
+					"line": 72
+				}
+			],
+			"observedWork": "applyLinkedDynamics shares detector/envelope work but its channel-major output loop computes dbToLinear(envelope[index]+makeupGainDb) again for every channel/sample.",
+			"proposedChange": "Use a frame-major fill across output channels or reuse the envelope array for linear gains after lookahead is complete.",
+			"scenario": "Apply destructive Audacity compressor/limiter to stereo or multichannel audio.",
+			"validation": "Exponentials per frame decrease from channelCount to one; bitwise PCM parity and Apply CPU time.",
+			"existingProtection": null,
+			"correctness": "The October 2 optimization covers live-dynamics-processors.js, not this still-unoptimized destructive implementation. Preserve lookahead and double precision.",
+			"evidenceLevel": "source verified plus paired Node prototype",
+			"status": "proposed",
+			"measurement": "Isolated Node 26.5.0 kernel, one warm-up and median five trials: 50.82 ms current versus 34.47 ms prototype; 3,840,000 samples identical on tested input. No integrated speedup measured. See editing-performance-measurements.json for fixture and raw trials."
+		},
+		{
+			"number": 48,
+			"key": "operations-18",
+			"group": "Generate Apply and DSP",
+			"title": "Fuse effect validation with existing PCM production/copy passes",
+			"priority": "P2",
+			"evidence": [
+				{
+					"file": "src/common/editor/selection-effects-runtime.js",
+					"line": 29
+				}
+			],
+			"observedWork": "Standard/band effects validate every input sample through assertAudacityEffectOutput, their own validateChannels finite scan, then another output assertion. Persistence asserts the returned channels again at effect-result-service.ts:281.",
+			"proposedChange": "Validate untrusted input once and pass an internal owned validation token to the kernel; enforce output finiteness during DSP/write loops rather than repeatedly rescanning unchanged PCM.",
+			"scenario": "Apply a cheap gain/filter or band dynamics effect to a long selection where PCM scans become a sizable fraction of the job.",
+			"validation": "Full finite-check passes and bytes scanned per Apply, plus click-to-result latency.",
+			"existingProtection": null,
+			"correctness": "Keep all external and worker-message boundary validation; never use a reusable token for arbitrary mutable arrays, and retain precise error behavior for malformed/non-finite PCM.",
+			"evidenceLevel": "source-verified candidate",
+			"status": "proposed"
+		},
+		{
+			"number": 49,
+			"key": "operations-19",
+			"group": "Generate Apply and DSP",
+			"title": "Share prepared convolution kernel FFT across EQ channels",
+			"priority": "P2",
+			"evidence": [
+				{
+					"file": "src/common/editor/audacity-effects/spectral-equalization-curves.js",
+					"line": 197
+				}
+			],
+			"observedWork": "Filter/Graphic EQ builds one time-domain kernel per apply, but each channels.map(convolveSame) creates and transforms identical kernelReal/kernelImaginary arrays again.",
+			"proposedChange": "Prepare an immutable kernel spectrum once for the operation and pass it to per-channel convolution; optionally use a bounded parameter/sample-rate cache inside a retained worker.",
+			"scenario": "Apply long-filter Graphic or Filter Curve EQ to stereo or multichannel audio.",
+			"validation": "Kernel forward FFT count: channelCount→one; numerical parity, short-selection Apply latency and allocated bytes.",
+			"existingProtection": null,
+			"correctness": "Do not share mutable block spectra. Preserve the Audacity kernel/window and delay alignment.",
+			"evidenceLevel": "source-verified candidate",
+			"status": "proposed"
+		},
+		{
+			"number": 50,
+			"key": "operations-20",
+			"group": "Generate Apply and DSP",
+			"title": "Reuse EQ convolution block scratch instead of allocating it per block",
+			"priority": "P2",
+			"evidence": [
+				{
+					"file": "src/common/editor/audacity-effects/spectral-equalization-curves.js",
+					"line": 204
+				}
+			],
+			"observedWork": "convolveSame allocates new Float64 real and imaginary arrays inside every FFT block loop, despite identical FFT size.",
+			"proposedChange": "Allocate scratch once per convolution instance, reset it to zero before each block, and refill the live sample extent.",
+			"scenario": "Apply Filter Curve EQ to a multi-minute selection, especially with short kernels producing many blocks.",
+			"validation": "Float64 scratch allocation count, GC pauses and convolution CPU time; exact numerical output.",
+			"existingProtection": null,
+			"correctness": "The PFFFT plan is already cached by size; this targets JavaScript scratch, not plan creation. Reset padding and imaginary data on every block.",
+			"evidenceLevel": "source-verified candidate",
+			"status": "proposed"
+		},
+		{
+			"number": 51,
+			"key": "operations-21",
+			"group": "Generate Apply and DSP",
+			"title": "Bound overlap-add convolution accumulation to a ring buffer",
+			"priority": "P1",
+			"evidence": [
+				{
+					"file": "src/common/editor/audacity-effects/spectral-equalization-curves.js",
+					"line": 201
+				}
+			],
+			"observedWork": "convolveSame retains a full Float64 input.length+kernel.length-1 accumulation and then copies the centered result into Float32 output.",
+			"proposedChange": "Use an overlap-add ring sized to the FFT block/tail; finalize samples into the required Float32 output once no future block can affect them.",
+			"scenario": "EQ a several-minute mono or stereo selection under memory pressure.",
+			"validation": "Peak scratch bytes decrease from roughly 8*selectionFrames per active channel to bounded FFT/tail geometry; GC pauses and Apply latency.",
+			"existingProtection": null,
+			"correctness": "Preserve summation order, center delay, edge padding and final-only Float32 rounding; output still needs its full owned extent until a streaming API exists.",
+			"evidenceLevel": "source-verified candidate",
+			"status": "proposed"
+		},
+		{
+			"number": 52,
+			"key": "operations-22",
+			"group": "Generate Apply and DSP",
+			"title": "Reuse noise-reduction FFT and smoothing scratch",
+			"priority": "P1",
+			"evidence": [
+				{
+					"file": "src/common/editor/audacity-effects/spectral-noise-reduction.js",
+					"line": 86
+				}
+			],
+			"observedWork": "Both powerSpectrum and the synthesis loop allocate two Float64 FFT arrays per window. Geometric smoothing allocates logs/prefix arrays for every gain frame at lines 124–125.",
+			"proposedChange": "Keep per-run scratch arrays for analysis/synthesis and smoothing, clear padding correctly, and write powers to owned output rows. Remove the unused logs retention by accumulating log values directly into prefix.",
+			"scenario": "Noise-reduce a 1–3-minute stereo recording with frequency smoothing enabled.",
+			"validation": "Typed-array allocation count, worker GC time, peak RSS and Apply latency.",
+			"existingProtection": null,
+			"correctness": "This is listed as unprofiled in performance-candidates.md, so representative Electron profiling is still required. Keep concurrent processors independent and bitwise parity.",
+			"evidenceLevel": "source-verified candidate",
+			"status": "proposed"
+		},
+		{
+			"number": 53,
+			"key": "operations-23",
+			"group": "Generate Apply and DSP",
+			"title": "Keep only neighboring noise power spectra required by the detector",
+			"priority": "P1",
+			"evidence": [
+				{
+					"file": "src/common/editor/audacity-effects/spectral-noise-reduction.js",
+					"line": 40
+				}
+			],
+			"observedWork": "reduceNoiseChannel materializes powers for every STFT window before producing gains. Detection at lines 46–60 reads only the current frame and two neighboring windows on either side; later attack/release passes read gains, not powers.",
+			"proposedChange": "Calculate powers into a five-window ring plus exact edge handling, emit gain rows when their future neighbors are ready, and release old powers.",
+			"scenario": "Noise-reduce a long selection close to the 256 MiB admission limit.",
+			"validation": "Power-spectrum retained bytes become O(windowSize), rather than O(selectionFrames); peak RSS and Apply latency without any change to gain decisions.",
+			"existingProtection": null,
+			"correctness": "Still retain gain rows for the existing backward attack pass, unless a separate exact bounded-halo algorithm is proven. Do not claim the entire algorithm becomes streaming.",
+			"evidenceLevel": "source-verified candidate",
+			"status": "proposed"
+		},
+		{
+			"number": 54,
+			"key": "operations-24",
+			"group": "Generate Apply and DSP",
+			"title": "Share noise-reduction overlap normalization across channels",
+			"priority": "P2",
+			"evidence": [
+				{
+					"file": "src/common/editor/audacity-effects/spectral-noise-reduction.js",
+					"line": 83
+				}
+			],
+			"observedWork": "Each channel allocates and fills a normalization array by adding window[index]^2 at identical starts, even though channel length/window/hop geometry are shared.",
+			"proposedChange": "Prepare one read-only normalization vector per apply and reuse it for all channel synthesis; precompute window squared once.",
+			"scenario": "Noise-reduce stereo or eight-channel audio.",
+			"validation": "Normalization accumulation writes and arrays per operation: channelCount→one; exact PCM and multichannel Apply CPU.",
+			"existingProtection": null,
+			"correctness": "Retain edge windows and summation order so normalization remains exact; this does not reuse channel-dependent accumulators.",
+			"evidenceLevel": "source-verified candidate",
+			"status": "proposed"
+		},
+		{
+			"number": 55,
+			"key": "operations-25",
+			"group": "Generate Apply and DSP",
+			"title": "Reuse Paulstretch FFT scratch across output windows",
+			"priority": "P1",
+			"evidence": [
+				{
+					"file": "src/common/editor/audacity-effects/spectral.js",
+					"line": 298
+				}
+			],
+			"observedWork": "paulstretchChannel allocates Float64 real and imaginary arrays inside every output-window loop; high stretch factors multiply the number of allocations.",
+			"proposedChange": "Allocate one pair per channel processor, fill/reset it for each window, and reuse bounded immutable Hann geometry across channel processors.",
+			"scenario": "Generate a 10× or 20× Paulstretch result from a one-minute source.",
+			"validation": "Typed-array allocations, worker GC duration, peak RSS and click-to-stretched-result time.",
+			"existingProtection": null,
+			"correctness": "Keep deterministic RNG calls and channel seeds in the exact order, clear all FFT data each iteration and preserve output boundary fades.",
+			"evidenceLevel": "source-verified candidate",
+			"status": "proposed"
+		},
+		{
+			"number": 56,
+			"key": "operations-26",
+			"group": "Generate Apply and DSP",
+			"title": "Precompute the selected FFT bin interval for spectral edits",
+			"priority": "P2",
+			"evidence": [
+				{
+					"file": "src/common/editor/spectral-edit.js",
+					"line": 55
+				}
+			],
+			"observedWork": "Every STFT window walks all nonnegative bins, computes frequency=bin*rate/windowSize and branches on min/max band membership. Spectral replacement duplicates this scan at line 142.",
+			"proposedChange": "Resolve inclusive first/last selected bins once per operation and loop only over that range; preserve DC/Nyquist mirror rules.",
+			"scenario": "Apply spectral Delete/gain or a frequency-limited effect to a narrow 2–3 kHz band in a long selection.",
+			"validation": "Bins visited and frequency calculations per window; worker CPU time and exact PCM at frequency/bin boundaries.",
+			"existingProtection": null,
+			"correctness": "Validate floating-point boundary equivalence, including non-bin-aligned limits, inclusive edges and all supported window sizes.",
+			"evidenceLevel": "source-verified candidate",
+			"status": "proposed"
+		},
+		{
+			"number": 57,
+			"key": "operations-27",
+			"group": "Generate Apply and DSP",
+			"title": "Borrow full input blocks in standard destructive effect processing",
+			"priority": "P2",
+			"evidence": [
+				{
+					"file": "src/common/editor/first-party-effects/standard/dsp.ts",
+					"line": 53
+				}
+			],
+			"observedWork": "applyStandardEffect clears each zero block and copies every input block into it even when the block is fully inside the source. It also creates a new input array via zeros.map for every block.",
+			"proposedChange": "For ordinary full blocks, pass read-only subarray views of owned input channels; use the zero scratch only for the final partial block and latency flush. Reuse channel-view containers.",
+			"scenario": "Apply tremolo, standard filters, vocoder, noise gate or delay to a long selection.",
+			"validation": "Copied/zeroed bytes and per-block allocations, exact PCM and Apply CPU time.",
+			"existingProtection": null,
+			"correctness": "Do not mutate borrowed input; retain zero padding, latency compensation, processor reset and sample count. Existing resampler input borrowing does not optimize this path.",
+			"evidenceLevel": "source-verified candidate",
+			"status": "proposed"
+		},
+		{
+			"number": 58,
+			"key": "operations-28",
+			"group": "Generate Apply and DSP",
+			"title": "Skip unused full-band noise-gate crossover work for fixed offline jobs",
+			"priority": "P2",
+			"evidence": [
+				{
+					"file": "src/common/editor/first-party-effects/standard/noise-gate-dsp.ts",
+					"line": 75
+				}
+			],
+			"observedWork": "The gate ticks both crossovers and runs dry through both low-pass filters for every channel/frame even when gateFrequency is zero; the resulting low value is ignored by the full-band output at line 100.",
+			"proposedChange": "Use a fixed-parameter offline full-band branch that omits crossover processing; retain the existing realtime state behavior when future automation could enable frequency gating.",
+			"scenario": "Apply a full-band noise gate to a long stereo voice recording with the default zero gate frequency.",
+			"validation": "Crossover tick/low calls become zero in the fixed full-band case; exact PCM, Apply CPU and realtime transition parity.",
+			"existingProtection": null,
+			"correctness": "Blindly skipping these states in a live processor would change the history when frequency gating is later enabled. Optimize the fixed offline contract first.",
+			"evidenceLevel": "source-verified candidate",
+			"status": "proposed"
+		},
+		{
+			"number": 59,
+			"key": "operations-29",
+			"group": "Generate Apply and DSP",
+			"title": "Use a direct dry-PCM path for simple unprocessed selections",
+			"priority": "P1",
+			"evidence": [
+				{
+					"file": "src/common/editor/controller/effects/internal/effect-audio-service.ts",
+					"line": 86
+				}
+			],
+			"observedWork": "After an optional source-editor fast path, ordinary timeline selections are rendered through renderSnapshot/OfflineAudioContext even when they consist of simple same-rate source clips with unity processing.",
+			"proposedChange": "Add a rigorously admitted direct source-range copy/mix path for simple unwarped, unlooped, untransformed clips, using the same clip fade/crossfade rules; retain offline rendering for every unsupported case.",
+			"scenario": "Apply a cheap gain or Repair to a simple imported audio clip with the editor already warm.",
+			"validation": "Offline contexts/node graphs created per Apply, dry-preparation latency, exact PCM and renderer long tasks.",
+			"existingProtection": null,
+			"correctness": "Respect source rate, reversed/time-pitch/warp/loop transformations, mute scope, clip gain/fades/crossfades, channel mapping and folder routing. If a CPU mix would block, run it in a worker.",
+			"evidenceLevel": "source-verified candidate",
+			"status": "proposed"
+		},
+		{
+			"number": 60,
+			"key": "operations-30",
+			"group": "Generate Apply and DSP",
+			"title": "Index engine render-range clip plans and retain crossfade preparation",
+			"priority": "P1",
+			"evidence": [
+				{
+					"file": "src/common/editor/engine/clip-schedule-plan.ts",
+					"line": 186
+				}
+			],
+			"observedWork": "Every render rebuilds a map of all project clips, obtains every clip in each active track, prepares automatic crossfades for all track clips, then checks range intersection in the inner loop. The timeline viewport index does not serve this engine scheduler.",
+			"proposedChange": "Prepare immutable engine snapshot indexes once, query only clips intersecting the render range (including long overlaps), and reuse canonical per-track crossfade geometry until affected clips change.",
+			"scenario": "Apply or Preview a tiny selection in an hour-long project containing thousands of clips; repeated short renders use the same document.",
+			"validation": "Authored clip geometry reads and crossfade sorts per range render, scheduler preparation milliseconds and Apply latency.",
+			"existingProtection": null,
+			"correctness": "Include crossfade relationships involving clips outside the requested range; preserve source-resolution, exact authored ordering, loop/warp expansion and arbitrary mutable caller fallback.",
+			"evidenceLevel": "source-verified candidate",
+			"status": "proposed"
+		},
+		{
+			"number": 61,
+			"key": "D01",
+			"group": "Desktop storage delivery and assistance",
+			"title": "Replace large-export realtime fallback with bounded faster-than-realtime rendering",
+			"priority": "P1",
+			"evidence": [
+				{
+					"file": "src/common/editor/export.js",
+					"line": 104
+				}
+			],
+			"observedWork": "chooseRenderStrategy falls back to realtime-stream above output/total memory admission. audio-export-render-orchestration.ts:157-163 sends this to renderMixRealtime; engine/rendering.ts:110,208 uses a live AudioContext audio clock.",
+			"proposedChange": "Add a bounded offline/native DSP render-to-sink strategy for supported graphs, preserving state between chunks and refusing unsupported graph shapes. Keep current limits; do not simply increase OfflineAudioContext memory thresholds.",
+			"scenario": "Export a 45-minute stereo podcast whose PCM exceeds the 384 MiB output threshold; compare with the admitted short export on Electron Speed.",
+			"validation": "Export wall time / programme duration, peak RSS, output audio null comparison, stateful-effect boundary continuity, cancellation latency.",
+			"existingProtection": "Direct destination streaming already avoids collecting final bytes; that does not remove the realtime render clock.",
+			"correctness": "Large architectural change: stateful effects, latency compensation, tail and sample-exact joins need parity tests. Existing audio-warp exact fallback needs separate admission.",
+			"evidenceLevel": "code-supported hypothesis; end-to-end impact unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 62,
+			"key": "D02",
+			"group": "Desktop storage delivery and assistance",
+			"title": "Feed offline compressed encoders bounded PCM without a complete staging WAV",
+			"priority": "P1",
+			"evidence": [
+				{
+					"file": "src/common/editor/controller/export/internal/direct/direct-offline-compressed-export.ts",
+					"line": 60
+				}
+			],
+			"observedWork": "The full admitted render is synchronously encodeWav-ed into one Uint8Array and then one Blob before encodeDirectCompressedStagedFile begins.",
+			"proposedChange": "Extend the existing desktop streaming codec contract to accept render PCM blocks directly, applying the admitted conversion/dither once; avoid the complete WAV encode/Blob/decode/reinterleave cycle.",
+			"scenario": "Export a five-minute eight-channel render as FLAC or a several-minute stereo MP3.",
+			"validation": "Render-complete-to-encoder-start latency, total export p50/p95, max renderer long task, peak binary bytes and codec output/reference equality.",
+			"existingProtection": "Desktop codec runtime already supports streaming encoded output and staged WAV input, and direct offline PCM export drains blocks. This proposal removes the upstream full staging WAV.",
+			"correctness": "Preserve FLAC bit-depth quantization/dither and format-specific stream capability admission.",
+			"evidenceLevel": "code-supported hypothesis; end-to-end impact unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 63,
+			"key": "D03",
+			"group": "Desktop storage delivery and assistance",
+			"title": "Pipeline independent stem render and ordered archive emission",
+			"priority": "P2",
+			"evidence": [
+				{
+					"file": "src/common/editor/controller/export/internal/direct/direct-stem-archive-export.ts",
+					"line": 185
+				}
+			],
+			"observedWork": "Each stem fully awaits renderStem and archive.add before the following stem starts.",
+			"proposedChange": "Use a memory-admitted pipeline with at most one next stem render/encode in progress while the previous completed stem drains into the sequential archive. Retain deterministic archive order.",
+			"scenario": "Export 16 independent short stems to a ZIP on a desktop with spare cores and a relatively slow destination disk.",
+			"validation": "Complete archive latency, encoder/renderer/disk overlap, peak staged bytes, archive order and CRC equality.",
+			"existingProtection": "Current sequential path intentionally stages only one render and has hard byte contracts; keep that path on memory-constrained hosts.",
+			"correctness": "May provide little gain for shared single-thread codec contention; benchmark before enabling concurrency. Preserve abort cleanup for the speculative next stem.",
+			"evidenceLevel": "code-supported hypothesis; end-to-end impact unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 64,
+			"key": "D04",
+			"group": "Desktop storage delivery and assistance",
+			"title": "Let Speed publish lossless raw PCM before optional compression",
+			"priority": "P1",
+			"evidence": [
+				{
+					"file": "src/common/editor/storage/source-write-repository.ts",
+					"line": 216
+				}
+			],
+			"observedWork": "Every persistent write calls pcm.encode(packPlanarFloat32(...)) and awaits compression before OPFS/IndexedDB write and source commit. optimizeFor is not consulted here.",
+			"proposedChange": "Under desktop Speed, write supported raw-f32le chunks immediately and schedule atomic low-priority lossless compression/replacement after the result is usable, subject to storage capacity.",
+			"scenario": "Apply a destructive effect to a ten-minute recording or accept a large generated enhancement result.",
+			"validation": "Apply-to-visible-result latency, first playable result, encoder CPU time, background interference, raw/compressed exact PCM equality and crash/reopen durability.",
+			"existingProtection": "Raw-f32le persistence is already supported and codec failures fall back to raw. WavPack foreground/migration lanes already exist.",
+			"correctness": "Requires careful capacity admission, exact-generation replacement and history/retention fences; do not let background replacement change source identity silently.",
+			"evidenceLevel": "code-supported hypothesis; end-to-end impact unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 65,
+			"key": "D05",
+			"group": "Desktop storage delivery and assistance",
+			"title": "Remove the second raw PCM ownership copy before WavPack encode",
+			"priority": "P2",
+			"evidence": [
+				{
+					"file": "src/common/editor/storage/pcm-repository.ts",
+					"line": 97
+				}
+			],
+			"observedWork": "packPlanarFloat32 already snapshots the channel data; encode then rawPayload.slice(0) duplicates that owned chunk before transfer to the worker, retaining the first for fallback.",
+			"proposedChange": "Give the codec the owned packed snapshot and have it return either compressed data or the original owned raw payload. Keep failure recovery explicit, or choose raw persistence before dispatch when needed.",
+			"scenario": "Persist successive 65,536-frame chunks during effect apply and multichannel import.",
+			"validation": "Bytes allocated per persisted chunk, encode/commit p50/p95 and peak GC pause; mutation, abort and raw-fallback tests.",
+			"existingProtection": "The client already transfers its payload when transferInput=true; this copy is made one layer earlier to preserve fallback ownership.",
+			"correctness": "Transferred input detaches, so failure fallback must still have recoverable source data; do not remove the copy without redesigning that contract.",
+			"evidenceLevel": "code-supported hypothesis; end-to-end impact unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 66,
+			"key": "D06",
+			"group": "Desktop storage delivery and assistance",
+			"title": "Use private channel views for owned decoded planar PCM",
+			"priority": "P2",
+			"evidence": [
+				{
+					"file": "src/common/editor/wavpack/pcm.js",
+					"line": 105
+				}
+			],
+			"observedWork": "On little-endian hosts unpackPlanarFloat32 slices the owned decoded payload separately for every channel.",
+			"proposedChange": "Add an internal read-only owned-payload projection using Float32Array views, with copy-on-mutation only where a public/history-owned consumer requires mutable isolation.",
+			"scenario": "Read compressed eight-channel sources while rendering, constructing a waveform window or preparing an effect selection.",
+			"validation": "Decoded bytes allocated/chunk, read throughput, GC pauses and immutable-history mutation tests.",
+			"existingProtection": "Public PCM accessors intentionally return isolated copies; retain their ownership guarantee. Apply views only to private immutable/read-only lifetimes.",
+			"correctness": "Shared views retain the entire chunk and can cross-channel alias through buffer access; an ownership contract is required.",
+			"evidenceLevel": "code-supported hypothesis; end-to-end impact unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 67,
+			"key": "D07",
+			"group": "Desktop storage delivery and assistance",
+			"title": "Move PCM checksum work off the renderer hot path",
+			"priority": "P1",
+			"evidence": [
+				{
+					"file": "src/common/editor/storage/pcm-repository.ts",
+					"line": 83
+				}
+			],
+			"observedWork": "PCM encode computes a byte-by-byte JS CRC32 before its worker call; decode also recomputes CRC32 in renderer at lines 177/207. wavpack/pcm.js:139-146 is a scalar loop.",
+			"proposedChange": "Compute and validate identical CRC32 in a worker/native byte-processing stage that owns the payload, returning an authenticated exact-geometry result; preserve all corruption checks.",
+			"scenario": "Persist/read long multichannel PCM while keeping the timeline responsive.",
+			"validation": "Renderer CPU and long tasks, CRC worker time, p95 read/write latency and corruption fixtures. Reproduce the isolated CRC cost with scripts/performance/measure-pcm-helpers.mjs; retain every trial, including GC/shared-host variation, in editing-performance-measurements.json.",
+			"existingProtection": "Compression itself is already in a worker, and checksums are correctness/security checks; this proposal relocates work rather than removes validation.",
+			"correctness": "Additional IPC must be outweighed by renderer relief; preserve raw payload ownership and independent persisted-data corruption detection.",
+			"evidenceLevel": "code-supported hypothesis; end-to-end impact unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 68,
+			"key": "D08",
+			"group": "Desktop storage delivery and assistance",
+			"title": "Replace per-chunk full ancestry metadata scans with a coherent generation fence",
+			"priority": "P1",
+			"evidence": [
+				{
+					"file": "src/common/editor/storage/owned-source-pcm-read-session.ts",
+					"line": 152
+				}
+			],
+			"observedWork": "Every read calls assertGenerationCurrent before and after chunk access; that loops serial getMetadata over every COW ancestor at lines 204-209.",
+			"proposedChange": "Acquire an exact-generation read lease or a transaction-coherent generation version at session admission, invalidate it when any retained ancestor changes, and keep cheap per-read fence checks.",
+			"scenario": "Render a long source after dozens of sparse pencil/effect edits which created a deep COW chain. Applicable after the resident source buffer cache is exceeded or evicted; short fully resident sources may bypass this path.",
+			"validation": "Metadata queries per chunk, chunk p95, apply/render wall time and tests for replacement/release races across all ancestors.",
+			"existingProtection": "Session admission already captures the ancestry and validates it; current repeated checks deliberately protect exact source identity.",
+			"correctness": "Cannot cache only metadata timestamps or omit currentness checks; needs an authoritative invalidation/lease mechanism.",
+			"evidenceLevel": "code-supported hypothesis; end-to-end impact unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 69,
+			"key": "D09",
+			"group": "Desktop storage delivery and assistance",
+			"title": "Memoize which COW generation owns each chunk",
+			"priority": "P2",
+			"evidence": [
+				{
+					"file": "src/common/editor/storage/owned-source-pcm-read-session.ts",
+					"line": 154
+				}
+			],
+			"observedWork": "After generation checks, each read probes records.chunk on successive COW ancestors until a replacement or physical base is found.",
+			"proposedChange": "Build a bounded chunk-to-owning-generation index for the admitted immutable ancestry, or memoize resolved owners within the session; keep currentness fence independent.",
+			"scenario": "Repeated playback/render of an unchanged region after100 sparse edits far from that region. Applicable after the resident source buffer cache is exceeded or evicted; short fully resident sources may bypass this path.",
+			"validation": "Chunk record lookups per repeated read, first-read versus repeat-read latency and correctness when overlapping sparse edits override base chunks.",
+			"existingProtection": "COW already shares untouched samples and sessions capture exact ancestors; this optimizes lookup work, not history copying.",
+			"correctness": "An eager full index can cost more than lazy memoization for short selections; cap index memory and invalidate on session release.",
+			"evidenceLevel": "code-supported hypothesis; end-to-end impact unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 70,
+			"key": "D10",
+			"group": "Desktop storage delivery and assistance",
+			"title": "Allow bounded concurrent positional reads of immutable PCM",
+			"priority": "P2",
+			"evidence": [
+				{
+					"file": "src/common/editor/storage/source-pcm-read-session.ts",
+					"line": 61
+				}
+			],
+			"observedWork": "One queue serializes all chunk calls in a session even when chunk indexes are independent.",
+			"proposedChange": "Offer a bounded positional-read session for backends that safely support it, allowing disk I/O for the next packet while the current one decodes/consumes. Keep serialization for stateful/non-positional backends.",
+			"scenario": "A long render or assistance preparation on fast SSD with multiple independent PCM chunks. Applicable after the resident source buffer cache is exceeded or evicted; short fully resident sources may bypass this path.",
+			"validation": "Storage-read overlap, chunk throughput, maximum in-flight bytes, cancellation latency and release/error ordering tests.",
+			"existingProtection": "Single-file lifetime and request-local cancellation are already well modeled; do not remove those guarantees.",
+			"correctness": "Single WavPack worker and shared OPFS bridge may limit gain; avoid unbounded Promise.all or concurrent operations on a stateful reader.",
+			"evidenceLevel": "code-supported hypothesis; end-to-end impact unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 71,
+			"key": "D11",
+			"group": "Desktop storage delivery and assistance",
+			"title": "Reuse an OPFS source readable within an exact-generation session",
+			"priority": "P2",
+			"evidence": [
+				{
+					"file": "src/common/editor/storage/opfs-repository.ts",
+					"line": 299
+				}
+			],
+			"observedWork": "readPcmContainerChunk reacquires sourceFile each time; sourceFile may ask sync.readable or getFileHandle/getFile at lines 417-422. Container indexes are cached separately.",
+			"proposedChange": "Bind the source readable/file snapshot and parsed index to the explicit read session, releasing it with the session and reopening only after authoritative invalidation.",
+			"scenario": "Export/read hundreds of chunks from the same canonical PCM container. Applicable after the resident source buffer cache is exceeded or evicted; short fully resident sources may bypass this path.",
+			"validation": "OPFS handle/readable acquisitions per render, chunk latency, release correctness and provider-replacement tests.",
+			"existingProtection": "Index parsing is already cached by source.path; count only the repeated source/readable acquisition that remains.",
+			"correctness": "Sync bridge may already retain handles internally; instrument actual acquisitions first and preserve snapshot freshness.",
+			"evidenceLevel": "profile first: outer readable acquisition is repeated; provider handle reuse may already remove most cost",
+			"status": "proposed"
+		},
+		{
+			"number": 72,
+			"key": "D12",
+			"group": "Desktop storage delivery and assistance",
+			"title": "Read a legacy multichannel PCM chunk as one bounded byte span",
+			"priority": "P2",
+			"evidence": [
+				{
+					"file": "src/common/editor/storage/opfs-repository.ts",
+					"line": 363
+				}
+			],
+			"observedWork": "Legacy chunk reads await one Blob slice/arrayBuffer per channel; sequential legacy streaming does the same at lines 329-332.",
+			"proposedChange": "Read all admitted channel bytes for one chunk together, then project independent channel views/copies under the existing byte bound.",
+			"scenario": "Edit/reopen an existing eight-channel project using legacy OPFS storage. Applicable after the resident source buffer cache is exceeded or evicted; short fully resident sources may bypass this path.",
+			"validation": "Blob read count per chunk, multichannel chunk p95 and exact channel/NaN payload tests.",
+			"existingProtection": "Modern PCM containers already have an indexed payload path, so this applies specifically to legacy storage.",
+			"correctness": "Keep per-chunk size ceilings and raw-data validation. Gain depends on whether the Blob implementation already coalesces adjacent reads.",
+			"evidenceLevel": "code-supported hypothesis; end-to-end impact unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 73,
+			"key": "D13",
+			"group": "Desktop storage delivery and assistance",
+			"title": "Avoid coalescer copies for already aligned owned PCM packets",
+			"priority": "P2",
+			"evidence": [
+				{
+					"file": "src/common/editor/pcm-chunks.js",
+					"line": 107
+				}
+			],
+			"observedWork": "The coalescer allocates pendingChannels and copies all samples even when a full input packet exactly matches chunkFrames and no pending tail exists.",
+			"proposedChange": "Add an explicitly ownership-transferred aligned packet fast path that emits the original packet; retain copying for borrowed/mutable inputs and partial boundaries.",
+			"scenario": "Import a decoder whose packets already use65,536 frames or persist generated output through fixed packets.",
+			"validation": "Copied bytes and allocations per import, wall time and tests mutating caller buffers before/after awaited write.",
+			"existingProtection": "The coalescer already uses bounded memory/backpressure; keep this as an optional ownership contract rather than changing safe default borrowing.",
+			"correctness": "Emitted chunks are consumer-owned; directly forwarding borrowed decoder scratch buffers would corrupt output.",
+			"evidenceLevel": "code-supported hypothesis; end-to-end impact unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 74,
+			"key": "D14",
+			"group": "Desktop storage delivery and assistance",
+			"title": "Stream desktop compressed decode into canonical PCM storage",
+			"priority": "P1",
+			"evidence": [
+				{
+					"file": "src/common/editor/desktop-audio-codec-runtime.ts",
+					"line": 198
+				}
+			],
+			"observedWork": "decode materializes all input with boundedInputBytes, sends a whole Uint8Array request, receives complete output and projects it. IPC permits64 MiB total active input at desktop-audio-codec-main-ipc.ts:62.",
+			"proposedChange": "Extend main-owned decoding with bounded input capabilities/streams and PCM output packets written directly to the staged source, instead of whole-file request/result buffers.",
+			"scenario": "Import a long MP3/FLAC or multichannel compressed recording after the editor is ready.",
+			"validation": "Import-to-first-visible/playable source latency, total import wall time, peak RSS, renderer long tasks and sample/gapless conformance.",
+			"existingProtection": "Desktop encode has streaming support; this candidate is specifically the remaining buffered decode API.",
+			"correctness": "Keep pathless owner capabilities, aggregate byte admission, exact geometry, cancellation and gapless trim handling.",
+			"evidenceLevel": "code-supported hypothesis; end-to-end impact unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 75,
+			"key": "D15",
+			"group": "Desktop storage delivery and assistance",
+			"title": "Avoid repeated full payload clones at internal desktop codec boundaries",
+			"priority": "P2",
+			"evidence": [
+				{
+					"file": "desktop/desktop-audio-codec-operation-contract.ts",
+					"line": 212
+				}
+			],
+			"observedWork": "normalizeDesktopAudioCodecRequest copies input at renderer and main normalization boundaries; createDesktopAudioCodecResult copies output at 228 and normalize result copies again at 305.",
+			"proposedChange": "Separate assert-only validation from ownership-taking normalization for internal owned values and use transferable MessagePort payloads where supported. Snapshot external mutable callers once.",
+			"scenario": "Buffered import/decode of a 32 MiB compressed file or short large multichannel encode.",
+			"validation": "Instrument copies/allocated bytes per request/result, IPC phase latency, renderer GC and caller-mutation/owner-revocation tests.",
+			"existingProtection": "Copies deliberately isolate mutable callers; native encode stream already avoids some buffered paths.",
+			"correctness": "Electron invoke structured clone and preload boundaries can still copy; avoid claiming zero-copy without measurements or trusting renderer-owned bytes in main.",
+			"evidenceLevel": "code-supported hypothesis; end-to-end impact unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 76,
+			"key": "D16",
+			"group": "Desktop storage delivery and assistance",
+			"title": "Move large desktop decoded PCM projection out of renderer",
+			"priority": "P1",
+			"evidence": [
+				{
+					"file": "src/common/editor/desktop-audio-codec-result.ts",
+					"line": 26
+				}
+			],
+			"observedWork": "projectDesktopAudioDecodeResult loops over every frame/channel using DataView.getFloat32 and allocates full planar channels on renderer.",
+			"proposedChange": "Produce planar bounded chunks in the main codec worker or a dedicated renderer worker and transfer them directly to the canonical source writer.",
+			"scenario": "Import a 60-second eight-channel 48 kHz file while dragging or scrolling the timeline.",
+			"validation": "Maximum renderer long task, input-to-paint during import, projection CPU and output exactness. Reproduce the isolated projection cost with scripts/performance/measure-pcm-helpers.mjs; inspect the full trial distribution in editing-performance-measurements.json.",
+			"existingProtection": "Native decode itself already runs through main-owned codecs; this is the remaining renderer-side projection.",
+			"correctness": "Preserve finite-to-zero sample policy, endian handling and chunk ownership; complementary to streaming decode rather than a substitute.",
+			"evidenceLevel": "code-supported hypothesis; end-to-end impact unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 77,
+			"key": "D17",
+			"group": "Desktop storage delivery and assistance",
+			"title": "Add aligned little-endian typed-array PCM interleaving",
+			"priority": "P1",
+			"evidence": [
+				{
+					"file": "src/common/editor/interleaved-float32-pcm.ts",
+					"line": 40
+				}
+			],
+			"observedWork": "Each sample uses optional channel indexing, Number(sample) and DataView.setFloat32. stagedDesktopWavPcm and desktop stream encoding call this helper.",
+			"proposedChange": "When destination is aligned and host little-endian, write directly through Float32Array after geometry checks; hoist channel count/frame offset and keep existing DataView fallback.",
+			"scenario": "Encode a multichannel compressed export or stage65,536-frame PCM packets on Electron.",
+			"validation": "Packet interleaving CPU, bitwise sample/byte equality, Electron export phase latency, renderer long tasks, and aligned/misaligned/destination-offset coverage. Reproduce with scripts/performance/measure-pcm-helpers.mjs; raw results are in editing-performance-measurements.json.",
+			"existingProtection": "Realtime PCM spool already writes a typed Float32Array at realtime-pcm-spool.ts:12-18; preserve the shared helper stronger geometry/endian contract.",
+			"correctness": "Do not use views on misaligned byte offsets or big-endian hosts. Sketch benchmark is not integrated/end-to-end evidence.",
+			"evidenceLevel": "source-supported fast-path candidate with isolated byte parity and timing; Electron impact unmeasured",
+			"status": "proposed",
+			"measurement": "65,536-frame/eight-channel isolated packet probe: median 5.28 ms existing versus 0.49 ms aligned little-endian sketch after the first sample. NaN/infinity/signed-zero/finite modes match tested bytes; sketch omits production geometry and offset validation."
+		},
+		{
+			"number": 78,
+			"key": "D18",
+			"group": "Desktop storage delivery and assistance",
+			"title": "Specialize WAV PCM decoding once per format",
+			"priority": "P2",
+			"evidence": [
+				{
+					"file": "src/common/editor/wav-pcm-chunk-reader.ts",
+					"line": 325
+				}
+			],
+			"observedWork": "For every sample decodeInterleavedPcm calls readPcmSample, which tests sampleFormat through uint8/int16/int20/int24/int32/float branches at 335-345.",
+			"proposedChange": "Select the decoding loop once per inspected descriptor; add aligned float32 and native typed integer paths where safe, preserving24-bit and valid-bit semantics.",
+			"scenario": "Import long multichannel WAV or accept generated float32 WAV output.",
+			"validation": "PCM decode CPU per chunk, import/Apply wall time, main-thread long tasks and existing PCM-format conformance fixtures.",
+			"existingProtection": "Current chunk reader already bounds reads and does not materialize whole recordings; optimize conversion inside those bounds.",
+			"correctness": "V8 may already inline/constant-fold some branches; benchmark actual formats before splitting maintained code.",
+			"evidenceLevel": "code-supported hypothesis; end-to-end impact unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 79,
+			"key": "D19",
+			"group": "Desktop storage delivery and assistance",
+			"title": "Prepare desktop assistance media directly into native custody",
+			"priority": "P1",
+			"evidence": [
+				{
+					"file": "src/common/editor/controller/assistance/internal/audio/local-assistance-audio-preparation.ts",
+					"line": 67
+				}
+			],
+			"observedWork": "Selected PCM is encoded into a renderer memory/OPFS WAV spool, then local-assistance-bridge.ts:191-195 hashes its Blob and streams/stages it again into desktop custody.",
+			"proposedChange": "Add a main-owned preparation capability to conform admitted selected PCM directly into the authenticated assistance staging file. Keep operation/selection fences and avoid exposing paths to renderer.",
+			"scenario": "Generate transcript/enhanced speech from an hour-long selected audio source.",
+			"validation": "Generate-click-to-inference-start, bytes written/read across renderer/native staging, peak RSS, timeline input latency and fence/custody tests.",
+			"existingProtection": "Current renderer spool is already bounded and disposable; improvement removes an extra entire prepared-media pass and native restaging.",
+			"correctness": "Large trust-boundary change: preserve exact selection, resampling reference behavior, content digest and cleanup/ownership contracts.",
+			"evidenceLevel": "code-supported hypothesis; end-to-end impact unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 80,
+			"key": "D20",
+			"group": "Desktop storage delivery and assistance",
+			"title": "Hash accepted generated speech incrementally outside the renderer",
+			"priority": "P1",
+			"evidence": [
+				{
+					"file": "src/common/editor/controller/assistance/local-assistance-text-to-speech-project-service.ts",
+					"line": 119
+				}
+			],
+			"observedWork": "accept reads the complete reviewed audio arrayBuffer and calls synchronous noble SHA256 before publishing, with allowed output up to 128 MiB.",
+			"proposedChange": "Use an off-main-thread bounded digest or carry the verified exact-Blob digest through review into acceptance under an immutable custody binding.",
+			"scenario": "Accept a long generated narration rather than only a short sentence.",
+			"validation": "Accept-to-track-visible time, longest renderer task, peak bytes and tampered output/review binding tests.",
+			"existingProtection": "General retained-media hashing is incremental, and the bridge already authenticates generated outputs; any reuse must bind the exact immutable Blob.",
+			"correctness": "A plain supplied digest is insufficient; maintain authenticated output identity and project fences.",
+			"evidenceLevel": "code-supported hypothesis; end-to-end impact unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 81,
+			"key": "D21",
+			"group": "Desktop storage delivery and assistance",
+			"title": "Publish independent separation result sources with bounded parallelism",
+			"priority": "P2",
+			"evidence": [
+				{
+					"file": "src/common/editor/controller/assistance/internal/audio/local-assistance-audio-publication.ts",
+					"line": 143
+				}
+			],
+			"observedWork": "Audio result acceptance publishes each output source sequentially before committing one final project command.",
+			"proposedChange": "Admit a small parallel writer pool or pipeline distinct D/M/E source storage stages while preserving an all-or-nothing final command and complete rollback list.",
+			"scenario": "Accept three long TIGER dialogue/music/effects stems.",
+			"validation": "Apply-to-project-visible time, storage/compression overlap, peak working bytes and partial failure/cancel rollback tests.",
+			"existingProtection": "Final command publication is already atomic and each writer is bounded; current serial writes reduce memory and contention.",
+			"correctness": "Shared WavPack worker can serialize compression; measure gain and do not publish project references before every source commits.",
+			"evidenceLevel": "code-supported hypothesis; end-to-end impact unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 82,
+			"key": "D22",
+			"group": "Desktop storage delivery and assistance",
+			"title": "Keep admitted ONNX sessions warm across successful jobs",
+			"priority": "P1",
+			"evidence": [
+				{
+					"file": "desktop/assistance-runtime-family-thread-worker.ts",
+					"line": 49
+				}
+			],
+			"observedWork": "A new Worker with job data is made per job; ONNX adapters create InferenceSession and release it in finally (e.g.enhancement worker 185/236, Kokoro109/140).",
+			"proposedChange": "Retain a bounded model session in an isolated reusable worker keyed by authenticated artifact digest and exact settings, retiring the worker on failure/cancel and unloading after idle policy.",
+			"scenario": "Generate successive Kokoro speech lines or enhance multiple selections using the same installed model.",
+			"validation": "Second/third job inference-start latency, total warm Generate latency, model-load CPU, RSS cap and cancellation/foreign-job isolation tests.",
+			"existingProtection": "Family utility processes already stay warm 120s; that avoids family handshake only, not current per-job inner worker/model-session load.",
+			"correctness": "Needs worker protocol/lifetime redesign, exact artifact invalidation and bounded RSS; per-job termination currently guarantees cleanup.",
+			"evidenceLevel": "code-supported hypothesis; end-to-end impact unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 83,
+			"key": "D23",
+			"group": "Desktop storage delivery and assistance",
+			"title": "Avoid restarting Whisper and loading its model per VAD segment",
+			"priority": "P1",
+			"evidence": [
+				{
+					"file": "desktop/assistance-whisper-cpp-worker.ts",
+					"line": 203
+				}
+			],
+			"observedWork": "Each detected voice-activity segment is written to segment.wav and then runWhisperCli spawns the CLI with --model (229-250).",
+			"proposedChange": "Use a supervised batch/native Whisper session that retains one authenticated model for all VAD ranges, preserving per-range timestamps and deterministic language settings.",
+			"scenario": "Transcribe a 30-minute interview with many short pauses/VAD ranges.",
+			"validation": "CLI spawn count, model load time, transcript wall time, real-time factor and segment offset/language/tokens parity.",
+			"existingProtection": "VAD already skips silence and segment staging is bounded; model reuse targets the repeated cost introduced by segmented invocation.",
+			"correctness": "Likely requires new runtime binding/engine closure and manual Update AI assets if implemented through a native library/batch wrapper.",
+			"evidenceLevel": "code-supported hypothesis; end-to-end impact unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 84,
+			"key": "D24",
+			"group": "Desktop storage delivery and assistance",
+			"title": "Reuse a supervised llama model and invariant prompt prefix",
+			"priority": "P1",
+			"evidence": [
+				{
+					"file": "desktop/assistance-llama-cpp-worker.ts",
+					"line": 127
+				}
+			],
+			"observedWork": "Every editorial job runs llama CLI with --model and --single-turn; utility family warmth does not preserve the CLI model/KV state.",
+			"proposedChange": "Introduce a supervised offline inference service with digest-bound resident model and reusable invariant prompt prefix; reset job-specific state and retire on cancel/failure.",
+			"scenario": "Generate successive editorial proposals against the same transcript/context with a local Qwen model.",
+			"validation": "Repeated Generate latency, model reloads, tokens/sec, prefix evaluation time, deterministic JSON/grammar outputs and cross-job data isolation.",
+			"existingProtection": "CLI already disables network/device offload and bounds tokens/output; maintain those exact authenticated policies.",
+			"correctness": "Architectural runtime/protocol change; runtime bytes/closure changes would require manual Update AI assets. A persisted prompt cache must never leak another project.",
+			"evidenceLevel": "code-supported hypothesis; end-to-end impact unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 85,
+			"key": "D25",
+			"group": "Desktop storage delivery and assistance",
+			"title": "Tune inference thread budgets to actual desktop hardware and competing work",
+			"priority": "P2",
+			"evidence": [
+				{
+					"file": "desktop/assistance-onnx-worker-common.ts",
+					"line": 63
+				}
+			],
+			"observedWork": "ONNX fixes intraOp threads to 4 and interOp to 1; Whisper/llama also hardcode4, while Sherpa defaults2.",
+			"proposedChange": "Derive a bounded shared inference thread budget from available cores and active work, benchmark task-specific choices, and preserve UI/audio headroom under concurrent jobs.",
+			"scenario": "Generate while editing on a two-core laptop versus a 16-core desktop.",
+			"validation": "Generate p50/p95, inference throughput, dropped playback packets, timeline frame times and CPU contention at 2/4/8 thread settings.",
+			"existingProtection": "Native family processes already run at background scheduling priority and power etiquette applies; threads remain a separate budget.",
+			"correctness": "More threads can slow inference and harm responsiveness; use measured task-specific thresholds rather than always maximizing cores.",
+			"evidenceLevel": "hardware tuning experiment; benefit must be established separately for each task and core count",
+			"status": "proposed"
+		},
+		{
+			"number": 86,
+			"key": "D26",
+			"group": "Desktop storage delivery and assistance",
+			"title": "Avoid recomputing DeepFilter overlapping context features",
+			"priority": "P2",
+			"evidence": [
+				{
+					"file": "desktop/assistance-onnx-enhancement-separation-worker.ts",
+					"line": 202
+				}
+			],
+			"observedWork": "Default 4-second cores include 1-second context on each side; source frames and full analysis are reread/recomputed for adjacent windows.",
+			"proposedChange": "Cache overlap PCM/STFT/ERB feature work where normalization semantics allow, or increase the bounded core span under Speed after boundary quality tests.",
+			"scenario": "Enhance a 20-minute multichannel recording.",
+			"validation": "Analyzed frames/source frame, prep DSP CPU, total enhancement real-time factor and seam/reference error.",
+			"existingProtection": "Current bounded windowing intentionally uses overlap for context and avoids whole-recording memory; keep context semantics.",
+			"correctness": "Feature normalization/state differs by window; cannot reuse normalized features blindly or discard context for speed.",
+			"evidenceLevel": "code-supported hypothesis; end-to-end impact unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 87,
+			"key": "D27",
+			"group": "Desktop storage delivery and assistance",
+			"title": "Batch or pipeline independent DeepFilter channel work",
+			"priority": "P2",
+			"evidence": [
+				{
+					"file": "desktop/assistance-onnx-enhancement-separation-worker.ts",
+					"line": 209
+				}
+			],
+			"observedWork": "For each chunk, channels are analyzed, inferred and synthesized sequentially, with a model batch dimension fixed to 1.",
+			"proposedChange": "Pipeline bounded channel analysis/synthesis against the existing inference session, reserving UI cores. Only consider model batching after a separately authenticated model graph demonstrates compatible batch geometry; current model fixes batch dimension to one.",
+			"scenario": "Enhance an eight-channel dialogue recording using the same network.",
+			"validation": "Channel batch throughput, whole enhancement time, RSS and per-channel reference/boundary equality.",
+			"existingProtection": "One ONNX session currently uses 4 CPU threads; naive parallel sessions may oversubscribe rather than improve speed.",
+			"correctness": "Batch support must be established from model graph, not assumed; preserve channel independence and 4-second output order.",
+			"evidenceLevel": "code-supported hypothesis; end-to-end impact unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 88,
+			"key": "D28",
+			"group": "Desktop storage delivery and assistance",
+			"title": "Reuse DeepFilter Bluestein transform scratch buffers",
+			"priority": "P2",
+			"evidence": [
+				{
+					"file": "src/common/editor/assistance/deepfilternet3-signal-v1.ts",
+					"line": 288
+				}
+			],
+			"observedWork": "Every transformBluestein forward call allocates two Float64Array buffers of convolutionSize; analysis/synthesis call this for many960-sample FFT frames.",
+			"proposedChange": "Create a job-owned/reentrant transform workspace and reuse workReal/workImaginary with required tail zeroing, or evaluate a tested960-point native/SIMD FFT adapter.",
+			"scenario": "Enhance a long recording, where hundreds of FFT frames occur in every source window.",
+			"validation": "Allocations/FFT frame, DSP CPU, worker GC pause, full Generate latency and deterministic/reference tolerance tests.",
+			"existingProtection": "FFT_PLAN, sine/cosine and convolution kernel are already precomputed; this candidate specifically targets repeated scratch allocation.",
+			"correctness": "Never share mutable scratch across concurrent channel transforms; a native engine replacement could require runtime-asset update.",
+			"evidenceLevel": "code-supported hypothesis; end-to-end impact unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 89,
+			"key": "D29",
+			"group": "Desktop storage delivery and assistance",
+			"title": "Stream Kokoro output chunks into its reserved WAV sink",
+			"priority": "P2",
+			"evidence": [
+				{
+					"file": "desktop/assistance-onnx-kokoro-worker.ts",
+					"line": 112
+				}
+			],
+			"observedWork": "All generated Float32 waveforms are retained in chunks, then encodePcm16Wave constructs full output before publishAssistanceOnnxOutput writes it.",
+			"proposedChange": "Write quantized PCM chunks into the authenticated reserved sink as each sentence finishes, maintain incremental digest/frame count and finalize the WAV header atomically.",
+			"scenario": "Generate a multi-paragraph narration approaching the 128 MiB output reservation.",
+			"validation": "Peak worker RSS, post-inference encode/publication latency, total Generate time and exact WAV/header/sample/digest parity.",
+			"existingProtection": "Output reservation and token chunks are bounded, but all successful chunks remain resident until final encode.",
+			"correctness": "Cancellation must rollback incomplete WAV; do not mark output authenticated or playable before final sealed digest/geometry.",
+			"evidenceLevel": "code-supported hypothesis; end-to-end impact unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 90,
+			"key": "D30",
+			"group": "Desktop storage delivery and assistance",
+			"title": "Reuse an authenticated G2P closure within a supervised speech worker lifetime",
+			"priority": "P2",
+			"evidence": [
+				{
+					"file": "desktop/assistance-kokoro-g2p-runtime.ts",
+					"line": 85
+				}
+			],
+			"observedWork": "Every phonemize request loads manifest, inventories every closure file and hashes them serially before spawning the helper; authenticateClosure loop is175-178.",
+			"proposedChange": "Authenticate a private immutable closure/snapshot once for a bounded supervised worker lifetime, pin exact identity and invalidate/reverify on changes; optionally keep the G2P subprocess warm.",
+			"scenario": "Generate many short speech lines where inference itself is short.",
+			"validation": "Generate-to-first-token latency, closure bytes hashed/request, G2P process starts and tamper/replacement invalidation tests.",
+			"existingProtection": "Exact target inventory and no-follow file authentication are intentional; retain them. Current per-job ONNX worker limits practical cache reuse until its lifecycle changes.",
+			"correctness": "Never replace digest verification with mtime-only trust. A persistent helper or different archive closure may require manual AI-asset update.",
+			"evidenceLevel": "code-supported hypothesis; end-to-end impact unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 91,
+			"key": "controller-01",
+			"group": "Controller and analysis",
+			"title": "Detach only changed immutable project branches for publication",
+			"priority": "P1",
+			"evidence": [
+				{
+					"file": "src/common/editor/controller/document/document-snapshot.ts",
+					"line": 421
+				},
+				{
+					"file": "src/common/editor/controller/document/document-snapshot.ts",
+					"line": 424
+				},
+				{
+					"file": "src/common/editor/controller/document/document-snapshot.ts",
+					"line": 447
+				},
+				{
+					"file": "src/soundscaper/editor-project.ts",
+					"line": 113
+				}
+			],
+			"observedWork": "The existing top-level WeakMap reuses a detached project while its identity stays unchanged. Every new canonical project identity recursively copies/freezes the entire project with a new traversal WeakMap, including unchanged clips, tracks and metadata. Soundscaper's clone helper currently structuredClone-copies the document, so a nested-identity cache alone cannot reuse those newly cloned leaves.",
+			"proposedChange": "Introduce explicit immutable ownership and copy-on-write authored updates, then retain detached unchanged subtrees by owned identity/version; publish only edited paths. An alternative is a trusted command change-set for incrementally updating the detached view. Keep full detachment for untrusted/mutable inputs.",
+			"scenario": "Change one clip, track property or time selection in a 10,000-100,000-clip Soundscaper project.",
+			"validation": "Visited/copied snapshot nodes and allocated bytes per small edit, snapshot build CPU, command-to-visible-result p50/p95, retained cache bytes.",
+			"existingProtection": "PUBLISHED_PROJECTS already avoids copying on status-only publications with the same project identity; VIDEO_PREVIEW_PROJECTS, project lists and preferences have their own identity caches. Preserve proxy detachment, cyclic identity, read-only Map/Set behavior and capability branding. This requires immutable update ownership, not a blind global WeakMap.",
+			"correctness": null,
+			"evidenceLevel": "operation-count verified; Electron benefit unmeasured",
+			"status": "proposed",
+			"measurement": "Operation probe: 10,000 clip leaf reads on first publication, zero with unchanged project identity, 10,000 again for root-only selection replacement retaining the same clips. Production updates currently clone the full document; copy-on-write prerequisite remains."
+		},
+		{
+			"number": 92,
+			"key": "controller-02",
+			"group": "Controller and analysis",
+			"title": "Retain effect-type catalog snapshots for each registry and locale",
+			"priority": "P2",
+			"evidence": [
+				{
+					"file": "src/common/editor/controller/composition/snapshot-composition.ts",
+					"line": 32
+				},
+				{
+					"file": "src/common/editor/controller/document/document-snapshot.ts",
+					"line": 57
+				},
+				{
+					"file": "src/common/editor/controller/document/document-snapshot.ts",
+					"line": 379
+				}
+			],
+			"observedWork": "Every document publication remaps the rack and selection effect registries into fresh frozen objects, recomputes hasSettings using Object.keys, and obtains a fresh video-definition array even when the registry/copy has not changed.",
+			"proposedChange": "Build the frozen effect catalogs once per snapshot composition or cache them by registry revision and localized copy identity; preserve invalidation when translations or registry contents change.",
+			"scenario": "Rapid controller status updates, Apply completion or macro steps while an effect menu/inspector is mounted.",
+			"validation": "Registry mapping/Object.keys invocations and effect-catalog allocations per publication; snapshot build CPU and dependent menu renders.",
+			"existingProtection": "The source effect definitions already have stable module ownership; this targets their repeatedly derived UI catalogs. Locale must remain part of the cache identity.",
+			"correctness": null,
+			"evidenceLevel": "code-confirmed allocation/recomputation; impact unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 93,
+			"key": "controller-03",
+			"group": "Controller and analysis",
+			"title": "Reuse admitted preset normalization and per-effect lists",
+			"priority": "P2",
+			"evidence": [
+				{
+					"file": "src/common/editor/controller/composition/snapshot-composition.ts",
+					"line": 36
+				},
+				{
+					"file": "src/common/editor/effect-presets.js",
+					"line": 15
+				},
+				{
+					"file": "src/common/editor/effect-presets.js",
+					"line": 32
+				}
+			],
+			"observedWork": "Every document snapshot calls listAudioEditorEffectPresets, which normalizes every saved preset, checks ID uniqueness and freezes another normalized state before filtering for the current effect and appending factory presets. Unrelated project/status publications repeat this work over the whole library.",
+			"proposedChange": "Retain normalization at an explicit admission boundary for an immutable preset-state identity, and cache its display list by preset revision/current effect/factory registry revision. Keep validation for arbitrary imported or mutable inputs.",
+			"scenario": "Use a large imported user-preset library, then apply several effects or update selections without changing that library.",
+			"validation": "Preset normalizations and allocated parameter objects per publish, snapshot build CPU at 100/1,000/5,000 saved presets, preset-menu render counts.",
+			"existingProtection": "Preset CRUD returns frozen normalized states. This must not bypass import/type/timestamp/duplicate-ID validation or assume arbitrary caller objects are immutable.",
+			"correctness": null,
+			"evidenceLevel": "allocation-count verified; Electron benefit unmeasured",
+			"status": "proposed",
+			"measurement": "Operation probe: two unchanged listings each copy all 1,000 already-normalized user presets into new objects."
+		},
+		{
+			"number": 94,
+			"key": "controller-04",
+			"group": "Controller and analysis",
+			"title": "Retain detached macro and script libraries until their revision changes",
+			"priority": "P2",
+			"evidence": [
+				{
+					"file": "src/common/editor/controller/document/document-snapshot.ts",
+					"line": 394
+				},
+				{
+					"file": "src/common/editor/controller/document/document-snapshot.ts",
+					"line": 439
+				},
+				{
+					"file": "src/common/editor/controller/effects/effect-macro-library-service.ts",
+					"line": 101
+				},
+				{
+					"file": "src/common/editor/controller/effects/macro-script-library-service.ts",
+					"line": 118
+				}
+			],
+			"observedWork": "Every snapshot recursively materializes and freezes the entire macro library and script library using a fresh traversal map, although their services replace library state only on explicit library edits/imports. Unlike preferences and project lists, these potentially large detached values have no retained publication identity.",
+			"proposedChange": "Cache detached macros/scripts by the controller-owned immutable library identity or explicit revision; return a stable frozen empty value. Invalidate on import/save/delete and preserve mutation isolation.",
+			"scenario": "A session with hundreds of macros or large scripts while other commands repeatedly publish status or project snapshots.",
+			"validation": "Library entries/script bytes copied and allocated per unrelated publish, snapshot CPU, dependent macro menu render count, bounded retained memory.",
+			"existingProtection": "Macro execution ownership/cancellation is separate; this only reuses UI-facing library snapshots. Existing materialization preserves cycles and read-only collections and must continue to do so.",
+			"correctness": null,
+			"evidenceLevel": "code-confirmed repeat detachment; impact unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 95,
+			"key": "controller-05",
+			"group": "Controller and analysis",
+			"title": "Batch synchronous controller presentation transitions into one publication",
+			"priority": "P2",
+			"evidence": [
+				{
+					"file": "src/common/editor/controller/composition/presentation-state.ts",
+					"line": 25
+				},
+				{
+					"file": "src/common/editor/controller/composition/presentation-state.ts",
+					"line": 40
+				},
+				{
+					"file": "src/common/editor/controller/analysis/analysis-service.ts",
+					"line": 349
+				},
+				{
+					"file": "src/common/editor/controller/composition/internal/snapshot-channel.ts",
+					"line": 31
+				}
+			],
+			"observedWork": "setStatus and showAnalysis publish immediately. Analysis begin first sets busy, then setLocalizedStatus triggers a snapshot, then explicitly publishes an identical state again. Success publishes result, status and finally busy=false separately. SnapshotChannel rebuilds synchronously and notifies listeners on every call even when React can batch later rendering.",
+			"proposedChange": "Add explicit scoped presentation transactions or no-publish state setters so each synchronous busy/start and completion transition publishes once after all owned fields are set. Suppress identical status replacements. Preserve an initial busy publication before expensive work begins.",
+			"scenario": "Analyze a short selection, repeat a cached analysis, or finish several macro/effect steps that update result/status/busy together.",
+			"validation": "Snapshot builds/subscriber notifications per operation and build CPU; busy-first-paint and final-result latency; cancellation/stale-owner tests.",
+			"existingProtection": "Realtime telemetry already has a separate channel. Do not defer busy state across the compute phase or allow an older task's finish to clear a newer task's busy flag.",
+			"correctness": null,
+			"evidenceLevel": "code-confirmed duplicate synchronous build path; React frame impact unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 96,
+			"key": "controller-06",
+			"group": "Controller and analysis",
+			"title": "Publish the requested specialized analysis before independent generic metrics finish",
+			"priority": "P2",
+			"evidence": [
+				{
+					"file": "src/common/editor/controller/analysis/analysis-service.ts",
+					"line": 204
+				},
+				{
+					"file": "src/common/editor/controller/analysis/analysis-service.ts",
+					"line": 333
+				},
+				{
+					"file": "src/common/editor/ui/inspector/AnalysisPanel.jsx",
+					"line": 92
+				},
+				{
+					"file": "src/common/editor/ui/inspector/AnalysisPanel.jsx",
+					"line": 119
+				}
+			],
+			"observedWork": "Plot Spectrum and Find Clipping await renderAndAnalyze, including complete EBU/true-peak/generic metrics, before starting their independent report computation. The specialized report cannot become visible until both serial phases finish.",
+			"proposedChange": "After the single authored mix render, start specialized reporting and generic metrics as independent owned tasks; publish the specialized report as soon as ready, then publish the completed generic metrics/visuals. Retain all existing metrics and disable/export or mark incomplete payloads until they are complete.",
+			"scenario": "Plot spectrum or find clipping on a long selection where generic loudness and true-peak processing dominate the requested report's first-result latency.",
+			"validation": "Click-to-specialized-report first paint versus click-to-complete-analysis, total CPU, extra buffer bytes and renderer frame gaps; report equality and project-change cancellation.",
+			"existingProtection": "Generic analysis already executes in a worker. AnalysisPanel currently shows generic metrics in every mode and exports result+report, so eliminating that work would change behavior. This is scheduling/progressive publication, not deletion of required metrics. Contrast needs RMS first and should only use this after preserving exact generic RMS semantics.",
+			"correctness": "Bind partial and complete metrics/report/visuals to the same request and revision; clear or mark previous generic metrics while partial results are displayed. Preserve the complete export contract.",
+			"evidenceLevel": "code-confirmed serial dependency; first-result benefit unmeasured",
+			"status": "proposed"
+		},
+		{
+			"number": 97,
+			"key": "controller-07",
+			"group": "Controller and analysis",
+			"title": "Persist completed analysis after displaying the result",
+			"priority": "P2",
+			"evidence": [
+				{
+					"file": "src/common/editor/controller/analysis/analysis-service.ts",
+					"line": 174
+				},
+				{
+					"file": "src/common/editor/controller/analysis/analysis-service.ts",
+					"line": 177
+				},
+				{
+					"file": "src/common/editor/controller/analysis/analysis-service.ts",
+					"line": 184
+				}
+			],
+			"observedWork": "On a levels-analysis cache miss, the complete result and visuals are ready but the service awaits cache persistence before showAnalysis. Slow analysis-store writes delay result visibility; a cache write failure prevents the computed report from being shown.",
+			"proposedChange": "Assert ownership and publish the complete result first, then schedule bounded tracked cache persistence outside the display critical path with captured revision/key and explicit failure handling. Preserve flush/disposal semantics where required.",
+			"scenario": "Analyze a selection while the project's storage backend is busy writing PCM or autosave data.",
+			"validation": "Time from DSP completion to analysis first paint, injected cache-write latency versus UI completion, persistence queue depth and retry/error behavior.",
+			"existingProtection": "A revision/scope/range levels cache already exists. This preserves its contents and admission checks while removing successful cache persistence from the visible-result dependency.",
+			"correctness": null,
+			"evidenceLevel": "code-confirmed critical-path await; storage-delay impact depends on backend",
+			"status": "proposed"
+		},
+		{
+			"number": 98,
+			"key": "controller-08",
+			"group": "Controller and analysis",
+			"title": "Run spectrum, clipping and delivery loudness reporting off the renderer",
+			"priority": "P1",
+			"evidence": [
+				{
+					"file": "src/common/editor/controller/analysis/analysis-service.ts",
+					"line": 412
+				},
+				{
+					"file": "src/common/editor/controller/analysis/analysis-service.ts",
+					"line": 429
+				},
+				{
+					"file": "src/common/editor/controller/analysis/analysis-service.ts",
+					"line": 301
+				},
+				{
+					"file": "src/common/editor/audio-spectrum.ts",
+					"line": 29
+				},
+				{
+					"file": "src/common/editor/controller/source/waveform-analysis.ts",
+					"line": 238
+				}
+			],
+			"observedWork": "After rendering, specialized spectrum averages every half-overlapping FFT window synchronously; clipping scans every sample synchronously; Measure Loudness calls synchronous EBU measurement. These direct calls run in the renderer despite generic levels analysis already having a worker implementation.",
+			"proposedChange": "Extend a bounded analysis worker protocol with specialized report jobs, ordered chunking/backpressure and cancellation; keep numerical reporting algorithms unchanged. Borrow/copy/transfer PCM according to explicit ownership, since the same channels may feed generic metrics and visuals.",
+			"scenario": "Plot spectrum with a large FFT on a multi-minute mix, Find Clipping on many channels, or Measure Loudness while the timeline is playing.",
+			"validation": "Renderer long-task maximum and p95 animation frame interval during each analyzer, click-to-report latency, worker CPU and peak memory; exact bins/regions/loudness equivalence.",
+			"existingProtection": "analyzeChannelsInWorker already offloads generic peak/RMS/EBU work and copies bounded chunks. Do not claim generic analysis lacks a worker, and do not detach buffers still needed by another analysis/visual consumer.",
+			"correctness": null,
+			"evidenceLevel": "code-confirmed synchronous sample/FFT loops; Electron trace needed",
+			"status": "proposed"
+		},
+		{
+			"number": 99,
+			"key": "controller-09",
+			"group": "Controller and analysis",
+			"title": "Cache specialized reports by authored content and normalized analysis options",
+			"priority": "P2",
+			"evidence": [
+				{
+					"file": "src/common/editor/controller/analysis/analysis-service.ts",
+					"line": 155
+				},
+				{
+					"file": "src/common/editor/controller/analysis/analysis-service.ts",
+					"line": 196
+				},
+				{
+					"file": "src/common/editor/controller/analysis/analysis-service.ts",
+					"line": 284
+				}
+			],
+			"observedWork": "The levels path uses a project/revision/scope/track/range cache, while spectrum, clipping and loudness commands always rerender and recompute. Repeating an unchanged specialized request pays the full offline rendering, generic analysis and report cost again.",
+			"proposedChange": "Use a bounded revision-keyed complete-report cache for spectrum/clipping/loudness, including normalized effective FFT size, threshold/consecutive count, selected scope, ADM weighting and relevant render/runtime settings. Reuse the generic results/visuals where keys match. Validate admission before lookup and invalidate on any audible-content/settings change.",
+			"scenario": "Repeat Analysis or manually run the same spectrum/clipping report repeatedly on an unchanged selection, or measure unchanged delivery loudness twice.",
+			"validation": "Offline renders and sample/FFT passes per identical repeat, repeat click-to-report p50/p95, cache hit rate/bytes and invalidation correctness.",
+			"existingProtection": "Levels caching is already implemented, and the inspector deduplicates automatic requests for the same content key while mounted. This addresses explicit repeats and mode/report reuse; it does not claim automatic duplicates occur on every render.",
+			"correctness": null,
+			"evidenceLevel": "code-confirmed absent specialized cache; benefit workload-dependent",
+			"status": "proposed"
+		},
+		{
+			"number": 100,
+			"key": "controller-10",
+			"group": "Controller and analysis",
+			"title": "Retain command projections within the admitted immutable controller document",
+			"priority": "P1",
+			"evidence": [
+				{
+					"file": "src/common/editor/controller/composition/controller-project-queries.ts",
+					"line": 16
+				},
+				{
+					"file": "src/soundscaper/editor-project-commands.ts",
+					"line": 268
+				},
+				{
+					"file": "src/common/editor/runtime-clip-projection.ts",
+					"line": 165
+				},
+				{
+					"file": "src/common/editor/runtime-clip-projection.ts",
+					"line": 174
+				}
+			],
+			"observedWork": "Each controller command read calls the product command projection again. Soundscaper validates the complete canonical document, then resolves and freezes all timeline clips, tracks, project-bin clips and annotations. Runtime projection branding only avoids resolving an already projected result; the controller reader does not retain that result for its unchanged canonical identity.",
+			"proposedChange": "Memoize the product command/runtime projection in the controller reader for the admitted immutable project identity (plus any projection-relevant runtime policy), invalidating on document replacement. Retain uncached validation for arbitrary mutable external inputs and preserve product-owned extension fields.",
+			"scenario": "Several command consumers/enablement queries or repeated edit setup against the same large current document before its next mutation.",
+			"validation": "Canonical validation/projection invocations and projected clip allocations per current identity, controller preparation CPU and command-to-result latency on 10,000-100,000 clips.",
+			"existingProtection": "The resolver already shares one coordinate context within a projection and branded runtime projections pass through unchanged. This adds cross-query reuse under controller ownership; a global identity cache for arbitrary mutable projects would be incorrect.",
+			"correctness": null,
+			"evidenceLevel": "code-confirmed repeated projection entry point; representative query frequency/impact unmeasured",
+			"status": "proposed"
+		}
+	]
+}

@@ -1,0 +1,512 @@
+{
+	"date": "2026-10-06",
+	"baseRevision": "25d7cbdb4",
+	"node": "v26.5.0",
+	"method": "One local host, no CPU throttling; shared-host/GC variance. Raw observations retained. Kernel prototypes run outside application source; application files unchanged.",
+	"electron": {
+		"node": "v26.5.0",
+		"platform": "linux",
+		"arch": "x64",
+		"cpu": "AMD Ryzen 9 9900X 12-Core Processor",
+		"logicalCpus": 24,
+		"runtime": {
+			"versions": {
+				"node": "24.21.0",
+				"acorn": "8.18.0",
+				"ada": "4.0.0",
+				"amaro": "1.1.11",
+				"ares": "1.34.8",
+				"brotli": "1.2.0",
+				"cldr": "48.0",
+				"icu": "78.2",
+				"llhttp": "9.4.3",
+				"merve": "1.2.2",
+				"modules": "148",
+				"napi": "10",
+				"nbytes": "0.1.4",
+				"ncrypto": "0.0.1",
+				"nghttp2": "1.70.0",
+				"nghttp3": "",
+				"ngtcp2": "",
+				"openssl": "0.0.0",
+				"simdjson": "4.6.7",
+				"simdutf": "7.7.0",
+				"sqlite": "3.53.4",
+				"tz": "2025c",
+				"undici": "7.29.1",
+				"unicode": "17.0",
+				"uv": "1.52.1",
+				"uvwasi": "0.0.23",
+				"v8": "15.0.245.31-electron.0",
+				"zlib": "1.3.2.1-motley",
+				"zstd": "1.6.0",
+				"electron": "43.7.7",
+				"chrome": "150.0.7871.250"
+			},
+			"gpu": {
+				"2d_canvas": "unavailable_software",
+				"direct_rendering_display_compositor": "disabled_off_ok",
+				"gpu_compositing": "disabled_software",
+				"multiple_raster_threads": "enabled_on",
+				"opengl": "unavailable_off",
+				"rasterization": "unavailable_off",
+				"raw_draw": "disabled_off_ok",
+				"skia_graphite": "unavailable_off",
+				"trees_in_viz": "disabled_off",
+				"video_decode": "unavailable_off",
+				"video_encode": "disabled_software",
+				"vulkan": "disabled_off",
+				"webgl": "unavailable_off",
+				"webgpu": "unavailable_software",
+				"webgpu_on_vk_via_gl_interop": "disabled_off",
+				"webnn": "disabled_off"
+			},
+			"packaged": false
+		},
+		"viewport": {
+			"width": 1280,
+			"height": 900,
+			"dpr": 1
+		},
+		"preference": "speed",
+		"method": "Actual Electron development app with freshly staged production renderer and real preload/SQLite/PCM path. First trial includes first-use processing engines; subsequent trials are warm. Capture click to dialog closed, success status, usable waveform and two animation frames. Xvfb RAF gaps are a renderer responsiveness proxy, not GPU presentation FPS. Startup excluded.",
+		"results": [
+			{
+				"operation": "Generate Tone",
+				"seconds": 30,
+				"trial": 0,
+				"durationMs": 549.9549999982119,
+				"frames": 24,
+				"medianFrameMs": 16.664999999999964,
+				"p95FrameMs": 50,
+				"maxFrameMs": 83.32999999999993,
+				"framesOver33Ms": 2,
+				"longTaskCount": 2,
+				"maxLongTaskMs": 91
+			},
+			{
+				"operation": "Generate Tone",
+				"seconds": 30,
+				"trial": 1,
+				"durationMs": 441.0949999988079,
+				"frames": 20,
+				"medianFrameMs": 16.664999999999964,
+				"p95FrameMs": 83.33000000000084,
+				"maxFrameMs": 83.33000000000084,
+				"framesOver33Ms": 2,
+				"longTaskCount": 2,
+				"maxLongTaskMs": 80
+			},
+			{
+				"operation": "Generate Tone",
+				"seconds": 30,
+				"trial": 2,
+				"durationMs": 440.70000000298023,
+				"frames": 19,
+				"medianFrameMs": 16.664999999999964,
+				"p95FrameMs": 99.99499999999989,
+				"maxFrameMs": 99.99499999999989,
+				"framesOver33Ms": 2,
+				"longTaskCount": 2,
+				"maxLongTaskMs": 67
+			},
+			{
+				"operation": "Generate Noise pink",
+				"seconds": 30,
+				"trial": 0,
+				"durationMs": 786.0700000077486,
+				"frames": 31,
+				"medianFrameMs": 16.664999999999964,
+				"p95FrameMs": 50,
+				"maxFrameMs": 233.32499999999982,
+				"framesOver33Ms": 2,
+				"longTaskCount": 2,
+				"maxLongTaskMs": 226
+			},
+			{
+				"operation": "Generate Noise pink",
+				"seconds": 30,
+				"trial": 1,
+				"durationMs": 760.7900000065565,
+				"frames": 29,
+				"medianFrameMs": 16.664999999999964,
+				"p95FrameMs": 66.66499999999996,
+				"maxFrameMs": 233.32499999999982,
+				"framesOver33Ms": 2,
+				"longTaskCount": 2,
+				"maxLongTaskMs": 238
+			},
+			{
+				"operation": "Generate Noise pink",
+				"seconds": 30,
+				"trial": 2,
+				"durationMs": 696.0049999952316,
+				"frames": 28,
+				"medianFrameMs": 16.664999999999964,
+				"p95FrameMs": 49.9950000000008,
+				"maxFrameMs": 216.65499999999975,
+				"framesOver33Ms": 2,
+				"longTaskCount": 2,
+				"maxLongTaskMs": 212
+			},
+			{
+				"operation": "Generate Noise pink",
+				"seconds": 120,
+				"trial": 0,
+				"durationMs": 1937.4549999982119,
+				"frames": 64,
+				"medianFrameMs": 16.665000000000873,
+				"p95FrameMs": 16.670000000000073,
+				"maxFrameMs": 816.6350000000002,
+				"framesOver33Ms": 3,
+				"longTaskCount": 2,
+				"maxLongTaskMs": 823
+			},
+			{
+				"operation": "Generate Noise pink",
+				"seconds": 120,
+				"trial": 1,
+				"durationMs": 1941.469999998808,
+				"frames": 65,
+				"medianFrameMs": 16.665000000000873,
+				"p95FrameMs": 16.670000000000073,
+				"maxFrameMs": 833.2999999999993,
+				"framesOver33Ms": 1,
+				"longTaskCount": 2,
+				"maxLongTaskMs": 829
+			},
+			{
+				"operation": "Generate Noise pink",
+				"seconds": 120,
+				"trial": 2,
+				"durationMs": 2005.1599999964237,
+				"frames": 66,
+				"medianFrameMs": 16.665000000000873,
+				"p95FrameMs": 16.670000000000073,
+				"maxFrameMs": 849.9650000000001,
+				"framesOver33Ms": 3,
+				"longTaskCount": 2,
+				"maxLongTaskMs": 843
+			},
+			{
+				"operation": "Apply Amplify",
+				"seconds": 120,
+				"trial": 0,
+				"durationMs": 4636.344999998808,
+				"frames": 276,
+				"medianFrameMs": 16.665000000000873,
+				"p95FrameMs": 16.67000000000189,
+				"maxFrameMs": 50,
+				"framesOver33Ms": 1,
+				"longTaskCount": 1,
+				"maxLongTaskMs": 61
+			},
+			{
+				"operation": "Apply Amplify",
+				"seconds": 120,
+				"trial": 1,
+				"durationMs": 4755.319999992847,
+				"frames": 281,
+				"medianFrameMs": 16.665000000000873,
+				"p95FrameMs": 16.67000000000189,
+				"maxFrameMs": 50,
+				"framesOver33Ms": 1,
+				"longTaskCount": 1,
+				"maxLongTaskMs": 57
+			},
+			{
+				"operation": "Apply Amplify",
+				"seconds": 120,
+				"trial": 2,
+				"durationMs": 4790.050000011921,
+				"frames": 283,
+				"medianFrameMs": 16.665000000000873,
+				"p95FrameMs": 16.67000000000189,
+				"maxFrameMs": 50,
+				"framesOver33Ms": 1,
+				"longTaskCount": 1,
+				"maxLongTaskMs": 57
+			},
+			{
+				"operation": "Apply Compressor",
+				"seconds": 120,
+				"trial": 0,
+				"durationMs": 3126.594999998808,
+				"frames": 183,
+				"medianFrameMs": 16.665000000000873,
+				"p95FrameMs": 16.67000000000189,
+				"maxFrameMs": 49.99500000000262,
+				"framesOver33Ms": 1,
+				"longTaskCount": 2,
+				"maxLongTaskMs": 59
+			},
+			{
+				"operation": "Apply Compressor",
+				"seconds": 120,
+				"trial": 1,
+				"durationMs": 3080.8700000047684,
+				"frames": 182,
+				"medianFrameMs": 16.665000000000873,
+				"p95FrameMs": 16.67000000000553,
+				"maxFrameMs": 49.99500000000262,
+				"framesOver33Ms": 1,
+				"longTaskCount": 1,
+				"maxLongTaskMs": 62
+			},
+			{
+				"operation": "Apply Compressor",
+				"seconds": 120,
+				"trial": 2,
+				"durationMs": 3113.3400000035763,
+				"frames": 184,
+				"medianFrameMs": 16.665000000000873,
+				"p95FrameMs": 16.67000000000553,
+				"maxFrameMs": 50,
+				"framesOver33Ms": 1,
+				"longTaskCount": 1,
+				"maxLongTaskMs": 58
+			},
+			{
+				"operation": "Idle timeline",
+				"clips": "8",
+				"frames": 180,
+				"medianFrameMs": 16.665000000000873,
+				"p95FrameMs": 16.67000000000553,
+				"maxFrameMs": 33.3350000000064,
+				"framesOver33Ms": 0
+			},
+			{
+				"operation": "Playback timeline",
+				"clips": "8",
+				"playheadBefore": 0,
+				"playheadAfter": 144000,
+				"frames": 181,
+				"medianFrameMs": 16.665000000000873,
+				"p95FrameMs": 16.669999999998254,
+				"maxFrameMs": 16.67000000000553,
+				"framesOver33Ms": 0
+			}
+		]
+	},
+	"kernels": {
+		"node": "v26.5.0",
+		"method": "One warm-up per case, five measurements; fixture construction and full numerical parity checks outside timed intervals. Local kernel measurements, not end-to-end Electron performance or guaranteed speedups.",
+		"parity": {
+			"pinkSamples": 2880000,
+			"gainSamples": 1440000,
+			"toneSamples": 1440000,
+			"dynamicsSamples": 3840000,
+			"unequalSamples": 0
+		},
+		"cases": [
+			{
+				"name": "pink-current-30s-stereo",
+				"medianMs": 178.795251,
+				"milliseconds": [
+					182.25771400000008,
+					193.685248,
+					178.795251,
+					164.10863999999992,
+					164.1619700000001
+				]
+			},
+			{
+				"name": "pink-running-total-prototype-30s-stereo",
+				"medianMs": 13.670401000000084,
+				"milliseconds": [
+					25.293588,
+					21.377048999999943,
+					12.890309000000116,
+					13.670401000000084,
+					13.478837000000112
+				]
+			},
+			{
+				"name": "gain-current-30s-mono",
+				"medianMs": 117.93735500000003,
+				"milliseconds": [
+					102.2316780000001,
+					127.8162669999997,
+					117.93735500000003,
+					138.6009280000003,
+					109.49649199999976
+				]
+			},
+			{
+				"name": "gain-indexed-fill-prototype-30s-mono",
+				"medianMs": 2.3767189999998664,
+				"milliseconds": [
+					2.3767189999998664,
+					2.989176000000043,
+					2.9058890000001156,
+					2.1969899999999143,
+					2.225003000000015
+				]
+			},
+			{
+				"name": "tone-current-30s-mono",
+				"medianMs": 22.52903600000036,
+				"milliseconds": [
+					22.52903600000036,
+					22.63846199999989,
+					22.719394000000193,
+					22.485035000000153,
+					22.16457700000001
+				]
+			},
+			{
+				"name": "tone-wrap-only-prototype-30s-mono",
+				"medianMs": 9.938273000000208,
+				"milliseconds": [
+					13.565855000000283,
+					9.926809999999932,
+					9.865787000000182,
+					9.938273000000208,
+					12.898645000000215
+				]
+			},
+			{
+				"name": "destructive-linked-compressor-current-10s-eight-channels",
+				"medianMs": 50.821723999999904,
+				"milliseconds": [
+					47.10648100000026,
+					58.49342999999999,
+					55.13210100000015,
+					50.821723999999904,
+					44.40983299999971
+				]
+			},
+			{
+				"name": "destructive-linked-compressor-frame-major-gain-prototype-10s-eight-channels",
+				"medianMs": 34.47088299999996,
+				"milliseconds": [
+					29.32607599999983,
+					67.331635,
+					25.98607600000014,
+					41.96297600000025,
+					34.47088299999996
+				]
+			}
+		]
+	},
+	"pcm": {
+		"environment": {
+			"node": "v26.5.0",
+			"platform": "linux",
+			"architecture": "x64"
+		},
+		"type": "Isolated Node helper probe. No Electron, UI, I/O, actual export or integrated production change.",
+		"limitations": "Shared host; uncontrolled GC. Sketch omits validated geometry and offset handling but preserves finite-to-zero and preserve modes in sample loop. No end-to-end gain claim.",
+		"sketchSampleParity": true,
+		"packet": {
+			"frames": 65536,
+			"channels": 8,
+			"existingMs": [
+				5.26,
+				5.1,
+				5.28,
+				5.3,
+				5.01,
+				6.78,
+				5.85,
+				5.04
+			],
+			"sketchMs": [
+				0.78,
+				0.49,
+				0.47,
+				0.48,
+				0.49,
+				0.85,
+				0.49,
+				0.58
+			]
+		},
+		"longPcm": {
+			"seconds": 60,
+			"sampleRate": 48000,
+			"channels": 8,
+			"bytes": 92160000,
+			"interleaveMs": [
+				315.34,
+				230.71,
+				241.89,
+				244.7,
+				236.64,
+				261.46
+			],
+			"deinterleaveMs": [
+				87.11,
+				80.18,
+				87.69,
+				81.76,
+				268.55,
+				210.8
+			],
+			"crc32Ms": [
+				144.42,
+				145.2,
+				147.96,
+				148.59,
+				153.78,
+				152.22
+			],
+			"unpackPacketMs": [
+				1.08,
+				0.45,
+				0.45,
+				0.67,
+				0.58,
+				0.64
+			]
+		}
+	},
+	"timeline": {
+		"node": "v26.5.0",
+		"snap": {
+			"clips": 10000,
+			"queries": 500,
+			"membershipReads": 50000,
+			"membershipTraversals": 5000000,
+			"elapsedMs": 90.04238800000002
+		},
+		"largeSnap": {
+			"clips": 100000,
+			"queries": 100,
+			"membershipTraversals": 10000000,
+			"samplesMs": [
+				354.96670399999994,
+				358.0190849999999,
+				373.48736399999996,
+				386.43227600000023,
+				421.436645
+			],
+			"medianMs": 373.48736399999996
+		},
+		"waveformRmsDisabled": {
+			"rmsReads": 1000,
+			"fills": 1000
+		},
+		"connectingDots": {
+			"samples": 2000,
+			"strokes": 1999
+		}
+	},
+	"controller": {
+		"node": "v26.5.0",
+		"snapshot": {
+			"clipCount": 10000,
+			"firstReads": 10000,
+			"stableReads": 0,
+			"replacementReads": 10000,
+			"stableProjectIdentity": true,
+			"reusesDetachedUnchangedClipArray": false
+		},
+		"presets": {
+			"presetCount": 1000,
+			"unchangedSavedPresetCopies": 1000,
+			"repeatedSavedPresetCopies": 1000,
+			"stableListIdentity": false
+		}
+	}
+}
