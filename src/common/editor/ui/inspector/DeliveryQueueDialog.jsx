@@ -213,7 +213,7 @@ export function DeliveryQueueDialog({ isOpen, controller, snapshot, copy, onClos
 									{copy.deliveryQueueCancelJob}
 								</Button>
 							)}
-							{entry.state === 'failed' && (
+							{(entry.state === 'failed' || entry.state === 'cancelled') && (
 								<Button variant="secondary" onClick={() => { void run(() => queueActions.retry(entry.jobId)); }}>
 									{copy.deliveryQueueRetryJob}
 								</Button>
