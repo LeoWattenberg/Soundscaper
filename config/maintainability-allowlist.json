@@ -228,7 +228,6 @@
 		"tests/desktop-framescaper-web-vcr-smoke.test.js": 587,
 		"tests/desktop-helper-media-contract.test.ts": 590,
 		"tests/desktop-linked-video-locator-store.test.ts": 586,
-		"tests/desktop-native-child-isolation-launcher.test.ts": 597,
 		"tests/desktop-native-media-helper-job.test.ts": 568,
 		"tests/desktop-native-media-v14-proxy-helper-adapter.test.ts": 586,
 		"tests/desktop-native-persistent-audio-plugin-adapters.test.ts": 557,
