@@ -56,7 +56,8 @@ export function MusicalTimelineControls({ project, snapshot, controller, copy, r
 					ariaLabel={`${copy.timeSignature}: ${copy.denominator}`}
 					value={rootSignature?.denominator || project?.tempo?.timeSignature?.denominator || 4}
 					disabled={disabled}
-					accepts={(denominator) => Number.isSafeInteger(denominator) && Boolean(rootSignature?.id)}
+					accepts={(denominator) => Number.isSafeInteger(denominator)
+						&& Number.isInteger(Math.log2(denominator)) && Boolean(rootSignature?.id)}
 					onCommit={(denominator) => run(() => controller.actions.project.updateSignatureEvent(
 						rootSignature.id,
 						{ denominator },
@@ -150,7 +151,9 @@ function AuthoritativeNumberField({ value, accepts, onCommit, ariaLabel, min, ma
 	}, [value]);
 	const commitDraft = (input) => {
 		const draft = Number(input.value);
-		if (input.value.trim() === '' || !Number.isFinite(draft) || draft === value || !accepts(draft)) {
+		if (input.value.trim() === '' || !Number.isFinite(draft) || draft === value
+			|| (min !== undefined && draft < Number(min)) || (max !== undefined && draft > Number(max))
+			|| !accepts(draft)) {
 			input.value = String(value);
 			return;
 		}

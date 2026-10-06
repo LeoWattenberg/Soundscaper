@@ -217,3 +217,22 @@ test('retyping the project tempo commits the finished value once', async () => {
 		assert.equal(harness.tempo().bpm.num / harness.tempo().bpm.den, 90);
 	});
 });
+
+test('invalid time signature drafts restore the authoritative value without issuing a command', async () => {
+	await withMusicalToolbar(async (harness) => {
+		for (const [label, drafts] of [
+			['Time signature: numerator', ['0', '1001']],
+			['Time signature: denominator', ['3', '0']],
+		] as const) {
+			const field = (): ReactTestElement => harness.field(label);
+			for (const draft of drafts) {
+				harness.focus(field);
+				await harness.type(field, ['Backspace', ...draft]);
+				await harness.blur(field);
+				assert.equal(field().value, '4', `rejected ${label} draft ${draft} restores the project value`);
+			}
+		}
+		assert.deepEqual(harness.commits, []);
+		assert.deepEqual(harness.errors, [], 'invalid final drafts are handled before domain admission');
+	});
+});
