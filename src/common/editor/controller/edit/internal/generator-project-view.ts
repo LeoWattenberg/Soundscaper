@@ -4,6 +4,7 @@ import { projectForRuntimeConsumers } from '../../../project-current-runtime.ts'
 import type { RuntimePersistedClip } from '../../../runtime-clip-projection.ts';
 
 export interface AudioGeneratorSelection {
+	readonly clipIds?: readonly string[];
 	readonly startFrame: number;
 	readonly endFrame: number;
 	readonly trackIds?: readonly string[];
