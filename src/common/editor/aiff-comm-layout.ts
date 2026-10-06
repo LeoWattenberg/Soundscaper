@@ -22,7 +22,7 @@ export function validateAiffCommByteLength(length: number, isAifc: boolean): voi
 	}
 }
 
-/** Read bounded integer PCM and the maintained first-party floating-point tuple. */
+/** Read bounded integer PCM and big-endian IEEE float32 PCM. */
 export function parseAiffCommLayout(bytes: Uint8Array, isAifc: boolean): AiffCommLayout {
 	validateAiffCommByteLength(bytes.byteLength, isAifc);
 	const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
@@ -47,11 +47,10 @@ function aifcSampleFormat(bytes: Uint8Array, bitDepth: number): AiffPcmSampleFor
 		throw new Error('The AIFF-C compression name does not fit its COMM chunk.');
 	}
 	if (compression === 'NONE') return aiffIntegerSampleFormat(bitDepth);
-	if (bitDepth !== 32 || compression !== 'fl32') {
-		throw new Error('AIFF-C linked originals require NONE integer PCM or the first-party fl32 compression tuple.');
+	if (bitDepth !== 32 || (compression !== 'fl32' && compression !== 'FL32')) {
+		throw new Error('AIFF-C linked originals require NONE integer PCM or fl32/FL32 float PCM.');
 	}
-	const name = String.fromCharCode(...bytes.subarray(23, 23 + nameLength));
-	if (name !== '32-bit floating point') throw new Error('The AIFF-C float32 compression name is unsupported.');
+	// The Pascal string describes the codec; its spelling does not select one.
 	return 'float32';
 }
 

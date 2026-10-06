@@ -156,11 +156,11 @@ test('AIFF admission rejects unsupported AIFC, geometry, truncation, and excess 
 		inspectAiffBlobPcm(new Blob([compressed.buffer])),
 		/AIFF-C.*compression|fl32/iu,
 	);
-	const renamed = floating.slice();
-	renamed[55] = 'X'.charCodeAt(0);
+	const malformedName = floating.slice();
+	malformedName[54] = 255;
 	await assert.rejects(
-		inspectAiffBlobPcm(new Blob([renamed.buffer])),
-		/AIFF-C.*compression name|compression name.*unsupported/iu,
+		inspectAiffBlobPcm(new Blob([malformedName.buffer])),
+		/AIFF-C.*compression name/iu,
 	);
 
 	const unsupportedDepth = integer.slice();
