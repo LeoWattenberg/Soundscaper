@@ -98,7 +98,10 @@ export function createDeliveryBatch(
 				// two vocabularies pretending to be one.
 				throw new DeliveryBatchError(`Delivery batch preset ${preset.id} is not an audio preset.`);
 			}
-			const presetOptions = resolveDeliveryPresetPlanOptions(preset);
+			const presetOptions = { ...resolveDeliveryPresetPlanOptions(preset) };
+			// A saved mix target cannot normalize stems independently; the batch's
+			// chosen output has the same meaning as the export dialog's choice.
+			if (mode === 'stems') delete presetOptions.loudnessNormalization;
 			members.push(Object.freeze({
 				memberId: createMemberId(members.length),
 				label: `${resolved.label} — ${preset.label}`,

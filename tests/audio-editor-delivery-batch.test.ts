@@ -64,6 +64,21 @@ const TARGETS: readonly DeliveryBatchTarget[] = [
 	{ kind: 'mastering-sequence', id: 'album-order' },
 ];
 
+test('stems batches omit a saved mix-only loudness target without changing the preset', () => {
+	const project = albumProject();
+	const streaming = preset('streaming', 'wav', { loudnessNormalization: 'streaming' });
+	const mix = createDeliveryBatch(project, {
+		batchId: 'mix', presets: [streaming], targets: [{ kind: 'project' }],
+	});
+	assert.equal(mix.members[0]?.settings.loudnessNormalization, 'streaming');
+	const stems = createDeliveryBatch(project, {
+		batchId: 'stems', presets: [streaming], targets: [{ kind: 'project' }], mode: 'stems',
+	});
+	assert.equal(Object.hasOwn(stems.members[0]!.settings, 'loudnessNormalization'), false);
+	assert.equal(streaming.settings.loudnessNormalization, 'streaming');
+	assert.doesNotThrow(() => createExportPlan(project, normalizeEditorExportSettings(stems.members[0]!.settings, project.sampleRate)));
+});
+
 test('alternates are a cross product: every preset against every target', () => {
 	const batch = createDeliveryBatch(albumProject(), {
 		batchId: 'batch-1',

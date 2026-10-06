@@ -34,5 +34,12 @@ The actual encoded-video margin regression lives in
 `tests/browser/audio-editor-io-video-default-regressions.spec.js`.
 The ADM typing regression lives in
 `tests/browser/audio-editor-io-metadata-regressions.spec.js`.
+The delivery queue's normalization-to-stems variant of IO-010 lives in
+`tests/browser/audio-editor-io-queue-regressions.spec.js`. Save a Streaming WAV
+preset from Export audio, then choose Delivery queue → Output → Individual stems,
+select the saved preset and Queue batch. It previously failed because the preset's
+hidden mix normalization still reached the exporter. Stems batch members now
+omit it while the saved preset and mix batch members retain it.
+
 These changes do not alter the assistance runtime closure. A manual **Update AI
 assets** run is **not required**.
