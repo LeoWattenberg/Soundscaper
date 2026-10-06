@@ -10,7 +10,9 @@ class Worker implements EffectWorkerLike {
 	onmessageerror: EffectWorkerLike['onmessageerror'] = null;
 	request: Record<string, unknown> = {};
 	terminated = 0;
-	postMessage(value: unknown): void { this.request = value as Record<string, unknown>; }
+	postMessage(value: unknown, transfer: readonly Transferable[] = []): void {
+		this.request = structuredClone(value, { transfer: [...transfer] }) as Record<string, unknown>;
+	}
 	terminate(): void { this.terminated++; }
 	result(requestId = this.request.requestId): void {
 		this.onmessage?.({ data: { type: 'result', requestId, channels: [new Float32Array([1, 2])] } });
@@ -69,4 +71,27 @@ test('failed reused workers are retired before a replacement is created', async 
 	await second;
 	f.service.cancelWorkers();
 	assert.equal(f.workers.length, 2);
+});
+
+test('consumed render PCM transfers without copying while borrowed effect context keeps its buffers', async () => {
+	const f = fixture();
+	const channels = [new Float32Array([0, 1])];
+	const beforeChannels = [new Float32Array([0.5, 0.25])];
+	const pending = f.service.runSelectionEffectWorker({ ...f.request, channels, context: { beforeChannels } }, { pcmOwnership: 'transfer' });
+	assert.equal(channels[0]?.byteLength, 0);
+	assert.equal(beforeChannels[0]?.byteLength, 8);
+	const delivered = f.workers[0]?.request.channels as Float32Array[];
+	assert.deepEqual(delivered[0], new Float32Array([0, 1]));
+	f.workers[0]?.result(); await pending;
+	f.service.cancelWorkers();
+});
+
+test('invalid transfer geometry is rejected before acquiring a worker', async () => {
+	const f = fixture();
+	const storage = new Float32Array(4);
+	await assert.rejects(f.service.runSelectionEffectWorker({ ...f.request, channels: [storage.subarray(1, 3)] }, {
+		pcmOwnership: 'transfer',
+	}), /exact-span/iu);
+	assert.equal(f.workers.length, 0);
+	assert.equal(storage.byteLength, 16);
 });

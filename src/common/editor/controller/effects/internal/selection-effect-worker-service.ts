@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createLocalizedError } from '../../../../i18n/presentation-message.ts'; import { cloneAudacityWorkerPayload } from './nyquist/nyquist-audio.ts';
+import { createLocalizedError } from '../../../../i18n/presentation-message.ts';
+import { prepareSelectionWorkerPayload } from './selection-worker-payload.ts';
 import { WorkerRequestCancelledError, WorkerRequestTimeoutError } from '../../../worker-protocol.ts';
 import { loadDeferredSpectralEditAdmission } from './deferred-spectral-edit-admission.ts';
 import type { EditorProjectToken } from '../../shared/lifecycle.ts';
@@ -109,6 +110,7 @@ interface WorkerOwner {
 }
 
 export interface EffectWorkerRunOptions {
+	readonly pcmOwnership?: 'borrow' | 'transfer';
 	readonly signal?: AbortSignal | null;
 	readonly timeoutMs?: number;
 	readonly onProgress?: (value: number) => void;
@@ -184,13 +186,10 @@ export function createSelectionEffectWorkerService(runtime: SelectionEffectWorke
 		}
 
 		selectionOwner?.cancel(new WorkerRequestCancelledError());
+		const transfer: ArrayBuffer[] = [];
+		const message = prepareSelectionWorkerPayload(request, transfer, options.pcmOwnership ?? 'borrow');
 		const worker = selectionSlot.acquire(runtime.createSelectionWorker ?? createDefaultSelectionWorker);
 		runtime.state.audacityEffectWorker = worker;
-		const transfer: ArrayBuffer[] = [];
-		const message = (cloneAudacityWorkerPayload as (
-			request: SelectionEffectWorkerRequest,
-			transfer: ArrayBuffer[],
-		) => unknown)(request, transfer);
 		const result = await executeWorker<SelectionEffectWorkerResult>({
 			worker,
 			requestId: runtime.reuseWorkers ? `selection-${++requestSequence}` : undefined,

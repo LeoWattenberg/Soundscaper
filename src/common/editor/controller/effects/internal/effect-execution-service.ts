@@ -168,7 +168,7 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 				const linkedChannels = dryResults.flatMap(({ channels }: RuntimeValue) => channels);
 				const result = await runSelectionEffectWorker({
 					operation: 'apply', effectType: type, channels: linkedChannels, sampleRate, params, context: {},
-				});
+				}, { pcmOwnership: 'transfer' });
 				assertSelectionEffectOwnership(runtime, ownership);
 				const processedChannels = Array.isArray(result.channels) ? result.channels : [];
 				let channelOffset = 0;
@@ -205,7 +205,7 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 					}
 					const result = await runSelectionEffectWorker({
 						operation: 'apply', effectType: type, channels, sampleRate, params, context: effectContext,
-					});
+					}, { pcmOwnership: 'transfer' });
 					assertSelectionEffectOwnership(runtime, ownership);
 					results.push({ target, channels: result.channels });
 				}
