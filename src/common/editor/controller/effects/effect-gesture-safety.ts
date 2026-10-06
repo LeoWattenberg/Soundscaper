@@ -1,5 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+export { createParameterGestureAdapter } from './internal/parameter-gesture-adapter.ts';
+export type { ParameterGestureSession } from './internal/parameter-gesture-adapter.ts';
+
 export const EFFECT_GESTURE_TARGET_CHANGED_CODE = 'EFFECT_GESTURE_TARGET_CHANGED' as const;
 
 /**
