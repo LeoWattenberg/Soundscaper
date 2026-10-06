@@ -28,11 +28,11 @@ import { fft } from '../pffft.js';
 import { dbToLinear } from './basic-channel-math.js';
 import {
 	buildEqualizationKernel,
-	convolveSame,
 	createGraphicEqCurve,
 	interpolateLinearFrequencyCurve,
 	interpolateLogFrequencyCurve,
 } from './spectral-equalization-curves.js';
+import { createSameConvolver } from './spectral-convolution.ts';
 import {
 	NOISE_HOP_SIZE,
 	NOISE_STEPS_PER_WINDOW,
@@ -86,7 +86,7 @@ export function applyAudacityFilterCurveEq(channels, sampleRate, params = {}) {
 			? interpolateLinearFrequencyCurve(points, frequency)
 			: interpolateLogFrequencyCurve(points, frequency),
 	);
-	return channels.map((channel) => convolveSame(channel, kernel));
+	return channels.map(createSameConvolver(kernel));
 }
 
 export function applyAudacityGraphicEq(channels, sampleRate, params = {}) {
@@ -98,7 +98,7 @@ export function applyAudacityGraphicEq(channels, sampleRate, params = {}) {
 		sampleRate / 2,
 	);
 	const kernel = buildEqualizationKernel(sampleRate, normalized.filterLength, gainAtFrequency);
-	return channels.map((channel) => convolveSame(channel, kernel));
+	return channels.map(createSameConvolver(kernel));
 }
 
 export function captureAudacityNoiseProfile(channels, sampleRate, params = {}) {
