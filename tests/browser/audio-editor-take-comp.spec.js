@@ -91,12 +91,14 @@ test.describe('take lane and comp workflow', () => {
 		await directTimecodeInput(dialog, 'Range end sample').fill('3500');
 		await dialog.getByRole('button', { name: 'Promote range', exact: true }).click();
 		await expect(dialog.getByRole('table', { name: 'Comp regions', exact: true }).getByRole('row')).toHaveCount(5);
+		await expect(dialog.getByRole('button', { name: 'Select Take B', exact: true })).toHaveAttribute('aria-pressed', 'true');
+		await expect(dialog.getByRole('button', { name: 'Select Take A', exact: true })).toHaveAttribute('aria-pressed', 'false');
 
 		// WebKit does not implement forced-color-adjust, so its computed value is
 		// empty there rather than the authored 'none'.
 		if (browserName !== 'webkit') {
 			await page.emulateMedia({ forcedColors: 'active' });
-			await expect(dialog.getByRole('button', { name: 'Select Take A', exact: true })).toHaveCSS('forced-color-adjust', 'none');
+			await expect(dialog.getByRole('button', { name: 'Select Take B', exact: true })).toHaveCSS('forced-color-adjust', 'none');
 		}
 		await dialog.getByRole('button', { name: 'Flatten comp', exact: true }).click();
 		await expect(dialog.locator('[data-take-comp-empty]')).toContainText('This project has no take groups yet.');
