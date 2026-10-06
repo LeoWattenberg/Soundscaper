@@ -65,7 +65,10 @@ export function createNoiseBlockRenderer(frameCount: number, channelCount: numbe
 				output[frame] = Math.max(-1, Math.min(1, (pinkTotal + white) / 4)) * amplitude;
 			}
 		}
-		Object.assign(state, { random, brown, counter, pinkTotal });
+		state.random = random;
+		state.brown = brown;
+		state.counter = counter;
+		state.pinkTotal = pinkTotal;
 		return output;
 	});
 }
