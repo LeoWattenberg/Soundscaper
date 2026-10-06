@@ -59,7 +59,7 @@ import {
 import { createNyquistGeneratedAudioService } from './internal/nyquist/nyquist-generated-audio-service.ts';
 import { createNyquistHostService } from './internal/nyquist/nyquist-host-service.ts';
 import { createRackEffectService } from './internal/rack-effect-service.ts';
-import { createSelectionEffectWorkerService } from './internal/selection-effect-worker-service.ts';
+import { createBoundedSelectionEffectWorkerService } from './internal/bounded-selection-effect-workers.ts';
 import {
 	SOURCE_CHUNK_FRAMES,
 	audioBufferChannels,
@@ -122,7 +122,7 @@ export function createEffectsComposition(dependencies: EffectsCompositionDepende
 	});
 
 	const worker = dependencies.composition.selectionEffectWorkers
-		? createSelectionEffectWorkerService({
+		? createBoundedSelectionEffectWorkerService({
 			state, reuseWorkers: true,
 			copy,
 			captureProject,
@@ -386,6 +386,7 @@ export function createEffectsComposition(dependencies: EffectsCompositionDepende
 			renderDryTrackRange: audio.renderDryTrackRange,
 			resolveInteractiveAudacityParams: controls.resolveInteractiveAudacityParams,
 			runSelectionEffectWorker: worker.runSelectionEffectWorker,
+			runIndependentSelectionEffects: 'runIndependentSelectionEffects' in worker ? worker.runIndependentSelectionEffects : undefined,
 			setAudacityControlTrack: controls.setAudacityControlTrack,
 			setAudacityEffectParamsFromController: controls.setAudacityEffectParamsFromController,
 			setAudacityEffectType: controls.setAudacityEffectType,

@@ -12,9 +12,12 @@ import { tryPrepareCoalescedEffectContext, type SimpleDryRangeRenderer } from '.
 
 const SELECTION_EFFECT_TASK = 'selection-effect-apply';
 /** The registry name a Nyquist evaluation holds while the evaluator runs. */
+import { processIndependentSelectionTargets, type IndependentSelectionPorts } from './independent-selection-targets.ts';
+
 export const NYQUIST_EVALUATION_TASK = 'nyquist-evaluation';
 
 export interface SelectionEffectExecutionRuntime {
+	readonly runIndependentSelectionEffects?: IndependentSelectionPorts['runIndependentSelectionEffects'];
 	/** Stable canonical audio ownership until an edit; absent for untrusted ports or memory mode. */
 	readonly getPreparedAudioAuthority?: () => object | null;
 	readonly tryRenderSimpleDryTrackRange?: SimpleDryRangeRenderer;
@@ -207,37 +210,14 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 				});
 				if (channelOffset !== processedChannels.length) throw createLocalizedError(Error, copy, 'effectChannelLayoutChanged');
 			} else {
-				for (const { target, channels, neighbourContext } of dryResults) {
-					const effectContext: RuntimeValue = {};
-					const spectralSelection = spectralSelections.get(target.track.id);
-					if (spectralSelection) effectContext.spectralSelection = spectralSelection;
-					if (definition.requiresControlTrack) {
-						effectContext.controlChannels = controlChannels || await renderCurrentDryTrackRange(
-							state.audacityControlTrackId,
-							target.startFrame,
-							target.endFrame,
-						);
-					}
-					if (definition.requiresNoiseProfile) effectContext.noiseProfile = state.audacityNoiseProfile;
-					if (neighbourContext) Object.assign(effectContext, neighbourContext);
-					else if (contextFrames > 0) {
-						const beforeStart = Math.max(0, target.startFrame - contextFrames);
-						effectContext.beforeChannels = beforeStart < target.startFrame
-							? await renderCurrentDryTrackRange(target.track.id, beforeStart, target.startFrame, target.channelCount, target.clipIds)
-							: channels.map(() => new Float32Array(0));
-						if (afterContextFrames > 0) {
-							const afterEnd = Math.min(target.sourceFrameCount ?? projectDurationFrames(getProject()), target.endFrame + afterContextFrames);
-							effectContext.afterChannels = target.endFrame < afterEnd
-								? await renderCurrentDryTrackRange(target.track.id, target.endFrame, afterEnd, target.channelCount, target.clipIds)
-								: channels.map(() => new Float32Array(0));
-						}
-					}
-					const result = await runSelectionEffectWorker({
-						operation: 'apply', effectType: type, channels, sampleRate, params, context: effectContext,
-					}, { pcmOwnership: 'transfer' });
-					assertSelectionEffectOwnership(runtime, ownership);
-					results.push({ target, channels: result.channels });
-				}
+				results = await processIndependentSelectionTargets({ dryResults, effectType: type, sampleRate, params,
+					definition, spectralSelections, controlChannels, controlTrackId: state.audacityControlTrackId,
+					noiseProfile: state.audacityNoiseProfile, contextFrames, afterContextFrames,
+					projectFrameCount: () => projectDurationFrames(getProject()), renderDryRange: renderCurrentDryTrackRange,
+					assertCurrent: () => assertSelectionEffectOwnership(runtime, ownership), runSelectionEffectWorker,
+					// The admitted peak above sums every target's PCM and DSP workspace.
+					runIndependentSelectionEffects: runtime.getPreparedAudioAuthority?.() ? runtime.runIndependentSelectionEffects : undefined,
+				});
 			}
 			await persistAudacityEffectResults(results, type, {
 				allowIndependentLengths: type === 'audacity-truncate-silence' && params.independent === true,
