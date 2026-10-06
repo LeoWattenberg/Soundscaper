@@ -2,13 +2,14 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import React from 'react';
+import React, { act } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import MetadataEditorTabs from '../src/common/editor/ui/MetadataEditorTabs.tsx';
 import EditorToolToolbar from '../src/common/editor/ui/toolbar/EditorToolToolbar.jsx';
 import { SequenceTimingProjectProperties } from '../src/common/editor/ui/toolbar/SequenceTimingControls.jsx';
 import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
+import { installReactTestDom, reactProps } from './helpers/react-test-dom.ts';
 
 Object.defineProperty(globalThis, 'React', { configurable: true, value: React });
 
@@ -42,6 +43,31 @@ test('project properties can choose and edit either timeline sequence', () => {
 	assert.match(markup, /<option value="primary" selected="">Main timeline<\/option>/u);
 	assert.match(markup, /<option value="nested">Cutaway<\/option>/u);
 	assert.match(markup, /data-sequence-rate="25\/1"/u);
+});
+
+test('the sequence name refreshes when the authoritative saved name changes', async () => {
+	const dom = installReactTestDom();
+	const globals = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+	const priorAct = globals.IS_REACT_ACT_ENVIRONMENT;
+	globals.IS_REACT_ACT_ENVIRONMENT = true;
+	const { createRoot } = await import('react-dom/client');
+	const root = createRoot(dom.container as unknown as Element);
+	const renderName = (name: string) => <SequenceTimingProjectProperties
+		project={{ primarySequenceId: 'primary', sequences: [{ id: 'primary', name, rate, startTimecode, dropFrame: false }] }}
+		snapshot={{ readOnly: false, recording: false }} controller={{ actions: {} }} copy={ENGLISH_COPY} run={() => undefined} />;
+	try {
+		await act(async () => root.render(renderName('Main sequence')));
+		const field = dom.one('input');
+		await act(async () => reactProps(field).onChange({ currentTarget: { value: 'Changed sequence' } }));
+		assert.equal(field.value, 'Changed sequence');
+		await act(async () => root.render(renderName('Changed sequence')));
+		await act(async () => root.render(renderName('Main sequence')));
+		assert.equal(field.value, 'Main sequence');
+	} finally {
+		await act(async () => root.unmount());
+		globals.IS_REACT_ACT_ENVIRONMENT = priorAct;
+		dom.restore();
+	}
 });
 
 test('frame navigation stays Framescaper-only even with a video workspace preference', () => {

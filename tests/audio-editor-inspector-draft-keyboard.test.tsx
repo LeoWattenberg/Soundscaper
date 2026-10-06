@@ -42,3 +42,27 @@ test('inspector draft keyboard submission commits once and Escape cancels the pe
 		dom.restore();
 	}
 });
+
+test('a rejected inspector commit reports its invalid field state', async () => {
+	const dom = installReactTestDom();
+	const globals = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+	const priorAct = globals.IS_REACT_ACT_ENVIRONMENT;
+	globals.IS_REACT_ACT_ENVIRONMENT = true;
+	const { createRoot } = await import('react-dom/client');
+	const root = createRoot(dom.container as unknown as Element);
+	try {
+		await act(async () => root.render(<CommitField label="Gain" name="gain" value="0"
+			disabled={false} readOnly={false} multiline={false} onCommit={(_name: string, value: string) => Number(value) <= 16} />));
+		const field = dom.one('input');
+		await act(async () => reactProps(field).onChange({ target: { value: '25' } }));
+		await act(async () => reactProps(field).onBlur());
+		assert.equal(field.getAttribute('aria-invalid'), 'true');
+		await act(async () => reactProps(field).onChange({ target: { value: '-6' } }));
+		await act(async () => reactProps(field).onBlur());
+		assert.equal(field.getAttribute('aria-invalid'), null);
+	} finally {
+		await act(async () => root.unmount());
+		globals.IS_REACT_ACT_ENVIRONMENT = priorAct;
+		dom.restore();
+	}
+});

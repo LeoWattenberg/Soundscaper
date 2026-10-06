@@ -287,20 +287,19 @@ export const ContextMenuItem: React.FC<ContextMenuItemProps> = ({
 
     // For items with submenus
     if (hasSubmenu || children) {
-      if (e.key === 'Enter' || e.key === 'ArrowRight') {
+      if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowRight') {
         e.preventDefault();
         e.stopPropagation();
-        if (!submenuOpen) {
-          setSubmenuOpen(true);
-          // Focus first submenu item after opening
-          setTimeout(() => {
-            const firstSubmenuItem = submenuRef.current?.querySelector('[role="menuitem"], [role="menuitemradio"]') as HTMLElement;
-            // Another focus target may have been chosen before this timer runs.
-            if (firstSubmenuItem && itemRef.current?.ownerDocument.activeElement === itemRef.current) {
-              firstSubmenuItem.focus();
-            }
-          }, 0);
-        }
+        clearSafeTriangle();
+        setSubmenuOpen(true);
+        // Keyboard entry focuses the child even when pointer hover opened it.
+        setTimeout(() => {
+          const firstSubmenuItem = submenuRef.current?.querySelector('[role="menuitem"], [role="menuitemradio"]') as HTMLElement;
+          // Another focus target may have been chosen before this timer runs.
+          if (firstSubmenuItem && itemRef.current?.ownerDocument.activeElement === itemRef.current) {
+            firstSubmenuItem.focus();
+          }
+        }, 0);
         return;
       }
 
@@ -417,10 +416,10 @@ export const ContextMenuItem: React.FC<ContextMenuItemProps> = ({
 
     const handleSubmenuKeyboard = (e: KeyboardEvent) => {
       // Only handle if focus is within the submenu
-      if (!submenuRef.current?.contains(document.activeElement)) return;
+      if (document.activeElement?.closest('[role="menu"]') !== submenuRef.current) return;
 
       const items = Array.from(
-        submenuRef.current.querySelectorAll('[role="menuitem"]:not([aria-disabled="true"]), [role="menuitemradio"]:not([aria-disabled="true"])')
+        submenuRef.current.querySelectorAll(':scope > [role="menuitem"]:not([aria-disabled="true"]), :scope > [role="menuitemradio"]:not([aria-disabled="true"])')
       ) as HTMLElement[];
 
       if (items.length === 0) return;

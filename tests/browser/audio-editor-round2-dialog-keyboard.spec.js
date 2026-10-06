@@ -40,3 +40,19 @@ test('Enter commits an inspector name and Escape discards a later rename draft',
 	await name.press('Tab');
 	await expect(clipByName(editor, 'Opening tone')).toBeVisible();
 });
+
+test('a rejected clip gain is identified as invalid on its field', async ({ page }) => {
+	const editor = await bootEditor(page, '/embed/en/');
+	await importFiles(editor, [toneA]);
+	const properties = await openClipProperties(page, editor, clipByName(editor, toneA.name));
+	await properties.getByText('Normalize', { exact: true }).click();
+	const gain = properties.getByRole('spinbutton', { name: 'Clip gain (dB)', exact: true });
+	await gain.fill('25');
+	await gain.press('Enter');
+	await expect(properties.getByRole('alert')).toHaveText('Invalid gain value.');
+	await expect(gain).toHaveAttribute('aria-invalid', 'true');
+	await gain.fill('-6');
+	await gain.press('Enter');
+	await expect(properties.getByRole('alert')).toHaveCount(0);
+	await expect(gain).not.toHaveAttribute('aria-invalid', 'true');
+});

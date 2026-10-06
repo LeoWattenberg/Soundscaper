@@ -16,8 +16,7 @@ export function CommitField({ label, name, value, type = 'text', disabled, readO
 	const commit = () => {
 		if (disabled || readOnly || !draftBlurShouldCommit(blurCommitGuard)) return;
 		try {
-			onCommit(name, draft);
-			setError(false);
+			setError(onCommit(name, draft) === false);
 		} catch {
 			setError(true);
 		}

@@ -89,6 +89,8 @@ function SequenceTimingEditor({ project, view, disabled, controller, copy, run }
 	const rateId = `${String(view.rate.num)}/${String(view.rate.den)}`;
 	const dropFrameAvailable = isSequenceDropFrameRate(view.rate);
 	const [startTimecodeError, setStartTimecodeError] = React.useState(false);
+	const [nameDraft, setNameDraft] = React.useState(view.name);
+	React.useEffect(() => setNameDraft(view.name), [view.name]);
 	const update = (changes) => run(() => controller.actions.sequences.update(view.id, changes));
 	const startLabel = formatSequenceTimecode(view.startTimecode, view.rate, view.dropFrame);
 
@@ -100,10 +102,12 @@ function SequenceTimingEditor({ project, view, disabled, controller, copy, run }
 			<span>{copy.sequenceName}</span>
 			<input
 				type="text"
-				defaultValue={view.name}
+				value={nameDraft}
+				onChange={(event) => setNameDraft(event.currentTarget.value)}
 				disabled={disabled}
 				onBlur={(event) => {
 					const name = event.currentTarget.value.trim();
+					setNameDraft(name || view.name);
 					if (name && name !== view.name) update({ name });
 				}}
 			/>

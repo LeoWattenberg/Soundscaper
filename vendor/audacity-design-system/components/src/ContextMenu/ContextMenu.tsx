@@ -144,7 +144,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
         menuRef.current.contains(focusedElement);
 
       // If focus is in a submenu, let the submenu handle arrow keys
-      if (isInSubmenu && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+      if (isInSubmenu && ['ArrowUp', 'ArrowDown', 'Home', 'End', 'Escape'].includes(e.key)) {
         return;
       }
 

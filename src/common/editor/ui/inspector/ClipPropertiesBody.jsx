@@ -89,7 +89,7 @@ export default function ClipPropertiesBody({ controller, snapshot, copy, clipId 
 		&& liveProjectIdentity() === projectIdentity;
 
 	const commitField = (name, rawValue) => {
-		if (!clip || !track || disabled || !ownsTarget()) return;
+		if (!clip || !track || disabled || !ownsTarget()) return false;
 		try {
 			if (name === 'name') {
 				const title = clipRenameTitle(rawValue, displayedName);
@@ -132,8 +132,10 @@ export default function ClipPropertiesBody({ controller, snapshot, copy, clipId 
 				controller.actions.clip.setTimePitch(clip.id, { speedRatio: Number(rawValue) });
 			}
 			setError('');
+			return true;
 		} catch (cause) {
 			setError(feedbackFailure(cause));
+			return false;
 		}
 	};
 

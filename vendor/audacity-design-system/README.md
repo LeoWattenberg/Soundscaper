@@ -333,6 +333,11 @@ application overrides and source patches against the pin and upstream master.
     to `useEnvelopeDragLifecycle`. Escape restores the drag's original point set,
     clears its pointer editing state, and a subsequent mouse release cannot
     finish the canceled drag.
+44. `ContextMenuItem` keyboard entry focuses the submenu even when pointer
+    interaction already opened it. Enter, Space, and ArrowRight share that path.
+45. `ContextMenu` delegates Escape, Home, End, and vertical arrows to the focused
+    submenu. Each submenu handles only its own direct items, so returning to a
+    parent and navigating deeper levels cannot be intercepted by another level.
 
 ## Application-side adaptations
 
