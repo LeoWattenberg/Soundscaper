@@ -17,6 +17,7 @@ const CONNECTING_DOTS_THRESHOLD = 0.5;
 /** Audacity draws sample heads and zero-line stems from this scale upwards. */
 export const AUDACITY_WAVEFORM_STEM_PIXELS_PER_SAMPLE = 4;
 const STEM_THRESHOLD = AUDACITY_WAVEFORM_STEM_PIXELS_PER_SAMPLE;
+const sampleHeightScratch = new WeakMap();
 
 /** Return the Audacity display mode for a horizontal sample scale. */
 export function audacityWaveformMode(pixelsPerSample) {
@@ -101,6 +102,7 @@ export function drawAudacityWaveformChannel(context, rendering, options = {}) {
 		sampleColor,
 		rmsColor,
 		showRms: Boolean(options.showRms),
+		drawPeaks: options.drawPeaks !== false,
 		pixelRatioX: positiveFinite(options.pixelRatioX ?? 1, 'pixelRatioX'),
 	});
 }
@@ -112,6 +114,8 @@ function drawSummaryColumns(context, channel, options) {
 	);
 	const columnCount = Math.ceil(options.width);
 	if (!sourceColumnCount) return;
+	const rmsValues = options.showRms ? channel.rms : null;
+	let fillColor;
 	for (let x = 0; x < columnCount; x += 1) {
 		const sourceStart = Math.min(
 			sourceColumnCount - 1,
@@ -127,8 +131,10 @@ function drawSummaryColumns(context, channel, options) {
 		for (let sourceColumn = sourceStart; sourceColumn < sourceEnd; sourceColumn += 1) {
 			minimum = Math.min(minimum, finiteSample(channel.minimum[sourceColumn]));
 			maximum = Math.max(maximum, finiteSample(channel.maximum[sourceColumn]));
-			const sourceRms = finiteSample(channel.rms?.[sourceColumn]);
-			rmsSquareSum += sourceRms * sourceRms;
+			if (rmsValues) {
+				const sourceRms = finiteSample(rmsValues[sourceColumn]);
+				rmsSquareSum += sourceRms * sourceRms;
+			}
 		}
 		const gain = finiteGain(options.envelopeGain(x, columnCount));
 		minimum = scaleWaveformAmplitude(minimum * gain, options.amplitudeScale);
@@ -138,14 +144,16 @@ function drawSummaryColumns(context, channel, options) {
 			minimum = Math.max(0, minimum);
 			maximum = Math.max(0, maximum);
 		}
-		fillAmplitudeSpan(context, x, minimum, maximum, options.centerY, options.maxAmplitude, options.sampleColor(x), options.pixelRatioX);
+		if (options.drawPeaks) fillColor = fillAmplitudeSpan(context, x, minimum, maximum,
+			options.centerY, options.maxAmplitude, options.sampleColor(x), options.pixelRatioX, fillColor);
 
-		if (!options.showRms || !channel.rms) continue;
+		if (!rmsValues) continue;
 		const rms = scaleWaveformAmplitude(Math.sqrt(rmsSquareSum / (sourceEnd - sourceStart)) * gain, options.amplitudeScale);
 		const rmsMinimum = options.halfWave ? minimum : Math.max(minimum, -rms);
 		const rmsMaximum = Math.min(maximum, rms);
 		if (rmsMinimum <= rmsMaximum) {
-			fillAmplitudeSpan(context, x, rmsMinimum, rmsMaximum, options.centerY, options.maxAmplitude, options.rmsColor(x), options.pixelRatioX);
+			fillColor = fillAmplitudeSpan(context, x, rmsMinimum, rmsMaximum,
+				options.centerY, options.maxAmplitude, options.rmsColor(x), options.pixelRatioX, fillColor);
 		}
 	}
 }
@@ -155,49 +163,58 @@ function drawIndividualSamples(context, channel, options) {
 	if (!samples?.length) return;
 	const pixelsPerSample = positiveFinite(options.pixelsPerSample, 'pixelsPerSample');
 	const firstSampleX = finite(options.firstSampleX, 'firstSampleX');
-	const points = new Array(samples.length);
-	for (let index = 0; index < samples.length; index += 1) {
+	const heightAt = (index) => {
 		const x = firstSampleX + index * pixelsPerSample;
 		const gain = finiteGain(options.envelopeGain(x, options.width));
 		let value = scaleWaveformAmplitude(finiteSample(samples[index]) * gain, options.amplitudeScale);
 		if (options.halfWave) value = Math.max(0, value);
-		points[index] = {
-			x,
-			y: options.centerY - value * options.maxAmplitude,
-		};
-	}
+		return options.centerY - value * options.maxAmplitude;
+	};
 
 	context.lineWidth = 1;
 	context.lineJoin = 'round';
 	context.lineCap = 'round';
 	if (options.mode === 'connecting-dots') {
 		drawCenterLine(context, options);
-		for (let index = 1; index < points.length; index += 1) {
-			const previous = points[index - 1];
-			const point = points[index];
-			context.strokeStyle = options.sampleColor((previous.x + point.x) / 2);
+		let previousX = firstSampleX;
+		let previousY = heightAt(0);
+		for (let index = 1; index < samples.length; index += 1) {
+			const x = firstSampleX + index * pixelsPerSample;
+			const y = heightAt(index);
+			context.strokeStyle = options.sampleColor((previousX + x) / 2);
 			context.beginPath();
-			context.moveTo(previous.x, previous.y);
-			context.lineTo(point.x, point.y);
+			context.moveTo(previousX, previousY);
+			context.lineTo(x, y);
 			context.stroke();
+			previousX = x;
+			previousY = y;
 		}
 		return;
 	}
 
-	for (const point of points) {
-		const color = options.sampleColor(point.x);
+	let heights = sampleHeightScratch.get(channel);
+	if (!heights || heights.length !== samples.length) {
+		heights = new Float64Array(samples.length);
+		sampleHeightScratch.set(channel, heights);
+	}
+	for (let index = 0; index < samples.length; index += 1) {
+		const x = firstSampleX + index * pixelsPerSample;
+		const y = heights[index] = heightAt(index);
+		const color = options.sampleColor(x);
 		context.strokeStyle = color;
 		context.beginPath();
-		context.moveTo(point.x, options.centerY);
-		context.lineTo(point.x, point.y);
+		context.moveTo(x, options.centerY);
+		context.lineTo(x, y);
 		context.stroke();
 	}
 	drawCenterLine(context, options);
-	for (const point of points) {
-		const color = options.sampleColor(point.x);
-		context.fillStyle = color;
+	let fillColor;
+	for (let index = 0; index < samples.length; index += 1) {
+		const x = firstSampleX + index * pixelsPerSample;
+		const color = options.sampleColor(x);
+		if (color !== fillColor) { context.fillStyle = color; fillColor = color; }
 		context.beginPath();
-		context.arc(point.x, point.y, 2, 0, Math.PI * 2);
+		context.arc(x, heights[index], 2, 0, Math.PI * 2);
 		context.fill();
 	}
 }
@@ -211,16 +228,17 @@ function drawCenterLine(context, options) {
 	context.stroke();
 }
 
-function fillAmplitudeSpan(context, x, minimum, maximum, centerY, maxAmplitude, color, pixelRatioX) {
+function fillAmplitudeSpan(context, x, minimum, maximum, centerY, maxAmplitude, color, pixelRatioX, previousColor) {
 	const top = Math.round(centerY - maximum * maxAmplitude);
 	const bottom = Math.round(centerY - minimum * maxAmplitude);
-	context.fillStyle = color;
+	if (color !== previousColor) context.fillStyle = color;
 	// Adjacent subpixel rectangles are anti-aliased separately, leaving partly
 	// transparent joins that look like a gradient as fractional clip widths vary.
 	// Share physical-pixel boundaries for both the peak and RMS passes.
 	const left = Math.round(x * pixelRatioX) / pixelRatioX;
 	const right = Math.round((x + 1) * pixelRatioX) / pixelRatioX;
 	context.fillRect(left, Math.min(top, bottom), right - left, Math.max(1, Math.abs(bottom - top)));
+	return color;
 }
 
 function finiteSample(value) {
