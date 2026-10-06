@@ -15,15 +15,19 @@ export function useAudioTrackEnvelope({
 	const [envelopePreviewRevision, setEnvelopePreviewRevision] = useState(0);
 
 	useEffect(() => {
+		let active = true;
 		const discardEnvelopeEdit = (event) => {
 			if (event.key !== 'Escape') return;
-			queueMicrotask(() => {
-				if (!envelopePreviewRef.current.size) return;
+			globalThis.setTimeout(() => {
+				if (!active || !envelopePreviewRef.current.size) return;
 				envelopePreviewRef.current.clear();
 				setEnvelopePreviewRevision((revision) => revision + 1);
-			});
+			}, 0);
 		};
-		const finishEnvelopeEdit = () => queueMicrotask(() => {
+		// The design-system layer publishes click edits and restored points from
+		// later native listeners. Microtasks run between those listeners.
+		const finishEnvelopeEdit = () => globalThis.setTimeout(() => {
+			if (!active) return;
 			const previews = [...envelopePreviewRef.current.values()];
 			if (!previews.length) return;
 			envelopePreviewRef.current.clear();
@@ -31,10 +35,11 @@ export function useAudioTrackEnvelope({
 			for (const preview of previews) {
 				run(() => controller.actions.clip.update(preview.clipId, { envelope: preview.envelope }));
 			}
-		});
+		}, 0);
 		document.addEventListener('mouseup', finishEnvelopeEdit);
 		document.addEventListener('keydown', discardEnvelopeEdit);
 		return () => {
+			active = false;
 			document.removeEventListener('mouseup', finishEnvelopeEdit);
 			document.removeEventListener('keydown', discardEnvelopeEdit);
 		};

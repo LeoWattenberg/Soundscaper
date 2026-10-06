@@ -3,13 +3,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import React, { act, useRef, useState } from 'react';
+import React, { act, useCallback, useEffect, useRef, useState } from 'react';
 
 import { useAudioTrackEnvelope } from '../src/common/editor/ui/timeline/useAudioTrackEnvelope.js';
 import { useEnvelopeDragLifecycle } from '../vendor/audacity-design-system/components/src/EnvelopeInteractionLayer/useEnvelopeDragLifecycle.ts';
 import { installReactTestDom, reactProps } from './helpers/react-test-dom.ts';
 
-test('clip gain cancels a draft without history, and a subsequent ordinary drag still commits once', async () => {
+test('clip gain cancels drafts and commits click or drag edits after the native event listeners finish', async () => {
 	const dom = installReactTestDom();
 	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
 	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
@@ -29,12 +29,16 @@ test('clip gain cancels a draft without history, and a subsequent ordinary drag 
 	document.removeEventListener = (type: string, listener: EventListenerOrEventListenerObject | null) => {
 		if (listener) listeners.get(type)?.delete(listener);
 	};
-	const dispatch = (type: string) => {
+	const dispatch = async (type: string, beforeTasks?: () => void) => {
 		const event = { key: 'Escape', preventDefault() {}, stopPropagation() {} } as unknown as Event;
-		for (const listener of listeners.get(type) ?? []) {
+		for (const listener of [...listeners.get(type) ?? []]) {
 			if (typeof listener === 'function') listener(event);
 			else listener.handleEvent(event);
+			// Browsers run queued microtasks between native event listeners.
+			await Promise.resolve();
 		}
+		beforeTasks?.();
+		await new Promise<void>((resolve) => setTimeout(resolve, 0));
 	};
 	try {
 		await act(async () => root.render(<EnvelopeHarness updates={updates} />));
@@ -42,20 +46,23 @@ test('clip gain cancels a draft without history, and a subsequent ordinary drag 
 		await act(async () => reactProps(surface).onMouseDown?.({}));
 		await act(async () => reactProps(surface).onMouseMove?.({}));
 		assert.equal(surface.getAttribute('data-preview-value'), '-12');
-		await act(async () => dispatch('keydown'));
+		await act(async () => { await dispatch('keydown'); });
 		assert.equal(surface.getAttribute('data-preview-value'), '0');
-		await act(async () => {
-			reactProps(surface).onMouseUp?.({});
-			dispatch('mouseup');
-		});
+		assert.equal(surface.getAttribute('data-envelope-preview-count'), '0');
+		await act(async () => { await dispatch('mouseup'); });
 		assert.equal(updates.length, 0);
 		await act(async () => reactProps(surface).onMouseDown?.({}));
 		await act(async () => reactProps(surface).onMouseMove?.({}));
-		await act(async () => {
-			reactProps(surface).onMouseUp?.({});
-			dispatch('mouseup');
-		});
+		await act(async () => { await dispatch('mouseup'); });
 		assert.equal(updates.length, 1);
+		await act(async () => reactProps(surface).onMouseDown?.({}));
+		await act(async () => { await dispatch('mouseup'); });
+		assert.equal(updates.length, 2);
+		assert.equal(surface.getAttribute('data-envelope-preview-count'), '0');
+		await act(async () => reactProps(surface).onMouseDown?.({}));
+		await act(async () => reactProps(surface).onMouseMove?.({}));
+		await act(async () => { await dispatch('mouseup', () => root.unmount()); });
+		assert.equal(updates.length, 2, 'a queued finish must not commit after unmount');
 	} finally {
 		await act(async () => root.unmount());
 		assert.equal(listeners.get('keydown')?.size ?? 0, 0);
@@ -66,9 +73,9 @@ test('clip gain cancels a draft without history, and a subsequent ordinary drag 
 });
 
 function EnvelopeHarness({ updates }: Readonly<{ updates: unknown[] }>) {
-	const dragRef = useRef<object | null>(null);
+	const dragRef = useRef<{ hasMoved: boolean } | null>(null);
 	const [points, setPoints] = useState([{ time: 0.5, db: 0 }]);
-	const { updateEnvelope } = useAudioTrackEnvelope({
+	const { updateEnvelope, envelopePreviewRef } = useAudioTrackEnvelope({
 		controller: { actions: { clip: { update: (_id: string, value: unknown) => updates.push(value) } } },
 		run: (operation: () => unknown) => operation(),
 		blocked: false, automationToolEnabled: true,
@@ -76,13 +83,24 @@ function EnvelopeHarness({ updates }: Readonly<{ updates: unknown[] }>) {
 		projectionClips: [{ id: 'clip', waveformStartFrame: 0, waveformEndFrame: 100 }],
 		sampleRate: 100,
 	});
-	const publish = (next: typeof points) => { setPoints(next); updateEnvelope('clip', next); };
+	const publish = useCallback((next: typeof points) => {
+		setPoints(next); updateEnvelope('clip', next);
+	}, [updateEnvelope]);
 	const { rememberBeforeDrag, finishDrag } = useEnvelopeDragLifecycle(
 		dragRef, points, publish, () => {}, undefined, undefined, () => {}, () => {},
 	);
+	useEffect(() => {
+		const finish = () => {
+			if (!dragRef.current) return;
+			if (!dragRef.current.hasMoved) publish([{ time: 0.75, db: -6 }]);
+			finishDrag();
+		};
+		document.addEventListener('mouseup', finish);
+		return () => document.removeEventListener('mouseup', finish);
+	}, [finishDrag, publish]);
 	return <div data-envelope-test data-preview-value={points[0]?.db}
-		onMouseDown={() => { rememberBeforeDrag(); dragRef.current = {}; }}
-		onMouseMove={() => { if (dragRef.current) publish([{ time: 0.5, db: -12 }]); }}
-		onMouseUp={() => { if (dragRef.current) finishDrag(); }}
+		data-envelope-preview-count={envelopePreviewRef.current.size}
+		onMouseDown={() => { rememberBeforeDrag(); dragRef.current = { hasMoved: false }; }}
+		onMouseMove={() => { if (dragRef.current) { dragRef.current.hasMoved = true; publish([{ time: 0.5, db: -12 }]); } }}
 	/>;
 }
