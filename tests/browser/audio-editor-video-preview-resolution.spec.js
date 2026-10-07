@@ -10,6 +10,7 @@ import {
 	openNestedCommandMenu,
 	registerAudioEditorHooks,
 	waitForEditor,
+	waitForProjectActivation,
 } from './audio-editor-test-helpers.js';
 import { videoRetimePreviewMedia } from './fixtures/video-retime-preview-media.js';
 
@@ -66,8 +67,14 @@ for (const unavailableWebGl of [false, true]) {
 		await page.keyboard.press('Escape');
 		await chooseNestedCommandAction(page, editor, 'View', ['Video preview resolution', 'Quarter resolution']);
 		await expectResolution(4);
+		const projectId = await editor.getAttribute('data-project-id');
+		const clipCount = await editor.getAttribute('data-clip-count');
+		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', { timeout: 30_000 });
 		await page.reload();
 		await waitForEditor(page);
+		await waitForProjectActivation(editor);
+		await expect(editor).toHaveAttribute('data-project-id', projectId);
+		await expect(editor).toHaveAttribute('data-clip-count', clipCount);
 		await expect(preview).toHaveAttribute('data-video-preview-renderer', renderer);
 		await expect(getMenuItem(await menu(), 'Quarter resolution')).toHaveAttribute('aria-checked', 'true');
 		await page.keyboard.press('Escape');
