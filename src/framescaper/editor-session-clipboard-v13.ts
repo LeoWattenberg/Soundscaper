@@ -14,6 +14,8 @@ import {
 	type FramescaperImageClipV1,
 	type FramescaperImageSourceV1,
 } from '../common/editor/timeline-image-model.ts';
+import { prepareTimelineImageTrim } from '../common/editor/timeline-image-trim.ts';
+import { videoFrameToSampleFrame } from '../common/editor/timeline-time.ts';
 import { framescaperProjectNativeMediaFoundationShapeTimelineImage } from './editor-project-timeline-image-foundation.ts';
 import { validateFramescaperProjectTimelineImage, type FramescaperProjectTimelineImage } from './editor-project-timeline-image.ts';
 import { FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE } from './editor-domain-runtime-profile.ts';
@@ -226,13 +228,24 @@ function imageClipsForBindings(
 		String(clip.key), clip,
 	] as const)));
 	const bindingByClip = new Map(bindings.map((binding) => [binding.clipId, binding]));
-	for (const clip of clips) {
+	return Object.freeze(clips.map(clip => {
 		const binding = bindingByClip.get(clip.id);
-		if (!binding || descriptorByKey.get(binding.descriptorKey)?.sourceId !== clip.sourceId) {
+		const fragment = binding ? descriptorByKey.get(binding.descriptorKey) : undefined;
+		if (!fragment || fragment.sourceId !== clip.sourceId) {
 			throw new ReferenceError(`V13 descriptor does not preserve image clip ${clip.id}.`);
 		}
-	}
-	return Object.freeze(clips);
+		if (typeof fragment.sourceStartFrame !== 'number' || typeof fragment.durationFrames !== 'number') {
+			throw new TypeError('An image fragment requires its validated numeric source position and duration.');
+		}
+		const source = project.sources.find(item => item.id === clip.sourceId && item.kind === 'image');
+		const sequence = project.sequences.find(item => item.id === clip.sequenceId);
+		if (!source || source.kind !== 'image' || !sequence) throw new ReferenceError('An image fragment requires its source and sequence.');
+		return prepareTimelineImageTrim(project, clip, source, {
+			// The image's video-shaped descriptor carries a sequence ordinal, not audio samples.
+			timelineStartFrame: videoFrameToSampleFrame(clip.sequenceStartFrame + fragment.sourceStartFrame, sequence.rate, project.sampleRate),
+			durationFrames: fragment.durationFrames,
+		});
+	}));
 }
 
 function bindDescriptorClips(
