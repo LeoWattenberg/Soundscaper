@@ -12,6 +12,7 @@ import { usePresetOptions, useDefaultPresetEdited, useEffectAboutPresentation } 
 import AudacityEffectHeader from './AudacityEffectHeader.jsx';
 import EffectAboutDialog from './EffectAboutDialog.tsx';
 import EffectPresetMenuPortal from './EffectPresetMenuPortal.tsx';
+import { usePresetDeletionFocus } from './usePresetDeletionFocus.ts';
 
 /**
  * The preset bar Audacity 4 puts above every effect's controls.
@@ -80,6 +81,7 @@ export default function EffectPresetBar({
 	const selectedIndex = presets.findIndex((preset) => preset.id === selectedId);
 	const selected = presets[selectedIndex] || null;
 	const canOverwrite = Boolean(selected?.custom) && !disabled;
+	const captureDeletionFocus = usePresetDeletionFocus(barRef, presets, selectedId, disabled, resetKey);
 	const hasDefault = defaultParams != null;
 	const defaultBaseline = hasDefault && !selected;
 	const defaultEdited = useDefaultPresetEdited(defaultBaseline, currentParams, defaultParams);
@@ -134,7 +136,7 @@ export default function EffectPresetBar({
 					else onReset();
 				}}
 				canDelete={canOverwrite}
-				onDeletePreset={() => { if (canOverwrite) onDelete(); }}
+				onDeletePreset={() => { if (canOverwrite) { captureDeletionFocus(); onDelete(); } }}
 				onMoreOptions={(event) => {
 					if (consumeOptionsDismissal()) return;
 					if (disabled && !hasAbout) return;
