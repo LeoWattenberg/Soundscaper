@@ -68,6 +68,7 @@ export const RECORDING_COPY_BY_LOCALE = Object.freeze({
 			timedRecordingCancelled: 'Geplante Aufnahme abgebrochen.',
 			timedRecordingPast: 'Wähle einen Aufnahmezeitpunkt in der Zukunft.',
 			timedRecordingEndBeforeStart: 'Wähle ein Aufnahmeende nach dem Aufnahmebeginn.',
+			timedRecordingInvalidLocalDateTime: 'Gib ein Datum und eine Uhrzeit ein, die in deiner Zeitzone existieren.',
 			soundActivationLevel: 'Aktivierungspegel einstellen',
 	}),
 	en: Object.freeze({
@@ -136,6 +137,7 @@ export const RECORDING_COPY_BY_LOCALE = Object.freeze({
 			timedRecordingCancelled: 'Scheduled recording cancelled.',
 			timedRecordingPast: 'Choose a recording time in the future.',
 			timedRecordingEndBeforeStart: 'Choose a recording end after the start.',
+			timedRecordingInvalidLocalDateTime: 'Enter a date and time that exist in your time zone.',
 			soundActivationLevel: 'Set activation level',
 	}),
 });

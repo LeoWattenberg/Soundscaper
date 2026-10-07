@@ -1,8 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { useId } from 'react';
 import AudioEditorTimeCodeInput from '../AudioEditorTimeCodeInput.tsx';
 import {
 	normalizeTimedRecordingDialogValue,
+	timedRecordingLocalDateTimeValid,
 	type TimedRecordingDialogValue,
 	updateTimedRecordingDialogDuration,
 	updateTimedRecordingDialogEnd,
@@ -42,6 +44,10 @@ export default function TimedRecordingDialogFields({
 	locale,
 }: TimedRecordingDialogFieldsProps) {
 	const model = normalizeTimedRecordingDialogValue(value);
+	const invalidDateId = useId();
+	const startInvalid = model.startTime !== '' && !timedRecordingLocalDateTimeValid(model.startTime);
+	const endInvalid = model.endMode === 'end' && model.endTime !== ''
+		&& !timedRecordingLocalDateTimeValid(model.endTime);
 	return <form data-timed-recording-dialog onSubmit={(event) => {
 		event.preventDefault();
 		onSubmit();
@@ -53,6 +59,8 @@ export default function TimedRecordingDialogFields({
 				type="datetime-local"
 				step="0.001"
 				value={model.startTime}
+				aria-invalid={startInvalid || undefined}
+				aria-describedby={startInvalid ? invalidDateId : undefined}
 				onChange={(event) => onValueChange(updateTimedRecordingDialogStart(
 					model,
 					event.currentTarget.value,
@@ -87,12 +95,16 @@ export default function TimedRecordingDialogFields({
 				<input className="kw-audio-editor-timed-recording__control"
 					type="datetime-local" step="0.001" aria-label={copy.timedRecordingEndDateTime}
 					value={model.endTime} disabled={model.endMode !== 'end'}
+					aria-invalid={endInvalid || undefined} aria-describedby={endInvalid ? invalidDateId : undefined}
 					onChange={(event) => onValueChange(updateTimedRecordingDialogEnd(
 						model,
 						event.currentTarget.value,
 					))} />
 			</div>
 		</fieldset>
+		{(startInvalid || endInvalid) && <p id={invalidDateId} role="alert">
+			{copy.timedRecordingInvalidLocalDateTime}
+		</p>}
 		{scheduledRecording && <p>{scheduledRecordingText(scheduledRecording, copy, locale)}</p>}
 	</form>;
 }

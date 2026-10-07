@@ -124,7 +124,20 @@ function dateTimeMs(value: unknown): number {
 	if (typeof value === 'number') return Number.isFinite(value) ? value : Number.NaN;
 	if (value instanceof Date) return value.getTime();
 	if (typeof value !== 'string' || value === '') return Number.NaN;
-	return new Date(value).getTime();
+	const date = new Date(value);
+	const parts = /^(\d{4,})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?$/u.exec(value);
+	if (parts) {
+		const expected = parts.slice(1, 7).map((part) => Number(part ?? 0));
+		expected.push(Number((parts[7] ?? '').padEnd(3, '0')));
+		const actual = [date.getFullYear(), date.getMonth() + 1, date.getDate(),
+			date.getHours(), date.getMinutes(), date.getSeconds(), date.getMilliseconds()];
+		if (actual.some((part, index) => part !== expected[index])) return Number.NaN;
+	}
+	return date.getTime();
+}
+
+export function timedRecordingLocalDateTimeValid(value: string): boolean {
+	return Number.isFinite(dateTimeMs(value));
 }
 
 function positiveDuration(value: unknown): number | null {
