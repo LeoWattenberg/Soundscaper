@@ -345,7 +345,7 @@ test('controller rewrites stereo channels with immutable sources and round-trips
 	}
 });
 
-test('controller runs specialized analysis reports and snaps selections to zero crossings', async () => {
+test('controller runs specialized analysis reports and snaps selections to zero crossings', async (context) => {
 	let renderMode = 'analysis';
 	const renderSnapshot = async (_project, range) => {
 		const length = Math.max(1, range.outputFrames || range.endFrame - range.startFrame);
@@ -379,6 +379,7 @@ test('controller runs specialized analysis reports and snaps selections to zero 
 		ffmpeg: createMemoryFfmpeg(),
 		renderSnapshot,
 	});
+	context.after(() => controller.dispose());
 	await controller.ready;
 	const trackId = controller.getSnapshot().project.tracks[0].id;
 	controller.actions.edit.commit({
@@ -413,6 +414,7 @@ test('controller runs specialized analysis reports and snaps selections to zero 
 	renderMode = 'zero';
 	controller.actions.timeline.setSelection(10_000, 11_000);
 	await controller.actions.timeline.zeroCross();
-	assert.deepEqual(controller.getSnapshot().selection, { startFrame: 10_002, endFrame: 10_998, annotationIds: [] });
-	await controller.dispose();
+	assert.deepEqual(controller.getSnapshot().selection, {
+		startFrame: 10_002, endFrame: 10_998, trackIds: [], clipIds: [], annotationIds: [], frequencyRange: null,
+	});
 });
