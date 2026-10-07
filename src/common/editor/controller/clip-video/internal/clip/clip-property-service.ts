@@ -88,6 +88,7 @@ export interface ClipPropertyServiceDependencies {
 	readonly copy: ClipPropertyCopy;
 	readonly sourceBuffers: Pick<Map<string, AudioBufferLike>, 'get'>;
 	loadSourceBuffer?(sourceId: string, signal: AbortSignal): Promise<AudioBufferLike | null>;
+	renderNormalizationAudio?(project: ClipTransformProject, clip: ClipTransformClip, buffer: AudioBufferLike, signal: AbortSignal): Promise<AudioBufferLike>;
 	getProject(): ClipTransformProject;
 	getSelectedClipId(): string | null;
 	editingBlocked(): boolean;
@@ -148,13 +149,15 @@ export function createClipPropertyService(
 				?? await dependencies.loadSourceBuffer?.(clip.sourceId, task.signal);
 			assertOwned(task, projectToken, fingerprint);
 			if (!buffer) return undefined;
-			const channels = Array.from({ length: buffer.numberOfChannels }, (_, channel) => (
-				buffer.getChannelData(channel).subarray(
-					clip.sourceStartFrame,
-					clip.sourceStartFrame + clip.sourceDurationFrames,
+			const rendered = await dependencies.renderNormalizationAudio?.(project, clip, buffer, task.signal);
+			assertOwned(task, projectToken, fingerprint);
+			const analysisBuffer = rendered ?? buffer;
+			const channels = Array.from({ length: analysisBuffer.numberOfChannels }, (_, channel) => (
+				rendered ? rendered.getChannelData(channel) : buffer.getChannelData(channel).subarray(
+					clip.sourceStartFrame, clip.sourceStartFrame + clip.sourceDurationFrames,
 				)
 			));
-			const result = await dependencies.analyzeChannels(channels, buffer.sampleRate, task.signal);
+			const result = await dependencies.analyzeChannels(channels, analysisBuffer.sampleRate, task.signal);
 			assertOwned(task, projectToken, fingerprint);
 			let gain = clip.gain;
 			if (action === 'normalize-peak' && result.peakAmplitude > 0) {

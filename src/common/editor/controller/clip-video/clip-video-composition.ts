@@ -18,6 +18,7 @@ import { createClipPropertyService, type ClipAnalysisResult } from './internal/c
 import { loadStoredSourceChannels } from '../../clip-time-pitch-cache-channels.js';
 import { createClipTimePitchRenderService } from './clip-time-pitch-render-service.ts';
 import { renderLinkedClipAudio } from './internal/linked-clip-render.ts';
+import { renderClipNormalizationAudio } from './internal/clip-normalization-render.ts';
 import { createClipTransformService } from './internal/clip/clip-transform-service.ts';
 import { createSampleEditService } from './internal/sample-edit-service.ts';
 import { createSequenceTimingService } from './internal/sequence-timing-service.ts';
@@ -206,6 +207,9 @@ export function createClipVideoComposition(dependencies: ClipVideoCompositionDep
 			return { length: channels[0]?.length ?? 0, sampleRate: Number(source.sampleRate),
 				numberOfChannels: channels.length, getChannelData: (channel) => channels[channel]! };
 		},
+		renderNormalizationAudio: dependencies.sourcePreview ? (project, clip, buffer, signal) => renderClipNormalizationAudio({
+			...dependencies.sourcePreview!, createEngine: dependencies.createLinkedRenderEngine ?? dependencies.sourcePreview!.createEngine,
+		}, project, clip, buffer, signal) : undefined,
 		getProject: dependencies.getCommandProject,
 		getSelectedClipId: () => state.selectedClipId,
 		editingBlocked: dependencies.editingBlocked,
