@@ -259,3 +259,26 @@ support pass, 32 tests altogether; targeted lint passes. Regression files are
 `audio-editor-round4-spectrogram-project-history.test.tsx` and
 `audio-editor-round4-spectrogram-project-history.spec.js`; evidence is recorded
 in `/tmp/soundscaper-r4-root-spectrogram-*`.
+
+
+## R4-ROOT-012 — A one-edge macro time command overwrites its omitted edge
+
+Import an ordinary 800 ms WAV. Choose Tools → Macros palette → New program and
+run `await sound.select.frames(0, 38400);` followed by
+`await sound.command('SelectTime', { start: 0.2 });`. Log the returned selection.
+The baseline selects `0..9600` instead of `9600..38400`: the command replaces an
+omitted End with zero, then the editor sorts its reversed edges.
+
+Apply the command's relative-origin arithmetic only to an edge the author
+actually supplied. Preserve the other edge exactly; explicitly supplied zero
+continues to update it. This applies to SelectTime and the combined Select
+command, and is independent of 005's read-only clip selection conversion.
+
+The same authored-program workflow fails on immutable baseline `a0322d6e4` and
+passes Chromium, Firefox and WebKit on `spectrogram-project-clean14` (3/3).
+Two strict regressions cover both omitted edges through all six origins and an
+explicit zero in combined Select; existing command codec/controller support
+passes with them, 19/19. Targeted lint passes. Regression files are
+`audio-editor-round4-macro-time-omitted-edge.test.ts` and
+`audio-editor-round4-macro-time-omitted-edge.spec.js`; evidence is recorded in
+`/tmp/soundscaper-r4-root-macro-time-edge-*`.

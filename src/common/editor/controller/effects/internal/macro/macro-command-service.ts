@@ -86,9 +86,13 @@ export function createMacroCommandService(runtime: MacroCommandServiceRuntime) {
 		// Audacity leaves the selection alone entirely when a time command carries
 		// neither edge, so an unrelated Select that only names tracks does not
 		// silently collapse the range to zero.
-		const range = changesTime
+		const requestedRange = changesTime
 			? timeRange(params, selection)
 			: { startFrame: selection.startFrame, endFrame: selection.endFrame };
+		const range = {
+			startFrame: changesTime && has(params, 'start') ? requestedRange.startFrame : selection.startFrame,
+			endFrame: changesTime && has(params, 'end') ? requestedRange.endFrame : selection.endFrame,
+		};
 
 		// The track selection is carried through every command, because upstream a
 		// time or frequency command does not touch it — and a selection written
