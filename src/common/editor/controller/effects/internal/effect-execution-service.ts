@@ -199,7 +199,8 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 				: null;
 			const linkedTruncateSilence = type === 'audacity-truncate-silence'
 				&& params.independent === false
-				&& !targets.some((target: RuntimeValue) => target.clipId)
+				&& targets.every((target: RuntimeValue) => target.startFrame === targets[0].startFrame
+					&& target.endFrame === targets[0].endFrame)
 				&& dryResults.length > 1;
 			let results = [];
 			if (linkedTruncateSilence) {

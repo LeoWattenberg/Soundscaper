@@ -365,3 +365,25 @@ verify selected lanes, unrelated-track preservation, shared storage ownership,
 source immutability and explicit single-track scope. All 27 focused generator
 tests and targeted lint pass; source checks pass for all four product builds.
 No manual **Update AI assets** run is required.
+
+## R3-ROOT-018 — Linked Truncate Silence independently processes aligned clip headers
+
+Import two ordinary two-second dialogue recordings on separate tracks. Give
+the first a pause at 0.3–1.3 seconds and the second one at 0.7–1.7 seconds.
+Select both clip headers using Shift, choose **Effect > Special > Truncate
+Silence**, leave **Truncate tracks independently** off, set **Truncate to** to
+zero and apply. Select all and export WAV.
+
+Previously each track lost its own one-second pause and the download lasted
+about one second. Only their shared 0.6-second pause should be removed. The
+controller's linked detection excluded every clip target. It now admits aligned
+clip spans to the existing joint worker and preserves the clip-target command
+authority. The [Audacity Truncate Silence manual](https://manual.audacityteam.org/man/truncate_silence.html)
+defines this synchronization for the unchecked option.
+
+Proof: the exact public baseline workflow delivers 0.99977 seconds instead of
+1.4. Green build 19 delivers 1.4 seconds in Chromium, Firefox and WebKit and
+Undo restores two seconds. Two strict actual-DSP regressions verify joint clip
+and range detection, original channel ownership and retained clip identities.
+All 12 focused multitrack, result and preview cases and targeted lint pass.
+No manual **Update AI assets** run is required.
