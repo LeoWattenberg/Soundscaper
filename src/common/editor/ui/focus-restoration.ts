@@ -43,15 +43,33 @@ export function retainEditorFocusHistory(document: Document): () => void {
 export function resolveEditorReturnFocus(
 	document: Document,
 	fallback: EventTarget | null,
+	excluded: HTMLElement | null = null,
 ): HTMLElement | null {
 	const direct = editorFocusableElement(document, fallback);
-	if (direct && isAvailableReturnFocusTarget(document, direct)) return direct;
+	if (direct && !excluded?.contains(direct) && isAvailableReturnFocusTarget(document, direct)) return direct;
 	const elements = histories.get(document)?.elements || [];
 	for (let index = elements.length - 1; index >= 0; index -= 1) {
 		const element = elements[index];
-		if (isAvailableReturnFocusTarget(document, element)) return element;
+		if (!excluded?.contains(element) && isAvailableReturnFocusTarget(document, element)) return element;
 	}
 	return null;
+}
+
+/** Layout changes can replace or hide a modal's original menu opener. */
+export function restoreEditorDialogReturnFocus(
+	document: Document,
+	previous: EventTarget | null,
+	closingPanel: HTMLElement | null,
+	editor: HTMLElement | null,
+): void {
+	const remembered = resolveEditorReturnFocus(document, previous, closingPanel);
+	if (remembered) { remembered.focus({ preventScroll: true }); return; }
+	const controls = [
+		...(editor?.querySelectorAll<HTMLElement>('[data-chrome-drawer-toggle]') ?? []),
+		...(editor?.querySelector<HTMLElement>('[data-application-menubar]')?.querySelectorAll<HTMLButtonElement>('button') ?? []),
+	];
+	controls.find(element => isAvailableReturnFocusTarget(document, element)
+		&& !element.hasAttribute('disabled'))?.focus({ preventScroll: true });
 }
 
 function isAvailableReturnFocusTarget(document: Document, element: HTMLElement): boolean {

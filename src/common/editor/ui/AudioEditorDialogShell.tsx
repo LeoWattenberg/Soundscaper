@@ -13,7 +13,7 @@ import { DialogHeader } from '@soundscaper/design-system/DialogHeader';
 import AudioEditorResizableSurface from './AudioEditorResizableSurface.jsx';
 import { retainAudioEditorDialogEscapeOwner } from './dialog-escape-ownership.ts';
 import { retainAudioEditorDialogFocusOwner } from './dialog-focus-ownership.ts';
-import { resolveEditorReturnFocus } from './focus-restoration.ts';
+import { resolveEditorReturnFocus, restoreEditorDialogReturnFocus } from './focus-restoration.ts';
 import { constrainDialogDragOffset } from './dialog-drag-bounds.ts';
 import { retainDialogMoveLifecycle } from './dialog-move-lifecycle.ts';
 
@@ -170,6 +170,7 @@ export default function AudioEditorDialogShell({
 		if (!isOpen) return undefined;
 		const previouslyFocused = resolveEditorReturnFocus(document, document.activeElement);
 		const panel = panelRef.current;
+		const editor = panel?.closest<HTMLElement>('[data-audio-editor]') ?? null;
 		const focusOwnership = modal ? retainAudioEditorDialogFocusOwner(document) : null;
 		const focusableElements = () => [...(panel?.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR) || [])]
 			.filter(isAvailableFocusTarget);
@@ -205,9 +206,7 @@ export default function AudioEditorDialogShell({
 			focusOwnership?.release();
 			cancelAnimationFrame(frame);
 			document.removeEventListener('keydown', handleKeyDown);
-			if (restoreFocus && previouslyFocused instanceof HTMLElement && previouslyFocused.isConnected) {
-				previouslyFocused.focus({ preventScroll: true });
-			}
+			if (restoreFocus) restoreEditorDialogReturnFocus(document, previouslyFocused, panel, editor);
 		};
 	}, [initialFocus, isOpen, modal]);
 
