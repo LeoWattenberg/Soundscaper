@@ -250,7 +250,7 @@ export const DESKTOP_EXPECTED_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/parameter-address.js',
 	'src/common/editor/pcm-dither.js',
 	'src/common/editor/pffft.js',
-	'src/common/editor/project.js',
+	'src/common/editor/project.js', 'src/common/editor/riff-metadata-text.js',
 	'src/common/editor/reviewed-effects/catalog.js',
 	'src/common/editor/reviewed-effects/errors.js',
 	'src/common/editor/reviewed-effects/hash.js',
