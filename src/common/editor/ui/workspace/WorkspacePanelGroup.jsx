@@ -78,6 +78,7 @@ export default function WorkspacePanelGroup({
 		},
 		onDragEnd: onPanelDragEnd,
 		onKeyDown: (event) => {
+			if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
 			if (adjustFloatingPanelGeometry(event, panelId, panel, 'move')) return;
 			if (grouped) return;
 			const horizontal = dock === 'top' || dock === 'bottom';
