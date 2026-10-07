@@ -10,7 +10,8 @@ import {
 	draftBlurShouldCommit,
 } from '../draft-blur-commit.ts';
 
-export function LabelManagerRow({ label, sampleRate, controller, copy, disabled, run }) {
+export function LabelManagerRow({ label, sampleRate, controller, copy, disabled, run,
+	onRemoving = /** @type {null | ((control: HTMLElement) => void)} */ (null) }) {
 	const [title, setTitle] = useState(label.title || '');
 	const blurCommitGuard = useRef(createDraftBlurCommitGuard()).current;
 	useEffect(() => {
@@ -50,7 +51,7 @@ export function LabelManagerRow({ label, sampleRate, controller, copy, disabled,
 					className="kw-audio-editor__workspace-panel-close"
 					aria-label={`${copy.deleteLabel || copy.liftDelete}: ${title || copy.untitledLabel}`}
 					disabled={disabled}
-					onClick={() => run(() => controller.actions.labels.remove(label.trackId, label.id))}
+					onClick={(event) => { onRemoving?.(event.currentTarget); run(() => controller.actions.labels.remove(label.trackId, label.id)); }}
 				>×</button>
 			</div>
 			<small>{label.trackName}</small>

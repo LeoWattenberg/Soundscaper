@@ -4,7 +4,7 @@ import { Button } from '@soundscaper/design-system/Button';
 import AudioEditorMixerPanel from './AudioEditorMixerPanel.jsx';
 import ClockPanel from './ClockPanel.tsx';
 import MeterWorkspacePanel from './MeterWorkspacePanel.jsx';
-import { LabelManagerRow } from './LabelManagerRows.jsx';
+import LabelManagerList from './LabelManagerList.tsx';
 import { newLabelRange } from './new-label-range.ts';
 import ProjectBinPanel from './ProjectBinPanel.jsx';
 import SourceMonitorPanel from './SourceMonitorPanel.jsx';
@@ -205,35 +205,12 @@ export default function WorkspacePanelContent({
 			trackName: track.name,
 		})));
 		const targetTrack = labelTracks.find((track) => track.id === snapshot.selectedTrackId) || labelTracks[0];
-		return (
-			<>
-				<div className="kw-audio-editor__panel-actions-inline">
-					<Button
-						variant="secondary"
-						disabled={snapshot.readOnly}
-						onClick={() => run(() => controller.actions.labels.add(targetTrack?.id || null, {
-							title: publishedCopyFor(copy).newLabel || publishedCopyFor(copy).untitledLabel,
-							...newLabelRange(snapshot.selection, controller.getTelemetrySnapshot().positionFrame),
-						}))}
-					>{copy.newLabel || copy.addLabelTrack}</Button>
-				</div>
-				{labels.length ? (
-					<ul className="kw-audio-editor__panel-list kw-audio-editor__label-manager" data-labels-panel-list>
-						{labels.map((label) => (
-							<LabelManagerRow
-								key={label.id}
-								label={label}
-								sampleRate={project.sampleRate}
-								controller={controller}
-								copy={copy}
-								disabled={snapshot.readOnly}
-								run={run}
-							/>
-						))}
-					</ul>
-				) : <p className="kw-audio-editor__panel-empty">{copy.labelsEmpty}</p>}
-			</>
-		);
+		return <LabelManagerList projectId={project?.id} labels={labels} sampleRate={project.sampleRate}
+			controller={controller} copy={copy} disabled={snapshot.readOnly} run={run}
+			onAdd={() => run(() => controller.actions.labels.add(targetTrack?.id || null, {
+				title: publishedCopyFor(copy).newLabel || publishedCopyFor(copy).untitledLabel,
+				...newLabelRange(snapshot.selection, controller.getTelemetrySnapshot().positionFrame),
+			}))} />;
 	}
 	if (panelId === 'markers') {
 		return (
