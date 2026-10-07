@@ -82,8 +82,7 @@ function assertCatalog({ groups, tutorials = [], describeStep, fixture, exampleU
 export function plainText(markdown) {
 	return markdown
 		.replace(/\[([^\]]+)\]\([^)]*\)/gu, '$1')
-		.replaceAll('**', '')
-		.replaceAll('`', '');
+		.replace(/\*\*|`/gu, '');
 }
 
 function renderStep(entry, index, describe) {
@@ -117,7 +116,7 @@ function tutorialLink(tutorial) {
 
 /** Expand every `guide:<id>` and `tutorial:<id>` marker in prose into the page's current route. */
 export function resolveGuideLinks(markdown, groups, tutorials = []) {
-	const guides = new Map(groups.flatMap((group) => group.guides).map((guide) => [guide.id, guide]));
+	const guides = new Map(groups.flatMap((group) => group.guides.map((guide) => [guide.id, guide])));
 	const lessons = new Map(tutorials.map((tutorial) => [tutorial.id, tutorial]));
 	return markdown.replace(PAGE_LINK, (_, kind, id) => {
 		if (kind === 'guide') {
@@ -139,13 +138,13 @@ export function relatedGuides(guide, groups) {
 	const linked = [...guide.tips.join('\n').matchAll(PAGE_LINK)]
 		.filter((match) => match[1] === 'guide')
 		.map((match) => match[2]);
-	const ordered = [];
+	const ordered = new Set();
 	for (const id of [...linked, ...group.guides.map((entry) => entry.id)]) {
 		const entry = byId.get(id);
 		if (!entry) throw new RangeError(`Guide ${guide.id} links to unknown guide ${id}.`);
-		if (entry !== guide && !ordered.includes(entry)) ordered.push(entry);
+		if (entry !== guide) ordered.add(entry);
 	}
-	return ordered;
+	return [...ordered];
 }
 
 function referencesFor(document) {
