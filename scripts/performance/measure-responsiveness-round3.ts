@@ -1,3 +1,4 @@
+// @ts-check
 /* SPDX-License-Identifier: AGPL-3.0-only */
 // node scripts/performance/measure-responsiveness-round3.ts <baseline-root> <current-root> <output.json>
 import assert from 'node:assert/strict';
