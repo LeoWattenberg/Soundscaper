@@ -12,6 +12,7 @@ import {
 } from '../../track-folder-media-runtime.ts';
 import type { DeliveryReportState } from './export-state.ts';
 import type { DeliveryReport } from '../../delivery-report.ts';
+import { reportInterchangeAudioOmissions } from './internal/interchange-audio-omissions.ts';
 import {
 	admitInterchangeVisualProject,
 	reportInterchangeVisualOmissions,
@@ -50,7 +51,7 @@ export async function exportProjectEdl(runtime: InterchangeRuntime & {
 		sequenceId: runtime.sequenceId,
 		trackId: runtime.trackId,
 		reelNames: runtime.reelNames,
-	}), omissions);
+	}), omissions, project);
 }
 
 export async function exportProjectOtio(
@@ -67,7 +68,7 @@ export async function exportProjectOtio(
 		sequenceRate: sequence.rate,
 		dropFrame: sequence.dropFrame,
 		startFrameCount: sequence.startFrameCount,
-	}), omissions);
+	}), omissions, project);
 }
 
 export async function exportProjectFcpxml(
@@ -83,7 +84,7 @@ export async function exportProjectFcpxml(
 		sequenceRate: sequence.rate,
 		dropFrame: sequence.dropFrame,
 		startFrameCount: sequence.startFrameCount,
-	}), omissions);
+	}), omissions, project);
 }
 
 function resolveInterchangeDelivery(runtime: InterchangeRuntime) {
@@ -121,9 +122,10 @@ export function resolveDeliveredProject(
 
 async function deliver<T extends {
 	text: string; fileName: string; mimeType: string; report: DeliveryReport;
-}>(runtime: InterchangeRuntime, result: T, omissions: readonly InterchangeVisualOmission[]): Promise<T> {
-	const delivered = omissions.length
-		? Object.freeze({ ...result, report: reportInterchangeVisualOmissions(result.report, omissions) })
+}>(runtime: InterchangeRuntime, result: T, omissions: readonly InterchangeVisualOmission[], project: Readonly<Record<string, unknown>>): Promise<T> {
+	const report = reportInterchangeAudioOmissions(reportInterchangeVisualOmissions(result.report, omissions), project);
+	const delivered = report !== result.report
+		? Object.freeze({ ...result, report })
 		: result;
 	// Publish the report before the save dialog, so a cancelled save still
 	// leaves the user able to read what the export would have left behind.
