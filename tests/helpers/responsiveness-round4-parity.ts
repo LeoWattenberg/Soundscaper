@@ -110,10 +110,10 @@ export function editingParityCases(): ParityCase[] {
 		if (variant === 'bad-later-record' || variant === 'duplicate-before-bad') project.clips.push(null as unknown as typeof project.clips[number]);
 		if (variant === 'extra-unrelated-duplicate') project.clips.push({ ...project.clips[0]!, id: 'unrelated' }, { ...project.clips[0]!, id: 'unrelated' });
 		if (variant === 'missing-input') project.tracks[0]!.clipIds = ['absent'];
-		const expected = operation === 'install' ? null : variant === 'stale' ? { ...freeze, derivedSourceId: 'other' } : freeze;
+		const expected = variant === 'stale' ? { ...freeze, derivedSourceId: 'other' } : freeze;
 		const trackId = variant === 'missing-target' ? 'absent' : 'target';
 		capture(`freeze-${operation}-${String(count)}-${variant}`, project, () => operation === 'install'
-			? installAudioTrackFreezeCandidateV21(project, { trackId, expectedFreeze: expected, replacementFreeze: freeze, derivedSource, sourceContentIdentities })
+			? installAudioTrackFreezeCandidateV21(project, { trackId, expectedFreeze: null, replacementFreeze: freeze, derivedSource, sourceContentIdentities })
 			: operation === 'remove' ? removeAudioTrackFreezeCandidateV21(project, { trackId, expectedFreeze: expected })
 				: commitAudioTrackFreezeCandidateV21(project, { trackId, expectedFreeze: expected, operationDigests: digests, derivedSourceContentSha256: 'a'.repeat(64), derivedClip }));
 	}
