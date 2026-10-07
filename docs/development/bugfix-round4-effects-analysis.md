@@ -384,3 +384,27 @@ targeted lint passes. Regression files are
 in `/tmp/soundscaper-r4-root-zero-crossing-spectral-*`. The initial guessed
 status wording was corrected to the actual published English and is excluded
 from the failing product assertion.
+
+## R4-ROOT-017 — DTMF accepts a tone shorter than one native sample
+
+Choose Generate → DTMF tones, keep the ordinary `123` sequence, set Duration
+to 0.001 seconds and Duty cycle to 1%. Both values lie within the visible
+controls' ranges, but the baseline enables Generate although each derived tone
+is shorter than one sample and the signal renderer rejects that request.
+
+Guard the footer and form submission with the same native-sample minimum, and
+explain how increasing Duration or Duty cycle makes the request valid. No
+renderer range or audio timing is weakened. Changing Duty cycle to 100% enables
+Generate again and produces the requested clip through the normal dialog.
+
+The exact public control workflow fails on immutable baseline `a0322d6e4` and
+passes Chromium, Firefox and WebKit on `dtmf-sample-clean21` (3/3). The mounted
+production dialog also fails at its enabled footer before the correction, then
+passes invalid footer/Enter admission and legal recovery alongside its existing
+pending-operation check (2/2). Both product builds and targeted lint pass. The
+first clean build attempt lacked an independently committed presentation helper
+in the isolated checkout; copying that dependency resolved the build setup and
+is not counted as a defect. Regression files are
+`audio-editor-round4-dtmf-sample-admission.test.tsx` and
+`audio-editor-round4-dtmf-sample-admission.spec.js`; evidence is recorded in
+`/tmp/soundscaper-r4-root-dtmf-sample-*`. Manual Update AI assets: not required.

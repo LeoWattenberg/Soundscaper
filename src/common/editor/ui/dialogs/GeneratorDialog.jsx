@@ -47,6 +47,7 @@ export default function GeneratorDialog({ type, controller, copy, locale, run, o
 	const labels = generatorLayoutLabels(copy);
 	const waveformOptions = generatorWaveformOptions(copy);
 	const dtmfTiming = generatorDtmfTiming(params);
+	const invalidDtmfTiming = type === 'dtmf' && dtmfTiming.toneSeconds < 1 / sampleRate;
 	// A half-typed message must not break the preview, so the summary reports
 	// what cannot be sent instead of throwing the way the encoder does.
 	const morse = useMorseSummary(type, params.text, params.wordsPerMinute);
@@ -55,7 +56,7 @@ export default function GeneratorDialog({ type, controller, copy, locale, run, o
 	// The generate button sits in the shared footer, outside the form, so both
 	// it and an Enter press inside a field run this one handler.
 	const generate = () => {
-		if (unsendable || activeGenerationRef.current !== null) return;
+		if (unsendable || invalidDtmfTiming || activeGenerationRef.current !== null) return;
 		const options = type === 'dtmf'
 			? { ...params, durationSeconds: dtmfTiming.totalSeconds, toneSeconds: dtmfTiming.toneSeconds, silenceSeconds: dtmfTiming.silenceSeconds }
 			: params;
@@ -149,7 +150,7 @@ export default function GeneratorDialog({ type, controller, copy, locale, run, o
 				className="audio-editor-dialog-footer"
 				rightContent={<>
 					<Button variant="secondary" onClick={cancelAndClose}>{copy.cancel}</Button>
-					<Button variant="primary" disabled={unsendable || pending} onClick={generate}>{copy.generate}</Button>
+					<Button variant="primary" disabled={unsendable || invalidDtmfTiming || pending} onClick={generate}>{copy.generate}</Button>
 				</>}
 			/>}
 		>
@@ -158,6 +159,7 @@ export default function GeneratorDialog({ type, controller, copy, locale, run, o
 					generate();
 				}}>
 					<div className="kw-audio-editor-generator__content">
+						{invalidDtmfTiming && <p role="alert">{copy.generatorDtmfSampleRequired}</p>}
 						{type === 'tone' && (
 							<div className="kw-audio-editor-generator__standard-grid" data-generator-layout="tone">
 								<GeneratorSelect label={copy.generatorWaveform} value={params.waveform} onChange={(value) => update('waveform', value)} options={waveformOptions} />
