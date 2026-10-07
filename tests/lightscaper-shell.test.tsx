@@ -33,6 +33,7 @@ test('photo import and ratings are menu entries and rendering never creates a li
 	const markup = renderToStaticMarkup(<LightscaperApp locale="en" createSession={createSession} />);
 	assert.match(markup, /Import photos/u); assert.match(markup, /<summary[^>]*>Photo<\/summary>/u);
 	assert.match(markup, /Rate 5 stars/u);
+	assert.match(markup, /Flag: Pick/u); assert.match(markup, /Color label: Blue/u);
 	assert.equal((markup.match(/name="lightscaper-application-menu"/gu) ?? []).length, 2);
 	assert.ok(markup.indexOf('>Photo</summary>') < markup.indexOf('>View</summary>'));
 	assert.equal(opened, 0); assert.doesNotMatch(markup, /data-photo-library="true"|<input|role="dialog"/u);

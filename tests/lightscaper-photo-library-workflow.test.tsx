@@ -123,6 +123,7 @@ function owner(readPage: PhotoLibrarySessionPortV1['readPage']) {
 		readPage,
 		importFiles: async () => Object.freeze([RECEIPT]),
 		setRating: async (_photoId, rating) => Object.freeze({ ...ROW, rating }),
+		applyAttributes: async (_photoId, changes) => Object.freeze({ ...ROW, ...changes }),
 		close: async () => { closes++; },
 	};
 	return { port, closes: () => closes };

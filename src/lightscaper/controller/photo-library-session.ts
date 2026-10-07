@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { readClosedDomainArray } from '../../common/editor/closed-domain-value.ts';
-import type { PhotoLibraryImportItemV1, PhotoLibraryPageV1, PhotoLibraryRowV1, PhotoLibrarySessionPortV1 } from '../../common/editor/photo-library-session-port-v1.ts';
+import type { PhotoLibraryAttributePatchV1, PhotoLibraryImportItemV1, PhotoLibraryPageV1, PhotoLibraryRowV1, PhotoLibrarySessionPortV1 } from '../../common/editor/photo-library-session-port-v1.ts';
 import { IMAGE_IMPORT_LIMITS } from '../../common/editor/image-import-admission.ts';
 import { normalizePhotoCatalogRootV1 } from '../catalog/catalog-root.ts';
 import { normalizePhotoDocumentV1 } from '../catalog/photo-document.ts';
@@ -13,6 +13,7 @@ import { importManagedPhotosV1, recoverManagedPhotoImportV1 } from '../import/ma
 import type { PhotoManagedImportPortsV1 } from '../import/managed-import-ports-v1.ts';
 import { preparePhotoImportGestureV1 } from '../import/photo-import-preparation-v1.ts';
 import { PhotoCommandOwnerV1 } from './photo-command-owner.ts';
+import { normalizePhotoLibraryAttributesV1 } from './photo-library-attributes.ts';
 import type { PhotoLibraryPreparationOutcomeV1, PhotoLibrarySessionPortsV1 } from './photo-library-session-ports.ts';
 
 /** Product session owns lifetime, bounded presentation pages and a single writer. */
@@ -91,7 +92,11 @@ export class PhotoLibrarySessionV1 implements PhotoLibrarySessionPortV1 {
 	}
 
 	async setRating(photoId: string, rating: number, options: Readonly<{ signal?: AbortSignal }> = {}): Promise<PhotoLibraryRowV1> {
-		const key = id(photoId, 'photo ID'), value = integer(rating, 0, 5, 'photo rating');
+		return this.applyAttributes(photoId, { rating }, options);
+	}
+
+	async applyAttributes(photoId: string, changes: PhotoLibraryAttributePatchV1, options: Readonly<{ signal?: AbortSignal }> = {}): Promise<PhotoLibraryRowV1> {
+		const key = id(photoId, 'photo ID'), patch = normalizePhotoLibraryAttributesV1(changes);
 		return this.#mutation(async (catalogId, signal) => {
 			if (this.#photo?.history.present.id !== key) {
 				await this.#photo?.close();
@@ -104,7 +109,7 @@ export class PhotoLibrarySessionV1 implements PhotoLibrarySessionPortV1 {
 				if (current.revision !== this.#photo.history.present.revision) await this.#photo.reload({ signal });
 			}
 			try {
-				const photo = await this.#photo.execute({ type: 'set-attributes', changes: { rating: value } }, { signal });
+				const photo = await this.#photo.execute({ type: 'set-attributes', changes: patch }, { signal });
 				return Object.freeze({ id: photo.id, fileName: photo.metadata.fileName, rating: photo.rating,
 					flag: photo.flag, colorLabel: photo.colorLabel, width: photo.original.width, height: photo.original.height });
 			}

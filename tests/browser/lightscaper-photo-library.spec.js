@@ -10,9 +10,9 @@ const SHA256 = createHash('sha256').update(PNG).digest('hex');
 
 for (const [locale, copy] of [
 	['en', { file: 'File', view: 'View', photo: 'Photo', importPhotos: 'Import photos…', choose: 'Choose photos', import: 'Import', show: 'Show photo library',
-		library: 'Photo library', rate: 'Rate 5 stars', rating: 'Rating: 5' }],
+		library: 'Photo library', rate: 'Rate 5 stars', rating: 'Rating: 5', flagPick: 'Flag: Pick', labelBlue: 'Color label: Blue' }],
 	['de', { file: 'Datei', view: 'Ansicht', photo: 'Foto', importPhotos: 'Fotos importieren…', choose: 'Fotos auswählen', import: 'Importieren', show: 'Fotobibliothek anzeigen',
-		library: 'Fotobibliothek', rate: 'Mit 5 Sternen bewerten', rating: 'Bewertung: 5' }],
+		library: 'Fotobibliothek', rate: 'Mit 5 Sternen bewerten', rating: 'Bewertung: 5', flagPick: 'Kennzeichnung: Auswahl', labelBlue: 'Farbmarkierung: Blau' }],
 ]) {
 	test(`${locale}: menu import reports failed files, dedupes originals, rates from the keyboard and reopens the durable library`, async ({ page, browserName }) => {
 		test.skip(browserName === 'webkit', 'The roadmap defers the full WebKit storage workflow until native Blob/OPFS support is qualified.');
@@ -49,10 +49,17 @@ for (const [locale, copy] of [
 		await app.locator('summary').filter({ hasText: copy.file }).click();
 		await app.locator('summary').filter({ hasText: copy.photo }).click();
 		await expect(app.getByRole('button', { name: copy.rate, exact: true })).toBeEnabled();
-		await page.keyboard.press('Escape');
+		await app.getByRole('button', { name: copy.flagPick, exact: true }).focus(); await page.keyboard.press('Enter');
+		await expect(first).toHaveAttribute('data-photo-flag', 'pick');
+		await app.locator('summary').filter({ hasText: copy.file }).click();
+		await app.locator('summary').filter({ hasText: copy.photo }).click();
+		await app.getByRole('button', { name: copy.labelBlue, exact: true }).focus(); await page.keyboard.press('Enter');
+		await expect(first).toHaveAttribute('data-photo-color-label', 'blue');
 		const ids = await library.locator('[data-photo-id]').evaluateAll(elements => elements.map(element => element.dataset.photoId));
 		const before = await observeLibrary(page, ids);
 		expect(before.root.photoCount).toBe(2);
+		const picked = before.photos.find(photo => photo.fileName === 'First.png');
+		expect(picked.flag).toBe('pick'); expect(picked.colorLabel).toBe('blue');
 		expect(new Set(before.photos.map(photo => photo.originalId)).size).toBe(2);
 		expect(new Set(before.photos.map(photo => photo.storageKey)).size).toBe(1);
 		for (const photo of before.photos) {

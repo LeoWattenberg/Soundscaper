@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { CreatePhotoLibrarySessionV1, PhotoLibraryImportItemV1, PhotoLibraryPageV1, PhotoLibrarySessionPortV1 } from '../../photo-library-session-port-v1.ts';
+import type { CreatePhotoLibrarySessionV1, PhotoLibraryAttributePatchV1, PhotoLibraryImportItemV1, PhotoLibraryPageV1, PhotoLibraryRowV1, PhotoLibrarySessionPortV1 } from '../../photo-library-session-port-v1.ts';
 
 interface SessionSlot {
 	live: boolean;
@@ -60,12 +60,17 @@ export function usePhotoLibraryWorkflow(createSession?: CreatePhotoLibrarySessio
 		const next = await owner.readPage({ signal });
 		if (current.live) setPage(next);
 	});
-	const setRating = (photoId: string, rating: number) => run(async (owner, signal, current) => {
-		const updated = await owner.setRating(photoId, rating, { signal });
+	const updateRow = (updated: PhotoLibraryRowV1, current: SessionSlot) => {
 		if (current.live) setPage(previous => previous ? Object.freeze({ ...previous, cursor: null,
 			rows: Object.freeze(previous.rows.map(row => row.id === updated.id ? updated : row)) }) : null);
+	};
+	const setRating = (photoId: string, rating: number) => run(async (owner, signal, current) => {
+		updateRow(await owner.setRating(photoId, rating, { signal }), current);
 	});
-	return { page, receipts, busy, error, readPage, importFiles, setRating,
+	const applyAttributes = (photoId: string, changes: PhotoLibraryAttributePatchV1) => run(async (owner, signal, current) => {
+		updateRow(await owner.applyAttributes(photoId, changes, { signal }), current);
+	});
+	return { page, receipts, busy, error, readPage, importFiles, setRating, applyAttributes,
 		cancel: () => { slot.current?.active?.abort(); } };
 }
 

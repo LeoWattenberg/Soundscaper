@@ -163,3 +163,24 @@ test('oversized page cursors refuse before any database or initialization work',
 	await assert.rejects(owner.readPage({ cursor: 'x'.repeat(1_025) }), /cursor/iu);
 	assert.deepEqual(f.calls, []); await owner.close();
 });
+
+test('culling flags and labels publish together without changing original custody or extracted facts', async () => {
+	const f = fixture(), owner = new PhotoLibrarySessionV1(f.ports), before = f.photo();
+	const row = await owner.applyAttributes('photo-1', { flag: 'pick', colorLabel: 'blue' });
+	assert.equal(row.flag, 'pick'); assert.equal(row.colorLabel, 'blue');
+	assert.equal(f.photo().revision, 1);
+	assert.deepEqual(f.photo().original, before.original); assert.deepEqual(f.photo().extractedMetadata, before.extractedMetadata);
+	assert.equal(f.calls.filter(value => value === 'rating').length, 1);
+	await owner.close();
+});
+
+test('invalid culling patches refuse before opening storage or invoking accessors', async () => {
+	const f = fixture(), owner = new PhotoLibrarySessionV1(f.ports);
+	let invoked = 0;
+	await assert.rejects(owner.applyAttributes('photo-1', { flag: 'invalid' } as never), /flag/iu);
+	await assert.rejects(owner.applyAttributes('photo-1', {}), /empty/iu);
+	await assert.rejects(owner.applyAttributes('photo-1', Object.defineProperty({}, 'flag', { enumerable: true,
+		get: () => { invoked++; return 'pick'; } })), /data|accessor/iu);
+	assert.deepEqual(f.calls, []); assert.equal(invoked, 0);
+	await owner.close();
+});

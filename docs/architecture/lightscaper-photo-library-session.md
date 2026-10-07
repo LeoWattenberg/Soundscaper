@@ -15,6 +15,7 @@ not import React or UI modules.
 | Keyword resolution | Existing 10,000-definition root and 1,024 memberships per photo; no original byte changes |
 | Paging browser fixture | 65 copies of one sub-1 KiB 2 × 2 PNG in two gestures of 64 and 1; only one scalar page and at most 64 receipts remain displayed |
 | Capacity regression fixture | One root up to 2 MiB, 7,000 virtual folders and three 3-byte originals; no camera media or unbounded catalogs |
+| Culling attribute patch | Three optional scalar fields (rating, flag, color label), validated before storage; one acknowledged per-photo command |
 | Active writer | One session mutation, protected by the shared catalog Web Lock |
 | Photo history | One selected photo owner, 20 entries; switching photos releases the previous session history |
 
@@ -28,3 +29,8 @@ cannot fit the authored catalog remain in extracted facts and produce a notice.
 Closing cancels and joins session work before closing both resource owners.
 Reopening settles an interrupted managed import before exposing the catalog.
 Storage failure is reported as failure and never presented as an empty library.
+
+Culling flags and labels use the same selected-photo command owner as ratings.
+The File menu owns their Photo submenu entry points. Each acknowledged change
+preserves the displayed page and immutable original/source facts. Snapshot
+cursors are invalidated by writes; View refresh requests a new snapshot.

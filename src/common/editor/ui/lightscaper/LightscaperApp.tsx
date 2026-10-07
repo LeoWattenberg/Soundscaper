@@ -26,6 +26,9 @@ export default function LightscaperApp({ locale, createSession }: LightscaperApp
 	const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
 	const library = usePhotoLibraryWorkflow(createSession);
 	const { readPage } = library;
+	const flags = { unflagged: copy.photoUnflagged, pick: copy.photoPick, reject: copy.photoReject };
+	const colorLabels = { none: copy.photoColorNone, red: copy.photoColorRed, yellow: copy.photoColorYellow,
+		green: copy.photoColorGreen, blue: copy.photoColorBlue, purple: copy.photoColorPurple };
 	const selection = library.page?.rows.find(row => row.id === selectedPhoto) ?? null;
 	useEffect(() => {
 		const dismiss = (event: PointerEvent) => {
@@ -100,6 +103,14 @@ export default function LightscaperApp({ locale, createSession }: LightscaperApp
 									onClick={event => { closeMenu(event); if (selection) void library.setRating(selection.id, rating); }}>
 									{copy.photoRateStars.replace('{count}', String(rating))}
 								</button>)}
+								{(['unflagged', 'pick', 'reject'] as const).map(flag => <button key={flag} type="button" disabled={!selection || library.busy}
+									aria-pressed={selection?.flag === flag} onClick={event => { closeMenu(event); if (selection) void library.applyAttributes(selection.id, { flag }); }}>
+									{copy.photoFlag}: {flags[flag]}
+								</button>)}
+								{(['none', 'red', 'yellow', 'green', 'blue', 'purple'] as const).map(colorLabel => <button key={colorLabel} type="button" disabled={!selection || library.busy}
+									aria-pressed={selection?.colorLabel === colorLabel} onClick={event => { closeMenu(event); if (selection) void library.applyAttributes(selection.id, { colorLabel }); }}>
+									{copy.photoColorLabel}: {colorLabels[colorLabel]}
+								</button>)}
 							</div>
 						</details>
 						{otherProductIds('lightscaper').map((id) => <a key={id} href={productHref(id, locale, { builtProductId: 'lightscaper' })}>
@@ -121,7 +132,7 @@ export default function LightscaperApp({ locale, createSession }: LightscaperApp
 			</nav>
 		</header>
 		{libraryVisible && <PhotoLibraryPanel title={copy.workspacePhoto} empty={copy.photoEmptyLibrary} loading={copy.photoWorking}
-			ratingLabel={copy.photoRating} importedLabel={copy.photoImported} failedLabel={copy.photoImportFailed} metadataNotice={copy.photoMetadataNotice}
+			ratingLabel={copy.photoRating} flags={flags} colorLabels={colorLabels} importedLabel={copy.photoImported} failedLabel={copy.photoImportFailed} metadataNotice={copy.photoMetadataNotice}
 			page={library.page} receipts={library.receipts} selected={selection?.id ?? null} busy={library.busy} error={library.error}
 			onSelect={setSelectedPhoto} onRate={(photoId, rating) => { void library.setRating(photoId, rating); }} />}
 		{importVisible && <Suspense fallback={<p role="status">{copy.photoWorking}</p>}>

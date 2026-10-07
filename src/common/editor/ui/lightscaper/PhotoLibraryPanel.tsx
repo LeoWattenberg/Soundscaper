@@ -1,13 +1,15 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { KeyboardEvent } from 'react';
-import type { PhotoLibraryImportItemV1, PhotoLibraryPageV1 } from '../../photo-library-session-port-v1.ts';
+import type { PhotoLibraryImportItemV1, PhotoLibraryPageV1, PhotoLibraryRowV1 } from '../../photo-library-session-port-v1.ts';
 
 interface Props {
 	readonly title: string;
 	readonly empty: string;
 	readonly loading: string;
 	readonly ratingLabel: string;
+	readonly flags: Readonly<Record<PhotoLibraryRowV1['flag'], string>>;
+	readonly colorLabels: Readonly<Record<PhotoLibraryRowV1['colorLabel'], string>>;
 	readonly importedLabel: string;
 	readonly failedLabel: string;
 	readonly metadataNotice: string;
@@ -41,11 +43,13 @@ export default function PhotoLibraryPanel(props: Props) {
 		{props.page && <p data-photo-count={props.page.totalCount}>{props.page.catalogName}: {props.page.totalCount}</p>}
 		<ul className="lightscaper-photo-grid">
 			{rows.map((row, index) => <li key={row.id}>
-				<button type="button" data-photo-id={row.id} aria-pressed={props.selected === row.id} onClick={() => { props.onSelect(row.id); }}
+				<button type="button" data-photo-id={row.id} data-photo-flag={row.flag} data-photo-color-label={row.colorLabel} aria-pressed={props.selected === row.id} onClick={() => { props.onSelect(row.id); }}
 					onFocus={() => { props.onSelect(row.id); }} onKeyDown={event => { navigate(event, index); }}>
 					<strong>{row.fileName}</strong>
 					<span>{row.width} × {row.height}</span>
 					<span>{props.ratingLabel}: {row.rating}</span>
+					{row.flag !== 'unflagged' && <span>{props.flags[row.flag]}</span>}
+					{row.colorLabel !== 'none' && <span>{props.colorLabels[row.colorLabel]}</span>}
 				</button>
 			</li>)}
 		</ul>

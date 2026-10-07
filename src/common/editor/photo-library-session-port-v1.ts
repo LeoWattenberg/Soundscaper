@@ -28,10 +28,13 @@ export interface PhotoLibraryImportItemV1 {
 	readonly hasMetadataNotices: boolean;
 }
 
+export type PhotoLibraryAttributePatchV1 = Readonly<Partial<Pick<PhotoLibraryRowV1, 'rating' | 'flag' | 'colorLabel'>>>;
+
 export interface PhotoLibrarySessionPortV1 {
 	readPage(options?: Readonly<{ cursor?: string | null; signal?: AbortSignal }>): Promise<PhotoLibraryPageV1>;
 	importFiles(files: readonly File[], options?: Readonly<{ signal?: AbortSignal }>): Promise<readonly PhotoLibraryImportItemV1[]>;
 	setRating(photoId: string, rating: number, options?: Readonly<{ signal?: AbortSignal }>): Promise<PhotoLibraryRowV1>;
+	applyAttributes(photoId: string, changes: PhotoLibraryAttributePatchV1, options?: Readonly<{ signal?: AbortSignal }>): Promise<PhotoLibraryRowV1>;
 	close(): Promise<void>;
 }
 

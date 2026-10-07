@@ -25,7 +25,7 @@ export async function readResidentPhotoLibraryV1(photoIds: readonly string[]) {
 			if (!(original instanceof Blob)) throw new TypeError('The retained original is unavailable.');
 			photos.push({ id: photo.id, originalId: photo.original.id, storageKey: photo.original.storageKey,
 				sha256: photo.original.contentSha256, byteLength: photo.original.byteLength, fileName: photo.metadata.fileName,
-				rating: photo.rating, revision: photo.revision, bytes: Array.from(new Uint8Array(await original.arrayBuffer())) });
+				rating: photo.rating, flag: photo.flag, colorLabel: photo.colorLabel, revision: photo.revision, bytes: Array.from(new Uint8Array(await original.arrayBuffer())) });
 		}
 		return { root, photos };
 	} finally { await Promise.all([catalog.close(), media.close()]); }

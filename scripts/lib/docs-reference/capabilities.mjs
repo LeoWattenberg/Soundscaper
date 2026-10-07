@@ -138,7 +138,7 @@ export function renderCapabilityReference({ products }) {
 		sections.push('', 'The photo library shell provides an empty library. Photo catalog import and browsing, develop adjustments, export, and raw decoding remain planned and are not enabled by this shell.');
 	}
 	if (products.some((product) => product.capabilities?.photoCatalog === true)) {
-		sections.push('', 'Photo catalogs support managed import, bounded browsing, and persistent ratings through the File, View, and Photo menus. The current import admits static 8-bit sRGB photos and preserves original bytes. Develop, export, and raw decoding remain planned.');
+		sections.push('', 'Photo catalogs support managed import, bounded browsing, and persistent ratings, flags, and color labels through the File and View menus and the Photo submenu. The current import admits static 8-bit sRGB photos and preserves original bytes. Develop, export, and raw decoding remain planned.');
 	}
 	if (applicationFeatureRows.length > 0) {
 		sections.push(
