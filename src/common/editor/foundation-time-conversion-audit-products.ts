@@ -15,6 +15,18 @@ import type { FoundationTimeConversionSite } from './foundation-time-conversion-
  */
 export const FOUNDATION_TIME_CONVERSION_PRODUCT_SITES: readonly FoundationTimeConversionSite[] = deepFreezeAuditSites([
 	{
+		id: 'framescaper-image-split-sequence-boundary',
+		file: 'src/framescaper/editor-timeline-image-split-command.ts',
+		behavior: 'An image split resolves the requested project sample position to the nearest authored sequence frame before making two exact adjacent image leaves and advancing the right leaf\'s animated source tick phase.',
+		conversions: [{ helper: 'sampleFrameToVideoFrame', policies: ['point'] }],
+	},
+	{
+		id: 'framescaper-v13-image-copy-source-phase',
+		file: 'src/framescaper/editor-session-clipboard-v13.ts',
+		behavior: 'Copying an image range converts its source-relative sequence ordinal plus the clip\'s absolute sequence start to the nearest project sample position, then delegates exact image trimming so the copied fragment retains its authored animated source phase.',
+		conversions: [{ helper: 'videoFrameToSampleFrame', policies: ['point'] }],
+	},
+	{
 		id: 'framescaper-image-removal-ripple-placement',
 		file: 'src/framescaper/editor-timeline-image-remove-command.ts',
 		behavior: 'Removing timeline images carries track-ripple shifts in their authored sequence frame clock and converts surviving video starts once to nearest project sample positions before their ordinary move commands.',
