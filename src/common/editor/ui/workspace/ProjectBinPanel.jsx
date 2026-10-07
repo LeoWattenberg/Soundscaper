@@ -373,6 +373,7 @@ export default function ProjectBinPanel({ controller, snapshot, copy: providedCo
 							missing={item.clips.some((clip) => missingSourceIds.has(clip.sourceId))}
 							selectedMediaTrack={selectedMediaTrack}
 							preview={snapshot.projectBinPreview}
+							playbackGain={snapshot.audioDevices?.playbackGain}
 							run={run}
 							onOpenMenu={(event) => openItemMenu(event, item)}
 							onDragEnd={(element) => resetDropState(element)}

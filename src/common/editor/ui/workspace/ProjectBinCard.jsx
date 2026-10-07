@@ -28,6 +28,7 @@ export default function ProjectBinCard({
 	missing,
 	selectedMediaTrack,
 	preview,
+	playbackGain = 1,
 	run,
 	onOpenMenu,
 	onDragEnd,
@@ -65,6 +66,10 @@ export default function ProjectBinCard({
 	const videoEndSeconds = videoPreview?.endSeconds ?? 0;
 	const videoPlaybackRate = videoPreview?.playbackRate ?? 1;
 	const videoHasAudio = itemClips.some((itemClip) => itemClip.kind === 'audio');
+
+	useEffect(() => {
+		if (videoRef.current) videoRef.current.volume = Math.max(0, Math.min(1, playbackGain));
+	}, [playbackGain, previewActive, visual?.mediaUrl]);
 
 	useEffect(() => {
 		const media = videoRef.current;
