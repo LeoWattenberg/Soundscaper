@@ -9,9 +9,9 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACAQMAAABIeJ9nAAAAIGNIUk0
 const SHA256 = createHash('sha256').update(PNG).digest('hex');
 
 for (const [locale, copy] of [
-	['en', { file: 'File', view: 'View', photo: 'Photo', importPhotos: 'Import photos…', choose: 'Choose photos', import: 'Import', show: 'Show photo library',
+	['en', { file: 'File', view: 'View', photo: 'Photo', importPhotos: 'Import photos', choose: 'Choose photos', import: 'Import', show: 'Show photo library',
 		library: 'Photo library', rate: 'Rate 5 stars', rating: 'Rating: 5', flagPick: 'Flag: Pick', labelBlue: 'Color label: Blue' }],
-	['de', { file: 'Datei', view: 'Ansicht', photo: 'Foto', importPhotos: 'Fotos importieren…', choose: 'Fotos auswählen', import: 'Importieren', show: 'Fotobibliothek anzeigen',
+	['de', { file: 'Datei', view: 'Ansicht', photo: 'Foto', importPhotos: 'Fotos importieren', choose: 'Fotos auswählen', import: 'Importieren', show: 'Fotobibliothek anzeigen',
 		library: 'Fotobibliothek', rate: 'Mit 5 Sternen bewerten', rating: 'Bewertung: 5', flagPick: 'Kennzeichnung: Auswahl', labelBlue: 'Farbmarkierung: Blau' }],
 ]) {
 	test(`${locale}: menu import reports failed files, dedupes originals, rates from the keyboard and reopens the durable library`, async ({ page, browserName }) => {
@@ -84,8 +84,8 @@ test('a keyboard rating on the second library page retains the selected photo an
 	const library = app.getByRole('region', { name: 'Photo library', exact: true });
 	for (const [offset, count] of [[0, 64], [64, 1]]) {
 		await app.locator('summary').filter({ hasText: 'File' }).click();
-		await app.getByRole('button', { name: 'Import photos…', exact: true }).click();
-		const dialog = page.getByRole('dialog', { name: 'Import photos…', exact: true });
+		await app.getByRole('button', { name: 'Import photos', exact: true }).click();
+		const dialog = page.getByRole('dialog', { name: 'Import photos', exact: true });
 		await dialog.getByLabel('Choose photos').setInputFiles(Array.from({ length: count }, (_, index) => ({
 			name: `Photo-${String(offset + index).padStart(2, '0')}.png`, mimeType: 'image/png', buffer: PNG,
 		})));

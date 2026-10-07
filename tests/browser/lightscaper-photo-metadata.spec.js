@@ -8,11 +8,11 @@ import { expect, test } from './helpers/browser-coverage-fixture.js';
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACAQMAAABIeJ9nAAAAIGNIUk0AAHomAACAhAAA+gAAAIDoAAB1MAAA6mAAADqYAAAXcJy6UTwAAAAGUExURf8gAP///4DcGxUAAAABYktHRAH/Ai3eAAAAB3RJTUUH6ggZEjoj/gYZhQAAAAxJREFUCNdjYGBgAAAABAABJzQnCgAAAABJRU5ErkJggg==', 'base64');
 
 for (const [locale, copy] of [
-	['en', { file: 'File', photo: 'Photo', view: 'View', importPhotos: 'Import photos…', choose: 'Choose photos', import: 'Import',
-		library: 'Photo library', show: 'Show photo library', edit: 'Edit metadata…', filename: 'Filename', title: 'Title',
+	['en', { file: 'File', photo: 'Photo', view: 'View', importPhotos: 'Import photos', choose: 'Choose photos', import: 'Import',
+		library: 'Photo library', show: 'Show photo library', edit: 'Edit metadata', filename: 'Filename', title: 'Title',
 		caption: 'Caption', capture: 'Capture time', offset: 'Timezone offset in minutes (empty if unknown)', save: 'Save metadata', close: 'Close' }],
-	['de', { file: 'Datei', photo: 'Foto', view: 'Ansicht', importPhotos: 'Fotos importieren…', choose: 'Fotos auswählen', import: 'Importieren',
-		library: 'Fotobibliothek', show: 'Fotobibliothek anzeigen', edit: 'Metadaten bearbeiten…', filename: 'Dateiname', title: 'Titel',
+	['de', { file: 'Datei', photo: 'Foto', view: 'Ansicht', importPhotos: 'Fotos importieren', choose: 'Fotos auswählen', import: 'Importieren',
+		library: 'Fotobibliothek', show: 'Fotobibliothek anzeigen', edit: 'Metadaten bearbeiten', filename: 'Dateiname', title: 'Titel',
 		caption: 'Beschreibung', capture: 'Aufnahmezeit', offset: 'Zeitzonenversatz in Minuten (leer, falls unbekannt)', save: 'Metadaten speichern', close: 'Schließen' }],
 ]) {
 	test(`${locale}: keyboard metadata edits rename only the catalog, preserve an unknown capture offset and survive reload`, async ({ page, browserName }) => {
