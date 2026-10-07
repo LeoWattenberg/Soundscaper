@@ -71,10 +71,14 @@ export default function ProjectBinCard({
 	const videoStartSeconds = videoPreview?.startSeconds ?? 0;
 	const videoEndSeconds = videoPreview?.endSeconds ?? 0;
 	const videoPlaybackRate = videoPreview?.playbackRate ?? 1;
+	const videoHasAudio = itemClips.some((itemClip) => itemClip.kind === 'audio');
 
 	useEffect(() => {
 		const media = videoRef.current;
 		if (!media) return;
+		// WebKit initializes mute state from the attribute when media connects or loads.
+		media.defaultMuted = !videoHasAudio;
+		media.muted = !videoHasAudio;
 		if (!previewActive) {
 			media.pause();
 			return;
@@ -85,7 +89,11 @@ export default function ProjectBinCard({
 		media.playbackRate = videoPlaybackRate;
 		if (previewPlaying) void media.play().catch(() => controller.actions.projectBin.stopPreview());
 		else media.pause();
-	}, [controller, previewActive, previewPlaying, videoEndSeconds, videoStartSeconds, videoPlaybackRate]);
+	}, [controller, previewActive, previewPlaying, videoEndSeconds, videoStartSeconds, videoPlaybackRate, videoHasAudio, visual?.mediaUrl]);
+	const muteVideoWithoutAudio = (event) => {
+		// Native decoder initialization can report stale mute state after the first render.
+		if (!videoHasAudio && !event.currentTarget.muted) event.currentTarget.muted = true;
+	};
 
 	return (
 		<li
@@ -143,9 +151,11 @@ export default function ProjectBinCard({
 							ref={videoRef}
 							src={visual.mediaUrl}
 							poster={posterUrl || undefined}
-							muted={!itemClips.some((itemClip) => itemClip.kind === 'audio')}
+							muted={!videoHasAudio}
 							playsInline
 							preload="metadata"
+							onLoadedMetadata={muteVideoWithoutAudio}
+							onVolumeChange={muteVideoWithoutAudio}
 							onTimeUpdate={(event) => {
 								if (videoEndSeconds && event.currentTarget.currentTime >= videoEndSeconds) {
 									event.currentTarget.pause();
@@ -158,7 +168,7 @@ export default function ProjectBinCard({
 					) : posterUrl
 						? <img src={posterUrl} alt="" draggable="false" />
 						: <span aria-hidden="true">▶</span>}
-					<span>{itemClips.some((itemClip) => itemClip.kind === 'audio') ? copy.videoHasAudio : copy.videoSilent}</span>
+					<span>{videoHasAudio ? copy.videoHasAudio : copy.videoSilent}</span>
 				</div>
 			) : (
 				<div

@@ -17,10 +17,31 @@ test('Project Bin video preview does not restore audio removed through the timel
 	await expect(audio).toHaveCount(0);
 	await video.click({ button: 'right' });
 	await page.getByRole('menuitem', { name: 'Move to Project bin', exact: true }).click();
-	const card = editor.locator('[data-project-bin-item]').first();
+	const card = editor.getByRole('listitem', { name: 'Project bin: removed-audio', exact: true });
 	await expect(card).toContainText('No audio');
 	await card.getByRole('button', { name: /^Play:/u }).click();
 	const media = card.locator('video');
 	await expect(media).toBeVisible();
-	await expect.poll(() => media.evaluate(element => element.muted)).toBe(true);
+	await expect(media).toHaveJSProperty('muted', true);
+	await expect(media).toHaveJSProperty('defaultMuted', true);
+	await media.evaluate((element) => {
+		element.muted = false;
+		element.dispatchEvent(new Event('volumechange'));
+	});
+	await expect(media).toHaveJSProperty('muted', true);
+});
+
+test('Project Bin video preview retains its companion audio', async ({ page }) => {
+	const editor = await bootEditor(page, '/framescaper/embed/en/');
+	await importFiles(editor, [createDeterministicAvFixture('paired-audio.webm')]);
+	const video = editor.getByRole('group', { name: /^Video clip:/u }).first();
+	await video.click({ button: 'right' });
+	await page.getByRole('menuitem', { name: 'Move to Project bin', exact: true }).click();
+	const card = editor.getByRole('listitem', { name: 'Project bin: paired-audio', exact: true });
+	await expect(card).toContainText('With audio');
+	await card.getByRole('button', { name: /^Play:/u }).click();
+	const media = card.locator('video');
+	await expect(media).toBeVisible();
+	await expect(media).toHaveJSProperty('muted', false);
+	await expect(media).toHaveJSProperty('defaultMuted', false);
 });
