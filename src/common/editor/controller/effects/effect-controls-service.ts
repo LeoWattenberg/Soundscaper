@@ -14,6 +14,7 @@ import {
 	audioSelectionEffectDefaults,
 	normalizeAudioSelectionEffectParams,
 } from '../../effects.js';
+import type { RackNoiseProfileScope } from './internal/effect-audio-service-types.ts';
 
 export type EffectControlParameters = Readonly<Record<string, unknown>>;
 
@@ -66,16 +67,19 @@ export interface EffectControlRackEffect extends Readonly<Record<string, unknown
 	readonly context?: Readonly<Record<string, unknown>> | null;
 }
 
-interface EffectControlTrack {
+interface EffectControlRackOwner {
 	readonly id: string;
-	readonly type: string;
 	readonly effects?: readonly EffectControlRackEffect[];
+}
+interface EffectControlTrack extends EffectControlRackOwner {
+	readonly type: string;
 }
 
 interface EffectControlProject {
 	readonly id: string;
 	readonly tracks: readonly EffectControlTrack[];
 	readonly master: Readonly<{ readonly effects?: readonly EffectControlRackEffect[] }>;
+	readonly mixer?: Readonly<{ readonly groups?: readonly EffectControlRackOwner[]; readonly sends?: readonly EffectControlRackOwner[] }>;
 }
 
 interface EffectControlsCopy {
@@ -124,7 +128,7 @@ export interface EffectControlsServiceRuntime {
 	readonly applySelectedAudacityEffect: () => Promise<unknown>;
 	readonly captureRackNoiseProfile: (
 		effect: EffectControlRackEffect,
-		scope: 'master' | 'track',
+		scope: RackNoiseProfileScope,
 		trackId: string | null,
 	) => Promise<unknown> | unknown;
 }
@@ -352,11 +356,13 @@ export function createEffectControlsService(runtime: EffectControlsServiceRuntim
 		trackId: string | null,
 		effectId: string,
 	): Promise<unknown> | unknown {
-		const normalizedScope = scope === 'master' ? 'master' : 'track';
+		const normalizedScope: RackNoiseProfileScope = scope === 'master' || scope === 'group' || scope === 'send' ? scope : 'track';
 		const project = runtime.getProject();
 		const rack = normalizedScope === 'master'
 			? project.master.effects
-			: findTrack(project, trackId)?.effects;
+			: normalizedScope === 'group' || normalizedScope === 'send'
+				? project.mixer?.[normalizedScope === 'group' ? 'groups' : 'sends']?.find(bus => bus.id === trackId)?.effects
+				: findTrack(project, trackId)?.effects;
 		const effect = rack?.find((candidate) => candidate.id === effectId);
 		if (!effect) throw createLocalizedError(Error, runtime.copy, 'rackEffectNotFound');
 		return runtime.captureRackNoiseProfile(effect, normalizedScope, trackId || null);

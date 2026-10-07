@@ -11,6 +11,8 @@ import type {
 } from '../effect-selection-service.ts';
 import type { EditorProjectToken, EditorTaskScope } from '../../shared/lifecycle.ts';
 
+export type RackNoiseProfileScope = 'master' | 'track' | 'group' | 'send';
+
 /**
  * The shapes the effect audio service reads and writes.
  *

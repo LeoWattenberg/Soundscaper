@@ -10,6 +10,7 @@ import type {
 	MutableEffectAudioProject,
 	MutableEffectAudioTrack,
 	EffectAudioBuffer,
+	RackNoiseProfileScope,
 } from './effect-audio-service-types.ts';
 import type { EffectTarget } from '../effect-selection-service.ts';
 import { isCurrentAssertion, type EditorProjectToken, type EditorTaskScope } from '../../shared/lifecycle.ts';
@@ -28,6 +29,8 @@ import {
 } from './master-noise-profile-channels.ts';
 import { normalizeAudacityEffectParams } from '../../../audacity-effects/manifest.js';
 import { renderSimpleDryTrackPcm } from './direct-dry-track-pcm.ts';
+import { createBusNoiseProfileRenderProject } from './bus-noise-profile-render-project.ts';
+import type { MixerGraphV21 } from '../../../mixer-graph-v21.ts';
 
 export type * from './effect-audio-service-types.ts';
 
@@ -114,7 +117,7 @@ export function createEffectAudioService<Buffer = EffectAudioBuffer>(runtime: Ef
 
 	async function renderRackPrefixRange(
 		effect: EffectAudioEffect,
-		scope: 'master' | 'track',
+		scope: RackNoiseProfileScope,
 		startFrame: number,
 		endFrame: number,
 		channelCount: number,
@@ -143,6 +146,8 @@ export function createEffectAudioService<Buffer = EffectAudioBuffer>(runtime: Ef
 				track.envelope = [];
 				snapshot.mixer = { ...snapshot.mixer, groups: [], sends: [], routes: {} };
 			}
+		} else if (scope === 'group' || scope === 'send') {
+			snapshot = createBusNoiseProfileRenderProject(project, effect, scope, requireTrackId(trackId)) as unknown as MutableEffectAudioProject;
 		} else {
 			const effectIndex = snapshot.master.effects.findIndex((candidate) => candidate.id === effect.id);
 			if (effectIndex < 0) throw createLocalizedError(Error, runtime.copy, 'rackEffectNotFound');
@@ -160,7 +165,9 @@ export function createEffectAudioService<Buffer = EffectAudioBuffer>(runtime: Ef
 				: await engine.renderMix({ startFrame, endFrame, includeMaster: true, respectMuteSolo: true });
 			runtime.assertProject(token);
 			const renderedChannels = runtime.audioBufferChannels(rendered);
-			channels = scope === 'master'
+			channels = scope === 'group' || scope === 'send'
+				? copyMasterNoiseProfileChannels(renderedChannels.slice(0, channelCount), channelCount)
+				: scope === 'master'
 				? copyMasterNoiseProfileChannels(renderedChannels, channelCount)
 				: runtime.matchAudacitySelectionChannels(renderedChannels, channelCount);
 		} finally {
@@ -207,7 +214,7 @@ export function createEffectAudioService<Buffer = EffectAudioBuffer>(runtime: Ef
 
 	async function captureRackNoiseProfile(
 		effect: EffectAudioEffect,
-		scope: 'master' | 'track',
+		scope: RackNoiseProfileScope,
 		requestedTrackId: string | null = runtime.state.selectedTrackId,
 	): Promise<void> {
 		if (runtime.editingBlocked()) return;
@@ -229,7 +236,9 @@ export function createEffectAudioService<Buffer = EffectAudioBuffer>(runtime: Ef
 		if (scope === 'track' && (!selectionTarget || selectionTarget.track.id !== requestedTrackId)) {
 			throw createLocalizedError(Error, runtime.copy, 'audacitySelectionHint');
 		}
-		const channelCount = scope === 'track'
+		const bus = scope === 'group' || scope === 'send'
+			? (project.mixer as unknown as MixerGraphV21)[scope === 'group' ? 'groups' : 'sends']?.find(candidate => candidate.id === requestedTrackId) : null;
+		const channelCount = bus ? masterNoiseProfileChannelCount(bus.channelCount) : scope === 'track'
 			? selectionTarget!.channelCount
 			: masterNoiseProfileChannelCount(project.masterChannels);
 		const estimatedPeakBytes = runtime.estimateAudacityEffectPeakBytes(
@@ -250,7 +259,8 @@ export function createEffectAudioService<Buffer = EffectAudioBuffer>(runtime: Ef
 			runtime.state.audacityNoiseProfile = result.profile;
 			const target = scope === 'master'
 				? { scope: 'master' as const }
-				: { scope: 'track' as const, trackId: requireTrackId(requestedTrackId) };
+				: { scope, trackId: requireTrackId(requestedTrackId), ...(scope === 'group' || scope === 'send'
+					? { busId: requireTrackId(requestedTrackId) } : {}) };
 			runtime.commit({
 				type: 'effect/update',
 				...target,

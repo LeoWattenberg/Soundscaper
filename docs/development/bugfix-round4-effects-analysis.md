@@ -146,5 +146,27 @@ reader/host/program tests pass, 24 tests altogether. Regression files are
 `audio-editor-round4-program-select-all-labels.spec.js`; evidence is recorded in
 `/tmp/soundscaper-r4-root-program-select-all-labels-*`.
 
+## R4-ROOT-007 — A group or send rack cannot capture its noise profile
+
+Import an ordinary recording, choose Select → Select all and Window → Mixer.
+Add a group bus, route the recording's Output to that bus, open its effect rack,
+add Noise Reduction and press Get noise profile. The baseline never captures a
+profile or enables the effect: its controller looks for the bus ID among audio
+tracks. Send racks use the same incorrect scope normalization and count once.
+
+Retain the actual rack scope and render its pre-fader prefix. The temporary
+render preserves upstream processing and routing, removes later rack processing,
+neutralizes the target fader and downstream master, and suppresses other output
+paths without editing the authored project. The resulting profile is committed
+once to that bus's effect. Track and master capture retain their existing paths.
+
+The unchanged public group-bus workflow fails on immutable baseline `a0322d6e4`
+and captures, enables, and offers Replace noise profile in Chromium, Firefox and
+WebKit on clean owned `bus-noise-clean6` (3/3). Five strict owner/render/update
+cases and existing controls/audio support pass, 41 tests altogether. Regression
+files are `audio-editor-round4-bus-noise-profile.test.ts` and
+`audio-editor-round4-bus-noise-profile.spec.js`; evidence is recorded in
+`/tmp/soundscaper-r4-root-bus-noise-*`.
+
 These browser DSP, UI, and regression changes retain the assistance runtime closure.
 A manual **Update AI assets** run is not required.
