@@ -261,19 +261,16 @@ jobs:
         run: npm run coverage:check
 
   browser:
-    name: Browser / ${{ matrix.project }} ${{ matrix.shard }}/3
+    name: Browser / ${{ matrix.project }} ${{ matrix.shard }}/4
     needs: quality
     strategy:
       fail-fast: false
-      # Playwright ran one runner per engine with two workers on four cores, and
-      # the engines are the pipeline's long pole by a wide margin: WebKit alone
-      # took 29 minutes while the slowest Node shard took 17. Splitting each
-      # engine three ways puts the pole back on the `common` Node shard, which
-      # is where it belongs — a fourth shard would buy nothing because that
-      # shard would still be waiting on `common`.
+      # Match Quality's four partitions. Three put WebKit close to the
+      # 45-minute job deadline and left Firefox unable to finish the suite.
+      # Every engine still runs every test once across its partition matrix.
       matrix:
         project: [chromium, webkit]
-        shard: [1, 2, 3]
+        shard: [1, 2, 3, 4]
     runs-on: ubuntu-24.04
     container:
       image: mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e
@@ -326,7 +323,7 @@ jobs:
           path: .wrangler/browser-products/framescaper-source-maps
 
       - name: Run browser workflows against the existing build
-        run: npm run test:browser:built -- --project=${{ matrix.project }} --shard=${{ matrix.shard }}/3
+        run: npm run test:browser:built -- --project=${{ matrix.project }} --shard=${{ matrix.shard }}/4
         env:
           # Chromium is the only engine whose V8 coverage Playwright can read, so
           # it is the only one that records; the floors in config/coverage-gates.json
@@ -368,14 +365,13 @@ jobs:
           retention-days: 7
 
   firefox:
-    name: Browser / firefox ${{ matrix.shard }}/3
+    name: Browser / firefox ${{ matrix.shard }}/4
     needs: quality
     strategy:
       fail-fast: false
-      # Sharded the same three ways as the containerized engines above; see the
-      # `browser` job for why three.
+      # Sharded the same four ways as the containerized engines above.
       matrix:
-        shard: [1, 2, 3]
+        shard: [1, 2, 3, 4]
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
@@ -435,9 +431,9 @@ jobs:
 
       - name: Run Firefox workflows against the existing build
         # A second Firefox content process can starve the live AudioContext even
-        # after the PulseAudio clock probe passes. The three shard runners still
+        # after the PulseAudio clock probe passes. The four shard runners still
         # keep the suite parallel without competing for one runner's audio clock.
-        run: npm run test:browser:built -- --project=firefox --shard=${{ matrix.shard }}/3 --workers=1
+        run: npm run test:browser:built -- --project=firefox --shard=${{ matrix.shard }}/4 --workers=1
 
       - name: Upload Firefox diagnostics
         if: always()

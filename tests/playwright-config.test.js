@@ -20,7 +20,7 @@ const SITE_WORKFLOWS = new Map([
 		gate: 'needs: build',
 		browserShardCount: 4,
 	}],
-	['desktop-preview.yml', { staticJobs: ['quality'], buildJob: 'quality', gate: 'needs: quality', browserShardCount: 3 }],
+	['desktop-preview.yml', { staticJobs: ['quality'], buildJob: 'quality', gate: 'needs: quality', browserShardCount: 4 }],
 ]);
 
 test('Playwright allows CI to pass when a retry succeeds', async () => {

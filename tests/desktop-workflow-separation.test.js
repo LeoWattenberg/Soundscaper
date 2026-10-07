@@ -12,6 +12,27 @@ test('desktop preview restores Electron before the native protocol test shard', 
 		< tests.indexOf('run: xvfb-run --auto-servernum npm run test:shard'));
 });
 
+test('desktop preview keeps browser partitions aligned with the Quality gate', async () => {
+	const [preview, quality] = await Promise.all([
+		readWorkflow('desktop-preview.yml'), readWorkflow('quality.yml'),
+	]);
+	for (const jobName of ['browser', 'firefox']) {
+		const canonical = extractJob(quality, jobName);
+		const desktop = extractJob(preview, jobName);
+		const shards = /shard: \[([\d, ]+)\]/u.exec(canonical)?.[1];
+		assert.ok(shards, `${jobName} defines its Quality partitions`);
+		const shardCount = shards.split(',').length;
+		assert.equal(/shard: \[([\d, ]+)\]/u.exec(desktop)?.[1], shards,
+			`${jobName} must use the same partitions to stay within the job timeout`);
+		const label = /^\s+name:\s+([^\n]+)/mu.exec(desktop)?.[1];
+		assert.ok(label?.endsWith(`\${{ matrix.shard }}/${shardCount}`),
+			`${jobName} labels the complete partition count`);
+		assert.ok(desktop.includes(`--shard=\${{ matrix.shard }}/${shardCount}`),
+			`${jobName} runs every partition using the declared total`);
+		assert.match(desktop, /timeout-minutes: 45/u);
+	}
+});
+
 test('desktop distribution and automated test artifacts have separate workflow entry points', async () => {
 	const preview = await readWorkflow('desktop-preview.yml');
 	const tested = await readWorkflow('desktop-nightly-tests.yml');
