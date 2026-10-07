@@ -1,11 +1,12 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-import { normalizeMixerGraphV21, mixerEndpointKeyV21, type MixerGraphV21 } from '../mixer-graph-v21.ts';
+import { normalizeMixerGraphV21, mixerEndpointKeyV21 } from '../mixer-graph-v21.ts';
 import { createMixerSignalTopologyV21 } from '../mixer-signal-topology-v21.ts';
 import { resolveTerminalChannelWidths } from '../terminal-channel-widths.ts';
 import type { StripRef } from '../parameter-address.ts';
 import { compileProjectPathPdcPlanV21 } from './project-path-pdc-plan-v21.ts';
 import { activeRackEffects } from './project-effects.ts';
-import { compileParallelStackEffect } from './parallel-stack-effects.ts';
+import { compileParallelStackEffectInventory } from './parallel-stack-effect-plan.ts';
+import { createParallelStackControlIndex, createParallelStackSidechainResolver, orderParallelStackTasks } from './parallel-stack-planning-index.ts';
 import { parallelStackMemoryBytes, validateParallelStackPlan } from './parallel-stack-plan-validation.ts';
 import { parallelChannelMatrix } from './parallel-stack-routing.ts';
 import type { EngineProject, EngineGainOwner } from './types.ts';
@@ -38,7 +39,8 @@ export function compileParallelStackPlan(project: EngineProject, options: Parall
 	const graph = normalizeMixerGraphV21(project.mixer);
 	const tracks = (project.tracks ?? []).filter((track) => track.type === 'audio');
 	assertStableTrackInputWidths(project);
-	const owners = [...tracks, ...graph.groups, ...graph.sends, ...graph.cues, project.master];
+	const mixerNodes = [...graph.groups, ...graph.sends, ...graph.cues];
+	const owners = [...tracks, ...mixerNodes, project.master];
 	if (owners.some((owner) => (owner as EngineGainOwner | undefined)?.envelope?.length)) throw new Error('Parallel gain envelope automation is not admitted yet.');
 	const adm = project.metadata?.adm;
 	if (adm && typeof adm === 'object' && 'mode' in adm && ['authored', 'passthrough'].includes(String(adm.mode))) throw new Error('Parallel ADM routing is not admitted.');
@@ -47,9 +49,15 @@ export function compileParallelStackPlan(project: EngineProject, options: Parall
 	const workerCount = Math.min(options.workerCount, Math.max(1, owners.length));
 	const solos = new Set<string>();
 	for (const track of tracks) if (track.solo) solos.add(`track:${String(track.id)}`);
-	for (const strip of [...graph.groups, ...graph.sends, ...graph.cues]) if (strip.solo) solos.add(`mixer-node:${strip.id}`);
+	for (const strip of mixerNodes) if (strip.solo) solos.add(`mixer-node:${strip.id}`);
 	const topology = createMixerSignalTopologyV21(graph, { includeOutputs: false });
-	const audible = (key: string) => !solos.size || [...solos].some((solo) => topology.reaches(key, solo) || topology.reaches(solo, key));
+	const audible = (key: string): boolean => {
+		if (!solos.size) return true;
+		for (const solo of solos) if (topology.reaches(key, solo) || topology.reaches(solo, key)) return true;
+		return false;
+	};
+	const controls = createParallelStackControlIndex(graph);
+	const sidechainEffect = createParallelStackSidechainResolver();
 	let planeCount = 0;
 	const reserve = (channels: number) => Array.from({ length: channels }, () => planeCount++);
 	const tasks: ParallelStackTask[] = [];
@@ -62,19 +70,19 @@ export function compileParallelStackPlan(project: EngineProject, options: Parall
 		const inputPlanes = ref.kind === 'track' ? reserve(channels) : [];
 		const prePlanes = reserve(channels);
 		const postPlanes = reserve(channels <= 2 ? 2 : channels);
-		const effects = activeRackEffects(owner).filter((effect) => effect.enabled !== false && effect.bypassed !== true).map((effect) => compileParallelStackEffect(effect, sampleRate, channels));
-		if (effects.some(({ type }) => type === 'parametric-eq') && !(options.parametricEqWasmModule instanceof WebAssembly.Module)) {
+		const { effects, hasParametricEq, latencyFrames } = compileParallelStackEffectInventory(activeRackEffects(owner), sampleRate, channels);
+		if (hasParametricEq && !(options.parametricEqWasmModule instanceof WebAssembly.Module)) {
 			throw new Error('Parallel parametric EQ requires its precompiled WASM module.');
 		}
-		if (effects.reduce((sum, effect) => sum + effect.latencyFrames, 0) !== (pdc.nodeOutputLatencyFrames.get(key) ?? 0) - (pdc.nodeInputLatencyFrames.get(key) ?? 0)) {
+		if (latencyFrames !== (pdc.nodeOutputLatencyFrames.get(key) ?? 0) - (pdc.nodeInputLatencyFrames.get(key) ?? 0)) {
 			throw new Error('Parallel effect latency disagrees with the production PDC plan.');
 		}
 		keys.set(key, tasks.length);
 		tasks.push({ kind: 'stack', key, worker: 0, dependencies: [], channels, inputPlanes, prePlanes, postPlanes,
 			inputDelayFrames: inputPlanes.length ? pdc.nodeInputLatencyFrames.get(key) ?? 0 : 0,
 			effects, edges: [], gain: finite(owner.gain, 1), pan: Math.max(-1, Math.min(1, finite(owner.pan, 0))),
-			gate: !owner.mute && audible(key) ? 1 : 0, vca: vcaFactor(graph, ref), outputDelayFrames: 0 });
-		const scope = ref.kind !== 'mixer-node' ? ref.kind : graph.groups.some(({ id }) => id === ref.id) ? 'group' : graph.sends.some(({ id }) => id === ref.id) ? 'send' : 'cue';
+			gate: !owner.mute && audible(key) ? 1 : 0, vca: controls.vcaGain(key), outputDelayFrames: 0 });
+		const scope = controls.scope(ref);
 		stripTaps.push({ key, ref, scope, planes: postPlanes, channels: postPlanes.length });
 		if (ref.kind === 'track') trackPlans.push({ id: ref.id, channels, inputPlanes, prePlanes, postPlanes });
 	};
@@ -82,7 +90,7 @@ export function compileParallelStackPlan(project: EngineProject, options: Parall
 		if (typeof track.id !== 'string') throw new Error('Parallel track ID must be a string.');
 		addStack({ kind: 'track', id: track.id }, track, widths.get(track.id) ?? 2);
 	}
-	for (const strip of [...graph.groups, ...graph.sends, ...graph.cues]) addStack({ kind: 'mixer-node', id: strip.id }, strip, strip.channelCount);
+	for (const strip of mixerNodes) addStack({ kind: 'mixer-node', id: strip.id }, strip, strip.channelCount);
 	addStack({ kind: 'master' }, project.master ?? {}, Math.max(1, Math.min(32, Math.trunc(project.masterChannels ?? 2))));
 	for (const output of graph.outputs) {
 		const planes = reserve(output.channelCount);
@@ -106,7 +114,7 @@ export function compileParallelStackPlan(project: EngineProject, options: Parall
 		const sourcePlanes = edge.position === 'pre-fader' ? source.prePlanes : source.postPlanes;
 		const sidechainEffectId = edge.destination.kind === 'effect-sidechain' ? edge.destination.effectId : null;
 		if (sidechainEffectId !== null) {
-			const effect = destination.effects.find(({ id }) => id === sidechainEffectId);
+			const effect = sidechainEffect(destination, sidechainEffectId);
 			if (effect && !['limiter', 'gate'].includes(effect.type)) throw new Error(`Parallel effect ${effect.type} cannot consume sidechains.`);
 		}
 		incoming[destinationTask]!.push({ id: edge.id, sourceTask, sourcePlanes,
@@ -115,7 +123,7 @@ export function compileParallelStackPlan(project: EngineProject, options: Parall
 	}
 	const connected = tasks.map((task, index) => ({ ...task, edges: incoming[index]!,
 		dependencies: [...new Set(incoming[index]!.map(({ sourceTask }) => sourceTask))] }));
-	const ordered = topologicalTasks(connected, workerCount);
+	const ordered = orderParallelStackTasks(connected, workerCount);
 	const memoryBytes = parallelStackMemoryBytes(ordered, planeCount, blockFrames, bankCount, workerCount);
 	const limit = Math.min(options.maximumMemoryBytes ?? LIMIT_BYTES, LIMIT_BYTES);
 	if (!Number.isSafeInteger(memoryBytes) || memoryBytes > limit) throw new Error('Parallel graph exceeds the total memory limit.');
@@ -127,11 +135,6 @@ export function compileParallelStackPlan(project: EngineProject, options: Parall
 	return result;
 }
 
-function vcaFactor(graph: MixerGraphV21, ref: StripRef): number {
-	let gain = 1;
-	for (const vca of graph.vcas) if (vca.members.some((member) => mixerEndpointKeyV21(member) === mixerEndpointKeyV21(ref))) gain *= vca.mute ? 0 : vca.gain;
-	return gain;
-}
 /** Fixed ingress width changes mono panner behavior when another clip on the track is stereo. */
 function assertStableTrackInputWidths(project: EngineProject): void {
 	const sourceWidths = new Map<string, number>();
@@ -159,20 +162,4 @@ function assertStableTrackInputWidths(project: EngineProject): void {
 			width = next;
 		}
 	}
-}
-function topologicalTasks(tasks: readonly ParallelStackTask[], workers: number): readonly ParallelStackTask[] {
-	const order: number[] = [];
-	const seen = new Set<number>();
-	while (order.length < tasks.length) {
-		let advanced = false;
-		for (let index = 0; index < tasks.length; index++) {
-			if (seen.has(index) || !tasks[index]!.dependencies.every((dependency) => seen.has(dependency))) continue;
-			seen.add(index); order.push(index); advanced = true;
-		}
-		if (!advanced) throw new Error('Parallel stack graph contains a cycle.');
-	}
-	const indexes = new Map(order.map((old, index) => [old, index]));
-	return order.map((old, index) => ({ ...tasks[old]!, worker: index % workers,
-		dependencies: tasks[old]!.dependencies.map((dependency) => indexes.get(dependency)!),
-		edges: tasks[old]!.edges.map((edge) => ({ ...edge, sourceTask: indexes.get(edge.sourceTask)! })) }));
 }

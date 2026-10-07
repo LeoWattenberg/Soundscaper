@@ -1,0 +1,870 @@
+{
+  "schemaVersion": 1,
+  "baselineSourceRevision": "138581fec362c0b4cef96f32d86f3e50194ce06f",
+  "hashes": [
+    {
+      "seed": 1,
+      "sampleRate": 44100,
+      "sha256": "143b8d73c81d7f98f8bb3a54a68566bbd0f684672deaac2901d3eec9e7656e86",
+      "outcome": "plan"
+    },
+    {
+      "seed": 1,
+      "sampleRate": 48000,
+      "sha256": "42691839c0e144f85f84d64dbb6026ae352c3c22f9ee09501e711410865903fc",
+      "outcome": "plan"
+    },
+    {
+      "seed": 1,
+      "sampleRate": 96000,
+      "sha256": "0fe6ed17a0b1860b39bbe91c0f94a05774d0fdcdd34cfe880d28d55e01465a0c",
+      "outcome": "plan"
+    },
+    {
+      "seed": 2,
+      "sampleRate": 44100,
+      "sha256": "4a97073f129337e11d96000e1c83782981c2235caeb89b7717f7be777acb1fda",
+      "outcome": "plan"
+    },
+    {
+      "seed": 2,
+      "sampleRate": 48000,
+      "sha256": "10fd1c0d1da9eeea0c71aecc94e720650bf130895092e93efc8176340de8ca8a",
+      "outcome": "plan"
+    },
+    {
+      "seed": 2,
+      "sampleRate": 96000,
+      "sha256": "bb3f3db5e444f6d07947d6e8b771a2d3ddc12e6b320dd79614dda5927e9933a9",
+      "outcome": "plan"
+    },
+    {
+      "seed": 3,
+      "sampleRate": 44100,
+      "sha256": "33210bc8ca122ad026a1145977d5022324aaa3a4fb5a429bdea89480868e1ee4",
+      "outcome": "plan"
+    },
+    {
+      "seed": 3,
+      "sampleRate": 48000,
+      "sha256": "b2d4eebc8ff76479cc9e92e25e74b7abbee1cba8c91f936010d8ce9f2a615439",
+      "outcome": "plan"
+    },
+    {
+      "seed": 3,
+      "sampleRate": 96000,
+      "sha256": "f61e124351348080df2b3a44a088ac1a9532aef3108c0125bc8489651f2b3c0b",
+      "outcome": "plan"
+    },
+    {
+      "seed": 4,
+      "sampleRate": 44100,
+      "sha256": "f3886cf4af95dc0349084ac1f87d99a316092d717aae2ccd8af8fd010bef8330",
+      "outcome": "plan"
+    },
+    {
+      "seed": 4,
+      "sampleRate": 48000,
+      "sha256": "40f3c6607f936c523e20065462749a5e98baf7f792e1d7138c6f4baf8283465c",
+      "outcome": "plan"
+    },
+    {
+      "seed": 4,
+      "sampleRate": 96000,
+      "sha256": "9e7257a3f84749f949ad856cba6923f2adf56200c70bf70c750408e64d761df7",
+      "outcome": "plan"
+    },
+    {
+      "seed": 5,
+      "sampleRate": 44100,
+      "sha256": "87dd6b59a004cdb6da4c56a961645f9e3a59406d9b2d26dcba02560c108adbca",
+      "outcome": "plan"
+    },
+    {
+      "seed": 5,
+      "sampleRate": 48000,
+      "sha256": "9443a88bb7c7b8ce9cbdb0101d5ae201c5e16d9b3550a14622572f166a7af6a6",
+      "outcome": "plan"
+    },
+    {
+      "seed": 5,
+      "sampleRate": 96000,
+      "sha256": "a3be1ba7a10d5b124a64fcb4109775aa6a2988e8a903e1f699e5483659af0e65",
+      "outcome": "plan"
+    },
+    {
+      "seed": 6,
+      "sampleRate": 44100,
+      "sha256": "47b1ec0bdf89ce6c88940c30b983892fef3765cf131320ff4b8de338e1e44cc4",
+      "outcome": "plan"
+    },
+    {
+      "seed": 6,
+      "sampleRate": 48000,
+      "sha256": "2e9955999c0edf2d716c3b37b1510adf1bbccfe6ffcbd8339c1f09e2f94c07e7",
+      "outcome": "plan"
+    },
+    {
+      "seed": 6,
+      "sampleRate": 96000,
+      "sha256": "e67b0730d2c654e3d4d8014223222fa187e44bb2ab27ac01d69e832b8c9888ed",
+      "outcome": "plan"
+    },
+    {
+      "seed": 7,
+      "sampleRate": 44100,
+      "sha256": "7a73abcbf6bf206655687131afc5a0a245c05a53b944ceac6bf607cd234791a4",
+      "outcome": "plan"
+    },
+    {
+      "seed": 7,
+      "sampleRate": 48000,
+      "sha256": "3c40e41dd89cd9361e14bbc813ef6b20f77255be98b925b795a6cd14560b248c",
+      "outcome": "plan"
+    },
+    {
+      "seed": 7,
+      "sampleRate": 96000,
+      "sha256": "343745be8f5a0d48382d9901b49f3396e72a26d2f650e17740e8bcb35d45b08b",
+      "outcome": "plan"
+    },
+    {
+      "seed": 8,
+      "sampleRate": 44100,
+      "sha256": "8f64054da48795f732d6a7e04ee3aa899a4257f9b315485783eaf3926f708e24",
+      "outcome": "plan"
+    },
+    {
+      "seed": 8,
+      "sampleRate": 48000,
+      "sha256": "3bf62e318410105132280afda27b7efcf728aa12a29e85131d8bcb152c29d61d",
+      "outcome": "plan"
+    },
+    {
+      "seed": 8,
+      "sampleRate": 96000,
+      "sha256": "92d98ac5236b8eb5a62e8fa5fb33160a0a01fdba9b9d4e02aac4f427aac63f52",
+      "outcome": "plan"
+    },
+    {
+      "seed": 9,
+      "sampleRate": 44100,
+      "sha256": "eea053ba8e0ac6ab9927bd084e241c5fb790edaa92c637be93190a91edaa08fe",
+      "outcome": "plan"
+    },
+    {
+      "seed": 9,
+      "sampleRate": 48000,
+      "sha256": "e8c1f6f8e5a491773c6873702bd8355b8b44d8b5a848963f6e7a3e603c705891",
+      "outcome": "plan"
+    },
+    {
+      "seed": 9,
+      "sampleRate": 96000,
+      "sha256": "99b2502b94c8d00d52549e654e2bc24f57488b3df856a2a57287a8fcefdd6529",
+      "outcome": "plan"
+    },
+    {
+      "seed": 10,
+      "sampleRate": 44100,
+      "sha256": "b1386056d563ad68d59c013cd46788b7e48f41f4e42d6f44ac18036078cc704c",
+      "outcome": "plan"
+    },
+    {
+      "seed": 10,
+      "sampleRate": 48000,
+      "sha256": "183031500729e24b4b9fe9115d551a7719a4f3e908f658935de4bd4e5f64b376",
+      "outcome": "plan"
+    },
+    {
+      "seed": 10,
+      "sampleRate": 96000,
+      "sha256": "d148ebb2d666cf7b9ce2b1e9fb1e483ed6f013f0eb174e214b233223a649db1c",
+      "outcome": "plan"
+    },
+    {
+      "seed": 11,
+      "sampleRate": 44100,
+      "sha256": "1b39c9e6537b40158625ec1927907f6d7d8f55f83b10ccfe4fcbf7240b0a5e71",
+      "outcome": "refusal"
+    },
+    {
+      "seed": 11,
+      "sampleRate": 48000,
+      "sha256": "1b39c9e6537b40158625ec1927907f6d7d8f55f83b10ccfe4fcbf7240b0a5e71",
+      "outcome": "refusal"
+    },
+    {
+      "seed": 11,
+      "sampleRate": 96000,
+      "sha256": "1b39c9e6537b40158625ec1927907f6d7d8f55f83b10ccfe4fcbf7240b0a5e71",
+      "outcome": "refusal"
+    },
+    {
+      "seed": 12,
+      "sampleRate": 44100,
+      "sha256": "f1a090014e8cc363a7444a12e18d2c529dbb95f814f1c97807f8e6a1167ac8b7",
+      "outcome": "plan"
+    },
+    {
+      "seed": 12,
+      "sampleRate": 48000,
+      "sha256": "0e6cc94010fdf1f2fa03d95f4bf0f53330526650ff98ed96e0479897d1277658",
+      "outcome": "plan"
+    },
+    {
+      "seed": 12,
+      "sampleRate": 96000,
+      "sha256": "89dd06e06c601efc3766b03c7b1045426d616c380be37af85e636c87e9e6a38d",
+      "outcome": "plan"
+    },
+    {
+      "seed": 13,
+      "sampleRate": 44100,
+      "sha256": "419125b46664319aa42bdb86cbaa2a24c53a1203cbf1596479fc07f42cfc9cef",
+      "outcome": "refusal"
+    },
+    {
+      "seed": 13,
+      "sampleRate": 48000,
+      "sha256": "419125b46664319aa42bdb86cbaa2a24c53a1203cbf1596479fc07f42cfc9cef",
+      "outcome": "refusal"
+    },
+    {
+      "seed": 13,
+      "sampleRate": 96000,
+      "sha256": "419125b46664319aa42bdb86cbaa2a24c53a1203cbf1596479fc07f42cfc9cef",
+      "outcome": "refusal"
+    },
+    {
+      "seed": 14,
+      "sampleRate": 44100,
+      "sha256": "fad4fd2b4c124f1f416261fa7d13edc166490b60a0b1e943b5581bed0172f600",
+      "outcome": "plan"
+    },
+    {
+      "seed": 14,
+      "sampleRate": 48000,
+      "sha256": "b68f67e628f94401201f9ea362b1343eb04fcb1cd40c33d045ede3aaa0821ad2",
+      "outcome": "plan"
+    },
+    {
+      "seed": 14,
+      "sampleRate": 96000,
+      "sha256": "bc8394bb62e76364fd3e52987a12fb01f5a837f534f00aa0f838d28e2298addf",
+      "outcome": "plan"
+    },
+    {
+      "seed": 15,
+      "sampleRate": 44100,
+      "sha256": "7cfaf4c4728d8f3fde8f47b4ccb07a9ed3dfca2732aaddbcf079debd9ca0d7f2",
+      "outcome": "plan"
+    },
+    {
+      "seed": 15,
+      "sampleRate": 48000,
+      "sha256": "c07cf1a2ccea937cfc1b4f2fa46d0d11421fefd570a8197107664e3d166c0d8b",
+      "outcome": "plan"
+    },
+    {
+      "seed": 15,
+      "sampleRate": 96000,
+      "sha256": "4f82511013e146bf80c79079f9b271c746ff8c02921aed761be37f9cb99b64f7",
+      "outcome": "plan"
+    },
+    {
+      "seed": 16,
+      "sampleRate": 44100,
+      "sha256": "27aa306cba5a47df344394debbaf153b480690a9086340dea8f3fb8bae16d1e9",
+      "outcome": "plan"
+    },
+    {
+      "seed": 16,
+      "sampleRate": 48000,
+      "sha256": "35217e135d68b4ea14cfe77abd4046c7f6479b14686baf1df73697158a102a0e",
+      "outcome": "plan"
+    },
+    {
+      "seed": 16,
+      "sampleRate": 96000,
+      "sha256": "78c3e6716cacd92d971d840ae9559e837e480b963b3beda1e8ef7aaa53f80e66",
+      "outcome": "plan"
+    },
+    {
+      "seed": 17,
+      "sampleRate": 44100,
+      "sha256": "a0780e31e62e5988e5b30187a1e61b496280c1c14eae50b5aac48698bb941b39",
+      "outcome": "plan"
+    },
+    {
+      "seed": 17,
+      "sampleRate": 48000,
+      "sha256": "e802b734c95e13d62ebca06340018e9e8bf431de2f419a382a2bc000d443c7bd",
+      "outcome": "plan"
+    },
+    {
+      "seed": 17,
+      "sampleRate": 96000,
+      "sha256": "c7147f0471b217dbb93c76b655eb0061b3893dfa80281c4ffc3c763f86e36d67",
+      "outcome": "plan"
+    },
+    {
+      "seed": 18,
+      "sampleRate": 44100,
+      "sha256": "c53608b542d07152915e97de975703454eb2858128b8f2e73b1632579c028845",
+      "outcome": "plan"
+    },
+    {
+      "seed": 18,
+      "sampleRate": 48000,
+      "sha256": "321f83bc4223d2f7b97afb4f790e08ae3c736e3fc4d398250fabf423bc97b8c5",
+      "outcome": "plan"
+    },
+    {
+      "seed": 18,
+      "sampleRate": 96000,
+      "sha256": "1c4caeca8faca566bbf334f5cd6a0043f6840a24ae31be20f811dcf5ad05e081",
+      "outcome": "plan"
+    },
+    {
+      "seed": 19,
+      "sampleRate": 44100,
+      "sha256": "88fb3266abf3f13ae4793d40fbc87d43a68fc0206891037a32e2c5da666762c8",
+      "outcome": "plan"
+    },
+    {
+      "seed": 19,
+      "sampleRate": 48000,
+      "sha256": "ee59fdb807dd9eec45571efc126eb18e2e27f809bea2ddc346ff37a67d50be0e",
+      "outcome": "plan"
+    },
+    {
+      "seed": 19,
+      "sampleRate": 96000,
+      "sha256": "a81052904097bf705b94320cc1a7b7e3d1dfcecac41827b4e73f15c0057fad0a",
+      "outcome": "plan"
+    },
+    {
+      "seed": 20,
+      "sampleRate": 44100,
+      "sha256": "8cf9eeb6ee967a59102478ea5d74efe771e8ea92beacf3a581decd5b87082c08",
+      "outcome": "plan"
+    },
+    {
+      "seed": 20,
+      "sampleRate": 48000,
+      "sha256": "d6d1b120574640e544d9a7c61aa07310c99891ab75642ae213a1666d61502be4",
+      "outcome": "plan"
+    },
+    {
+      "seed": 20,
+      "sampleRate": 96000,
+      "sha256": "bfadd815a4f7e134b44d50bd63d536a4536bf8253705e0aa15561f39924d1ece",
+      "outcome": "plan"
+    },
+    {
+      "seed": 21,
+      "sampleRate": 44100,
+      "sha256": "8fb9c481c2a047309d81b98b64be94e4fd87333f7f8671a3eecf0e2f08d3da63",
+      "outcome": "plan"
+    },
+    {
+      "seed": 21,
+      "sampleRate": 48000,
+      "sha256": "70f7338d9336512d4f67b1326a06fdc995ab5f3441ed9d97374141ef70183aaa",
+      "outcome": "plan"
+    },
+    {
+      "seed": 21,
+      "sampleRate": 96000,
+      "sha256": "4e35eb1a953eabe90f4b41b4795e7ebef839fb31f16b67e180d98491dff54ff3",
+      "outcome": "plan"
+    },
+    {
+      "seed": 22,
+      "sampleRate": 44100,
+      "sha256": "1b39c9e6537b40158625ec1927907f6d7d8f55f83b10ccfe4fcbf7240b0a5e71",
+      "outcome": "refusal"
+    },
+    {
+      "seed": 22,
+      "sampleRate": 48000,
+      "sha256": "1b39c9e6537b40158625ec1927907f6d7d8f55f83b10ccfe4fcbf7240b0a5e71",
+      "outcome": "refusal"
+    },
+    {
+      "seed": 22,
+      "sampleRate": 96000,
+      "sha256": "1b39c9e6537b40158625ec1927907f6d7d8f55f83b10ccfe4fcbf7240b0a5e71",
+      "outcome": "refusal"
+    },
+    {
+      "seed": 23,
+      "sampleRate": 44100,
+      "sha256": "e1231187fb5504cf682f084e36b16743c67240e42315254a4ed0cfd8edfabb2d",
+      "outcome": "plan"
+    },
+    {
+      "seed": 23,
+      "sampleRate": 48000,
+      "sha256": "a2ed686452b724a6ce9ade608104dd9ca6ebe1a8f65e652dea5cfe414b35e1cf",
+      "outcome": "plan"
+    },
+    {
+      "seed": 23,
+      "sampleRate": 96000,
+      "sha256": "eaa53f12bcc8bb4678815dd05e79eb2429bbe2ed7410f0ee995b0c0bcadc1678",
+      "outcome": "plan"
+    },
+    {
+      "seed": 24,
+      "sampleRate": 44100,
+      "sha256": "042b83ba946fe1ec4ffcde809ec50f7ddbab81e331c22da8aebe1c54dda2ae1a",
+      "outcome": "plan"
+    },
+    {
+      "seed": 24,
+      "sampleRate": 48000,
+      "sha256": "efd880879214881bc5f4fa88d3d7262c5dec7b4a3b12ca17385e1d4cd1f8a558",
+      "outcome": "plan"
+    },
+    {
+      "seed": 24,
+      "sampleRate": 96000,
+      "sha256": "d69889fecf0c020b36f99a06d901f18964969e75e7f9a8e4f6abd2a6cd858cee",
+      "outcome": "plan"
+    },
+    {
+      "seed": 25,
+      "sampleRate": 44100,
+      "sha256": "ed8056bc9e374aed4689159416002b1f34fb7dd3258da674b9abf19d89a4c85b",
+      "outcome": "plan"
+    },
+    {
+      "seed": 25,
+      "sampleRate": 48000,
+      "sha256": "78a07068e7154c7a40c19eb1e8d049a0e65be7337527ab88a4f5dd6e76c71abf",
+      "outcome": "plan"
+    },
+    {
+      "seed": 25,
+      "sampleRate": 96000,
+      "sha256": "51cd946b61b6e5268a2e8b9168e4ba481e0f5e57fe04406e374c2daa5f74a031",
+      "outcome": "plan"
+    },
+    {
+      "seed": 26,
+      "sampleRate": 44100,
+      "sha256": "419125b46664319aa42bdb86cbaa2a24c53a1203cbf1596479fc07f42cfc9cef",
+      "outcome": "refusal"
+    },
+    {
+      "seed": 26,
+      "sampleRate": 48000,
+      "sha256": "419125b46664319aa42bdb86cbaa2a24c53a1203cbf1596479fc07f42cfc9cef",
+      "outcome": "refusal"
+    },
+    {
+      "seed": 26,
+      "sampleRate": 96000,
+      "sha256": "419125b46664319aa42bdb86cbaa2a24c53a1203cbf1596479fc07f42cfc9cef",
+      "outcome": "refusal"
+    },
+    {
+      "seed": 27,
+      "sampleRate": 44100,
+      "sha256": "a071e4a0afc7133c73e7be3ab999007ad338ac29bd9816b5da02d6940672074f",
+      "outcome": "plan"
+    },
+    {
+      "seed": 27,
+      "sampleRate": 48000,
+      "sha256": "78ec6c2ca288af5b7eca2eb4b0084e712036ded363349cbfe555c7ecbcf39859",
+      "outcome": "plan"
+    },
+    {
+      "seed": 27,
+      "sampleRate": 96000,
+      "sha256": "41ca5f9f6fd876b150ab3b4b4ce3d802a321d5e2f6dd0633a66c09d0f84aeab9",
+      "outcome": "plan"
+    },
+    {
+      "seed": 28,
+      "sampleRate": 44100,
+      "sha256": "4825b3ca5142b045909335c07d24f8324ed54b428656ca21682820da8ffc84f8",
+      "outcome": "plan"
+    },
+    {
+      "seed": 28,
+      "sampleRate": 48000,
+      "sha256": "d83d587dca37b8f1f9da560399d303d174d2954c43de7cbbbd858e98d5494bdd",
+      "outcome": "plan"
+    },
+    {
+      "seed": 28,
+      "sampleRate": 96000,
+      "sha256": "b355239820edb5423df04a2428bbaafac07bc479b2b1be78ba4d1550649f7c69",
+      "outcome": "plan"
+    },
+    {
+      "seed": 29,
+      "sampleRate": 44100,
+      "sha256": "fe4e60b6827f4441ffb47dbf85ace043d99a000fbf16913e32bdedd503a1fe5d",
+      "outcome": "plan"
+    },
+    {
+      "seed": 29,
+      "sampleRate": 48000,
+      "sha256": "58d0e1862cfd789f6eab02d2d91b80bc90096be126164666b68c3376de48180a",
+      "outcome": "plan"
+    },
+    {
+      "seed": 29,
+      "sampleRate": 96000,
+      "sha256": "e41ab3b8b6de6f42cb37f838203415194a02803ac094207e6236633e6132a1f6",
+      "outcome": "plan"
+    },
+    {
+      "seed": 30,
+      "sampleRate": 44100,
+      "sha256": "172f1a0a89e0096dc05397272cc670fee44a16efa3071190de207b84adeb5a53",
+      "outcome": "plan"
+    },
+    {
+      "seed": 30,
+      "sampleRate": 48000,
+      "sha256": "a79937bb2861cac06a47c2300a8e32c2c4a02e6f9d4d8b7dca0b93cafafa8cc7",
+      "outcome": "plan"
+    },
+    {
+      "seed": 30,
+      "sampleRate": 96000,
+      "sha256": "64e4d947896c229df3c006b50b828299c61c93005221044c414d5228d99c991e",
+      "outcome": "plan"
+    },
+    {
+      "seed": 31,
+      "sampleRate": 44100,
+      "sha256": "4fff9a881bc20c316fc02addaf047ad7e991b6bcf84ea1c065434574be0a0b45",
+      "outcome": "plan"
+    },
+    {
+      "seed": 31,
+      "sampleRate": 48000,
+      "sha256": "94c24ce2a3807235f6bf877dac676270694c48da83f76f0e7fa3b2504229aeb3",
+      "outcome": "plan"
+    },
+    {
+      "seed": 31,
+      "sampleRate": 96000,
+      "sha256": "dfef799b34b8064debdd710da6ce03274d34401f390d72b7e292514fcc83cce3",
+      "outcome": "plan"
+    },
+    {
+      "seed": 32,
+      "sampleRate": 44100,
+      "sha256": "8df0e640e59aa18e940380d3b37c09951141cd5c698b7e0195f14c3b0a5862bc",
+      "outcome": "plan"
+    },
+    {
+      "seed": 32,
+      "sampleRate": 48000,
+      "sha256": "45ff331e5a9aa25c8efc94da3bf00367c0f9c03d2818961c5a9cc02e152c5ba9",
+      "outcome": "plan"
+    },
+    {
+      "seed": 32,
+      "sampleRate": 96000,
+      "sha256": "539394b2e83496d8f0583b1fe313f71549059d9b367490a8e7dd2784a4b86d5e",
+      "outcome": "plan"
+    },
+    {
+      "seed": 33,
+      "sampleRate": 44100,
+      "sha256": "1b39c9e6537b40158625ec1927907f6d7d8f55f83b10ccfe4fcbf7240b0a5e71",
+      "outcome": "refusal"
+    },
+    {
+      "seed": 33,
+      "sampleRate": 48000,
+      "sha256": "1b39c9e6537b40158625ec1927907f6d7d8f55f83b10ccfe4fcbf7240b0a5e71",
+      "outcome": "refusal"
+    },
+    {
+      "seed": 33,
+      "sampleRate": 96000,
+      "sha256": "1b39c9e6537b40158625ec1927907f6d7d8f55f83b10ccfe4fcbf7240b0a5e71",
+      "outcome": "refusal"
+    },
+    {
+      "seed": 34,
+      "sampleRate": 44100,
+      "sha256": "f40bbb3f48600558fc36447616631bf28e0783f5627e42e454a2198d84027c49",
+      "outcome": "plan"
+    },
+    {
+      "seed": 34,
+      "sampleRate": 48000,
+      "sha256": "a4692df2a69391808594791690ac5cf33f70375a86b8a935fa0ff80c84bde8d1",
+      "outcome": "plan"
+    },
+    {
+      "seed": 34,
+      "sampleRate": 96000,
+      "sha256": "34866e992d5e64e99f263a36f61797005752c73b0c28ca369cd49940bc31d0e1",
+      "outcome": "plan"
+    },
+    {
+      "seed": 35,
+      "sampleRate": 44100,
+      "sha256": "f28bbe46f3947fcf6c19379ea50eea49632e355924cb1d6c549723c743e0e297",
+      "outcome": "plan"
+    },
+    {
+      "seed": 35,
+      "sampleRate": 48000,
+      "sha256": "abbb51f6cfb9995680fe1a00b5329cba25346874b60bdeb415d6ce18e989a533",
+      "outcome": "plan"
+    },
+    {
+      "seed": 35,
+      "sampleRate": 96000,
+      "sha256": "6d3047922d1f17b7343785c35ee57a72cc4519520bc081f944b2d28ad1ad8dea",
+      "outcome": "plan"
+    },
+    {
+      "seed": 36,
+      "sampleRate": 44100,
+      "sha256": "7345fd0ee619bafb65bfd11bb91565522d51aff4a48e01cc79585663c47b4cdd",
+      "outcome": "plan"
+    },
+    {
+      "seed": 36,
+      "sampleRate": 48000,
+      "sha256": "296a82044f666477d21f6e10d97e61e2aadbbb383bdb2275915ba4cfc90058e4",
+      "outcome": "plan"
+    },
+    {
+      "seed": 36,
+      "sampleRate": 96000,
+      "sha256": "298ce8609fabb6c1513b887ff3b58b460613feb37ef3ad1569052d0d498fe843",
+      "outcome": "plan"
+    },
+    {
+      "seed": 37,
+      "sampleRate": 44100,
+      "sha256": "6fc15fd82284a8ebe0cddc3aba0fc7c81303d14b07206e50aaf41b0ddaa0ef27",
+      "outcome": "plan"
+    },
+    {
+      "seed": 37,
+      "sampleRate": 48000,
+      "sha256": "1b56c25969dcc454fd4cab0c8a217d4649de6dc561ba5058dce1a0a26c7458e1",
+      "outcome": "plan"
+    },
+    {
+      "seed": 37,
+      "sampleRate": 96000,
+      "sha256": "3717cbc85742c16b4229cfd0f2b6ae9227d755e92b1f785d8e0310efb959d1bb",
+      "outcome": "plan"
+    },
+    {
+      "seed": 38,
+      "sampleRate": 44100,
+      "sha256": "bf30398190a5b8907849ef56db105cf84b35f571ddae5ac6342906442077e410",
+      "outcome": "plan"
+    },
+    {
+      "seed": 38,
+      "sampleRate": 48000,
+      "sha256": "c0d50285cdd058b50ead4c6710e93785380d530d2bcef6b49294b7e8a7057b90",
+      "outcome": "plan"
+    },
+    {
+      "seed": 38,
+      "sampleRate": 96000,
+      "sha256": "18afd7957db459c02ad0ac6a6989e57fb358c916e794ac6804ac3b7002846f79",
+      "outcome": "plan"
+    },
+    {
+      "seed": 39,
+      "sampleRate": 44100,
+      "sha256": "419125b46664319aa42bdb86cbaa2a24c53a1203cbf1596479fc07f42cfc9cef",
+      "outcome": "refusal"
+    },
+    {
+      "seed": 39,
+      "sampleRate": 48000,
+      "sha256": "419125b46664319aa42bdb86cbaa2a24c53a1203cbf1596479fc07f42cfc9cef",
+      "outcome": "refusal"
+    },
+    {
+      "seed": 39,
+      "sampleRate": 96000,
+      "sha256": "419125b46664319aa42bdb86cbaa2a24c53a1203cbf1596479fc07f42cfc9cef",
+      "outcome": "refusal"
+    },
+    {
+      "seed": 40,
+      "sampleRate": 44100,
+      "sha256": "a90495379a9f692a1f9cb5cd78c22e4f9b786d1324c496144155f2925d2e829d",
+      "outcome": "plan"
+    },
+    {
+      "seed": 40,
+      "sampleRate": 48000,
+      "sha256": "b5d64b844e009d5135d318570490f1fe29429f30a48b457db431f96931ecb19c",
+      "outcome": "plan"
+    },
+    {
+      "seed": 40,
+      "sampleRate": 96000,
+      "sha256": "957dd69a6e784d9d0f8a7a9148062dd66e789a6f20bb9b8871e1f3aaf1ffa421",
+      "outcome": "plan"
+    },
+    {
+      "seed": 41,
+      "sampleRate": 44100,
+      "sha256": "143b8d73c81d7f98f8bb3a54a68566bbd0f684672deaac2901d3eec9e7656e86",
+      "outcome": "plan"
+    },
+    {
+      "seed": 41,
+      "sampleRate": 48000,
+      "sha256": "42691839c0e144f85f84d64dbb6026ae352c3c22f9ee09501e711410865903fc",
+      "outcome": "plan"
+    },
+    {
+      "seed": 41,
+      "sampleRate": 96000,
+      "sha256": "0fe6ed17a0b1860b39bbe91c0f94a05774d0fdcdd34cfe880d28d55e01465a0c",
+      "outcome": "plan"
+    },
+    {
+      "seed": 42,
+      "sampleRate": 44100,
+      "sha256": "96aa37322a47c83b53d7ea5b1fede58170978138047780bc269723502d0c3819",
+      "outcome": "plan"
+    },
+    {
+      "seed": 42,
+      "sampleRate": 48000,
+      "sha256": "153ce39e15f442e3d4037b94882812bcb27385b87e76226f77074aa81b78f551",
+      "outcome": "plan"
+    },
+    {
+      "seed": 42,
+      "sampleRate": 96000,
+      "sha256": "b5c61f9abdd94d7577538a4b3a5d9f6553176fe2d1241e5de6e58e12914ea9da",
+      "outcome": "plan"
+    },
+    {
+      "seed": 43,
+      "sampleRate": 44100,
+      "sha256": "dc4caa1fa2638e769a7f811ea0dd39e3dfcf8d462e875b343b1c1aa544bcabcf",
+      "outcome": "plan"
+    },
+    {
+      "seed": 43,
+      "sampleRate": 48000,
+      "sha256": "67a48adf6c21bd2ecaaaf4db1613eef8587fd4735849f95f90e5fa70a1192eb9",
+      "outcome": "plan"
+    },
+    {
+      "seed": 43,
+      "sampleRate": 96000,
+      "sha256": "254349070119f0aa1a2c65ab18c15f72f6577d239cc42ef2c68c7fa58d7a0e7c",
+      "outcome": "plan"
+    },
+    {
+      "seed": 44,
+      "sampleRate": 44100,
+      "sha256": "1b39c9e6537b40158625ec1927907f6d7d8f55f83b10ccfe4fcbf7240b0a5e71",
+      "outcome": "refusal"
+    },
+    {
+      "seed": 44,
+      "sampleRate": 48000,
+      "sha256": "1b39c9e6537b40158625ec1927907f6d7d8f55f83b10ccfe4fcbf7240b0a5e71",
+      "outcome": "refusal"
+    },
+    {
+      "seed": 44,
+      "sampleRate": 96000,
+      "sha256": "1b39c9e6537b40158625ec1927907f6d7d8f55f83b10ccfe4fcbf7240b0a5e71",
+      "outcome": "refusal"
+    },
+    {
+      "seed": 45,
+      "sampleRate": 44100,
+      "sha256": "cf093f9946929dfd9088d1edeb886ce5849f10a974abd6f6c148c1ba0299fcb1",
+      "outcome": "plan"
+    },
+    {
+      "seed": 45,
+      "sampleRate": 48000,
+      "sha256": "7318d271454a60749e3a5fd342ed01981fbe7d56828001cc9f8f7c15803ca8d7",
+      "outcome": "plan"
+    },
+    {
+      "seed": 45,
+      "sampleRate": 96000,
+      "sha256": "c0a33b801ae70ab6623a607b96a55f9a59ffd470308171ec00d17ecbfbe392d6",
+      "outcome": "plan"
+    },
+    {
+      "seed": 46,
+      "sampleRate": 44100,
+      "sha256": "efa7c8ba559893d7115a63523c934618ce572c625f6f4bd30d0a50341ce67ec9",
+      "outcome": "plan"
+    },
+    {
+      "seed": 46,
+      "sampleRate": 48000,
+      "sha256": "33f7903034c6467ab50653ed0deac708c9e37eb258d42b5653d351601c107bf8",
+      "outcome": "plan"
+    },
+    {
+      "seed": 46,
+      "sampleRate": 96000,
+      "sha256": "bf3a9f3f701fe503b481ef3d9b51da5033c6b7767146feaf323e836ab10a102b",
+      "outcome": "plan"
+    },
+    {
+      "seed": 47,
+      "sampleRate": 44100,
+      "sha256": "25a914aed880df7cf5373f4fbce676402d5e2e72e44ee06d7817e0dc380b2a3c",
+      "outcome": "plan"
+    },
+    {
+      "seed": 47,
+      "sampleRate": 48000,
+      "sha256": "b42d9ed17e80075f58c3fb51ee554feff0bf4c1acf7eb807f06779cf1178c3a3",
+      "outcome": "plan"
+    },
+    {
+      "seed": 47,
+      "sampleRate": 96000,
+      "sha256": "ca3caf432b6afaadb44c8f96f5fd0e2e2624b5c309cb3ec99274ce20d78ad20c",
+      "outcome": "plan"
+    },
+    {
+      "seed": 48,
+      "sampleRate": 44100,
+      "sha256": "37f435bd9d8eb58eb356f4e42fccf6820510783e93dfa97496b8d645aa6354b5",
+      "outcome": "plan"
+    },
+    {
+      "seed": 48,
+      "sampleRate": 48000,
+      "sha256": "d05b86372f3c314e6cfd69e3d33218566a3f365a89482ed91fa8221601e77b48",
+      "outcome": "plan"
+    },
+    {
+      "seed": 48,
+      "sampleRate": 96000,
+      "sha256": "f2589088f5201efb5232457d6974ca17c216e0221a96519cb0bf51eca5ec4964",
+      "outcome": "plan"
+    }
+  ]
+}
