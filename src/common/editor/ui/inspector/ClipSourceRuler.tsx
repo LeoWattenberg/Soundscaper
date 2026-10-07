@@ -68,6 +68,7 @@ export default function ClipSourceRuler(props: Props) {
 			data-time-origin={options.global ? 'global' : 'local'} width={width} height={40}
 			onPointerDown={props.onSeek} onContextMenu={event => { event.preventDefault(); setMenu({ x: event.clientX, y: event.clientY }); }}
 			onKeyDown={event => {
+				if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
 				if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
 					event.preventDefault(); event.stopPropagation();
 					const frame = event.key === 'Home' ? startFrame : event.key === 'End' ? endFrame : props.positionFrame + (event.key === 'ArrowLeft' ? -1 : 1) * Math.round(props.sampleRate * (event.shiftKey ? 1 : 0.1));

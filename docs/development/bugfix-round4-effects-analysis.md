@@ -485,3 +485,25 @@ TypeScript checks pass. Regression files are
 `audio-editor-round4-source-trim-shortcut.test.tsx` and
 `audio-editor-round4-source-trim-shortcut.spec.js`; evidence is recorded in
 `/tmp/soundscaper-r4-root-source-trim-*`. Manual Update AI assets: not required.
+
+## R4-ROOT-021 — Modified source-ruler arrows seek instead of running commands
+
+Import a WAV, assign Ctrl+Alt+Right to New label track in Preferences, and open
+Clip properties. Focus Source timeline and press that binding. The baseline
+moves the source audition position from 0 to 0.1 seconds and creates no label
+track. The ruler has its own keyboard handler, independent of source trim and
+marker editing, and consumes the modified command.
+
+Leave already handled and Ctrl/Meta/Alt-modified keys available in this ruler.
+Its plain arrow, Shift-arrow and Home/End seeking and native context-menu keys
+retain their existing behavior. All modified seek variants count once.
+
+The exact public workflow fails on immutable baseline `a0322d6e4` and passes
+Chromium, Firefox and WebKit on `source-ruler-clean25`, alongside ROOT020 and
+the original source-marker focus workflow (9/9). The mounted production ruler
+also fails before correction; command admission and exact ordinary/Shift/end
+seeking pass with existing source-clock tick tests afterward (6/6). Both
+product builds, targeted lint and authoritative test TypeScript checks pass.
+Regression files are `audio-editor-round4-source-ruler-shortcut.test.tsx` and
+`audio-editor-round4-source-ruler-shortcut.spec.js`; evidence is recorded in
+`/tmp/soundscaper-r4-root-source-ruler-*`. Manual Update AI assets: not required.
