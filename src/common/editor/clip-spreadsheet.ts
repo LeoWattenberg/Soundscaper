@@ -6,6 +6,7 @@ import type { AudioEditorCommand, CommandObject } from './commands/protocol.ts';
 import { projectForRuntimeConsumers } from './project-current-runtime.ts';
 import type { RuntimeClipProject } from './runtime-clip-projection.ts';
 import { scaleSampleFrame } from './timeline-time.ts';
+import { readClipLoop } from './audio-clip-loop.ts';
 
 export const CLIP_SPREADSHEET_COLUMNS = [
 	{ id: 'name', copyKey: 'name', editable: true },
@@ -208,6 +209,8 @@ function planClip(project: SpreadsheetProject, clip: SpreadsheetClip, source: Sp
 	const update: Record<string, unknown> = {};
 	const sourceRate = source.sampleRate || project.sampleRate;
 	const sourceChanged = source.id !== clip.sourceId;
+	const loop = sourceChanged ? null : readClipLoop(clip);
+	const repeats = loop ? clip.durationFrames / loop.periodFrames : 1;
 	let durationFrames = clip.durationFrames;
 	let sourceDurationFrames = sourceChanged ? scaleSampleFrame(clip.sourceDurationFrames, originalSourceRate, sourceRate, 'point') : clip.sourceDurationFrames;
 	let sourceStartFrame = sourceChanged ? scaleSampleFrame(clip.sourceStartFrame, originalSourceRate, sourceRate, 'point') : clip.sourceStartFrame;
@@ -236,8 +239,8 @@ function planClip(project: SpreadsheetProject, clip: SpreadsheetClip, source: Sp
 	const speedChanged = speedRatio !== clip.speedRatio;
 	const durationRequested = fields.has('duration');
 	if (sourceChanged && !speedChanged || durationRequested && (durationFrames !== clip.durationFrames || speedChanged)) {
-		sourceDurationFrames = spreadsheetSourceDurationFrames(durationFrames, project.sampleRate, sourceRate, speedRatio);
-	} else if (speedChanged) durationFrames = spreadsheetDurationFrames(sourceDurationFrames, sourceRate, project.sampleRate, speedRatio);
+		sourceDurationFrames = spreadsheetSourceDurationFrames(durationFrames, project.sampleRate, sourceRate, speedRatio, repeats);
+	} else if (speedChanged) durationFrames = spreadsheetDurationFrames(sourceDurationFrames, sourceRate, project.sampleRate, speedRatio, repeats);
 	if (!Number.isSafeInteger(durationFrames) || durationFrames < 1 || !Number.isSafeInteger(sourceDurationFrames) || sourceDurationFrames < 1) throw new RangeError('Clip duration must contain at least one sample.');
 	if (sourceStartFrame + sourceDurationFrames > source.frameCount) throw new RangeError('Clip offset and duration exceed the source file.');
 	set(transform, 'sourceStartFrame', sourceStartFrame);
@@ -262,7 +265,7 @@ function planClip(project: SpreadsheetProject, clip: SpreadsheetClip, source: Sp
 	if (durationFrames !== clip.durationFrames || speedChanged) {
 		const previousSourceDuration = sourceChanged ? scaleSampleFrame(clip.sourceDurationFrames, originalSourceRate, sourceRate, 'point') : clip.sourceDurationFrames;
 		const stretchedDuration = speedChanged
-			? Math.max(1, spreadsheetDurationFrames(previousSourceDuration, sourceRate, project.sampleRate, speedRatio))
+			? Math.max(1, spreadsheetDurationFrames(previousSourceDuration, sourceRate, project.sampleRate, speedRatio, repeats))
 			: clip.durationFrames;
 		const points = new Map<number, { frame: number; value: number }>();
 		for (const point of clip.envelope) {
