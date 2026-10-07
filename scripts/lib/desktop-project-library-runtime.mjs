@@ -226,6 +226,7 @@ export const DESKTOP_EXPECTED_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/web-vcr-geometry.js',
 	...DESKTOP_SOUNDSCAPER_RUNTIME_FILES,
 	...DESKTOP_AUDACITY_EFFECT_RUNTIME_FILES,
+	'src/common/editor/audio-freeze-work-index.js',
 	'src/common/editor/audio-track-freeze-lifecycle-v21.js',
 	'src/common/editor/audio-track-freeze-v21.js',
 	'src/common/editor/automation-lane-v21.js',
