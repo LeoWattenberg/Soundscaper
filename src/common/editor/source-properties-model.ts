@@ -171,8 +171,9 @@ export function resolveSourceTimecodeAtSample(
 	const targetId = sequenceId ?? String(project.primarySequenceId ?? '');
 	const sequence = sequences.find((value) => isRecord(value) && String(value.id) === targetId);
 	if (!isRecord(sequence)) return null;
+	const timelineSample = Math.max(0, Math.trunc(sample));
 	const frame = sequenceFrameAtSample(
-		Math.max(0, Math.trunc(sample)),
+		timelineSample,
 		normalizeSourceFrameRate(sequence.rate),
 		sampleRate,
 	);
@@ -187,9 +188,8 @@ export function resolveSourceTimecodeAtSample(
 		const end = Number(value.sequenceEndFrame ?? Number(value.sequenceStartFrame) + Number(value.sequenceFrameCount));
 		if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end)) continue;
 		if (frame < start || frame >= end) continue;
-		const source = sources.find((candidate) => isRecord(candidate)
-			&& candidate.id === value.sourceId && candidate.kind === 'video');
-		if (!isRecord(source)) continue;
+		const source = findVideoSource(sources, value.sourceId);
+		if (!source) continue;
 		const rate = normalizeSourceFrameRate(source.frameRate);
 		const characteristics = normalizeVideoSourceCharacteristicsForConsumer(
 			source.characteristics ?? null,
@@ -207,7 +207,7 @@ export function resolveSourceTimecodeAtSample(
 					project,
 					clip: value,
 					source,
-					timelineSample: Math.max(0, Math.trunc(sample)),
+					timelineSample,
 				})
 				: null;
 		} catch (error: unknown) {
@@ -241,8 +241,7 @@ export function resolveInspectedVideoSource(
 ): DataRecord | null {
 	const project = record(projectValue, 'project');
 	const sources = Array.isArray(project.sources) ? project.sources : [];
-	const sourceById = (id: unknown) => sources.find((candidate) => isRecord(candidate)
-		&& candidate.id === id && candidate.kind === 'video') ?? null;
+	const sourceById = (id: unknown) => findVideoSource(sources, id);
 	const selection = isRecord(project.selection) ? project.selection : null;
 	const selectedIds = Array.isArray(selection?.clipIds) ? selection.clipIds : [];
 	const bin = isRecord(project.projectBin) && Array.isArray(project.projectBin.clips)
@@ -281,6 +280,12 @@ function sourceNotes(
 
 function optionalText(value: unknown): string | null {
 	return typeof value === 'string' && value.length && value !== 'unknown' ? value : null;
+}
+
+function findVideoSource(sources: readonly unknown[], id: unknown): DataRecord | null {
+	const source = sources.find((candidate) => isRecord(candidate)
+		&& candidate.id === id && candidate.kind === 'video');
+	return isRecord(source) ? source : null;
 }
 
 function record(value: unknown, name: string): DataRecord {

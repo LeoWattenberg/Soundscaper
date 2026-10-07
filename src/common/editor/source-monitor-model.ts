@@ -126,9 +126,8 @@ export function resolveSourceMonitorPoints(
 	const { markIn, markOut } = normalizeSourceMonitorMarks(marks, bound);
 	let sourceIn = markIn;
 	let sourceOut = markOut;
-	const needed = 3 - stated;
-	if (count(sourceIn, sourceOut) < needed && sourceIn == null) sourceIn = 0;
-	if (count(sourceIn, sourceOut) < needed && sourceOut == null) sourceOut = bound;
+	if (sourceIn == null && (stated === 1 || sourceOut == null)) sourceIn = 0;
+	if (sourceOut == null && stated === 1) sourceOut = bound;
 	return Object.freeze({ sourceIn, sourceOut });
 }
 
@@ -262,6 +261,7 @@ export function resolveProgramFrame(
 			timelineSample: Math.max(0, Math.trunc(request.sample)),
 		})
 		: null;
+	const sourceFrameCount = Number(matched.sourceFrameCount ?? sequenceFrameCount);
 	return Object.freeze({
 		clipId: String(matched.id),
 		trackId,
@@ -269,11 +269,11 @@ export function resolveProgramFrame(
 		sequenceId,
 		sourceFrame: retimedSourceFrame
 			?? proportionalSourceFrame(
-				sourceIn, Number(matched.sourceFrameCount ?? sequenceFrameCount),
+				sourceIn, sourceFrameCount,
 				sequenceStartFrame, sequenceFrameCount, frame,
 			),
 		sourceIn: Number.isSafeInteger(sourceIn) ? sourceIn : 0,
-		sourceFrameCount: Number(matched.sourceFrameCount ?? sequenceFrameCount),
+		sourceFrameCount,
 		sequenceStartFrame,
 		sequenceFrameCount,
 		startFrame: videoFrameToSampleFrame(sequenceStartFrame, rate, sampleRate, 'point'),
@@ -297,10 +297,6 @@ export function normalizeSourceMonitorMarks(
 	const markOut = inside(marks?.markOut ?? null, sourceFrameCount);
 	if (markIn != null && markOut != null && markOut <= markIn) return SOURCE_MONITOR_NO_MARKS;
 	return Object.freeze({ markIn, markOut });
-}
-
-function count(...values: readonly (number | null)[]): number {
-	return values.filter((value) => value != null).length;
 }
 
 function arrayOf(value: unknown): DataRecord[] {

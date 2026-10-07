@@ -22,8 +22,7 @@ const sampleHeightScratch = new WeakMap();
 
 /** Return the Audacity display mode for a horizontal sample scale. */
 export function audacityWaveformMode(pixelsPerSample) {
-	const scale = Number(pixelsPerSample);
-	if (!Number.isFinite(scale) || scale <= 0) throw new RangeError('pixelsPerSample must be positive.');
+	const scale = waveformSampleScale(pixelsPerSample);
 	if (scale < CONNECTING_DOTS_THRESHOLD) return 'summary';
 	if (scale < STEM_THRESHOLD) return 'connecting-dots';
 	return 'stem';
@@ -31,9 +30,13 @@ export function audacityWaveformMode(pixelsPerSample) {
 
 /** Audacity switches to four-pixel sample heads and zero-line stems at this zoom. */
 export function audacityWaveformShowsPoints(pixelsPerSample) {
-	const scale = Number(pixelsPerSample);
+	return waveformSampleScale(pixelsPerSample) >= STEM_THRESHOLD;
+}
+
+function waveformSampleScale(value) {
+	const scale = Number(value);
 	if (!Number.isFinite(scale) || scale <= 0) throw new RangeError('pixelsPerSample must be positive.');
-	return scale >= STEM_THRESHOLD;
+	return scale;
 }
 
 /** Return the vertical drawing geometry for a full or positive-only waveform channel. */
@@ -41,15 +44,9 @@ export function audacityWaveformChannelGeometry(top, height, halfWave = false) {
 	const channelTop = finite(top, 'top');
 	const channelHeight = positiveFinite(height, 'height');
 	const padding = Math.min(2, channelHeight / 2);
-	if (halfWave) {
-		return {
-			centerY: channelTop + channelHeight - padding,
-			maxAmplitude: Math.max(0, channelHeight - padding * 2),
-		};
-	}
 	return {
-		centerY: channelTop + channelHeight / 2,
-		maxAmplitude: Math.max(0, channelHeight / 2 - padding),
+		centerY: halfWave ? channelTop + channelHeight - padding : channelTop + channelHeight / 2,
+		maxAmplitude: Math.max(0, halfWave ? channelHeight - padding * 2 : channelHeight / 2 - padding),
 	};
 }
 

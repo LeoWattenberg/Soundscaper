@@ -24,30 +24,28 @@ export function advanceAudacityTrackSelection(
 	const direction = Math.sign(input.direction);
 	const currentIndex = Math.max(0, trackIds.indexOf(input.focusedTrackId || ''));
 	const nextIndex = Math.max(0, Math.min(trackIds.length - 1, currentIndex + direction));
-	const requestedAnchor = input.selectedTrackIds[0] || '';
-	const anchorIndex = trackIds.includes(requestedAnchor) ? trackIds.indexOf(requestedAnchor) : currentIndex;
-	const anchorId = trackIds[anchorIndex];
-	const range = trackIds.slice(Math.min(anchorIndex, nextIndex), Math.max(anchorIndex, nextIndex) + 1);
+	const requestedAnchorIndex = trackIds.indexOf(input.selectedTrackIds[0] || '');
+	const anchorIndex = requestedAnchorIndex < 0 ? currentIndex : requestedAnchorIndex;
 
 	return Object.freeze({
 		focusedTrackId: trackIds[nextIndex],
-		selectedTrackIds: Object.freeze([anchorId, ...range.filter((trackId) => trackId !== anchorId)]),
+		selectedTrackIds: anchoredTrackRange(trackIds, anchorIndex, nextIndex),
 	});
 }
 
 /** Fill the complete Shift+Enter range between the current selection and focused track. */
 export function audacityTrackRangeSelection(input: AudacityTrackSelectionInput): readonly string[] {
 	const trackIds = uniqueTrackIds(input.trackIds);
-	if (trackIds.length === 0) return Object.freeze([]);
 	const focusedIndex = trackIds.indexOf(input.focusedTrackId || '');
 	if (focusedIndex < 0) return Object.freeze([]);
 	const anchorIndex = trackIds.indexOf(input.selectedTrackIds[0] || '');
 	if (anchorIndex < 0) return Object.freeze([trackIds[focusedIndex]]);
+	return anchoredTrackRange(trackIds, anchorIndex, focusedIndex);
+}
+
+function anchoredTrackRange(trackIds: readonly string[], anchorIndex: number, focusedIndex: number): readonly string[] {
 	const anchorId = trackIds[anchorIndex];
-	const range = trackIds.slice(
-		Math.min(anchorIndex, focusedIndex),
-		Math.max(anchorIndex, focusedIndex) + 1,
-	);
+	const range = trackIds.slice(Math.min(anchorIndex, focusedIndex), Math.max(anchorIndex, focusedIndex) + 1);
 	return Object.freeze([anchorId, ...range.filter((trackId) => trackId !== anchorId)]);
 }
 

@@ -171,35 +171,36 @@ function workspaceIdentities(value: unknown): string[] {
 /** Normalize both complete and legacy V1 editing sections into the current shape. */
 export function normalizeAudioEditorEditingPreferences(value?: unknown): AudioEditorEditingPreferences {
 	const editing = preferenceRecord(value);
+	const defaults = DEFAULT_AUDIO_EDITOR_EDITING_PREFERENCES;
 	return {
-		rippleMode: enumPreference(editing.rippleMode, 'off', AUDIO_EDITOR_RIPPLE_MODES, 'editing.rippleMode'),
-		collisionBehavior: enumPreference(editing.collisionBehavior, 'audacity', ['audacity'] as const, 'editing.collisionBehavior'),
-		snapToZeroCrossings: booleanPreference(editing.snapToZeroCrossings, false, 'editing.snapToZeroCrossings'),
+		rippleMode: enumPreference(editing.rippleMode, defaults.rippleMode, AUDIO_EDITOR_RIPPLE_MODES, 'editing.rippleMode'),
+		collisionBehavior: enumPreference(editing.collisionBehavior, defaults.collisionBehavior, ['audacity'] as const, 'editing.collisionBehavior'),
+		snapToZeroCrossings: booleanPreference(editing.snapToZeroCrossings, defaults.snapToZeroCrossings, 'editing.snapToZeroCrossings'),
 		zoomPrecision: zoomPrecisionPreference(editing.zoomPrecision),
-		applyEffectsToAllAudio: booleanPreference(editing.applyEffectsToAllAudio, true, 'editing.applyEffectsToAllAudio'),
-		applyMicrofadesToNewClips: booleanPreference(editing.applyMicrofadesToNewClips, true, 'editing.applyMicrofadesToNewClips'),
-		deleteBehavior: enumPreference(editing.deleteBehavior, 'not-set', AUDIO_EDITOR_DELETE_BEHAVIORS, 'editing.deleteBehavior'),
-		closeGapBehavior: enumPreference(editing.closeGapBehavior, 'clip', AUDIO_EDITOR_CLOSE_GAP_BEHAVIORS, 'editing.closeGapBehavior'),
-		pasteBehavior: enumPreference(editing.pasteBehavior, 'overlap', AUDIO_EDITOR_PASTE_BEHAVIORS, 'editing.pasteBehavior'),
-		pasteInsertBehavior: enumPreference(editing.pasteInsertBehavior, 'track', AUDIO_EDITOR_PASTE_INSERT_BEHAVIORS, 'editing.pasteInsertBehavior'),
-		alwaysPasteAsNewClip: booleanPreference(editing.alwaysPasteAsNewClip, true, 'editing.alwaysPasteAsNewClip'),
+		applyEffectsToAllAudio: booleanPreference(editing.applyEffectsToAllAudio, defaults.applyEffectsToAllAudio, 'editing.applyEffectsToAllAudio'),
+		applyMicrofadesToNewClips: booleanPreference(editing.applyMicrofadesToNewClips, defaults.applyMicrofadesToNewClips, 'editing.applyMicrofadesToNewClips'),
+		deleteBehavior: enumPreference(editing.deleteBehavior, defaults.deleteBehavior, AUDIO_EDITOR_DELETE_BEHAVIORS, 'editing.deleteBehavior'),
+		closeGapBehavior: enumPreference(editing.closeGapBehavior, defaults.closeGapBehavior, AUDIO_EDITOR_CLOSE_GAP_BEHAVIORS, 'editing.closeGapBehavior'),
+		pasteBehavior: enumPreference(editing.pasteBehavior, defaults.pasteBehavior, AUDIO_EDITOR_PASTE_BEHAVIORS, 'editing.pasteBehavior'),
+		pasteInsertBehavior: enumPreference(editing.pasteInsertBehavior, defaults.pasteInsertBehavior, AUDIO_EDITOR_PASTE_INSERT_BEHAVIORS, 'editing.pasteInsertBehavior'),
+		alwaysPasteAsNewClip: booleanPreference(editing.alwaysPasteAsNewClip, defaults.alwaysPasteAsNewClip, 'editing.alwaysPasteAsNewClip'),
 		asymmetricStereoHeights: enumPreference(
 			editing.asymmetricStereoHeights,
-			'never',
+			defaults.asymmetricStereoHeights,
 			AUDIO_EDITOR_ASYMMETRIC_STEREO_HEIGHTS,
 			'editing.asymmetricStereoHeights',
 		),
 		asymmetricStereoHeightWorkspaces: workspaceIdentities(editing.asymmetricStereoHeightWorkspaces),
-		alwaysConvertToMono: booleanPreference(editing.alwaysConvertToMono, false, 'editing.alwaysConvertToMono'),
+		alwaysConvertToMono: booleanPreference(editing.alwaysConvertToMono, defaults.alwaysConvertToMono, 'editing.alwaysConvertToMono'),
 		zoomTogglePreset1: enumPreference(
 			editing.zoomTogglePreset1,
-			'zoom-default',
+			defaults.zoomTogglePreset1,
 			AUDIO_EDITOR_ZOOM_TOGGLE_PRESETS,
 			'editing.zoomTogglePreset1',
 		),
 		zoomTogglePreset2: enumPreference(
 			editing.zoomTogglePreset2,
-			'four-pixels-per-sample',
+			defaults.zoomTogglePreset2,
 			AUDIO_EDITOR_ZOOM_TOGGLE_PRESETS,
 			'editing.zoomTogglePreset2',
 		),
@@ -225,11 +226,10 @@ export function resolveAudioEditorDefaultDelete(
 		throw new Error('The default delete behavior has not been chosen.');
 	}
 	if (normalized.deleteBehavior === 'leave-gap') return { rippleMode: 'none', allTracks: false };
-	switch (normalized.closeGapBehavior) {
-	case 'clip': return { rippleMode: 'clip', allTracks: false };
-	case 'track': return { rippleMode: 'track', allTracks: false };
-	case 'all-tracks': return { rippleMode: 'track', allTracks: true };
-	}
+	return {
+		rippleMode: normalized.closeGapBehavior === 'clip' ? 'clip' : 'track',
+		allTracks: normalized.closeGapBehavior === 'all-tracks',
+	};
 }
 
 export type AudioEditorDefaultPasteMode = 'overlap' | 'insert-track' | 'insert-all';
@@ -334,8 +334,9 @@ export function resolveAudioEditorZoomToggle(
 	const target1 = audioEditorZoomPresetPixelsPerSecond(normalized.zoomTogglePreset1, context);
 	const target2 = audioEditorZoomPresetPixelsPerSecond(normalized.zoomTogglePreset2, context);
 	const current = positiveFinite(context.currentPixelsPerSecond, 'currentPixelsPerSecond');
-	const distance1 = Math.abs(Math.log(target1) - Math.log(current));
-	const distance2 = Math.abs(Math.log(target2) - Math.log(current));
+	const currentLog = Math.log(current);
+	const distance1 = Math.abs(Math.log(target1) - currentLog);
+	const distance2 = Math.abs(Math.log(target2) - currentLog);
 	return distance1 > distance2
 		? { preset: normalized.zoomTogglePreset1, pixelsPerSecond: target1 }
 		: { preset: normalized.zoomTogglePreset2, pixelsPerSecond: target2 };

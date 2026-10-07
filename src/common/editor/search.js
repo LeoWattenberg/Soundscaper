@@ -1,5 +1,14 @@
 export const AUDIO_EDITOR_SEARCH_RESULT_LIMIT = 50;
 
+const CHANGE_PITCH_ALIASES = [
+	'change pitch', 'higher pitch', 'lower pitch',
+	'tonhöhe ändern', 'höher stimmen', 'tiefer stimmen',
+];
+const CHANGE_TEMPO_ALIASES = [
+	'change tempo', 'make faster', 'make slower', 'speed up without pitch',
+	'tempo ändern', 'schneller machen', 'langsamer machen',
+];
+
 /**
  * Natural-language aliases intentionally stay small and auditable. They cover
  * common editing intents without shipping a model or making a network request.
@@ -39,22 +48,10 @@ export const AUDIO_EDITOR_COMMAND_SEARCH_ALIASES = Object.freeze({
 		'fade out', 'end quietly', 'gradually get quieter',
 		'ausblenden', 'langsam leiser werden',
 	]),
-	'audacity-change-pitch': Object.freeze([
-		'change pitch', 'higher pitch', 'lower pitch',
-		'tonhöhe ändern', 'höher stimmen', 'tiefer stimmen',
-	]),
-	'effect://builtin/change-pitch': Object.freeze([
-		'change pitch', 'higher pitch', 'lower pitch',
-		'tonhöhe ändern', 'höher stimmen', 'tiefer stimmen',
-	]),
-	'audacity-change-tempo': Object.freeze([
-		'change tempo', 'make faster', 'make slower', 'speed up without pitch',
-		'tempo ändern', 'schneller machen', 'langsamer machen',
-	]),
-	'effect://builtin/change-tempo': Object.freeze([
-		'change tempo', 'make faster', 'make slower', 'speed up without pitch',
-		'tempo ändern', 'schneller machen', 'langsamer machen',
-	]),
+	'audacity-change-pitch': Object.freeze([...CHANGE_PITCH_ALIASES]),
+	'effect://builtin/change-pitch': Object.freeze([...CHANGE_PITCH_ALIASES]),
+	'audacity-change-tempo': Object.freeze([...CHANGE_TEMPO_ALIASES]),
+	'effect://builtin/change-tempo': Object.freeze([...CHANGE_TEMPO_ALIASES]),
 	'audacity-reverse': Object.freeze([
 		'reverse audio', 'play backwards', 'rückwärts abspielen', 'audio umkehren',
 	]),
@@ -74,8 +71,7 @@ export function normalizeAudioEditorSearchText(value) {
 		.replace(/æ/g, 'ae')
 		.replace(/œ/g, 'oe')
 		.replace(/[^\p{L}\p{N}]+/gu, ' ')
-		.trim()
-		.replace(/\s+/g, ' ');
+		.trim();
 }
 
 /**
@@ -100,13 +96,13 @@ export function flattenAudioEditorSearchMenus(menus, options = {}) {
 			if (typeof item.onClick !== 'function' && !context.disabled) return;
 			const label = textValue(item.label) || textValue(item.id);
 			if (!label) return;
-			const commandId = commandIdentity(item, [...context.breadcrumbs, label]);
-			const aliases = commandAliases(item, commandId);
 			const path = [...context.breadcrumbs, label];
+			const commandId = commandIdentity(item, path);
+			const aliases = commandAliases(item, commandId);
 			const disabledReason = context.disabled
 				? textValue(item.disabledReason) || context.disabledReason || null
 				: null;
-			const baseTerms = uniqueText([
+			const baseTerms = [
 				label,
 				item.id,
 				item.parityActionId,
@@ -115,7 +111,7 @@ export function flattenAudioEditorSearchMenus(menus, options = {}) {
 				item.shortcut,
 				...context.breadcrumbs,
 				path.join(' '),
-			]);
+			];
 			candidates.push({
 				kind: 'command',
 				key: `command:${commandId}`,
@@ -251,7 +247,7 @@ export function searchAudioEditorEntries(entries, query, options = {}) {
 	if (!limit) return [];
 	const normalizedQuery = normalizeAudioEditorSearchText(query);
 	const source = arrayOrEmpty(entries).filter((entry) => entry && typeof entry === 'object');
-	if (!normalizedQuery) return [...source]
+	if (!normalizedQuery) return source
 		.sort(compareSourceOrder)
 		.slice(0, limit);
 
@@ -315,8 +311,8 @@ function deduplicateCommands(entries) {
 }
 
 function commandIdentity(item, path) {
-	const value = item.parityActionId || item.canonicalId || item.commandId || item.id;
-	if (textValue(value)) return textValue(value);
+	const value = textValue(item.parityActionId || item.canonicalId || item.commandId || item.id);
+	if (value) return value;
 	return `menu://${normalizeAudioEditorSearchText(path.join('/')).replace(/ /g, '-')}`;
 }
 
@@ -374,8 +370,8 @@ function scoreEntry(entry, query, queryTokens) {
 		[entry.label, 0],
 		[entry.commandId, 10],
 		[entry.detail, 18],
-		...arrayOrEmpty(entry.breadcrumbs).map(textValue).map((value) => [value, 20]),
-		...arrayOrEmpty(entry.terms).map(textValue).map((value) => [value, 26]),
+		...arrayOrEmpty(entry.breadcrumbs).map((value) => [textValue(value), 20]),
+		...arrayOrEmpty(entry.terms).map((value) => [textValue(value), 26]),
 	];
 	for (const [rawValue, weight] of fields) {
 		const value = normalizeAudioEditorSearchText(rawValue);
@@ -405,9 +401,7 @@ function scoreEntry(entry, query, queryTokens) {
 
 function tokensCovered(value, queryTokens) {
 	const valueTokens = value.split(' ');
-	return queryTokens.every((queryToken) => valueTokens.some((valueToken) => (
-		valueToken === queryToken || valueToken.startsWith(queryToken)
-	)));
+	return queryTokens.every((queryToken) => valueTokens.some((valueToken) => valueToken.startsWith(queryToken)));
 }
 
 function tokenSpread(value, queryTokens) {
@@ -442,15 +436,7 @@ function normalizedUnique(values) {
 }
 
 function uniqueText(values) {
-	const result = [];
-	const seen = new Set();
-	for (const value of values) {
-		const text = textValue(value);
-		if (!text || seen.has(text)) continue;
-		seen.add(text);
-		result.push(text);
-	}
-	return result;
+	return [...new Set(values.map(textValue).filter(Boolean))];
 }
 
 function uniquePaths(paths) {
@@ -475,7 +461,6 @@ function compareSourceOrder(left, right) {
 }
 
 function resultLimit(value) {
-	if (value === undefined) return AUDIO_EDITOR_SEARCH_RESULT_LIMIT;
 	const number = Number(value);
 	if (!Number.isFinite(number)) return AUDIO_EDITOR_SEARCH_RESULT_LIMIT;
 	return Math.max(0, Math.min(AUDIO_EDITOR_SEARCH_RESULT_LIMIT, Math.floor(number)));

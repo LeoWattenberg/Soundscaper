@@ -82,11 +82,11 @@ export function findClipSilenceRegions(
 		}
 		if (peak <= SILENCE_PEAK) silenceStart ??= relativeSourceFrame;
 		else if (silenceStart != null) {
-			if (relativeSourceFrame - silenceStart >= minimumSilenceFrames) regions.push([silenceStart, relativeSourceFrame]);
+			appendSilenceRegion(regions, silenceStart, relativeSourceFrame, minimumSilenceFrames);
 			silenceStart = null;
 		}
 	}
-	if (silenceStart != null && scan.end - silenceStart >= minimumSilenceFrames) regions.push([silenceStart, scan.end]);
+	appendSilenceRegion(regions, silenceStart, scan.end, minimumSilenceFrames);
 	const clipEndFrame = clip.timelineStartFrame + clip.durationFrames;
 	return Object.freeze(regions
 		.map(([start, end]) => Object.freeze([
@@ -95,6 +95,10 @@ export function findClipSilenceRegions(
 		]) as ClipSilenceRegion)
 		.filter(([start, end]) => start > clip.timelineStartFrame && end < clipEndFrame && end > start)
 		.slice(0, MAXIMUM_REGIONS));
+}
+
+function appendSilenceRegion(regions: ClipSilenceRegion[], start: number | null, end: number, minimumFrames: number): void {
+	if (start != null && end - start >= minimumFrames) regions.push([start, end]);
 }
 
 /** Translate an optional timeline window into the source-relative scan range. */
