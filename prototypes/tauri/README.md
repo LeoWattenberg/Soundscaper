@@ -77,9 +77,18 @@ Download the completed run's `tauri-prototype-<platform>-<arch>` artifacts:
 `tauri-prototype-win-x64`, `tauri-prototype-mac-arm64`, or
 `tauri-prototype-linux-x64`. Extract the downloaded ZIP, then its `.tar.gz`
 archive; this preserves the executable permissions on macOS and Linux. The
-archive includes the source revision and license notices. These are unsigned release executables, not
-installers. The prototype uses the platform WebView prerequisites above and
+archive includes the source revision and license notices. These are unsigned
+release executables, not installers. The prototype uses the platform WebView prerequisites above and
 does not bundle AI runtimes or require an AI API model to build.
+
+Each artifact includes the application license, browser third-party notices,
+the prototype README, and `SOURCE_REVISION` and `SOURCE_URL` identifying and
+linking to its source commit.
+`prototypes/tauri/host/` contains the pinned Cargo manifest, lockfile, and Rust
+toolchain. `licenses/rust/inventory.json` records the target's resolved Rust
+dependencies and their license declarations; available crate license and notice
+files accompany that inventory. The source for the recorded revision is in
+[the Soundscaper repository](https://github.com/LeoWattenberg/Soundscaper).
 
 The workflow can also be started from the repository root with GitHub CLI:
 

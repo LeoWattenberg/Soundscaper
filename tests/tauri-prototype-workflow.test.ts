@@ -55,9 +55,7 @@ test('Tauri artifacts use the pinned Rust host and include a portable executable
 	assert.match(job, /node prototypes\/tauri\/run\.mjs build --release/u);
 	assert.match(job, /if: runner\.os == 'Linux'\s+run: node prototypes\/tauri\/run\.mjs smoke --release/u);
 	assert.match(job, /tar -czf [^\n]+ -C \.tauri-prototype\/artifact \./u);
-	for (const file of ['LICENSE', 'THIRD_PARTY_LICENSES.md', 'prototypes/tauri/README.md']) {
-		assert.ok(job.includes(file), `artifact must preserve ${file}`);
-	}
+	assert.match(job, /node prototypes\/tauri\/stage-artifact\.mjs\s+env:\s+SOUNDSCAPER_SOURCE_REVISION: \$\{\{ github\.sha \}\}/u);
 	assert.match(job, /name: tauri-prototype-\$\{\{ matrix\.target\.platform \}\}-\$\{\{ matrix\.target\.arch \}\}/u);
 	assert.match(job, /if-no-files-found: error/u);
 	assert.match(job, /include-hidden-files: true/u);

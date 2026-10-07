@@ -287,20 +287,18 @@ jobs:
         if: runner.os == 'Linux'
         run: node prototypes/tauri/run.mjs smoke --release
 
+      - name: Stage the executable, source pins, and dependency notices
+        run: node prototypes/tauri/stage-artifact.mjs
+        env:
+          SOUNDSCAPER_SOURCE_REVISION: ${{ github.sha }}
+
       # Archive before upload so Unix executable permissions survive download.
-      - name: Archive the executable and notices
+      - name: Archive the Tauri prototype
         shell: bash
         env:
           TAURI_PLATFORM: ${{ matrix.target.platform }}
           TAURI_ARCH: ${{ matrix.target.arch }}
-          SOURCE_REVISION: ${{ github.sha }}
         run: |
-          executable=soundscaper-tauri-prototype
-          if [ "$TAURI_PLATFORM" = win ]; then executable="$executable.exe"; fi
-          mkdir -p .tauri-prototype/artifact
-          cp ".tauri-prototype/target/release/$executable" .tauri-prototype/artifact/
-          cp LICENSE THIRD_PARTY_LICENSES.md prototypes/tauri/README.md .tauri-prototype/artifact/
-          printf '%s\n' "$SOURCE_REVISION" > .tauri-prototype/artifact/SOURCE_REVISION
           tar -czf ".tauri-prototype/tauri-prototype-$TAURI_PLATFORM-$TAURI_ARCH.tar.gz" -C .tauri-prototype/artifact .
 
       - name: Upload the Tauri prototype
