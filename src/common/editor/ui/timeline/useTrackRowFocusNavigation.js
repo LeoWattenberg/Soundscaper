@@ -1,9 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 
 import { clipGroups, focusFirst, normalizeClipSemantics } from './timeline-navigation.js';
 import { focusTrackRowNeighbor } from './track-row-neighbor-focus.ts';
+import { createTimelineClipRemovalFocus } from './timeline-clip-removal-focus.ts';
 
 export function createTrackRowFocusRouter({
 	trackIndex,
@@ -129,14 +130,15 @@ export function useTrackRowFocusNavigation({
 		(offset) => isFlatNavigation ? 0 : trackBaseTabIndex + trackIndex * 4 + offset,
 		[isFlatNavigation, trackBaseTabIndex, trackIndex],
 	);
+	const clipRemovalFocus = useMemo(() => createTimelineClipRemovalFocus(() => trackWindowRef.current), [trackWindowRef]);
 
 	useEffect(() => {
 		const root = trackWindowRef.current;
 		if (!root) return undefined;
-		const normalize = () => normalizeClipSemantics(root, {
-			flat: isFlatNavigation,
-			tabIndex: tabIndexFor(2),
-		});
+		const normalize = () => {
+			clipRemovalFocus.restore();
+			normalizeClipSemantics(root, { flat: isFlatNavigation, tabIndex: tabIndexFor(2) });
+		};
 		normalize();
 		const observer = new MutationObserver(normalize);
 		observer.observe(root, {
@@ -146,7 +148,7 @@ export function useTrackRowFocusNavigation({
 			subtree: true,
 		});
 		return () => observer.disconnect();
-	}, [isFlatNavigation, renderedClips, tabIndexFor, trackWindowRef]);
+	}, [clipRemovalFocus, isFlatNavigation, renderedClips, tabIndexFor, trackWindowRef]);
 
 	const router = createTrackRowFocusRouter({
 		trackIndex,
@@ -161,7 +163,9 @@ export function useTrackRowFocusNavigation({
 		onExtendTrackSelection,
 	});
 	const handleClipFocusCapture = (event) => {
-		if (isFlatNavigation || !isClipGroup(event.target)) return;
+		if (!isClipGroup(event.target)) return;
+		clipRemovalFocus.remember(event.target);
+		if (isFlatNavigation) return;
 		for (const clip of clipGroups(trackWindowRef.current)) clip.tabIndex = -1;
 		event.target.tabIndex = tabIndexFor(2);
 	};
