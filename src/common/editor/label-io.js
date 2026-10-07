@@ -1,4 +1,5 @@
 import { decodeWebVttLabelText, encodeWebVttLabelText } from './label-cue-text.ts';
+import { decodeLabelInputText } from './label-input-text.ts';
 
 export const AUDIO_EDITOR_LABEL_FORMATS = Object.freeze(['txt', 'srt', 'vtt']);
 export const AUDIO_EDITOR_LABEL_EXPORT_FORMATS = Object.freeze([...AUDIO_EDITOR_LABEL_FORMATS, 'json']);
@@ -105,7 +106,7 @@ function normalizeInput(input, options) {
 	if (typeof input === 'string') text = input;
 	else if (input instanceof Uint8Array || input instanceof ArrayBuffer) {
 		try {
-			text = new TextDecoder('utf-8', { fatal: true }).decode(input);
+			text = decodeLabelInputText(input, detectAudioEditorLabelFormat(options) === 'srt');
 		} catch (error) {
 			throw labelError('Label data is not valid UTF-8.', 'INVALID_UTF8', {}, error);
 		}
