@@ -93,6 +93,9 @@ function prepareFixed(type: string, options: Options, sampleRate: number, channe
 			? (progress: number) => startFrequency + frequencyDifference * progress
 			: (progress: number) => startFrequency * frequencyRatio ** progress;
 		const amplitudeDifference = endAmplitude - startAmplitude;
+		if (startFrequency === endFrequency && amplitudeDifference === 0 && startAmplitude > 0) {
+			return prepareConstantChirp(frameCount, channelCount, startFrequency / sampleRate, startAmplitude, oscillate);
+		}
 		let phase = 0;
 		return monoSignal(frameCount, channelCount, (frames, start) => {
 			const output = new Float32Array(frames);
@@ -115,6 +118,22 @@ function prepareFixed(type: string, options: Options, sampleRate: number, channe
 	return { frameCount, render: createNoiseBlockRenderer(frameCount, channelCount, amplitude, color, seed, sampleRate) };
 }
 
+function prepareConstantChirp(frameCount: number, channelCount: number, step: number, amplitude: number,
+	oscillate: (phase: number) => number): PreparedSignal {
+	let phase = 0;
+	return monoSignal(frameCount, channelCount, (frames) => {
+		const output = new Float32Array(frames);
+		let currentPhase = phase;
+		for (let frame = 0; frame < frames; frame += 1) {
+			output[frame] = amplitude * oscillate(currentPhase);
+			currentPhase += step;
+			if (currentPhase >= 1) currentPhase -= 1;
+		}
+		phase = currentPhase;
+		return output;
+	});
+}
+
 function prepareDtmf(options: Options, sampleRate: number, channelCount: number): PreparedSignal {
 	const sequence = String(options.sequence ?? '123').toUpperCase().replace(/[\s,-]+/g, '');
 	if (!sequence.length || [...sequence].some((symbol) => !DTMF[symbol])) throw new RangeError('DTMF sequence contains an unsupported symbol.');
@@ -131,15 +150,28 @@ function prepareDtmf(options: Options, sampleRate: number, channelCount: number)
 	if (!Number.isSafeInteger(frameCount) || frameCount <= 0 || frameCount > 0x7fff_ffff) throw new RangeError('DTMF output is too large.');
 	const tones = new Map<string, Float32Array>();
 	let symbolIndex = 0;
+	let activeToneStart = 0;
+	let activeToneEnd = 0;
+	function updateToneGeometry(): void {
+		const toneStart = !scaledDuration ? symbolIndex * (toneFrames + silenceFrames)
+			: Math.round(symbolIndex * (toneSeconds + silenceSeconds) / naturalDuration * frameCount);
+		const toneEnd = !scaledDuration ? toneStart + toneFrames
+			: symbolIndex === sequence.length - 1 ? frameCount
+			: Math.round((symbolIndex * (toneSeconds + silenceSeconds) + toneSeconds) / naturalDuration * frameCount);
+		activeToneStart = toneStart; activeToneEnd = toneEnd;
+	}
+	updateToneGeometry();
 	function fillTone(output: Float32Array, destination: number, start: number, frames: number,
 		symbol: string, symbolFrames: number): void {
 		const [low, high] = DTMF[symbol]!;
+		const lowAngular = 2 * Math.PI * low;
+		const highAngular = 2 * Math.PI * high;
 		const fadeFrames = Math.min(Math.round(sampleRate * 0.005), Math.floor(symbolFrames / 2));
 		for (let index = 0; index < frames; index += 1) {
 			const frame = start + index;
 			const fade = fadeFrames ? Math.min(1, (frame + 1) / fadeFrames, (symbolFrames - frame) / fadeFrames) : 1;
 			output[destination + index] = amplitude * fade * 0.5 * (
-				Math.sin(2 * Math.PI * low * frame / sampleRate) + Math.sin(2 * Math.PI * high * frame / sampleRate)
+				Math.sin(lowAngular * frame / sampleRate) + Math.sin(highAngular * frame / sampleRate)
 			);
 		}
 	}
@@ -147,11 +179,7 @@ function prepareDtmf(options: Options, sampleRate: number, channelCount: number)
 		const output = new Float32Array(frames);
 		const end = start + frames;
 		while (symbolIndex < sequence.length) {
-			const toneStart = !scaledDuration ? symbolIndex * (toneFrames + silenceFrames)
-				: Math.round(symbolIndex * (toneSeconds + silenceSeconds) / naturalDuration * frameCount);
-			const toneEnd = !scaledDuration ? toneStart + toneFrames
-				: symbolIndex === sequence.length - 1 ? frameCount
-				: Math.round((symbolIndex * (toneSeconds + silenceSeconds) + toneSeconds) / naturalDuration * frameCount);
+			const toneStart = activeToneStart; const toneEnd = activeToneEnd;
 			if (toneStart >= end) break;
 			const localStart = Math.max(start, toneStart) - toneStart;
 			const toneCount = Math.min(end, toneEnd) - Math.max(start, toneStart);
@@ -171,6 +199,7 @@ function prepareDtmf(options: Options, sampleRate: number, channelCount: number)
 			}
 			if (toneEnd > end) break;
 			symbolIndex += 1;
+			if (symbolIndex < sequence.length) updateToneGeometry();
 		}
 		return output;
 	});
@@ -180,6 +209,7 @@ function prepareMorse(options: Options, sampleRate: number, channelCount: number
 	const words = encodeMorseCode(options.text ?? 'SOS');
 	const wordsPerMinute = finiteInRange(options.wordsPerMinute ?? 20, 1, 120, 'wordsPerMinute');
 	const frequency = finiteInRange(options.frequency ?? 700, 0.01, sampleRate / 2, 'frequency');
+	const angularFrequency = 2 * Math.PI * frequency;
 	const amplitude = finiteInRange(options.amplitude ?? 0.8, 0, 1, 'amplitude');
 	const segments = morseCodeKeying(words);
 	const dotSeconds = morseCodeDotSeconds(wordsPerMinute);
@@ -206,7 +236,7 @@ function prepareMorse(options: Options, sampleRate: number, channelCount: number
 				const ramp = segment.edgeFrames
 					? Math.min(1, (frame - segment.start + 1) / segment.edgeFrames, (segment.end - frame) / segment.edgeFrames) : 1;
 				output[frame - start] = amplitude * (ramp === 1 ? 1 : 0.5 - 0.5 * Math.cos(Math.PI * ramp))
-					* Math.sin(2 * Math.PI * frequency * (frame - segment.start) / sampleRate);
+					* Math.sin(angularFrequency * (frame - segment.start) / sampleRate);
 			}
 			if (segment.end > end) break;
 			segmentIndex += 1;

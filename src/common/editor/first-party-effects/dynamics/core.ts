@@ -23,22 +23,34 @@ export class BandCompressor {
 	private energy = 0;
 	private reduction = 0;
 	private readonly detector: number;
+	private readonly detectorComplement: number;
+	private attackSeconds: number | undefined;
+	private releaseSeconds: number | undefined;
 	private attack = 0;
 	private release = 0;
 	private threshold = 0;
 	private slope = 0;
 	private maximum = 60;
-	constructor(private readonly rate: number) { this.detector = Math.exp(-1 / (0.001 * rate)); }
+	constructor(private readonly rate: number) {
+		this.detector = Math.exp(-1 / (0.001 * rate));
+		this.detectorComplement = 1 - this.detector;
+	}
 	configure(threshold: number, ratio: number, attack: number, release: number, maximum = 60): void {
 		this.threshold = threshold;
 		this.slope = 1 - 1 / ratio;
-		this.attack = Math.exp(-1 / (attack * this.rate));
-		this.release = Math.exp(-1 / (release * this.rate));
+		if (!Object.is(attack, this.attackSeconds)) {
+			this.attack = Math.exp(-1 / (attack * this.rate));
+			this.attackSeconds = attack;
+		}
+		if (!Object.is(release, this.releaseSeconds)) {
+			this.release = Math.exp(-1 / (release * this.rate));
+			this.releaseSeconds = release;
+		}
 		this.maximum = maximum;
 		if (ratio === 1 || maximum === 0) this.reduction = 0;
 	}
 	gain(power: number): number {
-		this.energy = this.detector * this.energy + (1 - this.detector) * power;
+		this.energy = this.detector * this.energy + this.detectorComplement * power;
 		if ((this.slope === 0 || this.maximum === 0) && Number.isFinite(this.energy)) return 1;
 		const over = 10 * Math.log10(Math.max(1e-30, this.energy)) - this.threshold;
 		const knee = over <= -3 ? 0 : over >= 3 ? over : (over + 3) ** 2 / 12;

@@ -60,23 +60,27 @@ export function pffftSpectrogramBandEnergies(waveformData, width, options = {}) 
 		: (index) => waveformData[index];
 	const window = spectrogramWindow(fftWindowSize, options.windowType);
 	const { real, imaginary } = fftScratch(fftWindowSize);
+	const halfWindow = Math.floor(fftWindowSize / 2);
+	const bandSpans = complexMagnitudeSpans(fftWindowSize / 2, frequencyBands);
 	const columns = [];
 	for (let pixel = pixelStart; pixel < pixelEnd; pixel += pixelSkip) {
 		const sampleIndex = Math.floor(pixel * samplesPerPixel);
 		if (sampleIndex >= waveformData.length) break;
 		imaginary.fill(0);
-		for (let index = 0; index < fftWindowSize; index += 1) {
-			const frameIndex = sampleIndex + index - Math.floor(fftWindowSize / 2);
-			const sample = hasSampleAccessor || (frameIndex >= 0 && frameIndex < waveformData.length)
-				? Number(sampleAt(frameIndex)) || 0
-				: 0;
+		const sourceStart = sampleIndex - halfWindow;
+		const start = hasSampleAccessor ? 0 : Math.min(fftWindowSize, Math.max(0, -sourceStart));
+		const end = hasSampleAccessor ? fftWindowSize : Math.max(start, Math.min(fftWindowSize, Math.ceil(waveformData.length - sourceStart)));
+		real.fill(0, 0, start);
+		for (let index = start; index < end; index += 1) {
+			const sample = Number(sampleAt(sourceStart + index)) || 0;
 			real[index] = sample * window.values[index];
 		}
+		real.fill(0, end);
 		runtime.fft(real, imaginary, false);
 		columns.push(groupComplexMagnitudes(
 			real,
 			imaginary,
-			frequencyBands,
+			bandSpans,
 			2 / (fftWindowSize * window.coherentGain),
 		));
 	}
@@ -216,10 +220,14 @@ function spectrogramRowSpans(
 		return cached;
 	}
 	const spans = [];
+	const transformFrequency = frequencyScale(scale);
+	const minimumScaled = scale === 'linear' ? 0 : transformFrequency(minimumFrequency);
+	const maximumScaled = scale === 'linear' ? 0 : transformFrequency(maximumFrequency);
 	let active = null;
 	for (let pixelY = 0; pixelY < height; pixelY += 1) {
 		const normalized = 1 - pixelY / height;
-		const frequency = normalizedToFrequency(normalized, minimumFrequency, maximumFrequency, scale);
+		const frequency = normalizedToFrequency(normalized, minimumFrequency, maximumFrequency, scale,
+			transformFrequency, minimumScaled, maximumScaled);
 		const band = Math.max(0, Math.min(frequencyBands - 1,
 			Math.floor(frequency / nyquistFrequency * frequencyBands)));
 		if (active?.band === band) {
@@ -242,32 +250,36 @@ function spectrogramRowSpans(
 	return bounded;
 }
 
-function groupComplexMagnitudes(real, imaginary, frequencyBands, magnitudeScale = 1) {
-	const bandEnergies = new Array(frequencyBands).fill(0);
-	const spectrumLength = real.length / 2;
-	for (let band = 0; band < frequencyBands; band += 1) {
+function complexMagnitudeSpans(spectrumLength, frequencyBands) {
+	return Array.from({ length: frequencyBands }, (_, band) => {
 		const start = Math.floor(band * spectrumLength / frequencyBands);
 		const end = Math.max(start + 1,
 			Math.floor((band + 1) * spectrumLength / frequencyBands));
+		return { start, end, count: Math.max(1, end - start) };
+	});
+}
+
+function groupComplexMagnitudes(real, imaginary, spans, magnitudeScale = 1) {
+	const bandEnergies = new Array(spans.length);
+	for (let band = 0; band < spans.length; band += 1) {
+		const { start, end, count } = spans[band];
 		let sum = 0;
 		for (let index = start; index < end; index += 1) sum += Math.hypot(real[index], imaginary[index]);
-		bandEnergies[band] = sum / Math.max(1, end - start) * magnitudeScale;
+		bandEnergies[band] = sum / count * magnitudeScale;
 	}
 	return bandEnergies;
 }
 
-function normalizedToFrequency(value, minimum, maximum, scale) {
+function normalizedToFrequency(value, minimum, maximum, scale, transformFrequency, minimumScaled, maximumScaled) {
 	if (value <= 0) return minimum;
 	if (value >= 1) return maximum;
 	if (scale === 'linear') return minimum + value * (maximum - minimum);
-	const minimumScaled = scaleFrequency(minimum, scale);
-	const maximumScaled = scaleFrequency(maximum, scale);
 	const target = minimumScaled + value * (maximumScaled - minimumScaled);
 	let low = minimum;
 	let high = maximum;
 	for (let iteration = 0; iteration < 32; iteration += 1) {
 		const midpoint = (low + high) / 2;
-		if (scaleFrequency(midpoint, scale) < target) low = midpoint;
+		if (transformFrequency(midpoint) < target) low = midpoint;
 		else high = midpoint;
 	}
 	return (low + high) / 2;
@@ -281,17 +293,17 @@ function normalizeScale(value) {
 		: 'mel';
 }
 
-function scaleFrequency(value, scale) {
-	const frequency = Math.max(0, Number(value) || 0);
-	if (scale === 'linear') return frequency;
-	if (scale === 'logarithmic') return Math.log1p(frequency);
-	if (scale === 'bark') {
-		return 13 * Math.atan(0.00076 * frequency)
-			+ 3.5 * Math.atan((frequency / 7_500) ** 2);
-	}
-	if (scale === 'erb') return 21.4 * Math.log10(1 + 0.00437 * frequency);
-	if (scale === 'period') return frequency / (frequency + 1_000);
-	return 2_595 * Math.log10(1 + frequency / 700);
+function frequencyScale(scale) {
+	const normalize = (value) => Math.max(0, Number(value) || 0);
+	if (scale === 'linear') return normalize;
+	if (scale === 'logarithmic') return (value) => Math.log1p(normalize(value));
+	if (scale === 'bark') return (value) => {
+		const frequency = normalize(value);
+		return 13 * Math.atan(0.00076 * frequency) + 3.5 * Math.atan((frequency / 7_500) ** 2);
+	};
+	if (scale === 'erb') return (value) => 21.4 * Math.log10(1 + 0.00437 * normalize(value));
+	if (scale === 'period') return (value) => { const frequency = normalize(value); return frequency / (frequency + 1_000); };
+	return (value) => 2_595 * Math.log10(1 + normalize(value) / 700);
 }
 
 function spectrogramColor(intensity) {

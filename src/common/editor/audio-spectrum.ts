@@ -6,6 +6,24 @@ export const ANALYSIS_FLOOR_DB = -120;
 
 // Twelve accepted powers of two occupy less than one MiB in total.
 const hannWindows = new Map<number, Float64Array>();
+const nativeSampleLength = Object.getOwnPropertyDescriptor(
+	Object.getPrototypeOf(Float32Array.prototype) as object, 'length',
+)!.get as (this: Float32Array) => number;
+interface SpectrumWorkspace {
+	readonly real: Float64Array;
+	readonly imaginary: Float64Array;
+	readonly powers: Float64Array;
+	busy: boolean;
+}
+// One private workspace per accepted geometry, less than 3 MiB in total.
+const workspaces = new Map<number, SpectrumWorkspace>();
+function acquireWorkspace(size: number): SpectrumWorkspace {
+	const existing = workspaces.get(size);
+	if (existing && !existing.busy) { existing.busy = true; existing.powers.fill(0); return existing; }
+	const workspace = { real: new Float64Array(size), imaginary: new Float64Array(size), powers: new Float64Array(size / 2 + 1), busy: true };
+	if (!existing) workspaces.set(size, workspace);
+	return workspace;
+}
 function hannWindow(size: number): Float64Array {
 	const existing = hannWindows.get(size);
 	if (existing) return existing;
@@ -31,18 +49,21 @@ export function calculateAudioSpectrum(
 	}
 	const frameCount = channels[0]?.length ?? 0;
 	const offset = Math.max(0, Math.min(frameCount, Number(options.offsetFrame) || 0));
-	const real = new Float64Array(requestedSize);
-	const imaginary = new Float64Array(requestedSize);
-	const powers = new Float64Array(requestedSize / 2 + 1);
+	const workspace = acquireWorkspace(requestedSize);
+	const { real, imaginary, powers } = workspace;
+	try {
 	const window = hannWindow(requestedSize);
 	const windowCount = options.average ? Math.max(1, Math.ceil((frameCount - offset) / (requestedSize / 2))) : 1;
 	for (let block = 0; block < windowCount; block += 1) {
 		const start = offset + block * (requestedSize / 2);
 		for (const channel of channels) {
-			for (let index = 0; index < requestedSize; index += 1) {
+			const nativeLength = ArrayBuffer.isView(channel) && nativeSampleLength.call(channel) === frameCount;
+			const sourceFrames = Number.isInteger(start) && nativeLength ? Math.min(requestedSize, frameCount - start) : requestedSize;
+			for (let index = 0; index < sourceFrames; index += 1) {
 				const value = channel[start + index] ?? 0;
 				real[index] = (Number.isFinite(value) ? value : 0) * window[index]!;
 			}
+			real.fill(0, sourceFrames);
 			imaginary.fill(0);
 			fftRadixTwoFloat64V1(real, imaginary, false);
 			for (let index = 0; index < powers.length; index += 1) {
@@ -55,6 +76,7 @@ export function calculateAudioSpectrum(
 		return Object.freeze({ frequency: index * sampleRate / requestedSize, amplitude, db: amplitudeToDb(amplitude) });
 	});
 	return Object.freeze({ sampleRate, size: requestedSize, bins: Object.freeze(bins) });
+	} finally { workspace.busy = false; }
 }
 
 export function validateAnalysisChannels(channels: unknown): asserts channels is readonly Float32Array[] {

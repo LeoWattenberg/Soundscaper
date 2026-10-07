@@ -37,9 +37,9 @@ export function createDeesserProcessor({ sampleRate, channelCount, params = {} }
 					const detected = high[channel] - detector.low(high[channel], channel);
 					power = Math.max(power, detected * detected);
 				}
-				const gain = compressor.gain(power);
+				const correction = compressor.gain(power) - 1;
 				for (let channel = 0; channel < output.length; channel += 1) {
-					output[channel][frame] = channel < channelCount ? dry[channel] + high[channel] * (gain - 1) : 0;
+					output[channel][frame] = channel < channelCount ? dry[channel] + high[channel] * correction : 0;
 				}
 			}
 		},

@@ -8,6 +8,7 @@ export class ComplementaryCrossover {
 	private readonly previous: Float64Array;
 	private readonly state: Float64Array;
 	private coefficient: number;
+	private feedback: number;
 	private target: number;
 	private readonly smoothing: number;
 	private frequency: number;
@@ -18,6 +19,7 @@ export class ComplementaryCrossover {
 		this.previous = new Float64Array(channelCount);
 		this.state = new Float64Array(channelCount);
 		this.coefficient = this.target = this.design(frequency);
+		this.feedback = 1 - 2 * this.coefficient;
 		this.frequency = frequency;
 		this.smoothing = 1 - Math.exp(-1 / (0.005 * rate));
 	}
@@ -35,10 +37,13 @@ export class ComplementaryCrossover {
 		this.target = this.design(frequency);
 		this.frequency = frequency;
 	}
-	tick(): void { this.coefficient += this.smoothing * (this.target - this.coefficient); }
+	tick(): void {
+		this.coefficient += this.smoothing * (this.target - this.coefficient);
+		this.feedback = 1 - 2 * this.coefficient;
+	}
 	low(input: number, channel: number): number {
 		const result = this.coefficient * (input + this.previous[channel]!)
-			+ (1 - 2 * this.coefficient) * this.state[channel]!;
+			+ this.feedback * this.state[channel]!;
 		this.previous[channel] = input;
 		this.state[channel] = result;
 		return result;
@@ -47,6 +52,7 @@ export class ComplementaryCrossover {
 		this.previous.fill(0);
 		this.state.fill(0);
 		this.coefficient = this.target;
+		this.feedback = 1 - 2 * this.coefficient;
 	}
 }
 

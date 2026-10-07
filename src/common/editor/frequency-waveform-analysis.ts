@@ -9,7 +9,7 @@
  */
 
 import { ComplementaryCrossover } from './complementary-crossover.ts';
-import { accumulateFrequencyWaveformBandPeaks, combineFrequencyWaveformBandPeaks } from './frequency-waveform-band-peaks.ts';
+import { combineFrequencyWaveformBandPeaks } from './frequency-waveform-band-peaks.ts';
 import {
 	FREQUENCY_WAVEFORM_ANALYSIS_VERSION,
 	FREQUENCY_WAVEFORM_FFT_SIZE,
@@ -105,6 +105,42 @@ export class FrequencyWaveformBandSplitter {
 		return output;
 	}
 
+	/** Keep peak input rounded exactly like the public Float32 band outputs. */
+	accumulatePeaks(channels: readonly Float32Array[], level: MutableLevel, firstFrame: number): void {
+		const frames = validateChannels(channels, this.channelCount);
+		let bucket = Math.floor(firstFrame / level.blockSize);
+		let start = 0;
+		while (start < frames) {
+			const end = Math.min(frames, (bucket + 1) * level.blockSize - firstFrame);
+			for (let channel = 0; channel < this.channelCount; channel += 1) {
+				const lowTarget = level.bands.low[channel]!;
+				const midTarget = level.bands.mid[channel]!;
+				const highTarget = level.bands.high[channel]!;
+				let lowMin = lowTarget.minimums[bucket]!; let lowMax = lowTarget.maximums[bucket]!;
+				let midMin = midTarget.minimums[bucket]!; let midMax = midTarget.maximums[bucket]!;
+				let highMin = highTarget.minimums[bucket]!; let highMax = highTarget.maximums[bucket]!;
+				for (let frame = start; frame < end; frame += 1) {
+					// These private crossovers have immutable frequencies. Tick once
+					// per frame; every channel retains its own independent filter state.
+					if (channel === 0) { this.lower.tick(); this.upper.tick(); }
+					const input = finiteSample(channels[channel]![frame]);
+					const low = this.lowerBypassed ? input : this.lower.low(input, channel);
+					const upperLow = this.upperBypassed ? input : this.upper.low(input, channel);
+					const lowSample = Math.fround(low);
+					const midSample = Math.fround(upperLow - low);
+					const highSample = Math.fround(input - upperLow);
+					lowMin = Math.min(lowMin, lowSample); lowMax = Math.max(lowMax, lowSample);
+					midMin = Math.min(midMin, midSample); midMax = Math.max(midMax, midSample);
+					highMin = Math.min(highMin, highSample); highMax = Math.max(highMax, highSample);
+				}
+				lowTarget.minimums[bucket] = lowMin; lowTarget.maximums[bucket] = lowMax;
+				midTarget.minimums[bucket] = midMin; midTarget.maximums[bucket] = midMax;
+				highTarget.minimums[bucket] = highMin; highTarget.maximums[bucket] = highMax;
+			}
+			start = end; bucket += 1;
+		}
+	}
+
 	reset(): void {
 		this.lower.reset();
 		this.upper.reset();
@@ -121,6 +157,7 @@ export class FrequencyWaveformAnalyzer {
 	private readonly real = new Float32Array(FREQUENCY_WAVEFORM_FFT_SIZE);
 	private readonly imaginary = new Float32Array(FREQUENCY_WAVEFORM_FFT_SIZE);
 	private spectralLength = FREQUENCY_WAVEFORM_FFT_SIZE / 2;
+	private spectralStart = 0;
 	private nextCenterFrame = 0;
 	private framesProcessed = 0;
 	private finished = false;
@@ -165,8 +202,7 @@ export class FrequencyWaveformAnalyzer {
 			throw new RangeError('Frequency waveform chunks exceed the declared frame count.');
 		}
 		const visualChannels = channels.slice(0, this.visualChannelCount);
-		const bands = this.splitter.process(visualChannels);
-		accumulateFrequencyWaveformBandPeaks(this.levels[0]!, bands, this.framesProcessed);
+		this.splitter.accumulatePeaks(visualChannels, this.levels[0]!, this.framesProcessed);
 		for (let frame = 0; frame < frames; frame += 1) {
 			this.appendSpectralFrame(visualChannels, frame);
 		}
@@ -196,16 +232,20 @@ export class FrequencyWaveformAnalyzer {
 	}
 
 	private appendSpectralFrame(channels: readonly Float32Array[], frame: number): void {
+		let writeIndex = this.spectralStart + this.spectralLength;
+		if (writeIndex >= FREQUENCY_WAVEFORM_FFT_SIZE) writeIndex -= FREQUENCY_WAVEFORM_FFT_SIZE;
 		for (let channel = 0; channel < this.visualChannelCount; channel += 1) {
-			this.spectralBuffers[channel]![this.spectralLength] = finiteSample(channels[channel]![frame]);
+			this.spectralBuffers[channel]![writeIndex] = finiteSample(channels[channel]![frame]);
 		}
 		this.spectralLength += 1;
 		this.analyzeFullSpectralBuffer();
 	}
 
 	private appendSpectralSilence(): void {
+		let writeIndex = this.spectralStart + this.spectralLength;
+		if (writeIndex >= FREQUENCY_WAVEFORM_FFT_SIZE) writeIndex -= FREQUENCY_WAVEFORM_FFT_SIZE;
 		for (let channel = 0; channel < this.visualChannelCount; channel += 1) {
-			this.spectralBuffers[channel]![this.spectralLength] = 0;
+			this.spectralBuffers[channel]![writeIndex] = 0;
 		}
 		this.spectralLength += 1;
 		this.analyzeFullSpectralBuffer();
@@ -218,8 +258,12 @@ export class FrequencyWaveformAnalyzer {
 		for (let channel = 0; channel < this.visualChannelCount; channel += 1) {
 			const buffer = this.spectralBuffers[channel]!;
 			this.imaginary.fill(0);
-			for (let index = 0; index < FREQUENCY_WAVEFORM_FFT_SIZE; index += 1) {
-				this.real[index] = buffer[index]! * this.hann[index]!;
+			const firstSpan = FREQUENCY_WAVEFORM_FFT_SIZE - this.spectralStart;
+			for (let index = 0; index < firstSpan; index += 1) {
+				this.real[index] = buffer[this.spectralStart + index]! * this.hann[index]!;
+			}
+			for (let index = firstSpan; index < FREQUENCY_WAVEFORM_FFT_SIZE; index += 1) {
+				this.real[index] = buffer[index - firstSpan]! * this.hann[index]!;
 			}
 			this.transform(this.real, this.imaginary);
 			for (let bin = 2; bin <= FREQUENCY_WAVEFORM_FFT_SIZE / 2; bin += 1) {
@@ -236,10 +280,8 @@ export class FrequencyWaveformAnalyzer {
 			}
 		}
 		this.nextCenterFrame += FREQUENCY_WAVEFORM_HOP_SIZE;
-		for (const buffer of this.spectralBuffers) {
-			buffer.copyWithin(0, FREQUENCY_WAVEFORM_HOP_SIZE, FREQUENCY_WAVEFORM_FFT_SIZE);
-			buffer.fill(0, FREQUENCY_WAVEFORM_FFT_SIZE - FREQUENCY_WAVEFORM_HOP_SIZE);
-		}
+		this.spectralStart += FREQUENCY_WAVEFORM_HOP_SIZE;
+		if (this.spectralStart >= FREQUENCY_WAVEFORM_FFT_SIZE) this.spectralStart -= FREQUENCY_WAVEFORM_FFT_SIZE;
 		this.spectralLength -= FREQUENCY_WAVEFORM_HOP_SIZE;
 	}
 }

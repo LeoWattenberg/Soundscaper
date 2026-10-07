@@ -24,6 +24,8 @@ const TRUE_PEAK_FIR = Object.freeze([
 	Object.freeze([0.0148925781250, 0.0330810546875, 0.0292968750000, 0.0109863281250]),
 	Object.freeze([-0.0083007812500, -0.0189208984375, -0.0291748046875, 0.0017089843750]),
 ]);
+const TRUE_PEAK_INDICES = Array.from({ length: TRUE_PEAK_FIR.length }, (_, writeIndex) =>
+	Uint8Array.from({ length: TRUE_PEAK_FIR.length }, (_, tap) => (writeIndex + tap) % TRUE_PEAK_FIR.length));
 
 export function ebuEnergyToLufs(energy) {
 	return energy > 0 ? -0.691 + 10 * Math.log10(energy) : null;
@@ -150,7 +152,7 @@ export function createEbuR128Meter(options = {}) {
 				nextLiveUpdate += updateFrames;
 				lastLivePeak = livePeak;
 				lastLiveRms = liveSquareSamples ? Math.sqrt(liveSquares / liveSquareSamples) : 0;
-				lastLiveTruePeak = Math.max(livePeak, ...liveTruePeak.map(({ peak }) => peak));
+				lastLiveTruePeak = maximumChannelPeak(livePeak, liveTruePeak);
 				if (typeof onSnapshot === 'function') onSnapshot(snapshot());
 				livePeak = 0;
 				liveSquares = 0;
@@ -196,7 +198,7 @@ export function createEbuR128Meter(options = {}) {
 
 	function snapshot() {
 		const truePeakAmplitude = liveSquareSamples
-			? Math.max(livePeak, ...liveTruePeak.map(({ peak }) => peak))
+			? maximumChannelPeak(livePeak, liveTruePeak)
 			: lastLiveTruePeak;
 		const peak = liveSquareSamples ? livePeak : lastLivePeak;
 		const rms = liveSquareSamples ? Math.sqrt(liveSquares / liveSquareSamples) : lastLiveRms;
@@ -263,10 +265,13 @@ function createLoudnessHistogram() {
 	let totalEnergy = 0;
 	let minimumIndex = binCount;
 	let maximumIndex = -1;
+	let integratedCache;
+	let rangeCache;
 
 	function push(energy) {
 		const loudness = ebuEnergyToLufs(energy);
 		if (!Number.isFinite(loudness) || loudness <= ABSOLUTE_GATE_LUFS) return;
+		integratedCache = rangeCache = undefined;
 		const index = Math.min(binCount - 1, Math.max(0, Math.floor(
 			(loudness - ABSOLUTE_GATE_LUFS) / LOUDNESS_HISTOGRAM_RESOLUTION_LU,
 		)));
@@ -285,7 +290,7 @@ function createLoudnessHistogram() {
 		let energy = 0;
 		let firstIndex = maximumIndex + 1;
 		for (let index = minimumIndex; index <= maximumIndex; index += 1) {
-			if (binLoudness(index) <= relativeGate || counts[index] === 0) continue;
+			if (counts[index] === 0 || binLoudness(index) <= relativeGate) continue;
 			firstIndex = Math.min(firstIndex, index);
 			count += counts[index];
 			energy += energySums[index];
@@ -294,38 +299,37 @@ function createLoudnessHistogram() {
 	}
 
 	function integratedLufs() {
+		if (integratedCache !== undefined) return integratedCache;
 		const selected = gated(10);
-		return selected !== null && selected.count > 0
+		return integratedCache = selected !== null && selected.count > 0
 			? ebuEnergyToLufs(selected.energy / selected.count)
 			: null;
 	}
 
 	function loudnessRangeLu() {
+		if (rangeCache !== undefined) return rangeCache;
 		const selected = gated(20);
-		if (selected === null || selected.count < 2) return null;
-		return percentileLoudness(selected, 0.95) - percentileLoudness(selected, 0.1);
-	}
-
-	function percentileLoudness(selected, fraction) {
-		const position = (selected.count - 1) * fraction;
-		const lower = Math.floor(position);
-		const upper = Math.ceil(position);
-		const lowerValue = loudnessAtRank(selected, lower);
-		if (lower === upper) return lowerValue;
-		const upperValue = loudnessAtRank(selected, upper);
-		return lowerValue + (upperValue - lowerValue) * (position - lower);
-	}
-
-	function loudnessAtRank(selected, rank) {
+		if (selected === null || selected.count < 2) return rangeCache = null;
+		const lowPosition = (selected.count - 1) * 0.1;
+		const highPosition = (selected.count - 1) * 0.95;
+		const ranks = [Math.floor(lowPosition), Math.ceil(lowPosition), Math.floor(highPosition), Math.ceil(highPosition)];
+		const order = ranks[1] <= ranks[2] ? [0, 1, 2, 3] : [0, 2, 1, 3];
+		const values = new Array(4);
+		let next = 0;
 		let visited = 0;
 		for (let index = selected.firstIndex; index <= maximumIndex; index += 1) {
 			visited += counts[index];
-			if (visited > rank) return binLoudness(index);
+			while (next < 4 && visited > ranks[order[next]]) values[order[next++]] = binLoudness(index);
+			if (next === 4) break;
 		}
-		return binLoudness(maximumIndex);
+		while (next < 4) values[order[next++]] = binLoudness(maximumIndex);
+		const low = ranks[0] === ranks[1] ? values[0] : values[0] + (values[1] - values[0]) * (lowPosition - ranks[0]);
+		const high = ranks[2] === ranks[3] ? values[2] : values[2] + (values[3] - values[2]) * (highPosition - ranks[2]);
+		return rangeCache = high - low;
 	}
 
 	function reset() {
+		integratedCache = rangeCache = undefined;
 		counts.fill(0);
 		energySums.fill(0);
 		totalCount = 0;
@@ -351,11 +355,12 @@ function createEnergyWindow(capacity, momentaryFrames) {
 		push(energy) {
 			if (size >= capacity) shortTermSum -= ring[writeIndex];
 			if (size >= momentaryFrames) {
-				const expired = (writeIndex - momentaryFrames + capacity) % capacity;
+				const expired = writeIndex >= momentaryFrames ? writeIndex - momentaryFrames : writeIndex - momentaryFrames + capacity;
 				momentarySum -= ring[expired];
 			}
 			ring[writeIndex] = energy;
-			writeIndex = (writeIndex + 1) % capacity;
+			writeIndex += 1;
+			if (writeIndex === capacity) writeIndex = 0;
 			size += 1;
 			shortTermSum += energy;
 			momentarySum += energy;
@@ -432,22 +437,31 @@ function processBiquad(state, x0) {
 }
 
 function createTruePeakState() {
-	return { history: new Float64Array(TRUE_PEAK_FIR.length), writeIndex: 0, peak: 0 };
+	return { history: new Float64Array(TRUE_PEAK_FIR.length), writeIndex: 0, peak: 0, nonzero: 0 };
 }
 
 function pushTruePeak(state, sample) {
+	if (state.history[state.writeIndex] !== 0) state.nonzero -= 1;
 	state.history[state.writeIndex] = sample;
-	state.writeIndex = (state.writeIndex + 1) % state.history.length;
+	if (sample !== 0) state.nonzero += 1;
+	state.writeIndex += 1;
+	if (state.writeIndex === state.history.length) state.writeIndex = 0;
 	let peak = Math.abs(sample);
-	for (let phase = 0; phase < 4; phase += 1) {
+	const indices = TRUE_PEAK_INDICES[state.writeIndex];
+	for (let phase = 0; state.nonzero && phase < 4; phase += 1) {
 		let interpolated = 0;
 		for (let tap = 0; tap < TRUE_PEAK_FIR.length; tap += 1) {
-			const index = (state.writeIndex + tap) % state.history.length;
+			const index = indices[tap];
 			interpolated += state.history[index] * TRUE_PEAK_FIR[tap][phase];
 		}
 		peak = Math.max(peak, Math.abs(interpolated));
 	}
 	state.peak = Math.max(state.peak, peak);
+	return peak;
+}
+
+function maximumChannelPeak(peak, states) {
+	for (const state of states) peak = Math.max(peak, state.peak);
 	return peak;
 }
 

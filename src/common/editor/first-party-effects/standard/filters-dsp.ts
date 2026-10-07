@@ -50,12 +50,13 @@ export function createStandardFilterProcessor(options: StandardFilterProcessorOp
 			// Direct form II transposed, retaining double precision state between
 			// calls. There are no allocations or coefficient calculations here.
 			for (let channel = 0; channel < channelCount; channel++) {
+				const channelBase = channel * coefficients.length * 2;
 				for (let frame = 0; frame < frames; frame++) {
 					const sample = input[channel]?.[frame] ?? 0;
 					let value = Number.isFinite(sample) ? sample : 0;
 					for (let stage = 0; stage < coefficients.length; stage++) {
 						const coefficient = coefficients[stage];
-						const index = (channel * coefficients.length + stage) * 2;
+						const index = channelBase + stage * 2;
 						const filtered = coefficient[0] * value + state[index];
 						state[index] = coefficient[1] * value - coefficient[3] * filtered + state[index + 1];
 						state[index + 1] = coefficient[2] * value - coefficient[4] * filtered;

@@ -8,7 +8,11 @@ import type { SelectionInputValidation } from '../../audacity-effects/pcm-channe
  * The mid band is the difference of the two low-pass outputs. At unity gains
  * the band corrections are zero, preserving the original samples exactly.
  */
-export function createMultibandCompressorProcessor({ sampleRate, channelCount, params = {} }: BandDynamicsOptions) {
+export function createMultibandCompressorProcessor(options: BandDynamicsOptions) {
+	return createProcessor(options, true);
+}
+
+function createProcessor({ sampleRate, channelCount, params = {} }: BandDynamicsOptions, collectAnalysis: boolean) {
 	validateGeometry(sampleRate, channelCount);
 	let settings = normalizeBandDynamicsParams('multiband-compressor', params);
 	const lower = new ComplementaryCrossover(sampleRate, channelCount, settings.lowCrossover);
@@ -16,7 +20,6 @@ export function createMultibandCompressorProcessor({ sampleRate, channelCount, p
 	const compressors = Array.from({ length: 3 }, () => new BandCompressor(sampleRate));
 	const dry = new Float64Array(channelCount);
 	const bands = Array.from({ length: 3 }, () => new Float64Array(channelCount));
-	const powers = new Float64Array(3);
 	const gains = new Float64Array(3);
 	const makeup = new Float64Array(3);
 	const targetMakeup = new Float64Array(3);
@@ -60,34 +63,37 @@ export function createMultibandCompressorProcessor({ sampleRate, channelCount, p
 		},
 		processBlock(input: readonly Float32Array[], output: readonly Float32Array[], frames: number) {
 			for (let frame = 0; frame < frames; frame += 1) {
-				lower.tick(); upper.tick(); powers.fill(0);
+				lower.tick(); upper.tick();
+				let lowPower = 0; let midPower = 0; let highPower = 0;
 				for (let channel = 0; channel < channelCount; channel += 1) {
 					const value = input[channel]?.[frame] ?? 0;
 					dry[channel] = Number.isFinite(value) ? value : 0;
-					analysisInputPeak = Math.max(analysisInputPeak, Math.abs(dry[channel]));
+					if (collectAnalysis) analysisInputPeak = Math.max(analysisInputPeak, Math.abs(dry[channel]));
 					const low = lower.low(dry[channel], channel);
 					const lowMid = upper.low(dry[channel], channel);
 					bands[0][channel] = low;
 					bands[1][channel] = lowMid - low;
 					bands[2][channel] = dry[channel] - lowMid;
-					for (let band = 0; band < 3; band += 1) powers[band] = Math.max(powers[band], bands[band][channel] ** 2);
+					lowPower = Math.max(lowPower, bands[0][channel] ** 2);
+					midPower = Math.max(midPower, bands[1][channel] ** 2);
+					highPower = Math.max(highPower, bands[2][channel] ** 2);
 				}
 				for (let band = 0; band < 3; band += 1) {
 					makeup[band] += smoothing * (targetMakeup[band] - makeup[band]);
-					const compressionGain = compressors[band].gain(powers[band]);
-					analysisMinimumGain = Math.min(analysisMinimumGain, compressionGain);
-					gains[band] = compressionGain * makeup[band];
+					const compressionGain = compressors[band].gain(band === 0 ? lowPower : band === 1 ? midPower : highPower);
+					if (collectAnalysis) analysisMinimumGain = Math.min(analysisMinimumGain, compressionGain);
+					gains[band] = compressionGain * makeup[band] - 1;
 				}
 				for (let channel = 0; channel < output.length; channel += 1) {
 					let value = dry[channel] ?? 0;
 					if (channel < channelCount) {
-						for (let band = 0; band < 3; band += 1) value += bands[band][channel] * (gains[band] - 1);
+						for (let band = 0; band < 3; band += 1) value += bands[band][channel] * gains[band];
 					}
 					output[channel][frame] = value;
-					analysisOutputPeak = Math.max(analysisOutputPeak, Math.abs(value));
+					if (collectAnalysis) analysisOutputPeak = Math.max(analysisOutputPeak, Math.abs(value));
 				}
 			}
-			analysisFrames += frames;
+			if (collectAnalysis) analysisFrames += frames;
 		},
 	};
 }
@@ -95,7 +101,7 @@ export function createMultibandCompressorProcessor({ sampleRate, channelCount, p
 export function applyMultibandCompressor(channels: readonly Float32Array[], sampleRate: number, params: Readonly<Record<string, unknown>> = {},
 	validation?: SelectionInputValidation) {
 	const frames = validateChannels(channels, sampleRate, validation);
-	const processor = createMultibandCompressorProcessor({ sampleRate, channelCount: channels.length, params });
+	const processor = createProcessor({ sampleRate, channelCount: channels.length, params }, false);
 	const output = channels.map(() => new Float32Array(frames));
 	processor.processBlock(channels, output, frames);
 	return output;

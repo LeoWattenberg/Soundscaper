@@ -49,15 +49,16 @@ export function applyStandardEffect(type: StandardEffectType, channels: readonly
 	const output = channels.map(() => new Float32Array(frames));
 	const latency = processor.latencyFrames ?? 0;
 	const blockSize = 1024;
-	const zeros = channels.map(() => new Float32Array(blockSize));
+	let zeros: Float32Array[] | undefined;
 	const scratch = channels.map(() => new Float32Array(blockSize));
-	const input: Float32Array[] = [...zeros];
+	const input: Float32Array[] = [];
 	try {
 		for (let offset = 0; offset < frames + latency; offset += blockSize) {
 			const count = Math.min(blockSize, frames + latency - offset);
 			for (let channel = 0; channel < channels.length; channel += 1) {
 				if (offset + count <= frames) input[channel] = channels[channel].subarray(offset, offset + count);
 				else {
+					zeros ??= channels.map(() => new Float32Array(blockSize));
 					const zero = zeros[channel];
 					zero.fill(0);
 					zero.set(channels[channel].subarray(offset, Math.min(frames, offset + count)));
@@ -67,7 +68,10 @@ export function applyStandardEffect(type: StandardEffectType, channels: readonly
 			processor.processBlock(input, scratch, count);
 			const start = Math.max(0, latency - offset);
 			const end = Math.min(count, frames + latency - offset);
-			if (end > start) for (let channel = 0; channel < output.length; channel++) output[channel].set(scratch[channel].subarray(start, end), offset + start - latency);
+			if (end > start) for (let channel = 0; channel < output.length; channel++) {
+				const samples = scratch[channel];
+				output[channel].set(start === 0 && end === samples.length ? samples : samples.subarray(start, end), offset + start - latency);
+			}
 		}
 		return output;
 	} finally { processor.dispose?.(); }
