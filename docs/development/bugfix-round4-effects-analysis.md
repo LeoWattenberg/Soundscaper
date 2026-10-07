@@ -80,5 +80,28 @@ pass, 46 tests altogether. The regression measures beyond the intentional
 `audio-editor-round4-source-duck-placement.spec.js`; evidence is recorded in
 `/tmp/soundscaper-r4-root-source-duck-*`.
 
+## R4-ROOT-004 — Reimporting a program disables its authored original
+
+Choose Tools → Macros palette → New program and enter
+`sound.log.info('Original authored program ran');`. Export program, import that
+unchanged download without deleting the original, and select the authored
+original again. Its Run program button remains enabled, but the baseline run
+fails without executing its source: an unreviewed duplicate incorrectly revokes
+the existing permission for those exact authored bytes.
+
+The source gate now permits an exact source when any retained copy has its
+authored or explicitly reviewed permission. The imported record still requires
+review in the palette. Removing the permitted original, or changing the only
+reviewed copy, restores the block for the unreviewed source. This differs from
+the earlier review-checkbox and import-feedback presentation defects.
+
+The ordinary export/chooser/import/run workflow fails on immutable baseline
+`a0322d6e4` and passes Chromium, Firefox and WebKit on the clean owned
+`authored-import-clean2` build. Two strict service regressions and existing
+library/program cases pass, 18 tests altogether; targeted lint also passes.
+Regression files are `audio-editor-round4-authored-program-import.test.ts` and
+`audio-editor-round4-authored-program-import.spec.js`; evidence is recorded in
+`/tmp/soundscaper-r4-root-authored-program-import-*`.
+
 These browser DSP, UI, and regression changes retain the assistance runtime closure.
 A manual **Update AI assets** run is not required.

@@ -138,7 +138,10 @@ export function macroScriptSourceIsBlocked(
 	source: string,
 ): boolean {
 	const text = String(source ?? '');
-	return scripts.some((script) => script.source === text && !macroScriptIsRunnable(script));
+	const matching = scripts.filter((script) => script.source === text);
+	// Importing another copy cannot revoke permission already given to these
+	// exact bytes. Its own record still requires review in the palette.
+	return matching.length > 0 && !matching.some(macroScriptIsRunnable);
 }
 
 export function normalizeMacroScript(value: unknown): MacroScriptRecord {
