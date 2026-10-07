@@ -43,7 +43,7 @@ export function createLabeledAudioClipboardDescriptor(
 	const durationFrames = spans.at(-1)!.endFrame - originFrame;
 	const merged = new Map<string, DataRecord>();
 	let template: DataRecord | null = null;
-	for (const region of spans) {
+	for (const [regionIndex, region] of spans.entries()) {
 		const descriptor = createDescriptor(project, {
 			startFrame: region.startFrame,
 			endFrame: region.endFrame,
@@ -57,6 +57,10 @@ export function createLabeledAudioClipboardDescriptor(
 			const clips = ((value.clips as DataRecord[] | undefined) || []).map((clip) => ({
 				...clip,
 				offsetFrame: Number(clip.offsetFrame) + offset,
+				// Each excerpt is a separate aligned pair, even when both came
+				// from the same linked recording. A link may own only two leaves.
+				...(spans.length > 1 && typeof clip.avLinkId === 'string' && clip.avLinkId
+					? { avLinkId: `labeled-${String(regionIndex)}-${clip.avLinkId}` } : {}),
 			}));
 			if (existing) existing.clips = [...(existing.clips as DataRecord[]), ...clips];
 			else merged.set(sourceTrackId, { ...value, clips });
