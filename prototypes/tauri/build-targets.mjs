@@ -6,6 +6,30 @@ const ALL_TARGETS = Object.freeze([
 	Object.freeze({ runner: 'ubuntu-22.04', platform: 'linux', arch: 'x64', node_arch: 'x64' }),
 ]);
 
+/** @typedef {{ platform: 'win' | 'mac' | 'linux', arch: 'x64' | 'arm64', rustTarget: string }} TauriPrototypeTarget */
+/** @type {readonly Readonly<TauriPrototypeTarget>[]} */
+const RUST_TARGETS = Object.freeze([
+	Object.freeze({ platform: 'win', arch: 'x64', rustTarget: 'x86_64-pc-windows-msvc' }),
+	Object.freeze({ platform: 'win', arch: 'arm64', rustTarget: 'aarch64-pc-windows-msvc' }),
+	Object.freeze({ platform: 'mac', arch: 'arm64', rustTarget: 'aarch64-apple-darwin' }),
+	Object.freeze({ platform: 'linux', arch: 'x64', rustTarget: 'x86_64-unknown-linux-gnu' }),
+	Object.freeze({ platform: 'linux', arch: 'arm64', rustTarget: 'aarch64-unknown-linux-gnu' }),
+]);
+
+/** @param {unknown} rustTarget @returns {Readonly<TauriPrototypeTarget>} */
+export function describeTauriPrototypeTarget(rustTarget) {
+	const target = RUST_TARGETS.find((entry) => entry.rustTarget === rustTarget);
+	if (!target) throw new TypeError(`Unsupported Tauri prototype Rust target: ${String(rustTarget)}`);
+	return target;
+}
+
+/** @param {string} platform @param {string} arch */
+export function tauriPrototypeRustTarget(platform, arch) {
+	const target = RUST_TARGETS.find((entry) => entry.platform === platform && entry.arch === arch);
+	if (!target) throw new TypeError(`Unsupported Tauri prototype platform/architecture: ${platform}/${arch}`);
+	return target.rustTarget;
+}
+
 /** @param {unknown} selection */
 export function selectTauriPrototypeBuildTargets(selection) {
 	let targets;

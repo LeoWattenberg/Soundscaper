@@ -20,10 +20,16 @@ const phaseProgress = phaseLabels.map((_label, index) => (
 const phaseCounts = phaseLabels.map((_label, index) => (
 	document.getElementById(`phase-count-${String(index)}`)
 ));
-const phaseItems = phaseLabels.map(() => null);
+const tauriPhase = document.getElementById('tauri-phase');
+const tauriProgress = document.getElementById('phase-progress-tauri');
+const tauriCount = document.getElementById('phase-count-tauri');
+const phaseItems = new Map();
 if (!(status instanceof HTMLElement) || !(count instanceof HTMLElement)
 	|| !(currentItem instanceof HTMLElement)
 	|| !(progress instanceof HTMLProgressElement)
+	|| !(tauriPhase instanceof HTMLElement)
+	|| !(tauriProgress instanceof HTMLProgressElement)
+	|| !(tauriCount instanceof HTMLElement)
 	|| phaseProgress.some((element) => !(element instanceof HTMLProgressElement))
 	|| phaseCounts.some((element) => !(element instanceof HTMLElement))) {
 	throw new Error('The nightly tests progress document is incomplete.');
@@ -43,11 +49,20 @@ globalThis.renderNightlyTestsProgress = (value) => {
 		|| typeof value.items.label !== 'string' || !value.items.label)) {
 		throw new TypeError('Nightly tests item progress is invalid.');
 	}
-	const active = phaseLabels.indexOf(value.label);
-	if (active >= 0 && value.items !== undefined) {
-		phaseItems[active] = { ...value.items };
+	tauriPhase.hidden = value.total !== 7;
+	const labels = [...phaseLabels];
+	const bars = [...phaseProgress];
+	const counts = [...phaseCounts];
+	if (!tauriPhase.hidden) {
+		labels.splice(1, 0, 'Tauri native smoke test');
+		bars.splice(1, 0, tauriProgress);
+		counts.splice(1, 0, tauriCount);
 	}
-	const items = phaseItems[active];
+	const active = labels.indexOf(value.label);
+	if (active >= 0 && value.items !== undefined) {
+		phaseItems.set(value.label, { ...value.items });
+	}
+	const items = phaseItems.get(value.label);
 	const fraction = value.completed < value.total && value.items?.total > 0
 		? value.items.completed / value.items.total : 0;
 	status.textContent = value.label;
@@ -55,13 +70,13 @@ globalThis.renderNightlyTestsProgress = (value) => {
 	progress.max = value.total;
 	progress.value = Math.min(value.total, value.completed + fraction);
 	count.textContent = `${String(value.completed)} of ${String(value.total)} phases complete`;
-	for (const [index, phase] of phaseProgress.entries()) {
-		const remembered = phaseItems[index];
+	for (const [index, phase] of bars.entries()) {
+		const remembered = phaseItems.get(labels[index]);
 		const complete = index < value.completed;
 		phase.max = remembered?.total || 1;
 		phase.value = complete ? phase.max : remembered?.completed ?? 0;
 		phase.setAttribute('value', String(phase.value));
-		phaseCounts[index].textContent = remembered
+		counts[index].textContent = remembered
 			? `${String(remembered.completed)} of ${String(remembered.total)} tests complete`
 			: complete ? 'Complete' : index === active ? 'Preparing tests…' : 'Waiting';
 	}

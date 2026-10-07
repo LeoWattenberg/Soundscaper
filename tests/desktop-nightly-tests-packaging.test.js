@@ -33,7 +33,7 @@ test('nightly-with-tests packaging is isolated, portable, and keeps its payload 
 	assert.equal(config.portable.useZip, true);
 	assert.equal(config.portable.unpackDirName, false);
 	assert.deepEqual(config.mac.target, ['zip']);
-	assert.equal(config.mac.signIgnore, '/Contents/Resources/nightly-tests/products/');
+	assert.equal(config.mac.signIgnore, '/Contents/Resources/nightly-tests/(?:products|tauri-prototype)/');
 	const macSignIgnore = new RegExp(config.mac.signIgnore, 'u');
 	assert.equal(macSignIgnore.test(
 		'/tmp/Soundscaper Nightly Tests.app/Contents/Resources/nightly-tests/products/'
@@ -204,7 +204,7 @@ test('manual nightly-with-tests target selection preserves all targets and selec
 	assert.throws(() => selectDesktopNightlyTestTargets('linux'), /target selection/u);
 });
 
-test('desktop test artifacts build on main pushes and manual target selections without running CI tests', async () => {
+test('desktop test artifacts build on main pushes and manual target selections without running Node or browser suites', async () => {
 	const workflow = await readFile(resolve(ROOT, '.github/workflows/desktop-nightly-tests.yml'), 'utf8');
 	assert.match(workflow, /^ {2}push:\s+branches:\s+- main$/mu);
 	assert.match(workflow, /workflow_dispatch:\s+inputs:\s+nightly_tests_targets:/u);

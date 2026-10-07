@@ -117,7 +117,7 @@ test('the hardened nightly launcher renders and updates its archived progress pa
 				const state = await progress.window.webContents.executeJavaScript(
 					'({url:location.href,label:document.getElementById("status").textContent,' +
 					'value:document.getElementById("progress").value,max:document.getElementById("progress").max,' +
-					'phases:[...document.querySelectorAll(".phase progress")].map(value => value.position),' +
+					'phases:[...document.querySelectorAll(".phase:not([hidden]) progress")].map(value => value.position),' +
 					'current:document.getElementById("current-item").textContent,' +
 					'background:getComputedStyle(document.documentElement).backgroundColor})');
 				assert.deepEqual(state, { url: NIGHTLY_TESTS_PROGRESS_DOCUMENT_URL, label,
@@ -132,6 +132,16 @@ test('the hardened nightly launcher renders and updates its archived progress pa
 					if (completed === 2) assert.equal(counts.browser, '8 of 8 tests complete');
 				}
 			}
+			progress.update({ completed: 1, total: 7, label: 'Tauri native smoke test',
+				items: { completed: 0, total: 1, label: 'Importing and exporting a tone' } });
+			const tauri = await progress.window.webContents.executeJavaScript(
+				'({hidden:document.getElementById("tauri-phase").hidden,' +
+				'visible:getComputedStyle(document.getElementById("tauri-phase")).display !== "none",' +
+				'phases:document.querySelectorAll(".phase:not([hidden]) progress").length,' +
+				'count:document.getElementById("phase-count-tauri").textContent,' +
+				'max:document.getElementById("progress").max})');
+			assert.deepEqual(tauri, { hidden: false, visible: true, phases: 7,
+				count: '0 of 1 tests complete', max: 7 });
 			assert.deepEqual(errors, []);
 			console.log('NIGHTLY_PROGRESS_ARCHIVE_PASSED');
 			app.exit(0);

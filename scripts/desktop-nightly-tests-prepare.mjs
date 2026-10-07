@@ -9,12 +9,14 @@ import { stageDesktopNightlyTests } from './lib/desktop-nightly-tests-staging.mj
 
 const DEFAULT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
+/** @param {Partial<Parameters<typeof stageDesktopNightlyTests>[0]>} [options] */
 export async function prepareDesktopNightlyTests({
 	repositoryRoot = DEFAULT_ROOT,
 	outputRoot,
 	browserSourceRoot,
 	sourceRevision = null,
 	target = {},
+	tauriPrototypeRoot = null,
 } = {}) {
 	const root = resolve(repositoryRoot);
 	const output = resolve(outputRoot ?? resolve(root, '.desktop-build/nightly-tests'));
@@ -32,6 +34,7 @@ export async function prepareDesktopNightlyTests({
 		browserSourceRoot: browsers,
 		sourceRevision,
 		target,
+		tauriPrototypeRoot,
 	});
 }
 
@@ -43,6 +46,7 @@ if (isMainModule()) {
 	prepareDesktopNightlyTests({
 		browserSourceRoot: process.env.SOUNDSCAPER_NIGHTLY_TESTS_BROWSERS_PATH,
 		sourceRevision: process.env.SOUNDSCAPER_SOURCE_REVISION || process.env.GITHUB_SHA || null,
+		tauriPrototypeRoot: process.env.SOUNDSCAPER_NIGHTLY_TESTS_TAURI_ARTIFACT_PATH || null,
 		target: {
 			platform: process.env.SOUNDSCAPER_DESKTOP_TARGET_PLATFORM || null,
 			arch: process.env.SOUNDSCAPER_DESKTOP_TARGET_ARCH || null,

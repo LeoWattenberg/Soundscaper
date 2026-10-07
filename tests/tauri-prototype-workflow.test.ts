@@ -61,3 +61,32 @@ test('Tauri artifacts use the pinned Rust host and include a portable executable
 	assert.match(job, /include-hidden-files: true/u);
 	assert.doesNotMatch(job, /desktop-prepare|assistance-runtime|R2_MODELS_|electron-builder|needs: \[/u);
 });
+
+test('nightly-with-tests builds and stages the native Tauri smoke host for every selected target', async () => {
+	const workflow = await readFile(workflowUrl, 'utf8');
+	const targets = extractJob(workflow, 'nightly-test-targets');
+	assert.match(targets, /rust_target: tauriPrototypeRustTarget\(target\.platform, target\.arch\)/u);
+	const job = extractJob(workflow, 'package-with-tests');
+	assert.match(job, /libwebkit2gtk-4\.1-dev/u);
+	assert.match(job, /working-directory: prototypes\/tauri\/host/u);
+	assert.match(job, /readFileSync\('rust-toolchain\.toml', 'utf8'\)/u);
+	assert.match(job, /execFileSync\('rustup', \['toolchain', 'install', channel/u);
+	assert.match(job, /'--target', process\.env\.TAURI_RUST_TARGET/u);
+	assert.match(job, /TAURI_RUST_TARGET: \$\{\{ matrix\.target\.rust_target \}\}/u);
+	assert.match(job, /node prototypes\/tauri\/run\.mjs test --release --target=\$\{\{ matrix\.target\.rust_target \}\}/u);
+	assert.match(job, /node prototypes\/tauri\/run\.mjs build --release --target=\$\{\{ matrix\.target\.rust_target \}\}/u);
+	assert.match(job, /node prototypes\/tauri\/stage-artifact\.mjs\s+env:\s+SOUNDSCAPER_SOURCE_REVISION: \$\{\{ github\.sha \}\}\s+SOUNDSCAPER_TAURI_TARGET: \$\{\{ matrix\.target\.rust_target \}\}/u);
+	assert.match(job, /SOUNDSCAPER_NIGHTLY_TESTS_TAURI_ARTIFACT_PATH: \$\{\{ github\.workspace \}\}\/\.tauri-prototype\/artifact/u);
+	const staging = job.indexOf('node prototypes/tauri/stage-artifact.mjs');
+	assert.ok(staging > job.indexOf('node prototypes/tauri/run.mjs build'));
+	assert.ok(staging < job.indexOf('node scripts/desktop-nightly-tests-prepare.mjs'));
+	assert.match(job, /node scripts\/lib\/desktop-nightly-tests-tauri\.mjs/u);
+	assert.match(job, /--payload "\$\{\{ github\.workspace \}\}\/\.desktop-build\/nightly-tests"/u);
+	assert.match(job, /--arch \$\{\{ matrix\.target\.arch \}\}/u);
+	assert.ok(job.indexOf('node scripts/lib/desktop-nightly-tests-tauri.mjs')
+		> job.indexOf('node scripts/desktop-nightly-tests-prepare.mjs'));
+	assert.match(job, /id: tauri-native-smoke/u);
+	assert.match(job, /steps\.tauri-native-smoke\.outcome == 'success' \|\| steps\.tauri-native-smoke\.outcome == 'failure'/u);
+	assert.match(job, /path: \.native-build\/tauri-nightly-smoke\/\s+include-hidden-files: true/u);
+	assert.doesNotMatch(job, /desktop:publish:assistance-runtimes|R2_MODELS_/u);
+});

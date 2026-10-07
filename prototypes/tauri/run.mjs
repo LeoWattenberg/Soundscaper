@@ -6,27 +6,35 @@ import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+import { describeTauriPrototypeTarget } from './build-targets.mjs';
+
 const ROOT = fileURLToPath(new URL('../..', import.meta.url));
 const COMMANDS = new Set(['build', 'run', 'test', 'smoke']);
-const USAGE = 'Usage: node prototypes/tauri/run.mjs build|run|test|smoke [--release]';
+const USAGE = 'Usage: node prototypes/tauri/run.mjs build|run|test|smoke [--release] [--target=<Rust target>]';
 
 /** @param {string[]} args */
 export function parsePrototypeArguments(args) {
 	const [command, ...flags] = args;
-	if (!COMMANDS.has(command) || flags.length > 1 || flags.some((flag) => flag !== '--release')) {
+	if (!COMMANDS.has(command) || flags.length > 2 || new Set(flags).size !== flags.length
+		|| flags.filter((flag) => flag.startsWith('--target=')).length > 1
+		|| flags.some((flag) => flag !== '--release' && !flag.startsWith('--target='))) {
 		throw new Error(USAGE);
 	}
-	return { command, release: flags.includes('--release') };
+	const target = flags.find((flag) => flag.startsWith('--target='))?.slice('--target='.length);
+	if (target !== undefined) describeTauriPrototypeTarget(target);
+	return { command, release: flags.includes('--release'), ...(target === undefined ? {} : { target }) };
 }
 
-/** @param {{ root: string, command: string, release: boolean, platform: string }} options */
-export function createPrototypePlan({ root, command, release, platform }) {
+/** @param {{ root: string, command: string, release: boolean, platform: string, target?: string }} options */
+export function createPrototypePlan({ root, command, release, platform, target }) {
 	if (!COMMANDS.has(command)) throw new Error(USAGE);
+	const targetPlatform = target === undefined ? platform : describeTauriPrototypeTarget(target).platform;
 	const repositoryRoot = resolve(root);
 	const outputRoot = resolve(repositoryRoot, '.tauri-prototype');
 	return Object.freeze({
 		command,
 		platform,
+		target,
 		repositoryRoot,
 		hostDirectory: resolve(repositoryRoot, 'prototypes/tauri/host'),
 		outputRoot,
@@ -34,12 +42,13 @@ export function createPrototypePlan({ root, command, release, platform }) {
 		bridgeFile: resolve(outputRoot, 'bridge.js'),
 		smokeFile: resolve(outputRoot, 'smoke.js'),
 		smokeReport: resolve(outputRoot, 'smoke-report.json'),
-		executable: resolve(outputRoot, 'target', release ? 'release' : 'debug',
-			`soundscaper-tauri-prototype${platform === 'win32' ? '.exe' : ''}`),
+		executable: resolve(outputRoot, 'target', ...(target === undefined ? [] : [target]), release ? 'release' : 'debug',
+			`soundscaper-tauri-prototype${['win32', 'win'].includes(targetPlatform) ? '.exe' : ''}`),
 		cargoArguments: [
 			command === 'test' ? 'test' : 'build', '--locked', '--features', 'custom-protocol',
 			'--manifest-path', resolve(repositoryRoot, 'prototypes/tauri/host/Cargo.toml'),
 			'--target-dir', resolve(outputRoot, 'target'), ...(release ? ['--release'] : []),
+			...(target === undefined ? [] : ['--target', target]),
 		],
 	});
 }

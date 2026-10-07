@@ -7,7 +7,8 @@ import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'nod
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
 
-import { createPrototypePlan } from './run.mjs';
+import { createPrototypePlan, parsePrototypeArguments } from './run.mjs';
+import { describeTauriPrototypeTarget, tauriPrototypeRustTarget } from './build-targets.mjs';
 
 const ROOT = fileURLToPath(new URL('../..', import.meta.url));
 const capture = promisify(execFile);
@@ -35,21 +36,29 @@ async function executeCapture(command, args, { cwd }) {
 /**
  * Stage standalone release bytes with their source pins and dependency notices.
  * Inject metadata in filesystem tests so no Rust toolchain or registry is needed.
- * @param {{ root: string, platform?: string, revision?: string }} options
+ * @param {{ root: string, platform?: string, revision?: string, target?: string, environment?: NodeJS.ProcessEnv }} options
  * @param {{ metadata?: CargoMetadata, execute?: Execute }} [dependencies]
  */
 export async function stagePrototypeArtifact(options, dependencies = {}) {
-	const plan = createPrototypePlan({ root: options.root, platform: options.platform ?? process.platform,
-		command: 'build', release: true });
+	const environment = options.environment ?? process.env;
+	const target = options.target ?? environment.SOUNDSCAPER_TAURI_TARGET;
+	const platform = options.platform ?? process.platform;
+	const plan = createPrototypePlan({ root: options.root, platform, target, command: 'build', release: true });
 	const execute = dependencies.execute ?? executeCapture;
-	const revision = (options.revision ?? process.env.SOUNDSCAPER_SOURCE_REVISION ?? process.env.GITHUB_SHA
+	const revision = (options.revision ?? environment.SOUNDSCAPER_SOURCE_REVISION ?? environment.GITHUB_SHA
 		?? await execute('git', ['rev-parse', 'HEAD'], { cwd: plan.repositoryRoot })).trim();
 	if (!/^[a-f0-9]{40}$/u.test(revision)) throw new Error('A full Git source revision is required for the prototype artifact.');
 	for (const name of [...REQUIRED_FILES, relative(plan.repositoryRoot, plan.executable)]) {
 		await requireInput(resolve(plan.repositoryRoot, name), 'Required prototype artifact input');
 	}
 	await requireInput(resolve(plan.repositoryRoot, 'LICENSES'), 'Required prototype artifact input', true);
-	const metadata = dependencies.metadata ?? await loadMetadata(plan.hostDirectory, execute);
+	const resolved = dependencies.metadata === undefined
+		? await loadMetadata(plan.hostDirectory, execute, target)
+		: { metadata: dependencies.metadata, rustTarget: target ?? tauriPrototypeRustTarget(
+			platform === 'win32' ? 'win' : platform === 'darwin' ? 'mac' : platform, process.arch,
+		) };
+	const artifactTarget = describeTauriPrototypeTarget(resolved.rustTarget);
+	const metadata = resolved.metadata;
 	const packages = resolvedDependencies(metadata);
 	/** @type {RustInventory[]} */
 	const inventories = [];
@@ -79,6 +88,7 @@ export async function stagePrototypeArtifact(options, dependencies = {}) {
 		await cp(resolve(plan.repositoryRoot, 'LICENSES'), resolve(staging, 'LICENSES'), { recursive: true });
 		await writeFile(resolve(staging, 'SOURCE_REVISION'), `${revision}\n`);
 		await writeFile(resolve(staging, 'SOURCE_URL'), `https://github.com/LeoWattenberg/Soundscaper/tree/${revision}\n`);
+		await writeFile(resolve(staging, 'TARGET.json'), `${JSON.stringify(artifactTarget, null, 2)}\n`);
 		const rustRoot = resolve(staging, 'licenses/rust');
 		await mkdir(rustRoot, { recursive: true });
 		for (const { directory, files } of notices) {
@@ -105,14 +115,18 @@ async function requireInput(path, label, directory = false) {
 	}
 }
 
-/** @param {string} hostDirectory @param {Execute} execute @returns {Promise<CargoMetadata>} */
-async function loadMetadata(hostDirectory, execute) {
+/** @param {string} hostDirectory @param {Execute} execute @param {string | undefined} target
+ * @returns {Promise<{ metadata: CargoMetadata, rustTarget: string }>} */
+async function loadMetadata(hostDirectory, execute, target) {
 	const options = { cwd: hostDirectory };
-	const version = await execute('rustc', ['-vV'], options);
-	const host = /^host: (\S+)\r?$/mu.exec(version)?.[1];
-	if (!host) throw new Error('rustc did not report its current host target.');
-	return JSON.parse(await execute('cargo', ['metadata', '--locked', '--format-version=1',
-		'--features', 'custom-protocol', '--filter-platform', host], options));
+	let rustTarget = target;
+	if (rustTarget === undefined) {
+		const version = await execute('rustc', ['-vV'], options);
+		rustTarget = /^host: (\S+)\r?$/mu.exec(version)?.[1];
+		if (!rustTarget) throw new Error('rustc did not report its current host target.');
+	}
+	return { rustTarget, metadata: JSON.parse(await execute('cargo', ['metadata', '--locked', '--format-version=1',
+		'--features', 'custom-protocol', '--filter-platform', rustTarget], options)) };
 }
 
 /** @param {CargoMetadata} metadata @returns {CargoPackage[]} */
@@ -160,6 +174,12 @@ async function dependencyNoticeFiles(dependency) {
 }
 
 if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url) {
-	void stagePrototypeArtifact({ root: ROOT }).then((artifact) => console.log(`Tauri prototype artifact: ${artifact}`))
+	void Promise.resolve().then(() => {
+		const args = process.argv.slice(2);
+		if (args.some((arg) => !arg.startsWith('--target='))) {
+			throw new Error('Usage: node prototypes/tauri/stage-artifact.mjs [--target=<Rust target>]');
+		}
+		return stagePrototypeArtifact({ root: ROOT, target: parsePrototypeArguments(['build', ...args]).target });
+	}).then((artifact) => console.log(`Tauri prototype artifact: ${artifact}`))
 		.catch((error) => { console.error(`Tauri prototype artifact: ${error.message}`); process.exitCode = 1; });
 }

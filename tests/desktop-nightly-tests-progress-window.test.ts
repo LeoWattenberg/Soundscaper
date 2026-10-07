@@ -114,12 +114,14 @@ test('the progress document is self-contained, script-restricted, and visibly ex
 	assert.match(html, /<progress[^>]+max="6"/u);
 	for (const label of [
 		'Browser tests',
+		'Tauri native smoke test',
 		'Dual-origin browser coverage',
 		'Performance diagnostics',
 		'Packaged app diagnostics',
 		'Packaged app coverage',
 		'Local model tests',
 	]) assert.match(html, new RegExp(`>${label}<`, 'u'));
+	assert.match(html, /id="tauri-phase"[^>]+hidden/u);
 	assert.match(html, /Application launched/u);
 	assert.match(html, /nightly-tests-progress-renderer\.js/u);
 	assert.match(html, /nightly-tests-progress\.css/u);
@@ -173,6 +175,30 @@ test('completed phases retain their item counts while the next phase prepares', 
 	assert.equal(bar('phase-progress-0').value, 8);
 	assert.equal(elements.get('phase-count-1')?.textContent, 'Preparing tests…');
 	assert.equal(elements.get('current-item')?.textContent, 'Preparing tests…');
+});
+
+test('Tauri payloads show a seventh phase between browser tests and diagnostics', async () => {
+	const { render, elements, bar } = await rendererFixture();
+	render({ completed: 0, total: 6, label: 'Browser tests' });
+	assert.equal(elements.get('tauri-phase')?.hidden, true);
+	render({ completed: 0, total: 7, label: 'Browser tests',
+		items: { completed: 8, total: 8, label: 'Tests finished' } });
+	render({ completed: 1, total: 7, label: 'Tauri native smoke test',
+		items: { completed: 0, total: 1, label: 'Importing and exporting a tone' } });
+	assert.equal(elements.get('tauri-phase')?.hidden, false);
+	assert.equal(elements.get('current-item')?.textContent, 'Importing and exporting a tone');
+	assert.equal(elements.get('phase-count-0')?.textContent, '8 of 8 tests complete');
+	assert.equal(elements.get('phase-count-tauri')?.textContent, '0 of 1 tests complete');
+	assert.equal(bar('phase-progress-1').value, 0);
+	render({ completed: 1, total: 7, label: 'Tauri native smoke test',
+		items: { completed: 1, total: 1, label: 'Native smoke test passed' } });
+	render({ completed: 2, total: 7, label: 'Dual-origin browser coverage' });
+	assert.equal(bar('phase-progress-tauri').value, 1);
+	assert.equal(elements.get('phase-count-tauri')?.textContent, '1 of 1 tests complete');
+	assert.equal(elements.get('phase-count-1')?.textContent, 'Preparing tests…');
+	assert.equal(elements.get('count')?.textContent, '2 of 7 phases complete');
+	render({ completed: 7, total: 7, label: 'Tests passed' });
+	assert.equal(bar('phase-progress-5').value, 1);
 });
 
 test('empty test phases and terminal item payloads keep progress bounded', async () => {
@@ -326,6 +352,7 @@ function protocolFixture() {
 async function rendererFixture() {
 	class Element {
 		textContent = '';
+		hidden = false;
 	}
 	class ProgressElement extends Element {
 		max = 1;
@@ -338,6 +365,8 @@ async function rendererFixture() {
 	const elements = new Map<string, Element>([
 		['status', new Element()], ['count', new Element()],
 		['current-item', new Element()], ['progress', new ProgressElement()],
+		['tauri-phase', new Element()], ['phase-progress-tauri', new ProgressElement()],
+		['phase-count-tauri', new Element()],
 	]);
 	for (let index = 0; index < 6; index += 1) {
 		elements.set(`phase-progress-${String(index)}`, new ProgressElement());

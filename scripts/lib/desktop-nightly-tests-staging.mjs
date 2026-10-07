@@ -23,6 +23,9 @@ import {
 	pruneFrameworkLinkerStubs,
 	pruneUnpackableSymlinks,
 } from './desktop-nightly-tests-browser-pruning.mjs';
+import {
+	stageDesktopNightlyTestsTauriPrototype, validateDesktopNightlyTestsTauriPrototype,
+} from './desktop-nightly-tests-tauri-staging.mjs';
 
 export const NIGHTLY_TEST_RUNTIME_PACKAGE_ROOTS = Object.freeze([
 	'@axe-core/playwright',
@@ -71,6 +74,8 @@ export const NIGHTLY_TEST_PAYLOAD_INPUTS = Object.freeze([
 	{ source: 'scripts/lib/desktop-nightly-tests-playwright-child.mjs', destination: 'scripts/lib/desktop-nightly-tests-playwright-child.mjs', kind: 'file', label: 'nightly Playwright child progress transport' },
 	{ source: 'scripts/lib/desktop-nightly-tests-progress-reporter.mjs', destination: 'scripts/lib/desktop-nightly-tests-progress-reporter.mjs', kind: 'file', label: 'nightly Playwright item progress reporter' },
 	{ source: 'scripts/lib/desktop-nightly-tests-phases.mjs', destination: 'scripts/lib/desktop-nightly-tests-phases.mjs', kind: 'file', label: 'serial nightly test phases' },
+	{ source: 'scripts/lib/desktop-nightly-tests-tauri.mjs', destination: 'scripts/lib/desktop-nightly-tests-tauri.mjs', kind: 'file', label: 'native Tauri prototype smoke phase' },
+	{ source: 'scripts/lib/desktop-smoke-child.mjs', destination: 'scripts/lib/desktop-smoke-child.mjs', kind: 'file', label: 'bounded native smoke child runner' },
 	{ source: 'scripts/lib/desktop-nightly-tests-dual-origin.mjs', destination: 'scripts/lib/desktop-nightly-tests-dual-origin.mjs', kind: 'file', label: 'nightly dual-origin browser coverage phase' },
 	{ source: 'scripts/lib/pages-site-static-server.mjs', destination: 'scripts/lib/pages-site-static-server.mjs', kind: 'file', label: 'Pages-compatible nightly product server' },
 	{ source: 'scripts/lib/product-web-routing.mjs', destination: 'scripts/lib/product-web-routing.mjs', kind: 'file', label: 'Pages routing policy reader' },
@@ -172,12 +177,16 @@ const NOTICE_NAME = /^(?:copying|licen[cs]e|notice|thirdpartynotice[a-z]*)(?:[._
 const PACKAGE_NAME = /^(?:@[a-z\d](?:[a-z\d._-]*[a-z\d])?\/[a-z\d](?:[a-z\d._-]*[a-z\d])?|[a-z\d](?:[a-z\d._-]*[a-z\d])?)$/u;
 const SOURCE_REVISION = /^[a-f\d]{40}$/u;
 
+/** @param {{ repositoryRoot: string, outputRoot: string, browserSourceRoot: string,
+ * sourceRevision?: string | null, target?: { platform?: string | null, arch?: string | null },
+ * tauriPrototypeRoot?: string | null }} options */
 export async function stageDesktopNightlyTests({
 	repositoryRoot,
 	outputRoot,
 	browserSourceRoot,
 	sourceRevision = null,
 	target = {},
+	tauriPrototypeRoot = null,
 }) {
 	const root = resolveRequiredPath(repositoryRoot, 'repository root');
 	const output = resolveRequiredPath(outputRoot, 'output root');
@@ -189,6 +198,9 @@ export async function stageDesktopNightlyTests({
 		throw new TypeError('Nightly test source revision must be a 40-character lowercase SHA-1.');
 	}
 	const normalizedTarget = normalizeTarget(target);
+	const tauriPrototype = tauriPrototypeRoot === null ? null : await validateDesktopNightlyTestsTauriPrototype({
+		artifactRoot: tauriPrototypeRoot, outputRoot: output, sourceRevision, target: normalizedTarget,
+	});
 	const projectPackage = await readRequiredJson(join(root, 'package.json'), 'Soundscaper package metadata');
 	if (projectPackage.name !== 'soundscaper' || typeof projectPackage.version !== 'string' || !projectPackage.version) {
 		throw new Error('Soundscaper package metadata has an unexpected name or version.');
@@ -214,6 +226,7 @@ export async function stageDesktopNightlyTests({
 		await pruneFrameworkLinkerStubs(join(temporaryOutput, '.local-browsers'));
 		await pruneUnpackableSymlinks(join(temporaryOutput, '.local-browsers'));
 		await stageLicenses(root, temporaryOutput, runtimePackages);
+		const tauriDescriptor = tauriPrototype ? await stageDesktopNightlyTestsTauriPrototype(tauriPrototype, temporaryOutput) : null;
 		await writeJson(join(temporaryOutput, 'package.json'), nightlyTestsPackage(projectPackage.version));
 
 		const payloadPaths = [
@@ -235,6 +248,7 @@ export async function stageDesktopNightlyTests({
 			'tests',
 			'vendor',
 		];
+		if (tauriDescriptor) payloadPaths.push('tauri-prototype');
 		const payload = [];
 		for (const path of payloadPaths) payload.push(await describePayload(join(temporaryOutput, path), path));
 		const manifest = {
@@ -246,6 +260,7 @@ export async function stageDesktopNightlyTests({
 			browserRevisions,
 			runtimePackages: runtimePackages.map(({ name, version }) => ({ name, version })),
 			payload,
+			...(tauriDescriptor ? { tauriPrototype: tauriDescriptor } : {}),
 		};
 		await writeJson(join(temporaryOutput, 'stage-manifest.json'), manifest);
 		await rm(output, { recursive: true, force: true });

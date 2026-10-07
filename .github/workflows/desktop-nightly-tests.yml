@@ -58,8 +58,12 @@ jobs:
           node --input-type=module <<'NODE'
           import { appendFileSync } from 'node:fs';
           import { selectDesktopNightlyTestTargets } from './scripts/lib/desktop-nightly-tests-target-matrix.mjs';
+          import { tauriPrototypeRustTarget } from './prototypes/tauri/build-targets.mjs';
+          const targets = selectDesktopNightlyTestTargets(process.env.NIGHTLY_TEST_TARGETS).map((target) => ({
+            ...target, rust_target: tauriPrototypeRustTarget(target.platform, target.arch),
+          }));
           appendFileSync(process.env.GITHUB_OUTPUT,
-            `targets=${JSON.stringify(selectDesktopNightlyTestTargets(process.env.NIGHTLY_TEST_TARGETS))}\n`);
+            `targets=${JSON.stringify(targets)}\n`);
           NODE
 
   package-with-tests:
@@ -92,6 +96,41 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Install Linux Tauri WebView build dependencies
+        if: runner.os == 'Linux'
+        timeout-minutes: 10
+        run: >-
+          bash scripts/ci-apt-install.sh libwebkit2gtk-4.1-dev build-essential
+          libgtk-3-dev libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev xvfb xauth
+
+      - name: Install the pinned Tauri Rust toolchain and target
+        working-directory: prototypes/tauri/host
+        shell: bash
+        env:
+          TAURI_RUST_TARGET: ${{ matrix.target.rust_target }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          import { execFileSync } from 'node:child_process';
+          const channel = /^channel = "([^"]+)"$/m.exec(readFileSync('rust-toolchain.toml', 'utf8'))?.[1];
+          if (!channel) throw new Error('Missing prototype Rust toolchain pin.');
+          execFileSync('rustup', ['toolchain', 'install', channel, '--profile', 'minimal',
+            '--component', 'clippy,rustfmt', '--target', process.env.TAURI_RUST_TARGET], { stdio: 'inherit' });
+          NODE
+          rustup show active-toolchain
+
+      - name: Run target-native Tauri host tests
+        run: node prototypes/tauri/run.mjs test --release --target=${{ matrix.target.rust_target }}
+
+      - name: Build the target-native Tauri smoke executable
+        run: node prototypes/tauri/run.mjs build --release --target=${{ matrix.target.rust_target }}
+
+      - name: Stage the Tauri smoke executable, source pins, and dependency notices
+        run: node prototypes/tauri/stage-artifact.mjs
+        env:
+          SOUNDSCAPER_SOURCE_REVISION: ${{ github.sha }}
+          SOUNDSCAPER_TAURI_TARGET: ${{ matrix.target.rust_target }}
 
       - name: Stage the pinned AI runtime handoff
         run: node scripts/stage-desktop-test-runtime-snapshot.mjs
@@ -156,6 +195,28 @@ jobs:
           SOUNDSCAPER_DESKTOP_TARGET_PLATFORM: ${{ matrix.target.platform }}
           SOUNDSCAPER_DESKTOP_TARGET_ARCH: ${{ matrix.target.arch }}
           SOUNDSCAPER_SOURCE_REVISION: ${{ github.sha }}
+          SOUNDSCAPER_NIGHTLY_TESTS_TAURI_ARTIFACT_PATH: ${{ github.workspace }}/.tauri-prototype/artifact
+
+      - name: Verify the embedded Tauri WebView smoke on the native target
+        id: tauri-native-smoke
+        run: >-
+          node scripts/lib/desktop-nightly-tests-tauri.mjs
+          --payload "${{ github.workspace }}/.desktop-build/nightly-tests"
+          --output "${{ github.workspace }}/.native-build/tauri-nightly-smoke"
+          --source-revision ${{ github.sha }}
+          --arch ${{ matrix.target.arch }}
+
+      - name: Upload the native Tauri smoke diagnostics
+        if: >-
+          !cancelled()
+          && (steps.tauri-native-smoke.outcome == 'success' || steps.tauri-native-smoke.outcome == 'failure')
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: tauri-smoke-${{ matrix.target.platform }}-${{ matrix.target.arch }}
+          path: .native-build/tauri-nightly-smoke/
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 14
 
       # macOS ships a 256-descriptor soft limit, and ad-hoc execution sealing walks
       # the whole embedded Playwright browser matrix. Raise the soft limit to

@@ -33,6 +33,8 @@ module.exports = {
 		'scripts/lib/desktop-nightly-tests-playwright-child.mjs',
 		'scripts/lib/desktop-nightly-tests-progress-reporter.mjs',
 		'scripts/lib/desktop-nightly-tests-phases.mjs',
+		'scripts/lib/desktop-nightly-tests-tauri.mjs',
+		'scripts/lib/desktop-smoke-child.mjs',
 		'scripts/lib/desktop-nightly-tests-local-assistance.mjs',
 		'scripts/lib/desktop-nightly-tests-dual-origin.mjs',
 		'scripts/lib/pages-site-static-server.mjs',
@@ -76,6 +78,7 @@ module.exports = {
 				// The guide specs replay handbook step data, which lives outside `tests/`.
 				'handbook/**/*',
 				'sites/**/*',
+				'tauri-prototype/**/*',
 				'licenses/**/*',
 				'package.json',
 				'playwright.nightly-metrics.config.mjs',
@@ -130,7 +133,7 @@ module.exports = {
 		// The product applications were already sealed before their exact files
 		// entered the nightly payload manifest. Preserve those authenticated bytes
 		// instead of recursively signing the nested application bundles again.
-		signIgnore: '/Contents/Resources/nightly-tests/products/',
+		signIgnore: '/Contents/Resources/nightly-tests/(?:products|tauri-prototype)/',
 		gatekeeperAssess: false,
 		category: 'public.app-category.developer-tools',
 		target: ['zip'],

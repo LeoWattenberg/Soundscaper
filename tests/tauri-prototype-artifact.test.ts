@@ -115,6 +115,48 @@ test('Windows artifacts stage the release exe and replace old artifact contents'
 	} finally { await rm(root, { recursive: true, force: true }); }
 });
 
+test('Windows ARM64 staging binds the explicit target and filters notices by the packaged target', async () => {
+	const { root, host, metadata } = await fixture();
+	try {
+		const target = 'aarch64-pc-windows-msvc';
+		const directory = resolve(root, '.tauri-prototype/target', target, 'release');
+		await mkdir(directory, { recursive: true });
+		await writeFile(resolve(directory, 'soundscaper-tauri-prototype.exe'), 'arm64 executable');
+		// A stale native-host build must not replace the selected ARM64 executable.
+		await writeFile(resolve(root, '.tauri-prototype/target/release/soundscaper-tauri-prototype.exe'), 'x64 executable');
+		const calls: { command: string; args: string[]; cwd: string }[] = [];
+		const artifact = await stagePrototypeArtifact({ root, platform: 'win32', revision,
+			environment: { SOUNDSCAPER_TAURI_TARGET: target } }, {
+			execute: (command, args, options) => {
+				calls.push({ command, args, cwd: options.cwd });
+				return Promise.resolve(JSON.stringify(metadata));
+			},
+		});
+		assert.equal(await readFile(resolve(artifact, 'soundscaper-tauri-prototype.exe'), 'utf8'), 'arm64 executable');
+		assert.deepEqual(JSON.parse(await readFile(resolve(artifact, 'TARGET.json'), 'utf8')), {
+			platform: 'win', arch: 'arm64', rustTarget: target,
+		});
+		assert.deepEqual(calls, [{ command: 'cargo', args: ['metadata', '--locked', '--format-version=1',
+			'--features', 'custom-protocol', '--filter-platform', target], cwd: host }]);
+	} finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test('explicit artifact target takes precedence over inherited target selection', async () => {
+	const { root, metadata } = await fixture();
+	try {
+		const target = 'aarch64-unknown-linux-gnu';
+		const directory = resolve(root, '.tauri-prototype/target', target, 'release');
+		await mkdir(directory, { recursive: true });
+		await writeFile(resolve(directory, 'soundscaper-tauri-prototype'), 'arm64 Linux executable');
+		const artifact = await stagePrototypeArtifact({ root, platform: 'linux', revision, target,
+			environment: { SOUNDSCAPER_TAURI_TARGET: 'x86_64-unknown-linux-gnu' } }, { metadata });
+		assert.deepEqual(JSON.parse(await readFile(resolve(artifact, 'TARGET.json'), 'utf8')), {
+			platform: 'linux', arch: 'arm64', rustTarget: target,
+		});
+		assert.equal(await readFile(resolve(artifact, 'soundscaper-tauri-prototype'), 'utf8'), 'arm64 Linux executable');
+	} finally { await rm(root, { recursive: true, force: true }); }
+});
+
 test('missing required executable and pinned inputs fail before publishing an artifact', async () => {
 	for (const missing of ['.tauri-prototype/target/release/soundscaper-tauri-prototype', 'LICENSE',
 		'prototypes/tauri/host/Cargo.lock', 'prototypes/tauri/host/rust-toolchain.toml', 'LICENSES']) {

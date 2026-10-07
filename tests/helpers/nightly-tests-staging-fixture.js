@@ -74,6 +74,8 @@ export async function createFixture(context) {
 		['scripts/lib/desktop-nightly-tests-playwright-child.mjs', 'export const playwrightChild = true;\n'],
 		['scripts/lib/desktop-nightly-tests-progress-reporter.mjs', 'export default class NightlyProgressReporter {}\n'],
 		['scripts/lib/desktop-nightly-tests-phases.mjs', 'export const phases = true;\n'],
+		['scripts/lib/desktop-nightly-tests-tauri.mjs', 'export const tauri = true;\n'],
+		['scripts/lib/desktop-smoke-child.mjs', 'export const smokeChild = true;\n'],
 		['scripts/lib/desktop-nightly-tests-dual-origin.mjs', 'export const dualOrigin = true;\n'],
 		['scripts/lib/pages-site-static-server.mjs', 'export const pagesServer = true;\n'],
 		['scripts/lib/product-web-routing.mjs', 'export const routing = true;\n'],

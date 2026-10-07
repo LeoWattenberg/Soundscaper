@@ -25,6 +25,20 @@ test('prototype arguments reject ambiguous commands and accept release builds', 
 	}
 });
 
+test('explicit Rust targets select the matching release executable even under x64 Node', () => {
+	const target = 'aarch64-pc-windows-msvc';
+	assert.deepEqual(parsePrototypeArguments(['build', `--target=${target}`, '--release']), {
+		command: 'build', release: true, target,
+	});
+	const plan = createPrototypePlan({ root, command: 'test', release: true, platform: 'win32', target });
+	assert.equal(plan.executable, resolve(root, '.tauri-prototype/target', target, 'release/soundscaper-tauri-prototype.exe'));
+	assert.deepEqual(plan.cargoArguments.slice(-3), ['--release', '--target', target]);
+	for (const args of [['build', '--target='], ['build', '--target=../../other'],
+		['build', `--target=${target}`, `--target=${target}`]]) {
+		assert.throws(() => parsePrototypeArguments(args), /Usage:|Rust target/u);
+	}
+});
+
 test('prototype outputs and cargo artifacts stay out of production build directories', () => {
 	const plan = createPrototypePlan({ root, command: 'build', release: true, platform: 'win32' });
 	assert.equal(plan.rendererDirectory, resolve(root, '.tauri-prototype/renderer'));

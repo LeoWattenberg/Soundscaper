@@ -97,6 +97,32 @@ gh workflow run desktop-nightly-tests.yml --ref feat/tauri-prototype \
   -f desktop_host=tauri -f nightly_tests_targets=all
 ```
 
+## Run the packaged “with tests” build
+
+The same workflow's default `desktop_host=electron` builds the existing
+**with tests** application with a bundled Tauri executable. Choose the PR's
+branch and `nightly_tests_targets=all` for Windows x64/arm64, macOS arm64, and
+Linux x64/arm64; `windows` selects both Windows targets and `win-x64` selects
+Windows x64. CI runs the Rust tests and the bundled native smoke test before
+uploading these artifacts.
+
+Launching the downloaded test application runs **Tauri native smoke test**
+after its browser tests, alongside the existing diagnostic and local model
+phases. It opens the editor in the system WebView, imports a generated tone
+through the File menu, exports a non-silent WAV, and checks normal close. Rust
+and Cargo are not needed on the test machine; the operating system's WebView
+prerequisites still apply. The test uses a temporary WebView profile and files.
+
+The result directory includes `tauri/console.log`, `tauri/smoke-report.json`,
+and `tauri/summary.json`. A failing native smoke test fails the overall test
+run. The packaged build continues to use the committed assistance runtime
+snapshots and does not build or publish AI runtime archives.
+
+```sh
+gh workflow run desktop-nightly-tests.yml --ref feat/tauri-prototype \
+  -f desktop_host=electron -f nightly_tests_targets=all
+```
+
 ## What this exercises
 
 - Existing React editor startup through the versioned desktop bridge.

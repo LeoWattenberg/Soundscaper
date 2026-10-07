@@ -12,6 +12,7 @@ import { staticSiteContentType } from './static-site-content-types.mjs';
 import { PACKAGED_RUNTIME_ARTIFACT_PATHS } from './desktop-nightly-tests-packaged-runtime.mjs';
 import { LOCAL_ASSISTANCE_ARTIFACT_PATHS } from './desktop-nightly-tests-local-assistance.mjs';
 import { runDesktopNightlyTestsPlaywrightChild } from './desktop-nightly-tests-playwright-child.mjs';
+import { resolveDesktopNightlyTestsTauriPrototype, TAURI_ARTIFACT_PATHS } from './desktop-nightly-tests-tauri.mjs';
 const RESULT_KIND = 'soundscaper-desktop-nightly-tests';
 const PRODUCT_ID_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/u;
 const SOURCE_REVISION_PATTERN = /^[a-f\d]{40}$/u;
@@ -184,6 +185,7 @@ export function createDesktopNightlyTestsResultEnvelope({
 	platform,
 	arch,
 	sourceRevision = null,
+	tauriPrototype = null,
 	startedAt,
 	finishedAt = null,
 	status,
@@ -213,6 +215,7 @@ export function createDesktopNightlyTestsResultEnvelope({
 		signal,
 		failure,
 		artifacts: Object.freeze({
+			...(tauriPrototype ? TAURI_ARTIFACT_PATHS : {}),
 			browserCoverageRaw: 'coverage/v8-browser', ...DUAL_ORIGIN_ARTIFACT_PATHS,
 			consoleLog: 'console.log',
 			htmlReport: 'playwright-report/index.html',
@@ -265,7 +268,10 @@ export async function runDesktopNightlyTests(options, dependencies = {}) {
 	let signal = null, failure = null;
 	const failedPhases = [];
 	try {
-		options.onProgress?.(Object.freeze({ completed: 0, total: 6, label: 'Browser tests' }));
+		const tauriPrototype = await resolveDesktopNightlyTestsTauriPrototype({ payloadRoot: options.payloadRoot, sourceRevision: common.sourceRevision, platform, arch });
+		const total = tauriPrototype ? 7 : 6;
+		common.tauriPrototype = tauriPrototype;
+		options.onProgress?.(Object.freeze({ completed: 0, total, label: 'Browser tests' }));
 		sites = await startProductSites({ payloadRoot: options.payloadRoot, environment, startStaticServer });
 		const resolveEsbuildBinary = dependencies.resolveEsbuildBinary ?? resolveDesktopNightlyTestsEsbuildBinary;
 		const esbuildBinaryPath = await resolveEsbuildBinary({ payloadRoot: options.payloadRoot });
@@ -278,7 +284,7 @@ export async function runDesktopNightlyTests(options, dependencies = {}) {
 			environment: sites.browserEnvironment,
 		});
 		const child = await runPlaywright(plan, (items) => {
-			options.onProgress?.(Object.freeze({ completed: 0, total: 6, label: 'Browser tests', items }));
+			options.onProgress?.(Object.freeze({ completed: 0, total, label: 'Browser tests', items }));
 		});
 		signal = child.signal ?? null;
 		outcome = mapDesktopNightlyTestsExit({ code: child.code, signal });
@@ -289,7 +295,7 @@ export async function runDesktopNightlyTests(options, dependencies = {}) {
 				baseURL: sites.origins.soundscaper, esbuildBinaryPath,
 				activeProductOrigins: sites.origins,
 				environment: sites.browserEnvironment, platform, arch,
-				sourceRevision: options.sourceRevision ?? null, onProgress: options.onProgress,
+				sourceRevision: options.sourceRevision ?? null, onProgress: options.onProgress, tauriPrototype,
 			}, { ...dependencies, runPlaywright })) {
 				signal = phase.child.signal ?? signal;
 				const phaseOutcome = mapDesktopNightlyTestsExit(phase.child);

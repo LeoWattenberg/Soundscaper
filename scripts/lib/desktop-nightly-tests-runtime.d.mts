@@ -66,6 +66,9 @@ export interface DesktopNightlyTestsResultEnvelope {
 	readonly signal: string | null;
 	readonly failure: string | null;
 	readonly artifacts: {
+		readonly tauriConsoleLog?: 'tauri/console.log';
+		readonly tauriSmokeReport?: 'tauri/smoke-report.json';
+		readonly tauriSummary?: 'tauri/summary.json';
 		readonly browserCoverageRaw: 'coverage/v8-browser';
 		readonly dualOriginConsoleLog: 'e2e-coverage/dual-origin/console.log';
 		readonly dualOriginHtmlReport: 'e2e-coverage/dual-origin/playwright-report/index.html';
@@ -153,6 +156,7 @@ export function createDesktopNightlyTestsResultEnvelope(options: {
 	readonly platform: string;
 	readonly arch: string;
 	readonly sourceRevision?: string | null;
+	readonly tauriPrototype?: import('./desktop-nightly-tests-tauri.mjs').DesktopNightlyTestsTauriPrototype | null;
 	readonly startedAt: Date;
 	readonly finishedAt?: Date | null;
 	readonly status: DesktopNightlyTestsStatus;
@@ -182,6 +186,7 @@ export interface DesktopNightlyTestsRunOptions {
 }
 
 export interface DesktopNightlyTestsDependencies {
+	readonly runTauriPhase?: typeof import('./desktop-nightly-tests-tauri.mjs').runDesktopNightlyTestsTauriPhase;
 	readonly now?: () => Date;
 	readonly createRunDirectory?: typeof createDesktopNightlyTestsRunDirectory;
 	readonly startProductSites?: typeof import('./desktop-nightly-tests-product-sites.mjs').startDesktopNightlyTestsProductSites;

@@ -160,8 +160,8 @@ async function startNightlyTests() {
 				type: run.exitCode === 0 ? 'info' : 'error',
 				title: 'Soundscaper Nightly Tests',
 				message: run.exitCode === 0
-					? 'Browser tests, diagnostic metrics, and real model tests passed.'
-					: 'Browser tests, diagnostic metrics, or real model tests did not pass.',
+					? 'All nightly tests passed.'
+					: 'Nightly tests did not pass.',
 				detail: `${run.result?.failure ? `${run.result.failure}\n\n` : ''}`
 					+ `Results:\n${run.runRoot}\n\nStartup diagnostics:\n${startupLog ?? 'Could not create a startup log.'}`,
 			});

@@ -8,12 +8,13 @@ const CHILD_SETTLEMENT_TIMEOUT_MS = 1_000;
 // The CLI wrappers own admission, diagnostics, and result freezing. This kernel
 // supervises an admitted invocation, including descendants that hold its pipes.
 export function runBoundedSmokeChild(command, args, {
-	cwd, environment, outputLimit, timeout, label, errorEvent,
+	cwd, environment, outputLimit, timeout, label, errorEvent, signal,
 }, {
 	spawnChild = spawn,
 	platform = process.platform,
 	killGroup = (pid, signal) => process.kill(pid, signal),
 } = {}) {
+	if (signal?.aborted) return Promise.reject(signal.reason);
 	return new Promise((resolvePromise, reject) => {
 		const child = spawnChild(command, args, {
 			cwd,
@@ -32,7 +33,10 @@ export function runBoundedSmokeChild(command, args, {
 		let timeoutHandle;
 		let forceHandle;
 		let settlementHandle;
+		const onAbort = () => terminate(signal.reason instanceof Error
+			? signal.reason : new Error(`Packaged ${label} child interrupted`));
 		const clearTimers = () => {
+			signal?.removeEventListener('abort', onAbort);
 			clearTimeout(timeoutHandle);
 			clearTimeout(forceHandle);
 			clearTimeout(settlementHandle);
@@ -86,7 +90,9 @@ export function runBoundedSmokeChild(command, args, {
 		child[errorEvent]('error', (error) => {
 			if (!failure) rejectOnce(error);
 		});
-		timeoutHandle = setTimeout(() => {
+		signal?.addEventListener('abort', onAbort, { once: true });
+		if (signal?.aborted) onAbort();
+		if (!failure) timeoutHandle = setTimeout(() => {
 			terminate(new Error(`Packaged ${label} child timed out after ${String(timeout)} milliseconds`));
 		}, timeout);
 		child.once('close', (code, signal) => {
