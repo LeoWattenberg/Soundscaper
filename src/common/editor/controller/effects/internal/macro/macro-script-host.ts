@@ -3,6 +3,7 @@
 import type { MacroTransactionMetadata } from '../../macro-transaction-metadata.ts';
 import { projectForRuntimeConsumers } from '../../../../project-current-runtime.ts';
 import { hasSequenceGeometryProjectAuthority } from '../../../../project-schema-version.ts';
+import { resolveSelectionRange } from '../../../../selection-range.ts';
 
 /**
  * What a macro program is allowed to ask for.
@@ -276,7 +277,8 @@ function readTracks(runtime: MacroScriptHostRuntime): MacroValue {
 }
 
 function readSelection(runtime: MacroScriptHostRuntime): MacroValue {
-	const selection = requireProject(runtime).selection as Record<string, unknown> | null | undefined;
+	const project = requireProject(runtime);
+	const selection = resolveSelectionRange(project) ?? project.selection as Record<string, unknown> | null | undefined;
 	return {
 		startFrame: Number(selection?.startFrame ?? 0),
 		endFrame: Number(selection?.endFrame ?? 0),

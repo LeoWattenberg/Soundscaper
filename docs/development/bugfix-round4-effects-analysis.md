@@ -103,5 +103,27 @@ Regression files are `audio-editor-round4-authored-program-import.test.ts` and
 `audio-editor-round4-authored-program-import.spec.js`; evidence is recorded in
 `/tmp/soundscaper-r4-root-authored-program-import-*`.
 
+## R4-ROOT-005 — Macro selection reads report a selected clip as empty
+
+Import an ordinary 800 ms WAV and select its clip header. Choose Tools → Macros
+palette → New program and read `await sound.project.selection()`. Log its start
+and end frames. The baseline reports `0..0` despite the selected clip occupying
+`0..38400` project samples. The documented program reader copied only collapsed
+stored time fields and omitted the clip identities that define the selection.
+
+Resolve the effective selection in the macro host before returning its existing
+frame/track shape. Snapshot reads share this correction, disjoint clips bracket
+their actual range, and explicit time selections remain authoritative. Reading
+does not change selection or document state. This differs from previous label
+creation and track-scope consumers that independently lost clip-derived bounds.
+
+The explicit clip-header workflow fails on immutable baseline `a0322d6e4` and
+passes Chromium, Firefox and WebKit on the clean owned `selection-read-clean3`
+build. Three strict reader cases and existing host/program support pass, 22 tests
+altogether; targeted lint passes. Regression files are
+`audio-editor-round4-program-selection-read.test.ts` and
+`audio-editor-round4-program-selection-read.spec.js`; evidence is recorded in
+`/tmp/soundscaper-r4-root-program-selection-read-*`.
+
 These browser DSP, UI, and regression changes retain the assistance runtime closure.
 A manual **Update AI assets** run is not required.
