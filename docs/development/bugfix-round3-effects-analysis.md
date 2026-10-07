@@ -267,10 +267,21 @@ Proof: the ordinary picker/menu workflow fails on the immutable baseline and
 passes on green build 14 in Chromium, Firefox and WebKit, checking both clips,
 the new native rate and Undo's original rate. The strict regression applies the
 actual replacement batch to a canonical linked camera project and preserves
-the exact video record; all 16 focused resampling tests pass. The inspector can
-select the surviving video tab after replacement, so the test explicitly
-reopens the audio properties before reading their rate. No manual
-**Update AI assets** run is required.
+the exact video record; all 16 initial focused resampling tests pass.
+
+Complete-suite follow-through found that the native product projection pruned
+the temporarily removed audio clip from durable selection. Its open Properties
+inspector switched to video when resampling finished. The strengthened ordinary
+browser workflow is red before the correction, checking the already-open audio
+sample rate before any close or re-selection. Restore the live selection after
+replacement and relinking within the same history entry. Three strict real
+Soundscaper controller regressions preserve header and range selections, a range
+changed during pending resampling, exact frequency metadata, video content, and
+Undo/Redo; all 13 focused controller and resampling cases pass. The strengthened
+public inspector workflow passes Chromium, Firefox and WebKit on green28,
+including the unchanged reopened rate, linked-video and Undo checks. This
+corrects the same replacement operation and adds no count. No manual **Update AI
+assets** run is required.
 
 ## R3-ROOT-014 — Macro project reads report video clips as empty
 

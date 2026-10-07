@@ -19,6 +19,7 @@ test('resampling camera audio preserves its linked video and Undo restores the o
 	await resample.getByRole('textbox').fill('24000');
 	await resample.getByRole('button', { name: 'Resample', exact: true }).click();
 	await expect(resample).toBeHidden();
+	await expect(properties.locator('[data-clip-source-fact="sampleRate"] .audio-editor-field__value')).toHaveText('24000');
 	await closeClipProperties(properties);
 	await expect(editor).toHaveAttribute('data-clip-count', '2');
 	await expect(editor.locator('[data-clip-kind="video"]')).toHaveCount(1);
