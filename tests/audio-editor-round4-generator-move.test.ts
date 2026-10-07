@@ -45,7 +45,7 @@ for (const destination of ['existing', 'new']) test(`a public generated Title mo
 	assert.deepEqual(after.sources, original?.sources);
 	assert.equal(after.tracks.length, project.tracks.length + (destination === 'new' ? 1 : 0));
 	assert.equal(controller.getSnapshot().history.undoEntries.length, originalHistory + 1);
-	const owner = after.tracks.find(track => track.clipIds.includes(String(clip.id)));
+	const owner = after.tracks.find(track => Array.isArray(track.clipIds) && track.clipIds.includes(String(clip.id)));
 	assert.ok(owner);
 	assert.equal(owner.type, 'video');
 	controller.actions.edit.undo();
