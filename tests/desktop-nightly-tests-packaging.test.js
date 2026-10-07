@@ -6,6 +6,7 @@ import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
+import { runInNewContext } from 'node:vm';
 
 import { FuseV1Options } from '@electron/fuses';
 
@@ -219,7 +220,18 @@ test('desktop test artifacts build on main pushes and manual target selections w
 	const targetsEnd = workflow.indexOf('\n  package-with-tests:', targetsStart);
 	assert.ok(targetsStart >= 0 && targetsEnd > targetsStart);
 	const targetsJob = workflow.slice(targetsStart, targetsEnd);
-	assert.match(targetsJob, /if: github\.ref == 'refs\/heads\/main'/u);
+	const targetsCondition = /^ {4}if: (.+)$/mu.exec(targetsJob)?.[1];
+	assert.ok(targetsCondition, 'target selection must declare its event guard');
+	for (const [eventName, ref, enabled] of [
+		['workflow_dispatch', 'refs/heads/tauri-prototype', true],
+		['workflow_dispatch', 'refs/heads/main', true],
+		['push', 'refs/heads/main', true],
+		['push', 'refs/heads/tauri-prototype', false],
+	]) {
+		assert.equal(runInNewContext(targetsCondition, {
+			github: { event_name: eventName, ref },
+		}), enabled, `${eventName} on ${ref} must ${enabled ? 'run' : 'skip'} target selection`);
+	}
 	assert.match(targetsJob, /ref: \$\{\{ github\.sha \}\}/u);
 	assert.match(targetsJob, /targets: \$\{\{ steps\.resolve\.outputs\.targets \}\}/u);
 	assert.match(workflow, /NIGHTLY_TEST_TARGETS: \$\{\{ inputs\.nightly_tests_targets \|\| 'all' \}\}/u);
