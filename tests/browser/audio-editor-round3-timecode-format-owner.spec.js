@@ -36,3 +36,42 @@ test('a time digit editor leaves numeric typing to search after Ctrl K moves foc
 	await expect(search).toHaveValue('1');
 	await expect(playhead.locator('.timecode__display')).toHaveText(before);
 });
+
+test('the application playhead format popup owns arrows after pointer opening from an edited digit', async ({ page }) => {
+	const editor = await bootEditor(page, '/embed/en/');
+	await importFiles(editor, [toneA]);
+	const playhead = editor.getByRole('group', { name: 'Playhead', exact: true });
+	const display = playhead.locator('.timecode__display');
+	const before = await display.textContent();
+	await playhead.locator('.timecode-digit').first().click();
+	await editor.getByRole('button', { name: 'Playhead: Format', exact: true }).click();
+	const choice = page.getByRole('menuitem', { name: 'dd:hh:mm:ss', exact: true });
+	await expect(choice).toBeVisible();
+	await page.keyboard.press('ArrowDown');
+	await expect(display).toHaveText(before);
+	await expect(choice).toBeFocused();
+	await page.keyboard.press('Enter');
+	await expect(choice).toHaveCount(0);
+	await expect(display).toHaveText('00d00h00m00s');
+});
+
+test('native keyboard entry and Tab still own time digits after the focused-digit admission guard', async ({ page }) => {
+	const editor = await bootEditor(page, '/embed/en/');
+	await importFiles(editor, [toneA]);
+	const playhead = editor.getByRole('group', { name: 'Playhead', exact: true });
+	const digits = playhead.locator('.timecode-digit');
+	await playhead.focus();
+	await page.keyboard.press('Enter');
+	await expect(digits.first()).toBeFocused();
+	await page.keyboard.press('ArrowLeft');
+	await expect(digits.last()).toBeFocused();
+	await page.keyboard.type('1');
+	await page.keyboard.press('Enter');
+	await expect(playhead.locator('.timecode__display')).toHaveText('00h00m00.01s');
+	await expect(playhead).toBeFocused();
+	await page.keyboard.press('Enter');
+	await expect(digits.first()).toBeFocused();
+	await page.keyboard.press('Tab');
+	await expect(playhead.locator('.timecode-digit[data-state="active"]')).toHaveCount(0);
+	await expect(playhead.locator('.timecode__display')).toHaveText('00h00m00.01s');
+});

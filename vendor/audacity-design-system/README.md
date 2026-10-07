@@ -347,8 +347,8 @@ application overrides and source patches against the pin and upstream master.
 47. `TimeCode` ends digit editing whenever its format menu opens, including a
     pointer press after editing a digit. Format navigation cannot change the
     preceding time value; keyboard and pointer entry share this handoff. Its
-    document listener handles digit keys only while focus remains in its own
-    control, so command search retains numeric typing after Ctrl+K.
+    document listener handles digit keys only while focus remains on one of its
+    digits, so command search and application-owned format triggers retain their keys.
 
 ## Application-side adaptations
 

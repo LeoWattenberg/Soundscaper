@@ -229,7 +229,7 @@ export function TimeCode({
     if (!isEditing || editingDigitIndex === null || disabled) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!containerRef.current?.contains(document.activeElement)) return;
+      if (!containerRef.current?.contains(document.activeElement?.closest('.timecode-digit') ?? null)) return;
       // Tab (with or without Shift): Exit edit mode and move to next/prev tab group
       if (e.key === 'Tab') {
         setIsEditing(false);
