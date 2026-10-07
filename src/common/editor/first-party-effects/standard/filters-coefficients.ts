@@ -13,6 +13,14 @@ function normalized(b0: number, b1: number, b2: number, a0: number, a1: number, 
 // No Nyquist plug-in implementation is used here.
 export function standardFilterCoefficients(type: StandardFilterEffectType, sampleRate: number, params: NormalizedStandardFilterParams): readonly Coefficients[] {
 	const omega = 2 * Math.PI * Number(params.frequency) / sampleRate;
+	if (type === 'shelf-filter' && Number(params.gain) === 0) return [[1, 0, 0, 0, 0]];
+	const order = Number(params.rolloff) / 6;
+	const highpass = type === 'highpass-filter';
+	if ((type === 'lowpass-filter' || highpass) && order === 1) {
+		const tangent = Math.tan(omega / 2);
+		const numerator = highpass ? 1 : tangent;
+		return [normalized(numerator, highpass ? -numerator : numerator, 0, 1 + tangent, tangent - 1, 0)];
+	}
 	const sine = Math.sin(omega);
 	const cosine = Math.cos(omega);
 	if (type === 'notch-filter') {
@@ -20,7 +28,6 @@ export function standardFilterCoefficients(type: StandardFilterEffectType, sampl
 		return [normalized(1, -2 * cosine, 1, 1 + alpha, -2 * cosine, 1 - alpha)];
 	}
 	if (type === 'shelf-filter') {
-		if (Number(params.gain) === 0) return [[1, 0, 0, 0, 0]];
 		const amplitude = 10 ** (Number(params.gain) / 40);
 		const sum = amplitude + 1;
 		const difference = amplitude - 1;
@@ -44,13 +51,6 @@ export function standardFilterCoefficients(type: StandardFilterEffectType, sampl
 			2 * (difference - sum * cosine),
 			sum - difference * cosine - beta,
 		)];
-	}
-	const order = Number(params.rolloff) / 6;
-	const highpass = type === 'highpass-filter';
-	if (order === 1) {
-		const tangent = Math.tan(omega / 2);
-		const numerator = highpass ? 1 : tangent;
-		return [normalized(numerator, highpass ? -numerator : numerator, 0, 1 + tangent, tangent - 1, 0)];
 	}
 	const stages: Coefficients[] = [];
 	for (let stage = 0; stage < order / 2; stage++) {

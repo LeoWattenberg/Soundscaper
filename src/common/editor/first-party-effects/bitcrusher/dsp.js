@@ -93,6 +93,7 @@ export function createBitcrusherProcessor(options) {
 	let lowestCode = -levels / 2;
 	let highestCode = levels / 2 - 1;
 	let smoothingCoefficient = 1;
+	let needsPosition = false;
 
 	const randoms = Array.from({ length: channelCount }, (unused, channel) => (
 		createSeededRandom(channelSeed(seed, channel))
@@ -123,6 +124,7 @@ export function createBitcrusherProcessor(options) {
 		highestCode = levels / 2 - 1;
 		// 10% to 90% of the way to a newly held value over one hold interval.
 		smoothingCoefficient = 1 - Math.exp(-2.2 / holdLength);
+		needsPosition = interpolation === 'linear' || interpolation === 'cubic';
 	}
 
 	function reset() {
@@ -167,7 +169,7 @@ export function createBitcrusherProcessor(options) {
 		return quantized * step;
 	}
 
-	function reconstruct(channel, position) {
+	function reconstruct(channel, position, cubicPrevious, cubicIncoming, cubicTarget, cubicOutgoing) {
 		const target = held[channel];
 		if (interpolation === 'sample-hold') return target;
 		const previous = previousHeld[channel];
@@ -176,19 +178,10 @@ export function createBitcrusherProcessor(options) {
 			smoothed[channel] += (target - smoothed[channel]) * smoothingCoefficient;
 			return smoothed[channel];
 		}
-		// Cubic Hermite over the segment that ends at the current held value.
-		// The incoming tangent is the centred difference across the previous
-		// value; the outgoing one is the backward difference, which is the
-		// closest causal stand-in for a centred tangent that would need the
-		// next held sample.
+		// Preserve the Hermite arithmetic, sharing only its position basis.
 		const incoming = (target - earlierHeld[channel]) * 0.5;
 		const outgoing = target - previous;
-		const squared = position * position;
-		const cubed = squared * position;
-		return (2 * cubed - 3 * squared + 1) * previous
-			+ (cubed - 2 * squared + position) * incoming
-			+ (-2 * cubed + 3 * squared) * target
-			+ (cubed - squared) * outgoing;
+		return cubicPrevious * previous + cubicIncoming * incoming + cubicTarget * target + cubicOutgoing * outgoing;
 	}
 
 	configure(options?.params ?? {});
@@ -235,11 +228,23 @@ export function createBitcrusherProcessor(options) {
 						}
 					}
 				} else heldAge += 1;
-				const position = Math.min(1, (heldAge + 1) / holdLength);
+				const position = needsPosition ? Math.min(1, (heldAge + 1) / holdLength) : 0;
+				let cubicPrevious = 0;
+				let cubicIncoming = 0;
+				let cubicTarget = 0;
+				let cubicOutgoing = 0;
+				if (interpolation === 'cubic') {
+					const squared = position * position;
+					const cubed = squared * position;
+					cubicPrevious = 2 * cubed - 3 * squared + 1;
+					cubicIncoming = cubed - 2 * squared + position;
+					cubicTarget = -2 * cubed + 3 * squared;
+					cubicOutgoing = cubed - squared;
+				}
 				for (let channel = 0; channel < output.length; channel += 1) {
 					const sample = input[channel]?.[frame] ?? 0;
 					const dry = Number.isFinite(sample) ? sample : 0;
-					const crushed = channel < channelCount ? reconstruct(channel, position) : dry;
+					const crushed = channel < channelCount ? reconstruct(channel, position, cubicPrevious, cubicIncoming, cubicTarget, cubicOutgoing) : dry;
 					output[channel][frame] = dry + (crushed - dry) * wet;
 				}
 			}

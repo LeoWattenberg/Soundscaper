@@ -126,8 +126,6 @@ function createPartitionState(partitionCount, partitionSize, discard) {
 	return {
 		input: new Float64Array(partitionSize),
 		inputFill: 0,
-		inputReal: new Float64Array(fftSize),
-		inputImaginary: new Float64Array(fftSize),
 		outputReal: new Float64Array(fftSize),
 		outputImaginary: new Float64Array(fftSize),
 		causal: new Float32Array(partitionSize),
@@ -143,15 +141,13 @@ function createPartitionState(partitionCount, partitionSize, discard) {
 
 function processConvolutionPartition(state, kernelPartitions, partitionSize) {
 	const fftSize = partitionSize * 2;
-	const inputReal = state.inputReal;
-	const inputImaginary = state.inputImaginary;
-	inputReal.fill(0);
+	state.historyIndex = (state.historyIndex + 1) % kernelPartitions.length;
+	const inputReal = state.historyReal[state.historyIndex];
+	const inputImaginary = state.historyImaginary[state.historyIndex];
+	inputReal.fill(0, partitionSize);
 	inputImaginary.fill(0);
 	inputReal.set(state.input);
 	fft(inputReal, inputImaginary, false);
-	state.historyIndex = (state.historyIndex + 1) % kernelPartitions.length;
-	state.historyReal[state.historyIndex].set(inputReal);
-	state.historyImaginary[state.historyIndex].set(inputImaginary);
 	const outputReal = state.outputReal;
 	const outputImaginary = state.outputImaginary;
 	outputReal.fill(0);
@@ -180,7 +176,6 @@ function processConvolutionPartition(state, kernelPartitions, partitionSize) {
 	}
 	if (start < causal.length) state.queue.push(causal.subarray(start));
 	if (!state.started && state.discard === 0 && state.queue.length >= partitionSize) state.started = true;
-	state.input.fill(0);
 	state.inputFill = 0;
 }
 

@@ -44,7 +44,8 @@ export function integratedLoudnessPower(channels, sampleRate) {
 	const blockOverlap = Math.ceil(0.1 * sampleRate);
 	const ring = new Float64Array(blockSize);
 	const histogram = createLoudnessPowerHistogram();
-	const filters = channels.map(() => weightingFilters(sampleRate));
+	const template = weightingFilters(sampleRate);
+	const filters = channels.map(() => template.map(filter => ({ ...filter })));
 	let ringPosition = 0;
 	let ringSize = 0;
 	let histogramCount = 0;

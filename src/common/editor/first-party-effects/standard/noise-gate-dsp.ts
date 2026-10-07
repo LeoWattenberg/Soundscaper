@@ -9,6 +9,8 @@ interface Options {
 	readonly params?: Readonly<Record<string, unknown>>;
 }
 
+const ATTACK_NORMALIZATION = -Math.expm1(-1);
+
 /** Previewed peak gate with a complementary split for frequency-selective gating. */
 export function createNoiseGateProcessor(options: Options) {
 	return createNoiseGateState(options, false);
@@ -22,6 +24,7 @@ export function createOfflineNoiseGateProcessor(options: Options) {
 function createNoiseGateState({ sampleRate, channelCount, params = {} }: Options, fixed: boolean) {
 	validateGeometry(sampleRate, channelCount);
 	let current: Readonly<Record<string, unknown>> = {};
+	let configured: Record<string, number | string> | null = null;
 	let threshold = 0;
 	let floor = 0;
 	let attackFrames = 0;
@@ -36,12 +39,18 @@ function createNoiseGateState({ sampleRate, channelCount, params = {} }: Options
 	const held = new Float64Array(channelCount);
 	const opening = new Float64Array(channelCount);
 	const openingGain = new Float64Array(channelCount);
-	const crossovers = Array.from({ length: 2 }, () => new ComplementaryCrossover(sampleRate, channelCount, 1000));
+	let crossovers: ComplementaryCrossover[] = [];
 	function configure(changes: Readonly<Record<string, unknown>>) {
 		const merged = { ...current, ...changes };
 		const next = normalizeNoiseGateParams(merged);
 		const nextFrequency = Number(next.gateFrequency);
 		if (nextFrequency >= sampleRate / 2) throw new RangeError('noise-gate.gateFrequency must be below Nyquist.');
+		current = merged;
+		if (configured && Object.keys(next).every(key => Object.is(next[key], configured![key]))) return;
+		configured = next;
+		if (crossovers.length === 0 && (!fixed || nextFrequency > 0)) {
+			crossovers = Array.from({ length: 2 }, () => new ComplementaryCrossover(sampleRate, channelCount, 1000));
+		}
 		const nextLatencyFrames = noiseGateLatencyFrames(next, sampleRate);
 		const nextHistory = nextLatencyFrames !== latencyFrames
 			? Array.from({ length: channelCount }, () => new Float32Array(nextLatencyFrames)) : history;
@@ -53,7 +62,6 @@ function createNoiseGateState({ sampleRate, channelCount, params = {} }: Options
 		linked = next.stereoLink === 'linked';
 		if (nextFrequency > 0) for (const crossover of crossovers) crossover.configure(nextFrequency);
 		frequency = nextFrequency;
-		current = merged;
 		if (nextLatencyFrames !== latencyFrames) {
 			latencyFrames = nextLatencyFrames;
 			history = nextHistory;
@@ -99,7 +107,7 @@ function createNoiseGateState({ sampleRate, channelCount, params = {} }: Options
 							const progress = Math.min(1, opening[channel] / attackFrames);
 							// Finish the exponential attack on time, so full preview preserves the first transient.
 							gains[channel] = progress === 1 ? 1
-								: openingGain[channel] + (1 - openingGain[channel]) * -Math.expm1(-progress) / -Math.expm1(-1);
+								: openingGain[channel] + (1 - openingGain[channel]) * -Math.expm1(-progress) / ATTACK_NORMALIZATION;
 						} else {
 							opening[channel] = 0;
 							gains[channel] = target + release * (gains[channel] - target);
