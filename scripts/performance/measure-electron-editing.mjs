@@ -2,6 +2,7 @@
 // Run after desktop preparation: xvfb-run -a node --import tsx scripts/performance/measure-electron-editing.mjs
 // Add --extended after the output path to include Chirp, Normalize and dense timeline gestures.
 // Add --round3 to include Click Removal, Noise gate and Loudness Normalization as well.
+// Add --round4 for constant Chirp, long DTMF, De-esser and Multiband compressor.
 // Fresh profiles and real desktop bridge; no CPU throttling or application stubs.
 import { _electron as electron, expect } from '@playwright/test';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
@@ -14,7 +15,8 @@ import {
 } from '../../tests/browser/audio-editor-test-helpers.js';
 
 const output = resolve(process.argv[2] ?? 'test-results/editing-performance/electron.json');
-const round3 = process.argv.includes('--round3');
+const round4 = process.argv.includes('--round4');
+const round3 = round4 || process.argv.includes('--round3');
 const extended = round3 || process.argv.includes('--extended');
 const hostStart = { time: new Date().toISOString(), loadAverage: loadavg(), freeBytes: freemem(), totalBytes: totalmem() };
 const profile = await mkdtemp(join(tmpdir(), 'soundscaper-editing-performance-'));
@@ -51,7 +53,8 @@ try {
 	const generators = extended
 		? [['Tone', 30], ['Chirp', 30], ['Noise', 30], ['Noise', 120]]
 		: [['Tone', 30], ['Noise', 30], ['Noise', 120]];
-	for (const [type, seconds] of generators) {
+	if (round4) generators.splice(2, 0, ['Chirp', 30, 'constant'], ['DTMF tones', 30]);
+	for (const [type, seconds, variant] of generators) {
 		for (let trial = 0; trial < 3; trial += 1) {
 			if (Number(await editor.getAttribute('data-clip-count')) > 0) {
 				await editor.getByRole('button', { name: 'Undo', exact: true }).click();
@@ -63,21 +66,26 @@ try {
 				await dialog.getByRole('button', { name: 'Noise color', exact: true }).click();
 				await page.getByRole('option', { name: 'Pink', exact: true }).click();
 			}
+			if (variant === 'constant') {
+				await dialog.locator('[data-generator-field="endFrequency"] input').fill('440');
+				await dialog.locator('[data-generator-field="endFrequency"] input').blur();
+			}
 			await dialog.locator('[data-generator-field="durationSeconds"] input').fill(String(seconds));
 			await dialog.locator('[data-generator-field="durationSeconds"] input').blur();
 			await armOperation(page, 'Generate', '[data-generator-type]');
 			await dialog.getByRole('button', { name: 'Generate', exact: true }).click();
-			results.push({ operation: `Generate ${type}${type === 'Noise' ? ' pink' : ''}`, seconds, trial,
+			results.push({ operation: `Generate ${type}${type === 'Noise' ? ' pink' : variant === 'constant' ? ' constant' : ''}`, seconds, trial,
 				...await finishOperation(page) });
 			await expect(editor).toHaveAttribute('data-clip-count', '1');
 		}
 	}
 	const effects = extended ? ['Amplify', 'Compressor', 'Normalize'] : ['Amplify', 'Compressor'];
 	if (round3) effects.push('Click Removal', 'Noise gate', 'Loudness Normalization');
+	if (round4) effects.push('De-esser', 'Multiband compressor');
 	for (const effect of effects) {
 		for (let trial = 0; trial < 3; trial += 1) {
 			await chooseCommandAction(page, editor, 'Select', 'Select all');
-			const group = effect === 'Click Removal' || effect === 'Noise gate'
+			const group = effect === 'Click Removal' || effect === 'Noise gate' || effect === 'De-esser'
 				? 'Noise removal and repair' : 'Volume and compression';
 			await chooseNestedCommandAction(page, editor, 'Effect', [group, effect]);
 			const dialog = page.getByRole('dialog', { name: 'Apply effect', exact: true });
@@ -117,7 +125,7 @@ try {
 	const report = { node: process.version, platform: process.platform, arch: process.arch,
 		revision: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: process.cwd(), encoding: 'utf8' }).trim(),
 		cpu: cpus()[0]?.model, logicalCpus: cpus().length, runtime, viewport, preference: 'speed', extended,
-		round3, hostStart,
+		round3, round4, hostStart,
 		hostEnd: { time: new Date().toISOString(), loadAverage: loadavg(), freeBytes: freemem(), totalBytes: totalmem() },
 		method: 'Actual Electron development app with freshly staged production renderer and real preload/SQLite/PCM path. First trial includes first-use processing engines; subsequent trials are warm. Capture click to dialog closed, success status, cleared waveform pending state, explicit successful canvas paint and two animation frames. Xvfb RAF gaps are a renderer responsiveness proxy, not GPU presentation FPS. Startup excluded.',
 		results };
