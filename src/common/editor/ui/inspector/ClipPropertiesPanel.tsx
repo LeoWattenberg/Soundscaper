@@ -68,6 +68,7 @@ export default function ClipPropertiesPanel({ controller, snapshot, copy, focusR
 
 	const activateTab = (clipId: string) => setStoredTarget({ projectId: selection.projectId, clipId });
 	const handleTabKey = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
+		if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
 		let nextIndex: number;
 		if (event.key === 'ArrowRight') nextIndex = (index + 1) % selection.clips.length;
 		else if (event.key === 'ArrowLeft') nextIndex = (index - 1 + selection.clips.length) % selection.clips.length;

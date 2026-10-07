@@ -53,6 +53,28 @@ test('selected clips have accessible local tabs and every commit targets the act
 	} finally { await f.cleanup(); }
 });
 
+test('local clip tabs leave modified navigation to commands while preserving plain activation', async () => {
+	const f = await fixture();
+	try {
+		await f.render(['one', 'two']);
+		for (const key of ['ArrowRight', 'ArrowLeft', 'Home', 'End']) {
+			for (const modifier of ['ctrlKey', 'metaKey', 'altKey', 'defaultPrevented']) {
+				f.tab('one').focus(); let prevented = false;
+				await act(async () => reactProps(f.tab('one')).onKeyDown({ key,
+					ctrlKey: modifier === 'ctrlKey', metaKey: modifier === 'metaKey', altKey: modifier === 'altKey',
+					defaultPrevented: modifier === 'defaultPrevented', preventDefault() { prevented = true; } }));
+				assert.equal(prevented, false, `${modifier} ${key}`);
+				assert.equal(f.tab('one').getAttribute('aria-selected'), 'true');
+				assert.equal(document.activeElement, f.tab('one'));
+			}
+		}
+		await act(async () => reactProps(f.tab('one')).onKeyDown({ key: 'End', preventDefault() {} }));
+		assert.equal(f.tab('two').getAttribute('aria-selected'), 'true');
+		assert.equal(document.activeElement, f.tab('two'));
+		assert.deepEqual(f.project().selection.clipIds, ['one', 'two']);
+	} finally { await f.cleanup(); }
+});
+
 test('half-typed drafts and stale callbacks never cross clips or projects, including repeated ids', async () => {
 	const f = await fixture();
 	try {
