@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 // Run after desktop preparation: xvfb-run -a node --import tsx scripts/performance/measure-electron-editing.mjs
-// Add --extended after the output path to include Chirp and Normalize.
+// Add --extended after the output path to include Chirp, Normalize and dense timeline gestures.
 // Fresh profiles and real desktop bridge; no CPU throttling or application stubs.
 import { _electron as electron, expect } from '@playwright/test';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
@@ -81,9 +81,11 @@ try {
 			await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', /success|info/u);
 		}
 	}
-	for (let step = 0; step < 3; step += 1) {
+	const duplicationRounds = extended ? 6 : 3;
+	for (let step = 0; step < duplicationRounds; step += 1) {
 		await chooseCommandAction(page, editor, 'Select', 'Select all');
 		await chooseCommandAction(page, editor, 'Edit', 'Duplicate');
+		await expect(editor).toHaveAttribute('data-clip-count', String(2 ** (step + 1)));
 	}
 	await editor.getByRole('button', { name: 'Fit project', exact: true }).click();
 	await chooseCommandAction(page, editor, 'Select', 'Select none');
@@ -99,6 +101,11 @@ try {
 	results.push({ operation: 'Playback timeline', clips: await editor.getAttribute('data-clip-count'),
 		playheadBefore, playheadAfter, ...playbackFrames });
 	await editor.getByRole('button', { name: 'Stop', exact: true }).click();
+	if (extended) {
+		await expect(editor).toHaveAttribute('data-clip-count', '64');
+		results.push({ operation: 'Active dense timeline scroll and hover', clips: '64',
+			...await sampleTimelineGestures(page, editor, 3_000) });
+	}
 	expect(errors).toEqual([]);
 	const report = { node: process.version, platform: process.platform, arch: process.arch,
 		cpu: cpus()[0]?.model, logicalCpus: cpus().length, runtime, viewport, preference: 'speed', extended,
@@ -185,6 +192,79 @@ async function sampleFrames(page, durationMs) {
 		requestAnimationFrame(frame);
 	}), durationMs);
 	return summarizeFrames(result);
+}
+
+async function sampleTimelineGestures(page, editor, durationMs) {
+	for (let step = 0; step < 3; step += 1) await editor.getByRole('button', { name: 'Zoom in', exact: true }).click();
+	const scroll = editor.locator('.audio-editor-timeline-scroll');
+	const scrollBounds = await scroll.boundingBox();
+	const rulerBounds = await editor.locator('[data-ruler]').boundingBox();
+	if (!scrollBounds || !rulerBounds) throw new Error('The dense timeline must expose its scroll viewport and ruler.');
+	const xMin = Math.max(scrollBounds.x + 20, rulerBounds.x + 20);
+	const xMax = scrollBounds.x + scrollBounds.width - 24;
+	const yMin = Math.max(scrollBounds.y + 50, rulerBounds.y + rulerBounds.height + 24);
+	const yMax = scrollBounds.y + scrollBounds.height - 32;
+	expect(xMax).toBeGreaterThan(xMin);
+	expect(yMax).toBeGreaterThan(yMin);
+	const maximumScroll = await scroll.evaluate(element => Math.max(
+		element.scrollWidth - element.clientWidth, element.scrollHeight - element.clientHeight,
+	));
+	expect(maximumScroll).toBeGreaterThan(0);
+	await page.mouse.move(xMin, yMin);
+	await expect(editor.locator('[data-time-ruler-pointer-position]')).toBeVisible();
+	let gestures = 0;
+	const [sample] = await Promise.all([
+		page.evaluate(duration => new Promise(resolvePromise => {
+			const timeline = document.querySelector('.audio-editor-timeline-scroll');
+			const pointer = document.querySelector('[data-time-ruler-pointer-position]');
+			if (!timeline || !pointer) throw new Error('Timeline gesture sampling requires mounted rendering targets.');
+			const frames = [];
+			const scrollPositions = new Set();
+			const hoverPositions = new Set();
+			let first;
+			let previous;
+			let minScrollLeft = timeline.scrollLeft;
+			let maxScrollLeft = minScrollLeft;
+			let minScrollTop = timeline.scrollTop;
+			let maxScrollTop = minScrollTop;
+			const frame = time => {
+				first ??= time;
+				if (previous !== undefined) frames.push(time - previous);
+				previous = time;
+				minScrollLeft = Math.min(minScrollLeft, timeline.scrollLeft);
+				maxScrollLeft = Math.max(maxScrollLeft, timeline.scrollLeft);
+				minScrollTop = Math.min(minScrollTop, timeline.scrollTop);
+				maxScrollTop = Math.max(maxScrollTop, timeline.scrollTop);
+				scrollPositions.add(`${timeline.scrollLeft},${timeline.scrollTop}`);
+				if (!pointer.hidden) hoverPositions.add(pointer.style.transform);
+				if (time - first >= duration) resolvePromise({ frames, durationMs: time - first,
+					minScrollLeft, maxScrollLeft, minScrollTop, maxScrollTop,
+					scrollPositions: scrollPositions.size, hoverPositions: hoverPositions.size });
+				else requestAnimationFrame(frame);
+			};
+			requestAnimationFrame(frame);
+		}), durationMs),
+		(async () => {
+			const started = Date.now();
+			while (Date.now() - started < durationMs) {
+				const phase = gestures % 7 / 6;
+				await page.mouse.move(xMin + (xMax - xMin) * phase,
+					yMin + (yMax - yMin) * (1 - phase), { steps: 3 });
+				const direction = Math.floor(gestures / 6) % 2 ? -1 : 1;
+				await page.mouse.wheel(direction * 320, direction * 240);
+				gestures += 1;
+				await page.waitForTimeout(Math.max(0, started + gestures * 60 - Date.now()));
+			}
+		})(),
+	]);
+	expect(gestures).toBeGreaterThan(3);
+	expect(sample.scrollPositions).toBeGreaterThan(3);
+	expect(sample.hoverPositions).toBeGreaterThan(3);
+	expect(Math.max(sample.maxScrollLeft - sample.minScrollLeft,
+		sample.maxScrollTop - sample.minScrollTop)).toBeGreaterThan(100);
+	const { frames, ...interaction } = sample;
+	return { ...summarizeFrames(frames), ...interaction, gestures,
+		gesture: 'Trusted mouse sweeps and bidirectional wheel scrolling on a zoomed timeline with 64 clips' };
 }
 
 function summarizeFrames(frames) {

@@ -5,6 +5,21 @@
   "baseRevision": "1b9a6ce76b66b810a6dd30b94ad0f50559fbddab",
   "scope": "30 new production responsiveness/render improvements. Startup and editor lazy-loading, and the earlier 74 implemented candidates, are excluded. Distinct avoided work is documented without attributing an aggregate Electron speedup to individual helpers.",
   "manualUpdateAiAssetsRequired": false,
+  "independentDspReview": {
+    "reviewedCommits": ["abcddaa9b", "e686f9f0e", "ac98d8e65"],
+    "method": "Independent comparisons against the captured baseRevision bundles, separate from the committed 146-case DSP parity suite.",
+    "additionalCases": 121,
+    "covered": [
+      "Arbitrary generator block partitions, pink row-cycle boundaries, per-channel RNG order, Nyquist tones and descending chirps",
+      "Irregular linear-resampler chunks, empty chunks, copied history after caller mutation, and repeated finish calls",
+      "Delay zero offsets, history growth and shrink, reset, and finite sanitization",
+      "Reverb public parameter changes and in-place processing",
+      "Compressor transitions from active to neutral and back"
+    ],
+    "result": "No remaining correctness findings: all finite PCM samples compare byte-for-byte, and direct nonfinite cases preserve numeric values and NaN positions. The unused linear-resampler candidate was restored to its original source.",
+    "nativeDelayFinding": "An additional real StaffPad audit identified one differing sample preceding a NaN region after finite Float32-max input overflows the native processor. Restoring original interpolation on pitched reads resolves the boundary: all three real StaffPad cases now have zero differing samples. The owning DSP agent added the regression in tests/audio-editor-round2-resample-delay-performance.test.ts.",
+    "limitations": "Independently compiled baseline modules can produce incidental invalid-input NaN bit encodings under V8 even when source is restored; these are not attributed to production changes. This review adds no counted performance improvements."
+  },
   "entries": [
     {
       "id": "TL01",
