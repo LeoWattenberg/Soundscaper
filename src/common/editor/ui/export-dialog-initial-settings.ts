@@ -13,6 +13,9 @@ export function exportDialogProjectIdentity(projectValue: unknown): string | nul
 export function createExportDialogInitialSettings(projectValue: unknown) {
 	const project = dataRecord(projectValue);
 	const metadata = dataRecord(project.metadata);
+	const adm = dataRecord(metadata.adm);
+	const inheritedTitle = adm.mode === 'passthrough' && adm.pristineRevision === project.revision
+		&& metadata.title === project.title;
 	return {
 		mode: 'mix',
 		chapterSource: 'labels',
@@ -32,7 +35,7 @@ export function createExportDialogInitialSettings(projectValue: unknown) {
 		dither: 'triangular',
 		loudnessNormalization: '',
 		quality: '5',
-		metadataTitle: String(metadata.title ?? project.title ?? ''),
+		metadataTitle: String(inheritedTitle ? '' : metadata.title ?? project.title ?? ''),
 		metadataArtist: String(metadata.artist || ''),
 		metadataAlbum: String(metadata.album || ''),
 		metadataTrack: String(metadata.trackNumber || ''),
