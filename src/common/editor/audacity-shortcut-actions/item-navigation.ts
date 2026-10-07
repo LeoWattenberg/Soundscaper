@@ -8,6 +8,7 @@ import {
 } from '../audacity-action-runtime-helpers.ts';
 import { clipTrimSourceFrameCount } from '../controller/clip-video/clip-trim-source-frame-count.ts';
 import { itemNavigationMoveFrame } from './item-navigation-geometry.ts';
+import { prepareLabelTrackMoveFocus } from './label-track-move-focus.ts';
 import type { AudioEditorCommand, CommandObject } from '../commands/protocol.ts';
 import type {
 	ControllerClip,
@@ -276,13 +277,16 @@ function moveLabelTrack(
 	while (project.tracks[targetIndex] && project.tracks[targetIndex]?.type !== 'label');
 	const target = project.tracks[targetIndex];
 	if (!target) return null;
-	return controller.actions.edit.commit({
+	const restoreFocus = prepareLabelTrackMoveFocus(focus.trackId, focus.labelId, target.id);
+	const result = controller.actions.edit.commit({
 		type: 'batch',
 		commands: [
 			{ type: 'label/remove', trackId: focus.trackId, labelId: focus.labelId },
 			{ type: 'label/add', trackId: target.id, label: focus.label as CommandObject },
 		],
 	}, { selectTrackId: target.id });
+	restoreFocus?.();
+	return result;
 }
 
 function adjustSelection(
