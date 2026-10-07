@@ -190,7 +190,7 @@ const FOUNDATION_TIME_CONVERSION_EDITOR_SITES: readonly FoundationTimeConversion
 	},
 	{
 		id: 'scheduled-parameter-context-offset',
-		file: 'src/common/editor/engine/scheduled-parameter-registry.ts',
+		file: 'src/common/editor/engine/scheduled-parameter-frame-projector.ts',
 		behavior: 'Scheduled worklet events convert one exact project-frame delta and transport-rate ratio to the nearest context frame with later-frame ownership at exact half ties.',
 		conversions: [{ helper: 'roundRational', policies: ['point'] }],
 	},
