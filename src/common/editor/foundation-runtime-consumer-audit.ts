@@ -187,6 +187,10 @@ export const FOUNDATION_RUNTIME_TIMING_READER_EXCLUSIONS: readonly FoundationRun
 /** Non-shield importers discovered beside the owned consumer and boundary files. */
 export const FOUNDATION_RUNTIME_PROJECTION_IMPORTER_EXCLUSIONS: readonly FoundationRuntimeProjectionImporterExclusion[] = deepFreeze([
 	{
+		file: 'src/common/editor/controller/edit/internal/generator-range-replacement.ts',
+		reason: 'The downstream replacement helper imports only generator projection types and receives the resolved command project from prepareGeneratorCommand; it plans existing range commands without crossing a runtime media boundary.',
+	},
+	{
 		file: 'src/common/editor/clip-silence-regions.ts',
 		reason: 'The scanner imports only the runtime project type and receives resolved clip geometry from the clipboard command owner before inspecting immutable source PCM.',
 	},
