@@ -3,6 +3,7 @@
 import { useMemo, useRef } from 'react';
 import { createAudacityActionRuntime } from '../../audacity-action-runtime.js';
 import { focusedOrSelectedTimelineLabel } from '../timeline/label-inline-edit.ts';
+import { prepareTimelineTrackRemovalFocus } from '../timeline/track-removal-focus.ts';
 
 /** A presentation preview must retain the action runtime which owns controller cleanup. */
 export function useControllerOwnedActionRuntime(controller, productId, locale) {
@@ -13,5 +14,6 @@ export function useControllerOwnedActionRuntime(controller, productId, locale) {
 		productId,
 		locale: routeLocale,
 		getFocusedLabel: () => focusedOrSelectedTimelineLabel(document, controller.getSnapshot().selectedTrackId),
+		prepareTrackRemovalFocus: () => prepareTimelineTrackRemovalFocus(document, controller.actions.timeline.selectTrack),
 	}), [controller, productId, routeLocale]);
 }

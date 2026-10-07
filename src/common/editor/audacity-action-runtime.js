@@ -8,6 +8,7 @@ import { createTransportActionGroup } from './audacity-action-runtime-transport.
 import { applyAudacityZoomToggle } from './audacity-zoom-toggle-runtime.ts';
 import { resolveSelectionRange } from './selection-range.ts';
 import { createAudacityLabelActionRuntime } from './audacity-label-action-runtime.ts';
+import { prepareSelectedTrackRemoval } from './selected-track-removal.ts';
 const STAFFPAD_EFFECT_TYPES = Object.freeze({
 	changePitch: 'audacity-change-pitch',
 	changeTempo: 'audacity-change-tempo',
@@ -428,8 +429,11 @@ export function createAudacityActionRuntime(controller, options = {}) {
 				return track ? controllerActions.track.duplicate(track.id) : null;
 			},
 			removeSelected: () => {
-				const trackId = selectedTrackId();
-				return trackId ? controllerActions.track.remove(trackId) : null;
+				const command = prepareSelectedTrackRemoval(project(), selectedTrackId());
+				if (!command) return null;
+				const restoreFocus = options.prepareTrackRemovalFocus?.();
+				const result = controllerActions.edit.commit(command);
+				restoreFocus?.(); return result;
 			},
 			rename: (name = null) => name == null ? ui.issue('rename-track', { trackId: selectedTrackId() }) : updateSelectedTrack({ name: String(name) }),
 			setRate: (rate) => {

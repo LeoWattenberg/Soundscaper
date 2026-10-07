@@ -313,7 +313,7 @@ export function createWorkspaceApplicationMenus({
 				addStereoTrack: () => run(() => controller.actions.track.addStereo()),
 				addLabelTrack: () => run(() => controller.actions.track.addLabel()),
 				duplicateTrack: () => snapshot.selectedTrackId && run(() => controller.actions.track.duplicate(snapshot.selectedTrackId)),
-				removeTrack: () => snapshot.selectedTrackId && run(() => controller.actions.track.remove(snapshot.selectedTrackId)),
+				removeTrack: () => run(() => parityRuntime.actions.track.removeSelected()),
 				moveTrackUp: () => snapshot.selectedTrackId && run(() => moveAudioEditorTrackBlock(
 					controller,
 					project?.tracks || [],
