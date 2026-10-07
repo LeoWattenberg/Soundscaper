@@ -115,12 +115,12 @@ export default function SoundscaperMasteringSequenceEditor({
 					</option>)}
 				</select>
 			</label>
-			<button type="button" disabled={!primarySequenceId} onClick={() => {
+			<button type="button" disabled={!primarySequenceId} data-mastering-action="new-sequence" onClick={() => {
 				const id = createId();
 				onOperation(masteringSequenceAddOperation(primarySequenceId, id, newSequenceName));
 				setSelectedId(id);
 			}}>{copy.newMasteringSequence}</button>
-			{sequence && <button type="button" onClick={() => {
+			{sequence && <button type="button" data-mastering-action="remove-sequence" onClick={() => {
 				onOperation({ type: 'mastering-sequence/remove', sequenceId: sequence.id });
 				setSelectedId('');
 			}}>{copy.removeMasteringSequence}</button>}
@@ -176,7 +176,7 @@ export default function SoundscaperMasteringSequenceEditor({
 						{regions.map((region) => <option key={region.id} value={region.id}>{region.name}</option>)}
 					</select>
 				</label>
-				<button type="button" onClick={() => onOperation({
+				<button type="button" data-mastering-action="add-entry" onClick={() => onOperation({
 					type: 'mastering-sequence/entry-add',
 					sequenceId: sequence.id,
 					entry: { id: createId(), annotationId: addableRegion.id },
@@ -202,7 +202,7 @@ function EntryEditor({ copy, entry, index, lastIndex, sequenceId, sampleRate, on
 	const move = (toIndex: number): void => onOperation({
 		type: 'mastering-sequence/entry-reorder', sequenceId, entryId: entry.id, toIndex,
 	});
-	return <form
+	return <form data-mastering-entry={entry.id}
 		aria-label={entry.title}
 		onSubmit={(event) => {
 			event.preventDefault();
@@ -264,7 +264,7 @@ function EntryEditor({ copy, entry, index, lastIndex, sequenceId, sampleRate, on
 			<button type="button" disabled={index === lastIndex} onClick={() => move(index + 1)}>
 				{copy.masteringMoveEntryDown}
 			</button>
-			<button type="button" onClick={() => onOperation({
+			<button type="button" data-mastering-action="remove-entry" onClick={() => onOperation({
 				type: 'mastering-sequence/entry-remove', sequenceId, entryId: entry.id,
 			})}>{copy.masteringRemoveEntry}</button>
 		</div>

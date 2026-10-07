@@ -20,6 +20,7 @@ import { useProjectOwnedDialogOperation } from '../useProjectOwnedDialogOperatio
 import { useOperationFocusRecovery } from '../useOperationFocusRecovery.ts';
 import SoundscaperMasteringSequenceEditor from './SoundscaperMasteringSequenceEditor.tsx';
 import type { MasteringSequenceDialogOperation } from './soundscaper-mastering-sequence-operation.ts';
+import { masteringRemovalFocusFallback } from './mastering-removal-focus.ts';
 
 export interface SoundscaperMasteringSequenceDialogProps {
 	readonly isOpen?: boolean;
@@ -93,7 +94,7 @@ export default function SoundscaperMasteringSequenceDialog({
 			primarySequenceId={document.primarySequenceId}
 			sampleRate={audioEditorProjectSampleRate(project)}
 			createId={() => createStableId('mastering-sequence')}
-			onOperation={(command) => { captureOperationFocus(); operation.perform('mastering-sequence', () => command); }}
+			onOperation={(command) => { captureOperationFocus(masteringRemovalFocusFallback(command)); operation.perform('mastering-sequence', () => command); }}
 		/>
 		<div role="status" aria-live="polite" aria-atomic="true">{feedback}</div>
 	</AudioEditorDialogShell>;
