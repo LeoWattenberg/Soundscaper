@@ -4,8 +4,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createSoundscaperProjectRuntimeSelection } from '../src/soundscaper/editor-project-runtime-selection.ts';
 import type { MixerGraphV21 } from '../src/common/editor/mixer-graph-v21.ts';
-import { createMemoryFfmpeg, MockAudioBuffer } from './helpers/audio-editor-controller-fixtures.js';
-import { COPY, createAudioEditorController, createMemoryEngine, createProjectStore } from './helpers/audio-editor-controller-harness.js';
+import { createMemoryFfmpeg } from './helpers/audio-editor-controller-fixtures.js';
+import { COPY, createAudioEditorController, createMemoryEngine, createMemoryRenderEngine, createProjectStore } from './helpers/audio-editor-controller-harness.js';
 
 test('public Make stereo preserves common mono output and sends in one Undo', async context => {
 	type Options = NonNullable<Parameters<typeof createAudioEditorController>[1]>;
@@ -14,7 +14,7 @@ test('public Make stereo preserves common mono output and sends in one Undo', as
 		projectRuntime, sessionController: projectRuntime.createSessionController(),
 		store: createProjectStore({ indexedDB: null, preferOpfs: false, databaseName: 'round4-stereo-routing' }),
 		engine: createMemoryEngine() as unknown as Options['engine'], ffmpeg: createMemoryFfmpeg() as unknown as Options['ffmpeg'],
-		renderSnapshot: async () => new MockAudioBuffer(1, 4_800, 48_000) });
+		engineFactory: createMemoryRenderEngine as unknown as Options['engineFactory'] });
 	context.after(async () => { await controller.dispose(); });
 	await controller.ready;
 	await controller.actions.generators.generate('tone', { amplitude: 0.25, channelCount: 1, durationSeconds: 0.1, frequency: 440 });
