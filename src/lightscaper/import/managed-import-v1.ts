@@ -26,8 +26,7 @@ export async function importManagedPhotosV1(
 	const catalog = id(catalogId, 'catalog ID');
 	return (ports.exclusive ?? withPhotoCatalogWriteLockV1)(catalog, async (signal) => {
 		await recoverIntent(catalog, ports, signal);
-		const root = await ports.catalog.loadCatalog(catalog);
-		if (!root) throw new ReferenceError('Photo catalog is missing.');
+		if (!await ports.catalog.loadCatalog(catalog)) throw new ReferenceError('Photo catalog is missing.');
 		const intent = normalizePhotoImportIntentV1({ schemaVersion: 1, kind: 'photo-import', catalogId: catalog,
 			importId: (ports.createImportId ?? (() => `import-${crypto.randomUUID()}`))() }, catalog);
 		signal?.throwIfAborted();
@@ -43,7 +42,9 @@ export async function importManagedPhotosV1(
 				const input = readClosedDomainRecord(value, 'managed photo input', ['photo', 'original']);
 				const document = validateLightscaperDocumentV1(readClosedDomainField(input, 'photo', 'managed photo input'));
 				if (document.kind !== 'photo' || document.catalogId !== catalog || document.revision !== 0) throw new RangeError('Managed import requires an initial photo in the selected catalog.');
-				validatePhotoCatalogReferencesV1(document, root);
+				const definitions = await ports.catalog.loadCatalog(catalog);
+				if (!definitions) throw new ReferenceError('Photo catalog is missing.');
+				validatePhotoCatalogReferencesV1(document, definitions);
 				if (await ports.catalog.loadPhoto(catalog, document.id)) throw new RangeError('Photo identity already exists in the selected catalog.');
 				const original = canonicalMediaContentBlob(readClosedDomainField(input, 'original', 'managed photo input'));
 				totalBytes += original.size;

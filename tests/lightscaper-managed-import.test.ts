@@ -94,8 +94,21 @@ function fixture() {
 		},
 	};
 	return { ports, photos, assets, roots, journal, events, recoveryBatches, recoveryPages: () => recoveryPages, root: () => root,
+		setRoot: (value: unknown) => { root = normalizePhotoCatalogRootV1(value); },
 		fail: (phase: typeof fail) => { fail = phase; }, boundary: (callback: (phase: string) => void) => { boundary = callback; } };
 }
+
+test('serial preparation can publish keyword definitions before yielding the photo that references them', async () => {
+	const f = fixture(); const input = photoArchiveFixture();
+	async function* prepared() {
+		f.setRoot({ ...f.root(), revision: 1, keywords: [{ id: 'keyword-1', name: 'Travel', parentId: null }] });
+		yield { ...input, photo: normalizePhotoDocumentV1({ ...input.photo, keywordIds: ['keyword-1'] }) };
+	}
+	const result = await importManagedPhotosV1('catalog-1', prepared(), f.ports);
+	assert.equal(result[0]?.status, 'imported');
+	assert.deepEqual(f.photos.get(input.photo.id)?.keywordIds, ['keyword-1']);
+	assert.equal(f.root().revision, 2);
+});
 
 test('managed import retains exact original custody before photo publication and retires a settled intent', async () => {
 	const f = fixture(); const input = photoArchiveFixture();
