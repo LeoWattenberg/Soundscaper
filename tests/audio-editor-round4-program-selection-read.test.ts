@@ -39,7 +39,7 @@ test('a macro snapshot brackets disjoint selected clips and their owning tracks'
 	const { dispatch } = fixture(['first', 'second']);
 	assert.deepEqual(await dispatch('project.selection', []), { startFrame: 48_000, endFrame: 144_000, trackIds: ['voice', 'music'] });
 	const snapshot = await dispatch('project.snapshot', []);
-	assert.ok(snapshot && typeof snapshot === 'object' && !Array.isArray(snapshot));
+	assert.ok(snapshot && typeof snapshot === 'object' && 'selection' in snapshot);
 	assert.deepEqual(snapshot.selection, { startFrame: 48_000, endFrame: 144_000, trackIds: ['voice', 'music'] });
 });
 
