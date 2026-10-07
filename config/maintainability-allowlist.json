@@ -79,7 +79,6 @@
 		"src/common/editor/engine/clip-scheduler.ts": 588,
 		"src/common/editor/engine/lifecycle.ts": 570,
 		"src/common/editor/engine/native-effect-latency-v21.ts": 599,
-		"src/common/editor/engine/scheduled-parameter-registry.ts": 591,
 		"src/common/editor/interpolation-curve.ts": 552,
 		"src/common/editor/media-export.js": 570,
 		"src/common/editor/mixer-graph-v21.ts": 597,

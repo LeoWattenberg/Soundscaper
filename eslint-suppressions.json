@@ -521,7 +521,7 @@
       "count": 2
     }
   },
-  "src/common/editor/engine/scheduled-parameter-registry.ts": {
+  "src/common/editor/engine/scheduled-parameter-frame-projector.ts": {
     "preserve-caught-error": {
       "count": 1
     }
