@@ -168,5 +168,22 @@ files are `audio-editor-round4-bus-noise-profile.test.ts` and
 `audio-editor-round4-bus-noise-profile.spec.js`; evidence is recorded in
 `/tmp/soundscaper-r4-root-bus-noise-*`.
 
+## R4-ROOT-008 — Group and send effect dialogs identify themselves as Master
+
+Import audio, choose Window → Mixer, add a group bus, open that bus's effect
+rack and add Feedback delay. The baseline dialog title says
+`Feedback delay - Master effects` although changes are applied to Group bus 1.
+Every non-track scope took the master-only title branch; send racks share that
+presentation defect and count once.
+
+Use the actual selected rack owner's name for track and bus effects, reserving
+Master effects for the master rack. This title-only correction is independent
+of 007's profile-capture controller and rendering path. The unchanged ordinary
+group-bus workflow fails on immutable baseline `a0322d6e4` and displays
+`Feedback delay - Group bus 1` in Chromium, Firefox and WebKit on clean owned
+`bus-owner-clean7` (3/3). The ratcheted overlay retains its exact line count.
+Regression file: `audio-editor-round4-bus-effect-owner.spec.js`; evidence is
+recorded in `/tmp/soundscaper-r4-root-bus-owner-*`.
+
 These browser DSP, UI, and regression changes retain the assistance runtime closure.
 A manual **Update AI assets** run is not required.

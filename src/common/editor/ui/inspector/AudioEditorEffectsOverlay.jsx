@@ -394,7 +394,7 @@ export function AudioEditorEffectsOverlay({
 				<AudioEditorDialogShell
 					isOpen
 					title={safeEffectLabel(effect, copy)}
-					headerTitle={`${safeEffectLabel(effect, copy).replace(/ \(Audacity\)$/u, '')} - ${effectScope === 'track' ? findTrack(project, targetId)?.name || '' : copy['ui.effectsOverlay.masterEffects'] || copy.master}`}
+					headerTitle={`${safeEffectLabel(effect, copy).replace(/ \(Audacity\)$/u, '')} - ${effectScope === 'master' ? copy['ui.effectsOverlay.masterEffects'] || copy.master : effectOwner?.name || ''}`}
 					onClose={() => setSelectedEffect(null)}
 					width={audacityEffectDialogWidth(effect.type) ?? (effect.type === 'eq' ? 920 : 620)}
 					modal={false}
