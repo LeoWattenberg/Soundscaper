@@ -7,7 +7,7 @@ import { DialogFooter } from '@soundscaper/design-system/Footer';
 
 import '../audio-editor-design-system/26-take-comp.css';
 
-import type { AudioEditorEditBlockingSnapshot } from '../../edit-blocking.ts';
+import { selectAudioEditorBusyBlock, type AudioEditorEditBlockingSnapshot } from '../../edit-blocking.ts';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import AudioEditorTimeCodeInput, {
 	audioEditorProjectSampleRate,
@@ -126,6 +126,8 @@ export default function TakeCompDialog({
 	}, [draftIdentity, draftOwner, group]);
 
 	const disabled = operationState.disabled;
+	const auditionDisabled = operationState.pending !== null || !group || group.locked
+		|| selectAudioEditorBusyBlock(snapshot).blocked;
 	const selectedTake = group?.takes.find(({ id }) => id === takeId) ?? null;
 	const rangeValid = Boolean(group && selectedTake
 		&& Number.isSafeInteger(promotionStart)
@@ -145,7 +147,7 @@ export default function TakeCompDialog({
 		setGroupId(nextGroupId);
 	};
 
-	const perform = (name: string, operation: () => unknown, success: PresentationFeedback = { key: 'takeCompOperationComplete' }): void => {
+	const perform = (name: string, operation: () => unknown, success: PresentationFeedback = { key: 'takeCompOperationComplete' }, readOperation = false): void => {
 		operationState.perform(name, operation, {
 			onStart: () => { setError(''); },
 			onSuccess: () => {
@@ -154,7 +156,7 @@ export default function TakeCompDialog({
 			onFailure: (operationError) => {
 				setError(feedbackFailure(operationError));
 			},
-		});
+		}, { allowWhenBlocked: readOperation && !auditionDisabled });
 	};
 	const close = (): void => {
 		run(() => controller.actions.takeComp.stopAudition());
@@ -194,14 +196,15 @@ export default function TakeCompDialog({
 					copy={copy}
 					sampleRate={sampleRate}
 					disabled={disabled}
+					auditionDisabled={auditionDisabled}
 					takeId={takeId}
 					onTakeChange={setTakeId}
 					onAuditionLane={(laneId) => perform('audition-lane', () => (
 						controller.actions.takeComp.auditionLane(group.id, laneId)
-					))}
+					), undefined, true)}
 					onAuditionTake={(nextTakeId) => perform('audition-take', () => (
 						controller.actions.takeComp.auditionTake(group.id, nextTakeId)
-					))}
+					), undefined, true)}
 					promotionStart={promotionStart}
 					promotionEnd={promotionEnd}
 					onPromotionStart={setPromotionStart}
@@ -255,6 +258,7 @@ interface TakeGroupEditorProps {
 	readonly copy: Readonly<Record<string, string>>;
 	readonly sampleRate: number;
 	readonly disabled: boolean;
+	readonly auditionDisabled: boolean;
 	readonly takeId: string | null;
 	readonly promotionStart: number;
 	readonly promotionEnd: number;
@@ -283,18 +287,18 @@ function TakeGroupEditor(props: TakeGroupEditorProps) {
 			<div className="audio-editor-take-comp__lanes" role="list" aria-label={copy.takeCompTitle}>
 				{group.lanesView.map((lane, laneIndex) => <article key={lane.id} role="listitem" className="audio-editor-take-comp__lane">
 					<header><h3>{formatLocalizedTemplate(copy.takeCompLane, { number: laneIndex + 1 })}</h3>
-						<button type="button" disabled={disabled} onClick={() => props.onAuditionLane(lane.id)}>{copy.takeCompAuditionLane}</button>
+						<button type="button" disabled={props.auditionDisabled} onClick={() => props.onAuditionLane(lane.id)}>{copy.takeCompAuditionLane}</button>
 					</header>
 					<ul>{lane.takes.map((take) => <li key={take.id}>
 						<button
 							type="button"
 							aria-pressed={props.takeId === take.id}
 							aria-label={formatLocalizedTemplate(copy.takeCompSelectTake, { name: take.sourceName })}
-							disabled={disabled}
+								disabled={props.auditionDisabled}
 							onClick={() => props.onTakeChange(take.id)}
 						>{take.sourceName}</button>
 						<span>{formatExtent(copy, take.startSample, take.endSample)}</span>
-						<button type="button" disabled={disabled} onClick={() => props.onAuditionTake(take.id)}>
+						<button type="button" disabled={props.auditionDisabled} onClick={() => props.onAuditionTake(take.id)}>
 							{formatLocalizedTemplate(copy.takeCompAuditionTake, { name: take.sourceName })}
 						</button>
 					</li>)}</ul>
