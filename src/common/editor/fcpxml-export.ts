@@ -294,6 +294,9 @@ function buildClip(clip: Readonly<Record<string, unknown>>, context: {
 	// not in the DTD at all. One default per track kind; no vocabulary invented.
 	const role = context.type === 'video' ? 'videoRole="video"' : 'audioRole="dialogue"';
 	const xml = `\t\t\t\t\t\t<asset-clip ref="${ref}" name="${escapeXml(String(clip.title ?? clip.id ?? ''))}"`
+		// Picture and audio are authored as independent timeline leaves. FCPXML
+		// defaults to every source component, which would restore embedded audio.
+		+ ` srcEnable="${context.type}"`
 		+ (context.lane === 0 ? '' : ` lane="${context.lane}"`)
 		+ ` offset="${frameTime(offsetFrames, context.rate)}"`
 		+ ` start="${frameTime(startFrames, context.rate)}"`
