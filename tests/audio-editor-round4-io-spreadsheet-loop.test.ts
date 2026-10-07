@@ -41,7 +41,7 @@ test('speed preserves fractional repeats, native source bounds, phase and one-en
 	assert.equal(clip.sourceDurationFrames, 44_100);
 	assert.equal(clip.speedRatio, 2);
 	assert.deepEqual(readClipLoop(clip), { periodFrames: 24_000, offsetFrames: 6_000 });
-	assert.deepEqual(clip.envelope.map(point => point.frame), [0, 30_000, 60_000]);
+	assert.deepEqual(clip.envelope.map((point: Readonly<{ frame: number }>) => point.frame), [0, 30_000, 60_000]);
 	assert.equal(history.undoStack.length, 1);
 	const restored = undoEditorCommand(history).present;
 	assert.deepEqual(restored.clips, project.clips);
