@@ -435,3 +435,22 @@ and a nonzero final echo. Two strict canonical-command regressions verify
 serial and parallel routing, effects-disabled behavior and source immutability.
 All 29 focused mix-render cases and targeted lint pass; source typechecks pass
 for all four product builds. No manual **Update AI assets** run is required.
+
+## R3-ROOT-021 — Calling Date aborts an ordinary macro
+
+Open **Tools > Macros**, create a program, and run
+`console.log('Run started:', Date());`. Previously the program failed because
+the sandbox replaced the standard callable Date constructor with a class that
+requires `new`. This affects normal timestamp logging without any private API
+or prepared input file.
+
+The virtual Date now preserves its ordinary callable form while using the
+same deterministic clock as `Date.now()` and `new Date()`. Explicit dates,
+parsing, UTC helpers, and subclasses retain their existing behavior.
+
+Proof: the public immutable-baseline program fails before logging its
+completion. Green build 21 completes in Chromium, Firefox and WebKit.
+Two strict real-sandbox regressions check callable timestamps as the virtual
+clock advances, ignored call arguments, explicit constructors, and subclasses.
+All 18 focused sandbox and authored-line cases and targeted lint pass.
+No manual **Update AI assets** run is required.

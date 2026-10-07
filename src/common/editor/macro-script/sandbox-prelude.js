@@ -207,7 +207,7 @@ function reduceCapabilities() {
 function installDeterminism() {
 	const RealDate = Date;
 	const virtual = () => clock;
-	globalThis.Date = class extends RealDate {
+	const VirtualDate = class extends RealDate {
 		constructor(...args) {
 			if (args.length === 0) super(virtual());
 			else super(...args);
@@ -215,6 +215,13 @@ function installDeterminism() {
 
 		static now() { return virtual(); }
 	};
+	const CallableDate = new Proxy(VirtualDate, {
+		apply: () => new RealDate(virtual()).toString(),
+	});
+	Object.defineProperty(VirtualDate.prototype, 'constructor', {
+		value: CallableDate, writable: true, configurable: true,
+	});
+	globalThis.Date = CallableDate;
 	globalThis.Math.random = nextRandom;
 }
 
