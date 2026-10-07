@@ -67,6 +67,10 @@ belong in Git history, not in the maintained documentation set.
   [import and export](development/bugfix-round3-io.md).
 - The [third audit index](development/bugfix-round3.md) records 101 additional
   distinct user-reproducible fixes and their final verification.
+- The fourth regression audit covers [editing](development/bugfix-round4-editing.md),
+  [dialogs](development/bugfix-round4-dialogs.md),
+  [effects and analysis](development/bugfix-round4-effects-analysis.md), and
+  [import and export](development/bugfix-round4-io.md).
 
 ## Operate and release
 
