@@ -63,6 +63,8 @@ belong in Git history, not in the maintained documentation set.
   [dialogs](development/bugfix-round3-dialogs.md),
   [effects and analysis](development/bugfix-round3-effects-analysis.md), and
   [import and export](development/bugfix-round3-io.md).
+- The [third audit index](development/bugfix-round3.md) records 101 additional
+  distinct user-reproducible fixes and their final verification.
 
 ## Operate and release
 

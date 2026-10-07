@@ -464,7 +464,7 @@ for all four product builds. No manual **Update AI assets** run is required.
 
 ## R3-ROOT-021 — Calling Date aborts an ordinary macro
 
-Open **Tools > Macros**, create a program, and run
+Open **Tools > Macros palette**, choose **New program**, and run
 `console.log('Run started:', Date());`. Previously the program failed because
 the sandbox replaced the standard callable Date constructor with a class that
 requires `new`. This affects normal timestamp logging without any private API
