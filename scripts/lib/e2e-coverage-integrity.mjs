@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { diagnosticErrorMessage as errorMessage } from './diagnostic-error-message.ts';
+
 import { canonicalJson as stableJson } from './canonical-json.mjs';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -177,9 +179,4 @@ function safeRelativePath(value) {
 
 function digest(value) {
 	return `sha256:${createHash('sha256').update(value).digest('hex')}`;
-}
-
-
-function errorMessage(error) {
-	return error instanceof Error ? error.message : String(error);
 }

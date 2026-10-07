@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { diagnosticErrorMessage as errorMessage } from './diagnostic-error-message.ts';
+
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -155,8 +157,4 @@ function outputPath(value) {
 
 function writeJsonExclusive(path, value) {
 	return writeFile(path, `${JSON.stringify(value, null, '\t')}\n`, { flag: 'wx' });
-}
-
-function errorMessage(error) {
-	return error instanceof Error ? error.message : String(error);
 }

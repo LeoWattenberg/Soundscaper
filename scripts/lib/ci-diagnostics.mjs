@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { diagnosticErrorMessage as messageOf } from './diagnostic-error-message.ts';
+
 import {
 	createPendingM3LongformEditorialResult,
 	parseM3LongformEditorialDiagnostic,
@@ -138,8 +140,4 @@ function playwrightFailures(value) {
 	if (value?.code === 0 && value?.signal === null) return [];
 	if (typeof value?.signal === 'string' && value.signal) return [`Playwright ended with ${value.signal}.`];
 	return [`Playwright exited with ${String(value?.code ?? 'an unknown status')}.`];
-}
-
-function messageOf(error) {
-	return error instanceof Error ? error.message : String(error);
 }

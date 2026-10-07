@@ -121,6 +121,7 @@ export async function createFixture(context) {
 		['scripts/lib/browser-target-source-coverage.mjs', 'export const targetSourceCoverage = true;\n'],
 		['scripts/lib/browser-target-coverage.mjs', 'export const targetCoverage = true;\n'],
 		['scripts/lib/e2e-coverage-integrity.mjs', 'export const coverageIntegrity = true;\n'],
+		['scripts/lib/diagnostic-error-message.ts', await readFile(new URL('../../scripts/lib/diagnostic-error-message.ts', import.meta.url), 'utf8')],
 		['scripts/lib/canonical-json.mjs', 'export const canonicalJson = true;\n'],
 		['scripts/lib/e2e-mediabunny-dynamic-coverage.mjs', 'export const mediabunnyDynamicCoverage = true;\n'],
 		['scripts/lib/e2e-coverage-prefixes.mjs', 'export const coveragePrefix = true;\n'],

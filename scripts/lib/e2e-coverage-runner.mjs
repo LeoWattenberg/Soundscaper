@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { diagnosticErrorMessage as errorMessage } from './diagnostic-error-message.ts';
+
 import { spawnSync } from 'node:child_process';
 import {
 	existsSync,
@@ -312,8 +314,4 @@ function resolveInside(root, path) {
 		throw new Error(`Path ${path} escapes ${absoluteRoot}.`);
 	}
 	return resolved;
-}
-
-function errorMessage(error) {
-	return error instanceof Error ? error.message : String(error);
 }

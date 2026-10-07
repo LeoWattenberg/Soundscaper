@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { diagnosticErrorMessage as errorMessage } from './diagnostic-error-message.ts';
+
 // Signed Cloudflare R2 (S3) object access shared by authenticated release
 // publishers. Kept apart from publication commands so the transport rules —
 // SigV4 signing, identity transfer encoding, and strong ETag validators — stay
@@ -30,9 +32,6 @@ function normalizeHeader(value) {
 	return String(value).trim().replace(/\s+/g, ' ');
 }
 
-function errorMessage(error) {
-	return error instanceof Error ? error.message : String(error);
-}
 
 function xmlDecode(value) {
 	return value

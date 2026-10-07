@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { diagnosticErrorMessage as errorMessage } from './diagnostic-error-message.ts';
+
 import { readFileSync } from 'node:fs';
 import { isAbsolute, relative, resolve, sep } from 'node:path';
 
@@ -524,8 +526,4 @@ function resolveInside(root, candidate) {
 
 function span({ start, end }) {
 	return `${start}-${end}`;
-}
-
-function errorMessage(error) {
-	return error instanceof Error ? error.message : String(error);
 }
