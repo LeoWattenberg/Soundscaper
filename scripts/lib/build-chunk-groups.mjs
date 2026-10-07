@@ -226,7 +226,7 @@ export const chunkGroups = [
 		// The menu host dynamically opens this complete analyzer slice. A dedicated
 		// owner prevents its shared domain from joining the product-ready chunks.
 		name: 'editor-vamp-analyzer',
-		test: EDITOR_VAMP_ANALYZER_CHUNK_TEST,
+		test: withUiPreparationChunkTest('editor-vamp-analyzer', EDITOR_VAMP_ANALYZER_CHUNK_TEST),
 		priority: 99,
 		minSize: 0,
 		maxSize: 400_000,

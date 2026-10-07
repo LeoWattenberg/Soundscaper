@@ -16,7 +16,7 @@ const expectedHelpers = [
 	['src/common/editor/ui/clip-spreadsheet/SpreadsheetRow.tsx', 'editor-optional-surfaces'],
 	['src/common/editor/ui/clip-spreadsheet/row-presentation.ts', 'editor-optional-surfaces'],
 	['src/common/editor/ui/dialogs/take-comp-boundaries.ts', null],
-	['src/common/editor/ui/dialogs/useAnalyzerLookup.ts', null],
+	['src/common/editor/ui/dialogs/useAnalyzerLookup.ts', 'editor-vamp-analyzer'],
 	['src/common/editor/ui/dialogs/useGeneratorPresentation.ts', null],
 	['src/common/editor/ui/inspector/useEffectPresentation.ts', null],
 	['src/common/editor/ui/useCompressionCurve.ts', 'editor-effect-parameter-surfaces'],
