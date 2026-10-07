@@ -67,7 +67,10 @@ async function exportWavRms(page, editor) {
 	await chooseDropdown(page, dialog.locator('[data-export-field="format"]'), 'WAV');
 	await chooseDropdown(page, dialog.locator('[data-export-field="bitDepth"]'), '24-bit PCM');
 	const link = dialog.locator('[data-export-download]');
+	const previousHref = await link.getAttribute('href') || '';
 	await dialog.getByRole('button', { name: 'Export', exact: true }).click();
+	// A repeated export leaves the previous download visible until publication.
+	await expect(link).not.toHaveAttribute('href', previousHref, { timeout: 20_000 });
 	await expect(link).toBeVisible({ timeout: 20_000 });
 	const downloadPromise = page.waitForEvent('download');
 	await link.click();
