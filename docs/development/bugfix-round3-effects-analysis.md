@@ -388,6 +388,12 @@ and range detection, original channel ownership and retained clip identities.
 All 12 focused multitrack, result and preview cases and targeted lint pass.
 No manual **Update AI assets** run is required.
 
+The same linked detection now also owns the dialog's Preview path. The normal
+two-recording workflow previously auditioned one second despite the shared
+1.4-second result. Its public baseline is red; green build 23 auditions 1.4
+seconds in all three engines. This completes the same synchronization root and
+does not add an entry to the count.
+
 ## R3-ROOT-019 — Independent track truncation desynchronizes a stereo recording
 
 Import an ordinary two-second stereo dialogue recording with a left-channel
@@ -411,6 +417,15 @@ channels retain their shared 1.4-second clock and sample alignment, while a
 separate mono track independently shortens to one second. Original PCM and
 remembered parameters remain unchanged. All eight focused multitrack cases and
 targeted lint pass. No manual **Update AI assets** run is required.
+
+The track-level choice now also crosses the existing Preview and step-list
+macro boundaries without enabling the legacy per-channel flag. Ordinary dialog
+Preview and **Tools > Macros palette > New macro > Truncate Silence** workflows
+both reproduced one-second stereo output on the immutable baseline. They now
+retain 1.4 seconds in Chromium, Firefox and WebKit on green build 23. Four strict
+actual-DSP cases verify linked/independent previews plus single-step and batched
+macro execution; all 45 focused cases, strict test types and targeted lint
+pass. These are follow-through for this root, not additional counted bugs.
 
 ## R3-ROOT-020 — Mix and Render cuts the tail through serial group buses
 

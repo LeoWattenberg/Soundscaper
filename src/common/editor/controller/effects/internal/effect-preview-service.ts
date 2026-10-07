@@ -1,5 +1,6 @@
 import { createLocalizedError, setLocalizedStatus } from '../../../../i18n/presentation-message.ts';
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { independentTrackEffectParams } from './independent-track-effect-params.ts';
 
 export interface SelectionEffectPreviewRuntime {
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
@@ -149,7 +150,24 @@ export function createSelectionEffectPreviewService(runtime: SelectionEffectPrev
 				);
 			}
 			const resultChannelSets: Float32Array[][] = [];
-			for (let index = 0; index < targets.length; index += 1) {
+			const linkedTruncate = type === 'audacity-truncate-silence' && params.independent === false
+				&& targets.length > 1 && targets.every(({ preview }) => (
+					preview.startFrame === targets[0]!.preview.startFrame
+					&& preview.endFrame === targets[0]!.preview.endFrame
+				));
+			if (linkedTruncate) {
+				const result = await runSelectionEffectWorker({ operation: 'apply', effectType: type,
+					channels: previewChannelSets.flat(), sampleRate, params, context: {} });
+				requireCurrentPreview();
+				assertAudacityEffectOutput(result.channels);
+				let offset = 0;
+				for (const channels of previewChannelSets) {
+					resultChannelSets.push(result.channels.slice(offset, offset + channels.length));
+					offset += channels.length;
+				}
+				if (offset !== result.channels.length) throw createLocalizedError(Error, copy, 'effectChannelLayoutChanged');
+			}
+			for (let index = 0; !linkedTruncate && index < targets.length; index += 1) {
 				const { preview, spectralSelection } = targets[index]!;
 				const channels = previewChannelSets[index];
 				const effectContext: RuntimeValue = {};
@@ -176,7 +194,8 @@ export function createSelectionEffectPreviewService(runtime: SelectionEffectPrev
 					);
 				}
 				const result = await runSelectionEffectWorker({
-					operation: 'apply', effectType: type, channels, sampleRate, params, context: effectContext,
+					operation: 'apply', effectType: type, channels, sampleRate,
+					params: independentTrackEffectParams(type, params), context: effectContext,
 				});
 				requireCurrentPreview();
 				assertAudacityEffectOutput(result.channels);

@@ -16,6 +16,7 @@ import { createStableId } from '../../../../project.js';
 import { isRealtimeEffectMacroStepType } from '../../../../effect-macro-steps.ts';
 import { runOfflineSelectionSegment, type RunOfflineSelectionChain } from './offline-selection-chain.ts';
 import { createMacroNeighbourPcmCache, type MacroNeighbourPcmCache } from './macro-neighbour-pcm-cache.ts';
+import { independentTrackEffectParams } from '../independent-track-effect-params.ts';
 
 const selectionEffectDefinitions = AUDIO_SELECTION_EFFECT_DEFINITIONS as unknown as
 	Readonly<Record<string, SelectionEffectDefinition | undefined>>;
@@ -171,7 +172,7 @@ export function createEffectMacroChainRunner<Buffer = MacroRenderBuffer>(runtime
 			effectType: step.type,
 			channels,
 			sampleRate: runtime.sampleRate,
-			params: step.params,
+			params: independentTrackEffectParams(step.type, step.params),
 			context,
 		});
 		runtime.assertCurrent();
@@ -256,7 +257,9 @@ export function createEffectMacroChainRunner<Buffer = MacroRenderBuffer>(runtime
 				channels = await renderRackSegment(segment.steps, channels);
 				continue;
 			}
-			channels = await runOfflineSelectionSegment(segment.steps, channels,
+			const steps = segment.steps.map(step => ({ ...step,
+				params: independentTrackEffectParams(step.type, step.params) }));
+			channels = await runOfflineSelectionSegment(steps, channels,
 				(step, current) => applyOfflineStep(step, current, target, cache), runtime.sampleRate, runtime.assertCurrent, runtime.runSelectionEffectChain);
 		}
 		return channels;
