@@ -127,7 +127,7 @@ try {
 		cpu: cpus()[0]?.model, logicalCpus: cpus().length, runtime, viewport, preference: 'speed', extended,
 		round3, round4, hostStart,
 		hostEnd: { time: new Date().toISOString(), loadAverage: loadavg(), freeBytes: freemem(), totalBytes: totalmem() },
-		method: 'Actual Electron development app with freshly staged production renderer and real preload/SQLite/PCM path. First trial includes first-use processing engines; subsequent trials are warm. Capture click to dialog closed, success status, cleared waveform pending state, explicit successful canvas paint and two animation frames. Xvfb RAF gaps are a renderer responsiveness proxy, not GPU presentation FPS. Startup excluded.',
+		method: 'Actual Electron development app with freshly staged production renderer and real preload/SQLite/PCM path. Trial zero is the first use of each timed operation in a fresh profile after normal Speed prewarm; subsequent trials are warm. Capture click to dialog closed, success status, cleared waveform pending state, explicit successful canvas paint and two animation frames. Xvfb RAF gaps are a renderer responsiveness proxy, not GPU presentation FPS. Startup excluded.',
 		results };
 	await writeFile(output, JSON.stringify(report, null, '\t') + '\n');
 	process.stdout.write(`Saved ${results.length} observations to ${output}\n`);
