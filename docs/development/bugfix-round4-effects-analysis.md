@@ -282,3 +282,28 @@ passes with them, 19/19. Targeted lint passes. Regression files are
 `audio-editor-round4-macro-time-omitted-edge.test.ts` and
 `audio-editor-round4-macro-time-omitted-edge.spec.js`; evidence is recorded in
 `/tmp/soundscaper-r4-root-macro-time-edge-*`.
+
+
+## R4-ROOT-013 — Relative macro commands treat a selected clip as an empty range
+
+Import an ordinary 800 ms WAV and select its clip header. Choose Tools → Macros
+palette → New program and run
+`await sound.select.time(0.2, 0, { relativeTo: 'selection-end' });`.
+The baseline selects `0..0` instead of the clip’s last 200 ms, `28800..38400`.
+Unlike the corrected read-only project reader, this independently implemented
+command mutator still measures from collapsed stored time fields and then drops
+the selected clip identities.
+
+Resolve the effective selected clip span before the time/track command replaces
+those identities. Retain explicit time ranges, spectral bounds and track
+selection. A frequency-only command keeps its original clip-target semantics.
+This consumer remains broken after 005 and 012 and counts once across selection
+origins and command forms.
+
+The same public header/program workflow fails on immutable baseline `a0322d6e4`
+and passes all three engines on `macro-header-time-clean16`, alongside 005 and
+012 (9/9). The strict selected/disjoint/explicit-range regressions and existing
+command support pass 21/21; targeted lint passes. Regression files are
+`audio-editor-round4-macro-time-header-range.test.ts` and
+`audio-editor-round4-macro-time-header-range.spec.js`; evidence is recorded in
+`/tmp/soundscaper-r4-root-macro-header-time-*`.

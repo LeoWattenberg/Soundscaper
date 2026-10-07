@@ -11,6 +11,7 @@
 
 import { audacityMacroMenuCommand } from '../../../../audacity-macro-menu-commands.ts';
 import type { MacroCommandStep } from '../../../../macro-command-steps.ts';
+import { resolveSelectionRange } from '../../../../selection-range.ts';
 
 export interface MacroCommandTrack extends Readonly<Record<string, unknown>> {
 	readonly id: string;
@@ -75,13 +76,15 @@ export function createMacroCommandService(runtime: MacroCommandServiceRuntime) {
 			return runMenuCommand(menuCommand.command, menuCommand.path);
 		}
 		const project = runtime.getProject();
-		const selection = project.selection ?? { startFrame: 0, endFrame: 0 };
 		const params = step.params as Readonly<Record<string, unknown>>;
 		const wantsTime = step.command === 'Select' || step.command === 'SelectTime';
 		const wantsFrequencies = step.command === 'Select' || step.command === 'SelectFrequencies';
 		const wantsTracks = step.command === 'Select' || step.command === 'SelectTracks';
 		const changesTime = wantsTime && (has(params, 'start') || has(params, 'end'));
 		const changesTracks = wantsTracks && (has(params, 'track') || has(params, 'trackCount') || has(params, 'mode'));
+		const effectiveRange = changesTime || changesTracks ? resolveSelectionRange(project) : null;
+		const selection = effectiveRange ? { ...project.selection, ...effectiveRange }
+			: project.selection ?? { startFrame: 0, endFrame: 0 };
 
 		// Audacity leaves the selection alone entirely when a time command carries
 		// neither edge, so an unrelated Select that only names tracks does not
