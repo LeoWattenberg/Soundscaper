@@ -156,7 +156,6 @@
 		"tests/audio-editor-controller-effects.test.js": 600,
 		"tests/audio-editor-controller-video.test.js": 590,
 		"tests/audio-editor-controller.test.js": 589,
-		"tests/audio-editor-effect-result-service.test.ts": 557,
 		"tests/audio-editor-export-direct-compressed-stem-service.test.ts": 594,
 		"tests/audio-editor-export-direct-mp3.test.ts": 554,
 		"tests/audio-editor-export-direct-offline-pcm-service.test.ts": 554,
