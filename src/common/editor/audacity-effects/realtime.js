@@ -30,11 +30,13 @@ import {
 	AUDACITY_DISTORTION_MODES,
 	createDcState,
 	dcFilter,
-	distortionWaveShaper,
 	makeDistortionTable,
 } from './distortion-table.js';
 
+import { prepareDistortionMixer, prepareDistortionShaper } from './prepared-distortion.ts';
+
 const PHASER_LFO_SHAPE = 4;
+const PHASER_LFO_NORMALIZATION = Math.expm1(PHASER_LFO_SHAPE);
 const FLOAT_MAX = 3.4028234663852886e38;
 
 export { AUDACITY_DISTORTION_MODES } from './distortion-table.js';
@@ -94,35 +96,15 @@ export function applyAudacityDistortion(channels, sampleRate, params = {}) {
 	};
 	const { table, makeupGain } = makeDistortionTable(settings);
 	const modeIndex = AUDACITY_DISTORTION_MODES.indexOf(settings.mode);
-	const p1 = settings.parameter1 / 100;
-	const p2 = settings.parameter2 / 100;
+	const shape = prepareDistortionShaper(table, modeIndex, settings.parameter1);
+	const mix = prepareDistortionMixer(modeIndex, settings.parameter1, settings.parameter2, makeupGain);
 	const dcWindow = Math.max(1, Math.floor(sampleRate / 20));
 
 	return channels.map((input) => {
 		const output = new Float32Array(input.length);
 		const dcState = settings.dcBlock ? createDcState(dcWindow) : null;
 		for (let index = 0; index < input.length; index += 1) {
-			const shaped = distortionWaveShaper(input[index], table, modeIndex, settings.parameter1);
-			let sample;
-			switch (modeIndex) {
-				case 0:
-				case 1:
-					sample = shaped * ((1 - p2) + makeupGain * p2);
-					break;
-				case 2:
-				case 3:
-				case 4:
-				case 5:
-				case 7:
-					sample = shaped * p2;
-					break;
-				case 10:
-					sample = shaped * (p1 - p2) + input[index] * p2;
-					break;
-				default:
-					sample = shaped;
-			}
-			sample = Math.fround(sample);
+			const sample = mix(shape(input[index]), input[index]);
 			output[index] = dcState ? dcFilter(sample, dcState) : sample;
 		}
 		return output;
@@ -191,7 +173,7 @@ export function applyAudacityPhaser(channels, sampleRate, params = {}) {
 			skipCount += 1;
 			if (updateLfo) {
 				allPassGain = (1 + Math.cos(skipCount * lfoStep + channelPhase)) / 2;
-				allPassGain = Math.expm1(allPassGain * PHASER_LFO_SHAPE) / Math.expm1(PHASER_LFO_SHAPE);
+				allPassGain = Math.expm1(allPassGain * PHASER_LFO_SHAPE) / PHASER_LFO_NORMALIZATION;
 				allPassGain = 1 - allPassGain / 255 * settings.depth;
 			}
 			for (let stage = 0; stage < settings.stages; stage += 1) {

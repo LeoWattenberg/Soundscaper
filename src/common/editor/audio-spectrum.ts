@@ -4,6 +4,17 @@ import { fftRadixTwoFloat64V1 } from './assistance/internal/radix-two-fft-v1.ts'
 
 export const ANALYSIS_FLOOR_DB = -120;
 
+// Twelve accepted powers of two occupy less than one MiB in total.
+const hannWindows = new Map<number, Float64Array>();
+function hannWindow(size: number): Float64Array {
+	const existing = hannWindows.get(size);
+	if (existing) return existing;
+	const window = Float64Array.from({ length: size }, (_, index) =>
+		0.5 - 0.5 * Math.cos(2 * Math.PI * index / (size - 1)));
+	hannWindows.set(size, window);
+	return window;
+}
+
 export function amplitudeToDb(amplitude: number): number {
 	return amplitude > 0 ? Math.max(ANALYSIS_FLOOR_DB, 20 * Math.log10(amplitude)) : ANALYSIS_FLOOR_DB;
 }
@@ -23,8 +34,7 @@ export function calculateAudioSpectrum(
 	const real = new Float64Array(requestedSize);
 	const imaginary = new Float64Array(requestedSize);
 	const powers = new Float64Array(requestedSize / 2 + 1);
-	const window = Float64Array.from({ length: requestedSize }, (_, index) =>
-		0.5 - 0.5 * Math.cos(2 * Math.PI * index / (requestedSize - 1)));
+	const window = hannWindow(requestedSize);
 	const windowCount = options.average ? Math.max(1, Math.ceil((frameCount - offset) / (requestedSize / 2))) : 1;
 	for (let block = 0; block < windowCount; block += 1) {
 		const start = offset + block * (requestedSize / 2);

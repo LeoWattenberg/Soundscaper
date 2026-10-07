@@ -44,6 +44,7 @@ import {
 	withoutImportedPitchPreset,
 } from './shared-runtime.js';
 import { applyCanonicalVideoKeyframeTransform, finalizeVideoKeyframeSegmentCarrier, markVideoKeyframeCarrierEdited, transformVideoKeyframeCarrierForOverwrite } from './video-keyframe-segment-carrier.ts';
+import { clipOwnerIndex, firstById, requireIndexedClip } from './editing-work-index.ts';
 
 // foundation-edit-matrix: move
 // foundation-edit-matrix: roll
@@ -59,7 +60,7 @@ import { applyCanonicalVideoKeyframeTransform, finalizeVideoKeyframeSegmentCarri
  */
 
 export function prepareTransformClipsCommand(project, transforms, options = {}, idFactory = createStableId) {
-	const state = buildClipTransformState(project, transforms);
+	const { state } = buildClipTransformState(project, transforms);
 	const overwrite = Boolean(options.overwrite);
 	validateClipTransformState(project, state, overwrite);
 	const splitClipIds = {};
@@ -108,7 +109,7 @@ export function prepareTransformClipsCommand(project, transforms, options = {}, 
 }
 
 export function transformClips(project, command) {
-	const state = buildClipTransformState(project, command.transforms);
+	const { state, legacyTraversal } = buildClipTransformState(project, command.transforms);
 	const overwrite = Boolean(command.overwrite);
 	validateClipTransformState(project, state, overwrite);
 	const movingIds = new Set(state.map((item) => item.clip.id));
@@ -180,19 +181,28 @@ export function transformClips(project, command) {
 	}
 
 	const updatedById = new Map(state.map((item) => [item.clip.id, item.updated]));
+	const changedTrackIds = new Set(state.flatMap(item => [item.oldTrack.id, item.track.id]));
+	const updatesByTrack = new Map();
+	for (const item of state) {
+		const entries = updatesByTrack.get(item.track.id) || [];
+		entries.push(item.updated);
+		updatesByTrack.set(item.track.id, entries);
+	}
 	project.clips = project.clips.flatMap((clip) => {
 		if (updatedById.has(clip.id)) return [updatedById.get(clip.id)];
 		if (replacementsById.has(clip.id)) return replacementsById.get(clip.id);
 		return [clip];
 	});
+	const clipById = firstById(project.clips);
 
 	for (const track of project.tracks.filter((item) => Array.isArray(item.clipIds))) {
+		if (!legacyTraversal && !changedTrackIds.has(track.id) && !track.clipIds.some(id => replacementsById.has(id))) continue;
 		const clips = track.clipIds
 			.filter((clipId) => !movingIds.has(clipId))
 			.flatMap((clipId) => replacementsById.has(clipId)
 				? replacementsById.get(clipId)
-				: [requireClip(project, clipId)])
-			.concat(state.filter((item) => item.track.id === track.id).map((item) => item.updated))
+				: [requireIndexedClip(clipById, clipId)])
+			.concat(updatesByTrack.get(track.id) || [])
 			.sort((left, right) => left.timelineStartFrame - right.timelineStartFrame || compareCodeUnits(left.id, right.id));
 		track.clipIds = clips.map((clip) => clip.id);
 	}
@@ -209,10 +219,20 @@ function buildClipTransformState(project, transforms) {
 		'envelope', 'pitchCents', 'speedRatio', 'preserveFormants', 'stretchToTempo', 'linkPitchAndTempo',
 		'renderCacheRevision',
 	]);
-	return transforms.map((transform, index) => {
-		const clip = normalizeInactiveClipLoop(requireClip(project, ids[index]));
-		const oldTrack = requireClipTrack(project, clip.id);
-		const track = requireTrack(project, transform.trackId || oldTrack.id);
+	const clips = firstById(project.clips);
+	const tracks = firstById(project.tracks);
+	const topology = { duplicateTrackIds: false, duplicateClipOwners: false };
+	const owners = clipOwnerIndex(project.tracks, topology);
+	const sources = firstById(project.sources);
+	const state = transforms.map((transform, index) => {
+		const original = clips.get(ids[index]);
+		if (!original) throw new ReferenceError(`Unknown clip: ${ids[index]}.`);
+		const clip = normalizeInactiveClipLoop(original);
+		const oldTrack = owners.get(clip.id);
+		if (!oldTrack) throw new ReferenceError(`Clip ${clip.id} is not assigned to a track.`);
+		const trackId = transform.trackId || oldTrack.id;
+		const track = tracks.get(trackId);
+		if (!track) throw new ReferenceError(`Unknown track: ${trackId}.`);
 		if (!Array.isArray(track.clipIds)) throw new RangeError(`Media clips cannot be transformed onto track ${track.id}.`);
 		if (hasProjectBinMediaAuthority(project) && track.type !== clip.kind) {
 			throw new RangeError(`A ${clip.kind} clip cannot be transformed onto a ${track.type} track.`);
@@ -250,13 +270,14 @@ function buildClipTransformState(project, transforms) {
 			updated = sequencePlacement.updated;
 			markVideoKeyframeCarrierEdited(project, updated);
 		}
-		assertClipSourceBounds(project, updated);
+		assertClipSourceBounds(project, updated, sources.get(updated.sourceId));
 		return {
 			clip, oldTrack, track, updated, changes: { ...changes },
 			sequencePlacement: sequencePlacement?.sequencePlacement ?? null,
 			sequenceTrimRange: sequencePlacement?.sequenceTrimRange ?? null,
 		};
 	});
+	return { state, legacyTraversal: topology.duplicateTrackIds || topology.duplicateClipOwners || clips.size !== project.clips.length };
 }
 
 function validateClipTransformState(project, state, overwrite) {
@@ -346,7 +367,7 @@ export function overwriteClip(project, command) {
 	}
 	targetTrack.clipIds = [...replacements.map((item) => item.id), updated.id];
 	sortTrack(project, oldTrack);
-	sortTrack(project, targetTrack);
+	if (targetTrack !== oldTrack) sortTrack(project, targetTrack);
 }
 
 export function prepareOverwriteClipCommand(project, clipId, options = {}, idFactory = createStableId) {

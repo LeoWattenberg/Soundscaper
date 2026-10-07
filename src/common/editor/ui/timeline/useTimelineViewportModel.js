@@ -28,6 +28,9 @@ import {
 } from './constants.ts';
 import { timelineAnnotationsAvailable } from './timeline-annotation-ui-model.ts';
 import { useAnchoredTimelineRenderScrollX } from './timeline-render-window.ts';
+import { useTimelineTrackCounts, useTimelineFrequencyRuler, useTimelineOutputDockContentHeight,
+	useTimelineTotalTrackHeight, useTimelineTimeSelection, useTimelineWaveformCacheMembership,
+	useTimelineDocumentDuration } from './useTimelineViewportDerived.ts';
 import {
 	createTimelineScrollSpace,
 	timelineContentScrollX,
@@ -75,10 +78,7 @@ export function useTimelineViewportModel({
 			? [{ key: 'master', scope: 'master', bus: project.master }]
 			: []),
 	], [project?.master, project?.mixer?.groups, project?.mixer?.sends, showMasterTrack]);
-	const outputDockContentHeight = outputTracks.reduce(
-		(total, { bus }) => total + (bus.collapsed === false ? TRACK_HEIGHT : COLLAPSED_TRACK_HEIGHT),
-		0,
-	);
+	const outputDockContentHeight = useTimelineOutputDockContentHeight(outputTracks, TRACK_HEIGHT, COLLAPSED_TRACK_HEIGHT);
 	const outputDockMaximumHeight = Math.max(
 		COLLAPSED_TRACK_HEIGHT,
 		Math.floor((timelineSize.height || COLLAPSED_TRACK_HEIGHT * 3) / 3),
@@ -97,12 +97,9 @@ export function useTimelineViewportModel({
 	const expandedTrackCount = project?.tracks.length || 0;
 	// Armed audio tracks carry a recording input row on top of their lane, so the
 	// fitted lane height has to reserve it or the row overlaps the track controls.
-	const armedTrackCount = showArmControls
-		? (project?.tracks.filter((track) => track.type === 'audio').length || 0)
-		: 0;
-	const automationControlsTrackCount = project?.tracks.filter((track) => (
-		track.type === 'audio' && automationVisibleTrackIds?.has(track.id)
-	)).length || 0;
+	const { armedTrackCount, automationControlsTrackCount } = useTimelineTrackCounts(
+		project?.tracks, showArmControls, automationVisibleTrackIds,
+	);
 	// The scroll viewport already excludes the output dock and the annotation
 	// panel, so only the sticky ruler row has to come off the top.
 	const availableTrackHeight = Math.max(
@@ -118,12 +115,7 @@ export function useTimelineViewportModel({
 		))
 		: AUTO_FIT_TRACK_HEIGHT;
 	const timelineView = snapshot.timeline?.view;
-	const hasFrequencyRuler = snapshot.timeline?.showVerticalRulers !== false
-		&& project?.tracks.some((track) => {
-			if (track.type !== 'audio') return false;
-			const mode = track.displayMode && track.displayMode !== 'waveform' ? track.displayMode : timelineView;
-			return mode === 'spectrogram' || mode === 'multiview';
-		});
+	const hasFrequencyRuler = useTimelineFrequencyRuler(project?.tracks, snapshot.timeline?.showVerticalRulers !== false, timelineView);
 	const verticalRulerWidth = snapshot.timeline?.showVerticalRulers === false
 		? 0
 		: (hasFrequencyRuler ? SPECTROGRAM_RULER_WIDTH : VERTICAL_RULER_WIDTH);
@@ -133,10 +125,7 @@ export function useTimelineViewportModel({
 	const recordingPreviews = snapshot.recordingPreviews?.length
 		? snapshot.recordingPreviews
 		: snapshot.recordingPreview ? [snapshot.recordingPreview] : [];
-	const documentDurationFrames = useMemo(
-		() => project ? editorTimelineDurationFrames(project, sampleRate) : sampleRate * 30,
-		[project, sampleRate],
-	);
+	const documentDurationFrames = useTimelineDocumentDuration(project, sampleRate, editorTimelineDurationFrames);
 	const durationFrames = Math.max(
 		documentDurationFrames,
 		...recordingPreviews.map((preview) => preview.startFrame + preview.durationFrames),
@@ -189,21 +178,14 @@ export function useTimelineViewportModel({
 		() => new Set(project?.selection?.clipIds || []),
 		[project?.selection?.clipIds],
 	);
-	for (const clipId of waveformCacheRef.current.keys()) {
-		if (!projectClipIds.has(clipId)) waveformCacheRef.current.delete(clipId);
-	}
+	useTimelineWaveformCacheMembership(waveformCacheRef, projectClipIds);
 
 	useEffect(() => {
 		controller.actions.timeline.setViewportWidth(viewportWidth);
 	}, [controller, viewportWidth]);
 
 	const documentSelection = selectionPreview || snapshot.selection;
-	const timeSelection = documentSelection && documentSelection.endFrame > documentSelection.startFrame
-		? {
-			startTime: framesToSeconds(documentSelection.startFrame, { sampleRate }),
-			endTime: framesToSeconds(documentSelection.endFrame, { sampleRate }),
-		}
-		: null;
+	const timeSelection = useTimelineTimeSelection(documentSelection, sampleRate);
 	const visualTrackHeight = useCallback((track) => {
 		const showAutomationControls = automationVisibleTrackIds?.has(track.id) === true;
 		if (trackResizePreview?.trackId === track.id) {
@@ -214,7 +196,7 @@ export function useTimelineViewportModel({
 		);
 		return trackVisualHeight(track, showArmControls, undefined, showAutomationControls);
 	}, [automationVisibleTrackIds, autoFitTrackHeightEnabled, fittedTrackHeight, showArmControls, trackResizePreview]);
-	const totalTrackHeight = project?.tracks.reduce((total, track) => total + visualTrackHeight(track), 0) || TRACK_HEIGHT;
+	const totalTrackHeight = useTimelineTotalTrackHeight(project?.tracks, visualTrackHeight, TRACK_HEIGHT);
 
 	return {
 		project,

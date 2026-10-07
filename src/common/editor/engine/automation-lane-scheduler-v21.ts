@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import {
-	evaluateAutomationLaneAtFrameV21,
-	normalizeAutomationLaneV21,
+	createAutomationLaneFrameEvaluatorV21,
+	prepareAutomationLaneForSchedulingV21,
 	resolveAutomationLanePointFramesV21,
 	type AutomationLaneFrameOptionsV21,
 	type AutomationLaneV21,
@@ -35,7 +35,7 @@ export function compileAutomationLaneEventsV21(
 	value: unknown,
 	options: CompileAutomationLaneEventsOptionsV21,
 ): readonly ScheduledParameterEvent[] {
-	const lane = normalizeAutomationLaneV21(value, { descriptor: options.descriptor });
+	const lane = prepareAutomationLaneForSchedulingV21(value, { descriptor: options.descriptor });
 	const fromFrame = nonNegativeSafeInteger(options.fromFrame, 'fromFrame');
 	const toFrame = nonNegativeSafeInteger(options.toFrame, 'toFrame');
 	if (toFrame < fromFrame) throw new RangeError('Automation scheduling toFrame cannot precede fromFrame.');
@@ -54,7 +54,7 @@ export function compileAutomationLaneEventsV21(
 		}
 		events.push(Object.freeze({ kind, frame, value: canonicalValue(value) }));
 	};
-	const evaluate = (frame: number): number => evaluateAutomationLaneAtFrameV21(lane, frame, frameOptions);
+	const evaluate = createAutomationLaneFrameEvaluatorV21(lane, frameOptions);
 
 	append('set', fromFrame, evaluate(fromFrame));
 	if (toFrame === fromFrame || lane.points.length === 1) return Object.freeze(events);
@@ -75,8 +75,7 @@ export function compileAutomationLaneEventsV21(
 		if (start > fromFrame) {
 			append('set', start, start === segmentStart ? lane.points[index]!.value : evaluate(start));
 		}
-		const boundaries = (shape.kind === 'hold' ? [] : tempoBoundaries
-			.filter((frame) => frame > start && frame < end))
+		const boundaries = (shape.kind === 'hold' ? [] : tempoWindow(tempoBoundaries, start, end))
 			.concat(end);
 		let intervalStart = start;
 		for (const intervalEnd of boundaries) {
@@ -109,7 +108,7 @@ export function scheduleAutomationLaneV21(
 	registry: Pick<ScheduledParameterRegistry, 'get'>,
 	options: ScheduleAutomationLaneOptionsV21,
 ): readonly ScheduledParameterEvent[] {
-	const lane = normalizeAutomationLaneV21(value);
+	const lane = prepareAutomationLaneForSchedulingV21(value);
 	const target = registry.get(lane.address);
 	if (!target) throw new ReferenceError('The automation lane target is not registered in the active audio graph.');
 	const events = compileAutomationLaneEventsV21(lane, {
@@ -149,7 +148,7 @@ function appendCurvedInterval(
 		start + Math.floor((end - start) * 3 / 4),
 	].filter((frame) => frame > start && frame < end))];
 	let split = probes[0]!;
-	let splitValue = evaluate(split);
+	let splitValue = startValue;
 	let maximumError = -1;
 	for (const frame of probes) {
 		const value = evaluate(frame);
@@ -178,6 +177,19 @@ function resolvedTempoBoundaries(
 	if (!options.tempoMap) throw new TypeError('A musical automation lane requires the project tempo map.');
 	const project = createIndexedBeatFrameProjector(options.tempoMap, options.sampleRate);
 	return Object.freeze([...new Set(options.tempoMap.events.map(({ beat }) => project(beat)))].sort(numberOrder));
+}
+
+function tempoWindow(boundaries: readonly number[], start: number, end: number): number[] {
+	let low = 0;
+	let high = boundaries.length;
+	while (low < high) {
+		const middle = low + Math.floor((high - low) / 2);
+		if (boundaries[middle]! <= start) low = middle + 1;
+		else high = middle;
+	}
+	const window: number[] = [];
+	for (let index = low; index < boundaries.length && boundaries[index]! < end; index += 1) window.push(boundaries[index]!);
+	return window;
 }
 
 function automationTolerance(descriptor: ParameterDescriptor | undefined): number {

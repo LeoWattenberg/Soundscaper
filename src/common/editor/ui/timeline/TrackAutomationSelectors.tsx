@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { ChangeEvent } from 'react';
+import { useMemo } from 'react';
 
 import {
 	normalizeTrackAutomationMode,
@@ -33,7 +34,7 @@ export function TrackAutomationSelectors({
 	const mode = trackAutomationModeForLane(runtime, laneId);
 	const activeGesture = runtime?.snapshot.gestureActive === true
 		&& runtime.snapshot.laneId === laneId;
-	const groups = groupTargets(targets);
+	const groups = useMemo(() => groupTargets(targets), [targets]);
 	const targetLabel = copy.automationParameter || 'Automation parameter';
 	const modeLabel = copy.automationMode || 'Automation mode';
 	const selectTarget = (event: ChangeEvent<HTMLSelectElement>) => {

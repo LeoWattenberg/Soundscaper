@@ -31,7 +31,18 @@ export function createAudioTrackRowClipViewModels({
 	frequencyWaveformProjector,
 	frequencyWaveformPreferences,
 }) {
-	return clips.map((clip) => clip.isRecordingPreview
+	const geometry = { overscanStartFrame, pixelsPerSecond, sampleRate };
+	const selection = { selectedClipIds };
+	const color = resolveAudioEditorColor(trackColor);
+	const sharedRendering = {
+		showRms, halfWave,
+		reuseSummaryForCompatibility: displayMode === 'waveform' || displayMode === 'half-wave',
+		provideAudacitySpectrogram: displayMode === 'spectrogram' || displayMode === 'multiview',
+		frequencyWaveformMode: displayMode === 'waveform-three-band' || displayMode === 'waveform-rainbow' ? displayMode : null,
+		frequencyWaveformProjector, frequencyWaveformPreferences,
+	};
+	return clips.map((clip) => {
+		const model = clip.isRecordingPreview
 		? toDesignRecordingPreview(
 			clip,
 			recordingPreview,
@@ -46,24 +57,12 @@ export function createAudioTrackRowClipViewModels({
 			sourceLookup,
 			clip,
 			project,
-			geometry: {
-				overscanStartFrame,
-				pixelsPerSecond,
-				sampleRate,
-			},
-			selection: { selectedClipIds },
+			geometry,
+			selection,
 			copy,
 			rendering: {
-				showRms,
-				halfWave,
-				color: resolveAudioEditorColor(clip.color, resolveAudioEditorColor(trackColor)),
-				reuseSummaryForCompatibility: displayMode === 'waveform' || displayMode === 'half-wave',
-				provideAudacitySpectrogram: displayMode === 'spectrogram' || displayMode === 'multiview',
-				frequencyWaveformMode: displayMode === 'waveform-three-band' || displayMode === 'waveform-rainbow'
-					? displayMode
-					: null,
-				frequencyWaveformProjector,
-				frequencyWaveformPreferences,
+				...sharedRendering,
+				color: resolveAudioEditorColor(clip.color, color),
 			},
 			cache: waveformCache,
 			reuseCachedWaveform: Boolean(
@@ -72,14 +71,14 @@ export function createAudioTrackRowClipViewModels({
 					&& clip.waveformPreviewKind !== 'rate-stretch',
 			),
 			waveformPending: waveformPendingClipIds?.has(String(clip.id)) ?? false,
-		})).map((clip) => {
-			const preview = envelopePreviews.get(String(clip.id));
+		});
+			const preview = envelopePreviews.get(String(model.id));
 			return preview ? {
-				...clip,
+				...model,
 				envelopePoints: preview.designPoints,
-				audacityWaveform: clip.audacityWaveform
-					? { ...clip.audacityWaveform, envelope: preview.envelope }
+				audacityWaveform: model.audacityWaveform
+					? { ...model.audacityWaveform, envelope: preview.envelope }
 					: undefined,
-			} : clip;
+			} : model;
 		});
 }

@@ -12,7 +12,7 @@ import { DESKTOP_EXPECTED_RUNTIME_FILES } from '../scripts/lib/desktop-project-l
 const ROOT = resolve(import.meta.dirname, '..');
 const EFFECT_ROOT = 'src/common/editor/audacity-effects/';
 
-test('desktop effect inventory ships the emitted dependencies of realtime Reverb', async () => {
+test('desktop effect inventory ships the emitted dependencies of realtime effects', async () => {
 	const queued = [`${EFFECT_ROOT}live.js`, `${EFFECT_ROOT}live-capabilities.js`];
 	const emitted = new Set(queued);
 	for (let index = 0; index < queued.length; index += 1) {
@@ -42,9 +42,11 @@ test('desktop effect inventory ships the emitted dependencies of realtime Reverb
 		'the capability graph must declare the pure Reverb parameters and tail helper');
 	assert.equal(emitted.has(`${EFFECT_ROOT}reverb-live-processor.js`), true,
 		'the realtime dispatcher must declare the persistent Reverb processor');
+	assert.equal(emitted.has(`${EFFECT_ROOT}prepared-distortion.js`), true,
+		'the realtime dispatcher must declare the prepared Distortion shaper and mixer');
 	assert.deepEqual([...emitted].filter((member) => !DESKTOP_EXPECTED_RUNTIME_FILES.includes(member)).sort(), [],
 		'every runtime module emitted for the realtime effect graph must be staged');
-	for (const member of [`${EFFECT_ROOT}reverb-parameters.js`, `${EFFECT_ROOT}reverb-live-processor.js`]) {
+	for (const member of [`${EFFECT_ROOT}reverb-parameters.js`, `${EFFECT_ROOT}reverb-live-processor.js`, `${EFFECT_ROOT}prepared-distortion.js`]) {
 		assert.equal(DESKTOP_EFFECT_RUNTIME_FILES.includes(member), true,
 			`${member} must belong to the desktop effect inventory`);
 	}

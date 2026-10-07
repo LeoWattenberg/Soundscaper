@@ -54,14 +54,22 @@ export function createNoiseBlockRenderer(frameCount: number, channelCount: numbe
 		let counter = state.counter;
 		let pinkTotal = state.pinkTotal;
 		const pinkBins = state.pinkBins;
-		for (let frame = 0; frame < frames; frame += 1) {
-			random = xorshift(random);
-			const white = random / 0x8000_0000 - 1;
-			if (color === 'white') output[frame] = white * amplitude;
-			else if (color === 'brown') {
+		if (color === 'white') {
+			for (let frame = 0; frame < frames; frame++) {
+				random = xorshift(random);
+				output[frame] = (random / 0x8000_0000 - 1) * amplitude;
+			}
+		} else if (color === 'brown') {
+			for (let frame = 0; frame < frames; frame++) {
+				random = xorshift(random);
+				const white = random / 0x8000_0000 - 1;
 				brown = Math.max(-1, Math.min(1, brown * 0.995 + white * 0.05));
 				output[frame] = brown * amplitude;
-			} else {
+			}
+		} else {
+			for (let frame = 0; frame < frames; frame++) {
+				random = xorshift(random);
+				const white = random / 0x8000_0000 - 1;
 				counter += 1;
 				let zeroes = 0;
 				let value = counter;

@@ -169,7 +169,11 @@ export function applyAudacityLegacyCompressor(channels, sampleRate = 48_000, par
 	const output = channels.map((channel) => applyLegacyCompressorChannel(channel, sampleRate, settings));
 	if (!settings.normalize) return output;
 	const maximum = channelPeak(output);
-	return maximum > 0 ? multiplyChannels(output, 1 / maximum) : output;
+	if (maximum > 0) {
+		const gain = 1 / maximum;
+		for (const channel of output) for (let frame = 0; frame < channel.length; frame++) channel[frame] *= gain;
+	}
+	return output;
 }
 
 /** Audacity's linear Fade In curve. */
@@ -263,25 +267,23 @@ export function applyAudacityNormalize(channels, sampleRate = 48_000, params = {
 	const settings = effectParams('audacity-normalize', params);
 	if (!settings.removeDc && !settings.applyGain) return cloneChannels(channels);
 
-	const offsets = channels.map((channel) => {
-		if (!settings.removeDc || channel.length === 0) return 0;
-		let sum = 0;
-		for (const sample of channel) sum += sample;
-		return Math.fround(-sum / channel.length);
-	});
+	const offsets = [];
 	const extents = channels.map((channel, channelIndex) => {
+		let sum = 0;
 		let minimum = Number.POSITIVE_INFINITY;
 		let maximum = Number.NEGATIVE_INFINITY;
 		for (const sample of channel) {
-			if (sample < minimum) minimum = sample;
-			if (sample > maximum) maximum = sample;
+			if (settings.removeDc) sum += sample;
+			if (settings.applyGain) {
+				if (sample < minimum) minimum = sample;
+				if (sample > maximum) maximum = sample;
+			}
 		}
-		if (channel.length === 0) return 0;
-		return Math.max(
-			Math.abs(minimum + offsets[channelIndex]),
-			Math.abs(maximum + offsets[channelIndex]),
-		);
+		const offset = settings.removeDc && channel.length ? Math.fround(-sum / channel.length) : 0;
+		offsets[channelIndex] = offset;
+		return !settings.applyGain || channel.length === 0 ? 0 : Math.max(Math.abs(minimum + offset), Math.abs(maximum + offset));
 	});
+	if (offsets.some((offset) => !Number.isFinite(offset))) return normalizeNonFiniteOffsets(channels, settings);
 	let linkedExtent = 0;
 	for (const extent of extents) linkedExtent = Math.max(linkedExtent, extent);
 	const target = dbToLinear(settings.peakDb);
@@ -290,6 +292,38 @@ export function applyAudacityNormalize(channels, sampleRate = 48_000, params = {
 		const extent = settings.stereoIndependent ? extents[channelIndex] : linkedExtent;
 		const multiplier = Math.fround(settings.applyGain && extent > 0 ? target / extent : 1);
 		const offset = offsets[channelIndex];
+		const output = new Float32Array(channel.length);
+		for (let frame = 0; frame < channel.length; frame++) output[frame] = (channel[frame] + offset) * multiplier;
+		return output;
+	});
+}
+
+// Direct public DSP callers can supply nonfinite PCM even though the selection
+// contract rejects it. V8's NaN payload storage differs between packed arrays
+// and the indexed fast path; retain the original arithmetic for this rare case.
+function normalizeNonFiniteOffsets(channels, settings) {
+	const offsets = channels.map((channel) => {
+		if (!settings.removeDc || channel.length === 0) return 0;
+		let sum = 0;
+		for (const sample of channel) sum += sample;
+		return Math.fround(-sum / channel.length);
+	});
+	const extents = channels.map((channel, index) => {
+		let minimum = Number.POSITIVE_INFINITY;
+		let maximum = Number.NEGATIVE_INFINITY;
+		for (const sample of channel) {
+			if (sample < minimum) minimum = sample;
+			if (sample > maximum) maximum = sample;
+		}
+		return channel.length ? Math.max(Math.abs(minimum + offsets[index]), Math.abs(maximum + offsets[index])) : 0;
+	});
+	let linkedExtent = 0;
+	for (const extent of extents) linkedExtent = Math.max(linkedExtent, extent);
+	const target = dbToLinear(settings.peakDb);
+	return channels.map((channel, index) => {
+		const extent = settings.stereoIndependent ? extents[index] : linkedExtent;
+		const multiplier = Math.fround(settings.applyGain && extent > 0 ? target / extent : 1);
+		const offset = offsets[index];
 		return Float32Array.from(channel, (sample) => (sample + offset) * multiplier);
 	});
 }
@@ -317,8 +351,11 @@ export function applyAudacityRepeat(channels, sampleRate = 48_000, params = {}) 
 	}
 	return channels.map((channel) => {
 		const output = new Float32Array(outputLength);
-		for (let repetition = 0; repetition < repetitions; repetition += 1) {
-			output.set(channel, repetition * channel.length);
+		output.set(channel);
+		for (let written = channel.length; written > 0 && written < outputLength;) {
+			const count = Math.min(written, outputLength - written);
+			output.set(output.subarray(0, count), written);
+			written += count;
 		}
 		return output;
 	});

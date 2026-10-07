@@ -66,6 +66,7 @@ export function automaticClipCrossfadeRanges<T>(
 	clips: readonly T[],
 	accessors: ClipOverlapAccessors<T>,
 	normalizeRanges: FrameRangeNormalizer = mergeFrameRanges,
+	overlaps: readonly PartialClipOverlap<T>[] = findPartialClipOverlaps(clips, accessors),
 ): Map<string, ClipCrossfadeRanges> {
 	const ranges = new Map<string, {
 		crossfadeInRanges: FrameRange[];
@@ -74,7 +75,7 @@ export function automaticClipCrossfadeRanges<T>(
 		String(accessors.id(clip)),
 		{ crossfadeInRanges: [], crossfadeOutRanges: [] },
 	]));
-	for (const overlap of findPartialClipOverlaps(clips, accessors)) {
+	for (const overlap of overlaps) {
 		ranges.get(String(accessors.id(overlap.left)))?.crossfadeOutRanges.push([
 			overlap.startFrame - overlap.leftStartFrame,
 			overlap.endFrame - overlap.leftStartFrame,

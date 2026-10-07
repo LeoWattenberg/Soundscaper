@@ -39,6 +39,7 @@ export class BandCompressor {
 	}
 	gain(power: number): number {
 		this.energy = this.detector * this.energy + (1 - this.detector) * power;
+		if ((this.slope === 0 || this.maximum === 0) && Number.isFinite(this.energy)) return 1;
 		const over = 10 * Math.log10(Math.max(1e-30, this.energy)) - this.threshold;
 		const knee = over <= -3 ? 0 : over >= 3 ? over : (over + 3) ** 2 / 12;
 		const target = Math.min(this.maximum, knee * this.slope);

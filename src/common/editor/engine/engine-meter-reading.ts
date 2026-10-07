@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { stereoCorrelation } from '../production-audio/strip-meter-session.ts';
 import type { EngineMeterReading } from './public-api.ts';
 import type { LiveAnalysisTap } from './live-analysis-tap.ts';
 
@@ -23,6 +22,7 @@ const EMPTY_VALUES: readonly number[] = Object.freeze([]);
 const EMPTY_SCOPE: readonly StereoScopePoint[] = Object.freeze([]);
 const timeReadBuffers = new WeakMap<AnalyserNode, Float32Array>();
 const frequencyReadBuffers = new WeakMap<AnalyserNode, Float32Array>();
+const spectrumWindows = new WeakMap<AnalyserNode, { count: number; bounds: readonly [number, number][] }>();
 
 /** Existing scalar meter path; it never reads the live-analysis side taps. */
 export function readEngineMeter(analyser: AnalyserNode | null | undefined): MutableEngineMeterReading {
@@ -51,8 +51,9 @@ export function readMasterMeter(
 		reading.stereoCorrelation = null;
 		return reading;
 	}
-	reading.stereoScope = createStereoScopePoints(leftSamples, rightSamples);
-	reading.stereoCorrelation = stereoCorrelation([leftSamples, rightSamples]);
+	const stereo = createStereoScopePoints(leftSamples, rightSamples);
+	reading.stereoScope = stereo.points;
+	reading.stereoCorrelation = stereo.correlation;
 	return reading;
 }
 
@@ -89,13 +90,22 @@ function readSpectrum(analyser: AnalyserNode): readonly number[] {
 		frequencyReadBuffers.set(analyser, values);
 	}
 	analyser.getFloatFrequencyData(values as Float32Array<ArrayBuffer>);
-	const highestBin = Math.max(1, values.length - 1);
+	let windows = spectrumWindows.get(analyser);
+	if (!windows || windows.count !== count) {
+		const highestBin = Math.max(1, count - 1);
+		const bounds: [number, number][] = [];
+		for (let bucket = 0; bucket < MAXIMUM_SPECTRUM_BINS; bucket += 1) {
+			const start = Math.max(1, Math.floor(highestBin ** (bucket / MAXIMUM_SPECTRUM_BINS)));
+			const end = Math.max(start + 1, Math.ceil(highestBin ** ((bucket + 1) / MAXIMUM_SPECTRUM_BINS)));
+			bounds.push([start, Math.min(count, end)]);
+		}
+		windows = { count, bounds };
+		spectrumWindows.set(analyser, windows);
+	}
 	const bins: number[] = [];
-	for (let bucket = 0; bucket < MAXIMUM_SPECTRUM_BINS; bucket += 1) {
-		const start = Math.max(1, Math.floor(highestBin ** (bucket / MAXIMUM_SPECTRUM_BINS)));
-		const end = Math.max(start + 1, Math.ceil(highestBin ** ((bucket + 1) / MAXIMUM_SPECTRUM_BINS)));
+	for (const [start, end] of windows.bounds) {
 		let loudest = -120;
-		for (let index = start; index < Math.min(values.length, end); index += 1) {
+		for (let index = start; index < end; index += 1) {
 			const value = values[index]!;
 			if (Number.isFinite(value)) loudest = Math.max(loudest, Math.min(0, value));
 		}
@@ -104,14 +114,24 @@ function readSpectrum(analyser: AnalyserNode): readonly number[] {
 	return Object.freeze(bins);
 }
 
-function createStereoScopePoints(left: Float32Array, right: Float32Array): readonly StereoScopePoint[] {
+function createStereoScopePoints(left: Float32Array, right: Float32Array): {
+	points: readonly StereoScopePoint[]; correlation: number | null;
+} {
 	const step = Math.max(1, Math.ceil(left.length / MAXIMUM_STEREO_SCOPE_POINTS));
 	const points: StereoScopePoint[] = [];
+	let cross = 0;
+	let leftSquares = 0;
+	let rightSquares = 0;
 	for (let start = 0; start < left.length; start += step) {
 		let selectedFrame = start;
 		let greatestAmplitude = 0;
 		for (let frame = start; frame < Math.min(left.length, start + step); frame += 1) {
-			const amplitude = Math.abs(left[frame]!) + Math.abs(right[frame]!);
+			const leftSample = left[frame]!;
+			const rightSample = right[frame]!;
+			cross += leftSample * rightSample;
+			leftSquares += leftSample * leftSample;
+			rightSquares += rightSample * rightSample;
+			const amplitude = Math.abs(leftSample) + Math.abs(rightSample);
 			if (amplitude > greatestAmplitude) {
 				greatestAmplitude = amplitude;
 				selectedFrame = frame;
@@ -125,7 +145,9 @@ function createStereoScopePoints(left: Float32Array, right: Float32Array): reado
 			y: Math.max(-1, Math.min(1, (leftSample + rightSample) / 2)),
 		}));
 	}
-	return Object.freeze(points);
+	const denominator = Math.sqrt(leftSquares * rightSquares);
+	return { points: Object.freeze(points), correlation: denominator === 0
+		? null : Math.max(-1, Math.min(1, cross / denominator)) };
 }
 
 function boundedCount(value: number, maximum: number): number {

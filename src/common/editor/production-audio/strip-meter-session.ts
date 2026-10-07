@@ -73,6 +73,7 @@ export function createSessionStripMeterStore(optionsValue: unknown = {}): Sessio
 	);
 	const states = new Map<string, StripMeterSnapshot>();
 	let sequence = 0;
+	let published: readonly StripMeterSnapshot[] | null = null;
 
 	return Object.freeze({
 		update(stripValue: unknown, inputValue: unknown): StripMeterSnapshot {
@@ -82,6 +83,7 @@ export function createSessionStripMeterStore(optionsValue: unknown = {}): Sessio
 			const key = canonicalStripRefKey(strip);
 			states.delete(key);
 			states.set(key, snapshot);
+			published = null;
 			while (states.size > maximumStrips) {
 				const oldest = states.keys().next().value as string | undefined;
 				if (oldest === undefined) break;
@@ -93,11 +95,13 @@ export function createSessionStripMeterStore(optionsValue: unknown = {}): Sessio
 			return states.get(canonicalStripRefKey(normalizeStripRef(stripValue))) ?? null;
 		},
 		snapshot(): readonly StripMeterSnapshot[] {
-			return Object.freeze([...states.values()]);
+			published ??= Object.freeze([...states.values()]);
+			return published;
 		},
 		reset(): void {
 			states.clear();
 			sequence = 0;
+			published = null;
 		},
 	});
 }

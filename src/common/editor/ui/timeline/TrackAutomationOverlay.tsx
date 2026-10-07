@@ -28,7 +28,6 @@ import {
 } from './track-automation-overlay-projection.ts';
 import {
 	projectTrackAutomationBezierHandlesV21,
-	trackAutomationPathData,
 	trackAutomationSegmentKindKey,
 	type ProjectedTrackAutomationBezierHandle,
 	type TrackAutomationSegmentKind,
@@ -43,7 +42,7 @@ import { useTrackAutomationEditFeedback } from './useTrackAutomationEditFeedback
 import { useTimelinePointerFrame } from './useTimelinePointerFrame.ts';
 import { useTrackAutomationDragLifecycle } from './useTrackAutomationDragLifecycle.ts';
 import { useTrackAutomationKeyboardDeletion } from './useTrackAutomationKeyboardDeletion.ts';
-import { projectTrackAutomationPoints } from './track-automation-overlay-points.ts';
+import { useTrackAutomationSpanPaths, useTrackAutomationPointModels } from './useTrackAutomationDrawModels.ts';
 
 type SegmentKind = TrackAutomationSegmentKind;
 
@@ -153,6 +152,8 @@ export function TrackAutomationOverlay({
 	}), [lane, overscanStartFrame, pixelsPerSecond, projection.bodyHeight,
 		projection.bodyTop, projection.spans, sampleRate, target.descriptor, tempoMap]);
 	const interactive = !disabled && !clipGainToolEnabled && !target.disabledReason;
+	const spanPaths = useTrackAutomationSpanPaths(projection.spans);
+	const projectedPoints = useTrackAutomationPointModels(projection.spans);
 	const editOptions = { descriptor: target.descriptor, sampleRate, tempoMap };
 	const updateDraftLane = (value: AutomationLaneV21 | null) => {
 		draftLaneRef.current = value;
@@ -394,8 +395,8 @@ export function TrackAutomationOverlay({
 			onPointerUp={(event) => attempt(() => finishPointDrag(event))}
 			onPointerCancel={(event) => finishPointDrag(event, true)}
 		>
-			{projection.spans.map((span) => {
-				const path = trackAutomationPathData(span.samples);
+			{projection.spans.map((span, index) => {
+				const path = spanPaths[index];
 				return <g key={span.clipId} data-automation-clip-id={span.clipId}>
 					<path className="audio-editor-track-automation-curve" d={path} />
 					{interactive && <path
@@ -412,7 +413,7 @@ export function TrackAutomationOverlay({
 					/>}
 				</g>;
 			})}
-			<g data-automation-point-layer>{projectTrackAutomationPoints(projection.spans).map(point => <circle
+			<g data-automation-point-layer>{projectedPoints.map(point => <circle
 				key={point.id}
 				className="audio-editor-track-automation-point"
 				data-track-automation-interactive={interactive ? '' : undefined}

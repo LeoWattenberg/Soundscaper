@@ -9,8 +9,12 @@ import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
 import type { RuntimeTimelineAnnotationProjection } from '../src/common/editor/runtime-timeline-annotation-projection.ts';
 import { installReactTestDom, reactProps } from './helpers/react-test-dom.ts';
 
-for (const kind of ['marker', 'region'] as const) test(`${kind} Escape restores its pointer draft and prevents release publication`, async () => {
+for (const kind of ['marker', 'region'] as const) for (const displayed of [true, false]) test(`${kind} Escape restores its ${displayed ? 'displayed' : 'pending'} pointer draft and prevents release publication`, async () => {
 	const dom = installReactTestDom();
+	const frames = new Map<number, FrameRequestCallback>();
+	let nextFrame = 0;
+	globalThis.requestAnimationFrame = callback => { frames.set(++nextFrame, callback); return nextFrame; };
+	globalThis.cancelAnimationFrame = id => { frames.delete(id); };
 	const globals = globalThis as typeof globalThis & { React?: typeof React; IS_REACT_ACT_ENVIRONMENT?: boolean };
 	const priorReact = globals.React;
 	const priorAct = globals.IS_REACT_ACT_ENVIRONMENT;
@@ -50,7 +54,12 @@ for (const kind of ['marker', 'region'] as const) test(`${kind} Escape restores 
 		const original = { left: style.left, width: style.width };
 		await act(async () => reactProps(marker).onPointerDown(pointer));
 		await act(async () => reactProps(marker).onPointerMove({ ...pointer, clientX: 102 }));
-		assert.notDeepEqual({ left: style.left, width: style.width }, original);
+		assert.equal(frames.size, 1);
+		assert.deepEqual({ left: style.left, width: style.width }, original, 'raw moves retain their draft until the display frame');
+		if (displayed) {
+			await act(async () => { const [id, callback] = [...frames][0]!; frames.delete(id); callback(0); });
+			assert.notDeepEqual({ left: style.left, width: style.width }, original);
+		}
 		await act(async () => {
 			const escape = { key: 'Escape', preventDefault() {}, stopPropagation() {} } as unknown as Event;
 			for (const callback of callbacks) {
@@ -60,15 +69,18 @@ for (const kind of ['marker', 'region'] as const) test(`${kind} Escape restores 
 		});
 		assert.deepEqual({ left: style.left, width: style.width }, original);
 		assert.equal(captured.size, 0);
+		assert.equal(frames.size, 0, 'Escape also discards an unpublished pointer frame');
 		await act(async () => reactProps(marker).onPointerUp(pointer));
 		assert.deepEqual(changes, []);
 		await act(async () => reactProps(marker).onPointerDown(pointer));
 		await act(async () => reactProps(marker).onPointerMove({ ...pointer, clientX: 102 }));
 		await act(async () => reactProps(marker).onPointerUp(pointer));
 		assert.equal(changes.length, 1);
+		assert.equal(frames.size, 0);
 	} finally {
 		await act(async () => root.unmount());
 		assert.equal(callbacks.size, 0);
+		assert.equal(frames.size, 0);
 		globals.React = priorReact;
 		globals.IS_REACT_ACT_ENVIRONMENT = priorAct;
 		dom.restore();

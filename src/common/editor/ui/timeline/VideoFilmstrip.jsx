@@ -12,6 +12,9 @@ import { productVideoVisualPreviewRuntimeFor } from '../workspace/product-video-
 import { selectProductVisualThumbnailPoints } from './product-visual-thumbnail-points.ts';
 import { createVideoRateBadgeModel } from './video-rate-badge-model.ts';
 import { createVideoFilmstripFrameRequests } from './video-filmstrip-frame-requests.ts';
+import { createVideoThumbnailTimestampLookup } from './video-thumbnail-timestamp-index.ts';
+import { useVideoFilmstripCells } from './video-filmstrip-cell-model.ts';
+export { formatThumbnailTime } from './video-filmstrip-cell-model.ts';
 
 export function VideoFilmstripClip({
 	controller,
@@ -45,11 +48,11 @@ export function VideoFilmstripClip({
 	const width = Math.max(2, framesToSeconds(visibleEndFrame - visibleStartFrame, { sampleRate }) * pixelsPerSecond);
 	const clippedAtStart = visibleStartFrame !== clip.timelineStartFrame;
 	const clippedAtEnd = visibleEndFrame !== clipEndFrame;
-	const rateBadge = createVideoRateBadgeModel({
+	const rateBadge = useMemo(() => createVideoRateBadgeModel({
 		clip,
 		source,
 		projectSampleRate: sampleRate,
-	});
+	}), [clip, source, sampleRate]);
 	const visualData = useVideoClipVisualData(controller, clip);
 	const thumbnailPoints = useMemo(() => {
 		if (!source || visibleEndFrame <= visibleStartFrame) return [];
@@ -87,16 +90,20 @@ export function VideoFilmstripClip({
 		thumbnails: visualData?.thumbnails, thumbnailUrls: visualData?.thumbnailUrls,
 		frames: visualData?.frames, thumbnailUrlAt: visualData?.thumbnailUrlAt,
 	}), [visualData?.thumbnails, visualData?.thumbnailUrls, visualData?.frames, visualData?.thumbnailUrlAt]);
+	const timestampLookup = useMemo(() => createVideoThumbnailTimestampLookup(
+		thumbnailData.thumbnails ?? thumbnailData.thumbnailUrls ?? thumbnailData.frames,
+	), [thumbnailData]);
 	const thumbnailModels = useMemo(() => thumbnailPoints.map((point, index) => ({
 		key: `${point.timelineFrame}:${point.sourceFrame}:${index}`,
 		point,
 		sourceUrl: clip.kind === 'image'
 			? `product-image:${String(clip.sourceId)}`
-			: videoThumbnailUrl(thumbnailData, point, index),
-	})), [clip.kind, clip.sourceId, thumbnailPoints, thumbnailData]);
+			: videoThumbnailUrl(thumbnailData, point, index, timestampLookup),
+	})), [clip.kind, clip.sourceId, thumbnailPoints, thumbnailData, timestampLookup]);
 	const presentationThumbnails = useProductTimelineFilmstrip({
 		controller, project, clip, thumbnailModels,
 	});
+	const cells = useVideoFilmstripCells(thumbnailPoints, visibleStartFrame, visibleEndFrame, sampleRate, pixelsPerSecond);
 	return (
 		<div
 			className="audio-editor-video-clip"
@@ -162,13 +169,7 @@ export function VideoFilmstripClip({
 				</div>
 				<div className="audio-editor-video-clip__filmstrip" aria-hidden="true">
 					{thumbnailModels.length ? thumbnailModels.map((model, index) => {
-						const { point } = model;
-						const nextTimelineFrame = thumbnailPoints[index + 1]?.timelineFrame ?? visibleEndFrame;
-						const cellLeft = framesToSeconds(point.timelineFrame - visibleStartFrame, { sampleRate }) * pixelsPerSecond;
-						const cellWidth = Math.max(
-							1,
-							framesToSeconds(nextTimelineFrame - point.timelineFrame, { sampleRate }) * pixelsPerSecond,
-						);
+						const cell = cells[index];
 						const thumbnailUrl = model.sourceUrl || fallbackPosterUrl;
 						const exact = presentationThumbnails.values.get(model.key) || null;
 						return (
@@ -179,15 +180,15 @@ export function VideoFilmstripClip({
 								data-product-visual-thumbnail-state={presentationThumbnails.supported
 									? exact ? 'ready' : presentationThumbnails.error ? 'error' : 'pending'
 									: undefined}
-								style={{ left: cellLeft, width: cellWidth }}
-								title={`${point.sourceTimeSeconds.toFixed(1)} s`}
+								style={{ left: cell.left, width: cell.width }}
+								title={cell.title}
 							>
 								{exact && <ProductTimelineFilmstripCanvas value={exact} />}
 								{!presentationThumbnails.supported && thumbnailUrl
 									&& <img src={thumbnailUrl} alt="" draggable="false" />}
 								{!exact && (presentationThumbnails.supported || !thumbnailUrl)
 									&& <span className="audio-editor-video-clip__thumbnail-time">
-									{formatThumbnailTime(point.sourceTimeSeconds)}
+									{cell.time}
 								</span>}
 							</span>
 						);
@@ -337,7 +338,7 @@ export function videoPosterUrl(visualData, source) {
 	);
 }
 
-export function videoThumbnailUrl(visualData, point, index) {
+export function videoThumbnailUrl(visualData, point, index, timestampLookup = null) {
 	const direct = visualData?.thumbnailUrlAt?.(point.sourceTimeSeconds);
 	if (typeof direct === 'string' && direct) return direct;
 	const candidates = visualData?.thumbnails ?? visualData?.thumbnailUrls ?? visualData?.frames;
@@ -351,7 +352,7 @@ export function videoThumbnailUrl(visualData, point, index) {
 	}
 	if (Array.isArray(candidates)) {
 		if (typeof candidates[index] === 'string') return candidates[index];
-		const matching = candidates.find((candidate) => {
+		const matching = timestampLookup ? timestampLookup(point.sourceTimeSeconds) : candidates.find((candidate) => {
 			const timestamp = Number(candidate?.sourceTimeSeconds ?? candidate?.timestamp ?? candidate?.time);
 			return Number.isFinite(timestamp) && Math.abs(timestamp - point.sourceTimeSeconds) < 0.05;
 		});
@@ -380,11 +381,4 @@ export function firstUsableUrl(...values) {
 		if (typeof value === 'string' && value) return value;
 	}
 	return null;
-}
-
-export function formatThumbnailTime(seconds) {
-	const value = Math.max(0, Number(seconds) || 0);
-	const minutes = Math.floor(value / 60);
-	const remaining = Math.floor(value % 60);
-	return `${minutes}:${String(remaining).padStart(2, '0')}`;
 }

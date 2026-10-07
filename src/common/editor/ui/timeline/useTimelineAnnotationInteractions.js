@@ -1,11 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useMemo, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 
 import { usePresentationFeedback } from '../presentation-feedback.ts';
 import {
 	consumeTimelineAnnotationRenameKey,
-	createTimelineAnnotationUiModel,
 	resolveTimelineAnnotationKeyboardIntent,
 	timelineAnnotationConversionRequest,
 	timelineAnnotationCreateKind,
@@ -13,6 +12,7 @@ import {
 	timelineAnnotationEditIds,
 	timelineAnnotationPointerSelectionIds,
 } from './timeline-annotation-ui-model.ts';
+import { useTimelineAnnotationModels } from './useTimelineAnnotationModels.ts';
 
 const EMPTY_SELECTION = Object.freeze([]);
 
@@ -31,7 +31,7 @@ export function useTimelineAnnotationInteractions({
 	deferKeyboardFocus = false,
 	revealKeyboardFocus = false,
 }) {
-	const model = useMemo(() => createTimelineAnnotationUiModel({
+	const { model, projected } = useTimelineAnnotationModels({
 		annotations,
 		primarySequenceId: project.primarySequenceId,
 		selectedAnnotationIds: project.selection?.annotationIds || [],
@@ -39,14 +39,13 @@ export function useTimelineAnnotationInteractions({
 		sampleRate,
 		locale,
 		secondsUnit: copy.annotationSecondsUnit,
-	}), [annotations, copy.annotationSecondsUnit, locale, project.primarySequenceId, project.selection?.annotationIds, sampleRate, selectedAnnotationId]);
+	});
 	const actions = controller.actions.timelineAnnotations;
 	const itemRefs = useRef(new Map());
 	const renameCompletionRef = useRef(null);
 	const [editingId, setEditingId] = useState(null);
 	const [draftName, setDraftName] = useState('');
 	const [status, setStatus] = usePresentationFeedback(copy);
-	const projected = useMemo(() => model.rows.map(({ annotation }) => annotation), [model.rows]);
 
 	const focusCreated = (annotationId) => {
 		const item = itemRefs.current.get(annotationId);

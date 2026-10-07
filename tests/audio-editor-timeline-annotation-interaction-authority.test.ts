@@ -8,6 +8,7 @@ const timelineDirectory = new URL('../src/common/editor/ui/timeline/', import.me
 
 test('annotation layer and panel share one interaction lifecycle authority', () => {
 	const shared = source('useTimelineAnnotationInteractions.js');
+	const retainedModels = source('useTimelineAnnotationModels.ts');
 	const consumers = [
 		source('TimelineAnnotationLayer.jsx'),
 		source('TimelineAnnotationPanel.jsx'),
@@ -18,14 +19,18 @@ test('annotation layer and panel share one interaction lifecycle authority', () 
 		assert.equal(consumer.match(/useTimelineAnnotationInteractions\(/gu)?.length, 1);
 		for (const authority of [
 			'createTimelineAnnotationUiModel',
+			'useTimelineAnnotationModels',
 			'consumeTimelineAnnotationRenameKey',
 			'resolveTimelineAnnotationKeyboardIntent',
 			'timelineAnnotationPointerSelectionIds',
 		]) assert.doesNotMatch(consumer, new RegExp(`\\b${authority}\\b`, 'u'), authority);
 	}
 
+	assert.equal(shared.match(/useTimelineAnnotationModels\(/gu)?.length, 1);
+	assert.doesNotMatch(shared, /\bcreateTimelineAnnotationUiModel\b/u);
+	assert.match(retainedModels, /useMemo\(\(\) => createTimelineAnnotationUiModel\(/u);
+	assert.equal(retainedModels.match(/createTimelineAnnotationUiModel\(/gu)?.length, 1);
 	for (const authority of [
-		'createTimelineAnnotationUiModel',
 		'consumeTimelineAnnotationRenameKey',
 		'resolveTimelineAnnotationKeyboardIntent',
 		'timelineAnnotationPointerSelectionIds',

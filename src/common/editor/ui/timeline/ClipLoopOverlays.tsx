@@ -1,10 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-import { useLayoutEffect, useState, type RefObject } from 'react';
+import { useLayoutEffect, useMemo, useState, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { Icon } from '@soundscaper/design-system/Icon';
 import { clipCanLoop, clipHasLoopRepeats, clipLoopBoundaries, normalizeInactiveClipLoop, readClipLoop, type LoopAudioClip } from '../../audio-clip-loop.ts';
 import { TIMELINE_ADDITIONAL_COPY } from '../../../i18n/editor-timeline-additional-copy.ts';
 import './clip-loop.css';
+import { applyLoopTrimStyle } from './clip-overlay-presentation.ts';
 
 interface Props {
 	readonly rootRef: RefObject<HTMLDivElement | null>;
@@ -24,20 +25,26 @@ interface Props {
 export function ClipLoopOverlays({ rootRef, clips, startFrame, endFrame, pixelsPerSecond, sampleRate, blocked, selectedIds, copy, onChange }: Props) {
 	const handleLabel = copy['ui.timeline.loopClipLength'] || TIMELINE_ADDITIONAL_COPY.loopClipLength;
 	const [targets, setTargets] = useState<ReadonlyMap<string, HTMLElement>>(new Map());
+	const clipById = useMemo(() => new Map(clips.map(clip => [clip.id, clip])), [clips]);
+	const presentations = useMemo(() => clips.flatMap(clip => {
+		if (!clipCanLoop(clip)) return [];
+		const normalized = normalizeInactiveClipLoop(clip);
+		return [{ clip, normalized, loop: readClipLoop(normalized) ?? { periodFrames: normalized.durationFrames, offsetFrames: 0 },
+			visibleStart: Math.max(startFrame, clip.timelineStartFrame), boundaries: clipLoopBoundaries(clip, startFrame, endFrame, sampleRate / pixelsPerSecond * 2) }];
+	}), [clips, startFrame, endFrame, pixelsPerSecond, sampleRate]);
 	useLayoutEffect(() => {
 		let active = true;
 		const refresh = () => {
 			if (!active) return;
 			const next = new Map<string, HTMLElement>();
 			for (const target of rootRef.current?.querySelectorAll<HTMLElement>('[data-clip-id]') ?? []) {
-				const clip = clips.find(item => item.id === target.dataset.clipId);
+				const clip = clipById.get(target.dataset.clipId ?? '');
 				const loop = clip ? readClipLoop(clip) : null;
 				const trim = target.querySelector<HTMLElement>('.clip-display__handle--trim-right');
 				if (trim && clip) {
 					const hasRepeats = clipHasLoopRepeats(clip);
 					const firstEnd = clip.timelineStartFrame + (loop?.periodFrames ?? clip.durationFrames) - (loop?.offsetFrames ?? 0);
-					trim.style.right = hasRepeats ? `${Math.max(0, Math.min(clip.timelineStartFrame + clip.durationFrames, endFrame) - firstEnd) * pixelsPerSecond / sampleRate}px` : '';
-					trim.style.visibility = hasRepeats && (firstEnd < startFrame || firstEnd > endFrame) ? 'hidden' : '';
+					applyLoopTrimStyle(trim, hasRepeats, firstEnd, startFrame, Math.min(clip.timelineStartFrame + clip.durationFrames, endFrame), pixelsPerSecond, sampleRate);
 				}
 				if (clip && clipCanLoop(clip)) next.set(clip.id, target);
 			}
@@ -46,14 +53,10 @@ export function ClipLoopOverlays({ rootRef, clips, startFrame, endFrame, pixelsP
 		if (rootRef.current) refresh();
 		else queueMicrotask(refresh);
 		return () => { active = false; };
-	}, [clips, rootRef, startFrame, endFrame, pixelsPerSecond, sampleRate, selectedIds]);
-	return clips.map(clip => {
+	}, [clipById, clips, rootRef, startFrame, endFrame, pixelsPerSecond, sampleRate, selectedIds]);
+	return presentations.map(({ clip, normalized, loop, visibleStart, boundaries }) => {
 		const target = targets.get(clip.id);
-		if (!target || !clipCanLoop(clip)) return null;
-		const normalized = normalizeInactiveClipLoop(clip);
-		const loop = readClipLoop(normalized) ?? { periodFrames: normalized.durationFrames, offsetFrames: 0 };
-		const visibleStart = Math.max(startFrame, clip.timelineStartFrame);
-		const boundaries = clipLoopBoundaries(clip, startFrame, endFrame, sampleRate / pixelsPerSecond * 2);
+		if (!target) return null;
 		return createPortal(<>
 			{boundaries.map(frame => <span key={frame} className="audio-editor-clip-loop-boundary" data-loop-boundary-frame={frame}
 				aria-hidden="true" style={{ left: (frame - visibleStart) * pixelsPerSecond / sampleRate }} />)}

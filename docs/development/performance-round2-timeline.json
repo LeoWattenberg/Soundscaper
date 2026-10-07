@@ -1,0 +1,422 @@
+{
+  "schemaVersion": 1,
+  "title": "Second responsiveness round: timeline and presentation improvements",
+  "date": "2026-10-07",
+  "baseRevision": "1b9a6ce76b66b810a6dd30b94ad0f50559fbddab",
+  "scope": "30 new production responsiveness/render improvements. Startup and editor lazy-loading, and the earlier 74 implemented candidates, are excluded. Distinct avoided work is documented without attributing an aggregate Electron speedup to individual helpers.",
+  "manualUpdateAiAssetsRequired": false,
+  "independentDspReview": {
+    "reviewedCommits": ["abcddaa9b", "e686f9f0e", "ac98d8e65"],
+    "method": "Independent comparisons against the captured baseRevision bundles, separate from the committed 146-case DSP parity suite.",
+    "additionalCases": 121,
+    "covered": [
+      "Arbitrary generator block partitions, pink row-cycle boundaries, per-channel RNG order, Nyquist tones and descending chirps",
+      "Irregular linear-resampler chunks, empty chunks, copied history after caller mutation, and repeated finish calls",
+      "Delay zero offsets, history growth and shrink, reset, and finite sanitization",
+      "Reverb public parameter changes and in-place processing",
+      "Compressor transitions from active to neutral and back"
+    ],
+    "result": "No remaining correctness findings: all finite PCM samples compare byte-for-byte, and direct nonfinite cases preserve numeric values and NaN positions. The unused linear-resampler candidate was restored to its original source.",
+    "nativeDelayFinding": "An additional real StaffPad audit identified one differing sample preceding a NaN region after finite Float32-max input overflows the native processor. Restoring original interpolation on pitched reads resolves the boundary: all three real StaffPad cases now have zero differing samples. The owning DSP agent added the regression in tests/audio-editor-round2-resample-delay-performance.test.ts.",
+    "limitations": "Independently compiled baseline modules can produce incidental invalid-input NaN bit encodings under V8 even when source is restored; these are not attributed to production changes. This review adds no counted performance improvements."
+  },
+  "entries": [
+    {
+      "id": "TL01",
+      "title": "Retain timeline recording/automation track counts",
+      "status": "implemented",
+      "sourceFiles": [
+        "src/common/editor/ui/timeline/useTimelineViewportDerived.ts"
+      ],
+      "tests": [
+        "tests/audio-editor-timeline-derived-performance.test.tsx"
+      ],
+      "evidence": "Thirty unrelated React publications perform zero repeated track-type reads; one combined audio-track pass replaces two filter allocations.",
+      "limitations": "Relevant track, armed-control and automation membership edits recompute."
+    },
+    {
+      "id": "TL02",
+      "title": "Retain timeline frequency-ruler presence",
+      "status": "implemented",
+      "sourceFiles": [
+        "src/common/editor/ui/timeline/useTimelineViewportDerived.ts"
+      ],
+      "tests": [
+        "tests/audio-editor-timeline-derived-performance.test.tsx"
+      ],
+      "evidence": "Thirty unrelated publications perform zero repeated display-mode scans.",
+      "limitations": "Display mode and ruler visibility changes invalidate."
+    },
+    {
+      "id": "TL03",
+      "title": "Retain output dock content height",
+      "status": "implemented",
+      "sourceFiles": [
+        "src/common/editor/ui/timeline/useTimelineViewportDerived.ts"
+      ],
+      "tests": [
+        "tests/audio-editor-timeline-derived-performance.test.tsx"
+      ],
+      "evidence": "Thirty unrelated publications perform zero repeated bus collapsed-state reads.",
+      "limitations": "Bus replacement and configured row-height changes invalidate."
+    },
+    {
+      "id": "TL04",
+      "title": "Retain total timeline lane height",
+      "status": "implemented",
+      "sourceFiles": [
+        "src/common/editor/ui/timeline/useTimelineViewportDerived.ts"
+      ],
+      "tests": [
+        "tests/audio-editor-timeline-derived-performance.test.tsx"
+      ],
+      "evidence": "Thirty unrelated publications perform zero repeat lane-height callback invocations.",
+      "limitations": "Resize, auto-fit and recording/automation controls remain dependencies."
+    },
+    {
+      "id": "TL05",
+      "title": "Retain time-selection identity from frame endpoints",
+      "status": "implemented",
+      "sourceFiles": [
+        "src/common/editor/ui/timeline/useTimelineViewportDerived.ts"
+      ],
+      "tests": [
+        "tests/audio-editor-timeline-derived-performance.test.tsx"
+      ],
+      "evidence": "Selection object stays identical over thirty unrelated renders, preventing selection-dependent ruler/canvas effects.",
+      "limitations": "Conversion retains owning framesToSeconds rounding and bounds."
+    },
+    {
+      "id": "TL06",
+      "title": "Prune waveform caches only on clip-membership publications",
+      "status": "implemented",
+      "sourceFiles": [
+        "src/common/editor/ui/timeline/useTimelineViewportDerived.ts"
+      ],
+      "tests": [
+        "tests/audio-editor-timeline-derived-performance.test.tsx"
+      ],
+      "evidence": "Thirty unrelated publications perform zero repeated waveform-cache enumerations; removed clips are deleted.",
+      "limitations": "Cleanup occurs after commit; source/track index replacement can also invalidate membership."
+    },
+    {
+      "id": "TL07",
+      "title": "Retain ruler scale from timing authority",
+      "status": "implemented",
+      "sourceFiles": [
+        "src/common/editor/ui/timeline/useTimelineRulerModels.ts"
+      ],
+      "tests": [
+        "tests/audio-editor-timeline-derived-performance.test.tsx"
+      ],
+      "evidence": "Replacing the containing project thirty times preserves ruler-scale identity and its downstream tick memo.",
+      "limitations": "Time display, tempo, signature, sequences and primary-sequence changes invalidate."
+    },
+    {
+      "id": "TL08",
+      "title": "Reuse one crossfade overlap analysis",
+      "status": "implemented",
+      "sourceFiles": [
+        "src/common/editor/ui/timeline/TrackOverlapOverlays.jsx",
+        "src/common/editor/audio-clip-overlap.ts"
+      ],
+      "tests": [
+        "tests/audio-editor-timeline-projection-performance.test.ts"
+      ],
+      "evidence": "Range preparation accepts owner-supplied overlaps with zero repeat start/duration accessor reads; exact range parity passes.",
+      "limitations": "Existing independent callers retain the original analysis fallback."
+    },
+    {
+      "id": "TL09",
+      "title": "Separate annotation timing/order preparation from selection",
+      "status": "implemented",
+      "sourceFiles": [
+        "src/common/editor/ui/timeline/useTimelineAnnotationModels.ts"
+      ],
+      "tests": [
+        "tests/audio-editor-timeline-retained-presentation.test.tsx"
+      ],
+      "evidence": "Thirty selection/focus publications perform zero repeat annotation timing reads, validation/sort/Intl preparation.",
+      "limitations": "New annotation snapshots and locale/time-authority changes prepare again."
+    },
+    {
+      "id": "TL10",
+      "title": "Index annotation viewport queries",
+      "status": "implemented",
+      "sourceFiles": [
+        "src/common/editor/ui/timeline/timeline-annotation-viewport-index.ts"
+      ],
+      "tests": [
+        "tests/audio-editor-timeline-projection-performance.test.ts"
+      ],
+      "evidence": "Queries inspect fewer than twenty exact-geometry candidates among ten thousand annotations, preserving order, tiny-region width, marker margins and retained focus. Forty-five scaled safe-integer boundary comparisons verify conservative projection before the exact visibility filter.",
+      "limitations": "Small sets retain the ordinary one-pass visibility path."
+    },
+    {
+      "id": "TL11",
+      "title": "Coalesce hover-indicator layout reads to a display frame",
+      "status": "implemented",
+      "sourceFiles": [
+        "src/common/editor/ui/timeline/timeline-pointer-indicator-runtime.ts"
+      ],
+      "tests": [
+        "tests/audio-editor-timeline-pointer-indicator-performance.test.ts"
+      ],
+      "evidence": "Ten raw pointer samples create one pending RAF and two rectangle reads using the latest coordinates.",
+      "limitations": "One display-frame hover delay; hide cancels pending work."
+    },
+    {
+      "id": "TL12",
+      "title": "Suppress repeated hover-indicator DOM mutations",
+      "status": "implemented",
+      "sourceFiles": [
+        "src/common/editor/ui/timeline/timeline-pointer-indicator-runtime.ts"
+      ],
+      "tests": [
+        "tests/audio-editor-timeline-pointer-indicator-performance.test.ts"
+      ],
+      "evidence": "An unchanged position and visibility perform zero hidden/style writes; geometry reads precede mutations.",
+      "limitations": "Changed coordinates continue updating both indicators."
+    },
+    {
+      "id": "TL13",
+      "title": "Coalesce annotation drag previews with a final flush",
+      "status": "implemented",
+      "sourceFiles": [
+        "src/common/editor/ui/timeline/TimelineAnnotationLayer.jsx"
+      ],
+      "tests": [
+        "tests/audio-editor-annotation-pointer-performance.test.tsx"
+      ],
+      "evidence": "Three raw moves create one RAF and one React commit; release flushes the latest delta and cancellation discards it. Foreign pointers cannot replace the owning drag sample, and Escape restores both displayed and pending marker/region drafts.",
+      "limitations": "At most one display-frame preview delay; committed delta remains exact."
+    },
+    {
+      "id": "TL14",
+      "title": "Skip unchanged annotation drag deltas",
+      "status": "implemented",
+      "sourceFiles": [
+        "src/common/editor/ui/timeline/TimelineAnnotationLayer.jsx"
+      ],
+      "tests": [
+        "tests/audio-editor-annotation-pointer-performance.test.tsx"
+      ],
+      "evidence": "Repeating the quantized delta creates no additional React commit.",
+      "limitations": "New deltas and new gestures still publish."
+    },
+    {
+      "id": "TL15",
+      "title": "Exclude ordinary waveform rows from FFT subscriptions",
+      "status": "implemented",
+      "sourceFiles": [
+        "src/common/editor/ui/timeline/useSpectrogramCanvasRevision.ts"
+      ],
+      "tests": [
+        "tests/audio-editor-spectrogram-subscription-performance.test.tsx"
+      ],
+      "evidence": "Ordinary waveform rows subscribe zero listeners and receive zero FFT-triggered rerenders; entering FFT view reads the current revision.",
+      "limitations": "Spectrogram and multiview rows retain subscriptions and preparation updates."
+    },
+    {
+      "id": "TL16",
+      "title": "Retain normalized row spectrogram options",
+      "status": "implemented",
+      "sourceFiles": [
+        "src/common/editor/ui/timeline/useAudioTrackRowViewModel.js"
+      ],
+      "tests": [
+        "tests/audio-editor-track-row-view-model-hook.test.tsx"
+      ],
+      "evidence": "The fallback normalization/frozen options object is prepared only when its settings or sample-rate dependencies change.",
+      "limitations": "A companion draw-key memo is uncounted; no FFT/raster behavior changes."
+    },
+    {
+      "id": "TL17",
+      "title": "Restrict and retain clip fade geometry",
+      "status": "implemented",
+      "sourceFiles": [
+        "src/common/editor/ui/timeline/clip-overlay-presentation.ts"
+      ],
+      "tests": [
+        "tests/audio-editor-timeline-overlay-performance.test.ts"
+      ],
+      "evidence": "Two thousand inactive unselected clips skip curve geometry; selecting one keeps existing faded-clip geometry without extra shape reads.",
+      "limitations": "Immutable row projection identity and viewport geometry own cache invalidation."
+    },
+    {
+      "id": "TL18",
+      "title": "Skip fade portal discovery for empty eligible sets",
+      "status": "implemented",
+      "sourceFiles": [
+        "src/common/editor/ui/timeline/ClipFadeOverlays.tsx"
+      ],
+      "tests": [
+        "tests/audio-editor-clip-fade-shape-field.test.tsx"
+      ],
+      "evidence": "Rows with zero eligible fades/selected audio clips perform zero data-clip-id DOM discovery; targets retain only eligible IDs.",
+      "limitations": "When eligible clips appear, committed DOM discovery resumes."
+    },
+    {
+      "id": "TL19",
+      "title": "Index loop-overlay DOM clip lookup",
+      "status": "implemented",
+      "sourceFiles": [
+        "src/common/editor/ui/timeline/ClipLoopOverlays.tsx"
+      ],
+      "tests": [
+        "tests/audio-editor-clip-loop-overlays.test.ts"
+      ],
+      "evidence": "One clipById construction replaces per-target clips.find scans, changing target resolution from quadratic to linear work.",
+      "limitations": "DOM discovery remains necessary after selection changes that mount trim handles."
+    },
+    {
+      "id": "TL20",
+      "title": "Suppress unchanged loop-trim inline writes",
+      "status": "implemented",
+      "sourceFiles": [
+        "src/common/editor/ui/timeline/clip-overlay-presentation.ts"
+      ],
+      "tests": [
+        "tests/audio-editor-timeline-overlay-performance.test.ts"
+      ],
+      "evidence": "Repeated placement writes zero right/visibility properties; shrinking repeats resets the properties.",
+      "limitations": "Loop boundaries and trim hit-target semantics remain unchanged."
+    },
+    {
+      "id": "TL21",
+      "title": "Retain loop boundary and normalization presentation",
+      "status": "implemented",
+      "sourceFiles": [
+        "src/common/editor/ui/timeline/ClipLoopOverlays.tsx"
+      ],
+      "tests": [
+        "tests/audio-editor-clip-loop-overlays.test.ts"
+      ],
+      "evidence": "Selection-only renders reuse normalized period/source geometry and visible loop-boundary arrays.",
+      "limitations": "Clip/window/zoom/rate changes rebuild; keyboard source restoration remains covered."
+    },
+    {
+      "id": "TL22",
+      "title": "Retain automation SVG path strings",
+      "status": "implemented",
+      "sourceFiles": [
+        "src/common/editor/ui/timeline/useTrackAutomationDrawModels.ts"
+      ],
+      "tests": [
+        "tests/audio-editor-timeline-retained-presentation.test.tsx"
+      ],
+      "evidence": "Thirty unrelated publications perform zero repeat sample-coordinate reads or path-string construction.",
+      "limitations": "Changing projected spans recomputes exact original SVG paths."
+    },
+    {
+      "id": "TL23",
+      "title": "Retain automation point deduplication",
+      "status": "implemented",
+      "sourceFiles": [
+        "src/common/editor/ui/timeline/useTrackAutomationDrawModels.ts"
+      ],
+      "tests": [
+        "tests/audio-editor-timeline-retained-presentation.test.tsx"
+      ],
+      "evidence": "Thirty unrelated publications perform zero repeated authored-point-list reads and retain handle model identity.",
+      "limitations": "Changed spans preserve first-authored-point identity through the original deduplicator."
+    },
+    {
+      "id": "TL24",
+      "title": "Retain automation target groups",
+      "status": "implemented",
+      "sourceFiles": [
+        "src/common/editor/ui/timeline/TrackAutomationSelectors.tsx"
+      ],
+      "tests": [
+        "tests/audio-editor-timeline-static-controls-performance.test.tsx"
+      ],
+      "evidence": "Thirty disabled/control-state publications perform zero repeated target group-label reads.",
+      "limitations": "Target-array replacement regroups; disabled-reason and mode semantics remain covered."
+    },
+    {
+      "id": "TL25",
+      "title": "Retain static audio-track ruler children",
+      "status": "implemented",
+      "sourceFiles": [
+        "src/common/editor/ui/timeline/AudioTrackRuler.jsx"
+      ],
+      "tests": [
+        "tests/audio-editor-timeline-static-controls-performance.test.tsx"
+      ],
+      "evidence": "Thirty unrelated control publications retain exact React child elements, avoiding child-ruler reexecution and tick preparation.",
+      "limitations": "Channel heights, scale, range, format and zoom invalidate; inactive ruler kinds are omitted."
+    },
+    {
+      "id": "TL26",
+      "title": "Index video-thumbnail timestamp matching",
+      "status": "implemented",
+      "sourceFiles": [
+        "src/common/editor/ui/timeline/video-thumbnail-timestamp-index.ts"
+      ],
+      "tests": [
+        "tests/audio-editor-video-thumbnail-performance.test.ts"
+      ],
+      "evidence": "One hundred timestamp lookups against ten thousand catalog entries perform zero repeat timestamp-property reads; authored-first and strict 0.05-second tolerance parity passes.",
+      "limitations": "Immutable catalog snapshot identity owns invalidation; direct index strings/maps/callbacks retain their precedence."
+    },
+    {
+      "id": "TL27",
+      "title": "Retain video rate-badge timing derivation",
+      "status": "implemented",
+      "sourceFiles": [
+        "src/common/editor/ui/timeline/VideoFilmstrip.jsx"
+      ],
+      "tests": [
+        "tests/audio-editor-timeline-image-ui.test.tsx"
+      ],
+      "evidence": "Rate badge rational timing/BigInt preparation runs only when clip/source/rate dependencies change, instead of every exact-thumbnail publication.",
+      "limitations": "No project or raster timing speedup is claimed from this memo alone."
+    },
+    {
+      "id": "TL28",
+      "title": "Prepare audio-row shared model inputs in one pass",
+      "status": "implemented",
+      "sourceFiles": [
+        "src/common/editor/ui/timeline/audio-track-row-view-model.js"
+      ],
+      "tests": [
+        "tests/audio-editor-timeline-static-controls-performance.test.tsx"
+      ],
+      "evidence": "Two hundred clips resolve shared track color with two coercions instead of four hundred; shared geometry/selection/render flags and envelope previews avoid the second mapped array.",
+      "limitations": "Per-clip waveform projection and colors remain independent; recording previews retain existing conversion."
+    },
+    {
+      "id": "TL29",
+      "title": "Retain filmstrip cell geometry and labels",
+      "status": "implemented",
+      "sourceFiles": [
+        "src/common/editor/ui/timeline/video-filmstrip-cell-model.ts"
+      ],
+      "tests": [
+        "tests/audio-editor-timeline-retained-presentation.test.tsx"
+      ],
+      "evidence": "Thirty unrelated publications perform zero repeated thumbnail-frame reads, rectangle preparation or timestamp formatting.",
+      "limitations": "Viewport/zoom/rate changes preserve existing frame rounding and regenerate cells."
+    },
+    {
+      "id": "TL30",
+      "title": "Retain document duration across unrelated project publications",
+      "status": "implemented",
+      "sourceFiles": [
+        "src/common/editor/ui/timeline/useTimelineViewportDerived.ts"
+      ],
+      "tests": [
+        "tests/audio-editor-timeline-derived-performance.test.tsx"
+      ],
+      "evidence": "Thirty unrelated project replacements perform zero repeated document-duration calculations; primary-sequence switching explicitly invalidates.",
+      "limitations": "Clip/track/time-authority/schema/runtime-version/project-rate changes invalidate; recording previews remain a separate duration maximum."
+    }
+  ],
+  "verification": {
+    "focusedNodeTests": "Passing correctness, React commit/identity, and accessor/write-count probes; existing annotation, loop/fade, waveform raster/attachment, automation and video/image component regressions pass.",
+    "typeScript": "npx tsc -p tsconfig.tests.json --pretty false passes, including new strict TypeScript tests and helpers.",
+    "lint": "npm run lint:changed passes; canonical and final post-commit verification is owned by the root.",
+    "browserAndElectron": "Root owns canonical gate, build, browser workflows and Electron default-Speed comparisons."
+  }
+}

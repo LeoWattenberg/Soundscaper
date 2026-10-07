@@ -1,0 +1,1049 @@
+{
+  "schemaVersion": 1,
+  "scope": "New responsiveness/render-speed DSP changes; startup and previous 74 implemented audit findings excluded.",
+  "baseRevision": "1b9a6ce76b66b810a6dd30b94ad0f50559fbddab",
+  "count": 30,
+  "requiresManualAiAssets": false,
+  "parity": {
+    "fixture": "tests/fixtures/dsp-round2-parity.json",
+    "cases": 162,
+    "provenance": "Independent esbuild bundles captured before editing this worktree at baseRevision; byte hashes compare produced Float32/Float64 PCM and complete spectrum JSON. Sixteen sinc rate/partition cases were added from the same frozen baseline bundles; all 146 original hashes remained unchanged.",
+    "additionalAdversarialCases": 70,
+    "additionalAdversarialScope": "Signed zero, subnormal, maximal finite, quiet/signaling NaN and infinity words in Normalize, Legacy Compressor and all Distortion modes; zero-amplitude and Nyquist Tone/Chirp geometry. The NaN-offset regression is committed in the Audacity performance suite.",
+    "independentReview": {
+      "scenarios": 121,
+      "nativeStaffPadScenarios": 3,
+      "evidence": "Independent timeline-agent review verified finite byte parity and nonfinite value/position parity across generator partitions, resampler boundaries, mutable parameter updates and three actual native StaffPad delay cases. Native finite-overflow boundary regression at output 4872 retains the original NaN."
+    }
+  },
+  "findings": [
+    {
+      "number": 1,
+      "id": "dsp-01-normalize-dc-peak-pass",
+      "title": "Fuse Normalize DC sum and peak extrema in one PCM pass",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/audacity-effects/basic.js",
+          "line": 270
+        }
+      ],
+      "avoidedCost": "Peak-enabled DC normalization no longer traverses the input separately for the sum and extrema.",
+      "tests": [
+        "tests/audio-editor-round2-audacity-dsp-performance.test.ts",
+        "tests/audio-editor-round2-dsp-exact-parity.test.ts"
+      ],
+      "evidence": "Iterator fixture reads fall from twelve to four after also replacing the mapper; only the separate measurement pass is counted here.",
+      "limitations": "Output indexed mapper repair is excluded from the count because prior audit #46 already counted that technique. Direct malformed calls with a nonfinite DC offset retain original arithmetic and mapping; this fallback does not affect admitted finite selection PCM."
+    },
+    {
+      "number": 2,
+      "id": "dsp-02-normalize-dc-only-peak",
+      "title": "Skip unused Normalize peak measurement for DC-only jobs",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/audacity-effects/basic.js",
+          "line": 277
+        }
+      ],
+      "avoidedCost": "DC-only Normalize never needs extrema; the unified measurement loop omits those comparisons and extent arithmetic.",
+      "tests": [
+        "tests/audio-editor-round2-audacity-dsp-performance.test.ts",
+        "tests/audio-editor-round2-dsp-exact-parity.test.ts"
+      ],
+      "evidence": "DC-only source is visited once, and all DC-only baseline fixtures retain exact samples.",
+      "limitations": "Sum arithmetic and output rounding remain in their original order."
+    },
+    {
+      "number": 3,
+      "id": "dsp-03-legacy-owned-normalization",
+      "title": "Normalize the owned Legacy Compressor result in place",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/audacity-effects/basic.js",
+          "line": 172
+        }
+      ],
+      "avoidedCost": "The follower output belongs to this invocation, so post-normalization can write it without allocating and retaining replacement channels.",
+      "tests": [
+        "tests/audio-editor-round2-audacity-dsp-performance.test.ts",
+        "tests/audio-editor-round2-dsp-exact-parity.test.ts"
+      ],
+      "evidence": "Float32 allocations fall from two to one for a normalized mono selection.",
+      "limitations": "Only internally owned result PCM is changed; caller input is preserved."
+    },
+    {
+      "number": 4,
+      "id": "dsp-04-repeat-prefix-doubling",
+      "title": "Build Repeat by doubling the already-copied prefix",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/audacity-effects/basic.js",
+          "line": 355
+        }
+      ],
+      "avoidedCost": "Native typed-array copy invocations scale logarithmically with repetition count rather than once per repeat.",
+      "tests": [
+        "tests/audio-editor-round2-audacity-dsp-performance.test.ts",
+        "tests/audio-editor-round2-dsp-exact-parity.test.ts"
+      ],
+      "evidence": "A 128-copy job uses eight set calls instead of 128, preserving signed-zero bytes.",
+      "limitations": "Output bytes are still necessarily proportional to the requested audio length."
+    },
+    {
+      "number": 5,
+      "id": "dsp-05-distortion-medium-log",
+      "title": "Calculate the medium-overdrive table logarithm once",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/audacity-effects/distortion-table.js",
+          "line": 87
+        }
+      ],
+      "avoidedCost": "Each medium-overdrive table entry shares the same logarithm and scale.",
+      "tests": [
+        "tests/audio-editor-round2-audacity-dsp-performance.test.ts",
+        "tests/audio-editor-round2-dsp-exact-parity.test.ts"
+      ],
+      "evidence": "Math.log calls fall from 1026 to two for one table, including the decibel conversion.",
+      "limitations": "The changing exponential numerator is retained for every entry."
+    },
+    {
+      "number": 6,
+      "id": "dsp-06-distortion-hard-log",
+      "title": "Calculate the hard-overdrive table denominator once",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/audacity-effects/distortion-table.js",
+          "line": 95
+        }
+      ],
+      "avoidedCost": "The denominator logarithm is invariant across every hard-overdrive table entry.",
+      "tests": [
+        "tests/audio-editor-round2-audacity-dsp-performance.test.ts",
+        "tests/audio-editor-round2-dsp-exact-parity.test.ts"
+      ],
+      "evidence": "Math.log calls fall from 2050 to 1026.",
+      "limitations": "Numerator logarithms and zero-parameter branch retain their prior arithmetic."
+    },
+    {
+      "number": 7,
+      "id": "dsp-07-distortion-even-tanh",
+      "title": "Calculate the even-harmonics table normalization once",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/audacity-effects/distortion-table.js",
+          "line": 119
+        }
+      ],
+      "avoidedCost": "One shape normalization replaces a repeated invariant tanh and division in this separate waveshaper mode.",
+      "tests": [
+        "tests/audio-editor-round2-audacity-dsp-performance.test.ts",
+        "tests/audio-editor-round2-dsp-exact-parity.test.ts"
+      ],
+      "evidence": "Math.tanh calls fall from 4098 to 2050.",
+      "limitations": "Every changing tanh numerator is still calculated."
+    },
+    {
+      "number": 8,
+      "id": "dsp-08-distortion-shaper-preparation",
+      "title": "Prepare the chosen Distortion sample shaper before PCM",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/audacity-effects/prepared-distortion.ts",
+          "line": 6
+        }
+      ],
+      "avoidedCost": "The hard-clipping input-gain branch and gain construction leave the per-sample path in both live and selection processing.",
+      "tests": [
+        "tests/audio-editor-round2-dsp-exact-parity.test.ts"
+      ],
+      "evidence": "Source structure selects one shaper per configuration; 66 before-change distortion PCM hashes remain exact.",
+      "limitations": "This is one shared shaper optimization, counted once across its two hosts."
+    },
+    {
+      "number": 9,
+      "id": "dsp-09-distortion-mix-preparation",
+      "title": "Prepare the chosen Distortion output mixer before PCM",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/audacity-effects/prepared-distortion.ts",
+          "line": 12
+        }
+      ],
+      "avoidedCost": "The eleven-mode output switch and fixed gain combinations leave the per-sample output-mixing path.",
+      "tests": [
+        "tests/audio-editor-round2-dsp-exact-parity.test.ts"
+      ],
+      "evidence": "Source structure selects one mixer per configuration; all live/offline and DC/mix update hashes remain exact.",
+      "limitations": "Output Float32 rounding is retained at the original point."
+    },
+    {
+      "number": 10,
+      "id": "dsp-10-distortion-retained-table",
+      "title": "Retain live Distortion tables on DC or mix updates",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/audacity-effects/live.js",
+          "line": 259
+        }
+      ],
+      "avoidedCost": "An update that changes output mix or DC blocking does not alter waveshaper geometry and no longer rebuilds 2049 entries.",
+      "tests": [
+        "tests/audio-editor-round2-audacity-dsp-performance.test.ts",
+        "tests/audio-editor-round2-dsp-exact-parity.test.ts"
+      ],
+      "evidence": "Medium-overdrive DC/mix update exponentials fall from 1026 to zero; shape update still redesigns the table.",
+      "limitations": "Even-harmonics parameter2 is part of the shape key; reset and update behavior remain owned by the existing LiveProcessor lifecycle."
+    },
+    {
+      "number": 11,
+      "id": "dsp-11-phaser-fixed-normalization",
+      "title": "Retain the fixed Phaser LFO normalization",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/audacity-effects/live.js",
+          "line": 56
+        }
+      ],
+      "avoidedCost": "The fixed expm1(4) denominator is shared by offline and realtime phaser modulation rather than reevaluated at each LFO update.",
+      "tests": [
+        "tests/audio-editor-round2-audacity-dsp-performance.test.ts",
+        "tests/audio-editor-round2-dsp-exact-parity.test.ts"
+      ],
+      "evidence": "A 1024-frame offline plus realtime fixture reduces fixed-denominator calls from 104 to zero after module initialization.",
+      "limitations": "Counted once across both adaptations; no phase or smoothing order changes."
+    },
+    {
+      "number": 12,
+      "id": "dsp-12-live-echo-ring-wrap",
+      "title": "Advance live Echo history with a bounded wrap",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/audacity-effects/live.js",
+          "line": 158
+        }
+      ],
+      "avoidedCost": "The Echo history pointer advances by one and wraps only at its known length, removing remainder operations from every sample.",
+      "tests": [
+        "tests/audio-editor-round2-dsp-exact-parity.test.ts"
+      ],
+      "evidence": "Exact partitioned Echo hashes cover delay wraparound and multi-channel history.",
+      "limitations": "The offline Echo already used bounded wrap and is excluded."
+    },
+    {
+      "number": 13,
+      "id": "dsp-13-distortion-dc-ring-wrap",
+      "title": "Advance the Distortion DC-block ring with a bounded wrap",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/audacity-effects/distortion-table.js",
+          "line": 216
+        }
+      ],
+      "avoidedCost": "The rolling DC average pointer advances by one, so a length comparison replaces every remainder operation.",
+      "tests": [
+        "tests/audio-editor-round2-dsp-exact-parity.test.ts"
+      ],
+      "evidence": "All eleven modes with DC enabled retain exact offline/live Float32 fixtures.",
+      "limitations": "Only pointer arithmetic changes; rolling sum order is identical."
+    },
+    {
+      "number": 14,
+      "id": "dsp-14-reverb-delay-ring-wrap",
+      "title": "Advance Reverb delay lines with bounded wraps",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/audacity-effects/reverb-live-processor.ts",
+          "line": 201
+        }
+      ],
+      "avoidedCost": "The pre-delay, comb and all-pass ring pointers all advance by one; each avoids remainder in the wet DSP path.",
+      "tests": [
+        "tests/audio-editor-round2-dsp-exact-parity.test.ts"
+      ],
+      "evidence": "Mono/stereo/three-channel 12031-frame hashes exercise wraps and tails with unchanged rounding.",
+      "limitations": "One Reverb ring-advance optimization is counted, not a separate label for each delay class."
+    },
+    {
+      "number": 15,
+      "id": "dsp-15-filter-unchanged-design",
+      "title": "Skip standard-filter design on normalized identical updates",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/first-party-effects/standard/filters-dsp.ts",
+          "line": 35
+        }
+      ],
+      "avoidedCost": "Live gesture/control repetitions retain current coefficients and double-precision history when all admitted effective parameters are identical.",
+      "tests": [
+        "tests/audio-editor-round2-realtime-dsp-performance.test.ts",
+        "tests/audio-editor-round2-dsp-exact-parity.test.ts"
+      ],
+      "evidence": "Repeated equivalent string/number controls produce zero coefficient cosine calls; changed controls still redesign.",
+      "limitations": "Full parameter validation still precedes the comparison; topology changes retain the original state replacement."
+    },
+    {
+      "number": 16,
+      "id": "dsp-16-vocoder-cosine-reuse",
+      "title": "Reuse the angular cosine while designing vocoder biquads",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/first-party-effects/standard/vocoder-dsp.ts",
+          "line": 22
+        }
+      ],
+      "avoidedCost": "Each low-pass envelope biquad previously called the same cosine separately for numerator and denominator coefficients.",
+      "tests": [
+        "tests/audio-editor-round2-realtime-dsp-performance.test.ts",
+        "tests/audio-editor-round2-dsp-exact-parity.test.ts"
+      ],
+      "evidence": "A twelve-band bank decreases Math.cos calls from 192 to 144; mono/stereo/surround PCM hashes remain exact.",
+      "limitations": "This reduces live bank reconfiguration work, not the per-frame filter recurrence."
+    },
+    {
+      "number": 17,
+      "id": "dsp-17-band-neutral-gain",
+      "title": "Skip nonlinear gain math for neutral band compression",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/first-party-effects/dynamics/core.ts",
+          "line": 42
+        }
+      ],
+      "avoidedCost": "Ratio-one or zero-maximum compression continues updating detector energy while avoiding logarithm, knee and exponentiation for known unity gain.",
+      "tests": [
+        "tests/audio-editor-round2-realtime-dsp-performance.test.ts",
+        "tests/audio-editor-round2-dsp-exact-parity.test.ts"
+      ],
+      "evidence": "2048 neutral gain calls produce zero logarithms; enabling compression still sees the retained detector history.",
+      "limitations": "The fast path requires finite accumulated energy, preserving pathological public inputs through the original equations."
+    },
+    {
+      "number": 18,
+      "id": "dsp-18-crossover-unchanged-design",
+      "title": "Skip crossover redesign for an unchanged target",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/complementary-crossover.ts",
+          "line": 34
+        }
+      ],
+      "avoidedCost": "Repeating the same crossover target does not need another tangent/design call and does not interrupt coefficient smoothing.",
+      "tests": [
+        "tests/audio-editor-round2-realtime-dsp-performance.test.ts",
+        "tests/audio-editor-round2-dsp-exact-parity.test.ts"
+      ],
+      "evidence": "An unchanged in-progress target causes zero tangent calls; NaN still throws.",
+      "limitations": "Object.is preserves signed-zero distinctions and changed targets keep existing smoothing."
+    },
+    {
+      "number": 19,
+      "id": "dsp-19-reverb-unchanged-design",
+      "title": "Skip Reverb redesign for an unchanged configuration",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/audacity-effects/reverb-live-processor.ts",
+          "line": 84
+        }
+      ],
+      "avoidedCost": "Identical normalized controls reuse existing gain/tone/tail geometry rather than solving the reverb release bound and rebuilding tone coefficients.",
+      "tests": [
+        "tests/audio-editor-round2-realtime-dsp-performance.test.ts",
+        "tests/audio-editor-round2-dsp-exact-parity.test.ts"
+      ],
+      "evidence": "An identical room-size update causes zero exponentials instead of fifty; changed tone still redesigns.",
+      "limitations": "A private configured-value snapshot also fences direct external mutation of the public params object."
+    },
+    {
+      "number": 20,
+      "id": "dsp-20-generator-waveform-preparation",
+      "title": "Select the Tone and Chirp oscillator before visiting PCM",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/signal-generator-renderer.ts",
+          "line": 225
+        }
+      ],
+      "avoidedCost": "The immutable waveform choice no longer requires square/sawtooth string dispatch for each generated frame.",
+      "tests": [
+        "tests/audio-editor-round2-dsp-exact-parity.test.ts"
+      ],
+      "evidence": "Twelve separate tone/chirp waveform and interpolation fixtures plus existing stateful hashes retain exact PCM.",
+      "limitations": "This shared oscillator preparation is counted once across tone and chirp; indirect call/JIT effects are workload-dependent."
+    },
+    {
+      "number": 21,
+      "id": "dsp-21-generator-phase-wrap",
+      "title": "Advance generator phase with a bounded wrap",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/signal-generator-renderer.ts",
+          "line": 76
+        }
+      ],
+      "avoidedCost": "Admitted oscillator increments are at most half a cycle, so each positive phase needs at most one subtraction instead of remainder.",
+      "tests": [
+        "tests/audio-editor-round2-dsp-exact-parity.test.ts"
+      ],
+      "evidence": "Tone/Chirp exact hashes include near-Nyquist frequency and arbitrary block boundaries.",
+      "limitations": "Only admitted positive bounded phase accumulators use the fast wrap; floating operation order is preserved."
+    },
+    {
+      "number": 22,
+      "id": "dsp-22-chirp-interpolation-preparation",
+      "title": "Prepare the chosen Chirp interpolation once",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/signal-generator-renderer.ts",
+          "line": 92
+        }
+      ],
+      "avoidedCost": "The interpolation string branch and invariant frequency difference/ratio leave the per-frame sweep loop.",
+      "tests": [
+        "tests/audio-editor-round2-dsp-exact-parity.test.ts"
+      ],
+      "evidence": "Linear/logarithmic waveform fixtures preserve exact samples and phase partitions.",
+      "limitations": "Logarithmic exponentiation remains dominant; isolated logarithmic trials show no wall-time benefit."
+    },
+    {
+      "number": 23,
+      "id": "dsp-23-morse-flat-envelope",
+      "title": "Skip raised-cosine evaluation inside flat Morse keying",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/signal-generator-renderer.ts",
+          "line": 208
+        }
+      ],
+      "avoidedCost": "The plateau has an exact unity raised-cosine envelope and does not need another cosine for every keyed sample.",
+      "tests": [
+        "tests/audio-editor-round2-generator-spectrum-performance.test.ts",
+        "tests/audio-editor-round2-dsp-exact-parity.test.ts"
+      ],
+      "evidence": "One 480-frame dot drops cosine calls from 480 to 78 edge calls.",
+      "limitations": "Ramp edge calculations and multiplication order remain unchanged."
+    },
+    {
+      "number": 24,
+      "id": "dsp-24-noise-color-block-dispatch",
+      "title": "Select Noise color outside the frame loop",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/signal-generator-noise.ts",
+          "line": 57
+        }
+      ],
+      "avoidedCost": "White, brown and pink states use separate bounded frame loops; color tests occur once per block/channel instead of for every random draw.",
+      "tests": [
+        "tests/audio-editor-round2-dsp-exact-parity.test.ts"
+      ],
+      "evidence": "Seeded three-channel color fixtures and existing 32-channel jump fixtures retain exact channel-major RNG and PCM.",
+      "limitations": "White-noise timing is effectively unchanged in warmed Node trials; pink improves. The deterministic improvement is avoided source dispatch."
+    },
+    {
+      "number": 25,
+      "id": "dsp-25-spectrum-private-hann",
+      "title": "Retain bounded private spectrum Hann windows",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/audio-spectrum.ts",
+          "line": 8
+        }
+      ],
+      "avoidedCost": "Repeated spectral gestures/report computation at an accepted FFT size reuse its immutable Hann coefficients.",
+      "tests": [
+        "tests/audio-editor-round2-generator-spectrum-performance.test.ts",
+        "tests/audio-editor-round2-dsp-exact-parity.test.ts"
+      ],
+      "evidence": "The second 64-point report has six FFT-root cosine calls instead of seventy total cosine calls.",
+      "limitations": "The twelve accepted geometries use less than one MiB; caller report objects stay fresh and private coefficients are never exposed."
+    },
+    {
+      "number": 26,
+      "id": "dsp-26-pffft-retained-views",
+      "title": "Retain PFFFT plan heap views across transforms",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/pffft.js",
+          "line": 108
+        }
+      ],
+      "avoidedCost": "Warm plans reuse input/output typed-array views instead of allocating two wrapper objects per FFT.",
+      "tests": [
+        "tests/audio-editor-round2-pffft-performance.test.ts",
+        "tests/audio-editor-round2-dsp-exact-parity.test.ts"
+      ],
+      "evidence": "Ten warm transforms allocate zero heap views instead of twenty; a large-plan heap-growth fixture refreshes old views safely.",
+      "limitations": "A changed WASM heap buffer invalidates both views, including after transform execution; runtime bytes are unchanged."
+    },
+    {
+      "number": 27,
+      "id": "dsp-27-sinc-initial-feed-borrow",
+      "title": "Consume initial sinc input without cloning the full chunk",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/resample.js",
+          "line": 132
+        }
+      ],
+      "avoidedCost": "The production windowed-sinc resampler synchronously borrows input when no retained history exists, avoiding a complete append allocation/copy before convolution.",
+      "tests": [
+        "tests/audio-editor-round2-resample-delay-performance.test.ts",
+        "tests/audio-editor-round2-dsp-exact-parity.test.ts",
+        "tests/audio-editor-resample-borrowed-input.test.ts",
+        "tests/audio-editor-take-cycle-routed-capture-service.test.ts",
+        "tests/audio-editor-local-assistance-audio-preparation.test.ts"
+      ],
+      "evidence": "A 1024-frame initial downsample feed allocates zero full 1024-frame input clones instead of one. Nine small/large/rate ownership cases mutate caller input and transfer output after push; future samples match independent private-input execution. Sixteen independent frozen-baseline sinc hashes remain exact.",
+      "limitations": "History is copied or pruned into private storage before push returns. Short feeds that have not yet produced output keep the original one-copy cost; existing-history feeds still append privately. Passthrough remains the existing borrowed-output contract.",
+      "productionCallers": [
+        "src/common/editor/engine/offline-chunk-resample.ts:42",
+        "src/common/editor/chunk-stream-worker.js:280",
+        "src/common/editor/controller/recording/internal/take-cycle/take-cycle-routed-pcm-stream.ts:42",
+        "src/common/editor/controller/source/source-audio.ts:438",
+        "src/common/editor/aup4-import-audio.ts:38"
+      ]
+    },
+    {
+      "number": 28,
+      "id": "dsp-28-sinc-exact-output-array",
+      "title": "Return exact-fit sinc output without remapping its channels",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/resample.js",
+          "line": 179
+        }
+      ],
+      "avoidedCost": "Each exact-fit output chunk already owns the result array and channel buffers. Returning it directly omits a second array allocation and one callback per channel.",
+      "tests": [
+        "tests/audio-editor-round2-resample-delay-performance.test.ts",
+        "tests/audio-editor-round2-dsp-exact-parity.test.ts",
+        "tests/audio-editor-streaming-resample-kernel.test.ts",
+        "tests/audio-editor-resample-borrowed-input.test.ts",
+        "tests/audio-editor-runtime-long-sources.test.js"
+      ],
+      "evidence": "Finishing a stereo1024-frame48k\u219244.1k feed calls channel map once for history pruning instead of twice; output/channel ownership is unchanged. Sixteen independent sinc PCM hashes and production offline/live/recording caller tests pass.",
+      "limitations": "Rare overestimated output capacity retains the legacy trimming copy; this change does not claim savings for that path.",
+      "productionCallers": [
+        "src/common/editor/engine/offline-chunk-resample.ts:42",
+        "src/common/editor/chunk-stream-worker.js:280",
+        "src/common/editor/controller/recording/internal/take-cycle/take-cycle-routed-pcm-stream.ts:42",
+        "src/common/editor/controller/source/source-audio.ts:438",
+        "src/common/editor/aup4-import-audio.ts:38"
+      ]
+    },
+    {
+      "number": 29,
+      "id": "dsp-29-delay-integer-reads",
+      "title": "Read ordinary integer delay taps without interpolation",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/first-party-effects/standard/delay-dsp.ts",
+          "line": 85
+        }
+      ],
+      "avoidedCost": "Every admitted tap/compensation is an integer frame offset; nonzero finite ring samples need one read rather than floor/fraction/neighbor arithmetic.",
+      "tests": [
+        "tests/audio-editor-round2-resample-delay-performance.test.ts",
+        "tests/audio-editor-round2-dsp-exact-parity.test.ts"
+      ],
+      "evidence": "A stereo three-tap 1024-frame fixture eliminates 8192 interpolation floors. Nine exact delay fixtures include mix zero and signed zeros. Actual StaffPad normal amplitude, constant maximal finite and finite-to-overflow transitions retain value/NaN-position parity.",
+      "limitations": "Unpitched nonzero finite samples skip neighbor arithmetic. Zero samples retain original interpolation for signed zero, and all pitched reads retain it because native processing can overflow finite input into adjacent NaN. The finite-overflow NaN-position regression uses real StaffPad."
+    },
+    {
+      "number": 30,
+      "id": "dsp-30-delay-shared-read-positions",
+      "title": "Share delay read positions across channels",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/first-party-effects/standard/delay-dsp.ts",
+          "line": 107
+        }
+      ],
+      "avoidedCost": "Each frame computes one tap position per echo and one dry position, replacing duplicate channel-wise offset/compensation/modulo work.",
+      "tests": [
+        "tests/audio-editor-round2-dsp-exact-parity.test.ts"
+      ],
+      "evidence": "For the stereo three-tap fixture, source-confirmed position calculations drop from eight to four per frame; multichannel and StaffPad compensation suites pass.",
+      "limitations": "Ring growth and parameter updates rebuild offset geometry before processing; bounded write-index wrap is supporting code and not an extra count."
+    }
+  ],
+  "isolatedMeasurements": {
+    "context": "Node26.5 isolated kernel wall times, warmed alternating pairs; no Electron/app claim; recorded before the final sinc/native-overflow compatibility correction, whose assertions are counted separately.",
+    "results": [
+      {
+        "name": "tone{}",
+        "before": [
+          13.030406000000085,
+          12.304280000000063,
+          11.185899999999947,
+          7.897260999999844,
+          8.677249000000074,
+          9.83458799999994,
+          8.837567000000035,
+          7.578424999999925,
+          8.397667000000183
+        ],
+        "after": [
+          5.9488810000000285,
+          6.733937999999853,
+          4.365324000000101,
+          3.7051799999999275,
+          3.9908430000000408,
+          5.114718999999923,
+          4.5016820000000735,
+          3.3654529999998886,
+          3.350594000000001
+        ],
+        "medianBefore": 8.837567000000035,
+        "medianAfter": 4.365324000000101
+      },
+      {
+        "name": "chirp{\"interpolation\":\"linear\"}",
+        "before": [
+          11.084372999999914,
+          12.04601300000013,
+          9.117068999999901,
+          10.344430999999986,
+          8.596246000000065,
+          10.787071999999853,
+          11.26204800000005,
+          8.644783000000189,
+          10.261764000000085
+        ],
+        "after": [
+          6.226464000000078,
+          6.320830999999998,
+          5.741001000000097,
+          5.691902999999911,
+          8.476744000000053,
+          7.093029999999999,
+          8.473780999999917,
+          6.666639000000032,
+          10.27195800000004
+        ],
+        "medianBefore": 10.344430999999986,
+        "medianAfter": 6.666639000000032
+      },
+      {
+        "name": "chirp{\"interpolation\":\"logarithmic\"}",
+        "before": [
+          14.135332000000062,
+          16.17307299999993,
+          16.996264999999994,
+          14.339894000000186,
+          17.136967999999797,
+          19.0651969999999,
+          18.669349999999895,
+          19.607106999999814,
+          18.658743999999842
+        ],
+        "after": [
+          11.744509000000107,
+          18.366694000000052,
+          15.877332000000024,
+          14.531819999999925,
+          17.799487999999883,
+          16.59438799999998,
+          19.68682499999977,
+          18.270892000000003,
+          18.559188000000177
+        ],
+        "medianBefore": 17.136967999999797,
+        "medianAfter": 17.799487999999883
+      },
+      {
+        "name": "noise{\"color\":\"white\"}",
+        "before": [
+          6.10268300000007,
+          4.359680000000026,
+          9.532643000000007,
+          4.505756000000019,
+          4.480938000000151,
+          20.07197300000007,
+          2.2659459999999854,
+          2.109983000000284,
+          2.04348200000004
+        ],
+        "after": [
+          4.503350999999839,
+          6.300142000000051,
+          3.327260000000024,
+          6.304215000000113,
+          3.326137000000017,
+          9.167486000000281,
+          4.460575000000063,
+          1.1551970000000438,
+          0.7920149999999921
+        ],
+        "medianBefore": 4.480938000000151,
+        "medianAfter": 4.460575000000063
+      },
+      {
+        "name": "noise{\"color\":\"pink\"}",
+        "before": [
+          3.4725600000001577,
+          4.381189000000177,
+          4.54209899999978,
+          5.45951500000001,
+          5.036806999999953,
+          6.791118999999981,
+          6.124647000000095,
+          6.103689000000031,
+          5.155062000000271
+        ],
+        "after": [
+          3.633078000000296,
+          4.196140999999898,
+          3.8195840000003045,
+          3.5867199999997865,
+          4.4128749999999854,
+          4.6625059999996665,
+          4.807374999999865,
+          5.309146000000055,
+          5.0687339999999494
+        ],
+        "medianBefore": 5.155062000000271,
+        "medianAfter": 4.4128749999999854
+      },
+      {
+        "name": "morse{\"text\":\"SOS TEST SOS TEST\",\"wordsPerMinute\":29}",
+        "before": [
+          2.43071800000007,
+          2.4867639999997664,
+          2.4642469999998866,
+          2.392771000000266,
+          2.3263709999996536,
+          2.6990829999999733,
+          2.646285000000262,
+          2.6247549999998228,
+          5.003204000000096
+        ],
+        "after": [
+          1.7534300000002077,
+          1.6482609999998203,
+          1.815527999999631,
+          1.3884610000000066,
+          1.9260999999996784,
+          1.3603370000000723,
+          1.7537860000002183,
+          1.8259860000002845,
+          2.5177669999998216
+        ],
+        "medianBefore": 2.4867639999997664,
+        "medianAfter": 1.7537860000002183
+      },
+      {
+        "name": "normalize-8ch-10s",
+        "before": [
+          354.4674500000001,
+          437.3022940000001,
+          442.85383900000033,
+          399.0134849999995,
+          428.64515500000016,
+          474.85939599999983,
+          468.86599600000045,
+          600.9448030000003,
+          540.4147040000007
+        ],
+        "after": [
+          93.95056100000056,
+          56.82775800000036,
+          65.83869700000014,
+          35.88243899999998,
+          55.351604000001316,
+          32.71504500000083,
+          39.24910099999943,
+          33.92578500000127,
+          63.51413400000092
+        ],
+        "medianBefore": 442.85383900000033,
+        "medianAfter": 55.351604000001316
+      },
+      {
+        "name": "delay-8ch-5echoes-10s",
+        "before": [
+          553.9482060000009,
+          552.0662359999988,
+          545.0812770000011,
+          542.0604490000005,
+          544.3928689999993,
+          516.0669479999997,
+          618.996103999998,
+          539.1680959999976,
+          571.5121779999972
+        ],
+        "after": [
+          229.7500569999993,
+          239.66734400000132,
+          240.0432439999986,
+          265.9429999999993,
+          290.5934129999987,
+          288.3188919999993,
+          222.55805200000032,
+          223.3750629999995,
+          354.9729060000027
+        ],
+        "medianBefore": 545.0812770000011,
+        "medianAfter": 240.0432439999986
+      }
+    ],
+    "repeatAfterNonfiniteOffsetFix": {
+      "context": "Node26.5 isolated kernel wall times, warmed alternating pairs; no Electron/app claim",
+      "results": [
+        {
+          "name": "tone{}",
+          "before": [
+            11.752205999999887,
+            11.13203899999985,
+            11.386617999999999,
+            9.61667199999988,
+            9.792164000000184,
+            9.636700000000019,
+            11.11638499999981,
+            10.040841,
+            9.924983999999995
+          ],
+          "after": [
+            5.747877000000017,
+            6.264801000000034,
+            5.035603000000037,
+            4.86980699999981,
+            5.138269000000037,
+            4.003044999999929,
+            4.96898299999998,
+            5.2676890000000185,
+            5.141219999999976
+          ],
+          "medianBefore": 10.040841,
+          "medianAfter": 5.138269000000037
+        },
+        {
+          "name": "chirp{\"interpolation\":\"linear\"}",
+          "before": [
+            13.482544999999845,
+            18.242048000000068,
+            12.885477000000037,
+            15.472956999999951,
+            17.3134399999999,
+            13.819985000000088,
+            11.201095000000123,
+            12.914205000000038,
+            12.494657999999845
+          ],
+          "after": [
+            10.038845000000038,
+            9.011294999999791,
+            9.674375000000055,
+            16.805505999999923,
+            9.244758999999931,
+            9.433782000000065,
+            8.513823000000002,
+            7.7865620000000035,
+            8.385714000000007
+          ],
+          "medianBefore": 13.482544999999845,
+          "medianAfter": 9.244758999999931
+        },
+        {
+          "name": "chirp{\"interpolation\":\"logarithmic\"}",
+          "before": [
+            18.443031999999903,
+            19.422255999999834,
+            17.972864000000072,
+            20.56340299999988,
+            20.00732999999991,
+            18.499513999999863,
+            16.0861910000001,
+            18.404453000000103,
+            17.316375000000107
+          ],
+          "after": [
+            19.583752000000004,
+            20.83304699999985,
+            19.12366300000008,
+            17.798634999999877,
+            22.003161999999975,
+            18.799981000000116,
+            16.120987000000014,
+            16.156393999999864,
+            15.600159000000076
+          ],
+          "medianBefore": 18.443031999999903,
+          "medianAfter": 18.799981000000116
+        },
+        {
+          "name": "noise{\"color\":\"white\"}",
+          "before": [
+            2.8962320000000545,
+            3.1853139999998348,
+            3.066465999999764,
+            3.329388000000108,
+            2.7480210000003353,
+            10.94678500000009,
+            2.007531000000199,
+            2.0422530000000734,
+            2.0418800000002193
+          ],
+          "after": [
+            1.6726189999999406,
+            1.6440549999999803,
+            1.7096190000002025,
+            3.1430020000002514,
+            1.7532360000000153,
+            1.7487930000002052,
+            5.061028999999962,
+            0.7437039999999797,
+            0.8638819999996485
+          ],
+          "medianBefore": 2.8962320000000545,
+          "medianAfter": 1.7096190000002025
+        },
+        {
+          "name": "noise{\"color\":\"pink\"}",
+          "before": [
+            3.3923179999997046,
+            3.7455540000000838,
+            4.6370880000004036,
+            3.2929189999999835,
+            4.283974999999828,
+            3.9049150000000736,
+            4.35364699999991,
+            4.282112999999754,
+            5.128912000000128
+          ],
+          "after": [
+            3.906739000000016,
+            3.7429480000000694,
+            4.020308000000114,
+            3.6386169999996127,
+            3.989318999999796,
+            3.818471999999929,
+            4.004503999999997,
+            4.146504999999706,
+            4.4809079999999994
+          ],
+          "medianBefore": 4.282112999999754,
+          "medianAfter": 3.989318999999796
+        },
+        {
+          "name": "morse{\"text\":\"SOS TEST SOS TEST\",\"wordsPerMinute\":29}",
+          "before": [
+            3.222451000000092,
+            2.9345280000002276,
+            2.6103799999996227,
+            2.80958499999997,
+            3.491895000000113,
+            2.936428000000433,
+            2.8352550000004157,
+            2.2916979999999967,
+            2.4218140000002677
+          ],
+          "after": [
+            3.3636169999999765,
+            9.532332999999653,
+            1.744854999999916,
+            1.83926399999973,
+            3.699928,
+            1.922092000000248,
+            1.7363900000000285,
+            2.0017299999999523,
+            1.7053510000000642
+          ],
+          "medianBefore": 2.8352550000004157,
+          "medianAfter": 1.922092000000248
+        },
+        {
+          "name": "normalize-8ch-10s",
+          "before": [
+            401.4610929999999,
+            525.7006920000003,
+            392.1897480000007,
+            429.7990669999999,
+            392.17522499999995,
+            398.18731000000116,
+            407.86865899999975,
+            411.67333399999916,
+            382.192626
+          ],
+          "after": [
+            51.653675000000476,
+            68.33860199999981,
+            44.224309000000176,
+            30.63700599999993,
+            68.25572999999986,
+            30.61655399999927,
+            34.68300799999997,
+            30.23242299999947,
+            41.92993099999876
+          ],
+          "medianBefore": 401.4610929999999,
+          "medianAfter": 41.92993099999876
+        },
+        {
+          "name": "delay-8ch-5echoes-10s",
+          "before": [
+            494.6202379999995,
+            569.8292440000005,
+            551.7975449999994,
+            573.6262349999997,
+            534.7715079999998,
+            506.462864000001,
+            445.02257499999905,
+            530.8726070000012,
+            494.15358800000104
+          ],
+          "after": [
+            232.86450499999955,
+            251.62112799999886,
+            248.84069199999976,
+            301.9115580000016,
+            316.10899199999767,
+            233.87940600000002,
+            176.98101699999825,
+            194.5854819999986,
+            244.98637499999677
+          ],
+          "medianBefore": 530.8726070000012,
+          "medianAfter": 244.98637499999677
+        }
+      ]
+    }
+  },
+  "excludedFollowupCandidates": [
+    {
+      "helper": "createStreamingLinearResampler",
+      "reason": "Repository-wide caller audit found only tests; reverted its proposed allocation changes and excluded both candidate counts and isolated timing results. Production sinc replacements occupy findings 27/28."
+    }
+  ]
+}

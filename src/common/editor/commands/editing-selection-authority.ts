@@ -2,6 +2,7 @@
 
 import { canJoinClips as canJoinLegacyClips } from './clip-link-runtime.js';
 import { normalizeFrameRange } from '../project.js';
+import { clipOwnerIndex, expandRelatedClipIds } from './editing-work-index.ts';
 
 export interface EditingAuthorityClip {
 	readonly id: string;
@@ -100,12 +101,11 @@ export function resolveEditingSelectionAuthority(
 	const [trackIds, trackSource] = range
 		? firstTargets(EMPTY_IDS, persistedTrackIds, focusedTrackIds)
 		: firstTargets(explicitTrackIds, persistedTrackIds, focusedTrackIds);
-	const clipIds = range ? EMPTY_IDS : collectRelatedClipIds(project, seedClipIds);
+	const clipIds = range || !seedClipIds.length ? EMPTY_IDS : expandRelatedClipIds(project.clips, seedClipIds, availableClips);
 	const clips = clipIds.map((clipId) => availableClips.get(clipId) as EditingAuthorityClip);
 	const tracks = trackIds.map((trackId) => availableTracks.get(trackId) as EditingAuthorityTrack);
-	const clipTrackIds = uniqueStrings(clips.flatMap((clip) => (
-		project.tracks.find((track) => track.clipIds?.includes(clip.id))?.id ?? []
-	)));
+	const owners = clips.length ? clipOwnerIndex(project.tracks) : null;
+	const clipTrackIds = uniqueStrings(clips.flatMap(clip => owners?.get(clip.id)?.id ?? []));
 	return Object.freeze({
 		project,
 		selection,
@@ -148,31 +148,10 @@ export function collectRelatedClipIds(
 	project: EditingAuthorityProject,
 	clipIds: string | readonly string[],
 ): string[] {
-	const available = new Map(project.clips.map((clip) => [clip.id, clip]));
-	const ids = new Set((Array.isArray(clipIds) ? clipIds : [clipIds])
-		.filter((clipId): clipId is string => typeof clipId === 'string' && available.has(clipId)));
-	let changed = true;
-	while (changed) {
-		changed = false;
-		const groupIds = new Set([...ids].flatMap((clipId) => {
-			const groupId = available.get(clipId)?.groupId;
-			return typeof groupId === 'string' && groupId ? [groupId] : [];
-		}));
-		const avLinkIds = new Set([...ids].flatMap((clipId) => {
-			const avLinkId = available.get(clipId)?.avLinkId;
-			return typeof avLinkId === 'string' && avLinkId ? [avLinkId] : [];
-		}));
-		for (const clip of project.clips) {
-			if (
-				(typeof clip.groupId === 'string' && groupIds.has(clip.groupId))
-				|| (typeof clip.avLinkId === 'string' && avLinkIds.has(clip.avLinkId))
-			) {
-				if (!ids.has(clip.id)) changed = true;
-				ids.add(clip.id);
-			}
-		}
-	}
-	return project.clips.flatMap((clip) => ids.has(clip.id) ? [clip.id] : []);
+	const requested: readonly unknown[] = Array.isArray(clipIds) ? clipIds : [clipIds];
+	const seeds = requested.filter((id): id is string => typeof id === 'string');
+	if (!seeds.length) return [];
+	return expandRelatedClipIds(project.clips, seeds);
 }
 
 interface EditingSelectionOptions {
@@ -208,8 +187,9 @@ export function resolveEditingSelection(
 		});
 	}
 	if (!authority.clipIds.length) return null;
+	const owners = clipOwnerIndex(project.tracks);
 	const trackIds = authority.clipIds.map((clipId) => {
-		const track = project.tracks.find((candidate) => candidate.clipIds?.includes(clipId));
+		const track = owners.get(clipId);
 		if (!track) throw new RangeError(`Clip ${clipId} is not assigned to a track.`);
 		return track.id;
 	});

@@ -11,7 +11,10 @@ export function useTimelineRulerModels(
 	scrollX: number,
 	viewportWidth: number,
 ) {
-	const rulerScale = useMemo(() => resolveTimelineRulerScale(project), [project]);
+	const { timeDisplay, tempo, tempoMap, signatureMap, sequences, primarySequenceId } = project;
+	const rulerScale = useMemo(() => resolveTimelineRulerScale({
+		timeDisplay, tempo, tempoMap, signatureMap, sequences, primarySequenceId,
+	}), [timeDisplay, tempo, tempoMap, signatureMap, sequences, primarySequenceId]);
 	const mappedTicks = useMemo(() => createMappedTimelineTicks({ scale: rulerScale,
 		pixelsPerSecond, sampleRate, scrollX, viewportWidth }),
 	[rulerScale, pixelsPerSecond, sampleRate, scrollX, viewportWidth]);

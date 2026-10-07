@@ -60,7 +60,7 @@ export function fft(real, imaginary, inverse = false) {
 	}
 	const size = validateTransformArrays(real, imaginary);
 	const plan = transformPlan(size);
-	const interleaved = new Float32Array(module.HEAPF32.buffer, plan.input, size * 2);
+	const interleaved = transformViews(plan, size).input;
 	for (let index = 0; index < size; index += 1) {
 		interleaved[index * 2] = real[index];
 		interleaved[index * 2 + 1] = imaginary[index];
@@ -72,7 +72,7 @@ export function fft(real, imaginary, inverse = false) {
 		plan.work,
 		inverse ? PFFFT_BACKWARD : PFFFT_FORWARD,
 	);
-	const output = new Float32Array(module.HEAPF32.buffer, plan.output, size * 2);
+	const output = transformViews(plan, size).output;
 	const scale = inverse ? 1 / size : 1;
 	for (let index = 0; index < size; index += 1) {
 		real[index] = output[index * 2] * scale;
@@ -103,6 +103,17 @@ function transformPlan(size) {
 	const plan = { setup, input, output, work };
 	plans.set(size, plan);
 	return plan;
+}
+
+function transformViews(plan, size) {
+	const heap = module.HEAPF32.buffer;
+	if (plan.views?.input.buffer !== heap) {
+		plan.views = {
+			input: new Float32Array(heap, plan.input, size * 2),
+			output: new Float32Array(heap, plan.output, size * 2),
+		};
+	}
+	return plan.views;
 }
 
 function validateTransformArrays(real, imaginary) {

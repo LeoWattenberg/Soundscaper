@@ -186,11 +186,13 @@ function createLoudnessSnapshotHistory(capacity: number): LoudnessSnapshotHistor
 	let current: EbuMeterSnapshot | null = null;
 	let previousValue: unknown;
 	let sequence = 0;
-	const snapshot = (): SessionLoudnessHistorySnapshot | null => current && Object.freeze({
-		policy: METER_SESSION_POLICY,
-		current,
-		history: Object.freeze([...history]),
-	});
+	let published: SessionLoudnessHistorySnapshot | null = null;
+	const snapshot = (): SessionLoudnessHistorySnapshot | null => {
+		if (!published && current) published = Object.freeze({
+			policy: METER_SESSION_POLICY, current, history: Object.freeze([...history]),
+		});
+		return published;
+	};
 	return Object.freeze({
 		push(value: unknown): SessionLoudnessHistorySnapshot | null {
 			if (value === previousValue) return snapshot();
@@ -198,6 +200,7 @@ function createLoudnessSnapshotHistory(capacity: number): LoudnessSnapshotHistor
 			if (!reading) return snapshot();
 			previousValue = value;
 			current = reading;
+			published = null;
 			const loudness = reading.loudness;
 			history.push(Object.freeze({
 				sequence: sequence += 1,
@@ -217,6 +220,7 @@ function createLoudnessSnapshotHistory(capacity: number): LoudnessSnapshotHistor
 			current = null;
 			previousValue = undefined;
 			sequence = 0;
+			published = null;
 		},
 	});
 }

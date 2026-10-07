@@ -4,11 +4,12 @@ import type { RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { TrackFadeHandle } from '@soundscaper/design-system/Track/TrackFadeHandle';
 import { TrackFadeShapeHandle } from '@soundscaper/design-system/Track/TrackFadeShapeHandle';
-import { fadeDurationAtKey, fadeField, fadeOverlayGeometry, fadeShapeAtKey, fadeShapeField, placeFadeShapeHandles } from './clip-fade-geometry.ts';
+import { fadeDurationAtKey, fadeField, fadeShapeAtKey, fadeShapeField, placeFadeShapeHandles } from './clip-fade-geometry.ts';
 import type { ClipFadeEdge, FadeClip } from './clip-fade-geometry.ts';
 import { END_FADE_SHAPE_PRESETS, selectedEndFadeShapePreset } from '../../clip-fade-presets.ts';
 import { FadeShapeMenu, isFadeShapeMenuKey, keyboardFadeShapeMenuPosition } from './FadeShapeMenu.tsx';
 import type { FadeShapeMenuCopy, FadeShapeMenuPosition } from './FadeShapeMenu.tsx';
+import { createClipFadeGeometryReader } from './clip-overlay-presentation.ts';
 
 export type ClipFadeChanges = Readonly<{
 	readonly fadeInFrames?: number;
@@ -61,21 +62,19 @@ export function ClipFadeOverlays({ rootRef, clips, selectedIds, startFrame, endF
 	const [menu, setMenu] = useState<(FadeShapeMenuPosition & { readonly clipId: string; readonly edge: ClipFadeEdge }) | null>(null);
 	const close = useCallback(() => setMenu(null), []);
 	const menuClip = menu && clips.find(clip => clip.id === menu.clipId);
-	const geometries = useMemo(() => new Map(clips.map(clip => [
-		clip.id, fadeOverlayGeometry(clip, startFrame, endFrame, pixelsPerSecond, sampleRate),
-	])), [clips, startFrame, endFrame, pixelsPerSecond, sampleRate]);
+	const readGeometries = useMemo(createClipFadeGeometryReader, []);
+	const geometries = useMemo(() => readGeometries(clips, selectedIds, startFrame, endFrame, pixelsPerSecond, sampleRate),
+		[readGeometries, clips, selectedIds, startFrame, endFrame, pixelsPerSecond, sampleRate]);
 	useLayoutEffect(() => {
 		const next = new Map<string, HTMLElement>();
-		for (const element of rootRef.current?.querySelectorAll<HTMLElement>('[data-clip-id]') ?? []) {
-			if (element.dataset.clipId) next.set(element.dataset.clipId, element);
+		for (const element of geometries.size ? rootRef.current?.querySelectorAll<HTMLElement>('[data-clip-id]') ?? [] : []) {
+			if (element.dataset.clipId && geometries.has(element.dataset.clipId)) next.set(element.dataset.clipId, element);
 		}
 		setTargets(current => current.size === next.size && [...next].every(([id, element]) => current.get(id) === element) ? current : next);
-	}, [clips, rootRef]);
-	return <>{clips.filter(clip => !clip.isRecordingPreview && clip.kind === 'audio').map(clip => {
+	}, [geometries, rootRef]);
+	return <>{[...geometries.values()].map(({ clip, geometry }) => {
 		const target = targets.get(clip.id);
 		if (!target) return null;
-		const geometry = geometries.get(clip.id);
-		if (!geometry || geometry.width <= 0) return null;
 		const curves = geometry.curves.filter(curve => !crossfadedFadeEdges.has(`${clip.id}:${curve.edge}`));
 		const hasFade = curves.length > 0;
 		const selected = selectedIds.has(clip.id);

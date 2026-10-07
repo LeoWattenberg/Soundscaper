@@ -32,20 +32,18 @@ import {
 import { finalizeVideoKeyframeSegmentCarrier } from './video-keyframe-segment-carrier.ts';
 
 export function pruneMissingProjectSelections(project) {
-	const trackIds = new Set(project.tracks.map((track) => track.id));
-	const timelineClipIds = new Set(project.clips.map((clip) => clip.id));
-	const timelineAnnotationIds = new Set(
-		Array.isArray(project.timelineAnnotations)
-			? project.timelineAnnotations.map((annotation) => annotation.id)
-			: [],
-	);
+	const trackIds = Array.isArray(project.selection?.trackIds) || Array.isArray(project.view?.selectedTrackIds)
+		? new Set(project.tracks.map((track) => track.id)) : null;
 	if (Array.isArray(project.selection?.trackIds)) {
 		project.selection.trackIds = project.selection.trackIds.filter((trackId) => trackIds.has(trackId));
 	}
 	if (Array.isArray(project.selection?.clipIds)) {
+		const timelineClipIds = new Set(project.clips.map((clip) => clip.id));
 		project.selection.clipIds = project.selection.clipIds.filter((clipId) => timelineClipIds.has(clipId));
 	}
 	if (Array.isArray(project.selection?.annotationIds)) {
+		const annotations = project.timelineAnnotations;
+		const timelineAnnotationIds = new Set(Array.isArray(annotations) ? annotations.map((annotation) => annotation.id) : []);
 		project.selection.annotationIds = project.selection.annotationIds.filter(
 			(annotationId) => timelineAnnotationIds.has(annotationId),
 		);
@@ -251,8 +249,8 @@ export function envelopeForTrimmedBounds(clip, timelineStartFrame, durationFrame
 	return segmentEnvelope(clip, timelineStartFrame - clip.timelineStartFrame, durationFrames) ?? [];
 }
 
-export function assertClipSourceBounds(project, clip) {
-	const source = findSource(project, clip.sourceId);
+export function assertClipSourceBounds(project, clip, resolvedSource = undefined) {
+	const source = resolvedSource || findSource(project, clip.sourceId);
 	if (!source) throw new ReferenceError(`Unknown source: ${clip.sourceId}.`);
 	const sourceFrames = source.kind === 'video' ? (source.sourceFrameCount ?? source.frameCount) : source.frameCount;
 	if (clip.sourceStartFrame + (clip.sourceDurationFrames ?? clip.durationFrames) > sourceFrames) throw new RangeError('Clip exceeds its source bounds.');
@@ -309,11 +307,29 @@ export function reserveReplacementClipId(project, id, reservedIds) {
 	reservedIds.add(id);
 }
 
-export function sortTrack(project, track) {
+export function sortTrack(project, track, clipById = undefined) {
+	if (track.clipIds.length < 2) return;
+	const geometry = new Map();
+	if (clipById) {
+		for (const id of track.clipIds) {
+			const clip = clipById.get(id);
+			if (!clip) throw new ReferenceError(`Unknown clip: ${id}.`);
+			geometry.set(id, { start: clip.timelineStartFrame, id: clip.id });
+		}
+	} else {
+		const missing = new Set(track.clipIds);
+		for (const clip of project.clips) {
+			const id = clip.id;
+			if (!missing.delete(id)) continue;
+			geometry.set(id, { start: clip.timelineStartFrame, id });
+			if (!missing.size) break;
+		}
+		if (missing.size) throw new ReferenceError(`Unknown clip: ${missing.values().next().value}.`);
+	}
 	track.clipIds.sort((firstId, secondId) => {
-		const first = requireClip(project, firstId);
-		const second = requireClip(project, secondId);
-		return first.timelineStartFrame - second.timelineStartFrame
+		const first = geometry.get(firstId);
+		const second = geometry.get(secondId);
+		return first.start - second.start
 			|| compareCodeUnits(first.id, second.id);
 	});
 }

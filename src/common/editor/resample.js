@@ -129,9 +129,13 @@ export function createStreamingWindowedSincResampler(inputSampleRate, outputSamp
 			totalOutputFrames += frameCount;
 			return normalized;
 		}
-		buffered = appendChannels(buffered, normalized);
+		// Sampling is synchronous. Borrow an initial chunk, then make any retained
+		// history private before returning control to the chunk owner.
+		buffered = buffered[0].length ? appendChannels(buffered, normalized) : normalized;
 		totalInputFrames += frameCount;
-		return produce(false);
+		const output = produce(false);
+		if (buffered === normalized) buffered = normalized.map((values) => new Float32Array(values));
+		return output;
 	}
 
 	function finish(requestedOutputFrames = null) {
@@ -172,6 +176,7 @@ export function createStreamingWindowedSincResampler(inputSampleRate, outputSamp
 		}
 		totalOutputFrames += written;
 		pruneHistory();
+		if (written === estimated) return output;
 		return output.map((values) => written === values.length ? values : values.slice(0, written));
 	}
 
@@ -182,7 +187,7 @@ export function createStreamingWindowedSincResampler(inputSampleRate, outputSamp
 			Math.min(totalInputFrames, Math.floor(nextInputPosition) - radius - 1));
 		const dropFrames = retainFrom - bufferStartFrame;
 		if (dropFrames <= 0) return;
-		buffered = buffered.map((values) => values.slice(Math.min(values.length, dropFrames)));
+		buffered = buffered.map((values) => Float32Array.prototype.slice.call(values, Math.min(values.length, dropFrames)));
 		bufferStartFrame = retainFrom;
 	}
 }

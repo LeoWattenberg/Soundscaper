@@ -14,7 +14,6 @@ import {
 	AUDACITY_DISTORTION_MODES as DISTORTION_MODES,
 	createDcState,
 	dcFilter,
-	distortionWaveShaper,
 	makeDistortionTable,
 } from './distortion-table.js';
 import {
@@ -51,7 +50,10 @@ export {
 	isAudacityLiveEffect,
 } from './live-capabilities.js';
 
+import { prepareDistortionMixer, prepareDistortionShaper } from './prepared-distortion.ts';
+
 const PHASER_LFO_SHAPE = 4;
+const PHASER_LFO_NORMALIZATION = Math.expm1(PHASER_LFO_SHAPE);
 
 export function createAudacityLiveProcessor(type, sampleRate, params = {}, options = {}) {
 	const capability = audacityLiveEffectCapability(type);
@@ -152,7 +154,8 @@ class EchoLiveProcessor extends LiveProcessor {
 				if (!Number.isFinite(sample)) throw new RangeError('Echo produced a non-finite sample; reduce Decay.');
 				output[channel][frame] = sample;
 				history[position] = output[channel][frame];
-				position = (position + 1) % history.length;
+				position += 1;
+				if (position === history.length) position = 0;
 			}
 			this.positions[channel] = position;
 		}
@@ -185,7 +188,7 @@ class PhaserLiveProcessor extends LiveProcessor {
 				state.skip += 1;
 				if (update) {
 					state.gain = (1 + Math.cos(state.skip * this.lfoStep + channelPhase)) / 2;
-					state.gain = Math.expm1(state.gain * PHASER_LFO_SHAPE) / Math.expm1(PHASER_LFO_SHAPE);
+					state.gain = Math.expm1(state.gain * PHASER_LFO_SHAPE) / PHASER_LFO_NORMALIZATION;
 					state.gain = 1 - state.gain / 255 * this.params.depth;
 				}
 				for (let stage = 0; stage < this.stages; stage += 1) {
@@ -251,12 +254,17 @@ class WahwahLiveProcessor extends LiveProcessor {
 class DistortionLiveProcessor extends LiveProcessor {
 	constructor(sampleRate, params) { super('audacity-distortion', sampleRate, params); this.configure(); this.reset(); }
 	configure() {
-		const built = makeDistortionTable(this.params);
-		this.table = built.table;
-		this.makeupGain = built.makeupGain;
+		const key = [this.params.mode, this.params.thresholdDb, this.params.noiseFloorDb, this.params.parameter1,
+			this.params.mode === 'even-harmonics' ? this.params.parameter2 : 0, this.params.repeats].join(':');
+		if (key !== this.tableKey) {
+			const built = makeDistortionTable(this.params);
+			this.table = built.table;
+			this.makeupGain = built.makeupGain;
+			this.tableKey = key;
+		}
 		this.mode = DISTORTION_MODES.indexOf(this.params.mode);
-		this.p1 = this.params.parameter1 / 100;
-		this.p2 = this.params.parameter2 / 100;
+		this.shape = prepareDistortionShaper(this.table, this.mode, this.params.parameter1);
+		this.mix = prepareDistortionMixer(this.mode, this.params.parameter1, this.params.parameter2, this.makeupGain);
 		this.dcWindow = Math.max(1, Math.floor(this.sampleRate / 20));
 	}
 	reset() { this.dcStates = []; }
@@ -268,20 +276,7 @@ class DistortionLiveProcessor extends LiveProcessor {
 			const dcState = this.dcStates[channel];
 			for (let frame = 0; frame < frames; frame += 1) {
 				const dry = source?.[frame] || 0;
-				const shaped = distortionWaveShaper(dry, this.table, this.mode, this.params.parameter1);
-				let sample;
-				switch (this.mode) {
-					case 0:
-					case 1: sample = shaped * ((1 - this.p2) + this.makeupGain * this.p2); break;
-					case 2:
-					case 3:
-					case 4:
-					case 5:
-					case 7: sample = shaped * this.p2; break;
-					case 10: sample = shaped * (this.p1 - this.p2) + dry * this.p2; break;
-					default: sample = shaped;
-				}
-				sample = Math.fround(sample);
+				const sample = this.mix(this.shape(dry), dry);
 				output[channel][frame] = dcState ? dcFilter(sample, dcState) : sample;
 			}
 		}

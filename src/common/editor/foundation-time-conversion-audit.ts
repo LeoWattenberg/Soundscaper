@@ -20,6 +20,7 @@ export const FOUNDATION_TIME_CONVERSION_HELPERS: readonly string[] = Object.free
 	'beatToSampleFrame',
 	'countInSampleFrames',
 	'sampleFrameToBeat',
+	'createSampleFrameBeatProjector',
 ]);
 
 export interface FoundationTimeConversionClassification {
@@ -177,8 +178,11 @@ const FOUNDATION_TIME_CONVERSION_EDITOR_SITES: readonly FoundationTimeConversion
 	{
 		id: 'automation-lane-frame-evaluation',
 		file: 'src/common/editor/automation-lane-v21.ts',
-		behavior: 'Musical automation evaluation exactly inverts the authoritative sample frame into its tempo-map beat before evaluating the persisted beat-domain curve.',
-		conversions: [{ helper: 'sampleFrameToBeat', policies: ['exact'] }],
+		behavior: 'Musical automation evaluation exactly inverts the authoritative sample frame into its tempo-map beat before evaluating the persisted beat-domain curve; scheduled evaluations prepare the same exact inverse once from detached tempo facts.',
+		conversions: [
+			{ helper: 'sampleFrameToBeat', policies: ['exact'] },
+			{ helper: 'createSampleFrameBeatProjector', policies: ['exact'] },
+		],
 	},
 	{
 		id: 'automation-lane-timebase-conversion',

@@ -31,26 +31,21 @@ export function compileProjectPdcPlan(
 		fallbackTrackIndexIds = false,
 	}: ProjectPdcPlanOptions = {},
 ): ProjectPdcPlan {
-	const tracks = (project?.tracks || [])
-		.filter((track) => track.type !== 'label' && track.type !== 'video')
-		.map((track, index) => ({ index, track }))
-		.filter(({ index, track }) => (
-			onlyTrackId == null || String(
-				fallbackTrackIndexIds ? track.id ?? index : track.id,
-			) === String(onlyTrackId))
-		);
-	const trackLatencyFrames = new Map(tracks.map(({ index, track }) => [
-		String(track.id ?? index),
-		effectRackLatencyFrames(activeRackEffects(track), sampleRate),
-	]));
-	const buses = [
-		...(project?.mixer?.groups || []),
-		...(project?.mixer?.sends || []),
-	];
-	const busLatencyFrames = new Map(buses.map((bus) => [
-		String(bus.id),
-		effectRackLatencyFrames(activeRackEffects(bus), sampleRate),
-	]));
+	const trackLatencyFrames = new Map<string, number>();
+	let index = 0;
+	for (const track of project?.tracks || []) {
+		if (track.type === 'label' || track.type === 'video') continue;
+		const fallbackId = track.id ?? index;
+		index += 1;
+		if (onlyTrackId != null && String(fallbackTrackIndexIds ? fallbackId : track.id) !== String(onlyTrackId)) continue;
+		trackLatencyFrames.set(String(fallbackId), effectRackLatencyFrames(activeRackEffects(track), sampleRate));
+	}
+	const busLatencyFrames = new Map<string, number>();
+	for (const buses of [project?.mixer?.groups || [], project?.mixer?.sends || []]) {
+		for (const bus of buses) {
+			busLatencyFrames.set(String(bus.id), effectRackLatencyFrames(activeRackEffects(bus), sampleRate));
+		}
+	}
 	const maximumTrackLatencyFrames = maximumLatency(trackLatencyFrames);
 	const maximumBusLatencyFrames = maximumLatency(busLatencyFrames);
 	const masterLatencyFrames = includeMaster
@@ -67,5 +62,7 @@ export function compileProjectPdcPlan(
 }
 
 function maximumLatency(latencies: ReadonlyMap<string, number>): number {
-	return Math.max(0, ...latencies.values());
+	let maximum = 0;
+	for (const value of latencies.values()) maximum = Math.max(maximum, value);
+	return maximum;
 }
