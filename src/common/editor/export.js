@@ -27,6 +27,7 @@ import { resolveExportChapters } from './export-chapters.ts';
 import { assertEmbeddedChapterRequest, createEmbeddedChapterEncoding } from './export-embedded-chapter-encoding.ts';
 import { resolveExportClips } from './export-clip-boundaries.ts';
 import { resolveMasteringSequenceExport } from './mastering-sequence-export.ts';
+import { cartForMasteringSequence } from './mastering-sequence-cart.ts';
 import {
 	assertSoundscaperEffectChannelSafety,
 	deliversMasterMix,
@@ -235,7 +236,9 @@ export function createExportPlan(project, options = {}) {
 		runtimeProject.metadata?.cart, deliveryRange, runtimeProject.sampleRate, sampleRate,
 	);
 	let cart = format === 'bwf' || format === 'bw64'
-		? cartMetadata(range) : null;
+		? masteringSequence
+			? cartForMasteringSequence(runtimeProject.metadata?.cart, masteringSequence.plan, runtimeProject.sampleRate, sampleRate)
+			: cartMetadata(range) : null;
 	// The TimeReference states where the delivered audio sits on the project's
 	// timeline, so it is derived per delivered span, not once for the whole plan.
 	const bwfMetadata = (rangeStartFrame) => createBwfExportMetadata(runtimeProject, {
