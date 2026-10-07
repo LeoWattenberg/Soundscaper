@@ -207,7 +207,7 @@ export function projectBinPeakRanges(
 			}
 			ranges.push({ minimum, maximum });
 		}
-		return ranges;
+		return clip.reversed ? ranges.reverse() : ranges;
 	}
 	const buffer = visual.buffer;
 	if (!buffer?.numberOfChannels || !buffer.length || typeof buffer.getChannelData !== 'function') return [];
@@ -230,7 +230,7 @@ export function projectBinPeakRanges(
 		}
 		ranges.push({ minimum, maximum });
 	}
-	return ranges;
+	return clip.reversed ? ranges.reverse() : ranges;
 }
 
 export function aggregateProjectBinRanges(
