@@ -1,10 +1,10 @@
 ---
 title: "專案檔案"
-description: "在本地庫、Scape 專案檔案、AUP4 和渲染備份之間進行選擇。"
+description: "在本地庫、Scape 檔案、Audacity 交換、SESX 匯入和渲染備份之間進行選擇。"
 sidebar:
   order: 2
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"5d41714fbb7c88000b3d658ba55adbe31cdf49eca365f62b8d42c3410a9a4816","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"5d41714fbb7c88000b3d658ba55adbe31cdf49eca365f62b8d42c3410a9a4816","targetLocale":"zh-TW"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"e5b0e4d73cd773ea7289ee298d5d16b6f714559350c07395753fa996b409be3b","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"e5b0e4d73cd773ea7289ee298d5d16b6f714559350c07395753fa996b409be3b","targetLocale":"zh-TW"} -->
 
 ## 本地專案庫
 
@@ -12,17 +12,30 @@ sidebar:
 
 ## 儲存專案檔案
 
-使用 **檔案 → 匯出專案檔案** 來獲得無損的便攜式專案。每個產品都會寫入自己的後綴：Soundscaper 會儲存 `.sscape`，Framescaper 會儲存 `.fscape`，選單項會顯示適用的後綴名稱。兩者背後的格式相同，因此當需要保留混合媒體編輯狀態時，這是合適的選擇。
+在桌面版中，匯入的音訊和視訊預設仍是對原始檔案的參照。重新開啟專案時，請將這些檔案保留在原始位置。本地庫也會保存編輯快取。錄音以及建立或處理的媒體會包裝進專案，因為它們沒有未變更的外部原始檔案。
+
+選擇 **檔案 → 專案管理 → 整合媒體**，將參照的媒體包裝到專案檔案中。整合會立即儲存專案；請在儲存對話方塊中選擇目的地。儲存後，整合的副本可以在沒有原始媒體檔案的情況下移動或分享。如果媒體無法整合或儲存失敗，編輯器會回報問題。
+
+瀏覽器匯出會自動包裝媒體。在瀏覽器中開啟具有外部參照的桌面專案之前，請先在桌面版整合媒體。
+
+
+使用 **檔案 → 匯出專案檔案** 儲存編輯專案。每個產品都會寫入自己的後綴：Soundscaper 會儲存 `.sscape`，Framescaper 會儲存 `.fscape`，選單項會顯示適用的後綴名稱。兩者背後的格式相同，因此當需要保留混合媒體編輯狀態時，這是合適的選擇。
 
 任一產品都可以打開任一後綴的檔案。 `.sscape`, `.fscape`，預留的 `.liscape`，以及較舊的在產品尚未有專屬後綴時匯出的 `.scape` 檔案可以在任何地方打開，且從不同產品儲存一個檔案僅會重新命名它——例如，從 Framescaper 儲存的 `Mix.sscape` 會成為 `Mix.fscape`。檔案名稱變更不會改變專案本身。
 
 匯入或打開 Scape 副本時，可能會遇到本地庫中已存在的相同 ID 的專案。當兩個版本都需要保留在本地庫時，請使用提供的副本工作流程。
 
-## AUP4
+## Audacity AUP3 和 AUP4
 
-AUP4 存在於與 Audacity 兼容的音訊交換中。匯出會產生一個兼容性報告，描述轉換、不可用的效果，以及省略的 Soundscaper 專屬狀態。
+Audacity 專案匯出功能位於 **檔案 → 匯出其他**。選擇 **匯出 AUP3** 使用 Audacity 3.7.9 專案設定檔，或選擇 **匯出 AUP4** 使用目前的 Audacity 交換設定檔。每次匯出都會產生相容性報告，說明轉換、不可用的效果，以及省略的 Soundscaper 專屬狀態。
 
-AUP4 僅包含音訊。視訊會被省略，瀏覽器偏好設定、還原歷史、混音路由和瀏覽器的專案庫不會被傳輸。請勿將 AUP4 作為 Soundscaper 或 Framescaper 專案的唯一備份。
+兩種格式都只包含音訊。視訊會被省略，瀏覽器偏好設定、復原歷史、混音路由和瀏覽器的專案庫不會被傳輸。請勿將任一格式作為 Soundscaper 或 Framescaper 專案的唯一備份。
+
+## Adobe Audition SESX
+
+在桌面版中，使用 **檔案 → 開啟** 匯入 Adobe Audition `.sesx` 工作階段。請將參照的音訊檔案保留在工作階段資料夾下的相對資料夾結構中，或在提示時選擇媒體資料夾。匯入會建立新的本機專案，其中包含受支援的音軌、片段、位置、修剪、簡單淡化和靜態混音器設定。
+
+SESX 匯入是單向的。Audition 效果、自動化、路由、視訊、標記、循環、伸展、連結的交叉淡化和精確淡化曲線不會傳輸。匯入後開啟 **檔案 → 交付報告**，檢查遺失的媒體和其他省略內容。請保留原始 SESX 檔案和媒體，以便繼續在 Audition 中工作。
 
 ## 渲染備份
 

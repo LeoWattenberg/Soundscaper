@@ -4,7 +4,7 @@ description: "Oluşturulan komutlar, kısayollar, formatlar, etkiler ve ürün y
 sidebar:
   order: 1
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"b7e4df92cd36126d4ce3865383043516972e9aca463c3449b731085cafc4050e","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"b7e4df92cd36126d4ce3865383043516972e9aca463c3449b731085cafc4050e","targetLocale":"tr"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"27ac617a3293f4d301daf72bed0b9f3e9127f4516531c320703c36e7afe8658c","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"27ac617a3293f4d301daf72bed0b9f3e9127f4516531c320703c36e7afe8658c","targetLocale":"tr"} -->
 
 Referans sayfaları gözden geçirilmiş çalışma zamanı kayıtlarından oluşturulur ve depoya işlenir. Uygulanmış davranışı, yol haritası girdileri veya yalnızca kaynak dosyalarının ve testlerin varlığı değil, onu tanımlarlar.
 
@@ -22,4 +22,5 @@ Bu bölümü aşağıdaki soruları yanıtlamak için kullanın:
 
 Oluşturulan sayfalar kaynak kökenlerini içerir ve depo kalite kapısında sürüklenmeleri için kontrol edilir.
 
-[Makro programları](/reference/macro-programs/) burada elle yazılmış tek sayfadır. Bir makro programın çalıştığı JavaScript API'ye karşı dokümantasyona sahiptir ve iddiası, editörün kendi testlerinin kum havuzunu tuttuğu şeydir.
+Elle yazılan [Makro programları](/reference/macro-programs/) sayfası, bir makro programının kullandığı JavaScript API’sini açıklar. [Masaüstünde içe aktarılan dosyanın üzerine yazma
+](/reference/overwrite-original-file/) sayfası, iki ürünün ortak kullandığı Electron Dosya komutunu açıklar. Davranışları düzenleyici testleri denetler.

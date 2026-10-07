@@ -2,11 +2,13 @@
 title: "Procesamiento local, modelos y complementos"
 description: "Encuentra asistencia local por tarea y gestiona modelos y complementos en los editores de escritorio."
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"922fb6c279e1a4499967f68b55d60fdc332bb1b2bd3144cff2f87824add1b7b7","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"922fb6c279e1a4499967f68b55d60fdc332bb1b2bd3144cff2f87824add1b7b7","targetLocale":"es"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"3d10714b7e0afaab240d9230f29a67dcdf7089d196b03baabfac75729296e82f","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"3d10714b7e0afaab240d9230f29a67dcdf7089d196b03baabfac75729296e82f","targetLocale":"es"} -->
 
 La asistencia local se ejecuta en tu dispositivo en los editores de escritorio Soundscaper y Framescaper. Selecciona el medio, luego elige la tarea desde su menú. El cuadro de diálogo muestra la selección, la configuración de la tarea y si sus modelos están instalados.
 
-Los paquetes de escritorio incluyen los motores de procesamiento nativos para los modelos locales publicados. Instala los pesos del modelo a través del Administrador de Modelos, luego ejecuta la tarea en tu medio seleccionado. Consulta la guía de cada modelo [guía](/reference/local-models/) para conocer sus plataformas admitidas, la entrada del menú y los requisitos.
+Los paquetes de escritorio no incluyen los motores de procesamiento nativos opcionales ni los pesos de los modelos. Instala un modelo desde el Administrador de modelos para descargar el motor y los pesos que necesita; después, ejecuta la tarea sobre los medios seleccionados. La primera instalación requiere conexión de red; el procesamiento posterior se realiza localmente. Consulta la guía de cada modelo para conocer las plataformas compatibles, la entrada de menú y los requisitos.
+
+Consulta las [guías de modelos individuales](/reference/local-models/).
 
 ## Encontrar una tarea {#find-a-task}
 
@@ -32,7 +34,7 @@ Elige **Ejecutar localmente** para iniciar el procesamiento y responder al aviso
 
 Abre **Herramientas → Administrador de Modelos**, o usa **Administrar Modelos** dentro de una tarea. El enlace de tarea filtra la lista a identidades de modelos compatibles; **Mostrar todos los modelos** elimina esa restricción. Busca por nombre o tarea y filtra por estado de instalación.
 
-Instala los modelos explícitamente. Las descargas muestran el progreso y se pueden cancelar. Volver a una tarea preserva sus configuraciones y actualiza la disponibilidad del modelo; no inicia el procesamiento. Expande **Almacenamiento y verificación** para reparación, limpieza, reubicación de almacenamiento, avisos de licencia e instalación sin conexión desde una carpeta.
+Instala los modelos de forma explícita. La primera instalación también descarga el entorno de ejecución nativo que falte y que comparta ese modelo. Las descargas muestran el progreso y se pueden cancelar. Al volver a una tarea, se conservan sus ajustes y se actualiza la disponibilidad de los modelos, pero no se inicia el procesamiento. Despliega **Almacenamiento y verificación** para reparar, limpiar, trasladar el almacenamiento, consultar avisos de licencia e instalar sin conexión desde una carpeta. Un modelo instalado desde archivos sin conexión sigue necesitando su entorno de ejecución correspondiente antes del primer uso.
 
 Consulta las [guías de modelos individuales](/reference/local-models/) para conocer el propósito, la entrada del menú, el tamaño de descarga, los requisitos, las limitaciones y las comprobaciones de inferencia reales realizadas por el paquete de escritorio nocturno-con-pruebas de cada modelo publicado.
 

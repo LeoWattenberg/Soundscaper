@@ -4,7 +4,7 @@ description: "Generierte Befehle, Tastenkombinationen, Formate, Effekte und Tabe
 sidebar:
   order: 1
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"b7e4df92cd36126d4ce3865383043516972e9aca463c3449b731085cafc4050e","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"b7e4df92cd36126d4ce3865383043516972e9aca463c3449b731085cafc4050e","targetLocale":"de"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"27ac617a3293f4d301daf72bed0b9f3e9127f4516531c320703c36e7afe8658c","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"27ac617a3293f4d301daf72bed0b9f3e9127f4516531c320703c36e7afe8658c","targetLocale":"de"} -->
 
 Referenzseiten werden aus überprüften Laufzeitregistern generiert und in das Repository eingecheckt. Sie beschreiben das implementierte Verhalten, nicht die Roadmap-Einträge oder das bloße Vorhandensein von Quelldateien und Tests.
 
@@ -22,4 +22,5 @@ Verwenden Sie diesen Abschnitt, um Fragen wie diese zu beantworten:
 
 Die generierten Seiten enthalten ihre Quellherkunft und werden im Qualitäts-Gate des Repositories auf Abweichungen überprüft.
 
-[Makro-Programme](/reference/macro-programs/) ist die einzige Seite hier, die von Hand geschrieben wurde. Sie dokumentiert die JavaScript-API, gegen die ein Makro-Programm ausgeführt wird, und ihre Aussagen sind diejenigen, an die die eigenen Tests des Editors das Sandbox-Umfeld messen.
+Die handgeschriebene Seite [Makroprogramme](/reference/macro-programs/) dokumentiert die JavaScript-API, die einem Makroprogramm zur Verfügung steht. [Eine importierte Datei auf dem Desktop überschreiben
+](/reference/overwrite-original-file/) beschreibt den Electron-Dateibefehl, den beide Produkte gemeinsam nutzen. Die Angaben werden durch Tests des Editors überprüft.

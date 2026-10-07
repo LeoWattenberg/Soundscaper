@@ -4,7 +4,7 @@ description: "Sắp xếp video, hình ảnh ghép và thực hiện dự án vi
 sidebar:
   order: 1
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"fe5df8f699907289847a5d9022c094e32168b502a532ebdf7708436a99db38b7","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"fe5df8f699907289847a5d9022c094e32168b502a532ebdf7708436a99db38b7","targetLocale":"vi"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"47cebc3006e44dba5569ea0c1418001989dccf3730c3421c338c340222a9c5af","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"47cebc3006e44dba5569ea0c1418001989dccf3730c3421c338c340222a9c5af","targetLocale":"vi"} -->
 
 Framescaper là giao diện tập trung vào video của trình biên tập chung. Nó nhấn mạnh vào bản xem trước video, giám sát nguồn, hiệu ứng hình ảnh, ghép hình, chuỗi lồng nhau, và công việc đa máy quay.
 
@@ -22,6 +22,6 @@ Soundscaper quản lý âm thanh: ghi âm, hiệu ứng và phân tích âm than
 2. [Chuẩn bị và xuất video](/framescaper/video-export/).
 3. Xem lại [hành vi tệp dự án và sao lưu](/projects-and-data/project-files/).
 
-Mở trình chỉnh sửa trình duyệt tại [soundscaper.org/framescaper/en](https://soundscaper.org/framescaper/en/).
+Mở trình chỉnh sửa trình duyệt tại [framescaper.org/en](https://framescaper.org/en/).
 
 Đối với trợ giúp trên máy tính để bàn, xem [xử lý cục bộ, mô hình và plugin](/help/local-processing/).

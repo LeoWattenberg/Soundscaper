@@ -2,11 +2,13 @@
 title: "Procesare locală, modele și plugin-uri"
 description: "Găsiți asistență locală în funcție de sarcină și gestionați modelele și plugin-urile în editorii de pe desktop."
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"922fb6c279e1a4499967f68b55d60fdc332bb1b2bd3144cff2f87824add1b7b7","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"922fb6c279e1a4499967f68b55d60fdc332bb1b2bd3144cff2f87824add1b7b7","targetLocale":"ro"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"3d10714b7e0afaab240d9230f29a67dcdf7089d196b03baabfac75729296e82f","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"3d10714b7e0afaab240d9230f29a67dcdf7089d196b03baabfac75729296e82f","targetLocale":"ro"} -->
 
 Asistența locală rulează pe dispozitivul dvs. în editorii de desktop Soundscaper și Framescaper. Selectați media, apoi alegeți sarcina din meniul său. Dialogul afișează selecția, setările sarcinii și dacă modelele sale sunt instalate.
 
-Pachetele desktop includ motoarele de procesare native pentru modelele locale publicate. Instalați greutățile modelului prin Model Manager, apoi rulați sarcina pe media selectată. Consultați ghidul fiecărui model [ghid](/reference/local-models/) pentru platformele sale acceptate, intrarea în meniu și cerințe.
+Pachetele desktop nu includ motoarele native opționale de procesare și nici ponderile modelelor. Instalați un model prin Managerul de modele pentru a descărca motorul și ponderile necesare, apoi executați sarcina pe conținutul media selectat. Prima instalare necesită conexiune la rețea; procesările următoare rulează local. Consultați ghidul fiecărui model pentru platformele acceptate, intrarea din meniu și cerințe.
+
+Consultați [ghidurile individuale ale modelelor](/reference/local-models/).
 
 ## Găsiți o sarcină {#find-a-task}
 
@@ -32,7 +34,7 @@ Alegeți **Rulare locală** pentru a începe procesarea și pentru a răspunde l
 
 Deschideți **Instrumente → Manager de modele**, sau utilizați **Gestionați Modelele** din interiorul unei sarcini. Legătura sarcinii filtrează lista pentru identități de modele compatibile; **Afișați toate modelele** elimină această restricție. Căutați după nume sau sarcină și filtrați după starea de instalare.
 
-Instalați modelele explicit. Descărcați progresul și puteți anula. Revenirea la o sarcină păstrează setările sale și actualizează disponibilitatea modelului; nu începe procesarea. Extindeți **Stocare și verificare** pentru reparații, curățare, relocarea stocării, notificări de licență și instalare offline dintr-un folder.
+Instalați modelele în mod explicit. Prima instalare descarcă și mediul nativ comun lipsă de care are nevoie modelul. Descărcările afișează progresul și pot fi anulate. Când reveniți la o sarcină, setările sunt păstrate și disponibilitatea modelelor este actualizată; procesarea nu începe. Extindeți **Stocare și verificare** pentru reparare, curățare, relocarea spațiului de stocare, notificări despre licențe și instalare offline dintr-un folder. Un model instalat din fișiere offline are în continuare nevoie de mediul corespunzător înainte de prima utilizare.
 
 Consultați [ghidurile individuale ale modelelor](/reference/local-models/) pentru scopul fiecărui model publicat, intrarea în meniu, dimensiunea descărcării, cerințe, limitări și verificările reale de inferență efectuate de pachetul desktop cu teste nocturne.
 

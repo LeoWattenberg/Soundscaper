@@ -4,7 +4,7 @@ description: "Γεννήτριες εντολών, συντομεύσεων, μ�
 sidebar:
   order: 1
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"b7e4df92cd36126d4ce3865383043516972e9aca463c3449b731085cafc4050e","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"b7e4df92cd36126d4ce3865383043516972e9aca463c3449b731085cafc4050e","targetLocale":"el"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"27ac617a3293f4d301daf72bed0b9f3e9127f4516531c320703c36e7afe8658c","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"27ac617a3293f4d301daf72bed0b9f3e9127f4516531c320703c36e7afe8658c","targetLocale":"el"} -->
 
 Οι σελίδες αναφοράς δημιουργούνται από ελεγμένους καταλόγους εκτέλεσης και ενσωματώνονται
 στο αποθετήριο. Περιγράφουν την υλοποιημένη συμπεριφορά, όχι τις καταχωρίσεις του οδικού χάρτη ή την
@@ -25,6 +25,5 @@ sidebar:
 Οι δημιουργημένες σελίδες περιλαμβάνουν την προέλευση της πηγής τους και ελέγχονται για απόκλιση
 στην πύλη ποιότητας του αποθετηρίου.
 
-[Προγράμματα μακροεντολών](/reference/macro-programs/) είναι η μία σελίδα εδώ που γράφτηκε
-με το χέρι. Ντοκιμαντέρ την JavaScript API ένα πρόγραμμα μακροεντολών τρέχει εναντίον, και οι
-διεκδικήσεις του είναι αυτές που οι δικές του δοκιμές του επεξεργαστή κρατούν την άμμο.
+Η σελίδα [Προγράμματα μακροεντολών](/reference/macro-programs/) που γράφτηκε χειροκίνητα τεκμηριώνει το JavaScript API που χρησιμοποιεί ένα πρόγραμμα μακροεντολών. Η σελίδα [Αντικατάσταση εισαγόμενου αρχείου στον υπολογιστή
+](/reference/overwrite-original-file/) περιγράφει την εντολή αρχείων Electron που μοιράζονται και τα δύο προϊόντα. Οι δοκιμές του επεξεργαστή ελέγχουν τη συμπεριφορά τους.

@@ -4,7 +4,7 @@ description: "Tabelas geradas de comandos, atalhos, formatos, efeitos e capacida
 sidebar:
   order: 1
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"b7e4df92cd36126d4ce3865383043516972e9aca463c3449b731085cafc4050e","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"b7e4df92cd36126d4ce3865383043516972e9aca463c3449b731085cafc4050e","targetLocale":"pt-BR"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"27ac617a3293f4d301daf72bed0b9f3e9127f4516531c320703c36e7afe8658c","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"27ac617a3293f4d301daf72bed0b9f3e9127f4516531c320703c36e7afe8658c","targetLocale":"pt-BR"} -->
 
 As páginas de referência são geradas a partir de registros de execução revisados e comprometidos com
 o repositório. Elas descrevem o comportamento implementado, não entradas de roteiro ou a
@@ -25,6 +25,5 @@ Use esta seção para responder a perguntas como:
 As páginas geradas incluem a origem do seu conhecimento e são verificadas em relação ao
 drift no portão de qualidade do repositório.
 
-[Programas de macro](/reference/macro-programs/) é a única página aqui escrita à mão.
-Ela documenta a API JavaScript que um programa de macro executa e suas
-afirmações são aquelas às quais os próprios testes do editor mantêm o sandbox.
+A página escrita manualmente sobre [Programas de macro](/reference/macro-programs/) documenta a API JavaScript usada por um programa de macro. [Substituir um arquivo importado no desktop
+](/reference/overwrite-original-file/) descreve o comando de arquivo do Electron compartilhado pelos dois produtos. Os testes do editor verificam seu comportamento.

@@ -1,205 +1,217 @@
 ---
-title: "Miten Soundscaper vertautuu"
-description: "Vertaa Soundscaperia Audacity 4:ään ja Adobe Auditioniin nauhoituksen, muokkauksen, miksaus, toimituksen ja vaihdon osalta."
+title: "Soundscaper-vertailu"
+description: "Vertaa Soundscaper Webiä ja Desktopia Audacity 4:ään ja Adobe Auditioniin tallennuksessa, muokkauksessa, miksauksessa, viennissä ja tiedonsiirrossa."
 sidebar:
   order: 3
 ---
-<!-- docs-ai-provenance: {"model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"71097403d87aba03cddc2ccd696ff9a8663268afba3a7bf750fe8d9913de3eba","targetLocale":"fi"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"gpt-5.6-luna"},"factPacketSha256":"40b04dc035c478e31f5993fb39598506f3eb95c39c7e3a1ec2696a05cef304b5","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"40b04dc035c478e31f5993fb39598506f3eb95c39c7e3a1ec2696a05cef304b5","targetLocale":"fi"} -->
 
-Soundscaper toteuttaa uudelleen Audacity 4:n webissä ja lisää tuotantokerroksen sen päälle. Adobe Audition on kaupallinen jälkikäsittelytyökalu, johon molempia verrataan yleensä. Tämä sivu vertaa kaikkia kolmea, jotta voit päätää, kumpi tekee jo sen työn, jonka tarvitset.
+Soundscaper toteuttaa Audacity 4:n uudelleen verkossa ja lisää siihen tuotantokerroksen. Adobe Audition on kaupallinen jälkituotantotyökalu, johon molempia tavallisesti verrataan. Tällä sivulla verrataan Soundscaper Webiä ja Desktopia, Audacity 4:ää sekä Auditionia, jotta näet, mikä versio jo täyttää tarpeesi.
 
 ## Miten tämä sivu luetaan
 
-Jokainen solu lukee **Kyllä**, **Osittain** tai **Ei**, jota seuraa yksityiskohta, joka määrittää sen.
+Kunkin solun alussa on värikoodattu symboli, jota seuraa tarkentava selite:
 
-**Osittain** kattaa kolme eri tilannetta, ja huomiossa kerrotaan, mikä niistä pätee: ominaisuus on olemassa, mutta se on kapeampi kuin muualla, se on olemassa, mutta riippuu jostakin, jonka sinun on toimitettava, tai se on saavutettavissa vain kiertämällä puuttuvaa osaa.
+- <span class="verdict verdict--yes" role="img" aria-label="Supported">+</span> — tuettu tai soveltuu
+- <span class="verdict verdict--partial" role="img" aria-label="Limited">~</span> — rajallinen, alustasta riippuva tai kiertotapaa vaativa
+- <span class="verdict verdict--no" role="img" aria-label="Unavailable">/</span> — ei käytettävissä tai ei sovellu
+
+Lue huomautukset symbolien rinnalla. Valinnaisen liitännäisen, mallin tai koodekin asennus ei yksin rajoita tuettua työpöytäominaisuutta; huomautus kertoo tarvittavan asennuksen. Webillä ja Desktopilla on omat sarakkeensa, joten selainrajoitus ei heikennä Desktopin arviota.
 
 Rivit kuvaavat ominaisuuksia, ei valikkokomentoja. Tarkkaan komentojen luettelo on kohdassa [Komennot ja pikanäppäimet](/reference/generated/commands/), ja siitä, mitä jokainen tuote mahdollistaa, on tietoa kohdassa
 [Tuotteen ominaisuudet](/reference/generated/product-capabilities/).
 
 ### Mistä nämä väitteet perustuvat
 
-- **Soundscaper**-rivit perustuvat tähän varastoon: tuotteen ominaisuusprofiilit, ajonaikainen toimintamanifesti ja vientimuodon rekisteri.
-  Työpöytäalustalle suunnatut kohdekuormat luodaan varaston CI-järjestelmällä tai kohdepakkaamisella. Paketti ottaa yhden käyttöön vasta sen jälkeen, kun täsmälleen vastaava tulos on valittu ja varmennettu; nämä rivit kertovat, milloin kuorma on edelleen vaadittava.
-- **Audacity 4**-rivit perustuvat tähän varastoon kiinnitettyyn ylävirta-inventaarioon, `4.0.0` commitissa `4c177d43`. Ominaisuus, jonka ylävirta rekisteröi mutta jättää poistettuna käytöstä tai kommentoi pois valikosta, kirjataan sellaisenaan, ja ominaisuus, jolla ei ole rekisteröintiä kiinnitettyssä buildissä, raportoidaan puuttuvaksi kyseisessä buildissä eikä pysyvästi puuttuvaksi.
+- **Soundscaper**-rivit perustuvat tähän repositorioon: tuotteen toimintoprofiileihin, ajonaikaisten toimintojen manifestiin, vientimuotorekisteriin sekä selaimen ja työpöydän koodekkitukien ehtoihin.
+  Repositorion CI tai kohteen pakkaus tuottaa työpöydän natiivien kohteiden hyötykuormat. Paketti ottaa ominaisuuden käyttöön vasta, kun täsmälleen vastaava tulos on valmisteltu ja tarkistettu; riveillä kerrotaan, milloin hyötykuorma tarvitaan vielä.
+- **Audacity 4** -rivit pohjautuvat tähän repositorioon lukittuun upstream-luetteloon, versioon `4.0.0` commitissa `4c177d43`, ja sisältävät käyttäjälle näkyvät muutokset viralliseen [`4.0.1`-julkaisuun](https://github.com/audacity/audacity/blob/Audacity-4.0.1/CHANGELOG.txt) commitissa `d82386ce` asti. Upstreamiin rekisteröity mutta käytöstä poistettu tai valikosta kommentoitu ominaisuus merkitään sellaiseksi. Jos ominaisuutta ei ole tarkistetussa luettelossa eikä julkaisutiedoissa, sanomme ettei sitä ole niissä, emme että se puuttuisi pysyvästi. Näytteiden piirtäminen, leikkeen vahvistusvaipat ja vanhojen projektien tuonti kuvataan myös virallisessa [4.0-muutoslokissa](https://www.audacityteam.org/changelog/) ja [leikkeen vahvistuksen oppaassa](https://www.audacityteam.org/manual/clips/clip-gain/).
 - **Audition**-rivit perustuvat Adoben julkaisemaan dokumentaatioon nykyisestä julkaisusta. Niitä ei ole varmennettu toimivaa buildiä vasten.
 
 ## Alusta ja termit
 
-| Ominaisuus | Soundscaper | Audacity 4 | Audition |
-| --- | --- | --- | --- |
-| Lisenssi | Kyllä — AGPL-3.0-only | Kyllä — GPL, avoimen lähdekoodin | Ei — omistettu ja suljettu |
-| Hinta | Kyllä — ilmainen | Kyllä — ilmainen | Ei — Creative Cloud -tilaus |
-| Toimii selaimessa | Kyllä — Chromium, Firefox ja WebKit | Ei — vain työpöydälle | Ei — vain työpöydälle |
-| Työpöytäasennukset | Kyllä — Windows ja Linux x64- ja ARM64-alustoilla, macOS ARM64-alustalla | Kyllä — Windows, macOS, Linux | Osittain — Windows ja macOS, ei Linuxia |
-| Toimii ilman tiliä | Kyllä — tiliä ei ole olemassa | Kyllä — kirjautuminen vain audio.com-toiminnon vuoksi | Ei — vaatii kirjautuneen tilauksen |
-| Pilvipohjainen projektin tallennus | Ei — paikallispainotteinen suunnittelu sulkee tämän pois | Kyllä — tallennus ja jakaminen audio.com-palvelun kautta | Osittain — Creative Cloud -tiedostot, istunnot eivät synkronoidu |
-| Järjestelmävaatimukset | Kyllä — toimii missä tahansa, missä nykyaikainen selain toimii | Osittain — merkittävästi korkeammat kuin Audacity 3:ssa | Osittain — ammattimainen työasemaluokka |
+| Ominaisuus | Soundscaper Web | Soundscaper Desktop | Audacity 4 | Audition |
+| --- | --- | --- | --- | --- |
+| Lisenssi | + — AGPL-3.0-only | + — AGPL-3.0-only | + — GPL, avoimen lähdekoodin | / — omistettu ja suljettu |
+| Hinta | + — ilmainen | + — ilmainen | + — ilmainen | / — Creative Cloud -tilaus |
+| Toimii selaimessa | + — Chromium, Firefox ja WebKit | / — paketoitu sovellus | / — vain työpöydälle | / — vain työpöydälle |
+| Työpöytäasennukset | / — käytä selainversiota | + — Windows ja Linux x64- ja ARM64-alustoilla, macOS ARM64-alustalla | + — Windows (asennusohjelma tai siirrettävä versio), macOS ja Linux | ~ — Windows ja macOS, ei Linuxia |
+| Toimii ilman tiliä | + — tiliä ei ole olemassa | + — tiliä ei ole olemassa | + — kirjautuminen vain audio.com-toiminnon vuoksi | / — vaatii kirjautuneen tilauksen |
+| Pilvipohjainen projektin tallennus | / — paikallispainotteinen suunnittelu sulkee tämän pois | / — paikallispainotteinen suunnittelu sulkee tämän pois | + — tallennus ja jakaminen audio.com-palvelun kautta | ~ — Creative Cloud -tiedostot, istunnot eivät synkronoidu |
+| Järjestelmävaatimukset | + — toimii missä tahansa, missä nykyaikainen selain toimii | + — Windows, Linux tai macOS tuetuilla työpöytäarkkitehtuureilla | ~ — merkittävästi korkeammat kuin Audacity 3:ssa | ~ — ammattimainen työasemaluokka |
 
 ## Projektin ja istunnon malli
 
-| Ominaisuus | Soundscaper | Audacity 4 | Audition |
-| --- | --- | --- | --- |
-| Natiiviprojektitiedosto | Kyllä — `.sscape`, häviötön siirrettävä arkisto | Kyllä — `.aup4` | Kyllä — `.sesx` |
-| Avaa Audacity-projektteja | Kyllä — AUP4-tuonti ja -vienti | Kyllä — natiivi | Ei |
-| Tuhoamaton leikkauksen aikajana | Kyllä | Kyllä | Kyllä — monikanavainen editor |
-| Omistettu yksittäistiedostoeditori | Osittain — näytteiden muokkaus tapahtuu aikajanalla | Osittain — muokkaukset tehdään paikan päällä aikajanalla | Kyllä — aaltomuotoeditori |
-| Mono- ja stereosisältö yhdellä raidalla | Kyllä — raita sisältää jomman kumman | Ei — raita on mono tai stereo | Ei — kanavamäärä on kiinteä raidetta kohti |
-| Sisäkkäiset raidakansiot | Kyllä — mikä tahansa syvyys, peruutettava, reititys | Ei | Osittain — vain alisekoitussarjat, ei kansioraitoja |
-| Projektiarkisto | Kyllä — järjestää tiedostoja ja toimii leikepöydänä | Ei | Osittain — Tiedostopaneeli listaa avoimet tiedostot |
-| Automaattitallennus ja palautus kaatumisesta | Kyllä — automaattitallennus, lukot ja palautuskuorit | Kyllä | Kyllä |
-| Merkit ja nimetyt alueet | Kyllä — ensiluokkainen, navigointi ja ripple-toiminto | Osittain — etikettiraide | Kyllä — merkit ja välit |
-| Tahtitason ja tahtilajin kartat | Kyllä — järjestyksessä olevat kartat, näytetarkat | Osittain — yksi projektin tahtitaso ja tahtilaji | Osittain — yksi istunnon tahtitaso |
+| Ominaisuus | Soundscaper Web | Soundscaper Desktop | Audacity 4 | Audition |
+| --- | --- | --- | --- | --- |
+| Natiiviprojektitiedosto | + — `.sscape`, häviötön siirrettävä arkisto | + — `.sscape`, häviötön siirrettävä arkisto | + — `.aup4` | + — `.sesx` |
+| Avaa Audacity-projektteja | + — AUP-, AUP3- ja AUP4-tuonti; AUP3- ja AUP4-vienti | + — AUP-, AUP3- ja AUP4-tuonti; AUP3- ja AUP4-vienti | + — AUP-, AUP3- ja AUP4-tuonti; AUP4-vienti, ei AUP3-vientiä | / |
+| Tuhoamaton leikkauksen aikajana | + | + | + | + — monikanavainen editor |
+| Omistettu yksittäistiedostoeditori | + — lähdeaaltomuodon muokkain Leikkeen ominaisuuksissa | + — lähdeaaltomuodon muokkain Leikkeen ominaisuuksissa | ~ — muokkaukset tehdään paikan päällä aikajanalla | + — aaltomuotoeditori |
+| Mono- ja stereosisältö yhdellä raidalla | + — raita sisältää jomman kumman | + — raita sisältää jomman kumman | / — raita on mono tai stereo | / — kanavamäärä on kiinteä raidetta kohti |
+| Sisäkkäiset raidakansiot | + — mikä tahansa syvyys, peruutettava, reititys | + — mikä tahansa syvyys, peruutettava, reititys | / | ~ — vain alisekoitussarjat, ei kansioraitoja |
+| Projektiarkisto | + — järjestää tiedostoja ja toimii leikepöydänä | + — järjestää tiedostoja ja toimii leikepöydänä | / | ~ — Tiedostopaneeli listaa avoimet tiedostot |
+| Automaattitallennus ja palautus kaatumisesta | + — automaattitallennus, lukot ja palautuskuorit | + — automaattitallennus, lukot ja palautuskuorit | + | + |
+| Merkit ja nimetyt alueet | + — ensiluokkainen, navigointi ja ripple-toiminto | + — ensiluokkainen, navigointi ja ripple-toiminto | ~ — etikettiraide | + — merkit ja välit |
+| Tahtitason ja tahtilajin kartat | + — järjestyksessä olevat kartat, näytetarkat | + — järjestyksessä olevat kartat, näytetarkat | ~ — yksi projektin tahtitaso ja tahtilaji | ~ — yksi istunnon tahtitaso |
 
 ## Äänitys
 
-| Ominaisuus | Soundscaper | Audacity 4 | Audition |
-| --- | --- | --- | --- |
-| Monikanavainen nauhoitus | Kyllä — useat lähteet kerralla | Osittain — yksi syöttölaitteella kerrallaan | Kyllä — monisyöttöiset ja monikanavaiset liitännäiset |
-| Mikrofonin ja työpöydän ääni yhdessä | Kyllä — sisäänrakennettu | Ei | Osittain — vaatii käyttöjärjestelmän loopback-laitteen |
-| Ajastettu nauhoitus | Kyllä | Kyllä | Ei |
-| Äänikytkeytetty nauhoitus | Kyllä — säädettävällä kynnysarvolla | Kyllä — säädettävällä kynnysarvolla | Ei |
-| Lasku ennen otosta | Kyllä — tempo-kartan tietoinen, käsittelee yhdistettyä tahtia | Osittain — johdatusnauhoitus | Osittain — esikierros osana punch and roll -toimintoa |
-| Punch-nauhoitus | Kyllä — yksi toiminto, oletus- ja reititetty tallennus | Ei | Kyllä — punch and roll |
-| Loop-nauhoitus ostoille | Kyllä — yksi kaista kierrosta kohti, liitetään samaan ryhmään | Ei | Osittain — ostot yhdelle leikkaukselle, valittu listasta |
-| Ostojen komppaus | Kyllä — kuuntelu, edistäminen, komppausalueiden muokkaus, litteäminen yhtenä peruutettavana muokkauksena | Ei | Ei — ei komppauseditoria |
-| Syöttövalvonta ja mittaus | Kyllä | Kyllä | Kyllä |
+| Ominaisuus | Soundscaper Web | Soundscaper Desktop | Audacity 4 | Audition |
+| --- | --- | --- | --- | --- |
+| Monikanavainen nauhoitus | + — useat lähteet kerralla | + — useat lähteet kerralla | ~ — yksi syöttölaitteella kerrallaan | + — monisyöttöiset ja monikanavaiset liitännäiset |
+| Mikrofonin ja työpöydän ääni yhdessä | ~ — sisäänrakennettu, kun selain ja käyttöjärjestelmä tarjoavat näyttöäänen | + — mikrofoni ja Windowsin työpöydän loopback; muissa järjestelmissä käytetään loopback-tuloa | / | ~ — vaatii käyttöjärjestelmän loopback-laitteen |
+| Ajastettu nauhoitus | + | + | + | / |
+| Äänikytkeytetty nauhoitus | + — säädettävällä kynnysarvolla | + — säädettävällä kynnysarvolla | + — säädettävällä kynnysarvolla | / |
+| Lasku ennen otosta | + — tempo-kartan tietoinen, käsittelee yhdistettyä tahtia | + — tempo-kartan tietoinen, käsittelee yhdistettyä tahtia | ~ — johdatusnauhoitus | ~ — esikierros osana punch and roll -toimintoa |
+| Punch-nauhoitus | + — yksi toiminto, oletus- ja reititetty tallennus | + — yksi toiminto, oletus- ja reititetty tallennus | / | + — punch and roll |
+| Loop-nauhoitus ostoille | + — yksi kaista kierrosta kohti, liitetään samaan ryhmään | + — yksi kaista kierrosta kohti, liitetään samaan ryhmään | / | ~ — ostot yhdelle leikkaukselle, valittu listasta |
+| Ostojen komppaus | + — kuuntelu, edistäminen, komppausalueiden muokkaus, litteäminen yhtenä peruutettavana muokkauksena | + — kuuntelu, edistäminen, komppausalueiden muokkaus, litteäminen yhtenä peruutettavana muokkauksena | / | / — ei komppauseditoria |
+| Syöttövalvonta ja mittaus | + | + | + | + |
 
 ## Aikajanan muokkaus
 
-| Ominaisuus | Soundscaper | Audacity 4 | Audition |
-| --- | --- | --- | --- |
-| Ripple-edit-variantit | Kyllä — leikkauksikohtaisesti, raidakohtaisesti ja kaikille raiteille, leikkauksessa ja poistossa | Kyllä — samat kolme, leikkauksessa ja poistossa | Osittain — ripple-poisto valinnasta tai välistä |
-| Jakaminen, yhdistäminen ja jakaminen hiljaisuuksissa | Kyllä | Kyllä | Osittain — jakaminen ja leikkaus, ei leikkauksen yhdistämistä |
-| Leikkausryhmät | Kyllä | Kyllä | Kyllä |
-| Leikkauksen voimakkuus | Kyllä | Kyllä | Kyllä |
-| Leikkauksikohtainen sävelkorkeus ja nopeus | Kyllä — säädä, renderöi tai nollaa | Kyllä — säädä, renderöi tai nollaa | Osittain — venytys pysyy muokattavana, sävelkorkeus on efekti |
-| Seuraa tahtimuutoksia | Kyllä — leikkaukset venyvät, kun kartta liikkuu | Kyllä | Ei |
-| Tahtitietoinen kvantisointi ja groove | Kyllä — warp-kartat säädettävällä groove-vahvuudella | Ei | Ei |
-| Kiinnitys nollaylsäytyksiin | Kyllä | Kyllä | Kyllä |
-| Näytetasoisen piirtäminen | Kyllä | Osittain — piirto-toimintoa ei ole rekisteröity kiinnitettyssä versiossa | Kyllä — aaltomuotoeditorissa |
-| Pelkkä näppäimistöllä muokkaaminen | Kyllä — jokaisella muokkausprimiitivillä on navigointitoiminto | Kyllä — jokaisella muokkausprimiitivillä on navigointitoiminto | Osittain — laajat pikanäppäimet, jotkin paneelit vaativat hiiren |
+| Ominaisuus | Soundscaper Web | Soundscaper Desktop | Audacity 4 | Audition |
+| --- | --- | --- | --- | --- |
+| Ripple-edit-variantit | + — leikkauksikohtaisesti, raidakohtaisesti ja kaikille raiteille, leikkauksessa ja poistossa | + — leikkauksikohtaisesti, raidakohtaisesti ja kaikille raiteille, leikkauksessa ja poistossa | + — samat kolme, leikkauksessa ja poistossa | ~ — ripple-poisto valinnasta tai välistä |
+| Jakaminen, yhdistäminen ja jakaminen hiljaisuuksissa | + | + | + | ~ — jakaminen ja leikkaus, ei leikkauksen yhdistämistä |
+| Leikkausryhmät | + | + | + | + |
+| Leikkauksen voimakkuus | + | + | + | + |
+| Leikkauksikohtainen sävelkorkeus ja nopeus | + — säädä, renderöi tai nollaa | + — säädä, renderöi tai nollaa | + — säädä, renderöi tai nollaa | ~ — venytys pysyy muokattavana, sävelkorkeus on efekti |
+| Seuraa tahtimuutoksia | + — leikkaukset venyvät, kun kartta liikkuu | + — leikkaukset venyvät, kun kartta liikkuu | + | / |
+| Tahtitietoinen kvantisointi ja groove | + — warp-kartat säädettävällä groove-vahvuudella | + — warp-kartat säädettävällä groove-vahvuudella | / | / |
+| Kiinnitys nollaylsäytyksiin | + | + | + | + |
+| Näytetasoisen piirtäminen | + | + | + — käytettävissä, kun lähennetään yksittäisiin näytteisiin | + — aaltomuotoeditorissa |
+| Pelkkä näppäimistöllä muokkaaminen | + — jokaisella muokkausprimiitivillä on navigointitoiminto | + — jokaisella muokkausprimiitivillä on navigointitoiminto | + — muokkaustoimintoja, aikajanaa ja raitojen pystysuuntaisia viivaimia voi käyttää näppäimistöllä | ~ — laajat pikanäppäimet, jotkin paneelit vaativat hiiren |
 
 ## Spektraalinen työ ja palautus
 
-| Ominaisuus | Soundscaper | Audacity 4 | Audition |
-| --- | --- | --- | --- |
-| Spektrograminäkymä | Kyllä — raidakohtaiset asetukset | Kyllä — raidakohtaiset asetukset | Kyllä — taajuus- ja sävelkoruanäkymät |
-| Taajuusrajoitettu valinta | Kyllä | Kyllä | Kyllä — valintarektanguli ja lasso |
-| Spektraali harja | Kyllä | Kyllä | Kyllä — maaliharja ja pistehojennus |
-| Spektraalialueen poisto tai vahvistus | Kyllä — molemmat suorina toimina | Kyllä — molemmat suorina toimina | Osittain — soita efekti valintaan |
-| Lyhyen vaurion korjaus | Kyllä — Korjaa | Kyllä — Korjaa | Kyllä — Automaattinen korjaus ja pistehojennusharja |
-| Laajakaistan kohinan vähennys | Kyllä — otetulla profiililla | Kyllä — otetulla profiililla | Kyllä — Kohinan vähennys, adaptiivinen kohinan vähennys, DeNoise |
-| Kaikuksen poisto | Ei | Ei | Kyllä — DeReverb |
-| Klikkaus-, humina- ja sibilanssityökalut | Osittain — vain Klikkauksen poisto | Osittain — vain Klikkauksen poisto | Kyllä — DeClicker, DeHummer, DeEsser, Click/Pop Eliminator |
-| Diagnostiikkapaneeli | Osittain — Find Clipping analyysorina | Osittain — Find Clipping analyysorina | Kyllä — diagnostiikka ongelma-kohtaisella korjauksella |
+| Ominaisuus | Soundscaper Web | Soundscaper Desktop | Audacity 4 | Audition |
+| --- | --- | --- | --- | --- |
+| Spektrograminäkymä | + — raidakohtaiset asetukset | + — raidakohtaiset asetukset | + — raidakohtaiset asetukset | + — taajuus- ja sävelkoruanäkymät |
+| Taajuusrajoitettu valinta | + | + | + | + — valintarektanguli ja lasso |
+| Spektraali harja | + | + | + | + — maaliharja ja pistehojennus |
+| Spektraalialueen poisto tai vahvistus | + — molemmat suorina toimina | + — molemmat suorina toimina | + — molemmat suorina toimina | ~ — soita efekti valintaan |
+| Lyhyen vaurion korjaus | + — Korjaa | + — Korjaa | + — Korjaa | + — Automaattinen korjaus ja pistehojennusharja |
+| Laajakaistan kohinan vähennys | + — otetulla profiililla | + — otetulla profiililla | + — otetulla profiililla | + — Kohinan vähennys, adaptiivinen kohinan vähennys, DeNoise |
+| Kaikuksen poisto | / — avustustoiminnot vain Desktopissa | + — Reduce Reverb, kun valinnainen malli ja moottori on asennettu | / | + — DeReverb |
+| Klikkaus-, humina- ja sibilanssityökalut | ~ — napsahdusten poisto ja De-esser; ei erillistä hurinanpoistajaa | ~ — napsahdusten poisto ja De-esser; ei erillistä hurinanpoistajaa | ~ — vain Klikkauksen poisto | + — DeClicker, DeHummer, DeEsser, Click/Pop Eliminator |
+| Diagnostiikkapaneeli | ~ — Find Clipping analyysorina | ~ — Find Clipping analyysorina | ~ — Find Clipping analyysorina | + — diagnostiikka ongelma-kohtaisella korjauksella |
 
 ## Efektit ja liitännäiset
 
-| Ominaisuus | Soundscaper | Audacity 4 | Audition |
-| --- | --- | --- | --- |
-| Sisäänrakennettu efektivalikoima | Kyllä — 30 Audacity-efektia, mukana toimitettavat Nyquist-liitännäiset ja ensisijaiset efektit, joilla ei ole vastaavaa ylävirtaista versiota, kuten bitcrusher | Kyllä — sama 30-efektinen sisäänrakennettu kokoelma | Kyllä — noin viisikymmentä, mukaan lukien monitaajuusalueinen dynamiikka |
-| Reaaliaikainen efektiteline jokaiselle raidalle | Kyllä — laajempi reaaliaikainen valikoima kuin ylävirtaisessa | Kyllä | Kyllä — kuusitoista paikkaa leikettä, raidetta ja masteria kohti |
-| Parametrinen EQ | Kyllä — uusi parametrinen EQ automaattisilla taajuusalueilla | Osittain — Filter Curve ja Graphic EQ | Kyllä — parametrinen, graafinen ja FFT-suodatin |
-| Efektiesiasetukset | Kyllä — sovellus, tallennus, tuonti, vienti | Kyllä — sovellus, tallennus, tuonti, vienti | Kyllä |
-| Makrot ja eräketjut | Kyllä — tallennettu makrokirjasto mallineineen | Ei — kiinnitetty versio kommentoi Macros-valikon pois | Kyllä — Favorites ja Batch Process |
-| Kolmannen osapuolen liitännäismuodot | Osittain — VST3, CLAP, AU ja LV2 työpöydällä suostumuksen ja eristämisen takana, ei selaimessa | Kyllä — VST3, AU, LV2 ja Nyquist, liitännäisten hallintatyökalulla | Osittain — VST3 ja AU macOS:lla, ei CLAP:ia tai LV2:ta |
-| Nyquist-skriptaus | Kyllä — mukana toimitetut liitännäiset ja Nyquist-prompt | Kyllä — mukana toimitetut liitännäiset ja Nyquist-prompt | Ei |
-| Eristetyt efektipaketit | Osittain — tarkastetut WebAssembly-paketit, yksi toimitetaan ja ulkoiset ovat eristettyjä | Ei | Ei |
-| Virtuaalisovittimet | Ei — 1.0-version jälkeen | Ei | Ei |
+| Ominaisuus | Soundscaper Web | Soundscaper Desktop | Audacity 4 | Audition |
+| --- | --- | --- | --- | --- |
+| Sisäänrakennettu efektivalikoima | + — Audacity-pohjaiset tehosteet, mukana toimitettavat Nyquist-liitännäiset ja omat tehosteet, kuten Bitcrusher ja De-esser | + — Audacity-pohjaiset tehosteet, mukana toimitettavat Nyquist-liitännäiset ja omat tehosteet, kuten Bitcrusher ja De-esser | + — 30 sisäänrakennettua tehostetta lukitussa versiossa | + — noin viisikymmentä, mukaan lukien monitaajuusalueinen dynamiikka |
+| Reaaliaikainen efektiteline jokaiselle raidalle | + — laajempi reaaliaikainen valikoima kuin ylävirtaisessa | + — laajempi reaaliaikainen valikoima kuin ylävirtaisessa | + | + — kuusitoista paikkaa leikettä, raidetta ja masteria kohti |
+| Parametrinen EQ | + — uusi parametrinen EQ automaattisilla taajuusalueilla | + — uusi parametrinen EQ automaattisilla taajuusalueilla | ~ — Filter Curve ja Graphic EQ | + — parametrinen, graafinen ja FFT-suodatin |
+| Efektiesiasetukset | + — sovellus, tallennus, tuonti, vienti | + — sovellus, tallennus, tuonti, vienti | + — sovellus, tallennus, tuonti, vienti | + |
+| Makrot ja eräketjut | + — tallennettu makrokirjasto mallineineen | + — tallennettu makrokirjasto mallineineen | / — kiinnitetty versio kommentoi Macros-valikon pois | + — Favorites ja Batch Process |
+| Kolmannen osapuolen liitännäismuodot | / — natiiviliitännäiset vaativat Desktopin | + — VST3, CLAP, AU, LV2, Linux LADSPA ja Vamp; alustakohtaisia, suostumuksella ja eristyksellä | + — VST3, AU, LV2 ja Nyquist, liitännäisten hallintatyökalulla | ~ — VST3 ja AU macOS:lla, ei CLAP:ia tai LV2:ta |
+| Nyquist-skriptaus | + — mukana toimitetut liitännäiset ja Nyquist-prompt | + — mukana toimitetut liitännäiset ja Nyquist-prompt | + — mukana toimitetut liitännäiset ja Nyquist-prompt | / |
+| Eristetyt efektipaketit | ~ — tarkastetut WebAssembly-paketit, yksi toimitetaan ja ulkoiset ovat eristettyjä | ~ — tarkastetut WebAssembly-paketit, yksi toimitetaan ja ulkoiset ovat eristettyjä | / | / |
+| Virtuaalisovittimet | / | / | / | / |
 
 ## Sekoitus, reititys ja automaatio
 
-| Ominaisuus | Soundscaper | Audacity 4 | Audition |
-| --- | --- | --- | --- |
-| Sekoitin kanavakaistoilla | Kyllä | Osittain — kappaleohjaimet ja master-kappale | Kyllä |
-| Bussit ja alisekoitukset | Kyllä — sisäkkäiset, syklin validoinnilla | Ei | Kyllä — bussikappaleet |
-| Lähetysreitit | Kyllä — pre- ja post-fader, useat osoitukset | Ei | Kyllä — pre- ja post-fader |
-| VCA-ryhmät | Kyllä | Ei | Ei |
-| Sidechain-syöttö | Kyllä | Ei | Kyllä — lähetysreittien kautta |
-| Cue- ja ohjaushuoneen sekoitukset | Kyllä | Ei | Ei |
-| Liitännäisten viivekorvaus | Kyllä — toisto, monitorointi, bussit, sidechainit, renderöinti ja jäädytys | Osittain — ei paljastettu kiinnitetyissä lähteissä | Kyllä |
-| Automaatio-uramat | Kyllä — äänenvoimakkuus, panoraama, mykistys, lähetysreitit, bussit ja liitännäisten parametrit | Ei — ei uramia eikä äänenvoimakkuuskäyrätyökalua kiinnitetyssä versiossa | Kyllä — äänenvoimakkuus, panoraama ja efektien parametrit |
-| Automaatiotilat | Kyllä — luku, trimmaus, kosketus, lukitus ja kirjoitus | Ei | Osittain — luku, kirjoitus, lukitus ja kosketus, ei trimmausta |
-| Käyrän muodot | Kyllä — viiva, pidätys ja käyrä | Ei | Kyllä — lineaarinen ja spline |
-| Kappaleen jäädytys | Kyllä — jäädytä, sulata ja sitoa menettämättä tilaa | Ei | Osittain — bounce uuteen kappaleeseen |
+| Ominaisuus | Soundscaper Web | Soundscaper Desktop | Audacity 4 | Audition |
+| --- | --- | --- | --- | --- |
+| Sekoitin kanavakaistoilla | + | + | ~ — kappaleohjaimet ja master-kappale | + |
+| Bussit ja alisekoitukset | + — sisäkkäiset, syklin validoinnilla | + — sisäkkäiset, syklin validoinnilla | / | + — bussikappaleet |
+| Lähetysreitit | + — pre- ja post-fader, useat osoitukset | + — pre- ja post-fader, useat osoitukset | / | + — pre- ja post-fader |
+| VCA-ryhmät | + | + | / | / |
+| Sidechain-syöttö | + | + | / | + — lähetysreittien kautta |
+| Cue- ja ohjaushuoneen sekoitukset | + | + | / | / |
+| Liitännäisten viivekorvaus | + — toisto, monitorointi, bussit, sidechainit, renderöinti ja jäädytys | + — toisto, monitorointi, bussit, sidechainit, renderöinti ja jäädytys | ~ — ei paljastettu kiinnitetyissä lähteissä | + |
+| Automaatio-uramat | + — äänenvoimakkuus, panoraama, mykistys, lähetysreitit, bussit ja liitännäisten parametrit | + — äänenvoimakkuus, panoraama, mykistys, lähetysreitit, bussit ja liitännäisten parametrit | ~ — leikkeen vahvistuksen vaipat; ei raita- tai tehosteautomaatioraitoja | + — äänenvoimakkuus, panoraama ja efektien parametrit |
+| Automaatiotilat | + — luku, trimmaus, kosketus, lukitus ja kirjoitus | + — luku, trimmaus, kosketus, lukitus ja kirjoitus | / | ~ — luku, kirjoitus, lukitus ja kosketus, ei trimmausta |
+| Käyrän muodot | + — viiva, pidätys ja käyrä | + — viiva, pidätys ja käyrä | ~ — vain leikkeen vahvistuksen vaipat | + — lineaarinen ja spline |
+| Kappaleen jäädytys | + — jäädytä, sulata ja sitoa menettämättä tilaa | + — jäädytä, sulata ja sitoa menettämättä tilaa | / | ~ — bounce uuteen kappaleeseen |
 
 ## Mittaus ja analyysi
 
-| Ominaisuus | Soundscaper | Audacity 4 | Audition |
-| --- | --- | --- | --- |
-| Äänenvoimakkuuden mittari | Kyllä — EBU R 128-tyylinen, historian kanssa | Ei — Loudness Normalization -efekti, mutta ei mittaria | Kyllä — Loudness Radar ITU-R BS.1770 -standardin mukaisesti |
-| Faasi- ja korrelaatiomittari | Kyllä | Ei | Kyllä — faasimittari ja analyysi |
-| Surround-mittaus | Kyllä | Ei | Osittain — enintään 5.1 |
-| Spektrikaavio | Kyllä — Plot Spectrum | Osittain — rekisteröity, mutta kiinnitetty build kommentoi sen pois Analyze-valikosta | Kyllä — Frequency Analysis |
-| Leikkaus ja RMS aaltomuodossa | Kyllä — molemmat, kytkettävä projekti kerrallaan | Kyllä — molemmat, kytkettävä projekti kerrallaan | Osittain — leikkausindikaattorit, RMS Amplitude Statistics -toiminnossa |
-| Puheen ymmärrettävyyden kontrasti | Kyllä — Contrast analyser | Osittain — rekisteröity, mutta kiinnitetty build kommentoi sen pois Analyze-valikosta | Ei |
+| Ominaisuus | Soundscaper Web | Soundscaper Desktop | Audacity 4 | Audition |
+| --- | --- | --- | --- | --- |
+| Äänenvoimakkuuden mittari | + — EBU R 128-tyylinen, historian kanssa | + — EBU R 128-tyylinen, historian kanssa | / — Loudness Normalization -efekti, mutta ei mittaria | + — Loudness Radar ITU-R BS.1770 -standardin mukaisesti |
+| Faasi- ja korrelaatiomittari | + | + | / | + — faasimittari ja analyysi |
+| Surround-mittaus | + | + | / | ~ — enintään 5.1 |
+| Spektrikaavio | + — Plot Spectrum | + — Plot Spectrum | ~ — rekisteröity, mutta kiinnitetty build kommentoi sen pois Analyze-valikosta | + — Frequency Analysis |
+| Leikkaus ja RMS aaltomuodossa | + — projektikytkimet ja raitakohtaiset RMS-ohitukset | + — projektikytkimet ja raitakohtaiset RMS-ohitukset | + — molemmat, kytkettävä projekti kerrallaan | ~ — leikkausindikaattorit, RMS Amplitude Statistics -toiminnossa |
+| Puheen ymmärrettävyyden kontrasti | + — Contrast analyser | + — Contrast analyser | ~ — rekisteröity, mutta kiinnitetty build kommentoi sen pois Analyze-valikosta | / |
+
+Avaa Soundscaperissa raidan **Raidan visualisointi** -valikko ja ota käyttöön tai poista käytöstä **Puoliaalto** tai **Näytä RMS aaltomuodossa**. Oletusnäkymä, 3-kaistaisen jakosuotimen taajuudet ja spektrogrammin asetukset ovat kohdassa **Muokkaa → Asetukset → Raidan visualisointi**.
 
 ## Kanavat ja immersioääni
 
-| Ominaisuus | Soundscaper | Audacity 4 | Audition |
-| --- | --- | --- | --- |
-| Kanavat tiedostoa kohti | Kyllä — enintään 32 PCM-muodoissa | Osittain — mono- ja stereokanavat | Kyllä — enintään 32 aaltomuodon muokkajassa |
-| Surround-sekoitus | Kyllä — sängyt enintään 7.1.4 | Ei | Osittain — enintään 5.1 |
-| Objektipohjainen ääni | Kyllä — objektit sängyjen rinnalla | Ei | Ei |
-| ADM-luonti ja läpäisy | Kyllä — BW64/ADM, joidenkin tarkistusten kanssa | Ei | Ei |
-| Binaurinen renderöinti | Kyllä — nimetty binaurinen malli | Ei | Osittain — binaurisaaja ambisoniikalle |
-| Ambisoniikka | Ei | Ei | Kyllä — ensimmäinen kertaluku, VR-pannerin kanssa |
+| Ominaisuus | Soundscaper Web | Soundscaper Desktop | Audacity 4 | Audition |
+| --- | --- | --- | --- | --- |
+| Kanavat tiedostoa kohti | + — enintään 32 PCM-muodoissa | + — enintään 32 PCM-muodoissa | ~ — mono- ja stereokanavat | + — enintään 32 aaltomuodon muokkajassa |
+| Surround-sekoitus | + — sängyt enintään 7.1.4 | + — sängyt enintään 7.1.4 | / | ~ — enintään 5.1 |
+| Objektipohjainen ääni | + — objektit sängyjen rinnalla | + — objektit sängyjen rinnalla | / | / |
+| ADM-luonti ja läpäisy | + — BW64/ADM, joidenkin tarkistusten kanssa | + — BW64/ADM, joidenkin tarkistusten kanssa | / | / |
+| Binaurinen renderöinti | + — nimetty binaurinen malli | + — nimetty binaurinen malli | / | ~ — binaurisaaja ambisoniikalle |
+| Ambisoniikka | / | / | / | + — ensimmäinen kertaluku, VR-pannerin kanssa |
 
 ## Vienti ja toimitus
 
-| Ominaisuus | Soundscaper | Audacity 4 | Audition |
-| --- | --- | --- | --- |
-| Menettämätön tulostus | Kyllä — WAV, AIFF, BWF ja BW64 kirjoitetaan natiivisti | Kyllä — WAV, AIFF ja FLAC | Kyllä — WAV, AIFF, FLAC ja muita |
-| Menettävä tulostus | Osittain — MP3, AAC, Opus, Vorbis, MP2, FLAC ja WavPack, kaikki FFmpeg-runtimea käyttäen | Osittain — MP3 sisäänrakennettu, loput valinnaisen FFmpeg-asennuksen kautta | Kyllä — sisäänrakennettu |
-| Mukautetut koodausasetukset | Kyllä — mukautettu FFmpeg-kohteena | Kyllä — mukautettu FFmpeg-kohteena | Kyllä — muotoikohtaiset vaihtoehdot |
-| Vienti-jono | Kyllä — keskeytä, peruuta, yritä uudelleen ja järjestä uudelleen | Ei — yksi vienti kerrallaan | Osittain — Batch Process ilman jonon hallintaa |
-| Stemmat ja vaihtoehdot yhdellä kerralla | Kyllä — jonossa sekoituksen kanssa | Ei | Osittain — yksi mixdown stemmaa kohden |
-| Alueittain toimitus | Kyllä — masterointijonot alueittain metatiedoilla, väleillä ja fadeilla | Osittain — vienti-merkinnät, ei monitiedostovientiä kiinnitettyssä versiossa | Kyllä — vientimerkinnät erillisiin tiedostoihin |
-| Loudness-normitus viennissä | Kyllä — osa toimitussuunnitelmaa | Osittain — aja efekti ensin | Kyllä — Match Loudness |
-| Dither ja kanavakartta | Kyllä — eksplisiittiset ohjaimet | Osittain — dither asetuksissa | Kyllä — eksplisiittiset ohjaimet |
-| Toimitusraportti | Kyllä — eriteltynä työtä kohden | Ei | Ei |
-| Renderöintijono selviää uudelleenkäynnistyksestä | Kyllä — työpöydällä, uudelleenkäynnistys tavun nollasta kaatopäiväkirjan kanssa | Ei | Ei |
+| Ominaisuus | Soundscaper Web | Soundscaper Desktop | Audacity 4 | Audition |
+| --- | --- | --- | --- | --- |
+| Menettämätön tulostus | + — natiivit WAV, AIFF, BWF ja BW64; FLAC ja WavPack erillisillä koodekeilla | + — natiivit WAV, AIFF, BWF ja BW64; FLAC ja WavPack erillisillä koodekeilla | + — WAV, AIFF ja FLAC | + — WAV, AIFF, FLAC ja muita |
+| Menettävä tulostus | ~ — MP3, MP2, Opus ja Ogg Vorbis; AAC riippuu selaimesta | + — MP3, MP2, Opus, Ogg Vorbis ja AAC tuettujen koodekkipalvelujen, myös määritetyn FFmpegin, kautta | + — MP3, Opus ja Ogg Vorbis; lisämuodot valinnaisella FFmpegillä | ~ — MP2, MP3 ja Ogg Vorbis; lisää Adobe Media Encoderin kautta, ei yleistä FFmpeg-kohdetta |
+| Mukautetut koodausasetukset | ~ — muotokohtaiset asetukset; mukautettuja FFmpeg-argumentteja ei voi käyttää | ~ — muotokohtaiset asetukset; mukautettuja FFmpeg-argumentteja ei voi käyttää | + — mukautettu FFmpeg-kohteena | + — muotoikohtaiset vaihtoehdot |
+| Vienti-jono | + — keskeytä, peruuta, yritä uudelleen ja järjestä uudelleen | + — keskeytä, peruuta, yritä uudelleen ja järjestä uudelleen | / — Export Multiple on yksi peräkkäinen toiminto, ei tehtäväjono | ~ — Batch Process ilman jonon hallintaa |
+| Stemmat ja vaihtoehdot yhdellä kerralla | + — jonossa sekoituksen kanssa | + — jonossa sekoituksen kanssa | ~ — Export Multiple kirjoittaa jokaisen raidan erikseen, mutta ei jonota miksausta ja vaihtoehtoisia renderöintejä yhdessä | ~ — yksi mixdown stemmaa kohden |
+| Alueittain toimitus | + — masterointijonot alueittain metatiedoilla, väleillä ja fadeilla | + — masterointijonot alueittain metatiedoilla, väleillä ja fadeilla | + — Export Multiple kirjoittaa jokaisen merkityn alueen omaan tiedostoonsa | + — vientimerkinnät erillisiin tiedostoihin |
+| Loudness-normitus viennissä | + — osa toimitussuunnitelmaa | + — osa toimitussuunnitelmaa | ~ — aja efekti ensin | + — Match Loudness |
+| Dither ja kanavakartta | + — eksplisiittiset ohjaimet | + — eksplisiittiset ohjaimet | ~ — dither asetuksissa | + — eksplisiittiset ohjaimet |
+| Toimitusraportti | + — eriteltynä työtä kohden | + — eriteltynä työtä kohden | / | / |
+| Renderöintijono selviää uudelleenkäynnistyksestä | / — renderöinnin pysyvä palautus vaatii Desktopin | + — aloittaa uudelleen tavusta nolla kaatumislokin avulla | / | / |
+
+Soundscaper Desktop voi käyttää määritettyä FFmpegiä tuetuissa vientimuodoissaan; nykyisessä editorissa ei voi antaa mielivaltaisia FFmpeg-argumentteja eikä käyttää kaikkia FFmpeg-koodaimia. Rekisteröidyt kohteet ovat [vientimuodoissa](/reference/generated/formats/). Audacityn [vientitoiminto](https://www.audacityteam.org/manual/getting-started/export-your-audio/) lisää muotoja valinnaisella FFmpeg-asennuksella. Audition tarjoaa rajatun tiedostokirjoittimien joukon ja [siirron Adobe Media Encoderiin](https://helpx.adobe.com/uk/audition/desktop/saving-and-exporting/saving-exporting-files1.html).
 
 ## Vaihto muiden työkalujen kanssa
 
-| Ominaisuus | Soundscaper | Audacity 4 | Audition |
-| --- | --- | --- | --- |
-| Audacity-työt | Kyllä — AUP4 sisään ja ulos, jättämättömyysraportilla | Kyllä — natiivi | Ei |
-| EDL | Osittain — CMX3600-luokan vienti, ei tuontia | Ei | Ei |
-| OpenTimelineIO | Osittain — vain vienti | Ei | Ei |
-| FCPXML | Osittain — vain vienti | Ei | Kyllä — tuonti ja vienti |
-| DAWproject | Kyllä — tuonti ja vienti, vaihtoraportilla | Ei | Ei |
-| OMF | Ei | Ei | Osittain — tuonti ja vienti |
-| Round-trip videoeditorin kanssa | Osittain — antaa saman työn Framescaperille ilman median kopioimista | Ei | Kyllä — Dynamic Link Premiere Pron kanssa |
-| Labelien ja markkereiden vaihto | Kyllä — tuonti ja vienti | Kyllä — tuonti ja vienti | Kyllä — markerilistat |
+| Ominaisuus | Soundscaper Web | Soundscaper Desktop | Audacity 4 | Audition |
+| --- | --- | --- | --- | --- |
+| Audacity-työt | + — AUP-, AUP3- ja AUP4-tuonti; AUP3- ja AUP4-vienti yhteensopivuusraportin kanssa | + — AUP-, AUP3- ja AUP4-tuonti; AUP3- ja AUP4-vienti yhteensopivuusraportin kanssa | + — AUP-, AUP3- ja AUP4-tuonti; AUP4-vienti, ei AUP3-vientiä | / |
+| Audition-istunnot | / — SESX-tuonti vaatii Desktopin | ~ — `.sesx`-äänen tuonti puuteraportin kanssa; ei vientiä | / — lukitussa versiossa ei ole SESX-tuontia | + — natiivi |
+| EDL | ~ — CMX3600-luokan vienti, ei tuontia | ~ — CMX3600-luokan vienti, ei tuontia | / | / |
+| OpenTimelineIO | ~ — vain vienti | ~ — vain vienti | / | / |
+| FCPXML | ~ — vain vienti | ~ — vain vienti | / | + — tuonti ja vienti |
+| DAWproject | + — tuonti ja vienti, vaihtoraportilla | + — tuonti ja vienti, vaihtoraportilla | / | / |
+| OMF | / | / | / | ~ — tuonti ja vienti |
+| Round-trip videoeditorin kanssa | ~ — antaa saman työn Framescaperille ilman median kopioimista | ~ — antaa saman työn Framescaperille ilman median kopioimista | / | + — Dynamic Link Premiere Pron kanssa |
+| Labelien ja markkereiden vaihto | + — tuonti ja vienti | + — tuonti ja vienti | + — tuonti ja vienti | + — markerilistat |
+
+Auditionin `.sesx`-tuonnista ja siirtyvistä ääniasetuksista sekä raportin pois jättämistä asioista kerrotaan [Projektitiedostoissa](/projects-and-data/project-files/).
 
 ## Video
 
-| Ominaisuus | Soundscaper | Audacity 4 | Audition |
-| --- | --- | --- | --- |
-| Videon tuonti viitteeksi | Kyllä — aikajana-akselilla, linkitettyä ääntä | Ei | Osittain — yksi videotrack, vain esikatselu |
-| Videoaikajanan muokkaus | Osittain — perusmuokkaus, koko pinta-ala on Framescaperissa | Ei | Ei |
-| Videon vienti | Kyllä — MP4 ja WebM FFmpeg-runtimea käyttäen | Ei | Ei — vain ääni |
-| Kompositoiminen, sävytys ja efektit | Osittain — Framescaperissa, samassa työssä | Ei | Ei |
+| Ominaisuus | Soundscaper Web | Soundscaper Desktop | Audacity 4 | Audition |
+| --- | --- | --- | --- | --- |
+| Videon tuonti viitteeksi | + — aikajana-akselilla, linkitettyä ääntä | + — aikajana-akselilla, linkitettyä ääntä | / | ~ — yksi videotrack, vain esikatselu |
+| Videoaikajanan muokkaus | ~ — perusmuokkaus, koko pinta-ala on Framescaperissa | ~ — perusmuokkaus, koko pinta-ala on Framescaperissa | / | / |
+| Videon vienti | ~ — MP4 ja WebM, kun selaimen WebCodecs tukee tarvittavia koodekkeja | + — MP4 ja WebM varmennetulla työpöytäkoodekkipalvelulla | / | / — vain ääni |
+| Kompositoiminen, sävytys ja efektit | ~ — Framescaperissa, samassa työssä | ~ — Framescaperissa, samassa työssä | / | / |
 
 ## Machine assistance
 
-| Ominaisuus | Soundscaper | Audacity 4 | Audition |
-| --- | --- | --- | --- |
-| Puheen parannus | Osittain — vain työpöydällä, kun mallipaketti on asennettu | Ei | Kyllä — Enhance Speech |
-| Transkriptio ja puhujatunnistus | Osittain — vain työpöydällä, valinnaiset mallit | Ei | Ei — transkriptiot ovat Premiere Prossa |
-| Lähdeerottelu stemmeiksi | Osittain — vain työpöydällä, valinnaiset mallit | Ei | Ei |
-| Automaattinen hiljennys | Kyllä — Auto Duck -efekti | Kyllä — Auto Duck -efekti | Kyllä — Essential Sound -hiljennys |
-| Tahtien ja otosten tunnistus | Osittain — vain työpöydällä, valinnaiset mallit | Ei | Osittain — Remix aikataulua musiikkia automaattisesti |
-| Toimii kokonaan omalla koneellasi | Kyllä — päättely tapahtuu vain työpöydällä ja offline-tilassa asennuksen jälkeen | Kyllä — ei päättelyä ollenkaan | Osittain — jotkin ominaisuudet käsitellään Adoben pilvessä |
-| Mallit ovat valinnaisia ja poistettavissa | Kyllä — ladattuja erikseen, tiivistelmäkiinnitettyjä, poistettavissa | Kyllä — ei asennettavaa | Ei — sisällytetty sovellukseen |
+Työpöytäavustus toimii valinnaisten mallipainojen ja vastaavan natiivimoottorin asennuksen jälkeen; nämä työnkulut eivät ole käytettävissä Webissä. Mallinhallinta asentaa molemmat. Katso käytettävissä olevat työnkulut ja mallit kohdasta [Paikallinen avustus](/reference/generated/local-assistance/).
+
+| Ominaisuus | Soundscaper Web | Soundscaper Desktop | Audacity 4 | Audition |
+| --- | --- | --- | --- | --- |
+| Puheen parannus | / — avustustoiminnot vain Desktopissa | + — valinnaisen mallin ja moottorin asennuksen jälkeen | / | + — Enhance Speech |
+| Transkriptio ja puhujatunnistus | / — avustustoiminnot vain Desktopissa | + — valinnaisten mallien ja moottorien asennuksen jälkeen | / | / — transkriptiot ovat Premiere Prossa |
+| Lähdeerottelu stemmeiksi | / — avustustoiminnot vain Desktopissa | + — valinnaisen mallin ja moottorin asennuksen jälkeen | / | / |
+| Automaattinen hiljennys | + — Auto Duck -efekti | + — Auto Duck -efekti | + — Auto Duck -efekti | + — Essential Sound -hiljennys |
+| Tahtien ja otosten tunnistus | / — iskuntunnistus vaatii Desktopin; otostunnistus on Framescaperissa | ~ — iskuntunnistus valinnaisella mallilla; otostunnistus Framescaperissa | / | ~ — Remix aikataulua musiikkia automaattisesti |
+| Toimii kokonaan omalla koneellasi | + — paikallinen selainkäsittely; ei mallipäättelyä | + — paikallinen käsittely ja offline-päättely mallin asentamisen jälkeen | + — ei päättelyä ollenkaan | ~ — jotkin ominaisuudet käsitellään Adoben pilvessä |
+| Mallit ovat valinnaisia ja poistettavissa | / — Webissä ei asenneta malleja | + — ladattuja erikseen, tiivistelmäkiinnitettyjä, poistettavissa | + — ei asennettavaa | / — sisällytetty sovellukseen |
 
 ## Miten erot kumuloituvat
 
-Audacity 4 on yksivaiheinen muokkaja. Siinä ei ole busseja, lähetyskanavia, automaatiojälkiä eikä makroja kiinnitettyssä versiossa. Soundscaper säilyttää tämän muokkausmallin ja lisää sen päälle sekoitus-, automaatio- ja toimituskerroksen sekä nauhoitusta, videoa ja vaihtotyötä, joita Audacity ei yritä tehdä.
+Audacity 4 on yhden käsittelykierroksen editori. Lukitussa versiossa ei ole väyliä, lähetyksiä, raitojen tai tehosteiden automaatiouria eikä makroja. Leikkeen vahvistusvaipoilla voi automatisoida äänenvoimakkuutta leikkeen sisällä. Soundscaper säilyttää tämän muokkausmallin ja lisää raita- ja tehosteautomaation, miksauksen ja jakelun sekä tallennus-, video- ja vaihtotoiminnot, joita Audacity ei tarjoa.
 
-Audition on edelleen parempi palautuksen syvyydessä, Premiere Pro -siirtymissä ja ambisoniikassa. Soundscaperin vahvuudet ovat upottava toimitus, projektinhallinta ja se, että se toimii selaimessa laitteistolla, jota kumpikaan muista ei tue.
+Audition on edelleen vahvoilla palautuksen laajuudessa, Premiere Pro -siirroissa ja ambisonisessa äänessä. Soundscaperin vahvuuksia ovat immersiivinen jakelu, projektinhallinta ja toiminta selaimessa laitteistolla, jota kaksi muuta eivät tue.
 
-Jos työskentelet jo Audacityssä, katso
-[project files and Audacity interchange](/projects-and-data/project-files/) saadaksesi tietoa projektin siirtämisestä.
+Jos työskentelet jo Audacityssä, katso [Projektitiedostot ja Audacity-yhteensopivuus](/projects-and-data/project-files/) projektin siirtämistä varten.

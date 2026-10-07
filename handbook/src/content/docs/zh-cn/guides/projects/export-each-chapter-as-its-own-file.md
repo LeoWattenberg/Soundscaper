@@ -8,28 +8,30 @@ head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Export each chapter as its own file\",\"description\":\"Split one long recording into files at the markers you have placed.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick the recording to split. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the recording to split. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose View → Panels → Project bin.\",\"text\":\"Choose View → Panels → Project bin. The recording is on the timeline now, so hiding the bin leaves room for the Markers panel.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Choose View → Show markers.\",\"text\":\"Choose View → Show markers. The marker lane is where the chapter starts are shown and named.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Press the Jump to project start button in the toolbar.\",\"text\":\"Press the Jump to project start button in the toolbar. The first chapter should begin at the very start, so the first marker goes at zero.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"With the Markers panel open (View → Panels → Markers shows it), press Add marker at playhead. Press Enter on the new marker, type Part one and press Enter again to name it.\",\"text\":\"With the Markers panel open (View → Panels → Markers shows it), press Add marker at playhead. Press Enter on the new marker, type Part one and press Enter again to name it.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"Click the waveform where the second part begins to put the cursor there.\",\"text\":\"Click the waveform where the second part begins to put the cursor there.\"},{\"@type\":\"HowToStep\",\"position\":8,\"name\":\"With the Markers panel open (View → Panels → Markers shows it), press Add marker at playhead. Press Enter on the new marker, type Part two and press Enter again to name it.\",\"text\":\"With the Markers panel open (View → Panels → Markers shows it), press Add marker at playhead. Press Enter on the new marker, type Part two and press Enter again to name it.\"},{\"@type\":\"HowToStep\",\"position\":9,\"name\":\"Choose File → Export audio, set Format to MP3, set Output to Chapters (split by markers), and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog.\",\"text\":\"Choose File → Export audio, set Format to MP3, set Output to Chapters (split by markers), and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog. Each chapter becomes an MP3 inside the archive, numbered in order and named after its marker.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Export each chapter as its own file\",\"description\":\"Split one long recording into files at the markers you have placed.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick the recording to split. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the recording to split. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose Window → Project bin.\",\"text\":\"Choose Window → Project bin. The recording is on the timeline now, so hiding the bin leaves room for the Markers panel.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Choose View → Markers.\",\"text\":\"Choose View → Markers. The marker lane is where the chapter starts are shown and named.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Press the Jump to project start button in the toolbar.\",\"text\":\"Press the Jump to project start button in the toolbar. The first chapter should begin at the very start, so the first marker goes at zero.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"With the Markers panel open (Window → Markers shows it), press Add marker at playhead. Press Enter on the new marker, type Part one and press Enter again to name it.\",\"text\":\"With the Markers panel open (Window → Markers shows it), press Add marker at playhead. Press Enter on the new marker, type Part one and press Enter again to name it.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"Click the waveform where the second part begins to put the cursor there.\",\"text\":\"Click the waveform where the second part begins to put the cursor there.\"},{\"@type\":\"HowToStep\",\"position\":8,\"name\":\"With the Markers panel open (Window → Markers shows it), press Add marker at playhead. Press Enter on the new marker, type Part two and press Enter again to name it.\",\"text\":\"With the Markers panel open (Window → Markers shows it), press Add marker at playhead. Press Enter on the new marker, type Part two and press Enter again to name it.\"},{\"@type\":\"HowToStep\",\"position\":9,\"name\":\"Choose File → Export audio, set Format to MP3, set Output to Chapters (split by markers), and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog.\",\"text\":\"Choose File → Export audio, set Format to MP3, set Output to Chapters (split by markers), and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog. Each chapter becomes an MP3 inside the archive, numbered in order and named after its marker.\"}]}"
 ---
-<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"6847a5eab8eac5d2e111bd343f3b7b0a11921a9dc2596b560a30acea573c072a","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"6847a5eab8eac5d2e111bd343f3b7b0a11921a9dc2596b560a30acea573c072a","targetLocale":"zh-CN"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"c9e4046713fad4f56d299179811f19cd676d9762651df24eea7e8fb84493827b","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"c9e4046713fad4f56d299179811f19cd676d9762651df24eea7e8fb84493827b","targetLocale":"zh-CN"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
-将讲座、专辑侧面或有声书章节分别导出为单个文件：在每个部分的开头设置一个标记，然后一次性导出。每个标记打开一个章节，直到下一个标记，每个章节作为单独的文件导出，以标记名称命名，并保存在一个存档中。Audacity 3 通过“导出多个”实现了这一点；Audacity 4 没有恢复此功能。
+## 本指南的用途 {#what-this-guide-is-for}
+
+如果要把一场讲座按主题拆分成多个文件、把专辑的一面切分成多首曲目，或为有声书的每一章生成一个文件：请在每部分开头放置标记，然后一次性导出。每个标记会开启一个章节，直到下一个标记为止；每章都会以标记名称保存为单独文件，并放入同一个压缩包。Audacity 4.0.1 通过 Export Multiple 提供相同的工作流程。
 
 :::note[来自 Audacity？]
-这是 Audacity 的 **文件 → 导出音频 → 导出多个，按标签分割（Audacity 3；Audacity 4 没有“导出多个”）**。以下名称是 Soundscaper 自己的，有时与 Audacity 不同。
+这相当于 Audacity 中的**文件 → 导出音频 → 将带标签的区域导出为单独的音频文件**。下方名称是 Soundscaper 自己的名称，有时会有所不同。
 :::
 
 ## 步骤
 
 1. 打开 Soundscaper。编辑器加载后，一个新的空项目已准备就绪。
 2. 选择 **文件 → 导入**，并选择要分割的录音。它会作为片段出现在自己的轨道上。
-3. 选择 **视图 → 面板 → 项目库**。录音现在已在时间轴上，隐藏项目库面板后即可为标记面板留出空间。
-4. 选择 **视图 → 显示标记**。标记轨道是显示和命名章节开始的地方。
+3. 选择 **窗口 → 项目素材箱**。录音现在已在时间轴上，隐藏项目库面板后即可为标记面板留出空间。
+4. 选择 **视图 → 标记**。标记轨道是显示和命名章节开始的地方。
 5. 按工具栏中的 **跳转到项目开始** 按钮。第一个章节应该从最开始，所以第一个标记应放在零位置。
-6. 打开标记面板（**视图 → 面板 → 标记** 显示它），按 **在播放头处添加标记**。按 Enter 键创建新标记，输入 `Part one` 并再次按 Enter 键命名它。
+6. 打开标记面板（**窗口 → 标记** 显示它），按 **在播放头处添加标记**。按 Enter 键创建新标记，输入 `Part one` 并再次按 Enter 键命名它。
 7. 单击波形图中第二部分开始的位置以放置光标。
-8. 打开标记面板（**视图 → 面板 → 标记** 显示它），按 **在播放头处添加标记**。按 Enter 键创建新标记，输入 `Part two` 并再次按 Enter 键命名它。
+8. 打开标记面板（**窗口 → 标记** 显示它），按 **在播放头处添加标记**。按 Enter 键创建新标记，输入 `Part two` 并再次按 Enter 键命名它。
 9. 选择 **文件 → 导出音频**，将 **格式** 设置为 **MP3**，将 **输出** 设置为 **章节（按标记分割）**，然后按 **导出**。渲染完成后，文件立即下载，其链接留在对话框中。每个章节作为 MP3 保存在存档中，按顺序编号，并以其标记名称命名。
 
 ## 提示
@@ -54,6 +56,9 @@ head:
 - [导出格式、其容器和通道限制在导出格式参考中](/reference/generated/formats/)。
 - [每个菜单命令及其键盘快捷键在命令和快捷键参考中](/reference/generated/commands/)。
 
-## 关于本指南
+<details>
+<summary>本指南如何保持准确</summary>
 
 本页上的过程（每个菜单条目、对话框、字段和按钮，以及它产生的结果）由浏览器套件 (`tests/browser/soundscaper-guides.spec.js`) 在每个 Soundscaper 构建中重新播放。如果它与编辑器中的任何内容不匹配，构建将失败，直到指南得到纠正。建议的值是编辑器已证明可以接受的起始点；它们是否适合您的录音，由您的耳朵决定。
+
+</details>

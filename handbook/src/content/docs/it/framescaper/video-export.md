@@ -4,7 +4,7 @@ description: "Convalida la sequenza composita e crea una consegna in formato MP4
 sidebar:
   order: 3
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"9225d2aa1e6da43167a90718eea5097dd9f9d42790aaee2795a3d7d74452b72e","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"9225d2aa1e6da43167a90718eea5097dd9f9d42790aaee2795a3d7d74452b72e","targetLocale":"it"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643"},"factPacketSha256":"603de0b48d3c3e6d2688ba66a67dc28e38cee405f12901a999c6d0f75c3c5f57","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"603de0b48d3c3e6d2688ba66a67dc28e38cee405f12901a999c6d0f75c3c5f57","targetLocale":"it"} -->
 
 ## Prima dell'esportazione
 
@@ -21,6 +21,14 @@ la frequenza dei fotogrammi e altre opzioni appropriate per la destinazione.
 
 La codifica video è più intensiva in termini di risorse rispetto alla normale riproduzione della timeline.
 Mantieni l'editor aperto fino a quando l'esportazione non segnala il completamento.
+
+## Esportare separatamente le clip audio {#export-audio-clips}
+
+Scegli **File → Esporta video**, seleziona un formato audio come **WAV** e imposta **Output** su **Clip singole (dividi per clip)**. L’esportazione scarica un archivio con un file per ogni clip audio. Le clip video sono escluse e ogni file audio contiene solo la clip corrispondente, inclusi tagli e modifiche.
+
+I file iniziano dall’inizio udibile della clip, senza spazio fino alla sua posizione nel progetto né coda dell’effetto. I nomi numerati distinguono le clip con lo stesso nome.
+
+Gli effetti della traccia sono inclusi; gli effetti master, il silenziamento e il solo non influiscono su questa esportazione. Per il flusso audio condiviso, consulta [Esportare le clip come file separati](/soundscaper/edit-mix-and-export/#export-clips).
 
 ## Verificare la consegna
 

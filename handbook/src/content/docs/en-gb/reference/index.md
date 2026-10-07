@@ -4,7 +4,7 @@ description: "Generated commands, shortcuts, formats, effects, and product capab
 sidebar:
   order: 1
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"b7e4df92cd36126d4ce3865383043516972e9aca463c3449b731085cafc4050e","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"b7e4df92cd36126d4ce3865383043516972e9aca463c3449b731085cafc4050e","targetLocale":"en-GB"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"27ac617a3293f4d301daf72bed0b9f3e9127f4516531c320703c36e7afe8658c","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"27ac617a3293f4d301daf72bed0b9f3e9127f4516531c320703c36e7afe8658c","targetLocale":"en-GB"} -->
 
 Reference pages are generated from reviewed runtime registries and committed to
 the repository. They describe implemented behaviour, not roadmap entries or the
@@ -25,6 +25,5 @@ Use this section to answer questions such as:
 Generated pages include their source provenance and are checked for drift in
 the repository quality gate.
 
-[Macro programs](/reference/macro-programs/) is the one page here written by
-hand. It documents the JavaScript API a macro program runs against, and its
-claims are the ones the editor's own tests hold the sandbox to.
+The hand-written [Macro programs](/reference/macro-programs/) page documents the JavaScript API a macro program runs against. [Overwrite an imported file on desktop
+](/reference/overwrite-original-file/) describes the Electron File command shared by both products. Their behaviour is checked by the editor’s tests.

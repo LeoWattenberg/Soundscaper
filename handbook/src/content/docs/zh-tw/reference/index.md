@@ -4,7 +4,7 @@ description: "生成命令、快捷鍵、格式、效果和產品功能表格。
 sidebar:
   order: 1
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"b7e4df92cd36126d4ce3865383043516972e9aca463c3449b731085cafc4050e","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"b7e4df92cd36126d4ce3865383043516972e9aca463c3449b731085cafc4050e","targetLocale":"zh-TW"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"27ac617a3293f4d301daf72bed0b9f3e9127f4516531c320703c36e7afe8658c","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"27ac617a3293f4d301daf72bed0b9f3e9127f4516531c320703c36e7afe8658c","targetLocale":"zh-TW"} -->
 
 參考頁面是從已審閱的運行時註冊表生成的，並提交到
 存儲庫。它們描述已實現的行為，而不是路線圖條目或僅存在源文件和測試。
@@ -23,4 +23,5 @@ sidebar:
 
 生成的頁面包含其來源出處，並在存儲庫質量閘中檢查漂移。
 
-[巨集程式](/reference/macro-programs/) 是這裡唯一手動撰寫的頁面。它記錄巨集程式運行的JavaScript API，其主張是編輯器自身測試對沙盒的約束。
+手寫的[巨集程式](/reference/macro-programs/)頁面說明巨集程式使用的 JavaScript API。[在桌面版覆寫已匯入的檔案
+](/reference/overwrite-original-file/)頁面說明兩個產品共用的 Electron 檔案命令。編輯器測試會檢查這些行為。

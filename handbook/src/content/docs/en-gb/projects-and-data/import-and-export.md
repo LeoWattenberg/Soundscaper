@@ -4,7 +4,7 @@ description: "Distinguish source media, project files, interchange files, and re
 sidebar:
   order: 1
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"feaac1449bd0cf8c68e4a6c1b9805972644cd6e992ca79c8e5415a0b8cb086f9","model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"feaac1449bd0cf8c68e4a6c1b9805972644cd6e992ca79c8e5415a0b8cb086f9","targetLocale":"en-GB"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"gpt-5.6-luna"},"factPacketSha256":"3f5177c4b9d2b9549b4bf8cbf01df1df0c6e68287767f34bc5d1c40d69996e0c","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"3f5177c4b9d2b9549b4bf8cbf01df1df0c6e68287767f34bc5d1c40d69996e0c","targetLocale":"en-GB"} -->
 
 Soundscaper uses different file types for different jobs.
 
@@ -18,19 +18,20 @@ the active product and runtime.
 Importing media adds a project-owned source. It does not make the original file
 your editable project document.
 
-Compressed audio imports and exports support up to one hour or 1 GB
-(1,000,000,000 file bytes), whichever limit is reached first. A one-hour
-48 kHz stereo file is supported when it fits that file limit. Long jobs read,
-encode, and save in chunks; large browser exports require origin-private file
-storage and enough free space. Large imports require persistent local storage
-for the decoded audio. PCM formats retain their separate limits.
+Compressed audio exports and browser imports support up to one hour or 1 GB
+(1,000,000,000 file bytes), whichever limit is reached first. Desktop
+file selection and compressed audio import have no fixed file-size or duration
+ceiling below the safe integer range. Long jobs read, encode, and save in
+chunks; large browser exports require origin-private file storage and enough
+free space. Large imports require enough local storage for the decoded audio.
+Format structure, decoder support, and available storage can still limit an
+import.
 
 The browser tier covers MP3, MP2, FLAC, WavPack, Opus, and Ogg Vorbis. Browser
 AAC/M4A support depends on the browser codec. Desktop streaming exports cover
 the six bundled formats, with 24-bit FLAC and float32 lossless WavPack. Desktop
-imports depend on native decoder availability; MP2 uses the smaller utility
-compatibility tier. Desktop AAC and compatibility providers retain their
-separate limits.
+imports depend on decoder availability; large MP2 sources use the packet
+decoder, while smaller MP2 sources use the utility compatibility tier.
 
 An active job shows a progress bar even when **View → Status bar** is hidden.
 Choose **Cancel** beside the bar to stop an import or audio export.
@@ -39,8 +40,13 @@ Choose **Cancel** beside the bar to stop an import or audio export.
 
 - Scape (`.sscape` from Soundscaper, `.fscape` from Framescaper, and either one openable in both) is the portable, full-fidelity project format shared by Soundscaper
   and Framescaper.
-- AUP4 is audio-only interchange with Audacity. It is not a full backup of a
-  mixed-media Soundscaper project.
+- AUP3 and AUP4 are audio-only interchange with Audacity. Choose AUP3 to target
+  the Audacity 3.7.9 project profile or AUP4 for the current interchange profile.
+  Neither is a full backup of a mixed-media Soundscaper project; review the
+  compatibility report after export.
+- Adobe Audition SESX (`.sesx`) can be opened in the desktop edition to create
+  a local project from its referenced audio files. Keep the original session
+  and media; SESX export is not available.
 
 See [Project files](/projects-and-data/project-files/) for the consequences of
 each choice.

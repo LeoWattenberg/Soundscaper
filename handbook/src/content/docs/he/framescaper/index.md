@@ -4,7 +4,7 @@ description: "סדר וידאו, קומפוזיציה תמונה ומסור פר
 sidebar:
   order: 1
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"fe5df8f699907289847a5d9022c094e32168b502a532ebdf7708436a99db38b7","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"fe5df8f699907289847a5d9022c094e32168b502a532ebdf7708436a99db38b7","targetLocale":"he"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"47cebc3006e44dba5569ea0c1418001989dccf3730c3421c338c340222a9c5af","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"47cebc3006e44dba5569ea0c1418001989dccf3730c3421c338c340222a9c5af","targetLocale":"he"} -->
 
 פריימסקייפר הוא התצוגה הממוקדת בווידאו של העורך המשותף. הוא מדגיש תצוגה מקדימה של וידאו, ניטור מקור, אפקטים של תמונות, קומפוזיציה, רצפים מקוננים ועבודה רב-מצלמית.
 
@@ -21,6 +21,6 @@ sidebar:
 2. [הכן וייצא וידאו](/framescaper/video-export/).
 3. סקור את [התנהגות קובץ הפרויקט וגיבוי](/projects-and-data/project-files/).
 
-פתח את עורך הדפדפן ב-[soundscaper.org/framescaper/en](https://soundscaper.org/framescaper/en/).
+פתח את עורך הדפדפן ב-[framescaper.org/en](https://framescaper.org/en/).
 
 עבור סיוע שולחני, ראה [עיבוד מקומי, מודלים ותוספים](/help/local-processing/).

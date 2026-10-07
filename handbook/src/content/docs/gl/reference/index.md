@@ -4,7 +4,7 @@ description: "Táboas de comandos xerados, atallos, formatos, efectos e capacida
 sidebar:
   order: 1
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"b7e4df92cd36126d4ce3865383043516972e9aca463c3449b731085cafc4050e","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"b7e4df92cd36126d4ce3865383043516972e9aca463c3449b731085cafc4050e","targetLocale":"gl"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643"},"factPacketSha256":"27ac617a3293f4d301daf72bed0b9f3e9127f4516531c320703c36e7afe8658c","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"27ac617a3293f4d301daf72bed0b9f3e9127f4516531c320703c36e7afe8658c","targetLocale":"gl"} -->
 
 As páxinas de referencia xéranse a partir de rexistros de tempo de execución revisados e cométanse no repositorio. Describen o comportamento implementado, non entradas do plan de melloras nin a mera presenza de ficheiros de código fonte e probas.
 
@@ -22,4 +22,5 @@ Use esta sección para responder a preguntas como:
 
 As páxinas xeradas inclúen a súa procedencia de orixe e revísanse por desviacións na porta de calidade do repositorio.
 
-[Programas de macro](/reference/macro-programs/) é a única páxina aquí escrita á man. Documenta a API de JavaScript contra a que se executa un programa de macro, e as súas afirmacións son as que as propias probas do editor aplican ao sandbox.
+A páxina escrita a man sobre [Programas de macros](/reference/macro-programs/) documenta a API JavaScript que utiliza un programa de macros. [Substituír un ficheiro importado no escritorio
+](/reference/overwrite-original-file/) describe o comando de ficheiro de Electron compartido polos dous produtos. As probas do editor verifican o seu comportamento.

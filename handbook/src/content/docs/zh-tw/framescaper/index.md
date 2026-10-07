@@ -4,7 +4,7 @@ description: "排列視頻、合成圖像，並交付以本地優先的視頻項
 sidebar:
   order: 1
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"fe5df8f699907289847a5d9022c094e32168b502a532ebdf7708436a99db38b7","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"fe5df8f699907289847a5d9022c094e32168b502a532ebdf7708436a99db38b7","targetLocale":"zh-TW"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"47cebc3006e44dba5569ea0c1418001989dccf3730c3421c338c340222a9c5af","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"47cebc3006e44dba5569ea0c1418001989dccf3730c3421c338c340222a9c5af","targetLocale":"zh-TW"} -->
 
 Framescaper 是共享編輯器的視頻專注視圖。它強調視頻預覽、源監控、圖像效果、合成、嵌套序列和多攝像機工作。
 
@@ -22,6 +22,6 @@ Soundscaper 擁有聲音：音頻錄音、效果和分析、混音和音頻傳�
 2. [準備和導出視頻](/framescaper/video-export/)。
 3. 查看 [專案檔案和備份行為](/projects-and-data/project-files/)。
 
-打開瀏覽器編輯器，前往 [soundscaper.org/framescaper/en](https://soundscaper.org/framescaper/en/)。
+打開瀏覽器編輯器，前往 [framescaper.org/en](https://framescaper.org/en/)。
 
 有關桌面協助，請見 [本地處理、模型和插件](/help/local-processing/)。

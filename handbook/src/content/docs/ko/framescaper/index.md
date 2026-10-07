@@ -4,7 +4,7 @@ description: "비디오를 배치하고, 이미지를 합성하고, 로컬 우�
 sidebar:
   order: 1
 ---
-<!-- docs-ai-provenance: {"model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"fe5df8f699907289847a5d9022c094e32168b502a532ebdf7708436a99db38b7","targetLocale":"ko"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"gpt-5.6-luna"},"factPacketSha256":"47cebc3006e44dba5569ea0c1418001989dccf3730c3421c338c340222a9c5af","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"47cebc3006e44dba5569ea0c1418001989dccf3730c3421c338c340222a9c5af","targetLocale":"ko"} -->
 
 Framescaper는 공유 편집기의 비디오에 중점을 둔 뷰입니다. 비디오 미리보기, 소스 모니터링, 이미지 효과, 합성, 중첩 시퀀스 및 멀티 카메라 작업을 강조합니다.
 
@@ -23,6 +23,6 @@ Soundscaper는 사운드를 담당합니다: 오디오 녹음, 효과 및 분석
 3. [프로젝트 파일 및 백업 동작](/projects-and-data/project-files/) 검토.
 
 브라우저 편집기를 열려면
-[soundscaper.org/framescaper/en](https://soundscaper.org/framescaper/en/)로 이동하세요.
+[framescaper.org/en](https://framescaper.org/en/)로 이동하세요.
 
 데스크톱 지원은 [로컬 처리, 모델 및 플러그인](/help/local-processing/)을 참조하세요.

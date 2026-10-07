@@ -4,7 +4,7 @@ description: "Các bảng chỉ mục, phím tắt, định dạng, hiệu ứng
 sidebar:
   order: 1
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"b7e4df92cd36126d4ce3865383043516972e9aca463c3449b731085cafc4050e","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"b7e4df92cd36126d4ce3865383043516972e9aca463c3449b731085cafc4050e","targetLocale":"vi"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"27ac617a3293f4d301daf72bed0b9f3e9127f4516531c320703c36e7afe8658c","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"27ac617a3293f4d301daf72bed0b9f3e9127f4516531c320703c36e7afe8658c","targetLocale":"vi"} -->
 
 Các trang tham khảo được tạo từ các sổ đăng ký thời gian chạy đã được xem xét và cam kết
 đến kho lưu trữ. Chúng mô tả hành vi đã thực hiện, không phải các mục trong bản đồ đường dẫn hoặc
@@ -25,6 +25,5 @@ Sử dụng phần này để trả lời các câu hỏi như:
 Các trang được tạo ra bao gồm nguồn gốc nguồn của chúng và được kiểm tra để phát hiện sự chệch hướng trong
 cổng chất lượng kho lưu trữ.
 
-[Chương trình Macro](/reference/macro-programs/) là trang duy nhất ở đây được viết bằng tay.
-Nó tài liệu hóa API JavaScript mà một chương trình macro chạy chống lại, và các tuyên bố của nó là những tuyên bố
-mà các bài kiểm tra của chính trình chỉnh sửa giữ cho hộp cát.
+Trang [Chương trình macro](/reference/macro-programs/) được viết thủ công mô tả API JavaScript mà chương trình macro sử dụng. [Ghi đè tệp đã nhập trên máy tính
+](/reference/overwrite-original-file/) mô tả lệnh Tệp của Electron dùng chung cho cả hai sản phẩm. Các bài kiểm thử của trình chỉnh sửa kiểm tra hành vi của chúng.

@@ -4,7 +4,7 @@ description: "Uspořádejte video, složte obrázek a doručte místní video pr
 sidebar:
   order: 1
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"fe5df8f699907289847a5d9022c094e32168b502a532ebdf7708436a99db38b7","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"fe5df8f699907289847a5d9022c094e32168b502a532ebdf7708436a99db38b7","targetLocale":"cs"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"47cebc3006e44dba5569ea0c1418001989dccf3730c3421c338c340222a9c5af","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"47cebc3006e44dba5569ea0c1418001989dccf3730c3421c338c340222a9c5af","targetLocale":"cs"} -->
 
 Framescaper je video-orientovaný pohled sdíleného editoru. Zdůrazňuje náhled videa, zdrojový monitoring, obrazové efekty, kompozici, vnořené sekvence a práci s více kamerami.
 
@@ -23,6 +23,6 @@ Soundscaper vlastní zvuk: nahrávání zvuku, efekty a analýzu, mixáž a dod�
 3. Zkontrolujte [chování souborů projektu a zálohování](/projects-and-data/project-files/).
 
 Otevřete editor v prohlížeči na adrese
-[soundscaper.org/framescaper/en](https://soundscaper.org/framescaper/en/).
+[framescaper.org/en](https://framescaper.org/en/).
 
 Pro pomoc s desktopem viz [místní zpracování, modely a pluginy](/help/local-processing/).

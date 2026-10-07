@@ -4,7 +4,7 @@ description: "פקודות, קיצורי מקלדת, פורמטים, אפקטי�
 sidebar:
   order: 1
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"b7e4df92cd36126d4ce3865383043516972e9aca463c3449b731085cafc4050e","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"b7e4df92cd36126d4ce3865383043516972e9aca463c3449b731085cafc4050e","targetLocale":"he"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643"},"factPacketSha256":"27ac617a3293f4d301daf72bed0b9f3e9127f4516531c320703c36e7afe8658c","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"27ac617a3293f4d301daf72bed0b9f3e9127f4516531c320703c36e7afe8658c","targetLocale":"he"} -->
 
 עמודי הרישום (Reference) נוצרים מרישומי ריצה (runtime registries) שעברו ביקורת ומתועדים במאגר הקוד. הם מתארים התנהגות מיושמת, ולא פריטים במפת הדרכים או נוכחות בלבד של קבצי מקור ובדיקות.
 
@@ -22,4 +22,5 @@ sidebar:
 
 עמודים שנוצרו כוללים את מקורם (provenance) ונבדקים לסטייה (drift) בשער האיכות של המאגר.
 
-[Macro programs](/reference/macro-programs/) הוא העמוד היחיד כאן שנכתב ביד. הוא מתעד את ממשק ה-JavaScript מולו רץ תוכנית מאקרו, והטענות שלו הן אלו שהבדיקות של העורך עצמו מחזיקות את הסנדבוקס אליהן.
+העמוד [תוכניות מאקרו](/reference/macro-programs/), שנכתב ידנית, מתעד את ממשק ה־JavaScript שתוכנית מאקרו משתמשת בו. [החלפת קובץ מיובא במחשב שולחני
+](/reference/overwrite-original-file/) מתארת את פקודת הקבצים של Electron המשותפת לשני המוצרים. בדיקות העורך בודקות את התנהגותם.

@@ -4,7 +4,7 @@ description: "قم بترتيب الفيديو، وتكوين الصورة، و�
 sidebar:
   order: 1
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"fe5df8f699907289847a5d9022c094e32168b502a532ebdf7708436a99db38b7","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"fe5df8f699907289847a5d9022c094e32168b502a532ebdf7708436a99db38b7","targetLocale":"ar"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"47cebc3006e44dba5569ea0c1418001989dccf3730c3421c338c340222a9c5af","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"47cebc3006e44dba5569ea0c1418001989dccf3730c3421c338c340222a9c5af","targetLocale":"ar"} -->
 
 Framescaper هو عرض الفيديو الذي يركز عليه المحرر المشترك. إنه يؤكد على معاينة الفيديو، ومراقبة المصدر، وتأثيرات الصورة، والتركيب، والسلاسل المتداخلة، وعمل الكاميرات المتعددة.
 
@@ -21,6 +21,6 @@ Framescaper هو عرض الفيديو الذي يركز عليه المحرر �
 2. [إعداد وتصدير الفيديو](/framescaper/video-export/).
 3. مراجعة [سلوك ملف المشروع والنسخ الاحتياطي](/projects-and-data/project-files/).
 
-افتح محرر المتصفح في [soundscaper.org/framescaper/en](https://soundscaper.org/framescaper/en/).
+افتح محرر المتصفح في [framescaper.org/en](https://framescaper.org/en/).
 
 بالنسبة للمساعدة على سطح المكتب، راجع [المعالجة المحلية، والنماذج، والمكونات الإضافية](/help/local-processing/).

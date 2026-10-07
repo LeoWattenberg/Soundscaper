@@ -4,7 +4,7 @@ description: "Vygenerované příkazy, zkratky, formáty, efekty a tabulky schop
 sidebar:
   order: 1
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"b7e4df92cd36126d4ce3865383043516972e9aca463c3449b731085cafc4050e","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"b7e4df92cd36126d4ce3865383043516972e9aca463c3449b731085cafc4050e","targetLocale":"cs"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"27ac617a3293f4d301daf72bed0b9f3e9127f4516531c320703c36e7afe8658c","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"27ac617a3293f4d301daf72bed0b9f3e9127f4516531c320703c36e7afe8658c","targetLocale":"cs"} -->
 
 Stránky referencí se generují z revidovaných běhových registrů a ukládají se do
 úložiště. Popisují implementované chování, nikoli položky plánu nebo pouhou přítomnost zdrojových souborů a testů.
@@ -24,6 +24,5 @@ Použijte tuto sekci k zodpovězení otázek, jako jsou:
 Generované stránky zahrnují svůj zdrojový původ a jsou kontrolovány pro odchylky
 v rámci brány kvality úložiště.
 
-[Makro programy](/reference/macro-programs/) je jediná stránka zde napsaná
-ručně. Dokumentuje JavaScript API, proti kterému běží makro program, a jeho
-tvrzení jsou ta, na která jsou testy editoru samotného zaměřeny.
+Ručně napsaná stránka [Makroprogramy](/reference/macro-programs/) dokumentuje rozhraní JavaScriptu, které může makroprogram používat. Stránka [Přepsání importovaného souboru na počítači
+](/reference/overwrite-original-file/) popisuje příkaz pro práci se soubory v Electronu, který sdílejí oba produkty. Jejich chování ověřují testy editoru.

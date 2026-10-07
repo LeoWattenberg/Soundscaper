@@ -4,7 +4,7 @@ description: "Commandes, raccourcis, formats, effets et tableaux de capacités d
 sidebar:
   order: 1
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"b7e4df92cd36126d4ce3865383043516972e9aca463c3449b731085cafc4050e","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"b7e4df92cd36126d4ce3865383043516972e9aca463c3449b731085cafc4050e","targetLocale":"fr"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"27ac617a3293f4d301daf72bed0b9f3e9127f4516531c320703c36e7afe8658c","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"27ac617a3293f4d301daf72bed0b9f3e9127f4516531c320703c36e7afe8658c","targetLocale":"fr"} -->
 
 Les pages de référence sont générées à partir des registres de runtime révisés et intégrés au dépôt. Elles décrivent le comportement mis en œuvre, et non les entrées de la feuille de route ou la simple présence de fichiers sources et de tests.
 
@@ -22,4 +22,5 @@ Utilisez cette section pour répondre à des questions telles que :
 
 Les pages générées incluent leur provenance et sont vérifiées pour détecter toute dérive dans la porte qualité du dépôt.
 
-[Programmes macro](/reference/macro-programs/) est la seule page ici écrite à la main. Elle documente l'API JavaScript qu'un programme macro exécute et ses affirmations sont celles auxquelles le bac à sable du test propre de l'éditeur est soumis.
+La page rédigée à la main sur les [Programmes de macros](/reference/macro-programs/) documente l’API JavaScript utilisée par un programme de macros. [Remplacer un fichier importé sur ordinateur
+](/reference/overwrite-original-file/) décrit la commande de fichier Electron commune aux deux produits. Les tests de l’éditeur vérifient leur comportement.

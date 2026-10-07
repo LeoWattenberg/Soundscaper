@@ -4,7 +4,7 @@ description: "אימות הרצף המורכב ויצירת קובץ MP4 או We
 sidebar:
   order: 3
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"9225d2aa1e6da43167a90718eea5097dd9f9d42790aaee2795a3d7d74452b72e","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"9225d2aa1e6da43167a90718eea5097dd9f9d42790aaee2795a3d7d74452b72e","targetLocale":"he"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643"},"factPacketSha256":"603de0b48d3c3e6d2688ba66a67dc28e38cee405f12901a999c6d0f75c3c5f57","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"603de0b48d3c3e6d2688ba66a67dc28e38cee405f12901a999c6d0f75c3c5f57","targetLocale":"he"} -->
 
 ## לפני ייצוא
 
@@ -21,6 +21,14 @@ WebM באמצעות רצף הריצה של הווידאו שנקבע. בחרו �
 
 קידוד וידאו הוא תהליך הדורש משאבים רבים יותר בהשוואה להפעלה רגילה של ציר הזמן.
 השאירו את העורך פתוח עד שהייצוא מדווח על השלמתו.
+
+## ייצוא קטעי שמע בנפרד {#export-audio-clips}
+
+בחרו **קובץ → ייצוא וידאו**, בחרו פורמט שמע כגון **WAV**, והגדירו את **פלט** ל-**קטעים בודדים (פיצול לפי קטעים)**. הייצוא מוריד ארכיון ובו קובץ לכל קטע שמע. קטעי וידאו אינם נכללים, וכל קובץ שמע מכיל רק את הקטע שלו, כולל החיתוכים והעריכות שלו.
+
+הקבצים מתחילים בתחילת הקטע שנשמעת, ללא ריפוד עד למיקום שלו בפרויקט וללא זנב אפקט. שמות קטעים ממוספרים מבדילים בין קטעים בעלי שם זהה.
+
+אפקטים של הרצועה נכללים; אפקטים ראשיים, השתקה וסולו אינם משפיעים על הייצוא הזה. לתהליך העבודה המשותף של אודיו, ראו [ייצוא קטעים כקבצים נפרדים](/soundscaper/edit-mix-and-export/#export-clips).
 
 ## אימות המסירה
 

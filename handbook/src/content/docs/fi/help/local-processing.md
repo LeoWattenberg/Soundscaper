@@ -2,11 +2,13 @@
 title: "Paikallinen käsittely, mallit ja lisäosat"
 description: "Etsi paikallista apua tehtävän mukaan ja hallitse malleja ja lisäosia työpöytätoimittimissa."
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"922fb6c279e1a4499967f68b55d60fdc332bb1b2bd3144cff2f87824add1b7b7","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"922fb6c279e1a4499967f68b55d60fdc332bb1b2bd3144cff2f87824add1b7b7","targetLocale":"fi"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643"},"factPacketSha256":"3d10714b7e0afaab240d9230f29a67dcdf7089d196b03baabfac75729296e82f","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"3d10714b7e0afaab240d9230f29a67dcdf7089d196b03baabfac75729296e82f","targetLocale":"fi"} -->
 
 Paikallinen avustus toimii laitteellasi Soundscaper- ja Framescaper-pöytätietokoneiden muokkaustyökaluissa. Valitse media ja valitse sitten tehtävä sen valikosta. Dialogi näyttää valinnan, tehtävän asetukset ja sen, onko sen mallit asennettu.
 
-Pöytätietokoneen paketteihin sisältyvät natiivit käsittelymoottorit julkaistuille paikallisille malleille. Asenna mallin painot Model Manager -työkalun kautta ja suorita sitten tehtävä valitsemallasi medialla. Katso kunkin mallin [opas](/reference/local-models/) tuetuista alustoista, valikkotavasta ja vaatimuksista.
+Työpöytäpaketit eivät sisällä valinnaisia natiiveja käsittelymoottoreita tai mallipainoja. Asenna malli Mallien hallinnassa, jolloin sen tarvitsema moottori ja painot ladataan, ja suorita sitten tehtävä valitulle medialle. Ensimmäinen asennus vaatii verkkoyhteyden; myöhempi käsittely tapahtuu paikallisesti. Katso kunkin mallin oppaasta tuetut alustat, valikkokomento ja vaatimukset.
+
+Katso [mallikohtaiset oppaat](/reference/local-models/).
 
 ## Etsi tehtävä {#find-a-task}
 
@@ -32,7 +34,7 @@ Valitse **Run locally** käynnistääksesi käsittelyn ja vastataksesi paikallis
 
 Avaa **Tools → Model Manager** tai käytä **Manage Models** -toimintoa tehtävän sisällä. Tehtävän linkki suodattaa listan yhteensopiviin mallitunnisteisiin; **Show all models** poistaa tämän rajoituksen. Hae nimen tai tehtävän mukaan ja suodata asennustilan mukaan.
 
-Asenna mallit eksplisiittisesti. Lataukset näyttävät edistymisen ja ne voi peruuttaa. Paluu tehtävään säilyttää sen asetukset ja päivittää mallien saatavuuden; se ei käynnistä käsittelyä. Laajenna **Storage and verification** korjausta, siivousta, tallennustilan siirtoa, lisenssitiedoksia ja offline-asennusta kansioista varten.
+Asenna mallit erikseen. Ensimmäinen asennus lataa myös mallin tarvitseman puuttuvan jaetun natiivin suoritusympäristön. Latauksissa näkyy edistyminen, ja ne voi peruuttaa. Tehtävään palaaminen säilyttää sen asetukset ja päivittää mallien saatavuuden; käsittely ei käynnisty. Avaa **Tallennus ja varmennus** korjausta, siivousta, tallennustilan siirtoa, lisenssi-ilmoituksia ja kansiosta tehtävää offline-asennusta varten. Offline-tiedostoista asennettu malli tarvitsee silti vastaavan suoritusympäristön ennen ensimmäistä käyttökertaa.
 
 Katso [yksittäiset malliohjeet](/reference/local-models/) kunkin julkaistun mallin tarkoituksesta, valikkotavasta, latauskokosta, vaatimuksista, rajoituksista ja yöllä testeillä suoritettavasta pöytätietokoneen paketin todellisista päättelytarkistuksista.
 

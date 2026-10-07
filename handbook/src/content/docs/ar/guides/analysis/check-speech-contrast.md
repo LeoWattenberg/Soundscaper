@@ -8,11 +8,13 @@ head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Check that speech stands out from its background\",\"description\":\"Measure how far a voice sits above the noise behind it, the way accessibility guidelines ask.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick the recording with speech over background noise. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the recording with speech over background noise. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Drag in the ruler above the clip to select a stretch of background with nobody speaking.\",\"text\":\"Drag in the ruler above the clip to select a stretch of background with nobody speaking. The background measurement should contain only the noise the voice has to compete with.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Choose Analyze → Contrast. The Contrast panel opens.\",\"text\":\"Choose Analyze → Contrast. The Contrast panel opens.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"In the Contrast panel, press Measure background. The panel keeps the selection’s level as the background.\",\"text\":\"In the Contrast panel, press Measure background. The panel keeps the selection’s level as the background.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Drag in the ruler above the clip to select a passage of speech.\",\"text\":\"Drag in the ruler above the clip to select a passage of speech. Pick ordinary speech rather than the loudest word, since the whole passage is averaged.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"In the Contrast panel, press Measure foreground. The panel reports the foreground level, the background level and the difference between them.\",\"text\":\"In the Contrast panel, press Measure foreground. The panel reports the foreground level, the background level and the difference between them. The foreground and background levels, their difference in dB, and whether the difference meets the recommended 20 dB.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Check that speech stands out from its background\",\"description\":\"Measure how far a voice sits above the noise behind it, the way accessibility guidelines ask.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick the recording with speech over background noise. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the recording with speech over background noise. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Drag in the ruler above the clip to select a stretch of background with nobody speaking.\",\"text\":\"Drag in the ruler above the clip to select a stretch of background with nobody speaking. The background measurement should contain only the noise the voice has to compete with.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Choose Analyze → Contrast. The Contrast dialog opens with the selection report.\",\"text\":\"Choose Analyze → Contrast. The Contrast dialog opens with the selection report.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"In the Contrast panel, press Measure background. The panel keeps the selection’s level as the background.\",\"text\":\"In the Contrast panel, press Measure background. The panel keeps the selection’s level as the background.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Drag in the ruler above the clip to select a passage of speech.\",\"text\":\"Drag in the ruler above the clip to select a passage of speech. Pick ordinary speech rather than the loudest word, since the whole passage is averaged.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"In the Contrast panel, press Measure foreground. The panel reports the foreground level, the background level and the difference between them.\",\"text\":\"In the Contrast panel, press Measure foreground. The panel reports the foreground level, the background level and the difference between them. The foreground and background levels, their difference in dB, and whether the difference meets the recommended 20 dB.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"2284b517195eb89b164851099b86e83abc4362133f605f353bb07e0bf733b701","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"2284b517195eb89b164851099b86e83abc4362133f605f353bb07e0bf733b701","targetLocale":"ar"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"6966cb5b563275a867febdf581f6bbc7b856633cdf0ae083f6a01726d832b25e","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"6966cb5b563275a867febdf581f6bbc7b856633cdf0ae083f6a01726d832b25e","targetLocale":"ar"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
+
+## الغرض من هذا الدليل {#what-this-guide-is-for}
 
 صوت بالكاد أعلى من الغرفة خلفه يصعب متابعته، وتضع إرشادات الوصول رقماً له: يجب أن يكون الكلام على الأقل 20 ديسيبل فوق الخلفية. يقيس محلل التباين جزءاً من الخلفية وجزءاً من الكلام، ويوضح الفرق، ويقول ما إذا كان يفي بهذه التوصية. إنه المحلل الذي تقدمه Audacity 3 لعمليات التحقق من WCAG، ولا تتضمنه Audacity 4.
 
@@ -25,7 +27,7 @@ head:
 1. افتح Soundscaper. يكون مشروع جديد فارغ جاهز بمجرد تحميل المحرر.
 2. اختر **ملف → استيراد** واختر التسجيل الذي يحتوي على كلام فوق ضوضاء الخلفية. يصل كمقطع على مساره الخاص.
 3. اسحب في المسطرة فوق المقطع لاختيار جزء من الخلفية بدون متحدث. يجب أن يحتوي قياس الخلفية على الضوضاء التي يجب أن ينافسها الصوت.
-4. اختر **تحليل → تباين**. تفتح لوحة **التباين**.
+4. اختر **تحليل → تباين**. يفتح مربع الحوار **تباين** مع تقرير التحديد.
 5. في لوحة **التباين**، اضغط على **قياس الخلفية**. تحتفظ اللوحة بمستوى الاختيار كخلفية.
 6. اسحب في المسطرة فوق المقطع لاختيار مقطع من الكلام. اختر كلاماً عادياً بدلاً من الكلمة الأعلى صوتاً، حيث يتم تسوية المقطع بالكامل.
 7. في لوحة **التباين**، اضغط على **قياس المقدمة**. تبلغ اللوحة عن مستوى المقدمة، ومستوى الخلفية، والفرق بينهما.
@@ -42,7 +44,7 @@ head:
 
 - [إزالة ضوضاء الخلفية](/guides/cleaning-up/remove-background-noise/) — علم تقليل الضوضاء ما يبدو عليه الطنين، ثم أزله من التسجيل بأكمله.
 - [تسوية الحجم باستخدام جهاز ضغط](/guides/volume/even-out-volume-with-a-compressor/) — قلل الفجوة بين اللحظات الصاخبة والهادئة حتى يسهل متابعة الكلام.
-- [قياس مدى ارتفاع مزيجك](/guides/analysis/measure-loudness/) — اقرأ الصوتية المتكاملة، والنطاق، والقمة الحقيقية للمشروع بالطريقة التي يفعلها المذيعون.
+- [قياس مدى ارتفاع مزيجك](/guides/analysis/measure-loudness/) — اقرأ مستوى الصوت المتكامل ونطاقه والذروة الحقيقية لتحديد، كما تفعل محطات البث.
 - [رؤية الترددات التي يحتويها صوت](/guides/analysis/plot-a-spectrum/) — قم بتصوير طيف اختيار للعثور على الطنين، أو الصرير، أو الرنين.
 - [العثور على الأماكن التي تم فيها تشويه التسجيل](/guides/analysis/find-clipping/) — حدد الأماكن التي وصل فيها التسجيل إلى الحد الأقصى ومُوِّه.
 - [العثور على النبضات في حلقة](/guides/analysis/find-the-beats/) — دع محلل العثور على النبضات يحدد كل نبضة يسمعها.
@@ -51,6 +53,9 @@ head:
 
 - [كل أمر في القائمة وقصاصه المختصر في مرجع الأوامر والاختصارات.](/reference/generated/commands/)
 
-## حول هذا الدليل
+<details>
+<summary>كيف يحافظ هذا الدليل على دقته</summary>
 
 الإجراء الموجود في هذا الصفحة — كل إدخال قائمة، وحوار، وحقل، وزر، والنتيجة التي ينتجها — يتم إعادة تشغيله ضد كل إصدار من Soundscaper بواسطة مجموعة المتصفحات (`tests/browser/soundscaper-guides.spec.js`). إذا توقف أي منها عن مطابقة المحرر، يفشل الإصدار حتى يتم تصحيح الدليل. القيم المقترحة هي نقاط بداية يُثبت المحرر قبولها؛ ما إذا كانت تناسب تسجيلك هو قرار أذنيك.
+
+</details>

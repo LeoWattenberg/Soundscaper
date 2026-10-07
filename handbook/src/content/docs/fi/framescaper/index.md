@@ -4,7 +4,7 @@ description: "Järjestele videota, yhdistä kuva ja toimita paikallinen video-oh
 sidebar:
   order: 1
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"fe5df8f699907289847a5d9022c094e32168b502a532ebdf7708436a99db38b7","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"fe5df8f699907289847a5d9022c094e32168b502a532ebdf7708436a99db38b7","targetLocale":"fi"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643"},"factPacketSha256":"47cebc3006e44dba5569ea0c1418001989dccf3730c3421c338c340222a9c5af","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"47cebc3006e44dba5569ea0c1418001989dccf3730c3421c338c340222a9c5af","targetLocale":"fi"} -->
 
 Framescaper on jaetun editorin video-ohjattu näkymä. Se korostaa videoesikatselua, lähdevalvontaa, kuvatehosteita, kompositoimista, sisäkkäisiä sekvenssejä ja monikameratyötä.
 
@@ -33,6 +33,6 @@ Soundscaperia varten, ja ne kattavat myös video-ohjelman äänipuolen.
 3. Tarkista [projektitiedoston ja varmuuskopioiden toiminta](/projects-and-data/project-files/).
 
 Avaa selaimen editori osoitteessa
-[soundscaper.org/framescaper/en](https://soundscaper.org/framescaper/en/).
+[framescaper.org/en](https://framescaper.org/en/).
 
 Tietokoneen apuvälineistä, ks. [paikallinen käsittely, mallit ja lisäosat](/help/local-processing/).

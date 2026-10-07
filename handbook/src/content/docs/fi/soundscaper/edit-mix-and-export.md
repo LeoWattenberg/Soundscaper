@@ -4,7 +4,7 @@ description: "Järjestä klippejä, tasaa raidoja, soita efektit ja luo toimitus
 sidebar:
   order: 4
 ---
-<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643"},"factPacketSha256":"20388bf5b2a7139d7bcfb3a2a962c5f60ec0f91d05992a6307a4fb8b2b622534","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"20388bf5b2a7139d7bcfb3a2a962c5f60ec0f91d05992a6307a4fb8b2b622534","targetLocale":"fi"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"3069846c51779ae315d018496e4b6d8adf592d57e05ec127856039375f3caf98","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"3069846c51779ae315d018496e4b6d8adf592d57e05ec127856039375f3caf98","targetLocale":"fi"} -->
 
 ## Klipsujen järjestäminen
 
@@ -37,6 +37,26 @@ Nuolinäppäimet säätävät keston 10 millisekunnin askelin tai 100 millisekun
 pituisuudelle. Numeraalista syöttöä varten valitse **Edit → Audio clips → Clip properties**
 ja käytä **Fading** -asetusta.
 
+### Muokkaa leikkeen lähdettä {#clip-source-properties}
+
+Avaa lähde-editori valitsemalla **Muokkaa → Äänileikkeet → Leikkeen ominaisuudet**. Koko tallenne näkyy leikkeen takana. Muuta lähteen alkua ja kestoa vetämällä leikkeen reunoja niin, että leikkeen alku pysyy projektin aikajanalla paikallaan. **Normalisointi**-paneelissa ovat leikkeen vahvistus sekä huippu- ja äänekkyystoiminnot.
+
+Avaa **Sävelkorkeus ja tempo** ja valitse **Linkitä sävelkorkeus ja tempo**, jos haluat muuttaa nopeutta ja sävelkorkeutta yhdessä. Nopeussuhde `1` ja sävelkorkeuden muutos `0%` eivät muuta ääntä. Suhde `2` toistaa kaksinkertaisella nopeudella oktaavia korkeammalta; `0.5` puolittaa nopeuden ja laskee sävelkorkeutta oktaavin. Yhden linkitetyn säätimen muuttaminen päivittää myös toisen. Linkin poistaminen palauttaa sävelkorkeuden erillisen säädön säilyttäen nykyisen nopeussuhteen.
+
+Lisää lähdenäytteeseen sidottu venytysmerkki napsauttamalla aaltomuotoa **Ctrl** painettuna. Sen vetäminen muuttaa ajoitusta molemmin puolin, ja peite näyttää molemmat toistonopeudet. Leikkeen säätimet koskevat edelleen vain kyseistä leikettä. Lähdeäänen valitseminen ja tehosteen käyttäminen päivittää kaikki leikkeet, jotka käyttävät tätä lähdettä.
+
+### Muokkaa leikkeitä taulukossa {#clip-spreadsheet}
+
+Näytä projektin kaikki leikkeet valitsemalla **Näkymä → Paneelit → Leiketaulukko**. Paneeli avautuu aikajanan alle. Paneelivalikosta sen voi siirtää toiseen telakointiin, irrottaa kelluvaksi tai sulkea. Koko ja sijainti tallentuvat työtilan mukana. Rivi näyttää raidan, aikajanapaikan, lähdetiedoston, lähdesiirtymän, keston, sävelkorkeuden, nopeuden, vahvistuksen, häivytykset ja toistoasetukset. Ajat ovat sekunteja, sävelkorkeus puolisävelaskelia ja nopeus suhde: `1` on normaali ja `2` kaksinkertainen nopeus.
+
+Muokkaa arvoa kaksoisnapsauttamalla solua tai valitsemalla solu ja painamalla **Enter**. Ota muutos käyttöön painamalla **Enter** tai peruuta **Escape**-näppäimellä. Raita- ja lähdesolut näyttävät todelliset tunnisteensa. Siirrä leike olemassa olevalle ääniraidalle muuttamalla raidatunnistetta. Korvaa ääni muuttamalla lähdetunnistetta tai syöttämällä paikallinen tiedostopolku; aikajanapaikka, kesto, nopeus ja lähdesiirtymä sekunteina säilyvät. Uuden tiedoston on sisällettävä ilmoitettu lähdealue. **Käänteinen** ja **Vaiheenkääntö** ovat valintaruutuja; vaihda niiden tila valitsemalla solu ja painamalla **Välilyönti**. Lukittujen raitojen leikkeet ja videoleikkeet ovat vain luku -tilassa.
+
+Keston muuttaminen lyhentää tai pidentää lähdealuetta nykyisestä siirtymästä. Nopeuden muuttaminen säilyttää lähdealueen, ellei samalla liitetä kestoa. Poista leikkeiden ryhmittely tai linkitys ennen ajoituksen muuttamista tässä; muokkaa venytettyjen leikkeiden ajoitusta lähde-editorissa.
+
+Valitse solu, vedä alueen yli tai laajenna valintaa napsauttamalla toista solua **Shift** painettuna. Valitse koko rivi tai sarake napsauttamalla rivinumeroa tai sarakeotsikkoa. Vaihda valinta taulukkolaskentaohjelman kanssa komennoilla **Ctrl+C** ja **Ctrl+V** (macOS:ssä **Cmd+C** ja **Cmd+V**). Sarakkeet erotetaan sarkaimilla ja rivit rivinvaihdoilla. Liittäminen alkaa valitusta solusta ja päivittää olemassa olevat leikkeet. Olemassa olevat rivit ylittävä liittäminen hylätään. Kun valinta on aktiivinen, poista se painamalla **Escape** tai napsauttamalla taulukon alla olevaa tyhjää aluetta. Ilman valintaa liittäminen lisää uusia rivejä myös tyhjään projektiin. Toistoasetukset kopioidaan muodossa `true` tai `false`, ja ne hyväksytään myös liitettäessä. Uudet rivit noudattavat taulukon sarakejärjestystä ja tarvitsevat lähdetiedoston nimen tai lähdetunnisteen. Yksikäsitteinen olemassa oleva raidan nimi sijoittaa leikkeen kyseiselle raidalle; uusi nimi luo ääniraidan. Tyhjä raidan nimi käyttää lähteen nimeä. Tyhjät lukusolut saavat oletusarvot: paikka ja siirtymä `0`, nopeus `1`, sävelkorkeus ja vahvistus `0`, eikä häivytyksiä. Tyhjä kesto käyttää jäljellä olevan äänen pyydetyllä nopeudella.
+
+Paneeli etsii lähdettä ensin projektista, myös projektikorista. Jos sitä ei löydy, valitse **Lataa viitatut tiedostot** ja valitse valintaikkunassa luetellut äänitiedostot. Myös levypolut vaativat tämän tiedostovalinnan: polun liittäminen ei anna sovellukselle pääsyä tiedostoon. Valittujen tiedostojen on vastattava viitattuja nimiä yksiselitteisesti. Paneeli tuo äänen, tarkistaa lähderajat ja leikkeen ominaisuudet ja sijoittaa uudet leikkeet määritettyihin kohtiin. **Ctrl+Z** (**Cmd+Z** macOS:ssä) peruu koko liittämisen yhdellä kertaa; **Ctrl+Shift+Z** (**Cmd+Shift+Z**) tekee sen uudelleen. Jos liittäminen sisältää virheellisen arvon, leikkeet eivät muutu.
+
 ## Sekoitteen rakentaminen
 
 Käytä raidan vahvuutta, panoraamaa, mykistystä ja solo-ohjaimia projektin tasapainottamiseen.
@@ -46,6 +66,14 @@ projektin muutoksia, jotka voidaan kumota, kun historia on käytettävissä.
 
 Käytä toiston mittaria ja loudness-analyysia tuloksen tarkasteluun. Vältä mittarin
 kohdetason käyttämistä kuuntelemisen korvikkeena täydellisessä viennissä.
+
+### Kuuntele valittuja taajuuksia {#listen-to-selected-frequencies}
+
+Valitse kuunneltava kohta. Valitse raitavalikosta **Raidan visualisointi → Spektrogrammi** ja avaa sitten **Spektrogrammin asetukset → Valitse spektrin taajuusalue**. Anna minimi- ja maksimitaajuus ja valitse **Valitse alue**, tai säädä valintakahvoja spektrogrammissa.
+
+Valitse **Toiston asetukset → Toista valitut taajuudet** tai **Valitse → Spektri → Toista valitut taajuudet**. Valittu aikaväli toistetaan kerran normaalilla nopeudella, vaikka aiemmin olisi valittu toinen nopeus tai jatkuva toisto. Kuuntelusuodatin koskee nykyistä miksausta ja sen mykistys-, soolo-, vahvistus- ja tehosteasetuksia. Spektrisuorakulmio näyttää taajuuskaistan ja aikavälin, mutta ei aseta raitaa sooloon. Jos toisto on jo käynnissä, komento keskeyttää sen; valitse komento uudelleen käynnistääksesi taajuuksien kuuntelun.
+
+Reaaliaikaisten taajuussuodattimien reunat ovat pehmeät. Kaistan ulkopuoliset taajuudet hiljenevät, ja myös sen rajojen lähellä olevat taajuudet voivat hiljentyä. **Tauko** tai **Pysäytä** poistaa suodattimen, joten seuraava tavallinen toisto käyttää koko taajuusaluetta. Ääni, valinnat, kumoamishistoria ja viedyt tiedostot säilyvät ennallaan.
 
 ### Sibilanssin vähentäminen {#reduce-sibilance}
 
@@ -96,7 +124,19 @@ projektin muutos ei jätä osittaisia label-merkintöjä jäljelle.
 Valitse **File → Export audio** sekoitetun toimituksen varten tai **Export selected audio**,
 kun vain valinta tulisi renderöidä. Soundscaper voi myös viedä stemmejä ja label-merkintöjä.
 
+### Vie leikkeet erillisinä tiedostoina {#export-clips}
+
+Valitse **Tiedosto → Vie ääni** ja aseta **Tuloste** arvoon **Yksittäiset leikkeet (jaa leikkeiden mukaan)**. Valitse äänimuoto ja lataa **Vie**-painikkeella arkisto, jossa on yksi tiedosto projektin ääniraitojen kutakin äänileikettä kohti. Tiedosto alkaa leikkeen kuultavasta alusta ja päättyy kuultavaan loppuun ilman täytettä projektin aikajanaan asti tai tehosteen jälkisointia. Rajaukset, leikkeen vahvistus, häivytykset sekä nopeuden ja sävelkorkeuden muutokset sisältyvät. Päällekkäiset leikkeet pysyvät erillisinä.
+
+Tiedostot käyttävät leikkeiden nimiä numeroiduilla etuliitteillä. Tiedostonimien tuemattomat merkit korvataan, ja numerot erottavat samannimiset leikkeet. Raitatehosteet sisältyvät; master-tehosteet, mykistys ja soolo eivät vaikuta vientiin. Poista jäädytettyjen raitojen jäädytys ennen niiden muokattavien leikkeiden vientiä erikseen.
+
 Paketoitujen muotojen vienti käyttää FFmpeg-runtime-ympäristöä. Tarkat muodot ja ehdollinen
 käytettävyys on lueteltu [generoidussa muotoviitteessä](/reference/).
+
+### Upota lukumerkinnät {#embedded-chapters}
+
+Valitse selaineditorissa **Tiedosto → Vie ääni**, valitse **MP3** tai **AAC / M4A** ja ota **Upota merkinnät lukuina** käyttöön kohdassa **Ääniasetukset**. Asetus on aluksi poissa käytöstä ja lisää merkintöjen otsikot ja ajat yhteen miksattuun tiedostoon. Lisää merkinnät ennen vientiä; stemit, lukujen erottelu ja masterointijaksot eivät tarjoa tätä asetusta.
+
+Mukaan tulevat vain toimitettavan alueen kanssa leikkaavat merkinnät. Valinnan vieminen siirtää lukujen ajat tulostetun tiedoston alkuun. MP3 säilyttää aluemerkintöjen loppuajat; pistemerkintä päättyy seuraavan luvun kohdalla tai tiedoston lopussa. M4A tallentaa lukujen alut, ja kukin luku jatkuu seuraavaan alkuun tai tiedoston loppuun. M4A tukee enintään 255 lukua ja 255 UTF-8-tavua otsikkoa kohti. Upotettujen lukujen näyttäminen riippuu soittimesta.
 
 Toista viety tiedosto toisessa sovelluksessa ennen toimitusta tai lähtöaineiston poistamista.

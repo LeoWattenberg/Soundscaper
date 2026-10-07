@@ -4,7 +4,7 @@ description: "Oluşturulan sekansı doğrulayın ve teslim için MP4 ya da WebM 
 sidebar:
   order: 3
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"9225d2aa1e6da43167a90718eea5097dd9f9d42790aaee2795a3d7d74452b72e","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"9225d2aa1e6da43167a90718eea5097dd9f9d42790aaee2795a3d7d74452b72e","targetLocale":"tr"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"603de0b48d3c3e6d2688ba66a67dc28e38cee405f12901a999c6d0f75c3c5f57","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"603de0b48d3c3e6d2688ba66a67dc28e38cee405f12901a999c6d0f75c3c5f57","targetLocale":"tr"} -->
 
 ## Dışa aktarmadan önce
 
@@ -21,6 +21,14 @@ boyutları, kare hızını ve diğer seçenekleri belirleyin.
 
 Video kodlama, normal zaman çizelgesi oynatımına göre daha fazla kaynak kullanır.
 Dışa aktarma tamamlandığını bildirene kadar düzenleyiciyi açık tutun.
+
+## Ses kliplerini ayrı ayrı dışa aktarma {#export-audio-clips}
+
+**Dosya → Videoyu dışa aktar** komutunu seçin, **WAV** gibi bir ses biçimi belirleyin ve **Çıktı** ayarını **Tek tek klipler (kliplere göre böl)** yapın. Dışa aktarma, her ses klibi için bir dosya içeren arşivi indirir. Video klipleri dışarıda bırakılır; her ses dosyası kırpmalar ve klip düzenlemeleri dâhil yalnızca kendi klibini içerir.
+
+Dosyalar klibin duyulabilir başlangıcından başlar; proje konumuna kadar boşluk eklenmez ve efekt kuyruğu eklenmez. Numaralı klip adları aynı adlı klipleri birbirinden ayırır.
+
+Parça efektleri dâhildir; ana efektler, sessize alma ve solo bu dışa aktarmayı etkilemez. Ortak ses iş akışı için [Klipleri ayrı dosyalar olarak dışa aktarma](/soundscaper/edit-mix-and-export/#export-clips) bölümüne bakın.
 
 ## Çıktıyı doğrulayın
 

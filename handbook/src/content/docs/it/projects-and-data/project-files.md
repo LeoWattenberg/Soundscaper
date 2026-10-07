@@ -4,7 +4,7 @@ description: "Scegli tra la libreria locale, i file del progetto Scape, AUP4 e i
 sidebar:
   order: 2
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"5d41714fbb7c88000b3d658ba55adbe31cdf49eca365f62b8d42c3410a9a4816","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"5d41714fbb7c88000b3d658ba55adbe31cdf49eca365f62b8d42c3410a9a4816","targetLocale":"it"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"e5b0e4d73cd773ea7289ee298d5d16b6f714559350c07395753fa996b409be3b","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"e5b0e4d73cd773ea7289ee298d5d16b6f714559350c07395753fa996b409be3b","targetLocale":"it"} -->
 
 ## Libreria locale del progetto
 
@@ -12,17 +12,30 @@ L'editor salva i progetti di lavoro nella sua libreria locale. In un browser, si
 
 ## File di progetto Scape
 
-Utilizza **File → Esporta file progetto** per un progetto portatile senza perdita di dati. Ogni prodotto scrive il proprio suffisso: Soundscaper salva `.sscape` e Framescaper salva `.fscape`, e la voce del menu indica quale si applica. Il formato dietro entrambi è lo stesso, quindi è la scelta appropriata quando è necessario preservare lo stato di editing multimodale.
+Sul desktop, audio e video importati restano per impostazione predefinita riferimenti ai file originali. Quando riapri il progetto, conserva quei file nelle posizioni originali. La libreria locale memorizza anche le cache di editing. Registrazioni e media creati o elaborati vengono inclusi perché non hanno una copia originale esterna invariata.
+
+Scegli **File → Gestione progetto → Consolida media** per includere i media referenziati nel file di progetto. Il consolidamento salva subito il progetto; scegli una destinazione nella finestra di salvataggio. Dopo il salvataggio, la copia consolidata può essere spostata o condivisa senza i file multimediali originali. Se un media non può essere consolidato o il salvataggio non riesce, l’editor segnala il problema.
+
+Le esportazioni browser includono automaticamente i media. Prima di aprire nel browser un progetto desktop con riferimenti esterni, consolidalo sul desktop.
+
+
+Utilizza **File → Esporta file progetto** per salvare il progetto di editing. Ogni prodotto scrive il proprio suffisso: Soundscaper salva `.sscape` e Framescaper salva `.fscape`, e la voce del menu indica quale si applica. Il formato dietro entrambi è lo stesso, quindi è la scelta appropriata quando è necessario preservare lo stato di editing multimodale.
 
 Entrambi i prodotti aprono entrambi i suffissi. `.sscape`, `.fscape`, il riservato `.liscape` e i più vecchi file `.scape` esportati prima che i prodotti avessero i propri suffissi si aprono ovunque, e il salvataggio di uno da un prodotto diverso lo rinomina semplicemente - ad esempio, un file `Mix.sscape` salvato da Framescaper diventa `Mix.fscape`. Nulla del progetto cambia con il nome.
 
 L'importazione o l'apertura di una copia Scape può incontrare un progetto esistente con lo stesso ID. Utilizza il flusso di lavoro di copia offerto quando entrambe le versioni devono rimanere nella libreria locale.
 
-## AUP4
+## Audacity AUP3 e AUP4
 
-AUP4 esiste per uno scambio audio compatibile con Audacity. L'esportazione produce un rapporto di compatibilità che descrive le conversioni, gli effetti non disponibili e lo stato Soundscaper-only omesso.
+L’esportazione dei progetti Audacity è disponibile da **File → Esporta altro**. Scegli **Esporta AUP3** per il profilo di progetto Audacity 3.7.9 o **Esporta AUP4** per il profilo di scambio Audacity attuale. Ogni esportazione produce un rapporto di compatibilità che descrive conversioni, effetti non disponibili e stati esclusivi di Soundscaper omessi.
 
-AUP4 è solo audio. Il video viene omesso, e le preferenze del browser, la cronologia degli annullamenti, il routing del mixer e la libreria di progetti del browser non vengono trasferiti. Non utilizzare AUP4 come unica copia di backup di un progetto Soundscaper o Framescaper.
+Entrambi i formati contengono solo audio. Il video viene omesso e le preferenze del browser, la cronologia degli annullamenti, il routing del mixer e la libreria progetti del browser non vengono trasferiti. Non usare nessuno dei due come unica copia di backup di un progetto Soundscaper o Framescaper.
+
+## Adobe Audition SESX
+
+Nell’edizione desktop, usa **File → Apri** per importare una sessione Adobe Audition `.sesx`. Mantieni i file audio referenziati nella struttura di cartelle relativa sotto la cartella della sessione oppure scegli una cartella media quando richiesto. L’importazione crea un nuovo progetto locale con tracce audio, clip, posizioni, tagli, dissolvenze semplici e impostazioni statiche del mixer supportati.
+
+L’importazione SESX è unidirezionale. Effetti Audition, automazione, routing, video, marcatori, loop, stretching, dissolvenze incrociate collegate e curve di dissolvenza esatte non vengono trasferiti. Dopo l’importazione, apri **File → Rapporto di consegna** per verificare i media mancanti e gli altri contenuti omessi. Conserva il file SESX originale e i media per continuare a lavorare in Audition.
 
 ## Backup reso
 

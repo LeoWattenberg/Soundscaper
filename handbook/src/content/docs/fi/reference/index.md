@@ -4,7 +4,7 @@ description: "Luodut komennot, pikanäppäimet, muodot, efektit ja tuotteen omin
 sidebar:
   order: 1
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"b7e4df92cd36126d4ce3865383043516972e9aca463c3449b731085cafc4050e","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"b7e4df92cd36126d4ce3865383043516972e9aca463c3449b731085cafc4050e","targetLocale":"fi"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643"},"factPacketSha256":"27ac617a3293f4d301daf72bed0b9f3e9127f4516531c320703c36e7afe8658c","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"27ac617a3293f4d301daf72bed0b9f3e9127f4516531c320703c36e7afe8658c","targetLocale":"fi"} -->
 
 Viitesivut luodaan tarkastetuista ajonaikarekistereistä ja sitoutetaan
 varastoon. Ne kuvaavat toteutettua toimintaa, eivät tiekarttakohtia tai pelkkää
@@ -25,6 +25,5 @@ Käytä tätä osiota vastaamaan kysymyksiin, kuten:
 Luoduissa sivuissa on lähdeperä ja niitä tarkistetaan poikkeamien varalta
 varaston laadunvalvontavaiheessa.
 
-[Macro programs](/reference/macro-programs/) on ainoa täällä käsin kirjoitettu
-sivu. Se dokumentoi JavaScript API:n, jonka vasten makro-ohjelma ajetaan, ja
-sen väitteet ovat ne, joihin editorin omat testit sitovat hiekkalaatikon.
+Käsin kirjoitettu [Makro-ohjelmat](/reference/macro-programs/) -sivu kuvaa JavaScript-rajapinnan, jota makro-ohjelma käyttää. [Tuodun tiedoston korvaaminen työpöytäsovelluksessa
+](/reference/overwrite-original-file/) kuvaa molempien tuotteiden yhteisen Electron-tiedostokomennon. Editorin testit tarkistavat niiden toiminnan.

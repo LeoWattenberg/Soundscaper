@@ -4,7 +4,7 @@ description: "生成コマンド、ショートカット、フォーマット、
 sidebar:
   order: 1
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"b7e4df92cd36126d4ce3865383043516972e9aca463c3449b731085cafc4050e","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"b7e4df92cd36126d4ce3865383043516972e9aca463c3449b731085cafc4050e","targetLocale":"ja"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643"},"factPacketSha256":"27ac617a3293f4d301daf72bed0b9f3e9127f4516531c320703c36e7afe8658c","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"27ac617a3293f4d301daf72bed0b9f3e9127f4516531c320703c36e7afe8658c","targetLocale":"ja"} -->
 
 リファレンスページは、レビュー済みのランタイムレジストリから生成され、リポジトリにコミットされます。これらは実装された動作を記述しており、ロードマップの項目やソースファイルおよびテストの単なる存在を示すものではありません。
 
@@ -22,4 +22,5 @@ sidebar:
 
 生成されたページにはソースの出所が含まれており、リポジトリの品質ゲートでドリフトがチェックされます。
 
-[マクロプログラム](/reference/macro-programs/) は、ここで手作業で書かれた唯一のページです。これは、マクロプログラムが実行する JavaScript API を文書化しており、その主張はエディタ自身のテストがサンドボックスに課しているものです。
+手書きの[マクロプログラム](/reference/macro-programs/)ページでは、マクロプログラムが実行するJavaScript APIを説明しています。[デスクトップでインポートしたファイルを上書きする
+](/reference/overwrite-original-file/)ページでは、両製品で共通のElectronファイルコマンドを説明しています。動作はエディターのテストで確認されています。

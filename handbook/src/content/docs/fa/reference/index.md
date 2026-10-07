@@ -4,7 +4,7 @@ description: "جداول تولید شده دستورات، میانبرها، �
 sidebar:
   order: 1
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"b7e4df92cd36126d4ce3865383043516972e9aca463c3449b731085cafc4050e","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"b7e4df92cd36126d4ce3865383043516972e9aca463c3449b731085cafc4050e","targetLocale":"fa"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"27ac617a3293f4d301daf72bed0b9f3e9127f4516531c320703c36e7afe8658c","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"27ac617a3293f4d301daf72bed0b9f3e9127f4516531c320703c36e7afe8658c","targetLocale":"fa"} -->
 
 صفحات مرجع از رجیستری‌های زمان اجرا که بررسی شده‌اند، تولید می‌شوند و در مخزن متعهد می‌شوند. آن‌ها رفتار پیاده‌سازی شده را توصیف می‌کنند، نه ورودی‌های نقشه راه یا صرفاً حضور فایل‌های منبع و تست‌ها.
 
@@ -22,4 +22,5 @@ sidebar:
 
 صفحات تولید شده شامل منشأ اثبات خود هستند و در دروازه کیفیت مخزن برای انحراف بررسی می‌شوند.
 
-[برنامه‌های ماکرو](/reference/macro-programs/) تنها صفحه‌ای است که به دست نوشته شده است. این صفحه API جاوا اسکریپت را که یک برنامه ماکرو در برابر آن اجرا می‌شود، مستند می‌کند و ادعاهای آن‌ها همان‌هایی هستند که تست‌های خود ویرایشگر، سندباکس را به آن‌ها نگه می‌دارد.
+صفحهٔ دست‌نویس [برنامه‌های ماکرو](/reference/macro-programs/) رابط JavaScript را که یک برنامهٔ ماکرو با آن اجرا می‌شود مستند می‌کند. صفحهٔ [بازنویسی فایل واردشده در دسکتاپ
+](/reference/overwrite-original-file/) فرمان فایل Electron مشترک میان هر دو محصول را توضیح می‌دهد. آزمون‌های ویرایشگر رفتار این موارد را بررسی می‌کنند.

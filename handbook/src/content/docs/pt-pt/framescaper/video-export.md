@@ -4,7 +4,7 @@ description: "Validar a sequência composta e criar uma entrega MP4 ou WebM."
 sidebar:
   order: 3
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"9225d2aa1e6da43167a90718eea5097dd9f9d42790aaee2795a3d7d74452b72e","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"9225d2aa1e6da43167a90718eea5097dd9f9d42790aaee2795a3d7d74452b72e","targetLocale":"pt-PT"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"603de0b48d3c3e6d2688ba66a67dc28e38cee405f12901a999c6d0f75c3c5f57","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"603de0b48d3c3e6d2688ba66a67dc28e38cee405f12901a999c6d0f75c3c5f57","targetLocale":"pt-PT"} -->
 
 ## Antes de exportar
 
@@ -18,6 +18,14 @@ sidebar:
 Abra o diálogo de exportação e selecione um formato de vídeo. O Framescaper suporta a entrega de MP4 e WebM através do tempo de execução de vídeo configurado. Escolha as dimensões, taxa de quadros e outras opções adequadas ao destino.
 
 A codificação de vídeo é mais intensiva em recursos do que a reprodução normal da linha do tempo. Mantenha o editor aberto até que a exportação relate a conclusão.
+
+## Exportar clips de áudio em separado {#export-audio-clips}
+
+Escolha **Ficheiro → Exportar vídeo**, selecione um formato de áudio como **WAV** e defina **Saída** como **Clips individuais (dividir por clip)**. A exportação transfere um arquivo com um ficheiro por cada clip de áudio. Os clips de vídeo são excluídos e cada ficheiro de áudio contém apenas o respetivo clip, incluindo cortes e edições.
+
+Os ficheiros começam no início audível do clip, sem preenchimento até à posição no projeto nem cauda de efeito. Os nomes numerados distinguem clips com o mesmo nome.
+
+Os efeitos da faixa são incluídos; os efeitos principais, o silêncio e o solo não afetam esta exportação. Consulte o fluxo de áudio comum em [Exportar clips como ficheiros separados](/soundscaper/edit-mix-and-export/#export-clips).
 
 ## Verificar a entrega
 

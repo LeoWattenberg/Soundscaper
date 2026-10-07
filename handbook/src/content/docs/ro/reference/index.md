@@ -4,7 +4,7 @@ description: "Comenzi generate, comenzi rapide, formate, efecte și tabele de ca
 sidebar:
   order: 1
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"b7e4df92cd36126d4ce3865383043516972e9aca463c3449b731085cafc4050e","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"b7e4df92cd36126d4ce3865383043516972e9aca463c3449b731085cafc4050e","targetLocale":"ro"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"27ac617a3293f4d301daf72bed0b9f3e9127f4516531c320703c36e7afe8658c","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"27ac617a3293f4d301daf72bed0b9f3e9127f4516531c320703c36e7afe8658c","targetLocale":"ro"} -->
 
 Pagini de referință sunt generate din registre de execuție revizuite și adăugate în
 depozit. Acestea descriu comportamentul implementat, nu intrările din foaia de parcurs sau
@@ -25,6 +25,5 @@ Utilizați această secțiune pentru a răspunde la întrebări precum:
 Pagini generate includ originea lor și sunt verificate pentru divergență în
 gate-ul de calitate al depozitului.
 
-[Programe macro](/reference/macro-programs/) este singura pagină de aici scrisă manual.
-Aceasta documentează API-ul JavaScript pe care un program macro rulează și afirmațiile sale
-sunt cele la care sandbox-ul editorului propriu-zis este supus în testele sale.
+Pagina scrisă manual [Programe macro](/reference/macro-programs/) documentează API-ul JavaScript folosit de un program macro. [Suprascrierea unui fișier importat pe desktop
+](/reference/overwrite-original-file/) descrie comanda File din Electron, comună ambelor produse. Testele editorului verifică comportamentul acestora.

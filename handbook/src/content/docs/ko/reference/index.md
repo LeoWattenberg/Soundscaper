@@ -4,7 +4,7 @@ description: "생성된 명령어, 단축키, 형식, 효과 및 제품 기능 �
 sidebar:
   order: 1
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"b7e4df92cd36126d4ce3865383043516972e9aca463c3449b731085cafc4050e","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"b7e4df92cd36126d4ce3865383043516972e9aca463c3449b731085cafc4050e","targetLocale":"ko"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"27ac617a3293f4d301daf72bed0b9f3e9127f4516531c320703c36e7afe8658c","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"27ac617a3293f4d301daf72bed0b9f3e9127f4516531c320703c36e7afe8658c","targetLocale":"ko"} -->
 
 참조 페이지는 검토된 런타임 레지스트리에서 생성되고 저장소에 커밋됩니다. 이는 로드맵 항목이나 소스 파일 및 테스트의 단순한 존재가 아닌 구현된 동작을 설명합니다.
 
@@ -22,4 +22,5 @@ sidebar:
 
 생성된 페이지에는 소스 출처가 포함되며, 저장소 품질 게이트에서 드리프트가 확인됩니다.
 
-[매크로 프로그램](/reference/macro-programs/)은 여기에서 수동으로 작성된 유일한 페이지입니다. 이는 매크로 프로그램이 실행하는 JavaScript API를 문서화하며, 그 주장은 편집기의 자체 테스트가 샌드박스를 준수하는 것입니다.
+직접 작성한 [매크로 프로그램](/reference/macro-programs/) 페이지는 매크로 프로그램이 사용하는 JavaScript API를 설명합니다. [데스크톱에서 가져온 파일 덮어쓰기
+](/reference/overwrite-original-file/) 페이지는 두 제품이 공유하는 Electron 파일 명령을 설명합니다. 편집기 테스트에서 동작을 확인합니다.

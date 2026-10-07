@@ -2,11 +2,13 @@
 title: "Procesamento local, modelos e complementos"
 description: "Atopa asistencia local por tarefa e xestiona modelos e complementos nos editores de escritorio."
 ---
-<!-- docs-ai-provenance: {"model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"922fb6c279e1a4499967f68b55d60fdc332bb1b2bd3144cff2f87824add1b7b7","targetLocale":"gl"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"gpt-5.6-luna"},"factPacketSha256":"3d10714b7e0afaab240d9230f29a67dcdf7089d196b03baabfac75729296e82f","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"3d10714b7e0afaab240d9230f29a67dcdf7089d196b03baabfac75729296e82f","targetLocale":"gl"} -->
 
 A asistencia local execútase no teu dispositivo nos editores de escritorio Soundscaper e Framescaper. Selecciona medios e escolle a tarefa no seu menú. O diálogo mostra a selección, os axustes da tarefa e se os seus modelos están instalados.
 
-Os paquetes de escritorio inclúen os motores nativos de procesamento para os modelos locais publicados. Instala os pesos dos modelos mediante Model Manager e executa a tarefa nos medios seleccionados. Consulta a [guía](/reference/local-models/) de cada modelo para coñecer as plataformas compatibles, a entrada de menú e os requisitos.
+Os paquetes de escritorio non inclúen os motores nativos de procesamento opcionais nin os pesos dos modelos. Instala un modelo mediante o Xestor de modelos para descargar o motor e os pesos que precisa e, despois, executa a tarefa nos medios seleccionados. A primeira instalación require conexión á rede; os procesamentos posteriores execútanse localmente. Consulta a guía de cada modelo para ver as plataformas compatibles, a entrada do menú e os requisitos.
+
+Consulta as [guías de modelos individuais](/reference/local-models/).
 
 ## Atopar unha tarefa {#find-a-task}
 
@@ -32,7 +34,7 @@ Escolle **Run locally** para iniciar o procesamento e responde á solicitude de 
 
 Abre **Tools → Model Manager** ou usa **Manage Models** dentro dunha tarefa. A ligazón da tarefa filtra a lista para mostrar identidades de modelos compatibles; **Show all models** elimina esa restrición. Busca por nome ou tarefa e filtra polo estado de instalación.
 
-Instala os modelos explicitamente. As descargas mostran o progreso e pódense cancelar. Volver a unha tarefa conserva os seus axustes e actualiza a dispoñibilidade do modelo; non inicia o procesamento. Expande **Storage and verification** para reparar, limpar, trasladar o almacenamento, ver avisos de licenza e instalar sen conexión desde un cartafol.
+Instala os modelos de xeito explícito. A primeira instalación tamén descarga o entorno de execución nativo compartido que lle falte ao modelo. As descargas mostran o progreso e pódense cancelar. Ao volver a unha tarefa, mantéñense os seus axustes e actualízase a dispoñibilidade dos modelos, mais non comeza o procesamento. Abre **Almacenamento e verificación** para reparar, limpar, mover o almacenamento, consultar avisos de licenza e instalar sen conexión desde un cartafol. Un modelo instalado desde ficheiros sen conexión tamén precisa o seu entorno correspondente antes do primeiro uso.
 
 Consulta as [guías individuais dos modelos](/reference/local-models/) para coñecer o propósito, a entrada de menú, o tamaño da descarga, os requisitos e as limitacións de cada modelo publicado, así como as comprobacións de inferencia real realizadas polo paquete de escritorio nocturno con probas.
 

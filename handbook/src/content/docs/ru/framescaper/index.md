@@ -4,7 +4,7 @@ description: "Организуйте видео, создайте компози
 sidebar:
   order: 1
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"fe5df8f699907289847a5d9022c094e32168b502a532ebdf7708436a99db38b7","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"fe5df8f699907289847a5d9022c094e32168b502a532ebdf7708436a99db38b7","targetLocale":"ru"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"47cebc3006e44dba5569ea0c1418001989dccf3730c3421c338c340222a9c5af","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"47cebc3006e44dba5569ea0c1418001989dccf3730c3421c338c340222a9c5af","targetLocale":"ru"} -->
 
 Framescaper — это ориентированный на видео вид общего редактора. Он делает акцент на предварительном просмотре видео, мониторинге источника, эффектах изображения, компоновке, вложенных последовательностях и работе с несколькими камерами.
 
@@ -22,6 +22,6 @@ Soundscaper отвечает за звук: запись звука, эффек�
 2. [Подготовьте и экспортируйте видео](/framescaper/video-export/).
 3. Обратите внимание на [поведение файлов проекта и резервного копирования](/projects-and-data/project-files/).
 
-Откройте браузерный редактор по адресу [soundscaper.org/framescaper/en](https://soundscaper.org/framescaper/en/).
+Откройте браузерный редактор по адресу [framescaper.org/en](https://framescaper.org/en/).
 
 Для помощи на рабочем столе, см. [местную обработку, модели и плагины](/help/local-processing/).

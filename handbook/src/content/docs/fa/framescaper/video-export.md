@@ -4,7 +4,7 @@ description: "تأیید توالی ترکیب‌شده و ایجاد خروجی
 sidebar:
   order: 3
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"9225d2aa1e6da43167a90718eea5097dd9f9d42790aaee2795a3d7d74452b72e","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"9225d2aa1e6da43167a90718eea5097dd9f9d42790aaee2795a3d7d74452b72e","targetLocale":"fa"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643"},"factPacketSha256":"603de0b48d3c3e6d2688ba66a67dc28e38cee405f12901a999c6d0f75c3c5f57","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"603de0b48d3c3e6d2688ba66a67dc28e38cee405f12901a999c6d0f75c3c5f57","targetLocale":"fa"} -->
 
 ## پیش از خروجی گرفتن
 
@@ -19,6 +19,14 @@ sidebar:
 
 کدگذاری ویدیو نسبت به پخش معمولی تایم‌لاین، مصرف منابع بیشتری دارد.
 ویرایشگر را باز نگه دارید تا زمانی که خروجی گزارش تکمیل را ارائه دهد.
+
+## صادر کردن جداگانهٔ کلیپ‌های صوتی {#export-audio-clips}
+
+**File → Export video** را انتخاب کنید، قالب صوتی مانند **WAV** برگزینید و **Output** را روی **Individual clips (split by clips)** بگذارید. صادرات آرشیوی را بارگیری می‌کند که برای هر کلیپ صوتی یک فایل دارد. کلیپ‌های ویدیویی حذف می‌شوند و هر فایل صوتی فقط شامل کلیپ خودش، همراه با برش‌ها و ویرایش‌های آن است.
+
+فایل‌ها از آغاز شنیدنی کلیپ شروع می‌شوند و تا موقعیت آن در پروژه پر نمی‌شوند و دنبالهٔ افکت نیز ندارند. پیشوندهای شماره‌دار نام کلیپ‌های تکراری را از هم متمایز می‌کند.
+
+افکت‌های ترک در خروجی هستند؛ افکت‌های اصلی، بی‌صداکردن و تک‌نوازی بر این صادرات اثری ندارند. برای روند مشترک صوتی، [صادر کردن کلیپ‌ها به‌صورت فایل‌های جداگانه](/soundscaper/edit-mix-and-export/#export-clips) را ببینید.
 
 ## تأیید تحویل
 

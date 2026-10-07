@@ -4,7 +4,7 @@ description: "Organiseer video's, componeer afbeeldingen en lever een lokaal-eer
 sidebar:
   order: 1
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"fe5df8f699907289847a5d9022c094e32168b502a532ebdf7708436a99db38b7","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"fe5df8f699907289847a5d9022c094e32168b502a532ebdf7708436a99db38b7","targetLocale":"nl"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"47cebc3006e44dba5569ea0c1418001989dccf3730c3421c338c340222a9c5af","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"47cebc3006e44dba5569ea0c1418001989dccf3730c3421c338c340222a9c5af","targetLocale":"nl"} -->
 
 Framescaper is het videogerichte zicht van de gedeelde editor. Het benadrukt videovoorvertoning, bronbewaking, beeld-effecten, compositing, geneste sequenties en multicamera-werk.
 
@@ -22,6 +22,6 @@ Soundscaper beheert geluid: audioproduktie, effecten en analyse, mixen en audiol
 2. [Bereid en exporteer video](/framescaper/video-export/).
 3. Bekijk [projectbestands- en back-upgedrag](/projects-and-data/project-files/).
 
-Open de browser-editor op [soundscaper.org/framescaper/en](https://soundscaper.org/framescaper/en/).
+Open de browser-editor op [framescaper.org/en](https://framescaper.org/en/).
 
 Voor desktopondersteuning, zie [lokale verwerking, modellen en plug-ins](/help/local-processing/).

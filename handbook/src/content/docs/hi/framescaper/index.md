@@ -4,7 +4,7 @@ description: "वीडियो को व्यवस्थित करें
 sidebar:
   order: 1
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"fe5df8f699907289847a5d9022c094e32168b502a532ebdf7708436a99db38b7","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"fe5df8f699907289847a5d9022c094e32168b502a532ebdf7708436a99db38b7","targetLocale":"hi"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"47cebc3006e44dba5569ea0c1418001989dccf3730c3421c338c340222a9c5af","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"47cebc3006e44dba5569ea0c1418001989dccf3730c3421c338c340222a9c5af","targetLocale":"hi"} -->
 
 फ्रेम्स्केपर साझा एडिटर का वीडियो-केंद्रित दृश्य है। यह वीडियो प्रीव्यू पर जोर देता है, स्रोत निगरानी, पिक्चर प्रभाव, कंपोजिटिंग, नेस्टेड सीक्वेंसेज़ और मल्टीकैमरा कार्य।
 
@@ -22,6 +22,6 @@ sidebar:
 2. [वीडियो तैयार करें और निर्यात करें](/framescaper/video-export/)।
 3. [प्रोजेक्ट फ़ाइल और बैकअप व्यवहार](/projects-and-data/project-files/) की समीक्षा करें।
 
-ब्राउज़र एडिटर को [soundscaper.org/framescaper/en](https://soundscaper.org/framescaper/en/) पर खोलें।
+ब्राउज़र एडिटर को [framescaper.org/en](https://framescaper.org/en/) पर खोलें।
 
 डेस्कटॉप सहायता के लिए, [स्थानीय प्रसंस्करण, मॉडल और प्लगइन्स](/help/local-processing/) देखें।

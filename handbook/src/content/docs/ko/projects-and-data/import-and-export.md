@@ -4,7 +4,7 @@ description: "소스 미디어, 프로젝트 파일, 교환 파일 및 렌더링
 sidebar:
   order: 1
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"feaac1449bd0cf8c68e4a6c1b9805972644cd6e992ca79c8e5415a0b8cb086f9","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"feaac1449bd0cf8c68e4a6c1b9805972644cd6e992ca79c8e5415a0b8cb086f9","targetLocale":"ko"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"3f5177c4b9d2b9549b4bf8cbf01df1df0c6e68287767f34bc5d1c40d69996e0c","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"3f5177c4b9d2b9549b4bf8cbf01df1df0c6e68287767f34bc5d1c40d69996e0c","targetLocale":"ko"} -->
 
 사운드스케이퍼는 다양한 작업에 다른 파일 유형을 사용합니다.
 
@@ -14,16 +14,17 @@ sidebar:
 
 미디어 가져오기는 프로젝트가 소유한 소스를 추가합니다. 원래 파일을 편집 가능한 프로젝트 문서로 만드는 것은 아닙니다.
 
-압축 오디오 가져오기 및 내보내기는 최대 1시간 또는 1GB(1,000,000,000 파일 바이트)까지 지원하며, 먼저 도달하는 제한이 적용됩니다. 1시간 48kHz 스테레오 파일은 파일 제한에 맞을 경우 지원됩니다. 긴 작업은 읽기, 인코딩 및 저장을 조각으로 수행하며, 큰 브라우저 내보내기는 원본 개인 파일 저장소와 충분한 자유 공간이 필요합니다. 큰 가져오기는 디코딩된 오디오를 저장하기 위해 지속적인 로컬 저장을 필요로 합니다. PCM 형식은 별도의 제한을 유지합니다.
+압축 오디오 내보내기와 브라우저 가져오기는 최대 1시간 또는 1GB(1,000,000,000 파일 바이트)까지 지원하며, 먼저 도달하는 제한이 적용됩니다. 데스크톱에서 파일을 선택하거나 압축 오디오를 가져올 때는 안전한 정수 범위 아래에서 파일 크기나 재생 시간에 고정 제한이 없습니다. 긴 작업은 데이터를 나누어 읽고 인코딩하고 저장합니다. 대용량 브라우저 내보내기에는 원본 전용 파일 저장소와 충분한 여유 공간이 필요합니다. 대용량 가져오기에는 디코딩된 오디오를 위한 충분한 로컬 저장 공간이 필요합니다. 형식 구조, 디코더 지원 및 사용 가능한 저장 공간도 가져오기를 제한할 수 있습니다.
 
-브라우저 계층은 MP3, MP2, FLAC, WavPack, Opus 및 Ogg Vorbis를 포함합니다. 브라우저 AAC/M4A 지원은 브라우저 코덱에 따라 다릅니다. 데스크톱 스트리밍 내보내기는 번들된 6가지 형식 모두를 지원하며, 24비트 FLAC 및 float32 손실 없는 WavPack을 포함합니다. 데스크톱 가져오기는 기본 디코더의 가용성에 따라 달라지며, MP2는 더 작은 유틸리티 호환성 계층을 사용합니다. 데스크톱 AAC 및 호환성 공급자는 별도의 제한을 유지합니다.
+브라우저 계층은 MP3, MP2, FLAC, WavPack, Opus 및 Ogg Vorbis를 포함합니다. 브라우저 AAC/M4A 지원은 브라우저 코덱에 따라 다릅니다. 데스크톱 스트리밍 내보내기는 번들된 6가지 형식과 24비트 FLAC 및 float32 무손실 WavPack을 지원합니다. 데스크톱 가져오기는 디코더의 가용성에 따라 달라집니다. 큰 MP2 소스는 패킷 디코더를 사용하고 작은 MP2 소스는 유틸리티 호환성 계층을 사용합니다.
 
 활성 작업은 **보기 → 상태 표시줄**이 숨겨져 있더라도 진행률 표시줄을 표시합니다. 진행률 표시줄 옆에 **취소**를 선택하여 가져오기 또는 오디오 내보내기를 중지합니다.
 
 ## 편집 가능한 프로젝트 파일
 
 - Scape(사운드스케이퍼에서 `.sscape`, 프레임스케이퍼에서 `.fscape` 및 두 애플리케이션 모두에서 열 수 있음)는 사운드스케이퍼와 프레임스케이퍼가 공유하는 휴대용, 풀 피델리티 프로젝트 형식입니다.
-- AUP4는 Audacity와의 오디오 전용 교환 형식입니다. 이는 혼합 미디어 사운드스케이퍼 프로젝트의 전체 백업이 아닙니다.
+- AUP3와 AUP4는 Audacity와 오디오를 교환할 수 있습니다. Audacity 3.7.9 프로젝트 프로필에는 AUP3을, 현재 교환 프로필에는 AUP4를 선택합니다. 둘 다 혼합 미디어 Soundscaper 프로젝트의 전체 백업은 아니므로 내보낸 후 호환성 보고서를 확인하세요.
+- 데스크톱 에디션은 Adobe Audition SESX (`.sesx`) 세션을 열어 참조된 오디오 파일로 로컬 프로젝트를 만들 수 있습니다. 원본 세션과 미디어를 보관하세요. SESX 내보내기는 지원하지 않습니다.
 
 [프로젝트 파일](/projects-and-data/project-files/)을 참조하여 각 선택의 결과를 확인하세요.
 

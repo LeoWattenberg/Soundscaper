@@ -4,7 +4,7 @@ description: "排列视频，合成图像，并交付本地优先的视频项目
 sidebar:
   order: 1
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"fe5df8f699907289847a5d9022c094e32168b502a532ebdf7708436a99db38b7","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"fe5df8f699907289847a5d9022c094e32168b502a532ebdf7708436a99db38b7","targetLocale":"zh-CN"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"47cebc3006e44dba5569ea0c1418001989dccf3730c3421c338c340222a9c5af","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"47cebc3006e44dba5569ea0c1418001989dccf3730c3421c338c340222a9c5af","targetLocale":"zh-CN"} -->
 
 Framescaper 是共享编辑器的视频专注视图。它强调视频
 预览、源监控、图像效果、合成、嵌套序列和多摄像机工作。
@@ -34,6 +34,6 @@ Soundscaper 的音频录音工具集，因此请在 Soundscaper 中进行录音�
 3. 查看 [项目文件和备份行为](/projects-and-data/project-files/)。
 
 在浏览器编辑器中打开
-[soundscaper.org/framescaper/en](https://soundscaper.org/framescaper/en/)。
+[framescaper.org/en](https://framescaper.org/en/)。
 
 有关桌面辅助功能，请参阅 [本地处理、模型和插件](/help/local-processing/)。

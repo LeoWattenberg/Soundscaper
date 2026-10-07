@@ -4,7 +4,7 @@ description: "Створюйте відео, складайте зображен
 sidebar:
   order: 1
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"fe5df8f699907289847a5d9022c094e32168b502a532ebdf7708436a99db38b7","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"fe5df8f699907289847a5d9022c094e32168b502a532ebdf7708436a99db38b7","targetLocale":"uk"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"47cebc3006e44dba5569ea0c1418001989dccf3730c3421c338c340222a9c5af","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"47cebc3006e44dba5569ea0c1418001989dccf3730c3421c338c340222a9c5af","targetLocale":"uk"} -->
 
 Framescaper — це орієнтований на відео вигляд спільного редактора. Він наголошує на попередньому перегляді відео, моніторингу джерела, графічних ефектах, композитингу, вкладених послідовностях та роботі з багатокамерними системами.
 
@@ -23,6 +23,6 @@ Soundscaper відповідає за звук: аудіо запис, ефек�
 3. Перегляньте [поведінку файлів проекту та резервного копіювання](/projects-and-data/project-files/).
 
 Відкрийте браузерний редактор за адресою
-[soundscaper.org/framescaper/en](https://soundscaper.org/framescaper/en/).
+[framescaper.org/en](https://framescaper.org/en/).
 
 Для допомоги з настільним комп'ютером, дивіться [місцеву обробку, моделі та плагіни](/help/local-processing/).

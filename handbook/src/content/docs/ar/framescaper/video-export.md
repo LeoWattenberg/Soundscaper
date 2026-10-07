@@ -4,7 +4,7 @@ description: "تحقق من تسلسل التكوين وإنشاء ملف MP4 أ
 sidebar:
   order: 3
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"9225d2aa1e6da43167a90718eea5097dd9f9d42790aaee2795a3d7d74452b72e","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"9225d2aa1e6da43167a90718eea5097dd9f9d42790aaee2795a3d7d74452b72e","targetLocale":"ar"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"603de0b48d3c3e6d2688ba66a67dc28e38cee405f12901a999c6d0f75c3c5f57","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"603de0b48d3c3e6d2688ba66a67dc28e38cee405f12901a999c6d0f75c3c5f57","targetLocale":"ar"} -->
 
 ## قبل التصدير
 
@@ -18,6 +18,14 @@ sidebar:
 افتح حوار التصدير واختر تنسيق فيديو. يدعم Framescaper MP4 وWebM التسليم من خلال وقت تشغيل الفيديو المكون. اختر الأبعاد، ومعدل الإطارات، والخيارات الأخرى المناسبة للوجهة.
 
 ترميز الفيديو أكثر كثافة في الموارد من تشغيل الخط الزمني العادي. ابقِ المحرر مفتوحًا حتى يبلغ التصدير عن اكتماله.
+
+## تصدير المقاطع الصوتية بصورة منفصلة {#export-audio-clips}
+
+اختر **ملف → تصدير الفيديو**، وحدد تنسيقًا صوتيًا مثل **WAV**، واجعل **الإخراج** **مقاطع فردية (تقسيم حسب المقاطع)**. ينزّل التصدير أرشيفًا يحتوي على ملف لكل مقطع صوتي. تُستبعد مقاطع الفيديو، ويحتوي كل ملف صوتي على المقطع الخاص به فقط، بما في ذلك القصّات وتعديلات المقطع.
+
+تبدأ الملفات من أول صوت مسموع للمقطع، دون حشو حتى موضعه في المشروع أو ذيل للمؤثر. وتُبقي أسماء المقاطع المرقّمة الأسماء المتكررة مميزة.
+
+تُضمّن مؤثرات المسار؛ ولا يؤثر مؤثرا المسار الرئيسي أو كتم الصوت أو العزل على هذا التصدير. راجع [تصدير المقاطع كملفات منفصلة](/soundscaper/edit-mix-and-export/#export-clips) لسير عمل الصوت المشترك.
 
 ## التحقق من التسليم
 

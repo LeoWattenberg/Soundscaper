@@ -4,7 +4,7 @@ description: "Գեներացված հրամաններ, կարճ ճանապարհ
 sidebar:
   order: 1
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"b7e4df92cd36126d4ce3865383043516972e9aca463c3449b731085cafc4050e","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"b7e4df92cd36126d4ce3865383043516972e9aca463c3449b731085cafc4050e","targetLocale":"hy"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643"},"factPacketSha256":"27ac617a3293f4d301daf72bed0b9f3e9127f4516531c320703c36e7afe8658c","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"27ac617a3293f4d301daf72bed0b9f3e9127f4516531c320703c36e7afe8658c","targetLocale":"hy"} -->
 
 Ծանոթագրող էջերը ստեղծվում են ստուգված ռաունթայմ ռեեստրերից և հանձնվում են պահոցին։ Դրանք նկարագրում են իրականացված վարքագիծը, ոչ թե ծրագրային քարտեզի մուտքերը կամ աղբյուրային ֆայլերի և փորձարկումների պարզապես առկայությունը։
 
@@ -22,4 +22,5 @@ sidebar:
 
 Կազմված էջերը ներառում են իրենց աղբյուրի ծագումը և ստուգվում են շեղումների համար պահոցի որակի դարպասում։
 
-[Մակրո ծրագրեր](/reference/macro-programs/) այստեղ միակ էջն է, որը գրված է ձեռքով։ Այն փաստաթղթավորում է JavaScript API-ն, որի նկատմամբ գործարկվում է մակրո ծրագիրը, և դրա պնդումները նույնքան են, որքան խմբագրի իսկական փորձարկումները պահում են ավտոնոմ փորձարկման միջավայրը։
+Ձեռքով գրված [Մակրո ծրագրեր](/reference/macro-programs/) էջը փաստագրում է JavaScript API-ն, որով աշխատում է մակրո ծրագիրը։ [Սեղանի հավելվածում ներմուծված ֆայլի վերագրում
+](/reference/overwrite-original-file/) էջը նկարագրում է երկու արտադրանքների ընդհանուր Electron ֆայլի հրամանը։ Խմբագրիչի թեստերը ստուգում են դրանց վարքը։

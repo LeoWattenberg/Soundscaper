@@ -4,7 +4,7 @@ description: "Organize vídeos, compõe imagens e entregue um projeto de vídeo 
 sidebar:
   order: 1
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"fe5df8f699907289847a5d9022c094e32168b502a532ebdf7708436a99db38b7","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"fe5df8f699907289847a5d9022c094e32168b502a532ebdf7708436a99db38b7","targetLocale":"pt-BR"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"47cebc3006e44dba5569ea0c1418001989dccf3730c3421c338c340222a9c5af","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"47cebc3006e44dba5569ea0c1418001989dccf3730c3421c338c340222a9c5af","targetLocale":"pt-BR"} -->
 
 Framescaper é a visualização focada em vídeo do editor compartilhado. Ele enfatiza a pré-visualização de vídeo, monitoramento de fonte, efeitos de imagem, composição, sequências aninhadas e trabalho multicâmera.
 
@@ -22,6 +22,6 @@ Soundscaper gerencia o som: gravação de áudio, efeitos e análise, mixagem e 
 2. [Prepare e exporte o vídeo](/framescaper/video-export/).
 3. Revise o comportamento de [arquivo de projeto e backup](/projects-and-data/project-files/).
 
-Abra o editor do navegador em [soundscaper.org/framescaper/en](https://soundscaper.org/framescaper/en/).
+Abra o editor do navegador em [framescaper.org/en](https://framescaper.org/en/).
 
 Para assistência de desktop, consulte [processamento local, modelos e plugins](/help/local-processing/).

@@ -2,11 +2,13 @@
 title: "本機處理、模型和外掛程式"
 description: "依工作尋找本機協助功能，並在桌面版編輯器中管理模型和外掛程式。"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"922fb6c279e1a4499967f68b55d60fdc332bb1b2bd3144cff2f87824add1b7b7","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"922fb6c279e1a4499967f68b55d60fdc332bb1b2bd3144cff2f87824add1b7b7","targetLocale":"zh-TW"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"3d10714b7e0afaab240d9230f29a67dcdf7089d196b03baabfac75729296e82f","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"3d10714b7e0afaab240d9230f29a67dcdf7089d196b03baabfac75729296e82f","targetLocale":"zh-TW"} -->
 
 Soundscaper 和 Framescaper 桌面版編輯器會在您的裝置上執行本機協助功能。選取媒體，然後從選單中選擇工作。對話框會顯示所選內容、工作設定，以及所需模型是否已安裝。
 
-桌面版套件包含已發布本機模型的原生處理引擎。請透過 Model Manager 安裝模型權重，然後對所選媒體執行工作。每個模型的[指南](/reference/local-models/)都列出支援的平台、選單項目和要求。
+桌面安裝套件不包含選用的原生處理引擎和模型權重。請透過模型管理員安裝模型，以下載所需的引擎和權重，然後對選取的媒體執行工作。首次安裝需要網路連線；之後的處理會在本機執行。各模型指南列出支援的平台、選單項目和需求。
+
+詳細內容請參閱 [各模型指南](/reference/local-models/).
 
 ## 尋找工作 {#find-a-task}
 
@@ -32,7 +34,7 @@ Soundscaper 和 Framescaper 桌面版編輯器會在您的裝置上執行本機�
 
 開啟 **Tools → Model Manager**，或在工作中使用 **Manage Models**。工作中的連結會將清單篩選為相容的模型；**Show all models** 會清除篩選。可依名稱或工作搜尋，也可依安裝狀態篩選。
 
-請明確安裝模型。下載時會顯示進度，也可以取消。返回工作時會保留工作設定並更新模型可用性，但不會開始處理。展開 **Storage and verification** 可執行修復、清理、儲存位置移轉、查看授權聲明，以及從資料夾進行離線安裝。
+請明確安裝模型。首次安裝也會下載模型所需但尚未安裝的共用原生執行階段。下載會顯示進度，也可以取消。返回工作時，原有設定會保留，模型可用狀態會更新；處理不會因此啟動。展開**儲存與驗證**可進行修復、清理、搬移儲存位置、查看授權通知，以及從資料夾離線安裝。透過離線檔案安裝的模型在首次使用前仍需要相符的執行階段。
 
 請參閱[各模型指南](/reference/local-models/)，了解每個已發布模型的用途、選單項目、下載大小、要求、限制，以及 nightly-with-tests 桌面版套件執行的實際推論檢查。
 

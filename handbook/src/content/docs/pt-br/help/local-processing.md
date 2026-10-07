@@ -2,11 +2,13 @@
 title: "Processamento local, modelos e plugins"
 description: "Encontre assistência local por tarefa e gerencie modelos e plugins nos editores de desktop."
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"922fb6c279e1a4499967f68b55d60fdc332bb1b2bd3144cff2f87824add1b7b7","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"922fb6c279e1a4499967f68b55d60fdc332bb1b2bd3144cff2f87824add1b7b7","targetLocale":"pt-BR"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"3d10714b7e0afaab240d9230f29a67dcdf7089d196b03baabfac75729296e82f","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"3d10714b7e0afaab240d9230f29a67dcdf7089d196b03baabfac75729296e82f","targetLocale":"pt-BR"} -->
 
 A assistência local é executada no seu dispositivo nos editores de desktop Soundscaper e Framescaper. Selecione a mídia, depois escolha a tarefa no seu menu. O diálogo mostra a seleção, as configurações da tarefa e se os modelos estão instalados.
 
-Os pacotes de desktop incluem os motores de processamento nativos para os modelos locais publicados. Instale os pesos do modelo através do Gerenciador de Modelos e, em seguida, execute a tarefa na mídia selecionada. Consulte o guia de cada modelo [guia](/reference/local-models/) para suas plataformas, entrada de menu e requisitos suportados.
+Os pacotes para desktop não incluem os mecanismos nativos opcionais de processamento nem os pesos dos modelos. Instale um modelo pelo Gerenciador de modelos para baixar o mecanismo e os pesos necessários e, em seguida, execute a tarefa na mídia selecionada. A primeira instalação exige conexão de rede; os processamentos seguintes são locais. Consulte o guia de cada modelo para ver as plataformas compatíveis, a opção de menu e os requisitos.
+
+Consulte os [guias individuais dos modelos](/reference/local-models/).
 
 ## Encontrar uma tarefa {#find-a-task}
 
@@ -32,7 +34,7 @@ Escolha **Executar localmente** para iniciar o processamento e responder ao prom
 
 Abra **Ferramentas → Gerenciador de Modelos** ou use **Gerenciar Modelos** dentro de uma tarefa. O link da tarefa filtra a lista para identidades de modelo compatíveis; **Mostrar todos os modelos** limpa essa restrição. Pesquise por nome ou tarefa e filtre pelo status de instalação.
 
-Instale os modelos explicitamente. Os downloads mostram o progresso e podem ser cancelados. Retornar a uma tarefa preserva suas configurações e atualiza a disponibilidade do modelo; não inicia o processamento. Expanda **Armazenamento e verificação** para reparo, limpeza, realocação de armazenamento, avisos de licença e instalação offline de uma pasta.
+Instale os modelos explicitamente. A primeira instalação também baixa o runtime nativo compartilhado que estiver faltando e for necessário ao modelo. Os downloads mostram o progresso e podem ser cancelados. Ao voltar a uma tarefa, as configurações são mantidas e a disponibilidade dos modelos é atualizada; o processamento não começa. Expanda **Armazenamento e verificação** para reparo, limpeza, realocação do armazenamento, avisos de licença e instalação offline por uma pasta. Um modelo instalado por arquivos offline ainda precisa do runtime correspondente antes do primeiro uso.
 
 Consulte os [guias de modelo individuais](/reference/local-models/) para o propósito, entrada de menu, tamanho do download, requisitos, limitações e verificações de inferência reais realizadas pelo pacote de desktop noturno-com-testes de cada modelo publicado.
 

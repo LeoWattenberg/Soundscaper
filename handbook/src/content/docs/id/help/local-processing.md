@@ -2,11 +2,13 @@
 title: "Pemrosesan lokal, model, dan plugin"
 description: "Temukan bantuan lokal berdasarkan tugas dan kelola model serta plugin di editor desktop."
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"922fb6c279e1a4499967f68b55d60fdc332bb1b2bd3144cff2f87824add1b7b7","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"922fb6c279e1a4499967f68b55d60fdc332bb1b2bd3144cff2f87824add1b7b7","targetLocale":"id"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"3d10714b7e0afaab240d9230f29a67dcdf7089d196b03baabfac75729296e82f","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"3d10714b7e0afaab240d9230f29a67dcdf7089d196b03baabfac75729296e82f","targetLocale":"id"} -->
 
 Asisten lokal berjalan di perangkat Anda di editor desktop Soundscaper dan Framescaper. Pilih media, lalu pilih tugas dari menu. Dialog menampilkan pilihan, pengaturan tugas, dan apakah modelnya terpasang.
 
-Paket desktop mencakup mesin pemrosesan asli untuk model lokal yang diterbitkan. Pasang bobot model melalui Model Manager, lalu jalankan tugas pada media yang dipilih. Lihat panduan [setiap model](/reference/local-models/) untuk platform yang didukung, entri menu, dan persyaratan.
+Paket desktop tidak menyertakan mesin pemrosesan native opsional maupun bobot model. Instal model melalui Pengelola Model untuk mengunduh mesin dan bobot yang dibutuhkannya, lalu jalankan tugas pada media pilihan Anda. Instalasi pertama memerlukan koneksi jaringan; pemrosesan berikutnya berjalan secara lokal. Lihat panduan setiap model untuk platform yang didukung, entri menu, dan persyaratannya.
+
+Lihat [panduan model individual](/reference/local-models/).
 
 ## Cari tugas {#find-a-task}
 
@@ -32,7 +34,7 @@ Pilih **Jalankan secara lokal** untuk memulai pemrosesan dan merespons permintaa
 
 Buka **Alat → Model Manager**, atau gunakan **Kelola Model** di dalam tugas. Tautan tugas menyaring daftar ke identitas model yang kompatibel; **Tampilkan semua model** menghapus pembatasan tersebut. Cari berdasarkan nama atau tugas dan filter berdasarkan status instalasi.
 
-Pasang model secara eksplisit. Unduhan menunjukkan kemajuan dan dapat dibatalkan. Kembali ke tugas mempertahankan pengaturan dan menyegarkan ketersediaan model; itu tidak memulai pemrosesan. Perluas **Penyimpanan dan verifikasi** untuk perbaikan, pembersihan, relokasi penyimpanan, pemberitahuan lisensi, dan instalasi offline dari folder.
+Instal model secara eksplisit. Instalasi pertama juga mengunduh runtime native bersama yang belum tersedia dan diperlukan oleh model tersebut. Progres unduhan ditampilkan dan unduhan dapat dibatalkan. Saat kembali ke suatu tugas, pengaturannya tetap tersimpan dan ketersediaan model diperbarui; pemrosesan tidak dimulai. Buka **Penyimpanan dan verifikasi** untuk perbaikan, pembersihan, pemindahan penyimpanan, pemberitahuan lisensi, dan instalasi luring dari folder. Model yang diinstal dari file luring tetap memerlukan runtime yang cocok sebelum penggunaan pertama.
 
 Lihat panduan [model individu](/reference/local-models/) untuk tujuan, entri menu, ukuran unduhan, persyaratan, batasan, dan pemeriksaan inferensi nyata yang dilakukan oleh paket desktop nightly-with-tests setiap model yang diterbitkan.
 

@@ -2,11 +2,13 @@
 title: "Xử lý cục bộ, mô hình và plugin"
 description: "Tìm hỗ trợ cục bộ theo tác vụ và quản lý mô hình cùng plugin trong các trình biên tập desktop."
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"922fb6c279e1a4499967f68b55d60fdc332bb1b2bd3144cff2f87824add1b7b7","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"922fb6c279e1a4499967f68b55d60fdc332bb1b2bd3144cff2f87824add1b7b7","targetLocale":"vi"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"3d10714b7e0afaab240d9230f29a67dcdf7089d196b03baabfac75729296e82f","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"3d10714b7e0afaab240d9230f29a67dcdf7089d196b03baabfac75729296e82f","targetLocale":"vi"} -->
 
 Hỗ trợ cục bộ chạy trên thiết bị của bạn trong các trình biên tập desktop Soundscaper và Framescaper. Chọn phương tiện, rồi chọn tác vụ từ menu tương ứng. Hộp thoại hiển thị vùng chọn, cài đặt tác vụ và trạng thái cài đặt mô hình.
 
-Các gói desktop bao gồm engine xử lý gốc dành cho những mô hình cục bộ được phát hành. Cài trọng số mô hình qua Model Manager, rồi chạy tác vụ trên phương tiện đã chọn. Xem [hướng dẫn](/reference/local-models/) của từng mô hình để biết nền tảng hỗ trợ, mục menu và yêu cầu.
+Gói máy tính không bao gồm bộ máy xử lý gốc tùy chọn và trọng số mô hình. Cài đặt mô hình qua Trình quản lý mô hình để tải xuống bộ máy và trọng số cần thiết, sau đó chạy tác vụ trên phương tiện đã chọn. Lần cài đầu cần kết nối mạng; các lần xử lý sau chạy cục bộ. Xem hướng dẫn từng mô hình để biết nền tảng được hỗ trợ, mục menu và yêu cầu.
+
+Xem [hướng dẫn từng mô hình](/reference/local-models/).
 
 ## Tìm tác vụ {#find-a-task}
 
@@ -32,7 +34,7 @@ Chọn **Run locally** để bắt đầu xử lý và trả lời lời nhắc 
 
 Mở **Tools → Model Manager** hoặc dùng **Manage Models** trong một tác vụ. Liên kết từ tác vụ lọc danh sách theo các danh tính mô hình tương thích; **Show all models** xóa bộ lọc đó. Tìm theo tên hoặc tác vụ và lọc theo trạng thái cài đặt.
 
-Cài đặt mô hình một cách chủ động. Tải xuống hiển thị tiến trình và có thể hủy. Khi quay lại tác vụ, các cài đặt vẫn được giữ và tình trạng mô hình được cập nhật; xử lý không tự khởi chạy. Mở rộng **Storage and verification** để sửa chữa, dọn dẹp, di chuyển nơi lưu trữ, xem thông báo giấy phép và cài đặt ngoại tuyến từ thư mục.
+Hãy cài đặt mô hình một cách rõ ràng. Lần cài đầu tiên cũng tải xuống môi trường chạy gốc dùng chung còn thiếu mà mô hình cần. Quá trình tải có hiển thị tiến độ và có thể hủy. Khi quay lại một tác vụ, các thiết lập được giữ nguyên và trạng thái khả dụng của mô hình được cập nhật; quá trình xử lý không tự bắt đầu. Mở rộng **Lưu trữ và xác minh** để sửa chữa, dọn dẹp, di chuyển nơi lưu trữ, xem thông báo giấy phép và cài đặt ngoại tuyến từ thư mục. Mô hình cài từ tệp ngoại tuyến vẫn cần môi trường chạy tương ứng trước lần dùng đầu tiên.
 
 Xem [hướng dẫn riêng của từng mô hình](/reference/local-models/) để biết mục đích, mục menu, kích thước tải xuống, yêu cầu, giới hạn và các kiểm tra suy luận thực tế do gói desktop nightly-with-tests thực hiện.
 

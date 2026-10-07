@@ -4,7 +4,7 @@ description: "संकलित अनुक्रम को सत्याप
 sidebar:
   order: 3
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"9225d2aa1e6da43167a90718eea5097dd9f9d42790aaee2795a3d7d74452b72e","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"9225d2aa1e6da43167a90718eea5097dd9f9d42790aaee2795a3d7d74452b72e","targetLocale":"hi"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"603de0b48d3c3e6d2688ba66a67dc28e38cee405f12901a999c6d0f75c3c5f57","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"603de0b48d3c3e6d2688ba66a67dc28e38cee405f12901a999c6d0f75c3c5f57","targetLocale":"hi"} -->
 
 ## निर्यात करने से पहले
 
@@ -19,6 +19,14 @@ sidebar:
 
 वीडियो एन्कोडिंग सामान्य टाइमलाइन प्लेबैक से अधिक संसाधन-गहन है।
 निर्यात पूरा होने की सूचना देने तक एडिटर को खुला रखें।
+
+## ऑडियो क्लिप अलग-अलग निर्यात करें {#export-audio-clips}
+
+**फ़ाइल → वीडियो निर्यात करें** चुनें, **WAV** जैसा ऑडियो फ़ॉर्मैट चुनें और **आउटपुट** को **अलग-अलग क्लिप (क्लिप के अनुसार विभाजित)** पर सेट करें। निर्यात एक संग्रह डाउनलोड करता है जिसमें हर ऑडियो क्लिप के लिए एक फ़ाइल होती है। वीडियो क्लिप शामिल नहीं होते; हर ऑडियो फ़ाइल में केवल वही क्लिप, उसकी ट्रिमिंग और क्लिप संपादन सहित, होता है।
+
+फ़ाइलें क्लिप के सुनाई देने वाले आरंभ से शुरू होती हैं; प्रोजेक्ट में उसकी स्थिति तक खाली स्थान नहीं जोड़ा जाता और प्रभाव की पूँछ भी नहीं जुड़ती। क्रमांकित नाम एक जैसे नाम वाले क्लिपों को अलग रखते हैं।
+
+ट्रैक प्रभाव शामिल होते हैं; मास्टर प्रभाव, म्यूट और सोलो इस निर्यात को प्रभावित नहीं करते। साझा ऑडियो कार्यप्रवाह के लिए [क्लिप को अलग फ़ाइलों के रूप में निर्यात करें](/soundscaper/edit-mix-and-export/#export-clips) देखें।
 
 ## डिलीवरी की पुष्टि करें
 

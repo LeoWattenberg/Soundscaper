@@ -2,11 +2,13 @@
 title: "本地处理、模型和插件"
 description: "按任务查找本地辅助功能，并在桌面版编辑器中管理模型和插件。"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"922fb6c279e1a4499967f68b55d60fdc332bb1b2bd3144cff2f87824add1b7b7","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"922fb6c279e1a4499967f68b55d60fdc332bb1b2bd3144cff2f87824add1b7b7","targetLocale":"zh-CN"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"3d10714b7e0afaab240d9230f29a67dcdf7089d196b03baabfac75729296e82f","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"3d10714b7e0afaab240d9230f29a67dcdf7089d196b03baabfac75729296e82f","targetLocale":"zh-CN"} -->
 
 Soundscaper 和 Framescaper 桌面版编辑器会在你的设备上运行本地辅助功能。选择媒体，然后从菜单中选择任务。对话框会显示所选内容、任务设置，以及所需模型是否已安装。
 
-桌面版套件包含已发布本地模型的原生处理引擎。请通过 Model Manager 安装模型权重，然后对所选媒体运行任务。每个模型的[指南](/reference/local-models/)都列出了支持的平台、菜单项和要求。
+桌面安装包不包含可选的原生处理引擎和模型权重。请通过模型管理器安装模型，以下载所需的引擎和权重，然后对所选媒体运行任务。首次安装需要网络连接；之后的处理在本地运行。各模型指南列出了支持的平台、菜单项和要求。
+
+详情请参阅 [各模型指南](/reference/local-models/).
 
 ## 查找任务 {#find-a-task}
 
@@ -32,7 +34,7 @@ Soundscaper 和 Framescaper 桌面版编辑器会在你的设备上运行本地�
 
 打开 **Tools → Model Manager**，或在任务中使用 **Manage Models**。任务中的链接会将列表筛选为兼容的模型；**Show all models** 会清除筛选。按名称或任务搜索，也可按安装状态筛选。
 
-请显式安装模型。下载时会显示进度，也可以取消。返回任务时会保留任务设置并刷新模型可用性，但不会开始处理。展开 **Storage and verification** 可执行修复、清理、存储位置迁移、查看许可证声明，以及从文件夹进行离线安装。
+请明确安装模型。首次安装还会下载该模型需要但尚未安装的共享原生运行时。下载会显示进度，也可以取消。返回任务时，原有设置会保留，模型可用状态会刷新；处理不会因此启动。展开**存储与验证**可进行修复、清理、迁移存储、查看许可证通知以及从文件夹离线安装。通过离线文件安装的模型在首次使用前仍需要匹配的运行时。
 
 请参阅[各模型指南](/reference/local-models/)，了解每个已发布模型的用途、菜单项、下载大小、要求、限制，以及 nightly-with-tests 桌面版套件执行的实际推理检查。
 

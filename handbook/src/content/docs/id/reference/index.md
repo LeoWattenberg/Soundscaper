@@ -4,7 +4,7 @@ description: "Tabel perintah, pintasan, format, efek, dan kemampuan produk yang 
 sidebar:
   order: 1
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"b7e4df92cd36126d4ce3865383043516972e9aca463c3449b731085cafc4050e","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"b7e4df92cd36126d4ce3865383043516972e9aca463c3449b731085cafc4050e","targetLocale":"id"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"27ac617a3293f4d301daf72bed0b9f3e9127f4516531c320703c36e7afe8658c","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"27ac617a3293f4d301daf72bed0b9f3e9127f4516531c320703c36e7afe8658c","targetLocale":"id"} -->
 
 Halaman referensi dibuat dari registri runtime yang ditinjau dan disimpan di
 repositori. Mereka menggambarkan perilaku yang diimplementasikan, bukan entri roadmap atau
@@ -25,6 +25,5 @@ Gunakan bagian ini untuk menjawab pertanyaan seperti:
 Halaman yang dihasilkan mencakup asal usul sumbernya dan diperiksa untuk drift dalam
 gate kualitas repositori.
 
-[Program Makro](/reference/macro-programs/) adalah satu-satunya halaman di sini yang ditulis dengan
-tangan. Halaman ini mendokumentasikan API JavaScript yang dijalankan program makro, dan klaimnya
-adalah yang dipegang oleh tes editor sendiri terhadap sandbox.
+Halaman [Program makro](/reference/macro-programs/) yang ditulis manual mendokumentasikan API JavaScript yang digunakan program makro. [Timpa berkas yang diimpor di desktop
+](/reference/overwrite-original-file/) menjelaskan perintah File Electron yang digunakan bersama oleh kedua produk. Tes editor memeriksa perilakunya.

@@ -4,7 +4,7 @@ description: "Wygenerowane polecenia, skróty, formaty, efekty i tabele możliwo
 sidebar:
   order: 1
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"b7e4df92cd36126d4ce3865383043516972e9aca463c3449b731085cafc4050e","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"b7e4df92cd36126d4ce3865383043516972e9aca463c3449b731085cafc4050e","targetLocale":"pl"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"27ac617a3293f4d301daf72bed0b9f3e9127f4516531c320703c36e7afe8658c","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"27ac617a3293f4d301daf72bed0b9f3e9127f4516531c320703c36e7afe8658c","targetLocale":"pl"} -->
 
 Strony referencyjne są generowane na podstawie przejrzanych rejestrów czasu wykonywania i zatwierdzane w
 repozytorium. Opisują one zaimplementowane zachowanie, a nie pozycje mapy drogowej ani
@@ -25,6 +25,5 @@ Użyj tej sekcji, aby odpowiedzieć na pytania takie jak:
 Wygenerowane strony zawierają informacje o swoim pochodzeniu i są sprawdzane pod kątem
 niezgodności w bramce jakości repozytorium.
 
-[Programy makro](/reference/macro-programs/) to jedyna strona tutaj napisana ręcznie.
-Dokumentuje ona interfejs JavaScript, przeciwko któremu uruchamia się program makro, a
-jego twierdzenia to te, do których testy samego edytora trzymają piaskownicę.
+Ręcznie napisana strona [Programy makr](/reference/macro-programs/) opisuje interfejs JavaScript używany przez program makra. [Zastępowanie zaimportowanego pliku na komputerze
+](/reference/overwrite-original-file/) opisuje polecenie plików Electron wspólne dla obu produktów. Testy edytora sprawdzają ich działanie.

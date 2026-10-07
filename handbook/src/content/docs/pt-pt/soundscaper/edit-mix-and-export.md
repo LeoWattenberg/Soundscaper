@@ -4,7 +4,7 @@ description: "Organize clipes, equilibre faixas, aplique efeitos e crie um fiche
 sidebar:
   order: 4
 ---
-<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"20388bf5b2a7139d7bcfb3a2a962c5f60ec0f91d05992a6307a4fb8b2b622534","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"20388bf5b2a7139d7bcfb3a2a962c5f60ec0f91d05992a6307a4fb8b2b622534","targetLocale":"pt-PT"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"3069846c51779ae315d018496e4b6d8adf592d57e05ec127856039375f3caf98","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"3069846c51779ae315d018496e4b6d8adf592d57e05ec127856039375f3caf98","targetLocale":"pt-PT"} -->
 
 ## Organizar clipes
 
@@ -22,11 +22,39 @@ A reprodução e a exportação utilizam as definições de desvanecimento confi
 Com um clipe selecionado focado, pressione **Tab** para aceder aos seus controlos de desvanecimento. As teclas de seta ajustam a duração em 10 milissegundos, ou 100 milissegundos com **Shift**. **Início** remove o desvanecimento; **Fim** estende-o por todo o clipe.
 Para introdução numérica, escolha **Editar → Clips de áudio → Propriedades do clipe** e utilize **Desvanecimento**.
 
+### Editar a origem de um clip {#clip-source-properties}
+
+Escolha **Editar → Clips de áudio → Propriedades do clip** para abrir o editor de origem. A gravação completa aparece atrás do clip. Arraste as bordas para alterar o início na origem e a duração, mantendo o início do clip na linha do tempo do projeto. O painel **Normalizar** contém o ganho do clip e as ações de pico e loudness.
+
+Abra **Tom e tempo** e marque **Vincular tom e tempo** para alterar velocidade e tom juntos. Uma proporção de velocidade de `1` e uma mudança de tom de `0%` mantêm o som inalterado. A proporção `2` reproduz com o dobro da velocidade e uma oitava acima; `0.5` reproduz com metade da velocidade e uma oitava abaixo. Alterar um controle vinculado atualiza o outro. Desmarcar o vínculo restaura o ajuste independente de tom e mantém a proporção de velocidade atual.
+
+Use **Ctrl+clique** na forma de onda para adicionar um marcador de alongamento vinculado àquela amostra de origem. Arrastá-lo altera o tempo nos dois lados; a sobreposição mostra as duas velocidades de reprodução. Os controles continuam específicos de cada clip. Selecionar o áudio de origem e aplicar um efeito atualiza todos os clips que usam essa origem.
+
+### Editar clips numa folha de cálculo {#clip-spreadsheet}
+
+Escolha **Ver → Painéis → Planilha de clips** para ver todos os clips do projeto. O painel abre abaixo da linha do tempo. Use o menu para movê-lo para outra área acoplada, deixá-lo flutuante ou fechá-lo. O tamanho e a posição são salvos com o espaço de trabalho. Cada linha mostra pista, posição na linha do tempo, ficheiro de origem, deslocamento na origem, duração, tom, velocidade, ganho, fades e opções de reprodução. Os tempos estão em segundos, o tom em semitons e a velocidade é uma proporção: `1` é a velocidade normal e `2` é o dobro.
+
+Clique duas vezes em uma célula ou selecione-a e pressione **Enter** para editar o valor. Pressione **Enter** para aplicar ou **Escape** para cancelar. As células de pista e origem mostram os IDs reais. Altere o ID da pista para mover um clip para uma pista de áudio existente. Altere o ID da origem ou digite um caminho de ficheiro local para substituir o áudio, mantendo posição na linha do tempo, duração, velocidade e deslocamento da origem em segundos. O novo ficheiro precisa conter esse intervalo da origem. **Invertido** e **Invertido de ordem** são caixas de seleção; selecione uma célula e pressione **Espaço** para alterná-la. Clips em pistas bloqueadas e clips de vídeo são somente leitura.
+
+Alterar a duração corta ou estende o intervalo da origem a partir do deslocamento atual. Alterar a velocidade mantém o intervalo, a menos que você também cole uma duração. Desagrupe ou desvincule os clips antes de alterar o tempo aqui; ajuste o tempo dos clips esticados no editor de origem.
+
+Selecione uma célula, arraste por um intervalo ou use **Shift+clique** em outra célula para ampliar a seleção. Clique em um número de linha ou cabeçalho de coluna para selecionar toda a linha ou coluna. Use **Ctrl+C** e **Ctrl+V** (**Cmd+C** e **Cmd+V** no macOS) para trocar a seleção com uma folha de cálculo. As colunas são separadas por tabulações e as linhas por quebras de linha. Colar começa na célula selecionada e atualiza os clips existentes. Colagens que ultrapassam as linhas existentes são recusadas. Com uma seleção, pressione **Escape** ou clique no espaço vazio abaixo da tabela para limpá-la. Sem seleção, colar insere novas linhas, inclusive em um projeto vazio. As opções de reprodução são copiadas como `true` ou `false` e aceitam esses valores ao colar. Novas linhas seguem a ordem das colunas da tabela e precisam de um nome de ficheiro ou ID de origem. Um nome de pista existente e exclusivo coloca o clip nela; um nome novo cria uma pista de áudio. Nomes de pista vazios usam o nome da origem. Células numéricas vazias usam os padrões: posição e deslocamento `0`, velocidade `1`, tom e ganho `0`, sem fades. Duração vazia usa o restante do áudio na velocidade solicitada.
+
+O painel procura primeiro a origem no projeto, inclusive na cesto do projeto. Se ela não estiver lá, escolha **Carregar ficheiros referenciados** e selecione os ficheiros de áudio listados no diálogo. Caminhos de disco também exigem essa seleção: colar um caminho não concede acesso ao ficheiro. Os ficheiros selecionados devem corresponder sem ambiguidade aos nomes referenciados. O painel importa o áudio, valida os limites da origem e as propriedades dos clips e posiciona os novos clips conforme especificado. **Ctrl+Z** (**Cmd+Z** no macOS) desfaz uma colagem inteira em uma etapa; **Ctrl+Shift+Z** (**Cmd+Shift+Z**) refaz. Se a colagem contiver um valor inválido, os clips não mudam.
+
 ## Construir a mistura
 
 Utilize o ganho da faixa, o panorâmico, o silenciar e os controlos solo para equilibrar o projeto. O painel do Misturador expõe o mesmo estado do projeto num layout orientado para a mistura. Os efeitos em tempo real permanecem ajustáveis; as operações destrutivas ou renderizadas criam alterações no projeto que podem ser desfeitas enquanto o histórico estiver disponível.
 
 Utilize o medidor de reprodução e a análise de volume para inspecionar o resultado. Evite tratar um alvo de medidor como um substituto para ouvir a exportação completa.
+
+### Ouvir frequências selecionadas {#listen-to-selected-frequencies}
+
+Selecione o trecho que deseja ouvir. No menu da pista, escolha **Visualização da pista → Espectrograma** e abra **Opções do espectrograma → Selecionar intervalo de frequência espectral**. Digite as frequências mínima e máxima e escolha **Selecionar intervalo**, ou ajuste as alças no espectrograma.
+
+Escolha **Opções de reprodução → Reproduzir frequências selecionadas** ou **Selecionar → Espectral → Reproduzir frequências selecionadas**. O intervalo de tempo selecionado toca uma vez na velocidade normal, mesmo se outra velocidade ou reprodução em loop tiver sido escolhida. O filtro de audição se aplica à mixagem atual, incluindo mudo, solo, ganho e efeitos. Um retângulo espectral identifica a banda de frequência e o intervalo de tempo, mas não coloca a pista em solo. Se a reprodução já estiver em andamento, o comando a pausa; escolha-o novamente para iniciar a audição filtrada.
+
+Os filtros de frequência em tempo real têm bordas suaves. Frequências fora da banda ficam mais baixas, assim como frequências próximas aos limites. **Pausar** ou **Parar** remove o filtro, então a próxima reprodução normal usa toda a pista de frequências. O áudio, as seleções, o histórico de desfazer e os ficheiros exportados não mudam.
 
 ### Reduzir a sibilância {#reduce-sibilance}
 
@@ -51,6 +79,19 @@ Os plug-ins Vamp analisam o áudio em vez de o alterarem. Depois de ativar uma i
 
 Escolha **Ficheiro → Exportar áudio** para uma entrega misturada ou **Exportar áudio selecionado** quando apenas uma seleção deve ser renderizada. O Soundscaper também pode exportar caules e rótulos.
 
+### Exportar clips como ficheiros separados {#export-clips}
+
+Escolha **Ficheiro → Exportar áudio** e defina **Saída** como **Clips individuais (dividir por clips)**. Escolha um formato de áudio e prima **Exportar** para transferir um arquivo com um ficheiro por cada clip de áudio nas pistas de áudio do projeto. Cada ficheiro começa no início audível do clip e termina no seu fim audível, sem preenchimento até à linha temporal do projeto nem cauda de efeito adicional. São incluídos cortes, ganho do clip, fades e alterações de velocidade e tom. Os clips sobrepostos mantêm-se separados.
+
+Os ficheiros usam os nomes dos clips com prefixos numéricos. Os caracteres não suportados nos nomes são substituídos e os números distinguem nomes de clips repetidos. Os efeitos das pistas são incluídos; os efeitos master, o silêncio e o solo não afetam esta exportação. Descongele primeiro as pistas congeladas para exportar os clips editáveis separadamente.
+
+Os formatos compactados usam o runtime FFmpeg. Os formatos exatos e a disponibilidade condicional estão listados
 Os formatos comprimidos utilizam o tempo de execução FFmpeg. Os formatos exatos e a disponibilidade condicional estão listados no [referência de formato gerada](/reference/).
+
+### Incorporar marcadores de capítulo {#embedded-chapters}
+
+No editor do navegador, escolha **Arquivo → Exportar áudio**, selecione **MP3** ou **AAC / M4A** e ative **Incorporar rótulos como capítulos** em **Opções de áudio**. A opção começa desativada e inclui títulos e tempos dos rótulos em um único ficheiro mixado. Adicione rótulos antes de exportar; stems, divisões por capítulo e sequências de masterização não oferecem essa opção.
+
+Somente rótulos que cruzam o intervalo entregue são incluídos. Ao exportar uma seleção, os tempos dos capítulos são deslocados para o início do ficheiro gerado. MP3 preserva os tempos finais de rótulos de região; um rótulo pontual termina no próximo capítulo ou no fim do ficheiro. M4A guarda os inícios dos capítulos, e cada capítulo continua até o próximo início ou o fim do ficheiro. M4A aceita até 255 capítulos e 255 bytes UTF-8 por título. A exibição dos capítulos incorporados depende do reprodutor.
 
 Reproduza o ficheiro exportado noutra aplicação antes de entregar ou eliminar o material de origem.

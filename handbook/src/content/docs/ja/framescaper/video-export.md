@@ -4,7 +4,7 @@ description: "合成されたシーケンスを検証し、MP4またはWebMの�
 sidebar:
   order: 3
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"9225d2aa1e6da43167a90718eea5097dd9f9d42790aaee2795a3d7d74452b72e","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"9225d2aa1e6da43167a90718eea5097dd9f9d42790aaee2795a3d7d74452b72e","targetLocale":"ja"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"603de0b48d3c3e6d2688ba66a67dc28e38cee405f12901a999c6d0f75c3c5f57","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"603de0b48d3c3e6d2688ba66a67dc28e38cee405f12901a999c6d0f75c3c5f57","targetLocale":"ja"} -->
 
 ## 輸出する前に
 
@@ -18,6 +18,14 @@ sidebar:
 輸出ダイアログを開き、ビデオ形式を選択します。Framescaperは、構成されたビデオランタイムを介してMP4およびWebMの配信をサポートしています。目的地に適した寸法、フレームレート、その他のオプションを選択します。
 
 ビデオエンコーディングは通常のタイムライン再生よりもリソースを多く消費します。輸出が完了するまでエディタを開いたままにしておいてください。
+
+## オーディオクリップを個別に書き出す {#export-audio-clips}
+
+**ファイル → 動画を書き出し**を選び、**WAV** などの音声形式を指定して、**出力**を**個別のクリップ（クリップごとに分割）**に設定します。書き出すと、音声クリップごとに 1 ファイルを含むアーカイブがダウンロードされます。動画クリップは除外され、各音声ファイルにはトリミングやクリップ編集を含む、そのクリップの内容だけが入ります。
+
+ファイルはクリップの音が始まる位置から始まり、プロジェクト上の位置までの無音部分やエフェクトの余韻は追加されません。番号付きのクリップ名により、同じ名前のクリップも区別できます。
+
+トラックエフェクトは含まれます。マスターエフェクト、ミュート、ソロはこの書き出しに影響しません。共通の音声ワークフローについては、[クリップを個別のファイルとして書き出す](/soundscaper/edit-mix-and-export/#export-clips)を参照してください。
 
 ## 配信を確認する
 

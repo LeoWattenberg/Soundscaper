@@ -2,16 +2,15 @@
 title: "Yerel işleme, modeller ve eklentiler"
 description: "Masaüstü düzenleyicilerde göreve göre yerel yardımı bulun, modelleri ve eklentileri yönetin."
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"922fb6c279e1a4499967f68b55d60fdc332bb1b2bd3144cff2f87824add1b7b7","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"922fb6c279e1a4499967f68b55d60fdc332bb1b2bd3144cff2f87824add1b7b7","targetLocale":"tr"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"3d10714b7e0afaab240d9230f29a67dcdf7089d196b03baabfac75729296e82f","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"3d10714b7e0afaab240d9230f29a67dcdf7089d196b03baabfac75729296e82f","targetLocale":"tr"} -->
 
 Yerel yardım, Soundscaper ve Framescaper masaüstü düzenleyicilerinde aygıtınızda
 çalışır. Medyayı seçip menüden görevi belirleyin. Pencerede seçim, görev ayarları
 ve görev için gereken modellerin yüklü olup olmadığı gösterilir.
 
-Masaüstü paketleri, yayımlanmış yerel modeller için yerel işleme altyapılarını
-içerir. Model Manager üzerinden model ağırlıklarını yükleyin, ardından görevi
-seçtiğiniz medyada çalıştırın. Desteklenen platformlar, menü girişi ve
-gereksinimler için her modelin [kılavuzuna](/reference/local-models/) bakın.
+Masaüstü paketleri isteğe bağlı yerel işleme motorlarını ve model ağırlıklarını içermez. Gerekli motoru ve ağırlıkları indirmek için Model Yöneticisi üzerinden bir model yükleyin, ardından görevi seçtiğiniz medyada çalıştırın. İlk yükleme ağ bağlantısı gerektirir; sonraki işlemler yerel olarak yürütülür. Desteklenen platformlar, menü girdisi ve gereksinimler için her modelin kılavuzuna bakın.
+
+Ayrıntılar için [tek tek modellere ait kılavuzlar](/reference/local-models/).
 
 ## Görev bulma {#find-a-task}
 
@@ -48,11 +47,7 @@ seçeneğini kullanın. Görev bağlantısı listeyi uyumlu model kimlikleriyle
 sınırlar; **Show all models** bu kısıtlamayı kaldırır. Ada veya göreve göre
 arama yapın ve kurulum durumuna göre filtreleyin.
 
-Modelleri açıkça yükleyin. İndirmelerde ilerleme gösterilir ve indirme iptal
-edilebilir. Göreve dönmek ayarları korur ve model kullanılabilirliğini yeniler;
-işlemeyi başlatmaz. Onarma, temizleme, depolama konumunu değiştirme, lisans
-bildirimleri ve klasörden çevrimdışı kurulum için **Storage and verification**
-bölümünü genişletin.
+Modelleri açıkça yükleyin. İlk yükleme, modelin kullandığı ve eksik olan yerel çalışma ortamını da indirir. İndirme ilerlemesi gösterilir ve indirme iptal edilebilir. Bir göreve döndüğünüzde ayarları korunur ve model kullanılabilirliği yenilenir; işleme başlamaz. Onarım, temizleme, depolamayı taşıma, lisans bildirimleri ve klasörden çevrimdışı yükleme için **Depolama ve doğrulama** bölümünü genişletin. Çevrimdışı dosyalardan yüklenen model de ilk kullanımdan önce eşleşen çalışma ortamına ihtiyaç duyar.
 
 Her yayımlanmış modelin kullanım amacı, menü girişi, indirme boyutu,
 gereksinimleri, sınırlamaları ve nightly-with-tests masaüstü paketinin yaptığı

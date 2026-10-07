@@ -4,7 +4,7 @@ description: "Arrange clips, balance tracks, apply effects, and create a deliver
 sidebar:
   order: 4
 ---
-<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"gpt-5.6-luna"},"factPacketSha256":"20388bf5b2a7139d7bcfb3a2a962c5f60ec0f91d05992a6307a4fb8b2b622534","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"20388bf5b2a7139d7bcfb3a2a962c5f60ec0f91d05992a6307a4fb8b2b622534","targetLocale":"en-GB"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"3069846c51779ae315d018496e4b6d8adf592d57e05ec127856039375f3caf98","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"3069846c51779ae315d018496e4b6d8adf592d57e05ec127856039375f3caf98","targetLocale":"en-GB"} -->
 
 ## Arrange clips
 
@@ -37,6 +37,74 @@ keys adjust the duration by 10 milliseconds, or 100 milliseconds with
 For numeric entry, choose **Edit → Audio clips → Clip properties** and
 use **Fading**.
 
+### Edit a clip’s source {#clip-source-properties}
+
+Choose **Edit → Audio clips → Clip properties** to open the source editor.
+The full recording appears behind the clip. Drag the clip’s edges to change
+its source in and duration while keeping its start on the project timeline.
+The **Normalize** drawer contains clip gain and the peak and loudness actions.
+
+Open **Pitch and tempo** and check **Link pitch and tempo** to change speed
+and pitch together. A speed ratio of `1` and a pitch change of `0%` leave the
+sound unchanged. A ratio of `2` plays twice as fast and an octave higher;
+`0.5` plays half as fast and an octave lower. Editing either linked control
+updates the other. Unchecking the link restores the independent pitch setting
+while keeping the current speed ratio.
+
+**Ctrl+click** the waveform to add a stretch marker tied to that source sample.
+Dragging it changes the timing on either side; the overlay shows both playback
+rates. The clip’s controls remain per clip. Selecting source audio and applying
+an effect updates every clip that uses that source.
+
+### Edit clips in a spreadsheet {#clip-spreadsheet}
+
+Choose **View → Panels → Clip spreadsheet** to see all clips in the project.
+The panel opens below the timeline. Use its panel menu to move it to another
+dock, make it float, or close it. Its size and placement are saved with your
+workspace. Each row shows a clip's track, timeline position, source file, source offset, duration,
+pitch, speed, gain, fades, and playback flags. Times are in seconds, pitch is
+in semitones, and speed is a ratio: `1` is normal speed and `2` is twice as fast.
+
+Double-click a cell or select it and press **Enter** to edit its value. Press
+**Enter** to apply the edit or **Escape** to cancel. Track and source cells show
+their actual IDs. Change the track ID to move a clip to an existing audio track.
+Change the source ID or enter a local file path to replace its audio, keeping
+its timeline position, duration, speed, and source offset in seconds. The new
+file must contain that source range. Reversed and inverted are checkboxes;
+select a checkbox cell and press **Space** to toggle it. Clips on locked tracks
+and video clips are read-only.
+
+Changing duration trims or extends the source range at the current offset.
+Changing speed keeps the source range unless you also paste a duration.
+Ungroup or unlink clips before changing their timing here; edit warped clip
+timing in the source editor.
+
+Select a cell, drag across a range, or **Shift+click** another cell to extend
+the selection. Click a row number or column heading to select the whole row
+or column. Use **Ctrl+C** and **Ctrl+V** (**Cmd+C** and **Cmd+V** on macOS) to
+exchange the selection with a spreadsheet editor. Values use tabs between
+columns and newlines between rows. Pasting starts at the selected cell and
+updates existing clips. A paste extending beyond existing rows is rejected.
+Press **Escape** with a selection, or click the empty space below the table, to
+clear the selection. Pasting with no selection inserts new rows, including in
+an empty project. Playback flags copy as `true` or `false` and accept those
+values when pasted. New rows follow the table's column
+order and need a source file name or source ID. A unique existing track name
+places the clip on that track; a new name creates an audio track. Blank track
+names use the source name. Blank numeric cells use defaults: position and
+offset `0`, speed `1`, pitch and gain `0`, and no fades. Blank duration uses
+the remaining audio at the requested speed.
+
+The panel first looks for the source in the project, including the Project
+Bin. If it is missing, choose **Load referenced files** and select the audio
+files listed in the dialog. Disk paths also need this file selection: pasting
+a path does not grant the app access to the file. Selected files must match
+the referenced names unambiguously. The panel imports the audio, validates
+the source bounds and clip properties, and places the new clips at their
+specified positions. **Ctrl+Z** (**Cmd+Z** on macOS) reverses a whole paste in
+one step; **Ctrl+Shift+Z** (**Cmd+Shift+Z**) redoes it. A paste
+containing an invalid value leaves the clips unchanged.
+
 ## Build the mix
 
 Use track gain, pan, mute, and solo controls to balance the project. The Mixer
@@ -46,6 +114,27 @@ changes that can be undone while history is available.
 
 Use the playback meter and loudness analysis to inspect the result. Avoid
 treating a meter target as a substitute for listening to the complete export.
+
+### Listen to selected frequencies {#listen-to-selected-frequencies}
+
+Select the passage you want to hear. Choose **Track visualization → Spectrogram**
+from its track menu, then open **Spectrogram options → Select spectral frequency
+range**. Enter the minimum and maximum frequencies and choose **Select range**,
+or adjust the selection handles in the spectrogram.
+
+Choose **Play options → Play selected frequencies**, or **Select → Spectral →
+Play selected frequencies**. The selected time range plays once at normal speed,
+even if you previously chose another playback speed or enabled looping. The
+listening filter applies to the current mix, including mute, solo, gain, and
+effects settings. A spectral rectangle identifies the frequency band and time
+range; it does not solo its track. If playback is already running, the command
+pauses it; choose the command again to begin the frequency audition.
+
+The real-time frequency filters have tapered edges. Frequencies
+outside the band become quieter, and frequencies near its boundaries may also
+become quieter. **Pause** or **Stop** clears the filter, so the next regular
+playback uses the full frequency range. Audio, selections, undo history, and
+exported files stay unchanged.
 
 ### Reduce sibilance {#reduce-sibilance}
 
@@ -98,8 +187,29 @@ Choose **File → Export audio** for a mixed delivery or **Export selected audio
 when only a selection should be rendered. Soundscaper can also export stems and
 labels.
 
+### Export clips as separate files {#export-clips}
+
+Choose **File → Export audio** and set **Output** to **Individual clips (split by clips)**. Choose an audio format and press **Export** to download an archive containing one file for every audio clip across the project’s audio tracks. Each file starts at the clip’s audible beginning and ends at its audible end, without padding it to the project timeline or adding an effect tail. Trims, clip gain, fades, speed and pitch edits are included. Overlapping clips stay separate.
+
+Files use the clip names with numbered prefixes. Unsupported filename characters are replaced, and the numbers keep repeated clip names distinct. Track effects are included; master effects, mute and solo do not affect this export. Unfreeze frozen tracks first to export their editable clips individually.
+
 Compressed formats use the FFmpeg runtime. Exact formats and conditional
 availability are listed in the [generated format reference](/reference/).
+
+### Embed chapter labels {#embedded-chapters}
+
+In the browser editor, choose **File → Export audio**, select **MP3** or
+**AAC / M4A**, and enable **Embed labels as chapters** under **Audio options**.
+The option starts unchecked and includes label titles and times inside one
+mixed file. Add labels before exporting; stems, chapter splits, and mastering
+sequences do not offer this option.
+
+Only labels intersecting the delivered range are included. Exporting a
+selection moves the chapter times to the start of the delivered file. MP3
+preserves region-label end times; a point label ends at the next chapter or at
+the end of the file. M4A stores chapter starts, with each chapter continuing to
+the next start or the file's end. M4A supports up to 255 chapters and 255 UTF-8
+bytes per title. Players vary in whether they display embedded chapters.
 
 Play the exported file in another application before delivering or deleting
 source material.

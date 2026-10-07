@@ -4,7 +4,7 @@ description: "Organizează videoclipuri, compune imagini și livrează un proiec
 sidebar:
   order: 1
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"fe5df8f699907289847a5d9022c094e32168b502a532ebdf7708436a99db38b7","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"fe5df8f699907289847a5d9022c094e32168b502a532ebdf7708436a99db38b7","targetLocale":"ro"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"47cebc3006e44dba5569ea0c1418001989dccf3730c3421c338c340222a9c5af","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"47cebc3006e44dba5569ea0c1418001989dccf3730c3421c338c340222a9c5af","targetLocale":"ro"} -->
 
 Framescaper este vizualizarea axată pe video a editorului partajat. Acesta pune accentul pe previzualizarea video, monitorizarea surselor, efectele de imagine, compoziția, secvențele încorporate și munca cu mai multe camere.
 
@@ -22,6 +22,6 @@ Soundscaper gestionează sunetul: înregistrarea audio, efectele și analiza, mi
 2. [Pregătiți și exportați video](/framescaper/video-export/).
 3. Revizuiți comportamentul [fișierelor de proiect și de rezervă](/projects-and-data/project-files/).
 
-Deschideți editorul browser-ului la [soundscaper.org/framescaper/en](https://soundscaper.org/framescaper/en/).
+Deschideți editorul browser-ului la [framescaper.org/en](https://framescaper.org/en/).
 
 Pentru asistență desktop, consultați [procesarea locală, modelele și plugin-urile](/help/local-processing/).

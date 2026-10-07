@@ -2,11 +2,13 @@
 title: "Traitement local, modèles et plug-ins"
 description: "Trouvez une assistance locale par tâche et gérez les modèles et les plug-ins dans les éditeurs de bureau."
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"922fb6c279e1a4499967f68b55d60fdc332bb1b2bd3144cff2f87824add1b7b7","model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"922fb6c279e1a4499967f68b55d60fdc332bb1b2bd3144cff2f87824add1b7b7","targetLocale":"fr"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"gpt-5.6-luna"},"factPacketSha256":"3d10714b7e0afaab240d9230f29a67dcdf7089d196b03baabfac75729296e82f","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"3d10714b7e0afaab240d9230f29a67dcdf7089d196b03baabfac75729296e82f","targetLocale":"fr"} -->
 
 L'assistance locale s'exécute sur votre appareil dans les éditeurs de bureau Soundscaper et Framescaper. Sélectionnez un média, puis choisissez la tâche dans son menu. La boîte de dialogue affiche la sélection, les réglages de la tâche et indique si ses modèles sont installés.
 
-Les paquets de bureau incluent les moteurs de traitement natifs des modèles locaux publiés. Installez les poids du modèle via le gestionnaire de modèles, puis exécutez la tâche sur le média sélectionné. Consultez le [guide](/reference/local-models/) de chaque modèle pour connaître les plateformes prises en charge, l'entrée de menu et les prérequis.
+Les versions de bureau n’incluent ni les moteurs de traitement natifs facultatifs ni les poids des modèles. Installez un modèle dans le Gestionnaire de modèles pour télécharger le moteur et les poids nécessaires, puis lancez la tâche sur les médias sélectionnés. La première installation nécessite une connexion réseau ; les traitements suivants s’exécutent localement. Consultez le guide de chaque modèle pour connaître les plateformes prises en charge, la commande de menu et les prérequis.
+
+Consultez les [guides des modèles individuels](/reference/local-models/).
 
 ## Trouver une tâche {#find-a-task}
 
@@ -32,7 +34,7 @@ Choisissez **Exécuter localement** pour démarrer le traitement et répondre à
 
 Ouvrez **Outils → Gestionnaire de modèles**, ou utilisez **Gérer les modèles** dans une tâche. Le lien de la tâche filtre la liste pour ne conserver que les identifiants de modèles compatibles ; **Afficher tous les modèles** supprime cette restriction. Recherchez par nom ou par tâche et filtrez selon l'état d'installation.
 
-Installez explicitement les modèles. Les téléchargements affichent leur progression et peuvent être annulés. Le retour à une tâche conserve ses réglages et actualise la disponibilité des modèles ; il ne démarre pas le traitement. Développez **Stockage et vérification** pour réparer, nettoyer, déplacer le stockage, consulter les avis de licence ou installer hors ligne depuis un dossier.
+Installez les modèles explicitement. La première installation télécharge aussi tout environnement d’exécution natif partagé manquant dont le modèle a besoin. Les téléchargements affichent leur progression et peuvent être annulés. Lorsque vous revenez à une tâche, ses paramètres sont conservés et la disponibilité des modèles est actualisée ; le traitement ne démarre pas. Développez **Stockage et vérification** pour réparer, nettoyer, déplacer le stockage, consulter les avis de licence et installer hors ligne depuis un dossier. Un modèle installé à partir de fichiers hors ligne a toujours besoin de son environnement correspondant avant la première utilisation.
 
 Consultez les [guides des modèles individuels](/reference/local-models/) pour connaître la fonction de chaque modèle publié, son entrée de menu, la taille du téléchargement, ses prérequis et limites, ainsi que les vérifications d'inférence réelles effectuées par le paquet de bureau nocturne avec tests.
 

@@ -4,7 +4,7 @@ description: "Ordnen Sie Video, zusammengesetztes Bild und liefern Sie ein lokal
 sidebar:
   order: 1
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"fe5df8f699907289847a5d9022c094e32168b502a532ebdf7708436a99db38b7","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"fe5df8f699907289847a5d9022c094e32168b502a532ebdf7708436a99db38b7","targetLocale":"de"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"47cebc3006e44dba5569ea0c1418001989dccf3730c3421c338c340222a9c5af","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"47cebc3006e44dba5569ea0c1418001989dccf3730c3421c338c340222a9c5af","targetLocale":"de"} -->
 
 Framescaper ist die videoorientierte Ansicht des gemeinsamen Editors. Er betont Videovorschau, Quellüberwachung, Bildwirkungen, Komposition, geschachtelte Sequenzen und Multikameraarbeit.
 
@@ -21,6 +21,6 @@ Soundscaper ist für den Ton zuständig: Tonaufnahme, Effekte und Analyse, Misch
 2. [Vorbereiten und Exportieren von Videos](/framescaper/video-export/).
 3. Überprüfen Sie das [Projekt-Dateiverhalten und die Sicherung](/projects-and-data/project-files/).
 
-Öffnen Sie den Browser-Editor unter [soundscaper.org/framescaper/en](https://soundscaper.org/framescaper/en/).
+Öffnen Sie den Browser-Editor unter [framescaper.org/en](https://framescaper.org/en/).
 
 Für Desktop-Hilfe siehe [lokale Verarbeitung, Modelle und Plugins](/help/local-processing/).

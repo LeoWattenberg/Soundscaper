@@ -4,7 +4,7 @@ description: "Ověřte složenou sekvenci a vytvořte dodávací soubor MP4 nebo
 sidebar:
   order: 3
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"9225d2aa1e6da43167a90718eea5097dd9f9d42790aaee2795a3d7d74452b72e","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"9225d2aa1e6da43167a90718eea5097dd9f9d42790aaee2795a3d7d74452b72e","targetLocale":"cs"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643"},"factPacketSha256":"603de0b48d3c3e6d2688ba66a67dc28e38cee405f12901a999c6d0f75c3c5f57","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"603de0b48d3c3e6d2688ba66a67dc28e38cee405f12901a999c6d0f75c3c5f57","targetLocale":"cs"} -->
 
 ## Před exportem
 
@@ -21,6 +21,14 @@ snímkovou frekvenci a další možnosti vhodné pro cílové prostředí.
 
 Video kódování je náročnější na zdroje než běžné přehrávání časové osy.
 Nechte editor otevřený, dokud export neoznámí dokončení.
+
+## Samostatný export zvukových klipů {#export-audio-clips}
+
+Zvolte **Soubor → Exportovat video**, vyberte zvukový formát, například **WAV**, a nastavte **Výstup** na **Jednotlivé klipy (rozdělit podle klipů)**. Export stáhne archiv se souborem pro každý zvukový klip. Videoklipy se vynechají a každý zvukový soubor obsahuje pouze příslušný klip včetně ořezů a úprav klipu.
+
+Soubory začínají na slyšitelném začátku klipu, bez doplnění do jeho polohy v projektu nebo dozvuku efektu. Číslované názvy klipů odlišují opakující se názvy.
+
+Efekty stopy jsou zahrnuty; efekty masteru, ztlumení a sólo tento export neovlivní. Společný zvukový postup najdete v části [Export klipů jako samostatných souborů](/soundscaper/edit-mix-and-export/#export-clips).
 
 ## Ověření dodávky
 

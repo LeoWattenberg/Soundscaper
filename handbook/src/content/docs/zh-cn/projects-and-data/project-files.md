@@ -4,7 +4,7 @@ description: "在本地库、Scape项目文件、AUP4和渲染备份之间进行
 sidebar:
   order: 2
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"5d41714fbb7c88000b3d658ba55adbe31cdf49eca365f62b8d42c3410a9a4816","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"5d41714fbb7c88000b3d658ba55adbe31cdf49eca365f62b8d42c3410a9a4816","targetLocale":"zh-CN"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"e5b0e4d73cd773ea7289ee298d5d16b6f714559350c07395753fa996b409be3b","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"e5b0e4d73cd773ea7289ee298d5d16b6f714559350c07395753fa996b409be3b","targetLocale":"zh-CN"} -->
 
 ## 本地项目库
 
@@ -12,17 +12,30 @@ sidebar:
 
 ## 导出项目文件
 
-使用 **文件 → 导出项目文件** 获得无损可移植项目。每个产品都有自己的后缀：Soundscaper 保存 `.sscape`，Framescaper 保存 `.fscape`，菜单条目命名适用于哪个产品。两种格式相同，因此当您需要保留混合媒体编辑状态时，这是合适的选择。
+在桌面版中，导入的音频和视频默认仍是对原始文件的引用。重新打开项目时，请将这些文件保留在原始位置。本地库还会保存编辑缓存。录音以及创建或处理的媒体会打包进项目，因为它们没有未更改的外部原始文件。
+
+选择 **文件 → 项目管理 → 合并媒体**，将引用的媒体打包到项目文件中。合并会立即保存项目；请在保存对话框中选择目标位置。保存后，合并后的副本可以脱离原始媒体文件单独移动或共享。如果媒体无法合并或保存失败，编辑器会报告问题。
+
+浏览器导出会自动打包媒体。在浏览器中打开包含外部引用的桌面项目之前，请先在桌面版中合并媒体。
+
+
+使用 **文件 → 导出项目文件** 保存编辑项目。每个产品都有自己的后缀：Soundscaper 保存 `.sscape`，Framescaper 保存 `.fscape`，菜单条目命名适用于哪个产品。两种格式相同，因此当您需要保留混合媒体编辑状态时，这是合适的选择。
 
 任一产品都可以打开任一后缀。 `.sscape`, `.fscape`, 保留的 `.liscape`, 和较旧的 `.scape` 文件在所有地方都可以打开，并且从不同产品保存一个文件只是重命名它——例如，从 Framescaper 保存的 `Mix.sscape` 成为 `Mix.fscape`。项目名称不变。
 
 导入或打开 Scape 副本可能会遇到本地库中相同的 ID 的现有项目。当两个版本都必须保留在本地库中时，使用提供的复制工作流程。
 
-## AUP4
+## Audacity AUP3 和 AUP4
 
-AUP4 用于与 Audacity 兼容的音频交换。导出会生成兼容性报告，描述转换、不可用的效果和省略的 Soundscaper 专用状态。
+可通过 **文件 → 导出其他** 导出 Audacity 项目。选择 **导出 AUP3** 使用 Audacity 3.7.9 项目配置，或选择 **导出 AUP4** 使用当前 Audacity 交换配置。每次导出都会生成兼容性报告，说明转换、不可用的效果以及被省略的 Soundscaper 专属状态。
 
-AUP4 仅限音频。视频被省略，浏览器偏好、撤销历史、混音路由和浏览器的项目库不会被传输。不要将 AUP4 作为 Soundscaper 或 Framescaper 项目的唯一备份。
+两种格式都仅包含音频。视频会被省略，浏览器偏好、撤销历史、混音路由和浏览器项目库不会传输。不要将任一种格式作为 Soundscaper 或 Framescaper 项目的唯一备份。
+
+## Adobe Audition SESX
+
+在桌面版中，使用 **文件 → 打开** 导入 Adobe Audition `.sesx` 会话。将引用的音频文件保留在会话文件夹下的相对目录结构中，或在提示时选择媒体文件夹。导入会创建一个新的本地项目，其中包含受支持的音轨、片段、位置、剪辑、简单淡化和静态混音器设置。
+
+SESX 导入是单向的。Audition 效果、自动化、路由、视频、标记、循环、拉伸、链接交叉淡化和精确淡化曲线不会传输。导入后打开 **文件 → 交付报告**，查看缺失媒体和其他被省略的内容。请保留原始 SESX 文件和媒体，以便继续在 Audition 中工作。
 
 ## 渲染备份
 

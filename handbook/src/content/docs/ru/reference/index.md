@@ -4,7 +4,7 @@ description: "Сгенерированные команды, ярлыки, фо�
 sidebar:
   order: 1
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"b7e4df92cd36126d4ce3865383043516972e9aca463c3449b731085cafc4050e","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"b7e4df92cd36126d4ce3865383043516972e9aca463c3449b731085cafc4050e","targetLocale":"ru"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"27ac617a3293f4d301daf72bed0b9f3e9127f4516531c320703c36e7afe8658c","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"27ac617a3293f4d301daf72bed0b9f3e9127f4516531c320703c36e7afe8658c","targetLocale":"ru"} -->
 
 Страницы справки генерируются из проверенных рабочих реестров и фиксируются в репозитории. Они описывают реализованное поведение, а не пункты дорожной карты или простое наличие исходных файлов и тестов.
 
@@ -22,4 +22,5 @@ sidebar:
 
 Сгенерированные страницы включают информацию об их происхождении и проверяются на соответствие в качестве репозитория.
 
-[Макрос-программы](/reference/macro-programs/) - единственная страница здесь, написанная вручную. Она документирует JavaScript API, против которого выполняется макрос-программа, и ее утверждения - это те, к которым тесты самого редактора привязывают песочницу.
+Страница [Макропрограммы](/reference/macro-programs/), написанная вручную, документирует JavaScript API, с которым работает макропрограмма. Страница [Перезапись импортированного файла на компьютере
+](/reference/overwrite-original-file/) описывает команду работы с файлами Electron, общую для обоих продуктов. Поведение проверяется тестами редактора.

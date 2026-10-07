@@ -2,12 +2,13 @@
 title: "Przetwarzanie lokalne, modele i wtyczki"
 description: "Znajdź lokalne funkcje wspomagające według zadania oraz zarządzaj modelami i wtyczkami w edytorach desktopowych."
 ---
-
-<!-- docs-ai-provenance: {"factPacketSha256":"922fb6c279e1a4499967f68b55d60fdc332bb1b2bd3144cff2f87824add1b7b7","model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"922fb6c279e1a4499967f68b55d60fdc332bb1b2bd3144cff2f87824add1b7b7","targetLocale":"pl"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"gpt-5.6-luna"},"factPacketSha256":"3d10714b7e0afaab240d9230f29a67dcdf7089d196b03baabfac75729296e82f","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"3d10714b7e0afaab240d9230f29a67dcdf7089d196b03baabfac75729296e82f","targetLocale":"pl"} -->
 
 Funkcje lokalne działają na Twoim urządzeniu w desktopowych edytorach Soundscaper i Framescaper. Zaznacz materiał, a następnie wybierz zadanie z menu. Okno dialogowe pokazuje zaznaczenie, ustawienia zadania i informację, czy jego modele są zainstalowane.
 
-Pakiety desktopowe zawierają natywne silniki przetwarzania dla opublikowanych modeli lokalnych. Zainstaluj wagi modelu za pomocą Menedżera modeli, a następnie uruchom zadanie dla zaznaczonego materiału. Informacje o obsługiwanych platformach, pozycji w menu i wymaganiach znajdziesz w [przewodniku po danym modelu](/reference/local-models/).
+Pakiety komputerowe nie zawierają opcjonalnych natywnych silników przetwarzania ani wag modeli. Zainstaluj model w Menedżerze modeli, aby pobrać wymagany silnik i wagi, a następnie uruchom zadanie na wybranych multimediach. Pierwsza instalacja wymaga połączenia z siecią; późniejsze przetwarzanie odbywa się lokalnie. Obsługiwane platformy, pozycję menu i wymagania opisano w przewodniku danego modelu.
+
+Więcej informacji znajdziesz w [przewodniki poszczególnych modeli](/reference/local-models/).
 
 ## Znajdź zadanie {#find-a-task}
 
@@ -33,7 +34,7 @@ Polecenie **Narzędzia → Zaawansowana obróbka lokalna** nadal udostępnia oso
 
 Otwórz **Narzędzia → Menedżer modeli** albo wybierz **Zarządzaj modelami** wewnątrz zadania. Odnośnik z zadania filtruje listę według zgodnych identyfikatorów modeli; **Pokaż wszystkie modele** usuwa to ograniczenie. Wyszukuj według nazwy lub zadania, a listę filtruj według stanu instalacji.
 
-Modele instaluj jawnie. Postęp pobierania jest widoczny; pobieranie można anulować. Powrót do zadania zachowuje jego ustawienia i odświeża dostępność modeli, ale nie rozpoczyna przetwarzania. Rozwiń **Zarządzanie magazynem i weryfikacja**, aby naprawiać i usuwać dane, przenosić magazyn, przeglądać informacje licencyjne oraz instalować modele offline z folderu.
+Instaluj modele jawnie. Pierwsza instalacja pobiera także brakujące natywne środowisko uruchomieniowe współdzielone przez model. Przy pobieraniu widać postęp i można je anulować. Po powrocie do zadania jego ustawienia zostają zachowane, a dostępność modeli odświeżona; przetwarzanie się nie rozpoczyna. Rozwiń **Pamięć i weryfikacja**, aby naprawiać, czyścić, przenosić pamięć, sprawdzać informacje o licencjach i instalować offline z folderu. Model zainstalowany z plików offline nadal przed pierwszym użyciem wymaga zgodnego środowiska uruchomieniowego.
 
 Przewodniki po [poszczególnych modelach](/reference/local-models/) opisują przeznaczenie każdego opublikowanego modelu, pozycję w menu, rozmiar pobierania, wymagania i ograniczenia, a także rzeczywiste testy wnioskowania wykonywane przez nocny pakiet desktopowy z testami.
 

@@ -4,7 +4,7 @@ description: "Membedakan media sumber, berkas proyek, berkas pertukaran, dan has
 sidebar:
   order: 1
 ---
-<!-- docs-ai-provenance: {"model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"feaac1449bd0cf8c68e4a6c1b9805972644cd6e992ca79c8e5415a0b8cb086f9","targetLocale":"id"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"gpt-5.6-luna"},"factPacketSha256":"3f5177c4b9d2b9549b4bf8cbf01df1df0c6e68287767f34bc5d1c40d69996e0c","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"3f5177c4b9d2b9549b4bf8cbf01df1df0c6e68287767f34bc5d1c40d69996e0c","targetLocale":"id"} -->
 
 Soundscaper menggunakan berbagai jenis file untuk pekerjaan yang berbeda.
 
@@ -17,20 +17,13 @@ produk aktif dan runtime.
 Mengimpor media menambahkan sumber yang dimiliki proyek. Ini tidak membuat file asli
 dokument proyek yang dapat diedit.
 
-Impor dan ekspor audio terkompresi mendukung hingga satu jam atau 1 GB
-(1.000.000.000 byte berkas), mana pun yang tercapai lebih dahulu. Berkas stereo
-48 kHz berdurasi satu jam didukung jika masih memenuhi batas berkas tersebut. Pekerjaan
-panjang membaca, menyandikan, dan menyimpan dalam beberapa bagian; ekspor browser
-berukuran besar memerlukan penyimpanan file privat-origin dan ruang kosong yang cukup.
-Impor besar memerlukan penyimpanan lokal persisten untuk audio yang telah didekodekan.
-Format PCM memiliki batasnya sendiri.
+Ekspor audio terkompresi dan impor browser mendukung hingga satu jam atau 1 GB
+(1.000.000.000 byte berkas), mana pun yang tercapai lebih dahulu. Pemilihan berkas desktop dan impor audio terkompresi tidak memiliki batas tetap ukuran atau durasi di bawah rentang bilangan bulat aman. Pekerjaan panjang membaca, menyandikan, dan menyimpan dalam beberapa bagian; ekspor browser yang besar memerlukan penyimpanan berkas privat-origin dan ruang kosong yang cukup. Impor besar memerlukan penyimpanan lokal yang cukup untuk audio hasil dekode. Struktur format, dukungan dekoder, dan penyimpanan yang tersedia juga dapat membatasi impor.
 
 Tingkat browser mencakup MP3, MP2, FLAC, WavPack, Opus, dan Ogg Vorbis. Dukungan
 AAC/M4A di browser bergantung pada codec browser. Ekspor streaming desktop mencakup
 keenam format bawaan tersebut, dengan FLAC 24-bit dan WavPack lossless float32.
-Impor desktop bergantung pada ketersediaan dekoder native; MP2 memakai tingkat
-kompatibilitas utilitas yang lebih kecil. AAC desktop dan penyedia kompatibilitas
-memiliki batasnya sendiri.
+Impor desktop bergantung pada ketersediaan dekoder; sumber MP2 besar menggunakan dekoder paket, sedangkan sumber MP2 yang lebih kecil menggunakan tingkat kompatibilitas utilitas.
 
 Pekerjaan aktif menampilkan bilah kemajuan meskipun **Tampilan → Bilah status**
 disembunyikan. Pilih **Batal** di samping bilah untuk menghentikan impor atau ekspor audio.
@@ -39,8 +32,8 @@ disembunyikan. Pilih **Batal** di samping bilah untuk menghentikan impor atau ek
 
 - Scape (`.sscape` dari Soundscaper, `.fscape` dari Framescaper, dan keduanya dapat dibuka) adalah format proyek portabel, fidelitas penuh yang dibagikan oleh Soundscaper
   dan Framescaper.
-- AUP4 adalah pertukaran audio-only dengan Audacity. Ini bukan cadangan penuh dari
-  proyek Soundscaper multimedia campuran.
+- AUP3 dan AUP4 menyediakan pertukaran audio dengan Audacity. Pilih AUP3 untuk profil proyek Audacity 3.7.9 atau AUP4 untuk profil pertukaran saat ini. Keduanya bukan cadangan penuh proyek Soundscaper dengan media campuran; periksa laporan kompatibilitas setelah ekspor.
+- Edisi desktop dapat membuka sesi Adobe Audition SESX (`.sesx`) untuk membuat proyek lokal dari berkas audio yang dirujuk. Simpan sesi dan media asli; ekspor SESX tidak tersedia.
 
 Lihat [File Proyek](/projects-and-data/project-files/) untuk konsekuensi dari
 tiap pilihan.

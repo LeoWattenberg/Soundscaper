@@ -4,7 +4,7 @@ description: "Կազմավորեք տեսանյութը, համադրեք պատ
 sidebar:
   order: 1
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"fe5df8f699907289847a5d9022c094e32168b502a532ebdf7708436a99db38b7","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"fe5df8f699907289847a5d9022c094e32168b502a532ebdf7708436a99db38b7","targetLocale":"hy"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643"},"factPacketSha256":"47cebc3006e44dba5569ea0c1418001989dccf3730c3421c338c340222a9c5af","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"47cebc3006e44dba5569ea0c1418001989dccf3730c3421c338c340222a9c5af","targetLocale":"hy"} -->
 
 Framescaper-ը համատեղ խմբագրիչի տեսաձայնային կողմնորոշված տեսքն է։ Այն շեշտադրում է տեսաձայնի նախադիտումը, աղբյուրի մոնիտորինգը, պատկերի էֆեկտները, կոմպոզիտինգը, խաչաձև հաջորդականությունները և բազմախցիկային աշխատանքը։
 
@@ -33,6 +33,6 @@ Soundscaper-ի համար և ընդգրկում են նաև տեսաձայնայ
 3. Ստուգեք [նախագծի ֆայլի և պահուստային պահպանման վարքը](/projects-and-data/project-files/).
 
 Բացեք բրաուզերային խմբագիրը
-[soundscaper.org/framescaper/en](https://soundscaper.org/framescaper/en/).
+[framescaper.org/en](https://framescaper.org/en/).
 
 Կոշտ սարքի օգնության համար տեսեք [տեղային մշակում, մոդելներ և խմբագիրներ](/help/local-processing/).

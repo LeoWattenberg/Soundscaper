@@ -4,7 +4,7 @@ description: "Gegenereerde commando's, sneltoetsen, formaten, effecten en tabell
 sidebar:
   order: 1
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"b7e4df92cd36126d4ce3865383043516972e9aca463c3449b731085cafc4050e","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"b7e4df92cd36126d4ce3865383043516972e9aca463c3449b731085cafc4050e","targetLocale":"nl"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"27ac617a3293f4d301daf72bed0b9f3e9127f4516531c320703c36e7afe8658c","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"27ac617a3293f4d301daf72bed0b9f3e9127f4516531c320703c36e7afe8658c","targetLocale":"nl"} -->
 
 Referentiepagina's worden gegenereerd op basis van beoordeelde runtime-registers en toegevoegd aan
 die opslagplaats. Ze beschrijven geïmplementeerd gedrag, niet roadmap-items of
@@ -25,6 +25,5 @@ Gebruik deze sectie om vragen te beantwoorden zoals:
 Gegenereerde pagina's bevatten hun bronherkomst en worden gecontroleerd op drift in
 die kwaliteitscontrole van de opslagplaats.
 
-[Macro-programma's](/reference/macro-programs/) is de enige pagina hier die met de hand is geschreven.
-Het documenteert de JavaScript API waartegen een macro-programma wordt uitgevoerd, en zijn
-affirmaties zijn degenen waar de eigen tests van de editor de sandbox aan vasthouden.
+De handgeschreven pagina [Macroprogramma’s](/reference/macro-programs/) documenteert de JavaScript-API die een macroprogramma gebruikt. [Een geïmporteerd bestand op desktop overschrijven
+](/reference/overwrite-original-file/) beschrijft de Electron-bestandsopdracht die beide producten delen. De editor-tests controleren het gedrag ervan.

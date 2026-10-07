@@ -4,7 +4,7 @@ description: "Tabelle generate di comandi, scorciatoie, formati, effetti e capac
 sidebar:
   order: 1
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"b7e4df92cd36126d4ce3865383043516972e9aca463c3449b731085cafc4050e","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"b7e4df92cd36126d4ce3865383043516972e9aca463c3449b731085cafc4050e","targetLocale":"it"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"27ac617a3293f4d301daf72bed0b9f3e9127f4516531c320703c36e7afe8658c","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"27ac617a3293f4d301daf72bed0b9f3e9127f4516531c320703c36e7afe8658c","targetLocale":"it"} -->
 
 Le pagine di riferimento vengono generate da registri di esecuzione esaminati e inseriti nel repository. Descrivono il comportamento implementato, non gli elementi della roadmap o la semplice presenza di file sorgente e test.
 
@@ -22,4 +22,5 @@ Utilizza questa sezione per rispondere a domande come:
 
 Le pagine generate includono la provenienza della fonte e vengono controllate per rilevare eventuali deviazioni nel gate di qualità del repository.
 
-[Programmi macro](/reference/macro-programs/) è l'unica pagina qui scritta a mano. Documenta l'API JavaScript che un programma macro esegue e le sue affermazioni sono quelle a cui il sandbox dell'editor stesso tiene durante i propri test.
+La pagina scritta a mano sui [Programmi macro](/reference/macro-programs/) documenta l’API JavaScript usata da un programma macro. [Sovrascrivere un file importato sul desktop
+](/reference/overwrite-original-file/) descrive il comando File di Electron condiviso dai due prodotti. I test dell’editor ne verificano il comportamento.

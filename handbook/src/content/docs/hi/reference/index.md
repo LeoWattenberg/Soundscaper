@@ -4,7 +4,7 @@ description: "जनरेट किए गए कमांड, शॉर्ट�
 sidebar:
   order: 1
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"b7e4df92cd36126d4ce3865383043516972e9aca463c3449b731085cafc4050e","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"b7e4df92cd36126d4ce3865383043516972e9aca463c3449b731085cafc4050e","targetLocale":"hi"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"27ac617a3293f4d301daf72bed0b9f3e9127f4516531c320703c36e7afe8658c","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"27ac617a3293f4d301daf72bed0b9f3e9127f4516531c320703c36e7afe8658c","targetLocale":"hi"} -->
 
 संदर्भ पृष्ठ रिव्यूड रनटाइम रजिस्ट्रीज़ से उत्पन्न होते हैं और रिपॉजिटरी में कमिट किए जाते हैं। वे लागू किए गए व्यवहार का वर्णन करते हैं, न कि रोडमैप प्रविष्टियों या स्रोत फ़ाइलों और परीक्षणों के मात्र अस्तित्व का।
 
@@ -22,4 +22,5 @@ sidebar:
 
 जनरेट की गई पृष्ठों में उनका स्रोत प्रमाणीकरण शामिल होता है और रिपॉजिटरी क्वालिटी गेट में ड्रिफ्ट के लिए जाँच की जाती है।
 
-[मैक्रो प्रोग्राम](/reference/macro-programs/) यहाँ हाथ से लिखी गई एकमात्र पृष्ठ है। यह जावास्क्रिप्ट एपीआई का दस्तावेज़ीकरण करता है जिसे एक मैक्रो प्रोग्राम चलाता है, और इसके दावे हैं जिन्हें एडिटर के अपने परीक्षण सैंडबॉक्स को पकड़ने के लिए रखा जाता है।
+हाथ से लिखा गया [मैक्रो प्रोग्राम](/reference/macro-programs/) पृष्ठ उस JavaScript API का दस्तावेज़ देता है जिसका उपयोग मैक्रो प्रोग्राम करता है। [डेस्कटॉप पर आयात की गई फ़ाइल को बदलें
+](/reference/overwrite-original-file/) दोनों उत्पादों के साझा Electron फ़ाइल कमांड का वर्णन करता है। संपादक के परीक्षण इनके व्यवहार की जाँच करते हैं।

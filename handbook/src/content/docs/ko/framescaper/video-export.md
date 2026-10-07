@@ -4,7 +4,7 @@ description: "구성된 시퀀스를 검증하고 MP4 또는 WebM 배달을 생�
 sidebar:
   order: 3
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"9225d2aa1e6da43167a90718eea5097dd9f9d42790aaee2795a3d7d74452b72e","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"9225d2aa1e6da43167a90718eea5097dd9f9d42790aaee2795a3d7d74452b72e","targetLocale":"ko"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"603de0b48d3c3e6d2688ba66a67dc28e38cee405f12901a999c6d0f75c3c5f57","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"603de0b48d3c3e6d2688ba66a67dc28e38cee405f12901a999c6d0f75c3c5f57","targetLocale":"ko"} -->
 
 ## 내보내기 전
 
@@ -18,6 +18,14 @@ sidebar:
 내보내기 대화를 열고 비디오 형식을 선택합니다. Framescaper는 구성 된 비디오 런타임을 통해 MP4 및 WebM 배달을 지원합니다. 목적지에 적합한 차원, 프레임 속도 및 기타 옵션을 선택합니다.
 
 비디오 인코딩은 일반적인 타임라인 재생보다 더 많은 리소스를 소비합니다. 내보내기가 완료되었다고 보고될 때까지 편집기를 열어 두십시오.
+
+## 오디오 클립을 개별 파일로 내보내기 {#export-audio-clips}
+
+**파일 → 비디오 내보내기**를 선택하고 **WAV**와 같은 오디오 형식을 고른 다음 **출력**을 **개별 클립(클립별 분할)**로 설정합니다. 내보내면 오디오 클립마다 하나의 파일이 들어 있는 아카이브가 다운로드됩니다. 비디오 클립은 제외되며 각 오디오 파일에는 트림과 클립 편집을 포함해 해당 클립만 들어갑니다.
+
+파일은 클립에서 소리가 들리기 시작하는 지점부터 시작합니다. 프로젝트 위치까지의 여백이나 효과 꼬리는 포함되지 않습니다. 번호가 붙은 클립 이름으로 같은 이름의 클립을 구분합니다.
+
+트랙 효과는 포함됩니다. 마스터 효과, 음소거, 솔로는 이 내보내기에 영향을 주지 않습니다. 공통 오디오 작업 흐름은 [클립을 별도 파일로 내보내기](/soundscaper/edit-mix-and-export/#export-clips)를 참조하세요.
 
 ## 배달 확인
 
