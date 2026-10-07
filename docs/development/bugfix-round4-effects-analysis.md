@@ -461,3 +461,27 @@ generator support (28/28). Both product builds and targeted lint pass.
 Regression files are `audio-editor-round4-generator-label-scope.test.ts` and
 `audio-editor-round4-generator-label-scope.spec.js`; evidence is recorded in
 `/tmp/soundscaper-r4-root-generator-label-*`. Manual Update AI assets: not required.
+
+## R4-ROOT-020 — Modified source-trim keys edit audio instead of running commands
+
+Import a WAV, assign Ctrl+Alt+Right to New label track in Preferences, and open
+Clip properties. Focus Trim source start and press that binding. The baseline
+trims one source sample and creates no label track: the source editor's trim
+control takes the modified arrow before the command dispatcher can use it.
+
+Leave already handled and Ctrl/Meta/Alt-modified keys available in the source
+trim and stretch-marker editing controls. Preserve their ordinary and Shift
+arrow edits, marker removal and gesture cancellation. These controls share this
+source-edit admission defect; their variants add no separate IDs. This owner
+is independent of audio fades, loop handles and video fades.
+
+The exact public binding workflow fails on immutable baseline `a0322d6e4` and
+passes Chromium, Firefox and WebKit on `source-trim-clean24`, alongside the
+existing source-marker deletion workflow (6/6). The mounted production controls
+also fail before the correction; modifier admission, preserved single-sample
+trim/stretch editing and existing source targeting pass afterward (6/6).
+Both product builds, targeted lint, `lint:changed` and authoritative test
+TypeScript checks pass. Regression files are
+`audio-editor-round4-source-trim-shortcut.test.tsx` and
+`audio-editor-round4-source-trim-shortcut.spec.js`; evidence is recorded in
+`/tmp/soundscaper-r4-root-source-trim-*`. Manual Update AI assets: not required.

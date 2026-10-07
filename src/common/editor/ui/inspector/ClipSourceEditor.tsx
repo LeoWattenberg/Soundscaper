@@ -250,7 +250,7 @@ export default function ClipSourceEditor({ controller, project, clipId, copy, bl
 						onRename={title => run(() => controller.actions.clip.update(clipId, { title }))} /></div>
 					{(['start', 'end'] as const).map(edge => <button key={edge} type="button" className={`audio-editor-source-trim audio-editor-source-trim--${edge}`}
 						aria-label={edge === 'start' ? copy.clipSourceTrimStart : copy.clipSourceTrimEnd} disabled={blocked} onPointerDown={event => begin(event, edge)}
-						onKeyDown={event => { if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') { event.preventDefault(); event.stopPropagation(); const frame = (edge === 'start' ? clip.sourceStartFrame : clip.sourceStartFrame + clip.sourceDurationFrames) + (event.key === 'ArrowLeft' ? -1 : 1) * (event.shiftKey ? Math.round(source.sampleRate / 10) : 1); run(() => preview.trim(clipId, clipSourceTrim(clip, source, project.sampleRate, edge, frame))); } }} />)}
+						onKeyDown={event => { if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return; if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') { event.preventDefault(); event.stopPropagation(); const frame = (edge === 'start' ? clip.sourceStartFrame : clip.sourceStartFrame + clip.sourceDurationFrames) + (event.key === 'ArrowLeft' ? -1 : 1) * (event.shiftKey ? Math.round(source.sampleRate / 10) : 1); run(() => preview.trim(clipId, clipSourceTrim(clip, source, project.sampleRate, edge, frame))); } }} />)}
 
 				</div>
 				<ClipSourceFades rootRef={waveRef} clip={fadeClip} startFrame={startFrame} endFrame={endFrame} width={width} sampleRate={project.sampleRate}
@@ -261,6 +261,7 @@ export default function ClipSourceEditor({ controller, project, clipId, copy, bl
 					onFocus={() => setFocusedMarker(index + 1)} onBlur={() => setFocusedMarker(null)}
 					data-source-sample={marker.source.num / marker.source.den} style={{ left: pixel(index + 1 === markerIndex && markerFeedback ? markerFeedback.displayFrame : clipSourceFrameToDisplay(project, clip, source, marker.source.num / marker.source.den)) }}
 					onPointerDown={event => begin(event, 'marker', index + 1)} onKeyDown={event => {
+						if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
 						if (event.key === 'Delete' || event.key === 'Backspace') { event.preventDefault(); event.stopPropagation(); deleteMarker(event.currentTarget, () => run(() => controller.actions.audioWarp.deleteSourceMarker(clipId, index + 1))); }
 						if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') { event.preventDefault(); event.stopPropagation(); moveMarker(index + 1, clipSourceFrameToDisplay(project, clip, source, marker.source.num / marker.source.den) + (event.key === 'ArrowLeft' ? -1 : 1) * (event.shiftKey ? Math.round(project.sampleRate / 10) : 1)); }
 					}} />)}
