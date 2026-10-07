@@ -21,6 +21,8 @@
  */
 
 import { describeFreesoundStep } from './freesound-steps.mjs';
+import { describeClips, describeEditingPreference } from './editing-steps.mjs';
+export { editingPreference } from './editing-steps.mjs';
 export { insertFreesound, searchFreesound } from './freesound-steps.mjs';
 
 const STEP_KINDS = Object.freeze([
@@ -28,7 +30,7 @@ const STEP_KINDS = Object.freeze([
 	'noise-profile', 'nyquist', 'analyze', 'export', 'save', 'track-menu', 'track-button',
 	'add-track', 'play', 'generate', 'marker', 'check', 'note', 'rack-effect',
 	'open-audacity-project', 'export-project', 'open-project-file', 'resample', 'drag-clip', 'mix-render',
-	'contrast', 'macro', 'play-at-speed', 'freesound-search', 'freesound-insert',
+	'contrast', 'macro', 'play-at-speed', 'freesound-search', 'freesound-insert', 'editing-preference',
 ]);
 
 const CONTRAST_ROLES = new Set(['foreground', 'background']);
@@ -142,14 +144,16 @@ export function cursor(fraction, extras = {}) {
 	return step({ kind: 'cursor', fraction: requireFraction(fraction, 'The cursor position'), where: phrase(extras, 'where', 'cursor') }, extras, ['where']);
 }
 
-/** Select whole clips by their name bars; `which` names each one the way a reader knows it. */
+/** Select whole clips by name bar or keyboard; `which` names each for the reader. */
 export function selectClips(fixtures, extras = {}) {
 	if (!Array.isArray(fixtures) || fixtures.length === 0 || fixtures.some((id) => typeof id !== 'string' || id.length === 0)) {
 		throw new TypeError('A select-clips step needs the fixture ids of the clips to select.');
 	}
 	const which = phrase(extras, 'which', 'select-clips', { list: true });
 	if (which.length !== fixtures.length) throw new RangeError('A select-clips step needs one `which` phrase per clip.');
-	return step({ kind: 'select-clips', fixtures: Object.freeze([...fixtures]), which }, extras, ['which']);
+	const keyboard = extras.keyboard ?? false;
+	if (typeof keyboard !== 'boolean') throw new TypeError('Keyboard clip selection must be true or false.');
+	return step({ kind: 'select-clips', fixtures: Object.freeze([...fixtures]), which, keyboard }, extras, ['which', 'keyboard']);
 }
 
 /** Press a toolbar button by its name; tools such as the split tool toggle. */
@@ -406,15 +410,6 @@ function describePosition(fraction) {
 	return `about ${String(Math.round(fraction * 100))}% of the way through`;
 }
 
-function describeClips(entry, facet, fixture) {
-	const names = facet === 'howto'
-		? entry.which
-		: entry.fixtures.map((id) => `\`${fixture(id).file}\``);
-	const [first, ...rest] = names;
-	if (rest.length === 0) return `Click the name bar of ${first} to select it.`;
-	return `Click the name bar of ${first}, then hold Shift and click the name bar of ${listPhrases(rest)}, so ${rest.length === 1 ? 'both' : 'all of them'} are selected.`;
-}
-
 function describeCheck(entry, facet, fixture) {
 	if (facet === 'howto' && entry.that) return entry.that;
 	const parts = [];
@@ -479,6 +474,8 @@ export function describeStep(entry, { fixture, facet = 'howto' }) {
 			return `Click the waveform ${howto ? entry.where : describePosition(entry.fraction)} to put the cursor there.`;
 		case 'select-clips':
 			return describeClips(entry, facet, fixture);
+		case 'editing-preference':
+			return describeEditingPreference(entry);
 		case 'tool':
 			return `Press the ${bold(entry.name)} button in the toolbar.`;
 		case 'effect': {

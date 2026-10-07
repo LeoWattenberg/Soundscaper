@@ -54,6 +54,9 @@ More [editing](/guides/editing/) guides:
 - [Undo and redo](/guides/editing/undo-and-redo/) — Step back through your edits and forward again.
 - [Loop a section while you practise](/guides/editing/loop-a-section-while-you-practise/) — Play a selected passage over and over.
 - [Listen faster or slower without changing the recording](/guides/editing/listen-at-a-different-speed/) — Slow a passage down to transcribe it or speed a long take up to review it, leaving the project untouched.
+- [Join split clips back together](/guides/editing/join-split-clips/) — Turn the pieces of a split recording back into one clip.
+- [Delete a passage and leave a gap](/guides/editing/delete-a-passage-and-leave-a-gap/) — Remove unwanted audio while keeping the later material at its original time.
+- [Align a recording to time zero](/guides/editing/align-a-recording-to-zero/) — Move a track’s recording to the project start without dragging it by eye.
 
 <details>
 <summary>How this guide stays correct</summary>

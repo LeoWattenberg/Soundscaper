@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { check, cursor, dragClip, effect, generate, importAudio, marker, menu, open, play, playAtSpeed, selectClips, selectRange, tool } from '../steps.mjs';
+import { check, cursor, dragClip, editingPreference, effect, generate, importAudio, marker, menu, open, play, playAtSpeed, selectClips, selectRange, tool } from '../steps.mjs';
 
 const selectAll = (extras) => menu(['Select', 'Select all'], extras);
 
@@ -293,6 +293,66 @@ export const EDITING_GUIDES = Object.freeze([
 		tips: [
 			'**Preserve pitch** in the same options keeps a voice sounding natural while it is slowed; turn it off for a tape-style pitch drop.',
 			'Set the speed back to `1×` and the button is an ordinary Play again. To change the recording itself, use [Change tempo](guide:change-tempo-without-changing-pitch).',
+		],
+	},
+	{
+		id: 'join-split-clips',
+		title: 'Join split clips back together',
+		description: 'Turn the pieces of a split recording back into one clip.',
+		audacity: 'Edit → Clip → Join selected clips (Ctrl+J)',
+		intro: 'Join combines adjacent pieces of the same recording so you can move or edit them as one clip again. It needs matching source regions and no fades at the join. These steps turn off automatic fades before making a split, then rejoin the pieces without rendering.',
+		steps: [
+			open(),
+			editingPreference({ label: 'Apply 2 ms fades to new clips', checked: false }, { why: 'Automatic fades at the split point would make Join unavailable.' }),
+			importAudio('music-loop', { what: 'the recording you want to split and rejoin' }),
+			cursor(0.5, { where: 'where you want to split the recording' }),
+			menu(['Edit', 'Audio clips', 'Split']),
+			check({ clips: 2 }, { see: 'The two pieces meet at the split point.' }),
+			selectClips(['music-loop', 'music-loop'], { which: ['the first piece', 'the second piece'], keyboard: true, why: 'Both pieces must be selected for the join.' }),
+			menu(['Edit', 'Audio clips', 'Join selected clips']),
+			check({ clips: 1 }, { see: 'One clip covers the same time as the recording before the split.' }),
+		],
+		tips: [
+			'This preference affects future splits. Turn **Apply 2 ms fades to new clips** back on afterwards if you normally use it.',
+			'If Join is unavailable for existing pieces, check for a gap, internal fades, or different source material. Turning the preference off does not remove fades already on a clip.',
+			'**Edit → Undo** restores the separate pieces if you want to keep editing them independently.',
+		],
+	},
+	{
+		id: 'delete-a-passage-and-leave-a-gap',
+		title: 'Delete a passage and leave a gap',
+		description: 'Remove unwanted audio while keeping the later material at its original time.',
+		audacity: 'Edit → Delete → Delete and leave gap',
+		intro: 'When a recording must stay in sync with another track or a video, closing a gap would move every later cue. Delete and leave gap removes the selected audio and leaves empty space between the surviving pieces. The audio after the selection stays at its original time.',
+		steps: [
+			open(),
+			importAudio('music-loop', { what: 'the recording with the passage you want to remove' }),
+			selectRange(0.25, 0.75, { where: 'the unwanted passage inside the clip' }),
+			menu(['Edit', 'Delete', 'Delete and leave gap']),
+			check({ clips: 2 }, { see: 'The surviving pieces have a gap where the passage was. The later piece has not moved left.' }),
+		],
+		tips: [
+			'To close the gap instead, follow [Cut a mistake out of a recording](guide:cut-out-a-mistake).',
+			'**Edit → Undo** restores the deleted passage so you can adjust the selection and try again.',
+		],
+	},
+	{
+		id: 'align-a-recording-to-zero',
+		title: 'Align a recording to time zero',
+		description: 'Move a track’s recording to the project start without dragging it by eye.',
+		audacity: 'Tracks → Align content → Align start to zero',
+		intro: 'A recording that starts late on the timeline can be returned to the project start with an alignment command. Align start to zero shifts the selected track’s content so its earliest clip begins at zero. This procedure moves one recording later, then aligns it back to the start.',
+		steps: [
+			open(),
+			importAudio('music-loop', { what: 'the recording you want to align' }),
+			dragClip(1, { where: 'to a later point on the timeline' }),
+			check({ moved: 'music-loop' }, { that: 'The clip now starts later than the project start.' }),
+			menu(['Tracks', 'Align content', 'Align start to zero']),
+			check({ clips: 1, startsAt: { fixture: 'music-loop', seconds: 0 } }, { that: 'The recording now begins at time zero.', see: 'The clip’s left edge lines up with the start of the ruler.' }),
+		],
+		tips: [
+			'Alignment moves the selected track’s content. Use a track that holds only this recording when you want to move it on its own.',
+			'**Edit → Undo** restores the previous position.',
 		],
 	},
 ]);

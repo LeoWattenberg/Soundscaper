@@ -62,11 +62,11 @@ async function expectSuccess(editor, timeout = EFFECT_TIMEOUT) {
  * All three are the reader's "the clip", so the named form wins when it exists
  * and the renamed form stands in when it does not.
  */
-function guideClip(editor, clipName) {
+function guideClip(editor, clipName, index = 0) {
 	const base = clipName.replace(/\.wav$/u, '').replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
 	const named = editor.getByRole('group', { name: new RegExp(`^${base}(?:\\.wav)? clip(?:,|$)`, 'u') });
 	const renamed = editor.getByRole('group', { name: /^Audio clip clip(?:,|$)/u });
-	return named.or(renamed).first();
+	return named.or(renamed).nth(index);
 }
 
 async function currentClip(state) {
@@ -345,10 +345,23 @@ async function executeStep(page, state, entry) {
 		}
 		case 'select-clips':
 			for (const [index, fixture] of entry.fixtures.entries()) {
-				const clip = guideClip(state.editor, guideFixtureClipName(fixture));
-				await clip.locator('.clip-header').click({ modifiers: index === 0 ? [] : ['Shift'] });
+				// A split leaves several pieces with the same source name. Repeating
+				// its fixture selects the next piece, rather than toggling the first.
+				const piece = entry.fixtures.slice(0, index).filter((id) => id === fixture).length;
+				const clip = guideClip(state.editor, guideFixtureClipName(fixture), piece);
+				if (entry.keyboard) await clip.press(index === 0 ? 'Enter' : 'Shift+Enter');
+				else await clip.locator('.clip-header').click({ modifiers: index === 0 ? [] : ['Shift'] });
 			}
 			return;
+		case 'editing-preference': {
+			await chooseCommandAction(page, state.editor, 'Edit', 'Preferences');
+			const dialog = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
+			await dialog.getByRole('tab', { name: /Editing$/u }).click();
+			await dialog.getByRole('checkbox', { name: entry.label, exact: true }).setChecked(entry.checked);
+			await dialog.getByRole('button', { name: 'Close', exact: true }).last().click();
+			await expect(dialog).toBeHidden();
+			return;
+		}
 		case 'tool':
 			await state.editor.getByRole('button', { name: entry.name, exact: true }).click();
 			return;
