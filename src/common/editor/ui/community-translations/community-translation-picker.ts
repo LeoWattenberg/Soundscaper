@@ -91,3 +91,26 @@ function matchTemplate(template: string, text: string): Readonly<Record<string, 
 function escapeRegExp(value: string): string {
 	return value.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
 }
+
+export function retainCommunityTranslationPicker(
+	ownerDocument: Pick<Document, 'addEventListener' | 'removeEventListener'>,
+	panel: Readonly<{ current: HTMLElement | null }>,
+	inspect: (event: MouseEvent) => void,
+	cancel: (event: KeyboardEvent) => void,
+): () => void {
+	const suppressStart = (event: Event): void => {
+		if (!(event.target instanceof Element) || panel.current?.contains(event.target)) return;
+		event.preventDefault();
+		event.stopImmediatePropagation();
+	};
+	ownerDocument.addEventListener('pointerdown', suppressStart, true);
+	ownerDocument.addEventListener('mousedown', suppressStart, true);
+	ownerDocument.addEventListener('click', inspect, true);
+	ownerDocument.addEventListener('keydown', cancel, true);
+	return () => {
+		ownerDocument.removeEventListener('pointerdown', suppressStart, true);
+		ownerDocument.removeEventListener('mousedown', suppressStart, true);
+		ownerDocument.removeEventListener('click', inspect, true);
+		ownerDocument.removeEventListener('keydown', cancel, true);
+	};
+}

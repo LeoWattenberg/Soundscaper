@@ -16,7 +16,7 @@ import {
 	exportCommunityTranslationJson, exportCommunityTranslationPo, type CommunityTranslationFileService,
 } from './community-translation-files.ts';
 import {
-	findTranslationCandidates, translationTextsForElement, type TranslationCandidate,
+	findTranslationCandidates, translationTextsForElement, retainCommunityTranslationPicker, type TranslationCandidate,
 } from './community-translation-picker.ts';
 import type { CommunityTranslationPresentationPort } from './community-translation-presentation.ts';
 import { useCommunityTranslationDraft } from './useCommunityTranslationDraft.ts';
@@ -110,12 +110,7 @@ export default function CommunityTranslationSurface({ port, initialLocale, copy:
 			setPicking(false);
 			searchRef.current?.focus({ preventScroll: true });
 		};
-		document.addEventListener('click', inspect, true);
-		document.addEventListener('keydown', cancel, true);
-		return () => {
-			document.removeEventListener('click', inspect, true);
-			document.removeEventListener('keydown', cancel, true);
-		};
+		return retainCommunityTranslationPicker(document, panelRef, inspect, cancel);
 	}, [picking, port, setMessage]);
 	function chooseCandidate(candidate: TranslationCandidate): void {
 		setFilter('all');
