@@ -71,6 +71,7 @@ export default function WorkspacePanelHeader({
 	const menuPanelId = activeTab?.id ?? panelId;
 	const menuLabel = activeTab?.label ?? label;
 	const activateRelativeTab = (event, tabIndex) => {
+		if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
 		const keys = ['ArrowLeft', 'ArrowRight', 'Home', 'End'];
 		if (!keys.includes(event.key)) return;
 		event.preventDefault();
