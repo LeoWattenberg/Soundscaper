@@ -236,7 +236,7 @@ export const TrackControlPanel: React.FC<TrackControlPanelProps> = ({
   const [isDragReorderArmed, setIsDragReorderArmed] = React.useState(false);
 
   const isInteractiveTarget = (el: EventTarget | null): boolean => {
-    if (!(el instanceof HTMLElement)) return false;
+    if (!(el instanceof Element)) return false;
     return !!el.closest(
       'button, input, select, textarea, [role="slider"], [role="button"], [role="menuitem"], [role="menuitemradio"], [role="menuitemcheckbox"]',
     );
@@ -644,8 +644,8 @@ export const TrackControlPanel: React.FC<TrackControlPanelProps> = ({
     '--tcp-icon-default': theme.foreground.icon.primary,
     '--tcp-focus-color': theme.border.focus,
   } as React.CSSProperties;
-
   const handleClick = (e: React.MouseEvent) => {
+    if (isInteractiveTarget(e.target) && e.target !== nameSpanRef.current) return;
     // A drag-reorder that just committed synthesises a click on the
     // panel — suppress it so the header isn't also treated as a
     // "select this track" click.

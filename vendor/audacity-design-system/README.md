@@ -349,6 +349,12 @@ application overrides and source patches against the pin and upstream master.
     preceding time value; keyboard and pointer entry share this handoff. Its
     document listener handles digit keys only while focus remains on one of its
     digits, so command search and application-owned format triggers retain their keys.
+48. `TrackControlPanel` excludes interactive child clicks from header track
+    selection. Effects and slider interactions retain selected clips and time,
+    while plain header and track-name clicks keep their modifier selection behavior.
+    Its shared target guard includes SVG descendants. Covered by
+    `tests/audio-editor-round3-track-header-child-controls.test.tsx` alongside the
+    existing mounted header selection and gesture regressions.
 
 ## Application-side adaptations
 

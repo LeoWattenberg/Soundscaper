@@ -29,7 +29,8 @@ test('track-header pointer and Enter modifiers preserve the range while changing
 			onMenu={() => undefined} onOpenEffects={() => undefined} onAutomationTarget={() => undefined}
 			onTabOut={() => undefined} onShiftTabOut={() => undefined} onNavigateVertical={() => undefined} />));
 		const panel = dom.one('.track-control-panel');
-		const click = async (modifiers: object) => { await act(async () => { reactProps(panel).onClick({ ...modifiers, stopPropagation() {}, preventDefault() {} }); }); };
+		const name = dom.one('.track-control-panel__track-name-text');
+		const click = async (modifiers: object) => { await act(async () => { reactProps(panel).onClick({ ...modifiers, target: name, currentTarget: panel, stopPropagation() {}, preventDefault() {} }); }); };
 		await click({ ctrlKey: true }); assert.deepEqual(selection, { startFrame: 101, endFrame: 901, trackIds: ['first', 'last'] });
 		await click({ metaKey: true }); assert.deepEqual(selection.trackIds, ['first']);
 		await click({ shiftKey: true }); assert.deepEqual(selection.trackIds, ['first', 'middle', 'last']);
