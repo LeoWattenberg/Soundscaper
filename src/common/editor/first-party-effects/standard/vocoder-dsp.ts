@@ -19,10 +19,11 @@ class Biquad {
 		const angle = 2 * Math.PI * frequency / rate;
 		const alpha = Math.sin(angle) / (2 * q);
 		const inverse = 1 / (1 + alpha);
-		this.b0 = lowpass ? (1 - Math.cos(angle)) * .5 * inverse : alpha * inverse;
+		const cosine = Math.cos(angle);
+		this.b0 = lowpass ? (1 - cosine) * .5 * inverse : alpha * inverse;
 		this.b1 = lowpass ? 2 * this.b0 : 0;
 		this.b2 = lowpass ? this.b0 : -this.b0;
-		this.a1 = -2 * Math.cos(angle) * inverse;
+		this.a1 = -2 * cosine * inverse;
 		this.a2 = (1 - alpha) * inverse;
 	}
 	process(sample: number): number {

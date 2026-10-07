@@ -32,6 +32,7 @@ export function createStandardFilterProcessor(options: StandardFilterProcessorOp
 		reset() { state.fill(0); },
 		updateParams(nextParams) {
 			const next = normalizeStandardFilterParams(type, sampleRate, { ...params, ...nextParams });
+			if (Object.keys(next).every(key => Object.is(next[key], params[key]))) return;
 			const nextCoefficients = standardFilterCoefficients(type, sampleRate, next);
 			if (nextCoefficients.length !== coefficients.length) state = new Float64Array(channelCount * nextCoefficients.length * 2);
 			params = next;

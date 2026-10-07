@@ -53,6 +53,7 @@ export class ReverbLiveProcessor {
 	private readonly dryValues: number[] = [];
 	private readonly wetValues: number[] = [];
 	private preDelayFrames = 0;
+	private configuredParams: ReverbParams | null = null;
 	private feedback = 0;
 	private damping = 0;
 	private wetGain = 0;
@@ -79,6 +80,9 @@ export class ReverbLiveProcessor {
 
 	configure(): void {
 		const settings = this.params;
+		const previous = this.configuredParams;
+		if (previous && (Object.keys(settings) as (keyof ReverbParams)[]).every(key => Object.is(settings[key], previous[key]))) return;
+		this.configuredParams = { ...settings };
 		this.preDelayFrames = Math.round(settings.preDelay / 1_000 * this.sampleRate);
 		this.feedback = (0.28 + settings.roomSize / 100 * 0.7) * (0.2 + settings.reverberance / 100 * 0.78);
 		this.damping = Math.min(0.98, settings.damping / 100);
@@ -179,20 +183,22 @@ export class ReverbLiveProcessor {
 	}
 
 	private processWet(state: ReverbChannel, dry: number): number {
-		// Every delay has at least one frame, and modulo advances keep its
+		// Every delay has at least one frame, and bounded advances keep its
 		// position inside that buffer for the indexed reads below.
 		let source = dry;
 		if (state.preDelay) {
 			source = state.preDelay.buffer[state.preDelay.position]!;
 			state.preDelay.buffer[state.preDelay.position] = dry;
-			state.preDelay.position = (state.preDelay.position + 1) % state.preDelay.buffer.length;
+			state.preDelay.position += 1;
+			if (state.preDelay.position === state.preDelay.buffer.length) state.preDelay.position = 0;
 		}
 		let value = 0;
 		for (const comb of state.combs) {
 			const delayed = comb.buffer[comb.position]!;
 			comb.filter = delayed * (1 - this.damping) + comb.filter * this.damping;
 			comb.buffer[comb.position] = source + comb.filter * this.feedback;
-			comb.position = (comb.position + 1) % comb.buffer.length;
+			comb.position += 1;
+			if (comb.position === comb.buffer.length) comb.position = 0;
 			value += delayed;
 		}
 		value /= state.combs.length;
@@ -200,7 +206,8 @@ export class ReverbLiveProcessor {
 			const delayed = allpass.buffer[allpass.position]!;
 			const result = delayed - value;
 			allpass.buffer[allpass.position] = value + delayed * 0.5;
-			allpass.position = (allpass.position + 1) % allpass.buffer.length;
+			allpass.position += 1;
+			if (allpass.position === allpass.buffer.length) allpass.position = 0;
 			value = result;
 		}
 		return processTone(state.lowpass, processTone(state.highpass, value, this.highpass), this.lowpass);
