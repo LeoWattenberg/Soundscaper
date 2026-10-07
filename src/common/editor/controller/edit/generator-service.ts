@@ -264,7 +264,8 @@ export function createAudioGeneratorService<Context, Target extends AudioGenerat
 			const selection = activeSelection(project);
 			let targetTrack = findTrack(project, options.trackId || dependencies.state.selectedTrackId);
 			if (targetTrack?.type !== 'audio') {
-				targetTrack = project.tracks.find((track) => track.type === 'audio') ?? null;
+				targetTrack = project.tracks.find((track) => track.type === 'audio'
+					&& selection?.trackIds?.includes(track.id)) ?? null;
 			}
 			const sampleRate = normalizeProjectSampleRate(project.sampleRate);
 			const durationSeconds = options.durationSeconds

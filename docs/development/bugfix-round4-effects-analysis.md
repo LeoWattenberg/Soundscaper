@@ -438,3 +438,26 @@ correction and pass with existing service support (28/28). The existing public
 group-profile workflow passes all three engines on `program-tab-clean22`;
 its builds and targeted lint pass. This completes the same bus admission/render
 root and adds no bug ID.
+
+## R4-ROOT-019 — A label-only generator selection replaces an unselected recording
+
+Import a normal 0.8-second WAV, remove the initial empty audio track, and import
+an ordinary label file. Select only the label track over 0–0.4 seconds with the
+public macro selection commands, then choose Generate → Tone → Generate.
+The baseline selects the first audio track as a fallback and replaces the first
+0.4 seconds of its recording, although that track was never selected.
+
+Limit the fallback to selected audio tracks. A label-only selection now creates
+an audio track and leaves the existing recording intact; a label plus a selected
+audio track still generates into that selected audio track. Undo removes only
+the new generated track. All generator kinds share this one target-admission
+root, so they add no separate IDs.
+
+The exact public workflow fails on immutable baseline `a0322d6e4` and passes
+Chromium, Firefox and WebKit on `generator-label-clean23`, alongside the existing
+multi-track generator workflow (6/6). Two strict regressions apply the service's
+actual command to canonical Soundscaper documents and pass with existing
+generator support (28/28). Both product builds and targeted lint pass.
+Regression files are `audio-editor-round4-generator-label-scope.test.ts` and
+`audio-editor-round4-generator-label-scope.spec.js`; evidence is recorded in
+`/tmp/soundscaper-r4-root-generator-label-*`. Manual Update AI assets: not required.
