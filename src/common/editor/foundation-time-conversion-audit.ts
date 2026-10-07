@@ -5,6 +5,7 @@ import { FOUNDATION_RATE_CONVERSION_AUDIT_SITES } from './foundation-rate-conver
 import { deepFreezeAuditSites } from './foundation-audit-site-freeze.ts';
 import { FOUNDATION_TIME_CONVERSION_ASSISTANCE_SITES } from './foundation-time-conversion-audit-assistance.ts';
 import { FOUNDATION_TIME_CONVERSION_COMMAND_SITES } from './foundation-time-conversion-audit-commands.ts';
+import { FOUNDATION_TIME_CONVERSION_VISUAL_EDIT_SITES } from './foundation-time-conversion-audit-visual-edits.ts';
 import { FOUNDATION_TIME_CONVERSION_PRODUCT_SITES } from './foundation-time-conversion-audit-products.ts';
 
 export type FoundationTimeConversionPolicy = TimeRoundingPolicy | 'exact';
@@ -44,21 +45,6 @@ export interface FoundationTimeConversionSite {
  * this deliberately narrow inventory.
  */
 const FOUNDATION_TIME_CONVERSION_EDITOR_SITES: readonly FoundationTimeConversionSite[] = deepFreezeAuditSites([
-	{
-		id: 'timeline-image-trim-sequence-boundaries',
-		file: 'src/common/editor/timeline-image-trim.ts',
-		behavior: 'Image trims resolve requested sample boundaries to nearest authored sequence frames, then convert the clamped absolute start back to a nearest sample point before resolving the requested end; image duration and animated source phase remain on their native clocks.',
-		conversions: [
-			{ helper: 'sampleFrameToVideoFrame', policies: ['point'] },
-			{ helper: 'videoFrameToSampleFrame', policies: ['point'] },
-		],
-	},
-	{
-		id: 'timeline-image-trim-pointer-preview',
-		file: 'src/common/editor/ui/timeline/image-trim-pointer-preview.ts',
-		behavior: 'Image trim previews use the same sequence-boundary trim planner as commit and convert its absolute start and end once to nearest project sample positions for the live timeline, deriving duration from their difference without publishing history.',
-		conversions: [{ helper: 'videoFrameToSampleFrame', policies: ['point'] }],
-	},
 	{
 		id: 'clip-silence-musical-warp-boundaries',
 		file: 'src/common/editor/clip-silence-warp-projection.ts',
@@ -532,6 +518,7 @@ const FOUNDATION_TIME_CONVERSION_EDITOR_SITES: readonly FoundationTimeConversion
 export const FOUNDATION_TIME_CONVERSION_SITES: readonly FoundationTimeConversionSite[] = Object.freeze([
 	...FOUNDATION_TIME_CONVERSION_EDITOR_SITES,
 	...FOUNDATION_TIME_CONVERSION_COMMAND_SITES,
+	...FOUNDATION_TIME_CONVERSION_VISUAL_EDIT_SITES,
 	...FOUNDATION_TIME_CONVERSION_ASSISTANCE_SITES,
 	...FOUNDATION_TIME_CONVERSION_PRODUCT_SITES,
 ]);

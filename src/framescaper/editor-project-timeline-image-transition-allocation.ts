@@ -16,6 +16,7 @@ import { prepareTimelineVisualMoveCommand } from './editor-timeline-visual-move-
 import { prepareTimelineImageRemoveCommand } from './editor-timeline-image-remove-command.ts';
 import { prepareTimelineImageSplitCommand } from './editor-timeline-image-split-command.ts';
 import { prepareTimelineImageTrimCommand } from './editor-timeline-image-trim-command.ts';
+import { prepareTimelineGeneratorTrimCommand } from './editor-timeline-generator-trim-command.ts';
 
 /** Allocate inherited transition identities without allowing nativeMedia to observe image commands. */
 export function prepareFramescaperVideoTransitionAllocationsTimelineImage(
@@ -27,6 +28,7 @@ export function prepareFramescaperVideoTransitionAllocationsTimelineImage(
 	validateFramescaperProjectTimelineImage(profile, project);
 	command = prepareTimelineImageSplitCommand(project as Parameters<typeof prepareTimelineImageSplitCommand>[0], command);
 	command = prepareTimelineImageTrimCommand(project as Parameters<typeof prepareTimelineImageTrimCommand>[0], command);
+	command = prepareTimelineGeneratorTrimCommand(project as Parameters<typeof prepareTimelineGeneratorTrimCommand>[0], command);
 	command = prepareTimelineImageMoveCommand(project as Parameters<typeof prepareTimelineImageMoveCommand>[0], command);
 	command = prepareTimelineImageRemoveCommand(project as Parameters<typeof prepareTimelineImageRemoveCommand>[0], command);
 	command = prepareTimelineVisualMoveCommand(project as Parameters<typeof prepareTimelineVisualMoveCommand>[0], command);

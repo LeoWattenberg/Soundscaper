@@ -8,6 +8,7 @@ import type {
 } from '../../frame-canonical-edge-trim-domain.ts';
 
 import { createImageTrimPointerPreview } from './image-trim-pointer-preview.ts';
+import { createGeneratorTrimPointerPreview } from './generator-trim-pointer-preview.ts';
 
 type DataRecord = Readonly<Record<string, unknown>>;
 
@@ -51,6 +52,10 @@ export function resolveTimelineTrimPointerPreview(
 ): Readonly<FrameCanonicalEdgeTrimPreview & {
 	readonly previews: readonly FrameCanonicalEdgeTrimPreview[];
 }> | unknown | null {
+	if (input.session.original.kind === 'generator' && input.project) {
+		return createGeneratorTrimPointerPreview(input.project as Parameters<typeof createGeneratorTrimPointerPreview>[0],
+			input.session, input.edge, input.requestedBoundarySample);
+	}
 	if (input.session.original.kind === 'image' && input.project) {
 		return createImageTrimPointerPreview(input.project as Parameters<typeof createImageTrimPointerPreview>[0],
 			input.session, input.edge, input.requestedBoundarySample);
