@@ -6,7 +6,7 @@ export function prepareLabelTrackMoveFocus(trackId: string, labelId: string, des
 	const focused = document?.activeElement as HTMLElement | null | undefined;
 	const marker = focused?.closest<HTMLElement>('[data-label-id]');
 	const root = marker?.closest<HTMLElement>('[data-audio-editor]');
-	if (!root?.isConnected || focused !== marker || marker.dataset.labelId !== labelId
+	if (!focused || !root?.isConnected || focused !== marker || marker.dataset.labelId !== labelId
 		|| marker.closest<HTMLElement>('[data-label-track]')?.dataset.trackId !== trackId) return null;
 	return () => {
 		requestAnimationFrame(() => {
