@@ -1,7 +1,7 @@
 import { usePresentationFeedback, feedbackFailure, type PresentationFeedback } from '../presentation-feedback.ts';
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 import { DialogFooter } from '@soundscaper/design-system/Footer';
 
@@ -20,6 +20,7 @@ import {
 } from '../take-comp-dialog-model.ts';
 import { compSharedBoundaries, useCompBoundaries } from './take-comp-boundaries.ts';
 import { useOwnedDialogOperation } from '../useOwnedDialogOperation.ts';
+import { useTakeCompRemovalFocus } from './useTakeCompRemovalFocus.ts';
 
 interface TakeCompDialogActions {
 	auditionTake(groupId: string, takeId: string): unknown;
@@ -127,6 +128,9 @@ export default function TakeCompDialog({
 	}, [draftIdentity, draftOwner, group]);
 
 	const disabled = operationState.disabled;
+	const editorRef = useRef<HTMLDivElement>(null);
+	const closeRef = useRef<HTMLSpanElement>(null);
+	const focusAfterRemoval = useTakeCompRemovalFocus(editorRef, closeRef, projectId, model.groups, disabled);
 	const auditionDisabled = operationState.pending !== null || !group || group.locked
 		|| selectAudioEditorBusyBlock(snapshot).blocked;
 	const selectedTake = group?.takes.find(({ id }) => id === takeId) ?? null;
@@ -172,10 +176,10 @@ export default function TakeCompDialog({
 		dataAttributes={{ 'data-take-comp-dialog': 'true' }}
 		footer={<DialogFooter
 			className="audio-editor-dialog-footer"
-			rightContent={<Button variant="primary" onClick={close}>{copy.close}</Button>}
+			rightContent={<span ref={closeRef}><Button variant="primary" onClick={close}>{copy.close}</Button></span>}
 		/>}
 	>
-		<div className="audio-editor-take-comp">
+		<div ref={editorRef} className="audio-editor-take-comp">
 			{model.groups.length === 0 ? (
 				<p data-take-comp-empty>{copy.takeCompEmpty}</p>
 			) : <>
@@ -242,9 +246,10 @@ export default function TakeCompDialog({
 					onFlatten={() => perform('flatten', () => (
 						controller.actions.takeComp.flatten(group.id)
 					), { key: 'takeCompFlattenComplete' })}
-					onRemove={() => perform('remove', () => (
-						controller.actions.takeComp.removeGroup(group.id)
-					), { key: 'takeCompRemoveComplete' })}
+					onRemove={(event) => {
+						focusAfterRemoval(event.currentTarget, group.id);
+						perform('remove', () => controller.actions.takeComp.removeGroup(group.id), { key: 'takeCompRemoveComplete' });
+					}}
 				/>}
 			</>}
 			<div className="audio-editor-take-comp__status" role="status" aria-live="polite" aria-atomic="true">
@@ -278,7 +283,7 @@ interface TakeGroupEditorProps {
 	onSharedBoundaryChange(key: string, value: number): void;
 	onApplySharedBoundary(leftRegionId: string, rightRegionId: string): void;
 	onFlatten(): void;
-	onRemove(): void;
+	onRemove(event: MouseEvent<HTMLButtonElement>): void;
 }
 
 function TakeGroupEditor(props: TakeGroupEditorProps) {
