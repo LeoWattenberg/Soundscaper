@@ -14,7 +14,7 @@ export function useDefaultPresetEdited(enabled: boolean, current: Readonly<Recor
 	return useMemo(() => enabled && !samePresetParams(current, defaults), [current, defaults, enabled]);
 }
 export function useEffectAboutPresentation(open: boolean, effect: EffectAboutSubject | string | null, copy: Readonly<Record<string, string>>) {
-	return useMemo(() => open && effect ? effectAboutMetadata(effect, copy) : null, [copy, effect, open]);
+	return useMemo(() => open && effect != null ? effectAboutMetadata(effect, copy) : null, [copy, effect, open]);
 }
 interface EffectTrack { readonly id: string; readonly type?: string; readonly name?: string; readonly clipIds?: readonly string[] }
 export function useControlTrackOptions(tracks: readonly EffectTrack[] | undefined, targetTrackId: string | null | undefined, enabled: boolean) {

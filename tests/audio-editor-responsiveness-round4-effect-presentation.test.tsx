@@ -3,6 +3,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import React, { act } from 'react';
 import { useEffectPickerCatalog, usePresetOptions, useDefaultPresetEdited, useEffectAboutPresentation, useControlTrackOptions } from '../src/common/editor/ui/inspector/useEffectPresentation.ts';
+import EffectPresetBar from '../src/common/editor/ui/inspector/EffectPresetBar.jsx';
+import { effectAboutMetadata } from '../src/common/editor/ui/inspector/effect-about-metadata.ts';
+import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
+import { reactProps } from './helpers/react-test-dom.ts';
 import { installResponsivenessTestDom as installReactTestDom } from './helpers/responsiveness-round4-ui-dom.ts';
 
 test('effect picker, preset options/default comparisons and control-track choices survive unrelated renders', async () => {
@@ -36,4 +40,32 @@ test('About metadata stays available through its existing menu but is built only
 		opened = true; await act(async () => root.render(<Harness revision={30} />)); const first = about!; assert.ok(reads > 0);
 		const work = reads; await act(async () => root.render(<Harness revision={31} />)); assert.equal(reads, work); assert.equal(about!, first);
 	} finally { await act(async () => root.unmount()); dom.restore(); }
+});
+
+
+test('About retains the original non-null subject boundary including an empty identifier', async () => {
+	const dom = installReactTestDom(); let about: ReturnType<typeof useEffectAboutPresentation>;
+	function Harness() { about = useEffectAboutPresentation(true, '', ENGLISH_COPY); return <span />; }
+	const { createRoot } = await import('react-dom/client'); const root = createRoot(dom.container as unknown as Element);
+	try {
+		await act(async () => root.render(<Harness />)); assert.deepEqual(about!, effectAboutMetadata('', ENGLISH_COPY));
+	} finally { await act(async () => root.unmount()); dom.restore(); }
+});
+
+test('a disabled preset bar still admits the existing About menu for an empty non-null identifier', async () => {
+	const dom = installReactTestDom(); const priorReact = Object.getOwnPropertyDescriptor(globalThis, 'React');
+	Object.defineProperty(globalThis, 'React', { configurable: true, value: React });
+	const { createRoot } = await import('react-dom/client'); const root = createRoot(dom.container as unknown as Element);
+	try {
+		await act(async () => root.render(<EffectPresetBar copy={ENGLISH_COPY} presets={[]} disabled aboutEffect=""
+			onSelect={() => undefined} onSave={() => undefined} onSaveAs={() => undefined} onReset={() => undefined}
+			onDelete={() => undefined} onImport={() => undefined} onExport={() => undefined} />));
+		const trigger = dom.one(`[aria-label="${ENGLISH_COPY.moreOptions}"]`);
+		await act(async () => { reactProps(trigger).onClick({ currentTarget: trigger }); });
+		assert.ok(dom.container.ownerDocument.body.querySelectorAll('[role="menuitem"]').some(item => item.textContent === 'About'));
+	} finally {
+		await act(async () => root.unmount());
+		if (priorReact) Object.defineProperty(globalThis, 'React', priorReact); else Reflect.deleteProperty(globalThis, 'React');
+		dom.restore();
+	}
 });

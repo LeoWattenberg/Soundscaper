@@ -59,7 +59,7 @@ export default function EffectPresetBar({
 	const consumeOptionsDismissal = useMenuTriggerDismissal(optionsTriggerRef, Boolean(optionsMenu));
 	const [saveAsName, setSaveAsName] = useState(null);
 	const [aboutOpen, setAboutOpen] = useState(false);
-	const hasAbout = Boolean(aboutEffect);
+	const hasAbout = aboutEffect != null;
 	const about = useEffectAboutPresentation(aboutOpen, aboutEffect, copy);
 	useEffect(() => {
 		const buttons = barRef.current?.querySelectorAll('.effect-header__icon-button');
