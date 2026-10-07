@@ -249,3 +249,14 @@ parameter writes. A strict scheduler regression checks the output destination;
 all 28 focused rhythm, playback-rate and transport tests pass, including loop
 phase, delayed audible starts and pending-click cancellation. No manual
 **Update AI assets** run is required.
+
+### Stored-loop selection follow-through (no additional bug count)
+
+The authored-range snapping defect recorded as R3-EDIT-009 also affected
+**Select > Loop region > Set selection to loop**. Set a 0.2–0.4-second loop,
+clear the selection, enable whole-second snapping, and recall the loop: the
+selection previously collapsed to zero. This command now uses the same exact
+selection authority as other stored ranges. The public workflow fails on the
+immutable baseline and passes in all three browsers on green build 13; all 29
+focused transport, rhythm and playback-rate tests pass. This adds no audit ID
+and requires no manual **Update AI assets** run.

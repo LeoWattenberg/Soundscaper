@@ -40,7 +40,7 @@ export function createEditorTransportService<Project extends TransportProject = 
 		commit, copy, editorTimelineDurationFrames, engine,
 		formatPlaybackRate, hasMissingTimelineSources, persistSetting, playAtSpeedPitchPreserver,
 		productSettingKey, getProject, projectDurationFrames, publishDocumentSnapshot,
-		setSelection, setExactSelection, setStatus, startRecording, state,
+		setExactSelection, setStatus, startRecording, state,
 		stopProjectBinPreview, stopRecording, throwIfAborted,
 	} = runtime;
 	let metronomeSchedulerGeneration = 0;
@@ -262,7 +262,7 @@ export function createEditorTransportService<Project extends TransportProject = 
 	function setSelectionToLoopRegion() {
 		const loop = requireProject().loop;
 		if (!loop?.enabled || loop.endFrame <= loop.startFrame) throw createLocalizedError(Error, copy, 'timeSelectionRequired');
-		return setSelection(loop.startFrame, loop.endFrame);
+		return setExactSelection(loop.startFrame, loop.endFrame);
 	}
 
 	function setLoopRegionInOut() {

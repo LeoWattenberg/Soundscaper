@@ -437,3 +437,11 @@ for (const action of ['play', 'play-selection', 'play-at-speed'] as const) {
 		assert.equal(fixture.state.playAtSpeedAbort, null);
 	});
 }
+
+test('selection from a stored loop uses the exact range admission path', () => {
+	const fixture = createTransportFixture();
+	fixture.setProject({ ...fixture.project(), loop: { enabled: true, startFrame: 20, endFrame: 80 } });
+	fixture.service.setSelectionToLoopRegion();
+	assert.deepEqual(fixture.calls.selections, []);
+	assert.deepEqual(fixture.calls.exactSelections, [[20, 80]]);
+});

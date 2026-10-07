@@ -58,6 +58,7 @@ test('a closed monitor answers empty rather than describing nothing', () => {
 		markOut: null,
 		timecodeLabel: null,
 		mediaSeconds: 0,
+		openRevision: 0,
 	});
 });
 
@@ -72,6 +73,19 @@ test('opening a bin item opens its video source at the head', () => {
 	assert.equal(view.timecodeLabel, '00:00:00:00');
 	assert.equal(publishedCount(), 1);
 	assert.throws(() => service.open('missing'), ReferenceError);
+});
+
+test('reopening the same source begins a new session without treating marking or seeking as an opening', () => {
+	const { service } = harness();
+	const first = service.open('take-1');
+	assert.equal(first.openRevision, 1);
+	assert.equal(service.seek(25).openRevision, 1);
+	assert.equal(service.markIn().openRevision, 1);
+	const matched = service.openSource('take-1-video', { positionFrame: 5, markIn: 5, markOut: 15 });
+	assert.equal(matched.openRevision, 2);
+	assert.equal(matched.positionFrame, 5);
+	assert.equal(service.seekMediaTime(0.4).openRevision, 2);
+	assert.equal(service.open('take-1').openRevision, 3);
 });
 
 test('the playhead moves in whole frames and stops at the media', () => {
