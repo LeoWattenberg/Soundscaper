@@ -10,7 +10,7 @@ for (const headerSelection of [false, true]) {
 	test(`zero-crossing alignment retains a spectral band on a ${headerSelection ? 'clip' : 'time'} selection`, async () => {
 		const frequencyRange = { minimumFrequency: 100, maximumFrequency: 400 };
 		const project: SelectionViewProject = {
-			id: 'voice', schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+			id: 'voice', schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION, sampleRate: 1000,
 			tracks: [{ id: 'voice', type: 'audio', clipIds: ['recording'] }],
 			clips: [{ id: 'recording', kind: 'audio', timelineStartFrame: 0, durationFrames: 100 }],
 			selection: { startFrame: headerSelection ? 0 : 10, endFrame: headerSelection ? 0 : 30,
