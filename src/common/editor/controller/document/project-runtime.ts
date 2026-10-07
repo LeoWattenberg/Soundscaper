@@ -38,7 +38,7 @@ const METHOD_NAMES = [
  * long before a transaction could open — so a runtime without these is complete,
  * and one with them keeps them rather than having them snapshotted away.
  */
-const OPTIONAL_METHOD_NAMES = ['collapseHistory', 'rollbackHistory', 'validateProject'] as const;
+const OPTIONAL_METHOD_NAMES = ['collapseHistory', 'rollbackHistory', 'validateProject', 'compactProjectSourceMetadata'] as const;
 
 export interface ControllerRuntimeProject extends Record<string, unknown> {
 	readonly id: string;
@@ -106,6 +106,11 @@ export interface ControllerProjectRuntime<
 	readonly cloneProject: (project: unknown) => Project;
 	/** Validate an existing object without replacing its identity. */
 	readonly validateProject?: (project: unknown) => project is Project;
+	/** Reconcile the selected product's metadata after ordinary source compaction. */
+	readonly compactProjectSourceMetadata?: (
+		project: Project,
+		options: Readonly<{ preserveSourceIds: Iterable<string> }>,
+	) => Project;
 	readonly loadProject: (project: unknown) => Readonly<{
 		readonly project: LoadedProject;
 		readonly readOnly: boolean;

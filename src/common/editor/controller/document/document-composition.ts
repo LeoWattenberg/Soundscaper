@@ -85,7 +85,9 @@ export function createDocumentComposition(dependencies: DocumentCompositionDepen
 		getProject: document.get,
 		setProject: document.set,
 		compactHistory: createHistorySourceCompactor<DocumentProject>((project, preserveSourceIds) => (
-			compactProjectSourceMetadata(project, { preserveSourceIds })
+			projectRuntime.compactProjectSourceMetadata
+				? projectRuntime.compactProjectSourceMetadata(project, { preserveSourceIds })
+				: compactProjectSourceMetadata(project, { preserveSourceIds })
 		)),
 		sessionTab,
 		updateProjectHistory: (projectId, history, updateOptions) => (

@@ -13,6 +13,8 @@ import {
 import { createAudioEditorSessionController } from '../common/editor/session.js';
 import type { AudioEditorProjectStoreOptions } from '../common/editor/storage/project-store-options.ts';
 import { createStableId } from '../common/editor/stable-id.js';
+import { compactProjectSourceMetadata } from '../common/editor/retention.js';
+import { reconcileFramescaperProjectFeatureRequirementsAssistance } from './editor-project-feature-requirements-assistance.ts';
 import {
 	createFramescaperProjectFeatureCompatibilityService,
 } from './editor-project-feature-requirements.ts';
@@ -45,6 +47,7 @@ import {
 	cloneFramescaperProject,
 	createFramescaperProject,
 	loadFramescaperProject,
+	validateFramescaperProject,
 	type FramescaperProject,
 	type FramescaperProjectOptions,
 } from './editor-project.ts';
@@ -82,6 +85,8 @@ export interface EditorProjectRuntimeSelection {
 	readonly compatibility: ReturnType<typeof createFramescaperProjectFeatureCompatibilityService>;
 	readonly createProject: (options?: FramescaperProjectOptions) => FramescaperProject;
 	readonly cloneProject: (project: unknown) => FramescaperProject;
+	readonly compactProjectSourceMetadata: (project: unknown,
+		options: Readonly<{ preserveSourceIds: Iterable<string> }>) => FramescaperProject;
 	readonly loadProject: (project: unknown) => ReturnType<typeof loadFramescaperProject>;
 	readonly validateProject: (project: unknown) => project is FramescaperProject;
 	readonly projectForCommandConsumers: (project: unknown) => ReturnType<typeof projectForConsumers>;
@@ -153,6 +158,15 @@ export function createEditorProjectRuntimeSelection(
 		compatibility: createFramescaperProjectFeatureCompatibilityService(profile),
 		createProject: (options = {}) => createFramescaperProject(profile, options),
 		cloneProject: (project) => cloneFramescaperProject(profile, project),
+		compactProjectSourceMetadata: (project, options) => {
+			validateFramescaperProject(profile, project);
+			const compacted = compactProjectSourceMetadata(project as FramescaperProject, options);
+			if (compacted === project) return compacted;
+			const reconciled = { ...compacted,
+				featureRequirements: reconcileFramescaperProjectFeatureRequirementsAssistance(profile, compacted) };
+			validateFramescaperProject(profile, reconciled);
+			return reconciled;
+		},
 		loadProject: (project) => loadFramescaperProject(profile, project),
 		validateProject: (project): project is FramescaperProject => {
 			try { cloneFramescaperProject(profile, project); return true; } catch { return false; }

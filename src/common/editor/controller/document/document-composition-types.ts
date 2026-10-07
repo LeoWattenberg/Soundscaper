@@ -127,6 +127,8 @@ export interface DocumentCompositionDependencies {
 	/** Product operations act on the admitted document and its history. */
 	readonly projectRuntime: Readonly<{
 		readonly cloneProject: (project: DocumentProject) => DocumentProject;
+		readonly compactProjectSourceMetadata?: (project: DocumentProject,
+			options: Readonly<{ preserveSourceIds: Iterable<string> }>) => DocumentProject;
 		readonly applyCommand: (project: DocumentProject, command: AudioEditorCommand) => DocumentProject;
 		readonly executeCommand: (history: DocumentHistory, command: unknown, options?: EditorCommandMoment) => DocumentHistory;
 		readonly collapseHistory?: (history: DocumentHistory, depth: number, command: HistoryOperationMetadata) => DocumentHistory;
