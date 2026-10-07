@@ -33,8 +33,8 @@ test.describe('Soundscaper inline track automation', () => {
 	test('opts in per track, edits over clips, and yields every hit to clip gain', async ({ page }) => {
 		const clientErrors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
-		await importFiles(editor, [toneA]);
-		const clip = clipByName(editor, toneA.name);
+		await importFiles(editor, [longTone]);
+		const clip = clipByName(editor, longTone.name);
 		const row = clip.locator('xpath=ancestor::div[@data-track-row]');
 
 		await expect(row.locator('[data-track-automation-controls]')).toHaveCount(0);
