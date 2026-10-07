@@ -48,6 +48,7 @@ export function integratedLoudnessPower(channels, sampleRate) {
 	const filters = channels.map(() => template.map(filter => ({ ...filter })));
 	let ringPosition = 0;
 	let ringSize = 0;
+	let framesUntilBlock = blockSize;
 	let histogramCount = 0;
 
 	for (let index = 0; index < channels[0].length; index += 1) {
@@ -63,9 +64,11 @@ export function integratedLoudnessPower(channels, sampleRate) {
 		ring[ringPosition] = power;
 		ringPosition += 1;
 		ringSize += 1;
-		if (ringPosition % blockOverlap === 0 && ringSize >= blockSize) {
+		framesUntilBlock -= 1;
+		if (framesUntilBlock === 0) {
 			histogramCount += addLoudnessBlock(histogram, ring, blockSize);
 			ringSize = blockSize;
+			framesUntilBlock = blockOverlap;
 		}
 		if (ringPosition === blockSize) ringPosition = 0;
 	}
