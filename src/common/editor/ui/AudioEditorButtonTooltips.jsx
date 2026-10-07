@@ -27,7 +27,7 @@ export default function AudioEditorButtonTooltips({ rootRef }) {
 		const root = rootRef.current;
 		if (!root || !tooltipButton) return undefined;
 		const move = (event) => {
-			if (!withinButtonTooltipPath(root, tooltipButton, event)) setTooltip(null);
+			if (!withinButtonTooltipPath(root, tooltipButton, event)) setTooltip((current) => current?.button === tooltipButton ? null : current);
 		};
 		root.ownerDocument.addEventListener('pointermove', move);
 		return () => root.ownerDocument.removeEventListener('pointermove', move);
@@ -61,6 +61,7 @@ export default function AudioEditorButtonTooltips({ rootRef }) {
 		};
 
 		const onPointerOver = (event) => {
+			if (event.buttons) { setTooltip(null); return; }
 			const button = editorButton(event.target, root);
 			if (button) show(button);
 		};
@@ -75,10 +76,7 @@ export default function AudioEditorButtonTooltips({ rootRef }) {
 			if (dismissedButtonRef.current === button) dismissedButtonRef.current = null;
 			hide(button);
 		};
-		const onPointerDown = (event) => {
-			const button = editorButton(event.target, root);
-			if (button) hide(button);
-		};
+		const onPointerDown = () => setTooltip(null);
 		const onViewportChange = () => setTooltip((current) => {
 			if (!current?.button?.isConnected) return null;
 			const rect = current.button.getBoundingClientRect();
