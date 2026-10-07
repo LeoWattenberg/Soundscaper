@@ -3,12 +3,16 @@ import { Button } from '@soundscaper/design-system/Button';
 import { VIDEO_EFFECT_TYPES, videoEffectDefinition } from '../../video-effects.js';
 import { DesignCheckbox, LabeledDropdown } from './inspector-controls.jsx';
 import VideoEffectNumberInput from './VideoEffectNumberInput.tsx';
+import { createVideoEffectPointerCancellation } from './video-effect-pointer-cancellation.ts';
+import { useVideoEffectRemovalFocus } from './useVideoEffectRemovalFocus.ts';
 
 export function VideoEffectRack({ clip, controller, copy, disabled, onError }) {
 	const effects = clip.videoEffects || [];
 	const [effectType, setEffectType] = useState(VIDEO_EFFECT_TYPES[0] || '');
 	const actions = controller.actions.video?.effects;
 	const mutationDisabled = disabled || !actions;
+	const rack = useRef(null);
+	const removing = useVideoEffectRemovalFocus(rack, clip.id, effects, mutationDisabled);
 	const effectOptions = useMemo(() => VIDEO_EFFECT_TYPES.map((type) => {
 		const descriptor = videoEffectDefinition(type);
 		return { value: type, label: labelFor(descriptor, copy) };
@@ -25,7 +29,7 @@ export function VideoEffectRack({ clip, controller, copy, disabled, onError }) {
 	};
 
 	return (
-		<section className="audio-editor-clip-properties__card audio-editor-clip-properties__card--wide audio-editor-video-effects" data-video-effect-rack>
+		<section ref={rack} className="audio-editor-clip-properties__card audio-editor-clip-properties__card--wide audio-editor-video-effects" data-video-effect-rack>
 			<div className="audio-editor-video-effects__heading">
 				<div><h3>{copy.videoEffects}</h3></div>
 				<div className="audio-editor-video-effects__add">
@@ -36,14 +40,14 @@ export function VideoEffectRack({ clip, controller, copy, disabled, onError }) {
 			{effects.length === 0 && <p className="audio-editor-panel-hint" data-video-effect-empty>{copy.videoEffectsEmpty}</p>}
 			{effects.length > 0 && <ol className="audio-editor-video-effects__list">
 				{effects.map((effect, index) => (
-					<VideoEffectRow key={effect.id} effect={effect} clipId={clip.id} index={index} count={effects.length} actions={actions} copy={copy} disabled={mutationDisabled} onError={onError} onRun={run} />
+					<VideoEffectRow key={effect.id} effect={effect} clipId={clip.id} index={index} count={effects.length} actions={actions} copy={copy} disabled={mutationDisabled} onError={onError} onRun={run} onRemoving={removing} />
 				))}
 			</ol>}
 		</section>
 	);
 }
 
-function VideoEffectRow({ effect, clipId, index, count, actions, copy, disabled, onError, onRun }) {
+function VideoEffectRow({ effect, clipId, index, count, actions, copy, disabled, onError, onRun, onRemoving }) {
 	const descriptor = videoEffectDefinition(effect.type);
 	const label = labelFor(descriptor, copy);
 	return (
@@ -53,7 +57,7 @@ function VideoEffectRow({ effect, clipId, index, count, actions, copy, disabled,
 				<div className="audio-editor-video-effect__actions">
 					<button type="button" disabled={disabled || index === 0} aria-label={`${copy.moveEffectUp}: ${label}`} onClick={() => onRun(() => actions.reorder(clipId, effect.id, index - 1))}>↑</button>
 					<button type="button" disabled={disabled || index === count - 1} aria-label={`${copy.moveEffectDown}: ${label}`} onClick={() => onRun(() => actions.reorder(clipId, effect.id, index + 1))}>↓</button>
-					<button type="button" disabled={disabled} aria-label={`${copy.removeEffect}: ${label}`} onClick={() => onRun(() => actions.remove(clipId, effect.id))}>×</button>
+					<button type="button" data-video-effect-remove disabled={disabled} aria-label={`${copy.removeEffect}: ${label}`} onClick={(event) => { onRemoving(event.currentTarget, effect.id, index); onRun(() => actions.remove(clipId, effect.id)); }}>×</button>
 				</div>
 			</header>
 			<div className="audio-editor-video-effect__params">
@@ -162,14 +166,15 @@ function VideoEffectColor({ clipId, effectId, name, parameter, value, actions, c
 
 function VideoEffectSlider({ clipId, effectId, name, parameter, value, actions, copy, disabled, onError }) {
 	const gesture = useEffectGesture({ actions, clipId, effectId, disabled, onError });
+	const pointer = useRef(createVideoEffectPointerCancellation()).current;
 	const label = parameterLabel(parameter, copy);
 	const numericValue = Number(value);
 	const percentage = parameter.max === parameter.min ? 0 : (numericValue - parameter.min) / (parameter.max - parameter.min) * 100;
 	const keyDown = (event) => {
-		if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); gesture.cancel(); }
-		else if (event.key === 'Enter') gesture.commit();
+		if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); pointer.cancel(); gesture.cancel(); }
+		else { pointer.resumeKeyboard(); if (event.key === 'Enter') gesture.commit(); }
 	};
-	const pointerDown = (event) => { event.currentTarget.setPointerCapture?.(event.pointerId); gesture.begin(); };
+	const pointerDown = (event) => { event.currentTarget.setPointerCapture?.(event.pointerId); pointer.begin(); gesture.begin(); };
 	const reset = (event) => {
 		if (disabled) return;
 		event.preventDefault();
@@ -187,7 +192,7 @@ function VideoEffectSlider({ clipId, effectId, name, parameter, value, actions, 
 				<output>{parameterUnit(parameter, copy)}</output>
 			</div>
 			<div className={`slider audio-editor-stepped-slider${disabled ? ' slider--disabled' : ''}`} style={{ '--slider-track-bg': 'var(--line)', '--slider-fill-bg': 'var(--accent)', '--slider-handle-bg': 'var(--panel)', '--slider-handle-border': 'var(--accent-strong)' }}>
-				<input type="range" className="slider__input" value={numericValue} min={parameter.min} max={parameter.max} step={parameter.step} aria-label={label} aria-valuetext={parameterValue(value, parameter, copy)} disabled={disabled} onFocus={gesture.begin} onPointerDown={pointerDown} onChange={(event) => gesture.preview({ [name]: Number(event.currentTarget.value) })} onPointerUp={gesture.commit} onPointerCancel={gesture.cancel} onBlur={gesture.commit} onKeyDown={keyDown} onDoubleClick={reset} />
+				<input type="range" className="slider__input" value={numericValue} min={parameter.min} max={parameter.max} step={parameter.step} aria-label={label} aria-valuetext={parameterValue(value, parameter, copy)} disabled={disabled} onFocus={gesture.begin} onPointerDown={pointerDown} onChange={(event) => { if (pointer.allowsPreview()) gesture.preview({ [name]: Number(event.currentTarget.value) }); }} onPointerUp={() => { if (pointer.finish()) gesture.commit(); }} onPointerCancel={() => { pointer.finish(); gesture.cancel(); }} onBlur={gesture.commit} onKeyDown={keyDown} onDoubleClick={reset} />
 				<div className="slider__track"><div className="slider__fill" style={{ width: `${percentage}%` }} /></div>
 				<div className="slider__handle" style={{ left: `calc(${percentage}% - ${percentage / 100 * 16}px)` }} />
 			</div>
