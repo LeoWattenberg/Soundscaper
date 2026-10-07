@@ -180,5 +180,18 @@ Its two mounted regressions and existing keyframe UI and operation-focus cases
 passed all 12 focused Node tests. All touched source and tests passed targeted
 lint and the file-size gate.
 
+Final-suite follow-through for 007 and 027 adds no counted defect. During an
+ordinary Preferences resize, the held pointer crossed the footer Close button,
+opening a newer tooltip owner that consumed Escape and left the preview width
+at 840 pixels instead of restoring 900. A public read-only observer confirmed
+that exact sequence. Hover labels are now suppressed while pointer buttons are
+held, and every editor pointer-down clears the existing button label. The old
+button's corridor listener also checks its current owner before clearing state,
+so a Play-to-Mixer hover transition cannot erase the newly queued Mixer label.
+Four new mounted cases were red before the correction; all 19 focused tooltip,
+help, dialog, title and resize tests pass. The unchanged public resize and
+localized-hover specs, together with complete dialog, button-tooltip, help and
+workspace resize support, pass all three engines on the rebuilt site (51/51).
+
 UI, tests, and documentation keep the same assistance runtime closure. A manual
 **Update AI assets** run is not required.
