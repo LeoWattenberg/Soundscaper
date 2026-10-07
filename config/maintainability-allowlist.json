@@ -97,7 +97,6 @@
 		"src/common/editor/storage/linked-original-store-service.ts": 600,
 		"src/common/editor/storage/media-asset-write-repository.ts": 584,
 		"src/common/editor/storage/raw-pcm-spool-repository.ts": 559,
-		"src/common/editor/storage/video-derivative-repository.ts": 563,
 		"src/common/editor/take-cycle-recovery-envelope.ts": 586,
 		"src/common/editor/timeline-annotation-riff-interchange.ts": 583,
 		"src/common/editor/timeline-time.ts": 598,

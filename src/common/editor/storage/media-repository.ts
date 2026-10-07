@@ -38,6 +38,8 @@ import { MediaCatalogOriginalRepositoryV1 } from './media-catalog-original-repos
 import { CATALOG_ORIGINAL_ROOT_STORE_NAME } from './media-catalog-original-schema.ts';
 import { assertNoCatalogOriginalRoot } from './media-catalog-original-records.ts';
 import { hasStoredBinaryPathReference } from './media-binary-reference-query.ts';
+import { BinaryDerivativeCacheRepositoryV1, type BinaryDerivativeCachePortV1,
+	type BinaryDerivativeCacheProfileV1 } from './binary-derivative-cache-repository.ts';
 import {
 	deletePairedVideoDerivativeRecords,
 	VideoDerivativeRepository,
@@ -90,6 +92,10 @@ export class MediaRepository {
 		return this.#assetWrites.begin(sourceId, metadata, options);
 	}
 	beginAssetMaintenance(options: Readonly<{ permanent?: boolean }> = {}): MediaAssetMaintenance { return this.#assetLifecycle.beginMaintenance(options); }
+	createBinaryDerivativeCache(profile: BinaryDerivativeCacheProfileV1): BinaryDerivativeCachePortV1 {
+		const cache = new BinaryDerivativeCacheRepositoryV1(this.#port, this.#opfs, this.#assetLifecycle, profile);
+		return Object.freeze({ load: cache.load.bind(cache), store: cache.store.bind(cache), trim: cache.trim.bind(cache) });
+	}
 	activeAssetStaging() { return this.#assetWrites.activeStaging(); }
 	hasBinaryPathReference(path: string): Promise<boolean> { return hasStoredBinaryPathReference(this.#port, path); }
 	invalidateAssetStagingMemory() { return this.#assetWrites.invalidateStagingMemory(); }

@@ -12,6 +12,7 @@ import type { OpfsSyncStoragePort } from '../../common/editor/storage/opfs-sync-
 import { RetentionSessionGuard } from '../../common/editor/storage/retention-session-guard.ts';
 import { EditorStoreClosedError, EditorStoreVersionStaleError } from '../../common/editor/storage/status.ts';
 import type { PhotoOriginalV1 } from '../catalog/types.ts';
+import { PhotoPreviewCacheV1, PHOTO_PREVIEW_CACHE_PROFILE_V1, type PhotoPreviewCachePortV1 } from '../preview/photo-preview-cache-v1.ts';
 
 export const PHOTO_MEDIA_NAMESPACES_V1 = Object.freeze({
 	databaseName: 'lightscaper-photo-media-v2',
@@ -52,6 +53,7 @@ export class PhotoMediaStoreV1 {
 	readonly #opfs: OpfsRepository;
 	readonly #guard: RetentionSessionGuard;
 	readonly #owned = new Set<Promise<unknown>>();
+	#previewCache: PhotoPreviewCachePortV1 | null = null;
 	#opening: Promise<IDBDatabase> | null = null;
 	#connection: IDBDatabase | null = null;
 	#closing: Promise<void> | null = null;
@@ -104,6 +106,19 @@ export class PhotoMediaStoreV1 {
 
 	ready(): Promise<this> {
 		return this.#own(async () => { await this.#guard.database(); return this; });
+	}
+
+	getPreviewCache(): PhotoPreviewCachePortV1 {
+		this.#assertAccepting();
+		if (!this.#previewCache) {
+			const cache = new PhotoPreviewCacheV1(this.#media.createBinaryDerivativeCache(PHOTO_PREVIEW_CACHE_PROFILE_V1));
+			this.#previewCache = Object.freeze({
+				load: (...args: Parameters<PhotoPreviewCachePortV1['load']>) => this.#own(() => cache.load(...args)),
+				store: (...args: Parameters<PhotoPreviewCachePortV1['store']>) => this.#own(() => cache.store(...args)),
+				trim: (...args: Parameters<PhotoPreviewCachePortV1['trim']>) => this.#own(() => cache.trim(...args)),
+			});
+		}
+		return this.#previewCache;
 	}
 
 	readonly verifyOriginal = (original: PhotoOriginalV1, signal?: AbortSignal): Promise<void> => {

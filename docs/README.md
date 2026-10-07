@@ -30,6 +30,8 @@ belong in Git history, not in the maintained documentation set.
   defines bounded hierarchy and collection commands, scalar pages, and revision fencing.
 - [Retained-original photo regeneration](architecture/lightscaper-original-frame-regeneration.md)
   defines authenticated native decoding and callback-scoped pixel custody.
+- [Photo preview cache ownership](architecture/lightscaper-preview-cache.md)
+  defines disposable paired storage, bounded demand scheduling, and original-custody fences.
 - [Time and media](architecture/time-and-media.md) defines canonical timing,
   edit, retime, proxy, and media-preservation contracts.
 - [Production and rendering](architecture/production-rendering.md) covers

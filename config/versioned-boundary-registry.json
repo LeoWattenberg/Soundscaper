@@ -552,9 +552,13 @@
 		,
 		{ "path": "src/lightscaper/preview/photo-original-frame-v1.ts", "kind": "helper-contract", "justification": "Version 1 callback-scoped regeneration authenticates retained original bytes and immutable EXIF orientation before preparing shared pixel frames." }
 		,
+		{ "path": "src/lightscaper/preview/photo-preview-cache-v1.ts", "kind": "helper-contract", "justification": "Version 1 closed photo plan adapter for disposable paired preview bodies with immutable original binding." }
+		,
 		{ "path": "src/lightscaper/preview/photo-preview-plan-v1.ts", "kind": "persisted-contract", "justification": "Closed version 1 disposable photo preview plan binds original identity, source descriptor, tier and maintained resampling recipe." }
 		,
 		{ "path": "src/lightscaper/preview/photo-preview-preparation-v1.ts", "kind": "ipc-contract", "justification": "Version 1 prepared disposable photo body carries an independent pixel descriptor and output digest without embedding immutable original bytes." }
+		,
+		{ "path": "src/lightscaper/preview/photo-preview-scheduler-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded scalar preview demand queue joining retained-original regeneration, cache publication and cancellation." }
 		,
 		{ "path": "src/soundscaper/desktop-native-plugin-state-transport-v1.ts", "kind": "persisted-contract", "justification": "desktop-native-plugin-state-transport-v1.ts is a persisted domain-component or render-contract revision independent of product schema." }
 	]

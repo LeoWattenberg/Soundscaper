@@ -1,6 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { compareCodeUnits } from '../code-unit-order.ts';
+import { BINARY_DERIVATIVE_CACHE_TYPE_V1 } from './binary-derivative-cache-records.ts';
+import { cacheStore, asStorageRecord, isStorageRecord, scalarDerivativeRecords, sameDerivativeCacheRecord,
+	deletePairedDerivativeRecords as deletePairedVideoDerivativeRecords } from './binary-derivative-cache-pairs.ts';
+export { deletePairedDerivativeRecords as deletePairedVideoDerivativeRecords } from './binary-derivative-cache-pairs.ts';
+
 import { estimateEncodedDerivativePublication } from '../publication-byte-estimates.ts';
 import {
 	DERIVATIVE_CACHE_ENTRY_STORE_NAME,
@@ -158,13 +163,13 @@ export class VideoDerivativeRepository {
 					'readwrite',
 					async (stores) => {
 						const currentOriginal = asStorageRecord(await request(
-							stores.mediaAssets.get(identity.sourceId),
+							cacheStore(stores, 'mediaAssets').get(identity.sourceId),
 						));
 						if (!requestedOriginal) assertVideoDerivativeOriginalUnchanged(
 							currentOriginal, identity.sourceId, original,
 						);
-						const videoDerivatives = stores[VIDEO_DERIVATIVE_STORE_NAME];
-						const cacheEntries = stores[DERIVATIVE_CACHE_ENTRY_STORE_NAME];
+						const videoDerivatives = cacheStore(stores, VIDEO_DERIVATIVE_STORE_NAME);
+						const cacheEntries = cacheStore(stores, DERIVATIVE_CACHE_ENTRY_STORE_NAME);
 						const [previousEntryValue, previousPayloadValue, cacheValues] = await Promise.all([
 							request(cacheEntries.get(identity.key)),
 							request(videoDerivatives.get(identity.key)),
@@ -179,7 +184,7 @@ export class VideoDerivativeRepository {
 							);
 						}
 						const plan = planDerivativeCachePublication(
-							scalarDerivativeRecords(cacheValues),
+							scalarDerivativeRecords(cacheValues).filter(record => record.type !== BINARY_DERIVATIVE_CACHE_TYPE_V1),
 							incoming,
 							this.#cacheLimits,
 							publicationTime,
@@ -236,8 +241,8 @@ export class VideoDerivativeRepository {
 					[VIDEO_DERIVATIVE_STORE_NAME, DERIVATIVE_CACHE_ENTRY_STORE_NAME],
 					'readwrite',
 					async (stores) => {
-						const videoDerivatives = stores[VIDEO_DERIVATIVE_STORE_NAME];
-						const cacheEntries = stores[DERIVATIVE_CACHE_ENTRY_STORE_NAME];
+						const videoDerivatives = cacheStore(stores, VIDEO_DERIVATIVE_STORE_NAME);
+						const cacheEntries = cacheStore(stores, DERIVATIVE_CACHE_ENTRY_STORE_NAME);
 						for (const expected of plan.removals) {
 							const key = expected.key as string;
 							const [currentEntry, currentPayload] = await Promise.all([
@@ -334,7 +339,7 @@ export class VideoDerivativeRepository {
 			: null;
 		const type = hasType ? nonEmptyString(selector.type, 'A video derivative type is required.') : null;
 		const recipe = selector.recipe === undefined ? null : normalizeVideoDerivativeRecipe(selector.recipe);
-		const matches = (record: StorageRecord): boolean => record.sourceId === id
+		const matches = (record: StorageRecord): boolean => record.sourceId === id && record.type !== BINARY_DERIVATIVE_CACHE_TYPE_V1
 			&& (timestamp === null || record.timestamp === timestamp)
 			&& (type === null || record.type === type)
 			&& (recipe === null || record.recipeId === recipe.id && record.recipeVersion === recipe.version);
@@ -370,8 +375,8 @@ export class VideoDerivativeRepository {
 			'readonly',
 			async (stores) => {
 				const [payload, entry] = await Promise.all([
-					request(stores[VIDEO_DERIVATIVE_STORE_NAME].get(key)).then(asStorageRecord),
-					request(stores[DERIVATIVE_CACHE_ENTRY_STORE_NAME].get(key)).then(asStorageRecord),
+					request(cacheStore(stores, VIDEO_DERIVATIVE_STORE_NAME).get(key)).then(asStorageRecord),
+					request(cacheStore(stores, DERIVATIVE_CACHE_ENTRY_STORE_NAME).get(key)).then(asStorageRecord),
 				]);
 				if (!payload && !entry) return null;
 				if (!sameDerivativeCacheRecord(payload, entry ?? {})) {
@@ -396,18 +401,18 @@ export class VideoDerivativeRepository {
 				[VIDEO_DERIVATIVE_STORE_NAME, DERIVATIVE_CACHE_ENTRY_STORE_NAME],
 				'readonly',
 				async (stores) => {
-					const videoDerivatives = stores[VIDEO_DERIVATIVE_STORE_NAME];
-					const cacheEntries = stores[DERIVATIVE_CACHE_ENTRY_STORE_NAME];
+					const videoDerivatives = cacheStore(stores, VIDEO_DERIVATIVE_STORE_NAME);
+					const cacheEntries = cacheStore(stores, DERIVATIVE_CACHE_ENTRY_STORE_NAME);
 					const selected = scalarDerivativeRecords(await request(
 						cacheEntries.index(DERIVATIVE_CACHE_SOURCE_ID_INDEX_NAME).getAll(sourceId),
-					)).filter((record) => record.sourceId === sourceId
+					)).filter((record) => record.sourceId === sourceId && record.type !== BINARY_DERIVATIVE_CACHE_TYPE_V1
 						&& (requestedType === null || record.type === requestedType));
 					const payloads = await Promise.all(selected.map((record) => request(
 						videoDerivatives.get(record.key as string),
 					)));
 					return payloads.map((payload, index) => {
 						const record = asStorageRecord(payload);
-						if (!sameDerivativeCacheRecord(record, selected[index])) {
+						if (!sameDerivativeCacheRecord(record, selected[index]!)) {
 							throw new Error(
 								`Video derivative cache record ${String(selected[index]?.key)} failed its paired integrity check.`,
 							);
@@ -422,7 +427,7 @@ export class VideoDerivativeRepository {
 
 	async allDerivativeRecords(): Promise<StorageRecord[]> {
 		const database = await this.#port.database();
-		if (database) return readDerivativeCacheInventory(database);
+		if (database) return (await readDerivativeCacheInventory(database)).filter(record => record.type !== BINARY_DERIVATIVE_CACHE_TYPE_V1);
 		return [...this.#port.memory.videoDerivatives.entries()].map(([key, record]) => (
 			projectDerivativeCacheInventoryRecord(record, key)
 		));
@@ -430,79 +435,10 @@ export class VideoDerivativeRepository {
 
 	async #originalRecord(database: IDBDatabase | null, sourceId: string): Promise<StorageRecord | null> {
 		const value = database
-			? await transact(database, 'mediaAssets', 'readonly', ({ mediaAssets }) => request(mediaAssets.get(sourceId)))
+			? await transact(database, 'mediaAssets', 'readonly', (stores) => request(cacheStore(stores, 'mediaAssets').get(sourceId)))
 			: this.#port.memory.mediaAssets.get(sourceId);
 		return clone(asStorageRecord(value));
 	}
-}
-
-export async function deletePairedVideoDerivativeRecords(
-	stores: Readonly<Record<string, IDBObjectStore>>,
-	sourceId: string,
-	matches: (record: StorageRecord) => boolean = () => true,
-): Promise<StorageRecord[]> {
-	const videoDerivatives = stores[VIDEO_DERIVATIVE_STORE_NAME];
-	const cacheEntries = stores[DERIVATIVE_CACHE_ENTRY_STORE_NAME];
-	const candidates = scalarDerivativeRecords(await request(
-		cacheEntries.index(DERIVATIVE_CACHE_SOURCE_ID_INDEX_NAME).getAll(sourceId),
-	)).filter((record) => record.sourceId === sourceId && matches(record));
-	const validated: StorageRecord[] = [];
-	for (const expected of candidates) {
-		const key = expected.key as string;
-		const payload = asStorageRecord(await request(videoDerivatives.get(key)));
-		if (!sameDerivativeCacheRecord(payload, expected)) {
-			throw new Error(`Derivative cache payload ${key} does not match its deletion metadata.`);
-		}
-		validated.push(projectDerivativeCacheInventoryRecord(payload, key));
-	}
-	for (const record of validated) {
-		const key = record.key as string;
-		videoDerivatives.delete(key);
-		cacheEntries.delete(key);
-	}
-	return validated;
-}
-
-function asStorageRecord(value: unknown): StorageRecord | null {
-	return value && typeof value === 'object' ? value as StorageRecord : null;
-}
-
-function isStorageRecord(value: StorageRecord | null): value is StorageRecord {
-	return value !== null;
-}
-
-function scalarDerivativeRecords(values: readonly unknown[]): StorageRecord[] {
-	return values.map(asStorageRecord).filter(isStorageRecord).map((record) => {
-		if (typeof record.key !== 'string') throw new TypeError('A derivative cache record key is required.');
-		return projectDerivativeCacheInventoryRecord(record, record.key);
-	});
-}
-
-function sameDerivativeCacheRecord(
-	current: StorageRecord | null,
-	expected: Readonly<Record<string, unknown>>,
-): current is StorageRecord {
-	if (!current || current.key !== expected.key) return false;
-	if (typeof current.cacheToken === 'string' || typeof expected.cacheToken === 'string') {
-		if (typeof current.cacheToken !== 'string'
-			|| current.cacheToken !== expected.cacheToken) return false;
-	}
-	const baseMatches = current.sourceId === expected.sourceId
-		&& current.timestamp === expected.timestamp
-		&& current.type === expected.type
-		&& current.storage === expected.storage
-		&& (current.path || null) === (expected.path || null)
-		&& current.size === expected.size
-		&& current.committedAt === expected.committedAt;
-	if (!baseMatches) return false;
-	const bound = current.derivativeBindingVersion !== undefined
-		|| expected.derivativeBindingVersion !== undefined;
-	return !bound || current.derivativeBindingVersion === expected.derivativeBindingVersion
-		&& current.originalSha256 === expected.originalSha256
-		&& current.originalMediaContentToken === expected.originalMediaContentToken
-		&& current.recipeId === expected.recipeId
-		&& current.recipeVersion === expected.recipeVersion
-		&& current.outputSha256 === expected.outputSha256;
 }
 
 function planDerivativeCachePublication(

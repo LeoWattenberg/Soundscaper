@@ -17,9 +17,9 @@ export async function hasStoredBinaryPathReference(port: StorageRepositoryPort, 
 	}
 	return transact(database, [...stores, MEDIA_ASSET_STAGING_STORE_NAME], 'readonly', async (records) => {
 		for (const store of stores) {
-			if ((await readCursorPage(records[store].index(BINARY_PATH_REFERENCE_INDEX_NAME), { query: path, limit: 1 })).length) return true;
+			if ((await readCursorPage(records[store]!.index(BINARY_PATH_REFERENCE_INDEX_NAME), { query: path, limit: 1 })).length) return true;
 		}
-		return (await readCursorPage(records[MEDIA_ASSET_STAGING_STORE_NAME].index(MEDIA_ASSET_STAGING_PATH_INDEX_NAME),
+		return (await readCursorPage(records[MEDIA_ASSET_STAGING_STORE_NAME]!.index(MEDIA_ASSET_STAGING_PATH_INDEX_NAME),
 			{ query: path, limit: 1 })).length > 0;
 	});
 }
