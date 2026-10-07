@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMasteringEntryKeys } from './mastering-entry-form-keys.ts';
 
 import type {
@@ -95,6 +95,8 @@ export default function SoundscaperMasteringSequenceEditor({
 	const [selectedId, setSelectedId] = useState('');
 	const [regionId, setRegionId] = useState('');
 	const sequence = sequences.find(({ id }) => id === selectedId) ?? sequences[0] ?? null;
+	const [nameDraft, setNameDraft] = useState(sequence?.name ?? '');
+	useEffect(() => { setNameDraft(sequence?.name ?? ''); }, [sequence?.id, sequence?.name]);
 	const entryKeys = useMasteringEntryKeys(sequence?.id ?? '', sequence?.entries);
 	const addableRegion = regions.find(({ id }) => id === regionId) ?? regions[0] ?? null;
 
@@ -136,7 +138,7 @@ export default function SoundscaperMasteringSequenceEditor({
 			>
 				<label className="kw-audio-editor-dialog__field">
 					<span>{copy.masteringSequenceName}</span>
-					<input name="name" type="text" defaultValue={sequence.name} key={sequence.id + sequence.name} />
+					<input name="name" type="text" value={nameDraft} onChange={(event) => setNameDraft(event.currentTarget.value)} />
 				</label>
 				<button type="submit">{copy.masteringSequenceName}</button>
 			</form>

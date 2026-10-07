@@ -17,6 +17,7 @@ import {
 } from '../edit-blocking.ts';
 import type { SoundscaperMasteringSequenceCopy } from '../soundscaper-mastering-sequence-copy.ts';
 import { useProjectOwnedDialogOperation } from '../useProjectOwnedDialogOperation.ts';
+import { useOperationFocusRecovery } from '../useOperationFocusRecovery.ts';
 import SoundscaperMasteringSequenceEditor from './SoundscaperMasteringSequenceEditor.tsx';
 import type { MasteringSequenceDialogOperation } from './soundscaper-mastering-sequence-operation.ts';
 
@@ -63,6 +64,8 @@ export default function SoundscaperMasteringSequenceDialog({
 		run,
 		onProjectChange: () => undefined,
 	});
+	const captureOperationFocus = useOperationFocusRecovery(operation.pending !== null,
+		project && typeof project === 'object' && 'id' in project ? project.id : project);
 	const blockedMessage = !supported
 		? copy.unsupported
 		: editBlock.reason === AUDIO_EDITOR_EDIT_BLOCK_REASONS.READ_ONLY
@@ -90,7 +93,7 @@ export default function SoundscaperMasteringSequenceDialog({
 			primarySequenceId={document.primarySequenceId}
 			sampleRate={audioEditorProjectSampleRate(project)}
 			createId={() => createStableId('mastering-sequence')}
-			onOperation={(command) => operation.perform('mastering-sequence', () => command)}
+			onOperation={(command) => { captureOperationFocus(); operation.perform('mastering-sequence', () => command); }}
 		/>
 		<div role="status" aria-live="polite" aria-atomic="true">{feedback}</div>
 	</AudioEditorDialogShell>;
