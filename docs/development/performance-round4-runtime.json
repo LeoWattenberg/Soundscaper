@@ -1,0 +1,131 @@
+{
+	"schemaVersion": 1,
+	"title": "Fourth-round parallel render and automation preparation reductions",
+	"baseRevision": "138581fec362c0b4cef96f32d86f3e50194ce06f",
+	"scope": "Interaction and render preparation after editor admission; editor startup and expected web lazy loading excluded.",
+	"count": 10,
+	"requiresManualUpdateAiAssets": false,
+	"findings": [
+		{
+			"id": "runtime-round4-01",
+			"key": "numeric-task-readiness",
+			"source": "src/common/editor/engine/parallel-stack-planning-index.ts",
+			"caller": "src/common/editor/engine/parallel-stack-plan.ts: compileParallelStackPlan",
+			"location": "orderParallelStackTasks",
+			"change": "Use dependency counts and a numeric heap instead of repeatedly scanning every task until its dependencies have been visited.",
+			"test": "tests/audio-editor-responsiveness-round4-parallel-work.test.ts",
+			"evidence": "600 seeded DAG/worker combinations and 12,288 exhaustive four-node digraph/worker comparisons retain exact former pass/index order and refusals. A 120-task reverse chain reads dependency lists at most 360 times; the original reads more than 6000.",
+			"limitations": "This is the private parallel worker-plane compiler, separate from round3's lexical PDC vertex frontier.",
+			"status": "implemented",
+			"reviewTest": "tests/audio-editor-responsiveness-round4-root-plan-review.test.ts"
+		},
+		{
+			"id": "runtime-round4-02",
+			"key": "parallel-vca-membership-products",
+			"source": "src/common/editor/engine/parallel-stack-planning-index.ts",
+			"caller": "src/common/editor/engine/parallel-stack-plan.ts: compileParallelStackPlan",
+			"location": "createParallelStackControlIndex / vcaGain",
+			"change": "Prepare authored-order VCA products once per admitted member instead of scanning every VCA membership list for every parallel strip.",
+			"test": "tests/audio-editor-responsiveness-round4-parallel-work.test.ts",
+			"evidence": "1500 queries over 30 members add no membership reads after preparation; duplicate members apply once, authored .1 times .3 remains exact, and master gain remains one.",
+			"limitations": "Invocation-local preparation for parallel stack tasks; separate from the live AudioNode controls optimized in round3.",
+			"status": "implemented"
+		},
+		{
+			"id": "runtime-round4-03",
+			"key": "parallel-tap-scope",
+			"source": "src/common/editor/engine/parallel-stack-planning-index.ts",
+			"caller": "src/common/editor/engine/parallel-stack-plan.ts: compileParallelStackPlan",
+			"location": "createParallelStackControlIndex / scope",
+			"change": "Resolve tap scope from a first-authority group/send catalog rather than scanning both node collections per strip.",
+			"test": "tests/audio-editor-responsiveness-round4-parallel-work.test.ts",
+			"evidence": "Group-before-send duplicate authority, master/track cases and unknown-node cue fallback are checked; all 144 complete-plan/refusal hashes match the original.",
+			"limitations": "Scope determines the private worker tap-plane directory, not the graph channel-width index from round3.",
+			"status": "implemented"
+		},
+		{
+			"id": "runtime-round4-04",
+			"key": "parallel-solo-frontier-allocation",
+			"source": "src/common/editor/engine/parallel-stack-plan.ts",
+			"caller": "src/common/editor/engine/parallel-stack-plan.ts: compileParallelStackPlan",
+			"location": "audible",
+			"change": "Traverse the solo strip Set directly instead of spreading it into a fresh array for each parallel strip audibility query.",
+			"test": "tests/audio-editor-responsiveness-round4-parallel-parity.test.ts",
+			"evidence": "The integrated compiler matches 123 complete plans and 21 exact refusals, including seeded solo, VCA mute, nested group and cue routes.",
+			"limitations": "Topology queries and early-return order are preserved; this removes the repeated array allocation and does not memoize mutable audibility.",
+			"status": "implemented"
+		},
+		{
+			"id": "runtime-round4-05",
+			"key": "parallel-mixer-node-inventory",
+			"source": "src/common/editor/engine/parallel-stack-plan.ts",
+			"caller": "src/common/editor/engine/parallel-stack-plan.ts: compileParallelStackPlan",
+			"location": "compileParallelStackPlan / mixerNodes",
+			"change": "Reuse one groups/sends/cues list for owner preparation, solo discovery and stack construction instead of concatenating the same collections three times.",
+			"test": "tests/audio-editor-responsiveness-round4-parallel-parity.test.ts",
+			"evidence": "Complete compiled plan hashes preserve owner, solo and stack order at 32, 44.1 and 48 kHz with 1–8 workers.",
+			"limitations": "This is one shared concatenation cost, counted once across its three consumers.",
+			"status": "implemented"
+		},
+		{
+			"id": "runtime-round4-06",
+			"key": "parallel-compiled-rack-array",
+			"source": "src/common/editor/engine/parallel-stack-effect-plan.ts",
+			"caller": "src/common/editor/engine/parallel-stack-plan.ts: compileParallelStackPlan",
+			"location": "compileParallelStackEffectInventory",
+			"change": "Reuse the compiler's private filtered dense effect array as the compiled inventory, avoiding a second map result allocation.",
+			"test": "tests/audio-editor-responsiveness-round4-effect-inventory.test.ts",
+			"evidence": "Tests retain all flag inspection before compilation, caller record/array identity and authored compilation error order. Exotic caller-owned filter/map authority retains the former fallback.",
+			"limitations": "Only the new private dense array is overwritten; caller-owned racks are never mutated.",
+			"status": "implemented"
+		},
+		{
+			"id": "runtime-round4-07",
+			"key": "parallel-eq-presence-scan",
+			"source": "src/common/editor/engine/parallel-stack-effect-plan.ts",
+			"caller": "src/common/editor/engine/parallel-stack-plan.ts: compileParallelStackPlan",
+			"location": "compileParallelStackEffectInventory / hasParametricEq",
+			"change": "Record EQ presence while compiling admitted effects, removing the subsequent compiled-rack some traversal.",
+			"test": "tests/audio-editor-responsiveness-round4-effect-inventory.test.ts",
+			"evidence": "The exotic-map fixture retains a true EQ presence result. Frozen complete compiler refusals include unprepared EQ module admission and unsupported effects in the original order.",
+			"limitations": "Presence is a separate downstream admission query from latency and array allocation; no EQ engine bytes change.",
+			"status": "implemented"
+		},
+		{
+			"id": "runtime-round4-08",
+			"key": "parallel-rack-latency-scan",
+			"source": "src/common/editor/engine/parallel-stack-effect-plan.ts",
+			"caller": "src/common/editor/engine/parallel-stack-plan.ts: compileParallelStackPlan",
+			"location": "compileParallelStackEffectInventory / latencyFrames",
+			"change": "Sum compiled effect latency in the authored compilation loop, removing the later reduce traversal.",
+			"test": "tests/audio-editor-responsiveness-round4-effect-inventory.test.ts",
+			"evidence": "Two limiter effects retain exact 48 + 96 = 144-frame rack latency at 48 kHz. Complete plans, PDC offsets and refusal hashes retain their original values.",
+			"limitations": "Addition order remains authored order; global PDC solving remains unchanged.",
+			"status": "implemented"
+		},
+		{
+			"id": "runtime-round4-09",
+			"key": "parallel-sidechain-effect-lookup",
+			"source": "src/common/editor/engine/parallel-stack-planning-index.ts",
+			"caller": "src/common/editor/engine/parallel-stack-plan.ts: compileParallelStackPlan",
+			"location": "createParallelStackSidechainResolver",
+			"change": "Lazily prepare a first-match effect ID catalog for queried parallel tasks instead of finding the rack again for each sidechain edge.",
+			"test": "tests/audio-editor-responsiveness-round4-parallel-work.test.ts",
+			"evidence": "500 repeated sidechain lookups add no effect ID reads after the first query; unqueried racks are not indexed, missing IDs and duplicate first authority are checked.",
+			"limitations": "The catalog belongs to one finished plan build and never survives parameter/rack mutation.",
+			"status": "implemented"
+		},
+		{
+			"id": "runtime-round4-10",
+			"key": "message-window-exact-frame-ratio",
+			"source": "src/common/editor/engine/scheduled-parameter-frame-projector.ts",
+			"caller": "src/common/editor/engine/scheduled-parameter-registry.ts: RegisteredScheduledParameterTarget.schedule",
+			"location": "createScheduledParameterContextFrameProjector / RegisteredScheduledParameterTarget.schedule",
+			"change": "Prepare exact decimal transport-rate and BigInt sample-rate conversion factors once per message packet instead of once per event.",
+			"test": "tests/audio-editor-responsiveness-round4-frame-projector.test.ts",
+			"evidence": "A registered target with 1000 events decodes rate 1.2 once and emits an immutable exact-offset packet. 157 frozen original conversions/refusals cover half ties, tiny/huge finite rates, large absolute frames and invalid arguments.",
+			"limitations": "Standalone public conversion keeps validation order and exact rounding; AudioParam scheduling is unchanged.",
+			"status": "implemented"
+		}
+	]
+}

@@ -1,0 +1,666 @@
+{
+  "schemaVersion": 1,
+  "scope": "Thirty new production DSP responsiveness/render-speed costs after the prior 74 implemented opportunities and both rounds of 100; startup, unchanged helpers, bug fixes and the same cost at multiple callsites are excluded.",
+  "baseRevision": "138581fec362c0b4cef96f32d86f3e50194ce06f",
+  "count": 30,
+  "requiresManualAiAssets": false,
+  "runtimeClosure": "Existing application DSP files only. No native StaffPad/WASM bytes, assistance source recipes/pins/archive inventories, dependency metadata or native runtime target changes. No new production module or desktop runtime inventory entry.",
+  "parity": {
+    "fixture": "tests/fixtures/dsp-round4-parity.json",
+    "cases": 166,
+    "provenance": "Independent esbuild bundle captured before production edits, /tmp/perf300-dsp-baseline/fixtures.mjs; fixtures exercise public production APIs for exact typed-array bytes, doubles/signed zero, snapshots and painted geometry. Three admitted overridden-length spectrum cases were added by invoking the same frozen original spectrum export; all 166 hashes match.",
+    "focusedTests": 111,
+    "additionalLoudnessValidation": "The earlier 15-test EBU group also passed, including the 11 existing loudness/audit cases beyond the four cases overlapping final focused selection.",
+    "ownership": "Spectrum pooled scratch is private, geometry-bounded and leased under reentrancy/exception. Frequency history copies samples before caller regains control; peak output retains Float32 rounding. Input validation, arbitrary stream partitions, published live telemetry, reset, worker cancellation and returned PCM ownership remain unchanged.",
+    "independentReviewStatus": "Complete. Independent timeline read audit caught an admitted overridden-length spectrum mismatch; red exact baseline tests now prove corrected native-length guard and original-traversal fallback. The corrected sources passed all193 additional independent baseline comparisons. No remaining correctness defect, dead path or duplicate counted cost was found in the read review.",
+    "independentReview": {
+      "reviewer": "timeline agent, independently of the implementation",
+      "cases": 193,
+      "spectrum": {
+        "cases": 100,
+        "coverage": "Own-property and Proxy reported lengths -3, 0, 2, 2.5 and 7; offsets 0, 1, 1.5, 4 and 30; average both false and true. Exact baseline output or thrown behavior was compared."
+      },
+      "additionalDsp": {
+        "cases": 93,
+        "centroid": 66,
+        "constantChirp": 18,
+        "ebu": 9,
+        "coverage": "Circular-centroid leading/trailing boundaries, mono/stereo/six channels and irregular chunks; guarded constant Chirp endpoints and partial blocks; EBU reset, standby and true-peak history drain."
+      },
+      "artifacts": [
+        {
+          "path": "/tmp/perf300-ui-dsp-independent-review.mjs",
+          "sha256": "cb9c30c946f7fd094ecbb609f8b61169afe6d6cffce7186bf66d4d89ae027ee8"
+        },
+        {
+          "path": "/tmp/perf300-ui-dsp-independent-review.json",
+          "sha256": "be078eb75af6bda9a41ecea48a4d28fe4ab7d8623a3ad6ce1ce61264e2cb83a0"
+        },
+        {
+          "path": "/tmp/perf300-ui-dsp-independent-review.log",
+          "sha256": "3b9b22f6ca92ca6ffaeff195d9bf0b277a1c8d3c0f46962839086d801f13e902"
+        },
+        {
+          "path": "/tmp/perf300-ui-dsp-spectrum-review.mjs",
+          "sha256": "aefa899abd985d0308e1ff2dcbb2776f9e3df7013d2c4eb697e062b8a170f7cb"
+        },
+        {
+          "path": "/tmp/perf300-ui-dsp-spectrum-review.json",
+          "sha256": "dc8d7a987f022a0acd0e5bedefd6818ca9a62202765df8083d64a265c4548289"
+        },
+        {
+          "path": "/tmp/perf300-ui-dsp-spectrum-review.log",
+          "sha256": "6f422e402df3285584f6be5888f432d4f86c8b302f78fd8263fca2d6e93e78f1"
+        }
+      ]
+    }
+  },
+  "measurementReceipt": "docs/development/performance-round4-dsp-measurements.json",
+  "measurementMethod": "scripts/performance/measure-dsp-responsiveness-round4.ts independently bundles exact baseline/current source closures, checks output digests outside timers and records 12 alternating AB/BA warm pairs per 13 public-kernel jobs, with source SHA256 and host metadata.",
+  "measurementLimits": "Grouped synchronous kernel timings do not establish per-finding milliseconds, desktop click-to-Apply, startup, first-use latency or sustained FPS. Rejected Chirp closure shapes and their regressions are retained in the receipt; final variable loop is unchanged and short-path/shared-host variance is disclosed.",
+  "findings": [
+    {
+      "number": 1,
+      "id": "dsp4-01-true-peak-indices",
+      "title": "Prepare true-peak FIR ring tap indices",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/ebu-r128.js",
+          "line": 27
+        }
+      ],
+      "avoidedCost": "Replace four phases of twelve per-tap remainder operations with an immutable twelve-position index table.",
+      "evidence": "A nonzero channel frame previously evaluated 48 tap-index remainders; the same ordered 48 FIR additions now read prepared Uint8 indices.",
+      "tests": [
+        "tests/audio-editor-responsiveness-round4-loudness-work.test.ts",
+        "tests/audio-editor-responsiveness-round4-dsp-parity.test.ts"
+      ],
+      "productionCaller": "src/common/editor/ebu-r128-worklet.js",
+      "limitations": "Twelve twelve-byte rows; no FIR coefficient or phase/tap addition order changes. Ring head uses its bounded wrap."
+    },
+    {
+      "number": 2,
+      "id": "dsp4-02-zero-true-peak-history",
+      "title": "Skip FIR multiply/add work for exactly zero history",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/ebu-r128.js",
+          "line": 451
+        }
+      ],
+      "avoidedCost": "Track exactly occupied nonzero ring slots; all-zero histories perform no 48-tap interpolation.",
+      "evidence": "Red/green instrumented production source: 997 signed-zero frames execute zero tap multiplications; an impulse executes 48; after exactly 12 draining frames no further taps run.",
+      "tests": [
+        "tests/audio-editor-responsiveness-round4-loudness-work.test.ts",
+        "tests/audio-editor-responsiveness-round4-dsp-parity.test.ts"
+      ],
+      "productionCaller": "src/common/editor/production-audio/loudness-history-session.ts",
+      "limitations": "Both signs of zero are stored and the ring index always advances. A single nonzero slot keeps the complete original FIR. Meter reset retains live filter/history behavior; rejected chunks still preflight before mutation."
+    },
+    {
+      "number": 3,
+      "id": "dsp4-03-energy-window-wraps",
+      "title": "Use bounded loudness-energy ring wraps",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/ebu-r128.js",
+          "line": 358
+        }
+      ],
+      "avoidedCost": "Remove remainder operations from energy expiration and advancement in all three per-frame loudness windows.",
+      "evidence": "Each full energy window formerly evaluated two remainder operations per frame. Source comparison proves bounded subtract/branch indices address identical slots; exact EBU snapshots cover 8000/11025/48000 Hz.",
+      "tests": [
+        "tests/audio-editor-responsiveness-round4-loudness-work.test.ts",
+        "tests/audio-editor-responsiveness-round4-dsp-parity.test.ts"
+      ],
+      "productionCaller": "src/common/editor/broadcast-loudness.ts",
+      "limitations": "Subtraction, insertion and accumulation order are unchanged, including clamping negative residual energy and partial window denominators."
+    },
+    {
+      "number": 4,
+      "id": "dsp4-04-unchanged-histogram-summary",
+      "title": "Retain unchanged histogram summaries",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/ebu-r128.js",
+          "line": 302
+        }
+      ],
+      "avoidedCost": "Avoid gating and percentile rescans when snapshots are requested without an accepted histogram mutation.",
+      "evidence": "Red/green: 100 repeated integrated/LRA summaries perform zero bin conversions after the first summary; accepted pushes and reset invalidate; rejected 0/NaN energies retain the result.",
+      "tests": [
+        "tests/audio-editor-responsiveness-round4-loudness-work.test.ts",
+        "tests/audio-editor-responsiveness-round4-dsp-parity.test.ts"
+      ],
+      "productionCaller": "src/common/editor/production-audio/loudness-history-session.ts",
+      "limitations": "Only private derived numeric results are retained. Every accepted push and reset invalidates both summaries. Running/standby toggles keep histogram semantics."
+    },
+    {
+      "number": 5,
+      "id": "dsp4-05-lra-rank-traversal",
+      "title": "Resolve all four LRA percentile ranks in one traversal",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/ebu-r128.js",
+          "line": 315
+        }
+      ],
+      "avoidedCost": "Replace four independent rank scans with one ordered scan resolving the exact lower/upper ranks for10th and95th percentiles.",
+      "evidence": "Red/green dense 100-bin fixture resolves all ranks within 100 visited bins instead of repeated traversals; frozen snapshots retain original interpolation and subtraction bytes.",
+      "tests": [
+        "tests/audio-editor-responsiveness-round4-loudness-work.test.ts",
+        "tests/audio-editor-responsiveness-round4-dsp-parity.test.ts"
+      ],
+      "productionCaller": "src/common/editor/broadcast-loudness.ts",
+      "limitations": "Rank ordering handles the two-sample crossing case. Each original percentile interpolation retains its arithmetic order; no rank approximation or threshold change."
+    },
+    {
+      "number": 6,
+      "id": "dsp4-06-empty-histogram-bins",
+      "title": "Avoid loudness math for empty gating bins",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/ebu-r128.js",
+          "line": 293
+        }
+      ],
+      "avoidedCost": "Check private occupancy before calculating a bin loudness during gating.",
+      "evidence": "Red/green sparse histogram with two distant occupied bins performs at most two loudness-bin conversions rather than hundreds.",
+      "tests": [
+        "tests/audio-editor-responsiveness-round4-loudness-work.test.ts",
+        "tests/audio-editor-responsiveness-round4-dsp-parity.test.ts"
+      ],
+      "productionCaller": "src/common/editor/analysis.js",
+      "limitations": "Both gates continue scanning identical index bounds and sum occupied counts/energies in original ascending order."
+    },
+    {
+      "number": 7,
+      "id": "dsp4-07-true-peak-array-wrapper",
+      "title": "Reduce channel true peaks without temporary arrays",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/ebu-r128.js",
+          "line": 463
+        }
+      ],
+      "avoidedCost": "Replace per-snapshot map arrays and argument spreads with an ordered channel maximum.",
+      "evidence": "Both 10 Hz publication and partial-window snapshot eliminate one channel-sized temporary array/spread each; exact 6-channel snapshots match the baseline.",
+      "tests": [
+        "tests/audio-editor-responsiveness-round4-loudness-work.test.ts",
+        "tests/audio-editor-responsiveness-round4-dsp-parity.test.ts"
+      ],
+      "productionCaller": "src/common/editor/ebu-r128-worklet.js",
+      "limitations": "Same live peak seed and channel order; no state or output object is reused or exposed."
+    },
+    {
+      "number": 8,
+      "id": "dsp4-08-spectrogram-band-spans",
+      "title": "Prepare spectrogram FFT band intervals once per job",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/pffft-spectrogram.js",
+          "line": 64
+        }
+      ],
+      "avoidedCost": "Calculate band start/end/count once outside the column loop instead of for every column.",
+      "evidence": "Red/green 256-point FFT / 31-band / 64-column test bounds Math.floor calls to fixed geometry plus 64 offsets; former work exceeded the limit due repeated band and half-window geometry.",
+      "tests": [
+        "tests/audio-editor-responsiveness-round4-spectrogram-work.test.ts",
+        "tests/audio-editor-responsiveness-round4-dsp-parity.test.ts"
+      ],
+      "productionCaller": "src/common/editor/timeline-spectrogram-worker-runtime.ts",
+      "limitations": "Each column still computes every original hypot and adds bins in the original order; interval endpoints and division remain exact."
+    },
+    {
+      "number": 9,
+      "id": "dsp4-09-spectrogram-source-bounds",
+      "title": "Bound plain-PCM spectrogram sample loading",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/pffft-spectrogram.js",
+          "line": 71
+        }
+      ],
+      "avoidedCost": "Use one source interval and zero padding per column instead of a boundary branch for each FFT sample.",
+      "evidence": "For 512 columns of 256 samples, at most 512 bound pairs replace 131072 per-sample boundary checks. Exact array/accessor energy fixtures and all existing spectrogram tests pass.",
+      "tests": [
+        "tests/audio-editor-responsiveness-round4-spectrogram-work.test.ts",
+        "tests/audio-editor-responsiveness-round4-dsp-parity.test.ts"
+      ],
+      "productionCaller": "src/common/editor/ui/timeline/spectrogram-canvas-renderer.js",
+      "limitations": "Projected sampleAt accessors still receive every negative/trailing frame request. Fractional array-like lengths retain ceil boundary behavior. Number coercion and invalid sample fallback are unchanged."
+    },
+    {
+      "number": 10,
+      "id": "dsp4-10-inverse-scale-endpoints",
+      "title": "Prepare inverse spectrogram scale endpoints once per row plan",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/pffft-spectrogram.js",
+          "line": 224
+        }
+      ],
+      "avoidedCost": "Avoid repeating two fixed nonlinear endpoint transformations for every interior raster row.",
+      "evidence": "Red/green 181-row mel plan performs 5762 log10 calls instead of 6120: two endpoints plus 180 ordered 32-step inversions.",
+      "tests": [
+        "tests/audio-editor-responsiveness-round4-spectrogram-work.test.ts",
+        "tests/audio-editor-responsiveness-round4-dsp-parity.test.ts"
+      ],
+      "productionCaller": "src/common/editor/ui/timeline/spectrogram-canvas-renderer.js",
+      "limitations": "Existing row-plan cache and its bounds remain unchanged; endpoint clamping and midpoint bisection order are exact."
+    },
+    {
+      "number": 11,
+      "id": "dsp4-11-inverse-scale-dispatch",
+      "title": "Select the inverse spectrogram scale function once",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/pffft-spectrogram.js",
+          "line": 296
+        }
+      ],
+      "avoidedCost": "Remove per-bisection string scale dispatch by selecting one numeric transformation at plan creation.",
+      "evidence": "A 181-row nonlinear plan formerly dispatched the selected scale on every 32-step midpoint (5760 times); now one plan-level choice serves all rows. All six painted scale fixtures are exact.",
+      "tests": [
+        "tests/audio-editor-responsiveness-round4-spectrogram-work.test.ts",
+        "tests/audio-editor-responsiveness-round4-dsp-parity.test.ts"
+      ],
+      "productionCaller": "src/common/editor/ui/timeline/spectrogram-canvas-renderer.js",
+      "limitations": "Number normalization and every scale formula remain unchanged. Small row-plan timings are near host noise; no isolated millisecond gain is asserted."
+    },
+    {
+      "number": 12,
+      "id": "dsp4-12-band-pcm-intermediates",
+      "title": "Accumulate rounded frequency bands directly into peaks",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/frequency-waveform-analysis.ts",
+          "line": 109
+        }
+      ],
+      "avoidedCost": "Avoid allocating and writing three full chunk PCM arrays for each visual channel solely to read them back as extrema.",
+      "evidence": "Red/green stereo 4097-frame analyzer.push allocates zero Float32 arrays instead of six full PCM arrays. Every intermediate band value still passes Math.fround; extrema remain bucket-local.",
+      "tests": [
+        "tests/audio-editor-responsiveness-round4-waveform-work.test.ts",
+        "tests/audio-editor-responsiveness-round4-dsp-parity.test.ts"
+      ],
+      "productionCaller": "src/common/editor/frequency-waveform-worker-protocol.ts",
+      "limitations": "Public splitter.process retains owned PCM output and reset. Direct accumulation uses immutable private crossover frequencies and independent channel state; ordinary caller PCM is consumed synchronously and never retained."
+    },
+    {
+      "number": 13,
+      "id": "dsp4-13-band-bucket-geometry",
+      "title": "Share peak bucket geometry across bands and channels",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/frequency-waveform-analysis.ts",
+          "line": 111
+        }
+      ],
+      "avoidedCost": "Calculate one initial peak bucket and integer boundaries once per chunk instead of repeating bucket division for every band/channel span.",
+      "evidence": "Red/green 511-frame stereo push performs one bucket floor rather than twelve. This is distinct from avoiding full band PCM: it removes repeated bucket interval arithmetic.",
+      "tests": [
+        "tests/audio-editor-responsiveness-round4-waveform-work.test.ts",
+        "tests/audio-editor-responsiveness-round4-dsp-parity.test.ts"
+      ],
+      "productionCaller": "src/common/editor/frequency-waveform-worker-protocol.ts",
+      "limitations": "Incomplete bucket extrema retain original Float32 values and sample order. The now-unused public peak helper was restored unchanged and is not counted."
+    },
+    {
+      "number": 14,
+      "id": "dsp4-14-centroid-history-copy",
+      "title": "Retain centroid FFT input in a circular buffer",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/frequency-waveform-analysis.ts",
+          "line": 160
+        }
+      ],
+      "avoidedCost": "Advance a private circular start instead of copying1792 retained samples per channel at every256-frame hop.",
+      "evidence": "Red/green analyzer history performs zero Float32.copyWithin calls. Each FFT reads at most two contiguous spans in the same logical order; irregular 1/127/8192-frame fixtures match.",
+      "tests": [
+        "tests/audio-editor-responsiveness-round4-waveform-work.test.ts",
+        "tests/audio-editor-responsiveness-round4-dsp-parity.test.ts"
+      ],
+      "productionCaller": "src/common/editor/frequency-waveform-worker-protocol.ts",
+      "limitations": "Leading zero history, final silence padding, centroid Float32 accumulations and FFT input order are preserved. Retained history is private after caller chunk mutation."
+    },
+    {
+      "number": 15,
+      "id": "dsp4-15-centroid-overwritten-clear",
+      "title": "Avoid clearing centroid slots that will be overwritten",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/frequency-waveform-analysis.ts",
+          "line": 283
+        }
+      ],
+      "avoidedCost": "Remove the256-slot zero fill after each FFT hop; every consumed slot is filled by input or explicit finish silence before the next transform.",
+      "evidence": "Red/green history test executes zero positive-offset tail fills. This is separate from retained 1792-frame memcpy removal: it avoids the newly writable 256-frame clear.",
+      "tests": [
+        "tests/audio-editor-responsiveness-round4-waveform-work.test.ts",
+        "tests/audio-editor-responsiveness-round4-dsp-parity.test.ts"
+      ],
+      "productionCaller": "src/common/editor/frequency-waveform-worker-protocol.ts",
+      "limitations": "Initial typed arrays remain zero initialized; all ring slots consumed by FFT have been written, including final partial chunks and source nonfinite sanitization."
+    },
+    {
+      "number": 16,
+      "id": "dsp4-16-spectrum-padding-probes",
+      "title": "Bound integer-offset spectrum PCM loads",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/audio-spectrum.ts",
+          "line": 61
+        }
+      ],
+      "avoidedCost": "Avoid undefined typed-array probes, finiteness checks and window multiplication for padded tail samples.",
+      "evidence": "211-frame input with 8192-bin FFT avoids 7981 sample probes per channel; zero padding is written directly. Fractional-offset fixtures retain their original fallback traversal.",
+      "tests": [
+        "tests/audio-editor-responsiveness-round4-dsp-ownership.test.ts",
+        "tests/audio-editor-responsiveness-round4-dsp-work.test.ts",
+        "tests/audio-editor-responsiveness-round4-dsp-parity.test.ts"
+      ],
+      "productionCaller": "src/common/editor/ui/timeline/spectral-center-gesture.ts",
+      "limitations": "Bounded loading requires integer source offsets and intrinsic typed-array length equal to declared frameCount. Overridden lengths and admitted proxies retain the original full sample traversal. Channel validation and in-range finite sanitization are unchanged; FFT power addition order is preserved."
+    },
+    {
+      "number": 17,
+      "id": "dsp4-17-spectrum-workspace",
+      "title": "Reuse bounded private spectrum FFT scratch",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/audio-spectrum.ts",
+          "line": 19
+        }
+      ],
+      "avoidedCost": "Retain one real/imaginary/power workspace per accepted power-of-two geometry instead of allocating three double arrays for every spectrum request.",
+      "evidence": "Red/green warmed spectrum allocates zero Float64 arrays rather than three. Reentrant computations lease separate scratch; exceptions release leases; returned frozen bins remain independent.",
+      "tests": [
+        "tests/audio-editor-responsiveness-round4-dsp-work.test.ts",
+        "tests/audio-editor-responsiveness-round4-dsp-ownership.test.ts",
+        "tests/audio-editor-responsiveness-round4-dsp-parity.test.ts"
+      ],
+      "productionCaller": "src/common/editor/sound-visualizer-rgba.ts",
+      "limitations": "At most twelve retained workspaces (2,620,896 bytes, under 3 MiB); recursive leases are ephemeral. No caller PCM or output array is pooled; power buffers are cleared on each reuse."
+    },
+    {
+      "number": 18,
+      "id": "dsp4-18-crossover-feedback",
+      "title": "Calculate crossover feedback once per frame",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/complementary-crossover.ts",
+          "line": 11
+        }
+      ],
+      "avoidedCost": "Reuse the exact1-minus-two-times-coefficient feedback for every channel instead of recalculating it in each low-pass sample.",
+      "evidence": "Shared crossover callers retain exact constructor/tick/reset behavior; a stereo tick computes one feedback scalar rather than two channel computations.",
+      "tests": [
+        "tests/audio-editor-responsiveness-round4-waveform-work.test.ts",
+        "tests/audio-editor-responsiveness-round4-dsp-work.test.ts",
+        "tests/audio-editor-responsiveness-round4-dsp-parity.test.ts"
+      ],
+      "productionCaller": "src/common/editor/first-party-effects/deesser/dsp.ts",
+      "limitations": "Feedback follows the same smoothed coefficient, including constructor and reset. Configure changes only target until tick; no multiplication/addition regrouping."
+    },
+    {
+      "number": 19,
+      "id": "dsp4-19-detector-complement",
+      "title": "Prepare the fixed RMS detector complement",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/first-party-effects/dynamics/core.ts",
+          "line": 26
+        }
+      ],
+      "avoidedCost": "Reuse1-minus-detector across every per-frame compressor gain calculation.",
+      "evidence": "Each of the three multiband detectors avoids one fixed subtraction per frame; original multiplication/addition order and streamed/live telemetry fixture bytes are preserved.",
+      "tests": [
+        "tests/audio-editor-responsiveness-round4-dsp-work.test.ts",
+        "tests/audio-editor-responsiveness-round4-dsp-parity.test.ts"
+      ],
+      "productionCaller": "src/common/editor/first-party-effects/multiband-compressor/dsp.ts",
+      "limitations": "Only the fixed sample-rate detector complement is retained; attack/release smoothing complements remain dynamic."
+    },
+    {
+      "number": 20,
+      "id": "dsp4-20-compressor-timing-design",
+      "title": "Retain unchanged compressor attack/release design",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/first-party-effects/dynamics/core.ts",
+          "line": 41
+        }
+      ],
+      "avoidedCost": "Avoid redesigning attack/release exponentials when updates change only thresholds, ratio or reduction controls.",
+      "evidence": "Red/green unrelated configure executes zero exp calls rather than two; changing one time constant executes one; neutral configure still clears reduction.",
+      "tests": [
+        "tests/audio-editor-responsiveness-round4-dsp-work.test.ts",
+        "tests/audio-editor-responsiveness-round4-dsp-parity.test.ts"
+      ],
+      "productionCaller": "src/common/editor/first-party-effects/deesser/dsp.ts",
+      "limitations": "Each time constant is invalidated independently via Object.is. Energy and reduction histories are retained, and every neutral-reset side effect still runs."
+    },
+    {
+      "number": 21,
+      "id": "dsp4-21-band-gain-corrections",
+      "title": "Prepare linked band gain corrections once per frame",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/first-party-effects/deesser/dsp.ts",
+          "line": 40
+        }
+      ],
+      "avoidedCost": "Calculate shared gain-minus-one once rather than once per output channel; the same cost is grouped once across deesser and multiband.",
+      "evidence": "Deesser stereo correction subtraction is one rather than two; multiband stores three corrections instead of recomputing six stereo corrections. Live and offline PCM/telemetry are exact.",
+      "tests": [
+        "tests/audio-editor-responsiveness-round4-dsp-work.test.ts",
+        "tests/audio-editor-responsiveness-round4-dsp-parity.test.ts"
+      ],
+      "productionCaller": "src/common/editor/selection-effects-runtime.js",
+      "limitations": "Shared multiband corrections retain Float64 precision; band addition order is unchanged. The two effect callsites count as one cost."
+    },
+    {
+      "number": 22,
+      "id": "dsp4-22-offline-multiband-telemetry",
+      "title": "Omit unconsumed offline multiband telemetry",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/first-party-effects/multiband-compressor/dsp.ts",
+          "line": 15
+        }
+      ],
+      "avoidedCost": "Private offline construction omits input/output peak and minimum-gain reductions that the selection caller never reads.",
+      "evidence": "Red/green 2049-frame mono selection performs zero Math.abs calls instead of 4098; public live processor still performs 4098 and publishes the exact same analysis window.",
+      "tests": [
+        "tests/audio-editor-responsiveness-round4-dsp-work.test.ts",
+        "tests/audio-editor-responsiveness-round4-dsp-parity.test.ts"
+      ],
+      "productionCaller": "src/common/editor/selection-effects-runtime.js",
+      "limitations": "The exact selection caller returns only PCM. Public factory and worklet readAnalysis are unchanged; no published analysis is skipped and all input validation still executes."
+    },
+    {
+      "number": 23,
+      "id": "dsp4-23-multiband-power-scratch",
+      "title": "Use scalar linked powers instead of typed scratch",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/first-party-effects/multiband-compressor/dsp.ts",
+          "line": 67
+        }
+      ],
+      "avoidedCost": "Remove per-frame three-element Float64 scratch clearing and indexed power updates/reads by retaining three local scalar maxima.",
+      "evidence": "The production multiband frame loop no longer allocates a power scratch array or calls its fill on each frame; channel maximum order remains exact in frozen mono/three-channel fixtures.",
+      "tests": [
+        "tests/audio-editor-responsiveness-round4-dsp-work.test.ts",
+        "tests/audio-editor-responsiveness-round4-dsp-parity.test.ts"
+      ],
+      "productionCaller": "src/common/editor/selection-effects-runtime.js",
+      "limitations": "Every band power and compressor still runs. Makeup and compression gain Float64 rounding and linked-channel max order are preserved."
+    },
+    {
+      "number": 24,
+      "id": "dsp4-24-filter-channel-stride",
+      "title": "Prepare standard filter channel state strides",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/first-party-effects/standard/filters-dsp.ts",
+          "line": 53
+        }
+      ],
+      "avoidedCost": "Hoist fixed channel-times-stage state addressing outside frame/stage loops.",
+      "evidence": "A stereo 48000-frame four-stage filter computes channel stride twice per block rather than 384000 stage iterations; exact multi-stage filters and parameter changes pass.",
+      "tests": [
+        "tests/audio-editor-responsiveness-round4-dsp-work.test.ts",
+        "tests/audio-editor-responsiveness-round4-dsp-parity.test.ts"
+      ],
+      "productionCaller": "src/common/editor/first-party-effects/standard/dsp.ts",
+      "limitations": "Validated channel/stage sizes make all integer address arithmetic exact. Filter state equations and stage traversal are unchanged; grouped short timings may be within noise."
+    },
+    {
+      "number": 25,
+      "id": "dsp4-25-standard-padding-input",
+      "title": "Allocate standard-effect zero input only when needed",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/first-party-effects/standard/dsp.ts",
+          "line": 52
+        }
+      ],
+      "avoidedCost": "Zero-latency selections avoid a channel-sized set of unused1024-frame padding buffers.",
+      "evidence": "Red/green 2049-frame stereo filter has four Float32 allocations (two outputs/two scratch) rather than six; latency-bearing noise-gate parity still includes tail padding.",
+      "tests": [
+        "tests/audio-editor-responsiveness-round4-dsp-work.test.ts",
+        "tests/audio-editor-responsiveness-round4-dsp-parity.test.ts"
+      ],
+      "productionCaller": "src/common/editor/selection-effects-runtime.js",
+      "limitations": "Latency and partial flushes retain lazily owned zero buffers, explicit fill and source copy. Full input views remain synchronously borrowed; returned PCM is owned."
+    },
+    {
+      "number": 26,
+      "id": "dsp4-26-standard-output-views",
+      "title": "Use full standard-effect output blocks directly",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/first-party-effects/standard/dsp.ts",
+          "line": 73
+        }
+      ],
+      "avoidedCost": "Avoid allocating a typed subarray wrapper for full scratch blocks copied into owned selection output.",
+      "evidence": "Red/green 2049-frame mono selection creates four total subarray views rather than six: three input views and only the final partial output view.",
+      "tests": [
+        "tests/audio-editor-responsiveness-round4-dsp-work.test.ts",
+        "tests/audio-editor-responsiveness-round4-dsp-parity.test.ts"
+      ],
+      "productionCaller": "src/common/editor/selection-effects-runtime.js",
+      "limitations": "Delayed or partial output windows still use exact subarray ranges; full copies include no stale tail and output ownership is unchanged."
+    },
+    {
+      "number": 27,
+      "id": "dsp4-27-constant-chirp-frequency",
+      "title": "Prepare equal-endpoint Chirp frequency",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/signal-generator-renderer.ts",
+          "line": 121
+        }
+      ],
+      "avoidedCost": "For equal frequency and equal positive amplitude, prepare the original phase step once and avoid per-frame logarithmic exponentiation/frequency interpolation.",
+      "evidence": "Red/green 1040-frame constant Chirp executes zero frequency-ratio powers rather than 1040; changing endpoints retains1040. Separate prepared factory avoids the rejected common variable-path regression.",
+      "tests": [
+        "tests/audio-editor-responsiveness-round4-generator-work.test.ts",
+        "tests/audio-editor-responsiveness-round4-dsp-parity.test.ts"
+      ],
+      "productionCaller": "src/common/editor/signal-generator-stream-runtime.ts",
+      "limitations": "Shared guard requires equal validated frequencies and equal positive amplitudes. Candidate 28 is a distinct amplitude computation in this same guarded path; no individual timing is attributed. Ordinary variable loop is original."
+    },
+    {
+      "number": 28,
+      "id": "dsp4-28-constant-chirp-amplitude",
+      "title": "Prepare equal positive-amplitude Chirp gain",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/signal-generator-renderer.ts",
+          "line": 97
+        }
+      ],
+      "avoidedCost": "For equal frequency and equal positive amplitude, avoid per-frame zero-difference amplitude interpolation.",
+      "evidence": "A separate red/green counter records zero amplitude interpolations rather than 1040 for the constant job, while variable endpoints retain 1040; all waveform/partition PCM hashes match.",
+      "tests": [
+        "tests/audio-editor-responsiveness-round4-generator-work.test.ts",
+        "tests/audio-editor-responsiveness-round4-dsp-parity.test.ts"
+      ],
+      "productionCaller": "src/common/editor/signal-generator-stream-runtime.ts",
+      "limitations": "This shares candidate 27 guard but removes the independently executed amplitude multiply/add. Zero and signed-zero amplitudes keep original arithmetic. No per-item timing attribution; constant-frequency/varying-amplitude jobs retain the original path."
+    },
+    {
+      "number": 29,
+      "id": "dsp4-29-active-dtmf-geometry",
+      "title": "Retain only the active DTMF symbol timing",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/signal-generator-renderer.ts",
+          "line": 155
+        }
+      ],
+      "avoidedCost": "Keep scalar active tone start/end until symbol advancement instead of recomputing scaled geometry for every partial block request.",
+      "evidence": "Red/green 100 one-frame requests within a scaled tone calculate geometry once rather than 100 times; natural/scaled, cached/uncached and irregular partitions preserve exact bytes.",
+      "tests": [
+        "tests/audio-editor-responsiveness-round4-generator-work.test.ts",
+        "tests/audio-editor-responsiveness-round4-dsp-parity.test.ts"
+      ],
+      "productionCaller": "src/common/editor/signal-generator-stream-runtime.ts",
+      "limitations": "Only two scalar bounds are retained; no new PCM cache. Symbol advancement, final-tone rounding, silence and existing bounded tone cache behavior are unchanged."
+    },
+    {
+      "number": 30,
+      "id": "dsp4-30-keyed-angular-prefix",
+      "title": "Prepare fixed DTMF and Morse angular prefixes",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/signal-generator-renderer.ts",
+          "line": 167
+        }
+      ],
+      "avoidedCost": "Hoist the original left-associated2-times-PI-times-frequency prefix from every keyed PCM frame.",
+      "evidence": "The long uncached DTMF loop computes two fixed angular prefixes per fill rather than two per frame; Morse computes one prefix per job. Both are grouped as one cost and all keyed PCM hashes match.",
+      "tests": [
+        "tests/audio-editor-responsiveness-round4-generator-work.test.ts",
+        "tests/audio-editor-responsiveness-round4-dsp-parity.test.ts"
+      ],
+      "productionCaller": "src/common/editor/signal-generator-stream-runtime.ts",
+      "limitations": "Subsequent multiplication by local frame and division by sample rate remain in the original order. Existing cached DTMF benefit is unchanged; Morse/short workloads may be at host timing noise, with no guaranteed isolated speedup."
+    }
+  ]
+}
