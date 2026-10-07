@@ -261,7 +261,7 @@ async function runCheck(state, entry) {
 	const { editor } = state;
 	if (entry.startsAt !== null) {
 		const clip = guideClip(editor, guideFixtureClipName(entry.startsAt.fixture));
-		await expect(clip).toHaveAttribute('aria-label', new RegExp(`starts at ${String(entry.startsAt.seconds)} seconds`, 'u'), { timeout: EFFECT_TIMEOUT });
+		await expect(clip).toHaveAttribute('aria-label', new RegExp(`starts at ${String(entry.startsAt.seconds).replaceAll('.', '\\.')} seconds?,`, 'u'), { timeout: EFFECT_TIMEOUT });
 	}
 	if (entry.clips !== null) await expect(editor).toHaveAttribute('data-clip-count', String(entry.clips), { timeout: EFFECT_TIMEOUT });
 	if (entry.tracks !== null) await expect(editor).toHaveAttribute('data-track-count', String(entry.tracks), { timeout: EFFECT_TIMEOUT });

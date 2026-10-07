@@ -1,5 +1,5 @@
 import { expect, test } from './audio-editor-test-fixtures.js';
-import { registerAudioEditorHooks } from './audio-editor-test-helpers.js';
+import { chooseCommandAction, registerAudioEditorHooks } from './audio-editor-test-helpers.js';
 import { SOUNDSCAPER_GUIDES } from '../../handbook/guides/soundscaper.mjs';
 import { runGuide } from './helpers/guide-runner.js';
 
@@ -7,6 +7,10 @@ const EDITING_SPANS = {
 	'join-split-clips': [[0, 2]],
 	'delete-a-passage-and-leave-a-gap': [[0, 0.5], [1.5, 0.5]],
 	'align-a-recording-to-zero': [[0, 2]],
+	'split-a-passage-into-its-own-clip': [[0, 0.5], [0.5, 1], [1.5, 0.5]],
+	'insert-a-copied-passage': [[0, 1], [1, 0.5], [1.5, 1]],
+	'align-track-starts-together': [[1, 2], [1, 2]],
+	'move-clips-as-a-group': [[2, 2], [2, 2]],
 };
 
 async function verifyEditingSpan(page, id) {
@@ -21,6 +25,15 @@ async function verifyEditingSpan(page, id) {
 	for (const [index, [start, duration]] of spans.entries()) {
 		await expect(clips.nth(index)).toHaveAttribute('aria-label',
 			new RegExp(`starts at ${String(start).replace('.', '\\.')} seconds?, ${String(duration).replace('.', '\\.')} seconds? long$`, 'u'));
+	}
+	if (id === 'move-clips-as-a-group') {
+		// Linked selection proves that Group clips created a group, beyond the
+		// motion two independently selected clips would already share.
+		const editor = page.locator('[data-audio-editor]');
+		await chooseCommandAction(page, editor, 'Select', 'Select none');
+		await expect(editor.locator('.clip-display[data-selected="true"]')).toHaveCount(0);
+		await clips.nth(1).press('Enter');
+		await expect(editor.locator('.clip-display[data-selected="true"]')).toHaveCount(2);
 	}
 }
 

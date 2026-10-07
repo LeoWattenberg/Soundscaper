@@ -56,6 +56,10 @@ More [editing](/guides/editing/) guides:
 - [Listen faster or slower without changing the recording](/guides/editing/listen-at-a-different-speed/) — Slow a passage down to transcribe it or speed a long take up to review it, leaving the project untouched.
 - [Join split clips back together](/guides/editing/join-split-clips/) — Turn the pieces of a split recording back into one clip.
 - [Align a recording to time zero](/guides/editing/align-a-recording-to-zero/) — Move a track’s recording to the project start without dragging it by eye.
+- [Split a passage into its own clip](/guides/editing/split-a-passage-into-its-own-clip/) — Separate a selected passage from the audio before and after it without deleting anything.
+- [Insert a copied passage without overwriting](/guides/editing/insert-a-copied-passage/) — Paste audio at the cursor and move the later audio on that track to make room.
+- [Align track starts together](/guides/editing/align-track-starts-together/) — Move recordings on separate tracks so their content starts at the same time.
+- [Move clips as a group](/guides/editing/move-clips-as-a-group/) — Group clips on separate tracks so dragging one keeps their timing together.
 
 ## Reference
 
