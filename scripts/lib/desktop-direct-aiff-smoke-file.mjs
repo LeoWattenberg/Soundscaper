@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { deepFreeze } from './deep-freeze.ts';
+
 import { createHash } from 'node:crypto';
 import { lstat, open } from 'node:fs/promises';
 import { isAbsolute, resolve } from 'node:path';
@@ -286,10 +288,4 @@ function assertExactKeys(value, expected, label) {
 	if (actual.length !== wanted.length || actual.some((key, index) => key !== wanted[index])) {
 		throw new TypeError(`Desktop direct-AIFF ${label} fields are invalid`);
 	}
-}
-
-function deepFreeze(value) {
-	if (!value || typeof value !== 'object' || Object.isFrozen(value)) return value;
-	for (const nested of Object.values(value)) deepFreeze(nested);
-	return Object.freeze(value);
 }

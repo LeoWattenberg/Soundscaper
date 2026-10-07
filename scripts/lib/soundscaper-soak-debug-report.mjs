@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { deepFreeze } from './deep-freeze.ts';
+
 import { readFile } from 'node:fs/promises';
 
 const MIB = 1024 * 1024;
@@ -297,12 +299,4 @@ function nonNegativeInteger(value) {
 function boundedReason(value) {
 	const reason = typeof value === 'string' ? value.trim().slice(0, 1_000) : '';
 	return reason || 'The measurement is unavailable.';
-}
-
-function deepFreeze(value) {
-	if (value && typeof value === 'object' && !Object.isFrozen(value)) {
-		for (const child of Object.values(value)) deepFreeze(child);
-		Object.freeze(value);
-	}
-	return value;
 }
