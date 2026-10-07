@@ -64,7 +64,10 @@ test.describe('take lane and comp workflow', () => {
 		await expect(dialog.getByText('Take operations are unavailable while the owning track is locked.', { exact: true })).toBeVisible();
 		await expect(dialog.getByRole('button', { name: 'Audition lane', exact: true }).first()).toBeDisabled();
 		await expect(dialog.getByRole('button', { name: 'Flatten comp', exact: true })).toBeDisabled();
+		await page.mouse.move(1, 1);
+		await expect(page.getByRole('tooltip')).toHaveCount(0);
 		await page.keyboard.press('Escape');
+		await expect(dialog).toBeHidden();
 		await chooseTrackMenuAction(page, editor, null, 'Unlock track');
 
 		dialog = await openTakeCompDialog(page, editor);
