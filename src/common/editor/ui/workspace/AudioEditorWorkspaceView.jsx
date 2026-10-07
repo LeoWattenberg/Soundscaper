@@ -130,6 +130,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 	const mouseShortcuts = useWorkspaceMouseShortcuts(snapshot, run, shortcutRegistry);
 	const panelDockRuntime = createWorkspacePanelDockRuntime({
 		controller,
+		runtimeProject,
 		clipPropertiesFocusRequest,
 		snapshot,
 		productId,

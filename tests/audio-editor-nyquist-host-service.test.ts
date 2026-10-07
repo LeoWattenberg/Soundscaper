@@ -296,6 +296,41 @@ test('label persistence ignores an empty result and creates a missing label trac
 	]), [[10, 10, ''], [0, 0, '']]);
 });
 
+test('source-analysis labels project native source frames into the moved and trimmed clip', () => {
+	const harness = createHarness();
+	harness.updateProject({ sampleRate: 48_000, clips: [{
+		id: 'clip-a', kind: 'audio', sourceId: 'source-a', timelineStartFrame: 48_000,
+		sourceStartFrame: 8_820, sourceDurationFrames: 17_640, durationFrames: 19_200,
+	}] });
+	const label = { start: 0.1, end: 0.2, text: 'Analysis', baseFrame: 4_410,
+		sourceTarget: { ...harness.target, sourceClipId: 'clip-a', sourceSampleRate: 44_100,
+			startFrame: 4_410 } };
+	harness.service.persistNyquistLabels([label]);
+	const batch = harness.commands[0] as { commands: Array<{ label: { startFrame: number; endFrame: number } }> };
+	assert.equal(batch.commands[0]?.label.startFrame, 48_000);
+	assert.equal(batch.commands[0]?.label.endFrame, 52_800);
+});
+
+test('source-analysis labels invert nonlinear authored warp positions', () => {
+	const harness = createHarness();
+	harness.updateProject({ clips: [{
+		id: 'clip-a', kind: 'audio', sourceId: 'source-a', timelineStartFrame: 100,
+		sourceStartFrame: 0, sourceDurationFrames: 400, durationFrames: 400,
+		warpMap: { feature: 'audio-warp', points: [
+			{ outer: 0, source: 0, mode: 'forward' },
+			{ outer: 100, source: 200, mode: 'forward' },
+			{ outer: 400, source: 400, mode: 'forward' },
+		] },
+	}] });
+	const label = { start: 0.1, end: 0.2, text: 'Analysis', baseFrame: 0,
+		sourceTarget: { ...harness.target, sourceClipId: 'clip-a', sourceSampleRate: 1_000,
+			startFrame: 0 } };
+	harness.service.persistNyquistLabels([label]);
+	const batch = harness.commands[0] as { commands: Array<{ label: { startFrame: number; endFrame: number } }> };
+	assert.equal(batch.commands[0]?.label.startFrame, 150);
+	assert.equal(batch.commands[0]?.label.endFrame, 200);
+});
+
 test('Nyquist cancellation aborts evaluation and delegates preview ownership', () => {
 	const harness = createHarness();
 	const abort = new AbortController();

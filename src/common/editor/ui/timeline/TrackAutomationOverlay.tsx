@@ -43,6 +43,7 @@ import { useTrackAutomationEditFeedback } from './useTrackAutomationEditFeedback
 import { useTimelinePointerFrame } from './useTimelinePointerFrame.ts';
 import { useTrackAutomationDragLifecycle } from './useTrackAutomationDragLifecycle.ts';
 import { useTrackAutomationKeyboardDeletion } from './useTrackAutomationKeyboardDeletion.ts';
+import { projectTrackAutomationPoints } from './track-automation-overlay-points.ts';
 
 type SegmentKind = TrackAutomationSegmentKind;
 
@@ -376,8 +377,6 @@ export function TrackAutomationOverlay({
 				: event.key === 'ArrowDown' ? -vertical : 0) * (event.shiftKey ? 10 : 1),
 		}));
 	};
-	const renderedPointIds = new Set<string>();
-
 	return (
 		<svg
 			ref={svgRef}
@@ -411,31 +410,27 @@ export function TrackAutomationOverlay({
 						onKeyDown={(event) => attempt(() => editCurveFromKeyboard(event, span))}
 						onContextMenu={(event) => attempt(() => openCurveMenu(event, span))}
 					/>}
-					{span.points.map((point) => {
-						if (renderedPointIds.has(point.id)) return null;
-						renderedPointIds.add(point.id);
-						return <circle
-							key={point.id}
-							className="audio-editor-track-automation-point"
-							data-track-automation-interactive={interactive ? '' : undefined}
-							data-automation-point-id={point.id}
-							cx={point.x}
-							cy={point.y}
-							r={4}
-							role="slider"
-							aria-label={`${target.label}: ${String(point.value)}`}
-							aria-valuemin={target.descriptor.minimum}
-							aria-valuemax={target.descriptor.maximum}
-							aria-valuenow={point.value}
-							tabIndex={interactive ? 0 : -1}
-							onPointerDown={(event) => attempt(() => event.altKey
-								? (event.preventDefault(), event.stopPropagation(), removePoint(point.id))
-								: beginPointDrag(event, span, point.id))}
-							onKeyDown={(event) => attempt(() => editPointFromKeyboard(event, point.id))}
-						/>;
-					})}
 				</g>;
 			})}
+			<g data-automation-point-layer>{projectTrackAutomationPoints(projection.spans).map(point => <circle
+				key={point.id}
+				className="audio-editor-track-automation-point"
+				data-track-automation-interactive={interactive ? '' : undefined}
+				data-automation-point-id={point.id}
+				cx={point.x}
+				cy={point.y}
+				r={4}
+				role="slider"
+				aria-label={`${target.label}: ${String(point.value)}`}
+				aria-valuemin={target.descriptor.minimum}
+				aria-valuemax={target.descriptor.maximum}
+				aria-valuenow={point.value}
+				tabIndex={interactive ? 0 : -1}
+				onPointerDown={(event) => attempt(() => event.altKey
+					? (event.preventDefault(), event.stopPropagation(), removePoint(point.id))
+					: beginPointDrag(event, { startFrame: point.frame, endFrame: point.frame }, point.id))}
+				onKeyDown={(event) => attempt(() => editPointFromKeyboard(event, point.id))}
+				/>)}</g>
 			{bezierHandles.map((handle) => <g
 				key={handle.key}
 				className="audio-editor-track-automation-bezier"

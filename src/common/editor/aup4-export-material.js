@@ -16,6 +16,7 @@ import {
 	positiveFrame,
 	scaleBoundary,
 } from './aup4-export-values.js';
+import { normalizeAup4LoopMaterial } from './aup4-clip-loop-material.ts';
 
 /** Describe the variant a clip needs, or null when its source serves as-is. */
 export function normalizeMaterialTransform(transform, inputFrameCount) {
@@ -23,6 +24,7 @@ export function normalizeMaterialTransform(transform, inputFrameCount) {
 	const inverted = Boolean(transform?.inverted);
 	const pcmGain = finiteNonNegative(transform?.pcmGain, 1);
 	const playbackRate = Number(transform?.playbackRate ?? 1);
+	const loop = normalizeAup4LoopMaterial(transform?.loop);
 	if (!Number.isFinite(playbackRate) || playbackRate <= 0) throw exportError('Audacity-project material playback rate is invalid.', 'INVALID_SNAPSHOT');
 	const sliceStartFrame = nonNegativeFrame(transform?.sliceStartFrame ?? 0, 'Audacity-project material transform sliceStartFrame');
 	const sliceEndFrame = nonNegativeFrame(
@@ -32,7 +34,7 @@ export function normalizeMaterialTransform(transform, inputFrameCount) {
 	if (sliceEndFrame <= sliceStartFrame || sliceEndFrame > inputFrameCount) {
 		throw exportError('Audacity-project material transform range is invalid.', 'INVALID_SNAPSHOT');
 	}
-	if (!reversed && !inverted && pcmGain === 1 && playbackRate === 1
+	if (!loop && !reversed && !inverted && pcmGain === 1 && playbackRate === 1
 		&& sliceStartFrame === 0 && sliceEndFrame === inputFrameCount) return null;
 	return {
 		sliceStartFrame,
@@ -41,6 +43,7 @@ export function normalizeMaterialTransform(transform, inputFrameCount) {
 		inverted,
 		pcmGain,
 		playbackRate,
+		loop,
 	};
 }
 

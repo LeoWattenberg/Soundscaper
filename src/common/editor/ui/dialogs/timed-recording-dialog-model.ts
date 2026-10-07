@@ -117,7 +117,7 @@ function formatDateTimeLocalInput(value: number): string {
 	const date = new Date(value);
 	if (Number.isNaN(date.getTime())) return '';
 	const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
-	return local.toISOString().slice(0, 19);
+	return local.toISOString().slice(0, 23).replace(/\.000$/u, '');
 }
 
 function dateTimeMs(value: unknown): number {

@@ -289,3 +289,21 @@ test('invalid controller targets fail synchronously and silent preview cancellat
 	await harness.service.applyAudacityEffectFromController();
 	assert.equal(harness.applied, 1);
 });
+
+test('Repeat keeps an automatically resolved Amplify gain for a different audio selection', async () => {
+	const harness = createHarness();
+	harness.service.setAudacityEffectType('audacity-amplify');
+	const applied = harness.service.resolveInteractiveAudacityParams(
+		'audacity-amplify', harness.service.currentAudacityEffectParams(), [new Float32Array([0.5])],
+	);
+	harness.state.lastAudacityEffect = { type: 'audacity-amplify', params: { ...applied }, controlTrackId: null };
+	harness.service.setAudacityEffectParamsFromController(applied);
+	// A new Amplify dialog clears this marker while deriving its input-specific default.
+	harness.state.audacityEffectTouchedParams.get('audacity-amplify')?.delete('gainDb');
+	await harness.service.repeatLastAudacityEffect();
+	const repeated = harness.service.resolveInteractiveAudacityParams(
+		'audacity-amplify', harness.service.currentAudacityEffectParams(), [new Float32Array([0.25])],
+	);
+	assert.equal(repeated.gainDb, applied.gainDb);
+	assert.deepEqual(harness.state.lastAudacityEffect?.params, applied);
+});

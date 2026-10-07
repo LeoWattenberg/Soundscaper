@@ -11,7 +11,7 @@ import {
 	prepareTransformClipsCommand, trimCommand, type PreparedTransform,
 } from './clip-transform-command-adapter.ts';
 import { createAddTrackCommand } from '../../../../commands/factories.ts';
-import { resolveAudioWarpEditFrame } from '../../../../audio-warp-clip-edit.ts';
+import { resolveAudioWarpGroupTrimDelta } from '../../../../audio-warp-clip-edit.ts';
 import type { AudioEditorCommand } from '../../../../commands/protocol.ts';
 import type {
 	ClipTransformClip,
@@ -338,11 +338,13 @@ export function createClipTransformService(
 			}
 		}
 		if (!Number.isSafeInteger(requestedDelta)) throw createLocalizedError(TypeError, dependencies.copy, 'timelineFramesFinite');
-		const deltaFrames = warpEditableTrimDelta(project, clip, trimsLeft, {
-			deltaFrames: Math.max(lowerBound, Math.min(upperBound, requestedDelta)),
-			lowerBound,
-			upperBound,
-		});
+		const deltaFrames = resolveAudioWarpGroupTrimDelta(
+			project as unknown as Parameters<typeof resolveAudioWarpGroupTrimDelta>[0],
+			clips as Parameters<typeof resolveAudioWarpGroupTrimDelta>[1], trimsLeft, {
+				deltaFrames: Math.max(lowerBound, Math.min(upperBound, requestedDelta)),
+				lowerBound,
+				upperBound,
+			});
 		if (!deltaFrames) return project;
 		const transforms = clips.map((item): PreparedTransform => {
 			const source = findSource(project, item.sourceId);
@@ -447,33 +449,6 @@ function movedSelectionCommand(
 
 function isWarpedAudioClip(clip: ClipTransformClip): boolean {
 	return clip.kind === 'audio' && clip.warpMap != null;
-}
-
-/**
- * A warped clip only owns exact material where its map resolves a whole source
- * sample, and the source range that follows is the map's to derive rather than
- * the drag's. Move the requested edge onto the nearest boundary the clip can
- * cut; a request no boundary can serve is left for the command to refuse.
- */
-function warpEditableTrimDelta(
-	project: ClipTransformProject,
-	clip: ClipTransformClip,
-	trimsLeft: boolean,
-	bounds: Readonly<{ deltaFrames: number; lowerBound: number; upperBound: number }>,
-): number {
-	if (!isWarpedAudioClip(clip)) return bounds.deltaFrames;
-	const edgeFrame = (trimsLeft ? clip.timelineStartFrame : clip.timelineStartFrame + clip.durationFrames)
-		+ bounds.deltaFrames;
-	const resolved = resolveAudioWarpEditFrame(
-		project as unknown as Parameters<typeof resolveAudioWarpEditFrame>[0],
-		clip as Parameters<typeof resolveAudioWarpEditFrame>[1],
-		edgeFrame,
-	);
-	if (resolved === null) return bounds.deltaFrames;
-	return Math.max(bounds.lowerBound, Math.min(
-		bounds.upperBound,
-		bounds.deltaFrames + resolved - edgeFrame,
-	));
 }
 
 function timelineTracks(project: ClipTransformProject) {

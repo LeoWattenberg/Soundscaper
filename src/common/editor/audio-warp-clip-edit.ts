@@ -95,6 +95,34 @@ export function resolveAudioWarpEditFrame(
 	return nearestWholeSourceFrame(audioWarpEditContext(project, clip), requestedFrame);
 }
 
+/** Resolve one shared trim delta that every warped member can author exactly. */
+export function resolveAudioWarpGroupTrimDelta(
+	project: AudioWarpAuthorityProject,
+	clips: readonly RuntimePersistedClip[],
+	trimsLeft: boolean,
+	bounds: Readonly<{ deltaFrames: number; lowerBound: number; upperBound: number }>,
+): number {
+	const requested = safeInteger(bounds.deltaFrames, 'audio warp group trim delta');
+	const contexts = clips.filter(clip => clip.kind === 'audio' && (clip as Record<string, unknown>).warpMap != null)
+		.map(clip => audioWarpEditContext(project, clip));
+	if (!contexts.length) return requested;
+	for (let offset = 0; offset <= MAXIMUM_EDIT_FRAME_SEARCH; offset += 1) {
+		const candidates = offset === 0 ? [requested] : [requested - offset, requested + offset];
+		for (const delta of candidates) {
+			if (delta < bounds.lowerBound || delta > bounds.upperBound) continue;
+			const editable = contexts.every(context => {
+				const frame = (trimsLeft ? context.runtime.timelineStartFrame : context.runtime.timelineEndFrame) + delta;
+				if (frame < context.runtime.timelineStartFrame || frame > context.runtime.timelineEndFrame) return false;
+				const source = evaluateBreakpointMap(context.map as BreakpointMap, outerAtTimelineFrame(context, frame));
+				return source.num % source.den === 0;
+			});
+			if (editable) return delta;
+		}
+	}
+	// Preserve the validated command's refusal when no nearby shared edge exists.
+	return requested;
+}
+
 function audioWarpEditContext(
 	project: AudioWarpAuthorityProject,
 	clip: RuntimePersistedClip,

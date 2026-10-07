@@ -75,6 +75,7 @@ export default function WorkspacePanelContent({
 	controller,
 	clipPropertiesFocusRequest = /** @type {import('../../controller/composition/clip-properties-panel-opening.ts').ClipPropertiesFocusRequest | null} */ (null),
 	snapshot,
+	runtimeProject = null,
 	productId = snapshot.productId,
 	capabilities = snapshot.capabilities,
 	copy,
@@ -120,6 +121,7 @@ export default function WorkspacePanelContent({
 			<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
 				<DeferredWorkspacePanel
 					controller={controller}
+					runtimeProject={runtimeProject}
 					focusRequest={panelId === 'clip-properties' ? clipPropertiesFocusRequest : undefined}
 					snapshot={snapshot}
 					copy={copy}

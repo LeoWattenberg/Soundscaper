@@ -30,6 +30,13 @@ export interface FoundationRuntimeConsumerEvidence {
  */
 const entries: FoundationRuntimeConsumerEvidence[] = [
 	{
+		id: 'nyquist-source-label-placement', surface: 'interchange',
+		file: 'src/common/editor/controller/effects/internal/nyquist/nyquist-label-projection.ts',
+		entryPoint: 'nyquistLabelTimelineRange', inputIdentifier: 'project',
+		projectedIdentifier: 'geometry', boundary: 'resolveRuntimeClipProjection',
+		evidence: 'Source-result annotations resolve the owning persisted clip before converting native source sample offsets through its placement, trim, stretch or authored warp map into project label coordinates.',
+	},
+	{
 		id: 'clip-spreadsheet-display', surface: 'timeline',
 		file: 'src/common/editor/clip-spreadsheet.ts', entryPoint: 'getClipSpreadsheetRows',
 		inputIdentifier: 'projectValue', projectedIdentifier: 'project', boundary: 'runtimeProject',
@@ -420,7 +427,7 @@ const entries: FoundationRuntimeConsumerEvidence[] = [
 		surface: 'waveform',
 		file: 'src/common/editor/ui/inspector/ClipPropertiesPanel.tsx',
 		entryPoint: 'ClipPropertiesPanel',
-		inputIdentifier: 'persistedProject',
+		inputIdentifier: 'project',
 		projectedIdentifier: 'sourceProject',
 		boundary: 'projectForRuntimeConsumers',
 		evidence: 'Clip properties resolves persisted musical or sequence-backed geometry before passing clips to the source waveform overlay, its ruler, and the numeric media and fade drawers.',

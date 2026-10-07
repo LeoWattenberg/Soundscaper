@@ -8,6 +8,7 @@ import { projectForRuntimeConsumers } from '../../../../project-current-runtime.
 import { sampleFrameToBeat } from '../../../../timeline-tempo-inverse.ts';
 import { compareRationals, type HoldTempoEvent, type HoldTempoMap } from '../../../../timeline-time.ts';
 import { nyquistChannelStats } from './nyquist-audio.ts';
+import { nyquistLabelTimelineRange } from './nyquist-label-projection.ts';
 import { isCurrentAssertion, type EditorProjectToken } from '../../../shared/lifecycle.ts';
 import type {
 	EffectSelection,
@@ -66,6 +67,7 @@ export interface NyquistHostRequest extends Readonly<Record<string, unknown>> {
 }
 
 export interface NyquistLabel {
+	readonly sourceTarget?: Pick<EffectTarget, 'sourceClipId' | 'sourceSampleRate' | 'startFrame'>;
 	readonly start?: unknown;
 	readonly end?: unknown;
 	readonly text?: unknown;
@@ -243,7 +245,6 @@ export function createNyquistHostService(runtime: NyquistHostServiceRuntime) {
 	function persistNyquistLabels(labels: readonly NyquistLabel[], name: unknown = null): string | null {
 		if (!labels.length) return null;
 		const project = runtime.getProject();
-		const sampleRate = runtime.projectSampleRate();
 		let target = project.tracks.find((track) => track.id === runtime.state.selectedTrackId) ?? null;
 		if (target?.type !== 'label') target = project.tracks.find((track) => track.type === 'label') ?? null;
 		const commands: AudioEditorCommand[] = [];
@@ -253,11 +254,7 @@ export function createNyquistHostService(runtime: NyquistHostServiceRuntime) {
 			commands.push(createAddLabelTrackCommand({ id: targetId, name: String(name || runtime.copy.labels) }));
 		}
 		for (const label of labels) {
-			const startFrame = Math.max(0, label.baseFrame + Math.round(Number(label.start || 0) * sampleRate));
-			const endFrame = Math.max(
-				startFrame,
-				label.baseFrame + Math.round(Number(label.end ?? label.start ?? 0) * sampleRate),
-			);
+			const [startFrame, endFrame] = nyquistLabelTimelineRange(project, label);
 			commands.push(createAddLabelCommand(targetId, {
 				startFrame,
 				endFrame,

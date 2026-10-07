@@ -7,6 +7,7 @@ import { useEffect, useRef } from 'react';
 import { ROUTE_LOCALES } from '../../../i18n/locales.js';
 import { productHref } from '../../../product-web-links.js';
 import { AUDIO_EDITOR_DEFAULT_STARTUP_MODE } from '../../startup-preferences.ts';
+import { rememberLocaleProjectHandoff } from '../../controller/document/locale-project-handoff.ts';
 import DesktopFfmpegPreferencePanel from './DesktopFfmpegPreferencePanel.tsx';
 import PreferenceDropdownField from './PreferenceDropdownField.jsx';
 
@@ -75,9 +76,12 @@ export default function GeneralPreferencesPage({
 		// language menu switches it: save first, then navigate.
 		run(async () => {
 			await controller.actions.project.flush();
-			globalThis.location?.assign(productHref(productId, value, {
+			const destination = productHref(productId, value, {
 				embedded: globalThis.document?.documentElement?.dataset?.embedded === 'true',
-			}));
+			});
+			rememberLocaleProjectHandoff({ storage: () => globalThis.sessionStorage,
+				location: () => globalThis.location, now: () => Date.now() }, productId, snapshot.project?.id, destination);
+			globalThis.location?.assign(destination);
 		});
 	};
 	const startupModes = [

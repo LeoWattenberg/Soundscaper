@@ -88,6 +88,7 @@
 		"document/document-snapshot.ts",
 		"document/document-state.ts",
 		"document/document-track-folder-snapshot.ts",
+		"document/locale-project-handoff.ts",
 		"document/native-project-admission.ts",
 		"document/native-project-composition.ts",
 		"document/native-project-service.ts",

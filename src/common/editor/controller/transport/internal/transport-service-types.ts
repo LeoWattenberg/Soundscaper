@@ -32,7 +32,7 @@ export type TransportEngine = Pick<EnginePublicApi,
 	| 'getAudioContext' | 'getPlaybackAudibleStartTime' | 'getPositionFrames' | 'getState'
 	| 'pause' | 'play' | 'playAtSpeed' | 'playCutPreview'
 	| 'seek' | 'setLoop' | 'setPlayRange' | 'setPlaybackFrequencyRange' | 'stop'
->;
+> & Partial<Pick<EnginePublicApi, 'getPlaybackDestination'>>;
 
 export interface TransportServiceState extends Pick<ControllerTransportState,
 	| 'metronomeAnchor' | 'metronomeEnabled' | 'metronomePending' | 'metronomeTimer'

@@ -51,7 +51,7 @@ export default function TimedRecordingDialogFields({
 			<input
 				className="kw-audio-editor-timed-recording__control"
 				type="datetime-local"
-				step="1"
+				step="0.001"
 				value={model.startTime}
 				onChange={(event) => onValueChange(updateTimedRecordingDialogStart(
 					model,
@@ -85,7 +85,7 @@ export default function TimedRecordingDialogFields({
 					<span>{copy.timedRecordingEndDateTime}</span>
 				</label>
 				<input className="kw-audio-editor-timed-recording__control"
-					type="datetime-local" step="1" aria-label={copy.timedRecordingEndDateTime}
+					type="datetime-local" step="0.001" aria-label={copy.timedRecordingEndDateTime}
 					value={model.endTime} disabled={model.endMode !== 'end'}
 					onChange={(event) => onValueChange(updateTimedRecordingDialogEnd(
 						model,

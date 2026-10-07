@@ -455,7 +455,7 @@ export function createEditorTransportService<Project extends TransportProject = 
 		gain.gain.exponentialRampToValueAtTime(0.12, when + 0.002);
 		gain.gain.exponentialRampToValueAtTime(0.0001, when + 0.035);
 		oscillator.connect(gain);
-		gain.connect(context.destination);
+		gain.connect(engine.getPlaybackDestination?.() ?? context.destination);
 		oscillator.start(when);
 		oscillator.stop(when + 0.04);
 		oscillator.onended = () => {

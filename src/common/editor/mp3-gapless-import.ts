@@ -36,7 +36,9 @@ export async function inspectMp3GaplessGeometry(file: Blob): Promise<Mp3GaplessG
 	const packetCount = view.getUint32(xing + 8);
 	let lame = xing + 8;
 	for (const [flag, bytes] of [[1, 4], [2, 4], [4, 100], [8, 4]] as const) if (flags & flag) lame += bytes;
-	if (header.length < lame + 24 || text(header, lame, 4) !== 'LAME') return null;
+	// FFmpeg writes the same delay/padding layout under its Lavc/Lavf encoder
+	// identifiers, including the ordinary libmp3lame output profile.
+	if (header.length < lame + 24 || !['LAME', 'Lavc', 'Lavf'].includes(text(header, lame, 4))) return null;
 	const delay = (header[lame + 21]! << 4) | (header[lame + 22]! >> 4);
 	const padding = ((header[lame + 22]! & 15) << 8) | header[lame + 23]!;
 	// libmpg123's pinned frame.h declares GAPLESS_DELAY=529 for Layer III synthesis.

@@ -129,6 +129,7 @@ export const FOUNDATION_RUNTIME_SHIELDED_OWNERS: readonly FoundationRuntimeShiel
 	{ file: 'src/common/editor/project-attribution-report.ts', surfaces: ['interchange'] },
 	{ file: 'src/common/editor/controller/export/interchange-export-action.ts', surfaces: ['interchange'] },
 	{ file: 'src/common/editor/controller/effects/internal/nyquist/nyquist-host-service.ts', surfaces: ['interchange'] },
+	{ file: 'src/common/editor/controller/effects/internal/nyquist/nyquist-label-projection.ts', surfaces: ['interchange'] },
 	{ file: 'src/common/editor/controller/edit/generator-service.ts', surfaces: ['composition'] },
 	{ file: 'src/common/editor/controller/edit/internal/labeled-audio-silence.ts', surfaces: ['composition'] },
 	{ file: 'src/common/editor/controller/composition/controller-project-queries.ts', surfaces: ['composition'] },
@@ -180,6 +181,18 @@ export const FOUNDATION_RUNTIME_TIMING_READER_EXCLUSIONS: readonly FoundationRun
 
 /** Non-shield importers discovered beside the owned consumer and boundary files. */
 export const FOUNDATION_RUNTIME_PROJECTION_IMPORTER_EXCLUSIONS: readonly FoundationRuntimeProjectionImporterExclusion[] = deepFreeze([
+	{
+		file: 'src/common/editor/clip-silence-regions.ts',
+		reason: 'The scanner imports only the runtime project type and receives resolved clip geometry from the clipboard command owner before inspecting immutable source PCM.',
+	},
+	{
+		file: 'src/common/editor/clip-silence-warp-projection.ts',
+		reason: 'This downstream warp scanner imports only the runtime project type; its clip has already crossed the command projection boundary before native silence boundaries are carried through the authored warp evaluator.',
+	},
+	{
+		file: 'src/common/editor/controller/edit/internal/clipboard-edit-service.ts',
+		reason: 'The edit service imports only the runtime project type for its silence scanner and consumes the resolved command project provided by document composition.',
+	},
 	{
 		file: 'src/common/editor/commands/project-source-bin-runtime.js',
 		reason: 'The bin replacement command resolves its verified replacement template to populate command-domain video aliases before normalizing the persisted result; it is an edit reconciliation adapter rather than a runtime media consumer.',
