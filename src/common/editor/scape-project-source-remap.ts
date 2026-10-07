@@ -15,6 +15,14 @@ export function remapScapeProjectSourceReferences(
 	for (const track of records(project.tracks)) {
 		if (isRecord(track.audioFreeze)) remapSourceId(track.audioFreeze, sourceIdMap, 'derivedSourceId');
 	}
+	const metadata = isRecord(project.metadata) ? project.metadata : null;
+	const adm = isRecord(metadata?.adm) ? metadata.adm : null;
+	if (adm?.mode === 'passthrough' && isRecord(adm.source)) {
+		const sourceReference = adm.source;
+		remapSourceId(sourceReference, sourceIdMap, 'id');
+		const source = records(project.sources).find(candidate => candidate.id === sourceReference.id);
+		if (source) sourceReference.storageKey = source.storageKey;
+	}
 	remapTakeGroupSourceIds(project, sourceIdMap);
 }
 

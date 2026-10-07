@@ -48,12 +48,12 @@ import { remapScapeProjectSourceReferences } from './scape-project-source-remap.
 import { prepareScapeImportSourceIdentities, resolveScapeProjectAssetExtension, retryScapeImportSourceIdentityCollision } from './scape-project-asset-extension.ts';
 import { inspectScapeCanonicalEvidence } from './scape-project-canonical-inspection.ts';
 import { canonicalMediaContentBlob } from './storage/media-content-digest.ts';
+import { duplicatedAdmRevision } from './storage/project-duplication-adm.ts';
 import {
 	validateVideoTimingAssetBytes,
 } from './video-timing-asset.ts';
 
 export { SCAPE_FORMAT, SCAPE_FORMAT_VERSION, SCAPE_MIME_TYPE };
-
 import {
 	assertOwnedScapeMediaWriter,
 	captureScapeTimingWriter,
@@ -233,7 +233,7 @@ async function importScapeProjectAttempt(input, store, options, remapAllSources)
 			if (existingProject && collision === 'copy') {
 				project.id = createStableId('project');
 				project.title = `${project.title || 'Untitled'} copy`;
-				project.revision = 0;
+				Object.assign(project, duplicatedAdmRevision(project));
 				project.createdAt = new Date().toISOString();
 				project.updatedAt = project.createdAt;
 			}
