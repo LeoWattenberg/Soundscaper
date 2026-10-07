@@ -84,7 +84,12 @@ export function resampledClipCommands(
 	originalSource: ControllerSource,
 	replacement: ControllerSource,
 	sampleRate: number,
+	linkedVideo: ControllerClip | null = null,
 ): AudioEditorCommand[] {
+	const avLinkId = typeof clip.avLinkId === 'string' && clip.avLinkId ? clip.avLinkId : null;
+	if (avLinkId && (!linkedVideo || linkedVideo.kind !== 'video' || linkedVideo.avLinkId !== avLinkId)) {
+		throw new RangeError(`A/V link ${avLinkId} is incomplete.`);
+	}
 	const ratio = sampleRate / originalSource.sampleRate;
 	const sourceStartFrame = Math.min(
 		replacement.frameCount - 1,
@@ -99,13 +104,15 @@ export function resampledClipCommands(
 	);
 	const warpMap = clip.warpMap == null ? null : normalizeAudioWarpMap(clip.warpMap);
 	return [
-		// Removal expands group membership; detach only this clip before replacing it.
+		// Removal expands related membership; detach and restore this clip's links.
 		...(typeof clip.groupId === 'string' && clip.groupId
 			? [{ type: 'clip/ungroup' as const, clipIds: [clip.id] }]
 			: []),
+		...(avLinkId ? [{ type: 'clip/unlink-av' as const, clipId: clip.id }] : []),
 		{ type: 'clip/remove', clipId: clip.id },
 		createAddClipCommand(trackId, {
 			...clip,
+			...(avLinkId ? { avLinkId: null } : {}),
 			sourceId: replacement.id,
 			sourceStartFrame,
 			sourceDurationFrames,
@@ -118,6 +125,9 @@ export function resampledClipCommands(
 					sourceDurationFrames, clip.sourceDurationFrames),
 			})) } } : {}),
 		}),
+		...(avLinkId && linkedVideo ? [{
+			type: 'clip/link-av' as const, videoClipId: linkedVideo.id, audioClipId: clip.id, avLinkId,
+		}] : []),
 	];
 }
 
@@ -159,6 +169,9 @@ export function createClipResampleService(
 		source: ControllerSource,
 		sampleRate: number,
 	): Promise<string | null> {
+		const linkedVideo = typeof clip.avLinkId === 'string'
+			? dependencies.getProject().clips.find((candidate) => candidate.id !== clip.id && candidate.avLinkId === clip.avLinkId) ?? null
+			: null;
 		const outputFrames = Math.max(1, scaleSampleFrame(
 			source.frameCount, source.sampleRate, sampleRate, 'point',
 		));
@@ -188,7 +201,7 @@ export function createClipResampleService(
 				type: 'batch',
 				commands: [
 					createAddSourceCommand(record.source),
-					...resampledClipCommands(track.id, clip, source, record.source, sampleRate),
+					...resampledClipCommands(track.id, clip, source, record.source, sampleRate, linkedVideo),
 				],
 			}, { selectTrackId: track.id, selectClipId: clip.id });
 			setLocalizedStatus(dependencies.setStatus, dependencies.copy, "done", undefined, 'success');

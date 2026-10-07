@@ -260,3 +260,25 @@ selection authority as other stored ranges. The public workflow fails on the
 immutable baseline and passes in all three browsers on green build 13; all 29
 focused transport, rhythm and playback-rate tests pass. This adds no audit ID
 and requires no manual **Update AI assets** run.
+
+## R3-ROOT-013 — Resampling camera audio refuses its intact A/V link
+
+Import an ordinary camera WebM recording with audio. Select its audio clip,
+open **Clip properties > Media settings > Resample**, enter 24000 Hz and apply.
+Reopen the audio properties to inspect its sample rate, then Undo.
+
+Previously the action failed with “A/V link … must contain one audio and one
+video clip,” leaving the original 48000-Hz source. Its remove-and-replace batch
+expanded the audio clip's A/V membership and removed the video too. The batch
+now temporarily unlinks the pair, replaces only the audio, and restores the
+original link. Video content, grouped companions and authored warp positions
+remain intact.
+
+Proof: the ordinary picker/menu workflow fails on the immutable baseline and
+passes on green build 14 in Chromium, Firefox and WebKit, checking both clips,
+the new native rate and Undo's original rate. The strict regression applies the
+actual replacement batch to a canonical linked camera project and preserves
+the exact video record; all 16 focused resampling tests pass. The inspector can
+select the surviving video tab after replacement, so the test explicitly
+reopens the audio properties before reading their rate. No manual
+**Update AI assets** run is required.

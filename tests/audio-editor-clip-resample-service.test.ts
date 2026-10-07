@@ -19,6 +19,7 @@ import type {
 	DerivedSourceRecord,
 } from '../src/common/editor/controller/track-audio/track-domain-types.ts';
 import { apply, createFixture } from './helpers/audio-editor-model-harness.js';
+import { createPersistedVideoProject } from './helpers/persisted-video-project-fixture.ts';
 
 function projectFixture(overrides: Partial<ControllerProject> = {}): ControllerProject {
 	return {
@@ -222,6 +223,26 @@ test('resampling one grouped clip keeps its companion and the group in the commi
 	assert.equal(result.clips.find(({ id }) => id === 'companion')?.groupId, 'group-1');
 	assert.equal(result.clips.find(({ id }) => id === 'companion')?.sourceId, 'source-1');
 	assert.equal(result.clips.find(({ id }) => id === 'clip')?.sourceId, fixture.calls.persisted[0]?.id);
+});
+
+test('resampling the audio of a camera pair retains both clips and their original link', async () => {
+	const { project } = createPersistedVideoProject({ timeline: true });
+	const fixture = createResampleFixture(project as unknown as ControllerProject);
+	assert.equal(await fixture.service.resampleClip('persisted-timeline-audio', { sampleRate: 24_000 }), 'persisted-timeline-audio');
+	const batch = fixture.calls.commits[0]?.command;
+	assert.ok(batch);
+	const result: typeof project = apply(project, batch);
+	assert.equal(result.clips.length, 2);
+	const audio = result.clips.find(({ id }) => id === 'persisted-timeline-audio');
+	const video = result.clips.find(({ id }) => id === 'persisted-timeline-video');
+	assert.ok(audio);
+	assert.ok(video);
+	assert.equal(audio.avLinkId, 'persisted-av-link');
+	assert.equal(video.avLinkId, audio.avLinkId);
+	assert.equal(audio.durationFrames, 48_000);
+	assert.deepEqual(video, project.clips.find(({ id }) => id === video.id));
+	assert.equal(audio.sourceId, fixture.calls.persisted[0]?.id);
+	assert.equal(video.sourceId, 'persisted-video-source');
 });
 
 test('the resampled source keeps the original rate and the declared format', async () => {
