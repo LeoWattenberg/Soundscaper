@@ -8,11 +8,10 @@ import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import { takeSelectedFile } from '../file-input-selection.ts';
 import { useMenuTriggerDismissal } from '../use-menu-trigger-dismissal.ts';
 import { canonicalCopyValue } from '../../../i18n/canonical-extras.js';
-import { samePresetParams } from './effect-helpers.ts';
+import { usePresetOptions, useDefaultPresetEdited, useEffectAboutPresentation } from './useEffectPresentation.ts';
 import AudacityEffectHeader from './AudacityEffectHeader.jsx';
 import EffectAboutDialog from './EffectAboutDialog.tsx';
 import EffectPresetMenuPortal from './EffectPresetMenuPortal.tsx';
-import { effectAboutMetadata } from './effect-about-metadata.ts';
 
 /**
  * The preset bar Audacity 4 puts above every effect's controls.
@@ -60,7 +59,8 @@ export default function EffectPresetBar({
 	const consumeOptionsDismissal = useMenuTriggerDismissal(optionsTriggerRef, Boolean(optionsMenu));
 	const [saveAsName, setSaveAsName] = useState(null);
 	const [aboutOpen, setAboutOpen] = useState(false);
-	const about = aboutEffect == null ? null : effectAboutMetadata(aboutEffect, copy);
+	const hasAbout = Boolean(aboutEffect);
+	const about = useEffectAboutPresentation(aboutOpen, aboutEffect, copy);
 	useEffect(() => {
 		const buttons = barRef.current?.querySelectorAll('.effect-header__icon-button');
 		saveTriggerRef.current = buttons?.[0] || null;
@@ -77,23 +77,16 @@ export default function EffectPresetBar({
 		setSaveAsName(null);
 		setAboutOpen(false);
 	}, [resetKey]);
-	const selected = presets.find((preset) => preset.id === selectedId) || null;
+	const selectedIndex = presets.findIndex((preset) => preset.id === selectedId);
+	const selected = presets[selectedIndex] || null;
 	const canOverwrite = Boolean(selected?.custom) && !disabled;
 	const hasDefault = defaultParams != null;
 	const defaultBaseline = hasDefault && !selected;
-	const defaultEdited = defaultBaseline && !samePresetParams(currentParams, defaultParams);
+	const defaultEdited = useDefaultPresetEdited(defaultBaseline, currentParams, defaultParams);
 	const baselineLabel = hasDefault ? canonicalCopyValue('effectDefaultPreset', copy) : copy.noEffectPreset;
 	const baselineDisplay = `${baselineLabel}${defaultEdited ? '*' : ''}`;
 
-	const labelFor = (preset) => {
-		// Upstream marks stored presets as custom and flags unsaved edits with a
-		// trailing asterisk, so the dropdown alone says whether Save will
-		// overwrite anything and whether Reset has something to discard.
-		const custom = preset.custom ? ` (${copy.effectPresetCustom})` : '';
-		const edited = unsaved && preset.id === selectedId ? '*' : '';
-		return `${preset.label}${custom}${edited}`;
-	};
-	const options = presets.map((preset) => ({ ...preset, display: labelFor(preset) }));
+	const options = usePresetOptions(presets, selectedId, unsaved, copy.effectPresetCustom);
 	const anchor = (event) => {
 		event?.currentTarget?.focus?.({ preventScroll: true });
 		const rect = event?.currentTarget?.getBoundingClientRect?.();
@@ -117,7 +110,7 @@ export default function EffectPresetBar({
 				isDestructive={!automation}
 				automationEnabled={automation?.enabled ?? false}
 				onToggleAutomation={automation?.onToggle}
-				presetName={selected ? labelFor(selected) : baselineDisplay}
+				presetName={selected ? options[selectedIndex]?.display : baselineDisplay}
 				presetValue={selected?.id || ''}
 				presetOptions={[{ value: '', label: baselineDisplay },
 					...options.map(({ id, display }) => ({ value: id, label: display }))]}
@@ -144,7 +137,7 @@ export default function EffectPresetBar({
 				onDeletePreset={() => { if (canOverwrite) onDelete(); }}
 				onMoreOptions={(event) => {
 					if (consumeOptionsDismissal()) return;
-					if (disabled && !about) return;
+					if (disabled && !hasAbout) return;
 					if (optionsMenu) { close(); return; }
 					setSaveMenu(null);
 					setOptionsMenu(anchor(event));
@@ -180,7 +173,7 @@ export default function EffectPresetBar({
 						disabled={disabled || !selectedId}
 						onClick={() => { close(); if (selectedId) onExport(); }}
 					/>
-					{about && <>
+					{hasAbout && <>
 						<ContextMenuItem isDivider />
 						<ContextMenuItem label={canonicalCopyValue('effectAbout', copy)}
 							onClick={() => { close(); setAboutOpen(true); }} />

@@ -14,7 +14,7 @@ import {
 	audacityEffectParameterLabel,
 } from '../../audacity-effects/manifest.js';
 import { AUDIO_EDITOR_SAMPLE_RATE } from '../../project.js';
-import { audioEffectControlTracks } from '../../audio-effect-control-tracks.ts';
+import { useControlTrackOptions } from './useEffectPresentation.ts';
 import { canonicalCopyValue } from '../../../i18n/canonical-extras.js';
 import { AudacityEffectLayout } from '../AudacityEffectLayout.jsx';
 import AudacityDynamicsEffectLayout from '../AudacityDynamicsEffectLayout.jsx';
@@ -68,6 +68,8 @@ export default function EffectParameterEditor({
 	onChange,
 }) {
 	const [error, setError] = usePresentationFeedback(copy);
+	const definition = isAudacityDefinition(effect.type) ? AUDACITY_EFFECT_DEFINITIONS[effect.type] : null;
+	const candidateOptions = useControlTrackOptions(tracks, targetTrackId, Boolean(definition?.requiresControlTrack && !hideControlTrack));
 	const automationRouterRef = useRef(null);
 	if (!automationRouterRef.current) {
 		automationRouterRef.current = createParameterAutomationControlRouterV21();
@@ -87,7 +89,6 @@ export default function EffectParameterEditor({
 			</div>
 		);
 	}
-	const definition = isAudacityDefinition(effect.type) ? AUDACITY_EFFECT_DEFINITIONS[effect.type] : null;
 	const invoke = (callback) => {
 		setError('');
 		return Promise.resolve().then(callback).catch((cause) => {
@@ -284,7 +285,6 @@ export default function EffectParameterEditor({
 		);
 	}
 
-	const candidates = audioEffectControlTracks(tracks, targetTrackId);
 	const renderParameter = (name) => (
 		audacityParameterVisible(effect, name) && (advancedSettings || !audacityAdvancedParameters(effect.type).includes(name)) ? (
 			<AudacityParameter
@@ -313,9 +313,9 @@ export default function EffectParameterEditor({
 					<LabeledDropdown
 						label={copy.controlTrack}
 						value={effect.context?.controlTrackId || ''}
-						options={candidates.map((track) => ({ value: track.id, label: track.name }))}
+						options={candidateOptions}
 						onChange={(controlTrackId) => update({ context: { controlTrackId: controlTrackId || null } })}
-						disabled={disabled || candidates.length === 0}
+						disabled={disabled || candidateOptions.length === 0}
 						hook="effect-context-controlTrackId"
 					/>
 				</section>

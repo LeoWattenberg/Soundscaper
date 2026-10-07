@@ -100,14 +100,15 @@ export function audacityClassicFilterGainDb(parameters: Readonly<Record<string, 
 	return filterGainDb(filterSections(parameters, rate), parameter(frequency, 20, 0, rate / 2), rate);
 }
 
-/** Logarithmic response, retaining the wx graph's default -30..+20 dB range. */
-export function audacityClassicFilterResponse(
-	parameters: Readonly<Record<string, unknown>>, sampleRate = 48_000,
-	options: { readonly minimumDb?: number; readonly maximumDb?: number } = {},
-): GraphResponse & { readonly minimumFrequency: number; readonly maximumFrequency: number } {
+export interface PreparedClassicFilterResponse {
+	readonly minimumFrequency: number;
+	readonly maximumFrequency: number;
+	readonly points: readonly { readonly x: number; readonly gainDb: number }[];
+}
+
+/** The gain response belongs to coefficients/rate; the dB viewport only projects it. */
+export function prepareAudacityClassicFilterResponse(parameters: Readonly<Record<string, unknown>>, sampleRate = 48_000): PreparedClassicFilterResponse {
 	const rate = parameter(sampleRate, 48_000, 8000, 384_000);
-	const minimumDb = parameter(options.minimumDb, -30, -120, -10);
-	const maximumDb = parameter(options.maximumDb, 20, 0, 20);
 	const minimumFrequency = 20;
 	const maximumFrequency = rate / 2;
 	const frequencyRange = Math.log(maximumFrequency / minimumFrequency);
@@ -115,8 +116,19 @@ export function audacityClassicFilterResponse(
 	const points = Array.from({ length: 400 }, (_, index) => {
 		const x = index / 399;
 		const frequency = minimumFrequency * Math.exp(x * frequencyRange);
-		const gainDb = filterGainDb(sections, frequency, rate);
-		return { x: x * 100, y: Math.max(0, Math.min(100, (maximumDb - gainDb) / (maximumDb - minimumDb) * 100)) };
+		return { x: x * 100, gainDb: filterGainDb(sections, frequency, rate) };
 	});
-	return { points, line: line(points), minimumFrequency, maximumFrequency };
+	return { points, minimumFrequency, maximumFrequency };
+}
+
+export function projectAudacityClassicFilterResponse(response: PreparedClassicFilterResponse, options: { readonly minimumDb?: number; readonly maximumDb?: number } = {}) {
+	const minimumDb = parameter(options.minimumDb, -30, -120, -10);
+	const maximumDb = parameter(options.maximumDb, 20, 0, 20);
+	const points = response.points.map(point => ({ x: point.x, y: Math.max(0, Math.min(100, (maximumDb - point.gainDb) / (maximumDb - minimumDb) * 100)) }));
+	return { points, line: line(points), minimumFrequency: response.minimumFrequency, maximumFrequency: response.maximumFrequency };
+}
+
+/** Logarithmic response, retaining the wx graph's default -30..+20 dB range. */
+export function audacityClassicFilterResponse(parameters: Readonly<Record<string, unknown>>, sampleRate = 48_000, options: { readonly minimumDb?: number; readonly maximumDb?: number } = {}) {
+	return projectAudacityClassicFilterResponse(prepareAudacityClassicFilterResponse(parameters, sampleRate), options);
 }

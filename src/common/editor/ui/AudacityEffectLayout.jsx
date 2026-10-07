@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { canonicalCopyValue } from '../../i18n/canonical-extras.js';
 import DynamicsActivityPanel, { supportsDynamicsActivity } from './DynamicsActivityPanel.jsx';
 import EditorHelpTooltip from './EditorHelpTooltip.tsx';
@@ -340,13 +340,13 @@ export function AudacityEffectLayout({
 	sampleRate = undefined,
 	onChangeParameters = null,
 }) {
-	if ((effectType?.startsWith('audacity-') || isAudacityNyquistPort(effectType)) && !['audacity-compressor', 'audacity-limiter'].includes(effectType)) {
+	const portLayout = (effectType?.startsWith('audacity-') || isAudacityNyquistPort(effectType)) && !['audacity-compressor', 'audacity-limiter'].includes(effectType);
+	const groups = useMemo(() => portLayout ? [] : layoutGroups(effectType, Object.keys(definition?.params || {})), [portLayout, effectType, definition?.params]);
+	if (portLayout) {
 		return <AudacityPortEffectLayout effectType={effectType} definition={definition} parameters={parameters}
 			effectContext={effectContext} disabled={disabled} onChangeParameters={onChangeParameters} sampleRate={sampleRate}
 			renderParameter={renderParameter} before={before} after={after} copy={copy} />;
 	}
-	const parameterNames = Object.keys(definition?.params || {});
-	const groups = layoutGroups(effectType, parameterNames);
 	const effectClass = String(effectType || 'effect').replace(/[^a-z0-9_-]+/gi, '-');
 
 	return (

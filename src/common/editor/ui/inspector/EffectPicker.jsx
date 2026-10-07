@@ -6,7 +6,7 @@ import { audioEffectTypes } from '../../effects.js';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import { useAudioEditorThemeVariables } from '../DesignSystemRuntime.jsx';
 import { LabeledDropdown } from './inspector-controls.jsx';
-import { safeEffectLabel } from './effect-helpers.ts';
+import { useEffectPickerCatalog } from './useEffectPresentation.ts';
 
 /**
  * The effects a chain may hold. The rack picker offers what the rack can
@@ -22,12 +22,14 @@ export default function EffectPicker({
 	const searchRef = useRef(null);
 	const [type, setType] = useState(types[0] || '');
 	const [query, setQuery] = useState('');
+	const catalog = useEffectPickerCatalog(types, copy);
+	const options = useMemo(() => catalog.map(({ value, label }) => ({ value, label })), [catalog]);
 	const matchingTypes = useMemo(() => {
 		const normalizedQuery = query.trim().toLocaleLowerCase();
 		return normalizedQuery
-			? types.filter((value) => safeEffectLabel(value, copy).toLocaleLowerCase().includes(normalizedQuery))
-			: types;
-	}, [copy, query, types]);
+			? catalog.filter((entry) => entry.search.includes(normalizedQuery))
+			: catalog;
+	}, [catalog, query]);
 	useEffect(() => {
 		triggerRef.current = anchor;
 	}, [anchor]);
@@ -91,7 +93,7 @@ export default function EffectPicker({
 				/>
 				{matchingTypes.length > 0 && (
 					<div className="audio-editor-effect-picker-flyout__grid" role="menu" aria-label={copy.chooseEffect}>
-						{matchingTypes.map((value) => (
+						{matchingTypes.map(({ value, label }) => (
 							<button
 								key={value}
 								type="button"
@@ -99,7 +101,7 @@ export default function EffectPicker({
 								disabled={disabled}
 								onClick={() => runAndRestoreFocus(() => onChoose(value))}
 							>
-								{safeEffectLabel(value, copy)}
+								{label}
 							</button>
 						))}
 					</div>
@@ -129,7 +131,7 @@ export default function EffectPicker({
 			<div className="audio-editor-local-dialog__body">
 				<LabeledDropdown
 					label={copy.chooseEffect}
-					options={types.map((value) => ({ value, label: safeEffectLabel(value, copy) }))}
+					options={options}
 					value={type}
 					onChange={setType}
 					disabled={disabled}

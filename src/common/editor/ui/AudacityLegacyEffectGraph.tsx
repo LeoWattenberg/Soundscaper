@@ -2,11 +2,7 @@
 
 import { useState } from 'react';
 import { canonicalCopyValue } from '../../i18n/canonical-extras.js';
-import {
-	audacityAutoDuckEnvelope,
-	audacityClassicFilterResponse,
-	audacityLegacyCompressorResponse,
-} from './audacity-legacy-effect-graphs.ts';
+import { useClassicFilterPlot, useDuckEnvelope, useLegacyCompressorCurve } from './useLegacyEffectGraphPresentation.ts';
 import './AudacityLegacyEffectGraph.css';
 
 interface GraphProps {
@@ -22,9 +18,13 @@ export default function AudacityLegacyEffectGraph({ effectType, parameters, samp
 	if (effectType === 'audacity-auto-duck') return <AutoDuckGraph parameters={parameters} copy={copy} />;
 	if (effectType === 'audacity-classic-filters') return <ClassicFilterGraph parameters={parameters} sampleRate={sampleRate} copy={copy} />;
 	if (effectType !== 'audacity-legacy-compressor') return null;
-	const curve = audacityLegacyCompressorResponse(parameters);
+	return <LegacyCompressorGraph parameters={parameters} copy={copy} />;
+}
+
+function LegacyCompressorGraph({ parameters, copy }: Pick<GraphProps, 'parameters' | 'copy'>) {
+	const curve = useLegacyCompressorCurve(parameters);
 	const ticks = Array.from({ length: 7 }, (_, index) => index * -10);
-	return <div data-audacity-effect-graph={effectType} className="audio-editor-audacity-wx-graph">
+	return <div data-audacity-effect-graph="audacity-legacy-compressor" className="audio-editor-audacity-wx-graph">
 		<Plot line={curve.line} label={String(canonicalCopyValue('effectCompressionCurve', copy))}
 			xTicks={ticks.slice().reverse().map(value => ({ position: (value + 60) / 60 * 100, label: `${value} dB` }))}
 			yTicks={ticks.map(value => ({ position: -value / 60 * 100, label: `${value} dB` }))} />
@@ -53,7 +53,7 @@ function Plot({ line, label, xTicks, yTicks, grid = false }: {
 }
 
 function AutoDuckGraph({ parameters, copy }: Pick<GraphProps, 'parameters' | 'copy'>) {
-	const envelope = audacityAutoDuckEnvelope(parameters);
+	const envelope = useDuckEnvelope(parameters);
 	return <div data-audacity-effect-graph="audacity-auto-duck" className="audio-editor-audacity-wx-graph audio-editor-audacity-wx-graph--duck"
 		role="img" aria-label={String(canonicalCopyValue('effectCardEnvelope', copy))}>
 		<svg viewBox="0 0 600 300" aria-hidden="true" focusable="false">
@@ -72,18 +72,7 @@ function AutoDuckGraph({ parameters, copy }: Pick<GraphProps, 'parameters' | 'co
 function ClassicFilterGraph({ parameters, sampleRate, copy }: Pick<GraphProps, 'parameters' | 'sampleRate' | 'copy'>) {
 	const [minimumDb, setMinimumDb] = useState(-30);
 	const [maximumDb, setMaximumDb] = useState(20);
-	const response = audacityClassicFilterResponse(parameters, sampleRate, { minimumDb, maximumDb });
-	const frequencyPosition = (value: number) => Math.log(value / response.minimumFrequency) / Math.log(response.maximumFrequency / response.minimumFrequency) * 100;
-	const frequencyLabel = (value: number) => value >= 1000 ? `${value / 1000}k` : String(value);
-	const frequencies: Tick[] = [{ position: 0, label: '20 Hz' }];
-	for (let decade = 10; decade < response.maximumFrequency; decade *= 10) {
-		for (let multiplier = 1; multiplier < 10; multiplier += 1) {
-			const value = decade * multiplier;
-			if (value <= response.minimumFrequency || value >= response.maximumFrequency) continue;
-			frequencies.push({ position: frequencyPosition(value), label: multiplier === 1 ? frequencyLabel(value) : '', minor: multiplier !== 1 });
-		}
-	}
-	frequencies.push({ position: 100, label: `${frequencyLabel(response.maximumFrequency)} Hz` });
+	const { response, frequencies } = useClassicFilterPlot(parameters, sampleRate, minimumDb, maximumDb);
 	const dbValues = new Set([minimumDb, maximumDb]);
 	for (let db = Math.ceil(minimumDb / 10) * 10; db <= maximumDb; db += 10) dbValues.add(db);
 	const dbTicks = [...dbValues].sort((left, right) => right - left).map(value => ({ position: (maximumDb - value) / (maximumDb - minimumDb) * 100, label: `${value} dB` }));

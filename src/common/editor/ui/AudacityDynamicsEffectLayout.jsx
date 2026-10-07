@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { canonicalCopyValue } from '../../i18n/canonical-extras.js';
-import { audacityCompressionCurve } from './audacity-compression-curve.ts';
+import { useCompressionCurve } from './useCompressionCurve.ts';
 import DynamicsActivityPanel from './DynamicsActivityPanel.jsx';
 
 const MULTIBAND_GROUPS = Object.freeze([
@@ -103,7 +103,7 @@ function MultibandCompressorLayout({ definition, renderParameter, copy, readDyna
 }
 
 function CompressionCurve({ parameters, copy }) {
-	const curve = audacityCompressionCurve(parameters);
+	const curve = useCompressionCurve(parameters);
 	const ticks = [-36, -30, -24, -18, -12, -6, 0];
 	return (
 		<div className="audio-editor-audacity-dynamics__curve" role="img" aria-label={canonicalCopyValue('effectCompressionCurve', copy)}>

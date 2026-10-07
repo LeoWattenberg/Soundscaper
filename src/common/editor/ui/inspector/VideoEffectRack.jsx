@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useVideoEffectParameters } from './useVideoEffectParameters.ts';
 import { Button } from '@soundscaper/design-system/Button';
 import { VIDEO_EFFECT_TYPES, videoEffectDefinition } from '../../video-effects.js';
 import { DesignCheckbox, LabeledDropdown } from './inspector-controls.jsx';
@@ -14,7 +15,7 @@ export function VideoEffectRack({ clip, controller, copy, disabled, onError }) {
 		return { value: type, label: labelFor(descriptor, copy) };
 	}), [copy]);
 
-	const run = (work) => {
+	const run = useCallback((work) => {
 		if (mutationDisabled) return;
 		onError('');
 		try {
@@ -22,7 +23,7 @@ export function VideoEffectRack({ clip, controller, copy, disabled, onError }) {
 		} catch (cause) {
 			onError(errorText(cause));
 		}
-	};
+	}, [mutationDisabled, onError]);
 
 	return (
 		<section className="audio-editor-clip-properties__card audio-editor-clip-properties__card--wide audio-editor-video-effects" data-video-effect-rack>
@@ -43,8 +44,9 @@ export function VideoEffectRack({ clip, controller, copy, disabled, onError }) {
 	);
 }
 
-function VideoEffectRow({ effect, clipId, index, count, actions, copy, disabled, onError, onRun }) {
+const VideoEffectRow = memo(function VideoEffectRow({ effect, clipId, index, count, actions, copy, disabled, onError, onRun }) {
 	const descriptor = videoEffectDefinition(effect.type);
+	const parameterEntries = useVideoEffectParameters(descriptor.params);
 	const label = labelFor(descriptor, copy);
 	return (
 		<li className="audio-editor-video-effect" data-video-effect-id={effect.id} data-video-effect-type={effect.type} data-enabled={effect.enabled !== false ? 'true' : 'false'}>
@@ -57,13 +59,13 @@ function VideoEffectRow({ effect, clipId, index, count, actions, copy, disabled,
 				</div>
 			</header>
 			<div className="audio-editor-video-effect__params">
-				{Object.entries(descriptor.params).map(([name, parameter]) => (
+				{parameterEntries.map(([name, parameter]) => (
 					<VideoEffectParameter key={name} clipId={clipId} effectId={effect.id} name={name} parameter={parameter} value={effect.params[name]} actions={actions} copy={copy} disabled={disabled || effect.enabled === false} onError={onError} />
 				))}
 			</div>
 		</li>
 	);
-}
+});
 
 function useEffectGesture({ actions, clipId, effectId, disabled, onError }) {
 	const active = useRef(false);
