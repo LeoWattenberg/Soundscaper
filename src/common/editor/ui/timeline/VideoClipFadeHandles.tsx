@@ -88,9 +88,9 @@ export function VideoClipFadeHandles({ controller, project, clip, selected, visi
 				}}
 				onPointerCancel={() => { gesture.current = null; setPreview(null); }}
 				onKeyDown={event => {
-					event.stopPropagation();
+					if (event.altKey || event.ctrlKey || event.metaKey) return;
 					if (event.key === 'Escape' && gesture.current) {
-						event.preventDefault();
+						event.preventDefault(); event.stopPropagation();
 						const pointerId = gesture.current.pointerId;
 						gesture.current = null; setPreview(null);
 						if (event.currentTarget.hasPointerCapture?.(pointerId)) event.currentTarget.releasePointerCapture(pointerId);
@@ -99,7 +99,7 @@ export function VideoClipFadeHandles({ controller, project, clip, selected, visi
 					if (event.key === 'Tab') {
 						const target = event.currentTarget.closest<HTMLElement>('[data-clip-id][role="group"]');
 						if (!target) return;
-						event.preventDefault();
+						event.preventDefault(); event.stopPropagation();
 						const handles = [...target.querySelectorAll<HTMLButtonElement>('[data-video-clip-fade-handle]:not(:disabled)')];
 						const next = handles[handles.indexOf(event.currentTarget) + (event.shiftKey ? -1 : 1)];
 						if (next) next.focus();
@@ -107,11 +107,11 @@ export function VideoClipFadeHandles({ controller, project, clip, selected, visi
 						else onTabOut?.();
 						return;
 					}
-					if (event.altKey || event.ctrlKey || event.metaKey || blocked) return;
+					if (blocked) return;
 					const delta = event.key === 'ArrowRight' || event.key === 'ArrowUp' ? 1 : event.key === 'ArrowLeft' || event.key === 'ArrowDown' ? -1 : 0;
 					const duration = event.key === 'Home' ? 0 : event.key === 'End' ? rawClip.sequenceFrameCount : delta ? value + delta * (event.shiftKey ? 10 : 1) : null;
 					if (duration === null) return;
-					event.preventDefault(); update(edge, duration);
+					event.preventDefault(); event.stopPropagation(); update(edge, duration);
 				}} />;
 		})}
 	</div>;

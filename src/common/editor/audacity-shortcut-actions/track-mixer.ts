@@ -29,7 +29,7 @@ export function applyAudacityTrackMixerAction(
 	const track = project.tracks.find((candidate) => candidate.id === snapshot.selectedTrackId);
 	if (!track || track.type === 'label') return null;
 	if (action >= 6) {
-		const key = action === 6 ? 'mute' : 'solo';
+		const key = action === 6 ? muteKey(track.type) : 'solo';
 		return commit({ type: 'track/update', trackId: track.id, changes: { [key]: !track[key] } });
 	}
 	if (track.type !== 'audio') return null;
@@ -62,13 +62,17 @@ function setSelectedMuted(
 		? selectionTrackIds
 		: focusedTrackId ? [focusedTrackId] : []);
 	const tracks = project.tracks.filter((track) => (
-		track.type !== 'label' && selected.has(track.id) && track.mute !== mute
+		track.type !== 'label' && selected.has(track.id) && Boolean(track[muteKey(track.type)]) !== mute
 	));
 	if (!tracks.length) return null;
 	return commit({
 		type: 'batch',
 		commands: tracks.map((track) => ({
-			type: 'track/update', trackId: track.id, changes: { mute },
+			type: 'track/update', trackId: track.id, changes: { [muteKey(track.type)]: mute },
 		})),
 	});
+}
+
+function muteKey(type: string): 'hidden' | 'mute' {
+	return type === 'video' ? 'hidden' : 'mute';
 }
