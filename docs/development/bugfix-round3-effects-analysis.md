@@ -250,6 +250,26 @@ all 28 focused rhythm, playback-rate and transport tests pass, including loop
 phase, delayed audible starts and pending-click cancellation. No manual
 **Update AI assets** run is required.
 
+## R3-ROOT-014 — Macro project reads report video clips as empty
+
+Import an ordinary camera recording. Open **Tools > Macros palette > New
+program**, read the video track with `sound.project.tracks()`, then print the
+first result of `sound.project.clips(video.id)`.
+
+Previously `durationFrames` was zero for the nonempty video. The documented
+program API promises project sample frames, but its reader accessed the raw
+sequence-backed record. Program reads now resolve current project geometry
+before exposing clip positions, durations and selection extents. Legacy sample
+hosts retain their existing read shape, and the authored document stays intact.
+
+Proof: the ordinary public program prints `video durationFrames=0` on the
+immutable baseline and `video durationFrames=104000` on green build 14 in all
+three browsers. A strict canonical camera-project regression verifies a
+48000-frame clip without changing its persisted video ordinals. All 19 focused
+program/host tests and all 14 runtime-consumer audit cases pass; the audit
+register includes this actual projection boundary and its private downstream
+extent reducer. No manual **Update AI assets** run is required.
+
 ### Stored-loop selection follow-through (no additional bug count)
 
 The authored-range snapping defect recorded as R3-EDIT-009 also affected

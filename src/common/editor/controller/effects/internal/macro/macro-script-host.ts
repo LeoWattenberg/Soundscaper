@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { MacroTransactionMetadata } from '../../macro-transaction-metadata.ts';
+import { projectForRuntimeConsumers } from '../../../../project-current-runtime.ts';
+import { hasSequenceGeometryProjectAuthority } from '../../../../project-schema-version.ts';
 
 /**
  * What a macro program is allowed to ask for.
@@ -303,7 +305,7 @@ function clipTrackId(project: Readonly<Record<string, unknown>>, clip: Record<st
 function requireProject(runtime: MacroScriptHostRuntime): Readonly<Record<string, unknown>> {
 	const project = runtime.getProject();
 	if (!project) throw new Error('A macro needs an open project.');
-	return project;
+	return hasSequenceGeometryProjectAuthority(project) ? projectForRuntimeConsumers(project) : project;
 }
 
 function numericParams(

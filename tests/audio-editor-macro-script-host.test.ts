@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { createMacroScriptHost } from '../src/common/editor/controller/effects/internal/macro/macro-script-host.ts';
+import { createPersistedVideoProject } from './helpers/persisted-video-project-fixture.ts';
 
 function createHarness(effectGate?: Promise<unknown>) {
 	const events: string[] = [];
@@ -75,6 +76,24 @@ test('a program can read the project without changing it', async () => {
 		[{ id: 'clip-a', name: 'Take 1', startFrame: 0, durationFrames: 400 }]);
 	assert.deepEqual(await harness.dispatch('project.clips', ['track-b']), []);
 	assert.deepEqual(harness.events, [], 'reading must change nothing');
+});
+
+test('program clip reads resolve camera geometry into the documented project sample clock', async () => {
+	const { project } = createPersistedVideoProject({ timeline: true });
+	const original = structuredClone(project);
+	const host = createMacroScriptHost({
+		getProject: () => project,
+		projectSampleRate: () => project.sampleRate,
+		runEffectMacro: async () => undefined,
+		runMacroCommand: () => undefined,
+		setExactSelection: () => undefined,
+		listSavedMacros: () => [],
+		beginMacroTransaction: () => ({ assertCurrent() {}, commit() {}, rollback() {} }),
+	});
+	assert.deepEqual(await host.createDispatch()('project.clips', ['persisted-video-track']), [{
+		id: 'persisted-timeline-video', name: 'Timeline scene', startFrame: 0, durationFrames: 48_000,
+	}]);
+	assert.deepEqual(project, original, 'a program read must leave authored video ordinals unchanged');
 });
 
 test('the selection verbs reach the same command tier a step list reaches', async () => {

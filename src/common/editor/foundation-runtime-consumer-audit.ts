@@ -130,6 +130,7 @@ export const FOUNDATION_RUNTIME_SHIELDED_OWNERS: readonly FoundationRuntimeShiel
 	{ file: 'src/common/editor/controller/export/interchange-export-action.ts', surfaces: ['interchange'] },
 	{ file: 'src/common/editor/controller/effects/internal/nyquist/nyquist-host-service.ts', surfaces: ['interchange'] },
 	{ file: 'src/common/editor/controller/effects/internal/nyquist/nyquist-label-projection.ts', surfaces: ['interchange'] },
+	{ file: 'src/common/editor/controller/effects/internal/macro/macro-script-host.ts', surfaces: ['composition'] },
 	{ file: 'src/common/editor/controller/edit/generator-service.ts', surfaces: ['composition'] },
 	{ file: 'src/common/editor/controller/edit/internal/labeled-audio-silence.ts', surfaces: ['composition'] },
 	{ file: 'src/common/editor/controller/composition/controller-project-queries.ts', surfaces: ['composition'] },
@@ -151,6 +152,10 @@ export const FOUNDATION_RUNTIME_SHIELDED_OWNERS: readonly FoundationRuntimeShiel
 
 /** Exact non-consumer readers co-located with a shield owner. No wildcard exclusions are admitted. */
 export const FOUNDATION_RUNTIME_TIMING_READER_EXCLUSIONS: readonly FoundationRuntimeTimingReaderExclusion[] = deepFreeze([
+	{
+		file: 'src/common/editor/controller/effects/internal/macro/macro-script-host.ts', entryPoint: 'projectFrames',
+		reason: 'The private extent reducer receives the already-resolved project from requireProject before the program selection reader derives its sample-frame range.',
+	},
 	{
 		file: 'src/common/editor/ui/workspace/project-bin-video-preview-model.ts', entryPoint: 'projectBinVisualDurationFrames',
 		reason: 'Image, still, and generator cards read their authored sequence-frame count and explicitly convert that extent at the primary sequence clock; these leaves have no legacy audio or video runtime timing aliases to project.',

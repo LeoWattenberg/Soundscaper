@@ -30,6 +30,13 @@ export interface FoundationRuntimeConsumerEvidence {
  */
 const entries: FoundationRuntimeConsumerEvidence[] = [
 	{
+		id: 'macro-program-project-reads', surface: 'composition',
+		file: 'src/common/editor/controller/effects/internal/macro/macro-script-host.ts',
+		entryPoint: 'requireProject', inputIdentifier: 'project', projectedIdentifier: null,
+		boundary: 'projectForRuntimeConsumers',
+		evidence: 'Macro program project reads resolve authenticated sequence and musical geometry before exposing clip positions, durations or selection extents in the documented project sample clock; legacy sample-shaped hosts retain their existing read surface.',
+	},
+	{
 		id: 'nyquist-source-label-placement', surface: 'interchange',
 		file: 'src/common/editor/controller/effects/internal/nyquist/nyquist-label-projection.ts',
 		entryPoint: 'nyquistLabelTimelineRange', inputIdentifier: 'project',
