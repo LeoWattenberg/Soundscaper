@@ -36,7 +36,9 @@ function sourceInTime(
 		throw new RangeError('clip.sourceStartFrame must be a non-negative safe integer.');
 	}
 	if (clip.kind !== 'video' || !Object.hasOwn(clip, 'sourceInFrame')) {
-		return { numerator: BigInt(stated), denominator: BigInt(sampleRate) };
+		const sourceRate = Number(source?.sampleRate ?? sampleRate);
+		if (!Number.isSafeInteger(sourceRate) || sourceRate <= 0) throw new TypeError('An audio source requires its exact sample rate.');
+		return { numerator: BigInt(stated), denominator: BigInt(sourceRate) };
 	}
 	if (!source) throw new ReferenceError(`Video source ${String(clip.sourceId)} is missing.`);
 	if (source.timingDecision != null) {

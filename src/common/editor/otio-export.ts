@@ -411,7 +411,10 @@ function sourceStartInTimebase(
 	},
 ): number {
 	const stated = nonNegativeInteger(clip.sourceStartFrame ?? 0, 'clip.sourceStartFrame');
-	if (walk.kind === 'Audio' || !Object.hasOwn(clip, 'sourceInFrame')) {
+	if (walk.kind === 'Audio') {
+		return interchangeSourceInPoint(clip, source, { num: context.sampleRate, den: 1 }, context.sampleRate);
+	}
+	if (!Object.hasOwn(clip, 'sourceInFrame')) {
 		return toTimebase(stated, walk, context);
 	}
 	const sourceRate = exactRate(source?.frameRate);
