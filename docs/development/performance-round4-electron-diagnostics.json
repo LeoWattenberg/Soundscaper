@@ -1,6 +1,19 @@
 {
   "schemaVersion": 1,
-  "status": "Incomplete final ABBA; final baseline profile failed its playback advancement assertion, and remaining three profiles were not started.",
+  "status": "Superseded diagnostic attempts; excluded from the completed final ABBA comparison.",
+  "historicalStatusAtStoppedAttempt": "Incomplete final ABBA; final baseline profile failed its playback advancement assertion, and remaining three profiles were not started.",
+  "currentDisposition": {
+    "finalComparison": "performance-round4-electron-comparison.json",
+    "finalComparisonSha256": "ed504361c8324faca28b3e898433ffc0ccb41bf804c2a37245db5dd43d5153a1",
+    "completeFreshProfiles": 4,
+    "observations": 180,
+    "timedClicks": 168,
+    "timelineProbes": 12,
+    "allFinalProfilesPassed": true,
+    "chunkColdImportCorrectionCommit": "064b861b8363de932ee9a5bb39bd7b9fb3ab5ac9",
+    "baselinePlaybackCause": "Unresolved; subsequent diagnostic and final profiles passed without relaxing assertions.",
+    "historicalArtifactPaths": "Recorded artifact paths and hashes describe each superseded attempt, not the current final files at reused output paths. Available original observations and full failure text are retained within this diagnostic receipt. The original failed playback attempt timed rows remain unavailable."
+  },
   "attempts": [
     {
       "label": "before-1",
@@ -2229,8 +2242,8 @@
       }
     ]
   },
-  "cause": "Actual after renderer warmup rejects SoundscaperVampAnalyzerSurface and VampAnalyzerDialog with TypeError r is not a function at VampAnalyzerDialog-Hbz3d2kc.js:1:431. Built facade invokes imported editor-vamp-analyzer initialization before that binding is assigned; independent chunk-ownership audit ongoing.",
-  "limits": "Both stopped attempts and the superseded initial baseline receipt are preserved. No timeout, preference or actual playback assertion was relaxed. Failed final baseline timed rows were not flushed by the original harness and are unavailable. No complete final ABBA comparison exists.",
+  "historicalCauseBeforeChunkCorrection": "Actual after renderer warmup rejects SoundscaperVampAnalyzerSurface and VampAnalyzerDialog with TypeError r is not a function at VampAnalyzerDialog-Hbz3d2kc.js:1:431. Built facade invokes imported editor-vamp-analyzer initialization before that binding is assigned; independent chunk-ownership audit ongoing.",
+  "historicalLimitsAtStoppedAttempt": "Both stopped attempts and the superseded initial baseline receipt are preserved. No timeout, preference or actual playback assertion was relaxed. Failed final baseline timed rows were not flushed by the original harness and are unavailable. No complete final ABBA comparison exists.",
   "initialRendererBuilds": {
     "before": {
       "stage-manifest.json": "22f8b29a6a2ffad2cf0e613511fb39be84dacca69d9a12225945b2426539de2f",

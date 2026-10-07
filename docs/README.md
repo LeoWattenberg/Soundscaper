@@ -50,6 +50,8 @@ belong in Git history, not in the maintained documentation set.
   indexes 100 new production costs with source, checks and measurement methods.
 - [100 more responsiveness improvements](development/responsiveness-round3.md)
   records the next 100 costs, frozen-baseline checks and Electron Speed measurements.
+- [100 additional responsiveness reductions](development/responsiveness-round4.md)
+  records another 100 costs, paired Electron Speed results and validation limits.
 - User workflow regression audits record reproducible defects and their checks
   for [editing](development/bugfix-editing.md),
   [dialogs](development/bugfix-dialogs.md),
