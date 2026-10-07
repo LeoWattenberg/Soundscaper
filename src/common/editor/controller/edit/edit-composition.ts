@@ -30,6 +30,7 @@ import { discoverPasteCommandTree } from './internal/paste-command-tree.ts';
 import { findControllerSource } from '../track-audio/track-domain-types.ts';
 import { generateAudioEditorSignalStream } from '../../signal-generator-stream-client.ts';
 import type { AudioEditorClipboard, AudioEditorCommand } from '../../commands/protocol.ts';
+import { preserveProductionTrackRouting } from '../../derived-track-routing.ts';
 
 export type {
 	EditCommandProject,
@@ -223,6 +224,9 @@ export function createEditComposition<History extends ControllerRuntimeHistory>(
 			)
 		),
 		createStableId,
+		preserveTrackRouting: (command: Extract<AudioEditorCommand, { type: 'batch' }>, copies: readonly Readonly<{ sourceTrackId: string; targetTrackId: string }>[]) => preserveProductionTrackRouting(
+			requireProject(), command, copies, projectRuntime.applyCommand, createStableId,
+		),
 		prepareDuplicateCommand: projectRuntime.prepareEditDuplicateCommand
 			? (descriptor: AudioEditorClipboard, command: AudioEditorCommand) => (
 				projectRuntime.prepareEditDuplicateCommand!(requireProject(), descriptor, command, createStableId) as AudioEditorCommand

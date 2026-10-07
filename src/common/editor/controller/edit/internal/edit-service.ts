@@ -36,7 +36,7 @@ export function createEditorEditService(runtime: EditServiceRuntime): HandleEdit
 		editingBlocked, engine, findClip, findClipTrack,
 		findTrack, garbageCollectSources, handleError, normalizeTimelineFrame,
 		prepareControllerPaste, prepareDisjointRangeDeleteCommand, prepareGroupClipsCommand, prepareKeepRangeCommand,
-		prepareLinkedSplitCommand, prepareRangeDeleteCommand, getProject, projectChanged,
+		prepareLinkedSplitCommand, prepareRangeDeleteCommand, preserveTrackRouting, getProject, projectChanged,
 		publishDocumentSnapshot, redoEditorCommand, resolveEditingSelection, setSessionClipboard,
 		state, supportsTrackFolders, undoEditorCommand,
 	} = runtime;
@@ -241,7 +241,7 @@ export function createEditorEditService(runtime: EditServiceRuntime): HandleEdit
 				// always done with one.
 				if (baseSelection) {
 					const plan = prepareSplitRangeIntoNewTrackCommand({
-						getProject, findClip, createStableId, createAddTrackCommand, prepareLinkedSplitCommand, supportsTrackFolders,
+						getProject, findClip, createStableId, createAddTrackCommand, prepareLinkedSplitCommand, supportsTrackFolders, preserveTrackRouting,
 					}, { startFrame: baseSelection.startFrame, endFrame: baseSelection.endFrame, trackIds });
 					if (!plan) return;
 					commit(plan.command, { selectTrackId: plan.selectTrackId, selectClipId: plan.selectClipId });
@@ -259,7 +259,7 @@ export function createEditorEditService(runtime: EditServiceRuntime): HandleEdit
 				);
 				const trackId = createStableId('track');
 				const processors = copyDerivedTrackProcessors(getProject(), sourceTrack, trackId, createStableId);
-				commit({
+				const command = {
 					type: 'batch',
 					commands: [
 						{ ...createAddTrackCommand({ ...sourceTrack, id: trackId, name: `${sourceTrack.name} 2`, clipIds: [], effects: processors.effects }), ...trackHierarchyPlacement(getProject(), sourceTrack.id, 1, supportsTrackFolders) },
@@ -267,7 +267,9 @@ export function createEditorEditService(runtime: EditServiceRuntime): HandleEdit
 						split,
 						{ type: 'clip/move', clipId: split.rightClipId, trackId, timelineStartFrame: split.atFrame },
 					],
-				}, { selectTrackId: trackId, selectClipId: split.rightClipId });
+				};
+				commit(preserveTrackRouting?.(command, [{ sourceTrackId: sourceTrack.id, targetTrackId: trackId }]) ?? command,
+					{ selectTrackId: trackId, selectClipId: split.rightClipId });
 				return;
 			}
 			if (action === 'join' || action === 'group' || action === 'ungroup') {
