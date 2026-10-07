@@ -19,6 +19,8 @@ interface ProjectBinClip {
 	reversed?: boolean;
 	inverted?: boolean;
 	sourceDurationFrames?: number;
+	sourceFrameCount?: number;
+	sourceInFrame?: number;
 	sourceStartFrame?: number;
 	speedRatio?: number;
 	stretchToTempo?: boolean;
@@ -34,6 +36,7 @@ interface ProjectBinSource {
 	kind?: string;
 	mimeType?: string;
 	original?: Readonly<{ recognizedFormat?: string }>;
+	sourceFrameCount?: number;
 	width?: number;
 }
 
@@ -95,11 +98,14 @@ export function projectBinTransformBadges(
 	copy: ProjectBinCopy,
 ): string[] {
 	const badges: string[] = [];
-	const sourceEnd = (clip.sourceStartFrame || 0) + (clip.sourceDurationFrames || clip.durationFrames || 0);
+	const nativeVideo = clip.kind === 'video' && clip.sourceFrameCount != null;
+	const sourceStart = nativeVideo ? clip.sourceInFrame || 0 : clip.sourceStartFrame || 0;
+	const sourceEnd = sourceStart + (nativeVideo ? clip.sourceFrameCount! : clip.sourceDurationFrames || clip.durationFrames || 0);
+	const sourceCount = nativeVideo ? source?.sourceFrameCount : source?.frameCount;
 	if ((clip.trimStartFrames || 0) > 0
 		|| (clip.trimEndFrames || 0) > 0
-		|| (clip.sourceStartFrame || 0) > 0
-		|| (source?.frameCount && sourceEnd < source.frameCount)) badges.push(copy.projectBinTransformTrim || 'trim');
+		|| sourceStart > 0
+		|| (sourceCount && sourceEnd < sourceCount)) badges.push(copy.projectBinTransformTrim || 'trim');
 	if (Math.abs((clip.gain ?? 1) - 1) > 1e-9) badges.push(copy.projectBinTransformGain || 'gain');
 	if ((clip.fadeInFrames || 0) > 0 || (clip.fadeOutFrames || 0) > 0) badges.push(copy.projectBinTransformFade || 'fade');
 	if (clip.envelope?.length) badges.push(copy.projectBinTransformEnvelope || 'envelope');
