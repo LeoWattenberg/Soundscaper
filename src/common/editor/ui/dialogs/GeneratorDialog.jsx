@@ -5,7 +5,7 @@ import { PreferencePanel } from '@soundscaper/design-system/PreferencePanel';
 import { Separator } from '@soundscaper/design-system/Separator';
 import { TextInput } from '@soundscaper/design-system/TextInput';
 
-import { summarizeMorseCode } from '../../morse-code.ts';
+import { useGeneratorFormatters, useMorseSummary } from './useGeneratorPresentation.ts';
 import { resolveSelectionRange } from '../../selection-range.ts';
 import {
 	GeneratorKnob,
@@ -49,7 +49,8 @@ export default function GeneratorDialog({ type, controller, copy, locale, run, o
 	const dtmfTiming = generatorDtmfTiming(params);
 	// A half-typed message must not break the preview, so the summary reports
 	// what cannot be sent instead of throwing the way the encoder does.
-	const morse = type === 'morse' ? summarizeMorseCode(params.text, params.wordsPerMinute) : null;
+	const morse = useMorseSummary(type, params.text, params.wordsPerMinute);
+	const formatters = useGeneratorFormatters(type, locale);
 	const unsendable = Boolean(morse && (morse.empty || morse.unsupported.length));
 	// The generate button sits in the shared footer, outside the form, so both
 	// it and an Enter press inside a field run this one handler.
@@ -261,7 +262,7 @@ export default function GeneratorDialog({ type, controller, copy, locale, run, o
 												<dt>{labels.morseEncoding}</dt>
 												<dd className="kw-audio-editor-generator__morse-code">{morse.code || '\u2014'}</dd>
 											</div>
-											<div><dt>{labels.morseDotDuration}</dt><dd>{formatGeneratorSeconds(morse.dotSeconds, locale)}</dd></div>
+											<div><dt>{labels.morseDotDuration}</dt><dd>{formatters.seconds?.format(morse.dotSeconds)}</dd></div>
 											{morse.unsupported.length > 0 && (
 												<div><dt>{labels.morseUnsupported}</dt><dd>{morse.unsupported.join(' ')}</dd></div>
 											)}
@@ -335,9 +336,9 @@ export default function GeneratorDialog({ type, controller, copy, locale, run, o
 										</div>
 										<Separator />
 										<dl className="kw-audio-editor-generator__timing-summary">
-											<div><dt>{labels.dutyCycle}</dt><dd>{formatGeneratorNumber(dtmfTiming.dutyPercent, locale)}%</dd></div>
-											<div><dt>{copy.generatorToneDuration}</dt><dd>{formatGeneratorSeconds(dtmfTiming.toneSeconds, locale)}</dd></div>
-											<div><dt>{copy.generatorSilenceDuration}</dt><dd>{formatGeneratorSeconds(dtmfTiming.silenceSeconds, locale)}</dd></div>
+											<div><dt>{labels.dutyCycle}</dt><dd>{formatters.number?.format(dtmfTiming.dutyPercent)}%</dd></div>
+											<div><dt>{copy.generatorToneDuration}</dt><dd>{formatters.seconds?.format(dtmfTiming.toneSeconds)}</dd></div>
+											<div><dt>{copy.generatorSilenceDuration}</dt><dd>{formatters.seconds?.format(dtmfTiming.silenceSeconds)}</dd></div>
 										</dl>
 									</PreferencePanel>
 								</div>
@@ -389,21 +390,6 @@ export function generatorDtmfDurations(totalSeconds, dutyPercent, symbolCount) {
 
 function roundGeneratorNumber(value) {
 	return Number(Number(value).toFixed(6));
-}
-
-function formatGeneratorNumber(value, locale) {
-	return new Intl.NumberFormat(locale, { maximumFractionDigits: 3 }).format(value);
-}
-
-// The unit belongs to the locale, not to the markup: a hand-written " s" reads
-// as English in every language the catalog is translated into.
-function formatGeneratorSeconds(value, locale) {
-	return new Intl.NumberFormat(locale, {
-		maximumFractionDigits: 3,
-		style: 'unit',
-		unit: 'second',
-		unitDisplay: 'short',
-	}).format(value);
 }
 
 function generatorLayoutLabels(copy) {

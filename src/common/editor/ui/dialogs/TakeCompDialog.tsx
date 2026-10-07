@@ -18,6 +18,7 @@ import {
 	takeCompDialogDraftIdentity,
 	type TakeCompDialogGroupModel,
 } from '../take-comp-dialog-model.ts';
+import { compSharedBoundaries, useCompBoundaries } from './take-comp-boundaries.ts';
 import { useOwnedDialogOperation } from '../useOwnedDialogOperation.ts';
 
 interface TakeCompDialogActions {
@@ -324,6 +325,7 @@ function TakeGroupEditor(props: TakeGroupEditorProps) {
 
 function RegionEditor(props: TakeGroupEditorProps) {
 	const { group, copy, disabled } = props;
+	const adjacentBoundaries = useCompBoundaries(group.compRegions);
 	return <section aria-label={copy.takeCompRegions}>
 		<table className="audio-editor-take-comp__regions">
 			<caption>{copy.takeCompRegions}</caption>
@@ -335,7 +337,7 @@ function RegionEditor(props: TakeGroupEditorProps) {
 			</tr>)}</tbody>
 		</table>
 		<div className="audio-editor-take-comp__shared-boundaries">
-			{sharedBoundaries(group).map(({ leftRegionId, rightRegionId, boundarySample }) => {
+			{adjacentBoundaries.map(({ leftRegionId, rightRegionId, boundarySample }) => {
 				const key = sharedBoundaryKey(leftRegionId, rightRegionId);
 				return <label key={key}><span>{copy.takeCompSharedBoundary}: {leftRegionId} → {rightRegionId}</span>
 					<IntegerField label={copy.takeCompSharedBoundary} value={props.sharedBoundaries[key] ?? boundarySample} sampleRate={props.sampleRate} disabled={disabled} onChange={(value) => props.onSharedBoundaryChange(key, value)} />
@@ -389,17 +391,8 @@ function boundaryValue(
 	return edge === 'start' ? region.startSample : region.endSample;
 }
 
-function sharedBoundaries(group: TakeCompDialogGroupModel) {
-	return group.compRegions.flatMap((left, index) => {
-		const right = group.compRegions[index + 1];
-		return right && left.endSample === right.startSample ? [{
-			leftRegionId: left.id, rightRegionId: right.id, boundarySample: left.endSample,
-		}] : [];
-	});
-}
-
 function sharedBoundaryDrafts(group: TakeCompDialogGroupModel | null): Readonly<Record<string, number>> {
-	return Object.freeze(Object.fromEntries((group ? sharedBoundaries(group) : []).map((boundary) => [
+	return Object.freeze(Object.fromEntries((group ? compSharedBoundaries(group.compRegions) : []).map((boundary) => [
 		sharedBoundaryKey(boundary.leftRegionId, boundary.rightRegionId), boundary.boundarySample,
 	])));
 }

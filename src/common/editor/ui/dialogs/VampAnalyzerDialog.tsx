@@ -15,6 +15,7 @@ import {
 	type VampAnalyzerDescriptor,
 	type VampOutputDescriptor,
 } from '../../vamp-analysis.ts';
+import { useAnalyzerLookup } from './useAnalyzerLookup.ts';
 import { MAXIMUM_VAMP_LABELS } from '../../vamp-analysis-labels.ts';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 
@@ -115,11 +116,10 @@ export default function VampAnalyzerDialog(props: Readonly<VampAnalyzerDialogPro
 	const currentProjectIdRef = useRef(props.projectId);
 	currentProjectIdRef.current = props.projectId;
 
-	const selectedAnalyzer = catalogState.analyzers.find((candidate) => (
-		candidate.analyzerId === analyzerId
-	)) ?? first;
-	const selectedOutput = selectedAnalyzer?.outputs.find(({ id }) => id === outputId)
-		?? selectedAnalyzer?.outputs[0] ?? null;
+	const lookup = useAnalyzerLookup(catalogState.analyzers);
+	const selectedAnalyzer = lookup.analyzers.get(analyzerId) ?? first;
+	const selectedOutput = selectedAnalyzer ? lookup.outputs.get(selectedAnalyzer)?.get(outputId)
+		?? selectedAnalyzer.outputs[0] ?? null : null;
 
 	useEffect(() => {
 		activeAnalysisRef.current?.controller.abort();
