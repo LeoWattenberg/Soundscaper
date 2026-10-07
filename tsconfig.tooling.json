@@ -6,6 +6,6 @@
 		"tsBuildInfoFile": "./node_modules/.cache/typescript/tooling.tsbuildinfo",
 		"types": ["node"]
 	},
-	"include": ["vite.config.mjs", "playwright.config.mjs", "electron-builder.config.cjs"],
+	"include": ["vite.config.mjs", "playwright.config.mjs", "electron-builder.config.cjs", "scripts/performance/measure-responsiveness-round3.ts"],
 	"exclude": ["dist", "node_modules"]
 }
