@@ -19,6 +19,7 @@ import { focusCandidate, focusFirst, focusPanelControl } from './timeline-naviga
 import { finishInlineTrackRename } from './track-name-keyboard-focus.ts';
 import { useMixerParameterGestures } from '../useMixerParameterGestures.ts';
 import { selectTrackFromHeader } from './track-header-selection.ts';
+import { exclusiveTrackAudibilityCommand } from './exclusive-track-audibility.ts';
 import {
 	beginParameterAutomationGestureV21,
 	cancelParameterAutomationGestureV21,
@@ -194,7 +195,16 @@ export function TrackControls({
 			gesture, () => cancelParameterAutomationGestureV21(gesture.session), false,
 		);
 	}, [automationTarget?.key, finishAutomationGesture]);
-	const updateMute = () => {
+	const updateExclusiveAudibility = (parameter, event) => {
+		if (!event?.ctrlKey && !event?.metaKey) return false;
+		if (!blocked) run(() => {
+			const command = exclusiveTrackAudibilityCommand(controller.getSnapshot().project, track.id, parameter);
+			if (command) return controller.actions.edit.commit(command);
+		});
+		return true;
+	};
+	const updateMute = (event) => {
+		if (updateExclusiveAudibility('mute', event)) return;
 		const value = track.mute ? 0 : 1;
 		const reserved = automationCaptureReserved('mute');
 		if (beginAutomationGesture('mute', value)) {
@@ -257,7 +267,8 @@ export function TrackControls({
 					|| staticGestures.release(staticAddress('pan'), designValueToPan(pan))}
 				onPanGestureCancel={() => cancelAutomationGesture('pan') || staticGestures.cancel(staticAddress('pan'))}
 				onMuteToggle={updateMute}
-				onSoloToggle={() => !blocked && run(() => controller.actions.track.update(track.id, { solo: !track.solo }))}
+				onSoloToggle={(event) => !updateExclusiveAudibility('solo', event) && !blocked
+					&& run(() => controller.actions.track.update(track.id, { solo: !track.solo }))}
 				onEffectsClick={() => {
 					onOpenEffects?.(track.id, controlsRef.current?.getBoundingClientRect() || null, 'track', true);
 				}}
