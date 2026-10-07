@@ -159,6 +159,7 @@ export async function createFixture(context) {
 		['tests/helpers/png-fixture.mjs', await readFile(new URL('./png-fixture.mjs', import.meta.url), 'utf8')],
 		['tests/helpers/libsndfile-rifx-fixture.ts', await readFile(new URL('./libsndfile-rifx-fixture.ts', import.meta.url), 'utf8')],
 		['tests/fixtures/aup4-native-rich.js', 'export const fixture = true;\n'],
+		['tests/fixtures/bwfmetaedit-cp1252-info.wav.base64', 'ordinary BWF MetaEdit fixture\n'],
 		['src/common/editor/example.ts', 'export const source = true;\n'],
 	]) await writeFixtureFile(repositoryRoot, path, body);
 

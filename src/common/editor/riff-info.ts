@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { decodeRiffMetadataText } from './riff-metadata-text.ts';
+
 const FIELD_IDS = Object.freeze({
 	title: 'INAM', artist: 'IART', comments: 'ICMT', comment: 'ICMT', copyright: 'ICOP',
 	year: 'ICRD', date: 'ICRD', genre: 'IGNR', software: 'ISFT',
@@ -25,19 +27,30 @@ export function createRiffInfoChunk(metadata: Readonly<Record<string, unknown>> 
 	return chunk('LIST', payload);
 }
 
-export function parseRiffInfo(payloads: readonly Uint8Array[] = []): Readonly<Record<string, string>> {
+export function parseRiffInfo(payloads: readonly Uint8Array[] = [], codePage = 0): Readonly<Record<string, string>> {
+	const result: Record<string, string> = {};
+	for (const [id, value] of Object.entries(parseRiffInfoFields(payloads, codePage))) {
+		const field = ID_FIELDS[id];
+		if (field && result[field] == null) result[field] = value;
+	}
+	return Object.freeze(result);
+}
+
+/** Original INFO identifiers accompany their correctly decoded text in attribution. */
+export function parseRiffInfoFields(payloads: readonly Uint8Array[], codePage = 0, littleEndian = true): Readonly<Record<string, string>> {
 	const result: Record<string, string> = {};
 	for (const payload of payloads) {
 		let offset = 0;
 		while (offset < payload.byteLength) {
 			if (payload.byteLength - offset < 8) throw new Error('The WAV INFO list ends inside a subchunk header.');
 			const id = ascii(payload, offset, 4);
-			const size = new DataView(payload.buffer, payload.byteOffset + offset + 4, 4).getUint32(0, true);
+			const size = new DataView(payload.buffer, payload.byteOffset + offset + 4, 4).getUint32(0, littleEndian);
 			const start = offset + 8;
 			const end = start + size;
 			if (end > payload.byteLength) throw new Error('The WAV INFO subchunk is truncated.');
-			const field = ID_FIELDS[id] as string | null | undefined;
-			if (field && result[field] == null) result[field] = decode(payload.subarray(start, end));
+			if (result[id] == null) Object.defineProperty(result, id, {
+				value: decodeRiffMetadataText(payload.subarray(start, end), codePage), enumerable: true,
+			});
 			offset = end + (size & 1);
 		}
 	}
@@ -57,11 +70,6 @@ function concat(...parts: readonly Uint8Array[]): Uint8Array {
 	let offset = 0;
 	for (const part of parts) { result.set(part, offset); offset += part.byteLength; }
 	return result;
-}
-
-function decode(bytes: Uint8Array): string {
-	const end = bytes.indexOf(0);
-	return new TextDecoder('utf-8').decode(end < 0 ? bytes : bytes.subarray(0, end));
 }
 
 function writeAscii(bytes: Uint8Array, offset: number, value: string): void {

@@ -183,6 +183,7 @@ test('nightly test staging creates a hermetic, manifest-bound Playwright payload
 		'tests/helpers/png-fixture.mjs',
 		'tests/helpers/libsndfile-rifx-fixture.ts',
 		'tests/fixtures/aup4-native-rich.js',
+		'tests/fixtures/bwfmetaedit-cp1252-info.wav.base64',
 		'tests/fixtures/nyquist-archive/manifest.json.gz',
 		'tests/fixtures/nyquist-archive/10bandeq.ny.gz',
 		'tests/fixtures/nyquist-archive/NOTICE.md',

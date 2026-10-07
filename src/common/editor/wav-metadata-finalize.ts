@@ -2,14 +2,14 @@
 import { parseRiffMarkers } from './riff-markers.ts';
 import { parseRiffInfo } from './riff-info.ts';
 
-export function finalizeRiffMetadata(cue: Uint8Array | null, adtl: readonly Uint8Array[], info: readonly Uint8Array[], warnings: Array<Readonly<Record<string, unknown>>>): Readonly<Record<string, unknown>> {
+export function finalizeRiffMetadata(cue: Uint8Array | null, adtl: readonly Uint8Array[], info: readonly Uint8Array[], warnings: Array<Readonly<Record<string, unknown>>>, codePage = 0): Readonly<Record<string, unknown>> {
 	let markers: ReturnType<typeof parseRiffMarkers> = Object.freeze([]);
 	let parsedInfo: ReturnType<typeof parseRiffInfo> = Object.freeze({});
 	try { markers = parseRiffMarkers(cue, adtl); }
 	catch (error) {
 		warnings.push(Object.freeze({ code: 'riff-markers-invalid', message: error instanceof Error ? error.message : String(error) }));
 	}
-	try { parsedInfo = parseRiffInfo(info); }
+	try { parsedInfo = parseRiffInfo(info, codePage); }
 	catch (error) {
 		warnings.push(Object.freeze({ code: 'riff-info-invalid', message: error instanceof Error ? error.message : String(error) }));
 	}

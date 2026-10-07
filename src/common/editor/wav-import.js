@@ -3,6 +3,7 @@ import { BEXT_MAX_PAYLOAD_BYTES, parseBextPayload } from './broadcast-wave.ts';
 import { parseIxmlPayload } from './ixml.ts';
 import { parseCartPayload } from './cart-metadata.ts';
 import { finalizeRiffMetadata, wavMetadataWarning } from './wav-metadata-finalize.ts';
+import { riffMetadataCodePage } from './riff-metadata-text.ts';
 import {
 	finalizeWavAdmImport,
 	WAV_ADM_CHNA_MAX_BYTES,
@@ -85,6 +86,7 @@ export async function inspectWavBlobPcm(blob, options = {}) {
 	let cuePayload = null;
 	const adtlPayloads = [];
 	const infoPayloads = [];
+	let codePage = null;
 	let ixml = null;
 	let cart = null;
 	const admStaticPayloads = [];
@@ -223,6 +225,8 @@ export async function inspectWavBlobPcm(blob, options = {}) {
 			} else if (admChna == null) {
 				admChna = await readBlobBytes(blob, payloadOffset, payloadEnd, signal);
 			}
+		} else if (chunkId === 'CSET' && chunkBytes >= 8 && codePage == null) {
+			codePage = riffMetadataCodePage(await readBlobBytes(blob, payloadOffset, payloadOffset + 8, signal));
 		} else if (chunkId === 'LIST' && chunkBytes >= 4 && chunkBytes <= MAX_RIFF_METADATA_BYTES) {
 			if (listType === 'adtl') {
 				adtlPayloads.push(await readBlobBytes(blob, payloadOffset + 4, payloadEnd, signal));
@@ -329,7 +333,7 @@ export async function inspectWavBlobPcm(blob, options = {}) {
 	});
 	metadataWarnings.push(...finalizedAdm.warnings);
 
-	const { markers, info } = finalizeRiffMetadata(cuePayload, adtlPayloads, infoPayloads, metadataWarnings);
+	const { markers, info } = finalizeRiffMetadata(cuePayload, adtlPayloads, infoPayloads, metadataWarnings, codePage ?? 0);
 	return Object.freeze({
 		container: 'wav',
 		encoding: format.encoding,

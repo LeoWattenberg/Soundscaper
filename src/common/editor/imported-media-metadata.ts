@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { decodeAiffMetadataText } from './aiff-metadata-text.ts';
+import { correctImportedRiffMetadata } from './riff-imported-metadata.ts';
 
 const MAXIMUM_METADATA_STRING_LENGTH = 65_536;
 const MAXIMUM_METADATA_ARRAY_LENGTH = 512;
@@ -79,7 +80,7 @@ export async function inspectImportedMediaMetadata(
 	try {
 		const aiff = options.readTags ? null : await inspectAiffMetadata(file, options.signal);
 		options.signal?.throwIfAborted();
-		const tags = aiff?.tags ?? await (options.readTags ?? readMediabunnyMetadataTags)(file, options.signal);
+		const tags = await correctImportedRiffMetadata(file, aiff?.tags ?? await (options.readTags ?? readMediabunnyMetadataTags)(file, options.signal), options.signal);
 		options.signal?.throwIfAborted();
 		const inspected = await canonicalizeImportedMediaMetadata(tags, aiff?.namespaces, aiff?.warnings);
 		options.signal?.throwIfAborted();
