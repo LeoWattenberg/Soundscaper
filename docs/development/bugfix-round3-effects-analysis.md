@@ -192,7 +192,7 @@ These changes do not require a manual **Update AI assets** run.
 Import an ordinary WAV, open **Edit > Audio clips > Clip properties**, and set
 its **Start** to one second. Focus the source waveform, select all with Ctrl+A,
 then choose **Tools > Nyquist prompt**, enter `'((0.2 0.4 "Analysis"))`, and run.
-Open **Tools > Manage labels**.
+Open **Edit > Manage labels**.
 
 Previously the annotation appeared at project time 0.2–0.4 seconds instead of
 1.2–1.4 seconds. Annotation publication used a project-clock offset even though
