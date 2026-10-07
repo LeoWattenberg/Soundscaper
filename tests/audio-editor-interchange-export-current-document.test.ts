@@ -15,6 +15,7 @@ import {
 	createVideoSource,
 } from '../src/common/editor/project-media-factory.ts';
 import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts';
+import { parseXmlDocument, walkXml } from '../src/common/editor/dawproject-xml.ts';
 
 /**
  * The three interchange profiles describe a document the product actually writes.
@@ -76,9 +77,11 @@ test('every interchange profile exports a current document that carries a video 
 
 	const fcpxml = await exportProjectFcpxml(runtime.runtime);
 	assert.ok(fcpxml);
-	const assetClips = fcpxml.text.match(/<asset-clip\b[^>]*\/>/gu) ?? [];
+	const assetClips = [...walkXml(parseXmlDocument(fcpxml.text))].filter((element) => element.name === 'asset-clip');
 	assert.equal(assetClips.length, 1);
-	assert.match(assetClips[0]!, /\bname="Wide" offset="1s" start="0s" duration="2s" videoRole="video"\/>$/u);
+	assert.deepEqual(assetClips[0]!.attributes, {
+		ref: 'r2', name: 'Wide', srcEnable: 'video', offset: '1s', start: '0s', duration: '2s', videoRole: 'video',
+	});
 });
 
 test('a musically anchored audio clip is exported where the tempo map puts it', async () => {
