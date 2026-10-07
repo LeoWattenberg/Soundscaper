@@ -94,3 +94,31 @@ is not inferred from the products sharing a repository.
 An initial empty photo shell does not register Scape or image file handlers,
 share targets, or native services. Those install and platform capabilities are
 added with the slice that implements their consumer.
+
+### Photo record pack v1
+
+The standalone catalog pack codec groups photo documents and original bytes so
+a large catalog can later use bounded Scape asset entries. It is not yet wired
+to ZIP import/export or catalog publication. A pack starts with the eight ASCII
+bytes `LSCPACK1`. Each following record has a little-endian unsigned 32-bit JSON
+byte length, an unsigned 64-bit original byte length, canonical UTF-8 photo
+document JSON, and the exact original bytes. There is no padding, preview data,
+compression, or pixel conversion inside the pack. An empty pack has only its
+version header; unsupported versions are refused.
+
+| Codec contract | Hard bound |
+| --- | --- |
+| Records in one pack | 4,096 unique photo IDs, all from one catalog |
+| Total pack bytes | 512 MiB, including headers, documents, and originals |
+| Photo document | The existing 2 MiB v1 document limit |
+| Input or output chunk | 4 MiB; only fixed, intrinsic byte views are admitted |
+
+Callers may tighten these bounds. The decoder retains one source chunk and one
+document byte buffer, then streams each original to its consumer. It verifies
+the declared original length and SHA-256 digest before the record completes.
+Cancellation, truncation, corrupt metadata, duplicate IDs, mixed catalogs, or a
+consumer that does not drain an original fail the read and close its iterator.
+Consumers must stage their media and catalog writes provisionally, roll back on
+failure, and publish only after the entire pack and enclosing Scape manifest
+have been authenticated. Existing Scape entry-count and total-byte ceilings
+remain unchanged.
