@@ -51,6 +51,7 @@ const POLICY_ARGUMENT = Object.freeze<Record<string, number | FoundationTimeConv
 	beatToSampleFrame: 3,
 	countInSampleFrames: 'point',
 	sampleFrameToBeat: 'exact',
+	createSampleFrameBeatProjector: 'exact',
 });
 
 interface TimeConversionAudit {
