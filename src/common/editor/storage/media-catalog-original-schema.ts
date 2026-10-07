@@ -72,6 +72,7 @@ export function normalizeCatalogOriginalRoot(input: unknown): Readonly<CatalogOr
 		photoId: fields.photoId, assetId: fields.assetId, sourceId: fields.sourceId,
 		sha256: fields.sha256, size: fields.size,
 	}]);
+	if (!reference) throw new TypeError('A catalog original root requires its media reference.');
 	const catalogId = catalogOriginalId(fields.catalogId);
 	const importId = fields.importId === null ? null : catalogOriginalId(fields.importId);
 	if (fields.schemaVersion !== 1 || typeof fields.mediaContentToken !== 'string'
@@ -95,11 +96,16 @@ function scalarRecord(input: unknown, keys: readonly string[]): Record<string, u
 		throw new TypeError('A plain catalog original reference record is required.');
 	}
 	const descriptors = Object.getOwnPropertyDescriptors(input);
-	if (Reflect.ownKeys(input).length !== keys.length || keys.some((key) => !descriptors[key]
-		|| !Object.hasOwn(descriptors[key], 'value') || !descriptors[key].enumerable)) {
+	if (Reflect.ownKeys(input).length !== keys.length) {
 		throw new TypeError('Catalog original record fields must be closed scalar data properties.');
 	}
-	return Object.fromEntries(keys.map((key) => [key, descriptors[key].value]));
+	return Object.fromEntries(keys.map((key) => {
+		const descriptor = descriptors[key];
+		if (!descriptor || !Object.hasOwn(descriptor, 'value') || !descriptor.enumerable) {
+			throw new TypeError('Catalog original record fields must be closed scalar data properties.');
+		}
+		return [key, descriptor.value];
+	}));
 }
 
 function boundedArray(input: unknown): readonly unknown[] {
