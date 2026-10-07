@@ -60,9 +60,9 @@ test('live-analysis lease attaches a high-resolution side tap during playback an
 		assert.equal(engine.graph.nodes.transientNodes.size, existingTransientCount, 'acquiring is deferred to the shared tick');
 		engine[ENGINE_EMIT_METERS]();
 		assert.equal(engine.graph.masterAnalyser.fftSize, normalFftSize);
-		assert.equal(engine.graph.nodes.transientNodes.size, existingTransientCount + 4);
+		assert.equal(engine.graph.nodes.transientNodes.size, existingTransientCount + 5);
 		assert.equal(engine.graph.nodes.transientNodes.has(engine.graph.masterAnalyser), false);
-		assert.ok([...engine.graph.nodes.transientNodes].some((node) => node.fftSize === 4_096));
+		assert.equal([...engine.graph.nodes.transientNodes].filter((node) => node.fftSize === 4_096).length, 2);
 		assert.equal(readings.at(-1).master.spectrumDb.length, 128);
 		assert.ok(readings.at(-1).master.stereoScope.length <= 64);
 		release();
