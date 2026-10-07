@@ -24,11 +24,11 @@ import PlaybackRecordingPreferencesPage from './PlaybackRecordingPreferencesPage
 import PreferenceDropdownField from './PreferenceDropdownField.jsx';
 import TrackDisplayPreferencesPage from './TrackDisplayPreferencesPage.jsx';
 import { ShortcutEditorRow } from './ShortcutEditorRow.tsx';
-import { collectAudacityShortcutCommands } from './workspace-preferences-shortcut-commands.ts';
+import { useShortcutCommands, useShortcutCommandGroups } from './useShortcutPresentation.ts';
+import { createShortcutDraftConflictIndex } from './shortcut-draft-conflict-index.ts';
 import { shortcutCategoryMessageKey } from './workspace-preferences-shortcut-categories.ts';
 import {
 	DEFAULT_SHORTCUT_SORT_MODE,
-	groupAudacityShortcutCommands,
 } from './workspace-preferences-shortcut-groups.ts';
 import {
 	WORKSPACE_DOCK_IDS,
@@ -58,17 +58,13 @@ export default function WorkspacePreferencesDialog({
 	const [shortcutSort, setShortcutSort] = useState(DEFAULT_SHORTCUT_SORT_MODE);
 	const [workspaceName, setWorkspaceName] = useState('');
 	const preferences = snapshot.preferences;
-	const commands = useMemo(() => collectAudacityShortcutCommands(menus, {
+	const commands = useShortcutCommands(menus, {
 		locale,
 		copy,
 		disabledCommandIds: productProfile(productId).shortcuts.disabledCommandIds,
-	}), [copy, locale, menus, productId]);
-	const shortcutGroups = useMemo(() => groupAudacityShortcutCommands(
-		commands.filter((command) => (
-			`${command.label} ${command.id}`.toLowerCase().includes(shortcutSearch.trim().toLowerCase())
-		)),
-		shortcutSort,
-	), [commands, shortcutSearch, shortcutSort]);
+	}, selectedPage === 'shortcuts');
+	const shortcutGroups = useShortcutCommandGroups(commands, shortcutSearch, shortcutSort);
+	const conflictFor = useMemo(() => selectedPage === 'shortcuts' ? createShortcutDraftConflictIndex(preferences.shortcuts) : undefined, [preferences.shortcuts, selectedPage]);
 	const activeCustom = preferences.workspace.custom.find((workspace) => workspace.id === preferences.workspace.activeId);
 	// Audacity's own page order, with the one page it has no counterpart for —
 	// Workspace, holding both the presets and the panel inventory — kept after
@@ -283,7 +279,7 @@ export default function WorkspacePreferencesDialog({
 										<Fragment key={group.id}>
 											{group.label && <h5 className="kw-audio-editor-preferences__shortcut-group" data-shortcut-group={group.id}
 												data-translation-key={group.id.startsWith('location:') ? shortcutCategoryMessageKey(group.id.slice('location:'.length)) : undefined}>{group.label}</h5>}
-											{group.commands.map((command) => <ShortcutEditorRow key={command.id} productId={productId} command={command} preferences={preferences} controller={controller} copy={copy} run={run} />)}
+										{group.commands.map((command) => <ShortcutEditorRow key={command.id} productId={productId} command={command} preferences={preferences} controller={controller} copy={copy} run={run} conflictFor={conflictFor} />)}
 										</Fragment>
 									))}
 								</div>
