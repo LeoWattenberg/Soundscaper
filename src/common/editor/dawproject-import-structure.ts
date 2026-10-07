@@ -30,7 +30,7 @@ export interface EnvelopePoint {
 export interface TrackBuild {
 	readonly id: string;
 	readonly name: string;
-	readonly gain: number;
+	gain: number;
 	readonly pan: number;
 	readonly mute: boolean;
 	readonly solo: boolean;
@@ -41,7 +41,7 @@ export interface TrackBuild {
 export interface StripBuild {
 	readonly id: string;
 	readonly name: string;
-	readonly gain: number;
+	gain: number;
 	readonly pan: number;
 	readonly mute: boolean;
 	readonly solo: boolean;
@@ -280,6 +280,9 @@ export function applyAutomation(events: readonly DawprojectAutomationEvent[], bu
 				? build.tracks.find((track) => track.id === target.id)
 				: [...build.groups, ...build.sends].find((candidate) => candidate.id === target.id);
 		if (!owner) continue;
+		// DAWproject automates the parameter itself, while this legacy envelope
+		// multiplies its static fader. Retire that multiplier before promotion.
+		owner.gain = 1;
 		owner.envelope = envelope;
 		if (held > 0) {
 			addDeliveryReportItem(build.draft, {

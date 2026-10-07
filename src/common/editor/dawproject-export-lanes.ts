@@ -322,7 +322,7 @@ export function buildStripAutomation(key: string, strip: DataRecord, context: Da
 		// The envelope is linear between points and flat after the last one.
 		const last = envelope.at(-1);
 		if (last) envelope[envelope.length - 1] = { ...last, interpolation: 'hold' };
-		if (envelope.length > 0) result.push(pointsElement(context, key, 'volume', 'linear', envelope, (value) => Math.max(0, value)));
+		if (envelope.length > 0) result.push(pointsElement(context, key, 'volume', 'linear', envelope, (value) => Math.max(0, value * finite(strip.gain, 1))));
 	}
 	const panLane = byParameter.get('pan');
 	if (panLane) {

@@ -208,7 +208,7 @@ test('channels become tracks with gain, pan, mute and solo, and the notes track 
 	const plan = importBitwig();
 	const tracks = plan.project.tracks as Record<string, unknown>[];
 	assert.deepEqual(tracks.map((track) => track.name), ['Drumloop']);
-	assert.equal(tracks[0]?.gain, 0.5);
+	assert.equal(tracks[0]?.gain, 1, 'absolute Volume points replace the static fader, rather than multiplying it');
 	assert.equal(tracks[0]?.pan, 0.5, 'normalized 0.75 is half right');
 	assert.equal(tracks[0]?.mute, false);
 	const master = plan.project.master as Record<string, unknown>;

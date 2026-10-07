@@ -49,7 +49,9 @@ test('Audacity interchange promotes exact V17 output into the baseline without w
 	assert.deepEqual(imported.opaqueExtensions, decoded.opaqueExtensions)
 	assert.deepEqual(imported.tracks[0]?.opaqueExtensions, decoded.tracks[0]?.opaqueExtensions)
 	assert.equal(Object.hasOwn(imported.tracks[0]!, 'envelope'), false)
-	assert.deepEqual(imported.automationLanes, [])
+	assert.equal(imported.automationLanes.length, 1)
+	assert.deepEqual(imported.automationLanes[0]!.address, { kind: 'strip', strip: { kind: 'track', id: 'voice' }, parameterId: 'gain' })
+	assert.deepEqual(imported.automationLanes[0]!.points.map(({ position, value }) => [position, value]), [[0, 0.75]])
 	assert.deepEqual(imported.mixer.edges.map(({ id }) => id), [
 		'assignment:track:voice:master',
 		'assignment:master:output:main',

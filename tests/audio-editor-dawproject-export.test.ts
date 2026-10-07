@@ -231,7 +231,7 @@ test('the volume envelope becomes Points on the channel volume parameter', () =>
 	assert.equal(points.attributes.unit, 'linear');
 	const volumeId = child(child(named(child(document, 'Structure'), 'Track', 'Vocals'), 'Channel'), 'Volume').attributes.id;
 	assert.equal(child(points, 'Target').attributes.parameter, volumeId);
-	assert.deepEqual(points.children.slice(1).map((point) => [point.attributes.time, point.attributes.value, point.attributes.interpolation]), [['0', '1', 'linear'], ['2', '0.5', 'hold']]);
+	assert.deepEqual(points.children.slice(1).map((point) => [point.attributes.time, point.attributes.value, point.attributes.interpolation]), [['0', '0.8', 'linear'], ['2', '0.4', 'hold']]);
 });
 
 test('V21 lanes take precedence and target pan in normalized units; lanes with no channel parameter are reported', () => {
