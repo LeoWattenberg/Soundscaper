@@ -1,3 +1,4 @@
+import { memo } from 'react';
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { LOCAL_ASSISTANCE_ADDITIONAL_COPY } from '../../../i18n/editor-local-assistance-additional-copy.ts';
@@ -22,7 +23,7 @@ export interface LocalAssistanceOutputReviewListProps {
 	readonly outputs: readonly LocalAssistanceReviewableOutput[];
 }
 
-export default function LocalAssistanceOutputReviewList({
+function LocalAssistanceOutputReviewList({
 	copy, outputs,
 }: LocalAssistanceOutputReviewListProps) {
 	return <ul className="kw-local-assistance__outputs">
@@ -34,6 +35,8 @@ export default function LocalAssistanceOutputReviewList({
 		</li>)}
 	</ul>;
 }
+
+export default memo(LocalAssistanceOutputReviewList);
 
 function SemanticReview({ copy, review }: Readonly<{
 	copy: Copy;

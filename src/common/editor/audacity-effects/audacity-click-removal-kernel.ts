@@ -8,26 +8,34 @@
  * adaptation was created for kw.media in 2026 and selects GPL version 3.
  */
 
+export function createAudacityClickRemovalWorkspace(length: number, separation: number) {
+	return {
+		squares: new Float64Array(length),
+		meanSquares: new Float64Array(length - separation),
+		prefix: new Float64Array(length + 1),
+	};
+}
+
 export function removeAudacityClicksFromWindowInPlace(
 	buffer: Float32Array,
 	threshold: number,
 	maximumWidth: number,
 	initialSeparation: number,
+	workspace?: ReturnType<typeof createAudacityClickRemovalWorkspace>,
 ): number {
 	const length = buffer.length;
 	const centerOffset = Math.floor(initialSeparation / 2);
 	let separation = 1;
 	while (separation < initialSeparation) separation *= 2;
-	const squares = new Float64Array(length);
-	const meanSquares = new Float64Array(length - separation);
-	const prefix = new Float64Array(length + 1);
+	const { squares, meanSquares, prefix } = workspace ?? createAudacityClickRemovalWorkspace(length, separation);
 	for (let index = 0; index < length; index += 1) {
 		const square = buffer[index]! * buffer[index]!;
 		squares[index] = square;
 		prefix[index + 1] = prefix[index]! + square;
 	}
 	for (let index = 0; index < meanSquares.length; index += 1) {
-		meanSquares[index] = (prefix[index + separation]! - prefix[index]!) / separation;
+		const mean = (prefix[index + separation]! - prefix[index]!) / separation;
+		meanSquares[index] = threshold * mean / 10;
 	}
 
 	let left = 0;
@@ -39,7 +47,7 @@ export function removeAudacityClicksFromWindowInPlace(
 				localMeanSquare += squares[index + centerOffset + offset]!;
 			}
 			localMeanSquare /= width;
-			if (localMeanSquare >= threshold * meanSquares[index]! / 10) {
+			if (localMeanSquare >= meanSquares[index]!) {
 				if (left === 0) left = index + centerOffset;
 				continue;
 			}

@@ -35,14 +35,28 @@ export function validateNoiseProfile(profile, sampleRate) {
 	}
 }
 
+export function prepareNoiseReductionGeometry(params, meanPowers) {
+	const sensitivity = params.sensitivity * Math.log(10);
+	const thresholds = Float64Array.from(meanPowers, power => sensitivity * power);
+	const radius = Math.floor(params.frequencySmoothingBands);
+	const first = radius > 0 ? new Int32Array(meanPowers.length) : null;
+	const end = radius > 0 ? new Int32Array(meanPowers.length) : null;
+	if (first) for (let bin = 0; bin < meanPowers.length; bin++) {
+		first[bin] = Math.max(0, bin - radius);
+		end[bin] = Math.min(meanPowers.length - 1, bin + radius) + 1;
+	}
+	return { thresholds, first, end };
+}
+
 export function reduceNoiseChannel(channel, sampleRate, params, meanPowers, window, attenuation,
-	normalization = noiseReductionNormalization(channel.length, window)) {
+	normalization = noiseReductionNormalization(channel.length, window),
+	geometry = prepareNoiseReductionGeometry(params, meanPowers)) {
 	const starts = paddedFrameStarts(channel.length, NOISE_WINDOW_SIZE, NOISE_HOP_SIZE);
 	const binCount = meanPowers.length;
 	const workspace = createPowerSpectrumWorkspace(window);
 	const powers = Array.from({ length: NOISE_STEPS_PER_WINDOW + 1 }, () => new Float32Array(binCount));
-	const gains = starts.map(() => new Float32Array(binCount));
-	const sensitivity = params.sensitivity * Math.log(10);
+	const gains = new Float32Array(starts.length * binCount);
+	const neighborSlots = new Int32Array(powers.length);
 	let nextPower = 0;
 
 	for (let frame = 0; frame < starts.length; frame += 1) {
@@ -52,11 +66,14 @@ export function reduceNoiseChannel(channel, sampleRate, params, meanPowers, wind
 			workspace.read(channel, starts[nextPower], powers[nextPower % powers.length]);
 			nextPower += 1;
 		}
+		const neighborCount = last - first + 1;
+		for (let neighbor = 0; neighbor < neighborCount; neighbor++) neighborSlots[neighbor] = (first + neighbor) % powers.length;
+		const frameOffset = frame * binCount;
 		for (let bin = 0; bin < binCount; bin += 1) {
 			let greatest = 0;
 			let secondGreatest = 0;
-			for (let neighbor = first; neighbor <= last; neighbor += 1) {
-				const power = powers[neighbor % powers.length][bin];
+			for (let neighbor = 0; neighbor < neighborCount; neighbor += 1) {
+				const power = powers[neighborSlots[neighbor]][bin];
 				if (power >= greatest) {
 					secondGreatest = greatest;
 					greatest = power;
@@ -64,7 +81,7 @@ export function reduceNoiseChannel(channel, sampleRate, params, meanPowers, wind
 					secondGreatest = power;
 				}
 			}
-			gains[frame][bin] = secondGreatest <= sensitivity * meanPowers[bin] ? attenuation : 1;
+			gains[frameOffset + bin] = secondGreatest <= geometry.thresholds[bin] ? attenuation : 1;
 		}
 	}
 
@@ -73,33 +90,29 @@ export function reduceNoiseChannel(channel, sampleRate, params, meanPowers, wind
 	const attackFactor = attenuation ** (1 / attackBlocks);
 	const releaseFactor = attenuation ** (1 / releaseBlocks);
 	for (let bin = 0; bin < binCount; bin += 1) {
-		for (let frame = 1; frame < gains.length; frame += 1) {
-			gains[frame][bin] = Math.max(gains[frame][bin], gains[frame - 1][bin] * releaseFactor);
+		for (let frame = 1; frame < starts.length; frame += 1) {
+			const index = frame * binCount + bin;
+			gains[index] = Math.max(gains[index], gains[index - binCount] * releaseFactor);
 		}
-		for (let frame = gains.length - 2; frame >= 0; frame -= 1) {
-			gains[frame][bin] = Math.max(gains[frame][bin], gains[frame + 1][bin] * attackFactor);
+		for (let frame = starts.length - 2; frame >= 0; frame -= 1) {
+			const index = frame * binCount + bin;
+			gains[index] = Math.max(gains[index], gains[index + binCount] * attackFactor);
 		}
 	}
 
-	const smoothingBins = Math.floor(params.frequencySmoothingBands);
-	if (smoothingBins > 0) {
+	if (geometry.first) {
 		const prefix = new Float64Array(binCount + 1);
-		for (const frameGains of gains) applyGeometricFrequencySmoothing(frameGains, smoothingBins, prefix);
+		for (let frame = 0; frame < starts.length; frame++) applyGeometricFrequencySmoothing(gains, frame * binCount, binCount, geometry, prefix);
 	}
 
 	const accumulated = new Float64Array(channel.length);
 	const { real, imaginary } = workspace;
 	for (let frame = 0; frame < starts.length; frame += 1) {
 		const start = starts[frame];
-		real.fill(0);
-		imaginary.fill(0);
-		for (let index = 0; index < NOISE_WINDOW_SIZE; index += 1) {
-			const sourceIndex = start + index;
-			if (sourceIndex >= 0 && sourceIndex < channel.length) real[index] = channel[sourceIndex] * window[index];
-		}
+		workspace.load(channel, start);
 		fft(real, imaginary, false);
 		for (let bin = 0; bin <= NOISE_WINDOW_SIZE / 2; bin += 1) {
-			const gain = gains[frame][bin];
+			const gain = gains[frame * binCount + bin];
 			real[bin] *= gain;
 			imaginary[bin] *= gain;
 			if (bin > 0 && bin < NOISE_WINDOW_SIZE / 2) {
@@ -108,9 +121,10 @@ export function reduceNoiseChannel(channel, sampleRate, params, meanPowers, wind
 			}
 		}
 		fft(real, imaginary, true);
-		for (let index = 0; index < NOISE_WINDOW_SIZE; index += 1) {
+		const firstOutput = Math.max(0, -start);
+		const endOutput = Math.min(NOISE_WINDOW_SIZE, channel.length - start);
+		for (let index = firstOutput; index < endOutput; index += 1) {
 			const outputIndex = start + index;
-			if (outputIndex < 0 || outputIndex >= channel.length) continue;
 			accumulated[outputIndex] += real[index] * window[index];
 		}
 	}
@@ -120,21 +134,20 @@ export function reduceNoiseChannel(channel, sampleRate, params, meanPowers, wind
 		reduced[frame] = normalization[frame] > 1e-12 ? accumulated[frame] / normalization[frame] : channel[frame];
 	}
 	if (params.output === 'reduce') return reduced;
-	const residue = new Float32Array(channel.length);
 	// Audacity's NRC_LEAVE_RESIDUE multiplies by gain - 1, so its residue
 	// has inverted polarity: reduced - original.
-	for (let frame = 0; frame < residue.length; frame += 1) residue[frame] = reduced[frame] - channel[frame];
-	return residue;
+	for (let frame = 0; frame < reduced.length; frame += 1) reduced[frame] = reduced[frame] - channel[frame];
+	return reduced;
 }
 
-function applyGeometricFrequencySmoothing(gains, radius, prefix) {
-	for (let bin = 0; bin < gains.length; bin += 1) {
-		prefix[bin + 1] = prefix[bin] + Math.log(gains[bin]);
+function applyGeometricFrequencySmoothing(gains, offset, binCount, geometry, prefix) {
+	for (let bin = 0; bin < binCount; bin += 1) {
+		prefix[bin + 1] = prefix[bin] + Math.log(gains[offset + bin]);
 	}
-	for (let bin = 0; bin < gains.length; bin += 1) {
-		const first = Math.max(0, bin - radius);
-		const last = Math.min(gains.length - 1, bin + radius);
-		gains[bin] = Math.exp((prefix[last + 1] - prefix[first]) / (last - first + 1));
+	for (let bin = 0; bin < binCount; bin += 1) {
+		const first = geometry.first[bin];
+		const end = geometry.end[bin];
+		gains[offset + bin] = Math.exp((prefix[end] - prefix[first]) / (end - first));
 	}
 }
 
@@ -146,21 +159,27 @@ export function createPowerSpectrumWorkspace(window) {
 	const size = window.length;
 	const real = new Float64Array(size);
 	const imaginary = new Float64Array(size);
-	return {
-		real,
-		imaginary,
-		read(channel, start, powers = new Float32Array(size / 2 + 1)) {
-			real.fill(0);
+	const workspace = {
+		real, imaginary,
+		load(channel, start) {
+			const first = Math.min(size, Math.max(0, -start));
+			const end = Math.max(first, Math.min(size, channel.length - start));
+			real.fill(0, 0, first);
+			real.fill(0, end);
 			imaginary.fill(0);
-			for (let index = 0; index < size; index += 1) {
+			for (let index = first; index < end; index += 1) {
 				const sourceIndex = start + index;
-				if (sourceIndex >= 0 && sourceIndex < channel.length) real[index] = channel[sourceIndex] * window[index];
+				real[index] = channel[sourceIndex] * window[index];
 			}
+		},
+		read(channel, start, powers = new Float32Array(size / 2 + 1)) {
+			workspace.load(channel, start);
 			fft(real, imaginary, false);
 			for (let bin = 0; bin < powers.length; bin += 1) powers[bin] = real[bin] ** 2 + imaginary[bin] ** 2;
 			return powers;
 		},
 	};
+	return workspace;
 }
 
 export function noiseReductionNormalization(frameCount, window) {

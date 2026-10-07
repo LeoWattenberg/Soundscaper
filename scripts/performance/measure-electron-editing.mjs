@@ -1,19 +1,22 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 // Run after desktop preparation: xvfb-run -a node --import tsx scripts/performance/measure-electron-editing.mjs
 // Add --extended after the output path to include Chirp, Normalize and dense timeline gestures.
+// Add --round3 to include Click Removal, Noise gate and Loudness Normalization as well.
 // Fresh profiles and real desktop bridge; no CPU throttling or application stubs.
 import { _electron as electron, expect } from '@playwright/test';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { cpus, freemem, loadavg, tmpdir, totalmem } from 'node:os';
 import { join, resolve } from 'node:path';
-import { cpus } from 'node:os';
+import { execFileSync } from 'node:child_process';
 
 import {
 	chooseCommandAction, chooseNestedCommandAction,
 } from '../../tests/browser/audio-editor-test-helpers.js';
 
 const output = resolve(process.argv[2] ?? 'test-results/editing-performance/electron.json');
-const extended = process.argv.includes('--extended');
+const round3 = process.argv.includes('--round3');
+const extended = round3 || process.argv.includes('--extended');
+const hostStart = { time: new Date().toISOString(), loadAverage: loadavg(), freeBytes: freemem(), totalBytes: totalmem() };
 const profile = await mkdtemp(join(tmpdir(), 'soundscaper-editing-performance-'));
 const environment = { ...process.env };
 delete environment.ELECTRON_RUN_AS_NODE;
@@ -69,10 +72,14 @@ try {
 			await expect(editor).toHaveAttribute('data-clip-count', '1');
 		}
 	}
-	for (const effect of extended ? ['Amplify', 'Compressor', 'Normalize'] : ['Amplify', 'Compressor']) {
+	const effects = extended ? ['Amplify', 'Compressor', 'Normalize'] : ['Amplify', 'Compressor'];
+	if (round3) effects.push('Click Removal', 'Noise gate', 'Loudness Normalization');
+	for (const effect of effects) {
 		for (let trial = 0; trial < 3; trial += 1) {
 			await chooseCommandAction(page, editor, 'Select', 'Select all');
-			await chooseNestedCommandAction(page, editor, 'Effect', ['Volume and compression', effect]);
+			const group = effect === 'Click Removal' || effect === 'Noise gate'
+				? 'Noise removal and repair' : 'Volume and compression';
+			await chooseNestedCommandAction(page, editor, 'Effect', [group, effect]);
 			const dialog = page.getByRole('dialog', { name: 'Apply effect', exact: true });
 			await armOperation(page, 'Apply to selection', '[data-editor-surface="selection-effect"]');
 			await dialog.getByRole('button', { name: 'Apply to selection', exact: true }).click();
@@ -108,7 +115,10 @@ try {
 	}
 	expect(errors).toEqual([]);
 	const report = { node: process.version, platform: process.platform, arch: process.arch,
+		revision: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: process.cwd(), encoding: 'utf8' }).trim(),
 		cpu: cpus()[0]?.model, logicalCpus: cpus().length, runtime, viewport, preference: 'speed', extended,
+		round3, hostStart,
+		hostEnd: { time: new Date().toISOString(), loadAverage: loadavg(), freeBytes: freemem(), totalBytes: totalmem() },
 		method: 'Actual Electron development app with freshly staged production renderer and real preload/SQLite/PCM path. First trial includes first-use processing engines; subsequent trials are warm. Capture click to dialog closed, success status, cleared waveform pending state, explicit successful canvas paint and two animation frames. Xvfb RAF gaps are a renderer responsiveness proxy, not GPU presentation FPS. Startup excluded.',
 		results };
 	await writeFile(output, JSON.stringify(report, null, '\t') + '\n');

@@ -1,0 +1,1033 @@
+{
+  "schemaVersion": 1,
+  "scope": "Thirty new production responsiveness/render-speed DSP costs removed after the merged prior 100. Startup, the prior 74 implemented findings, all round-two 100 findings, unused helpers and bug fixes are excluded.",
+  "baseRevision": "1e1aa842ee685ba03d536adec146139e85fe2ed5",
+  "count": 30,
+  "requiresManualAiAssets": false,
+  "runtimeClosure": "Existing application DSP files only. No new desktop runtime inventory entries, assistance runtime source/pins/recipes/archives/targets, dependency pins or StaffPad native/WASM bytes changed.",
+  "parity": {
+    "fixture": "tests/fixtures/dsp-round3-parity.json",
+    "cases": 123,
+    "provenance": "Independent esbuild bundle of /tmp/Soundscaper-perf-200-baseline captured before production edits, with all editor imports redirected to baseRevision; current helper executes the same scenarios against production sources.",
+    "additionalAdversarialCases": 104,
+    "additionalAdversarialEvidence": "Independent baseline/current bundles compared raw bytes across 1/31/511/512/513/2047/2048/2049/4097/8193-frame spectral and noise edges, arbitrary hop 7, maximal finite words, signed zero/subnormals, finite-overflow Paulstretch/Click Removal, sanitized NaN/Infinity Bitcrusher/Gate, irregular partitions and live parameter changes.",
+    "focusedTests": 334,
+    "ownership": "All new scratch/geometry is invocation-local and synchronous. Returned PCM remains private. Queue producer chunks are copied before mutation/detachment; consumed chunks release. Workers, cancellation fences, source ownership and native StaffPad processing are unchanged.",
+    "independentReviewCases": 135,
+    "independentReviewEvidence": "Independent timeline agent reran all 123 frozen hashes and 104 raw adversarial cases, then added 135 production partition/state/caller-PCM/queue-ownership comparisons. All matched exactly; review covered threshold rounding, Paulstretch ring/seed order, noise gains/geometry, FFT owned history overwrite, bounded Tremolo range, normalized gate updates, Vocoder envelope-only redesign and cubic/RNG mode/reset. No confirmed correctness, unused-path or old-ledger overlap issue across the thirty findings."
+  },
+  "findings": [
+    {
+      "number": 1,
+      "id": "dsp3-01-click-owned-window",
+      "title": "Reuse one private Click Removal PCM window",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/audacity-effects/spectral.js",
+          "line": 66
+        }
+      ],
+      "avoidedCost": "Overlapping windows reuse one 8192-frame PCM buffer, clearing only uncopied tail frames.",
+      "evidence": "The 20113-frame stereo fixture allocates one scratch window instead of eight.",
+      "tests": [
+        "tests/audio-editor-round3-spectral-performance.test.ts",
+        "tests/audio-editor-round3-dsp-exact-parity.test.ts"
+      ],
+      "limitations": "Caller PCM is copied before the destructive window kernel; separation and write-back order remain unchanged.",
+      "productionCaller": "src/common/editor/audacity-effects/index.js"
+    },
+    {
+      "number": 2,
+      "id": "dsp3-02-click-detector-workspace",
+      "title": "Reuse Click Removal detector squares, means and prefix scratch",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/audacity-effects/audacity-click-removal-kernel.ts",
+          "line": 11
+        }
+      ],
+      "avoidedCost": "One invocation-local workspace replaces three new Float64 buffers for each destructive window.",
+      "evidence": "The same fixture allocates three detector arrays instead of twenty-four.",
+      "tests": [
+        "tests/audio-editor-round3-spectral-performance.test.ts",
+        "tests/audio-editor-round3-dsp-exact-parity.test.ts"
+      ],
+      "limitations": "The public standalone kernel still allocates its own workspace when none is supplied; no cross-invocation cache.",
+      "productionCaller": "src/common/editor/audacity-effects/index.js"
+    },
+    {
+      "number": 3,
+      "id": "dsp3-03-click-detection-threshold",
+      "title": "Prepare each Click Removal mean-power threshold once per window",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/audacity-effects/audacity-click-removal-kernel.ts",
+          "line": 38
+        }
+      ],
+      "avoidedCost": "Every width detector reuses the original threshold-times-mean/division result rather than recalculating it for each width.",
+      "evidence": "At maximumWidth 20, each of 4096 mean thresholds is calculated once instead of three times per window; PCM hashes retain exact arithmetic.",
+      "tests": [
+        "tests/audio-editor-round3-spectral-performance.test.ts",
+        "tests/audio-editor-round3-dsp-exact-parity.test.ts"
+      ],
+      "limitations": "Float64 mean rounding, threshold multiplication/division order, and width traversal stay unchanged.",
+      "productionCaller": "src/common/editor/audacity-effects/index.js"
+    },
+    {
+      "number": 4,
+      "id": "dsp3-04-paulstretch-overlap-normalization",
+      "title": "Share channel-independent Paulstretch overlap normalization",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/audacity-effects/spectral.js",
+          "line": 300
+        }
+      ],
+      "avoidedCost": "The identical output overlap weights are accumulated once per job instead of once per channel.",
+      "evidence": "Three-channel fixture now has one full-length normalization allocation rather than three.",
+      "tests": [
+        "tests/audio-editor-round3-spectral-performance.test.ts",
+        "tests/audio-editor-round3-dsp-exact-parity.test.ts"
+      ],
+      "limitations": "Every normalization sum retains its original window and tap order.",
+      "productionCaller": "src/common/editor/audacity-effects/index.js"
+    },
+    {
+      "number": 5,
+      "id": "dsp3-05-paulstretch-accumulation-ring",
+      "title": "Bound Paulstretch accumulation to the FFT window",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/audacity-effects/spectral.js",
+          "line": 313
+        }
+      ],
+      "avoidedCost": "Completed samples are emitted and their slots recycled, removing one output-length Float64 accumulation buffer per channel.",
+      "evidence": "The three-channel fixture has no full-length accumulation arrays; scratch is 256 frames per channel rather than 7105.",
+      "tests": [
+        "tests/audio-editor-round3-spectral-performance.test.ts",
+        "tests/audio-editor-round3-dsp-exact-parity.test.ts"
+      ],
+      "limitations": "Output PCM and one shared full-length normalization remain proportional to duration; seeded FFT/RNG and Float32 fade rounding are unchanged.",
+      "productionCaller": "src/common/editor/audacity-effects/index.js"
+    },
+    {
+      "number": 6,
+      "id": "dsp3-06-paulstretch-window-bounds",
+      "title": "Prepare Paulstretch input/output window bounds before sample loops",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/audacity-effects/spectral.js",
+          "line": 324
+        }
+      ],
+      "avoidedCost": "Valid intervals replace per-tap source/destination range branches, and only padded input edges are cleared.",
+      "evidence": "Six Paulstretch frozen fixtures plus huge-finite/edge differential cases preserve exact bytes.",
+      "tests": [
+        "tests/audio-editor-round3-dsp-exact-parity.test.ts"
+      ],
+      "limitations": "Interior samples are fully overwritten before FFT; no arithmetic reassociation.",
+      "productionCaller": "src/common/editor/audacity-effects/index.js"
+    },
+    {
+      "number": 7,
+      "id": "dsp3-07-noise-residue-owned-output",
+      "title": "Write Noise Reduction residue into its rounded private output",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/audacity-effects/spectral-noise-reduction.js",
+          "line": 139
+        }
+      ],
+      "avoidedCost": "Residue no longer allocates another complete PCM result after producing reduced audio.",
+      "evidence": "Two-channel residue output allocations fall from four to two.",
+      "tests": [
+        "tests/audio-editor-round3-spectral-performance.test.ts",
+        "tests/audio-editor-round3-dsp-exact-parity.test.ts"
+      ],
+      "limitations": "Reduced values still round to Float32 before original samples are subtracted.",
+      "productionCaller": "src/common/editor/audacity-effects/index.js"
+    },
+    {
+      "number": 8,
+      "id": "dsp3-08-spectral-edit-shared-normalization",
+      "title": "Share spectral-edit overlap normalization across channels",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/spectral-edit.js",
+          "line": 184
+        }
+      ],
+      "avoidedCost": "Gain/replacement compute their channel-independent denominator once instead of per channel.",
+      "evidence": "Selected-range Float64 normalization allocations fall from three to one in a three-channel fixture.",
+      "tests": [
+        "tests/audio-editor-round3-spectral-performance.test.ts",
+        "tests/audio-editor-round3-dsp-exact-parity.test.ts"
+      ],
+      "limitations": "Counted once across gain and replacement; exact sum order and untouched-time bytes are preserved.",
+      "productionCaller": "src/common/editor/audacity-effects/index.js"
+    },
+    {
+      "number": 9,
+      "id": "dsp3-09-spectral-edit-sequential-scratch",
+      "title": "Reuse spectral-edit accumulation and FFT scratch between channels",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/spectral-edit.js",
+          "line": 44
+        }
+      ],
+      "avoidedCost": "Sequential channels reuse one accumulator and one/two transform pairs rather than allocate those arrays per channel.",
+      "evidence": "Three-channel gain uses two range-sized Float64 arrays and three window-sized arrays; replacement uses two and five.",
+      "tests": [
+        "tests/audio-editor-round3-spectral-performance.test.ts",
+        "tests/audio-editor-round3-dsp-exact-parity.test.ts"
+      ],
+      "limitations": "Invocation-local scratch is cleared/overwritten before reuse; returned channels remain independently owned.",
+      "productionCaller": "src/common/editor/audacity-effects/index.js"
+    },
+    {
+      "number": 10,
+      "id": "dsp3-10-spectral-edit-window-bounds",
+      "title": "Bound spectral-edit sample loops and clear only padding",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/spectral-edit.js",
+          "line": 51
+        }
+      ],
+      "avoidedCost": "Prepared input/output intersections remove per-tap boundary checks and redundant full real-array clears.",
+      "evidence": "All 24 spectral gain/replacement hashes and arbitrary-hop/huge-finite edge cases remain byte-identical.",
+      "tests": [
+        "tests/audio-editor-round3-dsp-exact-parity.test.ts"
+      ],
+      "limitations": "One shared optimization across gain/replacement; imaginary spectra still clear fully before each forward FFT.",
+      "productionCaller": "src/common/editor/audacity-effects/index.js"
+    },
+    {
+      "number": 11,
+      "id": "dsp3-11-noise-threshold-geometry",
+      "title": "Prepare Noise Reduction detector thresholds once for the selection",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/audacity-effects/spectral-noise-reduction.js",
+          "line": 40
+        }
+      ],
+      "avoidedCost": "Sensitivity-times-profile power is constant per bin and shared across all time windows/channels.",
+      "evidence": "1025 original products per channel-window become 1025 products per admitted job.",
+      "tests": [
+        "tests/audio-editor-round3-dsp-exact-parity.test.ts"
+      ],
+      "limitations": "Profile validation is retained; geometry is invocation-local so mutable profile changes in a later call cannot be stale.",
+      "productionCaller": "src/common/editor/audacity-effects/index.js"
+    },
+    {
+      "number": 12,
+      "id": "dsp3-12-noise-contiguous-gains",
+      "title": "Store Noise Reduction frame gains in one contiguous buffer",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/audacity-effects/spectral-noise-reduction.js",
+          "line": 58
+        }
+      ],
+      "avoidedCost": "One backing buffer replaces a new Float32 buffer and gain row for every analysis window.",
+      "evidence": "The 5099-frame stereo fixture reduces spectrum-sized Float32 allocations from 36 to 10; only five detector slots per channel remain.",
+      "tests": [
+        "tests/audio-editor-round3-spectral-performance.test.ts",
+        "tests/audio-editor-round3-dsp-exact-parity.test.ts"
+      ],
+      "limitations": "Every gain assignment retains Float32 rounding and original attack/release traversal order.",
+      "productionCaller": "src/common/editor/audacity-effects/index.js"
+    },
+    {
+      "number": 13,
+      "id": "dsp3-13-noise-smoothing-boundaries",
+      "title": "Prepare Noise Reduction smoothing bin neighborhoods once",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/audacity-effects/spectral-noise-reduction.js",
+          "line": 41
+        }
+      ],
+      "avoidedCost": "Clamped left/right smoothing neighborhoods are fixed per bin, removing repeated min/max and interval-width setup for every frame/channel.",
+      "evidence": "The 0/6/12-band smoothing hashes and padded-edge fixtures match exactly.",
+      "tests": [
+        "tests/audio-editor-round3-dsp-exact-parity.test.ts"
+      ],
+      "limitations": "Prefix-log and geometric-mean evaluation order remain unchanged; zero smoothing avoids allocating neighborhood arrays.",
+      "productionCaller": "src/common/editor/audacity-effects/index.js"
+    },
+    {
+      "number": 14,
+      "id": "dsp3-14-noise-detector-neighbor-slots",
+      "title": "Prepare Noise Reduction detector ring slots once per frame",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/audacity-effects/spectral-noise-reduction.js",
+          "line": 59
+        }
+      ],
+      "avoidedCost": "The same neighboring spectrum positions serve all 1025 bins, avoiding repeated remainder arithmetic in every neighbor/bin comparison.",
+      "evidence": "At most five remainder operations per detector frame replace up to 5125; all profile/reduction hashes remain exact.",
+      "tests": [
+        "tests/audio-editor-round3-dsp-exact-parity.test.ts"
+      ],
+      "limitations": "Neighbor ordering and second-greatest tie behavior remain unchanged.",
+      "productionCaller": "src/common/editor/audacity-effects/index.js"
+    },
+    {
+      "number": 15,
+      "id": "dsp3-15-noise-window-bounds",
+      "title": "Load bounded Noise Reduction/profile windows and clear only padding",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/audacity-effects/spectral-noise-reduction.js",
+          "line": 112
+        }
+      ],
+      "avoidedCost": "A shared input loader overwrites valid taps and clears padded edges; resynthesis also iterates only valid output taps.",
+      "evidence": "Noise profile/reduction hashes and 1/31/511/512/513/2047/2048/2049-frame differential cases preserve exact bytes.",
+      "tests": [
+        "tests/audio-editor-round3-dsp-exact-parity.test.ts"
+      ],
+      "limitations": "Counted once across profile, detector and resynthesis; full imaginary clears remain required.",
+      "productionCaller": "src/common/editor/audacity-effects/index.js"
+    },
+    {
+      "number": 16,
+      "id": "dsp3-16-spectral-unboxed-queues",
+      "title": "Keep owned typed spectral queue chunks instead of boxed samples",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/audacity-effects/live-processor-base.js",
+          "line": 55
+        }
+      ],
+      "avoidedCost": "Native PCM chunk copies avoid one JavaScript push/boxing per sample and periodic copying of retained audio samples. Consumed chunks release immediately.",
+      "evidence": "4096-frame typed push visits zero JavaScript sample iterator entries instead of 4096; detached-buffer/double-precision/chunk-retirement tests pass.",
+      "tests": [
+        "tests/audio-editor-round3-live-dsp-performance.test.ts",
+        "tests/audio-editor-round3-dsp-exact-parity.test.ts"
+      ],
+      "limitations": "Producer scratch is copied synchronously before it can be mutated or detached; generic iterable values retain Array.from semantics.",
+      "productionCaller": "src/common/editor/audacity-effects/live-spectral-processors.js"
+    },
+    {
+      "number": 17,
+      "id": "dsp3-17-legacy-peak-rms-history",
+      "title": "Omit unused Legacy peak-detector RMS history",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/audacity-effects/basic-dynamics.js",
+          "line": 94
+        }
+      ],
+      "avoidedCost": "Peak-only selections never use the100-frame RMS ring and no longer allocate/zero it.",
+      "evidence": "A3089-frame peak fixture allocates only its3089-frame Float64 envelope rather than an additional100-frame ring.",
+      "tests": [
+        "tests/audio-editor-round3-live-dsp-performance.test.ts",
+        "tests/audio-editor-round3-dsp-exact-parity.test.ts"
+      ],
+      "limitations": "RMS mode retains its original ring and sample arithmetic.",
+      "productionCaller": "src/common/editor/audacity-effects/index.js"
+    },
+    {
+      "number": 18,
+      "id": "dsp3-18-legacy-fixed-output-numerator",
+      "title": "Select Legacy output numerator before the PCM loop",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/audacity-effects/basic-dynamics.js",
+          "line": 129
+        }
+      ],
+      "avoidedCost": "The fixed detector choice no longer repeats the numerator branch for every emitted sample.",
+      "evidence": "Eight peak/RMS/normalization/ratio baseline hashes retain exact output.",
+      "tests": [
+        "tests/audio-editor-round3-dsp-exact-parity.test.ts"
+      ],
+      "limitations": "No division/exponent reassociation and no neutral-ratio shortcut; malformed direct inputs keep original calculations.",
+      "productionCaller": "src/common/editor/audacity-effects/index.js"
+    },
+    {
+      "number": 19,
+      "id": "dsp3-19-loudness-shared-filter-design",
+      "title": "Design linked loudness weighting coefficients once per job",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/audacity-effects/basic-loudness.js",
+          "line": 47
+        }
+      ],
+      "avoidedCost": "Identical K-weighting coefficient design is shared across channels while histories stay private.",
+      "evidence": "Three-channel linked loudness tangent calls fall from six to two.",
+      "tests": [
+        "tests/audio-editor-round3-live-dsp-performance.test.ts",
+        "tests/audio-editor-round3-dsp-exact-parity.test.ts"
+      ],
+      "limitations": "Each channel still has separate shelf/high-pass state and original Float32 filter rounding.",
+      "productionCaller": "src/common/editor/audacity-effects/index.js"
+    },
+    {
+      "number": 20,
+      "id": "dsp3-20-filter-unused-trigonometry",
+      "title": "Skip unused first-order and neutral-shelf filter trigonometry",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/first-party-effects/standard/filters-coefficients.ts",
+          "line": 16
+        }
+      ],
+      "avoidedCost": "First-order filters need only tangent and neutral shelves need identity coefficients; sine/cosine are no longer evaluated before those returns.",
+      "evidence": "Three admitted first-order/neutral-shelf designs produce zero sine/cosine calls instead of three each.",
+      "tests": [
+        "tests/audio-editor-round3-live-dsp-performance.test.ts",
+        "tests/audio-editor-round3-dsp-exact-parity.test.ts"
+      ],
+      "limitations": "Parameter/Nyquist validation remains in the owning processor; other biquads retain original coefficient equations.",
+      "productionCaller": "src/common/editor/first-party-effects/standard/dsp.ts"
+    },
+    {
+      "number": 21,
+      "id": "dsp3-21-tremolo-phase-wrap",
+      "title": "Advance admitted Tremolo phase with a bounded wrap",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/first-party-effects/standard/tremolo-dsp.ts",
+          "line": 52
+        }
+      ],
+      "avoidedCost": "Phase plus the bounded admitted frequency increment needs at most one subtraction rather than a floor every frame.",
+      "evidence": "3089 output frames cause zero phase-floor calls; fifteen waveform/partition hashes remain exact.",
+      "tests": [
+        "tests/audio-editor-round3-live-dsp-performance.test.ts",
+        "tests/audio-editor-round3-dsp-exact-parity.test.ts"
+      ],
+      "limitations": "Reset still normalizes phase with floor. The previously slower indirect waveform dispatcher was reverted and is excluded.",
+      "productionCaller": "src/common/editor/first-party-effects/standard/dsp.ts"
+    },
+    {
+      "number": 22,
+      "id": "dsp3-22-noise-gate-unchanged-design",
+      "title": "Reuse Noise Gate coefficients after equivalent normalized updates",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/first-party-effects/standard/noise-gate-dsp.ts",
+          "line": 49
+        }
+      ],
+      "avoidedCost": "Identical admitted controls preserve detector/crossover state without recomputing threshold, floor and release coefficients.",
+      "evidence": "Equivalent string/number update produces zero release exponentials; changed release produces one.",
+      "tests": [
+        "tests/audio-editor-round3-live-dsp-performance.test.ts",
+        "tests/audio-editor-round3-dsp-exact-parity.test.ts"
+      ],
+      "limitations": "Validation precedes reuse; raw merged parameters remain current so implicit lookahead defaults and later partial updates retain behavior.",
+      "productionCaller": "src/common/editor/first-party-effects/standard/dsp.ts"
+    },
+    {
+      "number": 23,
+      "id": "dsp3-23-noise-gate-attack-normalization",
+      "title": "Retain the fixed Noise Gate attack normalization",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/first-party-effects/standard/noise-gate-dsp.ts",
+          "line": 12
+        }
+      ],
+      "avoidedCost": "The expm1(-1) attack denominator is shared instead of repeated for every opening sample/channel.",
+      "evidence": "An opening fixture evaluates the fixed denominator zero times after module initialization.",
+      "tests": [
+        "tests/audio-editor-round3-live-dsp-performance.test.ts",
+        "tests/audio-editor-round3-dsp-exact-parity.test.ts"
+      ],
+      "limitations": "Progress numerator and attack/hold/release state arithmetic are unchanged.",
+      "productionCaller": "src/common/editor/first-party-effects/standard/dsp.ts"
+    },
+    {
+      "number": 24,
+      "id": "dsp3-24-fixed-gate-crossover-allocation",
+      "title": "Avoid constructing crossovers for fixed full-band selection gates",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/first-party-effects/standard/noise-gate-dsp.ts",
+          "line": 51
+        }
+      ],
+      "avoidedCost": "Fixed gateFrequency 0 jobs cannot change frequency and never use crossover history, so they omit two crossover objects and their arrays.",
+      "evidence": "Three-channel fixed full-band fixture allocates four Float64 detector arrays instead of eight.",
+      "tests": [
+        "tests/audio-editor-round3-live-dsp-performance.test.ts",
+        "tests/audio-editor-round3-dsp-exact-parity.test.ts"
+      ],
+      "limitations": "This is new allocation/design avoidance beyond the prior audit\u2019s omitted tick/low work. Live gates retain crossover history for later frequency changes.",
+      "productionCaller": "src/common/editor/first-party-effects/standard/dsp.ts"
+    },
+    {
+      "number": 25,
+      "id": "dsp3-25-vocoder-distance-envelope-design",
+      "title": "Redesign only Vocoder envelopes when distance changes",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/first-party-effects/standard/vocoder-dsp.ts",
+          "line": 71
+        }
+      ],
+      "avoidedCost": "Envelope distance leaves analysis/carrier/synthesis centers and oscillator rotations unchanged, so those filters/trigonometric rotations are retained.",
+      "evidence": "After independently preparing fixed Q values, a 12-band distance update uses 48 angular cosines instead of the full-bank 96. The separate fixed-Q saving is recorded by finding 26.",
+      "tests": [
+        "tests/audio-editor-round3-live-dsp-performance.test.ts",
+        "tests/audio-editor-round3-dsp-exact-parity.test.ts"
+      ],
+      "limitations": "Changed band count still redesigns/reset the full bank; envelope state is preserved as before.",
+      "productionCaller": "src/common/editor/first-party-effects/standard/dsp.ts"
+    },
+    {
+      "number": 26,
+      "id": "dsp3-26-vocoder-fixed-pole-q",
+      "title": "Prepare fixed Vocoder envelope pole Q values once",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/first-party-effects/standard/vocoder-dsp.ts",
+          "line": 6
+        }
+      ],
+      "avoidedCost": "The four Butterworth Q values are identical for every band/update, avoiding repeated fixed-angle cosines.",
+      "evidence": "12-band initialization uses96 angular cosines instead of144; Q values are computed four times at module initialization.",
+      "tests": [
+        "tests/audio-editor-round3-live-dsp-performance.test.ts",
+        "tests/audio-editor-round3-dsp-exact-parity.test.ts"
+      ],
+      "limitations": "No envelope/filter recurrence changes; independently owned biquad states remain private.",
+      "productionCaller": "src/common/editor/first-party-effects/standard/dsp.ts"
+    },
+    {
+      "number": 27,
+      "id": "dsp3-27-eq-direct-history-fft",
+      "title": "Transform live EQ input directly into its retained spectrum slot",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/audacity-effects/live-spectral-processors.js",
+          "line": 145
+        }
+      ],
+      "avoidedCost": "The next history slot is the FFT destination, removing two input-spectrum scratch arrays and two full-spectrum copies per partition.",
+      "evidence": "The 12817-frame stereo fixture removes 400 Float64 spectrum set calls.",
+      "tests": [
+        "tests/audio-editor-round3-partition-dsp-performance.test.ts",
+        "tests/audio-editor-round3-dsp-exact-parity.test.ts"
+      ],
+      "limitations": "Only the oldest unneeded slot is overwritten; partition sum order and inverse rounding remain exact.",
+      "productionCaller": "src/common/editor/audacity-effects/live.js"
+    },
+    {
+      "number": 28,
+      "id": "dsp3-28-eq-overwritten-input-clear",
+      "title": "Omit clearing live EQ input that the next partition overwrites",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/audacity-effects/live-spectral-processors.js",
+          "line": 179
+        }
+      ],
+      "avoidedCost": "A full input partition rewrites every frame before processing, so its post-processing zero fill is redundant.",
+      "evidence": "The same stereo fixture removes 200 128-frame input fills.",
+      "tests": [
+        "tests/audio-editor-round3-partition-dsp-performance.test.ts",
+        "tests/audio-editor-round3-dsp-exact-parity.test.ts"
+      ],
+      "limitations": "Partial partitions never FFT until complete; reset still replaces state with zeroed owned arrays.",
+      "productionCaller": "src/common/editor/audacity-effects/live.js"
+    },
+    {
+      "number": 29,
+      "id": "dsp3-29-bitcrusher-unused-position",
+      "title": "Skip unused Bitcrusher interpolation position geometry",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/first-party-effects/bitcrusher/dsp.js",
+          "line": 231
+        }
+      ],
+      "avoidedCost": "Sample-hold and smooth reconstruction never read interpolation position and omit its division/clamp per frame.",
+      "evidence": "3089 frames in each of two modes cause zero position Math.min calls instead of 6178.",
+      "tests": [
+        "tests/audio-editor-round3-partition-dsp-performance.test.ts",
+        "tests/audio-editor-round3-dsp-exact-parity.test.ts"
+      ],
+      "limitations": "Held age, RNG advance, quantizer and smooth history continue unchanged for later mode updates.",
+      "productionCaller": "src/common/editor/first-party-effects/bitcrusher/dsp.js"
+    },
+    {
+      "number": 30,
+      "id": "dsp3-30-bitcrusher-shared-cubic-basis",
+      "title": "Share Bitcrusher cubic position basis across channels",
+      "status": "implemented",
+      "source": [
+        {
+          "file": "src/common/editor/first-party-effects/bitcrusher/dsp.js",
+          "line": 237
+        }
+      ],
+      "avoidedCost": "Cubic powers and four position-only Hermite factors are calculated once per frame rather than once per reconstructed channel.",
+      "evidence": "Twenty dither/reconstruction/update hashes and partition/reset tests retain exact PCM; 8-channel basis calculations decrease eightfold.",
+      "tests": [
+        "tests/audio-editor-round3-partition-dsp-performance.test.ts",
+        "tests/audio-editor-round3-dsp-exact-parity.test.ts"
+      ],
+      "limitations": "Channel tangents/mix and original polynomial evaluation order remain unchanged. Direct calls use local numeric arguments; slower indirect dispatcher forms were reverted. Warm whole-processor timing may be neutral.",
+      "productionCaller": "src/common/editor/first-party-effects/bitcrusher/dsp.js"
+    }
+  ],
+  "isolatedMeasurements": {
+    "baseRevision": "1e1aa842ee685ba03d536adec146139e85fe2ed5",
+    "method": "Isolated warmed Node 26.5; 3 warmups and 9 paired trials, alternating which implementation runs first. Includes processor setup where named; excludes UI, I/O, Electron and startup. Concurrent development makes these diagnostic only.",
+    "workloads": [
+      {
+        "name": "click-4ch-24089",
+        "before": [
+          3.5420290000000136,
+          3.313537999999994,
+          3.3893410000000017,
+          2.0740769999999884,
+          2.0936340000000087,
+          2.106507999999991,
+          2.0771019999999965,
+          2.196046999999993,
+          2.1601890000000026
+        ],
+        "after": [
+          2.327494999999999,
+          2.007661000000013,
+          2.491726,
+          3.2899229999999875,
+          2.482036999999991,
+          1.9437010000000043,
+          2.5227840000000015,
+          2.556173000000001,
+          1.8831659999999886
+        ],
+        "medianBefore": 2.1601890000000026,
+        "medianAfter": 2.482036999999991
+      },
+      {
+        "name": "noise-2ch-24089",
+        "before": [
+          24.38393000000002,
+          12.672378999999978,
+          10.724223999999992,
+          6.06844000000001,
+          6.324890000000039,
+          6.67650900000001,
+          6.05749000000003,
+          5.959294999999997,
+          6.212594000000024
+        ],
+        "after": [
+          5.491460000000018,
+          4.906525999999985,
+          5.337358999999992,
+          4.842243999999994,
+          4.989440999999999,
+          4.864236000000005,
+          5.236769999999979,
+          5.004550999999992,
+          4.948593999999957
+        ],
+        "medianBefore": 6.324890000000039,
+        "medianAfter": 4.989440999999999
+      },
+      {
+        "name": "paulstretch-3ch-3089",
+        "before": [
+          2.3337580000000457,
+          2.585027000000025,
+          2.2618659999999977,
+          2.2708279999999945,
+          2.518897000000038,
+          2.3657119999999736,
+          2.3056139999999914,
+          2.9225889999999595,
+          2.4242590000000064
+        ],
+        "after": [
+          2.900667999999996,
+          2.571836000000019,
+          2.1877119999999763,
+          2.01961399999999,
+          2.168700000000001,
+          2.1369850000000383,
+          2.062774999999988,
+          2.004675999999961,
+          2.2212820000000306
+        ],
+        "medianBefore": 2.3657119999999736,
+        "medianAfter": 2.168700000000001
+      },
+      {
+        "name": "spectral-gain-4ch-24089",
+        "before": [
+          4.466976000000045,
+          4.930125999999973,
+          4.581412,
+          10.711925000000065,
+          12.091058999999973,
+          13.454429000000005,
+          4.833773000000065,
+          7.094257000000084,
+          4.9411420000000135
+        ],
+        "after": [
+          3.285513999999921,
+          3.319268999999963,
+          3.588180999999963,
+          3.3748740000000907,
+          3.2796039999999493,
+          3.4596839999999247,
+          3.7109040000000277,
+          3.4060670000000073,
+          3.3129869999999073
+        ],
+        "medianBefore": 4.9411420000000135,
+        "medianAfter": 3.3748740000000907
+      },
+      {
+        "name": "legacy-8ch-240000",
+        "before": [
+          40.34813500000007,
+          41.120079999999916,
+          26.32554499999992,
+          25.029983999999786,
+          23.341740999999956,
+          25.60224500000004,
+          20.62944799999991,
+          20.760755000000017,
+          21.40564399999994
+        ],
+        "after": [
+          39.159926999999925,
+          39.47615600000006,
+          26.626101000000062,
+          19.891734999999926,
+          21.304583000000093,
+          23.09732000000008,
+          19.73649599999999,
+          19.720510999999988,
+          24.964521999999988
+        ],
+        "medianBefore": 25.029983999999786,
+        "medianAfter": 23.09732000000008
+      },
+      {
+        "name": "loudness-8ch-240000",
+        "before": [
+          13.490182000000004,
+          49.79090099999985,
+          45.40991400000007,
+          29.566579000000047,
+          14.076078000000052,
+          19.876976999999897,
+          19.835937999999942,
+          19.198646999999937,
+          19.13092699999993
+        ],
+        "after": [
+          15.27164700000003,
+          50.34206999999992,
+          47.121713,
+          31.621291000000156,
+          19.057849999999917,
+          14.775640000000067,
+          14.11595299999999,
+          14.00641799999994,
+          14.033648999999969
+        ],
+        "medianBefore": 19.835937999999942,
+        "medianAfter": 15.27164700000003
+      },
+      {
+        "name": "tremolo-8ch-240000",
+        "before": [
+          8.745468000000074,
+          10.17474900000002,
+          7.767732999999907,
+          14.276918000000023,
+          14.206465000000208,
+          10.013666000000285,
+          9.05698799999982,
+          7.721135000000231,
+          7.949610000000121
+        ],
+        "after": [
+          12.138140000000021,
+          8.461383999999953,
+          13.970658000000185,
+          16.541705999999976,
+          8.34057699999994,
+          10.659794999999576,
+          8.464003999999932,
+          7.707006999999976,
+          8.03917599999977
+        ],
+        "medianBefore": 9.05698799999982,
+        "medianAfter": 8.464003999999932
+      },
+      {
+        "name": "noise-gate-4ch-24089",
+        "before": [
+          1.9254169999999249,
+          2.032720000000154,
+          1.7862740000000485,
+          1.7393959999999424,
+          1.7243170000001555,
+          1.7860630000000128,
+          1.8477900000002592,
+          1.9124759999999696,
+          1.8624839999997675
+        ],
+        "after": [
+          1.8228440000002593,
+          1.8212610000000495,
+          1.872436000000107,
+          1.8203379999999925,
+          1.5778510000000097,
+          1.7751430000002983,
+          1.9585790000000998,
+          1.9543579999999565,
+          1.7824879999998302
+        ],
+        "medianBefore": 1.8477900000002592,
+        "medianAfter": 1.8212610000000495
+      },
+      {
+        "name": "vocoder-40bands-distance-100",
+        "before": [
+          0.8587519999996402,
+          0.8550350000000435,
+          1.4218160000000353,
+          0.7433540000001813,
+          0.39363400000002,
+          0.4495489999999336,
+          0.7085480000000643,
+          0.3746070000001964,
+          0.3984130000003461
+        ],
+        "after": [
+          1.0217160000001968,
+          0.5288890000001629,
+          0.6793540000003304,
+          0.427056999999877,
+          0.2837770000001001,
+          0.3304440000001705,
+          0.29075899999998,
+          0.27842499999997017,
+          0.45629200000030323
+        ],
+        "medianBefore": 0.7085480000000643,
+        "medianAfter": 0.427056999999877
+      },
+      {
+        "name": "bitcrusher-cubic-8ch-240000",
+        "before": [
+          55.8914450000002,
+          42.00417200000038,
+          42.47514799999999,
+          47.00601999999981,
+          43.57338699999991,
+          55.94099600000027,
+          57.963264999999865,
+          44.465286000000106,
+          42.03858700000001
+        ],
+        "after": [
+          58.27443100000028,
+          58.35099100000025,
+          42.18649199999982,
+          44.94332399999985,
+          44.28105400000004,
+          43.01490100000001,
+          44.61099100000001,
+          43.37656900000002,
+          46.029045000000224
+        ],
+        "medianBefore": 44.465286000000106,
+        "medianAfter": 44.61099100000001
+      },
+      {
+        "name": "live-eq-2ch-24089",
+        "before": [
+          3.0556369999999333,
+          2.755604999999832,
+          3.1209650000000693,
+          2.9657720000000154,
+          2.6686899999999696,
+          3.011833999999908,
+          2.6962820000003376,
+          2.640939000000344,
+          2.8530249999998887
+        ],
+        "after": [
+          3.271650000000136,
+          2.635428000000047,
+          2.4981189999998605,
+          2.4911959999999453,
+          2.477770999999848,
+          2.6806940000001305,
+          2.501956000000064,
+          2.8074940000001334,
+          2.6973950000001423
+        ],
+        "medianBefore": 2.8530249999998887,
+        "medianAfter": 2.635428000000047
+      },
+      {
+        "name": "sample-queue-8x240000",
+        "before": [
+          27.13627899999983,
+          35.577052000000094,
+          30.03582499999993,
+          29.969235000000026,
+          42.05903499999977,
+          36.04526699999997,
+          27.826571999999942,
+          28.29638900000009,
+          28.576714000000266
+        ],
+        "after": [
+          5.23686299999963,
+          5.208208000000013,
+          5.249875999999858,
+          5.238755999999739,
+          5.350250999999844,
+          5.430558000000019,
+          5.251578999999765,
+          5.2400990000001,
+          5.358382000000347
+        ],
+        "medianBefore": 29.969235000000026,
+        "medianAfter": 5.249875999999858
+      }
+    ],
+    "clickLongSelection": {
+      "name": "click-4ch-480000",
+      "method": "Four warmups and eleven alternating paired trials, same pure Node bundles; includes validation, copies and kernel processing, excludes UI/I/O/Electron.",
+      "before": [
+        52.48395199999993,
+        59.78009899999995,
+        49.544155000000046,
+        49.91451499999994,
+        53.43660599999998,
+        52.400174000000106,
+        53.978669999999966,
+        49.19607300000007,
+        50.206200999999965,
+        52.53297399999997,
+        50.604327999999896
+      ],
+      "after": [
+        50.55525799999998,
+        41.93705399999999,
+        43.42939200000001,
+        42.27059299999996,
+        43.57734099999993,
+        43.32639700000004,
+        41.301448000000164,
+        40.977411000000075,
+        41.16325200000006,
+        41.20650400000022,
+        44.70402399999989
+      ],
+      "medianBefore": 52.400174000000106,
+      "medianAfter": 42.27059299999996
+    },
+    "interpretation": "Diagnostic Node probes, not Electron workflow or timeline FPS evidence. Small Click Removal and cubic Bitcrusher warm medians may be neutral/slower despite reduced measured work; the long Click Removal allocation-intensive selection improves in this probe. No per-item universal latency gain is claimed. Rejected indirect Tremolo/Bitcrusher dispatcher implementations are absent from the final source/count.",
+    "cubicRecheck": {
+      "name": "bitcrusher-cubic-8ch-240000",
+      "method": "Seven warmups and fifteen alternating paired trials using the same final direct-call implementation and independent baseline/current Node bundles; processor construction and output allocation included. Diagnostic only.",
+      "before": [
+        57.99137799999994,
+        47.4162849999999,
+        42.90324099999998,
+        55.5602980000001,
+        55.22692999999981,
+        48.20346200000017,
+        42.716056999999864,
+        51.12879700000008,
+        47.43072300000017,
+        45.08375699999988,
+        50.57771899999989,
+        45.62660000000005,
+        46.209895999999844,
+        45.06801099999984,
+        44.46709400000009
+      ],
+      "after": [
+        44.89928800000007,
+        46.09503300000006,
+        44.00859799999989,
+        42.47585100000015,
+        41.80300199999988,
+        41.66018299999996,
+        48.27491599999985,
+        44.401701,
+        62.9301539999999,
+        63.887412999999924,
+        47.95286799999985,
+        46.55851000000007,
+        62.981170999999904,
+        63.51128000000017,
+        48.96115299999974
+      ],
+      "medianBefore": 47.4162849999999,
+      "medianAfter": 46.55851000000007
+    }
+  },
+  "validation": {
+    "lint": "Targeted type-aware ESLint passed on all 20 modified/added source and test modules.",
+    "typeScript": "Whole strict tests TypeScript passed on final source/tests (UI agent final2 receipt); independent strict tooling TypeScript passed. Earlier diagnostics only concerned concurrent UI test typings subsequently corrected.",
+    "fileSize": "Maintained-source size gate and git diff --check passed after the final source edits; no owned source approaches the warning band.",
+    "canonical": "Parent agent owns whole repository gates and Electron/browser workflow timing.",
+    "commands": {
+      "focusedTests": "node --import tsx --import ./scripts/node-style-asset-loader.mjs --test tests/audacity-effects*.test.* tests/audacity-filter-curve-dsp.test.ts tests/audio-editor-standard*.test.ts tests/audio-editor-bitcrusher.test.js tests/audio-editor-spectral*.test.* tests/audio-editor-round3-live-dsp-performance.test.ts tests/audio-editor-round3-partition-dsp-performance.test.ts tests/audio-editor-round3-spectral-performance.test.ts tests/audio-editor-round3-dsp-exact-parity.test.ts tests/audio-editor-round2-dsp-exact-parity.test.ts tests/audio-editor-round2-realtime-dsp-performance.test.ts",
+      "typeScript": "npx tsc -p tsconfig.tests.json --pretty false; npx tsc -p tsconfig.tooling.json --pretty false",
+      "lint": "Targeted npx eslint over all 20 modified/added DSP source/test modules",
+      "size": "node scripts/check-file-size.mjs; git diff --check"
+    }
+  },
+  "sourceCommits": [
+    "a1928f82a",
+    "fe6293bd9"
+  ]
+}

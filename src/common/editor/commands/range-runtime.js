@@ -6,7 +6,6 @@ import {
 	clipEndFrame,
 	cloneProject,
 	createStableId,
-	findClip,
 	normalizeFrameRange,
 } from '../project.js';
 import {
@@ -30,13 +29,15 @@ import {
 	prepareVideoEffectIds,
 	pruneMissingProjectSelections,
 	requireClip,
-	requireClipTrack,
 	requireStableCommandId,
 	requireTrack,
 	reserveReplacementClipId,
 	segmentOfClip,
 	validateTrackReplacement,
 } from './shared-runtime.js';
+import { firstById } from './editing-work-index.ts';
+import { readTrackClips, requireIndexedTrack } from './clip-edit-index.ts';
+import { collectRangeAvClipIds, collectRangeLinkedTrackTargets } from './range-relationship-index.ts';
 import { resolveRangeSequenceGeometry } from './range-sequence-geometry.ts';
 import {
 	createTimelineAnnotationRippleOperations,
@@ -56,6 +57,7 @@ export function deleteRange(project, command, rippleMode) {
 	const trackIds = command.trackIds || project.tracks.filter((track) => Array.isArray(track.clipIds)).map((track) => track.id);
 	const affectedClipIds = Array.isArray(command.clipIds) ? new Set(command.clipIds) : null;
 	const geometry = resolveRangeSequenceGeometry(project, trackIds, range);
+	const trackById = firstById(project.tracks);
 	if (rippleMode !== 'track' && Object.hasOwn(command, 'annotationRippleOperations')) {
 		throw new RangeError('Annotation ripple operations are only valid for range/ripple-delete.');
 	}
@@ -66,17 +68,17 @@ export function deleteRange(project, command, rippleMode) {
 			createTimelineAnnotationRippleOperations(
 				project,
 				geometry,
-				Array.isArray(command.clipIds) ? command.clipIds : clipIdsForTracks(project, trackIds),
+				Array.isArray(command.clipIds) ? command.clipIds : clipIdsForTracks(trackById, trackIds),
 			),
 		)
 		: () => undefined;
 	const commitTakeGraph = planTakeGraphRangeDelete(
 		project,
-		takeGraphTrackRanges(project, trackIds, geometry, range),
+		takeGraphTrackRanges(trackById, trackIds, geometry, range),
 		rippleMode === 'track',
 	);
 	for (const trackId of trackIds) {
-		const track = requireTrack(project, trackId);
+		const track = requireIndexedTrack(trackById, trackId);
 		if (!Array.isArray(track.clipIds)) continue;
 		const operationRange = geometry.trackRanges.has(trackId) ? geometry.trackRanges.get(trackId) : range;
 		if (!operationRange) continue;
@@ -96,10 +98,10 @@ export function deleteRange(project, command, rippleMode) {
 }
 
 /** The range each edited track is losing, which is what its take graph answers to. */
-function takeGraphTrackRanges(project, trackIds, geometry, range) {
+function takeGraphTrackRanges(trackById, trackIds, geometry, range) {
 	const ranges = new Map();
 	for (const trackId of trackIds) {
-		const track = requireTrack(project, trackId);
+		const track = requireIndexedTrack(trackById, trackId);
 		if (!Array.isArray(track.clipIds)) continue;
 		const operationRange = geometry.trackRanges.has(trackId) ? geometry.trackRanges.get(trackId) : range;
 		if (operationRange) ranges.set(String(trackId), operationRange);
@@ -107,9 +109,9 @@ function takeGraphTrackRanges(project, trackIds, geometry, range) {
 	return ranges;
 }
 
-function clipIdsForTracks(project, trackIds) {
+function clipIdsForTracks(trackById, trackIds) {
 	return trackIds.flatMap((trackId) => {
-		const track = requireTrack(project, trackId);
+		const track = requireIndexedTrack(trackById, trackId);
 		return Array.isArray(track.clipIds) ? track.clipIds : [];
 	});
 }
@@ -124,7 +126,7 @@ export function processTrackRange(
 	videoEffectIds = {},
 	affectedClipIds = null,
 ) {
-	const originals = track.clipIds.map((clipId) => requireClip(project, clipId));
+	const originals = readTrackClips(project, track);
 	const replacements = [];
 	const deletedIds = new Set(track.clipIds);
 	for (const clip of originals) {
@@ -198,7 +200,7 @@ export function keepRange(project, command) {
 	for (const trackId of trackIds) {
 		const track = requireTrack(project, trackId);
 		if (!Array.isArray(track.clipIds)) continue;
-		const originals = track.clipIds.map((clipId) => requireClip(project, clipId));
+		const originals = readTrackClips(project, track);
 		const deletedIds = new Set(track.clipIds);
 		const replacements = [];
 		for (const clip of originals) {
@@ -327,39 +329,11 @@ function collectLinkedRangeTargets(project, requestedTrackIds, options = {}) {
 }
 
 export function collectLinkedTrackRippleTargets(project, requestedTrackIds) {
-	const trackIdSet = new Set(requestedTrackIds);
-	const clipIdSet = new Set();
-	let previousTrackCount = -1;
-	while (trackIdSet.size !== previousTrackCount) {
-		previousTrackCount = trackIdSet.size;
-		for (const track of project.tracks) {
-			if (!trackIdSet.has(track.id)) continue;
-			if (!Array.isArray(track.clipIds)) throw new RangeError(`Track ${track.id} does not contain media clips.`);
-			for (const clipId of track.clipIds) clipIdSet.add(clipId);
-		}
-		for (const clipId of collectAvLinkedClipIds(project, [...clipIdSet])) {
-			clipIdSet.add(clipId);
-			trackIdSet.add(requireClipTrack(project, clipId).id);
-		}
-	}
-	return {
-		trackIds: project.tracks
-			.filter((track) => trackIdSet.has(track.id) && Array.isArray(track.clipIds))
-			.map((track) => track.id),
-		clipIds: project.clips.filter((clip) => clipIdSet.has(clip.id)).map((clip) => clip.id),
-	};
+	return collectRangeLinkedTrackTargets(project, requestedTrackIds);
 }
 
 export function collectAvLinkedClipIds(project, clipIds) {
-	const ids = new Set((Array.isArray(clipIds) ? clipIds : [clipIds])
-		.filter((clipId) => findClip(project, clipId)));
-	const avLinkIds = new Set([...ids]
-		.map((clipId) => findClip(project, clipId)?.avLinkId)
-		.filter(Boolean));
-	for (const clip of project.clips) {
-		if (clip.avLinkId && avLinkIds.has(clip.avLinkId)) ids.add(clip.id);
-	}
-	return project.clips.filter((clip) => ids.has(clip.id)).map((clip) => clip.id);
+	return collectRangeAvClipIds(project.clips, Array.isArray(clipIds) ? clipIds : [clipIds]);
 }
 
 /** @returns {AudioEditorClipboardV2} */
@@ -377,18 +351,21 @@ export function collectAvLinkedClipIds(project, clipIds) {
  * material the command never named.
  */
 function detachAvLinksAcrossTrackRange(project, track, range, timelineDelta) {
+	const originals = readTrackClips(project, track);
 	const avLinkIds = new Set();
-	for (const clipId of track.clipIds) {
-		const clip = requireClip(project, clipId);
+	for (const clip of originals) {
 		if (!clip.avLinkId || clipEndFrame(clip) <= range.startFrame) continue;
 		if (clip.timelineStartFrame < range.endFrame || timelineDelta !== 0) avLinkIds.add(clip.avLinkId);
 	}
-	if (!avLinkIds.size) return;
-	project.clips = project.clips.map((clip) => (
-		clip.avLinkId && avLinkIds.has(clip.avLinkId)
-			? normalizeClipForProject(project, { ...clip, avLinkId: null, id: clip.id })
-			: clip
-	));
+	if (!avLinkIds.size) return originals;
+	const detached = new Map();
+	project.clips = project.clips.map((clip) => {
+		if (!clip.avLinkId || !avLinkIds.has(clip.avLinkId)) return clip;
+		const next = normalizeClipForProject(project, { ...clip, avLinkId: null, id: clip.id });
+		detached.set(clip, next);
+		return next;
+	});
+	return originals.map((clip) => detached.get(clip) || clip);
 }
 
 export function preparePunchCommand(project, options = {}, idFactory = createStableId) {
@@ -472,8 +449,7 @@ export function replaceRange(project, command) {
 	reserveReplacementClipId(project, clipId, generatedClipIds);
 
 	const timelineDelta = source.frameCount - range.durationFrames;
-	detachAvLinksAcrossTrackRange(project, track, range, timelineDelta);
-	const originals = track.clipIds.map((id) => requireClip(project, id));
+	const originals = detachAvLinksAcrossTrackRange(project, track, range, timelineDelta);
 	const deletedIds = new Set(track.clipIds);
 	const replacements = [];
 	const commitTakeGraph = planTakeGraphRangeRipple(

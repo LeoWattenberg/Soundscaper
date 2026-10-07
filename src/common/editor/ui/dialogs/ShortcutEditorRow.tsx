@@ -7,6 +7,7 @@ import { Button } from '@soundscaper/design-system/Button';
 import { mouseShortcutBinding, mouseShortcutKey } from '../../mouse-shortcut.ts';
 import { recognizedShortcutKey } from '../shortcut-key-validation.ts';
 import { isReservedVideoNavigationShortcut } from './shortcut-editor-reservations.ts';
+import type { DraftConflict } from './shortcut-draft-conflict-index.ts';
 import {
 	audioEditorShortcutConflictKey,
 	findAudioEditorShortcutConflicts,
@@ -26,6 +27,7 @@ export interface ShortcutEditorDraftInput {
 	readonly preferenceId: string;
 	readonly bindings: readonly string[];
 	readonly disabled?: boolean;
+	readonly conflictFor?: (id: string, bindings: readonly string[]) => DraftConflict | null;
 }
 
 export interface ShortcutEditorDraft {
@@ -49,6 +51,7 @@ export interface ShortcutEditorRowProps {
 	readonly controller: { actions: { preferences: { setShortcut: (id: string, bindings: string[]) => unknown } } };
 	readonly copy: Readonly<Record<string, string>>;
 	readonly run: (operation: () => unknown) => unknown;
+	readonly conflictFor?: ShortcutEditorDraftInput['conflictFor'];
 }
 
 const conflictsFor = findAudioEditorShortcutConflicts as (shortcuts: ShortcutMap) => ShortcutConflict[];
@@ -66,6 +69,7 @@ export function shortcutEditorDraft({
 	preferenceId,
 	bindings,
 	disabled = false,
+	conflictFor,
 }: ShortcutEditorDraftInput): ShortcutEditorDraft {
 	if (disabled) return { bindings: [], conflict: null, invalid: false };
 	const normalized: string[] = [];
@@ -89,9 +93,8 @@ export function shortcutEditorDraft({
 			return { bindings: [], conflict: null, invalid: true };
 		}
 	}
-	const candidate = { ...shortcuts, [preferenceId]: normalized };
-	const conflict = conflictsFor(candidate).find((entry) => entry.actionIds.includes(preferenceId)) || null;
-	return { bindings: normalized, conflict, invalid: false };
+	const conflict = conflictFor ? conflictFor(preferenceId, normalized) : conflictsFor({ ...shortcuts, [preferenceId]: normalized }).find((entry) => entry.actionIds.includes(preferenceId)) || null;
+	return { bindings: normalized, conflict: conflict ? { binding: conflict.binding, actionIds: [...conflict.actionIds] } : null, invalid: false };
 }
 
 /** Read the bindings a command currently holds, under either of its identifiers. */
@@ -120,7 +123,7 @@ export function shortcutFocusTargetAfterRemove(index: number, remaining: number)
 	return `[data-shortcut-remove="${Math.min(index, remaining - 1)}"]`;
 }
 
-export function ShortcutEditorRow({ productId = 'soundscaper', command, preferences, controller, copy, run }: ShortcutEditorRowProps) {
+export function ShortcutEditorRow({ productId = 'soundscaper', command, preferences, controller, copy, run, conflictFor }: ShortcutEditorRowProps) {
 	const preferenceId = command.id;
 	// A normalized binding never contains a space, so the joined list doubles as
 	// a stable change signature and as the value the fields reset to.
@@ -146,6 +149,7 @@ export function ShortcutEditorRow({ productId = 'soundscaper', command, preferen
 		preferenceId,
 		bindings: entries,
 		disabled: command.disabled,
+		conflictFor,
 	});
 	const conflictAction = draft.conflict?.actionIds.find((id) => id !== preferenceId);
 	const error = draft.invalid || (draft.conflict && !conflictAction)

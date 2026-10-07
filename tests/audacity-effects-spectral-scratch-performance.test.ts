@@ -60,8 +60,7 @@ test('noise reduction keeps five power spectra and reuses FFT and smoothing scra
 		assert.equal(lengths64.filter((length) => length === 2_048).length, 5);
 		assert.equal(lengths64.filter((length) => length === 17_003).length, 3, 'normalization is shared across channels');
 		assert.equal(lengths64.filter((length) => length === 1_026).length, 2, 'one smoothing prefix per channel');
-		const windows = Math.ceil(17_003 / 512) + 3;
-		assert.equal(lengths32.filter((length) => length === 1_025).length, 2 * (windows + 5));
+		assert.equal(lengths32.filter((length) => length === 1_025).length, 2 * 5, 'five spectra per channel; gains use one contiguous backing array');
 	} finally {
 		globalThis.Float64Array = original64;
 		globalThis.Float32Array = original32;
@@ -87,7 +86,7 @@ test('Paulstretch retains exact channel seeds and phase RNG while bounding FFT s
 		try {
 			const output = applyAudacityPaulstretch(input, 8_000, { timeResolution: 0.032, stretchFactor: 3.7 }, { seed });
 			assert.equal(digest(output), expected);
-			assert.equal(fftArrays, 5);
+			assert.equal(fftArrays, 7, 'shared window, plus real/imaginary and bounded accumulation ring per channel');
 		} finally {
 			globalThis.Float64Array = original;
 		}

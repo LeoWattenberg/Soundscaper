@@ -91,7 +91,7 @@ export function applyLegacyCompressorChannel(channel, sampleRate, settings) {
 		(sampleRate * settings.releaseSeconds + 0.5));
 	const compression = settings.ratio > 1 ? 1 - 1 / settings.ratio : 0;
 	const envelope = new Float64Array(channel.length);
-	const rmsWindow = new Float64Array(RMS_WINDOW_SIZE);
+	const rmsWindow = settings.usePeak ? null : new Float64Array(RMS_WINDOW_SIZE);
 	let rmsPosition = 0;
 	let rmsSum = 0;
 	let noiseCounter = RMS_WINDOW_SIZE;
@@ -126,8 +126,8 @@ export function applyLegacyCompressorChannel(channel, sampleRate, settings) {
 	}
 
 	const output = new Float32Array(channel.length);
+	const numerator = settings.usePeak ? 1 : threshold;
 	for (let index = 0; index < channel.length; index += 1) {
-		const numerator = settings.usePeak ? 1 : threshold;
 		const sample = channel[index] * (numerator / envelope[index]) ** compression;
 		output[index] = sample;
 	}

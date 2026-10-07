@@ -40,18 +40,22 @@ export function applySpectralGain(channels, options = {}) {
 	const firstWindow = Math.floor((startFrame - windowSize + 1) / hopSize) * hopSize;
 	const lastWindow = Math.ceil((endFrame - 1) / hopSize) * hopSize;
 	const output = input.map((channel) => channel.slice());
+	const normalization = overlapNormalization(window, hopSize, firstWindow, lastWindow, startFrame, endFrame);
+	const accumulation = new Float64Array(endFrame - startFrame);
+	const real = new Float64Array(windowSize);
+	const imaginary = new Float64Array(windowSize);
 	for (let channelIndex = 0; channelIndex < input.length; channelIndex += 1) {
 		const source = input[channelIndex];
-		const accumulation = new Float64Array(endFrame - startFrame);
-		const normalization = new Float64Array(endFrame - startFrame);
-		const real = new Float64Array(windowSize);
-		const imaginary = new Float64Array(windowSize);
+		accumulation.fill(0);
 		for (let windowStart = firstWindow; windowStart <= lastWindow; windowStart += hopSize) {
-			real.fill(0);
+			const firstInput = Math.min(windowSize, Math.max(0, -windowStart));
+			const endInput = Math.max(firstInput, Math.min(windowSize, frameCount - windowStart));
+			real.fill(0, 0, firstInput);
+			real.fill(0, endInput);
 			imaginary.fill(0);
-			for (let frame = 0; frame < windowSize; frame += 1) {
+			for (let frame = firstInput; frame < endInput; frame += 1) {
 				const sourceFrame = windowStart + frame;
-				if (sourceFrame >= 0 && sourceFrame < frameCount) real[frame] = source[sourceFrame] * window[frame];
+				real[frame] = source[sourceFrame] * window[frame];
 			}
 			fft(real, imaginary, false);
 			for (let bin = firstBin; bin < endBin; bin += 1) {
@@ -64,13 +68,13 @@ export function applySpectralGain(channels, options = {}) {
 				}
 			}
 			fft(real, imaginary, true);
-			for (let frame = 0; frame < windowSize; frame += 1) {
+			const firstOutput = Math.max(0, startFrame - windowStart);
+			const endOutput = Math.min(windowSize, endFrame - windowStart);
+			for (let frame = firstOutput; frame < endOutput; frame += 1) {
 				const targetFrame = windowStart + frame;
-				if (targetFrame < startFrame || targetFrame >= endFrame) continue;
 				const localFrame = targetFrame - startFrame;
 				const weight = window[frame];
 				accumulation[localFrame] += real[frame] * weight;
-				normalization[localFrame] += weight * weight;
 			}
 		}
 		for (let frame = startFrame; frame < endFrame; frame += 1) {
@@ -117,23 +121,27 @@ export function applySpectralReplacement(channels, replacementChannels, options 
 	const firstWindow = Math.floor((startFrame - windowSize + 1) / hopSize) * hopSize;
 	const lastWindow = Math.ceil((endFrame - 1) / hopSize) * hopSize;
 	const output = input.map((channel) => channel.slice());
+	const normalization = overlapNormalization(window, hopSize, firstWindow, lastWindow, startFrame, endFrame);
+	const accumulation = new Float64Array(endFrame - startFrame);
+	const real = new Float64Array(windowSize);
+	const imaginary = new Float64Array(windowSize);
+	const replacementReal = new Float64Array(windowSize);
+	const replacementImaginary = new Float64Array(windowSize);
 	for (let channelIndex = 0; channelIndex < input.length; channelIndex += 1) {
 		const source = input[channelIndex];
 		const processed = replacement[channelIndex];
-		const accumulation = new Float64Array(endFrame - startFrame);
-		const normalization = new Float64Array(endFrame - startFrame);
-		const real = new Float64Array(windowSize);
-		const imaginary = new Float64Array(windowSize);
-		const replacementReal = new Float64Array(windowSize);
-		const replacementImaginary = new Float64Array(windowSize);
+		accumulation.fill(0);
 		for (let windowStart = firstWindow; windowStart <= lastWindow; windowStart += hopSize) {
-			real.fill(0);
+			const firstInput = Math.min(windowSize, Math.max(0, -windowStart));
+			const endInput = Math.max(firstInput, Math.min(windowSize, frameCount - windowStart));
+			real.fill(0, 0, firstInput);
+			real.fill(0, endInput);
 			imaginary.fill(0);
-			replacementReal.fill(0);
+			replacementReal.fill(0, 0, firstInput);
+			replacementReal.fill(0, endInput);
 			replacementImaginary.fill(0);
-			for (let frame = 0; frame < windowSize; frame += 1) {
+			for (let frame = firstInput; frame < endInput; frame += 1) {
 				const sourceFrame = windowStart + frame;
-				if (sourceFrame < 0 || sourceFrame >= frameCount) continue;
 				const weight = window[frame];
 				real[frame] = source[sourceFrame] * weight;
 				replacementReal[frame] = processed[sourceFrame] * weight;
@@ -150,13 +158,13 @@ export function applySpectralReplacement(channels, replacementChannels, options 
 				}
 			}
 			fft(real, imaginary, true);
-			for (let frame = 0; frame < windowSize; frame += 1) {
+			const firstOutput = Math.max(0, startFrame - windowStart);
+			const endOutput = Math.min(windowSize, endFrame - windowStart);
+			for (let frame = firstOutput; frame < endOutput; frame += 1) {
 				const targetFrame = windowStart + frame;
-				if (targetFrame < startFrame || targetFrame >= endFrame) continue;
 				const localFrame = targetFrame - startFrame;
 				const weight = window[frame];
 				accumulation[localFrame] += real[frame] * weight;
-				normalization[localFrame] += weight * weight;
 			}
 		}
 		for (let frame = startFrame; frame < endFrame; frame += 1) {
@@ -171,6 +179,16 @@ export function applySpectralReplacement(channels, replacementChannels, options 
 
 export function deleteSpectralSelection(channels, options = {}) {
 	return applySpectralGain(channels, { ...options, gainDb: -Infinity });
+}
+
+function overlapNormalization(window, hopSize, firstWindow, lastWindow, startFrame, endFrame) {
+	const normalization = new Float64Array(endFrame - startFrame);
+	for (let start = firstWindow; start <= lastWindow; start += hopSize) {
+		const first = Math.max(0, startFrame - start);
+		const end = Math.min(window.length, endFrame - start);
+		for (let index = first; index < end; index++) normalization[start + index - startFrame] += window[index] * window[index];
+	}
+	return normalization;
 }
 
 function createHannWindow(size) {

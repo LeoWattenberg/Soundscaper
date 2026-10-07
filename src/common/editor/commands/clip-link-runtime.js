@@ -29,6 +29,7 @@ import {
 import { resolveAudioWarpEditFrame } from '../audio-warp-clip-edit.ts';
 import { videoCompositionCarriersEqual } from './video-composition-carrier.ts';
 import { readClipLoop } from '../audio-clip-loop.ts';
+import { createClipEditIndex, mediaClipOwnerIndex, requireIndexedOwner } from './clip-edit-index.ts';
 import { clipLoopJoinFields } from './clip-loop-join.ts';
 import { joinClipEnvelopes } from './joined-clip-envelope.ts';
 import {
@@ -228,18 +229,20 @@ export function groupClips(project, clipIds, groupId) {
 	const ids = normalizeCommandIds(clipIds, 'clipIds');
 	if (ids.length < 2) throw new RangeError('At least two clips are required to create a group.');
 	const stableGroupId = requireStableCommandId(groupId, 'clip group');
+	const index = createClipEditIndex(project.clips, ids);
 	for (const clipId of ids) {
-		const clip = requireClip(project, clipId);
-		replaceClip(project, normalizeClipForProject(project, { ...clip, groupId: stableGroupId, id: clip.id }));
+		const clip = index.require(clipId);
+		index.replace(normalizeClipForProject(project, { ...clip, groupId: stableGroupId, id: clip.id }));
 	}
 }
 
 export function ungroupClips(project, clipIds) {
 	if (!hasCoreEditingProjectAuthority(project)) throw new RangeError('Clip grouping requires an active editing project.');
 	const ids = normalizeCommandIds(clipIds, 'clipIds');
+	const index = createClipEditIndex(project.clips, ids);
 	for (const clipId of ids) {
-		const clip = requireClip(project, clipId);
-		replaceClip(project, normalizeClipForProject(project, { ...clip, groupId: null, id: clip.id }));
+		const clip = index.require(clipId);
+		index.replace(normalizeClipForProject(project, { ...clip, groupId: null, id: clip.id }));
 	}
 }
 
@@ -266,14 +269,16 @@ export function canJoinClips(project, clipIds) {
 function createClipJoinPlan(project, clipIds) {
 	const ids = normalizeCommandIds(clipIds, 'clipIds');
 	if (ids.length < 2) throw new RangeError('At least two clips are required to join.');
-	const clips = ids.map((clipId) => requireClip(project, clipId))
+	const index = createClipEditIndex(project.clips, ids);
+	const owners = mediaClipOwnerIndex(project.tracks, ids);
+	const clips = ids.map((clipId) => index.require(clipId))
 		.sort((left, right) => left.timelineStartFrame - right.timelineStartFrame
 			|| compareCodeUnits(left.id, right.id));
 	const clipsByTrack = new Map();
 	for (const clip of clips) {
-		const track = requireClipTrack(project, clip.id);
+		const track = requireIndexedOwner(owners, clip.id);
 		const trackClips = clipsByTrack.get(track.id) || [];
-		trackClips.push(clip.id);
+		trackClips.push(clip);
 		clipsByTrack.set(track.id, trackClips);
 	}
 	if (clipsByTrack.size > 1) {
@@ -281,8 +286,14 @@ function createClipJoinPlan(project, clipIds) {
 			throw new RangeError('Joined clips must belong to the same track.');
 		}
 		const selectedIds = new Set(ids);
+		const linkedById = new Map();
+		for (const clip of project.clips) {
+			const members = linkedById.get(clip.avLinkId) || [];
+			members.push(clip);
+			linkedById.set(clip.avLinkId, members);
+		}
 		for (const clip of clips) {
-			const linked = project.clips.filter((candidate) => candidate.avLinkId === clip.avLinkId);
+			const linked = linkedById.get(clip.avLinkId) || [];
 			if (linked.length !== 2 || linked.some((candidate) => !selectedIds.has(candidate.id))) {
 				throw new RangeError('Linked A/V clips must be joined together.');
 			}
@@ -298,8 +309,6 @@ function createClipJoinPlan(project, clipIds) {
 			throw new RangeError('Joined A/V clips must belong to one media lane group.');
 		}
 		const linkOrder = tracks.map((track) => clipsByTrack.get(track.id)
-			.map((clipId) => requireClip(project, clipId))
-			.sort((left, right) => left.timelineStartFrame - right.timelineStartFrame)
 			.map((clip) => clip.avLinkId));
 		if (
 			linkOrder[0].length !== linkOrder[1].length
@@ -309,18 +318,16 @@ function createClipJoinPlan(project, clipIds) {
 		}
 		return tracks.map((track) => createSingleTrackJoinRun(
 			project,
-			clipsByTrack.get(track.id).map((clipId) => requireClip(project, clipId)),
+			clipsByTrack.get(track.id), owners,
 		));
 	}
-	return [createSingleTrackJoinRun(project, clips)];
+	return [createSingleTrackJoinRun(project, clips, owners)];
 }
 
-function createSingleTrackJoinRun(project, values) {
-	const clips = [...values].sort((left, right) => left.timelineStartFrame - right.timelineStartFrame
-		|| compareCodeUnits(left.id, right.id));
+function createSingleTrackJoinRun(project, clips, owners) {
 	if (clips.length < 2) throw new RangeError('At least two clips are required to join.');
-	const track = requireClipTrack(project, clips[0].id);
-	if (clips.some((clip) => requireClipTrack(project, clip.id).id !== track.id)) {
+	const track = requireIndexedOwner(owners, clips[0].id);
+	if (clips.some((clip) => requireIndexedOwner(owners, clip.id).id !== track.id)) {
 		throw new RangeError('Joined clips must belong to the same track.');
 	}
 	const loopFields = clipLoopJoinFields(clips);
@@ -372,9 +379,12 @@ function applyClipJoinRun(project, { clips, track, loopFields }) {
 		...joinVideoKeyframeCarrierSequenceFields(clips, joined, `Joined clip ${first.id}`),
 	};
 	const removedIds = new Set(clips.slice(1).map((clip) => clip.id));
-	project.clips = project.clips
-		.filter((clip) => !removedIds.has(clip.id))
-		.map((clip) => clip.id === joined.id ? joined : clip);
+	const survivors = [];
+	for (const clip of project.clips) {
+		const id = clip.id;
+		if (!removedIds.has(id)) survivors.push(id === joined.id ? joined : clip);
+	}
+	project.clips = survivors;
 	track.clipIds = track.clipIds.filter((clipId) => !removedIds.has(clipId));
 	sortTrack(project, track);
 }

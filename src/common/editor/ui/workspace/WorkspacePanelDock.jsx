@@ -1,20 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 
-import { groupWorkspacePanelEntries } from '../../workspace-panel-layout.ts';
+import { useWorkspaceDockPresentation } from './useWorkspaceDockPresentation.ts';
 import { formatResizeLabel } from '../localization-template.ts';
 import { timelineAnnotationsAvailable } from '../timeline/timeline-annotation-ui-model.ts';
-import { workspacePanelAvailable } from './workspace-product-panel-runtime.ts';
-import { workspaceSideDockAllowsWidePanels, workspaceSideDockColumns } from './workspace-side-dock-width.ts';
+import { workspaceSideDockAllowsWidePanels } from './workspace-side-dock-width.ts';
 import WorkspacePanelGroup from './WorkspacePanelGroup.jsx';
 import { useFloatingWorkspacePanelMove } from './useFloatingWorkspacePanelMove.ts';
 import { retainWorkspacePanelResizeLifecycle } from './workspace-panel-resize-lifecycle.ts';
 import {
-	ANALYZER_PANEL_ID_SET,
 	FLOATING_PANEL_MIN_HEIGHT,
-	WORKSPACE_PANEL_IDS,
 	clampFloatingPanelGeometry,
 	workspaceDockLabel,
-	workspacePanelLabel,
 	workspacePanelMinimumWidth,
 } from './workspace-panel-model.ts';
 
@@ -54,36 +50,10 @@ export default function WorkspacePanelDock({
 	const resizeSessionRef = useRef(null);
 	const [floatingBounds, setFloatingBounds] = useState({ width: 0, height: 0 });
 	const [activeFloatingPanelId, setActiveFloatingPanelId] = useState(null);
-	const availablePanels = WORKSPACE_PANEL_IDS
-		.map((id) => [id, snapshot.preferences?.workspace?.panels?.[id]])
-		.filter(([id, panel]) => (
-			panel?.visible
-			&& workspacePanelAvailable(productId, id, snapshot.webVcr, snapshot.capture)
-			&& (capabilities?.audioEffects || id !== 'effects')
-			&& (capabilities?.audioRecording || id !== 'recording-meter')
-			&& (capabilities?.audioAnalysis || (!ANALYZER_PANEL_ID_SET.has(id) && id !== 'ebu-r128'))
-			&& (id !== 'markers' || timelineAnnotationsAvailable(snapshot))
-			&& (id !== 'project-bin' || projectBinEffectivelyOpen)
-		));
-	const panels = availablePanels
-		.filter(([, panel]) => panel.dock === dock)
-		.sort((left, right) => left[1].order - right[1].order);
-	const groups = groupWorkspacePanelEntries(panels);
-	const sideDock = dock === 'left' || dock === 'right';
-	const columns = sideDock ? workspaceSideDockColumns(groups) : [];
-	const minimumDockWidth = columns.reduce((total, column) => total + column.minimumWidth, 0);
-	const arrangeTargets = ['left', 'right', 'top', 'bottom'].flatMap((targetDock) => (
-		groupWorkspacePanelEntries(availablePanels
-			.filter(([, panel]) => panel.dock === targetDock)
-			.sort((left, right) => left[1].order - right[1].order))
-			.map((group) => ({
-				dock: targetDock,
-				groupId: group.id,
-				panelId: group.entries[0][0],
-				panelIds: group.entries.map(([panelId]) => panelId),
-				label: group.entries.map(([panelId]) => workspacePanelLabel(copy, panelId)).join(' / '),
-			}))
-	));
+	const { availablePanels, panels, groups, sideDock, columns, minimumDockWidth, arrangeTargets } = useWorkspaceDockPresentation(
+		dock, snapshot.preferences?.workspace?.panels, productId, capabilities?.audioEffects, capabilities?.audioRecording, capabilities?.audioAnalysis,
+		snapshot.webVcr, snapshot.capture, timelineAnnotationsAvailable(snapshot), projectBinEffectivelyOpen, copy,
+	);
 	useEffect(() => {
 		if (dock !== 'floating') return undefined;
 		const element = dockRef.current;

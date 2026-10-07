@@ -1,0 +1,130 @@
+{
+	"schemaVersion": 1,
+	"title": "Third-round playback and render preparation reductions",
+	"baseRevision": "1e1aa842ee685ba03d536adec146139e85fe2ed5",
+	"scope": "Production V21 routing, channel geometry and live graph controls after the editor is open; startup excluded.",
+	"count": 10,
+	"requiresManualUpdateAiAssets": false,
+	"findings": [
+		{
+			"id": "runtime-round3-01",
+			"key": "pdc-incoming-dependency-index",
+			"source": "src/common/editor/engine/project-pdc-work-index-v21.ts",
+			"caller": "src/common/editor/engine/project-path-pdc-plan-v21.ts: compileProjectPathPdcPlanV21",
+			"location": "indexPdcDependencies",
+			"change": "Group admitted dependencies by destination once, replacing the complete dependency scan for every compiled vertex.",
+			"test": "tests/audio-editor-round3-pdc-index.test.ts",
+			"evidence": "Six hundred destination queries over six hundred dependencies reduce destination reads from 360000 to 600; incoming entries retain authored order and reference ownership.",
+			"limitations": "Invocation-local graph preparation; no global cache admits mutable dependencies. Existing independent PDC oracle checks sidechain, nested, inactive-rack and consumer offsets.",
+			"status": "implemented"
+		},
+		{
+			"id": "runtime-round3-02",
+			"key": "pdc-output-route-index",
+			"source": "src/common/editor/engine/project-pdc-work-index-v21.ts",
+			"caller": "src/common/editor/engine/project-path-pdc-plan-v21.ts: compileProjectPathPdcPlanV21",
+			"location": "indexPdcOutputs",
+			"change": "Group enabled programme routes by output once and compute each maximum directly, removing per-output whole-edge filters and mapped latency arrays.",
+			"test": "tests/audio-editor-round3-pdc-work.test.ts",
+			"evidence": "The actual production compiler passes with whole-edge filter projections forbidden. Index checks preserve output and edge order and exclude disabled routes.",
+			"limitations": "This is the explicit V21 path solve, distinct from the earlier legacy track/bus latency map construction. Shared projection and maximum work is one finding.",
+			"status": "implemented"
+		},
+		{
+			"id": "runtime-round3-03",
+			"key": "pdc-lexical-frontier-heap",
+			"source": "src/common/editor/engine/project-pdc-work-index-v21.ts",
+			"caller": "src/common/editor/engine/project-path-pdc-plan-v21.ts: compileProjectPathPdcPlanV21",
+			"location": "orderPdcVertices / LexicalFrontier",
+			"change": "Use a minimum heap for the ready frontier instead of shifting and sorting the whole array after every newly ready vertex.",
+			"test": "tests/audio-editor-round3-pdc-index.test.ts",
+			"evidence": "Thirty-two independent DAG fixtures retain exact former UTF-16 lexical order; a 601-vertex actual compiler fixture passes with Array.sort forbidden. Cycle refusal remains unchanged.",
+			"limitations": "Heap construction and traversal are still required; tests establish order and removed sorting, not a per-change Electron latency estimate.",
+			"status": "implemented"
+		},
+		{
+			"id": "runtime-round3-04",
+			"key": "sidechain-track-width-index",
+			"source": "src/common/editor/engine/project-edge-geometry-v21.ts",
+			"caller": "src/common/editor/engine/project-graph-v21.ts: buildProjectGraphV21",
+			"location": "prepareProjectEdgeGeometryV21 / destinationWidth",
+			"change": "Resolve track sidechain destination widths from a build-local membership/width snapshot rather than finding the track for every edge.",
+			"test": "tests/audio-editor-round3-graph-control-index.test.ts",
+			"evidence": "One hundred track identities are read once; one hundred repeated sidechain queries add zero authored reads. Orphan width entries retain the former empty-ID fallback.",
+			"limitations": "Preparation owns detached width values for one build. Rebuilding reflects changed values; first-match and direct lookup comparisons cover malformed duplicate inputs outside persisted admission.",
+			"status": "implemented"
+		},
+		{
+			"id": "runtime-round3-05",
+			"key": "mixer-destination-width-index",
+			"source": "src/common/editor/engine/project-edge-geometry-v21.ts",
+			"caller": "src/common/editor/engine/project-graph-v21.ts: buildProjectGraphV21",
+			"location": "prepareProjectEdgeGeometryV21 / destinationWidth",
+			"change": "Resolve mixer-node and mixer-sidechain widths from one first-match index instead of merging groups, sends and cues and scanning them for each edge.",
+			"test": "tests/audio-editor-round3-graph-control-index.test.ts",
+			"evidence": "The observed mixer width is read once; one hundred repeated queries add no reads or merged-array projections. Group-before-send duplicate precedence and missing-node refusal remain exact.",
+			"limitations": "Accepted graph facts are immutable during a build; unrelated rebuilds do not reuse this snapshot.",
+			"status": "implemented"
+		},
+		{
+			"id": "runtime-round3-06",
+			"key": "output-destination-width-index",
+			"source": "src/common/editor/engine/project-edge-geometry-v21.ts",
+			"caller": "src/common/editor/engine/project-graph-v21.ts: buildProjectGraphV21",
+			"location": "prepareProjectEdgeGeometryV21 / destinationWidth",
+			"change": "Index output widths once rather than find-scanning all outputs for each destination edge.",
+			"test": "tests/audio-editor-round3-graph-control-index.test.ts",
+			"evidence": "One hundred repeated output queries read zero authored fields after the single initial width read; direct destination parity and missing-output TypeError checks pass.",
+			"limitations": "The benefit scales with output count and fan-in; the factory still prepares each output once.",
+			"status": "implemented"
+		},
+		{
+			"id": "runtime-round3-07",
+			"key": "group-classification-membership",
+			"source": "src/common/editor/engine/project-edge-geometry-v21.ts",
+			"caller": "src/common/editor/engine/project-graph-v21.ts: buildProjectGraphV21",
+			"location": "isGroup / admTerminal",
+			"change": "Use one group identity set for ADM terminal and meter-bank classification instead of scanning every group at each call.",
+			"test": "tests/audio-editor-round3-graph-control-index.test.ts",
+			"evidence": "One hundred repeated terminal/classification queries add no group identity reads. Group/send labels match the original classifier and terminal records remain independently frozen.",
+			"limitations": "The same membership cost serves both production callers and is counted once.",
+			"status": "implemented"
+		},
+		{
+			"id": "runtime-round3-08",
+			"key": "vca-membership-product-index",
+			"source": "src/common/editor/engine/project-strip-control-index-v21.ts",
+			"caller": "src/common/editor/engine/project-graph-v21.ts: buildProjectGraphV21",
+			"location": "createProjectVcaGainResolverV21",
+			"change": "Prepare VCA gain products by member once, removing each strip's repeated scans of every VCA and its memberships.",
+			"test": "tests/audio-editor-round3-graph-control-index.test.ts",
+			"evidence": "Four hundred repeated strip/master/absent-member queries add zero member reads. Products keep exact authored multiplication order, duplicate membership applies once, mute gives zero, and excluded master gives one.",
+			"limitations": "One immutable graph build owns the products; graphs without VCAs use a constant resolver.",
+			"status": "implemented"
+		},
+		{
+			"id": "runtime-round3-09",
+			"key": "suspended-effect-lane-address-index",
+			"source": "src/common/editor/engine/project-suspended-effect-parameters-v21.ts",
+			"caller": "src/common/editor/engine/project-graph-v21.ts: buildProjectGraphV21",
+			"location": "createSuspendedEffectParameterRegistrarV21 / indexSuspendedEffectLanesV21 / registerSuspendedEffectParametersV21",
+			"change": "Index effect lane addresses by strip and effect once rather than scanning all lanes and creating a key set for every suspended slot.",
+			"test": "tests/audio-editor-round3-suspended-effect-index.test.ts",
+			"evidence": "Five hundred lane addresses are read once; registering twenty effect targets adds no lane reads and preserves exact original suspended descriptors. Existing disabled/bypassed/rack-disabled and master-bypass graph tests pass.",
+			"limitations": "Preparation is lazy on the first suspended rack; projects containing only active racks never build the index. Descriptor inventory admission and registration order remain authoritative; no suspended target is made active.",
+			"status": "implemented"
+		},
+		{
+			"id": "runtime-round3-10",
+			"key": "solo-audibility-retention",
+			"source": "src/common/editor/engine/project-strip-control-index-v21.ts",
+			"caller": "src/common/editor/engine/project-graph-v21.ts: buildProjectGraphV21",
+			"location": "createProjectSoloGainResolverV21",
+			"change": "Retain each known runtime strip's solo audibility for later mute automation evaluations instead of repeating routing reachability traversals and solo-array allocation.",
+			"test": "tests/audio-editor-round3-graph-control-index.test.ts",
+			"evidence": "After initial track/master queries, two hundred repeated audibility queries add zero Set.has traversal visits. Existing all-silent-route, solo topology and graph automation regressions pass.",
+			"limitations": "Only the finite owned strip set is retained; unknown keys are evaluated without retention. No-solo or ignored-solo graphs use constant true resolvers.",
+			"status": "implemented"
+		}
+	]
+}

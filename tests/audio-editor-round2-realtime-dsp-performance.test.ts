@@ -27,8 +27,8 @@ test('vocoder biquad design shares each angular cosine', (context) => {
 	let calls = 0;
 	context.mock.method(Math, 'cos', (value: number) => { calls++; return original(value); });
 	createVocoderProcessor({ sampleRate: 48000, channelCount: 1, params: { bands: 12 } });
-	// Seven biquads plus four Butterworth-Q cosines and one carrier rotation.
-	assert.equal(calls, 12 * 12);
+	// Seven biquads and one carrier rotation; pole Q is prepared outside the bank.
+	assert.equal(calls, 12 * 8);
 });
 
 test('neutral band compression maintains detector history without logarithmic gain math', (context) => {

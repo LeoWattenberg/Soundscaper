@@ -59,7 +59,6 @@
 		"src/common/editor/browser-audio-codec-runtime.ts": 561,
 		"src/common/editor/chunk-stream-client.js": 580,
 		"src/common/editor/clip-time-pitch-cache.js": 576,
-		"src/common/editor/commands/range-runtime.js": 555,
 		"src/common/editor/commands/track-lock-admission.ts": 571,
 		"src/common/editor/controller/assistance/local-assistance-selected-video.ts": 599,
 		"src/common/editor/controller/capture/framescaper-capture-app-composition.ts": 589,

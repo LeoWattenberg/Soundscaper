@@ -296,6 +296,8 @@
 		,
 		{ "path": "src/common/editor/engine/project-automation-scheduler-v21.ts", "kind": "persisted-contract", "justification": "project-automation-scheduler-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
+		{ "path": "src/common/editor/engine/project-edge-geometry-v21.ts", "kind": "persisted-contract", "justification": "project-edge-geometry-v21.ts prepares graph-local channel widths and ADM strip classifications from persisted V21 mixer edge and endpoint shapes; its suffix identifies the owning mixer/render contract, independently of product schema." }
+		,
 		{ "path": "src/common/editor/engine/project-graph-v21-edges.ts", "kind": "persisted-contract", "justification": "project-graph-v21-edges.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
 		{ "path": "src/common/editor/engine/project-graph-v21-parameters.ts", "kind": "persisted-contract", "justification": "project-graph-v21-parameters.ts registers the persisted V21 mixer parameter addresses and their render bindings." }
@@ -303,6 +305,12 @@
 		{ "path": "src/common/editor/engine/project-graph-v21.ts", "kind": "persisted-contract", "justification": "project-graph-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
 		{ "path": "src/common/editor/engine/project-path-pdc-plan-v21.ts", "kind": "persisted-contract", "justification": "project-path-pdc-plan-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/engine/project-pdc-work-index-v21.ts", "kind": "persisted-contract", "justification": "project-pdc-work-index-v21.ts indexes V21 mixer routes and orders their PDC dependency vertices within one compiled render plan; its suffix binds these helpers to the V21 routing contract, independently of product schema." }
+		,
+		{ "path": "src/common/editor/engine/project-strip-control-index-v21.ts", "kind": "persisted-contract", "justification": "project-strip-control-index-v21.ts resolves VCA membership and solo reachability using persisted V21 mixer endpoint keys and signal topology; its suffix identifies that mixer contract, independently of product schema." }
+		,
+		{ "path": "src/common/editor/engine/project-suspended-effect-parameters-v21.ts", "kind": "persisted-contract", "justification": "project-suspended-effect-parameters-v21.ts indexes persisted V21 effect automation addresses for graph-local suspended parameter registration; its suffix identifies the owning automation/mixer contract, independently of product schema." }
 		,
 		{ "path": "src/common/editor/engine/strip-meter-analyser-bank-v21.ts", "kind": "persisted-contract", "justification": "strip-meter-analyser-bank-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,

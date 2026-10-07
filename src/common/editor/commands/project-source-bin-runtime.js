@@ -49,6 +49,8 @@ import {
 	rewriteSourceMedia,
 	updateSource,
 } from './project-source-record-runtime.js';
+import { createClipEditIndex } from './clip-edit-index.ts';
+import { movedBinItemIds } from './bin-move-index.ts';
 import { cloneVideoCompositionCarrierFields } from './video-composition-carrier.ts';
 import {
 	rebindVideoKeyframeCarrierEffects,
@@ -138,7 +140,8 @@ function addProjectBinClip(project, value) {
 function moveTimelineClipsToProjectBin(project, clipIds) {
 	const projectBin = requireProjectBin(project);
 	const requestedIds = normalizeCommandIds(clipIds, 'clipIds');
-	const requestedClips = requestedIds.map((clipId) => requireClip(project, clipId));
+	const index = createClipEditIndex(project.clips, requestedIds);
+	const requestedClips = requestedIds.map((clipId) => index.require(clipId));
 	const groupIds = new Set(requestedClips.map((clip) => clip.groupId).filter(Boolean));
 	const avLinkIds = new Set(requestedClips.map((clip) => clip.avLinkId).filter(Boolean));
 	const movedIds = new Set(requestedIds);
@@ -148,16 +151,9 @@ function moveTimelineClipsToProjectBin(project, clipIds) {
 			if (clip.avLinkId && avLinkIds.has(clip.avLinkId)) movedIds.add(clip.id);
 		}
 	}
-	const binItemByClipId = new Map();
-	for (const clip of project.clips.filter((candidate) => movedIds.has(candidate.id))) {
-		const linked = clip.avLinkId
-			? project.clips.filter((candidate) => movedIds.has(candidate.id) && candidate.avLinkId === clip.avLinkId)
-			: [clip];
-		const binItemId = linked.find((candidate) => candidate.kind === 'video')?.id || linked[0]?.id || clip.id;
-		for (const candidate of linked) binItemByClipId.set(candidate.id, binItemId);
-	}
-	const movedClips = project.clips
-		.filter((clip) => movedIds.has(clip.id))
+	const material = project.clips.filter((clip) => movedIds.has(clip.id));
+	const binItemByClipId = movedBinItemIds(material);
+	const movedClips = material
 		.map((clip) => normalizeClipForProject(project, {
 			...clip,
 			...cloneVideoCompositionCarrierFields(clip, `Moved Project Bin clip ${clip.id}`),

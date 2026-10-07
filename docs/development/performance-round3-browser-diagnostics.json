@@ -1,0 +1,1683 @@
+{
+  "schemaVersion": 1,
+  "recordedDate": "2026-10-07",
+  "scope": "Read-only diagnosis of failures during the full round-three browser gate. This record adds no performance finding and changes no implementation or committed browser assertion.",
+  "baseRevision": "1e1aa842ee685ba03d536adec146139e85fe2ed5",
+  "reviewRevision": "0c5f942b9e8d3987758c470f5c3d8549b8fbb2ef",
+  "requiresManualAiAssets": false,
+  "suiteStateAtRecording": {
+    "status": "completed-with-failures",
+    "wrapperExitCode": 143,
+    "wrapperExitCodeLimitation": "The root tool returned 143 after the final log recorded all 4,281 entries. The termination-code cause is not established; it is not recorded as an early test abort.",
+    "log": "/tmp/perf200-full-browser.log",
+    "plannedTests": 4281,
+    "reportedCounts": {
+      "failed": 26,
+      "skipped": 188,
+      "passed": 4067
+    },
+    "reportedDuration": "4067 passed (2.4h)",
+    "observedProgressRows": 4281,
+    "progressCountsByProject": {
+      "chromium": {
+        "passed": 1411,
+        "skipped": 16
+      },
+      "firefox": {
+        "skipped": 76,
+        "passed": 1348,
+        "failed": 3
+      },
+      "webkit": {
+        "skipped": 96,
+        "passed": 1308,
+        "failed": 23
+      }
+    },
+    "siteOrigins": [
+      "http://127.0.0.1:4364",
+      "http://127.0.0.1:4365"
+    ],
+    "gatePassed": false,
+    "limitation": "Isolated reruns and controlled diagnostics are separate evidence; they do not replace the failed original full-suite outcome."
+  },
+  "issue": {
+    "test": "tests/browser/audio-editor-dialog-navigation-regressions.spec.js",
+    "testDeclarationLine": 24,
+    "testName": "a realtime effect header remains reachable after dragging toward the window edge",
+    "project": "firefox",
+    "originalFullRun": {
+      "status": "failed",
+      "testNumber": 1681,
+      "logLine": 2880,
+      "testDurationSeconds": 7.2,
+      "assertionLine": 38,
+      "assertion": "expect(after.y).toBeGreaterThanOrEqual(0)",
+      "expectedHeaderYMinimum": 0,
+      "actualHeaderY": -21.5,
+      "artifacts": [
+        "test-results/audio-editor-dialog-naviga-55aca-ging-toward-the-window-edge-firefox/error-context.md",
+        "test-results/audio-editor-dialog-naviga-55aca-ging-toward-the-window-edge-firefox/test-failed-1.png"
+      ],
+      "traceAvailable": false,
+      "observation": "The screenshot confirms that the title and close control are above the viewport. The next horizontal-reachability assertion was not reached."
+    },
+    "isolatedRerun": {
+      "status": "passed",
+      "passedTests": 1,
+      "testDurationSeconds": 7.9,
+      "totalDurationSeconds": 10.3,
+      "log": "/tmp/perf200-dialog-navigation-recheck.log",
+      "trace": "/tmp/perf200-dialog-navigation-recheck-results/audio-editor-dialog-naviga-55aca-ging-toward-the-window-edge-firefox/trace.zip",
+      "command": "PULSE_SERVER=unix:/mnt/wslg/PulseServer PLAYWRIGHT_PORT=4364 npx playwright test tests/browser/audio-editor-dialog-navigation-regressions.spec.js --config=/tmp/perf200-browser-recheck.config.mjs --project=firefox --workers=1 --grep='a realtime effect header remains reachable after dragging toward the window edge' --trace=on --output=/tmp/perf200-dialog-navigation-recheck-results",
+      "config": "Import the worktree playwright.config.mjs and export its settings with an absolute tests/browser testDir and webServer: []; use the already running frozen product sites.",
+      "traceObservation": "EffectParameterEditor lazy chunk request began at monotonic 8765.660 ms; the header bounding-box action began at 8806.387 ms and resolved at 9154.138 ms; mouse-down followed at 9275.771 ms. The body was present before dragging in this successful run."
+    },
+    "deterministicDiagnostic": {
+      "status": "mechanism-reproduced-exactly",
+      "testStatus": "passed-by-asserting-the-observed-defect",
+      "passedTests": 1,
+      "testDurationSeconds": 9.8,
+      "totalDurationSeconds": 12.4,
+      "log": "/tmp/perf200-dialog-delayed-chunk.log",
+      "trace": "/tmp/perf200-dialog-delayed-chunk-results/delayed-effect-diagnostic--6a681-ody-after-clamped-edge-drag-firefox/trace.zip",
+      "screenshots": [
+        "/tmp/perf200-dialog-delayed-chunk-results/delayed-effect-diagnostic--6a681-ody-after-clamped-edge-drag-firefox/01-empty-body.png",
+        "/tmp/perf200-dialog-delayed-chunk-results/delayed-effect-diagnostic--6a681-ody-after-clamped-edge-drag-firefox/02-edge-empty-body.png",
+        "/tmp/perf200-dialog-delayed-chunk-results/delayed-effect-diagnostic--6a681-ody-after-clamped-edge-drag-firefox/03-edge-loaded-body.png"
+      ],
+      "temporarySpec": "/tmp/perf200-dialog-diagnostic/delayed-effect.spec.mjs",
+      "temporaryConfig": "/tmp/perf200-dialog-diagnostic.config.mjs",
+      "command": "PULSE_SERVER=unix:/mnt/wslg/PulseServer PLAYWRIGHT_PORT=4364 npx playwright test --config=/tmp/perf200-dialog-diagnostic.config.mjs --project=firefox --workers=1 --trace=on --output=/tmp/perf200-dialog-delayed-chunk-results",
+      "method": [
+        "Create a temporary Playwright spec importing test/expect and the existing bootEditor, chooseCommandAction, openEffectsForTrack and addRackEffect helpers by absolute worktree paths. Use the real Firefox project at its default 1280 by 720 viewport.",
+        "Before boot, install page.route(\"**/EffectParameterEditor-*.js\", async route => { await released; await route.continue(); }), where released is a manually resolved Promise. Record the requested URL. Release the Promise in finally as well to avoid leaving a blocked route.",
+        "Boot /embed/en/, invoke Generate > Tone with default settings, generate, open the first track effects rack, and add Reverb through its menu. Wait for the Reverb dialog and intercepted request, and verify [data-effect-parameters] has count zero.",
+        "Read bounding boxes for the dialog and .dialog-header. Move to the header center, mouse.down(), mouse.move(1, 1, { steps: 5 }), and mouse.up(). Poll the header bounding box until its y equals 8; capture the empty-body edge screenshot.",
+        "Resolve released so the original chunk continues unmodified. Wait until [data-effect-parameters] is visible, then read the dialog/header bounding boxes and capture the loaded-body screenshot. Attach those observations as JSON; assert loaded.header.y equals -21.5 only in this temporary diagnostic.",
+        "Use a temporary config importing the actual worktree playwright.config.mjs, overriding only testDir to the temporary spec directory, testMatch to **/*.spec.mjs, and webServer to []. Run one Firefox worker with tracing and a separate output directory; keep the full-suite process and its artifacts untouched."
+      ],
+      "interceptedUrl": "http://127.0.0.1:4364/assets/EffectParameterEditor-CKQsmhI1.js",
+      "geometry": {
+        "beforeDrag": {
+          "dialog": {
+            "x": 330,
+            "y": 280,
+            "width": 620,
+            "height": 160
+          },
+          "header": {
+            "x": 331,
+            "y": 281,
+            "width": 618,
+            "height": 28
+          }
+        },
+        "edgeBeforeBodyLoad": {
+          "dialog": {
+            "x": 7,
+            "y": 7,
+            "width": 620,
+            "height": 160
+          },
+          "header": {
+            "x": 8,
+            "y": 8,
+            "width": 618,
+            "height": 28
+          }
+        },
+        "edgeAfterBodyLoad": {
+          "dialog": {
+            "x": 7,
+            "y": -22.5,
+            "width": 620,
+            "height": 219
+          },
+          "header": {
+            "x": 8,
+            "y": -21.5,
+            "width": 618,
+            "height": 28
+          }
+        },
+        "dialogHeightIncrease": 59,
+        "headerYChange": -29.5
+      },
+      "confirmedMechanism": "LazyEffectParameterEditor uses Suspense fallback=null. The backdrop centers the dialog with CSS grid. AudioEditorDialogShell captures header bounds at mousedown and retains the same transform after the body mounts. Growing from 160 to 219 px shifts the centered origin upward by 29.5 px, moving a previously clamped header from y=8 to y=-21.5."
+    },
+    "sourceParity": [
+      {
+        "file": "src/common/editor/ui/AudioEditorDialogShell.tsx",
+        "byteLength": 9543,
+        "baselineAndCurrentSha256": "46e970b2d99043c7c56214de1042eb34ea1a7a12d37dab89f343160c02fac9eb",
+        "byteIdentical": true
+      },
+      {
+        "file": "src/common/editor/ui/dialog-drag-bounds.ts",
+        "byteLength": 837,
+        "baselineAndCurrentSha256": "e9dcca6e92b0b0d3cb608b949e44490df2b6451a2a63c1fd5a4f617bff620113",
+        "byteIdentical": true
+      },
+      {
+        "file": "src/common/editor/ui/dialog-move-lifecycle.ts",
+        "byteLength": 1006,
+        "baselineAndCurrentSha256": "4278feb6897e8abed1d0a608f37d499d9429b3fdab25473c780c4999f61b208d",
+        "byteIdentical": true
+      },
+      {
+        "file": "src/common/editor/ui/AudioEditorResizableSurface.jsx",
+        "byteLength": 4517,
+        "baselineAndCurrentSha256": "1b38d4306926bb0536148583cd20ed89606c66139a574fdb0adfb5ead9560c02",
+        "byteIdentical": true
+      },
+      {
+        "file": "src/common/editor/ui/inspector/AudioEditorEffectsOverlay.jsx",
+        "byteLength": 23962,
+        "baselineAndCurrentSha256": "fbeac1e6ac03353053155a0fb83aa3e8fd3482b5bbc2e2c7ce7cd22cbc47fd0a",
+        "byteIdentical": true
+      },
+      {
+        "file": "src/common/editor/ui/inspector/LazyEffectParameterEditor.jsx",
+        "byteLength": 388,
+        "baselineAndCurrentSha256": "b6bd54fbec09c2b0d99bbb723391b3f30ba897e39f5845708f0e5973ff796bed",
+        "byteIdentical": true
+      },
+      {
+        "file": "src/common/editor/ui/inspector/EffectParameterEditor.jsx",
+        "byteLength": 18190,
+        "baselineAndCurrentSha256": "9c40b402e3ee7364539739286b9cc75732a464ff32451fd838837e85d24913ea",
+        "byteIdentical": true
+      },
+      {
+        "file": "src/common/editor/ui/audio-editor-design-system/10-effects-vendor-overrides.css",
+        "byteLength": 12361,
+        "baselineAndCurrentSha256": "ba83b59744b27eff65fcad0435e66b3527d5b68592dfcac9ee8e3ee7adaa0e71",
+        "byteIdentical": true
+      },
+      {
+        "file": "src/common/editor/ui/audio-editor-design-system/11-panels-dialogs-generators.css",
+        "byteLength": 12015,
+        "baselineAndCurrentSha256": "31b938a3f83d5214fabfe3629d24d9f29e1d519f965f7482b1e125fb2821fd1f",
+        "byteIdentical": true
+      },
+      {
+        "file": "tests/audio-editor-dialog-drag-bounds.test.ts",
+        "byteLength": 1246,
+        "baselineAndCurrentSha256": "704d2dbda0f692ac87c729063fbb5fa9512549cf1316163acada7570c307d2db",
+        "byteIdentical": true
+      },
+      {
+        "file": "tests/browser/audio-editor-dialog-navigation-regressions.spec.js",
+        "byteLength": 2123,
+        "baselineAndCurrentSha256": "72ab1eff5daa859b0bc023ddea0a628e2cd1816b6d5d5b1bc6f3702e7081cd40",
+        "byteIdentical": true
+      },
+      {
+        "file": "tests/browser/audio-editor-test-helpers.js",
+        "byteLength": 25373,
+        "baselineAndCurrentSha256": "291bc9eb4156a42558160c0e3aea3f4776ed73e6df3afb217c27dd467843f09d",
+        "byteIdentical": true
+      }
+    ],
+    "changedCallerReview": {
+      "file": "src/common/editor/ui/workspace/WorkspacePanelDock.jsx",
+      "newHelper": "src/common/editor/ui/workspace/useWorkspaceDockPresentation.ts",
+      "finding": "The round-three change memoizes workspace panel availability/grouping/presentation. The effects-window dialog and its positioning are owned by the unchanged effects overlay, dialog shell and CSS; no causal defect in this new caller was identified."
+    },
+    "classification": {
+      "confirmed": "A pre-existing bounds defect can be triggered by mounting the real lazy effect body after an edge drag; the controlled reproduction matches the original -21.5 px failure exactly. Its relevant production and test sources are byte-identical to the merged baseline.",
+      "unresolved": "The original full-run diagnostics have no trace, so the actual lazy-load/resize timing in that original run cannot be directly established. The isolated pass does not erase or convert the original full-run failure into a full-suite pass.",
+      "optimizationRegressionEstablished": false
+    },
+    "existingTestCoverage": {
+      "file": "tests/audio-editor-dialog-drag-bounds.test.ts",
+      "covered": [
+        "Fixed header bounds at all viewport edges",
+        "A subsequent drag after a previously translated header"
+      ],
+      "gap": "No panel-size/lazy-body change during or after dragging is covered."
+    },
+    "proposedFutureCorrection": {
+      "status": "not-implemented",
+      "scope": "Re-clamp a draggable dialog when its panel size changes, and synchronize active drag geometry so later mouse moves cannot restore stale bounds.",
+      "redTests": [
+        "Hold the real lazy effect chunk, drag the empty dialog to the edge and release the pointer; load the body and retain the original header y>=0 and horizontal-reachability assertions.",
+        "Load the body during an active drag, then continue moving and release; the header must remain reachable."
+      ],
+      "performanceCountEffect": "None. A separate dialog-layout correctness fix must not expand or replace the frozen 100 performance changes."
+    }
+  },
+  "repositoryChanges": "Only this intentional diagnostic JSON is added. No production implementation, existing test, assertion, generated artifact, dependency or runtime inventory was altered.",
+  "additionalIssues": [
+    {
+      "test": "tests/browser/audio-editor-round3-repeat-amplify.spec.js",
+      "testDeclarationLine": 11,
+      "testName": "Repeat last effect retains its Amplify gain after a new dialog is canceled",
+      "project": "firefox",
+      "originalFullRun": {
+        "status": "failed",
+        "testNumber": 2279,
+        "logLine": 3480,
+        "testDurationSeconds": 9.8,
+        "assertionLine": 33,
+        "assertion": "expect(peak).toBeGreaterThan(0.35)",
+        "expectedPeakMinimumExclusive": 0.35,
+        "actualPeak": 0.12373518943786621,
+        "artifacts": [
+          "test-results/audio-editor-round3-repeat-d7926-er-a-new-dialog-is-canceled-firefox/error-context.md",
+          "test-results/audio-editor-round3-repeat-d7926-er-a-new-dialog-is-canceled-firefox/test-failed-1.png"
+        ],
+        "traceAvailable": false,
+        "observation": "The workflow reached the final exported-audio peak check. The received peak equals the unamplified quiet fixture after centered stereo routing. The upper-bound assertion was not reached."
+      },
+      "isolatedRerun": {
+        "status": "passed",
+        "passedTests": 1,
+        "testDurationSeconds": 13.4,
+        "totalDurationSeconds": 16.2,
+        "log": "/tmp/perf200-repeat-amplify-recheck.log",
+        "trace": "/tmp/perf200-repeat-amplify-recheck-results/audio-editor-round3-repeat-d7926-er-a-new-dialog-is-canceled-firefox/trace.zip",
+        "command": "PULSE_SERVER=unix:/mnt/wslg/PulseServer PLAYWRIGHT_PORT=4364 npx playwright test tests/browser/audio-editor-round3-repeat-amplify.spec.js --config=/tmp/perf200-browser-recheck.config.mjs --project=firefox --workers=1 --trace=on --output=/tmp/perf200-repeat-amplify-recheck-results",
+        "config": "Import actual worktree playwright.config.mjs, retain its real product origin/project settings, override testDir with absolute tests/browser and webServer: [], and reuse the frozen preview sites."
+      },
+      "deterministicDiagnostic": {
+        "status": "mechanism-reproduced-exactly",
+        "testStatus": "passed-by-asserting-the-observed-defect",
+        "passedTests": 1,
+        "testDurationSeconds": 15.1,
+        "totalDurationSeconds": 18.5,
+        "log": "/tmp/perf200-amplify-preparation-diagnostic.log",
+        "trace": "/tmp/perf200-amplify-preparation-diagnostic-results/preparation-race-diagnosti-a298d-ic-gain-preparation-is-held-firefox/trace.zip",
+        "screenshots": [
+          "/tmp/perf200-amplify-preparation-diagnostic-results/preparation-race-diagnosti-a298d-ic-gain-preparation-is-held-firefox/01-pending-preparation.png",
+          "/tmp/perf200-amplify-preparation-diagnostic-results/preparation-race-diagnosti-a298d-ic-gain-preparation-is-held-firefox/02-final-export.png"
+        ],
+        "temporarySpec": "/tmp/perf200-amplify-diagnostic/preparation-race.spec.mjs",
+        "temporaryConfig": "/tmp/perf200-amplify-diagnostic.config.mjs",
+        "command": "PULSE_SERVER=unix:/mnt/wslg/PulseServer PLAYWRIGHT_PORT=4364 npx playwright test --config=/tmp/perf200-amplify-diagnostic.config.mjs --project=firefox --workers=1 --trace=on --output=/tmp/perf200-amplify-preparation-diagnostic-results",
+        "method": [
+          "Create a temporary spec using the real browser fixture and existing helpers. Import mono 330 Hz WAV fixtures of 0.8 seconds, amplitude 0.35 and 0.175, named repeat-loud.wav and repeat-quiet.wav. Select the loud clip header.",
+          "After import and before opening Amplify, temporarily wrap OfflineAudioContext.prototype.startRendering in that page only. Call the original method unchanged; for only the first call, return nativeRendering.then(async buffer => { await held; return buffer; }), where held is a manually resolved Promise. Record call/native-completion/release performance.now timestamps. Later calls return their native rendering Promises normally. Preserve and restore the original prototype method in finally, and resolve held there as well.",
+          "Open Effect > Volume and compression > Amplify, wait for the real Apply effect dialog and first startRendering call. Verify Apply to selection is enabled while the first preparation result is held. Record the visible input values; both Amplification and New peak amplitude show 0.",
+          "Click Apply to selection without releasing held. Wait for the dialog to hide and record that a second native render was started; this apply completes using the stale explicit gainDb 0. Restore the native method and resolve held only after the first apply completes.",
+          "Mute the loud track, select the quiet clip, reopen Amplify, close its dialog, and choose Effect > Repeat last effect. Wait for the normal enabled Export audio control and export through the existing fresh-URL exportSamples helper. Compute the decoded PCM peak. In the temporary diagnostic only, assert it equals 0.12373518943786621 exactly.",
+          "Use the real frozen product sites, a temporary config importing the actual project config with webServer: [] and a temporary testDir, one Firefox worker, tracing, screenshots and an independent output directory. Do not alter the original spec/assertions or interrupt the full browser run."
+        ],
+        "observations": {
+          "initialVisibleAmplificationDb": 0,
+          "initialVisibleNewPeakDb": 0,
+          "applyEnabledWhilePreparationHeld": true,
+          "firstRender": {
+            "length": 38400,
+            "sampleRate": 48000,
+            "calledAtMs": 6131.98,
+            "nativeCompletedAtMs": 6135.98,
+            "releasedAtMs": 7777.26
+          },
+          "secondApplyRender": {
+            "length": 38400,
+            "sampleRate": 48000,
+            "calledAtMs": 6702.5
+          },
+          "finalPeak": 0.12373518943786621
+        },
+        "confirmedMechanism": "openSelectionEffect starts asynchronous automatic-gain preparation without waiting before opening the dialog. SelectionEffectsDialog enables Apply and submits local selectionParams. Applying while the scan is pending supplies gainDb 0 as an explicit touched value, so resolveInteractiveAudacityParams preserves it; lastAudacityEffect and Repeat then retain that gain. The controlled preparation delay reproduces the original final peak without changing rendered PCM."
+      },
+      "sourceParity": [
+        {
+          "file": "src/common/editor/ui/workspace/AudioEditorWorkspace.jsx",
+          "byteLength": 25109,
+          "baselineAndCurrentSha256": "dc77d9559e81c8635533c384b20a916c6f2879fce682c01dfe2d547ecb483fcc",
+          "byteIdentical": true
+        },
+        {
+          "file": "src/common/editor/ui/workspace/workspace-application-menu-runtime.js",
+          "byteLength": 19624,
+          "baselineAndCurrentSha256": "1822f81e08ecbf13b14859f154609899b5087f8c7bfd65c3b941cb8ef2f1d362",
+          "byteIdentical": true
+        },
+        {
+          "file": "src/common/editor/ui/inspector/SelectionEffectsDialog.jsx",
+          "byteLength": 14108,
+          "baselineAndCurrentSha256": "27085e6aaa0345f602db532807daa73f7e0a7bce9d8888880f34b4ea00ae6514",
+          "byteIdentical": true
+        },
+        {
+          "file": "src/common/editor/ui/application-menu-registry.ts",
+          "byteLength": 2883,
+          "baselineAndCurrentSha256": "c729499673797a5b062e1327fd3fead30f3569a1e8ce01d2b5f3bbaad965e9be",
+          "byteIdentical": true
+        },
+        {
+          "file": "src/common/editor/ui/application-menus.js",
+          "byteLength": 30082,
+          "baselineAndCurrentSha256": "acb674ab62c3f0793b13374c72f3882d20bf1f1f8f2288c01489e50e0a42b1af",
+          "byteIdentical": true
+        },
+        {
+          "file": "src/common/editor/controller/effects/effect-controls-service.ts",
+          "byteLength": 14586,
+          "baselineAndCurrentSha256": "a654305bca295e06df8502cf44cea903a2af60c25a4555d2741cdf6eaa00c0bb",
+          "byteIdentical": true
+        },
+        {
+          "file": "src/common/editor/controller/effects/internal/effect-execution-service.ts",
+          "byteLength": 23789,
+          "baselineAndCurrentSha256": "6bdefb348c04c1bb28888545c8cd3cfcbebffe91431c7e969241aeefb11d1c67",
+          "byteIdentical": true
+        },
+        {
+          "file": "src/common/editor/controller/effects/internal/effect-audio-service.ts",
+          "byteLength": 19057,
+          "baselineAndCurrentSha256": "600deb56c85ac352724fe46833cb3b3798c09f70a28892413f81446a5bb125ee",
+          "byteIdentical": true
+        },
+        {
+          "file": "src/common/editor/controller/effects/internal/direct-dry-track-pcm.ts",
+          "byteLength": 5054,
+          "baselineAndCurrentSha256": "e2e88f9a4173e0a233425427779e2890f66c0eaddab911a5c5ce1c7a7d54bced",
+          "byteIdentical": true
+        },
+        {
+          "file": "src/common/editor/engine/rendering-offline-mix.ts",
+          "byteLength": 6191,
+          "baselineAndCurrentSha256": "012fa5ad88fe9985ea8f43e18e73b2fa63c342d082d3da42d013b4f02c53faa3",
+          "byteIdentical": true
+        },
+        {
+          "file": "src/common/editor/audacity-effects/basic.js",
+          "byteLength": 18438,
+          "baselineAndCurrentSha256": "38c7bedde6740c7f22af8417c6f3d42ba172fad123f0877a2740275077b7dc0c",
+          "byteIdentical": true
+        },
+        {
+          "file": "tests/browser/audio-editor-round3-repeat-amplify.spec.js",
+          "byteLength": 2298,
+          "baselineAndCurrentSha256": "e9c06e94e1f2f9ba1768cd4c01a43dfddce8517ccea7074d1e7ad749859bdfeb",
+          "byteIdentical": true
+        },
+        {
+          "file": "tests/browser/helpers/round2-audio-export.js",
+          "byteLength": 1106,
+          "baselineAndCurrentSha256": "507c67b83b3c460c4213c8ad3f61f5c7e3c0d016084d8a1b7af720796d6948d7",
+          "byteIdentical": true
+        }
+      ],
+      "sharedDependencyReview": {
+        "modifiedReachablePaths": [
+          "src/common/editor/engine/project-graph-v21.ts",
+          "src/common/editor/engine/project-edge-geometry-v21.ts",
+          "src/common/editor/engine/project-path-pdc-plan-v21.ts",
+          "src/common/editor/engine/project-pdc-work-index-v21.ts",
+          "src/common/editor/engine/project-strip-control-index-v21.ts",
+          "src/common/editor/engine/project-suspended-effect-parameters-v21.ts"
+        ],
+        "finding": "The mono fixture does not enter the direct stereo dry-PCM path, so graph/PDC preparation changes are reachable in preparation and export. It has no VCA, solo or suspended effect; those changed registrars/resolvers take neutral paths. Edge-width and PDC indexes remain reachable. No concrete regression was found in those changes, but immediate-source parity is not treated as causal exclusion of every shared dependency.",
+        "exportSynchronization": "The existing exportSamples helper captures the previous download URL and polls until a new URL appears before decoding. The original test waits for an enabled Apply button, not completed automatic-gain preparation; it later waits for enabled Export audio, not a measured Repeat PCM result."
+      },
+      "classification": {
+        "confirmed": "A pending automatic-gain scan plus an early Apply reproduces the exact exported peak. Its workspace/dialog/effect-control/execution/rendering glue is byte-identical to the merged baseline, establishing that this unchanged control flow admits the race.",
+        "unresolved": "The original full-run failure has no trace and its preparation timing is not observable. This is not a whole baseline-build reproduction, and reachable shared graph/PDC changes can affect scheduling. The original failure remains unexplained with an isolated pass and a matching controlled race; it is not marked causally excluded or converted into a passing full-suite receipt.",
+        "optimizationRegressionEstablished": false
+      },
+      "existingTestCoverage": {
+        "file": "tests/audio-editor-effect-execution-preview-gain.test.ts",
+        "covered": [
+          "Automatic gain from complete target PCM",
+          "An explicit gain edit while asynchronous preparation runs wins"
+        ],
+        "gap": "The mounted dialog Apply action enabled during pending preparation and submitting untouched stale local gain is not covered."
+      },
+      "proposedFutureCorrection": {
+        "status": "not-implemented",
+        "scope": "Coordinate automatic-gain preparation with dialog Apply readiness, and preserve the distinction between untouched automatic defaults and explicit gain edits.",
+        "redTests": [
+          "Hold automatic-gain preparation in the mounted dialog; Apply must not commit stale untouched local gain.",
+          "Retain explicit user gain edits during preparation and the saved Repeat gain after reopening/canceling another dialog."
+        ],
+        "performanceCountEffect": "None. Any separate synchronization correction is outside the frozen 100 performance improvements."
+      }
+    },
+    {
+      "test": "tests/browser/soundscaper-guides.spec.js",
+      "testDeclarationLine": 13,
+      "testName": "Soundscaper handbook guides > Add a realtime effect to a track (add-a-realtime-effect-to-a-track)",
+      "project": "firefox",
+      "originalFullRun": {
+        "status": "failed",
+        "testNumber": 2819,
+        "logLine": 4020,
+        "testDurationSeconds": 12.9,
+        "assertionFile": "tests/browser/audio-editor-test-helpers.js",
+        "assertionLine": 285,
+        "assertion": "await expect(dialog).toBeHidden()",
+        "expected": "Reverb settings dialog hidden after Close click",
+        "actual": "Reverb settings dialog visible for the 5000 ms assertion timeout",
+        "artifacts": [
+          "test-results/soundscaper-guides-Soundsc-c5f1f-realtime-effect-to-a-track--firefox/error-context.md",
+          "test-results/soundscaper-guides-Soundsc-c5f1f-realtime-effect-to-a-track--firefox/test-failed-1.png"
+        ],
+        "traceAvailable": false,
+        "observation": "The screenshot shows the centered Reverb dialog with its parameter body loaded. The guide failed in runRackEffect before closing the effects panel and reaching playback."
+      },
+      "isolatedRerun": {
+        "status": "passed",
+        "passedTests": 1,
+        "testDurationSeconds": 15.0,
+        "totalDurationSeconds": 19.9,
+        "log": "/tmp/perf200-guide-realtime-effect-recheck.log",
+        "trace": "/tmp/perf200-guide-realtime-effect-recheck-results/soundscaper-guides-Soundsc-c5f1f-realtime-effect-to-a-track--firefox/trace.zip",
+        "command": "PULSE_SERVER=unix:/mnt/wslg/PulseServer PLAYWRIGHT_PORT=4364 npx playwright test tests/browser/soundscaper-guides.spec.js --config=/tmp/perf200-browser-recheck.config.mjs --project=firefox --workers=1 --grep='Add a realtime effect to a track' --trace=on --output=/tmp/perf200-guide-realtime-effect-recheck-results",
+        "config": "Import actual worktree playwright.config.mjs; preserve projects/use/product origin settings, override testDir with the absolute tests/browser directory and webServer with [], and reuse the frozen preview sites."
+      },
+      "sourceParity": [
+        {
+          "file": "tests/browser/soundscaper-guides.spec.js",
+          "byteLength": 759,
+          "baselineAndCurrentSha256": "7488f5930018ffd53ab7002ce69e1d1a11ee562373cc4a0897559bf2ff0f30c6",
+          "byteIdentical": true
+        },
+        {
+          "file": "tests/browser/helpers/guide-runner.js",
+          "byteLength": 19275,
+          "baselineAndCurrentSha256": "dcf8f9b705e8b8aff152b20a2744b4d7067dfb32896364210b7b98567e619ca4",
+          "byteIdentical": true
+        },
+        {
+          "file": "tests/browser/helpers/guide-actions.js",
+          "byteLength": 5490,
+          "baselineAndCurrentSha256": "3f35dae2e15b4f9a8be14a0ffe684e5c81da2ba2677ad194544fac3877204eba",
+          "byteIdentical": true
+        },
+        {
+          "file": "tests/browser/audio-editor-test-helpers.js",
+          "byteLength": 25373,
+          "baselineAndCurrentSha256": "291bc9eb4156a42558160c0e3aea3f4776ed73e6df3afb217c27dd467843f09d",
+          "byteIdentical": true
+        },
+        {
+          "file": "handbook/guides/soundscaper/effects.mjs",
+          "byteLength": 17520,
+          "baselineAndCurrentSha256": "92c7a773cfca3ca6c2a693dfd97f16671c3a36e6fbdbbb3e29fea09dd061d534",
+          "byteIdentical": true
+        },
+        {
+          "file": "src/common/editor/ui/inspector/AudioEditorEffectsOverlay.jsx",
+          "byteLength": 23962,
+          "baselineAndCurrentSha256": "fbeac1e6ac03353053155a0fb83aa3e8fd3482b5bbc2e2c7ce7cd22cbc47fd0a",
+          "byteIdentical": true
+        },
+        {
+          "file": "src/common/editor/ui/inspector/LazyEffectParameterEditor.jsx",
+          "byteLength": 388,
+          "baselineAndCurrentSha256": "b6bd54fbec09c2b0d99bbb723391b3f30ba897e39f5845708f0e5973ff796bed",
+          "byteIdentical": true
+        },
+        {
+          "file": "src/common/editor/ui/AudioEditorDialogShell.tsx",
+          "byteLength": 9543,
+          "baselineAndCurrentSha256": "46e970b2d99043c7c56214de1042eb34ea1a7a12d37dab89f343160c02fac9eb",
+          "byteIdentical": true
+        },
+        {
+          "file": "src/common/editor/ui/AudioEditorResizableSurface.jsx",
+          "byteLength": 4517,
+          "baselineAndCurrentSha256": "1b38d4306926bb0536148583cd20ed89606c66139a574fdb0adfb5ead9560c02",
+          "byteIdentical": true
+        },
+        {
+          "file": "src/common/editor/ui/dialog-escape-ownership.ts",
+          "byteLength": 1648,
+          "baselineAndCurrentSha256": "d1bc98c280fa20e3574cf8cc0e45ef3bb2a37d8ba786e65e9a0c0e19e42dba61",
+          "byteIdentical": true
+        },
+        {
+          "file": "src/common/editor/ui/dialog-focus-ownership.ts",
+          "byteLength": 819,
+          "baselineAndCurrentSha256": "f865fe5e9167dd4de70d2069dcf842cbcaf8cf3171243ab7d6b7147d8f9bd879",
+          "byteIdentical": true
+        }
+      ],
+      "sharedDependencyReview": {
+        "modifiedReachablePaths": [
+          "src/common/editor/ui/workspace/WorkspacePanelDock.jsx",
+          "src/common/editor/ui/workspace/useWorkspaceDockPresentation.ts",
+          "src/common/editor/engine/project-graph-v21.ts"
+        ],
+        "finding": "The guide reaches workspace panel publication and rack setup. Their round-three changes can affect scheduling, so unchanged immediate dialog/helper files alone are not treated as proof that every modified shared dependency is causally excluded."
+      },
+      "classification": {
+        "confirmed": "The full-run Reverb Close click did not hide the dialog within the assertion deadline; the isolated same-build guide succeeds. Eleven relevant definition/helper/dialog sources are byte-identical to the merged baseline.",
+        "unresolved": "No original trace establishes click coordinates, event delivery, body-mount timing or whether a later publication reopened the window. The separately confirmed lazy-body geometry change offers a possible moving-target timing explanation, but no matching Close-click reproduction was performed. This remains an unexplained full-run failure with an isolated pass, not a proven pre-existing issue or excluded optimization regression.",
+        "optimizationRegressionEstablished": false
+      },
+      "proposedFutureInvestigation": {
+        "status": "not-performed",
+        "scope": "Record pointer-down/up coordinates, close-handler delivery and dialog body size/publication timing while holding the actual lazy effect chunk. Establish a matching Close-click event reproduction before selecting an implementation or test correction.",
+        "performanceCountEffect": "None. This read-only failure investigation adds no performance finding."
+      }
+    },
+    {
+      "test": "tests/browser/audio-editor-audio-io-routing.spec.js",
+      "testDeclarationLine": 23,
+      "testName": "audio I/O signal routing > renders matching signal through group and send buses with a realtime effect",
+      "project": "webkit",
+      "originalFullRun": {
+        "status": "failed",
+        "testNumber": 2925,
+        "logLine": 4137,
+        "testDurationSeconds": 53.1,
+        "assertionLine": 59,
+        "assertion": "group > 20 && send > 20 && master < 1",
+        "assertionTimeoutMs": 15000,
+        "expected": true,
+        "actual": false,
+        "artifacts": [
+          "test-results/audio-editor-audio-io-rout-a378f-uses-with-a-realtime-effect-webkit/error-context.md",
+          "test-results/audio-editor-audio-io-rout-a378f-uses-with-a-realtime-effect-webkit/test-failed-1.png"
+        ],
+        "traceAvailable": false,
+        "observation": "The failure occurs during realtime meter polling, before Stop and both WAV export assertions. The screenshot shows playback at 13.74 seconds, beyond the 8-second fixture; it does not contain the sampled meter values."
+      },
+      "isolatedRerun": {
+        "status": "failed",
+        "testDurationSeconds": 56.9,
+        "assertionLine": 59,
+        "log": "/tmp/perf200-webkit-audio-io-recheck.log",
+        "trace": "/tmp/perf200-webkit-audio-io-recheck-results/audio-editor-audio-io-rout-a378f-uses-with-a-realtime-effect-webkit/trace.zip",
+        "command": "PULSE_SERVER=unix:/mnt/wslg/PulseServer PLAYWRIGHT_PORT=4364 npx playwright test tests/browser/audio-editor-audio-io-routing.spec.js --config=/tmp/perf200-browser-recheck.config.mjs --project=webkit --workers=1 --trace=on --output=/tmp/perf200-webkit-audio-io-recheck-results",
+        "reconstructedTraceMeters": "/tmp/perf200-webkit-routing-trace-meters.json",
+        "traceObservations": [
+          {
+            "timeMs": 48873.933,
+            "groupAndSendScaleY": 0.797846,
+            "masterScaleY": 0
+          },
+          {
+            "timeMs": 49419.519,
+            "groupAndSendScaleY": 0,
+            "masterScaleY": 0
+          }
+        ],
+        "traceLimitation": "Reference-compressed DOM snapshots show intended group/send signal with master cancellation briefly, but do not retain each original predicate evaluation result."
+      },
+      "baselineIsolation": {
+        "revision": "1e1aa842ee685ba03d536adec146139e85fe2ed5",
+        "detachedWorktree": "/tmp/Soundscaper-perf-200-routing-baseline",
+        "productBuild": "npm run build passed, including routes/i18n/chunk/FFmpeg checks; Vite duration 43.78 seconds",
+        "siteOrigin": "http://127.0.0.1:4366",
+        "originalTestStatus": "failed",
+        "originalTestDurationSeconds": 56.7,
+        "originalAssertionLine": 59,
+        "originalLog": "/tmp/perf200-routing-baseline-test.log",
+        "originalTrace": "/tmp/perf200-routing-baseline-results/audio-editor-audio-io-rout-a378f-uses-with-a-realtime-effect-webkit/trace.zip",
+        "command": "PULSE_SERVER=unix:/mnt/wslg/PulseServer PLAYWRIGHT_PORT=4366 npx playwright test tests/browser/audio-editor-audio-io-routing.spec.js --config=/tmp/perf200-routing-baseline.config.mjs --project=webkit --workers=1 --trace=on --output=/tmp/perf200-routing-baseline-results",
+        "config": "Import the detached baseline playwright.config.mjs, use its exact original tests/browser as absolute testDir, override webServer: [], and use the baseline preview on 4366. Routing uses only Soundscaper, so no sibling preview is needed.",
+        "cleanup": "The teammate stopped only the baseline4366 server and removed only its temporary worktree after retaining logs/traces/observations. No full-suite or unrelated worker was interrupted."
+      },
+      "observationalVariants": {
+        "method": [
+          "Copy the original routing spec to /tmp/perf200-routing-diagnostic/routing-observation.spec.mjs, changing only helper import paths to their absolute original locations, extending this diagnostic timeout to180 seconds, and adding observation logging. Original repository spec remains untouched.",
+          "Keep the same native graph, route setup, send-level changes, Invert effect and Play action. During the existing predicate, record group/send/master values plus every mixer fill bounding-box height, parent height, computed transform and parent display.",
+          "In this temporary variant only, catch the realtime-meter predicate failure so it can continue to Stop and both original fresh-URL WAV export/peak assertions. The caught predicate is retained as an observed failure; passing the variant is not counted as a passing original test.",
+          "Log canceledPeak, dryPeak and collected client errors. Preserve original thresholds canceledPeak<0.001, dryPeak>0.25 and dryPeak>canceledPeak*100. Use one WebKit worker, the existing frozen current site on 4364, actual product config with webServer: [], tracing and separate output.",
+          "Run the same observational copy against the separately built detached baseline preview on 4366 with the baseline product configuration and a distinct output directory. Compare recorded peak metrics and meter samples; do not infer whole-waveform byte parity from matching peaks."
+        ],
+        "temporarySpec": "/tmp/perf200-routing-diagnostic/routing-observation.spec.mjs",
+        "current": {
+          "status": "all-original-WAV-assertions-passed-with-meter-predicate-failure-caught",
+          "testDurationReported": "1.3m",
+          "totalDurationReported": "1.4m",
+          "log": "/tmp/perf200-webkit-routing-observation.log",
+          "trace": "/tmp/perf200-webkit-routing-observation-results/routing-observation-audio--5fc97-uses-with-a-realtime-effect-webkit/trace.zip",
+          "parsedObservations": "/tmp/perf200-webkit-routing-observations.json",
+          "sampleCount": 9,
+          "triples": "All nine sampled group/send/master triples were0/0/0; fill heights0, parent heights140 pixels and transforms scaleY0.",
+          "cancelledPeak": 1.1920928955078125e-07,
+          "dryPeak": 0.49494028091430664,
+          "clientErrors": []
+        },
+        "baseline": {
+          "status": "meter-predicate-and-all-original-WAV-assertions-passed",
+          "testDurationSeconds": 31.1,
+          "totalDurationSeconds": 34.3,
+          "log": "/tmp/perf200-routing-baseline-observation.log",
+          "trace": "/tmp/perf200-routing-baseline-observation-results/routing-observation-audio--5fc97-uses-with-a-realtime-effect-webkit/trace.zip",
+          "parsedObservations": "/tmp/perf200-routing-baseline-observations.json",
+          "triples": [
+            [
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0
+            ],
+            [
+              79.78445870535714,
+              79.78445870535714,
+              0
+            ]
+          ],
+          "meterParentHeightPx": 140,
+          "activeGroupAndSendScaleY": 0.797831,
+          "cancelledPeak": 1.1920928955078125e-07,
+          "dryPeak": 0.49494028091430664,
+          "clientErrors": []
+        },
+        "comparison": "Exactly matching canceled/dry exported WAV peak metrics and no client errors. These are peak comparisons, not full sample/hash equality."
+      },
+      "sourceParity": [
+        {
+          "file": "tests/browser/audio-editor-audio-io-routing.spec.js",
+          "byteLength": 4543,
+          "baselineAndCurrentSha256": "d2c4456d23af4244f42998678688356dcba30fd96d0eeff64a87f129cb13a4dd",
+          "byteIdentical": true
+        },
+        {
+          "file": "src/common/editor/ui/workspace/MixerTelemetryMeters.tsx",
+          "byteLength": 2158,
+          "baselineAndCurrentSha256": "8d1299340a2eb6c16960716831127382d30791bda9e69a621c15f4aa69744c3a",
+          "byteIdentical": true
+        },
+        {
+          "file": "src/common/editor/ui/workspace/AudioEditorMixerPanel.jsx",
+          "byteLength": 19657,
+          "baselineAndCurrentSha256": "5693993edee6dfe4f4fac92f39db129abd6d900314cd28534cb36da8311bc5e2",
+          "byteIdentical": true
+        },
+        {
+          "file": "src/common/editor/ui/meter-channel-readings.ts",
+          "byteLength": 1542,
+          "baselineAndCurrentSha256": "5a96b8af9182a4bc750ab4a7fbc55ce9f7277073bea8b4564e87451cac4aa532",
+          "byteIdentical": true
+        }
+      ],
+      "modifiedReachablePaths": [
+        "src/common/editor/engine/project-graph-v21.ts",
+        "src/common/editor/engine/project-edge-geometry-v21.ts",
+        "src/common/editor/engine/project-path-pdc-plan-v21.ts",
+        "src/common/editor/engine/project-pdc-work-index-v21.ts",
+        "src/common/editor/engine/project-strip-control-index-v21.ts",
+        "src/common/editor/engine/project-suspended-effect-parameters-v21.ts"
+      ],
+      "classification": {
+        "confirmed": "The unchanged original realtime-meter test fails on both separately built merged baseline and current product. Baseline subsequent observation catches intended realtime cancellation, and current trace also contains that signal. Both observational variants pass original exported-WAV assertions with exactly matching peak metrics. This establishes intermittent realtime sampling/capture behavior on the baseline under this environment.",
+        "unresolved": "No original full-run trace establishes its native scheduling or sampled values. The checks do not prove a universal realtime guarantee or whole-waveform byte parity, and matching baseline failures do not erase the full-suite failure. No concrete graph/PDC semantic regression was identified.",
+        "optimizationRegressionEstablished": false
+      },
+      "performanceCountEffect": "None. These are uncounted read-only diagnostics; no production implementation or original repository test/assertion was changed.",
+      "postFullRunOneWorkerRecheck": {
+        "originalTestNumber": 2925,
+        "recheckTestNumber": 1,
+        "status": "passed",
+        "test": "tests/browser/audio-editor-audio-io-routing.spec.js",
+        "testName": "audio I/O signal routing › renders matching signal through group and send buses with a realtime effect",
+        "reportedDuration": "12.0s",
+        "trace": "/tmp/perf200-webkit-failures-recheck-results/audio-editor-audio-io-rout-a378f-uses-with-a-realtime-effect-webkit/trace.zip",
+        "log": "/tmp/perf200-webkit-failures-recheck.log",
+        "limitation": "This separate same-build pass/failure does not replace the original failed full-suite result or establish its cause."
+      }
+    }
+  ],
+  "otherFullRunFailures": [
+    {
+      "status": "failed",
+      "testNumber": 2937,
+      "project": "webkit",
+      "test": "tests/browser/audio-editor-band-dynamics.spec.js",
+      "testDeclarationLine": 16,
+      "testName": "de-esser and multiband compressor › De-esser opens from the menu, applies and undoes",
+      "logLine": 4149,
+      "reportedDuration": "30.7s",
+      "errorContext": "test-results/audio-editor-band-dynamics-4dc17-the-menu-applies-and-undoes-webkit/error-context.md",
+      "errorDetails": [
+        "Test timeout of 30000ms exceeded.",
+        "Error: page.evaluate: Test timeout of 30000ms exceeded."
+      ],
+      "alerts": [],
+      "artifacts": [
+        "test-results/audio-editor-band-dynamics-4dc17-the-menu-applies-and-undoes-webkit/test-failed-1.png",
+        "test-results/audio-editor-band-dynamics-4dc17-the-menu-applies-and-undoes-webkit/error-context.md"
+      ],
+      "isolatedRerun": "See the separate postFullRunOneWorkerRecheck pass; the original full-run failure and unresolved cause remain recorded above.",
+      "classification": "Unresolved original full-run failure; deadline/cause attribution is not established.",
+      "postFullRunOneWorkerRecheck": {
+        "originalTestNumber": 2937,
+        "recheckTestNumber": 2,
+        "status": "passed",
+        "test": "tests/browser/audio-editor-band-dynamics.spec.js",
+        "testName": "de-esser and multiband compressor › De-esser opens from the menu, applies and undoes",
+        "reportedDuration": "4.2s",
+        "trace": "/tmp/perf200-webkit-failures-recheck-results/audio-editor-band-dynamics-4dc17-the-menu-applies-and-undoes-webkit/trace.zip",
+        "log": "/tmp/perf200-webkit-failures-recheck.log",
+        "limitation": "This separate same-build pass/failure does not replace the original failed full-suite result or establish its cause."
+      }
+    },
+    {
+      "status": "failed",
+      "testNumber": 2938,
+      "project": "webkit",
+      "test": "tests/browser/audio-editor-band-dynamics.spec.js",
+      "testDeclarationLine": 35,
+      "testName": "de-esser and multiband compressor › De-esser loads its worklet and retains rack settings after reload",
+      "logLine": 4152,
+      "reportedDuration": "31.0s",
+      "errorContext": "test-results/audio-editor-band-dynamics-a26ae--rack-settings-after-reload-webkit/error-context.md",
+      "errorDetails": [
+        "Test timeout of 30000ms exceeded.",
+        "Error: expect(locator).toHaveAttribute(expected) failed\n\nLocator:  locator('[data-audio-editor]')\nExpected: \"true\"\nReceived: \"false\"\n\nCall log:\n  - Expect \"toHaveAttribute\" with timeout 20000ms\n  - waiting for locator('[data-audio-editor]')\n  - \n"
+      ],
+      "alerts": [],
+      "artifacts": [
+        "test-results/audio-editor-band-dynamics-a26ae--rack-settings-after-reload-webkit/test-failed-1.png",
+        "test-results/audio-editor-band-dynamics-a26ae--rack-settings-after-reload-webkit/error-context.md"
+      ],
+      "isolatedRerun": "See the separate postFullRunOneWorkerRecheck pass; the original full-run failure and unresolved cause remain recorded above.",
+      "classification": "Unresolved original full-run failure; deadline/cause attribution is not established.",
+      "postFullRunOneWorkerRecheck": {
+        "originalTestNumber": 2938,
+        "recheckTestNumber": 3,
+        "status": "passed",
+        "test": "tests/browser/audio-editor-band-dynamics.spec.js",
+        "testName": "de-esser and multiband compressor › De-esser loads its worklet and retains rack settings after reload",
+        "reportedDuration": "6.9s",
+        "trace": "/tmp/perf200-webkit-failures-recheck-results/audio-editor-band-dynamics-a26ae--rack-settings-after-reload-webkit/trace.zip",
+        "log": "/tmp/perf200-webkit-failures-recheck.log",
+        "limitation": "This separate same-build pass/failure does not replace the original failed full-suite result or establish its cause."
+      }
+    },
+    {
+      "status": "failed",
+      "testNumber": 2940,
+      "project": "webkit",
+      "test": "tests/browser/audio-editor-band-dynamics.spec.js",
+      "testDeclarationLine": 16,
+      "testName": "de-esser and multiband compressor › Multiband compressor opens from the menu, applies and undoes",
+      "logLine": 4157,
+      "reportedDuration": "32.5s",
+      "errorContext": "test-results/audio-editor-band-dynamics-bf8e2-the-menu-applies-and-undoes-webkit/error-context.md",
+      "errorDetails": [
+        "Test timeout of 30000ms exceeded."
+      ],
+      "alerts": [],
+      "artifacts": [
+        "test-results/audio-editor-band-dynamics-bf8e2-the-menu-applies-and-undoes-webkit/test-failed-1.png",
+        "test-results/audio-editor-band-dynamics-bf8e2-the-menu-applies-and-undoes-webkit/error-context.md"
+      ],
+      "isolatedRerun": "See the separate postFullRunOneWorkerRecheck pass; the original full-run failure and unresolved cause remain recorded above.",
+      "classification": "Unresolved original full-run failure; deadline/cause attribution is not established.",
+      "postFullRunOneWorkerRecheck": {
+        "originalTestNumber": 2940,
+        "recheckTestNumber": 4,
+        "status": "passed",
+        "test": "tests/browser/audio-editor-band-dynamics.spec.js",
+        "testName": "de-esser and multiband compressor › Multiband compressor opens from the menu, applies and undoes",
+        "reportedDuration": "4.5s",
+        "trace": "/tmp/perf200-webkit-failures-recheck-results/audio-editor-band-dynamics-bf8e2-the-menu-applies-and-undoes-webkit/trace.zip",
+        "log": "/tmp/perf200-webkit-failures-recheck.log",
+        "limitation": "This separate same-build pass/failure does not replace the original failed full-suite result or establish its cause."
+      }
+    },
+    {
+      "status": "failed",
+      "testNumber": 2941,
+      "project": "webkit",
+      "test": "tests/browser/audio-editor-band-dynamics.spec.js",
+      "testDeclarationLine": 62,
+      "testName": "de-esser and multiband compressor › Multiband compressor renders through the offline export worklet",
+      "logLine": 4160,
+      "reportedDuration": "31.9s",
+      "errorContext": "test-results/audio-editor-band-dynamics-17edf--the-offline-export-worklet-webkit/error-context.md",
+      "errorDetails": [
+        "Test timeout of 30000ms exceeded.",
+        "Error: expect(locator).toBeVisible() failed\n\nLocator:  getByRole('dialog', { name: 'Export audio', exact: true }).locator('[data-export-download]')\nExpected: visible\nReceived: hidden\n\nCall log:\n  - Expect \"toBeVisible\" with timeout 20000ms\n  - waiting for getByRole('dialog', { name: 'Export audio', exact: true }).locator('[data-export-download]')\n    2 × locator resolved to <a href=\"#\" hidden=\"\" download=\"\" data-export-download=\"true\" class=\"audio-editor-export-download\">Done</a>\n      - unexpected value \"hidden\"\n  - \n"
+      ],
+      "alerts": [],
+      "artifacts": [
+        "test-results/audio-editor-band-dynamics-17edf--the-offline-export-worklet-webkit/test-failed-1.png",
+        "test-results/audio-editor-band-dynamics-17edf--the-offline-export-worklet-webkit/error-context.md"
+      ],
+      "isolatedRerun": "See the separate postFullRunOneWorkerRecheck pass; the original full-run failure and unresolved cause remain recorded above.",
+      "classification": "Unresolved original full-run failure; deadline/cause attribution is not established.",
+      "postFullRunOneWorkerRecheck": {
+        "originalTestNumber": 2941,
+        "recheckTestNumber": 6,
+        "status": "passed",
+        "test": "tests/browser/audio-editor-band-dynamics.spec.js",
+        "testName": "de-esser and multiband compressor › Multiband compressor renders through the offline export worklet",
+        "reportedDuration": "5.0s",
+        "trace": "/tmp/perf200-webkit-failures-recheck-results/audio-editor-band-dynamics-17edf--the-offline-export-worklet-webkit/trace.zip",
+        "log": "/tmp/perf200-webkit-failures-recheck.log",
+        "limitation": "This separate same-build pass/failure does not replace the original failed full-suite result or establish its cause."
+      }
+    },
+    {
+      "status": "failed",
+      "testNumber": 2942,
+      "project": "webkit",
+      "test": "tests/browser/audio-editor-band-dynamics.spec.js",
+      "testDeclarationLine": 35,
+      "testName": "de-esser and multiband compressor › Multiband compressor loads its worklet and retains rack settings after reload",
+      "logLine": 4163,
+      "reportedDuration": "31.4s",
+      "errorContext": "test-results/audio-editor-band-dynamics-5cec5--rack-settings-after-reload-webkit/error-context.md",
+      "errorDetails": [
+        "Test timeout of 30000ms exceeded.",
+        "Error: expect(locator).toBeVisible() failed\n\nLocator: locator('[data-audio-editor]').getByRole('button', { name: 'Pause', exact: true })\nExpected: visible\nError: element(s) not found\n\nCall log:\n  - Expect \"toBeVisible\" with timeout 5000ms\n  - waiting for locator('[data-audio-editor]').getByRole('button', { name: 'Pause', exact: true })\n  - Test timeout of 30000ms exceeded.\n"
+      ],
+      "alerts": [],
+      "artifacts": [
+        "test-results/audio-editor-band-dynamics-5cec5--rack-settings-after-reload-webkit/test-failed-1.png",
+        "test-results/audio-editor-band-dynamics-5cec5--rack-settings-after-reload-webkit/error-context.md"
+      ],
+      "isolatedRerun": "See the separate postFullRunOneWorkerRecheck pass; the original full-run failure and unresolved cause remain recorded above.",
+      "classification": "Unresolved original full-run failure; deadline/cause attribution is not established.",
+      "postFullRunOneWorkerRecheck": {
+        "originalTestNumber": 2942,
+        "recheckTestNumber": 5,
+        "status": "passed",
+        "test": "tests/browser/audio-editor-band-dynamics.spec.js",
+        "testName": "de-esser and multiband compressor › Multiband compressor loads its worklet and retains rack settings after reload",
+        "reportedDuration": "6.9s",
+        "trace": "/tmp/perf200-webkit-failures-recheck-results/audio-editor-band-dynamics-5cec5--rack-settings-after-reload-webkit/trace.zip",
+        "log": "/tmp/perf200-webkit-failures-recheck.log",
+        "limitation": "This separate same-build pass/failure does not replace the original failed full-suite result or establish its cause."
+      }
+    },
+    {
+      "status": "failed",
+      "testNumber": 2943,
+      "project": "webkit",
+      "test": "tests/browser/audio-editor-band-dynamics.spec.js",
+      "testDeclarationLine": 89,
+      "testName": "de-esser and multiband compressor › multiband compressor reuses the live compressor input and output graph",
+      "logLine": 4166,
+      "reportedDuration": "32.1s",
+      "errorContext": "test-results/audio-editor-band-dynamics-4e983-ssor-input-and-output-graph-webkit/error-context.md",
+      "errorDetails": [
+        "Test timeout of 30000ms exceeded.",
+        "Error: expect(locator).toBeVisible() failed\n\nLocator: locator('[data-audio-editor]').getByRole('button', { name: 'Pause', exact: true })\nExpected: visible\nError: element(s) not found\n\nCall log:\n  - Expect \"toBeVisible\" with timeout 5000ms\n  - waiting for locator('[data-audio-editor]').getByRole('button', { name: 'Pause', exact: true })\n  - \n"
+      ],
+      "alerts": [],
+      "artifacts": [
+        "test-results/audio-editor-band-dynamics-4e983-ssor-input-and-output-graph-webkit/test-failed-1.png",
+        "test-results/audio-editor-band-dynamics-4e983-ssor-input-and-output-graph-webkit/error-context.md"
+      ],
+      "isolatedRerun": "See the separate postFullRunOneWorkerRecheck pass; the original full-run failure and unresolved cause remain recorded above.",
+      "classification": "Unresolved original full-run failure; deadline/cause attribution is not established.",
+      "postFullRunOneWorkerRecheck": {
+        "originalTestNumber": 2943,
+        "recheckTestNumber": 7,
+        "status": "passed",
+        "test": "tests/browser/audio-editor-band-dynamics.spec.js",
+        "testName": "de-esser and multiband compressor › multiband compressor reuses the live compressor input and output graph",
+        "reportedDuration": "5.0s",
+        "trace": "/tmp/perf200-webkit-failures-recheck-results/audio-editor-band-dynamics-4e983-ssor-input-and-output-graph-webkit/trace.zip",
+        "log": "/tmp/perf200-webkit-failures-recheck.log",
+        "limitation": "This separate same-build pass/failure does not replace the original failed full-suite result or establish its cause."
+      }
+    },
+    {
+      "status": "failed",
+      "testNumber": 2950,
+      "project": "webkit",
+      "test": "tests/browser/audio-editor-boundary-snap.spec.js",
+      "testDeclarationLine": 103,
+      "testName": "Audacity 3 boundary snapping › clip boundary alignment stays exact when time-grid Snap is on",
+      "logLine": 4174,
+      "reportedDuration": "30.8s",
+      "errorContext": "test-results/audio-editor-boundary-snap-5edf1-t-when-time-grid-Snap-is-on-webkit/error-context.md",
+      "errorDetails": [
+        "Test timeout of 30000ms exceeded.",
+        "Error: expect(locator).toBeEnabled() failed\n\nLocator:  locator('[data-audio-editor]').getByRole('menubar', { name: /^(Application menu|Anwendungsmenü)$/ }).getByRole('menuitem', { name: 'Edit', exact: true })\nExpected: enabled\nReceived: undefined\n\nCall log:\n  - Expect \"toBeEnabled\" with timeout 5000ms\n  - waiting for locator('[data-audio-editor]').getByRole('menubar', { name: /^(Application menu|Anwendungsmenü)$/ }).getByRole('menuitem', { name: 'Edit', exact: true })\n  - \n"
+      ],
+      "alerts": [],
+      "artifacts": [
+        "test-results/audio-editor-boundary-snap-5edf1-t-when-time-grid-Snap-is-on-webkit/test-failed-1.png",
+        "test-results/audio-editor-boundary-snap-5edf1-t-when-time-grid-Snap-is-on-webkit/error-context.md"
+      ],
+      "isolatedRerun": "See the separate postFullRunOneWorkerRecheck pass; the original full-run failure and unresolved cause remain recorded above.",
+      "classification": "Unresolved original full-run failure; deadline/cause attribution is not established.",
+      "postFullRunOneWorkerRecheck": {
+        "originalTestNumber": 2950,
+        "recheckTestNumber": 9,
+        "status": "passed",
+        "test": "tests/browser/audio-editor-boundary-snap.spec.js",
+        "testName": "Audacity 3 boundary snapping › clip boundary alignment stays exact when time-grid Snap is on",
+        "reportedDuration": "7.4s",
+        "trace": "/tmp/perf200-webkit-failures-recheck-results/audio-editor-boundary-snap-5edf1-t-when-time-grid-Snap-is-on-webkit/trace.zip",
+        "log": "/tmp/perf200-webkit-failures-recheck.log",
+        "limitation": "This separate same-build pass/failure does not replace the original failed full-suite result or establish its cause."
+      }
+    },
+    {
+      "status": "failed",
+      "testNumber": 2949,
+      "project": "webkit",
+      "test": "tests/browser/audio-editor-boundary-snap.spec.js",
+      "testDeclarationLine": 75,
+      "testName": "Audacity 3 boundary snapping › clip ends align to another clip start with grid Snap off; Escape releases this drag only",
+      "logLine": 4175,
+      "reportedDuration": "31.5s",
+      "errorContext": "test-results/audio-editor-boundary-snap-9f1bc-ape-releases-this-drag-only-webkit/error-context.md",
+      "errorDetails": [
+        "Test timeout of 30000ms exceeded.",
+        "Error: locator.focus: Test timeout of 30000ms exceeded.\nCall log:\n  - waiting for locator('[data-audio-editor]').getByRole('group', { name: /^browser-tone-b\\.wav clip(?:,|$)/ })\n    - locator resolved to <div role=\"group\" tabindex=\"110\" data-focus-mouse=\"\" data-track-index=\"2\" data-first-clip=\"true\" data-clip-id=\"clip-0826d9f0-e4b7-4146-94bc-8819cd9645a7\" aria-label=\"browser-tone-b.wav clip, starts at 0.2 seconds, 0.8 seconds long\">…</div>\n"
+      ],
+      "alerts": [],
+      "artifacts": [
+        "test-results/audio-editor-boundary-snap-9f1bc-ape-releases-this-drag-only-webkit/test-failed-1.png",
+        "test-results/audio-editor-boundary-snap-9f1bc-ape-releases-this-drag-only-webkit/error-context.md"
+      ],
+      "isolatedRerun": "See the separate postFullRunOneWorkerRecheck pass; the original full-run failure and unresolved cause remain recorded above.",
+      "classification": "Unresolved original full-run failure; deadline/cause attribution is not established.",
+      "postFullRunOneWorkerRecheck": {
+        "originalTestNumber": 2949,
+        "recheckTestNumber": 8,
+        "status": "passed",
+        "test": "tests/browser/audio-editor-boundary-snap.spec.js",
+        "testName": "Audacity 3 boundary snapping › clip ends align to another clip start with grid Snap off; Escape releases this drag only",
+        "reportedDuration": "8.0s",
+        "trace": "/tmp/perf200-webkit-failures-recheck-results/audio-editor-boundary-snap-9f1bc-ape-releases-this-drag-only-webkit/trace.zip",
+        "log": "/tmp/perf200-webkit-failures-recheck.log",
+        "limitation": "This separate same-build pass/failure does not replace the original failed full-suite result or establish its cause."
+      }
+    },
+    {
+      "status": "failed",
+      "testNumber": 2978,
+      "project": "webkit",
+      "test": "tests/browser/audio-editor-click-removal.spec.js",
+      "testDeclarationLine": 87,
+      "testName": "Click Removal › closing changed controls leaves the original audio untouched",
+      "logLine": 4205,
+      "reportedDuration": "31.6s",
+      "errorContext": "test-results/audio-editor-click-removal-0765a-he-original-audio-untouched-webkit/error-context.md",
+      "errorDetails": [
+        "Test timeout of 30000ms exceeded.",
+        "Error: expect(locator).toBeVisible() failed\n\nLocator:  getByRole('menu', { name: 'File', exact: true })\nExpected: visible\nReceived: undefined\n\nCall log:\n  - Expect \"toBeVisible\" with timeout 5000ms\n  - waiting for getByRole('menu', { name: 'File', exact: true })\n  - \n"
+      ],
+      "alerts": [],
+      "artifacts": [
+        "test-results/audio-editor-click-removal-0765a-he-original-audio-untouched-webkit/test-failed-1.png",
+        "test-results/audio-editor-click-removal-0765a-he-original-audio-untouched-webkit/error-context.md"
+      ],
+      "isolatedRerun": "See the separate postFullRunOneWorkerRecheck pass; the original full-run failure and unresolved cause remain recorded above.",
+      "classification": "Unresolved original full-run failure; deadline/cause attribution is not established.",
+      "postFullRunOneWorkerRecheck": {
+        "originalTestNumber": 2978,
+        "recheckTestNumber": 10,
+        "status": "passed",
+        "test": "tests/browser/audio-editor-click-removal.spec.js",
+        "testName": "Click Removal › closing changed controls leaves the original audio untouched",
+        "reportedDuration": "9.4s",
+        "trace": "/tmp/perf200-webkit-failures-recheck-results/audio-editor-click-removal-0765a-he-original-audio-untouched-webkit/trace.zip",
+        "log": "/tmp/perf200-webkit-failures-recheck.log",
+        "limitation": "This separate same-build pass/failure does not replace the original failed full-suite result or establish its cause."
+      }
+    },
+    {
+      "status": "failed",
+      "testNumber": 3103,
+      "project": "webkit",
+      "test": "tests/browser/audio-editor-devices-routing.spec.js",
+      "testDeclarationLine": 399,
+      "testName": "audio editor React/design-system workflows › exposes play at speed and persists its pitch behavior preference",
+      "logLine": 4335,
+      "reportedDuration": "12.2s",
+      "errorContext": "test-results/audio-editor-devices-routi-6135c-s-pitch-behavior-preference-webkit/error-context.md",
+      "errorDetails": [
+        "Error: expect(locator).toBeVisible() failed\n\nLocator: locator('[data-audio-editor]').getByRole('button', { name: 'Pause', exact: true })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"toBeVisible\" with timeout 5000ms\n  - waiting for locator('[data-audio-editor]').getByRole('button', { name: 'Pause', exact: true })\n"
+      ],
+      "alerts": [
+        "- alert: \" Unknown error The action failed: The streamed and buffered sources missed their shared playback start.\""
+      ],
+      "artifacts": [
+        "test-results/audio-editor-devices-routi-6135c-s-pitch-behavior-preference-webkit/test-failed-1.png",
+        "test-results/audio-editor-devices-routi-6135c-s-pitch-behavior-preference-webkit/error-context.md"
+      ],
+      "isolatedRerun": "See the separate postFullRunOneWorkerRecheck pass; the original full-run failure and unresolved cause remain recorded above.",
+      "classification": "Unresolved original full-run failure; deadline/cause attribution is not established.",
+      "confirmedFailureStage": "The saved alert reports that streamed and buffered sources missed their shared playback start. The transport remains stopped; the test fails waiting for Pause before its target preference, activity, or pause/replay checks.",
+      "postFullRunOneWorkerRecheck": {
+        "originalTestNumber": 3103,
+        "recheckTestNumber": 11,
+        "status": "passed",
+        "test": "tests/browser/audio-editor-devices-routing.spec.js",
+        "testName": "audio editor React/design-system workflows › exposes play at speed and persists its pitch behavior preference",
+        "reportedDuration": "6.4s",
+        "trace": "/tmp/perf200-webkit-failures-recheck-results/audio-editor-devices-routi-6135c-s-pitch-behavior-preference-webkit/trace.zip",
+        "log": "/tmp/perf200-webkit-failures-recheck.log",
+        "limitation": "This separate same-build pass/failure does not replace the original failed full-suite result or establish its cause."
+      }
+    },
+    {
+      "status": "failed",
+      "testNumber": 3195,
+      "project": "webkit",
+      "test": "tests/browser/audio-editor-effects.spec.js",
+      "testDeclarationLine": 446,
+      "testName": "audio editor React/design-system workflows › shows what the live compressor is doing to the signal while it plays",
+      "logLine": 4427,
+      "reportedDuration": "15.1s",
+      "errorContext": "test-results/audio-editor-effects-audio-e557b-o-the-signal-while-it-plays-webkit/error-context.md",
+      "errorDetails": [
+        "Error: expect(locator).toBeVisible() failed\n\nLocator: locator('[data-audio-editor]').getByRole('button', { name: 'Pause', exact: true })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"toBeVisible\" with timeout 5000ms\n  - waiting for locator('[data-audio-editor]').getByRole('button', { name: 'Pause', exact: true })\n"
+      ],
+      "alerts": [
+        "- alert: \" Unknown error The action failed: The streamed and buffered sources missed their shared playback start.\""
+      ],
+      "artifacts": [
+        "test-results/audio-editor-effects-audio-e557b-o-the-signal-while-it-plays-webkit/test-failed-1.png",
+        "test-results/audio-editor-effects-audio-e557b-o-the-signal-while-it-plays-webkit/error-context.md"
+      ],
+      "isolatedRerun": "See the separate postFullRunOneWorkerRecheck pass; the original full-run failure and unresolved cause remain recorded above.",
+      "classification": "Unresolved original full-run failure; deadline/cause attribution is not established.",
+      "confirmedFailureStage": "The saved alert reports that streamed and buffered sources missed their shared playback start. The transport remains stopped; the test fails waiting for Pause before its target preference, activity, or pause/replay checks.",
+      "postFullRunOneWorkerRecheck": {
+        "originalTestNumber": 3195,
+        "recheckTestNumber": 12,
+        "status": "passed",
+        "test": "tests/browser/audio-editor-effects.spec.js",
+        "testName": "audio editor React/design-system workflows › shows what the live compressor is doing to the signal while it plays",
+        "reportedDuration": "6.5s",
+        "trace": "/tmp/perf200-webkit-failures-recheck-results/audio-editor-effects-audio-e557b-o-the-signal-while-it-plays-webkit/trace.zip",
+        "log": "/tmp/perf200-webkit-failures-recheck.log",
+        "limitation": "This separate same-build pass/failure does not replace the original failed full-suite result or establish its cause."
+      }
+    },
+    {
+      "status": "failed",
+      "testNumber": 3479,
+      "project": "webkit",
+      "test": "tests/browser/audio-editor-repeated-actions.spec.js",
+      "testDeclarationLine": 120,
+      "testName": "repeated editor actions › plays again after pausing in each of two project tabs",
+      "logLine": 4712,
+      "reportedDuration": "20.2s",
+      "errorContext": "test-results/audio-editor-repeated-acti-63db8-in-each-of-two-project-tabs-webkit/error-context.md",
+      "errorDetails": [
+        "Error: expect(locator).toBeVisible() failed\n\nLocator: locator('[data-audio-editor]').getByRole('button', { name: 'Pause', exact: true })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"toBeVisible\" with timeout 5000ms\n  - waiting for locator('[data-audio-editor]').getByRole('button', { name: 'Pause', exact: true })\n"
+      ],
+      "alerts": [
+        "- alert: \" Unknown error The action failed: The streamed and buffered sources missed their shared playback start.\""
+      ],
+      "artifacts": [
+        "test-results/audio-editor-repeated-acti-63db8-in-each-of-two-project-tabs-webkit/test-failed-1.png",
+        "test-results/audio-editor-repeated-acti-63db8-in-each-of-two-project-tabs-webkit/error-context.md"
+      ],
+      "isolatedRerun": "See the separate postFullRunOneWorkerRecheck pass; the original full-run failure and unresolved cause remain recorded above.",
+      "classification": "Unresolved original full-run failure; deadline/cause attribution is not established.",
+      "confirmedFailureStage": "The saved alert reports that streamed and buffered sources missed their shared playback start. The transport remains stopped; the test fails waiting for Pause before its target preference, activity, or pause/replay checks.",
+      "postFullRunOneWorkerRecheck": {
+        "originalTestNumber": 3479,
+        "recheckTestNumber": 13,
+        "status": "passed",
+        "test": "tests/browser/audio-editor-repeated-actions.spec.js",
+        "testName": "repeated editor actions › plays again after pausing in each of two project tabs",
+        "reportedDuration": "8.8s",
+        "trace": "/tmp/perf200-webkit-failures-recheck-results/audio-editor-repeated-acti-63db8-in-each-of-two-project-tabs-webkit/trace.zip",
+        "log": "/tmp/perf200-webkit-failures-recheck.log",
+        "limitation": "This separate same-build pass/failure does not replace the original failed full-suite result or establish its cause."
+      }
+    },
+    {
+      "status": "failed",
+      "testNumber": 3487,
+      "project": "webkit",
+      "test": "tests/browser/audio-editor-round2-authoring-numbers.spec.js",
+      "testDeclarationLine": 7,
+      "testName": "typing a negative selected adjustment brightness retains its sign",
+      "logLine": 4726,
+      "reportedDuration": "31.1s",
+      "errorContext": "test-results/audio-editor-round2-author-87c50-brightness-retains-its-sign-webkit/error-context.md",
+      "errorDetails": [
+        "Test timeout of 30000ms exceeded.",
+        "Error: expect(locator).toBeEnabled() failed\n\nLocator:  getByRole('menu', { name: 'Tracks', exact: true }).getByRole('menuitem', { name: /^Add Video Adjustment Layer(?:\\s|$)/ }).or(getByRole('menu', { name: 'Tracks', exact: true }).getByRole('menuitemcheckbox', { name: /^Add Video Adjustment Layer(?:\\s|$)/ })).first()\nExpected: enabled\nReceived: undefined\n\nCall log:\n  - Expect \"toBeEnabled\" with timeout 5000ms\n  - waiting for getByRole('menu', { name: 'Tracks', exact: true }).getByRole('menuitem', { name: /^Add Video Adjustment Layer(?:\\s|$)/ }).or(getByRole('menu', { name: 'Tracks', exact: true }).getByRole('menuitemcheckbox', { name: /^Add Video Adjustment Layer(?:\\s|$)/ })).first()\n  - \n"
+      ],
+      "alerts": [],
+      "artifacts": [
+        "test-results/audio-editor-round2-author-87c50-brightness-retains-its-sign-webkit/test-failed-1.png",
+        "test-results/audio-editor-round2-author-87c50-brightness-retains-its-sign-webkit/error-context.md"
+      ],
+      "isolatedRerun": "See the separate postFullRunOneWorkerRecheck pass; the original full-run failure and unresolved cause remain recorded above.",
+      "classification": "Unresolved original full-run failure; deadline/cause attribution is not established.",
+      "postFullRunOneWorkerRecheck": {
+        "originalTestNumber": 3487,
+        "recheckTestNumber": 14,
+        "status": "passed",
+        "test": "tests/browser/audio-editor-round2-authoring-numbers.spec.js",
+        "testName": "typing a negative selected adjustment brightness retains its sign",
+        "reportedDuration": "9.9s",
+        "trace": "/tmp/perf200-webkit-failures-recheck-results/audio-editor-round2-author-87c50-brightness-retains-its-sign-webkit/trace.zip",
+        "log": "/tmp/perf200-webkit-failures-recheck.log",
+        "limitation": "This separate same-build pass/failure does not replace the original failed full-suite result or establish its cause."
+      }
+    },
+    {
+      "status": "failed",
+      "testNumber": 3492,
+      "project": "webkit",
+      "test": "tests/browser/audio-editor-round2-composition-reset.spec.js",
+      "testDeclarationLine": 7,
+      "testName": "Reset discards an unsaved composition draft when the clip already has defaults",
+      "logLine": 4730,
+      "reportedDuration": "30.8s",
+      "errorContext": "test-results/audio-editor-round2-compos-37948-e-clip-already-has-defaults-webkit/error-context.md",
+      "errorDetails": [
+        "Test timeout of 30000ms exceeded.",
+        "Error: locator.click: Test timeout of 30000ms exceeded.\nCall log:\n  - waiting for getByRole('dialog', { name: 'Transform and compositing', exact: true }).getByRole('button', { name: 'Apply', exact: true })\n    - locator resolved to <button type=\"submit\" form=\"video-composition-form\" class=\"button button--primary button--default  \">…</button>\n  - attempting click action\n    - waiting for element to be visible, enabled and stable\n    - element is visible, enabled and stable\n    - scrolling into view if needed\n"
+      ],
+      "alerts": [],
+      "artifacts": [
+        "test-results/audio-editor-round2-compos-37948-e-clip-already-has-defaults-webkit/test-failed-1.png",
+        "test-results/audio-editor-round2-compos-37948-e-clip-already-has-defaults-webkit/error-context.md"
+      ],
+      "isolatedRerun": "See the separate postFullRunOneWorkerRecheck pass; the original full-run failure and unresolved cause remain recorded above.",
+      "classification": "Unresolved original full-run failure; deadline/cause attribution is not established.",
+      "postFullRunOneWorkerRecheck": {
+        "originalTestNumber": 3492,
+        "recheckTestNumber": 15,
+        "status": "passed",
+        "test": "tests/browser/audio-editor-round2-composition-reset.spec.js",
+        "testName": "Reset discards an unsaved composition draft when the clip already has defaults",
+        "reportedDuration": "8.5s",
+        "trace": "/tmp/perf200-webkit-failures-recheck-results/audio-editor-round2-compos-37948-e-clip-already-has-defaults-webkit/trace.zip",
+        "log": "/tmp/perf200-webkit-failures-recheck.log",
+        "limitation": "This separate same-build pass/failure does not replace the original failed full-suite result or establish its cause."
+      }
+    },
+    {
+      "status": "failed",
+      "testNumber": 3493,
+      "project": "webkit",
+      "test": "tests/browser/audio-editor-round2-derived-track-automation.spec.js",
+      "testDeclarationLine": 8,
+      "testName": "Split into new track retains the volume automation of the audio it moves",
+      "logLine": 4733,
+      "reportedDuration": "31.3s",
+      "errorContext": "test-results/audio-editor-round2-derive-1ec05-ation-of-the-audio-it-moves-webkit/error-context.md",
+      "errorDetails": [
+        "Test timeout of 30000ms exceeded.",
+        "Error: mouse.move: Test timeout of 30000ms exceeded."
+      ],
+      "alerts": [],
+      "artifacts": [
+        "test-results/audio-editor-round2-derive-1ec05-ation-of-the-audio-it-moves-webkit/test-failed-1.png",
+        "test-results/audio-editor-round2-derive-1ec05-ation-of-the-audio-it-moves-webkit/error-context.md"
+      ],
+      "isolatedRerun": "See the separate postFullRunOneWorkerRecheck pass; the original full-run failure and unresolved cause remain recorded above.",
+      "classification": "Unresolved original full-run failure; deadline/cause attribution is not established.",
+      "postFullRunOneWorkerRecheck": {
+        "originalTestNumber": 3493,
+        "recheckTestNumber": 16,
+        "status": "passed",
+        "test": "tests/browser/audio-editor-round2-derived-track-automation.spec.js",
+        "testName": "Split into new track retains the volume automation of the audio it moves",
+        "reportedDuration": "9.8s",
+        "trace": "/tmp/perf200-webkit-failures-recheck-results/audio-editor-round2-derive-1ec05-ation-of-the-audio-it-moves-webkit/trace.zip",
+        "log": "/tmp/perf200-webkit-failures-recheck.log",
+        "limitation": "This separate same-build pass/failure does not replace the original failed full-suite result or establish its cause."
+      }
+    },
+    {
+      "status": "failed",
+      "testNumber": 3494,
+      "project": "webkit",
+      "test": "tests/browser/audio-editor-round2-derived-track-automation.spec.js",
+      "testDeclarationLine": 8,
+      "testName": "Split stereo track retains the volume automation of the audio it moves",
+      "logLine": 4737,
+      "reportedDuration": "32.8s",
+      "errorContext": "test-results/audio-editor-round2-derive-8bbd9-ation-of-the-audio-it-moves-webkit/error-context.md",
+      "errorDetails": [
+        "Test timeout of 30000ms exceeded.",
+        "Error: locator.click: Test timeout of 30000ms exceeded.\nCall log:\n  - waiting for getByRole('dialog', { name: 'Export audio', exact: true }).getByRole('button', { name: 'Close', exact: true })\n"
+      ],
+      "alerts": [],
+      "artifacts": [
+        "test-results/audio-editor-round2-derive-8bbd9-ation-of-the-audio-it-moves-webkit/test-failed-1.png",
+        "test-results/audio-editor-round2-derive-8bbd9-ation-of-the-audio-it-moves-webkit/error-context.md"
+      ],
+      "isolatedRerun": "See the separate postFullRunOneWorkerRecheck pass; the original full-run failure and unresolved cause remain recorded above.",
+      "classification": "Unresolved original full-run failure; deadline/cause attribution is not established.",
+      "postFullRunOneWorkerRecheck": {
+        "originalTestNumber": 3494,
+        "recheckTestNumber": 17,
+        "status": "passed",
+        "test": "tests/browser/audio-editor-round2-derived-track-automation.spec.js",
+        "testName": "Split stereo track retains the volume automation of the audio it moves",
+        "reportedDuration": "9.6s",
+        "trace": "/tmp/perf200-webkit-failures-recheck-results/audio-editor-round2-derive-8bbd9-ation-of-the-audio-it-moves-webkit/trace.zip",
+        "log": "/tmp/perf200-webkit-failures-recheck.log",
+        "limitation": "This separate same-build pass/failure does not replace the original failed full-suite result or establish its cause."
+      }
+    },
+    {
+      "status": "failed",
+      "testNumber": 3526,
+      "project": "webkit",
+      "test": "tests/browser/audio-editor-round2-io-bin-audio-preview.spec.js",
+      "testDeclarationLine": 7,
+      "testName": "Project Bin video preview does not restore audio removed through the timeline",
+      "logLine": 4771,
+      "reportedDuration": "33.1s",
+      "errorContext": "test-results/audio-editor-round2-io-bin-26bce-emoved-through-the-timeline-webkit/error-context.md",
+      "errorDetails": [
+        "Test timeout of 30000ms exceeded.",
+        "Error: locator.press: Test timeout of 30000ms exceeded.\nCall log:\n  - waiting for locator('[data-audio-editor]').getByRole('group', { name: /^removed-audio Audio clip,/u })\n    - locator resolved to <div role=\"group\" tabindex=\"110\" data-track-index=\"2\" data-first-clip=\"true\" data-clip-id=\"clip-ee551f12-4349-4fe4-9e5f-90cacaa10e03\" aria-label=\"removed-audio Audio clip, starts at 0 seconds, 2.2 seconds long\">…</div>\n"
+      ],
+      "alerts": [],
+      "artifacts": [
+        "test-results/audio-editor-round2-io-bin-26bce-emoved-through-the-timeline-webkit/test-failed-1.png",
+        "test-results/audio-editor-round2-io-bin-26bce-emoved-through-the-timeline-webkit/error-context.md"
+      ],
+      "isolatedRerun": "See the separate postFullRunOneWorkerRecheck result; the original full-run deadline remains recorded above.",
+      "classification": "The exact native muted=false assertion also fails on the separately built merged baseline, establishing this semantic failure before the new 100 performance changes. Its browser/React initialization cause was not established. The original full-run Enter key deadline is a different failure stage and remains causally unresolved.",
+      "postFullRunOneWorkerRecheck": {
+        "originalTestNumber": 3526,
+        "recheckTestNumber": 18,
+        "status": "failed",
+        "test": "tests/browser/audio-editor-round2-io-bin-audio-preview.spec.js",
+        "testName": "Project Bin video preview does not restore audio removed through the timeline",
+        "reportedDuration": "17.4s",
+        "trace": "/tmp/perf200-webkit-failures-recheck-results/audio-editor-round2-io-bin-26bce-emoved-through-the-timeline-webkit/trace.zip",
+        "log": "/tmp/perf200-webkit-failures-recheck.log",
+        "limitation": "This separate same-build pass/failure does not replace the original failed full-suite result or establish its cause.",
+        "assertionLine": 25,
+        "assertion": "expect.poll(() => media.evaluate(element => element.muted)).toBe(true)",
+        "expectedMuted": true,
+        "observedMuted": false,
+        "stage": "The recheck passed timeline audio deletion, the card No audio label and video visibility; it then failed the native media muted property predicate. This differs from the original full-run Enter key timeout before audio deletion."
+      },
+      "baselineIsolation": {
+        "status": "failed-at-the-same-semantic-assertion",
+        "baseRevision": "1e1aa842ee685ba03d536adec146139e85fe2ed5",
+        "product": "framescaper",
+        "origin": "http://127.0.0.1:4367",
+        "companionSoundscaperOrigin": "http://127.0.0.1:4366",
+        "bothProductsBuiltFromBaseline": true,
+        "testDurationSeconds": 14.5,
+        "assertionLine": 25,
+        "expectedMuted": true,
+        "observedMuted": false,
+        "priorAssertions": "Timeline audio deletion, the card No audio label and video visibility all passed.",
+        "log": "/tmp/perf200-bin-preview-baseline-test.log",
+        "trace": "/tmp/perf200-bin-preview-baseline-results/audio-editor-round2-io-bin-26bce-emoved-through-the-timeline-webkit/trace.zip",
+        "method": "Create a clean detached worktree at the merged baseline, build both browser products without source or test edits, serve its Soundscaper and Framescaper bundles on 4366/4367, and run the unchanged exact WebKit test with one worker and trace:on. The test boots Framescaper, so no current-product preview server is reused. Stop only these two diagnostic servers and remove only the detached baseline worktree after retaining logs, screenshots and traces.",
+        "originalTestOrAssertionAltered": false,
+        "temporaryBaselineServersAndWorktreeCleaned": true
+      },
+      "sourceReview": {
+        "cardSource": "src/common/editor/ui/workspace/ProjectBinCard.jsx:139",
+        "unchangedMuteExpression": "muted={!itemClips.some((itemClip) => itemClip.kind === 'audio')}",
+        "labelSource": "src/common/editor/ui/workspace/ProjectBinCard.jsx:154",
+        "labelObservation": "The No audio label uses the same itemClips audio-membership condition as the muted prop and passed in both baseline and current runs.",
+        "newMemoScope": "Grouping/source joins depend on owning published collections. The memoized media timing resolves only duration, start, end and rate; the muted expression remains direct.",
+        "unchangedPreviewBackend": "src/common/editor/controller/import/internal/project-bin/project-bin-preview-service.ts",
+        "backendObservation": "The video branch publishes a frozen preview containing clip/bin IDs, state, kind and mediaUrl; it does not set a DOM mute property. Repository searches found no native muted=false assignment in editor/Framescaper. Other native decoding helpers set their separate video elements muted=true."
+      },
+      "proposedFutureInvestigation": "Trace native muted-property initialization and subsequent source/playback events before choosing a targeted baseline correctness fix. Preserve the existing assertion and add a meaningful regression fixture; no fix is included or counted in this performance batch."
+    },
+    {
+      "status": "failed",
+      "testNumber": 3527,
+      "project": "webkit",
+      "test": "tests/browser/audio-editor-round2-io-bin-images.spec.js",
+      "testDeclarationLine": 8,
+      "testName": "an ordinary still image can return from Project Bin to the video timeline",
+      "logLine": 4774,
+      "reportedDuration": "32.7s",
+      "errorContext": "test-results/audio-editor-round2-io-bin-5ca3c-t-Bin-to-the-video-timeline-webkit/error-context.md",
+      "errorDetails": [
+        "Test timeout of 30000ms exceeded.",
+        "Error: locator.click: Test timeout of 30000ms exceeded.\nCall log:\n  - waiting for locator('[data-audio-editor]').locator('[data-project-bin-item]').first().getByRole('button', { name: /^More file actions:/u })\n"
+      ],
+      "alerts": [],
+      "artifacts": [
+        "test-results/audio-editor-round2-io-bin-5ca3c-t-Bin-to-the-video-timeline-webkit/test-failed-1.png",
+        "test-results/audio-editor-round2-io-bin-5ca3c-t-Bin-to-the-video-timeline-webkit/error-context.md"
+      ],
+      "isolatedRerun": "See the separate postFullRunOneWorkerRecheck pass; the original full-run failure and unresolved cause remain recorded above.",
+      "classification": "Unresolved original full-run failure; deadline/cause attribution is not established.",
+      "postFullRunOneWorkerRecheck": {
+        "originalTestNumber": 3527,
+        "recheckTestNumber": 19,
+        "status": "passed",
+        "test": "tests/browser/audio-editor-round2-io-bin-images.spec.js",
+        "testName": "an ordinary still image can return from Project Bin to the video timeline",
+        "reportedDuration": "14.8s",
+        "trace": "/tmp/perf200-webkit-failures-recheck-results/audio-editor-round2-io-bin-5ca3c-t-Bin-to-the-video-timeline-webkit/trace.zip",
+        "log": "/tmp/perf200-webkit-failures-recheck.log",
+        "limitation": "This separate same-build pass/failure does not replace the original failed full-suite result or establish its cause."
+      }
+    },
+    {
+      "status": "failed",
+      "testNumber": 3529,
+      "project": "webkit",
+      "test": "tests/browser/audio-editor-round2-io-bin-preview.spec.js",
+      "testDeclarationLine": 8,
+      "testName": "a rate-stretched video keeps its authored speed in Project Bin preview",
+      "logLine": 4777,
+      "reportedDuration": "30.7s",
+      "errorContext": "test-results/audio-editor-round2-io-bin-fd2d8-peed-in-Project-Bin-preview-webkit/error-context.md",
+      "errorDetails": [
+        "Test timeout of 30000ms exceeded.",
+        "Error: locator.click: Test timeout of 30000ms exceeded.\nCall log:\n  - waiting for getByRole('menuitem', { name: 'Move to Project bin', exact: true })\n    - locator resolved to <div tabindex=\"0\" role=\"menuitem\" aria-disabled=\"false\" class=\"context-menu-item  \">…</div>\n  - attempting click action\n    - waiting for element to be visible, enabled and stable\n    - element is visible, enabled and stable\n    - scrolling into view if needed\n    - done scrolling\n    - performing click action\n"
+      ],
+      "alerts": [],
+      "artifacts": [
+        "test-results/audio-editor-round2-io-bin-fd2d8-peed-in-Project-Bin-preview-webkit/test-failed-1.png",
+        "test-results/audio-editor-round2-io-bin-fd2d8-peed-in-Project-Bin-preview-webkit/error-context.md"
+      ],
+      "isolatedRerun": "See the separate postFullRunOneWorkerRecheck pass; the original full-run failure and unresolved cause remain recorded above.",
+      "classification": "Unresolved original full-run failure; deadline/cause attribution is not established.",
+      "postFullRunOneWorkerRecheck": {
+        "originalTestNumber": 3529,
+        "recheckTestNumber": 20,
+        "status": "passed",
+        "test": "tests/browser/audio-editor-round2-io-bin-preview.spec.js",
+        "testName": "a rate-stretched video keeps its authored speed in Project Bin preview",
+        "reportedDuration": "7.7s",
+        "trace": "/tmp/perf200-webkit-failures-recheck-results/audio-editor-round2-io-bin-fd2d8-peed-in-Project-Bin-preview-webkit/trace.zip",
+        "log": "/tmp/perf200-webkit-failures-recheck.log",
+        "limitation": "This separate same-build pass/failure does not replace the original failed full-suite result or establish its cause."
+      }
+    },
+    {
+      "status": "failed",
+      "testNumber": 3530,
+      "project": "webkit",
+      "test": "tests/browser/audio-editor-round2-io-bin-preview.spec.js",
+      "testDeclarationLine": 31,
+      "testName": "a video trimmed at frame 12 previews its retained source span from Project Bin",
+      "logLine": 4781,
+      "reportedDuration": "33.8s",
+      "errorContext": "test-results/audio-editor-round2-io-bin-3dc5b-ource-span-from-Project-Bin-webkit/error-context.md",
+      "errorDetails": [
+        "Test timeout of 30000ms exceeded.",
+        "Error: locator.click: Test timeout of 30000ms exceeded.\nCall log:\n  - waiting for locator('[data-audio-editor]').getByRole('group', { name: /^Video clip:/u }).first()\n    - locator resolved to <div role=\"group\" tabindex=\"106\" data-dragging=\"false\" data-clip-kind=\"video\" class=\"audio-editor-video-clip\" aria-label=\"Video clip: trim-preview\" data-clip-id=\"video-clip-9364f6e0-3e69-4bcd-895a-d19b330f5656\">…</div>\n  - attempting click action\n    - waiting for element to be visible, enabled and stable\n"
+      ],
+      "alerts": [],
+      "artifacts": [
+        "test-results/audio-editor-round2-io-bin-3dc5b-ource-span-from-Project-Bin-webkit/test-failed-1.png",
+        "test-results/audio-editor-round2-io-bin-3dc5b-ource-span-from-Project-Bin-webkit/error-context.md"
+      ],
+      "isolatedRerun": "See the separate postFullRunOneWorkerRecheck pass; the original full-run failure and unresolved cause remain recorded above.",
+      "classification": "Unresolved original full-run failure; deadline/cause attribution is not established.",
+      "postFullRunOneWorkerRecheck": {
+        "originalTestNumber": 3530,
+        "recheckTestNumber": 21,
+        "status": "passed",
+        "test": "tests/browser/audio-editor-round2-io-bin-preview.spec.js",
+        "testName": "a video trimmed at frame 12 previews its retained source span from Project Bin",
+        "reportedDuration": "8.7s",
+        "trace": "/tmp/perf200-webkit-failures-recheck-results/audio-editor-round2-io-bin-3dc5b-ource-span-from-Project-Bin-webkit/trace.zip",
+        "log": "/tmp/perf200-webkit-failures-recheck.log",
+        "limitation": "This separate same-build pass/failure does not replace the original failed full-suite result or establish its cause."
+      }
+    },
+    {
+      "status": "failed",
+      "testNumber": 3531,
+      "project": "webkit",
+      "test": "tests/browser/audio-editor-round2-io-bin-preview.spec.js",
+      "testDeclarationLine": 31,
+      "testName": "a video trimmed at frame 2 previews its retained source span from Project Bin",
+      "logLine": 4782,
+      "reportedDuration": "33.5s",
+      "errorContext": "test-results/audio-editor-round2-io-bin-19f1b-ource-span-from-Project-Bin-webkit/error-context.md",
+      "errorDetails": [
+        "Test timeout of 30000ms exceeded.",
+        "Error: locator.click: Test timeout of 30000ms exceeded.\nCall log:\n  - waiting for locator('[data-audio-editor]').getByRole('group', { name: /^Video clip:/u }).first()\n    - locator resolved to <div role=\"group\" tabindex=\"106\" data-dragging=\"false\" data-clip-kind=\"video\" class=\"audio-editor-video-clip\" aria-label=\"Video clip: trim-preview\" data-clip-id=\"video-clip-bbee2a4c-7232-466a-aead-8bf38c6c900f\">…</div>\n  - attempting click action\n    - waiting for element to be visible, enabled and stable\n    - element is visible, enabled and stable\n    - scrolling into view if needed\n"
+      ],
+      "alerts": [],
+      "artifacts": [
+        "test-results/audio-editor-round2-io-bin-19f1b-ource-span-from-Project-Bin-webkit/test-failed-1.png",
+        "test-results/audio-editor-round2-io-bin-19f1b-ource-span-from-Project-Bin-webkit/error-context.md"
+      ],
+      "isolatedRerun": "See the separate postFullRunOneWorkerRecheck pass; the original full-run failure and unresolved cause remain recorded above.",
+      "classification": "Unresolved original full-run failure; deadline/cause attribution is not established.",
+      "postFullRunOneWorkerRecheck": {
+        "originalTestNumber": 3531,
+        "recheckTestNumber": 22,
+        "status": "passed",
+        "test": "tests/browser/audio-editor-round2-io-bin-preview.spec.js",
+        "testName": "a video trimmed at frame 2 previews its retained source span from Project Bin",
+        "reportedDuration": "8.3s",
+        "trace": "/tmp/perf200-webkit-failures-recheck-results/audio-editor-round2-io-bin-19f1b-ource-span-from-Project-Bin-webkit/trace.zip",
+        "log": "/tmp/perf200-webkit-failures-recheck.log",
+        "limitation": "This separate same-build pass/failure does not replace the original failed full-suite result or establish its cause."
+      }
+    },
+    {
+      "status": "failed",
+      "testNumber": 3532,
+      "project": "webkit",
+      "test": "tests/browser/audio-editor-round2-io-bin-replacement.spec.js",
+      "testDeclarationLine": 9,
+      "testName": "replacing a Project Bin video with a shorter ordinary video offers its timeline choice",
+      "logLine": 4787,
+      "reportedDuration": "19.2s",
+      "errorContext": "test-results/audio-editor-round2-io-bin-8661c--offers-its-timeline-choice-webkit/error-context.md",
+      "errorDetails": [
+        "Error: expect(locator).toBeVisible() failed\n\nLocator: locator('[data-audio-editor]').locator('[data-project-bin-item]').first()\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"toBeVisible\" with timeout 5000ms\n  - waiting for locator('[data-audio-editor]').locator('[data-project-bin-item]').first()\n"
+      ],
+      "alerts": [
+        "- alert:  Wait for the current operation to finish before changing the Project bin."
+      ],
+      "artifacts": [
+        "test-results/audio-editor-round2-io-bin-8661c--offers-its-timeline-choice-webkit/test-failed-1.png",
+        "test-results/audio-editor-round2-io-bin-8661c--offers-its-timeline-choice-webkit/error-context.md"
+      ],
+      "isolatedRerun": "See the separate postFullRunOneWorkerRecheck pass; the original full-run failure and unresolved cause remain recorded above.",
+      "classification": "Unresolved original full-run failure; deadline/cause attribution is not established.",
+      "postFullRunOneWorkerRecheck": {
+        "originalTestNumber": 3532,
+        "recheckTestNumber": 23,
+        "status": "passed",
+        "test": "tests/browser/audio-editor-round2-io-bin-replacement.spec.js",
+        "testName": "replacing a Project Bin video with a shorter ordinary video offers its timeline choice",
+        "reportedDuration": "16.8s",
+        "trace": "/tmp/perf200-webkit-failures-recheck-results/audio-editor-round2-io-bin-8661c--offers-its-timeline-choice-webkit/trace.zip",
+        "log": "/tmp/perf200-webkit-failures-recheck.log",
+        "limitation": "This separate same-build pass/failure does not replace the original failed full-suite result or establish its cause."
+      }
+    }
+  ],
+  "sharedPlaybackStartDiagnostic": {
+    "affectedOriginalTestNumbers": [
+      3103,
+      3195,
+      3479
+    ],
+    "alert": "The action failed: The streamed and buffered sources missed their shared playback start.",
+    "guardSource": "src/common/editor/engine/clip-scheduler-live-chunks.ts:18",
+    "guardCondition": "startTime - context.currentTime <= 2 * 128 / context.sampleRate",
+    "guardByteIdenticalToBaseline": true,
+    "guardSha256": "7e44086175336279d67ff17cf91b7b6d9d0cb899b95bb491ac7935fd720a01cf",
+    "callerSource": "src/common/editor/engine/clip-scheduler.ts:256",
+    "callerObservation": "Primed chunk plans have a 20 ms minimum start lead; gain/automation scheduling precedes the checks at buffered-source start and prepared streamed-source start. Scheduler and guard sources have empty baseline diff.",
+    "limitation": "The alerts identify a missed engine deadline. They do not prove scheduling contention, unchanged-path behavior, or changed graph preparation was its cause. No extra rechecks were run while concurrent browser/native work remained active."
+  },
+  "hostLoadObservation": {
+    "observed": "Root process inspection identified four WPE MiniBrowser worker trees belonging to this full run and four belonging to separate concurrent isolated work. A canonical isolated native protocol probe also reported a collector Deadline during the period.",
+    "limitation": "These are concurrent load observations, not established causes of browser failures. No unrelated workers were changed or stopped."
+  },
+  "scopeControl": {
+    "implementationAltered": false,
+    "committedBrowserAssertionAltered": false,
+    "performanceCountEffect": 0,
+    "originalArtifactsPreserved": true,
+    "requiresManualAiAssets": false
+  },
+  "postFullRunWebkitRecheck": {
+    "status": "completed",
+    "command": "PULSE_SERVER=unix:/mnt/wslg/PulseServer PLAYWRIGHT_PORT=4364 npx playwright test --config=/tmp/perf200-webkit-failure-recheck.config.mjs --project=webkit --workers=1 --trace=on --output=/tmp/perf200-webkit-failures-recheck-results",
+    "log": "/tmp/perf200-webkit-failures-recheck.log",
+    "outputDirectory": "/tmp/perf200-webkit-failures-recheck-results",
+    "config": "Import the unchanged worktree playwright.config.mjs, keep its preview webServer entries and set each cwd to the worktree because the temporary config lives in /tmp; use an absolute tests/browser testDir, the selected fourteen exact filenames, and a RegExp selecting the exact final test-title suffixes listed below. No pretest/build command is run.",
+    "selectedTests": [
+      {
+        "testNumber": 2925,
+        "test": "tests/browser/audio-editor-audio-io-routing.spec.js",
+        "title": "renders matching signal through group and send buses with a realtime effect"
+      },
+      {
+        "testNumber": 2937,
+        "test": "tests/browser/audio-editor-band-dynamics.spec.js",
+        "title": "De-esser opens from the menu, applies and undoes"
+      },
+      {
+        "testNumber": 2938,
+        "test": "tests/browser/audio-editor-band-dynamics.spec.js",
+        "title": "De-esser loads its worklet and retains rack settings after reload"
+      },
+      {
+        "testNumber": 2940,
+        "test": "tests/browser/audio-editor-band-dynamics.spec.js",
+        "title": "Multiband compressor opens from the menu, applies and undoes"
+      },
+      {
+        "testNumber": 2941,
+        "test": "tests/browser/audio-editor-band-dynamics.spec.js",
+        "title": "Multiband compressor renders through the offline export worklet"
+      },
+      {
+        "testNumber": 2942,
+        "test": "tests/browser/audio-editor-band-dynamics.spec.js",
+        "title": "Multiband compressor loads its worklet and retains rack settings after reload"
+      },
+      {
+        "testNumber": 2943,
+        "test": "tests/browser/audio-editor-band-dynamics.spec.js",
+        "title": "multiband compressor reuses the live compressor input and output graph"
+      },
+      {
+        "testNumber": 2950,
+        "test": "tests/browser/audio-editor-boundary-snap.spec.js",
+        "title": "clip boundary alignment stays exact when time-grid Snap is on"
+      },
+      {
+        "testNumber": 2949,
+        "test": "tests/browser/audio-editor-boundary-snap.spec.js",
+        "title": "clip ends align to another clip start with grid Snap off; Escape releases this drag only"
+      },
+      {
+        "testNumber": 2978,
+        "test": "tests/browser/audio-editor-click-removal.spec.js",
+        "title": "closing changed controls leaves the original audio untouched"
+      },
+      {
+        "testNumber": 3103,
+        "test": "tests/browser/audio-editor-devices-routing.spec.js",
+        "title": "exposes play at speed and persists its pitch behavior preference"
+      },
+      {
+        "testNumber": 3195,
+        "test": "tests/browser/audio-editor-effects.spec.js",
+        "title": "shows what the live compressor is doing to the signal while it plays"
+      },
+      {
+        "testNumber": 3479,
+        "test": "tests/browser/audio-editor-repeated-actions.spec.js",
+        "title": "plays again after pausing in each of two project tabs"
+      },
+      {
+        "testNumber": 3487,
+        "test": "tests/browser/audio-editor-round2-authoring-numbers.spec.js",
+        "title": "typing a negative selected adjustment brightness retains its sign"
+      },
+      {
+        "testNumber": 3492,
+        "test": "tests/browser/audio-editor-round2-composition-reset.spec.js",
+        "title": "Reset discards an unsaved composition draft when the clip already has defaults"
+      },
+      {
+        "testNumber": 3493,
+        "test": "tests/browser/audio-editor-round2-derived-track-automation.spec.js",
+        "title": "Split into new track retains the volume automation of the audio it moves"
+      },
+      {
+        "testNumber": 3494,
+        "test": "tests/browser/audio-editor-round2-derived-track-automation.spec.js",
+        "title": "Split stereo track retains the volume automation of the audio it moves"
+      },
+      {
+        "testNumber": 3526,
+        "test": "tests/browser/audio-editor-round2-io-bin-audio-preview.spec.js",
+        "title": "Project Bin video preview does not restore audio removed through the timeline"
+      },
+      {
+        "testNumber": 3527,
+        "test": "tests/browser/audio-editor-round2-io-bin-images.spec.js",
+        "title": "an ordinary still image can return from Project Bin to the video timeline"
+      },
+      {
+        "testNumber": 3529,
+        "test": "tests/browser/audio-editor-round2-io-bin-preview.spec.js",
+        "title": "a rate-stretched video keeps its authored speed in Project Bin preview"
+      },
+      {
+        "testNumber": 3530,
+        "test": "tests/browser/audio-editor-round2-io-bin-preview.spec.js",
+        "title": "a video trimmed at frame 12 previews its retained source span from Project Bin"
+      },
+      {
+        "testNumber": 3531,
+        "test": "tests/browser/audio-editor-round2-io-bin-preview.spec.js",
+        "title": "a video trimmed at frame 2 previews its retained source span from Project Bin"
+      },
+      {
+        "testNumber": 3532,
+        "test": "tests/browser/audio-editor-round2-io-bin-replacement.spec.js",
+        "title": "replacing a Project Bin video with a shorter ordinary video offers its timeline choice"
+      }
+    ],
+    "reportedCounts": {
+      "failed": 1,
+      "passed": 22
+    },
+    "reportedDuration": "22 passed (3.5m)",
+    "workers": 1,
+    "trace": "on",
+    "previewBuildSourceRevisions": {
+      "soundscaper": "958ec8ff0878643e1b04e14fed79b4dbf1bf71b3",
+      "framescaper": "958ec8ff0878643e1b04e14fed79b4dbf1bf71b3"
+    },
+    "sitesRebuilt": false,
+    "originalArtifactsPreserved": true,
+    "doesNotReplaceOriginalGate": true,
+    "initialLauncherAttempt": {
+      "status": "failed-before-any-test",
+      "exitCode": 1,
+      "log": "/tmp/perf200-webkit-failures-recheck-launcher-attempt.log",
+      "cause": "The temporary config initially inherited relative preview commands with /tmp as the server working directory; Node could not resolve /tmp/node_modules/vite/bin/vite.js. Only the temporary webServer cwd was corrected, then the selected tests were launched."
+    },
+    "exitCode": 1
+  },
+  "isolatedRecheckAggregate": {
+    "originalFailedTests": 26,
+    "sameBuildRecheckedTests": 26,
+    "passed": 25,
+    "failed": 1,
+    "firefox": {
+      "passed": 3,
+      "failed": 0,
+      "receipts": "The existing dialog-bounds issue and the additional Repeat Amplify/realtime guide issues retain their individual isolated Firefox pass logs and traces."
+    },
+    "webkit": {
+      "passed": 22,
+      "failed": 1,
+      "receipt": "postFullRunWebkitRecheck"
+    },
+    "remainingFailure": "The Project Bin native mute assertion failed in both current one-worker recheck and the separately built merged baseline.",
+    "originalFullGatePassed": false,
+    "limitation": "The separate rechecks do not rewrite the original 26 failures or establish causes for its deadline/race stages. No further browser probes were run after baseline isolation."
+  }
+}

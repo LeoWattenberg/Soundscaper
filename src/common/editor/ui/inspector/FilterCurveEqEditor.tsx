@@ -5,8 +5,6 @@ import { Button } from '@soundscaper/design-system/Button';
 import { canonicalCopyValue } from '../../../i18n/canonical-extras.js';
 import { formatAudacityCurve, parseAudacityCurve } from '../../audacity-effects/manifest.js';
 import {
-	filterCurvePointAt,
-	filterCurvePolyline,
 	filterCurvePosition,
 	type FilterCurvePoint,
 	type FilterCurvePosition,
@@ -14,6 +12,7 @@ import {
 } from '../../audacity-effects/filter-curve.ts';
 import { createFilterCurveGesture } from '../../controller/effects/filter-curve-gesture.ts';
 import { CommitField, DesignCheckbox } from './inspector-controls.jsx';
+import { useEqDraftFrame, useFilterEqGrid, useFilterEqPolyline, useFilterResponseFrequencies } from './useEqPresentation.ts';
 
 interface Props {
 	readonly name: string;
@@ -39,6 +38,7 @@ export default function FilterCurveEqEditor({
 	const pointer = useRef<number | null>(null);
 	const deletionFocus = useRef<{ index: number; count: number; control: SVGCircleElement } | null>(null);
 	const [draft, setDraft] = useState<readonly FilterCurvePoint[] | null>(null);
+	const draftFrame = useEqDraftFrame(setDraft);
 	const [response, setResponse] = useState<readonly FilterCurvePoint[]>(EMPTY);
 	const [responseError, setResponseError] = useState('');
 	const [grid, setGrid] = useState(true);
@@ -63,25 +63,24 @@ export default function FilterCurveEqEditor({
 		const at = filterCurvePosition(point, viewport);
 		return { x: BOX.x + at.x * BOX.width, y: BOX.y + at.y * BOX.height };
 	};
-	const polyline = (entries: readonly FilterCurvePoint[]): string => filterCurvePolyline(entries, viewport)
-		.split(' ').map((pair) => {
-			const [x, y] = pair.split(',').map(Number);
-			return `${String(BOX.x + x! * BOX.width)},${String(BOX.y + y! * BOX.height)}`;
-		}).join(' ');
+	const requestedPolyline = useFilterEqPolyline(points, viewport);
+	const responsePolyline = useFilterEqPolyline(response, viewport);
+	const frequencies = useFilterResponseFrequencies(sampleRate, linearFrequencyScale);
+	const gridModel = useFilterEqGrid(viewport);
 
 	useEffect(() => {
 		let active = true;
 		setResponse(EMPTY);
 		setResponseError('');
-		const frequencies = Array.from({ length: 257 }, (_, index) => filterCurvePointAt({ x: index / 256, y: 0 }, viewport).frequency);
 		void import('../../audacity-effects/filter-curve-response.ts')
 			.then((module) => active ? module.filterCurveResponse(points, sampleRate, filterLength, linearFrequencyScale, frequencies) : EMPTY)
 			.then((next) => { if (active) setResponse(next); })
 			.catch((error: unknown) => { if (active) setResponseError(error instanceof Error ? error.message : String(error)); });
 		return () => { active = false; };
-	}, [points, sampleRate, filterLength, linearFrequencyScale, viewport]);
+	}, [points, sampleRate, filterLength, linearFrequencyScale, frequencies]);
 
 	const cancel = (): void => {
+		draftFrame.cancel();
 		gesture.current.cancel();
 		pointer.current = null;
 		setDraft(null);
@@ -90,8 +89,7 @@ export default function FilterCurveEqEditor({
 		const session = gesture.current;
 		return () => { session.cancel(); };
 	}, []);
-	const atEvent = (event: PointerEvent<SVGSVGElement>): FilterCurvePosition => {
-		const rect = event.currentTarget.getBoundingClientRect();
+	const atEvent = (event: PointerEvent<SVGSVGElement>, rect = event.currentTarget.getBoundingClientRect()): FilterCurvePosition => {
 		return {
 			x: ((event.clientX - rect.left) * 640 / rect.width - BOX.x) / BOX.width,
 			y: ((event.clientY - rect.top) * 300 / rect.height - BOX.y) / BOX.height,
@@ -99,11 +97,11 @@ export default function FilterCurveEqEditor({
 	};
 	const begin = (event: PointerEvent<SVGSVGElement>): void => {
 		if (disabled || event.button !== 0 || pointer.current !== null) return;
-		const at = atEvent(event);
+		const rect = event.currentTarget.getBoundingClientRect();
+		const at = atEvent(event, rect);
 		if (at.x < 0 || at.x > 1 || at.y < 0 || at.y > 1) return;
 		event.preventDefault();
 		event.currentTarget.focus();
-		const rect = event.currentTarget.getBoundingClientRect();
 		const index = points.findIndex((point) => {
 			const candidate = filterCurvePosition(point, viewport);
 			return Math.hypot((candidate.x - at.x) * BOX.width * rect.width / 640,
@@ -115,6 +113,7 @@ export default function FilterCurveEqEditor({
 	};
 	const finish = (event: PointerEvent<SVGSVGElement>): void => {
 		if (pointer.current !== event.pointerId) return;
+		draftFrame.cancel();
 		if (disabled) { cancel(); return; }
 		gesture.current.move(atEvent(event));
 		const next = gesture.current.complete();
@@ -146,24 +145,13 @@ export default function FilterCurveEqEditor({
 		const updated = gesture.current.complete();
 		if (updated) onCommit(updated);
 	};
-	const nyquist = sampleRate / 2;
-	const candidates = linearFrequencyScale ? Array.from({ length: 7 }, (_, index) => index * nyquist / 6)
-		: [20, 50, 100, 200, 500, 1_000, 2_000, 5_000, 10_000, 20_000].filter((frequency) => frequency < nyquist).concat(nyquist);
-	const ticks = candidates.reduceRight<number[]>((kept, frequency) => {
-		const x = filterCurvePosition({ frequency, gain: 0 }, viewport).x;
-		const nextX = kept.length ? filterCurvePosition({ frequency: kept[0]!, gain: 0 }, viewport).x : 2;
-		if (nextX - x >= 0.08) kept.unshift(frequency);
-		return kept;
-	}, []);
-	const dbTicks = Array.from({ length: 7 }, (_, index) => maximumDb - index * (maximumDb - minimumDb) / 6);
-	const frequencyText = (frequency: number): string => frequency >= 1_000 ? `${String(Number((frequency / 1_000).toFixed(1)))}k` : String(Math.round(frequency));
 
 	return <div className="audio-editor-filter-curve" data-effect-param={name}>
 		<p id={`${id}-instructions`} className="audio-editor-filter-curve__instructions">{text('effectCurveInstructions')}</p>
 		<svg ref={svgRef} viewBox="0 0 640 300" preserveAspectRatio="none" role="group"
 			aria-label={text('effectCardEqualizationCurve')} aria-describedby={`${id}-instructions`} aria-disabled={disabled} tabIndex={disabled ? -1 : 0}
 			onPointerDown={begin} onPointerMove={(event) => {
-				if (pointer.current === event.pointerId && !disabled) setDraft(gesture.current.move(atEvent(event)));
+				if (pointer.current === event.pointerId && !disabled) draftFrame.publish(gesture.current.move(atEvent(event)));
 			}} onPointerUp={finish} onPointerCancel={cancel} onLostPointerCapture={() => { if (pointer.current !== null) cancel(); }}
 			onKeyDown={(event) => {
 				if (event.key === 'Escape' && pointer.current !== null) {
@@ -172,15 +160,13 @@ export default function FilterCurveEqEditor({
 			}}>
 			<defs><clipPath id={`${id}-clip`}><rect x={BOX.x} y={BOX.y} width={BOX.width} height={BOX.height} /></clipPath></defs>
 			<rect className="audio-editor-filter-curve__border" x={BOX.x} y={BOX.y} width={BOX.width} height={BOX.height} />
-			{ticks.map((frequency, index) => {
-				const x = position({ frequency, gain: 0 }).x;
+			{gridModel.frequencies.map(({ frequency, x, label }, index) => {
 				return <g key={frequency}>
 					{grid && <path className="audio-editor-filter-curve__grid" d={`M${String(x)} 16 V260`} />}
-					<text x={x} y={279} textAnchor={index === 0 ? 'start' : index === ticks.length - 1 ? 'end' : 'middle'}>{frequencyText(frequency)}</text>
+					<text x={x} y={279} textAnchor={index === 0 ? 'start' : index === gridModel.frequencies.length - 1 ? 'end' : 'middle'}>{label}</text>
 				</g>;
 			})}
-			{dbTicks.map((gain) => {
-				const y = position({ frequency: 20, gain }).y;
+			{gridModel.gains.map(({ gain, y }) => {
 				return <g key={gain}>
 					{grid && <path className="audio-editor-filter-curve__grid" d={`M56 ${String(y)} H624`} />}
 					<text x={46} y={y + 4} textAnchor="end">{Number(gain.toFixed(1))}</text>
@@ -188,9 +174,9 @@ export default function FilterCurveEqEditor({
 			})}
 			<text x={24} y={12}>{'dB'}</text><text x={624} y={296} textAnchor="end">{'Hz'}</text>
 			<g clipPath={`url(#${id}-clip)`}>
-				<path className="audio-editor-filter-curve__zero" d={`M56 ${String(position({ frequency: 20, gain: 0 }).y)} H624`} />
-				<polyline className="audio-editor-filter-curve__line" points={polyline(points)} role="img" aria-label={text('effectCurveRequested')} />
-				{response.length > 0 && <polyline className="audio-editor-filter-curve__response" points={polyline(response)} role="img" aria-label={text('effectCurveResponse')} />}
+				<path className="audio-editor-filter-curve__zero" d={`M56 ${String(gridModel.zeroY)} H624`} />
+				<polyline className="audio-editor-filter-curve__line" points={requestedPolyline} role="img" aria-label={text('effectCurveRequested')} />
+				{response.length > 0 && <polyline className="audio-editor-filter-curve__response" points={responsePolyline} role="img" aria-label={text('effectCurveResponse')} />}
 				{points.map((point, index) => {
 					const at = position(point);
 					return <circle key={index} cx={at.x} cy={at.y} r={5} className="audio-editor-filter-curve__point"

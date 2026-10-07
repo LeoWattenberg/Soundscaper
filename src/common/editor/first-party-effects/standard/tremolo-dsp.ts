@@ -49,7 +49,7 @@ export function createTremoloProcessor({ sampleRate, channelCount, params = {} }
 					output[channel][frame] = Number.isFinite(sample) ? sample * gain : 0;
 				}
 				phase += increment;
-				phase -= Math.floor(phase);
+				if (phase >= 1) phase -= 1;
 			}
 		},
 	};

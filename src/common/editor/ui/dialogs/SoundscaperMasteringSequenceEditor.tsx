@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { useState } from 'react';
+import { useMasteringEntryKeys } from './mastering-entry-form-keys.ts';
 
 import type {
 	DocumentMasteringSequenceEntrySnapshot,
@@ -94,6 +95,7 @@ export default function SoundscaperMasteringSequenceEditor({
 	const [selectedId, setSelectedId] = useState('');
 	const [regionId, setRegionId] = useState('');
 	const sequence = sequences.find(({ id }) => id === selectedId) ?? sequences[0] ?? null;
+	const entryKeys = useMasteringEntryKeys(sequence?.id ?? '', sequence?.entries);
 	const addableRegion = regions.find(({ id }) => id === regionId) ?? regions[0] ?? null;
 
 	return <fieldset disabled={disabled} data-soundscaper-mastering-sequence-editor="sequences">
@@ -153,7 +155,7 @@ export default function SoundscaperMasteringSequenceEditor({
 			<section aria-label={copy.masteringEntries}>
 				<h4>{copy.masteringEntries}</h4>
 				{sequence.entries.map((entry, index) => <EntryEditor
-					key={entryFormKey(sequence.id, entry)}
+					key={entryKeys[index]}
 					copy={copy}
 					entry={entry}
 					index={index}
@@ -180,13 +182,6 @@ export default function SoundscaperMasteringSequenceEditor({
 			</div>}
 		</>}
 	</fieldset>;
-}
-
-function entryFormKey(sequenceId: string, entry: DocumentMasteringSequenceEntrySnapshot): string {
-	return JSON.stringify([
-		sequenceId, entry.id, entry.annotationId, entry.title, entry.titleOverride, entry.durationFrames,
-		entry.gapBeforeFrames, entry.fadeInFrames, entry.fadeOutFrames, entry.metadata,
-	]);
 }
 
 function EntryEditor({ copy, entry, index, lastIndex, sequenceId, sampleRate, onOperation }: Readonly<{

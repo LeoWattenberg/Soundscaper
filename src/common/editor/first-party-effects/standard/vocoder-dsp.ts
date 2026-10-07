@@ -3,6 +3,8 @@
 import { normalizeStandardModulationParams, standardVocoderBandGeometry, STANDARD_VOCODER_MAXIMUM_BANDS,
 	STANDARD_VOCODER_NORMALIZATION_FLOOR, type StandardModulationOptions } from './modulation-definition.ts';
 
+const ENVELOPE_Q = Array.from({ length: 4 }, (_, section) => 1 / (2 * Math.cos((2 * section + 1) * Math.PI / 16)));
+
 /** Unit-peak biquad, from the bilinear transform of the analog band-pass
  * (s/Q) / (s² + s/Q + 1). Transposed state uses double precision.
  * These are original equations; no Nyquist implementation is embedded here.
@@ -66,20 +68,23 @@ export function createVocoderProcessor({ sampleRate, channelCount, params = {} }
 	let outputGain = 0;
 	let radarIncrement = 0;
 	let normalizationPeak = STANDARD_VOCODER_NORMALIZATION_FLOOR;
-	function configureBank(): void {
+	function configureBank(envelopesOnly = false): void {
 		const { ratio, firstFrequency, q } = standardVocoderBandGeometry(sampleRate, settings.bands);
 		for (let band = 0; band < settings.bands; band += 1) {
 			const frequency = firstFrequency * ratio ** band;
-			analysis[band].configure(sampleRate, frequency, q);
-			carrier[band].configure(sampleRate, frequency, q);
-			synthesis[band].configure(sampleRate, frequency, q);
-			for (let section = 0; section < 4; section += 1) {
-				const envelopeQ = 1 / (2 * Math.cos((2 * section + 1) * Math.PI / 16));
-				envelope[band][section].configure(sampleRate, frequency / settings.distance, envelopeQ, true);
+			if (!envelopesOnly) {
+				analysis[band].configure(sampleRate, frequency, q);
+				carrier[band].configure(sampleRate, frequency, q);
+				synthesis[band].configure(sampleRate, frequency, q);
 			}
-			const angle = 2 * Math.PI * frequency / sampleRate;
-			rotationReal[band] = Math.cos(angle);
-			rotationImaginary[band] = Math.sin(angle);
+			for (let section = 0; section < 4; section += 1) {
+				envelope[band][section].configure(sampleRate, frequency / settings.distance, ENVELOPE_Q[section], true);
+			}
+			if (!envelopesOnly) {
+				const angle = 2 * Math.PI * frequency / sampleRate;
+				rotationReal[band] = Math.cos(angle);
+				rotationImaginary[band] = Math.sin(angle);
+			}
 		}
 	}
 	function configureLevels(): void {
@@ -106,7 +111,7 @@ export function createVocoderProcessor({ sampleRate, channelCount, params = {} }
 			const previous = settings;
 			settings = normalizeStandardModulationParams('vocoder', { ...settings, ...value });
 			if (settings.bands !== previous.bands || settings.distance !== previous.distance) {
-				configureBank();
+				configureBank(settings.bands === previous.bands);
 				if (settings.bands !== previous.bands) reset();
 			}
 			configureLevels();
