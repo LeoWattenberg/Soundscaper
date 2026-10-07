@@ -37,22 +37,41 @@ test('mobile File Open starts a new project for audio while File Import keeps th
 	await expect(editor).toHaveAttribute('data-clip-count', '2');
 });
 
-test('mobile File Open creates a project before asking where to import a CUE sheet', async ({ page }) => {
+test('mobile File Open creates a CUE project only after its import destination is accepted', async ({ page }) => {
 	await page.setViewportSize({ width: 390, height: 844 });
 	const editor = await bootEditor(page, '/embed/en/');
 	const originalId = await editor.getAttribute('data-project-id');
 	const choosingFile = page.waitForEvent('filechooser');
 	await chooseFileAction(page, editor, 'Open');
-	await (await choosingFile).setFiles({
+	const cue = {
 		name: 'album.cue',
 		mimeType: 'application/x-cue',
 		buffer: Buffer.from('TITLE "Album"\nTRACK 01 AUDIO\n TITLE "Intro"\n INDEX 01 00:00:00\nTRACK 02 AUDIO\n TITLE "Song"\n INDEX 01 00:01:00'),
-	});
-	await expect.poll(() => editor.getAttribute('data-project-id')).not.toBe(originalId);
-	const openedId = await editor.getAttribute('data-project-id');
+	};
+	await (await choosingFile).setFiles(cue);
 	const dialog = page.getByRole('dialog', { name: 'Import', exact: true });
 	await expect(dialog).toContainText('album.cue');
+	await expect(editor).toHaveAttribute('data-project-id', originalId);
+	await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+	await expect(dialog).toBeHidden();
+	await expect(editor).toHaveAttribute('data-project-id', originalId);
+	await expect(editor.locator('[data-label-track] [data-label-id]')).toHaveCount(0);
+
+	const choosingAgain = page.waitForEvent('filechooser');
+	await chooseFileAction(page, editor, 'Open');
+	await (await choosingAgain).setFiles(cue);
+	await expect(dialog).toContainText('album.cue');
+	await expect(editor).toHaveAttribute('data-project-id', originalId);
 	await dialog.getByRole('button', { name: 'Labels', exact: true }).click();
+	await expect(dialog).toBeHidden();
+	await expect.poll(() => editor.getAttribute('data-project-id')).not.toBe(originalId);
+	const openedId = await editor.getAttribute('data-project-id');
 	await expect(editor.locator('[data-label-track] [data-label-id]')).toHaveCount(2);
 	await expect(editor).toHaveAttribute('data-project-id', openedId);
+	await page.setViewportSize({ width: 1280, height: 800 });
+	const tabs = editor.getByRole('navigation', { name: 'Project tabs' }).getByRole('tab');
+	await expect(tabs).toHaveCount(2);
+	await tabs.first().click();
+	await expect(editor).toHaveAttribute('data-project-id', originalId);
+	await expect(editor.locator('[data-label-track] [data-label-id]')).toHaveCount(0);
 });

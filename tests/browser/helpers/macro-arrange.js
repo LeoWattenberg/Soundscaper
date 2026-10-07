@@ -46,6 +46,6 @@ export async function arrangeWithMacro(page, editor, source, options = {}) {
 	if (outcome !== 'completed') {
 		throw new Error(`The arranging macro failed: ${(await log.textContent()) || 'no log output'}`);
 	}
-	await page.keyboard.press('Escape');
+	await manager.getByRole('button', { name: 'Close', exact: true }).click();
 	await expect(manager).toBeHidden();
 }
