@@ -1,12 +1,13 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { useId } from 'react';
+import { useCompatibilityOwnerLookup, useFeatureAffectedLookup, type CompatibilityOwnerLookup } from './useCompatibilityPresentation.ts';
 
 import './project-feature-compatibility.css';
 
 import { audioEffectLabel } from '../../effects.js';
 import type {
-	ProjectFeatureAffectedObject,
+	ProjectFeatureAffectedRequirement,
 	ProjectFeatureAffectedObjectIndex,
 } from '../../project-feature-affected-objects.ts';
 import type {
@@ -106,6 +107,8 @@ export default function ProjectFeatureCompatibilityReport({
 }: ProjectFeatureCompatibilityReportProps) {
 	const headingId = useId();
 	const notice = createProjectFeatureCompatibilityNotice(report);
+	const ownerLookup = useCompatibilityOwnerLookup(project);
+	const affectedLookup = useFeatureAffectedLookup(notice ? affectedObjects : null);
 	if (!notice) return null;
 	const audioEffectPlaceholderRequirementId = notice.items.find((item) => (
 		audioEffectPlaceholders(item, audioEffectPlaybackBypass).length > 0
@@ -183,7 +186,7 @@ export default function ProjectFeatureCompatibilityReport({
 									data-effective-disposition="bypassed"
 								>
 									<strong>{resolveAudioEffectLabel(placeholder.effectType, copy)}</strong>
-									<small>{audioEffectOwnerLabel(placeholder, project, copy)}</small>
+									<small>{audioEffectOwnerLabel(placeholder, ownerLookup, copy)}</small>
 									<small>{copy.scapeCompatibilityEditorPlaybackBypassed}</small>
 								</li>)}
 							</ul>
@@ -203,12 +206,12 @@ export default function ProjectFeatureCompatibilityReport({
 									data-effective-disposition="bypassed"
 								>
 									<strong>{videoEffectLabel(placeholder.effectType, copy)}</strong>
-									<small>{videoEffectOwnerLabel(placeholder, project, copy)}</small>
+									<small>{videoEffectOwnerLabel(placeholder, ownerLookup, copy)}</small>
 									<small>{copy.scapeCompatibilityEditorPlaybackBypassed}</small>
 								</li>)}
 							</ul>
 						</div>}
-						{genericAffectedSection(item.requirementId, affectedObjects, copy)}
+						{genericAffectedSection(item.requirementId, affectedLookup, copy)}
 					</li>;
 				})}
 			</ul>
@@ -275,16 +278,11 @@ function audioEffectPlaceholders(
 
 function audioEffectOwnerLabel(
 	placeholder: ProjectFeatureAudioEffectPlaceholder,
-	project: AudioEffectOwnerProject | null | undefined,
+	lookup: CompatibilityOwnerLookup,
 	copy: ProjectFeatureCompatibilityNoticeCopy,
 ): string {
 	if (placeholder.scope === 'master') return copy.master;
-	const collection = placeholder.scope === 'track'
-		? project?.tracks
-		: placeholder.scope === 'group'
-			? project?.mixer?.groups
-			: project?.mixer?.sends;
-	const ownerName = collection?.find((owner) => owner.id === placeholder.ownerId)?.name?.trim();
+	const ownerName = lookup(placeholder.scope, placeholder.ownerId)?.name?.trim();
 	const scopeLabel = placeholder.scope === 'track'
 		? copy.track
 		: placeholder.scope === 'group'
@@ -320,46 +318,28 @@ function videoEffectLabel(
 
 function videoEffectOwnerLabel(
 	placeholder: ProjectFeatureVideoEffectPlaceholder,
-	project: AudioEffectOwnerProject | null | undefined,
+	lookup: CompatibilityOwnerLookup,
 	copy: ProjectFeatureCompatibilityNoticeCopy,
 ): string {
-	const collection = placeholder.location === 'timeline'
-		? project?.clips
-		: project?.projectBin?.clips;
-	const clip = collection?.find((candidate) => candidate.id === placeholder.clipId);
+	const clip = lookup(placeholder.location, placeholder.clipId);
 	const clipName = (clip?.title || clip?.name)?.trim();
 	const locationLabel = placeholder.location === 'timeline' ? copy.timeline : copy.panelProjectBin;
 	return clipName ? `${locationLabel} · ${clipName}` : locationLabel;
 }
 
-/**
- * Objects the dedicated first-party sections already list are omitted here, so
- * this section carries only newly visible state: canonical objects a rendered
- * fallback replaces, and effects whose type is outside the maintained registry.
- */
-function newlyVisibleObjects(
-	objects: readonly ProjectFeatureAffectedObject[],
-): readonly ProjectFeatureAffectedObject[] {
-	return objects.filter((object) => (
-		object.channel === 'rendered-fallback-replaced' || !object.registered
-	));
-}
-
 function genericAffectedSection(
 	requirementId: string,
-	index: ProjectFeatureAffectedObjectIndex | null | undefined,
+	index: ReadonlyMap<string, ProjectFeatureAffectedRequirement>,
 	copy: ProjectFeatureCompatibilityNoticeCopy,
 ) {
-	const requirement = index?.requirements.find(
-		(candidate) => candidate.requirementId === requirementId,
-	);
+	const requirement = index.get(requirementId);
 	if (!requirement) return null;
 	if (!requirement.attributable) {
 		return <small data-project-feature-affected-objects-unattributable>
 			{copy.scapeCompatibilityAffectedObjectsUnattributable}
 		</small>;
 	}
-	const objects = newlyVisibleObjects(requirement.objects);
+	const objects = requirement.objects;
 	if (objects.length === 0 && requirement.omittedObjectCount === 0) return null;
 	return <div
 		className="kw-audio-editor-compatibility-affected-objects"
