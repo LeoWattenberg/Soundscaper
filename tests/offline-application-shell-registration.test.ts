@@ -71,7 +71,7 @@ test('the Framescaper build registers the root worker its own origin serves', as
 });
 
 test('every registration target is a worker the matching build actually emits', () => {
-	for (const buildProductId of ['soundscaper', 'framescaper']) {
+	for (const buildProductId of ['soundscaper', 'framescaper', 'lightscaper']) {
 		const routing = webBuildRouting({ SCAPE_PRODUCT: buildProductId });
 		for (const worker of routing.workers) {
 			assert.deepEqual(
@@ -100,7 +100,7 @@ test('a build refuses to register a worker it does not emit', async () => {
 	);
 	assert.equal(registrations, 0);
 	assert.throws(
-		() => resolveOfflineApplicationShellTarget('lightscaper', 'soundscaper'),
+		() => resolveOfflineApplicationShellTarget('unknownscaper', 'soundscaper'),
 		/Unsupported editor product/u,
 	);
 });

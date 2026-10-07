@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 
 import { bundledSiteCopyForLocale } from '../i18n/site-copy.js';
 import { productHref } from '../product-web-links.js';
+import { productIdentity } from '../product-identities.js';
 import { lazyEditorModule } from '../offline/lazy-module.tsx';
 import BrandSidebar from './BrandSidebar.jsx';
 import StaleBuildDialog from './StaleBuildDialog.jsx';
@@ -16,7 +17,10 @@ import './site.css';
 // rather than becoming a dormant bootstrap for a product this origin cannot
 // serve. The final bundle assertion in startup-graph-budget.mjs enforces that
 // output property for both product builds.
-const EditorBootstrap = __SCAPE_PRODUCT__ === 'framescaper'
+const EditorBootstrap = __SCAPE_PRODUCT__ === 'lightscaper'
+	? lazyEditorModule(() => import('../../lightscaper/ui/LightscaperBootstrap.tsx')
+		.then((module) => { editorStartupProgress.markPreparing(); return module; }))
+	: __SCAPE_PRODUCT__ === 'framescaper'
 	? lazyEditorModule(() => import('../../framescaper/ui/FramescaperAudioEditorBootstrap.tsx')
 		.then((module) => { editorStartupProgress.markPreparing(); return module; }))
 	: lazyEditorModule(() => import('../../soundscaper/ui/SoundscaperAudioEditorBootstrap.tsx')
@@ -83,7 +87,7 @@ export function applyDocumentRoute(route) {
 }
 
 function updateProductHead(productId, privacyPolicy) {
-	const productName = productId === 'framescaper' ? 'Framescaper' : 'Soundscaper';
+	const productName = productIdentity(productId).name;
 	document.title = privacyPolicy
 		? `${bundledSiteCopyForLocale(document.documentElement.lang).legalLink} · ${productName}`
 		: productName;

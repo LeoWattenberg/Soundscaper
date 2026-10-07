@@ -38,6 +38,7 @@ export const STARTUP_GRAPH_REPORTED_METRICS = Object.freeze(['requests', 'rawByt
 export const PRODUCT_BOOTSTRAPS = Object.freeze({
 	soundscaper: '/src/soundscaper/ui/SoundscaperAudioEditorBootstrap.tsx',
 	framescaper: '/src/framescaper/ui/FramescaperAudioEditorBootstrap.tsx',
+	lightscaper: '/src/lightscaper/ui/LightscaperBootstrap.tsx',
 });
 
 export const BUDGETED_PRODUCT_IDS = Object.freeze(Object.keys(PRODUCT_BOOTSTRAPS));
@@ -127,14 +128,15 @@ export function assertProductionStartupGraphs(bundle, product) {
  * @param {keyof typeof PRODUCT_BOOTSTRAPS} builtProduct
  */
 function assertOnlyBuiltProductBootstrapEmitted(bundle, builtProduct) {
-	const otherProduct = builtProduct === 'framescaper' ? 'soundscaper' : 'framescaper';
-	const otherBootstrap = Object.values(bundle).find((output) => output.type === 'chunk'
-		&& chunkOwnsModule(output, PRODUCT_BOOTSTRAPS[otherProduct]));
-	if (otherBootstrap) {
-		throw new Error(
-			`${builtProduct} build emitted the ${otherProduct} bootstrap ${otherBootstrap.fileName}; `
-			+ 'select the editor bootstrap from the compile-time product only.',
-		);
+	for (const otherProduct of BUDGETED_PRODUCT_IDS.filter((product) => product !== builtProduct)) {
+		const otherBootstrap = Object.values(bundle).find((output) => output.type === 'chunk'
+			&& chunkOwnsModule(output, PRODUCT_BOOTSTRAPS[otherProduct]));
+		if (otherBootstrap) {
+			throw new Error(
+				`${builtProduct} build emitted the ${otherProduct} bootstrap ${otherBootstrap.fileName}; `
+				+ 'select the editor bootstrap from the compile-time product only.',
+			);
+		}
 	}
 }
 
@@ -259,12 +261,13 @@ export function assertTransferArchiveRuntimeDoesNotReachProductBootstrap(bundle)
 }
 
 export function assertProductGraphOwnership(product, graph) {
-	const otherProduct = product === 'framescaper' ? 'soundscaper' : 'framescaper';
-	const forbiddenModule = [...graph.moduleIds].find((moduleId) => (
-		moduleId.includes(`/src/${otherProduct}/`)
-	));
-	if (forbiddenModule) {
-		throw new Error(`${product} product-ready graph owns forbidden ${otherProduct} product module ${forbiddenModule}.`);
+	for (const otherProduct of BUDGETED_PRODUCT_IDS.filter((candidate) => candidate !== product)) {
+		const forbiddenModule = [...graph.moduleIds].find((moduleId) => (
+			moduleId.includes(`/src/${otherProduct}/`)
+		));
+		if (forbiddenModule) {
+			throw new Error(`${product} product-ready graph owns forbidden ${otherProduct} product module ${forbiddenModule}.`);
+		}
 	}
 }
 
@@ -399,8 +402,7 @@ function assertStaticEntryOwnership(graph) {
 	if (forbiddenFile) throw new Error(`static entry startup graph owns forbidden editor asset ${forbiddenFile}.`);
 	const forbiddenModule = [...graph.moduleIds].find((moduleId) => (
 		moduleId.includes('/src/common/editor/')
-		|| moduleId.includes('/src/soundscaper/')
-		|| moduleId.includes('/src/framescaper/')
+		|| BUDGETED_PRODUCT_IDS.some((product) => moduleId.includes(`/src/${product}/`))
 	));
 	if (forbiddenModule) throw new Error(`static entry startup graph owns forbidden editor module ${forbiddenModule}.`);
 }

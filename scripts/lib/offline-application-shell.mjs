@@ -39,25 +39,34 @@ const STATIC_CONTROL_FILES = Object.freeze([
 ]);
 const PRODUCT_ENTRIES = Object.freeze({
 	framescaper: 'src/framescaper/ui/FramescaperAudioEditorBootstrap.tsx',
+	lightscaper: 'src/lightscaper/ui/LightscaperBootstrap.tsx',
 	soundscaper: 'src/soundscaper/ui/SoundscaperAudioEditorBootstrap.tsx',
 });
 const PRODUCT_INSTALL_ARTIFACTS = Object.freeze({
 	framescaper: Object.freeze({
 		name: 'Framescaper',
 		description: 'Local-first video effects and compositing editor',
-		// Both product marks are shared navigation chrome; only the generated
+		// Product marks are shared navigation chrome; only the generated
 		// install artwork below remains product-specific.
-		logos: Object.freeze(['/logo/framescaper.svg', '/logo/soundscaper.svg', '/logo/mindscaper.svg']),
+		logos: Object.freeze(['/logo/framescaper.svg', '/logo/soundscaper.svg', '/logo/lightscaper.svg', '/logo/mindscaper.svg']),
 		source: 'public/logo/framescaper.svg',
 		// Chosen from the standard manifest category vocabulary, which names no
 		// video category; `photo` is the one it files moving-image work under.
 		categories: Object.freeze(['photo', 'productivity', 'utilities']),
 		media: Object.freeze(['audio', 'video']),
 	}),
+	lightscaper: Object.freeze({
+		name: 'Lightscaper',
+		description: 'Local-first photo library and develop editor',
+		logos: Object.freeze(['/logo/lightscaper.svg', '/logo/soundscaper.svg', '/logo/framescaper.svg', '/logo/mindscaper.svg']),
+		source: 'public/logo/lightscaper.svg',
+		categories: Object.freeze(['photo', 'productivity', 'utilities']),
+		media: Object.freeze([]),
+	}),
 	soundscaper: Object.freeze({
 		name: 'Soundscaper',
 		description: 'Local-first multitrack audio editor',
-		logos: Object.freeze(['/logo/soundscaper.svg', '/logo/framescaper.svg', '/logo/mindscaper.svg']),
+		logos: Object.freeze(['/logo/soundscaper.svg', '/logo/framescaper.svg', '/logo/lightscaper.svg', '/logo/mindscaper.svg']),
 		source: 'public/logo/soundscaper.svg',
 		categories: Object.freeze(['music', 'productivity', 'utilities']),
 		media: Object.freeze(['audio']),

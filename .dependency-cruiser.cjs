@@ -145,7 +145,7 @@ module.exports = {
 				+ 'desktop/ and native/ are held to it too: neither is presentation, and a main '
 				+ 'process module that names a React module cannot be loaded where it runs.',
 			severity: 'error',
-			from: { path: '^(?:src/common/editor/(?!ui/)|desktop/|native/)' },
+			from: { path: '^(?:src/common/editor/(?!ui/)|src/lightscaper/(?!ui/)|desktop/|native/)' },
 			to: { path: '^src/common/editor/ui/' },
 		},
 		{

@@ -9,4 +9,9 @@ export const SHARED_CAPABILITIES = Object.freeze({
 	videoPlayback: true,
 	videoTimelineEditing: true,
 	videoExport: true,
+	photoLibrarySurface: false,
+	photoCatalog: false,
+	photoDevelop: false,
+	photoExport: false,
+	photoRaw: false,
 });

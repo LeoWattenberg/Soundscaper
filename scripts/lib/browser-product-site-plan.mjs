@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { PRODUCT_IDS } from '../../src/common/product-identities.js';
+
 // The shape of a browser-test run: which product answers on which loopback
 // origin, and which directory that origin is served out of. It is deliberately
 // free of the build — Playwright's configuration, the site builder, and the
@@ -8,10 +10,10 @@
 
 export const BROWSER_PRODUCT_FIXTURE_ROOT = '.wrangler/browser-products';
 
-export const PRODUCT_IDS = Object.freeze(['soundscaper', 'framescaper']);
+export { PRODUCT_IDS } from '../../src/common/product-identities.js';
 
 /**
- * The two production-shaped origins used by the ordinary browser suite.
+ * The production-shaped origins used by the ordinary browser suite.
  *
  * Soundscaper keeps PLAYWRIGHT_PORT for compatibility with focused local runs.
  * Framescaper defaults to the following port, but can be moved independently
@@ -24,14 +26,28 @@ export function ordinaryBrowserProductSitePlan(environment = process.env) {
 		soundscaperPort + 1,
 		'PLAYWRIGHT_FRAMESCAPER_PORT',
 	);
-	if (soundscaperPort === framescaperPort) {
-		throw new Error('The Soundscaper and Framescaper Playwright origins must use different ports.');
+	const lightscaperPort = browserPort(
+		environment.PLAYWRIGHT_LIGHTSCAPER_PORT,
+		soundscaperPort + 2,
+		'PLAYWRIGHT_LIGHTSCAPER_PORT',
+	);
+	if (new Set([soundscaperPort, framescaperPort, lightscaperPort]).size !== PRODUCT_IDS.length) {
+		throw new Error('Every Playwright product origin must use different ports.');
 	}
 	return productSitePlan({
 		fixtureRoot: BROWSER_PRODUCT_FIXTURE_ROOT,
 		soundscaperOrigin: `http://127.0.0.1:${String(soundscaperPort)}`,
 		framescaperOrigin: `http://127.0.0.1:${String(framescaperPort)}`,
+		lightscaperOrigin: `http://127.0.0.1:${String(lightscaperPort)}`,
 	});
+}
+
+/** A single-product build descriptor, including the independently staged photo shell. */
+export function browserProductSiteForBuild(productId, environment = process.env) {
+	if (!PRODUCT_IDS.includes(productId)) {
+		throw new Error(`Unsupported browser build product: ${String(productId)}.`);
+	}
+	return siteFor(ordinaryBrowserProductSitePlan(environment), productId);
 }
 
 /** A Vite production-preview descriptor safe to put directly in Playwright config. */
@@ -51,10 +67,11 @@ export function vitePreviewServer(site, readinessPath = '/en/') {
 	};
 }
 
-function productSitePlan({ fixtureRoot, soundscaperOrigin, framescaperOrigin }) {
+function productSitePlan({ fixtureRoot, soundscaperOrigin, framescaperOrigin, lightscaperOrigin }) {
 	const origins = Object.freeze({
 		soundscaper: browserOrigin(soundscaperOrigin, 'Soundscaper browser origin'),
 		framescaper: browserOrigin(framescaperOrigin, 'Framescaper browser origin'),
+		lightscaper: browserOrigin(lightscaperOrigin, 'Lightscaper browser origin'),
 	});
 	const sites = PRODUCT_IDS.map((productId) => Object.freeze({
 		productId,
@@ -82,12 +99,17 @@ function browserOrigin(value, label) {
 	return url.origin;
 }
 
-/** Reject anything that is not a complete two-product plan. */
+/** Reject anything that is not a complete independent-product plan. */
 export function assertPlan(plan) {
 	if (!plan || !Array.isArray(plan.sites) || plan.sites.length !== PRODUCT_IDS.length) {
-		throw new TypeError('A browser-product site plan must contain both products.');
+		throw new TypeError('A browser-product site plan must contain every registered product.');
 	}
 	for (const site of plan.sites) assertSite(site);
+	for (const field of ['productId', 'origin', 'outputDirectory']) {
+		if (new Set(plan.sites.map((site) => site[field])).size !== PRODUCT_IDS.length) {
+			throw new TypeError(`A browser-product site plan must contain distinct ${field} values.`);
+		}
+	}
 }
 
 /** Reject anything that is not a valid single-product descriptor. */

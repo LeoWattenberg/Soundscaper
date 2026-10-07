@@ -13,8 +13,10 @@ test('an unset SCAPE_PRODUCT still builds Soundscaper', async () => {
 });
 
 test('SCAPE_PRODUCT names the product the web build emits', async () => {
-	const config = await loadViteConfig('framescaper', 'framescaper');
-	assert.equal(config.define.__SCAPE_PRODUCT__, JSON.stringify('framescaper'));
+	for (const product of ['framescaper', 'lightscaper']) {
+		const config = await loadViteConfig(product, product);
+		assert.equal(config.define.__SCAPE_PRODUCT__, JSON.stringify(product));
+	}
 });
 
 test('MCP renderer modules belong only to Soundscaper desktop builds', async () => {
@@ -24,7 +26,7 @@ test('MCP renderer modules belong only to Soundscaper desktop builds', async () 
 });
 
 test('an unrecognized SCAPE_PRODUCT fails the build instead of building Soundscaper', async () => {
-	for (const [index, product] of ['lightscaper', 'Framescaper', 'framescaper ', 'true'].entries()) {
+	for (const [index, product] of ['unknownscaper', 'Framescaper', 'framescaper ', 'true'].entries()) {
 		await assert.rejects(
 			() => loadViteConfig(product, `rejected-${index}`),
 			/SCAPE_PRODUCT/u,
@@ -46,6 +48,23 @@ test('the built product reaches the startup-graph budget plugin', async () => {
 	);
 	assert.doesNotThrow(
 		() => soundscaperBudgets.generateBundle.handler({}, bundleWithBootstrap('soundscaper')),
+	);
+});
+
+test('Lightscaper web builds enforce their own bootstrap and refuse desktop composition', async () => {
+	const config = await loadViteConfig('lightscaper', 'plugin-lightscaper');
+	assert.equal(config.define.__SCAPE_DESKTOP_RENDERER__, 'false');
+	const budgets = budgetPlugin(config);
+	assert.doesNotThrow(() => budgets.generateBundle.handler({}, bundleWithBootstrap('lightscaper')));
+	for (const product of ['soundscaper', 'framescaper']) {
+		assert.throws(
+			() => budgets.generateBundle.handler({}, bundleWithBootstrap(product)),
+			new RegExp(`lightscaper build emitted the ${product} bootstrap`, 'iu'),
+		);
+	}
+	await assert.rejects(
+		() => loadViteConfig('lightscaper', 'lightscaper-desktop', true),
+		/Lightscaper desktop.*L8/iu,
 	);
 });
 

@@ -50,6 +50,9 @@ jobs:
       - name: Build and verify Framescaper
         run: npm run build:browser:framescaper
 
+      - name: Build and verify the Lightscaper browser site
+        run: npm run build:browser:lightscaper
+
       - name: Collect hosted diagnostics
         run: npm run quality:collect:ci-diagnostics
 

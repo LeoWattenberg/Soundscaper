@@ -62,7 +62,7 @@ export async function buildBrowserProductSite(site) {
 }
 
 /**
- * Authenticate the downloaded Framescaper artifact, then make a verified,
+ * Authenticate every downloaded product artifact, then make a verified,
  * disposable Soundscaper copy without changing either production artifact.
  */
 export async function prepareOrdinaryBrowserProductSites(
@@ -71,8 +71,9 @@ export async function prepareOrdinaryBrowserProductSites(
 ) {
 	assertPlan(plan);
 	const soundscaper = siteFor(plan, 'soundscaper');
-	const framescaper = siteFor(plan, 'framescaper');
-	await verifyBrowserProductSite(framescaper);
+	for (const site of plan.sites.filter((site) => site.productId !== 'soundscaper')) {
+		await verifyBrowserProductSite(site);
+	}
 
 	const source = resolve(repositoryRoot, soundscaperBuildDirectory);
 	const destination = resolve(repositoryRoot, soundscaper.outputDirectory);
@@ -141,6 +142,7 @@ function cleanBuildEnvironment(site) {
 		'SCAPE_PRODUCT',
 		'SOUNDSCAPER_SITE',
 		'FRAMESCAPER_SITE',
+		'LIGHTSCAPER_SITE',
 		'PUBLIC_TRANSFER_PEER_ORIGIN',
 	]) delete environment[key];
 	return {
@@ -151,8 +153,8 @@ function cleanBuildEnvironment(site) {
 		// the test sites always carry them.
 		SCAPE_BUILD_SOURCE_MAPS: '1',
 		SCAPE_PRODUCT: site.productId,
-		[site.productId === 'soundscaper' ? 'SOUNDSCAPER_SITE' : 'FRAMESCAPER_SITE']: site.origin,
-		PUBLIC_TRANSFER_PEER_ORIGIN: site.peerOrigin,
+		[`${site.productId.toUpperCase()}_SITE`]: site.origin,
+		...(site.productId === 'lightscaper' ? {} : { PUBLIC_TRANSFER_PEER_ORIGIN: site.peerOrigin }),
 	};
 }
 

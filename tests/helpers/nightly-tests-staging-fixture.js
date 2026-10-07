@@ -132,6 +132,7 @@ export async function createFixture(context) {
 		['scripts/lib/packaged-webassembly-coverage.mjs', 'export const packagedWebAssemblyCoverage = true;\n'],
 		['scripts/lib/browser-product-site-plan.mjs', 'export const sitePlan = true;\n'],
 		['scripts/lib/product-release-lines.mjs', await readFile(new URL('../../scripts/lib/product-release-lines.mjs', import.meta.url), 'utf8')],
+		['src/common/product-identities.js', await readFile(new URL('../../src/common/product-identities.js', import.meta.url), 'utf8')],
 		['config/product-release-lines.json', await readFile(new URL('../../config/product-release-lines.json', import.meta.url), 'utf8')],
 		['scripts/lib/build-source-map-relocation.mjs', 'export const relocation = true;\n'],
 		['config/ffmpeg-runtime-manifest.json', await readFile(new URL('../../config/ffmpeg-runtime-manifest.json', import.meta.url), 'utf8')],

@@ -463,6 +463,7 @@ async function shellFixture(context, routes = ['en', 'embed/en']) {
 		))),
 		fixtureFile(outputRoot, 'logo/framescaper.svg', '<svg viewBox="0 0 1 1" />'),
 		fixtureFile(outputRoot, 'logo/soundscaper.svg', '<svg viewBox="0 0 1 1" />'),
+		fixtureFile(outputRoot, 'logo/lightscaper.svg', '<svg viewBox="0 0 1 1" />'),
 		fixtureFile(outputRoot, 'logo/mindscaper.svg', '<svg viewBox="0 0 1 1" />'),
 		fixtureFile(outputRoot, '_headers', 'test headers'),
 		fixtureFile(outputRoot, STARTUP_GRAPH_REPORT_FILE, '{"product":"soundscaper","graphs":{}}'),

@@ -17,6 +17,7 @@ import { BUILT_PRODUCT_ID } from './site/route.js';
 export const PRODUCT_WEB_ORIGINS = Object.freeze({
 	soundscaper: 'https://soundscaper.org',
 	framescaper: 'https://framescaper.org',
+	lightscaper: 'https://lightscaper.org',
 });
 
 /** The origin a product is served from once it owns one, refusing an unknown product. */

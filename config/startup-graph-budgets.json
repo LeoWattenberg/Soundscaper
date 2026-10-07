@@ -21,6 +21,18 @@
 			"requests": "Raised from 75 to 100 requests. A stable product maximum is paired with the measured editor-files progress bar in browser and Electron builds; the initial-page budget and 500,000-byte per-chunk limit remain unchanged."
 		}
 	},
+	"lightscaper": {
+		"ceilings": {
+			"requests": 100,
+			"rawBytes": 10000000,
+			"brotliBytes": 2500000
+		},
+		"reasons": {
+			"requests": "New Lightscaper product graph uses the existing product maximum, with observed loading progress and no change to the initial-page or per-chunk ceilings.",
+			"rawBytes": "New Lightscaper product graph uses the existing product maximum. The independent photo bootstrap excludes Soundscaper and Framescaper product modules.",
+			"brotliBytes": "New Lightscaper product graph uses the existing product maximum. Each build reports and validates its measured graph before static routing and offline-shell generation."
+		}
+	},
 	"framescaper": {
 		"ceilings": {
 			"requests": 100,

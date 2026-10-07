@@ -1,12 +1,14 @@
 # Lightscaper product roadmap
 
-> Grounded against the repository on 2026-08-25. Lightscaper does not exist in the tree yet: every milestone below is accepted future scope, ordered by dependency, closing only when its exit gate passes. Nothing here is a release-date promise. The [main roadmap](roadmap.md) owns the shared platform and the two existing products; this file adds Lightscaper without changing any milestone, fence, or gate there.
+> Re-grounded against the repository on 2026-10-07. Lightscaper implementation has started: milestones below remain accepted scope, ordered by dependency, closing only when their exit gates pass. Nothing here is a release-date promise. The [main roadmap](roadmap.md) owns the shared platform and the two existing products; this file adds Lightscaper without changing any milestone, fence, or gate there.
 
 Lightscaper is the third product over the shared local-first editor platform: a
 photo library and non-destructive develop editor — broadly the shape of
-Lightroom Classic — served at `/lightscaper/<locale>/` from the same origin,
-IndexedDB/OPFS media library, project locks, and Scape project format as
-Soundscaper and Framescaper. Product-unique code lives in `src/lightscaper/`;
+Lightroom Classic — built independently for `lightscaper.org/<locale>/`,
+following the implemented [separate-origin decision](docs/decisions/product-origins.md).
+It reuses IndexedDB/OPFS storage primitives, project-lock contracts, and the
+Scape container while owning a photo-catalog schema family and media library.
+Product-unique code lives in `src/lightscaper/`;
 every operation that changes pixels lives in `src/common/` where Framescaper
 can reach it too.
 
@@ -85,8 +87,10 @@ the [quality budgets](docs/development/quality-diagnostics.md), and the owner re
   process version is an explicit, recorded decision.
 - A photo, its develop stack, and its collections round-trip through Scape;
   a developed photo opens in Framescaper as a still source with its
-  shared-effect stack intact, without copying media; and the reverse handoff
-  holds.
+  shared-effect stack intact; and the reverse handoff holds. Browser handoff
+  follows the separate-origin contract: it transfers an authenticated editable
+  copy into the destination library and leaves the sender unchanged. Shared
+  code does not grant access to another origin's media store.
 
 The following are not completion requirements:
 
@@ -158,7 +162,7 @@ Known architectural constraints that drive the sequence:
 
 | Milestone | Status | Purpose |
 | --- | --- | --- |
-| L1. Product seam | **Planned** | Register the third product with everything off. |
+| L1. Product seam | **In progress** | Register the third product with everything off. |
 | L2. Catalog and develop contracts | **Planned** | Fix the schemas and the depth-agnostic pixel contract before any surface. |
 | L3. Photo library | **Planned** | Import, browse, cull, and organize at real-library scale. |
 | L4. Develop: global adjustments | **Planned** | Deliver the parametric develop loop on shared effects. |
@@ -177,7 +181,7 @@ whose owner accepts the known issues.
 
 **Depends on:** nothing outside the tree.
 
-**Goal:** make `/lightscaper/<locale>/` a real registered product whose
+**Goal:** make the independently built Lightscaper `/<locale>/` route a real registered product whose
 surfaces are deliberately empty, without changing Soundscaper or Framescaper
 behavior.
 

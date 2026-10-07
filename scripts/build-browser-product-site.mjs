@@ -4,13 +4,9 @@
 
 import {
 	buildBrowserProductSite,
-	ordinaryBrowserProductSitePlan,
 } from './lib/browser-product-test-sites.mjs';
+import { browserProductSiteForBuild } from './lib/browser-product-site-plan.mjs';
 
 const productId = process.argv[2];
-const plan = ordinaryBrowserProductSitePlan();
-const site = plan.sites.find((candidate) => candidate.productId === productId);
-if (!site) {
-	throw new Error('build-browser-product-site requires soundscaper or framescaper.');
-}
+const site = browserProductSiteForBuild(productId);
 await buildBrowserProductSite(site);

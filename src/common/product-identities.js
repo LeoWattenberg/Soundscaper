@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-export const PRODUCT_IDS = Object.freeze(['soundscaper', 'framescaper']);
+export const PRODUCT_IDS = Object.freeze(['soundscaper', 'framescaper', 'lightscaper']);
 
 const PRODUCT_ID_SET = new Set(PRODUCT_IDS);
 
@@ -16,6 +16,12 @@ export const PRODUCT_IDENTITIES = deepFreeze({
 		name: 'Framescaper',
 		basePath: '/framescaper',
 		defaultWorkspace: 'video-editor',
+	},
+	lightscaper: {
+		id: 'lightscaper',
+		name: 'Lightscaper',
+		basePath: '/lightscaper',
+		defaultWorkspace: 'photo-library',
 	},
 });
 
@@ -37,7 +43,17 @@ export function productLocalePath(product, locale, options = {}) {
 }
 
 export function otherProductId(product) {
-	return normalizeProductId(product) === 'framescaper' ? 'soundscaper' : 'framescaper';
+	const productId = normalizeProductId(product);
+	// Editable-copy conversion currently supports these two project families.
+	// Navigation uses otherProductIds; registering a product grants no converter.
+	if (productId === 'soundscaper') return 'framescaper';
+	if (productId === 'framescaper') return 'soundscaper';
+	throw new RangeError(`No editable-copy destination is registered for product: ${productId}.`);
+}
+
+export function otherProductIds(product) {
+	const productId = normalizeProductId(product);
+	return Object.freeze(PRODUCT_IDS.filter((candidate) => candidate !== productId));
 }
 
 function deepFreeze(value) {

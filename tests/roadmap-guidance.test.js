@@ -96,14 +96,17 @@ test('roadmap treats hosted performance results as diagnostics', async () => {
 });
 
 test('machine-readable policy links resolve to current roadmap headings', async () => {
-	const roadmap = await readFile(roadmapUrl, 'utf8');
-	const headings = new Set([...roadmap.matchAll(/^#{1,6}\s+(.+)$/gmu)]
-		.map(([, heading]) => githubHeadingSlug(heading)));
+	const headingSets = new Map();
+	for (const name of ['roadmap.md', 'roadmap-lightscaper.md']) {
+		const roadmap = await readFile(new URL(`../${name}`, import.meta.url), 'utf8');
+		headingSets.set(name, new Set([...roadmap.matchAll(/^#{1,6}\s+(.+)$/gmu)]
+			.map(([, heading]) => githubHeadingSlug(heading))));
+	}
 
 	for (const referenceUrl of roadmapReferenceUrls) {
 		const policy = await readFile(referenceUrl, 'utf8');
-		for (const [, anchor] of policy.matchAll(/roadmap\.md#([a-z0-9-]+)/gu)) {
-			assert.ok(headings.has(anchor), `${referenceUrl.pathname} references missing #${anchor}`);
+		for (const [, name, anchor] of policy.matchAll(/(roadmap(?:-lightscaper)?\.md)#([a-z0-9-]+)/gu)) {
+			assert.ok(headingSets.get(name)?.has(anchor), `${referenceUrl.pathname} references missing ${name}#${anchor}`);
 		}
 	}
 });

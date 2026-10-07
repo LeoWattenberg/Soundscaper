@@ -7,12 +7,11 @@ import {
 } from './scripts/lib/browser-product-test-sites.mjs';
 
 const sitePlan = ordinaryBrowserProductSitePlan();
-const [soundscaper, framescaper] = sitePlan.sites;
+const [soundscaper] = sitePlan.sites;
 const baseURL = soundscaper.origin;
-process.env.SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS = JSON.stringify({
-	soundscaper: soundscaper.origin,
-	framescaper: framescaper.origin,
-});
+process.env.SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS = JSON.stringify(Object.fromEntries(
+	sitePlan.sites.map(({ productId, origin }) => [productId, origin]),
+));
 
 export default defineConfig({
 	testDir: './tests/browser',
@@ -32,7 +31,7 @@ export default defineConfig({
 		? [['github'], ['html', { outputFolder: 'playwright-report', open: 'never' }]]
 		: 'list',
 	outputDir: 'test-results',
-	webServer: [vitePreviewServer(soundscaper), vitePreviewServer(framescaper)],
+	webServer: sitePlan.sites.map((site) => vitePreviewServer(site)),
 	use: {
 		baseURL,
 		serviceWorkers: 'block',

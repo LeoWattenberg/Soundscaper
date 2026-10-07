@@ -4,6 +4,17 @@ import { localeLanguage } from './locale.js';
 import { SITE_SIDEBAR_COPY_BY_LOCALE } from './site-sidebar-copy.js';
 
 const SITE_COPY_ENTRIES = Object.freeze([
+	['lightscaperTitle', 'Lightscaper', 'Lightscaper'],
+	['lightscaperMetaDescription', 'A local-first photo library and non-destructive develop editor.', 'Eine lokale Fotobibliothek mit nondestruktiver Bildentwicklung.'],
+	['photoEditor', 'Photo editor', 'Foto-Editor'],
+	['workspacePhoto', 'Photo library', 'Fotobibliothek'],
+	['photoFileMenu', 'File', 'Datei'],
+	['photoViewMenu', 'View', 'Ansicht'],
+	['photoShowLibrary', 'Show photo library', 'Fotobibliothek anzeigen'],
+	['photoHideLibrary', 'Hide photo library', 'Fotobibliothek ausblenden'],
+	['photoEmptyLibrary', 'Your photo library is empty.', 'Deine Fotobibliothek ist leer.'],
+	['photoMenuLabel', 'Application menu', 'Anwendungsmenü'],
+	['productEditors', 'Editors', 'Editoren'],
 	['framescaperEyebrow', 'Local video editing', 'Video lokal bearbeiten'],
 	['framescaperTitle', 'Framescaper', 'Framescaper'],
 	['framescaperIntro', 'Edit video and sound nondestructively, combine layers and effects, and export the finished video.', 'Schneide Video und Ton nondestruktiv, kombiniere Ebenen und Effekte und exportiere das fertige Video.'],

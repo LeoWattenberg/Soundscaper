@@ -17,8 +17,8 @@ interface OfflineServiceWorkerContainer {
 
 export interface RegisterOfflineApplicationShellOptions {
 	readonly desktop: boolean;
-	readonly productId: 'framescaper' | 'soundscaper';
-	readonly builtProductId?: 'framescaper' | 'soundscaper';
+	readonly productId: 'framescaper' | 'soundscaper' | 'lightscaper';
+	readonly builtProductId?: 'framescaper' | 'soundscaper' | 'lightscaper';
 	readonly location?: Pick<URL, 'protocol'>;
 	readonly serviceWorker?: OfflineServiceWorkerContainer;
 }

@@ -59,6 +59,7 @@ test('every maintained production tree has its own coverage scope', () => {
 	assert.equal(classifyProductionCoveragePath('desktop/main.mjs'), 'desktop');
 	assert.equal(classifyProductionCoveragePath('src/framescaper/model.ts'), 'framescaper');
 	assert.equal(classifyProductionCoveragePath('src/soundscaper/model.ts'), 'soundscaper');
+	assert.equal(classifyProductionCoveragePath('src/lightscaper/model.ts'), 'lightscaper');
 	assert.equal(classifyProductionCoveragePath('src/common/transfer/session.ts'), 'common-transfer');
 	assert.equal(classifyProductionCoveragePath('src/common/site/App.jsx'), 'common-site');
 	assert.equal(classifyProductionCoveragePath('src/common/i18n/catalogs.js'), 'common-i18n');
@@ -110,9 +111,9 @@ test('a configuration the classifier cannot fill, or that names no reason, is re
 	);
 	assert.throws(
 		() => parseCoverageGateConfiguration({
-			scopes: [...configuration.scopes, { ...configuration.scopes[0], id: 'lightscaper' }],
+			scopes: [...configuration.scopes, { ...configuration.scopes[0], id: 'unknownscaper' }],
 		}),
-		/unreachable scope: lightscaper/u,
+		/unreachable scope: unknownscaper/u,
 	);
 	assert.throws(
 		() => parseCoverageGateConfiguration({
@@ -166,6 +167,7 @@ for (const { id, label, path } of [
 	{ id: 'common-i18n', label: 'Common i18n', path: 'src/common/i18n/runtime.js' },
 	{ id: 'common-offline', label: 'Common offline', path: 'src/common/offline/application-shell.ts' },
 	{ id: 'shared-root', label: 'Shared root', path: 'src/common/url.ts' },
+	{ id: 'lightscaper', label: 'Lightscaper', path: 'src/lightscaper/model.ts' },
 ]) {
 	test(`${id} coverage cannot be masked by another common area`, () => {
 		const threshold = scopeThresholds(id).lines;
@@ -205,6 +207,7 @@ function passingSummary() {
 		[file('desktop/main.mjs')]: measured(100, 100),
 		[file('src/framescaper/model.ts')]: measured(100, 100),
 		[file('src/soundscaper/model.ts')]: measured(100, 100),
+		[file('src/lightscaper/model.ts')]: measured(100, 100),
 		[file('src/common/transfer/session.ts')]: measured(100, 100),
 		[file('src/common/site/route.js')]: measured(100, 100),
 		[file('src/common/i18n/runtime.js')]: measured(100, 100),

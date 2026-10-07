@@ -1,10 +1,15 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { assertProducts, compareText, page, reviewedLabel, table } from './markdown.mjs';
+import { assertProducts, compareText, page, productSentence, reviewedLabel, table } from './markdown.mjs';
 
 const CAPABILITY_LABELS = Object.freeze({
 	project: 'Projects',
 	projectBin: 'Project bin',
+	photoLibrarySurface: 'Photo library shell',
+	photoCatalog: 'Photo catalog',
+	photoDevelop: 'Photo develop',
+	photoExport: 'Photo export',
+	photoRaw: 'Raw photo decoding',
 	audioImport: 'Audio import',
 	audioPlayback: 'Audio playback',
 	audioTimelineEditing: 'Audio timeline editing',
@@ -88,7 +93,7 @@ function renderFeatureRows(products, field, labels, kind) {
 }
 
 function familyNames(product, families) {
-	if (!Array.isArray(families)) return 'None';
+	if (!Array.isArray(families) || families.length === 0) return 'None';
 	return families.map((family) => {
 		const label = reviewedLabel(FAMILY_LABELS, family, 'format family');
 		const resolved = typeof label === 'function' ? label(product) : label;
@@ -127,6 +132,10 @@ export function renderCapabilityReference({ products }) {
 		'',
 		table(featureHeaders, featureRows),
 	];
+	if (products.some((product) => product.capabilities?.photoLibrarySurface === true
+		&& product.capabilities?.photoCatalog !== true)) {
+		sections.push('', 'The photo library shell provides an empty library. Photo catalog import and browsing, develop adjustments, export, and raw decoding remain planned and are not enabled by this shell.');
+	}
 	if (applicationFeatureRows.length > 0) {
 		sections.push(
 			'',
@@ -137,7 +146,7 @@ export function renderCapabilityReference({ products }) {
 	}
 	return page({
 		title: 'Product capabilities',
-		description: 'Soundscaper and Framescaper import, export, editing, and project capabilities.',
+		description: `${productSentence(products)} import, export, editing, and project capabilities.`,
 		order: 3,
 		body: sections.join('\n'),
 	});

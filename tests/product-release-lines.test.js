@@ -38,6 +38,19 @@ test('product release lines select versions without an admission state machine',
 	assert.doesNotMatch(JSON.stringify(RELEASE_LINES), /admission|status/iu);
 });
 
+test('Lightscaper has a versioned web build while release publication remains deferred', () => {
+	assert.equal(resolveProductApplicationVersion('lightscaper', RELEASE_LINES), '0.1.0-beta.1');
+	assert.equal(RELEASE_LINES.products.lightscaper.releaseChannel, 'deferred');
+	assert.equal(expectedProductReleaseTag('lightscaper', RELEASE_LINES), 'lightscaper-v0.1.0-beta.1');
+	assert.throws(
+		() => resolveProductReleaseTag('lightscaper-v0.1.0-beta.1', RELEASE_LINES),
+		/lightscaper release channel is deferred/iu,
+	);
+	const changed = structuredClone(RELEASE_LINES);
+	changed.products.lightscaper.candidate.tagPrefix = 'framescaper-v';
+	assert.throws(() => validateProductReleaseLines(changed), /release tag ownership is invalid/iu);
+});
+
 test('the resolver supports divergent product versions without package metadata', () => {
 	const divergent = structuredClone(RELEASE_LINES);
 	divergent.products.soundscaper.applicationVersionChannel = 'candidate';

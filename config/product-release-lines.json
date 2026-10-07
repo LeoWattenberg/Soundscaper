@@ -14,6 +14,19 @@
 				"tagPrefix": "v"
 			}
 		},
+		"lightscaper": {
+			"productId": "lightscaper",
+			"applicationVersionChannel": "candidate",
+			"releaseChannel": "deferred",
+			"candidate": {
+				"version": "0.1.0-beta.1",
+				"tagPrefix": "lightscaper-v"
+			},
+			"stable": {
+				"version": "1.0.0",
+				"tagPrefix": "lightscaper-v"
+			}
+		},
 		"framescaper": {
 			"productId": "framescaper",
 			"applicationVersionChannel": "candidate",

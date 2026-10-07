@@ -48,6 +48,13 @@ interface ManifestClaim {
 	readonly kind: PathKind;
 }
 
+interface StagedInput {
+	readonly source: string;
+	readonly destination: string;
+	readonly kind: PathKind;
+	readonly exclude?: ReadonlySet<string>;
+}
+
 const CLAIMS: readonly ManifestClaim[] = Object.freeze([
 	...DESKTOP_5B_TRANSITIVE_RUNTIME_FILES.map((path: string) => ({
 		list: 'DESKTOP_5B_TRANSITIVE_RUNTIME_FILES', path, kind: 'file' as const,
@@ -106,19 +113,34 @@ test('two manifests that name one path agree on what it is', () => {
 	assert.deepEqual(conflicts.sort(), []);
 });
 
-test('the nightly launcher packages only files the payload manifest stages', () => {
+test('the nightly launcher packages only files the payload manifest stages', async () => {
 	// `files` is read from the staged application directory, so every literal
 	// entry has to be something the stager put there under that exact name.
 	assert.equal(NIGHTLY_BUILDER_CONFIG.directories.app, '.desktop-build/nightly-tests');
-	const staged = new Set(
-		NIGHTLY_TEST_PAYLOAD_INPUTS.map(({ destination }: { destination: string }) => destination),
-	);
-	// The stager writes the payload's own manifest and package metadata.
-	staged.add('package.json');
-	const unstaged = NIGHTLY_BUILDER_CONFIG.files
-		.filter((pattern) => !pattern.startsWith('!') && !pattern.includes('*'))
-		.filter((pattern) => !staged.has(pattern))
-		.map((pattern) => `the nightly launcher packages ${pattern}, which nothing stages`);
+	const inputs = NIGHTLY_TEST_PAYLOAD_INPUTS as readonly StagedInput[];
+	const unstaged: string[] = [];
+	for (const pattern of NIGHTLY_BUILDER_CONFIG.files) {
+		// The stager writes package metadata itself; negative and glob entries
+		// are independently checked by the complete launcher import sweep.
+		if (pattern === 'package.json' || pattern.startsWith('!') || pattern.includes('*')) continue;
+		const input = inputs.find(({ destination, kind, exclude }) => {
+			if (kind === 'file') return destination === pattern;
+			if (!pattern.startsWith(`${destination}/`)) return false;
+			const segments = pattern.slice(destination.length + 1).split('/');
+			if (segments.some((segment) => segment === '' || segment === '.' || segment === '..')) return false;
+			const rootName = segments[0]!;
+			return !exclude?.has(rootName);
+		});
+		if (input === undefined) {
+			unstaged.push(`the nightly launcher packages ${pattern}, which nothing stages`);
+			continue;
+		}
+		const source = input.kind === 'file' ? input.source
+			: join(input.source, pattern.slice(input.destination.length + 1));
+		if (await kindOf(join(REPOSITORY_ROOT, source)) !== 'file') {
+			unstaged.push(`the nightly launcher packages ${pattern}, whose staged source is not a file`);
+		}
+	}
 	assert.deepEqual(unstaged.sort(), []);
 });
 

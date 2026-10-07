@@ -281,7 +281,6 @@
 				"stems"
 			],
 			"projectFeatures": {
-				"assistanceAssets": true,
 				"project": true,
 				"projectBin": true,
 				"audioImport": true,
@@ -292,6 +291,12 @@
 				"videoPlayback": true,
 				"videoTimelineEditing": true,
 				"videoExport": true,
+				"photoLibrarySurface": false,
+				"photoCatalog": false,
+				"photoDevelop": false,
+				"photoExport": false,
+				"photoRaw": false,
+				"assistanceAssets": true,
 				"audioRecording": true,
 				"audioGenerators": true,
 				"audioEffects": true,
@@ -317,9 +322,9 @@
 				"timelineAnnotations": true,
 				"trackFolders": true,
 				"takeComp": true,
+				"timelineImages": false,
 				"audioWarp": true,
 				"sequenceTiming": true,
-				"timelineImages": false,
 				"videoRetime": false,
 				"videoCaptions": false,
 				"videoColorManagement": false,
@@ -332,8 +337,8 @@
 				"videoTransitionDissolve": false,
 				"videoTransitions": false,
 				"sourceCharacteristics": true,
-				"immersiveAdm": true,
-				"masteringSequences": true
+				"masteringSequences": true,
+				"immersiveAdm": true
 			},
 			"projectSchemaIdentity": {
 				"schemaFamily": "soundscaper",
@@ -682,7 +687,6 @@
 				"labels"
 			],
 			"projectFeatures": {
-				"assistanceAssets": true,
 				"project": true,
 				"projectBin": true,
 				"audioImport": true,
@@ -693,6 +697,12 @@
 				"videoPlayback": true,
 				"videoTimelineEditing": true,
 				"videoExport": true,
+				"photoLibrarySurface": false,
+				"photoCatalog": false,
+				"photoDevelop": false,
+				"photoExport": false,
+				"photoRaw": false,
+				"assistanceAssets": true,
 				"audioRecording": false,
 				"audioGenerators": false,
 				"audioEffects": false,
@@ -718,9 +728,9 @@
 				"timelineAnnotations": true,
 				"trackFolders": false,
 				"takeComp": false,
+				"timelineImages": true,
 				"audioWarp": false,
 				"sequenceTiming": true,
-				"timelineImages": true,
 				"videoRetime": true,
 				"videoCaptions": true,
 				"videoColorManagement": true,
@@ -733,8 +743,8 @@
 				"videoTransitionDissolve": true,
 				"videoTransitions": true,
 				"sourceCharacteristics": true,
-				"immersiveAdm": false,
-				"masteringSequences": false
+				"masteringSequences": false,
+				"immersiveAdm": false
 			},
 			"projectSchemaIdentity": {
 				"schemaFamily": "framescaper",
@@ -743,6 +753,114 @@
 					"src/framescaper/editor-project.ts",
 					"src/framescaper/editor-project-runtime-profile.ts",
 					"tests/audio-editor-framescaper-baseline.test.ts"
+				]
+			}
+		},
+		"lightscaper": {
+			"profileEvidence": "src/lightscaper/product.js",
+			"release": {
+				"softwareStatus": "pre-release",
+				"channel": "deferred",
+				"candidateVersion": "0.1.0-beta.1",
+				"stableTarget": null
+			},
+			"applicationFeatures": {},
+			"platforms": {
+				"web-core": {
+					"status": "partial",
+					"evidence": [
+						"src/lightscaper/product.js",
+						"src/lightscaper/ui/LightscaperBootstrap.tsx",
+						"tests/lightscaper-shell.test.tsx"
+					]
+				},
+				"web-enhanced": {
+					"status": "planned",
+					"evidence": [
+						"roadmap-lightscaper.md"
+					]
+				},
+				"electron-enhanced": {
+					"status": "planned",
+					"evidence": [
+						"roadmap-lightscaper.md"
+					]
+				},
+				"electron-only": {
+					"status": "planned",
+					"evidence": [
+						"roadmap-lightscaper.md"
+					]
+				}
+			},
+			"importFamilies": [],
+			"exportFamilies": [],
+			"projectFeatures": {
+				"project": false,
+				"projectBin": false,
+				"audioImport": false,
+				"audioPlayback": false,
+				"audioTimelineEditing": false,
+				"audioMixing": false,
+				"videoImport": false,
+				"videoPlayback": false,
+				"videoTimelineEditing": false,
+				"videoExport": false,
+				"photoLibrarySurface": true,
+				"photoCatalog": false,
+				"photoDevelop": false,
+				"photoExport": false,
+				"photoRaw": false,
+				"assistanceAssets": false,
+				"audioRecording": false,
+				"audioGenerators": false,
+				"audioEffects": false,
+				"audioSpectralEditing": false,
+				"audioAnalysis": false,
+				"audioMacros": false,
+				"audioSampleEditing": false,
+				"audioAutomation": false,
+				"audioMixerGraph": false,
+				"audioTrackFreeze": false,
+				"videoEffects": false,
+				"videoAdjustmentLayers": false,
+				"videoCompositing": false,
+				"videoFreeze": false,
+				"videoGenerators": false,
+				"videoGeometry": false,
+				"videoKeyframes": false,
+				"videoMasksMattes": false,
+				"multicamera": false,
+				"musicalTimeline": false,
+				"nestedSequences": false,
+				"ofxEffects": false,
+				"timelineAnnotations": false,
+				"trackFolders": false,
+				"takeComp": false,
+				"timelineImages": false,
+				"audioWarp": false,
+				"sequenceTiming": false,
+				"videoRetime": false,
+				"videoCaptions": false,
+				"videoColorManagement": false,
+				"videoDenoise": false,
+				"videoGrading": false,
+				"videoMotionTracking": false,
+				"videoStabilization": false,
+				"videoStills": false,
+				"videoTimingAssets": false,
+				"videoTransitionDissolve": false,
+				"videoTransitions": false,
+				"sourceCharacteristics": false,
+				"masteringSequences": false,
+				"immersiveAdm": false
+			},
+			"projectSchemaIdentity": {
+				"schemaFamily": "lightscaper",
+				"schemaVersion": 1,
+				"status": "planned",
+				"evidence": [
+					"roadmap-lightscaper.md#l2-catalog-and-develop-state-contracts"
 				]
 			}
 		}

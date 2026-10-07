@@ -106,6 +106,9 @@ jobs:
       - name: Build the Framescaper browser application
         run: npm run build:browser:framescaper
 
+      - name: Build and verify the Lightscaper browser site
+        run: npm run build:browser:lightscaper
+
       - name: Prepare the verified browser product sites
         run: npm run prepare:browser:products
 

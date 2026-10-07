@@ -1,7 +1,7 @@
 # Engineering documentation
 
 This directory documents the contracts a maintainer needs to understand,
-change, test, or release Soundscaper and Framescaper. It is organized by task
+change, test, or release Soundscaper, Framescaper, and Lightscaper. It is organized by task
 and subject rather than by the order in which the software was implemented.
 
 For product scope, status, and sequencing, use the
@@ -15,6 +15,9 @@ belong in Git history, not in the maintained documentation set.
 
 - [Architecture and maintainability](architecture/overview.md) explains source
   ownership, dependency directions, composition, and repository guardrails.
+- [Lightscaper application boundaries](architecture/lightscaper.md) defines
+  the separate photo application, catalog storage and history, shared image
+  evaluation, and explicit product interchange.
 - [Time and media](architecture/time-and-media.md) defines canonical timing,
   edit, retime, proxy, and media-preservation contracts.
 - [Production and rendering](architecture/production-rendering.md) covers
@@ -67,6 +70,11 @@ belong in Git history, not in the maintained documentation set.
   [import and export](development/bugfix-round3-io.md).
 - The [third audit index](development/bugfix-round3.md) records 101 additional
   distinct user-reproducible fixes and their final verification.
+- The fourth regression audit records workflow defects and their checks for
+  [editing](development/bugfix-round4-editing.md),
+  [dialogs](development/bugfix-round4-dialogs.md),
+  [effects and analysis](development/bugfix-round4-effects-analysis.md), and
+  [import and export](development/bugfix-round4-io.md).
 
 ## Operate and release
 

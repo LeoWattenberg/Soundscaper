@@ -33,6 +33,7 @@ const COVERAGE_SCOPE_PREFIXES = Object.freeze([
 	Object.freeze(['desktop/', 'desktop']),
 	Object.freeze(['src/framescaper/', 'framescaper']),
 	Object.freeze(['src/soundscaper/', 'soundscaper']),
+	Object.freeze(['src/lightscaper/', 'lightscaper']),
 	Object.freeze(['src/common/transfer/', 'common-transfer']),
 	Object.freeze(['src/common/site/', 'common-site']),
 	Object.freeze(['src/common/i18n/', 'common-i18n']),

@@ -7,7 +7,7 @@ export interface EditorStartupAsset {
 
 export interface EditorStartupAssetInventory {
 	readonly schemaVersion: 1;
-	readonly productId: 'soundscaper' | 'framescaper';
+	readonly productId: 'soundscaper' | 'framescaper' | 'lightscaper';
 	readonly assets: readonly EditorStartupAsset[];
 }
 
@@ -24,7 +24,7 @@ type ResourceResult = Readonly<{
 
 export function parseEditorStartupAssetInventory(
 	value: unknown,
-	productId: 'soundscaper' | 'framescaper',
+	productId: EditorStartupAssetInventory['productId'],
 ): EditorStartupAssetInventory {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) {
 		throw new TypeError('Editor startup asset inventory is missing.');
@@ -96,7 +96,7 @@ export function createEditorStartupProgressStore() {
 		observer = null;
 		publish({ phase: 'ready', percent: null });
 	};
-	const start = (productId: 'soundscaper' | 'framescaper'): void => {
+	const start = (productId: EditorStartupAssetInventory['productId']): void => {
 		if (started) return;
 		started = true;
 		const element = document.querySelector('[data-editor-startup-assets]');
