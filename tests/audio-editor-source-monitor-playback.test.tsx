@@ -88,3 +88,41 @@ test('opening a different source clears playback before positioning its stopped 
 		actGlobal.IS_REACT_ACT_ENVIRONMENT = previousAct;
 	}
 });
+
+test('Match frame reopening the current source cancels playback but ordinary marks leave it playing', async () => {
+	const dom = installReactTestDom();
+	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+	const previousAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
+	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
+	const { createRoot } = await import('react-dom/client');
+	const root = createRoot(dom.container as unknown as Element);
+	let openRevision = 1;
+	let mediaSeconds = 0;
+	let paused = 0;
+	const sourceMonitor = { view: () => ({ sourceId: 'source', openRevision, positionFrame: 0, mediaSeconds, sourceFrameCount: 25 }) };
+	const render = () => root.render(<SourceMonitorPanel
+		controller={{ actions: { video: { sourceMonitor, getSourceVisualData: () => ({ mediaUrl: 'source.mp4' }) } } }}
+		snapshot={{ readOnly: false }} copy={{}} run={(operation: () => unknown) => operation()} blocked={false} />);
+	try {
+		await act(async () => { render(); });
+		const video = dom.one('video');
+		Reflect.set(video, 'play', () => Promise.resolve());
+		Reflect.set(video, 'pause', () => { paused += 1; });
+		await act(async () => { reactProps(dom.one('[data-source-monitor-action="play"]')).onClick(); });
+		Reflect.set(video, 'currentTime', 0.4);
+		mediaSeconds = 0.42;
+		await act(async () => { render(); });
+		assert.equal(paused, 0);
+		assert.equal(reactProps(dom.one('[data-source-monitor-action="play"]'))['aria-pressed'], true);
+		mediaSeconds = 0.22;
+		openRevision += 1;
+		await act(async () => { render(); });
+		assert.equal(reactProps(dom.one('[data-source-monitor-action="play"]'))['aria-pressed'], false);
+		assert.equal(paused, 1);
+		assert.equal(Reflect.get(video, 'currentTime'), 0.22);
+	} finally {
+		await act(async () => { root.unmount(); });
+		dom.restore();
+		actGlobal.IS_REACT_ACT_ENVIRONMENT = previousAct;
+	}
+});

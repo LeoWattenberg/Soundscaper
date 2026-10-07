@@ -91,5 +91,17 @@ unchanged after refusal. All three engines passed against green batch 3, with
 strict parser and targeted lint checks. This is the earlier omitted-fraction-token
 defect's sibling surface and adds no new ID or count.
 
+Uncounted follow-through to R3-DIALOG-011: in Framescaper, add a normal 25 fps
+video from Project bin to the timeline, select it, set the program playhead to
+frame 6, open that same source in Source monitor, and click Play. After playback
+advances, click Match frame. The baseline kept the source playing instead of
+showing the requested stopped program frame. Explicit reopening now creates a
+new viewing session even when its source ID is unchanged; ordinary clock and
+mark publications preserve the current session. All three engines passed this
+public workflow against green batch 13. Mounted and service regressions passed
+with the existing authenticated variable-rate tests (30 focused Node cases),
+and changed files passed targeted lint. This is 011's target-session lifecycle
+follow-through and adds no ID or count.
+
 UI, tests, and documentation keep the same assistance runtime closure. A manual
 **Update AI assets** run is not required.

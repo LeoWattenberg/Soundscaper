@@ -41,6 +41,8 @@ export interface SourceMonitorServiceDependencies {
 }
 
 export interface SourceMonitorView {
+	/** Changes only when an explicit open begins a new stopped viewing session. */
+	readonly openRevision: number;
 	readonly binItemId: string | null;
 	readonly sourceId: string | null;
 	readonly sourceName: string | null;
@@ -76,6 +78,7 @@ export interface SourceMonitorService {
 }
 
 const EMPTY_VIEW: SourceMonitorView = Object.freeze({
+	openRevision: 0,
 	binItemId: null,
 	sourceId: null,
 	sourceName: null,
@@ -99,6 +102,7 @@ export function createSourceMonitorService(
 	let binItemId: string | null = null;
 	let sourceId: string | null = null;
 	let positionFrame = 0;
+	let openRevision = 0;
 	let marks: SourceMonitorMarks = SOURCE_MONITOR_NO_MARKS;
 
 	/** The open source as the document currently describes it, or null. */
@@ -128,6 +132,7 @@ export function createSourceMonitorService(
 		// the edit reads them by.
 		const stated = normalizeSourceMonitorMarks(marks, opened.sourceFrameCount);
 		return Object.freeze({
+			openRevision,
 			binItemId,
 			sourceId,
 			sourceName: typeof opened.source.name === 'string' ? opened.source.name : null,
@@ -165,6 +170,7 @@ export function createSourceMonitorService(
 		sourceId = nextSourceId;
 		positionFrame = clampSourceFrame(options.positionFrame ?? 0, count);
 		marks = normalizedOpenMarks(options, count);
+		openRevision += 1;
 		return published();
 	}
 
