@@ -11,6 +11,7 @@ import { Button } from '@soundscaper/design-system/Button';
 import { MixerFader } from '@soundscaper/design-system/MixerFader';
 import { canonicalCopyValue } from '../../../i18n/canonical-extras.js';
 import { createGraphicEqGesture, type GraphicEqPointer } from '../../controller/effects/graphic-eq-gesture.ts';
+import { useEqDraftFrame, useGraphicEqGrid } from './useEqPresentation.ts';
 
 interface BandGestures {
 	onGestureBegin?(value: number): void;
@@ -32,6 +33,7 @@ interface Props {
 export default function GraphicEqEditor({ name, label, descriptor, value, disabled, copy, gestureFor, onCommit }: Props) {
 	const values = value ?? descriptor.default;
 	const [draft, setDraft] = useState<readonly number[] | null>(null);
+	const draftFrame = useEqDraftFrame(setDraft);
 	const points = draft ?? values;
 	const gesture = useRef(createGraphicEqGesture(descriptor));
 	const pointer = useRef<number | null>(null);
@@ -43,6 +45,7 @@ export default function GraphicEqEditor({ name, label, descriptor, value, disabl
 	const elementId = (index: number): string => `frequency:${String(descriptor.frequencies[index])}`;
 	const canRoute = (callbacks: BandGestures): boolean => Boolean(callbacks.onGestureBegin && callbacks.onGesturePreview && callbacks.onGestureCommit);
 	const cancel = (): void => {
+		draftFrame.cancel();
 		gesture.current.cancel(); pointer.current = null;
 		for (const callbacks of routed.current.values()) callbacks.onGestureCancel?.();
 		routed.current.clear(); setDraft(null);
@@ -57,7 +60,7 @@ export default function GraphicEqEditor({ name, label, descriptor, value, disabl
 		};
 	}, []);
 	const atEvent = (event: PointerEvent<HTMLDivElement>): GraphicEqPointer => ({ x: event.clientX, y: event.clientY });
-	const preview = (next: readonly number[] | null): void => {
+	const preview = (next: readonly number[] | null, deferred = false): void => {
 		if (!next) return;
 		for (const [index, gain] of next.entries()) {
 			if (gain === previous.current[index]) continue;
@@ -71,7 +74,7 @@ export default function GraphicEqEditor({ name, label, descriptor, value, disabl
 			}
 			callbacks?.onGesturePreview?.(gain);
 		}
-		previous.current = next; setDraft(next);
+		previous.current = next; if (deferred) draftFrame.publish(next); else setDraft(next);
 	};
 	const begin = (event: PointerEvent<HTMLDivElement>): void => {
 		if (disabled || event.button !== 0 || pointer.current !== null) return;
@@ -87,6 +90,7 @@ export default function GraphicEqEditor({ name, label, descriptor, value, disabl
 	};
 	const finish = (event: PointerEvent<HTMLDivElement>): void => {
 		if (pointer.current !== event.pointerId) return;
+		draftFrame.cancel();
 		if (disabled) { cancel(); return; }
 		preview(gesture.current.move(atEvent(event)));
 		const next = gesture.current.complete();
@@ -114,15 +118,14 @@ export default function GraphicEqEditor({ name, label, descriptor, value, disabl
 		const next = [...points]; next[index] = gain;
 		onCommit(next, { controlValue: gain, elementId: elementId(index), parameterId: name });
 	};
-	const ticks: number[] = [];
-	for (let gain = Math.ceil(descriptor.minimum / 6) * 6; gain <= descriptor.maximum; gain += 6) ticks.push(gain);
+	const ticks = useGraphicEqGrid(descriptor.minimum, descriptor.maximum);
 	const frequencyText = (frequency: number): string => frequency >= 1_000 ? `${String(frequency / 1_000)}k` : String(frequency);
 
 	return <div className="audio-editor-graphic-eq" role="group" aria-label={label} data-effect-param={name}>
 		<div className="audio-editor-graphic-eq__viewport">
 			<div className="audio-editor-graphic-eq__board" tabIndex={-1}
 				onPointerDownCapture={begin} onPointerMoveCapture={(event) => {
-					if (pointer.current === event.pointerId && !disabled) preview(gesture.current.move(atEvent(event)));
+					if (pointer.current === event.pointerId && !disabled) preview(gesture.current.move(atEvent(event)), true);
 				}} onPointerUpCapture={finish} onPointerCancel={cancel}
 				onLostPointerCapture={() => { if (pointer.current !== null) cancel(); }}
 				onDoubleClick={(event) => {
@@ -139,8 +142,8 @@ export default function GraphicEqEditor({ name, label, descriptor, value, disabl
 				}}>
 				<div className="audio-editor-graphic-eq__grid" aria-hidden="true">
 					<span className="audio-editor-graphic-eq__unit">{'dB'}</span>
-					{ticks.map((gain) => <div key={gain} className={`audio-editor-graphic-eq__gridline${gain === 0 ? ' audio-editor-graphic-eq__gridline--zero' : ''}`}
-						style={{ top: `${String((descriptor.maximum - gain) / (descriptor.maximum - descriptor.minimum) * 100)}%` }}><span>{gain}</span></div>)}
+					{ticks.map(({ gain, top }) => <div key={gain} className={`audio-editor-graphic-eq__gridline${gain === 0 ? ' audio-editor-graphic-eq__gridline--zero' : ''}`}
+						style={{ top }}><span>{gain}</span></div>)}
 				</div>
 				{descriptor.frequencies.map((frequency, index) => <div key={frequency} ref={(element) => { elements.current[index] = element; }}
 					className="audio-editor-graphic-eq__fader" data-effect-param={`${name}.${String(index)}`}
