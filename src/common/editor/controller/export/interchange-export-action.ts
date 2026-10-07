@@ -11,6 +11,12 @@ import {
 	projectTrackFolderMediaStateV12,
 } from '../../track-folder-media-runtime.ts';
 import type { DeliveryReportState } from './export-state.ts';
+import type { DeliveryReport } from '../../delivery-report.ts';
+import {
+	admitInterchangeVisualProject,
+	reportInterchangeVisualOmissions,
+	type InterchangeVisualOmission,
+} from './internal/interchange-visual-admission.ts';
 
 /**
  * Export the current project through an interchange profile.
@@ -36,21 +42,23 @@ export async function exportProjectEdl(runtime: InterchangeRuntime & {
 	readonly trackId?: string;
 	readonly reelNames?: Readonly<Record<string, string>>;
 }): Promise<EdlExportResult | null> {
-	const project = resolveDeliveredProject(runtime);
-	if (!project) return null;
+	const delivery = resolveInterchangeDelivery(runtime);
+	if (!delivery) return null;
+	const { project, omissions } = delivery;
 	return deliver(runtime, createProjectEdlExport({
 		project,
 		sequenceId: runtime.sequenceId,
 		trackId: runtime.trackId,
 		reelNames: runtime.reelNames,
-	}));
+	}), omissions);
 }
 
 export async function exportProjectOtio(
 	runtime: InterchangeRuntime,
 ): Promise<OtioExportResult | null> {
-	const project = resolveDeliveredProject(runtime);
-	if (!project) return null;
+	const delivery = resolveInterchangeDelivery(runtime);
+	if (!delivery) return null;
+	const { project, omissions } = delivery;
 	// The sequence is the rate authority; OTIO must never infer one from media.
 	const sequence = resolveSequenceTimingView(project, runtime.sequenceId);
 	return deliver(runtime, createOtioExport({
@@ -59,14 +67,15 @@ export async function exportProjectOtio(
 		sequenceRate: sequence.rate,
 		dropFrame: sequence.dropFrame,
 		startFrameCount: sequence.startFrameCount,
-	}));
+	}), omissions);
 }
 
 export async function exportProjectFcpxml(
 	runtime: InterchangeRuntime,
 ): Promise<FcpxmlExportResult | null> {
-	const project = resolveDeliveredProject(runtime);
-	if (!project) return null;
+	const delivery = resolveInterchangeDelivery(runtime);
+	if (!delivery) return null;
+	const { project, omissions } = delivery;
 	const sequence = resolveSequenceTimingView(project, runtime.sequenceId);
 	return deliver(runtime, createFcpxmlExport({
 		project,
@@ -74,7 +83,15 @@ export async function exportProjectFcpxml(
 		sequenceRate: sequence.rate,
 		dropFrame: sequence.dropFrame,
 		startFrameCount: sequence.startFrameCount,
-	}));
+	}), omissions);
+}
+
+function resolveInterchangeDelivery(runtime: InterchangeRuntime) {
+	const original = runtime.getProject();
+	if (!original) return null;
+	const admission = admitInterchangeVisualProject(original);
+	const project = resolveDeliveredProject({ ...runtime, getProject: () => admission.project });
+	return project ? { project, omissions: admission.omissions } : null;
 }
 
 /**
@@ -103,20 +120,23 @@ export function resolveDeliveredProject(
 }
 
 async function deliver<T extends {
-	text: string; fileName: string; mimeType: string; report: unknown;
-}>(runtime: InterchangeRuntime, result: T): Promise<T> {
+	text: string; fileName: string; mimeType: string; report: DeliveryReport;
+}>(runtime: InterchangeRuntime, result: T, omissions: readonly InterchangeVisualOmission[]): Promise<T> {
+	const delivered = omissions.length
+		? Object.freeze({ ...result, report: reportInterchangeVisualOmissions(result.report, omissions) })
+		: result;
 	// Publish the report before the save dialog, so a cancelled save still
 	// leaves the user able to read what the export would have left behind.
-	runtime.state.deliveryReport = result.report;
+	runtime.state.deliveryReport = delivered.report;
 	runtime.publishDocumentSnapshot?.();
 
 	if (runtime.fileService?.saveFile) {
 		await runtime.fileService.saveFile({
 			purpose: 'interchange',
-			suggestedName: result.fileName,
-			mimeType: result.mimeType,
-			blob: new Blob([result.text], { type: result.mimeType }),
+			suggestedName: delivered.fileName,
+			mimeType: delivered.mimeType,
+			blob: new Blob([delivered.text], { type: delivered.mimeType }),
 		});
 	}
-	return result;
+	return delivered;
 }
