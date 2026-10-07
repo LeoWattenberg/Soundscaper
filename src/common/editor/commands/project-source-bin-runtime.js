@@ -17,6 +17,7 @@ import {
 	isTimelineAnnotationProjectSchema,
 } from '../project-schema-version.ts';
 import { scaleSampleFrame } from '../timeline-time.ts';
+import { clipLoopTransformFields } from '../audio-clip-loop.ts';
 import { isNativeProjectBinVideo, projectBinVideoReplacementRange } from '../project-bin-video-replacement.ts';
 import { resolveRuntimeClipProjection } from '../runtime-clip-projection.ts';
 import {
@@ -455,6 +456,7 @@ function remapReplacementClip(project, clip, oldSource, newSource) {
 	const durationFrames = Math.max(1, Math.round(clip.durationFrames * sourceDurationFrames / requestedSourceDuration));
 	return normalizeClipForProject(project, {
 		...clip,
+		...clipLoopTransformFields(clip, { durationFrames }),
 		sourceId: newSource.id,
 		sourceStartFrame,
 		sourceDurationFrames,
