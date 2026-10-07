@@ -421,6 +421,7 @@ export function createSelectionViewService<
 				type: 'selection/set',
 				startFrame: Math.min(startFrame, endFrame),
 				endFrame: Math.max(startFrame, endFrame),
+				frequencyRange: projectAtStart.selection.frequencyRange ?? null,
 				// A clip selection becomes the time selection it described, on
 				// the tracks those clips sat on: the snapped edges are a range,
 				// and leaving the clip identifiers behind would claim both.

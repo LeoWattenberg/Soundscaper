@@ -359,3 +359,28 @@ in `/tmp/soundscaper-r4-root-frame-spectral-*`. An additional unrelated live
 Spectrogram check failed on Firefox’s initial signal observation and is excluded
 from these six passing macro cases; its prior all-engine proof remains recorded
 under 011.
+
+
+## R4-ROOT-016 — At zero crossings discards the selected spectral band
+
+Import an ordinary WAV. In Tools → Macros palette → New program, set time
+frames `4800..33600` and a frequency band `100..1000 Hz`; close the palette.
+Play options correctly enables Play selected frequencies. Choose Select → At
+zero crossings and reopen Play options. Baseline reports successful alignment
+but disables frequency playback: its independent controller commit leaves out
+the spectral axis. This remains broken after the macro frame-verb correction.
+
+Carry the opening frequency range through the zero-crossing selection commit.
+The normal time/clip range and track-isolated waveform calculation stay intact.
+Time and header selections share this one zero-crossing commit defect.
+
+The real menu workflow fails on immutable baseline `a0322d6e4` and passes all
+three engines on `zero-crossing-spectral-clean19` (3/3), alongside the existing
+track-isolation and corrected frame-selection workflows (9/9). Two strict
+time/header regressions and existing selection-controller support pass 23/23;
+targeted lint passes. Regression files are
+`audio-editor-round4-zero-crossing-spectral-range.test.ts` and
+`audio-editor-round4-zero-crossing-spectral-range.spec.js`; evidence is recorded
+in `/tmp/soundscaper-r4-root-zero-crossing-spectral-*`. The initial guessed
+status wording was corrected to the actual published English and is excluded
+from the failing product assertion.
