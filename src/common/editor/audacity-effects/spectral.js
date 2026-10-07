@@ -39,11 +39,12 @@ import {
 	NOISE_WINDOW_SIZE,
 	createPowerSpectrumWorkspace,
 	noiseReductionNormalization,
+	prepareNoiseReductionGeometry,
 	reduceNoiseChannel,
 	validateNoiseProfile,
 } from './spectral-noise-reduction.js';
 import { interpolateAudioLsar } from './spectral-repair-interpolation.js';
-import { removeAudacityClicksFromWindowInPlace } from './audacity-click-removal-kernel.ts';
+import { createAudacityClickRemovalWorkspace, removeAudacityClicksFromWindowInPlace } from './audacity-click-removal-kernel.ts';
 
 const CLICK_WINDOW_SIZE = 8_192;
 const CLICK_HOP_SIZE = CLICK_WINDOW_SIZE / 2;
@@ -62,13 +63,15 @@ export function applyAudacityClickRemoval(channels, sampleRate, params = {}) {
 	// after using 2049 / 2 for the first window's center offset; the mutated
 	// value is then shared by all later windows and channels in the effect run.
 	let separation = 2_049;
+	const window = new Float32Array(CLICK_WINDOW_SIZE);
+	const workspace = createAudacityClickRemovalWorkspace(CLICK_WINDOW_SIZE, CLICK_HOP_SIZE);
 	for (const channel of output) {
 		for (let start = 0; start + CLICK_HOP_SIZE < frameCount; start += CLICK_HOP_SIZE) {
 			const copyLength = Math.min(CLICK_WINDOW_SIZE, frameCount - start);
-			const window = new Float32Array(CLICK_WINDOW_SIZE);
+			window.fill(0, copyLength);
 			window.set(channel.subarray(start, start + copyLength));
 			separation = removeAudacityClicksFromWindowInPlace(
-				window, normalized.threshold, normalized.maximumWidth, separation,
+				window, normalized.threshold, normalized.maximumWidth, separation, workspace,
 			);
 			channel.set(window.subarray(0, copyLength), start);
 		}
@@ -154,6 +157,7 @@ export function applyAudacityNoiseReduction(channels, sampleRate, params = {}, p
 
 	const window = periodicHann(NOISE_WINDOW_SIZE);
 	const normalization = noiseReductionNormalization(channels[0].length, window);
+	const geometry = prepareNoiseReductionGeometry(normalized, profile.meanPowers);
 	return channels.map((channel) => reduceNoiseChannel(
 		channel,
 		sampleRate,
@@ -162,6 +166,7 @@ export function applyAudacityNoiseReduction(channels, sampleRate, params = {}, p
 		window,
 		attenuation,
 		normalization,
+		geometry,
 	));
 }
 
@@ -181,6 +186,7 @@ export function applyAudacityPaulstretch(channels, sampleRate, params = {}, cont
 	}
 	const baseSeed = seedToUint32(context?.seed);
 	const window = periodicHann(inputBufferSize * 2);
+	const normalization = paulstretchNormalization(outputFrames, inputBufferSize, window);
 	return channels.map((channel, channelIndex) => paulstretchChannel(
 		channel,
 		normalized.stretchFactor,
@@ -188,6 +194,7 @@ export function applyAudacityPaulstretch(channels, sampleRate, params = {}, cont
 		outputFrames,
 		baseSeed ^ Math.imul(channelIndex + 1, 0x9e37_79b9),
 		window,
+		normalization,
 	));
 }
 
@@ -290,11 +297,22 @@ function paulstretchBufferSize(sampleRate, timeResolution) {
 	return Math.max(128, powerOfTwo);
 }
 
-function paulstretchChannel(input, stretchFactor, inputBufferSize, outputFrames, seed, window) {
+function paulstretchNormalization(outputFrames, outputHop, window) {
+	const normalization = new Float64Array(outputFrames);
+	for (let start = -outputHop; start < outputFrames; start += outputHop) {
+		const first = Math.max(0, -start);
+		const end = Math.min(window.length, outputFrames - start);
+		for (let index = first; index < end; index++) normalization[start + index] += window[index] * window[index];
+	}
+	return normalization;
+}
+
+function paulstretchChannel(input, stretchFactor, inputBufferSize, outputFrames, seed, window, normalization) {
 	const fftSize = inputBufferSize * 2;
 	const outputHop = inputBufferSize;
-	const accumulated = new Float64Array(outputFrames);
-	const normalization = new Float64Array(outputFrames);
+	const accumulated = new Float64Array(fftSize);
+	const mask = fftSize - 1;
+	const output = new Float32Array(outputFrames);
 	const random = createRandom(seed);
 	const real = new Float64Array(fftSize);
 	const imaginary = new Float64Array(fftSize);
@@ -303,11 +321,14 @@ function paulstretchChannel(input, stretchFactor, inputBufferSize, outputFrames,
 		const outputCenter = outputStart + inputBufferSize;
 		const inputCenter = outputCenter / stretchFactor;
 		const inputStart = Math.round(inputCenter - inputBufferSize);
-		real.fill(0);
+		const firstInput = Math.min(fftSize, Math.max(0, -inputStart));
+		const endInput = Math.max(firstInput, Math.min(fftSize, input.length - inputStart));
+		real.fill(0, 0, firstInput);
+		real.fill(0, endInput);
 		imaginary.fill(0);
-		for (let index = 0; index < fftSize; index += 1) {
+		for (let index = firstInput; index < endInput; index += 1) {
 			const sourceIndex = inputStart + index;
-			if (sourceIndex >= 0 && sourceIndex < input.length) real[index] = input[sourceIndex] * window[index];
+			real[index] = input[sourceIndex] * window[index];
 		}
 		fft(real, imaginary, false);
 		for (let bin = 1; bin < fftSize / 2; bin += 1) {
@@ -325,17 +346,17 @@ function paulstretchChannel(input, stretchFactor, inputBufferSize, outputFrames,
 		real[fftSize / 2] = 0;
 		imaginary[fftSize / 2] = 0;
 		fft(real, imaginary, true);
-		for (let index = 0; index < fftSize; index += 1) {
+		const firstOutput = Math.max(0, -outputStart);
+		const endOutput = Math.min(fftSize, outputFrames - outputStart);
+		for (let index = firstOutput; index < endOutput; index += 1) {
 			const destination = outputStart + index;
-			if (destination < 0 || destination >= outputFrames) continue;
-			accumulated[destination] += real[index] * window[index];
-			normalization[destination] += window[index] * window[index];
+			accumulated[destination & mask] += real[index] * window[index];
 		}
-	}
-
-	const output = new Float32Array(outputFrames);
-	for (let frame = 0; frame < outputFrames; frame += 1) {
-		if (normalization[frame] > 1e-12) output[frame] = accumulated[frame] / normalization[frame];
+		// The next window begins one hop later; it cannot touch these samples.
+		for (let frame = Math.max(0, outputStart); frame < Math.min(outputFrames, outputStart + outputHop); frame++) {
+			if (normalization[frame] > 1e-12) output[frame] = accumulated[frame & mask] / normalization[frame];
+			accumulated[frame & mask] = 0;
+		}
 	}
 	const fadeLength = Math.min(100, Math.floor(inputBufferSize / 2) - 1, input.length, output.length);
 	for (let frame = 0; frame < fadeLength; frame += 1) {
