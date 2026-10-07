@@ -7,6 +7,7 @@ import type { LinkedVideoOriginalProjectAliasRepository } from './linked-video-o
 import type { LinkedOriginalSource } from './linked-original-resolver.ts';
 import type { LinkedVideoOriginalSource } from './linked-video-original-resolver.ts';
 import type { ProjectDocument } from './project-repository.ts';
+import { duplicatedAdmRevision } from './project-duplication-adm.ts';
 
 const MAXIMUM_REACHABLE_SOURCE_COUNT = SCAPE_ARCHIVE_LIMITS.maximumEntryCount - 2;
 
@@ -132,7 +133,7 @@ function duplicateDocument(
 		...source,
 		id: request.copyProjectId,
 		title: request.title || `${String(source.title || 'Untitled')} copy`,
-		revision: 0,
+		...duplicatedAdmRevision(source),
 		createdAt: request.timestamp,
 		updatedAt: request.timestamp,
 	};
