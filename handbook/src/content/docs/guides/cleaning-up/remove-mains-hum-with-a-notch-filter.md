@@ -3,7 +3,7 @@ title: "Remove mains hum with a notch filter"
 description: "Cut a single frequency — 50 or 60 Hz hum, a whistle, a ring — without touching the rest."
 editUrl: false
 sidebar:
-  order: 7
+  order: 8
 head:
   - tag: script
     attrs:
@@ -40,6 +40,7 @@ This is Audacity's **Effect → EQ and Filters → Notch Filter**. The names bel
 More [cleaning up a recording](/guides/cleaning-up/) guides:
 
 - [See which frequencies a sound contains](/guides/analysis/plot-a-spectrum/) — Plot the spectrum of a selection to find hum, hiss or resonances.
+- [Tame sharp sibilance](/guides/cleaning-up/reduce-sibilance-with-a-de-esser/) — Reduce sharp S and SH sounds in a voice without turning down the whole recording.
 - [Remove background noise](/guides/cleaning-up/remove-background-noise/) — Teach Noise Reduction what the hum sounds like, then take it out of the whole recording.
 - [Remove clicks and pops](/guides/cleaning-up/remove-clicks-and-pops/) — Take short sharp clicks out of a recording without touching the rest.
 - [Shorten long pauses](/guides/cleaning-up/remove-silent-pauses/) — Tighten a recording by trimming every long silence to the same short gap.

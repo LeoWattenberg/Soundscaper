@@ -1,10 +1,14 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { effect, importAudio, macro, menu, nyquist, open, play, rackEffect } from '../steps.mjs';
+import { FILTER_WORKFLOW_GUIDES } from './filter-workflows.mjs';
+import { CREATIVE_EFFECT_GUIDES } from './production-effects.mjs';
 
 const selectAll = (extras) => menu(['Select', 'Select all'], extras);
 
 export const EFFECT_GUIDES = Object.freeze([
+	...FILTER_WORKFLOW_GUIDES,
+	...CREATIVE_EFFECT_GUIDES,
 	{
 		id: 'change-tempo-without-changing-pitch',
 		title: 'Change tempo without changing pitch',

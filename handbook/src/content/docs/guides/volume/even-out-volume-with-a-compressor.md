@@ -3,7 +3,7 @@ title: "Even out volume with a compressor"
 description: "Reduce the gap between loud and quiet moments so speech is easier to follow."
 editUrl: false
 sidebar:
-  order: 4
+  order: 5
 head:
   - tag: script
     attrs:
@@ -39,6 +39,7 @@ This is Audacity's **Effect → Volume and Compression → Compressor**. The nam
 
 More [volume and dynamics](/guides/volume/) guides:
 
+- [Compress frequency bands independently](/guides/volume/compress-frequency-bands-independently/) — Control bass, midrange, and treble separately with a multiband compressor.
 - [Make a quiet recording louder](/guides/volume/make-a-recording-louder/) — Raise the level of a recording by a fixed number of decibels with Amplify.
 - [Normalize peaks to a set level](/guides/volume/normalize-peaks/) — Bring the loudest point of a recording to an exact level below full scale.
 - [Normalize loudness for a podcast](/guides/volume/normalize-loudness-for-podcasts/) — Match the perceived loudness of an episode to the level streaming platforms expect.

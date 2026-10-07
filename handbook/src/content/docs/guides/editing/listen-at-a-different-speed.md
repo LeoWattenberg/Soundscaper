@@ -3,7 +3,7 @@ title: "Listen faster or slower without changing the recording"
 description: "Slow a passage down to transcribe it or speed a long take up to review it, leaving the project untouched."
 editUrl: false
 sidebar:
-  order: 15
+  order: 16
 head:
   - tag: script
     attrs:
@@ -38,6 +38,7 @@ This is Audacity's **The Play-at-Speed slider (Audacity 3; Audacity 4 has no pla
 More [editing](/guides/editing/) guides:
 
 - [Change tempo without changing pitch](/guides/effects/change-tempo-without-changing-pitch/) — Speed a recording up or slow it down while every note stays at the same pitch.
+- [Cut a passage and leave a gap](/guides/editing/cut-a-passage-and-leave-a-gap/) — Remove a passage to the clipboard while keeping later audio in sync.
 - [Cut a mistake out of a recording](/guides/editing/cut-out-a-mistake/) — Select a slip, remove it, and close the gap so the recording flows on.
 - [Split a clip in two](/guides/editing/split-a-clip-at-the-cursor/) — Cut a clip at a point so each part can be moved or treated separately.
 - [Keep only the part you want](/guides/editing/keep-only-a-selection/) — Trim away everything outside a selection in one step.

@@ -14,6 +14,7 @@ Each guide takes one task — the kind Audacity users search for — and shows h
 
 Take noise, clicks, rumble and dead air out of a take before you work on it.
 
+- [Tame sharp sibilance](/guides/cleaning-up/reduce-sibilance-with-a-de-esser/) — Reduce sharp S and SH sounds in a voice without turning down the whole recording.
 - [Remove background noise](/guides/cleaning-up/remove-background-noise/) — Teach Noise Reduction what the hum sounds like, then take it out of the whole recording.
 - [Remove clicks and pops](/guides/cleaning-up/remove-clicks-and-pops/) — Take short sharp clicks out of a recording without touching the rest.
 - [Shorten long pauses](/guides/cleaning-up/remove-silent-pauses/) — Tighten a recording by trimming every long silence to the same short gap.
@@ -27,6 +28,7 @@ Take noise, clicks, rumble and dead air out of a take before you work on it.
 
 Set levels, even out the loud and quiet parts, and hit a delivery target.
 
+- [Compress frequency bands independently](/guides/volume/compress-frequency-bands-independently/) — Control bass, midrange, and treble separately with a multiband compressor.
 - [Make a quiet recording louder](/guides/volume/make-a-recording-louder/) — Raise the level of a recording by a fixed number of decibels with Amplify.
 - [Normalize peaks to a set level](/guides/volume/normalize-peaks/) — Bring the loudest point of a recording to an exact level below full scale.
 - [Normalize loudness for a podcast](/guides/volume/normalize-loudness-for-podcasts/) — Match the perceived loudness of an episode to the level streaming platforms expect.
@@ -40,6 +42,7 @@ Set levels, even out the loud and quiet parts, and hit a delivery target.
 
 Cut, split, copy, move and mark up material on the timeline.
 
+- [Cut a passage and leave a gap](/guides/editing/cut-a-passage-and-leave-a-gap/) — Remove a passage to the clipboard while keeping later audio in sync.
 - [Cut a mistake out of a recording](/guides/editing/cut-out-a-mistake/) — Select a slip, remove it, and close the gap so the recording flows on.
 - [Split a clip in two](/guides/editing/split-a-clip-at-the-cursor/) — Cut a clip at a point so each part can be moved or treated separately.
 - [Keep only the part you want](/guides/editing/keep-only-a-selection/) — Trim away everything outside a selection in one step.
@@ -67,6 +70,16 @@ Cut, split, copy, move and mark up material on the timeline.
 
 Change the character of a sound: pitch, tempo, space, filtering and distortion.
 
+- [Soften a recording with a low-pass filter](/guides/effects/apply-a-low-pass-filter/) — Reduce hiss and other high frequencies while keeping the lower part of a recording.
+- [Shape a narrow frequency band with Parametric EQ](/guides/effects/shape-tone-with-parametric-eq/) — Use a selected EQ band to make a focused tonal cut or boost.
+- [Adjust tone with Graphic EQ](/guides/effects/shape-tone-with-graphic-eq/) — Make broad tonal changes with a bank of frequency sliders.
+- [Draw a custom EQ curve](/guides/effects/draw-a-filter-curve/) — Shape several frequency ranges with one continuous EQ curve.
+- [Boost or cut bass and treble with a shelf filter](/guides/effects/boost-or-cut-a-frequency-shelf/) — Raise or lower a broad range of low or high frequencies while the far end stays level.
+- [Choose a classic low-pass filter](/guides/effects/choose-a-classic-filter/) — Set a Butterworth cutoff and filter order for a predictable low-pass slope.
+- [Add a tremolo pulse](/guides/effects/apply-tremolo/) — Make a recording pulse by turning its volume up and down at a steady rate.
+- [Give a sound a bitcrusher texture](/guides/effects/apply-bitcrusher/) — Reduce bit depth or sample rate to make a sound rougher and more lo-fi.
+- [Make a vocoder effect](/guides/effects/make-a-vocoder-effect/) — Shape a voice with a carrier sound for a robotic, sung, or synthetic tone.
+- [Add repeating echoes with Delay](/guides/effects/add-multi-tap-delay/) — Create a pattern of echoes and choose how many repeats follow the selected sound.
 - [Change tempo without changing pitch](/guides/effects/change-tempo-without-changing-pitch/) — Speed a recording up or slow it down while every note stays at the same pitch.
 - [Change pitch without changing tempo](/guides/effects/change-pitch-without-changing-tempo/) — Move a recording up or down by a number of semitones and keep its timing.
 - [Add an echo](/guides/effects/add-echo/) — Repeat a sound at a fixed interval, quieter each time.
@@ -86,6 +99,13 @@ Change the character of a sound: pitch, tempo, space, filtering and distortion.
 
 Work with several tracks and render the result to a file.
 
+- [Generate white noise](/guides/tracks-and-export/generate-white-noise/) — Create a short noise clip for sound design or checking an audio chain.
+- [Generate a frequency sweep](/guides/tracks-and-export/generate-a-frequency-sweep/) — Create a tone that rises from one frequency to another over a set duration.
+- [Generate telephone keypad tones](/guides/tracks-and-export/generate-dtmf-tones/) — Turn a keypad sequence into DTMF audio with an adjustable total duration.
+- [Generate a Morse code message](/guides/tracks-and-export/generate-morse-code/) — Encode text as audible dots and dashes at a chosen speed and frequency.
+- [Export a FLAC file](/guides/tracks-and-export/export-a-flac/) — Render the mix into a compressed lossless audio file.
+- [Export an Ogg Vorbis file](/guides/tracks-and-export/export-an-ogg-vorbis-file/) — Create a compressed listening copy in an Ogg container using Vorbis audio.
+- [Swap the left and right channels](/guides/tracks-and-export/swap-stereo-channels/) — Correct a stereo recording whose left and right channels are reversed.
 - [Split a stereo track into two mono tracks](/guides/tracks-and-export/split-stereo-into-mono-tracks/) — Separate the left and right channels so each can be edited on its own.
 - [Mix several tracks into one](/guides/tracks-and-export/mix-tracks-into-one/) — Render the selected tracks down to a single track.
 - [Generate a test tone](/guides/tracks-and-export/generate-a-test-tone/) — Create a sine wave of a set frequency and length from nothing.

@@ -1,10 +1,12 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { effect, importAudio, menu, open, play, selectClips, selectRange } from '../steps.mjs';
+import { DYNAMICS_EFFECT_GUIDES } from './production-effects.mjs';
 
 const selectAll = (extras) => menu(['Select', 'Select all'], extras);
 
 export const VOLUME_GUIDES = Object.freeze([
+	...DYNAMICS_EFFECT_GUIDES,
 	{
 		id: 'make-a-recording-louder',
 		title: 'Make a quiet recording louder',

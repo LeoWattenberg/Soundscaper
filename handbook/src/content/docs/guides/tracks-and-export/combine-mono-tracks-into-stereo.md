@@ -3,7 +3,7 @@ title: "Combine two mono tracks into stereo"
 description: "Use one mono recording for the left channel and another for the right channel of a stereo clip."
 editUrl: false
 sidebar:
-  order: 12
+  order: 19
 head:
   - tag: script
     attrs:
@@ -41,6 +41,13 @@ This is Audacity's **Upper mono track menu → Make stereo track (Audacity 4)**.
 More [tracks and export](/guides/tracks-and-export/) guides:
 
 - [Align track starts together](/guides/editing/align-track-starts-together/) — Move recordings on separate tracks so their content starts at the same time.
+- [Generate white noise](/guides/tracks-and-export/generate-white-noise/) — Create a short noise clip for sound design or checking an audio chain.
+- [Generate a frequency sweep](/guides/tracks-and-export/generate-a-frequency-sweep/) — Create a tone that rises from one frequency to another over a set duration.
+- [Generate telephone keypad tones](/guides/tracks-and-export/generate-dtmf-tones/) — Turn a keypad sequence into DTMF audio with an adjustable total duration.
+- [Generate a Morse code message](/guides/tracks-and-export/generate-morse-code/) — Encode text as audible dots and dashes at a chosen speed and frequency.
+- [Export a FLAC file](/guides/tracks-and-export/export-a-flac/) — Render the mix into a compressed lossless audio file.
+- [Export an Ogg Vorbis file](/guides/tracks-and-export/export-an-ogg-vorbis-file/) — Create a compressed listening copy in an Ogg container using Vorbis audio.
+- [Swap the left and right channels](/guides/tracks-and-export/swap-stereo-channels/) — Correct a stereo recording whose left and right channels are reversed.
 - [Split a stereo track into two mono tracks](/guides/tracks-and-export/split-stereo-into-mono-tracks/) — Separate the left and right channels so each can be edited on its own.
 - [Mix several tracks into one](/guides/tracks-and-export/mix-tracks-into-one/) — Render the selected tracks down to a single track.
 - [Generate a test tone](/guides/tracks-and-export/generate-a-test-tone/) — Create a sine wave of a set frequency and length from nothing.

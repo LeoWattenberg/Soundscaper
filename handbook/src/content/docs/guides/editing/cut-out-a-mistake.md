@@ -3,7 +3,7 @@ title: "Cut a mistake out of a recording"
 description: "Select a slip, remove it, and close the gap so the recording flows on."
 editUrl: false
 sidebar:
-  order: 1
+  order: 2
 head:
   - tag: script
     attrs:
@@ -39,6 +39,7 @@ This is Audacity's **Select the region, then Edit → Delete (or Ctrl+K)**. The 
 
 More [editing](/guides/editing/) guides:
 
+- [Cut a passage and leave a gap](/guides/editing/cut-a-passage-and-leave-a-gap/) — Remove a passage to the clipboard while keeping later audio in sync.
 - [Split a clip in two](/guides/editing/split-a-clip-at-the-cursor/) — Cut a clip at a point so each part can be moved or treated separately.
 - [Keep only the part you want](/guides/editing/keep-only-a-selection/) — Trim away everything outside a selection in one step.
 - [Repeat a section](/guides/editing/repeat-a-section/) — Loop a selection a set number of times to make it longer.

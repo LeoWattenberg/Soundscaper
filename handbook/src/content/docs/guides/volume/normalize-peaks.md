@@ -3,7 +3,7 @@ title: "Normalize peaks to a set level"
 description: "Bring the loudest point of a recording to an exact level below full scale."
 editUrl: false
 sidebar:
-  order: 2
+  order: 3
 head:
   - tag: script
     attrs:
@@ -40,6 +40,7 @@ This is Audacity's **Effect → Volume and Compression → Normalize**. The name
 More [volume and dynamics](/guides/volume/) guides:
 
 - [Normalize loudness for a podcast](/guides/volume/normalize-loudness-for-podcasts/) — Match the perceived loudness of an episode to the level streaming platforms expect.
+- [Compress frequency bands independently](/guides/volume/compress-frequency-bands-independently/) — Control bass, midrange, and treble separately with a multiband compressor.
 - [Make a quiet recording louder](/guides/volume/make-a-recording-louder/) — Raise the level of a recording by a fixed number of decibels with Amplify.
 - [Even out volume with a compressor](/guides/volume/even-out-volume-with-a-compressor/) — Reduce the gap between loud and quiet moments so speech is easier to follow.
 - [Fade in and fade out](/guides/volume/fade-in-and-fade-out/) — Start a clip from silence and end it smoothly instead of cutting off.

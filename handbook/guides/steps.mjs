@@ -178,6 +178,7 @@ export function effect({ group, name, settings = [], direct = false }, extras) {
 	if (direct && settings.length > 0) throw new RangeError('A directly applied effect has no settings to change.');
 	for (const setting of settings) {
 		if (typeof setting?.label !== 'string') throw new TypeError('Every effect setting needs a label.');
+		if ('expand' in setting && typeof setting.expand !== 'boolean') throw new TypeError('An effect setting expand flag must be boolean.');
 		const forms = ['value', 'checked', 'option'].filter((key) => key in setting);
 		if (forms.length !== 1) throw new TypeError(`Effect setting ${setting.label} must give exactly one of value, checked or option.`);
 		if ('option' in setting && EXAMPLE_VALUE.test(setting.option) && typeof setting.as !== 'string') {
@@ -375,7 +376,7 @@ const bold = (text) => `**${text}**`;
 const menuPath = (path) => bold(path.join(' → '));
 
 function describeSetting(setting, facet) {
-	if ('value' in setting) return `set ${bold(setting.label)} to \`${setting.value}\``;
+	if ('value' in setting) return `${setting.expand ? `expand ${bold(setting.label)} and ` : ''}set ${bold(setting.label)} to \`${setting.value}\``;
 	if ('option' in setting) {
 		const choice = facet === 'howto' && setting.as ? setting.as : bold(setting.option);
 		return `choose ${choice} for ${bold(setting.label)}`;

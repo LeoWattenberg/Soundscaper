@@ -3,7 +3,7 @@ title: "Normalize loudness for a podcast"
 description: "Match the perceived loudness of an episode to the level streaming platforms expect."
 editUrl: false
 sidebar:
-  order: 3
+  order: 4
 head:
   - tag: script
     attrs:
@@ -39,6 +39,7 @@ This is Audacity's **Effect → Volume and Compression → Loudness Normalizatio
 
 More [volume and dynamics](/guides/volume/) guides:
 
+- [Compress frequency bands independently](/guides/volume/compress-frequency-bands-independently/) — Control bass, midrange, and treble separately with a multiband compressor.
 - [Make a quiet recording louder](/guides/volume/make-a-recording-louder/) — Raise the level of a recording by a fixed number of decibels with Amplify.
 - [Normalize peaks to a set level](/guides/volume/normalize-peaks/) — Bring the loudest point of a recording to an exact level below full scale.
 - [Even out volume with a compressor](/guides/volume/even-out-volume-with-a-compressor/) — Reduce the gap between loud and quiet moments so speech is easier to follow.

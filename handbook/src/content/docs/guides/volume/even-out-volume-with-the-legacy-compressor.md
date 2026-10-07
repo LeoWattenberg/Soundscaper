@@ -3,7 +3,7 @@ title: "Even out volume with the classic compressor"
 description: "Use Audacity 3’s original compressor, with its noise floor and make-up gain, on a recording."
 editUrl: false
 sidebar:
-  order: 8
+  order: 9
 head:
   - tag: script
     attrs:
@@ -40,6 +40,7 @@ This is Audacity's **Effect → Volume and Compression → Legacy Compressor (Au
 More [volume and dynamics](/guides/volume/) guides:
 
 - [Even out volume with a compressor](/guides/volume/even-out-volume-with-a-compressor/) — Reduce the gap between loud and quiet moments so speech is easier to follow.
+- [Compress frequency bands independently](/guides/volume/compress-frequency-bands-independently/) — Control bass, midrange, and treble separately with a multiband compressor.
 - [Make a quiet recording louder](/guides/volume/make-a-recording-louder/) — Raise the level of a recording by a fixed number of decibels with Amplify.
 - [Normalize peaks to a set level](/guides/volume/normalize-peaks/) — Bring the loudest point of a recording to an exact level below full scale.
 - [Normalize loudness for a podcast](/guides/volume/normalize-loudness-for-podcasts/) — Match the perceived loudness of an episode to the level streaming platforms expect.

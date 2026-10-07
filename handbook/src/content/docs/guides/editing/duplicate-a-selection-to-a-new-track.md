@@ -3,7 +3,7 @@ title: "Duplicate a selection to a new track"
 description: "Copy a passage onto its own track so you can process it separately."
 editUrl: false
 sidebar:
-  order: 8
+  order: 9
 head:
   - tag: script
     attrs:
@@ -40,6 +40,7 @@ This is Audacity's **Edit → Duplicate (Ctrl+D)**. The names below are Soundsca
 More [editing](/guides/editing/) guides:
 
 - [Mix several tracks into one](/guides/tracks-and-export/mix-tracks-into-one/) — Render the selected tracks down to a single track.
+- [Cut a passage and leave a gap](/guides/editing/cut-a-passage-and-leave-a-gap/) — Remove a passage to the clipboard while keeping later audio in sync.
 - [Cut a mistake out of a recording](/guides/editing/cut-out-a-mistake/) — Select a slip, remove it, and close the gap so the recording flows on.
 - [Split a clip in two](/guides/editing/split-a-clip-at-the-cursor/) — Cut a clip at a point so each part can be moved or treated separately.
 - [Keep only the part you want](/guides/editing/keep-only-a-selection/) — Trim away everything outside a selection in one step.

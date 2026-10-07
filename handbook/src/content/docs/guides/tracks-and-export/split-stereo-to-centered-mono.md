@@ -3,7 +3,7 @@ title: "Split stereo into two centered mono tracks"
 description: "Separate the two channels of a stereo recording and center each one for independent editing."
 editUrl: false
 sidebar:
-  order: 11
+  order: 18
 head:
   - tag: script
     attrs:
@@ -41,6 +41,13 @@ More [tracks and export](/guides/tracks-and-export/) guides:
 
 - [Split a stereo track into two mono tracks](/guides/tracks-and-export/split-stereo-into-mono-tracks/) — Separate the left and right channels so each can be edited on its own.
 - [Mix several tracks into one](/guides/tracks-and-export/mix-tracks-into-one/) — Render the selected tracks down to a single track.
+- [Generate white noise](/guides/tracks-and-export/generate-white-noise/) — Create a short noise clip for sound design or checking an audio chain.
+- [Generate a frequency sweep](/guides/tracks-and-export/generate-a-frequency-sweep/) — Create a tone that rises from one frequency to another over a set duration.
+- [Generate telephone keypad tones](/guides/tracks-and-export/generate-dtmf-tones/) — Turn a keypad sequence into DTMF audio with an adjustable total duration.
+- [Generate a Morse code message](/guides/tracks-and-export/generate-morse-code/) — Encode text as audible dots and dashes at a chosen speed and frequency.
+- [Export a FLAC file](/guides/tracks-and-export/export-a-flac/) — Render the mix into a compressed lossless audio file.
+- [Export an Ogg Vorbis file](/guides/tracks-and-export/export-an-ogg-vorbis-file/) — Create a compressed listening copy in an Ogg container using Vorbis audio.
+- [Swap the left and right channels](/guides/tracks-and-export/swap-stereo-channels/) — Correct a stereo recording whose left and right channels are reversed.
 - [Generate a test tone](/guides/tracks-and-export/generate-a-test-tone/) — Create a sine wave of a set frequency and length from nothing.
 - [Export an MP3](/guides/tracks-and-export/export-an-mp3/) — Render the project to an MP3 file for sharing or publishing.
 - [Export a WAV](/guides/tracks-and-export/export-a-wav/) — Render the project to an uncompressed WAV file.

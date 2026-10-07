@@ -37,6 +37,7 @@ import { guideFixtureClipName, guideFixtureFile } from './guide-fixtures.js';
 import { mockFreesoundApi, runFreesoundInsert, runFreesoundSearch } from './guide-freesound.js';
 import { runContrast, runMacro, runPlayAtSpeed } from './guide-workflows.js';
 import { chooseTrackMenuAction } from './track-menu.js';
+import { applyGuideEffectSetting } from './guide-effect-settings.js';
 
 const EFFECT_TIMEOUT = 30_000;
 const EXPORT_TIMEOUT = 60_000;
@@ -133,24 +134,6 @@ async function openEffectDialog(page, state, group, name) {
 	return dialog;
 }
 
-// A field is labelled by its parameter name, sometimes followed by its unit in
-// parentheses ("Threshold (dB)"); the guide names the parameter alone.
-function settingGroup(dialog, label) {
-	const escaped = label.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
-	return dialog.getByRole('group', { name: new RegExp(`^${escaped}(?: \\([^)]*\\))?$`, 'u') }).first();
-}
-
-async function applySetting(page, dialog, setting) {
-	const group = settingGroup(dialog, setting.label);
-	if ('value' in setting) {
-		await commitInput(group.locator('input').first(), setting.value);
-	} else if ('option' in setting) {
-		await chooseDropdown(page, group, setting.option);
-	} else {
-		await dialog.getByRole('checkbox', { name: setting.label, exact: true }).setChecked(setting.checked);
-	}
-}
-
 async function runEffect(page, state, entry) {
 	if (entry.direct) {
 		await chooseNestedCommandAction(page, state.editor, 'Effect', [entry.group, entry.name]);
@@ -158,7 +141,7 @@ async function runEffect(page, state, entry) {
 		return;
 	}
 	const dialog = await openEffectDialog(page, state, entry.group, entry.name);
-	for (const setting of entry.settings) await applySetting(page, dialog, setting);
+	for (const setting of entry.settings) await applyGuideEffectSetting(page, dialog, setting);
 	await dialog.getByRole('button', { name: 'Apply to selection', exact: true }).click();
 	await expect(dialog).toBeHidden({ timeout: EFFECT_TIMEOUT });
 	await expectSuccess(state.editor);

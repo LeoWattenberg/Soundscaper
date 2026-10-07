@@ -1,10 +1,12 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { check, effect, importAudio, menu, noiseProfile, open, play, selectRange } from '../steps.mjs';
+import { REPAIR_EFFECT_GUIDES } from './production-effects.mjs';
 
 const selectAll = (extras) => menu(['Select', 'Select all'], extras);
 
 export const CLEAN_UP_GUIDES = Object.freeze([
+	...REPAIR_EFFECT_GUIDES,
 	{
 		id: 'remove-background-noise',
 		title: 'Remove background noise',

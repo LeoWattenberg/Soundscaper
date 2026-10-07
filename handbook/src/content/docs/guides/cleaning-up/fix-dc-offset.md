@@ -3,7 +3,7 @@ title: "Fix a DC offset"
 description: "Recentre a waveform that sits above or below the zero line."
 editUrl: false
 sidebar:
-  order: 6
+  order: 7
 head:
   - tag: script
     attrs:
@@ -41,6 +41,7 @@ More [cleaning up a recording](/guides/cleaning-up/) guides:
 
 - [Normalize peaks to a set level](/guides/volume/normalize-peaks/) — Bring the loudest point of a recording to an exact level below full scale.
 - [Remove low rumble](/guides/cleaning-up/remove-low-rumble/) — Cut the sub-bass thumps from traffic, wind and handling with a high-pass filter.
+- [Tame sharp sibilance](/guides/cleaning-up/reduce-sibilance-with-a-de-esser/) — Reduce sharp S and SH sounds in a voice without turning down the whole recording.
 - [Remove background noise](/guides/cleaning-up/remove-background-noise/) — Teach Noise Reduction what the hum sounds like, then take it out of the whole recording.
 - [Remove clicks and pops](/guides/cleaning-up/remove-clicks-and-pops/) — Take short sharp clicks out of a recording without touching the rest.
 - [Shorten long pauses](/guides/cleaning-up/remove-silent-pauses/) — Tighten a recording by trimming every long silence to the same short gap.

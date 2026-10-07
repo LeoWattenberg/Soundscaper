@@ -3,7 +3,7 @@ title: "Duck music under a voice"
 description: "Turn a music bed down automatically whenever a voice track is speaking."
 editUrl: false
 sidebar:
-  order: 7
+  order: 8
 head:
   - tag: script
     attrs:
@@ -40,6 +40,7 @@ This is Audacity's **Effect → Volume and Compression → Auto Duck**. The name
 
 More [volume and dynamics](/guides/volume/) guides:
 
+- [Compress frequency bands independently](/guides/volume/compress-frequency-bands-independently/) — Control bass, midrange, and treble separately with a multiband compressor.
 - [Make a quiet recording louder](/guides/volume/make-a-recording-louder/) — Raise the level of a recording by a fixed number of decibels with Amplify.
 - [Normalize peaks to a set level](/guides/volume/normalize-peaks/) — Bring the loudest point of a recording to an exact level below full scale.
 - [Normalize loudness for a podcast](/guides/volume/normalize-loudness-for-podcasts/) — Match the perceived loudness of an episode to the level streaming platforms expect.

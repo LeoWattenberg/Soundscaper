@@ -3,7 +3,7 @@ title: "Move a clip along the timeline"
 description: "Drag a clip to a different time on its track."
 editUrl: false
 sidebar:
-  order: 14
+  order: 15
 head:
   - tag: script
     attrs:
@@ -40,6 +40,7 @@ This is Audacity's **The Time Shift tool (F5), or dragging the clip bar in Audac
 
 More [editing](/guides/editing/) guides:
 
+- [Cut a passage and leave a gap](/guides/editing/cut-a-passage-and-leave-a-gap/) — Remove a passage to the clipboard while keeping later audio in sync.
 - [Cut a mistake out of a recording](/guides/editing/cut-out-a-mistake/) — Select a slip, remove it, and close the gap so the recording flows on.
 - [Split a clip in two](/guides/editing/split-a-clip-at-the-cursor/) — Cut a clip at a point so each part can be moved or treated separately.
 - [Keep only the part you want](/guides/editing/keep-only-a-selection/) — Trim away everything outside a selection in one step.

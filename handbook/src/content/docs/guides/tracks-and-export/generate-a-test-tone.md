@@ -3,7 +3,7 @@ title: "Generate a test tone"
 description: "Create a sine wave of a set frequency and length from nothing."
 editUrl: false
 sidebar:
-  order: 3
+  order: 10
 head:
   - tag: script
     attrs:
@@ -37,6 +37,13 @@ This is Audacity's **Generate → Tone**. The names below are Soundscaper's own,
 
 More [tracks and export](/guides/tracks-and-export/) guides:
 
+- [Generate white noise](/guides/tracks-and-export/generate-white-noise/) — Create a short noise clip for sound design or checking an audio chain.
+- [Generate a frequency sweep](/guides/tracks-and-export/generate-a-frequency-sweep/) — Create a tone that rises from one frequency to another over a set duration.
+- [Generate telephone keypad tones](/guides/tracks-and-export/generate-dtmf-tones/) — Turn a keypad sequence into DTMF audio with an adjustable total duration.
+- [Generate a Morse code message](/guides/tracks-and-export/generate-morse-code/) — Encode text as audible dots and dashes at a chosen speed and frequency.
+- [Export a FLAC file](/guides/tracks-and-export/export-a-flac/) — Render the mix into a compressed lossless audio file.
+- [Export an Ogg Vorbis file](/guides/tracks-and-export/export-an-ogg-vorbis-file/) — Create a compressed listening copy in an Ogg container using Vorbis audio.
+- [Swap the left and right channels](/guides/tracks-and-export/swap-stereo-channels/) — Correct a stereo recording whose left and right channels are reversed.
 - [Split a stereo track into two mono tracks](/guides/tracks-and-export/split-stereo-into-mono-tracks/) — Separate the left and right channels so each can be edited on its own.
 - [Mix several tracks into one](/guides/tracks-and-export/mix-tracks-into-one/) — Render the selected tracks down to a single track.
 - [Export an MP3](/guides/tracks-and-export/export-an-mp3/) — Render the project to an MP3 file for sharing or publishing.

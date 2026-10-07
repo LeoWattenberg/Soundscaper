@@ -1,8 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { addTrack, check, cursor, exportAudio, generate, importAudio, menu, mixRender, note, open, play, selectClips, trackButton, trackMenu } from '../steps.mjs';
+import { GENERATION_AND_EXPORT_GUIDES } from './generation-and-export.mjs';
 
 export const TRACK_AND_EXPORT_GUIDES = Object.freeze([
+	...GENERATION_AND_EXPORT_GUIDES,
 	{
 		id: 'split-stereo-into-mono-tracks',
 		title: 'Split a stereo track into two mono tracks',

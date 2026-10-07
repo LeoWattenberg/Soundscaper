@@ -13,6 +13,7 @@ Take noise, clicks, rumble and dead air out of a take before you work on it.
 
 ## Guides in this category
 
+- [Tame sharp sibilance](/guides/cleaning-up/reduce-sibilance-with-a-de-esser/) — Reduce sharp S and SH sounds in a voice without turning down the whole recording.
 - [Remove background noise](/guides/cleaning-up/remove-background-noise/) — Teach Noise Reduction what the hum sounds like, then take it out of the whole recording.
 - [Remove clicks and pops](/guides/cleaning-up/remove-clicks-and-pops/) — Take short sharp clicks out of a recording without touching the rest.
 - [Shorten long pauses](/guides/cleaning-up/remove-silent-pauses/) — Tighten a recording by trimming every long silence to the same short gap.

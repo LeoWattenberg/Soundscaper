@@ -3,7 +3,7 @@ title: "Duplicate a whole track"
 description: "Copy every clip on a track to another track while keeping the original available."
 editUrl: false
 sidebar:
-  order: 13
+  order: 20
 head:
   - tag: script
     attrs:
@@ -46,6 +46,13 @@ More [tracks and export](/guides/tracks-and-export/) guides:
 
 - [Mute and solo tracks](/guides/tracks-and-export/mute-and-solo-tracks/) — Silence a track, or listen to one track by itself, while you work on a mix.
 - [Duplicate a selection to a new track](/guides/editing/duplicate-a-selection-to-a-new-track/) — Copy a passage onto its own track so you can process it separately.
+- [Generate white noise](/guides/tracks-and-export/generate-white-noise/) — Create a short noise clip for sound design or checking an audio chain.
+- [Generate a frequency sweep](/guides/tracks-and-export/generate-a-frequency-sweep/) — Create a tone that rises from one frequency to another over a set duration.
+- [Generate telephone keypad tones](/guides/tracks-and-export/generate-dtmf-tones/) — Turn a keypad sequence into DTMF audio with an adjustable total duration.
+- [Generate a Morse code message](/guides/tracks-and-export/generate-morse-code/) — Encode text as audible dots and dashes at a chosen speed and frequency.
+- [Export a FLAC file](/guides/tracks-and-export/export-a-flac/) — Render the mix into a compressed lossless audio file.
+- [Export an Ogg Vorbis file](/guides/tracks-and-export/export-an-ogg-vorbis-file/) — Create a compressed listening copy in an Ogg container using Vorbis audio.
+- [Swap the left and right channels](/guides/tracks-and-export/swap-stereo-channels/) — Correct a stereo recording whose left and right channels are reversed.
 - [Split a stereo track into two mono tracks](/guides/tracks-and-export/split-stereo-into-mono-tracks/) — Separate the left and right channels so each can be edited on its own.
 - [Mix several tracks into one](/guides/tracks-and-export/mix-tracks-into-one/) — Render the selected tracks down to a single track.
 - [Generate a test tone](/guides/tracks-and-export/generate-a-test-tone/) — Create a sine wave of a set frequency and length from nothing.

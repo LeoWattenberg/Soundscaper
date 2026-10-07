@@ -3,7 +3,7 @@ title: "Add a wah-wah"
 description: "Sweep a resonant filter across a sound for the classic funk effect."
 editUrl: false
 sidebar:
-  order: 9
+  order: 19
 head:
   - tag: script
     attrs:
@@ -39,6 +39,16 @@ This is Audacity's **Effect → Wahwah**. The names below are Soundscaper's own,
 
 More [effects](/guides/effects/) guides:
 
+- [Soften a recording with a low-pass filter](/guides/effects/apply-a-low-pass-filter/) — Reduce hiss and other high frequencies while keeping the lower part of a recording.
+- [Shape a narrow frequency band with Parametric EQ](/guides/effects/shape-tone-with-parametric-eq/) — Use a selected EQ band to make a focused tonal cut or boost.
+- [Adjust tone with Graphic EQ](/guides/effects/shape-tone-with-graphic-eq/) — Make broad tonal changes with a bank of frequency sliders.
+- [Draw a custom EQ curve](/guides/effects/draw-a-filter-curve/) — Shape several frequency ranges with one continuous EQ curve.
+- [Boost or cut bass and treble with a shelf filter](/guides/effects/boost-or-cut-a-frequency-shelf/) — Raise or lower a broad range of low or high frequencies while the far end stays level.
+- [Choose a classic low-pass filter](/guides/effects/choose-a-classic-filter/) — Set a Butterworth cutoff and filter order for a predictable low-pass slope.
+- [Add a tremolo pulse](/guides/effects/apply-tremolo/) — Make a recording pulse by turning its volume up and down at a steady rate.
+- [Give a sound a bitcrusher texture](/guides/effects/apply-bitcrusher/) — Reduce bit depth or sample rate to make a sound rougher and more lo-fi.
+- [Make a vocoder effect](/guides/effects/make-a-vocoder-effect/) — Shape a voice with a carrier sound for a robotic, sung, or synthetic tone.
+- [Add repeating echoes with Delay](/guides/effects/add-multi-tap-delay/) — Create a pattern of echoes and choose how many repeats follow the selected sound.
 - [Change tempo without changing pitch](/guides/effects/change-tempo-without-changing-pitch/) — Speed a recording up or slow it down while every note stays at the same pitch.
 - [Change pitch without changing tempo](/guides/effects/change-pitch-without-changing-tempo/) — Move a recording up or down by a number of semitones and keep its timing.
 - [Add an echo](/guides/effects/add-echo/) — Repeat a sound at a fixed interval, quieter each time.

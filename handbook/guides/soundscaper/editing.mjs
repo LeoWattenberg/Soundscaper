@@ -1,10 +1,12 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { check, cursor, dragClip, editingPreference, effect, generate, importAudio, marker, menu, open, play, playAtSpeed, selectClips, selectRange, tool } from '../steps.mjs';
+import { GAP_EDIT_GUIDES } from './gap-edits.mjs';
 
 const selectAll = (extras) => menu(['Select', 'Select all'], extras);
 
 export const EDITING_GUIDES = Object.freeze([
+	...GAP_EDIT_GUIDES,
 	{
 		id: 'cut-out-a-mistake',
 		title: 'Cut a mistake out of a recording',

@@ -3,7 +3,7 @@ title: "Silence part of a recording"
 description: "Replace a stretch of audio with silence while keeping everything in place."
 editUrl: false
 sidebar:
-  order: 4
+  order: 5
 head:
   - tag: script
     attrs:
@@ -40,6 +40,7 @@ This is Audacity's **Edit → Remove Special → Silence Audio**. The names belo
 More [cleaning up a recording](/guides/cleaning-up/) guides:
 
 - [Cut a mistake out of a recording](/guides/editing/cut-out-a-mistake/) — Select a slip, remove it, and close the gap so the recording flows on.
+- [Tame sharp sibilance](/guides/cleaning-up/reduce-sibilance-with-a-de-esser/) — Reduce sharp S and SH sounds in a voice without turning down the whole recording.
 - [Remove background noise](/guides/cleaning-up/remove-background-noise/) — Teach Noise Reduction what the hum sounds like, then take it out of the whole recording.
 - [Remove clicks and pops](/guides/cleaning-up/remove-clicks-and-pops/) — Take short sharp clicks out of a recording without touching the rest.
 - [Shorten long pauses](/guides/cleaning-up/remove-silent-pauses/) — Tighten a recording by trimming every long silence to the same short gap.

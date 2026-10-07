@@ -3,6 +3,7 @@ import { chooseCommandAction, registerAudioEditorHooks } from './audio-editor-te
 import { SOUNDSCAPER_GUIDES } from '../../handbook/guides/soundscaper.mjs';
 import { runGuide } from './helpers/guide-runner.js';
 import { verifyGuideTrackResults } from './helpers/guide-track-results.js';
+import { verifyGeneratedGuideResults } from './helpers/guide-generated-results.js';
 
 const EDITING_SPANS = {
 	'join-split-clips': [[0, 2]],
@@ -50,6 +51,7 @@ test.describe('Soundscaper handbook guides', () => {
 			await runGuide(page, guide);
 			await verifyEditingSpan(page, guide.id);
 			await verifyGuideTrackResults(page, guide.id);
+			await verifyGeneratedGuideResults(page, guide.id);
 		});
 	}
 });
