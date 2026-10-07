@@ -79,6 +79,10 @@ test('nightly-with-tests builds and stages the native Tauri smoke host for every
 	assert.match(job, /SOUNDSCAPER_NIGHTLY_TESTS_TAURI_ARTIFACT_PATH: \$\{\{ github\.workspace \}\}\/\.tauri-prototype\/artifact/u);
 	const staging = job.indexOf('node prototypes/tauri/stage-artifact.mjs');
 	assert.ok(staging > job.indexOf('node prototypes/tauri/run.mjs build'));
+	const cleanup = job.indexOf("rmSync('.tauri-prototype/target'");
+	assert.ok(cleanup > staging, 'preserve the executable and dependency notices before discarding compiler output');
+	assert.ok(cleanup < job.indexOf('node scripts/stage-desktop-test-runtime-snapshot.mjs'),
+		'reclaim compiler space before staging and packaging the other desktop runtimes');
 	assert.ok(staging < job.indexOf('node scripts/desktop-nightly-tests-prepare.mjs'));
 	assert.match(job, /node scripts\/lib\/desktop-nightly-tests-tauri\.mjs/u);
 	assert.match(job, /--payload "\$\{\{ github\.workspace \}\}\/\.desktop-build\/nightly-tests"/u);

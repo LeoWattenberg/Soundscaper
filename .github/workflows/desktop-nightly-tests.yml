@@ -132,6 +132,11 @@ jobs:
           SOUNDSCAPER_SOURCE_REVISION: ${{ github.sha }}
           SOUNDSCAPER_TAURI_TARGET: ${{ matrix.target.rust_target }}
 
+      - name: Release Tauri compiler space before product packaging
+        run: >-
+          node --input-type=module -e
+          "import { rmSync } from 'node:fs'; rmSync('.tauri-prototype/target', { recursive: true, force: true });"
+
       - name: Stage the pinned AI runtime handoff
         run: node scripts/stage-desktop-test-runtime-snapshot.mjs
         env:
