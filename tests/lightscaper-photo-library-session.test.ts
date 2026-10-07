@@ -184,3 +184,61 @@ test('invalid culling patches refuse before opening storage or invoking accessor
 	assert.deepEqual(f.calls, []); assert.equal(invoked, 0);
 	await owner.close();
 });
+
+
+test('metadata reads project one photo without media bytes and editing keeps original and extracted facts immutable', async () => {
+	const f = fixture(), owner = new PhotoLibrarySessionV1(f.ports), before = f.photo();
+	const snapshot = await owner.readMetadata('photo-1');
+	assert.deepEqual(Object.keys(snapshot).sort(), ['extracted', 'metadata', 'originalFileName', 'originalSha256', 'photoId', 'revision']);
+	assert.equal(snapshot.originalFileName, before.original.name);
+	const updated = await owner.applyMetadata('photo-1', snapshot.revision, {
+		fileName: 'Renamed.png', title: 'A title', caption: 'First line\nSecond line', creator: 'A photographer',
+		copyright: 'Copyright', location: 'Berlin', captureTime: { local: '2026-10-08T11:12:13', offsetMinutes: null },
+	});
+	assert.equal(updated.metadata.fileName, 'Renamed.png');
+	assert.equal(updated.metadata.captureTime?.local, '2026-10-08T11:12:13.000');
+	assert.equal(updated.metadata.captureTime?.offsetMinutes, null);
+	assert.equal(updated.revision, 1);
+	assert.deepEqual(f.photo().original, before.original);
+	assert.deepEqual(f.photo().extractedMetadata, before.extractedMetadata);
+	assert.equal((await owner.readPage()).rows[0]?.fileName, 'Renamed.png');
+	await owner.close();
+});
+
+test('a metadata editor snapshot cannot overwrite a newer durable edit even when a stale command owner is cached', async () => {
+	const f = fixture(), owner = new PhotoLibrarySessionV1(f.ports);
+	const snapshot = await owner.readMetadata('photo-1');
+	await owner.setRating('photo-1', 5);
+	await f.ports.catalog.savePhoto({ ...f.photo(), metadata: { ...f.photo().metadata, title: 'External edit' } }, f.photo().revision);
+	await assert.rejects(owner.applyMetadata('photo-1', snapshot.revision, { title: 'Stale title' }), /revision changed/iu);
+	assert.equal(f.photo().metadata.title, 'External edit'); assert.equal(f.photo().rating, 5);
+	const current = await owner.readMetadata('photo-1');
+	const ack = await owner.applyMetadata('photo-1', current.revision, { title: 'Fresh title' });
+	assert.equal(ack.metadata.title, 'Fresh title'); assert.equal(ack.revision, 3);
+	await owner.close();
+});
+
+test('metadata patches refuse unknown fields, accessors and invalid capture dates before initialization', async () => {
+	const f = fixture(), owner = new PhotoLibrarySessionV1(f.ports); let invoked = 0;
+	await assert.rejects(owner.applyMetadata('photo-1', 0, { orientation: 8 } as never), /unknown|field/iu);
+	await assert.rejects(owner.applyMetadata('photo-1', 0, { captureTime: { local: '2026-02-30T11:12:13', offsetMinutes: 0 } }), /timestamp/iu);
+	await assert.rejects(owner.applyMetadata('photo-1', 0, Object.defineProperty({}, 'title', {
+		enumerable: true, get: () => { invoked++; return 'Unsafe'; },
+	})), /accessor|data/iu);
+	await assert.rejects(owner.applyMetadata('photo-1', -1, { title: 'A title' }), /revision/iu);
+	await assert.rejects(owner.applyMetadata('photo-1', 0, {}), /empty/iu);
+	assert.deepEqual(f.calls, []); assert.equal(invoked, 0);
+	await owner.close();
+});
+
+test('metadata publication reports only acknowledged values and a failed write can retry from the same snapshot', async () => {
+	const f = fixture(), owner = new PhotoLibrarySessionV1(f.ports), before = f.photo();
+	const save = f.ports.catalog.savePhoto; let fail = true;
+	f.ports.catalog.savePhoto = async (...args) => { if (fail) throw new Error('Quota refused'); return save(...args); };
+	await assert.rejects(owner.applyMetadata('photo-1', 0, { title: 'Pending title' }), /Quota/iu);
+	assert.deepEqual(f.photo(), before);
+	fail = false;
+	const ack = await owner.applyMetadata('photo-1', 0, { title: 'Durable title' });
+	assert.equal(ack.metadata.title, 'Durable title'); assert.equal(ack.revision, 1);
+	await owner.close();
+});

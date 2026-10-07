@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { CreatePhotoLibrarySessionV1, PhotoLibraryAttributePatchV1, PhotoLibraryImportItemV1, PhotoLibraryPageV1, PhotoLibraryRowV1, PhotoLibrarySessionPortV1 } from '../../photo-library-session-port-v1.ts';
+import type { CreatePhotoLibrarySessionV1, PhotoLibraryAttributePatchV1, PhotoLibraryImportItemV1, PhotoLibraryMetadataPatchV1, PhotoLibraryMetadataSnapshotV1, PhotoLibraryPageV1, PhotoLibraryRowV1, PhotoLibrarySessionPortV1 } from '../../photo-library-session-port-v1.ts';
 
 interface SessionSlot {
 	live: boolean;
@@ -14,6 +14,7 @@ export function usePhotoLibraryWorkflow(createSession?: CreatePhotoLibrarySessio
 	const slot = useRef<SessionSlot | null>(null);
 	const [page, setPage] = useState<PhotoLibraryPageV1 | null>(null);
 	const [receipts, setReceipts] = useState<readonly PhotoLibraryImportItemV1[]>([]);
+	const [metadata, setMetadata] = useState<PhotoLibraryMetadataSnapshotV1 | null>(null);
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	useEffect(() => {
@@ -21,7 +22,7 @@ export function usePhotoLibraryWorkflow(createSession?: CreatePhotoLibrarySessio
 		slot.current = current;
 		queueMicrotask(() => {
 			if (!current.live) return;
-			setPage(null); setReceipts([]); setError(null); setBusy(current.active !== null);
+			setPage(null); setMetadata(null); setReceipts([]); setError(null); setBusy(current.active !== null);
 		});
 		return () => {
 			current.live = false; current.active?.abort();
@@ -70,7 +71,20 @@ export function usePhotoLibraryWorkflow(createSession?: CreatePhotoLibrarySessio
 	const applyAttributes = (photoId: string, changes: PhotoLibraryAttributePatchV1) => run(async (owner, signal, current) => {
 		updateRow(await owner.applyAttributes(photoId, changes, { signal }), current);
 	});
-	return { page, receipts, busy, error, readPage, importFiles, setRating, applyAttributes,
+	const readMetadata = useCallback((photoId: string) => run(async (owner, signal, current) => {
+		setMetadata(null);
+		const next = await owner.readMetadata(photoId, { signal });
+		if (current.live) setMetadata(next);
+	}), [run]);
+	const applyMetadata = (photoId: string, expectedRevision: number, changes: PhotoLibraryMetadataPatchV1) => run(async (owner, signal, current) => {
+		const next = await owner.applyMetadata(photoId, expectedRevision, changes, { signal });
+		if (current.live) {
+			setMetadata(next);
+			setPage(previous => previous ? Object.freeze({ ...previous, cursor: null,
+				rows: Object.freeze(previous.rows.map(row => row.id === next.photoId ? Object.freeze({ ...row, fileName: next.metadata.fileName }) : row)) }) : null);
+		}
+	});
+	return { page, metadata, receipts, busy, error, readMetadata, applyMetadata, readPage, importFiles, setRating, applyAttributes,
 		cancel: () => { slot.current?.active?.abort(); } };
 }
 

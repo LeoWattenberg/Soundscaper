@@ -34,3 +34,29 @@ Culling flags and labels use the same selected-photo command owner as ratings.
 The File menu owns their Photo submenu entry points. Each acknowledged change
 preserves the displayed page and immutable original/source facts. Snapshot
 cursors are invalidated by writes; View refresh requests a new snapshot.
+
+
+The metadata packet exposes one explicit File → Photo → Edit metadata dialog.
+Its outcome is an authored filename, description or capture-time edit over the
+L2 read model, with a durable per-photo revision acknowledgment. Invariants are
+unchanged original bindings, extracted source facts, and no file-system rename.
+Acceptance covers strict closed patches before storage, revision conflicts,
+failed-write retry, native menu editing and persistence after reload. This
+packet stops at one-photo descriptive editing; batch rename, import presets,
+relink and archive backup remain separate L3 packets.
+
+| Metadata resource | Bound |
+| --- | --- |
+| Loaded document | One photo under the existing 2 MiB document limit; no original body read |
+| Presentation | One immutable metadata/source-facts projection, at most 1 MiB serialized |
+| Editable patch | Seven descriptive fields; field bounds come from L2 normalization |
+| UI | One opt-in dialog and one form draft; source facts are read-only |
+
+A dialog carries the photo revision it read. Publication reloads the current
+photo under the writer lease and refuses a stale revision, including when a
+selected-photo history owner was cached. The form reports only the acknowledged
+snapshot. Capture time retains a nullable timezone offset; editing never invents
+a timezone or changes decode orientation. Native datetime-local minute values
+receive explicit zero seconds before the L2 timestamp validator; seconds and
+fractional seconds already supplied by the browser are preserved. Authored filename changes update the
+catalog summary only; the retained original name and bytes remain unchanged.

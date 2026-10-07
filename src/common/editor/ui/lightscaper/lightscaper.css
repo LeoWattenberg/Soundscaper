@@ -99,3 +99,8 @@
 .lightscaper-dialog label { display: grid; gap: 12px; }
 .lightscaper-dialog-actions { display: flex; justify-content: end; gap: 12px; margin-top: 24px; }
 .lightscaper-dialog button, .lightscaper-dialog input { font: inherit; }
+
+.lightscaper-dialog fieldset { display: grid; gap: 16px; border: 0; padding: 0; }
+.lightscaper-dialog input, .lightscaper-dialog textarea { min-width: 0; width: 100%; box-sizing: border-box; }
+.lightscaper-dialog textarea { font: inherit; }
+.lightscaper-dialog dl { max-width: 60ch; overflow-wrap: anywhere; white-space: pre-wrap; }

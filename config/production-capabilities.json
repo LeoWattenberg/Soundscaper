@@ -775,7 +775,8 @@
 						"src/lightscaper/photo-library-session-runtime.ts",
 						"src/lightscaper/controller/photo-library-session.ts",
 						"tests/lightscaper-photo-library-import-capacity.test.ts",
-						"tests/browser/lightscaper-photo-library.spec.js"
+						"tests/browser/lightscaper-photo-library.spec.js",
+						"tests/browser/lightscaper-photo-metadata.spec.js"
 					]
 				},
 				"web-enhanced": {

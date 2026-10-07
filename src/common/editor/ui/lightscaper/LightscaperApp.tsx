@@ -17,12 +17,14 @@ export interface LightscaperAppProps {
 }
 
 const PhotoImportDialog = lazy(() => import('./PhotoImportDialog.tsx'));
+const PhotoMetadataDialog = lazy(() => import('./PhotoMetadataDialog.tsx'));
 
 export default function LightscaperApp({ locale, createSession }: LightscaperAppProps) {
 	const copy = useSiteCopy(locale);
 	const app = useRef<HTMLElement>(null);
 	const [libraryVisible, setLibraryVisible] = useState(false);
 	const [importVisible, setImportVisible] = useState(false);
+	const [metadataVisible, setMetadataVisible] = useState(false);
 	const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
 	const library = usePhotoLibraryWorkflow(createSession);
 	const { readPage } = library;
@@ -99,6 +101,9 @@ export default function LightscaperApp({ locale, createSession }: LightscaperApp
 						<details className="lightscaper-photo-submenu" onKeyDown={menuKeyDown} onBlur={menuBlur}>
 							<summary className="application-header__menu-item">{copy.photoPhotoMenu}</summary>
 							<div className="lightscaper-menu-items">
+								<button type="button" disabled={!selection || library.busy} onClick={event => {
+									closeMenu(event); if (selection) { setMetadataVisible(true); void library.readMetadata(selection.id); }
+								}}>{copy.photoEditMetadata}</button>
 								{[0, 1, 2, 3, 4, 5].map(rating => <button key={rating} type="button" disabled={!selection || library.busy}
 									onClick={event => { closeMenu(event); if (selection) void library.setRating(selection.id, rating); }}>
 									{copy.photoRateStars.replace('{count}', String(rating))}
@@ -135,6 +140,10 @@ export default function LightscaperApp({ locale, createSession }: LightscaperApp
 			ratingLabel={copy.photoRating} flags={flags} colorLabels={colorLabels} importedLabel={copy.photoImported} failedLabel={copy.photoImportFailed} metadataNotice={copy.photoMetadataNotice}
 			page={library.page} receipts={library.receipts} selected={selection?.id ?? null} busy={library.busy} error={library.error}
 			onSelect={setSelectedPhoto} onRate={(photoId, rating) => { void library.setRating(photoId, rating); }} />}
+		{metadataVisible && <Suspense fallback={<p role="status">{copy.photoWorking}</p>}>
+			<PhotoMetadataDialog locale={locale} snapshot={library.metadata} busy={library.busy} error={library.error}
+				onClose={() => { setMetadataVisible(false); }} onSave={(photoId, revision, changes) => { void library.applyMetadata(photoId, revision, changes); }} />
+		</Suspense>}
 		{importVisible && <Suspense fallback={<p role="status">{copy.photoWorking}</p>}>
 			<PhotoImportDialog title={copy.photoImportPhotos} filesLabel={copy.photoChooseFiles} importLabel={copy.photoImportAction}
 				cancelLabel={copy.photoCancelAction} busy={library.busy} onClose={closeImport} onImport={files => {

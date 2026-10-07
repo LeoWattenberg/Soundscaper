@@ -83,7 +83,7 @@ Families describe product entry points, not every file extension a decoder might
 | Video timing assets | Enabled | Enabled | Not enabled |
 | Video transitions | Not enabled | Enabled | Not enabled |
 
-Photo catalogs support managed import, bounded browsing, and persistent ratings, flags, and color labels through the File and View menus and the Photo submenu. The current import admits static 8-bit sRGB photos and preserves original bytes. Develop, export, and raw decoding remain planned.
+Photo catalogs support managed import, bounded browsing, and persistent ratings, flags, color labels, and descriptive metadata edits through the File and View menus and the Photo submenu. The current import admits static 8-bit sRGB photos and preserves original bytes. Develop, export, and raw decoding remain planned.
 
 ## Product-specific application features
 

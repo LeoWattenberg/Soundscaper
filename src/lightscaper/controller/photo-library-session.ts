@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { readClosedDomainArray } from '../../common/editor/closed-domain-value.ts';
-import type { PhotoLibraryAttributePatchV1, PhotoLibraryImportItemV1, PhotoLibraryPageV1, PhotoLibraryRowV1, PhotoLibrarySessionPortV1 } from '../../common/editor/photo-library-session-port-v1.ts';
+import type { PhotoLibraryAttributePatchV1, PhotoLibraryImportItemV1, PhotoLibraryMetadataPatchV1, PhotoLibraryMetadataSnapshotV1, PhotoLibraryPageV1, PhotoLibraryRowV1, PhotoLibrarySessionPortV1 } from '../../common/editor/photo-library-session-port-v1.ts';
 import { IMAGE_IMPORT_LIMITS } from '../../common/editor/image-import-admission.ts';
 import { normalizePhotoCatalogRootV1 } from '../catalog/catalog-root.ts';
 import { normalizePhotoDocumentV1 } from '../catalog/photo-document.ts';
-import type { PhotoCatalogContinuationV1 } from '../catalog/repository-types.ts';
+import { PhotoCatalogRevisionConflictError, type PhotoCatalogContinuationV1 } from '../catalog/repository-types.ts';
 import { LIGHTSCAPER_CATALOG_LIMITS } from '../catalog/types.ts';
 import { field, id, integer, name, record } from '../catalog/value-validation.ts';
 import { withPhotoCatalogWriteLockV1 } from '../import/catalog-write-lock-v1.ts';
@@ -14,6 +14,7 @@ import type { PhotoManagedImportPortsV1 } from '../import/managed-import-ports-v
 import { preparePhotoImportGestureV1 } from '../import/photo-import-preparation-v1.ts';
 import { PhotoCommandOwnerV1 } from './photo-command-owner.ts';
 import { normalizePhotoLibraryAttributesV1 } from './photo-library-attributes.ts';
+import { normalizePhotoLibraryMetadataPatchV1, readPhotoLibraryMetadataSnapshotV1 } from './photo-library-metadata.ts';
 import type { PhotoLibraryPreparationOutcomeV1, PhotoLibrarySessionPortsV1 } from './photo-library-session-ports.ts';
 
 /** Product session owns lifetime, bounded presentation pages and a single writer. */
@@ -97,24 +98,48 @@ export class PhotoLibrarySessionV1 implements PhotoLibrarySessionPortV1 {
 
 	async applyAttributes(photoId: string, changes: PhotoLibraryAttributePatchV1, options: Readonly<{ signal?: AbortSignal }> = {}): Promise<PhotoLibraryRowV1> {
 		const key = id(photoId, 'photo ID'), patch = normalizePhotoLibraryAttributesV1(changes);
-		return this.#mutation(async (catalogId, signal) => {
+		return this.#editPhoto(key, async (owner, signal) => {
+			const photo = await owner.execute({ type: 'set-attributes', changes: patch }, { signal });
+			return Object.freeze({ id: photo.id, fileName: photo.metadata.fileName, rating: photo.rating,
+				flag: photo.flag, colorLabel: photo.colorLabel, width: photo.original.width, height: photo.original.height });
+		}, options.signal);
+	}
+
+	async readMetadata(photoId: string, options: Readonly<{ signal?: AbortSignal }> = {}): Promise<PhotoLibraryMetadataSnapshotV1> {
+		const key = id(photoId, 'photo ID');
+		return this.#operation(async signal => {
+			const catalogId = await this.#ready(); signal.throwIfAborted();
+			const photo = await this.#ports.catalog.loadPhoto(catalogId, key);
+			signal.throwIfAborted();
+			if (!photo) throw new ReferenceError('The photo is missing.');
+			return readPhotoLibraryMetadataSnapshotV1(photo);
+		}, options.signal);
+	}
+
+	async applyMetadata(photoId: string, expectedRevision: number, changes: PhotoLibraryMetadataPatchV1,
+		options: Readonly<{ signal?: AbortSignal }> = {}): Promise<PhotoLibraryMetadataSnapshotV1> {
+		const key = id(photoId, 'photo ID'), revision = integer(expectedRevision, 0, Number.MAX_SAFE_INTEGER, 'expected photo revision');
+		const patch = normalizePhotoLibraryMetadataPatchV1(changes);
+		return this.#editPhoto(key, async (owner, signal) => {
+			if (owner.history.present.revision !== revision) throw new PhotoCatalogRevisionConflictError('photo');
+			return readPhotoLibraryMetadataSnapshotV1(await owner.execute({ type: 'set-metadata', changes: patch }, { signal }));
+		}, options.signal);
+	}
+
+	async #editPhoto<Result>(key: string, run: (owner: PhotoCommandOwnerV1, signal: AbortSignal) => Promise<Result>, signal?: AbortSignal): Promise<Result> {
+		return this.#mutation(async (catalogId, admitted) => {
 			if (this.#photo?.history.present.id !== key) {
-				await this.#photo?.close();
-				this.#photo = null;
+				await this.#photo?.close(); this.#photo = null;
 				this.#photo = await PhotoCommandOwnerV1.open(this.#ports.catalog, catalogId, key);
 			} else {
 				const current = await this.#ports.catalog.loadPhoto(catalogId, key);
-				signal.throwIfAborted();
+				admitted.throwIfAborted();
 				if (!current) { await this.#photo.close(); this.#photo = null; throw new ReferenceError('The photo is missing.'); }
-				if (current.revision !== this.#photo.history.present.revision) await this.#photo.reload({ signal });
+				if (current.revision !== this.#photo.history.present.revision) await this.#photo.reload({ signal: admitted });
 			}
-			try {
-				const photo = await this.#photo.execute({ type: 'set-attributes', changes: patch }, { signal });
-				return Object.freeze({ id: photo.id, fileName: photo.metadata.fileName, rating: photo.rating,
-					flag: photo.flag, colorLabel: photo.colorLabel, width: photo.original.width, height: photo.original.height });
-			}
+			try { admitted.throwIfAborted(); return await run(this.#photo, admitted); }
 			catch (error) { await this.#photo.close(); this.#photo = null; throw error; }
-		}, options.signal);
+		}, signal);
 	}
 
 	close(): Promise<void> {

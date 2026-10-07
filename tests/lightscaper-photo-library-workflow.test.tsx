@@ -5,6 +5,7 @@ import test from 'node:test';
 import React, { act, StrictMode, useEffect } from 'react';
 import type { CreatePhotoLibrarySessionV1, PhotoLibraryPageV1, PhotoLibrarySessionPortV1 } from '../src/common/editor/photo-library-session-port-v1.ts';
 import { usePhotoLibraryWorkflow } from '../src/common/editor/ui/lightscaper/use-photo-library-workflow.ts';
+import { emptyPhotoMetadataV1 } from '../src/lightscaper/catalog/photo-metadata.ts';
 import { deferred } from './helpers/async-test-control.ts';
 import { installReactTestDom } from './helpers/react-test-dom.ts';
 
@@ -117,6 +118,31 @@ test('StrictMode remains inert until an action requests one owner and cleanup cl
 	} finally { await mounted.dispose(); }
 });
 
+test('metadata publication updates the existing row only after durable acknowledgment and factory replacement clears its snapshot', async () => {
+	const active = owner(async () => page('Library'));
+	const pending = deferred<Awaited<ReturnType<PhotoLibrarySessionPortV1['applyMetadata']>>>();
+	active.port.applyMetadata = async () => pending.promise;
+	const mounted = await mount(async () => active.port);
+	let work: { pending: Promise<void> } | undefined;
+	try {
+		await act(async () => { await mounted.current.readPage(); await mounted.current.readMetadata(ROW.id); });
+		const snapshot = mounted.current.metadata;
+		assert.ok(snapshot);
+		work = await mounted.start(() => mounted.current.applyMetadata(ROW.id, snapshot.revision, { fileName: 'Renamed.png' }));
+		assert.equal(mounted.current.page?.rows[0]?.fileName, ROW.fileName);
+		assert.equal(mounted.current.metadata?.revision, 0);
+		await act(async () => {
+			pending.resolve({ ...snapshot, revision: 1, metadata: { ...snapshot.metadata, fileName: 'Renamed.png' } });
+			await work!.pending;
+		});
+		assert.equal(mounted.current.page?.rows[0]?.fileName, 'Renamed.png');
+		assert.equal(mounted.current.page?.rows[0]?.id, ROW.id);
+		assert.equal(mounted.current.metadata?.revision, 1);
+		await mounted.render(async () => owner(async () => page('Replacement')).port);
+		assert.equal(mounted.current.metadata, null);
+	} finally { await mounted.dispose(); }
+});
+
 function owner(readPage: PhotoLibrarySessionPortV1['readPage']) {
 	let closes = 0;
 	const port: PhotoLibrarySessionPortV1 = {
@@ -124,6 +150,11 @@ function owner(readPage: PhotoLibrarySessionPortV1['readPage']) {
 		importFiles: async () => Object.freeze([RECEIPT]),
 		setRating: async (_photoId, rating) => Object.freeze({ ...ROW, rating }),
 		applyAttributes: async (_photoId, changes) => Object.freeze({ ...ROW, ...changes }),
+		readMetadata: async () => Object.freeze({ photoId: ROW.id, revision: 0, metadata: emptyPhotoMetadataV1(ROW.fileName),
+			extracted: null, originalFileName: ROW.fileName, originalSha256: 'a'.repeat(64) }),
+		applyMetadata: async (_photoId, expectedRevision, changes) => Object.freeze({ photoId: ROW.id, revision: expectedRevision + 1,
+			metadata: Object.freeze({ ...emptyPhotoMetadataV1(ROW.fileName), ...changes }), extracted: null,
+			originalFileName: ROW.fileName, originalSha256: 'a'.repeat(64) }),
 		close: async () => { closes++; },
 	};
 	return { port, closes: () => closes };
