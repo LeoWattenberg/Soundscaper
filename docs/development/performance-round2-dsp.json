@@ -6,10 +6,15 @@
   "requiresManualAiAssets": false,
   "parity": {
     "fixture": "tests/fixtures/dsp-round2-parity.json",
-    "cases": 146,
-    "provenance": "Independent esbuild bundles captured before editing this worktree at baseRevision; byte hashes compare produced Float32/Float64 PCM and complete spectrum JSON.",
+    "cases": 162,
+    "provenance": "Independent esbuild bundles captured before editing this worktree at baseRevision; byte hashes compare produced Float32/Float64 PCM and complete spectrum JSON. Sixteen sinc rate/partition cases were added from the same frozen baseline bundles; all 146 original hashes remained unchanged.",
     "additionalAdversarialCases": 70,
-    "additionalAdversarialScope": "Signed zero, subnormal, maximal finite, quiet/signaling NaN and infinity words in Normalize, Legacy Compressor and all Distortion modes; zero-amplitude and Nyquist Tone/Chirp geometry. The NaN-offset regression is committed in the Audacity performance suite."
+    "additionalAdversarialScope": "Signed zero, subnormal, maximal finite, quiet/signaling NaN and infinity words in Normalize, Legacy Compressor and all Distortion modes; zero-amplitude and Nyquist Tone/Chirp geometry. The NaN-offset regression is committed in the Audacity performance suite.",
+    "independentReview": {
+      "scenarios": 121,
+      "nativeStaffPadScenarios": 3,
+      "evidence": "Independent timeline-agent review verified finite byte parity and nonfinite value/position parity across generator partitions, resampler boundaries, mutable parameter updates and three actual native StaffPad delay cases. Native finite-overflow boundary regression at output 4872 retains the original NaN."
+    }
   },
   "findings": [
     {
@@ -499,41 +504,61 @@
     },
     {
       "number": 27,
-      "id": "dsp-27-linear-borrowed-chunk",
-      "title": "Interpolate linear chunks without full concatenation copies",
+      "id": "dsp-27-sinc-initial-feed-borrow",
+      "title": "Consume initial sinc input without cloning the full chunk",
       "status": "implemented",
       "source": [
         {
           "file": "src/common/editor/resample.js",
-          "line": 38
+          "line": 132
         }
       ],
-      "avoidedCost": "Only the retained interpolation boundary uses carry PCM; the remainder indexes borrowed current-chunk samples directly.",
+      "avoidedCost": "The production windowed-sinc resampler synchronously borrows input when no retained history exists, avoiding a complete append allocation/copy before convolution.",
       "tests": [
         "tests/audio-editor-round2-resample-delay-performance.test.ts",
-        "tests/audio-editor-round2-dsp-exact-parity.test.ts"
+        "tests/audio-editor-round2-dsp-exact-parity.test.ts",
+        "tests/audio-editor-resample-borrowed-input.test.ts",
+        "tests/audio-editor-take-cycle-routed-capture-service.test.ts",
+        "tests/audio-editor-local-assistance-audio-preparation.test.ts"
       ],
-      "evidence": "Two 1024-frame chunks avoid both large combined-input allocations; sixteen rate/partition hashes remain exact.",
-      "limitations": "Retained history is still copied before returning, so mutating caller chunks cannot change future output."
+      "evidence": "A 1024-frame initial downsample feed allocates zero full 1024-frame input clones instead of one. Nine small/large/rate ownership cases mutate caller input and transfer output after push; future samples match independent private-input execution. Sixteen independent frozen-baseline sinc hashes remain exact.",
+      "limitations": "History is copied or pruned into private storage before push returns. Short feeds that have not yet produced output keep the original one-copy cost; existing-history feeds still append privately. Passthrough remains the existing borrowed-output contract.",
+      "productionCallers": [
+        "src/common/editor/engine/offline-chunk-resample.ts:42",
+        "src/common/editor/chunk-stream-worker.js:280",
+        "src/common/editor/controller/recording/internal/take-cycle/take-cycle-routed-pcm-stream.ts:42",
+        "src/common/editor/controller/source/source-audio.ts:438",
+        "src/common/editor/aup4-import-audio.ts:38"
+      ]
     },
     {
       "number": 28,
-      "id": "dsp-28-linear-output-view",
-      "title": "Trim owned linear output through a view",
+      "id": "dsp-28-sinc-exact-output-array",
+      "title": "Return exact-fit sinc output without remapping its channels",
       "status": "implemented",
       "source": [
         {
           "file": "src/common/editor/resample.js",
-          "line": 74
+          "line": 179
         }
       ],
-      "avoidedCost": "Returning the written prefix of an already-owned output allocation avoids a second full PCM copy for every chunk.",
+      "avoidedCost": "Each exact-fit output chunk already owns the result array and channel buffers. Returning it directly omits a second array allocation and one callback per channel.",
       "tests": [
         "tests/audio-editor-round2-resample-delay-performance.test.ts",
-        "tests/audio-editor-round2-dsp-exact-parity.test.ts"
+        "tests/audio-editor-round2-dsp-exact-parity.test.ts",
+        "tests/audio-editor-streaming-resample-kernel.test.ts",
+        "tests/audio-editor-resample-borrowed-input.test.ts",
+        "tests/audio-editor-runtime-long-sources.test.js"
       ],
-      "evidence": "A stereo 1024-frame chunk avoids copying 1880 output frames; output never aliases caller input.",
-      "limitations": "Each output owns its backing allocation but its buffer may include the small capacity slack; transferred buffers remain independent."
+      "evidence": "Finishing a stereo1024-frame48k\u219244.1k feed calls channel map once for history pruning instead of twice; output/channel ownership is unchanged. Sixteen independent sinc PCM hashes and production offline/live/recording caller tests pass.",
+      "limitations": "Rare overestimated output capacity retains the legacy trimming copy; this change does not claim savings for that path.",
+      "productionCallers": [
+        "src/common/editor/engine/offline-chunk-resample.ts:42",
+        "src/common/editor/chunk-stream-worker.js:280",
+        "src/common/editor/controller/recording/internal/take-cycle/take-cycle-routed-pcm-stream.ts:42",
+        "src/common/editor/controller/source/source-audio.ts:438",
+        "src/common/editor/aup4-import-audio.ts:38"
+      ]
     },
     {
       "number": 29,
@@ -551,8 +576,8 @@
         "tests/audio-editor-round2-resample-delay-performance.test.ts",
         "tests/audio-editor-round2-dsp-exact-parity.test.ts"
       ],
-      "evidence": "A stereo three-tap 1024-frame fixture eliminates 8192 interpolation floors. Nine exact delay fixtures include mix zero and signed zeros.",
-      "limitations": "The original zero-fraction expression is retained for zero samples to preserve signed-zero output."
+      "evidence": "A stereo three-tap 1024-frame fixture eliminates 8192 interpolation floors. Nine exact delay fixtures include mix zero and signed zeros. Actual StaffPad normal amplitude, constant maximal finite and finite-to-overflow transitions retain value/NaN-position parity.",
+      "limitations": "Unpitched nonzero finite samples skip neighbor arithmetic. Zero samples retain original interpolation for signed zero, and all pitched reads retain it because native processing can overflow finite input into adjacent NaN. The finite-overflow NaN-position regression uses real StaffPad."
     },
     {
       "number": 30,
@@ -574,7 +599,7 @@
     }
   ],
   "isolatedMeasurements": {
-    "context": "Node26.5 isolated kernel wall times, warmed alternating pairs; no Electron/app claim",
+    "context": "Node26.5 isolated kernel wall times, warmed alternating pairs; no Electron/app claim; recorded before the final sinc/native-overflow compatibility correction, whose assertions are counted separately.",
     "results": [
       {
         "name": "tone{}",
@@ -737,33 +762,6 @@
         ],
         "medianBefore": 2.4867639999997664,
         "medianAfter": 1.7537860000002183
-      },
-      {
-        "name": "linear-8ch-48k-44k",
-        "before": [
-          18.871883000000253,
-          47.597283999999945,
-          17.18113600000015,
-          34.792619000000286,
-          68.25547800000004,
-          57.24619699999994,
-          40.726554999999735,
-          25.776996999999938,
-          40.28879999999981
-        ],
-        "after": [
-          16.50908699999991,
-          17.284936000000016,
-          25.525576999999885,
-          68.02313000000004,
-          20.20318099999986,
-          22.15023599999995,
-          19.75758399999995,
-          17.176788000000215,
-          23.847107999999935
-        ],
-        "medianBefore": 40.28879999999981,
-        "medianAfter": 20.20318099999986
       },
       {
         "name": "normalize-8ch-10s",
@@ -986,33 +984,6 @@
           "medianAfter": 1.922092000000248
         },
         {
-          "name": "linear-8ch-48k-44k",
-          "before": [
-            47.79943000000003,
-            51.60426400000006,
-            23.318430000000262,
-            25.252568000000338,
-            43.04844400000002,
-            24.41256599999997,
-            57.590423999999985,
-            20.306130999999823,
-            36.72069099999999
-          ],
-          "after": [
-            21.575138000000152,
-            17.144698000000062,
-            25.558223999999882,
-            18.733552000000145,
-            32.26284799999985,
-            22.43057699999963,
-            33.32371499999999,
-            19.290889999999763,
-            47.62491599999976
-          ],
-          "medianBefore": 36.72069099999999,
-          "medianAfter": 22.43057699999963
-        },
-        {
           "name": "normalize-8ch-10s",
           "before": [
             401.4610929999999,
@@ -1068,5 +1039,11 @@
         }
       ]
     }
-  }
+  },
+  "excludedFollowupCandidates": [
+    {
+      "helper": "createStreamingLinearResampler",
+      "reason": "Repository-wide caller audit found only tests; reverted its proposed allocation changes and excluded both candidate counts and isolated timing results. Production sinc replacements occupy findings 27/28."
+    }
+  ]
 }

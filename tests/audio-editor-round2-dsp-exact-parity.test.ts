@@ -10,7 +10,7 @@ import { createAudacityLiveProcessor } from '../src/common/editor/audacity-effec
 import { ReverbLiveProcessor } from '../src/common/editor/audacity-effects/reverb-live-processor.ts';
 import { createAudioEditorSignalRenderer } from '../src/common/editor/signal-generator-renderer.ts';
 import { calculateAudioSpectrum } from '../src/common/editor/audio-spectrum.ts';
-import { createStreamingLinearResampler } from '../src/common/editor/resample.js';
+import { createStreamingLinearResampler, createStreamingWindowedSincResampler } from '../src/common/editor/resample.js';
 import { createStandardDelayProcessor } from '../src/common/editor/first-party-effects/standard/delay-dsp.ts';
 import { createStandardFilterProcessor } from '../src/common/editor/first-party-effects/standard/filters-dsp.ts';
 import { createVocoderProcessor } from '../src/common/editor/first-party-effects/standard/vocoder-dsp.ts';
@@ -91,8 +91,9 @@ function fixtures(): Record<string, string> {
 	for (const size of [32, 256, 2048]) for (const average of [false, true]) {
 		output[`spectrum-${String(size)}-${String(average)}`] = createHash('sha256').update(JSON.stringify(calculateAudioSpectrum(channels, 48000, { size, average, offsetFrame: 17 }))).digest('hex');
 	}
-	for (const rate of [8000, 44100, 48000, 96000]) for (const blockSize of [1, 127, 1024, 8192]) {
-		const resampler = createStreamingLinearResampler(48000, rate, channels.length) as { push(input: Float32Array[]): Float32Array[]; finish(): Float32Array[] };
+	for (const kind of ['linear', 'sinc']) for (const rate of [8000, 44100, 48000, 96000]) for (const blockSize of [1, 127, 1024, 8192]) {
+		const createResampler = kind === 'linear' ? createStreamingLinearResampler : createStreamingWindowedSincResampler;
+		const resampler = createResampler(48000, rate, channels.length) as { push(input: Float32Array[]): Float32Array[]; finish(): Float32Array[] };
 		const blocks: Float32Array[][] = [];
 		for (let start = 0; start < channels[0]!.length; start += blockSize) blocks.push(resampler.push(channels.map(channel => channel.subarray(start, start + blockSize))));
 		blocks.push(resampler.finish());
@@ -100,7 +101,7 @@ function fixtures(): Record<string, string> {
 		const result = channels.map(() => new Float32Array(frames));
 		let offset = 0;
 		for (const block of blocks) { result.forEach((channel, index) => channel.set(block[index]!, offset)); offset += block[0]!.length; }
-		output[`linear-${String(rate)}-${String(blockSize)}`] = digest(result);
+		output[`${kind}-${String(rate)}-${String(blockSize)}`] = digest(result);
 	}
 	for (const mix of [0, .37, 1]) for (const delayType of ['regular', 'bouncing-ball', 'reverse-bouncing-ball']) {
 		const delay = createStandardDelayProcessor({ sampleRate: 8000, channelCount: 3, params: { mix, delayType, echoes: 3, time: .001 } });

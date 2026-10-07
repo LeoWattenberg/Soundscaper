@@ -80,9 +80,9 @@ export function createStandardDelayProcessor({ sampleRate, channelCount, params 
 	}
 	function read(ring: Float32Array, index: number): number {
 		const sample = ring[index];
-		// The original zero-fraction interpolation can choose the sign of zero.
-		// Retain that boundary while ordinary finite samples need one read only.
-		return sample === 0 ? sample + 0 * (ring[index + 1 === length ? 0 : index + 1] - sample) : sample;
+		// Native pitch processing can overflow finite input into a neighboring NaN.
+		// Preserve its zero-fraction interpolation and the sign of unpitched zero.
+		return pitched || sample === 0 ? sample + 0 * (ring[index + 1 === length ? 0 : index + 1] - sample) : sample;
 	}
 	function reset() { for (const ring of rings) ring.fill(0); for (const stream of pitchStreams) stream.reset(); writeIndex = 0; }
 	configure(params);
