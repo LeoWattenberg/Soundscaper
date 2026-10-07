@@ -344,6 +344,11 @@ application overrides and source patches against the pin and upstream master.
     Its draft wrapper parses a complete finite number on Enter or blur, preserving
     decimals and scientific notation and refusing incomplete or trailing text.
     Teardown cancels its deferred outside-click listener initialization.
+47. `TimeCode` ends digit editing whenever its format menu opens, including a
+    pointer press after editing a digit. Format navigation cannot change the
+    preceding time value; keyboard and pointer entry share this handoff. Its
+    document listener handles digit keys only while focus remains in its own
+    control, so command search retains numeric typing after Ctrl+K.
 
 ## Application-side adaptations
 

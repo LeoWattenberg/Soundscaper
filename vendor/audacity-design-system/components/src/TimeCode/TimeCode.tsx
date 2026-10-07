@@ -151,7 +151,6 @@ export function TimeCode({
     if (!onChange) return;
 
     // Find which segment and digit position this corresponds to
-    let currentGlobalIndex = 0;
     let targetSegmentIndex = -1;
     let targetDigitPosition = -1;
 
@@ -208,6 +207,8 @@ export function TimeCode({
 
   const openMenu = (viaKeyboard = false) => {
     if (disabled || !buttonRef.current) return;
+    setIsEditing(false);
+    setEditingDigitIndex(null);
 
     const rect = buttonRef.current.getBoundingClientRect();
     setMenuPosition({
@@ -228,6 +229,7 @@ export function TimeCode({
     if (!isEditing || editingDigitIndex === null || disabled) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (!containerRef.current?.contains(document.activeElement)) return;
       // Tab (with or without Shift): Exit edit mode and move to next/prev tab group
       if (e.key === 'Tab') {
         setIsEditing(false);
@@ -326,8 +328,6 @@ export function TimeCode({
       else if (e.key === 'F10' && e.shiftKey && showFormatSelector) {
         e.preventDefault();
         e.stopPropagation();
-        setIsEditing(false);
-        setEditingDigitIndex(null);
         openMenu(true);
       }
       // Escape to exit editing and return focus to container

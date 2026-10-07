@@ -37,6 +37,7 @@ test('Enter confirms the current digit draft once before the field loses focus',
 	try {
 		await act(async () => root.render(<AudioEditorTimeCodeInput label="End" value={0}
 			onCommit={(value) => { saved.push(value); }} />));
+		dom.one('.timecode-digit').focus();
 		await act(async () => reactProps(dom.one('.timecode-digit')).onClick());
 		await press('1');
 		assert.deepEqual(saved, []);
