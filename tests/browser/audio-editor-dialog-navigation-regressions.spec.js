@@ -38,3 +38,40 @@ test('a realtime effect header remains reachable after dragging toward the windo
 	expect(after.y).toBeGreaterThanOrEqual(0);
 	expect(after.x + after.width).toBeGreaterThanOrEqual(48);
 });
+
+async function moveReverbToWindowEdge(page) {
+	const editor = await bootEditor(page, '/embed/en/');
+	await chooseCommandAction(page, editor, 'Generate', 'Tone');
+	await page.getByRole('dialog', { name: 'Tone', exact: true }).getByRole('button', { name: 'Generate', exact: true }).click();
+	const effects = await openEffectsForTrack(editor, 0);
+	await addRackEffect(page, effects, 'track', 'Reverb');
+	const dialog = page.getByRole('dialog', { name: 'Reverb', exact: true });
+	const header = dialog.locator('.dialog-header');
+	const before = await header.boundingBox();
+	await page.mouse.move(before.x + before.width / 2, before.y + before.height / 2);
+	await page.mouse.down();
+	await page.mouse.move(1, 1, { steps: 5 });
+	await page.mouse.up();
+	expect((await header.boundingBox()).y).toBeGreaterThanOrEqual(0);
+	return { dialog, header };
+}
+
+test('a moved realtime effect title stays reachable when the browser window becomes shorter', async ({ page }) => {
+	const { header } = await moveReverbToWindowEdge(page);
+	const viewport = page.viewportSize();
+	await page.setViewportSize({ width: viewport.width, height: viewport.height - 59 });
+	await expect.poll(async () => (await header.boundingBox()).y).toBeGreaterThanOrEqual(0);
+	await expect(header.getByRole('button', { name: 'Close', exact: true })).toBeInViewport();
+});
+
+test('a moved realtime effect title stays reachable when its resize control enlarges the body', async ({ page }) => {
+	const { dialog, header } = await moveReverbToWindowEdge(page);
+	const before = await dialog.boundingBox();
+	const resize = dialog.getByRole('button', { name: 'Resize: Reverb', exact: true });
+	await resize.focus();
+	await resize.press('ArrowDown');
+	await resize.press('ArrowDown');
+	await expect.poll(async () => (await dialog.boundingBox()).height).toBe(before.height + 32);
+	await expect.poll(async () => (await header.boundingBox()).y).toBeGreaterThanOrEqual(0);
+	await expect(header.getByRole('button', { name: 'Close', exact: true })).toBeInViewport();
+});

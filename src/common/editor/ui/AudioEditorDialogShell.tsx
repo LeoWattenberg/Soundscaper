@@ -14,7 +14,7 @@ import AudioEditorResizableSurface from './AudioEditorResizableSurface.jsx';
 import { retainAudioEditorDialogEscapeOwner } from './dialog-escape-ownership.ts';
 import { retainAudioEditorDialogFocusOwner } from './dialog-focus-ownership.ts';
 import { resolveEditorReturnFocus, restoreEditorDialogReturnFocus } from './focus-restoration.ts';
-import { constrainDialogDragOffset } from './dialog-drag-bounds.ts';
+import { constrainDialogDragOffset, retainDialogGeometryLifecycle } from './dialog-drag-bounds.ts';
 import { retainDialogMoveLifecycle } from './dialog-move-lifecycle.ts';
 
 interface ResizableSurfaceProps extends React.HTMLAttributes<HTMLElement> {
@@ -70,6 +70,7 @@ interface DragSession {
 	readonly startY: number;
 	readonly startOffset: Readonly<{ x: number; y: number }>;
 	readonly headerBounds: DOMRect;
+	readonly header: Element;
 }
 
 /**
@@ -107,7 +108,28 @@ export default function AudioEditorDialogShell({
 	const dragRef = useRef<DragSession | null>(null);
 	const dragCleanupRef = useRef<(() => void) | null>(null);
 	const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+	const renderedOffsetRef = useRef(dragOffset);
 	onCloseRef.current = onClose;
+	const reconcileGeometry = useCallback(() => {
+		const header = panelRef.current?.querySelector('.dialog-header');
+		const bounds = header?.getBoundingClientRect();
+		if (!bounds?.width || !bounds.height) return;
+		const rendered = renderedOffsetRef.current;
+		const corrected = constrainDialogDragOffset(rendered, rendered, bounds, {
+			width: window.innerWidth, height: window.innerHeight,
+		});
+		if (corrected.x === rendered.x && corrected.y === rendered.y) return;
+		setDragOffset(current => current === rendered ? corrected : current);
+	}, []);
+	useLayoutEffect(() => {
+		renderedOffsetRef.current = dragOffset;
+		if (isOpen && draggable) reconcileGeometry();
+	}, [dragOffset, draggable, isOpen, reconcileGeometry]);
+	useLayoutEffect(() => {
+		const panel = panelRef.current;
+		if (!isOpen || !draggable || !panel) return undefined;
+		return retainDialogGeometryLifecycle(panel, window, reconcileGeometry);
+	}, [draggable, isOpen, reconcileGeometry]);
 
 	const stopDragging = useCallback(() => {
 		dragRef.current = null;
@@ -129,14 +151,17 @@ export default function AudioEditorDialogShell({
 			startY: event.clientY,
 			startOffset: dragOffset,
 			headerBounds: event.currentTarget.getBoundingClientRect(),
+			header: event.currentTarget,
 		};
 		const handleMouseMove = (moveEvent: MouseEvent) => {
 			const drag = dragRef.current;
 			if (!drag) return;
+			const header = drag.header.getBoundingClientRect();
+			const rendered = renderedOffsetRef.current;
 			setDragOffset(constrainDialogDragOffset({
-				x: drag.startOffset.x + moveEvent.clientX - drag.startX,
-				y: drag.startOffset.y + moveEvent.clientY - drag.startY,
-			}, drag.startOffset, drag.headerBounds, {
+				x: rendered.x + moveEvent.clientX - header.left - (drag.startX - drag.headerBounds.left),
+				y: rendered.y + moveEvent.clientY - header.top - (drag.startY - drag.headerBounds.top),
+			}, rendered, header, {
 				width: window.innerWidth, height: window.innerHeight,
 			}));
 		};

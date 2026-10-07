@@ -25,3 +25,22 @@ export function constrainDialogDragOffset(
 			startOffset.y + viewport.height - 8 - header.bottom),
 	};
 }
+
+/** Centered windows can move their title when content or browser dimensions change. */
+export function retainDialogGeometryLifecycle(
+	panel: HTMLElement,
+	view: Window,
+	onGeometryChange: () => void,
+): () => void {
+	let retained = true;
+	const changed = () => { if (retained) onGeometryChange(); };
+	const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(changed);
+	observer?.observe(panel);
+	view.addEventListener('resize', changed);
+	return () => {
+		if (!retained) return;
+		retained = false;
+		observer?.disconnect();
+		view.removeEventListener('resize', changed);
+	};
+}
