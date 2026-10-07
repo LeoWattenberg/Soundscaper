@@ -153,6 +153,7 @@ export function createEffectAudioService<Buffer = EffectAudioBuffer>(runtime: Ef
 			if (effectIndex < 0) throw createLocalizedError(Error, runtime.copy, 'rackEffectNotFound');
 			snapshot.master.effects = snapshot.master.effects.slice(0, effectIndex);
 			snapshot.master.gain = 1;
+			snapshot.master.mute = false;
 		}
 		await runtime.prepareCommittedTimePitchCaches(snapshot);
 		runtime.assertProject(token);

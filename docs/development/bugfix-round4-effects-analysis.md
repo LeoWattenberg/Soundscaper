@@ -210,5 +210,28 @@ Regression files are `audio-editor-round4-live-spectrum-phase.test.ts` and
 `audio-editor-round4-live-spectrum-phase.spec.js`; evidence is recorded in
 `/tmp/soundscaper-r4-root-live-phase-*`.
 
+## R4-ROOT-010 — Muting Master makes its captured noise profile silent
+
+Import an ordinary recording, select all and open Window → Mixer. Mute Master,
+add Noise Reduction to its rack and press Get noise profile. Close the effect,
+unmute Master and export WAV. The baseline captures the post-mute silence,
+leaving the default reduction ineffective: the steady exported peak is 0.24747
+instead of the expected approximately 0.124.
+
+Neutralize the master listening mute in the existing detached prefix render,
+alongside the already-neutral gain. Retain upstream mixer state and earlier
+effects, exclude the profiled effect and its successors, and leave the authored
+project unchanged. This existing master renderer is independent of 007's bus
+scope admission and isolated bus capture.
+
+The unchanged public picker/menu/download workflow fails on immutable baseline
+`a0322d6e4` and passes in Chromium, Firefox and WebKit on clean owned
+`muted-master-clean9` (3/3). The strict pre-fader/prefix/immutability regression
+was red before the fix; it and existing bus, audio and control cases pass 40/40.
+Targeted lint passes. Regression files are
+`audio-editor-round4-muted-master-profile.test.ts` and
+`audio-editor-round4-muted-master-profile.spec.js`; evidence is recorded in
+`/tmp/soundscaper-r4-root-muted-master-*`.
+
 These browser DSP, UI, and regression changes retain the assistance runtime closure.
 A manual **Update AI assets** run is not required.

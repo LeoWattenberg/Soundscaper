@@ -58,7 +58,7 @@ export interface EffectAudioProject extends Readonly<Record<string, unknown>> {
 	readonly clips: readonly EffectAudioClip[];
 	readonly sources: readonly ProjectVisualSource[];
 	readonly selection?: EffectSelection | null;
-	readonly master: Readonly<{ readonly gain?: number; readonly effects: readonly EffectAudioEffect[] }>;
+	readonly master: Readonly<{ readonly gain?: number; readonly mute?: boolean; readonly effects: readonly EffectAudioEffect[] }>;
 	readonly mixer: NonNullable<EngineProject['mixer']>;
 }
 
@@ -84,7 +84,7 @@ export interface MutableEffectAudioProject extends Record<string, unknown> {
 	clips: EffectAudioClip[];
 	sources: ProjectVisualSource[];
 	selection: EffectSelection | null;
-	master: { gain?: number; effects: EffectAudioEffect[] };
+	master: { gain?: number; mute?: boolean; effects: EffectAudioEffect[] };
 	mixer: Record<string, unknown>;
 }
 
