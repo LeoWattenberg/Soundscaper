@@ -4,7 +4,6 @@ import { compareCodeUnits } from '../code-unit-order.ts';
 import {
 	assertFrame,
 	clipEndFrame,
-	clipsOverlap,
 	createStableId,
 	normalizeFrameRange,
 } from '../project.js';
@@ -35,12 +34,10 @@ import {
 	pasteSpanForSequence,
 	pasteSpanForTrack,
 	pasteTrackGroups,
-	sequenceForTrack,
 } from './clipboard-time-runtime.js';
 import {
 	cloneBreakpointMap,
 	cloneRational,
-	scaleClipboardClip,
 } from './clipboard-clip-scaling-runtime.js';
 import {
 	createTimelineAnnotationClipboardDescriptors,
@@ -59,8 +56,6 @@ import {
 	processTrackRange,
 } from './range-runtime.js';
 import {
-	assertClipSourceBounds,
-	assertClipSpace,
 	assertUnusedClipId,
 	normalizeClipForProject,
 	prepareVideoEffectIds,
@@ -70,6 +65,10 @@ import {
 	segmentOfClip,
 	sortTrack,
 } from './shared-runtime.js';
+import { firstById } from './editing-work-index.ts';
+import { createClipEditIndex, mediaClipOwnerIndex, readTrackClips, requireIndexedOwner, requireIndexedTrack } from './clip-edit-index.ts';
+import { clipboardFeatureFlags, createClipboardSequenceReader } from './clipboard-work-index.ts';
+import { stageClipboardClipAdditions } from './clipboard-clip-additions.ts';
 import { cloneVideoCompositionCarrierFields } from './video-composition-carrier.ts';
 import { cloneVideoKeyframeCarrierFields } from './video-keyframe-carrier.ts';
 
@@ -78,24 +77,27 @@ import { cloneVideoKeyframeCarrierFields } from './video-keyframe-carrier.ts';
 
 export function createClipboardDescriptor(project, options = {}) {
 	const range = normalizeFrameRange(options.startFrame, options.endFrame, 'clipboard range');
+	const trackById = firstById(project.tracks);
+	const clipIndex = createClipEditIndex(project.clips);
 	const requestedTrackIds = options.trackIds || project.tracks.filter((track) => Array.isArray(track.clipIds)).map((track) => track.id);
-	const requestedTracks = requestedTrackIds.map((trackId) => requireTrack(project, trackId));
+	const requestedTracks = requestedTrackIds.map((trackId) => requireIndexedTrack(trackById, trackId));
 	const baseClipIds = options.clipIds
 		? collectRelatedClipIds(project, options.clipIds)
 		: requestedTracks.flatMap((track) => track.clipIds.filter((clipId) => {
-			const clip = requireClip(project, clipId);
+			const clip = clipIndex.require(clipId);
 			return clip.timelineStartFrame < range.endFrame && clipEndFrame(clip) > range.startFrame;
 		}));
 	const includedClipIds = new Set(collectAvLinkedClipIds(project, baseClipIds));
+	const owners = mediaClipOwnerIndex(project.tracks, includedClipIds);
 	const trackIdSet = new Set(requestedTrackIds);
-	for (const clipId of includedClipIds) trackIdSet.add(requireClipTrack(project, clipId).id);
+	for (const clipId of includedClipIds) trackIdSet.add(requireIndexedOwner(owners, clipId).id);
 	const trackIds = project.tracks
 		.filter((track) => trackIdSet.has(track.id) && Array.isArray(track.clipIds))
 		.map((track) => track.id);
 	const pairedLaneGroupIds = new Set();
 	const laneGroups = new Map();
 	for (const trackId of trackIds) {
-		const track = requireTrack(project, trackId);
+		const track = requireIndexedTrack(trackById, trackId);
 		if (!track.laneGroupId) continue;
 		const tracks = laneGroups.get(track.laneGroupId) || [];
 		tracks.push(track);
@@ -110,22 +112,21 @@ export function createClipboardDescriptor(project, options = {}) {
 	}
 	const currentClipboard = isTimelineAnnotationProjectSchema(project);
 	const takeClipboard = isTakeCompProjectSchema(project);
-	const keyframeClipboard = [...project.clips, ...(project.projectBin?.clips || [])]
-		.some((clip) => clip.kind === 'video' && Object.hasOwn(clip, 'videoKeyframes'));
-	const compositionClipboard = [...project.clips, ...(project.projectBin?.clips || [])]
-		.some((clip) => clip.kind === 'video' && Object.hasOwn(clip, 'videoComposition'));
-	const sourceSequenceIds = currentClipboard
-		? [...new Set(trackIds.map((trackId) => sequenceForTrack(project, trackId).id))]
-		: [];
+	const { keyframeClipboard, compositionClipboard } = clipboardFeatureFlags(project.clips, project.projectBin?.clips || []);
+	const readSequence = currentClipboard ? createClipboardSequenceReader(project, trackById) : null;
+	const sequenceByTrackId = currentClipboard
+		? new Map(trackIds.map((trackId) => [trackId, readSequence(trackId)]))
+		: new Map();
+	const sourceSequenceIds = [...new Set([...sequenceByTrackId.values()].map((sequence) => sequence.id))];
 	const descriptor = {
 		schemaVersion: keyframeClipboard ? 6 : compositionClipboard ? 5 : takeClipboard ? 4 : currentClipboard ? 3 : 2,
 		sampleRate: project.sampleRate,
 		durationFrames: range.durationFrames,
 		tracks: trackIds.map((trackId) => {
-			const track = requireTrack(project, trackId);
+			const track = requireIndexedTrack(trackById, trackId);
 			const clips = track.clipIds.flatMap((clipId) => {
 				if (!includedClipIds.has(clipId)) return [];
-				const clip = requireClip(project, clipId);
+				const clip = clipIndex.require(clipId);
 				const startFrame = Math.max(range.startFrame, clip.timelineStartFrame);
 				const endFrame = Math.min(range.endFrame, clipEndFrame(clip));
 				if (endFrame <= startFrame) return [];
@@ -189,7 +190,7 @@ export function createClipboardDescriptor(project, options = {}) {
 				sourceTrackId: track.id,
 				sourceTrackName: track.name,
 				sourceTrackType: track.type || 'audio',
-				...(currentClipboard ? { sourceSequenceId: sequenceForTrack(project, track.id).id } : {}),
+				...(currentClipboard ? { sourceSequenceId: sequenceByTrackId.get(track.id).id } : {}),
 				sourceLaneGroupId: track.laneGroupId && pairedLaneGroupIds.has(track.laneGroupId)
 					? track.laneGroupId
 					: null,
@@ -367,40 +368,9 @@ export function pasteClipboard(project, command) {
 			);
 		}
 	}
-	const additions = [];
-	for (const clipboardTrack of clipboard.tracks || []) {
-		const targetTrack = requireTrack(project, command.trackMap?.[clipboardTrack.sourceTrackId] || clipboardTrack.sourceTrackId);
-		const targetSequence = hasSequenceGeometryProjectAuthority(project)
-			? sequenceForTrack(project, targetTrack.id)
-			: null;
-		const conformedAnchor = targetSequence ? conformedAnchorBySequenceId.get(targetSequence.id) : null;
-		for (const descriptor of clipboardTrack.clips || []) {
-			const id = command.clipIds?.[descriptor.key];
-			if (!id) throw new TypeError(`A stable pasted clip ID is required for ${descriptor.key}.`);
-			assertUnusedClipId(project, id);
-			const clip = normalizeClipForProject(project, scaleClipboardClip(
-				descriptor,
-				scale,
-				atFrame,
-				id,
-				command.groupIds || {},
-					command.avLinkIds || {},
-					command.videoEffectIds?.[descriptor.key],
-					targetSequence,
-					conformedAnchor,
-				));
-			assertClipSourceBounds(project, clip);
-			if (mode === 'reject') {
-				const existing = targetTrack.clipIds.map((clipId) => requireClip(project, clipId));
-				const pending = additions.filter((addition) => addition.track.id === targetTrack.id).map((addition) => addition.clip);
-				if ([...existing, ...pending].some((candidate) => clipsOverlap(candidate, clip))) {
-					throw new RangeError(`Clip overlaps existing material on track ${targetTrack.id}.`);
-				}
-			}
-			assertClipSpace(project, targetTrack, clip, null, additions.filter((addition) => addition.track.id === targetTrack.id).map((addition) => addition.clip));
-			additions.push({ track: targetTrack, clip });
-		}
-	}
+	const additions = stageClipboardClipAdditions(
+		project, clipboard, command, scale, atFrame, mode, conformedAnchorBySequenceId,
+	);
 	for (const { track, clip } of additions) {
 		project.clips.push(clip);
 		track.clipIds.push(clip.id);
@@ -490,7 +460,7 @@ function insertSpaceOnTrack(
 	videoEffectIds = {},
 	affectedClipIds = null,
 ) {
-	const originals = track.clipIds.map((clipId) => requireClip(project, clipId));
+	const originals = readTrackClips(project, track);
 	const replacements = [];
 	const deletedIds = new Set(track.clipIds);
 	for (const clip of originals) {
