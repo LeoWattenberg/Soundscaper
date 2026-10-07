@@ -298,7 +298,7 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, fil
 					}}
 					copy={copy}
 					disabled={blocked}
-					sampleRate={project?.sampleRate || AUDIO_EDITOR_SAMPLE_RATE}
+					sampleRate={controller.actions.effects.readSourceSelectionSampleRate?.() ?? project?.sampleRate ?? AUDIO_EDITOR_SAMPLE_RATE}
 					tracks={project?.tracks || []}
 					targetTrackId={effectTargetTrack?.id || null}
 					captureNoiseProfile={selectionType === 'audacity-noise-reduction'

@@ -402,7 +402,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 			materializeFreesoundUpload: materializeFreesoundUploadClip,
 		}),
 		effects: Object.freeze({
-			setSourceSelection: scope.setSourceSelection, readSourceSelectionDuration: scope.readSourceSelectionDuration, loadSourceAudio: scope.loadSourceAudio, loadSourceAudioWindow: scope.loadSourceAudioWindow,
+			setSourceSelection: scope.setSourceSelection, readSourceSelectionDuration: scope.readSourceSelectionDuration, readSourceSelectionSampleRate: scope.readSourceSelectionSampleRate, loadSourceAudio: scope.loadSourceAudio, loadSourceAudioWindow: scope.loadSourceAudioWindow,
 			add: restricted('audioEffects', addEffect),
 			update: restricted('audioEffects', updateRackEffect),
 			copy: restricted('audioEffects', copyRackEffect),

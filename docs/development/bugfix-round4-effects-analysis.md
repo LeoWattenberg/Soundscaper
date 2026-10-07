@@ -31,5 +31,28 @@ Regression files: `audacity-effects-round4-loudness-clock.test.ts` and
 `audio-editor-round4-loudness-clock.spec.js`. Local baseline, strict, build, and
 browser evidence is recorded in `/tmp/soundscaper-r4-root-loudness-clock-*`.
 
-These browser DSP and regression changes retain the assistance runtime closure.
+## R4-ROOT-002 — Source effect controls use the project frequency limit
+
+Import an ordinary 11,025 Hz recording into the 48 kHz editor. Open its Clip
+properties, select the entire Source waveform with Ctrl+A, then choose
+Effect → EQ and filters → High-pass filter. Enter 6,000 Hz in Cutoff frequency.
+The baseline accepted the value as valid even though the selected source's
+Nyquist limit is 5,512.5 Hz and its processor cannot accept that cutoff.
+
+Expose the source selection's native sample rate through its existing effect
+service and action facade, and use it for the selection dialog's controls and
+graphs. The ordinary timeline selection continues to use the project rate.
+The public baseline accepts 6,000 Hz without an invalid indication; the corrected
+dialog marks it invalid, accepts 5,512.4 Hz, and applies the filter successfully.
+This differs from the earlier unsupported Change Pitch parameter bug: here the
+dialog used the wrong clock for an independently selected source.
+
+The complete public workflow passes Chromium, Firefox, and WebKit on the clean
+owned `source-effect-rate-clean1` build, which retains the production startup
+limits. All 21 focused source, action-boundary, and mounted selection-dialog tests
+pass. Regression files are `audio-editor-round4-source-effect-rate.test.ts` and
+`audio-editor-round4-source-effect-controls.spec.js`; local evidence is recorded
+in `/tmp/soundscaper-r4-root-source-effect-*`.
+
+These browser DSP, UI, and regression changes retain the assistance runtime closure.
 A manual **Update AI assets** run is not required.

@@ -122,7 +122,8 @@ export function createSourceEditorEffects<Buffer extends AudioBufferLike>(depend
 		const current = target();
 		return current?.sourceSampleRate ? current.durationFrames / current.sourceSampleRate : null;
 	}
-	return Object.freeze({ setSourceSelection, target, readSourceSelectionDuration, loadSourceAudio, loadSourceAudioWindow, renderRange, expandResult });
+	function readSourceSelectionSampleRate(): number | null { return target()?.sourceSampleRate ?? null; }
+	return Object.freeze({ setSourceSelection, target, readSourceSelectionDuration, readSourceSelectionSampleRate, loadSourceAudio, loadSourceAudioWindow, renderRange, expandResult });
 }
 
 function findSource(project: EffectSelectionProject, sourceId: string): SourceEditorAudioSource | null {
