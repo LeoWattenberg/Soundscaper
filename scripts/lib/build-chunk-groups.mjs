@@ -58,10 +58,10 @@ import {
 	editorOptionalAssistanceModule,
 	editorOptionalCaptureControllerModule,
 	editorOptionalControllerModule,
-	editorOptionalSurfaceModule,
 	editorPath,
 } from './build-chunk-tests.mjs';
 import { withUiPreparationChunkTest } from './build-chunk-ui-preparation.mjs';
+import { editorUiChunkGroups } from './build-chunk-editor-ui.mjs';
 
 // The membership patterns keep their long-standing import site.
 export {
@@ -452,13 +452,7 @@ export const chunkGroups = [
 		maxSize: 400_000,
 		includeDependenciesRecursively: false,
 	},
-	{
-		name: 'editor-shell',
-		test: new RegExp(`(?:${editorPath}(?!${editorOptionalSurfaceModule}$)ui[\\\\/](?!(?:lightscaper[\\\\/]|dialogs[\\\\/](?!(?:editor-dialog-model\\.js|AssistanceLoadingDialog\\.tsx)$)|inspector[\\\\/]))|src[\\\\/]common[\\\\/](?:products\\.js|url\\.ts)$|src[\\\\/]common[\\\\/]offline[\\\\/](?:file-handler-launch|install-prompt|share-target-launch)\\.ts$|src[\\\\/]soundscaper[\\\\/](?:editor-capture-toolbar-control|editor-framescaper-overlay-model|editor-video-preview-product-runtime|editor-application-menu-product-runtime|editor-workspace-application-menu-runtime|editor-workspace-panel-runtime)\\.(?:js|tsx?)$|src[\\\\/]framescaper[\\\\/]editor-soundscaper-workflow-product-runtime\\.tsx$)`),
-		priority: 70,
-		maxSize: 400_000,
-		includeDependenciesRecursively: false,
-	},
+	...editorUiChunkGroups,
 	{
 		// The schema, planners, assistance domain, and value tables the shell and dialogs share.
 		// They are owned here rather than placed by reachability; see the module

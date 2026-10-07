@@ -49,6 +49,10 @@ export const EAGER_CHUNK_GROUPS: ReadonlySet<string> = new Set([
 	'editor-production-meter',
 	'editor-presentation',
 	'editor-shell',
+	// Ready audio/video tooltips, overlays and workspace dialogs already import
+	// these neutral leaves. Product-specific startup budgets still measure when
+	// Lightscaper reaches its menu-opened dialog owner.
+	'editor-dialog-foundations',
 	'editor-shell-design-components',
 	'editor-web-bootstrap',
 	'editor-storage-model',
