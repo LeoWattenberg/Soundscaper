@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { indexedLaneBlocks, removedClipIds } from './track-mixer-work.ts';
 import { compareCodeUnits } from '../code-unit-order.ts';
 import { deriveFolderBusOwnershipV13 } from '../folder-bus-v13.ts';
 import { insertTrackNodeV12 } from '../track-hierarchy-mutation-v12.ts';
@@ -101,7 +102,7 @@ function removeTrack(project, trackId) {
 export function removeTracksAndDependents(project, trackIds) {
 	const removedTrackIds = new Set(trackIds.map(String));
 	const removedTracks = project.tracks.filter((track) => removedTrackIds.has(String(track.id)));
-	const clipIds = new Set(removedTracks.flatMap((track) => track.clipIds || []));
+	const clipIds = removedClipIds(removedTracks);
 	project.clips = project.clips.filter((clip) => !clipIds.has(clip.id));
 	project.tracks = project.tracks.filter((track) => !removedTrackIds.has(String(track.id)));
 	// A take graph is owned by one track, and the document refuses a group whose
@@ -146,22 +147,28 @@ function disableAutoDuckForRemovedControlTrack(project, controlTrackId) {
 	}
 }
 
+const TRACK_UPDATE_FIELDS = {
+	label: new Set(['name', 'collapsed', 'height', 'locked']),
+	video: new Set(['name', 'mute', 'solo', 'hidden', 'collapsed', 'height', 'locked', 'laneGroupId']),
+	audio: new Set(['name', 'gain', 'pan', 'mute', 'solo', 'armed', 'effectsActive', 'locked', 'laneGroupId',
+		'displayMode', 'halfWave', 'showRms', 'color', 'spectrogram', 'envelope', 'collapsed', 'height']),
+};
+
 function updateTrack(project, trackId, changes = {}) {
 	const track = requireTrack(project, trackId);
 	if (track.type === 'label') {
-		const allowed = new Set(['name', 'collapsed', 'height', 'locked']);
+		const allowed = TRACK_UPDATE_FIELDS.label;
 		for (const key of Object.keys(changes)) if (!allowed.has(key)) throw new RangeError(`Label track field cannot be updated: ${key}.`);
 		Object.assign(track, normalizeTrackForProject(project, { ...track, ...changes, labels: track.labels }));
 		return;
 	}
 	if (track.type === 'video') {
-		const allowed = new Set(['name', 'mute', 'solo', 'hidden', 'collapsed', 'height', 'locked', 'laneGroupId']);
+		const allowed = TRACK_UPDATE_FIELDS.video;
 		for (const key of Object.keys(changes)) if (!allowed.has(key)) throw new RangeError(`Video track field cannot be updated: ${key}.`);
 		Object.assign(track, normalizeTrackForProject(project, { ...track, ...changes, clipIds: track.clipIds }));
 		return;
 	}
-	const allowed = new Set(['name', 'gain', 'pan', 'mute', 'solo', 'armed', 'effectsActive', 'locked', 'laneGroupId']);
-	for (const key of ['displayMode', 'halfWave', 'showRms', 'color', 'spectrogram', 'envelope', 'collapsed', 'height']) allowed.add(key);
+	const allowed = TRACK_UPDATE_FIELDS.audio;
 	for (const key of Object.keys(changes)) if (!allowed.has(key)) throw new RangeError(`Track field cannot be updated: ${key}.`);
 	const updated = normalizeTrackForProject(project, { ...track, ...changes, effects: track.effects, clipIds: track.clipIds });
 	Object.assign(track, updated);
@@ -180,6 +187,18 @@ function reorderTrack(project, trackId, requestedIndex) {
 		return;
 	}
 	if (project.tracks.some((track) => track.laneGroupId)) {
+		const prepared = indexedLaneBlocks(project.tracks);
+		if (prepared) {
+			const { blocks, firstBlock } = prepared;
+			const source = firstBlock.get(trackId);
+			const destination = firstBlock.get(project.tracks[index].id);
+			if (source === destination) return;
+			const [block] = blocks.splice(source, 1);
+			const adjusted = destination - (source < destination ? 1 : 0);
+			blocks.splice(index < fromIndex ? adjusted : adjusted + 1, 0, block);
+			project.tracks = blocks.flat();
+			return;
+		}
 		const blocks = [];
 		const consumedLaneGroups = new Set();
 		for (const track of project.tracks) {
@@ -240,9 +259,11 @@ function removeLabel(project, trackId, labelId) {
 	track.labels.splice(index, 1);
 }
 
+const MASTER_UPDATE_FIELDS = new Set(['gain', 'pan', 'mute', 'solo', 'envelope', 'collapsed', 'effectsActive']);
+
 function updateMaster(project, changes = {}) {
 	const keys = Object.keys(changes);
-	const allowed = new Set(['gain', 'pan', 'mute', 'solo', 'envelope', 'collapsed', 'effectsActive']);
+	const allowed = MASTER_UPDATE_FIELDS;
 	if (keys.some((key) => !allowed.has(key))) throw new RangeError('Unsupported master mixer field.');
 	const normalized = createAudioMaster({ ...project.master, ...changes, effects: project.master.effects });
 	for (const key of keys) project.master[key] = normalized[key];

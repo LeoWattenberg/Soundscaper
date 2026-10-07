@@ -57,7 +57,8 @@ function addBus(
 	const collection = stripCollection(graph, kind);
 	const value = dataRecord(command.bus, 'mixer bus');
 	const id = stableId(value.id, 'mixer bus.id');
-	if ([...graph.groups, ...graph.sends, ...graph.cues].some((strip) => strip.id === id)) {
+	if (graph.groups.some((strip) => strip.id === id) || graph.sends.some((strip) => strip.id === id)
+		|| graph.cues.some((strip) => strip.id === id)) {
 		throw new RangeError(`Duplicate mixer node ID: ${id}.`);
 	}
 	const strip = normalizeAddedStrip(value, kind, collection.length, project.masterChannels);
@@ -177,12 +178,13 @@ function updateRoute(
 			&& edge.source.kind === 'track' && edge.source.id === command.trackId
 			&& isMixerTrackSurfaceAssignmentV21(graph, edge, command.trackId, surfaceWidths)));
 		const groupId = nullableId(changes.groupId, 'mixer route groupId');
-		const destination = groupId === null
+		const group = groupId === null ? null : requireStrip(graph.groups, groupId, 'group');
+		const destination = group === null
 			? { kind: 'master' as const }
-			: { kind: 'mixer-node' as const, id: requireStrip(graph.groups, groupId, 'group').id };
-		const destinationChannels = groupId === null
+			: { kind: 'mixer-node' as const, id: group.id };
+		const destinationChannels = group === null
 			? project.masterChannels
-			: requireStrip(graph.groups, groupId, 'group').channelCount;
+			: group.channelCount;
 		edges.push(trackAssignment(command.trackId, destination, sourceChannels, destinationChannels));
 	}
 	if (Object.hasOwn(changes, 'sends')) {
@@ -197,7 +199,7 @@ function updateRoute(
 			))) {
 				throw new RangeError('This track has advanced send edges; edit it in the routing graph.');
 			}
-			edges = edges.filter((edge) => !matching.includes(edge));
+			if (matching.length) edges = edges.filter((edge) => !matching.includes(edge));
 			if (requestedLevel === null) continue;
 			if (typeof requestedLevel !== 'number') {
 				throw new TypeError('A mixer send level must be a canonical number or null.');

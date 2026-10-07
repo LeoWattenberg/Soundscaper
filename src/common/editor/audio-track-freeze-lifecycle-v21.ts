@@ -9,6 +9,7 @@ import {
 import { normalizeAutomationLaneV21 } from './automation-lane-v21.ts';
 import { normalizeMixerGraphV21 } from './mixer-graph-v21.ts';
 import { resolveTerminalChannelWidths } from './terminal-channel-widths.ts';
+import { createExactFreezeRecordIndex, inspectFreezeDataRecord as inspectDataRecord, freezeStableId as stableId } from './audio-freeze-work-index.ts';
 import {
 	classifyAudioTrackFreezeFreshnessV1,
 	normalizeAudioTrackFreezeDigestsV1,
@@ -73,8 +74,8 @@ export function installAudioTrackFreezeCandidateV21(
 		field(request, 'replacementFreeze', 'audio freeze install candidate'),
 	);
 	const target = targetAudioTrack(project, trackId);
-	assertExpectedFreeze(target.track, expected, trackId);
-	const sourceContentIdentities = normalizeSourceContentIdentities(
+	const admittedCurrentFreeze = assertExpectedFreeze(target.track, expected, trackId);
+	const sourceProof = normalizeSourceContentIdentities(
 		project,
 		target.track,
 		field(request, 'sourceContentIdentities', 'audio freeze install candidate'),
@@ -82,10 +83,10 @@ export function installAudioTrackFreezeCandidateV21(
 	const derivedSource = normalizeDerivedSource(
 		field(request, 'derivedSource', 'audio freeze install candidate'), replacement, project, trackId,
 	);
-	const tracks = projectArray(project, 'tracks');
-	const sources = projectArray(project, 'sources');
-	const existingSourceIndex = exactRecordIndexById(sources, replacement.derivedSourceId, 'project source');
-	const currentDerivedId = currentFreeze(target.track)?.derivedSourceId ?? null;
+	const tracks = target.tracks;
+	const { sources, identities: sourceContentIdentities, sourceIndex } = sourceProof;
+	const existingSourceIndex = sourceIndex.indexOf(replacement.derivedSourceId);
+	const currentDerivedId = admittedCurrentFreeze?.derivedSourceId ?? null;
 	if (existingSourceIndex !== -1 && replacement.derivedSourceId !== currentDerivedId) {
 		throw new RangeError(`Derived source ID ${replacement.derivedSourceId} collides with an existing source.`);
 	}
@@ -117,14 +118,16 @@ function normalizeSourceContentIdentities(
 	project: DataRecord,
 	track: DataRecord,
 	value: unknown,
-): ReadonlyMap<string, string> {
+) {
 	const clips = projectArray(project, 'clips');
 	const sources = projectArray(project, 'sources');
+	const clipIndex = createExactFreezeRecordIndex(clips, 'project clip');
+	const sourceIndex = createExactFreezeRecordIndex(sources, 'project source');
 	const ownedSourceIds = new Set<string>();
 	for (const clipId of uniqueIds(track.clipIds, `audio track ${String(track.id)}.clipIds`, 1)) {
-		const clipIndex = exactRecordIndexById(clips, clipId, 'project clip');
-		if (clipIndex === -1) throw new ReferenceError(`The frozen editable clip ${clipId} no longer exists.`);
-		const clip = inspectDataRecord(clips[clipIndex], `project clip ${clipId}`);
+		const index = clipIndex.indexOf(clipId);
+		if (index === -1) throw new ReferenceError(`The frozen editable clip ${clipId} no longer exists.`);
+		const clip = clipIndex.recordAt(index);
 		ownedSourceIds.add(stableId(clip.sourceId, `project clip ${clipId} source`));
 	}
 	const identities = readClosedDomainArray(
@@ -152,9 +155,9 @@ function normalizeSourceContentIdentities(
 		if (!ownedSourceIds.has(sourceId)) {
 			throw new RangeError(`Audio freeze source identity ${sourceId} is outside the target track.`);
 		}
-		const sourceIndex = exactRecordIndexById(sources, sourceId, 'project source');
-		if (sourceIndex === -1) throw new ReferenceError(`Audio freeze source ${sourceId} does not exist.`);
-		const source = inspectDataRecord(sources[sourceIndex], `project source ${sourceId}`);
+		const sourceSlot = sourceIndex.indexOf(sourceId);
+		if (sourceSlot === -1) throw new ReferenceError(`Audio freeze source ${sourceId} does not exist.`);
+		const source = sourceIndex.recordAt(sourceSlot);
 		if (Object.hasOwn(source, 'contentSha256') && source.contentSha256 !== contentSha256) {
 			throw new Error(`Audio source ${sourceId} content digest changed before freeze installation.`);
 		}
@@ -163,7 +166,7 @@ function normalizeSourceContentIdentities(
 	if (result.size !== ownedSourceIds.size) {
 		throw new RangeError('Audio freeze source identities do not cover the exact target track inputs.');
 	}
-	return result;
+	return { identities: result, sources, sourceIndex };
 }
 
 /** Remove one exact freeze relationship while leaving its retained editable rack and clips untouched. */
@@ -177,7 +180,7 @@ export function removeAudioTrackFreezeCandidateV21(
 	const expected = normalizeAudioTrackFreezeV1(field(request, 'expectedFreeze', 'audio freeze remove candidate'));
 	const target = targetAudioTrack(project, trackId);
 	assertExpectedFreeze(target.track, expected, trackId);
-	const tracks = projectArray(project, 'tracks');
+	const tracks = target.tracks;
 	const nextTrack = updateRecord(target.track, {}, ['audioFreeze']);
 	const nextTracks = replaceAt(tracks, target.index, nextTrack);
 	let sources = projectArray(project, 'sources');
@@ -224,18 +227,19 @@ export function commitAudioTrackFreezeCandidateV21(
 	const derivedClip = normalizeCommittedClip(
 		field(request, 'derivedClip', 'audio freeze commit candidate'), expected,
 	);
-	const tracks = projectArray(project, 'tracks');
+	const tracks = target.tracks;
 	const clips = projectArray(project, 'clips');
+	const clipIndex = createExactFreezeRecordIndex(clips, 'project clip');
 	const ownedClipIds = uniqueIds(target.track.clipIds, `audio track ${trackId}.clipIds`, 1);
 	const ownedClipIdSet = new Set(ownedClipIds);
 	const removedSourceIds = new Set<string>();
 	for (const clipId of ownedClipIds) {
-		const index = exactRecordIndexById(clips, clipId, 'project clip');
+		const index = clipIndex.indexOf(clipId);
 		if (index === -1) throw new ReferenceError(`The frozen editable clip ${clipId} no longer exists.`);
-		const clip = inspectDataRecord(clips[index], `project clip ${clipId}`);
+		const clip = clipIndex.recordAt(index);
 		removedSourceIds.add(stableId(clip.sourceId, `project clip ${clipId} source`));
 	}
-	const remainingClips = clips.filter((clip, index) => !ownedClipIdSet.has(recordId(clip, `project clip ${String(index)}`)));
+	const remainingClips = clips.filter((_, index) => !ownedClipIdSet.has(clipIndex.idAt(index)));
 	const derivedClipId = stableId(derivedClip.id, 'committed derived clip');
 	if (exactRecordIndexById(remainingClips, derivedClipId, 'remaining project clip') !== -1) {
 		throw new RangeError(`Committed derived clip ID ${derivedClipId} collides with an existing clip.`);
@@ -340,7 +344,7 @@ function normalizeCommittedClip(value: unknown, freeze: AudioTrackFreezeV1): Dat
 	return clip;
 }
 
-function targetAudioTrack(project: DataRecord, trackId: string): { readonly track: DataRecord; readonly index: number } {
+function targetAudioTrack(project: DataRecord, trackId: string): { readonly track: DataRecord; readonly index: number; readonly tracks: unknown[] } {
 	const tracks = projectArray(project, 'tracks');
 	const matches: { track: DataRecord; index: number }[] = [];
 	for (const [index, candidate] of tracks.entries()) {
@@ -350,14 +354,15 @@ function targetAudioTrack(project: DataRecord, trackId: string): { readonly trac
 	if (matches.length !== 1) throw new ReferenceError(`Audio track ${trackId} must exist exactly once.`);
 	const target = matches[0]!;
 	if (target.track.type !== 'audio') throw new RangeError(`Track ${trackId} is not audio.`);
-	return target;
+	return { ...target, tracks };
 }
 
-function assertExpectedFreeze(track: DataRecord, expected: AudioTrackFreezeV1 | null, trackId: string): void {
+function assertExpectedFreeze(track: DataRecord, expected: AudioTrackFreezeV1 | null, trackId: string): AudioTrackFreezeV1 | undefined {
 	const current = currentFreeze(track);
 	const matches = expected === null ? current === undefined
 		: current !== undefined && sameAudioTrackFreezeV1(current, expected);
 	if (!matches) throw new Error(`Audio track ${trackId} freeze state changed from the expected value.`);
+	return current;
 }
 
 function currentFreeze(track: DataRecord): AudioTrackFreezeV1 | undefined {
@@ -458,21 +463,6 @@ function snapshotJson(value: unknown, name: string, budget: { remaining: number 
 	return Object.freeze(output);
 }
 
-function inspectDataRecord(value: unknown, name: string): DataRecord {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError(`${name} must be a plain record.`);
-	const prototype = Object.getPrototypeOf(value) as unknown;
-	if (prototype !== Object.prototype && prototype !== null) throw new TypeError(`${name} must be a plain record.`);
-	const output: Record<string, unknown> = Object.create(null) as Record<string, unknown>;
-	for (const key of Reflect.ownKeys(value)) {
-		if (typeof key !== 'string') throw new TypeError(`${name} must contain only named own data properties.`);
-		const descriptor = Object.getOwnPropertyDescriptor(value, key);
-		if (!descriptor || !Object.hasOwn(descriptor, 'value') || descriptor.enumerable !== true) {
-			throw new TypeError(`${name}.${key} must be an enumerable own data property.`);
-		}
-		output[key] = descriptor.value;
-	}
-	return Object.freeze(output);
-}
 
 function assertNoDocumentBodyFields(record: DataRecord, name: string): void {
 	const pending: { readonly value: unknown; readonly path: string }[] = [{ value: record, path: name }];
@@ -511,10 +501,6 @@ function field(record: ClosedDomainRecord, name: string, label: string): unknown
 	return readClosedDomainField(record, name, label);
 }
 
-function stableId(value: unknown, name: string): string {
-	if (typeof value !== 'string' || value.length === 0) throw new TypeError(`${name} ID must be nonempty.`);
-	return value;
-}
 
 function sha256Digest(value: unknown, name: string): string {
 	if (typeof value !== 'string' || !SHA256.test(value)) throw new TypeError(`${name} must be a lowercase SHA-256 digest.`);

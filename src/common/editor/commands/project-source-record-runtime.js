@@ -19,7 +19,7 @@
  * pointing past the end of its own media.
  */
 
-import { assertFrame } from '../project.js';
+import { sourceCommandRanges } from './source-range-work.ts';
 import {
 	assertClipSourceBounds,
 	assertUnusedId,
@@ -28,6 +28,7 @@ import {
 	requireSource,
 	requireStableCommandId,
 } from './shared-runtime.js';
+import { ordinarySourceClipCollection, sourceReferences, sourceReferenceIds, sourceForBounds, sourceClipCollections } from './source-command-work.ts';
 
 export function addSource(project, value) {
 	const source = normalizeSourceForProject(project, value);
@@ -46,14 +47,15 @@ export function removeSource(project, sourceId) {
 	project.sources.splice(index, 1);
 }
 
+const SOURCE_UPDATE_FIELDS = new Set([
+	'name', 'mimeType', 'originalSampleRate', 'sampleFormat', 'opaqueExtensions',
+	'videoCodec', 'audioCodec', 'hasAudio',
+]);
+
 export function updateSource(project, sourceId, changes = {}) {
 	const index = project.sources.findIndex((source) => source.id === sourceId);
 	if (index < 0) throw new ReferenceError(`Unknown source: ${sourceId}.`);
-	const allowed = new Set([
-		'name', 'mimeType', 'originalSampleRate', 'sampleFormat', 'opaqueExtensions',
-		'videoCodec', 'audioCodec', 'hasAudio',
-	]);
-	for (const key of Object.keys(changes)) if (!allowed.has(key)) throw new RangeError(`Source field cannot be updated: ${key}.`);
+	for (const key of Object.keys(changes)) if (!SOURCE_UPDATE_FIELDS.has(key)) throw new RangeError(`Source field cannot be updated: ${key}.`);
 	project.sources[index] = normalizeSourceForProject(project, { ...project.sources[index], ...changes, id: sourceId });
 }
 
@@ -87,13 +89,7 @@ export function reprobeSource(project, command) {
 	}
 	const index = project.sources.findIndex((candidate) => candidate.id === source.id);
 	project.sources[index] = upgraded;
-	const ranges = new Map((Array.isArray(command.clips) ? command.clips : []).map((entry) => [
-		requireStableCommandId(entry?.clipId, 'clip'),
-		{
-			sourceStartFrame: assertFrame(entry.sourceInFrame, 'clip.sourceInFrame'),
-			sourceDurationFrames: assertFrame(entry.sourceFrameCount, 'clip.sourceFrameCount'),
-		},
-	]));
+	const ranges = sourceCommandRanges(Array.isArray(command.clips) ? command.clips : [], true);
 	const conform = (clip) => {
 		const range = clip.sourceId === source.id ? ranges.get(clip.id) : null;
 		if (!range) return clip;
@@ -108,8 +104,11 @@ export function reprobeSource(project, command) {
 	project.clips = project.clips.map(conform);
 	const projectBin = requireProjectBin(project);
 	projectBin.clips = projectBin.clips.map(conform);
-	for (const clip of [...project.clips, ...projectBin.clips]) {
-		if (clip.sourceId === source.id) assertClipSourceBounds(project, clip);
+	const ordinary = project.clips.length + projectBin.clips.length >= 16 && ordinarySourceClipCollection(project.clips) && ordinarySourceClipCollection(projectBin.clips);
+	const boundsSource = ordinary ? sourceForBounds(project.sources, source.id) : undefined;
+	const boundsClips = ordinary ? sourceClipCollections(project.clips, projectBin.clips) : [...project.clips, ...projectBin.clips];
+	for (const clip of boundsClips) {
+		if (clip.sourceId === source.id) assertClipSourceBounds(project, clip, boundsSource);
 	}
 }
 /**
@@ -169,20 +168,14 @@ export function rewriteSourceMedia(project, command) {
 	}
 
 	const projectBin = requireProjectBin(project);
-	const moves = new Map((Array.isArray(command.clips) ? command.clips : []).map((entry) => [
-		requireStableCommandId(entry?.clipId, 'clip'),
-		// One number, in the domain the source is measured in: sample frames for
-		// audio, pictures for video, which is what the runtime projection
-		// resolves a video clip's `sourceStartFrame` from in the first place.
-		{ sourceStartFrame: assertFrame(entry.sourceStartFrame, 'clip.sourceStartFrame') },
-	]));
-	const referencing = [...project.clips, ...projectBin.clips].filter((clip) => clip.sourceId === source.id);
+	const moves = sourceCommandRanges(Array.isArray(command.clips) ? command.clips : [], false);
+	const referencing = sourceReferences(project.clips, projectBin.clips, source.id);
 	for (const clip of referencing) {
 		if (!moves.has(clip.id)) {
 			throw new RangeError(`A media rewrite must remap every reference; ${clip.id} was left behind.`);
 		}
 	}
-	const referencingIds = new Set(referencing.map((clip) => clip.id));
+	const referencingIds = sourceReferenceIds(referencing);
 	for (const clipId of moves.keys()) {
 		if (!referencingIds.has(clipId)) {
 			throw new RangeError(`A media rewrite cannot move ${clipId}, which does not reference this source.`);
@@ -197,8 +190,11 @@ export function rewriteSourceMedia(project, command) {
 	};
 	project.clips = project.clips.map(conform);
 	projectBin.clips = projectBin.clips.map(conform);
-	for (const clip of [...project.clips, ...projectBin.clips]) {
-		if (clip.sourceId === source.id) assertClipSourceBounds(project, clip);
+	const ordinary = project.clips.length + projectBin.clips.length >= 16 && ordinarySourceClipCollection(project.clips) && ordinarySourceClipCollection(projectBin.clips);
+	const boundsSource = ordinary ? sourceForBounds(project.sources, source.id) : undefined;
+	const boundsClips = ordinary ? sourceClipCollections(project.clips, projectBin.clips) : [...project.clips, ...projectBin.clips];
+	for (const clip of boundsClips) {
+		if (clip.sourceId === source.id) assertClipSourceBounds(project, clip, boundsSource);
 	}
 }
 
