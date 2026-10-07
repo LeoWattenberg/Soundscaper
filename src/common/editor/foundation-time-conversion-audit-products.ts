@@ -15,6 +15,12 @@ import type { FoundationTimeConversionSite } from './foundation-time-conversion-
  */
 export const FOUNDATION_TIME_CONVERSION_PRODUCT_SITES: readonly FoundationTimeConversionSite[] = deepFreezeAuditSites([
 	{
+		id: 'framescaper-generated-visual-move-placement',
+		file: 'src/framescaper/editor-timeline-visual-move-command.ts',
+		behavior: 'Ordinary generator and still moves resolve the requested project sample position once to the nearest destination sequence frame, retaining their authored extent, source clock and exact owner through the existing visual mutation command.',
+		conversions: [{ helper: 'sampleFrameToVideoFrame', policies: ['point'] }],
+	},
+	{
 		id: 'framescaper-image-split-sequence-boundary',
 		file: 'src/framescaper/editor-timeline-image-split-command.ts',
 		behavior: 'An image split resolves the requested project sample position to the nearest authored sequence frame before making two exact adjacent image leaves and advancing the right leaf\'s animated source tick phase.',

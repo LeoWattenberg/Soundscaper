@@ -2,7 +2,7 @@
 
 import type { CommandObject } from '../../../../commands/protocol.ts';
 
-export type ClipMediaKind = 'audio' | 'video' | 'image';
+export type ClipMediaKind = 'audio' | 'video' | 'image' | 'still' | 'generator';
 
 export interface ClipTransformEnvelopePoint extends Readonly<Record<string, unknown>> {
 	readonly frame: number;

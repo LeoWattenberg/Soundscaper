@@ -144,6 +144,7 @@ export const FOUNDATION_RUNTIME_SHIELDED_OWNERS: readonly FoundationRuntimeShiel
 	{ file: 'src/common/editor/project.js', surfaces: ['navigation'] },
 	{ file: 'src/common/editor/controller/track-audio/internal/clip-selection-navigation-service.ts', surfaces: ['navigation'] },
 	{ file: 'src/common/editor/controller/track-audio/internal/selected-track-content-range.ts', surfaces: ['navigation'] },
+	{ file: 'src/common/editor/audacity-shortcut-actions/item-navigation-geometry.ts', surfaces: ['navigation'] },
 	{ file: 'src/common/editor/ui/timeline/useTimelineViewportModel.js', surfaces: ['timeline'] },
 	{ file: 'src/common/editor/ui/framescaper-edit-control-menu-model.ts', surfaces: ['timeline'] },
 	{ file: 'src/common/editor/ui/regular-interval-dialog-defaults.ts', surfaces: ['timeline'] },
@@ -153,6 +154,14 @@ export const FOUNDATION_RUNTIME_SHIELDED_OWNERS: readonly FoundationRuntimeShiel
 
 /** Exact non-consumer readers co-located with a shield owner. No wildcard exclusions are admitted. */
 export const FOUNDATION_RUNTIME_TIMING_READER_EXCLUSIONS: readonly FoundationRuntimeTimingReaderExclusion[] = deepFreeze([
+	{
+		file: 'src/common/editor/audacity-shortcut-actions/item-navigation-geometry.ts', entryPoint: 'itemNavigationMoveFrame',
+		reason: 'Native item movement applies one signed whole-sequence-frame step to persisted sequence placement, while ordinary and musical sample placements come from the helper-owned clip projection; this prevents nearest-frame destination rounding from making opposite keys drift.',
+	},
+	{
+		file: 'src/common/editor/audacity-shortcut-actions/item-navigation-geometry.ts', entryPoint: 'itemNavigationClipGeometry',
+		reason: 'Contextual item movement converts exact authored visual sequence boundaries through the owning sequence clock, delegates musical geometry to its registered projection helper, and preserves sample-authoritative legacy clips without using native visual audio aliases.',
+	},
 	{
 		file: 'src/common/editor/controller/track-audio/internal/selected-track-content-range.ts', entryPoint: 'clipContentRange',
 		reason: 'Track selection converts authored visual sequence boundaries through the exact owning sequence clock, delegates musical sample geometry to its registered projection helper, and reads legacy sample-authoritative clips directly; image and generator leaves have no audio source coordinates to project.',

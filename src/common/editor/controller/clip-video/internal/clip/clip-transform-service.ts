@@ -183,7 +183,7 @@ export function createClipTransformService(
 			...(selection && movesClipSelection ? [selection.startFrame] : []),
 		);
 		const deltaFrames = Math.max(requestedDelta, -earliestMovingFrame);
-		if (hasProjectBinMediaAuthority(project) && clips.some((item) => item.kind === 'video' || item.kind === 'image')) {
+		if (hasProjectBinMediaAuthority(project) && clips.some((item) => item.kind === 'video' || item.kind === 'image' || item.kind === 'still' || item.kind === 'generator')) {
 			return moveMediaClipsToNewTracks(
 				project, clip, sourceTrack, clips, clipSelection,
 				selection, movesClipSelection, deltaFrames,

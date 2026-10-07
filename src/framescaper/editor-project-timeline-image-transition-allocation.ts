@@ -12,6 +12,7 @@ import { framescaperProjectNativeMediaFoundationShapeTimelineImage } from './edi
 import type { FramescaperImageCommandTimelineImage } from './editor-project-timeline-image-image-command.ts';
 import { validateFramescaperProjectTimelineImage } from './editor-project-timeline-image.ts';
 import { prepareTimelineImageMoveCommand } from './editor-timeline-image-move-command.ts';
+import { prepareTimelineVisualMoveCommand } from './editor-timeline-visual-move-command.ts';
 import { prepareTimelineImageRemoveCommand } from './editor-timeline-image-remove-command.ts';
 import { prepareTimelineImageSplitCommand } from './editor-timeline-image-split-command.ts';
 import { prepareTimelineImageTrimCommand } from './editor-timeline-image-trim-command.ts';
@@ -28,6 +29,7 @@ export function prepareFramescaperVideoTransitionAllocationsTimelineImage(
 	command = prepareTimelineImageTrimCommand(project as Parameters<typeof prepareTimelineImageTrimCommand>[0], command);
 	command = prepareTimelineImageMoveCommand(project as Parameters<typeof prepareTimelineImageMoveCommand>[0], command);
 	command = prepareTimelineImageRemoveCommand(project as Parameters<typeof prepareTimelineImageRemoveCommand>[0], command);
+	command = prepareTimelineVisualMoveCommand(project as Parameters<typeof prepareTimelineVisualMoveCommand>[0], command);
 	if (isImage(command) || command.type === 'selection/set') return command;
 	if (!isBatch(command)) {
 		return prepareFramescaperVideoTransitionAllocationsNativeMedia(

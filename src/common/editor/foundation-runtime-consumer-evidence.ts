@@ -30,6 +30,13 @@ export interface FoundationRuntimeConsumerEvidence {
  */
 const entries: FoundationRuntimeConsumerEvidence[] = [
 	{
+		id: 'contextual-item-musical-geometry', surface: 'navigation',
+		file: 'src/common/editor/audacity-shortcut-actions/item-navigation-geometry.ts',
+		entryPoint: 'projectedItemClipGeometry', inputIdentifier: 'project', projectedIdentifier: null,
+		boundary: 'resolveRuntimeClipProjection',
+		evidence: 'Contextual item movement resolves musical clip placement at the current tempo before issuing sample-domain edits; native visuals separately convert their owning sequence boundaries and retain source animation phase.',
+	},
+	{
 		id: 'macro-program-project-reads', surface: 'composition',
 		file: 'src/common/editor/controller/effects/internal/macro/macro-script-host.ts',
 		entryPoint: 'requireProject', inputIdentifier: 'project', projectedIdentifier: null,

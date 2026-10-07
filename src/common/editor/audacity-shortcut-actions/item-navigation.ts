@@ -7,6 +7,7 @@ import {
 	audacityTimelineStepFrame,
 } from '../audacity-action-runtime-helpers.ts';
 import { clipTrimSourceFrameCount } from '../controller/clip-video/clip-trim-source-frame-count.ts';
+import { itemNavigationMoveFrame } from './item-navigation-geometry.ts';
 import type { AudioEditorCommand, CommandObject } from '../commands/protocol.ts';
 import type {
 	ControllerClip,
@@ -165,7 +166,7 @@ function moveClip(
 	const targetTrack = project.tracks[targetTrackIndex];
 	if (!targetTrack || targetTrack.type === 'label') return null;
 	return controller.actions.clip.move(
-		clip.id, targetTrack.id, Math.max(0, clip.timelineStartFrame + deltaFrames),
+		clip.id, targetTrack.id, itemNavigationMoveFrame(project, clip, deltaFrames),
 	);
 }
 

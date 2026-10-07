@@ -54,7 +54,7 @@ export function prepareTransformClipsCommand(
 	options: Readonly<{ overwrite?: boolean }>,
 	idFactory: (prefix: string) => string,
 ): Extract<AudioEditorCommand, { readonly type: 'clip/transform-many' }> {
-	const imageIds = new Set(project.clips.filter(clip => clip.kind === 'image').map(clip => clip.id));
+	const imageIds = new Set(project.clips.filter(clip => clip.kind === 'image' || clip.kind === 'still' || clip.kind === 'generator').map(clip => clip.id));
 	const imageMoves = transforms.filter(transform => imageIds.has(transform.clipId));
 	if (imageMoves.length && options.overwrite) throw new RangeError('Still image moves cannot overwrite other media.');
 	const inherited = transforms.filter(transform => !imageIds.has(transform.clipId));

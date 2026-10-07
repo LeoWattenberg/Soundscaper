@@ -4,6 +4,16 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { FOUNDATION_RUNTIME_CONSUMER_SURFACES } from '../src/common/editor/foundation-runtime-consumer-audit.ts';
 
+test('contextual item movement owns its musical geometry projection', () => {
+	assert.deepEqual(FOUNDATION_RUNTIME_CONSUMER_SURFACES.find(({ id }) => id === 'contextual-item-musical-geometry'), {
+		id: 'contextual-item-musical-geometry', surface: 'navigation',
+		file: 'src/common/editor/audacity-shortcut-actions/item-navigation-geometry.ts',
+		entryPoint: 'projectedItemClipGeometry', inputIdentifier: 'project', projectedIdentifier: null,
+		boundary: 'resolveRuntimeClipProjection',
+		evidence: 'Contextual item movement resolves musical clip placement at the current tempo before issuing sample-domain edits; native visuals separately convert their owning sequence boundaries and retain source animation phase.',
+	});
+});
+
 test('adjacent related-clip selection owns its aggregate timing projection', () => {
 	assert.deepEqual(FOUNDATION_RUNTIME_CONSUMER_SURFACES.find(({ id }) => id === 'related-clip-adjacent-selection'), {
 		id: 'related-clip-adjacent-selection', surface: 'navigation',
