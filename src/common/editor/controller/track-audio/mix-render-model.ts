@@ -7,6 +7,7 @@ import {
 } from '../../commands/factories.ts';
 import type { AudioEditorCommand } from '../../commands/protocol.ts';
 import { isSoundscaperProductionProject } from '../../project-schema-version.ts';
+import { projectEffectTailFramesV21 } from '../../project-effect-tail-v21.ts';
 import {
 	inheritTrackFolderMediaStateProjectionV12,
 	projectTrackFolderMediaStateV12,
@@ -193,6 +194,14 @@ export function mixRenderTailFrames(
 	options: Readonly<{ readonly includeBuses?: boolean; readonly renderEffects?: boolean }> = {},
 ): number {
 	if (options.renderEffects === false) return 0;
+	if ((options.includeBuses ?? targetTracks.length > 1) && isSoundscaperProductionProject(snapshot)) {
+		const tail = projectEffectTailFramesV21({ ...snapshot, tracks: targetTracks }, {
+			trackId: null, includeMaster: false, maximum: sampleRate * 10,
+			rackTail: owner => owner?.effectsActive === false ? 0
+				: rackTailFrames((owner?.effects ?? []) as readonly ControllerEffect[], sampleRate, 10),
+		});
+		if (tail !== null) return tail;
+	}
 	const trackTail = Math.max(0, ...targetTracks.map((track) => (
 		track.effectsActive === false ? 0 : rackTailFrames(track.effects || [], sampleRate, 10)
 	)));

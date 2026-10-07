@@ -411,3 +411,27 @@ channels retain their shared 1.4-second clock and sample alignment, while a
 separate mono track independently shortens to one second. Original PCM and
 remembered parameters remain unchanged. All eight focused multitrack cases and
 targeted lint pass. No manual **Update AI assets** run is required.
+
+## R3-ROOT-020 — Mix and Render cuts the tail through serial group buses
+
+Import an ordinary 0.8-second recording. Open **Window > Mixer**, add two
+group buses, route the recording to the first, and add **Feedback delay** to
+each bus with time 0.5 seconds, feedback zero and mix one. Open **Routing graph**
+and rewire the first group's assignment connection from Master to the second
+group. Select the recording and apply **Tracks > Mix & Render** with its
+defaults. Inspect the rendered clip's duration and export WAV.
+
+Previously the clip lasted 1.3 seconds and lost the final echo. The planner
+took the greatest individual bus tail even though the signal traversed both
+serial effects. Production mix rendering now uses the existing graph's longest
+audible path, including successive bus tails. Parallel paths retain their
+maximum, master effects remain outside the rendered scope, and the existing
+ten-second tail ceiling remains intact.
+
+Proof: the unchanged picker, mixer, graph and menu workflow fails on the
+immutable baseline at **00h00m01.300s**. Green build 20 passes in Chromium,
+Firefox and WebKit at **00h00m01.800s**, with 86400 downloaded sample frames
+and a nonzero final echo. Two strict canonical-command regressions verify
+serial and parallel routing, effects-disabled behavior and source immutability.
+All 29 focused mix-render cases and targeted lint pass; source typechecks pass
+for all four product builds. No manual **Update AI assets** run is required.
