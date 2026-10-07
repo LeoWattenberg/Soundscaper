@@ -14,7 +14,8 @@ import { createStreamingWindowedSincResampler } from '../src/common/editor/resam
 function deferred() { let resolve = (): void => {}; const promise = new Promise<void>((accept) => { resolve = accept; }); return { promise, resolve }; }
 const tick = () => new Promise<void>((resolve) => { setImmediate(resolve); });
 
-test('Speed renders the following stem during archive backpressure with identical deterministic ZIP bytes and monotonic raw progress', async () => {
+test('Speed renders the following stem during archive backpressure with identical deterministic ZIP bytes and monotonic raw progress', async (context) => {
+	context.mock.timers.enable({ apis: ['Date'], now: Date.UTC(2026, 0, 1) });
 	const speed = pipelineFixture('speed'); const memory = pipelineFixture('memory');
 	const accelerated = await runBlocked(speed); const sequential = await runBlocked(memory);
 	assert.deepEqual(accelerated.beforeAck, ['render:one', 'render:two']); assert.deepEqual(sequential.beforeAck, ['render:one']);
@@ -56,7 +57,8 @@ test('mutating render inputs during aggregate preflight fences every renderer an
 	assert.deepEqual(fixture.renders, []); assert.match((fixture.errors[0] as Error).message, /admitted stem rendering inputs changed/u); assert.equal(fixture.aborts(), 1);
 });
 
-test('admitted owned offline failures retry through real bounded WAV encoding and clean both private staging files', async () => {
+test('admitted owned offline failures retry through real bounded WAV encoding and clean both private staging files', async (context) => {
+	context.mock.timers.enable({ apis: ['Date'], now: Date.UTC(2026, 0, 1) });
 	const fixture = pipelineFixture('speed'); const reference = pipelineFixture('memory'); let removed = 0; let disposed = 0;
 	const channels = [Float32Array.of(.1, .2, .3, .2, .1, 0), Float32Array.of(.2, .1, 0, .1, .2, .3)];
 	fixture.renderOptions.renderSnapshot = async (snapshot) => { fixture.renders.push(`render:${(snapshot as { activeStem: string }).activeStem}`); throw new Error('offline unavailable'); };
