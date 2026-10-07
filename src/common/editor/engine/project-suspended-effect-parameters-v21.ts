@@ -9,6 +9,20 @@ import type { EngineEffect } from './types.ts';
 
 type SuspendedEffectLaneIndexV21 = ReadonlyMap<string, ReadonlyMap<string, ReadonlySet<string>>>;
 
+/** Active racks never prepare this graph-local index; the first suspended rack owns it. */
+export function createSuspendedEffectParameterRegistrarV21(
+	registry: ScheduledParameterRegistry,
+	lanes: readonly AutomationLaneV21[],
+	sampleRate: number,
+): (strip: StripRef, effects: readonly EngineEffect[]) => void {
+	let indexed: SuspendedEffectLaneIndexV21 | undefined;
+	return (strip, effects): void => {
+		if (effects.length === 0) return;
+		indexed ??= indexSuspendedEffectLanesV21(lanes);
+		registerSuspendedEffectParametersV21(registry, strip, effects, indexed, sampleRate);
+	};
+}
+
 export function indexSuspendedEffectLanesV21(lanes: readonly AutomationLaneV21[]): SuspendedEffectLaneIndexV21 {
 	const strips = new Map<string, Map<string, Set<string>>>();
 	for (const lane of lanes) {

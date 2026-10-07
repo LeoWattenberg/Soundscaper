@@ -107,11 +107,11 @@
 			"key": "suspended-effect-lane-address-index",
 			"source": "src/common/editor/engine/project-suspended-effect-parameters-v21.ts",
 			"caller": "src/common/editor/engine/project-graph-v21.ts: buildProjectGraphV21",
-			"location": "indexSuspendedEffectLanesV21 / registerSuspendedEffectParametersV21",
+			"location": "createSuspendedEffectParameterRegistrarV21 / indexSuspendedEffectLanesV21 / registerSuspendedEffectParametersV21",
 			"change": "Index effect lane addresses by strip and effect once rather than scanning all lanes and creating a key set for every suspended slot.",
 			"test": "tests/audio-editor-round3-suspended-effect-index.test.ts",
 			"evidence": "Five hundred lane addresses are read once; registering twenty effect targets adds no lane reads and preserves exact original suspended descriptors. Existing disabled/bypassed/rack-disabled and master-bypass graph tests pass.",
-			"limitations": "Descriptor inventory admission and registration order remain authoritative; no suspended target is made active.",
+			"limitations": "Preparation is lazy on the first suspended rack; projects containing only active racks never build the index. Descriptor inventory admission and registration order remain authoritative; no suspended target is made active.",
 			"status": "implemented"
 		},
 		{

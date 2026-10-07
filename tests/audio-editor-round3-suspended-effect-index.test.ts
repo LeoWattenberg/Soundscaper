@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { normalizeAutomationLaneV21 } from '../src/common/editor/automation-lane-v21.ts';
 import { effectParameterInventory } from '../src/common/editor/effect-parameter-descriptors.ts';
-import { indexSuspendedEffectLanesV21, registerSuspendedEffectParametersV21 } from '../src/common/editor/engine/project-suspended-effect-parameters-v21.ts';
+import { createSuspendedEffectParameterRegistrarV21, indexSuspendedEffectLanesV21, registerSuspendedEffectParametersV21 } from '../src/common/editor/engine/project-suspended-effect-parameters-v21.ts';
 import { ScheduledParameterRegistry } from '../src/common/editor/engine/scheduled-parameter-registry.ts';
 
 test('suspended effect targets inspect each lane once and preserve exact descriptor registration', () => {
@@ -39,4 +39,14 @@ test('suspended effect targets inspect each lane once and preserve exact descrip
 	const other = new ScheduledParameterRegistry();
 	registerSuspendedEffectParametersV21(other, { kind: 'track', id: 'other' }, effects, indexed, 48_000);
 	assert.equal(other.getSuspendedParameter(descriptors[0]!.address), null);
+	reads = 0;
+	const lazy = new ScheduledParameterRegistry();
+	const register = createSuspendedEffectParameterRegistrarV21(lazy, lanes, 48_000);
+	register(strip, []);
+	assert.equal(reads, 0, 'active racks do not prepare an unused suspended-lane index');
+	register(strip, effects);
+	assert.equal(reads, 500);
+	register({ kind: 'track', id: 'other' }, effects);
+	assert.equal(reads, 500, 'subsequent suspended racks reuse the prepared index');
+	for (const descriptor of descriptors) assert.deepEqual(lazy.getSuspendedParameter(descriptor.address), descriptor);
 });

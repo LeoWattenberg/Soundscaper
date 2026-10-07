@@ -78,6 +78,14 @@ test('prepared edge geometry matches direct lookup semantics for every destinati
 	assert.throws(() => prepared.destinationWidth({ ...graph.edges[0]!, destination: { kind: 'output', id: 'absent' } }), TypeError);
 });
 
+test('prepared geometry retains direct malformed mixer width authority', () => {
+	const graph = createDefaultMixerGraphV21([]);
+	const malformed = { ...graph, groups: [{ ...strip('existing'), channelCount: undefined } as unknown as MixerStripV21] };
+	const edge = { ...graph.edges[0]!, destination: { kind: 'mixer-node' as const, id: 'existing' } };
+	const prepared = prepareProjectEdgeGeometryV21(malformed, [], new Map(), 2);
+	assert.equal(prepared.destinationWidth(edge), edgeDestinationWidth(edge, malformed, [], new Map(), 2));
+});
+
 test('VCA gain preparation retains authored multiplication order and visits membership once', () => {
 	let reads = 0;
 	const member = { kind: 'track' as const, get id() { reads += 1; return 'one'; } };

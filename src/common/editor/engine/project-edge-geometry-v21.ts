@@ -35,9 +35,8 @@ export function prepareProjectEdgeGeometryV21(
 		if (!outputs.has(output.id)) outputs.set(output.id, Object.freeze({ channelCount: output.channelCount }));
 	}
 	const mixerWidth = (id: string): number => {
-		const width = mixerWidths.get(id);
-		if (width === undefined) throw new TypeError(`Unknown V21 mixer node: ${id}.`);
-		return width;
+		if (!mixerWidths.has(id)) throw new TypeError(`Unknown V21 mixer node: ${id}.`);
+		return mixerWidths.get(id)!;
 	};
 	return Object.freeze({
 		destinationWidth(edge: MixerEdgeV21): number {

@@ -45,7 +45,7 @@ import {
 import type { EngineEffect, EngineProject, EngineTrack } from './types.ts';
 import { prepareProjectEdgeGeometryV21 } from './project-edge-geometry-v21.ts';
 import { createProjectSoloGainResolverV21, createProjectVcaGainResolverV21 } from './project-strip-control-index-v21.ts';
-import { indexSuspendedEffectLanesV21, registerSuspendedEffectParametersV21 } from './project-suspended-effect-parameters-v21.ts';
+import { createSuspendedEffectParameterRegistrarV21 } from './project-suspended-effect-parameters-v21.ts';
 
 interface AudioTrackV21 extends EngineTrack {
 	readonly id: string;
@@ -115,7 +115,7 @@ export function buildProjectGraphV21(
 	const automationLanes = Array.isArray(project.automationLanes)
 		? project.automationLanes.map((lane) => normalizeAutomationLaneV21(lane))
 		: [];
-	const suspendedEffectLanes = indexSuspendedEffectLanesV21(automationLanes);
+	const registerSuspended = createSuspendedEffectParameterRegistrarV21(parameterRegistry, automationLanes, sampleRate);
 	const trackInputs = new Map<string, AudioNode>();
 	const trackGainParams = new Map<string, ScheduledGainParam>();
 	const groupGainParams = new Map<string, ScheduledGainParam>();
@@ -177,13 +177,7 @@ export function buildProjectGraphV21(
 	for (const strip of strips) {
 		const latencyFrames = plan.nodeOutputLatencyFrames.get(strip.key) ?? 0;
 		const explicitSidechains = sidechainInputs.get(strip.key);
-		registerSuspendedEffectParametersV21(
-			parameterRegistry,
-			strip.ref,
-			strip.suspendedEffects,
-			suspendedEffectLanes,
-			sampleRate,
-		);
+		registerSuspended(strip.ref, strip.suspendedEffects);
 		let output = applyEffectRack(context, strip.input, strip.effects, nodes, {
 			sidechainInputByEffectId: explicitSidechains,
 			scope: strip.scope,
