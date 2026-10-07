@@ -1,5 +1,5 @@
 import { secondsDeltaToFrames } from './geometry.ts';
-import { clipHasLoopRepeats, normalizeInactiveClipLoop, trimClipLoopPeriod } from '../../audio-clip-loop.ts';
+import { clipHasLoopRepeats, normalizeInactiveClipLoop } from '../../audio-clip-loop.ts';
 import { routeClipFocusTrimKeyboard } from './clip-focus-trim-keyboard-routing.ts';
 import { useTrackRowFocusNavigation } from './useTrackRowFocusNavigation.js';
 import { extendTrackRowSelection } from './track-row-selection-extension.ts';
@@ -114,7 +114,7 @@ export function useAudioTrackRowNavigation({
 		const deltaFrames = secondsDeltaToFrames(deltaSeconds, sampleRate);
 		if (!clip || !source || !deltaFrames) return;
 		if (clipHasLoopRepeats(clip)) {
-			run(() => controller.actions.clip.update(clip.id, { loop: trimClipLoopPeriod(clip, source.frameCount, edge, edge === 'left' ? deltaFrames : -deltaFrames) }));
+			run(() => controller.actions.clip.trim(clip.id, { ...(edge === 'left' ? { timelineStartFrame: clip.timelineStartFrame + deltaFrames } : {}), durationFrames: clip.durationFrames - deltaFrames }));
 			return;
 		}
 		const sourceDurationFrames = clip.sourceDurationFrames || clip.durationFrames;

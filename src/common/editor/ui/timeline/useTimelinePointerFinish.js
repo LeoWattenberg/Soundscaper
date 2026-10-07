@@ -266,7 +266,10 @@ export function useTimelinePointerFinish({
 		const loopChange = loopPointerPreview(session, projectIndex.sourceById.get(clip.sourceId)?.frameCount ?? 0, event.clientX, pixelsPerSecond, sampleRate);
 		if (loopChange) {
 			if (mutationsBlocked || !sameLoopPointerClip(clip, session.original)) return;
-			run(() => controller.actions.clip.update(clip.id, { loop: loopChange.loopChange }));
+			if (session.kind === 'clip-loop') run(() => controller.actions.clip.update(clip.id, { loop: loopChange.loopChange }));
+			else run(() => controller.actions.clip.trim(clip.id, session.kind === 'trim-left'
+				? { timelineStartFrame: clip.timelineStartFrame + deltaFrames, durationFrames: clip.durationFrames - deltaFrames }
+				: { durationFrames: clip.durationFrames + deltaFrames }));
 			return;
 		}
 		if (session.kind === 'move') {

@@ -1,10 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-import { clipHasLoopRepeats, normalizeInactiveClipLoop, trimClipLoopPeriod } from '../../../../audio-clip-loop.ts';
+import { clipHasLoopRepeats, normalizeInactiveClipLoop } from '../../../../audio-clip-loop.ts';
 
 import { publishedCopyFor } from '../../../shared/presentation-localization.ts'; import { createLocalizedError } from '../../../../../i18n/presentation-message.ts'; import { clipTrimSourceFrameCount } from '../../clip-trim-source-frame-count.ts';
 import { hasProjectBinMediaAuthority } from '../../../../project-schema-version.ts';
 import { clipMoveSelection, type ClipMoveOptions } from './clip-move-options.ts';
 import { prepareMediaNewTrackPlan } from './media-new-track-plan.ts';
+import { prepareGroupedLoopTrimCommand } from './grouped-loop-trim-command.ts';
 
 import {
 	collectClipTransformIds, collectClipTrimIds, prepareOverwriteClipCommand,
@@ -294,12 +295,12 @@ export function createClipTransformService(
 		const timelineStartChanged = Object.hasOwn(changes, 'timelineStartFrame')
 			&& Math.round(Number(changes.timelineStartFrame)) !== clip.timelineStartFrame;
 		if (clipHasLoopRepeats(clip) && (timelineStartChanged || Object.hasOwn(changes, 'durationFrames'))) {
-			const source = findSource(project, clip.sourceId);
-			if (!source) throw createLocalizedError(Error, dependencies.copy, 'audioClipNotFound');
 			const delta = timelineStartChanged ? Number(changes.timelineStartFrame) - clip.timelineStartFrame : Number(changes.durationFrames) - clip.durationFrames;
 			if (!Number.isSafeInteger(delta)) throw createLocalizedError(TypeError, dependencies.copy, 'timelineFramesFinite');
-			const loop = trimClipLoopPeriod(clip, clipTrimSourceFrameCount(source), timelineStartChanged ? 'left' : 'right', delta);
-			return dependencies.commit({ type: 'clip/update', clipId: clip.id, changes: { loop } }, { selectClipId: clip.id });
+			const edge = timelineStartChanged ? 'left' : 'right';
+			const clips = collectClipTrimIds(project, clip.id, edge).map(id => findClip(project, id)).filter(isClip);
+			const command = prepareGroupedLoopTrimCommand(project, clips, edge, delta, options.minimumDurationFrames);
+			return command ? dependencies.commit(command, { selectClipId: clip.id }) : project;
 		}
 		if (!timelineStartChanged && !Object.hasOwn(changes, 'durationFrames')) {
 			if (!Object.keys(changes).length) return project;
