@@ -26,6 +26,8 @@ belong in Git history, not in the maintained documentation set.
   defines bounded menu-owned browsing, import bridges, and resource lifetime.
 - [Disposable photo preview preparation](architecture/lightscaper-preview-preparation.md)
   defines shared resize recipes and bounded original-free preview bodies.
+- [Photo catalog definitions](architecture/lightscaper-catalog-definitions.md)
+  defines bounded hierarchy and collection commands, scalar pages, and revision fencing.
 - [Time and media](architecture/time-and-media.md) defines canonical timing,
   edit, retime, proxy, and media-preservation contracts.
 - [Production and rendering](architecture/production-rendering.md) covers
