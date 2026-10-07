@@ -30,7 +30,9 @@ test('timer fields associate localized gap validation with the invalid active da
 	};
 	try {
 		await render({ ...base, startTime: '2030-03-31T02:30' });
-		const dates = dom.container.querySelectorAll('input').filter((input) => reactProps(input).type === 'datetime-local');
+		const dates = dom.container.querySelectorAll('input').filter((input) => (
+			(reactProps(input) as unknown as Readonly<{ type?: string }>).type === 'datetime-local'
+		));
 		assert.equal(dates.length, 2);
 		assert.equal(dates[0]?.getAttribute('aria-invalid'), 'true');
 		assert.equal(dates[0]?.getAttribute('aria-describedby'), dom.one('[role="alert"]').getAttribute('id'));
