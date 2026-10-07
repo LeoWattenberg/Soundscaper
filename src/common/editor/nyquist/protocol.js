@@ -4,6 +4,9 @@
  */
 
 import { stripNyquistPluginHeader } from './plugin-parser.js';
+import { NYQUIST_MAX_TOTAL_AUDIO_SAMPLES } from './audio-budget.ts';
+
+export { NYQUIST_MAX_TOTAL_AUDIO_SAMPLES };
 
 export const NYQUIST_WASM_ABI_VERSION = 1;
 export const NYQUIST_DEFAULT_TIMEOUT_MS = 120_000;
@@ -11,9 +14,6 @@ export const NYQUIST_DEFAULT_TIMEOUT_MS = 120_000;
 export const NYQUIST_ERROR_FIELDS = ['code', 'output'];
 export const NYQUIST_MAX_SOURCE_BYTES = 4 * 1024 * 1024;
 export const NYQUIST_MAX_CHANNELS = 32;
-// Input and result buffers coexist in the 256 MiB WASM heap. Capping each
-// side at 96 MiB leaves space for Nyquist's Lisp heap and delayed DSP nodes.
-export const NYQUIST_MAX_TOTAL_AUDIO_SAMPLES = 24 * 1024 * 1024;
 export const NYQUIST_MAX_TEXT_BYTES = 1024 * 1024;
 
 const MIN_SAMPLE_RATE = 1_000;

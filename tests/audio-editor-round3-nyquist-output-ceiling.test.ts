@@ -10,6 +10,24 @@ import { EditorControllerLifetime } from '../src/common/editor/controller/shared
 import { throwIfAborted } from '../src/common/editor/controller/shared/app-helpers.ts';
 import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import { loadNyquistWasm } from '../src/common/editor/nyquist/runtime.js';
+import { NYQUIST_MAX_TOTAL_AUDIO_SAMPLES } from '../src/common/editor/nyquist/audio-budget.ts';
+import { NYQUIST_MAX_TOTAL_AUDIO_SAMPLES as protocolAudioSamples,
+	normalizeNyquistRequest } from '../src/common/editor/nyquist/protocol.js';
+import { planNyquistOutputAdmission } from '../src/common/editor/controller/effects/internal/nyquist/nyquist-output-admission.ts';
+
+test('the eager admission contract and optional protocol retain the same per-channel audio budget', () => {
+	assert.equal(NYQUIST_MAX_TOTAL_AUDIO_SAMPLES, 24 * 1024 * 1024);
+	assert.equal(protocolAudioSamples, NYQUIST_MAX_TOTAL_AUDIO_SAMPLES);
+	for (const channelCount of [1, 2, 32]) {
+		const channelFrames = Math.floor(NYQUIST_MAX_TOTAL_AUDIO_SAMPLES / channelCount);
+		const request = normalizeNyquistRequest({ source: '*track*',
+			channels: Array.from({ length: channelCount }, () => Float32Array.of(0.25)),
+			sampleRate: 8_000, maxOutputFrames: channelFrames + 1 });
+		assert.equal(request.maxOutputFrames, channelFrames);
+		assert.deepEqual(planNyquistOutputAdmission(channelFrames, channelCount, false),
+			{ renderFrames: channelFrames, completeFrames: channelFrames - 1 });
+	}
+});
 
 async function fixture(seconds: number) {
 	const sampleRate = 8_000;

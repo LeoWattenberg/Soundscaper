@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { NYQUIST_MAX_TOTAL_AUDIO_SAMPLES } from '../../../../nyquist/protocol.js';
+import { NYQUIST_MAX_TOTAL_AUDIO_SAMPLES } from '../../../../nyquist/audio-budget.ts';
 
 export interface NyquistOutputAdmission {
 	readonly renderFrames: number;

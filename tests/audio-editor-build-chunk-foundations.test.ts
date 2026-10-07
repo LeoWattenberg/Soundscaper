@@ -29,6 +29,7 @@ test('regular effect contracts and copy stay shared instead of following a produ
 		['src/common/editor/first-party-effects/standard/delay-definition.ts', 'editor-effect-contracts'],
 		['src/common/editor/first-party-effects/standard/nyquist-replacements.ts', 'editor-effect-contracts'],
 		['src/common/editor/first-party-effects/standard/selection-contract.ts', 'editor-effect-contracts'],
+		['src/common/editor/nyquist/audio-budget.ts', 'editor-effect-contracts'],
 		['src/common/i18n/canonical-extras-standard-effects.js', 'editor-copy'],
 	] as const) {
 		assert.equal(chunkGroupForModulePath(path), owner, path);
@@ -46,6 +47,8 @@ test('regular effect contracts and copy stay shared instead of following a produ
 		assert.ok(group);
 		assert.equal(group.includeDependenciesRecursively, false);
 	}
+	assert.equal(chunkGroupForModulePath('src/common/editor/nyquist/protocol.js'), null,
+		'the optional protocol must not become an eager effect contract');
 });
 
 test('workers give effect definitions and the complete canonical copy registry a bounded owner', () => {
@@ -62,6 +65,7 @@ test('workers give effect definitions and the complete canonical copy registry a
 		'src/common/editor/first-party-effects/standard/delay-definition.ts',
 		'src/common/editor/first-party-effects/standard/nyquist-replacements.ts',
 		'src/common/editor/first-party-effects/standard/selection-contract.ts',
+		'src/common/editor/nyquist/audio-budget.ts',
 		'src/common/i18n/canonical-extras.js',
 		'src/common/i18n/canonical-extras-audacity-effects.js',
 		'src/common/i18n/canonical-extras-audacity-presets.js',
@@ -75,6 +79,7 @@ test('workers give effect definitions and the complete canonical copy registry a
 	for (const path of [
 		'src/common/editor/first-party-effects/standard/dsp.ts',
 		'src/common/editor/first-party-effects/standard/vocoder-dsp.ts',
+		'src/common/editor/nyquist/protocol.js',
 		'src/common/editor/aup4-worker.js',
 		'src/common/editor/aup4-database.js',
 	]) assert.equal(group.test.test(path), false, path);
