@@ -16,6 +16,7 @@ import {
 } from './geometry.ts';
 import { manifestMenuItem } from './TimelineOverlayComponents.jsx';
 import { moveMediaTrackBlock } from './timeline-navigation.js';
+import { removeTimelineFolderWithFocus } from './track-folder-removal-focus.ts';
 
 const trackVisualizationIcon = (name) => createElement('span', {
 	className: 'musescore-icon',
@@ -269,12 +270,12 @@ export function createTimelineMenuModel({
 		{
 			label: copy.deleteTrackFolderKeepTracks,
 			disabled: mutationsBlocked,
-			onClick: () => run(() => controller.actions.trackFolders.remove(menuFolder.id, 'promote')),
+			onClick: () => removeTimelineFolderWithFocus(globalThis.document, menuFolder.id, () => run(() => controller.actions.trackFolders.remove(menuFolder.id, 'promote'))),
 		},
 		{
 			label: copy.deleteTrackFolderAndTracks,
 			disabled: mutationsBlocked,
-			onClick: () => run(() => controller.actions.trackFolders.remove(menuFolder.id, 'delete-contents')),
+			onClick: () => removeTimelineFolderWithFocus(globalThis.document, menuFolder.id, () => run(() => controller.actions.trackFolders.remove(menuFolder.id, 'delete-contents'))),
 		},
 	] : [];
 	const displayedLoop = loopPreview || project.loop || {};
