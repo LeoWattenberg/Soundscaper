@@ -5,6 +5,7 @@ import { sampleFrameToVideoFrame } from '../common/editor/timeline-time.ts';
 import type { AudioEditorCommand } from '../common/editor/commands/protocol.ts';
 import type { FramescaperProjectTimelineImage } from './editor-project-timeline-image.ts';
 import type { FramescaperProjectCommandBatchTimelineImage, FramescaperProjectCommandTimelineImage } from './editor-project-timeline-image-commands.ts';
+import type { FramescaperImageClipSetCommandTimelineImage } from './editor-project-timeline-image-image-command.ts';
 
 /** Translate the timeline's ordinary image moves into its existing exact image mutation command. */
 export function prepareTimelineImageMoveCommand(project: FramescaperProjectTimelineImage,
@@ -19,6 +20,14 @@ export function prepareTimelineImageMoveCommand(project: FramescaperProjectTimel
 		if (value.type === 'batch') {
 			const batch = value as FramescaperProjectCommandBatchTimelineImage;
 			return { ...batch, commands: batch.commands.map(visit) };
+		}
+		if (value.type === 'image-clip/set') {
+			const mutation = value as FramescaperImageClipSetCommandTimelineImage;
+			if (mutation.clip && mutation.placement?.scope === 'timeline') {
+				clips.set(mutation.clipId, mutation.clip);
+				owners.set(mutation.clipId, mutation.placement.trackId);
+			} else { clips.delete(mutation.clipId); owners.delete(mutation.clipId); }
+			return value;
 		}
 		if (value.type === 'clip/move') {
 			const movement = value as Extract<AudioEditorCommand, { readonly type: 'clip/move' }>;
