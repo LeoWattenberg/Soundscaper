@@ -21,6 +21,7 @@ export function createStandardDelayProcessor({ sampleRate, channelCount, params 
 	let writeIndex = 0;
 	let offsets = new Float64Array();
 	let gains = new Float64Array();
+	let readIndices = new Uint32Array();
 	let pitchStreams: ReturnType<typeof createDelayPitchStream>[] = [];
 	const samples = new Float64Array(channelCount);
 	let latency = 0;
@@ -61,6 +62,7 @@ export function createStandardDelayProcessor({ sampleRate, channelCount, params 
 		if (count !== offsets.length) {
 			offsets = new Float64Array(count);
 			gains = new Float64Array(count);
+			readIndices = new Uint32Array(count);
 		}
 		pitched = nextPitched;
 		latency = standardDelayLatencyFrames(next, sampleRate);
@@ -70,17 +72,17 @@ export function createStandardDelayProcessor({ sampleRate, channelCount, params 
 			const interval = next.delayType === 'regular' ? 1
 				: next.delayType === 'bouncing-ball' ? (count - echo) / count : (echo + 1) / count;
 			delay += Number(next.time) * sampleRate * interval;
-			offsets[echo] = Math.max(0, Math.round(delay));
+			offsets[echo] = Math.max(0, Math.round(delay)) + (nextPitched ? latency - stageLatency * (echo + 1) : 0);
 			gains[echo] = 10 ** (Number(next.echoGain) * (echo + 1) / 20);
 		}
 		wet = Number(next.mix);
 		current = next;
 	}
-	function read(ring: Float32Array, delay: number): number {
-		const position = (writeIndex - delay + length) % length;
-		const index = Math.floor(position);
-		const fraction = position - index;
-		return ring[index] + fraction * (ring[(index + 1) % length] - ring[index]);
+	function read(ring: Float32Array, index: number): number {
+		const sample = ring[index];
+		// The original zero-fraction interpolation can choose the sign of zero.
+		// Retain that boundary while ordinary finite samples need one read only.
+		return sample === 0 ? sample + 0 * (ring[index + 1 === length ? 0 : index + 1] - sample) : sample;
 	}
 	function reset() { for (const ring of rings) ring.fill(0); for (const stream of pitchStreams) stream.reset(); writeIndex = 0; }
 	configure(params);
@@ -100,16 +102,22 @@ export function createStandardDelayProcessor({ sampleRate, channelCount, params 
 					pitchStreams[echo].processFrame(samples);
 					for (let channel = 0; channel < channelCount; channel++) rings[(echo + 1) * channelCount + channel][writeIndex] = samples[channel];
 				}
+				for (let echo = 0; echo < offsets.length; echo++) {
+					const index = writeIndex - offsets[echo];
+					readIndices[echo] = index < 0 ? index + length : index;
+				}
+				const dryPosition = writeIndex - latency;
+				const dryIndex = dryPosition < 0 ? dryPosition + length : dryPosition;
 				for (let channel = 0; channel < channelCount; channel++) {
 					let echoes = 0;
 					for (let echo = 0; echo < offsets.length; echo++) {
 						const ring = rings[pitched ? (echo + 1) * channelCount + channel : channel];
-						const compensation = pitched ? latency - stageLatency * (echo + 1) : 0;
-						echoes += read(ring, offsets[echo] + compensation) * gains[echo];
+						echoes += read(ring, readIndices[echo]) * gains[echo];
 					}
-					if (output[channel]) output[channel][frame] = read(rings[channel], latency) + wet * echoes;
+					if (output[channel]) output[channel][frame] = read(rings[channel], dryIndex) + wet * echoes;
 				}
-				writeIndex = (writeIndex + 1) % length;
+				writeIndex += 1;
+				if (writeIndex === length) writeIndex = 0;
 			}
 		},
 	};

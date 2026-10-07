@@ -35,34 +35,43 @@ export function createStreamingLinearResampler(inputSampleRate, outputSampleRate
 
 		const carryLength = carry[0].length;
 		const baseFrame = carryLength ? carryStartFrame : totalInputFrames;
-		const combined = Array.from({ length: channels }, (_, channel) => {
-			const values = new Float32Array(carryLength + frameCount);
-			values.set(carry[channel]);
-			values.set(inputChannels[channel], carryLength);
-			return values;
-		});
+		const combinedLength = carryLength + frameCount;
 		totalInputFrames += frameCount;
-		const capacity = Math.max(0, Math.ceil((combined[0].length + 1) * outputRate / inputRate));
+		const capacity = Math.max(0, Math.ceil((combinedLength + 1) * outputRate / inputRate));
 		const output = Array.from({ length: channels }, () => new Float32Array(capacity));
 		let written = 0;
-		const endFrameExclusive = baseFrame + combined[0].length;
+		const endFrameExclusive = baseFrame + combinedLength;
+		// Only the first interpolation boundary can touch retained history. The
+		// remaining chunk is indexed directly without a per-channel source switch.
+		while (carryLength && Math.floor(nextInputPosition) < baseFrame + carryLength
+			&& Math.floor(nextInputPosition) + 1 < endFrameExclusive) {
+			const firstFrame = Math.floor(nextInputPosition);
+			const fraction = nextInputPosition - firstFrame;
+			for (let channel = 0; channel < channels; channel++) {
+				const first = carry[channel][firstFrame - baseFrame];
+				const second = inputChannels[channel][0];
+				output[channel][written] = first + (second - first) * fraction;
+			}
+			written++;
+			nextInputPosition += step;
+		}
 		while (Math.floor(nextInputPosition) + 1 < endFrameExclusive) {
 			const firstFrame = Math.floor(nextInputPosition);
 			const fraction = nextInputPosition - firstFrame;
-			const firstIndex = firstFrame - baseFrame;
-			for (let channel = 0; channel < channels; channel += 1) {
-				const first = combined[channel][firstIndex];
-				const second = combined[channel][firstIndex + 1];
+			const firstIndex = firstFrame - baseFrame - carryLength;
+			for (let channel = 0; channel < channels; channel++) {
+				const first = inputChannels[channel][firstIndex];
+				const second = inputChannels[channel][firstIndex + 1];
 				output[channel][written] = first + (second - first) * fraction;
 			}
-			written += 1;
+			written++;
 			nextInputPosition += step;
 		}
 		totalOutputFrames += written;
-		const keepIndex = Math.max(0, Math.min(combined[0].length - 1, Math.floor(nextInputPosition) - baseFrame));
+		const keepIndex = Math.max(0, Math.min(combinedLength - 1, Math.floor(nextInputPosition) - baseFrame));
 		carryStartFrame = baseFrame + keepIndex;
-		carry = combined.map((values) => values.slice(keepIndex));
-		return output.map((values) => values.slice(0, written));
+		carry = inputChannels.map((values) => values.slice(Math.max(0, keepIndex - carryLength)));
+		return output.map((values) => written === values.length ? values : values.subarray(0, written));
 	}
 
 	function finish(requestedOutputFrames = null) {

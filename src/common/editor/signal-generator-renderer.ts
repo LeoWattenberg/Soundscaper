@@ -64,14 +64,16 @@ function prepareFixed(type: string, options: Options, sampleRate: number, channe
 		const amplitude = finiteInRange(options.amplitude ?? 0.8, 0, 1, 'amplitude');
 		const frequency = finiteInRange(options.frequency ?? 440, 0.01, sampleRate / 2, 'frequency');
 		const waveform = enumValue(options.waveform ?? 'sine', WAVEFORMS, 'waveform');
+		const oscillate = waveformOscillator(waveform);
 		let phase = 0;
 		const step = frequency / sampleRate;
 		return monoSignal(frameCount, channelCount, (frames) => {
 			const output = new Float32Array(frames);
 			let currentPhase = phase;
 			for (let frame = 0; frame < frames; frame += 1) {
-				output[frame] = amplitude * oscillator(currentPhase, waveform);
-				currentPhase = (currentPhase + step) % 1;
+				output[frame] = amplitude * oscillate(currentPhase);
+				currentPhase += step;
+				if (currentPhase >= 1) currentPhase -= 1;
 			}
 			phase = currentPhase;
 			return output;
@@ -84,18 +86,24 @@ function prepareFixed(type: string, options: Options, sampleRate: number, channe
 		const endAmplitude = finiteInRange(options.endAmplitude ?? options.amplitude ?? 0.8, 0, 1, 'endAmplitude');
 		const interpolation = enumValue(options.interpolation ?? 'logarithmic', ['linear', 'logarithmic'], 'interpolation');
 		const waveform = enumValue(options.waveform ?? 'sine', WAVEFORMS, 'waveform');
+		const oscillate = waveformOscillator(waveform);
+		const frequencyDifference = endFrequency - startFrequency;
+		const frequencyRatio = endFrequency / startFrequency;
+		const frequencyAt = interpolation === 'linear'
+			? (progress: number) => startFrequency + frequencyDifference * progress
+			: (progress: number) => startFrequency * frequencyRatio ** progress;
+		const amplitudeDifference = endAmplitude - startAmplitude;
 		let phase = 0;
 		return monoSignal(frameCount, channelCount, (frames, start) => {
 			const output = new Float32Array(frames);
 			let currentPhase = phase;
 			for (let frame = 0; frame < frames; frame += 1) {
 				const progress = frameCount <= 1 ? 0 : (start + frame) / (frameCount - 1);
-				const frequency = interpolation === 'linear'
-					? startFrequency + (endFrequency - startFrequency) * progress
-					: startFrequency * (endFrequency / startFrequency) ** progress;
-				const amplitude = startAmplitude + (endAmplitude - startAmplitude) * progress;
-				output[frame] = amplitude * oscillator(currentPhase, waveform);
-				currentPhase = (currentPhase + frequency / sampleRate) % 1;
+				const frequency = frequencyAt(progress);
+				const amplitude = startAmplitude + amplitudeDifference * progress;
+				output[frame] = amplitude * oscillate(currentPhase);
+				currentPhase += frequency / sampleRate;
+				if (currentPhase >= 1) currentPhase -= 1;
 			}
 			phase = currentPhase;
 			return output;
@@ -197,7 +205,7 @@ function prepareMorse(options: Options, sampleRate: number, channelCount: number
 			if (segment.tone) for (let frame = Math.max(start, segment.start); frame < Math.min(end, segment.end); frame += 1) {
 				const ramp = segment.edgeFrames
 					? Math.min(1, (frame - segment.start + 1) / segment.edgeFrames, (segment.end - frame) / segment.edgeFrames) : 1;
-				output[frame - start] = amplitude * (0.5 - 0.5 * Math.cos(Math.PI * ramp))
+				output[frame - start] = amplitude * (ramp === 1 ? 1 : 0.5 - 0.5 * Math.cos(Math.PI * ramp))
 					* Math.sin(2 * Math.PI * frequency * (frame - segment.start) / sampleRate);
 			}
 			if (segment.end > end) break;
@@ -214,10 +222,10 @@ function monoSignal(frameCount: number, channelCount: number, monoBlock: MonoBlo
 	} };
 }
 
-function oscillator(phase: number, waveform: Waveform): number {
-	if (waveform === 'square') return phase < 0.5 ? 1 : -1;
-	if (waveform === 'sawtooth') return phase * 2 - 1;
-	return Math.sin(phase * Math.PI * 2);
+function waveformOscillator(waveform: Waveform): (phase: number) => number {
+	if (waveform === 'square') return (phase) => phase < 0.5 ? 1 : -1;
+	if (waveform === 'sawtooth') return (phase) => phase * 2 - 1;
+	return (phase) => Math.sin(phase * Math.PI * 2);
 }
 
 function boundedFrameCount(seconds: number, sampleRate: number): number {
