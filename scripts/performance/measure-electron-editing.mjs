@@ -13,6 +13,7 @@ import { execFileSync } from 'node:child_process';
 import {
 	chooseCommandAction, chooseNestedCommandAction,
 } from '../../tests/browser/audio-editor-test-helpers.js';
+import { armElectronEditingCompletion } from './electron-editing-completion.ts';
 
 const output = resolve(process.argv[2] ?? 'test-results/editing-performance/electron.json');
 const round4 = process.argv.includes('--round4');
@@ -127,7 +128,7 @@ try {
 		cpu: cpus()[0]?.model, logicalCpus: cpus().length, runtime, viewport, preference: 'speed', extended,
 		round3, round4, hostStart,
 		hostEnd: { time: new Date().toISOString(), loadAverage: loadavg(), freeBytes: freemem(), totalBytes: totalmem() },
-		method: 'Actual Electron development app with freshly staged production renderer and real preload/SQLite/PCM path. Trial zero is the first use of each timed operation in a fresh profile after normal Speed prewarm; subsequent trials are warm. Capture click to dialog closed, success status, cleared waveform pending state, explicit successful canvas paint and two animation frames. Xvfb RAF gaps are a renderer responsiveness proxy, not GPU presentation FPS. Startup excluded.',
+		method: 'Actual Electron development app with freshly staged production renderer and real preload/SQLite/PCM path. Trial zero is the first invocation of each fixture after normal Speed prewarm; related earlier fixtures may already have used its generator or effect module. Subsequent trials repeat that fixture. Capture click to dialog closed, success status, cleared waveform pending state and a fresh successful waveform plan, then revalidate that same paint at two animation-frame boundaries. Xvfb RAF gaps are a renderer responsiveness proxy, not GPU presentation FPS. Startup excluded.',
 		results };
 	await writeFile(output, JSON.stringify(report, null, '\t') + '\n');
 	process.stdout.write(`Saved ${results.length} observations to ${output}\n`);
@@ -143,49 +144,7 @@ try {
 }
 
 async function armOperation(page, buttonLabel, surface) {
-	await page.evaluate(({ buttonLabel, surface }) => {
-		const metrics = { start: null, finished: false, frames: [], longTasks: [], completion: null };
-		globalThis.__editingPerformance = metrics;
-		const observer = new PerformanceObserver(list => {
-			for (const entry of list.getEntries()) if (metrics.start !== null
-				&& entry.startTime + entry.duration >= metrics.start) metrics.longTasks.push(entry.duration);
-		});
-		observer.observe({ type: 'longtask', buffered: false });
-		let previous = null;
-		const frame = time => {
-			if (metrics.finished) { observer.disconnect(); return; }
-			if (metrics.start !== null) {
-				if (previous !== null) metrics.frames.push(time - previous);
-				previous = time;
-			}
-			requestAnimationFrame(frame);
-		};
-		requestAnimationFrame(frame);
-		const changed = () => {
-			if (metrics.start === null || metrics.finished || document.querySelector(surface)) return;
-			if (document.querySelector('[data-status]')?.dataset.state !== 'success') return;
-			if (document.querySelector('[data-waveform-pending="true"]')) return;
-			const canvases = document.querySelectorAll('canvas.clip-body__waveform');
-			if (!canvases.length || [...canvases].some(canvas => !(canvas instanceof HTMLCanvasElement)
-				|| canvas.dataset.waveformRenderer !== 'audacity' || canvas.dataset.waveformError)) return;
-			if (metrics.completion !== null) return;
-			metrics.completion = performance.now();
-			requestAnimationFrame(() => requestAnimationFrame(() => {
-				metrics.durationMs = performance.now() - metrics.start;
-				metrics.finished = true;
-				mutations.disconnect();
-			}));
-		};
-		const mutations = new MutationObserver(changed);
-		mutations.observe(document.body, { subtree: true, childList: true, attributes: true });
-		const click = event => {
-			if (event.target.closest('button')?.textContent.trim() !== buttonLabel) return;
-			metrics.start = performance.now();
-			previous = metrics.start;
-			document.removeEventListener('click', click, true);
-		};
-		document.addEventListener('click', click, true);
-	}, { buttonLabel, surface });
+	await page.evaluate(armElectronEditingCompletion, { buttonLabel, surface });
 }
 
 async function finishOperation(page) {
