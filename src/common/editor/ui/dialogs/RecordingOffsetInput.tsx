@@ -26,7 +26,7 @@ export default function RecordingOffsetInput({ value, label, onCommit }: Readonl
 		onChange={(event) => { canceled.current = false; setDraft(event.currentTarget.value); }}
 		onBlur={commit} onKeyDown={(event) => {
 			if (event.key === 'Enter') { event.preventDefault(); event.currentTarget.blur(); }
-			if (event.key !== 'Escape') return;
+			if (event.key !== 'Escape' || draft === String(value)) return;
 			event.preventDefault();
 			event.stopPropagation();
 			canceled.current = true;

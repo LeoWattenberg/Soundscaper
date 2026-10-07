@@ -118,6 +118,15 @@ Its new mounted admission regression and existing take-dialog UI and lifecycle
 cases passed all 10 focused Node tests. Changed source, copy, and tests passed
 targeted and changed-file lint and the size gate.
 
+Uncounted follow-through to R3-DIALOG-003: after canceling a changed recording
+offset with Escape, press Escape again while the restored field still has focus.
+The clean field previously consumed that second Escape indefinitely, preventing
+Preferences from closing. Only an active draft now owns cancellation; idle Escape
+reaches the modal. The original cancellation workflow and the new second-Escape
+workflow passed all six browser cases against green batch 18, and the mounted
+regression verifies dirty cancellation, guarded blur, idle propagation, and a
+later valid fractional edit. This adds no new ID or count.
+
 Uncounted follow-through to R2-DIALOG-012: in Framescaper, import a normal WebM,
 select its clip, then Edit → Audio clips → Video keyframes. Choose Scale X,
 enter `/2` as Start and 20 as End, and Add curve. The baseline created a curve

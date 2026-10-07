@@ -42,6 +42,11 @@ test('Escape cancels the recording offset without publishing through its subsequ
 		assert.deepEqual(writes, []);
 		assert.equal(input.value, '0');
 		assert.ok(prevented && stopped, 'the field owns cancellation before modal dismissal');
+		prevented = false;
+		stopped = false;
+		await act(async () => { reactProps(input).onKeyDown({ key: 'Escape', currentTarget: input,
+			preventDefault: () => { prevented = true; }, stopPropagation: () => { stopped = true; } }); });
+		assert.equal(prevented || stopped, false, 'idle Escape belongs to the enclosing preferences dialog');
 		await act(async () => { reactProps(input).onChange({ currentTarget: { value: '-25.5' } }); });
 		await act(async () => { reactProps(input).onBlur({}); });
 		assert.deepEqual(writes, [-25.5]);

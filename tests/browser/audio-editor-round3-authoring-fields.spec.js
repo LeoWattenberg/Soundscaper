@@ -69,3 +69,17 @@ test('Escape discards a recording offset draft before closing preferences', asyn
 	await preferences.getByRole('tab', { name: /Audio settings$/u }).click();
 	await expect(preferences.getByRole('spinbutton').last()).toHaveValue('0');
 });
+
+test('an idle recording offset field leaves a later Escape available to preferences', async ({ page }) => {
+	const editor = await bootEditor(page, '/embed/en/');
+	await chooseCommandAction(page, editor, 'Edit', 'Preferences');
+	const preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
+	await preferences.getByRole('tab', { name: /Audio settings$/u }).click();
+	const offset = preferences.getByRole('spinbutton', { name: 'Recording offset (ms)', exact: true });
+	await offset.fill('123');
+	await offset.press('Escape');
+	await expect(preferences).toBeVisible();
+	await expect(offset).toHaveValue('0');
+	await offset.press('Escape');
+	await expect(preferences).toBeHidden();
+});
