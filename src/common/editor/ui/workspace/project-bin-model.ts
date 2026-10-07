@@ -1,3 +1,5 @@
+import { readClipLoop } from '../../audio-clip-loop.ts';
+import { projectBinLoopRanges } from './project-bin-loop-ranges.ts';
 
 type ProjectBinCopy = Record<string, string | undefined>;
 
@@ -10,6 +12,7 @@ interface ProjectBinClip {
 	gain?: number;
 	id: string;
 	kind?: string;
+	opaqueExtensions?: unknown;
 	pitchCents?: number;
 	preserveFormants?: boolean;
 	renderCacheRevision?: number;
@@ -167,6 +170,11 @@ export function projectBinPeakRanges(
 	clip: ProjectBinClip,
 	maximumColumns: number,
 ): ProjectBinRange[] {
+	const loop = readClipLoop(clip);
+	if (loop && Number.isSafeInteger(clip.durationFrames) && Number(clip.durationFrames) > 0) {
+		const period = projectBinPeakRanges(visual, { ...clip, opaqueExtensions: undefined }, maximumColumns);
+		return projectBinLoopRanges(period, loop, Number(clip.durationFrames), maximumColumns);
+	}
 	const sourceStartFrame = Math.max(0, Number(clip.sourceStartFrame) || 0);
 	const sourceDurationFrames = Math.max(1, Number(clip.sourceDurationFrames || clip.durationFrames) || 1);
 	const levels = visual.peaks?.levels || [];
