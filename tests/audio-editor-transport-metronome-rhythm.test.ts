@@ -25,6 +25,8 @@ interface MetronomeRun {
 	readonly jitterSeconds: number;
 	readonly stallEvery: number;
 	readonly stallSeconds: number;
+	readonly playbackOutput?: object;
+	readonly onOutputConnected?: (destination: object) => void;
 }
 
 /**
@@ -114,7 +116,7 @@ async function runMetronome(
 		}),
 		createGain: () => ({
 			gain: { setValueAtTime: () => undefined, exponentialRampToValueAtTime: () => undefined },
-			connect: () => undefined,
+			connect: (destination: object) => options.onOutputConnected?.(destination),
 			disconnect: () => undefined,
 		}),
 	};
@@ -150,6 +152,7 @@ async function runMetronome(
 			getPositionFrames: () => Math.round((loopSeconds === null ? clock
 				: loopStartSeconds + clock % loopSeconds) * SAMPLE_RATE),
 			getAudioContext: async () => context,
+			getPlaybackDestination: options.playbackOutput ? () => options.playbackOutput : undefined,
 		},
 	} as unknown as TransportServiceRuntime;
 
@@ -186,3 +189,14 @@ async function runMetronome(
 async function settle(): Promise<void> {
 	for (let turn = 0; turn < 8; turn += 1) await Promise.resolve();
 }
+
+test('metronome envelopes use the engine listening output instead of bypassing its volume', async () => {
+	const listeningOutput = {};
+	const connected: object[] = [];
+	const clicks = await runMetronome({ jitterSeconds: 0, stallEvery: 0, stallSeconds: 0,
+		playbackOutput: listeningOutput, onOutputConnected: destination => connected.push(destination),
+	});
+	assert.ok(clicks.length > 0);
+	assert.ok(connected.length >= clicks.length);
+	assert.ok(connected.every(destination => destination === listeningOutput));
+});

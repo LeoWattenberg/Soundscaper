@@ -228,3 +228,24 @@ A strict regression verifies the remembered gain after the new dialog's default
 marker is cleared, and all 13 effect-control tests pass. The direct Repeat
 control without reopening already passed before the fix and adds no count.
 No manual **Update AI assets** run is required.
+
+## R3-ROOT-012 — Playback volume cannot mute the metronome
+
+Import an ordinary recording. Open **Customize toolbar**, enable **Metronome**,
+close the menu, and turn the metronome on. Set **Playback volume** to zero and
+press **Play**.
+
+Previously the recording was muted while metronome clicks still sounded: their
+envelope node connected directly to the audio destination. Clicks now pass
+through the engine's existing listening output, so volume changes also apply
+while playback continues. The existing fallback for minimal engine hosts and
+the metronome's audio-clock scheduling remain intact.
+
+Proof: the unchanged public workflow fails on the immutable baseline because
+every observed oscillator path bypasses the zero listening gain. Green build 12
+passes in Chromium, Firefox and WebKit, checking muted clicks and unmuting during
+the same playback. The observer only records native audio connections and
+parameter writes. A strict scheduler regression checks the output destination;
+all 28 focused rhythm, playback-rate and transport tests pass, including loop
+phase, delayed audible starts and pending-click cancellation. No manual
+**Update AI assets** run is required.
