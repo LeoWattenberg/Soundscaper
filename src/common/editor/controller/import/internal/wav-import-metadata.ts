@@ -4,7 +4,7 @@ import { scaleBextTimeReference } from '../../../broadcast-wave-project.ts';
 import { cartMetadataAtImportOrigin } from '../../../cart-import-origin.ts';
 import { isNeutralAdmSignalPath } from '../../../adm-passthrough-project.ts';
 import { normalizeAdmProjectMetadata } from '../../../adm-project-metadata.ts';
-import { normalizeProjectBextMetadata } from '../../../project-bext-metadata.ts';
+import { promoteImportedBextOrigin } from './bext-import-promotion.ts';
 
 // Legacy controller values are narrowed as the owning import service migrates.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -45,10 +45,16 @@ export function prepareImportedWavMetadata(options: Readonly<Record<string, any>
 		warnings.push(warning('bext-time-reference-conversion', copy.bextTimeReferenceConversionWarning
 			|| 'The BEXT TimeReference cannot be represented at the project sample rate.'));
 	}
-	const projectBext = project.metadata?.bext === null ? normalizeProjectBextMetadata({
-		...sourceBext,
-		timeReference: sourceTimeReference ?? '0',
-	}) : null;
+	let projectBext: ReturnType<typeof promoteImportedBextOrigin> | null = null;
+	if (project.metadata?.bext === null) {
+		try {
+			projectBext = promoteImportedBextOrigin(sourceBext, sourceTimeReference,
+				importOptions.destination === 'timeline' && importOptions.timelineStartExplicit ? importOptions.timelineStartFrame : 0);
+		} catch {
+			warnings.push(warning('bext-project-origin-conversion', copy.bextProjectOriginConversionWarning
+				|| 'The recording placement cannot be represented as a BEXT project origin. Source metadata was retained.'));
+		}
+	}
 	let timelineStartFrame = importOptions.timelineStartFrame;
 	if (importOptions.destination === 'timeline' && !importOptions.timelineStartExplicit) {
 		const origin = projectBext?.timeReference ?? project.metadata?.bext?.timeReference;
