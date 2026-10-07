@@ -37,6 +37,17 @@ failures are excluded from the count.
 | R4-DIALOG-028 | Import two WAVs, click the first clip header and Shift-click the second, then open Clip properties. Assign Ctrl+Alt+Home to New label track in Preferences. Focus the last selected-clip inspector tab using plain End, then press the binding. | The docked inspector consumed modified Home and added no track. Its local tab navigation should preserve editor commands without changing selected clips. | Leave already handled and Ctrl/Meta/Alt-modified keys untouched in this independently implemented selected-clip tab owner. The ordinary Chromium baseline fails at the absent label track. The command and plain-End workflow plus all four original live dockable Clip properties workflows pass all three engines on menubar-clip-tabs-clean36 (18/18 combined), preserving panel persistence, pitch entry and exact selected-clip behavior. The mounted modified-key case first fails while the original seven cases pass; all eight now pass. This panel owns clip-inspector tabs, independently of workspace, metadata, project and menubar navigation. |
 | R4-DIALOG-029 | Assign Ctrl+Alt+Up to New label track in Preferences. Window → History; its panel menu → Arrange panel → Bottom. Focus Resize Bottom and press the binding, then plain Up. Also float History and Metadata and use the binding from History’s move and resize grips. | Modified Up resized the bottom dock from 320 to 336 pixels and created no track. Floating geometry handlers similarly consumed modified keys; their move fallback could reorder a neighbouring panel. Only plain or Shift-accelerated arrows should edit geometry. | Preserve already handled and Ctrl/Meta/Alt-modified keys in the dock geometry owner and its shared panel-move continuation. The corrected ordinary Chromium baseline fails at the changed height. All assigned-command and unchanged-geometry checks plus the complete existing docked, floating, modal and side-panel resize spec pass all three engines on dock-geometry-clean37 (12/12). Five mounted modifier cases first fail while five exact plain/Shift cases pass; the two-floating-group continuation separately fails until guarded. All ten mounted cases and 38 focused workspace tests now pass. Count dock sides, floating movement, resizing and continuation once as this workspace-geometry admission root, separately from tab-navigation owners and earlier pointer Escape cancellation. |
 
+Uncounted D017 follow-through: reload with Manage labels still open after editing
+an imported caption. The frozen `616231e99` full Chromium run completed all cue,
+history, autosave, WebVTT and Podcast chapters assertions but caught a client
+`null.sampleRate` error during bootstrap. The extracted list had moved a rate
+read outside the former nonempty-label condition. The Labels branch now waits
+for the actual project, retaining its native rate once loaded. The mounted
+production `WorkspacePanelContent` regression first reproduces that exact
+exception, then passes the null → saved 44.1 kHz project → reload lifecycle,
+including exact restored cue boundaries, alongside all three deletion cases.
+The original browser workflow and its client-error assertion remain unchanged.
+
 Browser regression: `audio-editor-round4-workspace-delete-fallback.spec.js`.
 Strict regression: `audio-editor-round4-workspace-delete-fallback.test.ts`.
 

@@ -198,6 +198,7 @@ export default function WorkspacePanelContent({
 		);
 	}
 	if (panelId === 'labels') {
+		if (!project) return null;
 		const labelTracks = (project?.tracks || []).filter((track) => track.type === 'label');
 		const labels = labelTracks.flatMap((track) => (track.labels || []).map((label) => ({
 			...label,
