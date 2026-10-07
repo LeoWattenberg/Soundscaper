@@ -2,18 +2,21 @@
 
 import { EDITOR_ENGLISH_COPY } from '../../src/common/i18n/editor-copy-inventory.ts';
 import { expect, test } from './audio-editor-test-fixtures.js';
-import { bootEditor, chooseNestedCommandAction } from './audio-editor-test-helpers.js';
+import { bootEditor, chooseNestedCommandAction, closeWorkspacePanel } from './audio-editor-test-helpers.js';
 
 test('a generated Title can be shortened with its visible right-edge trim handle', async ({ page }) => {
 	const editor = await bootEditor(page, '/framescaper/embed/en/');
+	// Keep coverage of timeline edits without paying for exact Title preview renders.
+	await closeWorkspacePanel(editor, 'video-preview');
 	await chooseNestedCommandAction(page, editor, 'Generate', ['Video Generators', EDITOR_ENGLISH_COPY['ui.framescaperMenus.addVideoTitle']]);
 	const clip = editor.getByRole('group', { name: 'Video clip: Title', exact: true });
 	await expect(clip).toBeVisible();
 	await expect(editor).not.toHaveAttribute('data-edit-block-reason', /.+/u);
 	await clip.locator('.clip-header').click();
-	const before = await clip.boundingBox();
 	const handle = clip.getByRole('button', { name: 'Trim right edge', exact: true });
 	await expect(handle).toBeVisible();
+	await handle.scrollIntoViewIfNeeded();
+	const before = await clip.boundingBox();
 	const edge = await handle.boundingBox();
 	expect(before).not.toBeNull(); expect(edge).not.toBeNull();
 	await page.mouse.move(edge.x + edge.width / 2, edge.y + edge.height / 2);
