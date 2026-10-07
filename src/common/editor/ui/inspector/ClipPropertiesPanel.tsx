@@ -5,6 +5,7 @@ import { projectForRuntimeConsumers } from '../../project-current-runtime.ts';
 import type { RuntimeClipProject } from '../../runtime-clip-projection.ts';
 import type { ClipPropertiesFocusRequest } from '../../controller/composition/clip-properties-panel-opening.ts';
 import ClipPropertiesBody from './ClipPropertiesBody.jsx';
+import ImageClipPropertiesBody from './ImageClipPropertiesBody.tsx';
 import ClipSourceEditor from './ClipSourceEditor.tsx';
 import { selectAudioEditorEditBlock } from '../edit-blocking.ts';
 import { feedbackFailure, usePresentationFeedback } from '../presentation-feedback.ts';
@@ -24,10 +25,11 @@ interface ClipPropertiesPanelProps {
 	readonly copy: Readonly<Record<string, string>>;
 	readonly focusRequest?: ClipPropertiesFocusRequest | null;
 	readonly panelActive?: boolean;
+	readonly runtimeProject?: RuntimeClipProject | null;
 }
 
 /** A live inspector whose local tabs never rewrite the timeline's selection. */
-export default function ClipPropertiesPanel({ controller, snapshot, copy, focusRequest = null, panelActive = true }: ClipPropertiesPanelProps) {
+export default function ClipPropertiesPanel({ controller, snapshot, copy, focusRequest = null, panelActive = true, runtimeProject = null }: ClipPropertiesPanelProps) {
 	const selection = clipPropertiesSelection(snapshot, copy.clip);
 	const [error, setError] = usePresentationFeedback(copy);
 	const [storedTarget, setStoredTarget] = useState<ClipPropertiesTarget>({ projectId: null, clipId: null });
@@ -81,8 +83,10 @@ export default function ClipPropertiesPanel({ controller, snapshot, copy, focusR
 
 	const sourceController = controller as ClipSourceController;
 	const persistedProject = snapshot.project;
-	const sourceProject = useMemo(() => persistedProject
-		? projectForRuntimeConsumers(persistedProject as ClipSourceProject & RuntimeClipProject) : null, [persistedProject]);
+	const sourceProject = useMemo(() => {
+		const project = runtimeProject ?? persistedProject;
+		return project ? projectForRuntimeConsumers(project as ClipSourceProject & RuntimeClipProject) : null;
+	}, [persistedProject, runtimeProject]);
 	const runtimeSnapshot = sourceProject ? { ...snapshot, project: sourceProject } : snapshot;
 	const sourceClip = sourceProject?.clips.find(clip => clip.id === activeClipId);
 	const hasSourceEditor = panelActive && sourceClip?.kind === 'audio' && sourceController.actions?.clipSourcePreview
@@ -111,8 +115,11 @@ export default function ClipPropertiesPanel({ controller, snapshot, copy, focusR
 			onFocusCapture={() => { if (hasSourceEditor && activeClipId) sourceController.actions.clipSourcePreview.focus(activeClipId); }}>
 			{hasSourceEditor && sourceProject && activeClipId && <ClipSourceEditor key={`source:${sourceProject.id}:${activeClipId}`} controller={sourceController}
 				project={sourceProject} clipId={activeClipId} copy={copy} blocked={selectAudioEditorEditBlock(snapshot as Parameters<typeof selectAudioEditorEditBlock>[0]).blocked} />}
-			<ClipPropertiesBody key={JSON.stringify([selection.projectId, activeClipId])} controller={controller}
-				snapshot={runtimeSnapshot} copy={copy} clipId={activeClipId} />
+			{sourceClip?.kind === 'image' ? <ImageClipPropertiesBody key={JSON.stringify([selection.projectId, activeClipId])}
+				controller={controller} project={persistedProject} clipId={activeClipId} copy={copy}
+				disabled={selectAudioEditorEditBlock(snapshot as Parameters<typeof selectAudioEditorEditBlock>[0]).blocked} />
+				: <ClipPropertiesBody key={JSON.stringify([selection.projectId, activeClipId])} controller={controller}
+					snapshot={runtimeSnapshot} copy={copy} clipId={activeClipId} />}
 		</div> : <p className="audio-editor-panel-hint" data-no-clip>{copy.noClipSelected}</p>}
 		{error && <p role="alert">{error}</p>}
 	</div>;

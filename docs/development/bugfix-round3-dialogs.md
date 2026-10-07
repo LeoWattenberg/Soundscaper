@@ -21,6 +21,8 @@ round-three baseline. Tests do not install editor state or require malformed fil
 | R3-DIALOG-013 | Framescaper → Tracks → Caption Tracks. Import a normal one-cue SRT using Sidecar text, let the project save, then open the same editor in another browser tab. Return to the first tab and export the caption track, or close and reopen Caption Tracks. | The second tab took the editing lease, making the first tab read-only. Export selected track became disabled and Caption Tracks could not reopen, preventing a read operation on existing captions. | Separate sidecar export admission from caption authoring admission and keep the caption menu reachable for read-only export. The public baseline reached a disabled export button after an ordinary lease takeover. The corrected workflow reopens the dialog, keeps its authoring fields disabled, and downloads the existing cue. Mounted and menu regressions verify export reaches the file service without admitting a document edit; other finishing authoring menus stay disabled. |
 | R3-DIALOG-014 | Framescaper → File → Import a normal 25 fps video. Select its clip, move the program playhead to 00:00:00:12 on the default 30 fps sequence, then Edit → Audio clips → Trim left edge to playhead. Open Clip properties → Media settings and inspect or edit Source in. | The 0.400-second source offset displayed 00:00:00.000. The field treated its native source ordinal 10 as ten project audio samples, so time edits also supplied sample counts as video ordinals. | Give Source in a focused boundary that reads authenticated video presentation times and translates edited seconds back to the source's ordinal. Audio source offsets retain their own sample clock. The public baseline displayed 000 instead of 400 milliseconds; the corrected workflow displays 400, saves a valid edit to 240 milliseconds, and reopens that value. Mounted CFR and authenticated VFR regressions verify the exact displayed boundary, native ordinal commits, and no edit on untouched blur. |
 
+| R3-DIALOG-015 | Framescaper → Generate → Video Generators → Add Still Image. Choose a normal PNG, select its image clip, then Edit → Audio clips → Clip properties. Open Media settings and change Duration to two seconds. | Opening Properties failed with “clip.timelineStartFrame must be a safe integer,” so none of its fields could appear. The enabled image Properties entry should expose the still image's supported sequence timing. | Carry the selected product's existing image-aware runtime projection into the panel and give native image timing its own body. Duration and Start submit existing image-clip/set commands; unsupported audio, rename, and effect fields are omitted. The public baseline failed before the panel drew. The corrected workflow saves two seconds and reopens it. A mounted regression submits the duration command through the real Framescaper runtime and verifies exact Undo restoration. Group the entry crash and its image-body classification follow-through as one consumer-boundary defect. |
+
 All three workflows passed Chromium, Firefox, and WebKit against immutable green
 batch 1. The existing Chromium mask validation, preset, and removal workflow also
 passed; its invalid Height 0 validation remains intact. Focused Node regressions
@@ -59,6 +61,11 @@ Entry 014 passed Chromium, Firefox, and WebKit against immutable green batch 9.
 Its two mounted native-video cases and the existing clip media/projection suite
 passed all six focused Node cases. Changed source and tests passed targeted lint
 and the file-size gate.
+
+Entry 015 passed Chromium, Firefox, and WebKit against immutable green batch 10.
+Its mounted image-runtime regression and existing panel/model-boundary tests
+passed all 12 focused Node cases. Changed source and tests passed targeted lint,
+source typecheck, and the file-size gate.
 
 Uncounted follow-through to R2-DIALOG-012: in Framescaper, import a normal WebM,
 select its clip, then Edit → Audio clips → Video keyframes. Choose Scale X,
