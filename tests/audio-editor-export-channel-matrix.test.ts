@@ -47,6 +47,12 @@ test('a stated mapping is read as routing, whichever spelling it uses', () => {
 	);
 });
 
+test('mapping text accepts the full whitespace set removed by text inputs', () => {
+	for (const whitespace of ['\uFEFF', '\u00A0', '\u2003']) {
+		assert.deepEqual(parseExportChannelMatrix(`${whitespace}{"channels":[0]}${whitespace}`, 2), [[true], [false]]);
+	}
+});
+
 test('retyping the output count never forgets the columns a shorter count excluded', () => {
 	const wide = toggleExportChannelMatrix(
 		ensureExportChannelMatrixWidth(identityExportChannelMatrix(2), 4), 0, 3, true,

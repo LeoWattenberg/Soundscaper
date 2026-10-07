@@ -78,7 +78,7 @@ export function createApplicationMenuAccessKeyController(
 	const onKeyDown = (event: ApplicationMenuAccessKeyEvent): void => {
 		if (event.key === 'Alt') {
 			if (altPress === 'cancelled') return;
-			const plainAlt = !event.shiftKey && !event.ctrlKey && !event.metaKey;
+			const plainAlt = hasNoAccessKeyModifiers(event);
 			if (!plainAlt) {
 				altPress = 'cancelled';
 				return;
@@ -89,9 +89,7 @@ export function createApplicationMenuAccessKeyController(
 		}
 
 		const plainAltAccessKey = event.altKey
-			&& !event.shiftKey
-			&& !event.ctrlKey
-			&& !event.metaKey
+			&& hasNoAccessKeyModifiers(event)
 			&& Array.from(event.key).length === 1;
 		if (plainAltAccessKey) {
 			altPress = 'cancelled';
@@ -102,10 +100,8 @@ export function createApplicationMenuAccessKeyController(
 
 		if (altPress !== 'idle') altPress = 'cancelled';
 		const plainF10 = event.key === 'F10'
-			&& !event.shiftKey
 			&& !event.altKey
-			&& !event.ctrlKey
-			&& !event.metaKey;
+			&& hasNoAccessKeyModifiers(event);
 		if (!plainF10) return;
 		event.preventDefault();
 		options.focusFileMenu();
@@ -114,9 +110,7 @@ export function createApplicationMenuAccessKeyController(
 	const onKeyUp = (event: ApplicationMenuAccessKeyEvent): void => {
 		if (event.key !== 'Alt') return;
 		const activate = altPress === 'armed'
-			&& !event.shiftKey
-			&& !event.ctrlKey
-			&& !event.metaKey;
+			&& hasNoAccessKeyModifiers(event);
 		altPress = 'idle';
 		if (!activate) return;
 		event.preventDefault();
@@ -129,4 +123,8 @@ export function createApplicationMenuAccessKeyController(
 		cancel,
 		updateOptions(nextOptions) { options = nextOptions; },
 	};
+}
+
+function hasNoAccessKeyModifiers(event: ApplicationMenuAccessKeyEvent): boolean {
+	return !event.shiftKey && !event.ctrlKey && !event.metaKey;
 }

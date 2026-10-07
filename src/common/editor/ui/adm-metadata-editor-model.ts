@@ -131,11 +131,7 @@ export function setAdmEditorLayout(
 ): AdmAuthoredMetadata {
 	const bedChannels = ADM_BED_CHANNEL_ORDER[layout];
 	const assignments = listAdmEditorSourceChannels(project).flatMap((source) => {
-		const current = value.bed.assignments.find((assignment) => (
-			assignment.stripKind === source.stripKind
-			&& assignment.stripId === source.stripId
-			&& assignment.sourceChannel === source.sourceChannel
-		));
+		const current = value.bed.assignments.find((assignment) => sameSourceChannel(assignment, source));
 		// None is an explicit routing choice, not a request for the new layout's
 		// default assignment. Only channels already in the bed are remapped.
 		if (!current) return [];
@@ -143,12 +139,13 @@ export function setAdmEditorLayout(
 			? current.bedChannel
 			: defaultBedChannel(bedChannels, source.sourceChannel);
 		return bedChannel === null ? [] : [{
-			...source,
-			label: undefined,
+			stripKind: source.stripKind,
+			stripId: source.stripId,
+			sourceChannel: source.sourceChannel,
 			bedChannel,
 			gain: current.gain,
 		}];
-	}).map(({ label: _label, ...assignment }) => assignment);
+	});
 	return normalizeAdmProjectMetadata({
 		...value,
 		bed: { ...value.bed, layout, assignments },
@@ -159,11 +156,7 @@ export function setAdmEditorAssignment(
 	value: AdmAuthoredMetadata,
 	change: AdmEditorAssignmentChange,
 ): AdmAuthoredMetadata {
-	const assignments = value.bed.assignments.filter((assignment) => !(
-		assignment.stripKind === change.stripKind
-		&& assignment.stripId === change.stripId
-		&& assignment.sourceChannel === change.sourceChannel
-	));
+	const assignments = value.bed.assignments.filter((assignment) => !sameSourceChannel(assignment, change));
 	if (change.bedChannel != null) assignments.push({ ...change, bedChannel: change.bedChannel });
 	return normalizeAdmProjectMetadata({
 		...value,
@@ -231,4 +224,11 @@ function defaultBedChannel(
 ): AdmBedChannel | null {
 	if (bedChannels.length === 1) return bedChannels[0] ?? null;
 	return bedChannels[sourceChannel] ?? null;
+}
+
+function sameSourceChannel(
+	left: Pick<AdmEditorSourceChannel, 'stripKind' | 'stripId' | 'sourceChannel'>,
+	right: Pick<AdmEditorSourceChannel, 'stripKind' | 'stripId' | 'sourceChannel'>,
+): boolean {
+	return left.stripKind === right.stripKind && left.stripId === right.stripId && left.sourceChannel === right.sourceChannel;
 }

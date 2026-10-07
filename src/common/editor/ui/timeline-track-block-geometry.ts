@@ -18,13 +18,14 @@ export function mediaTrackBlockBounds(
 	if (index < 0) return null;
 	const laneGroupId = tracks[index]?.laneGroupId;
 	if (!laneGroupId) return { start: index, end: index };
-	const indexes = tracks
-		.map((track, trackIndex) => track.laneGroupId === laneGroupId ? trackIndex : -1)
-		.filter((trackIndex) => trackIndex >= 0);
-	return {
-		start: Math.min(...indexes),
-		end: Math.max(...indexes),
-	};
+	let start = index;
+	let end = index;
+	tracks.forEach((track, trackIndex) => {
+		if (track.laneGroupId !== laneGroupId) return;
+		start = Math.min(start, trackIndex);
+		end = Math.max(end, trackIndex);
+	});
+	return { start, end };
 }
 
 export function mediaTrackBlockDestination(

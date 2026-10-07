@@ -1,5 +1,6 @@
+import { mediaTrackBlockDestination } from './timeline-track-block-geometry.ts';
 
-
+export { mediaTrackBlockBounds as audioEditorTrackBlockBounds } from './timeline-track-block-geometry.ts';
 export const EFFECT_MENU_GROUPS = Object.freeze([
 	['volumeCompression', ['audacity-amplify', 'audacity-auto-duck', 'audacity-compressor', 'multiband-compressor', 'audacity-limiter', 'audacity-loudness-normalization', 'audacity-normalize', 'audacity-remove-dc-offset']],
 	['fading', ['audacity-fade-in', 'audacity-fade-out']],
@@ -56,38 +57,17 @@ export function trackSources(project, track) {
 	if (!project || !track || track.type !== 'audio') return [];
 	const clipById = new Map((project.clips || []).map((clip) => [clip.id, clip]));
 	const sourceById = new Map((project.sources || []).map((source) => [source.id, source]));
-	return [...new Map((track.clipIds || []).map((clipId) => {
-		const source = sourceById.get(clipById.get(clipId)?.sourceId) || null;
-		return [source?.id, source];
-	}).filter(([, source]) => source)).values()];
-}
-
-export function audioEditorTrackBlockBounds(tracks, trackId) {
-	const index = tracks.findIndex((track) => track.id === trackId);
-	if (index < 0) return null;
-	const laneGroupId = tracks[index].laneGroupId;
-	if (!laneGroupId) return { start: index, end: index };
-	const indexes = tracks
-		.map((track, trackIndex) => track.laneGroupId === laneGroupId ? trackIndex : -1)
-		.filter((trackIndex) => trackIndex >= 0);
-	return {
-		start: Math.min(...indexes),
-		end: Math.max(...indexes),
-	};
+	const sources = new Map();
+	for (const clipId of track.clipIds || []) {
+		const source = sourceById.get(clipById.get(clipId)?.sourceId);
+		if (source) sources.set(source.id, source);
+	}
+	return [...sources.values()];
 }
 
 export function moveAudioEditorTrackBlock(controller, tracks, trackId, direction) {
-	const bounds = audioEditorTrackBlockBounds(tracks, trackId);
-	if (!bounds) return null;
-	const destination = direction === 'top'
-		? 0
-		: direction === 'bottom'
-			? tracks.length - 1
-			: direction === 'up'
-				? Math.max(0, bounds.start - 1)
-				: direction === 'down'
-					? Math.min(tracks.length - 1, bounds.end + 1)
-					: bounds.start;
+	const destination = mediaTrackBlockDestination(tracks, trackId, direction);
+	if (destination === null) return null;
 	return controller.actions.track.reorder(trackId, destination);
 }
 

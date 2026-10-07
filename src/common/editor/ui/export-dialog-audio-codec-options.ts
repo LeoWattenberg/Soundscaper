@@ -86,7 +86,7 @@ export function exportDialogBitRateOptions(
 		const minimum = mp3MinimumBitrate(sampleRate, channelCount);
 		rates = rates.filter((rate) => rate >= minimum);
 	}
-	return Object.freeze(rates.map((rate) => Object.freeze({ value: String(rate), label: `${String(rate)} kbps` })));
+	return numericOptions(rates, ' kbps');
 }
 
 /**
@@ -106,9 +106,7 @@ function mp3MinimumBitrate(sampleRate: unknown, channelCount: unknown): number {
 export function exportDialogMp3BitRateModeOptions(
 	copy: Readonly<Record<string, unknown>>,
 ): readonly DialogOption[] {
-	return Object.freeze(Object.entries(MP3_BIT_RATE_MODE_COPY_KEYS).map(([value, key]) => (
-		Object.freeze({ value, label: String(copy[key] ?? value) })
-	)));
+	return localizedOptions(MP3_BIT_RATE_MODE_COPY_KEYS, copy);
 }
 
 /**
@@ -142,9 +140,7 @@ export function exportDialogMp3QualityOptions(
 export function exportDialogOpusVbrModeOptions(
 	copy: Readonly<Record<string, unknown>>,
 ): readonly DialogOption[] {
-	return Object.freeze(Object.entries(OPUS_VBR_MODE_COPY_KEYS).map(([value, key]) => (
-		Object.freeze({ value, label: String(copy[key] ?? value) })
-	)));
+	return localizedOptions(OPUS_VBR_MODE_COPY_KEYS, copy);
 }
 
 /** The settings key that the Quality row writes for the selected mode. */
@@ -167,9 +163,7 @@ export function exportDialogBitRateSelectionReason(
 
 export function exportDialogVorbisQualityOptions(desktop: boolean): readonly DialogOption[] {
 	const qualities = desktop ? desktopExportVorbisQualities() : Array.from({ length: 11 }, (_, index) => index);
-	return Object.freeze(qualities.map((quality) => Object.freeze({
-		value: String(quality), label: String(quality),
-	})));
+	return numericOptions(qualities);
 }
 
 export function exportDialogMaximumAudioSampleRate(format: unknown, desktop: boolean): number {
@@ -184,10 +178,10 @@ export function constrainExportDialogSampleRate(value: unknown, format: unknown,
 	const requested = Number.isFinite(numeric) && numeric > 0 ? Math.round(numeric) : 48_000;
 	const bounded = Math.max(8_000, Math.min(requested, maximum));
 	const exactRates = exactSampleRates(format, desktop);
-	const candidates = exactRates.length > 0 ? exactRates : [bounded];
-	return String(candidates.reduce((nearest, candidate) => (
+	if (exactRates.length === 0) return String(bounded);
+	return String(exactRates.reduce((nearest, candidate) => (
 		Math.abs(candidate - bounded) < Math.abs(nearest - bounded) ? candidate : nearest
-	), candidates[0] ?? maximum));
+	), exactRates[0] ?? maximum));
 }
 
 export function exportDialogSampleRateSuggestions(
@@ -331,8 +325,7 @@ export function normalizeExportDialogAudioSettings(
 		));
 	}
 	if (format === 'flac' || format === 'wavpack') {
-		const levels = exportDialogCompressionLevels(format, false)
-			.map((level) => Object.freeze({ value: String(level), label: String(level) }));
+		const levels = numericOptions(exportDialogCompressionLevels(format, false));
 		setChanged(patch, settings, 'compressionLevel', closestOption(
 			settings.compressionLevel, levels, format === 'flac' ? 5 : 2,
 		));
@@ -357,6 +350,22 @@ function exactSampleRates(format: unknown, desktop: boolean): readonly number[] 
 	return desktop
 		? desktopExportSampleRates(format)
 		: BROWSER_EXACT_SAMPLE_RATES[String(format)] ?? [];
+}
+
+function localizedOptions(
+	keys: Readonly<Record<string, string>>,
+	copy: Readonly<Record<string, unknown>>,
+): readonly DialogOption[] {
+	return Object.freeze(Object.entries(keys).map(([value, key]) => (
+		Object.freeze({ value, label: String(copy[key] ?? value) })
+	)));
+}
+
+function numericOptions(values: readonly number[], suffix = ''): readonly DialogOption[] {
+	return Object.freeze(values.map((number) => {
+		const value = String(number);
+		return Object.freeze({ value, label: `${value}${suffix}` });
+	}));
 }
 
 /** Keep a stale preset or variable-quality index inside its own row. */

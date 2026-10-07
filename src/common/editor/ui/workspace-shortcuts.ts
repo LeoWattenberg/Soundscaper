@@ -80,19 +80,11 @@ export function handleWorkspaceKeyboard(
 	if (targetDisposition === 'blocked') return;
 	if (handleProjectZoomShortcut(event, snapshot, run, registry)) return;
 	const reservedVideoNavigationAction = registry.videoNavigation
-		? videoNavigationShortcut({
-			altKey: event.altKey,
-			ctrlKey: event.ctrlKey,
-			key: event.key,
-			metaKey: event.metaKey,
-			repeat: false,
-			shiftKey: event.shiftKey,
-		})
+		? videoNavigationShortcut(event, true)
 		: null;
 	if (reservedVideoNavigationAction && event.repeat) return;
-	const videoNavigationAction = videoNavigationShortcut(event);
-	const videoNavigationHandler = videoNavigationAction ? registry.videoNavigation?.[videoNavigationAction] : null;
 	if (reservedVideoNavigationAction) {
+		const videoNavigationHandler = registry.videoNavigation?.[reservedVideoNavigationAction];
 		if (videoNavigationHandler) {
 			run(videoNavigationHandler);
 			event.preventDefault();
@@ -133,8 +125,9 @@ function isNativeEditableShortcut(
 ): boolean {
 	const key = keyboardShortcutEventKey(event).toLowerCase();
 	if (event.altKey) return true;
-	if (!event.ctrlKey && !event.metaKey && event.shiftKey && key === 'f10') return true;
-	if (!event.ctrlKey && !event.metaKey) return !/^f(?:[1-9]|1\d|2[0-4])$/u.test(key);
+	if (!event.ctrlKey && !event.metaKey) {
+		return event.shiftKey && key === 'f10' || !/^f(?:[1-9]|1\d|2[0-4])$/u.test(key);
+	}
 	return NATIVE_EDITABLE_KEYS.has(key.replace(/^arrow/u, ''));
 }
 
@@ -150,8 +143,9 @@ export function isWorkspaceModalShortcutTarget(target: EventTarget | null): bool
 
 export function videoNavigationShortcut(
 	event: Pick<KeyboardEventLike, 'altKey' | 'ctrlKey' | 'key' | 'metaKey' | 'repeat' | 'shiftKey'>,
+	ignoreRepeat = false,
 ): VideoNavigationShortcut | null {
-	if (event.altKey || event.ctrlKey || event.metaKey || event.repeat || event.shiftKey) return null;
+	if (event.altKey || event.ctrlKey || event.metaKey || event.repeat && !ignoreRepeat || event.shiftKey) return null;
 	if (event.key === 'ArrowUp') return 'previousEdit';
 	if (event.key === 'ArrowDown') return 'nextEdit';
 	if (event.key.toUpperCase() === 'J') return 'shuttleBackward';
@@ -283,13 +277,13 @@ export function handleEditorToolbarKeyDown(event: ReactKeyboardEvent<HTMLElement
 	if (current < 0 || !focusables.length) return;
 	event.preventDefault();
 	event.stopPropagation();
-	let next = current;
+	let next: number;
 	if (event.key === 'Home') next = 0;
 	else if (event.key === 'End') next = focusables.length - 1;
 	else if (event.key === 'ArrowRight' || event.key === 'ArrowDown') next = (current + 1) % focusables.length;
 	else next = (current - 1 + focusables.length) % focusables.length;
 	const activeTabIndex = Math.max(0, Number.parseInt(focusables[current].getAttribute('tabindex') || '0', 10));
-	focusables.forEach((element, index) => { element.tabIndex = index === next ? activeTabIndex : -1; });
+	setEditorToolbarTabStop(focusables, next, activeTabIndex);
 	focusables[next].focus({ preventScroll: true });
 	focusables[next].scrollIntoView({ block: 'nearest', inline: 'nearest' });
 }
@@ -300,8 +294,7 @@ export function handleEditorToolbarFocus(event: ReactFocusEvent<HTMLElement>): v
 	const focusables = editorToolbarFocusables(toolbar);
 	const current = focusables.findIndex((element) => element === event.target || element.contains(event.target));
 	if (current < 0) return;
-	const activeTabIndex = Math.max(0, ...focusables.map((element) => Number.parseInt(element.getAttribute('tabindex') || '-1', 10)));
-	focusables.forEach((element, index) => { element.tabIndex = index === current ? activeTabIndex : -1; });
+	setEditorToolbarTabStop(focusables, current, editorToolbarActiveTabIndex(focusables));
 }
 
 export function handleEditorToolbarBlur(event: ReactFocusEvent<HTMLElement>): void {
@@ -309,8 +302,15 @@ export function handleEditorToolbarBlur(event: ReactFocusEvent<HTMLElement>): vo
 	const toolbar = event.currentTarget.querySelector('.toolbar[role="toolbar"]');
 	if (!toolbar) return;
 	const focusables = editorToolbarFocusables(toolbar);
-	const activeTabIndex = Math.max(0, ...focusables.map((element) => Number.parseInt(element.getAttribute('tabindex') || '-1', 10)));
-	focusables.forEach((element, index) => { element.tabIndex = index === 0 ? activeTabIndex : -1; });
+	setEditorToolbarTabStop(focusables, 0, editorToolbarActiveTabIndex(focusables));
+}
+
+function editorToolbarActiveTabIndex(focusables: readonly HTMLElement[]): number {
+	return Math.max(0, ...focusables.map((element) => Number.parseInt(element.getAttribute('tabindex') || '-1', 10)));
+}
+
+function setEditorToolbarTabStop(focusables: readonly HTMLElement[], activeIndex: number, tabIndex: number): void {
+	focusables.forEach((element, index) => { element.tabIndex = index === activeIndex ? tabIndex : -1; });
 }
 
 export function editorToolbarFocusables(toolbar: Element): HTMLElement[] {
