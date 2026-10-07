@@ -292,6 +292,9 @@ test.describe('clip spreadsheet', () => {
 		await (await choose).setFiles(toneB);
 		await expect(cell(grid, 0, 'name')).toHaveText('Pasted while editing');
 		await expect(cell(grid, 0, 'source')).not.toHaveText(originalSourceId);
+		// Row publication precedes completion of the asynchronous source import.
+		await expect(grid).toHaveAttribute('aria-busy', 'false');
+		await expect(dialog).toBeHidden();
 		await page.keyboard.press('ControlOrMeta+z');
 		await expect(cell(grid, 0, 'name')).toHaveText(firstName);
 		await expect(cell(grid, 0, 'source')).toHaveText(originalSourceId);
