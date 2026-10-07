@@ -2,14 +2,13 @@
 
 import type { PhotoDocumentV1 } from '../catalog/types.ts';
 import type { PhotoImportMappingNoticeV1 } from './metadata-adapter-v1.ts';
-import type { FramescaperBrowserNativeImageDecodeSessionV1, OpenFramescaperBrowserNativeImageV1 } from '../../common/editor/timeline-image-native-decode-v1.ts';
+import type { OpenFramescaperBrowserNativeImageV1 } from '../../common/editor/timeline-image-native-decode-v1.ts';
 import type { FramescaperImageFramePackPublicationV1 } from '../../common/editor/timeline-image-frame-pack-v1.ts';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
 import { readClosedDomainArray, readClosedDomainField, readClosedDomainRecord } from '../../common/editor/closed-domain-value.ts';
 import { admitImageImportGesture, IMAGE_IMPORT_LIMITS } from '../../common/editor/image-import-admission.ts';
 import { readImageMetadataV1 } from '../../common/editor/imaging/image-metadata-reader-v1.ts';
-import { readPixelFrameV1 } from '../../common/editor/imaging/pixel-frame-contract-v1.ts';
 import { decodeFramescaperBrowserNativeImageV1 } from '../../common/editor/timeline-image-native-decode-v1.ts';
 import { openFramescaperBrowserNativeImageV1 } from '../../common/editor/timeline-image-browser-native-port.ts';
 import { FRAMESCAPER_IMAGE_ASSET_MIME_TYPE } from '../../common/editor/timeline-image-model.ts';
@@ -20,6 +19,7 @@ import { emptyPhotoMetadataV1, normalizePhotoMetadataV1 } from '../catalog/photo
 import { id, name, unique, utcTimestamp } from '../catalog/value-validation.ts';
 import { adaptPhotoImportMetadataV1 } from './metadata-adapter-v1.ts';
 import { admitPhotoSourceV1 } from './photo-source-admission-v1.ts';
+import { createPhotoNativeImagePortV1 } from './photo-native-image-port-v1.ts';
 
 interface Ownership { readonly photoId: string; readonly originalId: string; readonly originalStorageKey: string; readonly masterVersionId: string }
 interface SelectedOriginal extends Ownership { readonly file: File; readonly fileName: string; readonly byteLength: number; readonly mimeTypeHint: string | null; readonly modifiedTime: string }
@@ -127,42 +127,7 @@ async function prepareOriginal(selected: SelectedOriginal, index: number, templa
 	const original = new Blob([bytes], { type: `image/${admission.format}` });
 	const decoded = await decodeFramescaperBrowserNativeImageV1({ bytes, fileName: selected.fileName,
 		mimeTypeHint: selected.mimeTypeHint, signal,
-		open: async request => {
-			const session = await openImage(request);
-			const cleanup = Object.getOwnPropertyDescriptor(session, 'close');
-			if (!cleanup || !Object.hasOwn(cleanup, 'value') || typeof cleanup.value !== 'function') throw new TypeError('Photo decoder requires an own data cleanup port.');
-			const close = cleanup.value as FramescaperBrowserNativeImageDecodeSessionV1['close'];
-			try {
-				signal.throwIfAborted();
-				const ports = readClosedDomainRecord(session, 'photo decoder session', ['metadata', 'decodeFrame', 'close']);
-				const decode = readClosedDomainField(ports, 'decodeFrame', 'photo decoder session');
-				if (typeof decode !== 'function') throw new TypeError('Photo decoder requires an own data extraction port.');
-				const decodeFrame = decode as FramescaperBrowserNativeImageDecodeSessionV1['decodeFrame'];
-				const metadata = readClosedDomainRecord(readClosedDomainField(ports, 'metadata', 'photo decoder session'), 'photo decoder metadata', ['width', 'height', 'frameCount', 'topology', 'runtimeVersion']);
-				const field = (key: string) => readClosedDomainField(metadata, key, 'photo decoder metadata');
-				if (field('topology') !== 'single' || field('frameCount') !== 1) throw new RangeError('A photo requires exactly one static frame.');
-				const swapped = [5, 6, 7, 8].includes(facts.metadata.orientation);
-				const width = swapped ? admission.height : admission.width, height = swapped ? admission.width : admission.height;
-				if (field('width') !== width || field('height') !== height) throw new RangeError('Oriented photo dimensions disagree with its source header.');
-				const runtimeVersion = field('runtimeVersion');
-				if (typeof runtimeVersion !== 'string') throw new TypeError('Photo decoder requires a runtime version.');
-				const snapshot = Object.freeze({ width, height, frameCount: 1, topology: 'single' as const, runtimeVersion });
-				return Object.freeze({ metadata: snapshot,
-					async decodeFrame(frameIndex: number, frameSignal?: AbortSignal) {
-						const result = readClosedDomainRecord(await decodeFrame.call(session, frameIndex, frameSignal), 'photo decoded frame', ['rgba', 'durationMicroseconds']);
-						const rgba = readClosedDomainField(result, 'rgba', 'photo decoded frame');
-						readPixelFrameV1({ descriptor: { schemaVersion: 1, width, height,
-							sampleFormat: 'unorm8', primaries: 'srgb', transfer: 'srgb' }, pixels: rgba }, {
-							maximumSidePixels: IMAGE_IMPORT_LIMITS.maximumSidePixels, maximumPixels: IMAGE_IMPORT_LIMITS.maximumSdrPixelsPerFrame,
-							maximumBytes: IMAGE_IMPORT_LIMITS.maximumSdrPixelsPerFrame * 4 });
-						if (!(rgba instanceof Uint8Array)) throw new TypeError('Native photo pixels require Uint8Array.');
-						const duration = readClosedDomainField(result, 'durationMicroseconds', 'photo decoded frame');
-						if (duration !== null && typeof duration !== 'number') throw new TypeError('Native photo frame duration is invalid.');
-						const pixels = new Uint8Array(new Uint8Array(rgba.buffer, rgba.byteOffset, rgba.byteLength));
-						return Object.freeze({ rgba: pixels, durationMicroseconds: duration });
-					}, close() { close.call(session); } });
-			} catch (error) { close.call(session); throw error; }
-		},
+		open: createPhotoNativeImagePortV1(admission, facts.metadata.orientation, openImage, signal),
 	});
 	signal.throwIfAborted();
 	const artifact = decoded.publication;

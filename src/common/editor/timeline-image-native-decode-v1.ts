@@ -4,6 +4,7 @@ import { classifyImageFormatSignature, type ReviewedImageFormat } from './image-
 import { admitImageDecodeWorkload, IMAGE_IMPORT_LIMITS } from './image-import-admission.ts';
 import { confirmFileSizeWarning, type FileSizeWarningOptions } from './controller/shared/file-size-warning.ts';
 import { routeImageDecoder } from './image-decoder-routing.ts';
+import { snapshotCanonicalRgba8V1 } from './imaging/pixel-frame-canonical-rgba8-v1.ts';
 import {
 	createFramescaperImageFramePackWithWarningsV1,
 	type FramescaperImageFramePackPublicationV1,
@@ -197,12 +198,7 @@ function normalizedRgba(value: unknown, width: number, height: number, index: nu
 	if (!(value instanceof Uint8Array) || value.byteLength !== width * height * 4) {
 		throw new RangeError(`Browser-native image frame ${String(index)} has an invalid RGBA extent.`);
 	}
-	const output = value.slice();
-	for (let offset = 0; offset < output.byteLength; offset += 4) {
-		if (output[offset + 3] !== 0) continue;
-		output[offset] = 0; output[offset + 1] = 0; output[offset + 2] = 0;
-	}
-	return output;
+	return snapshotCanonicalRgba8V1(value, width, height);
 }
 
 function positiveDuration(value: unknown): number | null {

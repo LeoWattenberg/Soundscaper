@@ -28,6 +28,8 @@ belong in Git history, not in the maintained documentation set.
   defines shared resize recipes and bounded original-free preview bodies.
 - [Photo catalog definitions](architecture/lightscaper-catalog-definitions.md)
   defines bounded hierarchy and collection commands, scalar pages, and revision fencing.
+- [Retained-original photo regeneration](architecture/lightscaper-original-frame-regeneration.md)
+  defines authenticated native decoding and callback-scoped pixel custody.
 - [Time and media](architecture/time-and-media.md) defines canonical timing,
   edit, retime, proxy, and media-preservation contracts.
 - [Production and rendering](architecture/production-rendering.md) covers

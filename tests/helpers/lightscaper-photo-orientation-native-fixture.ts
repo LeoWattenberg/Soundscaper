@@ -60,7 +60,7 @@ function request(inputs: readonly Uint8Array[]) {
 			originalStorageKey: `storage-${index}`, masterVersionId: `master-${index}` })) };
 }
 
-async function encodeGrid(): Promise<Readonly<{ jpeg: Uint8Array; removedIccSegments: number }>> {
+export async function encodePhotoOrientationGridJpegFixtureV1(): Promise<Readonly<{ jpeg: Uint8Array; removedIccSegments: number }>> {
 	const grid = photoOrientationGridV1(), canvas = document.createElement('canvas'); canvas.width = grid.width; canvas.height = grid.height;
 	const context = canvas.getContext('2d', { colorSpace: 'srgb' }); if (!context) throw new Error('Orientation fixture needs a real 2D canvas.');
 	context.putImageData(new ImageData(Uint8ClampedArray.from(grid.rgba), grid.width, grid.height), 0, 0);
@@ -68,6 +68,8 @@ async function encodeGrid(): Promise<Readonly<{ jpeg: Uint8Array; removedIccSegm
 	if (blob.type !== 'image/jpeg' || blob.size > 64 * 1024) throw new RangeError('Native JPEG fixture exceeded its MIME/64KiB budget.');
 	return unprofiledCanvasJpegFixtureV1(new Uint8Array(await blob.arrayBuffer()));
 }
+
+const encodeGrid = encodePhotoOrientationGridJpegFixtureV1;
 
 /** Report pixel differences, including missing/extra bytes; dimensions cannot grant qualification. */
 export function compareOrientationPixelsV1(actual: Uint8Array, expected: Uint8Array) {
