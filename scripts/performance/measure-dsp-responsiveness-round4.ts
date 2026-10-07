@@ -159,6 +159,7 @@ async function main(): Promise<void> {
 			host: { node: process.version, platform: platform(), release: release(), cpus: cpus().map(cpu => cpu.model), totalMemoryBytes: totalmem(), loadAverageAtFinish: loadavg() },
 			methodology: { frames: 240_000, sampleRate: 48_000, channels: 2, warmupsPerVersion: 8, alternatingPairs: 12,
 				parityOutsideTimers: true, initializationOutsideTimers: true, generatorOutputRetentionOutsideTimers: true,
+				statistic: 'Upper middle order statistic: seventh sorted duration of12 alternating pairs, not the arithmetic mean of the two central durations.',
 				limitations: 'Synchronous kernel measurements; not click-to-Apply, realtime deadlines, sustained FPS or startup. Pair order alternates AB/BA. Shared-host scheduling can affect short workloads. No per-item universal speedup follows from a grouped result.' },
 			baseline: baseline.evidence, current: current.evidence, results }, null, 2)}\n`);
 	} finally { await rm(directory, { recursive: true, force: true }); }
