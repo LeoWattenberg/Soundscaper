@@ -267,6 +267,7 @@ export function findShortcutMenuHandler(
 }
 
 export function handleEditorToolbarKeyDown(event: ReactKeyboardEvent<HTMLElement>): void {
+	if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
 	if (controlOwnsNavigationKeys(event.target)) return;
 	if (event.target instanceof Element && event.target.closest('[role="menu"], [role="dialog"]')) return;
 	if (!['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;

@@ -584,3 +584,31 @@ Regression files are `audio-editor-round4-filter-curve-shortcut.test.tsx` and
 `audio-editor-round4-filter-curve-shortcut.spec.js`; evidence is recorded in
 `/tmp/soundscaper-r4-root-filter-shortcut-*` and `/tmp/soundscaper-r4-root-eq-*`.
 Manual Update AI assets: not required.
+
+## R4-ROOT-025 — Transport toolbar navigation consumes modified commands
+
+Import a WAV, assign Ctrl+Alt+Up to New label track in Preferences, focus the
+transport Play button and press the binding. The baseline moves focus to
+Customize toolbar and creates no label track. Unlike the EQ dialog's intentional
+suspension, project shortcuts are available on this ordinary toolbar button.
+The editor's capture navigation and the vendored toolbar's bubble navigation
+both claim modified arrow/Home/End keys as ordinary sibling navigation.
+
+Both toolbar navigation layers now leave already handled and Ctrl/Meta/Alt keys
+available to the workspace command dispatcher. Ordinary arrow and Home/End
+roving navigation and native editable-widget ownership remain intact. These
+two layers repair one toolbar routing defect; their variants count once. This
+differs from the first audit's D24, which repaired native number-field arrow
+ownership rather than modified commands on action buttons. The vendor deviation
+is recorded in its maintained README.
+
+The exact public workflow fails on immutable baseline `a0322d6e4` and passes
+Chromium, Firefox and WebKit on `toolbar-clean29`, along with original toolbar
+number stepping and DIALOG024's configured mixer-fader workflow (9/9). The
+faithfully mounted capture and vendor bubble handlers independently fail before
+correction; both and existing editable/shortcut cases pass afterward (4/4).
+DOM-fixture setup failures were excluded before obtaining those causal reds.
+Both guarded product builds, targeted lint and changed-file lint pass.
+Regression files are `audio-editor-round4-toolbar-shortcut.test.tsx` and
+`audio-editor-round4-toolbar-shortcut.spec.js`; evidence is recorded in
+`/tmp/soundscaper-r4-root-toolbar-shortcut-*`. Manual Update AI assets: not required.
