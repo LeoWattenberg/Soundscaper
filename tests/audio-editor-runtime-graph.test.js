@@ -55,19 +55,23 @@ test('live-analysis lease attaches a high-resolution side tap during playback an
 		engine[ENGINE_EMIT_METERS]();
 		assert.equal(Object.hasOwn(readings.at(-1).master, 'spectrumDb'), false);
 		const normalFftSize = engine.graph.masterAnalyser.fftSize;
-		const existingTransientCount = engine.graph.nodes.transientNodes?.size || 0;
+		const existingTransientNodes = new Set(engine.graph.nodes.transientNodes);
+		const existingTransientCount = existingTransientNodes.size;
 		const release = engine.acquireLiveAnalysis();
 		assert.equal(engine.graph.nodes.transientNodes.size, existingTransientCount, 'acquiring is deferred to the shared tick');
 		engine[ENGINE_EMIT_METERS]();
 		assert.equal(engine.graph.masterAnalyser.fftSize, normalFftSize);
-		assert.equal(engine.graph.nodes.transientNodes.size, existingTransientCount + 4);
+		assert.equal(engine.graph.nodes.transientNodes.size, existingTransientCount + 5);
 		assert.equal(engine.graph.nodes.transientNodes.has(engine.graph.masterAnalyser), false);
-		assert.ok([...engine.graph.nodes.transientNodes].some((node) => node.fftSize === 4_096));
+		const liveNodes = [...engine.graph.nodes.transientNodes].filter((node) => !existingTransientNodes.has(node));
+		assert.equal(liveNodes.filter((node) => node.fftSize === 4_096).length, 2, 'the spectrum preserves both stereo channels');
+		assert.equal(liveNodes.filter((node) => node.fftSize === 256).length, 2, 'the stereo scope retains its own taps');
 		assert.equal(readings.at(-1).master.spectrumDb.length, 128);
 		assert.ok(readings.at(-1).master.stereoScope.length <= 64);
 		release();
 		release();
-		assert.equal(engine.graph.nodes.transientNodes.size, existingTransientCount);
+		assert.deepEqual(engine.graph.nodes.transientNodes, existingTransientNodes);
+		assert.ok(liveNodes.every((node) => node.disconnected), 'release disconnects every lease-owned node');
 		engine[ENGINE_EMIT_METERS]();
 		assert.equal(Object.hasOwn(readings.at(-1).master, 'spectrumDb'), false);
 	} finally {

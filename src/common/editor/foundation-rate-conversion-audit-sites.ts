@@ -99,6 +99,12 @@ export const FOUNDATION_RATE_CONVERSION_AUDIT_SITES: readonly FoundationTimeConv
 		conversions: [{ helper: 'scaleSampleFrame', policies: ['point'] }],
 	},
 	{
+		id: 'mastering-sequence-cart-cue-output-rate',
+		file: 'src/common/editor/mastering-sequence-cart.ts',
+		behavior: 'Each retained CART cue converts its source-relative project frame to the nearest output-rate frame before adding that occurrence\'s assembled lead-in; cues on an exclusive source end are bounded by the delivered segment end.',
+		conversions: [{ helper: 'scaleSampleFrame', policies: ['point'] }],
+	},
+	{
 		id: 'recording-preview-rate-conform',
 		file: 'src/common/editor/controller/recording/recording-model.ts',
 		behavior: 'Captured frame counts change from the input device rate to the project output rate once under point rounding without unsafe floating multiplication. A timed recording converts its wall-clock duration to an enclosing-end frame offset, so it never stops before the requested instant.',
