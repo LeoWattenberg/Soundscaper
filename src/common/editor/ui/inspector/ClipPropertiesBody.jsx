@@ -220,7 +220,7 @@ export default function ClipPropertiesBody({ controller, snapshot, copy, clipId 
 				{!isVideoClip && snapshot.capabilities?.audioEffects && <ClipPropertiesDrawer name="pitch" label={copy.pitchTempo}
 					initiallyOpen={['pitchCents', 'speedRatio'].includes(focusField)}>
 					<div className="audio-editor-clip-properties__stack">
-						<ClipPropertyKnob key={pitchUnit} label={pitchLabel} name="pitchCents"
+						<ClipPropertyKnob label={pitchLabel} name="pitchCents"
 							value={pitchValue}
 							min={Math.min(pitchMinimum, Number(pitchValue))} max={Math.max(pitchMaximum, Number(pitchValue))}
 							step={pitchUnit === 'percent' ? 0.1 : 0.01} defaultValue={0} disabled={disabled} onCommit={commitField}
