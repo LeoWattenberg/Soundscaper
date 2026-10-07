@@ -63,6 +63,10 @@ test('ADM numeric fields ignore invalid typed values before committing', async (
 		await act(async () => onChange({
 			currentTarget: { value: '45', checkValidity: () => true },
 		}));
+		assert.equal(commits.length, 0, 'a valid typed draft waits for field confirmation');
+		await act(async () => reactProps(azimuth).onBlur({
+			currentTarget: { value: '45', checkValidity: () => true },
+		}));
 		assert.equal((commits[0] as { objects: readonly { position: { azimuth: number } }[] })
 			.objects[0]?.position.azimuth, 45);
 	} finally {

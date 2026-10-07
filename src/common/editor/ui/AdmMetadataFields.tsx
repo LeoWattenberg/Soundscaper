@@ -96,7 +96,7 @@ function validNumberInput(input: HTMLInputElement): number | null {
 	return Number.isFinite(value) ? value : null;
 }
 
-/** Keep incomplete number input local while committing valid positions live. */
+/** Commit one completed position or gain edit, rather than its typed prefixes. */
 function DraftNumberInput({ value, onCommit, ...props }: Readonly<{
 	value: number;
 	min: number;
@@ -107,18 +107,22 @@ function DraftNumberInput({ value, onCommit, ...props }: Readonly<{
 	onCommit: (value: number) => void;
 }>) {
 	const [draft, setDraft] = useState(String(value));
+	const blurCommitGuard = useRef(createDraftBlurCommitGuard()).current;
 	useEffect(() => setDraft(String(value)), [value]);
 	return <input {...props} type="number" value={draft}
 		onChange={(event) => {
 			setDraft(event.currentTarget.value);
-			const next = validNumberInput(event.currentTarget);
-			if (next != null) onCommit(next);
 		}}
 		onBlur={(event) => {
-			if (validNumberInput(event.currentTarget) == null) setDraft(String(value));
+			if (!draftBlurShouldCommit(blurCommitGuard)) return;
+			const next = validNumberInput(event.currentTarget);
+			if (next == null) setDraft(String(value));
+			else if (next !== value) onCommit(next);
 		}}
 		onKeyDown={(event) => {
-			if (event.key === 'Enter') event.currentTarget.blur();
+			if (event.key === 'Escape') {
+				cancelDraftEditOnEscape(blurCommitGuard, event, () => setDraft(String(value)));
+			} else if (event.key === 'Enter') event.currentTarget.blur();
 		}}
 	/>;
 }
