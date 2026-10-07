@@ -114,8 +114,9 @@ function restateRoutes(
 	const bakedTrackIds = new Set(directTrackIds);
 	const vcas = staged.vcas.map(vca => {
 		const members = vca.members.filter(member => member.kind !== 'track' || !bakedTrackIds.has(member.id));
+		const originalMembers = original.vcas.find(candidate => candidate.id === vca.id)?.members ?? [];
 		for (const copy of copies) {
-			const sourceWasMember = vca.members.some(member => member.kind === 'track' && member.id === copy.sourceTrackId);
+			const sourceWasMember = originalMembers.some(member => member.kind === 'track' && member.id === copy.sourceTrackId);
 			if (sourceWasMember && !members.some(member => member.kind === 'track' && member.id === copy.targetTrackId)) {
 				members.push({ kind: 'track', id: copy.targetTrackId });
 			}
