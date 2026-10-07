@@ -4,6 +4,7 @@ import { LARGE_AUDIO_FILE_BYTES, LARGE_AUDIO_DURATION_SECONDS } from './large-au
 import type { BrowserContainerAudioSample } from './browser-container-audio-decode.ts';
 import type { WavPackImportGroupDecoder } from './browser-streamed-wavpack-import.ts';
 import { confirmFileSizeWarning, type FileSizeWarningOptions } from './controller/shared/file-size-warning.ts';
+import { correctRifxAudioImportCodec } from './rifx-audio-import-codec.ts';
 
 const MAXIMUM_CHANNELS = 32;
 const MAXIMUM_SAMPLE_FRAMES = 65_536;
@@ -229,6 +230,7 @@ async function openBrowserAudioImportSession(file: Blob, signal?: AbortSignal, r
 		}
 		const track = await input.getPrimaryAudioTrack();
 		if (!track) throw new Error('The source has no primary audio track.');
+		await correctRifxAudioImportCodec(file, track, signal);
 		const codec = await track.getCodec();
 		let layerII = false;
 		if (codec === 'mp3') {

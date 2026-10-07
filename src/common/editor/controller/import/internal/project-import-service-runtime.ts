@@ -411,7 +411,7 @@ export function createProjectImportServiceRuntime(runtime: ProjectImportRuntime)
 				{ requireChunkStream }, { assertCurrent: assertImportProjectCurrent });
 		}
 		const { isStreamedAudioImportFile, scanEncodedAudioMarkers, decodeStandaloneAudioForImport } = await loadImportAdmissionExecution();
-		if (isStreamedAudioImportFile(file)) {
+		if (wavSignature === 'RIFX' || isStreamedAudioImportFile(file)) {
 			const { importStreamedAudioFile } = await import('./streamed-audio-import-service.ts');
 			return importStreamedAudioFile(file, { ...attributedImportOptions, confirmFileSizeWarning: runtime.confirmFileSizeWarning }, ffmpeg, wavMetadata,
 				importIncrementalPcm, assertImportProjectCurrent);

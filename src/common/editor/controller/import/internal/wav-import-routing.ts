@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-export type WavContainerSignature = 'RIFF' | 'RF64' | 'BW64' | null;
+export type WavContainerSignature = 'RIFF' | 'RIFX' | 'RF64' | 'BW64' | null;
 
 type WavFilePredicate = (file: unknown) => boolean;
 type WavInspector<Result> = (file: unknown) => Promise<Result>;
@@ -24,7 +24,7 @@ export async function inspectWavContainerSignature(
 		const buffer = await part.arrayBuffer();
 		if (!(buffer instanceof ArrayBuffer) || buffer.byteLength !== 4) return null;
 		const signature = String.fromCharCode(...new Uint8Array(buffer));
-		return signature === 'RIFF' || signature === 'RF64' || signature === 'BW64'
+		return signature === 'RIFF' || signature === 'RIFX' || signature === 'RF64' || signature === 'BW64'
 			? signature
 			: null;
 	} catch {
