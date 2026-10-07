@@ -17,8 +17,14 @@ export function createTimelineAnnotationViewportIndex(annotations: readonly Runt
 	const byId = new Map(wrappers.map(wrapper => [wrapper.id, wrapper]));
 	return {
 		query(pixelsPerSecond: number, sampleRate: number, scrollX: number, viewportWidth: number, retainedIds: readonly (string | null)[]) {
-			const from = Math.max(0, Math.floor((scrollX - 16) / pixelsPerSecond * sampleRate));
-			const to = Math.min(Number.MAX_SAFE_INTEGER, Math.max(from + 1, Math.ceil((scrollX + viewportWidth + 6) / pixelsPerSecond * sampleRate)));
+			const firstFrame = (scrollX - 16) / pixelsPerSecond * sampleRate;
+			const lastFrame = (scrollX + viewportWidth + 6) / pixelsPerSecond * sampleRate;
+			// Forward and inverse pixel projection can discard sub-frame margins at
+			// large coordinates. Keep the carrier query conservative; the exact UI
+			// visibility predicate still removes every extra candidate below.
+			const roundingFrames = Math.max(1, Math.ceil(Math.max(Math.abs(firstFrame), Math.abs(lastFrame)) * Number.EPSILON * 4));
+			const from = Math.min(Number.MAX_SAFE_INTEGER - 1, Math.max(0, Math.floor(firstFrame) - roundingFrames));
+			const to = Math.min(Number.MAX_SAFE_INTEGER, Math.max(from + 1, Math.ceil(lastFrame) + roundingFrames));
 			const found = new Map(index.query(from, to).filter(({ annotation }) => timelineAnnotationIsVisible(
 				annotation, pixelsPerSecond, sampleRate, scrollX, viewportWidth,
 			)).map(wrapper => [wrapper.id, wrapper]));

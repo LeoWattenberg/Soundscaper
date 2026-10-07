@@ -39,4 +39,17 @@ void test('annotation viewport queries preserve minimum-width regions, marker hi
 		timelineStartFrame: Number.MAX_SAFE_INTEGER, timelineEndFrame: Number.MAX_SAFE_INTEGER, durationFrames: 0 } as RuntimeTimelineAnnotationProjection;
 	assert.deepEqual(createTimelineAnnotationViewportIndex([finalMarker]).query(1, 1, Number.MAX_SAFE_INTEGER, 100, []), [finalMarker],
 		'a legal marker at the last safe sample never overflows the interval-index carrier');
+	const edgeMarkers = [0, 1, 2, 16, 32].map(offset => ({ ...finalMarker, id: `edge-${String(offset)}`,
+		positionFrame: Number.MAX_SAFE_INTEGER - offset, timelineStartFrame: Number.MAX_SAFE_INTEGER - offset,
+		timelineEndFrame: Number.MAX_SAFE_INTEGER - offset }));
+	const edgeIndex = createTimelineAnnotationViewportIndex(edgeMarkers);
+	for (const pixelsPerSecond of [.0001, 1, 100, 1000, 400_000]) for (const sampleRate of [1, 44_100, 48_000]) {
+		const boundaryPixel = Number.MAX_SAFE_INTEGER / sampleRate * pixelsPerSecond;
+		for (const offset of [-32, 0, 32]) {
+			const scrollX = boundaryPixel + offset;
+			assert.deepEqual(edgeIndex.query(pixelsPerSecond, sampleRate, scrollX, 100, []), edgeMarkers.filter(marker =>
+				timelineAnnotationIsVisible(marker, pixelsPerSecond, sampleRate, scrollX, 100)),
+			`safe sample-boundary projection remains conservative at scale ${String(pixelsPerSecond / sampleRate)}`);
+		}
+	}
 });

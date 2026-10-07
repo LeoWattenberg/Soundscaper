@@ -162,7 +162,10 @@ export function TimelineAnnotationLayer({
 		setPreview({ idSet: drag.idSet, annotationId: drag.annotation.id, edge: drag.edge, deltaFrames });
 		event.preventDefault();
 	};
-	const pointerMove = useTimelinePointerFrame(applyPointerMove, dragRef, null, pointerFlushRef);
+	const queuePointerMove = useTimelinePointerFrame(applyPointerMove, dragRef, null, pointerFlushRef);
+	const pointerMove = (event) => {
+		if (dragRef.current?.pointerId === event.pointerId) queuePointerMove(event);
+	};
 	const pointerUp = (event, cancelled = false) => {
 		if (dragRef.current && dragRef.current.pointerId !== event.pointerId) return;
 		pointerFlushRef.current?.(cancelled);

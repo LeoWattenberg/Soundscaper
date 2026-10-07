@@ -29,7 +29,7 @@ void test('annotation drags publish one latest preview per frame, skip repeated 
 			run={(operation: () => unknown) => operation()} createAnnotation={() => undefined} /></Profiler>));
 		const layer = dom.one('[data-timeline-annotation-layer]'); const row = dom.one('[data-annotation-id="marker"]');
 		(layer as unknown as { getBoundingClientRect: () => object }).getBoundingClientRect = () => ({ left: 0, top: 0, width: 500, height: 20 });
-		const event = (clientX: number) => ({ button: 0, pointerId: 1, clientX, target: row, currentTarget: row, preventDefault() {}, stopPropagation() {} });
+		const event = (clientX: number, pointerId = 1) => ({ button: 0, pointerId, clientX, target: row, currentTarget: row, preventDefault() {}, stopPropagation() {} });
 		await act(async () => reactProps(row).onPointerDown?.(event(100)));
 		const before = commits;
 		await act(async () => { for (const x of [101, 110, 120]) reactProps(row).onPointerMove?.(event(x)); });
@@ -40,7 +40,15 @@ void test('annotation drags publish one latest preview per frame, skip repeated 
 		assert.equal(commits, before + 1, 'same quantized delta performs no extra React commit');
 		await act(async () => { reactProps(row).onPointerMove?.(event(130)); reactProps(row).onPointerUp?.(event(130)); });
 		assert.deepEqual(moves, [30]); assert.equal(frames.size, 0);
+		await act(async () => {
+			reactProps(row).onPointerDown?.(event(100));
+			reactProps(row).onPointerMove?.(event(130));
+			reactProps(row).onPointerMove?.(event(150, 2));
+			reactProps(row).onPointerUp?.(event(150, 2));
+			reactProps(row).onPointerUp?.(event(130));
+		});
+		assert.deepEqual(moves, [30, 30], 'a foreign pointer cannot overwrite the owning drag final sample'); assert.equal(frames.size, 0);
 		await act(async () => { reactProps(row).onPointerDown?.(event(100)); reactProps(row).onPointerMove?.(event(150)); reactProps(row).onPointerCancel?.(event(150)); });
-		assert.deepEqual(moves, [30]); assert.equal(frames.size, 0);
+		assert.deepEqual(moves, [30, 30]); assert.equal(frames.size, 0);
 	} finally { await act(async () => root.unmount()); actGlobal.IS_REACT_ACT_ENVIRONMENT = previousAct; dom.restore(); }
 });

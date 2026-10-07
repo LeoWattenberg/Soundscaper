@@ -149,7 +149,7 @@
       "tests": [
         "tests/audio-editor-timeline-projection-performance.test.ts"
       ],
-      "evidence": "Queries inspect fewer than twenty exact-geometry candidates among ten thousand annotations, preserving order, tiny-region width, marker margins and retained focus.",
+      "evidence": "Queries inspect fewer than twenty exact-geometry candidates among ten thousand annotations, preserving order, tiny-region width, marker margins and retained focus. Forty-five scaled safe-integer boundary comparisons verify conservative projection before the exact visibility filter.",
       "limitations": "Small sets retain the ordinary one-pass visibility path."
     },
     {
@@ -188,7 +188,7 @@
       "tests": [
         "tests/audio-editor-annotation-pointer-performance.test.tsx"
       ],
-      "evidence": "Three raw moves create one RAF and one React commit; release flushes the latest delta and cancellation discards it.",
+      "evidence": "Three raw moves create one RAF and one React commit; release flushes the latest delta and cancellation discards it. Foreign pointers cannot replace the owning drag sample, and Escape restores both displayed and pending marker/region drafts.",
       "limitations": "At most one display-frame preview delay; committed delta remains exact."
     },
     {
