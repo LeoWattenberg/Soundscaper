@@ -40,18 +40,19 @@ function parallelFixture() {
 }
 export function createKernel(name) {
  if(name==='parallel-compile-reverse-groups'){const template=parallelFixture();return {prepare(){const draft=structuredClone(template);return {run:()=>compileParallelStackPlan(draft,{sampleRate:48000,workerCount:4}),capture:result=>result};}};}
- if(name==='message-parameter-window'){const descriptor=stripParameterDescriptor({kind:'strip',strip:{kind:'track',id:'track'},parameterId:'pan'},32);
-  const events=Array.from({length:4096},(_,frame)=>({kind:'set',frame,value:0}));
+ if(name==='audio-param-parameter-window'){const descriptor=stripParameterDescriptor({kind:'strip',strip:{kind:'track',id:'track'},parameterId:'pan'},32);
+  const events=Array.from({length:4096},(_,frame)=>({kind:frame%2?'linear':'set',frame,value:frame%2?.5:-.5}));
   const options={fromFrame:0,contextStartTime:0,sampleRate:44100,contextSampleRate:48000,transportRate:1.2};
-  return {prepare(){let packet;const target=new ScheduledParameterRegistry().registerMessageTarget(descriptor,value=>{packet=value;});
-   return {run(){target.schedule(events,options);return packet;},capture:result=>result};}};}
+  return {prepare(){const calls=[];const param={cancelScheduledValues:time=>calls.push(['cancel',time]),setValueAtTime:(value,time)=>calls.push(['set',value,time]),linearRampToValueAtTime:(value,time)=>calls.push(['linear',value,time])};
+   const target=new ScheduledParameterRegistry().registerAudioParam(descriptor,param);
+   return {run(){target.schedule(events,options);return calls;},capture:result=>result};}};}
  throw new Error('Unknown round4 kernel: '+name);
 }
 `;
 
 const workloads: readonly { name: string; dimensions: Record<string, number | string> }[] = [
 	{ name: 'parallel-compile-reverse-groups', dimensions: { tracks: 80, groups: 120, effects: 160, vcas: 24, vcaMembers: 200, tasks: 202, workerCount: 4, sampleRate: 48_000, groupOrder: 'reverse dependency order' } },
-	{ name: 'message-parameter-window', dimensions: { events: 4096, sampleRate: 44_100, contextSampleRate: 48_000, transportRate: '1.2', latencyFrames: 32 } },
+	{ name: 'audio-param-parameter-window', dimensions: { events: 4096, sampleRate: 44_100, contextSampleRate: 48_000, transportRate: '1.2', latencyFrames: 32 } },
 ];
 const [beforeArgument, afterArgument, outputArgument] = process.argv.slice(2);
 if (!beforeArgument || !afterArgument || !outputArgument) throw new Error('Supply baseline checkout, current checkout and output JSON path.');
@@ -132,15 +133,15 @@ try {
 		process.stdout.write(`${workload.name}: ${String(results.at(-1)!.beforeMedianMs)} → ${String(results.at(-1)!.afterMedianMs)} ms median\n`);
 	}
 	const report = {
-		schemaVersion: 1, title: 'Round4 warmed parallel compilation and message scheduling kernels', startedAt, completedAt: new Date().toISOString(),
+		schemaVersion: 1, title: 'Round4 warmed parallel compilation and AudioParam scheduling kernels', startedAt, completedAt: new Date().toISOString(),
 		checkouts: checkouts.map((checkout, index) => ({ ...checkout, bundledCodeSha256: bundles[index]!.sha256 })), host,
 		method: {
 			warmupsPerRevision: warmups, measuredPairs: trials, order: 'Alternating before/after per warmup and trial',
 			fixtures: 'Each tree independently bundles its own factories, normalizers, runtime brands and actual production handlers. Base fixture construction, registry registration and fresh draft cloning occur outside each timed run.',
 			timed: 'Only the actual kernel or command handler and its required normalization/publication. No input fixture setup or parity serialization is timed.',
-			parity: 'Deep strict equality of complete output snapshots before timing and after every paired warmup/trial, outside timers. Capture preserves the complete compiled worker-plane plan or complete immutable parameter packet.',
+			parity: 'Deep strict equality of complete output snapshots before timing and after every paired warmup/trial, outside timers. Capture preserves the complete compiled worker-plane plan or complete AudioParam cancellation/set/ramp call sequence.',
 		},
-		limitations: 'Warmed synchronous Node kernels on a shared host, with uncontrolled JIT, GC, CPU frequency and concurrent processes. These pairs do not measure Electron click-to-result latency, worker/I/O cost, audio render duration, timeline FPS or load time, and do not attribute causal time savings to individual ledger entries. Bundled snapshots record the source revision and any tracked source changes; temporary bundle directories are deleted.',
+		limitations: 'Warmed synchronous Node kernels on a shared host, with uncontrolled JIT, GC, CPU frequency and concurrent processes. These pairs do not measure Electron click-to-result latency, worker/I/O cost, audio render duration, timeline FPS or load time, and do not attribute causal time savings to individual ledger entries. AudioParam ports record scheduling calls rather than executing native Web Audio. Bundled snapshots record the source revision and any tracked source changes; temporary bundle directories are deleted.',
 		results, priorRuns: [] as unknown[],
 	};
 	try {
