@@ -75,6 +75,7 @@ const FAMILY_LABELS = Object.freeze({
 	'audacity-project': 'Audacity projects',
 	audio: 'Audio',
 	video: 'Video',
+	photos: 'Photos',
 	labels: 'Labels',
 	'aup3-audio-only': 'AUP3 (audio-only)',
 	'aup4-audio-only': 'AUP4 (audio-only)',
@@ -135,6 +136,9 @@ export function renderCapabilityReference({ products }) {
 	if (products.some((product) => product.capabilities?.photoLibrarySurface === true
 		&& product.capabilities?.photoCatalog !== true)) {
 		sections.push('', 'The photo library shell provides an empty library. Photo catalog import and browsing, develop adjustments, export, and raw decoding remain planned and are not enabled by this shell.');
+	}
+	if (products.some((product) => product.capabilities?.photoCatalog === true)) {
+		sections.push('', 'Photo catalogs support managed import, bounded browsing, and persistent ratings through the File, View, and Photo menus. The current import admits static 8-bit sRGB photos and preserves original bytes. Develop, export, and raw decoding remain planned.');
 	}
 	if (applicationFeatureRows.length > 0) {
 		sections.push(

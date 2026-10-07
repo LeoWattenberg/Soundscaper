@@ -1,25 +1,37 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useEffect, useRef, useState, type FocusEvent, type KeyboardEvent, type MouseEvent } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, type FocusEvent, type KeyboardEvent, type MouseEvent } from 'react';
 
 import { otherProductIds, productIdentity } from '../../../product-identities.js';
 import { productHref } from '../../../product-web-links.js';
 import { useSiteCopy } from '../../../site/use-site-copy.js';
+import type { CreatePhotoLibrarySessionV1 } from '../../photo-library-session-port-v1.ts';
+import PhotoLibraryPanel from './PhotoLibraryPanel.tsx';
+import { usePhotoLibraryWorkflow } from './use-photo-library-workflow.ts';
 import '../../../../../vendor/audacity-design-system/components/src/ApplicationHeader/ApplicationHeader.css';
 import './lightscaper.css';
 
 export interface LightscaperAppProps {
 	readonly locale: string;
+	readonly createSession?: CreatePhotoLibrarySessionV1;
 }
 
-export default function LightscaperApp({ locale }: LightscaperAppProps) {
+const PhotoImportDialog = lazy(() => import('./PhotoImportDialog.tsx'));
+
+export default function LightscaperApp({ locale, createSession }: LightscaperAppProps) {
 	const copy = useSiteCopy(locale);
 	const app = useRef<HTMLElement>(null);
 	const [libraryVisible, setLibraryVisible] = useState(false);
+	const [importVisible, setImportVisible] = useState(false);
+	const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+	const library = usePhotoLibraryWorkflow(createSession);
+	const { readPage } = library;
+	const selection = library.page?.rows.find(row => row.id === selectedPhoto) ?? null;
 	useEffect(() => {
 		const dismiss = (event: PointerEvent) => {
-			const menu = app.current?.querySelector<HTMLDetailsElement>('details[open]');
-			if (menu && event.target instanceof Node && !menu.contains(event.target)) menu.open = false;
+			for (const menu of app.current?.querySelectorAll<HTMLDetailsElement>('details[open]') ?? []) {
+				if (event.target instanceof Node && !menu.contains(event.target)) menu.open = false;
+			}
 		};
 		document.addEventListener('pointerdown', dismiss);
 		return () => { document.removeEventListener('pointerdown', dismiss); };
@@ -35,7 +47,7 @@ export default function LightscaperApp({ locale }: LightscaperAppProps) {
 			const detail: unknown = (event as CustomEvent<unknown>).detail;
 			if (!detail || typeof detail !== 'object') return;
 			if (Reflect.get(detail, 'productId') === 'lightscaper'
-				&& Reflect.get(detail, 'workspaceId') === 'photo-library') setLibraryVisible(true);
+				&& Reflect.get(detail, 'workspaceId') === 'photo-library') { setLibraryVisible(true); void readPage(); }
 		};
 		publish();
 		window.addEventListener('scape:workspace-ready', publish);
@@ -44,17 +56,25 @@ export default function LightscaperApp({ locale }: LightscaperAppProps) {
 			window.removeEventListener('scape:workspace-ready', publish);
 			window.removeEventListener('scape:workspace-request', request);
 		};
-	}, [copy.workspacePhoto]);
+	}, [copy.workspacePhoto, readPage]);
 
 	const toggleLibrary = (event: MouseEvent<HTMLButtonElement>) => {
+		if (!libraryVisible) void library.readPage();
 		setLibraryVisible((visible) => !visible);
-		const menu = event.currentTarget.closest('details');
-		if (menu) menu.open = false;
+		closeMenu(event);
+	};
+	const closeMenu = (event: MouseEvent<HTMLButtonElement>) => {
+		const menu = event.currentTarget.closest<HTMLDetailsElement>('details[name="lightscaper-application-menu"]');
+		if (menu) {
+			menu.open = false;
+			for (const submenu of menu.querySelectorAll<HTMLDetailsElement>('details[open]')) submenu.open = false;
+		}
 		menu?.querySelector('summary')?.focus();
 	};
+	const closeImport = () => { setImportVisible(false); };
 	const menuKeyDown = (event: KeyboardEvent<HTMLDetailsElement>) => {
 		if (event.key !== 'Escape' || !event.currentTarget.open) return;
-		event.preventDefault();
+		event.preventDefault(); event.stopPropagation();
 		event.currentTarget.open = false;
 		event.currentTarget.querySelector('summary')?.focus();
 	};
@@ -71,6 +91,17 @@ export default function LightscaperApp({ locale }: LightscaperAppProps) {
 				<details name="lightscaper-application-menu" onKeyDown={menuKeyDown} onBlur={menuBlur}>
 					<summary className="application-header__menu-item">{copy.photoFileMenu}</summary>
 					<div className="lightscaper-menu-items">
+						<button type="button" disabled={library.busy} onClick={event => { closeMenu(event); setImportVisible(true); }}>{copy.photoImportPhotos}</button>
+						{library.busy && <button type="button" onClick={event => { closeMenu(event); library.cancel(); }}>{copy.photoCancelAction}</button>}
+						<details className="lightscaper-photo-submenu" onKeyDown={menuKeyDown} onBlur={menuBlur}>
+							<summary className="application-header__menu-item">{copy.photoPhotoMenu}</summary>
+							<div className="lightscaper-menu-items">
+								{[0, 1, 2, 3, 4, 5].map(rating => <button key={rating} type="button" disabled={!selection || library.busy}
+									onClick={event => { closeMenu(event); if (selection) void library.setRating(selection.id, rating); }}>
+									{copy.photoRateStars.replace('{count}', String(rating))}
+								</button>)}
+							</div>
+						</details>
 						{otherProductIds('lightscaper').map((id) => <a key={id} href={productHref(id, locale, { builtProductId: 'lightscaper' })}>
 							{productIdentity(id).name}
 						</a>)}
@@ -82,13 +113,22 @@ export default function LightscaperApp({ locale }: LightscaperAppProps) {
 						<button type="button" aria-pressed={libraryVisible} onClick={toggleLibrary}>
 							{libraryVisible ? copy.photoHideLibrary : copy.photoShowLibrary}
 						</button>
+						<button type="button" disabled={library.busy || !libraryVisible} onClick={event => { closeMenu(event); void library.readPage(); }}>{copy.photoFirstPage}</button>
+						<button type="button" disabled={library.busy || !libraryVisible || !library.page?.cursor} onClick={event => { closeMenu(event); void library.readPage(library.page?.cursor); }}>{copy.photoNextPage}</button>
 					</div>
 				</details>
+
 			</nav>
 		</header>
-		{libraryVisible && <section className="lightscaper-library" data-photo-library="true" aria-label={copy.workspacePhoto}>
-			<h3>{copy.workspacePhoto}</h3>
-			<p role="status">{copy.photoEmptyLibrary}</p>
-		</section>}
+		{libraryVisible && <PhotoLibraryPanel title={copy.workspacePhoto} empty={copy.photoEmptyLibrary} loading={copy.photoWorking}
+			ratingLabel={copy.photoRating} importedLabel={copy.photoImported} failedLabel={copy.photoImportFailed} metadataNotice={copy.photoMetadataNotice}
+			page={library.page} receipts={library.receipts} selected={selection?.id ?? null} busy={library.busy} error={library.error}
+			onSelect={setSelectedPhoto} onRate={(photoId, rating) => { void library.setRating(photoId, rating); }} />}
+		{importVisible && <Suspense fallback={<p role="status">{copy.photoWorking}</p>}>
+			<PhotoImportDialog title={copy.photoImportPhotos} filesLabel={copy.photoChooseFiles} importLabel={copy.photoImportAction}
+				cancelLabel={copy.photoCancelAction} busy={library.busy} onClose={closeImport} onImport={files => {
+					setImportVisible(false); setLibraryVisible(true); void library.importFiles(files);
+				}} />
+		</Suspense>}
 	</section>;
 }

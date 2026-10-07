@@ -16,7 +16,7 @@ This page reflects the current product profiles. “Enabled” means that the pr
 | --- | --- | --- |
 | Soundscaper | .sscape, Audacity projects, Audio, Video, Labels | .sscape, AUP3 (audio-only), AUP4 (audio-only), Audio, Video, Labels, Audio stems |
 | Framescaper | .fscape, Audacity projects, Audio, Video, Labels | .fscape, Audio, Video, Labels |
-| Lightscaper | None | None |
+| Lightscaper | Photos | None |
 
 Families describe product entry points, not every file extension a decoder might accept. See [Export formats](/reference/generated/formats/) for concrete output formats and runtime conditions.
 
@@ -45,7 +45,7 @@ Families describe product entry points, not every file extension a decoder might
 | Musical timeline | Enabled | Not enabled | Not enabled |
 | Nested sequences | Not enabled | Enabled | Not enabled |
 | OpenFX effects | Not enabled | Enabled | Not enabled |
-| Photo catalog | Not enabled | Not enabled | Not enabled |
+| Photo catalog | Not enabled | Not enabled | Enabled |
 | Photo develop | Not enabled | Not enabled | Not enabled |
 | Photo export | Not enabled | Not enabled | Not enabled |
 | Photo library shell | Not enabled | Not enabled | Enabled |
@@ -83,7 +83,7 @@ Families describe product entry points, not every file extension a decoder might
 | Video timing assets | Enabled | Enabled | Not enabled |
 | Video transitions | Not enabled | Enabled | Not enabled |
 
-The photo library shell provides an empty library. Photo catalog import and browsing, develop adjustments, export, and raw decoding remain planned and are not enabled by this shell.
+Photo catalogs support managed import, bounded browsing, and persistent ratings through the File, View, and Photo menus. The current import admits static 8-bit sRGB photos and preserves original bytes. Develop, export, and raw decoding remain planned.
 
 ## Product-specific application features
 

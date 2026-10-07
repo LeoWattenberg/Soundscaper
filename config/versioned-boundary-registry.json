@@ -322,9 +322,25 @@
 		,
 		{ "path": "src/common/editor/gray-video-frame-sampling-v1.ts", "kind": "persisted-contract", "justification": "gray-video-frame-sampling-v1.ts is a persisted video sampling contract revision shared by motion-processing consumers." }
 		,
-		{"path": "src/common/editor/imaging/pixel-frame-admission-v1.ts", "kind": "ipc-contract", "justification": "Version-1 pixel interchange admission binds declared sample and color profiles to explicit processor support without changing the persisted descriptor."}
+		{ "path": "src/common/editor/imaging/exif-capture-time-v1.ts", "kind": "helper-contract", "justification": "Bounded EXIF capture-time interpretation for the immutable image metadata version 1 model." }
 		,
-		{"path": "src/common/editor/imaging/pixel-frame-contract-v1.ts", "kind": "ipc-contract", "justification": "Version-1 transient RGBA frame interchange declares sample format, color primaries, transfer, and bounded geometry across image processing and worker boundaries."}
+		{ "path": "src/common/editor/imaging/exif-color-admission-v1.ts", "kind": "helper-contract", "justification": "EXIF declarations admitted by the initial photo source color profile, independently of persisted gamut descriptors." }
+		,
+		{ "path": "src/common/editor/imaging/exif-entry-traversal-v1.ts", "kind": "helper-contract", "justification": "Bounded TIFF directory visitor shared by metadata extraction and photo color admission." }
+		,
+		{ "path": "src/common/editor/imaging/exif-metadata-reader-v1.ts", "kind": "helper-contract", "justification": "EXIF container interpretation into the immutable image metadata version 1 read model." }
+		,
+		{ "path": "src/common/editor/imaging/image-metadata-model-v1.ts", "kind": "persisted-contract", "justification": "Immutable extracted image facts stored beside photo originals in the family version 1 catalog." }
+		,
+		{ "path": "src/common/editor/imaging/image-metadata-normalizer-v1.ts", "kind": "helper-contract", "justification": "Closed validation and canonicalization of the persisted immutable image metadata version 1 model." }
+		,
+		{ "path": "src/common/editor/imaging/image-metadata-reader-v1.ts", "kind": "helper-contract", "justification": "Bounded format dispatch and metadata extraction for the immutable image metadata version 1 model." }
+		,
+		{ "path": "src/common/editor/imaging/iptc-metadata-reader-v1.ts", "kind": "helper-contract", "justification": "IPTC IIM interpretation into the immutable image metadata version 1 read model." }
+		,
+		{ "path": "src/common/editor/imaging/pixel-frame-admission-v1.ts", "kind": "ipc-contract", "justification": "Version-1 pixel interchange admission binds declared sample and color profiles to explicit processor support without changing the persisted descriptor." }
+		,
+		{ "path": "src/common/editor/imaging/pixel-frame-contract-v1.ts", "kind": "ipc-contract", "justification": "Version-1 transient RGBA frame interchange declares sample format, color primaries, transfer, and bounded geometry across image processing and worker boundaries." }
 		,
 		{ "path": "src/common/editor/macro-script/generated-module-wrapper-v1.js", "kind": "external-contract", "justification": "generated-module-wrapper-v1.js is the byte-authenticated generated-module wrapper revision shared by macro execution and E2E coverage admission." }
 		,
@@ -369,6 +385,8 @@
 		{ "path": "src/common/editor/parameter-automation-control-router-v21.ts", "kind": "persisted-contract", "justification": "parameter-automation-control-router-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
 		{ "path": "src/common/editor/parameter-automation-gesture-adapter-v21.ts", "kind": "persisted-contract", "justification": "parameter-automation-gesture-adapter-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/photo-library-session-port-v1.ts", "kind": "helper-contract", "justification": "Scalar browser presentation port for the version 1 photo library session, independent of owning catalog documents." }
 		,
 		{ "path": "src/common/editor/project-effect-tail-v21.ts", "kind": "persisted-contract", "justification": "project-effect-tail-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
@@ -511,6 +529,20 @@
 		{ "path": "src/framescaper/editor-session-clipboard-v9.ts", "kind": "ipc-contract", "justification": "editor-session-clipboard-v9.ts is a clipboard wire-format revision exchanged independently of project schema." }
 		,
 		{ "path": "src/framescaper/native-render-frame-pack-v1.ts", "kind": "persisted-contract", "justification": "native-render-frame-pack-v1.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/lightscaper/import/catalog-write-lock-v1.ts", "kind": "helper-contract", "justification": "Authoritative shared lock namespace for version 1 photo catalog publication across separate metadata and media databases." }
+		,
+		{ "path": "src/lightscaper/import/import-intent-v1.ts", "kind": "persisted-contract", "justification": "Scalar durable photo import intent and root reconciliation for version 1 catalogs." }
+		,
+		{ "path": "src/lightscaper/import/managed-import-ports-v1.ts", "kind": "helper-contract", "justification": "Narrow storage and custody ports consumed by version 1 managed photo publication." }
+		,
+		{ "path": "src/lightscaper/import/managed-import-v1.ts", "kind": "helper-contract", "justification": "Version 1 photo import publication and recovery using immutable original references and the persisted scalar intent." }
+		,
+		{ "path": "src/lightscaper/import/metadata-adapter-v1.ts", "kind": "helper-contract", "justification": "Maps version 1 immutable extracted image facts into bounded authored photo metadata without changing originals." }
+		,
+		{ "path": "src/lightscaper/import/photo-import-preparation-v1.ts", "kind": "helper-contract", "justification": "Serial admitted source preparation yielding version 1 catalog photo documents and shared decode artifacts." }
+		,
+		{ "path": "src/lightscaper/import/photo-source-admission-v1.ts", "kind": "helper-contract", "justification": "Container proof for the initial static 8-bit sRGB photo source admission profile." }
 		,
 		{ "path": "src/soundscaper/desktop-native-plugin-state-transport-v1.ts", "kind": "persisted-contract", "justification": "desktop-native-plugin-state-transport-v1.ts is a persisted domain-component or render-contract revision independent of product schema." }
 	]

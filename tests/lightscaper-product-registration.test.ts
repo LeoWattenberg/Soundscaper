@@ -8,7 +8,7 @@ import { PRODUCT_IDS, otherProductId, otherProductIds, productIdentity } from '.
 import { productProfile } from '../src/common/products.js';
 import { productHref, productWebOrigin } from '../src/common/product-web-links.js';
 
-test('Lightscaper is a distinct, immutable product with only its initial photo surface enabled', () => {
+test('Lightscaper is a distinct, immutable product with its menu-backed photo catalog enabled', () => {
 	assert.deepEqual(PRODUCT_IDS, ['soundscaper', 'framescaper', 'lightscaper']);
 	const identity = productIdentity('lightscaper');
 	assert.equal(identity.name, 'Lightscaper');
@@ -17,9 +17,12 @@ test('Lightscaper is a distinct, immutable product with only its initial photo s
 	assert.equal(profile.projectFileExtension, '.liscape');
 	assert.equal(Object.isFrozen(profile), true);
 	assert.equal(Object.isFrozen(profile.capabilities), true);
-	assert.deepEqual(snapshotProjectFeatureCapabilities(profile.capabilities).availableFeatureIds, [PROJECT_FEATURE_CAPABILITY_IDS.photoLibrarySurface]);
+	assert.deepEqual(profile.importChoices, ['photos']);
+	assert.deepEqual(profile.exportChoices, []);
+	assert.deepEqual(snapshotProjectFeatureCapabilities(profile.capabilities).availableFeatureIds, [PROJECT_FEATURE_CAPABILITY_IDS.photoLibrarySurface, PROJECT_FEATURE_CAPABILITY_IDS.photoCatalog]);
 	assert.deepEqual(Object.entries(profile.capabilities).filter(([, enabled]) => enabled), [
 		['photoLibrarySurface', true],
+		['photoCatalog', true],
 	]);
 	for (const productId of PRODUCT_IDS) {
 		const product = productProfile(productId);

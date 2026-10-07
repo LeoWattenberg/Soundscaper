@@ -771,7 +771,11 @@
 					"evidence": [
 						"src/lightscaper/product.js",
 						"src/lightscaper/ui/LightscaperBootstrap.tsx",
-						"tests/lightscaper-shell.test.tsx"
+						"tests/lightscaper-shell.test.tsx",
+						"src/lightscaper/photo-library-session-runtime.ts",
+						"src/lightscaper/controller/photo-library-session.ts",
+						"tests/lightscaper-photo-library-import-capacity.test.ts",
+						"tests/browser/lightscaper-photo-library.spec.js"
 					]
 				},
 				"web-enhanced": {
@@ -793,7 +797,9 @@
 					]
 				}
 			},
-			"importFamilies": [],
+			"importFamilies": [
+				"photos"
+			],
 			"exportFamilies": [],
 			"projectFeatures": {
 				"project": false,
@@ -807,7 +813,7 @@
 				"videoTimelineEditing": false,
 				"videoExport": false,
 				"photoLibrarySurface": true,
-				"photoCatalog": false,
+				"photoCatalog": true,
 				"photoDevelop": false,
 				"photoExport": false,
 				"photoRaw": false,
@@ -858,9 +864,11 @@
 			"projectSchemaIdentity": {
 				"schemaFamily": "lightscaper",
 				"schemaVersion": 1,
-				"status": "planned",
 				"evidence": [
-					"roadmap-lightscaper.md#l2-catalog-and-develop-state-contracts"
+					"src/lightscaper/catalog/types.ts",
+					"src/lightscaper/catalog/repository.ts",
+					"tests/lightscaper-catalog-contract.test.ts",
+					"tests/lightscaper-catalog-repository.test.ts"
 				]
 			}
 		}

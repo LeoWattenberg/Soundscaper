@@ -48,4 +48,54 @@
 	background: color-mix(in srgb, CanvasText 12%, Canvas);
 }
 
+.lightscaper-photo-submenu > summary { padding: 8px; }
+.lightscaper-photo-submenu > .lightscaper-menu-items { position: static; box-shadow: none; }
+
 .lightscaper-library { padding: 24px; }
+
+.lightscaper-photo-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+	gap: 12px;
+	padding: 0;
+	list-style: none;
+}
+.lightscaper-photo-grid button {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	width: 100%;
+	padding: 16px;
+	font: inherit;
+	text-align: start;
+	color: inherit;
+	background: Canvas;
+	border: 1px solid color-mix(in srgb, CanvasText 30%, Canvas);
+	border-radius: 4px;
+	white-space: normal;
+	overflow-wrap: anywhere;
+}
+.lightscaper-photo-grid button[aria-pressed=true] { border: 2px solid Highlight; padding: 15px; }
+.lightscaper-photo-grid button:focus-visible { outline: 2px solid Highlight; outline-offset: 3px; }
+.lightscaper-import-results { overflow-wrap: anywhere; }
+.lightscaper-dialog-backdrop {
+	position: fixed;
+	inset: 0;
+	z-index: 1000;
+	display: grid;
+	place-items: center;
+	background: #0008;
+}
+.lightscaper-dialog {
+	position: relative;
+	max-height: calc(100vh - 32px);
+	overflow: auto;
+	color: CanvasText;
+	background: Canvas;
+	border: 1px solid CanvasText;
+	border-radius: 8px;
+}
+.lightscaper-dialog form { padding: 24px; }
+.lightscaper-dialog label { display: grid; gap: 12px; }
+.lightscaper-dialog-actions { display: flex; justify-content: end; gap: 12px; margin-top: 24px; }
+.lightscaper-dialog button, .lightscaper-dialog input { font: inherit; }

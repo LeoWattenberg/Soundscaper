@@ -135,15 +135,14 @@ export const FRAMESCAPER_PROFILE = {
 	},
 };
 
-// A registered surface is the only initial capability. Catalog/develop/export
-// claims are enabled individually when their maintained workflow gates pass.
+// Photo claims are enabled individually when their maintained workflow gates pass.
 export const LIGHTSCAPER_PROFILE = {
 	...PRODUCT_IDENTITIES.lightscaper,
 	description: 'A local-first photo library and non-destructive develop editor.',
 	projectFileExtension: PROJECT_FILE_EXTENSION_BY_PRODUCT.lightscaper,
 	enabledCommands: [],
 	panels: [],
-	importChoices: [],
+	importChoices: ['photos'],
 	exportChoices: [],
 	shortcuts: { disabledCommandIds: [] },
 	applicationFeatures: {},
@@ -151,5 +150,6 @@ export const LIGHTSCAPER_PROFILE = {
 		...Object.fromEntries(Object.keys({ ...SHARED_CAPABILITIES, ...SOUNDSCAPER_PROFILE.capabilities })
 			.map((key) => [key, false])),
 		photoLibrarySurface: true,
+		photoCatalog: true,
 	},
 };

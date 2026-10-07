@@ -18,6 +18,12 @@ belong in Git history, not in the maintained documentation set.
 - [Lightscaper application boundaries](architecture/lightscaper.md) defines
   the separate photo application, catalog storage and history, shared image
   evaluation, and explicit product interchange.
+- [Photo source preparation](architecture/lightscaper-import-preparation.md)
+  defines bounded source admission, shared decoding, and immutable metadata facts.
+- [Managed photo import](architecture/lightscaper-managed-import.md) defines
+  original custody, publication, digest dedupe, and interruption recovery.
+- [Photo library sessions](architecture/lightscaper-photo-library-session.md)
+  defines bounded menu-owned browsing, import bridges, and resource lifetime.
 - [Time and media](architecture/time-and-media.md) defines canonical timing,
   edit, retime, proxy, and media-preservation contracts.
 - [Production and rendering](architecture/production-rendering.md) covers

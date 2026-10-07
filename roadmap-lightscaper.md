@@ -1,6 +1,6 @@
 # Lightscaper product roadmap
 
-> Re-grounded against the repository on 2026-10-07. Lightscaper implementation has started: milestones below remain accepted scope, ordered by dependency, closing only when their exit gates pass. Nothing here is a release-date promise. The [main roadmap](roadmap.md) owns the shared platform and the two existing products; this file adds Lightscaper without changing any milestone, fence, or gate there.
+> Re-grounded against the repository on 2026-10-08. Lightscaper implementation has started: milestones below remain accepted scope, ordered by dependency, closing only when their exit gates pass. Nothing here is a release-date promise. The [main roadmap](roadmap.md) owns the shared platform, Soundscaper, and Framescaper; this file adds Lightscaper without changing any milestone, fence, or gate there.
 
 Lightscaper is the third product over the shared local-first editor platform: a
 photo library and non-destructive develop editor — broadly the shape of
@@ -134,37 +134,40 @@ platform tier states the contract the item must meet when it lands.
 
 ## Current foundation
 
-Nothing exists under `src/lightscaper/`. What Lightscaper builds on:
+Lightscaper owns a registered product composition, a durable per-photo catalog,
+managed-original storage, and a menu-owned import, paged browse, and rating
+workflow. Develop, export, raw, and desktop capabilities remain disabled.
 
 | Area | Current capability |
 | --- | --- |
-| Product seam | Two-product registry with per-product profiles, capabilities, routes, workspaces, and desktop blocks; binary "other product" handoff; per-product PWA manifests, icons, i18n copy, CI shards, and desktop packaging. |
-| Imaging engine | Twelve shared parametric video effects; managed SDR color that renders sRGB/BT.709 sources with linear-light grade math and `.cube` LUT parse/sample, while declared Display-P3/BT.2020 primaries and PQ/HLG transfers are recognized in the schema but refused fail-closed at render admission; a mask graph with vector-shape, vector-path, raster, alpha, feather, invert, and boolean nodes; visual presets; keyframe curves. |
-| Stills | Still source/clip schema, browser `image/*` still import, PNG encode, and native (desktop) PNG/TIFF/EXR sequence decode behind an 8-bit sRGB, no-alpha admission; the Framescaper V30 "Add Images" campaign is in flight on a separate branch. |
-| Pixel interchange | 8-bit straight RGBA end to end; color math is floating-point per sample, but no 16-bit or float interchange buffer exists. |
-| Library and storage | OPFS/IndexedDB media library, id-keyed with recorded SHA-256 content digests, with retained originals and disposable derivatives, capacity preflight, single-writer project locks, Project Bin, Scape archive, and revisioned JSON commands with snapshot undo/redo. |
-| UI and platform | Vendored Audacity design system, product-profile-driven workspace/menu/dialog shells, i18n catalogs, offline application shell, and the hardened Electron wrapper. |
-| Gates | Sharded Node suite, browser workflows, coverage-union thresholds, architecture and file-size ceilings, licensing/notice/WASM audits, correctness checks, and packaged desktop smokes. Performance reports are diagnostics. |
+| Product seam | Three-product registry, separate-origin routes and independently built sites, per-product profiles/capabilities/PWA/i18n, registry-driven switching, and product-owned test shards. Lightscaper desktop wiring waits for L8. |
+| Imaging engine | Shared parametric video effects, managed SDR color with linear-light grade math and `.cube` LUTs, mask graphs, visual presets, and keyframe curves. Wider primaries/transfers remain recognized by the schema and refused at render admission. |
+| Stills | Framescaper V30 still import and timeline-image modeling landed; Lightscaper reuses shared image admission, native decode, EXIF orientation, and immutable original bindings. |
+| Pixel interchange | A versioned descriptor admits sample formats, primaries, and transfer independently. Current processing admits `unorm8` sRGB; deeper buffers and wider processing wait for L7. |
+| Library and storage | Separate catalog-root and photo rows, bounded summary/membership pages, per-photo commands and history, verified retained originals with digest dedupe and custody, managed-import recovery, and catalog Scape round trips. |
+| Metadata | Bounded shared EXIF/IPTC readers, immutable extracted facts, authored metadata overrides, and Lightscaper's import adapter. |
+| UI and platform | Shared design-system/dialog ownership, a product-owned photo shell, opt-in menu workflows, offline application shells, and the existing hardened Electron wrappers for Soundscaper and Framescaper. |
+| Gates | Sharded Node suites including Lightscaper, browser workflows, coverage-union thresholds, architecture and file-size ceilings, licensing/notice/WASM audits, correctness checks, and existing packaged desktop smokes. Performance reports are diagnostics. |
 
-Known architectural constraints that drive the sequence:
+Architectural constraints that still drive the sequence:
 
-- the pixel path is 8-bit sRGB and the image admission refuses deeper input,
-  so raw and wide-gamut work is gated on the L2 interchange contract;
-- no EXIF, IPTC, or XMP reader exists anywhere in the tree;
-- shared history snapshots whole projects, so a six-figure-photo catalog
-  cannot be one project document without the persistence decision L2 owns;
-- the product registry, routes, shards, PWA shell, i18n copy, desktop configs,
-  and several scripts hardcode exactly two products; and
-- catalog-scale browsing has no precedent in the current library UI or its
-  recorded budgets.
+- current image processing admits only static 8-bit sRGB input; raw and deep
+  color must widen admission and evaluation through the L2 contracts in L7;
+- original custody and catalog persistence have separate owners and must
+  reconcile interrupted publication before a library is exposed;
+- catalog-scale browsing uses bounded indexed pages rather than whole-project
+  history snapshots; full library view/filter/organization workflows and their
+  synthetic UI budgets remain L3 work; and
+- origins have separate storage: cross-product editing transfers an
+  authenticated editable copy under the handoff contract.
 
 ## Milestone sequence
 
 | Milestone | Status | Purpose |
 | --- | --- | --- |
-| L1. Product seam | **In progress** | Register the third product with everything off. |
-| L2. Catalog and develop contracts | **Planned** | Fix the schemas and the depth-agnostic pixel contract before any surface. |
-| L3. Photo library | **Planned** | Import, browse, cull, and organize at real-library scale. |
+| L1. Product seam | **Done** | Register the third product with everything off. |
+| L2. Catalog and develop contracts | **Done** | Fix the schemas and the depth-agnostic pixel contract before any surface. |
+| L3. Photo library | **In progress** | Import, browse, cull, and organize at real-library scale. |
 | L4. Develop: global adjustments | **Planned** | Deliver the parametric develop loop on shared effects. |
 | L5. Export and handoff | **Planned** | Close the import → develop → export loop and the cross-product paths. |
 | L6. Local adjustments and repair | **Planned** | Add masked adjustments and parametric healing. |
@@ -191,18 +194,18 @@ the third product is new-capability work the milestone-2 rule itself assigns
 to later milestones, and this roadmap records the user's acceptance of that
 scope.
 
-- **Shared — Planned:** a `src/lightscaper/product.js` profile (identity, base
+- **Shared — Done:** a `src/lightscaper/product.js` profile (identity, base
   path, workspace, panels, import/export choices, shortcuts, capability map)
   registered in the product registry, with the new photo capability keys added
   as explicit booleans to all three profiles and the capability inventory.
-- **Shared — Planned:** retirement of every two-product assumption that "the
+- **Shared — Done:** retirement of every two-product assumption that "the
   other product" implies: product switching and handoff, route parsing,
   product bootstrap, sidebar links, and menu filters driven by the registry
   rather than by ternaries.
-- **Web Core — Planned:** static routes, PWA manifest, icons, offline
+- **Web Core — Done:** static routes, PWA manifest, icons, offline
   application shell, and per-locale product copy for every supported locale,
   within the existing Pages and chunk ceilings.
-- **Shared — Planned:** a `lightscaper` Node-test shard, workflow matrix rows,
+- **Shared — Done:** a `lightscaper` Node-test shard, workflow matrix rows,
   architecture rules for `src/lightscaper/`, and a complete
   `config/production-capabilities.json` block whose evidence paths exist.
 - **Electron Enhanced — Blocked until L8:** desktop identity, packaging, and
@@ -214,39 +217,40 @@ scope.
   Soundscaper and Framescaper suites pass unchanged.
 - The route renders product-branded with an empty library in Chromium,
   Firefox, and WebKit browser workflows.
-- The capability inventory test pins the Lightscaper claims, and every claimed
-  capability is `false` except the registered photo surface.
+- The capability inventory test pins the Lightscaper claims. Registration
+  enables only the photo surface; each later capability is activated with its
+  own maintained workflow evidence.
 - Product switching reaches all three products from each of them in a browser
   workflow.
 
 ## L2. Catalog and develop-state contracts
 
-**Depends on:** L1. The still-source model follows the Framescaper V30
-campaign once it lands on `main`; L2 references it and must not fork it.
+**Depends on:** L1 and the landed Framescaper V30 still-source model; L2
+references that model and must not fork it.
 
 **Goal:** fix the schemas everything else builds on — the catalog, the develop
 stack, and the pixel interchange — before any surface exists.
 
-- **Shared — Planned:** a photo-catalog project family over the shared media
+- **Shared — Done:** a photo-catalog project family over the shared media
   library: photo references with content digests, virtual folders whose
   operations never write the filesystem, collections and rule-based smart
   collections, ratings, flags, color labels, hierarchical
   keywords, capture-time and file metadata, and virtual copies as first-class
   versions.
-- **Shared — Planned:** the catalog persistence decision — the unit of
+- **Shared — Done:** the catalog persistence decision — the unit of
   storage, revision, and history for six-figure photo counts under the
   snapshot-history constraint — recorded in the owning plan with its budgets
   before implementation.
-- **Shared — Planned:** develop state as an ordered stack of shared-effect
+- **Shared — Done:** develop state as an ordered stack of shared-effect
   instances plus geometry and mask bindings, per photo version, carrying an
   explicit process version; deterministic serialization, validation,
   migration, clone, undo/redo, clipboard, and Scape round trip like every
   schema family.
-- **Shared — Planned:** a depth- and gamut-agnostic frame contract: buffers
+- **Shared — Done:** a depth- and gamut-agnostic frame contract: buffers
   declare sample format (`unorm8` now; `unorm16` and `float32` reserved),
   color primaries, and transfer; admission proves 8-bit sRGB is the only
   accepted profile today rather than the types assuming it.
-- **Shared — Planned:** an EXIF/IPTC read model (write stays in L5) with a
+- **Shared — Done:** an EXIF/IPTC read model (write stays in L5) with a
   bounded, fuzz-tested parser.
 
 ### Exit gate
@@ -267,7 +271,7 @@ stack, and the pixel interchange — before any surface exists.
 **Goal:** deliver the keyboard-first import → browse → cull → organize loop at
 real-library scale.
 
-- **Web Core — Planned:** import into the managed library: originals retained
+- **Web Core — In progress:** import into the managed library: originals retained
   immutable with recorded digests, digest dedupe, bounded batches, per-file
   failure reporting, rename templates, apply-during-import of keywords and
   metadata presets (develop presets once L4 lands), and interruption recovery
@@ -275,7 +279,7 @@ real-library scale.
 - **Web Core — Planned:** derivative previews as disposable artifacts in tiers
   (thumbnail, fit-screen), built in cancellable background batches,
   regenerated on demand, and evictable under storage pressure.
-- **Web Core — Planned:** grid, filmstrip, loupe, compare, and survey views;
+- **Web Core — In progress:** grid, filmstrip, loupe, compare, and survey views;
   ratings, flags, and labels with auto-advance culling; stacks; sort orders;
   a filter bar over text, attributes, and metadata columns; and collections
   with live smart collections.
