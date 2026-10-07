@@ -15,6 +15,12 @@ import type { FoundationTimeConversionSite } from './foundation-time-conversion-
  */
 export const FOUNDATION_TIME_CONVERSION_PRODUCT_SITES: readonly FoundationTimeConversionSite[] = deepFreezeAuditSites([
 	{
+		id: 'framescaper-image-removal-ripple-placement',
+		file: 'src/framescaper/editor-timeline-image-remove-command.ts',
+		behavior: 'Removing timeline images carries track-ripple shifts in their authored sequence frame clock and converts surviving video starts once to nearest project sample positions before their ordinary move commands.',
+		conversions: [{ helper: 'videoFrameToSampleFrame', policies: ['point'] }],
+	},
+	{
 		id: 'framescaper-image-move-placement',
 		file: 'src/framescaper/editor-timeline-image-move-command.ts',
 		behavior: 'Ordinary timeline image moves resolve the requested sample position once to the nearest destination sequence frame and retain image timing and placement through the exact image mutation command.',
