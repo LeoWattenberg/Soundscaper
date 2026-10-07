@@ -6,10 +6,12 @@
   "requiresManualAiAssets": false,
   "ownership": "Published document/model/result collections are immutable. Caches are per mounted component or per preference snapshot, bounded by that owner; no module-global document caches. Presentation remains read-only. EQ gestures consume raw input before batching only React draft publication.",
   "verification": {
-    "newFocusedTests": 13,
+    "newFocusedTests": 14,
+    "newPerformanceCases": 13,
     "newTestFiles": 7,
     "existingFocusedTests": 108,
     "staticChecks": "All added/modified UI source and tests pass type-aware ESLint. npm run lint:changed passes. Full tsconfig.tests TypeScript compilation exits zero. File-size and whitespace checks pass.",
+    "productPortCorrection": "A type-only overload expresses the shared four-argument workspace availability contract while retaining Soundscaper's two-argument implementation. One extra contract regression, 48 dock/capture cases and 16 ownership cases pass. Full typecheck:sources, all four product compositions and test/tooling types pass. Emitted JavaScript and subsequent JavaScript minification are byte-identical; this compatibility correction adds no performance finding.",
     "independentReview": "DSP agent independently reviewed every retained owner and production caller, immutable publication/PCM identities and EQ gesture ownership. No defect found. An additional 10500 deterministic shortcut-index/reference comparisons retain exact conflict semantics.",
     "behavior": "Exact original helper output checks, getter/work counters over 30 React publications, 500-model and shortcut catalogs, 2048 spectrum bins, 4000 owner/1000 requirement lookup fixtures, controlled RAF ownership/final-release/cancellation and nonmonotonic EQ sweep parity.",
     "timing": "This register establishes distinct removed work; no per-item millisecond speedup is inferred from Node or idle RAF. Root owns Electron default Speed and browser/canonical measurements.",

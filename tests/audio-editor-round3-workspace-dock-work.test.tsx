@@ -5,6 +5,13 @@ import React, { act } from 'react';
 import { installReactTestDom } from './helpers/react-test-dom.ts';
 import { useWorkspaceDockPresentation } from '../src/common/editor/ui/workspace/useWorkspaceDockPresentation.ts';
 import type { WorkspacePanelPreference } from '../src/common/editor/workspace-panel-layout.ts';
+import { workspacePanelAvailable as soundscaperPanelAvailable } from '../src/soundscaper/editor-workspace-panel-runtime.ts';
+
+test('Soundscaper panel port accepts the shared context contract while retaining panel policy', () => {
+	assert.equal(soundscaperPanelAvailable('soundscaper', 'history', null, { phase: 'armed' }), true);
+	assert.equal(soundscaperPanelAvailable('soundscaper', 'recording-setup', null, { phase: 'recording' }), false);
+	assert.equal(soundscaperPanelAvailable('soundscaper', 'web-vcr', null, null), false);
+});
 
 void test('workspace dock layout keeps its groups and arrangement targets across unrelated publications', async () => {
 	const dom = installReactTestDom(); const globals = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
