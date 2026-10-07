@@ -47,7 +47,7 @@ export function createPreferencesComposition(d: {
 		createPreferences: (activeId) => createAudioEditorPreferencesV1({ workspace: { activeId }, performance: { optimizeFor: d.defaultOptimizationMode ?? 'memory' } }),
 		applyWorkspace: applyAudioEditorWorkspace, updatePreferences: (preferences, patch) => updateAudioEditorPreferencesV1(preferences, patch ?? {}),
 		normalizeShortcut: normalizeAudioEditorShortcut, findShortcutConflicts: findAudioEditorShortcutConflicts,
-		createWorkspace: createCustomAudioEditorWorkspace, updateWorkspace: (preferences, id, changes) => updateCustomAudioEditorWorkspace(preferences, id, changes ?? {}), deleteWorkspace: deleteCustomAudioEditorWorkspace,
+		createWorkspace: createCustomAudioEditorWorkspace, updateWorkspace: (preferences, id, changes) => updateCustomAudioEditorWorkspace(preferences, id, changes ?? {}), deleteWorkspace: (preferences, id) => deleteCustomAudioEditorWorkspace(preferences, id, d.defaultWorkspace),
 	});
 	return Object.freeze({
 		service,

@@ -391,7 +391,7 @@ export function updateCustomAudioEditorWorkspace(preferences, workspaceId, chang
 	return createAudioEditorPreferencesV1(mergePreferences(preferences, { workspace: { custom } }));
 }
 
-export function deleteCustomAudioEditorWorkspace(preferences, workspaceId) {
+export function deleteCustomAudioEditorWorkspace(preferences, workspaceId, defaultWorkspace = 'modern') {
 	validateAudioEditorPreferencesV1(preferences);
 	if (!preferences.workspace.custom.some((workspace) => workspace.id === workspaceId)) {
 		throw new ReferenceError(`Custom workspace ${workspaceId} does not exist.`);
@@ -402,9 +402,9 @@ export function deleteCustomAudioEditorWorkspace(preferences, workspaceId) {
 			asymmetricStereoHeightWorkspaces: preferences.editing.asymmetricStereoHeightWorkspaces
 				.filter((id) => id !== workspaceId),
 		},
-		workspace: { activeId: preferences.workspace.activeId === workspaceId ? 'modern' : preferences.workspace.activeId, custom },
+		workspace: { activeId: preferences.workspace.activeId === workspaceId ? defaultWorkspace : preferences.workspace.activeId, custom },
 	}));
-	return preferences.workspace.activeId === workspaceId ? applyAudioEditorWorkspace(next, 'modern') : next;
+	return preferences.workspace.activeId === workspaceId ? applyAudioEditorWorkspace(next, defaultWorkspace) : next;
 }
 
 function normalizedShortcutKey(binding) {
