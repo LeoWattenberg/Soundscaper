@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 // Run after desktop preparation: xvfb-run -a node --import tsx scripts/performance/measure-electron-editing.mjs
+// Add --extended after the output path to include Chirp and Normalize.
 // Fresh profiles and real desktop bridge; no CPU throttling or application stubs.
 import { _electron as electron, expect } from '@playwright/test';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
@@ -12,6 +13,7 @@ import {
 } from '../../tests/browser/audio-editor-test-helpers.js';
 
 const output = resolve(process.argv[2] ?? 'test-results/editing-performance/electron.json');
+const extended = process.argv.includes('--extended');
 const profile = await mkdtemp(join(tmpdir(), 'soundscaper-editing-performance-'));
 const environment = { ...process.env };
 delete environment.ELECTRON_RUN_AS_NODE;
@@ -43,7 +45,10 @@ try {
 		versions: process.versions, gpu: app.getGPUFeatureStatus(), packaged: app.isPackaged,
 	}));
 	const viewport = await page.evaluate(() => ({ width: innerWidth, height: innerHeight, dpr: devicePixelRatio }));
-	for (const [type, seconds] of [['Tone', 30], ['Noise', 30], ['Noise', 120]]) {
+	const generators = extended
+		? [['Tone', 30], ['Chirp', 30], ['Noise', 30], ['Noise', 120]]
+		: [['Tone', 30], ['Noise', 30], ['Noise', 120]];
+	for (const [type, seconds] of generators) {
 		for (let trial = 0; trial < 3; trial += 1) {
 			if (Number(await editor.getAttribute('data-clip-count')) > 0) {
 				await editor.getByRole('button', { name: 'Undo', exact: true }).click();
@@ -64,7 +69,7 @@ try {
 			await expect(editor).toHaveAttribute('data-clip-count', '1');
 		}
 	}
-	for (const effect of ['Amplify', 'Compressor']) {
+	for (const effect of extended ? ['Amplify', 'Compressor', 'Normalize'] : ['Amplify', 'Compressor']) {
 		for (let trial = 0; trial < 3; trial += 1) {
 			await chooseCommandAction(page, editor, 'Select', 'Select all');
 			await chooseNestedCommandAction(page, editor, 'Effect', ['Volume and compression', effect]);
@@ -96,7 +101,7 @@ try {
 	await editor.getByRole('button', { name: 'Stop', exact: true }).click();
 	expect(errors).toEqual([]);
 	const report = { node: process.version, platform: process.platform, arch: process.arch,
-		cpu: cpus()[0]?.model, logicalCpus: cpus().length, runtime, viewport, preference: 'speed',
+		cpu: cpus()[0]?.model, logicalCpus: cpus().length, runtime, viewport, preference: 'speed', extended,
 		method: 'Actual Electron development app with freshly staged production renderer and real preload/SQLite/PCM path. First trial includes first-use processing engines; subsequent trials are warm. Capture click to dialog closed, success status, cleared waveform pending state, explicit successful canvas paint and two animation frames. Xvfb RAF gaps are a renderer responsiveness proxy, not GPU presentation FPS. Startup excluded.',
 		results };
 	await writeFile(output, JSON.stringify(report, null, '\t') + '\n');
