@@ -80,10 +80,8 @@ export function encodeTransferRefusal(refusal: {
 	const code = typeof refusal.code === 'string' && TRANSFER_REFUSAL_CODE_PATTERN.test(`[${refusal.code}] `)
 		? `[${refusal.code}] `
 		: '';
-	const text = typeof refusal.text === 'string' && refusal.text.trim()
-		? refusal.text.trim()
-		: 'no reason reported';
-	return `${refusal.skipped ? TRANSFER_SKIPPED_REASON_PREFIX : ''}${code}${text}`;
+	const text = typeof refusal.text === 'string' ? refusal.text.trim() : '';
+	return `${refusal.skipped ? TRANSFER_SKIPPED_REASON_PREFIX : ''}${code}${text || 'no reason reported'}`;
 }
 
 export function decodeTransferRefusal(reason: unknown): TransferRefusal {

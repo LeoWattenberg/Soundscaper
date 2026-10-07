@@ -80,8 +80,7 @@ export function createInstallPromptCapture(
 		prompt: async (): Promise<InstallPromptOutcome> => {
 			const event = captured;
 			if (event === null) return 'unavailable';
-			captured = null;
-			announce();
+			discard();
 			await event.prompt();
 			const choice = await event.userChoice;
 			return choice?.outcome === 'accepted' ? 'accepted' : 'dismissed';

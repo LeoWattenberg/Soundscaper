@@ -111,18 +111,19 @@ export function describeTransferDownload(
 	// and reads as a completed transfer, which is the one thing a visitor about
 	// to abandon this origin must not be told over a run that moved nothing.
 	const empty = report.records.length === 0 && failures.length === 0;
+	const complete = failed === 0 && partial === 0 && !empty;
 	return Object.freeze({
 		rows: Object.freeze(rows),
 		summary: empty
 			? 'No projects were downloaded: nothing in this run reached the exporter.'
 				+ ' Nothing on this origin was changed.'
-			: failed === 0 && partial === 0
+			: complete
 				? `Downloaded ${report.saved} of ${report.saved} projects. Nothing on this origin was changed.`
 				: `Downloaded ${report.saved} complete project${report.saved === 1 ? '' : 's'};`
 					+ (partial ? ` ${partial} left an archive without its confirmed companion;` : '')
 					+ (failed ? ` ${failed} could not be downloaded.` : '')
 					+ ' Nothing on this origin was changed.',
-		complete: failed === 0 && partial === 0 && !empty,
+		complete,
 	});
 }
 
@@ -165,9 +166,10 @@ export function describeTransferSend(report: TransferSendReport): TransferResult
 	const unsent = report.unsent ?? [];
 	const rows: TransferResultRow[] = [
 		...report.outcomes.map((outcome) => {
+			const label = sendRowLabel(report, outcome);
 			if (outcome.status === 'stored') {
 				return {
-					label: sendRowLabel(report, outcome),
+					label,
 					detail: `Stored on the other origin (${formatTransferBytes(outcome.byteLength)})`,
 					outcome: 'ok' as TransferRowOutcome,
 				};
@@ -179,7 +181,7 @@ export function describeTransferSend(report: TransferSendReport): TransferResult
 			const reason = refusal.text || 'no reason reported';
 			const named = refusal.code ? `${reason} (${refusal.code})` : reason;
 			return {
-				label: sendRowLabel(report, outcome),
+				label,
 				detail: refusal.skipped
 					? `Not stored - the other origin skipped it: ${named}`
 					: `Not stored: ${named}`,
@@ -382,9 +384,9 @@ export function describeTransferImport(result: TransferImportOutcome): TransferR
 	// calls any skip an incomplete transfer - a skip is what the wire carries for
 	// an archive this build refused to write - so a receiving page that calls the
 	// same run complete has the two origins telling one visitor opposite things.
-	const absent = result.entries.filter(
+	const absent = result.entries.some(
 		(record) => record.outcome === 'skipped' && record.reasonCode !== 'already-present',
-	).length;
+	);
 	const counted = `Imported ${result.imported} of ${result.total} archive${result.total === 1 ? '' : 's'}`
 		+ `${result.skipped ? `, skipped ${result.skipped}` : ''}`
 		+ `${result.failed ? `, ${result.failed} failed` : ''}.`;
@@ -394,7 +396,7 @@ export function describeTransferImport(result: TransferImportOutcome): TransferR
 			? `${counted} The import stopped at archive ${stopped.index + 1} and the rest were not read:`
 				+ ` ${stopped.reason} (${stopped.code})`
 			: counted,
-		complete: result.completed && result.failed === 0 && absent === 0,
+		complete: result.completed && result.failed === 0 && !absent,
 	});
 	const conversions = result.entries.flatMap((record) => {
 		const recognized = record.outcome === 'imported'

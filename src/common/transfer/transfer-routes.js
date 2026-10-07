@@ -66,8 +66,8 @@ export const TRANSFER_ROUTES = Object.freeze([
  */
 export function transferRouteForPath(pathname) {
 	if (typeof pathname !== 'string') return null;
-	const normalized = normalizeTransferPath(pathname);
-	if (normalized === null) return null;
+	// The closed route table also refuses malformed segments and deeper paths.
+	const normalized = pathname.endsWith('/') ? pathname : `${pathname}/`;
 	return TRANSFER_ROUTES.find((route) => route.path === normalized) || null;
 }
 
@@ -87,27 +87,6 @@ export function transferRouteForRole(role) {
 	const route = TRANSFER_ROUTES.find((candidate) => candidate.role === role);
 	if (!route) throw new RangeError(`Unknown project transfer role: ${String(role)}.`);
 	return route;
-}
-
-/**
- * Reduce a location pathname to the exact route shape, or refuse it.
- *
- * Only a missing trailing slash is forgiven. Case, `.`/`..` segments, repeated
- * slashes and any deeper path are refused rather than guessed at, because the
- * response policy in `public/_headers` is bound to these two exact paths: a
- * document served under some other path would not carry the opener policy the
- * handshake needs, and silently mounting the page there would produce a
- * transfer that can never reach its peer.
- *
- * @param {string} pathname
- * @returns {string | null}
- */
-function normalizeTransferPath(pathname) {
-	if (!pathname.startsWith('/') || pathname.includes('//')) return null;
-	const withSlash = pathname.endsWith('/') ? pathname : `${pathname}/`;
-	const segments = withSlash.split('/').slice(1, -1);
-	if (segments.some((segment) => segment === '' || segment === '.' || segment === '..')) return null;
-	return `/${segments.join('/')}/`;
 }
 
 /**
