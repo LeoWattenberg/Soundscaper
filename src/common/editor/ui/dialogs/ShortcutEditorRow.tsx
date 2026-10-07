@@ -6,6 +6,7 @@ import { Button } from '@soundscaper/design-system/Button';
 
 import { mouseShortcutBinding, mouseShortcutKey } from '../../mouse-shortcut.ts';
 import { recognizedShortcutKey } from '../shortcut-key-validation.ts';
+import { isReservedVideoNavigationShortcut } from './shortcut-editor-reservations.ts';
 import {
 	audioEditorShortcutConflictKey,
 	findAudioEditorShortcutConflicts,
@@ -20,6 +21,7 @@ interface ShortcutConflict {
 }
 
 export interface ShortcutEditorDraftInput {
+	readonly productId?: string;
 	readonly shortcuts: ShortcutMap;
 	readonly preferenceId: string;
 	readonly bindings: readonly string[];
@@ -41,6 +43,7 @@ export interface ShortcutEditorCommand {
 }
 
 export interface ShortcutEditorRowProps {
+	readonly productId?: string;
 	readonly command: ShortcutEditorCommand;
 	readonly preferences: { readonly shortcuts: ShortcutMap };
 	readonly controller: { actions: { preferences: { setShortcut: (id: string, bindings: string[]) => unknown } } };
@@ -58,6 +61,7 @@ const conflictsFor = findAudioEditorShortcutConflicts as (shortcuts: ShortcutMap
  * collapse, and the conflict search runs over the candidate list.
  */
 export function shortcutEditorDraft({
+	productId = 'soundscaper',
 	shortcuts,
 	preferenceId,
 	bindings,
@@ -74,6 +78,9 @@ export function shortcutEditorDraft({
 			if (!String(binding).trim()) continue;
 			if (!recognizedShortcutKey(binding)) return { bindings: [], conflict: null, invalid: true };
 			const value = normalizeAudioEditorShortcut(binding);
+			if (isReservedVideoNavigationShortcut(productId, value)) {
+				return { bindings: [], conflict: { binding: value, actionIds: [preferenceId, 'video-navigation'] }, invalid: false };
+			}
 			const key = audioEditorShortcutConflictKey(value);
 			if (seen.has(key)) continue;
 			seen.add(key);
@@ -113,7 +120,7 @@ export function shortcutFocusTargetAfterRemove(index: number, remaining: number)
 	return `[data-shortcut-remove="${Math.min(index, remaining - 1)}"]`;
 }
 
-export function ShortcutEditorRow({ command, preferences, controller, copy, run }: ShortcutEditorRowProps) {
+export function ShortcutEditorRow({ productId = 'soundscaper', command, preferences, controller, copy, run }: ShortcutEditorRowProps) {
 	const preferenceId = command.id;
 	// A normalized binding never contains a space, so the joined list doubles as
 	// a stable change signature and as the value the fields reset to.
@@ -134,6 +141,7 @@ export function ShortcutEditorRow({ command, preferences, controller, copy, run 
 		target?.focus();
 	}, [focusAfterChange]);
 	const draft = shortcutEditorDraft({
+		productId,
 		shortcuts: preferences.shortcuts,
 		preferenceId,
 		bindings: entries,
@@ -145,7 +153,7 @@ export function ShortcutEditorRow({ command, preferences, controller, copy, run 
 		: draft.conflict
 			? copy.shortcutConflict
 				.replace('{binding}', draft.conflict.binding)
-				.replace('{action}', conflictAction || '')
+				.replace('{action}', conflictAction === 'video-navigation' ? copy.videoNavigation || 'Video navigation' : conflictAction || '')
 			: '';
 	const unchanged = draft.bindings.length === persisted.length
 		&& draft.bindings.every((binding, index) => binding === persisted[index]);

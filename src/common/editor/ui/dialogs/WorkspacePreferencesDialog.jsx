@@ -15,6 +15,7 @@ import PreferenceCheckbox from '../EditorPreferenceCheckbox.tsx';
 import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-workspace-runner.ts';
 import { workspacePanelAvailable } from '../workspace/workspace-product-panel-runtime.ts';
 import { workspacePreferencesPage } from '../workspace/workspace-preferences-routing.ts';
+import { workspaceSwitcherOptions } from '../workspace/workspace-switcher-options.ts';
 import AudioSettingsPreferencesPage from './AudioSettingsPreferencesPage.jsx';
 import EditingPreferencesPage from './EditingPreferencesPage.tsx';
 import EffectsPreferencesPage from './EffectsPreferencesPage.jsx';
@@ -178,14 +179,8 @@ export default function WorkspacePreferencesDialog({
 									label={copy.workspacePreset}
 									value={preferences.workspace.activeId}
 									onChange={(value) => run(() => controller.actions.preferences.setWorkspace(value))}
-									options={[
-										{ value: 'modern', label: copy.workspaceModern },
-										{ value: 'audacity', label: copy.workspaceAudacity },
-										{ value: 'music', label: copy.workspaceMusic },
-										{ value: 'classic', label: copy.workspaceClassic },
-										{ value: 'video-editor', label: copy.workspaceVideo },
-										...preferences.workspace.custom.map((workspace) => ({ value: workspace.id, label: workspace.name })),
-									]}
+									options={workspaceSwitcherOptions(productId, copy, preferences.workspace.custom)
+										.map(({ id, name }) => ({ value: id, label: name }))}
 								/>
 								<label className="kw-audio-editor-preferences__workspace-name">
 									<span>{copy.workspaceName}</span>
@@ -288,7 +283,7 @@ export default function WorkspacePreferencesDialog({
 										<Fragment key={group.id}>
 											{group.label && <h5 className="kw-audio-editor-preferences__shortcut-group" data-shortcut-group={group.id}
 												data-translation-key={group.id.startsWith('location:') ? shortcutCategoryMessageKey(group.id.slice('location:'.length)) : undefined}>{group.label}</h5>}
-											{group.commands.map((command) => <ShortcutEditorRow key={command.id} command={command} preferences={preferences} controller={controller} copy={copy} run={run} />)}
+											{group.commands.map((command) => <ShortcutEditorRow key={command.id} productId={productId} command={command} preferences={preferences} controller={controller} copy={copy} run={run} />)}
 										</Fragment>
 									))}
 								</div>

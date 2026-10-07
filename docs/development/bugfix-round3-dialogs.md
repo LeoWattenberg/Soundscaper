@@ -26,6 +26,8 @@ round-three baseline. Tests do not install editor state or require malformed fil
 | R3-DIALOG-016 | File → Import a normal WAV. Edit → Preferences → General. Choose Program start: New project, then Language: Deutsch. | The ordinary language navigation reopened a different empty project. Interface language should preserve the document being edited; Program start should govern a later launch. | Flush the project and carry its ID through a bounded, one-use, product-scoped handoff in this tab. Bootstrap consumes it only at the chosen destination, then the saved next-session policy resumes. The public baseline changed the project ID and lost the visible clip. The corrected workflow retains both. Mounted and strict resource tests verify save-before-navigation, no startup-preference rewrite, destination/product separation, expiry, and one-use consumption. |
 
 | R3-DIALOG-017 | Record options → Timed recording. Choose a future Start date and time, set Duration to 1.500 seconds, then choose End date and time. | The linked end field truncated its milliseconds, changing the scheduled interval from 1.500 to 1.000 second. Switching scheduling modes should retain the same authored interval. | Preserve nonzero milliseconds when formatting linked local dates and permit millisecond precision in both date inputs. The public baseline reported a 1,000-millisecond interval; the corrected workflow retains 1,500 milliseconds, has no native step mismatch, and restores the same duration on switching back. Strict model regressions also preserve fractional initialization and a moved start date. |
+| R3-DIALOG-018 | Framescaper → Edit → Preferences → Keyboard shortcuts. Find New mono track, assign J, close Preferences, and press J with the editor focused. | Preferences accepted the binding, but Framescaper's existing shuttle reservation handled J first, so no track appeared. Accepted configurable shortcuts should execute; a fixed reservation must be disclosed before assignment. | Check the binding against the actual Framescaper navigation matcher and refuse it with the localized “Shuttle and edit points” conflict. Soundscaper and modified chords keep their existing behavior. The public baseline accepted but ignored J; the corrected workflow refuses J, accepts Ctrl+Alt+Shift+J, and creates one track through that chord. Strict draft and rendered-row regressions preserve other-product and modified bindings. Group all fixed shuttle and edit-point keys once. |
+| R3-DIALOG-019 | Soundscaper → Edit → Preferences → Workspace → Workspace preset. Select Video editor, close Preferences, then reload normally. | Preferences offered and applied video-editor, but reload changed it back to Soundscaper. Framescaper's same picker also offered four audio layouts omitted from its other switchers. The picker should offer this product's supported presets and saved custom layouts consistently. | Reuse the existing product-specific workspace inventory already used by View, the sidebar, and the action bar. The public baseline reproduced the select-and-reload loss and both incorrect option inventories. The corrected two-product workflow checks the exact supported choices, creates a custom layout, and retains it after reload. Mounted regressions preserve custom selection. Group both product variants once. |
 
 All three workflows passed Chromium, Firefox, and WebKit against immutable green
 batch 1. The existing Chromium mask validation, preset, and removal workflow also
@@ -80,6 +82,12 @@ Entry 017 passed Chromium, Firefox, and WebKit against immutable green batch 12.
 Its two strict precision regressions and the five existing timed-recording model
 cases passed. Changed source and tests passed targeted lint and the file-size
 gate; the authoritative source and test typechecks also passed.
+
+Entries 018–019 passed all nine public browser cases in Chromium, Firefox, and
+WebKit against immutable green batch 14. Their focused Node suites passed 61
+and 17 cases respectively, including the new draft/row and mounted product
+inventory regressions. Changed source and tests passed targeted lint and the
+file-size gate; the authoritative source and test typechecks also passed.
 
 Uncounted follow-through to R2-DIALOG-012: in Framescaper, import a normal WebM,
 select its clip, then Edit → Audio clips → Video keyframes. Choose Scale X,

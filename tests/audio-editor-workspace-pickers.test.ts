@@ -56,7 +56,7 @@ test('the lifecycle hook and the brand sidebar source their workspace lists from
 	assert.match(sidebar, /\{ id: 'audacity', name: copy\.workspaceAudacity \}/u);
 	assert.match(sidebar, /workspaceAudacity: catalog\.workspaceAudacity/u);
 	const dialog = await readFile(new URL('src/common/editor/ui/dialogs/WorkspacePreferencesDialog.jsx', ROOT), 'utf8');
-	assert.match(dialog, /\{ value: 'audacity', label: copy\.workspaceAudacity \}/u);
+	assert.match(dialog, /workspaceSwitcherOptions\(productId, copy, preferences\.workspace\.custom\)/u);
 });
 
 test('the View menu offers the Audacity preset and the workspace onboarding to Soundscaper only', () => {
