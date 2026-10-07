@@ -277,6 +277,8 @@ test.describe('shared audio editor dialog behavior', () => {
 		expect(afterMouseUp.x).toBeCloseTo(moved.x, 0);
 		expect(afterMouseUp.y).toBeCloseTo(moved.y, 0);
 
+		await page.mouse.move(1, 1);
+		await expect(page.getByRole('tooltip')).toHaveCount(0);
 		await page.keyboard.press('Escape');
 		await expect(dialog).toBeHidden();
 	});
@@ -303,6 +305,8 @@ test.describe('shared audio editor dialog behavior', () => {
 		await expect(preferences).toBeHidden();
 		await expect(reverb).toBeVisible();
 
+		await page.mouse.move(1, 1);
+		await expect(page.getByRole('tooltip')).toHaveCount(0);
 		await page.keyboard.press('Escape');
 		await expect(reverb).toBeHidden();
 	});
