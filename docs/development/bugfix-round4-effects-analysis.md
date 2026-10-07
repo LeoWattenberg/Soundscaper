@@ -430,3 +430,11 @@ the browser batch also retains the group-profile workflow (6/6 altogether).
 Regression files are `audio-editor-round4-program-tab-reentry.test.tsx` and
 `audio-editor-round4-program-tab-reentry.spec.js`; evidence is recorded in
 `/tmp/soundscaper-r4-root-program-tab-*`. Manual Update AI assets: not required.
+
+Uncounted 007 follow-through: the bus-owned detached prefix now also clears
+its downstream Master mute, matching the neutral routing promised by 007.
+Both group/send authored-mute preservation regressions failed before this
+correction and pass with existing service support (28/28). The existing public
+group-profile workflow passes all three engines on `program-tab-clean22`;
+its builds and targeted lint pass. This completes the same bus admission/render
+root and adds no bug ID.
