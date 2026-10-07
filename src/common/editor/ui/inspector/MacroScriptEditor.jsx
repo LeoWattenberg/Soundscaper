@@ -105,6 +105,7 @@ export default function MacroScriptEditor({
 					data-macro-script-source
 					value={script.source || ''}
 					onKeyDown={handleKeyDown}
+					onBlur={() => setTabEscapes(false)}
 					onChange={(event) => onChange({ ...script, source: event.target.value })}
 				/>
 			</label>

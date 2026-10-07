@@ -408,3 +408,25 @@ is not counted as a defect. Regression files are
 `audio-editor-round4-dtmf-sample-admission.test.tsx` and
 `audio-editor-round4-dtmf-sample-admission.spec.js`; evidence is recorded in
 `/tmp/soundscaper-r4-root-dtmf-sample-*`. Manual Update AI assets: not required.
+
+## R4-ROOT-018 — Returning to Program leaves Tab indentation disabled
+
+Choose Tools → Macros palette → New program and type ordinary program text.
+Press Escape, click Program name, then click back into Program and press Tab.
+The baseline leaves the text unchanged and moves focus out of Program, although
+its visible hint promises that Tab indents. The escape request incorrectly
+survives the previous focus session when the user leaves with the mouse.
+
+Clear that request on the textarea's native blur. Returning to Program restores
+its two-space indentation, while Escape followed immediately by Tab retains
+normal focus navigation. This is independent of the earlier name cancellation
+and macro-library permanent-deletion focus defects.
+
+The exact public workflow fails on immutable baseline `a0322d6e4` and passes
+Chromium, Firefox and WebKit on `program-tab-clean22`. Its mounted production
+handler fails before the correction and passes both focus-session and direct
+Escape/Tab behavior afterward. Both product builds and targeted lint pass;
+the browser batch also retains the group-profile workflow (6/6 altogether).
+Regression files are `audio-editor-round4-program-tab-reentry.test.tsx` and
+`audio-editor-round4-program-tab-reentry.spec.js`; evidence is recorded in
+`/tmp/soundscaper-r4-root-program-tab-*`. Manual Update AI assets: not required.
