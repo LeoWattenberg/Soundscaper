@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useLocalModelCatalog, useLocalModelActivity, useLocalModelTaskOptions, useOfflineModelChoices } from './useLocalModelPresentation.ts';
 import { Button } from '@soundscaper/design-system/Button';
 import { DialogFooter } from '@soundscaper/design-system/Footer';
 
@@ -105,14 +106,9 @@ export function LocalModelManagerDialogView({
 	const [task, setTask] = useState('all');
 	const [status, setStatus] = useState('all');
 	const [relatedOnly, setRelatedOnly] = useState(true);
-	const models = snapshot.models.filter((model) => (!relatedOnly || !modelFilter || modelFilter(model))
-		&& (task === 'all' || model.task === task)
-		&& (status === 'all' || (status === 'installed' ? model.installedBytes !== null : model.installedBytes === null))
-		&& `${model.modelId} ${localModelDisplayName(model.modelId, copy)} ${modelPurpose(copy, model.task)}`.toLocaleLowerCase(locale).includes(query.toLocaleLowerCase(locale)));
-	const progress = new Map(snapshot.progress.map((entry) => [entry.modelId, entry]));
-	const busy = new Set(snapshot.busyModelIds);
-	const installing = new Set(snapshot.installingModelIds);
-	const cancelling = new Set(snapshot.cancellingModelIds);
+	const models = useLocalModelCatalog(snapshot.models, copy, locale, modelPurpose, query, task, status, relatedOnly, modelFilter);
+	const { progress, busy, installing, cancelling } = useLocalModelActivity(snapshot.progress, snapshot.busyModelIds, snapshot.installingModelIds, snapshot.cancellingModelIds);
+	const taskOptions = useLocalModelTaskOptions(snapshot.models, copy, modelPurpose);
 	const globallyBusy = busy.size > 0 || snapshot.maintenanceOperation !== null;
 	const runtimeSummary = snapshot.runtimeAvailable === true
 		? text(copy, 'localModelsRuntimeReady', 'The speech engine is ready.')
@@ -163,7 +159,7 @@ export function LocalModelManagerDialogView({
 			<ProcessingSearchField value={query} onChange={setQuery} label={text(copy, 'assistanceSearchModels', 'Search models')} />
 			<PreferenceDropdownField label={text(copy, 'assistanceModelTask', 'Task')} value={task} onChange={setTask}
 				options={[{ value: 'all', label: text(copy, 'assistanceAllTasks', 'All tasks') },
-					...[...new Set(snapshot.models.map((model) => model.task))].map((value) => ({ value, label: modelPurpose(copy, value) }))]} />
+					...taskOptions]} />
 			<PreferenceDropdownField label={text(copy, 'localModelsAvailability', 'Availability')} value={status} onChange={setStatus}
 				options={[{ value: 'all', label: text(copy, 'assistanceAllModels', 'All models') },
 					{ value: 'installed', label: text(copy, 'localModelsInstalled', 'Installed') },
@@ -302,7 +298,7 @@ function MaintenanceControls({
 	onRelocate: () => unknown;
 }>) {
 	const [offlineModelId, setOfflineModelId] = useState('');
-	const offlineModels = models.filter((model) => model.installedBytes === null && model.availability === 'installable');
+	const { offlineModels, options } = useOfflineModelChoices(models, copy);
 	const selected = offlineModels.find((model) => model.modelId === offlineModelId) ?? offlineModels[0];
 	return <section className="kw-local-model-manager__maintenance" aria-labelledby="local-model-maintenance-title">
 		<h3 id="local-model-maintenance-title">{text(copy, 'localModelsMaintenance', 'Storage and verification')}</h3>
@@ -323,7 +319,7 @@ function MaintenanceControls({
 		{offlineModels.length > 0 && <div className="kw-processing-details">
 			<PreferenceDropdownField label={text(copy, 'assistanceOfflineInstall', 'Offline installation')}
 				value={selected?.modelId ?? ''} onChange={setOfflineModelId} disabled={busy}
-				options={offlineModels.map((model) => ({ value: model.modelId, label: localModelDisplayName(model.modelId, copy) }))} />
+				options={options} />
 			<Button variant="secondary" disabled={busy || !selected} onClick={() => { if (selected) void onInstallPreseeded(selected.modelId); }}>
 				{text(copy, 'localModelsInstallFromFolder', 'Install from folder…')}</Button>
 		</div>}

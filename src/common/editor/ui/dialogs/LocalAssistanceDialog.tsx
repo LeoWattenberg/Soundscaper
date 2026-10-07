@@ -1,3 +1,6 @@
+import { localAssistanceReviewIdentity, useLocalAssistanceReviewIdentity } from './local-assistance-review-identity.ts';
+export { localAssistanceReviewIdentity } from './local-assistance-review-identity.ts';
+import { useAssistanceModelChoices } from './useLocalModelPresentation.ts';
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { LOCAL_ASSISTANCE_ADDITIONAL_COPY } from '../../../i18n/editor-local-assistance-additional-copy.ts';
@@ -25,7 +28,7 @@ import {
 	type LocalAssistanceDialogSurface,
 	type LocalAssistanceGuidedSnapshot,
 } from '../local-assistance-guided-session-store.ts';
-import { localAssistanceModelCompatible, localAssistanceModelTaskSlots,
+import {
 	type LocalAssistanceSelectedMediaPreparationPort } from '../../assistance/local-assistance-preparation.ts';
 import {
 	type LocalAssistanceSnapshot,
@@ -208,12 +211,10 @@ export function LocalAssistanceDialogView({
 	const operationSet = new Set(source?.operations ?? []);
 	const shotDetectionMode = snapshot.selectedOperation === 'shot-detection'
 		? snapshot.shotDetectionMode : undefined;
-	const modelTaskSlots = snapshot.selectedOperation
-		? localAssistanceModelTaskSlots(snapshot.selectedOperation, shotDetectionMode)
-		: EMPTY_MODEL_TASK_SLOTS;
+	const modelChoices = useAssistanceModelChoices(snapshot.models, snapshot.selectedOperation, shotDetectionMode);
 	const message = phaseMessage(copy, snapshot);
-	const reviewOpen = localAssistanceReviewIdentity(snapshot) !== null
-		&& reviewedResultIdentity === localAssistanceReviewIdentity(snapshot);
+	const reviewIdentity = useLocalAssistanceReviewIdentity(snapshot.result);
+	const reviewOpen = reviewIdentity !== null && reviewedResultIdentity === reviewIdentity;
 	return <AudioEditorDialogShell
 		title={request?.mode === 'task' ? assistanceTaskLabel(request.workflowId, copy)
 			: request ? text(copy, 'advancedLocalProcessing', 'Advanced Local Processing')
@@ -306,15 +307,13 @@ export function LocalAssistanceDialogView({
 						void onShotDetectionModeChange('accurate');
 					}} />{text(copy, 'localAssistanceShotDetectionAccurate', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceShotDetectionAccurate)}</label>
 			</fieldset>}
-			{modelTaskSlots.map((slot) => {
-				const compatibleModels = snapshot.models.filter((model) => slot.includes(model.task)
-					&& localAssistanceModelCompatible(snapshot.selectedOperation!, model, shotDetectionMode));
+			{modelChoices.map(({ slot, compatibleModels }) => {
 				const selectedModelId = snapshot.selectedModelIds.find(
 					(modelId) => compatibleModels.some((model) => model.modelId === modelId),
 				) ?? '';
 				return <label key={slot.join('|') || 'unselected-operation'}>
 					{text(copy, 'localAssistanceModel', 'Installed compatible model')}
-					{modelTaskSlots.length > 1 && ` · ${slot.join(' / ')}`}
+					{modelChoices.length > 1 && ` · ${slot.join(' / ')}`}
 					<select value={selectedModelId}
 						disabled={!snapshot.selectedOperation || busy(snapshot)}
 						onChange={(event) => { void onSelectModel(event.currentTarget.value); }}>
@@ -325,7 +324,7 @@ export function LocalAssistanceDialogView({
 					</select>
 				</label>;
 			})}
-			{snapshot.selectedOperation && modelTaskSlots.length === 0 && <p>
+			{snapshot.selectedOperation && modelChoices.length === 0 && <p>
 				{text(copy, 'localAssistanceNoModelRequired', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceNoModelRequired)}
 			</p>}
 		</div>
@@ -361,20 +360,6 @@ export function LocalAssistanceDialogView({
 			'Project acceptance is enabled in a separate review step.')}</p>
 		</section>}
 	</AudioEditorDialogShell>;
-}
-
-export function localAssistanceReviewIdentity(snapshot: LocalAssistanceSnapshot): string | null {
-	if (!snapshot.result || snapshot.result.outputs.length === 0) return null;
-	return JSON.stringify([snapshot.result.operation, ...snapshot.result.outputs.map((output) => [
-		output.slotId ?? null,
-		output.claim.claimVersion,
-		output.claim.claimId,
-		output.claim.jobId,
-		output.claim.role,
-		output.claim.mediaType,
-		output.claim.byteLength,
-		output.claim.sha256,
-	])]);
 }
 
 function Progress({ copy, progress }: Readonly<{
@@ -436,7 +421,6 @@ function busy(snapshot: LocalAssistanceSnapshot): boolean {
 		|| snapshot.phase === 'cancelling' || snapshot.phase === 'accepting';
 }
 
-const EMPTY_MODEL_TASK_SLOTS = Object.freeze([Object.freeze([])]) as readonly (readonly string[])[];
 
 function text(copy: Copy, key: string, fallback: string): string {
 	return copy[`ui.localAssistance.${key}`] || copy[key] || fallback;
