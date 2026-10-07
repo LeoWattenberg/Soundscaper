@@ -13,6 +13,7 @@ import { timelineContentLeft } from './timeline-scroll-space.ts';
 import { LabelContextMenu } from './LabelContextMenu.tsx';
 import { selectAudioEditorLabelEditBlock } from '../../label-edit-blocking.ts';
 import { useLabelMarkerDragCancellation } from './useLabelMarkerDragCancellation.ts';
+import { prepareTimelineLabelRemovalFocus } from './label-removal-focus.ts';
 
 export function LabelTrackRow({
 	controller,
@@ -155,9 +156,11 @@ export function LabelTrackRow({
 						onEdit={() => setEditingLabelId(label.id)}
 						onFinishEdit={() => setEditingLabelId(null)}
 						onRemove={() => {
+							const restoreFocus = prepareTimelineLabelRemovalFocus(laneRef.current, label.id);
 							setSelectedLabelId(null);
 							setEditingLabelId(null);
 							run(() => controller.actions.labels.remove(track.id, label.id));
+							restoreFocus?.();
 						}}
 					/>
 				))}
