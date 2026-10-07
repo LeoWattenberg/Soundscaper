@@ -24,6 +24,7 @@ import { useOperationFocusRecovery } from '../useOperationFocusRecovery.ts';
 import { videoKeyframeTransferShortcut } from '../video-keyframe-transfer-shortcut.ts';
 import VideoKeyframeCurveEditor from './VideoKeyframeCurveEditor.tsx';
 import { parseVideoKeyframeNumber as parseNumber, parseVideoKeyframePosition as parseRationalText } from './video-keyframe-exact-input.ts';
+import { videoKeyframeInterpolationKinds } from './video-keyframe-interpolation.ts';
 
 interface VideoKeyframeDialogProps {
 	readonly productId: string;
@@ -60,7 +61,7 @@ export default function VideoKeyframeDialog({
 	const [endText, setEndText] = useState(() => String(model.sequenceFrameCount));
 	const [startValue, setStartValue] = useState(() => String(firstChoice?.baseValue ?? 0));
 	const [endValue, setEndValue] = useState(() => String(firstChoice?.baseValue ?? 0));
-	const [kind, setKind] = useState<CurveKind>('linear');
+	const [kind, setKind] = useState<CurveKind>(() => firstChoice?.integer ? 'hold' : 'linear');
 	const [transferText, setTransferText] = useState('');
 	const [status, setStatus] = usePresentationFeedback(copy);
 	const [error, setError] = usePresentationFeedback(copy);
@@ -149,6 +150,7 @@ export default function VideoKeyframeDialog({
 							const next = choices.find(({ key }) => key === event.currentTarget.value);
 							setTargetKey(event.currentTarget.value);
 							if (next) { setStartValue(String(next.baseValue)); setEndValue(String(next.baseValue)); }
+							if (next?.integer) setKind('hold');
 						}}>{choices.map((choice) => <option key={choice.key} value={choice.key}>{choiceLabel(choice, copy)}</option>)}</select>
 					</label>
 					<div className="audio-editor-field-grid">
@@ -159,7 +161,7 @@ export default function VideoKeyframeDialog({
 					</div>
 					<label className="audio-editor-field"><span>{label(copy, 'videoKeyframesInterpolation', 'Interpolation')}</span>
 						<select data-video-keyframe-field="interpolation" value={kind} onChange={(event) => setKind(event.currentTarget.value as CurveKind)}>
-							{(['hold', 'linear', 'eased', 'bezier'] as const).map((value) => <option key={value} value={value}>{label(copy, `videoKeyframes${titleCase(value)}`, titleCase(value))}</option>)}
+							{videoKeyframeInterpolationKinds(selected?.integer ?? false).map((value) => <option key={value} value={value}>{label(copy, `videoKeyframes${titleCase(value)}`, titleCase(value))}</option>)}
 						</select>
 					</label>
 					<button type="submit" data-video-keyframe-add>{label(copy, 'videoKeyframesAdd', 'Add curve')}</button>

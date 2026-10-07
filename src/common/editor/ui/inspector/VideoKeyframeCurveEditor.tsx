@@ -17,6 +17,7 @@ import {
 } from '../video-keyframe-dialog-model.ts';
 import { linearVideoKeyframeBezierControls } from './video-keyframe-bezier-controls.ts';
 import { parseVideoKeyframeNumber as parseNumber, parseVideoKeyframePosition as parseRational } from './video-keyframe-exact-input.ts';
+import { videoKeyframeInterpolationKinds } from './video-keyframe-interpolation.ts';
 
 interface VideoKeyframeCurveEditorProps {
 	readonly model: VideoKeyframeDialogModel;
@@ -201,7 +202,7 @@ export default function VideoKeyframeCurveEditor({
 					</label>
 					<label className="audio-editor-field"><span>{label(copy, 'videoKeyframesInterpolation', 'Interpolation')}</span>
 						<select data-video-keyframe-field="segment-kind" value={segmentKind || segment?.kind} onChange={(event) => changeSegmentKind(event.currentTarget.value as typeof segmentKind)}>
-							{(['hold', 'linear', 'eased', 'bezier'] as const).map((kind) => <option key={kind} value={kind}>{label(copy, `videoKeyframes${titleCase(kind)}`, titleCase(kind))}</option>)}
+							{videoKeyframeInterpolationKinds(choice?.integer ?? false).map((kind) => <option key={kind} value={kind}>{label(copy, `videoKeyframes${titleCase(kind)}`, titleCase(kind))}</option>)}
 						</select>
 					</label>
 					{segmentKind === 'bezier' && <div className="audio-editor-field-grid">
