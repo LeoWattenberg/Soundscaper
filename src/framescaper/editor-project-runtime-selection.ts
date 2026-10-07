@@ -191,15 +191,20 @@ export function createEditorProjectRuntimeSelection(
 				createId,
 			)
 		),
-		prepareEditClipboardPasteCommand: (project, clipboard, command, createId) => (
-			prepareFramescaperSessionClipboardPasteV13(
+		prepareEditClipboardPasteCommand: (project, clipboard, command, createId) => {
+			const destination = legacyImageFoundation(project);
+			const prepared = prepareFramescaperSessionClipboardPasteV13(
 				FRAMESCAPER_TIMELINE_IMAGE_PROJECT_RUNTIME_PROFILE,
-				legacyImageFoundation(project),
+				destination,
 				clipboard,
 				command,
 				createId,
-			).foundationCommand as FramescaperProjectCommand
-		),
+			);
+			const availableImages = new Set(destination.sources.filter(source => source.kind === 'image').map(source => source.id));
+			// Retained image bodies need no new asset publication during an ordinary paste.
+			return ([...prepared.imageSourceIdMap.values()].every(id => availableImages.has(id))
+				? prepared.command : prepared.foundationCommand) as FramescaperProjectCommand;
+		},
 		stageEditClipboardPasteBodies: (prepared, store, options = {}) => (
 			stageFramescaperSessionClipboardImageBodiesV13(prepared.bodyTransfers, store, options)
 		),
