@@ -1,5 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Flyout } from '@soundscaper/design-system/Flyout';
+import { retainAudioEditorDialogEscapeOwner } from './dialog-escape-ownership.ts';
+import { withinHelpTooltipPointerPath } from './help-tooltip-pointer-path.ts';
 
 const BUTTON_SELECTOR = 'button';
 
@@ -10,12 +12,33 @@ const BUTTON_SELECTOR = 'button';
  */
 export default function AudioEditorButtonTooltips({ rootRef }) {
 	const [tooltip, setTooltip] = useState(null);
+	const dismissedButtonRef = useRef(null);
+	const tooltipButton = tooltip?.button ?? null;
+	const tooltipButtonRef = useRef(null);
+	tooltipButtonRef.current = tooltipButton;
+	useLayoutEffect(() => {
+		if (!tooltipButton) return undefined;
+		return retainAudioEditorDialogEscapeOwner(tooltipButton.ownerDocument, () => {
+			dismissedButtonRef.current = tooltipButton;
+			setTooltip(null);
+		});
+	}, [tooltipButton]);
+	useEffect(() => {
+		const root = rootRef.current;
+		if (!root || !tooltipButton) return undefined;
+		const move = (event) => {
+			if (!withinButtonTooltipPath(root, tooltipButton, event)) setTooltip(null);
+		};
+		root.ownerDocument.addEventListener('pointermove', move);
+		return () => root.ownerDocument.removeEventListener('pointermove', move);
+	}, [rootRef, tooltipButton]);
 
 	useEffect(() => {
 		const root = rootRef.current;
 		if (!root) return undefined;
 
 		const show = (button) => {
+			if (dismissedButtonRef.current === button) return;
 			const label = buttonTooltipLabel(button);
 			if (!label) return;
 			const rect = button.getBoundingClientRect();
@@ -48,6 +71,8 @@ export default function AudioEditorButtonTooltips({ rootRef }) {
 			// the button after the Flyout appears. Keep that tooltip until it leaves.
 			if (event.relatedTarget === null
 				&& button.contains(root.ownerDocument.elementFromPoint(event.clientX, event.clientY))) return;
+			if (tooltipButtonRef.current === button && withinButtonTooltipPath(root, button, event)) return;
+			if (dismissedButtonRef.current === button) dismissedButtonRef.current = null;
 			hide(button);
 		};
 		const onPointerDown = (event) => {
@@ -99,6 +124,12 @@ export default function AudioEditorButtonTooltips({ rootRef }) {
 			<span data-audio-editor-button-tooltip>{tooltip?.label}</span>
 		</Flyout>
 	);
+}
+
+function withinButtonTooltipPath(root, button, point) {
+	const tooltip = root.querySelector('.kw-audio-editor__button-tooltip');
+	return Boolean(tooltip && withinHelpTooltipPointerPath(point,
+		button.getBoundingClientRect(), tooltip.getBoundingClientRect()));
 }
 
 function editorButton(target, root) {

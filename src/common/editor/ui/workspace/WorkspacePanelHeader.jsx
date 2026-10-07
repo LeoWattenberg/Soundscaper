@@ -94,6 +94,13 @@ export default function WorkspacePanelHeader({
 				className={menuOnly ? undefined : "kw-audio-editor__workspace-panel-header"}
 				data-floating-panel-move-handle={floatingMoveHandle ? menuPanelId : undefined}
 				onPointerDown={onPointerDown}
+				onKeyDown={(event) => {
+					if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey
+						|| !(event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey))) return;
+					event.preventDefault();
+					event.stopPropagation();
+					openAtButton(true);
+				}}
 				onContextMenu={(event) => {
 					event.preventDefault();
 					// A keyboard request (Shift+F10, the Menu key) carries no useful
