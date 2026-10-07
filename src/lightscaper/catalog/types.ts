@@ -3,6 +3,7 @@
 import type { VideoStillSourceV1 } from '../../common/editor/video-visual-model-v24.ts';
 import type { VideoEffectLeaf } from '../../common/editor/project-media-types.ts';
 import type { VideoMaskMatteGraphV1 } from '../../common/editor/video-mask-matte-v24.ts';
+import type { ImageMetadataV1 } from '../../common/editor/imaging/image-metadata-model-v1.ts';
 
 export const LIGHTSCAPER_SCHEMA_FAMILY = 'lightscaper' as const;
 export const LIGHTSCAPER_SCHEMA_VERSION = 1 as const;
@@ -131,6 +132,8 @@ export interface PhotoDocumentV1 extends LightscaperIdentityV1 {
 	readonly revision: number;
 	readonly original: PhotoOriginalV1;
 	readonly metadata: PhotoMetadataV1;
+	/** Immutable facts extracted from this original; authored overrides live in metadata. */
+	readonly extractedMetadata: Readonly<ImageMetadataV1> | null;
 	readonly folderId: string | null;
 	readonly collectionIds: readonly string[];
 	readonly keywordIds: readonly string[];

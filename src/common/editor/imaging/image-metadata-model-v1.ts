@@ -22,6 +22,12 @@ export interface ImageCaptureTimeV1 {
 	readonly subsecond: string | null;
 }
 
+export interface ImageExifCaptureTimeRawV1 {
+	readonly dateTimeOriginal: string | null;
+	readonly offsetTimeOriginal: string | null;
+	readonly subsecondOriginal: string | null;
+}
+
 export interface ImageExifMetadataV1 {
 	readonly orientation: number | null;
 	readonly cameraMake: string | null;
@@ -36,6 +42,8 @@ export interface ImageExifMetadataV1 {
 	readonly iso: number | null;
 	readonly focalLengthMm: number | null;
 	readonly captureTime: Readonly<ImageCaptureTimeV1> | null;
+	/** Optional in legacy v1 records; exact fields also preserve partial/unknown times. */
+	readonly captureTimeRaw?: Readonly<ImageExifCaptureTimeRawV1> | null;
 }
 
 export interface ImageIptcMetadataV1 {

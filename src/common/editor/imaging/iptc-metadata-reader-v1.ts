@@ -89,8 +89,8 @@ export function readIptcMetadataV1(bytes: Uint8Array): Readonly<ImageIptcMetadat
 		if (field) {
 			if (seen.has(tag)) failMetadata('malformed-iptc');
 			seen.add(tag);
-			if (tag === 55) validateDate(text);
-			if (tag === 60) validateTime(text);
+			if (tag === 55) validateIptcDateTextV1(text);
+			if (tag === 60) validateIptcTimeTextV1(text);
 			result[field[0]] = text;
 		} else {
 			const repeated = tag === 25 ? keywords : creators;
@@ -114,7 +114,7 @@ function decodeText(bytes: Uint8Array, encoding: 'ascii' | 'utf8', multiline: bo
 	return text;
 }
 
-function validateDate(text: string): void {
+export function validateIptcDateTextV1(text: string): void {
 	if (!/^\d{8}$/.test(text)) failMetadata('malformed-iptc');
 	const month = Number(text.slice(4, 6)), day = Number(text.slice(6));
 	if (month > 12 || day > 31 || month === 0 && day !== 0) failMetadata('malformed-iptc');
@@ -123,7 +123,7 @@ function validateDate(text: string): void {
 	if (month !== 0 && day !== 0 && day > (days[month - 1] ?? 0)) failMetadata('malformed-iptc');
 }
 
-function validateTime(text: string): void {
+export function validateIptcTimeTextV1(text: string): void {
 	if (!/^\d{6}[+-]\d{4}$/.test(text)) failMetadata('malformed-iptc');
 	if (Number(text.slice(0, 2)) > 23 || Number(text.slice(2, 4)) > 59 || Number(text.slice(4, 6)) > 59
 		|| Number(text.slice(7, 9)) > 23 || Number(text.slice(9, 11)) > 59) failMetadata('malformed-iptc');

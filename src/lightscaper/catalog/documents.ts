@@ -10,7 +10,7 @@ export function validateLightscaperDocumentV1(value: unknown): LightscaperDocume
 	const identity = record(value, 'Lightscaper document', [
 		'schemaFamily', 'schemaVersion', 'kind', 'id', 'name', 'catalogId', 'revision', 'photoCount',
 		'folders', 'keywords', 'collections', 'original', 'metadata', 'folderId', 'collectionIds',
-		'keywordIds', 'rating', 'flag', 'colorLabel', 'versions', 'activeVersionId',
+		'keywordIds', 'rating', 'flag', 'colorLabel', 'versions', 'activeVersionId', 'extractedMetadata',
 	], ['schemaFamily', 'schemaVersion', 'kind']);
 	requireSchema(identity);
 	let normalized: LightscaperDocumentV1;

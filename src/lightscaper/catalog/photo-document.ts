@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { normalizeVideoStillSourceV1 } from '../../common/editor/video-visual-model-v24.ts';
+import { normalizeImageMetadataV1 } from '../../common/editor/imaging/image-metadata-normalizer-v1.ts';
 import { normalizePhotoDevelopV1 } from './develop-state.ts';
 import { normalizePhotoMetadataV1 } from './photo-metadata.ts';
 import { PHOTO_COLOR_LABELS, PHOTO_FLAGS } from './smart-query.ts';
@@ -8,15 +9,17 @@ import { LIGHTSCAPER_CATALOG_LIMITS as LIMITS, type PhotoCatalogRootV1, type Pho
 import { array, field, id, integer, name, oneOf, record, requireSchema, unique, uniqueIds, utcTimestamp } from './value-validation.ts';
 
 const STILL_FIELDS = ['schemaVersion', 'kind', 'id', 'name', 'mimeType', 'storageKey', 'contentSha256', 'width', 'height', 'hasAlpha'];
+const PHOTO_FIELDS = ['schemaFamily', 'schemaVersion', 'kind', 'id', 'catalogId', 'revision', 'original', 'metadata', 'folderId', 'collectionIds', 'keywordIds', 'rating', 'flag', 'colorLabel', 'versions', 'activeVersionId'];
 
 export function normalizePhotoDocumentV1(value: unknown): PhotoDocumentV1 {
-	const input = record(value, 'photo', ['schemaFamily', 'schemaVersion', 'kind', 'id', 'catalogId', 'revision', 'original', 'metadata', 'folderId', 'collectionIds', 'keywordIds', 'rating', 'flag', 'colorLabel', 'versions', 'activeVersionId']);
+	const input = record(value, 'photo', [...PHOTO_FIELDS, 'extractedMetadata'], PHOTO_FIELDS);
 	requireSchema(input);
 	oneOf(field(input, 'kind'), ['photo'] as const, 'photo kind');
 	const versions = normalizeVersions(field(input, 'versions'));
 	const activeVersionId = id(field(input, 'activeVersionId'), 'active photo version');
 	if (!versions.some((version) => version.id === activeVersionId)) throw new ReferenceError('The active photo version is missing.');
 	const folder = field(input, 'folderId');
+	const extracted = Object.hasOwn(input, 'extractedMetadata') ? field(input, 'extractedMetadata') : null;
 	return Object.freeze({
 		schemaFamily: 'lightscaper', schemaVersion: 1, kind: 'photo',
 		id: id(field(input, 'id'), 'photo ID'),
@@ -24,6 +27,7 @@ export function normalizePhotoDocumentV1(value: unknown): PhotoDocumentV1 {
 		revision: integer(field(input, 'revision'), 0, Number.MAX_SAFE_INTEGER, 'photo revision'),
 		original: normalizeOriginal(field(input, 'original')),
 		metadata: normalizePhotoMetadataV1(field(input, 'metadata')),
+		extractedMetadata: extracted === null ? null : normalizeImageMetadataV1(extracted),
 		folderId: folder === null ? null : id(folder, 'photo folder ID'),
 		collectionIds: uniqueIds(field(input, 'collectionIds'), 'photo collections', LIMITS.maximumMemberships),
 		keywordIds: uniqueIds(field(input, 'keywordIds'), 'photo keywords', LIMITS.maximumMemberships),

@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { checkedRange, failMetadata, MetadataBudget } from './image-metadata-binary.ts';
-import { IMAGE_METADATA_LIMITS_V1, type ImageCaptureTimeV1, type ImageExifMetadataV1 } from './image-metadata-model-v1.ts';
+import { readExifCaptureTimeV1 } from './exif-capture-time-v1.ts';
+import { IMAGE_METADATA_LIMITS_V1, type ImageExifMetadataV1 } from './image-metadata-model-v1.ts';
 
 // Classic TIFF IFD layout and Exif tag types: CIPA DC-008, not a RAW admission rule.
 // https://www.cipa.jp/std/documents/e/DC-X008-Translation-2019-E.pdf
@@ -20,7 +21,7 @@ export function readExifMetadataV1(bytes: Uint8Array): Readonly<ImageExifMetadat
 	if (view.getUint16(2, little) !== 42) failMetadata('malformed-exif');
 	const result = { orientation: null, cameraMake: null, cameraModel: null, lensModel: null,
 		artist: null, copyright: null, description: null, exposureSeconds: null, aperture: null,
-		iso: null, focalLengthMm: null, captureTime: null } as {
+		iso: null, focalLengthMm: null, captureTime: null, captureTimeRaw: null } as {
 		-readonly [K in keyof ImageExifMetadataV1]: ImageExifMetadataV1[K];
 	};
 	const pending: { offset: number; scope: 'root' | 'exif' | 'other' }[] = [{ offset: view.getUint32(4, little), scope: 'root' }];
@@ -99,7 +100,10 @@ export function readExifMetadataV1(bytes: Uint8Array): Readonly<ImageExifMetadat
 		const next = view.getUint32(offset + 2 + count * 12, little);
 		if (next) pending.push({ offset: next, scope: 'other' });
 	}
-	if (date !== null) result.captureTime = captureTime(date, offsetTime, subsecond);
+	if (date !== null) {
+		result.captureTime = readExifCaptureTimeV1(date, offsetTime, subsecond);
+		result.captureTimeRaw = Object.freeze({ dateTimeOriginal: date, offsetTimeOriginal: offsetTime, subsecondOriginal: subsecond });
+	}
 	else if (offsetTime !== null || subsecond !== null) failMetadata('malformed-exif');
 	return Object.freeze(result);
 }
@@ -112,42 +116,8 @@ function readAscii(bytes: Uint8Array, copyright = false): string {
 	for (let index = 0; index < bytes.length - 1; index++) {
 		const byte = bytes[index] ?? 0;
 		if (byte === 0 && copyright && ++separators === 1) { text += '\n'; continue; }
-		if (byte === 0 || byte > 127 || byte < 32 && byte !== 10 && byte !== 13) failMetadata('unsupported-text-encoding');
+		if (byte === 0 || byte >= 127 || byte < 32 && byte !== 10 && byte !== 13) failMetadata('unsupported-text-encoding');
 		text += String.fromCharCode(byte);
 	}
 	return text;
-}
-
-function captureTime(date: string, offset: string | null, subsecond: string | null): Readonly<ImageCaptureTimeV1> | null {
-	if (date === ' '.repeat(19)) date = '    :  :     :  :  ';
-	if (!/^(?:\d{4}| {4}):(?:\d{2}| {2}):(?:\d{2}| {2}) (?:\d{2}| {2}):(?:\d{2}| {2}):(?:\d{2}| {2})$/.test(date)) {
-		failMetadata('malformed-exif');
-	}
-	const year = timestampComponent(date.slice(0, 4), 1, 9_999), month = timestampComponent(date.slice(5, 7), 1, 12);
-	const day = timestampComponent(date.slice(8, 10), 1, 31), hour = timestampComponent(date.slice(11, 13), 0, 23);
-	const minute = timestampComponent(date.slice(14, 16), 0, 59), second = timestampComponent(date.slice(17, 19), 0, 59);
-	const unknownDate = [year, month, day, hour, minute, second].includes(null);
-	const leap = year === null || year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
-	const days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-	if (month !== null && day !== null && day > (days[month - 1] ?? 0)) {
-		failMetadata('malformed-exif');
-	}
-	let offsetMinutes: number | null = null;
-	if (offset !== null && offset !== '      ' && offset !== '   :  ') {
-		if (!/^[+-]\d{2}:\d{2}$/.test(offset)) failMetadata('malformed-exif');
-		const hours = Number(offset.slice(1, 3)), minutes = Number(offset.slice(4, 6));
-		if (hours > 23 || minutes > 59) failMetadata('malformed-exif');
-		offsetMinutes = (hours * 60 + minutes) * (offset[0] === '-' ? -1 : 1);
-	}
-	if (subsecond !== null && /^ *$/.test(subsecond)) subsecond = null;
-	if (subsecond !== null && !/^\d+$/.test(subsecond)) failMetadata('malformed-exif');
-	if (unknownDate) return null;
-	return Object.freeze({ local: `${date.slice(0, 10).replaceAll(':', '-')}T${date.slice(11)}`, offsetMinutes, subsecond });
-}
-
-function timestampComponent(text: string, minimum: number, maximum: number): number | null {
-	if (/^ +$/.test(text)) return null;
-	const value = Number(text);
-	if (value < minimum || value > maximum) failMetadata('malformed-exif');
-	return value;
 }

@@ -42,6 +42,7 @@ export async function savePhoto(database: IDBDatabase, photo: PhotoDocumentV1, e
 		const previous = readStoredPhoto(raw);
 		if (previous.revision !== expectedRevision) throw new PhotoCatalogRevisionConflictError('photo');
 		if (JSON.stringify(previous.original) !== JSON.stringify(photo.original)) throw new RangeError('Photo edits cannot mutate the original.');
+		if (JSON.stringify(previous.extractedMetadata) !== JSON.stringify(photo.extractedMetadata)) throw new RangeError('Photo edits cannot mutate extracted metadata.');
 		for (const membership of photoMemberships(previous)) await request(stores.memberships.delete(membership.key));
 		const next = { ...photo, revision: previous.revision + 1 };
 		// The outer reader validated the candidate; normalization also checks the

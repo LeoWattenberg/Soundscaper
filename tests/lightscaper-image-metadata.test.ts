@@ -34,6 +34,7 @@ test('TIFF and JPEG EXIF preserve the same camera facts in both byte orders', ()
 				artist: 'Photographer', copyright: 'Copyright owner', description: null,
 				exposureSeconds: 0.008, aperture: 2.8, iso: 200, focalLengthMm: 50,
 				captureTime: { local: '2024-02-29T13:14:15', offsetMinutes: 330, subsecond: '123' },
+				captureTimeRaw: { dateTimeOriginal: '2024:02:29 13:14:15', offsetTimeOriginal: '+05:30', subsecondOriginal: '123' },
 			});
 			assert.ok(Object.isFrozen(result));
 			assert.ok(Object.isFrozen(result.exif));
