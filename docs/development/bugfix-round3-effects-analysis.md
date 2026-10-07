@@ -207,3 +207,24 @@ WebKit at 1.2 seconds. Two strict host regressions cover a moved, trimmed
 44.1 kHz source and nonlinear warp projection; all 23 focused Nyquist tests pass.
 This is the annotation publication defect, distinct from the earlier host
 property timestamp correction. No manual **Update AI assets** run is required.
+
+## R3-ROOT-011 — A canceled Amplify dialog changes Repeat last effect
+
+Import ordinary mono WAVs with peaks 0.35 and 0.175. Select the louder clip and
+apply **Effect > Volume and compression > Amplify** with its automatic gain.
+Mute that track, select the quieter clip, reopen Amplify, and close it without
+applying. Choose **Effect > Repeat last effect**, then export WAV.
+
+Previously Repeat rescanned the quieter clip and normalized it, instead of
+reapplying the earlier gain. Preparing the canceled dialog had cleared the
+automatic-gain marker, and Repeat did not mark its remembered parameters as
+explicit. Repeat now supplies the previously applied values explicitly; opening
+a fresh Amplify dialog still derives its default from the current selection.
+
+Proof: the ordinary canceled-dialog workflow fails on the immutable baseline
+with exported peak 0.7071 instead of 0.35355, accounting for the existing centered
+mono pan law. The same workflow passes on green build 12 in all three browsers.
+A strict regression verifies the remembered gain after the new dialog's default
+marker is cleared, and all 13 effect-control tests pass. The direct Repeat
+control without reopening already passed before the fix and adds no count.
+No manual **Update AI assets** run is required.
