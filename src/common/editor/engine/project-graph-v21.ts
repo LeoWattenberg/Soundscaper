@@ -3,13 +3,13 @@
 import { connectSurroundMonitoring } from '../surround-monitoring.ts';
 import { resolveTerminalChannelWidths } from '../terminal-channel-widths.ts';
 import { createAdmProgrammeRouter } from './adm-programme-routing.ts';
-import { normalizeAutomationLaneV21, type AutomationLaneV21 } from '../automation-lane-v21.ts';
-import { effectParameterInventory, stripParameterDescriptor } from '../effect-parameter-descriptors.ts';
+import { normalizeAutomationLaneV21 } from '../automation-lane-v21.ts';
+import { stripParameterDescriptor } from '../effect-parameter-descriptors.ts';
 import {
 	normalizeMixerGraphV21,
 	type MixerGraphV21,
 } from '../mixer-graph-v21.ts';
-import { canonicalParameterAddressKey, type StripRef } from '../parameter-address.ts';
+import type { StripRef } from '../parameter-address.ts';
 import { addNode, connect, setParam, type AudioNodeArray } from './audio-node-utils.ts';
 import { clamp, DEFAULT_SAMPLE_RATE, finite, positiveInteger } from './buffer-math.ts';
 import {
@@ -29,11 +29,9 @@ import type {
 	ScheduledGainParam,
 } from './project-graph.ts';
 import {
-	admTerminalStrip,
 	applyChannelMap,
 	applyEdgeCompensation,
 	edgeDestinationInput,
-	edgeDestinationWidth,
 	endpointKey,
 	excludedTrackEdge,
 	stripKey,
@@ -45,7 +43,9 @@ import {
 	type StripMeterAnalyserBankV21,
 } from './strip-meter-analyser-bank-v21.ts';
 import type { EngineEffect, EngineProject, EngineTrack } from './types.ts';
-import { createMixerSignalTopologyV21 } from '../mixer-signal-topology-v21.ts';
+import { prepareProjectEdgeGeometryV21 } from './project-edge-geometry-v21.ts';
+import { createProjectSoloGainResolverV21, createProjectVcaGainResolverV21 } from './project-strip-control-index-v21.ts';
+import { indexSuspendedEffectLanesV21, registerSuspendedEffectParametersV21 } from './project-suspended-effect-parameters-v21.ts';
 
 interface AudioTrackV21 extends EngineTrack {
 	readonly id: string;
@@ -115,6 +115,7 @@ export function buildProjectGraphV21(
 	const automationLanes = Array.isArray(project.automationLanes)
 		? project.automationLanes.map((lane) => normalizeAutomationLaneV21(lane))
 		: [];
+	const suspendedEffectLanes = indexSuspendedEffectLanesV21(automationLanes);
 	const trackInputs = new Map<string, AudioNode>();
 	const trackGainParams = new Map<string, ScheduledGainParam>();
 	const groupGainParams = new Map<string, ScheduledGainParam>();
@@ -129,6 +130,8 @@ export function buildProjectGraphV21(
 	const productionStripAnalysersV21 = new Map<string, StripMeterAnalyserBankV21>();
 	const pathPdcDelayParamsV21 = new Map<string, AudioParam>();
 	const trackWidths = resolveTerminalChannelWidths(project, project.masterChannels).tracks;
+	const edgeGeometry = prepareProjectEdgeGeometryV21(graph, tracks, trackWidths, project.masterChannels);
+	const vcaFactorForStrip = createProjectVcaGainResolverV21(graph.vcas);
 	const compensatedTrackInputs = new Map<string, AudioNode>();
 	for (const track of tracks) {
 		const input = addNode(nodes, context.createGain());
@@ -159,7 +162,7 @@ export function buildProjectGraphV21(
 	const preservesAdmChannels = admMode === 'authored' || admMode === 'passthrough';
 	const outputInputs = new Map(graph.outputs.map((output) => [output.id, addNode(nodes, context.createGain())]));
 	const sidechainInputs = createSidechainInputs(context, nodes, graph);
-	const soloActive = createSoloResolver(graph, tracks, respectMuteSolo);
+	const soloActive = createProjectSoloGainResolverV21(graph, tracks, respectMuteSolo);
 	const strips = createStripRuntimes(
 		project,
 		graph,
@@ -174,11 +177,11 @@ export function buildProjectGraphV21(
 	for (const strip of strips) {
 		const latencyFrames = plan.nodeOutputLatencyFrames.get(strip.key) ?? 0;
 		const explicitSidechains = sidechainInputs.get(strip.key);
-		registerSuspendedEffectParameters(
+		registerSuspendedEffectParametersV21(
 			parameterRegistry,
 			strip.ref,
 			strip.suspendedEffects,
-			automationLanes,
+			suspendedEffectLanes,
 			sampleRate,
 		);
 		let output = applyEffectRack(context, strip.input, strip.effects, nodes, {
@@ -196,7 +199,7 @@ export function buildProjectGraphV21(
 			onParametricEqError,
 		});
 		const pre = output;
-		const vcaFactor = stripVcaFactor(graph, strip.ref, includeMaster);
+		const vcaFactor = vcaFactorForStrip(strip.ref, includeMaster);
 		const gain = addNode(nodes, context.createGain());
 		setParam(gain.gain, strip.gain, context.currentTime);
 		const activeStripParameters = includeMaster || strip.scope !== 'master';
@@ -256,7 +259,7 @@ export function buildProjectGraphV21(
 			output = analyser;
 			if (strip.scope === 'track' && strip.id !== null) trackAnalysers.set(strip.id, analyser);
 			else if ((strip.scope === 'group' || strip.scope === 'send') && strip.id !== null) {
-				if (graph.groups.some(({ id }) => id === strip.id)) groupAnalysers.set(strip.id, analyser);
+				if (edgeGeometry.isGroup(strip.id)) groupAnalysers.set(strip.id, analyser);
 				else sendAnalysers.set(strip.id, analyser);
 			}
 		}
@@ -274,11 +277,11 @@ export function buildProjectGraphV21(
 		const preFader = edge.position === 'pre-fader';
 		let output: AudioNode = preFader ? source.pre : source.post;
 		const sourceWidth = preFader ? source.width : source.postWidth;
-		const destinationWidth = edgeDestinationWidth(edge, graph, tracks, trackWidths, project.masterChannels);
+		const destinationWidth = edgeGeometry.destinationWidth(edge);
 		// The ADM router maps source channels onto bed channels itself, so a
 		// master-destined edge skips its own channel map rather than mapping twice.
 		const admTerminal = admProgrammeRouter && edge.destination.kind === 'master'
-			? admTerminalStrip(graph, edge.source)
+			? edgeGeometry.admTerminal(edge.source)
 			: null;
 		if (!admTerminal) {
 			output = applyChannelMap(context, nodes, output, sourceWidth, destinationWidth, edge, source.width);
@@ -448,30 +451,6 @@ function suspendedRackEffects(
 	return Object.freeze(effects.filter((effect) => effect?.enabled === false || effect?.bypassed === true));
 }
 
-function registerSuspendedEffectParameters(
-	registry: ScheduledParameterRegistry,
-	strip: StripRef,
-	effects: readonly EngineEffect[],
-	lanes: readonly AutomationLaneV21[],
-	sampleRate: number,
-): void {
-	for (const effect of effects) {
-		const laneKeys = new Set(lanes.flatMap((lane) => (
-			lane.address.kind === 'effect'
-				&& stripKey(lane.address.strip) === stripKey(strip)
-				&& lane.address.effectId === effect.id
-				? [canonicalParameterAddressKey(lane.address)]
-				: []
-		)));
-		if (!laneKeys.size) continue;
-		for (const descriptor of effectParameterInventory(strip, effect, { sampleRate }).descriptors) {
-			if (descriptor.automatable && laneKeys.has(descriptor.id)) {
-				registry.registerSuspendedParameter(descriptor);
-			}
-		}
-	}
-}
-
 function createSidechainInputs(
 	context: BaseAudioContext,
 	nodes: AudioNodeArray,
@@ -491,34 +470,6 @@ function createSidechainInputs(
 		}
 	}
 	return result;
-}
-
-function createSoloResolver(
-	graph: MixerGraphV21,
-	tracks: readonly AudioTrackV21[],
-	respectMuteSolo: boolean,
-): (key: string) => boolean {
-	if (!respectMuteSolo) return () => true;
-	const solos = new Set<string>();
-	for (const track of tracks) if (track.solo) solos.add(`track:${track.id}`);
-	for (const strip of [...graph.groups, ...graph.sends, ...graph.cues]) {
-		if (strip.solo) solos.add(`mixer-node:${strip.id}`);
-	}
-	if (!solos.size) return () => true;
-	const topology = createMixerSignalTopologyV21(graph, { includeOutputs: false });
-	return (key) => [...solos].some((solo) => (
-		topology.reaches(key, solo) || topology.reaches(solo, key)
-	));
-}
-
-function stripVcaFactor(graph: MixerGraphV21, ref: StripRef, includeMaster: boolean): number {
-	if (!includeMaster && ref.kind === 'master') return 1;
-	let factor = 1;
-	for (const vca of graph.vcas) {
-		if (!vca.members.some((member) => stripKey(member) === stripKey(ref))) continue;
-		factor *= vca.mute ? 0 : vca.gain;
-	}
-	return factor;
 }
 
 // Kept local so the V21 branch does not inherit the legacy global DOM alias.
