@@ -316,6 +316,7 @@ export function createEditorTrackService(
 		if (!track || track.type !== 'audio') throw createLocalizedError(Error, dependencies.copy, 'audioTrackRequired');
 		if (!isTrackDisplayMode(displayMode)) throw createLocalizedError(RangeError, dependencies.copy, 'unknownTrackDisplay');
 		const changes = displayMode === 'half-wave' ? { displayMode, halfWave: true } : { displayMode };
+		if (displayMode === 'waveform') dependencies.setTimelineView('waveform');
 		return dependencies.commit({ type: 'track/update', trackId: track.id, changes }, { selectTrackId: track.id });
 	}
 
