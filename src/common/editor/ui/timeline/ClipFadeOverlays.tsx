@@ -118,8 +118,8 @@ export function ClipFadeOverlays({ rootRef, clips, selectedIds, startFrame, endF
 					onClick={event => { event.stopPropagation(); }}
 					onDoubleClick={event => { event.stopPropagation(); }}
 					onKeyDown={event => {
-						event.stopPropagation();
 						if (event.key === 'Tab' && handleTabIndex < 0) {
+							event.stopPropagation();
 							event.preventDefault();
 							moveFadeFocus(target, event.currentTarget, event.shiftKey, clip.id, onTabOut);
 							return;
@@ -127,6 +127,7 @@ export function ClipFadeOverlays({ rootRef, clips, selectedIds, startFrame, endF
 						if (event.ctrlKey || event.metaKey || event.altKey) return;
 						const next = fadeDurationAtKey(event.key, event.shiftKey, value, sampleRate, clip.durationFrames);
 						if (next === null) return;
+						event.stopPropagation();
 						event.preventDefault();
 						if (next !== value) onChange(clip.id, { [field]: next });
 					}} />;
@@ -155,13 +156,14 @@ export function ClipFadeOverlays({ rootRef, clips, selectedIds, startFrame, endF
 					onClick={event => { event.stopPropagation(); }}
 					onDoubleClick={event => { event.stopPropagation(); }}
 					onKeyDown={event => {
-						event.stopPropagation();
 						if (isFadeShapeMenuKey(event) && !blocked) {
+							event.stopPropagation();
 							event.preventDefault();
 							setMenu({ ...keyboardFadeShapeMenuPosition(event.currentTarget), clipId: clip.id, edge: position.edge });
 							return;
 						}
 						if (event.key === 'Tab' && handleTabIndex < 0) {
+							event.stopPropagation();
 							event.preventDefault();
 							moveFadeFocus(target, event.currentTarget, event.shiftKey, clip.id, onTabOut);
 							return;
@@ -169,6 +171,7 @@ export function ClipFadeOverlays({ rootRef, clips, selectedIds, startFrame, endF
 						if (event.ctrlKey || event.metaKey || event.altKey) return;
 						const next = fadeShapeAtKey(event.key, event.shiftKey, value);
 						if (next === null) return;
+						event.stopPropagation();
 						event.preventDefault();
 						if (next !== value) onChange(clip.id, { [field]: next });
 					}} />;
