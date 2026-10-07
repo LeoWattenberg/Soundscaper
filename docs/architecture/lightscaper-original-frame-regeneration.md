@@ -22,7 +22,10 @@ absent from this boundary and cannot change decoder orientation.
 
 The existing import preparation and this regeneration path share a factored
 safe native-session port. Shared canonical RGBA snapshot/zero-alpha behavior
-remains a common pixel operation. Regeneration uses the existing low-level
+remains a common pixel operation. Shared imaging leaves have the non-recursive
+`editor-imaging` semantic chunk owner: the existing Frame image source/decoder
+already load these kernels, and a photo consumer must not absorb them into its
+product chunk. Product startup graphs continue to measure the resulting bytes. Regeneration uses the existing low-level
 browser decoder and never constructs or persists an original-bearing frame
 pack or a new PhotoDocument.
 

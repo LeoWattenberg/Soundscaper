@@ -4,7 +4,7 @@ import { lazy, Suspense, useEffect, useRef, useState, type FocusEvent, type Keyb
 
 import { otherProductIds, productIdentity } from '../../../product-identities.js';
 import { productHref } from '../../../product-web-links.js';
-import { useSiteCopy } from '../../../site/use-site-copy.js';
+import { useLightscaperEditorCopy as useSiteCopy } from './use-lightscaper-editor-copy.ts';
 import type { CreatePhotoLibrarySessionV1 } from '../../photo-library-session-port-v1.ts';
 import PhotoLibraryPanel from './PhotoLibraryPanel.tsx';
 import { usePhotoLibraryWorkflow } from './use-photo-library-workflow.ts';

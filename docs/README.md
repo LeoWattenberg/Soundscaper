@@ -32,6 +32,8 @@ belong in Git history, not in the maintained documentation set.
   defines authenticated native decoding and callback-scoped pixel custody.
 - [Photo preview cache ownership](architecture/lightscaper-preview-cache.md)
   defines disposable paired storage, bounded demand scheduling, and original-custody fences.
+- [Lightscaper editor copy](architecture/lightscaper-editor-copy.md)
+  defines the small English/German editor defaults and guarded locale-loading boundary.
 - [Photo catalog queries](architecture/lightscaper-catalog-query.md)
   defines global sort order, bounded sparse scans and resumable query index migration.
 - [Time and media](architecture/time-and-media.md) defines canonical timing,

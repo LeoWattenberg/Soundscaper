@@ -39,8 +39,14 @@ const EAGER_ENTRY_MODULES: readonly string[] = [
 export const EAGER_CHUNK_GROUPS: ReadonlySet<string> = new Set([
 	'editor-codec-foundations',
 	'editor-copy',
+	// Lightscaper's lazy product bootstrap reads its compact defaults immediately.
+	// Initial-page separation remains measured by the product startup graph.
+	'lightscaper-editor-copy',
 	'editor-controller-core',
 	'editor-domain',
+	// Frame's existing image decoder/frame source already compose these common
+	// kernels at product startup; the group gives those kernels a stable owner.
+	'editor-imaging',
 	'editor-effect-contracts',
 	'editor-engine',
 	// The browser reaches this composition only through a dynamic trim lease;
@@ -109,6 +115,10 @@ const DYNAMIC_IMPORT_PATTERN = /\bimport\(\s*(?:'(\.[^']+)'|"(\.[^"]+)")/gu;
  * the entry module is its own bundle root.
  */
 export const REACHABILITY_PLACED_TARGETS: ReadonlyMap<string, string> = new Map([
+	[
+		'src/common/i18n/site-copy.js',
+		'Site defaults already read by the initial BrandSidebar/use-site-copy graph; Lightscaper reuses four identity strings without giving the initial leaf an editor owner.',
+	],
 	[
 		'src/common/i18n/locale.js',
 		'Site copy leaf: `src/common/site/BrandSidebar.jsx` reads it, so an editor owner would put an editor chunk in the initial graph.',

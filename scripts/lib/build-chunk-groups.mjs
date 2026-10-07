@@ -20,6 +20,7 @@
  * `tests/audio-editor-build-chunk-ownership.test.ts` keeps it that way.
  */
 
+import { imagingChunkGroups } from './build-chunk-imaging.mjs';
 import {
 	DESIGN_SYSTEM_EDITOR_SHELL_COMPONENT_CHUNK_TEST,
 	EDITOR_ASSISTANCE_MODEL_PREFLIGHT_CHUNK_TEST,
@@ -453,6 +454,7 @@ export const chunkGroups = [
 		includeDependenciesRecursively: false,
 	},
 	...editorUiChunkGroups,
+	...imagingChunkGroups,
 	{
 		// The schema, planners, assistance domain, and value tables the shell and dialogs share.
 		// They are owned here rather than placed by reachability; see the module

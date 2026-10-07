@@ -11,6 +11,7 @@ import { CLIP_DRAG_COPY_BY_LOCALE } from './clip-drag-copy.js';
 import { MUSICAL_TIMELINE_COPY_BY_LOCALE } from './musical-timeline-copy.js';
 import { SEQUENCE_TIMING_COPY_BY_LOCALE } from './sequence-timing-copy.js';
 import { SITE_COPY_BY_LOCALE } from './site-copy.js';
+import { LIGHTSCAPER_EDITOR_COPY_BY_LOCALE } from './lightscaper-editor-copy.ts';
 import { TIMELINE_ANNOTATION_COPY_BY_LOCALE } from './timeline-annotation-copy.js'; import { LOCAL_ASSISTANCE_COPY_BY_LOCALE } from './local-assistance-copy.js';
 import { TRACK_FOLDER_COPY_BY_LOCALE } from './track-folder-copy.js'; import { FRAMESCAPER_CAPTURE_COPY_BY_LOCALE } from './framescaper-capture-copy.js'; import { LOCAL_MODEL_MANAGER_COPY_BY_LOCALE } from './local-model-manager-copy.js'; import { LOCAL_DIAGNOSTICS_COPY_BY_LOCALE } from './local-diagnostics-copy.js'; import { WORKSPACE_CHROME_COPY_BY_LOCALE } from './workspace-chrome-copy.js'; import { WORKSPACE_ONBOARDING_COPY_BY_LOCALE } from './workspace-onboarding-copy.js'; import { PREFERENCES_COPY_BY_LOCALE } from './preferences-copy.js'; import { SHORTCUT_CATEGORY_COPY_BY_LOCALE } from './shortcut-category-copy.js';
 import { VIDEO_EFFECT_COPY_BY_LOCALE } from './video-effect-copy.js'; import { VIDEO_COMPOSITION_COPY_BY_LOCALE } from './video-composition-copy.js'; import { VIDEO_CAPTION_COPY_BY_LOCALE } from './video-caption-copy.js';
@@ -60,6 +61,7 @@ export const COPY_BY_LOCALE = deepFreeze({
 		...RECORDING_COPY_BY_LOCALE.de,
 		...METERING_COPY_BY_LOCALE.de,
 		...SITE_COPY_BY_LOCALE.de,
+		...LIGHTSCAPER_EDITOR_COPY_BY_LOCALE.de,
 		...CANONICAL_EXTRA_COPY_BY_LOCALE.de,
 		...MUSICAL_TIMELINE_COPY_BY_LOCALE.de,
 		...SEQUENCE_TIMING_COPY_BY_LOCALE.de,
@@ -284,6 +286,7 @@ export const COPY_BY_LOCALE = deepFreeze({
 		...RECORDING_COPY_BY_LOCALE.en,
 		...METERING_COPY_BY_LOCALE.en,
 		...SITE_COPY_BY_LOCALE.en,
+		...LIGHTSCAPER_EDITOR_COPY_BY_LOCALE.en,
 		...CANONICAL_EXTRA_COPY_BY_LOCALE.en,
 		...MUSICAL_TIMELINE_COPY_BY_LOCALE.en,
 		...SEQUENCE_TIMING_COPY_BY_LOCALE.en,

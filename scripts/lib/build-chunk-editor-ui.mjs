@@ -11,6 +11,14 @@ export const EDITOR_DIALOG_FOUNDATION_CHUNK_TEST = /(?:src[\\/]common[\\/]editor
 /** @type {import('rolldown').CodeSplittingGroup[]} */
 export const editorUiChunkGroups = [
 	{
+		name: 'lightscaper-editor-copy',
+		test: /src[\\/]common[\\/](?:i18n[\\/]lightscaper-editor-copy\.ts|editor[\\/]ui[\\/]lightscaper[\\/]use-lightscaper-editor-copy\.ts)$/,
+		priority: 98,
+		minSize: 0,
+		maxSize: 400_000,
+		includeDependenciesRecursively: false,
+	},
+	{
 		name: 'editor-dialog-foundations',
 		test: EDITOR_DIALOG_FOUNDATION_CHUNK_TEST,
 		priority: 99,

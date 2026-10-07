@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { PhotoLibraryMetadataPatchV1, PhotoLibraryMetadataSnapshotV1 } from '../../photo-library-session-port-v1.ts';
-import { useSiteCopy } from '../../../site/use-site-copy.js';
+import { useLightscaperEditorCopy as useSiteCopy } from './use-lightscaper-editor-copy.ts';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 
 interface Props {
