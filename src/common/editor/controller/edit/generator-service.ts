@@ -6,7 +6,6 @@ import {
 	createAddTrackCommand,
 } from '../../commands/factories.ts'; import { publishedCopyFor } from '../shared/presentation-localization.ts'; import { createLocalizedError, setLocalizedStatus } from '../../../i18n/presentation-message.ts';
 import type { AudioEditorCommand } from '../../commands/protocol.ts';
-import { prepareRangeReplacementCommand as prepareLegacyRangeReplacementCommand } from '../../commands/range-runtime.js';
 import type { LabeledAudioRegion } from '../../labeled-audio-regions.ts';
 import { generateAudioEditorSignal } from '../../generators.js';
 import { resolveSelectionRange } from '../../selection-range.ts';
@@ -23,6 +22,7 @@ import { publishGeneratedAudioSource } from './internal/generated-source-publica
 import { projectForAudioGeneratorCommands, type AudioGeneratorSelection, type AudioGeneratorTrack,
 	type AudioGeneratorClip, type AudioGeneratorProject, type AudioGeneratorDocument } from './internal/generator-project-view.ts';
 import { createLabeledAudioSilence } from './internal/labeled-audio-silence.ts';
+import { prepareGeneratorRangeReplacement } from './internal/generator-range-replacement.ts';
 import type { GeneratedSignalStream } from '../../signal-generator-stream-client.ts';
 
 export type AudioGeneratorType = 'silence' | 'tone' | 'chirp' | 'noise' | 'dtmf' | 'morse';
@@ -350,13 +350,8 @@ export function createAudioGeneratorService<Context, Target extends AudioGenerat
 	): Readonly<{ command: AudioEditorCommand; trackId: string; clipId: string }> {
 		const project = projectForAudioGeneratorCommands(persistedProject, dependencies.getCommandProject);
 		if (selection && targetTrack?.type === 'audio') {
-			const replacement = prepareLegacyRangeReplacementCommand(project, {
-				trackId: targetTrack.id,
-				startFrame: selection.startFrame,
-				endFrame: selection.endFrame,
-				source,
-			}, dependencies.createId) as unknown as Extract<AudioEditorCommand, { readonly type: 'range/replace' }>;
-			return { command: replacement, trackId: targetTrack.id, clipId: replacement.clipId };
+			return prepareGeneratorRangeReplacement(project, selection, targetTrack, source,
+				options.trackId, dependencies.createId);
 		}
 
 		const startFrame = dependencies.snapFrame(

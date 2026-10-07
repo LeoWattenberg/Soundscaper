@@ -344,3 +344,24 @@ membership inheritance using canonical production projects and real commands.
 All 18 focused render, commit and production-routing tests and targeted lint
 pass. These membership variants count once. No manual **Update AI assets** run
 is required.
+
+## R3-ROOT-017 — Tone generation leaves other selected audio tracks unchanged
+
+Import two ordinary recordings with different audio into separate tracks.
+Select the first clip, choose **Select > Select all**, then **Generate > Tone**.
+Set Amplitude to zero and generate. Select all and export WAV.
+
+Previously the download retained the second recording, with a measured peak of
+0.24747 in the public regression. The generator prepared a replacement only
+for the focused track. Its selected-range planner now prepares every selected
+audio lane in one atomic command, with distinct source descriptors sharing the
+one published PCM body. Explicit single-track requests retain their scope.
+This follows the selected-track behavior in the [Audacity Generate manual](https://manual.audacityteam.org/man/generate_menu.html).
+
+Proof: the unchanged picker/menu/download workflow fails on the immutable
+baseline and passes on green build 18 in Chromium, Firefox and WebKit, including
+an Undo restoring the original mixed peak. Two strict canonical-command tests
+verify selected lanes, unrelated-track preservation, shared storage ownership,
+source immutability and explicit single-track scope. All 27 focused generator
+tests and targeted lint pass; source checks pass for all four product builds.
+No manual **Update AI assets** run is required.
