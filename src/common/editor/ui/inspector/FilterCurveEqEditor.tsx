@@ -13,6 +13,7 @@ import {
 import { createFilterCurveGesture } from '../../controller/effects/filter-curve-gesture.ts';
 import { CommitField, DesignCheckbox } from './inspector-controls.jsx';
 import { useEqDraftFrame, useFilterEqGrid, useFilterEqPolyline, useFilterResponseFrequencies } from './useEqPresentation.ts';
+import { moveFilterCurvePointByKey } from './filter-curve-keyboard.ts';
 
 interface Props {
 	readonly name: string;
@@ -132,18 +133,8 @@ export default function FilterCurveEqEditor({
 		}
 		if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) return;
 		event.preventDefault(); event.stopPropagation();
-		const at = filterCurvePosition(points[index]!, viewport);
-		const gainStep = (event.shiftKey ? 1 : 0.1) / (maximumDb - minimumDb);
-		const next = { x: at.x, y: at.y };
-		if (event.key === 'ArrowUp') next.y -= gainStep;
-		if (event.key === 'ArrowDown') next.y += gainStep;
-		if (event.key === 'ArrowLeft') next.x -= event.shiftKey ? 0.025 : 0.005;
-		if (event.key === 'ArrowRight') next.x += event.shiftKey ? 0.025 : 0.005;
-		next.x = Math.max(0, Math.min(1, next.x)); next.y = Math.max(0, Math.min(1, next.y));
-		gesture.current.begin(points, index, at, viewport);
-		gesture.current.move(next);
-		const updated = gesture.current.complete();
-		if (updated) onCommit(updated);
+		const updated = moveFilterCurvePointByKey(points, index, event.key, event.shiftKey, viewport);
+		if (updated !== points) onCommit(updated);
 	};
 
 	return <div className="audio-editor-filter-curve" data-effect-param={name}>
