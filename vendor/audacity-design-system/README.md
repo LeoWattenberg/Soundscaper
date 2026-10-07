@@ -338,6 +338,12 @@ application overrides and source patches against the pin and upstream master.
 45. `ContextMenu` delegates Escape, Home, End, and vertical arrows to the focused
     submenu. Each submenu handles only its own direct items, so returning to a
     parent and navigating deeper levels cannot be intercepted by another level.
+46. `RulerFlyout` leaves active frequency fields their stepping and caret arrows
+    instead of moving popup focus. Its frequency ceiling follows the caller's
+    project sample rate; callers without that prop retain the 44.1 kHz default.
+    Its draft wrapper parses a complete finite number on Enter or blur, preserving
+    decimals and scientific notation and refusing incomplete or trailing text.
+    Teardown cancels its deferred outside-click listener initialization.
 
 ## Application-side adaptations
 

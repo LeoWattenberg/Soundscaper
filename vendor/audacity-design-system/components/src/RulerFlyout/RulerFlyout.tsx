@@ -28,8 +28,8 @@ function FreqStepper({ value, onCommit, min, max, step, width, className }: {
   React.useEffect(() => { setDraft(String(value)); }, [value]);
 
   const tryCommit = (raw: string) => {
-    const n = parseInt(raw, 10);
-    if (!isNaN(n) && n >= min && n <= max) {
+    const n = raw.trim() ? Number(raw) : NaN;
+    if (Number.isFinite(n) && n >= min && n <= max) {
       onCommit(n);
     } else {
       setDraft(String(value)); // revert
@@ -46,8 +46,8 @@ function FreqStepper({ value, onCommit, min, max, step, width, className }: {
         value={draft}
         onChange={(val) => {
           // Arrow buttons produce a clean integer — commit immediately
-          const n = parseInt(val, 10);
-          if (!isNaN(n) && n >= min && n <= max && /^-?\d+$/.test(val.trim())) {
+          const n = Number(val);
+          if (Number.isFinite(n) && n >= min && n <= max && /^-?\d+$/.test(val.trim())) {
             onCommit(n);
           }
           setDraft(val);
@@ -93,6 +93,8 @@ export interface RulerFlyoutProps {
   onMinFreqChange?: (freq: number) => void;
   /** Maximum frequency in Hz (used when mode='spectrogram') */
   maxFreq?: number;
+  /** Project sample rate, used to bound frequency edits at Nyquist */
+  sampleRate?: number;
   /** Callback when maximum frequency changes */
   onMaxFreqChange?: (freq: number) => void;
   /** Callback for zoom in */
@@ -144,6 +146,7 @@ export const RulerFlyout: React.FC<RulerFlyoutProps> = ({
   minFreq = 10,
   onMinFreqChange,
   maxFreq = 22050,
+  sampleRate = 44100,
   onMaxFreqChange,
   onZoomIn,
   onZoomOut,
@@ -173,11 +176,14 @@ export const RulerFlyout: React.FC<RulerFlyoutProps> = ({
       }
     };
 
-    setTimeout(() => {
+    const outsideTimer = setTimeout(() => {
       document.addEventListener('mousedown', handleClickOutside);
     }, 0);
 
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    return () => {
+      clearTimeout(outsideTimer);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
   }, [isOpen, onClose]);
 
   // Set up roving tabindex and focus first item when opened
@@ -243,7 +249,11 @@ export const RulerFlyout: React.FC<RulerFlyoutProps> = ({
 
   // Keyboard handler for tab group navigation
   const handleKeyDown = React.useCallback((e: React.KeyboardEvent) => {
+    if (e.defaultPrevented) return;
     const target = e.target as HTMLElement;
+    if (target.tagName === 'INPUT' && (target as HTMLInputElement).type === 'text' &&
+        target.closest('.number-stepper--editing') &&
+        ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) return;
     const groups = getGroups();
 
     // Find which group the target is in
@@ -398,7 +408,7 @@ export const RulerFlyout: React.FC<RulerFlyoutProps> = ({
                 value={maxFreq}
                 onCommit={(n) => onMaxFreqChange?.(n)}
                 min={minFreq + 1}
-                max={22050}
+                max={sampleRate / 2}
                 step={100}
                 width={80}
                 className="ruler-flyout__freq-input"

@@ -129,6 +129,7 @@ export function TimelineMenus({
 				x={trackRulerFlyout?.x || 0}
 				y={trackRulerFlyout?.y || 0}
 				mode={trackRulerFlyout?.mode || 'waveform'}
+				sampleRate={sampleRate}
 				className="audio-editor-ruler-flyout"
 				triggerRef={{ current: trackRulerFlyout?.trigger || null }}
 				onClose={() => setTrackRulerFlyout(null)}
