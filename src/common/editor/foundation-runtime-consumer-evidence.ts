@@ -403,6 +403,13 @@ const entries: FoundationRuntimeConsumerEvidence[] = [
 		evidence: 'Boundary navigation resolves header-selected clips into current musical timing before using their endpoints in place of a collapsed time cursor.',
 	},
 	{
+		id: 'related-clip-adjacent-selection', surface: 'navigation',
+		file: 'src/common/editor/controller/track-audio/internal/clip-selection-navigation-service.ts',
+		entryPoint: 'exactClipSelectionCommand', inputIdentifier: 'project', projectedIdentifier: 'projection',
+		boundary: 'resolveRuntimeProjectProjection',
+		evidence: 'Adjacent clip selection expands authored relationships and resolves their current clip boundaries before publishing the aggregate exact range and owner tracks.',
+	},
+	{
 		id: 'clip-header-adjacent-navigation', surface: 'navigation',
 		file: 'src/common/editor/controller/track-audio/internal/clip-selection-navigation-service.ts',
 		entryPoint: 'selectAdjacentClip', inputIdentifier: 'project', projectedIdentifier: null,

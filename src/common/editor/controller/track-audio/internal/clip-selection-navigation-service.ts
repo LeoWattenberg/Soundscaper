@@ -64,6 +64,7 @@ export interface ClipSelectionNavigationServiceDependencies<
 		command: ClipSelectionNavigationSelectionCommand,
 	) => SelectionResult;
 	readonly seek: (frame: number) => void;
+	readonly collectRelatedClipIds?: (project: Project, clipIds: readonly string[]) => readonly string[];
 }
 
 interface ProjectedAudioClipCandidate {
@@ -115,7 +116,8 @@ export function createClipSelectionNavigationService<
 		const endFrame = selectionFrame(range.endFrame, 'selection.endFrame');
 		const candidate = adjacentClip(project, selection, startFrame, endFrame, next);
 		if (!candidate) return null;
-		const command = exactClipSelectionCommand(selection, candidate);
+		const relatedIds = dependencies.collectRelatedClipIds?.(project, [candidate.clipId]) ?? [candidate.clipId];
+		const command = exactClipSelectionCommand(project, selection, candidate, relatedIds);
 		const previousFocus = Object.freeze({
 			selectedTrackId: dependencies.state.selectedTrackId,
 			selectedClipId: dependencies.state.selectedClipId,
@@ -193,7 +195,8 @@ function adjacentClip(
 	endFrame: number,
 	next: boolean,
 ): ProjectedAudioClipCandidate | null {
-	const candidates = projectedAudioClips(project, selection);
+	const selectedIds = new Set(selection.clipIds ?? []);
+	const candidates = projectedAudioClips(project, selection).filter(clip => !selectedIds.has(clip.clipId));
 	const sameStart = candidates.filter((clip) => (
 		clip.startFrame === startFrame && (next ? clip.endFrame > endFrame : clip.endFrame < endFrame)
 	));
@@ -300,15 +303,26 @@ function selectionCommand(
 }
 
 function exactClipSelectionCommand(
+	project: ClipSelectionNavigationProject,
 	selection: ClipSelectionNavigationSelection,
 	clip: ProjectedAudioClipCandidate,
+	relatedIds: readonly string[],
 ): ClipSelectionNavigationSelectionCommand {
+	const clipIds = [...new Set([clip.clipId, ...relatedIds])];
+	const selectedIds = new Set(clipIds);
+	const projection = resolveRuntimeProjectProjection(project);
+	const selectedClips = projection.clips.filter(candidate => selectedIds.has(candidate.id));
+	const trackIds = projection.tracks
+		.filter(track => track.clipIds?.some(id => selectedIds.has(id)))
+		.map(track => track.id);
+	const startFrame = Math.min(...selectedClips.map(candidate => selectionFrame(candidate.timelineStartFrame, 'clip.timelineStartFrame')));
+	const endFrame = Math.max(...selectedClips.map(candidate => selectionFrame(candidate.timelineEndFrame, 'clip.timelineEndFrame')));
 	return Object.freeze({
 		type: 'selection/set',
-		startFrame: clip.startFrame,
-		endFrame: clip.endFrame,
-		trackIds: Object.freeze([clip.trackId]),
-		clipIds: Object.freeze([clip.clipId]),
+		startFrame,
+		endFrame,
+		trackIds: Object.freeze(trackIds),
+		clipIds: Object.freeze(clipIds),
 		frequencyRange: null,
 		...(Object.hasOwn(selection, 'annotationIds') ? {
 			annotationIds: Object.freeze([] as string[]),

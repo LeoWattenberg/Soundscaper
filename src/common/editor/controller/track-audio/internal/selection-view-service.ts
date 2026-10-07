@@ -43,6 +43,7 @@ export function createSelectionViewService<
 		state,
 		getProject,
 		updateSelection,
+		collectRelatedClipIds,
 		seek: (frame) => { engine.seek(frame); },
 	});
 	let zeroCrossingGeneration = 0;
