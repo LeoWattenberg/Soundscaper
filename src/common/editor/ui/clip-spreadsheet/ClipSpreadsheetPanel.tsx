@@ -8,12 +8,13 @@ import { CLIP_SPREADSHEET_COPY_BY_LOCALE } from '../../../i18n/editor-clip-sprea
 import { resolveEditorCopyScope } from '../../../i18n/editor-copy-scope.ts';
 import {
 	CLIP_SPREADSHEET_COLUMNS, findMissingClipSpreadsheetEditSources, getClipSpreadsheetRows, isClipSpreadsheetCellEditable,
-	type ClipSpreadsheetEdit, type ClipSpreadsheetRow,
+	type ClipSpreadsheetEdit,
 } from '../../clip-spreadsheet.ts';
 import { selectAudioEditorEditBlock, type AudioEditorEditBlockingSnapshot } from '../../edit-blocking.ts';
 import { findMissingClipSpreadsheetSources, type ClipSpreadsheetNewRow } from '../../clip-spreadsheet-insert.ts';
 import { withWebFileLoadLimitContext } from '../../web-file-limit-failure.ts';
-import { formatLocalizedTemplate } from '../localization-template.ts';
+import { SpreadsheetRow, type SpreadsheetCellDraft, type SpreadsheetRowActions } from './SpreadsheetRow.tsx';
+import { createSpreadsheetCellIndex, useSpreadsheetRowIdentity, useSpreadsheetRows } from './row-presentation.ts';
 import { feedbackFailure, usePresentationFeedback } from '../presentation-feedback.ts';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import {
@@ -56,7 +57,7 @@ interface PendingPaste {
 	readonly missing: readonly string[];
 }
 
-interface CellDraft extends SpreadsheetCell { readonly clipId: string; readonly value: string }
+type CellDraft = SpreadsheetCellDraft;
 const ORIGIN: SpreadsheetCell = { row: 0, column: 0 };
 
 export default function ClipSpreadsheetPanel(props: ClipSpreadsheetPanelProps) {
@@ -64,7 +65,7 @@ export default function ClipSpreadsheetPanel(props: ClipSpreadsheetPanelProps) {
 }
 
 function ClipSpreadsheetSurface({ controller, snapshot, copy, fileService }: ClipSpreadsheetPanelProps) {
-	const labels = resolveEditorCopyScope('clipSpreadsheet', CLIP_SPREADSHEET_COPY_BY_LOCALE.en, copy);
+	const labels = useMemo(() => resolveEditorCopyScope('clipSpreadsheet', CLIP_SPREADSHEET_COPY_BY_LOCALE.en, copy), [copy]);
 	const rows = useMemo(() => getClipSpreadsheetRows(snapshot.project), [snapshot.project]);
 	const [anchor, setAnchor] = useState(ORIGIN);
 	const [focus, setFocus] = useState(ORIGIN);
@@ -90,7 +91,20 @@ function ClipSpreadsheetSurface({ controller, snapshot, copy, fileService }: Cli
 	const range = hasSelection ? normalizeSpreadsheetRange(clampCell(anchor), clampCell(focus)) : null;
 	const active = clampCell(focus);
 	const projectId = snapshot.project?.id;
-	const rowIdentity = rows.map(({ id }) => id).join('\0');
+	const rowIdentity = useSpreadsheetRowIdentity(rows);
+	const rowPresentation = useSpreadsheetRows(rows, labels);
+	const cellIndex = useMemo(createSpreadsheetCellIndex, []);
+	const liveRowActions = useRef<SpreadsheetRowActions>(null);
+	const rowActions = useMemo<SpreadsheetRowActions>(() => ({
+		finishEdit: () => liveRowActions.current!.finishEdit(),
+		selectCell: (cell, extend) => liveRowActions.current!.selectCell(cell, extend),
+		beginEdit: cell => liveRowActions.current!.beginEdit(cell),
+		updateDraft: value => liveRowActions.current!.updateDraft(value),
+		apply: edits => liveRowActions.current!.apply(edits),
+		selectRow: (row, extend) => liveRowActions.current!.selectRow(row, extend),
+		isDraftActive: () => liveRowActions.current!.isDraftActive(),
+		registerCell: cellIndex.register,
+	}), [cellIndex]);
 
 	useEffect(() => {
 		alive.current = true;
@@ -123,7 +137,7 @@ function ClipSpreadsheetSurface({ controller, snapshot, copy, fileService }: Cli
 		return { row: Math.max(0, Math.min(rows.length - 1, cell.row)), column: Math.max(0, Math.min(columns.length - 1, cell.column)) };
 	}
 	function focusCell(cell: SpreadsheetCell, preventScroll = false): void {
-		tableRef.current?.querySelector<HTMLElement>(`[data-row="${cell.row}"][data-column="${columns[cell.column]?.id}"]`)?.focus({ preventScroll });
+		cellIndex.focus(cell.row, cell.column, preventScroll);
 	}
 	function selectCell(cell: SpreadsheetCell, extend = false): void {
 		const next = clampCell(cell);
@@ -293,9 +307,6 @@ function ClipSpreadsheetSurface({ controller, snapshot, copy, fileService }: Cli
 		const index = Math.max(0, Math.min(rows.length * columns.length - 1, cell.row * columns.length + cell.column + step));
 		return { row: Math.floor(index / columns.length), column: index % columns.length };
 	}
-	function cellSelected(row: number, column: number): boolean {
-		return Boolean(range && row >= range.top && row <= range.bottom && column >= range.left && column <= range.right);
-	}
 	function headerRange(kind: 'row' | 'column', index: number, extend: boolean): void {
 		if (!rows.length || (draft && !finishEdit())) return;
 		const extending = extend && hasSelection;
@@ -309,6 +320,7 @@ function ClipSpreadsheetSurface({ controller, snapshot, copy, fileService }: Cli
 		setAnchor(nextAnchor); setFocus(nextFocus); focusCell(nextFocus, true);
 	}
 
+	liveRowActions.current = { finishEdit, selectCell, beginEdit, updateDraft, apply, selectRow: (row, extend) => headerRange('row', row, extend), isDraftActive: () => draft !== null, registerCell: cellIndex.register };
 	const closeFeedback = (): void => { if (!pasting) { setPendingPaste(null); setError(''); } };
 	return <div className="audio-editor-clip-spreadsheet" data-clip-spreadsheet>
 		<div className="audio-editor-clip-spreadsheet__content" onKeyDown={event => { if (!['Escape', 'Tab'].includes(event.key) || draft) event.stopPropagation(); }}>
@@ -341,34 +353,13 @@ function ClipSpreadsheetSurface({ controller, snapshot, copy, fileService }: Cli
 							<button type="button" tabIndex={-1} onClick={event => headerRange('column', index, event.shiftKey)}>{labels[column.id]}</button>
 						</th>)}
 					</tr></thead>
-					<tbody>{rows.map((row: ClipSpreadsheetRow, rowIndex: number) => <tr key={row.id}>
-						<th scope="row"><button type="button" tabIndex={-1} aria-label={formatLocalizedTemplate(labels.selectRow, { row: rowIndex + 1 })}
-							onClick={event => headerRange('row', rowIndex, event.shiftKey)}>{rowIndex + 1}</button></th>
-						{columns.map((column, columnIndex) => {
-							const cell = { row: rowIndex, column: columnIndex };
-							const editable = isClipSpreadsheetCellEditable(row, column.id);
-							const editing = draft?.clipId === row.id && draft.column === columnIndex;
-							return <td key={column.id} role="gridcell" data-row={rowIndex} data-column={column.id}
-								aria-selected={cellSelected(rowIndex, columnIndex)} aria-readonly={blocked || !editable}
-								tabIndex={hasSelection && active.row === rowIndex && active.column === columnIndex ? 0 : -1}
-								title={editable ? undefined : row.pitchLinked && column.id === 'pitch' ? labels.linkedPitchReadOnly : labels.readOnly}
-								onMouseDown={event => {
-									if (event.button !== 0 || editing) return;
-									if (!(event.target instanceof HTMLInputElement)) event.preventDefault();
-									if (finishEdit()) selectCell(cell, event.shiftKey);
-								}}
-								onMouseEnter={event => { if (event.buttons === 1 && !draft) selectCell(cell, true); }}
-								onDoubleClick={() => { if (column.id !== 'reversed' && column.id !== 'inverted') beginEdit(cell); }}>
-								{editing ? <input ref={inputRef} aria-label={labels[column.id]} value={draft.value}
-									onChange={event => updateDraft({ ...draft, value: event.currentTarget.value })}
-									onBlur={() => { finishEdit(); }} /> : column.id === 'reversed' || column.id === 'inverted'
-									? <input type="checkbox" aria-label={labels[column.id]} tabIndex={-1} checked={row.cells[column.id] === 'true'}
-										disabled={blocked || !editable} onChange={event => {
-											apply([{ clipId: row.id, column: column.id, value: String(event.currentTarget.checked) }]);
-										}} /> : row.cells[column.id]}
-							</td>;
-						})}
-					</tr>)}</tbody>
+					<tbody>{rowPresentation.map((presentation, rowIndex) => {
+						const selected = range !== null && rowIndex >= range.top && rowIndex <= range.bottom;
+						return <SpreadsheetRow key={presentation.row.id} presentation={presentation} rowIndex={rowIndex}
+							selectedLeft={selected ? range.left : -1} selectedRight={selected ? range.right : -1}
+							activeColumn={hasSelection && active.row === rowIndex ? active.column : -1}
+							draft={draft?.clipId === presentation.row.id ? draft : null} blocked={blocked} inputRef={inputRef} actions={rowActions} />;
+					})}</tbody>
 				</table>
 			</div>
 		</div>
