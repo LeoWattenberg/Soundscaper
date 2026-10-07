@@ -7,6 +7,9 @@ test('website chrome and global design-system styles remain independent in both 
 	const editor = page.locator('[data-audio-editor]');
 	const sidebar = page.locator('[data-sidebar]');
 	await expect(sidebar).toBeVisible();
+	const download = sidebar.getByRole('link', { name: 'Download', exact: true });
+	await expect(download).toBeVisible();
+	await expect(download).toHaveAttribute('href', 'https://soundscaper.org/download/desktop/');
 
 	for (const theme of ['light', 'dark']) {
 		await page.evaluate((value) => { document.documentElement.dataset.theme = value; }, theme);

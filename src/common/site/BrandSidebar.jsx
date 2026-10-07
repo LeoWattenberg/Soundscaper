@@ -5,7 +5,7 @@ import { DEFAULT_LOCALE_TAGS, getLocaleDescriptor, ROUTE_LOCALES } from '../i18n
 import { TRANSLATION_CATALOG_LOCALES } from '../i18n/translations/index.js';
 import { useSiteCopy } from './use-site-copy.js';
 import { otherProductId, productIdentity } from '../product-identities.js';
-import { productHref } from '../product-web-links.js';
+import { productHref, productWebOrigin } from '../product-web-links.js';
 import { storeDocumentTheme } from './document-theme.js';
 import {
 	PRIVACY_POLICY_REQUEST_EVENT,
@@ -100,6 +100,7 @@ export default function BrandSidebar({ locale, productId = 'soundscaper' }) {
 						<a className="website-sidebar-link website-is-active" href={productHref(productId, locale)} aria-current="page"><img src={productMark} alt="" width="24" height="24" />{editorLabel}</a>
 						<a className="website-sidebar-link" href={productHref(otherProduct.id, locale)}><img src={otherProductMark} alt="" width="24" height="24" />{otherEditorLabel}</a>
 						<a className="website-sidebar-link" href={parentSite}>{copy.joinUs}</a>
+						<a className="website-sidebar-link" href={`${productWebOrigin(productId)}/download/desktop/`} target="_blank" rel="noreferrer">{copy.download}</a>
 						<a className="website-sidebar-link" href={privacyPolicyUrl(productId, locale)} onClick={openPrivacyPolicy}>{copy.legal}</a>
 						<a className="website-sidebar-link" href="https://github.com/LeoWattenberg/Soundscaper/issues/new" target="_blank" rel="noreferrer">{copy.reportIssue}</a>
 						<a className="website-sidebar-link" href="https://github.com/LeoWattenberg/Soundscaper" target="_blank" rel="noreferrer">{copy.github}</a>
@@ -155,6 +156,7 @@ function sidebarCopy(catalog) {
 		audioEditor: catalog.audioEditorLink,
 		videoEditor: catalog.workspaceVideo,
 		joinUs: catalog.joinUsLink,
+		download: catalog.downloadLink,
 		legal: catalog.legalLink,
 		github: catalog.githubProjectLink,
 		theme: catalog.themeToggle,
