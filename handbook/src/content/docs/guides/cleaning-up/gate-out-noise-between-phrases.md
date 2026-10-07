@@ -47,6 +47,9 @@ More [cleaning up a recording](/guides/cleaning-up/) guides:
 - [Remove low rumble](/guides/cleaning-up/remove-low-rumble/) — Cut the sub-bass thumps from traffic, wind and handling with a high-pass filter.
 - [Fix a DC offset](/guides/cleaning-up/fix-dc-offset/) — Recentre a waveform that sits above or below the zero line.
 - [Remove mains hum with a notch filter](/guides/cleaning-up/remove-mains-hum-with-a-notch-filter/) — Cut a single frequency — 50 or 60 Hz hum, a whistle, a ring — without touching the rest.
+- [Remove a narrow frequency band](/guides/cleaning-up/remove-a-narrow-frequency-band/) — Erase a short tonal sound from one part of a recording with spectral selection.
+- [Restore short clipped peaks](/guides/cleaning-up/restore-clipped-peaks/) — Try Clip Fix on brief clipped peaks and compare the result with the original.
+- [Compress long pauses](/guides/cleaning-up/compress-long-pauses/) — Shorten pauses beyond a chosen duration without removing all silence.
 
 ## Reference
 

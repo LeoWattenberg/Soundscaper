@@ -63,6 +63,8 @@ More [effects](/guides/effects/) guides:
 - [Add a phaser](/guides/effects/add-a-phaser/) — Sweep a set of notches through a sound for the classic swirling guitar and keyboard effect.
 - [Apply the same chain of effects every time](/guides/effects/apply-the-same-effects-every-time/) — Save a sequence of effects as a macro and run it on any selection with one command.
 - [Slide from one tempo to another](/guides/effects/slide-from-one-tempo-to-another/) — Speed a passage up or slow it down gradually across its length, with or without a pitch slide.
+- [Boost a selected frequency band](/guides/effects/boost-a-selected-frequency-band/) — Raise a narrow range of frequencies during a chosen passage with spectral editing.
+- [Invert polarity to check cancellation](/guides/effects/invert-polarity-for-cancellation/) — Invert a duplicate track to hear how closely it matches the original.
 
 ## Reference
 

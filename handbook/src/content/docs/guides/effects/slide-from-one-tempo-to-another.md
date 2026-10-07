@@ -62,6 +62,8 @@ More [effects](/guides/effects/) guides:
 - [Add a realtime effect to a track](/guides/effects/add-a-realtime-effect-to-a-track/) — Put an effect on a track so it runs while you play, without rendering.
 - [Add a phaser](/guides/effects/add-a-phaser/) — Sweep a set of notches through a sound for the classic swirling guitar and keyboard effect.
 - [Apply the same chain of effects every time](/guides/effects/apply-the-same-effects-every-time/) — Save a sequence of effects as a macro and run it on any selection with one command.
+- [Boost a selected frequency band](/guides/effects/boost-a-selected-frequency-band/) — Raise a narrow range of frequencies during a chosen passage with spectral editing.
+- [Invert polarity to check cancellation](/guides/effects/invert-polarity-for-cancellation/) — Invert a duplicate track to hear how closely it matches the original.
 
 ## Reference
 

@@ -23,6 +23,9 @@ Take noise, clicks, rumble and dead air out of a take before you work on it.
 - [Fix a DC offset](/guides/cleaning-up/fix-dc-offset/) — Recentre a waveform that sits above or below the zero line.
 - [Remove mains hum with a notch filter](/guides/cleaning-up/remove-mains-hum-with-a-notch-filter/) — Cut a single frequency — 50 or 60 Hz hum, a whistle, a ring — without touching the rest.
 - [Silence the noise between phrases with a gate](/guides/cleaning-up/gate-out-noise-between-phrases/) — Let the voice through and close the door on the room noise whenever nobody is speaking.
+- [Remove a narrow frequency band](/guides/cleaning-up/remove-a-narrow-frequency-band/) — Erase a short tonal sound from one part of a recording with spectral selection.
+- [Restore short clipped peaks](/guides/cleaning-up/restore-clipped-peaks/) — Try Clip Fix on brief clipped peaks and compare the result with the original.
+- [Compress long pauses](/guides/cleaning-up/compress-long-pauses/) — Shorten pauses beyond a chosen duration without removing all silence.
 
 ## [Volume and dynamics](/guides/volume/)
 
@@ -37,6 +40,7 @@ Set levels, even out the loud and quiet parts, and hit a delivery target.
 - [Tame peaks with a limiter](/guides/volume/tame-peaks-with-a-limiter/) — Stop the loudest moments from going over a ceiling without touching the rest.
 - [Duck music under a voice](/guides/volume/duck-music-under-a-voice/) — Turn a music bed down automatically whenever a voice track is speaking.
 - [Even out volume with the classic compressor](/guides/volume/even-out-volume-with-the-legacy-compressor/) — Use Audacity 3’s original compressor, with its noise floor and make-up gain, on a recording.
+- [Normalize a recording to an RMS target](/guides/volume/normalize-to-an-rms-target/) — Set the average signal level to a chosen RMS value while keeping stereo channels linked.
 
 ## [Editing](/guides/editing/)
 
@@ -65,6 +69,10 @@ Cut, split, copy, move and mark up material on the timeline.
 - [Insert a copied passage without overwriting](/guides/editing/insert-a-copied-passage/) — Paste audio at the cursor and move the later audio on that track to make room.
 - [Align track starts together](/guides/editing/align-track-starts-together/) — Move recordings on separate tracks so their content starts at the same time.
 - [Move clips as a group](/guides/editing/move-clips-as-a-group/) — Group clips on separate tracks so dragging one keeps their timing together.
+- [Lift a passage onto its own track](/guides/editing/lift-a-passage-to-a-new-track/) — Move a selected passage to a new track while keeping the surrounding audio in place.
+- [Split a take into clips at silent pauses](/guides/editing/split-clips-at-silent-pauses/) — Separate phrases at silent pauses without shifting them along the timeline.
+- [Ungroup clips without joining them](/guides/editing/ungroup-linked-clips/) — Separate grouped clips again while keeping their clip boundaries.
+- [Align a track start to the playhead](/guides/editing/align-a-track-to-the-playhead/) — Place a recording’s start at the current cursor position with an alignment command.
 
 ## [Effects](/guides/effects/)
 
@@ -94,6 +102,8 @@ Change the character of a sound: pitch, tempo, space, filtering and distortion.
 - [Add a phaser](/guides/effects/add-a-phaser/) — Sweep a set of notches through a sound for the classic swirling guitar and keyboard effect.
 - [Apply the same chain of effects every time](/guides/effects/apply-the-same-effects-every-time/) — Save a sequence of effects as a macro and run it on any selection with one command.
 - [Slide from one tempo to another](/guides/effects/slide-from-one-tempo-to-another/) — Speed a passage up or slow it down gradually across its length, with or without a pitch slide.
+- [Boost a selected frequency band](/guides/effects/boost-a-selected-frequency-band/) — Raise a narrow range of frequencies during a chosen passage with spectral editing.
+- [Invert polarity to check cancellation](/guides/effects/invert-polarity-for-cancellation/) — Invert a duplicate track to hear how closely it matches the original.
 
 ## [Tracks and export](/guides/tracks-and-export/)
 
@@ -120,6 +130,14 @@ Work with several tracks and render the result to a file.
 - [Combine two mono tracks into stereo](/guides/tracks-and-export/combine-mono-tracks-into-stereo/) — Use one mono recording for the left channel and another for the right channel of a stereo clip.
 - [Duplicate a whole track](/guides/tracks-and-export/duplicate-a-whole-track/) — Copy every clip on a track to another track while keeping the original available.
 - [Remove a track from the project](/guides/tracks-and-export/remove-a-track/) — Delete an unwanted track and its clips while keeping the other tracks.
+- [Sort tracks by name](/guides/tracks-and-export/sort-tracks-by-name/) — Reorder tracks alphabetically when a project has several recordings.
+- [Move a track to the top](/guides/tracks-and-export/move-a-track-to-the-top/) — Reorder one track without moving its clips in time.
+- [View a track as a spectrogram](/guides/tracks-and-export/view-a-track-as-a-spectrogram/) — Switch a track from its waveform to a frequency view.
+- [Generate a rhythm track](/guides/tracks-and-export/generate-a-rhythm-track/) — Create a four-bar metronome track at a chosen tempo.
+- [Generate a Risset drum](/guides/tracks-and-export/generate-a-risset-drum/) — Create a synthetic drum sound with a pitched body and a touch of noise.
+- [Generate a plucked tone](/guides/tracks-and-export/generate-a-plucked-tone/) — Create a short, plucked note at a chosen MIDI pitch.
+- [Export clips as a WAV archive](/guides/tracks-and-export/export-clips-as-an-archive/) — Render each clip as its own WAV file in one ZIP archive.
+- [Export an AIFF file](/guides/tracks-and-export/export-an-aiff/) — Render the project as uncompressed, lossless AIFF audio.
 
 ## [Projects and files](/guides/projects/)
 
@@ -142,6 +160,8 @@ Measure loudness, inspect frequencies, and find problems in a recording.
 - [Find where a recording clipped](/guides/analysis/find-clipping/) — Locate the places where a recording hit full scale and distorted.
 - [Find the beats in a loop](/guides/analysis/find-the-beats/) — Let the Beat Finder analyzer mark every beat it hears.
 - [Check that speech stands out from its background](/guides/analysis/check-speech-contrast/) — Measure how far a voice sits above the noise behind it, the way accessibility guidelines ask.
+- [Measure a selection’s RMS level](/guides/analysis/measure-rms-level/) — Read the average signal level of a selected passage with the bundled RMS analyzer.
+- [Label sounds separated by silence](/guides/analysis/label-sounds-separated-by-silence/) — Create labels around sounds that rise above a threshold after a pause.
 
 <details>
 <summary>How the guides stay correct</summary>

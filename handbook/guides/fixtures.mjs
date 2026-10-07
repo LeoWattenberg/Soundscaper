@@ -53,6 +53,13 @@ export const GUIDE_FIXTURES = Object.freeze({
 		recipe: 'tone-with-clicks',
 		description: 'a take with a few sharp clicks in it',
 	}),
+	'clipped-take': Object.freeze({
+		file: 'guide-clipped-take.wav',
+		seconds: 2,
+		channels: 1,
+		recipe: 'clipped-tone',
+		description: 'a tone recorded too hot, with repeated flat-topped peaks',
+	}),
 });
 
 export function guideFixtureFile(id) {

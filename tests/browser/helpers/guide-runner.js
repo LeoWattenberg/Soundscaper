@@ -38,6 +38,8 @@ import { mockFreesoundApi, runFreesoundInsert, runFreesoundSearch } from './guid
 import { runContrast, runMacro, runPlayAtSpeed } from './guide-workflows.js';
 import { chooseTrackMenuAction } from './track-menu.js';
 import { applyGuideEffectSetting } from './guide-effect-settings.js';
+import { runSpectralRange } from './guide-spectral-range.js';
+import { verifyNyquistDeliveryDownload, verifyNyquistWorkflowDialog } from './guide-nyquist-delivery-workflows.js';
 
 const EFFECT_TIMEOUT = 30_000;
 const EXPORT_TIMEOUT = 60_000;
@@ -164,6 +166,7 @@ async function runExport(page, state, entry) {
 	await expect(download.or(failure)).toBeVisible({ timeout: EXPORT_TIMEOUT });
 	expect(await failure.allTextContents()).toEqual([]);
 	await expect(download).toHaveAttribute('download', new RegExp(`\\.${entry.extension}$`, 'u'));
+	await verifyNyquistDeliveryDownload(page, download, entry);
 	await closeDialog(dialog);
 }
 
@@ -227,12 +230,14 @@ async function runNyquist(page, state, entry) {
 	const dialog = page.getByRole('dialog', { name: entry.name, exact: true });
 	await expect(dialog).toBeVisible();
 	for (const field of entry.fields) {
-		await commitInput(dialog.getByRole('spinbutton', { name: field.label, exact: true }), field.value);
+		const label = field.label.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+		await commitInput(dialog.getByRole('spinbutton', { name: new RegExp(`^${label}(?: — .+)?$`, 'u') }), field.value);
 	}
 	await dialog.getByRole('button', { name: 'Apply', exact: true }).click();
 	if (entry.menu === 'Analyze') {
 		// An analyzer keeps its dialog open to report what it found.
 		await expect(dialog).toContainText('Nyquist output', { timeout: EFFECT_TIMEOUT });
+		await verifyNyquistWorkflowDialog(dialog, entry);
 		await closeDialog(dialog);
 		return;
 	}
@@ -350,6 +355,9 @@ async function executeStep(page, state, entry) {
 			return;
 		case 'effect':
 			await runEffect(page, state, entry);
+			return;
+		case 'spectral-range':
+			await runSpectralRange(page, state.editor, entry);
 			return;
 		case 'noise-profile':
 			await runNoiseProfile(page, state);

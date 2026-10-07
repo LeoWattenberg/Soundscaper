@@ -4,6 +4,9 @@ import { SOUNDSCAPER_GUIDES } from '../../handbook/guides/soundscaper.mjs';
 import { runGuide } from './helpers/guide-runner.js';
 import { verifyGuideTrackResults } from './helpers/guide-track-results.js';
 import { verifyGeneratedGuideResults } from './helpers/guide-generated-results.js';
+import { verifyEditingTrackWorkflowResults } from './helpers/guide-editing-track-workflows.js';
+import { verifyNyquistDeliveryWorkflowResults } from './helpers/guide-nyquist-delivery-workflows.js';
+import { verifyRestorationLevelWorkflowResults } from './helpers/guide-restoration-level-workflows.js';
 
 const EDITING_SPANS = {
 	'join-split-clips': [[0, 2]],
@@ -52,6 +55,9 @@ test.describe('Soundscaper handbook guides', () => {
 			await verifyEditingSpan(page, guide.id);
 			await verifyGuideTrackResults(page, guide.id);
 			await verifyGeneratedGuideResults(page, guide.id);
+			await verifyEditingTrackWorkflowResults(page, guide.id);
+			await verifyNyquistDeliveryWorkflowResults(page, guide.id);
+			await verifyRestorationLevelWorkflowResults(page, guide.id);
 		});
 	}
 });

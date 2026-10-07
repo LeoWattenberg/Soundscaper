@@ -48,6 +48,7 @@ More [volume and dynamics](/guides/volume/) guides:
 - [Fade in and fade out](/guides/volume/fade-in-and-fade-out/) — Start a clip from silence and end it smoothly instead of cutting off.
 - [Tame peaks with a limiter](/guides/volume/tame-peaks-with-a-limiter/) — Stop the loudest moments from going over a ceiling without touching the rest.
 - [Even out volume with the classic compressor](/guides/volume/even-out-volume-with-the-legacy-compressor/) — Use Audacity 3’s original compressor, with its noise floor and make-up gain, on a recording.
+- [Normalize a recording to an RMS target](/guides/volume/normalize-to-an-rms-target/) — Set the average signal level to a chosen RMS value while keeping stereo channels linked.
 
 ## Reference
 

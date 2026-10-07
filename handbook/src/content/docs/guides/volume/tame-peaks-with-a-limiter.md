@@ -47,6 +47,7 @@ More [volume and dynamics](/guides/volume/) guides:
 - [Fade in and fade out](/guides/volume/fade-in-and-fade-out/) — Start a clip from silence and end it smoothly instead of cutting off.
 - [Duck music under a voice](/guides/volume/duck-music-under-a-voice/) — Turn a music bed down automatically whenever a voice track is speaking.
 - [Even out volume with the classic compressor](/guides/volume/even-out-volume-with-the-legacy-compressor/) — Use Audacity 3’s original compressor, with its noise floor and make-up gain, on a recording.
+- [Normalize a recording to an RMS target](/guides/volume/normalize-to-an-rms-target/) — Set the average signal level to a chosen RMS value while keeping stereo channels linked.
 
 ## Reference
 

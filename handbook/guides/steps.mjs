@@ -23,6 +23,7 @@
 import { describeFreesoundStep } from './freesound-steps.mjs';
 import { describeClips, describeEditingPreference } from './editing-steps.mjs';
 import { describeTrackMenu } from './track-menu-steps.mjs';
+import { describeSpectralRange } from './spectral-steps.mjs';
 export { trackMenu } from './track-menu-steps.mjs';
 export { editingPreference } from './editing-steps.mjs';
 export { insertFreesound, searchFreesound } from './freesound-steps.mjs';
@@ -32,7 +33,7 @@ const STEP_KINDS = Object.freeze([
 	'noise-profile', 'nyquist', 'analyze', 'export', 'save', 'track-menu', 'track-button',
 	'add-track', 'play', 'generate', 'marker', 'check', 'note', 'rack-effect',
 	'open-audacity-project', 'export-project', 'open-project-file', 'resample', 'drag-clip', 'mix-render',
-	'contrast', 'macro', 'play-at-speed', 'freesound-search', 'freesound-insert', 'editing-preference',
+	'contrast', 'macro', 'play-at-speed', 'freesound-search', 'freesound-insert', 'editing-preference', 'spectral-range',
 ]);
 
 const CONTRAST_ROLES = new Set(['foreground', 'background']);
@@ -475,6 +476,8 @@ export function describeStep(entry, { fixture, facet = 'howto' }) {
 			return describeClips(entry, facet, fixture);
 		case 'editing-preference':
 			return describeEditingPreference(entry);
+		case 'spectral-range':
+			return describeSpectralRange(entry);
 		case 'tool':
 			return `Press the ${bold(entry.name)} button in the toolbar.`;
 		case 'effect': {

@@ -43,6 +43,8 @@ More [analysis](/guides/analysis/) guides:
 - [Find where a recording clipped](/guides/analysis/find-clipping/) — Locate the places where a recording hit full scale and distorted.
 - [Find the beats in a loop](/guides/analysis/find-the-beats/) — Let the Beat Finder analyzer mark every beat it hears.
 - [Check that speech stands out from its background](/guides/analysis/check-speech-contrast/) — Measure how far a voice sits above the noise behind it, the way accessibility guidelines ask.
+- [Measure a selection’s RMS level](/guides/analysis/measure-rms-level/) — Read the average signal level of a selected passage with the bundled RMS analyzer.
+- [Label sounds separated by silence](/guides/analysis/label-sounds-separated-by-silence/) — Create labels around sounds that rise above a threshold after a pause.
 
 ## Reference
 

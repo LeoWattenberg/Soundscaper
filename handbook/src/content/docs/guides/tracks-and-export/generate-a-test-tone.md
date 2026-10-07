@@ -57,6 +57,14 @@ More [tracks and export](/guides/tracks-and-export/) guides:
 - [Combine two mono tracks into stereo](/guides/tracks-and-export/combine-mono-tracks-into-stereo/) — Use one mono recording for the left channel and another for the right channel of a stereo clip.
 - [Duplicate a whole track](/guides/tracks-and-export/duplicate-a-whole-track/) — Copy every clip on a track to another track while keeping the original available.
 - [Remove a track from the project](/guides/tracks-and-export/remove-a-track/) — Delete an unwanted track and its clips while keeping the other tracks.
+- [Sort tracks by name](/guides/tracks-and-export/sort-tracks-by-name/) — Reorder tracks alphabetically when a project has several recordings.
+- [Move a track to the top](/guides/tracks-and-export/move-a-track-to-the-top/) — Reorder one track without moving its clips in time.
+- [View a track as a spectrogram](/guides/tracks-and-export/view-a-track-as-a-spectrogram/) — Switch a track from its waveform to a frequency view.
+- [Generate a rhythm track](/guides/tracks-and-export/generate-a-rhythm-track/) — Create a four-bar metronome track at a chosen tempo.
+- [Generate a Risset drum](/guides/tracks-and-export/generate-a-risset-drum/) — Create a synthetic drum sound with a pitched body and a touch of noise.
+- [Generate a plucked tone](/guides/tracks-and-export/generate-a-plucked-tone/) — Create a short, plucked note at a chosen MIDI pitch.
+- [Export clips as a WAV archive](/guides/tracks-and-export/export-clips-as-an-archive/) — Render each clip as its own WAV file in one ZIP archive.
+- [Export an AIFF file](/guides/tracks-and-export/export-an-aiff/) — Render the project as uncompressed, lossless AIFF audio.
 
 <details>
 <summary>How this guide stays correct</summary>
