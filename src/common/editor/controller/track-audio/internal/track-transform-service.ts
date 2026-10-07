@@ -383,7 +383,10 @@ export function createTrackTransformService(
 						durationFrames: frameCount,
 					}),
 				];
-				dependencies.commit({ type: 'batch', commands }, { selectTrackId: track.id, selectClipId: clipId });
+				const command = preserveProductionTrackRouting(project, { type: 'batch', commands }, [
+					{ sourceTrackId: track.id, targetTrackId: track.id },
+				], dependencies.previewCommand, dependencies.createId);
+				dependencies.commit(command, { selectTrackId: track.id, selectClipId: clipId });
 				setLocalizedStatus(dependencies.setStatus, dependencies.copy, "done", undefined, 'success');
 				return track.id;
 			} catch (error) {
