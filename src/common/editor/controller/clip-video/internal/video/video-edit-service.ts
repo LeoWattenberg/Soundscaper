@@ -30,6 +30,8 @@ import type { AudioEditorCommand } from '../../../../commands/protocol.ts';
 import type { SourceMonitorService, SourceMonitorView } from '../source-monitor-service.ts';
 import type { EditorControllerLifetime } from '../../../shared/lifecycle.ts';
 import type { VideoRetimeProgramOrdinalBridge } from '../../../../video-retime-program-ordinal-bridge.ts';
+import { resolveVideoSourceTimingViews } from '../../../../video-source-timing-views.ts';
+import { sourceTimeToAudioFrame, videoBoundaryTime, videoSourceTimingView } from '../../../../video-source-timing-view.ts';
 
 // foundation-edit-matrix: replace
 
@@ -141,6 +143,9 @@ export function createVideoEditService(
 		const source = requireSource(project, item.video.sourceId);
 		const sourceRate = rationalRate(source.frameRate, 'source.frameRate');
 		const sourceFrameCount = positiveSafeInteger(source.sourceFrameCount, 'source.sourceFrameCount');
+		const sourceTiming = isRecord(source.timingDecision) && source.timingDecision.mode === 'exact'
+			? videoSourceTimingView(resolveVideoSourceTimingViews({ sources: [source] }), source)
+			: undefined;
 		const points = sequencePoints(project, request, sequenceRate, sampleRate);
 		const sequencePointCount = points.sequenceOut == null ? 1 : 2;
 		// The monitor's marks decide the source range. An unmarked monitor — or one
@@ -162,6 +167,7 @@ export function createVideoEditService(
 			sequenceRate,
 			sampleRate,
 			sourceFrameCount,
+			sourceTiming,
 		});
 		const placements = [{
 			trackId: resolvedTargets.videoTrackId,
@@ -174,8 +180,12 @@ export function createVideoEditService(
 		if (item.audio && audioTargetId) {
 			// The audio program was fitted to the video at ingest, so the same media
 			// span is the video source range mapped once into source samples.
-			const audioIn = videoFrameToSampleFrame(resolved.sourceIn, sourceRate, sampleRate, 'point');
-			const audioOut = videoFrameToSampleFrame(resolved.sourceOut, sourceRate, sampleRate, 'point');
+			const audioIn = sourceTiming
+				? sourceTimeToAudioFrame(videoBoundaryTime(sourceTiming, resolved.sourceIn), sampleRate)
+				: videoFrameToSampleFrame(resolved.sourceIn, sourceRate, sampleRate, 'point');
+			const audioOut = sourceTiming
+				? sourceTimeToAudioFrame(videoBoundaryTime(sourceTiming, resolved.sourceOut), sampleRate)
+				: videoFrameToSampleFrame(resolved.sourceOut, sourceRate, sampleRate, 'point');
 			placements.push({
 				trackId: audioTargetId,
 				sourceId: String(item.audio.sourceId),

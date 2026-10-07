@@ -5,6 +5,14 @@ import {
 	videoFrameToSampleFrame,
 	type RationalRate,
 } from './timeline-time.ts';
+import {
+	compareSourceTimes,
+	shiftSourceTime,
+	sourceTimeDifference,
+	sourceTimeToVideoBoundary,
+	videoBoundaryTime,
+	type VideoSourceTimingView,
+} from './video-source-timing-view.ts';
 
 /**
  * Three-point editing: which frames of a source land where in a sequence.
@@ -14,10 +22,10 @@ import {
  * four combinations resolve through one rule here, so a backtimed edit is not a
  * second code path with its own rounding.
  *
- * The duration converts once, as a count from the origin, in exact integer
- * arithmetic under a named policy. Converting each endpoint separately would
- * make the same source range produce different extents depending on where in
- * the source it starts; converting the count does not.
+ * A uniform source duration converts once as a frame count, in exact integer
+ * arithmetic under a named policy. A variable-rate source instead measures
+ * the marked presentation boundaries: equal ordinal counts need not occupy
+ * equal durations. Both resolve to the sequence grid under the same policy.
  */
 
 export type ThreePointEditPoint = 'sourceIn' | 'sourceOut' | 'sequenceIn' | 'sequenceOut';
@@ -61,6 +69,8 @@ export interface ThreePointEditContext {
 	readonly sampleRate: number;
 	/** The source's own frame count: the edit may not ask for more than exists. */
 	readonly sourceFrameCount: number;
+	/** Verified presentation boundaries for a source that does not have a uniform grid. */
+	readonly sourceTiming?: VideoSourceTimingView;
 }
 
 export interface ThreePointEdit {
@@ -102,9 +112,12 @@ export function resolveThreePointEdit(
 	const sequenceRate = rationalRate(context?.sequenceRate, 'context.sequenceRate');
 	const sampleRate = positiveSafeInteger(context?.sampleRate, 'context.sampleRate');
 	const sourceBound = positiveSafeInteger(context?.sourceFrameCount, 'context.sourceFrameCount');
+	if (Number(given.get('sourceIn') ?? 0) > sourceBound || Number(given.get('sourceOut') ?? 0) > sourceBound) {
+		throw new ThreePointEditError('source-out-of-bounds', 'The edit asks for source frames beyond the end of the media.');
+	}
 	const resolved = given.size === 4
-		? admitFullySpecified(given, sourceRate, sequenceRate)
-		: deriveFourthPoint(given, sourceRate, sequenceRate);
+		? admitFullySpecified(given, sourceRate, sequenceRate, context.sourceTiming)
+		: deriveFourthPoint(given, sourceRate, sequenceRate, context.sourceTiming);
 	const { sourceIn, sourceOut, sequenceIn, sequenceOut, point } = resolved;
 	if (sourceOut <= sourceIn || sequenceOut <= sequenceIn) {
 		throw new ThreePointEditError('empty-range', 'A three-point edit keeps at least one frame.');
@@ -154,6 +167,7 @@ function deriveFourthPoint(
 	given: ReadonlyMap<ThreePointEditPoint, number>,
 	sourceRate: RationalRate,
 	sequenceRate: RationalRate,
+	sourceTiming?: VideoSourceTimingView,
 ): ResolvedPoints {
 	const sourceIn = given.get('sourceIn');
 	const sourceOut = given.get('sourceOut');
@@ -164,7 +178,7 @@ function deriveFourthPoint(
 		if (sourceOut <= sourceIn) {
 			throw new ThreePointEditError('empty-range', 'A source range keeps at least one frame.');
 		}
-		const extent = convertFrameCount(sourceOut - sourceIn, sourceRate, sequenceRate);
+		const extent = sequenceExtent(sourceIn, sourceOut, sourceRate, sequenceRate, sourceTiming);
 		return sequenceIn != null
 			? { sourceIn, sourceOut, sequenceIn, sequenceOut: sequenceIn + extent, point: 'sequenceOut' }
 			: {
@@ -181,17 +195,22 @@ function deriveFourthPoint(
 	if (Number(sequenceOut) <= Number(sequenceIn)) {
 		throw new ThreePointEditError('empty-range', 'A sequence range keeps at least one frame.');
 	}
-	const extent = convertFrameCount(Number(sequenceOut) - Number(sequenceIn), sequenceRate, sourceRate);
+	const sequenceCount = Number(sequenceOut) - Number(sequenceIn);
+	const extent = convertFrameCount(sequenceCount, sequenceRate, sourceRate);
 	return sourceIn != null
 		? {
 			sourceIn,
-			sourceOut: sourceIn + extent,
+			sourceOut: sourceTiming
+				? sourceEndpoint(sourceTiming, sourceIn, sequenceCount, sequenceRate, 1)
+				: sourceIn + extent,
 			sequenceIn: Number(sequenceIn),
 			sequenceOut: Number(sequenceOut),
 			point: 'sourceOut',
 		}
 		: {
-			sourceIn: safeNonNegative(Number(sourceOut) - extent, 'sourceIn'),
+			sourceIn: safeNonNegative(sourceTiming
+				? sourceEndpoint(sourceTiming, Number(sourceOut), sequenceCount, sequenceRate, -1)
+				: Number(sourceOut) - extent, 'sourceIn'),
 			sourceOut: Number(sourceOut),
 			sequenceIn: Number(sequenceIn),
 			sequenceOut: Number(sequenceOut),
@@ -214,6 +233,7 @@ function admitFullySpecified(
 	given: ReadonlyMap<ThreePointEditPoint, number>,
 	sourceRate: RationalRate,
 	sequenceRate: RationalRate,
+	sourceTiming?: VideoSourceTimingView,
 ): ResolvedPoints {
 	const sourceIn = Number(given.get('sourceIn'));
 	const sourceOut = Number(given.get('sourceOut'));
@@ -224,14 +244,49 @@ function admitFullySpecified(
 	}
 	const sourceCount = sourceOut - sourceIn;
 	const sequenceCount = sequenceOut - sequenceIn;
-	if (convertFrameCount(sourceCount, sourceRate, sequenceRate) !== sequenceCount
-		&& convertFrameCount(sequenceCount, sequenceRate, sourceRate) !== sourceCount) {
+	const agrees = sequenceExtent(sourceIn, sourceOut, sourceRate, sequenceRate, sourceTiming) === sequenceCount
+		|| (sourceTiming
+			? sourceEndpoint(sourceTiming, sourceIn, sequenceCount, sequenceRate, 1) === sourceOut
+				|| sourceEndpoint(sourceTiming, sourceOut, sequenceCount, sequenceRate, -1) === sourceIn
+			: convertFrameCount(sequenceCount, sequenceRate, sourceRate) === sourceCount);
+	if (!agrees) {
 		throw new ThreePointEditError(
 			'over-specified',
 			'All four points were given and their durations disagree; fitting one to the other would change speed.',
 		);
 	}
 	return { sourceIn, sourceOut, sequenceIn, sequenceOut, point: 'sequenceOut' };
+}
+
+function sequenceExtent(
+	sourceIn: number,
+	sourceOut: number,
+	sourceRate: RationalRate,
+	sequenceRate: RationalRate,
+	timing?: VideoSourceTimingView,
+): number {
+	if (!timing) return convertFrameCount(sourceOut - sourceIn, sourceRate, sequenceRate);
+	const duration = sourceTimeDifference(videoBoundaryTime(timing, sourceOut), videoBoundaryTime(timing, sourceIn));
+	return Math.max(1, roundRational(duration.numerator * BigInt(sequenceRate.num),
+		duration.denominator * BigInt(sequenceRate.den), 'point'));
+}
+
+function sourceEndpoint(
+	timing: VideoSourceTimingView,
+	sourcePoint: number,
+	sequenceCount: number,
+	sequenceRate: RationalRate,
+	direction: 1 | -1,
+): number {
+	const time = shiftSourceTime(videoBoundaryTime(timing, sourcePoint), {
+		numerator: BigInt(direction) * BigInt(sequenceCount) * BigInt(sequenceRate.den),
+		denominator: BigInt(sequenceRate.num),
+	});
+	const bound = timing.kind === 'vfr' ? timing.index.frameCount : timing.frameCount;
+	if (compareSourceTimes(time, videoBoundaryTime(timing, 0)) < 0) return -1;
+	if (compareSourceTimes(time, videoBoundaryTime(timing, bound)) > 0) return bound + 1;
+	const endpoint = sourceTimeToVideoBoundary(timing, time);
+	return direction === 1 ? Math.max(sourcePoint + 1, endpoint) : Math.min(sourcePoint - 1, endpoint);
 }
 
 function safeNonNegative(value: number, name: string): number {

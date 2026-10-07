@@ -1,0 +1,11 @@
+# Fourth I/O bug-fix register
+
+Only distinct defects reproduced through ordinary public editor actions are counted. Test setup failures, unsupported operations, and follow-through on earlier registered causes are excluded. The immutable red baseline is `a0322d6e4`.
+
+| ID | Ordinary user reproduction | Observed failure and expected result | Fix | Red → green evidence |
+| --- | --- | --- | --- | --- |
+| R4-IO-001 | In Framescaper, use Project Bin **Add media** to import the normal irregular-rate MediaRecorder WebM fixture; add it to the timeline; choose **Select → Select none**; open that bin item's Source Monitor; press **Next frame** twice, **Mark in**, **Mark out**, then the bin card's **Insert**. | The marked source ordinal 2 occupies 200–245 ms. The saved inserted clip retains source ordinal 2/count 1 but occupies **3** frames in the 30 fps sequence (100 ms), instead of **1** frame, the nearest sequence-grid duration of its 45 ms presentation interval. The three-point resolver converts average source frame rate rather than the marked presentation boundaries. | Three-point duration and missing-endpoint resolution use the verified VFR timing index. Insert/Overwrite carry the corresponding exact media interval into linked audio placements; CFR arithmetic and bounds refusals remain covered. | `audio-editor-round4-io-source-edit.spec.js`: baseline Chromium red (`/tmp/soundscaper-r4-io-source-edit-red2.log`, expected 1/received 3), then Chromium/Firefox/WebKit **3/3 pass** on private green `io-source-edit-001` (`/tmp/soundscaper-r4-io-source-edit-green1.log`). Strict `audio-editor-round4-io-three-point-timing.test.ts` red → green; with existing resolver/service/command suites **42/42 pass** (`/tmp/soundscaper-r4-io-three-point-node-green.log`). |
+
+The media fixture is a normal Chromium MediaRecorder canvas recording with irregular presentation intervals, imported through the real file picker. Saved-project reads in the browser regression are read-only observations after the visible saved status. This defect belongs to edit-duration resolution, separately from earlier Source Monitor seek conversion and interchange export source clocks.
+
+No manual **Update AI assets** run is required: the runtime closure and target inventories are unchanged.
