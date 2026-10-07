@@ -333,3 +333,29 @@ basic, live and dispatcher support pass 34/34; targeted lint passes. Regression
 files are `audacity-effects-round4-duck-boundary-fades.test.ts` and
 `audio-editor-round4-duck-boundary-fades.spec.js`; evidence is recorded in
 `/tmp/soundscaper-r4-root-duck-boundary-*`.
+
+
+## R4-ROOT-015 — A macro frame selection silently clears its spectral band
+
+Import an ordinary WAV, select its clip header and open Tools → Macros palette
+→ New program. Run `await sound.select.frequencies({low:100,high:1000});` then
+`await sound.select.frames(4800,33600);`. Close the palette and open Play options.
+Baseline has disabled Play selected frequencies: setting the time endpoints
+silently discards the existing frequency axis. The independently implemented
+frame verb bypasses the selection-command adapter corrected in R2-ROOT-001.
+
+Carry the captured spectral range through the exact frame setter, both with
+retained and explicitly supplied track IDs. Keep normal endpoint admission and
+clip-target replacement. This frame-verb consumer counts once.
+
+The same public program/menu workflow fails on immutable baseline `a0322d6e4`
+and passes Chromium, Firefox and WebKit on `frame-spectral-clean18` (3/3). The
+R2 frequency-only macro workflow also passes all three engines. Two strict
+regressions and existing host, selection-reader and Select all support pass
+17/17; targeted lint passes. Regression files are
+`audio-editor-round4-program-frame-spectral-range.test.ts` and
+`audio-editor-round4-program-frame-spectral-range.spec.js`; evidence is recorded
+in `/tmp/soundscaper-r4-root-frame-spectral-*`. An additional unrelated live
+Spectrogram check failed on Firefox’s initial signal observation and is excluded
+from these six passing macro cases; its prior all-engine proof remains recorded
+under 011.

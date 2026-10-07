@@ -170,8 +170,10 @@ const READERS: Readonly<Record<string, Handler>> = Object.freeze({
 const MUTATORS: Readonly<Record<string, Handler>> = Object.freeze({
 	'select.frames': (runtime, args) => {
 		const details = optionsOf(args[2]);
+		const selection = requireProject(runtime).selection as Record<string, unknown> | null | undefined;
 		runtime.setExactSelection(numberOf(args[0]), numberOf(args[1]), {
 			trackIds: trackIdsOf(details) ?? currentTrackIds(runtime),
+			...(selection?.frequencyRange ? { frequencyRange: selection.frequencyRange } : {}),
 		});
 		return readSelection(runtime);
 	},
