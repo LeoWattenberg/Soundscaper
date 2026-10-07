@@ -16,7 +16,7 @@ test('computed proxy phases and selected authoring surfaces have canonical copy 
 		project: { schemaFamily: 'framescaper', schemaVersion: 1, id: 'p', revision: 0,
 			primarySequenceId: 's', sequences: [{ id: 's', rate: { num: 24, den: 1 } }],
 			clips: [], tracks: [], sources: [], selection: {}, sampleRate: 48_000,
-			videoVisualPresets: [], videoFinishingPresets: [], videoFreezeFallbacks: [] },
+			videoVisualPresets: [], videoFinishingPresets: [], videoFreezeFallbacks: [], videoMaskMattes: [] },
 		copy: { 'ui.selectedVisualAuthoring.surfaces.video-freeze.title': 'Bild einfrieren' },
 	});
 	assert.equal(model.title, 'Bild einfrieren');

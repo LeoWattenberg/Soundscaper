@@ -17,7 +17,7 @@ const DIALOG = new URL(
  */
 test('the authoring form reseeds on document identity, not on the playhead', async () => {
 	const source = await readFile(DIALOG, 'utf8');
-	const reseed = /setFinishingPresetId\([\s\S]*?\n\t\}, \[([\s\S]*?)\]\);/u.exec(source);
+	const reseed = /setPairId\(model\.selectedPairId[\s\S]*?\n\t\}, \[([\s\S]*?)\]\);/u.exec(source);
 	assert.ok(reseed, 'the reseed effect is present');
 	const dependencies = reseed[1]!;
 

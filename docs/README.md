@@ -57,6 +57,10 @@ belong in Git history, not in the maintained documentation set.
   [import and export](development/bugfix-round2-io.md).
 - The [second audit index](development/bugfix-round2.md) records the additional
   100 defects, counting criteria, and combined validation.
+- The third regression audit covers [editing](development/bugfix-round3-editing.md),
+  [dialogs](development/bugfix-round3-dialogs.md),
+  [effects and analysis](development/bugfix-round3-effects-analysis.md), and
+  [import and export](development/bugfix-round3-io.md).
 
 ## Operate and release
 

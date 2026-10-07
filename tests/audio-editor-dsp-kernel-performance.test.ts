@@ -15,10 +15,11 @@ function digest(channels: readonly Float32Array[]): string {
 
 test('pink running sum retains the channel-major seeded output through counter wrap boundaries', (t) => {
 	const reduce = t.mock.method(Float64Array.prototype, 'reduce');
+	// Independently bundled current-main generators.js at 9c6d928634b2f20f40d3ad145a0991099db1e26a.
 	const fixtures = [
-		[1, 'd4ddff81203fd43fd22874cee7e7c1a172eec399b2844782ab55db050657eecf'],
-		[42, '7c05e5f023e4053f9fafb4887166f76d43d4de3ce955d674cade1e5b66eba2b4'],
-		[0xffff_ffff, '8636d068661e5f0df015bd20135e6fb193eed76f3144e04dd5a24737b40677d8'],
+		[1, 'c7b03a8be6fe3b91c0b78a27bd43c68803dad78d6f79418737e24ee6b72d21a9'],
+		[42, '6263498140b668a04c0b2a3e3df7a45f270e7a24866e7b97637d4667560c8413'],
+		[0xffff_ffff, 'e938e8bf10ae33f8f065a4244a053db98219ad0260a351eb6ef94ea3ea3b9314'],
 	] as const;
 	for (const [seed, expected] of fixtures) {
 		const result = generateAudioEditorSignal('noise', {
@@ -26,7 +27,7 @@ test('pink running sum retains the channel-major seeded output through counter w
 		});
 		assert.equal(digest(result.channels), expected);
 	}
-	assert.equal(reduce.mock.callCount(), 0, 'pink noise must not sum all seven bins for every sample');
+	assert.equal(reduce.mock.callCount(), 0, 'pink noise must not rescan sample-rate-dependent rows for every sample');
 });
 
 test('mono generators keep their first output allocation and give other channels independent storage', () => {

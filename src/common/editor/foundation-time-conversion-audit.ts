@@ -44,6 +44,24 @@ export interface FoundationTimeConversionSite {
  */
 const FOUNDATION_TIME_CONVERSION_EDITOR_SITES: readonly FoundationTimeConversionSite[] = deepFreezeAuditSites([
 	{
+		id: 'clip-silence-musical-warp-boundaries',
+		file: 'src/common/editor/clip-silence-warp-projection.ts',
+		behavior: 'Source-silence regions invert the authored warp map and resolve musical offsets as nearest project sample positions before the exact editable source-boundary admission.',
+		conversions: [{ helper: 'beatToSampleFrame', policies: ['point'] }],
+	},
+	{
+		id: 'sample-pencil-musical-warp-interpolation',
+		file: 'src/common/editor/sample-pencil-warp-projection.ts',
+		behavior: 'Pencil strokes retain native source samples while interpolating each edited sample through the authored musical warp map at its nearest project sample position.',
+		conversions: [{ helper: 'beatToSampleFrame', policies: ['point'] }],
+	},
+	{
+		id: 'nyquist-source-label-musical-warp-placement',
+		file: 'src/common/editor/controller/effects/internal/nyquist/nyquist-label-projection.ts',
+		behavior: 'Source-analysis labels convert native source offsets through the owning clip warp map and resolve musical positions as nearest project sample points under the authoritative tempo map.',
+		conversions: [{ helper: 'beatToSampleFrame', policies: ['point'] }],
+	},
+	{
 		id: 'bin-video-replacement-sequence-extent',
 		file: 'src/common/editor/project-bin-video-replacement.ts',
 		behavior: 'Video replacement preserves source times on the verified source clock and derives its retained sample duration from the difference between absolute sequence-frame endpoints, each resolved as a nearest sample point.',
@@ -79,9 +97,9 @@ const FOUNDATION_TIME_CONVERSION_EDITOR_SITES: readonly FoundationTimeConversion
 		conversions: [{ helper: 'sampleFrameToBeat', policies: ['exact'] }],
 	},
 	{
-		id: 'otio-video-source-in-point',
-		file: 'src/common/editor/otio-export.ts',
-		behavior: 'Frame-authoritative video source in-points are rebased from the exact source grid to the OTIO sequence grid with nearest-point rounding.',
+		id: 'interchange-video-source-in-point',
+		file: 'src/common/editor/interchange-source-in-point.ts',
+		behavior: 'Frame-authoritative video source in-points are rebased from their exact source grid to the requested interchange sequence grid with nearest-point rounding; seconds-based profiles retain the same authored source boundary.',
 		conversions: [{ helper: 'roundRational', policies: ['point'] }],
 	},
 	{

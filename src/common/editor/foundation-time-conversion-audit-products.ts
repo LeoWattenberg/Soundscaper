@@ -15,6 +15,12 @@ import type { FoundationTimeConversionSite } from './foundation-time-conversion-
  */
 export const FOUNDATION_TIME_CONVERSION_PRODUCT_SITES: readonly FoundationTimeConversionSite[] = deepFreezeAuditSites([
 	{
+		id: 'framescaper-image-move-placement',
+		file: 'src/framescaper/editor-timeline-image-move-command.ts',
+		behavior: 'Ordinary timeline image moves resolve the requested sample position once to the nearest destination sequence frame and retain image timing and placement through the exact image mutation command.',
+		conversions: [{ helper: 'sampleFrameToVideoFrame', policies: ['point'] }],
+	},
+	{
 		id: 'framescaper-bin-visual-placement',
 		file: 'src/framescaper/editor-project-bin-visual-actions.ts',
 		behavior: 'Placing an owned visual bin leaf converts the requested exact sample position or current playhead once to the nearest sequence frame, retaining the leaf\'s authored frame extent on its destination timeline.',
