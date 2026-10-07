@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { validatePersistedAudioEffects } from './persisted-audio-effect-validation.ts';
+import { recordingNotesValue } from './recording-notes.ts';
 import {
 	validateProjectMedia,
 	type ProjectMediaCollections,
@@ -91,6 +92,7 @@ function validateMetadata(value: unknown): ProjectDataRecord {
 	for (const name of ['title', 'artist', 'album', 'trackNumber', 'year', 'comments']) {
 		projectString(metadata[name], `metadata.${name}`, true);
 	}
+	if (Object.hasOwn(metadata, 'recordingNotes')) recordingNotesValue(metadata.recordingNotes);
 	const tags = projectRecord(metadata.tags, 'metadata.tags');
 	for (const [name, tag] of Object.entries(tags)) {
 		projectString(name, 'metadata tag name');

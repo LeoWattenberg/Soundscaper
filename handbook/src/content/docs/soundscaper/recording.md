@@ -29,6 +29,17 @@ Soundscaper also exposes timed, punch/count-in, loop/take, and sound-activated
 recording workflows through its menus. Start with a normal take before adding
 these conditions.
 
+## Keep recording notes
+
+Choose **Window → Recording notes** to open the notes panel. Write take numbers,
+recording conditions, or reminders; the notes are saved with the active project
+and included in its `.sscape` project file.
+
+Use the formatting buttons for **bold**, *italic*, headings, bulleted or numbered
+lists, and inline code, or type Markdown directly. Choose **Preview** to read the
+formatted notes and **Edit** to continue writing. Closing the panel keeps the
+notes in the project.
+
 ## After the take
 
 Stop recording and play the new clip before continuing. Wait for the project

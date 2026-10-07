@@ -9,6 +9,7 @@ import type { AudioEditorCommand, AudioEditorCommandType } from './protocol.ts';
 export const PROJECT_SOURCE_BIN_COMMAND_TYPES = [
 	'batch',
 	'project/rename',
+	'project/recording-notes-set',
 	'selection/set',
 	'loop/set',
 	'snap/set',

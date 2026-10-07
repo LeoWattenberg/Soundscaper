@@ -1,0 +1,127 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+.kw-audio-editor__workspace-panel-content[data-workspace-tab-panel='recording-notes']:not([hidden]) {
+	display: flex;
+	align-content: stretch;
+	padding: 0;
+}
+
+.kw-audio-editor__recording-notes {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	gap: 8px;
+	box-sizing: border-box;
+	min-width: 0;
+	min-height: 260px;
+	height: 100%;
+	padding: 12px;
+	color: var(--text);
+	background: var(--panel);
+	font-size: var(--editor-font-size, 12px);
+}
+
+.kw-audio-editor__recording-notes-description {
+	margin: 0;
+	color: var(--muted);
+}
+
+.kw-audio-editor__recording-notes-actions,
+.kw-audio-editor__recording-notes-formatting {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	align-items: center;
+}
+
+.kw-audio-editor__recording-notes-actions > button {
+	margin-inline-start: auto;
+}
+
+.kw-audio-editor__recording-notes-actions button {
+	padding: 4px 8px;
+	color: var(--text);
+	background: var(--toolbar-button-bg);
+	border: 1px solid var(--line);
+	border-radius: 3px;
+	font: inherit;
+	cursor: pointer;
+}
+
+.kw-audio-editor__recording-notes-actions button:hover:not(:disabled) {
+	background: var(--toolbar-button-hover);
+}
+
+.kw-audio-editor__recording-notes-actions button:disabled {
+	opacity: 0.5;
+	cursor: default;
+}
+
+.kw-audio-editor__recording-notes-editor,
+.kw-audio-editor__recording-notes-preview {
+	flex: 1 1 auto;
+	box-sizing: border-box;
+	min-height: 180px;
+	width: 100%;
+	padding: 8px;
+	color: var(--text);
+	background: var(--stage-raised);
+	border: 1px solid var(--line);
+	border-radius: 3px;
+	line-height: 1.5;
+	overflow-wrap: anywhere;
+}
+
+.kw-audio-editor__recording-notes-editor {
+	resize: none;
+	font-family: monospace;
+	font-size: inherit;
+}
+
+.kw-audio-editor__recording-notes-preview {
+	overflow: auto;
+	white-space: pre-wrap;
+}
+
+.kw-audio-editor__recording-notes-preview > :first-child {
+	margin-block-start: 0;
+}
+
+.kw-audio-editor__recording-notes-preview > :last-child {
+	margin-block-end: 0;
+}
+
+.kw-audio-editor__recording-notes-preview code {
+	padding: 1px 3px;
+	border: 1px solid var(--line);
+	border-radius: 3px;
+	font-family: monospace;
+}
+
+#kw-audio-editor-design-system :is(
+	.kw-audio-editor__recording-notes-editor,
+	.kw-audio-editor__recording-notes-preview,
+	.kw-audio-editor__recording-notes-preview *
+) {
+	user-select: text;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__recording-notes-preview h1 {
+	font-size: 1.5em;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__recording-notes-preview h2 {
+	font-size: 1.3em;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__recording-notes-preview h3 {
+	font-size: 1.15em;
+}
+
+@media (forced-colors: active) {
+	.kw-audio-editor__recording-notes-actions button,
+	.kw-audio-editor__recording-notes-editor,
+	.kw-audio-editor__recording-notes-preview {
+		border-color: CanvasText;
+	}
+}

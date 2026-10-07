@@ -12,6 +12,7 @@ import { createClipSpreadsheetAction } from './internal/clip-spreadsheet-action.
 import { createMixerParameterActions } from './internal/mixer-parameter-actions.ts';
 import { createProjectOwnedFeatureActionFacades } from './internal/project-owned-feature-action-facades.ts';
 import { createTimelineAnnotationActionFacade } from '../document/timeline-annotation-action-facade.ts';
+import { createRecordingNotesActionFacade } from '../document/recording-notes-action-facade.ts';
 import { createVideoActionGroup } from '../clip-video/video-action-group.ts';
 import { snapshotProductActionExtensions } from './internal/product-action-extensions.ts';
 import { createExportActionGroup } from '../export/export-action-group.ts';
@@ -378,6 +379,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 		metadata: Object.freeze({
 			update: (changes: Readonly<Record<string, unknown>>) => commit({ type: 'metadata/update', changes }),
 		}),
+		recordingNotes: createRecordingNotesActionFacade({ getProject, commit }),
 		preferences: createPreferenceActionGroup(scope, recordingPreferences),
 		clipSourcePreview: Object.freeze({ ...scope.clipSourcePreviewService }),
 		clip: Object.freeze({

@@ -377,6 +377,7 @@ Product availability follows each product profile’s command filters and each l
 | Record on current track | `record-on-current-track` | R | Record; Transport | Soundscaper | Audacity |
 | Record on new track | `record-on-new-track` | — | Record | Soundscaper | Audacity |
 | Recording meter | `panel-recording-meter` | — | Window | Soundscaper | Soundscaper local |
+| Recording notes | `panel-recording-notes` | — | Window | Soundscaper, Framescaper | Soundscaper local |
 | Recording setup | `panel-recording-setup` | — | Window | Framescaper | Soundscaper local |
 | Redo | `action://trackedit/redo` | Ctrl+Shift+Z | Edit | Soundscaper, Framescaper | Audacity |
 | Reduce Reverb | `assistance-task-reduce-reverb` | — | Effect > Noise removal and repair | Soundscaper, Framescaper | Soundscaper local |

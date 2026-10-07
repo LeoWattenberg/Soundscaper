@@ -35,6 +35,7 @@ Choose a workspace directly from **Window**. This menu lists open projects first
 | Labels | `labels` | Right | Hidden | Hidden | Hidden | Hidden | Hidden |
 | Markers | `markers` | Right | Hidden | Hidden | Hidden | Hidden | Hidden |
 | Metadata | `metadata` | Right | Hidden | Hidden | Hidden | Hidden | Hidden |
+| Recording notes | `recording-notes` | Right | Hidden | Hidden | Hidden | Hidden | Hidden |
 | Freesound | `freesound` | Right | Hidden | Hidden | Hidden | Hidden | Hidden |
 | Effects | `effects` | Left | Visible | Visible | Hidden | Hidden | Visible |
 | Mixer | `mixer` | Bottom | Hidden | Visible | Hidden | Hidden | Hidden |

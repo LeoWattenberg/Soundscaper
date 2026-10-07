@@ -31,6 +31,7 @@ import type { VideoKeyframesSetCommandPayload } from './video-keyframes-command-
 export const AUDIO_EDITOR_COMMAND_TYPES = [
 	'batch',
 	'project/rename',
+	'project/recording-notes-set',
 	'selection/set',
 	'loop/set',
 	'snap/set',
@@ -142,6 +143,7 @@ export * from './protocol-values.ts';
 
 type LegacyNonBatchAudioEditorCommandPayloads = {
 	readonly 'project/rename': { readonly title: string };
+	readonly 'project/recording-notes-set': { readonly notes: string };
 	readonly 'selection/set': {
 		readonly startFrame: number;
 		readonly endFrame: number;
