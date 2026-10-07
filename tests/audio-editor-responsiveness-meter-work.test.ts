@@ -41,34 +41,6 @@ test('master scope and correlation share a sample traversal and preserve publish
 	}
 });
 
-test('strip validation and scalar statistics read each admitted PCM sample once', () => {
-	const input = Float32Array.of(0.25, -0.5, 0.75, -1);
-	let reads = 0;
-	const channel = countedSamples(input, () => { reads += 1; });
-	const store = createSessionStripMeterStore();
-	const result = store.update({ kind: 'track', id: 'mono' }, { channels: [channel], channelLabels: ['M'] });
-	assert.deepEqual(result.channels, [{ label: 'M', peak: 1, rms: Math.sqrt(1.875 / 4) }]);
-	assert.equal(reads, input.length);
-	const previous = store.snapshot();
-	assert.throws(() => store.update({ kind: 'track', id: 'mono' }, {
-		channels: [Float32Array.of(NaN)], channelLabels: ['M'],
-	}), /finite/u);
-	assert.equal(store.snapshot(), previous, 'a rejected update neither publishes nor invalidates');
-});
-
-test('strip correlation reuses the measured stereo channel energy', () => {
-	const left = Float32Array.of(1, 0.25, -0.5, 0.75);
-	const right = Float32Array.of(-0.5, 0.75, 1, 0.25);
-	let reads = 0;
-	const store = createSessionStripMeterStore();
-	const result = store.update({ kind: 'master' }, {
-		channels: [left, right].map(value => countedSamples(value, () => { reads += 1; })),
-		channelLabels: ['L', 'R'],
-	});
-	assert.equal(result.correlation, stereoCorrelation([left, right]));
-	assert.equal(reads, 4 * left.length, 'one statistics pass and one cross-product pass per channel');
-});
-
 test('strip snapshot array is retained between publications and invalidated on update/reset', () => {
 	const store = createSessionStripMeterStore({ maximumStrips: 2 });
 	const empty = store.snapshot();
@@ -124,13 +96,6 @@ test('unchanged loudness readings retain the published history instead of copyin
 
 function analyser(samples: Float32Array): AnalyserNode {
 	return { fftSize: samples.length, getFloatTimeDomainData(output: Float32Array): void { output.set(samples); } } as unknown as AnalyserNode;
-}
-
-function countedSamples(samples: Float32Array, onRead: () => void): Float32Array {
-	return new Proxy(samples, { get(target, key) {
-		if (typeof key === 'string' && /^\d+$/u.test(key)) onRead();
-		return Reflect.get(target, key, target) as unknown;
-	} });
 }
 
 function referenceScope(left: Float32Array, right: Float32Array) {

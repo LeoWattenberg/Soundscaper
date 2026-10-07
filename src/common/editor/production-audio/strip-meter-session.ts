@@ -28,10 +28,6 @@ export interface StripMeterUpdate {
 	readonly channelLabels: readonly string[];
 }
 
-interface MeasuredStripMeterUpdate extends StripMeterUpdate {
-	readonly statistics: readonly { readonly peak: number; readonly squareSum: number }[];
-}
-
 export interface SessionStripMeterStore {
 	update(strip: unknown, input: unknown): StripMeterSnapshot;
 	get(strip: unknown): StripMeterSnapshot | null;
@@ -110,7 +106,7 @@ export function createSessionStripMeterStore(optionsValue: unknown = {}): Sessio
 	});
 }
 
-function normalizeUpdate(value: unknown, maximumFrames: number): MeasuredStripMeterUpdate {
+function normalizeUpdate(value: unknown, maximumFrames: number): StripMeterUpdate {
 	const record = readClosedDomainRecord(value, 'strip meter update', ['channels', 'channelLabels']);
 	const channelValues = readClosedDomainArray(
 		readClosedDomainField(record, 'channels', 'strip meter update'),
@@ -119,7 +115,6 @@ function normalizeUpdate(value: unknown, maximumFrames: number): MeasuredStripMe
 		MAXIMUM_CHANNELS,
 	);
 	let frameCount: number | null = null;
-	const statistics: { peak: number; squareSum: number }[] = [];
 	const channels = channelValues.map((channel, index) => {
 		if (!(channel instanceof Float32Array)) {
 			throw new TypeError(`strip meter channels[${String(index)}] must be Float32 PCM.`);
@@ -129,15 +124,9 @@ function normalizeUpdate(value: unknown, maximumFrames: number): MeasuredStripMe
 		}
 		if (frameCount === null) frameCount = channel.length;
 		else if (channel.length !== frameCount) throw new RangeError('Strip meter channels must be aligned.');
-		let peak = 0;
-		let squareSum = 0;
 		for (let frame = 0; frame < channel.length; frame += 1) {
-			const sample = channel[frame]!;
-			if (!Number.isFinite(sample)) throw new RangeError('Strip meter PCM samples must be finite.');
-			peak = Math.max(peak, Math.abs(sample));
-			squareSum += sample * sample;
+			if (!Number.isFinite(channel[frame])) throw new RangeError('Strip meter PCM samples must be finite.');
 		}
-		statistics.push({ peak, squareSum });
 		return channel;
 	});
 	const labelValues = readClosedDomainArray(
@@ -153,27 +142,25 @@ function normalizeUpdate(value: unknown, maximumFrames: number): MeasuredStripMe
 	if (new Set(channelLabels).size !== channelLabels.length) {
 		throw new RangeError('Strip meter channel labels must be unique.');
 	}
-	return { channels, channelLabels, statistics };
+	return Object.freeze({ channels: Object.freeze(channels), channelLabels: Object.freeze(channelLabels) });
 }
 
-function calculateSnapshot(strip: StripRef, input: MeasuredStripMeterUpdate, sequence: number): StripMeterSnapshot {
+function calculateSnapshot(strip: StripRef, input: StripMeterUpdate, sequence: number): StripMeterSnapshot {
 	const channels = input.channels.map((channel, channelIndex) => {
-		const { peak, squareSum } = input.statistics[channelIndex]!;
+		let peak = 0;
+		let squareSum = 0;
+		for (let frame = 0; frame < channel.length; frame += 1) {
+			const sample = channel[frame]!;
+			peak = Math.max(peak, Math.abs(sample));
+			squareSum += sample * sample;
+		}
 		return Object.freeze({
 			label: input.channelLabels[channelIndex]!,
 			peak,
 			rms: Math.sqrt(squareSum / channel.length),
 		});
 	});
-	const left = input.channels[0];
-	const right = input.channels[1];
-	let correlation: number | null = null;
-	if (left && right) {
-		let cross = 0;
-		for (let frame = 0; frame < left.length; frame += 1) cross += left[frame]! * right[frame]!;
-		const denominator = Math.sqrt(input.statistics[0]!.squareSum * input.statistics[1]!.squareSum);
-		if (denominator !== 0) correlation = Math.max(-1, Math.min(1, cross / denominator));
-	}
+	const correlation = stereoCorrelation(input.channels);
 	return deepFreeze({
 		strip,
 		sequence,

@@ -73,6 +73,21 @@ export function normalizeAutomationLaneV21(
 	return normalizeLane(value, options, AUTOMATION_LANE_MAXIMUM_POINTS_V21, 'automation lane');
 }
 
+/** Scheduling may retain a lane already admitted here; the public normalizer still detaches. */
+export function prepareAutomationLaneForSchedulingV21(
+	value: unknown,
+	options: AutomationLaneNormalizationOptionsV21 = {},
+): AutomationLaneV21 {
+	if (value && typeof value === 'object' && NORMALIZED_CURVES.has(value)) {
+		const lane = value as AutomationLaneV21;
+		if (lane.points.length <= AUTOMATION_LANE_MAXIMUM_POINTS_V21) {
+			if (options.descriptor) validateDescriptor(options.descriptor, lane.address, lane.points, lane.segments, 'automation lane');
+			return lane;
+		}
+	}
+	return normalizeAutomationLaneV21(value, options);
+}
+
 /** Validate transient gesture capture before deterministic thinning; never persist this result directly. */
 export function normalizeAutomationLaneCaptureV21(
 	value: unknown,

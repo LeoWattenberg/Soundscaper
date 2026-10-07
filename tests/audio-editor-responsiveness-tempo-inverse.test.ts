@@ -3,9 +3,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { createSampleFrameBeatProjector, sampleFrameToBeat } from '../src/common/editor/timeline-tempo-inverse.ts';
-import type { HoldTempoMap } from '../src/common/editor/timeline-time.ts';
+import { secondsToSampleFrame, type HoldTempoMap } from '../src/common/editor/timeline-time.ts';
 import { compileAutomationLaneEventsV21 } from '../src/common/editor/engine/automation-lane-scheduler-v21.ts';
-import { evaluateAutomationLaneAtFrameV21, normalizeAutomationLaneV21 } from '../src/common/editor/automation-lane-v21.ts';
+import { evaluateAutomationLaneAtFrameV21, normalizeAutomationLaneV21, normalizeAutomationLaneCaptureV21, prepareAutomationLaneForSchedulingV21 } from '../src/common/editor/automation-lane-v21.ts';
+import { canonicalParameterAddressKey } from '../src/common/editor/parameter-address.ts';
 
 test('prepared inverse tempo projection matches origin-exact musical and sample-locked queries', () => {
 	const musical: HoldTempoMap = { mode: 'musical', events: [
@@ -14,9 +15,9 @@ test('prepared inverse tempo projection matches origin-exact musical and sample-
 		{ beat: { num: 2, den: 3 }, bpm: { num: 141, den: 1 } },
 	] };
 	const locked: HoldTempoMap = { mode: 'sampleLocked', events: [
-		{ beat: { num: 0, den: 1 }, bpm: { num: 120, den: 1 }, samplePosition: 0 },
-		{ beat: { num: 1, den: 1 }, bpm: { num: 60, den: 1 }, samplePosition: 24_000 },
-		{ beat: { num: 2, den: 1 }, bpm: { num: 180, den: 1 }, samplePosition: 72_000 },
+		{ beat: { num: 0, den: 1 }, bpm: { num: 120, den: 1 }, samplePosition: secondsToSampleFrame(0, 48_000, 'point') },
+		{ beat: { num: 1, den: 1 }, bpm: { num: 60, den: 1 }, samplePosition: secondsToSampleFrame(0.5, 48_000, 'point') },
+		{ beat: { num: 2, den: 1 }, bpm: { num: 180, den: 1 }, samplePosition: secondsToSampleFrame(1.5, 48_000, 'point') },
 	] };
 	for (const map of [musical, locked]) {
 		const project = createSampleFrameBeatProjector(map, 48_000);
@@ -80,4 +81,59 @@ test('curved musical automation prepares the tempo map a bounded number of times
 	for (const event of schedule) assert.equal(event.value, evaluateAutomationLaneAtFrameV21(lane, event.frame, {
 		sampleRate: 48_000, tempoMap,
 	}));
+});
+
+test('scheduling reuses privately produced frozen lanes while rechecking descriptor and capture caps', () => {
+	const lane = normalizeAutomationLaneV21({
+		id: 'gain', address: { kind: 'strip', strip: { kind: 'master' }, parameterId: 'gain' },
+		timebase: 'absolute-samples', points: [
+			{ id: 'start', position: 0, value: 0 }, { id: 'end', position: 10, value: 1 },
+		], segments: [{ kind: 'linear' }],
+	});
+	assert.equal(prepareAutomationLaneForSchedulingV21(lane), lane);
+	assert.notEqual(normalizeAutomationLaneV21(lane), lane, 'public normalization retains detached-result semantics');
+	const changed = { ...lane, points: [lane.points[0]!, { ...lane.points[1]!, value: 0.5 }] };
+	const normalized = prepareAutomationLaneForSchedulingV21(changed);
+	assert.notEqual(normalized, changed);
+	assert.equal(normalized.points[1]?.value, 0.5);
+	assert.throws(() => prepareAutomationLaneForSchedulingV21(lane, {
+		descriptor: {
+			id: canonicalParameterAddressKey(lane.address), address: lane.address, unit: 'linear',
+			minimum: 0, maximum: 0.5, defaultValue: 0, step: null, taper: 'linear',
+			automationTolerance: 0.001, automatable: true, latencyFrames: 0, tailFrames: 0,
+		},
+	}), /outside/u);
+	const capture = normalizeAutomationLaneCaptureV21({ ...lane,
+		points: Array.from({ length: 4_097 }, (_, index) => ({ id: String(index), position: index, value: 0 })),
+		segments: Array.from({ length: 4_096 }, () => ({ kind: 'hold' })),
+	});
+	assert.throws(() => prepareAutomationLaneForSchedulingV21(capture), /4096/u);
+});
+
+test('linear musical segments inspect only their tempo window rather than filtering every boundary', () => {
+	const tempoMap: HoldTempoMap = { mode: 'musical', events: Array.from({ length: 200 }, (_, index) => ({
+		beat: { num: index, den: 1 }, bpm: { num: 120, den: 1 },
+	})) };
+	const lane = normalizeAutomationLaneV21({
+		id: 'linear', address: { kind: 'strip', strip: { kind: 'master' }, parameterId: 'gain' },
+		timebase: 'musical-beats', points: Array.from({ length: 11 }, (_, index) => ({
+			id: String(index), position: { num: index, den: 1 }, value: index / 10,
+		})), segments: Array.from({ length: 10 }, () => ({ kind: 'linear' })),
+	});
+	const original = Array.prototype.filter;
+	let inspected = 0;
+	Object.defineProperty(Array.prototype, 'filter', { value: function (
+		this: unknown[], callback: (value: unknown, index: number, array: unknown[]) => unknown, thisArg?: unknown,
+	) {
+		if (this.length === 200 && typeof this[0] === 'number') inspected += this.length;
+		return original.call(this, callback, thisArg) as unknown[];
+	} });
+	try {
+		const events = compileAutomationLaneEventsV21(lane, { fromFrame: 0, toFrame: 240_000, sampleRate: 48_000, tempoMap });
+		assert.equal(inspected, 0, 'no complete boundary filter per segment');
+		assert.equal(events.length, 11);
+		for (let index = 0; index < events.length; index += 1) assert.deepEqual(events[index], {
+			kind: index === 0 ? 'set' : 'linear', frame: index * 24_000, value: index / 10,
+		});
+	} finally { Object.defineProperty(Array.prototype, 'filter', { value: original }); }
 });
