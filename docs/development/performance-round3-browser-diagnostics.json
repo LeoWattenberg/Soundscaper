@@ -1,0 +1,227 @@
+{
+  "schemaVersion": 1,
+  "recordedDate": "2026-10-07",
+  "scope": "Read-only diagnosis of a Firefox failure during the full round-three browser gate. This record adds no performance finding and changes no implementation or browser assertion.",
+  "baseRevision": "1e1aa842ee685ba03d536adec146139e85fe2ed5",
+  "reviewRevision": "4625516b6e8e7b47000531a8e452a7b8bb19291c",
+  "requiresManualAiAssets": false,
+  "suiteStateAtRecording": {
+    "status": "running",
+    "log": "/tmp/perf200-full-browser.log",
+    "siteOrigins": [
+      "http://127.0.0.1:4364",
+      "http://127.0.0.1:4365"
+    ],
+    "lastObservedCompletedTestNumber": 2012,
+    "observedFailures": 1,
+    "limitation": "This is an intermediate diagnosis, not a passing full-suite receipt. The original full process was left running."
+  },
+  "issue": {
+    "test": "tests/browser/audio-editor-dialog-navigation-regressions.spec.js",
+    "testDeclarationLine": 24,
+    "testName": "a realtime effect header remains reachable after dragging toward the window edge",
+    "project": "firefox",
+    "originalFullRun": {
+      "status": "failed",
+      "testNumber": 1681,
+      "logLine": 2878,
+      "testDurationSeconds": 7.2,
+      "assertionLine": 38,
+      "assertion": "expect(after.y).toBeGreaterThanOrEqual(0)",
+      "expectedHeaderYMinimum": 0,
+      "actualHeaderY": -21.5,
+      "artifacts": [
+        "test-results/audio-editor-dialog-naviga-55aca-ging-toward-the-window-edge-firefox/error-context.md",
+        "test-results/audio-editor-dialog-naviga-55aca-ging-toward-the-window-edge-firefox/test-failed-1.png"
+      ],
+      "traceAvailable": false,
+      "observation": "The screenshot confirms that the title and close control are above the viewport. The next horizontal-reachability assertion was not reached."
+    },
+    "isolatedRerun": {
+      "status": "passed",
+      "passedTests": 1,
+      "testDurationSeconds": 7.9,
+      "totalDurationSeconds": 10.3,
+      "log": "/tmp/perf200-dialog-navigation-recheck.log",
+      "trace": "/tmp/perf200-dialog-navigation-recheck-results/audio-editor-dialog-naviga-55aca-ging-toward-the-window-edge-firefox/trace.zip",
+      "command": "PULSE_SERVER=unix:/mnt/wslg/PulseServer PLAYWRIGHT_PORT=4364 npx playwright test tests/browser/audio-editor-dialog-navigation-regressions.spec.js --config=/tmp/perf200-browser-recheck.config.mjs --project=firefox --workers=1 --grep='a realtime effect header remains reachable after dragging toward the window edge' --trace=on --output=/tmp/perf200-dialog-navigation-recheck-results",
+      "config": "Import the worktree playwright.config.mjs and export its settings with an absolute tests/browser testDir and webServer: []; use the already running frozen product sites.",
+      "traceObservation": "EffectParameterEditor lazy chunk request began at monotonic 8765.660 ms; the header bounding-box action began at 8806.387 ms and resolved at 9154.138 ms; mouse-down followed at 9275.771 ms. The body was present before dragging in this successful run."
+    },
+    "deterministicDiagnostic": {
+      "status": "mechanism-reproduced-exactly",
+      "testStatus": "passed-by-asserting-the-observed-defect",
+      "passedTests": 1,
+      "testDurationSeconds": 9.8,
+      "totalDurationSeconds": 12.4,
+      "log": "/tmp/perf200-dialog-delayed-chunk.log",
+      "trace": "/tmp/perf200-dialog-delayed-chunk-results/delayed-effect-diagnostic--6a681-ody-after-clamped-edge-drag-firefox/trace.zip",
+      "screenshots": [
+        "/tmp/perf200-dialog-delayed-chunk-results/delayed-effect-diagnostic--6a681-ody-after-clamped-edge-drag-firefox/01-empty-body.png",
+        "/tmp/perf200-dialog-delayed-chunk-results/delayed-effect-diagnostic--6a681-ody-after-clamped-edge-drag-firefox/02-edge-empty-body.png",
+        "/tmp/perf200-dialog-delayed-chunk-results/delayed-effect-diagnostic--6a681-ody-after-clamped-edge-drag-firefox/03-edge-loaded-body.png"
+      ],
+      "temporarySpec": "/tmp/perf200-dialog-diagnostic/delayed-effect.spec.mjs",
+      "temporaryConfig": "/tmp/perf200-dialog-diagnostic.config.mjs",
+      "command": "PULSE_SERVER=unix:/mnt/wslg/PulseServer PLAYWRIGHT_PORT=4364 npx playwright test --config=/tmp/perf200-dialog-diagnostic.config.mjs --project=firefox --workers=1 --trace=on --output=/tmp/perf200-dialog-delayed-chunk-results",
+      "method": [
+        "Create a temporary Playwright spec importing test/expect and the existing bootEditor, chooseCommandAction, openEffectsForTrack and addRackEffect helpers by absolute worktree paths. Use the real Firefox project at its default 1280 by 720 viewport.",
+        "Before boot, install page.route(\"**/EffectParameterEditor-*.js\", async route => { await released; await route.continue(); }), where released is a manually resolved Promise. Record the requested URL. Release the Promise in finally as well to avoid leaving a blocked route.",
+        "Boot /embed/en/, invoke Generate > Tone with default settings, generate, open the first track effects rack, and add Reverb through its menu. Wait for the Reverb dialog and intercepted request, and verify [data-effect-parameters] has count zero.",
+        "Read bounding boxes for the dialog and .dialog-header. Move to the header center, mouse.down(), mouse.move(1, 1, { steps: 5 }), and mouse.up(). Poll the header bounding box until its y equals 8; capture the empty-body edge screenshot.",
+        "Resolve released so the original chunk continues unmodified. Wait until [data-effect-parameters] is visible, then read the dialog/header bounding boxes and capture the loaded-body screenshot. Attach those observations as JSON; assert loaded.header.y equals -21.5 only in this temporary diagnostic.",
+        "Use a temporary config importing the actual worktree playwright.config.mjs, overriding only testDir to the temporary spec directory, testMatch to **/*.spec.mjs, and webServer to []. Run one Firefox worker with tracing and a separate output directory; keep the full-suite process and its artifacts untouched."
+      ],
+      "interceptedUrl": "http://127.0.0.1:4364/assets/EffectParameterEditor-CKQsmhI1.js",
+      "geometry": {
+        "beforeDrag": {
+          "dialog": {
+            "x": 330,
+            "y": 280,
+            "width": 620,
+            "height": 160
+          },
+          "header": {
+            "x": 331,
+            "y": 281,
+            "width": 618,
+            "height": 28
+          }
+        },
+        "edgeBeforeBodyLoad": {
+          "dialog": {
+            "x": 7,
+            "y": 7,
+            "width": 620,
+            "height": 160
+          },
+          "header": {
+            "x": 8,
+            "y": 8,
+            "width": 618,
+            "height": 28
+          }
+        },
+        "edgeAfterBodyLoad": {
+          "dialog": {
+            "x": 7,
+            "y": -22.5,
+            "width": 620,
+            "height": 219
+          },
+          "header": {
+            "x": 8,
+            "y": -21.5,
+            "width": 618,
+            "height": 28
+          }
+        },
+        "dialogHeightIncrease": 59,
+        "headerYChange": -29.5
+      },
+      "confirmedMechanism": "LazyEffectParameterEditor uses Suspense fallback=null. The backdrop centers the dialog with CSS grid. AudioEditorDialogShell captures header bounds at mousedown and retains the same transform after the body mounts. Growing from 160 to 219 px shifts the centered origin upward by 29.5 px, moving a previously clamped header from y=8 to y=-21.5."
+    },
+    "sourceParity": [
+      {
+        "file": "src/common/editor/ui/AudioEditorDialogShell.tsx",
+        "byteLength": 9543,
+        "baselineAndCurrentSha256": "46e970b2d99043c7c56214de1042eb34ea1a7a12d37dab89f343160c02fac9eb",
+        "byteIdentical": true
+      },
+      {
+        "file": "src/common/editor/ui/dialog-drag-bounds.ts",
+        "byteLength": 837,
+        "baselineAndCurrentSha256": "e9dcca6e92b0b0d3cb608b949e44490df2b6451a2a63c1fd5a4f617bff620113",
+        "byteIdentical": true
+      },
+      {
+        "file": "src/common/editor/ui/dialog-move-lifecycle.ts",
+        "byteLength": 1006,
+        "baselineAndCurrentSha256": "4278feb6897e8abed1d0a608f37d499d9429b3fdab25473c780c4999f61b208d",
+        "byteIdentical": true
+      },
+      {
+        "file": "src/common/editor/ui/AudioEditorResizableSurface.jsx",
+        "byteLength": 4517,
+        "baselineAndCurrentSha256": "1b38d4306926bb0536148583cd20ed89606c66139a574fdb0adfb5ead9560c02",
+        "byteIdentical": true
+      },
+      {
+        "file": "src/common/editor/ui/inspector/AudioEditorEffectsOverlay.jsx",
+        "byteLength": 23962,
+        "baselineAndCurrentSha256": "fbeac1e6ac03353053155a0fb83aa3e8fd3482b5bbc2e2c7ce7cd22cbc47fd0a",
+        "byteIdentical": true
+      },
+      {
+        "file": "src/common/editor/ui/inspector/LazyEffectParameterEditor.jsx",
+        "byteLength": 388,
+        "baselineAndCurrentSha256": "b6bd54fbec09c2b0d99bbb723391b3f30ba897e39f5845708f0e5973ff796bed",
+        "byteIdentical": true
+      },
+      {
+        "file": "src/common/editor/ui/inspector/EffectParameterEditor.jsx",
+        "byteLength": 18190,
+        "baselineAndCurrentSha256": "9c40b402e3ee7364539739286b9cc75732a464ff32451fd838837e85d24913ea",
+        "byteIdentical": true
+      },
+      {
+        "file": "src/common/editor/ui/audio-editor-design-system/10-effects-vendor-overrides.css",
+        "byteLength": 12361,
+        "baselineAndCurrentSha256": "ba83b59744b27eff65fcad0435e66b3527d5b68592dfcac9ee8e3ee7adaa0e71",
+        "byteIdentical": true
+      },
+      {
+        "file": "src/common/editor/ui/audio-editor-design-system/11-panels-dialogs-generators.css",
+        "byteLength": 12015,
+        "baselineAndCurrentSha256": "31b938a3f83d5214fabfe3629d24d9f29e1d519f965f7482b1e125fb2821fd1f",
+        "byteIdentical": true
+      },
+      {
+        "file": "tests/audio-editor-dialog-drag-bounds.test.ts",
+        "byteLength": 1246,
+        "baselineAndCurrentSha256": "704d2dbda0f692ac87c729063fbb5fa9512549cf1316163acada7570c307d2db",
+        "byteIdentical": true
+      },
+      {
+        "file": "tests/browser/audio-editor-dialog-navigation-regressions.spec.js",
+        "byteLength": 2123,
+        "baselineAndCurrentSha256": "72ab1eff5daa859b0bc023ddea0a628e2cd1816b6d5d5b1bc6f3702e7081cd40",
+        "byteIdentical": true
+      },
+      {
+        "file": "tests/browser/audio-editor-test-helpers.js",
+        "byteLength": 25373,
+        "baselineAndCurrentSha256": "291bc9eb4156a42558160c0e3aea3f4776ed73e6df3afb217c27dd467843f09d",
+        "byteIdentical": true
+      }
+    ],
+    "changedCallerReview": {
+      "file": "src/common/editor/ui/workspace/WorkspacePanelDock.jsx",
+      "newHelper": "src/common/editor/ui/workspace/useWorkspaceDockPresentation.ts",
+      "finding": "The round-three change memoizes workspace panel availability/grouping/presentation. The effects-window dialog and its positioning are owned by the unchanged effects overlay, dialog shell and CSS; no causal defect in this new caller was identified."
+    },
+    "classification": {
+      "confirmed": "A pre-existing bounds defect can be triggered by mounting the real lazy effect body after an edge drag; the controlled reproduction matches the original -21.5 px failure exactly. Its relevant production and test sources are byte-identical to the merged baseline.",
+      "unresolved": "The original full-run diagnostics have no trace, so the actual lazy-load/resize timing in that original run cannot be directly established. The isolated pass does not erase or convert the original full-run failure into a full-suite pass.",
+      "optimizationRegressionEstablished": false
+    },
+    "existingTestCoverage": {
+      "file": "tests/audio-editor-dialog-drag-bounds.test.ts",
+      "covered": [
+        "Fixed header bounds at all viewport edges",
+        "A subsequent drag after a previously translated header"
+      ],
+      "gap": "No panel-size/lazy-body change during or after dragging is covered."
+    },
+    "proposedFutureCorrection": {
+      "status": "not-implemented",
+      "scope": "Re-clamp a draggable dialog when its panel size changes, and synchronize active drag geometry so later mouse moves cannot restore stale bounds.",
+      "redTests": [
+        "Hold the real lazy effect chunk, drag the empty dialog to the edge and release the pointer; load the body and retain the original header y>=0 and horizontal-reachability assertions.",
+        "Load the body during an active drag, then continue moving and release; the header must remain reachable."
+      ],
+      "performanceCountEffect": "None. A separate dialog-layout correctness fix must not expand or replace the frozen 100 performance changes."
+    }
+  },
+  "repositoryChanges": "Only this intentional diagnostic JSON is added. No production implementation, existing test, assertion, generated artifact, dependency or runtime inventory was altered."
+}
