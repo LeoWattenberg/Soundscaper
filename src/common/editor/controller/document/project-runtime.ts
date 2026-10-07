@@ -38,7 +38,7 @@ const METHOD_NAMES = [
  * long before a transaction could open — so a runtime without these is complete,
  * and one with them keeps them rather than having them snapshotted away.
  */
-const OPTIONAL_METHOD_NAMES = ['collapseHistory', 'rollbackHistory', 'validateProject', 'compactProjectSourceMetadata'] as const;
+const OPTIONAL_METHOD_NAMES = ['collapseHistory', 'rollbackHistory', 'validateProject', 'compactProjectSourceMetadata', 'prepareEditDuplicateCommand'] as const;
 
 export interface ControllerRuntimeProject extends Record<string, unknown> {
 	readonly id: string;
@@ -131,6 +131,13 @@ export interface ControllerProjectRuntime<
 	readonly prepareEditClipboardPasteCommand?: (
 		project: unknown,
 		clipboard: ControllerEditSessionClipboardCarrier,
+		command: AudioEditorCommand,
+		createId: (prefix?: string) => string,
+	) => unknown;
+	/** Duplicate within the same document, preserving product leaves without replacing the session clipboard. */
+	readonly prepareEditDuplicateCommand?: (
+		project: unknown,
+		descriptor: AudioEditorClipboard,
 		command: AudioEditorCommand,
 		createId: (prefix?: string) => string,
 	) => unknown;

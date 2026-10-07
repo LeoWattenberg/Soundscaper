@@ -29,6 +29,7 @@ import { commitPasteIntoExistingClipCommand } from './paste-existing-clip-servic
 import { discoverPasteCommandTree } from './internal/paste-command-tree.ts';
 import { findControllerSource } from '../track-audio/track-domain-types.ts';
 import { generateAudioEditorSignalStream } from '../../signal-generator-stream-client.ts';
+import type { AudioEditorClipboard, AudioEditorCommand } from '../../commands/protocol.ts';
 
 export type {
 	EditCommandProject,
@@ -222,6 +223,11 @@ export function createEditComposition<History extends ControllerRuntimeHistory>(
 			)
 		),
 		createStableId,
+		prepareDuplicateCommand: projectRuntime.prepareEditDuplicateCommand
+			? (descriptor: AudioEditorClipboard, command: AudioEditorCommand) => (
+				projectRuntime.prepareEditDuplicateCommand!(requireProject(), descriptor, command, createStableId) as AudioEditorCommand
+			)
+			: undefined,
 		prepareTrackDuplicateCarrier: projectRuntime.prepareTrackDuplicateCarrier
 			? (_project: unknown, request: Parameters<NonNullable<typeof projectRuntime.prepareTrackDuplicateCarrier>>[1]) => (
 				projectRuntime.prepareTrackDuplicateCarrier!(requireProject(), request)

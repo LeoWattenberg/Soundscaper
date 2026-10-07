@@ -216,6 +216,7 @@ export function createEditorEditService(runtime: EditServiceRuntime): HandleEdit
 				const plan = prepareDuplicateSelectionCommand({
 					getProject, createStableId, createClipboardDescriptor,
 					prepareTrackDuplicateCarrier: runtime.prepareTrackDuplicateCarrier,
+					prepareDuplicateCommand: runtime.prepareDuplicateCommand,
 				}, {
 					startFrame: selection.startFrame, endFrame: selection.endFrame,
 					trackIds: exactClipEdit ? selectedClipTrackIds : selectedProjectTrackIds.length ? selectedProjectTrackIds : trackIds,

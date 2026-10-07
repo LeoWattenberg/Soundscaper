@@ -121,6 +121,10 @@ export interface EditorProjectRuntimeSelection {
 		project: unknown,
 		descriptor: AudioEditorClipboard,
 	) => AudioEditorClipboard;
+	readonly prepareEditDuplicateCommand: (
+		project: unknown, descriptor: AudioEditorClipboard, command: AudioEditorCommand,
+		createId: (prefix?: string) => string,
+	) => FramescaperSessionClipboardPasteV13['command'];
 	readonly createHistory: (project: unknown) => FramescaperProjectHistorySelection;
 	readonly applyCommand: (
 		project: unknown,
@@ -200,6 +204,10 @@ export function createEditorProjectRuntimeSelection(
 			stageFramescaperSessionClipboardImageBodiesV13(prepared.bodyTransfers, store, options)
 		),
 		prepareEditClipboardDescriptor: (project, descriptor) => createClipboard(project, descriptor).descriptor,
+		prepareEditDuplicateCommand: (project: unknown, descriptor: AudioEditorClipboard, command: AudioEditorCommand, createId: (prefix?: string) => string) => (
+			prepareFramescaperSessionClipboardPasteV13(FRAMESCAPER_TIMELINE_IMAGE_PROJECT_RUNTIME_PROFILE,
+				legacyImageFoundation(project), createClipboard(project, descriptor), command, createId).command
+		),
 		createHistory: (project) => createHistory(profile, project),
 		applyCommand: (project, command, options = {}) => applyFramescaperProjectCommand(
 			profile,
