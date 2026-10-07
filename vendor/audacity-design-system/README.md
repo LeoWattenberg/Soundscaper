@@ -362,6 +362,13 @@ application overrides and source patches against the pin and upstream master.
     `tests/audio-editor-round4-clip-rename-focus.test.tsx` and its public F2
     keyboard-continuation workflows. Upstream-PR candidate.
 
+50. `TrackNew` clip accessible names use the consumer's authored timeline start
+    and duration when supplied, retaining ordinary design-system seconds as a
+    fallback. Viewport-relative painting and minimum editing widths no longer
+    announce a different recording interval. Covered by
+    `tests/audio-editor-round4-clip-accessible-timing.test.tsx` and the public
+    split-recording keyboard workflow. Upstream-PR candidate.
+
 ## Application-side adaptations
 
 Not deviations — application code that had to change because upstream did. Listed because they

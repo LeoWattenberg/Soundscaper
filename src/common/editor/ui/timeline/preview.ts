@@ -48,6 +48,8 @@ export interface RecordingDesignClip {
 	readonly name: string;
 	readonly start: number;
 	readonly duration: number;
+	readonly timelineStartSeconds: number;
+	readonly timelineDurationSeconds: number;
 	readonly selected: false;
 	readonly trimStart: number;
 	readonly fullDuration: number;
@@ -80,6 +82,8 @@ export function toDesignRecordingPreview(
 	const output: RecordingDesignClip = {
 		id: clip.id,
 		name: copy.recordingLabel,
+		timelineStartSeconds: clip.timelineStartFrame / sampleRate,
+		timelineDurationSeconds: clip.durationFrames / sampleRate,
 		start: framesToSeconds(
 			Math.max(0, Math.max(clip.timelineStartFrame, overscanStartFrame) - overscanStartFrame),
 			{ sampleRate },

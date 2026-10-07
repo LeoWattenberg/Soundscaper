@@ -10,7 +10,7 @@ import { useAccessibilityProfile } from '../contexts/AccessibilityProfileContext
 import { getInputMode } from '../utils/inputMode';
 import { scrollIntoViewIfNeeded } from '../utils/scrollIntoViewIfNeeded';
 import { useTheme } from '../ThemeProvider/ThemeProvider';
-import { formatTimeForA11y } from '../utils/announce';
+import { clipAccessibleName, type ClipAccessibleTiming } from '../utils/clipAccessibleName';
 import './Track.css';
 
 const EMPTY_NUMBER_ARRAY: number[] = [];
@@ -31,11 +31,8 @@ export function isTrackInTimeSelectionScope(
   return isSelected;
 }
 
-export interface TrackClip {
+export interface TrackClip extends ClipAccessibleTiming {
   id: string | number;
-  name: string;
-  start: number;
-  duration: number;
   selected?: boolean;
   waveform?: number[];
   waveformRms?: number[];
@@ -602,7 +599,7 @@ const TrackNewComponent: React.FC<TrackProps> = ({
           }}
           tabIndex={isFlatNavigation ? 0 : (isFirstClip && tabIndex !== undefined ? tabIndex : -1)}
           role="button"
-          aria-label={`${clip.name} clip, starts at ${formatTimeForA11y(clip.start)}, ${formatTimeForA11y(clip.duration)} long`}
+          aria-label={clipAccessibleName(clip)}
           onMouseEnter={() => onHoverClip?.(clip.id as number)}
           onMouseLeave={() => onHoverClip?.(null)}
           onMouseDown={(e) => {

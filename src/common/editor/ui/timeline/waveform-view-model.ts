@@ -153,6 +153,8 @@ export interface TimelineClipViewModel {
 	readonly waveformEndFrame: number;
 	readonly start: number;
 	readonly duration: number;
+	readonly timelineStartSeconds: number;
+	readonly timelineDurationSeconds: number;
 	readonly selected: boolean;
 	readonly color: string;
 	readonly trimStart: number;
@@ -257,6 +259,8 @@ export function createTimelineClipViewModel({
 		// Imported clips begin with a title derived from the source filename. Keep
 		// showing the original source label until that generated title is renamed.
 		name: title && title !== generatedTitle ? title : sourceName || title || copy.clip,
+		timelineStartSeconds: clip.timelineStartFrame / sampleRate,
+		timelineDurationSeconds: clip.durationFrames / sampleRate,
 		start: framesToSeconds(
 			Math.max(0, Math.max(clip.timelineStartFrame, overscanStartFrame) - overscanStartFrame),
 			{ sampleRate },
