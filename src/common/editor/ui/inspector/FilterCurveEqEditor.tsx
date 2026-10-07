@@ -124,6 +124,7 @@ export default function FilterCurveEqEditor({
 		if (next) onCommit(next);
 	};
 	const keyPoint = (event: KeyboardEvent<SVGCircleElement>, index: number): void => {
+		if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
 		if (disabled || pointer.current !== null) return;
 		if (event.key === 'Delete' || event.key === 'Backspace') {
 			event.preventDefault(); event.stopPropagation();

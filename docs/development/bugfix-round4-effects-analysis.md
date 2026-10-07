@@ -558,3 +558,29 @@ Regression files are `audio-editor-round4-graphic-eq-shortcut.test.tsx` and
 `audio-editor-round4-graphic-eq-shortcut.spec.js`; evidence is recorded in
 `/tmp/soundscaper-r4-root-graphic-eq-*` and `/tmp/soundscaper-r4-root-eq-*`.
 Manual Update AI assets: not required.
+
+## R4-ROOT-024 — A suspended modified shortcut moves a Filter Curve EQ point
+
+Import a WAV, assign Ctrl+Alt+Right to New label track in Preferences, open the
+track's Effects rack, and add Filter Curve EQ. Expand Curve points, enter
+`100:0`, focus the rendered point and press the binding. The baseline changes
+the authored frequency to 103.6 Hz although that modified project command is
+suspended while the rack dialog holds focus. This is the curve point's own
+keyboard handler, independent of Graphic EQ capture and the vendor fader.
+
+Leave already handled and Ctrl/Meta/Alt-modified point keys unclaimed. Preserve
+ordinary and Shift frequency/gain changes, point deletion and deletion focus.
+Modified arrow and removal variants count once.
+
+The unchanged point assertion fails on immutable baseline `a0322d6e4` and the
+mounted production handler also fails before correction. The final public
+workflow passes Chromium, Firefox and WebKit on `loop-eq-clean28`, including
+the configured command from Mixer after the dialog closes. Existing curve
+deletion and plain keyboard editing pass all three engines. New and existing
+mounted curve cases pass 5/5; builds and targeted lint pass. Invalid project
+command expectations inside the dialog and on separately navigating controls
+are excluded without changing the authored-point failure assertion.
+Regression files are `audio-editor-round4-filter-curve-shortcut.test.tsx` and
+`audio-editor-round4-filter-curve-shortcut.spec.js`; evidence is recorded in
+`/tmp/soundscaper-r4-root-filter-shortcut-*` and `/tmp/soundscaper-r4-root-eq-*`.
+Manual Update AI assets: not required.
