@@ -136,7 +136,7 @@ test.describe('Framescaper visual authoring menus', () => {
 		await dialog.getByRole('combobox', { name: 'Pattern', exact: true }).selectOption('alignment-grid');
 		await dialog.getByRole('button', { name: 'Apply', exact: true }).click();
 		await expect(dialog.getByRole('status').last()).toHaveText('Selected visual updated.', UI_OPTIONS);
-		await page.keyboard.press('Escape');
+		await closeVisualDialog(page, dialog);
 
 		await chooseNestedCommandAction(page, editor, 'Generate', [
 			'Video Generators', EDITOR_ENGLISH_COPY['ui.framescaperMenus.addVideoNoise'],
@@ -155,7 +155,7 @@ test.describe('Framescaper visual authoring menus', () => {
 		await dialog.getByRole('spinbutton', { name: 'Seed', exact: true }).fill('42');
 		await dialog.getByRole('button', { name: 'Apply', exact: true }).click();
 		await expect(dialog.getByRole('status').last()).toHaveText('Selected visual updated.', UI_OPTIONS);
-		await page.keyboard.press('Escape');
+		await closeVisualDialog(page, dialog);
 		const preview = editor.locator('[data-video-preview]');
 		await seekFramescaperTimecode(page, editor, '00:00:05:00');
 		await expectExactVisualizerFrame(preview);
@@ -181,7 +181,7 @@ test.describe('Framescaper visual authoring menus', () => {
 		dialog = page.getByRole('dialog', { name: 'Selected Visual Inspector', exact: true });
 		await expect(dialog.getByRole('combobox', { name: 'Pattern', exact: true }))
 			.toHaveValue('alignment-grid');
-		await page.keyboard.press('Escape');
+		await closeVisualDialog(page, dialog);
 
 		await restored.getByRole('group', { name: 'Video clip: Noise', exact: true }).press('Enter');
 		await chooseNestedCommandAction(page, restored, 'Effect', [
@@ -224,8 +224,7 @@ test.describe('Framescaper visual authoring menus', () => {
 		await source.check();
 		await dialog.getByRole('button', { name: 'Apply', exact: true }).click();
 		await expect(dialog.getByRole('status').last()).toHaveText('Selected visual updated.', UI_OPTIONS);
-		await page.keyboard.press('Escape');
-		await expect(dialog).toBeHidden(UI_OPTIONS);
+		await closeVisualDialog(page, dialog);
 		const preview = editor.locator('[data-video-preview]');
 		await seekFramescaperTimecode(page, editor, '00:00:00:12');
 		await expect(preview).toHaveAttribute('data-video-preview-evaluated-timeline-sample', '19200', UI_OPTIONS);
@@ -268,7 +267,7 @@ test.describe('Framescaper visual authoring menus', () => {
 		await expect(dialog.getByRole('textbox', { name: 'Foreground RGBA color', exact: true })).toHaveValue('#19c7ffff');
 		await expect(dialog.getByRole('group', { name: 'Audio sources', exact: true })
 			.getByRole('checkbox').first()).toBeChecked();
-		await page.keyboard.press('Escape');
+		await closeVisualDialog(page, dialog);
 		const audio = clipByName(restored, 'visualizer-audio.wav');
 		await expect(audio).toBeVisible(UI_OPTIONS);
 		await audio.locator('.clip-header').click();
@@ -462,6 +461,14 @@ test.describe('Framescaper visual authoring menus', () => {
 		expect(clientErrors).toEqual([]);
 	});
 });
+
+async function closeVisualDialog(page, dialog) {
+	// Idle Escape dismisses a hovered Apply tooltip before its owning dialog.
+	await page.mouse.move(1, 1);
+	await expect(page.getByRole('tooltip')).toHaveCount(0, UI_OPTIONS);
+	await page.keyboard.press('Escape');
+	await expect(dialog).toBeHidden(UI_OPTIONS);
+}
 
 async function installWebkitPreviewFrameDigest(page, browserName) {
 	// WebKit screenshots can retain the previous WebGL frame when drawing buffers are discarded.

@@ -76,8 +76,7 @@ test.describe('Framescaper v1 exact visual preview', () => {
 		await dialog.locator('[data-visual-inspector-color]').fill('#ff0000ff');
 		await dialog.locator('[data-visual-inspector-apply]').click();
 		await expectVisualCommandStatus(dialog, 'Selected visual updated.');
-		await page.keyboard.press('Escape');
-		await expect(dialog).toBeHidden(VISUAL_COMMAND_OPTIONS);
+		await closeVisualDialog(page, dialog);
 		await saveProjectAndWait(page, editor);
 		await waitForStoredVisualState(page, projectId, {
 			generatorCount: 1, presentationCount: 1,
@@ -102,7 +101,7 @@ test.describe('Framescaper v1 exact visual preview', () => {
 		await authoring.locator('[data-framescaper-authoring-preset-name]').fill('Selected red solid');
 		await authoring.locator('[data-framescaper-authoring-save-visual]').click();
 		await expectVisualCommandStatus(authoring, 'Selected visual preset saved.');
-		await page.keyboard.press('Escape');
+		await closeVisualDialog(page, authoring);
 		await saveProjectAndWait(page, editor);
 		await waitForStoredVisualState(page, projectId, { presetCount: 1 });
 		await chooseNestedCommandAction(
@@ -114,7 +113,7 @@ test.describe('Framescaper v1 exact visual preview', () => {
 		await authoring.locator('[data-framescaper-authoring-mask-width]').fill('0.5');
 		await authoring.locator('[data-framescaper-authoring-apply]').click();
 		await expectVisualCommandStatus(authoring, 'Selected authored state applied.');
-		await page.keyboard.press('Escape');
+		await closeVisualDialog(page, authoring);
 		await saveProjectAndWait(page, editor);
 		await waitForStoredVisualState(page, projectId, { maskCount: 1 });
 		state = await storedVisualState(page, projectId);
@@ -125,7 +124,7 @@ test.describe('Framescaper v1 exact visual preview', () => {
 		await dialog.locator('[data-visual-inspector-opacity]').fill('0.75');
 		await dialog.locator('[data-visual-inspector-apply]').click();
 		await expectVisualCommandStatus(dialog, 'Selected visual updated.');
-		await page.keyboard.press('Escape');
+		await closeVisualDialog(page, dialog);
 		await expect(preview).toHaveAttribute(
 			'data-video-preview-visual-omitted-count', '0', VISUAL_COMMAND_OPTIONS,
 		);
@@ -157,7 +156,7 @@ test.describe('Framescaper v1 exact visual preview', () => {
 		await authoring.locator('[data-framescaper-authoring-visual-preset]').selectOption({ label: 'Selected red solid' });
 		await authoring.locator('[data-framescaper-authoring-apply-visual]').click();
 		await expectVisualCommandStatus(authoring, 'Selected authored state applied.');
-		await page.keyboard.press('Escape');
+		await closeVisualDialog(page, authoring);
 		await saveProjectAndWait(page, editor);
 		await waitForStoredVisualState(page, projectId, {
 			generatorColorByClip: { [secondClipId]: '#ff0000ff' },
@@ -375,6 +374,14 @@ test.describe('Framescaper v1 visual state without WebGL2', () => {
 		expect(clientErrors).toEqual([]);
 	});
 });
+
+async function closeVisualDialog(page, dialog) {
+	// Idle Escape dismisses a hovered Apply tooltip before its owning dialog.
+	await page.mouse.move(1, 1);
+	await expect(page.getByRole('tooltip')).toHaveCount(0, VISUAL_COMMAND_OPTIONS);
+	await page.keyboard.press('Escape');
+	await expect(dialog).toBeHidden(VISUAL_COMMAND_OPTIONS);
+}
 
 async function installProductionIsolationHeaders(page, documentUrl) {
 	const routeMatcher = /^https?:\/\//u.test(documentUrl) ? documentUrl : `**${documentUrl}`;
