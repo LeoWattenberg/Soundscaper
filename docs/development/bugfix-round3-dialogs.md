@@ -23,6 +23,8 @@ round-three baseline. Tests do not install editor state or require malformed fil
 
 | R3-DIALOG-015 | Framescaper → Generate → Video Generators → Add Still Image. Choose a normal PNG, select its image clip, then Edit → Audio clips → Clip properties. Open Media settings and change Duration to two seconds. | Opening Properties failed with “clip.timelineStartFrame must be a safe integer,” so none of its fields could appear. The enabled image Properties entry should expose the still image's supported sequence timing. | Carry the selected product's existing image-aware runtime projection into the panel and give native image timing its own body. Duration and Start submit existing image-clip/set commands; unsupported audio, rename, and effect fields are omitted. The public baseline failed before the panel drew. The corrected workflow saves two seconds and reopens it. A mounted regression submits the duration command through the real Framescaper runtime and verifies exact Undo restoration. Group the entry crash and its image-body classification follow-through as one consumer-boundary defect. |
 
+| R3-DIALOG-016 | File → Import a normal WAV. Edit → Preferences → General. Choose Program start: New project, then Language: Deutsch. | The ordinary language navigation reopened a different empty project. Interface language should preserve the document being edited; Program start should govern a later launch. | Flush the project and carry its ID through a bounded, one-use, product-scoped handoff in this tab. Bootstrap consumes it only at the chosen destination, then the saved next-session policy resumes. The public baseline changed the project ID and lost the visible clip. The corrected workflow retains both. Mounted and strict resource tests verify save-before-navigation, no startup-preference rewrite, destination/product separation, expiry, and one-use consumption. |
+
 All three workflows passed Chromium, Firefox, and WebKit against immutable green
 batch 1. The existing Chromium mask validation, preset, and removal workflow also
 passed; its invalid Height 0 validation remains intact. Focused Node regressions
@@ -66,6 +68,11 @@ Entry 015 passed Chromium, Firefox, and WebKit against immutable green batch 10.
 Its mounted image-runtime regression and existing panel/model-boundary tests
 passed all 12 focused Node cases. Changed source and tests passed targeted lint,
 source typecheck, and the file-size gate.
+
+Entry 016 passed Chromium, Firefox, and WebKit against immutable green batch 11.
+Its mounted and strict handoff cases plus existing bootstrap/startup/preferences
+regressions passed all 31 focused Node cases. Changed source and tests passed
+targeted lint, source typecheck, controller-domain policy, and the file-size gate.
 
 Uncounted follow-through to R2-DIALOG-012: in Framescaper, import a normal WebM,
 select its clip, then Edit → Audio clips → Video keyframes. Choose Scale X,

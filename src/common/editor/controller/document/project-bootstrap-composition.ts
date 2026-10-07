@@ -2,6 +2,7 @@
 
 import { RECORDING_INPUT_GAIN_DEFAULT, normalizeRecordingInputGain } from '../../recording.js';
 import { resolveStartupProjectId } from '../../startup-preferences.ts';
+import { consumeLocaleProjectHandoff, LOCALE_PROJECT_HANDOFF_SETTING } from './locale-project-handoff.ts';
 import { isEditorDisposedError, type EditorControllerLifetime } from '../shared/lifecycle.ts';
 import { createProjectBootstrapService, type ProjectBootstrapServiceRuntime } from './internal/project/project-bootstrap-service.ts';
 import {
@@ -29,7 +30,10 @@ export function createProjectBootstrapComposition<Project, Preferences, EffectPr
 	return createProjectBootstrapService({
 		...dependencies, lifetimeSignal: lifetime.signal,
 		guard: (value, token) => lifetime.guard(value, token), isDisposedError: isEditorDisposedError,
-		startupProjectId: lastProjectId => resolveStartupProjectId(dependencies.getStartupPreferences(), lastProjectId),
+		startupProjectId: lastProjectId => consumeLocaleProjectHandoff({
+			storage: () => globalThis.sessionStorage, location: () => globalThis.location, now: () => Date.now(),
+		}, dependencies.productSettingKey(LOCALE_PROJECT_HANDOFF_SETTING))
+			?? resolveStartupProjectId(dependencies.getStartupPreferences(), lastProjectId),
 		audioDevicePreferencesSettingKey: AUDIO_DEVICE_PREFERENCES_SETTING_KEY,
 		recordingInputGainDefault: RECORDING_INPUT_GAIN_DEFAULT,
 		normalizeRecordingInputGain, normalizeLatencyOffset, normalizeAudioDevicePreferences,
