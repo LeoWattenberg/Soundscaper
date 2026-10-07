@@ -29,8 +29,9 @@ export function createCrossfadeOverlays(clips, overscanStartFrame, pixelsPerSeco
 		startFrame: (clip) => clip.timelineStartFrame,
 		durationFrames: (clip) => clip.durationFrames,
 	};
-	const ranges = automaticClipCrossfadeRanges(visibleClips, accessors);
-	return findPartialClipOverlaps(visibleClips, accessors).filter(({ startFrame, endFrame }) => (
+	const overlaps = findPartialClipOverlaps(visibleClips, accessors);
+	const ranges = automaticClipCrossfadeRanges(visibleClips, accessors, undefined, overlaps);
+	return overlaps.filter(({ startFrame, endFrame }) => (
 		pixelsPerSecond >= sampleRate
 		|| endFrame - startFrame > Math.max(1, Math.round(sampleRate * DEFAULT_CLIP_MICROFADE_SECONDS))
 	)).map(({ left, right, startFrame, endFrame }) => {

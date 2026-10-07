@@ -16,6 +16,8 @@ import {
 } from './timeline-annotation-ui-model.ts';
 import { useTimelineAnnotationInteractions } from './useTimelineAnnotationInteractions.js';
 import { useTimelineAnnotationDragCancellation } from './useTimelineAnnotationDragCancellation.ts';
+import { createTimelineAnnotationViewportIndex } from './timeline-annotation-viewport-index.ts';
+import { useTimelinePointerFrame } from './useTimelinePointerFrame.ts';
 
 export function TimelineAnnotationLayer({
 	controller,
@@ -38,10 +40,11 @@ export function TimelineAnnotationLayer({
 	const laneScrollX = scrollX - CLIP_CONTENT_OFFSET;
 	const layerRef = useRef(null);
 	const dragRef = useRef(null);
+	const pointerFlushRef = useRef(null);
 	const hitCycleRef = useRef(null);
 	const lastPointerTargetRef = useRef(null);
 	const [preview, setPreview] = useState(null);
-	const clearPreview = useCallback(() => setPreview(null), []);
+	const clearPreview = useCallback(() => { pointerFlushRef.current?.(true); setPreview(null); }, []);
 	useTimelineAnnotationDragCancellation(layerRef, dragRef, clearPreview);
 	const statusId = React.useId();
 	const {
@@ -75,11 +78,18 @@ export function TimelineAnnotationLayer({
 		revealKeyboardFocus: true,
 	});
 	const rowById = React.useMemo(() => new Map(model.rows.map((row) => [row.id, row])), [model.rows]);
-	const visibleRows = React.useMemo(() => model.rows
-		.map((row, index) => ({ row, index }))
-		.filter(({ row }) => row.focused || row.id === editingId || timelineAnnotationIsVisible(
-			row.annotation, pixelsPerSecond, sampleRate, laneScrollX, viewportWidth,
-		)), [editingId, laneScrollX, model.rows, pixelsPerSecond, sampleRate, viewportWidth]);
+	const ordinalById = React.useMemo(() => new Map(projected.map((annotation, index) => [annotation.id, index])), [projected]);
+	const viewportIndex = React.useMemo(() => projected.length > 128 ? createTimelineAnnotationViewportIndex(projected) : null, [projected]);
+	const visibleRows = React.useMemo(() => {
+		if (viewportIndex) return viewportIndex.query(pixelsPerSecond, sampleRate, laneScrollX, viewportWidth, [model.focusedId, editingId])
+			.map(annotation => ({ row: rowById.get(annotation.id), index: ordinalById.get(annotation.id) }));
+		const visible = [];
+		for (let index = 0; index < model.rows.length; index++) {
+			const row = model.rows[index];
+			if (row.focused || row.id === editingId || timelineAnnotationIsVisible(row.annotation, pixelsPerSecond, sampleRate, laneScrollX, viewportWidth)) visible.push({ row, index });
+		}
+		return visible;
+	}, [editingId, laneScrollX, model.focusedId, model.rows, ordinalById, pixelsPerSecond, rowById, sampleRate, viewportIndex, viewportWidth]);
 	const editingRow = editingId ? rowById.get(editingId) : null;
 	const editingLeft = editingRow
 		? editingRow.annotation.timelineStartFrame / sampleRate * pixelsPerSecond - laneScrollX
@@ -126,6 +136,7 @@ export function TimelineAnnotationLayer({
 			? timelineAnnotationEditBounds(row.id, [], projected)
 			: timelineAnnotationEditBounds(row.id, selectedIds, projected);
 		dragRef.current = {
+			kind: 'annotation',
 			pointerId: event.pointerId, target: event.currentTarget,
 			annotation: row.annotation,
 			gesture: { ...gesture, dragIds: bounds.ids },
@@ -139,18 +150,22 @@ export function TimelineAnnotationLayer({
 		event.preventDefault();
 		event.stopPropagation();
 	};
-	const pointerMove = (event) => {
+	const applyPointerMove = (event) => {
 		const drag = dragRef.current;
-		if (!drag) return;
+		if (!drag || drag.pointerId !== event.pointerId) return;
 		const deltaFrames = timelineAnnotationPointerDelta(
 			drag.startX, event.clientX, pixelsPerSecond, sampleRate,
 			drag.minimumStartFrame, drag.maximumEndFrame,
 		);
+		if (drag.deltaFrames === deltaFrames) { event.preventDefault(); return; }
 		drag.deltaFrames = deltaFrames;
 		setPreview({ idSet: drag.idSet, annotationId: drag.annotation.id, edge: drag.edge, deltaFrames });
 		event.preventDefault();
 	};
+	const pointerMove = useTimelinePointerFrame(applyPointerMove, dragRef, null, pointerFlushRef);
 	const pointerUp = (event, cancelled = false) => {
+		if (dragRef.current && dragRef.current.pointerId !== event.pointerId) return;
+		pointerFlushRef.current?.(cancelled);
 		const drag = dragRef.current;
 		dragRef.current = null;
 		setPreview(null);
