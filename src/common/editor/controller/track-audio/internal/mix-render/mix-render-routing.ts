@@ -128,7 +128,20 @@ function restateRoutes(
 			channelMap: defaultMixerChannelMapV21(sourceWidth, destinationWidth),
 		});
 	}
-	return normalizeMixerGraphV21({ ...staged, edges });
+	// Combined audio already includes these tracks' VCA controls. A retained
+	// identity must leave those memberships before its printed source plays.
+	const bakedTrackIds = new Set(directTrackIds);
+	const vcas = staged.vcas.map(vca => {
+		const members = vca.members.filter(member => member.kind !== 'track' || !bakedTrackIds.has(member.id));
+		for (const copy of copies) {
+			const sourceWasMember = vca.members.some(member => member.kind === 'track' && member.id === copy.sourceTrackId);
+			if (sourceWasMember && !members.some(member => member.kind === 'track' && member.id === copy.targetTrackId)) {
+				members.push({ kind: 'track', id: copy.targetTrackId });
+			}
+		}
+		return { ...vca, members };
+	});
+	return normalizeMixerGraphV21({ ...staged, edges, vcas });
 }
 
 function sameChannelMap(left: readonly number[], right: readonly number[]): boolean {

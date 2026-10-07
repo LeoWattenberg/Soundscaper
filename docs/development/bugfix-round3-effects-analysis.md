@@ -321,3 +321,26 @@ and passes on green build 15 in Chromium, Firefox and WebKit at line 2. Strict
 regressions verify exact throw locations for single-line and multiline helpers;
 all 16 focused prelude, line-offset and dynamic-coverage tests pass. Targeted
 lint passes. No manual **Update AI assets** run is required.
+
+## R3-ROOT-016 — Mix and Render applies a retained VCA gain twice
+
+Import an ordinary mono recording. Open **Window > Mixer > Routing graph**,
+add a **VCA**, select its node, enter gain **0.5**, check the recording's track
+under Members, and click **Save VCA**. Export WAV, select the recording, then
+choose **Tracks > Mix & Render** and apply its default options. Export again.
+
+Previously the second download's peak was half the first one's peak. Combined
+rendering baked the VCA gain into PCM, but the retained track identity remained
+a member and applied that gain again. Routing restatement now removes combined
+outputs from their baked VCA memberships. Individual rendering keeps external
+VCA controls; when creating an individual sibling, it copies the appropriate
+membership. Unrelated members, master controls and VCA settings stay intact.
+
+Proof: the ordinary picker, graph and menu workflow fails on the immutable
+baseline with a peak ratio of 0.5. Green build 16 passes in Chromium, Firefox
+and WebKit with a ratio of 1 and preserves the original peak after Undo. Three
+strict regressions verify combined exclusion, individual retention and sibling
+membership inheritance using canonical production projects and real commands.
+All 18 focused render, commit and production-routing tests and targeted lint
+pass. These membership variants count once. No manual **Update AI assets** run
+is required.
