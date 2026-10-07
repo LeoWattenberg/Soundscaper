@@ -83,19 +83,21 @@ export function makeDistortionTable(settings) {
 		copyPositiveHalf();
 	} else if (mode === 3) {
 		const amount = Math.min(0.999, dbToLinear(-settings.parameter1));
+		const scale = -1 / (1 - amount);
+		const logarithm = Math.log(amount);
 		for (let index = DISTORTION_STEPS; index < DISTORTION_TABLE_SIZE; index += 1) {
 			const linearValue = index / DISTORTION_STEPS;
-			const scale = -1 / (1 - amount);
-			const curve = Math.exp((linearValue - 1) * Math.log(amount));
+			const curve = Math.exp((linearValue - 1) * logarithm);
 			table[index] = scale * (curve - 1);
 		}
 		copyPositiveHalf();
 	} else if (mode === 4) {
+		const logarithm = settings.parameter1 === 0 ? 0 : Math.log(1 + settings.parameter1);
 		let linearValue = 0;
 		for (let index = DISTORTION_STEPS; index < DISTORTION_TABLE_SIZE; index += 1) {
 			table[index] = settings.parameter1 === 0
 				? linearValue
-				: Math.log(1 + settings.parameter1 * linearValue) / Math.log(1 + settings.parameter1);
+				: Math.log(1 + settings.parameter1 * linearValue) / logarithm;
 			linearValue += 1 / DISTORTION_STEPS;
 		}
 		copyPositiveHalf();
@@ -114,10 +116,11 @@ export function makeDistortionTable(settings) {
 	} else if (mode === 6) {
 		const amount = settings.parameter1 / -100;
 		const shape = Math.max(0.001, settings.parameter2) / 10;
+		const normalization = amount / Math.tanh(shape);
 		let value = -1;
 		for (let index = 0; index < DISTORTION_TABLE_SIZE; index += 1) {
 			table[index] = (1 + amount) * value
-				- value * (amount / Math.tanh(shape)) * Math.tanh(shape * value);
+				- value * normalization * Math.tanh(shape * value);
 			value += 1 / DISTORTION_STEPS;
 		}
 	} else if (mode === 7) {
@@ -185,6 +188,10 @@ function levellerGainIndex(value, gainLimits) {
 export function distortionWaveShaper(input, table, mode, parameter1) {
 	let sample = input;
 	if (mode === 0) sample = Math.fround(sample * (1 + parameter1 / 100));
+	return interpolateDistortionSample(sample, table);
+}
+
+export function interpolateDistortionSample(sample, table) {
 	let index = Math.floor(sample * DISTORTION_STEPS) + DISTORTION_STEPS;
 	index = Math.max(0, Math.min(index, DISTORTION_STEPS * 2 - 1));
 	let offset = Math.fround(1 + sample) * DISTORTION_STEPS - index;
@@ -205,6 +212,7 @@ export function dcFilter(sample, state) {
 		state.total -= state.samples[state.position];
 		state.samples[state.position] = sample;
 	}
-	state.position = (state.position + 1) % state.length;
+	state.position += 1;
+	if (state.position === state.length) state.position = 0;
 	return sample - state.total / state.size;
 }
