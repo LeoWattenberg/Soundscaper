@@ -28,18 +28,25 @@ import {
 	LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME,
 } from './linked-original-provisional-root-schema.ts';
 import { EditorStoreBlockedError } from './status.ts';
+import {
+	CATALOG_ORIGINAL_ASSET_INDEX_NAME,
+	CATALOG_ORIGINAL_ROOT_STORE_NAME,
+	CATALOG_ORIGINAL_SCOPE_INDEX_NAME,
+	MEDIA_ASSET_SHA256_INDEX_NAME,
+} from './media-catalog-original-schema.ts';
 
-export const EDITOR_STORAGE_DATABASE_VERSION = 1;
+export const EDITOR_STORAGE_DATABASE_VERSION = 2;
 const DATABASE_VERSION = EDITOR_STORAGE_DATABASE_VERSION;
 const SOURCE_CHUNK_CURSOR_PAGE_SIZE = 8;
 
 interface EditorStorageMigration {
 	readonly version: number;
-	apply(database: IDBDatabase, abortUpgrade: (error: unknown) => void): void;
+	apply(database: IDBDatabase, abortUpgrade: (error: unknown) => void, transaction: IDBTransaction): void;
 }
 
 const EDITOR_STORAGE_MIGRATIONS: readonly EditorStorageMigration[] = Object.freeze([
 	Object.freeze({ version: 1, apply: createBaselineStorageSchema }),
+	Object.freeze({ version: 2, apply: createCatalogOriginalCustodySchema }),
 ]);
 
 export const MAX_INDEXEDDB_CURSOR_PAGE_SIZE = 64;
@@ -86,7 +93,8 @@ export function openDatabase(
 				const newVersion = event?.newVersion ?? DATABASE_VERSION;
 				for (const migration of EDITOR_STORAGE_MIGRATIONS) {
 					if (migration.version > oldVersion && migration.version <= newVersion) {
-						migration.apply(database, abortUpgrade);
+						if (!openRequest.transaction) throw new Error('Storage migration requires an upgrade transaction.');
+						migration.apply(database, abortUpgrade, openRequest.transaction);
 					}
 				}
 			} catch (error) {
@@ -193,6 +201,17 @@ function createBaselineStorageSchema(
 		);
 		store.createIndex(BINARY_PATH_REFERENCE_INDEX_NAME, BINARY_PATH_REFERENCE_INDEX_NAME, { unique: false });
 	}
+}
+
+function createCatalogOriginalCustodySchema(
+	database: IDBDatabase,
+	_abortUpgrade: (error: unknown) => void,
+	transaction: IDBTransaction,
+): void {
+	transaction.objectStore('mediaAssets').createIndex(MEDIA_ASSET_SHA256_INDEX_NAME, 'sha256', { unique: false });
+	const roots = database.createObjectStore(CATALOG_ORIGINAL_ROOT_STORE_NAME, { keyPath: 'key' });
+	roots.createIndex(CATALOG_ORIGINAL_ASSET_INDEX_NAME, 'assetId', { unique: false });
+	roots.createIndex(CATALOG_ORIGINAL_SCOPE_INDEX_NAME, 'scope', { unique: false });
 }
 
 export async function transact<Result>(

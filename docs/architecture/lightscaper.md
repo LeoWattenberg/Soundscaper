@@ -106,6 +106,45 @@ dropped. Closing an owner cancels its pending operation and prevents new
 commands without closing the shared catalog repository. None of these unused
 domain modules activates a product capability or creates a user interface.
 
+### Planned shared original custody budgets
+
+Catalog originals stay in the existing shared media repository and its existing
+Blob, chunk, or OPFS formats. Shared storage version 2 appends a nonunique
+SHA-256 index and a compact catalog-original root store; migration neither
+rewrites existing media nor promotes legacy claimed digests to verified facts.
+A root pins the shared media asset key (`PhotoOriginal.storageKey`), independently
+of the logical original source ID, plus the verified digest, content token, and
+byte length. Originals remain original file bytes; oriented frame packs and
+previews are separate derivatives. Root admission requires durable storage and
+refuses the process-local fallback.
+
+| Shared original custody contract | Bound |
+| --- | --- |
+| Serialized root | At most 2 KiB, containing scalar identity fields only |
+| Retain, promote, or release transaction | At most 16 photo roots |
+| Digest lookup and recovery page | At most 64 indexed rows; continuation advances over scanned rows, including refused legacy claims |
+| Prune media cursor page | At most 64 delivered media rows; catalog-retained originals never enter the accumulated legacy candidate inventory |
+| Recovery | Explicit indexed pages; no automatic expiry or whole-catalog snapshot |
+
+Imports retain provisional roots before publishing the separate catalog
+transaction. After catalog publication, the importer promotes roots in bounded
+transactions. A crash at either boundary leaves a durable root protecting the
+original; recovery coordinates with the import owner and settles or fences its
+live publication before consulting catalog state and choosing promotion or
+release. A catalog-absence check alone cannot authorize release across separate
+databases. Release removes only the specified owner's roots and does not delete
+media. Root changes update a scalar media retention hint atomically; deletion
+still checks the authoritative source index in its own write transaction.
+Direct deletion and pruning include the root store in the transaction that
+removes media, so another repository instance cannot race root admission.
+Whole shared-store clearing refuses while any catalog root exists, because the
+separate catalog database must first relinquish its custody. Temporary payload
+cleanup uses current indexed media references rather than gathering catalog
+originals through `mediaAssets.getAll()`. These storage modules do not activate
+Lightscaper capabilities or introduce a new pixel or body format. Custody reads
+and writes join the existing media maintenance lifecycle before backend
+admission; closing drains their settled transactions as well as body writers.
+
 ## Shared image evaluation
 
 Pixel operations belong to the shared image engine and effect catalogs. A photo

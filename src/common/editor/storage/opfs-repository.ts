@@ -369,11 +369,15 @@ export class OpfsRepository {
 		return { index: chunkIndex, frames, channels };
 	}
 
-	async cleanupOrphans(retainedPaths: ReadonlySet<string>, cutoff: number): Promise<void> {
+	async cleanupOrphans(
+		retainedPaths: ReadonlySet<string>, cutoff: number,
+		isCurrentlyRetained?: (path: string) => Promise<boolean>,
+	): Promise<void> {
 		const directory = await this.directory();
 		if (!directory?.entries) return;
 		for await (const [name, handle] of directory.entries()) {
 			if (retainedPaths.has(name) || handle.kind !== 'file') continue;
+			if (await isCurrentlyRetained?.(name)) continue;
 			try {
 				const file = await handle.getFile();
 				if (file.lastModified < cutoff) await this.deletePath(name);

@@ -34,6 +34,10 @@ import type { OpfsRepository } from './opfs-repository.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
 import type { RetentionSessionGuard } from './retention-session-guard.ts';
 import { cloneStorageValue as clone } from './storage-clone.ts';
+import { MediaCatalogOriginalRepositoryV1 } from './media-catalog-original-repository.ts';
+import { CATALOG_ORIGINAL_ROOT_STORE_NAME } from './media-catalog-original-schema.ts';
+import { assertNoCatalogOriginalRoot } from './media-catalog-original-records.ts';
+import { hasStoredBinaryPathReference } from './media-binary-reference-query.ts';
 import {
 	deletePairedVideoDerivativeRecords,
 	VideoDerivativeRepository,
@@ -59,6 +63,7 @@ interface MediaRepositoryOptions {
 }
 /** Original media containers and replaceable video derivatives. */
 export class MediaRepository {
+	readonly catalogOriginals: MediaCatalogOriginalRepositoryV1;
 	readonly #port: StorageRepositoryPort;
 	readonly #opfs: OpfsRepository;
 	readonly #sessionGuard: RetentionSessionGuard | null;
@@ -68,6 +73,7 @@ export class MediaRepository {
 	readonly #derivatives: VideoDerivativeRepository;
 
 	constructor(port: StorageRepositoryPort, opfs: OpfsRepository, options: MediaRepositoryOptions = {}) {
+		this.catalogOriginals = new MediaCatalogOriginalRepositoryV1(port, this.#assetLifecycle);
 		this.#port = port;
 		this.#opfs = opfs;
 		this.#sessionGuard = options.sessionGuard ?? null;
@@ -85,6 +91,7 @@ export class MediaRepository {
 	}
 	beginAssetMaintenance(options: Readonly<{ permanent?: boolean }> = {}): MediaAssetMaintenance { return this.#assetLifecycle.beginMaintenance(options); }
 	activeAssetStaging() { return this.#assetWrites.activeStaging(); }
+	hasBinaryPathReference(path: string): Promise<boolean> { return hasStoredBinaryPathReference(this.#port, path); }
 	invalidateAssetStagingMemory() { return this.#assetWrites.invalidateStagingMemory(); }
 	invalidateAssetStagingStore(store: IDBObjectStore) { return this.#assetWrites.invalidateStagingStore(store); }
 	async writeAsset(
@@ -213,9 +220,11 @@ export class MediaRepository {
 				[
 					'projects', 'revisions', 'settings',
 					'mediaAssets', VIDEO_DERIVATIVE_STORE_NAME, DERIVATIVE_CACHE_ENTRY_STORE_NAME,
+					CATALOG_ORIGINAL_ROOT_STORE_NAME,
 				],
 				'readwrite',
 				async (stores) => {
+					await assertNoCatalogOriginalRoot(stores[CATALOG_ORIGINAL_ROOT_STORE_NAME], id);
 					const [projects, revisions, otherSession] = await Promise.all([
 						request(stores.projects.getAll()),
 						request(stores.revisions.getAll()),

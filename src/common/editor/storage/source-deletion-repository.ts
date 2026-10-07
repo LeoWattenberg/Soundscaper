@@ -16,6 +16,8 @@ import {
 } from './source-dependency-query.ts';
 import { deletePairedVideoDerivativeRecords } from './video-derivative-repository.ts';
 import { SOURCE_ANALYSIS_CACHE_PREFIXES } from '../source-analysis-cache.ts';
+import { CATALOG_ORIGINAL_ROOT_STORE_NAME } from './media-catalog-original-schema.ts';
+import { assertNoCatalogOriginalRoot } from './media-catalog-original-records.ts';
 
 export type SourceStorageDeletionResult =
 	| { readonly status: 'retained'; readonly dependentSourceId: string }
@@ -48,9 +50,11 @@ export class SourceDeletionRepository {
 			'sources',
 			'sourceChunks',
 			'mediaAssets',
+			CATALOG_ORIGINAL_ROOT_STORE_NAME,
 			VIDEO_DERIVATIVE_STORE_NAME,
 			DERIVATIVE_CACHE_ENTRY_STORE_NAME,
 		], 'readwrite', async (stores) => {
+			await assertNoCatalogOriginalRoot(stores[CATALOG_ORIGINAL_ROOT_STORE_NAME], sourceId);
 			const [projects, revisions, otherSession] = await Promise.all([
 				request(stores.projects.getAll()),
 				request(stores.revisions.getAll()),

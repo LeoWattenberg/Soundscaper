@@ -8,6 +8,8 @@ import { mediaAssetMetadata, type StorageRecord } from './media-records.ts';
 import type { OpfsRepository } from './opfs-repository.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
 import { cloneStorageValue as clone } from './storage-clone.ts';
+import { CATALOG_ORIGINAL_ROOT_STORE_NAME } from './media-catalog-original-schema.ts';
+import { assertNoCatalogOriginalRoot } from './media-catalog-original-records.ts';
 
 export class MediaPublicationReconciliationError extends AggregateError {
 	constructor(primary: unknown, reconciliation: unknown) {
@@ -59,10 +61,11 @@ async function detachIfCurrent(
 		return true;
 	}
 	await port.retentionSessionGuard?.reclaimStoppedSessions(database);
-	return transact(database, ['projects', 'revisions', 'settings', 'mediaAssets'], 'readwrite', async (stores) => {
+	return transact(database, ['projects', 'revisions', 'settings', 'mediaAssets', CATALOG_ORIGINAL_ROOT_STORE_NAME], 'readwrite', async (stores) => {
 		const { mediaAssets } = stores;
 		const current = storageRecord(await request(mediaAssets.get(sourceId)));
 		if (!sameOwnedPayload(current, expected)) return false;
+		await assertNoCatalogOriginalRoot(stores[CATALOG_ORIGINAL_ROOT_STORE_NAME], sourceId);
 		const [projects, revisions, otherSession] = await Promise.all([
 			request(stores.projects.getAll()),
 			request(stores.revisions.getAll()),

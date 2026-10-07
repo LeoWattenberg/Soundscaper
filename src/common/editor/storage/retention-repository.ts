@@ -8,7 +8,7 @@ import {
 	DERIVATIVE_CACHE_ENTRY_STORE_NAME,
 	VIDEO_DERIVATIVE_STORE_NAME,
 } from './derivative-cache-entry.ts';
-import { deleteByIndex, request, transact } from './indexeddb-backend.ts';
+import { request, transact } from './indexeddb-backend.ts';
 import {
 	MEDIA_ASSET_CHUNK_STORE_NAME,
 } from './media-asset-chunk-schema.ts';
@@ -39,6 +39,10 @@ import type { SourceWriteMaintenance } from './source-write-lifecycle.ts';
 import type { TransientAnalysisCacheRepository } from './transient-analysis-cache-repository.ts';
 import type { AssistanceDerivativeRepositoryPort } from './deferred-assistance-derivative-repository.ts';
 import { SOURCE_ANALYSIS_CACHE_PREFIXES } from '../source-analysis-cache.ts';
+
+import { deleteIndexedDbRetentionCandidates } from './indexeddb-retention-prune.ts';
+import { CATALOG_ORIGINAL_ROOT_STORE_NAME } from './media-catalog-original-schema.ts';
+import { assertNoCatalogOriginalRoot } from './media-catalog-original-records.ts';
 
 interface PruneOptions {
 	readonly protectedProjects?: readonly unknown[];
@@ -111,15 +115,7 @@ export class RetentionRepository {
 		const encodedCaptureTokens = this.#options.encodedCaptureSpools
 			? await this.#options.encodedCaptureSpools.retainedMediaChunkTokens() : new Set<string>();
 		for (const token of encodedCaptureTokens) tokens.add(token);
-		const mediaAssets = await this.#options.media.assetRecords();
-		const binaryRecords = [
-			...mediaAssets,
-			...await this.#options.media.allDerivativeRecords(),
-		];
-		const paths = new Set([
-			...sources.map((source) => source.path),
-			...binaryRecords.map((record) => record.path),
-		].filter(isString));
+		const paths = new Set(sources.map((source) => source.path).filter(isString));
 		for (const path of activeStaging.paths) paths.add(path);
 		for (const path of this.#options.encodedCaptureChunks
 			? await this.#options.encodedCaptureChunks.retainedPaths(encodedCaptureTokens) : []) {
@@ -127,11 +123,11 @@ export class RetentionRepository {
 		}
 		await this.#options.sourceRecords.cleanupStaleChunks(tokens, cutoff);
 		await this.#options.media.cleanupStaleAssetChunks(
-			mediaAssets,
+			[],
 			cutoff,
 			new Set([...activeStaging.mediaChunkTokens, ...encodedCaptureTokens]),
 		);
-		await this.#options.opfs.cleanupOrphans(paths, cutoff);
+		await this.#options.opfs.cleanupOrphans(paths, cutoff, (path) => this.#options.media.hasBinaryPathReference(path));
 	}
 
 	clear(): Promise<void> {
@@ -231,7 +227,9 @@ export class RetentionRepository {
 					DERIVATIVE_CACHE_ENTRY_STORE_NAME,
 					LINKED_VIDEO_ORIGINAL_STORE_NAME,
 					LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME,
+					CATALOG_ORIGINAL_ROOT_STORE_NAME,
 				], 'readwrite', async (stores) => {
+					await assertNoCatalogOriginalRoot(stores[CATALOG_ORIGINAL_ROOT_STORE_NAME]);
 					const retainedSessions = this.#options.sessionGuard
 						? await this.#options.sessionGuard.retainedSessionRecords(stores.settings) : [];
 					if (retainedSessions.length > 1) {
@@ -312,7 +310,7 @@ export class RetentionRepository {
 				this.#deleteMemoryCandidate(sourceId, candidate.source, candidate.derivatives);
 			}
 		} else {
-			const result = await this.#deleteIndexedDbCandidates(database, {
+			const result = await deleteIndexedDbRetentionCandidates(database, this.#options.sessionGuard, {
 				protectedIds,
 				maximumAge,
 				currentTime,
@@ -379,85 +377,7 @@ export class RetentionRepository {
 		}
 	}
 
-	async #deleteIndexedDbCandidates(
-		database: IDBDatabase,
-		state: {
-			readonly protectedIds: Set<string>;
-			readonly maximumAge: number;
-			readonly currentTime: number;
-			readonly deferredSourceIds: string[];
-			readonly getNextEligibleAt: () => number | null;
-			readonly setNextEligibleAt: (value: number) => void;
-		},
-	): Promise<{ removedSources: StorageRecord[]; removedBinaryRecords: StorageRecord[]; removedSourceIds: string[] }> {
-		return transact(database, [
-			'projects', 'revisions', 'settings', 'analysis', 'sources', 'sourceChunks', 'mediaAssets',
-			VIDEO_DERIVATIVE_STORE_NAME, DERIVATIVE_CACHE_ENTRY_STORE_NAME,
-		], 'readwrite', async (stores) => {
-			const {
-				projects, revisions, analysis, sources, sourceChunks, mediaAssets,
-			} = stores;
-			const videoDerivatives = stores[VIDEO_DERIVATIVE_STORE_NAME];
-			const derivativeCacheEntries = stores[DERIVATIVE_CACHE_ENTRY_STORE_NAME];
-			const projectUpdates: unknown[] = [];
-			const revisionUpdates: Record<string, unknown>[] = [];
-			for (const saved of await request(projects.getAll())) {
-				const compacted = compactProjectSourceMetadata(saved);
-				if (compacted !== saved) projectUpdates.push(compacted);
-				collectProjectStorageKeys(compacted, state.protectedIds);
-			}
-			for (const value of await request(revisions.getAll())) {
-				const record = asRecord(value);
-				if (!record) continue;
-				const compacted = compactProjectSourceMetadata(record.project);
-				if (compacted !== record.project) revisionUpdates.push({ ...record, project: compacted });
-				collectProjectStorageKeys(compacted, state.protectedIds);
-			}
-			const storedSources = (await request(sources.getAll())) as StorageRecord[];
-			const storedMediaAssets = (await request(mediaAssets.getAll())) as StorageRecord[];
-			const storedVideoDerivatives = (await request(derivativeCacheEntries.getAll())) as StorageRecord[];
-			protectSourceDependencies(state.protectedIds, storedSources);
-			const candidates = sourceStorageCandidates(storedSources, storedMediaAssets, storedVideoDerivatives);
-			if (await this.#options.sessionGuard?.hasOtherOrLostSession(stores.settings)) {
-				for (const sourceId of candidates.keys()) state.protectedIds.add(sourceId);
-			}
-			const removedSources: StorageRecord[] = [];
-			const removedBinaryRecords: StorageRecord[] = [];
-			const removedSourceIds: string[] = [];
-			for (const [sourceId, candidate] of candidates) {
-				if (state.protectedIds.has(sourceId)) continue;
-				const eligibleAt = candidateEligibleAt(candidate, state.maximumAge);
-				if (eligibleAt > state.currentTime) {
-					state.deferredSourceIds.push(sourceId);
-					const next = state.getNextEligibleAt();
-					state.setNextEligibleAt(next === null ? eligibleAt : Math.min(next, eligibleAt));
-					continue;
-				}
-				removedSourceIds.push(sourceId);
-				if (candidate.source) {
-					removedSources.push(candidate.source);
-					sources.delete(sourceId);
-					if (candidate.source.sourceToken) {
-						await deleteByIndex(sourceChunks.index('sourceToken'), candidate.source.sourceToken);
-					}
-				}
-				if (candidate.mediaAsset) {
-					removedBinaryRecords.push(candidate.mediaAsset);
-					mediaAssets.delete(sourceId);
-				}
-				for (const derivative of candidate.derivatives) {
-					removedBinaryRecords.push(derivative);
-					const key = derivative.key as string;
-					videoDerivatives.delete(key);
-					derivativeCacheEntries.delete(key);
-				}
-				for (const prefix of SOURCE_ANALYSIS_CACHE_PREFIXES) analysis.delete(`${prefix}${sourceId}`);
-			}
-			for (const project of projectUpdates) projects.put(project);
-			for (const revision of revisionUpdates) revisions.put(revision);
-			return { removedSources, removedBinaryRecords, removedSourceIds };
-		});
-	}
+
 }
 
 async function abortStoreWriters(
