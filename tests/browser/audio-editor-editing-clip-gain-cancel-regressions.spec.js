@@ -8,9 +8,11 @@ test('Escape cancels clip-gain envelope dragging without persisting the preview'
 	const editor = await bootEditor(page, '/embed/en/');
 	await importFiles(editor, [monoTone]);
 	const clip = clipByName(editor, monoTone.name);
-	await addClipGainPoint(page, editor, clip, 0.5);
 	await chooseNestedCommandAction(page, editor, 'Window', ['History']);
 	const history = editor.locator('[data-workspace-panel="history"] [data-history-list] > li');
+	const historyBeforePoint = await history.count();
+	await addClipGainPoint(page, editor, clip, 0.5);
+	await expect(history).toHaveCount(historyBeforePoint + 1);
 	const historyBefore = await history.count();
 	const point = clip.locator('.envelope-point').first();
 	const before = await point.boundingBox();
@@ -29,4 +31,10 @@ test('Escape cancels clip-gain envelope dragging without persisting the preview'
 	await page.mouse.up();
 	await expect.poll(pointCenterY).toBe(originalCenterY);
 	await expect(history).toHaveCount(historyBefore);
+	await page.mouse.move(before.x + before.width / 2, originalCenterY);
+	await page.mouse.down();
+	await page.mouse.move(before.x + before.width / 2 + 10, before.y + 20, { steps: 4 });
+	await page.mouse.up();
+	await expect(history).toHaveCount(historyBefore + 1);
+	await expect.poll(pointCenterY).not.toBe(originalCenterY);
 });

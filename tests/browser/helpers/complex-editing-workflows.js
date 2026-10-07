@@ -229,8 +229,13 @@ export async function addTrackAutomation(page, editor, row, {
 	const point = overlay.locator('[data-automation-point-id]').last();
 	if (nudge !== 0) {
 		await point.focus();
+		await expect(point).toBeFocused();
 		const key = nudge > 0 ? 'ArrowUp' : 'ArrowDown';
-		for (let step = 0; step < Math.abs(nudge); step += 1) await page.keyboard.press(key);
+		for (let step = 0; step < Math.abs(nudge); step += 1) {
+			const before = await point.getAttribute('aria-valuenow');
+			await point.press(key);
+			await expect(point).not.toHaveAttribute('aria-valuenow', before);
+		}
 	}
 	const modeSelect = controls.getByRole('combobox', { name: 'Automation mode', exact: true });
 	await modeSelect.selectOption(mode);
