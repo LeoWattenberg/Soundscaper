@@ -214,7 +214,7 @@ function NumberField({ hook, label: fieldLabel, value, choice, onChange }: Reado
 }>) {
 	return <label className="audio-editor-field"><span>{fieldLabel}</span><input
 		type="number" data-video-keyframe-field={hook} value={value}
-		min={choice?.minimum} max={choice?.maximum} step={choice?.step ?? 'any'}
+		min={choice?.minimum} max={choice?.maximum} step={choice?.integer ? choice.step : 'any'}
 		onChange={(event) => onChange(event.currentTarget.value)}
 	/></label>;
 }
