@@ -235,3 +235,27 @@ Targeted lint passes. Regression files are
 
 These browser DSP, UI, and regression changes retain the assistance runtime closure.
 A manual **Update AI assets** run is not required.
+
+
+## R4-ROOT-011 — Spectrogram retains the previous project’s history
+
+Import an ordinary recording, choose Analyze → Analysis, expand Spectrogram,
+and play until its canvas shows signal. Stop and press New project. The baseline
+shows the previous recording’s colored history in the empty project.
+
+Give the history canvas its actual project identity without closing its expanded
+section or restarting the visual-analysis lease. Before activating another
+project, clear and publish the previous meter snapshot through its transport
+owner, so the new canvas cannot paint an old telemetry column. Same-project
+updates preserve history. A canvas-only correction was insufficient and is not
+counted separately; a direct assignment to the read-only compatibility state was
+also rejected by the real controller/browser checks and removed.
+
+The unchanged public workflow fails on immutable baseline `a0322d6e4` with 93
+signal pixels after New project. The final `spectrogram-project-clean14` build
+passes all three engines with zero, alongside the established realtime analysis
+workflow (6/6). Its mounted history regression and real controller/activation
+support pass, 32 tests altogether; targeted lint passes. Regression files are
+`audio-editor-round4-spectrogram-project-history.test.tsx` and
+`audio-editor-round4-spectrogram-project-history.spec.js`; evidence is recorded
+in `/tmp/soundscaper-r4-root-spectrogram-*`.

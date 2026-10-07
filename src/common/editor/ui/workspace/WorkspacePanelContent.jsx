@@ -176,7 +176,7 @@ export default function WorkspacePanelContent({
 	}
 	if (panelId === 'analysis') {
 		return <React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
-			<RealtimeAnalysisPanel controller={controller} copy={copy} settings={playbackMeterSettings} active={panelActive} />
+			<RealtimeAnalysisPanel controller={controller} copy={copy} settings={playbackMeterSettings} active={panelActive} projectId={snapshot.project?.id ?? null} />
 		</React.Suspense>;
 	}
 	if (panelId === 'history') {

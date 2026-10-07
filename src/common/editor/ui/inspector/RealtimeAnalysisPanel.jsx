@@ -12,7 +12,7 @@ const SPECTROGRAM_WIDTH = 320;
 const SPECTROGRAM_HEIGHT = 96;
 const MAXIMUM_SPECTRUM_BINS = 128;
 
-export default function RealtimeAnalysisPanel({ controller, copy, settings, active = true }) {
+export default function RealtimeAnalysisPanel({ controller, copy, settings, active = true, projectId = null }) {
 	return <div className="audio-editor-realtime-analysis" data-realtime-analysis>
 		<AnalysisSection id="levels" title={copy.metering} initiallyOpen active={active}>
 			<LiveLevels controller={controller} copy={copy} />
@@ -27,7 +27,7 @@ export default function RealtimeAnalysisPanel({ controller, copy, settings, acti
 		</AnalysisSection>
 		<AnalysisSection id="spectrogram" title={copy.spectrogram} active={active}>
 			<VisualAnalysisLease controller={controller}>
-				<LiveSpectrogram controller={controller} copy={copy} />
+				<LiveSpectrogram key={projectId} controller={controller} copy={copy} />
 			</VisualAnalysisLease>
 		</AnalysisSection>
 		<AnalysisSection id="correlation" title={copy.correlation} active={active}>

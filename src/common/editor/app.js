@@ -329,7 +329,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		projects: {
 			state, effectsState: effectsStatePorts.project, lifetime, scapeInspectionQuiescence, projectGeneration, copy, productCapabilities: product.capabilities,
 			getProject: documentScope.get,
-			setProject: documentScope.set,
+			setProject: (activeProject) => { bindings.updateMeters(null); documentScope.set(activeProject); },
 			createProject: projectRuntime.createProject,
 			normalizeProjectSampleRate,
 			createInitialAudioTrackCommand: (trackOptions, sampleRate) => createAddTrackCommand({ ...trackOptions, spectrogram: spectrogramSettingsForNewTrack(state.preferences.spectrogram, sampleRate) }),
