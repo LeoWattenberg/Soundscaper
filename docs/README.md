@@ -71,6 +71,8 @@ belong in Git history, not in the maintained documentation set.
   [dialogs](development/bugfix-round4-dialogs.md),
   [effects and analysis](development/bugfix-round4-effects-analysis.md), and
   [import and export](development/bugfix-round4-io.md).
+- The [fourth audit index](development/bugfix-round4.md) records 100 additional
+  distinct user-reproducible fixes, counting criteria and closing verification.
 
 ## Operate and release
 
