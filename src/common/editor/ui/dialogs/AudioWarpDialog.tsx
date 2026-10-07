@@ -1,7 +1,7 @@
 import { usePresentationFeedback, feedbackFailure, type PresentationFeedback } from '../presentation-feedback.ts';
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 
 import '../audio-editor-design-system/27-audio-warp.css';
 
@@ -69,6 +69,7 @@ export default function AudioWarpDialog({
 	const [grooveEnabled, setGrooveEnabled] = useState(false);
 	const [grooveOffsets, setGrooveOffsets] = useState('0, 1/3');
 	const [grooveStrengthPercent, setGrooveStrengthPercent] = useState(50);
+	const markerEditorRef = useRef<HTMLFieldSetElement | null>(null);
 	const operationOwner = useMemo(() => Object.freeze({
 		projectId,
 		clipId: model.clipId,
@@ -104,9 +105,10 @@ export default function AudioWarpDialog({
 		operation: () => unknown,
 		success: PresentationFeedback,
 		onSuccess?: (result: unknown) => void,
+		focusFallback?: () => HTMLElement | null,
 	): void => {
 		operationState.perform(name, operation, {
-			onStart: () => { captureOperationFocus(); setError(''); },
+			onStart: () => { captureOperationFocus(focusFallback); setError(''); },
 			onSuccess: (result) => {
 				onSuccess?.(result);
 				setStatus(success);
@@ -154,6 +156,7 @@ export default function AudioWarpDialog({
 			</section>}
 
 			<WarpMapEditor
+				markerEditorRef={markerEditorRef}
 				model={model}
 				copy={copy}
 				disabled={disabled}
@@ -173,7 +176,12 @@ export default function AudioWarpDialog({
 				), { key: 'audioWarpMarkerMoved' })}
 				onDelete={(pointIndex) => perform('delete-marker', () => (
 					controller.actions.audioWarp.deleteMarker(pointIndex)
-				), { key: 'audioWarpMarkerDeleted' })}
+				), { key: 'audioWarpMarkerDeleted' }, undefined, () => {
+					const markerEditor = markerEditorRef.current;
+					const survivors = markerEditor?.querySelectorAll<HTMLButtonElement>('[data-audio-warp-delete-marker]');
+					return survivors?.[Math.min(pointIndex - 1, survivors.length - 1)]
+						?? markerEditor?.querySelector<HTMLButtonElement>('[data-audio-warp-add-marker]') ?? null;
+				})}
 			/>
 
 			<fieldset disabled={disabled}>
@@ -239,6 +247,7 @@ export default function AudioWarpDialog({
 }
 
 function WarpMapEditor({
+	markerEditorRef,
 	model,
 	copy,
 	disabled,
@@ -250,6 +259,7 @@ function WarpMapEditor({
 	onMove,
 	onDelete,
 }: Readonly<{
+	markerEditorRef: RefObject<HTMLFieldSetElement | null>;
 	model: ReturnType<typeof createAudioWarpDialogModel>;
 	copy: Readonly<Record<string, string>>;
 	disabled: boolean;
@@ -262,7 +272,7 @@ function WarpMapEditor({
 	onDelete(pointIndex: number): void;
 }>) {
 	if (!model.hasWarpMap) return <p>{copy.audioWarpNoMap}</p>;
-	return <fieldset className="audio-editor-audio-warp__markers" disabled={disabled}>
+	return <fieldset ref={markerEditorRef} className="audio-editor-audio-warp__markers" disabled={disabled}>
 		<legend>{copy.audioWarpMarkers}</legend>
 		<table className="audio-editor-audio-warp__map" aria-label={copy.audioWarpMapPoints}>
 		<caption>{copy.audioWarpMapPoints}</caption>
@@ -281,7 +291,7 @@ function WarpMapEditor({
 		<div className="audio-editor-audio-warp__marker-add">
 			<label><span>{copy.audioWarpOuter}</span><input type="text" value={markerOuter} onChange={(event) => onMarkerOuter(event.currentTarget.value)} /></label>
 			<label><span>{copy.audioWarpSource}</span><input type="text" value={markerSource} onChange={(event) => onMarkerSource(event.currentTarget.value)} /></label>
-			<button type="button" onClick={onAdd}>{copy.audioWarpAddMarker}</button>
+			<button type="button" data-audio-warp-add-marker onClick={onAdd}>{copy.audioWarpAddMarker}</button>
 		</div>
 	</fieldset>;
 }
@@ -313,7 +323,7 @@ function MarkerRow({ point, copy, onMove, onDelete }: Readonly<{
 			<button type="button" onClick={() => onMove(point.index, outer, source)}>
 				{copy.audioWarpMoveMarker.replace('{number}', number)}
 			</button>
-			<button type="button" onClick={() => onDelete(point.index)}>
+			<button type="button" data-audio-warp-delete-marker={point.index} onClick={() => onDelete(point.index)}>
 				{copy.audioWarpDeleteMarker.replace('{number}', number)}
 			</button>
 		</td>

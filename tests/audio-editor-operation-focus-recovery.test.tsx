@@ -8,7 +8,7 @@ import { installReactTestDom, reactProps } from './helpers/react-test-dom.ts';
 
 function Probe({ pending, owner }: Readonly<{ pending: boolean; owner: string }>) {
 	const capture = useOperationFocusRecovery(pending, owner);
-	return <><button onClick={capture}>Move marker</button><input /></>;
+	return <><button onClick={() => capture()}>Move marker</button><input /></>;
 }
 
 test('operation focus recovery retains its owner and never steals a newly chosen focus target', async () => {

@@ -2,19 +2,21 @@
 
 import { useEffect, useRef } from 'react';
 
-/** Recover an operation's focused control only when disabling it lost focus. */
-export function useOperationFocusRecovery(pending: boolean, owner: unknown): () => void {
-	const restore = useRef<Readonly<{ target: HTMLElement; owner: unknown }> | null>(null);
+/** Recover focus lost by an operation, optionally replacing a removed control. */
+export function useOperationFocusRecovery(pending: boolean, owner: unknown): (fallback?: () => HTMLElement | null) => void {
+	const restore = useRef<Readonly<{ target: HTMLElement; owner: unknown; fallback?: () => HTMLElement | null }> | null>(null);
 	useEffect(() => {
 		if (pending) return;
 		const captured = restore.current;
 		restore.current = null;
-		if (!captured || !Object.is(captured.owner, owner) || !captured.target.isConnected) return;
+		if (!captured || !Object.is(captured.owner, owner)) return;
 		const document = captured.target.ownerDocument;
-		if (document.activeElement === document.body) captured.target.focus();
+		if (document.activeElement !== document.body) return;
+		const target = captured.target.isConnected ? captured.target : captured.fallback?.();
+		if (target?.isConnected) target.focus();
 	}, [owner, pending]);
-	return () => {
+	return (fallback) => {
 		if (typeof document === 'undefined' || !(document.activeElement instanceof HTMLElement)) return;
-		restore.current = { target: document.activeElement, owner };
+		restore.current = { target: document.activeElement, owner, fallback };
 	};
 }
