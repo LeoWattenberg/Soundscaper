@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { blobReadStats } from './instrumented-indexeddb-blob-stats.js';
+import { instrumentedKeyPath, matchesInstrumentedQuery } from './instrumented-indexeddb-keys.ts';
 import { createRequestFailurePlan } from './instrumented-indexeddb-failures.js';
 import {
 	cancelableErrorEvent,
@@ -25,6 +26,7 @@ export function createInstrumentedIndexedDB({ supportsContinuePrimaryKey = true 
 		keyCursorRequests: [],
 		getAllRequests: [],
 		getRequests: [],
+		countRequests: [],
 		takeGetObserver: (storeName) => pendingGetObservers.get(storeName),
 		sourceChunkGetAllCalls: 0,
 		supportsContinuePrimaryKey,
@@ -293,7 +295,10 @@ class FakeObjectStore {
 		return fakeGetAllRequest(this.transaction, this.data, null, query, count, valuesForStore(this.data, query));
 	}
 	count(query) {
-		return fakeRequest(this.transaction, () => valuesForStore(this.data, query).length);
+		return fakeRequest(this.transaction, () => {
+			this.transaction.database.stats.countRequests.push({ store: this.data.name, index: null, query });
+			return valuesForStore(this.data, query).length;
+		});
 	}
 	delete(key) {
 		return fakeRequest(this.transaction, () => {
@@ -309,13 +314,14 @@ class FakeObjectStore {
 		return new FakeIndex(this.transaction, this.data, name);
 	}
 
-	openCursor(query) {
+	openCursor(query, direction = 'next') {
 		const entries = entriesForStore(this.data, query).map(([primaryKey, value]) => ({
 			key: primaryKey,
 			primaryKey,
 			value,
 		}));
-		return fakeCursorRequest(this.transaction, this.data, entries, { index: null, query });
+		if (direction === 'prev') entries.reverse();
+		return fakeCursorRequest(this.transaction, this.data, entries, { index: null, query, direction });
 	}
 
 	openKeyCursor(query, direction = 'next') {
@@ -340,10 +346,14 @@ class FakeIndex {
 		if (this.data.name === 'sourceChunks') this.transaction.database.stats.sourceChunkGetAllCalls += 1;
 		return fakeGetAllRequest(this.transaction, this.data, this.name, query, count, this.values(query));
 	}
-	count(query) { return fakeRequest(this.transaction, () => this.values(query).length); }
-	openCursor(query) {
+	count(query) { return fakeRequest(this.transaction, () => {
+		this.transaction.database.stats.countRequests.push({ store: this.data.name, index: this.name, query });
+		return this.values(query).length;
+	}); }
+	openCursor(query, direction = 'next') {
 		const entries = this.entries(query);
-		return fakeCursorRequest(this.transaction, this.data, entries, { index: this.name, query });
+		if (direction === 'prev') entries.reverse();
+		return fakeCursorRequest(this.transaction, this.data, entries, { index: this.name, query, direction });
 	}
 	openKeyCursor(query) {
 		const entries = this.entries(query).map(({ key, primaryKey }) => ({ key, primaryKey }));
@@ -357,8 +367,8 @@ class FakeIndex {
 
 	entries(query) {
 		return [...this.data.records.entries()]
-			.map(([primaryKey, value]) => ({ key: value[this.keyPath], primaryKey, value }))
-			.filter(({ key }) => query === undefined || key === query)
+			.map(([primaryKey, value]) => ({ key: instrumentedKeyPath(value, this.keyPath), primaryKey, value }))
+			.filter(({ key }) => matchesInstrumentedQuery(key, query))
 			.sort((left, right) => compareKeys(left.key, right.key)
 				|| compareKeys(left.primaryKey, right.primaryKey));
 	}
@@ -366,7 +376,7 @@ class FakeIndex {
 
 function entriesForStore(data, query) {
 	return [...data.records.entries()]
-		.filter(([primaryKey]) => query === undefined || primaryKey === query)
+		.filter(([primaryKey]) => matchesInstrumentedQuery(primaryKey, query))
 		.sort(([left], [right]) => compareKeys(left, right));
 }
 

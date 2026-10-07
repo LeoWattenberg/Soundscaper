@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { blobPayloadStats, blobReadStats } from './instrumented-indexeddb-blob-stats.js';
+import { compareInstrumentedKeys } from './instrumented-indexeddb-keys.ts';
 
 /**
  * The asynchronous shapes IndexedDB hands back, faked faithfully enough to fail like one.
@@ -49,7 +50,7 @@ export function fakeGetAllRequest(transaction, data, index, query, count, values
 	});
 }
 
-export function fakeCursorRequest(transaction, data, entries, { index, query }) {
+export function fakeCursorRequest(transaction, data, entries, { index, query, direction = 'next' }) {
 	const request = { result: undefined, error: null, onsuccess: null, onerror: null };
 	const requestStats = {
 		store: data.name,
@@ -90,7 +91,7 @@ export function fakeCursorRequest(transaction, data, entries, { index, query }) 
 				continued = true;
 				position += 1;
 				if (targetKey !== undefined) {
-					while (position < entries.length && compareKeys(entries[position].key, targetKey) < 0) position += 1;
+					while (position < entries.length && compareKeys(entries[position].key, targetKey) * (direction === 'prev' ? -1 : 1) < 0) position += 1;
 				}
 				deliver();
 			},
@@ -98,10 +99,11 @@ export function fakeCursorRequest(transaction, data, entries, { index, query }) 
 				if (continued) throw new Error('The cursor has already advanced.');
 				continued = true;
 				position += 1;
+				const sign = direction === 'prev' ? -1 : 1;
 				while (position < entries.length && (
-					compareKeys(entries[position].key, targetKey) < 0
+					compareKeys(entries[position].key, targetKey) * sign < 0
 					|| (compareKeys(entries[position].key, targetKey) === 0
-						&& compareKeys(entries[position].primaryKey, targetPrimaryKey) < 0)
+						&& compareKeys(entries[position].primaryKey, targetPrimaryKey) * sign < 0)
 				)) position += 1;
 				deliver();
 			},
@@ -172,8 +174,7 @@ export function requestEvent(type, target) {
 }
 
 export function compareKeys(left, right) {
-	if (left === right) return 0;
-	return String(left) < String(right) ? -1 : 1;
+	return compareInstrumentedKeys(left, right);
 }
 
 export function clone(value) {

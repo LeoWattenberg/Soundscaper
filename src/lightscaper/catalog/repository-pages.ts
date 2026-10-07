@@ -11,6 +11,7 @@ import {
 	type PhotoSummaryPageV1,
 } from './repository-types.ts';
 import { field, id, integer, record } from './value-validation.ts';
+import { normalizePhotoCatalogRootV1 } from './catalog-root.ts';
 
 export interface PhotoSummaryPageRequestV1 {
 	readonly filter?: PhotoCatalogFilterV1;
@@ -22,12 +23,18 @@ export async function readCatalogSummaryPageV1(database: IDBDatabase, catalogId:
 	const catalog = id(catalogId, 'catalog ID');
 	const scope = filterScope(catalog, options.filter);
 	const continuation = options.continuation ? readContinuation(options.continuation, catalog, scope) : null;
-	return catalogTransaction(database, ['catalogStates', 'summaries', 'memberships'], 'readonly', async (stores) => {
+	return catalogTransaction(database, ['catalogs', 'catalogStates', 'summaries', 'memberships'], 'readonly', async (stores) => {
 		const rawState: unknown = await request(stores.catalogStates.get(catalog));
 		if (rawState === undefined) throw new ReferenceError('Photo catalog is missing.');
 		const state = readIndexState(rawState);
 		if (state.id !== catalog) throw new TypeError('Catalog index state belongs to another catalog.');
 		if (continuation && continuation.indexRevision !== state.indexRevision) throw new PhotoCatalogRevisionConflictError('catalog');
+		if (options.filter?.kind === 'collection') {
+			const collectionId = options.filter.id;
+			const root = normalizePhotoCatalogRootV1(await request(stores.catalogs.get(catalog)) as unknown);
+			const collection = root.collections.find((entry) => entry.id === collectionId);
+			if (collection?.kind === 'smart') throw new RangeError('Smart collections require the live query pager.');
+		}
 		const all = options.filter === undefined;
 		const page = await readCursorPage(stores[all ? 'summaries' : 'memberships'].index(all ? 'catalogId' : 'scope'), {
 			query: all ? catalog : scope,

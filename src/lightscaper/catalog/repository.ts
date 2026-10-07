@@ -10,6 +10,9 @@ import { createCatalog, publishPhotos, saveCatalog, savePhoto } from './reposito
 import { PhotoCatalogClosedError, PHOTO_CATALOG_REPOSITORY_LIMITS as LIMITS, type PhotoCatalogRepositoryOptionsV1, type PhotoSummaryPageV1 } from './repository-types.ts';
 import type { PhotoCatalogRootV1, PhotoDocumentV1 } from './types.ts';
 import { array, id, integer, name, unique } from './value-validation.ts';
+import { readPhotoQueryPageV1 } from './photo-query-pages-v1.ts';
+import { rebuildPhotoQueryIndexPageV1 } from './photo-query-rebuild-v1.ts';
+import type { PhotoQueryPageRequestV1, PhotoQueryPageV1 } from './photo-query-types-v1.ts';
 
 /** Durable metadata repository, independent of the audio/timeline project facade. */
 export class PhotoCatalogRepositoryV1 {
@@ -95,6 +98,14 @@ export class PhotoCatalogRepositoryV1 {
 		if (this.#closed) return;
 		this.#closed = true;
 		try { (await this.#database)?.close(); } catch { /* A failed open has no live database to close. */ }
+	}
+
+	async readQueryPage(catalogId: string, options: PhotoQueryPageRequestV1 = {}): Promise<PhotoQueryPageV1> {
+		return readPhotoQueryPageV1(await this.#open(), catalogId, options);
+	}
+
+	async rebuildQueryIndexPage(catalogId: string, options: Readonly<{ signal?: AbortSignal }> = {}) {
+		return rebuildPhotoQueryIndexPageV1(await this.#open(), catalogId, options.signal);
 	}
 
 	async #open(): Promise<IDBDatabase> {

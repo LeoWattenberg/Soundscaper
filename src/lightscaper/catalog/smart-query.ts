@@ -2,6 +2,7 @@
 
 import { LIGHTSCAPER_CATALOG_LIMITS as LIMITS, type PhotoDocumentV1, type PhotoSmartQueryV1 } from './types.ts';
 import { array, field, id, integer, localTimestamp, oneOf, record, text } from './value-validation.ts';
+import type { PhotoSummaryV1 } from './repository-types.ts';
 
 export const PHOTO_FLAGS = Object.freeze(['unflagged', 'pick', 'reject'] as const);
 export const PHOTO_COLOR_LABELS = Object.freeze(['none', 'red', 'yellow', 'green', 'blue', 'purple'] as const);
@@ -58,6 +59,14 @@ export function normalizePhotoSmartQueryV1(value: unknown): PhotoSmartQueryV1 {
 
 /** Evaluation never interprets scripts, regexes, filesystem paths, or missing timezone offsets. */
 export function matchesPhotoQueryV1(photo: PhotoDocumentV1, value: unknown): boolean {
+	return matchesNormalizedPhotoQuerySubjectV1({ rating: photo.rating, flag: photo.flag, colorLabel: photo.colorLabel,
+		folderId: photo.folderId, keywordIds: photo.keywordIds, fileName: photo.metadata.fileName,
+		captureLocal: photo.metadata.captureTime?.local ?? null }, normalizePhotoSmartQueryV1(value));
+}
+
+export type PhotoQuerySubjectV1 = Pick<PhotoSummaryV1, 'rating' | 'flag' | 'colorLabel' | 'folderId' | 'fileName' | 'captureLocal'> & Readonly<{ keywordIds: readonly string[] }>;
+/** The caller supplies an already normalized query and metadata-only trusted subject. */
+export function matchesNormalizedPhotoQuerySubjectV1(photo: PhotoQuerySubjectV1, value: PhotoSmartQueryV1): boolean {
 	function visit(query: PhotoSmartQueryV1): boolean {
 		switch (query.kind) {
 			case 'all': return query.terms.every(visit);
@@ -68,14 +77,14 @@ export function matchesPhotoQueryV1(photo: PhotoDocumentV1, value: unknown): boo
 			case 'label': return photo.colorLabel === query.value;
 			case 'folder': return photo.folderId === query.id;
 			case 'keyword': return photo.keywordIds.includes(query.id);
-			case 'file-name': return photo.metadata.fileName.toLowerCase().includes(query.contains.toLowerCase());
+			case 'file-name': return photo.fileName.toLowerCase().includes(query.contains.toLowerCase());
 			case 'capture-time': {
-				const capture = photo.metadata.captureTime?.local;
-				return capture !== undefined && (query.from === null || capture >= query.from) && (query.to === null || capture < query.to);
+				const capture = photo.captureLocal;
+				return capture !== null && (query.from === null || capture >= query.from) && (query.to === null || capture < query.to);
 			}
 		}
 	}
-	return visit(normalizePhotoSmartQueryV1(value));
+	return visit(value);
 }
 
 export function validatePhotoQueryReferencesV1(query: PhotoSmartQueryV1, folders: ReadonlySet<string>, keywords: ReadonlySet<string>): void {

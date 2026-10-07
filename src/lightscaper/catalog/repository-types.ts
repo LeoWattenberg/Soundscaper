@@ -2,7 +2,7 @@
 
 import type { PhotoColorLabelV1, PhotoFlagV1, PhotoOriginalV1 } from './types.ts';
 
-export const PHOTO_CATALOG_DATABASE_VERSION = 1;
+export const PHOTO_CATALOG_DATABASE_VERSION = 2;
 export const PHOTO_CATALOG_REPOSITORY_LIMITS = Object.freeze({
 	pageSize: 64,
 	maximumSummaryBytes: 4_096,
@@ -12,7 +12,7 @@ export const PHOTO_CATALOG_REPOSITORY_LIMITS = Object.freeze({
 });
 
 export const PHOTO_CATALOG_STORES = Object.freeze([
-	'catalogs', 'catalogStates', 'photos', 'summaries', 'memberships',
+	'catalogs', 'catalogStates', 'photos', 'summaries', 'memberships', 'photoQueryRows', 'photoQueryBuildStates',
 ] as const);
 
 export interface PhotoCatalogRepositoryOptionsV1 {

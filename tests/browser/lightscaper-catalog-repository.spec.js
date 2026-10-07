@@ -16,6 +16,7 @@ async function routeRepository(page) {
 export { defaultPhotoDevelopV1 } from './src/lightscaper/catalog/develop-state.ts';
 export { emptyPhotoMetadataV1 } from './src/lightscaper/catalog/photo-metadata.ts';
 export { photoSummary, photoMemberships, indexState } from './src/lightscaper/catalog/repository-records.ts';
+export { PHOTO_CATALOG_DATABASE_VERSION } from './src/lightscaper/catalog/repository-types.ts';
 export function catalog() { return { schemaFamily: 'lightscaper', schemaVersion: 1,
 kind: 'photo-catalog', id: 'catalog', name: 'Browser', revision: 0, photoCount: 0,
 folders: [], keywords: [], collections: [] }; }
@@ -93,13 +94,13 @@ test('native IndexedDB serializes independent catalog and photo CAS writers', as
 test('native version changes close catalog owners and future databases refuse v1 reopening', async ({ page }) => {
 	await routeRepository(page);
 	const result = await page.evaluate(async (root) => {
-		const { PhotoCatalogRepositoryV1, catalog } = await import(`${root}/entry.js`);
+		const { PhotoCatalogRepositoryV1, catalog, PHOTO_CATALOG_DATABASE_VERSION } = await import(`${root}/entry.js`);
 		const databaseName = 'lightscaper-native-future-version';
 		const options = { indexedDB, databaseName, verifyOriginal: async () => undefined };
 		const repository = new PhotoCatalogRepositoryV1(options);
 		await repository.createCatalog(catalog());
 		const stores = await new Promise((resolve, reject) => {
-			const open = indexedDB.open(databaseName, 2);
+			const open = indexedDB.open(databaseName, PHOTO_CATALOG_DATABASE_VERSION + 1);
 			open.onsuccess = () => { resolve([...open.result.objectStoreNames]); open.result.close(); };
 			open.onerror = () => reject(open.error);
 			open.onblocked = () => reject(new Error('The catalog owner retained its connection during version change.'));
@@ -113,7 +114,7 @@ test('native version changes close catalog owners and future databases refuse v1
 		await next.close();
 		return { stores, closedCode, futureError };
 	}, ROOT);
-	expect(result.stores).toEqual(['catalogStates', 'catalogs', 'memberships', 'photos', 'summaries']);
+	expect(result.stores).toEqual(['catalogStates', 'catalogs', 'memberships', 'photoQueryBuildStates', 'photoQueryRows', 'photos', 'summaries']);
 	expect(result.closedCode).toBe('CATALOG_CLOSED');
 	expect(result.futureError).toBe('VersionError');
 });
@@ -123,12 +124,12 @@ test('native indexes bound distant 100,000-photo pages without retaining transac
 	test.setTimeout(180_000);
 	await routeRepository(page);
 	const result = await page.evaluate(async (root) => {
-		const { PhotoCatalogRepositoryV1, catalog, photo, photoSummary, photoMemberships, indexState } = await import(`${root}/entry.js`);
+		const { PhotoCatalogRepositoryV1, catalog, photo, photoSummary, photoMemberships, indexState, PHOTO_CATALOG_DATABASE_VERSION } = await import(`${root}/entry.js`);
 		const databaseName = 'lightscaper-native-paging';
 		const repository = new PhotoCatalogRepositoryV1({ indexedDB, databaseName, verifyOriginal: async () => undefined });
 		await repository.createCatalog(catalog());
 		const database = await new Promise((resolve, reject) => {
-			const open = indexedDB.open(databaseName, 1);
+			const open = indexedDB.open(databaseName, PHOTO_CATALOG_DATABASE_VERSION);
 			open.onsuccess = () => resolve(open.result);
 			open.onerror = () => reject(open.error);
 		});

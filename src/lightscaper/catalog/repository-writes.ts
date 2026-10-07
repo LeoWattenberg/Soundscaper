@@ -7,12 +7,14 @@ import { validatePhotoCatalogReferencesV1 } from './photo-document.ts';
 import { filterScope, indexState, photoMemberships, photoStorageKey, photoSummary, readIndexState, readStoredPhoto } from './repository-records.ts';
 import { PHOTO_CATALOG_STORES, PhotoCatalogRevisionConflictError } from './repository-types.ts';
 import type { PhotoCatalogRootV1, PhotoDocumentV1 } from './types.ts';
+import { projectPhotoQueryRowV1, publishPhotoQueryRowV1 } from './photo-query-index-v1.ts';
 
 export async function createCatalog(database: IDBDatabase, root: PhotoCatalogRootV1): Promise<void> {
 	if (root.revision !== 0 || root.photoCount !== 0) throw new RangeError('A new catalog requires revision zero and no photos.');
-	await catalogTransaction(database, ['catalogs', 'catalogStates'], 'readwrite', async (stores) => {
+	await catalogTransaction(database, ['catalogs', 'catalogStates', 'photoQueryBuildStates'], 'readwrite', async (stores) => {
 		if (await request(stores.catalogs.getKey(root.id)) !== undefined) throw new RangeError('Photo catalog already exists.');
 		await Promise.all([request(stores.catalogs.put(root)), request(stores.catalogStates.put(indexState(root, 0)))]);
+		await request(stores.photoQueryBuildStates.put({ id: root.id, schemaVersion: 1, ready: true, afterKey: null, indexedCount: 0 }));
 	});
 }
 
@@ -103,5 +105,6 @@ async function requiredState(stores: Readonly<Record<string, IDBObjectStore>>, r
 async function writePhoto(stores: Readonly<Record<string, IDBObjectStore>>, photo: PhotoDocumentV1): Promise<void> {
 	await request(stores.photos.put({ key: photoStorageKey(photo.catalogId, photo.id), document: photo }));
 	await request(stores.summaries.put(photoSummary(photo)));
+	await publishPhotoQueryRowV1(stores, projectPhotoQueryRowV1(photo));
 	for (const membership of photoMemberships(photo)) await request(stores.memberships.put(membership));
 }

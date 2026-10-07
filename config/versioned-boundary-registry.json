@@ -534,6 +534,14 @@
 		,
 		{ "path": "src/framescaper/native-render-frame-pack-v1.ts", "kind": "persisted-contract", "justification": "native-render-frame-pack-v1.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
+		{ "path": "src/lightscaper/catalog/photo-query-index-v1.ts", "kind": "persisted-contract", "justification": "Version 1 disposable metadata query rows and rebuild states preserve bounded ordered indexes independently of canonical photo documents." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-query-pages-v1.ts", "kind": "helper-contract", "justification": "Version 1 catalog query pages traverse globally ordered indexes with bounded candidate work and live smart collection evaluation." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-query-rebuild-v1.ts", "kind": "helper-contract", "justification": "Version 1 resumable query index rebuild publishes bounded derived rows and progress atomically without rewriting original photo documents." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-query-types-v1.ts", "kind": "helper-contract", "justification": "Closed version 1 catalog query and bounded continuation contracts bind literal search, filtering and global ordering to one catalog revision." }
+		,
 		{ "path": "src/lightscaper/import/catalog-write-lock-v1.ts", "kind": "helper-contract", "justification": "Authoritative shared lock namespace for version 1 photo catalog publication across separate metadata and media databases." }
 		,
 		{ "path": "src/lightscaper/import/import-intent-v1.ts", "kind": "persisted-contract", "justification": "Scalar durable photo import intent and root reconciliation for version 1 catalogs." }

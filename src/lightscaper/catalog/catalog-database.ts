@@ -2,6 +2,7 @@
 
 import { EditorStoreBlockedError } from '../../common/editor/storage/status.ts';
 import { PHOTO_CATALOG_DATABASE_VERSION, PHOTO_CATALOG_STORES } from './repository-types.ts';
+import { PHOTO_QUERY_INDEXES_V1 } from './photo-query-index-v1.ts';
 
 /** Own versioned database; shared editor openDatabase would create timeline stores. */
 export function openPhotoCatalogDatabaseV1(factory: IDBFactory, name: string, onVersionChange: () => void): Promise<IDBDatabase> {
@@ -11,11 +12,16 @@ export function openPhotoCatalogDatabaseV1(factory: IDBFactory, name: string, on
 		const request = factory.open(name, PHOTO_CATALOG_DATABASE_VERSION);
 		request.onupgradeneeded = (event) => {
 			try {
-				if (event.oldVersion !== 0) throw new RangeError('Unsupported photo catalog database migration.');
+				if (event.oldVersion !== 0 && event.oldVersion !== 1) throw new RangeError('Unsupported photo catalog database migration.');
 				for (const storeName of PHOTO_CATALOG_STORES) {
-					const store = request.result.createObjectStore(storeName, { keyPath: storeName === 'catalogs' || storeName === 'catalogStates' ? 'id' : 'key' });
+					if (request.result.objectStoreNames.contains(storeName)) continue;
+					const store = request.result.createObjectStore(storeName, { keyPath: storeName === 'catalogs' || storeName === 'catalogStates' || storeName === 'photoQueryBuildStates' ? 'id' : 'key' });
 					if (storeName === 'summaries') store.createIndex('catalogId', 'catalogId');
 					if (storeName === 'memberships') store.createIndex('scope', 'scope');
+					if (storeName === 'photoQueryRows') {
+						store.createIndex('catalogId', 'catalogId');
+						for (const [sort, fields] of Object.entries(PHOTO_QUERY_INDEXES_V1)) store.createIndex(sort, [...fields]);
+					}
 				}
 			} catch (error) {
 				upgradeError = error;
