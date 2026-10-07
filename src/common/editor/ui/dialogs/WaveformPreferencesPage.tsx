@@ -37,22 +37,34 @@ export default function WaveformPreferencesPage({
 	const [lowMid, setLowMid] = useState(String(saved.lowMidCrossoverHz));
 	const [midHigh, setMidHigh] = useState(String(saved.midHighCrossoverHz));
 	const lastCommitted = useRef(saved);
+	const canceled = useRef(false);
 	const draft = normalizedDraft(lowMid, midHigh);
 
 	useEffect(() => {
+		canceled.current = false;
 		setLowMid(String(saved.lowMidCrossoverHz));
 		setMidHigh(String(saved.midHighCrossoverHz));
 		lastCommitted.current = saved;
 	}, [saved]);
 
 	const commit = () => {
+		if (canceled.current) { canceled.current = false; return; }
 		if (!draft) return;
 		if (draft.lowMidCrossoverHz === lastCommitted.current.lowMidCrossoverHz
 			&& draft.midHighCrossoverHz === lastCommitted.current.midHighCrossoverHz) return;
 		lastCommitted.current = draft;
 		run(() => controller.actions.preferences.update({ waveformVisualization: draft }));
 	};
-	const commitOnEnter = (event: KeyboardEvent<HTMLInputElement>) => {
+	const handleDraftKey = (event: KeyboardEvent<HTMLInputElement>) => {
+		if (event.key === 'Escape' && (lowMid !== String(saved.lowMidCrossoverHz)
+			|| midHigh !== String(saved.midHighCrossoverHz))) {
+			event.preventDefault();
+			event.stopPropagation();
+			canceled.current = true;
+			setLowMid(String(saved.lowMidCrossoverHz));
+			setMidHigh(String(saved.midHighCrossoverHz));
+			return;
+		}
 		if (event.key !== 'Enter') return;
 		event.preventDefault();
 		commit();
@@ -72,9 +84,9 @@ export default function WaveformPreferencesPage({
 						max={WAVEFORM_VISUALIZATION_MAXIMUM_CROSSOVER_HZ}
 						step="1"
 						value={lowMid}
-						onChange={(event) => setLowMid(event.currentTarget.value)}
+						onChange={(event) => { canceled.current = false; setLowMid(event.currentTarget.value); }}
 						onBlur={() => commit()}
-						onKeyDown={commitOnEnter}
+						onKeyDown={handleDraftKey}
 					/>
 				</label>
 				<label>
@@ -88,9 +100,9 @@ export default function WaveformPreferencesPage({
 						max={WAVEFORM_VISUALIZATION_MAXIMUM_CROSSOVER_HZ}
 						step="1"
 						value={midHigh}
-						onChange={(event) => setMidHigh(event.currentTarget.value)}
+						onChange={(event) => { canceled.current = false; setMidHigh(event.currentTarget.value); }}
 						onBlur={() => commit()}
-						onKeyDown={commitOnEnter}
+						onKeyDown={handleDraftKey}
 					/>
 				</label>
 			</div>

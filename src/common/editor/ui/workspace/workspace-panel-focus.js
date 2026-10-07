@@ -32,9 +32,18 @@ function focusWhenMounted(ownerDocument, selector, previous = null) {
 }
 
 export function closeWorkspacePanelAndRestoreFocus(ownerDocument, panelId, onTogglePanel) {
+	const members = panelId === 'clock' || workspacePanelRestoresCaptureFocus(panelId) ? []
+		: ownerDocument.querySelector(`[data-workspace-panel="${panelId}"]`)
+			?.getAttribute('data-workspace-panel-members')?.split(/\s+/u).filter(Boolean) ?? [];
+	const remaining = members.filter((id) => id !== panelId);
+	const siblingId = remaining[members.indexOf(panelId) % remaining.length];
 	onTogglePanel(panelId);
 	if (panelId === 'clock') {
 		focusWorkspaceToolbarTimeCode(ownerDocument);
+		return;
+	}
+	if (siblingId) {
+		focusWorkspacePanelMenuButton(ownerDocument, siblingId);
 		return;
 	}
 	if (!workspacePanelRestoresCaptureFocus(panelId)) return;

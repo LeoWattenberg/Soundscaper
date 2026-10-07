@@ -32,7 +32,10 @@ test('deleting an inactive custom workspace preserves the chosen custom layout',
 	await fixture.preferences.actions.deleteWorkspacePreference('first');
 	assert.equal(fixture.state.preferences.workspace.activeId, 'second');
 	assert.deepEqual(fixture.state.preferences.workspace.panels, activeLayout.panels);
-	assert.deepEqual(fixture.state.preferences.workspace.custom.map(({ id }) => id), ['second']);
+	assert.deepEqual(fixture.state.preferences.workspace.custom.map(entry => {
+		assert.ok('id' in entry && typeof entry.id === 'string');
+		return entry.id;
+	}), ['second']);
 });
 
 function workspaceFixture(productId: string, defaultWorkspace: string) {
