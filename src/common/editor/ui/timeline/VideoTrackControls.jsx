@@ -17,6 +17,7 @@ export function VideoTrackControls({
 	const [editingName, setEditingName] = useState(false);
 	const controlTabIndex = isFlatNavigation ? 0 : -1;
 	const handleKeyDown = (event) => {
+		if (event.ctrlKey || event.metaKey || event.altKey) return;
 		if (event.key === 'Tab') {
 			const controls = [...controlsRef.current.querySelectorAll('button:not([disabled]), input:not([disabled])')];
 			const currentIndex = controls.indexOf(document.activeElement);
