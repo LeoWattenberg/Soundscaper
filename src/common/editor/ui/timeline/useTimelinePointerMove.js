@@ -491,7 +491,7 @@ export function useTimelinePointerMove({
 				)),
 				clipKind: (clipId) => projectIndex.clipById.get(clipId)?.kind ?? null,
 				previewOrdinary: () => resolveTimelineTrimPointerPreview({
-					projectIndex, session, edge, requestedBoundarySample,
+					project, projectIndex, session, edge, requestedBoundarySample,
 					canonicalVideoTrim: snapshot.capabilities?.videoCompositing === true,
 					legacyRequestedDelta: () => secondsToFrames(
 						Math.abs(event.clientX - session.startX) / pixelsPerSecond,

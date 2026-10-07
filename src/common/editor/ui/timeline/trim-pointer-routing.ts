@@ -7,6 +7,8 @@ import type {
 	FrameCanonicalTrimEdge,
 } from '../../frame-canonical-edge-trim-domain.ts';
 
+import { createImageTrimPointerPreview } from './image-trim-pointer-preview.ts';
+
 type DataRecord = Readonly<Record<string, unknown>>;
 
 export interface TimelineTrimPointerSession {
@@ -17,6 +19,7 @@ export interface TimelineTrimPointerSession {
 }
 
 export interface TimelineTrimPointerPreviewInput {
+	readonly project?: unknown;
 	readonly projectIndex: unknown;
 	readonly session: TimelineTrimPointerSession;
 	readonly edge: FrameCanonicalTrimEdge;
@@ -48,6 +51,10 @@ export function resolveTimelineTrimPointerPreview(
 ): Readonly<FrameCanonicalEdgeTrimPreview & {
 	readonly previews: readonly FrameCanonicalEdgeTrimPreview[];
 }> | unknown | null {
+	if (input.session.original.kind === 'image' && input.project) {
+		return createImageTrimPointerPreview(input.project as Parameters<typeof createImageTrimPointerPreview>[0],
+			input.session, input.edge, input.requestedBoundarySample);
+	}
 	if (!usesCanonicalVideoTrim(input.session, input.canonicalVideoTrim)) {
 		return input.createLegacyPreview(
 			input.projectIndex,

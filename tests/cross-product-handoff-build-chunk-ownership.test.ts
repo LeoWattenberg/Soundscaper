@@ -43,6 +43,7 @@ test('the Framescaper project command spine has one non-recursive semantic owner
 		'src/framescaper/editor-timeline-image-move-command.ts',
 		'src/framescaper/editor-timeline-image-remove-command.ts',
 		'src/framescaper/editor-timeline-image-split-command.ts',
+		'src/framescaper/editor-timeline-image-trim-command.ts',
 		'src/framescaper/editor-project-assistance-commands.ts',
 		'src/framescaper/editor-project-assistance-transition-allocation.ts',
 	]) {

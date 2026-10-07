@@ -350,6 +350,7 @@ const framescaperProjectCommandModules = Object.freeze([
 	'editor-timeline-image-move-command',
 	'editor-timeline-image-remove-command',
 	'editor-timeline-image-split-command',
+	'editor-timeline-image-trim-command',
 	'editor-project-transitions-commands',
 	'editor-project-visual-command-inheritance',
 	'editor-project-visual-commands',

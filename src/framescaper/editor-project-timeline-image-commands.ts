@@ -22,6 +22,7 @@ import { framescaperProjectNativeMediaFoundationShapeTimelineImage } from './edi
 import { prepareTimelineImageMoveCommand } from './editor-timeline-image-move-command.ts';
 import { prepareTimelineImageRemoveCommand } from './editor-timeline-image-remove-command.ts';
 import { prepareTimelineImageSplitCommand } from './editor-timeline-image-split-command.ts';
+import { prepareTimelineImageTrimCommand } from './editor-timeline-image-trim-command.ts';
 import {
 	validateFramescaperProjectTimelineImage,
 	type FramescaperProjectTimelineImage,
@@ -56,7 +57,8 @@ export function applyFramescaperProjectCommandTimelineImage(
 	validateFramescaperProjectTimelineImage(profile, projectValue);
 	const prior = projectValue as FramescaperProjectTimelineImage;
 	const split = prepareTimelineImageSplitCommand(prior, snapshotFramescaperProjectCommandTimelineImage(commandValue));
-	const command = prepareTimelineImageRemoveCommand(prior, prepareTimelineImageMoveCommand(prior, split));
+	const command = prepareTimelineImageRemoveCommand(prior, prepareTimelineImageMoveCommand(prior,
+		prepareTimelineImageTrimCommand(prior, split)));
 	const draft = applyBody(profile, prior, command, options);
 	return finalize(profile, prior, draft, options);
 }
