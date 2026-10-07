@@ -173,7 +173,7 @@ export function createSelectionEffectPreviewService(runtime: SelectionEffectPrev
 				const effectContext: RuntimeValue = {};
 				if (spectralSelection) effectContext.spectralSelection = spectralSelection;
 				if (definition.requiresControlTrack) {
-					effectContext.controlChannels = await renderDryTrackRange(
+					effectContext.controlChannels = runtime.renderControlTrackRange ? await runtime.renderControlTrackRange(state.audacityControlTrackId, preview) : await renderDryTrackRange(
 						state.audacityControlTrackId,
 						preview.startFrame,
 						preview.endFrame,

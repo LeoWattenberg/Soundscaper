@@ -54,5 +54,31 @@ pass. Regression files are `audio-editor-round4-source-effect-rate.test.ts` and
 `audio-editor-round4-source-effect-controls.spec.js`; local evidence is recorded
 in `/tmp/soundscaper-r4-root-source-effect-*`.
 
+## R4-ROOT-003 — Source Auto Duck reads its control at the wrong timeline position
+
+Import ordinary two-second music and voice recordings. In each clip's Media
+settings, move Start to one second. Mute the voice track, open the music clip's
+Source waveform, select all with Ctrl+A, then choose Effect → Volume and
+compression → Auto Duck and select voice as its Control track. Apply the effect
+and export WAV. The baseline reads the voice at source-relative project frames
+rather than at the music clip's actual placement, so the first phrase receives
+the wrong attenuation. At 1.7–1.8 seconds the public baseline export peaks at
+0.14235 rather than the expected approximately 0.062 after the default fade.
+
+Resolve control samples through the source clip's timeline mapping, retaining
+native sample-rate conversion, reversal, warp segments and bounded render
+windows. Apply and Preview share this control renderer; ordinary timeline
+selections retain their original range. This is independent of round three's
+replacement-dialog choice of a label track as the default control.
+
+The same public workflow fails on immutable baseline `a0322d6e4` and passes
+Chromium, Firefox and WebKit on the clean owned `source-duck-clean1` build.
+Five new strict mapping cases and existing effect-selection/source regressions
+pass, 46 tests altogether. The regression measures beyond the intentional
+500 ms fade-down without changing its gain bounds. Regression files are
+`audio-editor-round4-source-duck-control.test.ts` and
+`audio-editor-round4-source-duck-placement.spec.js`; evidence is recorded in
+`/tmp/soundscaper-r4-root-source-duck-*`.
+
 These browser DSP, UI, and regression changes retain the assistance runtime closure.
 A manual **Update AI assets** run is not required.

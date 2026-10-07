@@ -192,12 +192,13 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 				dryResults.flatMap(({ channels }: RuntimeValue) => channels),
 			);
 			const controlChannels = definition.requiresControlTrack && !targets.some((target: RuntimeValue) => target.clipId)
-				? await renderCurrentDryTrackRange(
+				? runtime.renderControlTrackRange ? await runtime.renderControlTrackRange(state.audacityControlTrackId, targets[0]) : await renderCurrentDryTrackRange(
 					state.audacityControlTrackId,
 					targets[0].startFrame,
 					targets[0].endFrame,
 				)
 				: null;
+			assertSelectionEffectOwnership(runtime, ownership);
 			const linkedTruncateSilence = type === 'audacity-truncate-silence'
 				&& params.independent === false
 				&& targets.every((target: RuntimeValue) => target.startFrame === targets[0].startFrame

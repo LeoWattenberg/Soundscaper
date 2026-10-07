@@ -37,6 +37,7 @@ import { deferredEffectRuntime } from './deferred-effect-runtime.ts';
 import { createEffectAudioService } from './internal/effect-audio-service.ts';
 import { createEffectControlsService } from './effect-controls-service.ts';
 import { createSelectionEffectExecutionService } from './internal/effect-execution-service.ts';
+import { createSourceControlTrackRenderer } from './internal/source-control-track-renderer.ts';
 import { canSliceSimpleDryTrackPcm } from './internal/direct-dry-track-pcm.ts';
 import { createEffectMacroService, type EffectMacroServiceRuntime } from './internal/macro/effect-macro-service.ts';
 import { createMacroStagedRenderer } from './internal/macro/macro-staged-renderer.ts';
@@ -396,6 +397,7 @@ export function createEffectsComposition(dependencies: EffectsCompositionDepende
 			projectSampleRate: dependencies.projectSampleRate,
 			publishDocumentSnapshot: dependencies.publishDocumentSnapshot,
 			renderDryTrackRange: audio.renderDryTrackRange,
+			renderControlTrackRange: createSourceControlTrackRenderer(dependencies.getCommandProject, audio.renderDryTrackRange),
 			resolveInteractiveAudacityParams: controls.resolveInteractiveAudacityParams,
 			runSelectionEffectWorker: worker.runSelectionEffectWorker,
 			runIndependentSelectionEffects: 'runIndependentSelectionEffects' in worker ? worker.runIndependentSelectionEffects : undefined,
