@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { Icon } from '@soundscaper/design-system/Icon';
+import LibraryActions from './MacroLibraryActions.tsx';
 
 /**
  * The saved macros, beside the steps of whichever one is open.
@@ -79,30 +79,5 @@ export default function MacroManagerLibraryList({
 				</ul> : null}
 			</section>}
 		</section>
-	);
-}
-
-function LibraryActions({ labels, selectedId, exportDisabled, onCreate, onImport, onExport, onDelete }) {
-	return (
-		<div className="audio-editor-macros-palette__library-actions">
-			<LibraryAction icon="plus" label={labels.create} onClick={onCreate} />
-			<LibraryAction icon="import" label={labels.import} onClick={onImport} />
-			<LibraryAction icon="export" label={labels.export} disabled={exportDisabled} onClick={onExport} />
-			<LibraryAction icon="trash" label={labels.delete} disabled={!selectedId} onClick={onDelete} />
-		</div>
-	);
-}
-
-function LibraryAction({ icon, label, disabled = false, onClick }) {
-	return (
-		<button
-			className="audio-editor-macros-palette__icon-button"
-			type="button"
-			aria-label={label}
-			disabled={disabled}
-			onClick={onClick}
-		>
-			<Icon name={icon} size={16} />
-		</button>
 	);
 }
