@@ -45,7 +45,11 @@ export async function processIndependentSelectionTargets<TargetValue extends Tar
 			}
 		}
 		options.assertCurrent();
-		return { operation: 'apply', effectType: options.effectType, channels, sampleRate: options.sampleRate, params: options.params, context };
+		// This request is already one independently admitted track. Its stereo
+		// channels still share a clock; the legacy DSP flag splits channels.
+		const params = options.effectType === 'audacity-truncate-silence' && options.params.independent === true
+			? { ...options.params, independent: false } : options.params;
+		return { operation: 'apply', effectType: options.effectType, channels, sampleRate: options.sampleRate, params, context };
 	}
 	const output: Array<Readonly<{ target: TargetValue; channels: Float32Array[] | undefined }>> = [];
 	if (options.runIndependentSelectionEffects && options.dryResults.length > 1) {

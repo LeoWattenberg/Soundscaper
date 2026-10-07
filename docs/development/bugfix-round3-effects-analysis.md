@@ -387,3 +387,27 @@ Undo restores two seconds. Two strict actual-DSP regressions verify joint clip
 and range detection, original channel ownership and retained clip identities.
 All 12 focused multitrack, result and preview cases and targeted lint pass.
 No manual **Update AI assets** run is required.
+
+## R3-ROOT-019 — Independent track truncation desynchronizes a stereo recording
+
+Import an ordinary two-second stereo dialogue recording with a left-channel
+pause at 0.3–1.3 seconds and a right-channel pause at 0.7–1.7 seconds. Select
+its clip, choose **Effect > Special > Truncate Silence**, check **Truncate
+tracks independently**, set **Truncate to** to zero and apply. Export WAV.
+
+Previously the two microphones each lost a different one-second span, leaving
+one second of desynchronized audio. Independent track jobs incorrectly passed
+their track-level option to a legacy DSP flag that splits individual channels.
+Each already isolated track request now retains linked stereo detection, while
+the dialog and remembered operation keep their independent-track choice. This
+is separate from ROOT-018's admission of joint jobs for aligned clip headers.
+The [Audacity Truncate Silence manual](https://manual.audacityteam.org/man/truncate_silence.html)
+defines independence between tracks and preservation of a synchronized mix.
+
+Proof: the exact public baseline delivers one second instead of 1.4. Green
+build 19 passes Chromium, Firefox and WebKit at 1.4 seconds, with Undo restoring
+two seconds. Serial and concurrent strict actual-DSP cases verify both stereo
+channels retain their shared 1.4-second clock and sample alignment, while a
+separate mono track independently shortens to one second. Original PCM and
+remembered parameters remain unchanged. All eight focused multitrack cases and
+targeted lint pass. No manual **Update AI assets** run is required.
