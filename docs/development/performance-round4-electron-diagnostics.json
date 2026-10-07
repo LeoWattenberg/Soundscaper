@@ -1,0 +1,2996 @@
+{
+  "schemaVersion": 1,
+  "status": "Incomplete final ABBA; final baseline profile failed its playback advancement assertion, and remaining three profiles were not started.",
+  "attempts": [
+    {
+      "label": "before-1",
+      "exitCode": 0,
+      "observations": 45,
+      "artifact": "docs/development/performance-round4-electron-before-1.json",
+      "artifactSha256": "097f96bb3c347d5df6376757c3b1b491d3b0afaebc04a4db9a3096043a7b511a",
+      "log": "/tmp/perf300-electron-before-1.log",
+      "rawMeasurement": {
+        "node": "v26.5.0",
+        "platform": "linux",
+        "arch": "x64",
+        "revision": "e6b166a2bff9c548f99c6fc78def844505c13f9c",
+        "cpu": "AMD Ryzen 9 9900X 12-Core Processor",
+        "logicalCpus": 24,
+        "runtime": {
+          "versions": {
+            "node": "24.21.0",
+            "acorn": "8.18.0",
+            "ada": "4.0.0",
+            "amaro": "1.1.11",
+            "ares": "1.34.8",
+            "brotli": "1.2.0",
+            "cldr": "48.0",
+            "icu": "78.2",
+            "llhttp": "9.4.3",
+            "merve": "1.2.2",
+            "modules": "148",
+            "napi": "10",
+            "nbytes": "0.1.4",
+            "ncrypto": "0.0.1",
+            "nghttp2": "1.70.0",
+            "nghttp3": "",
+            "ngtcp2": "",
+            "openssl": "0.0.0",
+            "simdjson": "4.6.7",
+            "simdutf": "7.7.0",
+            "sqlite": "3.53.4",
+            "tz": "2025c",
+            "undici": "7.29.1",
+            "unicode": "17.0",
+            "uv": "1.52.1",
+            "uvwasi": "0.0.23",
+            "v8": "15.0.245.31-electron.0",
+            "zlib": "1.3.2.1-motley",
+            "zstd": "1.6.0",
+            "electron": "43.7.7",
+            "chrome": "150.0.7871.250"
+          },
+          "gpu": {
+            "2d_canvas": "unavailable_software",
+            "direct_rendering_display_compositor": "disabled_off_ok",
+            "gpu_compositing": "disabled_software",
+            "multiple_raster_threads": "enabled_on",
+            "opengl": "unavailable_off",
+            "rasterization": "unavailable_off",
+            "raw_draw": "disabled_off_ok",
+            "skia_graphite": "unavailable_off",
+            "trees_in_viz": "disabled_off",
+            "video_decode": "unavailable_off",
+            "video_encode": "disabled_software",
+            "vulkan": "disabled_off",
+            "webgl": "unavailable_off",
+            "webgpu": "unavailable_software",
+            "webgpu_on_vk_via_gl_interop": "disabled_off",
+            "webnn": "disabled_off"
+          },
+          "packaged": false
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 900,
+          "dpr": 1
+        },
+        "preference": "speed",
+        "extended": true,
+        "round3": true,
+        "round4": true,
+        "hostStart": {
+          "time": "2026-10-07T17:36:04.876Z",
+          "loadAverage": [
+            6.09,
+            3.95,
+            3.42
+          ],
+          "freeBytes": 41512271872,
+          "totalBytes": 49234468864
+        },
+        "hostEnd": {
+          "time": "2026-10-07T17:37:30.904Z",
+          "loadAverage": [
+            3.74,
+            3.76,
+            3.4
+          ],
+          "freeBytes": 40555712512,
+          "totalBytes": 49234468864
+        },
+        "method": "Actual Electron development app with freshly staged production renderer and real preload/SQLite/PCM path. Trial zero is the first invocation of each fixture after normal Speed prewarm; related earlier fixtures may already have used its generator or effect module. Subsequent trials repeat that fixture. Capture click to dialog closed, success status, cleared waveform pending state and a fresh successful waveform plan, then revalidate that same paint at two animation-frame boundaries. Xvfb RAF gaps are a renderer responsiveness proxy, not GPU presentation FPS. Startup excluded.",
+        "results": [
+          {
+            "operation": "Generate Tone",
+            "seconds": 30,
+            "trial": 0,
+            "durationMs": 346.58500000834465,
+            "frames": 19,
+            "medianFrameMs": 16.664999999999964,
+            "p95FrameMs": 50,
+            "maxFrameMs": 50,
+            "framesOver33Ms": 1,
+            "longTaskCount": 1,
+            "maxLongTaskMs": 55
+          },
+          {
+            "operation": "Generate Tone",
+            "seconds": 30,
+            "trial": 1,
+            "durationMs": 322.71000000834465,
+            "frames": 17,
+            "medianFrameMs": 16.664999999999964,
+            "p95FrameMs": 49.99499999999989,
+            "maxFrameMs": 49.99499999999989,
+            "framesOver33Ms": 1,
+            "longTaskCount": 1,
+            "maxLongTaskMs": 53
+          },
+          {
+            "operation": "Generate Tone",
+            "seconds": 30,
+            "trial": 2,
+            "durationMs": 302.7150000035763,
+            "frames": 16,
+            "medianFrameMs": 16.664999999999964,
+            "p95FrameMs": 50,
+            "maxFrameMs": 50,
+            "framesOver33Ms": 1,
+            "longTaskCount": 1,
+            "maxLongTaskMs": 53
+          },
+          {
+            "operation": "Generate Chirp",
+            "seconds": 30,
+            "trial": 0,
+            "durationMs": 395.044999986887,
+            "frames": 22,
+            "medianFrameMs": 16.664999999999964,
+            "p95FrameMs": 16.670000000000073,
+            "maxFrameMs": 49.99499999999989,
+            "framesOver33Ms": 1,
+            "longTaskCount": 1,
+            "maxLongTaskMs": 52
+          },
+          {
+            "operation": "Generate Chirp",
+            "seconds": 30,
+            "trial": 1,
+            "durationMs": 355.6550000011921,
+            "frames": 19,
+            "medianFrameMs": 16.664999999999964,
+            "p95FrameMs": 33.32999999999993,
+            "maxFrameMs": 33.32999999999993,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Generate Chirp",
+            "seconds": 30,
+            "trial": 2,
+            "durationMs": 325.3449999988079,
+            "frames": 18,
+            "medianFrameMs": 16.664999999999964,
+            "p95FrameMs": 50,
+            "maxFrameMs": 50,
+            "framesOver33Ms": 1,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Generate Chirp constant",
+            "seconds": 30,
+            "trial": 0,
+            "durationMs": 284.65000000596046,
+            "frames": 16,
+            "medianFrameMs": 16.664999999999964,
+            "p95FrameMs": 33.32999999999993,
+            "maxFrameMs": 33.32999999999993,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Generate Chirp constant",
+            "seconds": 30,
+            "trial": 1,
+            "durationMs": 284.0649999976158,
+            "frames": 15,
+            "medianFrameMs": 16.664999999999964,
+            "p95FrameMs": 33.335000000000036,
+            "maxFrameMs": 33.335000000000036,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Generate Chirp constant",
+            "seconds": 30,
+            "trial": 2,
+            "durationMs": 301.8449999988079,
+            "frames": 17,
+            "medianFrameMs": 16.664999999999964,
+            "p95FrameMs": 33.335000000000036,
+            "maxFrameMs": 33.335000000000036,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Generate DTMF tones",
+            "seconds": 30,
+            "trial": 0,
+            "durationMs": 287.93000000715256,
+            "frames": 16,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 33.32999999999993,
+            "maxFrameMs": 33.32999999999993,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Generate DTMF tones",
+            "seconds": 30,
+            "trial": 1,
+            "durationMs": 304.5799999833107,
+            "frames": 16,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 49.9950000000008,
+            "maxFrameMs": 49.9950000000008,
+            "framesOver33Ms": 1,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Generate DTMF tones",
+            "seconds": 30,
+            "trial": 2,
+            "durationMs": 299.09999999403954,
+            "frames": 17,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 33.32999999999993,
+            "maxFrameMs": 33.32999999999993,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Generate Noise pink",
+            "seconds": 30,
+            "trial": 0,
+            "durationMs": 315.8299999833107,
+            "frames": 18,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 33.32499999999891,
+            "maxFrameMs": 33.32499999999891,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Generate Noise pink",
+            "seconds": 30,
+            "trial": 1,
+            "durationMs": 377.4849999845028,
+            "frames": 21,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 16.670000000000073,
+            "maxFrameMs": 33.33499999999913,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Generate Noise pink",
+            "seconds": 30,
+            "trial": 2,
+            "durationMs": 310.6350000202656,
+            "frames": 18,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 33.32999999999993,
+            "maxFrameMs": 33.32999999999993,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Generate Noise pink",
+            "seconds": 120,
+            "trial": 0,
+            "durationMs": 691.044999986887,
+            "frames": 40,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 16.670000000000073,
+            "maxFrameMs": 33.32999999999993,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Generate Noise pink",
+            "seconds": 120,
+            "trial": 1,
+            "durationMs": 627.4950000047684,
+            "frames": 37,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 16.670000000000073,
+            "maxFrameMs": 33.335000000000946,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Generate Noise pink",
+            "seconds": 120,
+            "trial": 2,
+            "durationMs": 630.7599999904633,
+            "frames": 37,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 16.670000000000073,
+            "maxFrameMs": 33.32999999999993,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Apply Amplify",
+            "seconds": 120,
+            "trial": 0,
+            "durationMs": 1795.8999999761581,
+            "frames": 106,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 16.670000000000073,
+            "maxFrameMs": 33.330000000001746,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Apply Amplify",
+            "seconds": 120,
+            "trial": 1,
+            "durationMs": 1786.655000001192,
+            "frames": 106,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 16.67000000000189,
+            "maxFrameMs": 33.32999999999811,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Apply Amplify",
+            "seconds": 120,
+            "trial": 2,
+            "durationMs": 1821.9950000047684,
+            "frames": 108,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 16.67000000000189,
+            "maxFrameMs": 33.33499999999913,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Apply Compressor",
+            "seconds": 120,
+            "trial": 0,
+            "durationMs": 1944.1649999916553,
+            "frames": 115,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 16.67000000000189,
+            "maxFrameMs": 33.33499999999913,
+            "framesOver33Ms": 0,
+            "longTaskCount": 1,
+            "maxLongTaskMs": 54
+          },
+          {
+            "operation": "Apply Compressor",
+            "seconds": 120,
+            "trial": 1,
+            "durationMs": 1878.8050000071526,
+            "frames": 112,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 16.67000000000189,
+            "maxFrameMs": 33.32999999999811,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Apply Compressor",
+            "seconds": 120,
+            "trial": 2,
+            "durationMs": 2112.4900000095367,
+            "frames": 124,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 16.67000000000189,
+            "maxFrameMs": 50.00500000000102,
+            "framesOver33Ms": 1,
+            "longTaskCount": 1,
+            "maxLongTaskMs": 59
+          },
+          {
+            "operation": "Apply Normalize",
+            "seconds": 120,
+            "trial": 0,
+            "durationMs": 2549.939999997616,
+            "frames": 149,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 16.67000000000189,
+            "maxFrameMs": 50,
+            "framesOver33Ms": 2,
+            "longTaskCount": 2,
+            "maxLongTaskMs": 68
+          },
+          {
+            "operation": "Apply Normalize",
+            "seconds": 120,
+            "trial": 1,
+            "durationMs": 1817.9549999833107,
+            "frames": 108,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 16.67000000000189,
+            "maxFrameMs": 33.3350000000064,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Apply Normalize",
+            "seconds": 120,
+            "trial": 2,
+            "durationMs": 1853.9249999821186,
+            "frames": 110,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 16.67000000000553,
+            "maxFrameMs": 33.33499999999913,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Apply Click Removal",
+            "seconds": 120,
+            "trial": 0,
+            "durationMs": 2016.469999998808,
+            "frames": 119,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 16.67000000000553,
+            "maxFrameMs": 50,
+            "framesOver33Ms": 1,
+            "longTaskCount": 1,
+            "maxLongTaskMs": 51
+          },
+          {
+            "operation": "Apply Click Removal",
+            "seconds": 120,
+            "trial": 1,
+            "durationMs": 1971.550000011921,
+            "frames": 117,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 16.67000000000553,
+            "maxFrameMs": 33.330000000001746,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Apply Click Removal",
+            "seconds": 120,
+            "trial": 2,
+            "durationMs": 2001.2250000238419,
+            "frames": 119,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 16.67000000000553,
+            "maxFrameMs": 33.330000000001746,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Apply Noise gate",
+            "seconds": 120,
+            "trial": 0,
+            "durationMs": 2104.354999989271,
+            "frames": 125,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 16.67000000000553,
+            "maxFrameMs": 33.330000000001746,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Apply Noise gate",
+            "seconds": 120,
+            "trial": 1,
+            "durationMs": 1882.1450000107288,
+            "frames": 112,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 16.669999999998254,
+            "maxFrameMs": 33.330000000001746,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Apply Noise gate",
+            "seconds": 120,
+            "trial": 2,
+            "durationMs": 1805.3349999785423,
+            "frames": 107,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 16.67000000000553,
+            "maxFrameMs": 33.32999999999447,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Apply Loudness Normalization",
+            "seconds": 120,
+            "trial": 0,
+            "durationMs": 1803.6400000154972,
+            "frames": 107,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 16.67000000000553,
+            "maxFrameMs": 33.33499999999913,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Apply Loudness Normalization",
+            "seconds": 120,
+            "trial": 1,
+            "durationMs": 1765.6950000226498,
+            "frames": 105,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 16.669999999998254,
+            "maxFrameMs": 33.33499999999913,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Apply Loudness Normalization",
+            "seconds": 120,
+            "trial": 2,
+            "durationMs": 1769.655000001192,
+            "frames": 105,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 16.67000000000553,
+            "maxFrameMs": 33.330000000001746,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Apply De-esser",
+            "seconds": 120,
+            "trial": 0,
+            "durationMs": 2134.2450000047684,
+            "frames": 127,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 16.67000000000553,
+            "maxFrameMs": 33.33499999999913,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Apply De-esser",
+            "seconds": 120,
+            "trial": 1,
+            "durationMs": 2080.9449999928474,
+            "frames": 124,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 16.669999999998254,
+            "maxFrameMs": 33.33499999999913,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Apply De-esser",
+            "seconds": 120,
+            "trial": 2,
+            "durationMs": 2161.145000010729,
+            "frames": 128,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 16.67000000000553,
+            "maxFrameMs": 33.330000000001746,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Apply Multiband compressor",
+            "seconds": 120,
+            "trial": 0,
+            "durationMs": 2747.594999998808,
+            "frames": 164,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 16.669999999998254,
+            "maxFrameMs": 33.3350000000064,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Apply Multiband compressor",
+            "seconds": 120,
+            "trial": 1,
+            "durationMs": 2771.1949999928474,
+            "frames": 164,
+            "medianFrameMs": 16.66500000000815,
+            "p95FrameMs": 16.669999999998254,
+            "maxFrameMs": 33.330000000001746,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Apply Multiband compressor",
+            "seconds": 120,
+            "trial": 2,
+            "durationMs": 2794.119999974966,
+            "frames": 167,
+            "medianFrameMs": 16.66500000000815,
+            "p95FrameMs": 16.669999999998254,
+            "maxFrameMs": 33.32500000001164,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Idle timeline",
+            "clips": "64",
+            "frames": 181,
+            "medianFrameMs": 16.66500000000815,
+            "p95FrameMs": 16.669999999998254,
+            "maxFrameMs": 16.670000000012806,
+            "framesOver33Ms": 0
+          },
+          {
+            "operation": "Playback timeline",
+            "clips": "64",
+            "playheadBefore": 12000,
+            "playheadAfter": 156000,
+            "frames": 181,
+            "medianFrameMs": 16.66500000000815,
+            "p95FrameMs": 16.669999999998254,
+            "maxFrameMs": 16.670000000012806,
+            "framesOver33Ms": 0
+          },
+          {
+            "operation": "Active dense timeline scroll and hover",
+            "clips": "64",
+            "frames": 155,
+            "medianFrameMs": 16.66500000000815,
+            "p95FrameMs": 33.3350000000064,
+            "maxFrameMs": 50,
+            "framesOver33Ms": 7,
+            "durationMs": 3016.5420000000013,
+            "minScrollLeft": 0,
+            "maxScrollLeft": 1920,
+            "minScrollTop": 0,
+            "maxScrollTop": 1440,
+            "scrollPositions": 7,
+            "hoverPositions": 18,
+            "gestures": 30,
+            "gesture": "Trusted mouse sweeps and bidirectional wheel scrolling on a zoomed timeline with 64 clips"
+          }
+        ]
+      }
+    },
+    {
+      "label": "after-1",
+      "exitCode": 1,
+      "stage": "Speed prewarm admission",
+      "expectedFailedCount": 0,
+      "actualFailedCount": 2,
+      "timeoutMs": 45000,
+      "timedObservations": 0,
+      "logPath": "/tmp/perf300-electron-after-1.log",
+      "log": "node:internal/modules/run_main:107\n    triggerUncaughtException(\n    ^\n\nExpectError: expect(locator).toHaveAttribute(expected) failed\n\nLocator:  locator('[data-desktop-speed-warmup=\"ready\"]')\nExpected: \"0\"\nReceived: \"2\"\nTimeout:  45000ms\n\nCall log:\n  - Expect \"to.have.attribute.value\" with timeout 45000ms\n  - waiting for locator('[data-desktop-speed-warmup=\"ready\"]')\n    89 \u00d7 locator resolved to <div dir=\"ltr\" data-desktop-speed-warmup=\"ready\" data-desktop-speed-warmup-failed=\"2\">\u2026</div>\n       - unexpected value \"2\"\n\n    at captureRawStack (/tmp/soundscaper-round4-measure-after-own/node_modules/playwright-core/lib/coreBundle.js:9681:17)\n    at callMatcherAsStep (/tmp/soundscaper-round4-measure-after-own/node_modules/playwright/lib/matchers/expect.js:13310:57)\n    at Object.toHaveAttribute (/tmp/soundscaper-round4-measure-after-own/node_modules/playwright/lib/matchers/expect.js:13300:23)\n    at /tmp/soundscaper-round4-measure-after-own/scripts/performance/measure-electron-editing.mjs:42:4 {\n  matcherResult: {\n    name: 'toHaveAttribute',\n    expected: '0',\n    message: 'expect(locator).toHaveAttribute(expected) failed\\n' +\n      '\\n' +\n      `Locator:  locator('[data-desktop-speed-warmup=\"ready\"]')\\n` +\n      'Expected: \"0\"\\n' +\n      'Received: \"2\"\\n' +\n      'Timeout:  45000ms\\n' +\n      '\\n' +\n      'Call log:\\n' +\n      '  - Expect \"to.have.attribute.value\" with timeout 45000ms\\n' +\n      `  - waiting for locator('[data-desktop-speed-warmup=\"ready\"]')\\n` +\n      '    89 \u00d7 locator resolved to <div dir=\"ltr\" data-desktop-speed-warmup=\"ready\" data-desktop-speed-warmup-failed=\"2\">\u2026</div>\\n' +\n      '       - unexpected value \"2\"\\n',\n    pass: false,\n    actual: '2',\n    log: [\n      '  - Expect \"to.have.attribute.value\" with timeout 45000ms',\n      `  - waiting for locator('[data-desktop-speed-warmup=\"ready\"]')`,\n      '    89 \u00d7 locator resolved to <div dir=\"ltr\" data-desktop-speed-warmup=\"ready\" data-desktop-speed-warmup-failed=\"2\">\u2026</div>',\n      '       - unexpected value \"2\"'\n    ],\n    timeout: 45000,\n    ariaSnapshot: '- text: Untitled project \u2014 Soundscaper\\n' +\n      '- navigation \"Project tabs\":\\n' +\n      '  - tablist \"Project tabs\"\\n' +\n      `  - 'button \"Close project: Untitled project\"': \u00d7\\n` +\n      '  - button \"New project\": +\\n' +\n      '- button \"Fullscreen\"\\n' +\n      '- button \"Minimize window\"\\n' +\n      '- button \"Maximize window\"\\n' +\n      '- button \"Quit\"\\n' +\n      '- text: All changes saved locally\\n' +\n      '- menubar \"Application menu\":\\n' +\n      '  - menuitem \"File\"\\n' +\n      '  - menuitem \"Edit\"\\n' +\n      '  - menuitem \"Select\"\\n' +\n      '  - menuitem \"View\"\\n' +\n      '  - menuitem \"Tracks\"\\n' +\n      '  - menuitem \"Generate\"\\n' +\n      '  - menuitem \"Effect\"\\n' +\n      '  - menuitem \"Analyze\"\\n' +\n      '  - menuitem \"Tools\"\\n' +\n      '  - menuitem \"Window\"\\n' +\n      '  - menuitem \"Help\"\\n' +\n      '- combobox \"Search commands and media\"\\n' +\n      '- status\\n' +\n      '- text: Untitled project\\n' +\n      '- button \"Open\"\\n' +\n      '- button \"Next, choose the matching _data directory.\"\\n' +\n      '- button \"Import\"\\n' +\n      '- toolbar \"Quick actions\":\\n' +\n      '  - button \"Export AUP4\"\\n' +\n      '  - button \"Export audio\"\\n' +\n      '  - button \"\uef27 Mixer\"\\n' +\n      '  - button \"SFX\"\\n' +\n      '  - button \"Audio setup\"\\n' +\n      '  - button \"Undo\" [disabled]\\n' +\n      '  - button \"Redo\" [disabled]\\n' +\n      '- toolbar \"Tool toolbar\":\\n' +\n      '  - button \"Play\"\\n' +\n      '  - button \"Play options\"\\n' +\n      '  - button \"Stop\"\\n' +\n      '  - button \"Record onto the active track\"\\n' +\n      '  - button \"Record options\"\\n' +\n      '  - button \"Jump to project start\"\\n' +\n      '  - button \"Jump to project end\"\\n' +\n      '  - button \"Loop selection\"\\n' +\n      '  - button \"Clip gain\"\\n' +\n      '  - button \"Split tool\"\\n' +\n      '  - button \"Spectrogram\"\\n' +\n      '  - button \"Spectrogram options\"\\n' +\n      '  - button \"Zoom in\"\\n' +\n      '  - button \"Zoom out\"\\n' +\n      '  - button \"Fit project\"\\n' +\n      '  - group \"Playhead\"\\n' +\n      '  - button \"Customize toolbar\"\\n' +\n      '- main:\\n' +\n      '  - region \"Timeline\"\\n' +\n      '  - paragraph: \"Space: play \u00b7 R: record \u00b7 S: split \u00b7 Delete: remove \u00b7 Ctrl/Cmd + Z: undo\"\\n' +\n      '- complementary \"Panels\":\\n' +\n      `  - 'button \"Resize: Right\"'\\n` +\n      '  - complementary \"Playback meter settings\"\\n' +\n      '  - complementary \"Record level\"\\n' +\n      '- toolbar \"Selection toolbar\":\\n' +\n      '  - status \"Editor ready. Create a project or import audio.\"\\n' +\n      '  - text: Drag clips to move them. Drag their edges to trim. Drag in the ruler to create a time selection. Selection\\n' +\n      '  - group \"Selection start\" [disabled]\\n' +\n      '  - group \"Selection end\" [disabled]\\n' +\n      '  - text: Duration\\n' +\n      '  - group \"Selection duration\"'\n  }\n}\n\nNode.js v26.5.0\n",
+      "ariaSnapshot": "- main:\n  - text: Untitled project \u2014 Soundscaper\n  - navigation \"Project tabs\":\n    - tablist \"Project tabs\":\n      - tab \"Untitled project\" [selected]\n    - 'button \"Close project: Untitled project\"': \u00d7\n    - button \"New project\": +\n  - button \"Fullscreen\"\n  - button \"Minimize window\"\n  - button \"Maximize window\"\n  - button \"Quit\"\n  - text: All changes saved locally\n  - menubar \"Application menu\":\n    - menuitem \"File\"\n    - menuitem \"Edit\"\n    - menuitem \"Select\"\n    - menuitem \"View\"\n    - menuitem \"Tracks\"\n    - menuitem \"Generate\"\n    - menuitem \"Effect\"\n    - menuitem \"Analyze\"\n    - menuitem \"Tools\"\n    - menuitem \"Window\"\n    - menuitem \"Help\"\n  - combobox \"Search commands and media\"\n  - status\n  - text: Untitled project\n  - button \"Open\"\n  - button \"Next, choose the matching _data directory.\"\n  - button \"Import\"\n  - toolbar \"Quick actions\":\n    - button \"Export AUP4\"\n    - button \"Export audio\"\n    - button \"\uef27 Mixer\"\n    - button \"SFX\"\n    - button \"Audio setup\"\n    - button \"Undo\" [disabled]\n    - button \"Redo\" [disabled]\n  - toolbar \"Tool toolbar\":\n    - button \"Play\"\n    - button \"Play options\"\n    - button \"Stop\"\n    - button \"Record onto the active track\"\n    - button \"Record options\"\n    - button \"Jump to project start\"\n    - button \"Jump to project end\"\n    - button \"Loop selection\"\n    - button \"Clip gain\"\n    - button \"Split tool\"\n    - button \"Spectrogram\"\n    - button \"Spectrogram options\"\n    - button \"Zoom in\"\n    - button \"Zoom out\"\n    - button \"Fit project\"\n    - group \"Playhead\":\n      - text: 0 0 h 0 0 m 0 0 . 0 0 s\n      - 'button \"Playhead: Format\"'\n    - button \"Customize toolbar\"\n  - main:\n    - region \"Timeline\":\n      - text: Tracks\n      - button \"Add track\"\n      - region \"Timeline\"\n      - group \"Track 1 track controls\":\n        - button \"Track 1 track type\"\n        - 'button \"Rename track: Track 1\"': Track 1\n        - button \"Track menu\"\n        - group \"Pan\":\n          - 'slider \"Pan: 0\"'\n        - group \"Volume\":\n          - slider \"Volume\": \"83\"\n        - button \"Mute\": M\n        - button \"Solo\": S\n        - button \"Effects\"\n      - group \"Track 1, audio track\"\n      - 'region \"Track 1: Waveform\"': 0 -1 -3 -6 -9 -12 -\u221e -12 -9 -6 -3 -1 0\n      - slider \"Playhead\"\n      - status\n    - paragraph: \"Space: play \u00b7 R: record \u00b7 S: split \u00b7 Delete: remove \u00b7 Ctrl/Cmd + Z: undo\"\n  - complementary \"Panels\":\n    - 'button \"Resize: Right\"'\n    - complementary \"Playback meter settings\":\n      - 'button \"Move workspace item: Playback meter\"'\n      - button \"Playback meter settings\"\n      - meter \"Live metering\"\n      - slider \"Playback volume\": \"1\"\n    - complementary \"Record level\":\n      - 'button \"Move workspace item: Recording meter\"'\n      - button \"Record level\"\n      - meter \"Input level\"\n      - slider \"Record level\": \"0\"\n  - toolbar \"Selection toolbar\":\n    - status \"Editor ready. Create a project or import audio.\"\n    - text: Drag clips to move them. Drag their edges to trim. Drag in the ruler to create a time selection. Selection\n    - group \"Selection start\" [disabled]:\n      - text: 0 0 h 0 0 m 0 0 . 0 0 0 s\n      - 'button \"Selection start: Format\" [disabled]'\n    - group \"Selection end\" [disabled]:\n      - text: 0 0 h 0 0 m 0 0 . 0 0 0 s\n      - 'button \"Selection end: Format\" [disabled]'\n    - text: Duration\n    - group \"Selection duration\":\n      - text: 0 0 h 0 0 m 0 0 . 0 0 0 s\n      - 'button \"Selection duration: Format\"'"
+    },
+    {
+      "id": "final-chunk-correction-baseline-playback-failure",
+      "label": "before-1",
+      "variant": "before",
+      "run": 1,
+      "cwd": "/tmp/soundscaper-round4-measure-before-own",
+      "command": [
+        "xvfb-run",
+        "-a",
+        "node",
+        "--import",
+        "tsx",
+        "scripts/performance/measure-electron-editing.mjs",
+        "/home/splowatt/git/Soundscaper/docs/development/performance-round4-electron-before-1.json",
+        "--round4"
+      ],
+      "startedAtUtc": "2026-10-07T18:03:43.678315+00:00",
+      "finishedAtUtc": "2026-10-07T18:06:04.135268+00:00",
+      "exitCode": 1,
+      "stage": "Playback timeline actual progress assertion after3s frame sample",
+      "expected": "playheadAfter > playheadBefore",
+      "actual": {
+        "playheadBefore": 12000,
+        "playheadAfter": 12000
+      },
+      "speedAdmissionPassed": true,
+      "requiredWarmupFailedCount": 0,
+      "finalMeasurementJsonGenerated": false,
+      "staleOutputStillPresent": {
+        "artifact": "/home/splowatt/git/Soundscaper/docs/development/performance-round4-electron-before-1.json",
+        "sha256": "097f96bb3c347d5df6376757c3b1b491d3b0afaebc04a4db9a3096043a7b511a",
+        "hostStart": "2026-10-07T17:36:04.876Z",
+        "observations": 45,
+        "isFinalMeasurement": false
+      },
+      "log": "/tmp/perf300-electron-final-before-1.log",
+      "logSha256": "6d04ac65c8239de7cd2c33ee3d2bedce45d9d47c9e7cd7450e22a09acbdaad9a",
+      "logText": "node:internal/modules/run_main:107\n    triggerUncaughtException(\n    ^\n\nExpectError: expect(received).toBeGreaterThan(expected)\n\nExpected: > 12000\nReceived:   12000\n    at captureRawStack (/tmp/soundscaper-round4-measure-before-own/node_modules/playwright-core/lib/coreBundle.js:9681:17)\n    at callMatcherAsStep (/tmp/soundscaper-round4-measure-before-own/node_modules/playwright/lib/matchers/expect.js:13310:57)\n    at Object.toBeGreaterThan (/tmp/soundscaper-round4-measure-before-own/node_modules/playwright/lib/matchers/expect.js:13300:23)\n    at /tmp/soundscaper-round4-measure-before-own/scripts/performance/measure-electron-editing.mjs:116:24 {\n  matcherResult: {\n    message: 'expect(received).toBeGreaterThan(expected)\\n' +\n      '\\n' +\n      'Expected: > 12000\\n' +\n      'Received:   12000',\n    pass: false,\n    name: 'toBeGreaterThan'\n  }\n}\n\nNode.js v26.5.0\n",
+      "ariaSnapshot": "- main:\n  - text: Untitled project \u2014 Soundscaper\n  - navigation \"Project tabs\":\n    - tablist \"Project tabs\":\n      - tab \"Untitled project\" [selected]\n    - 'button \"Close project: Untitled project\"': \u00d7\n    - button \"New project\": +\n  - button \"Fullscreen\"\n  - button \"Minimize window\"\n  - button \"Maximize window\"\n  - button \"Quit\"\n  - text: All changes saved locally\n  - menubar \"Application menu\":\n    - menuitem \"File\"\n    - menuitem \"Edit\"\n    - menuitem \"Select\"\n    - menuitem \"View\"\n    - menuitem \"Tracks\"\n    - menuitem \"Generate\"\n    - menuitem \"Effect\"\n    - menuitem \"Analyze\"\n    - menuitem \"Tools\"\n    - menuitem \"Window\"\n    - menuitem \"Help\"\n  - combobox \"Search commands and media\"\n  - status\n  - text: Untitled project\n  - button \"Open\"\n  - button \"Next, choose the matching _data directory.\"\n  - button \"Import\"\n  - toolbar \"Quick actions\":\n    - button \"Export AUP4\"\n    - button \"Export audio\"\n    - button \"\uef27 Mixer\"\n    - button \"SFX\"\n    - button \"Audio setup\"\n    - button \"Undo\"\n    - button \"Redo\" [disabled]\n  - toolbar \"Tool toolbar\":\n    - button \"Pause\" [pressed]\n    - button \"Pause options\"\n    - button \"Stop\"\n    - button \"Record onto the active track\"\n    - button \"Record options\"\n    - button \"Jump to project start\"\n    - button \"Jump to project end\"\n    - button \"Loop selection\"\n    - button \"Clip gain\"\n    - button \"Split tool\"\n    - button \"Spectrogram\"\n    - button \"Spectrogram options\"\n    - button \"Zoom in\"\n    - button \"Zoom out\"\n    - button \"Fit project\"\n    - group \"Playhead\":\n      - text: 0 0 h 0 0 m 0 0 . 3 5 s\n      - 'button \"Playhead: Format\"'\n    - button \"Customize toolbar\"\n  - main:\n    - region \"Timeline\":\n      - text: Tracks\n      - button \"Add track\"\n      - region \"Timeline\"\n      - group \"Track 1 track controls\":\n        - button \"Track 1 track type\"\n        - 'button \"Rename track: Track 1\"': Track 1\n        - button \"Track menu\"\n        - group \"Pan\":\n          - 'slider \"Pan: 0\"'\n        - group \"Volume\":\n          - slider \"Volume\": \"83\"\n        - button \"Mute\": M\n        - button \"Solo\": S\n        - button \"Effects\"\n      - group \"Track 1, audio track\":\n        - group \"Noise clip, starts at 0 seconds, 2 minutes long\":\n          - text: Noise\n          - button \"Clip menu\"\n      - 'region \"Track 1: Waveform\"': 0 -9 -\u221e -9 0 0 -9 -\u221e -9 0\n      - group \"Track 1 track controls\":\n        - button \"Track 1 track type\"\n        - 'button \"Rename track: Track 1\"': Track 1\n        - button \"Track menu\"\n        - group \"Pan\":\n          - 'slider \"Pan: 0\"'\n        - group \"Volume\":\n          - slider \"Volume\": \"83\"\n        - button \"Mute\": M\n        - button \"Solo\": S\n        - button \"Effects\"\n      - group \"Track 2, audio track\":\n        - group \"Noise clip, starts at 0 seconds, 2 minutes long\":\n          - text: Noise\n          - button \"Clip menu\"\n      - 'region \"Track 1: Waveform\"': 0 -9 -\u221e -9 0 0 -9 -\u221e -9 0\n      - group \"Track 1 track controls\":\n        - button \"Track 1 track type\"\n        - 'button \"Rename track: Track 1\"': Track 1\n        - button \"Track menu\"\n        - group \"Pan\":\n          - 'slider \"Pan: 0\"'\n        - group \"Volume\":\n          - slider \"Volume\": \"83\"\n        - button \"Mute\": M\n        - button \"Solo\": S\n        - button \"Effects\"\n      - group \"Track 3, audio track\":\n        - group \"Noise clip, starts at 0 seconds, 2 minutes long\":\n          - text: Noise\n          - button \"Clip menu\"\n      - 'region \"Track 1: Waveform\"': 0 -9 -\u221e -9 0 0 -9 -\u221e -9 0\n      - group \"Track 1 track controls\":\n        - button \"Track 1 track type\"\n        - 'button \"Rename track: Track 1\"': Track 1\n        - button \"Track menu\"\n        - group \"Pan\":\n          - 'slider \"Pan: 0\"'\n        - group \"Volume\":\n          - slider \"Volume\": \"83\"\n        - button \"Mute\": M\n        - button \"Solo\": S\n        - button \"Effects\"\n      - group \"Track 4, audio track\":\n        - group \"Noise clip, starts at 0 seconds, 2 minutes long\":\n          - text: Noise\n          - button \"Clip menu\"\n      - 'region \"Track 1: Waveform\"': 0 -9 -\u221e -9 0 0 -9 -\u221e -9 0\n      - group \"Track 1 track controls\":\n        - button \"Track 1 track type\"\n        - 'button \"Rename track: Track 1\"': Track 1\n        - button \"Track menu\"\n        - group \"Pan\":\n          - 'slider \"Pan: 0\"'\n        - group \"Volume\":\n          - slider \"Volume\": \"83\"\n        - button \"Mute\": M\n        - button \"Solo\": S\n        - button \"Effects\"\n      - group \"Track 5, audio track\":\n        - group \"Noise clip, starts at 0 seconds, 2 minutes long\":\n          - text: Noise\n          - button \"Clip menu\"\n      - 'region \"Track 1: Waveform\"': 0 -9 -\u221e -9 0 0 -9 -\u221e -9 0\n      - group \"Track 1 track controls\":\n        - button \"Track 1 track type\"\n        - 'button \"Rename track: Track 1\"': Track 1\n        - button \"Track menu\"\n        - group \"Pan\":\n          - 'slider \"Pan: 0\"'\n        - group \"Volume\":\n          - slider \"Volume\": \"83\"\n        - button \"Mute\": M\n        - button \"Solo\": S\n        - button \"Effects\"\n      - group \"Track 6, audio track\":\n        - group \"Noise clip, starts at 0 seconds, 2 minutes long\":\n          - text: Noise\n          - button \"Clip menu\"\n      - 'region \"Track 1: Waveform\"': 0 -9 -\u221e -9 0 0 -9 -\u221e -9 0\n      - group \"Track 1 track controls\":\n        - button \"Track 1 track type\"\n        - 'button \"Rename track: Track 1\"': Track 1\n        - button \"Track menu\"\n        - group \"Pan\":\n          - 'slider \"Pan: 0\"'\n        - group \"Volume\":\n          - slider \"Volume\": \"83\"\n        - button \"Mute\": M\n        - button \"Solo\": S\n        - button \"Effects\"\n      - group \"Track 7, audio track\":\n        - group \"Noise clip, starts at 0 seconds, 2 minutes long\":\n          - text: Noise\n          - button \"Clip menu\"\n      - 'region \"Track 1: Waveform\"': 0 -9 -\u221e -9 0 0 -9 -\u221e -9 0\n      - group \"Track 1\"\n      - group \"Track 1\"\n      - group \"Track 1\"\n      - group \"Track 1\"\n      - group \"Track 1\"\n      - group \"Track 1\"\n      - group \"Track 1\"\n      - group \"Track 1\"\n      - group \"Track 1\"\n      - group \"Track 1\"\n      - group \"Track 1\"\n      - group \"Track 1\"\n      - group \"Track 1\"\n      - group \"Track 1\"\n      - group \"Track 1\"\n      - group \"Track 1\"\n      - group \"Track 1\"\n      - group \"Track 1\"\n      - group \"Track 1\"\n      - group \"Track 1\"\n      - group \"Track 1\"\n      - group \"Track 1\"\n      - group \"Track 1\"\n      - group \"Track 1\"\n      - group \"Track 1\"\n      - group \"Track 1\"\n      - group \"Track 1\"\n      - group \"Track 1\"\n      - group \"Track 1\"\n      - group \"Track 1\"\n      - group \"Track 1\"\n      - group \"Track 1\"\n      - group \"Track 1\"\n      - group \"Track 1\"\n      - group \"Track 1\"\n      - group \"Track 1\"\n      - group \"Track 1\"\n      - group \"Track 1\"\n      - group \"Track 1\"\n      - group \"Track 1\"\n      - group \"Track 1\"\n      - group \"Track 1\"\n      - group \"Track 1\"\n      - group \"Track 1\"\n      - group \"Track 1\"\n      - group \"Track 1\"\n      - group \"Track 1\"\n      - group \"Track 1\"\n      - group \"Track 1\"\n      - group \"Track 1\"\n      - group \"Track 1\"\n      - group \"Track 1\"\n      - group \"Track 1\"\n      - group \"Track 1\"\n      - group \"Track 1\"\n      - group \"Track 1\"\n      - group \"Track 1\"\n      - slider \"Playhead\"\n      - status\n    - paragraph: \"Space: play \u00b7 R: record \u00b7 S: split \u00b7 Delete: remove \u00b7 Ctrl/Cmd + Z: undo\"\n  - complementary \"Panels\":\n    - 'button \"Resize: Right\"'\n    - complementary \"Playback meter settings\":\n      - 'button \"Move workspace item: Playback meter\"'\n      - button \"Playback meter settings\"\n      - meter \"Live metering\"\n      - slider \"Playback volume\": \"1\"\n    - complementary \"Record level\":\n      - 'button \"Move workspace item: Recording meter\"'\n      - button \"Record level\"\n      - meter \"Input level\"\n      - slider \"Record level\": \"0\"\n  - toolbar \"Selection toolbar\":\n    - status \"Applied the Audacity effect.\"\n    - text: Drag clips to move them. Drag their edges to trim. Drag in the ruler to create a time selection. Selection\n    - group \"Selection start\" [disabled]:\n      - text: 0 0 h 0 0 m 0 0 . 0 0 0 s\n      - 'button \"Selection start: Format\" [disabled]'\n    - group \"Selection end\" [disabled]:\n      - text: 0 0 h 0 0 m 0 0 . 0 0 0 s\n      - 'button \"Selection end: Format\" [disabled]'\n    - text: Duration\n    - group \"Selection duration\":\n      - text: 0 0 h 0 0 m 0 0 . 0 0 0 s\n      - 'button \"Selection duration: Format\"'",
+      "build": {
+        "root": "/tmp/soundscaper-round4-measure-before-own",
+        "checkoutRevision": "e6b166a2bff9c548f99c6fc78def844505c13f9c",
+        "ownedSources": {
+          "src/common/editor/audio-freeze-work-index.ts": null,
+          "src/common/editor/audio-spectrum.ts": "075583228f5fa93e7b9eb4b74be0ee0aca8b9fe180be5de091c54de934ae7e84",
+          "src/common/editor/audio-track-freeze-lifecycle-v21.ts": "9c94a33f59426cf2cb4f8d25b224ff8a15e4d7160584661be339167dea8185cf",
+          "src/common/editor/commands/project-source-record-runtime.js": "12733b856d294d66b926a78a1851a80a16eee54c5f31f0a7de4b13917ad562cf",
+          "src/common/editor/commands/source-command-work.ts": null,
+          "src/common/editor/commands/source-range-work.ts": null,
+          "src/common/editor/commands/track-mixer-label-runtime.js": "1a7b6414f3a398cf91b8053621e980ab6fe6ab4cb0248365d8638a475bcef3f6",
+          "src/common/editor/commands/track-mixer-work.ts": null,
+          "src/common/editor/complementary-crossover.ts": "eb66272b305778f3928417b581eb2f7153ea8f235267a239511c83ff55216c8f",
+          "src/common/editor/ebu-r128.js": "485b9287d978f6347ce499c4345d040a8f2016864be8de885f35cc048bdc3c1f",
+          "src/common/editor/engine/parallel-stack-effect-plan.ts": null,
+          "src/common/editor/engine/parallel-stack-plan.ts": "a836f56bc3f551435d9b6d483cf2f514142ad190380f0b26c67a04cbcf65340e",
+          "src/common/editor/engine/parallel-stack-planning-index.ts": null,
+          "src/common/editor/engine/scheduled-parameter-audio-param-time-projector.ts": null,
+          "src/common/editor/engine/scheduled-parameter-frame-projector.ts": null,
+          "src/common/editor/engine/scheduled-parameter-registry.ts": "93fc51563930965aac579a670cc83d84474702017b9ba3e5fc49c8dc191d7d65",
+          "src/common/editor/first-party-effects/deesser/dsp.ts": "9dc0750427394709a0a5537ab1e1d4166ee3c84cfd44d790012dd2c35087a91b",
+          "src/common/editor/first-party-effects/dynamics/core.ts": "51f9ddfb76cc69a96117acf86462841b0c2cea2c5509b0707a5dbdff00201cf9",
+          "src/common/editor/first-party-effects/multiband-compressor/dsp.ts": "abde537dbf4604cadd4ab64322b2afabd3ddc10e8e65cfa43330dfe131bbf410",
+          "src/common/editor/first-party-effects/standard/dsp.ts": "4c058f88ca9ef6752f0653ae78c1c1b8d39475bbb2508a16e9d426e287f59456",
+          "src/common/editor/first-party-effects/standard/filters-dsp.ts": "374fb15cfa97a8a785cbc40a0cbb441e722314a2796e2df7223c65e19f5256bf",
+          "src/common/editor/frequency-waveform-analysis.ts": "3e59acb632b8a40ccb534afe7b3caaa8a6ef10d5edae0300351921b52a302758",
+          "src/common/editor/pffft-spectrogram.js": "9e42657f02f46a374fb9d6f7287bf17943691761146fadc16fff846785d4878c",
+          "src/common/editor/signal-generator-renderer.ts": "2007c1023d609fb29d6094c6715a8b27145232973db2aeecf1eaa79e53ae02b6",
+          "src/common/editor/ui/AudacityDynamicsEffectLayout.jsx": "fc8ed2fbf127f6c464a250089827e06251ba1d4d34611d9c4c5fbd03acab1d51",
+          "src/common/editor/ui/AudacityEffectLayout.jsx": "e3b644c76adf51fa1bab89d36322acfe2da3f4bc847a5fe471755b8ea36f47d2",
+          "src/common/editor/ui/AudacityLegacyEffectGraph.tsx": "ccb1636079acabb7228fd65e709c9bfecd6168f4280d0b6f91a31a00531b5ee6",
+          "src/common/editor/ui/audacity-legacy-effect-graphs.ts": "b58c3272c850849d8a517745f5fba7cc5f45123ec06699dc3a6af06b64a95572",
+          "src/common/editor/ui/clip-spreadsheet/ClipSpreadsheetPanel.tsx": "c249951d4f27ef2e4e3636dfdf7a1fc187599f197af8121efdb51c1bab0b1d77",
+          "src/common/editor/ui/clip-spreadsheet/SpreadsheetRow.tsx": null,
+          "src/common/editor/ui/clip-spreadsheet/row-presentation.ts": null,
+          "src/common/editor/ui/dialogs/GeneratorDialog.jsx": "0211647515467d8cfe02be5bf22388d0a08d2bc28d7342355fdbe6e60c227055",
+          "src/common/editor/ui/dialogs/TakeCompDialog.tsx": "801ea19e7ef55b8ff55b1aacd3207cdd6c39695c23fe62c570e3e65447c82fbb",
+          "src/common/editor/ui/dialogs/VampAnalyzerDialog.tsx": "799e6dc2d42ec926263f3ad1db3fe1215a6d04a34c87248870bc9cc275326dcc",
+          "src/common/editor/ui/dialogs/take-comp-boundaries.ts": null,
+          "src/common/editor/ui/dialogs/useAnalyzerLookup.ts": null,
+          "src/common/editor/ui/dialogs/useGeneratorPresentation.ts": null,
+          "src/common/editor/ui/inspector/EffectParameterEditor.jsx": "9c40b402e3ee7364539739286b9cc75732a464ff32451fd838837e85d24913ea",
+          "src/common/editor/ui/inspector/EffectPicker.jsx": "19bd5a8eb58c98d3cc69a4ef88336266f33dc58d9c7cfd7cf86a834638a579bc",
+          "src/common/editor/ui/inspector/EffectPresetBar.jsx": "45effcf310361a821f7f6cb8b790a288c6b5d31204099fd0968aedd8439a533a",
+          "src/common/editor/ui/inspector/useEffectPresentation.ts": null,
+          "src/common/editor/ui/useCompressionCurve.ts": null,
+          "src/common/editor/ui/useLegacyEffectGraphPresentation.ts": null,
+          "src/common/editor/ui/workspace/RoutingGraphWires.tsx": null,
+          "src/common/editor/ui/workspace/SoundscaperRoutingGraphView.tsx": "52bfa3654cd4f481ce22d06b2d0e46eb4effc2174754d3621b00f830b2c90c00",
+          "src/common/editor/ui/workspace/routing-graph-presentation.ts": null,
+          "src/common/editor/ui/workspace/useRoutingHoverFrame.ts": null,
+          "src/soundscaper/editor-project-mixer-surface.ts": "1dd0df2d7b6a604d5cc10fc9b522af48e4cac09988e1535d9f6b6dc59e02d2a2"
+        },
+        "chunkOverlay": {
+          "scripts/lib/build-chunk-groups.mjs": "e7d2be3c0f99c896daaa64fde18010411ca042bc056409b4bb7753bfb0c4d3ee",
+          "scripts/lib/build-chunk-ui-preparation.mjs": "462f123d844571150de81628da7254ed04b965ca1533aa1ca01ea44e736635a3",
+          "tests/audio-editor-responsiveness-round4-chunk-integration.test.ts": "6ae2e07acf65b8290525812b852cf7626f50a50d7b201696e1e0ee0d563af01b",
+          "tests/audio-editor-responsiveness-round4-vamp-chunk.test.ts": "4c656aa0d5f61e7d6558a1dbd123ffc06357f936e64208bf6721cfc65f2b149e"
+        },
+        "harness": {
+          "scripts/performance/measure-electron-editing.mjs": "1b45e4f6f0a56338d3f4b743f4d8b65c1f0458a6078f51a75c9cd79820927d4e",
+          "scripts/performance/electron-editing-completion.ts": "4f5fb07bb13c62a75f95967cc6622993e7cc6e9d04545075a0ee6cc8c638faba"
+        },
+        "stageManifestSha256": "22f8b29a6a2ffad2cf0e613511fb39be84dacca69d9a12225945b2426539de2f",
+        "rendererManifestSha256": "3f0c05863b6d7bb198133756c3d82ea0c1e1df6f69210998036d2c03e24dbb96",
+        "runtimeSnapshotRegisterSha256": "d234e49cba607e24c0c8df512ee8b89d32e7d7f0b492b48c2cf5135c511b684a",
+        "packageLockSha256": "41dac8a6cf7b94afcd4b7b3f0448dfd9087c0a2e9ffee9682a47b5ffbee2f4b3"
+      },
+      "observations": {
+        "completedPrefixCount": 43,
+        "rawTimedRows": "Unavailable: the original maintained harness wrote its JSON only after every observation succeeded. The failed process has exited; the aria snapshot cannot reconstruct those rows.",
+        "expectedCompleteCount": 45
+      },
+      "buildAndSourceValidation": {
+        "capturedAtUtc": "2026-10-07T18:03:08.383529+00:00",
+        "taskBase": "138581fec362c0b4cef96f32d86f3e50194ce06f",
+        "ownedSourceCount": 48,
+        "chunkCorrectionCommit": "064b861b8363de932ee9a5bb39bd7b9fb3ab5ac9",
+        "harnessCommit": "8e0498b65937babdc2bdac847b19996391810da8",
+        "roots": {
+          "before": {
+            "root": "/tmp/soundscaper-round4-measure-before-own",
+            "checkoutRevision": "e6b166a2bff9c548f99c6fc78def844505c13f9c",
+            "ownedSources": {
+              "src/common/editor/audio-freeze-work-index.ts": null,
+              "src/common/editor/audio-spectrum.ts": "075583228f5fa93e7b9eb4b74be0ee0aca8b9fe180be5de091c54de934ae7e84",
+              "src/common/editor/audio-track-freeze-lifecycle-v21.ts": "9c94a33f59426cf2cb4f8d25b224ff8a15e4d7160584661be339167dea8185cf",
+              "src/common/editor/commands/project-source-record-runtime.js": "12733b856d294d66b926a78a1851a80a16eee54c5f31f0a7de4b13917ad562cf",
+              "src/common/editor/commands/source-command-work.ts": null,
+              "src/common/editor/commands/source-range-work.ts": null,
+              "src/common/editor/commands/track-mixer-label-runtime.js": "1a7b6414f3a398cf91b8053621e980ab6fe6ab4cb0248365d8638a475bcef3f6",
+              "src/common/editor/commands/track-mixer-work.ts": null,
+              "src/common/editor/complementary-crossover.ts": "eb66272b305778f3928417b581eb2f7153ea8f235267a239511c83ff55216c8f",
+              "src/common/editor/ebu-r128.js": "485b9287d978f6347ce499c4345d040a8f2016864be8de885f35cc048bdc3c1f",
+              "src/common/editor/engine/parallel-stack-effect-plan.ts": null,
+              "src/common/editor/engine/parallel-stack-plan.ts": "a836f56bc3f551435d9b6d483cf2f514142ad190380f0b26c67a04cbcf65340e",
+              "src/common/editor/engine/parallel-stack-planning-index.ts": null,
+              "src/common/editor/engine/scheduled-parameter-audio-param-time-projector.ts": null,
+              "src/common/editor/engine/scheduled-parameter-frame-projector.ts": null,
+              "src/common/editor/engine/scheduled-parameter-registry.ts": "93fc51563930965aac579a670cc83d84474702017b9ba3e5fc49c8dc191d7d65",
+              "src/common/editor/first-party-effects/deesser/dsp.ts": "9dc0750427394709a0a5537ab1e1d4166ee3c84cfd44d790012dd2c35087a91b",
+              "src/common/editor/first-party-effects/dynamics/core.ts": "51f9ddfb76cc69a96117acf86462841b0c2cea2c5509b0707a5dbdff00201cf9",
+              "src/common/editor/first-party-effects/multiband-compressor/dsp.ts": "abde537dbf4604cadd4ab64322b2afabd3ddc10e8e65cfa43330dfe131bbf410",
+              "src/common/editor/first-party-effects/standard/dsp.ts": "4c058f88ca9ef6752f0653ae78c1c1b8d39475bbb2508a16e9d426e287f59456",
+              "src/common/editor/first-party-effects/standard/filters-dsp.ts": "374fb15cfa97a8a785cbc40a0cbb441e722314a2796e2df7223c65e19f5256bf",
+              "src/common/editor/frequency-waveform-analysis.ts": "3e59acb632b8a40ccb534afe7b3caaa8a6ef10d5edae0300351921b52a302758",
+              "src/common/editor/pffft-spectrogram.js": "9e42657f02f46a374fb9d6f7287bf17943691761146fadc16fff846785d4878c",
+              "src/common/editor/signal-generator-renderer.ts": "2007c1023d609fb29d6094c6715a8b27145232973db2aeecf1eaa79e53ae02b6",
+              "src/common/editor/ui/AudacityDynamicsEffectLayout.jsx": "fc8ed2fbf127f6c464a250089827e06251ba1d4d34611d9c4c5fbd03acab1d51",
+              "src/common/editor/ui/AudacityEffectLayout.jsx": "e3b644c76adf51fa1bab89d36322acfe2da3f4bc847a5fe471755b8ea36f47d2",
+              "src/common/editor/ui/AudacityLegacyEffectGraph.tsx": "ccb1636079acabb7228fd65e709c9bfecd6168f4280d0b6f91a31a00531b5ee6",
+              "src/common/editor/ui/audacity-legacy-effect-graphs.ts": "b58c3272c850849d8a517745f5fba7cc5f45123ec06699dc3a6af06b64a95572",
+              "src/common/editor/ui/clip-spreadsheet/ClipSpreadsheetPanel.tsx": "c249951d4f27ef2e4e3636dfdf7a1fc187599f197af8121efdb51c1bab0b1d77",
+              "src/common/editor/ui/clip-spreadsheet/SpreadsheetRow.tsx": null,
+              "src/common/editor/ui/clip-spreadsheet/row-presentation.ts": null,
+              "src/common/editor/ui/dialogs/GeneratorDialog.jsx": "0211647515467d8cfe02be5bf22388d0a08d2bc28d7342355fdbe6e60c227055",
+              "src/common/editor/ui/dialogs/TakeCompDialog.tsx": "801ea19e7ef55b8ff55b1aacd3207cdd6c39695c23fe62c570e3e65447c82fbb",
+              "src/common/editor/ui/dialogs/VampAnalyzerDialog.tsx": "799e6dc2d42ec926263f3ad1db3fe1215a6d04a34c87248870bc9cc275326dcc",
+              "src/common/editor/ui/dialogs/take-comp-boundaries.ts": null,
+              "src/common/editor/ui/dialogs/useAnalyzerLookup.ts": null,
+              "src/common/editor/ui/dialogs/useGeneratorPresentation.ts": null,
+              "src/common/editor/ui/inspector/EffectParameterEditor.jsx": "9c40b402e3ee7364539739286b9cc75732a464ff32451fd838837e85d24913ea",
+              "src/common/editor/ui/inspector/EffectPicker.jsx": "19bd5a8eb58c98d3cc69a4ef88336266f33dc58d9c7cfd7cf86a834638a579bc",
+              "src/common/editor/ui/inspector/EffectPresetBar.jsx": "45effcf310361a821f7f6cb8b790a288c6b5d31204099fd0968aedd8439a533a",
+              "src/common/editor/ui/inspector/useEffectPresentation.ts": null,
+              "src/common/editor/ui/useCompressionCurve.ts": null,
+              "src/common/editor/ui/useLegacyEffectGraphPresentation.ts": null,
+              "src/common/editor/ui/workspace/RoutingGraphWires.tsx": null,
+              "src/common/editor/ui/workspace/SoundscaperRoutingGraphView.tsx": "52bfa3654cd4f481ce22d06b2d0e46eb4effc2174754d3621b00f830b2c90c00",
+              "src/common/editor/ui/workspace/routing-graph-presentation.ts": null,
+              "src/common/editor/ui/workspace/useRoutingHoverFrame.ts": null,
+              "src/soundscaper/editor-project-mixer-surface.ts": "1dd0df2d7b6a604d5cc10fc9b522af48e4cac09988e1535d9f6b6dc59e02d2a2"
+            },
+            "chunkOverlay": {
+              "scripts/lib/build-chunk-groups.mjs": "e7d2be3c0f99c896daaa64fde18010411ca042bc056409b4bb7753bfb0c4d3ee",
+              "scripts/lib/build-chunk-ui-preparation.mjs": "462f123d844571150de81628da7254ed04b965ca1533aa1ca01ea44e736635a3",
+              "tests/audio-editor-responsiveness-round4-chunk-integration.test.ts": "6ae2e07acf65b8290525812b852cf7626f50a50d7b201696e1e0ee0d563af01b",
+              "tests/audio-editor-responsiveness-round4-vamp-chunk.test.ts": "4c656aa0d5f61e7d6558a1dbd123ffc06357f936e64208bf6721cfc65f2b149e"
+            },
+            "harness": {
+              "scripts/performance/measure-electron-editing.mjs": "1b45e4f6f0a56338d3f4b743f4d8b65c1f0458a6078f51a75c9cd79820927d4e",
+              "scripts/performance/electron-editing-completion.ts": "4f5fb07bb13c62a75f95967cc6622993e7cc6e9d04545075a0ee6cc8c638faba"
+            },
+            "stageManifestSha256": "22f8b29a6a2ffad2cf0e613511fb39be84dacca69d9a12225945b2426539de2f",
+            "rendererManifestSha256": "3f0c05863b6d7bb198133756c3d82ea0c1e1df6f69210998036d2c03e24dbb96",
+            "runtimeSnapshotRegisterSha256": "d234e49cba607e24c0c8df512ee8b89d32e7d7f0b492b48c2cf5135c511b684a",
+            "packageLockSha256": "41dac8a6cf7b94afcd4b7b3f0448dfd9087c0a2e9ffee9682a47b5ffbee2f4b3"
+          },
+          "after": {
+            "root": "/tmp/soundscaper-round4-measure-after-own",
+            "checkoutRevision": "e6b166a2bff9c548f99c6fc78def844505c13f9c",
+            "ownedSources": {
+              "src/common/editor/audio-freeze-work-index.ts": "18cc61cd2f1f01b158087c894d079170fbf19262a166829b3c921be72304bf80",
+              "src/common/editor/audio-spectrum.ts": "fd7613e9dfd9655379d1c3264dad97fc242c90d1c54e9cc107aaad52d8ffcf89",
+              "src/common/editor/audio-track-freeze-lifecycle-v21.ts": "aa9e20839f26b40265b94ee3ab6b03cbfb1816881fb7071c43377e3d48229204",
+              "src/common/editor/commands/project-source-record-runtime.js": "16a148b77bc02454c1072da508e68a21caff49512723aaf11a5da75c0db2a42c",
+              "src/common/editor/commands/source-command-work.ts": "fe9552613a6715abc832c2de8f3973b5067583bc0b33f6917290dfc1d5f7d631",
+              "src/common/editor/commands/source-range-work.ts": "089fd31cf367407425f5326411495cecdcf44ed661a4fe621cc0d9fb7670f7e7",
+              "src/common/editor/commands/track-mixer-label-runtime.js": "20c306225a71afdcdd2705c5afbf7d710a871a62f7251cc945f4a59707493a93",
+              "src/common/editor/commands/track-mixer-work.ts": "8d58d81b2ee59839cbc852fa65b1f7ecff26714bf62e3fa3e7634bdb8c745862",
+              "src/common/editor/complementary-crossover.ts": "c1508b9588f7430933f8f4a5e96ad0528faf35f6056ef1439a71f72f7a8e749c",
+              "src/common/editor/ebu-r128.js": "cd0510f41b497ef82617eed3f4b75b55cfa34db50f3b3b5e57ffe9852592b61e",
+              "src/common/editor/engine/parallel-stack-effect-plan.ts": "3c171dac17948a761b7b5ed7bf585093ec786021542fd2a40bc7f320cdecbdb2",
+              "src/common/editor/engine/parallel-stack-plan.ts": "963b2076a7d0dbb92257386969f8824906e98c75c642cf3700d4c98cc3c498c7",
+              "src/common/editor/engine/parallel-stack-planning-index.ts": "276a3022e5ee56116c2fcf82c6b1fc39c00e582f4c3333d63c567e66f2bfac2c",
+              "src/common/editor/engine/scheduled-parameter-audio-param-time-projector.ts": "568488ead5a2e57a75a770e673049ba264a8c61f3d3486986bb1746e061b2b3f",
+              "src/common/editor/engine/scheduled-parameter-frame-projector.ts": "8dcdcfdb49af15fa969e52b0ae84365d0bc29b0d47ef67fc816f19276eb0eb59",
+              "src/common/editor/engine/scheduled-parameter-registry.ts": "194beb7faccaabb7110d75beb9505ac35d53911fdbce7431f354106e5eb8c728",
+              "src/common/editor/first-party-effects/deesser/dsp.ts": "be2a82c8685d001ebc77f49acb5136ab61b46027c2191996967f749d2f8be4d8",
+              "src/common/editor/first-party-effects/dynamics/core.ts": "78ce5539996d31a5ed90849d49bb51add1ae4175320a49a3d962a85efcd8bcf3",
+              "src/common/editor/first-party-effects/multiband-compressor/dsp.ts": "f674e368899ee5792803a715593835ad0b0326cb2c49f5ef60fa306838920b5a",
+              "src/common/editor/first-party-effects/standard/dsp.ts": "30f02b49b6714439c01516ec574183eab517a51e42871d478faa881b009665c8",
+              "src/common/editor/first-party-effects/standard/filters-dsp.ts": "fbfbcab2e44814983c5ca4c0d597fcf26f87d2f7f2e022408a3676353536ee05",
+              "src/common/editor/frequency-waveform-analysis.ts": "ab07bbc08738df936134784d9a564ed75137750fefbd40661cf6248e04a13c8f",
+              "src/common/editor/pffft-spectrogram.js": "76051c85927006590adb2a2bf29763d548a0b144b821d7f4d8c09fc71064713a",
+              "src/common/editor/signal-generator-renderer.ts": "088c98ef74704db97fe2059397c6b4df82485523b54cabc438e48b4fd266ee89",
+              "src/common/editor/ui/AudacityDynamicsEffectLayout.jsx": "c3aaa6a26b0ea755c14935ff962934c1fb83d6b5db685f8553a4d01120209420",
+              "src/common/editor/ui/AudacityEffectLayout.jsx": "2d314aa6fe4f2eb571517ee9be3cdac49813afce65e38425c93da652ddf9e198",
+              "src/common/editor/ui/AudacityLegacyEffectGraph.tsx": "186ccfeb483f71386b4cf56e9de39b8916e054e3e2cd450054f24dce2bce1fef",
+              "src/common/editor/ui/audacity-legacy-effect-graphs.ts": "ac02a4a89e69fca0bb1110dbdcce430656ece417d4febb2aa632ef6b9cc18c03",
+              "src/common/editor/ui/clip-spreadsheet/ClipSpreadsheetPanel.tsx": "40bc33f8fb68e4de7d642ce76da50f9320486adf32cb2ebe5753df8b150cdfde",
+              "src/common/editor/ui/clip-spreadsheet/SpreadsheetRow.tsx": "d05c1377627967a91c5f0e26fcd8e5f7dfa43a809b4d1112c7a67367ba316b62",
+              "src/common/editor/ui/clip-spreadsheet/row-presentation.ts": "2d97b3d67fcdf45b6be78577e525a0c2b579d5ab90a7111b848479891edb238b",
+              "src/common/editor/ui/dialogs/GeneratorDialog.jsx": "32725df45a450f8317dd59392033f4f463fa1dafffe07df9866db0d150790802",
+              "src/common/editor/ui/dialogs/TakeCompDialog.tsx": "8afd6a8c17397ace07d5242eac651a6e9fd1f1fde472abf72f97f6ea8e12dbce",
+              "src/common/editor/ui/dialogs/VampAnalyzerDialog.tsx": "886d4a969ae46f589848d707338dc325e96fee61967997a8341a3c95e5e23b51",
+              "src/common/editor/ui/dialogs/take-comp-boundaries.ts": "333ce6597a10d1839c948a9fc044927bdc8eedda08151a00b97f1ef8222c5576",
+              "src/common/editor/ui/dialogs/useAnalyzerLookup.ts": "77e4f9e0b0954e32d8149665b66c2cb85c97adf4d24ae9751550db9f0c22b410",
+              "src/common/editor/ui/dialogs/useGeneratorPresentation.ts": "340365abdd9ff853ecc8bdbd554dba9834d1ff4a7876bdc03f99d2813ffb4b13",
+              "src/common/editor/ui/inspector/EffectParameterEditor.jsx": "9f7263ea7395b344443dc6afae6955474049311a26906ee6d199e6257ef431e4",
+              "src/common/editor/ui/inspector/EffectPicker.jsx": "db171c8276ace65a2c63bc138afb841e065d34696ae1597b38d758cf29cb9405",
+              "src/common/editor/ui/inspector/EffectPresetBar.jsx": "a5e1609a8417dfd7ac4fe9c9362a7e2e40b374bb9fc3167cfe544441371b02e9",
+              "src/common/editor/ui/inspector/useEffectPresentation.ts": "ed7e651be8756f8cd37da6309016473e3a4cda349bc0f555ebdc8d36977e2a3d",
+              "src/common/editor/ui/useCompressionCurve.ts": "eee4c359136e7b06e1071ec8586bdea31c2f2087e0dd3963394aa49fa7efb9a6",
+              "src/common/editor/ui/useLegacyEffectGraphPresentation.ts": "cda2f05f80fa66513d48232b49fa077e7cb7533b0079b688b8b29d1ad91ea856",
+              "src/common/editor/ui/workspace/RoutingGraphWires.tsx": "eb00d4df6187680bd1781c96e1e23a6b4370423924f3a5eff260b42acfa4806c",
+              "src/common/editor/ui/workspace/SoundscaperRoutingGraphView.tsx": "a545fb7c634b1f99c3e92124f3189df346e0d885864bc14ea5b94996208c06a2",
+              "src/common/editor/ui/workspace/routing-graph-presentation.ts": "459b36200bacdcd91bea3c2b0c2b9d420ddab2cc079f613bd342189771d59c37",
+              "src/common/editor/ui/workspace/useRoutingHoverFrame.ts": "e366d8cae99e35a3a207aff97b6e04faf5e60832e8686ba8d4fa3bb12c4b2a4b",
+              "src/soundscaper/editor-project-mixer-surface.ts": "4e0daa10b5af9705d0a57c4c960158f1ddb90c713638a44f10aa514392f2cdd7"
+            },
+            "chunkOverlay": {
+              "scripts/lib/build-chunk-groups.mjs": "e7d2be3c0f99c896daaa64fde18010411ca042bc056409b4bb7753bfb0c4d3ee",
+              "scripts/lib/build-chunk-ui-preparation.mjs": "462f123d844571150de81628da7254ed04b965ca1533aa1ca01ea44e736635a3",
+              "tests/audio-editor-responsiveness-round4-chunk-integration.test.ts": "6ae2e07acf65b8290525812b852cf7626f50a50d7b201696e1e0ee0d563af01b",
+              "tests/audio-editor-responsiveness-round4-vamp-chunk.test.ts": "4c656aa0d5f61e7d6558a1dbd123ffc06357f936e64208bf6721cfc65f2b149e"
+            },
+            "harness": {
+              "scripts/performance/measure-electron-editing.mjs": "1b45e4f6f0a56338d3f4b743f4d8b65c1f0458a6078f51a75c9cd79820927d4e",
+              "scripts/performance/electron-editing-completion.ts": "4f5fb07bb13c62a75f95967cc6622993e7cc6e9d04545075a0ee6cc8c638faba"
+            },
+            "stageManifestSha256": "22f8b29a6a2ffad2cf0e613511fb39be84dacca69d9a12225945b2426539de2f",
+            "rendererManifestSha256": "e21fea5463bf52cd923be09ac5a6db28f9802da30a024e6fa6387e63c0fc1ef4",
+            "runtimeSnapshotRegisterSha256": "d234e49cba607e24c0c8df512ee8b89d32e7d7f0b492b48c2cf5135c511b684a",
+            "packageLockSha256": "41dac8a6cf7b94afcd4b7b3f0448dfd9087c0a2e9ffee9682a47b5ffbee2f4b3"
+          }
+        },
+        "sourcePairDifferences": [
+          "src/common/editor/audio-freeze-work-index.ts",
+          "src/common/editor/audio-spectrum.ts",
+          "src/common/editor/audio-track-freeze-lifecycle-v21.ts",
+          "src/common/editor/commands/project-source-record-runtime.js",
+          "src/common/editor/commands/source-command-work.ts",
+          "src/common/editor/commands/source-range-work.ts",
+          "src/common/editor/commands/track-mixer-label-runtime.js",
+          "src/common/editor/commands/track-mixer-work.ts",
+          "src/common/editor/complementary-crossover.ts",
+          "src/common/editor/ebu-r128.js",
+          "src/common/editor/engine/parallel-stack-effect-plan.ts",
+          "src/common/editor/engine/parallel-stack-plan.ts",
+          "src/common/editor/engine/parallel-stack-planning-index.ts",
+          "src/common/editor/engine/scheduled-parameter-audio-param-time-projector.ts",
+          "src/common/editor/engine/scheduled-parameter-frame-projector.ts",
+          "src/common/editor/engine/scheduled-parameter-registry.ts",
+          "src/common/editor/first-party-effects/deesser/dsp.ts",
+          "src/common/editor/first-party-effects/dynamics/core.ts",
+          "src/common/editor/first-party-effects/multiband-compressor/dsp.ts",
+          "src/common/editor/first-party-effects/standard/dsp.ts",
+          "src/common/editor/first-party-effects/standard/filters-dsp.ts",
+          "src/common/editor/frequency-waveform-analysis.ts",
+          "src/common/editor/pffft-spectrogram.js",
+          "src/common/editor/signal-generator-renderer.ts",
+          "src/common/editor/ui/AudacityDynamicsEffectLayout.jsx",
+          "src/common/editor/ui/AudacityEffectLayout.jsx",
+          "src/common/editor/ui/AudacityLegacyEffectGraph.tsx",
+          "src/common/editor/ui/audacity-legacy-effect-graphs.ts",
+          "src/common/editor/ui/clip-spreadsheet/ClipSpreadsheetPanel.tsx",
+          "src/common/editor/ui/clip-spreadsheet/SpreadsheetRow.tsx",
+          "src/common/editor/ui/clip-spreadsheet/row-presentation.ts",
+          "src/common/editor/ui/dialogs/GeneratorDialog.jsx",
+          "src/common/editor/ui/dialogs/TakeCompDialog.tsx",
+          "src/common/editor/ui/dialogs/VampAnalyzerDialog.tsx",
+          "src/common/editor/ui/dialogs/take-comp-boundaries.ts",
+          "src/common/editor/ui/dialogs/useAnalyzerLookup.ts",
+          "src/common/editor/ui/dialogs/useGeneratorPresentation.ts",
+          "src/common/editor/ui/inspector/EffectParameterEditor.jsx",
+          "src/common/editor/ui/inspector/EffectPicker.jsx",
+          "src/common/editor/ui/inspector/EffectPresetBar.jsx",
+          "src/common/editor/ui/inspector/useEffectPresentation.ts",
+          "src/common/editor/ui/useCompressionCurve.ts",
+          "src/common/editor/ui/useLegacyEffectGraphPresentation.ts",
+          "src/common/editor/ui/workspace/RoutingGraphWires.tsx",
+          "src/common/editor/ui/workspace/SoundscaperRoutingGraphView.tsx",
+          "src/common/editor/ui/workspace/routing-graph-presentation.ts",
+          "src/common/editor/ui/workspace/useRoutingHoverFrame.ts",
+          "src/soundscaper/editor-project-mixer-surface.ts"
+        ],
+        "sourceComparisonSha256": "7294977ab451c23260ea3b8bba1c1637899df3ce6a3b7de5ebf4ff2967f87be0",
+        "sourceComparisonCapturedHead": "e6b166a2bff9c548f99c6fc78def844505c13f9c",
+        "sourceComparisonFinalizedAtUtc": "2026-10-07T18:01:02.560857+00:00",
+        "sameSurroundingSourceInputs": true
+      },
+      "limits": "No playback assertion, timeout, preference or audio implementation was changed. Pause was visible but the playhead did not advance. Failure cause is unresolved; native-deadline and delayed admission are hypotheses only."
+    },
+    {
+      "id": "diagnostic-minimal-before-pink120-dense64",
+      "purpose": "Fresh profile actual baseline with real120s Pink generation and six duplicate rounds, without preceding generator/effect repetitions. Diagnostic only; excluded from ABBA.",
+      "profile": "/tmp/soundscaper-editing-performance-Gbyv5n",
+      "startedAt": "2026-10-07T18:13:45.062Z",
+      "finishedAt": "2026-10-07T18:14:13.677Z",
+      "exitCode": 0,
+      "speedWarmupFailed": 0,
+      "playbackAssertion": {
+        "playheadBefore": 0,
+        "playheadAfter": 192000,
+        "playbackFrames": {
+          "frames": 181,
+          "medianFrameMs": 16.665000000000873,
+          "p95FrameMs": 16.670000000000073,
+          "maxFrameMs": 16.670000000000073,
+          "framesOver33Ms": 0
+        }
+      },
+      "actualClockSamples": [
+        {
+          "label": "before-play",
+          "time": "2026-10-07T18:13:55.216Z",
+          "contexts": [],
+          "actualContexts": [],
+          "transport": {
+            "positionFrame": 0,
+            "durationFrames": 5760000,
+            "transportState": "stopped",
+            "playbackMode": "normal",
+            "playbackRate": 1
+          },
+          "status": "Done"
+        },
+        {
+          "label": "after-click",
+          "time": "2026-10-07T18:13:56.085Z",
+          "contexts": [
+            {
+              "contextId": "94c4827a-8e22-40fa-afe2-39586f46f21d",
+              "contextType": "realtime",
+              "contextState": "running",
+              "callbackBufferSize": 441,
+              "maxOutputChannelCount": 2,
+              "sampleRate": 44100,
+              "realtime": {
+                "realtimeData": {
+                  "currentTime": 0.7633560090702948,
+                  "renderCapacity": 0.13517060367454067,
+                  "callbackIntervalMean": 0.009859130866209286,
+                  "callbackIntervalVariance": 1.1997397744905259e-06
+                }
+              }
+            }
+          ],
+          "actualContexts": [
+            {
+              "state": "running",
+              "currentTime": 0.43247165532879817,
+              "sampleRate": 44100,
+              "baseLatency": 0.01,
+              "outputLatency": 0.03
+            }
+          ],
+          "transport": {
+            "positionFrame": 0,
+            "durationFrames": 5760000,
+            "transportState": "stopped",
+            "playbackMode": "normal",
+            "playbackRate": 1
+          },
+          "status": "Done"
+        },
+        {
+          "label": "pause-visible",
+          "time": "2026-10-07T18:13:57.510Z",
+          "contexts": [
+            {
+              "contextId": "94c4827a-8e22-40fa-afe2-39586f46f21d",
+              "contextType": "realtime",
+              "contextState": "running",
+              "callbackBufferSize": 441,
+              "maxOutputChannelCount": 2,
+              "sampleRate": 44100,
+              "realtime": {
+                "realtimeData": {
+                  "currentTime": 2.211700680272109,
+                  "renderCapacity": 0.2728453011085589,
+                  "callbackIntervalMean": 0.009966831168666397,
+                  "callbackIntervalVariance": 3.0115156481690396e-07
+                }
+              }
+            }
+          ],
+          "actualContexts": [
+            {
+              "state": "running",
+              "currentTime": 2.1797732426303855,
+              "sampleRate": 44100,
+              "baseLatency": 0.01,
+              "outputLatency": 0.03
+            }
+          ],
+          "transport": {
+            "positionFrame": 23978,
+            "durationFrames": 11520000,
+            "transportState": "playing",
+            "playbackMode": "normal",
+            "playbackRate": 1
+          },
+          "status": "Done"
+        },
+        {
+          "label": "sample-complete",
+          "time": "2026-10-07T18:14:01.101Z",
+          "contexts": [
+            {
+              "contextId": "94c4827a-8e22-40fa-afe2-39586f46f21d",
+              "contextType": "realtime",
+              "contextState": "running",
+              "callbackBufferSize": 441,
+              "maxOutputChannelCount": 2,
+              "sampleRate": 44100,
+              "realtime": {
+                "realtimeData": {
+                  "currentTime": 5.802086167800454,
+                  "renderCapacity": 0.4561597110754414,
+                  "callbackIntervalMean": 0.009998872471288472,
+                  "callbackIntervalVariance": 1.4046150312991056e-08
+                }
+              }
+            }
+          ],
+          "actualContexts": [
+            {
+              "state": "running",
+              "currentTime": 5.752743764172336,
+              "sampleRate": 44100,
+              "baseLatency": 0.01,
+              "outputLatency": 0.03
+            }
+          ],
+          "transport": {
+            "positionFrame": 196316,
+            "durationFrames": 11520000,
+            "transportState": "playing",
+            "playbackMode": "normal",
+            "playbackRate": 1
+          },
+          "status": "Done"
+        },
+        {
+          "label": "post-sample-0",
+          "time": "2026-10-07T18:14:02.710Z",
+          "contexts": [
+            {
+              "contextId": "94c4827a-8e22-40fa-afe2-39586f46f21d",
+              "contextType": "realtime",
+              "contextState": "running",
+              "callbackBufferSize": 441,
+              "maxOutputChannelCount": 2,
+              "sampleRate": 44100,
+              "realtime": {
+                "realtimeData": {
+                  "currentTime": 7.401360544217687,
+                  "renderCapacity": 0.42197691921726044,
+                  "callbackIntervalMean": 0.009999245944378017,
+                  "callbackIntervalVariance": 6.608188757820785e-07
+                }
+              }
+            }
+          ],
+          "actualContexts": [
+            {
+              "state": "running",
+              "currentTime": 7.3520181405895695,
+              "sampleRate": 44100,
+              "baseLatency": 0.01,
+              "outputLatency": 0.03
+            }
+          ],
+          "transport": {
+            "positionFrame": 273081,
+            "durationFrames": 11520000,
+            "transportState": "playing",
+            "playbackMode": "normal",
+            "playbackRate": 1
+          },
+          "status": "Done"
+        },
+        {
+          "label": "post-sample-1",
+          "time": "2026-10-07T18:14:04.273Z",
+          "contexts": [
+            {
+              "contextId": "94c4827a-8e22-40fa-afe2-39586f46f21d",
+              "contextType": "realtime",
+              "contextState": "running",
+              "callbackBufferSize": 441,
+              "maxOutputChannelCount": 2,
+              "sampleRate": 44100,
+              "realtime": {
+                "realtimeData": {
+                  "currentTime": 8.971609977324263,
+                  "renderCapacity": 0.2670261633712802,
+                  "callbackIntervalMean": 0.009999517631340034,
+                  "callbackIntervalVariance": 5.455322818116936e-07
+                }
+              }
+            }
+          ],
+          "actualContexts": [
+            {
+              "state": "running",
+              "currentTime": 8.922267573696145,
+              "sampleRate": 44100,
+              "baseLatency": 0.01,
+              "outputLatency": 0.03
+            }
+          ],
+          "transport": {
+            "positionFrame": 347757,
+            "durationFrames": 11520000,
+            "transportState": "playing",
+            "playbackMode": "normal",
+            "playbackRate": 1
+          },
+          "status": "Done"
+        },
+        {
+          "label": "post-sample-2",
+          "time": "2026-10-07T18:14:05.834Z",
+          "contexts": [
+            {
+              "contextId": "94c4827a-8e22-40fa-afe2-39586f46f21d",
+              "contextType": "realtime",
+              "contextState": "running",
+              "callbackBufferSize": 441,
+              "maxOutputChannelCount": 2,
+              "sampleRate": 44100,
+              "realtime": {
+                "realtimeData": {
+                  "currentTime": 10.530249433106576,
+                  "renderCapacity": 0.22846031112883924,
+                  "callbackIntervalMean": 0.009999921040388849,
+                  "callbackIntervalVariance": 1.1654589665897648e-07
+                }
+              }
+            }
+          ],
+          "actualContexts": [
+            {
+              "state": "running",
+              "currentTime": 10.480907029478457,
+              "sampleRate": 44100,
+              "baseLatency": 0.01,
+              "outputLatency": 0.03
+            }
+          ],
+          "transport": {
+            "positionFrame": 422850,
+            "durationFrames": 11520000,
+            "transportState": "playing",
+            "playbackMode": "normal",
+            "playbackRate": 1
+          },
+          "status": "Done"
+        },
+        {
+          "label": "post-sample-3",
+          "time": "2026-10-07T18:14:07.395Z",
+          "contexts": [
+            {
+              "contextId": "94c4827a-8e22-40fa-afe2-39586f46f21d",
+              "contextType": "realtime",
+              "contextState": "running",
+              "callbackBufferSize": 441,
+              "maxOutputChannelCount": 2,
+              "sampleRate": 44100,
+              "realtime": {
+                "realtimeData": {
+                  "currentTime": 12.091791383219954,
+                  "renderCapacity": 0.2164208848146672,
+                  "callbackIntervalMean": 0.010000038546759125,
+                  "callbackIntervalVariance": 6.38939985066131e-08
+                }
+              }
+            }
+          ],
+          "actualContexts": [
+            {
+              "state": "running",
+              "currentTime": 12.051156462585034,
+              "sampleRate": 44100,
+              "baseLatency": 0.01,
+              "outputLatency": 0.03
+            }
+          ],
+          "transport": {
+            "positionFrame": 496272,
+            "durationFrames": 11520000,
+            "transportState": "playing",
+            "playbackMode": "normal",
+            "playbackRate": 1
+          },
+          "status": "Done"
+        },
+        {
+          "label": "post-sample-4",
+          "time": "2026-10-07T18:14:08.961Z",
+          "contexts": [
+            {
+              "contextId": "94c4827a-8e22-40fa-afe2-39586f46f21d",
+              "contextType": "realtime",
+              "contextState": "running",
+              "callbackBufferSize": 441,
+              "maxOutputChannelCount": 2,
+              "sampleRate": 44100,
+              "realtime": {
+                "realtimeData": {
+                  "currentTime": 13.650430839002267,
+                  "renderCapacity": 0.2973810475809676,
+                  "callbackIntervalMean": 0.009999916627567773,
+                  "callbackIntervalVariance": 1.8480933849517044e-07
+                }
+              }
+            }
+          ],
+          "actualContexts": [
+            {
+              "state": "running",
+              "currentTime": 13.612698412698412,
+              "sampleRate": 44100,
+              "baseLatency": 0.01,
+              "outputLatency": 0.03
+            }
+          ],
+          "transport": {
+            "positionFrame": 573594,
+            "durationFrames": 11520000,
+            "transportState": "playing",
+            "playbackMode": "normal",
+            "playbackRate": 1
+          },
+          "status": "Done"
+        },
+        {
+          "label": "finally",
+          "time": "2026-10-07T18:14:13.566Z",
+          "contexts": [
+            {
+              "contextId": "94c4827a-8e22-40fa-afe2-39586f46f21d",
+              "contextType": "realtime",
+              "contextState": "running",
+              "callbackBufferSize": 441,
+              "maxOutputChannelCount": 2,
+              "sampleRate": 44100,
+              "realtime": {
+                "realtimeData": {
+                  "currentTime": 18.27120181405896,
+                  "renderCapacity": 0.0431,
+                  "callbackIntervalMean": 0.00999973306375442,
+                  "callbackIntervalVariance": 4.358745205934275e-08
+                }
+              }
+            }
+          ],
+          "actualContexts": [
+            {
+              "state": "running",
+              "currentTime": 18.250884353741498,
+              "sampleRate": 44100,
+              "baseLatency": 0.01,
+              "outputLatency": 0.03
+            }
+          ],
+          "transport": {
+            "positionFrame": 0,
+            "durationFrames": 5760000,
+            "transportState": "stopped",
+            "playbackMode": "normal",
+            "playbackRate": 1
+          },
+          "status": "Done"
+        }
+      ],
+      "pageErrors": [],
+      "consoleMessages": [],
+      "failedRequests": [],
+      "processOutput": [
+        {
+          "stream": "stderr",
+          "text": "[2460923:1007/201356.981658:ERROR:dbus/bus.cc:406] Failed to connect to the bus: Failed to connect to socket /run/user/1000/bus: No such file or directory\n"
+        },
+        {
+          "stream": "stderr",
+          "text": "[2460923:1007/201356.981717:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: \n[2460923:1007/201356.981808:ERROR:dbus/bus.cc:406] Failed to connect to the bus: Failed to connect to socket /run/user/1000/bus: No such file or directory\n[2460923:1007/201356.981863:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: \n"
+        },
+        {
+          "stream": "stderr",
+          "text": "Debugger ending on ws://127.0.0.1:36341/f98cb6a1-4a78-4c95-afcd-137e30d6e08c\nFor help, see: https://nodejs.org/learn/getting-started/debugging\n"
+        }
+      ],
+      "fullTemporaryReceipt": {
+        "path": "/tmp/perf300-electron-before-playback-diagnostic.json.diagnostic.json",
+        "sha256": "91e6a09112c8310de3e47d06ba49875f95a80a86223505946cefc43bb7f68d82",
+        "bytes": 5988388
+      },
+      "limits": "CDP Runtime.queryObjects and WebAudio instrumentation read actual AudioContext instances without substituting audio. Snapshot reads added delay; this successful minimal diagnostic does not identify the earlier failure cause. Full repeated controller/project telemetry remains in the temporary6MB receipt; relevant raw clock values and process/error records are preserved here."
+    },
+    {
+      "id": "diagnostic-full-before-round4-writer-failure",
+      "purpose": "Fresh profile actual baseline through the original full42 generator/effect sequence,64clip fixture and unchanged playback/gesture assertions. Diagnostic only; excluded from ABBA.",
+      "appObservationsPassed": 45,
+      "processExitCode": 1,
+      "failureStage": "Temporary diagnostic writer after application assertions and complete45-row measurement save",
+      "rawMeasurement": {
+        "node": "v26.5.0",
+        "platform": "linux",
+        "arch": "x64",
+        "revision": "e6b166a2bff9c548f99c6fc78def844505c13f9c",
+        "cpu": "AMD Ryzen 9 9900X 12-Core Processor",
+        "logicalCpus": 24,
+        "runtime": {
+          "versions": {
+            "node": "24.21.0",
+            "acorn": "8.18.0",
+            "ada": "4.0.0",
+            "amaro": "1.1.11",
+            "ares": "1.34.8",
+            "brotli": "1.2.0",
+            "cldr": "48.0",
+            "icu": "78.2",
+            "llhttp": "9.4.3",
+            "merve": "1.2.2",
+            "modules": "148",
+            "napi": "10",
+            "nbytes": "0.1.4",
+            "ncrypto": "0.0.1",
+            "nghttp2": "1.70.0",
+            "nghttp3": "",
+            "ngtcp2": "",
+            "openssl": "0.0.0",
+            "simdjson": "4.6.7",
+            "simdutf": "7.7.0",
+            "sqlite": "3.53.4",
+            "tz": "2025c",
+            "undici": "7.29.1",
+            "unicode": "17.0",
+            "uv": "1.52.1",
+            "uvwasi": "0.0.23",
+            "v8": "15.0.245.31-electron.0",
+            "zlib": "1.3.2.1-motley",
+            "zstd": "1.6.0",
+            "electron": "43.7.7",
+            "chrome": "150.0.7871.250"
+          },
+          "gpu": {
+            "2d_canvas": "unavailable_software",
+            "direct_rendering_display_compositor": "disabled_off_ok",
+            "gpu_compositing": "disabled_software",
+            "multiple_raster_threads": "enabled_on",
+            "opengl": "unavailable_off",
+            "rasterization": "unavailable_off",
+            "raw_draw": "disabled_off_ok",
+            "skia_graphite": "unavailable_off",
+            "trees_in_viz": "disabled_off",
+            "video_decode": "unavailable_off",
+            "video_encode": "disabled_software",
+            "vulkan": "disabled_off",
+            "webgl": "unavailable_off",
+            "webgpu": "unavailable_software",
+            "webgpu_on_vk_via_gl_interop": "disabled_off",
+            "webnn": "disabled_off"
+          },
+          "packaged": false
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 900,
+          "dpr": 1
+        },
+        "preference": "speed",
+        "extended": true,
+        "round3": true,
+        "round4": true,
+        "hostStart": {
+          "time": "2026-10-07T18:15:17.867Z",
+          "loadAverage": [
+            0.75,
+            1.77,
+            2.12
+          ],
+          "freeBytes": 42704982016,
+          "totalBytes": 49234468864
+        },
+        "hostEnd": {
+          "time": "2026-10-07T18:16:39.861Z",
+          "loadAverage": [
+            2.34,
+            2.04,
+            2.19
+          ],
+          "freeBytes": 41477431296,
+          "totalBytes": 49234468864
+        },
+        "method": "Actual Electron development app with freshly staged production renderer and real preload/SQLite/PCM path. Trial zero is the first invocation of each fixture after normal Speed prewarm; related earlier fixtures may already have used its generator or effect module. Subsequent trials repeat that fixture. Capture click to dialog closed, success status, cleared waveform pending state and a fresh successful waveform plan, then revalidate that same paint at two animation-frame boundaries. Xvfb RAF gaps are a renderer responsiveness proxy, not GPU presentation FPS. Startup excluded.",
+        "results": [
+          {
+            "operation": "Generate Tone",
+            "seconds": 30,
+            "trial": 0,
+            "durationMs": 311.2950000166893,
+            "frames": 17,
+            "medianFrameMs": 16.664999999999964,
+            "p95FrameMs": 50,
+            "maxFrameMs": 50,
+            "framesOver33Ms": 1,
+            "longTaskCount": 1,
+            "maxLongTaskMs": 52
+          },
+          {
+            "operation": "Generate Tone",
+            "seconds": 30,
+            "trial": 1,
+            "durationMs": 288.16499999165535,
+            "frames": 14,
+            "medianFrameMs": 16.664999999999964,
+            "p95FrameMs": 50,
+            "maxFrameMs": 50,
+            "framesOver33Ms": 1,
+            "longTaskCount": 1,
+            "maxLongTaskMs": 57
+          },
+          {
+            "operation": "Generate Tone",
+            "seconds": 30,
+            "trial": 2,
+            "durationMs": 291.19499999284744,
+            "frames": 15,
+            "medianFrameMs": 16.664999999999964,
+            "p95FrameMs": 50,
+            "maxFrameMs": 50,
+            "framesOver33Ms": 1,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Generate Chirp",
+            "seconds": 30,
+            "trial": 0,
+            "durationMs": 294.11500000953674,
+            "frames": 17,
+            "medianFrameMs": 16.664999999999964,
+            "p95FrameMs": 33.32499999999982,
+            "maxFrameMs": 33.32499999999982,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Generate Chirp",
+            "seconds": 30,
+            "trial": 1,
+            "durationMs": 332.919999986887,
+            "frames": 19,
+            "medianFrameMs": 16.664999999999964,
+            "p95FrameMs": 33.32999999999993,
+            "maxFrameMs": 33.32999999999993,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Generate Chirp",
+            "seconds": 30,
+            "trial": 2,
+            "durationMs": 311.3899999856949,
+            "frames": 17,
+            "medianFrameMs": 16.664999999999964,
+            "p95FrameMs": 33.335000000000036,
+            "maxFrameMs": 33.335000000000036,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Generate Chirp constant",
+            "seconds": 30,
+            "trial": 0,
+            "durationMs": 278.80000001192093,
+            "frames": 15,
+            "medianFrameMs": 16.664999999999964,
+            "p95FrameMs": 33.339999999999236,
+            "maxFrameMs": 33.339999999999236,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Generate Chirp constant",
+            "seconds": 30,
+            "trial": 1,
+            "durationMs": 286.4950000047684,
+            "frames": 16,
+            "medianFrameMs": 16.664999999999964,
+            "p95FrameMs": 33.335000000000036,
+            "maxFrameMs": 33.335000000000036,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Generate Chirp constant",
+            "seconds": 30,
+            "trial": 2,
+            "durationMs": 288.6100000143051,
+            "frames": 16,
+            "medianFrameMs": 16.664999999999964,
+            "p95FrameMs": 33.32999999999993,
+            "maxFrameMs": 33.32999999999993,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Generate DTMF tones",
+            "seconds": 30,
+            "trial": 0,
+            "durationMs": 288.30499997735023,
+            "frames": 15,
+            "medianFrameMs": 16.664999999999964,
+            "p95FrameMs": 33.32999999999993,
+            "maxFrameMs": 33.32999999999993,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Generate DTMF tones",
+            "seconds": 30,
+            "trial": 1,
+            "durationMs": 280.36500000953674,
+            "frames": 16,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 33.335000000000946,
+            "maxFrameMs": 33.335000000000946,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Generate DTMF tones",
+            "seconds": 30,
+            "trial": 2,
+            "durationMs": 288.56999999284744,
+            "frames": 17,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 16.670000000000073,
+            "maxFrameMs": 16.670000000000073,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Generate Noise pink",
+            "seconds": 30,
+            "trial": 0,
+            "durationMs": 287.25,
+            "frames": 17,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 16.670000000000073,
+            "maxFrameMs": 16.670000000000073,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Generate Noise pink",
+            "seconds": 30,
+            "trial": 1,
+            "durationMs": 293.1149999797344,
+            "frames": 17,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 33.33499999999913,
+            "maxFrameMs": 33.33499999999913,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Generate Noise pink",
+            "seconds": 30,
+            "trial": 2,
+            "durationMs": 305.7849999964237,
+            "frames": 16,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 49.99499999999898,
+            "maxFrameMs": 49.99499999999898,
+            "framesOver33Ms": 1,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Generate Noise pink",
+            "seconds": 120,
+            "trial": 0,
+            "durationMs": 619.1399999856949,
+            "frames": 36,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 16.670000000000073,
+            "maxFrameMs": 33.32999999999993,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Generate Noise pink",
+            "seconds": 120,
+            "trial": 1,
+            "durationMs": 650.8050000071526,
+            "frames": 38,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 16.670000000000073,
+            "maxFrameMs": 33.335000000000946,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Generate Noise pink",
+            "seconds": 120,
+            "trial": 2,
+            "durationMs": 669.2350000143051,
+            "frames": 39,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 16.670000000000073,
+            "maxFrameMs": 33.335000000000946,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Apply Amplify",
+            "seconds": 120,
+            "trial": 0,
+            "durationMs": 1906.2400000095367,
+            "frames": 113,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 16.670000000000073,
+            "maxFrameMs": 33.33499999999913,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Apply Amplify",
+            "seconds": 120,
+            "trial": 1,
+            "durationMs": 1918.594999998808,
+            "frames": 113,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 16.67000000000189,
+            "maxFrameMs": 33.330000000001746,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Apply Amplify",
+            "seconds": 120,
+            "trial": 2,
+            "durationMs": 1794.8100000023842,
+            "frames": 107,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 16.67000000000189,
+            "maxFrameMs": 33.330000000001746,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Apply Compressor",
+            "seconds": 120,
+            "trial": 0,
+            "durationMs": 1869.7049999833107,
+            "frames": 109,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 16.67000000000189,
+            "maxFrameMs": 33.330000000001746,
+            "framesOver33Ms": 0,
+            "longTaskCount": 1,
+            "maxLongTaskMs": 51
+          },
+          {
+            "operation": "Apply Compressor",
+            "seconds": 120,
+            "trial": 1,
+            "durationMs": 1830.824999988079,
+            "frames": 109,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 16.67000000000189,
+            "maxFrameMs": 33.33499999999913,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Apply Compressor",
+            "seconds": 120,
+            "trial": 2,
+            "durationMs": 1800.050000011921,
+            "frames": 107,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 16.67000000000189,
+            "maxFrameMs": 33.330000000001746,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Apply Normalize",
+            "seconds": 120,
+            "trial": 0,
+            "durationMs": 1702.1599999964237,
+            "frames": 101,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 16.67000000000189,
+            "maxFrameMs": 33.32999999999811,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Apply Normalize",
+            "seconds": 120,
+            "trial": 1,
+            "durationMs": 1671.0550000071526,
+            "frames": 99,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 16.67000000000189,
+            "maxFrameMs": 33.32999999999811,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Apply Normalize",
+            "seconds": 120,
+            "trial": 2,
+            "durationMs": 1727.2100000083447,
+            "frames": 103,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 16.67000000000189,
+            "maxFrameMs": 33.335000000002765,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Apply Click Removal",
+            "seconds": 120,
+            "trial": 0,
+            "durationMs": 1864.1899999976158,
+            "frames": 111,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 16.67000000000553,
+            "maxFrameMs": 33.330000000001746,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Apply Click Removal",
+            "seconds": 120,
+            "trial": 1,
+            "durationMs": 1852.469999998808,
+            "frames": 110,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 16.67000000000553,
+            "maxFrameMs": 33.330000000001746,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Apply Click Removal",
+            "seconds": 120,
+            "trial": 2,
+            "durationMs": 1861.375,
+            "frames": 111,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 16.67000000000553,
+            "maxFrameMs": 33.33499999999913,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Apply Noise gate",
+            "seconds": 120,
+            "trial": 0,
+            "durationMs": 1850.0049999952316,
+            "frames": 110,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 16.67000000000553,
+            "maxFrameMs": 33.330000000001746,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Apply Noise gate",
+            "seconds": 120,
+            "trial": 1,
+            "durationMs": 1753.8650000095367,
+            "frames": 104,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 16.67000000000553,
+            "maxFrameMs": 33.32999999999447,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Apply Noise gate",
+            "seconds": 120,
+            "trial": 2,
+            "durationMs": 1806.074999988079,
+            "frames": 107,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 16.67000000000553,
+            "maxFrameMs": 33.33499999999913,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Apply Loudness Normalization",
+            "seconds": 120,
+            "trial": 0,
+            "durationMs": 1704.1899999976158,
+            "frames": 101,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 16.67000000000553,
+            "maxFrameMs": 33.33499999999913,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Apply Loudness Normalization",
+            "seconds": 120,
+            "trial": 1,
+            "durationMs": 1736.155000001192,
+            "frames": 103,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 16.67000000000553,
+            "maxFrameMs": 33.33499999999913,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Apply Loudness Normalization",
+            "seconds": 120,
+            "trial": 2,
+            "durationMs": 1688.4600000083447,
+            "frames": 100,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 16.67000000000553,
+            "maxFrameMs": 33.330000000001746,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Apply De-esser",
+            "seconds": 120,
+            "trial": 0,
+            "durationMs": 2093.895000010729,
+            "frames": 125,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 16.67000000000553,
+            "maxFrameMs": 33.330000000001746,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Apply De-esser",
+            "seconds": 120,
+            "trial": 1,
+            "durationMs": 2003.5399999916553,
+            "frames": 119,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 16.67000000000553,
+            "maxFrameMs": 33.33499999999913,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Apply De-esser",
+            "seconds": 120,
+            "trial": 2,
+            "durationMs": 2055.1500000059605,
+            "frames": 122,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 16.67000000000553,
+            "maxFrameMs": 33.33499999999913,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Apply Multiband compressor",
+            "seconds": 120,
+            "trial": 0,
+            "durationMs": 2730.094999998808,
+            "frames": 163,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 16.67000000000553,
+            "maxFrameMs": 33.33499999999913,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Apply Multiband compressor",
+            "seconds": 120,
+            "trial": 1,
+            "durationMs": 2762.5199999809265,
+            "frames": 165,
+            "medianFrameMs": 16.665000000000873,
+            "p95FrameMs": 16.67000000000553,
+            "maxFrameMs": 33.33499999999913,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Apply Multiband compressor",
+            "seconds": 120,
+            "trial": 2,
+            "durationMs": 2700.6200000047684,
+            "frames": 161,
+            "medianFrameMs": 16.66500000000815,
+            "p95FrameMs": 16.669999999998254,
+            "maxFrameMs": 33.33499999999185,
+            "framesOver33Ms": 0,
+            "longTaskCount": 0,
+            "maxLongTaskMs": 0
+          },
+          {
+            "operation": "Idle timeline",
+            "clips": "64",
+            "frames": 181,
+            "medianFrameMs": 16.66500000000815,
+            "p95FrameMs": 16.669999999998254,
+            "maxFrameMs": 16.670000000012806,
+            "framesOver33Ms": 0
+          },
+          {
+            "operation": "Playback timeline",
+            "clips": "64",
+            "playheadBefore": 12000,
+            "playheadAfter": 156000,
+            "frames": 181,
+            "medianFrameMs": 16.66500000000815,
+            "p95FrameMs": 16.669999999998254,
+            "maxFrameMs": 16.670000000012806,
+            "framesOver33Ms": 0
+          },
+          {
+            "operation": "Active dense timeline scroll and hover",
+            "clips": "64",
+            "frames": 154,
+            "medianFrameMs": 16.66500000000815,
+            "p95FrameMs": 49.99499999999534,
+            "maxFrameMs": 50,
+            "framesOver33Ms": 8,
+            "durationMs": 3016.5439999999944,
+            "minScrollLeft": 0,
+            "maxScrollLeft": 1920,
+            "minScrollTop": 0,
+            "maxScrollTop": 1440,
+            "scrollPositions": 7,
+            "hoverPositions": 18,
+            "gestures": 31,
+            "gesture": "Trusted mouse sweeps and bidirectional wheel scrolling on a zoomed timeline with 64 clips"
+          }
+        ]
+      },
+      "measurementSha256": "38f132d6078ce414928064d5c777495f114907f53cdb7521d4955cbc555c09ec",
+      "logText": "Saved 45 observations to /tmp/perf300-electron-before-full-playback-diagnostic.json\nfile:///tmp/perf300-electron-full-playback-diagnostic.mjs:165\n diagnostic.results=results;diagnostic.runtime=runtime;diagnostic.viewport=viewport;diagnostic.finishedAt=new Date().toISOString();await writeFile(output+'.diagnostic.json',JSON.stringify(diagnostic,null,2)+'\\n');\n                                               ^\n\nReferenceError: runtime is not defined\n    at file:///tmp/perf300-electron-full-playback-diagnostic.mjs:165:48\n\nNode.js v26.5.0\n",
+      "logSha256": "49ff7e2946732ff8ccaa945e9c9e79ffd8757fc8657d7842343cc852f40041ac",
+      "passiveClockRows": "Unavailable: temporary finally writer referenced block-scoped runtime after closing app; in-memory100ms engine snapshots were not flushed. The complete successful45 observations were saved before this diagnostic-only writer failure.",
+      "limits": "Both fresh baseline diagnostics played successfully. The original final-before stall remains unexplained; no readiness wait, timeout/preference relaxation, retries within a failed playback sample or application fix is justified."
+    }
+  ],
+  "diagnosticLaunch": {
+    "root": "/tmp/soundscaper-round4-measure-after-own",
+    "profile": "/tmp/perf300-warmup-profile-0cUYOP",
+    "startedAt": "2026-10-07T17:42:31.089Z",
+    "host": {
+      "loadAverage": [
+        1.72,
+        2.73,
+        3.04
+      ],
+      "freeBytes": 42814894080
+    },
+    "warmupFile": "assets/desktop-speed-warmup-CQ71C7mD.js",
+    "admission": {
+      "desktopSpeedWarmup": "ready",
+      "desktopSpeedWarmupFailed": "2"
+    },
+    "runtime": {
+      "versions": {
+        "node": "24.21.0",
+        "acorn": "8.18.0",
+        "ada": "4.0.0",
+        "amaro": "1.1.11",
+        "ares": "1.34.8",
+        "brotli": "1.2.0",
+        "cldr": "48.0",
+        "icu": "78.2",
+        "llhttp": "9.4.3",
+        "merve": "1.2.2",
+        "modules": "148",
+        "napi": "10",
+        "nbytes": "0.1.4",
+        "ncrypto": "0.0.1",
+        "nghttp2": "1.70.0",
+        "nghttp3": "",
+        "ngtcp2": "",
+        "openssl": "0.0.0",
+        "simdjson": "4.6.7",
+        "simdutf": "7.7.0",
+        "sqlite": "3.53.4",
+        "tz": "2025c",
+        "undici": "7.29.1",
+        "unicode": "17.0",
+        "uv": "1.52.1",
+        "uvwasi": "0.0.23",
+        "v8": "15.0.245.31-electron.0",
+        "zlib": "1.3.2.1-motley",
+        "zstd": "1.6.0",
+        "electron": "43.7.7",
+        "chrome": "150.0.7871.250"
+      },
+      "packaged": false,
+      "gpu": {
+        "2d_canvas": "unavailable_software",
+        "direct_rendering_display_compositor": "disabled_off_ok",
+        "gpu_compositing": "disabled_software",
+        "multiple_raster_threads": "enabled_on",
+        "opengl": "unavailable_off",
+        "rasterization": "unavailable_off",
+        "raw_draw": "disabled_off_ok",
+        "skia_graphite": "unavailable_off",
+        "trees_in_viz": "disabled_off",
+        "video_decode": "unavailable_off",
+        "video_encode": "disabled_software",
+        "vulkan": "disabled_off",
+        "webgl": "unavailable_off",
+        "webgpu": "unavailable_software",
+        "webgpu_on_vk_via_gl_interop": "disabled_off",
+        "webnn": "disabled_off"
+      }
+    },
+    "replayedWarmup": {
+      "loaded": 136,
+      "loadedStylesheets": 5,
+      "skipped": 82,
+      "failed": [
+        {
+          "file": "assets/SoundscaperVampAnalyzerSurface-CdDTIR_i.js",
+          "error": {
+            "name": "TypeError",
+            "message": "r is not a function",
+            "stack": "TypeError: r is not a function\n    at soundscaper-app://bundle/assets/VampAnalyzerDialog-Hbz3d2kc.js:1:431",
+            "string": "TypeError: r is not a function"
+          }
+        },
+        {
+          "file": "assets/VampAnalyzerDialog-Hbz3d2kc.js",
+          "error": {
+            "name": "TypeError",
+            "message": "r is not a function",
+            "stack": "TypeError: r is not a function\n    at soundscaper-app://bundle/assets/VampAnalyzerDialog-Hbz3d2kc.js:1:431",
+            "string": "TypeError: r is not a function"
+          }
+        }
+      ]
+    },
+    "finishedAt": "2026-10-07T17:42:33.224Z",
+    "consoleMessages": [],
+    "pageErrors": [],
+    "failedRequests": [],
+    "processOutput": [
+      {
+        "stream": "stderr",
+        "text": "\n(electron:2414807): dconf-CRITICAL **: 19:42:31.681: unable to create directory '/run/user/1000/dconf': Permission denied.  dconf will not work properly.\n"
+      },
+      {
+        "stream": "stderr",
+        "text": "\n(electron:2414807): dconf-CRITICAL **: 19:42:31.682: unable to create directory '/run/user/1000/dconf': Permission denied.  dconf will not work properly.\n\n(electron:2414807): dconf-CRITICAL **: 19:42:31.682: unable to create directory '/run/user/1000/dconf': Permission denied.  dconf will not work properly.\n"
+      },
+      {
+        "stream": "stderr",
+        "text": "Debugger ending on ws://127.0.0.1:33623/7b7dcb9b-8c55-4991-b9fa-1974f2a9c324\nFor help, see: https://nodejs.org/learn/getting-started/debugging\n"
+      }
+    ]
+  },
+  "cause": "Actual after renderer warmup rejects SoundscaperVampAnalyzerSurface and VampAnalyzerDialog with TypeError r is not a function at VampAnalyzerDialog-Hbz3d2kc.js:1:431. Built facade invokes imported editor-vamp-analyzer initialization before that binding is assigned; independent chunk-ownership audit ongoing.",
+  "limits": "Both stopped attempts and the superseded initial baseline receipt are preserved. No timeout, preference or actual playback assertion was relaxed. Failed final baseline timed rows were not flushed by the original harness and are unavailable. No complete final ABBA comparison exists.",
+  "initialRendererBuilds": {
+    "before": {
+      "stage-manifest.json": "22f8b29a6a2ffad2cf0e613511fb39be84dacca69d9a12225945b2426539de2f",
+      "renderer/.offline-build-manifest.json": "3f0c05863b6d7bb198133756c3d82ea0c1e1df6f69210998036d2c03e24dbb96"
+    },
+    "after": {
+      "stage-manifest.json": "22f8b29a6a2ffad2cf0e613511fb39be84dacca69d9a12225945b2426539de2f",
+      "renderer/.offline-build-manifest.json": "6104c615dd738e1cb51ac562b9c242b403b23d7fe1591b1dbc0ababea0f7cb39"
+    }
+  },
+  "supersededBeforeRun": {
+    "reason": "Successful baseline profile before the paired chunk ownership correction. Entire original raw profile retained; final ABBA will restart both variants after identical corrected semantic grouping.",
+    "sha256": "097f96bb3c347d5df6376757c3b1b491d3b0afaebc04a4db9a3096043a7b511a",
+    "receipt": {
+      "node": "v26.5.0",
+      "platform": "linux",
+      "arch": "x64",
+      "revision": "e6b166a2bff9c548f99c6fc78def844505c13f9c",
+      "cpu": "AMD Ryzen 9 9900X 12-Core Processor",
+      "logicalCpus": 24,
+      "runtime": {
+        "versions": {
+          "node": "24.21.0",
+          "acorn": "8.18.0",
+          "ada": "4.0.0",
+          "amaro": "1.1.11",
+          "ares": "1.34.8",
+          "brotli": "1.2.0",
+          "cldr": "48.0",
+          "icu": "78.2",
+          "llhttp": "9.4.3",
+          "merve": "1.2.2",
+          "modules": "148",
+          "napi": "10",
+          "nbytes": "0.1.4",
+          "ncrypto": "0.0.1",
+          "nghttp2": "1.70.0",
+          "nghttp3": "",
+          "ngtcp2": "",
+          "openssl": "0.0.0",
+          "simdjson": "4.6.7",
+          "simdutf": "7.7.0",
+          "sqlite": "3.53.4",
+          "tz": "2025c",
+          "undici": "7.29.1",
+          "unicode": "17.0",
+          "uv": "1.52.1",
+          "uvwasi": "0.0.23",
+          "v8": "15.0.245.31-electron.0",
+          "zlib": "1.3.2.1-motley",
+          "zstd": "1.6.0",
+          "electron": "43.7.7",
+          "chrome": "150.0.7871.250"
+        },
+        "gpu": {
+          "2d_canvas": "unavailable_software",
+          "direct_rendering_display_compositor": "disabled_off_ok",
+          "gpu_compositing": "disabled_software",
+          "multiple_raster_threads": "enabled_on",
+          "opengl": "unavailable_off",
+          "rasterization": "unavailable_off",
+          "raw_draw": "disabled_off_ok",
+          "skia_graphite": "unavailable_off",
+          "trees_in_viz": "disabled_off",
+          "video_decode": "unavailable_off",
+          "video_encode": "disabled_software",
+          "vulkan": "disabled_off",
+          "webgl": "unavailable_off",
+          "webgpu": "unavailable_software",
+          "webgpu_on_vk_via_gl_interop": "disabled_off",
+          "webnn": "disabled_off"
+        },
+        "packaged": false
+      },
+      "viewport": {
+        "width": 1280,
+        "height": 900,
+        "dpr": 1
+      },
+      "preference": "speed",
+      "extended": true,
+      "round3": true,
+      "round4": true,
+      "hostStart": {
+        "time": "2026-10-07T17:36:04.876Z",
+        "loadAverage": [
+          6.09,
+          3.95,
+          3.42
+        ],
+        "freeBytes": 41512271872,
+        "totalBytes": 49234468864
+      },
+      "hostEnd": {
+        "time": "2026-10-07T17:37:30.904Z",
+        "loadAverage": [
+          3.74,
+          3.76,
+          3.4
+        ],
+        "freeBytes": 40555712512,
+        "totalBytes": 49234468864
+      },
+      "method": "Actual Electron development app with freshly staged production renderer and real preload/SQLite/PCM path. Trial zero is the first invocation of each fixture after normal Speed prewarm; related earlier fixtures may already have used its generator or effect module. Subsequent trials repeat that fixture. Capture click to dialog closed, success status, cleared waveform pending state and a fresh successful waveform plan, then revalidate that same paint at two animation-frame boundaries. Xvfb RAF gaps are a renderer responsiveness proxy, not GPU presentation FPS. Startup excluded.",
+      "results": [
+        {
+          "operation": "Generate Tone",
+          "seconds": 30,
+          "trial": 0,
+          "durationMs": 346.58500000834465,
+          "frames": 19,
+          "medianFrameMs": 16.664999999999964,
+          "p95FrameMs": 50,
+          "maxFrameMs": 50,
+          "framesOver33Ms": 1,
+          "longTaskCount": 1,
+          "maxLongTaskMs": 55
+        },
+        {
+          "operation": "Generate Tone",
+          "seconds": 30,
+          "trial": 1,
+          "durationMs": 322.71000000834465,
+          "frames": 17,
+          "medianFrameMs": 16.664999999999964,
+          "p95FrameMs": 49.99499999999989,
+          "maxFrameMs": 49.99499999999989,
+          "framesOver33Ms": 1,
+          "longTaskCount": 1,
+          "maxLongTaskMs": 53
+        },
+        {
+          "operation": "Generate Tone",
+          "seconds": 30,
+          "trial": 2,
+          "durationMs": 302.7150000035763,
+          "frames": 16,
+          "medianFrameMs": 16.664999999999964,
+          "p95FrameMs": 50,
+          "maxFrameMs": 50,
+          "framesOver33Ms": 1,
+          "longTaskCount": 1,
+          "maxLongTaskMs": 53
+        },
+        {
+          "operation": "Generate Chirp",
+          "seconds": 30,
+          "trial": 0,
+          "durationMs": 395.044999986887,
+          "frames": 22,
+          "medianFrameMs": 16.664999999999964,
+          "p95FrameMs": 16.670000000000073,
+          "maxFrameMs": 49.99499999999989,
+          "framesOver33Ms": 1,
+          "longTaskCount": 1,
+          "maxLongTaskMs": 52
+        },
+        {
+          "operation": "Generate Chirp",
+          "seconds": 30,
+          "trial": 1,
+          "durationMs": 355.6550000011921,
+          "frames": 19,
+          "medianFrameMs": 16.664999999999964,
+          "p95FrameMs": 33.32999999999993,
+          "maxFrameMs": 33.32999999999993,
+          "framesOver33Ms": 0,
+          "longTaskCount": 0,
+          "maxLongTaskMs": 0
+        },
+        {
+          "operation": "Generate Chirp",
+          "seconds": 30,
+          "trial": 2,
+          "durationMs": 325.3449999988079,
+          "frames": 18,
+          "medianFrameMs": 16.664999999999964,
+          "p95FrameMs": 50,
+          "maxFrameMs": 50,
+          "framesOver33Ms": 1,
+          "longTaskCount": 0,
+          "maxLongTaskMs": 0
+        },
+        {
+          "operation": "Generate Chirp constant",
+          "seconds": 30,
+          "trial": 0,
+          "durationMs": 284.65000000596046,
+          "frames": 16,
+          "medianFrameMs": 16.664999999999964,
+          "p95FrameMs": 33.32999999999993,
+          "maxFrameMs": 33.32999999999993,
+          "framesOver33Ms": 0,
+          "longTaskCount": 0,
+          "maxLongTaskMs": 0
+        },
+        {
+          "operation": "Generate Chirp constant",
+          "seconds": 30,
+          "trial": 1,
+          "durationMs": 284.0649999976158,
+          "frames": 15,
+          "medianFrameMs": 16.664999999999964,
+          "p95FrameMs": 33.335000000000036,
+          "maxFrameMs": 33.335000000000036,
+          "framesOver33Ms": 0,
+          "longTaskCount": 0,
+          "maxLongTaskMs": 0
+        },
+        {
+          "operation": "Generate Chirp constant",
+          "seconds": 30,
+          "trial": 2,
+          "durationMs": 301.8449999988079,
+          "frames": 17,
+          "medianFrameMs": 16.664999999999964,
+          "p95FrameMs": 33.335000000000036,
+          "maxFrameMs": 33.335000000000036,
+          "framesOver33Ms": 0,
+          "longTaskCount": 0,
+          "maxLongTaskMs": 0
+        },
+        {
+          "operation": "Generate DTMF tones",
+          "seconds": 30,
+          "trial": 0,
+          "durationMs": 287.93000000715256,
+          "frames": 16,
+          "medianFrameMs": 16.665000000000873,
+          "p95FrameMs": 33.32999999999993,
+          "maxFrameMs": 33.32999999999993,
+          "framesOver33Ms": 0,
+          "longTaskCount": 0,
+          "maxLongTaskMs": 0
+        },
+        {
+          "operation": "Generate DTMF tones",
+          "seconds": 30,
+          "trial": 1,
+          "durationMs": 304.5799999833107,
+          "frames": 16,
+          "medianFrameMs": 16.665000000000873,
+          "p95FrameMs": 49.9950000000008,
+          "maxFrameMs": 49.9950000000008,
+          "framesOver33Ms": 1,
+          "longTaskCount": 0,
+          "maxLongTaskMs": 0
+        },
+        {
+          "operation": "Generate DTMF tones",
+          "seconds": 30,
+          "trial": 2,
+          "durationMs": 299.09999999403954,
+          "frames": 17,
+          "medianFrameMs": 16.665000000000873,
+          "p95FrameMs": 33.32999999999993,
+          "maxFrameMs": 33.32999999999993,
+          "framesOver33Ms": 0,
+          "longTaskCount": 0,
+          "maxLongTaskMs": 0
+        },
+        {
+          "operation": "Generate Noise pink",
+          "seconds": 30,
+          "trial": 0,
+          "durationMs": 315.8299999833107,
+          "frames": 18,
+          "medianFrameMs": 16.665000000000873,
+          "p95FrameMs": 33.32499999999891,
+          "maxFrameMs": 33.32499999999891,
+          "framesOver33Ms": 0,
+          "longTaskCount": 0,
+          "maxLongTaskMs": 0
+        },
+        {
+          "operation": "Generate Noise pink",
+          "seconds": 30,
+          "trial": 1,
+          "durationMs": 377.4849999845028,
+          "frames": 21,
+          "medianFrameMs": 16.665000000000873,
+          "p95FrameMs": 16.670000000000073,
+          "maxFrameMs": 33.33499999999913,
+          "framesOver33Ms": 0,
+          "longTaskCount": 0,
+          "maxLongTaskMs": 0
+        },
+        {
+          "operation": "Generate Noise pink",
+          "seconds": 30,
+          "trial": 2,
+          "durationMs": 310.6350000202656,
+          "frames": 18,
+          "medianFrameMs": 16.665000000000873,
+          "p95FrameMs": 33.32999999999993,
+          "maxFrameMs": 33.32999999999993,
+          "framesOver33Ms": 0,
+          "longTaskCount": 0,
+          "maxLongTaskMs": 0
+        },
+        {
+          "operation": "Generate Noise pink",
+          "seconds": 120,
+          "trial": 0,
+          "durationMs": 691.044999986887,
+          "frames": 40,
+          "medianFrameMs": 16.665000000000873,
+          "p95FrameMs": 16.670000000000073,
+          "maxFrameMs": 33.32999999999993,
+          "framesOver33Ms": 0,
+          "longTaskCount": 0,
+          "maxLongTaskMs": 0
+        },
+        {
+          "operation": "Generate Noise pink",
+          "seconds": 120,
+          "trial": 1,
+          "durationMs": 627.4950000047684,
+          "frames": 37,
+          "medianFrameMs": 16.665000000000873,
+          "p95FrameMs": 16.670000000000073,
+          "maxFrameMs": 33.335000000000946,
+          "framesOver33Ms": 0,
+          "longTaskCount": 0,
+          "maxLongTaskMs": 0
+        },
+        {
+          "operation": "Generate Noise pink",
+          "seconds": 120,
+          "trial": 2,
+          "durationMs": 630.7599999904633,
+          "frames": 37,
+          "medianFrameMs": 16.665000000000873,
+          "p95FrameMs": 16.670000000000073,
+          "maxFrameMs": 33.32999999999993,
+          "framesOver33Ms": 0,
+          "longTaskCount": 0,
+          "maxLongTaskMs": 0
+        },
+        {
+          "operation": "Apply Amplify",
+          "seconds": 120,
+          "trial": 0,
+          "durationMs": 1795.8999999761581,
+          "frames": 106,
+          "medianFrameMs": 16.665000000000873,
+          "p95FrameMs": 16.670000000000073,
+          "maxFrameMs": 33.330000000001746,
+          "framesOver33Ms": 0,
+          "longTaskCount": 0,
+          "maxLongTaskMs": 0
+        },
+        {
+          "operation": "Apply Amplify",
+          "seconds": 120,
+          "trial": 1,
+          "durationMs": 1786.655000001192,
+          "frames": 106,
+          "medianFrameMs": 16.665000000000873,
+          "p95FrameMs": 16.67000000000189,
+          "maxFrameMs": 33.32999999999811,
+          "framesOver33Ms": 0,
+          "longTaskCount": 0,
+          "maxLongTaskMs": 0
+        },
+        {
+          "operation": "Apply Amplify",
+          "seconds": 120,
+          "trial": 2,
+          "durationMs": 1821.9950000047684,
+          "frames": 108,
+          "medianFrameMs": 16.665000000000873,
+          "p95FrameMs": 16.67000000000189,
+          "maxFrameMs": 33.33499999999913,
+          "framesOver33Ms": 0,
+          "longTaskCount": 0,
+          "maxLongTaskMs": 0
+        },
+        {
+          "operation": "Apply Compressor",
+          "seconds": 120,
+          "trial": 0,
+          "durationMs": 1944.1649999916553,
+          "frames": 115,
+          "medianFrameMs": 16.665000000000873,
+          "p95FrameMs": 16.67000000000189,
+          "maxFrameMs": 33.33499999999913,
+          "framesOver33Ms": 0,
+          "longTaskCount": 1,
+          "maxLongTaskMs": 54
+        },
+        {
+          "operation": "Apply Compressor",
+          "seconds": 120,
+          "trial": 1,
+          "durationMs": 1878.8050000071526,
+          "frames": 112,
+          "medianFrameMs": 16.665000000000873,
+          "p95FrameMs": 16.67000000000189,
+          "maxFrameMs": 33.32999999999811,
+          "framesOver33Ms": 0,
+          "longTaskCount": 0,
+          "maxLongTaskMs": 0
+        },
+        {
+          "operation": "Apply Compressor",
+          "seconds": 120,
+          "trial": 2,
+          "durationMs": 2112.4900000095367,
+          "frames": 124,
+          "medianFrameMs": 16.665000000000873,
+          "p95FrameMs": 16.67000000000189,
+          "maxFrameMs": 50.00500000000102,
+          "framesOver33Ms": 1,
+          "longTaskCount": 1,
+          "maxLongTaskMs": 59
+        },
+        {
+          "operation": "Apply Normalize",
+          "seconds": 120,
+          "trial": 0,
+          "durationMs": 2549.939999997616,
+          "frames": 149,
+          "medianFrameMs": 16.665000000000873,
+          "p95FrameMs": 16.67000000000189,
+          "maxFrameMs": 50,
+          "framesOver33Ms": 2,
+          "longTaskCount": 2,
+          "maxLongTaskMs": 68
+        },
+        {
+          "operation": "Apply Normalize",
+          "seconds": 120,
+          "trial": 1,
+          "durationMs": 1817.9549999833107,
+          "frames": 108,
+          "medianFrameMs": 16.665000000000873,
+          "p95FrameMs": 16.67000000000189,
+          "maxFrameMs": 33.3350000000064,
+          "framesOver33Ms": 0,
+          "longTaskCount": 0,
+          "maxLongTaskMs": 0
+        },
+        {
+          "operation": "Apply Normalize",
+          "seconds": 120,
+          "trial": 2,
+          "durationMs": 1853.9249999821186,
+          "frames": 110,
+          "medianFrameMs": 16.665000000000873,
+          "p95FrameMs": 16.67000000000553,
+          "maxFrameMs": 33.33499999999913,
+          "framesOver33Ms": 0,
+          "longTaskCount": 0,
+          "maxLongTaskMs": 0
+        },
+        {
+          "operation": "Apply Click Removal",
+          "seconds": 120,
+          "trial": 0,
+          "durationMs": 2016.469999998808,
+          "frames": 119,
+          "medianFrameMs": 16.665000000000873,
+          "p95FrameMs": 16.67000000000553,
+          "maxFrameMs": 50,
+          "framesOver33Ms": 1,
+          "longTaskCount": 1,
+          "maxLongTaskMs": 51
+        },
+        {
+          "operation": "Apply Click Removal",
+          "seconds": 120,
+          "trial": 1,
+          "durationMs": 1971.550000011921,
+          "frames": 117,
+          "medianFrameMs": 16.665000000000873,
+          "p95FrameMs": 16.67000000000553,
+          "maxFrameMs": 33.330000000001746,
+          "framesOver33Ms": 0,
+          "longTaskCount": 0,
+          "maxLongTaskMs": 0
+        },
+        {
+          "operation": "Apply Click Removal",
+          "seconds": 120,
+          "trial": 2,
+          "durationMs": 2001.2250000238419,
+          "frames": 119,
+          "medianFrameMs": 16.665000000000873,
+          "p95FrameMs": 16.67000000000553,
+          "maxFrameMs": 33.330000000001746,
+          "framesOver33Ms": 0,
+          "longTaskCount": 0,
+          "maxLongTaskMs": 0
+        },
+        {
+          "operation": "Apply Noise gate",
+          "seconds": 120,
+          "trial": 0,
+          "durationMs": 2104.354999989271,
+          "frames": 125,
+          "medianFrameMs": 16.665000000000873,
+          "p95FrameMs": 16.67000000000553,
+          "maxFrameMs": 33.330000000001746,
+          "framesOver33Ms": 0,
+          "longTaskCount": 0,
+          "maxLongTaskMs": 0
+        },
+        {
+          "operation": "Apply Noise gate",
+          "seconds": 120,
+          "trial": 1,
+          "durationMs": 1882.1450000107288,
+          "frames": 112,
+          "medianFrameMs": 16.665000000000873,
+          "p95FrameMs": 16.669999999998254,
+          "maxFrameMs": 33.330000000001746,
+          "framesOver33Ms": 0,
+          "longTaskCount": 0,
+          "maxLongTaskMs": 0
+        },
+        {
+          "operation": "Apply Noise gate",
+          "seconds": 120,
+          "trial": 2,
+          "durationMs": 1805.3349999785423,
+          "frames": 107,
+          "medianFrameMs": 16.665000000000873,
+          "p95FrameMs": 16.67000000000553,
+          "maxFrameMs": 33.32999999999447,
+          "framesOver33Ms": 0,
+          "longTaskCount": 0,
+          "maxLongTaskMs": 0
+        },
+        {
+          "operation": "Apply Loudness Normalization",
+          "seconds": 120,
+          "trial": 0,
+          "durationMs": 1803.6400000154972,
+          "frames": 107,
+          "medianFrameMs": 16.665000000000873,
+          "p95FrameMs": 16.67000000000553,
+          "maxFrameMs": 33.33499999999913,
+          "framesOver33Ms": 0,
+          "longTaskCount": 0,
+          "maxLongTaskMs": 0
+        },
+        {
+          "operation": "Apply Loudness Normalization",
+          "seconds": 120,
+          "trial": 1,
+          "durationMs": 1765.6950000226498,
+          "frames": 105,
+          "medianFrameMs": 16.665000000000873,
+          "p95FrameMs": 16.669999999998254,
+          "maxFrameMs": 33.33499999999913,
+          "framesOver33Ms": 0,
+          "longTaskCount": 0,
+          "maxLongTaskMs": 0
+        },
+        {
+          "operation": "Apply Loudness Normalization",
+          "seconds": 120,
+          "trial": 2,
+          "durationMs": 1769.655000001192,
+          "frames": 105,
+          "medianFrameMs": 16.665000000000873,
+          "p95FrameMs": 16.67000000000553,
+          "maxFrameMs": 33.330000000001746,
+          "framesOver33Ms": 0,
+          "longTaskCount": 0,
+          "maxLongTaskMs": 0
+        },
+        {
+          "operation": "Apply De-esser",
+          "seconds": 120,
+          "trial": 0,
+          "durationMs": 2134.2450000047684,
+          "frames": 127,
+          "medianFrameMs": 16.665000000000873,
+          "p95FrameMs": 16.67000000000553,
+          "maxFrameMs": 33.33499999999913,
+          "framesOver33Ms": 0,
+          "longTaskCount": 0,
+          "maxLongTaskMs": 0
+        },
+        {
+          "operation": "Apply De-esser",
+          "seconds": 120,
+          "trial": 1,
+          "durationMs": 2080.9449999928474,
+          "frames": 124,
+          "medianFrameMs": 16.665000000000873,
+          "p95FrameMs": 16.669999999998254,
+          "maxFrameMs": 33.33499999999913,
+          "framesOver33Ms": 0,
+          "longTaskCount": 0,
+          "maxLongTaskMs": 0
+        },
+        {
+          "operation": "Apply De-esser",
+          "seconds": 120,
+          "trial": 2,
+          "durationMs": 2161.145000010729,
+          "frames": 128,
+          "medianFrameMs": 16.665000000000873,
+          "p95FrameMs": 16.67000000000553,
+          "maxFrameMs": 33.330000000001746,
+          "framesOver33Ms": 0,
+          "longTaskCount": 0,
+          "maxLongTaskMs": 0
+        },
+        {
+          "operation": "Apply Multiband compressor",
+          "seconds": 120,
+          "trial": 0,
+          "durationMs": 2747.594999998808,
+          "frames": 164,
+          "medianFrameMs": 16.665000000000873,
+          "p95FrameMs": 16.669999999998254,
+          "maxFrameMs": 33.3350000000064,
+          "framesOver33Ms": 0,
+          "longTaskCount": 0,
+          "maxLongTaskMs": 0
+        },
+        {
+          "operation": "Apply Multiband compressor",
+          "seconds": 120,
+          "trial": 1,
+          "durationMs": 2771.1949999928474,
+          "frames": 164,
+          "medianFrameMs": 16.66500000000815,
+          "p95FrameMs": 16.669999999998254,
+          "maxFrameMs": 33.330000000001746,
+          "framesOver33Ms": 0,
+          "longTaskCount": 0,
+          "maxLongTaskMs": 0
+        },
+        {
+          "operation": "Apply Multiband compressor",
+          "seconds": 120,
+          "trial": 2,
+          "durationMs": 2794.119999974966,
+          "frames": 167,
+          "medianFrameMs": 16.66500000000815,
+          "p95FrameMs": 16.669999999998254,
+          "maxFrameMs": 33.32500000001164,
+          "framesOver33Ms": 0,
+          "longTaskCount": 0,
+          "maxLongTaskMs": 0
+        },
+        {
+          "operation": "Idle timeline",
+          "clips": "64",
+          "frames": 181,
+          "medianFrameMs": 16.66500000000815,
+          "p95FrameMs": 16.669999999998254,
+          "maxFrameMs": 16.670000000012806,
+          "framesOver33Ms": 0
+        },
+        {
+          "operation": "Playback timeline",
+          "clips": "64",
+          "playheadBefore": 12000,
+          "playheadAfter": 156000,
+          "frames": 181,
+          "medianFrameMs": 16.66500000000815,
+          "p95FrameMs": 16.669999999998254,
+          "maxFrameMs": 16.670000000012806,
+          "framesOver33Ms": 0
+        },
+        {
+          "operation": "Active dense timeline scroll and hover",
+          "clips": "64",
+          "frames": 155,
+          "medianFrameMs": 16.66500000000815,
+          "p95FrameMs": 33.3350000000064,
+          "maxFrameMs": 50,
+          "framesOver33Ms": 7,
+          "durationMs": 3016.5420000000013,
+          "minScrollLeft": 0,
+          "maxScrollLeft": 1920,
+          "minScrollTop": 0,
+          "maxScrollTop": 1440,
+          "scrollPositions": 7,
+          "hoverPositions": 18,
+          "gestures": 30,
+          "gesture": "Trusted mouse sweeps and bidirectional wheel scrolling on a zoomed timeline with 64 clips"
+        }
+      ]
+    },
+    "finalOutputStatus": "The before-1 JSON at its original path is superseded and is not a final-build ABBA observation; its 45-row receipt remains preserved here."
+  },
+  "retainedFailureTranscript": {
+    "originalPath": "performance-round4-electron-after-1.json.failure.txt",
+    "byteLength": 3437,
+    "sha256": "9f619d2ecae721fd71302fcd74d5711fa897197901450a412ed6ceabc8565c95",
+    "completeTextRetainedInThisReceipt": true,
+    "generatedTextFileRemoved": true
+  },
+  "playbackCause": "Unresolved. The final baseline timed attempt showed12000\u219212000 across3s, while both fresh minimal and full-sequence baseline diagnostics passed. No captured evidence links the original stall to a native deadline or to delayed playback admission.",
+  "sharedFailurePreservationOverlay": {
+    "capturedAtUtc": "2026-10-07T18:19:15.738328+00:00",
+    "commit": "0d2d47b17c8c8dba7bb8b796d07e79eb80cb4a8c",
+    "uncounted": true,
+    "paths": {
+      "scripts/performance/measure-electron-editing.mjs": "aeb1efc9ae90c212989e889a8eff132a1626959c3959519fc7dcc415e1bd94f7",
+      "scripts/performance/electron-editing-failure-report.ts": "08a811457ab426b39694d2687882a81496c7747a663041928f7ed67ea1501b82",
+      "tests/audio-editor-responsiveness-round4-electron-failure-report.test.ts": "c294ee878e837a04aa412528228cf4f926783e8dca1d2a974411605a53b3feb2"
+    },
+    "roots": {
+      "before": {
+        "root": "/tmp/soundscaper-round4-measure-before-own",
+        "paths": {
+          "scripts/performance/measure-electron-editing.mjs": "aeb1efc9ae90c212989e889a8eff132a1626959c3959519fc7dcc415e1bd94f7",
+          "scripts/performance/electron-editing-failure-report.ts": "08a811457ab426b39694d2687882a81496c7747a663041928f7ed67ea1501b82",
+          "tests/audio-editor-responsiveness-round4-electron-failure-report.test.ts": "c294ee878e837a04aa412528228cf4f926783e8dca1d2a974411605a53b3feb2"
+        },
+        "buildManifestBefore": {
+          ".desktop-build/stage-manifest.json": "22f8b29a6a2ffad2cf0e613511fb39be84dacca69d9a12225945b2426539de2f",
+          ".desktop-build/renderer/.offline-build-manifest.json": "3f0c05863b6d7bb198133756c3d82ea0c1e1df6f69210998036d2c03e24dbb96"
+        },
+        "buildManifestAfter": {
+          ".desktop-build/stage-manifest.json": "22f8b29a6a2ffad2cf0e613511fb39be84dacca69d9a12225945b2426539de2f",
+          ".desktop-build/renderer/.offline-build-manifest.json": "3f0c05863b6d7bb198133756c3d82ea0c1e1df6f69210998036d2c03e24dbb96"
+        }
+      },
+      "after": {
+        "root": "/tmp/soundscaper-round4-measure-after-own",
+        "paths": {
+          "scripts/performance/measure-electron-editing.mjs": "aeb1efc9ae90c212989e889a8eff132a1626959c3959519fc7dcc415e1bd94f7",
+          "scripts/performance/electron-editing-failure-report.ts": "08a811457ab426b39694d2687882a81496c7747a663041928f7ed67ea1501b82",
+          "tests/audio-editor-responsiveness-round4-electron-failure-report.test.ts": "c294ee878e837a04aa412528228cf4f926783e8dca1d2a974411605a53b3feb2"
+        },
+        "buildManifestBefore": {
+          ".desktop-build/stage-manifest.json": "22f8b29a6a2ffad2cf0e613511fb39be84dacca69d9a12225945b2426539de2f",
+          ".desktop-build/renderer/.offline-build-manifest.json": "e21fea5463bf52cd923be09ac5a6db28f9802da30a024e6fa6387e63c0fc1ef4"
+        },
+        "buildManifestAfter": {
+          ".desktop-build/stage-manifest.json": "22f8b29a6a2ffad2cf0e613511fb39be84dacca69d9a12225945b2426539de2f",
+          ".desktop-build/renderer/.offline-build-manifest.json": "e21fea5463bf52cd923be09ac5a6db28f9802da30a024e6fa6387e63c0fc1ef4"
+        }
+      }
+    },
+    "validation": {
+      "focusedTests": 9,
+      "failed": 0,
+      "strictTypeCheckExit": 0,
+      "explicitFileLintExit": 0,
+      "timedSuccessPathAndPlaybackAssertionsUnchanged": true
+    },
+    "limits": "Supporting harness only; no application rebuild or production-source change. Fresh final ABBA must use this identical overlay."
+  },
+  "retainedFailureTranscripts": [
+    {
+      "originalPath": "performance-round4-electron-before-1.json.failure.txt",
+      "byteLength": 8391,
+      "sha256": "9e816f02a1556399b09656f134aeb5c1e3ca374dd99ee7d4a84d2812b9e4041f",
+      "completeTextRetainedInThisReceipt": true,
+      "generatedDuplicateRemoved": true
+    }
+  ]
+}
