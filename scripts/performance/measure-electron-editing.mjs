@@ -14,6 +14,7 @@ import {
 	chooseCommandAction, chooseNestedCommandAction,
 } from '../../tests/browser/audio-editor-test-helpers.js';
 import { armElectronEditingCompletion } from './electron-editing-completion.ts';
+import { createElectronEditingFailureReport } from './electron-editing-failure-report.ts';
 
 const output = resolve(process.argv[2] ?? 'test-results/editing-performance/electron.json');
 const round4 = process.argv.includes('--round4');
@@ -25,6 +26,8 @@ const environment = { ...process.env };
 delete environment.ELECTRON_RUN_AS_NODE;
 const results = [];
 let application;
+let runtime;
+let viewport;
 try {
 	await mkdir(resolve(output, '..'), { recursive: true });
 	await writeFile(join(profile, 'desktop-settings.json'), JSON.stringify({ schemaVersion: 1, locale: 'en' }));
@@ -47,10 +50,10 @@ try {
 	await expect(preferences.getByRole('button', { name: 'Optimize for', exact: true })).toContainText('Speed');
 	await preferences.locator('.audio-editor-dialog-footer').getByRole('button', { name: 'Close', exact: true }).click();
 	await expect(preferences).toBeHidden();
-	const runtime = await application.evaluate(({ app }) => ({
+	runtime = await application.evaluate(({ app }) => ({
 		versions: process.versions, gpu: app.getGPUFeatureStatus(), packaged: app.isPackaged,
 	}));
-	const viewport = await page.evaluate(() => ({ width: innerWidth, height: innerHeight, dpr: devicePixelRatio }));
+	viewport = await page.evaluate(() => ({ width: innerWidth, height: innerHeight, dpr: devicePixelRatio }));
 	const generators = extended
 		? [['Tone', 30], ['Chirp', 30], ['Noise', 30], ['Noise', 120]]
 		: [['Tone', 30], ['Noise', 30], ['Noise', 120]];
@@ -133,9 +136,23 @@ try {
 	await writeFile(output, JSON.stringify(report, null, '\t') + '\n');
 	process.stdout.write(`Saved ${results.length} observations to ${output}\n`);
 } catch (error) {
-	if (application) {
-		const pages = application.windows();
-		if (pages[0]) await writeFile(output + '.failure.txt', await pages[0].locator('body').ariaSnapshot());
+	try {
+		const partial = createElectronEditingFailureReport({
+			node: process.version, platform: process.platform, arch: process.arch,
+			cpu: cpus()[0]?.model, logicalCpus: cpus().length, runtime, viewport,
+			preference: 'speed', extended, round3, round4, hostStart,
+			hostEnd: { time: new Date().toISOString(), loadAverage: loadavg(), freeBytes: freemem(), totalBytes: totalmem() },
+			method: 'Failed attempt; only completed observations are retained. The complete output path is written only after every assertion succeeds and may contain a superseded earlier attempt.',
+		}, results, error);
+		await writeFile(output + '.partial.json', JSON.stringify(partial, null, '\t') + '\n');
+	} catch (diagnosticError) {
+		console.error('Unable to preserve partial editing observations:', diagnosticError);
+	}
+	try {
+		const pages = application?.windows();
+		if (pages?.[0]) await writeFile(output + '.failure.txt', await pages[0].locator('body').ariaSnapshot());
+	} catch (diagnosticError) {
+		console.error('Unable to preserve editing failure snapshot:', diagnosticError);
 	}
 	throw error;
 } finally {
