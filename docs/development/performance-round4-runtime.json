@@ -117,15 +117,28 @@
 		},
 		{
 			"id": "runtime-round4-10",
-			"key": "message-window-exact-frame-ratio",
-			"source": "src/common/editor/engine/scheduled-parameter-frame-projector.ts",
-			"caller": "src/common/editor/engine/scheduled-parameter-registry.ts: RegisteredScheduledParameterTarget.schedule",
-			"location": "createScheduledParameterContextFrameProjector / RegisteredScheduledParameterTarget.schedule",
-			"change": "Prepare exact decimal transport-rate and BigInt sample-rate conversion factors once per message packet instead of once per event.",
-			"test": "tests/audio-editor-responsiveness-round4-frame-projector.test.ts",
-			"evidence": "A registered target with 1000 events decodes rate 1.2 once and emits an immutable exact-offset packet. 157 frozen original conversions/refusals cover half ties, tiny/huge finite rates, large absolute frames and invalid arguments.",
-			"limitations": "Standalone public conversion keeps validation order and exact rounding; AudioParam scheduling is unchanged.",
+			"key": "audio-param-window-timing",
+			"source": "src/common/editor/engine/scheduled-parameter-audio-param-time-projector.ts",
+			"caller": "src/common/editor/engine/scheduled-parameter-registry.ts: RegisteredScheduledParameterTarget.#scheduleAudioParam",
+			"location": "createScheduledParameterAudioParamTimeProjector / #scheduleAudioParam",
+			"change": "Capture the fixed normalized window inputs and sampleRate * transportRate divisor once per real AudioParam scheduling window instead of rereading and multiplying them for every event.",
+			"test": "tests/audio-editor-responsiveness-round4-audio-param-time.test.ts",
+			"evidence": "Red/green fixed-input getters for 1,000 projections fall from 4,000 to 4 total reads. The 100 complete actual registerAudioParam/group call/error fixtures preserve Float64 time/value bytes: 48 single and 48 composite rate/sample-rate/latency combinations plus 4 partial-failure cases. Continuing and overlapping cancellation and transform/param/cancel exceptions match captured original registry SHA256 93fc51563930965aac579a670cc83d84474702017b9ba3e5fc49c8dc191d7d65. All 24 focused scheduling tests pass, including 157 standalone conversion/refusal fixtures.",
+			"limitations": "Only immutable normalized registry windows use the timing helper. Original parentheses remain contextStartTime + (latencySeconds + (frame-fromFrame)/(sampleRate*transportRate)); multiplication is prepared without reciprocal reassociation. Extreme rates retain Infinity/NaN times and original AudioParam behavior. Cancellation, binding/event order and partial-failure frontier publication remain unchanged. Standalone conversion extraction and restored future message targets add no counted cost. Root owns representative timing and final gates.",
 			"status": "implemented"
 		}
-	]
+	],
+	"rejectedCandidates": [
+		{
+			"key": "message-window-exact-frame-ratio",
+			"reason": "Current Soundscaper registers AudioParam bindings. The message-target producer is a future contract with no current production caller; packet-factor retention and its unused public factory were removed. Per-event standalone message conversion is restored; its 157 compatibility fixtures remain uncounted protection."
+		}
+	],
+	"audioParamParity": {
+		"fixture": "tests/fixtures/responsiveness-round4-audio-param-parity.json",
+		"helper": "tests/helpers/responsiveness-round4-audio-param-parity.ts",
+		"originalSourceSha256": "93fc51563930965aac579a670cc83d84474702017b9ba3e5fc49c8dc191d7d65",
+		"cases": 100,
+		"method": "Independent esbuild bundle substitutes only captured original registry bytes while resolving unchanged owning imports. Maintained helper records complete public calls/errors with exact Float64 time/value bytes; equality is checked outside timers. Temporary generator recipe/provenance: /tmp/perf300-generate-audio-param-parity.mjs and /tmp/perf300-audio-param-parity-provenance.json."
+	}
 }

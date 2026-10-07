@@ -4,7 +4,6 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { stripParameterDescriptor } from '../src/common/editor/effect-parameter-descriptors.ts';
-import { createScheduledParameterContextFrameProjector } from '../src/common/editor/engine/scheduled-parameter-frame-projector.ts';
 import {
 	roundScheduledParameterContextFrameOffset,
 	ScheduledParameterRegistry,
@@ -29,34 +28,7 @@ test('public parameter offsets match 157 frozen original conversions and refusal
 	}
 });
 
-test('prepared parameter offsets retain exact decimal ratios, half ties and overflow refusals', () => {
-	for (const rate of [1, 2, .1, 1.2, 2.001, Number.MIN_VALUE, Number.MAX_VALUE]) {
-		for (const sampleRate of [32_000, 44_100, 48_000, 96_000]) {
-			const project = createScheduledParameterContextFrameProjector(37, sampleRate, 48_000, rate, 19);
-			for (const frame of [37, 38, 40, 82_411_206, Number.MAX_SAFE_INTEGER]) {
-				assert.deepEqual(observe(() => project(frame)), observe(() => roundScheduledParameterContextFrameOffset(frame, 37, sampleRate, 48_000, rate, 19)));
-			}
-		}
-	}
-	assert.equal(createScheduledParameterContextFrameProjector(0, 2, 1, 1, 0)(1), 1);
-	assert.throws(() => createScheduledParameterContextFrameProjector(100, 48_000, 48_000, 1, 0)(99), /unsafe/u);
-});
-
-test('a message-window projector prepares its decimal transport ratio once', () => {
-	const original = Number.prototype.toString;
-	let conversions = 0;
-	Number.prototype.toString = function(radix?: number): string {
-		if (Number(this) === 1.2) conversions += 1;
-		return original.call(this, radix);
-	};
-	try {
-		const project = createScheduledParameterContextFrameProjector(0, 44_100, 48_000, 1.2, 32);
-		for (let frame = 0; frame < 1000; frame += 1) assert.ok(Number.isSafeInteger(project(frame)));
-		assert.equal(conversions, 1);
-	} finally { Number.prototype.toString = original; }
-});
-
-test('registered message targets prepare one conversion for the complete immutable packet', () => {
+test('uncounted message targets retain per-event standalone conversion and complete immutable packets', () => {
 	const descriptor = stripParameterDescriptor({ kind: 'strip', strip: { kind: 'track', id: 'track' }, parameterId: 'pan' }, 32);
 	const packets: ScheduledParameterMessage[] = [];
 	const target = new ScheduledParameterRegistry().registerMessageTarget(descriptor, packet => { packets.push(packet); });
@@ -69,7 +41,7 @@ test('registered message targets prepare one conversion for the complete immutab
 	};
 	try {
 		target.schedule(events, { fromFrame: 0, contextStartTime: 0, sampleRate: 44_100, contextSampleRate: 48_000, transportRate: 1.2 });
-		assert.equal(conversions, 1);
+		assert.equal(conversions, 1000);
 	} finally { Number.prototype.toString = original; }
 	assert.equal(packets.length, 1);
 	const packet = packets[0]!;

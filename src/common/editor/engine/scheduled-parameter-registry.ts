@@ -6,7 +6,8 @@ import {
 	type ParameterAddress,
 	type ParameterDescriptor,
 } from '../parameter-address.ts';
-import { createScheduledParameterContextFrameProjector } from './scheduled-parameter-frame-projector.ts';
+import { roundScheduledParameterContextFrameOffset } from './scheduled-parameter-frame-projector.ts';
+import { createScheduledParameterAudioParamTimeProjector } from './scheduled-parameter-audio-param-time-projector.ts';
 export { roundScheduledParameterContextFrameOffset } from './scheduled-parameter-frame-projector.ts';
 
 export const STALE_SCHEDULED_PARAMETER_TARGET_CODE = 'STALE_SCHEDULED_PARAMETER_TARGET' as const;
@@ -132,10 +133,6 @@ class RegisteredScheduledParameterTarget implements ScheduledParameterTarget {
 			return;
 		}
 		const revision = this.#revision + 1;
-		const frameOffset = createScheduledParameterContextFrameProjector(
-			options.fromFrame, options.sampleRate, options.contextSampleRate,
-			options.transportRate, this.latencyFrames,
-		);
 		const packet = Object.freeze({
 			type: 'schedule-parameter-v1' as const,
 			revision,
@@ -147,7 +144,14 @@ class RegisteredScheduledParameterTarget implements ScheduledParameterTarget {
 			transportRate: options.transportRate,
 				events: Object.freeze(events.map((event) => Object.freeze({
 				kind: event.kind,
-				frameOffset: frameOffset(event.frame),
+				frameOffset: roundScheduledParameterContextFrameOffset(
+					event.frame,
+					options.fromFrame,
+					options.sampleRate,
+					options.contextSampleRate,
+					options.transportRate,
+					this.latencyFrames,
+				),
 				value: event.value,
 			}))),
 		});
@@ -175,11 +179,9 @@ class RegisteredScheduledParameterTarget implements ScheduledParameterTarget {
 			for (const { param } of bindings) param.cancelScheduledValues?.(scheduleStart);
 		}
 		let scheduledThroughTime = scheduleStart;
+		const timeAtFrame = createScheduledParameterAudioParamTimeProjector(options, latencySeconds);
 		for (const event of events) {
-			const time = options.contextStartTime + (
-				latencySeconds
-				+ (event.frame - options.fromFrame) / (options.sampleRate * options.transportRate)
-			);
+			const time = timeAtFrame(event.frame);
 			for (const { param, transformValue } of bindings) {
 				const value = finiteNumber(transformValue(event.value), 'transformed parameter value');
 				if (event.kind === 'set') param.setValueAtTime(value, time);

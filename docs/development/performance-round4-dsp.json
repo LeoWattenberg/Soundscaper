@@ -222,7 +222,7 @@
     {
       "number": 9,
       "id": "dsp4-09-spectrogram-source-bounds",
-      "title": "Bound plain-PCM spectrogram sample loading",
+      "title": "Bound array-backed spectrogram sample loading",
       "status": "implemented",
       "source": [
         {
@@ -236,8 +236,8 @@
         "tests/audio-editor-responsiveness-round4-spectrogram-work.test.ts",
         "tests/audio-editor-responsiveness-round4-dsp-parity.test.ts"
       ],
-      "productionCaller": "src/common/editor/ui/timeline/spectrogram-canvas-renderer.js",
-      "limitations": "Projected sampleAt accessors still receive every negative/trailing frame request. Fractional array-like lengths retain ceil boundary behavior. Number coercion and invalid sample fallback are unchanged."
+      "productionCaller": "src/common/editor/ui/timeline/spectrogram-canvas-renderer.js: recording multiview array fallback",
+      "limitations": "Ordinary projected clip worker/accessor inputs retain the full original sampleAt traversal and do not claim this bounds reduction. Actual Soundscaper array input is the recording multiview preview exported by preview.ts to the canvas analysis fallback when analysis is not deferred (including unavailable Worker or width beyond the worker limit). Projected sampleAt accessors still receive every negative/trailing frame request. Fractional array-like lengths retain ceil boundary behavior. Number coercion and invalid sample fallback are unchanged."
     },
     {
       "number": 10,
@@ -398,7 +398,7 @@
         "tests/audio-editor-responsiveness-round4-dsp-ownership.test.ts",
         "tests/audio-editor-responsiveness-round4-dsp-parity.test.ts"
       ],
-      "productionCaller": "src/common/editor/sound-visualizer-rgba.ts",
+      "productionCaller": "src/common/editor/ui/timeline/spectral-center-gesture.ts",
       "limitations": "At most twelve retained workspaces (2,620,896 bytes, under 3 MiB); recursive leases are ephemeral. No caller PCM or output array is pooled; power buffers are cleared on each reuse."
     },
     {

@@ -2,49 +2,7 @@
 
 import { roundRational } from '../timeline-time.ts';
 
-/** One message window owns a single exact conversion ratio; callers retain frame validation. */
-export function createScheduledParameterContextFrameProjector(
-	fromFrame: number,
-	sampleRate: number,
-	contextSampleRate: number,
-	transportRate: number,
-	latencyFrames: number,
-): (frame: number) => number {
-	const normalizedFromFrame = nonNegativeSafeInteger(fromFrame, 'fromFrame');
-	const normalizedSampleRate = positiveSafeInteger(sampleRate, 'sampleRate');
-	const normalizedContextSampleRate = positiveSafeInteger(contextSampleRate, 'contextSampleRate');
-	const normalizedTransportRate = positiveFiniteNumber(transportRate, 'transportRate');
-	const normalizedLatencyFrames = nonNegativeSafeInteger(latencyFrames, 'latencyFrames');
-	return prepareFrameProjector(normalizedFromFrame, normalizedSampleRate, normalizedContextSampleRate, normalizedTransportRate, normalizedLatencyFrames);
-}
-
-function prepareFrameProjector(
-	normalizedFromFrame: number,
-	normalizedSampleRate: number,
-	normalizedContextSampleRate: number,
-	normalizedTransportRate: number,
-	normalizedLatencyFrames: number,
-): (frame: number) => number {
-	const transport = canonicalPositiveNumberRatio(normalizedTransportRate);
-	const numeratorFactor = BigInt(normalizedContextSampleRate) * transport.denominator;
-	const denominator = BigInt(normalizedSampleRate) * transport.numerator;
-	return frame => {
-		const normalizedFrame = nonNegativeSafeInteger(frame, 'frame');
-		if (normalizedFrame < normalizedFromFrame) throw new RangeError('A parameter frame offset is unsafe.');
-		let roundedOffset: number;
-		try {
-			roundedOffset = roundRational(BigInt(normalizedFrame - normalizedFromFrame) * numeratorFactor, denominator, 'point');
-		} catch (error) {
-			if (error instanceof RangeError) throw new RangeError('A parameter frame offset is unsafe.');
-			throw error;
-		}
-		const offset = normalizedLatencyFrames + roundedOffset;
-		if (!Number.isSafeInteger(offset) || offset < 0) throw new RangeError('A parameter frame offset is unsafe.');
-		return offset;
-	};
-}
-
-/** Preserve the standalone conversion's original validation order and exact half-tie ownership. */
+/** Standalone original conversion, extracted without a counted performance change. */
 export function roundScheduledParameterContextFrameOffset(
 	frame: number,
 	fromFrame: number,
@@ -56,15 +14,40 @@ export function roundScheduledParameterContextFrameOffset(
 	const normalizedFrame = nonNegativeSafeInteger(frame, 'frame');
 	const normalizedFromFrame = nonNegativeSafeInteger(fromFrame, 'fromFrame');
 	const normalizedSampleRate = positiveSafeInteger(sampleRate, 'sampleRate');
-	const normalizedContextSampleRate = positiveSafeInteger(contextSampleRate, 'contextSampleRate');
+	const normalizedContextSampleRate = positiveSafeInteger(
+		contextSampleRate,
+		'contextSampleRate',
+	);
 	const normalizedTransportRate = positiveFiniteNumber(transportRate, 'transportRate');
 	const normalizedLatencyFrames = nonNegativeSafeInteger(latencyFrames, 'latencyFrames');
-	if (normalizedFrame < normalizedFromFrame) throw new RangeError('A parameter frame offset is unsafe.');
-	return prepareFrameProjector(normalizedFromFrame, normalizedSampleRate, normalizedContextSampleRate, normalizedTransportRate, normalizedLatencyFrames)(normalizedFrame);
+	if (normalizedFrame < normalizedFromFrame) {
+		throw new RangeError('A parameter frame offset is unsafe.');
+	}
+	const projectFrameDelta = normalizedFrame - normalizedFromFrame;
+	const transport = canonicalPositiveNumberRatio(normalizedTransportRate);
+	let roundedOffset: number;
+	try {
+		roundedOffset = roundRational(
+			BigInt(projectFrameDelta) * BigInt(normalizedContextSampleRate) * transport.denominator,
+			BigInt(normalizedSampleRate) * transport.numerator,
+			'point',
+		);
+	} catch (error) {
+		if (error instanceof RangeError) throw new RangeError('A parameter frame offset is unsafe.');
+		throw error;
+	}
+	const offset = normalizedLatencyFrames + roundedOffset;
+	if (!Number.isSafeInteger(offset) || offset < 0) throw new RangeError('A parameter frame offset is unsafe.');
+	return offset;
 }
 
-function canonicalPositiveNumberRatio(value: number): Readonly<{ numerator: bigint; denominator: bigint }> {
-	if (Number.isSafeInteger(value)) return { numerator: BigInt(value), denominator: 1n };
+function canonicalPositiveNumberRatio(value: number): Readonly<{
+	readonly numerator: bigint;
+	readonly denominator: bigint;
+}> {
+	if (Number.isSafeInteger(value)) {
+		return { numerator: BigInt(value), denominator: 1n };
+	}
 	const match = /^(\d+)(?:\.(\d+))?(?:e([+-]?\d+))?$/iu.exec(value.toString());
 	if (!match) throw new RangeError('A transport rate cannot be represented as a finite ratio.');
 	const decimals = match[2] ?? '';
