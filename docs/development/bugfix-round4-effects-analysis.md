@@ -185,5 +185,30 @@ group-bus workflow fails on immutable baseline `a0322d6e4` and displays
 Regression file: `audio-editor-round4-bus-effect-owner.spec.js`; evidence is
 recorded in `/tmp/soundscaper-r4-root-bus-owner-*`.
 
+## R4-ROOT-009 — Live Spectrum loses opposite-polarity stereo audio
+
+Import an ordinary stereo recording with opposite left/right polarity. Choose
+Analyze → Analysis, expand Spectrum and play. The live peak remains above
+−15 dBFS, but the baseline spectrum is empty: the FFT analyser downmixes the two
+channels before measuring their energy. The public canvas has zero signal
+pixels above the lower quarter of its plot.
+
+Split the declared master channels into FFT side taps while the existing
+visible-panel lease is held. Pool their power per frequency bin before taking
+the existing logarithmic buckets. Keep the scalar compatibility path and stereo
+correlation, reuse the cached bucket geometry, and release every side tap when
+the lease ends. Spectrum and Spectrogram share this one live FFT input root.
+The earlier offline Plot Spectrum fix uses an independent stored-PCM analyser
+and never touched these playback nodes.
+
+The unchanged chooser/menu/playback workflow fails on immutable baseline
+`a0322d6e4` and retains its visible spectrum in Chromium, Firefox and WebKit on
+clean owned `live-phase-clean8`. The new workflow and existing realtime panel
+responsiveness workflow pass 6/6. Three strict power/lease cases and existing
+meter, responsiveness and actual engine support pass, 20 tests altogether.
+Regression files are `audio-editor-round4-live-spectrum-phase.test.ts` and
+`audio-editor-round4-live-spectrum-phase.spec.js`; evidence is recorded in
+`/tmp/soundscaper-r4-root-live-phase-*`.
+
 These browser DSP, UI, and regression changes retain the assistance runtime closure.
 A manual **Update AI assets** run is not required.

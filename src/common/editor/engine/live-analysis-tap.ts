@@ -5,6 +5,7 @@ import type { ProjectGraph } from './project-graph.ts';
 
 export interface LiveAnalysisTap {
 	readonly spectrum: AnalyserNode | null;
+	readonly spectrumChannels?: readonly AnalyserNode[];
 	readonly splitter: ChannelSplitterNode | null;
 	readonly stereo: readonly AnalyserNode[];
 }
@@ -26,18 +27,30 @@ export function ensureLiveAnalysisTap(
 	let spectrum: AnalyserNode | null = null;
 	let splitter: ChannelSplitterNode | null = null;
 	const stereo: AnalyserNode[] = [];
+	const spectrumChannels: AnalyserNode[] = [];
+	const configureSpectrum = (analyser: AnalyserNode): void => {
+		analyser.fftSize = SPECTRUM_FFT_SIZE;
+		analyser.smoothingTimeConstant = 0.4;
+		analyser.minDecibels = -120;
+		analyser.maxDecibels = 0;
+	};
 	try {
-		if (typeof context.createAnalyser === 'function') {
+		if (typeof context.createAnalyser === 'function' && typeof context.createChannelSplitter !== 'function') {
 			spectrum = addNode(nodes, context.createAnalyser());
-			spectrum.fftSize = SPECTRUM_FFT_SIZE;
-			spectrum.smoothingTimeConstant = 0.4;
-			spectrum.minDecibels = -120;
-			spectrum.maxDecibels = 0;
+			configureSpectrum(spectrum);
 			connect(source, spectrum);
 		}
 		if (typeof context.createChannelSplitter === 'function' && typeof context.createAnalyser === 'function') {
-			splitter = addNode(nodes, context.createChannelSplitter(2));
+			const width = Math.min(32, Math.max(1, graph.productionStripAnalysersV21?.get('master')?.analysers.length || 2));
+			splitter = addNode(nodes, context.createChannelSplitter(width));
 			connect(source, splitter);
+			for (let channel = 0; channel < width; channel++) {
+				const analyser = addNode(nodes, context.createAnalyser());
+				spectrumChannels.push(analyser);
+				configureSpectrum(analyser);
+				connect(splitter, analyser, channel, 0);
+			}
+			spectrum = spectrumChannels[0] ?? null;
 			for (let channel = 0; channel < 2; channel += 1) {
 				const analyser = addNode(nodes, context.createAnalyser());
 				analyser.fftSize = STEREO_FFT_SIZE;
@@ -45,13 +58,13 @@ export function ensureLiveAnalysisTap(
 				stereo.push(analyser);
 			}
 		}
-		const tap = Object.freeze({ spectrum, splitter, stereo: Object.freeze(stereo) });
+		const tap = Object.freeze({ spectrum, spectrumChannels: Object.freeze(spectrumChannels), splitter, stereo: Object.freeze(stereo) });
 		taps.set(graph, tap);
 		return tap;
 	} catch {
 		try { if (spectrum) source.disconnect(spectrum); } catch { /* The graph may already be closing. */ }
 		try { if (splitter) source.disconnect(splitter); } catch { /* The graph may already be closing. */ }
-		releaseTransientNodes(nodes, [spectrum, splitter, ...stereo]);
+		releaseTransientNodes(nodes, [spectrum, splitter, ...spectrumChannels, ...stereo]);
 		return null;
 	}
 }
@@ -68,6 +81,6 @@ export function releaseLiveAnalysisTap(graph: ProjectGraph | null): void {
 	if (tap.splitter) {
 		try { source?.disconnect(tap.splitter); } catch { /* The graph may already be closing. */ }
 	}
-	releaseTransientNodes(nodes, [tap.spectrum, tap.splitter, ...tap.stereo]);
+	releaseTransientNodes(nodes, [tap.spectrum, tap.splitter, ...(tap.spectrumChannels ?? []), ...tap.stereo]);
 	taps.delete(graph);
 }

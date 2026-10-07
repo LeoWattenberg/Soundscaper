@@ -36,7 +36,7 @@ export function readMasterMeter(
 ): MutableEngineMeterReading {
 	const reading = readEngineMeter(analyser);
 	if (!tap) return reading;
-	reading.spectrumDb = tap.spectrum ? readSpectrum(tap.spectrum) : EMPTY_VALUES;
+	reading.spectrumDb = tap.spectrum ? readSpectrum(tap.spectrum, tap.spectrumChannels) : EMPTY_VALUES;
 	const left = tap.stereo[0];
 	const right = tap.stereo[1];
 	if (!left || !right) {
@@ -81,8 +81,8 @@ function readTimeData(analyser: AnalyserNode): Float32Array {
 }
 
 /** Log-spaced buckets retain the 4096-FFT tap's bass resolution. */
-function readSpectrum(analyser: AnalyserNode): readonly number[] {
-	if (typeof analyser.getFloatFrequencyData !== 'function') return EMPTY_VALUES;
+function readFrequencyData(analyser: AnalyserNode): Float32Array | null {
+	if (typeof analyser.getFloatFrequencyData !== 'function') return null;
 	const count = boundedCount(analyser.frequencyBinCount, MAXIMUM_ANALYSER_FRAMES / 2);
 	let values = frequencyReadBuffers.get(analyser);
 	if (!values || values.length !== count) {
@@ -90,6 +90,14 @@ function readSpectrum(analyser: AnalyserNode): readonly number[] {
 		frequencyReadBuffers.set(analyser, values);
 	}
 	analyser.getFloatFrequencyData(values as Float32Array<ArrayBuffer>);
+	return values;
+}
+
+function readSpectrum(analyser: AnalyserNode, channelAnalysers?: readonly AnalyserNode[]): readonly number[] {
+	const channels = (channelAnalysers?.length ? channelAnalysers : [analyser])
+		.map(readFrequencyData).filter((values): values is Float32Array => values !== null);
+	if (!channels.length) return EMPTY_VALUES;
+	const count = Math.min(...channels.map(channel => channel.length));
 	let windows = spectrumWindows.get(analyser);
 	if (!windows || windows.count !== count) {
 		const highestBin = Math.max(1, count - 1);
@@ -106,7 +114,12 @@ function readSpectrum(analyser: AnalyserNode): readonly number[] {
 	for (const [start, end] of windows.bounds) {
 		let loudest = -120;
 		for (let index = start; index < end; index += 1) {
-			const value = values[index]!;
+			let value = channels[0]![index]!;
+			if (channels.length > 1) {
+				let power = 0;
+				for (const channel of channels) power += 10 ** (channel[index]! / 10);
+				value = 10 * Math.log10(power / channels.length);
+			}
 			if (Number.isFinite(value)) loudest = Math.max(loudest, Math.min(0, value));
 		}
 		bins.push(loudest);
