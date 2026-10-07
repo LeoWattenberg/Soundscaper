@@ -18,6 +18,8 @@ test('Repeat last effect retains its Amplify gain after a new dialog is canceled
 	await chooseNestedCommandAction(page, editor, 'Effect', ['Volume and compression', 'Amplify']);
 	const dialog = page.getByRole('dialog', { name: 'Apply effect', exact: true });
 	await expect(dialog.getByRole('button', { name: 'Apply to selection', exact: true })).toBeEnabled();
+	const gain = dialog.getByRole('spinbutton', { name: 'Amplification (dB)', exact: true });
+	await expect.poll(async () => Number(await gain.inputValue())).toBeCloseTo(9.12, 2);
 	await dialog.getByRole('button', { name: 'Apply to selection', exact: true }).click();
 	await expect(dialog).toBeHidden();
 	await editor.locator(`[data-track-row][data-track-id="${trackId}"]`).getByRole('button', { name: 'Mute', exact: true }).click();
