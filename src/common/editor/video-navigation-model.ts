@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createVisibleVideoTrackPredicate } from './video-timeline.js';
+import { createVisibleVideoTrackPredicate, isProductVisualClip } from './video-timeline.js';
 
 import {
 	sequenceFrameAtSample,
@@ -228,7 +228,7 @@ function videoClipsOnTracks(
 			const clipId = nonEmptyId(clipIdValue, `track ${trackId} clip ID`);
 			const clip = clipsById.get(clipId);
 			if (!clip) throw new ReferenceError(`Track ${trackId} references missing clip ${clipId}.`);
-			if (clip.kind !== 'video' || included.has(clipId)) continue;
+			if (clip.kind !== 'video' && !isProductVisualClip(clip) || included.has(clipId)) continue;
 			if (String(clip.sequenceId ?? context.sequenceId) !== context.sequenceId) continue;
 			included.add(clipId);
 			result.push(clip);
