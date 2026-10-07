@@ -14,6 +14,7 @@ import {
 	type ParameterAddress,
 } from '../parameter-address.ts'
 import { effectLatencyFrames } from './effect-rack.ts'
+import { indexPdcDependencies, indexPdcOutputs, orderPdcVertices } from './project-pdc-work-index-v21.ts'
 import type { EngineEffect } from './types.ts'
 
 export interface ProjectPathPdcPlanV21 {
@@ -83,13 +84,13 @@ export function compileProjectPathPdcPlanV21(
 	})
 	const states = createVertexStates(graph, tracks, master, sampleRate)
 	const dependencies = createDependencies(graph, states)
-	const orderedVertices = topologicalOrder(states, dependencies)
+	const orderedVertices = orderPdcVertices(states.keys(), dependencies)
+	const incomingDependencies = indexPdcDependencies(dependencies)
 	const inputFrames = new Map<string, number>()
 	const outputFrames = new Map<string, number>()
 	for (const vertex of orderedVertices) {
 		let input = 0
-		for (const dependency of dependencies) {
-			if (dependency.destination !== vertex) continue
+		for (const dependency of incomingDependencies.get(vertex) ?? []) {
 			const sourceOutput = outputFrames.get(dependency.source)
 			if (sourceOutput === undefined) throw new TypeError(`PDC source ${dependency.source} was not compiled`)
 			input = Math.max(input, sourceOutput - dependency.effectPrefixFrames)
@@ -100,14 +101,11 @@ export function compileProjectPathPdcPlanV21(
 	}
 	const edgeCompensationFrames = new Map<string, number>()
 	const outputLatencyFrames = new Map<string, number>()
+	const outputEdges = indexPdcOutputs(graph.edges)
 	for (const output of graph.outputs) {
-		const incoming = graph.edges.filter((edge) => (
-			edge.enabled
-			&& edge.kind !== 'sidechain'
-			&& edge.destination.kind === 'output'
-			&& edge.destination.id === output.id
-		))
-		const latency = Math.max(...incoming.map((edge) => outputFrames.get(mixerEndpointKeyV21(edge.source)) ?? 0), 0)
+		const incoming = outputEdges.get(output.id) ?? []
+		let latency = 0
+		for (const edge of incoming) latency = Math.max(latency, outputFrames.get(mixerEndpointKeyV21(edge.source)) ?? 0)
 		outputLatencyFrames.set(output.id, latency)
 		for (const edge of incoming) {
 			edgeCompensationFrames.set(
@@ -279,36 +277,6 @@ function createDependencies(
 			effectPrefixFrames: sidechainPrefix(edge, states),
 		})]
 	}))
-}
-
-function topologicalOrder(
-	states: ReadonlyMap<string, VertexState>,
-	dependencies: readonly Dependency[],
-): readonly string[] {
-	const indegree = new Map(Array.from(states.keys(), (key) => [key, 0]))
-	const outgoing = new Map(Array.from(states.keys(), (key) => [key, [] as string[]]))
-	for (const dependency of dependencies) {
-		indegree.set(dependency.destination, (indegree.get(dependency.destination) ?? 0) + 1)
-		outgoing.get(dependency.source)?.push(dependency.destination)
-	}
-	const ready = Array.from(indegree, ([key, degree]) => degree === 0 ? key : null)
-		.filter((key): key is string => key !== null)
-		.sort()
-	const result: string[] = []
-	while (ready.length > 0) {
-		const current = ready.shift() as string
-		result.push(current)
-		for (const next of outgoing.get(current) ?? []) {
-			const degree = (indegree.get(next) ?? 0) - 1
-			indegree.set(next, degree)
-			if (degree === 0) {
-				ready.push(next)
-				ready.sort()
-			}
-		}
-	}
-	if (result.length !== states.size) throw new TypeError('PDC routing graph contains a cycle')
-	return Object.freeze(result)
 }
 
 /**
