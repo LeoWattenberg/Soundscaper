@@ -7,6 +7,7 @@ import test from 'node:test';
 import * as basic from '../src/common/editor/audacity-effects/basic.js';
 import * as realtime from '../src/common/editor/audacity-effects/realtime.js';
 import { createAudacityLiveProcessor } from '../src/common/editor/audacity-effects/live.js';
+import { LiveProcessor } from '../src/common/editor/audacity-effects/live-processor-base.js';
 import { ReverbLiveProcessor } from '../src/common/editor/audacity-effects/reverb-live-processor.ts';
 import { createAudioEditorSignalRenderer } from '../src/common/editor/signal-generator-renderer.ts';
 import { calculateAudioSpectrum } from '../src/common/editor/audio-spectrum.ts';
@@ -39,6 +40,7 @@ function fixtures(): Record<string, string> {
 		const params = { mode, dcBlock, parameter1: 57, parameter2: 43, repeats: 2, thresholdDb: -11 };
 		output[`distortion-${mode}-${String(dcBlock)}`] = digest(realtime.applyAudacityDistortion(channels, 48000, params));
 		const live = createAudacityLiveProcessor('audacity-distortion', 48000, params);
+		assert.ok(live instanceof LiveProcessor);
 		const result = channels.map(channel => new Float32Array(channel.length));
 		live.process(channels, result);
 		output[`live-distortion-${mode}-${String(dcBlock)}`] = digest(result);

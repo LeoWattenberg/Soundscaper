@@ -5,6 +5,7 @@ import test from 'node:test';
 import { applyAudacityNormalize, applyAudacityLegacyCompressor, applyAudacityRepeat } from '../src/common/editor/audacity-effects/basic.js';
 import { applyAudacityPhaser } from '../src/common/editor/audacity-effects/realtime.js';
 import { createAudacityLiveProcessor } from '../src/common/editor/audacity-effects/live.js';
+import { LiveProcessor } from '../src/common/editor/audacity-effects/live-processor-base.js';
 import { makeDistortionTable } from '../src/common/editor/audacity-effects/distortion-table.js';
 
 const distortion = { thresholdDb: -6, noiseFloorDb: -70, parameter1: 57, parameter2: 43, repeats: 2 };
@@ -72,6 +73,7 @@ test('offline and realtime Phaser reuse the fixed LFO shape denominator', (conte
 
 test('live Distortion retains its table on a DC or mix-only update', (context) => {
 	const processor = createAudacityLiveProcessor('audacity-distortion', 48000, { mode: 'medium-overdrive' });
+	assert.ok(processor instanceof LiveProcessor);
 	const original = Math.exp;
 	let exponentials = 0;
 	context.mock.method(Math, 'exp', (value: number) => { exponentials++; return original(value); });
