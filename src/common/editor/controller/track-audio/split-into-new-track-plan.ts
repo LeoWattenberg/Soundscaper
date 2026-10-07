@@ -77,6 +77,7 @@ export function prepareSplitRangeIntoNewTrackCommand(
 		commands.push({ ...runtime.createAddTrackCommand({
 			...sourceTrack,
 			id: newTrackId,
+			laneGroupId: null,
 			name: `${sourceTrack.name} 2`,
 			clipIds: [],
 			effects: processors.effects,

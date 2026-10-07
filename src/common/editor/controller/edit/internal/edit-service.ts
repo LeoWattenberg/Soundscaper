@@ -262,7 +262,7 @@ export function createEditorEditService(runtime: EditServiceRuntime): HandleEdit
 				const command = {
 					type: 'batch',
 					commands: [
-						{ ...createAddTrackCommand({ ...sourceTrack, id: trackId, name: `${sourceTrack.name} 2`, clipIds: [], effects: processors.effects }), ...trackHierarchyPlacement(getProject(), sourceTrack.id, 1, supportsTrackFolders) },
+						{ ...createAddTrackCommand({ ...sourceTrack, id: trackId, name: `${sourceTrack.name} 2`, laneGroupId: null, clipIds: [], effects: processors.effects }), ...trackHierarchyPlacement(getProject(), sourceTrack.id, 1, supportsTrackFolders) },
 						...copyDerivedTrackStripAutomation(getProject(), sourceTrack.id, trackId, createStableId), ...processors.commands,
 						split,
 						{ type: 'clip/move', clipId: split.rightClipId, trackId, timelineStartFrame: split.atFrame },
