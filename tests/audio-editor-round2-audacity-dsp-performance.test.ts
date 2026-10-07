@@ -80,3 +80,12 @@ test('live Distortion retains its table on a DC or mix-only update', (context) =
 	processor.updateParams({ parameter1: 31 });
 	assert.ok(exponentials > 1000);
 });
+
+test('Normalize preserves legacy NaN words for malformed direct-call DC-only input', () => {
+	const words = Uint32Array.of(0, 0x80000000, 1, 0x80000001, 0x7f7fffff, 0xff7fffff,
+		0x7fc01234, 0xffc01234, 0x7f801234, 0xff801234, 0x7f800000, 0xff800000);
+	const input = [new Float32Array(words.buffer), new Float32Array(Uint32Array.from(words).reverse().buffer)];
+	const output = applyAudacityNormalize(input, 48000, { removeDc: true, applyGain: false });
+	assert.deepEqual(Array.from(new Uint32Array(output[0]!.buffer)), Array<number>(12).fill(0x7fc01234));
+	assert.deepEqual(Array.from(new Uint32Array(output[1]!.buffer)), Array<number>(12).fill(0xffc01234));
+});

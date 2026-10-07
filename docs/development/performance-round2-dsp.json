@@ -7,7 +7,9 @@
   "parity": {
     "fixture": "tests/fixtures/dsp-round2-parity.json",
     "cases": 146,
-    "provenance": "Independent esbuild bundles captured before editing this worktree at baseRevision; byte hashes compare produced Float32/Float64 PCM and complete spectrum JSON."
+    "provenance": "Independent esbuild bundles captured before editing this worktree at baseRevision; byte hashes compare produced Float32/Float64 PCM and complete spectrum JSON.",
+    "additionalAdversarialCases": 70,
+    "additionalAdversarialScope": "Signed zero, subnormal, maximal finite, quiet/signaling NaN and infinity words in Normalize, Legacy Compressor and all Distortion modes; zero-amplitude and Nyquist Tone/Chirp geometry. The NaN-offset regression is committed in the Audacity performance suite."
   },
   "findings": [
     {
@@ -27,7 +29,7 @@
         "tests/audio-editor-round2-dsp-exact-parity.test.ts"
       ],
       "evidence": "Iterator fixture reads fall from twelve to four after also replacing the mapper; only the separate measurement pass is counted here.",
-      "limitations": "Output indexed mapper repair is excluded from the count because prior audit #46 already counted that technique."
+      "limitations": "Output indexed mapper repair is excluded from the count because prior audit #46 already counted that technique. Direct malformed calls with a nonfinite DC offset retain original arithmetic and mapping; this fallback does not affect admitted finite selection PCM."
     },
     {
       "number": 2,
@@ -75,7 +77,7 @@
       "source": [
         {
           "file": "src/common/editor/audacity-effects/basic.js",
-          "line": 324
+          "line": 355
         }
       ],
       "avoidedCost": "Native typed-array copy invocations scale logarithmically with repetition count rather than once per repeat.",
@@ -817,6 +819,254 @@
         "medianBefore": 545.0812770000011,
         "medianAfter": 240.0432439999986
       }
-    ]
+    ],
+    "repeatAfterNonfiniteOffsetFix": {
+      "context": "Node26.5 isolated kernel wall times, warmed alternating pairs; no Electron/app claim",
+      "results": [
+        {
+          "name": "tone{}",
+          "before": [
+            11.752205999999887,
+            11.13203899999985,
+            11.386617999999999,
+            9.61667199999988,
+            9.792164000000184,
+            9.636700000000019,
+            11.11638499999981,
+            10.040841,
+            9.924983999999995
+          ],
+          "after": [
+            5.747877000000017,
+            6.264801000000034,
+            5.035603000000037,
+            4.86980699999981,
+            5.138269000000037,
+            4.003044999999929,
+            4.96898299999998,
+            5.2676890000000185,
+            5.141219999999976
+          ],
+          "medianBefore": 10.040841,
+          "medianAfter": 5.138269000000037
+        },
+        {
+          "name": "chirp{\"interpolation\":\"linear\"}",
+          "before": [
+            13.482544999999845,
+            18.242048000000068,
+            12.885477000000037,
+            15.472956999999951,
+            17.3134399999999,
+            13.819985000000088,
+            11.201095000000123,
+            12.914205000000038,
+            12.494657999999845
+          ],
+          "after": [
+            10.038845000000038,
+            9.011294999999791,
+            9.674375000000055,
+            16.805505999999923,
+            9.244758999999931,
+            9.433782000000065,
+            8.513823000000002,
+            7.7865620000000035,
+            8.385714000000007
+          ],
+          "medianBefore": 13.482544999999845,
+          "medianAfter": 9.244758999999931
+        },
+        {
+          "name": "chirp{\"interpolation\":\"logarithmic\"}",
+          "before": [
+            18.443031999999903,
+            19.422255999999834,
+            17.972864000000072,
+            20.56340299999988,
+            20.00732999999991,
+            18.499513999999863,
+            16.0861910000001,
+            18.404453000000103,
+            17.316375000000107
+          ],
+          "after": [
+            19.583752000000004,
+            20.83304699999985,
+            19.12366300000008,
+            17.798634999999877,
+            22.003161999999975,
+            18.799981000000116,
+            16.120987000000014,
+            16.156393999999864,
+            15.600159000000076
+          ],
+          "medianBefore": 18.443031999999903,
+          "medianAfter": 18.799981000000116
+        },
+        {
+          "name": "noise{\"color\":\"white\"}",
+          "before": [
+            2.8962320000000545,
+            3.1853139999998348,
+            3.066465999999764,
+            3.329388000000108,
+            2.7480210000003353,
+            10.94678500000009,
+            2.007531000000199,
+            2.0422530000000734,
+            2.0418800000002193
+          ],
+          "after": [
+            1.6726189999999406,
+            1.6440549999999803,
+            1.7096190000002025,
+            3.1430020000002514,
+            1.7532360000000153,
+            1.7487930000002052,
+            5.061028999999962,
+            0.7437039999999797,
+            0.8638819999996485
+          ],
+          "medianBefore": 2.8962320000000545,
+          "medianAfter": 1.7096190000002025
+        },
+        {
+          "name": "noise{\"color\":\"pink\"}",
+          "before": [
+            3.3923179999997046,
+            3.7455540000000838,
+            4.6370880000004036,
+            3.2929189999999835,
+            4.283974999999828,
+            3.9049150000000736,
+            4.35364699999991,
+            4.282112999999754,
+            5.128912000000128
+          ],
+          "after": [
+            3.906739000000016,
+            3.7429480000000694,
+            4.020308000000114,
+            3.6386169999996127,
+            3.989318999999796,
+            3.818471999999929,
+            4.004503999999997,
+            4.146504999999706,
+            4.4809079999999994
+          ],
+          "medianBefore": 4.282112999999754,
+          "medianAfter": 3.989318999999796
+        },
+        {
+          "name": "morse{\"text\":\"SOS TEST SOS TEST\",\"wordsPerMinute\":29}",
+          "before": [
+            3.222451000000092,
+            2.9345280000002276,
+            2.6103799999996227,
+            2.80958499999997,
+            3.491895000000113,
+            2.936428000000433,
+            2.8352550000004157,
+            2.2916979999999967,
+            2.4218140000002677
+          ],
+          "after": [
+            3.3636169999999765,
+            9.532332999999653,
+            1.744854999999916,
+            1.83926399999973,
+            3.699928,
+            1.922092000000248,
+            1.7363900000000285,
+            2.0017299999999523,
+            1.7053510000000642
+          ],
+          "medianBefore": 2.8352550000004157,
+          "medianAfter": 1.922092000000248
+        },
+        {
+          "name": "linear-8ch-48k-44k",
+          "before": [
+            47.79943000000003,
+            51.60426400000006,
+            23.318430000000262,
+            25.252568000000338,
+            43.04844400000002,
+            24.41256599999997,
+            57.590423999999985,
+            20.306130999999823,
+            36.72069099999999
+          ],
+          "after": [
+            21.575138000000152,
+            17.144698000000062,
+            25.558223999999882,
+            18.733552000000145,
+            32.26284799999985,
+            22.43057699999963,
+            33.32371499999999,
+            19.290889999999763,
+            47.62491599999976
+          ],
+          "medianBefore": 36.72069099999999,
+          "medianAfter": 22.43057699999963
+        },
+        {
+          "name": "normalize-8ch-10s",
+          "before": [
+            401.4610929999999,
+            525.7006920000003,
+            392.1897480000007,
+            429.7990669999999,
+            392.17522499999995,
+            398.18731000000116,
+            407.86865899999975,
+            411.67333399999916,
+            382.192626
+          ],
+          "after": [
+            51.653675000000476,
+            68.33860199999981,
+            44.224309000000176,
+            30.63700599999993,
+            68.25572999999986,
+            30.61655399999927,
+            34.68300799999997,
+            30.23242299999947,
+            41.92993099999876
+          ],
+          "medianBefore": 401.4610929999999,
+          "medianAfter": 41.92993099999876
+        },
+        {
+          "name": "delay-8ch-5echoes-10s",
+          "before": [
+            494.6202379999995,
+            569.8292440000005,
+            551.7975449999994,
+            573.6262349999997,
+            534.7715079999998,
+            506.462864000001,
+            445.02257499999905,
+            530.8726070000012,
+            494.15358800000104
+          ],
+          "after": [
+            232.86450499999955,
+            251.62112799999886,
+            248.84069199999976,
+            301.9115580000016,
+            316.10899199999767,
+            233.87940600000002,
+            176.98101699999825,
+            194.5854819999986,
+            244.98637499999677
+          ],
+          "medianBefore": 530.8726070000012,
+          "medianAfter": 244.98637499999677
+        }
+      ]
+    }
   }
 }
