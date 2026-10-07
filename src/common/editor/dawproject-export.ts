@@ -24,6 +24,7 @@ import {
 	type DawprojectExportContext,
 	type DawprojectMediaEntry,
 	type DawprojectStructureNode,
+	type DawprojectTrackRoute,
 	DawprojectMediaRegistry,
 	channelIdFor,
 	dawprojectStructureTree,
@@ -205,8 +206,8 @@ function buildFolderTrack(node: DawprojectStructureNode, context: DawprojectExpo
 	}, [
 		bus ? buildChannel(context, `mixer-node:${bus.id}`, {
 			role: 'submix', gain: bus.gain, pan: bus.pan, mute: bus.mute, solo: bus.solo,
-			audioChannels: masterChannels(context), destination: channelIdFor(context, 'master'),
-			sends: [], effects: bus.effects, scope: { kind: 'folder', id: node.id },
+			audioChannels: masterChannels(context), ...channelRouting(context, context.routing.nodeRoutes.get(bus.id)),
+			effects: bus.effects, scope: { kind: 'folder', id: node.id },
 		}) : null,
 		...children,
 	]);
@@ -216,10 +217,6 @@ function buildAudioTrack(track: DataRecord, context: DawprojectExportContext): X
 	const trackId = String(track.id);
 	const key = `track:${trackId}`;
 	const route = context.routing.routes.get(trackId);
-	const group = route?.groupId ? context.routing.groups.find((candidate) => candidate.id === route.groupId) : null;
-	const sends = [...(route?.sends ?? [])]
-		.filter(([sendId]) => context.routing.sends.some((send) => send.id === sendId))
-		.map(([id, level]) => ({ id, level }));
 	return xmlElement('Track', {
 		contentType: 'audio',
 		loaded: true,
@@ -234,12 +231,24 @@ function buildAudioTrack(track: DataRecord, context: DawprojectExportContext): X
 			mute: track.mute === true,
 			solo: track.solo === true,
 			audioChannels: audioTrackChannelCount(context.project, track, masterChannels(context)),
-			destination: group ? channelIdFor(context, `mixer-node:${group.id}`) : channelIdFor(context, 'master'),
-			sends,
+			...channelRouting(context, route),
 			effects: Array.isArray(track.effects) ? track.effects : [],
 			scope: { kind: 'track', id: trackId },
 		}),
 	]);
+}
+
+/** Bus and track edges share the same exported channel identities. */
+function channelRouting(context: DawprojectExportContext, route: DawprojectTrackRoute | undefined): Pick<ChannelSpec, 'destination' | 'sends'> {
+	const destination = route?.groupId
+		? [...context.routing.groups, ...context.routing.sends].find(candidate => candidate.id === route.groupId)
+		: null;
+	return {
+		destination: channelIdFor(context, destination ? `mixer-node:${destination.id}` : 'master'),
+		sends: [...(route?.sends ?? [])]
+			.filter(([sendId]) => context.routing.sends.some(send => send.id === sendId))
+			.map(([id, level]) => ({ id, level })),
+	};
 }
 
 function buildVideoTrack(track: DataRecord, context: DawprojectExportContext): XmlElement {
@@ -277,8 +286,8 @@ function buildMixerNodeTracks(context: DawprojectExportContext): XmlElement[] {
 			}, [
 				buildChannel(context, `mixer-node:${strip.id}`, {
 					role, gain: strip.gain, pan: strip.pan, mute: strip.mute, solo: strip.solo,
-					audioChannels: masterChannels(context), destination: channelIdFor(context, 'master'),
-					sends: [], effects: strip.effects, scope: { kind: 'mixer-node', id: strip.id },
+					audioChannels: masterChannels(context), ...channelRouting(context, context.routing.nodeRoutes.get(strip.id)),
+					effects: strip.effects, scope: { kind: 'mixer-node', id: strip.id },
 				}),
 			]));
 		}

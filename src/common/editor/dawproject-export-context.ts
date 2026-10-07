@@ -50,6 +50,7 @@ export interface DawprojectMixerRouting {
 	readonly groups: readonly DawprojectMixerStrip[];
 	readonly sends: readonly DawprojectMixerStrip[];
 	readonly routes: ReadonlyMap<string, DawprojectTrackRoute>;
+	readonly nodeRoutes: ReadonlyMap<string, DawprojectTrackRoute>;
 	/** Node kinds the profile has no channel role for, for the report. */
 	readonly omittedNodes: number;
 }
@@ -182,17 +183,19 @@ export function readDawprojectMixerRouting(project: DataRecord): DawprojectMixer
 		groups: records(mixer.groups).map(strip),
 		sends: records(mixer.sends).map(strip),
 		routes,
+		nodeRoutes: new Map(),
 		omittedNodes: 0,
 	});
 }
 
 function readGraphRouting(graph: DataRecord): DawprojectMixerRouting {
 	const routes = new Map<string, { groupId: string | null; sends: Map<string, number> }>();
-	const route = (trackId: string) => {
-		let entry = routes.get(trackId);
+	const nodeRoutes = new Map<string, { groupId: string | null; sends: Map<string, number> }>();
+	const route = (entries: typeof routes, sourceId: string) => {
+		let entry = entries.get(sourceId);
 		if (!entry) {
 			entry = { groupId: null, sends: new Map() };
-			routes.set(trackId, entry);
+			entries.set(sourceId, entry);
 		}
 		return entry;
 	};
@@ -200,14 +203,16 @@ function readGraphRouting(graph: DataRecord): DawprojectMixerRouting {
 		if (edge.enabled === false) continue;
 		const source = record(edge.source);
 		const destination = record(edge.destination);
-		if (source.kind !== 'track' || destination.kind !== 'mixer-node') continue;
-		if (edge.kind === 'assignment') route(String(source.id)).groupId = String(destination.id);
-		else if (edge.kind === 'send') route(String(source.id)).sends.set(String(destination.id), Number(edge.level ?? 1));
+		if ((source.kind !== 'track' && source.kind !== 'mixer-node') || destination.kind !== 'mixer-node') continue;
+		const entries = source.kind === 'track' ? routes : nodeRoutes;
+		if (edge.kind === 'assignment') route(entries, String(source.id)).groupId = String(destination.id);
+		else if (edge.kind === 'send') route(entries, String(source.id)).sends.set(String(destination.id), Number(edge.level ?? 1));
 	}
 	return Object.freeze({
 		groups: records(graph.groups).map(strip),
 		sends: records(graph.sends).map(strip),
 		routes: new Map([...routes].map(([id, entry]) => [id, Object.freeze({ groupId: entry.groupId, sends: entry.sends })])),
+		nodeRoutes: new Map([...nodeRoutes].map(([id, entry]) => [id, Object.freeze({ groupId: entry.groupId, sends: entry.sends })])),
 		omittedNodes: records(graph.cues).length + records(graph.vcas).length,
 	});
 }
