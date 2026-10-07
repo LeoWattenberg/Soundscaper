@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { normalizeFramescaperImageClipV1 } from '../../timeline-image-model.ts';
-import { normalizeSourceFrameRate } from '../../sequence-timecode.ts';
+import { useImageClipPropertiesTarget } from './useClipPropertyPresentation.ts';
 import AudioEditorTimeCodeInput from '../AudioEditorTimeCodeInput.tsx';
 import { feedbackFailure, usePresentationFeedback } from '../presentation-feedback.ts';
 
@@ -15,14 +15,7 @@ interface ImageClipPropertiesBodyProps {
 
 /** Still-image timing belongs to its sequence; it has no audio sample clock. */
 export default function ImageClipPropertiesBody({ controller, project, clipId, copy, disabled }: ImageClipPropertiesBodyProps) {
-	const owner = record(project);
-	const clip = normalizeFramescaperImageClipV1(records(owner.clips).find(item => item.id === clipId));
-	const source = records(owner.sources).find(item => item.id === clip.sourceId);
-	const sequence = records(owner.sequences).find(item => item.id === clip.sequenceId);
-	const track = records(owner.tracks).find(item => Array.isArray(item.clipIds) && item.clipIds.includes(clipId));
-	if (!sequence || !track) throw new ReferenceError('An inspected image requires its timeline sequence and track.');
-	const rate = normalizeSourceFrameRate(sequence.rate);
-	const sampleRate = Number(owner.sampleRate);
+	const { clip, source, track, rate, sampleRate } = useImageClipPropertiesTarget(project, clipId);
 	const [error, setError] = usePresentationFeedback(copy);
 	const commit = (field: 'sequenceStartFrame' | 'sequenceFrameCount', value: number): unknown => {
 		if (disabled) return false;
@@ -58,14 +51,4 @@ export default function ImageClipPropertiesBody({ controller, project, clipId, c
 		</div>
 		{error && <p className="audio-editor-field-error" role="alert">{error}</p>}
 	</div>;
-}
-
-function record(value: unknown): Readonly<Record<string, unknown>> {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError('Image properties require a document record.');
-	return value as Readonly<Record<string, unknown>>;
-}
-
-function records(value: unknown): readonly Readonly<Record<string, unknown>>[] {
-	if (!Array.isArray(value)) throw new TypeError('Image properties require a document collection.');
-	return value.map(record);
 }

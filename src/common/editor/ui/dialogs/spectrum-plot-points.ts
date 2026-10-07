@@ -1,4 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { useMemo } from 'react';
+const EMPTY_BINS: readonly Readonly<{ db?: number }>[] = [];
+
+export function useSpectrumPlotPoints(bins: Parameters<typeof spectrumPlotPoints>[0] = EMPTY_BINS) {
+	return useMemo(() => spectrumPlotPoints(bins), [bins]);
+}
 
 /** Reduce logarithmic display columns by their maximum so narrow tones remain visible. */
 export function spectrumPlotPoints(bins: readonly Readonly<{ db?: number }>[]): string {

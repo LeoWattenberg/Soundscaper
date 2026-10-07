@@ -11,11 +11,11 @@ import { selectAudioEditorEditBlock } from '../edit-blocking.ts';
 import { feedbackFailure, usePresentationFeedback } from '../presentation-feedback.ts';
 import type { ClipSourceController, ClipSourceProject } from './clip-source-editor-types.ts';
 import {
-	clipPropertiesSelection,
 	reconcileClipPropertiesTarget,
 	type ClipPropertiesSelectionSnapshot,
 	type ClipPropertiesTarget,
 } from './clip-properties-selection.ts';
+import { useClipPropertiesSelection } from './useClipPropertyPresentation.ts';
 
 export type { ClipPropertiesFocusRequest } from '../../controller/composition/clip-properties-panel-opening.ts';
 
@@ -30,7 +30,7 @@ interface ClipPropertiesPanelProps {
 
 /** A live inspector whose local tabs never rewrite the timeline's selection. */
 export default function ClipPropertiesPanel({ controller, snapshot, copy, focusRequest = null, panelActive = true, runtimeProject = null }: ClipPropertiesPanelProps) {
-	const selection = clipPropertiesSelection(snapshot, copy.clip);
+	const selection = useClipPropertiesSelection(snapshot, copy.clip);
 	const [error, setError] = usePresentationFeedback(copy);
 	const [storedTarget, setStoredTarget] = useState<ClipPropertiesTarget>({ projectId: null, clipId: null });
 	const handledFocus = useRef<ClipPropertiesFocusRequest | null>(null);
