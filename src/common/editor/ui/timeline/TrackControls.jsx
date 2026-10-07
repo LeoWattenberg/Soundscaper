@@ -17,6 +17,8 @@ import {
 import { TrackTelemetryMeters } from './TrackTelemetryMeters.tsx';
 import { focusCandidate, focusFirst, focusPanelControl } from './timeline-navigation.js';
 import { finishInlineTrackRename } from './track-name-keyboard-focus.ts';
+import { useMixerParameterGestures } from '../useMixerParameterGestures.ts';
+import { selectTrackFromHeader } from './track-header-selection.ts';
 import {
 	beginParameterAutomationGestureV21,
 	cancelParameterAutomationGestureV21,
@@ -53,6 +55,9 @@ export function TrackControls({
 	const controlsRef = useRef(null);
 	const automationGestureRef = useRef(null);
 	const [editingName, setEditingName] = useState(false);
+	const staticGestures = useMixerParameterGestures(controller.actions.mixer,
+		controller.getSnapshot().project?.id ?? null, (error) => run(() => { throw error; }));
+	const staticAddress = (parameterId) => ({ kind: 'strip', strip: { kind: 'track', id: track.id }, parameterId });
 	const adapterSelector = '.audio-editor-track-adapters input:not([disabled]), .audio-editor-track-adapters button:not([disabled]), .audio-editor-track-input select:not([disabled]), .audio-editor-track-automation select:not([disabled])';
 	const focusAdapterControl = (last = false) => focusCandidate(
 		controlsRef.current,
@@ -212,9 +217,9 @@ export function TrackControls({
 			<TrackControlPanel
 				trackName={track.name}
 				trackType="stereo"
-				volume={gainDbToDesignVolume(linearToDb(track.gain))}
+				volume={gainDbToDesignVolume(linearToDb(staticGestures.value(staticAddress('gain'), track.gain)))}
 				defaultVolume={gainDbToDesignVolume(0)}
-				pan={panToDesignValue(track.pan)}
+				pan={panToDesignValue(staticGestures.value(staticAddress('pan'), track.pan))}
 				isMuted={track.mute}
 				isSolo={track.solo}
 				isFocused={selected}
@@ -230,30 +235,36 @@ export function TrackControls({
 				onVolumeChange={(volume) => {
 					const value = dbToLinear(designVolumeToGainDb(volume));
 					if (!blocked && !previewAutomationGesture('gain', value)
-						&& !automationCaptureReserved('gain')) {
+						&& !automationCaptureReserved('gain') && !staticGestures.preview(staticAddress('gain'), value)) {
 						run(() => controller.actions.track.update(track.id, { gain: value }));
 					}
 				}}
-				onVolumeGestureStart={(volume) => beginAutomationGesture('gain', dbToLinear(designVolumeToGainDb(volume)))}
-				onVolumeGestureEnd={(volume) => endAutomationGesture('gain', dbToLinear(designVolumeToGainDb(volume)))}
-				onVolumeGestureCancel={() => cancelAutomationGesture('gain')}
+				onVolumeGestureStart={(volume) => !blocked && (beginAutomationGesture('gain', dbToLinear(designVolumeToGainDb(volume)))
+					|| (!automationCaptureReserved('gain') && staticGestures.begin(staticAddress('gain'))))}
+				onVolumeGestureEnd={(volume) => endAutomationGesture('gain', dbToLinear(designVolumeToGainDb(volume)))
+					|| staticGestures.release(staticAddress('gain'), dbToLinear(designVolumeToGainDb(volume)))}
+				onVolumeGestureCancel={() => cancelAutomationGesture('gain') || staticGestures.cancel(staticAddress('gain'))}
 				onPanChange={(pan) => {
 					const value = designValueToPan(pan);
 					if (!blocked && !previewAutomationGesture('pan', value)
-						&& !automationCaptureReserved('pan')) {
+						&& !automationCaptureReserved('pan') && !staticGestures.preview(staticAddress('pan'), value)) {
 						run(() => controller.actions.track.update(track.id, { pan: value }));
 					}
 				}}
-				onPanGestureStart={(pan) => beginAutomationGesture('pan', designValueToPan(pan))}
-				onPanGestureEnd={(pan) => endAutomationGesture('pan', designValueToPan(pan))}
-				onPanGestureCancel={() => cancelAutomationGesture('pan')}
+				onPanGestureStart={(pan) => !blocked && (beginAutomationGesture('pan', designValueToPan(pan))
+					|| (!automationCaptureReserved('pan') && staticGestures.begin(staticAddress('pan'))))}
+				onPanGestureEnd={(pan) => endAutomationGesture('pan', designValueToPan(pan))
+					|| staticGestures.release(staticAddress('pan'), designValueToPan(pan))}
+				onPanGestureCancel={() => cancelAutomationGesture('pan') || staticGestures.cancel(staticAddress('pan'))}
 				onMuteToggle={updateMute}
 				onSoloToggle={() => !blocked && run(() => controller.actions.track.update(track.id, { solo: !track.solo }))}
 				onEffectsClick={() => {
 					onOpenEffects?.(track.id, controlsRef.current?.getBoundingClientRect() || null, 'track', true);
 				}}
 				onMenuClick={(event) => onMenu(event.currentTarget)}
-				onClick={() => !selected && run(() => controller.actions.timeline.selectTrack(track.id))}
+				onClick={() => !blocked && run(() => selectTrackFromHeader(controller, track.id, 'replace'))}
+				onToggleSelection={() => !blocked && run(() => selectTrackFromHeader(controller, track.id, 'toggle'))}
+				onRangeSelection={() => !blocked && run(() => selectTrackFromHeader(controller, track.id, 'range'))}
 			/>
 			<div className="audio-editor-track-adapters" onKeyDownCapture={handleAdapterTab}>
 				{editingName && <TrackNameEditor
