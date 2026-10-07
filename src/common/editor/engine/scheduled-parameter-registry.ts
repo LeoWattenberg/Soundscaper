@@ -7,7 +7,7 @@ import {
 	type ParameterDescriptor,
 } from '../parameter-address.ts';
 import { roundScheduledParameterContextFrameOffset } from './scheduled-parameter-frame-projector.ts';
-import { createScheduledParameterAudioParamTimeProjector } from './scheduled-parameter-audio-param-time-projector.ts';
+import { prepareScheduledParameterAudioParamWindowTiming } from './scheduled-parameter-audio-param-time-projector.ts';
 export { roundScheduledParameterContextFrameOffset } from './scheduled-parameter-frame-projector.ts';
 
 export const STALE_SCHEDULED_PARAMETER_TARGET_CODE = 'STALE_SCHEDULED_PARAMETER_TARGET' as const;
@@ -179,9 +179,9 @@ class RegisteredScheduledParameterTarget implements ScheduledParameterTarget {
 			for (const { param } of bindings) param.cancelScheduledValues?.(scheduleStart);
 		}
 		let scheduledThroughTime = scheduleStart;
-		const timeAtFrame = createScheduledParameterAudioParamTimeProjector(options, latencySeconds);
+		const { contextStartTime, fromFrame, framesPerSecond } = prepareScheduledParameterAudioParamWindowTiming(options);
 		for (const event of events) {
-			const time = timeAtFrame(event.frame);
+			const time = contextStartTime + (latencySeconds + (event.frame - fromFrame) / framesPerSecond);
 			for (const { param, transformValue } of bindings) {
 				const value = finiteNumber(transformValue(event.value), 'transformed parameter value');
 				if (event.kind === 'set') param.setValueAtTime(value, time);

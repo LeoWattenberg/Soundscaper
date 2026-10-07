@@ -120,11 +120,11 @@
 			"key": "audio-param-window-timing",
 			"source": "src/common/editor/engine/scheduled-parameter-audio-param-time-projector.ts",
 			"caller": "src/common/editor/engine/scheduled-parameter-registry.ts: RegisteredScheduledParameterTarget.#scheduleAudioParam",
-			"location": "createScheduledParameterAudioParamTimeProjector / #scheduleAudioParam",
-			"change": "Capture the fixed normalized window inputs and sampleRate * transportRate divisor once per real AudioParam scheduling window instead of rereading and multiplying them for every event.",
+			"location": "prepareScheduledParameterAudioParamWindowTiming / #scheduleAudioParam",
+			"change": "Prepare fixed normalized window timing scalars and the sampleRate * transportRate divisor once per real AudioParam scheduling window; destructure once and preserve original arithmetic inline per event.",
 			"test": "tests/audio-editor-responsiveness-round4-audio-param-time.test.ts",
-			"evidence": "Red/green fixed-input getters for 1,000 projections fall from 4,000 to 4 total reads. The 100 complete actual registerAudioParam/group call/error fixtures preserve Float64 time/value bytes: 48 single and 48 composite rate/sample-rate/latency combinations plus 4 partial-failure cases. Continuing and overlapping cancellation and transform/param/cancel exceptions match captured original registry SHA256 93fc51563930965aac579a670cc83d84474702017b9ba3e5fc49c8dc191d7d65. All 24 focused scheduling tests pass, including 157 standalone conversion/refusal fixtures.",
-			"limitations": "Only immutable normalized registry windows use the timing helper. Original parentheses remain contextStartTime + (latencySeconds + (frame-fromFrame)/(sampleRate*transportRate)); multiplication is prepared without reciprocal reassociation. Extreme rates retain Infinity/NaN times and original AudioParam behavior. Cancellation, binding/event order and partial-failure frontier publication remain unchanged. Standalone conversion extraction and restored future message targets add no counted cost. Root owns representative timing and final gates.",
+			"evidence": "Red/green fixed-input getters for 1,000 projections fall from 4,000 to 4 total reads. The 100 complete actual registerAudioParam/group call/error fixtures preserve Float64 time/value bytes: 48 single and 48 composite rate/sample-rate/latency combinations plus 4 partial-failure cases. Continuing and overlapping cancellation and transform/param/cancel exceptions match captured original registry SHA256 93fc51563930965aac579a670cc83d84474702017b9ba3e5fc49c8dc191d7d65. All 25 focused scheduling tests pass, including 157 standalone conversion/refusal fixtures. A red/green helper contract rejects the former per-event projector and accepts only the fixed scalar record.",
+			"limitations": "Only immutable normalized registry windows use the timing helper. One private scalar record is created per nonempty window, consumed once; no closure or projector call runs per event. Original parentheses remain contextStartTime + (latencySeconds + (frame-fromFrame)/(sampleRate*transportRate)); multiplication is prepared without reciprocal reassociation. Extreme rates retain Infinity/NaN times and original AudioParam behavior. Cancellation, binding/event order and partial-failure frontier publication remain unchanged. Standalone conversion extraction and restored future message targets add no counted cost. Root owns representative timing and final gates.",
 			"status": "implemented"
 		}
 	],
@@ -132,6 +132,15 @@
 		{
 			"key": "message-window-exact-frame-ratio",
 			"reason": "Current Soundscaper registers AudioParam bindings. The message-target producer is a future contract with no current production caller; packet-factor retention and its unused public factory were removed. Per-event standalone message conversion is restored; its 157 compatibility fixtures remain uncounted protection."
+		},
+		{
+			"key": "audio-param-window-projector-closure",
+			"reason": "The provisional closure still removed fixed-input reads but added one call per event. Root paired active 4,096-event kernel medians were 0.221959 ms original and 0.235956 ms with the closure (about 14 microseconds slower). The final helper now returns one private scalar record, destructured once, with original arithmetic inline; this corrective shape contributes no additional count and requires refreshed final timing.",
+			"sourceRevision": "3ed788990",
+			"rootReportedMedianMs": {
+				"original": 0.221959,
+				"provisionalClosure": 0.235956
+			}
 		}
 	],
 	"audioParamParity": {

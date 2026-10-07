@@ -7,15 +7,19 @@ interface AudioParamWindowTiming {
 	readonly transportRate: number;
 }
 
-/** The registry owns normalized immutable window inputs and latency seconds. */
-export function createScheduledParameterAudioParamTimeProjector(
+interface PreparedAudioParamWindowTiming {
+	readonly fromFrame: number;
+	readonly contextStartTime: number;
+	readonly framesPerSecond: number;
+}
+
+/** The registry owns normalized immutable window inputs and consumes these scalars once. */
+export function prepareScheduledParameterAudioParamWindowTiming(
 	options: AudioParamWindowTiming,
-	latencySeconds: number,
-): (frame: number) => number {
-	const contextStartTime = options.contextStartTime;
-	const fromFrame = options.fromFrame;
-	const framesPerSecond = options.sampleRate * options.transportRate;
-	return frame => contextStartTime + (
-		latencySeconds + (frame - fromFrame) / framesPerSecond
-	);
+): PreparedAudioParamWindowTiming {
+	return {
+		contextStartTime: options.contextStartTime,
+		fromFrame: options.fromFrame,
+		framesPerSecond: options.sampleRate * options.transportRate,
+	};
 }
