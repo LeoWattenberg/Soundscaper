@@ -6,6 +6,9 @@ import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.
 
 test('selecting an existing visual mask seeds its authored width', async ({ page }) => {
 	const editor = await bootEditor(page, '/framescaper/en/');
+	// Mask authoring does not need the CPU-heavy generated-frame preview.
+	await chooseNestedCommandAction(page, editor, 'Window', ['Video preview']);
+	await expect(editor.getByRole('heading', { name: 'Video preview', exact: true })).toHaveCount(0);
 	await chooseNestedCommandAction(page, editor, 'Generate', ['Video Generators', 'Add Solid']);
 	const solid = editor.getByRole('group', { name: 'Video clip: Solid', exact: true });
 	await solid.focus();

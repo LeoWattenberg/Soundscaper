@@ -16,6 +16,9 @@ async function openMask(page, editor) {
 
 async function createSolidMask(page) {
 	const editor = await bootEditor(page, '/framescaper/en/');
+	// Keep coverage enabled without rendering generated preview frames on each edit.
+	await chooseNestedCommandAction(page, editor, 'Window', ['Video preview']);
+	await expect(editor.getByRole('heading', { name: 'Video preview', exact: true })).toHaveCount(0);
 	await chooseNestedCommandAction(page, editor, 'Generate', ['Video Generators', 'Add Solid']);
 	const clip = editor.getByRole('group', { name: 'Video clip: Solid', exact: true });
 	await expect(clip).toBeVisible();
