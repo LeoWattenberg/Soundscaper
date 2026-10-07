@@ -191,7 +191,7 @@ const MUTATORS: Readonly<Record<string, Handler>> = Object.freeze({
 	)),
 	'select.all': (runtime) => {
 		const project = requireProject(runtime);
-		const frames = Number(project.durationFrames ?? 0) || projectFrames(project);
+		const frames = Math.max(Number(project.durationFrames ?? 0) || 0, projectFrames(project));
 		runtime.setExactSelection(0, frames, {
 			trackIds: asArray(project.tracks).map((track) => String(track.id ?? '')),
 		});
@@ -291,11 +291,15 @@ function currentTrackIds(runtime: MacroScriptHostRuntime): readonly string[] {
 	return asArray(selection?.trackIds).map((id) => String(id));
 }
 
+/** The host already resolved clip geometry into its project-sample read model. */
 function projectFrames(project: Readonly<Record<string, unknown>>): number {
-	return asArray(project.clips).reduce((frames, clip) => Math.max(
-		frames,
-		Number(clip.timelineStartFrame ?? 0) + Number(clip.durationFrames ?? 0),
-	), 0);
+	let frames = asArray(project.clips).reduce((end, clip) => Math.max(end,
+		Number(clip.timelineStartFrame ?? 0) + Number(clip.durationFrames ?? 0)), 0);
+	for (const track of asArray(project.tracks)) {
+		if (track.type !== 'label') continue;
+		for (const label of asArray(track.labels)) frames = Math.max(frames, Number(label.endFrame ?? 0));
+	}
+	return frames;
 }
 
 function clipTrackId(project: Readonly<Record<string, unknown>>, clip: Record<string, unknown>): string | null {

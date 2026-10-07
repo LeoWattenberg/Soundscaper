@@ -125,5 +125,26 @@ altogether; targeted lint passes. Regression files are
 `audio-editor-round4-program-selection-read.spec.js`; evidence is recorded in
 `/tmp/soundscaper-r4-root-program-selection-read-*`.
 
+## R4-ROOT-006 — Macro Select all omits labels after the last recording
+
+Import an ordinary 800 ms WAV and an ordinary Audacity label text file containing
+a point cue at two seconds. Choose Tools → Macros palette → New program, run
+`const selected = await sound.select.all();`, and log `selected.endFrame`.
+The baseline selects only through sample 38400 instead of including the cue at
+96000, contrary to the command's documented whole-project selection.
+
+The macro's separate Select all mutator now includes label endpoints in its
+already resolved project-sample duration calculation. It retains any longer
+declared duration, every track ID, and one selection write. This is independent
+of 005's read-only conversion of existing clip-header selections.
+
+The unchanged label-file chooser and program workflow fails on immutable
+baseline `a0322d6e4` and passes Chromium, Firefox and WebKit on the clean owned
+`all-labels-clean5` build. Two strict mixed/label-only cases and existing macro
+reader/host/program tests pass, 24 tests altogether. Regression files are
+`audio-editor-round4-program-select-all-labels.test.ts` and
+`audio-editor-round4-program-select-all-labels.spec.js`; evidence is recorded in
+`/tmp/soundscaper-r4-root-program-select-all-labels-*`.
+
 These browser DSP, UI, and regression changes retain the assistance runtime closure.
 A manual **Update AI assets** run is not required.
