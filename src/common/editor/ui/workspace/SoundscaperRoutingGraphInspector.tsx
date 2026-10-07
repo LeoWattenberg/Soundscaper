@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { useEffect, useMemo, useRef } from 'react';
+import RoutingInspectorForm from './RoutingInspectorForm.tsx';
 
 import type { MixerEdgeV21, MixerGraphV21 } from '../../mixer-graph-v21.ts';
 import type { SoundscaperRoutingGraphCopy } from './soundscaper-routing-graph-copy.ts';
@@ -122,7 +123,7 @@ function NodeInspector(props: SoundscaperRoutingGraphInspectorProps & Readonly<{
 		<h3>{node.name || node.id}</h3>
 		<p>{collectionName(copy, selection.collection)} · {node.channelCount} {copy.channels}</p>
 		{managed && <p>{copy.managedByFolder}</p>}
-		<form key={`${node.id}:${node.name}:${node.channelCount}`} onSubmit={(event) => {
+		<RoutingInspectorForm owner={node.id} savedValues={{ name: node.name, channelCount: node.channelCount }} onSubmit={(event) => {
 			event.preventDefault();
 			if (disabled || managed) return;
 			const data = new FormData(event.currentTarget);
@@ -134,7 +135,7 @@ function NodeInspector(props: SoundscaperRoutingGraphInspectorProps & Readonly<{
 			<label>{copy.name} <input name="name" maxLength={1024} defaultValue={node.name} readOnly={managed} disabled={disabled || managed} /></label>
 			<label>{copy.channels} <input name="channelCount" type="number" min={1} max={32} step={1} defaultValue={node.channelCount} disabled={disabled || managed} /></label>
 			<button type="submit" disabled={disabled || managed}>{copy.saveNode}</button>
-		</form>
+		</RoutingInspectorForm>
 		<ConnectionForm
 			project={project} graph={graph} copy={copy} source={{ kind: 'mixer-node', id: node.id }} disabled={disabled}
 			onCandidate={(candidate) => onCandidate('edge-create', candidate)}
@@ -150,7 +151,7 @@ function OutputInspector(props: SoundscaperRoutingGraphInspectorProps & Readonly
 	return <>
 		<h3>{output.name || output.id}</h3>
 		<p>{roleLabel(copy, output.role)} · {output.channelCount} {copy.channels}</p>
-		<form key={`${output.id}:${output.name}:${output.role}:${output.channelCount}`} onSubmit={(event) => {
+		<RoutingInspectorForm owner={output.id} savedValues={{ name: output.name, role: output.role, channelCount: output.channelCount }} onSubmit={(event) => {
 			event.preventDefault();
 			if (disabled) return;
 			const data = new FormData(event.currentTarget);
@@ -167,7 +168,7 @@ function OutputInspector(props: SoundscaperRoutingGraphInspectorProps & Readonly
 			</select></label>
 			<label>{copy.channels} <input name="channelCount" type="number" min={1} max={32} step={1} defaultValue={output.channelCount} disabled={disabled} /></label>
 			<button type="submit" disabled={disabled}>{copy.saveOutput}</button>
-		</form>
+		</RoutingInspectorForm>
 	</>;
 }
 
@@ -179,7 +180,7 @@ function VcaInspector(props: SoundscaperRoutingGraphInspectorProps & Readonly<{ 
 	const members = new Set(vca.members.map(routingEndpointValue));
 	return <>
 		<h3>{vca.name || vca.id}</h3><p>{copy.vca} · {vca.members.length} {copy.members}</p>
-		<form key={`${vca.id}:${vca.name}:${vca.gain}:${vca.mute}:${[...members].join()}`} onSubmit={(event) => {
+		<RoutingInspectorForm owner={vca.id} savedValues={{ name: vca.name, gain: vca.gain, mute: vca.mute, member: [...members] }} onSubmit={(event) => {
 			event.preventDefault();
 			if (disabled) return;
 			const data = new FormData(event.currentTarget);
@@ -197,7 +198,7 @@ function VcaInspector(props: SoundscaperRoutingGraphInspectorProps & Readonly<{ 
 				<input name="member" type="checkbox" value={value} defaultChecked={members.has(value)} disabled={disabled} /> {label}
 			</label>)}</fieldset>
 			<button type="submit" disabled={disabled}>{copy.saveVca}</button>
-		</form>
+		</RoutingInspectorForm>
 	</>;
 }
 

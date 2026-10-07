@@ -14,6 +14,7 @@ import React, {
 
 import EditorToast from '../EditorToast.tsx';
 import RoutingGraphWires from './RoutingGraphWires.tsx';
+import { useOperationFocusRecovery } from '../useOperationFocusRecovery.ts';
 import { indexRoutingNodes, indexRoutingEdges, indexRoutingPorts, indexRoutingConnections, indexRoutingEndpointLabels, routingNavigationTarget } from './routing-graph-presentation.ts';
 import { useRoutingHoverFrame } from './useRoutingHoverFrame.ts';
 import { feedbackFailure, usePresentationFeedback } from '../presentation-feedback.ts'; import type { MixerEdgeV21, MixerGraphV21 } from '../../mixer-graph-v21.ts';
@@ -101,6 +102,7 @@ export default function SoundscaperRoutingGraphView({
 	const nodeRefs = useRef(new Map<string, HTMLButtonElement>());
 	const consumedRequestKeyRef = useRef<string | null>(null);
 	const graphDisabled = disabled || pending;
+	const captureOperationFocus = useOperationFocusRecovery(pending, project && typeof project === 'object' && 'id' in project ? project.id : project);
 	const hover = useRoutingHoverFrame(connecting !== null, zoom, setPreviewPoint);
 
 	useEffect(() => {
@@ -125,7 +127,7 @@ export default function SoundscaperRoutingGraphView({
 
 	const applyCandidate = useCallback((kind: RoutingCommitKind, candidate: RoutingGraphCandidate): void => {
 		if (graphDisabled) return;
-		setPending(true); setError(''); setToast(null);
+		captureOperationFocus(); setPending(true); setError(''); setToast(null);
 		const commit: SoundscaperRoutingGraphCommit = Object.freeze({
 			kind, graph: candidate.graph, selection: candidate.selection,
 			addresses: candidate.addresses.length > 0
@@ -143,7 +145,7 @@ export default function SoundscaperRoutingGraphView({
 			})
 			.catch((reason: unknown) => { setError(feedbackFailure(reason)); setStatus(''); setToast({ type: 'error', id: ++toastIdRef.current }); })
 			.finally(() => setPending(false));
-	}, [graphDisabled, onCommit, setError, setStatus]);
+	}, [captureOperationFocus, graphDisabled, onCommit, setError, setStatus]);
 
 	const failAction = useCallback((reason: unknown): void => {
 		setError(feedbackFailure(reason)); setStatus(''); setToast({ type: 'error', id: ++toastIdRef.current });
