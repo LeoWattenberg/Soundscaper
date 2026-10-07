@@ -72,7 +72,7 @@ export default function AudacityParameterKnob({
 					onGestureCancel?.();
 					return;
 				}
-				if (!['ArrowUp', 'ArrowRight', 'ArrowDown', 'ArrowLeft'].includes(event.key)) return;
+				if (!['ArrowUp', 'ArrowRight', 'ArrowDown', 'ArrowLeft', 'Home', 'End'].includes(event.key)) return;
 				event.preventDefault();
 				event.stopPropagation();
 				if (!keyboardGesture.current) {
@@ -81,13 +81,14 @@ export default function AudacityParameterKnob({
 					onGestureStart?.(actual);
 				}
 				const direction = event.key === 'ArrowUp' || event.key === 'ArrowRight' ? 1 : -1;
-				const next = Math.max(min, Math.min(max, Number((keyboardValue.current + direction * precision * (event.shiftKey ? 10 : 1)).toFixed(8))));
+				const next = event.key === 'Home' ? min : event.key === 'End' ? max
+					: Math.max(min, Math.min(max, Number((keyboardValue.current + direction * precision * (event.shiftKey ? 10 : 1)).toFixed(8))));
 				if (next === keyboardValue.current) return;
 				keyboardValue.current = next;
 				onChange(next);
 			}}
 			onKeyUp={event => {
-				if (['ArrowUp', 'ArrowRight', 'ArrowDown', 'ArrowLeft'].includes(event.key)) finishKeyboardGesture();
+				if (['ArrowUp', 'ArrowRight', 'ArrowDown', 'ArrowLeft', 'Home', 'End'].includes(event.key)) finishKeyboardGesture();
 			}}
 			onBlur={finishKeyboardGesture}
 		/>
