@@ -48,6 +48,8 @@ belong in Git history, not in the maintained documentation set.
   records 100 proposals, Electron Speed observations and reproducible work probes.
 - [Editor responsiveness and render work](development/responsiveness-round2.md)
   indexes 100 new production costs with source, checks and measurement methods.
+- [100 more responsiveness improvements](development/responsiveness-round3.md)
+  records the next 100 costs, frozen-baseline checks and Electron Speed measurements.
 - User workflow regression audits record reproducible defects and their checks
   for [editing](development/bugfix-editing.md),
   [dialogs](development/bugfix-dialogs.md),
