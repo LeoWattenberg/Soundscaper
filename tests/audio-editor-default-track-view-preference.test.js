@@ -106,8 +106,9 @@ test('changing the default view preference retunes the running session and is pe
 		const trackId = controller.getSnapshot().project.tracks[0].id;
 		await controller.actions.track.setWaveformView(trackId);
 		const snapshot = controller.getSnapshot();
-		assert.equal(snapshot.timeline.view, 'waveform-rainbow');
+		assert.equal(snapshot.timeline.view, 'waveform');
 		assert.equal(snapshot.preferences.appearance.defaultView, 'waveform-rainbow');
+		assert.equal(store.settings.get('soundscaper:audio-editor-preferences-v1').appearance.defaultView, 'waveform-rainbow');
 		assert.equal(snapshot.project.tracks.find(({ id }) => id === trackId).displayMode, 'waveform');
 	} finally {
 		await controller.dispose();
