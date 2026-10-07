@@ -20,6 +20,7 @@ import {
 	type VideoKeyframeDialogModel,
 	type VideoKeyframeTargetChoice,
 } from '../video-keyframe-dialog-model.ts';
+import { useOperationFocusRecovery } from '../useOperationFocusRecovery.ts';
 import { videoKeyframeTransferShortcut } from '../video-keyframe-transfer-shortcut.ts';
 import VideoKeyframeCurveEditor from './VideoKeyframeCurveEditor.tsx';
 import { parseVideoKeyframeNumber as parseNumber, parseVideoKeyframePosition as parseRationalText } from './video-keyframe-exact-input.ts';
@@ -64,15 +65,18 @@ export default function VideoKeyframeDialog({
 	const [status, setStatus] = usePresentationFeedback(copy);
 	const [error, setError] = usePresentationFeedback(copy);
 	const [pending, setPending] = useState(false);
+	const focusOwner = useMemo(() => ({ controller, clipId: model.clipId }), [controller, model.clipId]);
+	const captureFocus = useOperationFocusRecovery(pending, focusOwner);
 	const selected = choices.find(({ key }) => key === targetKey) ?? choices[0] ?? null;
 	const editingCurve = model.keyframes?.curves.find(({ target }) => videoKeyframeTargetKey(target) === curveKey)
 		?? model.keyframes?.curves[0] ?? null;
 	const disabled = model.operationsBlocked || pending;
 
-	const commit = (keyframes: unknown, message: PresentationFeedback): void => {
+	const commit = (keyframes: unknown, message: PresentationFeedback, focusFallback?: () => HTMLElement | null): void => {
 		if (disabled || !model.clipId || !model.keyframes) return;
 		try {
 			const command = createVideoKeyframeSetCommand(model, keyframes);
+			if (focusFallback) captureFocus(focusFallback);
 			setPending(true); setError('');
 			void runAwaitedAudioEditorOperation(run, () => controller.actions.edit.commit(command))
 				.then(() => { setStatus(message); })
@@ -158,7 +162,7 @@ export default function VideoKeyframeDialog({
 							{(['hold', 'linear', 'eased', 'bezier'] as const).map((value) => <option key={value} value={value}>{label(copy, `videoKeyframes${titleCase(value)}`, titleCase(value))}</option>)}
 						</select>
 					</label>
-					<button type="submit">{label(copy, 'videoKeyframesAdd', 'Add curve')}</button>
+					<button type="submit" data-video-keyframe-add>{label(copy, 'videoKeyframesAdd', 'Add curve')}</button>
 				</fieldset>
 			</form>
 			<VideoKeyframeCurveEditor
@@ -168,7 +172,7 @@ export default function VideoKeyframeDialog({
 				disabled={disabled}
 				curveKey={curveKey}
 				onCurveChange={setCurveKey}
-				commit={(keyframes) => commit(keyframes, { key: 'videoKeyframesApplied', fallback: 'Video keyframes applied.' })}
+				commit={(keyframes, focusFallback) => commit(keyframes, { key: 'videoKeyframesApplied', fallback: 'Video keyframes applied.' }, focusFallback)}
 				reportInvalid={() => setError({ key: 'videoKeyframesInvalid', fallback: 'Check the exact positions, values, and curve shape.' })}
 			/>
 			<fieldset disabled={disabled} onKeyDown={(event) => {

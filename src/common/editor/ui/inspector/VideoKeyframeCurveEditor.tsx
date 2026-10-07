@@ -25,7 +25,7 @@ interface VideoKeyframeCurveEditorProps {
 	readonly disabled: boolean;
 	readonly curveKey: string;
 	onCurveChange(key: string): void;
-	commit(keyframes: VideoKeyframeCurves): void;
+	commit(keyframes: VideoKeyframeCurves, focusFallback?: () => HTMLElement | null): void;
 	reportInvalid(): void;
 }
 
@@ -212,7 +212,14 @@ export default function VideoKeyframeCurveEditor({
 					</div>}
 					<button type="button" onClick={updateSegment}>{label(copy, 'videoKeyframesUpdateSegment', 'Update segment')}</button>
 				</div>
-				<button type="button" onClick={() => curve && commit(removeVideoKeyframeCurve(model, curve.target))}>{label(copy, 'videoKeyframesRemoveCurve', 'Remove curve')}</button>
+				<button type="button" onClick={(event) => {
+					if (!curve) return;
+					const dialog = event.currentTarget.closest('[data-video-keyframe-dialog]');
+					commit(removeVideoKeyframeCurve(model, curve.target), () => (
+						dialog?.querySelector<HTMLElement>('[data-video-keyframe-field="curve"]')
+							?? dialog?.querySelector<HTMLElement>('[data-video-keyframe-add]') ?? null
+					));
+				}}>{label(copy, 'videoKeyframesRemoveCurve', 'Remove curve')}</button>
 			</>}
 	</fieldset>;
 }
