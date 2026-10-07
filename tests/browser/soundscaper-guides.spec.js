@@ -2,6 +2,7 @@ import { expect, test } from './audio-editor-test-fixtures.js';
 import { chooseCommandAction, registerAudioEditorHooks } from './audio-editor-test-helpers.js';
 import { SOUNDSCAPER_GUIDES } from '../../handbook/guides/soundscaper.mjs';
 import { runGuide } from './helpers/guide-runner.js';
+import { verifyGuideTrackResults } from './helpers/guide-track-results.js';
 
 const EDITING_SPANS = {
 	'join-split-clips': [[0, 2]],
@@ -48,6 +49,7 @@ test.describe('Soundscaper handbook guides', () => {
 			test.setTimeout(120_000);
 			await runGuide(page, guide);
 			await verifyEditingSpan(page, guide.id);
+			await verifyGuideTrackResults(page, guide.id);
 		});
 	}
 });

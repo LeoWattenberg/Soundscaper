@@ -396,10 +396,14 @@ async function executeStep(page, state, entry) {
 		case 'export':
 			await runExport(page, state, entry);
 			return;
-		case 'track-menu':
-			await chooseTrackMenuAction(page, state.editor, state.editor.locator('[data-track-row]').last(), entry.path);
+		case 'track-menu': {
+			const row = entry.fixture
+				? guideClip(state.editor, guideFixtureClipName(entry.fixture)).locator('xpath=ancestor::div[@data-track-row][1]')
+				: state.editor.locator('[data-track-row]').last();
+			await chooseTrackMenuAction(page, state.editor, row, entry.path);
 			await expectSuccess(state.editor);
 			return;
+		}
 		case 'play':
 			await runPlay(state);
 			return;

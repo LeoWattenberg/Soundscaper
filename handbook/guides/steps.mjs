@@ -22,6 +22,8 @@
 
 import { describeFreesoundStep } from './freesound-steps.mjs';
 import { describeClips, describeEditingPreference } from './editing-steps.mjs';
+import { describeTrackMenu } from './track-menu-steps.mjs';
+export { trackMenu } from './track-menu-steps.mjs';
 export { editingPreference } from './editing-steps.mjs';
 export { insertFreesound, searchFreesound } from './freesound-steps.mjs';
 
@@ -221,11 +223,6 @@ export function save(extras) {
 	return step({ kind: 'save' }, extras);
 }
 
-/** Choose a command from a track's own menu in the track header. */
-export function trackMenu(path, extras) {
-	return step({ kind: 'track-menu', path: requireLabelPath(path, 'track menu') }, extras);
-}
-
 /** Press a button in the header of the most recently added track, such as Mute or Solo. */
 export function trackButton(name, extras) {
 	if (typeof name !== 'string' || name.length === 0) throw new TypeError('A track-button step needs the button name.');
@@ -334,6 +331,7 @@ function validateSteps(id, steps, fixtures) {
 	for (const [index, entry] of steps.entries()) {
 		if (!isStepKind(entry?.kind)) throw new RangeError(`${id} step ${String(index + 1)} has unknown kind ${String(entry?.kind)}.`);
 		if (entry.kind === 'import' && !(entry.fixture in fixtures)) throw new RangeError(`${id} imports unknown example ${entry.fixture}.`);
+		if (entry.kind === 'track-menu' && entry.fixture != null && !(entry.fixture in fixtures)) throw new RangeError(`${id} targets unknown fixture ${entry.fixture}.`);
 		if (entry.kind === 'select-clips' && entry.fixtures.some((fixture) => !(fixture in fixtures))) {
 			throw new RangeError(`${id} selects a clip from an unknown example.`);
 		}
@@ -504,7 +502,7 @@ export function describeStep(entry, { fixture, facet = 'howto' }) {
 		case 'save':
 			return `Choose ${menuPath(['File', 'Save project'])}. The save indicator in the status bar shows the project is saved.`;
 		case 'track-menu':
-			return `Open the track's menu from the ${bold('Track menu')} button in its header and choose ${menuPath(entry.path)}.`;
+			return describeTrackMenu(entry, facet, fixture);
 		case 'track-button':
 			return `Press ${bold(entry.name)} in the track's header.`;
 		case 'add-track':

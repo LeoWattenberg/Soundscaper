@@ -51,6 +51,10 @@ More [tracks and export](/guides/tracks-and-export/) guides:
 - [Add an empty track](/guides/tracks-and-export/add-an-empty-track/) — Create a new track to record into or to paste onto.
 - [Mute every track at once](/guides/tracks-and-export/mute-every-track-at-once/) — Silence the whole project in one step, then bring it all back.
 - [Mix tracks into a new track and keep the originals](/guides/tracks-and-export/mix-tracks-into-a-new-track/) — Render a mix of several tracks onto a new track while the sources stay in the project.
+- [Split stereo into two centered mono tracks](/guides/tracks-and-export/split-stereo-to-centered-mono/) — Separate the two channels of a stereo recording and center each one for independent editing.
+- [Combine two mono tracks into stereo](/guides/tracks-and-export/combine-mono-tracks-into-stereo/) — Use one mono recording for the left channel and another for the right channel of a stereo clip.
+- [Duplicate a whole track](/guides/tracks-and-export/duplicate-a-whole-track/) — Copy every clip on a track to another track while keeping the original available.
+- [Remove a track from the project](/guides/tracks-and-export/remove-a-track/) — Delete an unwanted track and its clips while keeping the other tracks.
 
 ## Reference
 

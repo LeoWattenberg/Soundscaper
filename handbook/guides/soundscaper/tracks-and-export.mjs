@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { addTrack, check, exportAudio, generate, importAudio, menu, mixRender, note, open, play, selectClips, trackButton, trackMenu } from '../steps.mjs';
+import { addTrack, check, cursor, exportAudio, generate, importAudio, menu, mixRender, note, open, play, selectClips, trackButton, trackMenu } from '../steps.mjs';
 
 export const TRACK_AND_EXPORT_GUIDES = Object.freeze([
 	{
@@ -187,6 +187,86 @@ export const TRACK_AND_EXPORT_GUIDES = Object.freeze([
 		tips: [
 			'**Add group bus** creates a bus that several tracks can feed, so a whole drum kit or a group of voices has one fader.',
 			'The **Routing graph** button in the panel shows the same mixer as a diagram of what feeds what.',
+		],
+	},
+	{
+		id: 'split-stereo-to-centered-mono',
+		title: 'Split stereo into two centered mono tracks',
+		description: 'Separate the two channels of a stereo recording and center each one for independent editing.',
+		audacity: 'Track menu → Split stereo to center mono (Audacity 4)',
+		intro: 'When a two-channel recorder puts one speaker on the left and another on the right, separating the channels lets you edit and balance each voice. Split stereo to centered mono makes two mono tracks, both panned to the center. It keeps their timeline positions and lengths, and leaves each channel as its own recording.',
+		steps: [
+			open(),
+			importAudio('music-loop', { what: 'the stereo recording whose channels you want to separate' }),
+			trackMenu(['Track channels', 'Split stereo to centered mono']),
+			check({ clips: 2, tracks: 3 }, { see: 'Separate Left and Right tracks hold the original channels, with both pan controls centered.' }),
+		],
+		tips: [
+			'To keep the original stereo placement, [split into left/right mono tracks](guide:split-stereo-into-mono-tracks) instead.',
+			'This creates two mono tracks. To combine their sound into one mono channel, [mix the tracks down](guide:mix-tracks-into-one) and choose Mono.',
+			'**Edit → Undo** restores the stereo track.',
+		],
+	},
+	{
+		id: 'combine-mono-tracks-into-stereo',
+		title: 'Combine two mono tracks into stereo',
+		description: 'Use one mono recording for the left channel and another for the right channel of a stereo clip.',
+		audacity: 'Upper mono track menu → Make stereo track (Audacity 4)',
+		intro: 'Make stereo track renders two mono tracks into one stereo clip and replaces the source tracks. The track whose menu you use supplies the left channel; the first compatible mono track below it supplies the right. If there is none below, Soundscaper uses the first compatible mono track elsewhere in the project. Put the intended right-channel track directly below the left-channel track before combining them.',
+		steps: [
+			open(),
+			importAudio('quiet-take', { what: 'the mono recording intended for the left channel' }),
+			importAudio('clicky-take', { what: 'the mono recording intended for the right channel', why: 'It appears on the track below the first recording. Arrange the clips at the times they should play.' }),
+			trackMenu(['Track channels', 'Make stereo track'], { fixture: 'quiet-take', which: 'the left-channel recording' }),
+			check({ clips: 1, tracks: 2 }, { see: 'One stereo clip replaces the two mono recordings, with the intended sound in each channel.' }),
+		],
+		tips: [
+			'The new clip spans both tracks’ content at the project sample rate. Gaps on either track become silence in that channel.',
+			'If the recordings should start together, [align their track starts](guide:align-track-starts-together) before combining them.',
+			'Keep a project copy if you need the separate clips for later edits. **Edit → Undo** brings the two mono tracks back.',
+		],
+	},
+	{
+		id: 'duplicate-a-whole-track',
+		title: 'Duplicate a whole track',
+		description: 'Copy every clip on a track to another track while keeping the original available.',
+		audacity: 'Tracks → Duplicate (Audacity 4)',
+		intro: 'Duplicate track copies the whole track, including every clip and its timeline position. Use the copy to try a different edit or effect while keeping the original. Selecting one clip identifies the track to duplicate; the command copies the other clips on that track too.',
+		steps: [
+			open(),
+			importAudio('music-loop', { what: 'the recording on the track you want to duplicate' }),
+			cursor(0.5, { where: 'at the point where you want to split the recording into two independently editable pieces', why: 'Skip this cursor placement and the next Split step if the track already has several clips, or if you want to keep it as one clip.' }),
+			menu(['Edit', 'Audio clips', 'Split']),
+			check({ clips: 2 }, { see: 'The track holds two clips, ready to be copied together.' }),
+			selectClips(['music-loop'], { which: ['one clip on the track'], keyboard: true }),
+			menu(['Tracks', 'Duplicate track']),
+			check({ clips: 4, tracks: 3 }, { see: 'The original and its copy each hold both clips at the same timeline positions.' }),
+		],
+		tips: [
+			'The original and the copy both play. [Mute or solo a track](guide:mute-and-solo-tracks) when comparing them so you hear one version at a time.',
+			'To copy just a passage, [duplicate a selection to a new track](guide:duplicate-a-selection-to-a-new-track) instead.',
+			'**Edit → Undo** removes the duplicate track.',
+		],
+	},
+	{
+		id: 'remove-a-track',
+		title: 'Remove a track from the project',
+		description: 'Delete an unwanted track and its clips while keeping the other tracks.',
+		audacity: 'Tracks → Remove tracks (Audacity 4)',
+		intro: 'Remove tracks deletes the selected track and all the clips it contains from the project. It is useful for an unused take or a spare copy after comparing edits. Selecting one clip targets its entire track, so check the selection before removing anything.',
+		steps: [
+			open(),
+			importAudio('music-loop', { what: 'the recording to keep' }),
+			importAudio('second-loop', { what: 'the unwanted recording on another track' }),
+			selectClips(['second-loop'], { which: ['a clip on the track to remove'], keyboard: true }),
+			menu(['Tracks', 'Remove tracks']),
+			check({ clips: 1, tracks: 2, startsAt: { fixture: 'music-loop', seconds: 0 } }, { that: 'The recording you kept is still at its original position.', see: 'The unwanted track is gone, and the other recording is untouched.' }),
+		],
+		tips: [
+			'**Edit → Undo** restores the removed track and its clips.',
+			'To remove only part of a recording, [delete a passage and leave a gap](guide:delete-a-passage-and-leave-a-gap) instead of deleting its track.',
+			'Removing a track from the project does not delete the original file you imported from your computer.',
+			'Tracks in a linked lane group are removed together.',
 		],
 	},
 ]);
