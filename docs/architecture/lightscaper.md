@@ -24,7 +24,7 @@ and named versions of a develop stack. Virtual folders and rename templates
 affect catalog state, never the original bytes or user filesystem paths.
 
 Queries use bounded pages over indexes. Editing one photo writes that photo's
-aggregate and its history rather than snapshotting the whole catalog. Collection
+aggregate and advances its own bounded history rather than snapshotting the whole catalog. Collection
 membership and import publication must commit consistently with the photo count
 and indexes. An interrupted import may retain completed photos, but may not
 expose a reference to an unauthenticated or unpublished original. Disposal and
@@ -54,7 +54,7 @@ new photo count together. A failed write or cancellation aborts that transaction
 | Browse summary | 4 KiB, containing neither original bytes nor develop state |
 | Cursor page | 64 summaries; the existing shared cursor ceiling stays unchanged |
 | Import publication transaction | At most 16 photos, 8 MiB of serialized photo documents, and 4,096 membership writes |
-| Photo history | At most 100 snapshots and 16 MiB of serialized snapshots per photo; default capacity 20 |
+| Photo history | At most 100 historical snapshots plus the current photo, totaling at most 16 MiB of serialized snapshots; default capacity 20 |
 | Qualification fixture | 100,000 photo references; queries must retain only the requested page and never read photo aggregates to populate browse summaries |
 
 Each page closes its IndexedDB transaction before returning to its consumer.
@@ -69,6 +69,42 @@ The instrumented Node database verifies request failures, rollback, cancellation
 and page delivery bounds. It does not model browser transaction scheduling or
 physical index cost, so concurrent compare-and-swap and catalog-scale query
 timing also need actual browser IndexedDB evidence before the library gate closes.
+
+### Per-photo command ownership
+
+Undo and redo are local to one open photo command owner. The roadmap requires
+deterministic history and interruption-safe authored state; it does not require
+undo stacks to survive reopening or accompany Scape documents. Reopening starts
+a fresh history from the durable photo aggregate. No history store or database
+version change is needed for this session contract. Persisted recovery and
+portable archives retain the latest authored state and first-class photo
+versions; a future durable undo requirement must declare its schema and budgets
+before adding storage.
+
+The owner admits authored metadata, culling attributes, virtual memberships,
+develop state, and photo-version commands through the existing v1 validators.
+Original identity and extracted import facts are read-only. The pure history
+helpers prepare an immutable next state, while the repository owns the successful
+persisted revision increment. Undo and redo restore authored state using the
+current expected revision, so neither can roll the storage revision backward.
+The owner publishes the prepared history only after the repository transaction
+acknowledges success. A rejected save, stale revision, or cancellation before
+commit leaves the prior history object intact. Once commit succeeds, its
+acknowledgment is published even if cancellation arrives afterward.
+
+| Command owner contract | Bound |
+| --- | --- |
+| Working set | One photo history, using the historical-entry and serialized-byte limits above |
+| Pending operation | One save; overlapping commands fail busy instead of growing a queue |
+| Prepared edit | One photo document, at most 2 MiB; retained history snapshots are immutable |
+| Develop clipboard | One normalized develop-only packet, at most 2 MiB, without photo identity or original bytes |
+
+Clipboard packets preserve shared effects, geometry and self-contained masks.
+External raster/alpha mask inputs require an authenticated media adapter and are
+refused by the initial portable clipboard admission. No settings are silently
+dropped. Closing an owner cancels its pending operation and prevents new
+commands without closing the shared catalog repository. None of these unused
+domain modules activates a product capability or creates a user interface.
 
 ## Shared image evaluation
 

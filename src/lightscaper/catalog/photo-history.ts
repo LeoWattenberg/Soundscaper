@@ -65,6 +65,9 @@ function assertSameOriginal(previous: PhotoDocumentV1, next: PhotoDocumentV1): v
 	if (JSON.stringify(previous.original) !== JSON.stringify(next.original)) {
 		throw new RangeError('Photo history cannot mutate the retained original.');
 	}
+	if (JSON.stringify(previous.extractedMetadata) !== JSON.stringify(next.extractedMetadata)) {
+		throw new RangeError('Photo history cannot replace extracted import facts.');
+	}
 }
 
 function withNextRevision(photo: PhotoDocumentV1, revision: number): PhotoDocumentV1 {
