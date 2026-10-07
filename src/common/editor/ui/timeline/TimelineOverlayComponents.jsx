@@ -10,6 +10,7 @@ import { AUDIO_EDITOR_TRACK_COLORS } from '../../project-audio-factory.js';
 import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
 import { lowRateTimelinePositionFrame } from './timeline-playback-frame-loop.ts';
 import { timelineContentLeft } from './timeline-scroll-space.ts';
+import { playheadKeyboardSeekFrame } from './playhead-keyboard-seek.ts';
 
 export function TimelineOverlayPortal({ target, children }) {
 	return target ? createPortal(children, target) : children;
@@ -178,17 +179,11 @@ export function TelemetryPlayhead({
 				onPointerCancelCapture={finishPointerScrub}
 				onLostPointerCapture={finishPointerScrub}
 			onKeyDown={(event) => {
-				const amount = event.shiftKey ? Math.round(sampleRate / 10) : 1;
-				if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
-					event.preventDefault();
-					const liveFrame = Math.max(0, Math.round(
-						controller.getTelemetrySnapshot?.().positionFrame ?? positionFrame,
-					));
-					run(() => controller.actions.transport.seek(liveFrame + (event.key === 'ArrowLeft' ? -amount : amount)));
-				} else if (event.key === 'Home' || event.key === 'End') {
-					event.preventDefault();
-					run(() => controller.actions.transport.seek(event.key === 'Home' ? 0 : durationFrames));
-				}
+				const frame = playheadKeyboardSeekFrame(event,
+					controller.getTelemetrySnapshot?.().positionFrame ?? positionFrame, sampleRate, durationFrames);
+				if (frame === null) return;
+				event.preventDefault();
+				run(() => controller.actions.transport.seek(frame));
 			}}
 		>
 			<PlayheadCursor
