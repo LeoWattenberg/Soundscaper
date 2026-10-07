@@ -266,6 +266,7 @@ function createApi() {
 
 globalThis.__macroBoot = (main) => {
 	if (booted) return booted;
+	const lastProgramLine = String(main).split('\n').length - 1;
 	booted = (async () => {
 		await new Promise((resolve) => {
 			if (runId) resolve();
@@ -302,7 +303,7 @@ globalThis.__macroBoot = (main) => {
 				type: 'failed',
 				runId,
 				message: String((error && error.message) || error || 'The macro failed.'),
-				line: lineOf(error),
+				line: lineOf(error, lastProgramLine),
 				column: null,
 			});
 		}
@@ -315,19 +316,25 @@ globalThis.__macroBoot = (main) => {
  *
  * A stack begins with the message, which can hold a colon-separated pair of its
  * own — a timecode reads exactly like a position — so only the frames are read.
- * The frame that matters is the program's own body: an error thrown by one of
- * the API's helpers has that helper's line on top, and this file's lines are
- * never the author's. Reporting no line is better than reporting someone
- * else's, so a stack that never entered the program yields nothing.
+ * The main frame identifies the program's module. Choose its earliest authored
+ * frame, including nested helpers, within the fixed wrapper's two-line prefix
+ * and closing brace. The bounds also exclude the prelude when a VM test embeds
+ * both modules under one filename. API helper frames remain outside that body.
  */
-function lineOf(error) {
+function lineOf(error, lastProgramLine) {
 	const frames = String((error && error.stack) || '')
 		.split('\n')
 		.map((entry) => entry.trim())
 		// Frames are `at name (url:line:column)` in V8 and `name@url:line:column`
 		// elsewhere; a message line matches neither.
 		.filter((entry) => /^(?:at\s|\S*@)/u.test(entry) && /:\d+:\d+\)?$/u.test(entry));
-	const frame = frames.find((entry) => entry.includes('__macroMain'));
-	const match = frame ? /:(\d+):\d+\)?$/u.exec(frame) : null;
-	return match ? Number(match[1]) : null;
+	const locations = frames.map((entry) => {
+		const match = /(?:\(|@|\bat\s)([^()]+):(\d+):\d+\)?$/u.exec(entry);
+		return match ? { module: match[1], line: Number(match[2]) } : null;
+	});
+	const main = locations[frames.findIndex((entry) => entry.includes('__macroMain'))];
+	if (!main) return null;
+	const authored = locations.find((location) => location && location.module === main.module
+		&& location.line > 2 && location.line <= lastProgramLine);
+	return authored?.line ?? main.line;
 }

@@ -250,6 +250,28 @@ all 28 focused rhythm, playback-rate and transport tests pass, including loop
 phase, delayed audible starts and pending-click cancellation. No manual
 **Update AI assets** run is required.
 
+## R3-ROOT-013 — Resampling camera audio refuses its intact A/V link
+
+Import an ordinary camera WebM recording with audio. Select its audio clip,
+open **Clip properties > Media settings > Resample**, enter 24000 Hz and apply.
+Reopen the audio properties to inspect its sample rate, then Undo.
+
+Previously the action failed with “A/V link … must contain one audio and one
+video clip,” leaving the original 48000-Hz source. Its remove-and-replace batch
+expanded the audio clip's A/V membership and removed the video too. The batch
+now temporarily unlinks the pair, replaces only the audio, and restores the
+original link. Video content, grouped companions and authored warp positions
+remain intact.
+
+Proof: the ordinary picker/menu workflow fails on the immutable baseline and
+passes on green build 14 in Chromium, Firefox and WebKit, checking both clips,
+the new native rate and Undo's original rate. The strict regression applies the
+actual replacement batch to a canonical linked camera project and preserves
+the exact video record; all 16 focused resampling tests pass. The inspector can
+select the surviving video tab after replacement, so the test explicitly
+reopens the audio properties before reading their rate. No manual
+**Update AI assets** run is required.
+
 ## R3-ROOT-014 — Macro project reads report video clips as empty
 
 Import an ordinary camera recording. Open **Tools > Macros palette > New
@@ -281,24 +303,21 @@ immutable baseline and passes in all three browsers on green build 13; all 29
 focused transport, rhythm and playback-rate tests pass. This adds no audit ID
 and requires no manual **Update AI assets** run.
 
-## R3-ROOT-013 — Resampling camera audio refuses its intact A/V link
+## R3-ROOT-015 — Macro helper errors point to their caller instead of the throw
 
-Import an ordinary camera WebM recording with audio. Select its audio clip,
-open **Clip properties > Media settings > Resample**, enter 24000 Hz and apply.
-Reopen the audio properties to inspect its sample rate, then Undo.
+Open **Tools > Macros palette > New program**. Write a four-line program with
+`function checkSelection() {` on line 1, `throw new Error('Choose an audio region
+first.');` on line 2, its closing brace on line 3, and `checkSelection();` on
+line 4. Click **Run program**.
 
-Previously the action failed with “A/V link … must contain one audio and one
-video clip,” leaving the original 48000-Hz source. Its remove-and-replace batch
-expanded the audio clip's A/V membership and removed the video too. The batch
-now temporarily unlinks the pair, replaces only the audio, and restores the
-original link. Video content, grouped companions and authored warp positions
-remain intact.
+Previously the failure reported line 4, which called the helper, instead of
+line 2, where the authored error occurred. The sandbox now identifies the
+program module and selects its first authored stack frame within the fixed
+program wrapper. API implementation frames remain excluded, including the
+single-file VM harness, and message text is never parsed as a stack location.
 
-Proof: the ordinary picker/menu workflow fails on the immutable baseline and
-passes on green build 14 in Chromium, Firefox and WebKit, checking both clips,
-the new native rate and Undo's original rate. The strict regression applies the
-actual replacement batch to a canonical linked camera project and preserves
-the exact video record; all 16 focused resampling tests pass. The inspector can
-select the surviving video tab after replacement, so the test explicitly
-reopens the audio properties before reading their rate. No manual
-**Update AI assets** run is required.
+Proof: the unchanged public workflow fails on the immutable baseline at line 4
+and passes on green build 15 in Chromium, Firefox and WebKit at line 2. Strict
+regressions verify exact throw locations for single-line and multiline helpers;
+all 16 focused prelude, line-offset and dynamic-coverage tests pass. Targeted
+lint passes. No manual **Update AI assets** run is required.

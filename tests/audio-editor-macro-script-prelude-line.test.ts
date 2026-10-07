@@ -93,7 +93,7 @@ test('a message that reads like a timecode is not mistaken for a line', async ()
 	assert.equal(authorLine(failure.line), 1);
 });
 
-test('a throw from the program\'s own helper reports a line the author wrote', async () => {
+test('a throw from the program\'s own helper reports the throw rather than its caller', async () => {
 	const posted = await runMacroProgram([
 		'const check = () => { throw new Error(\'stop here\'); };',
 		'sound.log.info(\'about to check\');',
@@ -102,8 +102,17 @@ test('a throw from the program\'s own helper reports a line the author wrote', a
 
 	const failure = failureOf(posted);
 	assert.equal(failure.message, 'stop here');
-	const line = authorLine(failure.line);
-	assert.ok(line !== null && line >= 1 && line <= 3, `expected an author line, saw ${String(line)}`);
+	assert.equal(authorLine(failure.line), 1);
+});
+
+test('a multiline authored helper retains its exact failure line', async () => {
+	const posted = await runMacroProgram([
+		'function checkSelection() {',
+		"  throw new Error('Choose an audio region first.');",
+		'}',
+		'checkSelection();',
+	].join('\n'));
+	assert.equal(authorLine(failureOf(posted).line), 2);
 });
 
 test('a dropped-log notice bypasses the exhausted macro log budget', async () => {
