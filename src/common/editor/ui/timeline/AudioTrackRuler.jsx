@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useMemo, useRef } from 'react';
 
 import { useNonPassiveWheel } from '../useNonPassiveWheel.js';
 import { accumulateTimelineZoomWheel } from '../workspace/timeline-navigation-geometry.js';
@@ -40,12 +40,13 @@ export function AudioTrackRuler({
 			if (accumulated.zoom) onWaveformZoom(verticalRulerWheelZoom(waveformZoom, accumulated.zoom === 'in' ? -1 : 1));
 		}
 	});
-	const amplitudeRulers = (height) => renderAmplitudeRulers(
-		channelCount, height, width, halfWave ? 'half-wave' : 'waveform', waveformRulerFormat, waveformZoom, channelHeightRatio,
-	);
-	const frequencyRulers = (height) => renderFrequencyRulers(
-		channelCount, height, width, minimumFrequency, maximumFrequency, spectrogramScale, channelHeightRatio,
-	);
+	const amplitudeRulers = useMemo(() => displayMode === 'spectrogram' ? null : renderAmplitudeRulers(
+		channelCount, displayMode === 'multiview' ? bodyHeight - spectralHeight : bodyHeight, width,
+		halfWave ? 'half-wave' : 'waveform', waveformRulerFormat, waveformZoom, channelHeightRatio,
+	), [bodyHeight, channelCount, channelHeightRatio, displayMode, halfWave, spectralHeight, waveformRulerFormat, waveformZoom, width]);
+	const frequencyRulers = useMemo(() => displayMode !== 'spectrogram' && displayMode !== 'multiview' ? null : renderFrequencyRulers(
+		channelCount, displayMode === 'multiview' ? spectralHeight : bodyHeight, width, minimumFrequency, maximumFrequency, spectrogramScale, channelHeightRatio,
+	), [bodyHeight, channelCount, channelHeightRatio, displayMode, maximumFrequency, minimumFrequency, spectralHeight, spectrogramScale, width]);
 	return <div
 		ref={rulerRef}
 		className="audio-editor-vertical-ruler"
@@ -61,8 +62,7 @@ export function AudioTrackRuler({
 		onContextMenu={(event) => onOpenRulerFlyout(displayMode, event)}
 		onKeyDown={onKeyDown}
 	>
-		{displayMode === 'spectrogram' ? frequencyRulers(bodyHeight) : displayMode === 'multiview'
-			? <>{frequencyRulers(spectralHeight)}{amplitudeRulers(bodyHeight - spectralHeight)}</>
-			: amplitudeRulers(bodyHeight)}
+		{displayMode === 'spectrogram' ? frequencyRulers : displayMode === 'multiview'
+			? <>{frequencyRulers}{amplitudeRulers}</> : amplitudeRulers}
 	</div>;
 }

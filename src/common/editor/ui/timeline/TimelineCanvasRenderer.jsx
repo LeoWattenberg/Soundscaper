@@ -9,9 +9,7 @@ import {
 	drawAudacityWaveformChannel,
 } from '../../audacity-waveform-renderer.js';
 import {
-	pffftSpectrogramRevision,
 	preparePffftSpectrogram,
-	subscribePffftSpectrogram,
 } from '../../pffft-spectrogram.js';
 import { MAXIMUM_WAVEFORM_VERTICAL_ZOOM } from './geometry.ts';
 import { useRetainedCanvasFrame } from './useRetainedCanvasFrame.ts';
@@ -22,6 +20,7 @@ import { reprojectPendingWaveform } from './waveform-plan-continuity.ts';
 import { spectrogramCanvasDrawKey } from './spectrogram-canvas-options.ts';
 import { audioEditorStereoChannelGeometry } from './stereo-channel-height-runtime.ts';
 import { drawAudacityClipSpectrogram, releaseSpectrogramCanvas } from './spectrogram-canvas-renderer.js';
+import { useSpectrogramCanvasRevision } from './useSpectrogramCanvasRevision.ts';
 export { drawAudacityClipSpectrogram } from './spectrogram-canvas-renderer.js';
 
 export function AudacityWaveformCanvases({
@@ -66,10 +65,9 @@ export function AudacityWaveformCanvases({
 		rangeDb,
 		sampleRate,
 	}), [fftWindowSize, gainDb, maxFreq, minFreq, rangeDb, sampleRate, scale, windowType]);
-	const spectrogramDrawKey = spectrogramCanvasDrawKey(renderSpectrogramOptions);
-	const [spectrogramRevision, setSpectrogramRevision] = useState(pffftSpectrogramRevision);
+	const spectrogramDrawKey = useMemo(() => spectrogramCanvasDrawKey(renderSpectrogramOptions), [renderSpectrogramOptions]);
+	const spectrogramRevision = useSpectrogramCanvasRevision(displayMode === 'spectrogram' || displayMode === 'multiview');
 	const [frequencyWaveformRenderer, setFrequencyWaveformRenderer] = useState(null);
-	useEffect(() => subscribePffftSpectrogram(setSpectrogramRevision), []);
 	useEffect(() => {
 		if ((displayMode !== 'waveform-three-band' && displayMode !== 'waveform-rainbow')
 			|| frequencyWaveformRenderer) return undefined;

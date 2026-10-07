@@ -161,8 +161,8 @@ export function useAudioTrackRowViewModel({
 		return readVisualRevision(controller, projection.clips);
 	}, [controller, projection.clips, readVisualRevision, viewModelRevision]);
 	const frequencyWaveformPreferences = viewModelRevision?.preferences?.waveformVisualization;
-	const resolvedSpectrogramOptions = spectrogramOptions
-		?? createSpectrogramCanvasOptions(track.spectrogram, sampleRate);
+	const resolvedSpectrogramOptions = useMemo(() => spectrogramOptions
+		?? createSpectrogramCanvasOptions(track.spectrogram, sampleRate), [spectrogramOptions, track.spectrogram, sampleRate]);
 	const spectrogramTiles = useSpectrogramPcmTiles({
 		controller,
 		project: waveformProject,
