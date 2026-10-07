@@ -1,4 +1,6 @@
 import { normalizeAppearancePreferences } from './appearance-preferences.ts';
+import { normalizeCustomToolbarButtons } from './custom-toolbar-buttons.ts';
+import { mergePreferences } from './preference-merge.ts';
 import {
 	AUDACITY_ACTION_MANIFEST,
 	AUDACITY_ACTION_STATUS,
@@ -172,7 +174,7 @@ const FORBIDDEN_TOP_LEVEL_KEYS = new Set([
  * @property {Record<string, string[]>} shortcuts
  * @property {import('./appearance-preferences.ts').AppearancePreferences} appearance
  * @property {{showMasterTrack: boolean, showMarkers: boolean, showFadeShapeHandles: boolean, fadeShapeHandlesPreferenceVersion: 1, videoPreviewResolution: import('./video-preview-preferences.ts').VideoPreviewResolution}} view
- * @property {{activeId: string, custom: Object[], timeDisplayFormat: import('./time-display-preferences.ts').AudioEditorTimeDisplayFormat | null, toolbars: Record<string, {visible: boolean, order: number}>, toolbarButtons: Record<string, boolean>, panels: Record<string, AudioEditorPanelStateV1>}} workspace
+ * @property {{activeId: string, custom: Object[], customButtons: import('./custom-toolbar-buttons.ts').CustomToolbarButton[], timeDisplayFormat: import('./time-display-preferences.ts').AudioEditorTimeDisplayFormat | null, toolbars: Record<string, {visible: boolean, order: number}>, toolbarButtons: Record<string, boolean>, panels: Record<string, AudioEditorPanelStateV1>}} workspace
  * @property {Object} spectrogram
  * @property {import('./waveform-visualization-preferences.ts').WaveformVisualizationPreferences} waveformVisualization
  * @property {import('./waveform-display-preferences.ts').WaveformDisplayPreferences} waveformDisplay
@@ -207,32 +209,6 @@ function normalizeShortcuts(value = {}) {
 	return shortcuts;
 }
 
-function mergePreferences(preferences, patch = {}) {
-	return {
-		...preferences,
-		...patch,
-		editing: { ...preferences.editing, ...patch.editing },
-		shortcuts: patch.shortcuts === undefined ? preferences.shortcuts : patch.shortcuts,
-		appearance: { ...preferences.appearance, ...patch.appearance },
-		view: { ...preferences.view, ...patch.view },
-		workspace: {
-			...preferences.workspace,
-			...patch.workspace,
-			toolbars: { ...preferences.workspace?.toolbars, ...patch.workspace?.toolbars },
-			toolbarButtons: { ...preferences.workspace?.toolbarButtons, ...patch.workspace?.toolbarButtons },
-			panels: { ...preferences.workspace?.panels, ...patch.workspace?.panels },
-		},
-		spectrogram: { ...preferences.spectrogram, ...patch.spectrogram },
-		waveformVisualization: { ...preferences.waveformVisualization, ...patch.waveformVisualization },
-		waveformDisplay: { ...preferences.waveformDisplay, ...patch.waveformDisplay },
-		import: { ...preferences.import, ...patch.import },
-		recording: { ...preferences.recording, ...patch.recording },
-		playback: { ...preferences.playback, ...patch.playback },
-		effects: { ...preferences.effects, ...patch.effects },
-		performance: { ...preferences.performance, ...patch.performance },
-		startup: { ...preferences.startup, ...patch.startup },
-	};
-}
 /**
  * Editor-only preferences. Audio device selection, plugins, cloud accounts,
  * telemetry and operating-system integration deliberately do not belong here.
@@ -278,6 +254,7 @@ export function createAudioEditorPreferencesV1(options = {}) {
 		workspace: {
 			activeId,
 			custom,
+			customButtons: normalizeCustomToolbarButtons(options.workspace?.customButtons),
 			timeDisplayFormat: normalizeAudioEditorTimeDisplayFormat(options.workspace?.timeDisplayFormat),
 			toolbars: normalizeToolbarEntries(options.workspace?.toolbars ?? layout.toolbars),
 			toolbarButtons: normalizeToolbarButtonEntries(options.workspace?.toolbarButtons ?? layout.toolbarButtons),
@@ -522,6 +499,7 @@ export function loadAudioEditorPreferencesV1(value) {
 			view: normalized.view,
 			workspace: {
 				...clone(value.workspace),
+				customButtons: normalized.workspace.customButtons,
 				// Buttons added after a document was saved must resolve to their
 				// defaults rather than to "visible" (the toolbar treats an absent
 				// entry as shown); stored choices win over the defaults.

@@ -456,7 +456,7 @@ const DEFERRED_WEB_VCR_PANEL_ID = 'web-vcr'; export default function AudioEditor
 	const changePlaybackMeterSettings = meterSettingsChange('playback-meter', playbackMeterSettings, setPlaybackMeterSettings);
 	const changeRecordingMeterSettings = meterSettingsChange('recording-meter', recordingMeterSettings, setRecordingMeterSettings);
 	const toolbarProps = {
-		actionRuntime: parityRuntime.actions, automationToolEnabled, blocked, capabilities, controller, copy, durationFrames, locale, productId,
+		actionRuntime: parityRuntime.actions, menus: applicationMenus, automationToolEnabled, blocked, capabilities, controller, copy, durationFrames, locale, productId,
 		editItems, executeEdit, isCompact: isCompact || compactLayout, onGripperMouseDown: handleToolbarGripperMouseDown, onJumpToEnd: jumpToEnd,
 		onJumpToStart: jumpToStart, onOpenSpectralSelection: openSpectralSelection,
 		onOpenTakeCycleRecovery: () => openSurface('take-cycle-recovery'), onOpenTimedRecording: openTimedRecording,
