@@ -19,7 +19,7 @@ import {
 	type ParameterAddress,
 	type ParameterDescriptor,
 } from './parameter-address.ts';
-import { sampleFrameToBeat } from './timeline-tempo-inverse.ts';
+import { createSampleFrameBeatProjector, sampleFrameToBeat } from './timeline-tempo-inverse.ts';
 import {
 	compareRationals,
 	normalizeRational,
@@ -138,6 +138,24 @@ export function evaluateAutomationLaneAtFrameV21(
 		? Object.freeze({ num: frame, den: 1 })
 		: sampleFrameToBeat(frame, requiredTempoMap(options.tempoMap), sampleRate);
 	return canonicalValue(evaluateInterpolationCurveAtExactPosition(curve, position));
+}
+
+/** Own one detached lane and tempo projection for a bounded render/scheduling operation. */
+export function createAutomationLaneFrameEvaluatorV21(
+	value: AutomationLaneV21,
+	options: AutomationLaneFrameOptionsV21,
+): (frame: number) => number {
+	const lane = normalizedLane(value);
+	const sampleRate = positiveSafeInteger(options.sampleRate, 'sampleRate');
+	const curve = NORMALIZED_CURVES.get(lane);
+	const project = curve && lane.timebase === 'musical-beats'
+		? createSampleFrameBeatProjector(requiredTempoMap(options.tempoMap), sampleRate) : null;
+	return (frameValue): number => {
+		const frame = nonNegativeSafeInteger(frameValue, 'frame');
+		if (!curve) return lane.points[0]!.value;
+		const position = project ? project(frame) : { num: frame, den: 1 };
+		return canonicalValue(evaluateInterpolationCurveAtExactPosition(curve, position));
+	};
 }
 
 function normalizeLane(

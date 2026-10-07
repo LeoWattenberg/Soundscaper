@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import {
-	evaluateAutomationLaneAtFrameV21,
+	createAutomationLaneFrameEvaluatorV21,
 	normalizeAutomationLaneV21,
 	resolveAutomationLanePointFramesV21,
 	type AutomationLaneFrameOptionsV21,
@@ -54,7 +54,7 @@ export function compileAutomationLaneEventsV21(
 		}
 		events.push(Object.freeze({ kind, frame, value: canonicalValue(value) }));
 	};
-	const evaluate = (frame: number): number => evaluateAutomationLaneAtFrameV21(lane, frame, frameOptions);
+	const evaluate = createAutomationLaneFrameEvaluatorV21(lane, frameOptions);
 
 	append('set', fromFrame, evaluate(fromFrame));
 	if (toFrame === fromFrame || lane.points.length === 1) return Object.freeze(events);
@@ -149,7 +149,7 @@ function appendCurvedInterval(
 		start + Math.floor((end - start) * 3 / 4),
 	].filter((frame) => frame > start && frame < end))];
 	let split = probes[0]!;
-	let splitValue = evaluate(split);
+	let splitValue = startValue;
 	let maximumError = -1;
 	for (const frame of probes) {
 		const value = evaluate(frame);

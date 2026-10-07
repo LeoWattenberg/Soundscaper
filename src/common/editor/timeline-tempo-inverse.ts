@@ -119,6 +119,33 @@ export function sampleFrameToBeat(
 	return addRationals(active.beat, multiplyRationals(sampleOffset, beatsPerSample));
 }
 
+/** Prepare private exact tempo facts for repeated automation queries in one render/schedule. */
+export function createSampleFrameBeatProjector(
+	tempoMap: HoldTempoMap,
+	sampleRate: number,
+): (frame: number) => Rational {
+	if (!Number.isSafeInteger(sampleRate) || sampleRate <= 0) throw new RangeError('sampleRate must be positive.');
+	if (!Array.isArray(tempoMap?.events) || !tempoMap.events.length) throw new TypeError('A hold tempo map is required.');
+	const frames = tempoEventFrames(tempoMap.events, tempoMap, sampleRate);
+	const facts = tempoMap.events.map((event, index) => ({
+		frame: frameAt(frames, index),
+		beat: normalizeRational(event.beat, { maximumDenominator: Number.MAX_SAFE_INTEGER }),
+		beatsPerSample: divideRationals(event.bpm, 60 * sampleRate),
+	}));
+	return (frame): Rational => {
+		if (!Number.isSafeInteger(frame) || frame < 0) throw new RangeError('frame must be a non-negative safe integer.');
+		let lower = 1;
+		let upper = facts.length;
+		while (lower < upper) {
+			const middle = lower + Math.floor((upper - lower) / 2);
+			if (facts[middle]!.frame <= frame) lower = middle + 1;
+			else upper = middle;
+		}
+		const active = facts[lower - 1]!;
+		return addRationals(active.beat, multiplyRationals(frame - active.frame, active.beatsPerSample));
+	};
+}
+
 function tempoEventFrames(
 	events: readonly HoldTempoEvent[],
 	map: HoldTempoMap,
