@@ -16,7 +16,7 @@ export function constrainDialogDragOffset(
 	viewport: Readonly<{ width: number; height: number }>,
 ): Offset {
 	const clamp = (value: number, minimum: number, maximum: number) => (
-		Math.max(minimum, Math.min(Math.max(minimum, maximum), value))
+		Math.max(minimum, Math.min(maximum, value))
 	);
 	return {
 		x: clamp(offset.x, startOffset.x + 8 - header.left,

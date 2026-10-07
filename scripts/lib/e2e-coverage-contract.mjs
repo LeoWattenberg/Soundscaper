@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { diagnosticErrorMessage as errorMessage } from './diagnostic-error-message.ts';
+
 import { canonicalJson as stableJson } from './canonical-json.mjs';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -509,7 +511,6 @@ function digest(value) {
 	return `sha256:${createHash('sha256').update(value).digest('hex')}`;
 }
 
-
 function stringArray(value, label) {
 	if (!Array.isArray(value) || value.some((entry) => typeof entry !== 'string')) {
 		throw new TypeError(`${label} must be an array of strings.`);
@@ -529,8 +530,4 @@ function assertUnique(values, message) {
 
 function assertSorted(values, message) {
 	if (stableJson(values) !== stableJson([...values].sort())) throw new Error(message);
-}
-
-function errorMessage(error) {
-	return error instanceof Error ? error.message : String(error);
 }

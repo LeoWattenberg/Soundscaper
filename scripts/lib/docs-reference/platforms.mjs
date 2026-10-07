@@ -70,25 +70,22 @@ export function renderPlatformReference({ capabilities, packageTargets }) {
 	if (!packageTargets || typeof packageTargets !== 'object') throw new TypeError('The desktop packaging configuration is required.');
 
 	const browserRows = Object.entries(capabilities.browserTargets)
-		.map(([id, target]) => ({
-			label: reviewedLabel(BROWSER_LABELS, id, 'browser target'),
-			automated: target.automated === true,
-		}))
-		.sort((left, right) => compareText(left.label, right.label))
-		.map((browser) => [browser.label, browser.automated ? 'Yes' : 'No']);
+		.map(([id, target]) => [
+			reviewedLabel(BROWSER_LABELS, id, 'browser target'),
+			target.automated === true ? 'Yes' : 'No',
+		])
+		.sort((left, right) => compareText(left[0], right[0]));
 
 	const desktopRows = capabilities.desktopTargets
-		.map((target) => ({
-			operatingSystem: reviewedLabel(OPERATING_SYSTEM_LABELS, target.os, 'desktop operating system'),
-			architecture: reviewedLabel(ARCHITECTURE_LABELS, target.architecture, 'desktop architecture'),
-			packages: packageNames(target.os, packageTargets),
-			gate: reviewedLabel(PACKAGE_GATE_LABELS, target.packageGate, 'desktop packaging check'),
-		}))
+		.map((target) => [
+			reviewedLabel(OPERATING_SYSTEM_LABELS, target.os, 'desktop operating system'),
+			reviewedLabel(ARCHITECTURE_LABELS, target.architecture, 'desktop architecture'),
+			packageNames(target.os, packageTargets),
+			reviewedLabel(PACKAGE_GATE_LABELS, target.packageGate, 'desktop packaging check'),
+		])
 		.sort((left, right) => (
-			compareText(left.operatingSystem, right.operatingSystem)
-			|| compareText(left.architecture, right.architecture)
-		))
-		.map((target) => [target.operatingSystem, target.architecture, target.packages, target.gate]);
+			compareText(left[0], right[0]) || compareText(left[1], right[1])
+		));
 
 	const tierRows = capabilities.platformTiers.map((tier) => [
 		`\`${tier}\``,

@@ -92,29 +92,18 @@ export function productStorageKey(soundscaperKey: string, productId: string): st
 
 export function normalizeMeterSettings(value: unknown, defaults: Readonly<MeterSettings>): MeterSettings {
 	const candidate = value && typeof value === 'object' ? value as Record<string, unknown> : {};
-	const position = candidate.position === 'side' ? 'panel' : METER_POSITIONS.includes(candidate.position as MeterSettings['position'])
-		? candidate.position as MeterSettings['position']
-		: defaults.position;
-	const style = METER_STYLES.includes(candidate.style as MeterSettings['style'])
-		? candidate.style as MeterSettings['style']
-		: defaults.style;
-	const type = METER_TYPES.includes(candidate.type as MeterSettings['type'])
-		? candidate.type as MeterSettings['type']
-		: defaults.type;
-	const dbRangeCandidate = Number(candidate.dbRange);
-	const dbRange = METER_DB_RANGES.includes(dbRangeCandidate as MeterSettings['dbRange'])
-		? dbRangeCandidate as MeterSettings['dbRange']
-		: defaults.dbRange;
-	const ebuScale = EBU_METER_SCALES.includes(candidate.ebuScale as MeterSettings['ebuScale'])
-		? candidate.ebuScale as MeterSettings['ebuScale']
-		: defaults.ebuScale;
-	const ebuUnit = EBU_METER_UNITS.includes(candidate.ebuUnit as MeterSettings['ebuUnit'])
-		? candidate.ebuUnit as MeterSettings['ebuUnit']
-		: defaults.ebuUnit;
-	const ebuLiveValue = EBU_METER_LIVE_VALUES.includes(candidate.ebuLiveValue as MeterSettings['ebuLiveValue'])
-		? candidate.ebuLiveValue as MeterSettings['ebuLiveValue']
-		: defaults.ebuLiveValue;
+	const position = candidate.position === 'side' ? 'panel' : meterChoice(candidate.position, METER_POSITIONS, defaults.position);
+	const style = meterChoice(candidate.style, METER_STYLES, defaults.style);
+	const type = meterChoice(candidate.type, METER_TYPES, defaults.type);
+	const dbRange = meterChoice(Number(candidate.dbRange), METER_DB_RANGES, defaults.dbRange);
+	const ebuScale = meterChoice(candidate.ebuScale, EBU_METER_SCALES, defaults.ebuScale);
+	const ebuUnit = meterChoice(candidate.ebuUnit, EBU_METER_UNITS, defaults.ebuUnit);
+	const ebuLiveValue = meterChoice(candidate.ebuLiveValue, EBU_METER_LIVE_VALUES, defaults.ebuLiveValue);
 	return { position, style, type, dbRange, ebuScale, ebuUnit, ebuLiveValue };
+}
+
+function meterChoice<Value>(value: unknown, choices: readonly Value[], fallback: Value): Value {
+	return choices.includes(value as Value) ? value as Value : fallback;
 }
 
 export function formatDb(value: number): string {
@@ -125,21 +114,22 @@ export function formatDb(value: number): string {
 
 export function formatEbuLoudness(value: number | null | undefined, unit: MeterSettings['ebuUnit'] = 'absolute'): string {
 	const suffix = unit === 'relative' ? 'LU' : 'LUFS';
-	if (typeof value !== 'number' || !Number.isFinite(value)) return `— ${suffix}`;
-	const displayed = unit === 'relative' ? value + 23 : value;
-	return `${String(displayed.toFixed(1)).replace('-', '−')} ${suffix}`;
+	const displayed = typeof value === 'number' && unit === 'relative' ? value + 23 : value;
+	return formatMeterNumber(displayed, suffix);
 }
 
 export function formatLra(value: number | null | undefined): string {
-	return typeof value === 'number' && Number.isFinite(value)
-		? `${String(value.toFixed(1)).replace('-', '−')} LU`
-		: '— LU';
+	return formatMeterNumber(value, 'LU');
 }
 
 export function formatDbtp(value: number | null | undefined): string {
+	return formatMeterNumber(value, 'dBTP');
+}
+
+function formatMeterNumber(value: number | null | undefined, suffix: string): string {
 	return typeof value === 'number' && Number.isFinite(value)
-		? `${String(value.toFixed(1)).replace('-', '−')} dBTP`
-		: '— dBTP';
+		? `${String(value.toFixed(1)).replace('-', '−')} ${suffix}`
+		: `— ${suffix}`;
 }
 
 export function formatPlaybackSpeed(rate: number): string {

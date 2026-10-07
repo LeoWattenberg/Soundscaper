@@ -52,15 +52,10 @@ export function updateTimedRecordingDialogStart(
 ): TimedRecordingDialogValue {
 	const startTimeMs = dateTimeMs(startTime);
 	if (value.endMode === 'end') {
-		const endTimeMs = dateTimeMs(value.endTime);
-		const durationSeconds = Number.isFinite(startTimeMs) && endTimeMs > startTimeMs
-			? (endTimeMs - startTimeMs) / 1_000
-			: value.durationSeconds;
+		const durationSeconds = elapsedDuration(startTimeMs, value.endTime, value.durationSeconds);
 		return Object.freeze({ ...value, startTime, durationSeconds });
 	}
-	const endTime = Number.isFinite(startTimeMs)
-		? formatDateTimeLocalInput(startTimeMs + value.durationSeconds * 1_000)
-		: value.endTime;
+	const endTime = durationEndTime(startTimeMs, value.durationSeconds, value.endTime);
 	return Object.freeze({ ...value, startTime, endTime });
 }
 
@@ -70,9 +65,7 @@ export function updateTimedRecordingDialogDuration(
 ): TimedRecordingDialogValue {
 	const durationSeconds = positiveDuration(durationValue) ?? value.durationSeconds;
 	const startTimeMs = dateTimeMs(value.startTime);
-	const endTime = Number.isFinite(startTimeMs)
-		? formatDateTimeLocalInput(startTimeMs + durationSeconds * 1_000)
-		: value.endTime;
+	const endTime = durationEndTime(startTimeMs, durationSeconds, value.endTime);
 	return Object.freeze({ ...value, durationSeconds, endTime });
 }
 
@@ -81,11 +74,21 @@ export function updateTimedRecordingDialogEnd(
 	endTime: string,
 ): TimedRecordingDialogValue {
 	const startTimeMs = dateTimeMs(value.startTime);
-	const endTimeMs = dateTimeMs(endTime);
-	const durationSeconds = Number.isFinite(startTimeMs) && endTimeMs > startTimeMs
-		? (endTimeMs - startTimeMs) / 1_000
-		: value.durationSeconds;
+	const durationSeconds = elapsedDuration(startTimeMs, endTime, value.durationSeconds);
 	return Object.freeze({ ...value, endTime, durationSeconds });
+}
+
+function elapsedDuration(startTimeMs: number, endTime: string, fallback: number): number {
+	const endTimeMs = dateTimeMs(endTime);
+	return Number.isFinite(startTimeMs) && endTimeMs > startTimeMs
+		? (endTimeMs - startTimeMs) / 1_000
+		: fallback;
+}
+
+function durationEndTime(startTimeMs: number, durationSeconds: number, fallback: string): string {
+	return Number.isFinite(startTimeMs)
+		? formatDateTimeLocalInput(startTimeMs + durationSeconds * 1_000)
+		: fallback;
 }
 
 export function updateTimedRecordingDialogEndMode(

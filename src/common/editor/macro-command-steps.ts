@@ -16,6 +16,7 @@
 
 import { audacityMacroMenuCommand, audacityMacroMenuCommandNames } from './audacity-macro-menu-commands.ts';
 import {
+	AUDACITY_SELECT_COMMAND_PROFILES,
 	audacitySelectCommandProfile,
 	decodeMacroCommandParameter,
 	type MacroCommandParameterDescriptor,
@@ -41,7 +42,7 @@ export interface MacroCommandStepOptions {
 
 /** Every command a macro step may name. */
 export function macroCommandStepCommands(): readonly string[] {
-	return [...Object.keys(macroCommandProfiles()), ...audacityMacroMenuCommandNames()];
+	return [...Object.keys(AUDACITY_SELECT_COMMAND_PROFILES), ...audacityMacroMenuCommandNames()];
 }
 
 export function macroCommandStepProfile(command: unknown): MacroCommandProfile | null {
@@ -108,12 +109,6 @@ function encodeParameter(descriptor: MacroCommandParameterDescriptor, value: unk
 	return descriptor.encode ? descriptor.encode(value) : stableNumberString(value);
 }
 
-function macroCommandProfiles(): Readonly<Record<string, MacroCommandProfile>> {
-	// One accessor so the vocabulary has a single place to grow when the bare
-	// menu-command tier joins the parameterised one.
-	return SELECT_PROFILES;
-}
-
 function readParams(
 	command: string,
 	profile: MacroCommandProfile,
@@ -131,10 +126,3 @@ function readParams(
 	}
 	return Object.freeze(params);
 }
-
-const SELECT_PROFILES: Readonly<Record<string, MacroCommandProfile>> = Object.freeze({
-	Select: audacitySelectCommandProfile('Select')!,
-	SelectTime: audacitySelectCommandProfile('SelectTime')!,
-	SelectFrequencies: audacitySelectCommandProfile('SelectFrequencies')!,
-	SelectTracks: audacitySelectCommandProfile('SelectTracks')!,
-});

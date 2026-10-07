@@ -72,10 +72,11 @@ export interface VideoPreviewCompositionBlendRuntime {
 }
 
 export function videoPreviewBlendModeCode(value: unknown): number {
-	if (typeof value !== 'string' || !MODE_CODES.has(value as VideoClipCompositionBlendMode)) {
+	const code = typeof value === 'string' ? MODE_CODES.get(value as VideoClipCompositionBlendMode) : undefined;
+	if (code === undefined) {
 		throw new RangeError('Unsupported video preview blend mode.');
 	}
-	return MODE_CODES.get(value as VideoClipCompositionBlendMode) as number;
+	return code;
 }
 
 export function createVideoPreviewCompositionBlendRuntime(
@@ -152,13 +153,10 @@ export function videoPreviewBlendPixel(
 	const sourceAlpha = unit(sourceSample[3]);
 	const backdrop = unassociate(backdropSample, backdropAlpha);
 	const source = unassociate(sourceSample, sourceAlpha);
-	const blended = backdrop.map((channel, index) => blendChannel(
-		mode, channel, source[index] as number,
-	));
-	const rgb = backdrop.slice(0, 3).map((_, index) => (
+	const rgb = backdrop.map((channel, index) => (
 		(1 - sourceAlpha) * (backdropSample[index] as number)
 		+ sourceAlpha * ((1 - backdropAlpha) * (source[index] as number)
-			+ backdropAlpha * (blended[index] as number))
+			+ backdropAlpha * blendChannel(mode, channel, source[index] as number))
 	));
 	return Object.freeze([
 		rgb[0] as number,

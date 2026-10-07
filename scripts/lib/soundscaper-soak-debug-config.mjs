@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { deepFreeze } from './deep-freeze.ts';
+
 const TARGETS = Object.freeze(['browser', 'desktop']);
 const PROFILES = Object.freeze(['quick', 'extended']);
 const THRESHOLD_METRIC_IDS = Object.freeze([
@@ -259,13 +261,5 @@ function integer(value, minimum, maximum, label) {
 
 function enumValue(value, values, label) {
 	if (typeof value !== 'string' || !values.includes(value)) throw new TypeError(`${label} is invalid.`);
-	return value;
-}
-
-function deepFreeze(value) {
-	if (value && typeof value === 'object' && !Object.isFrozen(value)) {
-		for (const child of Object.values(value)) deepFreeze(child);
-		Object.freeze(value);
-	}
 	return value;
 }

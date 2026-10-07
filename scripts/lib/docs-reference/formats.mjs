@@ -2,6 +2,10 @@
 
 import { assertProducts, compareText, page, productNames, table } from './markdown.mjs';
 
+function ffmpegRuntimeRequirement(encoders, muxers) {
+	return `FFmpeg runtime required (encoders: ${encoders}; muxers: ${muxers})`;
+}
+
 function audioRuntimeRequirement(descriptor) {
 	if (descriptor.backend === 'native-wav' || descriptor.backend === 'native-aiff') return 'Built in';
 	if (descriptor.backend === 'custom-ffmpeg') {
@@ -12,13 +16,13 @@ function audioRuntimeRequirement(descriptor) {
 	const muxers = (descriptor.requiredMuxers ?? [])
 		.map((alternatives) => Array.isArray(alternatives) ? alternatives.join(' or ') : String(alternatives))
 		.join(', ') || 'runtime-selected';
-	return `FFmpeg runtime required (encoders: ${encoders}; muxers: ${muxers})`;
+	return ffmpegRuntimeRequirement(encoders, muxers);
 }
 
 function videoRuntimeRequirement(descriptor) {
 	const encoders = (descriptor.requiredEncoders ?? []).join(', ') || 'runtime-selected';
 	const muxers = (descriptor.requiredMuxers ?? []).join(', ') || 'runtime-selected';
-	return `FFmpeg runtime required (encoders: ${encoders}; muxers: ${muxers})`;
+	return ffmpegRuntimeRequirement(encoders, muxers);
 }
 
 function assertAudioFormatInventory(audioFormatIds, audioFormats) {

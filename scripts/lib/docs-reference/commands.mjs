@@ -50,9 +50,7 @@ export function renderCommandReference({
 			? ['', 'Local application-menu entries come from the reviewed menu reference registry.']
 			: []),
 		'',
-		hasApplicationMenuEntries
-			? 'Product availability follows each product profile’s command filters and each local menu entry’s declared product list. “—” means that no default shortcut is assigned; it does not mean the command is unavailable.'
-			: 'Product availability follows each product profile’s command filters. “—” means that no default shortcut is assigned; it does not mean the command is unavailable.',
+		`Product availability follows each product profile’s command filters${hasApplicationMenuEntries ? ' and each local menu entry’s declared product list' : ''}. “—” means that no default shortcut is assigned; it does not mean the command is unavailable.`,
 		'',
 		table(
 			['Command', 'Command ID', 'Default shortcut', 'Menu location', 'Products', 'Origin'],
@@ -76,7 +74,7 @@ export function renderCommandReference({
 
 function localApplicationMenuCommands(entries, manifestDefinitions, products) {
 	const manifestIds = new Set(manifestDefinitions.map((definition) => definition?.id).filter(Boolean));
-	const productById = new Map(products.map((product) => [product.id, product]));
+	const productIds = new Set(products.map((product) => product.id));
 	const seen = new Set();
 	return entries.map((entry) => {
 		if (!entry || typeof entry !== 'object'
@@ -102,7 +100,7 @@ function localApplicationMenuCommands(entries, manifestDefinitions, products) {
 			throw new RangeError(`Local application-menu entry ${entry.id} repeats a product id.`);
 		}
 		for (const productId of declaredProducts) {
-			if (!productById.has(productId)) {
+			if (!productIds.has(productId)) {
 				throw new RangeError(`Local application-menu entry ${entry.id} names unknown product ${productId}.`);
 			}
 		}

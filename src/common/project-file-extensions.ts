@@ -94,5 +94,5 @@ export function withProjectFileExtension(fileName: unknown, extension: unknown):
 function terminalSegment(value: unknown): string {
 	const text = typeof value === 'string' ? value : '';
 	const boundary = Math.max(text.lastIndexOf('/'), text.lastIndexOf('\\'));
-	return boundary === -1 ? text : text.slice(boundary + 1);
+	return text.slice(boundary + 1);
 }

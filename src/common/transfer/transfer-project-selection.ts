@@ -50,11 +50,7 @@ export function transferProductForOrigin(origin: unknown): TransferProduct | nul
  * Which product wrote a stored project, judged only by its persisted family.
  */
 export function transferProjectProduct(project: unknown): TransferProduct | null {
-	try {
-		return readProjectSchemaIdentity(project).schemaFamily;
-	} catch {
-		return null;
-	}
+	return transferProjectIdentity(project)?.schemaFamily ?? null;
 }
 
 /**

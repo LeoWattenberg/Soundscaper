@@ -23,7 +23,7 @@ export function filterProductMenus(menus, capabilities, productId) {
 				]);
 				return {
 					...menu,
-					items: menu.items.map((item) => framescaperVideoGeneratorIds.has(item.id) ? item : assistanceOnlyMenuEntry(item)).filter(Boolean),
+					items: retainProductAndAssistanceItems(menu.items, framescaperVideoGeneratorIds),
 				};
 			}
 			if (menu.id === 'effect' && !capabilities.audioEffects) {
@@ -34,7 +34,7 @@ export function filterProductMenus(menus, capabilities, productId) {
 				]);
 				return {
 					...menu,
-					items: menu.items.map((item) => framescaperVideoEffectIds.has(item.id) ? item : assistanceOnlyMenuEntry(item)).filter(Boolean),
+					items: retainProductAndAssistanceItems(menu.items, framescaperVideoEffectIds),
 				};
 			}
 			if (menu.id === 'tracks' && !capabilities.audioEffects) {
@@ -48,7 +48,7 @@ export function filterProductMenus(menus, capabilities, productId) {
 				]);
 				return {
 					...menu,
-					items: menu.items.map((item) => retainedAnalyzeItems.has(item.id) ? item : assistanceOnlyMenuEntry(item)).filter(Boolean),
+					items: retainProductAndAssistanceItems(menu.items, retainedAnalyzeItems),
 				};
 			}
 			if (menu.id === 'tools' && !capabilities.audioMacros) {
@@ -76,4 +76,8 @@ export function filterProductMenus(menus, capabilities, productId) {
 			};
 		})
 		.filter((menu) => menu.items.length > 0);
+}
+
+function retainProductAndAssistanceItems(items, retainedIds) {
+	return items.map((item) => retainedIds.has(item.id) ? item : assistanceOnlyMenuEntry(item)).filter(Boolean);
 }

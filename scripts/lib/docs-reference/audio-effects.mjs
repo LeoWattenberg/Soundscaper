@@ -97,6 +97,10 @@ function parameterName(type, name, parameterLabel) {
 	return parameterLabel(type, name) ?? `\`${name}\``;
 }
 
+function parameterOptionLabel(type, name, value, optionLabel) {
+	return optionLabel(type, name, value) ?? `\`${String(value)}\``;
+}
+
 function audacityParameterRows(type, definition, context) {
 	const { parameterLabel, optionLabel, formatCurve } = context;
 	return Object.entries(definition.params).map(([name, descriptor]) => {
@@ -110,8 +114,8 @@ function audacityParameterRows(type, definition, context) {
 		}
 		if (descriptor.kind === 'enum') {
 			const choices = descriptor.options
-				.map((item) => optionLabel(type, name, item.value) ?? `\`${String(item.value)}\``);
-			const selected = optionLabel(type, name, descriptor.default) ?? `\`${String(descriptor.default)}\``;
+				.map((item) => parameterOptionLabel(type, name, item.value, optionLabel));
+			const selected = parameterOptionLabel(type, name, descriptor.default, optionLabel);
 			return [label, selected, choices.join('; '), unit];
 		}
 		if (descriptor.kind === 'curve') {
@@ -130,12 +134,12 @@ function audacityParameterRows(type, definition, context) {
 	});
 }
 
+function scalarDefault(value) {
+	return value !== undefined && (typeof value !== 'object' || value === null) ? formatNumber(value) : undefined;
+}
+
 function localScalarDefault(definition, name) {
-	const own = definition.defaults?.[name];
-	if (own !== undefined && (typeof own !== 'object' || own === null)) return formatNumber(own);
-	const band = definition.bandDefaults?.[name];
-	if (band !== undefined && (typeof band !== 'object' || band === null)) return formatNumber(band);
-	return '—';
+	return scalarDefault(definition.defaults?.[name]) ?? scalarDefault(definition.bandDefaults?.[name]) ?? '—';
 }
 
 function localParameterRows(type, definition, context) {
@@ -153,8 +157,8 @@ function localParameterRows(type, definition, context) {
 		]);
 	}
 	for (const [name, choice] of Object.entries(choices)) {
-		const options = choice.options.map((value) => optionLabel(type, name, value) ?? `\`${String(value)}\``);
-		const selected = optionLabel(type, name, definition.defaults?.[name]) ?? `\`${String(definition.defaults?.[name])}\``;
+		const options = choice.options.map((value) => parameterOptionLabel(type, name, value, optionLabel));
+		const selected = parameterOptionLabel(type, name, definition.defaults?.[name], optionLabel);
 		rows.push([parameterName(type, name, parameterLabel), selected, options.join('; '), '—']);
 	}
 	for (const [name, value] of Object.entries(definition.defaults ?? {})) {

@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { deepFreeze } from './deep-freeze.ts';
+
 /** Closed source, toolchain, and self-test evidence carried by an OpenFX CI result. */
 
 import {
@@ -105,10 +107,4 @@ function closedRecord(value, fields, label) {
 		throw new TypeError(`The ${label} has missing or unsupported fields.`);
 	}
 	return value;
-}
-
-function deepFreeze(value) {
-	if (!value || typeof value !== 'object' || Object.isFrozen(value)) return value;
-	for (const child of Object.values(value)) deepFreeze(child);
-	return Object.freeze(value);
 }

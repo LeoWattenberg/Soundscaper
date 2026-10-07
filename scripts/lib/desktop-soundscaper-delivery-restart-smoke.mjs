@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { deepFreeze } from './deep-freeze.ts';
+
 import { createHash, randomBytes } from 'node:crypto';
 import { access, lstat, mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -267,9 +269,3 @@ function validPlatform(value) {
 }
 
 function diagnostics(child) { return [child.stdout, child.stderr].filter(Boolean).join('\n'); }
-
-function deepFreeze(value) {
-	if (!value || typeof value !== 'object' || Object.isFrozen(value)) return value;
-	for (const nested of Object.values(value)) deepFreeze(nested);
-	return Object.freeze(value);
-}

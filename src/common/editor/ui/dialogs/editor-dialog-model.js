@@ -3,10 +3,7 @@ import { parseNativeEffectId } from '../../aup4-browser-effect-payload.js';
 export function formatAup4CompatibilitySummary(report, copy) {
 	const counts = report?.counts || {};
 	const items = aup4CompatibilityItems(report);
-	const count = (disposition) => Math.max(
-		compatibilityCount(counts[disposition]),
-		items.filter((item) => item?.disposition === disposition).length,
-	);
+	const count = (disposition) => reportDispositionCount(counts, items, disposition);
 	return copy.aup4CompatibilitySummary
 		.replace('{direction}', report?.direction === 'open'
 			? isAup3Report(report) ? copy.aup3CompatibilityOpen : copy.aup4CompatibilityOpen
@@ -124,6 +121,7 @@ export function compatibilityCount(value, items = [], disposition = '') {
 export function recordingOffsetSources(snapshot, copy) {
 	const inputs = snapshot.recordingInputs || {};
 	const sources = new Map([['global', copy.recordingDefaultInput]]);
+	const defaultSourceLabel = (key) => key === 'display' ? copy.recordingDesktopAudio : copy.recordingInputUnknownDevice;
 	for (const [index, device] of (inputs.devices || []).entries()) {
 		sources.set(`device:${device.deviceId}`, device.label || copy.recordingInputUnnamedDevice.replace('{number}', String(index + 1)));
 	}
@@ -134,10 +132,10 @@ export function recordingOffsetSources(snapshot, copy) {
 	for (const source of inputs.sources || []) {
 		const key = source.key || source.sourceKey;
 		if (!key || sources.has(key)) continue;
-		sources.set(key, source.label || (key === 'display' ? copy.recordingDesktopAudio : copy.recordingInputUnknownDevice));
+		sources.set(key, source.label || defaultSourceLabel(key));
 	}
 	for (const key of Object.keys(inputs.offsets || {})) {
-		if (!sources.has(key)) sources.set(key, key === 'display' ? copy.recordingDesktopAudio : copy.recordingInputUnknownDevice);
+		if (!sources.has(key)) sources.set(key, defaultSourceLabel(key));
 	}
 	return [...sources].map(([key, label]) => ({ key, label }));
 }
@@ -149,14 +147,18 @@ export function deliveryReportItems(report) {
 export function formatDeliveryReportSummary(report, copy) {
 	const counts = report?.counts || {};
 	const items = deliveryReportItems(report);
-	const count = (disposition) => Math.max(
-		compatibilityCount(counts[disposition]),
-		items.filter((item) => item?.disposition === disposition).length,
-	);
+	const count = (disposition) => reportDispositionCount(counts, items, disposition);
 	return copy.deliveryReportSummary
 		.replace('{format}', String(report?.subject?.format || ''))
 		.replace('{converted}', String(count('converted')))
 		.replace('{omitted}', String(count('omitted')));
+}
+
+function reportDispositionCount(counts, items, disposition) {
+	return Math.max(
+		compatibilityCount(counts[disposition]),
+		items.filter((item) => item?.disposition === disposition).length,
+	);
 }
 
 export function formatDeliveryReportSubject(report, copy) {

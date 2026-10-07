@@ -4,8 +4,9 @@ import { sampleFrameToSeconds, scaleSampleFrame, secondsToSampleFrame } from './
 
 /** Cell parsers shared by edits and new rows so pasted values obey the same limits. */
 export function spreadsheetNumber(raw: string, minimum: number, maximum: number, label: string): number {
-	const value = Number(raw.trim());
-	if (!raw.trim() || !Number.isFinite(value) || value < minimum || value > maximum) throw new RangeError(`${label} must be between ${String(minimum)} and ${String(maximum)}.`);
+	const text = raw.trim();
+	const value = Number(text);
+	if (!text || !Number.isFinite(value) || value < minimum || value > maximum) throw new RangeError(`${label} must be between ${String(minimum)} and ${String(maximum)}.`);
 	return value;
 }
 export function spreadsheetFrames(raw: string, rate: number, positive: boolean): number {
@@ -22,11 +23,13 @@ export function spreadsheetSourceDurationFrames(durationFrames: number, projectR
 		: secondsToSampleFrame(sampleFrameToSeconds(durationFrames, projectRate) * speed, sourceRate, 'point');
 }
 export function spreadsheetBoolean(raw: string): boolean {
-	if (/^(true|yes|1)$/i.test(raw.trim())) return true;
-	if (/^(false|no|0)$/i.test(raw.trim())) return false;
+	const text = raw.trim();
+	if (/^(true|yes|1)$/i.test(text)) return true;
+	if (/^(false|no|0)$/i.test(text)) return false;
 	throw new RangeError('Boolean cells accept true or false.');
 }
 export function spreadsheetGain(raw: string): number {
-	return raw.trim().toLowerCase() === '-infinity' || raw.trim() === '-∞'
+	const text = raw.trim();
+	return text.toLowerCase() === '-infinity' || text === '-∞'
 		? 0 : 10 ** (spreadsheetNumber(raw, -1_000, 20 * Math.log10(16), 'Gain') / 20);
 }

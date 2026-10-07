@@ -26,6 +26,12 @@ export function beginVideoPreviewRenderLedger(layers, supportedEffectTypes) {
 	}
 	const effects = new Map();
 	const composition = new Map();
+	const addEffect = (effect, owner, usePreviewLedgerId = false) => {
+		if (!effect || effect.enabled === false) return;
+		const id = boundedEffectId(usePreviewLedgerId ? effect.previewLedgerId ?? effect.id : effect.id);
+		if (effects.has(id)) throw new Error(`Video preview effect instance ID ${id} is duplicate.`);
+		effects.set(id, { owner, supported: supportedEffectTypes.has(effect.type), outcome: null });
+	};
 	for (const layer of layers || []) {
 		const layerOwner = layer?.[DECODABLE_LAYER_OWNER] ?? layer;
 		for (const entry of layer?.entries || []) {
@@ -41,25 +47,11 @@ export function beginVideoPreviewRenderLedger(layers, supportedEffectTypes) {
 				});
 			}
 			for (const effect of entry?.effects || []) {
-				if (!effect || effect.enabled === false) continue;
-				const id = boundedEffectId(effect.id);
-				if (effects.has(id)) throw new Error(`Video preview effect instance ID ${id} is duplicate.`);
-				effects.set(id, {
-					owner: entry,
-					supported: supportedEffectTypes.has(effect.type),
-					outcome: null,
-				});
+				addEffect(effect, entry);
 			}
 		}
 		for (const effect of layer?.effects || []) {
-			if (!effect || effect.enabled === false) continue;
-			const id = boundedEffectId(effect.previewLedgerId ?? effect.id);
-			if (effects.has(id)) throw new Error(`Video preview effect instance ID ${id} is duplicate.`);
-			effects.set(id, {
-				owner: layerOwner,
-				supported: supportedEffectTypes.has(effect.type),
-				outcome: null,
-			});
+			addEffect(effect, layerOwner, true);
 		}
 	}
 	return { effects, composition };

@@ -1,0 +1,1132 @@
+{
+	"schemaVersion": 1,
+	"date": "2026-10-07",
+	"baseCommit": "1b9a6ce76b66b810a6dd30b94ad0f50559fbddab",
+	"branch": "refactor/code-simplifications-100",
+	"count": 100,
+	"scope": "Behavior-preserving removal of duplicate logic, redundant work and unnecessary control flow; no new features.",
+	"areaCounts": {
+		"shared": 10,
+		"domain": 30,
+		"ui": 30,
+		"tooling": 30
+	},
+	"manualUpdateAiAssetsRequired": false,
+	"runtimeReason": "Application and pure tooling changes do not alter assistance runtime source pins, recipes, dependencies, archive/signing logic or supported targets.",
+	"focusedValidation": {
+		"shared": {
+			"passed": 84
+		},
+		"domain": {
+			"passed": 130
+		},
+		"ui": {
+			"passed": 148
+		},
+		"tooling": {
+			"passed": 177
+		},
+		"note": "Suite counts overlap; they are not a count of unique tests. Existing baseline suites ran before refactoring. Additional tests cover ordering, null and falsy values, cleanup, Unicode whitespace and sparse traversal. The Unicode JSON and sparse-track regressions were demonstrated with failing tests before correction."
+	},
+	"fullValidation": [
+		{
+			"check": "Changed-file lint",
+			"command": "npm run lint:changed",
+			"result": "passed"
+		},
+		{
+			"check": "Final architecture and size gate after packaging repair",
+			"command": "npm run check:architecture",
+			"result": "passed",
+			"detail": "No dependency violations across 4530 modules and 17415 dependencies; controller-domain and maintained-file size checks passed."
+		},
+		{
+			"check": "Canonical non-browser gate",
+			"command": "npm run check",
+			"result": "continued-after-environment-repair",
+			"detail": "Full lint, typechecking, architecture/size checks and audits through Kokoro passed. FFmpeg audit rejected the initial node_modules directory symlink; the existing installed dependencies were copied into a real worktree directory and that audit passed on retry. Remaining canonical stages ran explicitly afterward."
+		},
+		{
+			"check": "FFmpeg runtime audit retry",
+			"command": "npm run audit:ffmpeg-runtime",
+			"result": "passed"
+		},
+		{
+			"check": "Remaining interchange audits and notices",
+			"command": "npm run audit:aup3-interop && npm run audit:aup4-interop && npm run audit:seven-zip && npm run check:notices",
+			"result": "passed"
+		},
+		{
+			"check": "Documentation gate",
+			"command": "npm run docs:check",
+			"result": "passed",
+			"detail": "90 generated reference pages remain unchanged; handbook translation, content and production-build checks passed."
+		},
+		{
+			"check": "Production build",
+			"command": "npm run build",
+			"result": "passed",
+			"detail": "Chunk-size and startup-graph budgets passed; largest JavaScript chunk is 476143 bytes."
+		},
+		{
+			"check": "Startup budget tightening",
+			"command": "npm run check:startup-graph:tighten",
+			"result": "passed",
+			"detail": "No ceiling changes were needed."
+		},
+		{
+			"check": "Final Framescaper browser build",
+			"builder": "scripts/lib/browser-product-test-sites.mjs#buildBrowserProductSite",
+			"result": "passed",
+			"detail": "Final sources built and verified in .wrangler/simplify-final-browser/framescaper, then copied to the ordinary fixture location after the full Chromium run finished."
+		},
+		{
+			"check": "Full Node suite and fresh local coverage",
+			"command": "npm run test:coverage",
+			"result": "all-cases-verified-after-scoped-repairs",
+			"total": 22686,
+			"initialPassed": 22639,
+			"initialFailed": 15,
+			"skipped": 32,
+			"cancelled": 0,
+			"repairedCasesVerifiedByRetries": 15,
+			"verifiedPassedAfterRetries": 22654,
+			"detail": "The original full run exited with the 11 missing pinned validator-tooling failures and 4 missing diagnostic-helper payload failures. All 15 cases subsequently passed in the 29-test interchange and 22-test packaging retries, with successful profiles appended to the full-suite coverage union. No other failing tests appeared.",
+			"coverageReport": {
+				"command": "node scripts/report-local-node-coverage.mjs coverage/v8-all",
+				"result": "passed",
+				"statementsPercent": 89.29,
+				"linesPercent": 89.29,
+				"branchesPercent": 81.82,
+				"functionsPercent": 90.41,
+				"note": "Fresh local Node-only coverage structure passed. Combined Node and Chromium coverage floors remain the CI gate; no floor was changed."
+			}
+		},
+		{
+			"check": "Interchange reference environment retry",
+			"command": "NODE_V8_COVERAGE=coverage/v8-all npm run test:reference:interchange",
+			"result": "passed",
+			"passed": 29,
+			"detail": "The new worktree initially lacked the ignored pinned vendor/interchange-conformance tooling. After copying the existing provisioned tooling, all reference tests passed, including the 3 DAWproject and 8 EDL cases that initially failed. Successful retry profiles were added without clearing the fresh full-suite coverage directory."
+		},
+		{
+			"check": "Nightly payload integration regression retry",
+			"command": "NODE_V8_COVERAGE=coverage/v8-all node --import tsx --import ./scripts/node-style-asset-loader.mjs --test tests/desktop-nightly-tests-staging-closure.test.js tests/desktop-nightly-tests-payload-imports.test.js tests/desktop-nightly-tests-staging.test.js tests/desktop-nightly-tests-staging-refusals.test.js",
+			"result": "passed",
+			"passed": 22,
+			"detail": "Existing tests demonstrated four missing-helper import failures against the extracted helper. Adding its payload inventory entry and completing the shared staging fixture repaired the failures without relaxing assertions."
+		},
+		{
+			"check": "Full Chromium suite",
+			"command": "PLAYWRIGHT_PORT=4382 PLAYWRIGHT_FRAMESCAPER_PORT=4383 npm run test:browser -- --project=chromium",
+			"result": "completed-with-one-timeout",
+			"passed": 1410,
+			"skipped": 16,
+			"failed": 1,
+			"detail": "The split-video-fade test exceeded its unchanged 30000ms total limit at the final Undo step. It passed twice in isolation against the same fixtures, then twice again against the final build, without changing assertions or timeout."
+		},
+		{
+			"check": "Final-build interactive regression check",
+			"command": "PLAYWRIGHT_PORT=4382 PLAYWRIGHT_FRAMESCAPER_PORT=4383 npx playwright test tests/browser/audio-editor-video.spec.js --project=chromium --grep=\"imports generated A/V fixtures|split video clips retain editable fades\" --workers=1 --repeat-each=2",
+			"result": "passed",
+			"passed": 4,
+			"detail": "Includes linked import, layer reorder, crossfades, overlap refusal, split fades and Undo, using rebuilt final product bytes."
+		}
+	],
+	"simplifications": [
+		{
+			"id": 1,
+			"area": "shared",
+			"file": "src/common/project-file-extensions.ts",
+			"symbol": "terminalSegment",
+			"before": "A no-separator branch returned the full string separately.",
+			"after": "Always slice from the last separator plus one; index zero already returns the full string.",
+			"validation": "Focused baseline: 87 tests passed; four added edge tests passed before refactoring; focused final: 84 tests passed."
+		},
+		{
+			"id": 2,
+			"area": "shared",
+			"file": "src/common/transfer/transfer-routes.js",
+			"symbol": "transferRouteForPath",
+			"before": "Parsed and validated pathname segments before comparing against two exact routes.",
+			"after": "Normalize only the optional trailing slash; the closed route table rejects every other shape.",
+			"validation": "Focused baseline: 87 tests passed; four added edge tests passed before refactoring; focused final: 84 tests passed."
+		},
+		{
+			"id": 3,
+			"area": "shared",
+			"file": "src/common/offline/install-prompt.ts",
+			"symbol": "createInstallPromptCapture.prompt",
+			"before": "Repeated the captured-event clearing and availability announcement.",
+			"after": "Reuse the existing discard operation before invoking the captured browser offer.",
+			"validation": "Focused baseline: 87 tests passed; four added edge tests passed before refactoring; focused final: 84 tests passed."
+		},
+		{
+			"id": 4,
+			"area": "shared",
+			"file": "src/common/i18n/locale.js",
+			"symbol": "localizedValue",
+			"before": "The language fallback canonicalized a locale that had just been canonicalized.",
+			"after": "Read the language directly from the already canonical locale.",
+			"validation": "Focused baseline: 87 tests passed; four added edge tests passed before refactoring; focused final: 84 tests passed."
+		},
+		{
+			"id": 5,
+			"area": "shared",
+			"file": "src/common/transfer/transfer-refusal.ts",
+			"symbol": "encodeTransferRefusal",
+			"before": "Trimmed nonempty refusal text twice and split the fallback across a ternary.",
+			"after": "Trim once and apply the unchanged empty-text fallback at formatting.",
+			"validation": "Focused baseline: 87 tests passed; four added edge tests passed before refactoring; focused final: 84 tests passed."
+		},
+		{
+			"id": 6,
+			"area": "shared",
+			"file": "src/common/transfer/transfer-project-selection.ts",
+			"symbol": "transferProjectProduct",
+			"before": "Duplicated schema-identity parsing and its catch-to-null fallback.",
+			"after": "Reuse the local transferProjectIdentity helper and project its schema family.",
+			"validation": "Focused baseline: 87 tests passed; four added edge tests passed before refactoring; focused final: 84 tests passed."
+		},
+		{
+			"id": 7,
+			"area": "shared",
+			"file": "src/common/transfer/transfer-send-watch.ts",
+			"symbol": "bufferTransferPort",
+			"before": "Subscription failure and normal unsubscription duplicated listener clearing and source cleanup.",
+			"after": "Share one unsubscribe operation across both paths.",
+			"validation": "Focused baseline: 87 tests passed; four added edge tests passed before refactoring; focused final: 84 tests passed."
+		},
+		{
+			"id": 8,
+			"area": "shared",
+			"file": "src/common/transfer/transfer-report-rows.ts",
+			"symbol": "describeTransferDownload",
+			"before": "Repeated the successful-download condition in summary and completion calculations.",
+			"after": "Compute complete once and reuse it after the separate empty-run summary branch.",
+			"validation": "Focused baseline: 87 tests passed; four added edge tests passed before refactoring; focused final: 84 tests passed."
+		},
+		{
+			"id": 9,
+			"area": "shared",
+			"file": "src/common/transfer/transfer-report-rows.ts",
+			"symbol": "describeTransferSend",
+			"before": "Stored and refused rows duplicated project label selection.",
+			"after": "Resolve the row label once before selecting the outcome detail.",
+			"validation": "Focused baseline: 87 tests passed; four added edge tests passed before refactoring; focused final: 84 tests passed."
+		},
+		{
+			"id": 10,
+			"area": "shared",
+			"file": "src/common/transfer/transfer-report-rows.ts",
+			"symbol": "describeTransferImport",
+			"before": "Allocated and counted a filtered array solely to check whether any skipped archive was absent.",
+			"after": "Use some to express existence directly and negate it for completion.",
+			"validation": "Focused baseline: 87 tests passed; four added edge tests passed before refactoring; focused final: 84 tests passed."
+		},
+		{
+			"id": 11,
+			"area": "domain",
+			"file": "src/common/editor/audacity-track-selection.ts",
+			"symbol": "anchoredTrackRange",
+			"before": "Advancing and filling a range each rebuilt an anchor-first frozen list.",
+			"after": "One helper constructs the contiguous anchor-first range for both commands.",
+			"validation": "Passed focused Node tests: tests/audacity-track-selection.test.ts; audio-editor-domain-simplifications.test.ts"
+		},
+		{
+			"id": 12,
+			"area": "domain",
+			"file": "src/common/editor/audacity-track-selection.ts",
+			"symbol": "advanceAudacityTrackSelection",
+			"before": "Anchor lookup scanned track IDs with includes followed by indexOf.",
+			"after": "One indexOf result both checks membership and locates the anchor.",
+			"validation": "Passed focused Node tests: tests/audacity-track-selection.test.ts; audio-editor-domain-simplifications.test.ts"
+		},
+		{
+			"id": 13,
+			"area": "domain",
+			"file": "src/common/editor/audacity-track-selection.ts",
+			"symbol": "audacityTrackRangeSelection",
+			"before": "Empty track lists and missing focus each had a separate empty-result guard.",
+			"after": "The focused-index guard also handles an empty list.",
+			"validation": "Passed focused Node tests: tests/audacity-track-selection.test.ts; audio-editor-domain-simplifications.test.ts"
+		},
+		{
+			"id": 14,
+			"area": "domain",
+			"file": "src/common/editor/clip-spreadsheet-values.ts",
+			"symbol": "spreadsheetNumber",
+			"before": "The raw numeric cell was trimmed twice for conversion and empty-cell validation.",
+			"after": "Trim once and reuse the text for both checks.",
+			"validation": "Passed focused Node tests: tests/audio-editor-clip-spreadsheet.test.ts; audio-editor-domain-simplifications.test.ts"
+		},
+		{
+			"id": 15,
+			"area": "domain",
+			"file": "src/common/editor/clip-spreadsheet-values.ts",
+			"symbol": "spreadsheetBoolean",
+			"before": "True and false token checks each trimmed the same cell.",
+			"after": "Trim once before checking both token vocabularies.",
+			"validation": "Passed focused Node tests: tests/audio-editor-clip-spreadsheet.test.ts; audio-editor-domain-simplifications.test.ts"
+		},
+		{
+			"id": 16,
+			"area": "domain",
+			"file": "src/common/editor/clip-spreadsheet-values.ts",
+			"symbol": "spreadsheetGain",
+			"before": "Both negative-infinity spellings separately trimmed the raw gain cell.",
+			"after": "Reuse one trimmed text value for the two silence spellings.",
+			"validation": "Passed focused Node tests: tests/audio-editor-clip-spreadsheet.test.ts; audio-editor-domain-simplifications.test.ts"
+		},
+		{
+			"id": 17,
+			"area": "domain",
+			"file": "src/common/editor/editing-preferences.ts",
+			"symbol": "normalizeAudioEditorEditingPreferences",
+			"before": "The normalizer duplicated default literals already held in the frozen default object.",
+			"after": "Read every boolean and enum fallback from the published default object.",
+			"validation": "Passed focused Node tests: tests/audio-editor-editing-preferences.test.ts"
+		},
+		{
+			"id": 18,
+			"area": "domain",
+			"file": "src/common/editor/editing-preferences.ts",
+			"symbol": "resolveAudioEditorDefaultDelete",
+			"before": "Three close-gap cases each rebuilt the same two-field route object.",
+			"after": "Construct one route with the two independently derived field values.",
+			"validation": "Passed focused Node tests: tests/audio-editor-editing-preferences.test.ts"
+		},
+		{
+			"id": 19,
+			"area": "domain",
+			"file": "src/common/editor/editing-preferences.ts",
+			"symbol": "resolveAudioEditorZoomToggle",
+			"before": "Both preset-distance expressions recalculated the current scale logarithm.",
+			"after": "Calculate the current logarithm once and reuse it.",
+			"validation": "Passed focused Node tests: tests/audio-editor-editing-preferences.test.ts"
+		},
+		{
+			"id": 20,
+			"area": "domain",
+			"file": "src/common/editor/loudness-normalization.ts",
+			"symbol": "loudnessDeliveryError",
+			"before": "Unknown and measurable deliveries constructed duplicate frozen result objects.",
+			"after": "Construct one frozen result and derive only the nullable tolerance field.",
+			"validation": "Passed focused Node tests: tests/audio-editor-loudness-normalization.test.ts"
+		},
+		{
+			"id": 21,
+			"area": "domain",
+			"file": "src/common/editor/audacity-waveform-renderer.js",
+			"symbol": "waveformSampleScale",
+			"before": "Waveform mode and point visibility repeated number coercion and scale admission.",
+			"after": "Use one scale reader preserving the shared RangeError and thresholds.",
+			"validation": "Passed focused Node tests: tests/audio-editor-waveform-renderer.test.js"
+		},
+		{
+			"id": 22,
+			"area": "domain",
+			"file": "src/common/editor/audacity-waveform-renderer.js",
+			"symbol": "audacityWaveformChannelGeometry",
+			"before": "Half-wave and full-wave branches each constructed the same geometry object.",
+			"after": "Use one return object with the original arithmetic selected per field.",
+			"validation": "Passed focused Node tests: tests/audio-editor-waveform-renderer.test.js"
+		},
+		{
+			"id": 23,
+			"area": "domain",
+			"file": "src/common/editor/macro-command-steps.ts",
+			"symbol": "macroCommandStepCommands",
+			"before": "A private wrapper and duplicate profile registry mirrored the exported select-command registry.",
+			"after": "Read the existing exported registry directly and delete the mirror and accessor.",
+			"validation": "Passed focused Node tests: tests/audio-editor-macro-command-steps.test.ts"
+		},
+		{
+			"id": 24,
+			"area": "domain",
+			"file": "src/common/editor/search.js",
+			"symbol": "normalizeAudioEditorSearchText",
+			"before": "The separator replacement collapsed runs before a second whitespace-run replacement.",
+			"after": "Delete the redundant whitespace pass after separator collapse and trim.",
+			"validation": "Passed focused Node tests: tests/audio-editor-search.test.js; audio-editor-domain-simplifications.test.ts"
+		},
+		{
+			"id": 25,
+			"area": "domain",
+			"file": "src/common/editor/search.js",
+			"symbol": "flattenAudioEditorSearchMenus path construction",
+			"before": "Command identity and stored paths separately copied the same breadcrumb-and-label array.",
+			"after": "Build the path once and reuse it for identity and the search entry.",
+			"validation": "Passed focused Node tests: tests/audio-editor-search.test.js; audio-editor-domain-simplifications.test.ts"
+		},
+		{
+			"id": 26,
+			"area": "domain",
+			"file": "src/common/editor/search.js",
+			"symbol": "flattenAudioEditorSearchMenus term construction",
+			"before": "Base terms were deduplicated before the combined base-plus-alias list was deduplicated again.",
+			"after": "Deduplicate only the complete list while retaining first-occurrence order.",
+			"validation": "Passed focused Node tests: tests/audio-editor-search.test.js; audio-editor-domain-simplifications.test.ts"
+		},
+		{
+			"id": 27,
+			"area": "domain",
+			"file": "src/common/editor/search.js",
+			"symbol": "searchAudioEditorEntries",
+			"before": "The empty-query branch copied an array already newly allocated by filter.",
+			"after": "Sort the filtered array directly, preserving the supplied array.",
+			"validation": "Passed focused Node tests: tests/audio-editor-search.test.js; audio-editor-domain-simplifications.test.ts"
+		},
+		{
+			"id": 28,
+			"area": "domain",
+			"file": "src/common/editor/search.js",
+			"symbol": "commandIdentity",
+			"before": "The candidate identity was trimmed once for the condition and again for the return.",
+			"after": "Read its text once and return that admitted value.",
+			"validation": "Passed focused Node tests: tests/audio-editor-search.test.js"
+		},
+		{
+			"id": 29,
+			"area": "domain",
+			"file": "src/common/editor/search.js",
+			"symbol": "tokensCovered",
+			"before": "Token matching checked equality before startsWith, which already includes equality.",
+			"after": "Use the prefix check alone for complete and partial token matches.",
+			"validation": "Passed focused Node tests: tests/audio-editor-search.test.js"
+		},
+		{
+			"id": 30,
+			"area": "domain",
+			"file": "src/common/editor/search.js",
+			"symbol": "scoreEntry field mapping",
+			"before": "Breadcrumb and term fields each used two adjacent map passes.",
+			"after": "Each field list now maps directly to its trimmed weighted pair in one pass.",
+			"validation": "Passed focused Node tests: tests/audio-editor-search.test.js"
+		},
+		{
+			"id": 31,
+			"area": "domain",
+			"file": "src/common/editor/search.js",
+			"symbol": "uniqueText",
+			"before": "A manual accumulator loop tracked a Set and a result array for text filtering and deduplication.",
+			"after": "Express ordered unique nonempty text with map, filter, and Set.",
+			"validation": "Passed focused Node tests: tests/audio-editor-search.test.js; audio-editor-domain-simplifications.test.ts"
+		},
+		{
+			"id": 32,
+			"area": "domain",
+			"file": "src/common/editor/search.js",
+			"symbol": "resultLimit",
+			"before": "Undefined limits had a separate fallback before the non-finite fallback.",
+			"after": "Let Number(undefined) reach the existing non-finite fallback.",
+			"validation": "Passed focused Node tests: tests/audio-editor-search.test.js; audio-editor-domain-simplifications.test.ts"
+		},
+		{
+			"id": 33,
+			"area": "domain",
+			"file": "src/common/editor/search.js",
+			"symbol": "CHANGE_PITCH_ALIASES",
+			"before": "Legacy and builtin pitch commands repeated their entire alias vocabulary.",
+			"after": "Define the pitch vocabulary once and preserve separate frozen exported list copies.",
+			"validation": "Passed focused Node tests: tests/audio-editor-search.test.js; audio-editor-domain-simplifications.test.ts"
+		},
+		{
+			"id": 34,
+			"area": "domain",
+			"file": "src/common/editor/search.js",
+			"symbol": "CHANGE_TEMPO_ALIASES",
+			"before": "Legacy and builtin tempo commands repeated their entire alias vocabulary.",
+			"after": "Define the tempo vocabulary once and preserve separate frozen exported list copies.",
+			"validation": "Passed focused Node tests: tests/audio-editor-search.test.js; audio-editor-domain-simplifications.test.ts"
+		},
+		{
+			"id": 35,
+			"area": "domain",
+			"file": "src/common/editor/snap-grid.js",
+			"symbol": "snapAudioEditorFrameWithProject",
+			"before": "Snapping copied freshly normalized frozen settings and overwrote triplets with itself.",
+			"after": "Pass the settings directly to the read-only snap resolver.",
+			"validation": "Passed focused Node tests: tests/audio-editor-snap-grid.test.js"
+		},
+		{
+			"id": 36,
+			"area": "domain",
+			"file": "src/common/editor/source-monitor-model.ts",
+			"symbol": "resolveSourceMonitorPoints",
+			"before": "Two point-filling conditions repeatedly allocated rest arrays and filtered them through a count helper.",
+			"after": "Derive the two missing-point decisions directly from the admitted one-or-two sequence points.",
+			"validation": "Passed focused Node tests: tests/audio-editor-source-monitor-model.test.ts exhaustive mark/sequence-point cases"
+		},
+		{
+			"id": 37,
+			"area": "domain",
+			"file": "src/common/editor/source-monitor-model.ts",
+			"symbol": "resolveProgramFrame",
+			"before": "The same source-frame-count fallback and number conversion fed proportional mapping and the output field.",
+			"after": "Resolve source frame count once after retime resolution and reuse it.",
+			"validation": "Passed focused Node tests: tests/audio-editor-source-monitor-model.test.ts"
+		},
+		{
+			"id": 38,
+			"area": "domain",
+			"file": "src/common/editor/source-properties-model.ts",
+			"symbol": "resolveSourceTimecodeAtSample",
+			"before": "The program sample was clamped and truncated independently for frame lookup and retime lookup.",
+			"after": "Resolve one timeline sample for both lookups.",
+			"validation": "Passed focused Node tests: tests/audio-editor-source-properties-model.test.ts; audio-editor-source-monitor-model.test.ts"
+		},
+		{
+			"id": 39,
+			"area": "domain",
+			"file": "src/common/editor/source-properties-model.ts",
+			"symbol": "findVideoSource",
+			"before": "Inspected-source and source-timecode resolution duplicated the strict-ID video-source predicate.",
+			"after": "Share one private video-source lookup with the same record and kind admission.",
+			"validation": "Passed focused Node tests: tests/audio-editor-source-properties-model.test.ts; audio-editor-source-monitor-model.test.ts"
+		},
+		{
+			"id": 40,
+			"area": "domain",
+			"file": "src/common/editor/clip-silence-regions.ts",
+			"symbol": "appendSilenceRegion",
+			"before": "Interior and trailing silence runs separately checked minimum duration and appended a tuple.",
+			"after": "Share the run admission and append operation for both scan termination paths.",
+			"validation": "Passed focused Node tests: tests/clip-silence-regions.test.ts; audio-editor-domain-simplifications.test.ts"
+		},
+		{
+			"id": 41,
+			"area": "ui",
+			"file": "src/common/editor/ui/timeline-track-block-geometry.ts",
+			"symbol": "mediaTrackBlockBounds",
+			"before": "Mapped and filtered every lane index before spreading them into two extrema calls.",
+			"after": "Compute both bounds in one forEach traversal without temporary index arrays, retaining sparse-array traversal semantics.",
+			"relatedTests": [
+				"tests/audio-editor-ui-track-block-geometry.test.ts",
+				"tests/audio-editor-ui-simplification-contracts.test.ts"
+			],
+			"regression": "A sparse sibling list test failed with entries traversal; forEach retains the original map traversal semantics and passes."
+		},
+		{
+			"id": 42,
+			"area": "ui",
+			"file": "src/common/editor/ui/application-menu-model.js",
+			"symbol": "audioEditorTrackBlockBounds",
+			"before": "Duplicated the canonical UI track block bounds implementation.",
+			"after": "Re-export the canonical helper under the compatibility API name.",
+			"relatedTests": [
+				"tests/audio-editor-app-helpers.test.ts",
+				"tests/audio-editor-ui-track-block-geometry.test.ts"
+			]
+		},
+		{
+			"id": 43,
+			"area": "ui",
+			"file": "src/common/editor/ui/application-menu-model.js",
+			"symbol": "moveAudioEditorTrackBlock",
+			"before": "Duplicated track movement destination rules in a deeply nested ternary.",
+			"after": "Use mediaTrackBlockDestination and keep the existing reorder action.",
+			"relatedTests": [
+				"tests/audio-editor-app-helpers.test.ts"
+			]
+		},
+		{
+			"id": 44,
+			"area": "ui",
+			"file": "src/common/editor/ui/application-menu-model.js",
+			"symbol": "trackSources",
+			"before": "Built intermediate clip/source tuples, filtered them and built another Map.",
+			"after": "Collect valid resolved sources directly in one Map while preserving order and duplicate identity semantics.",
+			"relatedTests": [
+				"tests/audio-editor-ui-simplification-contracts.test.ts"
+			]
+		},
+		{
+			"id": 45,
+			"area": "ui",
+			"file": "src/common/editor/ui/export-channel-matrix.ts",
+			"symbol": "ensureExportChannelMatrixWidth",
+			"before": "Read the unchanged matrix output count three times.",
+			"after": "Read the existing width once and reuse it for bounds and identity preservation.",
+			"relatedTests": [
+				"tests/audio-editor-export-channel-matrix.test.ts"
+			]
+		},
+		{
+			"id": 46,
+			"area": "ui",
+			"file": "src/common/editor/ui/export-channel-matrix.ts",
+			"symbol": "readOutputChannels",
+			"before": "Validated positive array lengths separately for bare arrays and channels records.",
+			"after": "Resolve both spellings into one channel value and share the array/length guard.",
+			"relatedTests": [
+				"tests/audio-editor-export-channel-matrix.test.ts",
+				"tests/audio-editor-export-channel-matrix-request-spellings.test.ts"
+			]
+		},
+		{
+			"id": 47,
+			"area": "ui",
+			"file": "src/common/editor/ui/export-channel-matrix.ts",
+			"symbol": "parseJson",
+			"before": "Trimmed input and separately branched on an empty string before JSON parsing.",
+			"after": "Parse trimmed text directly, retaining BOM and Unicode whitespace admission; the existing catch also handles empty input.",
+			"relatedTests": [
+				"tests/audio-editor-export-channel-matrix.test.ts"
+			],
+			"regression": "A new BOM/Unicode whitespace mapping test failed after removing trim; restoring trim made it pass."
+		},
+		{
+			"id": 48,
+			"area": "ui",
+			"file": "src/common/editor/ui/export-channel-matrix.ts",
+			"symbol": "boundedExportChannelCount",
+			"before": "The public helper only wrapped a private implementation used internally.",
+			"after": "Expose the implementation directly and call that single helper internally.",
+			"relatedTests": [
+				"tests/audio-editor-export-channel-matrix.test.ts"
+			]
+		},
+		{
+			"id": 49,
+			"area": "ui",
+			"file": "src/common/editor/ui/workspace-shortcuts.ts",
+			"symbol": "handleWorkspaceKeyboard / videoNavigationShortcut",
+			"before": "Constructed a second event-like object and matched video navigation twice.",
+			"after": "Allow reservation matching to ignore repeat and reuse that result; held keys still stop before dispatch.",
+			"relatedTests": [
+				"tests/audio-editor-app-helpers.test.ts"
+			]
+		},
+		{
+			"id": 50,
+			"area": "ui",
+			"file": "src/common/editor/ui/workspace-shortcuts.ts",
+			"symbol": "isNativeEditableShortcut",
+			"before": "Repeated the no-Control/no-Meta test for the Shift-F10 and function-key paths.",
+			"after": "Evaluate the modifier condition once and retain the two native-key rules inside it.",
+			"relatedTests": [
+				"tests/audio-editor-app-helpers.test.ts",
+				"tests/audio-editor-toolbar-field-navigation.test.tsx"
+			]
+		},
+		{
+			"id": 51,
+			"area": "ui",
+			"file": "src/common/editor/ui/workspace-shortcuts.ts",
+			"symbol": "handleEditorToolbarFocus / handleEditorToolbarBlur",
+			"before": "Duplicated the maximum active tabindex calculation.",
+			"after": "Use editorToolbarActiveTabIndex for focus and blur.",
+			"relatedTests": [
+				"tests/audio-editor-ui-simplification-contracts.test.ts",
+				"tests/audio-editor-toolbar-field-navigation.test.tsx"
+			]
+		},
+		{
+			"id": 52,
+			"area": "ui",
+			"file": "src/common/editor/ui/workspace-shortcuts.ts",
+			"symbol": "handleEditorToolbarKeyDown / handleEditorToolbarFocus / handleEditorToolbarBlur",
+			"before": "Repeated the per-element roving tabindex assignment in three handlers.",
+			"after": "Use setEditorToolbarTabStop; remove the overwritten next initialization encountered by lint.",
+			"relatedTests": [
+				"tests/audio-editor-ui-simplification-contracts.test.ts",
+				"tests/audio-editor-toolbar-field-navigation.test.tsx"
+			]
+		},
+		{
+			"id": 53,
+			"area": "ui",
+			"file": "src/common/editor/ui/application-menu-product-filter.js",
+			"symbol": "filterProductMenus",
+			"before": "Repeated product-entry retention and assistance-only projection for three menus.",
+			"after": "Use retainProductAndAssistanceItems to share that projection.",
+			"relatedTests": [
+				"tests/audio-editor-assistance-task-menu.test.ts",
+				"tests/audio-editor-workspace-pickers.test.ts"
+			]
+		},
+		{
+			"id": 54,
+			"area": "ui",
+			"file": "src/common/editor/ui/desktop-host-menu.ts",
+			"symbol": "createDesktopNativeTierControlsStore.apply",
+			"before": "Created identical mutation completion callbacks for fulfillment and rejection.",
+			"after": "Reuse one settled callback in both Promise.then branches.",
+			"relatedTests": [
+				"tests/audio-editor-desktop-host-menu.test.ts",
+				"tests/audio-editor-file-service-native-tier.test.ts"
+			]
+		},
+		{
+			"id": 55,
+			"area": "ui",
+			"file": "src/common/editor/ui/dialog-drag-bounds.ts",
+			"symbol": "constrainDialogDragOffset",
+			"before": "Clamped the maximum against the minimum before also clamping the result against that same minimum.",
+			"after": "Use the equivalent ordinary min/max clamp, including undersized viewports.",
+			"relatedTests": [
+				"tests/audio-editor-dialog-drag-bounds.test.ts",
+				"tests/audio-editor-ui-simplification-contracts.test.ts"
+			]
+		},
+		{
+			"id": 56,
+			"area": "ui",
+			"file": "src/common/editor/ui/video-preview-composition-blend.ts",
+			"symbol": "videoPreviewBlendModeCode",
+			"before": "Looked up a blend mode twice with Map.has then Map.get.",
+			"after": "Read the code once and use undefined to reject unsupported modes.",
+			"relatedTests": [
+				"tests/audio-editor-video-preview-render-description.test.js"
+			]
+		},
+		{
+			"id": 57,
+			"area": "ui",
+			"file": "src/common/editor/ui/video-preview-composition-blend.ts",
+			"symbol": "videoPreviewBlendPixel",
+			"before": "Computed a blended array and sliced an already-three-channel backdrop before mapping final RGB.",
+			"after": "Blend each channel directly inside the RGB mapping.",
+			"relatedTests": [
+				"tests/audio-editor-video-preview-render-description.test.js",
+				"tests/audio-editor-ui-simplification-contracts.test.ts"
+			]
+		},
+		{
+			"id": 58,
+			"area": "ui",
+			"file": "src/common/editor/ui/video-preview-render-ledger.js",
+			"symbol": "beginVideoPreviewRenderLedger",
+			"before": "Repeated effect admission, ID validation, duplicate detection and state insertion for clips and layers.",
+			"after": "Share addEffect while preserving layer-specific preview IDs and disabled-effect short-circuiting.",
+			"relatedTests": [
+				"tests/audio-editor-video-preview-render-ledger.test.js"
+			]
+		},
+		{
+			"id": 59,
+			"area": "ui",
+			"file": "src/common/editor/ui/dialogs/timed-recording-dialog-model.ts",
+			"symbol": "updateTimedRecordingDialogStart / updateTimedRecordingDialogEnd",
+			"before": "Duplicated elapsed-duration calculation and fallback handling.",
+			"after": "Use elapsedDuration for both fields.",
+			"relatedTests": [
+				"tests/audio-editor-timed-recording-dialog-model.test.ts",
+				"tests/audio-editor-round3-timed-recording-local-gap.test.ts",
+				"tests/audio-editor-round3-timed-recording-precision.test.ts"
+			]
+		},
+		{
+			"id": 60,
+			"area": "ui",
+			"file": "src/common/editor/ui/dialogs/timed-recording-dialog-model.ts",
+			"symbol": "updateTimedRecordingDialogStart / updateTimedRecordingDialogDuration",
+			"before": "Duplicated duration-mode end-date calculation and invalid-start fallback.",
+			"after": "Use durationEndTime for both fields.",
+			"relatedTests": [
+				"tests/audio-editor-timed-recording-dialog-model.test.ts",
+				"tests/audio-editor-round3-timed-recording-local-gap.test.ts",
+				"tests/audio-editor-round3-timed-recording-precision.test.ts"
+			]
+		},
+		{
+			"id": 61,
+			"area": "ui",
+			"file": "src/common/editor/ui/dialogs/editor-dialog-model.js",
+			"symbol": "formatAup4CompatibilitySummary / formatDeliveryReportSummary",
+			"before": "Repeated maximum-of-declared-and-observed disposition count calculations.",
+			"after": "Share reportDispositionCount for compatibility and delivery summaries.",
+			"relatedTests": [
+				"tests/audio-editor-aup3-compatibility-copy.test.ts",
+				"tests/audio-editor-delivery-report-surface.test.ts",
+				"tests/audio-editor-dialog-wiring.test.ts"
+			]
+		},
+		{
+			"id": 62,
+			"area": "ui",
+			"file": "src/common/editor/ui/dialogs/editor-dialog-model.js",
+			"symbol": "recordingOffsetSources",
+			"before": "Repeated display-versus-unknown-device fallback label selection.",
+			"after": "Use one local defaultSourceLabel for discovered sources and stored offsets.",
+			"relatedTests": [
+				"tests/audio-editor-dialog-wiring.test.ts"
+			]
+		},
+		{
+			"id": 63,
+			"area": "ui",
+			"file": "src/common/editor/ui/export-dialog-audio-codec-options.ts",
+			"symbol": "exportDialogMp3BitRateModeOptions / exportDialogOpusVbrModeOptions",
+			"before": "Duplicated frozen localized option projection.",
+			"after": "Share localizedOptions with codec-specific copy-key tables.",
+			"relatedTests": [
+				"tests/audio-editor-export-dialog-audio-codec-options.test.ts"
+			]
+		},
+		{
+			"id": 64,
+			"area": "ui",
+			"file": "src/common/editor/ui/export-dialog-audio-codec-options.ts",
+			"symbol": "exportDialogBitRateOptions / exportDialogVorbisQualityOptions / normalizeExportDialogAudioSettings",
+			"before": "Repeated numeric option string conversion, label construction and item freezing.",
+			"after": "Share numericOptions with an optional unit suffix.",
+			"relatedTests": [
+				"tests/audio-editor-export-dialog-audio-codec-options.test.ts",
+				"tests/audio-editor-io-user-regressions.test.ts"
+			]
+		},
+		{
+			"id": 65,
+			"area": "ui",
+			"file": "src/common/editor/ui/export-dialog-audio-codec-options.ts",
+			"symbol": "constrainExportDialogSampleRate",
+			"before": "Created a singleton candidate array and reduced it for unrestricted rates.",
+			"after": "Return the bounded rate directly when no exact-rate list applies.",
+			"relatedTests": [
+				"tests/audio-editor-export-dialog-audio-codec-options.test.ts"
+			]
+		},
+		{
+			"id": 66,
+			"area": "ui",
+			"file": "src/common/editor/ui/adm-metadata-editor-model.ts",
+			"symbol": "setAdmEditorLayout",
+			"before": "Copied presentation labels into routing assignments, overwrote them and stripped them with an additional map.",
+			"after": "Construct only routing identity fields and remove the label-stripping pass.",
+			"relatedTests": [
+				"tests/audio-editor-adm-ui-model.test.ts"
+			]
+		},
+		{
+			"id": 67,
+			"area": "ui",
+			"file": "src/common/editor/ui/adm-metadata-editor-model.ts",
+			"symbol": "setAdmEditorLayout / setAdmEditorAssignment",
+			"before": "Repeated the three-part source-channel identity comparison.",
+			"after": "Share sameSourceChannel for lookup and replacement.",
+			"relatedTests": [
+				"tests/audio-editor-adm-ui-model.test.ts"
+			]
+		},
+		{
+			"id": 68,
+			"area": "ui",
+			"file": "src/common/editor/ui/application-menu-access-key.ts",
+			"symbol": "createApplicationMenuAccessKeyController",
+			"before": "Repeated the no-Shift/no-Control/no-Meta guard for Alt, access keys, F10 and Alt release.",
+			"after": "Share hasNoAccessKeyModifiers and retain the distinct Alt requirements.",
+			"relatedTests": [
+				"tests/audio-editor-application-menu-access-key.test.ts"
+			]
+		},
+		{
+			"id": 69,
+			"area": "ui",
+			"file": "src/common/editor/ui/meter-settings.ts",
+			"symbol": "normalizeMeterSettings",
+			"before": "Repeated typed membership checks and fallback selection for seven meter enums.",
+			"after": "Share meterChoice while retaining side-to-panel migration and numeric dbRange coercion.",
+			"relatedTests": [
+				"tests/audio-editor-app-helpers.test.ts",
+				"tests/audio-editor-ui-simplification-contracts.test.ts"
+			]
+		},
+		{
+			"id": 70,
+			"area": "ui",
+			"file": "src/common/editor/ui/meter-settings.ts",
+			"symbol": "formatEbuLoudness / formatLra / formatDbtp",
+			"before": "Repeated numeric admission, decimal formatting, minus conversion and missing-value labels.",
+			"after": "Share formatMeterNumber while retaining the relative loudness offset.",
+			"relatedTests": [
+				"tests/audio-editor-ui-simplification-contracts.test.ts"
+			]
+		},
+		{
+			"id": 71,
+			"area": "tooling",
+			"file": "scripts/lib/e2e-coverage-contract.mjs",
+			"symbol": "errorMessage",
+			"before": "Duplicated Error-versus-string diagnostic conversion.",
+			"after": "Import the shared, tested diagnosticErrorMessage implementation under the existing local name.",
+			"validation": "174-test focused suite passed, including corresponding coverage/quality/R2 tests and tooling-diagnostic-error-message.test.ts."
+		},
+		{
+			"id": 72,
+			"area": "tooling",
+			"file": "scripts/lib/ci-diagnostics.mjs",
+			"symbol": "messageOf",
+			"before": "Duplicated Error-versus-string diagnostic conversion.",
+			"after": "Import the shared, tested diagnosticErrorMessage implementation under the existing local name.",
+			"validation": "174-test focused suite passed, including corresponding coverage/quality/R2 tests and tooling-diagnostic-error-message.test.ts."
+		},
+		{
+			"id": 73,
+			"area": "tooling",
+			"file": "scripts/lib/e2e-v8-topology.mjs",
+			"symbol": "errorMessage",
+			"before": "Duplicated Error-versus-string diagnostic conversion.",
+			"after": "Import the shared, tested diagnosticErrorMessage implementation under the existing local name.",
+			"validation": "174-test focused suite passed, including corresponding coverage/quality/R2 tests and tooling-diagnostic-error-message.test.ts."
+		},
+		{
+			"id": 74,
+			"area": "tooling",
+			"file": "scripts/lib/e2e-coverage-integrity.mjs",
+			"symbol": "errorMessage",
+			"before": "Duplicated Error-versus-string diagnostic conversion.",
+			"after": "Import the shared, tested diagnosticErrorMessage implementation under the existing local name.",
+			"validation": "174-test focused suite passed, including corresponding coverage/quality/R2 tests and tooling-diagnostic-error-message.test.ts."
+		},
+		{
+			"id": 75,
+			"area": "tooling",
+			"file": "scripts/lib/e2e-coverage-runner.mjs",
+			"symbol": "errorMessage",
+			"before": "Duplicated Error-versus-string diagnostic conversion.",
+			"after": "Import the shared, tested diagnosticErrorMessage implementation under the existing local name.",
+			"validation": "174-test focused suite passed, including corresponding coverage/quality/R2 tests and tooling-diagnostic-error-message.test.ts."
+		},
+		{
+			"id": 76,
+			"area": "tooling",
+			"file": "scripts/lib/quality-collector-runtime.mjs",
+			"symbol": "errorMessage",
+			"before": "Duplicated Error-versus-string diagnostic conversion.",
+			"after": "Import the shared, tested diagnosticErrorMessage implementation under the existing local name.",
+			"validation": "174-test focused suite passed, including corresponding coverage/quality/R2 tests and tooling-diagnostic-error-message.test.ts."
+		},
+		{
+			"id": 77,
+			"area": "tooling",
+			"file": "scripts/lib/r2-client.mjs",
+			"symbol": "errorMessage",
+			"before": "Duplicated Error-versus-string diagnostic conversion.",
+			"after": "Import the shared, tested diagnosticErrorMessage implementation under the existing local name.",
+			"validation": "174-test focused suite passed, including corresponding coverage/quality/R2 tests and tooling-diagnostic-error-message.test.ts."
+		},
+		{
+			"id": 78,
+			"area": "tooling",
+			"file": "scripts/lib/docs-reference/markdown.mjs",
+			"symbol": "compareText",
+			"before": "Private duplicate of the canonical code-unit comparator.",
+			"after": "Re-export the owning canonical-json comparator.",
+			"validation": "Focused docs-reference-generator, docs-reference-pages, docs-guides and handbook-product-content tests passed; node scripts/docs-reference.mjs --check passed."
+		},
+		{
+			"id": 79,
+			"area": "tooling",
+			"file": "scripts/lib/docs-reference/markdown.mjs",
+			"symbol": "formatRange",
+			"before": "Repeated unbounded-bound checks across three branches.",
+			"after": "Compute each bound predicate once and reuse it.",
+			"validation": "Focused docs-reference-generator, docs-reference-pages, docs-guides and handbook-product-content tests passed; node scripts/docs-reference.mjs --check passed."
+		},
+		{
+			"id": 80,
+			"area": "tooling",
+			"file": "scripts/lib/handbook-product-content.mjs",
+			"symbol": "handbookContentPlan.includes",
+			"before": "A one-argument wrapper only forwards into isFramescaperEntry.",
+			"after": "Use the existing predicate directly.",
+			"validation": "Focused docs-reference-generator, docs-reference-pages, docs-guides and handbook-product-content tests passed; node scripts/docs-reference.mjs --check passed."
+		},
+		{
+			"id": 81,
+			"area": "tooling",
+			"file": "scripts/lib/docs-reference/audio-effects.mjs",
+			"symbol": "localScalarDefault",
+			"before": "Duplicate scalar admission and formatting for own and band defaults.",
+			"after": "Share scalar admission and formatting with lazy nullish fallback, preserving zero, false and null defaults.",
+			"validation": "docs-reference-pages.test.js and docs-reference-scalar-defaults.test.ts passed; generated documentation --check passed."
+		},
+		{
+			"id": 82,
+			"area": "tooling",
+			"file": "scripts/lib/docs-reference/commands.mjs",
+			"symbol": "localApplicationMenuCommands product membership",
+			"before": "Constructed a map of products but only used membership.",
+			"after": "Construct only the product-ID set the validation needs.",
+			"validation": "Focused docs-reference-generator, docs-reference-pages, docs-guides and handbook-product-content tests passed; node scripts/docs-reference.mjs --check passed."
+		},
+		{
+			"id": 83,
+			"area": "tooling",
+			"file": "scripts/lib/soundscaper-soak-debug-report.mjs",
+			"symbol": "deepFreeze",
+			"before": "Private recursive freezing implementation duplicated across tooling records.",
+			"after": "Import focused shared deepFreeze, preserving primitives, identity and frozen-object short circuit.",
+			"validation": "174-test focused suite passed, including corresponding desktop smoke/soak evidence tests and tooling-deep-freeze.test.ts."
+		},
+		{
+			"id": 84,
+			"area": "tooling",
+			"file": "scripts/lib/soundscaper-soak-debug-config.mjs",
+			"symbol": "deepFreeze",
+			"before": "Private recursive freezing implementation duplicated across tooling records.",
+			"after": "Import focused shared deepFreeze, preserving primitives, identity and frozen-object short circuit.",
+			"validation": "174-test focused suite passed, including corresponding desktop smoke/soak evidence tests and tooling-deep-freeze.test.ts."
+		},
+		{
+			"id": 85,
+			"area": "tooling",
+			"file": "scripts/lib/desktop-scape-open-smoke.mjs",
+			"symbol": "deepFreeze",
+			"before": "Private recursive freezing implementation duplicated across tooling records.",
+			"after": "Import focused shared deepFreeze, preserving primitives, identity and frozen-object short circuit.",
+			"validation": "174-test focused suite passed, including corresponding desktop smoke/soak evidence tests and tooling-deep-freeze.test.ts."
+		},
+		{
+			"id": 86,
+			"area": "tooling",
+			"file": "scripts/lib/desktop-scape-reopen-smoke.mjs",
+			"symbol": "deepFreeze",
+			"before": "Private recursive freezing implementation duplicated across tooling records.",
+			"after": "Import focused shared deepFreeze, preserving primitives, identity and frozen-object short circuit.",
+			"validation": "174-test focused suite passed, including corresponding desktop smoke/soak evidence tests and tooling-deep-freeze.test.ts."
+		},
+		{
+			"id": 87,
+			"area": "tooling",
+			"file": "scripts/lib/desktop-direct-aiff-smoke-file.mjs",
+			"symbol": "deepFreeze",
+			"before": "Private recursive freezing implementation duplicated across tooling records.",
+			"after": "Import focused shared deepFreeze, preserving primitives, identity and frozen-object short circuit.",
+			"validation": "174-test focused suite passed, including corresponding desktop smoke/soak evidence tests and tooling-deep-freeze.test.ts."
+		},
+		{
+			"id": 88,
+			"area": "tooling",
+			"file": "scripts/lib/desktop-direct-bwf-smoke-file.mjs",
+			"symbol": "deepFreeze",
+			"before": "Private recursive freezing implementation duplicated across tooling records.",
+			"after": "Import focused shared deepFreeze, preserving primitives, identity and frozen-object short circuit.",
+			"validation": "174-test focused suite passed, including corresponding desktop smoke/soak evidence tests and tooling-deep-freeze.test.ts."
+		},
+		{
+			"id": 89,
+			"area": "tooling",
+			"file": "scripts/lib/desktop-project-library-lease-matrix.mjs",
+			"symbol": "deepFreeze",
+			"before": "Private recursive freezing implementation duplicated across tooling records.",
+			"after": "Import focused shared deepFreeze, preserving primitives, identity and frozen-object short circuit.",
+			"validation": "174-test focused suite passed, including corresponding desktop smoke/soak evidence tests and tooling-deep-freeze.test.ts."
+		},
+		{
+			"id": 90,
+			"area": "tooling",
+			"file": "scripts/lib/desktop-direct-bw64-smoke-file.mjs",
+			"symbol": "deepFreeze",
+			"before": "Private recursive freezing implementation duplicated across tooling records.",
+			"after": "Import focused shared deepFreeze, preserving primitives, identity and frozen-object short circuit.",
+			"validation": "174-test focused suite passed, including corresponding desktop smoke/soak evidence tests and tooling-deep-freeze.test.ts."
+		},
+		{
+			"id": 91,
+			"area": "tooling",
+			"file": "scripts/lib/desktop-soundscaper-delivery-restart-smoke.mjs",
+			"symbol": "deepFreeze",
+			"before": "Private recursive freezing implementation duplicated across tooling records.",
+			"after": "Import focused shared deepFreeze, preserving primitives, identity and frozen-object short circuit.",
+			"validation": "174-test focused suite passed, including corresponding desktop smoke/soak evidence tests and tooling-deep-freeze.test.ts."
+		},
+		{
+			"id": 92,
+			"area": "tooling",
+			"file": "scripts/lib/framescaper-openfx-build-evidence.mjs",
+			"symbol": "deepFreeze",
+			"before": "Private recursive freezing implementation duplicated across tooling records.",
+			"after": "Import focused shared deepFreeze, preserving primitives, identity and frozen-object short circuit.",
+			"validation": "174-test focused suite passed, including corresponding desktop smoke/soak evidence tests and tooling-deep-freeze.test.ts."
+		},
+		{
+			"id": 93,
+			"area": "tooling",
+			"file": "scripts/lib/docs-reference/audio-effects.mjs",
+			"symbol": "parameterOptionLabel",
+			"before": "Enum and local choices repeat the same reviewed-label-or-code fallback four times.",
+			"after": "Use one shared fallback helper at all four sites.",
+			"validation": "Focused docs-reference-generator, docs-reference-pages, docs-guides and handbook-product-content tests passed; node scripts/docs-reference.mjs --check passed."
+		},
+		{
+			"id": 94,
+			"area": "tooling",
+			"file": "scripts/lib/docs-reference/formats.mjs",
+			"symbol": "ffmpegRuntimeRequirement",
+			"before": "Audio and video requirement functions duplicate the exact FFmpeg requirement sentence.",
+			"after": "Use one formatter while preserving distinct audio and video muxer formatting.",
+			"validation": "Focused docs-reference-generator, docs-reference-pages, docs-guides and handbook-product-content tests passed; node scripts/docs-reference.mjs --check passed."
+		},
+		{
+			"id": 95,
+			"area": "tooling",
+			"file": "scripts/lib/docs-reference/commands.mjs",
+			"symbol": "renderCommandReference product-availability prose",
+			"before": "A conditional repeats nearly the entire availability explanation.",
+			"after": "Interpolate just the optional local-product clause.",
+			"validation": "Focused docs-reference-generator, docs-reference-pages, docs-guides and handbook-product-content tests passed; node scripts/docs-reference.mjs --check passed."
+		},
+		{
+			"id": 96,
+			"area": "tooling",
+			"file": "scripts/lib/docs-reference/platforms.mjs",
+			"symbol": "renderPlatformReference browserRows",
+			"before": "Build intermediate records, sort them, then map all fields into table rows.",
+			"after": "Build and sort the final table rows directly.",
+			"validation": "Focused docs-reference-generator, docs-reference-pages, docs-guides and handbook-product-content tests passed; node scripts/docs-reference.mjs --check passed."
+		},
+		{
+			"id": 97,
+			"area": "tooling",
+			"file": "scripts/lib/docs-reference/platforms.mjs",
+			"symbol": "renderPlatformReference desktopRows",
+			"before": "Build four-field intermediate records, sort them, then map the same fields into rows.",
+			"after": "Build and sort the final table rows directly.",
+			"validation": "Focused docs-reference-generator, docs-reference-pages, docs-guides and handbook-product-content tests passed; node scripts/docs-reference.mjs --check passed."
+		},
+		{
+			"id": 98,
+			"area": "tooling",
+			"file": "scripts/lib/docs-reference/guides.mjs",
+			"symbol": "plainText",
+			"before": "Separate full string passes remove bold markers and backticks.",
+			"after": "Remove both independent marker types in one regex pass.",
+			"validation": "Focused docs-reference-generator, docs-reference-pages, docs-guides and handbook-product-content tests passed; node scripts/docs-reference.mjs --check passed."
+		},
+		{
+			"id": 99,
+			"area": "tooling",
+			"file": "scripts/lib/docs-reference/guides.mjs",
+			"symbol": "resolveGuideLinks guide indexing",
+			"before": "Flatten all guide objects before mapping them into map entries.",
+			"after": "Create map entries within flatMap and avoid the flattened intermediate guide array.",
+			"validation": "Focused docs-reference-generator, docs-reference-pages, docs-guides and handbook-product-content tests passed; node scripts/docs-reference.mjs --check passed."
+		},
+		{
+			"id": 100,
+			"area": "tooling",
+			"file": "scripts/lib/docs-reference/guides.mjs",
+			"symbol": "relatedGuides",
+			"before": "Accumulate unique guide objects using repeated linear includes searches.",
+			"after": "Use an insertion-ordered Set and return its entries in the same order.",
+			"validation": "Focused docs-reference-generator, docs-reference-pages, docs-guides and handbook-product-content tests passed; node scripts/docs-reference.mjs --check passed."
+		}
+	],
+	"integrationChanges": [
+		{
+			"file": "scripts/lib/desktop-nightly-tests-staging.mjs",
+			"reason": "Include the extracted diagnostic helper in the existing nightly test payload import closure."
+		},
+		{
+			"file": "tests/helpers/nightly-tests-staging-fixture.js",
+			"reason": "Include the same real helper source in synthetic staging repositories used by existing integration tests."
+		}
+	],
+	"environment": {
+		"node": "26.5.0",
+		"npm": "12.0.1"
+	}
+}

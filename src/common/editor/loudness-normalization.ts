@@ -247,14 +247,13 @@ export function loudnessDeliveryError(decision: LoudnessNormalizationDecision): 
 }> {
 	const loudnessErrorLu = difference(decision.deliveredLoudnessLufs, decision.projectedLoudnessLufs);
 	const truePeakErrorDb = difference(decision.deliveredTruePeakDb, decision.projectedTruePeakDb);
-	if (loudnessErrorLu === null && truePeakErrorDb === null) {
-		return Object.freeze({ loudnessErrorLu, truePeakErrorDb, withinTolerance: null });
-	}
 	return Object.freeze({
 		loudnessErrorLu,
 		truePeakErrorDb,
-		withinTolerance: (loudnessErrorLu === null || loudnessErrorLu <= LOUDNESS_DELIVERY_TOLERANCE_LU)
-			&& (truePeakErrorDb === null || truePeakErrorDb <= LOUDNESS_DELIVERY_TOLERANCE_DB),
+		withinTolerance: loudnessErrorLu === null && truePeakErrorDb === null
+			? null
+			: (loudnessErrorLu === null || loudnessErrorLu <= LOUDNESS_DELIVERY_TOLERANCE_LU)
+				&& (truePeakErrorDb === null || truePeakErrorDb <= LOUDNESS_DELIVERY_TOLERANCE_DB),
 	});
 }
 

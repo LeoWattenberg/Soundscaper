@@ -48,7 +48,7 @@ export function handbookProductEntryId(entry, productId) {
 export function handbookContentPlan(productId) {
 	assertProduct(productId);
 	const includes = productId === 'framescaper'
-		? (entry) => isFramescaperEntry(entry)
+		? isFramescaperEntry
 		: (entry) => !isFramescaperEntry(entry) && !isSharedEditorChooser(entry);
 	const patterns = productId === 'framescaper'
 		? [

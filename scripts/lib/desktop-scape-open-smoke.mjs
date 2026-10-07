@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { deepFreeze } from './deep-freeze.ts';
+
 import { runBoundedSmokeChild } from './desktop-smoke-child.mjs';
 import { createHash, randomBytes } from 'node:crypto';
 import { access, lstat, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
@@ -471,10 +473,4 @@ function integerInRange(value, minimum, maximum, label) {
 
 function childDiagnostics(child) {
 	return [child.stdout, child.stderr].filter(Boolean).join('\n');
-}
-
-function deepFreeze(value) {
-	if (!value || typeof value !== 'object' || Object.isFrozen(value)) return value;
-	for (const nested of Object.values(value)) deepFreeze(nested);
-	return Object.freeze(value);
 }

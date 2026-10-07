@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { deepFreeze } from './deep-freeze.ts';
+
 import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -358,9 +360,4 @@ export function createDesktopProjectLibraryLeaseMatrixDocument(
 	if (productId !== 'soundscaper') throw new TypeError('Lease matrix document product is unsupported');
 	const base = createSoundscaperProject({ id, title });
 	return JSON.stringify({ ...base, revision, metadata: { ...base.metadata, title } });
-}
-function deepFreeze(value) {
-	if (!value || typeof value !== 'object' || Object.isFrozen(value)) return value;
-	for (const item of Object.values(value)) deepFreeze(item);
-	return Object.freeze(value);
 }

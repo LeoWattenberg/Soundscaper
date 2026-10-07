@@ -86,6 +86,10 @@ export function bufferTransferPort(
 		if (listener) listener(message);
 		else if (held.length < TRANSFER_PORT_BUFFER_LIMIT) held.push(message);
 	});
+	const unsubscribe = () => {
+		listener = null;
+		stop();
+	};
 	const buffered = Object.freeze({
 		post: (message: unknown, targetOrigin: string) => port.post(message, targetOrigin),
 		subscribe(next: (message: Handshake.ProjectTransferInboundMessage) => void): () => void {
@@ -98,14 +102,10 @@ export function bufferTransferPort(
 			try {
 				while (held.length > 0) next(held.shift() as Handshake.ProjectTransferInboundMessage);
 			} catch (error) {
-				listener = null;
-				stop();
+				unsubscribe();
 				throw error;
 			}
-			return () => {
-				listener = null;
-				stop();
-			};
+			return unsubscribe;
 		},
 	});
 	bufferedPorts.set(port, buffered);

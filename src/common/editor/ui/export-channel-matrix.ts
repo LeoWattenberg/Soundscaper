@@ -33,10 +33,10 @@ export function parseExportChannelMatrix(
 	value: unknown,
 	inputChannelCount: number,
 ): ExportChannelMatrix {
-	const inputs = boundedChannelCount(inputChannelCount, 2);
+	const inputs = boundedExportChannelCount(inputChannelCount, 2);
 	const channels = readOutputChannels(value);
 	if (!channels) return identityExportChannelMatrix(inputs);
-	const outputs = boundedChannelCount(channels.length, inputs);
+	const outputs = boundedExportChannelCount(channels.length, inputs);
 	const matrix = Array.from({ length: inputs }, () => Array.from({ length: outputs }, () => false));
 	for (const [outputIndex, channel] of channels.slice(0, outputs).entries()) {
 		for (const input of readInputs(channel)) {
@@ -47,7 +47,7 @@ export function parseExportChannelMatrix(
 }
 
 export function identityExportChannelMatrix(inputChannelCount: number): ExportChannelMatrix {
-	const inputs = boundedChannelCount(inputChannelCount, 2);
+	const inputs = boundedExportChannelCount(inputChannelCount, 2);
 	return freezeMatrix(Array.from({ length: inputs }, (_, input) => (
 		Array.from({ length: inputs }, (__, output) => input === output)
 	)));
@@ -65,11 +65,9 @@ export function ensureExportChannelMatrixWidth(
 	matrix: ExportChannelMatrix,
 	outputChannelCount: number,
 ): ExportChannelMatrix {
-	const outputs = Math.max(
-		boundedChannelCount(outputChannelCount, exportChannelMatrixOutputCount(matrix)),
-		exportChannelMatrixOutputCount(matrix),
-	);
-	if (outputs === exportChannelMatrixOutputCount(matrix)) return matrix;
+	const currentOutputs = exportChannelMatrixOutputCount(matrix);
+	const outputs = Math.max(boundedExportChannelCount(outputChannelCount, currentOutputs), currentOutputs);
+	if (outputs === currentOutputs) return matrix;
 	return freezeMatrix(matrix.map((row) => Array.from(
 		{ length: outputs },
 		(_, output) => row[output] ?? false,
@@ -78,7 +76,9 @@ export function ensureExportChannelMatrixWidth(
 
 /** The output count a stepper's text means, kept inside the delivered bounds. */
 export function boundedExportChannelCount(value: unknown, fallback: number): number {
-	return boundedChannelCount(value, fallback);
+	const count = Number(value);
+	if (!Number.isSafeInteger(count) || count < 1) return fallback;
+	return Math.min(count, MAXIMUM_EXPORT_CHANNELS);
 }
 
 export function toggleExportChannelMatrix(
@@ -97,7 +97,7 @@ export function serializeExportChannelMatrix(
 	matrix: ExportChannelMatrix,
 	outputChannelCount: number = exportChannelMatrixOutputCount(matrix),
 ): string {
-	const outputs = boundedChannelCount(outputChannelCount, exportChannelMatrixOutputCount(matrix));
+	const outputs = boundedExportChannelCount(outputChannelCount, exportChannelMatrixOutputCount(matrix));
 	return `${JSON.stringify({
 		channels: Array.from({ length: outputs }, (_, output) => ({
 			inputs: matrix.flatMap((row, input) => (row[output] ? [{ channel: input, gain: 1 }] : [])),
@@ -107,15 +107,12 @@ export function serializeExportChannelMatrix(
 
 function readOutputChannels(value: unknown): readonly unknown[] | null {
 	const parsed = typeof value === 'string' ? parseJson(value) : value;
-	if (Array.isArray(parsed)) return parsed.length > 0 ? parsed : null;
-	const channels = (parsed as DataRecord | null)?.channels;
+	const channels = Array.isArray(parsed) ? parsed : (parsed as DataRecord | null)?.channels;
 	return Array.isArray(channels) && channels.length > 0 ? channels : null;
 }
 
 function parseJson(text: string): unknown {
-	const trimmed = text.trim();
-	if (!trimmed) return null;
-	try { return JSON.parse(trimmed); } catch { return null; }
+	try { return JSON.parse(text.trim()); } catch { return null; }
 }
 
 /**
@@ -147,12 +144,6 @@ function readInputs(channel: unknown): readonly Readonly<{ channel: number; gain
 		const gain = Number(record?.gain ?? 1);
 		return [{ channel: channelIndex, gain: Number.isFinite(gain) ? gain : 1 }];
 	});
-}
-
-function boundedChannelCount(value: unknown, fallback: number): number {
-	const count = Number(value);
-	if (!Number.isSafeInteger(count) || count < 1) return fallback;
-	return Math.min(count, MAXIMUM_EXPORT_CHANNELS);
 }
 
 function freezeMatrix(matrix: readonly (readonly boolean[])[]): ExportChannelMatrix {

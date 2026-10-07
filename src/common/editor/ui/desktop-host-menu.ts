@@ -199,10 +199,8 @@ export function createDesktopNativeTierControlsStore(
 			const mutation = mutationTail.then(async () => (
 				publish(await bridge.applyNativeTierControl(request), generation)
 			));
-			mutationTail = mutation.then(
-				() => { pendingMutations -= 1; },
-				() => { pendingMutations -= 1; },
-			);
+			const settled = () => { pendingMutations -= 1; };
+			mutationTail = mutation.then(settled, settled);
 			return mutation;
 		},
 	});

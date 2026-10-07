@@ -188,7 +188,7 @@ export function snapAudioEditorFrameWithProject(frame, project, overrides = {}) 
 	const inputFrame = safeInteger(frame, 'frame');
 	const settings = normalizeAudioEditorSnapSettings(project.snap || {});
 	if (!settings.enabled && !overrides.force) return inputFrame;
-	return snapAudioEditorProjectFrame(inputFrame, { ...settings, triplets: settings.triplets }, {
+	return snapAudioEditorProjectFrame(inputFrame, settings, {
 		...project,
 		...overrides,
 		mode: overrides.mode || settings.mode,
