@@ -342,6 +342,8 @@
 		,
 		{ "path": "src/common/editor/imaging/pixel-frame-contract-v1.ts", "kind": "ipc-contract", "justification": "Version-1 transient RGBA frame interchange declares sample format, color primaries, transfer, and bounded geometry across image processing and worker boundaries." }
 		,
+		{ "path": "src/common/editor/imaging/pixel-frame-resize-v1.ts", "kind": "helper-contract", "justification": "Version 1 deterministic nearest-neighbour RGBA sampling and bounded fit geometry shared by Framescaper and photo preview preparation." }
+		,
 		{ "path": "src/common/editor/macro-script/generated-module-wrapper-v1.js", "kind": "external-contract", "justification": "generated-module-wrapper-v1.js is the byte-authenticated generated-module wrapper revision shared by macro execution and E2E coverage admission." }
 		,
 		{ "path": "src/common/editor/mixer-graph-audibility-v21.ts", "kind": "persisted-contract", "justification": "mixer-graph-audibility-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
@@ -543,6 +545,10 @@
 		{ "path": "src/lightscaper/import/photo-import-preparation-v1.ts", "kind": "helper-contract", "justification": "Serial admitted source preparation yielding version 1 catalog photo documents and shared decode artifacts." }
 		,
 		{ "path": "src/lightscaper/import/photo-source-admission-v1.ts", "kind": "helper-contract", "justification": "Container proof for the initial static 8-bit sRGB photo source admission profile." }
+		,
+		{ "path": "src/lightscaper/preview/photo-preview-plan-v1.ts", "kind": "persisted-contract", "justification": "Closed version 1 disposable photo preview plan binds original identity, source descriptor, tier and maintained resampling recipe." }
+		,
+		{ "path": "src/lightscaper/preview/photo-preview-preparation-v1.ts", "kind": "ipc-contract", "justification": "Version 1 prepared disposable photo body carries an independent pixel descriptor and output digest without embedding immutable original bytes." }
 		,
 		{ "path": "src/soundscaper/desktop-native-plugin-state-transport-v1.ts", "kind": "persisted-contract", "justification": "desktop-native-plugin-state-transport-v1.ts is a persisted domain-component or render-contract revision independent of product schema." }
 	]

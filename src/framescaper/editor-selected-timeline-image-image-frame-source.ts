@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { sequenceFrameAtSample } from '../common/editor/sequence-frame-navigation.ts';
+import { fitPixelSizeV1, resizeRgba8NearestV1 } from '../common/editor/imaging/pixel-frame-resize-v1.ts';
 import type { BlobLike } from '../common/editor/storage/media-records.ts';
 import {
 	estimateFramescaperImageFramePackReaderMetadataBytesV1,
@@ -137,20 +138,7 @@ export function scaleFramescaperImageRgbaTimelineImage(
 		throw new RangeError('timelineImage image RGBA bytes do not match their canonical dimensions.');
 	}
 	throwIfAborted(signal);
-	if (sourceWidth === targetWidth && sourceHeight === targetHeight) {
-		return pixelsValue.slice() as Uint8Array<ArrayBuffer>;
-	}
-	const output = new Uint8Array(targetWidth * targetHeight * 4);
-	for (let y = 0; y < targetHeight; y += 1) {
-		throwIfAborted(signal);
-		const sourceY = Math.min(sourceHeight - 1, Math.floor(y * sourceHeight / targetHeight));
-		for (let x = 0; x < targetWidth; x += 1) {
-			const sourceX = Math.min(sourceWidth - 1, Math.floor(x * sourceWidth / targetWidth));
-			const sourceOffset = (sourceY * sourceWidth + sourceX) * 4;
-			output.set(pixelsValue.subarray(sourceOffset, sourceOffset + 4), (y * targetWidth + x) * 4);
-		}
-	}
-	return output;
+	return resizeRgba8NearestV1(pixelsValue, sourceWidth, sourceHeight, targetWidth, targetHeight, signal);
 }
 
 export function fitFramescaperImagePreviewSizeTimelineImage(
@@ -161,11 +149,7 @@ export function fitFramescaperImagePreviewSizeTimelineImage(
 	const canonical = normalizeFramescaperImageSourceV1(source).canonical;
 	const maximumWidth = dimension(maximumWidthValue, 'timelineImage image preview width');
 	const maximumHeight = dimension(maximumHeightValue, 'timelineImage image preview height');
-	const scale = Math.min(1, maximumWidth / canonical.width, maximumHeight / canonical.height);
-	return Object.freeze({
-		width: Math.max(1, Math.round(canonical.width * scale)),
-		height: Math.max(1, Math.round(canonical.height * scale)),
-	});
+	return fitPixelSizeV1(canonical.width, canonical.height, maximumWidth, maximumHeight);
 }
 
 export function framescaperImageSourceForClipTimelineImage(
