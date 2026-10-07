@@ -307,3 +307,29 @@ command support pass 21/21; targeted lint passes. Regression files are
 `audio-editor-round4-macro-time-header-range.test.ts` and
 `audio-editor-round4-macro-time-header-range.spec.js`; evidence is recorded in
 `/tmp/soundscaper-r4-root-macro-header-time-*`.
+
+
+## R4-ROOT-014 — Auto Duck fades up while voice still spans the selection
+
+Import ordinary three-second music and voice WAVs. Mute the voice track, select
+the music clip and choose Effect → Volume and compression → Auto Duck with the
+voice as control and default fades. Apply and export WAV. Despite voice
+throughout the selection, baseline music fades back toward its original level
+in the last half-second; its leading boundary also starts insufficiently ducked.
+The late exported peak is 0.18732 instead of the expected attenuated range
+0.04–0.08. The offline processor clips its logical duck regions before
+calculating fades, incorrectly moving both fade endpoints into the selection.
+
+Calculate the curve from the original region endpoints, clipping only writes to
+the selection. This agrees with the existing live processor and the logical
+fade calculation in the pinned upstream AutoDuckBase.cpp. Selection-edge
+variants count once and remain independent of 003’s control-track placement.
+
+The actual import/menu/apply/download workflow fails on immutable baseline
+`a0322d6e4` and passes Chromium, Firefox and WebKit on
+`duck-boundary-clean17` (3/3). The earlier Source duck-placement workflow also
+passes all three engines (3/3). Two strict boundary regressions and existing
+basic, live and dispatcher support pass 34/34; targeted lint passes. Regression
+files are `audacity-effects-round4-duck-boundary-fades.test.ts` and
+`audio-editor-round4-duck-boundary-fades.spec.js`; evidence is recorded in
+`/tmp/soundscaper-r4-root-duck-boundary-*`.

@@ -137,8 +137,8 @@ export function applyAudacityAutoDuck(
 		const start = Math.max(0, region.start);
 		const end = Math.min(frameCount, region.end);
 		for (let index = start; index < end; index += 1) {
-			const gainDownDb = settings.duckAmountDb * (index - start) / fadeDownFrames;
-			const gainUpDb = settings.duckAmountDb * (end - index) / fadeUpFrames;
+			const gainDownDb = settings.duckAmountDb * (index - region.start) / fadeDownFrames;
+			const gainUpDb = settings.duckAmountDb * (region.end - index) / fadeUpFrames;
 			const gainDb = Math.max(settings.duckAmountDb, gainDownDb, gainUpDb);
 			const gain = dbToLinear(gainDb);
 			for (const channel of output) channel[index] *= gain;
