@@ -21,7 +21,7 @@ import { inspectWavLayout } from './wav.js';
 import { createStemArchivePlan } from './controller/export/stem-archive.ts';
 import { EBU_R128_MAXIMUM_CHANNELS } from './ebu-r128.js';
 import { resolveAdmEbuChannelWeights } from './loudness-channel-layout.ts';
-import { createRiffAnnotationExport } from './timeline-annotation-riff-interchange.ts';
+import { createExportSpanMarkers } from './export-span-markers.ts';
 import { resolveBinauralDelivery } from './binaural-delivery.ts';
 import { resolveExportChapters } from './export-chapters.ts';
 import { assertEmbeddedChapterRequest, createEmbeddedChapterEncoding } from './export-embedded-chapter-encoding.ts';
@@ -58,6 +58,8 @@ export const FAST_RENDER_THRESHOLDS = Object.freeze({
  * @property {number | null} [outputFileBytes]
  * @property {import('./broadcast-wave.ts').BextMetadata} [bext]
  * @property {import('./cart-metadata.ts').CartMetadata | null} [cart]
+ * @property {readonly import('./riff-markers.ts').RiffMarkerInput[]} [markers]
+ * @property {import('./timeline-annotation-interchange-report.ts').TimelineAnnotationInterchangeReport} [markerInterchangeReport]
  */
 
 /**
@@ -219,17 +221,14 @@ export function createExportPlan(project, options = {}) {
 		outputSampleRate: sampleRate,
 		admMetadata: bw64Adm?.metadata ?? null,
 	});
-	const markerExport = createRiffAnnotationExport(runtimeProject, {
+	const markerExport = createExportSpanMarkers(runtimeProject, {
 		range,
 		outputSampleRate: sampleRate,
-		// Each span has its own timeline, so shared cues would describe other files.
-		...(spans
-			? { markerSource: 'none' }
-			: options.markerSource == null ? {} : { markerSource: options.markerSource }),
+		...(options.markerSource == null ? {} : { markerSource: options.markerSource }),
 		...(options.markerTrackId == null ? {} : { markerTrackId: options.markerTrackId }),
 		preservedRiffMarkers: preservedRiffChunks?.markers === true,
 		masteringSequenceCues: masteringSequence !== null,
-	});
+	}, spans);
 	let markers = masteringSequence ? masteringSequence.cues : markerExport.markers;
 	let ixml = runtimeProject.metadata?.ixml ?? null;
 	const cartMetadata = (deliveryRange) => cartForDeliveryRange(
@@ -287,10 +286,10 @@ export function createExportPlan(project, options = {}) {
 	}) : null;
 	const outputBytes = estimatePcmBytes(outputFrames, encoding.channelCount);
 	// Spans share encoding settings but each file has its own container size.
-	const layoutForFrames = (totalFrames) => (format === 'aiff'
+	const layoutForFrames = (totalFrames, outputMarkers = markers) => (format === 'aiff'
 		? inspectAiffLayout({
 			sampleRate, channelCount: encoding.channelCount, totalFrames,
-			sampleFormat: encoding.sampleFormat, metadata: encoding.metadata, markers,
+			sampleFormat: encoding.sampleFormat, metadata: encoding.metadata, markers: outputMarkers,
 		})
 		: format === 'wav' || format === 'bwf' || format === 'bw64'
 			? inspectWavLayout({
@@ -301,7 +300,7 @@ export function createExportPlan(project, options = {}) {
 				bitDepth: encoding.bitDepth,
 				float: encoding.floatingPoint,
 				metadata: encoding.metadata,
-				markers,
+				markers: outputMarkers,
 				ixml,
 				cart,
 				bext,
@@ -327,7 +326,8 @@ export function createExportPlan(project, options = {}) {
 				durationFrames: span.durationFrames,
 			}),
 			outputFrames: spanOutputFrames[spanIndex],
-			outputFileBytes: layoutForFrames(spanOutputFrames[spanIndex])?.byteLength ?? null,
+			outputFileBytes: layoutForFrames(spanOutputFrames[spanIndex], markerExport.outputs[spanIndex].markers)?.byteLength ?? null,
+			...markerExport.outputs[spanIndex],
 			// Where this file, rather than the whole delivery, sits on the timeline.
 			...(bext ? { bext: bwfMetadata(span.startFrame) } : {}),
 			...(cart ? { cart: cartMetadata(span) } : {}),

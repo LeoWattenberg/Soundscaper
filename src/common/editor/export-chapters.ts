@@ -249,6 +249,7 @@ export function createExportChapterPlan<Plan extends DataRecord>(
 		: null;
 	return Object.freeze({
 		...plan,
+		...(Object.hasOwn(output, 'markers') ? { markers: output.markers, markerInterchangeReport: output.markerInterchangeReport } : {}),
 		...(Object.hasOwn(output, 'cart') ? { cart: output.cart } : {}),
 		...(bext ? { bext, encoding: Object.freeze({ ...dataRecord(plan.encoding), bext }) } : {}),
 		// One chapter is an ordinary whole-mix delivery of its own span, so
