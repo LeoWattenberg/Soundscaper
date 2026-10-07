@@ -61,6 +61,16 @@ export const PRODUCT_STAND_IN_ALIASES = Object.freeze([
 		desktopCodecRuntime: null,
 	},
 	{
+		find: /^\.\/(?:framescaper-capture-setup-actions\.ts|FramescaperInputsSetupFlyout\.tsx)$/u,
+		sourcePaths: [
+			'src/common/editor/framescaper-capture-setup-actions.ts',
+			'src/common/editor/ui/toolbar/FramescaperInputsSetupFlyout.tsx',
+		],
+		standIn: 'src/soundscaper/editor-capture-toolbar-control.tsx',
+		product: 'soundscaper',
+		desktopCodecRuntime: true,
+	},
+	{
 		find: /^\.\/framescaper-video-proxy-pressure\.ts$/u,
 		sourcePaths: ['src/common/editor/ui/workspace/framescaper-video-proxy-pressure.ts'],
 		standIn: 'src/soundscaper/editor-video-preview-product-runtime.ts',
@@ -144,26 +154,28 @@ export const PRODUCT_STAND_IN_ALIASES = Object.freeze([
 		desktopCodecRuntime: true,
 	},
 	{
-		find: /^\.\/editor-framescaper-(?:native-services|finishing-additional|visual-inspector-additional|menus-additional|finishing-surface)-copy\.ts$/u,
+		find: /^\.\/editor-framescaper-(?:native-services|finishing-additional|visual-inspector-additional|menus-additional|finishing-surface|inputs)-copy\.ts$/u,
 		sourcePaths: [
 			'src/common/i18n/editor-framescaper-native-services-copy.ts',
 			'src/common/i18n/editor-framescaper-finishing-additional-copy.ts',
 			'src/common/i18n/editor-framescaper-visual-inspector-additional-copy.ts',
 			'src/common/i18n/editor-framescaper-menus-additional-copy.ts',
 			'src/common/i18n/editor-framescaper-finishing-surface-copy.ts',
+			'src/common/i18n/editor-framescaper-inputs-copy.ts',
 		],
 		standIn: 'src/common/i18n/editor-desktop-copy.ts',
 		product: 'soundscaper',
 		desktopCodecRuntime: true,
 	},
 	{
-		find: /^\.\.\/\.\.\/(?:\.\.\/)?i18n\/editor-framescaper-(?:native-services|finishing-additional|visual-inspector-additional|menus-additional|finishing-surface)-copy\.ts$/u,
+		find: /^\.\.\/\.\.\/(?:\.\.\/)?i18n\/editor-framescaper-(?:native-services|finishing-additional|visual-inspector-additional|menus-additional|finishing-surface|inputs)-copy\.ts$/u,
 		sourcePaths: [
 			'src/common/i18n/editor-framescaper-native-services-copy.ts',
 			'src/common/i18n/editor-framescaper-finishing-additional-copy.ts',
 			'src/common/i18n/editor-framescaper-visual-inspector-additional-copy.ts',
 			'src/common/i18n/editor-framescaper-menus-additional-copy.ts',
 			'src/common/i18n/editor-framescaper-finishing-surface-copy.ts',
+			'src/common/i18n/editor-framescaper-inputs-copy.ts',
 		],
 		standIn: 'src/common/i18n/editor-desktop-copy.ts',
 		product: 'soundscaper',

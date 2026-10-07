@@ -3,11 +3,11 @@
 import assert from 'node:assert/strict';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import test from 'node:test';
 
 import { auditDesktopRendererCodecComposition } from '../scripts/lib/desktop-renderer-codec-audit.mjs';
-import { productStandInAliasesFor } from '../scripts/lib/product-aliases.mjs';
+import { productStandInAliasesFor, productSubstitutionForImport } from '../scripts/lib/product-aliases.mjs';
 
 test('desktop renderer audit rejects every browser FFmpeg runtime seam', async (context) => {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-desktop-renderer-codecs-'));
@@ -48,4 +48,25 @@ test('desktop WavPack import substitutes its browser codec fallback', async () =
 		'../src/common/editor/browser-streamed-wavpack-decoder.desktop.ts'
 	);
 	assert.throws(() => createDefaultWavPackGroupDecoder(), /desktop.*codec/iu);
+});
+
+test('Soundscaper desktop substitutes Framescaper input setup and copy before bundling', () => {
+	const repositoryRoot = resolve('/tmp/soundscaper');
+	for (const [source, standIn] of [
+		['src/common/editor/framescaper-capture-setup-actions.ts', 'src/soundscaper/editor-capture-toolbar-control.tsx'],
+		['src/common/editor/ui/toolbar/FramescaperInputsSetupFlyout.tsx', 'src/soundscaper/editor-capture-toolbar-control.tsx'],
+		['src/common/i18n/editor-framescaper-inputs-copy.ts', 'src/common/i18n/editor-desktop-copy.ts'],
+	]) {
+		const importer = resolve(repositoryRoot, source, '../importer.ts');
+		const specifier = `./${source.split('/').at(-1)}`;
+		for (const [productId, desktopCodecComposition, expected] of [
+			['soundscaper', true, resolve(repositoryRoot, standIn)],
+			['soundscaper', false, null],
+			['framescaper', true, null],
+		]) {
+			assert.equal(productSubstitutionForImport(specifier, importer, {
+				repositoryRoot, productId, desktopCodecComposition,
+			}), expected, `${productId} desktop=${desktopCodecComposition} ${source}`);
+		}
+	}
 });
