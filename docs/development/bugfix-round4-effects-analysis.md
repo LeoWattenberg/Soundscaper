@@ -531,3 +531,30 @@ Regression files are `audio-editor-round4-clear-loop-region.test.ts` and
 `audio-editor-round4-clear-loop-region.spec.js`. Evidence is recorded in
 `/tmp/soundscaper-r4-root-clear-loop-*` and `/tmp/soundscaper-r4-root-loop-eq-*`.
 Manual Update AI assets: not required.
+
+## R4-ROOT-023 — A suspended modified shortcut edits a Graphic EQ band
+
+Import a WAV, assign Ctrl+Alt+Up to New label track in Preferences, open the
+track's Effects rack, and add Graphic EQ. Focus its 20 Hz fader and press the
+binding. Project commands are intentionally suspended while a rack dialog holds
+focus, but the baseline changes the band's gain from 0 to 1 dB anyway: Graphic
+EQ's capture handler interprets the modified key as an ordinary gain edit.
+
+Leave already handled and Ctrl/Meta/Alt keys unclaimed by the Graphic EQ band
+capture. Ordinary and Shift arrows retain their one-decibel gain steps. This
+handler remains independently broken in the snapshot with DIALOG024's vendor
+fader correction; it consumes the event before that corrected fader sees it.
+
+The unchanged gain assertion fails on immutable baseline `a0322d6e4` and also
+on the corrected-fader snapshot. The final workflow passes all three engines
+on `loop-eq-clean28`; it closes the rack dialog, opens Mixer, and verifies that
+the same accepted binding creates a label track there. Existing painted-rack,
+reset and cancellation workflows also pass all three engines. Mounted capture
+admission fails before correction; new and existing EQ/transport tests pass
+34/34 afterward. Builds and targeted lint pass. Earlier expectations of a
+project command inside the dialog and on controls with their own navigation
+were excluded; the authored-gain failure assertion stays unchanged.
+Regression files are `audio-editor-round4-graphic-eq-shortcut.test.tsx` and
+`audio-editor-round4-graphic-eq-shortcut.spec.js`; evidence is recorded in
+`/tmp/soundscaper-r4-root-graphic-eq-*` and `/tmp/soundscaper-r4-root-eq-*`.
+Manual Update AI assets: not required.

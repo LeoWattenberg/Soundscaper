@@ -149,6 +149,7 @@ export default function GraphicEqEditor({ name, label, descriptor, value, disabl
 					className="audio-editor-graphic-eq__fader" data-effect-param={`${name}.${String(index)}`}
 					title={(copy.effectCurvePoint || canonicalCopyValue('effectCurvePoint')).replace('{frequency}', String(frequency)).replace('{gain}', points[index]!.toFixed(1))}
 					onKeyDownCapture={(event) => {
+						if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
 						if (!['ArrowUp', 'ArrowDown'].includes(event.key)) return;
 						event.preventDefault(); event.stopPropagation();
 						atomic(index, points[index]! + (event.key === 'ArrowUp' ? 1 : -1));
