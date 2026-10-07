@@ -8,6 +8,7 @@ import { prepareSplitRangeIntoNewTrackCommand } from '../../track-audio/split-in
 import { prepareDuplicateSelectionCommand } from './duplicate-selection-command.ts';
 import { trackHierarchyPlacement } from '../../../track-hierarchy-placement.ts';
 import { copyDerivedTrackStripAutomation } from '../../../derived-track-strip-automation.ts';
+import { copyDerivedTrackProcessors } from '../../../derived-track-processors.ts';
 import {
 	normalizeAudioEditorEditingPreferences,
 	resolveAudioEditorDefaultDelete,
@@ -257,11 +258,12 @@ export function createEditorEditService(runtime: EditServiceRuntime): HandleEdit
 					createStableId,
 				);
 				const trackId = createStableId('track');
+				const processors = copyDerivedTrackProcessors(getProject(), sourceTrack, trackId, createStableId);
 				commit({
 					type: 'batch',
 					commands: [
-						{ ...createAddTrackCommand({ ...sourceTrack, id: trackId, name: `${sourceTrack.name} 2`, clipIds: [], effects: [] }), ...trackHierarchyPlacement(getProject(), sourceTrack.id, 1, supportsTrackFolders) },
-						...copyDerivedTrackStripAutomation(getProject(), sourceTrack.id, trackId, createStableId),
+						{ ...createAddTrackCommand({ ...sourceTrack, id: trackId, name: `${sourceTrack.name} 2`, clipIds: [], effects: processors.effects }), ...trackHierarchyPlacement(getProject(), sourceTrack.id, 1, supportsTrackFolders) },
+						...copyDerivedTrackStripAutomation(getProject(), sourceTrack.id, trackId, createStableId), ...processors.commands,
 						split,
 						{ type: 'clip/move', clipId: split.rightClipId, trackId, timelineStartFrame: split.atFrame },
 					],

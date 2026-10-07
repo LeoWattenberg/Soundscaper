@@ -2,6 +2,7 @@
 
 import { trackHierarchyPlacement } from '../../track-hierarchy-placement.ts';
 import { copyDerivedTrackStripAutomation } from '../../derived-track-strip-automation.ts';
+import { copyDerivedTrackProcessors } from '../../derived-track-processors.ts';
 
 /**
  * Plan the time-range half of "Split into new track".
@@ -65,14 +66,15 @@ export function prepareSplitRangeIntoNewTrackCommand(
 		const sourceTrack = project.tracks.find((track: RuntimeValue) => track.id === trackId);
 		if (!sourceTrack) continue;
 		const newTrackId = runtime.createStableId('track');
+		const processors = copyDerivedTrackProcessors(project, sourceTrack, newTrackId, runtime.createStableId);
 		commands.push({ ...runtime.createAddTrackCommand({
 			...sourceTrack,
 			id: newTrackId,
 			name: `${sourceTrack.name} 2`,
 			clipIds: [],
-			effects: [],
+			effects: processors.effects,
 		}), ...trackHierarchyPlacement(project, trackId, 1, runtime.supportsTrackFolders) });
-		commands.push(...copyDerivedTrackStripAutomation(project, trackId, newTrackId, runtime.createStableId));
+		commands.push(...copyDerivedTrackStripAutomation(project, trackId, newTrackId, runtime.createStableId), ...processors.commands);
 		for (const entry of entries) {
 			commands.push(...entry.splits);
 			moves.push({
