@@ -11,6 +11,7 @@ import {
 import type { SoundscaperProject } from './editor-project-validation.ts';
 import { normalizeAutomationLaneV21, type AutomationLaneV21 } from '../common/editor/automation-lane-v21.ts';
 import type { StripRef } from '../common/editor/parameter-address.ts';
+import { importSoundscaperAudacityMixer } from './editor-audacity-import-mixer.ts';
 
 /** Promote maintained Audacity decoder output into the baseline family. */
 export function importSoundscaperAudacityProject(value: unknown): SoundscaperProject {
@@ -20,11 +21,13 @@ export function importSoundscaperAudacityProject(value: unknown): SoundscaperPro
 	delete foundation.mixer;
 	delete foundation.schemaFamily;
 	delete foundation.schemaVersion;
-	return createSoundscaperProject({
+	const options = {
 		...foundation,
 		automationLanes: importedStripGainLanes(decoded),
 		now: decoded.createdAt,
-	} as SoundscaperProjectOptions);
+	} as SoundscaperProjectOptions;
+	const imported = createSoundscaperProject(options);
+	return createSoundscaperProject({ ...options, mixer: importSoundscaperAudacityMixer(decoded, imported) });
 }
 
 /** Legacy strip envelopes multiply the fader; baseline gain lanes are absolute. */
