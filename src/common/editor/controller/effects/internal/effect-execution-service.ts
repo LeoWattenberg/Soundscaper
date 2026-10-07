@@ -14,6 +14,7 @@ import type { MacroTransaction } from '../../document/project-mutation-service.t
 const SELECTION_EFFECT_TASK = 'selection-effect-apply';
 /** The registry name a Nyquist evaluation holds while the evaluator runs. */
 import { processIndependentSelectionTargets, type IndependentSelectionPorts } from './independent-selection-targets.ts';
+import { assertCompleteNyquistOutput, planNyquistOutputAdmission } from './nyquist/nyquist-output-admission.ts';
 
 export const NYQUIST_EVALUATION_TASK = 'nyquist-evaluation';
 
@@ -310,6 +311,7 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 					requested: request.maxOutputFrames,
 				});
 				const hostTargets = availableTargets.length ? availableTargets : targets;
+				const outputAdmission = planNyquistOutputAdmission(maxOutputFrames, channels.length, preview);
 				const hostTargetIndex = target ? Math.max(0, hostTargets.indexOf(target)) : index;
 				const result = await nyquistEvaluator({
 					source,
@@ -319,7 +321,7 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 					controls: { ...(request.controls || {}) },
 					properties: nyquistHostProperties(runTarget, hostTargets, hostTargetIndex, channels, request),
 					globals: { PREVIEWP: preview },
-					maxOutputFrames,
+					maxOutputFrames: outputAdmission.renderFrames,
 					debug: Boolean(request.debug),
 				}, {
 					signal: abort.signal,
@@ -328,6 +330,8 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 					onProgress: updateTaskProgress,
 				});
 				assertNyquistCurrent();
+				assertCompleteNyquistOutput(result, outputAdmission,
+					() => createLocalizedError(RangeError, copy, 'nyquistAudioOutputTooLong'));
 				if (result?.type === 'audio') {
 					aggregateAudioBytes += nyquistAudioResultBytes(result);
 					if (aggregateAudioBytes > NYQUIST_AGGREGATE_AUDIO_LIMIT_BYTES) {

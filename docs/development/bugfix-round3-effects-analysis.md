@@ -454,3 +454,28 @@ Two strict real-sandbox regressions check callable timestamps as the virtual
 clock advances, ignored call arguments, explicit constructors, and subclasses.
 All 18 focused sandbox and authored-line cases and targeted lint pass.
 No manual **Update AI assets** run is required.
+
+## R3-ROOT-022 — Nyquist silently discards the end of a long recording
+
+Import an ordinary mono recording lasting **5 minutes 1 second**, choose
+**Select > Select all**, open **Tools > Nyquist prompt**, enter `*track*`, and
+run it. Previously this identity operation succeeded and replaced the recording
+with only **5 minutes**, silently discarding its final second. The evaluator
+capped rendered audio but the controller admitted that incomplete result.
+
+The controller now requests one unpublished sentinel sample beyond its existing
+operation limit and rejects an incomplete result before any audio or label
+publication. The error explains how to use a shorter selection or result;
+the original document stays intact. Exact-limit audio, deliberately shorter
+results, labels, and bounded previews retain their existing behavior. This
+does not alter the WASM runtime or its memory limit. It is distinct from
+ROOT-008's underestimated duration for a generator within that limit.
+
+Proof: the public immutable-baseline workflow changes the clip duration from
+**00h05m01.000s** to **00h05m00.000s**. Green build 21 displays the admission
+error and retains **00h05m01.000s** in Chromium, Firefox and WebKit. Two strict
+regressions use the actual committed Nyquist WASM to verify no publication or
+document changes for overlong output, successful exact-limit output, and an
+intentional one-second extraction. All 15 focused Nyquist controller, generator,
+ownership, history and preview cases, strict test types, and targeted lint pass.
+No manual **Update AI assets** run is required.

@@ -100,6 +100,7 @@ export class NyquistWasmRuntime {
 	}
 }
 
+/** @param {URL | string | ArrayBuffer | ArrayBufferView | WebAssembly.Module | Response} [source] */
 export async function loadNyquistWasm(source = NYQUIST_WASM_URL) {
 	const module = await compileModule(source);
 	const importState = { memory: null };

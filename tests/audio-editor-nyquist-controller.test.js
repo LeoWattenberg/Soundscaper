@@ -50,7 +50,7 @@ test('Nyquist processors receive selected PCM and persist their returned audio a
 		assert.deepEqual([...evaluatorCall.request.channels[0]], [...input.subarray(100, 500)]);
 		assert.deepEqual(evaluatorCall.request.controls, { AMOUNT: 2 });
 		assert.equal(evaluatorCall.request.globals.PREVIEWP, false);
-		assert.equal(evaluatorCall.request.maxOutputFrames, sampleRate * 60);
+		assert.equal(evaluatorCall.request.maxOutputFrames, sampleRate * 60 + 1);
 		assert.equal(evaluatorCall.options.transferInput, true);
 		assert.equal(evaluatorCall.options.signal.aborted, false);
 		assert.deepEqual(evaluatorCall.request.properties.AUDACITY.VERSION, [3, 7, 7]);
