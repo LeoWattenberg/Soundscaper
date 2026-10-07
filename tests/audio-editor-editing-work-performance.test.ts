@@ -94,6 +94,18 @@ void test('rendered duration changes scale related clips and ripple only their o
 	assert.equal(untouched?.timelineStartFrame, 400);
 });
 
+void test('direct rendered replacement keeps first-match slots when a mutable draft acquires duplicate IDs', () => {
+	const project = commandFixture(2);
+	project.clips[1]!.id = 'clip-0';
+	const duplicate = project.clips[1];
+	replaceRenderedClips(project, { rippleMode: 'none', entries: [{ clipId: 'clip-0', source: {
+		id: 'rendered', storageKey: 'rendered', frameCount: 20, channelCount: 1,
+	} }] });
+	assert.equal(project.clips[0]?.sourceId, 'rendered');
+	assert.equal(project.clips[1], duplicate);
+	assert.equal(project.clips[1]?.sourceId, 'source');
+});
+
 void test('relationship chains visit each relationship a bounded number of times and preserve project order', context => {
 	let reads = 0;
 	const clips = Array.from({ length: 600 }, (_, index) => ({

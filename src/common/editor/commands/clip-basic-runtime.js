@@ -183,7 +183,11 @@ export function replaceRenderedClips(project, command) {
 	const clipById = firstById(project.clips);
 	const owners = clipOwnerIndex(project.tracks);
 	const sourceIds = new Set(project.sources.map(source => source.id));
-	const clipSlots = new Map(project.clips.map((clip, index) => [clip.id, index]));
+	const clipSlots = new Map();
+	for (const [index, clip] of project.clips.entries()) {
+		const id = clip.id;
+		if (!clipSlots.has(id)) clipSlots.set(id, index);
+	}
 	const entries = command.entries.map((entry) => {
 		const clip = clipById.get(entry.clipId);
 		if (!clip) throw new ReferenceError(`Unknown clip: ${entry.clipId}.`);
