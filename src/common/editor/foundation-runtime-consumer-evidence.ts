@@ -410,6 +410,13 @@ const entries: FoundationRuntimeConsumerEvidence[] = [
 		evidence: 'Adjacent clip selection expands authored relationships and resolves their current clip boundaries before publishing the aggregate exact range and owner tracks.',
 	},
 	{
+		id: 'selected-track-musical-content-range', surface: 'navigation',
+		file: 'src/common/editor/controller/track-audio/internal/selected-track-content-range.ts',
+		entryPoint: 'projectedClipContentRange', inputIdentifier: 'project', projectedIdentifier: 'resolved',
+		boundary: 'resolveRuntimeClipProjection',
+		evidence: 'Selected track content resolves musical clip intervals before reading sample endpoints; native visual intervals retain their authored sequence clock through the existing sequence-boundary converter.',
+	},
+	{
 		id: 'clip-header-adjacent-navigation', surface: 'navigation',
 		file: 'src/common/editor/controller/track-audio/internal/clip-selection-navigation-service.ts',
 		entryPoint: 'selectAdjacentClip', inputIdentifier: 'project', projectedIdentifier: null,

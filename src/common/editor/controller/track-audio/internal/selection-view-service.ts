@@ -6,6 +6,7 @@ import { hasCoreEditingProjectAuthority, isActiveAudioEditorProjectSchema } from
 import { resolveSelectionRange } from '../../../selection-range.ts';
 import { AUDIO_EDITOR_MIN_PIXELS_PER_SECOND } from '../../../timeline-zoom-limits.ts';
 import { createClipSelectionNavigationService } from './clip-selection-navigation-service.ts';
+import { selectedTrackContentRange } from './selected-track-content-range.ts';
 import type {
 	SelectionViewClipOptions,
 	SelectionViewProject,
@@ -326,35 +327,8 @@ export function createSelectionViewService<
 		const requestedIds = project.selection?.trackIds?.length
 			? project.selection.trackIds
 			: state.selectedTrackId ? [state.selectedTrackId] : [];
-		const tracks = requestedIds.flatMap((trackId) => {
-			const track = findTrack(project, trackId);
-			return track ? [track] : [];
-		});
-		const ranges: Array<[number, number]> = [];
-		for (const track of tracks) {
-			if (track.type === 'label') {
-				for (const label of track.labels || []) {
-					if (isFiniteFrame(label.startFrame) && isFiniteFrame(label.endFrame)) {
-						ranges.push([label.startFrame, label.endFrame]);
-					}
-				}
-			} else {
-				for (const clipId of track.clipIds || []) {
-					const clip = findClip(project, clipId);
-					if (clip && isFiniteFrame(clip.timelineStartFrame) && isFiniteFrame(clip.durationFrames)) {
-						ranges.push([clip.timelineStartFrame, clip.timelineStartFrame + clip.durationFrames]);
-					}
-				}
-			}
-		}
-		if (!ranges.length && tracks.length) {
-			return { startFrame: 0, endFrame: editorTimelineDurationFrames(project, projectSampleRate()) };
-		}
-		if (!ranges.length) return null;
-		return {
-			startFrame: Math.min(...ranges.map(([startFrame]) => startFrame)),
-			endFrame: Math.max(...ranges.map(([, endFrame]) => endFrame)),
-		};
+		return selectedTrackContentRange(project, requestedIds,
+			() => editorTimelineDurationFrames(project, projectSampleRate()));
 	}
 
 	function persistBooleanPreference(stateKey: SelectionViewBooleanPreferenceKey, settingKey: string) {
@@ -526,10 +500,6 @@ export function createSelectionViewService<
 		toggleScrollViewToPlayhead,
 		toggleVerticalRulers,
 	});
-}
-
-function isFiniteFrame(value: unknown): value is number {
-	return typeof value === 'number' && Number.isFinite(value);
 }
 
 function hasActiveTimelineAnnotations(project: SelectionViewProject): boolean {

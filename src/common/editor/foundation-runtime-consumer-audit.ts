@@ -143,6 +143,7 @@ export const FOUNDATION_RUNTIME_SHIELDED_OWNERS: readonly FoundationRuntimeShiel
 	{ file: 'src/common/editor/video-timeline.js', surfaces: ['preview', 'composition', 'transition', 'navigation'] },
 	{ file: 'src/common/editor/project.js', surfaces: ['navigation'] },
 	{ file: 'src/common/editor/controller/track-audio/internal/clip-selection-navigation-service.ts', surfaces: ['navigation'] },
+	{ file: 'src/common/editor/controller/track-audio/internal/selected-track-content-range.ts', surfaces: ['navigation'] },
 	{ file: 'src/common/editor/ui/timeline/useTimelineViewportModel.js', surfaces: ['timeline'] },
 	{ file: 'src/common/editor/ui/framescaper-edit-control-menu-model.ts', surfaces: ['timeline'] },
 	{ file: 'src/common/editor/ui/regular-interval-dialog-defaults.ts', surfaces: ['timeline'] },
@@ -152,6 +153,10 @@ export const FOUNDATION_RUNTIME_SHIELDED_OWNERS: readonly FoundationRuntimeShiel
 
 /** Exact non-consumer readers co-located with a shield owner. No wildcard exclusions are admitted. */
 export const FOUNDATION_RUNTIME_TIMING_READER_EXCLUSIONS: readonly FoundationRuntimeTimingReaderExclusion[] = deepFreeze([
+	{
+		file: 'src/common/editor/controller/track-audio/internal/selected-track-content-range.ts', entryPoint: 'clipContentRange',
+		reason: 'Track selection converts authored visual sequence boundaries through the exact owning sequence clock, delegates musical sample geometry to its registered projection helper, and reads legacy sample-authoritative clips directly; image and generator leaves have no audio source coordinates to project.',
+	},
 	{
 		file: 'src/common/editor/controller/effects/internal/macro/macro-script-host.ts', entryPoint: 'projectFrames',
 		reason: 'The private extent reducer receives the already-resolved project from requireProject before the program selection reader derives its sample-frame range.',
