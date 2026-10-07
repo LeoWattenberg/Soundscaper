@@ -158,3 +158,25 @@ Consumers must stage their media and catalog writes provisionally, roll back on
 failure, and publish only after the entire pack and enclosing Scape manifest
 have been authenticated. Existing Scape entry-count and total-byte ceilings
 remain unchanged.
+
+### Catalog archive integration budgets
+
+The v1 catalog archive document wraps one catalog root and compact pack
+descriptors, rather than embedding photo aggregates in `project.json`. Its own
+JSON limit is 4 MiB, within the existing Scape document and structural ceilings.
+There are at most 4,094 packs, leaving the two reserved Scape entries within the
+existing 4,096-entry limit. Pack boundaries follow both the 4,096-record and
+512 MiB pack limits; export retains one lookahead photo, never a whole pack of
+photo documents. Cross-pack photo identity checks retain only IDs, bounded by
+16 MiB of ASCII identifier bytes. This admits the 100,000-photo qualification
+target even with maximum-length IDs. Larger identity inventories are refused
+explicitly until a durable identity ledger replaces that in-memory check.
+
+Non-streaming export keeps the shared 512 MiB final-Blob budget. Streaming
+export and import keep the Scape 64 GiB expanded-byte ceiling. Import stages
+catalog rows and originals, verifies every pack and original digest, closes the
+archive reader, and only then publishes the staged catalog. Failure or
+cancellation before publication rolls back the stage. Framescaper and
+Soundscaper classify this registered family as read-only foreign state and can
+preserve its complete archive unchanged; registration grants neither editor
+photo authoring authority.

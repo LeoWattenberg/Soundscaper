@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { photoPackByteView } from './pack-byte-chunk.ts';
+
 /** Retains one bounded borrowed source chunk, with bounded exact header reads. */
 export class PhotoPackCursor {
 	readonly #iterator: AsyncIterator<Uint8Array>;
@@ -21,14 +23,7 @@ export class PhotoPackCursor {
 		const next = await this.#iterator.next();
 		this.signal?.throwIfAborted();
 		if (next.done) { this.#done = true; this.#chunk = new Uint8Array(); return false; }
-		const chunk = next.value;
-		if (!(chunk instanceof Uint8Array) || Object.getPrototypeOf(chunk) !== Uint8Array.prototype
-			|| ['buffer', 'byteLength', 'byteOffset', 'length'].some((key) => Object.hasOwn(chunk, key))) {
-			throw new TypeError('Photo pack source requires intrinsic byte chunks.');
-		}
-		if (!(chunk.buffer instanceof ArrayBuffer) || Object.getOwnPropertyDescriptor(ArrayBuffer.prototype, 'resizable')?.get?.call(chunk.buffer) === true) {
-			throw new TypeError('Photo pack source requires fixed byte buffers.');
-		}
+		const chunk = photoPackByteView(next.value);
 		if (chunk.byteLength < 1 || chunk.byteLength > this.maximumChunkBytes) {
 			throw new RangeError('Photo pack source chunk exceeds its bounded chunk limit.');
 		}
@@ -36,7 +31,7 @@ export class PhotoPackCursor {
 		if (this.#received > this.maximumBytes) throw new RangeError('Photo pack exceeds its pack byte limit.');
 		// Borrow the bytes through our own intrinsic view; caller methods and
 		// constructor species must never participate in subsequent slicing.
-		this.#chunk = new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.byteLength); this.#offset = 0;
+		this.#chunk = chunk; this.#offset = 0;
 		return true;
 	}
 

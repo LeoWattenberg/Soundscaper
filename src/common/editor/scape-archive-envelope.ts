@@ -8,6 +8,7 @@ import {
 import { parseOpaqueScapeProjectDocument } from './scape-project-document.ts';
 import { ScapeExpandedByteBudget } from './scape-expanded-byte-budget.ts';
 import { confirmFileSizeWarning, type FileSizeWarningOptions } from './controller/shared/file-size-warning.ts';
+import { PHOTO_CATALOG_PACK_ASSET_KIND } from './scape-photo-catalog-pack.ts';
 
 export const SCAPE_FORMAT = 'scape-project';
 export const SCAPE_FORMAT_VERSION = 1;
@@ -291,8 +292,8 @@ function parseScapeManifest(text: string, additionalAssetKinds: readonly string[
 		throw new TypeError('The Scape manifest is incomplete.');
 	}
 	validateDescriptor(value.project);
-	readProjectSchemaIdentity(value.project);
-	const assetKinds = allowedAssetKinds(additionalAssetKinds);
+	const identity = readProjectSchemaIdentity(value.project);
+	const assetKinds = allowedAssetKinds(additionalAssetKinds, identity.schemaFamily);
 	for (const asset of value.assets) {
 		if (!isRecord(asset)) throw new TypeError('A Scape asset descriptor is invalid.');
 		validateDescriptor(asset);
@@ -309,16 +310,18 @@ function parseScapeManifest(text: string, additionalAssetKinds: readonly string[
 	return value as unknown as ScapeManifest;
 }
 
-function allowedAssetKinds(additional: readonly string[]): ReadonlySet<string> {
+function allowedAssetKinds(additional: readonly string[], family: ProjectSchemaFamily): ReadonlySet<string> {
 	if (!Array.isArray(additional) || additional.length > 64) {
 		throw new TypeError('Additional Scape asset kinds must be a bounded array.');
 	}
 	const result = new Set(['audio', 'video', 'video-timing']);
+	if (family === 'lightscaper') result.add(PHOTO_CATALOG_PACK_ASSET_KIND);
 	for (const kind of additional) {
 		if (typeof kind !== 'string' || !/^[a-z][a-z0-9-]{0,63}$/u.test(kind)) {
 			throw new TypeError(`An additional Scape asset kind is invalid: ${String(kind)}.`);
 		}
 		if (result.has(kind)) throw new Error(`Duplicate Scape asset kind: ${kind}.`);
+		if (kind === PHOTO_CATALOG_PACK_ASSET_KIND) throw new TypeError('Photo catalog packs require their registered project family.');
 		result.add(kind);
 	}
 	return result;

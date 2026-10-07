@@ -108,7 +108,7 @@ export function resolveScapeCurrentProjectSchemaFamily(
 ): ProjectSchemaFamily {
 	const value = options.currentProjectSchemaFamily;
 	if (!isProjectSchemaFamily(value)) {
-		throw new TypeError('The Scape current project schema family must be soundscaper or framescaper.');
+		throw new TypeError('The Scape current project schema family must be registered.');
 	}
 	return value;
 }
