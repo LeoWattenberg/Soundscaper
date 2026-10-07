@@ -11,14 +11,9 @@ import {
 	createDraftBlurCommitGuard,
 	draftBlurShouldCommit,
 } from '../draft-blur-commit.ts';
-import {
-	formatProjectBinDuration,
-	formatProjectBinSource,
-	projectBinTransformBadges,
-	projectBinWaveformPath,
-} from './project-bin-model.ts';
+import { formatProjectBinSource } from './project-bin-model.ts';
+import { useProjectBinWaveformPath, useProjectBinTransformBadges, useProjectBinMediaTiming, useProjectBinDuration, useProjectBinInstanceCount } from './useProjectBinPresentation.ts';
 import { productVideoVisualPreviewRuntimeFor } from './product-video-visual-preview-runtime.ts';
-import { projectBinVideoPreviewModel, projectBinVisualDurationFrames } from './project-bin-video-preview-model.ts';
 
 export default function ProjectBinCard({
 	clip,
@@ -47,10 +42,8 @@ export default function ProjectBinCard({
 	const unavailable = Boolean(missing || !source || visual?.available === false);
 	const disabled = mutationBlocked || unavailable;
 	const name = clip.title || source?.name || copy.clip;
-	const waveformPath = projectBinWaveformPath(visual, clip);
-	const transformBadges = [...new Set(itemClips.flatMap((itemClip, index) => (
-		projectBinTransformBadges(itemClip, sources[index], copy)
-	)))];
+	const waveformPath = useProjectBinWaveformPath(visual, clip);
+	const transformBadges = useProjectBinTransformBadges(itemClips, sources, copy);
 	const format = formatProjectBinSource(source, copy);
 	const videoClip = itemClips.find((itemClip) => itemClip.kind === 'video') || null;
 	const visualClip = itemClips.find((itemClip) => (
@@ -62,12 +55,12 @@ export default function ProjectBinCard({
 	const posterUrl = visual?.posterUrl || visual?.thumbnails?.[0]?.url || null;
 	const previewActive = preview?.clipId === clip.id;
 	const previewPlaying = previewActive && preview.state === 'playing';
-	const instanceCount = controller.actions.projectBin.instanceCount(clip.id);
+	const instanceCount = useProjectBinInstanceCount(controller.actions.projectBin.instanceCount, clip.id, project?.clips, project?.projectBin?.clips);
 	const videoSource = videoClip
 		? sources[itemClips.indexOf(videoClip)] || project?.sources?.find((candidate) => candidate.id === videoClip.sourceId)
 		: null;
-	const videoPreview = projectBinVideoPreviewModel(project, videoClip, videoSource);
-	const duration = formatProjectBinDuration(videoPreview?.durationFrames ?? projectBinVisualDurationFrames(project, visualClip) ?? clip.durationFrames, project?.sampleRate, locale);
+	const { videoPreview, visualDuration } = useProjectBinMediaTiming(project, videoClip, videoSource, visualClip);
+	const duration = useProjectBinDuration(videoPreview?.durationFrames ?? visualDuration ?? clip.durationFrames, project?.sampleRate, locale);
 	const videoStartSeconds = videoPreview?.startSeconds ?? 0;
 	const videoEndSeconds = videoPreview?.endSeconds ?? 0;
 	const videoPlaybackRate = videoPreview?.playbackRate ?? 1;

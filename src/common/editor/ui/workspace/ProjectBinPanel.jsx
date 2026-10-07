@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { useProjectBinFileDrop } from './use-project-bin-file-drop.js';
 import { FRAMESCAPER_INPUTS_COPY } from '../../../i18n/editor-framescaper-inputs-copy.ts';
@@ -18,14 +18,15 @@ import {
 	dispatchLinkedAudioChoice,
 	prepareLinkedAudioChoice,
 } from './linked-audio-choice-handoff.ts';
-import { projectBinColorName, projectBinItems } from './project-bin-model.ts';
+import { projectBinColorName } from './project-bin-model.ts';
+import { useProjectBinItems, useProjectBinSources } from './useProjectBinPresentation.ts';
 import { queueFreesoundClipUploadCommand } from './freesound-clip-upload-command.ts';
 import { withWebFileLoadLimitContext } from '../../web-file-limit-failure.ts';
 import { useProjectBinSourceProperties } from './use-project-bin-source-properties.jsx';
 
 const AUDIO_EDITOR_AUDIO_FILE_ACCEPT = 'audio/*,video/mp4,video/webm,.aac,.aif,.aiff,.bw64,.flac,.m4a,.m4v,.mp2,.mp3,.mp4,.oga,.ogg,.opus,.rf64,.wav,.wave,.wavpack,.webm,.wv';
-export default function ProjectBinPanel({ controller, snapshot, copy, locale, fileService, run, blocked, confirmFileSizeWarning = /** @type {import('../../controller/shared/file-size-warning.ts').FileSizeWarningConfirmation | undefined} */ (undefined) }) {
-	copy = snapshot.productId === 'framescaper' ? { ...copy, projectBinImport: copy['ui.framescaperInputs.addMedia'] ?? FRAMESCAPER_INPUTS_COPY.addMedia, projectBinDropTitle: copy['ui.framescaperInputs.dropFiles'] ?? FRAMESCAPER_INPUTS_COPY.dropFiles } : copy;
+export default function ProjectBinPanel({ controller, snapshot, copy: providedCopy, locale, fileService, run, blocked, confirmFileSizeWarning = /** @type {import('../../controller/shared/file-size-warning.ts').FileSizeWarningConfirmation | undefined} */ (undefined) }) {
+	const copy = useMemo(() => snapshot.productId === 'framescaper' ? { ...providedCopy, projectBinImport: providedCopy['ui.framescaperInputs.addMedia'] ?? FRAMESCAPER_INPUTS_COPY.addMedia, projectBinDropTitle: providedCopy['ui.framescaperInputs.dropFiles'] ?? FRAMESCAPER_INPUTS_COPY.dropFiles } : providedCopy, [providedCopy, snapshot.productId]);
 	const inputRef = useRef(null);
 	const replacementInputRef = useRef(null);
 	const linkedAudioRelinkRequestRef = useRef(0);
@@ -77,9 +78,9 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 			}
 		};
 	}, [fileService, projectId, projectRevision, run]);
-	const clips = project?.projectBin?.clips || [];
-	const items = projectBinItems(clips);
-	const sourceById = new Map((project?.sources || []).map((source) => [source.id, source]));
+	const clips = project?.projectBin?.clips;
+	const items = useProjectBinItems(clips);
+	const { sourceById, itemSources } = useProjectBinSources(items, project?.sources);
 	const missingSourceIds = new Set(snapshot.missingSourceIds || []);
 	const mutationBlocked = selectAudioEditorEditBlock(snapshot).blocked;
 	const overlayTarget = inputRef.current?.closest('#kw-audio-editor-design-system')
@@ -363,7 +364,7 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 							clip={item.primaryClip}
 							itemClips={item.clips}
 							source={sourceById.get(item.primaryClip.sourceId) || null}
-							sources={item.clips.map((clip) => sourceById.get(clip.sourceId) || null)}
+							sources={itemSources.get(item.id)}
 							project={project}
 							controller={controller}
 							copy={copy}
