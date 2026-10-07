@@ -46,6 +46,12 @@ export interface FoundationTimeConversionSite {
  */
 const FOUNDATION_TIME_CONVERSION_EDITOR_SITES: readonly FoundationTimeConversionSite[] = deepFreezeAuditSites([
 	{
+		id: 'mastering-sequence-cart-delivery-points',
+		file: 'src/common/editor/mastering-sequence-cart.ts',
+		behavior: 'Mastering CART timers resolve each surviving source-relative occurrence as the nearest delivered sample, add its assembled output origin, and clamp source-end timers to that region\'s independently rounded delivered end.',
+		conversions: [{ helper: 'scaleSampleFrame', policies: ['point'] }],
+	},
+	{
 		id: 'clip-silence-musical-warp-boundaries',
 		file: 'src/common/editor/clip-silence-warp-projection.ts',
 		behavior: 'Source-silence regions invert the authored warp map and resolve musical offsets as nearest project sample positions before the exact editable source-boundary admission.',
