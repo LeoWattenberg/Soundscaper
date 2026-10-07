@@ -19,6 +19,7 @@ import {
 import { MEDIA_EXPORT_FORMATS, mediaExportFormatCarriesCues } from './media-export.js';
 import type { DeliveryConformanceFinding } from './delivery-conformance.ts';
 import { masteringSequenceDeliveryConversions } from './mastering-sequence-delivery.ts';
+import { AIFF_MARK_MAXIMUM_NAME_BYTES } from './aiff-markers.ts';
 
 /**
  * What a delivery plan does to the material, derived from the plan itself.
@@ -203,6 +204,15 @@ export function inventoryDeliveryConversions(
 			message: 'AIFF stores point markers without notes, so region lengths and cue notes were flattened out of the delivery.',
 		});
 	}
+	const shortenedNames = descriptor?.id === 'aiff' && Array.isArray(plan.markers)
+		? (plan.markers as readonly Readonly<{ label?: unknown }>[]).filter(marker => (
+			new TextEncoder().encode(String(marker.label ?? '')).byteLength > AIFF_MARK_MAXIMUM_NAME_BYTES
+		)).length : 0;
+	if (shortenedNames > 0) conversions.push({
+		code: 'delivery.marker-names-truncated', disposition: 'converted', severity: 'warning',
+		data: { markers: shortenedNames, maximumNameBytes: AIFF_MARK_MAXIMUM_NAME_BYTES, format: 'aiff' },
+		message: `AIFF marker names longer than ${String(AIFF_MARK_MAXIMUM_NAME_BYTES)} UTF-8 bytes were shortened in the delivery.`,
+	});
 
 	for (const conversion of masteringSequenceDeliveryConversions(plan.masteringSequence, carriesCues)) {
 		conversions.push(conversion);

@@ -15,7 +15,7 @@ import { normalizeRiffMarkers, type RiffMarker, type RiffMarkerInput } from './r
 /** MarkerIds are positive signed 16-bit values, so this is the format's own ceiling. */
 export const AIFF_MARK_MAXIMUM_MARKERS = 32_767;
 
-const MAXIMUM_NAME_BYTES = 255;
+export const AIFF_MARK_MAXIMUM_NAME_BYTES = 255;
 
 /** Encode the complete `MARK` chunk (header included) for these markers, or no bytes for none. */
 export function createAiffMarkChunk(input: readonly RiffMarkerInput[] = []): Uint8Array {
@@ -75,8 +75,8 @@ export function parseAiffMarkChunk(payload: Uint8Array): readonly RiffMarker[] {
 
 function pascalString(value: string): Uint8Array {
 	let encoded = new TextEncoder().encode(value);
-	if (encoded.byteLength > MAXIMUM_NAME_BYTES) {
-		let end = MAXIMUM_NAME_BYTES;
+	if (encoded.byteLength > AIFF_MARK_MAXIMUM_NAME_BYTES) {
+		let end = AIFF_MARK_MAXIMUM_NAME_BYTES;
 		while (end > 0 && (encoded[end]! & 0xc0) === 0x80) end -= 1;
 		encoded = encoded.subarray(0, end);
 	}
