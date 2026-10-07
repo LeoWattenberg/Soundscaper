@@ -9,8 +9,10 @@ const source = createVideoSource({ id: 'camera', storageKey: 'camera', sampleFra
 	frameRate: { num: 30, den: 1 }, sourceFrameCount: 30, width: 96, height: 54, hasAudio: false });
 const context = { source, projectSampleRate: 48_000, sequence: { id: 'main', rate: { num: 25, den: 1 } } };
 function cameraClip(sourceInFrame: number, sourceFrameCount: number, sequenceFrameCount = 25) {
-	return createVideoClip({ id: 'take', sourceId: source.id, sourceInFrame, sourceFrameCount,
+	const clip = createVideoClip({ id: 'take', sourceId: source.id, sourceInFrame, sourceFrameCount,
 		sequenceStartFrame: 0, sequenceFrameCount, binItemId: 'take' }, context);
+	assert.equal(clip.binItemId, 'take');
+	return { ...clip, binItemId: 'take' };
 }
 
 test('a native camera excerpt names its left source trim in the Project Bin', () => {
