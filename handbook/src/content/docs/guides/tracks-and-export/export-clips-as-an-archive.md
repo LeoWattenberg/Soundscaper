@@ -18,7 +18,7 @@ head:
 Exporting individual clips keeps each edit as a separate audio file while collecting the files in one archive. Split a passage into clips first, then choose the clips output mode in the export dialog.
 
 :::note[Coming from Audacity?]
-This is Audacity's **File → Export Audio → Multiple Files (Audacity 3)**. The names below are Soundscaper's own, which sometimes differ.
+This is Audacity's **File → Export Audio → Multiple Files, split by tracks or labels (Audacity 3)**. The names below are Soundscaper's own, which sometimes differ.
 :::
 
 ## Steps

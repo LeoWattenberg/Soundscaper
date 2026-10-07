@@ -18,7 +18,7 @@ head:
 Clip Fix estimates the missing tops of short clipped peaks from the neighboring waveform. Use it on a copy of your recording and listen closely; it cannot reconstruct longer clipped passages.
 
 :::note[Coming from Audacity?]
-This is Audacity's **Effect → Nyquist → Clip Fix**. The names below are Soundscaper's own, which sometimes differ.
+This is Audacity's **Effect → Noise Removal and Repair → Clip Fix (Audacity 3 and 4)**. The names below are Soundscaper's own, which sometimes differ.
 :::
 
 ## Steps

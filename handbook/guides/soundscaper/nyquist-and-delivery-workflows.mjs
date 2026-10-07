@@ -81,7 +81,7 @@ export const ANALYSIS_WORKFLOW_GUIDES = Object.freeze([
 		id: 'measure-rms-level',
 		title: 'Measure a selection’s RMS level',
 		description: 'Read the average signal level of a selected passage with the bundled RMS analyzer.',
-		audacity: 'Analyze → Nyquist → Measure RMS',
+		audacity: 'Analyze → Measure RMS (Nyquist)',
 		intro: 'RMS is an average measure of signal level over time. Use the Measure RMS analyzer to compare sections or check how strong a passage is before adjusting it.',
 		steps: [
 			open(),
@@ -98,7 +98,7 @@ export const ANALYSIS_WORKFLOW_GUIDES = Object.freeze([
 		id: 'label-sounds-separated-by-silence',
 		title: 'Label sounds separated by silence',
 		description: 'Create labels around sounds that rise above a threshold after a pause.',
-		audacity: 'Analyze → Nyquist → Label Sounds',
+		audacity: 'Analyze → Label Sounds (Nyquist)',
 		intro: 'Label Sounds scans a passage for sound separated by silence and places a label around each detected sound. It can mark spoken phrases, isolated hits or other distinct events for later editing.',
 		steps: [
 			open(),
@@ -127,7 +127,7 @@ export const DELIVERY_WORKFLOW_GUIDES = Object.freeze([
 		id: 'export-clips-as-an-archive',
 		title: 'Export clips as a WAV archive',
 		description: 'Render each clip as its own WAV file in one ZIP archive.',
-		audacity: 'File → Export Audio → Multiple Files (Audacity 3)',
+		audacity: 'File → Export Audio → Multiple Files, split by tracks or labels (Audacity 3)',
 		intro: 'Exporting individual clips keeps each edit as a separate audio file while collecting the files in one archive. Split a passage into clips first, then choose the clips output mode in the export dialog.',
 		steps: [
 			open(),

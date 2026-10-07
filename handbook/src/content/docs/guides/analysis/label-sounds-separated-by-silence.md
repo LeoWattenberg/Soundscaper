@@ -18,7 +18,7 @@ head:
 Label Sounds scans a passage for sound separated by silence and places a label around each detected sound. It can mark spoken phrases, isolated hits or other distinct events for later editing.
 
 :::note[Coming from Audacity?]
-This is Audacity's **Analyze → Nyquist → Label Sounds**. The names below are Soundscaper's own, which sometimes differ.
+This is Audacity's **Analyze → Label Sounds (Nyquist)**. The names below are Soundscaper's own, which sometimes differ.
 :::
 
 ## Steps

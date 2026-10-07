@@ -18,7 +18,7 @@ head:
 RMS is an average measure of signal level over time. Use the Measure RMS analyzer to compare sections or check how strong a passage is before adjusting it.
 
 :::note[Coming from Audacity?]
-This is Audacity's **Analyze → Nyquist → Measure RMS**. The names below are Soundscaper's own, which sometimes differ.
+This is Audacity's **Analyze → Measure RMS (Nyquist)**. The names below are Soundscaper's own, which sometimes differ.
 :::
 
 ## Steps

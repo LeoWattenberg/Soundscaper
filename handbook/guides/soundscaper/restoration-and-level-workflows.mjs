@@ -29,7 +29,7 @@ export const CLEAN_UP_WORKFLOW_GUIDES = Object.freeze([
 		id: 'restore-clipped-peaks',
 		title: 'Restore short clipped peaks',
 		description: 'Try Clip Fix on brief clipped peaks and compare the result with the original.',
-		audacity: 'Effect → Nyquist → Clip Fix',
+		audacity: 'Effect → Noise Removal and Repair → Clip Fix (Audacity 3 and 4)',
 		intro: 'Clip Fix estimates the missing tops of short clipped peaks from the neighboring waveform. Use it on a copy of your recording and listen closely; it cannot reconstruct longer clipped passages.',
 		steps: [
 			open(),
@@ -144,7 +144,7 @@ export const EFFECT_WORKFLOW_GUIDES = Object.freeze([
 		],
 		tips: [
 			'Cancellation requires the same timing and level; even a small offset leaves an audible residual.',
-			'Keep both tracks selected for playback. Undo restores the duplicate before the polarity test.',
+			'Keep both tracks unmuted and leave Solo off so both can be heard together. Undo restores the duplicate before the polarity test.',
 		],
 	},
 ]);

@@ -34,7 +34,7 @@ This is Audacity's **Effect → Special → Invert**. The names below are Sounds
 ## Tips
 
 - Cancellation requires the same timing and level; even a small offset leaves an audible residual.
-- Keep both tracks selected for playback. Undo restores the duplicate before the polarity test.
+- Keep both tracks unmuted and leave Solo off so both can be heard together. Undo restores the duplicate before the polarity test.
 
 ## Related guides
 
