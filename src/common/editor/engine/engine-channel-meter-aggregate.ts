@@ -18,8 +18,13 @@ export function reconcileEngineChannelMeters<Frame extends ChannelMeterFrame>(fr
 			: strip.kind === 'track' ? frame.tracks[strip.id]
 				: frame.groups[strip.id] ?? frame.sends[strip.id];
 		if (!target || !channels.length) continue;
-		const peak = Math.max(...channels.map(channel => channel.peak));
-		const rms = Math.sqrt(channels.reduce((sum, channel) => sum + channel.rms ** 2, 0) / channels.length);
+		let peak = -Infinity;
+		let squares = 0;
+		for (const channel of channels) {
+			peak = Math.max(peak, channel.peak);
+			squares += channel.rms ** 2;
+		}
+		const rms = Math.sqrt(squares / channels.length);
 		Object.assign(target, { peak, rms, dbfs: peak > 0 ? 20 * Math.log10(peak) : -Infinity });
 	}
 	return frame;
