@@ -58,6 +58,27 @@ test('prepared inverse preserves last-event authority when musical boundaries ro
 	for (const frame of [0, 1, 10]) assert.deepEqual(project(frame), sampleFrameToBeat(frame, map, 48_000));
 });
 
+test('prepared inverse preserves first-greater authority for malformed sample-locked positions and detaches facts', () => {
+	for (const samples of [[0, 100, 10], [100, 10, 20], [0, 10, 100, 20, 30], [0, 0, 0, 100, 1]]) {
+		const events = samples.map((sample, index) => ({
+			beat: { num: index, den: 1 }, bpm: { num: 60 + index * 30, den: 1 },
+			samplePosition: secondsToSampleFrame(sample, 1, 'point'),
+		}));
+		const map: HoldTempoMap = { mode: 'sampleLocked', events };
+		const project = createSampleFrameBeatProjector(map, 48_000);
+		const frames = [0, 1, 9, 10, 11, 19, 20, 21, 30, 40, 99, 100, 101, 200];
+		const expected = frames.map(frame => sampleFrameToBeat(frame, map, 48_000));
+		for (const [index, frame] of frames.entries()) assert.deepEqual(project(frame), expected[index]);
+		for (const event of events) {
+			event.beat.num += 1_000;
+			event.bpm.num = 1;
+			event.samplePosition = secondsToSampleFrame(1_000, 1, 'point');
+		}
+		events.reverse();
+		for (const [index, frame] of frames.entries()) assert.deepEqual(project(frame), expected[index]);
+	}
+});
+
 test('curved musical automation prepares the tempo map a bounded number of times per schedule', () => {
 	let reads = 0;
 	const raw = Array.from({ length: 200 }, (_, index) => ({

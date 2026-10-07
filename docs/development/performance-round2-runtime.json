@@ -91,7 +91,7 @@
 			"change": "Prepare detached exact tempo frame/beat/rate facts once per schedule and binary-search active segments for adaptive curve evaluations.",
 			"test": "tests/audio-editor-responsiveness-tempo-inverse.test.ts",
 			"evidence": "100 prepared queries on 1000 tempos read zero authored events; musical/sample-locked/rounded-coincident boundaries retain exact parity. Curved scheduling keeps preparation reads bounded regardless of recursive evaluations.",
-			"limitations": "Preparation remains linear; no global identity cache admits arbitrary mutable tempo inputs. Public one-shot inverse remains unchanged.",
+			"limitations": "Preparation remains linear; prefix-maximum search boundaries preserve the public inverse’s first-greater stopping behavior even for malformed sample-locked positions, while retaining original frames for arithmetic. No global identity cache admits arbitrary mutable tempo inputs. Public one-shot inverse remains unchanged.",
 			"status": "implemented"
 		},
 		{
@@ -123,5 +123,15 @@
 			"reason": "Fewer sample reads did not yield a reliable improvement: representative warmed 256-frame tests measured a slowdown, so production kernels retain their original loops."
 		}
 	],
+	"independentReview": {
+		"baseRevision": "1b9a6ce76b66b810a6dd30b94ad0f50559fbddab",
+		"exactComparisons": 612,
+		"inverseQueries": 276,
+		"compiledSchedules": 240,
+		"pdcPlans": 96,
+		"result": "Independently imported baseline modules match all successful inverse queries, hold/linear/eased schedules and PDC missing/null/duplicate/filter combinations. Musical boundary rounding, coincident frames and sample-locked original-frame arithmetic remain exact.",
+		"regression": "Four malformed sample-position geometries retain first-greater stopping and detached facts after caller beat/BPM/position mutation; the focused regression failed before the prefix-maximum correction.",
+		"limitations": "Deterministic helper and scheduler comparison; no Electron latency or GPU-framerate attribution. The compatibility correction adds no counted finding."
+	},
 	"baseRevision": "1b9a6ce76b66b810a6dd30b94ad0f50559fbddab"
 }

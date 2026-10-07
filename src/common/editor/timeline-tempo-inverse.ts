@@ -127,18 +127,25 @@ export function createSampleFrameBeatProjector(
 	if (!Number.isSafeInteger(sampleRate) || sampleRate <= 0) throw new RangeError('sampleRate must be positive.');
 	if (!Array.isArray(tempoMap?.events) || !tempoMap.events.length) throw new TypeError('A hold tempo map is required.');
 	const frames = tempoEventFrames(tempoMap.events, tempoMap, sampleRate);
-	const facts = tempoMap.events.map((event, index) => ({
-		frame: frameAt(frames, index),
-		beat: normalizeRational(event.beat, { maximumDenominator: Number.MAX_SAFE_INTEGER }),
-		beatsPerSample: divideRationals(event.bpm, 60 * sampleRate),
-	}));
+	let searchFrame = 0;
+	const facts = tempoMap.events.map((event, index) => {
+		const frame = frameAt(frames, index);
+		// The one-shot inverse stops at the first greater frame, even for malformed
+		// sample positions. Event zero is never a stopping boundary.
+		if (index > 0) searchFrame = Math.max(searchFrame, frame);
+		return {
+			frame, searchFrame,
+			beat: normalizeRational(event.beat, { maximumDenominator: Number.MAX_SAFE_INTEGER }),
+			beatsPerSample: divideRationals(event.bpm, 60 * sampleRate),
+		};
+	});
 	return (frame): Rational => {
 		if (!Number.isSafeInteger(frame) || frame < 0) throw new RangeError('frame must be a non-negative safe integer.');
 		let lower = 1;
 		let upper = facts.length;
 		while (lower < upper) {
 			const middle = lower + Math.floor((upper - lower) / 2);
-			if (facts[middle]!.frame <= frame) lower = middle + 1;
+			if (facts[middle]!.searchFrame <= frame) lower = middle + 1;
 			else upper = middle;
 		}
 		const active = facts[lower - 1]!;
