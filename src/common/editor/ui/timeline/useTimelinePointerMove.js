@@ -458,7 +458,7 @@ export function useTimelinePointerMove({
 			));
 		} else if (session?.kind === 'stretch-left' || session?.kind === 'stretch-right') {
 			const preview = resolveTimelineRateStretchPointerPreview({
-				session,
+				session, project,
 				canonicalVideoTrim: snapshot.capabilities?.videoCompositing === true,
 				requestedBoundarySample: frameAtClientX(event.clientX, session.lane),
 				previewRateStretch: (request) => run(() => (

@@ -41,4 +41,16 @@ export const FOUNDATION_TIME_CONVERSION_VISUAL_EDIT_SITES: readonly FoundationTi
 		behavior: 'The generated visual split consumer resolves the requested project sample to the nearest authored sequence boundary before partitioning its exact sequence extent and native source window; compound cuts observe earlier generated visual mutations.',
 		conversions: [{ helper: 'sampleFrameToVideoFrame', policies: ['point'] }],
 	},
+	{
+		id: 'timeline-generator-rate-stretch-boundary',
+		file: 'src/common/editor/timeline-generator-rate-stretch.ts',
+		behavior: 'Generated visual rate stretch resolves the final pointer sample to a nearest sequence boundary, retaining the native source window and phase while changing only the authored sequence extent.',
+		conversions: [{ helper: 'sampleFrameToVideoFrame', policies: ['point'] }],
+	},
+	{
+		id: 'timeline-generator-rate-stretch-preview',
+		file: 'src/common/editor/ui/timeline/generator-rate-stretch-pointer.ts',
+		behavior: 'Generated visual rate-stretch previews convert the planner\'s absolute sequence start and end once to nearest project sample points, deriving displayed duration from their difference; commit carries only native compare-and-set authority.',
+		conversions: [{ helper: 'videoFrameToSampleFrame', policies: ['point'] }],
+	},
 ]);

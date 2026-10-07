@@ -7,12 +7,14 @@ import type {
 	FrameCanonicalRateStretchRequest,
 } from '../../frame-canonical-rate-stretch-domain.ts';
 import type { TimelineTrimPointerSession } from './trim-pointer-routing.ts';
+import { prepareGeneratorRateStretchPointer, type GeneratorRateStretchProject } from './generator-rate-stretch-pointer.ts';
 
 export interface TimelineRateStretchPointerSession extends TimelineTrimPointerSession {
 	readonly kind?: string;
 }
 
 export interface TimelineRateStretchRouteInput {
+	readonly project?: unknown;
 	readonly session: TimelineRateStretchPointerSession;
 	readonly canonicalVideoTrim: boolean;
 }
@@ -26,6 +28,7 @@ export interface TimelineRateStretchPointerPreviewInput extends TimelineRateStre
 }
 
 export interface TimelineRateStretchPointerCommitInput extends TimelineRateStretchRouteInput {
+	commitGenerated?(command: unknown): unknown;
 	readonly requestedBoundarySample: number;
 	commitRateStretch(request: FrameCanonicalRateStretchRequest): unknown;
 	commitOrdinary(): unknown;
@@ -44,7 +47,7 @@ export type TimelineRateStretchPointerPreview = Readonly<
 	}
 >;
 
-/** Only Framescaper's existing video stretch handles own this canonical route. */
+/** Existing picture stretch handles own camera or generated sequence authority. */
 export function usesFrameCanonicalTimelineRateStretch(
 	input: TimelineRateStretchRouteInput,
 ): boolean {
@@ -52,7 +55,7 @@ export function usesFrameCanonicalTimelineRateStretch(
 	// and only stretch sessions carry `original`.
 	return input.canonicalVideoTrim === true
 		&& stretchEdge(input.session) !== null
-		&& input.session.original.kind === 'video';
+		&& (input.session.original.kind === 'video' || input.session.original.kind === 'generator');
 }
 
 /** Plan from one absolute edge point and adapt every relation participant. */
@@ -62,6 +65,10 @@ export function resolveTimelineRateStretchPointerPreview(
 	if (!usesFrameCanonicalTimelineRateStretch(input)) return input.previewOrdinary();
 	const edge = stretchEdge(input.session);
 	if (edge === null) return input.previewOrdinary();
+	if (input.session.original.kind === 'generator' && input.project) {
+		return prepareGeneratorRateStretchPointer(input.project as GeneratorRateStretchProject,
+			input.session, edge, input.requestedBoundarySample).preview;
+	}
 	const plan = input.previewRateStretch(rateStretchRequest(
 		input.session.clipId,
 		edge,
@@ -86,6 +93,11 @@ export function commitTimelineRateStretchPointer(
 ): unknown {
 	if (!usesFrameCanonicalTimelineRateStretch(input)) return input.commitOrdinary();
 	const edge = stretchEdge(input.session);
+	if (edge !== null && input.session.original.kind === 'generator' && input.project) {
+		const plan = prepareGeneratorRateStretchPointer(input.project as GeneratorRateStretchProject,
+			input.session, edge, input.requestedBoundarySample);
+		return plan.command ? input.commitGenerated?.(plan.command) : null;
+	}
 	return edge === null ? input.commitOrdinary() : input.commitRateStretch(rateStretchRequest(
 		input.session.clipId,
 		edge,

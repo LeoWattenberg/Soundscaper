@@ -185,13 +185,14 @@ export function useTimelinePointerFinish({
 			canonicalVideoTrim: snapshot.capabilities?.videoCompositing === true,
 		})) {
 			commitTimelineRateStretchPointer({
-				session,
+				session, project,
 				canonicalVideoTrim: true,
 				requestedBoundarySample: frameAtClientX(event.clientX, session.lane),
 				commitRateStretch: (request) => run(() => (
 					controller.actions.video.trim.rateStretch.commit(request)
 				)),
 				commitOrdinary: () => null,
+				commitGenerated: (command) => run(() => controller.actions.edit.commit(command)),
 			});
 			return;
 		}
