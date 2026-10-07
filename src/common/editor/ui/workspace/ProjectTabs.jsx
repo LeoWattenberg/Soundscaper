@@ -35,6 +35,7 @@ export default function ProjectTabs({ projects, activeProjectId, copy, disabled,
 		? activeProjectId
 		: unique[0]?.id;
 	const handleTabKeyDown = (event, index) => {
+		if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
 		const nextIndex = {
 			ArrowRight: index + 1, ArrowLeft: index - 1 + unique.length,
 			Home: 0, End: unique.length - 1,
