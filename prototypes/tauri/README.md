@@ -64,6 +64,30 @@ Electron staging, build AI runtimes, change npm dependency metadata, or create
 production installers. It forces the Soundscaper browser build even if the
 calling shell has `SCAPE_PRODUCT` or `SCAPE_DESKTOP_CODEC_RUNTIME` set.
 
+## Download a CI build
+
+Open the GitHub Actions workflow **Desktop test artifacts (internal)** and
+select **Run workflow**. Choose branch `feat/tauri-prototype`, set
+`desktop_host` to `tauri`, and select `nightly_tests_targets`:
+
+- `all` builds Windows x64, macOS arm64, and Linux x64.
+- `windows` or `win-x64` builds Windows x64 only.
+
+Download the completed run's `tauri-prototype-<platform>-<arch>` artifacts:
+`tauri-prototype-win-x64`, `tauri-prototype-mac-arm64`, or
+`tauri-prototype-linux-x64`. Extract the downloaded ZIP, then its `.tar.gz`
+archive; this preserves the executable permissions on macOS and Linux. The
+archive includes the source revision and license notices. These are unsigned release executables, not
+installers. The prototype uses the platform WebView prerequisites above and
+does not bundle AI runtimes or require an AI API model to build.
+
+The workflow can also be started from the repository root with GitHub CLI:
+
+```sh
+gh workflow run desktop-nightly-tests.yml --ref feat/tauri-prototype \
+  -f desktop_host=tauri -f nightly_tests_targets=all
+```
+
 ## What this exercises
 
 - Existing React editor startup through the versioned desktop bridge.

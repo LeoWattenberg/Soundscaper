@@ -15,6 +15,14 @@ on:
           - all
           - windows
           - win-x64
+      desktop_host:
+        description: Desktop host to build
+        required: true
+        default: electron
+        type: choice
+        options:
+          - electron
+          - tauri
 
 permissions:
   contents: read
@@ -26,7 +34,7 @@ concurrency:
 
 jobs:
   nightly-test-targets:
-    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
+    if: inputs.desktop_host != 'tauri' && (github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main')
     runs-on: ubuntu-24.04
     outputs:
       targets: ${{ steps.resolve.outputs.targets }}
@@ -183,6 +191,124 @@ jobs:
             release/desktop-nightly-tests/*.AppImage
             release/desktop-nightly-tests/*.exe
             release/desktop-nightly-tests/*.zip
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 14
+
+  tauri-prototype-targets:
+    if: github.event_name == 'workflow_dispatch' && inputs.desktop_host == 'tauri'
+    runs-on: ubuntu-24.04
+    outputs:
+      targets: ${{ steps.resolve.outputs.targets }}
+    steps:
+      - name: Check out the source revision
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Resolve Tauri prototype target matrix
+        id: resolve
+        env:
+          NIGHTLY_TEST_TARGETS: ${{ inputs.nightly_tests_targets || 'all' }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { appendFileSync } from 'node:fs';
+          import { selectTauriPrototypeBuildTargets } from './prototypes/tauri/build-targets.mjs';
+          appendFileSync(process.env.GITHUB_OUTPUT,
+            `targets=${JSON.stringify(selectTauriPrototypeBuildTargets(process.env.NIGHTLY_TEST_TARGETS))}\n`);
+          NODE
+
+  package-tauri-prototype:
+    name: Tauri prototype / ${{ matrix.target.platform }} / ${{ matrix.target.arch }}
+    if: >-
+      !cancelled()
+      && needs.tauri-prototype-targets.result == 'success'
+    needs: tauri-prototype-targets
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJSON(needs.tauri-prototype-targets.outputs.targets) }}
+    runs-on: ${{ matrix.target.runner }}
+    steps:
+      - name: Check out the source revision
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version-file: .nvmrc
+          architecture: ${{ matrix.target.node_arch }}
+          cache: npm
+
+      - name: Pin npm
+        run: npm install --global npm@12.0.1
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Linux WebView build dependencies
+        if: runner.os == 'Linux'
+        timeout-minutes: 10
+        run: >-
+          bash scripts/ci-apt-install.sh libwebkit2gtk-4.1-dev build-essential
+          libgtk-3-dev libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev xvfb xauth
+
+      - name: Install the pinned Rust toolchain
+        working-directory: prototypes/tauri/host
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          import { execFileSync } from 'node:child_process';
+          const channel = /^channel = "([^"]+)"$/m.exec(readFileSync('rust-toolchain.toml', 'utf8'))?.[1];
+          if (!channel) throw new Error('Missing prototype Rust toolchain pin.');
+          execFileSync('rustup', ['toolchain', 'install', channel, '--profile', 'minimal',
+            '--component', 'clippy,rustfmt'], { stdio: 'inherit' });
+          NODE
+          rustup show active-toolchain
+
+      - name: Run prototype host tests
+        run: node prototypes/tauri/run.mjs test --release
+
+      - name: Build the release executable
+        run: node prototypes/tauri/run.mjs build --release
+
+      - name: Smoke the Linux WebView and native file bridge
+        if: runner.os == 'Linux'
+        run: node prototypes/tauri/run.mjs smoke --release
+
+      # Archive before upload so Unix executable permissions survive download.
+      - name: Archive the executable and notices
+        shell: bash
+        env:
+          TAURI_PLATFORM: ${{ matrix.target.platform }}
+          TAURI_ARCH: ${{ matrix.target.arch }}
+          SOURCE_REVISION: ${{ github.sha }}
+        run: |
+          executable=soundscaper-tauri-prototype
+          if [ "$TAURI_PLATFORM" = win ]; then executable="$executable.exe"; fi
+          mkdir -p .tauri-prototype/artifact
+          cp ".tauri-prototype/target/release/$executable" .tauri-prototype/artifact/
+          cp LICENSE THIRD_PARTY_LICENSES.md prototypes/tauri/README.md .tauri-prototype/artifact/
+          printf '%s\n' "$SOURCE_REVISION" > .tauri-prototype/artifact/SOURCE_REVISION
+          tar -czf ".tauri-prototype/tauri-prototype-$TAURI_PLATFORM-$TAURI_ARCH.tar.gz" -C .tauri-prototype/artifact .
+
+      - name: Upload the Tauri prototype
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: tauri-prototype-${{ matrix.target.platform }}-${{ matrix.target.arch }}
+          path: .tauri-prototype/tauri-prototype-*.tar.gz
+          include-hidden-files: true
           compression-level: 0
           if-no-files-found: error
           retention-days: 14

@@ -230,6 +230,7 @@ test('desktop test artifacts build on main pushes and manual target selections w
 	]) {
 		assert.equal(runInNewContext(targetsCondition, {
 			github: { event_name: eventName, ref },
+			inputs: { desktop_host: '' },
 		}), enabled, `${eventName} on ${ref} must ${enabled ? 'run' : 'skip'} target selection`);
 	}
 	assert.match(targetsJob, /ref: \$\{\{ github\.sha \}\}/u);
