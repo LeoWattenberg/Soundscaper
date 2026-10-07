@@ -116,7 +116,9 @@ function workspaceShortcutTargetDisposition(
 	event: Pick<KeyboardEventLike, 'altKey' | 'code' | 'ctrlKey' | 'key' | 'metaKey' | 'shiftKey' | 'target'>,
 ): 'allowed' | 'blocked' | 'modified-control' {
 	if (typeof Element === 'undefined' || !(event.target instanceof Element)) return 'allowed';
-	if (event.target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])')) {
+	const timeDigit = event.target.closest('.timecode-digit');
+	if (timeDigit?.getAttribute('data-state') === 'active'
+		|| event.target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])')) {
 		return isNativeEditableShortcut(event) ? 'blocked' : 'modified-control';
 	}
 	const control = event.target.closest('button, a, [role="menu"], [role="menubar"], [role="menuitem"], [role="toolbar"], [role="slider"], [role="spinbutton"]');
