@@ -369,6 +369,12 @@ application overrides and source patches against the pin and upstream master.
     `tests/audio-editor-round4-clip-accessible-timing.test.tsx` and the public
     split-recording keyboard workflow. Upstream-PR candidate.
 
+51. `MixerFader` leaves already handled and Ctrl/Meta/Alt-modified navigation
+    keys available to application commands. Plain arrows, page keys and
+    Home/End retain their complete gain gesture. Covered by
+    `tests/audio-editor-round4-mixer-fader-shortcuts.test.tsx` and the ordinary
+    configured-command workflow in the Mixer. Upstream-PR candidate.
+
 ## Application-side adaptations
 
 Not deviations — application code that had to change because upstream did. Listed because they

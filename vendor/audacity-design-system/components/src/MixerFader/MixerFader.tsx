@@ -153,6 +153,7 @@ export const MixerFader: React.FC<MixerFaderProps> = ({
   }, [onGestureCancel]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
     if (disabled) return;
     const range = max - min;
     const step = range * KEYBOARD_STEP_FRACTION;
