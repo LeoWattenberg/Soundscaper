@@ -45,7 +45,7 @@ function busProject(scope: 'group' | 'send') {
 	const prefix = createEffect('audacity-reverb', { id: 'before' });
 	const suffix = createEffect('audacity-reverb', { id: 'after' });
 	const field = scope === 'group' ? 'groups' : 'sends';
-	const project = applySoundscaperProjectCommand(withBus, { type: 'mixer-graph/set', expected: withBus.mixer,
+	const project = applySoundscaperProjectCommand(withBus, { type: 'mixer-graph/set', expected: { ...withBus.mixer },
 		mixer: { ...withBus.mixer, [field]: withBus.mixer[field].map(bus => ({ ...bus, gain: 0.4, pan: 0.5,
 			effects: [prefix, effect, suffix], effectsActive: true })),
 			edges: [...withBus.mixer.edges.filter(edge => edge.id !== 'assignment:track:track-a:master'),
