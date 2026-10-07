@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { expect, test } from './audio-editor-test-fixtures.js';
-import { bootEditor, chooseCommandAction, registerAudioEditorHooks } from './audio-editor-test-helpers.js';
+import { bootEditor, chooseCommandAction, commitInput, registerAudioEditorHooks } from './audio-editor-test-helpers.js';
 
 registerAudioEditorHooks();
 
@@ -9,6 +9,8 @@ test('spectral amplification requires a gain inside its displayed bounds', async
 	const editor = await bootEditor(page, '/embed/en/');
 	await chooseCommandAction(page, editor, 'Generate', 'Tone');
 	const tone = page.getByRole('dialog', { name: 'Tone', exact: true });
+	// A short tone is enough to test the gain limits.
+	await commitInput(tone.locator('[data-generator-field="durationSeconds"] input'), '0.25');
 	await tone.getByRole('button', { name: 'Generate', exact: true }).click();
 	await expect(tone).toBeHidden();
 	await chooseCommandAction(page, editor, 'Select', 'Select all');
