@@ -61,6 +61,7 @@ import {
 	editorOptionalSurfaceModule,
 	editorPath,
 } from './build-chunk-tests.mjs';
+import { withUiPreparationChunkTest } from './build-chunk-ui-preparation.mjs';
 
 // The membership patterns keep their long-standing import site.
 export {
@@ -367,7 +368,7 @@ export const chunkGroups = [
 		// These three modules form one shared leaf for the rack, macro, and
 		// selection dialogs. Splitting the leaf creates a generated self-import.
 		name: 'editor-effect-parameter-surfaces',
-		test: EDITOR_EFFECT_PARAMETER_SURFACE_CHUNK_TEST,
+		test: withUiPreparationChunkTest('editor-effect-parameter-surfaces', EDITOR_EFFECT_PARAMETER_SURFACE_CHUNK_TEST),
 		priority: 98,
 		minSize: 0,
 		maxSize: 400_000,
@@ -375,7 +376,7 @@ export const chunkGroups = [
 	},
 	{
 		name: 'editor-optional-surfaces',
-		test: EDITOR_OPTIONAL_SURFACE_CHUNK_TEST,
+		test: withUiPreparationChunkTest('editor-optional-surfaces', EDITOR_OPTIONAL_SURFACE_CHUNK_TEST),
 		priority: 92,
 		maxSize: 400_000,
 		includeDependenciesRecursively: false,
