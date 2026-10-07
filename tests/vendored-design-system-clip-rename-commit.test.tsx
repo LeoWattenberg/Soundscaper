@@ -118,7 +118,7 @@ test('a rename request without a callback never opens the editor, and Escape set
 		const input = header.input();
 		assert.ok(input);
 		const props = reactProps(input);
-		props.onKeyDown(keyEvent('Escape'));
+		props.onKeyDown({ ...keyEvent('Escape'), currentTarget: input });
 		input.value = 'Stale blur';
 		props.onBlur({ currentTarget: input });
 	});

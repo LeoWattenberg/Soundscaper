@@ -356,6 +356,12 @@ application overrides and source patches against the pin and upstream master.
     `tests/audio-editor-round3-track-header-child-controls.test.tsx` alongside the
     existing mounted header selection and gesture regressions.
 
+49. `ClipHeader` returns keyboard focus to the enclosing timeline clip when
+    Enter commits or Escape cancels its inline name editor. Ordinary blur keeps
+    the user's newly focused control. Covered by
+    `tests/audio-editor-round4-clip-rename-focus.test.tsx` and its public F2
+    keyboard-continuation workflows. Upstream-PR candidate.
+
 ## Application-side adaptations
 
 Not deviations — application code that had to change because upstream did. Listed because they

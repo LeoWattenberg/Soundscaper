@@ -248,10 +248,14 @@ export const ClipHeader: React.FC<ClipHeaderProps> = ({
               e.stopPropagation();
               if (e.key === 'Enter') {
                 e.preventDefault();
+                const clip = e.currentTarget.closest<HTMLElement>('[data-clip-id]');
                 commitRename(e.currentTarget.value);
+                clip?.focus({ preventScroll: true });
               } else if (e.key === 'Escape') {
                 e.preventDefault();
+                const clip = e.currentTarget.closest<HTMLElement>('[data-clip-id]');
                 cancelRename();
+                clip?.focus({ preventScroll: true });
               }
             }}
             onBlur={(e) => commitRename(e.currentTarget.value)}
