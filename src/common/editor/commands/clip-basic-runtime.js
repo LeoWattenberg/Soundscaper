@@ -26,7 +26,7 @@ import {
 	withoutImportedPitchPreset,
 } from './shared-runtime.js';
 import { planTakeGraphClipRipple, planTakeGraphRangeRipple } from './take-graph-range-edit.ts';
-import { clipOwnerIndex, createCompletedFrameSum, createRelatedClipReader, firstById } from './editing-work-index.ts';
+import { clipOwnerIndex, createCompletedFrameSum, createRelatedClipReader, firstById, requireIndexedClip } from './editing-work-index.ts';
 
 export {
 	collectRelatedClipIds,
@@ -68,7 +68,7 @@ export function removeClips(project, clipIds, rippleMode = 'none') {
 	for (const track of project.tracks) {
 		if (!Array.isArray(track.clipIds)) continue;
 		if (clipById) removedByTrack.set(track.id, track.clipIds
-			.filter((id) => removedIds.has(id)).map((id) => clipById.get(id)));
+			.filter((id) => removedIds.has(id)).map((id) => requireIndexedClip(clipById, id)));
 		track.clipIds = track.clipIds.filter((id) => !removedIds.has(id));
 	}
 	project.clips = project.clips.filter((candidate) => !removedIds.has(candidate.id));
@@ -82,7 +82,7 @@ export function removeClips(project, clipIds, rippleMode = 'none') {
 		})));
 		const shiftAt = createCompletedFrameSum(removedRanges.map(range => ({ endFrame: range.endFrame, frames: range.durationFrames })));
 		for (const clipId of track.clipIds) {
-			const clip = clipById.get(clipId);
+			const clip = requireIndexedClip(clipById, clipId);
 			const shiftFrames = shiftAt(clip.timelineStartFrame);
 			if (shiftFrames > 0) clip.timelineStartFrame -= shiftFrames;
 		}
@@ -181,7 +181,10 @@ export function replaceRenderedClips(project, command) {
 		throw new RangeError(`Unsupported rendered clip replacement ripple mode: ${String(rippleMode)}.`);
 	}
 	const clipById = firstById(project.clips);
-	const owners = clipOwnerIndex(project.tracks);
+	const topology = { duplicateTrackIds: false, duplicateClipOwners: false };
+	const owners = clipOwnerIndex(project.tracks, topology);
+	// Persisted commands reject ambiguous identities; direct mutable helpers retain legacy traversal.
+	const legacyTraversal = topology.duplicateTrackIds || topology.duplicateClipOwners || clipById.size !== project.clips.length;
 	const sourceIds = new Set(project.sources.map(source => source.id));
 	const clipSlots = new Map();
 	for (const [index, clip] of project.clips.entries()) {
@@ -204,7 +207,7 @@ export function replaceRenderedClips(project, command) {
 		duplicates.push({ entry, index });
 		entryById.set(entry.clip.id, duplicates);
 	}
-	const readRelated = createRelatedClipReader(project.clips, clipById);
+	const readRelated = createRelatedClipReader(project.clips, clipById.size === project.clips.length ? clipById : undefined);
 	const components = [];
 	while (remaining.size) {
 		const seed = remaining.values().next().value;
@@ -222,7 +225,7 @@ export function replaceRenderedClips(project, command) {
 	const affectedTracks = new Set();
 	for (const component of components) {
 		const related = [...component.relatedIds].sort((left, right) => clipSlots.get(left) - clipSlots.get(right))
-			.map((clipId) => clipById.get(clipId));
+			.map((clipId) => requireIndexedClip(clipById, clipId));
 		const anchor = Math.min(...related.map((clip) => clip.timelineStartFrame));
 		const oldEnd = Math.max(...related.map(clipEndFrame));
 		const newEnd = anchor + Math.max(1, Math.round((oldEnd - anchor) * component.ratio));
@@ -244,10 +247,16 @@ export function replaceRenderedClips(project, command) {
 				])),
 				delta,
 			)?.();
-			if (delta !== 0) for (const track of relatedTracks) {
+			if (legacyTraversal) {
+				for (const clip of project.clips) {
+					if (component.relatedIds.has(clip.id)) continue;
+					const track = requireClipTrack(project, clip.id);
+					if (relatedTrackIds.has(track.id) && clip.timelineStartFrame >= oldEnd) clip.timelineStartFrame += delta;
+				}
+			} else if (delta !== 0) for (const track of relatedTracks) {
 				for (const clipId of track.clipIds) {
 					if (component.relatedIds.has(clipId)) continue;
-					const clip = clipById.get(clipId);
+					const clip = requireIndexedClip(clipById, clipId);
 					if (clip.timelineStartFrame >= oldEnd) clip.timelineStartFrame += delta;
 				}
 			}
@@ -255,7 +264,7 @@ export function replaceRenderedClips(project, command) {
 		const targetById = new Map();
 		for (const target of component.targets) if (!targetById.has(target.clip.id)) targetById.set(target.clip.id, target);
 		for (const original of related) {
-			const current = clipById.get(original.id);
+			const current = requireIndexedClip(clipById, original.id);
 			const target = targetById.get(original.id);
 			const durationFrames = target
 				? target.source.frameCount
@@ -302,7 +311,8 @@ export function replaceRenderedClips(project, command) {
 		}
 	}
 	project.sources.push(...entries.map(({ source }) => source));
-	for (const track of affectedTracks) sortTrack(project, track, clipById);
+	const tracksToSort = legacyTraversal ? project.tracks.filter(track => Array.isArray(track.clipIds)) : affectedTracks;
+	for (const track of tracksToSort) sortTrack(project, track, clipById);
 }
 
 export function moveClip(project, command) {

@@ -7,6 +7,11 @@ interface RelatedClip extends Identified {
 	readonly avLinkId?: string | null;
 }
 
+interface OwnershipDiagnostics {
+	duplicateTrackIds: boolean;
+	duplicateClipOwners: boolean;
+}
+
 /** Invocation-local indexes never retain mutable caller documents between edits. */
 export function firstById<Item extends Identified>(items: readonly Item[]): Map<string, Item> {
 	const result = new Map<string, Item>();
@@ -14,12 +19,26 @@ export function firstById<Item extends Identified>(items: readonly Item[]): Map<
 	return result;
 }
 
-export function clipOwnerIndex<Track extends OwnedTrack>(tracks: readonly Track[]): Map<string, Track> {
+export function clipOwnerIndex<Track extends OwnedTrack>(tracks: readonly Track[], diagnostics?: OwnershipDiagnostics): Map<string, Track> {
 	const owners = new Map<string, Track>();
-	for (const track of tracks) for (const id of track.clipIds ?? []) {
-		if (!owners.has(id)) owners.set(id, track);
+	const trackIds = diagnostics ? new Set<string>() : null;
+	for (const track of tracks) {
+		if (diagnostics && trackIds) {
+			if (trackIds.has(track.id)) diagnostics.duplicateTrackIds = true;
+			trackIds.add(track.id);
+		}
+		for (const id of track.clipIds ?? []) {
+			if (!owners.has(id)) owners.set(id, track);
+			else if (diagnostics) diagnostics.duplicateClipOwners = true;
+		}
 	}
 	return owners;
+}
+
+export function requireIndexedClip<Clip>(clips: ReadonlyMap<string, Clip>, id: string): Clip {
+	const clip = clips.get(id);
+	if (!clip) throw new ReferenceError(`Unknown clip: ${id}.`);
+	return clip;
 }
 
 /** Expand each relationship once, including chains alternating groups and A/V links. */

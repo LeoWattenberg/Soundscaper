@@ -6,6 +6,7 @@ import { collectRelatedClipIds, resolveEditingSelectionAuthority, resolveEditing
 import { sortTrack, pruneMissingProjectSelections } from '../src/common/editor/commands/shared-runtime.js';
 import { createCompletedFrameSum, firstById, clipOwnerIndex } from '../src/common/editor/commands/editing-work-index.ts';
 import { transformClips } from '../src/common/editor/commands/clip-transform-runtime.js';
+import { applyEditorCommand } from '../src/common/editor/commands.js';
 import { removeClips, replaceRenderedClips } from '../src/common/editor/commands/clip-basic-runtime.js';
 import { createAudioClip, createAudioSource, createAudioTrack } from '../src/common/editor/project-media-factory.ts';
 import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
@@ -104,6 +105,79 @@ void test('direct rendered replacement keeps first-match slots when a mutable dr
 	assert.equal(project.clips[0]?.sourceId, 'rendered');
 	assert.equal(project.clips[1], duplicate);
 	assert.equal(project.clips[1]?.sourceId, 'source');
+});
+
+void test('affected missing memberships retain explicit unknown-clip errors', () => {
+	for (const operation of ['remove', 'render', 'transform']) {
+		const project = commandFixture(3);
+		project.tracks[0]!.clipIds.push('missing');
+		const action = (): void => {
+			if (operation === 'remove') removeClips(project, ['clip-0'], 'track');
+			if (operation === 'render') replaceRenderedClips(project, { entries: [{ clipId: 'clip-0', source: {
+				id: 'rendered', storageKey: 'rendered', frameCount: 30, channelCount: 1,
+			} }] });
+			if (operation === 'transform') transformClips(project, { transforms: [{ clipId: 'clip-0', changes: { timelineStartFrame: 10 } }] });
+		};
+		assert.throws(action, { name: 'ReferenceError', message: 'Unknown clip: missing.' });
+	}
+});
+
+void test('duplicate track IDs retain legacy ripple reach in direct mutable helpers', () => {
+	const project = commandFixture(4);
+	project.tracks[3]!.id = 'track-0';
+	replaceRenderedClips(project, { entries: [{ clipId: 'clip-0', source: {
+		id: 'rendered', storageKey: 'rendered', frameCount: 30, channelCount: 1,
+	} }] });
+	assert.equal(project.clips[3]?.timelineStartFrame, 310);
+	assert.equal(project.clips[2]?.timelineStartFrame, 200);
+});
+
+void test('duplicate ownership keeps first-owner ripple and legacy membership reconstruction', () => {
+	const rendered = commandFixture(4);
+	rendered.clips[0]!.groupId = 'related';
+	rendered.clips[1]!.groupId = 'related';
+	rendered.tracks[0]!.clipIds.push('clip-2');
+	rendered.tracks[1]!.clipIds.push('clip-2');
+	replaceRenderedClips(rendered, { entries: [{ clipId: 'clip-0', source: {
+		id: 'rendered', storageKey: 'rendered', frameCount: 30, channelCount: 1,
+	} }] });
+	assert.equal(rendered.clips[2]?.timelineStartFrame, 260, 'the first owner ripples a duplicated membership once');
+	const transformed = commandFixture(4);
+	transformed.tracks[1]!.clipIds = ['clip-3', 'clip-1'];
+	transformClips(transformed, { transforms: [{ clipId: 'clip-0', changes: { timelineStartFrame: 10 } }] });
+	assert.deepEqual(transformed.tracks[1]?.clipIds, ['clip-1', 'clip-3']);
+});
+
+void test('duplicate clip IDs preserve last-match relationship expansion and first-match writes', () => {
+	const project = commandFixture(3);
+	project.clips[0]!.groupId = 'first';
+	project.clips[1]!.groupId = 'first';
+	project.clips[2]!.groupId = 'last';
+	project.clips.push({ ...project.clips[0]!, groupId: 'last', timelineStartFrame: 999 });
+	replaceRenderedClips(project, { rippleMode: 'none', entries: [{ clipId: 'clip-0', source: {
+		id: 'rendered', storageKey: 'rendered', frameCount: 30, channelCount: 1,
+	} }] });
+	assert.equal(project.clips[1]?.durationFrames, 20);
+	assert.equal(project.clips[2]?.durationFrames, 30);
+	assert.equal(project.clips[2]?.timelineStartFrame, 300);
+	assert.equal(project.clips[3]?.timelineStartFrame, 999);
+});
+
+void test('valid unrelated authored membership order survives local commands while touched tracks sort', () => {
+	const base = createCurrentAudioEditorProject({
+		sources: [createAudioSource({ id: 'source', storageKey: 'source', frameCount: 1000, channelCount: 1 })],
+		clips: Array.from({ length: 4 }, (_, index) => createAudioClip({ id: `clip-${String(index)}`, sourceId: 'source', timelineStartFrame: index * 100, durationFrames: 20 })),
+		tracks: [createAudioTrack({ id: 'touched', clipIds: ['clip-0', 'clip-1'] }), createAudioTrack({ id: 'unrelated', clipIds: ['clip-3', 'clip-2'] })],
+	});
+	for (const command of [
+		{ type: 'clip/transform-many', transforms: [{ clipId: 'clip-0', changes: { timelineStartFrame: 150 } }] },
+		{ type: 'clip/render-replace-many', entries: [{ clipId: 'clip-0', source: { id: 'rendered', storageKey: 'rendered', frameCount: 30, channelCount: 1 } }] },
+	] as const) {
+		const result = applyEditorCommand(base, command);
+		assert.deepEqual(result.tracks[1]?.clipIds, ['clip-3', 'clip-2']);
+		const expected = command.type === 'clip/transform-many' ? ['clip-1', 'clip-0'] : ['clip-0', 'clip-1'];
+		assert.deepEqual(result.tracks[0]?.clipIds, expected);
+	}
 });
 
 void test('relationship chains visit each relationship a bounded number of times and preserve project order', context => {

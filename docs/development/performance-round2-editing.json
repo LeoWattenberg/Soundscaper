@@ -284,7 +284,7 @@
 				"name": "single clip transforms preserve unaffected track memberships and avoid unrelated clip geometry"
 			},
 			"evidence": "A one-clip transform retains all 39 unrelated membership arrays and reads zero unrelated geometry fields.",
-			"limitations": "Overwrite replacement membership is checked so affected linked tracks still reconstruct.",
+			"limitations": "Touched tracks sort; untouched authored membership order is retained even if unsorted. Missing affected IDs throw ReferenceError. Ambiguous duplicate IDs/owners use full reconstruction; persisted admission rejects malformed documents.",
 			"status": "implemented"
 		},
 		{
@@ -340,7 +340,7 @@
 				"name": "rendered replacement resolves independent components without repeatedly scanning unrelated identities"
 			},
 			"evidence": "createRelatedClipReader shares one local graph across 25 component queries.",
-			"limitations": "Component discovery still visits actual connected clips and preserves project order before mutation.",
+			"limitations": "Component discovery visits actual connected clips and preserves project order before mutation. Malformed duplicate IDs retain legacy last-ID relationship authority and first-ID writes; no immutable cache crosses invocations.",
 			"status": "implemented"
 		},
 		{
@@ -424,8 +424,9 @@
 				"name": "rendered replacement resolves independent components without repeatedly scanning unrelated identities"
 			},
 			"evidence": "Only affectedTracks feed sortTrack; unrelated memberships and clip objects are preserved.",
-			"limitations": "Code-confirmed; persisted command reconciliation and document validation remain full checks.",
+			"limitations": "Touched tracks sort; untouched authored membership order is retained even if unsorted. Duplicate IDs/owners use legacy whole-project traversal/sorting. Full persisted validation remains authoritative; direct helpers do not validate unrelated memberships.",
 			"status": "implemented"
 		}
-	]
+	],
+	"helperCompatibility": "Persisted commands validate the complete incoming and resulting project. Direct mutable helpers check affected indexed memberships and preserve ReferenceError refusal; unrelated malformed memberships are not scanned for repair. Duplicate clip IDs retain last-match relationship expansion and first-match replacement, while duplicate track IDs/owners use legacy traversal. On valid documents, untouched membership arrays keep their authored order, including unsorted order; only touched tracks are sorted. This intentional preservation differs from the former incidental whole-project sorting."
 }

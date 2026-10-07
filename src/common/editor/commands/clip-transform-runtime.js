@@ -44,7 +44,7 @@ import {
 	withoutImportedPitchPreset,
 } from './shared-runtime.js';
 import { applyCanonicalVideoKeyframeTransform, finalizeVideoKeyframeSegmentCarrier, markVideoKeyframeCarrierEdited, transformVideoKeyframeCarrierForOverwrite } from './video-keyframe-segment-carrier.ts';
-import { clipOwnerIndex, firstById } from './editing-work-index.ts';
+import { clipOwnerIndex, firstById, requireIndexedClip } from './editing-work-index.ts';
 
 // foundation-edit-matrix: move
 // foundation-edit-matrix: roll
@@ -60,7 +60,7 @@ import { clipOwnerIndex, firstById } from './editing-work-index.ts';
  */
 
 export function prepareTransformClipsCommand(project, transforms, options = {}, idFactory = createStableId) {
-	const state = buildClipTransformState(project, transforms);
+	const { state } = buildClipTransformState(project, transforms);
 	const overwrite = Boolean(options.overwrite);
 	validateClipTransformState(project, state, overwrite);
 	const splitClipIds = {};
@@ -109,7 +109,7 @@ export function prepareTransformClipsCommand(project, transforms, options = {}, 
 }
 
 export function transformClips(project, command) {
-	const state = buildClipTransformState(project, command.transforms);
+	const { state, legacyTraversal } = buildClipTransformState(project, command.transforms);
 	const overwrite = Boolean(command.overwrite);
 	validateClipTransformState(project, state, overwrite);
 	const movingIds = new Set(state.map((item) => item.clip.id));
@@ -196,12 +196,12 @@ export function transformClips(project, command) {
 	const clipById = firstById(project.clips);
 
 	for (const track of project.tracks.filter((item) => Array.isArray(item.clipIds))) {
-		if (!changedTrackIds.has(track.id) && !track.clipIds.some(id => replacementsById.has(id))) continue;
+		if (!legacyTraversal && !changedTrackIds.has(track.id) && !track.clipIds.some(id => replacementsById.has(id))) continue;
 		const clips = track.clipIds
 			.filter((clipId) => !movingIds.has(clipId))
 			.flatMap((clipId) => replacementsById.has(clipId)
 				? replacementsById.get(clipId)
-				: [clipById.get(clipId)])
+				: [requireIndexedClip(clipById, clipId)])
 			.concat(updatesByTrack.get(track.id) || [])
 			.sort((left, right) => left.timelineStartFrame - right.timelineStartFrame || compareCodeUnits(left.id, right.id));
 		track.clipIds = clips.map((clip) => clip.id);
@@ -221,9 +221,10 @@ function buildClipTransformState(project, transforms) {
 	]);
 	const clips = firstById(project.clips);
 	const tracks = firstById(project.tracks);
-	const owners = clipOwnerIndex(project.tracks);
+	const topology = { duplicateTrackIds: false, duplicateClipOwners: false };
+	const owners = clipOwnerIndex(project.tracks, topology);
 	const sources = firstById(project.sources);
-	return transforms.map((transform, index) => {
+	const state = transforms.map((transform, index) => {
 		const original = clips.get(ids[index]);
 		if (!original) throw new ReferenceError(`Unknown clip: ${ids[index]}.`);
 		const clip = normalizeInactiveClipLoop(original);
@@ -276,6 +277,7 @@ function buildClipTransformState(project, transforms) {
 			sequenceTrimRange: sequencePlacement?.sequenceTrimRange ?? null,
 		};
 	});
+	return { state, legacyTraversal: topology.duplicateTrackIds || topology.duplicateClipOwners || clips.size !== project.clips.length };
 }
 
 function validateClipTransformState(project, state, overwrite) {
