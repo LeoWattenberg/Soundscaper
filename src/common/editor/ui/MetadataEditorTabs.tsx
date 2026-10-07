@@ -34,6 +34,7 @@ export function MetadataEditorTabs({
 		...(showAttribution ? [{ id: 'attribution' as const, label: attributionLabel }] : []),
 	];
 	const selectRelativeTab = (event: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
+		if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
 		if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
 		event.preventDefault();
 		const nextIndex = event.key === 'Home'
