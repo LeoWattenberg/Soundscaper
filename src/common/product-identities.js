@@ -4,6 +4,14 @@ export const PRODUCT_IDS = Object.freeze(['soundscaper', 'framescaper', 'lightsc
 
 const PRODUCT_ID_SET = new Set(PRODUCT_IDS);
 
+// Register conversion edges independently of navigation and product identity.
+// Lightscaper's editable still conversion is introduced with its L5 consumer.
+const EDITABLE_COPY_DESTINATIONS = deepFreeze({
+	soundscaper: ['framescaper'],
+	framescaper: ['soundscaper'],
+	lightscaper: [],
+});
+
 export const PRODUCT_IDENTITIES = deepFreeze({
 	soundscaper: {
 		id: 'soundscaper',
@@ -44,10 +52,9 @@ export function productLocalePath(product, locale, options = {}) {
 
 export function otherProductId(product) {
 	const productId = normalizeProductId(product);
-	// Editable-copy conversion currently supports these two project families.
-	// Navigation uses otherProductIds; registering a product grants no converter.
-	if (productId === 'soundscaper') return 'framescaper';
-	if (productId === 'framescaper') return 'soundscaper';
+	const destinations = EDITABLE_COPY_DESTINATIONS[productId];
+	if (destinations.length === 1) return destinations[0];
+	if (destinations.length > 1) throw new RangeError(`Choose an explicit editable-copy destination for product: ${productId}.`);
 	throw new RangeError(`No editable-copy destination is registered for product: ${productId}.`);
 }
 

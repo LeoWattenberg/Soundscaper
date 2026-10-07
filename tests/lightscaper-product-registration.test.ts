@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { PROJECT_FEATURE_CAPABILITY_IDS, snapshotProjectFeatureCapabilities } from '../src/common/editor/project-feature-capabilities.ts';
-import { PRODUCT_IDS, otherProductIds, productIdentity } from '../src/common/product-identities.js';
+import { PRODUCT_IDS, otherProductId, otherProductIds, productIdentity } from '../src/common/product-identities.js';
 import { productProfile } from '../src/common/products.js';
 import { productHref, productWebOrigin } from '../src/common/product-web-links.js';
 
@@ -41,5 +41,6 @@ test('product navigation enumerates every peer without a binary fallback', () =>
 		assert.equal(productHref(source, 'de', { builtProductId: source }), '/de/');
 	}
 	assert.throws(() => otherProductIds('unknown'), /Unsupported editor product/u);
+	assert.throws(() => otherProductId('lightscaper'), /No editable-copy destination/u);
 	assert.equal(productWebOrigin('lightscaper'), 'https://lightscaper.org');
 });
