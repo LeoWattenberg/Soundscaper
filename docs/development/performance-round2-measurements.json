@@ -1,0 +1,1987 @@
+{
+	"schemaVersion": 1,
+	"date": "2026-10-07",
+	"scope": "Already-open editor interaction and audio work; startup excluded.",
+	"electron": {
+		"method": "Two counterbalanced fresh-profile pairs: baseline1/current1, then current2/baseline2. Each profile has one first-use and two warm trials per operation. Native assets are identical; renderer/application runtime rebuilt from each revision. Default Speed preference verified in the real app. All four profiles passed completion, playhead, 64-clip and real gesture assertions.",
+		"limitations": [
+			"Shared WSL host; other tasks were active and host load changed. Timings are observations, not individual-change attribution or stable percentage budgets.",
+			"Four warm observations per revision per operation do not estimate a population p95. First-use trials are reported separately.",
+			"Xvfb animation-frame gaps measure renderer scheduling, not GPU presentation FPS. Each timeline observation spans only three seconds.",
+			"Amplify DSP was not changed; its whole-operation variability indicates storage/renderer/host effects shared by the measured operations."
+		],
+		"summaries": [
+			{
+				"operation": "Generate Tone",
+				"seconds": 30,
+				"firstUse": {
+					"baseline": {
+						"samplesMs": [
+							711.5400000065565,
+							695.8249999880791
+						],
+						"medianMs": 703.6824999973178
+					},
+					"current": {
+						"samplesMs": [
+							629.5850000083447,
+							617.9000000059605
+						],
+						"medianMs": 623.7425000071526
+					}
+				},
+				"warm": {
+					"baseline": {
+						"samplesMs": [
+							875.2849999964237,
+							739.5450000017881,
+							661.830000013113,
+							481.4100000113249
+						],
+						"medianMs": 700.6875000074506
+					},
+					"current": {
+						"samplesMs": [
+							519.8199999928474,
+							507.5249999910593,
+							550.0549999922514,
+							586.5949999988079
+						],
+						"medianMs": 534.9374999925494
+					}
+				}
+			},
+			{
+				"operation": "Generate Chirp",
+				"seconds": 30,
+				"firstUse": {
+					"baseline": {
+						"samplesMs": [
+							831.6050000041723,
+							597.2549999952316
+						],
+						"medianMs": 714.429999999702
+					},
+					"current": {
+						"samplesMs": [
+							550.375,
+							638.934999987483
+						],
+						"medianMs": 594.6549999937415
+					}
+				},
+				"warm": {
+					"baseline": {
+						"samplesMs": [
+							817.5549999922514,
+							794,
+							634.9599999934435,
+							668.1749999970198
+						],
+						"medianMs": 731.0874999985099
+					},
+					"current": {
+						"samplesMs": [
+							629.4749999940395,
+							595.484999999404,
+							663.4150000065565,
+							614.0400000065565
+						],
+						"medianMs": 621.757500000298
+					}
+				}
+			},
+			{
+				"operation": "Generate Noise pink",
+				"seconds": 30,
+				"firstUse": {
+					"baseline": {
+						"samplesMs": [
+							712.0199999958277,
+							586.6799999922514
+						],
+						"medianMs": 649.3499999940395
+					},
+					"current": {
+						"samplesMs": [
+							583.8650000095367,
+							671.2800000011921
+						],
+						"medianMs": 627.5725000053644
+					}
+				},
+				"warm": {
+					"baseline": {
+						"samplesMs": [
+							810.6300000101328,
+							751.5500000119209,
+							590.4599999934435,
+							575.9350000023842
+						],
+						"medianMs": 671.0050000026822
+					},
+					"current": {
+						"samplesMs": [
+							579.2749999910593,
+							589.9549999982119,
+							621.1799999922514,
+							600.4099999964237
+						],
+						"medianMs": 595.1824999973178
+					}
+				}
+			},
+			{
+				"operation": "Generate Noise pink",
+				"seconds": 120,
+				"firstUse": {
+					"baseline": {
+						"samplesMs": [
+							1379.609999999404,
+							1119.7750000059605
+						],
+						"medianMs": 1249.6925000026822
+					},
+					"current": {
+						"samplesMs": [
+							1044.4949999898672,
+							1192.4799999892712
+						],
+						"medianMs": 1118.4874999895692
+					}
+				},
+				"warm": {
+					"baseline": {
+						"samplesMs": [
+							1294.4450000077486,
+							1473.4099999964237,
+							1114.859999999404,
+							1068.9350000023842
+						],
+						"medianMs": 1204.6525000035763
+					},
+					"current": {
+						"samplesMs": [
+							1082.0249999910593,
+							976.1999999880791,
+							1090.6749999970198,
+							1156.8649999946356
+						],
+						"medianMs": 1086.3499999940395
+					}
+				}
+			},
+			{
+				"operation": "Apply Amplify",
+				"seconds": 120,
+				"firstUse": {
+					"baseline": {
+						"samplesMs": [
+							4092.560000002384,
+							3328.839999988675
+						],
+						"medianMs": 3710.6999999955297
+					},
+					"current": {
+						"samplesMs": [
+							3175.6349999904633,
+							3540.005000010133
+						],
+						"medianMs": 3357.820000000298
+					}
+				},
+				"warm": {
+					"baseline": {
+						"samplesMs": [
+							3855.1350000053644,
+							3666.890000000596,
+							3159.0999999940395,
+							3678.560000002384
+						],
+						"medianMs": 3672.72500000149
+					},
+					"current": {
+						"samplesMs": [
+							3116.770000010729,
+							3059.609999999404,
+							3494.330000013113,
+							2960.5750000029802
+						],
+						"medianMs": 3088.1900000050664
+					}
+				}
+			},
+			{
+				"operation": "Apply Compressor",
+				"seconds": 120,
+				"firstUse": {
+					"baseline": {
+						"samplesMs": [
+							4109.45000000298,
+							3451.8949999958277
+						],
+						"medianMs": 3780.672499999404
+					},
+					"current": {
+						"samplesMs": [
+							3285.905000001192,
+							3280.7699999958277
+						],
+						"medianMs": 3283.33749999851
+					}
+				},
+				"warm": {
+					"baseline": {
+						"samplesMs": [
+							3756.7399999946356,
+							4184.454999998212,
+							3331.1499999910593,
+							3375.8049999922514
+						],
+						"medianMs": 3566.2724999934435
+					},
+					"current": {
+						"samplesMs": [
+							3293.329999998212,
+							3182.920000001788,
+							3340.4650000035763,
+							3309.5849999934435
+						],
+						"medianMs": 3301.4574999958277
+					}
+				}
+			},
+			{
+				"operation": "Apply Normalize",
+				"seconds": 120,
+				"firstUse": {
+					"baseline": {
+						"samplesMs": [
+							5508.734999999404,
+							4448.425000011921
+						],
+						"medianMs": 4978.580000005662
+					},
+					"current": {
+						"samplesMs": [
+							3143.655000001192,
+							3237.5499999970198
+						],
+						"medianMs": 3190.602499999106
+					}
+				},
+				"warm": {
+					"baseline": {
+						"samplesMs": [
+							5274.7900000065565,
+							5524.995000004768,
+							4057.5699999928474,
+							4646.125
+						],
+						"medianMs": 4960.457500003278
+					},
+					"current": {
+						"samplesMs": [
+							2930.170000001788,
+							3115.905000001192,
+							2538.829999998212,
+							2670.6650000065565
+						],
+						"medianMs": 2800.4175000041723
+					}
+				}
+			}
+		],
+		"runs": [
+			{
+				"name": "baseline-dense-1",
+				"revision": "1b9a6ce76b66b810a6dd30b94ad0f50559fbddab",
+				"hostAtLaunch": {
+					"time": "2026-10-07T07:18:22.206Z",
+					"loadAverage": [
+						42.35,
+						55.67,
+						46.75
+					],
+					"cpu": "AMD Ryzen 9 9900X 12-Core Processor",
+					"logicalCpus": 24,
+					"totalMemory": 49234468864,
+					"freeMemory": 33108860928
+				},
+				"report": {
+					"node": "v26.5.0",
+					"platform": "linux",
+					"arch": "x64",
+					"cpu": "AMD Ryzen 9 9900X 12-Core Processor",
+					"logicalCpus": 24,
+					"runtime": {
+						"versions": {
+							"node": "24.21.0",
+							"acorn": "8.18.0",
+							"ada": "4.0.0",
+							"amaro": "1.1.11",
+							"ares": "1.34.8",
+							"brotli": "1.2.0",
+							"cldr": "48.0",
+							"icu": "78.2",
+							"llhttp": "9.4.3",
+							"merve": "1.2.2",
+							"modules": "148",
+							"napi": "10",
+							"nbytes": "0.1.4",
+							"ncrypto": "0.0.1",
+							"nghttp2": "1.70.0",
+							"nghttp3": "",
+							"ngtcp2": "",
+							"openssl": "0.0.0",
+							"simdjson": "4.6.7",
+							"simdutf": "7.7.0",
+							"sqlite": "3.53.4",
+							"tz": "2025c",
+							"undici": "7.29.1",
+							"unicode": "17.0",
+							"uv": "1.52.1",
+							"uvwasi": "0.0.23",
+							"v8": "15.0.245.31-electron.0",
+							"zlib": "1.3.2.1-motley",
+							"zstd": "1.6.0",
+							"electron": "43.7.7",
+							"chrome": "150.0.7871.250"
+						},
+						"gpu": {
+							"2d_canvas": "unavailable_software",
+							"direct_rendering_display_compositor": "disabled_off_ok",
+							"gpu_compositing": "disabled_software",
+							"multiple_raster_threads": "enabled_on",
+							"opengl": "unavailable_off",
+							"rasterization": "unavailable_off",
+							"raw_draw": "disabled_off_ok",
+							"skia_graphite": "unavailable_off",
+							"trees_in_viz": "disabled_off",
+							"video_decode": "unavailable_off",
+							"video_encode": "disabled_software",
+							"vulkan": "disabled_off",
+							"webgl": "unavailable_off",
+							"webgpu": "unavailable_software",
+							"webgpu_on_vk_via_gl_interop": "disabled_off",
+							"webnn": "disabled_off"
+						},
+						"packaged": false
+					},
+					"viewport": {
+						"width": 1280,
+						"height": 900,
+						"dpr": 1
+					},
+					"preference": "speed",
+					"extended": true,
+					"method": "Actual Electron development app with freshly staged production renderer and real preload/SQLite/PCM path. First trial includes first-use processing engines; subsequent trials are warm. Capture click to dialog closed, success status, cleared waveform pending state, explicit successful canvas paint and two animation frames. Xvfb RAF gaps are a renderer responsiveness proxy, not GPU presentation FPS. Startup excluded.",
+					"results": [
+						{
+							"operation": "Generate Tone",
+							"seconds": 30,
+							"trial": 0,
+							"durationMs": 711.5400000065565,
+							"frames": 35,
+							"medianFrameMs": 16.664999999999964,
+							"p95FrameMs": 33.335000000000036,
+							"maxFrameMs": 116.66499999999996,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 106
+						},
+						{
+							"operation": "Generate Tone",
+							"seconds": 30,
+							"trial": 1,
+							"durationMs": 875.2849999964237,
+							"frames": 42,
+							"medianFrameMs": 16.664999999999964,
+							"p95FrameMs": 33.33000000000084,
+							"maxFrameMs": 116.65999999999985,
+							"framesOver33Ms": 2,
+							"longTaskCount": 2,
+							"maxLongTaskMs": 113
+						},
+						{
+							"operation": "Generate Tone",
+							"seconds": 30,
+							"trial": 2,
+							"durationMs": 739.5450000017881,
+							"frames": 38,
+							"medianFrameMs": 16.664999999999964,
+							"p95FrameMs": 50,
+							"maxFrameMs": 83.32999999999993,
+							"framesOver33Ms": 2,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 72
+						},
+						{
+							"operation": "Generate Chirp",
+							"seconds": 30,
+							"trial": 0,
+							"durationMs": 831.6050000041723,
+							"frames": 43,
+							"medianFrameMs": 16.664999999999964,
+							"p95FrameMs": 33.32999999999993,
+							"maxFrameMs": 99.99499999999989,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 80
+						},
+						{
+							"operation": "Generate Chirp",
+							"seconds": 30,
+							"trial": 1,
+							"durationMs": 817.5549999922514,
+							"frames": 41,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 16.670000000000073,
+							"maxFrameMs": 116.65999999999985,
+							"framesOver33Ms": 2,
+							"longTaskCount": 2,
+							"maxLongTaskMs": 91
+						},
+						{
+							"operation": "Generate Chirp",
+							"seconds": 30,
+							"trial": 2,
+							"durationMs": 794,
+							"frames": 41,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 33.32999999999993,
+							"maxFrameMs": 99.9950000000008,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 86
+						},
+						{
+							"operation": "Generate Noise pink",
+							"seconds": 30,
+							"trial": 0,
+							"durationMs": 712.0199999958277,
+							"frames": 36,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 49.9950000000008,
+							"maxFrameMs": 83.32999999999993,
+							"framesOver33Ms": 2,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 74
+						},
+						{
+							"operation": "Generate Noise pink",
+							"seconds": 30,
+							"trial": 1,
+							"durationMs": 810.6300000101328,
+							"frames": 44,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 16.670000000000073,
+							"maxFrameMs": 83.32999999999993,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 74
+						},
+						{
+							"operation": "Generate Noise pink",
+							"seconds": 30,
+							"trial": 2,
+							"durationMs": 751.5500000119209,
+							"frames": 40,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 33.32999999999993,
+							"maxFrameMs": 83.32999999999993,
+							"framesOver33Ms": 1,
+							"longTaskCount": 2,
+							"maxLongTaskMs": 77
+						},
+						{
+							"operation": "Generate Noise pink",
+							"seconds": 120,
+							"trial": 0,
+							"durationMs": 1379.609999999404,
+							"frames": 76,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 16.670000000000073,
+							"maxFrameMs": 99.99999999999818,
+							"framesOver33Ms": 2,
+							"longTaskCount": 2,
+							"maxLongTaskMs": 79
+						},
+						{
+							"operation": "Generate Noise pink",
+							"seconds": 120,
+							"trial": 1,
+							"durationMs": 1294.4450000077486,
+							"frames": 73,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 16.67000000000189,
+							"maxFrameMs": 66.65999999999985,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 75
+						},
+						{
+							"operation": "Generate Noise pink",
+							"seconds": 120,
+							"trial": 2,
+							"durationMs": 1473.4099999964237,
+							"frames": 81,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 16.67000000000189,
+							"maxFrameMs": 99.99499999999898,
+							"framesOver33Ms": 2,
+							"longTaskCount": 2,
+							"maxLongTaskMs": 93
+						},
+						{
+							"operation": "Apply Amplify",
+							"seconds": 120,
+							"trial": 0,
+							"durationMs": 4092.560000002384,
+							"frames": 236,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 16.67000000000189,
+							"maxFrameMs": 116.66500000000087,
+							"framesOver33Ms": 2,
+							"longTaskCount": 3,
+							"maxLongTaskMs": 100
+						},
+						{
+							"operation": "Apply Amplify",
+							"seconds": 120,
+							"trial": 1,
+							"durationMs": 3855.1350000053644,
+							"frames": 224,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 16.67000000000189,
+							"maxFrameMs": 100,
+							"framesOver33Ms": 1,
+							"longTaskCount": 2,
+							"maxLongTaskMs": 102
+						},
+						{
+							"operation": "Apply Amplify",
+							"seconds": 120,
+							"trial": 2,
+							"durationMs": 3666.890000000596,
+							"frames": 212,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 16.67000000000189,
+							"maxFrameMs": 99.99500000000262,
+							"framesOver33Ms": 2,
+							"longTaskCount": 2,
+							"maxLongTaskMs": 86
+						},
+						{
+							"operation": "Apply Compressor",
+							"seconds": 120,
+							"trial": 0,
+							"durationMs": 4109.45000000298,
+							"frames": 233,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 16.67000000000553,
+							"maxFrameMs": 116.66000000000349,
+							"framesOver33Ms": 3,
+							"longTaskCount": 3,
+							"maxLongTaskMs": 96
+						},
+						{
+							"operation": "Apply Compressor",
+							"seconds": 120,
+							"trial": 1,
+							"durationMs": 3756.7399999946356,
+							"frames": 218,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 16.67000000000553,
+							"maxFrameMs": 83.32499999999709,
+							"framesOver33Ms": 1,
+							"longTaskCount": 2,
+							"maxLongTaskMs": 87
+						},
+						{
+							"operation": "Apply Compressor",
+							"seconds": 120,
+							"trial": 2,
+							"durationMs": 4184.454999998212,
+							"frames": 243,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 16.67000000000553,
+							"maxFrameMs": 116.6649999999936,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 104
+						},
+						{
+							"operation": "Apply Normalize",
+							"seconds": 120,
+							"trial": 0,
+							"durationMs": 5508.734999999404,
+							"frames": 322,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 16.67000000000553,
+							"maxFrameMs": 116.66500000000087,
+							"framesOver33Ms": 1,
+							"longTaskCount": 2,
+							"maxLongTaskMs": 106
+						},
+						{
+							"operation": "Apply Normalize",
+							"seconds": 120,
+							"trial": 1,
+							"durationMs": 5274.7900000065565,
+							"frames": 308,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 16.67000000000553,
+							"maxFrameMs": 100,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 85
+						},
+						{
+							"operation": "Apply Normalize",
+							"seconds": 120,
+							"trial": 2,
+							"durationMs": 5524.995000004768,
+							"frames": 318,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 16.67000000000553,
+							"maxFrameMs": 183.3249999999971,
+							"framesOver33Ms": 2,
+							"longTaskCount": 2,
+							"maxLongTaskMs": 162
+						},
+						{
+							"operation": "Idle timeline",
+							"clips": "64",
+							"frames": 180,
+							"medianFrameMs": 16.66500000000815,
+							"p95FrameMs": 16.670000000012806,
+							"maxFrameMs": 33.3350000000064,
+							"framesOver33Ms": 0
+						},
+						{
+							"operation": "Playback timeline",
+							"clips": "64",
+							"playheadBefore": 0,
+							"playheadAfter": 144000,
+							"frames": 126,
+							"medianFrameMs": 16.669999999998254,
+							"p95FrameMs": 33.3350000000064,
+							"maxFrameMs": 33.3350000000064,
+							"framesOver33Ms": 0
+						},
+						{
+							"operation": "Active dense timeline scroll and hover",
+							"clips": "64",
+							"frames": 92,
+							"medianFrameMs": 16.669999999998254,
+							"p95FrameMs": 100,
+							"maxFrameMs": 133.3249999999971,
+							"framesOver33Ms": 19,
+							"durationMs": 3049.876000000004,
+							"minScrollLeft": 0,
+							"maxScrollLeft": 1920,
+							"minScrollTop": 0,
+							"maxScrollTop": 1440,
+							"scrollPositions": 7,
+							"hoverPositions": 18,
+							"gestures": 18,
+							"gesture": "Trusted mouse sweeps and bidirectional wheel scrolling on a zoomed timeline with 64 clips"
+						}
+					]
+				}
+			},
+			{
+				"name": "current-dense-1",
+				"revision": "150ba92fd",
+				"hostAtLaunch": {
+					"time": "2026-10-07T07:23:28.980Z",
+					"loadAverage": [
+						28.28,
+						38.81,
+						42
+					],
+					"cpu": "AMD Ryzen 9 9900X 12-Core Processor",
+					"logicalCpus": 24,
+					"totalMemory": 49234468864,
+					"freeMemory": 38126743552
+				},
+				"report": {
+					"node": "v26.5.0",
+					"platform": "linux",
+					"arch": "x64",
+					"cpu": "AMD Ryzen 9 9900X 12-Core Processor",
+					"logicalCpus": 24,
+					"runtime": {
+						"versions": {
+							"node": "24.21.0",
+							"acorn": "8.18.0",
+							"ada": "4.0.0",
+							"amaro": "1.1.11",
+							"ares": "1.34.8",
+							"brotli": "1.2.0",
+							"cldr": "48.0",
+							"icu": "78.2",
+							"llhttp": "9.4.3",
+							"merve": "1.2.2",
+							"modules": "148",
+							"napi": "10",
+							"nbytes": "0.1.4",
+							"ncrypto": "0.0.1",
+							"nghttp2": "1.70.0",
+							"nghttp3": "",
+							"ngtcp2": "",
+							"openssl": "0.0.0",
+							"simdjson": "4.6.7",
+							"simdutf": "7.7.0",
+							"sqlite": "3.53.4",
+							"tz": "2025c",
+							"undici": "7.29.1",
+							"unicode": "17.0",
+							"uv": "1.52.1",
+							"uvwasi": "0.0.23",
+							"v8": "15.0.245.31-electron.0",
+							"zlib": "1.3.2.1-motley",
+							"zstd": "1.6.0",
+							"electron": "43.7.7",
+							"chrome": "150.0.7871.250"
+						},
+						"gpu": {
+							"2d_canvas": "unavailable_software",
+							"direct_rendering_display_compositor": "disabled_off_ok",
+							"gpu_compositing": "disabled_software",
+							"multiple_raster_threads": "enabled_on",
+							"opengl": "unavailable_off",
+							"rasterization": "unavailable_off",
+							"raw_draw": "disabled_off_ok",
+							"skia_graphite": "unavailable_off",
+							"trees_in_viz": "disabled_off",
+							"video_decode": "unavailable_off",
+							"video_encode": "disabled_software",
+							"vulkan": "disabled_off",
+							"webgl": "unavailable_off",
+							"webgpu": "unavailable_software",
+							"webgpu_on_vk_via_gl_interop": "disabled_off",
+							"webnn": "disabled_off"
+						},
+						"packaged": false
+					},
+					"viewport": {
+						"width": 1280,
+						"height": 900,
+						"dpr": 1
+					},
+					"preference": "speed",
+					"extended": true,
+					"method": "Actual Electron development app with freshly staged production renderer and real preload/SQLite/PCM path. First trial includes first-use processing engines; subsequent trials are warm. Capture click to dialog closed, success status, cleared waveform pending state, explicit successful canvas paint and two animation frames. Xvfb RAF gaps are a renderer responsiveness proxy, not GPU presentation FPS. Startup excluded.",
+					"results": [
+						{
+							"operation": "Generate Tone",
+							"seconds": 30,
+							"trial": 0,
+							"durationMs": 629.5850000083447,
+							"frames": 30,
+							"medianFrameMs": 16.664999999999964,
+							"p95FrameMs": 33.32999999999993,
+							"maxFrameMs": 116.65999999999985,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 101
+						},
+						{
+							"operation": "Generate Tone",
+							"seconds": 30,
+							"trial": 1,
+							"durationMs": 519.8199999928474,
+							"frames": 22,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 33.335000000000036,
+							"maxFrameMs": 133.32999999999993,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 100
+						},
+						{
+							"operation": "Generate Tone",
+							"seconds": 30,
+							"trial": 2,
+							"durationMs": 507.5249999910593,
+							"frames": 26,
+							"medianFrameMs": 16.664999999999964,
+							"p95FrameMs": 16.670000000000073,
+							"maxFrameMs": 83.32999999999993,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 80
+						},
+						{
+							"operation": "Generate Chirp",
+							"seconds": 30,
+							"trial": 0,
+							"durationMs": 550.375,
+							"frames": 28,
+							"medianFrameMs": 16.664999999999964,
+							"p95FrameMs": 33.32999999999993,
+							"maxFrameMs": 66.66499999999996,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 69
+						},
+						{
+							"operation": "Generate Chirp",
+							"seconds": 30,
+							"trial": 1,
+							"durationMs": 629.4749999940395,
+							"frames": 31,
+							"medianFrameMs": 16.664999999999964,
+							"p95FrameMs": 33.32999999999993,
+							"maxFrameMs": 99.99499999999989,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 73
+						},
+						{
+							"operation": "Generate Chirp",
+							"seconds": 30,
+							"trial": 2,
+							"durationMs": 595.484999999404,
+							"frames": 32,
+							"medianFrameMs": 16.664999999999964,
+							"p95FrameMs": 16.670000000000073,
+							"maxFrameMs": 83.33499999999913,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 66
+						},
+						{
+							"operation": "Generate Noise pink",
+							"seconds": 30,
+							"trial": 0,
+							"durationMs": 583.8650000095367,
+							"frames": 30,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 33.335000000000946,
+							"maxFrameMs": 66.65999999999985,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 63
+						},
+						{
+							"operation": "Generate Noise pink",
+							"seconds": 30,
+							"trial": 1,
+							"durationMs": 579.2749999910593,
+							"frames": 32,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 16.670000000000073,
+							"maxFrameMs": 66.66500000000087,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 59
+						},
+						{
+							"operation": "Generate Noise pink",
+							"seconds": 30,
+							"trial": 2,
+							"durationMs": 589.9549999982119,
+							"frames": 32,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 33.32999999999993,
+							"maxFrameMs": 50,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 58
+						},
+						{
+							"operation": "Generate Noise pink",
+							"seconds": 120,
+							"trial": 0,
+							"durationMs": 1044.4949999898672,
+							"frames": 59,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 16.670000000000073,
+							"maxFrameMs": 66.66500000000087,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 65
+						},
+						{
+							"operation": "Generate Noise pink",
+							"seconds": 120,
+							"trial": 1,
+							"durationMs": 1082.0249999910593,
+							"frames": 61,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 16.670000000000073,
+							"maxFrameMs": 66.66499999999905,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 59
+						},
+						{
+							"operation": "Generate Noise pink",
+							"seconds": 120,
+							"trial": 2,
+							"durationMs": 976.1999999880791,
+							"frames": 56,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 16.670000000000073,
+							"maxFrameMs": 66.66500000000087,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 60
+						},
+						{
+							"operation": "Apply Amplify",
+							"seconds": 120,
+							"trial": 0,
+							"durationMs": 3175.6349999904633,
+							"frames": 184,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 16.67000000000189,
+							"maxFrameMs": 83.32999999999811,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 85
+						},
+						{
+							"operation": "Apply Amplify",
+							"seconds": 120,
+							"trial": 1,
+							"durationMs": 3116.770000010729,
+							"frames": 183,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 16.67000000000189,
+							"maxFrameMs": 66.65999999999985,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 65
+						},
+						{
+							"operation": "Apply Amplify",
+							"seconds": 120,
+							"trial": 2,
+							"durationMs": 3059.609999999404,
+							"frames": 179,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 16.67000000000189,
+							"maxFrameMs": 66.66500000000087,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 68
+						},
+						{
+							"operation": "Apply Compressor",
+							"seconds": 120,
+							"trial": 0,
+							"durationMs": 3285.905000001192,
+							"frames": 187,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 16.67000000000189,
+							"maxFrameMs": 83.33000000000175,
+							"framesOver33Ms": 2,
+							"longTaskCount": 2,
+							"maxLongTaskMs": 82
+						},
+						{
+							"operation": "Apply Compressor",
+							"seconds": 120,
+							"trial": 1,
+							"durationMs": 3293.329999998212,
+							"frames": 189,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 16.67000000000553,
+							"maxFrameMs": 83.32999999999447,
+							"framesOver33Ms": 2,
+							"longTaskCount": 2,
+							"maxLongTaskMs": 87
+						},
+						{
+							"operation": "Apply Compressor",
+							"seconds": 120,
+							"trial": 2,
+							"durationMs": 3182.920000001788,
+							"frames": 186,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 16.67000000000553,
+							"maxFrameMs": 83.33000000000175,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 76
+						},
+						{
+							"operation": "Apply Normalize",
+							"seconds": 120,
+							"trial": 0,
+							"durationMs": 3143.655000001192,
+							"frames": 185,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 16.67000000000553,
+							"maxFrameMs": 66.66999999999825,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 67
+						},
+						{
+							"operation": "Apply Normalize",
+							"seconds": 120,
+							"trial": 1,
+							"durationMs": 2930.170000001788,
+							"frames": 171,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 16.67000000000553,
+							"maxFrameMs": 66.66999999999825,
+							"framesOver33Ms": 1,
+							"longTaskCount": 2,
+							"maxLongTaskMs": 74
+						},
+						{
+							"operation": "Apply Normalize",
+							"seconds": 120,
+							"trial": 2,
+							"durationMs": 3115.905000001192,
+							"frames": 183,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 16.669999999998254,
+							"maxFrameMs": 83.33000000000175,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 77
+						},
+						{
+							"operation": "Idle timeline",
+							"clips": "64",
+							"frames": 181,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 16.669999999998254,
+							"maxFrameMs": 16.67000000000553,
+							"framesOver33Ms": 0
+						},
+						{
+							"operation": "Playback timeline",
+							"clips": "64",
+							"playheadBefore": 12000,
+							"playheadAfter": 156000,
+							"frames": 151,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 33.33499999999913,
+							"maxFrameMs": 33.33499999999913,
+							"framesOver33Ms": 0
+						},
+						{
+							"operation": "Active dense timeline scroll and hover",
+							"clips": "64",
+							"frames": 102,
+							"medianFrameMs": 16.669999999998254,
+							"p95FrameMs": 83.33000000000175,
+							"maxFrameMs": 116.65499999999884,
+							"framesOver33Ms": 17,
+							"durationMs": 3033.215000000004,
+							"minScrollLeft": 0,
+							"maxScrollLeft": 1920,
+							"minScrollTop": 0,
+							"maxScrollTop": 1440,
+							"scrollPositions": 7,
+							"hoverPositions": 18,
+							"gestures": 20,
+							"gesture": "Trusted mouse sweeps and bidirectional wheel scrolling on a zoomed timeline with 64 clips"
+						}
+					]
+				}
+			},
+			{
+				"name": "current-dense-2",
+				"revision": "150ba92fd",
+				"hostAtLaunch": {
+					"time": "2026-10-07T07:26:18.136Z",
+					"loadAverage": [
+						24.36,
+						32.61,
+						39.09
+					],
+					"cpu": "AMD Ryzen 9 9900X 12-Core Processor",
+					"logicalCpus": 24,
+					"totalMemory": 49234468864,
+					"freeMemory": 37832679424
+				},
+				"report": {
+					"node": "v26.5.0",
+					"platform": "linux",
+					"arch": "x64",
+					"cpu": "AMD Ryzen 9 9900X 12-Core Processor",
+					"logicalCpus": 24,
+					"runtime": {
+						"versions": {
+							"node": "24.21.0",
+							"acorn": "8.18.0",
+							"ada": "4.0.0",
+							"amaro": "1.1.11",
+							"ares": "1.34.8",
+							"brotli": "1.2.0",
+							"cldr": "48.0",
+							"icu": "78.2",
+							"llhttp": "9.4.3",
+							"merve": "1.2.2",
+							"modules": "148",
+							"napi": "10",
+							"nbytes": "0.1.4",
+							"ncrypto": "0.0.1",
+							"nghttp2": "1.70.0",
+							"nghttp3": "",
+							"ngtcp2": "",
+							"openssl": "0.0.0",
+							"simdjson": "4.6.7",
+							"simdutf": "7.7.0",
+							"sqlite": "3.53.4",
+							"tz": "2025c",
+							"undici": "7.29.1",
+							"unicode": "17.0",
+							"uv": "1.52.1",
+							"uvwasi": "0.0.23",
+							"v8": "15.0.245.31-electron.0",
+							"zlib": "1.3.2.1-motley",
+							"zstd": "1.6.0",
+							"electron": "43.7.7",
+							"chrome": "150.0.7871.250"
+						},
+						"gpu": {
+							"2d_canvas": "unavailable_software",
+							"direct_rendering_display_compositor": "disabled_off_ok",
+							"gpu_compositing": "disabled_software",
+							"multiple_raster_threads": "enabled_on",
+							"opengl": "unavailable_off",
+							"rasterization": "unavailable_off",
+							"raw_draw": "disabled_off_ok",
+							"skia_graphite": "unavailable_off",
+							"trees_in_viz": "disabled_off",
+							"video_decode": "unavailable_off",
+							"video_encode": "disabled_software",
+							"vulkan": "disabled_off",
+							"webgl": "unavailable_off",
+							"webgpu": "unavailable_software",
+							"webgpu_on_vk_via_gl_interop": "disabled_off",
+							"webnn": "disabled_off"
+						},
+						"packaged": false
+					},
+					"viewport": {
+						"width": 1280,
+						"height": 900,
+						"dpr": 1
+					},
+					"preference": "speed",
+					"extended": true,
+					"method": "Actual Electron development app with freshly staged production renderer and real preload/SQLite/PCM path. First trial includes first-use processing engines; subsequent trials are warm. Capture click to dialog closed, success status, cleared waveform pending state, explicit successful canvas paint and two animation frames. Xvfb RAF gaps are a renderer responsiveness proxy, not GPU presentation FPS. Startup excluded.",
+					"results": [
+						{
+							"operation": "Generate Tone",
+							"seconds": 30,
+							"trial": 0,
+							"durationMs": 617.9000000059605,
+							"frames": 29,
+							"medianFrameMs": 16.664999999999964,
+							"p95FrameMs": 33.32999999999993,
+							"maxFrameMs": 116.66499999999996,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 112
+						},
+						{
+							"operation": "Generate Tone",
+							"seconds": 30,
+							"trial": 1,
+							"durationMs": 550.0549999922514,
+							"frames": 29,
+							"medianFrameMs": 16.664999999999964,
+							"p95FrameMs": 33.32999999999993,
+							"maxFrameMs": 66.66499999999996,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 70
+						},
+						{
+							"operation": "Generate Tone",
+							"seconds": 30,
+							"trial": 2,
+							"durationMs": 586.5949999988079,
+							"frames": 28,
+							"medianFrameMs": 16.664999999999964,
+							"p95FrameMs": 33.335000000000036,
+							"maxFrameMs": 83.32499999999982,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 75
+						},
+						{
+							"operation": "Generate Chirp",
+							"seconds": 30,
+							"trial": 0,
+							"durationMs": 638.934999987483,
+							"frames": 31,
+							"medianFrameMs": 16.664999999999964,
+							"p95FrameMs": 33.335000000000036,
+							"maxFrameMs": 99.99499999999989,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 75
+						},
+						{
+							"operation": "Generate Chirp",
+							"seconds": 30,
+							"trial": 1,
+							"durationMs": 663.4150000065565,
+							"frames": 32,
+							"medianFrameMs": 16.664999999999964,
+							"p95FrameMs": 49.99499999999989,
+							"maxFrameMs": 83.32999999999993,
+							"framesOver33Ms": 2,
+							"longTaskCount": 2,
+							"maxLongTaskMs": 73
+						},
+						{
+							"operation": "Generate Chirp",
+							"seconds": 30,
+							"trial": 2,
+							"durationMs": 614.0400000065565,
+							"frames": 28,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 33.33499999999913,
+							"maxFrameMs": 99.9950000000008,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 90
+						},
+						{
+							"operation": "Generate Noise pink",
+							"seconds": 30,
+							"trial": 0,
+							"durationMs": 671.2800000011921,
+							"frames": 36,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 33.33499999999913,
+							"maxFrameMs": 66.65999999999985,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 70
+						},
+						{
+							"operation": "Generate Noise pink",
+							"seconds": 30,
+							"trial": 1,
+							"durationMs": 621.1799999922514,
+							"frames": 33,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 33.335000000000946,
+							"maxFrameMs": 66.67000000000007,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 66
+						},
+						{
+							"operation": "Generate Noise pink",
+							"seconds": 30,
+							"trial": 2,
+							"durationMs": 600.4099999964237,
+							"frames": 31,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 33.32999999999993,
+							"maxFrameMs": 83.32999999999993,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 73
+						},
+						{
+							"operation": "Generate Noise pink",
+							"seconds": 120,
+							"trial": 0,
+							"durationMs": 1192.4799999892712,
+							"frames": 68,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 16.670000000000073,
+							"maxFrameMs": 49.99499999999898,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 63
+						},
+						{
+							"operation": "Generate Noise pink",
+							"seconds": 120,
+							"trial": 1,
+							"durationMs": 1090.6749999970198,
+							"frames": 61,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 16.670000000000073,
+							"maxFrameMs": 66.65999999999985,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 67
+						},
+						{
+							"operation": "Generate Noise pink",
+							"seconds": 120,
+							"trial": 2,
+							"durationMs": 1156.8649999946356,
+							"frames": 65,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 16.67000000000189,
+							"maxFrameMs": 66.65999999999985,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 60
+						},
+						{
+							"operation": "Apply Amplify",
+							"seconds": 120,
+							"trial": 0,
+							"durationMs": 3540.005000010133,
+							"frames": 206,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 16.67000000000189,
+							"maxFrameMs": 66.65999999999985,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 70
+						},
+						{
+							"operation": "Apply Amplify",
+							"seconds": 120,
+							"trial": 1,
+							"durationMs": 3494.330000013113,
+							"frames": 206,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 16.67000000000189,
+							"maxFrameMs": 66.66999999999825,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 73
+						},
+						{
+							"operation": "Apply Amplify",
+							"seconds": 120,
+							"trial": 2,
+							"durationMs": 2960.5750000029802,
+							"frames": 173,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 16.67000000000189,
+							"maxFrameMs": 66.66499999999724,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 74
+						},
+						{
+							"operation": "Apply Compressor",
+							"seconds": 120,
+							"trial": 0,
+							"durationMs": 3280.7699999958277,
+							"frames": 188,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 16.67000000000189,
+							"maxFrameMs": 83.33000000000175,
+							"framesOver33Ms": 2,
+							"longTaskCount": 2,
+							"maxLongTaskMs": 92
+						},
+						{
+							"operation": "Apply Compressor",
+							"seconds": 120,
+							"trial": 1,
+							"durationMs": 3340.4650000035763,
+							"frames": 194,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 16.67000000000553,
+							"maxFrameMs": 99.99500000000262,
+							"framesOver33Ms": 1,
+							"longTaskCount": 2,
+							"maxLongTaskMs": 89
+						},
+						{
+							"operation": "Apply Compressor",
+							"seconds": 120,
+							"trial": 2,
+							"durationMs": 3309.5849999934435,
+							"frames": 195,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 16.67000000000553,
+							"maxFrameMs": 83.33000000000175,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 78
+						},
+						{
+							"operation": "Apply Normalize",
+							"seconds": 120,
+							"trial": 0,
+							"durationMs": 3237.5499999970198,
+							"frames": 190,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 16.67000000000553,
+							"maxFrameMs": 83.32999999999447,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 89
+						},
+						{
+							"operation": "Apply Normalize",
+							"seconds": 120,
+							"trial": 1,
+							"durationMs": 2538.829999998212,
+							"frames": 149,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 16.67000000000553,
+							"maxFrameMs": 66.66999999999825,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 70
+						},
+						{
+							"operation": "Apply Normalize",
+							"seconds": 120,
+							"trial": 2,
+							"durationMs": 2670.6650000065565,
+							"frames": 157,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 16.67000000000553,
+							"maxFrameMs": 66.66500000000087,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 61
+						},
+						{
+							"operation": "Idle timeline",
+							"clips": "64",
+							"frames": 181,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 16.67000000000553,
+							"maxFrameMs": 16.67000000000553,
+							"framesOver33Ms": 0
+						},
+						{
+							"operation": "Playback timeline",
+							"clips": "64",
+							"playheadBefore": 12000,
+							"playheadAfter": 156000,
+							"frames": 170,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 33.330000000001746,
+							"maxFrameMs": 33.33499999999913,
+							"framesOver33Ms": 0
+						},
+						{
+							"operation": "Active dense timeline scroll and hover",
+							"clips": "64",
+							"frames": 109,
+							"medianFrameMs": 16.669999999998254,
+							"p95FrameMs": 83.32499999999709,
+							"maxFrameMs": 116.66500000000087,
+							"framesOver33Ms": 18,
+							"durationMs": 3016.5390000000043,
+							"minScrollLeft": 0,
+							"maxScrollLeft": 1920,
+							"minScrollTop": 0,
+							"maxScrollTop": 1440,
+							"scrollPositions": 7,
+							"hoverPositions": 18,
+							"gestures": 21,
+							"gesture": "Trusted mouse sweeps and bidirectional wheel scrolling on a zoomed timeline with 64 clips"
+						}
+					]
+				}
+			},
+			{
+				"name": "baseline-dense-2",
+				"revision": "1b9a6ce76b66b810a6dd30b94ad0f50559fbddab",
+				"hostAtLaunch": {
+					"time": "2026-10-07T07:28:04.158Z",
+					"loadAverage": [
+						24.63,
+						30.41,
+						37.61
+					],
+					"cpu": "AMD Ryzen 9 9900X 12-Core Processor",
+					"logicalCpus": 24,
+					"totalMemory": 49234468864,
+					"freeMemory": 36975648768
+				},
+				"report": {
+					"node": "v26.5.0",
+					"platform": "linux",
+					"arch": "x64",
+					"cpu": "AMD Ryzen 9 9900X 12-Core Processor",
+					"logicalCpus": 24,
+					"runtime": {
+						"versions": {
+							"node": "24.21.0",
+							"acorn": "8.18.0",
+							"ada": "4.0.0",
+							"amaro": "1.1.11",
+							"ares": "1.34.8",
+							"brotli": "1.2.0",
+							"cldr": "48.0",
+							"icu": "78.2",
+							"llhttp": "9.4.3",
+							"merve": "1.2.2",
+							"modules": "148",
+							"napi": "10",
+							"nbytes": "0.1.4",
+							"ncrypto": "0.0.1",
+							"nghttp2": "1.70.0",
+							"nghttp3": "",
+							"ngtcp2": "",
+							"openssl": "0.0.0",
+							"simdjson": "4.6.7",
+							"simdutf": "7.7.0",
+							"sqlite": "3.53.4",
+							"tz": "2025c",
+							"undici": "7.29.1",
+							"unicode": "17.0",
+							"uv": "1.52.1",
+							"uvwasi": "0.0.23",
+							"v8": "15.0.245.31-electron.0",
+							"zlib": "1.3.2.1-motley",
+							"zstd": "1.6.0",
+							"electron": "43.7.7",
+							"chrome": "150.0.7871.250"
+						},
+						"gpu": {
+							"2d_canvas": "unavailable_software",
+							"direct_rendering_display_compositor": "disabled_off_ok",
+							"gpu_compositing": "disabled_software",
+							"multiple_raster_threads": "enabled_on",
+							"opengl": "unavailable_off",
+							"rasterization": "unavailable_off",
+							"raw_draw": "disabled_off_ok",
+							"skia_graphite": "unavailable_off",
+							"trees_in_viz": "disabled_off",
+							"video_decode": "unavailable_off",
+							"video_encode": "disabled_software",
+							"vulkan": "disabled_off",
+							"webgl": "unavailable_off",
+							"webgpu": "unavailable_software",
+							"webgpu_on_vk_via_gl_interop": "disabled_off",
+							"webnn": "disabled_off"
+						},
+						"packaged": false
+					},
+					"viewport": {
+						"width": 1280,
+						"height": 900,
+						"dpr": 1
+					},
+					"preference": "speed",
+					"extended": true,
+					"method": "Actual Electron development app with freshly staged production renderer and real preload/SQLite/PCM path. First trial includes first-use processing engines; subsequent trials are warm. Capture click to dialog closed, success status, cleared waveform pending state, explicit successful canvas paint and two animation frames. Xvfb RAF gaps are a renderer responsiveness proxy, not GPU presentation FPS. Startup excluded.",
+					"results": [
+						{
+							"operation": "Generate Tone",
+							"seconds": 30,
+							"trial": 0,
+							"durationMs": 695.8249999880791,
+							"frames": 33,
+							"medianFrameMs": 16.664999999999964,
+							"p95FrameMs": 33.32999999999993,
+							"maxFrameMs": 116.66499999999996,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 104
+						},
+						{
+							"operation": "Generate Tone",
+							"seconds": 30,
+							"trial": 1,
+							"durationMs": 661.830000013113,
+							"frames": 33,
+							"medianFrameMs": 16.664999999999964,
+							"p95FrameMs": 33.335000000000036,
+							"maxFrameMs": 116.65999999999985,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 75
+						},
+						{
+							"operation": "Generate Tone",
+							"seconds": 30,
+							"trial": 2,
+							"durationMs": 481.4100000113249,
+							"frames": 24,
+							"medianFrameMs": 16.664999999999964,
+							"p95FrameMs": 33.335000000000036,
+							"maxFrameMs": 66.67000000000007,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 63
+						},
+						{
+							"operation": "Generate Chirp",
+							"seconds": 30,
+							"trial": 0,
+							"durationMs": 597.2549999952316,
+							"frames": 30,
+							"medianFrameMs": 16.664999999999964,
+							"p95FrameMs": 33.32999999999993,
+							"maxFrameMs": 99.99499999999989,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 74
+						},
+						{
+							"operation": "Generate Chirp",
+							"seconds": 30,
+							"trial": 1,
+							"durationMs": 634.9599999934435,
+							"frames": 32,
+							"medianFrameMs": 16.664999999999964,
+							"p95FrameMs": 33.32999999999993,
+							"maxFrameMs": 83.33500000000004,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 65
+						},
+						{
+							"operation": "Generate Chirp",
+							"seconds": 30,
+							"trial": 2,
+							"durationMs": 668.1749999970198,
+							"frames": 33,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 50,
+							"maxFrameMs": 83.32999999999993,
+							"framesOver33Ms": 2,
+							"longTaskCount": 2,
+							"maxLongTaskMs": 77
+						},
+						{
+							"operation": "Generate Noise pink",
+							"seconds": 30,
+							"trial": 0,
+							"durationMs": 586.6799999922514,
+							"frames": 30,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 33.33499999999913,
+							"maxFrameMs": 83.32999999999993,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 72
+						},
+						{
+							"operation": "Generate Noise pink",
+							"seconds": 30,
+							"trial": 1,
+							"durationMs": 590.4599999934435,
+							"frames": 31,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 33.335000000000946,
+							"maxFrameMs": 66.65999999999985,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 65
+						},
+						{
+							"operation": "Generate Noise pink",
+							"seconds": 30,
+							"trial": 2,
+							"durationMs": 575.9350000023842,
+							"frames": 31,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 33.335000000000946,
+							"maxFrameMs": 66.66500000000087,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 59
+						},
+						{
+							"operation": "Generate Noise pink",
+							"seconds": 120,
+							"trial": 0,
+							"durationMs": 1119.7750000059605,
+							"frames": 63,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 16.670000000000073,
+							"maxFrameMs": 66.66499999999905,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 65
+						},
+						{
+							"operation": "Generate Noise pink",
+							"seconds": 120,
+							"trial": 1,
+							"durationMs": 1114.859999999404,
+							"frames": 63,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 16.670000000000073,
+							"maxFrameMs": 66.65999999999985,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 65
+						},
+						{
+							"operation": "Generate Noise pink",
+							"seconds": 120,
+							"trial": 2,
+							"durationMs": 1068.9350000023842,
+							"frames": 59,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 16.670000000000073,
+							"maxFrameMs": 83.32999999999993,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 69
+						},
+						{
+							"operation": "Apply Amplify",
+							"seconds": 120,
+							"trial": 0,
+							"durationMs": 3328.839999988675,
+							"frames": 193,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 16.67000000000189,
+							"maxFrameMs": 83.32500000000073,
+							"framesOver33Ms": 1,
+							"longTaskCount": 2,
+							"maxLongTaskMs": 76
+						},
+						{
+							"operation": "Apply Amplify",
+							"seconds": 120,
+							"trial": 1,
+							"durationMs": 3159.0999999940395,
+							"frames": 184,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 16.67000000000189,
+							"maxFrameMs": 83.33000000000175,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 91
+						},
+						{
+							"operation": "Apply Amplify",
+							"seconds": 120,
+							"trial": 2,
+							"durationMs": 3678.560000002384,
+							"frames": 214,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 16.67000000000189,
+							"maxFrameMs": 83.32999999999811,
+							"framesOver33Ms": 1,
+							"longTaskCount": 3,
+							"maxLongTaskMs": 84
+						},
+						{
+							"operation": "Apply Compressor",
+							"seconds": 120,
+							"trial": 0,
+							"durationMs": 3451.8949999958277,
+							"frames": 197,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 16.67000000000189,
+							"maxFrameMs": 83.33499999999913,
+							"framesOver33Ms": 2,
+							"longTaskCount": 2,
+							"maxLongTaskMs": 88
+						},
+						{
+							"operation": "Apply Compressor",
+							"seconds": 120,
+							"trial": 1,
+							"durationMs": 3331.1499999910593,
+							"frames": 194,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 16.67000000000553,
+							"maxFrameMs": 83.32999999999447,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 84
+						},
+						{
+							"operation": "Apply Compressor",
+							"seconds": 120,
+							"trial": 2,
+							"durationMs": 3375.8049999922514,
+							"frames": 196,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 16.67000000000553,
+							"maxFrameMs": 99.99500000000262,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 90
+						},
+						{
+							"operation": "Apply Normalize",
+							"seconds": 120,
+							"trial": 0,
+							"durationMs": 4448.425000011921,
+							"frames": 262,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 16.67000000000553,
+							"maxFrameMs": 66.66500000000087,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 78
+						},
+						{
+							"operation": "Apply Normalize",
+							"seconds": 120,
+							"trial": 1,
+							"durationMs": 4057.5699999928474,
+							"frames": 240,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 16.67000000000553,
+							"maxFrameMs": 66.6649999999936,
+							"framesOver33Ms": 1,
+							"longTaskCount": 1,
+							"maxLongTaskMs": 70
+						},
+						{
+							"operation": "Apply Normalize",
+							"seconds": 120,
+							"trial": 2,
+							"durationMs": 4646.125,
+							"frames": 271,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 16.67000000000553,
+							"maxFrameMs": 83.32999999999447,
+							"framesOver33Ms": 2,
+							"longTaskCount": 2,
+							"maxLongTaskMs": 83
+						},
+						{
+							"operation": "Idle timeline",
+							"clips": "64",
+							"frames": 181,
+							"medianFrameMs": 16.665000000000873,
+							"p95FrameMs": 16.67000000000553,
+							"maxFrameMs": 16.67000000000553,
+							"framesOver33Ms": 0
+						},
+						{
+							"operation": "Playback timeline",
+							"clips": "64",
+							"playheadBefore": 12000,
+							"playheadAfter": 156000,
+							"frames": 160,
+							"medianFrameMs": 16.66500000000815,
+							"p95FrameMs": 33.33499999999185,
+							"maxFrameMs": 33.3350000000064,
+							"framesOver33Ms": 0
+						},
+						{
+							"operation": "Active dense timeline scroll and hover",
+							"clips": "64",
+							"frames": 108,
+							"medianFrameMs": 16.66500000000815,
+							"p95FrameMs": 83.33499999999185,
+							"maxFrameMs": 100,
+							"framesOver33Ms": 15,
+							"durationMs": 3016.5399999999936,
+							"minScrollLeft": 0,
+							"maxScrollLeft": 1920,
+							"minScrollTop": 0,
+							"maxScrollTop": 1440,
+							"scrollPositions": 7,
+							"hoverPositions": 18,
+							"gestures": 20,
+							"gesture": "Trusted mouse sweeps and bidirectional wheel scrolling on a zoomed timeline with 64 clips"
+						}
+					]
+				}
+			}
+		]
+	},
+	"runtimeKernels": {
+		"node": "v26.5.0",
+		"cpu": "AMD Ryzen 9 9900X 12-Core Processor",
+		"checkouts": [
+			{
+				"root": "/tmp/Soundscaper-perf-100-baseline",
+				"revision": "1b9a6ce76b66b810a6dd30b94ad0f50559fbddab"
+			},
+			{
+				"root": "/home/splowatt/git/Soundscaper-perf-100",
+				"revision": "150ba92fd98d56353915e162519e1c134626666c"
+			}
+		],
+		"method": "Exact result parity outside timing; 32 alternating warmups and seven alternating measured trials per revision; fixture construction excluded. Shared-host local timings, not end-to-end latency.",
+		"results": [
+			{
+				"name": "Unchanged 128-strip snapshot / 10000 queries",
+				"baselineMs": [
+					3.67799100000002,
+					3.77479900000003,
+					3.5405969999999343,
+					3.8570259999999053,
+					4.007538000000068,
+					3.7976329999999052,
+					3.7823439999999664
+				],
+				"currentMs": [
+					0.07659400000011374,
+					0.04203900000015892,
+					0.04761000000007698,
+					0.04613700000004428,
+					0.046397999999953754,
+					0.04460400000016307,
+					0.07770699999991848
+				]
+			},
+			{
+				"name": "Curved musical automation / 200 tempos",
+				"baselineMs": [
+					1037.3855079999994,
+					980.7199519999995,
+					964.7233379999961,
+					927.3876749999981,
+					1003.680094000003,
+					1123.6568009999974,
+					1019.2488510000039
+				],
+				"currentMs": [
+					12.102532999997493,
+					11.89622899999813,
+					13.149373000000196,
+					13.966411000001244,
+					15.977459000001545,
+					15.989338999999745,
+					14.550153999996837
+				]
+			},
+			{
+				"name": "PDC plan / 20000 tracks",
+				"baselineMs": [
+					2.7867389999955776,
+					2.510716999997385,
+					3.1688649999996414,
+					2.597075000005134,
+					2.553453000000445,
+					3.2869290000016917,
+					5.1628969999947
+				],
+				"currentMs": [
+					1.936887999996543,
+					1.6771580000058748,
+					3.0273639999941224,
+					3.0806529999972554,
+					1.497679000000062,
+					1.4539770000046701,
+					1.270741000000271
+				]
+			}
+		],
+		"summaries": [
+			{
+				"name": "Unchanged 128-strip snapshot / 10000 queries",
+				"baselineMedianMs": 3.7823439999999664,
+				"currentMedianMs": 0.046397999999953754
+			},
+			{
+				"name": "Curved musical automation / 200 tempos",
+				"baselineMedianMs": 1003.680094000003,
+				"currentMedianMs": 13.966411000001244
+			},
+			{
+				"name": "PDC plan / 20000 tracks",
+				"baselineMedianMs": 2.7867389999955776,
+				"currentMedianMs": 1.6771580000058748
+			}
+		]
+	}
+}
