@@ -9,6 +9,7 @@ import { createStreamingWindowedSincResampler } from './resample.js';
 import { scaleSampleFrame } from './timeline-time.ts';
 import { applyMaterialTransform, normalizeInputChannels } from './aup4-export-material.js';
 import { exportError, positiveRate, scaleBoundary } from './aup4-export-values.js';
+import { materializeAup4Loop } from './aup4-clip-loop-material.ts';
 
 function assertExportPlan(plan) {
 	if (!plan?.project || !Array.isArray(plan.sources)) throw exportError('An Audacity-project export plan is required.', 'INVALID_SNAPSHOT');
@@ -36,12 +37,13 @@ export function normalizeAup4ExportSource(plan, sourceAudio) {
 		const convertedChannels = playbackInputRate === variant.targetRate
 			? mappedChannels.map((channel) => channel.slice())
 			: resampleChannels(mappedChannels, playbackInputRate, variant.targetRate, outputFrameCount);
-		const channels = applyMaterialTransform(
+		const periodChannels = applyMaterialTransform(
 			convertedChannels,
 			variant.transform,
 			playbackInputRate,
 			variant.targetRate,
 		);
+		const channels = materializeAup4Loop(periodChannels, variant.transform?.loop ?? null);
 		if (channels.some((channel) => channel.length !== variant.source.frameCount)) {
 			throw exportError(`Audacity-project source ${sourceId} normalization produced an invalid frame count.`, 'INVALID_SOURCE_AUDIO');
 		}

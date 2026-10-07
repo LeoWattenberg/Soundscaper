@@ -11,6 +11,8 @@ import { projectForRuntimeConsumers } from './project-current-runtime.ts';
 import { projectTrackFolderMediaStateV12 } from './track-folder-media-runtime.ts';
 import { flattenAup4TimelineAnnotations } from './aup4-annotation-interchange.ts';
 import { normalizeMaterialTransform } from './aup4-export-material.js';
+import { aup4ClipLoopMaterial, aup4LoopMaterialFrameCount } from './aup4-clip-loop-material.ts';
+import { withoutClipLoop } from './audio-clip-loop.ts';
 import { aup4LinkedSamplePlaybackRate, neutralizeAup4RenderedTimePitch } from './aup4-linked-speed-export.ts';
 import {
 	scaleBoundary, scaledRangeLength,
@@ -131,6 +133,7 @@ export function createAup4ExportPlan(project) {
 			const source = sourceById.get(clip.sourceId);
 			const sourceRate = positiveRate(source.sampleRate, `source ${source.id} sampleRate`);
 			const sourceChannels = positiveChannelCount(source.channelCount);
+			const loop = aup4ClipLoopMaterial(clip);
 			const playbackRate = aup4LinkedSamplePlaybackRate(clip, sourceRate, projectRate);
 			const ratio = targetRate / (sourceRate * playbackRate);
 			const sourceFrameCount = positiveFrame(source.frameCount, `source ${source.id} frameCount`);
@@ -155,9 +158,10 @@ export function createAup4ExportPlan(project) {
 				track,
 				automaticCrossfades.get(String(clip.id)),
 			);
-			const sliceStartFrame = sourceStartFrame - trimStartFrames;
-			const sliceEndFrame = sourceEndFrame + trimEndFrames;
+			const sliceStartFrame = loop ? sourceStartFrame : sourceStartFrame - trimStartFrames;
+			const sliceEndFrame = loop ? sourceEndFrame : sourceEndFrame + trimEndFrames;
 			const transform = {
+				loop,
 				playbackRate,
 				sliceStartFrame,
 				sliceEndFrame,
@@ -193,6 +197,14 @@ export function createAup4ExportPlan(project) {
 			normalizedClip.trimEndFrames = Math.min(variant.source.frameCount - relativeSourceEnd, clip.reversed
 				? scaledRangeLength(sliceStartFrame, sourceStartFrame, ratio)
 				: scaledRangeLength(sourceEndFrame, sliceEndFrame, ratio));
+			if (loop) {
+				Object.assign(normalizedClip, { sourceStartFrame: 0, sourceDurationFrames: variant.source.frameCount,
+					trimStartFrames: 0, trimEndFrames: 0, opaqueExtensions: withoutClipLoop(normalizedClip.opaqueExtensions) });
+				addAup4CompatibilityItem(compatibilityReport, {
+					code: 'CLIP_LOOP_RENDERED', severity: 'info', disposition: 'converted',
+					scope: { kind: 'clip', trackId: track.id, clipId: clip.id }, data: loop,
+				});
+			}
 			if (Object.hasOwn(clip, 'gain') || envelopeConversion.converted) normalizedClip.gain = 1;
 			if (Object.hasOwn(clip, 'fadeInFrames') || envelopeConversion.converted) normalizedClip.fadeInFrames = 0;
 			if (Object.hasOwn(clip, 'fadeOutFrames') || envelopeConversion.converted) normalizedClip.fadeOutFrames = 0;
@@ -290,7 +302,9 @@ export function createAup4ExportPlan(project) {
 			const ratio = targetRate / (sourceRate * (materialTransform?.playbackRate ?? 1));
 			const sliceStartFrame = materialTransform?.sliceStartFrame ?? 0;
 			const sliceEndFrame = materialTransform?.sliceEndFrame ?? inputFrameCount;
-			const outputFrameCount = Math.max(1, scaledRangeLength(sliceStartFrame, sliceEndFrame, ratio));
+			const periodFrameCount = Math.max(1, scaledRangeLength(sliceStartFrame, sliceEndFrame, ratio));
+			const outputFrameCount = materialTransform?.loop
+				? aup4LoopMaterialFrameCount(materialTransform.loop, periodFrameCount) : periodFrameCount;
 			const variantId = uniqueVariantId(source.id, targetRate, targetChannels, variantIds);
 			const normalizedSource = {
 				...clone(source),

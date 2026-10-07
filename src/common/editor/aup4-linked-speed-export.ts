@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { exportError, positiveFrame } from './aup4-export-values.js';
+import { readClipLoop } from './audio-clip-loop.ts';
 
 interface LinkedClipGeometry {
 	readonly id?: unknown;
@@ -12,7 +13,7 @@ interface LinkedClipGeometry {
 /** Native Audacity stretching preserves pitch; linked sample speed must already be in its PCM. */
 export function aup4LinkedSamplePlaybackRate(clip: LinkedClipGeometry, sourceRate: number, projectRate: number): number {
 	if (clip.linkPitchAndTempo !== true) return 1;
-	const durationFrames = positiveFrame(clip.durationFrames, `clip ${String(clip.id)} durationFrames`);
+	const durationFrames = positiveFrame(readClipLoop(clip)?.periodFrames ?? clip.durationFrames, `clip ${String(clip.id)} durationFrames`);
 	const sourceFrames = positiveFrame(clip.sourceDurationFrames ?? clip.durationFrames, `clip ${String(clip.id)} sourceDurationFrames`);
 	const playbackRate = (sourceFrames / sourceRate) / (durationFrames / projectRate);
 	if (!Number.isFinite(playbackRate) || playbackRate <= 0) throw exportError('Linked clip playback rate is invalid.', 'INVALID_SNAPSHOT');
