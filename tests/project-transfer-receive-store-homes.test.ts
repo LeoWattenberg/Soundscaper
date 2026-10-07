@@ -220,6 +220,28 @@ test('archives route by family and same project ids land in separate v1 stores',
 	await source.close();
 });
 
+test('timeline home wrappers recognise photo headers but refuse before opening their writable store', async () => {
+	let opens = 0;
+	const source = await openTransferStore({
+		databases: { databases: async () => [] },
+		baselines: [fakeBaseline('lightscaper', async () => { opens++; return new FakeFamilyStore('lightscaper'); })],
+	});
+	const reader = fakeScapeReader();
+	const bytes = TEXT_ENCODER.encode(JSON.stringify(document('lightscaper', 'photo-catalog')));
+	const refused = (error: unknown) => error instanceof TransferArchiveHomeError
+		&& error.schemaFamily === 'lightscaper' && error.schemaVersion === 1;
+	await assert.rejects(Promise.resolve(inspectInHomeStore(reader.inspectProject)(bytes, source.store, {})), refused);
+	await assert.rejects(Promise.resolve(importIntoHomeStore(reader.importProject, reader.inspectProject)(
+		bytes, source.store, { collision: 'cancel' },
+	)), refused);
+	assert.equal(opens, 0);
+	assert.deepEqual(reader.imports, []);
+	assert.deepEqual(reader.inspects.map(({ storeLabel, schemaFamily, namedOwner }) => (
+		[storeLabel, schemaFamily, namedOwner]
+	)), [[null, 'lightscaper', true], [null, 'lightscaper', true]]);
+	await source.close();
+});
+
 test('a fresh family store opens on demand once and closes with the federation', async () => {
 	const framescaper = new FakeFamilyStore('framescaper');
 	let opens = 0;

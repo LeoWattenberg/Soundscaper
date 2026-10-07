@@ -4,8 +4,8 @@ import { canonicalJsonSha256 } from '../canonical-json-sha256.ts';
 import {
 	FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
 	SOUNDSCAPER_PROJECT_SCHEMA_FAMILY,
-	readProjectSchemaIdentity,
-	type ProjectSchemaFamily,
+	isTimelineProjectSchemaFamily, readProjectSchemaIdentity,
+	type TimelineProjectSchemaFamily,
 } from '../editor/project-schema-identity.ts';
 import {
 	admitCrossProductHandoffLaunchIntent,
@@ -90,7 +90,7 @@ export interface ConvertCrossProductEditableCopyRequest {
 
 /** Static closure: every persisted root has one declared default treatment. */
 export function crossProductHandoffRootPolicy(
-	family: ProjectSchemaFamily,
+	family: TimelineProjectSchemaFamily,
 ): readonly Readonly<CrossProductHandoffRootPolicy>[] {
 	if (family === SOUNDSCAPER_PROJECT_SCHEMA_FAMILY) return SOUNDSCAPER_ROOT_POLICY;
 	if (family === FRAMESCAPER_PROJECT_SCHEMA_FAMILY) return FRAMESCAPER_ROOT_POLICY;
@@ -111,7 +111,7 @@ export function convertCrossProductEditableCopy(
 	const intent = admitCrossProductHandoffLaunchIntent(request.intent);
 	const source = record(request.sourceProject, 'Cross-product handoff source project');
 	const identity = readProjectSchemaIdentity(source);
-	if (identity.schemaFamily !== intent.source.schemaFamily
+	if (!isTimelineProjectSchemaFamily(identity.schemaFamily) || identity.schemaFamily !== intent.source.schemaFamily
 		|| identity.schemaVersion !== intent.source.schemaVersion
 		|| source.id !== intent.source.projectId
 		|| source.revision !== intent.sourceRevision) {
@@ -208,7 +208,7 @@ export function convertCrossProductEditableCopy(
 }
 
 function constructDestination(
-	sourceFamily: ProjectSchemaFamily,
+	sourceFamily: TimelineProjectSchemaFamily,
 	source: Record<string, unknown>,
 	intent: Readonly<CrossProductHandoffLaunchIntentV1>,
 	reportClaimsSha256: string,
@@ -344,7 +344,7 @@ function sharedConstructorOptions(
 }
 
 function classifyRoots(
-	family: ProjectSchemaFamily,
+	family: TimelineProjectSchemaFamily,
 	source: Record<string, unknown>,
 ): readonly Readonly<CrossProductHandoffRootPolicy>[] {
 	return Object.freeze(crossProductHandoffRootPolicy(family).map((policy) => {
@@ -476,7 +476,7 @@ function reconcileConvertedRoots(
 	}));
 }
 
-function activeMaterializationRoot(family: ProjectSchemaFamily, source: Record<string, unknown>): string | null {
+function activeMaterializationRoot(family: TimelineProjectSchemaFamily, source: Record<string, unknown>): string | null {
 	if (family === SOUNDSCAPER_PROJECT_SCHEMA_FAMILY) {
 		return ['takeGroups', 'masteringSequences', 'nativePluginStates']
 			.find((root) => nonempty(source[root])) ?? null;
@@ -485,7 +485,7 @@ function activeMaterializationRoot(family: ProjectSchemaFamily, source: Record<s
 		.find((root) => nonempty(source[root])) ?? null;
 }
 
-function validateOwningProject(family: ProjectSchemaFamily, source: unknown): void {
+function validateOwningProject(family: TimelineProjectSchemaFamily, source: unknown): void {
 	if (family === SOUNDSCAPER_PROJECT_SCHEMA_FAMILY) validateSoundscaperProject(source);
 	else validateFramescaperProject(FRAMESCAPER_PROJECT_RUNTIME_PROFILE, source);
 }

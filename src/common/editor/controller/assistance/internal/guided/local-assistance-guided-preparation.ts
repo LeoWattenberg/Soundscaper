@@ -52,6 +52,9 @@ import {
 } from './local-assistance-guided-admission.ts';
 import { localAssistanceGuidedModelCandidates } from './local-assistance-guided-model-selection.ts';
 import { selectLocalAssistanceGuidedStages } from './local-assistance-guided-stage-selection.ts';
+import {
+	PROJECT_SCHEMA_VERSION, isTimelineProjectSchemaFamily, readProjectSchemaIdentity,
+} from '../../../../project-schema-identity.ts';
 
 const MAXIMUM_OUTPUT_BYTES = 64 * 1024 * 1024;
 const SHA256 = /^[a-f\d]{64}$/u;
@@ -151,6 +154,10 @@ export function createLocalAssistanceGuidedWorkflowPreparation(
 		}
 		if (!(request.signal instanceof AbortSignal)) {
 			throw new TypeError('Guided preparation requires one cancellation signal.');
+		}
+		const identity = readProjectSchemaIdentity(dependencies.getProject());
+		if (!isTimelineProjectSchemaFamily(identity.schemaFamily) || identity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
+			return unavailable('source-custody-unavailable');
 		}
 		const token = dependencies.captureProject();
 		try {

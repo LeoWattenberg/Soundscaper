@@ -109,7 +109,7 @@ test('Advanced preparation reports disappearing transcript context as typed unav
 	const fixture = preparationFixture('speech-enhancement');
 	const token = Object.freeze({ revision: 7 });
 	const preparation = createLocalAssistanceAdvancedWorkflowPreparation({
-		getProject: () => ({ id: 'unused' }), captureProject: () => token,
+		getProject: () => ({ id: 'unused', schemaFamily: 'soundscaper', schemaVersion: 1 }), captureProject: () => token,
 		assertProject: (value) => assert.equal(value, token),
 		preflightStorage: async () => undefined,
 		selected: { prepareSelectedMedia: async () => {

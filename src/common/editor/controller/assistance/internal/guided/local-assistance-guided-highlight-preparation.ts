@@ -5,6 +5,7 @@
 import { scaleSampleFrame } from '../../../../timeline-time.ts';
 import {
 	PROJECT_SCHEMA_VERSION,
+	isTimelineProjectSchemaFamily,
 	readProjectSchemaIdentity,
 } from '../../../../project-schema-identity.ts';
 import type { AssistanceWorkflowSettingsV1 } from '../../../../assistance/workflow-settings-v1.ts';
@@ -93,6 +94,10 @@ export async function prepareLocalAssistanceGuidedHighlightInputsV1(
 		throw new TypeError('Highlight preparation requires one cancellation signal.');
 	}
 	request.signal.throwIfAborted();
+	const identity = readProjectSchemaIdentity(request.project);
+	if (!isTimelineProjectSchemaFamily(identity.schemaFamily) || identity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
+		throw new RangeError('Highlight preparation requires the current timeline project schema.');
+	}
 	const described = record(await request.describeSelectedVideoSourceTime(),
 		'selected-video source-time description');
 	request.signal.throwIfAborted();
@@ -301,8 +306,8 @@ function sourceTimeAuthority(
 function primitiveFence(value: unknown): LocalAssistanceGuidedPrimitiveFence {
 	const row = record(value, 'highlight selection fence');
 	const identity = readProjectSchemaIdentity(row);
-	if (identity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
-		throw new RangeError('Highlight selection requires the current project schema.');
+	if (!isTimelineProjectSchemaFamily(identity.schemaFamily) || identity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
+		throw new RangeError('Highlight selection requires the current timeline project schema.');
 	}
 	const occurrenceIds = Array.isArray(row.occurrenceIds)
 		? row.occurrenceIds.map((id) => String(id)) : [];

@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { readProjectSchemaIdentity } from '../src/common/editor/project-schema-identity.ts';
 import {
 	createFamilyOwnedTransferArchiveRuntime,
 } from '../src/common/transfer/transfer-family-owned-runtime.ts';
@@ -55,6 +56,35 @@ test('family-owned dispatch refuses future and malformed identities before a pro
 		Promise.resolve(runtime.inspectProject('future', {}, {})),
 		/family-v1/iu,
 	);
+	assert.deepEqual(calls, []);
+});
+
+test('timeline archive dispatch refuses Lightscaper before reading its domain or looking up a runtime', async () => {
+	const calls: string[] = [];
+	let domainReads = 0;
+	let runtimeLookups = 0;
+	const project = {
+		id: 'photo-catalog', schemaFamily: 'lightscaper', schemaVersion: 1,
+		get photos(): never { domainReads++; throw new Error('Photo domain must remain unread.'); },
+		get tracks(): never { domainReads++; throw new Error('Timeline domain must remain unread.'); },
+	};
+	const runtimes = {
+		get soundscaper() { runtimeLookups++; return fakeRuntime('soundscaper', calls); },
+		get framescaper() { runtimeLookups++; return fakeRuntime('framescaper', calls); },
+	};
+	Object.defineProperty(runtimes, 'lightscaper', {
+		get(): never { runtimeLookups++; throw new Error('Lightscaper runtime must not be looked up.'); },
+	});
+	const runtime = createFamilyOwnedTransferArchiveRuntime({
+		probeArchiveIdentity: (input) => readProjectSchemaIdentity(input), runtimes,
+	});
+	await assert.rejects(async () => {
+		await runtime.exportProject(project, {}, { maximumBlobBytes: 1024 });
+	}, /timeline.*lightscaper/iu);
+	await assert.rejects(Promise.resolve(runtime.inspectProject(project, {}, {})), /timeline.*lightscaper/iu);
+	await assert.rejects(Promise.resolve(runtime.importProject(project, {}, { collision: 'cancel' })), /timeline.*lightscaper/iu);
+	assert.equal(domainReads, 0);
+	assert.equal(runtimeLookups, 0);
 	assert.deepEqual(calls, []);
 });
 

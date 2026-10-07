@@ -21,6 +21,9 @@ import { prepareLocalAssistanceAlignmentContext } from './local-assistance-align
 import {
 	normalizeLocalAssistanceSelectedMediaInventory,
 } from '../local-assistance-selected-media-inventory.ts';
+import {
+	PROJECT_SCHEMA_VERSION, isTimelineProjectSchemaFamily, readProjectSchemaIdentity,
+} from '../../../project-schema-identity.ts';
 
 const MAXIMUM_OUTPUT_BYTES = 64 * 1024 * 1024;
 type AdvancedInventory = ReturnType<typeof normalizeLocalAssistanceSelectedMediaInventory>;
@@ -65,8 +68,15 @@ export function createLocalAssistanceAdvancedSelectedContextPreparation<
 	dependencies: LocalAssistanceAdvancedSelectedContextDependencies & Readonly<{ selected: Selected }>,
 ): Readonly<Selected> {
 	assertDependencies(dependencies);
+	function hasTimelineProject(value: unknown = dependencies.getProject()): boolean {
+		try {
+			const identity = readProjectSchemaIdentity(value);
+			return isTimelineProjectSchemaFamily(identity.schemaFamily) && identity.schemaVersion === PROJECT_SCHEMA_VERSION;
+		} catch { return false; }
+	}
 
 	async function listSelectedMedia(): Promise<AdvancedInventory> {
+		if (!hasTimelineProject()) return Object.freeze({ sources: Object.freeze([]) });
 		const inventory = normalizeLocalAssistanceSelectedMediaInventory(
 			await dependencies.selected.listSelectedMedia(),
 		);
@@ -106,6 +116,7 @@ export function createLocalAssistanceAdvancedSelectedContextPreparation<
 		if (!request || typeof request !== 'object') {
 			throw new TypeError('Advanced context preparation requires one selected-media request.');
 		}
+		if (!hasTimelineProject()) throw new RangeError('Advanced context requires a current timeline project.');
 		if (request.operation !== 'word-alignment' && request.operation !== 'text-embedding'
 			&& request.operation !== 'editorial-generation') {
 			return dependencies.selected.prepareSelectedMedia(request);
@@ -170,6 +181,7 @@ export function createLocalAssistanceAdvancedSelectedContextPreparation<
 		if (fence.sourceId !== sourceId) return null;
 		if (inventory.sources.filter(({ sourceId }) => sourceId === fence.sourceId).length !== 1) return null;
 		const project = dataRecord(dependencies.getProject(), 'Advanced selected project');
+		if (!hasTimelineProject(project)) return null;
 		const options = Object.freeze({ project, inventory: inventory.sources, fence,
 			loadTranscriptBody: dependencies.loadTranscriptBody, signal });
 		const [transcript, editorial] = await Promise.all([

@@ -2,9 +2,9 @@
 
 import {
 	PROJECT_SCHEMA_VERSION,
-	isProjectSchemaFamily,
+	isTimelineProjectSchemaFamily,
 	readProjectSchemaIdentity,
-	type ProjectSchemaFamily,
+	type TimelineProjectSchemaFamily,
 } from './editor/project-schema-identity.ts';
 
 export const CROSS_PRODUCT_HANDOFF_INTENT_KIND = 'cross-product-editable-copy' as const;
@@ -20,7 +20,7 @@ const MAXIMUM_HANDOFF_QUERY_LENGTH = 16 * 1024;
 const MAXIMUM_HANDOFF_VALUE_LENGTH = 4 * 1024;
 
 export interface CrossProductHandoffProjectRef {
-	readonly schemaFamily: ProjectSchemaFamily;
+	readonly schemaFamily: TimelineProjectSchemaFamily;
 	readonly schemaVersion: typeof PROJECT_SCHEMA_VERSION;
 	readonly projectId: string;
 }
@@ -36,7 +36,7 @@ export interface CrossProductHandoffLaunchIntentV1 {
 
 export interface CreateCrossProductHandoffLaunchIntentOptions {
 	readonly sourceProject: unknown;
-	readonly destinationFamily: ProjectSchemaFamily;
+	readonly destinationFamily: TimelineProjectSchemaFamily;
 	/** Injected by tests and retry restorers; a new menu invocation normally mints it. */
 	readonly invocationId?: string;
 	/** Injected by tests and retry restorers; a new menu invocation normally mints it. */
@@ -51,10 +51,10 @@ export function createCrossProductHandoffLaunchIntent(
 		throw new TypeError('Cross-product handoff intent options must be a record.');
 	}
 	const sourceIdentity = readProjectSchemaIdentity(options.sourceProject);
-	if (sourceIdentity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
-		throw new RangeError('Cross-product editable copies require an exact family-v1 source.');
+	if (!isTimelineProjectSchemaFamily(sourceIdentity.schemaFamily) || sourceIdentity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
+		throw new RangeError('Cross-product editable copies require an exact family-v1 source from a timeline product.');
 	}
-	if (!isProjectSchemaFamily(options.destinationFamily)) {
+	if (!isTimelineProjectSchemaFamily(options.destinationFamily)) {
 		throw new RangeError('Cross-product handoff destination schemaFamily is unsupported.');
 	}
 	if (sourceIdentity.schemaFamily === options.destinationFamily) {
@@ -165,7 +165,7 @@ function admittedRevision(value: unknown, label: string): number {
 
 function projectRef(value: unknown, label: string): Readonly<CrossProductHandoffProjectRef> {
 	const ref = exactRecord(value, REF_FIELDS, `Cross-product handoff ${label} project ref`);
-	if (!isProjectSchemaFamily(ref.schemaFamily)) {
+	if (!isTimelineProjectSchemaFamily(ref.schemaFamily)) {
 		throw new RangeError(`Cross-product handoff ${label} schemaFamily is unsupported.`);
 	}
 	if (ref.schemaVersion !== PROJECT_SCHEMA_VERSION) {

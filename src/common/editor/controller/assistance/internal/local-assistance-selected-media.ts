@@ -16,6 +16,7 @@ import {
 } from '../../../assistance/proposal-session.ts';
 import {
 	PROJECT_SCHEMA_VERSION,
+	isTimelineProjectSchemaFamily,
 	readProjectSchemaIdentity,
 } from '../../../project-schema-identity.ts';
 import {
@@ -157,6 +158,7 @@ export function createLocalAssistanceSelectedMediaPreparation(
 		if (!AUDIO_OPERATION_SET.has(request.operation)) {
 			throw new RangeError('This operation has no exact selected audio input preparation.');
 		}
+		selectedTimelineIdentity(dependencies.getProject());
 		const token = dependencies.captureProject();
 		const selected = resolveLocalAssistanceSelectedMediaAuthority(dependencies);
 		if (text(selected.source.id, 'source id') !== request.sourceId) {
@@ -349,14 +351,11 @@ function prepareRequest(value: unknown): Readonly<{
 }
 
 function selectedProject(value: unknown): SelectedMediaProject {
-	const identity = readProjectSchemaIdentity(value);
+	const identity = selectedTimelineIdentity(value);
 	if (!value || typeof value !== 'object' || Array.isArray(value)) {
 		throw new TypeError('Local assistance requires an active project.');
 	}
 	const project = value as Partial<SelectedMediaProject>;
-	if (identity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
-		throw new RangeError('Local assistance requires the current project schema.');
-	}
 	if (!Array.isArray(project.sources) || !Array.isArray(project.clips)
 		|| !Array.isArray(project.tracks)) {
 		throw new TypeError('The active project has no bounded media inventory.');
@@ -370,6 +369,14 @@ function selectedProject(value: unknown): SelectedMediaProject {
 		sampleRate: integer(project.sampleRate, 1, 'project sample rate'),
 		primarySequenceId: text(project.primarySequenceId, 'primary sequence id'),
 	};
+}
+
+function selectedTimelineIdentity(value: unknown) {
+	const identity = readProjectSchemaIdentity(value);
+	if (!isTimelineProjectSchemaFamily(identity.schemaFamily) || identity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
+		throw new RangeError('Local assistance requires the current timeline project schema.');
+	}
+	return { schemaFamily: identity.schemaFamily, schemaVersion: PROJECT_SCHEMA_VERSION };
 }
 
 function assertIdentityTiming(clip: DataRecord, source: DataRecord, sampleRate: number): void {

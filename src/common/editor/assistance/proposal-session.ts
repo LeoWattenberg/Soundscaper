@@ -15,8 +15,9 @@ import {
 } from './operation.ts';
 import {
 	PROJECT_SCHEMA_VERSION,
+	isTimelineProjectSchemaFamily,
 	readProjectSchemaIdentity,
-	type ProjectSchemaFamily,
+	type TimelineProjectSchemaFamily,
 } from '../project-schema-identity.ts';
 
 export type { AssistanceOperation } from './operation.ts';
@@ -34,7 +35,7 @@ const MAX_ASSISTANCE_ASSETS = 1024;
 
 export interface AssistanceSelectionFence {
 	readonly projectId: string;
-	readonly schemaFamily: ProjectSchemaFamily;
+	readonly schemaFamily: TimelineProjectSchemaFamily;
 	readonly schemaVersion: typeof PROJECT_SCHEMA_VERSION;
 	readonly revision: number;
 	readonly sequenceId: string;
@@ -275,10 +276,10 @@ export function sameAssistanceSelectionFence(
 function currentProjectIdentity(
 	value: unknown,
 	label: string,
-): Readonly<{ schemaFamily: ProjectSchemaFamily; schemaVersion: typeof PROJECT_SCHEMA_VERSION }> {
+): Readonly<{ schemaFamily: TimelineProjectSchemaFamily; schemaVersion: typeof PROJECT_SCHEMA_VERSION }> {
 	const identity = readProjectSchemaIdentity(value);
-	if (identity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
-		throw new RangeError(`The ${label} must bind the current project schema version.`);
+	if (!isTimelineProjectSchemaFamily(identity.schemaFamily) || identity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
+		throw new RangeError(`The ${label} must bind the current timeline project schema.`);
 	}
 	return Object.freeze({
 		schemaFamily: identity.schemaFamily,
