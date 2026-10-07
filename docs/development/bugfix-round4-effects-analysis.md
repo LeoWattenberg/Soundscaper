@@ -507,3 +507,27 @@ product builds, targeted lint and authoritative test TypeScript checks pass.
 Regression files are `audio-editor-round4-source-ruler-shortcut.test.tsx` and
 `audio-editor-round4-source-ruler-shortcut.spec.js`; evidence is recorded in
 `/tmp/soundscaper-r4-root-source-ruler-*`. Manual Update AI assets: not required.
+
+## R4-ROOT-022 — Clear loop leaves the old boundaries available for reuse
+
+Import a WAV, draw a time range and choose Select → Loop region → Set loop to
+selection. Choose Clear loop region, Undo and Redo. Draw a different range,
+turn Loop selection on, and choose Set selection to loop. The baseline
+selects the old loop instead of the new range. Clear only disabled the loop;
+its project command also ignored explicit replacement boundaries while disabled.
+
+Clear now commits an empty, disabled range through the actual project command.
+Ordinary loop toggling still preserves stored boundaries. Clearing leaves the
+time, track and spectral selection unchanged, including when selection follows
+the loop. This matches the [documented Clear loop operation](https://www.audacityteam.org/manual/timeline/clear-loop-region/).
+The controller and command corrections repair one operation and count once.
+
+The exact menu workflow fails on immutable baseline `a0322d6e4` and passes
+Chromium, Firefox and WebKit on `loop-eq-clean28`, alongside the original stored
+loop snapping workflow. Canonical project-command tests caught the command's
+ignored reset, rather than relying on the transport fixture. New and existing
+transport/EQ tests pass 34/34; targeted lint and both guarded product builds pass.
+Regression files are `audio-editor-round4-clear-loop-region.test.ts` and
+`audio-editor-round4-clear-loop-region.spec.js`. Evidence is recorded in
+`/tmp/soundscaper-r4-root-clear-loop-*` and `/tmp/soundscaper-r4-root-loop-eq-*`.
+Manual Update AI assets: not required.

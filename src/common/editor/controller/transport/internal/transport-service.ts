@@ -230,8 +230,8 @@ export function createEditorTransportService<Project extends TransportProject = 
 	}
 
 	function clearLoopRegion() {
-		const current = requireProject().loop || { startFrame: 0, endFrame: 0 };
-		const next = commit({ type: 'loop/set', ...current, enabled: false });
+		requireProject();
+		const next = commit({ type: 'loop/set', startFrame: 0, endFrame: 0, enabled: false });
 		engine.setLoop(next.loop);
 		return next.loop;
 	}

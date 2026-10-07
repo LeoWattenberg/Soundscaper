@@ -97,12 +97,16 @@ function setSelection(project, command) {
 }
 
 function setLoop(project, command) {
-	if (!command.enabled) {
+	if (!command.enabled && command.startFrame === 0 && command.endFrame === 0) {
+		project.loop = { enabled: false, startFrame: 0, endFrame: 0 };
+		return;
+	}
+	if (!command.enabled && command.startFrame === undefined && command.endFrame === undefined) {
 		project.loop = { ...project.loop, enabled: false };
 		return;
 	}
 	const range = normalizeFrameRange(command.startFrame, command.endFrame, 'loop');
-	project.loop = { enabled: true, startFrame: range.startFrame, endFrame: range.endFrame };
+	project.loop = { enabled: Boolean(command.enabled), startFrame: range.startFrame, endFrame: range.endFrame };
 }
 
 function setSnap(project, command) {
