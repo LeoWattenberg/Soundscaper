@@ -25,6 +25,8 @@ round-three baseline. Tests do not install editor state or require malformed fil
 
 | R3-DIALOG-016 | File → Import a normal WAV. Edit → Preferences → General. Choose Program start: New project, then Language: Deutsch. | The ordinary language navigation reopened a different empty project. Interface language should preserve the document being edited; Program start should govern a later launch. | Flush the project and carry its ID through a bounded, one-use, product-scoped handoff in this tab. Bootstrap consumes it only at the chosen destination, then the saved next-session policy resumes. The public baseline changed the project ID and lost the visible clip. The corrected workflow retains both. Mounted and strict resource tests verify save-before-navigation, no startup-preference rewrite, destination/product separation, expiry, and one-use consumption. |
 
+| R3-DIALOG-017 | Record options → Timed recording. Choose a future Start date and time, set Duration to 1.500 seconds, then choose End date and time. | The linked end field truncated its milliseconds, changing the scheduled interval from 1.500 to 1.000 second. Switching scheduling modes should retain the same authored interval. | Preserve nonzero milliseconds when formatting linked local dates and permit millisecond precision in both date inputs. The public baseline reported a 1,000-millisecond interval; the corrected workflow retains 1,500 milliseconds, has no native step mismatch, and restores the same duration on switching back. Strict model regressions also preserve fractional initialization and a moved start date. |
+
 All three workflows passed Chromium, Firefox, and WebKit against immutable green
 batch 1. The existing Chromium mask validation, preset, and removal workflow also
 passed; its invalid Height 0 validation remains intact. Focused Node regressions
@@ -73,6 +75,11 @@ Entry 016 passed Chromium, Firefox, and WebKit against immutable green batch 11.
 Its mounted and strict handoff cases plus existing bootstrap/startup/preferences
 regressions passed all 31 focused Node cases. Changed source and tests passed
 targeted lint, source typecheck, controller-domain policy, and the file-size gate.
+
+Entry 017 passed Chromium, Firefox, and WebKit against immutable green batch 12.
+Its two strict precision regressions and the five existing timed-recording model
+cases passed. Changed source and tests passed targeted lint and the file-size
+gate; the authoritative source and test typechecks also passed.
 
 Uncounted follow-through to R2-DIALOG-012: in Framescaper, import a normal WebM,
 select its clip, then Edit → Audio clips → Video keyframes. Choose Scale X,
