@@ -66,9 +66,9 @@ export function ClipLoopOverlays({ rootRef, clips, startFrame, endFrame, pixelsP
 				role="slider" aria-valuemin={1 / sampleRate} aria-valuemax={Number.MAX_SAFE_INTEGER / sampleRate}
 				onClick={event => { event.stopPropagation(); }} onDoubleClick={event => { event.stopPropagation(); }}
 				onKeyDown={event => {
-					event.stopPropagation();
+					if (event.ctrlKey || event.metaKey || event.altKey) return;
 					if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
-					event.preventDefault();
+					event.preventDefault(); event.stopPropagation();
 					const delta = (event.key === 'ArrowRight' ? 1 : -1) * (event.shiftKey ? Math.max(1, Math.round(sampleRate / 100)) : loop.periodFrames);
 					onChange(clip.id, { loop: { periodFrames: loop.periodFrames, durationFrames: Math.max(1, normalized.durationFrames + delta),
 						...(normalized === clip ? {} : { offsetFrames: 0, sourceStartFrame: normalized.sourceStartFrame, sourceDurationFrames: normalized.sourceDurationFrames }) } });

@@ -35,4 +35,10 @@ export const FOUNDATION_TIME_CONVERSION_VISUAL_EDIT_SITES: readonly FoundationTi
 		behavior: 'Generator trim previews use the owning sequence/source trim planner and convert the resulting absolute sequence start and end once to nearest project samples, preserving exact source phase and keeping the preview out of history.',
 		conversions: [{ helper: 'videoFrameToSampleFrame', policies: ['point'] }],
 	},
+	{
+		id: 'timeline-generator-split-boundary',
+		file: 'src/framescaper/editor-timeline-generator-split-command.ts',
+		behavior: 'The generated visual split consumer resolves the requested project sample to the nearest authored sequence boundary before partitioning its exact sequence extent and native source window; compound cuts observe earlier generated visual mutations.',
+		conversions: [{ helper: 'sampleFrameToVideoFrame', policies: ['point'] }],
+	},
 ]);
