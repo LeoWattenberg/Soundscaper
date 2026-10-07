@@ -13,6 +13,9 @@ import React, {
 } from 'react';
 
 import EditorToast from '../EditorToast.tsx';
+import RoutingGraphWires from './RoutingGraphWires.tsx';
+import { indexRoutingNodes, indexRoutingEdges, indexRoutingPorts, indexRoutingConnections, indexRoutingEndpointLabels, routingNavigationTarget } from './routing-graph-presentation.ts';
+import { useRoutingHoverFrame } from './useRoutingHoverFrame.ts';
 import { feedbackFailure, usePresentationFeedback } from '../presentation-feedback.ts'; import type { MixerEdgeV21, MixerGraphV21 } from '../../mixer-graph-v21.ts';
 import type { ParameterAddress } from '../../parameter-address.ts';
 import SoundscaperRoutingGraphInspector, {
@@ -64,6 +67,8 @@ export interface SoundscaperRoutingGraphViewProps {
 
 export type { SoundscaperRoutingParameterGesture };
 
+const EMPTY_COUNTS = Object.freeze({ inputs: 0, outputs: 0 });
+const EMPTY_SIDECHAINS: NonNullable<RoutingNodeCardProps['ports']>['sidechains'] = [];
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 1.5;
 const ZOOM_STEP = 0.1;
@@ -96,6 +101,7 @@ export default function SoundscaperRoutingGraphView({
 	const nodeRefs = useRef(new Map<string, HTMLButtonElement>());
 	const consumedRequestKeyRef = useRef<string | null>(null);
 	const graphDisabled = disabled || pending;
+	const hover = useRoutingHoverFrame(connecting !== null, zoom, setPreviewPoint);
 
 	useEffect(() => {
 		if (layout.nodes.some(({ key }) => key === focusKey)) return;
@@ -146,6 +152,7 @@ export default function SoundscaperRoutingGraphView({
 	const chooseSource = (source: MixerEdgeV21['source'], sourceLabel: string): void => {
 		if (graphDisabled) return;
 		setConnecting(source);
+		hover.cancel();
 		const sourceNode = layout.nodes.find(({ key }) => key === routingLayoutNodeKeyForEndpoint(source));
 		setPreviewPoint(sourceNode ? {
 			x: sourceNode.x + sourceNode.width + 64,
@@ -158,6 +165,7 @@ export default function SoundscaperRoutingGraphView({
 		if (!connecting || graphDisabled) return;
 		try {
 			applyCandidate('edge-create', connectSoundscaperRoutingEdge(project, graph, connecting, destination));
+			hover.cancel();
 			setConnecting(null);
 			setPreviewPoint(null);
 		} catch (reason) {
@@ -184,7 +192,11 @@ export default function SoundscaperRoutingGraphView({
 	}, [fitActive, fitGraph]);
 
 	const selectedKey = selectionKey(selection);
-	const nodeByKey = new Map(layout.nodes.map((node) => [node.key, node]));
+	const nodeByKey = useMemo(() => indexRoutingNodes(layout.nodes), [layout.nodes]);
+	const edgeById = useMemo(() => indexRoutingEdges(graph.edges), [graph.edges]);
+	const portsByNode = useMemo(() => indexRoutingPorts(destinations), [destinations]);
+	const countsByNode = useMemo(() => indexRoutingConnections(graph), [graph]);
+	const endpointLabels = useMemo(() => ({ sources: indexRoutingEndpointLabels(routingSourceOptions(project, graph)), destinations: indexRoutingEndpointLabels(destinations) }), [destinations, graph, project]);
 	const connectingNode = connecting
 		? nodeByKey.get(routingLayoutNodeKeyForEndpoint(connecting)) : undefined;
 	return <section
@@ -194,6 +206,7 @@ export default function SoundscaperRoutingGraphView({
 		onKeyDown={(event) => {
 			if (event.key !== 'Escape' || !connecting) return;
 			event.preventDefault();
+			hover.cancel();
 			setConnecting(null);
 			setPreviewPoint(null);
 			setStatus({ key: 'connectionCancelled' }); setToast({ type: 'success', id: ++toastIdRef.current });
@@ -229,11 +242,7 @@ export default function SoundscaperRoutingGraphView({
 		<div className="kw-routing-graph__body">
 			<div className="kw-routing-graph__viewport" ref={viewportRef} tabIndex={-1} onPointerMove={(event) => {
 				if (!connecting) return;
-				const bounds = event.currentTarget.getBoundingClientRect();
-				setPreviewPoint({
-					x: (event.clientX - bounds.left + event.currentTarget.scrollLeft) / zoom,
-					y: (event.clientY - bounds.top + event.currentTarget.scrollTop) / zoom,
-				});
+				hover.schedule({ target: event.currentTarget, x: event.clientX, y: event.clientY });
 			}}>
 				<div className="kw-routing-graph__stage-scroll" style={{ width: `${layout.width * zoom}px`, height: `${layout.height * zoom}px` }}>
 				<div className="kw-routing-graph__stage" style={{
@@ -241,7 +250,7 @@ export default function SoundscaperRoutingGraphView({
 					transform: `scale(${zoom})`, transformOrigin: 'top left',
 				}}>
 					<svg className="kw-routing-graph__wires" width={layout.width} height={layout.height} viewBox={`0 0 ${layout.width} ${layout.height}`} aria-hidden="true">
-						{layout.edges.map((edge) => <path key={edge.key} d={edge.path} className={`kw-routing-graph__wire kw-routing-graph__wire--${edge.kind}${edge.enabled ? '' : ' is-disabled'}`} />)}
+						<RoutingGraphWires edges={layout.edges} />
 						{connectingNode && previewPoint && <path
 							d={previewPath(connectingNode, previewPoint)}
 							className="kw-routing-graph__wire kw-routing-graph__wire--preview"
@@ -259,7 +268,7 @@ export default function SoundscaperRoutingGraphView({
 							role="note"
 							aria-label={fill(copy.vcaMembership, { source: source.label, destination: destination.label })}
 						>{copy.vca}</span>;
-						const model = graph.edges.find(({ id }) => id === edge.id);
+						const model = edgeById.get(edge.id);
 						if (!model) return null;
 						return <button
 							key={`handle:${edge.key}`}
@@ -268,7 +277,7 @@ export default function SoundscaperRoutingGraphView({
 							style={edgeHandleStyle(source, destination, edge.parallelOffset)}
 							data-routing-edge={edge.id}
 							aria-pressed={selection?.kind === 'edge' && selection.id === edge.id}
-							aria-label={edgeAriaLabel(copy, model, project, graph)}
+							aria-label={edgeAriaLabel(copy, model, endpointLabels)}
 							onClick={() => setSelection({ kind: 'edge', id: edge.id })}
 							onKeyDown={(event) => {
 								if (event.key !== 'Delete') return;
@@ -284,7 +293,8 @@ export default function SoundscaperRoutingGraphView({
 						copy={copy}
 						project={project}
 						graph={graph}
-						destinations={destinations}
+						ports={portsByNode.get(node.key)}
+						counts={countsByNode.get(node.key) ?? EMPTY_COUNTS}
 						disabled={graphDisabled}
 						selected={selectedKey === node.key}
 						connecting={connecting !== null}
@@ -331,7 +341,8 @@ interface RoutingNodeCardProps {
 	readonly copy: SoundscaperRoutingGraphCopy;
 	readonly project: unknown;
 	readonly graph: MixerGraphV21;
-	readonly destinations: ReturnType<typeof routingDestinationOptions>;
+	readonly ports: ReturnType<typeof indexRoutingPorts> extends Map<string, infer Ports> ? Ports | undefined : never;
+	readonly counts: Readonly<{ inputs: number; outputs: number }>;
 	readonly disabled: boolean;
 	readonly selected: boolean;
 	readonly connecting: boolean;
@@ -345,16 +356,11 @@ interface RoutingNodeCardProps {
 }
 
 function RoutingNodeCard(props: RoutingNodeCardProps) {
-	const { node, copy, graph, destinations, disabled, selected, connecting, tabIndex, buttonRef } = props;
+	const { node, copy, ports, counts, disabled, selected, connecting, tabIndex, buttonRef } = props;
 	const selection = nodeSelection(node);
 	const source = nodeSource(node);
-	const normalDestination = destinations.find(({ endpoint }) => (
-		endpoint.kind !== 'effect-sidechain' && routingLayoutNodeKeyForEndpoint(endpoint) === node.key
-	));
-	const sidechains = destinations.filter(({ endpoint }) => (
-		endpoint.kind === 'effect-sidechain' && routingLayoutNodeKeyForEndpoint(endpoint) === node.key
-	));
-	const counts = connectionCounts(graph, node);
+	const normalDestination = ports?.normal;
+	const sidechains = ports?.sidechains ?? EMPTY_SIDECHAINS;
 	return <div
 		className={`kw-routing-graph__node kw-routing-graph__node--${node.kind}${selected ? ' is-selected' : ''}`}
 		data-routing-node={node.key}
@@ -454,19 +460,7 @@ function navigateNodes(
 	setFocusKey: (key: string) => void,
 	refs: ReadonlyMap<string, HTMLButtonElement>,
 ): void {
-	const ordered = [...nodes].sort((left, right) => left.y - right.y || left.x - right.x);
-	const current = nodes.find(({ key }) => key === fromKey);
-	if (!current || ordered.length === 0) return;
-	let next: RoutingLayoutNode | undefined;
-	if (direction === 'home') next = ordered[0];
-	else if (direction === 'end') next = ordered.at(-1);
-	else {
-		const candidates = nodes.filter((node) => node.key !== current.key && (
-			direction === 'left' ? node.x < current.x : direction === 'right' ? node.x > current.x
-				: direction === 'up' ? node.y < current.y : node.y > current.y
-		));
-		next = candidates.sort((left, right) => spatialDistance(current, left, direction) - spatialDistance(current, right, direction))[0];
-	}
+	const next = routingNavigationTarget(nodes, fromKey, direction);
 	if (!next) return;
 	setFocusKey(next.key);
 	refs.get(next.key)?.focus();
@@ -485,16 +479,6 @@ function nodeSource(node: RoutingLayoutNode): MixerEdgeV21['source'] | null {
 	if (node.kind === 'master') return { kind: 'master' };
 	if (node.kind === 'group' || node.kind === 'send' || node.kind === 'cue') return { kind: 'mixer-node', id: node.id };
 	return null;
-}
-
-function connectionCounts(graph: MixerGraphV21, node: RoutingLayoutNode): Readonly<{ inputs: number; outputs: number }> {
-	if (node.kind === 'vca') {
-		const members = graph.vcas.find(({ id }) => id === node.id)?.members.length ?? 0;
-		return { inputs: 0, outputs: members };
-	}
-	const inputs = graph.edges.filter((edge) => routingLayoutNodeKeyForEndpoint(edge.destination) === node.key).length;
-	const outputs = graph.edges.filter((edge) => routingLayoutNodeKeyForEndpoint(edge.source) === node.key).length;
-	return { inputs, outputs };
 }
 
 function selectionKey(selection: RoutingSelection | null): string | null {
@@ -518,18 +502,10 @@ function previewPath(source: RoutingLayoutNode, destination: Readonly<{ x: numbe
 	return `M ${startX} ${startY} C ${startX + curve} ${startY}, ${destination.x - curve} ${destination.y}, ${destination.x} ${destination.y}`;
 }
 
-function edgeAriaLabel(copy: SoundscaperRoutingGraphCopy, edge: MixerEdgeV21, project: unknown, graph: MixerGraphV21): string {
-	const sources = routingSourceOptions(project, graph);
-	const destinations = routingDestinationOptions(project, graph);
-	const source = sources.find(({ value }) => value === routingEndpointValue(edge.source))?.label ?? routingEndpointValue(edge.source);
-	const destination = destinations.find(({ value }) => value === routingEndpointValue(edge.destination))?.label ?? routingEndpointValue(edge.destination);
+function edgeAriaLabel(copy: SoundscaperRoutingGraphCopy, edge: MixerEdgeV21, labels: { readonly sources: ReadonlyMap<string, string>; readonly destinations: ReadonlyMap<string, string> }): string {
+	const source = labels.sources.get(routingEndpointValue(edge.source)) ?? routingEndpointValue(edge.source);
+	const destination = labels.destinations.get(routingEndpointValue(edge.destination)) ?? routingEndpointValue(edge.destination);
 	return fill(copy.edgeAccessibility, { kind: edge.kind, source, destination, position: edge.position, enabled: edge.enabled ? copy.enabled : copy.disabled, channels: String(edge.channelMap.length) });
-}
-
-function spatialDistance(from: RoutingLayoutNode, to: RoutingLayoutNode, direction: 'left' | 'right' | 'up' | 'down'): number {
-	const horizontal = Math.abs(to.x - from.x);
-	const vertical = Math.abs(to.y - from.y);
-	return direction === 'left' || direction === 'right' ? horizontal + vertical * 2 : vertical + horizontal * 2;
 }
 
 function clampZoom(value: number): number {
