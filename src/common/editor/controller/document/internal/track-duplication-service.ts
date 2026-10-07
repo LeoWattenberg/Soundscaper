@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { AudioEditorCommand, CommandObject } from '../../../commands/protocol.ts';
+import { preserveProductionTrackRouting } from '../../../derived-track-routing.ts';
 import { trackHierarchyPlacement } from '../../../track-hierarchy-placement.ts';
 import type {
 	ControllerTrackDuplicateCarrier,
@@ -57,6 +58,7 @@ export interface TrackDuplicationServiceDependencies {
 		project: TrackDuplicationProject,
 		request: Readonly<ControllerTrackDuplicateRequest>,
 	) => Readonly<ControllerTrackDuplicateCarrier>;
+	readonly previewCommand?: (project: TrackDuplicationProject, command: AudioEditorCommand) => Readonly<Record<string, unknown>>;
 	readonly commit: (command: AudioEditorCommand, selection: TrackDuplicationSelection) => unknown;
 }
 
@@ -123,7 +125,9 @@ export function createTrackDuplicationService(dependencies: TrackDuplicationServ
 			}));
 		}
 		dependencies.commit(
-			{ type: 'batch', commands },
+			preserveProductionTrackRouting(project, { type: 'batch', commands }, [
+				{ sourceTrackId: track.id, targetTrackId: trackId },
+			], dependencies.previewCommand, dependencies.createId),
 			{ selectTrackId: trackId, selectClipId: selectedClipId },
 		);
 	}

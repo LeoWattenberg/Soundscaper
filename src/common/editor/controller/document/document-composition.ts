@@ -256,6 +256,7 @@ export function createDocumentComposition(dependencies: DocumentCompositionDepen
 		createAddTrackCommand,
 		createAddClipCommand,
 		prepareTrackDuplicateCarrier: projectRuntime.prepareTrackDuplicateCarrier,
+		previewCommand: (project, command) => projectRuntime.applyCommand(project as DocumentProject, command),
 		commit: (command, selection) => requireMutation().commit(command, selection),
 	});
 
