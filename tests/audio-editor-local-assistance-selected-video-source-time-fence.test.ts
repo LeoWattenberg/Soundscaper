@@ -102,7 +102,7 @@ test('source-time fence callers retain their distinct failure contracts', async 
 		},
 	);
 	await assert.rejects(prepareLocalAssistanceGuidedHighlightInputsV1({
-		project: {},
+		project: { schemaFamily: 'framescaper', schemaVersion: 1 },
 		inventory: [],
 		settings: defaultAssistanceWorkflowSettingsV1('make-highlights'),
 		signal: new AbortController().signal,
