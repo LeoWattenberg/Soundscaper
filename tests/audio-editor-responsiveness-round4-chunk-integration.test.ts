@@ -19,7 +19,6 @@ const expectedHelpers = [
 	['src/common/editor/ui/dialogs/useAnalyzerLookup.ts', null],
 	['src/common/editor/ui/dialogs/useGeneratorPresentation.ts', null],
 	['src/common/editor/ui/inspector/useEffectPresentation.ts', null],
-	['src/common/editor/ui/inspector/useVideoEffectParameters.ts', null],
 	['src/common/editor/ui/useCompressionCurve.ts', 'editor-effect-parameter-surfaces'],
 	['src/common/editor/ui/useLegacyEffectGraphPresentation.ts', 'editor-effect-parameter-surfaces'],
 	['src/common/editor/ui/workspace/RoutingGraphWires.tsx', 'editor-optional-surfaces'],
@@ -28,7 +27,7 @@ const expectedHelpers = [
 ] as const;
 
 test('round-four preparation helpers retain the semantic owners their production callers load', () => {
-	assert.equal(expectedHelpers.length, 19);
+	assert.equal(expectedHelpers.length, 18);
 	for (const [path, owner] of expectedHelpers) {
 		assert.equal(chunkGroupForModulePath(path), owner, path);
 		assert.equal(chunkGroupForModulePath(path.replaceAll('/', '\\')), owner, path);

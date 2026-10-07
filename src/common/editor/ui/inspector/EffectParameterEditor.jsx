@@ -1,7 +1,7 @@
 import './AudacityDynamicsEffectLayout.css';
 import './AudacityPortEffectLayout.css';
 import { feedbackFailure, usePresentationFeedback } from '../presentation-feedback.ts';
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import {
 	AUDIO_EFFECT_DEFINITIONS,
 	AUDIO_SELECTION_EFFECT_DEFINITIONS,
@@ -70,6 +70,15 @@ export default function EffectParameterEditor({
 	const [error, setError] = usePresentationFeedback(copy);
 	const definition = isAudacityDefinition(effect.type) ? AUDACITY_EFFECT_DEFINITIONS[effect.type] : null;
 	const candidateOptions = useControlTrackOptions(tracks, targetTrackId, Boolean(definition?.requiresControlTrack && !hideControlTrack));
+	const nativeDefinition = useMemo(() => {
+		if (definition || effect.type === 'missing' || effect.type === 'eq') return null;
+		const nyquistPort = isAudacityNyquistPort(effect.type);
+		const parameterNames = Object.entries(effect.params || {}).filter(([name, value]) => (
+			(typeof value === 'number' || nativeParameterChoices(effect.type, name) !== null)
+			&& (!nyquistPort || advancedSettings || !audacityAdvancedParameters(effect.type).includes(name))
+		)).map(([name]) => name);
+		return { params: Object.fromEntries(parameterNames.map((name) => [name, {}])) };
+	}, [advancedSettings, definition, effect.params, effect.type]);
 	const automationRouterRef = useRef(null);
 	if (!automationRouterRef.current) {
 		automationRouterRef.current = createParameterAutomationControlRouterV21();
@@ -185,16 +194,8 @@ export default function EffectParameterEditor({
 			);
 		}
 		const nyquistPort = isAudacityNyquistPort(effect.type);
-		const parameterChoices = (name) => effect.type === 'multi-tap-delay' && name === 'pitchMode'
-			? ['pitch-shift', 'speed'] : effect.type === 'multi-tap-delay' && name === 'duration'
-				? ['keep', 'extend'] : audioEffectParamChoices(effect.type, name);
-		const parameterNames = Object.entries(effect.params || {}).filter(([name, value]) => (
-			(typeof value === 'number' || parameterChoices(name) !== null)
-			&& (!nyquistPort || advancedSettings || !audacityAdvancedParameters(effect.type).includes(name))
-		)).map(([name]) => name);
-		const nativeDefinition = { params: Object.fromEntries(parameterNames.map((name) => [name, {}])) };
 			const renderNativeParameter = (name) => {
-			const choices = parameterChoices(name);
+			const choices = nativeParameterChoices(effect.type, name);
 			if (choices) {
 				return (
 					<LabeledDropdown
@@ -366,9 +367,18 @@ export default function EffectParameterEditor({
 	);
 }
 
+function nativeParameterChoices(type, name) {
+	return type === 'multi-tap-delay' && name === 'pitchMode'
+		? ['pitch-shift', 'speed'] : type === 'multi-tap-delay' && name === 'duration'
+			? ['keep', 'extend'] : audioEffectParamChoices(type, name);
+}
+
 function AudacityParameter({ name, effectType, descriptor, value, effectParams, copy, disabled,
 	sampleRate, onCommit, gestureFor }) {
 	const label = audacityEffectParameterLabel(effectType, name, copy);
+	const options = useMemo(() => descriptor.kind === 'enum' ? descriptor.options.map((option) => ({
+		value: String(option.value), label: audacityEffectOptionLabel(effectType, name, option.value, copy),
+	})) : [], [copy, descriptor, effectType, name]);
 	if (descriptor.kind === 'boolean') {
 		return (
 			<div data-effect-param={name}>
@@ -386,10 +396,7 @@ function AudacityParameter({ name, effectType, descriptor, value, effectParams, 
 			<LabeledDropdown
 				label={label}
 				value={String(value)}
-				options={descriptor.options.map((option) => ({
-					value: String(option.value),
-					label: audacityEffectOptionLabel(effectType, name, option.value, copy),
-				}))}
+				options={options}
 				onChange={(next) => onCommit(next, {
 					controlValue: Math.max(0, descriptor.options.findIndex((option) => (
 						String(option.value) === String(next)

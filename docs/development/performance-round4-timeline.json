@@ -6,16 +6,16 @@
   "requiresManualAiAssets": false,
   "ownership": "Published document, normalized catalogs, effect parameters and descriptor collections retain their existing immutable ownership. Preparation is bounded by mounted component inputs; no global document cache. Stable spreadsheet callbacks dispatch through current parent handlers. Routing hover batches only transient preview geometry.",
   "verification": {
-    "newFocusedTests": 18,
-    "newTestFiles": 7,
-    "existingFocusedTests": 100,
-    "focusedReceipt": "/tmp/perf300-ui-focused-complete.log: 118 pass, 0 fail (18 new and 100 existing). Node 26.5.0, tsx and the committed style asset loader. About boundary regressions failed before the compatibility correction and now pass; /tmp/perf300-ui-about-compatibility-green.log: 18 pass, 0 fail.",
-    "staticChecks": "All 33 owned source/test paths pass type-aware ESLint; the About correction passes its three-path lint. Final narrow strict TypeScript exits zero (/tmp/perf300-ui-strict-types-about.log). File-size gate passes. Whole-root source/test TypeScript reports no owned UI diagnostics; foreign diagnostics are outside this patch. Canonical lint/build/browser/benchmarks are root-owned.",
-    "beforeBytes": "Thirteen edited existing source files were clean at their edit boundaries and their captured bytes match the baseline snapshot. /tmp/perf300-ui-owned-base/manifest.json. SelectionEffectsDialog foreign change was skipped; its abandoned helper/test were removed.",
+    "newFocusedTests": 19,
+    "newTestFiles": 8,
+    "existingFocusedTests": 14,
+    "focusedReceipt": "Initial UI batch118pass/0fail is superseded for the removed video case by /tmp/perf300-ui-parameter-replacement-final-focused.log:36pass/0fail, comprising all19 current UI tests, three chunk-integration tests and14 existing parameter/layout/automation regressions. Node26.5.0, tsx and the committed style loader. Replacement counters failed before implementation (31vs1 enumeration,64vs4 localization reads) and passed afterward. The About non-null boundary red-to-green tests remain maintained.",
+    "staticChecks": "All original owned source/test paths passed type-aware ESLint. Final replacement/restoration five-path lint, narrow strict TypeScript including all current owned UI TypeScript/tests, and file-size gate exit zero (/tmp/perf300-ui-parameter-replacement-{lint,types,size}.log). Root owns canonical lint/build/browser/benchmarks.",
+    "beforeBytes": "Twelve changed existing UI source files were clean at their edit boundaries and captured bytes match138581fec362c0b4cef96f32d86f3e50194ce06f. /tmp/perf300-ui-owned-base/manifest.json retains the original13captures; VideoEffectRack is restored byte-for-byte and no longer part of the performance source difference. The unused useVideoEffectParameters helper and its video-only test are removed. SelectionEffectsDialog foreign change remains skipped.",
     "timing": "Getter/constructor counters, retained identities, controlled RAF work and 3000 differential navigation comparisons establish removed production work. No universal speedup, FPS or per-item latency is inferred; root owns final default-Speed Electron, browser and canonical measurements.",
     "independentReview": "Root reviewed retained data, gesture ownership and dependencies. The original first-match chooseSource lookup was restored while the preexisting last-match node Map retains its original consumers; this adds no finding. DSP independently checked 6000 navigation cases against frozen original source and 864 exact classic-filter response comparisons (/tmp/perf300-ui-independent-review.{mjs,json,log}), plus spreadsheet current-controller/focus/draft ownership, immutable memo dependencies, first-match catalogs, routing RAF cancellation and viewport invalidation. Its empty-string About input-boundary finding is corrected with two red-to-green regressions, preserving original non-null admission and adding no finding.",
     "limitations": "Caches depend on existing immutable publication contracts; changed owning collections/parameters refresh preparation. First-mount preparation and current interaction/render work still occur. Read audits and deterministic mounted tests do not prove behavior during abandoned or concurrent React renders.",
-    "rootHelpersReview": "Read-only independent audit found ten distinct real parallel-planning/message-window costs with preserved ordinary production ownership/order. Maintained exhaustive oracle tests/audio-editor-responsiveness-round4-root-plan-review.test.ts verifies 12288 four-node graph/worker comparisons. Root committed the original public overflow RangeError shape, including absence of cause, and the oracle.",
+    "rootHelpersReview": "Read-only independent audit found nine distinct current Soundscaper desktop parallel-planning/AudioParam-window costs; the unused future message-window candidate was rejected and replaced by fixed-window AudioParam timing preparation in actual scheduled playback. Maintained exhaustive oracle tests/audio-editor-responsiveness-round4-root-plan-review.test.ts verifies12288 four-node graph/worker comparisons. Root committed the original public overflow RangeError shape, including absence of cause, and the oracle. The final AudioParam replacement focused parity receipt is owned by root/DSP.",
     "sourceCommits": {
       "routing": "16d4c57ecd4e15571580dae6f1585145a12a92c4",
       "effects-and-video": "df07c737be866ee5d8801603f8b7c4cd0a2bc361",
@@ -24,7 +24,8 @@
       "aboutCompatibility": "40caad0f17f344191d0b0d435c5fd217e7374810"
     },
     "routingReviewReceipt": "/tmp/perf300-ui-routing-review-final.log: 12 pass, 0 fail after restoring original first-match source authority.",
-    "spreadsheetReviewReceipt": "/tmp/perf300-ui-spreadsheet-commit.log: 3 pass, 0 fail. Retained row events use current rendered draft state and current controller authority; changed panel type-aware lint passed."
+    "spreadsheetReviewReceipt": "/tmp/perf300-ui-spreadsheet-commit.log: 3 pass, 0 fail. Retained row events use current rendered draft state and current controller authority; changed panel type-aware lint passed.",
+    "soundscaperScopeCorrection": "Final reachability review rejected former UI23/24 VideoEffectRack costs because production Soundscaper disables videoEffects. Those two changes are fully restored/excluded and replaced by current Soundscaper native parameter admission and Audacity enum option retention, keeping exactly30 costs."
   },
   "findings": [
     {
@@ -449,39 +450,43 @@
     {
       "number": 23,
       "id": "ui4-23",
-      "title": "Retain video descriptor parameter entries",
+      "title": "Retain native effect parameter admission",
       "status": "implemented",
       "source": [
         {
-          "file": "src/common/editor/ui/inspector/useVideoEffectParameters.ts",
-          "symbol": "useVideoEffectParameters",
-          "productionCaller": "VideoEffectRack VideoEffectRow"
+          "file": "src/common/editor/ui/inspector/EffectParameterEditor.jsx",
+          "symbol": "nativeDefinition useMemo",
+          "productionCaller": "Soundscaper AudioEditorEffectsOverlay rack via LazyEffectParameterEditor and SelectionEffectsDialog direct EffectParameterEditor"
         }
       ],
-      "avoidedCost": "Enumerating the immutable descriptor parameter record whenever row values/enabled state change.",
-      "evidence": "Thirty mounted updates enumerate a descriptor proxy once and preserve ordered entries. Production row uses the same hook on the video registry descriptor.",
-      "limitations": "Descriptor parameter identity owns order; current effect values and blocking remain live row inputs.",
+      "avoidedCost": "Enumerating native effect parameters, filtering supported numeric/choice and advanced controls, and reconstructing the layout descriptor on unrelated presentation publications.",
+      "evidence": "Mounted production EffectParameterEditor enumerates native parameters31times before and once after across30 disabled-state publications. Replaced parameters, effect type and advanced controls refresh the displayed fields; existing Nyquist/native layout and automation tests pass.",
+      "limitations": "Existing immutable effect.params publication owns invalidation. Parameter edits still refresh the descriptor; this does not cache current values or gesture callbacks.",
       "tests": [
-        "tests/audio-editor-responsiveness-round4-layouts.test.tsx"
+        "tests/audio-editor-responsiveness-round4-parameter-presentation.test.tsx",
+        "tests/audio-editor-audacity-nyquist-layout.test.tsx",
+        "tests/audio-editor-automation-matching-controls-v21.test.tsx"
       ]
     },
     {
       "number": 24,
       "id": "ui4-24",
-      "title": "Skip unaffected video-effect rack rows",
+      "title": "Retain localized Audacity enum options",
       "status": "implemented",
       "source": [
         {
-          "file": "src/common/editor/ui/inspector/VideoEffectRack.jsx",
-          "symbol": "VideoEffectRow memo",
-          "productionCaller": "VideoEffectRack"
+          "file": "src/common/editor/ui/inspector/EffectParameterEditor.jsx",
+          "symbol": "AudacityParameter options useMemo",
+          "productionCaller": "Soundscaper SelectionEffectsDialog direct EffectParameterEditor for Audacity effects"
         }
       ],
-      "avoidedCost": "Rebuilding all video parameter controls when an unrelated rack/picker publication or another effect changes.",
-      "evidence": "Thirty mounted parent updates cause no additional brightness getter reads for either unchanged effect. Replacing the first effect refreshes its values while the second effect getter stays unchanged.",
-      "limitations": "Effect identity, clip id, row order/count, controller actions, copy, blocking and error/run callbacks are all memo props. Current gesture ownership is unchanged.",
+      "avoidedCost": "Rebuilding string-valued option objects and rerunning Audacity enum option searches/localization when numeric values or disabled state change.",
+      "evidence": "Mounted production EffectParameterEditor option-localization getter reads grow4to64 before and remain4 after30 actual targetLufs value publications. Replaced copy displays localized options; switching to Distortion rebuilds the same-named mode options.",
+      "limitations": "Descriptor, effectType, parameter name and copy own enum presentation; current selected value, disabled state and automation callbacks remain live.",
       "tests": [
-        "tests/audio-editor-responsiveness-round4-layouts.test.tsx"
+        "tests/audio-editor-responsiveness-round4-parameter-presentation.test.tsx",
+        "tests/audio-editor-audacity-nyquist-layout.test.tsx",
+        "tests/audio-editor-automation-matching-controls-v21.test.tsx"
       ]
     },
     {
