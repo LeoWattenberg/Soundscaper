@@ -101,7 +101,7 @@ export function LabelTrackRow({
 					)}
 					<GhostButton
 						ariaLabel={copy.trackMenu || copy.tracksMenu}
-						tabIndex={-1}
+						tabIndex={0}
 						onClick={(event) => onMenu(event.currentTarget)}
 					/>
 				</div>
