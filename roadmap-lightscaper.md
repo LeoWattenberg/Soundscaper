@@ -171,7 +171,7 @@ Architectural constraints that still drive the sequence:
 | L1. Product seam | **Done** | Register the third product with everything off. |
 | L2. Catalog and develop contracts | **Done** | Fix the schemas and the depth-agnostic pixel contract before any surface. |
 | L3. Photo library | **In progress** | Import, browse, cull, and organize at real-library scale. |
-| L4. Develop: global adjustments | **Planned** | Deliver the parametric develop loop on shared effects. |
+| L4. Develop: global adjustments | **In progress** | Deliver the parametric develop loop on shared effects. |
 | L5. Export and handoff | **Planned** | Close the import → develop → export loop and the cross-product paths. |
 | L6. Local adjustments and repair | **Planned** | Add masked adjustments and parametric healing. |
 | L7. Raw and deep color | **Planned** | Activate deep processing, raw decode, and wide-gamut output. |
@@ -322,7 +322,7 @@ parallel with the rest of L3.
 **Goal:** deliver the parametric develop loop — open, adjust, compare, preset,
 sync — entirely on shared effects.
 
-- **Shared — Planned:** the Lightroom-vocabulary global set mapped onto shared
+- **Shared — In progress:** the Lightroom-vocabulary global set mapped onto shared
   effects, extending the existing catalog where an operation is missing:
   white balance; the tone ladder (exposure, contrast, highlights, shadows,
   whites, blacks); vibrance and saturation; texture, clarity, and dehaze;
