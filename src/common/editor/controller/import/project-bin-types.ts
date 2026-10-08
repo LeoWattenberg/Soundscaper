@@ -71,6 +71,8 @@ export interface ProjectBinPreview {
 	readonly state: 'playing' | 'paused' | 'stopped';
 	readonly kind: ProjectBinMediaKind;
 	readonly mediaUrl?: string | null;
+	/** Current authored companion, auditioned by the preview engine instead of embedded media audio. */
+	readonly audioSourceId?: string;
 }
 
 export interface ProjectBinVisualData {

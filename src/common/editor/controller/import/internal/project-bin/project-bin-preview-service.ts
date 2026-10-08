@@ -89,14 +89,15 @@ export function createProjectBinPreviewService(
 			? projectBinClips(project).filter((candidate) => candidate.binItemId === clip.binItemId)
 			: [clip];
 		const videoClip = itemClips.find((candidate) => candidate.kind === 'video') ?? null;
+		const audioClip = itemClips.find((candidate) => candidate.kind !== 'video') ?? (videoClip ? null : clip);
 		const active = dependencies.getPreview();
-		if (active?.clipId === clipId) return toggleActivePreview(active, Boolean(videoClip));
+		if (active?.clipId === clipId) return toggleActivePreview(active, Boolean(videoClip) && !active.audioSourceId);
 
 		await stopProjectBinPreview();
 		const projectToken = dependencies.captureProject();
 		dependencies.assertProject(projectToken);
 		dependencies.retireTimelinePlayback();
-		if (videoClip) {
+		if (videoClip && !audioClip) {
 			const visual = dependencies.getVisualData(clipId);
 			const preview = Object.freeze({
 				clipId,
@@ -110,7 +111,7 @@ export function createProjectBinPreviewService(
 			return preview;
 		}
 
-		const audioClip = itemClips.find((candidate) => candidate.kind !== 'video') ?? clip;
+		if (!audioClip) throw createLocalizedError(Error, dependencies.copy, 'audioClipNotFound');
 		const source = findProjectBinSource(project, audioClip.sourceId);
 		if (!source || dependencies.isSourceMissing(source.id)) {
 			throw createLocalizedError(Error, dependencies.copy, 'localSourcesMissing');
@@ -147,13 +148,18 @@ export function createProjectBinPreviewService(
 			const preview = Object.freeze({
 				clipId,
 				binItemId: clip.binItemId || clip.id,
-				state: 'playing' as const,
-				kind: 'audio' as const,
+				state: videoClip ? 'paused' as const : 'playing' as const,
+				kind: videoClip ? 'video' as const : 'audio' as const,
+				...(videoClip ? { mediaUrl: dependencies.getVisualData(clipId)?.mediaUrl || null, audioSourceId: source.id } : {}),
 			});
 			dependencies.setPreview(preview);
 			dependencies.publish();
 			await previewEngine.play();
 			assertCurrent(task, projectToken);
+			if (videoClip) {
+				dependencies.setPreview(Object.freeze({ ...preview, state: 'playing' as const }));
+				dependencies.publish();
+			}
 			return dependencies.getPreview() ?? preview;
 		} finally {
 			task.finish();
@@ -217,7 +223,7 @@ export function createProjectBinPreviewService(
 	function handlePreviewState(engine: ProjectBinPreviewEngine | null, state: string): void {
 		const active = dependencies.getPreview();
 		if (!engine || previewEngine !== engine || dependencies.lifetime.inactive
-			|| !active || active.kind !== 'audio' || state === 'playing') return;
+			|| !active || (active.kind !== 'audio' && !active.audioSourceId) || state === 'playing') return;
 		dependencies.setPreview(Object.freeze({
 			...active,
 			state: state === 'paused' ? 'paused' : 'stopped',

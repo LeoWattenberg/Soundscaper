@@ -66,6 +66,7 @@ export default function ProjectBinCard({
 	const videoEndSeconds = videoPreview?.endSeconds ?? 0;
 	const videoPlaybackRate = videoPreview?.playbackRate ?? 1;
 	const videoHasAudio = itemClips.some((itemClip) => itemClip.kind === 'audio');
+	const videoEmbeddedAudio = videoHasAudio && !preview?.audioSourceId;
 
 	useEffect(() => {
 		if (videoRef.current) videoRef.current.volume = Math.max(0, Math.min(1, playbackGain));
@@ -75,22 +76,22 @@ export default function ProjectBinCard({
 		const media = videoRef.current;
 		if (!media) return;
 		// WebKit initializes mute state from the attribute when media connects or loads.
-		media.defaultMuted = !videoHasAudio;
-		media.muted = !videoHasAudio;
+		media.defaultMuted = !videoEmbeddedAudio;
+		media.muted = !videoEmbeddedAudio;
 		if (!previewActive) {
 			media.pause();
 			return;
 		}
-		if (media.currentTime < videoStartSeconds || media.currentTime >= videoEndSeconds) {
+		if (preview.state === 'stopped' || media.currentTime < videoStartSeconds || media.currentTime >= videoEndSeconds) {
 			media.currentTime = videoStartSeconds;
 		}
 		media.playbackRate = videoPlaybackRate;
 		if (previewPlaying) void media.play().catch(() => controller.actions.projectBin.stopPreview());
 		else media.pause();
-	}, [controller, previewActive, previewPlaying, videoEndSeconds, videoStartSeconds, videoPlaybackRate, videoHasAudio, visual?.mediaUrl]);
-	const muteVideoWithoutAudio = (event) => {
+	}, [controller, previewActive, previewPlaying, preview?.state, videoEndSeconds, videoStartSeconds, videoPlaybackRate, videoEmbeddedAudio, visual?.mediaUrl]);
+	const keepVideoAudioBinding = (event) => {
 		// Native decoder initialization can report stale mute state after the first render.
-		if (!videoHasAudio && !event.currentTarget.muted) event.currentTarget.muted = true;
+		if (!videoEmbeddedAudio && !event.currentTarget.muted) event.currentTarget.muted = true;
 	};
 
 	return (
@@ -149,11 +150,11 @@ export default function ProjectBinCard({
 							ref={videoRef}
 							src={visual.mediaUrl}
 							poster={posterUrl || undefined}
-							muted={!videoHasAudio}
+							muted={!videoEmbeddedAudio}
 							playsInline
 							preload="metadata"
-							onLoadedMetadata={muteVideoWithoutAudio}
-							onVolumeChange={muteVideoWithoutAudio}
+							onLoadedMetadata={keepVideoAudioBinding}
+							onVolumeChange={keepVideoAudioBinding}
 							onTimeUpdate={(event) => {
 								if (videoEndSeconds && event.currentTarget.currentTime >= videoEndSeconds) {
 									event.currentTarget.pause();
