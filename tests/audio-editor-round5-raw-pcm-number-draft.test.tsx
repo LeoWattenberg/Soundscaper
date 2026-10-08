@@ -25,7 +25,7 @@ for (const [fieldIndex, label] of ['sample rate', 'channel count', 'byte offset'
 				} }} onClose={() => { closes += 1; }} run={operation => {
 					const result = Promise.resolve(operation()); pending.push(result); return result;
 				}} />); });
-			const inputs = dom.container.querySelectorAll('input').filter(input => reactProps(input).type === 'number');
+			const inputs = dom.container.querySelectorAll('input').filter(input => input.type === 'number');
 			const field = inputs[fieldIndex]; assert.ok(field);
 			await act(async () => { reactProps(field).onChange({ currentTarget: { value: '' } }); });
 			assert.equal(field.value, '', 'the native empty exponent/sign prefix must not be rewritten to zero');
@@ -34,7 +34,7 @@ for (const [fieldIndex, label] of ['sample rate', 'channel count', 'byte offset'
 				await act(async () => { reactProps(input).onChange({ currentTarget: { value } }); });
 			}
 			assert.equal(inputs[0]?.value, '4.8e4', 'keep the complete spelling until submission');
-			const fileInput = dom.container.querySelectorAll('input').find(input => reactProps(input).type === 'file'); assert.ok(fileInput);
+			const fileInput = dom.container.querySelectorAll('input').find(input => input.type === 'file'); assert.ok(fileInput);
 			await act(async () => { reactProps(fileInput).onChange({ currentTarget: {
 				files: [new File([new Uint8Array([90, 90, 1, 0, 2, 0, 3, 0, 4, 0])], 'voice.raw')],
 			} }); });
