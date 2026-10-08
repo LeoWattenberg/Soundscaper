@@ -2,6 +2,8 @@
 
 import { readClosedDomainArray } from '../../common/editor/closed-domain-value.ts';
 import type { PhotoLibraryAttributePatchV1, PhotoLibraryImportItemV1, PhotoLibraryMetadataPatchV1, PhotoLibraryMetadataSnapshotV1, PhotoLibraryDefinitionPageRequestV1, PhotoLibraryDefinitionPageV1, PhotoLibraryQueryBuildProgressV1, PhotoLibraryQueryStepV1, PhotoLibraryQueryV1, PhotoLibraryPreviewOutcomeV1, PhotoLibraryPreviewTierV1, PhotoLibraryPageV1, PhotoLibraryRowV1, PhotoLibrarySessionPortV1 } from '../../common/editor/photo-library-session-port-v1.ts';
+import type { PhotoLibraryDefinitionAcknowledgementV1, PhotoLibraryDefinitionCommandV1, PhotoLibraryDefinitionReadRequestV1, PhotoLibraryDefinitionSnapshotV1,
+	PhotoLibraryMembershipAcknowledgementV1, PhotoLibraryMembershipPatchV1, PhotoLibraryMembershipSnapshotV1 } from '../../common/editor/photo-library-organization-port-v1.ts';
 import { IMAGE_IMPORT_LIMITS } from '../../common/editor/image-import-admission.ts';
 import { normalizePhotoCatalogRootV1 } from '../catalog/catalog-root.ts';
 import { normalizePhotoDocumentV1 } from '../catalog/photo-document.ts';
@@ -17,6 +19,10 @@ import { normalizePhotoLibraryAttributesV1 } from './photo-library-attributes.ts
 import { normalizePhotoLibraryMetadataPatchV1, readPhotoLibraryMetadataSnapshotV1 } from './photo-library-metadata.ts';
 import { admitPhotoLibraryQueryBuildRequestV1, admitPhotoLibraryQueryStepRequestV1, readPhotoLibraryQueryStepV1, rebuildPhotoLibraryQueryStepV1 } from './photo-library-query-v1.ts';
 import { admitPhotoLibraryDefinitionPageRequestV1, readPhotoLibraryDefinitionPageV1 } from './photo-library-definition-pages-v1.ts';
+import { normalizePhotoLibraryDefinitionReadRequestV1, normalizePhotoLibraryDefinitionMutationV1,
+	readPhotoLibraryDefinitionV1, applyPhotoLibraryDefinitionV1 } from './photo-library-organizer-v1.ts';
+import { normalizePhotoLibraryMembershipReadV1, normalizePhotoLibraryMembershipMutationV1,
+	readPhotoLibraryMembershipsV1, applyPhotoLibraryMembershipsV1 } from './photo-library-memberships-v1.ts';
 import type { PhotoLibraryPreparationOutcomeV1, PhotoLibraryPreviewSchedulerPortV1, PhotoLibrarySessionPortsV1 } from './photo-library-session-ports.ts';
 
 /** Product session owns lifetime, bounded presentation pages and a single writer. */
@@ -55,6 +61,33 @@ export class PhotoLibrarySessionV1 implements PhotoLibrarySessionPortV1 {
 			const catalogId = await this.#ready(); signal.throwIfAborted();
 			return readPhotoLibraryDefinitionPageV1(this.#ports.catalog, catalogId, { ...request, signal });
 		}, request.signal);
+	}
+
+	async readDefinition(options: PhotoLibraryDefinitionReadRequestV1): Promise<PhotoLibraryDefinitionSnapshotV1> {
+		const request = normalizePhotoLibraryDefinitionReadRequestV1(options);
+		return this.#operation(async signal => {
+			const catalogId = await this.#ready(); signal.throwIfAborted();
+			return readPhotoLibraryDefinitionV1(this.#ports.catalog, catalogId, { ...request, signal });
+		}, request.signal);
+	}
+
+	async applyDefinition(expectedRootRevision: number, command: PhotoLibraryDefinitionCommandV1,
+		options: Readonly<{ signal?: AbortSignal }> = {}): Promise<PhotoLibraryDefinitionAcknowledgementV1> {
+		const request = normalizePhotoLibraryDefinitionMutationV1(expectedRootRevision, command, options);
+		return this.#mutation((catalogId, signal) => applyPhotoLibraryDefinitionV1(this.#ports.catalog, catalogId,
+			request.expectedRootRevision, request.command, { signal }), request.signal);
+	}
+
+	async readMemberships(photoId: string, options: Readonly<{ signal?: AbortSignal }> = {}): Promise<PhotoLibraryMembershipSnapshotV1> {
+		const request = normalizePhotoLibraryMembershipReadV1(photoId, options);
+		return this.#editPhoto(request.photoId, async (owner, signal) => readPhotoLibraryMembershipsV1(owner, request.photoId, { signal }), request.signal);
+	}
+
+	async applyMemberships(photoId: string, expectedRevision: number, changes: PhotoLibraryMembershipPatchV1,
+		options: Readonly<{ signal?: AbortSignal }> = {}): Promise<PhotoLibraryMembershipAcknowledgementV1> {
+		const request = normalizePhotoLibraryMembershipMutationV1(photoId, expectedRevision, changes, options);
+		return this.#editPhoto(request.photoId, (owner, signal) => applyPhotoLibraryMembershipsV1(owner, request.photoId,
+			request.expectedRevision, request.changes, { signal }), request.signal);
 	}
 
 	async readPreview(photoId: string, tier: PhotoLibraryPreviewTierV1,

@@ -2,6 +2,7 @@
 
 import type { PixelFrameDescriptorV1 } from './imaging/pixel-frame-contract-v1.ts';
 import type { ImageMetadataV1 } from './imaging/image-metadata-model-v1.ts';
+import type { PhotoLibraryOrganizationPortV1 } from './photo-library-organization-port-v1.ts';
 
 /** Scalar presentation boundary; owning catalog documents stay in the product. */
 export interface PhotoLibraryRowV1 {
@@ -118,7 +119,7 @@ export interface PhotoLibraryDefinitionPageV1 {
 	readonly cursor: string | null;
 }
 
-export interface PhotoLibrarySessionPortV1 {
+export interface PhotoLibrarySessionPortV1 extends PhotoLibraryOrganizationPortV1 {
 	readQueryStep(options: Readonly<{ query: PhotoLibraryQueryV1; cursor?: string | null; signal?: AbortSignal }>): Promise<PhotoLibraryQueryStepV1>;
 	rebuildQueryStep(options?: Readonly<{ signal?: AbortSignal }>): Promise<PhotoLibraryQueryBuildProgressV1>;
 	readDefinitionPage(options: PhotoLibraryDefinitionPageRequestV1): Promise<PhotoLibraryDefinitionPageV1>;

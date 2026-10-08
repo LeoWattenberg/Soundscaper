@@ -169,6 +169,10 @@ function owner(initial = page()) {
 		readPage: async () => initial,
 		readQueryStep: async () => ({ ...initial, scanned: initial.rows.length }),
 		rebuildQueryStep: unused, readDefinitionPage: unused,
+		readDefinition: async (): Promise<never> => { throw new Error('Unexpected organization read in culling App fixture.'); },
+		applyDefinition: async (): Promise<never> => { throw new Error('Unexpected organization write in culling App fixture.'); },
+		readMemberships: async (): Promise<never> => { throw new Error('Unexpected membership read in culling App fixture.'); },
+		applyMemberships: async (): Promise<never> => { throw new Error('Unexpected membership write in culling App fixture.'); },
 		readPreview: async () => { previewReads++; throw new Error('Culling must not request pixels.'); },
 		importFiles: unused,
 		setRating: async (id, rating, options) => {

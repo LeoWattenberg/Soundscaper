@@ -402,6 +402,8 @@
 		,
 		{ "path": "src/common/editor/parameter-automation-gesture-adapter-v21.ts", "kind": "persisted-contract", "justification": "parameter-automation-gesture-adapter-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
+		{"path": "src/common/editor/photo-library-organization-port-v1.ts", "kind": "helper-contract", "justification": "Version1 scalar organization port carries revision-fenced definitions, bounded smart-query JSON and photo memberships without catalog documents."}
+		,
 		{ "path": "src/common/editor/photo-library-session-port-v1.ts", "kind": "helper-contract", "justification": "Scalar browser presentation port for the version 1 photo library session, independent of owning catalog documents." }
 		,
 		{ "path": "src/common/editor/project-effect-tail-v21.ts", "kind": "persisted-contract", "justification": "project-effect-tail-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
@@ -555,6 +557,10 @@
 		{ "path": "src/lightscaper/catalog/photo-query-types-v1.ts", "kind": "helper-contract", "justification": "Closed version 1 catalog query and bounded continuation contracts bind literal search, filtering and global ordering to one catalog revision." }
 		,
 		{"path": "src/lightscaper/controller/photo-library-definition-pages-v1.ts", "kind": "helper-contract", "justification": "Version1 scalar definition pages preserve catalog revision and hierarchy scope with bounded current-parent and selected-name projections."}
+		,
+		{"path": "src/lightscaper/controller/photo-library-memberships-v1.ts", "kind": "helper-contract", "justification": "Version 1 selected-photo membership commands preserve bounded IDs and revision-fenced catalog references without a second photo owner."}
+		,
+		{"path": "src/lightscaper/controller/photo-library-organizer-v1.ts", "kind": "helper-contract", "justification": "Version 1 revision-fenced catalog organization admits full smart-query JSON and scalar definition changes without exposing the catalog root."}
 		,
 		{"path": "src/lightscaper/controller/photo-library-query-v1.ts", "kind": "helper-contract", "justification": "Version1 scalar query and explicit migration steps preserve bounded global ordering, strict cursors and cancellation without exposing photo documents."}
 		,

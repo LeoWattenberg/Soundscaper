@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PhotoLibraryCullReceiptV1 } from '../../controller/shared/photo-library-culling-v1.ts';
+import type { PhotoLibraryDefinitionAcknowledgementV1, PhotoLibraryDefinitionCommandV1, PhotoLibraryDefinitionReadRequestV1,
+	PhotoLibraryMembershipPatchV1, PhotoLibraryMembershipSnapshotV1 } from '../../photo-library-organization-port-v1.ts';
 import type { CreatePhotoLibrarySessionV1, PhotoLibraryAttributePatchV1, PhotoLibraryImportItemV1, PhotoLibraryMetadataPatchV1, PhotoLibraryMetadataSnapshotV1, PhotoLibraryDefinitionPageRequestV1, PhotoLibraryQueryBuildProgressV1, PhotoLibraryQueryV1, PhotoLibraryPreviewTierV1, PhotoLibraryPageV1, PhotoLibraryRowV1, PhotoLibrarySessionPortV1 } from '../../photo-library-session-port-v1.ts';
 
 interface SessionSlot {
@@ -24,6 +26,7 @@ export function usePhotoLibraryWorkflow(createSession?: CreatePhotoLibrarySessio
 	const [page, setPage] = useState<PhotoLibraryPageV1 | null>(null);
 	const [receipts, setReceipts] = useState<readonly PhotoLibraryImportItemV1[]>([]);
 	const [metadata, setMetadata] = useState<PhotoLibraryMetadataSnapshotV1 | null>(null);
+	const [memberships, setMemberships] = useState<PhotoLibraryMembershipSnapshotV1 | null>(null);
 	const [busy, setBusy] = useState(false);
 	const [query, setQuery] = useState<PhotoLibraryQueryV1 | null>(null);
 	const [needsQueryIndex, setNeedsQueryIndex] = useState(false);
@@ -40,7 +43,7 @@ export function usePhotoLibraryWorkflow(createSession?: CreatePhotoLibrarySessio
 		queueMicrotask(() => {
 			if (!current.live) return;
 			setQuery(null); setNeedsQueryIndex(false); setQueryIndexProgress(null);
-			publishPage(current, null); setMetadata(null); setReceipts([]); setError(null); setBusy(current.active !== null);
+			publishPage(current, null); setMetadata(null); setMemberships(null); setReceipts([]); setError(null); setBusy(current.active !== null);
 		});
 		return () => {
 			current.live = false; current.lifetime.abort(); current.active?.abort();
@@ -124,6 +127,14 @@ export function usePhotoLibraryWorkflow(createSession?: CreatePhotoLibrarySessio
 		const owner = await acquire(current); signal.throwIfAborted();
 		const result = await owner.readDefinitionPage({ ...request, signal }); signal.throwIfAborted(); return result;
 	}, [createSession]);
+	const readDefinition = useCallback(async (request: PhotoLibraryDefinitionReadRequestV1) => {
+		const current = slot.current;
+		if (!current?.live || current.factory !== createSession) throw new DOMException('Definition generation is closed.', 'AbortError');
+		const signal = request.signal ? AbortSignal.any([request.signal, current.lifetime.signal]) : current.lifetime.signal;
+		signal.throwIfAborted();
+		const owner = await acquire(current); signal.throwIfAborted();
+		const result = await owner.readDefinition({ ...request, signal }); signal.throwIfAborted(); return result;
+	}, [createSession]);
 
 	const importFiles = (files: readonly File[]) => run(async (owner, signal, current) => {
 		setReceipts([]);
@@ -178,7 +189,32 @@ export function usePhotoLibraryWorkflow(createSession?: CreatePhotoLibrarySessio
 		}
 		await refreshQuery(owner, signal, current);
 	});
-	return { page, metadata, readPreview, query, needsQueryIndex, queryIndexProgress, applyQuery, probeQuery, buildQueryIndex, readDefinitions, receipts, busy, error, readMetadata, applyMetadata, readPage, importFiles, setRating, applyAttributes,
+	const applyDefinition = async (expectedRootRevision: number, command: PhotoLibraryDefinitionCommandV1): Promise<PhotoLibraryDefinitionAcknowledgementV1> => {
+		const result: { ack?: PhotoLibraryDefinitionAcknowledgementV1; failure?: Readonly<{ value: unknown }> } = {};
+		const status = await perform(async (owner, signal, current) => {
+			try { result.ack = await owner.applyDefinition(expectedRootRevision, command, { signal }); }
+			catch (failure) { result.failure = { value: failure }; throw failure; }
+			if (current.page) publishPage(current, Object.freeze({ ...current.page, cursor: null }));
+			await refreshQuery(owner, signal, current);
+		});
+		if (result.ack) return result.ack;
+		if (result.failure) throw result.failure.value;
+		if (status === 'cancelled') throw new DOMException('Catalog authoring was cancelled.', 'AbortError');
+		throw new Error(status === 'busy' ? 'A photo library change is already pending.' : 'Catalog authoring failed.');
+	};
+	const readMemberships = useCallback((photoId: string) => run(async (owner, signal, current) => {
+		setMemberships(null);
+		const next = await owner.readMemberships(photoId, { signal });
+		if (current.live) setMemberships(next);
+	}), [run]);
+	const applyMemberships = (photoId: string, expectedRevision: number, changes: PhotoLibraryMembershipPatchV1) => run(async (owner, signal, current) => {
+		const next = await owner.applyMemberships(photoId, expectedRevision, changes, { signal });
+		if (current.live) setMemberships(next.snapshot);
+		updateRow(next.row, current);
+		await refreshQuery(owner, signal, current);
+	});
+	return { page, metadata, memberships, readPreview, query, needsQueryIndex, queryIndexProgress, applyQuery, probeQuery, buildQueryIndex, readDefinitions,
+		readDefinition, applyDefinition, readMemberships, applyMemberships, receipts, busy, error, readMetadata, applyMetadata, readPage, importFiles, setRating, applyAttributes,
 		cancel: () => { slot.current?.active?.abort(); } };
 }
 

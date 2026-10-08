@@ -104,3 +104,9 @@
 .lightscaper-dialog input, .lightscaper-dialog textarea { min-width: 0; width: 100%; box-sizing: border-box; }
 .lightscaper-dialog textarea { font: inherit; }
 .lightscaper-dialog dl { max-width: 60ch; overflow-wrap: anywhere; white-space: pre-wrap; }
+
+.lightscaper-smart-query-examples pre {
+	max-inline-size: 60ch;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}

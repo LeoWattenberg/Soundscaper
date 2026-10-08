@@ -6,6 +6,7 @@ import { otherProductIds, productIdentity } from '../../../product-identities.js
 import { productHref } from '../../../product-web-links.js';
 import { useLightscaperEditorCopy as useSiteCopy } from './use-lightscaper-editor-copy.ts';
 import type { CreatePhotoLibrarySessionV1 } from '../../photo-library-session-port-v1.ts';
+import { PhotoLibraryDefinitionReader } from '../../controller/shared/photo-library-definition-reader.ts';
 import PhotoLibraryPanel from './PhotoLibraryPanel.tsx';
 import type { PhotoPreviewPresentationViewV1 } from './PhotoPreviewPresentation.tsx';
 import { DEFAULT_PHOTO_LIBRARY_QUERY_V1, usePhotoLibraryWorkflow } from './use-photo-library-workflow.ts';
@@ -23,10 +24,14 @@ const PhotoImportDialog = lazy(() => import('./PhotoImportDialog.tsx'));
 const PhotoMetadataDialog = lazy(() => import('./PhotoMetadataDialog.tsx'));
 const PhotoPreviewPresentation = lazy(() => import('./PhotoPreviewPresentation.tsx'));
 const PhotoQueryDialog = lazy(() => import('./PhotoQueryDialog.tsx'));
+const PhotoCatalogOrganizerDialog = lazy(() => import('./PhotoCatalogOrganizerDialog.tsx'));
+const PhotoMembershipDialog = lazy(() => import('./PhotoMembershipDialog.tsx'));
 
 export default function LightscaperApp({ locale, createSession }: LightscaperAppProps) {
 	const copy = useSiteCopy(locale);
 	const app = useRef<HTMLElement>(null);
+	const definitionReader = useRef<PhotoLibraryDefinitionReader | null>(null);
+	definitionReader.current ??= new PhotoLibraryDefinitionReader();
 	const [libraryVisible, setLibraryVisible] = useState(false);
 	const [importVisible, setImportVisible] = useState(false);
 	const [metadataVisible, setMetadataVisible] = useState(false);
@@ -35,6 +40,8 @@ export default function LightscaperApp({ locale, createSession }: LightscaperApp
 	const [queryVisible, setQueryVisible] = useState(false);
 	const [filmstripVisible, setFilmstripVisible] = useState(false);
 	const [autoAdvance, setAutoAdvance] = useState(false);
+	const [organizerVisible, setOrganizerVisible] = useState(false);
+	const [membershipsVisible, setMembershipsVisible] = useState(false);
 	const library = usePhotoLibraryWorkflow(createSession);
 	const photoSelection = usePhotoLibrarySelection({ photoIds: library.page?.rows.map(row => row.id) ?? [],
 		generation: createSession, pageIdentity: library.page, autoAdvance });
@@ -43,6 +50,9 @@ export default function LightscaperApp({ locale, createSession }: LightscaperApp
 	const colorLabels = { none: copy.photoColorNone, red: copy.photoColorRed, yellow: copy.photoColorYellow,
 		green: copy.photoColorGreen, blue: copy.photoColorBlue, purple: copy.photoColorPurple };
 	const selection = library.page?.rows.find(row => row.id === photoSelection.snapshot.primaryId) ?? null;
+	useEffect(() => {
+		setOrganizerVisible(false); setMembershipsVisible(false); setMetadataVisible(false);
+	}, [createSession]);
 	useEffect(() => {
 		const dismiss = (event: PointerEvent) => {
 			for (const menu of app.current?.querySelectorAll<HTMLDetailsElement>('details[open]') ?? []) {
@@ -125,6 +135,7 @@ export default function LightscaperApp({ locale, createSession }: LightscaperApp
 					<summary className="application-header__menu-item">{copy.photoFileMenu}</summary>
 					<div className="lightscaper-menu-items">
 						<button type="button" disabled={library.busy} onClick={event => { closeMenu(event); setImportVisible(true); }}>{copy.photoImportPhotos}</button>
+						<button type="button" disabled={library.busy} onClick={event => { closeMenu(event); setOrganizerVisible(true); }}>{copy.photoOrganizerTitle}</button>
 						{library.busy && <button type="button" onClick={event => { closeMenu(event); library.cancel(); }}>{copy.photoCancelAction}</button>}
 						<details className="lightscaper-photo-submenu" onKeyDown={menuKeyDown} onBlur={menuBlur}>
 							<summary className="application-header__menu-item">{copy.photoPhotoMenu}</summary>
@@ -141,6 +152,9 @@ export default function LightscaperApp({ locale, createSession }: LightscaperApp
 								<button type="button" disabled={!selection || library.busy} onClick={event => {
 									closeMenu(event); if (selection) { setMetadataVisible(true); void library.readMetadata(selection.id); }
 								}}>{copy.photoEditMetadata}</button>
+								<button type="button" disabled={!selection || library.busy} onClick={event => {
+									closeMenu(event); if (selection) { setMembershipsVisible(true); void library.readMemberships(selection.id); }
+								}}>{copy.photoMembershipTitle}</button>
 								{[0, 1, 2, 3, 4, 5].map(rating => <button key={rating} type="button" disabled={!selection || library.busy}
 									onClick={event => { closeMenu(event); if (selection) void photoSelection.cull(selection.id, signal => library.setRating(selection.id, rating, { signal })); }}>
 									{copy.photoRateStars.replace('{count}', String(rating))}
@@ -199,6 +213,18 @@ export default function LightscaperApp({ locale, createSession }: LightscaperApp
 		{metadataVisible && <Suspense fallback={<p role="status">{copy.photoWorking}</p>}>
 			<PhotoMetadataDialog locale={locale} snapshot={library.metadata} busy={library.busy} error={library.error}
 				onClose={() => { setMetadataVisible(false); }} onSave={(photoId, revision, changes) => { void library.applyMetadata(photoId, revision, changes); }} />
+		</Suspense>}
+		{organizerVisible && <Suspense fallback={<p role="status">{copy.photoWorking}</p>}>
+			<PhotoCatalogOrganizerDialog copy={copy} busy={library.busy} error={library.error} readDefinitions={library.readDefinitions}
+				readDefinition={library.readDefinition} onApply={library.applyDefinition} createId={() => crypto.randomUUID()}
+				onClose={() => { setOrganizerVisible(false); }} />
+		</Suspense>}
+		{membershipsVisible && <Suspense fallback={<p role="status">{copy.photoWorking}</p>}>
+			<PhotoMembershipDialog copy={copy} snapshot={library.memberships} busy={library.busy} error={library.error}
+				readDefinitions={library.readDefinitions} readDefinition={library.readDefinition}
+				definitionReader={definitionReader.current}
+				onApply={(photoId, revision, changes) => { void library.applyMemberships(photoId, revision, changes); }}
+				onClose={() => { setMembershipsVisible(false); }} />
 		</Suspense>}
 		{importVisible && <Suspense fallback={<p role="status">{copy.photoWorking}</p>}>
 			<PhotoImportDialog title={copy.photoImportPhotos} filesLabel={copy.photoChooseFiles} importLabel={copy.photoImportAction}
