@@ -28,7 +28,7 @@ test('existing spectral band cancellation restores its draft and cannot publish 
 				maximumFrame={48_000} disabled={false} copy={{ spectralMaximumHandle: 'Maximum' }}
 				onCommit={(value: unknown) => commits.push(value)} /></div>));
 		const handle = dom.one('.audio-editor-spectral-selection__handle--frequency-maximum');
-		const pointer = { currentTarget: handle, pointerId: 1, clientX: 20, clientY: 50, preventDefault() {}, stopPropagation() {} };
+		const pointer = { currentTarget: handle, pointerId: 1, button: 0, clientX: 20, clientY: 50, preventDefault() {}, stopPropagation() {} };
 		await act(async () => reactProps(handle).onPointerDown?.(pointer));
 		await act(async () => reactProps(handle).onPointerMove?.({ ...pointer, clientY: 30 }));
 		assert.notEqual(handle.getAttribute('aria-valuenow'), '12000');
