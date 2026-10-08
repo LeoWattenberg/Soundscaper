@@ -12,6 +12,7 @@ for (const tab of ['General', 'BEXT', 'ADM']) test(`${tab} metadata releases nat
 	if (tab === 'ADM') await metadata.getByRole('button', { name: 'Enable ADM', exact: true }).click();
 	const input = metadata.locator(`input[name="${tab === 'General' ? 'title' : tab === 'BEXT' ? 'originator' : 'adm-programme-name'}"]`);
 	const before = await input.inputValue();
+	const completed = tab === 'BEXT' ? 'Tokyo recording' : '東京の録音';
 	await input.fill('とう');
 	const prevented = await input.evaluate(field => {
 		const event = new KeyboardEvent('keydown', {
@@ -22,9 +23,9 @@ for (const tab of ['General', 'BEXT', 'ADM']) test(`${tab} metadata releases nat
 	});
 	expect(prevented).toBe(false);
 	await expect(input).toBeFocused();
-	await input.fill('東京の録音');
+	await input.fill(completed);
 	await input.press('Enter');
-	await expect(input).toHaveValue('東京の録音');
+	await expect(input).toHaveValue(completed);
 	await editor.getByRole('button', { name: 'Undo', exact: true }).click();
 	await expect(input).toHaveValue(before);
 });

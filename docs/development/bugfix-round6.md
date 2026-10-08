@@ -19,7 +19,7 @@ The registers distinguish verified fixes from changes awaiting public checks:
 | Import, export and bin playback | [Import and export](bugfix-round6-io.md) |
 
 Focused regressions run for each correction. The full Node suite is required
-after each 50 verified fixes; the first milestone has not been reached.
+after each 50 verified fixes; the first milestone is now reached.
 
 The immutable checkout at `c85e613cf` verifies 25 distinct roots through
 29 public Chromium regressions, all passing in 34.3 seconds
@@ -81,9 +81,17 @@ follow repaired waveform and Undo assertions, but expect plural seconds for the
 existing singular one-second accessible copy. The corrected fixture passes
 all three full exported-PCM/Undo workflows on the same build
 (`/tmp/soundscaper-round6-properties-warp-duration-green7-browser.log`).
-All 16 editing, 11 effects, seven qualifying I/O and 15 dialog roots are now
-publicly verified: 49 distinct fixes. The full canonical non-browser gate and
-5,463-case browser run are in progress on this frozen candidate revision. A
-subsequent snapshot at `03748a70e` restores the original read-only policy and
-includes the independently reproduced delivery-report project-identity fix;
-its public GREEN is needed to reach the first 50.
+All 16 editing, 11 effects, seven qualifying I/O and 15 dialog roots are
+publicly verified on that snapshot: 49 distinct fixes. Its canonical non-browser
+gate remains in progress. The initial browser-suite attempt is interrupted; it
+is not recorded as passing. The subsequent immutable snapshot at `03748a70e`
+restores the original read-only policy and verifies the independent metadata
+composition owner through all nine public Chromium, Firefox and WebKit paths
+(`/tmp/soundscaper-round6-metadata-composition-green8-browser.log`). That brings
+the verified count to 50. The full Node suite runs at this milestone
+(`/tmp/soundscaper-round6-checkpoint50-repaired-full-node.log`). Concurrent
+browser batches cause previously passing cases to exceed their unchanged
+time limits while the host pages heavily, so the additional full browser run
+is interrupted and will resume after the full Node run. Its interrupted
+results are not passing evidence; focused public results remain recorded
+individually. Later source corrections still await their own public GREEN.
