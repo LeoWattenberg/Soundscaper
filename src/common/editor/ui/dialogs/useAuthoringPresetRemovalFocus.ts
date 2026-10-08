@@ -12,7 +12,8 @@ export function useAuthoringPresetRemovalFocus(
 		const captured = request.current;
 		request.current = null;
 		if (!captured || captured.owner !== owner || blocked) return;
-		if (captured.control.ownerDocument.activeElement !== captured.control.ownerDocument.body) return;
+		const active = captured.control.ownerDocument.activeElement;
+		if (active !== captured.control && active !== captured.control.ownerDocument.body) return;
 		container.current?.querySelector<HTMLElement>(captured.picker)?.focus();
 	}, [blocked, container, owner, pending]);
 	return (operation: string): void => {

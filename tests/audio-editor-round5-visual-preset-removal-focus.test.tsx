@@ -11,8 +11,8 @@ import { applyFramescaperOwnedFinishingCommandFinishing, snapshotFramescaperOwne
 import type { AudioEditorProjectStore } from '../src/common/editor/storage.js';
 import { installReactTestDom, reactProps, type ReactTestElement } from './helpers/react-test-dom.ts';
 
-for (const kind of ['visual', 'finishing'] as const) for (const moveFocus of [false, true]) {
-	test(`production ${kind} preset removal ${moveFocus ? 'preserves deliberate focus' : 'recovers its picker'}`, async () => {
+for (const kind of ['visual', 'finishing'] as const) for (const focusMode of ['body', 'retained', 'deliberate'] as const) {
+	test(`production ${kind} preset removal ${focusMode === 'deliberate' ? 'preserves deliberate focus' : `recovers its picker from ${focusMode}`}`, async () => {
 		const dom = installReactTestDom();
 		const root = createRoot(dom.container as unknown as HTMLElement);
 		const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
@@ -46,8 +46,8 @@ for (const kind of ['visual', 'finishing'] as const) for (const moveFocus of [fa
 				project = next;
 				commits += 1;
 				// Native disabling of the focused action loses focus to BODY; the public browser proves this behavior.
-				if (moveFocus) other.focus();
-				else removal.ownerDocument.body.focus();
+				if (focusMode === 'deliberate') other.focus();
+				else if (focusMode === 'body') removal.ownerDocument.body.focus();
 				render();
 			} } } };
 		bindFramescaperSelectedAuthoringController({ controller, store: {} as AudioEditorProjectStore });
@@ -64,7 +64,7 @@ for (const kind of ['visual', 'finishing'] as const) for (const moveFocus of [fa
 			assert.equal(commits, 1);
 			assert.equal(reactProps(removal).disabled, true);
 			assert.equal(picker.value, '', 'the existing removed-identity reconciliation remains intact');
-			assert.equal(picker.ownerDocument.activeElement === (moveFocus ? other : picker), true);
+			assert.equal(picker.ownerDocument.activeElement === (focusMode === 'deliberate' ? other : picker), true);
 		} finally {
 			await act(async () => { root.unmount(); });
 			if (previousReact) Object.defineProperty(globalThis, 'React', previousReact);
