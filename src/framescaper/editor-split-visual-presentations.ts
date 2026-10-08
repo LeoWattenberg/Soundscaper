@@ -2,16 +2,15 @@
 
 import {
 	normalizeVideoVisualPresentationV1,
-	type VideoVisualPresentationV1,
 } from '../common/editor/video-visual-presentation-v27.ts';
 import type { FramescaperVideoVisualPresentationSetCommandFinishing } from './editor-project-finishing-finishing-command.ts';
 
 /** Track authored presentation changes while preparing one ordered split transaction. */
-export function createSplitVisualPresentationPlanner(values: readonly VideoVisualPresentationV1[]): Readonly<{
+export function createSplitVisualPresentationPlanner(values: readonly unknown[]): Readonly<{
 	observe(command: FramescaperVideoVisualPresentationSetCommandFinishing): void;
 	copy(clipId: string, rightClipId: string): readonly FramescaperVideoVisualPresentationSetCommandFinishing[];
 }> {
-	const presentations = new Map(values.map(value => [value.id, value]));
+	const presentations = new Map(values.map(normalizeVideoVisualPresentationV1).map(value => [value.id, value]));
 	return Object.freeze({ observe, copy });
 
 	function observe(command: FramescaperVideoVisualPresentationSetCommandFinishing): void {

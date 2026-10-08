@@ -18,7 +18,7 @@ export function prepareTimelineGeneratorSplitCommand(project: FramescaperProject
 	}
 	const owners = new Map(project.tracks.flatMap(track => (Array.isArray(track.clipIds)
 		? track.clipIds as readonly string[] : []).map(id => [id, track.id] as const)));
-	const presentations = createSplitVisualPresentationPlanner(project.videoVisualPresentations);
+	const presentations = createSplitVisualPresentationPlanner(project.videoVisualPresentations as readonly unknown[]);
 	return visit(command);
 
 	function visit(value: FramescaperProjectCommandTimelineImage): FramescaperProjectCommandTimelineImage {
