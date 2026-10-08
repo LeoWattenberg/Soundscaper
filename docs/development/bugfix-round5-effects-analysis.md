@@ -595,3 +595,32 @@ processed clip and uses ordinary Zoom to selection for its repeat boundary.
 No audio assertion or original 60-second per-test deadline was weakened.
 Both guarded product builds pass. ROOT-019 is counted once. Assistance
 runtime assets are unchanged.
+
+## R5-ROOT-020 — Track noise profiling drops the earlier filter's automation
+
+Import an ordinary 750 Hz mono WAV. Add a Resonant low-pass filter to its
+track, set Frequency to 750 Hz, and author a flat Q automation lane at
+1.707. Select all, add Noise Reduction after the filter and Get noise profile.
+Delete the Q lane, set the filter's static Q to the same 1.707, then Replace
+noise profile. The two profiles differ materially, although the two authored
+filter settings are equivalent: track rack capture clears every automation
+lane while retaining its earlier processors.
+
+Build a focused rack-prefix render projection that retains only automation
+owned by that track's earlier effects. Preserve exact lane timing and points,
+neutralize listening gain/pan/mute/solo, and continue excluding later effects
+and other tracks. Reconcile the transient feature inventory through its
+existing projection. Keep destructive dry rendering's separate contract.
+
+The complete immutable-baseline Chromium workflow fails on the captured
+profile comparison (`/tmp/soundscaper-r5-root-rack-prefix-automation-baseline.log`).
+Its owning production-service test independently fails on the empty lane
+list, while the destructive dry-render control passes. New and existing
+effect-audio, bus/master profile, native Source profile and isolated folder
+support passes 35/35 after correction. Target lint and the size gate pass.
+An initial Node fixture omitted the ordinary audio selection; a compiler
+command omitted the repository's Vite declarations. Those setup failures
+are excluded. Regressions are `audio-editor-round5-rack-prefix-automation.test.ts`
+and `audio-editor-round5-rack-prefix-automation.spec.js`. Corrected browser
+verification is pending; ROOT-020 is not counted yet. Assistance runtime
+assets are unchanged.

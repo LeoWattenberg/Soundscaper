@@ -31,6 +31,7 @@ import { normalizeAudacityEffectParams } from '../../../audacity-effects/manifes
 import { renderSimpleDryTrackPcm } from './direct-dry-track-pcm.ts';
 import { createBusNoiseProfileRenderProject } from './bus-noise-profile-render-project.ts';
 import type { MixerGraphV21 } from '../../../mixer-graph-v21.ts';
+import { createTrackNoiseProfileRenderProject } from './track-noise-profile-render-project.ts';
 
 export type * from './effect-audio-service-types.ts';
 
@@ -136,9 +137,9 @@ export function createEffectAudioService<Buffer = EffectAudioBuffer>(runtime: Ef
 			if (effectIndex < 0) throw createLocalizedError(Error, runtime.copy, 'rackEffectNotFound');
 			const prefix = track.effects.slice(0, effectIndex);
 			if (hasProductionMixerProjectAuthority(snapshot)) {
-				snapshot = createIsolatedTrackRenderProjectV21(snapshot as never, {
-					trackId: requireTrackId(trackId), effects: prefix,
-				}) as unknown as MutableEffectAudioProject;
+				snapshot = createTrackNoiseProfileRenderProject(
+					project, requireTrackId(trackId), prefix,
+				) as unknown as MutableEffectAudioProject;
 			} else {
 				track.effects = prefix;
 				track.gain = 1;

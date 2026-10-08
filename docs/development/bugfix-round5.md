@@ -1,8 +1,8 @@
 # Fifth user-reproducible regression audit
 
-This audit is in progress toward 100 additional distinct fixes. Sixty-nine
-new roots have completed ordinary browser verification (editing 18, dialogs 23,
-effects/analysis 19, import/export 9). Its immutable
+This audit is in progress toward 100 additional distinct fixes. Seventy-one
+new roots have completed ordinary browser verification (editing 18, dialogs 24,
+effects/analysis 19, import/export 10). Its immutable
 baseline is `fe6440c81b3a0fe29a028c64db867ae7d2cf3252`.
 
 Count an entry only after ordinary public user actions reproduce its defect
@@ -62,6 +62,11 @@ decoded pitch, repeat timing and Undo/Redo.
 Checkpoint twenty-six, `97a72977b`, passes both guarded product builds and
 spreadsheet command ownership across all three engines. Camera speed
 admission still requires follow-through for its public Unlink recovery.
+Checkpoint twenty-seven, `675136fab`, passes both guarded product builds,
+canonical text application and negative recording-offset placement across
+all three engines. Recording calibration uses an ordinary zero-offset warm-up
+capture before comparing two offsets; the exact 100-millisecond difference
+and the original deadline remain unchanged.
 Browser evidence names each exact checkpoint. Firefox audio
 uses the unchanged CI PulseAudio setup with a private 48 kHz null sink.
 
