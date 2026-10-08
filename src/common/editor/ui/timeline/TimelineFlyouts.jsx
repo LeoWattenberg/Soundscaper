@@ -57,6 +57,7 @@ export function ContainerAddTrackFlyout({
 				return;
 			}
 			if (event.key === 'Tab') {
+				if (flyoutRef.current?.contains(document.activeElement)) triggerRef?.current?.focus();
 				onClose();
 				return;
 			}
