@@ -240,6 +240,7 @@ function MaskFields({ text, model, blocked, values, setters, onPerform }: Parame
 
 function PresetFields({ text, model, blocked, values, setters, onPerform }: Parameters<typeof AuthoringFields>[0]) {
 	const generatorSelected = model.selectedClipKind === 'generator';
+	const visualSelected = ['video', 'still', 'generator'].includes(model.selectedClipKind ?? '');
 	return <>
 		<fieldset disabled={blocked}>
 			<legend>{text.visualPreset}</legend>
@@ -265,7 +266,7 @@ function PresetFields({ text, model, blocked, values, setters, onPerform }: Para
 				<option value="">{text.none}</option>{model.finishingPresets.map(({ id, name }) => (
 					<option key={id} value={id}>{name}</option>
 				))}</select></label>
-			<button data-framescaper-authoring-apply-finishing type="button" disabled={model.selectedClipId === null || !values.finishingPresetId}
+			<button data-framescaper-authoring-apply-finishing type="button" disabled={!visualSelected || !values.finishingPresetId}
 				onClick={() => onPerform('apply-finishing')}>{text.applyFresh}</button>
 			<button data-framescaper-authoring-remove-finishing type="button" disabled={!values.finishingPresetId}
 				onClick={() => onPerform('remove-finishing')}>{text.removeFinishingPreset}</button>

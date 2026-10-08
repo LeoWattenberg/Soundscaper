@@ -49,13 +49,24 @@ for (const gate of ['readOnly', 'editingBlocked'] as const) {
 	});
 }
 
+test('production finishing Apply refuses an audio target while retaining library removal', async () => {
+	const fixture = await mountPresets({ kind: 'finishing', selected: true, clipKind: 'audio' });
+	try {
+		assert.equal(effectivelyDisabled(fixture.dom.one('[data-framescaper-authoring-apply-finishing]')), true);
+		assert.equal(effectivelyDisabled(fixture.dom.one('[data-framescaper-authoring-remove-finishing]')), false);
+		assert.equal(effectivelyDisabled(fixture.dom.one('[data-framescaper-authoring-finishing-preset]')), false);
+		assert.equal(effectivelyDisabled(fixture.dom.one('[data-framescaper-authoring-save-visual]')), true);
+		assert.equal(fixture.commits(), 0);
+	} finally { await fixture.cleanup(); }
+});
+
 function effectivelyDisabled(control: ReactTestElement): boolean {
 	const fieldset = control.closest('fieldset');
 	return Boolean(reactProps(control).disabled || (fieldset && reactProps(fieldset).disabled));
 }
 
 async function mountPresets(options: Readonly<{
-	kind: 'visual' | 'finishing'; selected: boolean; readOnly?: boolean; editingBlocked?: boolean;
+	kind: 'visual' | 'finishing'; selected: boolean; clipKind?: 'generator' | 'audio'; readOnly?: boolean; editingBlocked?: boolean;
 }>) {
 	const dom = installReactTestDom();
 	const root = createRoot(dom.container as unknown as HTMLElement);
@@ -68,9 +79,10 @@ async function mountPresets(options: Readonly<{
 		schemaFamily: 'framescaper', schemaVersion: 1, id: 'project', revision: 0, sampleRate: 48_000,
 		selection: { clipIds: options.selected ? ['picture'] : [] }, primarySequenceId: 'sequence',
 		sequences: [{ id: 'sequence', trackIds: ['track'], rate: { num: 30, den: 1 } }],
-		tracks: [{ id: 'track', type: 'video', clipIds: ['picture'] }],
-		clips: [{ id: 'picture', kind: 'generator', sourceId: 'source', sequenceId: 'sequence', sequenceStartFrame: 0, sequenceFrameCount: 150 }],
-		sources: [{ id: 'source', kind: 'generator', name: 'Solid', generator: { kind: 'solid', color: '#000000ff' } }],
+		tracks: [{ id: 'track', type: options.clipKind === 'audio' ? 'audio' : 'video', clipIds: ['picture'] }],
+		clips: [{ id: 'picture', kind: options.clipKind ?? 'generator', sourceId: 'source', sequenceId: 'sequence', sequenceStartFrame: 0, sequenceFrameCount: 150 }],
+		sources: options.clipKind === 'audio' ? [{ id: 'source', kind: 'audio', name: 'Voice', sampleRate: 48_000, channels: 1, frames: 48_000 }]
+			: [{ id: 'source', kind: 'generator', name: 'Solid', generator: { kind: 'solid', color: '#000000ff' } }],
 		videoAdjustmentLayers: [], videoVisualPresentations: [], videoMaskMattes: [], videoFreezeFallbacks: [],
 		videoVisualPresets: options.kind === 'visual' ? [{ schemaVersion: 1, kind: 'video-preset', id: 'saved',
 			name: 'Keyboard solid', modelKind: 'generator', authoredStateSha256: 'ab'.repeat(32) }] : [],
