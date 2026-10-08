@@ -12,6 +12,7 @@ import { selectAudioEditorEditBlock } from '../edit-blocking.ts';
 import { createFramescaperVideoProxyApplicationMenuItems } from '../framescaper-video-proxy-application-menu.ts';
 import ProjectBinCard from './ProjectBinCard.jsx';
 import ProjectBinNotices from './ProjectBinNotices.tsx';
+import ProjectBinRemoveDialog from './ProjectBinRemoveDialog.tsx';
 import ProjectBinVideoProxyDialog from './ProjectBinVideoProxyDialog.jsx';
 import { WorkspacePanelOverlayPortal } from './WorkspacePanelOverlayPortal.tsx';
 import {
@@ -478,26 +479,13 @@ export default function ProjectBinPanel({ controller, snapshot, copy: providedCo
 			portalTarget={overlayTarget} />}
 		{removeConfirmation && (
 			<WorkspacePanelOverlayPortal target={overlayTarget}>
-				<div className="kw-audio-editor-dialog-backdrop" data-project-bin-remove-dialog>
-					<div className="kw-audio-editor-dialog kw-audio-editor__project-bin-confirm" role="alertdialog" aria-modal="true" aria-labelledby="project-bin-remove-title">
-						<DialogHeader os="windows" title={copy.projectBinRemoveFromProject} onClose={() => setRemoveConfirmation(null)} />
-						<div className="kw-audio-editor-dialog__body">
-							<p id="project-bin-remove-title">
-								{copy.projectBinRemoveConfirm
-									.replace('{name}', removeConfirmation.name)
-									.replace('{count}', String(removeConfirmation.count))}
-							</p>
-							<div className="kw-audio-editor-dialog__actions">
-								<Button variant="secondary" onClick={() => setRemoveConfirmation(null)}>{copy.cancel}</Button>
-								<Button variant="primary" onClick={() => {
-									const clipId = removeConfirmation.clipId;
-									setRemoveConfirmation(null);
-									run(() => controller.actions.projectBin.removeFromProject(clipId));
-								}}>{copy.projectBinRemoveFromProject}</Button>
-							</div>
-						</div>
-					</div>
-				</div>
+				<ProjectBinRemoveDialog name={removeConfirmation.name} count={removeConfirmation.count}
+					copy={copy} disabled={mutationBlocked} onCancel={() => setRemoveConfirmation(null)}
+					onConfirm={() => {
+						const clipId = removeConfirmation.clipId;
+						setRemoveConfirmation(null);
+						run(() => controller.actions.projectBin.removeFromProject(clipId));
+					}} />
 			</WorkspacePanelOverlayPortal>
 		)}
 		{relinkChangedChoice && (
