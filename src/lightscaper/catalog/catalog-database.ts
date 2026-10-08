@@ -13,10 +13,12 @@ export function openPhotoCatalogDatabaseV1(factory: IDBFactory, name: string, on
 		const request = factory.open(name, PHOTO_CATALOG_DATABASE_VERSION);
 		request.onupgradeneeded = (event) => {
 			try {
-				if (![0, 1, 2, 3].includes(event.oldVersion)) throw new RangeError('Unsupported photo catalog database migration.');
+				if (![0, 1, 2, 3, 4].includes(event.oldVersion)) throw new RangeError('Unsupported photo catalog database migration.');
 				for (const storeName of PHOTO_CATALOG_STORES) {
 					if (request.result.objectStoreNames.contains(storeName)) continue;
-					const store = request.result.createObjectStore(storeName, { keyPath: storeName === 'photoStackStates' ? 'catalogId' : storeName === 'catalogs' || storeName === 'catalogStates' || storeName === 'photoQueryBuildStates' || storeName === 'photoQueryBuildStatesV2' ? 'id' : 'key' });
+					const store = request.result.createObjectStore(storeName, { keyPath: storeName === 'photoStackStates' || storeName === 'photoSmartCollectionStates' ? 'catalogId' : storeName === 'catalogs' || storeName === 'catalogStates' || storeName === 'photoQueryBuildStates' || storeName === 'photoQueryBuildStatesV2' ? 'id' : 'key' });
+					if (storeName === 'photoSmartCollections' || storeName === 'photoSmartCollectionSummaries') store.createIndex('catalogId', 'catalogId');
+					if (storeName === 'photoSmartCollections') store.createIndex('referenceKey', 'referenceKeys', { multiEntry: true });
 					if (storeName === 'photoStacks' || storeName === 'photoStackMemberships') store.createIndex('catalogId', 'catalogId');
 					if (storeName === 'photoStacks') store.createIndex('memberKey', 'memberKeys', { unique: true, multiEntry: true });
 					if (storeName === 'photoStackMemberships') store.createIndex('scope', 'scope');

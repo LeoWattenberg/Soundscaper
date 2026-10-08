@@ -345,7 +345,7 @@ test('DB1 and DB2 upgrades add empty stack stores without reading or rewriting o
 		indexedDB.seedRecord(databaseName, 'photos', { key: photoStorageKey('catalog', photo(0).id), document: photo(0) });
 		const before = indexedDB.records(databaseName, 'photos'); old.close();
 		const upgraded = await openPhotoCatalogDatabaseV1(factory, databaseName, () => undefined);
-		assert.equal(upgraded.version, 4);
+		assert.equal(upgraded.version, 5);
 		for (const name of ['photoStacks', 'photoStackMemberships', 'photoStackStates']) assert.ok(upgraded.objectStoreNames.contains(name));
 		const index = upgraded.transaction('photoStacks').objectStore('photoStacks').index('memberKey');
 		assert.equal(index.keyPath, 'memberKeys'); assert.equal(index.unique, true); assert.equal(index.multiEntry, true);

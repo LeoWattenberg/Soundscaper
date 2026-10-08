@@ -17,7 +17,7 @@ test('a new database owns V2 metadata query stores and all four native sort inde
 	const indexedDB = createInstrumentedIndexedDB();
 	const database = await openPhotoCatalogDatabaseV1(indexedDB as unknown as IDBFactory, 'metadata-new', () => undefined);
 	try {
-		assert.equal(PHOTO_CATALOG_DATABASE_VERSION, 4);
+		assert.equal(PHOTO_CATALOG_DATABASE_VERSION, 5);
 		assert.equal(database.objectStoreNames.contains('photoQueryRowsV2'), true);
 		assert.equal(database.objectStoreNames.contains('photoQueryBuildStatesV2'), true);
 		const transaction = database.transaction(['photoQueryRowsV2'], 'readonly');
@@ -26,7 +26,7 @@ test('a new database owns V2 metadata query stores and all four native sort inde
 	} finally { database.close(); }
 });
 
-test('V3 upgrades add only V2 stores without scanning or changing original photos and old derived bytes', async () => {
+test('V3 upgrades add V2 stores without scanning or changing original photos and old derived bytes', async () => {
 	const indexedDB = createInstrumentedIndexedDB(), factory = indexedDB as unknown as IDBFactory;
 	await new Promise<void>((resolve, reject) => {
 		const opening = factory.open('metadata-legacy', 3);

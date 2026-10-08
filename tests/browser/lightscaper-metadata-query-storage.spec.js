@@ -22,14 +22,16 @@ export {readPhotoStackQueryPageV2} from './src/lightscaper/catalog/photo-stack-q
 export {queryPhotoV1,queryCatalogRootV1} from './tests/helpers/lightscaper-catalog-query-fixture.ts';
 `;
 
-test('native schema3 upgrades add only metadata stores, preserve legacy bytes, and resume explicit16+1 reindex after reopen', async ({ page }) => {
+test('native schema3 upgrades preserve legacy bytes and resume explicit16+1 metadata reindex after reopen', async ({ page }) => {
 	test.setTimeout(180_000);
 	await setup(page);
 	const result = await page.evaluate(qualifyStorage, { path: MODULE, mode: 'migration' });
-	expect(result).toMatchObject({ oldVersion: 3, version: 4, upgradeRequests: 0, untouchedLegacy: true, missingV2Refused: true,
+	expect(result).toMatchObject({ oldVersion: 3, version: 5, upgradeRequests: 0, untouchedLegacy: true, missingV2Refused: true,
 		oldReady: true, legacyRowsAfterUpgrade: 17, newBuildInitiallyAbsent: true, newRowsInitiallyAbsent: true, first: { processed: 16, ready: false }, second: { processed: 1, ready: true },
 		firstBuild: { indexedCount: 16, ready: false }, preservedAfterRebuild: true, forbiddenRequests: 0, activeTransactions: 0 });
-	expect(result.oldInventory).toEqual(result.inventory.filter(store => !['photoQueryRowsV2', 'photoQueryBuildStatesV2'].includes(store.name)));
+	expect(result.inventory).toHaveLength(15);
+	expect(result.oldInventory).toEqual(result.inventory.filter(store => !['photoQueryRowsV2', 'photoQueryBuildStatesV2',
+		'photoSmartCollections', 'photoSmartCollectionSummaries', 'photoSmartCollectionStates'].includes(store.name)));
 	expect(result.oldInventory.map(store => store.name)).toEqual(['catalogStates', 'catalogs', 'memberships', 'photoQueryBuildStates', 'photoQueryRows',
 		'photoStackMemberships', 'photoStackStates', 'photoStacks', 'photos', 'summaries']);
 	expect(result.inventory.find(store => store.name === 'photoQueryRowsV2')).toEqual({ name: 'photoQueryRowsV2', keyPath: 'key', indexes: [

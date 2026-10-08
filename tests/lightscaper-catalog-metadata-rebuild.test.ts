@@ -82,7 +82,7 @@ test('V2 build state/progress admission is closed, scoped and bounded without ex
 test('additive upgrades 1/2/3 create V2 stores without scanning or rewriting any photo', async () => {
 	for (const version of [1, 2, 3]) {
 		const { indexedDB, database, repository } = await legacy([queryPhotoV1()], version);
-		assert.equal(database.version, 4); assert.equal(indexedDB.stats.cursorRequests.length, 0);
+		assert.equal(database.version, 5); assert.equal(indexedDB.stats.cursorRequests.length, 0);
 		assert.equal(indexedDB.stats.getAllRequests.length, 0); assert.equal(indexedDB.stats.countRequests.length, 0);
 		assert.deepEqual((await repository.loadPhoto('catalog', queryPhotoV1().id)), queryPhotoV1());
 		assert.equal(indexedDB.recordCount('metadata-query', 'photoQueryRowsV2'), 0); await repository.close();
