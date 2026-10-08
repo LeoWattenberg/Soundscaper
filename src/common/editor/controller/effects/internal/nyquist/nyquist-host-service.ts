@@ -155,6 +155,10 @@ export function createNyquistHostService(runtime: NyquistHostServiceRuntime) {
 		const frequencyRange = selection?.frequencyRange;
 		const startFrame = target?.startFrame ?? selection?.startFrame ?? runtime.getPositionFrames();
 		const endFrame = target?.endFrame ?? selection?.endFrame ?? startFrame;
+		const tempoFrame = target?.sourceClipId
+			? nyquistLabelTimelineRange(persistedProject, { sourceTarget: target, baseFrame: 0,
+				start: 0, end: (endFrame - startFrame) / sampleRate })[0]
+			: startFrame;
 		const track = target?.track ?? null;
 		const clips = track?.clipIds
 			?.map((clipId) => project.clips.find((clip) => clip.id === clipId) ?? null)
@@ -195,7 +199,7 @@ export function createNyquistHostService(runtime: NyquistHostServiceRuntime) {
 			PROJECT: {
 				NAME: project.title || '',
 				RATE: projectRate,
-				TEMPO: projectTempo(project, startFrame, sampleRate),
+				TEMPO: projectTempo(project, tempoFrame, projectRate),
 				TRACKS: project.tracks.length,
 				WAVETRACKS: project.tracks.filter((candidate) => candidate.type === 'audio').length,
 				LABELTRACKS: project.tracks.filter((candidate) => candidate.type === 'label').length,
