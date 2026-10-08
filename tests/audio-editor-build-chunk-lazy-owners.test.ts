@@ -35,7 +35,6 @@ import { flatEditorModules } from './helpers/editor-chunk-module-inventory.ts';
  *
  * `tests/audio-editor-build-chunk-ownership.test.ts` holds the ownership half.
  */
-
 test('recording checkpoints and finalization load after a recording gesture', () => {
 	for (const path of [
 		'src/common/editor/controller/recording/internal/recording-checkpoint-writer.ts',
