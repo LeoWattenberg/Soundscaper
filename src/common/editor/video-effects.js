@@ -1,4 +1,6 @@
 import { createStableId } from './stable-id.js';
+import { GLOBAL_DEVELOP_VIDEO_EFFECT_DEFINITIONS_V1, isGlobalDevelopEffectTypeV1,
+	normalizeGlobalDevelopEffectV1, normalizeGlobalDevelopParamsV1, serializeGlobalDevelopEffectToFfmpegV1 } from './video-global-develop-v1.ts';
 
 function parameter(label, labelKey, defaultValue, minimum, maximum, step, options = {}) {
 	return Object.freeze({
@@ -95,6 +97,7 @@ export const VIDEO_EFFECT_DEFINITIONS = Object.freeze({
 		opacity: parameter('Opacity', 'videoEffectParamOpacity', 0.6, 0, 1, 0.01),
 		color: parameter('Color', 'videoEffectParamColor', 0x000000, 0, 0xffffff, 1, { integer: true, control: 'color' }),
 	}),
+	...GLOBAL_DEVELOP_VIDEO_EFFECT_DEFINITIONS_V1,
 });
 
 export const VIDEO_EFFECT_TYPES = Object.freeze(Object.keys(VIDEO_EFFECT_DEFINITIONS));
@@ -131,6 +134,7 @@ export function videoEffectDefaults(type) {
  * validation and error naming.
  */
 export function validateVideoEffectParams(type, params, name = 'videoEffect.params') {
+	if (isGlobalDevelopEffectTypeV1(type)) { normalizeGlobalDevelopParamsV1(type, params); return true; }
 	if (!params || typeof params !== 'object' || Array.isArray(params)) {
 		throw new TypeError(`${name} must be an object.`);
 	}
@@ -154,6 +158,7 @@ export function validateVideoEffectParams(type, params, name = 'videoEffect.para
 }
 
 function normalizeVideoEffectParams(type, params, name) {
+	if (isGlobalDevelopEffectTypeV1(type)) return { ...normalizeGlobalDevelopParamsV1(type, params) };
 	if (params === undefined) params = {};
 	if (!params || typeof params !== 'object' || Array.isArray(params)) {
 		throw new TypeError(`${name} must be an object.`);
@@ -184,12 +189,14 @@ export function createVideoEffect(type, options = {}) {
 	if (options.enabled != null && typeof options.enabled !== 'boolean') {
 		throw new TypeError('videoEffect.enabled must be a boolean.');
 	}
-	return {
+	const effect = {
 		id: nonEmptyString(options.id ?? createStableId('video-effect'), 'videoEffect.id'),
 		type: stableType,
 		enabled: options.enabled !== false,
 		params: normalizeVideoEffectParams(stableType, options.params, 'videoEffect.params'),
 	};
+	if (isGlobalDevelopEffectTypeV1(stableType)) normalizeGlobalDevelopEffectV1(effect);
+	return effect;
 }
 
 export function normalizeVideoEffect(effect, name = 'videoEffect', options = {}) {
@@ -213,12 +220,14 @@ export function normalizeVideoEffect(effect, name = 'videoEffect', options = {})
 		|| typeof effect.params !== 'object'
 		|| Array.isArray(effect.params)
 	) throw new TypeError(`${name}.params must be an object.`);
-	return {
+	const normalized = {
 		id,
 		type,
 		enabled: effect.enabled,
 		params: normalizeVideoEffectParams(type, effect.params, `${name}.params`),
 	};
+	if (isGlobalDevelopEffectTypeV1(type)) normalizeGlobalDevelopEffectV1(normalized);
+	return normalized;
 }
 
 export function normalizeVideoEffects(effects, name = 'videoEffects', options = {}) {
@@ -248,6 +257,9 @@ export function serializeVideoEffectsToFfmpegOperations(effects, name = 'videoEf
 }
 
 function serializeVideoEffectToFfmpegOperations(effect, name) {
+	if (isGlobalDevelopEffectTypeV1(effect.type)) {
+		const operation = serializeGlobalDevelopEffectToFfmpegV1(effect); return operation ? [operation] : [];
+	}
 	const definitionValue = videoEffectDefinition(effect.type);
 	const params = effect.params;
 	switch (definitionValue.ffmpegFilter) {

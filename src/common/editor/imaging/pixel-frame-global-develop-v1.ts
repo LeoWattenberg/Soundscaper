@@ -1,0 +1,61 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+import { readClosedDomainField as field, readClosedDomainRecord as record } from '../closed-domain-value.ts';
+import { readClosedDomainArray } from '../closed-domain-value.ts';
+import { globalDevelopByteChannelV1, prepareGlobalDevelopEffectV1 } from '../video-global-develop-v1.ts';
+import { admitPixelFrameV1 } from './pixel-frame-admission-v1.ts';
+import { readPixelFrameV1, type PixelFrameDescriptorV1, type PixelFrameLimitsV1 } from './pixel-frame-contract-v1.ts';
+
+export interface GlobalDevelopPixelFrameV1 {
+	readonly descriptor: Readonly<PixelFrameDescriptorV1>;
+	readonly pixels: Uint8Array<ArrayBuffer>;
+}
+
+const CHECK = AbortSignal.prototype.throwIfAborted;
+const BUFFER_SIZE = Object.getOwnPropertyDescriptor(ArrayBuffer.prototype, 'byteLength')!.get!;
+const CHUNK_BYTES = 256 * 1024;
+
+/** One bounded native snapshot/output, processed in place; source buffers and settings stay borrowed only through admission. */
+export async function withGlobalDevelopPixelFrameV1<Result>(value: unknown,
+	consume: (frame: GlobalDevelopPixelFrameV1) => Result | Promise<Result>, options: Readonly<{ limits: PixelFrameLimitsV1; maximumEffects?: number }>): Promise<Result> {
+	const input = record(value, 'global develop frame', ['frame', 'effects', 'signal'], ['frame', 'effects']);
+	const option = record(options, 'global develop frame options', ['limits', 'maximumEffects'], ['limits']), limits = field(option, 'limits', 'global develop frame options');
+	const maximumEffects = Object.hasOwn(option, 'maximumEffects') ? field(option, 'maximumEffects', 'global develop frame options') : 64;
+	if (typeof maximumEffects !== 'number' || !Number.isSafeInteger(maximumEffects) || maximumEffects < 1 || maximumEffects > 100_000) {
+		throw new RangeError('Global develop effect limit requires 1 through 100000 entries.');
+	}
+	const signal = Object.hasOwn(input, 'signal') ? field(input, 'signal', 'global develop frame') : undefined;
+	const check = () => { if (signal !== undefined) Reflect.apply(CHECK, signal, []); };
+	check(); if (typeof consume !== 'function') throw new TypeError('Global develop requires a scoped frame consumer.');
+	const effects = readClosedDomainArray(field(input, 'effects', 'global develop frame'), 'global develop effects', 0, maximumEffects);
+	const ids = new Set<unknown>();
+	const prepared = effects.map(value => {
+		const effect = record(value, 'global develop effect', ['id', 'type', 'enabled', 'params']);
+		const id = field(effect, 'id', 'global develop effect');
+		if (ids.has(id)) throw new RangeError('Global develop effects require unique IDs.'); ids.add(id);
+		return prepareGlobalDevelopEffectV1(value);
+	});
+	const raw = record(field(input, 'frame', 'global develop frame'), 'global develop source frame', ['descriptor', 'pixels']);
+	const plan = admitPixelFrameV1(field(raw, 'descriptor', 'global develop source frame'), { limits });
+	const source = readPixelFrameV1({ descriptor: plan.descriptor, pixels: field(raw, 'pixels', 'global develop source frame') }, limits);
+	check();
+	const pixels = new Uint8Array(new Uint8Array(source.pixels.buffer, source.pixels.byteOffset, source.pixels.byteLength));
+	const buffer = pixels.buffer;
+	try {
+		let processedBytes = 0;
+		for (const effect of prepared) {
+			if (!effect.enabled || effect.neutral) continue;
+			for (let start = 0; start < pixels.length; start += CHUNK_BYTES) {
+				check(); const end = Math.min(pixels.length, start + CHUNK_BYTES);
+				for (let offset = start; offset < end; offset += 4) {
+					pixels[offset] = globalDevelopByteChannelV1(effect, pixels[offset]!, 0);
+					pixels[offset + 1] = globalDevelopByteChannelV1(effect, pixels[offset + 1]!, 1);
+					pixels[offset + 2] = globalDevelopByteChannelV1(effect, pixels[offset + 2]!, 2);
+				}
+				processedBytes += end - start;
+				if (processedBytes >= CHUNK_BYTES) { await new Promise<void>(resolve => { setTimeout(resolve, 0); }); processedBytes = 0; check(); }
+			}
+		}
+		check(); const result = await consume(Object.freeze({ descriptor: source.descriptor, pixels })); check(); return result;
+	} finally { if (Number(Reflect.apply(BUFFER_SIZE, buffer, [])) > 0) new Uint8Array(buffer).fill(0); }
+}

@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { GLOBAL_DEVELOP_GLSL_V1 } from '../video-global-develop-v1.ts';
 
 export const MAX_GAUSSIAN_BLUR_PAIR_COUNT = 30;
 export const VIDEO_PREVIEW_PIXELATE_GRID_SIZE = 2;
@@ -23,6 +24,8 @@ uniform float u_blur_weight_sum;
 
 in vec2 v_uv;
 out vec4 out_color;
+
+${GLOBAL_DEVELOP_GLSL_V1}
 
 vec4 sample_frame(vec2 uv) {
 	return texture(u_texture, clamp(uv, vec2(0.0), vec2(1.0)));
@@ -124,6 +127,8 @@ void main() {
 		yuv.x = clamp(yuv.x, 16.0 / 255.0, 235.0 / 255.0);
 		yuv.yz = clamp(yuv.yz, vec2(16.0 / 255.0), vec2(240.0 / 255.0));
 		color.rgb = limited_yuv_to_rgb(yuv);
+	} else if (u_effect == 18 || u_effect == 19) {
+		color.rgb = global_develop_rgb(color.rgb, u_effect, u_params0, u_params1);
 	} else if (u_effect == 2) {
 		float block_size = max(1.0, u_params0.x);
 		vec2 pixel_size = vec2(block_size) / max(u_resolution, vec2(1.0));
@@ -313,4 +318,3 @@ void main() {
 	color.a *= clamp(u_opacity, 0.0, 1.0);
 	out_color = color;
 }`;
-

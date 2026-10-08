@@ -23,7 +23,7 @@ const SECOND_BATCH = [
 
 test('second video effect batch is appended without widening the V5 vocabulary', () => {
 	assert.deepEqual(VIDEO_EFFECT_V5_TYPES, VIDEO_EFFECT_TYPES.slice(0, 6));
-	assert.deepEqual(VIDEO_EFFECT_TYPES.slice(6), SECOND_BATCH);
+	assert.deepEqual(VIDEO_EFFECT_TYPES.slice(6, 12), SECOND_BATCH);
 	assert.deepEqual(videoEffectDefaults('chroma-key'), {
 		keyColor: 0x00ff00,
 		similarity: 0.1,
