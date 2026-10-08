@@ -18,8 +18,12 @@ mixed members. Immutable public RED reached that Failed row through the actual
 menu and preset flow (`/tmp/soundscaper-r6-io-batch-chapters-red2.log`); an initial
 missing test import was excluded. Strict causal RED plus a passing mix control
 now pass with all batch and queue support, 33/33
-(`/tmp/soundscaper-r6-io-batch-chapters-node-green.log`). Public GREEN remains
-pending. The earlier register explicitly identifies this same batch adapter's
+(`/tmp/soundscaper-r6-io-batch-chapters-node-green.log`). Public GREEN passes on immutable green4
+(`/tmp/soundscaper-r6-io-batch-chapters-public-green.log`): the actual two
+audio-track stems decode as MP3, each lasts more than half a second and the
+programme contains audible PCM. The first green harness incorrectly expected
+one track and a mix-only ID3 chapter header; the corrected inventory and actual
+MP3 decoder assertions retain the original causal Delivered requirement. The earlier register explicitly identifies this same batch adapter's
 hidden mix-setting omission at `docs/development/bugfix-io.md:45`, so this repair
 adds no distinct-bug count.
 

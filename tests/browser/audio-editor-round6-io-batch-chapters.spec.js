@@ -2,6 +2,7 @@
 
 import { expect, monoTone, test } from './audio-editor-test-fixtures.js';
 import { unzipSync } from 'fflate';
+import { persistedProject } from './helpers/complex-editing-workflows.js';
 import {
 	bootEditor, chooseCommandAction, chooseDropdown, chooseFileAction, disableNativeSavePicker,
 	downloadBytes, importFiles, openExportDialog, registerAudioEditorHooks,
@@ -34,6 +35,8 @@ test.describe('chapter preset delivery applicability', () => {
 		const queue = page.getByRole('dialog', { name: 'Delivery queue', exact: true });
 		await chooseDropdown(page, queue.getByRole('group', { name: 'Output', exact: true }), 'Individual stems (archive)');
 		await queue.getByRole('checkbox', { name: 'Podcast chapters', exact: true }).check();
+		const project = await persistedProject(page, await editor.getAttribute('data-project-id'));
+		const stemCount = project.tracks.filter(track => track.type === 'audio').length;
 		const downloads = [];
 		page.on('download', download => downloads.push(download));
 		await queue.getByRole('button', { name: 'Queue batch', exact: true }).click();
@@ -41,9 +44,21 @@ test.describe('chapter preset delivery applicability', () => {
 		await expect(row).toContainText('Delivered', { timeout: 30_000 });
 		await expect.poll(() => downloads.length).toBe(1);
 		const files = Object.entries(unzipSync(await downloadBytes(downloads[0])));
-		expect(files).toHaveLength(1);
-		expect(files[0][0]).toMatch(/\.mp3$/u);
-		expect(files[0][1].byteLength).toBeGreaterThan(1_000);
-		expect(new TextDecoder().decode(files[0][1].slice(0, 3))).toBe('ID3');
+		expect(files).toHaveLength(stemCount);
+		for (const [name, bytes] of files) {
+			expect(name).toMatch(/\.mp3$/u);
+			expect(bytes.byteLength).toBeGreaterThan(1_000);
+		}
+		const decoded = await page.evaluate(async members => {
+			const context = new OfflineAudioContext(1, 1, 48_000);
+			return await Promise.all(members.map(async bytes => {
+				const buffer = await context.decodeAudioData(Uint8Array.from(bytes).buffer);
+				let peak = 0;
+				for (const value of buffer.getChannelData(0)) peak = Math.max(peak, Math.abs(value));
+				return { duration: buffer.duration, peak };
+			}));
+		}, files.map(([, bytes]) => Array.from(bytes)));
+		expect(decoded.every(stem => stem.duration > 0.5)).toBe(true);
+		expect(decoded.some(stem => stem.peak > 0.1)).toBe(true);
 	});
 });
