@@ -45,7 +45,9 @@ export const AUDACITY_MACRO_MENU_COMMANDS: readonly AudacityMacroMenuCommand[] =
 	{ command: 'SelectAll', path: 'timeline.selectAll' },
 	{ command: 'SelAllTracks', path: 'timeline.selectAllTracks' },
 	{ command: 'SelectNone', path: 'timeline.clearSelection' },
-	{ command: 'SelCursorStoredCursor', path: 'timeline.selectTrackStartToCursor' },
+	{ command: 'SelTrackStartToCursor', path: 'timeline.selectTrackStartToCursor' },
+	// Earlier builds stored this unrelated upstream name for the action above.
+	{ command: 'SelCursorStoredCursor', path: 'timeline.selectTrackStartToCursor', runnable: false },
 	{ command: 'SelTrackStartToEnd', path: 'timeline.selectTrackStartToEnd' },
 	{ command: 'SelCursorToTrackEnd', path: 'timeline.selectCursorToTrackEnd' },
 	{ command: 'SelPrevClip', path: 'timeline.selectPreviousClip' },
