@@ -489,3 +489,34 @@ skips or failures; `/tmp/soundscaper-r5-root-repeat-loudness-green22.log`).
 Both guarded product builds pass, and complete bounded-memory lint passes
 all eleven shards. ROOT-016 is counted once. Assistance runtime assets are
 unchanged.
+
+## R5-ROOT-017 — A native-rate profile makes an incompatible rack block export
+
+Import an ordinary 24 kHz WAV into the default 48 kHz project. Open Clip
+properties, select all in Source waveform, and use Effect → Noise removal and
+repair → Noise Reduction → Get noise profile. Cancel that selection effect,
+close Properties and add Noise Reduction to the authored track rack. The rack
+automatically enables with the native 24 kHz profile. File → Export audio
+then cannot produce a download because that profile is incompatible with the
+48 kHz rack processor.
+
+Reuse a captured profile automatically only when its clock matches the rack's
+project clock. Otherwise add the existing disabled, uncaptured rack so export
+continues and Get noise profile can capture compatible audio. Retain the valid
+native profile for native source processing. Source-selection macro
+materialization is unchanged, since it legitimately runs at the source clock.
+
+The immutable-baseline Chromium workflow reaches the ordinary export and
+fails to produce its Download link
+(`/tmp/soundscaper-r5-root-native-profile-rack-export-baseline.log`). A separate
+baseline run confirms the incorrectly enabled rack already offers Replace
+noise profile. Initial probes missing PFFFT initialization, using the wrong
+factory sample rate or raw rather than serialized macro context are excluded
+setup errors. The final strict regression independently fails at automatic
+reuse before correction, with all three matching-clock/native-macro controls
+passing (`/tmp/soundscaper-r5-root-native-profile-rack-node-red4.log`). New and
+existing rack admission and macro support passes 37/37 afterward. Regressions
+are `audio-editor-round5-native-noise-profile-rack.test.ts` and
+`audio-editor-round5-native-noise-profile-rack.spec.js`. All-browser verification
+is pending; ROOT-017 is not yet included in the verified count. Assistance
+runtime assets are unchanged.
