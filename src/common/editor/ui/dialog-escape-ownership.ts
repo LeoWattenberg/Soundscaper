@@ -24,7 +24,7 @@ export function retainAudioEditorDialogEscapeOwner(
 	if (!ownership) {
 		const owners: DialogEscapeOwner[] = [];
 		const listener = (event: KeyboardEvent) => {
-			if (event.key !== 'Escape' || event.defaultPrevented) return;
+			if (event.key !== 'Escape' || event.defaultPrevented || event.isComposing) return;
 			const owner = owners.at(-1);
 			if (!owner) return;
 			event.preventDefault();
