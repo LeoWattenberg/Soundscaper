@@ -424,8 +424,11 @@ Two strict actual Source editor target cases fail before correction; both
 native clocks and stereo layout pass afterward with unchanged timeline controls.
 New and existing host/source/tempo support passes 22/22. The old source-host
 assertion now expects the native 0–0.8 bounds. Target lint, strict test types and
-the size gate pass. Regresions are
+the size gate pass. Regressions are
 `audio-editor-round5-nyquist-source-clip-bounds.test.ts` and
-`audio-editor-round5-nyquist-source-clip-bounds.spec.js`. Production browser
-verification is pending, so ROOT-014 is uncounted. Assistance runtime assets
-are unchanged.
+`audio-editor-round5-nyquist-source-clip-bounds.spec.js`. Immutable `cf64e5829`
+passes both ordinary prompt and actual Crossfade Clips → Apply → WAV download
+→ Undo workflows in Chromium, Firefox and WebKit (6/6, 1.2 minutes, no skips
+or failures; `/tmp/soundscaper-r5-root-nyquist-source-clip-bounds-green19.log`).
+The delivered extent is 5.4 seconds and Undo restores 5.8. Both guarded product
+builds pass. ROOT-014 is counted once. Assistance runtime assets are unchanged.
