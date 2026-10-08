@@ -6,6 +6,7 @@ import test, { type TestContext } from 'node:test';
 import React, { act } from 'react';
 
 import { ContextMenu } from '../vendor/audacity-design-system/components/src/ContextMenu/ContextMenu.tsx';
+import { ContextMenuItem } from '../vendor/audacity-design-system/components/src/ContextMenuItem/ContextMenuItem.tsx';
 import { installReactTestDom, type ReactTestElement } from './helpers/react-test-dom.ts';
 
 test('Escape restores the menu trigger when focus has not moved elsewhere', async (context) => {
@@ -73,7 +74,20 @@ test('pending initial autofocus respects a newly focused control', async (contex
 	}
 });
 
-async function mountMenu(context: TestContext): Promise<{
+for (const role of ['menuitem', 'menuitemradio'] as const) test(`initial focus skips an unavailable leading ${role} and preserves Escape`, async context => {
+	const menu = await mountMenu(context, role);
+	try {
+		await menu.flushTimers();
+		assert.equal(menu.focused(), menu.item);
+		await menu.escape();
+		await menu.flushTimers();
+		assert.equal(menu.focused(), menu.trigger);
+	} finally {
+		await menu.dispose();
+	}
+});
+
+async function mountMenu(context: TestContext, disabledFirst?: 'menuitem' | 'menuitemradio'): Promise<{
 	trigger: ReactTestElement;
 	next: ReactTestElement;
 	item: ReactTestElement;
@@ -105,7 +119,8 @@ async function mountMenu(context: TestContext): Promise<{
 		<button data-trigger="true">View</button>
 		<button data-next="true">Panel menu</button>
 		{open && <ContextMenu isOpen x={0} y={0} onClose={close}>
-			<button role="menuitem">Close</button>
+			{disabledFirst && <ContextMenuItem label="Unavailable" role={disabledFirst} disabled />}
+			<button role="menuitem" data-enabled-item="true">Close</button>
 		</ContextMenu>}
 	</>;
 	await act(async () => root.render(render()));
@@ -114,7 +129,7 @@ async function mountMenu(context: TestContext): Promise<{
 	trigger.focus();
 	open = true;
 	await act(async () => root.render(render()));
-	const item = dom.one('[role="menuitem"]');
+	const item = dom.one('[data-enabled-item="true"]');
 	// The minimal DOM has attribute selectors; supply the menu's direct-child
 	// selector so the real document keyboard listener can handle Escape.
 	const menu = dom.one('[role="menu"]');

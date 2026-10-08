@@ -383,6 +383,12 @@ application overrides and source patches against the pin and upstream master.
     ordinary configured-command workflow from the transport Play button.
     Upstream-PR candidate.
 
+53. `ContextMenu` initially focuses its first enabled direct item, matching
+    keyboard navigation membership. An unavailable leading item no longer traps
+    Home, arrows or Escape as though it were a nested submenu. Covered by
+    `tests/vendored-design-system-context-menu-focus.test.tsx` and the ordinary
+    label-track menu keyboard workflow. Upstream-PR candidate.
+
 ## Application-side adaptations
 
 Not deviations — application code that had to change because upstream did. Listed because they

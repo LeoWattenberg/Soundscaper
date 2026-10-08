@@ -84,7 +84,9 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
 
     // Find first focusable menu item
     const menu = menuRef.current;
-    const firstItem = menu.querySelector('[role="menuitem"], [role="menuitemradio"]') as HTMLElement;
+    const firstItem = Array.from(menu.querySelectorAll<HTMLElement>('[role="menuitem"], [role="menuitemradio"]'))
+      .find(item => item.parentNode === menu && item.getAttribute('aria-disabled') !== 'true'
+        && !item.hasAttribute('disabled'));
     if (firstItem) {
       const focusedElement = document.activeElement;
       // Use setTimeout to ensure menu is rendered and positioned
