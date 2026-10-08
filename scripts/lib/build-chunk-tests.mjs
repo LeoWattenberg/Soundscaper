@@ -365,7 +365,7 @@ const framescaperProjectCommandModules = Object.freeze([
 export const FRAMESCAPER_PROJECT_COMMAND_CHUNK_TEST = new RegExp(
 	`src[\\\\/]framescaper[\\\\/](?:${framescaperProjectCommandModules.join('|')})\\.ts$`,
 );
-export const FRAMESCAPER_SESSION_CLIPBOARD_CHUNK_TEST = /src[\\/]framescaper[\\/]editor-session-clipboard-v(?:8|11(?:-(?:controller|selection))?|12(?:-controller)?|13(?:-paste)?)\.ts$/;
+export const FRAMESCAPER_SESSION_CLIPBOARD_CHUNK_TEST = /src[\\/]framescaper[\\/]editor-session-clipboard-(?:visual-collisions|v(?:8|11(?:-(?:controller|selection))?|12(?:-controller)?|13(?:-paste)?))\.ts$/;
 
 /** Timeline-image feature modules plus the runtime projection chain they extend. */
 export const FRAMESCAPER_TIMELINE_IMAGE_CHUNK_TEST =

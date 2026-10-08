@@ -71,12 +71,14 @@ test('the Framescaper project command spine has one non-recursive semantic owner
 
 test('new clipboard generations stay out of the timeline-image owner', () => {
 	for (const path of [
+		'src/framescaper/editor-session-clipboard-visual-collisions.ts',
 		'src/framescaper/editor-session-clipboard-v12.ts',
 		'src/framescaper/editor-session-clipboard-v12-controller.ts',
 		'src/framescaper/editor-session-clipboard-v13.ts',
 		'src/framescaper/editor-session-clipboard-v13-paste.ts',
 	]) assert.equal(chunkGroupForModulePath(path), 'framescaper-session-clipboard');
 	for (const path of [
+		'src/framescaper/editor-session-clipboard-visual-collisions.ts',
 		'src/framescaper/editor-session-clipboard-v8.ts',
 		'src/framescaper/editor-session-clipboard-v11.ts',
 		'src/framescaper/editor-session-clipboard-v11-controller.ts',

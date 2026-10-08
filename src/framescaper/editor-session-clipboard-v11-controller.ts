@@ -13,6 +13,7 @@ import {
 	type FramescaperFinishingClipboardPasteV11,
 } from './editor-session-clipboard-v11.ts';
 import { validateFramescaperProjectFinishing, type FramescaperProjectFinishing } from './editor-project-finishing.ts';
+import { prepareVisualClipboardCollisions } from './editor-session-clipboard-visual-collisions.ts';
 
 type DataRecord = Record<string, unknown>;
 type IdFactory = (prefix?: string) => string;
@@ -33,8 +34,11 @@ export function prepareFramescaperSessionClipboardPasteCommandV11(
 	if (JSON.stringify(paste.clipboard) !== JSON.stringify(clipboard.descriptor)) {
 		throw new RangeError('The V11 carrier and foundation paste descriptors must match exactly.');
 	}
-	const foundationCommand = sanitizeFoundationCommand(baseCommand, clipboard);
-	const afterBase = applyFramescaperProjectCommandFinishing(profile, project, foundationCommand);
+	const collisions = prepareVisualClipboardCollisions(project, baseCommand);
+	const foundationCommand = sanitizeFoundationCommand(collisions.foundationCommand, clipboard);
+	const afterFoundation = applyFramescaperProjectCommandFinishing(profile, project, foundationCommand);
+	const afterBase = collisions.commands.length ? applyFramescaperProjectCommandFinishing(profile, afterFoundation,
+		{ type: 'batch', commands: collisions.commands }) : afterFoundation;
 	const allocations = allocationMaps(project, clipboard, paste, createId);
 	const references = projectReferenceMaps(afterBase, clipboard, paste, allocations);
 	const pasted = prepareFramescaperFinishingClipboardPasteV11(clipboard.finishing, {
@@ -61,7 +65,7 @@ export function prepareFramescaperSessionClipboardPasteCommandV11(
 		{ type: 'batch', commands: visualCommands },
 	);
 	const finishingCommands = createFinishingCommands(afterVisual, pasted);
-	const commands = [foundationCommand, ...visualCommands, ...finishingCommands];
+	const commands = [foundationCommand, ...collisions.commands, ...visualCommands, ...finishingCommands];
 	return commands.length === 1 ? commands[0]! : Object.freeze({
 		type: 'batch' as const,
 		commands: Object.freeze(commands),

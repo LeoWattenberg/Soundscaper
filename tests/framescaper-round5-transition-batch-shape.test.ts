@@ -20,7 +20,9 @@ test('transition preparation retains an inherited nested transaction using exist
 	assert.deepEqual(prepared, command);
 	assert.deepEqual(project, original);
 	const applied = applyFramescaperProjectCommandFinishing(PROFILE, project, prepared);
-	assert.equal(applied.tracks.find(track => track.id === 'video-track')?.name, 'Picture copy');
-	assert.deepEqual(applied.selection.clipIds, ['video-clip']);
+	const tracks = applied.tracks as readonly Readonly<{ id: string; name: string }>[];
+	const selection = applied.selection as Readonly<{ clipIds: readonly string[] }>;
+	assert.equal(tracks.find(track => track.id === 'video-track')?.name, 'Picture copy');
+	assert.deepEqual(selection.clipIds, ['video-clip']);
 	assert.deepEqual(applied.clips, project.clips);
 });

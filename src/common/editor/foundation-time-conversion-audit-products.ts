@@ -75,6 +75,15 @@ export const FOUNDATION_TIME_CONVERSION_PRODUCT_SITES: readonly FoundationTimeCo
 		conversions: [{ helper: 'sampleFrameToVideoFrame', policies: ['point'] }],
 	},
 	{
+		id: 'framescaper-visual-paste-collision-span',
+		file: 'src/framescaper/editor-session-clipboard-visual-collisions.ts',
+		behavior: 'Native visual overwrite and ripple paste use the inherited video collision clock: clipboard duration scales to the nearest destination sample count, then the paste anchor and duration each round to the nearest sequence frame, preserving survivor source windows outside that span.',
+		conversions: [
+			{ helper: 'scaleSampleFrame', policies: ['point'] },
+			{ helper: 'sampleFrameToVideoFrame', policies: ['point'] },
+		],
+	},
+	{
 		id: 'framescaper-native-image-sequence-import',
 		file: 'src/framescaper/editor-native-image-sequence-import.ts',
 		behavior: 'An imported native image sequence takes its sample length from the enclosing end of its frame count so the final image is covered whole, and the bin clip converts that length back to the nearest sequence-frame count at the primary sequence rate, never below one frame.',
