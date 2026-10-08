@@ -17,3 +17,12 @@ test('independent tempo stretching retains the native pitch while snapping spect
 	assert.ok(Math.abs(snapSpectralCenterToPeak(550, peaks) - 512) < 1, 'tempo alone does not transpose the selected audio');
 });
 
+test('a sounding third channel supplies spectral center peaks in an ordinary surround recording', () => {
+	const channels = [new Float32Array(tone.length), new Float32Array(tone.length), tone];
+	const controller = { getClipVisualData: () => ({ source: { sampleRate: rate },
+		buffer: { numberOfChannels: channels.length, getChannelData: (channel: number) => channels[channel]! } }) };
+	const clip = { id: 'surround', sourceId: 'source', timelineStartFrame: 0, sourceStartFrame: 0,
+		sourceDurationFrames: tone.length, durationFrames: tone.length, waveformStartFrame: 0, waveformEndFrame: tone.length };
+	assert.ok(Math.abs(snapSpectralCenterToPeak(550,
+		selectedTrackSpectralPeaks(controller, [clip], { startFrame: 0, endFrame: tone.length }, rate)) - 512) < 1);
+});
