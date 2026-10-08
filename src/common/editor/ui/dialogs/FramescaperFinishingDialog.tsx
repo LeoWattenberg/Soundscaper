@@ -4,6 +4,7 @@ import { usePresentationFeedback, feedbackFailure, type PresentationFeedback } f
 import { FRAMESCAPER_FINISHING_ADDITIONAL_COPY } from '../../../i18n/editor-framescaper-finishing-additional-copy.ts';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createStableId } from '../../stable-id.js';
 
 import { Button } from '@soundscaper/design-system/Button';
 import { DialogFooter } from '@soundscaper/design-system/Footer';
@@ -263,7 +264,7 @@ export default function FramescaperFinishingDialog({
 		perform(() => {
 			const profile = profiledNoiseReduction ? parseNoiseProfile(noiseProfileText) : null;
 			const chain = createFramescaperDialogueChain({
-				id: `dialogue:${selectedTrackId}`,
+				id: createStableId('dialogue'),
 				sampleRate: projectSampleRate(project),
 				...(profile === null ? {} : { noiseReduction: { profile } }),
 			});
