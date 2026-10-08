@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { expect, test, createWavFixture } from './audio-editor-test-fixtures.js';
-import { bootEditor, chooseCommandAction, chooseNestedCommandAction, clipByName, disableNativeSavePicker,
+import { bootEditor, chooseCommandAction, chooseDropdown, chooseNestedCommandAction, clipByName, disableNativeSavePicker,
 	importFiles, openExportDialog, readDownloadBytes } from './audio-editor-test-helpers.js';
 import { chooseTrackMenuAction } from './helpers/track-menu.js';
 
@@ -22,7 +22,7 @@ test('Split stereo refuses an unrepresentable custom route without altering audi
 	const clipStyle = await clip.getAttribute('style');
 	const connections = await graph.locator('[data-routing-edge]').count();
 	await chooseTrackMenuAction(page, editor, track, ['Track channels', 'Split stereo to left/right mono']);
-	await expect(editor.getByRole('alert')).toContainText('Reset or remove the custom channel map in Routing graph');
+	await expect(editor.locator('.toast--error[role="alert"]')).toContainText('Reset or remove the custom channel map in Routing graph');
 	await expect(editor).toHaveAttribute('data-clip-count', '1');
 	await expect(clip).toHaveAttribute('style', clipStyle);
 	await expect(history).toHaveCount(count);
@@ -51,7 +51,7 @@ test('Split stereo retains both channels of an ordinary default send', async ({ 
 	await expect(editor).toHaveAttribute('data-clip-count', '2');
 	const after = await exportChannels(page, editor);
 	for (const channel of [0, 1]) expect(rms(after[channel])).toBeCloseTo(rms(before[channel]), 5);
-	await expect(editor.getByRole('alert')).toHaveCount(0);
+	await expect(editor.locator('.toast--error[role="alert"]')).toHaveCount(0);
 });
 
 async function setup(page) {
@@ -74,6 +74,7 @@ async function setup(page) {
 
 async function exportChannels(page, editor) {
 	const dialog = await openExportDialog(page, editor);
+	await chooseDropdown(page, dialog.locator('[data-export-field="dither"]'), 'None');
 	const link = dialog.locator('[data-export-download]');
 	const previous = await link.count() ? await link.getAttribute('href') : null;
 	await dialog.getByRole('button', { name: 'Export', exact: true }).click();
