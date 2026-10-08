@@ -24,7 +24,7 @@ for (const [action, element, marker] of [['Bold', 'strong', '**'], ['Italic', 'e
 		await expect(notes).toHaveValue(original);
 		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved');
 		await page.reload();
-		await waitForEditor(editor);
+		await waitForEditor(page);
 		await expect(notes).toHaveValue(original);
 	});
 }
