@@ -58,15 +58,43 @@ test('Soundscaper keeps picture controls, unlinked companions and foreign projec
 		clips: project.clips.map(clip => ({ ...clip, avLinkId: null })) }),
 		input(createPersistedVideoProject({ timeline: true }).project), input(null)]) {
 		assert.deepEqual(createFramescaperEditControlMenuModel(request), { link: null, visibility: null });
+		assert.deepEqual(createSoundscaperEditControls(request, { unlink: () => assert.fail('unsupported Unlink') }),
+			{ link: null, visibility: null });
 	}
 });
 
 test('Soundscaper blocks Unlink during a mutation without dispatching the controller action', () => {
-	const items = createFramescaperEditControlMenuItems(input(cameraProject(), 'persisted-timeline-audio', true), {
-		link: () => { assert.fail('unexpected Link'); }, unlink: () => { assert.fail('blocked Unlink'); },
-		setVideoHidden: () => { assert.fail('unexpected visibility'); },
-	});
-	assert.equal(items.link?.disabled, true);
-	items.link?.onClick();
-	assert.equal(items.visibility, null);
+	for (const createItems of [createFramescaperEditControlMenuItems, createSoundscaperEditControls]) {
+		const request = input(cameraProject(), 'persisted-timeline-audio', true);
+		const items = createItems(request, {
+			link: () => { assert.fail('unexpected Link'); }, unlink: () => { assert.fail('blocked Unlink'); },
+			setVideoHidden: () => { assert.fail('unexpected visibility'); },
+		});
+		request.editBlocked = false;
+		assert.equal(items.link?.disabled, true);
+		items.link?.onClick();
+		assert.equal(items.visibility, null);
+	}
+});
+
+test('the shipped camera-audio recovery rejects broken or ambiguous linked pairs', () => {
+	const project = cameraProject();
+	for (const malformed of [
+		{ ...project, clips: project.clips.map(clip => clip.kind === 'audio'
+			? { ...clip, timelineStartFrame: 1 } : clip) },
+		{ ...project, clips: project.clips.map(clip => clip.kind === 'video'
+			? { ...clip, avLinkId: 'other-link' } : clip) },
+		{ ...project, clips: [...project.clips, { ...project.clips[1], id: 'extra-linked-audio' }] },
+		{ ...project, tracks: project.tracks.map(track => track.type === 'audio'
+			? { ...track, laneGroupId: 'other-lanes' } : track) },
+		{ ...project, tracks: [...project.tracks,
+			createAudioTrack({ id: 'duplicate-audio-lane', clipIds: ['persisted-timeline-audio'] })] },
+		{ ...project, clips: project.clips.map(clip => clip.kind === 'video'
+			? { ...clip, sequenceFrameCount: -1 } : clip) },
+	]) {
+		const items = createSoundscaperEditControls(input(malformed), {
+			unlink: () => assert.fail('a broken linked pair must not dispatch Unlink'),
+		});
+		assert.deepEqual(items, { link: null, visibility: null });
+	}
 });

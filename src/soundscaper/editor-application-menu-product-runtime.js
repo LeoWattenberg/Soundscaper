@@ -7,7 +7,8 @@ import { createAraApplicationMenuItems } from '../common/editor/ui/ara-applicati
 
 const EMPTY_ITEMS = Object.freeze([]);
 
-export { createFramescaperEditControlMenuItems } from '../common/editor/ui/framescaper-edit-control-menu-model.ts';
+export { createLinkedAudioRecoveryMenuItems as createFramescaperEditControlMenuItems }
+	from '../common/editor/ui/linked-audio-recovery-menu-model.ts';
 
 export function createFramescaperVideoTrimApplicationMenuItems() {
 	return EMPTY_ITEMS;

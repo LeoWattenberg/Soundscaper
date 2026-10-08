@@ -148,6 +148,7 @@ export const FOUNDATION_RUNTIME_SHIELDED_OWNERS: readonly FoundationRuntimeShiel
 	{ file: 'src/common/editor/audacity-shortcut-actions/item-navigation-geometry.ts', surfaces: ['navigation'] },
 	{ file: 'src/common/editor/ui/timeline/useTimelineViewportModel.js', surfaces: ['timeline'] },
 	{ file: 'src/common/editor/ui/framescaper-edit-control-menu-model.ts', surfaces: ['timeline'] },
+	{ file: 'src/common/editor/ui/linked-audio-recovery-menu-model.ts', surfaces: ['timeline'] },
 	{ file: 'src/common/editor/ui/regular-interval-dialog-defaults.ts', surfaces: ['timeline'] },
 	{ file: 'src/common/editor/controller/document/project-visual-service.ts', surfaces: ['waveform'] },
 	{ file: 'src/common/editor/ui/inspector/ClipPropertiesPanel.tsx', surfaces: ['waveform'] },

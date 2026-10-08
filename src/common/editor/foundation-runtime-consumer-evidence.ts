@@ -457,6 +457,13 @@ const entries: FoundationRuntimeConsumerEvidence[] = [
 		evidence: 'Framescaper linked-audio menu admission crosses the shared runtime projection boundary after removing only V19’s validated-empty unavailable annotation carrier.',
 	},
 	{
+		id: 'linked-audio-recovery-menu', surface: 'timeline',
+		file: 'src/common/editor/ui/linked-audio-recovery-menu-model.ts',
+		entryPoint: 'projectForLinkedAudioRecovery', inputIdentifier: 'project', projectedIdentifier: null,
+		boundary: 'projectForRuntimeConsumers',
+		evidence: 'Soundscaper camera-audio recovery resolves the imported audio and its preserved video companion into the project sample clock before admitting the existing Unlink action.',
+	},
+	{
 		id: 'clip-properties-source-waveform',
 		surface: 'waveform',
 		file: 'src/common/editor/ui/inspector/ClipPropertiesPanel.tsx',
