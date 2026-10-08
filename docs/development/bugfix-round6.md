@@ -95,3 +95,21 @@ time limits while the host pages heavily, so the additional full browser run
 is interrupted and will resume after the full Node run. Its interrupted
 results are not passing evidence; focused public results remain recorded
 individually. Later source corrections still await their own public GREEN.
+
+The milestone Node run on `03748a70e` completes 24,128 cases across its
+execution batches: 24,092 passed, 33 skipped and three failed. The exact
+projection-consumer inventory lacks two newly extracted owned adapters; a
+workspace-menu support expectation still selects its disabled first item; and
+a program-name fixture does not update the saved prop after an Enter commit.
+These failures remain failures until their faithful support corrections and a
+full rerun pass. No test is skipped and no architecture gate is relaxed.
+
+The same immutable public batch passes every new track, output, timeline label,
+folder and marker composition workflow, Manage labels, native capture-setting
+retention and delivery-report identity across all three engines. With the
+separately corrected metadata fixture, 58 distinct roots are now publicly
+verified. Inline clip naming remains incomplete in this build and is excluded;
+its ancestor-propagation follow-through awaits a later immutable verification.
+The other failing audio workflows had previously passed unchanged; their
+load-related timeouts are kept as failed run results pending unchanged retries
+(`/tmp/soundscaper-round6-green8-public-browser.log`, 196 passed, 20 failed).
