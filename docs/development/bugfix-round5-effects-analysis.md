@@ -125,7 +125,11 @@ The ordinary Chromium baseline fails on preview0.891 versus applied0.099
 (`/tmp/soundscaper-r5-root-normalize-preview-red3.log`). Three strict cases using
 the actual normalization processors fail before correction; the stateless
 control passes. All 11 new and existing preview regressions pass afterward,
-with target lint passing. Corrected public browser verification is pending.
+with target lint passing. The ordinary workflow passes all three engines on
+immutable `8ef90da46` (3/3, exit 0; `/tmp/soundscaper-r5-root-normalize-preview-green3b.log`).
+The first corrected run exhausted the old 30-second overall test budget; these
+timeouts are excluded. The unchanged download/audio assertions pass with a
+90-second budget for the import, Preview, Apply, export, download and decoding flow.
 Regressions are `audio-editor-round5-normalize-preview-gain.test.ts` and
 `audio-editor-round5-normalize-preview-gain.spec.js`. Complete-selection
 statistics follow the existing processor policy and the

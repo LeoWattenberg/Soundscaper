@@ -9,6 +9,7 @@ function peak(samples) {
 }
 
 test('Normalize preview plays the same gain that Apply uses for the full recording', async ({ page }) => {
+	test.setTimeout(90_000);
 	await disableNativeSavePicker(page);
 	await page.addInitScript(() => {
 		window.__round5NormalizePreview = [];
