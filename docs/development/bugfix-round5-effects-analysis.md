@@ -192,3 +192,26 @@ immutable `5c194daa1` (3/3, exit 0, 21.9 seconds;
 `/tmp/soundscaper-r5-root-source-spectral-green7.log`). Regressions are
 `audio-editor-round5-source-spectral-clock.test.ts` and
 `audio-editor-round5-source-spectral-clock.spec.js`.
+
+## R5-ROOT-008 — Source waveform consumes a configured modified-Space command
+
+Import an ordinary WAV. In Edit → Preferences → Keyboard shortcuts, bind
+New label track to Ctrl+Alt+Space. Open the recording's Clip properties, focus
+Source waveform and press that binding. The baseline starts source audition
+and creates no label track. The waveform's container claims every Space event
+before the configured command can receive it.
+
+Reserve plain Space for source audition; leave modifier-bearing Space and
+already-handled events to their existing command owners. Native input and
+button handling remains intact. This container-level Space owner is separate
+from the earlier source trim and source ruler arrow navigation owners.
+
+The ordinary Chromium baseline fails at the absent new label track
+(`/tmp/soundscaper-r5-root-source-waveform-shortcut-baseline.log`). The mounted
+production component independently fails because Ctrl+Space starts audition;
+the corrected test covers Ctrl, Meta, Alt, Shift and handled events, plus plain
+Space's original behavior. Source selection, trim, ruler and marker support
+passes 13/13. Regressions are
+`audio-editor-round5-source-waveform-shortcut.test.tsx` and
+`audio-editor-round5-source-waveform-shortcut.spec.js`. Final public verification
+is pending the next immutable guarded build; this entry is not counted yet.

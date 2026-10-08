@@ -217,8 +217,8 @@ export default function ClipSourceEditor({ controller, project, clipId, copy, bl
 	return <div ref={rootRef} className="audio-editor-clip-source-editor" data-clip-source-editor onFocusCapture={focus}
 		onKeyDownCapture={event => { if (event.key === 'Escape' && gesture.current) { event.preventDefault(); event.stopPropagation(); cancelGesture(); } }}
 		onKeyDown={event => {
-			if (event.target instanceof HTMLInputElement || event.target instanceof HTMLButtonElement) return;
-			if (event.code === 'Space') { event.preventDefault(); event.stopPropagation(); run(() => preview.playPause(clipId)); }
+			if (event.defaultPrevented || event.target instanceof HTMLInputElement || event.target instanceof HTMLButtonElement) return;
+			if (event.code === 'Space' && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) { event.preventDefault(); event.stopPropagation(); run(() => preview.playPause(clipId)); }
 			if (event.key === 'Escape') { gesture.current = null; setDragFrame(null); setFadePreview(null); run(() => preview.stop()); }
 			if ((event.ctrlKey || event.metaKey) && event.key === 'a') { event.preventDefault(); event.stopPropagation(); run(() => applySelection({ startFrame: 0, endFrame: range.totalFrames })); }
 		}}>
