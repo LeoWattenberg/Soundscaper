@@ -36,8 +36,10 @@ function harness(profileRate: number, projectRate = 48_000) {
 		setStatus: message => { statuses.push(message); },
 		commit: command => { project = applySoundscaperProjectCommand(project, command); return project as unknown as RackEffectProject; },
 	});
-	return { service, profile, state, statuses, get effect() {
-		return (project as unknown as RackEffectProject).tracks[0]!.effects![0] as ControllerRackEffect;
+	return { service, profile, state, statuses, get effect(): ControllerRackEffect {
+		const effect = service.effectStack('track', 'track')[0];
+		assert.ok(effect, 'the track must contain the rack effect added by the test');
+		return effect;
 	} };
 }
 
