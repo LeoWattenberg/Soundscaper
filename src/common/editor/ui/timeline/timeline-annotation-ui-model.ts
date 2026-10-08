@@ -80,6 +80,7 @@ export interface TimelineAnnotationUiModel {
 
 export interface TimelineAnnotationKeyInput {
 	readonly key: string;
+	readonly defaultPrevented?: boolean;
 	readonly shiftKey?: boolean;
 	readonly altKey?: boolean;
 	readonly ctrlKey?: boolean;
@@ -220,6 +221,7 @@ export function resolveTimelineAnnotationKeyboardIntent(
 	sampleRateInput: number,
 	movementBounds?: TimelineAnnotationFrameBounds,
 ): TimelineAnnotationKeyboardIntent | null {
+	if (input.defaultPrevented || ((input.ctrlKey || input.metaKey || input.altKey) && input.key !== 'ArrowLeft' && input.key !== 'ArrowRight')) return null;
 	validateProjection(annotation);
 	const sampleRate = positiveSafeInteger(sampleRateInput, 'Project sample rate');
 	const bounds = movementBounds ?? {
@@ -260,7 +262,6 @@ export function resolveTimelineAnnotationKeyboardIntent(
 		deltaFrames: deltaFrames || 0,
 	});
 }
-
 export function consumeTimelineAnnotationRenameKey(
 	event: TimelineAnnotationRenameKeyInput,
 ): TimelineAnnotationRenameCompletionIntent | null {
@@ -269,7 +270,6 @@ export function consumeTimelineAnnotationRenameKey(
 	event.preventDefault();
 	return Object.freeze({ save: event.key === 'Enter', restoreFocus: true });
 }
-
 export function timelineAnnotationPointerDelta(
 	startClientX: number,
 	clientX: number,
