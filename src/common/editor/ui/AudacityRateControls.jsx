@@ -21,6 +21,10 @@ export default function AudacityRateControls({ effectType, parameters, effectCon
 	const percent = Number(parameters[name]) || 0;
 	const multiplier = 1 + percent / 100;
 	const [fromBpm, setFromBpm] = useState(0);
+	const fromBpmRange = fromBpm ? [
+		Math.max(1, fromBpm * multiplier / (1 + parameterRange[1] / 100)),
+		Math.min(1_000, fromBpm * multiplier / (1 + parameterRange[0] / 100)),
+	] : [1, 1_000];
 	const [fromRpm, setFromRpm] = useState(100 / 3);
 	const sourceDuration = Number(effectContext.selectionDuration);
 	const label = key => canonicalCopyValue(key, copy);
@@ -50,7 +54,7 @@ export default function AudacityRateControls({ effectType, parameters, effectCon
 		{tempo ? <section className="audio-editor-audacity-port__section audio-editor-audacity-port__section--boxed">
 			<h3 className="audio-editor-audacity-port__heading">{label('effectAudacityBeatsPerMinute')}</h3>
 			<div className="audio-editor-audacity-pitch__pair">
-				{number('effectAudacityFromBpm', fromBpm || '', [1, 1_000], next => {
+				{number('effectAudacityFromBpm', fromBpm || '', fromBpmRange, next => {
 					setFromBpm(next);
 					if (fromBpm) void commit((fromBpm * multiplier / next - 1) * 100);
 				})}

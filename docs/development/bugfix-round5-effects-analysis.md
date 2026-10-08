@@ -370,3 +370,28 @@ and WebKit (9/9, 1.7 minutes, no skips or failures;
 `/tmp/soundscaper-r5-root-source-multichannel-green16.log`). Both guarded
 production builds pass. ROOT-012 is counted once; assistance runtime assets
 are unchanged.
+
+## R5-ROOT-013 — Changing source BPM silently replaces the chosen destination
+
+Import an ordinary WAV and open Effect → Pitch and tempo → Change tempo.
+Set From BPM to 120 and To BPM to 240, then change From BPM to 100.
+The baseline silently substitutes 200 for the user's chosen 240 BPM because
+the implied 140% tempo change exceeds the existing 100% processor ceiling.
+The reciprocal case changes a chosen 60 BPM to 75 when From BPM becomes 150.
+
+Bound edits of an established source BPM by the chosen destination and the
+existing effect parameter limits. Refuse the unsupported reference in the
+ordinary field validation before publishing another percent or destination.
+An initial reference retains its existing 1–1000 BPM bounds. A valid subsequent
+160 → 240 edit still produces 50% and the expected 0.8/1.5-second audio.
+
+The ordinary immutable-baseline Chromium workflow fails at 200 versus 240
+(`/tmp/soundscaper-r5-root-tempo-reference-destination-baseline.log`). Both
+mounted production controls independently fail at the changed destination
+(`/tmp/soundscaper-r5-root-tempo-reference-node-red2.log`); the initial loader
+attempt without the repository's CSS loader is excluded. Corrected new and
+existing rate, duration and derived-control checks pass 11/11. Target lint
+passes. Production browser verification is pending, so ROOT-013 is uncounted.
+Regressions are `audio-editor-round5-tempo-reference-admission.test.tsx` and
+`audio-editor-round5-tempo-reference-admission.spec.js`. Assistance runtime
+assets are unchanged.
