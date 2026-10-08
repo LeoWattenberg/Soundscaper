@@ -403,7 +403,8 @@ export function createEffectMacroService<Buffer = MacroRenderBuffer>(runtime: Ef
 		contextCacheBytes: number,
 	): Promise<readonly Float32Array[]> {
 		const segments = planEffectMacroChain(effects as unknown as readonly EffectMacroChainStep[]);
-		const leadsWithRack = segments[0]?.realtime === true && !target.sourceId;
+		const leadsWithRack = segments[0]?.realtime === true && !target.sourceId
+			&& !segments[0].steps.some(step => step.type === 'audacity-auto-duck');
 		let channels: readonly Float32Array[];
 		if (leadsWithRack) {
 			channels = await renderTimelineRack(

@@ -5,6 +5,7 @@ import test from 'node:test';
 import { createEffectMacroChainRunner, planEffectMacroChain } from '../src/common/editor/controller/effects/internal/macro/effect-macro-chain.ts';
 import { applyAudacityEffect } from '../src/common/editor/audacity-effects/index.js';
 import type { EngineProject } from '../src/common/editor/engine/types.ts';
+import type { MixerGraphV21 } from '../src/common/editor/mixer-graph-v21.ts';
 
 interface PcmBuffer { readonly channels: Float32Array[]; }
 
@@ -35,6 +36,10 @@ for (const native of [false, true]) test(`${native ? 'source' : 'mixed timeline'
 			const controlId = effect.context?.controlTrackId;
 			const controlTrack = tracks.find(item => item.id === controlId);
 			assert.ok(controlTrack, 'the engine can resolve the authored voice control');
+			const mixer = project.mixer as MixerGraphV21;
+			assert.ok(mixer.edges.some(edge => edge.destination.kind === 'effect-sidechain'
+				&& edge.destination.effectId === effect.id && edge.source.kind === 'track'
+				&& edge.source.id === controlId), 'the production graph connects voice to the detector');
 			const read = (clipId: unknown) => {
 				assert.ok(typeof clipId === 'string');
 				const clip = clips.find(item => item.id === clipId);

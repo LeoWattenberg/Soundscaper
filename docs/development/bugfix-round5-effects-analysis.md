@@ -142,19 +142,24 @@ Macros palette → New macro → Add effect → Auto Duck → Run macro. A valid
 second audio track exists and the ordinary Auto Duck effect can use it. The
 baseline refuses the macro: “Auto Duck requires a valid control track.”
 
-Rack materialization correctly chooses the voice, but a source macro's
-one-clip temporary render discards every other track. A realtime step after an
-offline macro step uses the same staging boundary. Stage the bounded control
-PCM beside the processed selection, preserving the authored control ID without
-mixing it into the output. Source targets use the existing placement and native
-sample-rate renderer; timeline targets retain their ordinary window. Existing
-memory estimates already account for Auto Duck control channels. Each await
-retains the macro's ownership check.
+Rack materialization correctly chooses the voice, but the temporary render
+discards its control track and explicit mixer sidechain edge. A leading timeline
+macro and a realtime step after an offline step have the same missing graph
+dependency. Stage the bounded control PCM beside the processed selection and
+connect it to the actual Auto Duck instance, preserving the authored control ID
+without mixing it into the output. Source targets use the existing placement and
+native sample-rate renderer; timeline targets retain their ordinary window.
+Existing memory estimates already account for Auto Duck control channels. Each
+await retains the macro's ownership check.
 
-The ordinary Chromium baseline fails with the visible valid-control refusal
-(`/tmp/soundscaper-r5-root-source-macro-duck-red2.log`). Two strict chain cases
+Both ordinary Chromium baseline workflows fail with the visible valid-control
+refusal (`/tmp/soundscaper-r5-root-source-macro-duck-red2.log` and
+`/tmp/soundscaper-r5-root-timeline-macro-duck-red.log`). Two strict chain cases
 fail because the actual temporary engine project cannot resolve the control.
-Those and the existing source/mixed-rack/lifetime regressions pass after the
-correction (23/23). Target lint passes; public corrected verification is pending.
+The first correction added the control PCM but still failed public verification
+on checkpoint `5832abef0`; those failures exposed the required explicit sidechain
+connection and the leading timeline path. The corrected strict cases assert that
+connection and pass alongside existing source/mixed-rack/lifetime regressions
+(23/23). Target lint passes; final public corrected verification is pending.
 This temporary graph ownership defect is independent of earlier regular
 Source Auto Duck placement and selection-edge fade corrections.

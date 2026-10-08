@@ -12,6 +12,7 @@
 
 import { createLocalizedError } from '../../../../../i18n/presentation-message.ts'; import { AUDIO_SELECTION_EFFECT_DEFINITIONS } from '../../../../effects.js';
 import { createAudioPreviewProject } from '../../../../engine/audio-preview-project.ts';
+import { defaultMixerChannelMapV21, type MixerGraphV21 } from '../../../../mixer-graph-v21.ts';
 import { createStableId } from '../../../../project.js';
 import { isRealtimeEffectMacroStepType } from '../../../../effect-macro-steps.ts';
 import { runOfflineSelectionSegment, type RunOfflineSelectionChain } from './offline-selection-chain.ts';
@@ -202,6 +203,7 @@ export function createEffectMacroChainRunner<Buffer = MacroRenderBuffer>(runtime
 		const controlSources: Record<string, unknown>[] = [];
 		const controlClips: Record<string, unknown>[] = [];
 		const controlTracks: Record<string, unknown>[] = [];
+		const controlWidths = new Map<string, number>();
 		const sourceBuffers = new Map([[sourceId, buffer]]);
 		const controlIds = new Set(steps.filter(step => step.type === 'audacity-auto-duck')
 			.map(step => step.context?.controlTrackId).filter((id): id is string => typeof id === 'string' && Boolean(id)));
@@ -216,6 +218,7 @@ export function createEffectMacroChainRunner<Buffer = MacroRenderBuffer>(runtime
 			const controlSourceId = createStableId('macro-control-source');
 			const controlClipId = createStableId('macro-control-clip');
 			sourceBuffers.set(controlSourceId, controlBuffer);
+			controlWidths.set(controlTrackId, control.length);
 			controlSources.push({ id: controlSourceId, name: 'Macro control', storageKey: controlSourceId,
 				frameCount: frames, channelCount: control.length, sampleRate: runtime.sampleRate });
 			controlClips.push({ id: controlClipId, sourceId: controlSourceId, timelineStartFrame: 0,
@@ -255,7 +258,18 @@ export function createEffectMacroChainRunner<Buffer = MacroRenderBuffer>(runtime
 				solo: false,
 			}, ...controlTracks],
 		});
-		const rendered = await runtime.renderSnapshot(project, {
+		const mixer = project.mixer as MixerGraphV21;
+		const sidechainEdges = steps.filter(step => step.type === 'audacity-auto-duck').map(step => ({
+			id: createStableId('macro-control-edge'), kind: 'sidechain' as const,
+			source: { kind: 'track' as const, id: String(step.context?.controlTrackId) },
+			destination: { kind: 'effect-sidechain' as const, strip: { kind: 'track' as const, id: trackId }, effectId: step.id },
+			position: 'pre-fader' as const, level: 1, enabled: true,
+			channelMap: defaultMixerChannelMapV21(controlWidths.get(String(step.context?.controlTrackId)) ?? 1, channels.length),
+		}));
+		const staged = { ...project, mixer: { ...mixer, edges: [...mixer.edges.filter(edge => (
+			edge.source.kind !== 'track' || !controlIds.has(edge.source.id) || edge.kind === 'sidechain'
+		)), ...sidechainEdges] } };
+		const rendered = await runtime.renderSnapshot(staged, {
 			startFrame: 0,
 			endFrame: frames,
 			trackId,
