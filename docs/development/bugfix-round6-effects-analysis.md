@@ -130,30 +130,40 @@ type-aware lint passes. Ordinary Chromium passes on immutable checkpoint
 independent authored-map projection branch from unlinked uniform tempo in
 003; its exported pitch is independently verified rather than inferred.
 
-## R6-EFFECT-007 — Toggling a spectral band broadens its selected clip target
+## R6-EFFECT-007 — A clip-authored spectral band broadens its effect target
 
 Import ordinary 440 Hz and 880 Hz mono WAVs. Move the second recording onto
 the first track with its existing Preserve time menu action. Enable Spectrogram,
 select only the 440 Hz recording with Enter, and author a 100–1000 Hz band in
-Spectrogram options → Select spectral frequency range. Choose Select → Spectral
-→ Spectral selection twice, then reopen the band dialog and apply its default
-6 dB Spectral Amplify. The baseline also raises the unselected 880 Hz recording:
-its exported amplitude becomes 1.995 times its original value.
+Spectrogram options → Select spectral frequency range. Reopen the band dialog
+and apply its default 6 dB Spectral Amplify, with or without toggling Select →
+Spectral → Spectral selection off/on first. Both baseline paths also raise the
+unselected 880 Hz recording: its exported amplitude becomes 1.995 times its
+original value.
 
-The frequency-only toggle omits durable clip IDs on both its removal and
-restoration branches. The public selection setter then clears those IDs,
-turning the same time span into a complete track target. Retain the authored
-clip targets alongside the unchanged time and track selection.
+The band needs a positive display range alongside its durable clip targets.
+The effects adapter passes both into the general editing resolver, whose normal
+positive-time precedence discards clip targets. Preserve the band's exact clip
+scope in effect admission without changing ordinary time-selection precedence.
+The frequency-only toggle also omits durable clip IDs on removal/restoration;
+retain those IDs through the public selection setter. These are one public
+clip-band targeting correction, with no additional count for the toggle support.
 
-The strict regression fails at empty clip IDs before repair. The immutable
-public workflow fails at the downloaded neighbor's amplitude, after proving
-the selected recording was amplified (`/tmp/soundscaper-r6-effects-spectral-toggle-browser-red2.log`).
+The initial strict toggle repair alone passed but the immutable Green6 public
+workflow still failed in all three engines. The final control omits toggling
+entirely and remains causally RED at the downloaded neighbor's amplitude,
+after proving the selected recording was amplified
+(`/tmp/soundscaper-r6-effects-spectral-clip-admission-browser-red.log`). Its
+regression through the actual production editing resolver independently fails
+at a missing exact clip target; ordinary time-selection and retained-toggle
+controls pass (`/tmp/soundscaper-r6-effects-spectral-clip-admission-node-red.log`).
 An earlier click on an obscured overlapping header timed out; the final workflow
-uses the supported clip focus/Enter path, and that setup failure is excluded.
-All seven new/existing spectral/tool action regressions pass after repair
-(`/tmp/soundscaper-r6-effects-spectral-toggle-node-green.log`). Public GREEN is
-pending the next immutable product build. This toggle adapter is independent
-of the earlier macro frequency command's retained-target correction.
+uses supported clip focus/Enter and that setup failure is excluded. All 26
+new/existing target-selection and spectral/tool action regressions pass after
+admission repair (`/tmp/soundscaper-r6-effects-spectral-clip-admission-node-green.log`).
+Targeted type-aware lint and strict types pass. Public GREEN awaits the next
+immutable product build. This effects-admission owner is independent of the
+earlier macro frequency command's metadata correction.
 
 ## R6-EFFECT-008 — Macro effects overwrite frequencies outside the authored band
 
@@ -183,7 +193,9 @@ before repair (`/tmp/soundscaper-r6-effects-macro-spectral-node-red2.log`). All
 including per-step realtime inputs, context-free batch isolation, input PCM
 immutability and one result publication
 (`/tmp/soundscaper-r6-effects-macro-spectral-node-green2.log`). Targeted
-type-aware lint passes. Public GREEN awaits the next immutable product build.
+type-aware lint passes. The unchanged public workflow passes Chromium, Firefox
+and WebKit on immutable Green6 `1a269a3fa`
+(`/tmp/soundscaper-round6-green6-browser-all-engines.log`).
 Offline/realtime/chain variants share this one macro targeting root; the earlier
 reviewed-effect dispatcher repair never owned this macro service.
 
@@ -211,8 +223,10 @@ at correlation 0.9999999999999423 and power ratio 3.9999999809979605 respectivel
 `/tmp/soundscaper-r6-effects-noise-layers-browser-red2.log`). An earlier layer
 fixture used a spinbutton locator for a text input and is excluded. All 23
 new/existing generator, streaming and worker regressions pass after repair
-(`/tmp/soundscaper-r6-effects-noise-independent-node-green.log`). Public GREEN
-awaits the next immutable product build. All noise colors use the same job-seed
+(`/tmp/soundscaper-r6-effects-noise-independent-node-green.log`). Both unchanged
+public workflows pass Chromium, Firefox and WebKit on immutable Green6
+`1a269a3fa` (`/tmp/soundscaper-round6-green6-browser-all-engines.log`).
+All noise colors use the same job-seed
 root; the earlier pink-noise spectral balance correction is independent.
 
 These corrections do not change the assistance runtime closure or require a
