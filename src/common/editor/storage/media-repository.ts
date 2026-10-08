@@ -39,6 +39,7 @@ import { CATALOG_ORIGINAL_ROOT_STORE_NAME } from './media-catalog-original-schem
 import { assertNoCatalogOriginalRoot } from './media-catalog-original-records.ts';
 import { hasStoredBinaryPathReference } from './media-binary-reference-query.ts';
 import { MediaCatalogOriginalRepairRepositoryV1 } from './media-catalog-original-repair-repository.ts';
+import { MediaCatalogOriginalInspectionRepositoryV1, type CatalogOriginalInspectionOutcomeV1 } from './media-catalog-original-inspection-repository.ts';
 import type { CatalogOriginalRepairBindingV1, CatalogOriginalRepairOptionsV1, CatalogOriginalRepairReceiptV1 } from './media-catalog-original-repair-contract.ts';
 import { BinaryDerivativeCacheRepositoryV1, type BinaryDerivativeCachePortV1,
 	type BinaryDerivativeCacheProfileV1 } from './binary-derivative-cache-repository.ts';
@@ -75,6 +76,7 @@ export class MediaRepository {
 	readonly #assetWrites: MediaAssetWriteRepository;
 	readonly #assetLoads: MediaAssetLoadRepository;
 	readonly #originalRepairs: MediaCatalogOriginalRepairRepositoryV1;
+	readonly #originalInspections: MediaCatalogOriginalInspectionRepositoryV1;
 	readonly #derivatives: VideoDerivativeRepository;
 
 	constructor(port: StorageRepositoryPort, opfs: OpfsRepository, options: MediaRepositoryOptions = {}) {
@@ -85,6 +87,7 @@ export class MediaRepository {
 		this.#assetWrites = new MediaAssetWriteRepository(port, opfs, this.#assetLifecycle, options.confirmFileSizeWarning);
 		this.#assetLoads = new MediaAssetLoadRepository(port, this.#assetWrites, this.#assetLifecycle);
 		this.#originalRepairs = new MediaCatalogOriginalRepairRepositoryV1(port, opfs, this.#assetLifecycle);
+		this.#originalInspections = new MediaCatalogOriginalInspectionRepositoryV1(port, opfs, this.#assetLifecycle);
 		this.#derivatives = new VideoDerivativeRepository(port, opfs, options);
 	}
 
@@ -98,6 +101,9 @@ export class MediaRepository {
 	beginAssetMaintenance(options: Readonly<{ permanent?: boolean }> = {}): MediaAssetMaintenance { return this.#assetLifecycle.beginMaintenance(options); }
 	restoreCatalogOriginalBody(binding: CatalogOriginalRepairBindingV1, selected: unknown, options: CatalogOriginalRepairOptionsV1 = {}): Promise<Readonly<CatalogOriginalRepairReceiptV1>> {
 		return this.#originalRepairs.restore(binding, selected, options);
+	}
+	inspectCatalogOriginalBody(binding: CatalogOriginalRepairBindingV1, options: CatalogOriginalRepairOptionsV1 = {}): Promise<CatalogOriginalInspectionOutcomeV1> {
+		return this.#originalInspections.inspect(binding, options);
 	}
 	createBinaryDerivativeCache(profile: BinaryDerivativeCacheProfileV1): BinaryDerivativeCachePortV1 {
 		const cache = new BinaryDerivativeCacheRepositoryV1(this.#port, this.#opfs, this.#assetLifecycle, profile);
