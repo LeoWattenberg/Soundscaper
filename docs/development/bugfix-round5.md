@@ -1,7 +1,7 @@
 # Fifth user-reproducible regression audit
 
-This audit is in progress toward 100 additional distinct fixes. Sixty-eight
-new roots have completed ordinary browser verification (editing 18, dialogs 22,
+This audit is in progress toward 100 additional distinct fixes. Sixty-nine
+new roots have completed ordinary browser verification (editing 18, dialogs 23,
 effects/analysis 19, import/export 9). Its immutable
 baseline is `fe6440c81b3a0fe29a028c64db867ae7d2cf3252`.
 
@@ -59,9 +59,9 @@ all three engines, together with their existing interaction controls.
 Checkpoint twenty-five, `b92c1f339`, passes both guarded product builds and
 Source tempo processing of repeated audio across all three engines, including
 decoded pitch, repeat timing and Undo/Redo.
-Checkpoint twenty-six, `97a72977b`, passes both guarded product builds;
-camera speed admission with its public Unlink recovery and spreadsheet
-command ownership are awaiting final browser verification.
+Checkpoint twenty-six, `97a72977b`, passes both guarded product builds and
+spreadsheet command ownership across all three engines. Camera speed
+admission still requires follow-through for its public Unlink recovery.
 Browser evidence names each exact checkpoint. Firefox audio
 uses the unchanged CI PulseAudio setup with a private 48 kHz null sink.
 
