@@ -34,7 +34,7 @@ export function evaluateQualityBudget(thresholdsValue, metricsValue) {
 			: typeof actual !== 'number' || !Number.isFinite(actual)
 				? `Measurement ${threshold.metricId} must be finite.`
 				: `Measurement ${threshold.metricId} was ${String(actual)} ${threshold.unit}; expected ${threshold.comparison} ${String(threshold.value)} ${threshold.unit}.`;
-		if (threshold.behavior === 'blocking') failures.push(message);
+		if (typeof actual !== 'number' || !Number.isFinite(actual) || threshold.behavior === 'blocking') failures.push(message);
 		else warnings.push(message);
 	}
 	return Object.freeze({
