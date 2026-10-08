@@ -103,6 +103,7 @@ export async function createFixture(context) {
 		['scripts/collect-m4-production-parity-quality.mjs', 'export const collector = true;\n'],
 		['scripts/collect-m4b2-keyframe-parity-quality.mjs', 'export const collector = true;\n'],
 		['scripts/lib/quality-budget-config.mjs', 'export const config = true;\n'],
+		['scripts/lib/lightscaper-large-library-diagnostics-v1.ts', await readFile(new URL('../../scripts/lib/lightscaper-large-library-diagnostics-v1.ts', import.meta.url), 'utf8')],
 		['scripts/quality-budget-evaluator.mjs', 'export const evaluator = true;\n'],
 		['scripts/quality-budget-result.mjs', 'export const result = true;\n'],
 		['scripts/verify-quality-budget-result.mjs', 'export const verifier = true;\n'],

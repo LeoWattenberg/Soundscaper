@@ -57,10 +57,25 @@ test('nightly payload production modules have a closed local-import graph', () =
 	assert.ok(result.visited.has('scripts/lib/browser-coverage-profile.mjs'));
 	assert.ok(result.visited.has('scripts/lib/browser-dynamic-coverage-sources.mjs'));
 	assert.ok(result.visited.has('scripts/lib/browser-target-coverage-state.mjs'));
+	assert.ok(result.visited.has('scripts/lib/lightscaper-large-library-diagnostics-v1.ts'));
+	assert.ok(result.visited.has('scripts/lib/quality-budget-config.mjs'));
+	assert.ok(result.visited.has('scripts/quality-budget-evaluator.mjs'));
+	assert.ok(result.visited.has('src/common/editor/closed-domain-value.ts'));
+	assert.ok(result.visited.has('src/lightscaper/quality/large-library-workload-v1.ts'));
 	assert.ok(result.visited.has('src/common/editor/macro-script/dynamic-source-contract.js'));
 	assert.ok(result.visited.has('src/common/editor/native-plugin-realtime-worklet.js'));
 	assert.ok(result.visited.has('vendor/audacity-design-system/components/src/utils/roseus-colormap.ts'));
 	assert.ok(result.queryImports.some(({ specifier }) => specifier.endsWith('?worker&url')));
+});
+
+test('nightly payload audit rejects an omitted photo-library diagnostic helper', () => {
+	const withoutPhotoDiagnostic = NIGHTLY_TEST_PAYLOAD_INPUTS.filter(({ source }) => (
+		source !== 'scripts/lib/lightscaper-large-library-diagnostics-v1.ts'
+	));
+	assert.throws(
+		() => inspectLocalImportClosure(withoutPhotoDiagnostic),
+		/Unstaged local import .*lightscaper-large-library-native\.spec\.js.*lightscaper-large-library-diagnostics-v1\.ts/u,
+	);
 });
 
 test('nightly payload audit rejects an omitted spectrogram painter dependency', () => {
