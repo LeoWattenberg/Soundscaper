@@ -75,8 +75,12 @@ belong in Git history, not in the maintained documentation set.
   [import and export](development/bugfix-round4-io.md).
 - The [fourth audit index](development/bugfix-round4.md) records 100 additional
   distinct user-reproducible fixes, counting criteria and closing verification.
+- The fifth regression audit covers [editing](development/bugfix-round5-editing.md),
+  [dialogs](development/bugfix-round5-dialogs.md),
+  [effects and analysis](development/bugfix-round5-effects-analysis.md), and
+  [import and export](development/bugfix-round5-io.md).
 - The [fifth audit index](development/bugfix-round5.md) tracks the ongoing audit
-  and its editing, dialog, effects, and import/export reproduction registers.
+  and its reproduction registers.
 
 ## Operate and release
 
