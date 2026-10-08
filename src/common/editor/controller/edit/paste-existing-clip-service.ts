@@ -24,6 +24,7 @@ import {
 import { rollbackDerivedSourcesAfterFailure } from './internal/paste-derived-source-failure.ts';
 import { loadSourceProvenanceDerivation } from '../../source-provenance-derivation-loader.ts';
 import { createPasteProjectLookup, type PasteProjectLookup } from './internal/paste-project-lookup.ts';
+import { createPasteNativeSourceSampler } from './internal/paste-native-source-sampler.ts';
 
 type RenderReplaceCommand = Extract<AudioEditorCommand, { readonly type: 'clip/render-replace-many' }>;
 type LiftDeleteCommand = Extract<AudioEditorCommand, { readonly type: 'range/lift-delete' }>;
@@ -103,6 +104,7 @@ export function commitPasteIntoExistingClipCommand(
 					target.existingClip,
 					target.existingClip.durationFrames,
 					target.channelCount,
+					request.project.sampleRate,
 				);
 				const pasted = renderClipPcm(
 					pastedChannels,
@@ -110,6 +112,7 @@ export function commitPasteIntoExistingClipCommand(
 					target.descriptor,
 					target.pastedDurationFrames,
 					target.channelCount,
+					request.project.sampleRate,
 				);
 				return { target, channels: insertChannels(existing, pasted, target.insertionOffsetFrames) };
 			}));
@@ -322,6 +325,7 @@ function renderClipPcm(
 	clip: Readonly<Record<string, unknown>>,
 	outputFrames: number,
 	outputChannels: number,
+	projectSampleRate: number,
 ): Float32Array[] {
 	if (channels.length !== source.channelCount
 		|| channels.some((channel) => channel.length < source.frameCount)) {
@@ -345,20 +349,20 @@ function renderClipPcm(
 	);
 	return Array.from({ length: outputChannels }, (_, channelIndex) => {
 		const input = channels[Math.min(channelIndex, channels.length - 1)]!;
+		const sample = createPasteNativeSourceSampler(input, { sourceStart, sourceDuration, reversed,
+			convertNativeClock: source.sampleRate !== projectSampleRate,
+			framesPerOutput: sourceDuration * clipDuration / outputFrames / (loop?.periodFrames ?? clipDuration) });
 		const output = new Float32Array(outputFrames);
 		for (let frame = 0; frame < outputFrames; frame += 1) {
-			const sourceOffset = Math.min(sourceDuration - 1, Math.floor(loop
+			const sourceOffset = Math.min(sourceDuration - 1, loop
 				? ((frame * clipDuration / outputFrames + loop.offsetFrames) % loop.periodFrames)
 					* sourceDuration / loop.periodFrames
-				: frame * sourceDuration / outputFrames));
-			const sourceFrame = reversed
-				? sourceStart + sourceDuration - 1 - sourceOffset
-				: sourceStart + sourceOffset;
+				: frame * sourceDuration / outputFrames);
 			const fadeInGain = evaluateClipFadeAt(frame, outputFrames, fadeIn, 'in',
 				typeof clip.fadeInShape === 'number' ? clip.fadeInShape : undefined);
 			const fadeOutGain = evaluateClipFadeAt(frame, outputFrames, fadeOut, 'out',
 				typeof clip.fadeOutShape === 'number' ? clip.fadeOutShape : undefined);
-			output[frame] = input[sourceFrame]! * gain * envelope(frame) * fadeInGain * fadeOutGain * channelGain;
+			output[frame] = sample(sourceOffset) * gain * envelope(frame) * fadeInGain * fadeOutGain * channelGain;
 		}
 		return output;
 	});
