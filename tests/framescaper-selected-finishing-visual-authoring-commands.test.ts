@@ -351,7 +351,7 @@ test('applying a first adjustment adds a colour effect and the layer that owns i
 });
 
 test('applying onto an existing adjustment updates only its brightness parameter', async () => {
-	const source = project({ videoAdjustmentLayers: [{ id: 'adjust-1', effectIds: ['effect-1'] }] });
+	const source = project({ clips: [videoClip('clip-1', 0, 10, { videoEffects: [{ id: 'effect-1', type: 'color-adjust' }] })], videoAdjustmentLayers: [{ id: 'adjust-1', effectIds: ['effect-1'] }] });
 	const request = adjustRequest(source, { adjustmentLayerId: 'adjust-1', brightness: -0.25 });
 	assert.deepEqual(await command('video-adjustment-layer', request, source), {
 		type: 'video-effect/update', clipId: 'clip-1', effectId: 'effect-1',
@@ -360,7 +360,7 @@ test('applying onto an existing adjustment updates only its brightness parameter
 });
 
 test('removing an adjustment deletes the layer and the one effect it owns', async () => {
-	const source = project({ videoAdjustmentLayers: [{ id: 'adjust-1', effectIds: ['effect-1'] }] });
+	const source = project({ clips: [videoClip('clip-1', 0, 10, { videoEffects: [{ id: 'effect-1', type: 'color-adjust' }] })], videoAdjustmentLayers: [{ id: 'adjust-1', effectIds: ['effect-1'] }] });
 	const request = adjustRequest(source, { operation: 'remove', adjustmentLayerId: 'adjust-1' });
 	const authored = steps(await command('video-adjustment-layer', request, source));
 	assert.equal(authored[0]?.type, 'video-adjustment-layer/set');

@@ -14,6 +14,7 @@ import {
 	validateFramescaperProjectVisual,
 	type FramescaperProjectVisual,
 } from './editor-project-visual-validation.ts';
+import { adjustmentLayersAfterSplit } from './editor-adjustment-effect-membership.ts';
 
 /** Apply inherited authority to its exact transitions projection, then restore visual-owned state. */
 export function applyInheritedFramescaperProjectCommandVisual(
@@ -65,7 +66,8 @@ export function applyInheritedFramescaperProjectCommandVisual(
 	}
 	const sourceIds = new Set(records(applied.sources, 'sources').map(({ id }) => String(id)));
 	applied.videoAdjustmentLayers = retainedAdjustmentLayers(
-		original.videoAdjustmentLayers,
+		adjustmentLayersAfterSplit(records(original.videoAdjustmentLayers, 'adjustment layers'),
+			records(original.clips, 'clips'), records(applied.clips, 'clips'), command),
 		survivingTrackIds,
 	);
 	applied.videoVisualPresets = structuredClone(original.videoVisualPresets);

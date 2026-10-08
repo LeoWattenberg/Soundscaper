@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { selectedAdjustmentEffectId } from './editor-adjustment-effect-membership.ts';
+
 import { normalizeVideoVisualPresetV1 } from '../common/editor/video-visual-preset-v24.ts';
 import { normalizeVideoMaskMatteGraphV1 } from '../common/editor/video-mask-matte-v24.ts';
 import {
@@ -270,6 +272,7 @@ function selectedAdjustment(project: Data, clip: Data): Data | null {
 	const end = start + positiveInteger(clip.sequenceFrameCount, 'selected video duration');
 	return records(project.videoAdjustmentLayers, 'adjustment layers').find((layer) => (
 		Array.isArray(layer.targetTrackIds) && layer.targetTrackIds.includes(track.id)
+		&& selectedAdjustmentEffectId(layer, clip) !== null
 		&& Number(layer.sequenceStartFrame) <= start
 		&& Number(layer.sequenceStartFrame) + Number(layer.sequenceFrameCount) >= end
 	)) ?? null;
