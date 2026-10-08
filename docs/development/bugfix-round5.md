@@ -1,7 +1,7 @@
 # Fifth user-reproducible regression audit
 
-This audit is in progress toward 100 additional distinct fixes. Eighty-six
-new roots have completed ordinary browser verification (editing 22, dialogs 27,
+This audit is in progress toward 100 additional distinct fixes. Eighty-eight
+new roots have completed ordinary browser verification (editing 23, dialogs 28,
 effects/analysis 24, import/export 13). Its immutable
 baseline is `fe6440c81b3a0fe29a028c64db867ae7d2cf3252`.
 
@@ -109,6 +109,14 @@ passes alongside the original Inspector workflow (6/6), adding no new count.
 Checkpoint thirty-five, `15416e48c`, passes both guarded builds and spectral
 handle command ownership, one-entry Undo, plain editing and existing pointer
 cancellation in all three engines (9/9).
+Checkpoint thirty-six, `bdd10b55f`, passes both guarded builds, actual-unit
+effect-knob modified-key ownership and existing endpoint controls plus stereo
+divider commands/plain editing and pointer Escape in all three engines
+(6/6 per area). The divider ratio belongs to session view state; an incorrect
+extra Undo expectation was corrected to verify document history and unchanged
+view geometry, adding no count. Coordinated source types pass; the first
+test check caught a missing array guard in an I/O menu fixture. Its focused
+compiler passes after that fixture correction; coordinated retry is pending.
 Browser evidence names each exact checkpoint. Firefox audio
 uses the unchanged CI PulseAudio setup with a private 48 kHz null sink.
 

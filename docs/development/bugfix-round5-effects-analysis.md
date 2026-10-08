@@ -749,3 +749,29 @@ and changes no product assertion about dispatch or unintended spectral edits.
 Both guarded builds pass. ROOT-024 is counted once, separately from prior brush
 creation/pointer cancellation and other independently implemented command
 consumers. The assistance runtime closure is unchanged.
+
+## R5-ROOT-025 — A suspended command changes modal window dimensions
+
+Import an ordinary recording. Preferences → Keyboard shortcuts: assign
+Ctrl+Alt+Up to New label track. Focus Resize: Editor preferences and press
+the binding. The modal suspends project commands, but its resize grip treats
+the modified key as a local arrow and changes the window height from
+600.1875 to 584 pixels. Modified command keys should leave window geometry
+unchanged; ordinary arrows should retain the existing 16-pixel resize.
+
+Return already handled and Ctrl/Meta/Alt events before the editor-owned modal
+surface applies its resize. Preserve the ordinary bounds, pixel rounding and
+existing mouse Escape cancellation. This surface is independent of the dock
+and floating panel geometry owner repaired in R4-DIALOG-029.
+
+The immutable-baseline Chromium workflow fails at its changed height
+(`/tmp/soundscaper-r5-root-modal-resize-shortcut-red.log`). Four mounted actual
+surface cases fail before correction while testing both vertical and horizontal
+keys. Those cases and existing mouse cancellation/lifecycle support pass 6/6
+(`/tmp/soundscaper-r5-root-modal-resize-shortcut-support-retry.log`). Targeted
+type-aware lint, focused strict compiler, lint:changed and the size gate pass.
+The first focused compiler found incomplete fixture declarations; the fixture
+now supplies its exact mounted public props and rectangle/style types without
+changing source behavior or counting those diagnostics. Corrected public
+verification is pending; ROOT-025 is not yet counted. The assistance runtime
+closure is unchanged.
