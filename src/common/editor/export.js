@@ -1,5 +1,6 @@
 import { projectEffectTailFrames } from './effects.js';
 import { createBwfExportMetadata, projectBextMetadata } from './broadcast-wave-project.ts';
+import { createMasteringSequenceBext } from './mastering-sequence-bext.ts';
 import { cartForDeliveryRange } from './cart-delivery-range.ts';
 import { ixmlForDeliveryRange } from './ixml-delivery-timing.ts';
 import { inspectPreservedAdmRiffChunks, sameBextMetadata } from './adm-riff-passthrough.ts';
@@ -247,10 +248,12 @@ export function createExportPlan(project, options = {}) {
 			: cartMetadata(range) : null;
 	// The TimeReference states where the delivered audio sits on the project's
 	// timeline, so it is derived per delivered span, not once for the whole plan.
-	const bwfMetadata = (rangeStartFrame) => createBwfExportMetadata(runtimeProject, {
-		bext: options.bext, rangeStartFrame, outputSampleRate: sampleRate,
-		bitDepth: encoding.bitDepth, channelCount: encoding.channelCount, productName: options.productName,
-	});
+	const bwfMetadata = (rangeStartFrame) => {
+		const fields = { bext: options.bext, rangeStartFrame, outputSampleRate: sampleRate,
+			bitDepth: encoding.bitDepth, channelCount: encoding.channelCount, productName: options.productName };
+		return masteringSequence ? createMasteringSequenceBext(runtimeProject, fields, masteringSequence.plan)
+			: createBwfExportMetadata(runtimeProject, fields);
+	};
 	let bext = format === 'bwf' || format === 'bw64' ? bwfMetadata(range.startFrame) : null;
 	if (preservedRiffChunks?.bext) {
 		if (options.measureLoudness === true) {
