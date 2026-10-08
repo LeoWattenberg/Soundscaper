@@ -213,5 +213,8 @@ the corrected test covers Ctrl, Meta, Alt, Shift and handled events, plus plain
 Space's original behavior. Source selection, trim, ruler and marker support
 passes 13/13. Regressions are
 `audio-editor-round5-source-waveform-shortcut.test.tsx` and
-`audio-editor-round5-source-waveform-shortcut.spec.js`. Final public verification
-is pending the next immutable guarded build; this entry is not counted yet.
+`audio-editor-round5-source-waveform-shortcut.spec.js`. The same configured
+binding workflow passes Chromium, Firefox and WebKit on immutable green10
+`459027ddc`, with both earlier source-key owners (9/9, zero skips, 51.4 seconds;
+`/tmp/soundscaper-r5-root-source-waveform-shortcut-green10.log`). Both normal
+guarded product builds, targeted type-aware lint and size checks pass.
