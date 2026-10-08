@@ -53,6 +53,7 @@ export default function ExportChannelMappingDialog({
 	const [outputCount, setOutputCount] = useState(() => exportChannelMatrixOutputCount(
 		parseExportChannelMatrix(value, inputChannelCount),
 	));
+	const [outputCountText, setOutputCountText] = useState(() => String(outputCount));
 	const text = (key: string, fallback: string) => copy[key] || fallback;
 	const numbered = (key: string, fallback: string, channel: number) => text(key, fallback)
 		.replace('{channel}', String(channel));
@@ -85,15 +86,19 @@ export default function ExportChannelMappingDialog({
 			)}
 		>
 			<div className="audio-editor-channel-mapping">
-				<label className="audio-editor-field" data-export-channel-mapping-field="outputs">
+				<label className="audio-editor-field" data-export-channel-mapping-field="outputs"
+					onBlurCapture={(event) => {
+						if (!event.currentTarget.contains(event.relatedTarget)) setOutputCountText(String(outputCount));
+					}}>
 					<span>{text('channelMappingOutputCount', 'Output channels')}</span>
 					<NumberStepper
-						value={String(outputCount)}
+						value={outputCountText}
 						min={1}
 						max={MAXIMUM_EXPORT_CHANNELS}
 						step={1}
 						width={120}
 						onChange={(next: string) => {
+							setOutputCountText(next);
 							const outputs = boundedExportChannelCount(next, outputCount);
 							setOutputCount(outputs);
 							setMatrix((current) => ensureExportChannelMatrixWidth(current, outputs));
