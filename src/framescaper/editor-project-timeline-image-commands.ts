@@ -27,6 +27,7 @@ import { prepareTimelineImageTrimCommand } from './editor-timeline-image-trim-co
 import { prepareTimelineGeneratorTrimCommand } from './editor-timeline-generator-trim-command.ts';
 import { prepareTimelineGeneratorSplitCommand } from './editor-timeline-generator-split-command.ts';
 import { prepareTimelineNativeInsertCommand } from './editor-timeline-native-insert-command.ts';
+import { prepareTimelineNativeOverwriteCommand } from './editor-timeline-native-overwrite-command.ts';
 import {
 	validateFramescaperProjectTimelineImage,
 	type FramescaperProjectTimelineImage,
@@ -62,7 +63,7 @@ export function applyFramescaperProjectCommandTimelineImage(
 	const prior = projectValue as FramescaperProjectTimelineImage;
 	const split = prepareTimelineGeneratorSplitCommand(prior,
 		prepareTimelineImageSplitCommand(prior, prepareTimelineNativeInsertCommand(prior,
-			snapshotFramescaperProjectCommandTimelineImage(commandValue))));
+			prepareTimelineNativeOverwriteCommand(prior, snapshotFramescaperProjectCommandTimelineImage(commandValue)))));
 	const command = prepareTimelineGeneratorTrimCommand(prior, prepareTimelineVisualMoveCommand(prior,
 		prepareTimelineImageRemoveCommand(prior, prepareTimelineImageMoveCommand(prior, prepareTimelineImageTrimCommand(prior, split)))));
 	const draft = applyBody(profile, prior, command, options);

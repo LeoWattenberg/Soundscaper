@@ -15,6 +15,13 @@ import type { FoundationTimeConversionSite } from './foundation-time-conversion-
  */
 export const FOUNDATION_TIME_CONVERSION_PRODUCT_SITES: readonly FoundationTimeConversionSite[] = deepFreezeAuditSites([
 	{
+		id: 'framescaper-native-bin-overwrite-span',
+		file: 'src/framescaper/editor-timeline-native-overwrite-command.ts',
+		behavior: 'Project Bin Overwrite resolves its conformed sample boundaries to nearest sequence frames only on receiving native picture lanes. Surviving native windows convert back to nearest sample points for the existing exact source-phase trim rules; uncovered lanes keep their authored timing.',
+		conversions: [{ helper: 'sampleFrameToVideoFrame', policies: ['point'] },
+			{ helper: 'videoFrameToSampleFrame', policies: ['point'] }],
+	},
+	{
 		id: 'framescaper-native-bin-insert-span',
 		file: 'src/framescaper/editor-timeline-native-insert-command.ts',
 		behavior: 'Project Bin Insert resolves each already conformed sample boundary to the nearest frame of the native picture leaf\'s sequence, opens that exact frame span, and delegates source-phase and presentation splitting before shifting the right survivor. Overwrite leaves untargeted native lanes unchanged.',

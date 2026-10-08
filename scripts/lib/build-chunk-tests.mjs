@@ -357,6 +357,7 @@ const framescaperProjectCommandModules = Object.freeze([
 	'editor-timeline-generator-trim-command',
 	'editor-timeline-generator-split-command',
 	'editor-timeline-native-insert-command',
+	'editor-timeline-native-overwrite-command',
 	'editor-split-visual-presentations',
 	'editor-project-transitions-commands',
 	'editor-project-visual-command-inheritance',

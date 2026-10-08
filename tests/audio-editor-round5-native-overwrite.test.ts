@@ -5,19 +5,21 @@ import test from 'node:test';
 import { createFramescaperAudioEditorController } from '../src/framescaper/editor-controller.ts';
 import { createFramescaperEditorProjectEnvironment } from '../src/framescaper/editor-project-environment.ts';
 import { createFramescaperProject } from '../src/framescaper/editor-project.ts';
-import { applyFramescaperProjectCommand } from '../src/framescaper/editor-project-commands.ts';
 import { FRAMESCAPER_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile.ts';
 import { normalizeVideoGeneratorClipV1 } from '../src/common/editor/video-visual-model-v24.ts';
 import { framescaperCandidateAuthoringActionRuntimeFor } from '../src/common/editor/ui/framescaper-candidate-authoring-actions.ts';
 import { framescaperBaselineOptions } from './helpers/framescaper-baseline-model-fixture.ts';
-import { createFramescaperBaselineImageFixture } from './helpers/framescaper-baseline-image-fixture.ts';
-import { normalizeFramescaperImageClipV1 } from '../src/common/editor/timeline-image-model.ts';
-import { createFramescaperVisualInspectorCommand, createFramescaperVisualInspectorModel } from '../src/common/editor/ui/framescaper-visual-inspector-model.ts';
+import { createFramescaperVisualInspectorCommand, createFramescaperVisualInspectorModel }
+	from '../src/common/editor/ui/framescaper-visual-inspector-model.ts';
 import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
 import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
+import { applyFramescaperProjectCommand } from '../src/framescaper/editor-project-commands.ts';
+import { createFramescaperBaselineImageFixture } from './helpers/framescaper-baseline-image-fixture.ts';
+import { normalizeFramescaperImageClipV1 } from '../src/common/editor/timeline-image-model.ts';
+import { FOUNDATION_TIME_CONVERSION_SITES } from '../src/common/editor/foundation-time-conversion-audit.ts';
 
-for (const mode of ['insert', 'overwrite'] as const) for (const point of [0, 15]) {
-	test(`public Bin ${mode} at sequence frame ${String(point)} preserves the Title lane and one Undo`, async context => {
+for (const [offset, short] of [[-10, false], [-5, false], [0, false], [5, false], [45, false], [50, false], [0, true]] as const) {
+	test(`public Bin Overwrite at Title offset ${String(offset)}${short ? ' (complete coverage)' : ''} retains only uncovered native picture and one Undo`, async context => {
 		const environment = await createFramescaperEditorProjectEnvironment({ storeOptions: {
 			indexedDB: createInstrumentedIndexedDB() as unknown as IDBFactory, preferOpfs: false,
 			storageManager: { estimate: async () => ({ usage: 0, quota: 1024 ** 3 }),
@@ -29,41 +31,46 @@ for (const mode of ['insert', 'overwrite'] as const) for (const point of [0, 15]
 		context.after(async () => { await controller.dispose(); await environment.close(); });
 		await controller.ready;
 		await controller.actions.project.openById(project.id);
-		const titleTrackId = controller.actions.track.addVideo({ name: 'Title layer' });
-		assert.equal(typeof titleTrackId, 'string');
-		assert.ok(titleTrackId);
 		const authoring = framescaperCandidateAuthoringActionRuntimeFor(controller);
 		assert.ok(authoring);
 		await authoring.run('video-title');
-		const title = normalizeVideoGeneratorClipV1(controller.project?.clips.at(-1));
-		controller.actions.edit.commit({ type: 'clip/move', clipId: title.id, trackId: titleTrackId, timelineStartFrame: 48_000 });
-		const owner = controller.project?.tracks.find(track => track.id === titleTrackId);
-		assert.ok(Array.isArray(owner?.clipIds) && owner.clipIds.includes(title.id));
+		const titleId = String(controller.project?.clips.at(-1)?.id);
+		if (short) controller.actions.clip.trim(titleId, { durationFrames: 24_000 });
+		const title = normalizeVideoGeneratorClipV1(controller.project?.clips.find(clip => clip.id === titleId));
 		assert.equal(title.sequenceStartFrame, 10);
-		controller.actions.timeline.selectClip(title.id);
 		const model = createFramescaperVisualInspectorModel({ project: controller.project, selectedClipId: title.id });
 		controller.actions.edit.commit(createFramescaperVisualInspectorCommand(controller.project, title.id, {
 			generator: model.generator, opacity: 0.25, blendMode: 'screen', maskId: model.maskId,
 			maskWidth: model.maskWidth, presetId: null,
 		}) as AudioEditorCommand);
-		controller.actions.timeline.selectClip('video-clip');
+		controller.actions.timeline.selectClip(title.id);
 		const before = environment.runtime.cloneProject(controller.project);
 		const historyCount = controller.getSnapshot().history.undoEntries.length;
-		controller.actions.video[mode]({ binItemId: 'bin-video', sequenceInFrame: point * 4_800 });
+		const start = title.sequenceStartFrame + offset;
+		controller.actions.video.overwrite({ binItemId: 'bin-video', sequenceInFrame: start * 4_800 });
 		const after = environment.runtime.cloneProject(controller.project);
 		const titles = (after.clips as readonly Readonly<Record<string, unknown>>[])
-			.filter(clip => clip.kind === 'generator').map(normalizeVideoGeneratorClipV1);
-		assert.equal(titles.length, mode === 'insert' && point > 0 ? 2 : 1);
-		if (mode === 'overwrite') assert.deepEqual(titles, [title]);
-		else if (point === 0) assert.deepEqual(titles, [{ ...title, sequenceStartFrame: title.sequenceStartFrame + 10 }]);
-		else {
-			const left = titles.find(clip => clip.id === title.id)!;
-			const right = titles.find(clip => clip.id !== title.id)!;
-			assert.deepEqual(left, { ...title, sequenceFrameCount: 5, sourceFrameCount: 5 });
-			assert.deepEqual(right, { ...title, id: right.id, sequenceStartFrame: 25,
-				sequenceFrameCount: title.sequenceFrameCount - 5, sourceInFrame: 5, sourceFrameCount: title.sourceFrameCount - 5 });
+			.filter(clip => clip.kind === 'generator').map(normalizeVideoGeneratorClipV1)
+			.sort((left, right) => left.sequenceStartFrame - right.sequenceStartFrame);
+		const end = start + 10;
+		const titleEnd = title.sequenceStartFrame + title.sequenceFrameCount;
+		const spans = [[title.sequenceStartFrame, Math.min(start, titleEnd)], [Math.max(end, title.sequenceStartFrame), titleEnd]]
+			.filter(([left, right]) => left !== undefined && right !== undefined && right > left);
+		assert.deepEqual(titles.map(clip => [clip.sequenceStartFrame, clip.sequenceStartFrame + clip.sequenceFrameCount]), spans);
+		for (const surviving of titles) {
+			assert.equal(surviving.sourceInFrame, title.sourceInFrame + surviving.sequenceStartFrame - title.sequenceStartFrame);
+			assert.equal(surviving.sourceFrameCount, surviving.sequenceFrameCount);
 		}
-		assert.deepEqual(after.sources, before.sources);
+		assert.deepEqual(after.sources, titles.length ? before.sources : before.sources.filter(source => source.id !== title.sourceId));
+		const camera = after.clips.find(clip => clip.id === 'video-clip');
+		if (start >= 10) assert.deepEqual(camera, before.clips.find(clip => clip.id === 'video-clip'));
+		else if (start === 0) assert.equal(camera, undefined);
+		else {
+			assert.equal(camera?.sequenceStartFrame, 0);
+			assert.equal(camera?.sequenceFrameCount, start);
+			assert.equal(camera?.sourceInFrame, 0);
+			assert.equal(camera?.sourceFrameCount, start);
+		}
 		const presentations = after.videoVisualPresentations as readonly Readonly<{
 			owner: Readonly<{ kind: string; id: string }>; opacity: number; blendMode: string;
 		}>[];
@@ -79,14 +86,16 @@ for (const mode of ['insert', 'overwrite'] as const) for (const point of [0, 15]
 		assert.deepEqual(controller.project?.clips, before.clips);
 		assert.deepEqual(controller.project?.tracks, before.tracks);
 		assert.deepEqual(controller.project?.videoVisualPresentations, before.videoVisualPresentations);
+		assert.deepEqual(controller.project?.sources, before.sources);
 		controller.actions.edit.redo();
 		assert.deepEqual(controller.project?.clips, after.clips);
 		assert.deepEqual(controller.project?.tracks, after.tracks);
 		assert.deepEqual(controller.project?.videoVisualPresentations, after.videoVisualPresentations);
+		assert.deepEqual(controller.project?.sources, after.sources);
 	});
 }
 
-for (const point of [0, 5]) test(`public Bin Insert at ${String(point)} preserves animated image source phase`, async context => {
+for (const start of [0, 5]) test(`public Bin Overwrite at ${String(start)} retains animated image phase`, async context => {
 	const environment = await createFramescaperEditorProjectEnvironment({ storeOptions: {
 		indexedDB: createInstrumentedIndexedDB() as unknown as IDBFactory, preferOpfs: false,
 		storageManager: { estimate: async () => ({ usage: 0, quota: 1024 ** 3 }),
@@ -113,22 +122,16 @@ for (const point of [0, 5]) test(`public Bin Insert at ${String(point)} preserve
 	context.after(async () => { await controller.dispose(); await environment.close(); });
 	await controller.ready;
 	await controller.actions.project.openById(fixture.project.id);
-	controller.actions.timeline.selectClip('video-clip');
+	controller.actions.timeline.selectClip(fixture.clip.id);
 	const before = environment.runtime.cloneProject(controller.project);
 	const historyCount = controller.getSnapshot().history.undoEntries.length;
-	controller.actions.video.insert({ binItemId: 'bin-video', sequenceInFrame: point * 4_800 });
+	controller.actions.video.overwrite({ binItemId: 'bin-video', sequenceInFrame: start * 4_800 });
 	const after = environment.runtime.cloneProject(controller.project);
-	const images = (after.clips as readonly Readonly<Record<string, unknown>>[])
-		.filter(clip => clip.kind === 'image').map(normalizeFramescaperImageClipV1);
-	assert.equal(images.length, point > 0 ? 2 : 1);
-	if (point === 0) assert.deepEqual(images, [{ ...fixture.clip, sequenceStartFrame: 10 }]);
-	else {
-		const left = images.find(clip => clip.id === fixture.clip.id)!;
-		const right = images.find(clip => clip.id !== fixture.clip.id)!;
-		assert.deepEqual(left, { ...fixture.clip, sequenceFrameCount: 5 });
-		assert.deepEqual(right, { ...fixture.clip, id: right.id, sequenceStartFrame: 15,
-			sequenceFrameCount: fixture.clip.sequenceFrameCount - 5, sourceStartTicks: '500000' });
-	}
+	const images = after.clips.filter(clip => clip.kind === 'image').map(normalizeFramescaperImageClipV1)
+		.sort((left, right) => left.sequenceStartFrame - right.sequenceStartFrame);
+	assert.deepEqual(images.map(clip => [clip.sequenceStartFrame, clip.sequenceFrameCount, clip.sourceStartTicks]),
+		start === 0 ? [[10, fixture.clip.sequenceFrameCount - 10, '1000000']]
+			: [[0, 5, '0'], [15, fixture.clip.sequenceFrameCount - 15, '1500000']]);
 	assert.deepEqual(after.sources, before.sources);
 	assert.equal(controller.getSnapshot().history.undoEntries.length, historyCount + 1);
 	controller.actions.edit.undo();
@@ -137,4 +140,11 @@ for (const point of [0, 5]) test(`public Bin Insert at ${String(point)} preserve
 	controller.actions.edit.redo();
 	assert.deepEqual(controller.project?.clips, after.clips);
 	assert.deepEqual(controller.project?.tracks, after.tracks);
+});
+
+test('native Overwrite owns the exact nearest-frame and source-trim conversion policies', () => {
+	const site = FOUNDATION_TIME_CONVERSION_SITES.find(value => value.id === 'framescaper-native-bin-overwrite-span');
+	assert.equal(site?.file, 'src/framescaper/editor-timeline-native-overwrite-command.ts');
+	assert.deepEqual(site?.conversions, [{ helper: 'sampleFrameToVideoFrame', policies: ['point'] },
+		{ helper: 'videoFrameToSampleFrame', policies: ['point'] }]);
 });
