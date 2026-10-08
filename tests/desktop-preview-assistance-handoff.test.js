@@ -22,7 +22,7 @@ test('preview publishes all target AI archives once and packages the authenticat
 	assert.match(publisher, /name: assistance-runtime-handoff-\$\{\{ matrix\.target\.platform \}\}-\$\{\{ matrix\.target\.arch \}\}/u);
 	assert.match(publisher, /SOUNDSCAPER_SOURCE_REVISION: \$\{\{ github\.sha \}\}/u);
 	assert.match(publisher, /R2_MODELS_ACCESS_KEY_ID: \$\{\{ secrets\.R2_MODELS_ACCESS_KEY_ID \}\}/u);
-	assert.match(packager, /needs: \[quality, tests, coverage, browser, firefox, publish-assistance-runtime-handoff\]/u);
+	assert.match(packager, /needs: \[quality, tests, coverage, browser, firefox, publish-assistance-runtime-handoff, professional-native-build\]/u);
 	assert.match(packager, /Download the published AI runtime handoff/u);
 	assert.match(packager, /SOUNDSCAPER_ASSISTANCE_RUNTIME_HANDOFF_ROOT:/u);
 	assert.doesNotMatch(packager, /if: matrix\.target\.platform == 'win'/u);

@@ -19,7 +19,7 @@ jobs:
       matrix:
         include:
           - target: linux-x64
-            runner: ubuntu-24.04
+            runner: ubuntu-22.04
             platform: linux
             arch: x64
             tooling_node_arch: x64
@@ -55,6 +55,9 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
+      - name: Install authenticated CMake for the Ubuntu 22.04 baseline
+        if: matrix.target == 'linux-x64'
+        run: bash scripts/ci-install-professional-cmake.sh
       - name: Install JUCE Linux development dependencies
         if: runner.os == 'Linux'
         timeout-minutes: 10
@@ -72,7 +75,7 @@ jobs:
           libxrandr-dev
           libxrender-dev
       - name: Allow unprivileged user namespaces for the native isolation launcher
-        if: runner.os == 'Linux'
+        if: matrix.target == 'linux-arm64'
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
       - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
         with:

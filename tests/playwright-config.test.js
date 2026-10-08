@@ -203,7 +203,7 @@ test('desktop verification isolates browser engines and tests packages with ever
 		// Packaging waits on the sharded Node suite and the merged coverage gate too:
 		// a package built off unverified source is worse than no package.
 		const needs = jobName === 'package'
-			? /needs: \[quality, tests, coverage, browser, firefox, publish-assistance-runtime-handoff\]/u
+			? /needs: \[quality, tests, coverage, browser, firefox, publish-assistance-runtime-handoff, professional-native-build\]/u
 			: /needs: \[quality, tests, coverage, browser, firefox\]/u;
 		assert.match(extractJob(workflow, jobName), needs);
 	}

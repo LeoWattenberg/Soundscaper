@@ -156,6 +156,8 @@ function selfTestAuthoritySourcePaths(target) {
 		...COMMON_AUTHORITY_SOURCE_PATHS,
 		LINUX_SYSTEM_LIBRARIES_PATH,
 		LINUX_SYSTEM_RUNTIME_PATH,
+		// The build receipt also binds the x64 tool bootstrap and its immutable pin.
+		...(target === 'linux-x64' ? ['scripts/ci-install-professional-cmake.sh'] : []),
 	]) : COMMON_AUTHORITY_SOURCE_PATHS;
 }
 
