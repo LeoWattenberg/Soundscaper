@@ -48,8 +48,8 @@ export function usePhotoOriginalRecovery(options: Readonly<{ generation: unknown
 		if (snapshot.receipt === null) receiptOwner.current = null;
 		else if (snapshot.receipt !== demand.previousReceipt) receiptOwner.current = { generation: demand.generation, receipt: snapshot.receipt };
 		setView({ generation: demand.generation,
-			page: pageOwner.current?.generation === demand.generation && pageOwner.current.page === snapshot.page ? snapshot.page : null,
-			receipt: receiptOwner.current?.generation === demand.generation && receiptOwner.current.receipt === snapshot.receipt ? snapshot.receipt : null,
+			page: pageOwner.current !== null && pageOwner.current.generation === demand.generation && pageOwner.current.page === snapshot.page ? snapshot.page : null,
+			receipt: receiptOwner.current !== null && receiptOwner.current.generation === demand.generation && receiptOwner.current.receipt === snapshot.receipt ? snapshot.receipt : null,
 			active: demand.active });
 	}), [controller]);
 	const executeDemand = useCallback(async (run: (context: PhotoOriginalRecoveryContextV1) => Promise<void>) => {
@@ -59,8 +59,8 @@ export function usePhotoOriginalRecovery(options: Readonly<{ generation: unknown
 				previousPage: previous.page, previousReceipt: previous.receipt, active: true };
 			attempt.demand = demand;
 			observing.current = demand; setResult({ generation, notice: null, cancelled: false });
-			setView({ generation, active: true, page: pageOwner.current?.generation === generation ? pageOwner.current.page : null,
-				receipt: receiptOwner.current?.generation === generation ? receiptOwner.current.receipt : null });
+			setView({ generation, active: true, page: pageOwner.current !== null && pageOwner.current.generation === generation ? pageOwner.current.page : null,
+				receipt: receiptOwner.current !== null && receiptOwner.current.generation === generation ? receiptOwner.current.receipt : null });
 			try { await run(context); }
 			finally {
 				demand.active = false;
