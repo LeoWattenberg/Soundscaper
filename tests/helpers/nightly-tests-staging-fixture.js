@@ -169,6 +169,7 @@ export async function createFixture(context) {
 		['tests/helpers/lightscaper-library-restore-native-fixture.ts', await readFile(new URL('./lightscaper-library-restore-native-fixture.ts', import.meta.url), 'utf8')],
 		['tests/helpers/image-geometry-native-fixture.ts', await readFile(new URL('./image-geometry-native-fixture.ts', import.meta.url), 'utf8')],
 		['tests/helpers/lightscaper-native-scale-seed.ts', await readFile(new URL('./lightscaper-native-scale-seed.ts', import.meta.url), 'utf8')],
+		['tests/helpers/global-develop-webgl-native-fixture.ts', await readFile(new URL('./global-develop-webgl-native-fixture.ts', import.meta.url), 'utf8')],
 		['tests/helpers/lightscaper-smart-collections-native-fixture.ts', await readFile(new URL('./lightscaper-smart-collections-native-fixture.ts', import.meta.url), 'utf8')],
 		['tests/helpers/lightscaper-smart-collections-native-observer.ts', await readFile(new URL('./lightscaper-smart-collections-native-observer.ts', import.meta.url), 'utf8')],
 		['tests/helpers/lightscaper-saved-query-native-fixture.ts', await readFile(new URL('./lightscaper-saved-query-native-fixture.ts', import.meta.url), 'utf8')],
