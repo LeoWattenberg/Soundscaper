@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { copyUint8ArrayToArrayBuffer } from './binary-copy.ts';
+import { inspectOpfsBinaryRecord, type OpfsBinaryInspection } from './opfs-binary-inspection.ts';
 
 import {
 	PCM_CONTAINER_EXTENSION,
@@ -128,6 +129,15 @@ export class OpfsRepository {
 		} catch {
 			throw new Error(missingMessage);
 		}
+	}
+
+	inspectBinaryRecord(record: StorageRecord, options: Readonly<{ signal?: AbortSignal }> = {}): Promise<OpfsBinaryInspection> {
+		return inspectOpfsBinaryRecord(record, {
+			preferOpfs: this.#options.preferOpfs,
+			opfsRoot: this.#options.opfsRoot,
+			storageManager: this.#options.storageManager,
+			opfsDirectoryName: this.#options.opfsDirectoryName ?? DEFAULT_OPFS_DIRECTORY_NAME,
+		}, options.signal);
 	}
 
 	async writeBlob(

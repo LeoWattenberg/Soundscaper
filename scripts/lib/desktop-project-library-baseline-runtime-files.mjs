@@ -47,6 +47,7 @@ export const DESKTOP_PROJECT_LIBRARY_BASELINE_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/storage/media-content-provenance.js',
 	'src/common/editor/storage/media-records.js',
 	'src/common/editor/storage/memory-backend.js',
+	'src/common/editor/storage/opfs-binary-inspection.js',
 	'src/common/editor/storage/repository-port.js',
 	'src/common/editor/storage/status.js',
 	'src/common/editor/storage/video-proxy-claim-repository.js',
