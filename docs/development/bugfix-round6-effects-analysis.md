@@ -73,5 +73,23 @@ fails before correction and passes afterward with all ten focused cases.
 Browser green verification pending. The independent-frequency clock defect
 in 003 also reproduces with mono, and this omission reproduces at native speed.
 
-Neither correction changes the assistance runtime closure or requires a manual
-**Update AI assets** run.
+## R6-EFFECT-005 — A first lower-only macro spectral selection is rejected
+
+Import an ordinary recording, select its header, open Tools → Macros palette
+→ New program and run `await sound.select.frequencies({low:500});`. No earlier
+spectral selection exists, so its unspecified upper edge should retain the
+recording's full project bandwidth. The baseline constructs 500–0 Hz and the
+public selection validator rejects the program. Use project Nyquist for the
+omitted upper edge when no frequency band has been authored.
+
+The ordinary Chromium baseline fails at the first program line with
+“Selection frequency range is outside the project bandwidth”
+(`/tmp/soundscaper-r6-effects-macro-upper-browser-red.log`). The strict focused
+case fails with upper edge zero instead of 24,000 Hz. It passes after correction
+with all twelve focused command cases and targeted type-aware lint. Browser
+green verification pending. Existing spectral bands retain their omitted edge;
+this admission defect is independent of earlier header-target and frequency
+preservation roots.
+
+These corrections do not change the assistance runtime closure or require a
+manual **Update AI assets** run.
