@@ -81,6 +81,12 @@ belong in Git history, not in the maintained documentation set.
   [import and export](development/bugfix-round5-io.md).
 - The [fifth audit index](development/bugfix-round5.md) tracks the ongoing audit
   and its reproduction registers.
+- The sixth regression audit covers [editing](development/bugfix-round6-editing.md),
+  [dialogs](development/bugfix-round6-dialogs.md),
+  [effects and analysis](development/bugfix-round6-effects-analysis.md), and
+  [import and export](development/bugfix-round6-io.md).
+- The [sixth audit index](development/bugfix-round6.md) records its target,
+  counting criteria and verification status.
 
 ## Operate and release
 

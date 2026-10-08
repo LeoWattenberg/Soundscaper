@@ -1,0 +1,34 @@
+# Sixth user-path regression audit
+
+Target: 200 additional distinct bugs. This audit is in progress and has not
+reached the target. Its initial revision is `ee0d3fabd`; work is isolated on
+`fix/user-path-bugs-round6`.
+
+Only defects reached through ordinary menus, input fields, media imports and
+authored projects qualify. A root counts after a causal failing regression and
+corrected public workflow verification. Prior roots, sibling symptoms,
+adversarial files, unavailable internal actions and setup failures do not count.
+
+The registers distinguish verified fixes from changes awaiting public checks:
+
+| Area | Register |
+| --- | --- |
+| Editing and timeline commands | [Editing](bugfix-round6-editing.md) |
+| Dialogs and workspace controls | [Dialogs](bugfix-round6-dialogs.md) |
+| Effects, generators and analysis | [Effects and analysis](bugfix-round6-effects-analysis.md) |
+| Import, export and bin playback | [Import and export](bugfix-round6-io.md) |
+
+Focused regressions run for each correction. The full Node suite is required
+after each 50 verified fixes; the first milestone has not been reached.
+
+The initial full Node run completed 23,948 tests across its two execution
+batches. Its parallel batch reported 22 failures: 20 reference conformance cases
+ran before the new worktree had its existing provisioned Python validators,
+one older Freesound expectation retained the defective pagination behavior,
+and the documentation index had not yet included these new registers. The
+validators are now copied locally, the pagination expectation is corrected,
+and the registers are indexed. This run is not recorded as passing.
+
+The corrections change UI and browser/controller behavior without changing
+assistance runtime source pins, recipes, dependencies, archives or target
+inventories. No manual **Update AI assets** run is required.
