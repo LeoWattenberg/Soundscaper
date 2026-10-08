@@ -54,9 +54,11 @@ export function awaitScapeReadOperation<Value>(
 	return raceAbortableRead(read, signal);
 }
 
-export function aggregateScapeErrors(primary: unknown, cleanup: readonly unknown[], message: string): unknown {
+/** Supply an observed cancellation classification when the primary reason is opaque. */
+export function aggregateScapeErrors(primary: unknown, cleanup: readonly unknown[], message: string,
+	classification?: Readonly<{ primaryIsAbort: boolean }>): unknown {
 	if (!cleanup.length) return primary;
 	const aggregate = new AggregateError([primary, ...cleanup], message);
-	if (primary instanceof Error && primary.name === 'AbortError') aggregate.name = 'AbortError';
+	if (classification?.primaryIsAbort ?? (primary instanceof Error && primary.name === 'AbortError')) aggregate.name = 'AbortError';
 	return aggregate;
 }

@@ -6,6 +6,9 @@ import { createScapeDigest, scapeHex, verifyScapeExtractedAsset } from '../../co
 import type { ScapeExpandedByteBudget } from '../../common/editor/scape-expanded-byte-budget.ts';
 import { photoPackByteView } from './pack-byte-chunk.ts';
 
+const nativeAborted = Object.getOwnPropertyDescriptor(AbortSignal.prototype, 'aborted')!.get!;
+const nativeReason = Object.getOwnPropertyDescriptor(AbortSignal.prototype, 'reason')!.get!;
+
 /** One authenticated backpressure bridge, shared by photo-pack1 and stack-pack1. */
 export async function readCatalogArchivePackEntry(entry: ScapeArchiveEntry, descriptor: ScapeAssetDescriptor,
 	budget: ScapeExpandedByteBudget, maximumChunkBytes: number,
@@ -30,7 +33,12 @@ export async function readCatalogArchivePackEntry(entry: ScapeArchiveEntry, desc
 	let count = 0, failure: unknown, failed = false;
 	try { count = await decode(readChunks(bridge.readable)); } catch (error) { failed = true; failure = error; control?.error(error); }
 	const production = await settled;
-	if (failed) throw aggregateScapeErrors(failure, production.failed && production.error !== failure ? [production.error] : [], `${label} decoding and extraction failed.`);
+	if (failed) {
+		const primaryIsAbort = signal !== undefined && Reflect.apply(nativeAborted, signal, []) === true
+			&& Reflect.apply(nativeReason, signal, []) === failure;
+		throw aggregateScapeErrors(failure, production.failed && production.error !== failure ? [production.error] : [],
+			`${label} decoding and extraction failed.`, primaryIsAbort ? { primaryIsAbort: true } : undefined);
+	}
 	if (production.failed) throw production.error;
 	verifyScapeExtractedAsset(descriptor, scapeHex(digest.digest()), size, entry.filename); return count;
 }
