@@ -7,7 +7,6 @@ import {
 import { closeWorkspacePanel } from './helpers/workspace-panel-chrome.js';
 
 const DATABASE_NAME = SOUNDSCAPER_DATABASE_NAME;
-const DATABASE_VERSION = 1;
 const fixture = createWavFixture({
 	name: 'browser-wavpack-persistence.wav',
 	frequency: 293.66,
@@ -181,12 +180,12 @@ async function applySampleEdit(page, editor, name) {
 }
 
 async function persistedPcmState(page, name) {
-	return page.evaluate(async ({ databaseName, databaseVersion, opfsDirectoryName, sourceName }) => {
+	return page.evaluate(async ({ databaseName, opfsDirectoryName, sourceName }) => {
 		const request = (input) => new Promise((resolve, reject) => {
 			input.onsuccess = () => resolve(input.result);
 			input.onerror = () => reject(input.error);
 		});
-		const database = await request(indexedDB.open(databaseName, databaseVersion));
+		const database = await request(indexedDB.open(databaseName));
 		try {
 			const sources = await request(database.transaction('sources', 'readonly').objectStore('sources').getAll());
 			const source = sources.find((candidate) => candidate.name === sourceName && candidate.storage !== 'copy-on-write');
@@ -231,19 +230,18 @@ async function persistedPcmState(page, name) {
 		}
 	}, {
 		databaseName: DATABASE_NAME,
-		databaseVersion: DATABASE_VERSION,
 		opfsDirectoryName: SOUNDSCAPER_OPFS_DIRECTORY_NAME,
 		sourceName: name,
 	});
 }
 
 async function copyOnWriteState(page) {
-	return page.evaluate(async ({ databaseName, databaseVersion }) => {
+	return page.evaluate(async ({ databaseName }) => {
 		const request = (input) => new Promise((resolve, reject) => {
 			input.onsuccess = () => resolve(input.result);
 			input.onerror = () => reject(input.error);
 		});
-		const database = await request(indexedDB.open(databaseName, databaseVersion));
+		const database = await request(indexedDB.open(databaseName));
 		try {
 			const sources = await request(database.transaction('sources', 'readonly').objectStore('sources').getAll());
 			const source = sources.find((candidate) => candidate.storage === 'copy-on-write');
@@ -260,13 +258,12 @@ async function copyOnWriteState(page) {
 		} finally {
 			database.close();
 		}
-	}, { databaseName: DATABASE_NAME, databaseVersion: DATABASE_VERSION });
+	}, { databaseName: DATABASE_NAME });
 }
 
 async function seedLegacyIndexedDbSource(page, name) {
 	return page.evaluate(async ({
 		databaseName,
-		databaseVersion,
 		opfsDirectoryName,
 		sourceName,
 	}) => {
@@ -279,7 +276,7 @@ async function seedLegacyIndexedDbSource(page, name) {
 			transaction.onerror = () => reject(transaction.error);
 			transaction.onabort = () => reject(transaction.error || new Error('IndexedDB transaction aborted.'));
 		});
-		const database = await request(indexedDB.open(databaseName, databaseVersion));
+		const database = await request(indexedDB.open(databaseName));
 		let oldPath = null;
 		try {
 			const sources = await request(database.transaction('sources', 'readonly').objectStore('sources').getAll());
@@ -344,7 +341,6 @@ async function seedLegacyIndexedDbSource(page, name) {
 		}
 	}, {
 		databaseName: DATABASE_NAME,
-		databaseVersion: DATABASE_VERSION,
 		opfsDirectoryName: SOUNDSCAPER_OPFS_DIRECTORY_NAME,
 		sourceName: name,
 	});
@@ -353,14 +349,13 @@ async function seedLegacyIndexedDbSource(page, name) {
 async function legacySourceState(page, sourceId) {
 	return page.evaluate(async ({
 		databaseName,
-		databaseVersion,
 		id,
 	}) => {
 		const request = (input) => new Promise((resolve, reject) => {
 			input.onsuccess = () => resolve(input.result);
 			input.onerror = () => reject(input.error);
 		});
-		const database = await request(indexedDB.open(databaseName, databaseVersion));
+		const database = await request(indexedDB.open(databaseName));
 		try {
 			const source = await request(database.transaction('sources', 'readonly').objectStore('sources').get(id));
 			const records = await request(database.transaction('sourceChunks', 'readonly')
@@ -378,7 +373,6 @@ async function legacySourceState(page, sourceId) {
 		}
 	}, {
 		databaseName: DATABASE_NAME,
-		databaseVersion: DATABASE_VERSION,
 		id: sourceId,
 	});
 }
