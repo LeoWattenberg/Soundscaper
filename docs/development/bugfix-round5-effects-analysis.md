@@ -690,3 +690,26 @@ unchanged Undo/Redo and return-to-one-repeat identity-map recovery in Chromium,
 Firefox and WebKit (3/3, 1.3 minutes;
 `/tmp/soundscaper-r5-root-loop-warp-green31.log`). Both guarded product builds
 pass. ROOT-022 is counted once. The assistance runtime closure is unchanged.
+
+## R5-ROOT-023 — Filter Curve EQ silently substitutes a limited inverse
+
+Import an ordinary recording, Select all, then Effect → EQ and filters →
+Filter Curve EQ. Expand Curve points and enter `100:-80, 10000:-80`. Invert
+changes the curve to +60 dB, silently substituting the gain limit for +80 dB;
+another Invert returns -60 dB and loses the original authored curve. The
+native curve domain admits -120..60 dB, so this inverse cannot be represented.
+
+Disable the existing Invert action when its result would exceed that domain,
+explain the boundary through its existing action area, and preserve the
+authored points. Exact supported inverses no longer use a clipping substitute.
+The mathematical inverse and its admission live in a focused strict helper.
+
+The immutable-baseline Chromium action records the substituted +60 dB
+(`/tmp/soundscaper-r5-root-filter-invert-limit-baseline.log`), and the final
+admission workflow fails at its enabled button
+(`/tmp/soundscaper-r5-root-filter-invert-admission-baseline.log`). The production
+mounted case fails before correction, then new and existing curve, point-focus,
+keyboard, axis and gesture support passes 11/11. Its exact -60/+60 boundary
+and second-inversion round trip pass. Target lint, focused strict compiler and
+the size gate pass. Corrected public verification is pending; ROOT-023 is not
+yet counted. The assistance runtime closure is unchanged.

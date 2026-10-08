@@ -14,6 +14,7 @@ import { createFilterCurveGesture } from '../../controller/effects/filter-curve-
 import { CommitField, DesignCheckbox } from './inspector-controls.jsx';
 import { useEqDraftFrame, useFilterEqGrid, useFilterEqPolyline, useFilterResponseFrequencies } from './useEqPresentation.ts';
 import { moveFilterCurvePointByKey } from './filter-curve-keyboard.ts';
+import { filterCurveCanInvert, invertFilterCurve } from './filter-curve-inversion.ts';
 
 interface Props {
 	readonly name: string;
@@ -191,7 +192,7 @@ export default function FilterCurveEqEditor({
 			onCommit={(_field: string, next: string) => onCommit(parseAudacityCurve(next))} /></details>
 		<div className="audio-editor-panel-actions audio-editor-filter-curve__actions">
 			<Button variant="secondary" disabled={disabled} onClick={() => onCommit(EMPTY)}>{copy.reset}</Button>
-			<Button variant="secondary" disabled={disabled} onClick={() => onCommit(points.map((point) => ({ ...point, gain: Math.max(-120, Math.min(60, -point.gain)) })))}>{copy.invert}</Button>
+			<span title={!filterCurveCanInvert(points) ? text('effectCurveInverseUnavailable') : undefined}><Button variant="secondary" disabled={disabled || !filterCurveCanInvert(points)} onClick={() => onCommit(invertFilterCurve(points))}>{copy.invert}</Button></span>
 		</div>
 	</div>;
 }
