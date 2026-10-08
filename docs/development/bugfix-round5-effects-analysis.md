@@ -280,5 +280,9 @@ New and existing FFT, analysis, window reuse and pink-noise support passes
 28/28. The older spectrum assertion which expected half a full-scale sine's
 amplitude now asserts the calibrated value. Regressions are
 `audio-editor-round5-spectrum-level-calibration.test.ts` and
-`audio-editor-round5-spectrum-level-calibration.spec.js`. Final public
-verification is pending; this entry is not counted yet.
+`audio-editor-round5-spectrum-level-calibration.spec.js`. Both ordinary long
+and one-window recordings pass in Chromium, Firefox and WebKit on immutable
+`41e0214e0` (6/6, no skips or failures), as recorded in
+`/tmp/soundscaper-r5-root-spectral-spectrum-green11.log`. ROOT-009 fails its
+separate production check in that same run and remains uncounted; it does not
+affect these measured amplitude/report checks.
