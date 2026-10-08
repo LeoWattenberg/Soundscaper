@@ -407,6 +407,8 @@ application overrides and source patches against the pin and upstream master.
 56. `ClipHeader` leaves composing Enter/Escape with the native text input while
     its inline clip-name draft is unfinished. Ordinary keyboard save/cancel and
     the existing focus handoff remain available after composition completes.
+    Keep the input's existing propagation isolation during composition so the
+    enclosing track wrapper cannot reinterpret Enter as clip selection.
     Covered by `tests/audio-editor-round6-clip-name-composition.test.tsx` and the
     public import/F2/name-confirmation/Undo/Redo workflow. Upstream-PR candidate.
 
