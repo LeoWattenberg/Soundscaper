@@ -1,7 +1,7 @@
 # Fifth user-reproducible regression audit
 
-This audit is in progress toward 100 additional distinct fixes. Forty
-new roots have completed ordinary browser verification (editing 11, dialogs 13,
+This audit is in progress toward 100 additional distinct fixes. Forty-one
+new roots have completed ordinary browser verification (editing 11, dialogs 14,
 effects/analysis 11, import/export 5). Its immutable
 baseline is `fe6440c81b3a0fe29a028c64db867ae7d2cf3252`.
 

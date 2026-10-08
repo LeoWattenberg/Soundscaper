@@ -228,7 +228,11 @@ source audition starts instead of timeline playback
 The enclosing owner now likewise reserves only plain Space. Its mounted
 production regression is RED before that guard and GREEN afterward with
 16/16 panel/source support; targeted lint and size gates pass. The extended
-ordinary shortcut spec awaits corrected browser verification.
+ordinary shortcut spec passes together with read-only source audition in
+Chromium, Firefox and WebKit on immutable green14 `562e54fa4` (9/9, 51.0
+seconds, no skips or failures;
+`/tmp/soundscaper-r5-root-source-shortcuts-readonly-green14.log`). This
+follow-through adds no count.
 
 ## R5-ROOT-009 — First-party selection effects overwrite unselected frequencies
 
