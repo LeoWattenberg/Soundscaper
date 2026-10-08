@@ -166,6 +166,7 @@ export function createClipPropertyService(
 			if (action === 'normalize-lufs' && Number.isFinite(result.integratedLufs)) {
 				gain = 10 ** ((-14 - result.integratedLufs) / 20);
 			}
+			if (gain > 16) throw createLocalizedError(RangeError, dependencies.copy, 'clipNormalizationGainLimit');
 			return dependencies.commit({
 				type: 'clip/update',
 				clipId: clip.id,
