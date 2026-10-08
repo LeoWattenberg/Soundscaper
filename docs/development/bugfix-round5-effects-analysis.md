@@ -218,3 +218,31 @@ binding workflow passes Chromium, Firefox and WebKit on immutable green10
 `459027ddc`, with both earlier source-key owners (9/9, zero skips, 51.4 seconds;
 `/tmp/soundscaper-r5-root-source-waveform-shortcut-green10.log`). Both normal
 guarded product builds, targeted type-aware lint and size checks pass.
+
+## R5-ROOT-009 — First-party selection effects overwrite unselected frequencies
+
+Import a normal mono WAV containing 1 kHz and 6 kHz tones. Select all, enable
+Spectrogram and choose Effect → Spectral editing → Spectral box select with
+900–1100 Hz → Select range. Apply Effect → Special → Utility Gain (Reviewed)
+with gain zero, then export WAV. The baseline silences both tones: the 6 kHz
+amplitude falls from 0.2 to approximately 3e-10, although that frequency is
+outside the authored band.
+
+The generalized dispatcher returns reviewed, Bitcrusher and band-dynamics
+output before the existing spectral compositor can combine the selected bins
+with unchanged audio. Reuse that compositor for these branches and the reviewed
+processor's dedicated worker owner. Preserve the terminating package worker,
+input PCM, frame/channel layout and cancellation fences. Account for the
+replacement buffer and FFT scratch in their existing peak admission. Keep
+execution behind the optional selection-runtime chunk.
+
+The unchanged Chromium workflow fails on its actual downloaded PCM
+(`/tmp/soundscaper-r5-root-selection-spectral-baseline2.log`, 6.1 seconds).
+Four actual DSP branches and the reviewed owning service independently fail
+before correction; their selected-tone and unchanged-neighbor checks pass
+afterward. New and existing worker, DSP, FFT loading and chunk ownership support
+passes 58/58; targeted type-aware lint and size checks pass. Regressions are
+`audio-editor-round5-selection-effect-spectral-band.test.ts` and
+`audio-editor-round5-selection-effect-spectral-band.spec.js`. These omitted
+first-party dispatch branches count once. Final immutable public verification
+is pending, so this entry is not counted yet.
