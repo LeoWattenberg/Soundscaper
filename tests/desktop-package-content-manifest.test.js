@@ -33,7 +33,7 @@ test('the embedded package-content manifest binds the exact installed resource c
 		targetId: 'linux-x64',
 	});
 	assert.equal(written.status, 'installed-resource-closure-audited');
-	assert.equal(written.fileCount, 13);
+	assert.equal(written.fileCount, 5);
 	const audit = await auditExtractedDesktopPackageContent({
 		extractedRoot: fixture.extractedRoot,
 		runtimeManifestBytes: await readFile(fixture.runtimeManifestPath),
@@ -42,7 +42,7 @@ test('the embedded package-content manifest binds the exact installed resource c
 	});
 	assert.equal(audit.contentManifestSha256, written.contentManifestSha256);
 	assert.equal(audit.sourceRevision, REVISION);
-	assert.equal(audit.fileCount, 13);
+	assert.equal(audit.fileCount, 5);
 	assert.match(audit.installedClosureSha256, /^[a-f\d]{64}$/u);
 	assert.match(audit.resourcesPath, /usr\/lib\/soundscaper\/resources$/u);
 });
@@ -74,7 +74,7 @@ test('package-content authority requires the committed Audacity layer provenance
 });
 
 test('Stable Soundscaper admits no legacy native-addon manifest or helper payload', async (context) => {
-	const stable = await packageTree(context);
+	const stable = await packageTree(context, { professionalBuilt: true });
 	await rm(join(stable.resourcesRoot, 'runtime/native/linux-x64'), { recursive: true });
 	const stableNotices = await addStableProfessionalNotices(stable);
 	Object.assign(stable.runtimeManifest, {
@@ -86,9 +86,9 @@ test('Stable Soundscaper admits no legacy native-addon manifest or helper payloa
 		resourcesRoot: stable.resourcesRoot, runtimeManifestPath: stable.runtimeManifestPath,
 		productId: 'soundscaper', targetId: 'linux-x64',
 	}, stableNotices.dependencies);
-	assert.equal(written.fileCount, 18);
+	assert.equal(written.fileCount, 20);
 
-	const missingNotices = await packageTree(context);
+	const missingNotices = await packageTree(context, { professionalBuilt: true });
 	await rm(join(missingNotices.resourcesRoot, 'runtime/native/linux-x64'), { recursive: true });
 	const missingAuthority = await addStableProfessionalNotices(missingNotices, { writeNotices: false });
 	Object.assign(missingNotices.runtimeManifest, {
@@ -102,7 +102,7 @@ test('Stable Soundscaper admits no legacy native-addon manifest or helper payloa
 		productId: 'soundscaper', targetId: 'linux-x64',
 	}, missingAuthority.dependencies), /professional-native notice/iu);
 
-	const smuggled = await packageTree(context);
+	const smuggled = await packageTree(context, { professionalBuilt: true });
 	const smuggledNotices = await addStableProfessionalNotices(smuggled);
 	Object.assign(smuggled.runtimeManifest, {
 		applicationVersion: '1.0.0', applicationVersionChannel: 'stable',
@@ -370,7 +370,7 @@ function peExecutable(machine) {
 
 async function addStableProfessionalNotices(fixture, { writeNotices = true } = {}) {
 	const ids = [
-		'electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'vamp-plugin-sdk',
+		'electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'vamp-plugin-sdk', 'ara-api', 'ara-library',
 		'asio-sdk', 'ladspa-sdk', 'lv2',
 	];
 	const targets = ['linux-x64', 'linux-arm64', 'mac-arm64', 'win-x64', 'win-arm64'];

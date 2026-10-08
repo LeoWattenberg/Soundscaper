@@ -21,6 +21,7 @@ const PRODUCT_CONFIG_FILES = Object.freeze({
 	]),
 	framescaper: Object.freeze([
 		...COMMON_CONFIG_FILES,
+		'config/soundscaper-professional-native-notices.json',
 		'config/framescaper-media-host-payload-manifest.json',
 		'config/framescaper-openfx-host-payload-manifest.json',
 		'config/soundscaper-professional-native-payload-manifest.json',

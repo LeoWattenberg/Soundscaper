@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { build } from 'esbuild';
 import {
@@ -204,7 +204,8 @@ export async function stageSoundscaperDesktopEntrySources(sourceRoot, applicatio
 	await writeFile(join(applicationRoot, 'soundscaper-product-isolation.mjs'),
 		soundscaperProductIsolationModuleSource(), { flag: 'wx' });
 	await bundleSoundscaperDesktopSmoke(sourceRoot, applicationRoot);
-	await bundleSoundscaperPreload(sourceRoot, applicationRoot);
+	await writeFile(join(applicationRoot, 'preload.mjs'),
+		soundscaperPreloadSource(await readFile(join(sourceRoot, 'preload.mjs'), 'utf8')));
 }
 
 async function bundleSoundscaperDesktopSmoke(sourceRoot, applicationRoot) {
@@ -251,12 +252,10 @@ async function bundleSoundscaperDesktopSmoke(sourceRoot, applicationRoot) {
 	});
 }
 
-async function bundleSoundscaperPreload(sourceRoot, applicationRoot) {
+/** Bundle after the compiled runtime is staged, so sandbox preloads can import shared validation. */
+export async function bundleDesktopMainPreload(applicationRoot) {
 	await build({
-		stdin: {
-			contents: soundscaperPreloadSource(await readFile(join(sourceRoot, 'preload.mjs'), 'utf8')),
-			loader: 'js', resolveDir: sourceRoot, sourcefile: 'preload.mjs',
-		},
+		entryPoints: [join(applicationRoot, 'preload.mjs')],
 		outfile: join(applicationRoot, 'preload.mjs'),
 		bundle: true,
 		platform: 'node',
@@ -269,4 +268,19 @@ async function bundleSoundscaperPreload(sourceRoot, applicationRoot) {
 		logLevel: 'silent',
 		allowOverwrite: true,
 	});
+}
+
+/** Bundling consumes some compiled inputs; retain only imports still present in the application. */
+export async function retainDesktopRuntimeClosureAfterBundling({
+	applicationRoot, applicationFiles, compiledRoot, completeFiles, stagedFiles, productId, runtimePackageImports,
+}) {
+	const rootFiles = await collectApplicationDesktopRuntimeReferences({
+		applicationRoot, applicationFiles, completeFiles, runtimePackageImports,
+	});
+	const retained = await collectDesktopProductRuntimeClosure({ compiledRoot, completeFiles, rootFiles, productId });
+	const live = new Set(retained);
+	for (const name of stagedFiles) {
+		if (!live.has(name)) await rm(join(applicationRoot, 'project-library-runtime', name));
+	}
+	return retained;
 }

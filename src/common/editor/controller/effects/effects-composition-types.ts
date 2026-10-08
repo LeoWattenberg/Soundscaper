@@ -31,6 +31,7 @@ import type { EditorTaskProgressCoordinator } from '../shared/task-progress.ts';
 import type { RenderedAudio } from '../source/source-audio.ts';
 import type { generateWaveformPeaks } from '../source/waveform-analysis.ts';
 import type { MacroTransaction } from '../document/project-mutation-service.ts';
+import type { AraClipEditingDependencies } from './internal/ara-clip-editing.ts';
 
 /** The document shape every effect service reads; the controller supplies its current project. */
 export type EffectsCompositionProject =
@@ -141,6 +142,8 @@ export interface EffectsCompositionDependencies {
 		options?: RackEffectCommitOptions,
 	) => EffectsCompositionProject;
 	readonly cacheSourceBuffer: (sourceId: string, buffer: AudioBuffer) => unknown;
+	readonly activateAraSource: AraClipEditingDependencies['activateSource'];
+	readonly releaseAraSource: AraClipEditingDependencies['releaseSource'];
 	readonly snapTimelineFrame: (frame: unknown) => number;
 	readonly projectDurationFrames: (project: EffectsCompositionProject | null) => number;
 	readonly projectSampleRate: () => number;

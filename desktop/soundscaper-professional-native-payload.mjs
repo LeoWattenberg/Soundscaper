@@ -48,15 +48,16 @@ export async function describeSoundscaperProfessionalNativePayload(location, rea
 	let isolation;
 	let entrypoint;
 	try {
-		payload = await runtimeArtifact(location, manifest, target, selected.payload, readFileImpl);
+		payload = location.pluginOnly === true ? null
+			: await runtimeArtifact(location, manifest, target, selected.payload, readFileImpl);
 		buildResult = await runtimeArtifact(location, manifest, target,
 			selected.buildResult, readFileImpl, (bytes) => {
 				buildAuthority = parseSoundscaperProfessionalNativeBuildAuthority(bytes, target);
 			});
-		osAudioCodec = selected.osAudioCodec === null ? null
+		osAudioCodec = location.pluginOnly === true || selected.osAudioCodec === null ? null
 			: await runtimeArtifact(location, manifest, target, selected.osAudioCodec, readFileImpl);
 		pluginPeer = await runtimeArtifact(location, manifest, target, selected.pluginPeer, readFileImpl);
-		deliveryFilesystem = await runtimeArtifact(
+		deliveryFilesystem = location.pluginOnly === true ? null : await runtimeArtifact(
 			location, manifest, target, selected.deliveryFilesystem, readFileImpl,
 		);
 		const runtimeClosure = Object.freeze(await Promise.all(selected.isolation.runtimeClosure.map((entry) =>
@@ -74,7 +75,8 @@ export async function describeSoundscaperProfessionalNativePayload(location, rea
 		});
 	} catch (error) { return unavailable('payload-digest-mismatch', errorMessage(error)); }
 	return Object.freeze({ status: 'available', descriptor: Object.freeze({
-		target, path: payload.path, byteLength: payload.byteLength, sha256: payload.sha256,
+		target, path: (payload ?? pluginPeer).path, byteLength: (payload ?? pluginPeer).byteLength,
+		sha256: (payload ?? pluginPeer).sha256,
 		addonVersion: manifest.addon.version, napiVersion: manifest.addon.napiVersion,
 		toolchainIdentity: selected.toolchainIdentity, sourceAudit: selected.sourceAuthentication,
 		buildResult, buildAuthority, osAudioCodec, deliveryFilesystem,
@@ -145,7 +147,7 @@ function validateManifest(value, sourceRegister) {
 }
 
 function validSourceAuthentication(value, target, sourceRegister) {
-	const ids = ['electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'vamp-plugin-sdk',
+	const ids = ['electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'vamp-plugin-sdk', 'ara-api', 'ara-library',
 		...(target.startsWith('win-') ? ['asio-sdk'] : []),
 		...(target.startsWith('linux-') ? ['ladspa-sdk', 'lv2'] : [])];
 	return value?.schemaVersion === 1 && value.status === 'authenticated'

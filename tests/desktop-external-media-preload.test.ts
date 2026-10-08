@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readDesktopPreloadSource } from './helpers/desktop-preload-source.mjs';
 import test from 'node:test';
 import vm from 'node:vm';
 
@@ -46,7 +46,7 @@ test('preload captures native picker grants and resolves only through selected p
 async function loadPreload(pathForFile: (file: File) => string, results: unknown[] = []) {
 	let bridge: ExternalMediaBridge | undefined;
 	const invocations: [string, unknown][] = [];
-	const source = await readFile(new URL('../desktop/preload.mjs', import.meta.url), 'utf8');
+	const source = await readDesktopPreloadSource();
 	vm.runInNewContext(source, { ArrayBuffer, Object, Promise, RangeError, String, TypeError,
 		Uint8Array, URL, TextEncoder, btoa,
 		require: () => ({

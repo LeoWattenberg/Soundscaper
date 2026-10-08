@@ -54,13 +54,13 @@ test('self-test authority recognizes a normalized path on another Windows volume
 
 test('Soundscaper build-result source scope excludes every Framescaper codec input', () => {
 	assert.deepEqual(soundscaperProfessionalNativeSourceIdsForTarget('mac-arm64'), [
-		'electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'vamp-plugin-sdk',
+		'electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'vamp-plugin-sdk', 'ara-api', 'ara-library',
 	]);
 	assert.deepEqual(soundscaperProfessionalNativeSourceIdsForTarget('win-arm64'), [
-		'electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'vamp-plugin-sdk', 'asio-sdk',
+		'electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'vamp-plugin-sdk', 'ara-api', 'ara-library', 'asio-sdk',
 	]);
 	assert.deepEqual(soundscaperProfessionalNativeSourceIdsForTarget('linux-x64'), [
-		'electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'vamp-plugin-sdk', 'ladspa-sdk', 'lv2',
+		'electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'vamp-plugin-sdk', 'ara-api', 'ara-library', 'ladspa-sdk', 'lv2',
 	]);
 	assert.throws(() => soundscaperProfessionalNativeSourceIdsForTarget('mac-x64'), /target/u);
 });
@@ -85,13 +85,14 @@ test('self-test commands are closed, clean-HEAD authorities and refuse a changed
 	const repositoryRoot = await mkdtemp(join(tmpdir(), 'soundscaper-pro-self-test-authority-'));
 	context.after(() => rm(repositoryRoot, { recursive: true, force: true }));
 	const authoritySources = [
-		['scripts/self-test-soundscaper-professional-native-runtime.mjs', '#!/usr/bin/env node\nprocess.exitCode = 0;\n'],
+		['scripts/self-test-soundscaper-professional-native-runtime.mjs', '#!/usr/bin/env node\nprocess.exitCode = 0;\n'], ['scripts/lib/soundscaper-ara-native-canary.mjs', 'export const canary = true;\n'],
 		['scripts/self-test-soundscaper-delivery-fs.mjs', '#!/usr/bin/env node\nprocess.exitCode = 0;\n'],
 		['scripts/lib/soundscaper-professional-packaged-app-authority.mjs', 'export const authority = true;\n'],
 		['scripts/lib/soundscaper-native-test-runtime.mjs', 'export const runtime = true;\n'],
 		['scripts/lib/soundscaper-professional-native-containment-probes.mjs', 'export const containment = true;\n'],
 		['desktop/soundscaper-professional-linux-system-libraries.ts', 'export const libraries = true;\n'],
 		['desktop/soundscaper-professional-linux-system-runtime.ts', 'export const runtime = true;\n'],
+		['scripts/ci-install-professional-cmake.sh', '#!/usr/bin/env bash\n# authenticated CMake bootstrap\n'],
 	];
 	await Promise.all(['scripts/lib', 'desktop'].map((path) =>
 		mkdir(join(repositoryRoot, path), { recursive: true })));
@@ -123,14 +124,8 @@ test('self-test commands are closed, clean-HEAD authorities and refuse a changed
 		&& args[1] === driverPath && args.includes('--target=linux-x64')
 		&& args.some((value) => value.startsWith('--packaged-app-authority-sha256='))));
 	assert.equal(plan.authority.packagedApp.sourceRevision, sourceRevision);
-	assert.deepEqual(plan.authority.files.map(({ path }) => path), [
-		'scripts/self-test-soundscaper-professional-native-runtime.mjs',
-		'scripts/self-test-soundscaper-delivery-fs.mjs',
-		'scripts/lib/soundscaper-professional-packaged-app-authority.mjs',
-		'scripts/lib/soundscaper-native-test-runtime.mjs',
-		'scripts/lib/soundscaper-professional-native-containment-probes.mjs',
-		'desktop/soundscaper-professional-linux-system-libraries.ts', 'desktop/soundscaper-professional-linux-system-runtime.ts',
-	]);
+	assert.deepEqual(plan.authority.files.map(({ path }) => path), authoritySources.map(([path]) => path));
+	assert.equal(plan.authority.files.at(-1).sha256, sha256(Buffer.from(authoritySources.at(-1)[1])));
 	assert.throws(() => assertAuthenticatedSoundscaperProfessionalNativeSelfTestPlan({ ...plan }),
 		/authenticated self-test plan/iu);
 	await writeFile(driverPath, '#!/usr/bin/env node\nprocess.exitCode = 0; // changed\n');

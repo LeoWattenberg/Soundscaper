@@ -526,7 +526,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		state: effectsAccess, copy, locale, composition, absentSubsystem, lifetime, projectGeneration, projectRuntime, store, engine, sourceBuffers, sourcePeaks, pauseSourcePreview: () => clips.clipSourcePreview.stop(),
 		taskProgress, nyquistEvaluator, getProject: () => documentState.project, getCommandProject, activeSelection, selectedTracksTimeRange: bindings.selectedTracksTimeRange, editingBlocked, setSelection: bindings.selection.setSelection,
 		persistSetting, publishDocumentSnapshot, batchPresentation: documentChannel.batch, setStatus: bindings.setStatus, preflightStorage: bindings.preflightStorage, renderSnapshot, prepareCommittedTimePitchCaches: bindings.prepareCommittedTimePitchCaches,
-		createRenderEngine: bindings.createCacheAwareRenderEngine, commit: bindings.commit, beginResultTransaction: () => doc.mutation.beginMacroTransaction(), cacheSourceBuffer: bindings.cacheSourceBuffer, snapTimelineFrame: bindings.selection.snapFrame, projectDurationFrames, projectSampleRate, handleError: bindings.handleError,
+		createRenderEngine: bindings.createCacheAwareRenderEngine, commit: bindings.commit, beginResultTransaction: () => doc.mutation.beginMacroTransaction(), cacheSourceBuffer: bindings.cacheSourceBuffer, snapTimelineFrame: bindings.selection.snapFrame, projectDurationFrames, projectSampleRate, handleError: bindings.handleError, activateAraSource: async (source, signal) => bindings.activateStoredSource(source, await store.getSourceMetadata(source.storageKey || source.id), { signal, requireChunkStream: true }), releaseAraSource: async (sourceId) => { await sources.sourceLifecycle.retireSourceChunkProvider(sourceId); await sources.sourceLifecycle.invalidateSourceRuntime(sourceId); },
 	});
 	const edits = createEditComposition({
 		state, copy, lifetime, projectGeneration, projectRuntime, composition, absentSubsystem, session: sessionController, store, engine, setEffectProcessing: effectsStatePorts.processing.set, supportsTrackFolders: capabilities.trackFolders, batchPresentation: documentChannel.batch,
@@ -651,7 +651,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		getTelemetrySnapshot: bindings.getTelemetrySnapshot, subscribeTelemetry: telemetryChannel.subscribe,
 		getLocalDiagnosticsSnapshot: state.localDiagnostics.snapshot, recordLocalDiagnosticError: state.localDiagnostics.record,
 		getClipVisualData: bindings.getClipVisualData,
-		getProjectBinClipVisualData: bindings.projectBin.getVisualData, selectedMediaPreparation: effects.audio.selectedMediaPreparation, textToSpeechProjectPort,
+		getProjectBinClipVisualData: bindings.projectBin.getVisualData, selectedMediaPreparation: effects.audio.selectedMediaPreparation, textToSpeechProjectPort, araClipEditing: effects.araClipEditing,
 		actions, presentationLocalization: localization.port,
 		beginDisposal: () => { disposeResources.beginDisposal(); publishDocumentSnapshot({ force: true }); }, blockStoreClose: disposeResources.blockStoreClose, canCloseStore: disposeResources.canCloseStore, dispose: () => { disposeLocalization(); return disposeResources(); },
 	};

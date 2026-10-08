@@ -1,5 +1,5 @@
 /* Electron sandbox preload: restricted require exposes only Electron; Framescaper shares this contextBridge. */
-const { contextBridge, ipcRenderer, webUtils } = require('electron');
+const { contextBridge, ipcRenderer, webUtils } = require('electron'); import { createAraPreloadBridge } from './project-library-runtime/desktop/ara-preload.js';
 const PRELOAD_ARGUMENTS = typeof process === 'object' && Array.isArray(process?.argv)
 	? process.argv : (globalThis.process?.argv ?? []);
 const PRELOAD_PRODUCT_ID = PRELOAD_ARGUMENTS.includes('--soundscaper-product=framescaper') ? 'framescaper' : 'soundscaper';
@@ -127,7 +127,7 @@ const api = Object.freeze({
 	nativeAudioHelperAvailability: () => ipcRenderer.invoke(CHANNELS.nativeAudioAvailability).then(nativeAudioAvailability),
 	setNativeAudioHelperEnabled: (enabled) => ipcRenderer.invoke(CHANNELS.nativeAudioSetEnabled, enabled === true).then(nativeAudioEnabled),
 	describeNativeAudioBackend: (request) => ipcRenderer.invoke(CHANNELS.nativeAudioInventory, { backend: text(request?.backend, 32) }).then(nativeAudioInventory),
-	nativePluginAvailability: () => ipcRenderer.invoke(CHANNELS.nativePluginAvailability).then(nativePluginStatus),
+	nativePluginAvailability: () => ipcRenderer.invoke(CHANNELS.nativePluginAvailability).then(nativePluginStatus), ara: createAraPreloadBridge((channel, value) => ipcRenderer.invoke(channel, value)),
 	setNativePluginConsent: (request) => ipcRenderer.invoke(CHANNELS.nativePluginConsent, {
 		format: text(request?.format, 32),
 		action: text(request?.action ?? 'grant', 32),

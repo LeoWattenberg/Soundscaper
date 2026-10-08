@@ -332,16 +332,13 @@ export async function verifyPackagedSoundscaperProfessionalNativeResources(conte
 	}
 	const product = packagingProductId(context);
 	const prefix = resolve(resourcesRoot, 'runtime', PROFESSIONAL_NATIVE_RUNTIME_PREFIX);
-	if (product === 'framescaper') {
-		const entries = await readdir(prefix).catch(() => []);
-		if (entries.length !== 0) throw new Error('Packaged Framescaper resources carry the Soundscaper professional payload.');
-		return null;
-	}
+	const pluginOnly = product === 'framescaper';
+	if (pluginOnly && (await readdir(prefix).catch(() => [])).length === 0) return null;
 	const target = nativeAddonPayloadTargetForPackagingContext(context);
 	const release = await verifySoundscaperProfessionalNativePayload({ repositoryRoot, target });
 	try {
 		return await verifyStagedSoundscaperProfessionalNativePayload({
-			release,
+			release, pluginOnly,
 			outputRoot: professionalNativePayloadOutputRoot(resolve(resourcesRoot, 'runtime'), release),
 		});
 	} catch (error) {

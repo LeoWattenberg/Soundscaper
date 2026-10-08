@@ -155,6 +155,10 @@ export function createWorkspaceApplicationMenus({
 				framescaperNativeServices: framescaperRuntime.framescaperNativeServices,
 				soundscaperWorkflow,
 				soundscaperNativeServices,
+				araClipEditing: fileService.isDesktop === true && controller?.araClipEditing ? {
+					open: () => run(() => import('./AraClipEditorSurface.tsx').then(({ openAraClipEditorSurface }) =>
+						openAraClipEditorSurface({ controller, copy }))),
+				} : null,
 				parallelStackProcessing: createParallelStackMenuRuntime({
 					productId, desktop: fileService.isDesktop === true, controller, run,
 					recording: Boolean(snapshot.recording || snapshot.recordingScheduling || snapshot.scheduledRecording),

@@ -5,6 +5,7 @@ import { dirname, extname, join, resolve } from 'node:path';
 import { build } from 'esbuild';
 import { DESKTOP_5B_TRANSITIVE_RUNTIME_FILES, DESKTOP_RUNTIME_BUNDLED_LEAF_FILES } from './desktop-5b-transitive-runtime-files.mjs';
 import { DESKTOP_ASSISTANCE_RUNTIME_FILES } from './desktop-assistance-runtime-files.mjs';
+import { DESKTOP_ARA_RUNTIME_FILES } from './desktop-ara-runtime-files.mjs';
 import { DESKTOP_AUDACITY_EFFECT_RUNTIME_FILES } from './desktop-audacity-effect-runtime-files.mjs';
 import { stageDesktopBundledAudioRuntime } from './desktop-bundled-audio-runtime.mjs';
 import { DESKTOP_EXTERNAL_FFMPEG_RUNTIME_FILES } from './desktop-external-ffmpeg-runtime-files.mjs';
@@ -21,12 +22,11 @@ import {
 	desktopProductSourceIncluded,
 } from './desktop-product-package-files.mjs';
 import {
-	collectApplicationDesktopRuntimeReferences,
+	collectApplicationDesktopRuntimeReferences, bundleDesktopMainPreload, retainDesktopRuntimeClosureAfterBundling,
 	collectDesktopProductRuntimeClosure,
 	desktopProductRuntimeTransform,
 	stageSoundscaperDesktopEntrySources,
 } from './desktop-product-runtime-staging.mjs';
-
 const FRAMESCAPER_CAPTURE_PRELOAD_BUNDLE = 'framescaper-capture-sandbox-preload.cjs';
 const FRAMESCAPER_WEB_VCR_PRELOAD_BUNDLE = 'framescaper-web-vcr-sandbox-preload.cjs';
 const SOUNDSCAPER_PRELOAD_BUNDLE = 'soundscaper-project-library-sandbox-preload.cjs';
@@ -52,7 +52,7 @@ export const DESKTOP_EXPECTED_RUNTIME_FILES = Object.freeze([
 	'desktop/desktop-storage-bootstrap.js', 'desktop/desktop-browser-cache.js',
 	'desktop/desktop-project-library-migration.js', 'desktop/desktop-projects-directory.js',
 	'desktop/application-lifecycle.js', 'desktop/save-size-warning-dialog.js', 'src/common/editor/controller/shared/file-size-warning.js', 'desktop/mcp-main-registration.js', 'desktop/mcp-service.js', 'desktop/original-file-overwrite.js',
-	...DESKTOP_ASSISTANCE_RUNTIME_FILES,
+	...DESKTOP_ASSISTANCE_RUNTIME_FILES, ...DESKTOP_ARA_RUNTIME_FILES,
 	...DESKTOP_EXTERNAL_FFMPEG_RUNTIME_FILES,
 	'desktop/framescaper-capture-desktop-port.js',
 	'desktop/framescaper-capture-main-channels.js',
@@ -430,7 +430,7 @@ export async function stageDesktopApplicationSources({
 		completeFiles: runtimeFiles,
 		runtimePackageImports: desktopProductRuntimePackageImports(productId, DESKTOP_RUNTIME_PACKAGE_IMPORTS),
 	});
-	const packagedRuntimeFiles = await collectDesktopProductRuntimeClosure({
+	let packagedRuntimeFiles = await collectDesktopProductRuntimeClosure({
 		compiledRoot,
 		completeFiles: runtimeFiles,
 		rootFiles: runtimeRoots,
@@ -445,6 +445,8 @@ export async function stageDesktopApplicationSources({
 		else await cp(join(compiledRoot, name), output, { errorOnExist: true });
 	}
 	await stageBundledAudioCodecRuntimeManifest({ desktopRoot: applicationRoot });
+	await bundleDesktopMainPreload(applicationRoot);
+	packagedRuntimeFiles = await retainDesktopRuntimeClosureAfterBundling({ applicationRoot, applicationFiles: stagedSourceFiles, compiledRoot, completeFiles: runtimeFiles, stagedFiles: packagedRuntimeFiles, productId, runtimePackageImports: desktopProductRuntimePackageImports(productId, DESKTOP_RUNTIME_PACKAGE_IMPORTS) });
 	await assertStagedDesktopImportsResolve(applicationRoot);
 	assertRuntimePackageImportTargets(productId, packagedRuntimeFiles);
 	await bundleSandboxPreload({
@@ -477,7 +479,6 @@ export async function stageDesktopApplicationSources({
 	}
 	return Object.freeze({ files: packagedRuntimeFiles });
 }
-
 function assertRuntimePackageImportTargets(productId, packagedFiles) {
 	const runtimePrefix = './desktop/project-library-runtime/';
 	const imports = desktopProductRuntimePackageImports(productId, DESKTOP_RUNTIME_PACKAGE_IMPORTS);
@@ -531,7 +532,6 @@ function assertExpectedRuntime(files) {
 		);
 	}
 }
-
 function resolveRequiredPath(value, label) {
 	if (typeof value !== 'string' || !value.trim()) throw new TypeError(`Desktop runtime ${label} is required`);
 	return resolve(value);

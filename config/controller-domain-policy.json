@@ -126,6 +126,7 @@
 		"edit/paste-existing-clip-service.ts",
 		"edit/paste-mono-conversion-policy.ts",
 		"edit/paste-mono-conversion-service.ts",
+		"effects/ara-edit-session.ts",
 		"effects/audacity-tool-action-runtime.ts",
 		"effects/deferred-effect-runtime.ts",
 		"effects/effect-controls-service.ts",

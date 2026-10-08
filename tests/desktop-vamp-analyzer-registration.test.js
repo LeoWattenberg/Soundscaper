@@ -13,6 +13,9 @@ const ELECTRON = 'stub-electron:vamp-analyzer-registration';
 registerHooks({
 	resolve(specifier, context, nextResolve) {
 		if (specifier === 'electron/main') return { url: ELECTRON, shortCircuit: true };
+		if (specifier === './project-library-runtime/src/common/editor/ara-contract.js') {
+			return nextResolve('../src/common/editor/ara-contract.ts', context);
+		}
 		const prefix = './project-library-runtime/desktop/';
 		if (specifier.startsWith(prefix)) {
 			return nextResolve(`./${specifier.slice(prefix.length).replace(/\.js$/u, '.ts')}`, context);

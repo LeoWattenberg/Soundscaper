@@ -27,6 +27,7 @@ import { productionSoundscaperPluginFormatActivated } from './soundscaper-native
 import { createPluginRegistryAllowanceStore } from './plugin-registry-allowance-store.mjs';
 import { authenticatePluginBinary } from './plugin-binary-authentication.mjs';
 import { registerDesktopVampAnalyzers } from './vamp-analyzer-registration.mjs';
+import { registerDesktopAra } from './ara-registration.mjs';
 
 const CONSENT_FILE = 'native-plugin-consent-v1.json';
 const QUARANTINE_FILE = 'native-plugin-quarantine-v1.json';
@@ -254,6 +255,9 @@ export function registerDesktopPluginDiscovery({
 		})),
 		openPersistentPluginSession,
 	});
+	const ara = registerDesktopAra({ handle, ownerFor, registry, settings, consent, quarantine,
+		isFormatActive: formatIsActive, desktopRoot, packaged, resourcesPath,
+		rebind: (id) => rebindPluginInstallation(allowances, registry, id) });
 	const vamp = registerDesktopVampAnalyzers({
 		channels, handle, ownerFor, userDataPath, fileSystem: durable, supervisor,
 		consent: discoveryConsent, quarantine: scannerQuarantine, roots: discoveryRoots,
@@ -263,6 +267,7 @@ export function registerDesktopPluginDiscovery({
 		...(vampAnalyzerRuntime ? { runtime: vampAnalyzerRuntime } : {}),
 		...(vampAnalyzerBackend ? { backend: vampAnalyzerBackend } : {}),
 		effects: Object.freeze({ service, registry, allowances, hosting, isFormatActive: formatIsActive,
+			onInstallationRevoked: (id) => ara.withdrawInstallation(id),
 			settleQuarantine: () => scannerQuarantine.settle() }),
 	});
 
@@ -284,6 +289,7 @@ export function registerDesktopPluginDiscovery({
 			rootId: String(value?.rootId || ''),
 		});
 		if (action === 'revoke' || action === 'remove-root') {
+			if (format === 'vst3') await ara.disable();
 			service.cancelFormat(format);
 			vamp.cancelFormat(format);
 		}
@@ -306,7 +312,7 @@ export function registerDesktopPluginDiscovery({
 		const digest = String(value?.digest || '');
 		// A fault write still in flight lands before the clearance, so the user
 		// clears the quarantine that exists rather than racing its record.
-		await Promise.all([hosting?.settleQuarantineWrites(), vamp.settleQuarantineWrites()]);
+		await Promise.all([hosting?.settleQuarantineWrites(), vamp.settleQuarantineWrites(), ara.settleQuarantineWrites()]);
 		const cleared = await quarantine.clear(digest, clearance);
 		// The in-memory hold releases with the durable one, or an explicit
 		// re-enable would leave the digest dead until the editor restarts.
@@ -352,7 +358,7 @@ export function registerDesktopPluginDiscovery({
 		registry,
 		quarantine,
 		settlePluginQuarantineWrites: () => Promise.all([
-			hosting?.settleQuarantineWrites(), vamp.settleQuarantineWrites(),
+			hosting?.settleQuarantineWrites(), vamp.settleQuarantineWrites(), ara.settleQuarantineWrites(),
 		]),
 		ready: async () => {
 			await quarantine.load();
@@ -361,6 +367,7 @@ export function registerDesktopPluginDiscovery({
 		setEnabled: async (enabled) => {
 			const result = await settings.setNativePluginDiscoveryEnabled(enabled === true);
 			if (!result) {
+				await ara.disable();
 				service.cancelAll();
 				const vampDisabled = vamp.disable();
 				await hosting?.closeAll();
@@ -373,13 +380,14 @@ export function registerDesktopPluginDiscovery({
 			service.revokeOwner(owner);
 			void hosting?.revokeOwner(owner);
 			hosting?.service.revokeOwner(owner);
-			return vamp.revokeOwner(owner);
+			return Promise.all([vamp.revokeOwner(owner), ara.revokeOwner(owner)]);
 		},
 		dispose: async () => {
 			void hosting?.closeAll();
 			hosting?.service.dispose();
 			service.dispose();
 			await vamp.dispose();
+			await ara.dispose();
 		},
 	});
 }

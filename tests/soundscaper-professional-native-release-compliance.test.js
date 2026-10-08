@@ -20,7 +20,7 @@ import {
 const TARGETS = ['linux-x64', 'linux-arm64', 'mac-arm64', 'win-x64', 'win-arm64'];
 const FORBIDDEN = ['x264', 'x265', 'libvpx', 'libopus'];
 
-test('Stable assembly stages eight receipt-bound source archives and the shared notice inventory', async (context) => {
+test('Stable assembly stages ten receipt-bound source archives and the shared notice inventory', async (context) => {
 	const fixture = await releaseFixture(context);
 	const result = await stageSoundscaperProfessionalNativeReleaseCompliance({
 		repositoryRoot: fixture.repositoryRoot,
@@ -31,12 +31,12 @@ test('Stable assembly stages eight receipt-bound source archives and the shared 
 	assert.equal(result.status, 'authenticated');
 	assert.equal(Object.hasOwn(result, 'legalApproval'), false);
 	assert.deepEqual(result.sources.map(({ id }) => id).sort(),
-		['asio-sdk', 'clap', 'electron-node-api-headers', 'juce', 'ladspa-sdk', 'lv2',
+		['ara-api', 'ara-library', 'asio-sdk', 'clap', 'electron-node-api-headers', 'juce', 'ladspa-sdk', 'lv2',
 			'vamp-plugin-sdk', 'vst3-sdk']);
 	assert.equal(result.sources.some(({ id }) => FORBIDDEN.includes(id)), false);
 	assert.equal(result.targetBindings.length, 5);
 	const outputNames = (await readdir(fixture.outputRoot)).sort();
-	assert.equal(outputNames.filter((name) => name.includes('-source-')).length, 8);
+	assert.equal(outputNames.filter((name) => name.includes('-source-')).length, 10);
 	assert.equal(outputNames.some((name) => /x264|x265|libvpx|libopus/iu.test(name)), false);
 	assert.equal(outputNames.includes('Soundscaper-professional-native-compliance.json'), true);
 	for (const name of outputNames) assert.equal((await lstat(join(fixture.outputRoot, name))).isSymbolicLink(), false);
@@ -46,6 +46,25 @@ test('Stable assembly stages eight receipt-bound source archives and the shared 
 	assert.equal(Object.hasOwn(compliance, 'legalApproval'), false);
 	assert.deepEqual(compliance.sources.map(({ archive }) => archive.sha256),
 		result.sources.map(({ archive }) => archive.sha256));
+});
+
+test('Framescaper release assembly publishes the same pinned audio-host sources and notices', async (context) => {
+	const fixture = await releaseFixture(context);
+	for (const manifest of fixture.runtimeManifests) {
+		manifest.name = manifest.name.replace('soundscaper', 'framescaper');
+		manifest.value.productId = 'framescaper';
+		manifest.value.releaseChannel = 'nightly';
+		manifest.value.applicationVersionChannel = 'nightly';
+		manifest.value.soundscaperProfessionalNative.hostingScope = 'audio-plugin-host';
+		delete manifest.bytes;
+	}
+	const result = await stageSoundscaperProfessionalNativeReleaseCompliance({
+		repositoryRoot: fixture.repositoryRoot, sourceRoot: fixture.sourceRoot,
+		outputRoot: fixture.outputRoot, runtimeManifests: fixture.runtimeManifests, productId: 'framescaper',
+	}, fixture.dependencies);
+	assert.equal(result.kind, 'framescaper-professional-native-release-compliance');
+	assert.equal(result.sources.length, 10);
+	assert.equal((await readdir(fixture.outputRoot)).every((name) => name.startsWith('Framescaper-')), true);
 });
 
 test('Stable compliance assembly refuses Frames source input, symbolic archives, and receipt drift', async (context) => {
@@ -77,7 +96,7 @@ test('Stable compliance assembly refuses Frames source input, symbolic archives,
 test('the Stable desktop assembler invokes professional compliance only with its source root', async () => {
 	const source = await readFile(new URL('../scripts/desktop-release-assets.mjs', import.meta.url), 'utf8');
 	assert.match(source, /stageSoundscaperProfessionalNativeReleaseCompliance\(\{/u);
-	assert.match(source, /if \(stableSoundscaper\)/u);
+	assert.match(source, /professionalProducts = stableSoundscaper/u);
 	assert.doesNotMatch(source, /admissionProfile|effectiveAdmissionProfile/iu);
 	assert.match(source, /SOUNDSCAPER_M5_NATIVE_SOURCE_ROOT/u);
 	assert.match(source, /runtimeManifests: manifests/u);
@@ -127,7 +146,7 @@ async function releaseFixture(context) {
 
 function fixtureRegisters() {
 	const ids = [
-		'electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'vamp-plugin-sdk',
+		'electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'vamp-plugin-sdk', 'ara-api', 'ara-library',
 		'asio-sdk', 'ladspa-sdk', 'lv2',
 	];
 	const sources = ids.map((id, index) => {

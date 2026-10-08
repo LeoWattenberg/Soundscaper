@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'; import { readDesktopPreloadSource } from './helpers/desktop-preload-source.mjs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import test from 'node:test';
@@ -54,7 +54,7 @@ test('the main-process coverage checkpoint writes before acknowledging', () => {
 });
 
 test('the sandbox preload exposes soak diagnostics only under the startup flag', async () => {
-	const source = await readFile(new URL('../desktop/preload.mjs', import.meta.url), 'utf8');
+	const source = await readDesktopPreloadSource();
 	const response = {
 		schemaVersion: 1,
 		workingSetBytes: 4_194_304,

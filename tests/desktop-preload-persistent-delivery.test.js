@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readDesktopPreloadSource } from './helpers/desktop-preload-source.mjs';
 import test from 'node:test';
 import vm from 'node:vm';
 import { MessageChannel } from 'node:worker_threads';
@@ -110,7 +110,7 @@ async function preloadFixture(invoke, postMessage = () => undefined, productId =
 			if (type === 'message') messageListener = listener;
 		},
 	};
-	const source = await readFile(new URL('../desktop/preload.mjs', import.meta.url), 'utf8');
+	const source = await readDesktopPreloadSource();
 	vm.runInNewContext(source, {
 		AbortSignal, ArrayBuffer, Object, Promise, RangeError, Set, String, TypeError, Uint8Array, URL,
 		structuredClone, window: mainWindow, process: { argv: [`--soundscaper-product=${productId}`] },

@@ -12,7 +12,7 @@ test('reusable professional-native workflow produces five verified build results
 	), 'utf8');
 	assert.match(source, /workflow_call:/u);
 	for (const [target, runner, platform, arch] of [
-		['linux-x64', 'ubuntu-24.04', 'linux', 'x64'],
+		['linux-x64', 'ubuntu-22.04', 'linux', 'x64'],
 		['linux-arm64', 'ubuntu-24.04-arm', 'linux', 'arm64'],
 		['mac-arm64', 'macos-15', 'mac', 'arm64'],
 		['win-x64', 'windows-2025', 'win', 'x64'],
@@ -33,6 +33,8 @@ test('reusable professional-native workflow produces five verified build results
 	assert.match(source, /architecture: \$\{\{ matrix\.tooling_node_arch \}\}/u);
 	assert.match(source, /architecture: \$\{\{ matrix\.node_arch \}\}/u);
 	assert.match(source, /kernel\.apparmor_restrict_unprivileged_userns=0/u);
+	assert.match(source, /Install authenticated CMake for the Ubuntu 22\.04 baseline\n\s+if: matrix\.target == 'linux-x64'\n\s+run: bash scripts\/ci-install-professional-cmake\.sh/u);
+	assert.match(source, /Allow unprivileged user namespaces for the native isolation launcher\n\s+if: matrix\.target == 'linux-arm64'/u);
 	assert.doesNotMatch(source, /uses:\s+actions\/[a-z-]+@v\d+/u);
 });
 

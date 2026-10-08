@@ -11,6 +11,7 @@ import { registerHooks } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { IPC } from '../../desktop/constants.js';
+import { ARA_CHANNELS } from '../../src/common/editor/ara-contract.ts';
 const ROOT = resolve(import.meta.dirname, '..', '..');
 const RUNTIME_PREFIX = './project-library-runtime/desktop/';
 const ELECTRON_STUB = 'stub-electron:main';
@@ -35,6 +36,9 @@ export const utilityProcess = {
 registerHooks({
 	resolve(specifier, context, nextResolve) {
 		if (specifier === 'electron/main') return { url: ELECTRON_STUB, shortCircuit: true };
+		if (specifier === './project-library-runtime/src/common/editor/ara-contract.js') {
+			return nextResolve('../src/common/editor/ara-contract.ts', context);
+		}
 		if (specifier.startsWith(RUNTIME_PREFIX)) {
 			return nextResolve(`./${specifier.slice(RUNTIME_PREFIX.length).replace(/\.js$/u, '.ts')}`, context);
 		}
@@ -65,6 +69,7 @@ const { DesktopPluginQuarantine, PLUGIN_FAULT_KINDS } = await import('../../desk
 const { DesktopPluginRegistry } = await import('../../desktop/plugin-registry.ts');
 
 const NATIVE_CHANNELS = Object.freeze([
+	...Object.values(ARA_CHANNELS),
 	IPC.helperProbeAvailability,
 	IPC.helperProbeBegin,
 	IPC.helperProbeAwait,

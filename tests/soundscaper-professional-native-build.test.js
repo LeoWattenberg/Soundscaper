@@ -103,6 +103,7 @@ async function sourceRoots(context, withdrawn = 'juce', embeddedVst3Version = '3
 		juce: join(root, 'juce'), clap: join(root, 'clap'),
 		'vst3-sdk': join(root, 'vst3-sdk'),
 		'vamp-plugin-sdk': join(root, 'vamp-plugin-sdk'),
+		'ara-api': join(root, 'ara-api'), 'ara-library': join(root, 'ara-library'),
 		'ladspa-sdk': join(root, 'ladspa-sdk'),
 		'asio-sdk': join(root, 'asio-sdk'), lv2: join(root, 'lv2'),
 	};
@@ -114,6 +115,9 @@ async function sourceRoots(context, withdrawn = 'juce', embeddedVst3Version = '3
 		join(roots.juce, JUCE_VST3_VERSION_HEADER),
 		join(roots.clap, 'include/clap/clap.h'),
 		join(roots['vst3-sdk'], 'README.md'),
+		join(roots['ara-api'], 'ARAInterface.h'),
+		join(roots['ara-api'], 'ARA_Version.cmake'),
+		join(roots['ara-library'], 'Dispatch/ARAHostDispatch.h'),
 		join(roots['vamp-plugin-sdk'], 'vamp/vamp.h'),
 		join(roots['vamp-plugin-sdk'], 'vamp-hostsdk/PluginHostAdapter.h'),
 		join(roots['ladspa-sdk'], 'src/ladspa.h'),
@@ -188,6 +192,12 @@ test('professional build plans bind exact SDK pins and never treat the VST3 meta
 	assert.match(linux.configure.argv.join(' '), /SOUNDSCAPER_LV2_ROOT/u);
 	assert.match(linux.configure.argv.join(' '), /SOUNDSCAPER_LADSPA_ROOT/u);
 	assert.match(linux.configure.argv.join(' '), /SOUNDSCAPER_VAMP_ROOT/u);
+	assert(linux.configure.argv.includes(`-DSOUNDSCAPER_ARA_SDK_ROOT=${linux.sourceSnapshotRoot}`));
+	assert.equal(linux.sourceAuthentication.find(({ id }) => id === 'ara-api').extractedTree.root,
+		join(linux.sourceSnapshotRoot, 'ARA_API'));
+	assert.equal(linux.sourceAuthentication.find(({ id }) => id === 'ara-library').extractedTree.root,
+		join(linux.sourceSnapshotRoot, 'ARA_Library'));
+	assert.deepEqual(linux.features.araCompanionFormats, ['vst3']);
 	assert.deepEqual(linux.configure.argv.slice(4, 6), ['-G', 'Ninja']);
 	assert.match(linux.configure.argv.join(' '), /SOUNDSCAPER_NODE_API_INCLUDE=.*electron-node-api-headers/u);
 	assert.equal(linux.configure.argv.some((argument) => Object.values(roots).some((root) => argument.includes(root))), false,

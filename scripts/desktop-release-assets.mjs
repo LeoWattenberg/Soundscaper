@@ -20,6 +20,7 @@ import {
 } from './lib/product-release-lines.mjs';
 import {
 	validateSoundscaperStableProfessionalNativeSummary,
+	validateFramescaperProfessionalNativeSummary,
 } from './lib/soundscaper-professional-native-stable-summary.mjs';
 import {
 	stageSoundscaperProfessionalNativeReleaseCompliance,
@@ -100,15 +101,15 @@ export async function main(args = process.argv.slice(2)) {
 			applicationVersion,
 		});
 	}
-	if (stableSoundscaper) {
+	const professionalProducts = stableSoundscaper ? ['soundscaper'] : productIds.filter((productId) =>
+		manifests.filter(({ value }) => value.productId === productId)
+			.every(({ value }) => value.soundscaperProfessionalNative?.status === 'built'));
+	for (const productId of professionalProducts) {
 		const sourceRoot = process.env.SOUNDSCAPER_M5_NATIVE_SOURCE_ROOT?.trim() ?? '';
-		assert(sourceRoot !== '',
-			'Stable Soundscaper release assembly requires SOUNDSCAPER_M5_NATIVE_SOURCE_ROOT.');
+		assert(sourceRoot !== '', 'Desktop professional-native release assembly requires SOUNDSCAPER_M5_NATIVE_SOURCE_ROOT.');
 		await stageSoundscaperProfessionalNativeReleaseCompliance({
-			repositoryRoot: ROOT,
-			sourceRoot,
-			outputRoot: assetRoot,
-			runtimeManifests: manifests,
+			repositoryRoot: ROOT, sourceRoot, outputRoot: assetRoot, productId,
+			runtimeManifests: manifests.filter(({ value }) => value.productId === productId),
 		});
 	}
 
@@ -294,12 +295,16 @@ export function validateDesktopRuntimeManifests(
 			stableSoundscaper: identity?.[1] === 'soundscaper'
 				&& options.stableSoundscaper === true,
 		});
-		if (identity?.[1] === 'framescaper') validateFramescaperNativeHostSummary(manifest, targetId);
+		if (identity?.[1] === 'framescaper') {
+			validateFramescaperNativeHostSummary(manifest, targetId);
+			validateFramescaperProfessionalNativeSummary(manifest.value.soundscaperProfessionalNative,
+				targetId, manifest.name, manifest.value.sourceRevision);
+		}
 		else {
 			assert(manifest.value.framescaperNativeHosts === null
 				|| manifest.value.framescaperNativeHosts === undefined,
 			`${manifest.name} unexpectedly carries Framescaper native-host state.`);
-			if (options.stableSoundscaper === true) {
+			if (options.stableSoundscaper === true || manifest.value.soundscaperProfessionalNative?.status === 'built') {
 				validateSoundscaperStableProfessionalNativeSummary(
 					manifest.value.soundscaperProfessionalNative, targetId, manifest.name,
 					manifest.value.sourceRevision,

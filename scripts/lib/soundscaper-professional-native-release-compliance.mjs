@@ -21,17 +21,20 @@ export const SOUNDSCAPER_PROFESSIONAL_NATIVE_COMPLIANCE_NAME =
 	'Soundscaper-professional-native-compliance.json';
 
 const SOURCE_IDS = Object.freeze([
-	'electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'vamp-plugin-sdk',
+	'electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'vamp-plugin-sdk', 'ara-api', 'ara-library',
 	'asio-sdk', 'ladspa-sdk', 'lv2',
 ]);
 const FORBIDDEN_SOURCE_IDS = new Set(['x264', 'x265', 'libvpx', 'libopus', 'zlib']);
 const MAXIMUM_ARCHIVE_BYTES = 64 * 1024 * 1024;
 
 export async function stageSoundscaperProfessionalNativeReleaseCompliance(options, dependencies = {}) {
+	const productId = options?.productId ?? 'soundscaper';
+	if (!['soundscaper', 'framescaper'].includes(productId)) throw new Error('Native compliance product is invalid.');
+	const productName = productId === 'framescaper' ? 'Framescaper' : 'Soundscaper';
 	const repositoryRoot = requiredPath(options?.repositoryRoot, 'repository root');
 	const sourceRoot = requiredPath(options?.sourceRoot, 'professional-native source root');
 	const outputRoot = requiredPath(options?.outputRoot, 'release asset root');
-	const runtimeManifests = validateRuntimeManifests(options?.runtimeManifests, dependencies);
+	const runtimeManifests = validateRuntimeManifests(options?.runtimeManifests, dependencies, productId);
 	const sourceRegister = dependencies.sourceRegister ?? sourceRegisterDefault;
 	const selectedSources = sourceRegister.sources.filter(({ id }) => SOURCE_IDS.includes(id));
 	if (selectedSources.length !== SOURCE_IDS.length
@@ -46,7 +49,7 @@ export async function stageSoundscaperProfessionalNativeReleaseCompliance(option
 	for (const source of selectedSources) {
 		const archivePath = resolve(sourceRoot, source.id, source.archive.fileName);
 		const archiveBytes = await regularArchiveBytes(archivePath, source);
-		const name = correspondingSourceName(source);
+		const name = correspondingSourceName(source, productName);
 		await writeFile(resolve(outputRoot, name), archiveBytes, { flag: 'wx', mode: 0o444 });
 		sources.push(Object.freeze({
 			id: source.id,
@@ -63,7 +66,7 @@ export async function stageSoundscaperProfessionalNativeReleaseCompliance(option
 		if (!file || file.byteLength !== authority.byteLength || file.sha256 !== authority.sha256) {
 			throw new Error(`Stable professional-native notice ${authority.name} is not authenticated.`);
 		}
-		const name = `Soundscaper-professional-native-notice-${authority.name}`;
+		const name = `${productName}-professional-native-notice-${authority.name}`;
 		await writeFile(resolve(outputRoot, name), file.bytes, { flag: 'wx', mode: 0o444 });
 		notices.push(Object.freeze({
 			name, installedName: authority.name, sourceId: authority.sourceId,
@@ -83,31 +86,30 @@ export async function stageSoundscaperProfessionalNativeReleaseCompliance(option
 	const compliance = deepFreeze({
 		schemaVersion: 1,
 		status: 'authenticated',
-		kind: 'soundscaper-professional-native-release-compliance',
+		kind: `${productId}-professional-native-release-compliance`,
 		sources,
 		notices,
 		targetBindings,
 	});
-	await writeFile(resolve(outputRoot, SOUNDSCAPER_PROFESSIONAL_NATIVE_COMPLIANCE_NAME),
+	await writeFile(resolve(outputRoot, `${productName}-professional-native-compliance.json`),
 		Buffer.from(`${JSON.stringify(compliance, null, 2)}\n`), { flag: 'wx', mode: 0o444 });
 	return compliance;
 }
 
-function validateRuntimeManifests(value, authorities) {
+function validateRuntimeManifests(value, authorities, productId) {
 	if (!Array.isArray(value) || value.length !== SOUNDSCAPER_PROFESSIONAL_NATIVE_TARGETS.length) {
 		throw new Error('Stable professional-native compliance requires five runtime manifests.');
 	}
 	const byTarget = new Map();
 	for (const manifest of value) {
-		const identity = /^runtime-manifest-soundscaper-(linux|mac|win)-(x64|arm64)\.json$/u.exec(
+		const identity = new RegExp(`^runtime-manifest-${productId}-(linux|mac|win)-(x64|arm64)\\.json$`, 'u').exec(
 			String(manifest?.name),
 		);
 		const target = identity === null ? null : `${identity[1]}-${identity[2]}`;
 		if (!SOUNDSCAPER_PROFESSIONAL_NATIVE_TARGETS.includes(target) || byTarget.has(target)
-			|| manifest.value?.productId !== 'soundscaper'
+			|| manifest.value?.productId !== productId
 			|| `${manifest.value?.target?.platform}-${manifest.value?.target?.arch}` !== target
-			|| manifest.value.applicationVersionChannel !== 'stable'
-			|| manifest.value.releaseChannel !== 'stable'
+			|| (productId === 'framescaper' && manifest.value.soundscaperProfessionalNative?.hostingScope !== 'audio-plugin-host')
 			|| manifest.value.soundscaperProfessionalNative?.target !== target
 			|| manifest.value.soundscaperProfessionalNative?.status !== 'built') {
 			throw new Error(`${String(manifest?.name)} is not an exact Stable Soundscaper runtime manifest.`);
@@ -185,12 +187,12 @@ async function regularArchiveBytes(path, source) {
 	} finally { await handle?.close(); }
 }
 
-function correspondingSourceName(source) {
+function correspondingSourceName(source, productName) {
 	if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,159}$/u.test(source.archive.fileName)
 		|| !SOURCE_IDS.includes(source.id)) {
 		throw new Error('Professional-native corresponding-source filename is invalid.');
 	}
-	return `Soundscaper-professional-native-source-${source.id}-${source.archive.fileName}`;
+	return `${productName}-professional-native-source-${source.id}-${source.archive.fileName}`;
 }
 
 function requiredPath(value, label) {

@@ -31,7 +31,7 @@
 			"stageCommand": "scripts/stage-soundscaper-professional-native-build-result.mjs",
 			"sourceCommands": ["scripts/provision-milestone-5-native-sources.mjs"],
 			"runners": {
-				"linux-x64": "ubuntu-24.04",
+				"linux-x64": "ubuntu-22.04",
 				"linux-arm64": "ubuntu-24.04-arm",
 				"mac-arm64": "macos-15",
 				"win-x64": "windows-2025",

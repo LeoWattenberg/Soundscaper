@@ -30,13 +30,13 @@ const MAXIMUM_FILE_BYTES = 512 * 1024 * 1024;
 const SHA256 = /^[a-f\d]{64}$/u;
 const REVISION = /^(?:[a-f\d]{40}|[a-f\d]{64})$/u;
 const BASE_SOURCE_IDS = Object.freeze([
-	'electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'vamp-plugin-sdk',
+	'electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'vamp-plugin-sdk', 'ara-api', 'ara-library',
 ]);
 const COMMON_SELF_TEST_IDS = Object.freeze([
 	'addon-exact-backend-format-inventory',
 	'm5f2-handshake',
 	'm5f2-malformed-frame',
-	'm5a1-malformed-frame',
+	'm5a1-malformed-frame', 'ara-vst3-document-round-trip',
 	'fixture-scan',
 	'fixture-instantiate',
 	'fixture-deterministic-process',

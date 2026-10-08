@@ -177,7 +177,7 @@ export function createDesktopNativeAddonHelperSupervisor({
 		throw new RangeError('A native addon helper requires one closed process role.');
 	}
 	const applicationRoot = dirname(desktopRoot);
-	const location = Object.freeze({ applicationRoot, packaged, resourcesPath });
+	const location = Object.freeze({ applicationRoot, packaged, resourcesPath, pluginOnly: role !== 'audio' });
 	if (!['fixture', 'professional'].includes(payloadKind)) {
 		throw new RangeError('A native helper requires one closed payload kind.');
 	}

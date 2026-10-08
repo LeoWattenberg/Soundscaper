@@ -16,6 +16,11 @@
 		"types": ["node"]
 	},
 	"include": [
+		"desktop/ara-session-service.ts",
+		"desktop/ara-helper-session.ts",
+		"desktop/ara-preload.ts",
+		"desktop/ara-plugin-peer.ts",
+		"src/common/editor/ara-contract.ts",
 		"desktop/external-media-ipc.ts",
 		"desktop/application-lifecycle.ts",
 		"desktop/desktop-storage-paths.ts",

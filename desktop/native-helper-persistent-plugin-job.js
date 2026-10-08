@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
+import { createAraPluginRpc } from './native-helper-ara-rpc.js';
 
 /** One persistent native plug-in instance controlled only by its admitted port. */
 
@@ -24,6 +25,7 @@ export function createNativePersistentPluginJobRunner({
 		const port = ports[0];
 		let instance = null;
 		let configuration = null;
+		let araRpc = null;
 		let settled = false;
 		let accepting = true;
 		let generation = 1;
@@ -92,6 +94,13 @@ export function createNativePersistentPluginJobRunner({
 				}
 				if (message.kind === 'close') return finish(reason(message.reason));
 				if (instance === null || configuration === null) return finish('message-before-configure');
+				if (message.kind.startsWith('ara-')) {
+					if (grant.format !== 'vst3') throw fault('unsupported', 'ARA requires a VST3 plug-in.');
+					araRpc ??= createAraPluginRpc(addon, instance);
+					const answer = await araRpc(message);
+					if (current(observedGeneration)) post(port, answer);
+					return;
+				}
 				if (message.kind === 'process') {
 					const frameCount = integer(message.frameCount, 1, configuration.maximumFrames, 'frame count');
 					const input = planes(message.input, frameCount, true);

@@ -129,6 +129,56 @@
 			"uses": ["vamp-analyzer-host"]
 		},
 		{
+			"id": "ara-api",
+			"version": "2.3.0",
+			"git": {
+				"tag": "releases/2.3.0",
+				"commit": "65ec5c43b943a48cb5446f448a0492db6af8534b"
+			},
+			"archive": {
+				"url": "https://github.com/Celemony/ARA_API/archive/65ec5c43b943a48cb5446f448a0492db6af8534b.tar.gz",
+				"fileName": "ara-api-2.3.0.tar.gz",
+				"byteLength": 1903668,
+				"sha256": "cb4b2af9899095180186383bb1ca564e303bc51d5791b707c575282f263e796e"
+			},
+			"extractedTree": {
+				"algorithm": "framescaper-portable-source-tree-sha256-v1",
+				"fileCount": 13,
+				"sha256": "de7c5f30d96a0cf5189cb0529656e34926ad232d06a86019aee8380d855c895d"
+			},
+			"license": "Apache-2.0",
+			"licenseSelection": "Apache-2.0",
+			"authenticationStatus": "pinned-metadata",
+			"activationStatus": "accepted",
+			"blockedBy": null,
+			"uses": ["ara-vst3-host"]
+		},
+		{
+			"id": "ara-library",
+			"version": "2.3.0",
+			"git": {
+				"tag": "releases/2.3.0",
+				"commit": "d18a6a5e489816316be84a9de0eaf7307bc1abe4"
+			},
+			"archive": {
+				"url": "https://github.com/Celemony/ARA_Library/archive/d18a6a5e489816316be84a9de0eaf7307bc1abe4.tar.gz",
+				"fileName": "ara-library-2.3.0.tar.gz",
+				"byteLength": 2030466,
+				"sha256": "691b673d02db79d749b1032125bce1d15200cf76ff180b0541bf1df4830c81cf"
+			},
+			"extractedTree": {
+				"algorithm": "framescaper-portable-source-tree-sha256-v1",
+				"fileCount": 457,
+				"sha256": "c11d444e9a4ba060f80cde32e039254a1ee0ace53c1648b0e5f9c2d9386d88f2"
+			},
+			"license": "Apache-2.0",
+			"licenseSelection": "Apache-2.0",
+			"authenticationStatus": "pinned-metadata",
+			"activationStatus": "accepted",
+			"blockedBy": null,
+			"uses": ["ara-vst3-host"]
+		},
+		{
 			"id": "asio-sdk",
 			"version": "2.3.4",
 			"git": {

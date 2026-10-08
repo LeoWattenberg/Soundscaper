@@ -9,6 +9,7 @@ import { createSoundscaperNativeServicesMenuItems } from './soundscaper-native-s
 import { createSoundscaperWorkflowApplicationMenuItems } from './soundscaper-workflow-product-runtime.tsx';
 import { resolveSelectionRange } from '../selection-range.ts';
 import { appendParallelStackProcessingMenu } from './parallel-stack-menu.ts';
+import { createAraApplicationMenuItems } from './ara-application-menu.ts';
 
 export function createApplicationMenuProductTrackItems({ productId, project, editBlocked, copy, actions }) {
 	return createApplicationMenuProductItems({ productId, project, editBlocked, copy, actions }).tracks;
@@ -81,6 +82,9 @@ export function createApplicationMenuProductItems({
 		openExternalDisplay: (displayId) => nativeRuntime?.openExternalDisplay(displayId),
 	});
 	const soundscaperNativeRuntime = actions.soundscaperNativeServices || null;
+	const araItems = createAraApplicationMenuItems({ productId, project, available: Boolean(actions.araClipEditing),
+		selectedClipId: snapshot.selectedClipId, editingBlocked: editBlocked, readOnly: snapshot.readOnly === true, copy },
+		() => actions.araClipEditing?.open());
 	const soundscaperNativeServices = createSoundscaperNativeServicesMenuItems({
 		productId,
 		runtimeAvailable: soundscaperNativeRuntime !== null,
@@ -99,7 +103,7 @@ export function createApplicationMenuProductItems({
 			...selectedFinishing.tracks, ...soundscaperWorkflows.tracks].filter(Boolean)),
 		generate: candidateAuthoring.generate,
 		effect: Object.freeze([...candidateAuthoring.effect, ...selectedFinishing.effect,
-			...soundscaperWorkflows.effect, ...nativeServices.effect, ...soundscaperNativeServices.effect]),
+			...soundscaperWorkflows.effect, ...nativeServices.effect, ...soundscaperNativeServices.effect, ...araItems]),
 		analyze: Object.freeze([...selectedFinishing.analyze, ...soundscaperWorkflows.analyze,
 			...soundscaperNativeServices.analyze]),
 		mixer: Object.freeze([...selectedFinishing.mixer, ...soundscaperWorkflows.mixer]),

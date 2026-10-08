@@ -100,6 +100,7 @@ function registerSharedPluginRoutes(options, vamp) {
 			effects.hosting?.isolation.restoreDigest(effects.registry.installationDigest(value.installationId));
 		} else if (value?.allowed === false) {
 			effects.registry.withdrawAllowance(value.installationId);
+			await effects.onInstallationRevoked?.(value.installationId);
 			effects.hosting?.isolation.revokeDigest(effects.registry.installationDigest(value.installationId));
 		} else throw new Error('A plug-in installation allowance must be an explicit boolean.');
 		await effects.allowances.capture(effects.registry);
