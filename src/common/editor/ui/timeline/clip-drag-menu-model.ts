@@ -27,7 +27,7 @@ export function createClipDragMenuItems(input: ClipDragMenuInput): readonly Clip
 	const source = input.project.tracks.find((track) => track.clipIds?.includes(clip?.id ?? ''));
 	if (!clip || !source?.clipIds) return [];
 	const destinations = input.project.tracks.filter((track) => (
-		track.id !== source.id && track.type === (clip.kind === 'image' ? 'video' : clip.kind) && Array.isArray(track.clipIds)
+		track.id !== source.id && track.type === (['image', 'still', 'generator'].includes(clip.kind) ? 'video' : clip.kind) && Array.isArray(track.clipIds)
 	));
 	return [{
 		id: 'clip-select-track-clips',
