@@ -37,7 +37,10 @@ for (const native of [false, true]) test(`${native ? 'source' : 'mixed timeline'
 			const controlTrack = tracks.find(item => item.id === controlId);
 			assert.ok(controlTrack, 'the engine can resolve the authored voice control');
 			const mixer = project.mixer as MixerGraphV21;
-			validateMixerGraphV21(mixer, { audioTracks: tracks.map(item => ({ id: item.id, effects: item.effects })) });
+			validateMixerGraphV21(mixer, { audioTracks: tracks.map(item => {
+				assert.ok(typeof item.id === 'string');
+				return { id: item.id, effects: item.effects };
+			}) });
 			assert.ok(mixer.edges.some(edge => edge.destination.kind === 'effect-sidechain'
 				&& edge.destination.effectId === effect.id && edge.source.kind === 'track'
 				&& edge.source.id === controlId), 'the production graph connects voice to the detector');
