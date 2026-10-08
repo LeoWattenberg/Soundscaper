@@ -34,10 +34,12 @@ import { admitPhotoLibraryImportRequestV1 } from './photo-library-import-request
 import { admitPhotoLibraryBackupRequestV1 } from './photo-library-backup-request.ts';
 import { planPhotoLibraryBatchRenameV1, readPhotoLibraryBatchRenameSelectionV1, renamePhotoLibraryBatchV1,
 	undoPhotoLibraryBatchRenameV1, type PhotoBatchRenameSessionPortsV1 } from './photo-library-batch-rename-v1.ts';
+import { admitPhotoLibraryOriginalInspectionRequestV1, photoOriginalInspectionFailureV1, readPhotoLibraryOriginalInspectionPageV1,
+	type PhotoLibraryOriginalInspectionFailureV1, type PhotoLibraryOriginalInspectionPageV1, type PhotoLibraryOriginalInspectionPortV1 } from './photo-library-original-inspection-v1.ts';
 
 /** Product session owns lifetime, bounded presentation pages and a single writer. */
 export class PhotoLibrarySessionV1 implements PhotoLibrarySessionPortV1, PhotoLibraryBatchRenamePortV1, PhotoLibraryBackupPortV1 {
-	readonly #ports: PhotoLibrarySessionPortsV1;
+	readonly #ports: PhotoLibrarySessionPortsV1 & { readonly originalInspection?: PhotoLibraryOriginalInspectionPortV1 };
 	readonly #lifetime = new AbortController();
 	readonly #pending = new Set<Promise<unknown>>();
 	#catalog: Promise<string> | null = null;
@@ -47,8 +49,16 @@ export class PhotoLibrarySessionV1 implements PhotoLibrarySessionPortV1, PhotoLi
 	#presetActive = false;
 	#closed = false;
 	#closing: Promise<void> | null = null;
+	#startupFailure: PhotoLibraryOriginalInspectionFailureV1 | null = null;
 
-	constructor(ports: PhotoLibrarySessionPortsV1) { this.#ports = ports; }
+	constructor(ports: PhotoLibrarySessionPortsV1 & { readonly originalInspection?: PhotoLibraryOriginalInspectionPortV1 }) { this.#ports = ports; }
+
+	async inspectOriginals(options: Readonly<{ cursor?: string | null; signal?: AbortSignal }> = {}): Promise<PhotoLibraryOriginalInspectionPageV1> {
+		const request = admitPhotoLibraryOriginalInspectionRequestV1(options), originalInspection = this.#ports.originalInspection;
+		if (!originalInspection) throw new Error('Photo original inspection is unavailable.');
+		return this.#mutation((catalogId, signal) => readPhotoLibraryOriginalInspectionPageV1(catalogId,
+			{ ...this.#ports, originalInspection }, request.cursor, this.#startupFailure, signal), request.signal, true);
+	}
 
 	async backupCatalog(options: PhotoLibraryBackupOptionsV1 = {}): Promise<PhotoLibraryBackupResultV1> {
 		const request = admitPhotoLibraryBackupRequestV1(options), backup = this.#ports.backup;
@@ -343,10 +353,11 @@ export class PhotoLibrarySessionV1 implements PhotoLibrarySessionPortV1, PhotoLi
 			const root = await this.#ports.initialize(this.#lifetime.signal);
 			this.#lifetime.signal.throwIfAborted();
 			await recoverManagedPhotoImportV1(root.id, this.#managedPorts(), { signal: this.#lifetime.signal });
+			this.#startupFailure = null;
 			return root.id;
 		})();
 		this.#catalog = attempt;
-		void attempt.catch(() => { if (this.#catalog === attempt) this.#catalog = null; });
+		void attempt.catch(error => { if (this.#catalog === attempt) { this.#catalog = null; this.#startupFailure = photoOriginalInspectionFailureV1(error); } });
 		return attempt;
 	}
 
@@ -389,12 +400,12 @@ export class PhotoLibrarySessionV1 implements PhotoLibrarySessionPortV1, PhotoLi
 		finally { this.#presetActive = false; }
 	}
 
-	async #mutation<Result>(run: (catalogId: string, signal: AbortSignal) => Promise<Result>, signal?: AbortSignal): Promise<Result> {
+	async #mutation<Result>(run: (catalogId: string, signal: AbortSignal) => Promise<Result>, signal?: AbortSignal, inspection = false): Promise<Result> {
 		if (this.#writing) throw new Error('A photo library change is already pending.');
 		this.#writing = true;
 		try {
 			return await this.#operation(async admitted => {
-				const catalogId = await this.#ready(); admitted.throwIfAborted();
+				const catalogId = inspection ? id((await this.#ports.initialize(admitted)).id, 'inspection catalog ID') : await this.#ready(); admitted.throwIfAborted();
 				return (this.#ports.exclusive ?? withPhotoCatalogWriteLockV1)(catalogId, leaseSignal => run(catalogId, leaseSignal ?? admitted), admitted);
 			}, signal);
 		} finally { this.#writing = false; }
