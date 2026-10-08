@@ -79,6 +79,7 @@ export default function MacroScriptEditor({
 	return (
 		<section className="audio-editor-macro-script" data-macro-script>
 			<label className="audio-editor-field" onKeyDown={(event) => {
+				if (event.nativeEvent?.isComposing) return;
 				if (event.key !== 'Enter' && event.key !== 'Escape') return;
 				event.preventDefault();
 				event.stopPropagation();
