@@ -37,6 +37,7 @@ export function LabelManagerRow({ label, sampleRate, controller, copy, disabled,
 					onChange={(event) => setTitle(event.currentTarget.value)}
 					onBlur={commitTitle}
 					onKeyDown={(event) => {
+						if (event.nativeEvent?.isComposing) return;
 						if (event.key === 'Enter') {
 							event.preventDefault();
 							event.stopPropagation();
