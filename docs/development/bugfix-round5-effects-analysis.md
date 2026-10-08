@@ -170,3 +170,28 @@ pass with its restored output routes. These corrections complete the same macro
 graph root and add no count.
 This temporary graph ownership defect is independent of earlier regular
 Source Auto Duck placement and selection-edge fade corrections.
+
+## R5-ROOT-007 — Source Spectral Delete uses the project frequency clock
+
+Import an ordinary one-second 24 kHz recording containing a 1 kHz tone into
+the default 48 kHz project. Select its clip, enable Spectrogram, open Clip
+properties and select all in Source waveform. Choose Effect → Spectral editing
+→ Spectral box select, enter 900–1100 Hz, and click Spectral Delete in that
+dialog. Close Properties and export WAV. The baseline reports no error but
+leaves the selected tone: the exported middle passage has RMS 0.174.
+
+Source rendering supplies native-rate PCM, while spectral processing labels
+that PCM with the project rate. Use the source target's existing sample rate,
+with the project rate retained for timeline selections. This corrects the
+shared spectral processing boundary and counts once across its operations.
+
+The ordinary Chromium baseline fails on the exported audio assertion
+(`/tmp/soundscaper-r5-root-source-spectral-red2.log`). The strict owning-service
+test uses the actual Source editor and PFFFT processor: its 24 kHz case fails
+before correction while the 48 kHz control passes. Both pass afterward, with
+the selected tone removed, the unselected 6 kHz tone preserved, unchanged frame
+counts and one publication. New and existing spectral/effect/document support
+passes 31/31; target lint and coordinated test/tooling type checks pass.
+Corrected public verification is pending. Regressions are
+`audio-editor-round5-source-spectral-clock.test.ts` and
+`audio-editor-round5-source-spectral-clock.spec.js`.

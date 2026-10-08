@@ -4,6 +4,7 @@ import {
 	createEffectAudioService,
 	type EffectAudioProject,
 	type EffectAudioState,
+	type EffectAudioServiceRuntime,
 } from '../src/common/editor/controller/effects/internal/effect-audio-service.ts';
 import { matchAudacitySelectionChannels } from '../src/common/editor/audacity-selection.js';
 import { EditorControllerLifetime, EditorProjectGeneration } from '../src/common/editor/controller/shared/lifecycle.ts';
@@ -27,6 +28,9 @@ export function createHarness(options: Readonly<{
 	masterChannels?: number;
 	memoryLimitBytes?: number;
 	project?: EffectAudioProject;
+	target?: EffectTarget;
+	renderSourceRange?: EffectAudioServiceRuntime['renderSourceRange'];
+	runSpectralEditWorker?: EffectAudioServiceRuntime['runSpectralEditWorker'];
 	spectralRenderFrameDelta?: number;
 	spectralTargetCount?: 1 | 2;
 	spectralWorkerFrameDelta?: number;
@@ -41,7 +45,7 @@ export function createHarness(options: Readonly<{
 		audacityEffectProcessing: false,
 		audacityNoiseProfile: null,
 	};
-	const target: EffectTarget = {
+	const target: EffectTarget = options.target ?? {
 		track: project.tracks[0]!, clipId: 'clip-a', clipIds: ['clip-a'],
 		startFrame: 100, endFrame: 4_100, durationFrames: 4_000, channelCount: 1, hasAudio: true,
 	};
@@ -125,6 +129,7 @@ export function createHarness(options: Readonly<{
 			dispose: async () => { prefixDisposals += 1; },
 		}),
 		sourceBuffers: options.sourceBuffers ?? new Map(),
+		renderSourceRange: options.renderSourceRange,
 		audioBufferChannels: (buffer) => [...buffer.channels ?? []],
 		matchAudacitySelectionChannels,
 		runSelectionEffectWorker: async ({ channels, params }) => {
@@ -132,12 +137,12 @@ export function createHarness(options: Readonly<{
 			noiseProfileWorkerParams.push(params);
 			return options.deferWorker ? worker.promise : { profile: { bins: [1, 2] } };
 		},
-		runSpectralEditWorker: async (channels) => {
+		runSpectralEditWorker: options.runSpectralEditWorker ?? (async (channels) => {
 			spectralWorkerCalls += 1;
 			return channels.map((channel) => new Float32Array(
 				channel.length + (options.spectralWorkerFrameDelta ?? 0),
 			));
-		},
+		}),
 		serializeNoiseProfile: (profile) => ({ serialized: profile }),
 		commit: (command) => { commands.push(command); },
 		persistAudacityEffectResults: async (...args) => {

@@ -328,7 +328,7 @@ export function createEffectAudioService<Buffer = EffectAudioBuffer>(runtime: Ef
 					expectedFrameCount: phase.frameCount,
 				});
 				const processed = await runtime.runSpectralEditWorker(channels, {
-					sampleRate: runtime.projectSampleRate(),
+					sampleRate: target.sourceSampleRate ?? runtime.projectSampleRate(),
 					startFrame: 0,
 					endFrame: target.durationFrames,
 					minimumFrequency: frequencyRange.minimumFrequency,
