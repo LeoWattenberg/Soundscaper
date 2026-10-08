@@ -198,6 +198,7 @@ export default function WorkspacePanelContent({
 		);
 	}
 	if (panelId === 'labels') {
+		if (!project) return <LazyInspectorFallback copy={copy} />;
 		const labelTracks = (project?.tracks || []).filter((track) => track.type === 'label');
 		const labels = labelTracks.flatMap((track) => (track.labels || []).map((label) => ({
 			...label,
