@@ -1,7 +1,7 @@
 # Fifth user-reproducible regression audit
 
-This audit has fixed 101 additional distinct roots with ordinary browser
-reproduction and corrected public verification (editing 26, dialogs 32,
+This audit has fixed 102 additional distinct roots with ordinary browser
+reproduction and corrected public verification (editing 26, dialogs 33,
 effects/analysis 29, import/export 14). Its immutable
 baseline is `fe6440c81b3a0fe29a028c64db867ae7d2cf3252`.
 
@@ -149,13 +149,31 @@ unchanged camera and Title workflows pass in Chromium (2/2); Firefox lacks
 the real WebGL2 prerequisite and WebKit lacks the required IndexedDB Blob
 readback, producing four explicit capability skips. The camera-only controls
 confirm those host limitations; skips are not reported as passes.
-The source-final normal build covers every counted correction. Later changes
-only preserve exact host capability probes and verification documentation.
+Checkpoint forty-four, `79df3004c`, passes both guarded builds. The broad
+handoff run exposed an older archived Nyquist input-binding failure: declared
+version-one effects received a scalar where they expected selected audio.
+Real publication, parameter editing and Apply reproduce it on checkpoint
+forty-three without network substitution. The corrected legacy input binding
+passes real mono/stereo runtime controls, and the live downloaded EQ, exact
+measured Undo/Redo, original archive smoke and installation focus pass across
+all three engines (9/9). Modern effects and headerless prompts retain their
+existing input semantics. Earlier auxiliary export setup and ideal-wave
+comparison errors are excluded; their raw evidence is retained.
+This source-final normal build covers every counted correction. Later changes
+correct verification setup and assertions or update documentation and size
+ratchets, without changing application bytes.
 Browser evidence names each exact checkpoint. Firefox audio
 uses the unchanged CI PulseAudio setup with a private 48 kHz null sink.
 
-The final canonical static gate passes after regenerating its command reference
-from the owning menu inventory. The full Node and browser handoff suites are
-running; their final results remain pending. Current changes do not alter the
+The canonical gate passes after regenerating its command reference from the
+owning menu inventory and updating stale test contracts: 23,898 Node passes,
+33 skips and no failures, including its isolated preflight. A fresh canonical
+run includes the added legacy-effect regressions. The source-final full browser
+run is also running; both final results remain pending. The earlier browser
+run was intentionally stopped for the final-source restart after 2,258 passes,
+three failures, four interrupted cases and 40 capability skips; 2,960 cases
+had not run. The two playback/recording timing failures passed unchanged in
+isolated reruns; their raw evidence and timing uncertainty remain retained.
+Current changes do not alter the
 assistance runtime closure and
 do not require a manual **Update AI assets** run.
