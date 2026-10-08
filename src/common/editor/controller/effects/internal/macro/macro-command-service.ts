@@ -171,7 +171,7 @@ export function createMacroCommandService(runtime: MacroCommandServiceRuntime) {
 		params: Readonly<Record<string, unknown>>,
 		selection: MacroCommandSelection,
 	): Readonly<{ minimumFrequency: number; maximumFrequency: number }> {
-		const current = selection.frequencyRange ?? { minimumFrequency: 0, maximumFrequency: 0 };
+		const current = selection.frequencyRange ?? { minimumFrequency: 0, maximumFrequency: runtime.projectSampleRate() / 2 };
 		return {
 			minimumFrequency: has(params, 'low') ? number(params.low) : current.minimumFrequency,
 			maximumFrequency: has(params, 'high') ? number(params.high) : current.maximumFrequency,
