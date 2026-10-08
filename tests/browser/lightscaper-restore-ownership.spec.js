@@ -33,20 +33,32 @@ test('native creation markers survive owner realm retirement and authenticate du
 
 async function qualify(page, mode) {
 	test.setTimeout(180_000);
+	const diagnostics = [];
+	page.on('console', message => { if (message.type() === 'error') diagnostics.push(message.text()); });
+	page.context().on('requestfailed', request => {
+		if (request.url().includes('__lightscaper_restore_ownership')) diagnostics.push(`${request.url()}: ${request.failure()?.errorText}`);
+	});
 	const bundle = await build({ entryPoints: [fileURLToPath(ENTRY)], bundle: true, write: false,
 		format: 'esm', platform: 'browser', logLevel: 'silent' });
-	await page.route(`**${MODULE}`, route => route.fulfill({ contentType: 'text/javascript', body: bundle.outputFiles[0].text }));
-	await page.route(`**${WORKER}`, route => route.fulfill({ contentType: 'text/javascript', body:
-		`import { retireAtNativeRestoreCreationV1 } from '${MODULE}';
+	const workerBundle = await build({ stdin: { resolveDir: fileURLToPath(new URL('.', ENTRY)), contents:
+		`import { retireAtNativeRestoreCreationV1 } from ${JSON.stringify(fileURLToPath(ENTRY))};
 		globalThis.addEventListener('message', event => {
 			void retireAtNativeRestoreCreationV1(event.data.allocation, event.data.component).catch(error => {
 				globalThis.postMessage({ phase: 'failure', error: String(error) });
 			});
 		}, { once: true });
-		globalThis.postMessage({ phase: 'ready' });` }));
+		globalThis.postMessage({ phase: 'ready' });` }, bundle: true, write: false,
+		format: 'iife', platform: 'browser', logLevel: 'silent' });
+	const headers = { 'Cross-Origin-Embedder-Policy': 'require-corp', 'Cross-Origin-Resource-Policy': 'same-origin' };
+	await page.context().route(`**${MODULE}`, route => route.fulfill({ contentType: 'text/javascript', headers, body: bundle.outputFiles[0].text }));
+	await page.context().route(`**${WORKER}`, route => route.fulfill({ contentType: 'text/javascript', headers, body: workerBundle.outputFiles[0].text }));
 	const origin = process.env.SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS
 		? JSON.parse(process.env.SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS).lightscaper : browserProductSiteForBuild('lightscaper').origin;
 	await page.goto(`${origin}/en/`); await expect(page.locator('[data-lightscaper-bound="true"]')).toBeVisible();
-	return await page.evaluate(async ({ path, mode, workerPath }) => (await import(new URL(path, location.href).href))
-		.qualifyNativeRestoreOwnershipV1(mode, new URL(workerPath, location.href).href), { path: MODULE, mode, workerPath: WORKER });
+	try {
+		return await page.evaluate(async ({ path, mode, workerPath }) => (await import(new URL(path, location.href).href))
+			.qualifyNativeRestoreOwnershipV1(mode, new URL(workerPath, location.href).href), { path: MODULE, mode, workerPath: WORKER });
+	} catch (error) {
+		throw new Error(`Native ownership qualification failed: ${diagnostics.join('\n')}`, { cause: error });
+	}
 }
