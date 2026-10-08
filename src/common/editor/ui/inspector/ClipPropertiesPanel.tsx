@@ -8,7 +8,7 @@ import ClipPropertiesBody from './ClipPropertiesBody.jsx';
 import ImageClipPropertiesBody from './ImageClipPropertiesBody.tsx';
 import GeneratorClipPropertiesBody from './GeneratorClipPropertiesBody.tsx';
 import ClipSourceEditor from './ClipSourceEditor.tsx';
-import { selectAudioEditorEditBlock } from '../edit-blocking.ts';
+import { selectAudioEditorBusyBlock, selectAudioEditorEditBlock } from '../edit-blocking.ts';
 import { feedbackFailure, usePresentationFeedback } from '../presentation-feedback.ts';
 import type { ClipSourceController, ClipSourceProject } from './clip-source-editor-types.ts';
 import {
@@ -116,7 +116,8 @@ export default function ClipPropertiesPanel({ controller, snapshot, copy, focusR
 			onKeyDown={handlePlaybackKey}
 			onFocusCapture={() => { if (hasSourceEditor && activeClipId) sourceController.actions.clipSourcePreview.focus(activeClipId); }}>
 			{hasSourceEditor && sourceProject && activeClipId && <ClipSourceEditor key={`source:${sourceProject.id}:${activeClipId}`} controller={sourceController}
-				project={sourceProject} clipId={activeClipId} copy={copy} blocked={selectAudioEditorEditBlock(snapshot as Parameters<typeof selectAudioEditorEditBlock>[0]).blocked} />}
+				project={sourceProject} clipId={activeClipId} copy={copy} blocked={selectAudioEditorEditBlock(snapshot as Parameters<typeof selectAudioEditorEditBlock>[0]).blocked}
+				previewBlocked={selectAudioEditorBusyBlock(snapshot as Parameters<typeof selectAudioEditorBusyBlock>[0]).blocked} />}
 			{sourceClip?.kind === 'image' ? <ImageClipPropertiesBody key={JSON.stringify([selection.projectId, activeClipId])}
 				controller={controller} project={persistedProject} clipId={activeClipId} copy={copy}
 				disabled={selectAudioEditorEditBlock(snapshot as Parameters<typeof selectAudioEditorEditBlock>[0]).blocked} />

@@ -26,13 +26,14 @@ interface Props {
 	readonly clipId: string;
 	readonly copy: Readonly<Record<string, string>>;
 	readonly blocked: boolean;
+	readonly previewBlocked?: boolean;
 }
 const amplitudeRulers = renderAmplitudeRulers as (channels: number, height: number, width: number, mode: string, format: string, zoom: number, ratio: number) => ReactNode;
 
 type Gesture = { readonly kind: 'selection' | 'start' | 'end' | 'fade-in' | 'fade-out' | 'shape-in' | 'shape-out' | 'marker'; readonly startFrame: number; readonly pointIndex?: number;
 	readonly startX: number; readonly startY: number; readonly pointerId: number; readonly initialSelection: SourceSelection | null; readonly initialValue?: number; readonly gainHeight?: number; readonly baseGain?: number; readonly startGain?: number };
 
-export default function ClipSourceEditor({ controller, project, clipId, copy, blocked }: Props) {
+export default function ClipSourceEditor({ controller, project, clipId, copy, blocked, previewBlocked = blocked }: Props) {
 	const clip = project.clips.find(candidate => candidate.id === clipId)!;
 	const source = project.sources.find(candidate => candidate.id === clip.sourceId)!;
 	const preview = controller.actions.clipSourcePreview;
@@ -225,7 +226,7 @@ export default function ClipSourceEditor({ controller, project, clipId, copy, bl
 		<ClipSourceRuler copy={copy} width={width} sampleRate={project.sampleRate} startFrame={startFrame} endFrame={endFrame}
 			clipStartFrame={range.startFrame} projectStartFrame={clip.timelineStartFrame} tempoMap={project.tempoMap} signatureMap={project.signatureMap}
 			positionFrame={transport.positionFrame} onSeekFrame={frame => run(() => preview.seek(frame))}
-			options={ruler} onOptions={setRuler} playing={(transport.state === 'playing')} loop={transport.loop} loopRange={transport.loopRange} selection={selection} disabled={blocked || !available}
+			options={ruler} onOptions={setRuler} playing={(transport.state === 'playing')} loop={transport.loop} loopRange={transport.loopRange} selection={selection} disabled={previewBlocked || !available}
 			onPlay={() => run(() => preview.playPause(clipId))} onStop={() => run(() => preview.stop())} onLoop={() => run(() => preview.setLoop(!transport.loop))}
 			onClearLoop={() => run(() => { preview.setLoop(false); preview.setLoopRange(null); })}
 			onLoopSelection={() => run(() => { preview.setLoopRange(selection); preview.setLoop(true); if (ruler.selectionFollows) applySelection(selection ?? { startFrame: 0, endFrame: range.totalFrames }); })}

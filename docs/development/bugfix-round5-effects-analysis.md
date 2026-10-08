@@ -290,6 +290,32 @@ amplitude now asserts the calibrated value. Regressions are
 `audio-editor-round5-spectrum-level-calibration.spec.js`. Both ordinary long
 and one-window recordings pass in Chromium, Firefox and WebKit on immutable
 `41e0214e0` (6/6, no skips or failures), as recorded in
-`/tmp/soundscaper-r5-root-spectral-spectrum-green11.log`. ROOT-009 fails its
-separate production check in that same run and remains uncounted; it does not
-affect these measured amplitude/report checks.
+`/tmp/soundscaper-r5-root-spectral-spectrum-green11.log`. ROOT-009 failed its
+separate initial production check in that run; its subsequent correction and
+verification are recorded above. That failure did not affect these measured
+amplitude/report checks.
+
+## R5-ROOT-011 — Source audition is disabled when another tab owns the project
+
+Import an ordinary WAV, open its Clip properties and wait for the project to
+save. Open the same editor in another tab, which takes editing ownership of
+the saved project. Return to the first tab: its Source Play button is disabled,
+although listening does not change the project. The source ruler incorrectly
+uses persistent editing admission for audition.
+
+Pass the existing busy admission separately to source playback, retaining
+editing admission for trim, fades and stretch markers. Recording and other
+busy operations still block source audition. This is the Source editor's own
+playback presentation boundary, separate from take-list editing ownership.
+
+The ordinary two-tab Chromium baseline fails at the disabled Play button
+(`/tmp/soundscaper-r5-root-source-audition-readonly-baseline.log`, 8.3 seconds).
+The production panel regression independently fails for an idle read-only tab,
+while recording and writable-tab controls pass. Corrected panel, source
+keyboard and runtime-projection support passes 16/16. Targeted type-aware lint
+and the maintained-file size gate pass. An initial SSR fixture
+omitted the effects port and is excluded from the defect evidence. Regressions
+are `audio-editor-round5-source-audition-readonly.test.tsx` and
+`audio-editor-round5-source-audition-readonly.spec.js`. Source correction is
+ready; corrected ordinary browser verification is pending and this root
+does not yet contribute to the count.
