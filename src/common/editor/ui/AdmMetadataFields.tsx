@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 
 import './audio-editor-design-system/15-adm.css';
@@ -247,6 +247,7 @@ export function AdmMetadataFields({
 		</fieldset>
 		<AdmObjectFields
 			authored={authored}
+			projectId={String((project as Readonly<{ id?: unknown }> | null)?.id ?? '')}
 			copy={copy}
 			disabled={disabled}
 			sourceChannels={sourceChannels}
@@ -262,12 +263,15 @@ export default AdmMetadataFields;
 
 interface AdmObjectFieldsProps {
 	readonly authored: AdmAuthoredMetadata;
+	readonly projectId: string;
 	readonly copy: Readonly<Record<string, string>>;
 	readonly disabled: boolean;
 	readonly sourceChannels: readonly AdmEditorSourceChannel[];
 	readonly createId: () => string;
 	readonly onCommit: (value: AdmProjectMetadata | null) => void;
 }
+
+const EMPTY_ADM_OBJECTS = Object.freeze([]);
 
 /**
  * Authoring the positioned objects a programme delivers after its bed.
@@ -276,16 +280,30 @@ interface AdmObjectFieldsProps {
  * rather than a free-standing "new object", because an object with no signal
  * behind it is a channel of silence the delivery still has to carry.
  */
-function AdmObjectFields({ authored, copy, disabled, sourceChannels, createId, onCommit }: AdmObjectFieldsProps) {
-	const objects = authored.objects ?? [];
+function AdmObjectFields({ authored, projectId, copy, disabled, sourceChannels, createId, onCommit }: AdmObjectFieldsProps) {
+	const objects = authored.objects ?? EMPTY_ADM_OBJECTS;
+	const container = useRef<HTMLFieldSetElement>(null);
+	const removal = useRef<Readonly<{ control: HTMLButtonElement; objectId: string; index: number; projectId: string }> | null>(null);
+	useLayoutEffect(() => {
+		const request = removal.current;
+		if (!request) return;
+		if (request.projectId !== projectId) { removal.current = null; return; }
+		if (disabled || objects.some(object => object.id === request.objectId)) return;
+		removal.current = null;
+		const document = request.control.ownerDocument;
+		if (document.activeElement !== request.control && document.activeElement !== document.body && document.activeElement?.isConnected) return;
+		const rows = container.current?.querySelectorAll<HTMLElement>('.audio-editor-adm-object');
+		(rows?.[Math.min(request.index, objects.length - 1)]?.querySelector<HTMLButtonElement>('button')
+			?? container.current?.querySelector<HTMLElement>('.audio-editor-adm-object-add')?.querySelector<HTMLButtonElement>('button'))?.focus();
+	}, [disabled, objects, projectId]);
 	const full = admEditorChannelCount(authored) >= ADM_AUTHORED_MAXIMUM_CHANNELS;
 	const [pending, setPending] = useState('');
 	const chosen = sourceChannels.find((source) => sourceKey(source) === pending) ?? sourceChannels[0];
 	return (
-		<fieldset className="audio-editor-adm-objects">
+		<fieldset ref={container} className="audio-editor-adm-objects">
 			<legend>{copy.admObjects}</legend>
 			{objects.length === 0 && <p className="audio-editor-panel-hint">{copy.admNoObjects}</p>}
-			{objects.map((object) => (
+			{objects.map((object, index) => (
 				<div className="audio-editor-adm-object" key={object.id}>
 					<DraftField
 						name={`adm-object-name-${object.id}`}
@@ -329,7 +347,11 @@ function AdmObjectFields({ authored, copy, disabled, sourceChannels, createId, o
 					<Button
 						variant="secondary"
 						disabled={disabled}
-						onClick={() => onCommit(removeAdmEditorObject(authored, object.id))}
+						onClick={(event) => {
+							const control = event?.currentTarget;
+							removal.current = control && control.ownerDocument.activeElement === control ? { control, objectId: object.id, index, projectId } : null;
+							onCommit(removeAdmEditorObject(authored, object.id));
+						}}
 					>
 						{copy.admRemoveObject}
 					</Button>
