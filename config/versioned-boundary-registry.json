@@ -624,6 +624,8 @@
 		,
 		{ "path": "src/lightscaper/catalog/photo-smart-collection-repository-v1.ts", "kind": "helper-contract", "justification": "Version 1 transactional saved-query persistence validates references and revisions before atomic definition, summary, root, index and retained-state publication." }
 		,
+		{ "path": "src/lightscaper/catalog/photo-smart-collection-snapshot-v1.ts", "kind": "helper-contract", "justification": "Version 1 selected saved-query snapshot returns one authenticated recipe and scalar catalog, index and retained companion-state revisions from the same native readonly transaction." }
+		,
 		{ "path": "src/lightscaper/catalog/photo-smart-collection-state-v1.ts", "kind": "persisted-contract", "justification": "Version 1 scalar saved-query catalog state preserves collection count and mutation revision, including a retained empty tombstone after the last deletion." }
 		,
 		{ "path": "src/lightscaper/catalog/photo-smart-collection-storage-v1.ts", "kind": "helper-contract", "justification": "Version 1 private saved-query scalar summary records and storage context authenticate paired table existence and root, index and saved-state consistency without a whole-table scan." }
