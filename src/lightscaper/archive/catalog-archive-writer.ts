@@ -13,7 +13,7 @@ import type { PhotoCatalogRootV1 } from '../catalog/types.ts';
 import { encodePhotoCatalogPackV1, type PhotoCatalogPackInput } from './catalog-pack.ts';
 import { PHOTO_CATALOG_ARCHIVE_LIMITS_V1 as LIMITS, type PhotoCatalogArchiveIdentityGuard, type PhotoCatalogArchivePackV1 } from './catalog-archive-contract.ts';
 import { PhotoCatalogPackSequence } from './catalog-pack-sequence.ts';
-import { maximumPhotoCatalogStreamingOutputBytesV1 } from './catalog-archive-capacity.ts';
+import { maximumPhotoCatalogStreamingOutputBytesV1, maximumPhotoCatalogStreamingOutputBytesV3 } from './catalog-archive-capacity.ts';
 
 export interface PhotoCatalogArchiveExportOptions {
 	readonly signal?: AbortSignal;
@@ -30,15 +30,18 @@ export interface PhotoCatalogArchivePackWriter {
 /** One ZIP/destination owner is reused by the closed v1 and explicit v2 exporters. */
 export async function writePhotoCatalogArchive<Document>(root: PhotoCatalogRootV1,
 	photos: Iterable<PhotoCatalogPackInput> | AsyncIterable<PhotoCatalogPackInput>, identity: PhotoCatalogArchiveIdentityGuard,
-	prepare: (packs: readonly PhotoCatalogArchivePackV1[], writer: PhotoCatalogArchivePackWriter) => Promise<Readonly<{ document: Document; text: string; schemaVersion: 1 | 2 }>>,
-	options: PhotoCatalogArchiveExportOptions = {}): Promise<PhotoCatalogArchiveWrittenResult<Document>> {
+	prepare: (packs: readonly PhotoCatalogArchivePackV1[], writer: PhotoCatalogArchivePackWriter) => Promise<Readonly<{
+		document: Document; text: string; schemaVersion: 1 | 2 | 3; beforeFinish?: () => Promise<void> }>>,
+	options: PhotoCatalogArchiveExportOptions = {}, maximumStreamingOutputBytes = maximumPhotoCatalogStreamingOutputBytesV1()): Promise<PhotoCatalogArchiveWrittenResult<Document>> {
 	const signal = options.signal, blobMaximum = options.maximumBlobBytes ?? SCAPE_WEB_CORE_BLOB_MAXIMUM_BYTES;
 	if (!Number.isSafeInteger(blobMaximum) || blobMaximum < 1 || blobMaximum > SCAPE_WEB_CORE_BLOB_MAXIMUM_BYTES) throw new RangeError('Photo archive Blob maximum must tighten the shared maximum.');
+	if (!Number.isSafeInteger(maximumStreamingOutputBytes) || maximumStreamingOutputBytes < 1
+		|| maximumStreamingOutputBytes > maximumPhotoCatalogStreamingOutputBytesV3()) throw new RangeError('Photo archive output bound exceeds its registered entry profile.');
 	throwIfScapeAborted(signal);
 	const parts: Uint8Array<ArrayBuffer>[] = [], target = options.writable ?? new WritableStream<Uint8Array>({
 		write(bytes) { parts.push(new Uint8Array(bytes)); }, abort() { parts.length = 0; },
 	});
-	const destination = createScapeExportDestination(target, SCAPE_MIME_TYPE, options.writable ? maximumPhotoCatalogStreamingOutputBytesV1() : blobMaximum);
+	const destination = createScapeExportDestination(target, SCAPE_MIME_TYPE, options.writable ? maximumStreamingOutputBytes : blobMaximum);
 	const writer = new ZipWriter(destination.target, { dataDescriptor: true, dataDescriptorSignature: true,
 		extendedTimestamp: true, zip64: true, level: 0, useWebWorkers: false, signal });
 	let sequence: PhotoCatalogPackSequence | undefined, expandedBytes = 0;
@@ -69,6 +72,7 @@ export async function writePhotoCatalogArchive<Document>(root: PhotoCatalogRootV
 			project: { entry: 'project.json', schemaFamily: 'lightscaper', schemaVersion: prepared.schemaVersion, size: projectBytes.byteLength, sha256: digestScapeBytes(projectBytes) }, assets };
 		const manifestBytes = new TextEncoder().encode(JSON.stringify(manifest)); consumeExpanded(manifestBytes.byteLength);
 		await writer.add('manifest.json', scapeBytesStream(manifestBytes), { level: 0, zip64: true, signal });
+		await prepared.beforeFinish?.();
 		await destination.finish(writer, signal);
 		return Object.freeze({ blob: options.writable ? null : new Blob(parts, { type: SCAPE_MIME_TYPE }), byteLength: destination.byteLength, manifest, document: prepared.document });
 	} catch (error) {

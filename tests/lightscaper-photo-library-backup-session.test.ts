@@ -7,39 +7,52 @@ import { PhotoLibrarySessionV1 } from '../src/lightscaper/controller/photo-libra
 import type { PhotoLibrarySessionPortsV1 } from '../src/lightscaper/controller/photo-library-session-ports.ts';
 import { PhotoCatalogRepositoryV1 } from '../src/lightscaper/catalog/repository.ts';
 import { normalizePhotoCatalogRootV1 } from '../src/lightscaper/catalog/catalog-root.ts';
+import { normalizePhotoStackV1 } from '../src/lightscaper/catalog/photo-stack-v1.ts';
 import { PhotoMediaStoreV1 } from '../src/lightscaper/storage/photo-media-store.ts';
-import { importPhotoCatalogArchiveV1 } from '../src/lightscaper/archive/catalog-archive-import.ts';
+import { importPhotoCatalogArchiveV3 } from '../src/lightscaper/archive/catalog-archive-import-v3.ts';
 import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
 import { photoArchiveFixture } from './helpers/lightscaper-photo-fixture.ts';
 import { deferred, remainsPending } from './helpers/async-test-control.ts';
+import { InstrumentedKeyRange } from './helpers/instrumented-indexeddb-keys.ts';
 
-async function fixture() {
+Object.defineProperty(globalThis, 'IDBKeyRange', { value: InstrumentedKeyRange, configurable: true });
+
+async function fixture(count = 1, stacked = false) {
 	const indexedDB = createInstrumentedIndexedDB() as unknown as IDBFactory;
 	const suffix = crypto.randomUUID();
 	const media = new PhotoMediaStoreV1({ indexedDB, databaseName: `lightscaper-backup-session-${suffix}`, preferOpfs: false, locks: null });
 	const catalog = new PhotoCatalogRepositoryV1({ indexedDB, databaseName: `lightscaper-backup-session-catalog-${suffix}`, verifyOriginal: media.verifyOriginal });
-	const source = photoArchiveFixture();
-	await media.mediaRepository.writeAsset(source.photo.original.storageKey, source.original);
-	await media.mediaRepository.catalogOriginals.retain(source.photo.catalogId, [{ photoId: source.photo.id, sourceId: source.photo.original.id,
-		assetId: source.photo.original.storageKey, sha256: source.photo.original.contentSha256, size: source.photo.original.byteLength }]);
+	const sources = Array.from({ length: count }, (_, index) => photoArchiveFixture(index + 1)), source = sources[0]!;
+	for (const selected of sources) {
+		await media.mediaRepository.writeAsset(selected.photo.original.storageKey, selected.original);
+		await media.mediaRepository.catalogOriginals.retain(selected.photo.catalogId, [{ photoId: selected.photo.id, sourceId: selected.photo.original.id,
+			assetId: selected.photo.original.storageKey, sha256: selected.photo.original.contentSha256, size: selected.photo.original.byteLength }]);
+	}
 	await catalog.createCatalog(normalizePhotoCatalogRootV1({ schemaFamily: 'lightscaper', schemaVersion: 1, kind: 'photo-catalog', id: 'catalog-1',
 		name: 'Été Library', revision: 0, photoCount: 0, folders: [], keywords: [], collections: [] }));
-	const root = await catalog.publishPhotos('catalog-1', 0, [source.photo]);
+	let root = await catalog.publishPhotos('catalog-1', 0, sources.map(selected => selected.photo));
+	if (stacked) {
+		await catalog.saveStack(normalizePhotoStackV1({ schemaVersion: 1, kind: 'photo-stack', catalogId: root.id,
+			id: 'stack', revision: 0, photoIds: sources.map(selected => selected.photo.id), coverPhotoId: source.photo.id }), null,
+		{ expectedCatalogRevision: root.revision, expectedStateRevision: 0 });
+		const current = await catalog.loadCatalog(root.id); assert.ok(current); root = current;
+	}
 	const calls: string[] = [];
 	let beforeLoad = async () => undefined;
 	let cleanup: (() => undefined) | undefined;
 	const ports: { -readonly [Key in keyof PhotoLibrarySessionPortsV1]: PhotoLibrarySessionPortsV1[Key] } = {
-		catalog, journal: media.settingsRepository, media: { writeAsset: media.mediaRepository.writeAsset, custody: media.mediaRepository.catalogOriginals },
+		catalog, stacks: catalog, journal: media.settingsRepository, media: { writeAsset: media.mediaRepository.writeAsset, custody: media.mediaRepository.catalogOriginals },
 		initialize: async () => { calls.push('initialize'); return root; },
 		exclusive: async (_id, run, signal) => { calls.push('lease'); const result = await run(signal); cleanup?.(); return result; },
 		closeResources: async () => { calls.push('close'); await Promise.all([catalog.close(), media.close()]); },
-		backup: { readSnapshot: (...args) => catalog.readSnapshot(...args), loadOriginal: async (original, signal) => {
+		backup: { readSnapshot: (...args) => catalog.readSnapshot(...args),
+			captureSmartCollectionArchiveV1: (...args) => catalog.captureSmartCollectionArchiveV1(...args), loadOriginal: async (original, signal) => {
 			calls.push('original'); await beforeLoad(); await media.verifyOriginal(original, signal);
 			return media.mediaRepository.loadAsset(original.storageKey, { signal, expectedSize: original.byteLength });
 		} },
 	};
 	const session: PhotoLibrarySessionV1 & PhotoLibraryBackupPortV1 = new PhotoLibrarySessionV1(ports);
-	return { session, ports, catalog, media, root, source, calls, beforeLoad: (run: typeof beforeLoad) => { beforeLoad = run; },
+	return { session, ports, catalog, media, root, source, sources, calls, beforeLoad: (run: typeof beforeLoad) => { beforeLoad = run; },
 		cleanup: (run: () => undefined) => { cleanup = run; } };
 }
 
@@ -62,11 +75,13 @@ test('Session backup returns only completed output and scalar catalog facts whil
 		assert.equal(result.catalogId, f.root.id); assert.equal(result.catalogName, f.root.name); assert.equal(result.photoCount, 1);
 		assert.ok(result.blob instanceof Blob); assert.equal(result.blob.size, result.byteLength); assert.equal(Object.isFrozen(result), true);
 		let imported = 0;
-		await importPhotoCatalogArchiveV1(result.blob, async () => ({ writePhoto: async (photo, chunks) => {
+		await importPhotoCatalogArchiveV3(result.blob, async (_root, state) => ({ writePhoto: async (photo, chunks) => {
+			assert.equal(state, null);
 			assert.deepEqual(photo, f.source.photo); const parts = [];
 			for await (const chunk of chunks) parts.push(new Uint8Array(chunk));
 			assert.deepEqual(new Uint8Array(await new Blob(parts).arrayBuffer()), new Uint8Array(await f.source.original.arrayBuffer())); imported++;
-		}, publish: async () => undefined, rollback: async () => { assert.fail('Valid output'); } }));
+		}, writeStack: async () => { assert.fail('No stacks'); }, writeSavedCollection: async () => { assert.fail('No saved filters'); },
+		publish: async () => undefined, rollback: async () => { assert.fail('Valid output'); } }));
 		assert.equal(imported, 1); assert.deepEqual(await f.catalog.readSnapshot(f.root.id), before);
 		assert.deepEqual(await f.media.mediaRepository.catalogOriginals.readPage({ catalogId: f.root.id }), roots);
 	} finally { await f.session.close(); }
@@ -92,6 +107,73 @@ test('streaming Session backup reports no Blob and releases the acquired destina
 		assert.equal(result.blob, null); assert.equal(target.closes(), 1); assert.equal(target.aborts(), 0); assert.equal(target.writable.locked, false);
 		assert.equal(result.byteLength, target.parts.reduce((total, part) => total + part.length, 0));
 	} finally { await f.session.close(); }
+});
+
+test('Session refuses missing saved archive or stack capabilities before initialization instead of exporting a partial format', async () => {
+	for (const capability of ['saved', 'stacks']) {
+		const f = await fixture(), target = destination();
+		try {
+			if (capability === 'saved') { assert.ok(f.ports.backup); Reflect.deleteProperty(f.ports.backup, 'captureSmartCollectionArchiveV1'); }
+			else delete f.ports.stacks;
+			await assert.rejects(f.session.backupCatalog({ writable: target.writable }), /unavailable/iu);
+			assert.deepEqual(f.calls, []); assert.equal(target.writable.locked, false);
+			assert.equal(target.aborts() + target.closes(), 0);
+		} finally { await target.writable.abort(); await f.session.close(); }
+	}
+});
+
+for (const method of ['readStackState', 'readStackPage', 'loadStack'] as const) {
+	test(`Session refuses missing ${method} before initialization or destination acquisition`, async () => {
+		const f = await fixture(), target = destination();
+		try {
+			assert.ok(f.ports.stacks); Object.defineProperty(f.ports.stacks, method, { value: undefined, configurable: true });
+			await assert.rejects(f.session.backupCatalog({ writable: target.writable }), /unavailable|capabilities/iu);
+			assert.deepEqual(f.calls, []); assert.equal(target.writable.locked, false);
+			assert.equal(target.aborts() + target.closes(), 0);
+		} finally { await target.writable.abort(); await f.session.close(); }
+	});
+}
+
+test('Session captures borrowed method identities and receivers before a held original allows replacement', async () => {
+	const f = await fixture(2, true), entered = deferred<void>(), held = deferred<void>();
+	assert.ok(f.ports.backup); const backup = f.ports.backup, catalog = f.catalog;
+	const reads = new Map<string, number>(), restore: Array<() => void> = [];
+	function bindWitness<Args extends unknown[], Result>(owner: object, key: string, original: (...args: Args) => Result): void {
+		const descriptor = Object.getOwnPropertyDescriptor(owner, key);
+		Object.defineProperty(owner, key, { configurable: true, writable: true, value: function (this: unknown, ...args: Args) {
+			assert.equal(this, owner); reads.set(key, (reads.get(key) ?? 0) + 1); return original.apply(owner, args);
+		} });
+		restore.push(() => { if (descriptor) Object.defineProperty(owner, key, descriptor); else Reflect.deleteProperty(owner, key); });
+	}
+	bindWitness(backup, 'readSnapshot', backup.readSnapshot); bindWitness(backup, 'loadOriginal', backup.loadOriginal);
+	bindWitness(catalog, 'readSummaryPage', catalog.readSummaryPage); bindWitness(catalog, 'loadPhoto', catalog.loadPhoto);
+	bindWitness(catalog, 'readStackState', catalog.readStackState); bindWitness(catalog, 'readStackPage', catalog.readStackPage);
+	bindWitness(catalog, 'loadStack', catalog.loadStack);
+	f.beforeLoad(async () => { entered.resolve(); await held.promise; });
+	const work = f.session.backupCatalog(), settled = work.catch(() => undefined);
+	try {
+		await entered.promise;
+		for (const [owner, keys] of [[backup, ['readSnapshot', 'loadOriginal']],
+			[catalog, ['readSummaryPage', 'loadPhoto', 'readStackState', 'readStackPage', 'loadStack']]] as const) {
+			for (const key of keys) Object.defineProperty(owner, key, { configurable: true, writable: true,
+				value: () => { assert.fail(`Late ${key} replacement must not run.`); } });
+		}
+		held.resolve(); const result = await work; assert.ok(result.blob); assert.deepEqual(result.notices, []);
+		assert.equal(reads.get('loadOriginal'), 2); assert.equal(reads.get('loadPhoto'), 2);
+		assert.ok((reads.get('readSnapshot') ?? 0) >= 2); assert.ok((reads.get('readStackState') ?? 0) >= 2);
+		assert.equal(reads.get('readSummaryPage'), 1); assert.equal(reads.get('readStackPage'), 1); assert.equal(reads.get('loadStack'), 1);
+		let photos = 0, stacks = 0;
+		await importPhotoCatalogArchiveV3(result.blob, async (_root, state) => ({
+			writePhoto: async (photo, chunks) => {
+				assert.equal(state, null); const selected = f.sources.find(value => value.photo.id === photo.id); assert.ok(selected);
+				assert.deepEqual(photo, selected.photo); const parts = []; for await (const chunk of chunks) parts.push(new Uint8Array(chunk));
+				assert.deepEqual(new Uint8Array(await new Blob(parts).arrayBuffer()), new Uint8Array(await selected.original.arrayBuffer())); photos++;
+			}, writeStack: async stack => { assert.deepEqual(stack.photoIds, ['photo-1', 'photo-2']); stacks++; },
+			writeSavedCollection: async () => { assert.fail('No saved filters'); }, publish: async () => undefined,
+			rollback: async () => { assert.fail('Valid output'); },
+		}));
+		assert.equal(photos, 2); assert.equal(stacks, 1);
+	} finally { held.resolve(); await settled; for (const reset of restore) reset(); await f.session.close(); }
 });
 
 test('backup holds the existing single writer until a cancelled original load and destination cleanup settle', async () => {

@@ -584,7 +584,17 @@
 		,
 		{"path": "src/lightscaper/archive/catalog-archive-export-v2.ts", "kind": "helper-contract", "justification": "Version 2 catalog export streams photo and stack packs under the existing archive entry, byte and cleanup bounds."}
 		,
+		{"path": "src/lightscaper/archive/catalog-archive-export-v3.ts", "kind": "helper-contract", "justification": "Version 3 catalog export streams authenticated complete saved definitions and physical saved state, binding final source verification before destination completion."}
+		,
 		{"path": "src/lightscaper/archive/catalog-archive-import-v2.ts", "kind": "helper-contract", "justification": "Version 2 catalog import admits version 1 empty grouping and validates exclusive stack membership before provisional catalog publication."}
+		,
+		{"path": "src/lightscaper/archive/catalog-archive-import-v3.ts", "kind": "helper-contract", "justification": "Version 3 catalog import preserves physical saved state and complete saved queries while authenticating all packs and joining archive cleanup before provisional publication."}
+		,
+		{"path": "src/lightscaper/archive/catalog-archive-saved-collection-guard-v3.ts", "kind": "helper-contract", "justification": "Version 3 archive saved-definition admission binds bounded global identities, root-only references, disjoint collection IDs and exact physical-state counts independently of streamed recipe bodies."}
+		,
+		{"path": "src/lightscaper/archive/smart-collection-pack-entry-v1.ts", "kind": "helper-contract", "justification": "Version 1 saved collection entry decoding joins authenticated ZIP extraction and provisional record consumption under independent byte bounds and opaque cancellation reasons."}
+		,
+		{"path": "src/lightscaper/archive/smart-collection-pack-sequence-v1.ts", "kind": "helper-contract", "justification": "Version 1 saved collection sequencing borrows one canonical recipe at a time and splits actual framed bytes at bounded record and pack ceilings with joined iterator cleanup."}
 		,
 		{"path": "src/lightscaper/archive/smart-collection-pack-v1.ts", "kind": "persisted-contract", "justification": "Version 1 canonical framed saved-collection records preserve complete Query2 criteria under independent streamed record, pack, chunk and cleanup bounds."}
 		,
@@ -614,7 +624,11 @@
 		,
 		{ "path": "src/lightscaper/catalog/photo-query-types-v2.ts", "kind": "helper-contract", "justification": "Closed version 2 catalog queries and bounded continuations add explicit effective metadata predicates and catalog/index revision context while preserving version 1 parsers and defaults." }
 		,
+		{ "path": "src/lightscaper/catalog/photo-smart-collection-archive-capture-v1.ts", "kind": "helper-contract", "justification": "Version 1 saved archive capture binds initial, delivered and final complete bounded inventories by canonical recipe digests and physical saved-state presence while borrowing the existing database lifetime." }
+		,
 		{ "path": "src/lightscaper/catalog/photo-smart-collection-archive-context-v1.ts", "kind": "helper-contract", "justification": "Version 1 atomic archive context authenticates catalog and index revisions while preserving physical saved-state absence and retained empty revisions without enumerating definitions." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-smart-collection-archive-read-v1.ts", "kind": "helper-contract", "justification": "Version 1 saved archive reads authenticate scalar physical context and one complete paired definition in each bounded native readonly transaction." }
 		,
 		{ "path": "src/lightscaper/catalog/photo-smart-collection-audit-v1.ts", "kind": "helper-contract", "justification": "Version 1 private canonical storage audit validates bounded definition, summary and key pages and issues single-use database, root and context-bound write authority independently of public continuation tokens." }
 		,
@@ -672,9 +686,13 @@
 		,
 		{"path": "src/lightscaper/controller/photo-batch-rename-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded scalar batch rename preserves selected sequence bindings and publishes authored filenames through existing per-photo CAS/history without mutating originals."}
 		,
+		{ "path": "src/lightscaper/controller/photo-library-backup-source-v1.ts", "kind": "helper-contract", "justification": "Version 1 borrowed backup source captures one admitted catalog root and enumerates bounded photo summaries and retained originals while fencing catalog and index revisions." }
+		,
 		{"path": "src/lightscaper/controller/photo-library-backup-stacks-v1.ts", "kind": "helper-contract", "justification": "Version 1 stack backup capture fences grouping and photo index revisions across bounded scalar enumeration and streamed archive records."}
 		,
 		{ "path": "src/lightscaper/controller/photo-library-backup-v1.ts", "kind": "helper-contract", "justification": "Version 1 leased catalog backup enumerates bounded summary pages and authenticated retained originals, fencing root and photo-index revisions before archive completion." }
+		,
+		{ "path": "src/lightscaper/controller/photo-library-backup-v3.ts", "kind": "helper-contract", "justification": "Version 3 leased catalog backup authenticates complete saved inventory before originals and verifies saved, stack and catalog authority before destination completion." }
 		,
 		{ "path": "src/lightscaper/controller/photo-library-batch-rename-v1.ts", "kind": "helper-contract", "justification": "Version 1 serial batch rename and undo borrow the existing Session writer and one command owner, preserving durable receipts through cancellation and cleanup within fixed scalar bounds." }
 		,

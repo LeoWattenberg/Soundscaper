@@ -13,7 +13,8 @@ export function createPhotoLibrarySessionV1(options: Readonly<{ name: string }>)
 		custody: media.mediaRepository.catalogOriginals }, journal: media.settingsRepository, settings: media.settingsRepository,
 		originalInspection: { inspect: (binding, signal) => media.mediaRepository.inspectCatalogOriginalBody(binding, { signal }) },
 		originalRestoration: { restoreCatalogOriginalBody: (...args) => media.mediaRepository.restoreCatalogOriginalBody(...args) },
-		backup: { readSnapshot: (...args) => catalog.readSnapshot(...args), loadOriginal: async (original, signal) => {
+		backup: { readSnapshot: (...args) => catalog.readSnapshot(...args),
+			captureSmartCollectionArchiveV1: (...args) => catalog.captureSmartCollectionArchiveV1(...args), loadOriginal: async (original, signal) => {
 			await media.verifyOriginal(original, signal); signal?.throwIfAborted();
 			return media.mediaRepository.loadAsset(original.storageKey, { signal, expectedSize: original.byteLength });
 		} },

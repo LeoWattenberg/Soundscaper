@@ -5,7 +5,10 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
 import { browserProductSiteForBuild } from '../../scripts/lib/browser-product-site-plan.mjs';
-import { importPhotoCatalogArchiveV2 } from '../../src/lightscaper/archive/catalog-archive-import-v2.ts';
+import { importPhotoCatalogArchiveV3 } from '../../src/lightscaper/archive/catalog-archive-import-v3.ts';
+import { normalizePhotoCatalogArchiveV3 } from '../../src/lightscaper/archive/catalog-archive-contract-v3.ts';
+import { readScapeArchiveEnvelope } from '../../src/common/editor/scape-archive-envelope.ts';
+import { withScapeArchiveReader } from '../../src/common/editor/scape-archive-reader.ts';
 import { createPngFixture } from '../helpers/png-fixture.mjs';
 import { expect, test } from './helpers/browser-coverage-fixture.js';
 
@@ -14,7 +17,7 @@ const OBSERVER = '/__lightscaper_stack_observation.js';
 const SOURCES = Array.from({ length: 4 }, (_, index) => ({ name: `Stack-${index + 1}.png`, bytes: createPngFixture(index + 1) }));
 
 for (const locale of ['en', 'de']) {
-	test(`${locale}: menus create, reorder, cover, collapse, cull and dissolve a durable stack with authenticated archive2 backup`, async ({ page, browserName }) => {
+	test(`${locale}: menus create, reorder, cover, collapse, cull and dissolve a durable stack with authenticated archive3 backup`, async ({ page, browserName }) => {
 		test.skip(browserName === 'webkit', 'Full WebKit original storage qualification remains deferred.');
 		test.setTimeout(180_000);
 		await page.addInitScript(() => { Object.defineProperty(window, 'showSaveFilePicker', { configurable: true, value: undefined }); });
@@ -154,13 +157,19 @@ function assertCustody(before, after) {
 	assertOriginals(after);
 }
 async function authenticate(bytes, previous) {
+	const blob = new Blob([bytes]);
+	const document = await withScapeArchiveReader(blob, undefined, async entries =>
+		normalizePhotoCatalogArchiveV3(JSON.parse((await readScapeArchiveEnvelope(entries)).projectText)));
+	expect(document.schemaVersion).toBe(3); expect(document.savedCollectionState).toBeNull(); expect(document.savedCollectionPacks).toEqual([]);
 	const photos = [], stacks = []; let published = false;
-	const root = await importPhotoCatalogArchiveV2(new Blob([bytes]), async () => ({
+	const root = await importPhotoCatalogArchiveV3(blob, async (_catalog, state) => {
+		expect(state).toBeNull(); return {
 		async writePhoto(photo, original) {
 			const chunks = []; for await (const chunk of original) chunks.push(Buffer.from(chunk));
 			photos.push({ photo, bytes: Buffer.concat(chunks) });
-		}, async writeStack(stack) { stacks.push(stack); }, async publish() { published = true; }, async rollback() { photos.length = 0; stacks.length = 0; },
-	}));
+		}, async writeStack(stack) { stacks.push(stack); }, async writeSavedCollection() { throw new Error('This catalog has no saved definitions.'); },
+		async publish() { published = true; }, async rollback() { photos.length = 0; stacks.length = 0; },
+	}; });
 	expect(published).toBe(true); expect(root.id).toBe(previous.catalogId); expect(root.photoCount).toBe(4);
 	expect(stacks).toEqual(previous.stacks); expect(photos).toHaveLength(4);
 	for (const { photo, bytes: body } of photos) {

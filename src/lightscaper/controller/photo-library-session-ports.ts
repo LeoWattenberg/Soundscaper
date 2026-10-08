@@ -26,6 +26,7 @@ export interface PhotoLibrarySessionPortsV1 {
 	readonly originalRestoration?: Readonly<Pick<MediaRepository, 'restoreCatalogOriginalBody'>>;
 	readonly backup?: Readonly<{
 		readSnapshot: PhotoCatalogRepositoryV1['readSnapshot'];
+		captureSmartCollectionArchiveV1: PhotoCatalogRepositoryV1['captureSmartCollectionArchiveV1'];
 		loadOriginal: (original: PhotoOriginalV1, signal?: AbortSignal) => Promise<unknown>;
 	}>;
 	readonly createPreviewScheduler?: (catalogId: string) => Promise<PhotoLibraryPreviewSchedulerPortV1>;

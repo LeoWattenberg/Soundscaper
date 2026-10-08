@@ -4,7 +4,7 @@ import { SCAPE_ARCHIVE_LIMITS } from '../../common/editor/scape-archive-limits.t
 import type { ScapeManifest } from '../../common/editor/scape-archive-envelope.ts';
 import { PHOTO_CATALOG_PACK_ASSET_KIND, PHOTO_CATALOG_PACK_ENCODING } from '../../common/editor/scape-photo-catalog-pack.ts';
 import { serializeScapeProjectDocument } from '../../common/editor/scape-project-document.ts';
-import { validateLightscaperDocumentV1 } from '../catalog/documents.ts';
+import { readValidatedPhotoCatalogRootV1 } from '../catalog/documents.ts';
 import type { PhotoCatalogRootV1, PhotoDocumentV1 } from '../catalog/types.ts';
 import { array, field, id, integer, name, oneOf, record, requireSchema, unique } from '../catalog/value-validation.ts';
 import { PHOTO_CATALOG_PACK_LIMITS_V1 } from './catalog-pack.ts';
@@ -36,8 +36,7 @@ export function normalizePhotoCatalogArchiveV1(value: unknown): PhotoCatalogArch
 	const input = record(value, 'photo catalog archive', ['schemaFamily', 'schemaVersion', 'kind', 'id', 'title', 'catalog', 'packs']);
 	requireSchema(input);
 	oneOf(field(input, 'kind'), ['photo-catalog-archive'] as const, 'photo archive kind');
-	const catalog = validateLightscaperDocumentV1(field(input, 'catalog'));
-	if (catalog.kind !== 'photo-catalog') throw new TypeError('Photo archive requires a catalog root.');
+	const catalog = readValidatedPhotoCatalogRootV1(field(input, 'catalog'));
 	const packs = array(field(input, 'packs'), 'photo archive packs', 0, PHOTO_CATALOG_ARCHIVE_LIMITS_V1.maximumPacks).map((value) => {
 		const pack = record(value, 'photo archive pack', ['id', 'entry', 'photoCount']);
 		const entry = field(pack, 'entry');

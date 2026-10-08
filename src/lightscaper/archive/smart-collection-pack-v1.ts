@@ -16,6 +16,7 @@ const nativeAdd = EventTarget.prototype.addEventListener;
 const nativeRemove = EventTarget.prototype.removeEventListener;
 const NativeAbortController = AbortController;
 const nativeAbort = NativeAbortController.prototype.abort;
+const completeDefinitions = new WeakSet<object>();
 
 export const PHOTO_SMART_COLLECTION_PACK_LIMITS_V1 = Object.freeze({
 	maximumRecordBytes: PHOTO_SMART_COLLECTION_LIMITS_V1.maximumDocumentBytes, maximumRecords: 64,
@@ -23,6 +24,12 @@ export const PHOTO_SMART_COLLECTION_PACK_LIMITS_V1 = Object.freeze({
 });
 type Limits = Readonly<Record<keyof typeof PHOTO_SMART_COLLECTION_PACK_LIMITS_V1, number>>;
 export interface PhotoSmartCollectionPackOptionsV1 extends Partial<Limits> { readonly signal?: AbortSignal }
+
+/** One complete immutable recipe and its scalar framed size; no serialized metadata survives preparation. */
+export function preparePhotoSmartCollectionPackRecordV1(value: unknown): Readonly<{ definition: PhotoSmartCollectionV1; byteLength: number }> {
+	const prepared = metadataBytes(value, PHOTO_SMART_COLLECTION_PACK_LIMITS_V1.maximumRecordBytes);
+	return Object.freeze({ definition: prepared.definition, byteLength: 4 + prepared.bytes.byteLength });
+}
 
 /** Framing bytes plus one admitted complete saved recipe, never its private database projection. */
 export function measurePhotoSmartCollectionPackRecordV1(value: unknown): number {
@@ -97,6 +104,7 @@ function metadataBytes(value: unknown, maximum: number) {
 	return { definition, bytes };
 }
 function completeDefinition(value: unknown): PhotoSmartCollectionV1 {
+	if (value !== null && typeof value === 'object' && completeDefinitions.has(value)) return value as PhotoSmartCollectionV1;
 	const input = readClosedDomainRecord(value, 'smart collection pack definition',
 		['schemaVersion', 'kind', 'catalogId', 'id', 'revision', 'name', 'query']);
 	if (readClosedDomainField(input, 'schemaVersion', 'smart collection pack definition') !== 1) throw new RangeError('Unsupported or future smart collection pack definition version.');
@@ -106,7 +114,7 @@ function completeDefinition(value: unknown): PhotoSmartCollectionV1 {
 	for (const key of ['schemaVersion', 'kind', 'text', 'filter', 'sort', 'predicate']) {
 		if (readClosedDomainField(query, key, 'complete saved query') === undefined) throw new TypeError('Saved pack queries require explicit complete fields.');
 	}
-	return normalizePhotoSmartCollectionV1(value);
+	const definition = normalizePhotoSmartCollectionV1(value); completeDefinitions.add(definition); return definition;
 }
 /** Release framing/text/parsed input before awaiting the one normalized recipe consumer. */
 function canonicalDefinition(bytes: Uint8Array): PhotoSmartCollectionV1 {

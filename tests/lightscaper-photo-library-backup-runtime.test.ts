@@ -14,10 +14,14 @@ import { MemoryLockManager } from './helpers/offline-browser-runtime-store-fixtu
 import { photoArchiveFixture } from './helpers/lightscaper-photo-fixture.ts';
 import { normalizePhotoStackV1 } from '../src/lightscaper/catalog/photo-stack-v1.ts';
 import { importPhotoCatalogArchiveV1 } from '../src/lightscaper/archive/catalog-archive-import.ts';
-import { importPhotoCatalogArchiveV2 } from '../src/lightscaper/archive/catalog-archive-import-v2.ts';
 import { stackArchiveDestination } from './helpers/lightscaper-stack-archive-fixture.ts';
+import { importPhotoCatalogArchiveV3 } from '../src/lightscaper/archive/catalog-archive-import-v3.ts';
+import { normalizePhotoSmartCollectionV1 } from '../src/lightscaper/catalog/photo-smart-collection-v1.ts';
+import { InstrumentedKeyRange } from './helpers/instrumented-indexeddb-keys.ts';
 
-async function fixture(count = 1) {
+Object.defineProperty(globalThis, 'IDBKeyRange', { value: InstrumentedKeyRange, configurable: true });
+
+async function fixture(count = 1, savedMode: 'defined' | 'deleted' | null = null) {
 	const indexedDB = createInstrumentedIndexedDB() as unknown as IDBFactory;
 	const previousDb = Object.getOwnPropertyDescriptor(globalThis, 'indexedDB'), previousNavigator = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
 	Object.defineProperty(globalThis, 'indexedDB', { value: indexedDB, configurable: true });
@@ -35,10 +39,22 @@ async function fixture(count = 1) {
 	const stack = count > 1 ? await catalog.saveStack(normalizePhotoStackV1({ schemaVersion: 1, kind: 'photo-stack', catalogId: root.id,
 		id: 'runtime-stack', revision: 0, photoIds: [...sources].reverse().map(selected => selected.photo.id), coverPhotoId: source.photo.id }), null,
 	{ expectedCatalogRevision: root.revision, expectedStateRevision: 0 }) : null;
+	const definition = normalizePhotoSmartCollectionV1({ schemaVersion: 1, kind: 'photo-smart-collection', catalogId: root.id,
+		id: 'runtime-saved', name: 'Metadata selection', revision: 0, query: { schemaVersion: 2, kind: 'photo-catalog-query',
+			text: 'Photo', filter: null, sort: { field: 'capture-time', direction: 'descending' },
+			predicate: { kind: 'not', term: { kind: 'text', column: 'lens', operator: 'equals', value: 'Excluded lens' } } } });
+	async function writeOptions() {
+		const { context } = await catalog.readSmartCollectionSnapshotV1(root.id, null);
+		return { expectedCatalogRevision: context.catalogRevision, expectedIndexRevision: context.indexRevision,
+			expectedStateRevision: context.collectionStateRevision };
+	}
+	if (savedMode !== null) await catalog.saveSmartCollection(definition, null, await writeOptions());
+	if (savedMode === 'deleted') await catalog.deleteSmartCollection(root.id, definition.id, 0, await writeOptions());
+	const savedState = (await catalog.readSmartCollectionArchiveContextV1(root.id)).state;
 	await media.settingsRepository.putIfAbsent(PHOTO_LIBRARY_CATALOG_POINTER_KEY_V1, { schemaVersion: 1, kind: 'photo-library', catalogId: 'catalog-1' });
 	await Promise.all([catalog.close(), media.close()]);
 	const session: ReturnType<typeof createPhotoLibrarySessionV1> & PhotoLibraryBackupPortV1 = createPhotoLibrarySessionV1({ name: 'Fallback library' });
-	return { session, source, sources, stack, restore: () => {
+	return { session, source, sources, stack, definition, savedState, restore: () => {
 		if (previousDb) Object.defineProperty(globalThis, 'indexedDB', previousDb); else Reflect.deleteProperty(globalThis, 'indexedDB');
 		if (previousNavigator) Object.defineProperty(globalThis, 'navigator', previousNavigator); else Reflect.deleteProperty(globalThis, 'navigator');
 	} };
@@ -62,12 +78,31 @@ test('default runtime authenticates the immutable original before passing its ex
 	}
 });
 
-test('default production session exports archive2 with the durable ordered stack and exact retained originals', async () => {
+test('production backup preserves complete saved metadata criteria and a retained empty revision with photos and stacks', async () => {
+	for (const mode of ['defined', 'deleted'] as const) {
+		const f = await fixture(3, mode), target = stackArchiveDestination(), definitions: unknown[] = [];
+		try {
+			const output = await f.session.backupCatalog(); assert.ok(output.blob);
+			await importPhotoCatalogArchiveV3(output.blob, async (_root, state) => {
+				assert.deepEqual(state, f.savedState);
+				return { ...target.stage, writeSavedCollection: async definition => { definitions.push(definition); } };
+			});
+			assert.deepEqual(definitions, mode === 'defined' ? [f.definition] : []);
+			assert.deepEqual([...target.stacks.values()], [f.stack]); assert.equal(target.photos.size, 3);
+			assert.deepEqual(output.notices, []); assert.equal(target.events.at(-1), 'publish');
+		} finally { await f.session.close(); f.restore(); }
+	}
+});
+
+test('default production session exports archive3 with absent saved state, the durable ordered stack and exact retained originals', async () => {
 	const f = await fixture(3), target = stackArchiveDestination();
 	try {
 		const output = await f.session.backupCatalog(); assert.ok(output.blob); assert.ok(f.stack);
 		assert.equal(output.photoCount, 3); assert.deepEqual(output.notices, []);
-		const restored = await importPhotoCatalogArchiveV2(output.blob, async () => target.stage);
+		const restored = await importPhotoCatalogArchiveV3(output.blob, async (_root, state) => {
+			assert.equal(state, null);
+			return { ...target.stage, writeSavedCollection: async () => { assert.fail('No saved filters'); } };
+		});
 		assert.equal(restored.id, 'catalog-1'); assert.equal(restored.revision, 2);
 		assert.deepEqual([...target.stacks.values()], [f.stack]);
 		assert.deepEqual(f.stack.photoIds, ['photo-3', 'photo-2', 'photo-1']); assert.equal(f.stack.coverPhotoId, 'photo-1');
