@@ -70,6 +70,7 @@ const THUMBNAIL: Readonly<PixelFrameLimitsV1> = Object.freeze({ maximumSidePixel
 const FIT_SCREEN: Readonly<PixelFrameLimitsV1> = Object.freeze({ maximumSidePixels: 2048, maximumPixels: 2048 * 2048, maximumBytes: 16 * MIB });
 const SIGNAL_ABORTED = Object.getOwnPropertyDescriptor(AbortSignal.prototype, 'aborted')!.get!;
 const SIGNAL_REASON = Object.getOwnPropertyDescriptor(AbortSignal.prototype, 'reason')!.get!;
+const EXCEPTION_NAME = Object.getOwnPropertyDescriptor(DOMException.prototype, 'name')!.get!;
 
 /** Owns scalar demand and surface registration; generations join before another body is requested. */
 export class PixelPreviewPresentationV1 {
@@ -77,6 +78,7 @@ export class PixelPreviewPresentationV1 {
 	readonly #targets = new Map<string, Target>();
 	readonly #statuses = new Map<string, PixelPreviewTargetStatusV1>();
 	readonly #cleanupErrors: string[] = [];
+	#retirementFailure: Readonly<{ error: unknown }> | null = null;
 	#view: View | null = null;
 	#profile: Profile = 'ordinary';
 	#generation = 0;
@@ -221,15 +223,22 @@ export class PixelPreviewPresentationV1 {
 
 	pause(): Promise<void> {
 		this.#cancel(); this.#view = null; this.#statuses.clear();
-		let cleanup: unknown, failed = false;
-		try { this.#clearAll(); } catch (error) { failed = true; cleanup = error; }
+		try { this.#clearAll(); } catch (error) { this.#retirementFailure ??= Object.freeze({ error }); }
 		this.#notify();
 		const pending = this.#pending ?? Promise.resolve();
-		return failed ? pending.then(() => { throw cleanup; }) : pending;
+		return pending.then(() => {
+			if (this.#retirementFailure) throw this.#retirementFailure.error;
+		}, (error: unknown) => {
+			if (this.#retirementFailure && !Object.is(error, this.#retirementFailure.error)) {
+				throw new AggregateError([this.#retirementFailure.error, error], 'Preview retirement and cleanup failed.');
+			}
+			throw error;
+		});
 	}
 
 	async drain(): Promise<void> {
 		while (this.#pending) await this.#pending;
+		if (this.#retirementFailure) throw this.#retirementFailure.error;
 	}
 
 	close(): Promise<void> {
@@ -267,7 +276,7 @@ export class PixelPreviewPresentationV1 {
 	}
 
 	#wake(): void {
-		if (this.#closed || this.#pending || !this.#view) return;
+		if (this.#closed || this.#retirementFailure || this.#pending || !this.#view) return;
 		const status = [...this.#statuses.values()].find(status => status.status === 'pending' && this.#targets.has(targetKey(status.photoId, status.tier)));
 		if (!status) return;
 		const key = targetKey(status.photoId, status.tier), target = this.#targets.get(key)!;
@@ -342,7 +351,11 @@ export class PixelPreviewPresentationV1 {
 				catch (cleanup) { this.#recordCleanup(cleanup); }
 				this.#setStatus(job, 'failed', errorMessage(error));
 			}
-			else if (error !== Reflect.apply(SIGNAL_REASON, signal, []) && !(error instanceof DOMException && error.name === 'AbortError')) this.#recordCleanup(error);
+			else if (!cleanCancellation(error, signal)) {
+				// A cancelled body remains owned through settlement. Failed cleanup retires this
+				// presenter permanently; later pause/close cannot turn it into a clean barrier.
+				this.#retirementFailure ??= Object.freeze({ error }); throw error;
+			}
 		} finally {
 			if (this.#active === job) this.#active = null;
 			this.#notify();
@@ -369,6 +382,13 @@ export class PixelPreviewPresentationV1 {
 		notices: PixelPreviewTargetStatusV1['notices'] = Object.freeze([])): void {
 		this.#statuses.set(job.key, { photoId: job.photoId, tier: job.tier, status, error, notices });
 	}
+}
+
+function cleanCancellation(error: unknown, signal: AbortSignal): boolean {
+	if (Reflect.apply(SIGNAL_ABORTED, signal, []) !== true) return false;
+	if (Object.is(error, Reflect.apply(SIGNAL_REASON, signal, []))) return true;
+	// Authenticate the native brand without evaluating caller prototype/name shadows.
+	try { return Reflect.apply(EXCEPTION_NAME, error, []) === 'AbortError'; } catch { return false; }
 }
 
 function photoId(value: unknown): string {
