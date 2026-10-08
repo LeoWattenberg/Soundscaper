@@ -14,6 +14,20 @@ const scalarModules = ['controller/shared/photo-library-definition-reader.ts', '
 	'controller/shared/photo-library-culling-v1.ts', 'controller/shared/photo-library-import-gesture-v1.ts',
 	'controller/shared/photo-library-compare-v1.ts', 'controller/shared/photo-library-survey-v1.ts'];
 
+test('the actual stack archive leaf shares the neutral Scape byte owner without timeline copy passengers', () => {
+	const path = directory + 'scape-photo-stack-pack.ts', owner = 'editor-scape-archive-bytes';
+	for (const candidate of [path, path.replaceAll('/', '\\')]) assert.equal(chunkGroupForModulePath(candidate), owner);
+	assert.notEqual(chunkGroupForModulePath(path + '.foreign'), owner);
+	assert.deepEqual(staticRelativeDependencies(readFileSync(path, 'utf8')), []);
+	for (const consumer of ['catalog-archive-contract-v2.ts', 'catalog-archive-export-v2.ts']) {
+		const entry = fileURLToPath(new URL('../src/lightscaper/archive/' + consumer, import.meta.url));
+		const imports = staticRelativeDependencies(transformSync(readFileSync(entry, 'utf8'), { loader: 'ts', format: 'esm' }).code);
+		assert.ok(imports.includes('../../common/editor/scape-photo-stack-pack.ts'), consumer);
+	}
+	const group = chunkGroups.find(candidate => candidate.name === owner); assert.ok(group);
+	assert.equal(group.minSize, 0); assert.equal(group.maxSize, 400_000); assert.equal(group.includeDependenciesRecursively, false);
+});
+
 test('the photo shell follows its own lazy bootstrap instead of the audio shell owner', () => {
 	// Claiming this sole-consumer UI as editor-shell makes shared site/copy imports
 	// point back into LightscaperBootstrap and creates a static chunk cycle.
