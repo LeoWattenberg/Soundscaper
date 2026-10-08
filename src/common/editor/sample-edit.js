@@ -2,6 +2,7 @@ import { AUDACITY_WAVEFORM_STEM_PIXELS_PER_SAMPLE } from './audacity-waveform-re
 import { createStableId } from './project.js';
 import { AUDIO_EDITOR_SOURCE_CHUNK_FRAMES } from './project-audio-factory.js';
 import { createLoopPencilSampleEdits } from './sample-pencil-loop-projection.ts';
+import { loopSampleSmoothingSegments, sampleSmoothingSegments } from './sample-smoothing-loop-ranges.ts';
 import { createWarpPencilSampleEdits, warpedSampleSourceFrame } from './sample-pencil-warp-projection.ts';
 import { loadSourceProvenanceDerivation } from './source-provenance-derivation-loader.ts';
 import {
@@ -113,17 +114,19 @@ export function createSmoothSampleRange({ clip, source, project, startFrame, end
 	const intersectionStart = Math.max(start, clip.timelineStartFrame);
 	const intersectionEnd = Math.min(end, clip.timelineStartFrame + clip.durationFrames);
 	if (intersectionEnd <= intersectionStart) throw new RangeError('The smoothing selection must overlap the selected clip.');
-	const first = timelineFrameToSourceFrame(clip, source, intersectionStart, project);
-	const last = timelineFrameToSourceFrame(clip, source, intersectionEnd - 1, project);
+	const segments = loopSampleSmoothingSegments(clip, intersectionStart, intersectionEnd);
+	const first = segments ? segments[0].startFrame : timelineFrameToSourceFrame(clip, source, intersectionStart, project);
+	const last = segments ? segments.at(-1).endFrame - 1 : timelineFrameToSourceFrame(clip, source, intersectionEnd - 1, project);
 	const sourceStartFrame = Math.min(first, last);
 	const sourceEndFrame = Math.max(first, last) + 1;
-	const length = sourceEndFrame - sourceStartFrame;
+	const length = segments ? segments.reduce((sum, segment) => sum + segment.endFrame - segment.startFrame, 0) : sourceEndFrame - sourceStartFrame;
 	const maximum = positiveInteger(maximumFrames, 'maximumFrames');
 	if (length > maximum) throw new RangeError(`A sample smoothing selection cannot exceed ${maximum} source frames.`);
 	return Object.freeze({
 		startFrame: sourceStartFrame,
 		endFrame: sourceEndFrame,
 		channel: channel == null ? null : boundedInteger(channel, 0, source.channelCount - 1, 'channel'),
+		...(segments && segments.length > 1 ? { segments } : {}),
 	});
 }
 
@@ -265,6 +268,15 @@ function createPersistedSampleEditResult(
 }
 
 async function createSmoothingEdits(store, source, options, requestedRadius, signal) {
+	const segments = sampleSmoothingSegments(options, source.frameCount, AUDIO_EDITOR_SAMPLE_EDIT_MAX_FRAMES);
+	const edits = [];
+	for (const segment of segments) {
+		for (const edit of await createSmoothingSegmentEdits(store, source, { ...options, ...segment }, requestedRadius, signal)) edits.push(edit);
+	}
+	return edits;
+}
+
+async function createSmoothingSegmentEdits(store, source, options, requestedRadius, signal) {
 	const startFrame = boundedInteger(options?.startFrame, 0, source.frameCount - 1, 'smooth.startFrame');
 	const endFrame = boundedInteger(options?.endFrame, startFrame + 1, source.frameCount, 'smooth.endFrame');
 	if (endFrame - startFrame > AUDIO_EDITOR_SAMPLE_EDIT_MAX_FRAMES) {
