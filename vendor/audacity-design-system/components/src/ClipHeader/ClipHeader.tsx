@@ -245,6 +245,7 @@ export const ClipHeader: React.FC<ClipHeaderProps> = ({
             value={renameDraft}
             onChange={(e) => setRenameDraft(e.target.value)}
             onKeyDown={(e) => {
+              if (e.nativeEvent?.isComposing) return;
               e.stopPropagation();
               if (e.key === 'Enter') {
                 e.preventDefault();
