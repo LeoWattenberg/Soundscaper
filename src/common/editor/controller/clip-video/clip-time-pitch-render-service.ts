@@ -11,9 +11,9 @@ import { readClipLoop, withoutClipLoop } from '../../audio-clip-loop.ts';
 import { loadSourceProvenanceDerivation } from '../../source-provenance-derivation-loader.ts';
 import type { SourceProvenanceV1 } from '../../source-provenance.ts';
 import {
-	createAddClipCommand,
 	createAddSourceCommand,
 } from '../../commands/factories.ts';
+import { timePitchClipReplacementCommands } from './internal/clip/time-pitch-clip-replacement.ts';
 import type { AudioEditorCommand } from '../../commands/protocol.ts';
 import type { ClipTimePitchCacheEntry } from '../source/clip-time-pitch-service.ts';
 import type {
@@ -230,8 +230,7 @@ export function createClipTimePitchRenderService(
 				type: 'batch',
 				commands: [
 					createAddSourceCommand(nextSource),
-					{ type: 'clip/remove', clipId: clip.id },
-					createAddClipCommand(track.id, nextClip),
+					...timePitchClipReplacementCommands(dependencies.getProject(), track.id, clip, nextClip),
 				],
 			}, { selectTrackId: track.id, selectClipId: clip.id });
 			setLocalizedStatus(dependencies.setStatus, dependencies.copy, "done", undefined, 'success');
