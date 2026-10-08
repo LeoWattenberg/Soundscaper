@@ -15,6 +15,12 @@ import type { FoundationTimeConversionSite } from './foundation-time-conversion-
  */
 export const FOUNDATION_TIME_CONVERSION_PRODUCT_SITES: readonly FoundationTimeConversionSite[] = deepFreezeAuditSites([
 	{
+		id: 'framescaper-native-bin-insert-span',
+		file: 'src/framescaper/editor-timeline-native-insert-command.ts',
+		behavior: 'Project Bin Insert resolves each already conformed sample boundary to the nearest frame of the native picture leaf\'s sequence, opens that exact frame span, and delegates source-phase and presentation splitting before shifting the right survivor. Overwrite leaves untargeted native lanes unchanged.',
+		conversions: [{ helper: 'sampleFrameToVideoFrame', policies: ['point'] }],
+	},
+	{
 		id: 'framescaper-generated-visual-move-placement',
 		file: 'src/framescaper/editor-timeline-visual-move-command.ts',
 		behavior: 'Ordinary generator and still moves resolve the requested project sample position once to the nearest destination sequence frame, retaining their authored extent, source clock and exact owner through the existing visual mutation command.',
