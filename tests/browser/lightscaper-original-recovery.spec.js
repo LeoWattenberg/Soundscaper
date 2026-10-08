@@ -116,7 +116,7 @@ for (const locale of ['en', 'de']) {
 			await expect(dialog.locator('[data-original-file]')).toBeDisabled();
 			await expect(dialog.locator('[data-original-inspect]')).toBeDisabled();
 			await expect(dialog.locator('[data-original-restore]')).toBeDisabled();
-			await expect(app.getByRole('button', { name: copy.photoImportPhotos, exact: true })).toBeDisabled();
+			await expect(app.getByRole('button', { name: copy.photoImportPhotos, exact: true, includeHidden: true })).toBeDisabled();
 			await keyboard(page, dialog.getByRole('button', { name: copy.photoCancelAction, exact: true }));
 			await expect(dialog.locator('[data-original-inspect]')).toBeDisabled();
 			expect(await observer(page, 'originalRecoveryReadStateV1')).toEqual({ calls: 1, entered: true, released: false, byteLength: PNG.length });

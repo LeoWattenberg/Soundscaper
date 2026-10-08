@@ -178,18 +178,30 @@ let retryHold: RetryHold | null = null;
 /** Hold only normal initialization after the actual media publication commits. */
 export function holdOriginalRecoveryRetryV1(assetId: string): void {
 	if (retryHold && !retryHold.released) throw new Error('A recovery retry gate is already pending.');
-	const put = IDBObjectStore.prototype.put, nativeRequest = LockManager.prototype.request; let release!: () => void;
+	const put = IDBObjectStore.prototype.put, transaction = IDBDatabase.prototype.transaction;
+	const nativeRequest = LockManager.prototype.request, written = new WeakSet<IDBTransaction>(); let release!: () => void;
 	const gate = new Promise<void>(resolve => { release = resolve; });
 	const hold: RetryHold = { publicationCompleted: false, entered: false, released: false, release,
-		restore: () => { IDBObjectStore.prototype.put = put; LockManager.prototype.request = nativeRequest; } };
+		restore: () => { IDBObjectStore.prototype.put = put; IDBDatabase.prototype.transaction = transaction; LockManager.prototype.request = nativeRequest; } };
 	retryHold = hold;
+	IDBDatabase.prototype.transaction = function (this: IDBDatabase, ...args: Parameters<IDBDatabase['transaction']>) {
+		const native = Reflect.apply(transaction, this, args) as IDBTransaction;
+		if (this.name === PHOTO_MEDIA_NAMESPACES_V1.databaseName && native.mode === 'readwrite'
+			&& native.objectStoreNames.contains('mediaAssets') && native.objectStoreNames.contains('catalogOriginalRoots')
+			&& native.objectStoreNames.contains('mediaAssetStaging')) {
+			// Register before transact's completion handler: its resolved promise
+			// can resume Session/readiness before a subsequently added listener.
+			native.addEventListener('complete', () => { if (written.has(native)) hold.publicationCompleted = true; }, { once: true });
+		}
+		return native;
+	};
 	IDBObjectStore.prototype.put = function (value: unknown, key?: IDBValidKey) {
 		const result = key === undefined ? put.call(this, value) : put.call(this, value, key);
 		if (this.name === 'mediaAssets' && this.transaction.db.name === PHOTO_MEDIA_NAMESPACES_V1.databaseName
 			&& this.transaction.mode === 'readwrite' && this.transaction.objectStoreNames.contains('catalogOriginalRoots')
 			&& this.transaction.objectStoreNames.contains('mediaAssetStaging')
 			&& value && typeof value === 'object' && (value as StorageRecord).sourceId === assetId) {
-			this.transaction.addEventListener('complete', () => { hold.publicationCompleted = true; }, { once: true });
+			written.add(this.transaction);
 		}
 		return result;
 	};
