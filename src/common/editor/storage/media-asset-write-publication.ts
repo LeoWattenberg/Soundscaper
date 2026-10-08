@@ -4,6 +4,8 @@ import { request, transact } from './indexeddb-backend.ts';
 import { createAbortGuard } from '../abort-error.ts';
 import type { MediaAssetStagingLease } from './media-asset-staging-repository.ts';
 import { MEDIA_ASSET_STAGING_STORE_NAME } from './media-asset-staging-schema.ts';
+import { assertNoCatalogOriginalRoot } from './media-catalog-original-records.ts';
+import { CATALOG_ORIGINAL_ROOT_STORE_NAME } from './media-catalog-original-schema.ts';
 import {
 	MediaPublicationReconciliationError,
 	sameMediaPayload,
@@ -71,12 +73,14 @@ export async function publishMediaAssetWrite(
 		await transact(database, [
 			'mediaAssets',
 			MEDIA_ASSET_STAGING_STORE_NAME,
+			CATALOG_ORIGINAL_ROOT_STORE_NAME,
 		], 'readwrite', async (stores) => {
 			const mediaAssets = stores.mediaAssets;
 			const staging = stores[MEDIA_ASSET_STAGING_STORE_NAME];
 			if (await request(mediaAssets.get(sourceId))) {
 				throw new Error(`Immutable media asset ${sourceId} cannot be overwritten.`);
 			}
+			await assertNoCatalogOriginalRoot(stores[CATALOG_ORIGINAL_ROOT_STORE_NAME], sourceId);
 			if (input) await assertVideoProxyClaimPublicationAvailable(
 				staging,
 				input,

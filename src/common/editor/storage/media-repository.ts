@@ -338,9 +338,14 @@ async function publishImmutableMediaAsset(
 		port.memory.mediaAssets.set(sourceId, clone(record));
 		return;
 	}
-	const created = await transact(database, 'mediaAssets', 'readwrite', ({ mediaAssets }) => {
+	const created = await transact(database, [
+		'mediaAssets', CATALOG_ORIGINAL_ROOT_STORE_NAME,
+	], 'readwrite', async (stores) => {
 		throwIfAborted(signal);
-		return addMediaAssetIfAbsent(mediaAssets, record);
+		if (await request(stores.mediaAssets.get(sourceId))) return false;
+		await assertNoCatalogOriginalRoot(stores[CATALOG_ORIGINAL_ROOT_STORE_NAME], sourceId);
+		throwIfAborted(signal);
+		return addMediaAssetIfAbsent(stores.mediaAssets, record);
 	});
 	if (!created) throw immutableMediaAssetError(sourceId);
 }
