@@ -25,7 +25,7 @@ test('preference ownership keeps the frozen delegate identity and removes fiftee
 	assert.equal(Object.isFrozen(owner), true);
 	assert.deepEqual(Object.keys(owner), DELEGATE_NAMES);
 	assert.doesNotThrow(() => assertEditorPreferenceActionOwner(owner));
-	assert.equal(EDITOR_ACTION_FUNCTION_NAMES.length, 202);
+	assert.equal(EDITOR_ACTION_FUNCTION_NAMES.length, 203);
 	assert.equal(EDITOR_ACTION_FUNCTION_NAMES.includes('readSourceSelectionSampleRate'), true);
 	assert.deepEqual(DELEGATE_NAMES.filter((name) => EDITOR_ACTION_FUNCTION_NAMES.includes(name as never)), []);
 });
