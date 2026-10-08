@@ -116,6 +116,8 @@ plain-command formatter and faithfully mounted Code action first fail before
 correction. Existing literal delimiters, partial selections, selection offsets,
 paragraph structure and toggle contracts pass with the new multiline coverage
 (50/50 new/existing notes checks). Existing complete code spans still toggle
-rather than being reinterpreted as literal markup. Targeted lint, focused strict compiler and size checks pass; the corrected
-public Code preview, exact toggle and saved reload remain pending. This is the
+rather than being reinterpreted as literal markup. Targeted lint, focused strict compiler and size checks pass; the complete
+public Code preview, exact toggle and saved reload pass Chromium, Firefox and
+WebKit on immutable Green37 (1672be43a), alongside the unchanged Bold and Italic
+workflows (9/9, 43.4 seconds). This is the
 same cross-block serialization omission as D028, with no new ID.
