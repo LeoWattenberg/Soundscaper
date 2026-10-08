@@ -8,7 +8,7 @@ import { fileSavingChunkGroups } from './build-chunk-file-saving.mjs';
 // closure one owner keeps optional photo dialogs out of the timeline shell,
 // whose theme provider may otherwise acquire a privacy-route initialization
 // back-edge through the reachability-placed musical time-code context.
-export const EDITOR_DIALOG_FOUNDATION_CHUNK_TEST = /(?:src[\\/]common[\\/]editor[\\/]ui[\\/](?:AudioEditorDialogShell\.tsx|AudioEditorResizableSurface\.jsx|dialog-(?:escape-ownership|focus-ownership|drag-bounds|move-lifecycle)\.ts|focus-restoration\.ts|resizable-surface-mouse-lifecycle\.ts)$|(?:^|[\\/])vendor[\\/]audacity-design-system[\\/]components[\\/]src[\\/]DialogHeader[\\/])/;
+export const EDITOR_DIALOG_FOUNDATION_CHUNK_TEST = /(?:src[\\/]common[\\/]editor[\\/]ui[\\/](?:AudioEditorDialogShell\.tsx|AudioEditorResizableSurface\.jsx|dialog-(?:escape-ownership|focus-ownership|drag-bounds|move-lifecycle)\.ts|file-input-selection\.ts|focus-restoration\.ts|resizable-surface-mouse-lifecycle\.ts)$|(?:^|[\\/])vendor[\\/]audacity-design-system[\\/]components[\\/]src[\\/]DialogHeader[\\/])/;
 
 /** @type {import('rolldown').CodeSplittingGroup[]} */
 export const editorUiChunkGroups = [
@@ -19,7 +19,7 @@ export const editorUiChunkGroups = [
 		// and the archive limit share no product domain imports. One neutral owner
 		// avoids timeline passengers and preserves startup request ceilings.
 		name: 'editor-neutral-foundations',
-		test: /src[\\/]common[\\/]editor[\\/](?:(?:abort-error|abort-race|code-unit-order|safe-visual-text|scape-archive-limits|scape-blob-budget|scape-project-format|web-file-limit-failure|worker-error-transport|worker-protocol|worker-request-broker)\.ts|stable-id\.js)$/,
+		test: /src[\\/]common[\\/]editor[\\/](?:(?:abort-error|abort-race|code-unit-order|error-diagnostic-message|safe-visual-text|scape-archive-limits|scape-blob-budget|scape-project-format|web-file-limit-failure|worker-error-transport|worker-protocol|worker-request-broker)\.ts|stable-id\.js)$/,
 		priority: 99,
 		minSize: 0,
 		maxSize: 400_000,
@@ -30,7 +30,7 @@ export const editorUiChunkGroups = [
 		// Sharing the broad timeline controller owner makes those few imports pull
 		// video commands, storage and effect copy into an otherwise isolated shell.
 		name: 'editor-photo-library-scalars',
-		test: /src[\\/]common[\\/]editor[\\/]controller[\\/]shared[\\/]photo-library-(?:definition-reader|selection-v1|culling-v1|import-gesture-v1|backup-save-v1)\.ts$/,
+		test: /src[\\/]common[\\/]editor[\\/]controller[\\/]shared[\\/]photo-library-(?:definition-reader|selection-v1|culling-v1|import-gesture-v1|backup-save-v1|original-recovery-v1)\.ts$/,
 		priority: 99,
 		minSize: 0,
 		maxSize: 400_000,

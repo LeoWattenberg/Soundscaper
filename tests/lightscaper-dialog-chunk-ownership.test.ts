@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
+import { transformSync } from 'esbuild';
 import { chunkGroupForModulePath, chunkGroups } from '../scripts/lib/build-chunk-groups.mjs';
 import { resolveRelativeModule, staticRelativeDependencies } from './helpers/eager-chunk-group-crossings.ts';
 
@@ -48,4 +49,18 @@ test('the shared dialog header stays with its consumer and its ownership cannot 
 	assert.equal(group.minSize, 0);
 	assert.equal(group.maxSize, 400_000);
 	assert.equal(group.includeDependenciesRecursively, false);
+});
+
+test('the photo recovery file picker shares the neutral dialog owner without acquiring the timeline shell', () => {
+	const helper = ui + 'file-input-selection.ts';
+	assert.equal(chunkGroupForModulePath(helper), owner);
+	assert.equal(chunkGroupForModulePath(helper.replaceAll('/', '\\')), owner);
+	assert.notEqual(chunkGroupForModulePath(helper + '.foreign'), owner);
+	assert.deepEqual(staticRelativeDependencies(readFileSync(helper, 'utf8')), []);
+	const dialog = ui + 'lightscaper/PhotoOriginalRecoveryDialog.tsx';
+	const source = transformSync(readFileSync(dialog, 'utf8'), { loader: 'tsx', format: 'esm' }).code;
+	assert.deepEqual(staticRelativeDependencies(source).map(specifier => {
+		const path = resolveRelativeModule(dialog, specifier); assert.ok(path, specifier);
+		return chunkGroupForModulePath(path);
+	}), [owner, owner]);
 });

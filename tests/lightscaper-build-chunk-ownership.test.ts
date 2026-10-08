@@ -114,7 +114,7 @@ test('photo backup option admission imports the shared scalar budget without eag
 
 test('shared cancellation, ordering, IDs and worker lifetimes have an exact neutral owner without timeline passengers', () => {
 	const owner = 'editor-neutral-foundations';
-	for (const module of ['abort-error.ts', 'abort-race.ts', 'code-unit-order.ts', 'stable-id.js',
+	for (const module of ['abort-error.ts', 'abort-race.ts', 'code-unit-order.ts', 'error-diagnostic-message.ts', 'stable-id.js',
 		'worker-error-transport.ts', 'worker-protocol.ts', 'worker-request-broker.ts']) {
 		const path = directory + module;
 		assert.equal(chunkGroupForModulePath(path), owner);
@@ -128,6 +128,29 @@ test('shared cancellation, ordering, IDs and worker lifetimes have an exact neut
 	assert.equal(EAGER_CHUNK_GROUPS.has(owner), true);
 	assert.equal(chunkGroupForModulePath(directory + 'abort-error-future.ts'), 'editor-domain');
 	assert.equal(chunkGroupForModulePath(directory + 'effect-contract.ts'), 'editor-domain');
+});
+
+test('original recovery composes only scalar, neutral and original-contract owners', () => {
+	const root = directory + 'controller/shared/photo-library-original-recovery-v1.ts';
+	assert.equal(chunkGroupForModulePath(root), 'editor-photo-library-scalars');
+	assert.equal(chunkGroupForModulePath(root.replaceAll('/', '\\')), 'editor-photo-library-scalars');
+	assert.notEqual(chunkGroupForModulePath(root + '.foreign'), 'editor-photo-library-scalars');
+	const pending = [root], seen = new Set<string>();
+	while (pending.length) {
+		const module = pending.pop()!;
+		if (seen.has(module)) continue;
+		seen.add(module);
+		assert.ok(['editor-photo-library-scalars', 'editor-neutral-foundations', 'editor-closed-domain-values',
+			'editor-media-custody-storage'].some(owner => owner === chunkGroupForModulePath(module)), module);
+		const source = transformSync(readFileSync(module, 'utf8'), { loader: 'ts', format: 'esm' }).code;
+		for (const specifier of staticRelativeDependencies(source)) {
+			const path = resolveRelativeModule(module, specifier); assert.ok(path, specifier); pending.push(path);
+		}
+	}
+	assert.deepEqual([...seen].map(path => path.slice(directory.length)).sort(), [
+		'closed-domain-value.ts', 'controller/shared/photo-library-original-recovery-v1.ts', 'error-diagnostic-message.ts',
+		'safe-visual-text.ts', 'storage/media-catalog-original-repair-contract.ts', 'storage/media-catalog-original-schema.ts',
+	].sort());
 });
 
 test('shared still admission, effect and mask contracts retain only imaging and inert foundation imports', () => {
