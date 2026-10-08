@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { lazy, Suspense, useEffect, useRef, useState, type FocusEvent, type KeyboardEvent, type MouseEvent } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState, type FocusEvent, type KeyboardEvent, type MouseEvent } from 'react';
 
 import { otherProductIds, productIdentity } from '../../../product-identities.js';
 import { productHref } from '../../../product-web-links.js';
@@ -43,6 +43,14 @@ export default function LightscaperApp({ locale, createSession }: LightscaperApp
 	const [organizerVisible, setOrganizerVisible] = useState(false);
 	const [membershipsVisible, setMembershipsVisible] = useState(false);
 	const library = usePhotoLibraryWorkflow(createSession);
+	const factory = useRef(createSession); factory.current = createSession;
+	const { importFiles } = library;
+	const onImport = useCallback(async (...parameters: Parameters<typeof importFiles>) => {
+		const receipt = await importFiles(...parameters);
+		if (factory.current === createSession && receipt.outcome === 'acknowledged') setLibraryVisible(true);
+		return receipt;
+	}, [createSession, importFiles]);
+	const createPresetId = useCallback(() => crypto.randomUUID(), []);
 	const photoSelection = usePhotoLibrarySelection({ photoIds: library.page?.rows.map(row => row.id) ?? [],
 		generation: createSession, pageIdentity: library.page, autoAdvance });
 	const { readPage } = library;
@@ -51,7 +59,7 @@ export default function LightscaperApp({ locale, createSession }: LightscaperApp
 		green: copy.photoColorGreen, blue: copy.photoColorBlue, purple: copy.photoColorPurple };
 	const selection = library.page?.rows.find(row => row.id === photoSelection.snapshot.primaryId) ?? null;
 	useEffect(() => {
-		setOrganizerVisible(false); setMembershipsVisible(false); setMetadataVisible(false);
+		setOrganizerVisible(false); setMembershipsVisible(false); setMetadataVisible(false); setImportVisible(false);
 	}, [createSession]);
 	useEffect(() => {
 		const dismiss = (event: PointerEvent) => {
@@ -111,6 +119,9 @@ export default function LightscaperApp({ locale, createSession }: LightscaperApp
 	};
 
 	const renderLibrary = (preview?: PhotoPreviewPresentationViewV1) => <>
+		{library.importReceipt?.outcome === 'acknowledged' && library.importReceipt.completion !== 'finished' && <p role="status" data-photo-import-completion={library.importReceipt.completion}>
+			{library.importReceipt.completion === 'cancelled' ? copy.photoImportCancelled : copy.photoImportInterrupted}
+		</p>}
 		<PhotoLibraryPanel title={copy.workspacePhoto} empty={copy.photoEmptyLibrary} loading={copy.photoWorking}
 			ratingLabel={copy.photoRating} flags={flags} colorLabels={colorLabels} importedLabel={copy.photoImported} failedLabel={copy.photoImportFailed} metadataNotice={copy.photoMetadataNotice}
 			page={library.page} receipts={library.receipts} selected={selection?.id ?? null} busy={library.busy} error={library.error}
@@ -228,9 +239,10 @@ export default function LightscaperApp({ locale, createSession }: LightscaperApp
 		</Suspense>}
 		{importVisible && <Suspense fallback={<p role="status">{copy.photoWorking}</p>}>
 			<PhotoImportDialog title={copy.photoImportPhotos} filesLabel={copy.photoChooseFiles} importLabel={copy.photoImportAction}
-				cancelLabel={copy.photoCancelAction} busy={library.busy} onClose={closeImport} onImport={files => {
-					setImportVisible(false); setLibraryVisible(true); void library.importFiles(files);
-				}} />
+				cancelLabel={copy.photoCancelAction} failureLabel={copy.photoImportFailed} busy={library.busy} error={library.error} copy={copy}
+				readPresets={library.readImportPresets} applyPreset={library.applyImportPreset} createId={createPresetId}
+				readDefinitions={library.readDefinitions} readDefinition={library.readDefinition} definitionReader={definitionReader.current}
+				onClose={closeImport} onImport={onImport} />
 		</Suspense>}
 	</section>;
 }

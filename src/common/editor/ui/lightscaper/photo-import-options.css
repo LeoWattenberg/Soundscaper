@@ -1,0 +1,11 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+.lightscaper-import-options { margin-block: 1rem; }
+.lightscaper-import-options > fieldset { margin-block-start: 1rem; }
+.lightscaper-import-options .lightscaper-import-option-toggle {
+	display: flex;
+	align-items: center;
+	gap: .5rem;
+}
+.lightscaper-import-options input[type=checkbox] { inline-size: auto; }
+.lightscaper-import-options code { overflow-wrap: anywhere; }

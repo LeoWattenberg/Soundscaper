@@ -364,7 +364,7 @@ test('an acknowledged import invalidates the active query continuation even when
 			await mounted.current.applyQuery(QUERY);
 			await mounted.current.importFiles([new File(['x'], 'New.png')]);
 		});
-		assert.deepEqual(mounted.current.receipts, [RECEIPT]);
+		assert.deepEqual(mounted.current.receipts, [{ ...RECEIPT, fileName: 'New.png' }]);
 		assert.equal(mounted.current.page?.cursor, null);
 		assert.equal(mounted.current.error, 'Import query refresh failed');
 	} finally { await mounted.dispose(); }
@@ -384,7 +384,7 @@ function owner(readPage: PhotoLibrarySessionPortV1['readPage']) {
 		readMemberships: async (): Promise<never> => { throw new Error('Unexpected membership read in workflow fixture.'); },
 		applyMemberships: async (): Promise<never> => { throw new Error('Unexpected membership write in workflow fixture.'); },
 		readPreview: async () => Object.freeze({ outcome: 'missing' as const }),
-		importFiles: async () => Object.freeze([RECEIPT]),
+		importFiles: async files => Object.freeze(files.map((file, index) => Object.freeze({ ...RECEIPT, index, fileName: file.name }))),
 		setRating: async (_photoId, rating) => Object.freeze({ ...ROW, rating }),
 		applyAttributes: async (_photoId, changes) => Object.freeze({ ...ROW, ...changes }),
 		readMetadata: async () => Object.freeze({ photoId: ROW.id, revision: 0, metadata: emptyPhotoMetadataV1(ROW.fileName),

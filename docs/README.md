@@ -24,6 +24,8 @@ belong in Git history, not in the maintained documentation set.
   original custody, publication, digest dedupe, and interruption recovery.
 - [Photo library sessions](architecture/lightscaper-photo-library-session.md)
   defines bounded menu-owned browsing, import bridges, and resource lifetime.
+- [Opt-in photo import options](architecture/lightscaper-import-options-ui.md)
+  defines authored drafts, explicit preset loading, and durable import acknowledgements.
 - [Disposable photo preview preparation](architecture/lightscaper-preview-preparation.md)
   defines shared resize recipes and bounded original-free preview bodies.
 - [Photo catalog definitions](architecture/lightscaper-catalog-definitions.md)
