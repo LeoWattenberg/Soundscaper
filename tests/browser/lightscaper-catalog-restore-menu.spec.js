@@ -5,6 +5,8 @@ import { browserProductSiteForBuild } from '../../scripts/lib/browser-product-si
 import { bundledLightscaperEditorCopyForLocale } from '../../src/common/i18n/lightscaper-editor-copy.ts';
 import { lightscaperRestoreCopy } from '../../src/common/i18n/lightscaper-restore-copy.ts';
 import { importPhotoCatalogArchiveV3 } from '../../src/lightscaper/archive/catalog-archive-import-v3.ts';
+import { PHOTO_LIBRARY_CATALOG_POINTER_KEY_V1 } from '../../src/lightscaper/storage/photo-library-catalog-pointer.ts';
+import { PHOTO_LIBRARY_DEFAULT_SETTINGS_DATABASE_NAME_V2 } from '../../src/lightscaper/storage/photo-library-location-v2.ts';
 import { expect, test } from './helpers/browser-coverage-fixture.js';
 
 test.use({ browserCoverage: false });
@@ -49,7 +51,10 @@ for (const locale of ['en', 'de']) {
 		await keyboard(page, named(importer, 'button', copy.photoImportAction)); await expect(importer).toHaveCount(0);
 		const library = app.locator('[data-photo-library]'); await expect(library.locator('[data-photo-count]')).toHaveAttribute('data-photo-count', '2');
 		await expect(library).toHaveAttribute('aria-busy', 'false');
-		for (const [index, name] of ['First.png', 'Second.png'].entries()) await photo(page, library, name).click(index ? { modifiers: ['Control'] } : {});
+		await keyboard(page, photo(page, library, 'First.png'));
+		await photo(page, library, 'Second.png').focus(); await page.keyboard.press('Control+Space');
+		await expect(photo(page, library, 'First.png')).toHaveAttribute('aria-pressed', 'true');
+		await expect(photo(page, library, 'Second.png')).toHaveAttribute('aria-pressed', 'true');
 		await action(page, app, copy.photoFileMenu, copy.photoStackCreate, copy.photoPhotoMenu);
 		const stack = named(page, 'dialog', copy.photoStackTitle); await keyboard(page, named(stack, 'button', copy.photoStackSave));
 		await expect(stack.locator('[data-stack-ack]')).toHaveText(copy.photoStackCreated); await keyboard(page, bodyClose(stack, copy.photoCloseMetadata));
@@ -64,7 +69,7 @@ for (const locale of ['en', 'de']) {
 		expect(original.photos).toHaveLength(2); expect(original.stacks).toHaveLength(1); expect(original.saved).toHaveLength(1);
 		expect(original.saved[0]).toMatchObject({ name: savedName, query: QUERY }); expect(original.savedState).toMatchObject({ collectionCount: 1, revision: 1 });
 		for (const item of original.photos) expect(item.original.equals(PNG)).toBe(true);
-		await photo(page, library, 'First.png').click();
+		await keyboard(page, photo(page, library, 'First.png'));
 		await action(page, app, copy.photoFileMenu, copy.photoRateStars.replace('{count}', '5'), copy.photoPhotoMenu);
 		await expect(photo(page, library, 'First.png')).toContainText(`${copy.photoRating}: 5`);
 		await restore(page, app, copy, restoreCopy, source);
@@ -80,6 +85,52 @@ for (const locale of ['en', 'de']) {
 		// This rebackup reads the selected durable catalog, physical saved state,
 		// full recipes, ordered stack and stored original bodies after real reload.
 		expect(await decode((await backup(page, app, copy)).buffer)).toEqual(original); expect(errors).toEqual([]);
+	});
+
+	test(`${locale}: keyboard Close and Cancel join held native publication and retain its completed acknowledgement`, async ({ page }) => {
+		test.setTimeout(120_000);
+		await installPublicationBarrier(page);
+		const { app, copy, restoreCopy, errors } = await setup(page, locale);
+		const source = await backup(page, app, copy), original = await decode(source.buffer);
+		try {
+			await page.evaluate(() => globalThis.__lightscaperRestorePublicationBarrier.arm());
+			await action(page, app, copy.photoFileMenu, restoreCopy.title);
+			let dialog = named(page, 'dialog', restoreCopy.title);
+			await dialog.getByLabel(restoreCopy.file, { exact: true }).setInputFiles(source);
+			await keyboard(page, named(dialog, 'button', restoreCopy.restore));
+			await expect.poll(() => page.evaluate(() => globalThis.__lightscaperRestorePublicationBarrier.snapshot().held)).toBe(true);
+			await expect(dialog.locator('[data-photo-restore-receipt]')).toHaveCount(0);
+			await expect(named(dialog, 'button', restoreCopy.restore)).toBeDisabled();
+			await keyboard(page, bodyClose(dialog, restoreCopy.close)); await expect(dialog).toHaveCount(0);
+			await action(page, app, copy.photoFileMenu, restoreCopy.title); dialog = named(page, 'dialog', restoreCopy.title);
+			await keyboard(page, named(dialog, 'button', restoreCopy.cancel));
+			await expect(named(dialog, 'button', restoreCopy.cancel)).toBeDisabled();
+			await expect(dialog.locator('[data-photo-restore-receipt]')).toHaveCount(0);
+			const installed = await page.evaluate(async ({ databaseName, pointerKey }) => {
+				const database = await new Promise((resolve, reject) => {
+					const opening = indexedDB.open(databaseName); opening.onsuccess = () => resolve(opening.result); opening.onerror = () => reject(opening.error);
+				});
+				const transaction = database.transaction('settings'), store = transaction.objectStore('settings');
+				const completion = new Promise((resolve, reject) => {
+					transaction.oncomplete = () => resolve(); transaction.onabort = () => reject(transaction.error);
+				});
+				void completion.catch(() => undefined);
+				try {
+					const read = key => new Promise((resolve, reject) => { const request = store.get(key);
+						request.onsuccess = () => resolve(request.result?.value); request.onerror = () => reject(request.error); });
+					const pointer = await read(pointerKey), commit = await read(`photo-library:restore-commit-v1:${pointer.namespaceToken}`);
+					await completion;
+					return { version: pointer.schemaVersion, token: pointer.namespaceToken, commitToken: commit.allocation.namespaceToken, catalogId: pointer.catalogId, committedCatalogId: commit.candidateReceipt.catalogId };
+				} finally { try { await completion; } catch { /* Preserve an earlier read failure after native settlement. */ } database.close(); }
+			}, { databaseName: PHOTO_LIBRARY_DEFAULT_SETTINGS_DATABASE_NAME_V2, pointerKey: PHOTO_LIBRARY_CATALOG_POINTER_KEY_V1 });
+			expect(installed).toMatchObject({ version: 2, catalogId: original.root.id, committedCatalogId: original.root.id });
+			expect(installed.token).toMatch(/^[a-f0-9]{32}$/u); expect(installed.commitToken).toBe(installed.token);
+			await page.evaluate(() => globalThis.__lightscaperRestorePublicationBarrier.release());
+			await expect(dialog.locator('[data-photo-restore-receipt]')).toContainText(restoreCopy.acknowledged.replace('{name}', original.root.name));
+			await expect(dialog.getByRole('alert')).toHaveCount(0); await expect(dialog.getByText(restoreCopy.cancelled, { exact: true })).toHaveCount(0);
+			await keyboard(page, bodyClose(dialog, restoreCopy.close)); await page.reload(); await expect(app).toBeVisible();
+			expect(await decode((await backup(page, app, copy)).buffer)).toEqual(original); expect(errors).toEqual([]);
+		} finally { await page.evaluate(() => globalThis.__lightscaperRestorePublicationBarrier.release()); }
 	});
 }
 
@@ -123,4 +174,27 @@ async function action(page, app, menu, name, submenu) {
 	await keyboard(page, app.locator('nav > details > summary').filter({ hasText: new RegExp(`^${menu.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')}$`, 'u') }));
 	if (submenu) await keyboard(page, app.locator('.lightscaper-photo-submenu > summary').filter({ hasText: submenu }));
 	await keyboard(page, named(app, 'button', name));
+}
+
+/** Hold only observation of a genuine completed pointer/history transaction, never its native commit. */
+async function installPublicationBarrier(page) {
+	await page.addInitScript(({ databaseName, pointerKey }) => {
+		const completion = Object.getOwnPropertyDescriptor(IDBTransaction.prototype, 'oncomplete');
+		const put = IDBObjectStore.prototype.put, targets = new WeakSet(), waiting = [];
+		let armed = false, held = false;
+		Object.defineProperty(IDBTransaction.prototype, 'oncomplete', { ...completion, set(callback) {
+			Reflect.apply(completion.set, this, [typeof callback !== 'function' ? callback : function(event) {
+				if (armed && targets.has(this)) { held = true; waiting.push(() => Reflect.apply(callback, this, [event])); }
+				else Reflect.apply(callback, this, [event]);
+			}]);
+		} });
+		IDBObjectStore.prototype.put = function(value, key) {
+			if (armed && this.name === 'settings' && this.transaction.db.name === databaseName && value?.key === pointerKey && value.value?.schemaVersion === 2) targets.add(this.transaction);
+			return Reflect.apply(put, this, key === undefined ? [value] : [value, key]);
+		};
+		globalThis.__lightscaperRestorePublicationBarrier = Object.freeze({ arm() { armed = true; }, snapshot: () => ({ held }), release() {
+			armed = false; Object.defineProperty(IDBTransaction.prototype, 'oncomplete', completion); IDBObjectStore.prototype.put = put;
+			for (const deliver of waiting.splice(0)) deliver();
+		} });
+	}, { databaseName: PHOTO_LIBRARY_DEFAULT_SETTINGS_DATABASE_NAME_V2, pointerKey: PHOTO_LIBRARY_CATALOG_POINTER_KEY_V1 });
 }
