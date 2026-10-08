@@ -13,6 +13,7 @@ import {
 import type { DeliveryReportState } from './export-state.ts';
 import type { DeliveryReport } from '../../delivery-report.ts';
 import { reportInterchangeAudioOmissions } from './internal/interchange-audio-omissions.ts';
+import { reportInterchangePictureOmissions } from './internal/interchange-picture-omissions.ts';
 import {
 	admitInterchangeVisualProject,
 	reportInterchangeVisualOmissions,
@@ -123,7 +124,9 @@ export function resolveDeliveredProject(
 async function deliver<T extends {
 	text: string; fileName: string; mimeType: string; report: DeliveryReport;
 }>(runtime: InterchangeRuntime, result: T, omissions: readonly InterchangeVisualOmission[], project: Readonly<Record<string, unknown>>): Promise<T> {
-	const report = reportInterchangeAudioOmissions(reportInterchangeVisualOmissions(result.report, omissions), project);
+	const report = reportInterchangePictureOmissions(
+		reportInterchangeAudioOmissions(reportInterchangeVisualOmissions(result.report, omissions), project), project,
+	);
 	const delivered = report !== result.report
 		? Object.freeze({ ...result, report })
 		: result;
