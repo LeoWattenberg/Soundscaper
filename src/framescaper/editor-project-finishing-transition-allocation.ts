@@ -65,7 +65,8 @@ function prepareBatch(
 			type: 'batch' as const, commands: inherited,
 		};
 		const prepared = prepareRetimeCommandTree(profile, current, carrier, createId);
-		if (isBatch(prepared)) commands.push(...prepared.commands);
+		if (inherited.length === 1) commands.push(prepared);
+		else if (isBatch(prepared)) commands.push(...prepared.commands);
 		else commands.push(prepared);
 		apply(prepared);
 		inherited = [];

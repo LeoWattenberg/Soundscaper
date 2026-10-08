@@ -35,7 +35,7 @@ export function prepareFramescaperSessionClipboardPasteCommandV11(
 	}
 	const foundationCommand = sanitizeFoundationCommand(baseCommand, clipboard);
 	const afterBase = applyFramescaperProjectCommandFinishing(profile, project, foundationCommand);
-	const allocations = allocationMaps(project, clipboard.finishing, createId);
+	const allocations = allocationMaps(project, clipboard, paste, createId);
 	const references = projectReferenceMaps(afterBase, clipboard, paste, allocations);
 	const pasted = prepareFramescaperFinishingClipboardPasteV11(clipboard.finishing, {
 		visual: {
@@ -130,16 +130,23 @@ interface AllocationMaps {
 
 function allocationMaps(
 	project: FramescaperProjectFinishing,
-	finishing: ReturnType<typeof normalizeFramescaperSessionClipboardV11>['finishing'],
+	clipboard: ReturnType<typeof normalizeFramescaperSessionClipboardV11>,
+	paste: DataRecord,
 	createId: IdFactory,
 ): AllocationMaps {
+	const finishing = clipboard.finishing;
 	const occupied = collectStrings(project);
 	const allocate = (values: readonly Readonly<{ id: string }>[], prefix: string) => new Map(
 		values.map(({ id }) => [id, freshId(createId, prefix, occupied)]),
 	);
 	return Object.freeze({
 		visualSources: allocate(finishing.visual.sources, 'visual-source'),
-		visualClips: allocate(finishing.visual.clips, 'visual-clip'),
+		visualClips: new Map(finishing.visual.clips.map(({ id }) => {
+			const binding = clipboard.clipBindings.find(({ clipId }) => clipId === id);
+			if (!binding) throw new ReferenceError(`V11 visual clip ${id} has no placement binding.`);
+			const target = record(paste.clipIds, 'V11 paste clip IDs')[binding.descriptorKey];
+			return [id, freshId(() => dataString(target, 'V11 pasted visual clip ID'), 'visual-clip', occupied)];
+		})),
 		visualAdjustments: allocate(finishing.visual.adjustmentLayers, 'adjustment-layer'),
 		visualPresets: allocate(finishing.visual.presets, 'visual-preset'),
 		visualMasks: allocate(finishing.visual.maskMattes, 'mask-matte'),
