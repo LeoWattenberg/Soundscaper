@@ -17,6 +17,7 @@ import type { TakeCyclePendingOpenRecovery } from '../recording/take-cycle-captu
 import type { FramescaperCaptureSessionSnapshot } from '../capture/framescaper-capture-session-types.ts';
 import type { FramescaperWebVcrUiSnapshot } from '../capture/framescaper-web-vcr-controller-types.ts';
 import { inheritTrackFolderMediaStateProjectionV12 } from '../../track-folder-media-runtime.ts';
+import { rememberDeliveryReportOrigin } from '../../delivery-report-origin.ts';
 
 const VIDEO_PREVIEW_PROJECTS = new WeakMap<object, object>();
 const PUBLISHED_PROJECTS = new WeakMap<object, object>();
@@ -218,6 +219,7 @@ export function createEditorDocumentSnapshot<Project extends SnapshotProject>(
 ) {
 	const { state } = runtime;
 	const currentProject = runtime.getCurrentProject();
+	if (currentProject) rememberDeliveryReportOrigin(state.deliveryReport, currentProject.title);
 	const currentTabMetadata = currentProject
 		? runtime.getCurrentTabMetadata(currentProject.id)
 		: {};
