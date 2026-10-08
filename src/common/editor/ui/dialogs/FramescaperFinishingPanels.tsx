@@ -4,7 +4,7 @@ import { FRAMESCAPER_FINISHING_ADDITIONAL_COPY } from '../../../i18n/editor-fram
 
 import React from 'react';
 
-import AudioEditorTimeCodeInput from '../AudioEditorTimeCodeInput.tsx';
+import MotionSourceFrameTimeCodeField from './MotionSourceFrameTimeCodeField.tsx';
 import type { VideoCaptionInterchangeFormatV1 } from '../../video-caption-interchange-contract-v27.ts';
 import type {
 	FramescaperMotionAnalysisProgress,
@@ -124,7 +124,7 @@ export function MotionAnalysisControls(props: Readonly<{
 	readonly stackId: string;
 	readonly startFrame: number;
 	readonly endFrame: number;
-	readonly frameRate: number;
+	readonly source: unknown;
 	readonly progress: FramescaperMotionAnalysisProgress | null;
 	readonly pending: boolean;
 	readonly copy: Readonly<Record<string, string>>;
@@ -146,14 +146,14 @@ export function MotionAnalysisControls(props: Readonly<{
 					`${target.sourceName} — ${target.stackId}`
 				}</option>)}</select></label>
 			<label><span>{text(props.copy, 'motionAnalysisStartFrame', FRAMESCAPER_FINISHING_ADDITIONAL_COPY.motionAnalysisStartFrame)}</span>
-				<AudioEditorTimeCodeInput label={text(props.copy, 'motionAnalysisStartFrame', FRAMESCAPER_FINISHING_ADDITIONAL_COPY.motionAnalysisStartFrame)}
-					value={props.startFrame} unit="frames" rate={props.frameRate}
+				<MotionSourceFrameTimeCodeField label={text(props.copy, 'motionAnalysisStartFrame', FRAMESCAPER_FINISHING_ADDITIONAL_COPY.motionAnalysisStartFrame)}
+					value={props.startFrame} source={props.source}
 					minimum={props.target?.startFrame ?? 0} maximum={Math.max(
 						props.target?.startFrame ?? 0, props.endFrame - 1,
 					)} disabled={props.blocked} onChange={props.onStartFrame} /></label>
 			<label><span>{text(props.copy, 'motionAnalysisEndFrame', FRAMESCAPER_FINISHING_ADDITIONAL_COPY.motionAnalysisEndFrame)}</span>
-				<AudioEditorTimeCodeInput label={text(props.copy, 'motionAnalysisEndFrame', FRAMESCAPER_FINISHING_ADDITIONAL_COPY.motionAnalysisEndFrame)}
-					value={props.endFrame} unit="frames" rate={props.frameRate}
+				<MotionSourceFrameTimeCodeField label={text(props.copy, 'motionAnalysisEndFrame', FRAMESCAPER_FINISHING_ADDITIONAL_COPY.motionAnalysisEndFrame)}
+					value={props.endFrame} source={props.source}
 					minimum={props.startFrame + 1} maximum={props.target?.endFrame ?? 1}
 					disabled={props.blocked} onChange={props.onEndFrame} /></label>
 			<p role="status">{freshnessLabel(props.copy, props.target?.freshness ?? 'missing')}</p>

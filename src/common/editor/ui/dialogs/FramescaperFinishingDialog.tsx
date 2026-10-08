@@ -18,7 +18,6 @@ import {
 	targetToken,
 	text,
 } from './FramescaperFinishingPanels.tsx';
-import { audioEditorProjectFrameRate } from '../AudioEditorTimeCodeInput.tsx';
 import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-workspace-runner.ts';
 import {
 	createFramescaperFinishingCommand,
@@ -340,7 +339,7 @@ export default function FramescaperFinishingDialog({
 				stackId={motionStackId}
 				startFrame={motionStartFrame}
 				endFrame={motionEndFrame}
-				frameRate={audioEditorProjectFrameRate(project)}
+				source={records(record(project).sources).find(({ id }) => id === motionTarget?.sourceId)}
 				progress={motionProgress}
 				pending={pending && motionAbortRef.current !== null}
 				copy={copy}
