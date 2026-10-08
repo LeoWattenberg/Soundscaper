@@ -122,5 +122,30 @@ type-aware lint passes. Ordinary Chromium passes on immutable checkpoint
 independent authored-map projection branch from unlinked uniform tempo in
 003; its exported pitch is independently verified rather than inferred.
 
+## R6-EFFECT-007 — Toggling a spectral band broadens its selected clip target
+
+Import ordinary 440 Hz and 880 Hz mono WAVs. Move the second recording onto
+the first track with its existing Preserve time menu action. Enable Spectrogram,
+select only the 440 Hz recording with Enter, and author a 100–1000 Hz band in
+Spectrogram options → Select spectral frequency range. Choose Select → Spectral
+→ Spectral selection twice, then reopen the band dialog and apply its default
+6 dB Spectral Amplify. The baseline also raises the unselected 880 Hz recording:
+its exported amplitude becomes 1.995 times its original value.
+
+The frequency-only toggle omits durable clip IDs on both its removal and
+restoration branches. The public selection setter then clears those IDs,
+turning the same time span into a complete track target. Retain the authored
+clip targets alongside the unchanged time and track selection.
+
+The strict regression fails at empty clip IDs before repair. The immutable
+public workflow fails at the downloaded neighbor's amplitude, after proving
+the selected recording was amplified (`/tmp/soundscaper-r6-effects-spectral-toggle-browser-red2.log`).
+An earlier click on an obscured overlapping header timed out; the final workflow
+uses the supported clip focus/Enter path, and that setup failure is excluded.
+All seven new/existing spectral/tool action regressions pass after repair
+(`/tmp/soundscaper-r6-effects-spectral-toggle-node-green.log`). Public GREEN is
+pending the next immutable product build. This toggle adapter is independent
+of the earlier macro frequency command's retained-target correction.
+
 These corrections do not change the assistance runtime closure or require a
 manual **Update AI assets** run.
