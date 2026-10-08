@@ -142,9 +142,9 @@ for (const locale of ['en', 'de']) {
 			await menuAction(page, app, copy.photoFileMenu, copy.photoEditMetadata, true);
 			const metadata = page.getByRole('dialog', { name: copy.photoEditMetadata, exact: true });
 			await expect(metadata.getByLabel(copy.photoFileName, { exact: true })).toBeFocused();
-			await metadata.getByLabel(copy.photoCopyright, { exact: true }).fill(value);
+			await metadata.getByRole('textbox', { name: copy.photoCopyright, exact: true }).fill(value);
 			await keyboard(page, metadata.getByRole('button', { name: copy.photoSaveMetadata, exact: true }));
-			await expect(metadata.getByLabel(copy.photoCopyright, { exact: true })).toHaveValue(value);
+			await expect(metadata.getByRole('textbox', { name: copy.photoCopyright, exact: true })).toHaveValue(value);
 			await expect(library).toHaveAttribute('aria-busy', 'false'); await expect(metadata.getByRole('alert')).toHaveCount(0);
 			await keyboard(page, bodyClose(metadata, copy.photoCloseMetadata)); await expect(metadata).toHaveCount(0);
 		}
