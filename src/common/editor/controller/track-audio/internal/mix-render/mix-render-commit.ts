@@ -110,9 +110,7 @@ function prepareCombinedOutput(
 		commands.push(
 			...freezeRemovalCommands(project, bottomTrack),
 			...v21StripLaneRemovalCommands(project, trackId),
-			...(bottomTrack.clipIds ?? []).map((clipIdToRemove): AudioEditorCommand => ({
-				type: 'clip/remove', clipId: clipIdToRemove,
-			})),
+			...renderedOriginalRemovalCommands(project, bottomTrack),
 			...(bottomTrack.effects ?? []).map((effect): AudioEditorCommand => ({
 				type: 'effect/remove', scope: 'track', trackId, effectId: effect.id,
 			})),
@@ -193,9 +191,7 @@ function prepareIndividualOutput(
 		commands.push(
 			...freezeRemovalCommands(project, target),
 			...v21StripLaneRemovalCommands(project, target.id),
-			...(target.clipIds ?? []).map((clipIdToRemove): AudioEditorCommand => ({
-				type: 'clip/remove', clipId: clipIdToRemove,
-			})),
+			...renderedOriginalRemovalCommands(project, target),
 			...(target.effects ?? []).map((effect): AudioEditorCommand => ({
 				type: 'effect/remove', scope: 'track', trackId: target.id, effectId: effect.id,
 			})),
@@ -222,6 +218,19 @@ function prepareIndividualOutput(
 		}
 	}
 	results.push({ trackId, clipId, sourceId: output.source.id });
+}
+
+function renderedOriginalRemovalCommands(
+	project: ControllerProject,
+	track: ControllerTrack,
+): AudioEditorCommand[] {
+	const clipIds = track.clipIds ?? [];
+	const targets = new Set(clipIds);
+	const groupedIds = project.clips.filter(clip => targets.has(clip.id) && clip.groupId).map(clip => clip.id);
+	return [
+		...(groupedIds.length ? [{ type: 'clip/ungroup' as const, clipIds: groupedIds }] : []),
+		...clipIds.map((clipId): AudioEditorCommand => ({ type: 'clip/remove', clipId })),
+	];
 }
 
 function freezeRemovalCommands(

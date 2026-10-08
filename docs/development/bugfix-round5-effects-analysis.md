@@ -866,6 +866,37 @@ confirms the unintended native parameter change. Three strict production-owner
 cases independently fail dispatch before correction, while native editing
 controls pass. New and existing keyboard/cancellation support passes 12/12
 (`/tmp/soundscaper-r5-root-native-range-support-retry.log`). Focused strict
-types, type-aware lint and the size gate pass. Corrected immutable browser
-verification is pending; ROOT-028 is not yet counted. The assistance runtime
-closure is unchanged.
+types, type-aware lint and the size gate pass. Immutable `d2083aed9` passes
+configured command dispatch, exact parameter preservation, Undo and plain
+native editing alongside the existing pointer-cancellation workflow in
+Chromium, Firefox and WebKit (6/6, 42.2 seconds;
+`/tmp/soundscaper-r5-root-native-range-green40-retry.log`). The initial corrected
+invocation omitted its checkpoint port and still reached the baseline; that
+invocation error is excluded. Both guarded product builds pass. ROOT-028 is
+counted once. The assistance runtime closure is unchanged.
+
+## R5-ROOT-029 — Mix & Render deletes an unselected grouped recording
+
+Import two ordinary mono WAVs. Shift-select their clip headers and choose
+Edit → Audio clips → Group clips. Click the first track name to select only
+that track, then Tracks → Mix & Render with its default options. The rendered
+first track appears, but the grouped recording on the unselected track vanishes.
+
+Detach only the original clips owned by each replacement track before its
+related-clip removal. Preserve other tracks and their exact recordings, source
+windows, gains and group metadata. Combined single-track and individual prints
+share this commit planner and count once. This track print planner is separate
+from EDIT-026's selected clip pitch-and-speed replacement.
+
+The unchanged ordinary immutable-baseline workflow fails at its missing
+companion after the completed print is visible (8.2 seconds;
+`/tmp/soundscaper-r5-root-mix-group-red3.log`). Two strict actual-command grouped
+cases fail before correction while both independent-recording controls pass.
+The corrected cases, exact peer state, one-entry Undo/Redo and existing mix
+render services, production routing, effects and commit options pass 34/34
+(`/tmp/soundscaper-r5-root-mix-group-support.log`). Focused strict types, targeted
+type-aware lint, size and diff checks pass. Initial browser setup used a
+nonexistent selected-track attribute and the multi-track output name for a
+single-track print; those fixture errors are excluded. Corrected immutable
+public verification is pending; ROOT-029 is not yet counted. The assistance
+runtime closure is unchanged.
