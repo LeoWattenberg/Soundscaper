@@ -90,8 +90,7 @@ export function createFramescaperVisualInspectorModel(input: Readonly<{
 		sourceId: source.id,
 		kind: source.kind === 'still' ? 'still' : generatorKind(source.generator),
 		generator: source.kind === 'generator' ? source.generator : null,
-		audioSources: source.kind === 'generator' && source.generator.kind === 'sound-visualizer'
-			? sequenceAudioSources(project, clip.sequenceId) : Object.freeze([]),
+		audioSources: sequenceAudioSources(project, clip.sequenceId),
 		opacity: presentation?.opacity ?? 1,
 		blendMode: presentation?.blendMode ?? 'normal',
 		maskId,
