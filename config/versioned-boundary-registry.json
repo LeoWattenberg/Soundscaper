@@ -580,9 +580,13 @@
 		,
 		{"path": "src/lightscaper/archive/catalog-archive-contract-v2.ts", "kind": "persisted-contract", "justification": "Lightscaper catalog archive version 2 adds authenticated stack packs while preserving the Scape envelope and canonical photo version 1 contracts."}
 		,
+		{"path": "src/lightscaper/archive/catalog-archive-contract-v3.ts", "kind": "persisted-contract", "justification": "Lightscaper catalog archive version 3 preserves physical saved-collection state and authenticated full-query definition packs alongside unchanged photo and stack packs."}
+		,
 		{"path": "src/lightscaper/archive/catalog-archive-export-v2.ts", "kind": "helper-contract", "justification": "Version 2 catalog export streams photo and stack packs under the existing archive entry, byte and cleanup bounds."}
 		,
 		{"path": "src/lightscaper/archive/catalog-archive-import-v2.ts", "kind": "helper-contract", "justification": "Version 2 catalog import admits version 1 empty grouping and validates exclusive stack membership before provisional catalog publication."}
+		,
+		{"path": "src/lightscaper/archive/smart-collection-pack-v1.ts", "kind": "persisted-contract", "justification": "Version 1 canonical framed saved-collection records preserve complete Query2 criteria under independent streamed record, pack, chunk and cleanup bounds."}
 		,
 		{ "path": "src/lightscaper/catalog/photo-metadata-query-columns-v2.ts", "kind": "helper-contract", "justification": "Version 2 closed metadata column definitions bind effective scalar facts, nullable presence, units and local versus UTC clocks independently of raw extracted source metadata." }
 		,
@@ -609,6 +613,8 @@
 		{ "path": "src/lightscaper/catalog/photo-query-types-v1.ts", "kind": "helper-contract", "justification": "Closed version 1 catalog query and bounded continuation contracts bind literal search, filtering and global ordering to one catalog revision." }
 		,
 		{ "path": "src/lightscaper/catalog/photo-query-types-v2.ts", "kind": "helper-contract", "justification": "Closed version 2 catalog queries and bounded continuations add explicit effective metadata predicates and catalog/index revision context while preserving version 1 parsers and defaults." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-smart-collection-archive-context-v1.ts", "kind": "helper-contract", "justification": "Version 1 atomic archive context authenticates catalog and index revisions while preserving physical saved-state absence and retained empty revisions without enumerating definitions." }
 		,
 		{ "path": "src/lightscaper/catalog/photo-smart-collection-audit-v1.ts", "kind": "helper-contract", "justification": "Version 1 private canonical storage audit validates bounded definition, summary and key pages and issues single-use database, root and context-bound write authority independently of public continuation tokens." }
 		,

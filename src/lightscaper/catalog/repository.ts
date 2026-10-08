@@ -3,6 +3,7 @@
 import { readPhotoSmartCollectionQueryPageV1, readPhotoSmartCollectionStackQueryPageV1 } from './photo-smart-collection-query-v1.ts';
 import { admitPhotoSavedQueryPageRequestV1, type PhotoSavedQueryPageRequestV1 } from './photo-smart-collection-query-types-v1.ts';
 import { admitPhotoSmartCollectionSnapshotRequestV1, readPhotoSmartCollectionSnapshotV1 } from './photo-smart-collection-snapshot-v1.ts';
+import { admitPhotoSmartCollectionArchiveContextRequestV1, readPhotoSmartCollectionArchiveContextV1 } from './photo-smart-collection-archive-context-v1.ts';
 import { request } from '../../common/editor/storage/indexeddb-backend.ts';
 import { openPhotoCatalogDatabaseV1 } from './catalog-database.ts';
 import { assertNotAborted, catalogTransaction } from './catalog-transaction.ts';
@@ -207,6 +208,11 @@ export class PhotoCatalogRepositoryV1 {
 	async readSmartCollectionState(catalogId: string, options: PhotoSmartCollectionSignalOptionsV1 = {}) {
 		const catalog = id(catalogId, 'saved collection catalog ID'), admitted = readPhotoSmartCollectionSignalOptionsV1(options);
 		return withPhotoStackQuerySignalV1(admitted.signal, async signal => readPhotoSmartCollectionStateV1(await this.#open(), catalog, { signal }));
+	}
+	async readSmartCollectionArchiveContextV1(catalogId: string, options: PhotoSmartCollectionSignalOptionsV1 = {}) {
+		const admitted = admitPhotoSmartCollectionArchiveContextRequestV1(catalogId, options);
+		return withPhotoStackQuerySignalV1(admitted.signal, async signal =>
+			readPhotoSmartCollectionArchiveContextV1(await this.#open(), admitted.catalogId, { signal }));
 	}
 	async readSmartCollectionSnapshotV1(catalogId: string, selectedId: string | null, options: PhotoSmartCollectionSignalOptionsV1 = {}) {
 		const admitted = admitPhotoSmartCollectionSnapshotRequestV1(catalogId, selectedId, options);

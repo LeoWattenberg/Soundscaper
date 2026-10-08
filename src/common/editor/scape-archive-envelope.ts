@@ -10,6 +10,7 @@ import { ScapeExpandedByteBudget } from './scape-expanded-byte-budget.ts';
 import { confirmFileSizeWarning, type FileSizeWarningOptions } from './controller/shared/file-size-warning.ts';
 import { PHOTO_CATALOG_PACK_ASSET_KIND } from './scape-photo-catalog-pack.ts';
 import { PHOTO_STACK_PACK_ASSET_KIND } from './scape-photo-stack-pack.ts';
+import { PHOTO_SMART_COLLECTION_PACK_ASSET_KIND } from './scape-photo-smart-collection-pack.ts';
 import {
 	SCAPE_FORMAT,
 	SCAPE_FORMAT_VERSION,
@@ -316,12 +317,14 @@ function allowedAssetKinds(additional: readonly string[], family: ProjectSchemaF
 	const result = new Set(['audio', 'video', 'video-timing']);
 	if (family === 'lightscaper') result.add(PHOTO_CATALOG_PACK_ASSET_KIND);
 	if (family === 'lightscaper') result.add(PHOTO_STACK_PACK_ASSET_KIND);
+	if (family === 'lightscaper') result.add(PHOTO_SMART_COLLECTION_PACK_ASSET_KIND);
 	for (const kind of additional) {
 		if (typeof kind !== 'string' || !/^[a-z][a-z0-9-]{0,63}$/u.test(kind)) {
 			throw new TypeError(`An additional Scape asset kind is invalid: ${String(kind)}.`);
 		}
 		if (result.has(kind)) throw new Error(`Duplicate Scape asset kind: ${kind}.`);
-		if (kind === PHOTO_CATALOG_PACK_ASSET_KIND || kind === PHOTO_STACK_PACK_ASSET_KIND) throw new TypeError('Photo catalog packs require their registered project family.');
+		if (kind === PHOTO_CATALOG_PACK_ASSET_KIND || kind === PHOTO_STACK_PACK_ASSET_KIND
+			|| kind === PHOTO_SMART_COLLECTION_PACK_ASSET_KIND) throw new TypeError('Photo catalog packs require their registered project family.');
 		result.add(kind);
 	}
 	return result;
