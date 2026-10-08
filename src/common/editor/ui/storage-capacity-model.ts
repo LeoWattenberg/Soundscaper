@@ -84,13 +84,13 @@ export function createStorageCapacityViewModel(
 		preflightStatus: resolveEditorCopyScope('storageCapacity.preflightStatus', preflightStatus, overrides),
 		operation: resolveEditorCopyScope('storageCapacity.operation', operation, overrides),
 	});
-	const free = formatBytes(storage.free, language);
+	const free = formatBytes(storage.free, locale);
 	return Object.freeze({
 		summary: `${copy.storage}: ${free ?? '—'} ${copy.free} · ${copy.pressure[storage.pressure]}`,
-		capacity: capacityLabel(storage, language, copy),
+		capacity: capacityLabel(storage, locale, copy),
 		backend: backendLabel(storage, copy),
 		evictionProtection: evictionLabel(storage.evictionProtection, copy),
-		preflight: preflightLabel(storage.lastPreflight, language, copy),
+		preflight: preflightLabel(storage.lastPreflight, locale, copy),
 		capacityLabel: copy.capacityLabel,
 		backendLabel: copy.backendLabel,
 		evictionLabel: copy.evictionLabel,
@@ -112,16 +112,14 @@ export function createStorageCapacityViewModel(
 
 function capacityLabel(
 	storage: Readonly<StorageUiSnapshot>,
-	language: 'de' | 'en',
+	locale: string,
 	copy: StorageCapacityUiCopy,
 ): string {
-	const usage = formatBytes(storage.usage, language);
-	const quota = formatBytes(storage.quota, language);
-	const free = formatBytes(storage.free, language);
+	const usage = formatBytes(storage.usage, locale);
+	const quota = formatBytes(storage.quota, locale);
+	const free = formatBytes(storage.free, locale);
 	if (!usage || !quota || !free) return copy.estimateUnavailable;
-	return language === 'de'
-		? `${usage} ${copy.usedOf} ${quota} · ${free} ${copy.free}`
-		: `${usage} ${copy.usedOf} ${quota} · ${free} ${copy.free}`;
+	return `${usage} ${copy.usedOf} ${quota} · ${free} ${copy.free}`;
 }
 
 function backendLabel(storage: Readonly<StorageUiSnapshot>, copy: StorageCapacityUiCopy): string {
@@ -138,14 +136,14 @@ function evictionLabel(value: StorageEvictionProtection, copy: StorageCapacityUi
 
 function preflightLabel(
 	preflight: Readonly<StoragePreflightSnapshot> | null,
-	language: 'de' | 'en',
+	locale: string,
 	copy: StorageCapacityUiCopy,
 ): string {
 	if (!preflight) return copy.noPreflight;
-	return `${copy.operation[preflight.operation]}: ${formatBytes(preflight.requiredBytes, language) ?? '—'} ${copy.requested} · ${formatBytes(preflight.requiredFreeBytes, language) ?? '—'} ${copy.requiredFree} · ${copy.preflightStatus[preflight.status]}`;
+	return `${copy.operation[preflight.operation]}: ${formatBytes(preflight.requiredBytes, locale) ?? '—'} ${copy.requested} · ${formatBytes(preflight.requiredFreeBytes, locale) ?? '—'} ${copy.requiredFree} · ${copy.preflightStatus[preflight.status]}`;
 }
 
-function formatBytes(value: number | null, language: 'de' | 'en'): string | null {
+function formatBytes(value: number | null, locale: string): string | null {
 	if (!Number.isFinite(value) || Number(value) < 0) return null;
 	const units = ['B', 'KB', 'MB', 'GB', 'TB'];
 	let amount = Number(value);
@@ -154,7 +152,7 @@ function formatBytes(value: number | null, language: 'de' | 'en'): string | null
 		amount /= 1024;
 		unit += 1;
 	}
-	const formatted = new Intl.NumberFormat(language, {
+	const formatted = new Intl.NumberFormat(locale, {
 		minimumFractionDigits: unit === 0 ? 0 : 1,
 		maximumFractionDigits: unit === 0 ? 0 : 1,
 	}).format(amount);
