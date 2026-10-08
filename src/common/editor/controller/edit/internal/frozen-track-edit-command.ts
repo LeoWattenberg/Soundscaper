@@ -1,11 +1,15 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { AudioEditorCommand, EditorCommandProject } from '../../../commands/protocol.ts';
+import type { AudioEditorCommand } from '../../../commands/protocol.ts';
 import { createEditorCommandMutationTransaction } from '../../../commands/mutation-transaction.ts';
 import { normalizeAudioTrackFreezeV1 } from '../../../audio-track-freeze-v21.ts';
 import { projectForCommandConsumers } from '../../../project-current-runtime.ts';
 import { cloneProject } from '../../../project.js';
 import { isSoundscaperProductionProject } from '../../../project-schema-version.ts';
+
+interface MembershipProject {
+	readonly tracks: readonly Readonly<{ id: string; clipIds?: readonly string[] }>[];
+}
 
 /** Ordinary edits retire an unusable freeze while retaining canonical freeze admission. */
 export function prepareFrozenTrackEditCommand(project: unknown, command: AudioEditorCommand): AudioEditorCommand {
@@ -15,7 +19,7 @@ export function prepareFrozenTrackEditCommand(project: unknown, command: AudioEd
 		.filter(track => track.type === 'audio' && Object.hasOwn(track, 'audioFreeze'));
 	if (!frozen.length) return command;
 	const projection = projectForCommandConsumers(canonical);
-	const draft = cloneProject(projection) as unknown as EditorCommandProject;
+	const draft = cloneProject(projection) as unknown as MembershipProject;
 	createEditorCommandMutationTransaction(canonical, projection).mutate(draft, command);
 	const retained = new Map(draft.tracks.map(track => [track.id, track]));
 	const removals: AudioEditorCommand[] = frozen.flatMap(track => {
