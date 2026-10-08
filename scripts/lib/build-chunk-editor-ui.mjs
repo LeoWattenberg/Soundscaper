@@ -26,11 +26,11 @@ export const editorUiChunkGroups = [
 		includeDependenciesRecursively: false,
 	},
 	{
-		// The photo shell composes only scalar selection, culling and name demands.
+		// The photo shell composes scalar selection, culling, review and name demands.
 		// Sharing the broad timeline controller owner makes those few imports pull
 		// video commands, storage and effect copy into an otherwise isolated shell.
 		name: 'editor-photo-library-scalars',
-		test: /src[\\/]common[\\/]editor[\\/]controller[\\/]shared[\\/]photo-library-(?:definition-reader|selection-v1|culling-v1|compare-v1|import-gesture-v1|backup-save-v1|original-recovery-v1)\.ts$/,
+		test: /src[\\/]common[\\/]editor[\\/]controller[\\/]shared[\\/]photo-library-(?:definition-reader|selection-v1|culling-v1|compare-v1|survey-v1|import-gesture-v1|backup-save-v1|original-recovery-v1)\.ts$/,
 		priority: 99,
 		minSize: 0,
 		maxSize: 400_000,

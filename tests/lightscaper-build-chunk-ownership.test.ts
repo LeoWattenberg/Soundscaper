@@ -12,7 +12,7 @@ import { EAGER_CHUNK_GROUPS, resolveRelativeModule, staticRelativeDependencies }
 const directory = fileURLToPath(new URL('../src/common/editor/', import.meta.url));
 const scalarModules = ['controller/shared/photo-library-definition-reader.ts', 'controller/shared/photo-library-selection-v1.ts',
 	'controller/shared/photo-library-culling-v1.ts', 'controller/shared/photo-library-import-gesture-v1.ts',
-	'controller/shared/photo-library-compare-v1.ts'];
+	'controller/shared/photo-library-compare-v1.ts', 'controller/shared/photo-library-survey-v1.ts'];
 
 test('the photo shell follows its own lazy bootstrap instead of the audio shell owner', () => {
 	// Claiming this sole-consumer UI as editor-shell makes shared site/copy imports
@@ -53,6 +53,21 @@ test('the actual photo scalar controller closure has no timeline, storage, effec
 		}
 	}
 	assert.deepEqual([...seen].sort(), [...scalarModules, 'closed-domain-value.ts'].map(path => directory + path).sort());
+});
+
+test('the eager Survey hook uses the photo scalar owner while its dialog remains a lazy surface', () => {
+	const hook = directory + 'ui/lightscaper/use-photo-survey.ts';
+	const source = transformSync(readFileSync(hook, 'utf8'), { loader: 'ts', format: 'esm' }).code;
+	const dependencies = staticRelativeDependencies(source).map(specifier => {
+		const target = resolveRelativeModule(hook, specifier); assert.ok(target, specifier); return target;
+	});
+	assert.deepEqual(dependencies, [directory + 'controller/shared/photo-library-survey-v1.ts']);
+	assert.equal(chunkGroupForModulePath(dependencies[0]!), 'editor-photo-library-scalars');
+	assert.equal(chunkGroupForModulePath(directory + 'ui/lightscaper/PhotoSurveyDialog.tsx'), null);
+	const app = directory + 'ui/lightscaper/LightscaperApp.tsx';
+	const appSource = transformSync(readFileSync(app, 'utf8'), { loader: 'tsx', format: 'esm' }).code;
+	assert.ok(!staticRelativeDependencies(appSource).includes('./PhotoSurveyDialog.tsx'));
+	assert.match(appSource, /import\(["']\.\/PhotoSurveyDialog\.tsx["']\)/u);
 });
 
 test('scalar and closed-value owners are exact nonrecursive groups with their actual eager classification', () => {

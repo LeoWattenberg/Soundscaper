@@ -298,6 +298,8 @@
 		,
 		{"path": "src/common/editor/controller/shared/photo-library-selection-v1.ts", "kind": "helper-contract", "justification": "Version1 page-local selection owns at most64 detached photo IDs and opaque page and generation identities."}
 		,
+		{ "path": "src/common/editor/controller/shared/photo-library-survey-v1.ts", "kind": "helper-contract", "justification": "Version 1 opted-in survey captures a bounded ordered selection, borrows the existing culling writer and retires preview ownership through joined cancellation without changing catalog or photo schemas." }
+		,
 		{"path": "src/common/editor/controller/shared/pixel-preview-presentation-v1.ts", "kind": "helper-contract", "justification": "Version1 serial scalar preview demand owns bounded canvas targets, generation cancellation and joined frame staging without original custody."}
 		,
 		{ "path": "src/common/editor/controller/track-audio/internal/mix-render/mix-render-snapshot-v21.ts", "kind": "persisted-contract", "justification": "mix-render-snapshot-v21.ts projects production mixer and automation authority for a persisted render-contract revision independent of product schema." }
