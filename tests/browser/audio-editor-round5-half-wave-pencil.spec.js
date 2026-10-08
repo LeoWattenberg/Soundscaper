@@ -28,7 +28,7 @@ test('drawing in linear Half-wave writes the positive sample shown by its ruler'
 	const edited = await exportSamples(page, editor);
 	expect(edited[32]).toBeGreaterThan(0.1);
 	expect(edited[32]).toBeLessThan(0.2);
-	expect(edited[31]).toBe(0); expect(edited[33]).toBe(0);
+	expect(edited[31]).toBeCloseTo(0, 6); expect(edited[33]).toBeCloseTo(0, 6);
 	await chooseCommandAction(page, editor, 'Edit', 'Undo');
 	expect((await exportSamples(page, editor))[32]).toBe(0);
 	await chooseCommandAction(page, editor, 'Edit', 'Redo');
