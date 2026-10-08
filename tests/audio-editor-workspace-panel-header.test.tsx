@@ -329,7 +329,7 @@ test('meter position menus retain panel commands without rendering a heading row
 	}
 });
 
-test('a keyboard-opened menu focuses its first item while a pointer-opened one leaves focus on the button', async () => {
+test('a keyboard-opened menu focuses its first enabled item while a pointer-opened one leaves focus on the button', async () => {
 	const mounted = await mountHeader({ currentDock: 'left', onDock() {}, onClose() {} });
 	try {
 		const { dom, menuButton } = mounted;
@@ -343,7 +343,8 @@ test('a keyboard-opened menu focuses its first item while a pointer-opened one l
 
 		await mounted.openMenu(0);
 		await act(async () => { await new Promise((resolve) => setTimeout(resolve, 5)); });
-		assert.equal(ownerDocument.activeElement, mounted.menuItems()[0], 'keyboard opening focuses the first item');
+		assert.equal(mounted.menuItems()[0]?.getAttribute('aria-disabled'), 'true', 'the current Left dock is unavailable');
+		assert.equal(ownerDocument.activeElement, mounted.menuItems()[1], 'keyboard opening focuses the first enabled Right item');
 	} finally {
 		await mounted.unmount();
 	}
