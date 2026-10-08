@@ -811,3 +811,31 @@ Framescaper, which intentionally excludes selection effects. That stand-in
 is restored before checkpoint capture; all 37 controller/action/absence
 controls pass, adding no separate count.
 The assistance runtime closure is unchanged.
+
+## R5-ROOT-027 — Repeat silently substitutes a canceled Auto Duck control
+
+Import ordinary music, a silent quiet take and an audible voice take. Mute
+voice's output, select music, apply Auto Duck using quiet as its control, then
+remove quiet. Reopen Auto Duck, choose voice and Cancel. Effect → Repeat last
+effect now ducks music using that canceled draft instead of refusing its
+removed saved detector. Exported PCM changes by a peak 0.1058885.
+
+Restore the remembered control, including an explicit absent control, through
+its existing validator before changing Repeat's effect configuration. A
+missing saved detector refuses without applying audio or replacing the draft;
+a surviving detector retains normal Repeat behavior. Undo the removal and
+Repeat works again with the restored quiet control. This saved-detector
+admission is separate from the earlier Amplify automatic-gain marker repair.
+
+The immutable baseline reaches the complete ordinary workflow and fails its
+decoded WAV equality assertion (22.1 seconds;
+`/tmp/soundscaper-r5-root-repeat-missing-control-red3.log`). Two strict cases
+fail before correction while a surviving-control case passes; all three and
+existing effect configuration, automatic gain, previews and public-controller
+support pass 26/26 (`/tmp/soundscaper-r5-root-repeat-missing-control-support.log`).
+Initial public setup incorrectly expected mono output to omit its center pan
+attenuation and reused a retired clip-name locator; those fixture errors are
+excluded. The final proof uses normal public track identity and the unchanged
+PCM assertion/deadline. Target lint, focused strict types and size pass.
+Corrected immutable public verification is pending; ROOT-027 is not yet
+counted. The assistance runtime closure is unchanged.

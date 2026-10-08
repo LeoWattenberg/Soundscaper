@@ -342,12 +342,10 @@ export function createEffectControlsService(runtime: EffectControlsServiceRuntim
 	async function repeatLastAudacityEffect(): Promise<unknown> {
 		const previous = runtime.state.lastAudacityEffect;
 		if (!previous) throw createLocalizedError(Error, runtime.copy, runtime.copy.noRepeatableEffect ? 'noRepeatableEffect' : 'audacitySelectionHint');
+		setAudacityControlTrack(previous.controlTrackId ?? null);
 		setAudacityEffectType(previous.type);
 		// Repeating applies explicit saved values, including an earlier automatic gain.
 		setAudacityEffectParamsFromController(structuredClone(previous.params));
-		if (previous.controlTrackId && findTrack(runtime.getProject(), previous.controlTrackId)) {
-			setAudacityControlTrack(previous.controlTrackId);
-		}
 		return runtime.applySelectedAudacityEffect();
 	}
 
