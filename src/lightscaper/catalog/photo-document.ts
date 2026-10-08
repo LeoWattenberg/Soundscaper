@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { normalizeVideoStillSourceV1 } from '../../common/editor/video-visual-model-v24.ts';
+import { readExactSafeVisualText } from '../../common/editor/safe-visual-text.ts';
 import { normalizeImageMetadataV1 } from '../../common/editor/imaging/image-metadata-normalizer-v1.ts';
 import { normalizePhotoDevelopV1 } from './develop-state.ts';
 import { normalizePhotoMetadataV1 } from './photo-metadata.ts';
@@ -56,8 +57,11 @@ export function validatePhotoCatalogReferencesV1(photo: PhotoDocumentV1, root: P
 function normalizeOriginal(value: unknown): PhotoOriginalV1 {
 	const input = record(value, 'photo original', [...STILL_FIELDS, 'byteLength', 'retention']);
 	const still = Object.fromEntries(STILL_FIELDS.map((key) => [key, field(input, key)]));
+	const originalName = readExactSafeVisualText(field(input, 'name'), 'photo original filename', 512, false);
 	return Object.freeze({
-		...normalizeVideoStillSourceV1(still),
+		// Shared visual labels are NFC; immutable photo filenames retain exact Unicode.
+		...normalizeVideoStillSourceV1({ ...still, name: 'Photo' }),
+		name: originalName,
 		byteLength: integer(field(input, 'byteLength'), 1, Number.MAX_SAFE_INTEGER, 'original byte length'),
 		retention: oneOf(field(input, 'retention'), ['managed', 'linked'] as const, 'original retention'),
 	});

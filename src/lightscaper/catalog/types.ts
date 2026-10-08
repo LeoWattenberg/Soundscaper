@@ -65,7 +65,8 @@ export interface PhotoCatalogRootV1 extends LightscaperIdentityV1 {
 	readonly collections: readonly PhotoCollectionV1[];
 }
 
-/** Shared still source, with retained original-byte custody independent of preview pixels. */
+/** Shared still shape; persisted names retain exact source text up to 512 units, while visual labels require NFC.
+ * New File selections use the separately owned 256-unit filename admission. */
 export interface PhotoOriginalV1 extends VideoStillSourceV1 {
 	readonly byteLength: number;
 	readonly retention: 'managed' | 'linked';

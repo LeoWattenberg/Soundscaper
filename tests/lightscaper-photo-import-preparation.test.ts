@@ -62,6 +62,43 @@ test('prepares a validated immutable photo and exact original separately from sh
 	assert.deepEqual(await reader.readFrame(0), Uint8Array.of(255, 255, 255, 255));
 });
 
+test('decomposed Unicode filenames keep their exact original and receipt identity through shared native decode', async () => {
+	const originalName = '原本 e\u0301 ÉTÉ.PNG', selected = file(PNG, originalName), events: string[] = [];
+	assert.notEqual(originalName, originalName.normalize('NFC'));
+	const result = (await collect(preparePhotoImportGestureV1(request([selected]), { openImage: decoder(events) })))[0];
+	assert.equal(result?.outcome, 'prepared'); if (result?.outcome !== 'prepared') return;
+	assert.equal(selected.name, originalName); assert.equal(result.fileName, originalName);
+	assert.equal(result.photo.original.name, originalName); assert.equal(result.photo.metadata.fileName, originalName);
+	assert.equal(result.photo.original.contentSha256, bytesToHex(sha256(PNG)));
+	assert.equal(result.decodeArtifact.originalSha256, result.photo.original.contentSha256);
+	assert.deepEqual(new Uint8Array(await result.original.arrayBuffer()), PNG);
+	assert.deepEqual(result.photo.versions[0]?.develop, defaultPhotoDevelopV1());
+	assert.deepEqual(events, ['open:png:image/png', 'decode', 'close']);
+});
+
+test('maximal valid selected names whose NFC projection expands beyond 512 retain exact identity and bytes', async () => {
+	const originalName = '\ufb2c'.repeat(256), selected = file(PNG, originalName), events: string[] = [];
+	assert.equal(originalName.length, 256); assert.equal(originalName.normalize('NFC').length, 768);
+	const result = (await collect(preparePhotoImportGestureV1(request([selected]), { openImage: decoder(events) })))[0];
+	assert.equal(result?.outcome, 'prepared'); if (result?.outcome !== 'prepared') return;
+	assert.equal(selected.name, originalName); assert.equal(result.fileName, originalName);
+	assert.equal(result.photo.original.name, originalName); assert.equal(result.photo.metadata.fileName, originalName);
+	assert.equal(result.photo.original.contentSha256, bytesToHex(sha256(PNG)));
+	assert.equal(result.decodeArtifact.originalSha256, result.photo.original.contentSha256);
+	assert.deepEqual(new Uint8Array(await result.original.arrayBuffer()), PNG);
+	assert.deepEqual(parseLightscaperDocumentV1(serializeLightscaperDocumentV1(result.photo)), result.photo);
+	assert.deepEqual(events, ['open:png:image/png', 'decode', 'close']);
+});
+
+test('new File selections still refuse 257-unit names before reading bytes or opening the decoder', () => {
+	let reads = 0; const events: string[] = [], original = Blob.prototype.arrayBuffer;
+	const mocked = test.mock.method(Blob.prototype, 'arrayBuffer', function (this: Blob) { reads++; return original.call(this); });
+	try {
+		assert.throws(() => preparePhotoImportGestureV1(request([file(PNG, 'x'.repeat(257))]), { openImage: decoder(events) }), TypeError);
+		assert.equal(reads, 0); assert.deepEqual(events, []);
+	} finally { mocked.mock.restore(); }
+});
+
 test('retains raw capture time, repeated creators/keywords and one native orientation pass', async () => {
 	const bytes = jpeg(jpegExif(tiffFixture([numberEntry(0x112, 6)], [textEntry(0x9003, '2025:07:08 09:10:11'), textEntry(0x9291, '123456')])),
 		photoshopIptc(joinBytes(iptcText(80, 'Alice'), iptcText(80, 'Bob'), iptcText(25, 'travel'), iptcText(25, 'travel'))));

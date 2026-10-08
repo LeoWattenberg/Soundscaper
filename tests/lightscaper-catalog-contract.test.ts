@@ -3,6 +3,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import fc from 'fast-check';
+import { normalizeVideoStillSourceV1 } from '../src/common/editor/video-visual-model-v24.ts';
+import { readCanonicalSafeVisualText, readExactSafeVisualText } from '../src/common/editor/safe-visual-text.ts';
 
 import {
 	cloneLightscaperDocumentV1,
@@ -79,6 +81,63 @@ function normalizedRoot(): PhotoCatalogRootV1 {
 	assert.equal(value.kind, 'photo-catalog');
 	return value as PhotoCatalogRootV1;
 }
+
+test('photo originals preserve exact decomposed filenames through validation, cloning and serialization', () => {
+	const fixture = photo(), exactName = '原本 e\u0301 ÉTÉ.PNG';
+	fixture.original.name = exactName; fixture.metadata.fileName = exactName;
+	const document = validateLightscaperDocumentV1(fixture);
+	assert.equal(document.kind, 'photo'); if (document.kind !== 'photo') return;
+	assert.equal(document.original.name, exactName); assert.equal(document.metadata.fileName, exactName);
+	assert.deepEqual(document.original, fixture.original);
+	assert.deepEqual(cloneLightscaperDocumentV1(document), document);
+	assert.deepEqual(parseLightscaperDocumentV1(serializeLightscaperDocumentV1(document)), document);
+	for (const invalidName of ['x'.repeat(513), 'bad\u202ename', 'bad\u0000name']) {
+		assert.throws(() => validateLightscaperDocumentV1({ ...fixture, original: { ...fixture.original, name: invalidName } }), TypeError);
+	}
+});
+
+test('previously valid originals retain their 512-unit and whitespace allowance with independent display filenames', () => {
+	for (const originalName of ['x'.repeat(300), 'x'.repeat(512), ' ', 'a\tb.png', 'soft\u00adhyphen.png']) {
+		const fixture = photo(); fixture.original.name = originalName; fixture.metadata.fileName = 'Authored display.png';
+		const document = validateLightscaperDocumentV1(fixture);
+		assert.equal(document.kind, 'photo'); if (document.kind !== 'photo') return;
+		assert.equal(document.original.name, originalName); assert.equal(document.metadata.fileName, 'Authored display.png');
+		assert.deepEqual(cloneLightscaperDocumentV1(document), document);
+		assert.deepEqual(parseLightscaperDocumentV1(serializeLightscaperDocumentV1(document)), document);
+		assert.deepEqual(document.original, fixture.original);
+	}
+});
+
+test('shared Frame still sources retain their exact canonical NFC and 512-unit name admission', () => {
+	const { byteLength: _byteLength, retention: _retention, ...still } = photo().original;
+	assert.equal(normalizeVideoStillSourceV1({ ...still, name: 'x'.repeat(512) }).name.length, 512);
+	assert.equal(normalizeVideoStillSourceV1({ ...still, name: ' ' }).name, ' ');
+	for (const invalid of ['e\u0301.png', '\ufb2c'.repeat(256), 'x'.repeat(513), 'bad\u202ename', 'bad\u0000name', 'bad\rname']) {
+		assert.throws(() => normalizeVideoStillSourceV1({ ...still, name: invalid }), {
+			name: 'TypeError', message: 'video still source.name must be canonical safe text without unsupported control characters.',
+		});
+	}
+});
+
+test('neutral visual-text readers retain original control, line-break and boundary rules without coercion', () => {
+	for (const read of [readCanonicalSafeVisualText, readExactSafeVisualText]) {
+		for (const allowed of [' ', 'a\tb', 'soft\u00adhyphen', 'x'.repeat(512)]) assert.equal(read(allowed, 'label', 512, false), allowed);
+		assert.equal(read('First\nSecond', 'label', 512, true), 'First\nSecond');
+		for (const invalid of ['', 'x'.repeat(513), '\u0000', '\u0008', '\u000b', '\u000c', '\u001f', '\u007f', '\u0080', '\u009f', '\u202a', '\u202e', '\u2066', '\u2069', 'a\rb']) {
+			for (const multiline of [false, true]) assert.throws(() => read(invalid, 'label', 512, multiline), TypeError);
+		}
+		assert.throws(() => read('First\nSecond', 'label', 512, false), TypeError);
+		let coerced = 0;
+		const object = { toString: () => { coerced++; throw new Error('Must not coerce visual text'); } };
+		assert.throws(() => read(object, 'label', 512, false), TypeError); assert.equal(coerced, 0);
+	}
+	for (const exact of ['e\u0301.png', '\ufb2c'.repeat(256)]) {
+		assert.equal(readExactSafeVisualText(exact, 'label', 512, false), exact);
+		assert.throws(() => readCanonicalSafeVisualText(exact, 'label', 512, false), {
+			name: 'TypeError', message: 'label must be canonical safe text without unsupported control characters.',
+		});
+	}
+});
 
 test('Lightscaper root indexes and per-photo aggregates round-trip independently without timeline fields', () => {
 	for (const fixture of [root(), photo()]) {

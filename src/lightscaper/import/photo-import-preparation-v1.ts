@@ -125,7 +125,9 @@ async function prepareOriginal(selected: SelectedOriginal, index: number, templa
 		byteLength: selected.byteLength, extractedMetadata: readImageMetadataV1(bytes) });
 	// Snapshot the one read before exposing its writable byte array to the decoder.
 	const original = new Blob([bytes], { type: `image/${admission.format}` });
-	const decoded = await decodeFramescaperBrowserNativeImageV1({ bytes, fileName: selected.fileName,
+	// Shared transient pack labels are NFC; the selected original identity stays exact.
+	const canonicalLabel = selected.fileName.normalize('NFC');
+	const decoded = await decodeFramescaperBrowserNativeImageV1({ bytes, fileName: canonicalLabel.length <= 512 ? canonicalLabel : selected.originalId,
 		mimeTypeHint: selected.mimeTypeHint, signal,
 		open: createPhotoNativeImagePortV1(admission, facts.metadata.orientation, openImage, signal),
 	});

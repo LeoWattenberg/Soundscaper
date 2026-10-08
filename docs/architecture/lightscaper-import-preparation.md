@@ -22,6 +22,16 @@ and unknown capture offsets remain in immutable extraction, separate from author
 metadata. Ordered keyword names await catalog resolution. Each master starts
 with validated process-v1 develop state and the injected creation timestamp.
 
+Photo filenames preserve the selected Unicode string exactly, including
+decomposed characters. Selected filenames are bounded to 256 UTF-16 units;
+persisted originals retain the existing 512-unit admission. The photo-owned
+original normalizer validates exact text with the shared control rules, then
+reuses shared still identity, digest, geometry and MIME admission with a fixed
+neutral label. The transient shared decode pack uses the filename's NFC label
+when it fits the shared 512-unit bound, or the admitted ASCII original ID when
+normalization expands beyond that bound. Receipts, authored filename defaults,
+original facts and original bytes retain their selected identity.
+
 The shared browser-native decoder owns orientation, sRGB conversion and RGBA8
 normalization. Preparation never applies EXIF orientation a second time; it checks
 oriented geometry against the source header. `decodeArtifact` is an immutable
