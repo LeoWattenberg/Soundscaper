@@ -316,6 +316,8 @@ keyboard and runtime-projection support passes 16/16. Targeted type-aware lint
 and the maintained-file size gate pass. An initial SSR fixture
 omitted the effects port and is excluded from the defect evidence. Regressions
 are `audio-editor-round5-source-audition-readonly.test.tsx` and
-`audio-editor-round5-source-audition-readonly.spec.js`. Source correction is
-ready; corrected ordinary browser verification is pending and this root
-does not yet contribute to the count.
+`audio-editor-round5-source-audition-readonly.spec.js`. The unchanged ordinary
+two-tab workflow passes Chromium, Firefox and WebKit on immutable `a3d463c31`
+(3/3, 26.9 seconds, no skips or failures;
+`/tmp/soundscaper-r5-root-source-audition-readonly-green13.log`). Both normal
+guarded product builds pass. ROOT-011 is counted once.
