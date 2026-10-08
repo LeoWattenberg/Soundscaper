@@ -119,7 +119,7 @@ export function SpectralSelectionOverlay({
 		publish(previewRef.current);
 	};
 	const adjustTime = (edge, event) => {
-		if (disabled) return;
+		if (disabled || event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
 		let requested = null;
 		const amount = event.shiftKey ? Math.max(1, Math.round(sampleRate / 10)) : 1;
 		if (event.key === 'ArrowLeft' || event.key === 'ArrowDown') requested = preview[`${edge}Frame`] - amount;
@@ -138,7 +138,7 @@ export function SpectralSelectionOverlay({
 		});
 	};
 	const adjustFrequency = (edge, event) => {
-		if (disabled) return;
+		if (disabled || event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
 		let requested = null;
 		const amount = event.shiftKey ? 100 : 10;
 		const name = edge === 'minimum' ? 'minimumFrequency' : 'maximumFrequency';

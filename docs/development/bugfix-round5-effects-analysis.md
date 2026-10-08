@@ -717,3 +717,27 @@ interactions plus realtime-rack persistence in Chromium, Firefox and WebKit
 (12/12, 55.0 seconds; `/tmp/soundscaper-r5-root-filter-invert-green33.log`).
 Both guarded product builds pass. ROOT-023 is counted once. The assistance
 runtime closure is unchanged.
+
+## R5-ROOT-024 — Spectral handles consume configured editor commands
+
+Import an ordinary recording. In Preferences → Keyboard shortcuts, assign
+Ctrl+Alt+Right to New label track. Enable Spectrogram and Select → Spectral
+→ Spectral brush, then draw a band. Focus its maximum-frequency or start-time
+handle and press the assigned command. No label track appears; the handle
+instead changes the selected frequency or time. Both handle families share
+this independently implemented spectral-band keyboard owner.
+
+Leave handled and Ctrl/Meta/Alt keys available to the workspace command
+owner before interpreting ordinary spectral edits. Preserve plain and Shift
+editing, pointer cancellation, the existing selection and focus.
+
+Both unchanged public workflows fail on the immutable baseline at the absent
+label track (`/tmp/soundscaper-r5-root-spectral-handle-red.log`). All five mounted
+production-handle cases independently fail at consuming Ctrl; after correction
+they preserve Ctrl/Meta/Alt and already-handled events while retaining plain
+edits. New and existing spectral gesture, cancellation and effect support
+passes 10/10 (`/tmp/soundscaper-r5-root-spectral-handle-support.log`). Targeted
+type-aware lint and focused strict compiler pass. Corrected public verification
+is pending; ROOT-024 is not yet counted. This is separate from prior brush
+creation/pointer cancellation and other independently implemented command
+consumers. The assistance runtime closure is unchanged.

@@ -1,8 +1,8 @@
 # Fifth user-reproducible regression audit
 
-This audit is in progress toward 100 additional distinct fixes. Eighty-three
-new roots have completed ordinary browser verification (editing 22, dialogs 26,
-effects/analysis 23, import/export 12). Its immutable
+This audit is in progress toward 100 additional distinct fixes. Eighty-five
+new roots have completed ordinary browser verification (editing 22, dialogs 27,
+effects/analysis 23, import/export 13). Its immutable
 baseline is `fe6440c81b3a0fe29a028c64db867ae7d2cf3252`.
 
 Count an entry only after ordinary public user actions reproduce its defect
@@ -98,7 +98,13 @@ unsupported tooltip prop in the pending curve fix; it is corrected before its
 source commit, and the coordinated retry passes.
 Checkpoint thirty-three, `9ac41696b`, passes both guarded builds and exact
 Filter Curve inverse admission plus the existing curve interactions and rack
-persistence in all three engines (12/12).
+persistence in all three engines (12/12). Recording-notes multiline Bold/Italic
+preview, exact toggling and saved reload also pass in all three engines (6/6).
+A test helper received a locator instead of its page; that fixture call is
+corrected without changing the product assertions or deadline.
+Checkpoint thirty-four, `1e11bebe1`, passes both guarded builds and Silence
+menu capability admission plus supported Trim and Soundscaper silent-WAV
+controls in all three engines (6/6).
 Browser evidence names each exact checkpoint. Firefox audio
 uses the unchanged CI PulseAudio setup with a private 48 kHz null sink.
 
