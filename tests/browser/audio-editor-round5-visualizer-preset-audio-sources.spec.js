@@ -4,6 +4,8 @@ import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js'
 import { bootEditor, chooseNestedCommandAction, importFiles } from './audio-editor-test-helpers.js';
 
 test('a visualizer preset exposes ordinary sequence audio while applied to a Title draft', async ({ page }) => {
+	// Generator previews and preset persistence retain precise Chromium coverage.
+	test.setTimeout(120_000);
 	const editor = await bootEditor(page, '/framescaper/embed/en/');
 	await importFiles(editor, [createWavFixture({ name: 'Speech.wav', frequency: 440, duration: 1, channelCount: 1 })]);
 	await chooseNestedCommandAction(page, editor, 'Generate', ['Video Generators', 'Add Sound Visualizer']);

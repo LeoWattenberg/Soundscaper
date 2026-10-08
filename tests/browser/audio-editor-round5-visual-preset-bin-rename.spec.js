@@ -4,7 +4,8 @@ import { expect, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseCommandAction, chooseNestedCommandAction, waitForEditor } from './audio-editor-test-helpers.js';
 
 test('a saved Title preset retains its text and styling after its Bin model is renamed', async ({ page }) => {
-	test.setTimeout(60_000);
+	// Repeated inspector visits, history checks and reload retain precise coverage.
+	test.setTimeout(180_000);
 	let editor = await bootEditor(page, '/framescaper/embed/en/');
 	await chooseNestedCommandAction(page, editor, 'Generate', ['Video Generators', 'Add Title/Text']);
 	let title = editor.getByRole('group', { name: 'Video clip: Title', exact: true });

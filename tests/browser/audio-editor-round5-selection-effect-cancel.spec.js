@@ -6,7 +6,8 @@ import { bootEditor, chooseCommandAction, chooseNestedCommandAction, disableNati
 import { exportSamples } from './helpers/round2-audio-export.js';
 
 test('Cancel during selection-effect rendering leaves the recording unchanged', async ({ page }) => {
-	test.setTimeout(90_000);
+	// Firefox exports both thirty-second recordings on its realtime audio clock.
+	test.setTimeout(180_000);
 	await disableNativeSavePicker(page);
 	const editor = await bootEditor(page, '/embed/en/');
 	const recording = createWavFixture({ name: 'room-recording.wav', frequency: 440,
