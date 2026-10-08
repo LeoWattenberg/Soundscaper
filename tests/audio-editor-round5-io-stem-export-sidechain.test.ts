@@ -8,6 +8,8 @@ import { normalizeMixerGraphV21 } from '../src/common/editor/mixer-graph-v21.ts'
 import { normalizeAutomationLaneV21 } from '../src/common/editor/automation-lane-v21.ts';
 import { stemProject } from '../src/common/editor/controller/export/temporary-export.ts';
 import { createAudioEditorEngine } from '../src/common/editor/engine.js';
+import { createExportPlan } from '../src/common/editor/export.js';
+import { renderAndEncodeAudioExport, type AudioExportRenderOrchestrationRuntime } from '../src/common/editor/controller/export/internal/audio/audio-export-render-orchestration.ts';
 
 function fixture(mode: 'bus' | 'direct' | 'muted' | 'none') {
 	const project = createSoundscaperProject({ id: 'track-stem', sampleRate: 48_000,
@@ -45,6 +47,45 @@ function fixture(mode: 'bus' | 'direct' | 'muted' | 'none') {
 		lane('detector-output', { kind: 'edge', edgeId: output, parameterId: 'level' }),
 		lane('programme-gain', { kind: 'strip', strip: { kind: 'track', id: 'programme' }, parameterId: 'gain' }),
 	] });
+}
+
+for (const strategy of ['offline', 'realtime-stream', 'offline-fallback'] as const) {
+	test(`${strategy} stem rendering consumes the complete isolated production graph`, async () => {
+		const project = stemProject(fixture('bus'), 'programme');
+		const plan = createExportPlan(project, { mode: 'stems', format: 'wav', includeTail: false });
+		const output = plan.outputs.find(value => value.trackId === 'programme')!;
+		const targets: Array<{ trackId?: string | null; includeMaster?: boolean; respectMuteSolo?: boolean }> = [];
+		const runtime: AudioExportRenderOrchestrationRuntime = {
+			encodingRuntime: { copy: { encoding: 'Encoding' }, setStatus() {},
+				throwIfAborted(signal) { signal.throwIfAborted(); },
+				applyMediaChannelMapping: channels => channels,
+				audioBufferChannels: () => [Float32Array.of(0.1)],
+				encodeWav: () => Uint8Array.of(1), encodeAiff: () => Uint8Array.of(1),
+				resampleBuffer: value => value, ffmpeg: { encode: async () => ({ bytes: Uint8Array.of(1), mimeType: 'audio/wav' }) },
+			}, normalizeProjectSampleRate: rate => rate,
+			renderSnapshot(_snapshot, range) {
+				targets.push(range);
+				if (strategy === 'offline-fallback') throw new Error('Offline context unavailable');
+				return { sampleRate: 48_000 };
+			},
+			renderRealtimeEncoded(_snapshot, _plan, _settings, _signal, _sources, target) {
+				targets.push(target); return { mimeType: 'audio/wav' };
+			},
+		};
+		await renderAndEncodeAudioExport(runtime, { snapshot: project, settings: {},
+			plan: { mode: plan.mode, format: plan.format, sampleRate: plan.sampleRate, channelCount: plan.channelCount,
+				channelMapping: plan.encoding.channelMapping, ditherMode: plan.encoding.dither, metadata: plan.metadata,
+				encoding: { ...plan.encoding, bitDepth: plan.encoding.bitDepth ?? 16 }, mimeType: plan.encoding.mimeType,
+				range: plan.range, tailFrames: plan.tailFrames, outputFrames: plan.outputFrames,
+				render: { strategy: strategy === 'realtime-stream' ? strategy : 'offline' } },
+			renderTarget: output, signal: new AbortController().signal,
+			renderSources: { sourceMap: new Map(), chunkSources: null, prepareTimePitchCaches: false },
+		});
+		assert.equal(targets.length, strategy === 'offline-fallback' ? 2 : 1);
+		for (const target of targets) assert.deepEqual({ trackId: target.trackId,
+			includeMaster: target.includeMaster, respectMuteSolo: target.respectMuteSolo },
+		{ trackId: null, includeMaster: false, respectMuteSolo: true });
+	});
 }
 
 for (const mode of ['bus', 'direct', 'muted', 'none'] as const) {
