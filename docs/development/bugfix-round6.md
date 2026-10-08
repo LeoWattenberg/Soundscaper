@@ -70,3 +70,20 @@ recorded per root; a passing Node suite alone does not qualify a fix.
 The corrections change UI and browser/controller behavior without changing
 assistance runtime source pins, recipes, dependencies, archives or target
 inventories. No manual **Update AI assets** run is required.
+
+The immutable `e139818a9` first50-candidate snapshot passes 177 of 183 public
+checks across all three engines (`/tmp/soundscaper-round6-checkpoint50-round6-browser.log`).
+Three failures show that the bin-selection hypothesis is unsupported: the real
+controller deliberately forbids read-only selection. Its mocked helper fixture
+hid that invariant, so its admission change and invalid regressions are
+retired and the root remains excluded with zero count. The other three failures
+follow repaired waveform and Undo assertions, but expect plural seconds for the
+existing singular one-second accessible copy. The corrected fixture passes
+all three full exported-PCM/Undo workflows on the same build
+(`/tmp/soundscaper-round6-properties-warp-duration-green7-browser.log`).
+All 16 editing, 11 effects, seven qualifying I/O and 15 dialog roots are now
+publicly verified: 49 distinct fixes. The full canonical non-browser gate and
+5,463-case browser run are in progress on this frozen candidate revision. A
+subsequent snapshot at `03748a70e` restores the original read-only policy and
+includes the independently reproduced delivery-report project-identity fix;
+its public GREEN is needed to reach the first 50.
