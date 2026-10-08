@@ -1,8 +1,8 @@
 # Fifth user-reproducible regression audit
 
-This audit is in progress toward 100 additional distinct fixes. Seventy-one
+This audit is in progress toward 100 additional distinct fixes. Seventy-two
 new roots have completed ordinary browser verification (editing 18, dialogs 24,
-effects/analysis 19, import/export 10). Its immutable
+effects/analysis 20, import/export 10). Its immutable
 baseline is `fe6440c81b3a0fe29a028c64db867ae7d2cf3252`.
 
 Count an entry only after ordinary public user actions reproduce its defect
@@ -67,6 +67,10 @@ canonical text application and negative recording-offset placement across
 all three engines. Recording calibration uses an ordinary zero-offset warm-up
 capture before comparing two offsets; the exact 100-millisecond difference
 and the original deadline remain unchanged.
+Checkpoint twenty-eight, `04a70d3fa`, passes both guarded product builds and
+the complete automated-prefix noise-profile workflow plus the existing Source
+profile control in all three engines. Equivalent static and automated filter
+settings now produce exactly equal captured profiles.
 Browser evidence names each exact checkpoint. Firefox audio
 uses the unchanged CI PulseAudio setup with a private 48 kHz null sink.
 

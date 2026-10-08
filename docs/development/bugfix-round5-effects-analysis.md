@@ -617,10 +617,15 @@ profile comparison (`/tmp/soundscaper-r5-root-rack-prefix-automation-baseline.lo
 Its owning production-service test independently fails on the empty lane
 list, while the destructive dry-render control passes. New and existing
 effect-audio, bus/master profile, native Source profile and isolated folder
-support passes 35/35 after correction. Target lint and the size gate pass.
+support passes 35/35 after correction. Target and changed-file lint, strict
+test types and the size gate pass.
 An initial Node fixture omitted the ordinary audio selection; a compiler
 command omitted the repository's Vite declarations. Those setup failures
 are excluded. Regressions are `audio-editor-round5-rack-prefix-automation.test.ts`
-and `audio-editor-round5-rack-prefix-automation.spec.js`. Corrected browser
-verification is pending; ROOT-020 is not counted yet. Assistance runtime
-assets are unchanged.
+and `audio-editor-round5-rack-prefix-automation.spec.js`. Immutable `04a70d3fa`
+passes the complete automated-prefix → equivalent static-prefix capture and
+existing Source-rack control in Chromium, Firefox and WebKit (6/6, no skips
+or failures; `/tmp/soundscaper-r5-root-rack-prefix-automation-green28.log`).
+The exact complete profile comparison and original 90-second deadline remain
+unchanged. Both guarded product builds pass. ROOT-020 is counted once.
+Assistance runtime assets are unchanged.
