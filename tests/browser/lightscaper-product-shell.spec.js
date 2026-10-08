@@ -14,7 +14,7 @@ for (const [locale, copy] of [
 		await expect(page.getByRole('region', { name: copy.library, exact: true })).toHaveCount(0);
 		await expect(page.getByRole('button', { name: copy.show, exact: true })).toBeHidden();
 		const menu = page.getByRole('navigation', { name: copy.menu, exact: true });
-		const view = menu.locator('summary').filter({ hasText: copy.view });
+		const view = topLevelSummary(menu, copy.view);
 		const show = menu.getByRole('button', { name: copy.show, exact: true });
 		await view.focus();
 		await page.keyboard.press('Enter');
@@ -37,7 +37,7 @@ for (const [locale, copy] of [
 		const origin = lightscaperOrigin(baseURL);
 		await page.goto(`${origin}/${locale}/`);
 		const menu = page.getByRole('navigation', { name: copy.menu, exact: true });
-		const file = menu.locator('summary').filter({ hasText: copy.file });
+		const file = topLevelSummary(menu, copy.file);
 		await file.click();
 		for (const [name, domain] of [['Soundscaper', 'soundscaper.org'], ['Framescaper', 'framescaper.org']]) {
 			await expect(menu.getByRole('link', { name, exact: true })).toHaveAttribute('href', `https://${domain}/${locale}/`);
@@ -60,8 +60,8 @@ for (const [locale, copy] of [
 		const app = page.getByRole('region', { name: 'Lightscaper', exact: true });
 		await expect(app).toHaveAttribute('data-lightscaper-bound', 'true');
 		const menu = app.getByRole('navigation', { name: copy.menu, exact: true });
-		const file = menu.locator('summary').filter({ hasText: copy.file });
-		const view = menu.locator('summary').filter({ hasText: copy.view });
+		const file = topLevelSummary(menu, copy.file);
+		const view = topLevelSummary(menu, copy.view);
 		const peer = menu.getByRole('link', { name: 'Soundscaper', exact: true });
 		const show = menu.getByRole('button', { name: copy.show, exact: true });
 		await file.click();
@@ -108,9 +108,9 @@ for (const [locale, copy] of [
 				await expect(page).toHaveTitle(sourceName);
 				await expectApplicationReady(page, source);
 				const menu = source === 'lightscaper'
-					? page.getByRole('navigation', { name: copy.menu, exact: true }).locator('details').filter({ has: page.locator('summary').filter({ hasText: copy.file }) })
+					? topLevelSummary(page.getByRole('navigation', { name: copy.menu, exact: true }), copy.file).locator('..')
 					: page.locator('[data-product-menu]');
-				await menu.locator('summary').click();
+				await menu.locator(':scope > summary').click();
 				const link = menu.locator(`a[href="${canonical}"]`);
 				await expect(link).toHaveAttribute('href', canonical);
 				await link.click();
@@ -124,6 +124,11 @@ for (const [locale, copy] of [
 			});
 		}
 	}
+}
+
+function topLevelSummary(menu, name) {
+	const text = name.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+	return menu.locator(':scope > details > summary').filter({ hasText: new RegExp(`^${text}$`, 'u') });
 }
 
 function productNames() {

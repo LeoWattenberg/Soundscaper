@@ -20,8 +20,8 @@ test('the published Arabic photo menu and lazy importer use the small translated
 	await expect(app).toBeVisible();
 	await expect(app.locator('[data-photo-library]')).toHaveCount(0);
 	const menu = app.getByRole('navigation', { name: copy.menu, exact: true });
-	await expect(menu.locator('summary').filter({ hasText: copy.view })).toBeVisible();
-	await menu.locator('summary').filter({ hasText: copy.file }).focus(); await page.keyboard.press('Enter');
+	await expect(topLevelSummary(menu, copy.view)).toBeVisible();
+	await topLevelSummary(menu, copy.file).focus(); await page.keyboard.press('Enter');
 	await menu.getByRole('button', { name: copy.importer, exact: true }).focus(); await page.keyboard.press('Enter');
 	const dialog = page.getByRole('dialog', { name: copy.importer, exact: true });
 	await expect(dialog).toBeVisible(); await expect(dialog.getByLabel(copy.choose)).toBeVisible();
@@ -30,3 +30,8 @@ test('the published Arabic photo menu and lazy importer use the small translated
 	expect(scripts.filter(url => /\/editor-copy-[^/]+\.js/u.test(url))).toEqual([]);
 	expect(errors).toEqual([]);
 });
+
+function topLevelSummary(menu, name) {
+	const text = name.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+	return menu.locator(':scope > details > summary').filter({ hasText: new RegExp(`^${text}$`, 'u') });
+}
