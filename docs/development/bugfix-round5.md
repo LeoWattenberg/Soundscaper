@@ -1,8 +1,8 @@
 # Fifth user-reproducible regression audit
 
-This audit is in progress toward 100 additional distinct fixes. Seventy-four
-new roots have completed ordinary browser verification (editing 19, dialogs 24,
-effects/analysis 21, import/export 10). Its immutable
+This audit is in progress toward 100 additional distinct fixes. Seventy-seven
+new roots have completed ordinary browser verification (editing 20, dialogs 25,
+effects/analysis 21, import/export 11). Its immutable
 baseline is `fe6440c81b3a0fe29a028c64db867ae7d2cf3252`.
 
 Count an entry only after ordinary public user actions reproduce its defect
@@ -75,7 +75,14 @@ The camera-speed refusal, ordinary public Unlink recovery, independent speed
 change and complete Undo/Redo also pass in all three engines at that checkpoint.
 Checkpoint twenty-nine, `0338e893d`, passes both guarded builds, configured
 routing-graph command dispatch and the existing pointer/keyboard graph control
-in all three engines.
+in all three engines. Absolute timed-recording deadlines survive Pause/Resume,
+sequence timing fields commit or cancel before blur, and stereo splitting
+refuses unrepresentable custom channel maps before changing any document or
+audio. Their recovery and existing controls pass in all three engines. The
+coordinated source typecheck and complete bounded-memory lint pass. The first
+test typecheck caught a missing blur declaration in a test fixture; that fixture
+is corrected, and its focused strict check passes. The coordinated retry is
+pending.
 Browser evidence names each exact checkpoint. Firefox audio
 uses the unchanged CI PulseAudio setup with a private 48 kHz null sink.
 
