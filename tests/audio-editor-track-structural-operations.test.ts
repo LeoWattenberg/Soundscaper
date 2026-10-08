@@ -203,7 +203,7 @@ test('controller service commits one transform or batch for every structural act
 		if (command?.type !== 'batch') assert.fail('Expected one atomic mute or unmute batch.');
 		assert.deepEqual(command.commands, [
 			...['dialogue', 'fx', 'video', 'audio', 'music'].map(trackId => ({
-				type: 'track/update', trackId, changes: { mute: muted },
+				type: 'track/update', trackId, changes: trackId === 'video' ? { hidden: muted } : { mute: muted },
 			})),
 			{ type: 'track-folder/update', folderId: 'folder', changes: { mute: muted } },
 		]);
