@@ -72,6 +72,23 @@ test('the arm64 loader parser admits one anonymous link-map row only with its ex
 	].join('\n'), 'linux-arm64'), /interpreter|loader/u);
 });
 
+test('the Ubuntu 22.04 Fontconfig closure admits its exact UUID dependency', () => {
+	assert.deepEqual(parseSoundscaperProfessionalLinuxLoaderList([
+		'libfontconfig.so.1 => /lib/x86_64-linux-gnu/libfontconfig.so.1 (0x00007f0000000000)',
+		'libuuid.so.1 => /lib/x86_64-linux-gnu/libuuid.so.1 (0x00007f0000001000)',
+		'/lib64/ld-linux-x86-64.so.2 (0x00007f0000002000)',
+	].join('\n'), 'linux-x64'), [
+		{ name: 'ld-linux-x86-64.so.2', path: '/lib64/ld-linux-x86-64.so.2' },
+		{ name: 'libfontconfig.so.1', path: '/lib/x86_64-linux-gnu/libfontconfig.so.1' },
+		{ name: 'libuuid.so.1', path: '/lib/x86_64-linux-gnu/libuuid.so.1' },
+	]);
+	for (const name of ['libuuid.so', 'libuuid.so.2', 'libuuid-custom.so.1']) {
+		assert.throws(() => parseSoundscaperProfessionalLinuxLoaderList(
+			`${name} => /lib/x86_64-linux-gnu/${name} (0x00007f0000000000)`, 'linux-x64',
+		), /unreviewed system dependency/u);
+	}
+});
+
 test('the host resolver rejects a packaged Linux runtime before loader inspection', async () => {
 	const artifact = Object.freeze({
 		path: '/professional-peer', byteLength: 1, sha256: '0'.repeat(64),
@@ -107,7 +124,7 @@ test('an authenticated host loader resolves only its exact runtime closure and d
 		writeFile(join(root, 'peer.c'), PEER_SOURCE),
 		writeFile(sibling, 'ungranted library bytes'),
 	]);
-	await execute('cc', [join(root, 'peer.c'), '-o', peer]);
+	await execute('cc', [join(root, 'peer.c'), '-o', peer, '-luuid']);
 	await execute('cc', ['-std=c17', '-O2', '-Wall', '-Wextra', '-Wpedantic', '-Werror',
 		join(NATIVE_ROOT, 'src/linux_launcher.c'), '-o', launcherPath]);
 	await Promise.all([chmod(peer, 0o700), chmod(launcherPath, 0o700)]);
@@ -119,6 +136,7 @@ test('an authenticated host loader resolves only its exact runtime closure and d
 	});
 	assert.equal(systemRuntime.schemaVersion, 1);
 	assert.equal(systemRuntime.policy, 'host-system-elf-runtime-v1');
+	assert.ok(systemRuntime.runtimeClosure.some(({ path }) => /\/libuuid\.so\./u.test(path)));
 	const launcher = createNativeChildIsolationLauncher({
 		target: 'linux-x64',
 		machineWorkload: Object.freeze({
@@ -158,8 +176,11 @@ const PEER_SOURCE = String.raw`
 #include <fcntl.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <uuid/uuid.h>
 int main(int argc, char **argv) {
 	if (argc != 2) return 2;
+	uuid_t empty = {0};
+	if (!uuid_is_null(empty)) return 3;
 	int sibling = open(argv[1], O_RDONLY | O_CLOEXEC);
 	printf("{\"marker\":42,\"deniedSibling\":%s}\n",
 		sibling < 0 && (errno == EACCES || errno == EPERM) ? "true" : "false");
