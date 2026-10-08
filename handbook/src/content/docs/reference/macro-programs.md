@@ -399,7 +399,11 @@ Audacity reads them too.
 | Editing | `Cut`, `Copy`, `Paste`, `Delete`, `Duplicate`, `Split`, `SplitNew`, `Join`, `Disjoin`, `Trim`, `Silence`, `SplitCut`, `SplitDelete` |
 | Tracks | `NewMonoTrack`, `NewStereoTrack`, `NewLabelTrack`, `RemoveTracks`, `MixAndRender`, `SortByName`, `SortByTime` |
 | Labels | `AddLabel` |
-| Analysis | `FindClipping`, `ContrastAnalyser`, `PlotSpectrum`, `RepeatLastEffect` |
+| Analysis | `FindClipping`, `PlotSpectrum`, `RepeatLastEffect` |
+
+Contrast requires foreground and background measurements chosen by the user.
+Open **Analyze → Contrast** to take them; `ContrastAnalyser` cannot run as a
+parameterless macro command. Earlier saved steps remain readable and exportable.
 
 ### What is deliberately missing
 
