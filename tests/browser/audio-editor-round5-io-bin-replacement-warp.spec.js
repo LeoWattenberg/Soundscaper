@@ -37,7 +37,10 @@ test('replacing a warped recording at another sample rate retains its audible so
 	expect(sourceId).toBeTruthy();
 	await expect(editor).not.toHaveAttribute('data-edit-block-reason', /.+/u);
 	await card.getByRole('button', { name: /Add to timeline/u }).click();
-	const clip = clipByName(editor, 'production-pause-48000.wav');
+	const initialClip = clipByName(editor, 'production-pause-48000.wav');
+	const clipId = await initialClip.getAttribute('data-clip-id');
+	expect(clipId).toBeTruthy();
+	const clip = editor.locator(`[role="group"][data-clip-id="${clipId}"]`);
 	await clip.locator('.clip-header').click();
 	const warp = await openWarp(page, editor);
 	await warp.getByRole('button', { name: 'Create identity warp map', exact: true }).click();
