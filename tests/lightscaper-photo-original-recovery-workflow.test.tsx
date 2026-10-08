@@ -91,6 +91,7 @@ test('factory replacement joins held original work before closing and suppresses
 	const events: string[] = []; old.inspectOriginals = async () => { events.push('old-inspection'); return held.promise; };
 	old.close = async () => { events.push('old-closed'); }; next.inspectOriginals = async () => { events.push('next-inspection'); return inspected; };
 	const mounted = await mountImportWorkflow(async () => old); let pending: Promise<void> | undefined;
+	const readInspection = () => mounted.current.originalInspectionPage;
 	try {
 		await act(async () => { pending = mounted.current.inspectOriginals(); await settle(); });
 		const stale = mounted.current.inspectOriginals;
@@ -101,7 +102,7 @@ test('factory replacement joins held original work before closing and suppresses
 		assert.deepEqual(events, ['old-inspection', 'old-closed']); assert.equal(mounted.current.originalInspectionPage, null);
 		await act(async () => { await mounted.current.inspectOriginals(); });
 		assert.deepEqual(events, ['old-inspection', 'old-closed', 'next-opened', 'next-inspection']);
-		assert.equal(mounted.current.originalInspectionPage?.catalogId, binding.catalogId);
+		assert.equal(readInspection()?.catalogId, binding.catalogId);
 	} finally { held.resolve(inspected); await pending; await mounted.dispose(); }
 });
 
