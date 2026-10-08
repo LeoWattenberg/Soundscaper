@@ -1,8 +1,8 @@
 # Fifth user-reproducible regression audit
 
-This audit is in progress toward 100 additional distinct fixes. Seventy-seven
-new roots have completed ordinary browser verification (editing 20, dialogs 25,
-effects/analysis 21, import/export 11). Its immutable
+This audit is in progress toward 100 additional distinct fixes. Eighty
+new roots have completed ordinary browser verification (editing 21, dialogs 26,
+effects/analysis 22, import/export 11). Its immutable
 baseline is `fe6440c81b3a0fe29a028c64db867ae7d2cf3252`.
 
 Count an entry only after ordinary public user actions reproduce its defect
@@ -81,8 +81,14 @@ refuses unrepresentable custom channel maps before changing any document or
 audio. Their recovery and existing controls pass in all three engines. The
 coordinated source typecheck and complete bounded-memory lint pass. The first
 test typecheck caught a missing blur declaration in a test fixture; that fixture
-is corrected, and its focused strict check passes. The coordinated retry is
-pending.
+is corrected, and both its focused strict check and the coordinated retry pass.
+Checkpoint thirty, `c4e928664`, passes both guarded builds, native picture
+Overwrite and its existing Insert control, plus targetless visual-preset
+removal and its existing focus control across all three engines.
+Checkpoint thirty-one, `a26a52e78`, passes both guarded builds. Warp authoring
+now refuses a looping recording before publishing an unusable map; WAV export,
+unchanged history and ordinary return-to-one-repeat recovery pass in all three
+engines.
 Browser evidence names each exact checkpoint. Firefox audio
 uses the unchanged CI PulseAudio setup with a private 48 kHz null sink.
 

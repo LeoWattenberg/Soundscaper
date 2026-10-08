@@ -684,6 +684,9 @@ success and then the exact export error
 ordinary-command-created loop cases fail before correction while the
 remove-loop recovery control passes. New and existing authoring, controller
 composition and loop support now pass 40/40. Target lint and the size gate
-pass. Public corrected refusal, export and Undo/Redo verification is pending;
-this entry is not yet counted. The assistance runtime closure is unchanged.
-
+pass, as does the focused strict compiler using the repository test settings.
+Immutable `a26a52e78` passes the complete public refusal, repeated WAV export,
+unchanged Undo/Redo and return-to-one-repeat identity-map recovery in Chromium,
+Firefox and WebKit (3/3, 1.3 minutes;
+`/tmp/soundscaper-r5-root-loop-warp-green31.log`). Both guarded product builds
+pass. ROOT-022 is counted once. The assistance runtime closure is unchanged.
