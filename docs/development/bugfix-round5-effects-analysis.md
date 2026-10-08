@@ -483,6 +483,9 @@ measurement, cache, repeat and admission support passes 32/32 afterward.
 Target lint, focused strict types and the size gate pass. Regressions extend
 `audio-editor-loudness-measurement.test.ts` and
 `audio-editor-measure-loudness-surface.test.ts`, with ordinary browser coverage
-in `audio-editor-round5-repeat-loudness.spec.js`. Final guarded browser checks
-remain pending; ROOT-016 is not counted yet. Assistance runtime assets are
+in `audio-editor-round5-repeat-loudness.spec.js`. Immutable `2d5177efb` passes the complete measurement → report → repeat →
+report workflow across Chromium, Firefox and WebKit (3/3, 13.0 seconds, no
+skips or failures; `/tmp/soundscaper-r5-root-repeat-loudness-green22.log`).
+Both guarded product builds pass, and complete bounded-memory lint passes
+all eleven shards. ROOT-016 is counted once. Assistance runtime assets are
 unchanged.
