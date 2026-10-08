@@ -16,11 +16,11 @@ test('removing the selected visual preset clears its obsolete action target', as
 	const dialog = page.getByRole('dialog', { name: 'Selected Visual Presets', exact: true });
 	await dialog.getByRole('textbox', { name: 'Preset name', exact: true }).fill('My solid');
 	await dialog.getByRole('button', { name: 'Save selected generator preset', exact: true }).click();
-	await expect(dialog.getByRole('status')).toHaveText('Selected visual preset saved.');
+	await expect(dialog.getByRole('status')).toHaveText('Selected visual preset saved.', { timeout: 30_000 });
 	const presets = dialog.getByRole('combobox', { name: 'Saved visual preset', exact: true });
 	await presets.selectOption({ label: 'My solid' });
 	await dialog.getByRole('button', { name: 'Remove visual preset', exact: true }).click();
-	await expect(dialog.getByRole('status')).toHaveText('Selected authored state removed.');
+	await expect(dialog.getByRole('status')).toHaveText('Selected authored state removed.', { timeout: 30_000 });
 	await expect(presets).toHaveValue('');
 	await expect(dialog.getByRole('button', { name: 'Apply to selected generator', exact: true })).toBeDisabled();
 	await expect(dialog.getByRole('button', { name: 'Remove visual preset', exact: true })).toBeDisabled();

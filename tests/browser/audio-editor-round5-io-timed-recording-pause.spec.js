@@ -17,7 +17,8 @@ test('pausing a timed recording retains the chosen absolute end date', async ({ 
 	const start = new Date(Date.now() + 8_000);
 	start.setMilliseconds(0);
 	const end = new Date(start.getTime() + 8_000);
-	const localValue = date => new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 19);
+	const localValue = date => new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
+		.toISOString().slice(0, 19).replace(/:00$/u, '');
 	await dialog.locator('input[type="datetime-local"]').first().fill(localValue(start));
 	await dialog.getByRole('radio', { name: 'End date and time', exact: true }).check();
 	await dialog.locator('input[type="datetime-local"]').nth(1).fill(localValue(end));

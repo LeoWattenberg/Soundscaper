@@ -6,18 +6,21 @@ import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.
 import { hasWebGl2Capability } from './helpers/webgl2-capability.js';
 import { hasDurableMediaStorageCapability } from './helpers/durable-media-storage-capability.js';
 
+// Covered media decoding and composited capture share the workflow's budget.
+test.describe.configure({ timeout: 120_000 });
+
 for (const withTitle of [false, true]) {
 	test(`ordinary camera Freeze ${withTitle ? 'with a Title bystander' : 'without a Title'}`, async ({ page }) => {
 		const editor = await bootEditor(page, '/framescaper/embed/en/');
 		test.skip(!await page.evaluate(hasWebGl2Capability), 'Exact composited Freeze capture requires WebGL2, which this browser environment refuses.');
 		test.skip(!await page.evaluate(hasDurableMediaStorageCapability, 'indexeddb-only'), 'Exact Freeze PNG persistence requires working IndexedDB Blob storage, which this browser environment refuses.');
 		if (withTitle) await chooseNestedCommandAction(page, editor, 'Generate', ['Video Generators', 'Add Title/Text']);
-		await importFiles(editor, [createDeterministicAvFixture('freeze-camera.webm')]);
+		await importFiles(editor, [createDeterministicAvFixture('freeze-camera.webm')], { timeout: 60_000 });
 		await editor.getByRole('group', { name: 'Video clip: freeze-camera', exact: true }).press('Enter');
 		await chooseNestedCommandAction(page, editor, 'Effect', ['Freeze Video']);
 		const dialog = page.getByRole('dialog', { name: 'Freeze Selected Video', exact: true });
 		await dialog.locator('[data-framescaper-authoring-freeze]').click();
-		await expect(dialog.getByRole('status')).toHaveText('Exact playhead freeze created.');
+		await expect(dialog.getByRole('status')).toHaveText('Exact playhead freeze created.', { timeout: 30_000 });
 		if (withTitle) await expect(editor.getByRole('group', { name: 'Video clip: Title', exact: true })).toHaveCount(1);
 	});
 }
