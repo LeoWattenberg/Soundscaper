@@ -160,7 +160,9 @@ export function createNyquistHostService(runtime: NyquistHostServiceRuntime) {
 				start: 0, end: (endFrame - startFrame) / sampleRate })[0]
 			: startFrame;
 		const track = target?.track ?? null;
-		const clips = track?.clipIds
+		const clips = target?.sourceId && target.sourceFrameCount
+			? [[0, target.sourceFrameCount / sampleRate] as const]
+			: track?.clipIds
 			?.map((clipId) => project.clips.find((clip) => clip.id === clipId) ?? null)
 			.filter(isPresent)
 			.map((clip) => [

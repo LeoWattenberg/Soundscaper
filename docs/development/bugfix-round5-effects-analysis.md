@@ -399,3 +399,33 @@ builds pass. ROOT-013 is counted once.
 Regressions are `audio-editor-round5-tempo-reference-admission.test.tsx` and
 `audio-editor-round5-tempo-reference-admission.spec.js`. Assistance runtime
 assets are unchanged.
+
+## R5-ROOT-014 — Nyquist source clip bounds use timeline coordinates
+
+Import an ordinary 0.8-second WAV, open Clip properties → Media settings and
+move Start to five seconds. Focus Source waveform and select all. Tools →
+Nyquist prompt with `(format nil "bounds=~a" (get '*track* 'clips))` reports
+5–5.8 seconds while its selected native sound is 0–0.8. Effect → Nyquist →
+Crossfade Clips → Apply therefore refuses this continuous recording with
+“Empty space at start/ end of the selection.” The built-in explicitly supports
+crossfading the halves of a continuous selection.
+
+Expose the authenticated complete native source as this Source editor's clip,
+using its frame count and sample rate. Keep ordinary timeline clip metadata and
+per-channel layouts unchanged. This host clip inventory is separate from the
+earlier native selection clock, output label placement and project tempo lookup.
+
+The immutable Chromium prompt reproduces 5–5.8 instead of 0–0.8
+(`/tmp/soundscaper-r5-root-nyquist-source-clip-bounds-baseline.log`), and the
+actual built-in Apply reproduces its refusal
+(`/tmp/soundscaper-r5-root-nyquist-source-crossfade-baseline2.log`). An initial
+probe incorrectly looked for Run instead of the plug-in's Apply and is excluded.
+Two strict actual Source editor target cases fail before correction; both
+native clocks and stereo layout pass afterward with unchanged timeline controls.
+New and existing host/source/tempo support passes 22/22. The old source-host
+assertion now expects the native 0–0.8 bounds. Target lint, strict test types and
+the size gate pass. Regresions are
+`audio-editor-round5-nyquist-source-clip-bounds.test.ts` and
+`audio-editor-round5-nyquist-source-clip-bounds.spec.js`. Production browser
+verification is pending, so ROOT-014 is uncounted. Assistance runtime assets
+are unchanged.

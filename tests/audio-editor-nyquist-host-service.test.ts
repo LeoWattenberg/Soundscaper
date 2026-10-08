@@ -209,7 +209,7 @@ test('Nyquist source selection uses native frame seconds and retains the owning 
 	assert.equal(properties.SELECTION.END, 0.4);
 	assert.deepEqual(properties.SELECTION.TRACKS, [1]);
 	assert.equal(properties.PROJECT.RATE, 1_000);
-	assert.deepEqual(properties.TRACK.CLIPS, [[0.1, 0.5]]);
+	assert.deepEqual(properties.TRACK.CLIPS, [[0, 0.8]]);
 });
 
 test('Nyquist host properties fall back to the cursor and request for an untargeted stereo result', () => {
