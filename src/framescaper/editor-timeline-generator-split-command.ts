@@ -6,6 +6,8 @@ import { sampleFrameToVideoFrame } from '../common/editor/timeline-time.ts';
 import type { FramescaperProjectTimelineImage } from './editor-project-timeline-image.ts';
 import type { FramescaperProjectCommandTimelineImage, FramescaperProjectCommandBatchTimelineImage } from './editor-project-timeline-image-commands.ts';
 import type { FramescaperVideoVisualClipSetCommandVisual } from './editor-project-visual-visual-command.ts';
+import { createSplitVisualPresentationPlanner } from './editor-split-visual-presentations.ts';
+import type { FramescaperVideoVisualPresentationSetCommandFinishing } from './editor-project-finishing-finishing-command.ts';
 
 /** Split generated visuals before the inherited camera/audio executor omits them. */
 export function prepareTimelineGeneratorSplitCommand(project: FramescaperProjectTimelineImage,
@@ -16,10 +18,15 @@ export function prepareTimelineGeneratorSplitCommand(project: FramescaperProject
 	}
 	const owners = new Map(project.tracks.flatMap(track => (Array.isArray(track.clipIds)
 		? track.clipIds as readonly string[] : []).map(id => [id, track.id] as const)));
+	const presentations = createSplitVisualPresentationPlanner(project.videoVisualPresentations);
 	return visit(command);
 
 	function visit(value: FramescaperProjectCommandTimelineImage): FramescaperProjectCommandTimelineImage {
 		if (value.type === 'batch') return { ...value, commands: (value as FramescaperProjectCommandBatchTimelineImage).commands.map(visit) };
+		if (value.type === 'video-visual-presentation/set') {
+			presentations.observe(value as FramescaperVideoVisualPresentationSetCommandFinishing);
+			return value;
+		}
 		if (value.type === 'video-visual-clip/set') {
 			const mutation = value as FramescaperVideoVisualClipSetCommandVisual;
 			if (mutation.clip?.kind === 'generator' && mutation.placement?.scope === 'timeline') {
@@ -52,6 +59,6 @@ export function prepareTimelineGeneratorSplitCommand(project: FramescaperProject
 		return { type: 'batch', commands: [{ type: 'video-visual-clip/set', clipId: left.id,
 			expectedClip, expectedPlacement: placement, clip: left, placement }, {
 			type: 'video-visual-clip/set', clipId: right.id, expectedClip: null, expectedPlacement: null, clip: right, placement,
-		}] };
+		}, ...presentations.copy(left.id, right.id)] };
 	}
 }
