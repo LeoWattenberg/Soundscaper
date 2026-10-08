@@ -101,6 +101,7 @@ export function TrackAutomationCurveMenu({
 			?.focus({ preventScroll: true });
 	}, [menu]);
 	const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+		if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
 		if (event.key === 'Escape') {
 			event.preventDefault();
 			event.stopPropagation();
