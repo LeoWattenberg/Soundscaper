@@ -13,6 +13,7 @@ import {
 } from '../../controller/track-audio/mix-render-output-layout.ts';
 import { selectAudioTracksForMix } from '../../controller/track-audio/mix-render-model.ts';
 import type { ControllerProject } from '../../controller/track-audio/track-domain-types.ts';
+import { selectAudioEditorEditBlock, type AudioEditorEditBlockingSnapshot } from '../../edit-blocking.ts';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import EditorHelpTooltip from '../EditorHelpTooltip.tsx';
 import PreferenceCheckbox from '../EditorPreferenceCheckbox.tsx';
@@ -46,7 +47,7 @@ interface MixRenderDialogProps {
 			}>;
 		}>;
 	}>;
-	readonly snapshot: Readonly<{
+	readonly snapshot: AudioEditorEditBlockingSnapshot & Readonly<{
 		readonly project?: ControllerProject | null;
 		readonly selectedTrackId?: string | null;
 		readonly selectedClipId?: string | null;
@@ -94,7 +95,7 @@ export default function MixRenderDialog({
 	const emptyOperation = !mixDown && !renderEffects;
 	const operation = useOwnedDialogOperation({
 		owner: projectId,
-		blocked: emptyOperation || predictedOutputChannelCount === null,
+		blocked: selectAudioEditorEditBlock(snapshot).blocked || emptyOperation || predictedOutputChannelCount === null,
 		run,
 		onOwnerChange: () => {
 			setMixDown(true);
