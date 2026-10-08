@@ -160,6 +160,7 @@ export const NIGHTLY_TEST_PAYLOAD_INPUTS = Object.freeze([
 	{ source: 'tests/helpers/libsndfile-rifx-fixture.ts', destination: 'tests/helpers/libsndfile-rifx-fixture.ts', kind: 'file', label: 'normal RIFX browser import fixture' },
 	{ source: 'tests/fixtures/aup4-native-rich.js', destination: 'tests/fixtures/aup4-native-rich.js', kind: 'file', label: 'AUP4 browser support fixture' },
 	{ source: 'tests/fixtures/bwfmetaedit-cp1252-info.wav.base64', destination: 'tests/fixtures/bwfmetaedit-cp1252-info.wav.base64', kind: 'file', label: 'ordinary BWF MetaEdit browser import fixture' },
+	{ source: 'tests/fixtures/bwfmetaedit-ixml-clock.wav.base64', destination: 'tests/fixtures/bwfmetaedit-ixml-clock.wav.base64', kind: 'file', label: 'ordinary recorder iXML browser delivery fixture' },
 	{ source: 'tests/fixtures/nyquist-archive', destination: 'tests/fixtures/nyquist-archive', kind: 'directory', label: 'Nyquist browser archive and notices' },
 	{ source: 'evidence/nyquist-plugin-publication/catalog-metadata-ed168a19631ec48d0029dfb5c17d16c339a174c1.json', destination: 'evidence/nyquist-plugin-publication/catalog-metadata-ed168a19631ec48d0029dfb5c17d16c339a174c1.json', kind: 'file', label: 'Nyquist browser catalog metadata' },
 ]);

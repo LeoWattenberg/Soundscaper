@@ -160,6 +160,7 @@ export async function createFixture(context) {
 		['tests/helpers/libsndfile-rifx-fixture.ts', await readFile(new URL('./libsndfile-rifx-fixture.ts', import.meta.url), 'utf8')],
 		['tests/fixtures/aup4-native-rich.js', 'export const fixture = true;\n'],
 		['tests/fixtures/bwfmetaedit-cp1252-info.wav.base64', 'ordinary BWF MetaEdit fixture\n'],
+		['tests/fixtures/bwfmetaedit-ixml-clock.wav.base64', await readFile(new URL('../fixtures/bwfmetaedit-ixml-clock.wav.base64', import.meta.url), 'utf8')],
 		['src/common/editor/example.ts', 'export const source = true;\n'],
 	]) await writeFixtureFile(repositoryRoot, path, body);
 
