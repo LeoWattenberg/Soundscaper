@@ -78,10 +78,18 @@ for (const locale of ['en', 'de']) {
 		await query([{ column: 'capture-time', operator: 'range', from: '2026-10-07T12:34:56', to: '2026-10-07T12:34:56.125' }], ['source-conflict']);
 		for (const direction of ['ascending', 'descending']) {
 			await applyQuery(page, app, copy, [], { field: 'capture-time', direction });
-			await expect(cards).toHaveCount(7); await expect(library).toHaveAttribute('aria-busy', 'false');
-			const visible = await cardNames(cards);
+			await expect(cards).toHaveCount(4); await expect(library).toHaveAttribute('aria-busy', 'false');
+			await expect(library.locator('[data-photo-count]')).toHaveAttribute('data-photo-count', '7');
+			const known = await cardNames(cards);
+			expect(known[direction === 'ascending' ? 0 : known.length - 1]).toBe(sourceName('source-conflict'));
+			// Known clocks and the unknown bucket are separate bounded pages in both directions.
+			await menuAction(page, app, copy.photoViewMenu, copy.photoNextPage);
+			await expect(cards).toHaveCount(3); await expect(library).toHaveAttribute('aria-busy', 'false');
+			await expect(library.locator('[data-photo-count]')).toHaveAttribute('data-photo-count', '7');
+			const visible = [...known, ...await cardNames(cards)];
 			expect([...visible.slice(0, 4)].sort()).toEqual(names(CAPTURED).sort());
 			expect([...visible.slice(4)].sort()).toEqual(names(['partial-capture', 'oversized-camera', 'no-metadata']).sort());
+			await expect(app.getByRole('button', { name: copy.photoNextPage, exact: true, includeHidden: true })).toBeDisabled();
 		}
 
 		const conflictConditions = [{ column: 'camera-make', operator: 'equals', value: 'Canon' },
