@@ -19,6 +19,7 @@ import {
 } from '../project-schema-version.ts';
 import { scaleSampleFrame } from '../timeline-time.ts';
 import { clipLoopTransformFields } from '../audio-clip-loop.ts';
+import { projectBinReplacementWarp } from '../project-bin-replacement-warp.ts';
 import { isNativeProjectBinVideo, projectBinVideoReplacementRange } from '../project-bin-video-replacement.ts';
 import { resolveRuntimeClipProjection } from '../runtime-clip-projection.ts';
 import {
@@ -366,7 +367,7 @@ function replaceProjectBinMedia(project, command) {
 					title: targetTitle, color: targetColor, groupId: null, avLinkId: null, binItemId: clip.binItemId,
 				})];
 			}
-			return [normalizeClipForProject(project, {
+			return [normalizeReplacementClip(project, clip, {
 				...template,
 				...clip,
 				id: clip.id,
@@ -459,7 +460,7 @@ function remapReplacementClip(project, clip, oldSource, newSource) {
 	));
 	const sourceDurationFrames = Math.min(requestedSourceDuration, newSource.frameCount - sourceStartFrame);
 	const durationFrames = Math.max(1, Math.round(clip.durationFrames * sourceDurationFrames / requestedSourceDuration));
-	return normalizeClipForProject(project, {
+	return normalizeReplacementClip(project, clip, {
 		...clip,
 		...clipLoopTransformFields(clip, { durationFrames }),
 		sourceId: newSource.id,
@@ -476,6 +477,11 @@ function remapReplacementClip(project, clip, oldSource, newSource) {
 		),
 		id: clip.id,
 	});
+}
+
+function normalizeReplacementClip(project, original, replacement) {
+	const clip = normalizeClipForProject(project, { ...replacement, warpMap: null });
+	return normalizeClipForProject(project, { ...clip, ...projectBinReplacementWarp(original, clip) });
 }
 
 function recordReplacementContraction(project, clip, frames, contractionsByTrack) {
