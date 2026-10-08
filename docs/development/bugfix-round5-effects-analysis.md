@@ -584,6 +584,14 @@ existing native-clock, reversed-loop, split-phase, Source processing and
 loop/trim support passes 39/39 after correction. Target lint, focused strict
 test types and the size gate pass. Regressions are
 `audio-editor-round5-source-tempo-loop.test.ts` and
-`audio-editor-round5-source-tempo-loop.spec.js`. All-browser verification is
-pending; ROOT-019 is not yet included in the verified count. Assistance
+`audio-editor-round5-source-tempo-loop.spec.js`. Immutable `b92c1f339` passes
+the exact exported extent and pitch across both repetitions, visible scaled
+repeat boundary, Undo and Redo in Chromium, Firefox and WebKit (3/3,
+1.8 minutes; `/tmp/soundscaper-r5-root-source-tempo-loop-green25-final.log`).
+Initial corrected browser attempts retained the original file-name locator
+after ordinary Source processing renamed the clip to its source stem. Those
+locator failures are excluded; the final workflow reacquires the visible
+processed clip and uses ordinary Zoom to selection for its repeat boundary.
+No audio assertion or original 60-second per-test deadline was weakened.
+Both guarded product builds pass. ROOT-019 is counted once. Assistance
 runtime assets are unchanged.

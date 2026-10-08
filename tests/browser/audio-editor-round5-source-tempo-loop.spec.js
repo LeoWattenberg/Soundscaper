@@ -43,7 +43,10 @@ test('a Source tempo change retains the pitch and repetitions of a looped record
 	expect(frequency(samples, 4800, 14_400)).toBeLessThan(760);
 	expect(frequency(samples, 24_000, 33_600)).toBeGreaterThan(740);
 	expect(frequency(samples, 24_000, 33_600)).toBeLessThan(760);
-	await expect(clip.locator('[data-loop-boundary-frame="19200"]')).toBeVisible();
+	const processedClip = clipByName(editor, 'source-loop-tempo');
+	await processedClip.locator('.clip-header').click();
+	await chooseNestedCommandAction(page, editor, 'View', ['Zoom', 'Zoom to selection']);
+	await expect(processedClip.locator('[data-loop-boundary-frame="19200"]')).toBeVisible();
 	await chooseCommandAction(page, editor, 'Edit', 'Undo');
 	const undone = await exportSamples(page, editor);
 	expect(undone.length).toBe(76_800);
