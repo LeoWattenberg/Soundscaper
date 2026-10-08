@@ -1,8 +1,8 @@
 # Fifth user-reproducible regression audit
 
-This audit is in progress toward 100 additional distinct fixes. Eighty
-new roots have completed ordinary browser verification (editing 21, dialogs 26,
-effects/analysis 22, import/export 11). Its immutable
+This audit is in progress toward 100 additional distinct fixes. Eighty-three
+new roots have completed ordinary browser verification (editing 22, dialogs 26,
+effects/analysis 23, import/export 12). Its immutable
 baseline is `fe6440c81b3a0fe29a028c64db867ae7d2cf3252`.
 
 Count an entry only after ordinary public user actions reproduce its defect
@@ -89,6 +89,16 @@ Checkpoint thirty-one, `a26a52e78`, passes both guarded builds. Warp authoring
 now refuses a looping recording before publishing an unusable map; WAV export,
 unchanged history and ordinary return-to-one-repeat recovery pass in all three
 engines.
+Checkpoint thirty-two, `7ff19f182`, passes both guarded builds, surround Speed
+admission and ordinary camera Bin audition of authored companion audio across
+all three engines. Linked pitch-and-speed recovery remains available, and an
+unchanged companion remains audible. Coordinated source and test typechecks
+and the complete bounded-memory lint pass. The first source check caught an
+unsupported tooltip prop in the pending curve fix; it is corrected before its
+source commit, and the coordinated retry passes.
+Checkpoint thirty-three, `9ac41696b`, passes both guarded builds and exact
+Filter Curve inverse admission plus the existing curve interactions and rack
+persistence in all three engines (12/12).
 Browser evidence names each exact checkpoint. Firefox audio
 uses the unchanged CI PulseAudio setup with a private 48 kHz null sink.
 

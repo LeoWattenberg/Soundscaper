@@ -711,5 +711,9 @@ admission workflow fails at its enabled button
 mounted case fails before correction, then new and existing curve, point-focus,
 keyboard, axis and gesture support passes 11/11. Its exact -60/+60 boundary
 and second-inversion round trip pass. Target lint, focused strict compiler and
-the size gate pass. Corrected public verification is pending; ROOT-023 is not
-yet counted. The assistance runtime closure is unchanged.
+the size gate pass. Immutable `9ac41696b` passes the unchanged public inverse
+admission, exact supported double-inversion round trip and existing curve
+interactions plus realtime-rack persistence in Chromium, Firefox and WebKit
+(12/12, 55.0 seconds; `/tmp/soundscaper-r5-root-filter-invert-green33.log`).
+Both guarded product builds pass. ROOT-023 is counted once. The assistance
+runtime closure is unchanged.
