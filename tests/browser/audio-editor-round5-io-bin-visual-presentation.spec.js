@@ -1,0 +1,42 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+import { EDITOR_ENGLISH_COPY } from '../../src/common/i18n/editor-copy-inventory.ts';
+import { expect, test } from './audio-editor-test-fixtures.js';
+import { bootEditor, chooseCommandAction, chooseNestedCommandAction, closeWorkspacePanel } from './audio-editor-test-helpers.js';
+
+test('a styled Title retains its opacity when returned from Project Bin', async ({ page }) => {
+	const editor = await bootEditor(page, '/framescaper/embed/en/');
+	await closeWorkspacePanel(editor, 'video-preview');
+	await chooseNestedCommandAction(page, editor, 'Generate', ['Video Generators', EDITOR_ENGLISH_COPY['ui.framescaperMenus.addVideoTitle']]);
+	const title = editor.getByRole('group', { name: 'Video clip: Title', exact: true });
+	await expect(title).toHaveCount(1);
+	await expect(editor).not.toHaveAttribute('data-edit-block-reason', /.+/u);
+	await title.press('Enter');
+	await chooseNestedCommandAction(page, editor, 'Effect', ['Video Finishing', 'Selected Visual Inspector']);
+	let dialog = page.getByRole('dialog', { name: 'Selected Visual Inspector', exact: true });
+	await dialog.getByRole('spinbutton', { name: 'Opacity', exact: true }).fill('0.25');
+	await dialog.getByRole('button', { name: 'Apply', exact: true }).click();
+	await expect(dialog.getByRole('status').last()).toHaveText('Selected visual updated.');
+	await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+	await title.click({ button: 'right' });
+	await page.getByRole('menuitem', { name: 'Move to Project bin', exact: true }).click();
+	const card = editor.locator('[data-project-bin-item]').first();
+	await expect(card).toBeVisible();
+	await expect(title).toHaveCount(0);
+	await card.getByRole('button', { name: /^Add to timeline:/u }).click();
+	await expect(title).toHaveCount(1);
+	await title.press('Enter');
+	await chooseNestedCommandAction(page, editor, 'Effect', ['Video Finishing', 'Selected Visual Inspector']);
+	dialog = page.getByRole('dialog', { name: 'Selected Visual Inspector', exact: true });
+	await expect(dialog.getByRole('spinbutton', { name: 'Opacity', exact: true })).toHaveValue('0.25');
+	await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+	await chooseCommandAction(page, editor, 'Edit', 'Undo');
+	await expect(title).toHaveCount(0);
+	await expect(card).toBeVisible();
+	await chooseCommandAction(page, editor, 'Edit', 'Redo');
+	await expect(title).toHaveCount(1);
+	await title.press('Enter');
+	await chooseNestedCommandAction(page, editor, 'Effect', ['Video Finishing', 'Selected Visual Inspector']);
+	await expect(page.getByRole('dialog', { name: 'Selected Visual Inspector', exact: true })
+		.getByRole('spinbutton', { name: 'Opacity', exact: true })).toHaveValue('0.25');
+});

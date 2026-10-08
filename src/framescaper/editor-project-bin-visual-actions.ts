@@ -7,6 +7,7 @@ import {
 	bindProductProjectBinActions, type ProductProjectBinActions,
 } from '../common/editor/controller/composition/project-bin-action-group.ts';
 import { createFramescaperImageBatchPlacementTimelineImage } from './editor-image-placement-timeline-image.ts';
+import { createSplitVisualPresentationPlanner } from './editor-split-visual-presentations.ts';
 
 type Data = Readonly<Record<string, unknown>>;
 
@@ -137,6 +138,8 @@ export function createFramescaperProjectBinVisualActions(
 		const candidate = { ...clip, id, sequenceId: target.sequenceId, sequenceStartFrame: start };
 		const commands: Data[] = target.trackCommand ? [target.trackCommand] : [];
 		commands.push(clipCommand(null, candidate, null, { scope: 'timeline', trackId: target.trackId }));
+		const presentations = createSplitVisualPresentationPlanner(records(project.videoVisualPresentations)).copy(String(clip.id), id);
+		commands.push(...presentations.map(command => ({ ...command })));
 		owner.actions.edit.commit({ type: 'batch', commands });
 		return id;
 	}
