@@ -11,6 +11,9 @@ test('a negative recording offset delays the saved take instead of disappearing 
 	await installOscillatorMicrophone(page);
 	const editor = await bootEditor(page, '/embed/en/');
 	const projectId = await editor.getAttribute('data-project-id');
+	// Open the real device once before comparing two manual corrections; its
+	// reported output latency can change when the first recording starts it.
+	await recordPass(page, editor);
 	const starts = [];
 	for (const offset of [-500, -400]) {
 		await chooseCommandAction(page, editor, 'Edit', 'Preferences');
@@ -23,7 +26,7 @@ test('a negative recording offset delays the saved take instead of disappearing 
 		await preferences.getByRole('button', { name: 'Close', exact: true }).last().click();
 		await expect(preferences).toBeHidden();
 		await editor.getByRole('slider', { name: 'Playhead', exact: true }).press('Home');
-		const recorded = await recordPass(page, editor, { newTrack: starts.length > 0 });
+		const recorded = await recordPass(page, editor, { newTrack: true });
 		const clipId = await recorded.clip.getAttribute('data-clip-id');
 		const project = await persistedProject(page, projectId);
 		const clip = project.clips.find(candidate => candidate.id === clipId);
