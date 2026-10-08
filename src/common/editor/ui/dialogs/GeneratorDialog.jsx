@@ -110,6 +110,7 @@ export default function GeneratorDialog({ type, controller, copy, locale, run, o
 			);
 			return {
 				...current,
+				dutyPercent: dutyPercent ?? currentTiming.dutyPercent,
 				durationSeconds: next.totalSeconds,
 				toneSeconds: next.toneSeconds,
 				silenceSeconds: next.silenceSeconds,
@@ -356,9 +357,9 @@ function generatorDtmfTiming(params) {
 	const symbolCount = generatorDtmfSymbolCount(params.sequence);
 	const toneSeconds = Number(params.toneSeconds) || 0;
 	const silenceSeconds = Number(params.silenceSeconds) || 0;
-	const dutyPercent = toneSeconds + silenceSeconds > 0
+	const dutyPercent = params.dutyPercent ?? (toneSeconds + silenceSeconds > 0
 		? toneSeconds / (toneSeconds + silenceSeconds) * 100
-		: 100;
+		: 100);
 	const totalSeconds = Number(params.durationSeconds) > 0 ? Number(params.durationSeconds) : 30;
 	const durations = generatorDtmfDurations(totalSeconds, dutyPercent, symbolCount);
 	return {
@@ -423,7 +424,7 @@ function generatorDefaults(type, project) {
 	if (type === 'noise') return { ...common, amplitude: 0.8, color: 'white' };
 	if (type === 'dtmf') {
 		const durations = generatorDtmfDurations(durationSeconds, 2 / 3 * 100, 3);
-		return { ...common, amplitude: 0.8, sequence: '123', toneSeconds: durations.toneSeconds, silenceSeconds: durations.silenceSeconds };
+		return { ...common, amplitude: 0.8, sequence: '123', dutyPercent: 2 / 3 * 100, toneSeconds: durations.toneSeconds, silenceSeconds: durations.silenceSeconds };
 	}
 	// Morse takes its length from the message and the sending speed, so the
 	// shared duration default would only describe a clip it never produces.
