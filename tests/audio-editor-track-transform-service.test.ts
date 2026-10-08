@@ -400,11 +400,11 @@ test('joining mono tracks bakes each authored strip and resets the merged strip'
 	const rightClip = clipFixture('right-clip', 'right-source');
 	const left = trackFixture({
 		id: 'left', clipIds: [leftClip.id], gain: 0.5,
-		effects: [{ id: 'left-effect', type: 'gain' }], envelope: [{ frame: 0, value: 0.5 }],
+		effects: [{ id: 'left-effect', type: 'compressor' }], envelope: [{ frame: 0, value: 0.5 }],
 	});
 	const right = trackFixture({
 		id: 'right', clipIds: [rightClip.id], gain: 0.25,
-		effects: [{ id: 'right-effect', type: 'gain' }], envelope: [{ frame: 0, value: 0.25 }],
+		effects: [{ id: 'right-effect', type: 'compressor' }], envelope: [{ frame: 0, value: 0.25 }],
 	});
 	const fixture = createTransformFixture(projectFixture({
 		tracks: [left, right], clips: [leftClip, rightClip],

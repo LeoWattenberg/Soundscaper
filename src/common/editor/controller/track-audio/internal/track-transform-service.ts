@@ -13,6 +13,7 @@ import { scaleSampleFrame } from '../../../timeline-time.ts';
 import { loadSourceProvenanceDerivation } from '../../../source-provenance-derivation-loader.ts';
 import { resampledClipCommands } from './clip-resample-service.ts';
 import { trackReplacementPlacement } from './track-replacement-placement.ts';
+import { stereoTrackRenderRange } from './stereo-track-render-range.ts';
 import { copyDerivedTrackStripAutomation } from '../../../derived-track-strip-automation.ts';
 import { copyDerivedTrackEffectAutomation } from '../../../derived-track-effect-automation.ts';
 import type { DerivedSourceService } from './derived-audio/derived-source-service.ts';
@@ -320,8 +321,7 @@ export function createTrackTransformService(
 		const clips = [...(track.clipIds ?? []), ...(partner.clipIds ?? [])]
 			.map((clipId) => findControllerClip(project, clipId))
 			.filter((clip): clip is ControllerClip => Boolean(clip));
-		const startFrame = clips.length ? Math.min(...clips.map((clip) => clip.timelineStartFrame)) : 0;
-		const endFrame = clips.length ? Math.max(...clips.map((clip) => clip.timelineStartFrame + clip.durationFrames)) : 0;
+		const { startFrame, endFrame } = stereoTrackRenderRange([track, partner], clips, dependencies.projectSampleRate());
 		if (endFrame <= startFrame) return dependencies.commit({ type: 'batch', commands: [
 			{ type: 'track/update', trackId: track.id, changes: { pan: 0 } },
 			{ type: 'track/remove', trackId: partner.id },
