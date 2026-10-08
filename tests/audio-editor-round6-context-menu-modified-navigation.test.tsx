@@ -63,8 +63,12 @@ async function withMenu(
 	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
 	const listeners = new Set<EventListenerOrEventListenerObject>();
 	const owner = dom.container.ownerDocument as unknown as Document;
-	owner.addEventListener = (type, listener) => { if (type === 'keydown' && listener) listeners.add(listener); };
-	owner.removeEventListener = (type, listener) => { if (type === 'keydown' && listener) listeners.delete(listener); };
+	owner.addEventListener = (type: string, listener: EventListenerOrEventListenerObject | null) => {
+		if (type === 'keydown' && listener) listeners.add(listener);
+	};
+	owner.removeEventListener = (type: string, listener: EventListenerOrEventListenerObject | null) => {
+		if (type === 'keydown' && listener) listeners.delete(listener);
+	};
 	try {
 		await act(async () => { root.render(<ContextMenu isOpen x={0} y={0} autoFocus={false} onClose={() => undefined}>
 			<ContextMenuItem label="First" hasSubmenu={nested}>{nested && <ContextMenuItem label="Child" />}</ContextMenuItem>
