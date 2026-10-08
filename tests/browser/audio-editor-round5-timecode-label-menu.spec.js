@@ -18,6 +18,6 @@ test('choosing a labeled time format leaves its menu closed and digits editable'
 	await page.keyboard.type('1');
 	await page.keyboard.press('Enter');
 	await expect(duration).toBeFocused();
-	await expect(duration.locator('.timecode__display')).toHaveText('000,001,440,001');
+	await expect(duration.locator('.timecode__display')).toHaveText('000,001,440,001samples');
 	await expect(dialog).toBeVisible();
 });

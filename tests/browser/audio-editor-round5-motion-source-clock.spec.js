@@ -20,6 +20,7 @@ test('motion analysis source frame time uses the source clock', async ({ page })
 	await expect(end).toBeFocused();
 	await end.getByRole('button', { name: 'End frame: format', exact: true }).click();
 	await page.getByRole('menuitem', { name: 'seconds + milliseconds', exact: true }).click();
+	await expect(page.getByRole('menuitem', { name: 'seconds + milliseconds', exact: true })).toHaveCount(0);
 	await expect(end.locator('.timecode__display')).toHaveText('000,001.008s');
 });
 
@@ -57,7 +58,5 @@ async function showFilmFrames(page, end) {
 	await end.getByRole('button', { name: 'End frame: format', exact: true }).click();
 	await page.getByRole('menuitem', { name: /^Video frames/u }).hover();
 	await page.getByRole('menuitem', { name: /^film frames/u }).click();
-	if (await page.getByRole('menuitem', { name: 'dd:hh:mm:ss', exact: true }).isVisible()) {
-		await page.keyboard.press('Escape');
-	}
+	await expect(page.getByRole('menuitem', { name: 'dd:hh:mm:ss', exact: true })).toHaveCount(0);
 }
