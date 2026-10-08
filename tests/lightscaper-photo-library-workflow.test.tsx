@@ -373,6 +373,10 @@ test('an acknowledged import invalidates the active query continuation even when
 function owner(readPage: PhotoLibrarySessionPortV1['readPage']) {
 	let closes = 0;
 	const port: PhotoLibrarySessionPortV1 = {
+		readBatchRenameSelection: async (): Promise<never> => { throw new Error('Unexpected batch rename selection in workflow fixture.'); },
+		planBatchRename: (): never => { throw new Error('Unexpected batch rename plan in workflow fixture.'); },
+		renamePhotos: async (): Promise<never> => { throw new Error('Unexpected batch rename in workflow fixture.'); },
+		undoBatchRename: async (): Promise<never> => { throw new Error('Unexpected batch rename undo in workflow fixture.'); },
 		readImportPresets: async (): Promise<never> => { throw new Error('Unexpected import preset read in workflow fixture.'); },
 		applyImportPreset: async (): Promise<never> => { throw new Error('Unexpected import preset write in workflow fixture.'); },
 		readPage,

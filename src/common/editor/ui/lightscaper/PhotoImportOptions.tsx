@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from 'react';
 import type { PhotoLibraryImportSettingsV1 } from '../../photo-library-import-settings-port-v1.ts';
+import PhotoNameTemplateFields from './PhotoNameTemplateFields.tsx';
 import './photo-import-options.css';
 
 const DEFAULT_RENAME = Object.freeze({ template: '{stem}-{sequence}.{extension}', sequenceStart: 1, sequencePadding: 3 });
@@ -45,16 +46,8 @@ export default function PhotoImportOptions({ value, onChange, busy, copy, childr
 		{open && <fieldset disabled={busy}>
 			<label className="lightscaper-import-option-toggle"><input type="checkbox" data-import-rename checked={value.rename !== null}
 				onChange={event => { update({ ...value, rename: event.currentTarget.checked ? DEFAULT_RENAME : null }); }} />{copy.photoImportRename}</label>
-			{value.rename !== null && <>
-				<label>{copy.photoImportNameTemplate}<input data-import-template value={value.rename.template} required maxLength={256}
-					onChange={event => { update({ ...value, rename: { ...value.rename!, template: event.currentTarget.value } }); }} /></label>
-				<label>{copy.photoImportSequenceStart}<input type="number" data-import-sequence-start required min={1} max={Number.MAX_SAFE_INTEGER} step={1}
-					value={Number.isFinite(value.rename.sequenceStart) ? value.rename.sequenceStart : ''}
-					onChange={event => { update({ ...value, rename: { ...value.rename!, sequenceStart: event.currentTarget.valueAsNumber } }); }} /></label>
-				<label>{copy.photoImportSequencePadding}<input type="number" data-import-sequence-padding required min={1} max={16} step={1}
-					value={Number.isFinite(value.rename.sequencePadding) ? value.rename.sequencePadding : ''}
-					onChange={event => { update({ ...value, rename: { ...value.rename!, sequencePadding: event.currentTarget.valueAsNumber } }); }} /></label>
-			</>}
+			{value.rename !== null && <PhotoNameTemplateFields value={value.rename} busy={busy} copy={copy} dataPrefix="import"
+				onChange={rename => { update({ ...value, rename }); }} />}
 			<p>{copy.photoImportMetadataHelp}</p>
 			{fields.map(([key, label]) => {
 				const enabled = Object.hasOwn(value.metadata, key);

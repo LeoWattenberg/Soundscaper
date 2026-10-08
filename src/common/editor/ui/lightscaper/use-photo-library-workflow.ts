@@ -2,6 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PhotoLibraryCullReceiptV1 } from '../../controller/shared/photo-library-culling-v1.ts';
+import type { PhotoLibraryBatchRenamePlanV1, PhotoLibraryBatchRenameReceiptV1, PhotoLibraryBatchRenameRequestV1,
+	PhotoLibraryBatchRenameSnapshotV1, PhotoLibraryBatchRenameUndoV1 } from '../../photo-library-batch-rename-port-v1.ts';
+import { readPhotoLibrarySelectionIdsV1 } from '../../controller/shared/photo-library-selection-v1.ts';
 import { createPhotoLibraryImportCollectorV1, detachPhotoLibraryImportSettingsV1 } from '../../controller/shared/photo-library-import-gesture-v1.ts';
 import type { PhotoLibraryImportGestureReceiptV1, PhotoLibraryImportPresetCommandV1, PhotoLibraryImportPresetSnapshotV1,
 	PhotoLibraryImportRequestOptionsV1 } from '../../photo-library-import-settings-port-v1.ts';
@@ -18,9 +21,13 @@ interface SessionSlot {
 	active: AbortController | null;
 	query: PhotoLibraryQueryV1 | null;
 	page: PhotoLibraryPageV1 | null;
+	batchRenamePlanner: PhotoLibrarySessionPortV1['planBatchRename'] | null;
 }
 type WorkflowAction = (owner: PhotoLibrarySessionPortV1, signal: AbortSignal, current: SessionSlot) => Promise<void>;
 type ActionStatus = 'completed' | 'failed' | 'cancelled' | 'busy';
+export type PhotoLibraryBatchRenameWorkflowReceiptV1 =
+	| Readonly<{ outcome: 'acknowledged'; receipt: PhotoLibraryBatchRenameReceiptV1; notice: 'refresh-failed' | null }>
+	| Readonly<{ outcome: 'failed' | 'busy' | 'cancelled' }>;
 const getFileName = Object.getOwnPropertyDescriptor(File.prototype, 'name')?.get;
 
 /** The effect owns one resource generation, including factories resolving after cleanup. */
@@ -38,18 +45,22 @@ export function usePhotoLibraryWorkflow(createSession?: CreatePhotoLibrarySessio
 	const [needsQueryIndex, setNeedsQueryIndex] = useState(false);
 	const [queryIndexProgress, setQueryIndexProgress] = useState<PhotoLibraryQueryBuildProgressV1 | null>(null);
 	const [error, setError] = useState<string | null>(null);
+	const [batchRenameSnapshot, setBatchRenameSnapshot] = useState<PhotoLibraryBatchRenameSnapshotV1 | null>(null);
+	const [batchRenameReceipt, setBatchRenameReceipt] = useState<Extract<PhotoLibraryBatchRenameWorkflowReceiptV1, { outcome: 'acknowledged' }> | null>(null);
+	const [batchRenameUndo, setBatchRenameUndo] = useState<PhotoLibraryBatchRenameUndoV1 | null>(null);
 	const publishPage = useCallback((current: SessionSlot, next: PhotoLibraryPageV1 | null) => {
 		if (!current.live) return null;
 		current.page = next; setPage(next); return next;
 	}, []);
 	useEffect(() => {
 		const current: SessionSlot = { live: true, factory: createSession, lifetime: new AbortController(),
-			beforeDrain: retiring.current, pending: null, active: null, query: null, page: null };
+			beforeDrain: retiring.current, pending: null, active: null, query: null, page: null, batchRenamePlanner: null };
 		slot.current = current;
 		queueMicrotask(() => {
 			if (!current.live) return;
 			setQuery(null); setNeedsQueryIndex(false); setQueryIndexProgress(null);
 			publishPage(current, null); setMetadata(null); setMemberships(null); setReceipts([]); setImportReceipt(null); setError(null); setBusy(current.active !== null);
+			setBatchRenameSnapshot(null); setBatchRenameReceipt(null); setBatchRenameUndo(null);
 		});
 		return () => {
 			current.live = false; current.lifetime.abort(); current.active?.abort();
@@ -106,6 +117,69 @@ export function usePhotoLibraryWorkflow(createSession?: CreatePhotoLibrarySessio
 		const next = current.query ? await readNonemptyQueryPage(owner, current.query, cursor, signal) : await owner.readPage({ cursor, signal });
 		publishPage(current, next);
 	}), [run, publishPage]);
+	const readBatchRenameSelection = useCallback(async (values: readonly string[], options: Readonly<{ signal?: AbortSignal }> = {}): Promise<void> => {
+		const admission = slot.current;
+		if (!admission?.live || admission.factory !== factory.current || admission.active) return;
+		let ids: readonly string[];
+		try {
+			ids = readPhotoLibrarySelectionIdsV1(values);
+			if (ids.length === 0) throw new RangeError('Batch rename requires selected photos.');
+		} catch (failure) { setError(message(failure)); return; }
+		setBatchRenameSnapshot(null); setBatchRenameReceipt(null); admission.batchRenamePlanner = null;
+		await perform(async (owner, signal, current) => {
+			const next = await owner.readBatchRenameSelection(ids, { signal }); signal.throwIfAborted();
+			if (current.live && current.factory === factory.current) {
+				current.batchRenamePlanner = request => owner.planBatchRename(request); setBatchRenameSnapshot(next);
+			}
+		}, options.signal);
+	}, [perform]);
+	const planBatchRename = useCallback((request: PhotoLibraryBatchRenameRequestV1): PhotoLibraryBatchRenamePlanV1 => {
+		const current = slot.current;
+		if (!current?.live || current.factory !== factory.current || !current.batchRenamePlanner) {
+			throw new DOMException('Batch rename selection is unavailable.', 'AbortError');
+		}
+		return current.batchRenamePlanner(request);
+	}, []);
+	const runBatchRename = useCallback(async (save: (owner: PhotoLibrarySessionPortV1, signal: AbortSignal) => Promise<PhotoLibraryBatchRenameReceiptV1>,
+		options: Readonly<{ signal?: AbortSignal }>): Promise<PhotoLibraryBatchRenameWorkflowReceiptV1> => {
+		if (!slot.current?.live || slot.current.factory !== factory.current) return Object.freeze({ outcome: 'cancelled' });
+		let result: Extract<PhotoLibraryBatchRenameWorkflowReceiptV1, { outcome: 'acknowledged' }> | null = null;
+		let generation: SessionSlot | null = null;
+		const remember = (current: SessionSlot, acknowledged: Extract<PhotoLibraryBatchRenameWorkflowReceiptV1, { outcome: 'acknowledged' }>) => {
+			if (!current.live || current.factory !== factory.current) return;
+			setBatchRenameReceipt(acknowledged);
+			if (acknowledged.receipt.action === 'undo' || acknowledged.receipt.items.some(item => item.status === 'renamed')) {
+				setBatchRenameUndo(acknowledged.receipt.undo);
+			}
+		};
+		const status = await perform(async (owner, signal, current) => {
+			if (!current.live || current.factory !== factory.current) throw new DOMException('Batch rename generation is closed.', 'AbortError');
+			generation = current; setBatchRenameReceipt(null);
+			const receipt = await save(owner, signal);
+			result = Object.freeze({ outcome: 'acknowledged', receipt, notice: 'refresh-failed' });
+			remember(current, Object.freeze({ ...result, notice: null }));
+			if (!current.live || current.factory !== factory.current) return;
+			const names = new Map(receipt.items.filter(item => item.status !== 'failed').map(item => [item.photoId, item.fileName]));
+			const previous = current.page;
+			if (previous) publishPage(current, Object.freeze({ ...previous, cursor: null,
+				rows: Object.freeze(previous.rows.map(row => names.has(row.id) ? Object.freeze({ ...row, fileName: names.get(row.id)! }) : row)) }));
+			signal.throwIfAborted();
+			const next = current.query ? await readNonemptyQueryPage(owner, current.query, null, signal) : await owner.readPage({ signal });
+			signal.throwIfAborted();
+			if (current.live && current.factory === factory.current && publishPage(current, next)) {
+				result = Object.freeze({ outcome: 'acknowledged', receipt, notice: null });
+			}
+		}, options.signal);
+		if (result) {
+			if (generation) remember(generation, result);
+			return result;
+		}
+		return Object.freeze({ outcome: status === 'completed' ? 'failed' : status });
+	}, [perform, publishPage]);
+	const renamePhotos = useCallback((plan: PhotoLibraryBatchRenamePlanV1, options: Readonly<{ signal?: AbortSignal }> = {}) =>
+		runBatchRename((owner, signal) => owner.renamePhotos(plan, { signal }), options), [runBatchRename]);
+	const undoBatchRename = useCallback((undo: PhotoLibraryBatchRenameUndoV1, options: Readonly<{ signal?: AbortSignal }> = {}) =>
+		runBatchRename((owner, signal) => owner.undoBatchRename(undo, { signal }), options), [runBatchRename]);
 	const applyQuery = (nextQuery: PhotoLibraryQueryV1) => run(async (owner, signal, current) => {
 		const next = await readNonemptyQueryPage(owner, nextQuery, null, signal);
 		if (current.live) { current.query = nextQuery; setQuery(nextQuery); setNeedsQueryIndex(false); publishPage(current, next); }
@@ -280,15 +354,18 @@ export function usePhotoLibraryWorkflow(createSession?: CreatePhotoLibrarySessio
 		updateRow(next.row, current);
 		await refreshQuery(owner, signal, current);
 	});
-	return { page, metadata, memberships, readPreview, query, needsQueryIndex, queryIndexProgress, applyQuery, probeQuery, buildQueryIndex, readDefinitions,
+	return { page, metadata, memberships, batchRenameSnapshot, batchRenameReceipt, batchRenameUndo,
+		readBatchRenameSelection, planBatchRename, renamePhotos, undoBatchRename, readPreview, query, needsQueryIndex, queryIndexProgress, applyQuery, probeQuery, buildQueryIndex, readDefinitions,
 		readDefinition, applyDefinition, readMemberships, applyMemberships, readImportPresets, applyImportPreset, receipts, importReceipt, busy, error, readMetadata, applyMetadata, readPage, importFiles, setRating, applyAttributes,
 		cancel: () => { slot.current?.active?.abort(); } };
 }
 
 function message(failure: unknown): string {
-	const descriptor = failure && typeof failure === 'object' ? Object.getOwnPropertyDescriptor(failure, 'message') : undefined;
-	return descriptor && Object.hasOwn(descriptor, 'value') && typeof descriptor.value === 'string'
-		? descriptor.value.slice(0, 2_048) : 'The photo library action failed.';
+	try {
+		const descriptor = failure && typeof failure === 'object' ? Object.getOwnPropertyDescriptor(failure, 'message') : undefined;
+		if (descriptor && Object.hasOwn(descriptor, 'value') && typeof descriptor.value === 'string') return descriptor.value.slice(0, 2_048);
+	} catch { /* A diagnostic must never revoke an operation's outcome. */ }
+	return 'The photo library action failed.';
 }
 
 /** A canceled observer can settle before native close; replacement joins that close. */
@@ -324,5 +401,6 @@ async function yieldTask(signal: AbortSignal): Promise<void> {
 	await new Promise<void>(resolve => { setTimeout(resolve, 0); }); signal.throwIfAborted();
 }
 function errorCode(value: unknown): unknown {
-	return value && typeof value === 'object' ? Object.getOwnPropertyDescriptor(value, 'code')?.value as unknown : undefined;
+	try { return value && typeof value === 'object' ? Object.getOwnPropertyDescriptor(value, 'code')?.value as unknown : undefined; }
+	catch { return undefined; }
 }

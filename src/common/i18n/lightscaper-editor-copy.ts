@@ -144,6 +144,21 @@ const ENGLISH = Object.freeze({
 	photoImportNextKeywords: "Next keywords",
 	photoImportCancelled: "Import was cancelled. Photos already imported remain in the library.",
 	photoImportInterrupted: "Import was interrupted. Photos already imported remain in the library.",
+	photoBatchRenameTitle: "Rename selected photos",
+	photoBatchRenamePreview: "Preview names",
+	photoBatchRenameAction: "Rename",
+	photoBatchRenameClose: "Close",
+	photoBatchRenameCount: "{count} selected photos",
+	photoBatchRenameUndo: "Undo last batch rename",
+	photoBatchRenamed: "Renamed",
+	photoBatchRestored: "Restored",
+	photoBatchUnchanged: "Unchanged",
+	photoBatchFailed: "Failed",
+	photoBatchCancelled: "The operation was cancelled. Changes already saved remain in the library.",
+	photoBatchInterrupted: "The operation was interrupted. Changes already saved remain in the library.",
+	photoBatchRefreshFailed: "The library view could not be refreshed. The results remain valid.",
+	photoBatchCurrentName: "Current name",
+	photoBatchNewName: "New name",
 });
 
 export type LightscaperEditorCopyV1 = Readonly<Record<keyof typeof ENGLISH, string>>;
@@ -290,6 +305,21 @@ const GERMAN: LightscaperEditorCopyV1 = Object.freeze({
 	photoImportNextKeywords: "Nächste Schlagwörter",
 	photoImportCancelled: "Der Import wurde abgebrochen. Bereits importierte Fotos bleiben in der Bibliothek.",
 	photoImportInterrupted: "Der Import wurde unterbrochen. Bereits importierte Fotos bleiben in der Bibliothek.",
+	photoBatchRenameTitle: "Ausgewählte Fotos umbenennen",
+	photoBatchRenamePreview: "Namensvorschau",
+	photoBatchRenameAction: "Umbenennen",
+	photoBatchRenameClose: "Schließen",
+	photoBatchRenameCount: "{count} ausgewählte Fotos",
+	photoBatchRenameUndo: "Letzte Stapelumbenennung rückgängig machen",
+	photoBatchRenamed: "Umbenannt",
+	photoBatchRestored: "Wiederhergestellt",
+	photoBatchUnchanged: "Unverändert",
+	photoBatchFailed: "Fehlgeschlagen",
+	photoBatchCancelled: "Der Vorgang wurde abgebrochen. Bereits gespeicherte Änderungen bleiben in der Bibliothek.",
+	photoBatchInterrupted: "Der Vorgang wurde unterbrochen. Bereits gespeicherte Änderungen bleiben in der Bibliothek.",
+	photoBatchRefreshFailed: "Die Bibliotheksansicht konnte nicht aktualisiert werden. Die Ergebnisse bleiben gültig.",
+	photoBatchCurrentName: "Aktueller Name",
+	photoBatchNewName: "Neuer Name",
 });
 
 /** Flat identities remain shared with the canonical translation inventory. */

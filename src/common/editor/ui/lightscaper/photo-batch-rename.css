@@ -1,0 +1,16 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+.lightscaper-batch-rename-table {
+	inline-size: 100%;
+	table-layout: fixed;
+	border-collapse: collapse;
+	margin-block: 1rem;
+}
+.lightscaper-batch-rename-table th,
+.lightscaper-batch-rename-table td {
+	padding: .5rem;
+	text-align: start;
+	vertical-align: top;
+	overflow-wrap: anywhere;
+}
+.lightscaper-batch-rename-status { display: block; margin-block-start: .25rem; }

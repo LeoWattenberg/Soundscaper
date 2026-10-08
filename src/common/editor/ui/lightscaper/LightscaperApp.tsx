@@ -26,6 +26,8 @@ const PhotoPreviewPresentation = lazy(() => import('./PhotoPreviewPresentation.t
 const PhotoQueryDialog = lazy(() => import('./PhotoQueryDialog.tsx'));
 const PhotoCatalogOrganizerDialog = lazy(() => import('./PhotoCatalogOrganizerDialog.tsx'));
 const PhotoMembershipDialog = lazy(() => import('./PhotoMembershipDialog.tsx'));
+const PhotoBatchRenameDialog = lazy(() => import('./PhotoBatchRenameDialog.tsx'));
+const PhotoBatchRenameResults = lazy(() => import('./PhotoBatchRenameResults.tsx'));
 
 export default function LightscaperApp({ locale, createSession }: LightscaperAppProps) {
 	const copy = useSiteCopy(locale);
@@ -42,6 +44,7 @@ export default function LightscaperApp({ locale, createSession }: LightscaperApp
 	const [autoAdvance, setAutoAdvance] = useState(false);
 	const [organizerVisible, setOrganizerVisible] = useState(false);
 	const [membershipsVisible, setMembershipsVisible] = useState(false);
+	const [batchRenameVisible, setBatchRenameVisible] = useState(false);
 	const library = usePhotoLibraryWorkflow(createSession);
 	const factory = useRef(createSession); factory.current = createSession;
 	const { importFiles } = library;
@@ -59,7 +62,7 @@ export default function LightscaperApp({ locale, createSession }: LightscaperApp
 		green: copy.photoColorGreen, blue: copy.photoColorBlue, purple: copy.photoColorPurple };
 	const selection = library.page?.rows.find(row => row.id === photoSelection.snapshot.primaryId) ?? null;
 	useEffect(() => {
-		setOrganizerVisible(false); setMembershipsVisible(false); setMetadataVisible(false); setImportVisible(false);
+		setOrganizerVisible(false); setMembershipsVisible(false); setMetadataVisible(false); setImportVisible(false); setBatchRenameVisible(false);
 	}, [createSession]);
 	useEffect(() => {
 		const dismiss = (event: PointerEvent) => {
@@ -106,6 +109,10 @@ export default function LightscaperApp({ locale, createSession }: LightscaperApp
 		menu?.querySelector('summary')?.focus();
 	};
 	const closeImport = () => { setImportVisible(false); };
+	const closeBatchRename = () => {
+		if (factory.current !== createSession) return;
+		library.cancel(); setBatchRenameVisible(false);
+	};
 	const menuKeyDown = (event: KeyboardEvent<HTMLDetailsElement>) => {
 		if (event.key !== 'Escape' || !event.currentTarget.open) return;
 		event.preventDefault(); event.stopPropagation();
@@ -136,6 +143,9 @@ export default function LightscaperApp({ locale, createSession }: LightscaperApp
 		</section>}
 		{preview?.snapshot.targets.some(target => target.status === 'failed' || target.status === 'missing') && <p role="alert">{copy.photoPreviewUnavailable}</p>}
 		{preview?.snapshot.targets.some(target => target.notices.length > 0) && <p role="status">{copy.photoPreviewTemporary}</p>}
+		{!batchRenameVisible && library.batchRenameReceipt && <Suspense fallback={<p role="status">{copy.photoWorking}</p>}>
+			<PhotoBatchRenameResults receipt={library.batchRenameReceipt.receipt} notice={library.batchRenameReceipt.notice} copy={copy} />
+		</Suspense>}
 	</>;
 
 	return <section ref={app} className="lightscaper-app" data-lightscaper-bound="true" aria-label={copy.lightscaperTitle}>
@@ -166,6 +176,15 @@ export default function LightscaperApp({ locale, createSession }: LightscaperApp
 								<button type="button" disabled={!selection || library.busy} onClick={event => {
 									closeMenu(event); if (selection) { setMembershipsVisible(true); void library.readMemberships(selection.id); }
 								}}>{copy.photoMembershipTitle}</button>
+								<button type="button" disabled={!libraryVisible || photoSelection.snapshot.selectedIds.length === 0 || library.busy || photoSelection.pendingPhotoId !== null}
+									onClick={event => {
+										closeMenu(event); setBatchRenameVisible(true);
+										void library.readBatchRenameSelection(Object.freeze([...photoSelection.snapshot.selectedIds]));
+									}}>{copy.photoBatchRenameTitle}</button>
+								<button type="button" disabled={!libraryVisible || !library.batchRenameUndo || library.busy || photoSelection.pendingPhotoId !== null}
+									onClick={event => {
+										closeMenu(event); if (library.batchRenameUndo) void library.undoBatchRename(library.batchRenameUndo);
+									}}>{copy.photoBatchRenameUndo}</button>
 								{[0, 1, 2, 3, 4, 5].map(rating => <button key={rating} type="button" disabled={!selection || library.busy}
 									onClick={event => { closeMenu(event); if (selection) void photoSelection.cull(selection.id, signal => library.setRating(selection.id, rating, { signal })); }}>
 									{copy.photoRateStars.replace('{count}', String(rating))}
@@ -243,6 +262,10 @@ export default function LightscaperApp({ locale, createSession }: LightscaperApp
 				readPresets={library.readImportPresets} applyPreset={library.applyImportPreset} createId={createPresetId}
 				readDefinitions={library.readDefinitions} readDefinition={library.readDefinition} definitionReader={definitionReader.current}
 				onClose={closeImport} onImport={onImport} />
+		</Suspense>}
+		{batchRenameVisible && <Suspense fallback={<p role="status">{copy.photoWorking}</p>}>
+			<PhotoBatchRenameDialog snapshot={library.batchRenameSnapshot} busy={library.busy} error={library.error} copy={copy}
+				onPlan={library.planBatchRename} onApply={library.renamePhotos} onClose={closeBatchRename} />
 		</Suspense>}
 	</section>;
 }
