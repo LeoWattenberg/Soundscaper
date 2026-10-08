@@ -79,6 +79,7 @@ export function StereoChannelDivider({
 		stopPointerEvent(event);
 	};
 	const resizeFromKeyboard = (event: KeyboardEvent<HTMLDivElement>) => {
+		if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
 		let nextRatio: number;
 		switch (event.key) {
 		case 'ArrowUp': nextRatio = ratio - 0.05; break;
