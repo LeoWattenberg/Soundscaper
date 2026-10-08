@@ -129,7 +129,7 @@ export function createProjectBinPreviewService(
 				avLinkId: null,
 				binItemId: null,
 			};
-			const previewProject = createAudioPreviewProject({
+			const previewProject = { ...createAudioPreviewProject({
 				title: 'Project Bin preview',
 				sampleRate: project.sampleRate,
 				sources: [source],
@@ -141,7 +141,7 @@ export function createProjectBinPreviewService(
 					clipIds: [previewClip.id],
 					armed: false,
 				}],
-			});
+			}), ...(previewClip.warpMap != null ? { tempoMap: project.tempoMap } : {}) };
 			previewEngine.loadProject(previewProject, dependencies.sourceBuffers, {
 				chunkSources: dependencies.sourceChunkProviders,
 			});
