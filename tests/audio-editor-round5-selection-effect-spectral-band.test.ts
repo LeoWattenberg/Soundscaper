@@ -64,10 +64,10 @@ test('spectral selection peak admission includes the replacement and FFT scratch
 	}
 });
 
-test('the spectral compositor stays behind the existing optional selection runtime', () => {
+test('the spectral compositor stays with its lazy spectral primitive owner', () => {
 	const path = 'src/common/editor/selection-effect-spectral-context.ts';
 	for (const candidate of [path, path.replaceAll('/', '\\')]) {
-		assert.ok(EDITOR_SELECTION_EFFECTS_RUNTIME_CHUNK_TEST.test(candidate));
+		assert.equal(EDITOR_SELECTION_EFFECTS_RUNTIME_CHUNK_TEST.test(candidate), false);
 		assert.ok(EDITOR_OPTIONAL_EXECUTION_CHUNK_TEST.test(candidate));
 	}
 });

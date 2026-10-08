@@ -103,7 +103,7 @@ export const EDITOR_PFFFT_RUNTIME_CHUNK_TEST = new RegExp(
 
 /** Selection dispatcher and its destructive parametric-EQ implementation. */
 export const EDITOR_SELECTION_EFFECTS_RUNTIME_CHUNK_TEST = new RegExp(
-	`${editorPath}(?:(?:selection-effects-runtime|parametric-eq[\\\\/]destructive)\\.js|selection-effect-spectral-context\\.ts)$`,
+	`${editorPath}(?:selection-effects-runtime|parametric-eq[\\\\/]destructive)\\.js$`,
 );
 
 /** Complete menu-opened Vamp analyzer UI, project session, domain, and native execution. */

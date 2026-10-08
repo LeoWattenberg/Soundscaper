@@ -234,14 +234,19 @@ with unchanged audio. Reuse that compositor for these branches and the reviewed
 processor's dedicated worker owner. Preserve the terminating package worker,
 input PCM, frame/channel layout and cancellation fences. Account for the
 replacement buffer and FFT scratch in their existing peak admission. Keep
-execution behind the optional selection-runtime chunk.
+execution behind the existing optional FFT/spectral primitive owner. The first
+production checkpoint exposed a cold-import initialization cycle when the new
+compositor shared the whole selection-dispatch chunk and entered the Delay
+facade early. Correct its ownership with the spectral primitives; this
+introduced correction remains part of ROOT-009 and adds no bug count.
 
 The unchanged Chromium workflow fails on its actual downloaded PCM
 (`/tmp/soundscaper-r5-root-selection-spectral-baseline2.log`, 6.1 seconds).
 Four actual DSP branches and the reviewed owning service independently fail
 before correction; their selected-tone and unchanged-neighbor checks pass
 afterward. New and existing worker, DSP, FFT loading and chunk ownership support
-passes 58/58; targeted type-aware lint and size checks pass. Regressions are
+passes 58/58; the follow-through worker/ownership support passes 52/52. Targeted
+type-aware lint and size checks pass. Regressions are
 `audio-editor-round5-selection-effect-spectral-band.test.ts` and
 `audio-editor-round5-selection-effect-spectral-band.spec.js`. These omitted
 first-party dispatch branches count once. Final immutable public verification
