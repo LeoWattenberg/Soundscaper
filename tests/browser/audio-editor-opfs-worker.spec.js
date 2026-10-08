@@ -8,7 +8,6 @@ import { hasWebGl2Capability } from './helpers/webgl2-capability.js';
 import { closeWorkspacePanel } from './helpers/workspace-panel-chrome.js';
 
 const DATABASE_NAME = FRAMESCAPER_DATABASE_NAME;
-const DATABASE_VERSION = 1;
 const WEBKIT_AV_IMPORT_DEFERRED = 'Playwright WebKit rejects the IndexedDB Blob write that persists an imported A/V source.';
 
 test.describe('dedicated OPFS storage worker', () => {
@@ -117,12 +116,13 @@ async function importVideo(editor, fixture) {
 }
 
 async function persistedOpfsInventory(page, sourceName) {
-	return page.evaluate(async ({ databaseName, databaseVersion, name }) => {
+	return page.evaluate(async ({ databaseName, name }) => {
 		const request = (input) => new Promise((resolve, reject) => {
 			input.onsuccess = () => resolve(input.result);
 			input.onerror = () => reject(input.error);
 		});
-		const database = await request(indexedDB.open(databaseName, databaseVersion));
+		// The editor has opened and saved this database; observe its current schema.
+		const database = await request(indexedDB.open(databaseName));
 		try {
 			const transaction = database.transaction(['sources', 'mediaAssets', 'videoDerivatives'], 'readonly');
 			const [sources, media, derivatives] = await Promise.all([
@@ -142,7 +142,7 @@ async function persistedOpfsInventory(page, sourceName) {
 		} finally {
 			database.close();
 		}
-	}, { databaseName: DATABASE_NAME, databaseVersion: DATABASE_VERSION, name: sourceName });
+	}, { databaseName: DATABASE_NAME, name: sourceName });
 }
 
 function mainThreadFallbacks(page) {
