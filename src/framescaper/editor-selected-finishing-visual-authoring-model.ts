@@ -57,6 +57,7 @@ export interface FramescaperSelectedVisualAuthoringModelFinishing {
 	readonly fence: FramescaperSelectedVisualAuthoringFenceFinishing;
 	readonly selectedClipId: string | null;
 	readonly selectedClipKind: string | null;
+	readonly selectedClipEditable: boolean;
 	readonly transitionPairs: readonly FramescaperSelectedTransitionPairFinishing[];
 	readonly selectedPairId: string | null;
 	readonly adjustmentLayerId: string | null;
@@ -112,6 +113,7 @@ export function createFramescaperSelectedVisualAuthoringModelFinishing(input: Re
 		}),
 		selectedClipId,
 		selectedClipKind: typeof selectedClip?.kind === 'string' ? selectedClip.kind : null,
+		selectedClipEditable: selectedClipId !== null && editableClipOwner(project, selectedClipId),
 		transitionPairs,
 		selectedPairId: selectedPair?.id ?? null,
 		adjustmentLayerId: typeof adjustment?.id === 'string' ? adjustment.id : null,
@@ -341,4 +343,11 @@ function nonNegativeInteger(value: unknown, name: string): number {
 function positiveInteger(value: unknown, name: string): number {
 	if (!Number.isSafeInteger(value) || Number(value) < 1) throw new RangeError(`${name} must be positive.`);
 	return Number(value);
+}
+
+function editableClipOwner(project: Data, clipId: string): boolean {
+	const owners = records(project.tracks, 'project tracks').filter((track) => (
+		Array.isArray(track.clipIds) && track.clipIds.includes(clipId)
+	));
+	return owners.length === 1 && owners[0]?.locked !== true;
 }

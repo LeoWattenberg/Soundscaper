@@ -80,7 +80,7 @@ export default function FramescaperSelectedVisualAuthoringDialog(props: Props) {
 	const runtime = framescaperSelectedVisualAuthoringRuntimeFor(props.controller as object);
 	const blocked = pending || props.editingBlocked || props.readOnly || runtime === null;
 	const perform = (operation: string): void => {
-		if (blocked || !runtime) return;
+		if (blocked || !runtime || (props.surface === 'video-adjustment-layer' && !model.selectedClipEditable)) return;
 		const request = requestFor(operation, model, {
 			pairId, durationFrames, brightness, adjustmentLayerId,
 			maskId, shape, maskWidth, maskHeight,
@@ -192,7 +192,7 @@ function DissolveFields({ text, model, frameRate, blocked, values, setters, onPe
 
 function AdjustmentFields({ text, model, blocked, values, setters, onPerform }: Parameters<typeof AuthoringFields>[0]) {
 	if (model.selectedClipKind !== 'video') return <p role="alert">{text.selectVideo}</p>;
-	return <fieldset disabled={blocked}>
+	return <fieldset disabled={blocked || !model.selectedClipEditable}>
 		<legend>{text.selectedVideo}</legend>
 		<label><span>{text.brightness}</span><input data-framescaper-authoring-brightness type="number"
 			min="-1" max="1" step="0.05" value={values.brightness}
