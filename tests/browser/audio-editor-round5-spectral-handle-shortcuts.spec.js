@@ -31,7 +31,10 @@ for (const kind of ['maximum-frequency', 'start-time']) {
 		await handle.focus();
 		await handle.press('Control+Alt+ArrowRight');
 		await expect(editor.locator('[data-label-track]')).toHaveCount(1);
+		await chooseCommandAction(page, editor, 'Edit', 'Undo');
+		await expect(editor.locator('[data-label-track]')).toHaveCount(0);
 		await expect(handle).toHaveAttribute('aria-valuenow', before);
+		await handle.focus();
 		await handle.press('ArrowRight');
 		await expect(handle).not.toHaveAttribute('aria-valuenow', before);
 	});

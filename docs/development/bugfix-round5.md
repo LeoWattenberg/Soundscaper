@@ -1,8 +1,8 @@
 # Fifth user-reproducible regression audit
 
-This audit is in progress toward 100 additional distinct fixes. Eighty-five
+This audit is in progress toward 100 additional distinct fixes. Eighty-six
 new roots have completed ordinary browser verification (editing 22, dialogs 27,
-effects/analysis 23, import/export 13). Its immutable
+effects/analysis 24, import/export 13). Its immutable
 baseline is `fe6440c81b3a0fe29a028c64db867ae7d2cf3252`.
 
 Count an entry only after ordinary public user actions reproduce its defect
@@ -104,7 +104,11 @@ A test helper received a locator instead of its page; that fixture call is
 corrected without changing the product assertions or deadline.
 Checkpoint thirty-four, `1e11bebe1`, passes both guarded builds and Silence
 menu capability admission plus supported Trim and Soundscaper silent-WAV
-controls in all three engines (6/6).
+controls in all three engines (6/6). Selected Title preset source isolation also
+passes alongside the original Inspector workflow (6/6), adding no new count.
+Checkpoint thirty-five, `15416e48c`, passes both guarded builds and spectral
+handle command ownership, one-entry Undo, plain editing and existing pointer
+cancellation in all three engines (9/9).
 Browser evidence names each exact checkpoint. Firefox audio
 uses the unchanged CI PulseAudio setup with a private 48 kHz null sink.
 

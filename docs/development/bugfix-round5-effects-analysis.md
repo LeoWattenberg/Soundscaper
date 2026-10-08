@@ -737,7 +737,15 @@ production-handle cases independently fail at consuming Ctrl; after correction
 they preserve Ctrl/Meta/Alt and already-handled events while retaining plain
 edits. New and existing spectral gesture, cancellation and effect support
 passes 10/10 (`/tmp/soundscaper-r5-root-spectral-handle-support.log`). Targeted
-type-aware lint and focused strict compiler pass. Corrected public verification
-is pending; ROOT-024 is not yet counted. This is separate from prior brush
+type-aware lint, focused strict compiler, lint:changed and the size gate pass.
+Immutable `15416e48c` passes command dispatch, one-entry Undo restoring the
+exact band, continued plain editing and the existing pointer Escape workflow
+in Chromium, Firefox and WebKit (9/9, 35.3 seconds;
+`/tmp/soundscaper-r5-root-spectral-handle-green35-retry.log`). The first corrected
+browser run expected New label track to retain the current spectral selection;
+the command deliberately selects its new track, so the test now verifies the
+original band through its ordinary Undo. That setup expectation adds no count
+and changes no product assertion about dispatch or unintended spectral edits.
+Both guarded builds pass. ROOT-024 is counted once, separately from prior brush
 creation/pointer cancellation and other independently implemented command
 consumers. The assistance runtime closure is unchanged.
