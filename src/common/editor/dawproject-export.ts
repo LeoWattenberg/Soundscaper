@@ -7,6 +7,7 @@ import {
 	sealDeliveryReport,
 } from './delivery-report.ts';
 import { reportInterchangeCaptionTrackOmission } from './interchange-omission-inventory.ts';
+import { reportOmittedDawprojectRouting } from './dawproject-export-routing-omissions.ts';
 import { audioTrackChannelCount } from './project-audio-factory.js';
 import { serializeXmlDocument, xmlElement, type XmlElement } from './dawproject-xml.ts';
 import {
@@ -136,6 +137,7 @@ export function createDawprojectExport(request: DawprojectExportRequest): Dawpro
 	]);
 	const metadataDocument = buildMetadata(project, title);
 	reportProjectOmissions(context, request.sequenceId);
+	reportOmittedDawprojectRouting(context);
 	addDeliveryReportItem(draft, {
 		code: 'dawproject.project-preserved',
 		disposition: 'preserved',
