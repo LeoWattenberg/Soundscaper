@@ -322,6 +322,11 @@ if(BUILD_TESTING)
 	target_compile_features(soundscaper_professional_vamp_fixture PRIVATE cxx_std_20)
 	target_include_directories(soundscaper_professional_vamp_fixture PRIVATE
 		"${SOUNDSCAPER_VAMP_ROOT}")
+	if(MSVC)
+		# The SDK declares this entry point without a DLL export attribute.
+		target_link_options(soundscaper_professional_vamp_fixture PRIVATE
+			/EXPORT:vampGetPluginDescriptor)
+	endif()
 	set_target_properties(soundscaper_professional_vamp_fixture PROPERTIES
 		PREFIX ""
 		OUTPUT_NAME "soundscaper_professional_vamp_fixture"

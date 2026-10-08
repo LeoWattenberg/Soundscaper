@@ -6,7 +6,7 @@
 #include <new>
 
 #if defined(_WIN32)
-#define SOUNDSCAPER_VAMP_EXPORT extern "C" __declspec(dllexport)
+#define SOUNDSCAPER_VAMP_EXPORT extern "C"
 #else
 #define SOUNDSCAPER_VAMP_EXPORT extern "C" __attribute__((visibility("default")))
 #endif
