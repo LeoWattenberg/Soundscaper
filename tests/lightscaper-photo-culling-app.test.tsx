@@ -170,6 +170,7 @@ function owner(initial = page()) {
 		planBatchRename: (): never => { throw new Error('Unexpected batch rename plan in culling App fixture.'); },
 		renamePhotos: unused, undoBatchRename: unused,
 		readImportPresets: unused, applyImportPreset: unused, backupCatalog: unused,
+		inspectOriginals: unused, restoreOriginalBody: unused,
 		readPage: async () => initial,
 		readQueryStep: async () => ({ ...initial, scanned: initial.rows.length }),
 		rebuildQueryStep: unused, readDefinitionPage: unused,

@@ -292,6 +292,8 @@
 		,
 		{"path": "src/common/editor/controller/shared/photo-library-import-gesture-v1.ts", "kind": "helper-contract", "justification": "Version 1 authored import snapshots and source-name-bound scalar acknowledgement collection retain at most 64 selected receipts without File or original bodies."}
 		,
+		{ "path": "src/common/editor/controller/shared/photo-library-original-recovery-v1.ts", "kind": "helper-contract", "justification": "Version 1 opted-in original inspection and restoration borrow one catalog session, retain bounded scalar pages and durable receipts, and join cancellation without retaining selected bodies after settlement." }
+		,
 		{"path": "src/common/editor/controller/shared/photo-library-selection-v1.ts", "kind": "helper-contract", "justification": "Version1 page-local selection owns at most64 detached photo IDs and opaque page and generation identities."}
 		,
 		{"path": "src/common/editor/controller/shared/pixel-preview-presentation-v1.ts", "kind": "helper-contract", "justification": "Version1 serial scalar preview demand owns bounded canvas targets, generation cancellation and joined frame staging without original custody."}
@@ -415,6 +417,8 @@
 		{ "path": "src/common/editor/photo-library-import-settings-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 scalar import recipes, revision-fenced named presets and publication acknowledgements preserve immutable original ownership." }
 		,
 		{"path": "src/common/editor/photo-library-organization-port-v1.ts", "kind": "helper-contract", "justification": "Version1 scalar organization port carries revision-fenced definitions, bounded smart-query JSON and photo memberships without catalog documents."}
+		,
+		{ "path": "src/common/editor/photo-library-original-recovery-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded original inspection pages and revision-fenced exact restoration targets expose scalar retained-source identities independently of product documents or storage locators." }
 		,
 		{ "path": "src/common/editor/photo-library-session-port-v1.ts", "kind": "helper-contract", "justification": "Scalar browser presentation port for the version 1 photo library session, independent of owning catalog documents." }
 		,
@@ -583,6 +587,8 @@
 		{"path": "src/lightscaper/controller/photo-library-organizer-v1.ts", "kind": "helper-contract", "justification": "Version 1 revision-fenced catalog organization admits full smart-query JSON and scalar definition changes without exposing the catalog root."}
 		,
 		{ "path": "src/lightscaper/controller/photo-library-original-inspection-v1.ts", "kind": "helper-contract", "justification": "Version 1 opted-in pre-recovery inspection enumerates bounded published-photo and retained-original bindings under the existing Session writer, preserving strict startup recovery and rejecting custody conflicts without mutating photo documents." }
+		,
+		{ "path": "src/lightscaper/controller/photo-library-original-restoration-v1.ts", "kind": "helper-contract", "justification": "Version 1 original restoration revalidates catalog, active intent, photo revision and immutable source authority before selected bytes, preserving durable body acknowledgement independently of subsequent strict library recovery." }
 		,
 		{"path": "src/lightscaper/controller/photo-library-query-v1.ts", "kind": "helper-contract", "justification": "Version1 scalar query and explicit migration steps preserve bounded global ordering, strict cursors and cancellation without exposing photo documents."}
 		,

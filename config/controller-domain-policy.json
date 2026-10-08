@@ -198,6 +198,7 @@
 		"shared/photo-library-culling-v1.ts",
 		"shared/photo-library-definition-reader.ts",
 		"shared/photo-library-import-gesture-v1.ts",
+		"shared/photo-library-original-recovery-v1.ts",
 		"shared/photo-library-selection-v1.ts",
 		"shared/pixel-preview-presentation-v1.ts",
 		"shared/presentation-localization.ts",

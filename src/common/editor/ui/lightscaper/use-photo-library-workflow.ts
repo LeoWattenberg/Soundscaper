@@ -1,8 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PhotoLibraryBackupSaveV1, type PhotoLibraryBackupSaveRequestV1,
 	type PhotoLibraryBackupSaveReceiptV1 } from '../../controller/shared/photo-library-backup-save-v1.ts';
+import { PhotoLibraryOriginalRecoveryV1 } from '../../controller/shared/photo-library-original-recovery-v1.ts';
+import { usePhotoOriginalRecovery, type ExecutePhotoOriginalRecoveryV1 } from './use-photo-original-recovery.ts';
 import type { PhotoLibraryCullReceiptV1 } from '../../controller/shared/photo-library-culling-v1.ts';
 import type { PhotoLibraryBatchRenamePlanV1, PhotoLibraryBatchRenameReceiptV1, PhotoLibraryBatchRenameRequestV1,
 	PhotoLibraryBatchRenameSnapshotV1, PhotoLibraryBatchRenameUndoV1 } from '../../photo-library-batch-rename-port-v1.ts';
@@ -46,6 +48,10 @@ export function usePhotoLibraryWorkflow(createSession?: CreatePhotoLibrarySessio
 	const backupSave = useRef<PhotoLibraryBackupSaveV1 | null>(null);
 	backupSave.current ??= new PhotoLibraryBackupSaveV1();
 	const controller = backupSave.current;
+	const recoveryOwner = useRef<PhotoLibraryOriginalRecoveryV1 | null>(null);
+	recoveryOwner.current ??= new PhotoLibraryOriginalRecoveryV1();
+	const originalRecovery = recoveryOwner.current;
+	const recoveryGeneration = useMemo(() => Object.freeze({ createSession, loadBackupSaveRuntime }), [createSession, loadBackupSaveRuntime]);
 	const slot = useRef<SessionSlot | null>(null);
 	const retiring = useRef<Promise<void> | null>(null);
 	const [page, setPage] = useState<PhotoLibraryPageV1 | null>(null);
@@ -74,7 +80,7 @@ export function usePhotoLibraryWorkflow(createSession?: CreatePhotoLibrarySessio
 		queueMicrotask(() => {
 			if (!current.live) return;
 			setQuery(null); setNeedsQueryIndex(false); setQueryIndexProgress(null);
-			publishPage(current, null); setMetadata(null); setMemberships(null); setReceipts([]); setImportReceipt(null); setError(null); setBusy(current.active !== null || controller.isPending());
+			publishPage(current, null); setMetadata(null); setMemberships(null); setReceipts([]); setImportReceipt(null); setError(null); setBusy(current.active !== null || controller.isPending() || originalRecovery.isPending());
 			setBatchRenameSnapshot(null); setBatchRenameReceipt(null); setBatchRenameUndo(null);
 			setBackupRuntime(null); setBackupReceipt(null);
 		});
@@ -82,7 +88,7 @@ export function usePhotoLibraryWorkflow(createSession?: CreatePhotoLibrarySessio
 			current.live = false; current.lifetime.abort(); current.active?.abort();
 			if (slot.current === current) slot.current = null;
 			const pending = current.pending;
-			const destinationClosed = controller.cancelAndJoin();
+			const destinationClosed = Promise.all([controller.cancelAndJoin(), originalRecovery.cancelAndJoin()]);
 			const closing = (async () => {
 				if (current.beforeDrain) await current.beforeDrain;
 				await destinationClosed;
@@ -92,13 +98,13 @@ export function usePhotoLibraryWorkflow(createSession?: CreatePhotoLibrarySessio
 			retiring.current = closing;
 			void closing.catch(() => undefined);
 		};
-	}, [createSession, loadBackupSaveRuntime, publishPage, controller]);
+	}, [createSession, loadBackupSaveRuntime, publishPage, controller, originalRecovery]);
 
 	const perform = useCallback(async (action: WorkflowAction, externalSignal?: AbortSignal): Promise<ActionStatus> => {
 		const current = slot.current;
 		if (!current?.live || current.factory !== createSession || current.factory !== factory.current
 			|| current.backupLoader !== loadBackupSaveRuntime || current.backupLoader !== loader.current) return 'cancelled';
-		if (current.active || controller.isPending()) return 'busy';
+		if (current.active || controller.isPending() || originalRecovery.isPending()) return 'busy';
 		const active = new AbortController(); current.active = active;
 		const signal = AbortSignal.any([active.signal, current.lifetime.signal, ...(externalSignal ? [externalSignal] : [])]);
 		setBusy(true); setError(null);
@@ -121,9 +127,19 @@ export function usePhotoLibraryWorkflow(createSession?: CreatePhotoLibrarySessio
 		} finally {
 			current.active = null;
 			const visible = slot.current;
-			if (visible?.live) setBusy(visible.active !== null || controller.isPending());
+			if (visible?.live) setBusy(visible.active !== null || controller.isPending() || originalRecovery.isPending());
 		}
-	}, [createSession, loadBackupSaveRuntime, controller]);
+	}, [createSession, loadBackupSaveRuntime, controller, originalRecovery]);
+	const executeOriginalRecovery = useCallback<ExecutePhotoOriginalRecoveryV1>(async action => perform({ start: async (signal, current) => {
+		await action({ signal, acquire: () => acquire(current),
+			isCurrent: () => current.live && slot.current === current && current.factory === factory.current && current.backupLoader === loader.current,
+			refresh: async () => {
+				const owner = await acquire(current); signal.throwIfAborted();
+				const next = current.query ? await readNonemptyQueryPage(owner, current.query, null, signal) : await owner.readPage({ signal });
+				signal.throwIfAborted(); publishPage(current, next);
+			} });
+	} }), [perform, publishPage]);
+	const originalWorkflow = usePhotoOriginalRecovery({ generation: recoveryGeneration, controller: originalRecovery, execute: executeOriginalRecovery });
 	const run = useCallback(async (action: SessionAction): Promise<void> => { await perform(action); }, [perform]);
 	const prepareBackupSave = useCallback((): Promise<void> => {
 		const current = slot.current;
@@ -174,7 +190,7 @@ export function usePhotoLibraryWorkflow(createSession?: CreatePhotoLibrarySessio
 	}), [run, publishPage]);
 	const readBatchRenameSelection = useCallback(async (values: readonly string[], options: Readonly<{ signal?: AbortSignal }> = {}): Promise<void> => {
 		const admission = slot.current;
-		if (!admission?.live || admission.factory !== factory.current || admission.active || controller.isPending()) return;
+		if (!admission?.live || admission.factory !== factory.current || admission.active || controller.isPending() || originalRecovery.isPending()) return;
 		let ids: readonly string[];
 		try {
 			ids = readPhotoLibrarySelectionIdsV1(values);
@@ -187,7 +203,7 @@ export function usePhotoLibraryWorkflow(createSession?: CreatePhotoLibrarySessio
 				current.batchRenamePlanner = request => owner.planBatchRename(request); setBatchRenameSnapshot(next);
 			}
 		}, options.signal);
-	}, [perform, controller]);
+	}, [perform, controller, originalRecovery]);
 	const planBatchRename = useCallback((request: PhotoLibraryBatchRenameRequestV1): PhotoLibraryBatchRenamePlanV1 => {
 		const current = slot.current;
 		if (!current?.live || current.factory !== factory.current || !current.batchRenamePlanner) {
@@ -292,7 +308,7 @@ export function usePhotoLibraryWorkflow(createSession?: CreatePhotoLibrarySessio
 	const importFiles = useCallback(async (files: readonly File[], options: Pick<PhotoLibraryImportRequestOptionsV1, 'settings' | 'signal'> = {}): Promise<PhotoLibraryImportGestureReceiptV1> => {
 		const admission = slot.current;
 		if (!admission?.live || admission.factory !== factory.current || options.signal?.aborted) return Object.freeze({ outcome: 'cancelled' });
-		if (admission.active || controller.isPending()) return Object.freeze({ outcome: 'busy' });
+		if (admission.active || controller.isPending() || originalRecovery.isPending()) return Object.freeze({ outcome: 'busy' });
 		// Capture authored state and original source names before the lazy factory can yield.
 		let draft;
 		try {
@@ -339,7 +355,7 @@ export function usePhotoLibraryWorkflow(createSession?: CreatePhotoLibrarySessio
 		}, options.signal);
 		if (publication.generation?.live && slot.current === publication.generation && publication.generation.factory === factory.current) setImportReceipt(receipt);
 		return receipt ?? Object.freeze({ outcome: status === 'completed' ? 'failed' : status });
-	}, [createSession, perform, publishPage, controller]);
+	}, [createSession, perform, publishPage, controller, originalRecovery]);
 	const refreshQuery = async (owner: PhotoLibrarySessionPortV1, signal: AbortSignal, current: SessionSlot) => {
 		if (!current.query) return current.live ? current.page : null;
 		const next = await readNonemptyQueryPage(owner, current.query, null, signal);
@@ -409,7 +425,7 @@ export function usePhotoLibraryWorkflow(createSession?: CreatePhotoLibrarySessio
 		updateRow(next.row, current);
 		await refreshQuery(owner, signal, current);
 	});
-	return { page, metadata, memberships, batchRenameSnapshot, batchRenameReceipt, batchRenameUndo,
+	return { ...originalWorkflow, page, metadata, memberships, batchRenameSnapshot, batchRenameReceipt, batchRenameUndo,
 		prepareBackupSave, saveBackup, backupReceipt, backupReady: backupRuntime !== null, maximumBackupStreamingBytes: backupRuntime?.maximumStreamingBytes ?? null,
 		cancelBackup: () => { if (controller.isPending()) slot.current?.active?.abort(); },
 		readBatchRenameSelection, planBatchRename, renamePhotos, undoBatchRename, readPreview, query, needsQueryIndex, queryIndexProgress, applyQuery, probeQuery, buildQueryIndex, readDefinitions,

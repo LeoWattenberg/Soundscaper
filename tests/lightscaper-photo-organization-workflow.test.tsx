@@ -202,6 +202,7 @@ function owner(catalogName = 'Library') {
 		planBatchRename: (): never => { throw new Error('Unexpected batch rename plan in organization fixture.'); },
 		renamePhotos: unexpected, undoBatchRename: unexpected,
 		readImportPresets: unexpected, applyImportPreset: unexpected, backupCatalog: unexpected,
+		inspectOriginals: unexpected, restoreOriginalBody: unexpected,
 		readPage: async () => page(catalogName), readQueryStep: async () => ({ ...page(catalogName), scanned: 1 }),
 		rebuildQueryStep: unexpected, readDefinitionPage: unexpected, readPreview: unexpected, importFiles: unexpected,
 		setRating: unexpected, applyAttributes: unexpected, readMetadata: unexpected, applyMetadata: unexpected,

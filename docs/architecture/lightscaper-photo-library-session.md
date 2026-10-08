@@ -73,3 +73,46 @@ a timezone or changes decode orientation. Native datetime-local minute values
 receive explicit zero seconds before the L2 timestamp validator; seconds and
 fractional seconds already supplied by the browser are preserved. Authored filename changes update the
 catalog summary only; the retained original name and bytes remain unchanged.
+
+## Inspecting and restoring retained originals
+
+File → Inspect and restore originals opens a lazy dialog and admits one explicit
+inspection page. Each demand scans at most 64 committed roots, then the current
+import's provisional roots through an explicit continuation. Pages replace one
+another; no automatic catalog scan or original inventory runs at startup. The
+scalar page stays within 2 MiB and its continuation within 2 KiB. Inspection
+loads one canonical photo at a time and authenticates its actual retained body
+against the immutable length and SHA-256 binding in slices of at most 4 MiB.
+
+This opt-in operation can initialize the catalog before normal import recovery
+succeeds. A published photo whose provisional root survives a missing media row
+therefore remains inspectable. Ordinary library readiness still performs strict
+recovery; inspection neither promotes roots nor retires an import intent.
+Custody, permission, backend and unsupported-layout errors remain failures.
+Only proven absent bodies or actual length/digest mismatches become missing or
+damaged rows.
+
+Restoration selects one missing or damaged row and one source File. The native
+picker captures the exact page, target and factory generation before opening;
+its change snapshots and rearms the input immediately. A stale picker result
+cannot retarget a different photo. The selected filename does not replace the
+retained original's name or the authored photo metadata. The product reloads
+the catalog revision, active import, canonical photo revision and exact
+immutable binding before the shared media owner reads selected bytes.
+
+The shared repair authenticates the selection before staging and publishes the
+new locator only while every retained root agrees on the captured private
+identity, digest and size. A missing media row preserves the retained identity;
+ordinary media publication cannot recreate a key protected by those roots.
+Photo documents, extracted facts, develop state and other owners' custody are
+unchanged. Repair leaves the previous locator in place for existing readers.
+
+A body acknowledgement is independent of catalog readiness. The Session
+returns its writer lease before the UI retries strict library recovery. Failed
+or cancelled recovery cannot revoke a restored-body receipt. A failure releasing
+the catalog lease after acknowledged repair produces a separate cleanup notice.
+Close hides the dialog while its stable workflow owner continues. Cancel joins
+native inspection, hashing, staging and publication; factory replacement joins
+that work before closing the borrowed Session. Bounded page and receipt owners
+are fenced separately so a new factory never adopts the old catalog's scalar
+state from an operation-phase notification.

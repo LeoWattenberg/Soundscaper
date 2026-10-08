@@ -30,6 +30,7 @@ const PhotoMembershipDialog = lazy(() => import('./PhotoMembershipDialog.tsx'));
 const PhotoBatchRenameDialog = lazy(() => import('./PhotoBatchRenameDialog.tsx'));
 const PhotoBatchRenameResults = lazy(() => import('./PhotoBatchRenameResults.tsx'));
 const PhotoCatalogBackupDialog = lazy(() => import('./PhotoCatalogBackupDialog.tsx'));
+const PhotoOriginalRecoveryDialog = lazy(() => import('./PhotoOriginalRecoveryDialog.tsx'));
 
 export default function LightscaperApp({ locale, createSession, loadBackupSaveRuntime }: LightscaperAppProps) {
 	const copy = useSiteCopy(locale);
@@ -48,6 +49,7 @@ export default function LightscaperApp({ locale, createSession, loadBackupSaveRu
 	const [membershipsVisible, setMembershipsVisible] = useState(false);
 	const [batchRenameVisible, setBatchRenameVisible] = useState(false);
 	const [backupVisible, setBackupVisible] = useState(false);
+	const [originalRecoveryVisible, setOriginalRecoveryVisible] = useState(false);
 	const library = usePhotoLibraryWorkflow(createSession, loadBackupSaveRuntime);
 	const factory = useRef(createSession); factory.current = createSession;
 	const { importFiles } = library;
@@ -71,7 +73,7 @@ export default function LightscaperApp({ locale, createSession, loadBackupSaveRu
 		green: copy.photoColorGreen, blue: copy.photoColorBlue, purple: copy.photoColorPurple };
 	const selection = library.page?.rows.find(row => row.id === photoSelection.snapshot.primaryId) ?? null;
 	useEffect(() => {
-		setOrganizerVisible(false); setMembershipsVisible(false); setMetadataVisible(false); setImportVisible(false); setBatchRenameVisible(false); setBackupVisible(false);
+		setOrganizerVisible(false); setMembershipsVisible(false); setMetadataVisible(false); setImportVisible(false); setBatchRenameVisible(false); setBackupVisible(false); setOriginalRecoveryVisible(false);
 	}, [createSession, loadBackupSaveRuntime]);
 	useEffect(() => {
 		const dismiss = (event: PointerEvent) => {
@@ -173,6 +175,10 @@ export default function LightscaperApp({ locale, createSession, loadBackupSaveRu
 						<button type="button" data-photo-backup-menu onClick={event => {
 							closeMenu(event); setBackupVisible(true); void library.prepareBackupSave();
 						}}>{copy.photoBackupTitle}</button>
+						<button type="button" data-photo-original-recovery-menu disabled={!createSession || (library.busy && !library.originalRecoveryActive)} onClick={event => {
+							closeMenu(event); setOriginalRecoveryVisible(true);
+							if (!library.originalInspectionPage && !library.busy) void library.inspectOriginals();
+						}}>{copy.photoOriginalRecoveryTitle}</button>
 						{library.busy && <button type="button" onClick={event => { closeMenu(event); library.cancel(); }}>{copy.photoCancelAction}</button>}
 						<details className="lightscaper-photo-submenu" onKeyDown={menuKeyDown} onBlur={menuBlur}>
 							<summary className="application-header__menu-item">{copy.photoPhotoMenu}</summary>
@@ -287,6 +293,13 @@ export default function LightscaperApp({ locale, createSession, loadBackupSaveRu
 			<PhotoCatalogBackupDialog locale={locale} copy={copy} ready={library.backupReady}
 				maximumStreamingBytes={library.maximumBackupStreamingBytes} busy={library.busy} error={library.error}
 				receipt={library.backupReceipt} onSave={onBackup} onClose={closeBackup} />
+		</Suspense>}
+		{originalRecoveryVisible && <Suspense fallback={<p role="status">{copy.photoWorking}</p>}>
+			<PhotoOriginalRecoveryDialog generation={createSession} copy={copy} page={library.originalInspectionPage}
+				receipt={library.originalRestorationReceipt} notice={library.originalRestorationNotice} cancelled={library.originalRecoveryCancelled}
+				busy={library.busy} active={library.originalRecoveryActive} error={library.error}
+				onInspect={library.inspectOriginals} onRestore={library.restoreOriginalBody} onCancel={library.cancel}
+				onClose={() => { if (factory.current === createSession) setOriginalRecoveryVisible(false); }} />
 		</Suspense>}
 	</section>;
 }

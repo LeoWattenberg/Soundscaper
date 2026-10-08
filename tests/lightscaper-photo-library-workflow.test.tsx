@@ -378,6 +378,8 @@ function owner(readPage: PhotoLibrarySessionPortV1['readPage']) {
 		renamePhotos: async (): Promise<never> => { throw new Error('Unexpected batch rename in workflow fixture.'); },
 		undoBatchRename: async (): Promise<never> => { throw new Error('Unexpected batch rename undo in workflow fixture.'); },
 		backupCatalog: async (): Promise<never> => { throw new Error('Unexpected catalog backup in workflow fixture.'); },
+		inspectOriginals: async (): Promise<never> => { throw new Error('Unexpected original inspection in workflow fixture.'); },
+		restoreOriginalBody: async (): Promise<never> => { throw new Error('Unexpected original restoration in workflow fixture.'); },
 		readImportPresets: async (): Promise<never> => { throw new Error('Unexpected import preset read in workflow fixture.'); },
 		applyImportPreset: async (): Promise<never> => { throw new Error('Unexpected import preset write in workflow fixture.'); },
 		readPage,
