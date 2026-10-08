@@ -2,7 +2,7 @@
 
 export const LIGHTSCAPER_SAVED_FILTER_COPY_EN = Object.freeze({
 	photoSavedFiltersTitle: 'Saved filters',
-	photoSaveCurrentFilter: 'Save current filter…',
+	photoSaveCurrentFilter: 'Save current filter',
 	photoSavedFilterName: 'Filter name',
 	photoSavedFilterNew: 'New filter',
 	photoSavedFilterLoad: 'Load for editing',
@@ -25,7 +25,7 @@ export const LIGHTSCAPER_SAVED_FILTER_COPY_EN = Object.freeze({
 
 export const LIGHTSCAPER_SAVED_FILTER_COPY_DE: Readonly<Record<keyof typeof LIGHTSCAPER_SAVED_FILTER_COPY_EN, string>> = Object.freeze({
 	photoSavedFiltersTitle: 'Gespeicherte Filter',
-	photoSaveCurrentFilter: 'Aktuellen Filter speichern…',
+	photoSaveCurrentFilter: 'Aktuellen Filter speichern',
 	photoSavedFilterName: 'Filtername',
 	photoSavedFilterNew: 'Neuer Filter',
 	photoSavedFilterLoad: 'Zum Bearbeiten laden',

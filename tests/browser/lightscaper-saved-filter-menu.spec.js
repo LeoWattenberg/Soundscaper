@@ -14,7 +14,7 @@ const FULL_QUERY = { schemaVersion: 2, kind: 'photo-catalog-query', text: 'needl
 
 for (const [locale, copy] of [
 	['en', { file: 'File', view: 'View', importer: 'Import photos', choose: 'Choose photos', import: 'Import', rating: 'Rating',
-		query: 'Search, filter and sort', apply: 'Apply query', saved: 'Saved filters', saveCurrent: 'Save current filter…',
+		query: 'Search, filter and sort', apply: 'Apply query', saved: 'Saved filters', saveCurrent: 'Save current filter',
 		name: 'Filter name', newFilter: 'New filter', load: 'Load for editing', use: 'Use filter', save: 'Save filter',
 		remove: 'Delete filter', reload: 'Reload saved filter', list: 'Refresh list', all: 'Show all photos', close: 'Close',
 		text: 'Search text', filter: 'Filter', sort: 'Sort by', direction: 'Sort direction', add: 'Add condition',
@@ -23,7 +23,7 @@ for (const [locale, copy] of [
 		savedReceipt: 'Filter saved.', deletedReceipt: 'Filter deleted.', empty: 'No saved filters.',
 		activeDelete: 'Switch to another filter or show all photos before deleting the active filter.' }],
 	['de', { file: 'Datei', view: 'Ansicht', importer: 'Fotos importieren', choose: 'Fotos auswählen', import: 'Importieren', rating: 'Bewertung',
-		query: 'Suchen, filtern und sortieren', apply: 'Suche anwenden', saved: 'Gespeicherte Filter', saveCurrent: 'Aktuellen Filter speichern…',
+		query: 'Suchen, filtern und sortieren', apply: 'Suche anwenden', saved: 'Gespeicherte Filter', saveCurrent: 'Aktuellen Filter speichern',
 		name: 'Filtername', newFilter: 'Neuer Filter', load: 'Zum Bearbeiten laden', use: 'Filter verwenden', save: 'Filter speichern',
 		remove: 'Filter löschen', reload: 'Gespeicherten Filter neu laden', list: 'Liste aktualisieren', all: 'Alle Fotos anzeigen', close: 'Schließen',
 		text: 'Suchtext', filter: 'Filter', sort: 'Sortieren nach', direction: 'Sortierrichtung', add: 'Bedingung hinzufügen',
