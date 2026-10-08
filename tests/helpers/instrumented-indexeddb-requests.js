@@ -120,7 +120,7 @@ export function fakeCursorRequest(transaction, data, entries, { index, query, di
 	return request;
 }
 
-export function fakeKeyCursorRequest(transaction, data, entries, { index, query, direction }) {
+export function fakeKeyCursorRequest(transaction, data, entries, { index, query, direction = 'next' }) {
 	const request = { result: undefined, error: null, onsuccess: null, onerror: null };
 	const requestStats = { store: data.name, index, query, direction, delivered: 0 };
 	transaction.database.stats.keyCursorRequests.push(requestStats);
@@ -142,24 +142,66 @@ export function fakeKeyCursorRequest(transaction, data, entries, { index, query,
 		const entry = entries[position];
 		let continued = false;
 		requestStats.delivered += 1;
-		request.result = {
+		const assertAdvance = () => {
+			if (transaction.finished) throw new DOMException('The transaction is inactive.', 'TransactionInactiveError');
+			if (continued) throw new DOMException('The cursor has already advanced.', 'InvalidStateError');
+		};
+		const sign = direction.startsWith('prev') ? -1 : 1;
+		const cursor = {
 			key: cloneKey(entry.key),
 			primaryKey: cloneKey(entry.primaryKey),
 			delete() {
 				data.records.delete(entry.primaryKey);
 			},
-			continue() {
-				if (continued) throw new Error('The cursor has already advanced.');
+			continue(targetKey) {
+				assertAdvance();
+				if (targetKey !== undefined && (!validCursorKey(targetKey) || compareKeys(targetKey, entry.key) * sign <= 0)) {
+					throw new DOMException('The target key does not advance the cursor.', 'DataError');
+				}
 				continued = true;
 				position += 1;
+				if (targetKey !== undefined) {
+					while (position < entries.length && compareKeys(entries[position].key, targetKey) * sign < 0) position += 1;
+				}
+				deliver();
+			},
+			continuePrimaryKey(targetKey, targetPrimaryKey) {
+				assertAdvance();
+				if (index === null || direction !== 'next' && direction !== 'prev') {
+					throw new DOMException('Primary seeking requires a non-unique index cursor.', 'InvalidAccessError');
+				}
+				if (!validCursorKey(targetKey) || !validCursorKey(targetPrimaryKey)
+					|| compareKeys(targetKey, entry.key) * sign < 0
+					|| compareKeys(targetKey, entry.key) === 0 && compareKeys(targetPrimaryKey, entry.primaryKey) * sign <= 0) {
+					throw new DOMException('The target pair does not advance the cursor.', 'DataError');
+				}
+				continued = true;
+				position += 1;
+				while (position < entries.length && (compareKeys(entries[position].key, targetKey) * sign < 0
+					|| compareKeys(entries[position].key, targetKey) === 0 && compareKeys(entries[position].primaryKey, targetPrimaryKey) * sign < 0)) position += 1;
 				deliver();
 			},
 		};
+		if (!transaction.database.stats.supportsContinuePrimaryKey) delete cursor.continuePrimaryKey;
+		request.result = cursor;
 		request.onsuccess?.(requestEvent('success', request));
 		if (!continued) transaction.endRequest();
 	});
 	deliver();
 	return request;
+}
+
+function validCursorKey(value, ancestors = new Set()) {
+	if (typeof value === 'string' || typeof value === 'number' && !Number.isNaN(value)) return true;
+	if (value instanceof Date) return !Number.isNaN(value.getTime());
+	if (value instanceof ArrayBuffer || ArrayBuffer.isView(value)) return true;
+	if (!Array.isArray(value) || ancestors.has(value)) return false;
+	ancestors.add(value);
+	for (let index = 0; index < value.length; index++) {
+		if (!Object.hasOwn(value, index) || !validCursorKey(value[index], ancestors)) return false;
+	}
+	ancestors.delete(value);
+	return true;
 }
 
 function dispatchRequestError(request, transaction) {
