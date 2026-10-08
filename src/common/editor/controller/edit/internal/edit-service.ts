@@ -218,6 +218,7 @@ export function createEditorEditService(runtime: EditServiceRuntime): HandleEdit
 					getProject, createStableId, createClipboardDescriptor,
 					prepareTrackDuplicateCarrier: runtime.prepareTrackDuplicateCarrier,
 					prepareDuplicateCommand: runtime.prepareDuplicateCommand,
+					preserveTrackRouting,
 				}, {
 					startFrame: selection.startFrame, endFrame: selection.endFrame,
 					trackIds: exactClipEdit ? selectedClipTrackIds : selectedProjectTrackIds.length ? selectedProjectTrackIds : trackIds,

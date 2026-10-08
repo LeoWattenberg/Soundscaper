@@ -55,6 +55,10 @@ export interface DuplicateSelectionRuntime {
 		request: Readonly<ControllerTrackDuplicateRequest>,
 	) => Readonly<ControllerTrackDuplicateCarrier>;
 	readonly prepareDuplicateCommand?: (descriptor: AudioEditorClipboard, command: AudioEditorCommand) => AudioEditorCommand;
+	readonly preserveTrackRouting?: (
+		command: Extract<AudioEditorCommand, { type: 'batch' }>,
+		copies: readonly Readonly<{ sourceTrackId: string; targetTrackId: string }>[],
+	) => Extract<AudioEditorCommand, { type: 'batch' }>;
 }
 
 export interface DuplicateSelectionPlan {
@@ -111,6 +115,9 @@ export function prepareDuplicateSelectionCommand(
 	const trackIds = [...sourceTracks.map((track) => track.id), ...sourceTracks.map((track) => trackMap[track.id]!)];
 	commands.push(paste);
 	const prepared = runtime.prepareDuplicateCommand?.(clipboard, { type: 'batch', commands }) ?? { type: 'batch' as const, commands };
+	const batch = prepared.type === 'batch' ? prepared : { type: 'batch' as const, commands: [prepared] };
+	const routed = runtime.preserveTrackRouting?.(batch, sourceTracks.filter(track => track.type === 'audio')
+		.map(track => ({ sourceTrackId: track.id, targetTrackId: trackMap[track.id]! }))) ?? batch;
 	const selection: AudioEditorCommand = {
 		type: 'selection/set',
 		startFrame: range.exactClips ? 0 : range.startFrame,
@@ -119,7 +126,7 @@ export function prepareDuplicateSelectionCommand(
 		clipIds: range.exactClips ? [...range.clipIds ?? [], ...clipIds] : [],
 		frequencyRange: range.frequencyRange ?? null,
 	};
-	return { command: { type: 'batch', commands: [...(prepared.type === 'batch' ? prepared.commands : [prepared]), selection] },
+	return { command: { type: 'batch', commands: [...routed.commands, selection] },
 		selectTrackId: trackMap[sourceTracks[0]!.id]!, selectClipId: range.exactClips ? clipIds[0] ?? null : null };
 }
 
