@@ -161,7 +161,7 @@ async function openProduct(page, locale, copy) {
 	const app = page.locator('[data-lightscaper-bound="true"]'), library = app.locator('[data-photo-library]'), cards = library.locator('[data-photo-id]');
 	await expect(app).toBeVisible();
 	async function menu(label, parent = copy.view) {
-		const summary = named(app, 'button', parent);
+		const summary = app.getByText(parent, { exact: true });
 		await summary.focus(); await page.keyboard.press('Enter');
 		const button = app.getByRole('button', { name: label, exact: true }); await expect(button).toBeEnabled();
 		await button.focus(); await page.keyboard.press('Enter');
