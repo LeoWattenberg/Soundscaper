@@ -249,8 +249,15 @@ passes 58/58; the follow-through worker/ownership support passes 52/52. Targeted
 type-aware lint and size checks pass. Regressions are
 `audio-editor-round5-selection-effect-spectral-band.test.ts` and
 `audio-editor-round5-selection-effect-spectral-band.spec.js`. These omitted
-first-party dispatch branches count once. Final immutable public verification
-is pending, so this entry is not counted yet.
+first-party dispatch branches count once. The final ordinary workflow compares
+the untouched mono export with its processed export, preserving the existing
+center-pan law rather than assuming raw mono amplitude at Master. The same
+comparison fails at a 0.1414 amplitude loss on the baseline
+(`/tmp/soundscaper-r5-root-selection-spectral-baseline3.log`) and passes all
+three engines on immutable `da291bc0f` (3/3, 27.4 seconds, no skips or failures;
+`/tmp/soundscaper-r5-root-selection-spectral-green12-final.log`). Earlier
+absolute amplitude assertions omitted that normal pan law and are excluded
+from the proof. ROOT-009 is now counted once.
 
 ## R5-ROOT-010 — Plot Spectrum understates a recording's amplitude by 6 dB
 

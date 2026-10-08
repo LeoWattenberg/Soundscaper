@@ -17,6 +17,9 @@ test('Reviewed Utility Gain changes only the authored spectral band', async ({ p
 	const editor = await bootEditor(page, '/embed/en/');
 	await importFiles(editor, [file]);
 	await chooseCommandAction(page, editor, 'Select', 'Select all');
+	const original = await exportSamples(page, editor);
+	const unchangedAmplitude = amplitude(original, 6000);
+	expect(unchangedAmplitude).toBeGreaterThan(0.12);
 	await editor.getByRole('button', { name: 'Spectrogram', exact: true }).click();
 	await runSpectralRange(page, editor, { minimum: 900, maximum: 1100, operation: 'select' });
 	await chooseNestedCommandAction(page, editor, 'Effect', ['Special', 'Utility Gain (Reviewed)']);
@@ -26,7 +29,7 @@ test('Reviewed Utility Gain changes only the authored spectral band', async ({ p
 	await expect(dialog).toBeHidden({ timeout: 20_000 });
 	await expect(editor.getByRole('alert')).toHaveCount(0);
 	const samples = await exportSamples(page, editor);
-	expect(amplitude(samples, 6000)).toBeGreaterThan(0.18);
+	expect(Math.abs(amplitude(samples, 6000) - unchangedAmplitude)).toBeLessThan(0.001);
 	expect(amplitude(samples, 1000)).toBeLessThan(0.01);
 });
 
