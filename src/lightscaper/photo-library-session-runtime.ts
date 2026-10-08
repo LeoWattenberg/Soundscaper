@@ -11,6 +11,10 @@ export function createPhotoLibrarySessionV1(options: Readonly<{ name: string }>)
 	const catalog = new PhotoCatalogRepositoryV1({ indexedDB: globalThis.indexedDB, verifyOriginal: media.verifyOriginal });
 	return new PhotoLibrarySessionV1({ catalog, media: { writeAsset: media.mediaRepository.writeAsset,
 		custody: media.mediaRepository.catalogOriginals }, journal: media.settingsRepository, settings: media.settingsRepository,
+		backup: { readSnapshot: (...args) => catalog.readSnapshot(...args), loadOriginal: async (original, signal) => {
+			await media.verifyOriginal(original, signal); signal?.throwIfAborted();
+			return media.mediaRepository.loadAsset(original.storageKey, { signal, expectedSize: original.byteLength });
+		} },
 		initialize: async signal => {
 			await media.ready(); signal.throwIfAborted();
 			return openDefaultPhotoCatalogV1({ catalog, settings: media.settingsRepository }, { name: options.name, signal });

@@ -6,6 +6,22 @@ repository, media store, command owner or writer. Session composition must hold
 its existing catalog lease until the export and destination cleanup settle.
 The menu and save-target composition is a separate integration packet.
 
+The Session admits destination options before lazy initialization or archive
+loading. `backupCatalog` uses its existing single writer and catalog lease; it
+imports the archive helper only inside that operation. The optional grouped
+backup ports borrow snapshot and original reads from the same live owners.
+Closing joins pending original reads and destination close or abort before
+closing storage. Overlapping writers are refused rather than queued.
+
+The neutral result contains catalog ID/name/count, byte length, the completed
+output Blob or null, and zero or one cleanup notice. It exposes no root, photo
+document, original reference or manifest. A completed result is captured inside
+the borrowed operation only after exporter and destination completion. Late
+abort or lease cleanup failure retains that result with `cleanup-failed`;
+failures before completion still reject. A prepared save target may have its
+own final commit after the supplied stream closes; that remains the menu/save
+owner's responsibility, and user-facing saved status follows that commit.
+
 ## Snapshot consistency
 
 `readSnapshot` reads the normalized catalog root and its metadata index revision

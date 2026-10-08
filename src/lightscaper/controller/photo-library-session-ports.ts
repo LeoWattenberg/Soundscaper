@@ -2,7 +2,7 @@
 
 import type { PhotoPreviewSchedulerV1 } from '../preview/photo-preview-scheduler-v1.ts';
 import type { PhotoCatalogRepositoryV1 } from '../catalog/repository.ts';
-import type { PhotoCatalogRootV1 } from '../catalog/types.ts';
+import type { PhotoCatalogRootV1, PhotoOriginalV1 } from '../catalog/types.ts';
 import type { PhotoManagedImportPortsV1 } from '../import/managed-import-ports-v1.ts';
 import type { PhotoCatalogImportExclusiveV1 } from '../import/catalog-write-lock-v1.ts';
 import type { PhotoImportOutcomeV1, PhotoImportPreparedV1 } from '../import/photo-import-preparation-v1.ts';
@@ -15,6 +15,10 @@ export type PhotoLibraryPreparationOutcomeV1 = Prepared | Extract<PhotoImportOut
 export type PhotoLibraryPreviewSchedulerPortV1 = Pick<PhotoPreviewSchedulerV1, 'request' | 'close'>;
 
 export interface PhotoLibrarySessionPortsV1 {
+	readonly backup?: Readonly<{
+		readSnapshot: PhotoCatalogRepositoryV1['readSnapshot'];
+		loadOriginal: (original: PhotoOriginalV1, signal?: AbortSignal) => Promise<unknown>;
+	}>;
 	readonly createPreviewScheduler?: (catalogId: string) => Promise<PhotoLibraryPreviewSchedulerPortV1>;
 	readonly catalog: Pick<PhotoCatalogRepositoryV1, 'loadCatalog' | 'loadPhoto' | 'publishPhotos' | 'savePhoto' | 'saveCatalog' | 'readSummaryPage' | 'readQueryPage' | 'rebuildQueryIndexPage'>;
 	readonly media: PhotoManagedImportPortsV1['media'];

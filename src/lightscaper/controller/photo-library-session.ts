@@ -5,6 +5,7 @@ import type { PhotoLibraryAttributePatchV1, PhotoLibraryImportItemV1, PhotoLibra
 import type { PhotoLibraryDefinitionAcknowledgementV1, PhotoLibraryDefinitionCommandV1, PhotoLibraryDefinitionReadRequestV1, PhotoLibraryDefinitionSnapshotV1,
 	PhotoLibraryMembershipAcknowledgementV1, PhotoLibraryMembershipPatchV1, PhotoLibraryMembershipSnapshotV1 } from '../../common/editor/photo-library-organization-port-v1.ts';
 import type { PhotoLibraryImportPresetCommandV1, PhotoLibraryImportPresetSnapshotV1, PhotoLibraryImportRequestOptionsV1 } from '../../common/editor/photo-library-import-settings-port-v1.ts';
+import type { PhotoLibraryBackupOptionsV1, PhotoLibraryBackupPortV1, PhotoLibraryBackupResultV1 } from '../../common/editor/photo-library-backup-port-v1.ts';
 import type { PhotoLibraryBatchRenamePortV1, PhotoLibraryBatchRenameRequestV1, PhotoLibraryBatchRenamePlanV1,
 	PhotoLibraryBatchRenameUndoV1, PhotoLibraryBatchRenameReceiptV1, PhotoLibraryBatchRenameSnapshotV1 } from '../../common/editor/photo-library-batch-rename-port-v1.ts';
 import { IMAGE_IMPORT_LIMITS } from '../../common/editor/image-import-admission.ts';
@@ -30,11 +31,12 @@ import { normalizePhotoLibraryMembershipReadV1, normalizePhotoLibraryMembershipM
 	readPhotoLibraryMembershipsV1, applyPhotoLibraryMembershipsV1 } from './photo-library-memberships-v1.ts';
 import type { PhotoLibraryPreparationOutcomeV1, PhotoLibraryPreviewSchedulerPortV1, PhotoLibrarySessionPortsV1 } from './photo-library-session-ports.ts';
 import { admitPhotoLibraryImportRequestV1 } from './photo-library-import-request.ts';
+import { admitPhotoLibraryBackupRequestV1 } from './photo-library-backup-request.ts';
 import { planPhotoLibraryBatchRenameV1, readPhotoLibraryBatchRenameSelectionV1, renamePhotoLibraryBatchV1,
 	undoPhotoLibraryBatchRenameV1, type PhotoBatchRenameSessionPortsV1 } from './photo-library-batch-rename-v1.ts';
 
 /** Product session owns lifetime, bounded presentation pages and a single writer. */
-export class PhotoLibrarySessionV1 implements PhotoLibrarySessionPortV1, PhotoLibraryBatchRenamePortV1 {
+export class PhotoLibrarySessionV1 implements PhotoLibrarySessionPortV1, PhotoLibraryBatchRenamePortV1, PhotoLibraryBackupPortV1 {
 	readonly #ports: PhotoLibrarySessionPortsV1;
 	readonly #lifetime = new AbortController();
 	readonly #pending = new Set<Promise<unknown>>();
@@ -47,6 +49,31 @@ export class PhotoLibrarySessionV1 implements PhotoLibrarySessionPortV1, PhotoLi
 	#closing: Promise<void> | null = null;
 
 	constructor(ports: PhotoLibrarySessionPortsV1) { this.#ports = ports; }
+
+	async backupCatalog(options: PhotoLibraryBackupOptionsV1 = {}): Promise<PhotoLibraryBackupResultV1> {
+		const request = admitPhotoLibraryBackupRequestV1(options), backup = this.#ports.backup;
+		if (!backup) throw new Error('Photo catalog backup is unavailable.');
+		const completed: { result: PhotoLibraryBackupResultV1 | null } = { result: null };
+		try {
+			return await this.#mutation(async (catalogId, signal) => {
+				signal.throwIfAborted();
+				const { exportPhotoLibraryBackupV1 } = await import('./photo-library-backup-v1.ts');
+				signal.throwIfAborted();
+				const result = await exportPhotoLibraryBackupV1(catalogId, {
+					catalog: { readSnapshot: (...args) => backup.readSnapshot(...args),
+						readSummaryPage: (...args) => this.#ports.catalog.readSummaryPage(...args),
+						loadPhoto: (...args) => this.#ports.catalog.loadPhoto(...args) },
+					loadOriginal: (original, admitted) => backup.loadOriginal(original, admitted),
+				}, { ...request, signal });
+				completed.result = Object.freeze({ catalogId, catalogName: result.document.catalog.name, photoCount: result.document.catalog.photoCount,
+					byteLength: result.byteLength, blob: result.blob, notices: Object.freeze([]) });
+				return completed.result;
+			}, request.signal);
+		} catch (error) {
+			if (completed.result === null) throw error;
+			return Object.freeze({ ...completed.result, notices: Object.freeze(['cleanup-failed'] as const) });
+		}
+	}
 
 	readBatchRenameSelection(photoIds: readonly string[], options: Readonly<{ signal?: AbortSignal }> = {}): Promise<PhotoLibraryBatchRenameSnapshotV1> {
 		return readPhotoLibraryBatchRenameSelectionV1(this.#batchRenamePorts(), photoIds, options);
