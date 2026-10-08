@@ -432,3 +432,28 @@ passes both ordinary prompt and actual Crossfade Clips → Apply → WAV downloa
 or failures; `/tmp/soundscaper-r5-root-nyquist-source-clip-bounds-green19.log`).
 The delivered extent is 5.4 seconds and Undo restores 5.8. Both guarded product
 builds pass. ROOT-014 is counted once. Assistance runtime assets are unchanged.
+
+## R5-ROOT-015 — A Source selection prevents a track rack noise profile
+
+Import an ordinary WAV, Select all and add Noise Reduction to its track rack.
+Close its settings, open Clip properties, focus Source waveform and select all,
+then reopen the existing rack effect and press Get noise profile. Capture refuses
+the valid selected recording: the source target has a synthetic native-source
+identifier, which the rack admission compares with the authored track identifier.
+
+Admit the source target through its authenticated owning track. Resolve the rack's
+channel layout over the selected timeline range, retaining the existing rack
+render clock and native Source selection. The rack remains an authored track
+processor; capture does not modify or replace native source audio.
+
+The immutable-baseline Chromium workflow reaches Get noise profile and fails to
+capture (`/tmp/soundscaper-r5-root-rack-source-profile-baseline2.log`). The first
+probe used the empty initial track and an incorrect settings locator and is
+excluded. Two strict actual Source editor target cases independently refuse
+before correction (`/tmp/soundscaper-r5-root-rack-source-profile-node-red.log`).
+Native 24 kHz and 48 kHz ownership cases plus existing capture, bus and muted
+Master support pass 31/31 afterward. Target lint passes; final guarded browser
+verification remains pending. Regressions are
+`audio-editor-round5-rack-source-profile.test.ts` and
+`audio-editor-round5-rack-source-profile.spec.js`. ROOT-015 is not yet counted.
+Assistance runtime assets are unchanged.

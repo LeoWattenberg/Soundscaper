@@ -1,8 +1,8 @@
 # Fifth user-reproducible regression audit
 
-This audit is in progress toward 100 additional distinct fixes. Fifty-two
-new roots have completed ordinary browser verification (editing 15, dialogs 16,
-effects/analysis 14, import/export 7). Its immutable
+This audit is in progress toward 100 additional distinct fixes. Fifty-seven
+new roots have completed ordinary browser verification (editing 16, dialogs 19,
+effects/analysis 14, import/export 8). Its immutable
 baseline is `fe6440c81b3a0fe29a028c64db867ae7d2cf3252`.
 
 Count an entry only after ordinary public user actions reproduce its defect
@@ -37,8 +37,12 @@ The corrected archive chunk ownership adds no count. Checkpoint eighteen,
 by the dialogue-chain and source-BPM public regressions in all three engines.
 Checkpoint nineteen, `cf64e5829`, passes both guarded product builds, native
 Bin Insert and Source Nyquist processing in all three engines. Visual-preset
-focus restoration passed two engines and requires follow-through for WebKit;
-that pending root remains uncounted.
+focus restoration required follow-through for WebKit. Checkpoint twenty,
+`4b866b72a`, passes both guarded product builds and that corrected focus
+workflow, recording-notes inline code, Nyquist refusal retention, mixed-width
+stereo splitting and delayed video audio across all three engines. Coordinated
+source types pass; whole test types found two strict I/O fixture declarations
+whose correction is in progress, adding no bug count.
 Browser evidence names each exact checkpoint. Firefox audio
 uses the unchanged CI PulseAudio setup with a private 48 kHz null sink.
 
