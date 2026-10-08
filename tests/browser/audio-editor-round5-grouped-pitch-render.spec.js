@@ -16,8 +16,9 @@ test('rendering one grouped pitched recording preserves its untouched companion'
 	await properties.getByText('Pitch and tempo', { exact: true }).click();
 	await commitInput(clipField(properties, 'pitchCents'), '2');
 	await closeClipProperties(properties);
-	await lead.locator('.clip-header').click();
-	await companion.locator('.clip-header').click({ modifiers: ['Shift'] });
+	await lead.press('Enter');
+	await companion.press('Shift+Enter');
+	await expect(editor.locator('.clip-display[data-selected="true"]')).toHaveCount(2);
 	await chooseNestedCommandAction(page, editor, 'Edit', ['Audio clips', 'Group clips']);
 	await expect(editor.locator('.clip-display[data-selected="true"]')).toHaveCount(2);
 	await lead.getByRole('button', { name: 'Clip menu', exact: true }).click();
