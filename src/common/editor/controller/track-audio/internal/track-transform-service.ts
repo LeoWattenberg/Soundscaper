@@ -15,6 +15,7 @@ import { resampledClipCommands } from './clip-resample-service.ts';
 import { trackReplacementPlacement } from './track-replacement-placement.ts';
 import { stereoTrackRenderRange } from './stereo-track-render-range.ts';
 import { splitStereoSourceChannels } from './split-stereo-source-channels.ts';
+import { assertStereoSplitRoutingRepresentable } from './stereo-split-routing-admission.ts';
 import { resampledClipSelectionCommands } from './resampled-clip-selection.ts';
 import { isStandaloneMonoAudioTrack } from '../../../mono-track-pair-admission.ts';
 import { copyDerivedTrackStripAutomation } from '../../../derived-track-strip-automation.ts';
@@ -228,6 +229,7 @@ export function createTrackTransformService(
 		if (dependencies.editingBlocked()) return null;
 		const project = dependencies.getProject();
 		const track = requireStereoTrack(project, trackId);
+		assertStereoSplitRoutingRepresentable(project, track.id, dependencies.copy);
 		const trackIndex = project.tracks.findIndex((candidate) => candidate.id === track.id);
 		const clips = trackClips(project, track);
 		const sources = dependencies.derivedSources.uniqueClipSources(clips);
