@@ -3,8 +3,8 @@
 import { useRef, useState } from 'react';
 
 import { usePresentationFeedback } from '../presentation-feedback.ts';
+import { consumeTimelineAnnotationRenameKey } from './timeline-annotation-rename-keyboard.ts';
 import {
-	consumeTimelineAnnotationRenameKey,
 	resolveTimelineAnnotationKeyboardIntent,
 	timelineAnnotationConversionRequest,
 	timelineAnnotationCreateKind,
