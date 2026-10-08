@@ -10,6 +10,7 @@ import AudioEditorTimeCodeInput from '../AudioEditorTimeCodeInput.tsx';
 import NyquistGetEffectsDialog from './NyquistGetEffectsDialog.jsx';
 import { loadNyquistPromptDraft, storeNyquistPromptDraft } from './nyquist-prompt-draft.ts';
 import NyquistNumberInput from './NyquistNumberInput.tsx';
+import { nyquistDialogAppliedResult } from './nyquist-dialog-result.ts';
 
 export default function NyquistDialog({ controller, snapshot, copy, target, run, onClose }) {
 	if (target?.pluginId === '__get-effects__') return <NyquistGetEffectsDialog copy={copy} onClose={onClose} />;
@@ -112,7 +113,8 @@ function NyquistRunnerDialog({ controller, snapshot, copy, target, run, onClose 
 			});
 			const result = promise ? await promise : null;
 			if (result && !submission.signal.aborted) {
-				if (!preview && (plugin?.role === 'generate' || plugin?.role === 'process')) {
+				if (!preview && (plugin?.role === 'generate' || plugin?.role === 'process')
+					&& nyquistDialogAppliedResult(result)) {
 					onClose({ cancelEvaluation: false });
 					return;
 				}
