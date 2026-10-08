@@ -12,15 +12,25 @@ import FramescaperAudioEditorBootstrap from
 	'../src/framescaper/ui/FramescaperAudioEditorBootstrap.tsx';
 import SoundscaperAudioEditorBootstrap from
 	'../src/soundscaper/ui/SoundscaperAudioEditorBootstrap.tsx';
+import { bundledCatalogForLocale } from '../src/common/i18n/runtime.js';
 
-test('bootstrap copy snapshot accepts exactly 4096 own fields without invoking getters', () => {
-	const input = Object.fromEntries(Array.from({ length: 4_096 }, (_, index) => [
+test('bootstrap snapshots admit the current combined product catalogs without losing copy', () => {
+	for (const locale of ['en', 'de']) {
+		const input = bundledCatalogForLocale(locale);
+		const snapshot = snapshotBootstrapCopyFields(input, 'bundled copy', 'own data property');
+		assert.deepEqual(Reflect.ownKeys(snapshot), Reflect.ownKeys(input));
+		for (const key of Object.keys(input)) assert.equal(snapshot[key], input[key]);
+	}
+});
+
+test('bootstrap copy snapshot accepts exactly 8192 own fields without invoking getters', () => {
+	const input = Object.fromEntries(Array.from({ length: 8_192 }, (_, index) => [
 		`field${String(index)}`, index,
 	]));
 	const snapshot = snapshotBootstrapCopyFields(input, 'copy', 'own data property');
 	assert.equal(Object.getPrototypeOf(snapshot), null);
 	assert.equal(Object.isFrozen(snapshot), true);
-	assert.equal(Reflect.ownKeys(snapshot).length, 4_096);
+	assert.equal(Reflect.ownKeys(snapshot).length, 8_192);
 	assert.notEqual(snapshot, input);
 	input.field0 = -1;
 	assert.equal(snapshot.field0, 0);

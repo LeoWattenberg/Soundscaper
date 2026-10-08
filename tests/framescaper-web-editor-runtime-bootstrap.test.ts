@@ -189,7 +189,7 @@ test('the presentation copy must be a record of own enumerable data fields', asy
 		}), { name: 'RangeError', message: 'Framescaper web copy has an invalid field inventory.' });
 		await assert.rejects(createFramescaperWebEditorRuntime({
 			locale: 'en',
-			copy: Object.fromEntries(Array.from({ length: 4_097 }, (_, index) => [`k${index}`, index])),
+			copy: Object.fromEntries(Array.from({ length: 8_193 }, (_, index) => [`k${index}`, index])),
 		}), { name: 'RangeError', message: 'Framescaper web copy has an invalid field inventory.' });
 		assert.equal(log.opens, 0);
 	});
