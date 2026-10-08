@@ -88,6 +88,10 @@ export default function WorkspacePreferencesDialog({
 	useEffect(() => setSelectedPage(workspacePreferencesPage(initialPage)), [initialPage]);
 	const handleSideNavKeyDown = (event) => {
 		if (!event.target.closest('[role="tab"]') || !['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+		if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) {
+			event.stopPropagation();
+			return;
+		}
 		event.preventDefault();
 		event.stopPropagation();
 		const currentIndex = Math.max(0, pages.findIndex((page) => page.id === selectedPage));
