@@ -328,7 +328,7 @@ export default function createApplicationMenus({
 					label: copy.removeSpecial,
 					items: [
 						{ id: 'trim-audio-outside-selection', label: copy.trimOutsideSelection, disabled: editBlocked || !editSelectionActive, onClick: () => actions.executeEdit('trimOutsideSelection') },
-						{ id: 'silence-audio', label: copy.silenceAudio, disabled: editBlocked || !editSelectionActive, onClick: () => actions.executeEdit('silenceSelection') },
+						{ id: 'silence-audio', label: copy.silenceAudio, disabled: editBlocked || !editSelectionActive || !capabilities.audioGenerators, onClick: () => actions.executeEdit('silenceSelection') },
 					],
 				},
 				{
