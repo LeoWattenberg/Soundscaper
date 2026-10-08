@@ -21,6 +21,16 @@ The registers distinguish verified fixes from changes awaiting public checks:
 Focused regressions run for each correction. The full Node suite is required
 after each 50 verified fixes; the first milestone has not been reached.
 
+The immutable checkout at `c85e613cf` verifies 25 distinct roots through
+29 public Chromium regressions, all passing in 34.3 seconds
+(`/tmp/soundscaper-round6-green5-browser.log`). The same cases across all three
+engines report 84 passed and three Firefox failures involving audio observers
+or recording setup; those additional failures are being investigated and are
+not represented as passing (`/tmp/soundscaper-round6-green5-browser-all-engines.log`).
+Full repository lint and TypeScript checks pass again, and both product builds
+pass on this checkout. Changes awaiting a later immutable build remain separate
+from that verified count.
+
 The initial full Node run completed 23,948 tests across its two execution
 batches. Its parallel batch reported 22 failures: 20 reference conformance cases
 ran before the new worktree had its existing provisioned Python validators,
