@@ -323,6 +323,7 @@ export function AudacityLabelMarker({
 					onFinishEdit();
 				}}
 				onKeyDown={(event) => {
+					if (event.nativeEvent?.isComposing) return;
 					event.stopPropagation();
 					if (event.key === 'Enter') {
 						event.currentTarget.blur();
