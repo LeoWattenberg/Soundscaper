@@ -55,7 +55,8 @@ test('joined clean cancellation remains harmless for exact reason and genuine Ab
 test('late opaque cleanup preserves identity without inspecting proxy or scalar rejection reasons', async () => {
 	let inspected = 0;
 	const hostile = new Proxy({}, { get() { inspected++; throw new Error('Cleanup getter evaluated.'); },
-		getPrototypeOf() { inspected++; throw new Error('Cleanup prototype evaluated.'); } });
+		getPrototypeOf() { inspected++; throw new Error('Cleanup prototype evaluated.'); },
+		getOwnPropertyDescriptor() { inspected++; throw new Error('Cleanup descriptor evaluated.'); } });
 	for (const failure of [hostile, null, 17, 'opaque cleanup']) {
 		const entered = deferred<void>(), release = deferred<void>();
 		const owner = new PixelPreviewPresentationV1({ stage: async () => { entered.resolve(); await release.promise; throw failure; }, clear: target => { target.width = 0; target.height = 0; } });

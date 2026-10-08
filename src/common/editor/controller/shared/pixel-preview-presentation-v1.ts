@@ -270,9 +270,9 @@ export class PixelPreviewPresentationV1 {
 		try { this.#listener?.(this.snapshot()); }
 		catch (error) { this.#recordCleanup(error); }
 	}
-	#recordCleanup(error: unknown): void {
+	#recordCleanup(error: unknown, opaque = false): void {
 		if (this.#cleanupErrors.length >= 64) this.#cleanupErrors.shift();
-		this.#cleanupErrors.push(errorMessage(error));
+		this.#cleanupErrors.push(opaque ? 'Preview retirement cleanup failed.' : errorMessage(error));
 	}
 
 	#wake(): void {
@@ -290,7 +290,7 @@ export class PixelPreviewPresentationV1 {
 			if (this.#pending === pending) this.#pending = null;
 			this.#wake();
 		}, error => {
-			this.#recordCleanup(error);
+			this.#recordCleanup(error, this.#retirementFailure !== null);
 			if (this.#pending === pending) this.#pending = null;
 			this.#wake();
 		});
