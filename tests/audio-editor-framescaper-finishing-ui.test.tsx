@@ -180,6 +180,7 @@ function project() {
 			kind: 'video', id: 'video-source', name: 'Video', storageKey: 'video-source',
 			contentSha256: '12'.repeat(32), sourceFrameCount: 10,
 			frameRate: { num: 10, den: 1 },
+			timingDecision: { mode: 'conform-cfr-at-ingest', rate: { num: 10, den: 1 } },
 		}],
 		videoColorContexts: [], videoSourceColorInterpretations: [], videoVisualPresentations: [{
 			schemaVersion: 1, id: 'presentation-1', owner: { kind: 'clip', id: 'clip-1' },
