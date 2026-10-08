@@ -13,11 +13,11 @@ const ENTRY = new URL('../helpers/lightscaper-library-restore-native-fixture.ts'
 test('native archive3 restore installs exact original bodies, grouping and full saved queries in authenticated namespaces', async ({ page }) => {
 	const result = await qualify(page, 'preservation');
 	expect(result).toMatchObject({ archivedDocumentsExact: true, originalBytesExact: true, originalShaExact: true,
-		ownerMarkersExact: true, selectedSessionReopened: true, savedOrdinaryAndCollapsedExact: true,
+		ownerMarkersExact: true, membershipRowsExact: true, selectedSessionReopened: true, savedOrdinaryAndCollapsedExact: true,
 		photoRevisions: [11, 19], rootRevision: 37, stackRevision: 23, savedRevision: 29, savedStateRevision: 41,
 		chunks: [2, 1], previousPointerPreserved: true, selectedNamespaces: 2,
 		receipt: { photoCount: 2, stackCount: 1, savedCollectionCount: 1, originalCount: 2, notices: [] },
-		inventory: { catalogs: 1, catalogStates: 1, photos: 2, summaries: 2, memberships: 6,
+		inventory: { catalogs: 1, catalogStates: 1, photos: 2, summaries: 2, memberships: 12,
 			photoQueryRows: 2, photoQueryBuildStates: 1, photoQueryRowsV2: 2, photoQueryBuildStatesV2: 1,
 			photoStacks: 1, photoStackMemberships: 2, photoStackStates: 1, photoSmartCollections: 1,
 			photoSmartCollectionSummaries: 1, photoSmartCollectionStates: 1, photoCatalogRestoreOwners: 1 } });

@@ -184,10 +184,21 @@ async function inspect(source: Archive, selected: Authority) {
 			});
 		}
 		check(tokens[0] !== tokens[1] && equal(chunks, [2, 1]), 'Restored physical body identities or tail chunks differ.');
+		// Independent oracle for this two-photo fixture; do not borrow the production membership projector.
+		const expectedMemberships = source.photos.flatMap((photo, index) => [
+			`${source.root.id}|rating|${index + 1}`, `${source.root.id}|flag|unflagged`, `${source.root.id}|label|none`,
+			`${source.root.id}|keyword|keyword`, `${source.root.id}|collection|manual`, `${source.root.id}|folder|folder`,
+		].map(scope => ({ key: `${scope}|${photo.id}`, scope, photoKey: `${source.root.id}|${photo.id}` })))
+			.sort((left, right) => left.key < right.key ? -1 : left.key > right.key ? 1 : 0);
+		const memberships = await transact(catalogDatabase, 'memberships', 'readonly', stores => readCursorPage(stores.memberships!, {
+			limit: 64, project: (value: unknown, key) => ({ key, value }),
+		}));
+		check(expectedMemberships.length === 12 && equal(memberships, expectedMemberships.map(value => ({ key: value.key, value }))),
+			'Native membership physical keys, scopes or photo bindings differ.');
 		const inventory: Record<string, number> = {};
 		for (const store of [...PHOTO_CATALOG_STORES, PHOTO_CATALOG_RESTORE_OWNER_STORE_V1]) inventory[store] = (await keys(catalogDatabase, store)).length;
 		for (const [store, expected] of [['mediaAssets', 2], ['mediaAssetChunks', 3], ['catalogOriginalRoots', 2]] as const) check((await keys(media, store)).length === expected, 'Media inventory has missing/extra rows.');
-		return { archivedDocumentsExact: true, originalBytesExact: true, originalShaExact: true, ownerMarkersExact: true,
+		return { archivedDocumentsExact: true, originalBytesExact: true, originalShaExact: true, ownerMarkersExact: true, membershipRowsExact: true,
 			selectedSessionReopened: true, savedOrdinaryAndCollapsedExact: true, stackOrder: source.stack.photoIds,
 			photoRevisions: source.photos.map(photo => photo.revision), rootRevision: source.root.revision, stackRevision: source.stack.revision,
 			savedRevision: source.saved.revision, savedStateRevision: source.state.revision, chunks, tokens, inventory,
