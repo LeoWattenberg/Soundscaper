@@ -67,7 +67,7 @@ async function mountSequenceFields() {
 	return {
 		updates,
 		field: (field: 'name' | 'timecode') => {
-			const input = field === 'name' ? dom.one('input') : dom.one('[data-sequence-start-timecode]');
+			const input = (field === 'name' ? dom.one('input') : dom.one('[data-sequence-start-timecode]')) as ReactTestElement & Pick<HTMLInputElement, 'blur'>;
 			// A real native blur synchronously sends React its owning onBlur callback.
 			input.blur = () => { reactProps(input).onBlur({ currentTarget: input }); };
 			return input;

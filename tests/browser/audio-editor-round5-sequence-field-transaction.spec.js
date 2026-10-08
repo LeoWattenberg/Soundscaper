@@ -32,8 +32,10 @@ test('sequence timing fields cancel drafts and commit one Enter edit through Und
 	await expect(timecode).toHaveAttribute('data-sequence-start-timecode', '00:00:01:00');
 	await editor.getByRole('button', { name: 'Undo', exact: true }).click();
 	await expect(timecode).toHaveValue(start);
+	await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved');
 	await page.reload();
 	editor = await waitForEditor(page);
+	await editor.getByRole('tab', { name: 'Sequence timing', exact: true }).click();
 	panel = editor.getByRole('tabpanel', { name: 'Sequence timing', exact: true });
 	name = panel.getByRole('textbox', { name: 'Sequence name', exact: true });
 	await expect(name).toHaveValue('Saved sequence');
