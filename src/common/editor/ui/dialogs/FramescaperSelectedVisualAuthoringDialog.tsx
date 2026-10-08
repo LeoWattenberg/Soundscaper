@@ -241,23 +241,23 @@ function MaskFields({ text, model, blocked, values, setters, onPerform }: Parame
 function PresetFields({ text, model, blocked, values, setters, onPerform }: Parameters<typeof AuthoringFields>[0]) {
 	const generatorSelected = model.selectedClipKind === 'generator';
 	return <>
-		<fieldset disabled={blocked || !generatorSelected}>
+		<fieldset disabled={blocked}>
 			<legend>{text.visualPreset}</legend>
-			<label><span>{text.presetName}</span><input data-framescaper-authoring-preset-name value={values.presetName}
+			<label><span>{text.presetName}</span><input data-framescaper-authoring-preset-name disabled={!generatorSelected} value={values.presetName}
 				onChange={(event) => setters.setPresetName(event.currentTarget.value)} /></label>
-			<button data-framescaper-authoring-save-visual type="button" onClick={() => onPerform('save-visual')}>
+			<button data-framescaper-authoring-save-visual type="button" disabled={!generatorSelected} onClick={() => onPerform('save-visual')}>
 				{text.saveGenerator}</button>
 			<label><span>{text.savedVisualPreset}</span><select data-framescaper-authoring-visual-preset
 				value={values.visualPresetId} onChange={(event) => setters.setVisualPresetId(event.currentTarget.value)}>
 				<option value="">{text.none}</option>{model.visualPresets.map(({ id, name }) => (
 					<option key={id} value={id}>{name}</option>
 				))}</select></label>
-			<button data-framescaper-authoring-apply-visual type="button" disabled={!values.visualPresetId}
+			<button data-framescaper-authoring-apply-visual type="button" disabled={!generatorSelected || !values.visualPresetId}
 				onClick={() => onPerform('apply-visual')}>{text.applyGenerator}</button>
 			<button data-framescaper-authoring-remove-visual type="button" disabled={!values.visualPresetId}
 				onClick={() => onPerform('remove-visual')}>{text.removeVisualPreset}</button>
 		</fieldset>
-		<fieldset disabled={blocked || model.selectedClipId === null}>
+		<fieldset disabled={blocked}>
 			<legend>{text.finishingPreset}</legend>
 			<label><span>{text.savedFinishingPreset}</span><select data-framescaper-authoring-finishing-preset
 				value={values.finishingPresetId}
@@ -265,7 +265,7 @@ function PresetFields({ text, model, blocked, values, setters, onPerform }: Para
 				<option value="">{text.none}</option>{model.finishingPresets.map(({ id, name }) => (
 					<option key={id} value={id}>{name}</option>
 				))}</select></label>
-			<button data-framescaper-authoring-apply-finishing type="button" disabled={!values.finishingPresetId}
+			<button data-framescaper-authoring-apply-finishing type="button" disabled={model.selectedClipId === null || !values.finishingPresetId}
 				onClick={() => onPerform('apply-finishing')}>{text.applyFresh}</button>
 			<button data-framescaper-authoring-remove-finishing type="button" disabled={!values.finishingPresetId}
 				onClick={() => onPerform('remove-finishing')}>{text.removeFinishingPreset}</button>
