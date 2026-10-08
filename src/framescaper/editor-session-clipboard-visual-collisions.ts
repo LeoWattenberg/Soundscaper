@@ -1,15 +1,20 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { AudioEditorCommand } from '../common/editor/commands/protocol.ts';
-import { sampleFrameToVideoFrame, scaleSampleFrame, type RationalRate } from '../common/editor/timeline-time.ts';
+import { sampleFrameToVideoFrame, videoFrameToSampleFrame, scaleSampleFrame, type RationalRate } from '../common/editor/timeline-time.ts';
+import { normalizeFramescaperImageClipV1, type FramescaperImageClipV1 } from '../common/editor/timeline-image-model.ts';
+import { prepareTimelineImageTrim } from '../common/editor/timeline-image-trim.ts';
 import {
 	normalizeVideoGeneratorClipV1, normalizeVideoStillClipV1,
 	type VideoGeneratorClipV1, type VideoStillClipV1,
 } from '../common/editor/video-visual-model-v24.ts';
 import type { FramescaperProjectFinishing } from './editor-project-finishing.ts';
 import type { FramescaperProjectCommandFinishing } from './editor-project-finishing-commands.ts';
+import type { FramescaperProjectTimelineImage } from './editor-project-timeline-image.ts';
+import type { FramescaperProjectCommandTimelineImage } from './editor-project-timeline-image-commands.ts';
 
 type VisualClip = VideoGeneratorClipV1 | VideoStillClipV1;
+interface ClipGeometry { readonly id: string; readonly sequenceId: string; readonly sequenceStartFrame: number; readonly sequenceFrameCount: number }
 type Paste = Extract<AudioEditorCommand, { readonly type: 'clipboard/paste' }>;
 interface CollisionGeometry {
 	readonly clips: readonly Readonly<Record<string, unknown>>[];
@@ -33,9 +38,56 @@ export function prepareVisualClipboardCollisions(project: FramescaperProjectFini
 		if (clip.kind === 'generator') clips.set(String(clip.id), normalizeVideoGeneratorClipV1(clip));
 		if (clip.kind === 'still') clips.set(String(clip.id), normalizeVideoStillClipV1(clip));
 	}
+	const prepared = prepareCollisions(current, command, clips, segment, mutation);
+	const { foundationCommand, commands, removed } = prepared;
+	if (removed.size) {
+		commands.unshift({ type: 'selection/set', startFrame: current.selection.startFrame,
+			endFrame: current.selection.endFrame, trackIds: current.selection.trackIds,
+			clipIds: current.selection.clipIds.filter(id => !removed.has(id)) });
+		for (const presentation of project.videoVisualPresentations) {
+			if (presentation.owner.kind === 'clip' && removed.has(presentation.owner.id)) commands.unshift({
+				type: 'video-visual-presentation/set', presentationId: presentation.id,
+				expectedPresentation: presentation, presentation: null,
+			});
+		}
+	}
+	return { foundationCommand, commands };
+}
+
+/** The image adapter resolves its own collision leaves before the inherited projection drops them. */
+export function prepareImageClipboardCollisions(project: FramescaperProjectTimelineImage,
+	command: AudioEditorCommand): Readonly<{
+		foundationCommand: AudioEditorCommand;
+		commands: readonly FramescaperProjectCommandTimelineImage[];
+	}> {
+	const clips = new Map(project.clips.filter(clip => clip.kind === 'image')
+		.map(clip => [clip.id, normalizeFramescaperImageClipV1(clip)]));
+	const current = project as unknown as CollisionGeometry;
+	const prepared = prepareCollisions(current, command, clips, (clip, start, end, id, placementStart) => {
+		const sequence = project.sequences.find(item => item.id === clip.sequenceId);
+		const source = project.sources.find(item => item.id === clip.sourceId && item.kind === 'image');
+		if (!sequence || !source || !('canonical' in source)) throw new ReferenceError('An image paste survivor requires its source and sequence.');
+		const startSample = videoFrameToSampleFrame(start, sequence.rate, project.sampleRate, 'point');
+		const endSample = videoFrameToSampleFrame(end, sequence.rate, project.sampleRate, 'point');
+		const trimmed = prepareTimelineImageTrim(current, clip, source as Readonly<{ canonical: Readonly<{ durationTicks: string }> }>,
+			{ timelineStartFrame: startSample, durationFrames: endSample - startSample });
+		return { ...trimmed, id, sequenceStartFrame: placementStart };
+	}, imageMutation);
+	const commands: FramescaperProjectCommandTimelineImage[] = [...prepared.commands];
+	if (prepared.removed.size) commands.unshift({ type: 'selection/set', startFrame: current.selection.startFrame,
+		endFrame: current.selection.endFrame, trackIds: current.selection.trackIds,
+		clipIds: current.selection.clipIds.filter(id => !prepared.removed.has(id)) });
+	return { foundationCommand: prepared.foundationCommand, commands };
+}
+
+function prepareCollisions<Clip extends ClipGeometry, Command>(current: CollisionGeometry,
+	command: AudioEditorCommand, clips: ReadonlyMap<string, Clip>,
+	makeSegment: (clip: Clip, start: number, end: number, id: string, placementStart: number) => Clip,
+	makeMutation: (expected: Clip | null, clip: Clip | null, trackId: string) => Command,
+): Readonly<{ foundationCommand: AudioEditorCommand; commands: Command[]; removed: ReadonlySet<string> }> {
 	const owners = new Map(current.tracks.flatMap(track => Array.isArray(track.clipIds)
 		? track.clipIds.map(id => [id, track.id] as const) : []));
-	const commands: FramescaperProjectCommandFinishing[] = [];
+	const commands: Command[] = [];
 	const removed = new Set<string>();
 	const visit = (value: AudioEditorCommand): AudioEditorCommand => {
 		if (value.type === 'batch') return { ...value, commands: value.commands.map(visit) };
@@ -55,37 +107,25 @@ export function prepareVisualClipboardCollisions(project: FramescaperProjectFini
 			const clipStart = clip.sequenceStartFrame;
 			const clipEnd = clipStart + clip.sequenceFrameCount;
 			if (value.mode === 'overlap' && clipStart < end && clipEnd > start) {
-				const left = clipStart < start ? segment(clip, clipStart, start, clip.id, clipStart) : null;
-				const right = clipEnd > end ? segment(clip, end, clipEnd,
+				const left = clipStart < start ? makeSegment(clip, clipStart, start, clip.id, clipStart) : null;
+				const right = clipEnd > end ? makeSegment(clip, end, clipEnd,
 					left ? splitId(value, clip.id) : clip.id, end) : null;
-				commands.push(mutation(clip, left ?? right, trackId));
-				if (left && right) commands.push(mutation(null, right, trackId));
+				commands.push(makeMutation(clip, left ?? right, trackId));
+				if (left && right) commands.push(makeMutation(null, right, trackId));
 				if (!left && !right) removed.add(id);
 			} else if (value.mode === 'insert-track' || value.mode === 'insert-all') {
 				if (clipEnd <= start) continue;
-				if (clipStart >= start) commands.push(mutation(clip, { ...clip, sequenceStartFrame: clipStart + count }, trackId));
+				if (clipStart >= start) commands.push(makeMutation(clip, { ...clip, sequenceStartFrame: clipStart + count }, trackId));
 				else {
-					commands.push(mutation(clip, segment(clip, clipStart, start, clip.id, clipStart), trackId));
-					commands.push(mutation(null, segment(clip, start, clipEnd, splitId(value, clip.id), end), trackId));
+					commands.push(makeMutation(clip, makeSegment(clip, clipStart, start, clip.id, clipStart), trackId));
+					commands.push(makeMutation(null, makeSegment(clip, start, clipEnd, splitId(value, clip.id), end), trackId));
 				}
 			}
 		}
 		return Array.isArray(value.collisionClipIds)
 			? { ...value, collisionClipIds: value.collisionClipIds.filter(id => !clips.has(id)) } : value;
 	};
-	const foundationCommand = visit(command);
-	if (removed.size) {
-		commands.unshift({ type: 'selection/set', startFrame: current.selection.startFrame,
-			endFrame: current.selection.endFrame, trackIds: current.selection.trackIds,
-			clipIds: current.selection.clipIds.filter(id => !removed.has(id)) });
-		for (const presentation of project.videoVisualPresentations) {
-			if (presentation.owner.kind === 'clip' && removed.has(presentation.owner.id)) commands.unshift({
-				type: 'video-visual-presentation/set', presentationId: presentation.id,
-				expectedPresentation: presentation, presentation: null,
-			});
-		}
-	}
-	return { foundationCommand, commands };
+	return { foundationCommand: visit(command), commands, removed };
 }
 
 function splitId(paste: Paste, id: string): string {
@@ -110,4 +150,13 @@ function mutation(expectedClip: VisualClip | null, clip: VisualClip | null, trac
 	const placement = { scope: 'timeline' as const, trackId };
 	return { type: 'video-visual-clip/set', clipId, expectedClip,
 		expectedPlacement: expectedClip ? placement : null, clip, placement: clip ? placement : null };
+}
+
+function imageMutation(expectedClip: FramescaperImageClipV1 | null, clip: FramescaperImageClipV1 | null,
+	trackId: string): FramescaperProjectCommandTimelineImage {
+	const clipId = expectedClip?.id ?? clip?.id;
+	if (!clipId) throw new TypeError('An image paste collision must retain a clip identity.');
+	const placement = { scope: 'timeline' as const, trackId };
+	return { type: 'image-clip/set', clipId, expectedClip, expectedPlacement: expectedClip ? placement : null,
+		clip, placement: clip ? placement : null };
 }

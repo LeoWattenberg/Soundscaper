@@ -77,10 +77,11 @@ export const FOUNDATION_TIME_CONVERSION_PRODUCT_SITES: readonly FoundationTimeCo
 	{
 		id: 'framescaper-visual-paste-collision-span',
 		file: 'src/framescaper/editor-session-clipboard-visual-collisions.ts',
-		behavior: 'Native visual overwrite and ripple paste use the inherited video collision clock: clipboard duration scales to the nearest destination sample count, then the paste anchor and duration each round to the nearest sequence frame, preserving survivor source windows outside that span.',
+		behavior: 'Native visual overwrite and ripple paste use the inherited video collision clock: clipboard duration scales to the nearest destination sample count, then the paste anchor and duration each round to the nearest sequence frame, preserving survivor source windows outside that span. Image survivor boundaries return to nearest sample points for the owning image-trim clock, which retains animated source ticks independently of ripple placement.',
 		conversions: [
 			{ helper: 'scaleSampleFrame', policies: ['point'] },
 			{ helper: 'sampleFrameToVideoFrame', policies: ['point'] },
+			{ helper: 'videoFrameToSampleFrame', policies: ['point'] },
 		],
 	},
 	{
