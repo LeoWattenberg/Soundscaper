@@ -72,3 +72,16 @@ test('failed context activation closes the owned context before any recorder sta
 	await assert.rejects(createFramescaperBrowserAudioRecorder(harness.options), /Audio context activation failed/u);
 	assert.deepEqual(harness.events, ['close']);
 });
+
+test('owned capture contexts retain the editor selected output sink before monitoring begins', async () => {
+	const harness = fixture(48_000, 44_100);
+	Object.assign(harness.options.context, { sinkId: 'selected-headphones' });
+	const create = harness.options.createAudioContext;
+	harness.options.createAudioContext = rate => Object.assign(create(rate), {
+		setSinkId: async (sinkId: string) => { harness.events.push(`sink:${sinkId}`); },
+	});
+	const recorder = await createFramescaperBrowserAudioRecorder(harness.options);
+	assert.deepEqual(harness.events, ['create:48000', 'sink:selected-headphones', 'resume', 'setup']);
+	await recorder.dispose();
+	assert.deepEqual(harness.events.slice(-3), ['stop', 'detach', 'close']);
+});
