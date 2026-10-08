@@ -8,6 +8,7 @@ import { applyFramescaperProjectCommandFinishing as apply, snapshotFramescaperPr
 import { createFramescaperSelectedVisualAuthoringModelFinishing as modelFor } from '../src/framescaper/editor-selected-finishing-visual-authoring-model.ts';
 import { prepareFramescaperSelectedVisualAuthoringFinishing as prepare } from '../src/framescaper/editor-selected-finishing-visual-authoring-commands.ts';
 import { framescaperV20Options } from './helpers/framescaper-model-fixture.ts';
+import { normalizeVideoAdjustmentLayerV1 } from '../src/common/editor/video-visual-model-v24.ts';
 import type { AudioEditorProjectStore } from '../src/common/editor/storage.js';
 
 type Project = ReturnType<typeof createFramescaperProjectFinishing>;
@@ -19,7 +20,7 @@ test('a replayed split preserves adjustment membership and selected brightness',
 	const split = splitProject(adjusted);
 	assert.equal(model(split, 'right').adjustmentBrightness, 0.5);
 	assert.equal(model(split, 'video-clip').adjustmentBrightness, 0.5);
-	assert.deepEqual(split.videoAdjustmentLayers[0]?.effectIds, [effect(adjusted, 'video-clip').id, 'right-effect']);
+	assert.deepEqual(layers(split)[0]?.effectIds, [effect(adjusted, 'video-clip').id, 'right-effect']);
 	assert.deepEqual(split, splitProject(adjusted), 'the same closed command replays without allocating identities');
 });
 
@@ -35,7 +36,7 @@ test('updating and removing the right member preserve the left adjustment', asyn
 	assert.deepEqual(clip(removed, 'right').videoEffects, []);
 	assert.equal(model(removed, 'right').adjustmentLayerId, null);
 	assert.equal(model(removed, 'video-clip').adjustmentBrightness, 0.5);
-	assert.deepEqual(removed.videoAdjustmentLayers[0]?.effectIds, [left.id]);
+	assert.deepEqual(layers(removed)[0]?.effectIds, [left.id]);
 	const cleared = await author(removed, 'video-clip', 'remove');
 	assert.deepEqual(cleared.videoAdjustmentLayers, []);
 });
@@ -47,7 +48,7 @@ test('a second split and an audio-led linked split preserve exact effect members
 		type: 'clip/split', clipId: 'right', atFrame: 38_400, rightClipId: 'third', rightVideoEffectIds: ['third-effect'],
 	});
 	assert.equal(model(twice, 'third').adjustmentBrightness, 0.5);
-	assert.deepEqual(twice.videoAdjustmentLayers[0]?.effectIds, [effect(adjusted, 'video-clip').id, 'right-effect', 'third-effect']);
+	assert.deepEqual(layers(twice)[0]?.effectIds, [effect(adjusted, 'video-clip').id, 'right-effect', 'third-effect']);
 	const linked = structuredClone(adjusted) as Project & { clips: Record<string, unknown>[]; tracks: Record<string, unknown>[] };
 	for (const value of linked.clips) value.avLinkId = 'link';
 	for (const value of linked.tracks) value.laneGroupId = 'lanes';
@@ -93,4 +94,9 @@ function effect(project: Project, id: string): Clip['videoEffects'][number] {
 	const value = clip(project, id).videoEffects[0];
 	assert.ok(value);
 	return value;
+}
+
+function layers(project: Project) {
+	assert.ok(Array.isArray(project.videoAdjustmentLayers));
+	return project.videoAdjustmentLayers.map(normalizeVideoAdjustmentLayerV1);
 }

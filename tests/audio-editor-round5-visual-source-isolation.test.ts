@@ -5,7 +5,7 @@ import test from 'node:test';
 import { normalizeVideoGeneratorClipV1, normalizeVideoGeneratorSourceV1 } from '../src/common/editor/video-visual-model-v24.ts';
 import { createFramescaperVisualInspectorCommand, createFramescaperVisualInspectorModel } from '../src/common/editor/ui/framescaper-visual-inspector-model.ts';
 import { applyFramescaperOwnedVisualCommandVisual, snapshotFramescaperOwnedVisualCommandVisual } from '../src/framescaper/editor-project-visual-visual-command.ts';
-import { applyFramescaperOwnedFinishingCommandFinishing } from '../src/framescaper/editor-project-finishing-finishing-command.ts';
+import { applyFramescaperOwnedFinishingCommandFinishing, snapshotFramescaperOwnedFinishingCommandFinishing } from '../src/framescaper/editor-project-finishing-finishing-command.ts';
 
 test('selected generator editing forks a shared source and preserves the unselected split', () => {
 	const project = projectFor(true);
@@ -22,7 +22,7 @@ test('selected generator editing forks a shared source and preserves the unselec
 	assert.deepEqual(source, { ...originalSource, id: selected.sourceId, generator: {
 		...originalSource?.generator, text: 'Independent title',
 	} });
-	assert.deepEqual(project.tracks[0]?.clipIds.toSorted(), ['left', 'right']);
+	assert.deepEqual([...(project.tracks[0]?.clipIds ?? [])].sort(), ['left', 'right']);
 });
 
 test('a project-bin owner also retains the original generator source', () => {
@@ -63,7 +63,7 @@ function applyInspector(project: ReturnType<typeof projectFor>, editGenerator = 
 	}) as { readonly type: string; readonly commands?: readonly unknown[] };
 	for (const child of command.type === 'batch' ? command.commands ?? [] : [command]) {
 		if ((child as { type: string }).type === 'video-visual-presentation/set') {
-			applyFramescaperOwnedFinishingCommandFinishing(project, child);
+			applyFramescaperOwnedFinishingCommandFinishing(project, snapshotFramescaperOwnedFinishingCommandFinishing(child));
 		} else applyFramescaperOwnedVisualCommandVisual(project, snapshotFramescaperOwnedVisualCommandVisual(child));
 	}
 }
