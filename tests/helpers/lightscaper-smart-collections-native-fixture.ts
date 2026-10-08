@@ -100,14 +100,15 @@ export async function qualifyNativeSmartCollectionsV1(mode: Mode) {
 				for (const row of photoMemberships(photo)) stores.memberships!.put(row);
 			}
 		});
-		observer.phase = 'inspect'; const before = await fingerprint(old, OLD_STORES), oldInventory = inventory(old); old.close();
+		observer.phase = 'inspect'; const before = await fingerprint(old, OLD_STORES), oldInventory = await inventory(old);
+		const legacyTransactionsBeforeUpgrade = observer.activeTransactions; old.close();
 		observer.phase = 'upgrade'; const database = await connection(name), upgradeRequests = observer.upgradeRequests;
-		observer.phase = 'inspect'; const unchanged = before === await fingerprint(database, OLD_STORES), newInventory = inventory(database);
+		observer.phase = 'inspect'; const unchanged = before === await fingerprint(database, OLD_STORES), newInventory = await inventory(database);
 		const repository = owner(name); observer.phase = 'load'; const emptyState = await repository.readSmartCollectionState('catalog');
 		observer.phase = 'inspect'; const noDurableState = await point(database, 'photoSmartCollectionStates', 'catalog') === undefined;
 		await repository.close(); const reopened = owner(name); observer.phase = 'load';
 		const persisted = await reopened.readSmartCollectionState('catalog');
-		return { oldVersion: 4, version: database.version, upgradeRequests, unchanged, oldInventory, newInventory,
+		return { oldVersion: 4, version: database.version, upgradeRequests, legacyTransactionsBeforeUpgrade, unchanged, oldInventory, newInventory,
 			emptyState, persisted, noDurableState };
 	}
 
@@ -231,12 +232,20 @@ async function openLegacy4(name: string): Promise<IDBDatabase> {
 	});
 }
 
-function inventory(database: IDBDatabase) {
-	const transaction = database.transaction([...database.objectStoreNames], 'readonly');
-	return [...database.objectStoreNames].map(name => {
-		const store = transaction.objectStore(name);
-		return { name, keyPath: store.keyPath, indexes: [...store.indexNames].map(name => {
-			const index = store.index(name); return { name, keyPath: index.keyPath, multiEntry: index.multiEntry, unique: index.unique };
-		}) };
+interface NativeInventoryStoreV1 {
+	readonly name: string;
+	readonly keyPath: string | string[] | null;
+	readonly indexes: readonly Readonly<{ name: string; keyPath: string | string[]; multiEntry: boolean; unique: boolean }>[];
+}
+async function inventory(database: IDBDatabase): Promise<readonly NativeInventoryStoreV1[]> {
+	const names = [...database.objectStoreNames], result: NativeInventoryStoreV1[] = [];
+	await transaction(database, names, 'readonly', stores => {
+		for (const name of names) {
+			const store = stores[name]!;
+			result.push({ name, keyPath: store.keyPath, indexes: [...store.indexNames].map(name => {
+				const index = store.index(name); return { name, keyPath: index.keyPath, multiEntry: index.multiEntry, unique: index.unique };
+			}) });
+		}
 	});
+	return result;
 }

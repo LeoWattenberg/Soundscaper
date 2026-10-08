@@ -14,7 +14,7 @@ const ENTRY = new URL('../helpers/lightscaper-smart-collections-native-fixture.t
 test('native DB4 to5 adds saved-query stores without reading or changing existing records', async ({ page }) => {
 	const result = await qualify(page, 'migration');
 	expect(result).toMatchObject({ forbiddenRequests: 0, activeTransactions: 0, result: { oldVersion: 4, version: 5,
-		upgradeRequests: 0, unchanged: true, noDurableState: true,
+		upgradeRequests: 0, legacyTransactionsBeforeUpgrade: 0, unchanged: true, noDurableState: true,
 		emptyState: { revision: 0, collectionCount: 0 }, persisted: { revision: 0, collectionCount: 0 } } });
 	const { oldInventory, newInventory } = result.result;
 	expect(newInventory).toHaveLength(15);
