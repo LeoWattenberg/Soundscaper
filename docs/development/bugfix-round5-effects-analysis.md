@@ -655,5 +655,10 @@ after correction. The initial mounted test used a compound selector absent
 from the test DOM and is excluded as a harness failure. Target lint,
 changed-file lint, focused strict test types and the size gate pass. Regressions are
 `audio-editor-round5-routing-shortcuts.test.tsx` and
-`audio-editor-round5-routing-shortcuts.spec.js`. Corrected browser verification
-is pending; ROOT-021 is not counted yet. Assistance runtime assets are unchanged.
+`audio-editor-round5-routing-shortcuts.spec.js`. Immutable `0338e893d` passes
+the configured command, unchanged focused graph node and one Undo across
+Chromium, Firefox and WebKit. The existing pointer/keyboard graph editing,
+validation and inspector workflow passes alongside it (6/6, 35.8 seconds;
+`/tmp/soundscaper-r5-root-routing-shortcuts-green29.log`). Both guarded
+product builds pass. ROOT-021 is counted once. Assistance runtime assets
+are unchanged.

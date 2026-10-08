@@ -1,8 +1,8 @@
 # Fifth user-reproducible regression audit
 
-This audit is in progress toward 100 additional distinct fixes. Seventy-three
+This audit is in progress toward 100 additional distinct fixes. Seventy-four
 new roots have completed ordinary browser verification (editing 19, dialogs 24,
-effects/analysis 20, import/export 10). Its immutable
+effects/analysis 21, import/export 10). Its immutable
 baseline is `fe6440c81b3a0fe29a028c64db867ae7d2cf3252`.
 
 Count an entry only after ordinary public user actions reproduce its defect
@@ -73,6 +73,9 @@ profile control in all three engines. Equivalent static and automated filter
 settings now produce exactly equal captured profiles.
 The camera-speed refusal, ordinary public Unlink recovery, independent speed
 change and complete Undo/Redo also pass in all three engines at that checkpoint.
+Checkpoint twenty-nine, `0338e893d`, passes both guarded builds, configured
+routing-graph command dispatch and the existing pointer/keyboard graph control
+in all three engines.
 Browser evidence names each exact checkpoint. Firefox audio
 uses the unchanged CI PulseAudio setup with a private 48 kHz null sink.
 
