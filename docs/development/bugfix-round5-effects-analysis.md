@@ -168,6 +168,11 @@ programme edges while admitting sidechains. Both strict cases now also run the
 actual graph validator before processing; they fail on the incomplete graph and
 pass with its restored output routes. These corrections complete the same macro
 graph root and add no count.
+Checkpoint `b628c8f9d` accepts the graph and applies the macro, but all six
+ordinary Source/timeline cases across Chromium, Firefox and WebKit still fail
+the exported-audio assertion: peak 0.247 remains unducked. A forwarding native
+buffer observer finds the staged control PCM is zero. This attempt remains
+uncounted; the final control-render correction and public proof are pending.
 This temporary graph ownership defect is independent of earlier regular
 Source Auto Duck placement and selection-edge fade corrections.
 
@@ -192,6 +197,8 @@ before correction while the 48 kHz control passes. Both pass afterward, with
 the selected tone removed, the unselected 6 kHz tone preserved, unchanged frame
 counts and one publication. New and existing spectral/effect/document support
 passes 31/31; target lint and coordinated test/tooling type checks pass.
-Corrected public verification is pending. Regressions are
+The unchanged ordinary workflow passes Chromium, Firefox and WebKit on
+immutable `5c194daa1` (3/3, exit 0, 21.9 seconds;
+`/tmp/soundscaper-r5-root-source-spectral-green7.log`). Regressions are
 `audio-editor-round5-source-spectral-clock.test.ts` and
 `audio-editor-round5-source-spectral-clock.spec.js`.
