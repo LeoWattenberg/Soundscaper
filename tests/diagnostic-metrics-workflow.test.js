@@ -15,15 +15,16 @@ test('diagnostic metrics run nightly and on demand, not on every pull request', 
 	assert.doesNotMatch(workflow, /^\s{2}pull_request:$/mu);
 });
 
-test('the hosted job builds both browser products before collecting diagnostics', () => {
+test('the hosted job builds all three browser products before collecting diagnostics', () => {
 	const job = extractJob(workflow, 'hosted-metrics');
 	const runs = npmScriptsRunBy(job);
 	assert.ok(runs.has('build'));
 	assert.ok(runs.has('build:browser:framescaper'));
+	assert.ok(runs.has('build:browser:lightscaper'));
 	assert.ok(runs.has('quality:collect:ci-diagnostics'));
 	assert.match(
 		scripts['quality:collect:ci-diagnostics'],
-		/^node scripts\/collect-ci-diagnostics\.mjs$/u,
+		/^node --import tsx scripts\/collect-ci-diagnostics\.mjs$/u,
 	);
 	assert.doesNotMatch(job, /qualification|accepted evidence|lower bound/iu);
 });
