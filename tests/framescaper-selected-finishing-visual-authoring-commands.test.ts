@@ -29,7 +29,8 @@ const VIDEO_SOURCE = createVideoSource({
 	frameRate: { num: 30, den: 1 }, width: 640, height: 360,
 }) as unknown as Data;
 const GENERATOR_SOURCE: Data = {
-	kind: 'generator', id: 'generator-source', name: 'Bars', generator: { kind: 'bars', level: 0.5 },
+	schemaVersion: 1, kind: 'generator', id: 'generator-source', name: 'Bars', width: 640, height: 360,
+	frameRate: { num: 30, den: 1 }, frameCount: 10, generator: { kind: 'solid', color: '#808080ff' },
 };
 const PNG_BLOB = new Blob([new Uint8Array([137, 80, 78, 71])], { type: 'image/png' });
 
@@ -451,8 +452,7 @@ test('saving a visual preset stores a donor source, a bin clip and the digest-bo
 
 test('applying a generator preset copies the donor generator onto the selected source', async () => {
 	const donor: Data = {
-		kind: 'generator', id: 'donor-source', name: 'Bars Model',
-		generator: { kind: 'bars', level: 0.9 },
+		...GENERATOR_SOURCE, id: 'donor-source', name: 'Bars Model', generator: { kind: 'solid', color: '#ffffffff' },
 	};
 	const source = generatorProject({
 		sources: [GENERATOR_SOURCE, donor],
@@ -463,7 +463,7 @@ test('applying a generator preset copies the donor generator onto the selected s
 	assert.equal(authored.type, 'video-visual-source/set');
 	assert.equal(authored.sourceId, 'generator-source');
 	assert.equal((authored.expectedSource as Data).id, 'generator-source');
-	assert.deepEqual((authored.source as Data).generator, { kind: 'bars', level: 0.9 });
+	assert.deepEqual((authored.source as Data).generator, { kind: 'solid', color: '#ffffffff' });
 	assert.equal((authored.source as Data).name, 'Bars', 'only the generator state is donated');
 });
 
