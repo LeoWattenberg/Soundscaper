@@ -8,7 +8,7 @@ WebKit on immutable Green7 `e139818a9`
 (`/tmp/soundscaper-round6-checkpoint50-round6-browser.log`). Firefox uses the
 repository's qualified CI audio null sink. R6-EFFECT-012 remains pending public
 GREEN on a later build and is not yet counted. R6-EFFECT-013 has focused GREEN
-and remains pending public GREEN as well.
+and remains pending public GREEN as well, as does R6-EFFECT-014.
 
 ## R6-EFFECT-001 — A one-symbol DTMF draft resets the authored duty cycle
 
@@ -354,6 +354,37 @@ follow-up existing-library preservation control also passes
 Strict types, targeted type-aware lint and the file-size gate pass. Public GREEN
 awaits the next immutable product build; its ordinary Contrast measurement
 controls check that the supported menu workflow remains intact.
+
+## R6-EFFECT-014 — A macro selection command uses another Audacity command's name
+
+Import an ordinary WAV, click its waveform to put the playhead inside it,
+select its header and open Tools → Macros palette → New program. Set a
+cursor-only selection with `sound.select.time`, then run
+`sound.command('SelTrackStartToCursor')`. The baseline rejects this canonical
+command although Select → Region → Track start to cursor implements its action.
+Conversely, `SelCursorStoredCursor` is accepted and silently changes the range
+to track-start–playhead, although that name means a separate stored-cursor
+selection. The [pinned upstream Select menu source](https://raw.githubusercontent.com/audacity/audacity/5ef610ed23260d6d648175735bb16b32536eb30b/src/menus/SelectMenus.cpp)
+registers those two separate meanings.
+
+Bind the implemented action to `SelTrackStartToCursor` and correct the handbook
+inventory. Preserve the earlier misnamed descriptor for saved-step parse/export,
+but refuse executing it because this editor has no stored-cursor action. These
+canonical rejection and unrelated-range manifestations share one name/path
+mapping correction; no extra roots are counted per registry constant.
+
+Both ordinary typed-program variants are causally RED
+(`/tmp/soundscaper-r6-effects-macro-track-start-command-browser-red2.log`): the
+canonical command fails, while the legacy one reports completion with range
+0–19200 instead of preserving the cursor-only range. An initial fixture changed
+the selection without moving the independent playhead; that setup is excluded
+and the final workflow establishes it with a normal waveform click. Two strict
+registry/dispatch cases independently fail before repair
+(`/tmp/soundscaper-r6-effects-macro-track-start-command-node-red.log`). All 37
+new/existing command, library, controller and program cases pass after repair
+(`/tmp/soundscaper-r6-effects-macro-track-start-command-node-green.log`). Strict
+types, targeted type-aware lint and the file-size gate pass; public GREEN awaits
+the next immutable product build.
 
 These corrections do not change the assistance runtime closure or require a
 manual **Update AI assets** run.
