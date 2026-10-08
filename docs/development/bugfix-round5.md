@@ -1,7 +1,7 @@
 # Fifth user-reproducible regression audit
 
-This audit is in progress toward 100 additional distinct fixes. Ninety-nine
-new roots have completed ordinary browser verification (editing 26, dialogs 30,
+This audit has fixed 101 additional distinct roots with ordinary browser
+reproduction and corrected public verification (editing 26, dialogs 32,
 effects/analysis 29, import/export 14). Its immutable
 baseline is `fe6440c81b3a0fe29a028c64db867ae7d2cf3252`.
 
@@ -139,9 +139,23 @@ isolated workflow passes within the original deadline.
 Checkpoint forty-one, `5d70b4a74`, passes both guarded builds and selected-track
 printing while retaining an unselected grouped recording, with combined and
 individual print controls (9/9), all three engines.
+Checkpoint forty-three, `4210f5247`, passes both guarded builds. Real published
+Nyquist installation and replacement-action focus pass in all three engines
+(3/3). The publication permits the standard local test origin and production
+origin; custom checkpoint ports had been refused before installation, so
+those earlier prerequisites were excluded. Native Title/Solid/still bystanders
+no longer prevent Freeze from resolving its selected camera ordinal. Its
+unchanged camera and Title workflows pass in Chromium (2/2); Firefox lacks
+the real WebGL2 prerequisite and WebKit lacks the required IndexedDB Blob
+readback, producing four explicit capability skips. The camera-only controls
+confirm those host limitations; skips are not reported as passes.
+The source-final normal build covers every counted correction. Later changes
+only preserve exact host capability probes and verification documentation.
 Browser evidence names each exact checkpoint. Firefox audio
 uses the unchanged CI PulseAudio setup with a private 48 kHz null sink.
 
-Final canonical, Node, build, and browser handoff gates have not yet run for
-this audit. Current changes do not alter the assistance runtime closure and
+The final canonical static gate passes after regenerating its command reference
+from the owning menu inventory. The full Node and browser handoff suites are
+running; their final results remain pending. Current changes do not alter the
+assistance runtime closure and
 do not require a manual **Update AI assets** run.
