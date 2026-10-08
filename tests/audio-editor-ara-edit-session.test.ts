@@ -75,3 +75,28 @@ test('ARA cancellation closes a native session acquired after the dialog was dis
 	assert.equal(fixtureValue.calls.includes('write'), false)
 	assert.equal(fixtureValue.calls.filter((call) => call === 'close').length, 1)
 })
+
+test('ARA disposal stays closed when an earlier operation failure finishes native cleanup later', async () => {
+	const f = fixture()
+	let releaseClose = (): void => { throw new Error('Native cleanup has not started.') }
+	let markCloseStarted = (): void => { throw new Error('Native cleanup was not awaited.') }
+	const closing = new Promise<void>((resolve) => { releaseClose = resolve })
+	const closeStarted = new Promise<void>((resolve) => { markCloseStarted = resolve })
+	f.bridge.openEditor = async () => { throw new Error('ARA editor failed.') }
+	f.bridge.close = async () => {
+		f.calls.push('close')
+		markCloseStarted()
+		await closing
+		return true
+	}
+	await f.session.open('installation')
+	const editing = f.session.openEditor()
+	await closeStarted
+	await f.session.dispose()
+	assert.equal(f.session.getSnapshot().phase, 'closed')
+	releaseClose()
+	await editing
+	assert.equal(f.session.getSnapshot().phase, 'closed')
+	assert.equal(f.calls.filter((call) => call === 'close').length, 1)
+	assert.equal(f.calls.filter((call) => call === 'cancel').length, 1)
+})

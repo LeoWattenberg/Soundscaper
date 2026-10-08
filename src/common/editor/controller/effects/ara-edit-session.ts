@@ -38,9 +38,11 @@ export function createAraEditSession(options: Readonly<{ bridge: AraBridge; clip
 	}
 	const failure = async (error: unknown, token: number): Promise<void> => {
 		if (disposed || token !== generation) return
-		generation += 1
+		const failureGeneration = ++generation
 		try { await release() } catch { /* preserve the operation failure */ }
-		publish('error', error instanceof Error ? error.message : String(error))
+		if (!disposed && failureGeneration === generation) {
+			publish('error', error instanceof Error ? error.message : String(error))
+		}
 	}
 	return Object.freeze({
 		getSnapshot: () => snapshot,
