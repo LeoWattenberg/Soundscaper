@@ -137,6 +137,7 @@ interface NoiseProfileWorkerResult {
 
 export interface EffectAudioServiceRuntime<Buffer = EffectAudioBuffer> {
 	readonly renderSourceRange?: (trackId: string, startFrame: number, endFrame: number) => Promise<Float32Array[] | null>;
+	readonly prepareRenderSources?: (project: EffectAudioProject, signal: AbortSignal | null) => Promise<EngineSourceBufferInput>;
 	readonly lifetime: Readonly<{ startTask(name: string): EditorTaskScope }>;
 	readonly captureProject: () => EditorProjectToken;
 	readonly assertProject: (token: EditorProjectToken) => void;

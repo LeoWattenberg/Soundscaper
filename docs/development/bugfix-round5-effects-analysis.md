@@ -173,6 +173,15 @@ ordinary Source/timeline cases across Chromium, Firefox and WebKit still fail
 the exported-audio assertion: peak 0.247 remains unducked. A forwarding native
 buffer observer finds the staged control PCM is zero. This attempt remains
 uncounted; the final control-render correction and public proof are pending.
+The dry renderer passes only currently retained media to its isolated engine;
+without the control buffer or provider, the scheduler silently creates no voice
+plan. Admit that snapshot's required clip sources through the existing source
+lifecycle before rendering, merge any transient buffers, and reassert operation
+ownership after the read. A strict canonical-project case reproduces the empty
+voice schedule before this correction and now verifies one real schedule plan,
+neutralized mute, exact required-source IDs and the retained control buffer.
+Focused macro/effect/spectral support passes 26/26; targeted lint, size and the
+complete source/product type checks pass. Public PCM verification remains pending.
 This temporary graph ownership defect is independent of earlier regular
 Source Auto Duck placement and selection-edge fade corrections.
 
