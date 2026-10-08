@@ -3,6 +3,7 @@
 import { calculateAudioSpectrum } from '../../audio-spectrum.ts';
 import { projectUnwarpedClipSourceRange } from '../../audio-clip-source-projection.ts';
 import { readClipLoop } from '../../audio-clip-loop.ts';
+import { buildAudioWarpRuntimeSegments, type AudioWarpRuntimeClip, type AudioWarpRuntimeProject } from '../../audio-warp-runtime.ts';
 import {
 	spectrogramFrequencyAtFraction,
 	spectrogramFrequencyFraction,
@@ -95,7 +96,7 @@ export function spectralSelectionPeaks(channels: readonly Float32Array[], sample
 
 /** Inspect only selected PCM, with bounded FFT windows, once at the beginning of a drag. */
 export function selectedTrackSpectralPeaks(
-	controller: TimelineClipVisualController,
+	controller: TimelineClipVisualController & Readonly<{ project?: AudioWarpRuntimeProject | null }>,
 	clips: readonly TimelineWaveformClip[],
 	selection: Readonly<{ startFrame: number; endFrame: number }>,
 	sampleRate: number,
@@ -130,6 +131,20 @@ export function selectedTrackSpectralPeaks(
 			Math.max(0, Math.ceil(sourceRange.endFrame - offset)),
 		));
 		const nativeRate = visual.source?.sampleRate ?? sampleRate * ratio;
+		if (clip.warpMap != null) {
+			if (!controller.project) throw new TypeError('Warped spectral peaks require their project.');
+			const segments = buildAudioWarpRuntimeSegments(controller.project,
+				{ ...clip, sourceDurationFrames: sourceDuration } as AudioWarpRuntimeClip,
+				{ startFrame: start, endFrame: end, sourceSampleRate: nativeRate });
+			for (const segment of new Set([segments[0]!, segments[Math.floor(segments.length / 2)]!, segments.at(-1)!])) {
+				const sourceStart = segment.sourceStartFrame.num / segment.sourceStartFrame.den;
+				const sourceEnd = segment.sourceEndFrame.num / segment.sourceEndFrame.den;
+				const warpedChannels = channels.map(channel => channel.subarray(
+					Math.max(0, Math.floor(sourceStart - offset)), Math.max(0, Math.ceil(sourceEnd - offset))));
+				peaks.push(...spectralSelectionPeaks(warpedChannels, nativeRate * segment.playbackRate, size));
+			}
+			continue;
+		}
 		const effectiveRate = clip.linkPitchAndTempo ? sampleRate * ratio
 			: nativeRate * 2 ** ((clip.pitchCents || 0) / 1_200);
 		peaks.push(...spectralSelectionPeaks(selectedChannels, effectiveRate, size));

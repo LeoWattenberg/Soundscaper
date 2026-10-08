@@ -36,7 +36,8 @@ message observer forwards every packet unchanged; it neither alters the
 project nor supplies audio. The owning-service regression fails with zero
 configuration calls before correction. All 17 combined effect-control and
 generator cases pass after correction, with targeted type-aware lint passing.
-Browser green verification pending.
+All three EQ/spectral browser cases pass on immutable checkpoint `48e4cbe22`
+(`/tmp/soundscaper-round6-green3-browser.log`).
 
 ## R6-EFFECT-003 — Independent tempo changes transpose spectral center snapping
 
@@ -53,8 +54,8 @@ The ordinary Chromium baseline accepts the supported speed edit without an
 alert, paints its spectrogram and fails at displayed 1024 instead of 512
 (`/tmp/soundscaper-r6-effects-spectral-peaks-red.log`). The strict native-rate
 case fails before correction; all ten new and existing peak/center cases pass
-afterward, including linked speed, repeats and split phases. Browser green
-verification pending. This is a separate frequency-analysis consumer from the
+afterward, including linked speed, repeats and split phases. Ordinary Chromium
+passes on immutable checkpoint `48e4cbe22`. This is a separate frequency-analysis consumer from the
 earlier source-tempo authored playback correction.
 
 ## R6-EFFECT-004 — Surround spectral snapping ignores sounding later channels
@@ -70,7 +71,7 @@ recording's channels; all FFT windows and clip limits remain bounded.
 The ordinary Chromium baseline completes import, spectrogram paint and band
 authoring, then fails at 800 instead of 512. The strict third-channel case
 fails before correction and passes afterward with all ten focused cases.
-Browser green verification pending. The independent-frequency clock defect
+Ordinary Chromium passes on immutable checkpoint `48e4cbe22`. The independent-frequency clock defect
 in 003 also reproduces with mono, and this omission reproduces at native speed.
 
 ## R6-EFFECT-005 — A first lower-only macro spectral selection is rejected
@@ -90,6 +91,31 @@ with all twelve focused command cases and targeted type-aware lint. Browser
 green verification pending. Existing spectral bands retain their omitted edge;
 this admission defect is independent of earlier header-target and frequency
 preservation roots.
+
+## R6-EFFECT-006 — Authored warp segments snap to their unwarped frequency
+
+Import an ordinary four-second 512 Hz mono WAV at 8192 Hz. Through Effect →
+Pitch and tempo → Audio warp and transients, create an identity map and add
+its midpoint with Outer position 96,000 and Source sample 24,576. The first
+segment plays at 768 Hz; the second plays at 256 Hz. Switch the track to
+Spectrogram, select all and author a 100–300 Hz band. Drag its center toward
+800 Hz: the baseline snaps to the source's unwarped 512 Hz.
+
+The ordinary Chromium baseline first exports WAV through File → Export and
+verifies its audible 768 Hz component exceeds 0.1 while the 512 Hz component
+is below 0.01. Its supported map, real PFFFT paint and handle drag then fail
+at 512 instead of 768 (`/tmp/soundscaper-r6-effects-spectral-warp-browser-red2.log`).
+The initial run stopped at the five-second PFFFT setup budget; preserve it
+separately. The second run extends only that slow setup wait and fails the
+unchanged snapping assertion. The strict case verifies the production exact
+warp renderer's 768 Hz peak before its baseline snap assertion fails.
+
+Use the shared production warp segment evaluator for both source ranges and
+local audible frequency. Sample at most three segments per clip, retaining
+the bounded FFT windows. All eleven focused spectral cases pass and targeted
+type-aware lint passes. Browser green verification pending. This is an
+independent authored-map projection branch from unlinked uniform tempo in
+003; its exported pitch is independently verified rather than inferred.
 
 These corrections do not change the assistance runtime closure or require a
 manual **Update AI assets** run.
