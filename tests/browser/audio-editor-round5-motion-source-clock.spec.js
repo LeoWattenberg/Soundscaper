@@ -9,12 +9,18 @@ test('motion analysis source frame time uses the source clock', async ({ page })
 	const end = dialog.getByRole('group', { name: 'End frame', exact: true });
 	await showFilmFrames(page, end);
 	const digits = end.locator('.timecode-digit');
-	await digits.nth(await digits.count() - 2).click();
-	await page.keyboard.type('15');
+	await end.focus();
 	await page.keyboard.press('Enter');
+	await page.keyboard.press('ArrowLeft');
+	await page.keyboard.press('ArrowLeft');
+	await expect(digits.nth(await digits.count() - 2)).toBeFocused();
+	await page.keyboard.type('15');
+	await expect.poll(async () => (await digits.allTextContents()).join('')).toBe('000000000015');
+	await page.keyboard.press('Enter');
+	await expect(end).toBeFocused();
 	await end.getByRole('button', { name: 'End frame: format', exact: true }).click();
 	await page.getByRole('menuitem', { name: 'seconds + milliseconds', exact: true }).click();
-	await expect(end.locator('.timecode__display')).toHaveText('000,001.000s');
+	await expect(end.locator('.timecode__display')).toHaveText('000,001.008s');
 });
 
 test('a newly authored tracking stack initializes its full native analysis range', async ({ page }) => {
@@ -51,4 +57,7 @@ async function showFilmFrames(page, end) {
 	await end.getByRole('button', { name: 'End frame: format', exact: true }).click();
 	await page.getByRole('menuitem', { name: /^Video frames/u }).hover();
 	await page.getByRole('menuitem', { name: /^film frames/u }).click();
+	if (await page.getByRole('menuitem', { name: 'dd:hh:mm:ss', exact: true }).isVisible()) {
+		await page.keyboard.press('Escape');
+	}
 }
