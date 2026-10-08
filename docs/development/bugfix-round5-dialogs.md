@@ -81,3 +81,22 @@ project-bin clip and preset batch in one commit. All 14 new/existing library and
 removal-focus checks pass. Targeted lint and focused strict compiler pass;
 public canonical-option readback and Undo/Redo verification is pending. This is
 another completed user-text boundary under D025, with no new ID.
+
+Uncounted D001 saved-preset Apply sibling: author a Title with Saved replacement,
+save its Replacement visual preset, change the Title to Original title, then
+split it normally. Apply the saved preset to the right occurrence and inspect
+the unselected left occurrence. The immutable Chromium workflow reads Saved
+replacement on the left instead of Original title; the complete tracked
+workflow reproduces the same mutation. Reuse the selected generator's strict
+source-fork producer for this native preset action, preserving all source
+attributes and references from other timeline or project-bin occurrences. Two
+native preparation/application cases fail on the changed retained source before
+correction while the sole-owner control already passes. After correction,
+source/clip allocation belongs to one stable batch and replays the same IDs.
+All 43 isolation, canonical-input and production chunk ownership/eager-boundary
+checks pass. The extracted producer remains in the existing optional-surface
+chunk owner; its exact ownership assertion first fails, then passes for both
+path separators. Targeted lint and focused strict compiler pass, with no growth
+of the 554-line command producer. Public sibling preservation and one Undo/Redo
+verification is pending; this is the same selected-source-isolation root, with
+no additional ID.

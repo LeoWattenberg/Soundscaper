@@ -8,6 +8,7 @@ import {
 } from '../common/editor/commands/factories.ts';
 import { fingerprintNativeMediaPlan } from '../common/editor/native-media-plan-canonical-form.ts';
 import { createStableId } from '../common/editor/stable-id.js';
+import { createSelectedGeneratorSourceCommands } from '../common/editor/selected-generator-source-command.ts';
 import { digestMediaContent } from '../common/editor/storage/media-content-digest.ts';
 import type { AudioEditorProjectStore } from '../common/editor/storage.js';
 import { videoFrameToSampleFrame } from '../common/editor/timeline-time.ts';
@@ -298,8 +299,7 @@ function applyGeneratorPreset(project: Data, clip: Data, request: Data): unknown
 	if (!donor) throw new ReferenceError('The visual preset model is unavailable.');
 	const current = selectedSource(project, clip, 'generator');
 	const source = { ...structuredClone(current), generator: structuredClone(donor.generator) };
-	return { type: 'video-visual-source/set', sourceId: current.id,
-		expectedSource: current, source };
+	return batch(createSelectedGeneratorSourceCommands(project, clip, current, source));
 }
 
 async function prepareFreeze(
