@@ -16,6 +16,7 @@ import { scaleSampleFrame, secondsToSampleFrame } from '../../../timeline-time.t
 import { planRoutedRecordingSources } from './routed-recording-source-plan.ts';
 import { timedRecordingStopFrame } from '../recording-model.ts';
 import { audibleRecordingStartTime, planRecordingStartTiming } from './recording-start-timing.ts';
+import { recordingSourceAlignment } from './recording-source-alignment.ts';
 import type {
 	RecordingMediaStream,
 	RecordingStartOptions,
@@ -222,16 +223,11 @@ export function createRoutedRecordingCaptureService(runtime: RoutedRecordingCapt
 					+ (context.outputLatency || 0)
 					+ (Number(trackSettings.latency) || 0);
 				const manualLatencyMs = state.recordingRouting.offsets[session.sourceKey] ?? state.latencyOffsetMs;
-				const latencyFrames = Math.max(0, Math.round(
-					(automaticLatency + manualLatencyMs / 1_000) * sampleRate,
-				));
-				session.latencyFrames = latencyFrames;
-				session.recordingStartFrame = selection
-					? requestedStartFrame
-					: Math.max(0, requestedStartFrame - latencyFrames);
-				session.sourceOffsetProjectFrames = selection
-					? latencyFrames
-					: Math.max(0, latencyFrames - requestedStartFrame);
+				const alignment = recordingSourceAlignment({ sampleRate, requestedStartFrame,
+					automaticLatencySeconds: automaticLatency, manualOffsetMs: manualLatencyMs, selection });
+				session.latencyFrames = alignment.latencyFrames;
+				session.recordingStartFrame = alignment.recordingStartFrame;
+				session.sourceOffsetProjectFrames = alignment.sourceOffsetProjectFrames;
 				session.sourceOffsetFrames = runtime.scaleFrames(
 					session.sourceOffsetProjectFrames,
 					sampleRate,
@@ -288,7 +284,7 @@ export function createRoutedRecordingCaptureService(runtime: RoutedRecordingCapt
 						),
 						preview,
 						sampleRate: captureSampleRate,
-						selection: selection ? Object.freeze({ ...selection }) : null,
+						selection: alignment.selection,
 						recordingStartFrame: session.recordingStartFrame,
 						sourceOffsetFrames: persistedSourceOffsetFrames,
 						sourceOffsetProjectFrames: persistedSourceOffsetProjectFrames,
@@ -440,7 +436,7 @@ export function createRoutedRecordingCaptureService(runtime: RoutedRecordingCapt
 				const startFrame = timing.captureStartFrame(contextStartTime);
 				for (const session of sourceSessions) {
 					const selectionProjectFrames = selection
-						? selection.endFrame - selection.startFrame + (session.sourceOffsetProjectFrames || 0)
+						? selection.endFrame - (session.recordingStartFrame ?? requestedStartFrame) + (session.sourceOffsetProjectFrames || 0)
 						: 0;
 					session.startFrame = startFrame;
 					session.stopFrame = timedRecordingStopFrame(startFrame, options, context.sampleRate) ?? (selection

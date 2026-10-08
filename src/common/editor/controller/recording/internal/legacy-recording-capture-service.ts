@@ -17,6 +17,7 @@ import { recordingCapturePeakDb } from './recording-capture-channels.ts';
 import { scaleSampleFrame, secondsToSampleFrame } from '../../../timeline-time.ts';
 import { timedRecordingStopFrame } from '../recording-model.ts';
 import { audibleRecordingStartTime, planRecordingStartTiming } from './recording-start-timing.ts';
+import { recordingSourceAlignment } from './recording-source-alignment.ts';
 
 function errorName(error: unknown): string | undefined {
 	return (error as Readonly<{ name?: string }> | null)?.name;
@@ -104,11 +105,9 @@ export function createLegacyRecordingCaptureService(runtime: RecordingCaptureCom
 			const automaticLatency = (context.baseLatency || 0)
 				+ (context.outputLatency || 0)
 				+ (Number(trackSettings.latency) || 0);
-			const latencyFrames = Math.max(0, Math.round(
-				(automaticLatency + state.latencyOffsetMs / 1_000) * sampleRate,
-			));
-			const recordingStartFrame = selection ? requestedStartFrame : Math.max(0, requestedStartFrame - latencyFrames);
-			const sourceOffsetProjectFrames = selection ? latencyFrames : Math.max(0, latencyFrames - requestedStartFrame);
+			const alignment = recordingSourceAlignment({ sampleRate, requestedStartFrame,
+				automaticLatencySeconds: automaticLatency, manualOffsetMs: state.latencyOffsetMs, selection });
+			const { recordingStartFrame, sourceOffsetProjectFrames } = alignment;
 			const sourceOffsetFrames = runtime.scaleFrames(sourceOffsetProjectFrames, sampleRate, captureSampleRate);
 			// A gated selection would compact PCM and make punch/replace stretch it
 			// over the exact deletion range. Keep the exact punch path ungated until
@@ -185,7 +184,7 @@ export function createLegacyRecordingCaptureService(runtime: RecordingCaptureCom
 			state.recordingStream = stream;
 			state.recordingSourceId = sourceId;
 			state.recordingTrackId = track.id;
-			state.recordingSelection = selection ? { ...selection } : null;
+			state.recordingSelection = alignment.selection;
 			state.recordingResampler = previewResampler;
 			state.recordingSampleRate = captureSampleRate;
 			state.recorder = recorder;
@@ -206,7 +205,7 @@ export function createLegacyRecordingCaptureService(runtime: RecordingCaptureCom
 			});
 			const { scheduledTime } = timing;
 			const selectionProjectFrames = selection
-				? selection.endFrame - selection.startFrame + sourceOffsetProjectFrames
+				? selection.endFrame - recordingStartFrame + sourceOffsetProjectFrames
 				: 0;
 			const recorderSchedule = (contextStartTime: number) => {
 				const startFrame = timing.captureStartFrame(contextStartTime);

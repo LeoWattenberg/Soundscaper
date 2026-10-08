@@ -139,6 +139,12 @@ export const FOUNDATION_TIME_CONVERSION_COMMAND_SITES: readonly FoundationTimeCo
 		],
 	},
 	{
+		id: 'recording-source-alignment',
+		file: 'src/common/editor/controller/recording/internal/recording-source-alignment.ts',
+		behavior: 'Device latency plus the signed manual correction point-rounds its magnitude once on the project sample grid, then preserves its sign for source placement and selected-range bounds.',
+		conversions: [{ helper: 'secondsToSampleFrame', policies: ['point'] }],
+	},
+	{
 		id: 'recording-start-timing',
 		file: 'src/common/editor/controller/recording/internal/recording-start-timing.ts',
 		behavior: 'Both recording paths share the authoritative count-in calculation and enclose the recorder start after projecting its audio-context time.',
