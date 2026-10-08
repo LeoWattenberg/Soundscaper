@@ -9,6 +9,7 @@ import type { PhotoLibraryBackupPortV1 } from './photo-library-backup-port-v1.ts
 import type { PhotoLibraryOriginalRecoveryPortV1 } from './photo-library-original-recovery-port-v1.ts';
 import type { PhotoLibraryStackQueryPortV1 } from './photo-library-stack-query-port-v1.ts';
 import type { PhotoLibraryStackPortV1 } from './photo-library-stack-port-v1.ts';
+import type { PhotoLibraryQueryPortV2 } from './photo-library-query-port-v2.ts';
 
 /** Scalar presentation boundary; owning catalog documents stay in the product. */
 export interface PhotoLibraryRowV1 {
@@ -125,7 +126,7 @@ export interface PhotoLibraryDefinitionPageV1 {
 	readonly cursor: string | null;
 }
 
-export interface PhotoLibrarySessionPortV1 extends PhotoLibraryOrganizationPortV1, PhotoLibraryImportSettingsPortV1, PhotoLibraryBatchRenamePortV1, PhotoLibraryBackupPortV1, PhotoLibraryOriginalRecoveryPortV1, PhotoLibraryStackPortV1, PhotoLibraryStackQueryPortV1 {
+export interface PhotoLibrarySessionPortV1 extends PhotoLibraryOrganizationPortV1, PhotoLibraryImportSettingsPortV1, PhotoLibraryBatchRenamePortV1, PhotoLibraryBackupPortV1, PhotoLibraryOriginalRecoveryPortV1, PhotoLibraryStackPortV1, PhotoLibraryStackQueryPortV1, PhotoLibraryQueryPortV2 {
 	readQueryStep(options: Readonly<{ query: PhotoLibraryQueryV1; cursor?: string | null; signal?: AbortSignal }>): Promise<PhotoLibraryQueryStepV1>;
 	rebuildQueryStep(options?: Readonly<{ signal?: AbortSignal }>): Promise<PhotoLibraryQueryBuildProgressV1>;
 	readDefinitionPage(options: PhotoLibraryDefinitionPageRequestV1): Promise<PhotoLibraryDefinitionPageV1>;

@@ -8,7 +8,9 @@ import { mountPhotoImportUi } from './photo-import-options-react-fixture.tsx';
 
 export function createImportTestPort(): PhotoLibrarySessionPortV1 {
 	const unexpected = async (): Promise<never> => { throw new Error('Unexpected photo operation in import fixture.'); };
-	return { readPage: async () => ({ catalogName: 'Library', totalCount: 0, rows: [], cursor: null }),
+	const port: PhotoLibrarySessionPortV1 = { readPage: async () => ({ catalogName: 'Library', totalCount: 0, rows: [], cursor: null }),
+		readQueryStepV2: request => port.readQueryStep(request), readStackQueryStepV2: request => port.readStackQueryStep(request),
+		rebuildQueryStepV2: async request => ({ ...await port.rebuildQueryStep(request), writtenBytes: 0 }),
 		readStackQueryStep: unexpected,
 		readStackMemberships: unexpected, readStackSnapshot: unexpected, readStackMembers: unexpected,
 		readStackSummaryPage: unexpected, applyStack: unexpected,
@@ -20,6 +22,7 @@ export function createImportTestPort(): PhotoLibrarySessionPortV1 {
 		importFiles: unexpected, setRating: unexpected, applyAttributes: unexpected, readMetadata: unexpected, applyMetadata: unexpected,
 		readImportPresets: unexpected, applyImportPreset: unexpected, backupCatalog: unexpected,
 		inspectOriginals: unexpected, restoreOriginalBody: unexpected, close: async () => undefined };
+	return port;
 }
 
 export async function mountImportWorkflow(initialFactory: CreatePhotoLibrarySessionV1) {

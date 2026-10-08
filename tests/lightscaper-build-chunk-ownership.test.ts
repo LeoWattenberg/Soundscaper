@@ -14,6 +14,27 @@ const scalarModules = ['controller/shared/photo-library-definition-reader.ts', '
 	'controller/shared/photo-library-culling-v1.ts', 'controller/shared/photo-library-import-gesture-v1.ts',
 	'controller/shared/photo-library-compare-v1.ts', 'controller/shared/photo-library-survey-v1.ts'];
 
+test('the actual metadata query copy leaf stays with photo copy without a domain or shell dependency', () => {
+	const path = fileURLToPath(new URL('../src/common/i18n/lightscaper-metadata-query-copy.ts', import.meta.url));
+	for (const candidate of [path, path.replaceAll('/', '\\')]) assert.equal(chunkGroupForModulePath(candidate), 'lightscaper-editor-copy');
+	assert.notEqual(chunkGroupForModulePath(path + '.foreign'), 'lightscaper-editor-copy');
+	const leafImports = staticRelativeDependencies(transformSync(readFileSync(path, 'utf8'), { loader: 'ts', format: 'esm' }).code);
+	assert.deepEqual(leafImports, []);
+	const source = fileURLToPath(new URL('../src/common/i18n/lightscaper-editor-copy.ts', import.meta.url));
+	const imports = staticRelativeDependencies(transformSync(readFileSync(source, 'utf8'), { loader: 'ts', format: 'esm' }).code);
+	assert.ok(imports.includes('./lightscaper-metadata-query-copy.ts'));
+});
+
+test('metadata query controls and their product registry are lazy at the actual composition boundaries', () => {
+	const bootstrap = fileURLToPath(new URL('../src/lightscaper/ui/LightscaperBootstrap.tsx', import.meta.url));
+	const productSource = transformSync(readFileSync(bootstrap, 'utf8'), { loader: 'tsx', format: 'esm' }).code;
+	assert.ok(!staticRelativeDependencies(productSource).includes('../photo-metadata-query-ui-runtime.ts'));
+	assert.match(productSource, /import\(["']\.\.\/photo-metadata-query-ui-runtime\.ts["']\)/u);
+	const appSource = transformSync(readFileSync(directory + 'ui/lightscaper/LightscaperApp.tsx', 'utf8'), { loader: 'tsx', format: 'esm' }).code;
+	assert.ok(!staticRelativeDependencies(appSource).includes('./PhotoQuerySurface.tsx'));
+	assert.match(appSource, /import\(["']\.\/PhotoQuerySurface\.tsx["']\)/u);
+});
+
 test('the actual stack archive leaf shares the neutral Scape byte owner without timeline copy passengers', () => {
 	const path = directory + 'scape-photo-stack-pack.ts', owner = 'editor-scape-archive-bytes';
 	for (const candidate of [path, path.replaceAll('/', '\\')]) assert.equal(chunkGroupForModulePath(candidate), owner);

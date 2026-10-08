@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { act } from 'react';
 import type { PhotoLibraryPageV1, PhotoLibraryQueryV1, PhotoLibraryQueryStepV1 } from '../src/common/editor/photo-library-session-port-v1.ts';
-import { DEFAULT_PHOTO_LIBRARY_QUERY_V1 } from '../src/common/editor/ui/lightscaper/use-photo-library-workflow.ts';
+import { DEFAULT_PHOTO_LIBRARY_QUERY_V2 } from '../src/common/editor/ui/lightscaper/use-photo-library-workflow.ts';
 import { createImportTestPort, mountImportWorkflow } from './helpers/photo-import-workflow-fixture.tsx';
 import { deferred, settle } from './helpers/async-test-control.ts';
 
@@ -24,7 +24,7 @@ test('collapse is opt-in, drains only empty steps, and resumes the exact global 
 		await act(async () => { await mounted.current.setStackCollapsed(true); });
 		assert.equal(mounted.current.stackCollapsed, true); assert.equal(mounted.current.page?.rows.length, 2);
 		assert.notEqual(mounted.current.page, before); assert.equal(calls.length, 2);
-		assert.deepEqual(calls, [{ query: DEFAULT_PHOTO_LIBRARY_QUERY_V1, cursor: null }, { query: DEFAULT_PHOTO_LIBRARY_QUERY_V1, cursor: 'probe-member-64' }]);
+		assert.deepEqual(calls, [{ query: DEFAULT_PHOTO_LIBRARY_QUERY_V2, cursor: null }, { query: DEFAULT_PHOTO_LIBRARY_QUERY_V2, cursor: 'probe-member-64' }]);
 		await act(async () => { await mounted.current.readPage('global-next'); }); assert.equal(calls.length, 3);
 		assert.equal(mounted.current.page?.rows.length, 2); assert.equal(ordinary, 1);
 		await act(async () => { await mounted.current.setStackCollapsed(false); });

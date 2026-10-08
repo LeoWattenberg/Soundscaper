@@ -58,7 +58,7 @@ export const editorUiChunkGroups = [
 	},
 	{
 		name: 'lightscaper-editor-copy',
-		test: /src[\\/]common[\\/](?:i18n[\\/]lightscaper-editor-copy\.ts|editor[\\/]ui[\\/]lightscaper[\\/]use-lightscaper-editor-copy\.ts)$/,
+		test: /src[\\/]common[\\/](?:i18n[\\/]lightscaper-(?:editor|metadata-query)-copy\.ts|editor[\\/]ui[\\/]lightscaper[\\/]use-lightscaper-editor-copy\.ts)$/,
 		priority: 98,
 		minSize: 0,
 		maxSize: 400_000,

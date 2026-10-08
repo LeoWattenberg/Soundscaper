@@ -5,6 +5,7 @@ import { registerHooks } from 'node:module';
 import test from 'node:test';
 import React, { act, StrictMode } from 'react';
 import type { CreatePhotoLibrarySessionV1, PhotoLibraryPageV1, PhotoLibraryRowV1, PhotoLibrarySessionPortV1 } from '../src/common/editor/photo-library-session-port-v1.ts';
+import { PHOTO_METADATA_QUERY_RUNTIME_V2 } from '../src/lightscaper/photo-metadata-query-ui-runtime.ts';
 import { deferred, settle } from './helpers/async-test-control.ts';
 import { installReactTestDom, reactProps, type ReactTestElement } from './helpers/react-test-dom.ts';
 
@@ -16,6 +17,7 @@ const ROWS: readonly PhotoLibraryRowV1[] = Object.freeze(['a', 'b', 'c', 'd'].ma
 const page = (rows: readonly PhotoLibraryRowV1[] = ROWS, catalogName = 'Library'): PhotoLibraryPageV1 =>
 	Object.freeze({ catalogName, totalCount: rows.length, rows: Object.freeze([...rows]), cursor: null });
 const updated = (id: string, rating: number): PhotoLibraryRowV1 => Object.freeze({ ...row(id), rating });
+const loadMetadataQueryRuntime = async () => PHOTO_METADATA_QUERY_RUNTIME_V2;
 function row(id: string): PhotoLibraryRowV1 { const value = ROWS.find(candidate => candidate.id === id); assert.ok(value); return value; }
 
 test('actual App keeps filmstrip and auto advance off until their View and File Photo menu actions', async () => {
@@ -167,6 +169,9 @@ function owner(initial = page()) {
 	const unused = async (): Promise<never> => { throw new Error('This scalar culling fixture must not admit another feature.'); };
 	const port: PhotoLibrarySessionPortV1 = {
 		readStackQueryStep: unused,
+		readQueryStepV2: options => port.readQueryStep(options),
+		readStackQueryStepV2: options => port.readStackQueryStep(options),
+		rebuildQueryStepV2: async options => Object.freeze({ ...await port.rebuildQueryStep(options), writtenBytes: 0 }),
 		readStackMemberships: unused, readStackSnapshot: unused, readStackMembers: unused,
 		readStackSummaryPage: unused, applyStack: unused,
 		readBatchRenameSelection: unused,
@@ -205,7 +210,8 @@ async function mount(factory: CreatePhotoLibrarySessionV1, strict = false) {
 	let unmounted = false;
 	const flush = async (work: () => void = () => undefined) => { await act(async () => { work(); await settle(); }); };
 	const render = async (next: CreatePhotoLibrarySessionV1) => {
-		await flush(() => { root.render(strict ? <StrictMode><App locale="en" createSession={next} /></StrictMode> : <App locale="en" createSession={next} />); });
+		await flush(() => { root.render(strict ? <StrictMode><App locale="en" createSession={next} loadMetadataQueryRuntime={loadMetadataQueryRuntime} /></StrictMode>
+			: <App locale="en" createSession={next} loadMetadataQueryRuntime={loadMetadataQueryRuntime} />); });
 	};
 	const button = (text: string): ReactTestElement => {
 		const result = dom.container.querySelectorAll('button').find(node => node.textContent === text);

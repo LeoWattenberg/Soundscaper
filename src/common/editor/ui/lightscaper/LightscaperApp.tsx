@@ -9,7 +9,8 @@ import type { CreatePhotoLibrarySessionV1 } from '../../photo-library-session-po
 import { PhotoLibraryDefinitionReader } from '../../controller/shared/photo-library-definition-reader.ts';
 import PhotoLibraryPanel from './PhotoLibraryPanel.tsx';
 import type { PhotoPreviewPresentationViewV1 } from './PhotoPreviewPresentation.tsx';
-import { DEFAULT_PHOTO_LIBRARY_QUERY_V1, usePhotoLibraryWorkflow, type LoadPhotoLibraryBackupSaveRuntimeV1 } from './use-photo-library-workflow.ts';
+import { DEFAULT_PHOTO_LIBRARY_QUERY_V2, usePhotoLibraryWorkflow, type LoadPhotoLibraryBackupSaveRuntimeV1 } from './use-photo-library-workflow.ts';
+import type { LoadPhotoMetadataQueryRuntimeV2 } from '../../photo-library-query-port-v2.ts';
 import { usePhotoLibrarySelection } from './use-photo-library-selection.ts';
 import { usePhotoCompare } from './use-photo-compare.ts';
 import { usePhotoSurvey } from './use-photo-survey.ts';
@@ -22,12 +23,13 @@ export interface LightscaperAppProps {
 	readonly locale: string;
 	readonly createSession?: CreatePhotoLibrarySessionV1;
 	readonly loadBackupSaveRuntime?: LoadPhotoLibraryBackupSaveRuntimeV1;
+	readonly loadMetadataQueryRuntime?: LoadPhotoMetadataQueryRuntimeV2;
 }
 
 const PhotoImportDialog = lazy(() => import('./PhotoImportDialog.tsx'));
 const PhotoMetadataDialog = lazy(() => import('./PhotoMetadataDialog.tsx'));
 const PhotoPreviewPresentation = lazy(() => import('./PhotoPreviewPresentation.tsx'));
-const PhotoQueryDialog = lazy(() => import('./PhotoQueryDialog.tsx'));
+const PhotoQueryDialog = lazy(() => import('./PhotoQuerySurface.tsx'));
 const PhotoCatalogOrganizerDialog = lazy(() => import('./PhotoCatalogOrganizerDialog.tsx'));
 const PhotoMembershipDialog = lazy(() => import('./PhotoMembershipDialog.tsx'));
 const PhotoBatchRenameDialog = lazy(() => import('./PhotoBatchRenameDialog.tsx'));
@@ -38,7 +40,8 @@ const PhotoCompareDialog = lazy(() => import('./PhotoCompareDialog.tsx'));
 const PhotoSurveyDialog = lazy(() => import('./PhotoSurveyDialog.tsx'));
 const PhotoStackDialog = lazy(() => import('./PhotoStackDialog.tsx'));
 
-export default function LightscaperApp({ locale, createSession, loadBackupSaveRuntime }: LightscaperAppProps) {
+const unavailableQueryRuntime: LoadPhotoMetadataQueryRuntimeV2 = async () => { throw new Error('Photo query controls are unavailable.'); };
+export default function LightscaperApp({ locale, createSession, loadBackupSaveRuntime, loadMetadataQueryRuntime = unavailableQueryRuntime }: LightscaperAppProps) {
 	const copy = useSiteCopy(locale);
 	const app = useRef<HTMLElement>(null);
 	const definitionReader = useRef<PhotoLibraryDefinitionReader | null>(null);
@@ -350,7 +353,8 @@ export default function LightscaperApp({ locale, createSession, loadBackupSaveRu
 				surveyFocusedPhotoId={survey.snapshot.focusedPhotoId}>{renderScene}</PhotoPreviewPresentation></Suspense>
 			: renderScene()}
 		{queryVisible && <Suspense fallback={<p role="status">{copy.photoWorking}</p>}>
-			<PhotoQueryDialog query={library.query ?? DEFAULT_PHOTO_LIBRARY_QUERY_V1} copy={copy} flags={flags} colorLabels={colorLabels}
+			<PhotoQueryDialog query={library.query ?? DEFAULT_PHOTO_LIBRARY_QUERY_V2} copy={copy} flags={flags} colorLabels={colorLabels}
+				loadMetadataQueryRuntime={loadMetadataQueryRuntime}
 				busy={library.busy} error={library.error} needsIndex={library.needsQueryIndex} indexProgress={library.queryIndexProgress}
 				readDefinitions={library.readDefinitions} onClose={() => { library.cancel(); setQueryVisible(false); }}
 				onApply={query => { setLibraryVisible(true); void library.applyQuery(query); }} onBuild={() => { void library.buildQueryIndex(); }} />

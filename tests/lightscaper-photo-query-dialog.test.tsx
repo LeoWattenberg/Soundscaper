@@ -9,6 +9,9 @@ import type { PhotoQueryDialogCopyV1 } from '../src/common/editor/ui/lightscaper
 import type { PhotoLibraryQueryV1 } from '../src/common/editor/photo-library-session-port-v1.ts';
 import { installReactTestDom, reactProps } from './helpers/react-test-dom.ts';
 import { deferred } from './helpers/async-test-control.ts';
+import { bundledLightscaperEditorCopyForLocale } from '../src/common/i18n/lightscaper-editor-copy.ts';
+import { PHOTO_METADATA_QUERY_COLUMNS_V2 as metadataColumns } from '../src/lightscaper/catalog/photo-metadata-query-columns-v2.ts';
+import { normalizePhotoSmartQueryV2 } from '../src/lightscaper/catalog/photo-smart-query-v2.ts';
 
 const hooks = registerHooks({ load: (url, context, next) => url.endsWith('.css')
 	? { format: 'module', source: '', shortCircuit: true } : next(url, context) });
@@ -17,6 +20,7 @@ hooks.deregister();
 
 const query: PhotoLibraryQueryV1 = { text: '', filter: null, sort: { field: 'photo-id', direction: 'ascending' } };
 const copy: PhotoQueryDialogCopyV1 = {
+	...bundledLightscaperEditorCopyForLocale('en'),
 	photoQueryTitle: 'Search, filter and sort', photoQueryText: 'Search text', photoQueryFilter: 'Filter', photoQueryAllPhotos: 'All photos',
 	photoQuerySort: 'Sort', photoQueryDirection: 'Direction', photoQuerySortId: 'Photo ID', photoQuerySortFileName: 'Filename',
 	photoQuerySortCaptureTime: 'Capture time', photoQuerySortRating: 'Rating', photoQueryAscending: 'Ascending', photoQueryDescending: 'Descending',
@@ -41,7 +45,8 @@ test('text, exact attribute filter and both global sort directions submit throug
 		await mounted.change('[name="queryFilter"]', 'rating'); await mounted.change('[name="queryRating"]', '4');
 		await mounted.change('[name="querySort"]', 'capture-time'); await mounted.change('[name="queryDirection"]', 'descending');
 		await mounted.submit();
-		assert.deepEqual(applied, [{ text: 'Landscape', filter: { kind: 'rating', value: 4 }, sort: { field: 'capture-time', direction: 'descending' } }]);
+		assert.deepEqual(applied, [{ schemaVersion: 2, kind: 'photo-catalog-query', predicate: null,
+			text: 'Landscape', filter: { kind: 'rating', value: 4 }, sort: { field: 'capture-time', direction: 'descending' } }]);
 		assert.equal(definitions, 0); assert.equal(mounted.dom.one('[name="querySort"]').querySelectorAll('option').length, 4);
 	} finally { await mounted.dispose(); }
 });
@@ -111,12 +116,13 @@ test('choosing a smart collection submits its ID while the selected-label refres
 	} finally { pending.resolve({ rootRevision: 0, rows, parent: null, selected: rows[1], cursor: null }); await mounted.dispose(); }
 });
 
-type Props = React.ComponentProps<typeof PhotoQueryDialog>;
+type Props = Omit<React.ComponentProps<typeof PhotoQueryDialog>, 'metadataColumns' | 'normalizeMetadataPredicate'>;
 async function mount(props: Props) {
 	const dom = installReactTestDom(), root = createRoot(dom.container as unknown as Element);
 	const globals = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }; const previous = globals.IS_REACT_ACT_ENVIRONMENT;
 	globals.IS_REACT_ACT_ENVIRONMENT = true;
-	const render = async (next: Props) => { await act(async () => { root.render(<PhotoQueryDialog {...next} />); }); };
+	const render = async (next: Props) => { await act(async () => { root.render(<PhotoQueryDialog {...next} metadataColumns={metadataColumns}
+		normalizeMetadataPredicate={predicate => normalizePhotoSmartQueryV2({ schemaVersion: 2, kind: 'photo-smart-query', predicate }).predicate} />); }); };
 	const one = (selector: string) => {
 		const name = /^\[name="([^"]+)"\]$/u.exec(selector)?.[1];
 		const node = name ? dom.container.querySelectorAll('input,select').find(candidate => candidate.name === name || candidate.getAttribute('name') === name) : dom.find(selector);

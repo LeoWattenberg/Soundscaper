@@ -274,7 +274,7 @@ test('query index preparation is explicit, yields each bounded step and acknowle
 		assert.equal(mounted.current.needsQueryIndex, true); assert.equal(mounted.current.error, null); assert.equal(steps, 0);
 		await act(async () => { await mounted.current.buildQueryIndex(); });
 		assert.equal(steps, 3); assert.equal(mounted.current.needsQueryIndex, false);
-		assert.deepEqual(mounted.current.queryIndexProgress, { processed: 34, readBytes: 384, ready: true });
+		assert.deepEqual(mounted.current.queryIndexProgress, { processed: 34, readBytes: 384, writtenBytes: 0, ready: true });
 	} finally { await mounted.dispose(); }
 });
 
@@ -373,6 +373,8 @@ test('an acknowledged import invalidates the active query continuation even when
 function owner(readPage: PhotoLibrarySessionPortV1['readPage']) {
 	let closes = 0;
 	const port: PhotoLibrarySessionPortV1 = {
+		readQueryStepV2: request => port.readQueryStep(request), readStackQueryStepV2: request => port.readStackQueryStep(request),
+		rebuildQueryStepV2: async request => ({ ...await port.rebuildQueryStep(request), writtenBytes: 0 }),
 		readStackQueryStep: async (): Promise<never> => { throw new Error('Unexpected collapsed stack query in existing photo fixture.'); },
 		readStackMemberships: async (): Promise<never> => { throw new Error('Unexpected stack operation in existing photo fixture.'); },
 		readStackSnapshot: async (): Promise<never> => { throw new Error('Unexpected stack operation in existing photo fixture.'); },

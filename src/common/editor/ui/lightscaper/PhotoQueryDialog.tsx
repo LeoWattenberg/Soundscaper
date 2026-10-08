@@ -3,10 +3,13 @@
 import React, { useState } from 'react';
 import type { PhotoLibraryDefinitionPageRequestV1, PhotoLibraryDefinitionPageV1, PhotoLibraryQueryBuildProgressV1,
 	PhotoLibraryQueryFilterV1, PhotoLibraryQueryV1, PhotoLibraryRowV1 } from '../../photo-library-session-port-v1.ts';
+import type { PhotoLibraryQueryV2 } from '../../photo-library-query-port-v2.ts';
+import type { PhotoPredicateV2 } from '../../../../lightscaper/catalog/photo-smart-query-types-v2.ts';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import PhotoDefinitionSelector, { type PhotoDefinitionSelectorCopyV1 } from './PhotoDefinitionSelector.tsx';
+import PhotoMetadataQueryFields, { type PhotoMetadataQueryColumnsV2, type PhotoMetadataQueryCopyV2 } from './PhotoMetadataQueryFields.tsx';
 
-export interface PhotoQueryDialogCopyV1 extends PhotoDefinitionSelectorCopyV1 {
+export interface PhotoQueryDialogCopyV1 extends PhotoDefinitionSelectorCopyV1, PhotoMetadataQueryCopyV2 {
 	readonly photoQueryTitle: string;
 	readonly photoQueryText: string;
 	readonly photoQueryFilter: string;
@@ -34,7 +37,9 @@ export interface PhotoQueryDialogCopyV1 extends PhotoDefinitionSelectorCopyV1 {
 }
 
 export interface PhotoQueryDialogPropsV1 {
-	readonly query: PhotoLibraryQueryV1;
+	readonly query: PhotoLibraryQueryV1 | PhotoLibraryQueryV2;
+	readonly metadataColumns: PhotoMetadataQueryColumnsV2;
+	readonly normalizeMetadataPredicate: (value: unknown) => PhotoPredicateV2;
 	readonly copy: PhotoQueryDialogCopyV1;
 	readonly flags: Readonly<Record<PhotoLibraryRowV1['flag'], string>>;
 	readonly colorLabels: Readonly<Record<PhotoLibraryRowV1['colorLabel'], string>>;
@@ -43,7 +48,7 @@ export interface PhotoQueryDialogPropsV1 {
 	readonly needsIndex: boolean;
 	readonly indexProgress: PhotoLibraryQueryBuildProgressV1 | null;
 	readonly readDefinitions: (request: PhotoLibraryDefinitionPageRequestV1) => Promise<PhotoLibraryDefinitionPageV1>;
-	readonly onApply: (query: PhotoLibraryQueryV1) => void;
+	readonly onApply: (query: PhotoLibraryQueryV2) => void;
 	readonly onBuild: () => void;
 	readonly onClose: () => void;
 }
@@ -57,8 +62,10 @@ export default function PhotoQueryDialog(props: PhotoQueryDialogPropsV1) {
 	const [selectedId, setSelectedId] = useState(query.filter && 'id' in query.filter ? query.filter.id : null);
 	const [sort, setSort] = useState(query.sort.field);
 	const [direction, setDirection] = useState(query.sort.direction);
+	const [predicate, setPredicate] = useState<PhotoPredicateV2 | null>('predicate' in query ? query.predicate : null);
+	const [metadataValid, setMetadataValid] = useState(true);
 	const definitionKind = filterKind === 'folder' || filterKind === 'keyword' || filterKind === 'collection' ? filterKind : null;
-	const canApply = !props.busy && !props.needsIndex && (definitionKind === null || selectedId !== null);
+	const canApply = !props.busy && !props.needsIndex && metadataValid && (definitionKind === null || selectedId !== null);
 	const selectFilter = (kind: typeof filterKind) => {
 		setFilterKind(kind); setSelectedId(null); setFilterValue(kind === 'flag' ? 'unflagged' : kind === 'label' ? 'none' : '0');
 	};
@@ -73,7 +80,7 @@ export default function PhotoQueryDialog(props: PhotoQueryDialogPropsV1) {
 			else if (filterKind === 'rating') filter = { kind: filterKind, value: Number(filterValue) };
 			else if (filterKind === 'flag') filter = { kind: filterKind, value: filterValue as PhotoLibraryRowV1['flag'] };
 			else if (filterKind === 'label') filter = { kind: filterKind, value: filterValue as PhotoLibraryRowV1['colorLabel'] };
-			props.onApply({ text, filter, sort: { field: sort, direction } });
+			props.onApply({ schemaVersion: 2, kind: 'photo-catalog-query', text, filter, sort: { field: sort, direction }, predicate });
 		}}>
 			<label>{copy.photoQueryText}<input name="queryText" maxLength={256} value={text} onChange={event => { setText(event.currentTarget.value); }} /></label>
 			<fieldset disabled={props.busy}>
@@ -99,6 +106,8 @@ export default function PhotoQueryDialog(props: PhotoQueryDialogPropsV1) {
 					<option value="ascending">{copy.photoQueryAscending}</option><option value="descending">{copy.photoQueryDescending}</option>
 				</select></label>
 			</fieldset>
+			<PhotoMetadataQueryFields predicate={predicate} columns={props.metadataColumns} normalizePredicate={props.normalizeMetadataPredicate}
+				copy={copy} disabled={props.busy} onChange={(next, valid) => { setPredicate(next); setMetadataValid(valid); }} />
 			{props.needsIndex && <div><p>{copy.photoQueryIndexRequired}</p>
 				{props.indexProgress && <p role="status">{copy.photoQueryIndexProgress.replace('{count}', String(props.indexProgress.processed))}</p>}
 				<button type="button" disabled={props.busy} data-query-build onClick={props.onBuild}>

@@ -11,6 +11,7 @@ import type { PhotoLibraryBatchRenamePlanV1, PhotoLibraryBatchRenameReceiptV1, P
 	PhotoLibraryBatchRenameSnapshotV1, PhotoLibraryBatchRenameUndoV1 } from '../../photo-library-batch-rename-port-v1.ts';
 import { readPhotoLibrarySelectionIdsV1 } from '../../controller/shared/photo-library-selection-v1.ts';
 import { createPhotoLibraryImportCollectorV1, detachPhotoLibraryImportSettingsV1 } from '../../controller/shared/photo-library-import-gesture-v1.ts';
+import type { PhotoLibraryQueryV2, PhotoLibraryQueryBuildProgressV2 } from '../../photo-library-query-port-v2.ts';
 import type { PhotoLibraryImportGestureReceiptV1, PhotoLibraryImportPresetCommandV1, PhotoLibraryImportPresetSnapshotV1,
 	PhotoLibraryImportRequestOptionsV1 } from '../../photo-library-import-settings-port-v1.ts';
 import type { PhotoLibraryDefinitionAcknowledgementV1, PhotoLibraryDefinitionCommandV1, PhotoLibraryDefinitionReadRequestV1,
@@ -25,7 +26,7 @@ interface SessionSlot {
 	readonly beforeDrain: Promise<void> | null;
 	pending: Promise<PhotoLibrarySessionPortV1> | null;
 	active: AbortController | null;
-	query: PhotoLibraryQueryV1 | null;
+	query: PhotoLibraryQueryV1 | PhotoLibraryQueryV2 | null;
 	stackCollapsed: boolean;
 	page: PhotoLibraryPageV1 | null;
 	batchRenamePlanner: PhotoLibrarySessionPortV1['planBatchRename'] | null;
@@ -62,10 +63,10 @@ export function usePhotoLibraryWorkflow(createSession?: CreatePhotoLibrarySessio
 	const [metadata, setMetadata] = useState<PhotoLibraryMetadataSnapshotV1 | null>(null);
 	const [memberships, setMemberships] = useState<PhotoLibraryMembershipSnapshotV1 | null>(null);
 	const [busy, setBusy] = useState(false);
-	const [query, setQuery] = useState<PhotoLibraryQueryV1 | null>(null);
+	const [query, setQuery] = useState<PhotoLibraryQueryV1 | PhotoLibraryQueryV2 | null>(null);
 	const [stackCollapsed, setStackCollapsedState] = useState(false);
 	const [needsQueryIndex, setNeedsQueryIndex] = useState(false);
-	const [queryIndexProgress, setQueryIndexProgress] = useState<PhotoLibraryQueryBuildProgressV1 | null>(null);
+	const [queryIndexProgress, setQueryIndexProgress] = useState<PhotoLibraryQueryBuildProgressV1 | PhotoLibraryQueryBuildProgressV2 | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [batchRenameSnapshot, setBatchRenameSnapshot] = useState<PhotoLibraryBatchRenameSnapshotV1 | null>(null);
 	const [batchRenameReceipt, setBatchRenameReceipt] = useState<Extract<PhotoLibraryBatchRenameWorkflowReceiptV1, { outcome: 'acknowledged' }> | null>(null);
@@ -270,22 +271,23 @@ export function usePhotoLibraryWorkflow(createSession?: CreatePhotoLibrarySessio
 		runBatchRename((owner, signal) => owner.renamePhotos(plan, { signal }), options), [runBatchRename]);
 	const undoBatchRename = useCallback((undo: PhotoLibraryBatchRenameUndoV1, options: Readonly<{ signal?: AbortSignal }> = {}) =>
 		runBatchRename((owner, signal) => owner.undoBatchRename(undo, { signal }), options), [runBatchRename]);
-	const applyQuery = (nextQuery: PhotoLibraryQueryV1) => run(async (owner, signal, current) => {
+	const applyQuery = (nextQuery: PhotoLibraryQueryV1 | PhotoLibraryQueryV2) => run(async (owner, signal, current) => {
 		const next = await readNonemptyQueryPage(owner, nextQuery, null, signal, current.stackCollapsed);
 		if (current.live) { current.query = nextQuery; setQuery(nextQuery); setNeedsQueryIndex(false); publishPage(current, next); }
 	});
 	const probeQuery = () => run(async (owner, signal, current) => {
-		if (current.stackCollapsed) await owner.readStackQueryStep({ query: current.query ?? DEFAULT_QUERY, signal });
-		else await owner.readQueryStep({ query: current.query ?? DEFAULT_QUERY, signal });
+		await readQueryStep(owner, current.query ?? DEFAULT_QUERY, null, signal, current.stackCollapsed);
 		signal.throwIfAborted(); if (current.live) setNeedsQueryIndex(false);
 	});
 	const buildQueryIndex = () => run(async (owner, signal, current) => {
-		let processed = 0, readBytes = 0;
+		let processed = 0, readBytes = 0, writtenBytes = 0;
+		const v2 = isMetadataQuery(current.query ?? DEFAULT_QUERY);
 		while (true) {
 			signal.throwIfAborted();
-			const next = await owner.rebuildQueryStep({ signal }); signal.throwIfAborted();
+			const next = v2 ? await owner.rebuildQueryStepV2({ signal }) : { ...await owner.rebuildQueryStep({ signal }), writtenBytes: 0 }; signal.throwIfAborted();
 			processed += next.processed; readBytes += next.readBytes;
-			if (current.live) setQueryIndexProgress(Object.freeze({ processed, readBytes, ready: next.ready }));
+			writtenBytes += next.writtenBytes;
+			if (current.live) setQueryIndexProgress(Object.freeze({ processed, readBytes, ...(v2 ? { writtenBytes } : {}), ready: next.ready }));
 			if (next.ready) { if (current.live) setNeedsQueryIndex(false); return; }
 			await yieldTask(signal);
 		}
@@ -478,22 +480,29 @@ function acquire(current: SessionSlot): Promise<PhotoLibrarySessionPortV1> {
 
 export const DEFAULT_PHOTO_LIBRARY_QUERY_V1: PhotoLibraryQueryV1 = Object.freeze({ text: '', filter: null,
 	sort: Object.freeze({ field: 'photo-id', direction: 'ascending' }) });
-const DEFAULT_QUERY = DEFAULT_PHOTO_LIBRARY_QUERY_V1;
+export const DEFAULT_PHOTO_LIBRARY_QUERY_V2: PhotoLibraryQueryV2 = Object.freeze({ schemaVersion: 2, kind: 'photo-catalog-query',
+	...DEFAULT_PHOTO_LIBRARY_QUERY_V1, predicate: null });
+const DEFAULT_QUERY = DEFAULT_PHOTO_LIBRARY_QUERY_V2;
 
 function readVisiblePage(owner: PhotoLibrarySessionPortV1, current: Pick<SessionSlot, 'query' | 'stackCollapsed'>,
 	cursor: string | null, signal: AbortSignal): Promise<PhotoLibraryPageV1> {
 	return current.query || current.stackCollapsed ? readNonemptyQueryPage(owner, current.query ?? DEFAULT_QUERY, cursor, signal, current.stackCollapsed)
 		: owner.readPage({ cursor, signal });
 }
-async function readNonemptyQueryPage(owner: PhotoLibrarySessionPortV1, query: PhotoLibraryQueryV1, cursor: string | null, signal: AbortSignal, collapsed = false): Promise<PhotoLibraryPageV1> {
+async function readNonemptyQueryPage(owner: PhotoLibrarySessionPortV1, query: PhotoLibraryQueryV1 | PhotoLibraryQueryV2, cursor: string | null, signal: AbortSignal, collapsed = false): Promise<PhotoLibraryPageV1> {
 	while (true) {
-		signal.throwIfAborted(); const next = collapsed ? await owner.readStackQueryStep({ query, cursor, signal }) : await owner.readQueryStep({ query, cursor, signal }); signal.throwIfAborted();
+		signal.throwIfAborted(); const next = await readQueryStep(owner, query, cursor, signal, collapsed); signal.throwIfAborted();
 		if (next.rows.length > 0 || next.cursor === null) return Object.freeze({
 			catalogName: next.catalogName, totalCount: next.totalCount, rows: next.rows, cursor: next.cursor,
 		});
 		if (next.cursor === cursor) throw new Error('Photo query continuation did not advance.');
 		cursor = next.cursor; await yieldTask(signal);
 	}
+}
+function isMetadataQuery(query: PhotoLibraryQueryV1 | PhotoLibraryQueryV2): query is PhotoLibraryQueryV2 { return 'schemaVersion' in query; }
+function readQueryStep(owner: PhotoLibrarySessionPortV1, query: PhotoLibraryQueryV1 | PhotoLibraryQueryV2, cursor: string | null, signal: AbortSignal, collapsed: boolean) {
+	if (isMetadataQuery(query)) return collapsed ? owner.readStackQueryStepV2({ query, cursor, signal }) : owner.readQueryStepV2({ query, cursor, signal });
+	return collapsed ? owner.readStackQueryStep({ query, cursor, signal }) : owner.readQueryStep({ query, cursor, signal });
 }
 async function yieldTask(signal: AbortSignal): Promise<void> {
 	await new Promise<void>(resolve => { setTimeout(resolve, 0); }); signal.throwIfAborted();
