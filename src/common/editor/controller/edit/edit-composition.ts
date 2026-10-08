@@ -228,7 +228,7 @@ export function createEditComposition<History extends ControllerRuntimeHistory>(
 		),
 		createStableId,
 		preserveTrackRouting: (command: Extract<AudioEditorCommand, { type: 'batch' }>, copies: readonly Readonly<{ sourceTrackId: string; targetTrackId: string }>[]) => preserveProductionTrackRouting(
-			requireProject(), command, copies, projectRuntime.applyCommand, createStableId,
+			requireProject(), prepareFrozenTrackEditCommand(requireProject(), command), copies, projectRuntime.applyCommand, createStableId,
 		),
 		prepareDuplicateCommand: projectRuntime.prepareEditDuplicateCommand
 			? (descriptor: AudioEditorClipboard, command: AudioEditorCommand) => (

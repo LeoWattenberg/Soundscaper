@@ -23,6 +23,7 @@ for (const kind of ['headers', 'range'] as const) test(`ordinary ${kind} removal
 		});
 	assert.throws(() => applySoundscaperProjectCommand(before, removal), /must retain editable clips/iu);
 	const prepared = prepareFrozenTrackEditCommand(before, removal);
+	assert.equal(prepareFrozenTrackEditCommand(before, prepared), prepared);
 	const initial = createSoundscaperProjectHistory(before);
 	const edited = executeSoundscaperProjectCommand(initial, prepared);
 	assert.equal(edited.undoStack.length, 1);
