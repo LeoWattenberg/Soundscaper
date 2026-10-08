@@ -26,6 +26,7 @@ import { clipGroups, focusFirst } from './timeline-navigation.js';
 import { useAudioTrackRowNavigation } from './useAudioTrackRowNavigation.js';
 import { useAudioTrackRowViewModel } from './useAudioTrackRowViewModel.js';
 import { resolveAudioEditorColor, TimeSelectionOverlay } from './TimelineOverlayComponents.jsx';
+import { handleTrackRulerKeyboard } from './track-ruler-keyboard.ts';
 export function AudioTrackRow({
 	controller,
 	project,
@@ -484,23 +485,11 @@ export function AudioTrackRow({
 					onFrequencyRange={(range) => run(() => controller.actions.track.update(track.id, {
 						spectrogram: { ...track.spectrogram, ...range },
 					}))}
-					onKeyDown={(event) => {
-						if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) {
-							onOpenRulerFlyout(displayMode, event);
-						} else if (event.key === 'Tab') {
-							event.preventDefault();
-							if (event.shiftKey) {
-								if (!focusCrossfadeHandle(crossfadeOverlays.length - 1)) focusBeforeRuler();
-							}
-							else focusAfterRuler();
-						} else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
-							event.preventDefault();
-							focusRulerVertical(event.key === 'ArrowDown' ? 'down' : 'up');
-						} else if (event.key === 'Escape') {
-							event.preventDefault();
-							focusCurrentTrack();
-						}
-					}}
+					onKeyDown={(event) => handleTrackRulerKeyboard(event, {
+						openMenu: () => onOpenRulerFlyout(displayMode, event),
+						focusBefore: () => { if (!focusCrossfadeHandle(crossfadeOverlays.length - 1)) focusBeforeRuler(); },
+						focusAfter: focusAfterRuler, focusVertical: focusRulerVertical, focusTrack: focusCurrentTrack,
+					})}
 				/>}
 				{rangeSelected && <TimeSelectionOverlay
 					selection={selection}
