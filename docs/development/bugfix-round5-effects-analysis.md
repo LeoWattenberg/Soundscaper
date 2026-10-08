@@ -558,3 +558,32 @@ engines (6/6 combined, 1.3 minutes, no skips or failures;
 `/tmp/soundscaper-r5-root-parametric-eq-shortcut-green24.log`). Both guarded
 product builds pass. ROOT-018 is counted once. Assistance runtime assets
 are unchanged.
+
+## R5-ROOT-019 — A Source tempo change alters a looped recording's pitch
+
+Import an ordinary 750 Hz, 0.8-second WAV. Extend Looped clip length by one
+repetition, open Properties, focus Source waveform and select all. Effect →
+Pitch and tempo → Change tempo from 120 to 240 BPM → Apply. The export has
+the expected 0.8-second extent but the recording plays at 375 Hz: source
+processing changes its native sample count and total clip extent while
+retaining the original 0.8-second repeat period and split phase.
+
+Scale the repeat period and phase by the processed source-window ratio
+through the existing loop transform primitive. Preserve the processed
+source identity, authored clip processing, anchors, ordinary non-loop
+geometry and hidden stretch-memory updates. This is the Source processing
+command's own metadata remap, separate from earlier loop clipboard, source
+trim, effect selection and interchange consumers.
+
+The immutable-baseline Chromium workflow successfully applies Change tempo
+and exports the exact expected extent, then fails at decoded pitch 375 Hz
+instead of 750 Hz (`/tmp/soundscaper-r5-root-source-tempo-loop-baseline.log`).
+Five canonical production-command cases independently fail on the retained
+period/phase, while the non-loop/equal-length control passes. New and
+existing native-clock, reversed-loop, split-phase, Source processing and
+loop/trim support passes 39/39 after correction. Target lint, focused strict
+test types and the size gate pass. Regressions are
+`audio-editor-round5-source-tempo-loop.test.ts` and
+`audio-editor-round5-source-tempo-loop.spec.js`. All-browser verification is
+pending; ROOT-019 is not yet included in the verified count. Assistance
+runtime assets are unchanged.

@@ -6,6 +6,7 @@ import { evaluateAudioWarpMapAtSource, normalizeAudioWarpMap } from '../audio-wa
 import { audioWarpOuterAtTimelineFrame, isMusicalAudioWarpClip, type AudioWarpAuthorityRuntimeClip, type AudioWarpAuthorityRuntimeProject } from '../audio-warp-runtime-authority.ts';
 import { CLIP_SOURCE_STRETCH_EXTENSION, type ClipSourceStretchMemory } from '../clip-source-stretch-memory.ts';
 import { addRationals, beatToSampleFrame, compareRationals, multiplyRationals, subtractRationals, type Rational } from '../timeline-time.ts';
+import { clipLoopTransformFields } from '../audio-clip-loop.ts';
 
 type RecordValue = Record<string, unknown>;
 interface Source extends RecordValue {
@@ -17,6 +18,7 @@ interface Source extends RecordValue {
 }
 interface Clip extends RecordValue, AudioWarpAuthorityRuntimeClip {
 	id: string;
+	kind?: string;
 	sourceId: string;
 	sourceStartFrame: number;
 	sourceDurationFrames: number;
@@ -63,6 +65,9 @@ export function processSourceAudio(projectValue: object, command: Extract<AudioE
 		const ratio = sourceDurationFrames / clip.sourceDurationFrames;
 		const durationFrames = Math.max(1, Math.round(clip.durationFrames * ratio));
 		const warpMap = clip.warpMap ? normalizeAudioWarpMap(clip.warpMap) : null;
+		const stretchMemory = remapStretchMemory(clip, previous, next, mapRational, { startFrame, endFrame, outputFrames });
+		// Replacing one period's PCM retains repetitions; it does not bake them into the source.
+		const loopFields = clipLoopTransformFields({ ...clip, ...stretchMemory }, { durationFrames });
 		const changes: RecordValue = {
 			sourceId: next.id, sourceStartFrame, sourceDurationFrames, durationFrames,
 			renderCacheRevision: (clip.renderCacheRevision ?? 0) + 1,
@@ -76,7 +81,8 @@ export function processSourceAudio(projectValue: object, command: Extract<AudioE
 				...point, source: mapRational(point.source),
 				outer: remapWarpOuter(project, clip, point.outer, durationFrames),
 			})) } } : {}),
-			...remapStretchMemory(clip, previous, next, mapRational, { startFrame, endFrame, outputFrames }),
+			...stretchMemory,
+			...loopFields,
 		};
 		const updated = normalizeClipForProject(project, { ...clip, ...changes }) as Clip;
 		assertClipSourceBounds(project, updated);
