@@ -51,28 +51,33 @@ export function applyPreparedManagedSdrByteFrameV1(
 ): Uint8Array<ArrayBuffer> {
 	const lookup = createManagedSdrUngradedByteLookupV1(prepared, output);
 	const pixels = new Uint8Array(frame.pixels.byteLength);
-	for (let y = 0; y < frame.height; y += 1) {
-		if (signal?.aborted) throw signal.reason instanceof Error ? signal.reason
-			: new DOMException('The V13 finishing operation was aborted.', 'AbortError');
-		for (let x = 0; x < frame.width; x += 1) {
-			const offset = (y * frame.width + x) * 4;
-			if (lookup) {
-				pixels[offset] = lookup[frame.pixels[offset]!]!;
-				pixels[offset + 1] = lookup[frame.pixels[offset + 1]!]!;
-				pixels[offset + 2] = lookup[frame.pixels[offset + 2]!]!;
-				pixels[offset + 3] = frame.pixels[offset + 3]!;
-				continue;
-			}
-			const linear = applyPreparedManagedSdrGradeStackLinearChannelsV1(prepared,
-				frame.pixels[offset]! / 255, frame.pixels[offset + 1]! / 255,
-				frame.pixels[offset + 2]! / 255, frame.pixels[offset + 3]! / 255);
-			const value = output === 'linear-rec709-d65' ? linear : encodeManagedSdrLinearChannelsV1(
-				linear[0], linear[1], linear[2], linear[3], output,
-			);
-			for (let channel = 0; channel < 4; channel += 1) {
-				pixels[offset + channel] = Math.round(value[channel]! * 255);
+	try {
+		for (let y = 0; y < frame.height; y += 1) {
+			if (signal?.aborted) throw signal.reason instanceof Error ? signal.reason
+				: new DOMException('The V13 finishing operation was aborted.', 'AbortError');
+			for (let x = 0; x < frame.width; x += 1) {
+				const offset = (y * frame.width + x) * 4;
+				if (lookup) {
+					pixels[offset] = lookup[frame.pixels[offset]!]!;
+					pixels[offset + 1] = lookup[frame.pixels[offset + 1]!]!;
+					pixels[offset + 2] = lookup[frame.pixels[offset + 2]!]!;
+					pixels[offset + 3] = frame.pixels[offset + 3]!;
+					continue;
+				}
+				const linear = applyPreparedManagedSdrGradeStackLinearChannelsV1(prepared,
+					frame.pixels[offset]! / 255, frame.pixels[offset + 1]! / 255,
+					frame.pixels[offset + 2]! / 255, frame.pixels[offset + 3]! / 255);
+				const value = output === 'linear-rec709-d65' ? linear : encodeManagedSdrLinearChannelsV1(
+					linear[0], linear[1], linear[2], linear[3], output,
+				);
+				for (let channel = 0; channel < 4; channel += 1) {
+					pixels[offset + channel] = Math.round(value[channel]! * 255);
+				}
 			}
 		}
+		return pixels;
+	} catch (error) {
+		pixels.fill(0);
+		throw error;
 	}
-	return pixels;
 }

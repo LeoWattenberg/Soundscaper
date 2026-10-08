@@ -17,15 +17,13 @@ import {
 	checkedFrame,
 	combinedGraphs,
 	combinedMask,
-	gradeLinearFrame,
-	gradeVisual,
-	identityDescription,
 	mediaPresentation,
 	orderBucketEntries,
 	requiredFinishing,
 	renderBlendMode,
 	type TrackOrderBucketFinishing,
 } from './selected-finishing-exact-frame-support.ts';
+import { placeFramescaperManagedGradedVisualFrameV1, placeFramescaperManagedGradedAdjustmentFrameV1 } from './selected-finishing-managed-grade-frame.ts';
 import {
 	createUnifiedExactRenderFinishingPreviewConsumerV13,
 	type UnifiedExactRenderRgbaFrameV13,
@@ -72,7 +70,6 @@ import {
 	framescaperSupplementalPictureIdentityFinishing,
 	validatedFramescaperSupplementalPictureIdsFinishing,
 } from './selected-finishing-supplemental-picture-authority.ts';
-import { resolveFramescaperVisualPlacementFinishing } from './visual-placement-finishing.ts';
 import { createFramescaperSoundVisualizerWindowReader } from './sound-visualizer-window.ts';
 type Data = Readonly<Record<string, unknown>>;
 export interface FramescaperSelectedExactFrameExecutionFinishing {
@@ -439,19 +436,11 @@ export async function createFramescaperSelectedExactFrameExecutionFinishing(opti
 		const target = orderBucketEntries(trackFrames, trackId, 0);
 		for (const entry of entries) {
 			const raw = requiredVisual(maskInputs, entry.modelId);
-			const linear = gradeVisual(finishing, entry, raw, finishingAssets.luts, signal);
-			const placement = resolveFramescaperVisualPlacementFinishing(entry, {
-				width, height, fit: options.plan.output.canvas.fit,
-			});
-			if (linear.width !== placement.width || linear.height !== placement.height) {
-				throw new RangeError(`Selected finishing visual ${entry.modelId} changed materialized geometry.`);
-			}
 			const mask = entry.masks.length === 0 ? undefined
 				: combinedGraphs(entry.masks, width, height, maskInputs);
-			let placed = placeUnifiedExactLinearRgbaFrameV13({
-				frame: linear, displayWidth: placement.width, displayHeight: placement.height,
-				outputWidth: width, outputHeight: height,
-				renderDescription: placement.renderDescription,
+			let placed = await placeFramescaperManagedGradedVisualFrameV1({
+				finishing, entry, frame: raw, luts: finishingAssets.luts,
+				canvas: { width, height, fit: options.plan.output.canvas.fit }, signal,
 				...(mask ? { mask } : {}),
 			});
 			if (openFx && 'source' in entry.authoredState) {
@@ -492,14 +481,11 @@ export async function createFramescaperSelectedExactFrameExecutionFinishing(opti
 				if (adjustment.effectIds.length > 0) adjusted = checkedFrame(await applyEffects(
 					adjusted, adjustment.effectIds.map((id) => requiredVisual(effectsById, id)), signal,
 				), 'Selected finishing adjustment effect frame');
-				const graded = gradeLinearFrame(adjusted, grades,
-					finishingAssets.luts, signal);
 				const mask = adjustment.masks.length === 0 ? undefined
 					: combinedGraphs(adjustment.masks, width, height, maskInputs);
-				let overlay = placeUnifiedExactLinearRgbaFrameV13({
-					frame: graded, displayWidth: width, displayHeight: height,
-					outputWidth: width, outputHeight: height,
-					renderDescription: identityDescription(width, height, adjustment.blendMode),
+				let overlay = await placeFramescaperManagedGradedAdjustmentFrameV1({
+					frame: adjusted, grades, luts: finishingAssets.luts, width, height, signal,
+					blendMode: adjustment.blendMode,
 					opacity: adjustment.opacity, ...(mask ? { mask } : {}),
 				});
 				if (openFx) overlay = await openFx.adjustment(overlay, adjustment.modelId);
