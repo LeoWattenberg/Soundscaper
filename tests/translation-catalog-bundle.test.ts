@@ -16,6 +16,77 @@ async function loadModule(source: string): Promise<Record<string, unknown>> {
 	return await import(`data:text/javascript,${encodeURIComponent(source)}`) as Record<string, unknown>;
 }
 
+function literalModule(catalog: Record<string, unknown>): string {
+	return [`const catalog = ${JSON.stringify(catalog)};`,
+		...Object.keys(catalog).map(key => `export const ${key} = catalog.${key};`), 'export default catalog;'].join('\n');
+}
+function contiguousCatalog(count: number) {
+	return { schemaVersion: 2, locale: 'fr', provenance: {}, entries: Object.fromEntries(
+		Array.from({ length: count }, (_, index) => [`entry${index}`, ['machine', `English${index}`, `Texte${index}`]])) };
+}
+function originInternedModule(catalog: ReturnType<typeof contiguousCatalog>): string {
+	const entries = Object.entries(catalog.entries).map(([key, tuple]) =>
+		`${JSON.stringify(key)}:[$t0,${JSON.stringify(tuple[1])},${JSON.stringify(tuple[2])}]`).join(',');
+	return ['const $t0="machine";', `const catalog={schemaVersion:2,locale:"fr",provenance:{},entries:{${entries}}};`,
+		...Object.keys(catalog).map(key => `export const ${key}=catalog.${key};`), 'export default catalog;'].join('\n');
+}
+
+test('contiguous origin tables save complete emitted and minified bytes against an already-interned origin', async () => {
+	const catalog = contiguousCatalog(256), before = JSON.stringify(catalog);
+	const source = renderTranslationCatalogModule(catalog), baseline = originInternedModule(catalog);
+	assert.match(source, /Object\.fromEntries/u, 'A profitable origin run should use the table representation.');
+	assert.ok(Buffer.byteLength(source) < Buffer.byteLength(baseline), 'Charge the complete table factory and module exports.');
+	const [compact, original] = await Promise.all([transform(source, { minify: true, charset: 'utf8' }),
+		transform(baseline, { minify: true, charset: 'utf8' })]);
+	assert.ok(Buffer.byteLength(compact.code) < Buffer.byteLength(original.code), 'Array keys stay quoted after minification; include that cost.');
+	assert.deepEqual((await loadModule(compact.code)).default, catalog); assert.equal(JSON.stringify(catalog), before);
+});
+
+test('table tuples retain property order, prototype names, escaped Unicode and independent mutable arrays', async () => {
+	const escaped = '";globalThis.catalogInjection=true;//\n\u2028\u2029\ud800\udfff\\';
+	const entries = Object.fromEntries([
+		['10', ['human', escaped, escaped]], ['2', ['machine', 'Numeric', 'Nombre']],
+		['__proto__', ['audacity', 'Prototype', 'Prototype']], ['constructor', ['human', escaped, escaped]],
+		...Object.entries(contiguousCatalog(256).entries),
+		['last', ['audacity', 'Last', 'Dernier']],
+	]);
+	const catalog = { schemaVersion: 2, locale: 'fr', provenance: { machine: { model: 'Pinned' } }, entries,
+		community: { constructor: { contributor: escaped } } }, before = JSON.stringify(catalog);
+	const source = renderTranslationCatalogModule(catalog); assert.match(source, /Object\.fromEntries/u);
+	const { code } = await transform(source, { minify: true, charset: 'utf8' }), module = await loadModule(code);
+	const actual = module.default as typeof catalog;
+	assert.deepEqual(actual, catalog); assert.deepEqual(Object.keys(actual.entries), Object.keys(catalog.entries));
+	assert.equal(Object.getPrototypeOf(actual.entries), Object.prototype); assert.ok(Object.hasOwn(actual.entries, '__proto__'));
+	assert.ok(Object.hasOwn(actual.entries, 'constructor')); assert.equal(module.entries, actual.entries);
+	const constructorTuple: unknown = Object.getOwnPropertyDescriptor(actual.entries, 'constructor')?.value;
+	assert.ok(Array.isArray(constructorTuple)); assert.notEqual(actual.entries.__proto__, constructorTuple);
+	assert.equal(Reflect.has(globalThis, 'catalogInjection'), false);
+	actual.entries.__proto__![1] = 'Authored';
+	assert.equal(constructorTuple[1], escaped); assert.equal(JSON.stringify(catalog), before);
+});
+
+test('table admission preserves generic JSON shapes and its profitability boundary never regresses minified bytes', async () => {
+	for (const invalid of [null, ['machine', 'English'], ['machine', 'English', 'Texte', 'extra'], [1, 'English', 'Texte'],
+		['machine', undefined, 'Texte'], { arbitrary: true }]) {
+		const catalog = { ...contiguousCatalog(128), entries: { ...contiguousCatalog(128).entries, invalid } };
+		const source = renderTranslationCatalogModule(catalog); assert.doesNotMatch(source, /Object\.fromEntries/u);
+		const { code } = await transform(source, { minify: true, charset: 'utf8' });
+		assert.deepEqual((await loadModule(code)).default, JSON.parse(JSON.stringify(catalog)) as unknown);
+	}
+	for (const count of [1, 2, 4, 8, 16, 32, 64, 128, 256]) {
+		const catalog = contiguousCatalog(count), source = renderTranslationCatalogModule(catalog);
+		// The existing renderer interns this sole repeated value only when its
+		// complete emitted declaration pays for itself; retain that exact baseline.
+		const saving = count * Buffer.byteLength('"machine"') - Buffer.byteLength('const $t0="machine";\n') - count * 3;
+		const baseline = saving > 0 ? originInternedModule(catalog) : literalModule(catalog);
+		const [compact, original] = await Promise.all([source, baseline]
+			.map(value => transform(value, { minify: true, charset: 'utf8' })));
+		assert.ok(Buffer.byteLength(compact!.code) <= Buffer.byteLength(original!.code),
+			`Complete minified table costs must be profitable at ${count} entries.`);
+		assert.deepEqual((await loadModule(compact!.code)).default, catalog);
+	}
+});
+
 test('compact catalogs retain translation tuples, provenance and community attribution exactly', async () => {
 	const catalog = {
 		schemaVersion: 2,
