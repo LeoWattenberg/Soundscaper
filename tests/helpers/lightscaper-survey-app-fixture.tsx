@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import React, { act, StrictMode } from 'react';
-import LightscaperApp from '../../src/common/editor/ui/lightscaper/LightscaperApp.tsx';
+import LightscaperApp, { type LightscaperAppProps } from '../../src/common/editor/ui/lightscaper/LightscaperApp.tsx';
 import type { CreatePhotoLibrarySessionV1, PhotoLibraryRowV1 } from '../../src/common/editor/photo-library-session-port-v1.ts';
 import type { LoadPhotoLibraryBackupSaveRuntimeV1 } from '../../src/common/editor/ui/lightscaper/use-photo-library-workflow.ts';
 import { bundledLightscaperEditorCopyForLocale } from '../../src/common/i18n/lightscaper-editor-copy.ts';
@@ -33,7 +33,8 @@ export function surveyAppOwner() {
 	return { port, writes, signals, previews, opens: () => opens, factory: async () => { opens++; return port; } };
 }
 
-export async function mountSurveyApp(initialFactory: CreatePhotoLibrarySessionV1, locale = 'en') {
+export async function mountSurveyApp(initialFactory: CreatePhotoLibrarySessionV1, locale = 'en',
+	controls: Pick<LightscaperAppProps, 'loadMetadataQueryRuntime' | 'loadSavedFilterRuntime'> = {}) {
 	let factory = initialFactory, loader: LoadPhotoLibraryBackupSaveRuntimeV1 | undefined;
 	// Ownership only: missing previews and clearing zero-sized canvases. Native
 	// browser workflows independently qualify actual pixel bytes and backing.
@@ -49,7 +50,7 @@ export async function mountSurveyApp(initialFactory: CreatePhotoLibrarySessionV1
 	};
 	const mounted = await mountPhotoImportUi(() => {
 		Object.defineProperty(window, 'dispatchEvent', { configurable: true, value: () => true });
-		return <StrictMode><LightscaperApp locale={locale} createSession={factory} loadBackupSaveRuntime={loader} /></StrictMode>;
+		return <StrictMode><LightscaperApp locale={locale} createSession={factory} loadBackupSaveRuntime={loader} {...controls} /></StrictMode>;
 	}).catch((error: unknown) => { restoreCanvas(); throw error; });
 	const flush = async (work: () => void = () => undefined) => { await act(async () => { work(); await settle(); }); };
 	const click = async (target: ReactTestElement, ctrlKey = false) => {

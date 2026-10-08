@@ -428,6 +428,8 @@
 		,
 		{ "path": "src/common/editor/photo-library-saved-collection-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 scalar saved-query port carries bounded summary navigation, one full Query2 recipe string, atomic revision context and durable command acknowledgements without owning catalog documents or storage resources." }
 		,
+		{ "path": "src/common/editor/photo-library-saved-filter-runtime-v1.ts", "kind": "helper-contract", "justification": "Version 1 injected pure saved-filter controls preserve complete bounded Query2 JSON and effective metadata fields independently of Session, catalog and media resources." }
+		,
 		{ "path": "src/common/editor/photo-library-session-port-v1.ts", "kind": "helper-contract", "justification": "Scalar browser presentation port for the version 1 photo library session, independent of owning catalog documents." }
 		,
 		{"path": "src/common/editor/photo-library-stack-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 scalar stack presentation commands bind selected membership, ordered drafts and durable acknowledgements to the existing photo Session."}
@@ -719,6 +721,8 @@
 		{ "path": "src/lightscaper/import/photo-native-image-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded native photo session port validates original-oriented geometry and fixed RGBA output with explicit cleanup ownership." }
 		,
 		{ "path": "src/lightscaper/import/photo-source-admission-v1.ts", "kind": "helper-contract", "justification": "Container proof for the initial static 8-bit sRGB photo source admission profile." }
+		,
+		{ "path": "src/lightscaper/photo-saved-filter-ui-runtime-v1.ts", "kind": "helper-contract", "justification": "Version 1 lazy product-owned saved-filter controls parse and serialize complete bounded Query2 recipes through the owning catalog normalizer without acquiring database or media resources." }
 		,
 		{ "path": "src/lightscaper/preview/photo-original-frame-v1.ts", "kind": "helper-contract", "justification": "Version 1 callback-scoped regeneration authenticates retained original bytes and immutable EXIF orientation before preparing shared pixel frames." }
 		,

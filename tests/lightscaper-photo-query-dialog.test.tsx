@@ -99,6 +99,25 @@ test('a pending index probe keeps the initial search input available while persi
 	} finally { await mounted.dispose(); }
 });
 
+test('parent query replacement does not reset a dirty mounted draft or cause submission without the form action', async () => {
+	const applied: PhotoLibraryQueryV1[] = [];
+	const props: Props = { query, copy, ...labels, busy: false, error: null, needsIndex: false, indexProgress: null,
+		onClose: () => undefined, onBuild: () => undefined, onApply: next => { applied.push(next); },
+		readDefinitions: async () => { throw new Error('Attribute edits do not read definitions'); } };
+	const mounted = await mount(props);
+	try {
+		await mounted.change('[name="queryText"]', 'Local draft'); await mounted.change('[name="queryFilter"]', 'flag');
+		await mounted.change('[name="queryFlag"]', 'pick'); await mounted.change('[name="querySort"]', 'file-name');
+		await mounted.render({ ...props, query: { ...query, text: 'New parent query', filter: { kind: 'rating', value: 5 } } });
+		assert.equal(applied.length, 0); assert.equal(reactProps(mounted.one('[name="queryText"]')).value as unknown, 'Local draft');
+		let prevented = false;
+		await act(async () => { reactProps(mounted.dom.one('form')).onSubmit?.({ preventDefault() { prevented = true; } }); });
+		assert.equal(prevented, true);
+		assert.deepEqual(applied, [{ schemaVersion: 2, kind: 'photo-catalog-query', text: 'Local draft',
+			filter: { kind: 'flag', value: 'pick' }, sort: { field: 'file-name', direction: 'ascending' }, predicate: null }]);
+	} finally { await mounted.dispose(); }
+});
+
 test('choosing a smart collection submits its ID while the selected-label refresh is still pending', async () => {
 	const pending = deferred<Awaited<ReturnType<Props['readDefinitions']>>>(), applied: PhotoLibraryQueryV1[] = [];
 	const rows = [{ kind: 'collection', id: 'manual', name: 'Manual', collectionKind: 'manual' },

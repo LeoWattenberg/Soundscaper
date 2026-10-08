@@ -2,6 +2,7 @@
 
 import { localeLanguage } from './locale.js';
 import { LIGHTSCAPER_METADATA_QUERY_COPY_DE, LIGHTSCAPER_METADATA_QUERY_COPY_EN } from './lightscaper-metadata-query-copy.ts';
+import { LIGHTSCAPER_SAVED_FILTER_COPY_DE, LIGHTSCAPER_SAVED_FILTER_COPY_EN } from './lightscaper-saved-filter-copy.ts';
 
 const ENGLISH = Object.freeze({
 	photoFileMenu: "File",
@@ -238,6 +239,7 @@ const ENGLISH = Object.freeze({
 	photoOriginalEmpty: "No published originals on this page.",
 	photoOriginalStartupFailure: "The library could not be opened: {message}",
 	...LIGHTSCAPER_METADATA_QUERY_COPY_EN,
+	...LIGHTSCAPER_SAVED_FILTER_COPY_EN,
 });
 
 export type LightscaperEditorCopyV1 = Readonly<Record<keyof typeof ENGLISH, string>>;
@@ -477,6 +479,7 @@ const GERMAN: LightscaperEditorCopyV1 = Object.freeze({
 	photoOriginalEmpty: "Keine veröffentlichten Originale auf dieser Seite.",
 	photoOriginalStartupFailure: "Die Bibliothek konnte nicht geöffnet werden: {message}",
 	...LIGHTSCAPER_METADATA_QUERY_COPY_DE,
+	...LIGHTSCAPER_SAVED_FILTER_COPY_DE,
 });
 
 /** Flat identities remain shared with the canonical translation inventory. */

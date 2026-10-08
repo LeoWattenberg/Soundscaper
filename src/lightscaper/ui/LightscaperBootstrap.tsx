@@ -15,7 +15,9 @@ export default function LightscaperBootstrap(props: LightscaperAppProps) {
 		return runtime.createPhotoLibraryBackupSaveRuntimeV1();
 	}, []);
 	const loadMetadataQueryRuntime = useCallback(async () => (await import('../photo-metadata-query-ui-runtime.ts')).PHOTO_METADATA_QUERY_RUNTIME_V2, []);
+	const loadSavedFilterRuntime = useCallback(async () => (await import('../photo-saved-filter-ui-runtime-v1.ts')).PHOTO_SAVED_FILTER_RUNTIME_V1, []);
 	return <LightscaperApp {...props} createSession={props.createSession ?? createSession}
 		loadBackupSaveRuntime={props.loadBackupSaveRuntime ?? loadBackupSaveRuntime}
-		loadMetadataQueryRuntime={props.loadMetadataQueryRuntime ?? loadMetadataQueryRuntime} />;
+		loadMetadataQueryRuntime={props.loadMetadataQueryRuntime ?? loadMetadataQueryRuntime}
+		loadSavedFilterRuntime={props.loadSavedFilterRuntime ?? loadSavedFilterRuntime} />;
 }
