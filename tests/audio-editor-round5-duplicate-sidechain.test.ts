@@ -26,20 +26,27 @@ for (const operation of ['selection', 'track', 'connected pair', 'stereo split',
 		await generate();
 		const programmeTrack = controller.getSnapshot().selectedTrackId;
 		const programmeClip = controller.getSnapshot().selectedClipId;
-		assert.ok(programmeTrack && programmeClip);
+		assert.equal(typeof programmeTrack, 'string');
+		assert.equal(typeof programmeClip, 'string');
+		if (typeof programmeTrack !== 'string' || typeof programmeClip !== 'string') throw new Error('Missing programme selection.');
 		const gateId = controller.actions.effects.add({ scope: 'track', trackId: programmeTrack, type: 'gate' });
 		assert.equal(typeof gateId, 'string');
 		const controlTrack = controller.actions.track.add({ name: 'Detector' });
 		assert.equal(typeof controlTrack, 'string');
+		if (typeof controlTrack !== 'string') throw new Error('Missing detector track.');
 		await generate();
 		const controlClip = controller.getSnapshot().selectedClipId;
 		assert.ok(controlClip);
 		const bus = operation === 'bus detector' ? controller.actions.mixer.addBus('group') : null;
-		if (bus) controller.actions.mixer.setRoute(controlTrack, { groupId: bus });
+		if (bus !== null) {
+			assert.equal(typeof bus, 'string');
+			if (typeof bus !== 'string') throw new Error('Missing detector bus.');
+			controller.actions.mixer.setRoute(controlTrack, { groupId: bus });
+		}
 		const snapshot = controller.getSnapshot().project!;
 		const graph = snapshot.mixer as unknown as MixerGraphV21;
 		const detector: MixerEdgeV21 = { id: 'external-detector', kind: 'sidechain',
-			source: bus ? { kind: 'mixer-node', id: bus } : { kind: 'track', id: controlTrack },
+			source: typeof bus === 'string' ? { kind: 'mixer-node', id: bus } : { kind: 'track', id: controlTrack },
 			destination: { kind: 'effect-sidechain', strip: { kind: 'track', id: programmeTrack }, effectId: String(gateId) },
 			position: 'pre-fader', level: 0.5, enabled: operation !== 'bus detector',
 			channelMap: operation === 'track' ? [1, 0] : [0, 1] };
