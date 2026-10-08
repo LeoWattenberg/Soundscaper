@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { useTheme } from '../ThemeProvider';
+import { ContextMenuActionFocus } from './context-menu-action-focus';
 import { Icon } from '../Icon';
 import { contextSubmenuPosition } from './context-submenu-position';
 import './ContextMenuItem.css';
@@ -189,6 +190,7 @@ export const ContextMenuItem: React.FC<ContextMenuItemProps> = ({
   isDivider = false,
 }) => {
   const { theme } = useTheme();
+  const prepareKeyboardAction = React.useContext(ContextMenuActionFocus);
   const [submenuOpen, setSubmenuOpen] = useState(false);
   const itemRef = useRef<HTMLDivElement>(null);
   const submenuRef = useRef<HTMLDivElement>(null);
@@ -315,6 +317,7 @@ export const ContextMenuItem: React.FC<ContextMenuItemProps> = ({
       // For regular menu items without submenus
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
+        prepareKeyboardAction?.();
         onClick?.();
         onClose?.();
       }

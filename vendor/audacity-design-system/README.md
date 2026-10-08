@@ -396,6 +396,14 @@ application overrides and source patches against the pin and upstream master.
     and the ordinary configured-command workflow from an audio track's menu.
     Upstream-PR candidate.
 
+55. `ContextMenuItem` restores the surviving root-menu trigger before invoking
+    a keyboard action. A synchronous action or newly opened dialog can then take
+    focus without delayed restoration stealing it. Pointer activation and child
+    submenu entry retain their existing behavior. The context is private to the
+    open menu, and its creation is annotated pure. Covered by
+    `tests/audio-editor-round6-context-menu-completion.test.tsx` and the ordinary
+    track-menu keyboard completion workflow. Upstream-PR candidate.
+
 ## Application-side adaptations
 
 Not deviations — application code that had to change because upstream did. Listed because they
