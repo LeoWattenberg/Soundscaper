@@ -101,10 +101,6 @@ export function createEffectAudioService<Buffer = EffectAudioBuffer>(runtime: Ef
 			snapshot.master = { gain: 1, effects: [] };
 			snapshot.mixer = { groups: [], sends: [], routes: {} };
 		}
-		const renderSources = runtime.prepareRenderSources
-			? await runtime.prepareRenderSources(snapshot, signal) : runtime.sourceBuffers;
-		signal?.throwIfAborted();
-		runtime.assertProject(token);
 		const rendered = await runtime.renderSnapshot(snapshot, {
 			startFrame,
 			endFrame,
@@ -113,7 +109,7 @@ export function createEffectAudioService<Buffer = EffectAudioBuffer>(runtime: Ef
 			includeTrackPan: false,
 			respectMuteSolo: false,
 			outputFrames: endFrame - startFrame,
-		}, renderSources, signal);
+		}, runtime.sourceBuffers, signal);
 		signal?.throwIfAborted();
 		runtime.assertProject(token);
 		return runtime.matchAudacitySelectionChannels(runtime.audioBufferChannels(rendered), channelCount);

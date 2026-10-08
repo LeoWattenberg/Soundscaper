@@ -30,8 +30,6 @@ export function createHarness(options: Readonly<{
 	project?: EffectAudioProject;
 	target?: EffectTarget;
 	renderSourceRange?: EffectAudioServiceRuntime['renderSourceRange'];
-	prepareRenderSources?: EffectAudioServiceRuntime['prepareRenderSources'];
-	validateRenderSources?: (sources: unknown) => void;
 	runSpectralEditWorker?: EffectAudioServiceRuntime['runSpectralEditWorker'];
 	spectralRenderFrameDelta?: number;
 	spectralTargetCount?: 1 | 2;
@@ -109,11 +107,9 @@ export function createHarness(options: Readonly<{
 		createId: (prefix) => `${prefix}-id`,
 		cloneProject: options.cloneProject ?? ((value) => structuredClone(value)),
 		audacitySelectionChannelCount: () => 1,
-		prepareRenderSources: options.prepareRenderSources,
-		renderSnapshot: async (snapshot, renderOptions, sources) => {
+		renderSnapshot: async (snapshot, renderOptions) => {
 			snapshots.push(structuredClone(snapshot));
 			options.validateRenderSnapshot?.(snapshot);
-			options.validateRenderSources?.(sources);
 			const outputFrames = Number(renderOptions.outputFrames) + (options.spectralRenderFrameDelta ?? 0);
 			return options.deferRender ? render.promise : { channels: [new Float32Array(outputFrames)] };
 		},

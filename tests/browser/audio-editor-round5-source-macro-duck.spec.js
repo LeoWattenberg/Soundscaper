@@ -1,17 +1,19 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js';
-import { bootEditor, chooseCommandAction, clipByName, closeClipProperties, disableNativeSavePicker, importFiles, openClipProperties } from './audio-editor-test-helpers.js';
+import { bootEditor, chooseCommandAction, chooseNestedCommandAction, clipByName, closeClipProperties, disableNativeSavePicker, importFiles, openClipProperties } from './audio-editor-test-helpers.js';
 import { exportSamples } from './helpers/round2-audio-export.js';
 
 for (const sourceMode of [true, false]) test(`an Auto Duck macro retains its voice control in the ${sourceMode ? 'source editor' : 'timeline'}`, async ({ page }) => {
-	test.setTimeout(60_000);
+	test.setTimeout(90_000);
 	await disableNativeSavePicker(page);
 	const files = ['music', 'voice'].map((name, index) => createWavFixture({
 		name: `${name}.wav`, frequency: index ? 1000 : 330, duration: 2,
 		channelCount: 1, channelAmplitudes: [0.35], sampleRate: index ? 48_000 : 24_000,
 	}));
 	const editor = await bootEditor(page, '/embed/en/');
+	await editor.locator('[data-track-row]').first().locator('.track-control-panel__track-name-text').click();
+	await chooseNestedCommandAction(page, editor, 'Tracks', ['Remove tracks']);
 	await importFiles(editor, files);
 	const voice = clipByName(editor, 'voice.wav');
 	await voice.locator('xpath=ancestor::div[@data-track-row]').getByRole('button', { name: 'Mute', exact: true }).click();

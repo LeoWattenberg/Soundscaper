@@ -47,7 +47,6 @@ import {
 } from './internal/effect-result-service.ts';
 import { createEffectSelectionService } from './effect-selection-service.ts';
 import { createSourceEditorEffects } from './internal/source-editor-effects.ts';
-import { createEffectRenderSourcePreparation } from './internal/effect-render-source-preparation.ts';
 import { loadSourceEditorAudioWindow } from './internal/source-editor-audio-window.ts';
 import type { EffectsCompositionDependencies, EffectsCompositionProject } from './effects-composition-types.ts';
 import {
@@ -165,7 +164,6 @@ export function createEffectsComposition(dependencies: EffectsCompositionDepende
 	});
 	const audio: EffectAudio = createEffectAudioService<RenderedAudio>({
 		renderSourceRange: sourceEditor.renderRange,
-		prepareRenderSources: createEffectRenderSourcePreparation(dependencies),
 		lifetime: dependencies.lifetime,
 		...(dependencies.projectRuntime.assistanceAssetCommands ? {
 			assistanceStore: store,

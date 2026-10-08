@@ -112,7 +112,6 @@ export interface EffectsCompositionDependencies {
 	readonly engine: EffectsCompositionEngine;
 	readonly sourceBuffers: EngineSourceBufferInput & NyquistGeneratedAudioServiceRuntime['sourceBuffers'];
 	readonly sourcePeaks: NyquistGeneratedAudioServiceRuntime['sourcePeaks'];
-	readonly loadProjectSources: Parameters<typeof import('./internal/effect-render-source-preparation.ts').createEffectRenderSourcePreparation>[0]['loadProjectSources'];
 	readonly taskProgress: Pick<EditorTaskProgressCoordinator, 'run' | 'updateActive'>;
 	readonly nyquistEvaluator: DeferredNyquistClient['evaluate'];
 	readonly getProject: () => EffectsCompositionProject | null;

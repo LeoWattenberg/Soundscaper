@@ -136,7 +136,8 @@ statistics follow the existing processor policy and the
 [Normalize definition](https://www.audacityteam.org/manual/effects/volume-and-compression/normalize/).
 ## R5-ROOT-006 — A staged Auto Duck macro loses its real control track
 
-Import ordinary music (24 kHz in the regression) and voice (48 kHz) WAVs. Mute the voice for listening, open the
+Remove the empty starter track through Tracks → Remove tracks, then import
+ordinary music (24 kHz in the regression) and voice (48 kHz) WAVs. Mute the voice for listening, open the
 music's Clip properties, select all in Source waveform, and choose Tools →
 Macros palette → New macro → Add effect → Auto Duck → Run macro. A valid
 second audio track exists and the ordinary Auto Duck effect can use it. The
@@ -168,20 +169,15 @@ programme edges while admitting sidechains. Both strict cases now also run the
 actual graph validator before processing; they fail on the incomplete graph and
 pass with its restored output routes. These corrections complete the same macro
 graph root and add no count.
-Checkpoint `b628c8f9d` accepts the graph and applies the macro, but all six
-ordinary Source/timeline cases across Chromium, Firefox and WebKit still fail
-the exported-audio assertion: peak 0.247 remains unducked. A forwarding native
-buffer observer finds the staged control PCM is zero. This attempt remains
-uncounted; the final control-render correction and public proof are pending.
-The dry renderer passes only currently retained media to its isolated engine;
-without the control buffer or provider, the scheduler silently creates no voice
-plan. Admit that snapshot's required clip sources through the existing source
-lifecycle before rendering, merge any transient buffers, and reassert operation
-ownership after the read. A strict canonical-project case reproduces the empty
-voice schedule before this correction and now verifies one real schedule plan,
-neutralized mute, exact required-source IDs and the retained control buffer.
-Focused macro/effect/spectral support passes 26/26; targeted lint, size and the
-complete source/product type checks pass. Public PCM verification remains pending.
+The first exported-PCM follow-up retained the empty starter track. Read-only
+native and debugger observations showed Auto Duck had selected that empty
+track, rather than the voice recording. Removing the starter track through its
+ordinary menu makes the actual control unambiguous; this setup correction does
+not weaken the audio assertion or add a bug. The revised workflow still fails
+on the unchanged baseline with the valid-control refusal and passes timeline
+Chromium on `5c194daa1`, with real exported attenuation. The later speculative
+source-loading change was unnecessary and is removed. Both source and timeline
+verification across all three engines is pending.
 This temporary graph ownership defect is independent of earlier regular
 Source Auto Duck placement and selection-edge fade corrections.
 
