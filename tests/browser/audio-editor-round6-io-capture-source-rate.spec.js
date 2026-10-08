@@ -60,7 +60,8 @@ for (const sampleRate of [44_100, 48_000]) {
 		const editor = await bootEditor(page, '/framescaper/en/');
 		const projectId = await editor.getAttribute('data-project-id');
 		const panel = await openRecordingSetup(page, editor);
-		if (!await page.evaluate(() => typeof navigator.mediaDevices?.getDisplayMedia === 'function')) {
+		if (!await page.evaluate(() => typeof navigator.mediaDevices?.getDisplayMedia === 'function'
+			&& typeof globalThis.MediaRecorder === 'function')) {
 			await expect(panel.getByRole('status')).toContainText('Capture is unavailable in this runtime');
 			await expect(panel.getByRole('button', { name: 'Preview sources', exact: true })).toHaveCount(0);
 			return;
