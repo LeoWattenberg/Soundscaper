@@ -233,7 +233,7 @@ for (const locale of ['en', 'de']) {
 async function metadataKeyboard(page, control) { await expect(control).toBeEnabled(); await control.focus(); await expect(control).toBeFocused(); await page.keyboard.press('Enter'); }
 async function metadataMenu(page, app, menu, action, submenu = null) {
 	await metadataKeyboard(page, app.locator('nav > details > summary').filter({ hasText: new RegExp(`^${metadataEscaped(menu)}$`, 'u') }));
-	if (submenu !== null) await metadataKeyboard(page, app.getByRole('button', { name: submenu, exact: true }));
+	if (submenu !== null) await metadataKeyboard(page, app.locator('summary').filter({ hasText: new RegExp(`^${metadataEscaped(submenu)}$`, 'u') }));
 	await metadataKeyboard(page, app.getByRole('button', { name: action, exact: true }));
 }
 function metadataEscaped(value) { return value.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&'); }
