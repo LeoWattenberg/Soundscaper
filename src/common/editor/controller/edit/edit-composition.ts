@@ -31,6 +31,7 @@ import { findControllerSource } from '../track-audio/track-domain-types.ts';
 import { generateAudioEditorSignalStream } from '../../signal-generator-stream-client.ts';
 import type { AudioEditorClipboard, AudioEditorCommand } from '../../commands/protocol.ts';
 import { preserveProductionTrackRouting } from '../../derived-track-routing.ts';
+import { prepareFrozenTrackEditCommand } from './internal/frozen-track-edit-command.ts';
 
 export type {
 	EditCommandProject,
@@ -211,7 +212,9 @@ export function createEditComposition<History extends ControllerRuntimeHistory>(
 	const handleEdit = createEditorEditService({
 		supportsTrackFolders: dependencies.supportsTrackFolders,
 		activeSelection: dependencies.activeSelection,
-		commit: dependencies.commit,
+		commit: (...args: Parameters<EditCompositionDependencies<History>['commit']>) => (
+			dependencies.commit(prepareFrozenTrackEditCommand(requireProject(), args[0]), args[1])
+		),
 		commitPreparedPaste,
 		commitSplitAtFrames: clipboard.commitSplitAtFrames,
 		compactLiveSourceState: dependencies.compactLiveSourceState,

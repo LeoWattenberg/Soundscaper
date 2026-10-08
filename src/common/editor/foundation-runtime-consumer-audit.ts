@@ -201,6 +201,10 @@ export const FOUNDATION_RUNTIME_TIMING_READER_EXCLUSIONS: readonly FoundationRun
 /** Non-shield importers discovered beside the owned consumer and boundary files. */
 export const FOUNDATION_RUNTIME_PROJECTION_IMPORTER_EXCLUSIONS: readonly FoundationRuntimeProjectionImporterExclusion[] = deepFreeze([
 	{
+		file: 'src/common/editor/controller/edit/internal/frozen-track-edit-command.ts',
+		reason: 'The edit reconciliation adapter previews a command in its resolved command projection only to determine surviving track membership before retiring an unusable freeze; it consumes no runtime media timing.',
+	},
+	{
 		file: 'src/common/editor/export-span-markers.ts',
 		reason: 'The per-output marker adapter imports only the runtime project type and delegates each range to createRiffAnnotationExport, whose registered boundary owns all project timing reads.',
 	},
