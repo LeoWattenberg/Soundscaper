@@ -1,12 +1,16 @@
 # Architecture and maintainability
 
-The Vite entry selects a product from `src/soundscaper/` or `src/framescaper/`.
-Both products depend on shared code in `src/common/`; the editor domain lives in
-`src/common/editor/`, while React presentation belongs in its `ui/` directory.
+The Vite entry selects one independently built product from `src/soundscaper/`,
+`src/framescaper/` or `src/lightscaper/`. All three depend on shared code in
+`src/common/`; shared editor domain code lives in `src/common/editor/`, while
+React presentation belongs in its `ui/` directory. Lightscaper owns its photo
+catalog and Session composition under `src/lightscaper/`, as described in its
+[application boundaries](lightscaper.md). The products deploy to separate
+origins; sharing this repository does not share browser storage or locks.
 
 ## Controller ownership
 
-Stateful editor coordination belongs in strict TypeScript under
+Shared stateful editor coordination belongs in strict TypeScript under
 [`src/common/editor/controller/`](../../src/common/editor/controller/).
 Controllers may depend on editor domain and platform adapters, but never on
 React UI, including for types. Shared vocabulary belongs beside its owning
@@ -45,7 +49,8 @@ directly. After removing a direction, run
 
 Domain compositions accept declared dependencies and return typed ports; the
 composition root wires them without granting one domain mutable access to
-another's state. The active document has one typed history owner in
+another's state. In Soundscaper and Framescaper, the active timeline document has
+one typed history owner in
 [`document-state.ts`](../../src/common/editor/controller/document/document-state.ts),
 and every project mutation goes through that owner. Recording and transport keep
 separate writable state while the compatibility facade exposes stable read-only
@@ -106,19 +111,20 @@ and remaining vendor code. Keep a module in the narrowest owning group and
 verify the resulting dependency DAG before changing those priorities. The build
 fails when any emitted JavaScript chunk exceeds 500,000 bytes; split ownership
 instead of raising that ceiling. Its startup check also rejects a static import
-path from either product's bootstrap chunk back to itself after chunks are emitted.
+path from any product's bootstrap chunk back to itself after chunks are emitted.
 
 Product module substitutions are checked by `npm run typecheck:products`, which
-runs TypeScript over Soundscaper and Framescaper in both browser and desktop
-compositions. Its compiler host and Vite resolve substitutions by the imported
+runs TypeScript over all three browser compositions and the Soundscaper and
+Framescaper desktop compositions. Lightscaper desktop composition waits for its
+roadmap gate. Its compiler host and Vite resolve substitutions by the imported
 source file's path, so another directory's same-named file cannot be replaced
 accidentally. This checks arguments and results at the actual consumer, including
 dynamic imports.
 Disabled implementations retain their owning module's type contract through
 explicit type-only imports. The ordinary source check still checks the default
 graph, and export-parity tests guard substitution coverage.
-Each browser project environment loads its desktop library bridge only when the
-preload global is present; ordinary browser startup keeps that renderer code out
+Soundscaper and Framescaper browser project environments load their desktop
+library bridge only when the preload global is present; ordinary browser startup keeps that renderer code out
 of its static graph.
 
 Autosave retains an immutable document generation during its debounce and only

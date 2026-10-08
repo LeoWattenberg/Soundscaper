@@ -14,6 +14,15 @@ composition lives under `src/lightscaper/`, and presentation lives under
 `src/common/editor/ui/lightscaper/`. New surfaces are opened from menus.
 Controllers and persistence do not depend on presentation.
 
+Keep Lightscaper as an independent product module here so shared storage,
+imaging and Scape contracts can evolve with their consumers in one change.
+Photo presentation remains product-owned within the common UI tree. Extract
+npm workspace packages when dependencies or release versions need independent
+management, or consumers need a stable shared API. Split repositories when
+independent ownership, access or release governance requires it, with versioned
+shared dependencies and compatibility testing. Repository layout does not change
+browser-origin isolation.
+
 ## Catalog storage and history
 
 A photo catalog has a Lightscaper-owned, versioned root plus separately
