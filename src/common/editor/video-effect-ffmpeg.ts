@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { imageGeometryVideoFfmpegFilterV1 } from './video-image-geometry-ffmpeg-v1.ts';
+
 type FilterOperation = Readonly<Record<string, unknown>>;
 
 export interface VideoEffectGraphContext {
@@ -161,6 +163,9 @@ export function appendVideoEffectOperation(context: VideoEffectGraphContext): vo
 		return;
 	}
 	switch (operation.kind) {
+		case 'image-geometry-v1':
+			filters.push(`[${inputLabel}]${imageGeometryVideoFfmpegFilterV1(operation.effect, context.width, context.height)}[${outputLabel}]`);
+			return;
 		case 'preserve-alpha': {
 			if (operation.filter !== 'spill-suppression') throw new RangeError('Unsupported preserve-alpha operation.');
 			const channel = Number(operation.screen) === 0 ? 'green' : 'blue';

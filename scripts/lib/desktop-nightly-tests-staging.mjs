@@ -158,6 +158,7 @@ export const NIGHTLY_TEST_PAYLOAD_INPUTS = Object.freeze([
 	{ source: 'tests/electron/local-assistance-models', destination: 'tests/electron/local-assistance-models', kind: 'directory', label: 'real local assistance model tests', exclude: new Set(['AGENTS.md']) },
 	{ source: 'tests/aup3-fixture.js', destination: 'tests/aup3-fixture.js', kind: 'file', label: 'AUP3 browser support fixture' },
 	{ source: 'tests/helpers/png-fixture.mjs', destination: 'tests/helpers/png-fixture.mjs', kind: 'file', label: 'timeline image browser support fixture' },
+	{ source: 'tests/helpers/image-geometry-native-fixture.ts', destination: 'tests/helpers/image-geometry-native-fixture.ts', kind: 'file', label: 'shared geometry native pixel qualification' },
 	{ source: 'tests/helpers/libsndfile-rifx-fixture.ts', destination: 'tests/helpers/libsndfile-rifx-fixture.ts', kind: 'file', label: 'normal RIFX browser import fixture' },
 	{ source: 'tests/helpers/lightscaper-metadata-query-byte-fixture.ts', destination: 'tests/helpers/lightscaper-metadata-query-byte-fixture.ts', kind: 'file', label: 'photo metadata query source-byte fixture' },
 	{ source: 'tests/helpers/image-metadata-fixtures.ts', destination: 'tests/helpers/image-metadata-fixtures.ts', kind: 'file', label: 'EXIF and IPTC browser source-byte support' },

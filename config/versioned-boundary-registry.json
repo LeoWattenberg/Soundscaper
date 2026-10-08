@@ -350,6 +350,10 @@
 		,
 		{ "path": "src/common/editor/imaging/exif-metadata-reader-v1.ts", "kind": "helper-contract", "justification": "EXIF container interpretation into the immutable image metadata version 1 read model." }
 		,
+		{"path": "src/common/editor/imaging/image-geometry-plan-v1.ts", "kind": "helper-contract", "justification": "Version 1 crop, projective rectification and rotation plans bind inverse pixel mapping, exact quarter-turn extents and explicit fixed Frame contain delivery."}
+		,
+		{"path": "src/common/editor/imaging/image-geometry-v1.ts", "kind": "persisted-contract", "justification": "Version 1 shared image geometry is a closed immutable successor recipe with crop, rotation, flips and a convex source quad; existing PhotoGeometryV1 and timeline mask crops remain unchanged."}
+		,
 		{ "path": "src/common/editor/imaging/image-metadata-model-v1.ts", "kind": "persisted-contract", "justification": "Immutable extracted image facts stored beside photo originals in the family version 1 catalog." }
 		,
 		{ "path": "src/common/editor/imaging/image-metadata-normalizer-v1.ts", "kind": "helper-contract", "justification": "Closed validation and canonicalization of the persisted immutable image metadata version 1 model." }
@@ -367,6 +371,8 @@
 		{"path": "src/common/editor/imaging/pixel-frame-canvas-presenter-v1.ts", "kind": "helper-contract", "justification": "Version1 shared canvas presentation admits current profiles, preserves oriented straight-alpha pixels and deterministically releases bounded backing."}
 		,
 		{ "path": "src/common/editor/imaging/pixel-frame-contract-v1.ts", "kind": "ipc-contract", "justification": "Version-1 transient RGBA frame interchange declares sample format, color primaries, transfer, and bounded geometry across image processing and worker boundaries." }
+		,
+		{"path": "src/common/editor/imaging/pixel-frame-geometry-v1.ts", "kind": "helper-contract", "justification": "Version 1 scoped image geometry evaluates encoded sRGB through bounded premultiplied bilinear samples, joins cancellation and wipes owned output after the consumer settles."}
 		,
 		{ "path": "src/common/editor/imaging/pixel-frame-global-develop-v1.ts", "kind": "helper-contract", "justification": "Version 1 callback-scoped global develop evaluation applies fixed shared process math to an owned bounded frame snapshot and wipes output after the consumer settles." }
 		,
@@ -482,6 +488,8 @@
 		,
 		{ "path": "src/common/editor/track-hierarchy-v12.ts", "kind": "persisted-contract", "justification": "track-hierarchy-v12.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
+		{"path": "src/common/editor/ui/video-preview-image-geometry-v1.ts", "kind": "helper-contract", "justification": "Version 1 preview geometry consumes the shared inverse matrices and sample bounds with explicit GL coordinate conversion and premultiplied alpha sampling."}
+		,
 		{ "path": "src/common/editor/unified-exact-linear-rgba-v13.ts", "kind": "persisted-contract", "justification": "unified-exact-linear-rgba-v13.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
 		{ "path": "src/common/editor/unified-exact-render-delivery-v15.ts", "kind": "persisted-contract", "justification": "unified-exact-render-delivery-v15.ts is a persisted domain-component or render-contract revision independent of product schema." }
@@ -525,6 +533,10 @@
 		{ "path": "src/common/editor/video-freeze-v24.ts", "kind": "persisted-contract", "justification": "video-freeze-v24.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
 		{ "path": "src/common/editor/video-global-develop-v1.ts", "kind": "persisted-contract", "justification": "Version 1 shared white-balance and tone recipes retain fixed linear-sRGB process math, parameter ranges and per-operation byte quantization across authoring, preview and export." }
+		,
+		{"path": "src/common/editor/video-image-geometry-ffmpeg-v1.ts", "kind": "helper-contract", "justification": "Version 1 fixed Frame FFmpeg geometry derives allowlisted geq equations from the same contained inverse map and four premultiplied samples as shared pixel and preview evaluation."}
+		,
+		{"path": "src/common/editor/video-image-geometry-v1.ts", "kind": "persisted-contract", "justification": "Version 1 numeric geometry effect settings bind crop aspect, clockwise rotation, output-axis flips and source-quad rectification across Frame and photo effect persistence."}
 		,
 		{ "path": "src/common/editor/video-keyframe-export-plan-v7-values.ts", "kind": "persisted-contract", "justification": "video-keyframe-export-plan-v7-values.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,

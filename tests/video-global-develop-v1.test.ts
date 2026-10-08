@@ -13,7 +13,7 @@ import { defaultPhotoDevelopV1, normalizePhotoDevelopV1 } from '../src/lightscap
 test('versioned global processes append exactly two authorable effects without changing the old profiles', () => {
 	assert.equal(GLOBAL_DEVELOP_PROCESS_V1, 'linear-srgb-global-v1');
 	assert.deepEqual(GLOBAL_DEVELOP_EFFECT_TYPES_V1, ['white-balance-v1', 'tone-ladder-v1']);
-	assert.deepEqual(VIDEO_EFFECT_TYPES.slice(12), GLOBAL_DEVELOP_EFFECT_TYPES_V1);
+	assert.deepEqual(VIDEO_EFFECT_TYPES.slice(12, 14), GLOBAL_DEVELOP_EFFECT_TYPES_V1);
 	assert.deepEqual(VIDEO_EFFECT_V5_TYPES, ['color-adjust', 'pixelate', 'vignette', 'gaussian-blur', 'sharpen', 'rgb-split']);
 	assert.deepEqual(createVideoEffect('white-balance-v1', { id: 'white' }).params, { temperature: 0, tint: 0 });
 	assert.deepEqual(createVideoEffect('tone-ladder-v1', { id: 'tone' }).params,
@@ -62,7 +62,7 @@ test('preview passes carry fixed linear coefficients and reserve distinct shader
 	const tone = createVideoEffect('tone-ladder-v1', { id: 'tone', params: { exposure: 1, contrast: 50, highlights: -100, shadows: 100, whites: -100, blacks: 100 } });
 	assert.deepEqual(videoEffectPasses(white), [{ code: 18, params0: [2, 1, 0.5, 0], params1: [0, 0, 0, 0], direction: [0, 0] }]);
 	assert.deepEqual(videoEffectPasses(tone), [{ code: 19, params0: [2, 2, -0.25, 0.25], params1: [-0.25, 0.25, 0, 0], direction: [0, 0] }]);
-	assert.equal(EFFECT_PROGRAM_COUNT, 20); assert.equal(EFFECT_CODES['white-balance-v1'], 18); assert.equal(EFFECT_CODES['tone-ladder-v1'], 19);
+	assert.equal(EFFECT_PROGRAM_COUNT, 21); assert.equal(EFFECT_CODES['white-balance-v1'], 18); assert.equal(EFFECT_CODES['tone-ladder-v1'], 19);
 	assert.match(FRAGMENT_SHADER_SOURCE, /color\.rgb = global_develop_rgb/u);
 	assert.match(FRAGMENT_SHADER_SOURCE, /floor\(clamp\(x <= 0\.0031308/u);
 	assert.deepEqual(videoEffectPasses(createVideoEffect('tone-ladder-v1')), []);

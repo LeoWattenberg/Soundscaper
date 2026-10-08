@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { GLOBAL_DEVELOP_GLSL_V1 } from '../video-global-develop-v1.ts';
+import { IMAGE_GEOMETRY_PREVIEW_GLSL_V1 } from './video-preview-image-geometry-v1.ts';
 
 export const MAX_GAUSSIAN_BLUR_PAIR_COUNT = 30;
 export const VIDEO_PREVIEW_PIXELATE_GRID_SIZE = 2;
@@ -26,6 +27,7 @@ in vec2 v_uv;
 out vec4 out_color;
 
 ${GLOBAL_DEVELOP_GLSL_V1}
+${IMAGE_GEOMETRY_PREVIEW_GLSL_V1}
 
 vec4 sample_frame(vec2 uv) {
 	return texture(u_texture, clamp(uv, vec2(0.0), vec2(1.0)));
@@ -91,6 +93,7 @@ void main() {
 		out_color = vec4(0.0);
 		return;
 	}
+	if (u_effect == 20) { out_color = geometry_render(content_uv) * vec4(1.0, 1.0, 1.0, u_opacity); return; }
 	vec4 color = u_effect == 0 ? sample_frame(v_uv) : sample_content(content_uv);
 
 	if (u_effect == 7) {

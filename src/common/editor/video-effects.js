@@ -1,6 +1,8 @@
 import { createStableId } from './stable-id.js';
 import { GLOBAL_DEVELOP_VIDEO_EFFECT_DEFINITIONS_V1, isGlobalDevelopEffectTypeV1,
 	normalizeGlobalDevelopEffectV1, normalizeGlobalDevelopParamsV1, serializeGlobalDevelopEffectToFfmpegV1 } from './video-global-develop-v1.ts';
+import { IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1, IMAGE_GEOMETRY_VIDEO_EFFECT_DEFINITION_V1,
+	normalizeImageGeometryVideoEffectV1, normalizeImageGeometryVideoParamsV1 } from './video-image-geometry-v1.ts';
 
 function parameter(label, labelKey, defaultValue, minimum, maximum, step, options = {}) {
 	return Object.freeze({
@@ -98,6 +100,7 @@ export const VIDEO_EFFECT_DEFINITIONS = Object.freeze({
 		color: parameter('Color', 'videoEffectParamColor', 0x000000, 0, 0xffffff, 1, { integer: true, control: 'color' }),
 	}),
 	...GLOBAL_DEVELOP_VIDEO_EFFECT_DEFINITIONS_V1,
+	[IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1]: IMAGE_GEOMETRY_VIDEO_EFFECT_DEFINITION_V1,
 });
 
 export const VIDEO_EFFECT_TYPES = Object.freeze(Object.keys(VIDEO_EFFECT_DEFINITIONS));
@@ -134,6 +137,7 @@ export function videoEffectDefaults(type) {
  * validation and error naming.
  */
 export function validateVideoEffectParams(type, params, name = 'videoEffect.params') {
+	if (type === IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1) { normalizeImageGeometryVideoParamsV1(params); return true; }
 	if (isGlobalDevelopEffectTypeV1(type)) { normalizeGlobalDevelopParamsV1(type, params); return true; }
 	if (!params || typeof params !== 'object' || Array.isArray(params)) {
 		throw new TypeError(`${name} must be an object.`);
@@ -158,6 +162,7 @@ export function validateVideoEffectParams(type, params, name = 'videoEffect.para
 }
 
 function normalizeVideoEffectParams(type, params, name) {
+	if (type === IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1) return { ...normalizeImageGeometryVideoParamsV1(params) };
 	if (isGlobalDevelopEffectTypeV1(type)) return { ...normalizeGlobalDevelopParamsV1(type, params) };
 	if (params === undefined) params = {};
 	if (!params || typeof params !== 'object' || Array.isArray(params)) {
@@ -196,6 +201,7 @@ export function createVideoEffect(type, options = {}) {
 		params: normalizeVideoEffectParams(stableType, options.params, 'videoEffect.params'),
 	};
 	if (isGlobalDevelopEffectTypeV1(stableType)) normalizeGlobalDevelopEffectV1(effect);
+	if (stableType === IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1) normalizeImageGeometryVideoEffectV1(effect);
 	return effect;
 }
 
@@ -227,6 +233,7 @@ export function normalizeVideoEffect(effect, name = 'videoEffect', options = {})
 		params: normalizeVideoEffectParams(type, effect.params, `${name}.params`),
 	};
 	if (isGlobalDevelopEffectTypeV1(type)) normalizeGlobalDevelopEffectV1(normalized);
+	if (type === IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1) normalizeImageGeometryVideoEffectV1(normalized);
 	return normalized;
 }
 
@@ -257,6 +264,7 @@ export function serializeVideoEffectsToFfmpegOperations(effects, name = 'videoEf
 }
 
 function serializeVideoEffectToFfmpegOperations(effect, name) {
+	if (effect.type === IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1) return [{ kind: 'image-geometry-v1', effect: normalizeImageGeometryVideoEffectV1(effect) }];
 	if (isGlobalDevelopEffectTypeV1(effect.type)) {
 		const operation = serializeGlobalDevelopEffectToFfmpegV1(effect); return operation ? [operation] : [];
 	}

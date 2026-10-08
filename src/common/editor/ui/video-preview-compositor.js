@@ -50,6 +50,7 @@ import {
 import { resolveVideoPreviewCompositorSize } from './video-preview-compositor-size.js';
 import { compositeVideoPreviewAdjustedLayer } from './video-preview-layer-effects.js';
 import { applyVideoPreviewEntryEffects } from './video-preview-entry-effects.js';
+import { bindImageGeometryVideoUniformsV1 } from './video-preview-image-geometry-v1.ts';
 
 export {
 	VIDEO_PREVIEW_MAX_GAUSSIAN_BLUR_KERNEL_SIGMA,
@@ -290,6 +291,9 @@ export class VideoPreviewCompositor {
 		gl.uniform2fv(locations.direction, pass.direction || ZERO_VECTOR_2);
 		gl.uniform4fv(locations.params0, pass.params0 || ZERO_VECTOR_4);
 		gl.uniform4fv(locations.params1, pass.params1 || ZERO_VECTOR_4);
+		if (pass.geometry) bindImageGeometryVideoUniformsV1(gl, locations, pass.geometry,
+			sourceContentViewport?.width || contentViewport?.width || targetWidth,
+			sourceContentViewport?.height || contentViewport?.height || targetHeight);
 		const blurKernel = pass[BLUR_KERNEL];
 		if (blurKernel && blurKernel !== this.boundBlurKernel) {
 			gl.uniform2fv(locations.blurPairs, blurKernel.pairs);
