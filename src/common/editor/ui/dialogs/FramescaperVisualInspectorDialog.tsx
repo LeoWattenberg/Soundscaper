@@ -63,7 +63,10 @@ export default function FramescaperVisualInspectorDialog({
 		if (blocked || model.clipId === null) return;
 		let command: unknown;
 		try {
-			command = createFramescaperVisualInspectorCommand(project, model.clipId, draft);
+			const generator = draft.generator;
+			const completedDraft = generator?.kind === 'title' || generator?.kind === 'text'
+				? { ...draft, generator: { ...generator, text: generator.text.normalize('NFC') } } : draft;
+			command = createFramescaperVisualInspectorCommand(project, model.clipId, completedDraft);
 		} catch (cause) {
 			setError(feedbackFailure(cause));
 			return;
