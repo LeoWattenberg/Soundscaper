@@ -22,8 +22,8 @@ test('a split video retains its selected adjustment controls', async ({ page }) 
 	await clickClipInterior(page, clips.first(), 0.5);
 	await editor.getByRole('button', { name: 'Split tool', exact: true }).click();
 	await expect(clips).toHaveCount(2);
-	const left = editor.locator(`[role="group"][data-clip-id="${originalId}"]`);
-	const right = editor.locator(`[role="group"][data-clip-id]:not([data-clip-id="${originalId}"])`);
+	const left = clips.locator(`:scope[data-clip-id="${originalId}"]`);
+	const right = clips.locator(`:scope:not([data-clip-id="${originalId}"])`);
 	await right.press('Enter');
 	await openAdjustment(page, editor);
 	dialog = page.getByRole('dialog', { name: 'Selected Video Adjustment Layer', exact: true });
