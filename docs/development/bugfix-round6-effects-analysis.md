@@ -87,8 +87,12 @@ The ordinary Chromium baseline fails at the first program line with
 “Selection frequency range is outside the project bandwidth”
 (`/tmp/soundscaper-r6-effects-macro-upper-browser-red.log`). The strict focused
 case fails with upper edge zero instead of 24,000 Hz. It passes after correction
-with all twelve focused command cases and targeted type-aware lint. Browser
-green verification pending. Existing spectral bands retain their omitted edge;
+with all twelve focused command cases and targeted type-aware lint. Ordinary
+Chromium passes on immutable checkpoint `e13343495`, including visible 500 and
+24,000 Hz frequency fields after a real Ctrl+A time selection
+(`/tmp/soundscaper-r6-effects-macro-upper-browser-green5.log`). Header-only
+selections also complete the program; their zero time span is omitted from
+the dialog snapshot. Existing spectral bands retain their omitted edge;
 this admission defect is independent of earlier header-target and frequency
 preservation roots.
 
@@ -113,7 +117,8 @@ warp renderer's 768 Hz peak before its baseline snap assertion fails.
 Use the shared production warp segment evaluator for both source ranges and
 local audible frequency. Sample at most three segments per clip, retaining
 the bounded FFT windows. All eleven focused spectral cases pass and targeted
-type-aware lint passes. Browser green verification pending. This is an
+type-aware lint passes. Ordinary Chromium passes on immutable checkpoint
+`e13343495` (`/tmp/soundscaper-round6-green4-browser.log`). This is an
 independent authored-map projection branch from unlinked uniform tempo in
 003; its exported pitch is independently verified rather than inferred.
 
