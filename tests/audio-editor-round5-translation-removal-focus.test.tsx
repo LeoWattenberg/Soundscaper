@@ -47,7 +47,7 @@ for (const mode of ['filtered', 'retained', 'moved'] as const) test(`mounted tra
 		const messages = dom.container.querySelectorAll('select').find(item => item.getAttribute('size') === '6');
 		assert.ok(messages);
 		await act(async () => { reactProps(messages).onChange({ target: { value: 'play' } }); });
-		const translation = dom.container.querySelectorAll('textarea').find(item => !Reflect.get(reactProps(item), 'readOnly') && Reflect.get(reactProps(item), 'rows') === 3);
+		const translation = dom.container.querySelectorAll('textarea').find(item => !Reflect.get(reactProps(item), 'readOnly') && item.getAttribute('rows') === '3');
 		assert.ok(translation);
 		await act(async () => { reactProps(translation).onChange({ target: { value: 'Wiedergabe Test' } }); });
 		await act(async () => { reactProps(dom.one('form')).onSubmit({ preventDefault() {} }); });
