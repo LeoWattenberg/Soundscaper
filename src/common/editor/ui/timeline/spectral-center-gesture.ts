@@ -129,7 +129,9 @@ export function selectedTrackSpectralPeaks(
 			Math.max(0, Math.floor(sourceRange.startFrame - offset)),
 			Math.max(0, Math.ceil(sourceRange.endFrame - offset)),
 		));
-		const effectiveRate = sampleRate * ratio * 2 ** ((clip.linkPitchAndTempo ? 0 : clip.pitchCents || 0) / 1_200);
+		const nativeRate = visual.source?.sampleRate ?? sampleRate * ratio;
+		const effectiveRate = clip.linkPitchAndTempo ? sampleRate * ratio
+			: nativeRate * 2 ** ((clip.pitchCents || 0) / 1_200);
 		peaks.push(...spectralSelectionPeaks(selectedChannels, effectiveRate, size));
 	}
 	return [...new Set(peaks)].sort((left, right) => left - right);
