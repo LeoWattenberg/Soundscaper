@@ -45,7 +45,8 @@ test('DAWproject discloses the authored assignment level omitted from its delive
 	await expect(warning).toContainText('Group bus 1 → Master');
 	await expect(warning).toContainText('−12 dB');
 	await expect(warning).toContainText('unity');
-	await report.getByRole('button', { name: 'Close', exact: true }).click();
+	await report.getByRole('button', { name: 'Close', exact: true }).filter({ hasText: 'Close' }).click();
+	await expect(report).toBeHidden();
 	const download = await downloading;
 	const bytes = await downloadBytes(download);
 	await testInfo.attach('delivered.dawproject', { body: Buffer.from(bytes), contentType: 'application/zip' });
