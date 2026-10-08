@@ -153,13 +153,20 @@ export interface SpectralBoxOptions {
 }
 
 export function createEffectSelectionService(runtime: EffectSelectionServiceRuntime) {
+	function effectEditingSelection(project: EffectSelectionProject): EditingSelection | null {
+		const selection = project.selection;
+		// A clip-authored spectral band needs a positive display range alongside
+		// its exact clip targets. Ordinary time selections keep range precedence.
+		const scoped = selection?.frequencyRange && selection.clipIds?.length
+			? { ...project, selection: { ...selection, startFrame: 0, endFrame: 0 } } : project;
+		return runtime.resolveEditingSelection(scoped, { selectedClipId: runtime.state.selectedClipId });
+	}
+
 	function audacityEffectTarget(requestedTrackId: string | null = runtime.state.selectedTrackId): EffectTarget | null {
 		const source = runtime.sourceTarget?.();
 		if (source) return source;
 		const project = runtime.getProject();
-		const editingSelection = runtime.resolveEditingSelection(project, {
-			selectedClipId: runtime.state.selectedClipId,
-		});
+		const editingSelection = effectEditingSelection(project);
 		const selectedClip = editingSelection?.kind === 'clips'
 			? editingSelection.clipIds
 				.map((clipId) => findClip(project, clipId))
@@ -193,9 +200,7 @@ export function createEffectSelectionService(runtime: EffectSelectionServiceRunt
 		const source = runtime.sourceTarget?.();
 		if (source) return [source];
 		const project = runtime.getProject();
-		const editingSelection = runtime.resolveEditingSelection(project, {
-			selectedClipId: runtime.state.selectedClipId,
-		});
+		const editingSelection = effectEditingSelection(project);
 		const selection = runtime.activeSelection();
 		if (editingSelection?.kind === 'clips') {
 			return editingSelection.clipIds.map((clipId): EffectTarget | null => {
