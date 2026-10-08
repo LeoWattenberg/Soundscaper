@@ -132,7 +132,7 @@ export async function createFramescaperBrowserAudioRecorder(
 	options: FramescaperBrowserAudioRecorderOptions,
 ): Promise<FramescaperBrowserAudioRecorder> {
 	validateOptions(options);
-	const format = actualTrackFormat(options.track);
+	const format = actualTrackFormat(options.track, options.context);
 	const monitoring = Boolean(options.monitoring);
 	const inputGain = normalizeCaptureInputGain(options.inputGain ?? 1);
 	const chunkFrames = boundedInteger(
@@ -159,7 +159,7 @@ export async function createFramescaperBrowserAudioRecorder(
 	const Processor = options.MediaStreamTrackProcessor === undefined
 		? runtimeTrackProcessorConstructor()
 		: options.MediaStreamTrackProcessor;
-	if (Processor && !monitoring) {
+	if (Processor && !monitoring && format.nativeSampleRateAvailable) {
 		return createFramescaperBrowserAudioProcessorRecorder({
 			options, Processor, format, chunkFrames, maximumPendingChunks, inputGain, sink, failures,
 			...(options.context ? { createFallback: () => createWorkletRecorder({
@@ -178,6 +178,7 @@ export async function createFramescaperBrowserAudioRecorder(
 interface ActualAudioFormat {
 	readonly sampleRate: number;
 	readonly channelCount: number;
+	readonly nativeSampleRateAvailable: boolean;
 }
 
 interface FailureChannel {
@@ -366,10 +367,16 @@ function validateOptions(options: FramescaperBrowserAudioRecorderOptions): void 
 	if (typeof options.onChunk !== 'function') throw new TypeError('Capture audio requires a PCM chunk sink.');
 }
 
-function actualTrackFormat(track: FramescaperAudioTrackLike): ActualAudioFormat {
+function actualTrackFormat(
+	track: FramescaperAudioTrackLike,
+	context: FramescaperBrowserAudioRecorderOptions['context'],
+): ActualAudioFormat {
 	const settings = track.getSettings?.();
+	const nativeSampleRateAvailable = settings?.sampleRate !== undefined;
+	// Some browsers omit this optional hardware setting. Their worklet output
+	// remains on a known context grid; do not claim an unknown AudioData rate.
 	const sampleRate = boundedInteger(
-		settings?.sampleRate,
+		nativeSampleRateAvailable ? settings?.sampleRate : context?.sampleRate,
 		1,
 		CAPTURE_AUDIO_SAMPLE_RATE_MAXIMUM,
 		'Capture audio actual sample rate',
@@ -380,7 +387,7 @@ function actualTrackFormat(track: FramescaperAudioTrackLike): ActualAudioFormat 
 		CAPTURE_AUDIO_CHANNEL_COUNT_MAXIMUM,
 		'Capture audio actual channel count',
 	);
-	return Object.freeze({ sampleRate, channelCount });
+	return Object.freeze({ sampleRate, channelCount, nativeSampleRateAvailable });
 }
 
 function validatePcmChunk(
