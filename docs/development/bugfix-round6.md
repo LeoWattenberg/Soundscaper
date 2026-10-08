@@ -29,6 +29,13 @@ and the documentation index had not yet included these new registers. The
 validators are now copied locally, the pagination expectation is corrected,
 and the registers are indexed. This run is not recorded as passing.
 
+The immutable checkout at `48e4cbe22` subsequently passes the complete Node
+suite: 23,965 cases across two batches, 23,932 passed, 33 skipped and zero failed
+(`/tmp/soundscaper-round6-green3-full-node.log`). Full repository lint and
+TypeScript checks pass, alongside architecture, runtime audits, documentation
+checks and both product builds. Public verification remains separately
+recorded per root; a passing Node suite alone does not qualify a fix.
+
 The corrections change UI and browser/controller behavior without changing
 assistance runtime source pins, recipes, dependencies, archives or target
 inventories. No manual **Update AI assets** run is required.
