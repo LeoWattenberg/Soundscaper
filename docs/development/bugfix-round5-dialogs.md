@@ -98,6 +98,7 @@ All 43 isolation, canonical-input and production chunk ownership/eager-boundary
 checks pass. The extracted producer remains in the existing optional-surface
 chunk owner; its exact ownership assertion first fails, then passes for both
 path separators. Targeted lint and focused strict compiler pass, with no growth
-of the 554-line command producer. Public sibling preservation and one Undo/Redo
-verification is pending; this is the same selected-source-isolation root, with
-no additional ID.
+of the 554-line command producer. The complete public sibling preservation and
+one Undo/Redo workflow passes Chromium, Firefox and WebKit on immutable Green34 (1e11bebe1), alongside the
+unchanged original Inspector isolation case (6/6, 1.7 minutes). This is the same
+selected-source-isolation root, with no additional ID.
