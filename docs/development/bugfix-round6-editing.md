@@ -16,6 +16,18 @@ disabled public actions, and arbitrary internal inputs are excluded.
 
 | R6-EDIT-008 | Tracks → Add new track → New label track. Click its Track options button, press Escape, then reopen with Enter and navigate with Home. | The generic menu initially focuses the disabled Duplicate track command. Its enabled-item keyboard owner then mistakes that disabled direct item for nested submenu focus and releases Escape, leaving the menu open; Home and arrows fail for the same reason. This ordinary pointer entry is independent of 004's missing Tab entry. | Choose the first enabled direct menu item for initial focus, matching navigation membership. Native-disabled and ARIA-disabled menu/radio siblings share this one root. | Immutable green1 public Chromium causal RED: Escape leaves the menu visible (`/tmp/soundscaper-r6-edit-disabled-menu-first-focus-red.log`). Two strict mounted production-menu regressions independently RED at unavailable initial focus, while the five existing focus safeguards pass (`/tmp/soundscaper-r6-edit-disabled-menu-first-focus-node-red.log`). Corrected focus, radio, dismissal and safe-triangle support passes 20/20 (`/tmp/soundscaper-r6-edit-disabled-menu-first-focus-node-green.log`). Targeted type-aware lint passes. Local vendor deviation 53 is recorded; no upstream pin or license changed. Focused public GREEN pending coordinated rebuild. |
 
+Uncounted R6-EDIT-003 follow-through: the same native Add-track flyout also removed
+its focused item on Tab without handing focus back to the surviving trigger.
+Ordinary Tab and Shift+Tab both skipped their corresponding closed-trigger
+destination on unchanged green1 (`/tmp/soundscaper-r6-edit-add-track-tab-dismissal-red.log`).
+Two strict mounted inside-popup cases independently failed while both
+already-focused outside-control cases passed (`/tmp/soundscaper-r6-edit-add-track-tab-dismissal-node-red.log`).
+Restore the trigger synchronously only when focus belongs to the popup before
+closing it, retaining native Tab advancement. All seven dismissal, option
+completion and checkbox parity tests now pass (`/tmp/soundscaper-r6-edit-add-track-tab-dismissal-node-green.log`);
+targeted type-aware lint passes. Public GREEN awaits the next build. This shares
+003's flyout teardown/focus root and adds no count.
+
 Excluded hypotheses: Half-wave is intentionally an independent menu toggle, so
 switching waveform style does not retire its flag. No tracks → Split clips at
 silences is disabled in the public menu; the scanner's internal empty-scope
@@ -26,6 +38,12 @@ add a label track, reselect the recording, click the empty label lane and Remove
 tracks. The ordinary baseline removes the intended label track and preserves the
 recording through Undo/Redo (`/tmp/soundscaper-r6-edit-label-track-selection-red.log`,
 which records a passing hypothesis run), so no correction or count was added.
+The Add-track flyout's missing local modified-arrow guard is also excluded:
+ordinary assigned Ctrl+Alt+Down creates the requested label track and passes
+plain-arrow and Undo/Redo controls on unchanged green1. The workspace command
+owner runs first (`/tmp/soundscaper-r6-edit-add-track-modified-navigation-red.log`,
+which records a passing hypothesis run), so no command-loss correction or count
+was added.
 
 No manual **Update AI assets** run is required: the assistance runtime closure
 and target inventories are unchanged.
