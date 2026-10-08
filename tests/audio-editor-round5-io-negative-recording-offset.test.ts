@@ -33,6 +33,33 @@ test('a signed punch is bounded before capture when its offset exceeds the selec
 
 for (const routed of [false, true]) {
 	const owner = routed ? 'routed' : 'default';
+	test(`${owner} capture applies exact signed compensation to each independently reported device latency`, async () => {
+		const starts: number[] = [];
+		for (const [offset, automaticLatency] of [[-500, 0.02], [-400, 0.02], [-400, 0.028]] as const) {
+			const fixture = createRecordingCaptureFixture();
+			fixture.state.latencyOffsetMs = offset;
+			if (routed) fixture.state.recordingRouting = {
+				routes: { 'track-1': { kind: 'device', deviceId: 'mic', channelStart: 0, channelCount: 1 } }, offsets: {},
+			};
+			const runtime = { ...fixture.runtime, engine: { ...fixture.runtime.engine,
+				getAudioContext: async () => ({ ...await fixture.runtime.engine.getAudioContext(),
+					baseLatency: 0.008, outputLatency: automaticLatency - 0.008 }),
+			} };
+			const service = routed ? createRoutedRecordingCaptureService(runtime)
+				: createLegacyRecordingCaptureService(runtime);
+			await service.capture({ trackId: 'track-1' }, createScope(() => true));
+			const start = routed ? fixture.state.recordingEntries?.[0]?.recordingStartFrame
+				: fixture.state.recordingStartFrame;
+			const skip = routed ? fixture.state.recordingEntries?.[0]?.sourceOffsetFrames
+				: fixture.state.recordingSourceOffsetFrames;
+			assert.equal(start, 100 + Math.round((-offset / 1_000 - automaticLatency) * 48_000));
+			assert.equal(skip, 0);
+			assert.ok(start !== undefined);
+			starts.push(start);
+		}
+		assert.equal(starts[0]! - starts[1]!, 4_800);
+		assert.equal(starts[0]! - starts[2]!, 5_184);
+	});
 	for (const offset of [-500, -400, 0, 500]) {
 		test(`${owner} capture preserves signed ${offset} ms alignment`, async () => {
 			const fixture = createRecordingCaptureFixture();
