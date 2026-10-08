@@ -72,7 +72,9 @@ function isJsonOmission(value: unknown): boolean {
 }
 
 function writeComparisonText(digest: ComparisonDigest, type: string, value: string): void {
-	const bytes = COMPARISON_UTF8.encode(value);
+	// JSON preserves lone UTF-16 surrogates; direct UTF-8 replaces them and can
+	// authenticate a different string or property name as the same CAS value.
+	const bytes = COMPARISON_UTF8.encode(JSON.stringify(value));
 	digest.update(COMPARISON_UTF8.encode(`${type}:${String(bytes.byteLength)}:`));
 	digest.update(bytes);
 }
