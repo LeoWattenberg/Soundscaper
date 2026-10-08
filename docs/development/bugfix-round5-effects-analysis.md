@@ -517,6 +517,39 @@ reuse before correction, with all three matching-clock/native-macro controls
 passing (`/tmp/soundscaper-r5-root-native-profile-rack-node-red4.log`). New and
 existing rack admission and macro support passes 37/37 afterward. Regressions
 are `audio-editor-round5-native-noise-profile-rack.test.ts` and
-`audio-editor-round5-native-noise-profile-rack.spec.js`. All-browser verification
-is pending; ROOT-017 is not yet included in the verified count. Assistance
-runtime assets are unchanged.
+`audio-editor-round5-native-noise-profile-rack.spec.js`. Target lint, strict
+test types and the size gate pass. Immutable `c1fb08c11` passes the complete
+initial export → compatible profile capture → processed export workflow in
+Chromium, Firefox and WebKit (3/3, 43.8 seconds, no skips or failures;
+`/tmp/soundscaper-r5-root-native-profile-rack-green23.log`). Both guarded
+product builds pass. ROOT-017 is counted once. Assistance runtime assets
+are unchanged.
+
+## R5-ROOT-018 — A suspended shortcut changes a Parametric EQ band
+
+In Preferences → Keyboard shortcuts, assign Ctrl+Alt+Up to New label track.
+Import an ordinary WAV, Select all, then open the Parametric EQ selection
+effect. Focus its first graph band and press the assigned chord. Although
+the modal correctly suspends the project command, the graph changes the
+band's gain from 0 to 1 dB. Its independently implemented key handler
+ignores modifier and already-handled event ownership.
+
+Leave modified and already-handled band keys to their owner. Preserve exact
+plain and Shift arrow adjustments, band selection, deletion and focus
+restoration. The source file remains the same size. This is the separate
+Parametric EQ graph handler from earlier Graphic EQ, Filter Curve and mixer
+fader fixes; modifier and deletion siblings are grouped into this one root.
+
+The ordinary immutable-baseline Chromium workflow changes the visible band
+label from 0.0 to 1.0 dB and fails its unchanged-gain assertion
+(`/tmp/soundscaper-r5-root-parametric-eq-shortcut-baseline.log`). Four mounted
+production modifier/event cases independently fail while the plain/Shift
+control passes (`/tmp/soundscaper-r5-root-parametric-eq-shortcut-node-red2.log`).
+The first Node attempt omitted the repository's CSS asset loader and is
+excluded as a harness failure. Those regressions and existing band selection,
+deletion and automation gestures pass 14/14 afterward. Regressions are
+`audio-editor-round5-parametric-eq-shortcut.test.tsx` and
+`audio-editor-round5-parametric-eq-shortcut.spec.js`. Target lint, changed-file
+lint, strict test types and the size gate pass. All-browser verification is
+pending; ROOT-018 is not yet included in the verified count. Assistance runtime
+assets are unchanged.

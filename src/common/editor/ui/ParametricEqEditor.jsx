@@ -326,7 +326,7 @@ export function ParametricEqEditor({
 	));
 
 	const handleBandKeyDown = (event, band) => {
-		if (disabled) return;
+		if (disabled || event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
 		if (event.key === 'Delete' || event.key === 'Backspace') {
 			event.preventDefault(); event.stopPropagation();
 			removeSelected(band, event.currentTarget);
