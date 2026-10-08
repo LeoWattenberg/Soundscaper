@@ -102,3 +102,31 @@ pass. The ordinary workflow passes Chromium, Firefox and WebKit on immutable
 checkpoint `5948d84d0` (combined four-root run 12/12, exit 0;
 `/tmp/soundscaper-r5-root-green2.log`). This missing asynchronous
 processing fence is independent of 001's gain-ceiling validation.
+
+## R5-ROOT-005 — Normalize preview promises a different gain from Apply
+
+Import an ordinary eight-second recording that has a quiet first six seconds
+and a louder final passage. Select its clip header, choose Effect → Volume and
+compression → Normalize, click Preview, then Apply to selection and export WAV.
+The baseline preview reaches amplitude 0.891 while the same first phrase after
+Apply reaches 0.099 on its native mono clock: a ninefold, roughly 19 dB, gain
+difference. The actual stereo download is measured with the existing
+constant-power mono pan accounted for. The read-only native buffer observer
+forwards playback unchanged and neither alters project state nor supplies audio.
+
+The preview measures only its six-second excerpt, missing the later peak and
+whole-selection DC/loudness statistics. Process the complete selected recording
+for Normalize and Loudness Normalization before bounding the audition to six
+seconds. The existing effect memory admission measures those full inputs.
+Peak, RMS and DC-only settings share this missing selection boundary and count
+once. Stateless effects retain their existing short preview path.
+
+The ordinary Chromium baseline fails on preview0.891 versus applied0.099
+(`/tmp/soundscaper-r5-root-normalize-preview-red3.log`). Three strict cases using
+the actual normalization processors fail before correction; the stateless
+control passes. All 11 new and existing preview regressions pass afterward,
+with target lint passing. Corrected public browser verification is pending.
+Regressions are `audio-editor-round5-normalize-preview-gain.test.ts` and
+`audio-editor-round5-normalize-preview-gain.spec.js`. Complete-selection
+statistics follow the existing processor policy and the
+[Normalize definition](https://www.audacityteam.org/manual/effects/volume-and-compression/normalize/).

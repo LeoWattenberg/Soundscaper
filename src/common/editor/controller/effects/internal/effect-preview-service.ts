@@ -63,6 +63,7 @@ export function createSelectionEffectPreviewService(runtime: SelectionEffectPrev
 			Math.max(...fullTargets.map((target: RuntimeValue) => target.endFrame)),
 		);
 		const previewFrameCount = previewEndFrame - previewStartFrame;
+		const processCompleteSelection = type === 'audacity-normalize' || type === 'audacity-loudness-normalization';
 		const fullPreviewTargets: FullPreviewTarget[] = fullTargets.map((full: RuntimeValue, fullIndex: number) => ({
 			full,
 			fullIndex,
@@ -76,7 +77,7 @@ export function createSelectionEffectPreviewService(runtime: SelectionEffectPrev
 				full,
 				fullIndex,
 				offsetFrames: startFrame - previewStartFrame,
-				preview: { ...full, startFrame, endFrame, durationFrames: endFrame - startFrame },
+				preview: processCompleteSelection ? full : { ...full, startFrame, endFrame, durationFrames: endFrame - startFrame },
 				spectralSelection,
 			};
 		}).filter((target): target is PreviewTarget => target !== null);
