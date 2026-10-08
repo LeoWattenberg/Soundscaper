@@ -8,17 +8,33 @@ import {
 test.describe('ordinary warped bin audition', () => {
 	registerAudioEditorHooks();
 
-	test('an authored warp can play after moving its recording to Project bin', async ({ page }) => {
+	test('an authored warp can play after moving its recording to Project bin', async ({ page }, testInfo) => {
 		await page.addInitScript(() => {
-			window.__binWarpAuditionStarts = [];
-			const start = AudioBufferSourceNode.prototype.start;
-			AudioBufferSourceNode.prototype.start = function (...args) {
-				if (this.buffer && this.context instanceof AudioContext) {
-					let peak = 0;
-					for (const sample of this.buffer.getChannelData(0)) peak = Math.max(peak, Math.abs(sample));
-					window.__binWarpAuditionStarts.push({ peak, duration: this.buffer.duration });
+			window.__binWarpOutput = [];
+			const connect = AudioNode.prototype.connect;
+			AudioNode.prototype.connect = function (destination, ...ports) {
+				const result = Reflect.apply(connect, this, [destination, ...ports]);
+				if (destination === this.context.destination && this.context instanceof AudioContext) {
+					const analyser = this.context.createAnalyser();
+					analyser.fftSize = 2048;
+					Reflect.apply(connect, this, [analyser, ...ports]);
+					const observation = { peak: 0, audibleSamples: 0, firstTime: null, lastTime: null };
+					window.__binWarpOutput.push(observation);
+					const values = new Float32Array(analyser.fftSize);
+					const interval = setInterval(() => {
+						if (this.context.state === 'closed') { clearInterval(interval); return; }
+						analyser.getFloatTimeDomainData(values);
+						let peak = 0;
+						for (const value of values) peak = Math.max(peak, Math.abs(value));
+						observation.peak = Math.max(observation.peak, peak);
+						if (peak > 0.1) {
+							observation.audibleSamples++;
+							observation.firstTime ??= this.context.currentTime;
+							observation.lastTime = this.context.currentTime;
+						}
+					}, 20);
 				}
-				return Reflect.apply(start, this, args);
+				return result;
 			};
 		});
 		const editor = await bootEditor(page, '/embed/en/');
@@ -37,10 +53,18 @@ test.describe('ordinary warped bin audition', () => {
 		await page.getByRole('menuitem', { name: 'Move to Project bin', exact: true }).click();
 		const card = editor.getByRole('listitem', { name: `Project bin: ${monoTone.name.replace(/\.wav$/u, '')}`, exact: true });
 		await expect(card).toBeVisible();
-		const before = await page.evaluate(() => window.__binWarpAuditionStarts.length);
+		const before = await page.evaluate(() => window.__binWarpOutput.length);
 		await card.getByRole('button', { name: /^Play:/u }).click();
-		await expect.poll(() => page.evaluate(index => window.__binWarpAuditionStarts.slice(index)
-			.some(start => start.peak > 0.1 && start.duration > 0.5), before)).toBe(true);
+		try {
+			await expect.poll(() => page.evaluate(index => window.__binWarpOutput.slice(index)
+				.some(output => output.peak > 0.1 && output.audibleSamples > 10
+					&& output.lastTime - output.firstTime > 0.5), before)).toBe(true);
+		} finally {
+			await testInfo.attach('bin-warp-output.json', {
+				body: JSON.stringify(await page.evaluate(index => window.__binWarpOutput.slice(index), before)),
+				contentType: 'application/json',
+			});
+		}
 		await expect(editor.locator('[data-status]')).not.toHaveAttribute('data-state', 'error');
 	});
 });
