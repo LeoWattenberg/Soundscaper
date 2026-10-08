@@ -13,6 +13,8 @@ const throwIfAborted = createAbortGuard('Media storage was cancelled.');
 
 export interface MediaAssetLoadOptions {
 	readonly signal?: AbortSignal;
+	/** Refuse a different stored size before opening or assembling the body. */
+	readonly expectedSize?: number;
 }
 
 export interface MediaAssetBodyLoader {
@@ -43,9 +45,10 @@ export class MediaAssetLoadRepository {
 		sourceId: string,
 		options: MediaAssetLoadOptions = {},
 	): Promise<BlobLike | null> {
+		const expectedSize = expectedMediaContentSize(options.expectedSize);
 		const registration = this.#lifecycle.register();
 		const cancellation = linkedAbortController(options.signal);
-		const operation = this.#load(sourceId, cancellation.signal);
+		const operation = this.#load(sourceId, cancellation.signal, expectedSize);
 		const settled = operation.finally(() => {
 			cancellation.release();
 			registration.release();
@@ -60,7 +63,7 @@ export class MediaAssetLoadRepository {
 		return settled;
 	}
 
-	async #load(sourceId: string, signal: AbortSignal): Promise<BlobLike | null> {
+	async #load(sourceId: string, signal: AbortSignal, expectedSize?: number): Promise<BlobLike | null> {
 		const id = nonEmptyString(sourceId);
 		throwIfAborted(signal);
 		const database = await this.#port.database();
@@ -68,10 +71,11 @@ export class MediaAssetLoadRepository {
 		const record = await this.#read(id, database, signal);
 		if (!record) return null;
 
-		const expectedSize = mediaContentSize(record);
+		const storedSize = mediaContentSize(record);
+		if (expectedSize !== undefined && storedSize !== expectedSize) throw new Error(MISSING_MEDIA_MESSAGE);
 		const loaded = await this.#loader.load(record, MISSING_MEDIA_MESSAGE, { signal });
 		throwIfAborted(signal);
-		if (loaded.size !== expectedSize) throw new Error(MISSING_MEDIA_MESSAGE);
+		if (loaded.size !== storedSize) throw new Error(MISSING_MEDIA_MESSAGE);
 		return loaded;
 	}
 
@@ -91,6 +95,14 @@ export class MediaAssetLoadRepository {
 		if (hasMalformedMediaContentProvenance(current)) throw new Error(MISSING_MEDIA_MESSAGE);
 		return clone(current);
 	}
+}
+
+function expectedMediaContentSize(value: unknown): number | undefined {
+	if (value === undefined) return undefined;
+	if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) {
+		throw new TypeError('Expected media asset size requires a nonnegative safe integer.');
+	}
+	return value;
 }
 
 function mediaContentSize(record: StorageRecord): number {
