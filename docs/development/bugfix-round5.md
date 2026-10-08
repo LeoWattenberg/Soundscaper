@@ -1,8 +1,8 @@
 # Fifth user-reproducible regression audit
 
-This audit is in progress toward 100 additional distinct fixes. Eighty-eight
+This audit is in progress toward 100 additional distinct fixes. Eighty-nine
 new roots have completed ordinary browser verification (editing 23, dialogs 28,
-effects/analysis 24, import/export 13). Its immutable
+effects/analysis 25, import/export 13). Its immutable
 baseline is `fe6440c81b3a0fe29a028c64db867ae7d2cf3252`.
 
 Count an entry only after ordinary public user actions reproduce its defect
@@ -116,7 +116,10 @@ divider commands/plain editing and pointer Escape in all three engines
 extra Undo expectation was corrected to verify document history and unchanged
 view geometry, adding no count. Coordinated source types pass; the first
 test check caught a missing array guard in an I/O menu fixture. Its focused
-compiler passes after that fixture correction; coordinated retry is pending.
+compiler and the coordinated retry pass after that fixture correction.
+Checkpoint thirty-seven, `1672be43a`, passes both guarded builds and modal
+resize modified-key admission with ordinary resizing and resumed command
+dispatch in all three engines (3/3).
 Browser evidence names each exact checkpoint. Firefox audio
 uses the unchanged CI PulseAudio setup with a private 48 kHz null sink.
 

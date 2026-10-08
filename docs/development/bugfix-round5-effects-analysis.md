@@ -772,6 +772,9 @@ keys. Those cases and existing mouse cancellation/lifecycle support pass 6/6
 type-aware lint, focused strict compiler, lint:changed and the size gate pass.
 The first focused compiler found incomplete fixture declarations; the fixture
 now supplies its exact mounted public props and rectangle/style types without
-changing source behavior or counting those diagnostics. Corrected public
-verification is pending; ROOT-025 is not yet counted. The assistance runtime
-closure is unchanged.
+changing source behavior or counting those diagnostics. Immutable `1672be43a`
+passes unchanged geometry, plain-arrow resizing and resumed command dispatch
+in Chromium, Firefox and WebKit (3/3, 13.9 seconds;
+`/tmp/soundscaper-r5-root-modal-resize-shortcut-green37.log`). Both guarded
+product builds pass. ROOT-025 is counted once. The assistance runtime closure
+is unchanged.
