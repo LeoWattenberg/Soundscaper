@@ -93,6 +93,7 @@ export function GeneratorRadioGroup({ label, value, onChange, options }) {
 			role="radiogroup"
 			aria-label={label}
 			onKeyDown={(event) => {
+				if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
 				if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
 				event.preventDefault();
 				const currentIndex = Math.max(0, options.findIndex(([id]) => id === value));
