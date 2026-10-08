@@ -23,6 +23,7 @@ export class StreamingRecorderProcessor extends ProcessorBase {
 		this.pendingChunks = new Set();
 		this.nextChunkId = 1;
 		this.monitor = Boolean(processorOptions.monitor);
+		this.fixedStopFrame = processorOptions.fixedStopFrame === true;
 		this.inputGain = clampInputGain(processorOptions.inputGain, DEFAULT_INPUT_GAIN);
 		this.recording = false;
 		this.hasCapturedFrames = false;
@@ -61,6 +62,7 @@ export class StreamingRecorderProcessor extends ProcessorBase {
 			} else outputChannel.fill(0);
 		}
 
+		if (this.recording && this.paused && this.fixedStopFrame && this.nextFrame >= this.stopFrame) this.#finish();
 		if (!this.recording || this.paused) return true;
 		const firstIndex = Math.max(0, this.startFrame - globalFrame);
 		const lastIndex = Math.min(blockLength, this.stopFrame - globalFrame);
@@ -152,7 +154,7 @@ export class StreamingRecorderProcessor extends ProcessorBase {
 			this.port.postMessage({ type: 'paused', frame: this.nextFrame });
 		} else if (message.type === 'resume' && this.recording && this.paused) {
 			const pauseFrames = Math.max(0, this.nextFrame - (this.pausedAtFrame ?? this.nextFrame));
-			if (Number.isFinite(this.stopFrame)) this.stopFrame += pauseFrames;
+			if (!this.fixedStopFrame && Number.isFinite(this.stopFrame)) this.stopFrame += pauseFrames;
 			this.paused = false;
 			this.pausedAtFrame = null;
 			this.port.postMessage({ type: 'resumed', frame: this.nextFrame });

@@ -142,6 +142,7 @@ export function createLegacyRecordingCaptureService(runtime: RecordingCaptureCom
 				channelCount,
 				discreteChannels: false,
 				monitor: state.monitoring,
+				fixedStopFrame: options.timedEndTimeMs !== undefined,
 				inputGain: state.recordingInputGain,
 				onChunk: async (chunk) => {
 					if (!ownsStart() || state.recorder !== recorder || state.recordingFinishing) return;

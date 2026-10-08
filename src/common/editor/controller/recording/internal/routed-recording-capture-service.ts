@@ -334,6 +334,7 @@ export function createRoutedRecordingCaptureService(runtime: RoutedRecordingCapt
 						stream: session.stream,
 						channelCount: session.channelCount,
 						monitor: session.kind === 'device' && state.monitoring,
+						fixedStopFrame: options.timedEndTimeMs !== undefined,
 						inputGain: session.kind === 'device' ? state.recordingInputGain : 1,
 						onChunk: async (chunk) => {
 							if (!isCurrent() || state.recorder !== routedRecorder || state.recordingFinishing) return;

@@ -30,6 +30,7 @@ export async function createRecordingController({
 	channelCount = 1,
 	chunkFrames = 4096,
 	monitor = false,
+	fixedStopFrame = false,
 	inputGain = RECORDING_INPUT_GAIN_DEFAULT,
 	onChunk,
 	onState,
@@ -64,7 +65,7 @@ export async function createRecordingController({
 		numberOfInputs: 1,
 		numberOfOutputs: 1,
 		outputChannelCount: [normalizedChannelCount],
-		processorOptions: { channelCount: normalizedChannelCount, chunkFrames, monitor, inputGain: currentInputGain, maxPendingChunks },
+		processorOptions: { channelCount: normalizedChannelCount, chunkFrames, monitor, fixedStopFrame, inputGain: currentInputGain, maxPendingChunks },
 	};
 	if (discreteChannels) Object.assign(nodeOptions, {
 		channelCount: normalizedChannelCount,
