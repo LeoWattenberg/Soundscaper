@@ -1,8 +1,8 @@
 # Fifth user-reproducible regression audit
 
-This audit is in progress toward 100 additional distinct fixes. Ninety-seven
+This audit is in progress toward 100 additional distinct fixes. Ninety-eight
 new roots have completed ordinary browser verification (editing 25, dialogs 30,
-effects/analysis 28, import/export 14). Its immutable
+effects/analysis 29, import/export 14). Its immutable
 baseline is `fe6440c81b3a0fe29a028c64db867ae7d2cf3252`.
 
 Count an entry only after ordinary public user actions reproduce its defect
@@ -133,6 +133,9 @@ Checkpoint forty, `d2083aed9`, passes both guarded builds, native effect-slider
 configured command ownership with pointer cancellation (6/6) and styled saved
 preset application after a Bin donor rename, including exact history and
 reload (3/3), all three engines.
+Checkpoint forty-one, `5d70b4a74`, passes both guarded builds and selected-track
+printing while retaining an unselected grouped recording, with combined and
+individual print controls (9/9), all three engines.
 Browser evidence names each exact checkpoint. Firefox audio
 uses the unchanged CI PulseAudio setup with a private 48 kHz null sink.
 

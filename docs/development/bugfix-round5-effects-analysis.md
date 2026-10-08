@@ -897,6 +897,9 @@ render services, production routing, effects and commit options pass 34/34
 (`/tmp/soundscaper-r5-root-mix-group-support.log`). Focused strict types, targeted
 type-aware lint, size and diff checks pass. Initial browser setup used a
 nonexistent selected-track attribute and the multi-track output name for a
-single-track print; those fixture errors are excluded. Corrected immutable
-public verification is pending; ROOT-029 is not yet counted. The assistance
-runtime closure is unchanged.
+single-track print; those fixture errors are excluded. Immutable
+`5d70b4a74` passes the untouched companion and exact clip count, Undo/Redo,
+existing combined multi-track prints and independent new-track prints in
+Chromium, Firefox and WebKit (9/9, 40.4 seconds;
+`/tmp/soundscaper-r5-root-mix-group-green41.log`). Both guarded product builds
+pass. ROOT-029 is counted once. The assistance runtime closure is unchanged.
