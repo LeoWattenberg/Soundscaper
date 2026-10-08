@@ -283,7 +283,7 @@ export const ContextMenuItem: React.FC<ContextMenuItemProps> = ({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (disabled) return;
+    if (disabled || e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
 
     // For items with submenus
     if (hasSubmenu || children) {
@@ -415,6 +415,7 @@ export const ContextMenuItem: React.FC<ContextMenuItemProps> = ({
     if (!submenuOpen) return;
 
     const handleSubmenuKeyboard = (e: KeyboardEvent) => {
+      if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
       // Only handle if focus is within the submenu
       const submenu = submenuRef.current;
       if (!submenu || document.activeElement?.closest('[role="menu"]') !== submenu) return;
