@@ -119,10 +119,7 @@ export function createFramescaperVisualInspectorCommand(
 		const current = normalizeVideoGeneratorSourceV1(source);
 		const generator = draftGenerator(project, draft, current.generator);
 		const replacement = normalizeVideoGeneratorSourceV1({ ...current, generator });
-		if (!same(current, replacement)) commands.push({
-			type: 'video-visual-source/set', sourceId: current.id,
-			expectedSource: current, source: replacement,
-		});
+		if (!same(current, replacement)) commands.push(...selectedGeneratorCommands(project, clip, current, replacement));
 	} else if (draft.generator !== null || draft.presetId !== null) {
 		throw new RangeError('Still images cannot apply generator state.');
 	}
@@ -168,6 +165,30 @@ function emptyModel(project: Data): FramescaperVisualInspectorModel {
 		masks: Object.freeze(supportedMasks(project).map(({ id }) => Object.freeze({ id, name: id, width: maskWidth(project, id) }))),
 		presets: boundGeneratorPresets(project),
 	});
+}
+
+/** A selected clip edit must leave the source used by another timeline/bin clip intact. */
+function selectedGeneratorCommands(
+	project: Data,
+	clipValue: Data,
+	current: ReturnType<typeof normalizeVideoGeneratorSourceV1>,
+	replacement: ReturnType<typeof normalizeVideoGeneratorSourceV1>,
+): readonly unknown[] {
+	const bin = data(project.projectBin, 'project bin');
+	const shared = [...optionalRecords(project.clips), ...optionalRecords(bin.clips)]
+		.some((clip) => clip.id !== clipValue.id && clip.sourceId === current.id);
+	if (!shared) return [{ type: 'video-visual-source/set', sourceId: current.id,
+		expectedSource: current, source: replacement }];
+	const clip = normalizeVideoGeneratorClipV1(clipValue);
+	const owner = optionalRecords(project.tracks).find((track) =>
+		Array.isArray(track.clipIds) && track.clipIds.includes(clip.id));
+	if (!owner) throw new ReferenceError('The selected visual clip has no owning picture track.');
+	const placement = { scope: 'timeline', trackId: stableId(owner.id, 'picture track ID') };
+	const sourceId = createStableId('visual-source');
+	return [{ type: 'video-visual-source/set', sourceId, expectedSource: null,
+		source: normalizeVideoGeneratorSourceV1({ ...replacement, id: sourceId }) },
+	{ type: 'video-visual-clip/set', clipId: clip.id, expectedClip: clip,
+		expectedPlacement: placement, clip: { ...clip, sourceId }, placement }];
 }
 
 function projectRecord(value: unknown): Data {
