@@ -13,6 +13,7 @@ import { RetentionSessionGuard } from '../../common/editor/storage/retention-ses
 import { EditorStoreClosedError, EditorStoreVersionStaleError } from '../../common/editor/storage/status.ts';
 import type { PhotoOriginalV1 } from '../catalog/types.ts';
 import { PhotoPreviewCacheV1, PHOTO_PREVIEW_CACHE_PROFILE_V1, type PhotoPreviewCachePortV1 } from '../preview/photo-preview-cache-v1.ts';
+import { PHOTO_LIBRARY_DEFAULT_SETTINGS_DATABASE_NAME_V2 } from './photo-library-location-v2.ts';
 
 export const PHOTO_MEDIA_NAMESPACES_V1 = Object.freeze({
 	databaseName: 'lightscaper-photo-media-v2',
@@ -33,7 +34,7 @@ export interface PhotoMediaStoreOptionsV1 {
 }
 
 export type PhotoMediaSettingsRepositoryV1 = Readonly<Pick<KeyValueRepository,
-	'get' | 'put' | 'delete' | 'putIfAbsent' | 'replaceIfCurrent' | 'deleteIfCurrent'>>;
+	'get' | 'put' | 'delete' | 'putIfAbsent' | 'replaceIfCurrent' | 'replaceIfCurrentAndPutIfAbsent' | 'deleteIfCurrent'>>;
 export type PhotoOriginalMediaRepositoryV1 = Readonly<Pick<MediaRepository,
 	'catalogOriginals' | 'beginAssetWrite' | 'writeAsset' | 'loadAsset' | 'getAssetMetadata' | 'deleteAsset'
 	| 'inspectCatalogOriginalBody' | 'restoreCatalogOriginalBody'>>;
@@ -103,6 +104,10 @@ export class PhotoMediaStoreV1 {
 			putIfAbsent: (key: string, value: unknown) => this.#own(() => settings.putIfAbsent(key, value)),
 			replaceIfCurrent: (key: string, expected: unknown, replacement: unknown) =>
 				this.#own(() => settings.replaceIfCurrent(key, expected, replacement)),
+			replaceIfCurrentAndPutIfAbsent: (...args: Parameters<KeyValueRepository['replaceIfCurrentAndPutIfAbsent']>) => this.#own(() => {
+				if (this.#databaseName !== PHOTO_LIBRARY_DEFAULT_SETTINGS_DATABASE_NAME_V2) throw new Error('Restore publication requires the fixed default settings anchor.');
+				return settings.replaceIfCurrentAndPutIfAbsent(...args);
+			}),
 			deleteIfCurrent: (key: string, expected: unknown) => this.#own(() => settings.deleteIfCurrent(key, expected)),
 		});
 	}

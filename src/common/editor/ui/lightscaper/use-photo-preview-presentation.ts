@@ -12,6 +12,7 @@ export interface PhotoPreviewPresentationOptionsV1 {
 	readonly comparePhotoIds?: readonly [string, string] | null;
 	readonly surveyPhotoIds?: readonly string[] | null;
 	readonly surveyFocusedPhotoId?: string | null;
+	readonly registerRetirement?: (retire: () => Promise<void>) => () => void;
 }
 
 /** React observes scalar state; the controller owns cancellation, staging and target backing. */
@@ -25,6 +26,8 @@ export function usePhotoPreviewPresentation(options: PhotoPreviewPresentationOpt
 	const surveyIds = options.surveyPhotoIds == null ? null : JSON.stringify(options.surveyPhotoIds);
 	const surveyFocusedPhotoId = options.surveyFocusedPhotoId ?? null;
 	const ids = JSON.stringify(options.photoIds);
+	const { registerRetirement } = options;
+	useLayoutEffect(() => registerRetirement?.(() => controller.pause()), [controller, registerRetirement]);
 	useLayoutEffect(() => {
 		const unsubscribe = controller.subscribe(setSnapshot);
 		if (surveyIds !== null) controller.setSurveyView({ readPreview, photoIds: JSON.parse(surveyIds) as string[], focusedPhotoId: surveyFocusedPhotoId });

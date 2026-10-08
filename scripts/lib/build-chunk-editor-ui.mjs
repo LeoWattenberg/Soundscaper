@@ -30,7 +30,7 @@ export const editorUiChunkGroups = [
 		// Sharing the broad timeline controller owner makes those few imports pull
 		// video commands, storage and effect copy into an otherwise isolated shell.
 		name: 'editor-photo-library-scalars',
-		test: /src[\\/]common[\\/]editor[\\/]controller[\\/]shared[\\/]photo-library-(?:definition-reader|selection-v1|culling-v1|compare-v1|survey-v1|import-gesture-v1|backup-save-v1|original-recovery-v1|query-navigation|saved-command)\.ts$/,
+		test: /src[\\/]common[\\/]editor[\\/]controller[\\/]shared[\\/]photo-library-(?:definition-reader|selection-v1|culling-v1|compare-v1|survey-v1|import-gesture-v1|backup-save-v1|original-recovery-v1|restore-v1|workflow-slot|query-navigation|saved-command)\.ts$/,
 		priority: 99,
 		minSize: 0,
 		maxSize: 400_000,
@@ -58,7 +58,7 @@ export const editorUiChunkGroups = [
 	},
 	{
 		name: 'lightscaper-editor-copy',
-		test: /src[\\/]common[\\/](?:i18n[\\/]lightscaper-(?:editor|metadata-query|saved-filter)-copy\.ts|editor[\\/]ui[\\/]lightscaper[\\/]use-lightscaper-editor-copy\.ts)$/,
+		test: /src[\\/]common[\\/](?:i18n[\\/]lightscaper-(?:editor|metadata-query|saved-filter|restore)-copy\.ts|editor[\\/]ui[\\/]lightscaper[\\/]use-lightscaper-editor-copy\.ts)$/,
 		priority: 98,
 		minSize: 0,
 		maxSize: 400_000,

@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { acquirePhotoLibraryWorkflowSlotV1 as acquire, retirePhotoLibraryWorkflowSlotV1, joinPhotoLibraryRetirementV1,
+	type PhotoLibraryWorkflowSlotV1 as SessionSlot, type PhotoLibraryBackupSaveRuntimeV1, type LoadPhotoLibraryBackupSaveRuntimeV1 } from '../../controller/shared/photo-library-workflow-slot.ts';
 import { PhotoLibraryBackupSaveV1, type PhotoLibraryBackupSaveRequestV1,
 	type PhotoLibraryBackupSaveReceiptV1 } from '../../controller/shared/photo-library-backup-save-v1.ts';
 import { PhotoLibraryOriginalRecoveryV1 } from '../../controller/shared/photo-library-original-recovery-v1.ts';
@@ -23,27 +25,10 @@ import type { CreatePhotoLibrarySessionV1, PhotoLibraryAttributePatchV1, PhotoLi
 
 export { DEFAULT_PHOTO_LIBRARY_QUERY_V1, DEFAULT_PHOTO_LIBRARY_QUERY_V2 } from '../../controller/shared/photo-library-query-navigation.ts';
 
-interface SessionSlot {
-	live: boolean;
-	readonly factory: CreatePhotoLibrarySessionV1 | undefined;
-	readonly backupLoader: LoadPhotoLibraryBackupSaveRuntimeV1 | undefined;
-	readonly lifetime: AbortController;
-	readonly beforeDrain: Promise<void> | null;
-	pending: Promise<PhotoLibrarySessionPortV1> | null;
-	active: AbortController | null;
-	query: PhotoLibraryQueryV1 | PhotoLibraryQueryV2 | null;
-	savedCollectionId: string | null;
-	stackCollapsed: boolean;
-	page: PhotoLibraryPageV1 | null;
-	batchRenamePlanner: PhotoLibrarySessionPortV1['planBatchRename'] | null;
-	backupRuntime: PhotoLibraryBackupSaveRuntimeV1 | null;
-	backupLoading: Promise<void> | null;
-}
 type SessionAction = (owner: PhotoLibrarySessionPortV1, signal: AbortSignal, current: SessionSlot) => Promise<void>;
 type WorkflowAction = SessionAction
 	| Readonly<{ start: (signal: AbortSignal, current: SessionSlot) => Promise<void> }>;
-export type PhotoLibraryBackupSaveRuntimeV1 = Readonly<Pick<PhotoLibraryBackupSaveRequestV1, 'prepareSave' | 'saveFile' | 'maximumStreamingBytes'>>;
-export type LoadPhotoLibraryBackupSaveRuntimeV1 = () => Promise<PhotoLibraryBackupSaveRuntimeV1>;
+export type { PhotoLibraryBackupSaveRuntimeV1, LoadPhotoLibraryBackupSaveRuntimeV1 } from '../../controller/shared/photo-library-workflow-slot.ts';
 type ActionStatus = 'completed' | 'failed' | 'cancelled' | 'busy';
 export type PhotoLibraryBatchRenameWorkflowReceiptV1 =
 	| Readonly<{ outcome: 'acknowledged'; receipt: PhotoLibraryBatchRenameReceiptV1; notice: 'refresh-failed' | null }>
@@ -81,13 +66,19 @@ export function usePhotoLibraryWorkflow(createSession?: CreatePhotoLibrarySessio
 	const [batchRenameUndo, setBatchRenameUndo] = useState<PhotoLibraryBatchRenameUndoV1 | null>(null);
 	const [backupRuntime, setBackupRuntime] = useState<PhotoLibraryBackupSaveRuntimeV1 | null>(null);
 	const [backupReceipt, setBackupReceipt] = useState<PhotoLibraryBackupSaveReceiptV1 | null>(null);
+	const retireAndJoin = useCallback((presentation: Promise<void> | null = null): Promise<void> => {
+		const current = slot.current;
+		if (!current) return retiring.current ?? Promise.resolve();
+		const closing = retirePhotoLibraryWorkflowSlotV1(current, () => joinPhotoLibraryRetirementV1([controller.cancelAndJoin(), originalRecovery.cancelAndJoin(), presentation]));
+		retiring.current = closing; return closing;
+	}, [controller, originalRecovery]);
 	const publishPage = useCallback((current: SessionSlot, next: PhotoLibraryPageV1 | null) => {
 		if (!current.live) return null;
 		current.page = next; setPage(next); return next;
 	}, []);
 	useEffect(() => {
 		const current: SessionSlot = { live: true, factory: createSession, backupLoader: loadBackupSaveRuntime, lifetime: new AbortController(),
-			beforeDrain: retiring.current, pending: null, active: null, query: null, savedCollectionId: null, stackCollapsed: false, page: null, batchRenamePlanner: null, backupRuntime: null, backupLoading: null };
+			beforeDrain: retiring.current, pending: null, active: null, query: null, savedCollectionId: null, stackCollapsed: false, page: null, batchRenamePlanner: null, backupRuntime: null, backupLoading: null, retirement: null };
 		slot.current = current;
 		queueMicrotask(() => {
 			if (!current.live) return;
@@ -97,16 +88,8 @@ export function usePhotoLibraryWorkflow(createSession?: CreatePhotoLibrarySessio
 			setBackupRuntime(null); setBackupReceipt(null);
 		});
 		return () => {
-			current.live = false; current.lifetime.abort(); current.active?.abort();
+			const closing = retirePhotoLibraryWorkflowSlotV1(current, () => joinPhotoLibraryRetirementV1([controller.cancelAndJoin(), originalRecovery.cancelAndJoin()]));
 			if (slot.current === current) slot.current = null;
-			const pending = current.pending;
-			const destinationClosed = Promise.all([controller.cancelAndJoin(), originalRecovery.cancelAndJoin()]);
-			const closing = (async () => {
-				if (current.beforeDrain) await current.beforeDrain;
-				await destinationClosed;
-				const owner = await pending?.catch(() => null);
-				await owner?.close();
-			})();
 			retiring.current = closing;
 			void closing.catch(() => undefined);
 		};
@@ -481,7 +464,7 @@ export function usePhotoLibraryWorkflow(createSession?: CreatePhotoLibrarySessio
 		updateRow(next.row, current);
 		await refreshQuery(owner, signal, current);
 	});
-	return { ...originalWorkflow, executeStack, executeSavedFilters, savedCollectionId, queryIdentity, page, metadata, memberships, batchRenameSnapshot, batchRenameReceipt, batchRenameUndo,
+	return { ...originalWorkflow, retireAndJoin, executeStack, executeSavedFilters, savedCollectionId, queryIdentity, page, metadata, memberships, batchRenameSnapshot, batchRenameReceipt, batchRenameUndo,
 		prepareBackupSave, saveBackup, backupReceipt, backupReady: backupRuntime !== null, maximumBackupStreamingBytes: backupRuntime?.maximumStreamingBytes ?? null,
 		cancelBackup: () => { if (controller.isPending()) slot.current?.active?.abort(); },
 		readBatchRenameSelection, planBatchRename, renamePhotos, undoBatchRename, readPreview, query, stackCollapsed, setStackCollapsed, needsQueryIndex, queryIndexProgress, applyQuery, probeQuery, buildQueryIndex, readDefinitions,
@@ -495,21 +478,6 @@ function message(failure: unknown): string {
 		if (descriptor && Object.hasOwn(descriptor, 'value') && typeof descriptor.value === 'string') return descriptor.value.slice(0, 2_048);
 	} catch { /* A diagnostic must never revoke an operation's outcome. */ }
 	return 'The photo library action failed.';
-}
-
-/** A canceled observer can settle before native close; replacement joins that close. */
-function acquire(current: SessionSlot): Promise<PhotoLibrarySessionPortV1> {
-	if (!current.pending) {
-		const pending = Promise.resolve().then(async () => {
-			if (current.beforeDrain) await current.beforeDrain;
-			current.lifetime.signal.throwIfAborted();
-			if (!current.factory) throw new Error('The photo library is unavailable.');
-			return current.factory();
-		});
-		current.pending = pending;
-		void pending.catch(() => { if (current.pending === pending) current.pending = null; });
-	}
-	return current.pending;
 }
 
 function errorCode(value: unknown): unknown {

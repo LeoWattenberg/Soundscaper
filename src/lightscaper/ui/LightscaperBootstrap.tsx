@@ -7,8 +7,16 @@ import { bundledSiteCopyForLocale } from '../../common/i18n/site-copy.js';
 // This product composition deliberately has no audio/timeline controller.
 export default function LightscaperBootstrap(props: LightscaperAppProps) {
 	const createSession = useCallback(async () => {
-		const runtime = await import('../photo-library-session-runtime.ts');
-		return runtime.createPhotoLibrarySessionV1({ name: bundledSiteCopyForLocale(props.locale).workspacePhoto });
+		const runtime = await import('../photo-library-session-runtime-v2.ts');
+		return runtime.createPhotoLibrarySessionV2({ name: bundledSiteCopyForLocale(props.locale).workspacePhoto,
+			recoverRestores: async (settings, signal) => {
+				const recovery = await import('../storage/photo-library-restore-recovery-v1.ts');
+				await recovery.recoverPhotoLibraryRestoreV1({ settings, indexedDB: globalThis.indexedDB, locks: globalThis.navigator?.locks ?? null, signal });
+			} });
+	}, [props.locale]);
+	const loadRestoreRuntime = useCallback(async () => {
+		const runtime = await import('../photo-library-restore-runtime-v1.ts');
+		return runtime.createPhotoLibraryRestoreRuntimeV1({ name: bundledSiteCopyForLocale(props.locale).workspacePhoto });
 	}, [props.locale]);
 	const loadBackupSaveRuntime = useCallback(async () => {
 		const runtime = await import('../photo-library-backup-save-runtime.ts');
@@ -19,5 +27,6 @@ export default function LightscaperBootstrap(props: LightscaperAppProps) {
 	return <LightscaperApp {...props} createSession={props.createSession ?? createSession}
 		loadBackupSaveRuntime={props.loadBackupSaveRuntime ?? loadBackupSaveRuntime}
 		loadMetadataQueryRuntime={props.loadMetadataQueryRuntime ?? loadMetadataQueryRuntime}
-		loadSavedFilterRuntime={props.loadSavedFilterRuntime ?? loadSavedFilterRuntime} />;
+		loadSavedFilterRuntime={props.loadSavedFilterRuntime ?? loadSavedFilterRuntime}
+		loadRestoreRuntime={props.loadRestoreRuntime ?? loadRestoreRuntime} />;
 }

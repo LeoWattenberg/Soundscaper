@@ -6,6 +6,7 @@ import type { StorageRepositoryPort } from './repository-port.ts';
 import { cloneStorageValue as clone } from './storage-clone.ts';
 
 type KeyValueStoreName = 'settings' | 'analysis';
+export type KeyValueWriteAdmission = (durable: boolean) => void;
 const KEY_VALUE_INVENTORY_PAGE_SIZE = 64;
 const MAXIMUM_KEY_VALUE_INVENTORY_RECORDS = 65_536;
 const MAXIMUM_KEY_VALUE_PREFIX_RECORDS = 4_096;
@@ -126,15 +127,19 @@ export class KeyValueRepository {
 		replacement: unknown,
 		intentKey: string,
 		intent: unknown,
+		writeAdmission?: KeyValueWriteAdmission,
 	): Promise<boolean> {
 		if (key === intentKey) throw new Error('A conditional replacement needs a distinct intent key.');
+		if (writeAdmission !== undefined && typeof writeAdmission !== 'function') throw new TypeError('Atomic key/value admission must be synchronous callable behavior.');
 		const expectedValue = canonicalKeyValueComparison(expected);
 		const replacementRecord = { key, value: clone(replacement) };
 		const intentRecord = { key: intentKey, value: clone(intent) };
 		const database = await this.#port.database();
+		writeAdmission?.(database !== null);
 		if (!database) {
 			if (!sameStoredValue(this.#port.memory[this.#storeName].get(key), expectedValue)
 				|| this.#port.memory[this.#storeName].has(intentKey)) return false;
+			writeAdmission?.(false);
 			this.#port.memory[this.#storeName].set(key, replacementRecord);
 			this.#port.memory[this.#storeName].set(intentKey, intentRecord);
 			return true;
@@ -146,6 +151,7 @@ export class KeyValueRepository {
 				request(store.get(intentKey)),
 			]);
 			if (!sameStoredValue(current, expectedValue) || currentIntent !== undefined) return false;
+			writeAdmission?.(true);
 			store.put(replacementRecord);
 			store.put(intentRecord);
 			return true;

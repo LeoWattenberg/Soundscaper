@@ -296,6 +296,8 @@
 		,
 		{ "path": "src/common/editor/controller/shared/photo-library-original-recovery-v1.ts", "kind": "helper-contract", "justification": "Version 1 opted-in original inspection and restoration borrow one catalog session, retain bounded scalar pages and durable receipts, and join cancellation without retaining selected bodies after settlement." }
 		,
+		{"path": "src/common/editor/controller/shared/photo-library-restore-v1.ts", "kind": "helper-contract", "justification": "Version 1 opt-in library restore joins retirement and one runtime demand while retaining scalar publication receipts independently of Session replacement."}
+		,
 		{"path": "src/common/editor/controller/shared/photo-library-selection-v1.ts", "kind": "helper-contract", "justification": "Version1 page-local selection owns at most64 detached photo IDs and opaque page and generation identities."}
 		,
 		{ "path": "src/common/editor/controller/shared/photo-library-survey-v1.ts", "kind": "helper-contract", "justification": "Version 1 opted-in survey captures a bounded ordered selection, borrows the existing culling writer and retires preview ownership through joined cancellation without changing catalog or photo schemas." }
@@ -425,6 +427,8 @@
 		{ "path": "src/common/editor/photo-library-original-recovery-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded original inspection pages and revision-fenced exact restoration targets expose scalar retained-source identities independently of product documents or storage locators." }
 		,
 		{ "path": "src/common/editor/photo-library-query-port-v2.ts", "kind": "helper-contract", "justification": "Version 2 scalar metadata query and explicit rebuild ports carry closed effective predicates, bounded ordinary or collapsed steps and separate source/derived byte observations without photo documents." }
+		,
+		{"path": "src/common/editor/photo-library-restore-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 scalar restore receipt and app-lifetime runtime port expose preserved catalog counts and cleanup notices without native namespaces or original bodies."}
 		,
 		{ "path": "src/common/editor/photo-library-saved-collection-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 scalar saved-query port carries bounded summary navigation, one full Query2 recipe string, atomic revision context and durable command acknowledgements without owning catalog documents or storage resources." }
 		,
@@ -700,6 +704,8 @@
 		,
 		{"path": "src/lightscaper/controller/photo-batch-rename-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded scalar batch rename preserves selected sequence bindings and publishes authored filenames through existing per-photo CAS/history without mutating originals."}
 		,
+		{"path": "src/lightscaper/controller/photo-library-archive-restore-v1.ts", "kind": "helper-contract", "justification": "Version 1 whole-library restore joins authenticated archive delivery and fresh catalog/media owners before guarded atomic pointer publication and permanent-history reconciliation."}
+		,
 		{ "path": "src/lightscaper/controller/photo-library-backup-source-v1.ts", "kind": "helper-contract", "justification": "Version 1 borrowed backup source captures one admitted catalog root and enumerates bounded photo summaries and retained originals while fencing catalog and index revisions." }
 		,
 		{"path": "src/lightscaper/controller/photo-library-backup-stacks-v1.ts", "kind": "helper-contract", "justification": "Version 1 stack backup capture fences grouping and photo index revisions across bounded scalar enumeration and streamed archive records."}
@@ -760,6 +766,10 @@
 		,
 		{ "path": "src/lightscaper/import/photo-source-admission-v1.ts", "kind": "helper-contract", "justification": "Container proof for the initial static 8-bit sRGB photo source admission profile." }
 		,
+		{"path": "src/lightscaper/photo-library-restore-runtime-v1.ts", "kind": "helper-contract", "justification": "Version 1 inert restore runtime owns the fixed settings anchor and one admitted demand through cancellation, native settlement and close."}
+		,
+		{"path": "src/lightscaper/photo-library-session-runtime-v2.ts", "kind": "helper-contract", "justification": "Version 2 library composition resolves authenticated fixed-anchor location and permanent history before constructing selected resources with physical namespace write leases."}
+		,
 		{ "path": "src/lightscaper/photo-saved-filter-ui-runtime-v1.ts", "kind": "helper-contract", "justification": "Version 1 lazy product-owned saved-filter controls parse and serialize complete bounded Query2 recipes through the owning catalog normalizer without acquiring database or media resources." }
 		,
 		{ "path": "src/lightscaper/preview/photo-original-frame-v1.ts", "kind": "helper-contract", "justification": "Version 1 callback-scoped regeneration authenticates retained original bytes and immutable EXIF orientation before preparing shared pixel frames." }
@@ -776,9 +786,35 @@
 		,
 		{ "path": "src/lightscaper/storage/photo-import-presets-v1.ts", "kind": "persisted-contract", "justification": "Version 1 catalog-scoped import preset rows use bounded settings storage and exact revision-fenced publication independently of photo and archive schemas." }
 		,
+		{"path": "src/lightscaper/storage/photo-library-default-initializer-v2.ts", "kind": "helper-contract", "justification": "Version 2 temporary default initializer borrows the initialization lease and creates a cold library root without requiring an existing Session."}
+		,
+		{"path": "src/lightscaper/storage/photo-library-location-reader-v2.ts", "kind": "helper-contract", "justification": "Version 2 fixed-anchor reader authenticates the selected location against permanent restore history before selected resource allocation."}
+		,
+		{"path": "src/lightscaper/storage/photo-library-location-v2.ts", "kind": "persisted-contract", "justification": "Version 2 bounded persisted library location distinguishes restored physical namespaces while preserving legacy pointer field order for native CAS."}
+		,
+		{"path": "src/lightscaper/storage/photo-library-namespace-lock-v1.ts", "kind": "helper-contract", "justification": "Version 1 joined cooperative restore, initialization, logical and physical namespace leases lend cancellation-scoped synchronous write admission."}
+		,
+		{"path": "src/lightscaper/storage/photo-library-restore-journal-owner-v1.ts", "kind": "helper-contract", "justification": "Version 1 fixed-anchor journal owner retains exact acknowledged records for CAS and protects every permanent history before unpublished cleanup."}
+		,
+		{"path": "src/lightscaper/storage/photo-library-restore-journal-v1.ts", "kind": "persisted-contract", "justification": "Version 1 closed staging/readiness journal and permanent restore commit bind an allocated namespace pair to authenticated counts and the previous/replacement pointers."}
+		,
 		{ "path": "src/lightscaper/storage/photo-library-restore-ownership-v1.ts", "kind": "helper-contract", "justification": "Version 1 closed restore allocation derives fresh physical namespaces and authenticates scalar component owner markers without granting publication or deletion authority." }
 		,
+		{"path": "src/lightscaper/storage/photo-library-restore-publication-v1.ts", "kind": "helper-contract", "justification": "Version 1 native library publication guards atomic pointer/history writes and reconciles lost acknowledgements without revoking known publication."}
+		,
+		{"path": "src/lightscaper/storage/photo-library-restore-recovery-v1.ts", "kind": "helper-contract", "justification": "Version 1 cooperative restore recovery requires journal, ownership, absent permanent history and inactive pointer under joined namespace leases before deletion."}
+		,
+		{"path": "src/lightscaper/storage/photo-library-selected-exclusive-v2.ts", "kind": "helper-contract", "justification": "Version 2 selected-library writer leases both physical resources and rechecks fixed-anchor location while sharing legacy logical locks for old pointers."}
+		,
+		{"path": "src/lightscaper/storage/photo-media-restore-audit-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded original audit authenticates finished catalog bindings, stored custody, chunk geometry and body hashes before candidate readiness."}
+		,
+		{"path": "src/lightscaper/storage/photo-media-restore-candidate-v1.ts", "kind": "helper-contract", "justification": "Version 1 fresh media restore candidate preserves exact archived storage keys, streams every original and joins native owners through readiness and rollback."}
+		,
 		{ "path": "src/lightscaper/storage/photo-media-restore-namespace-v1.ts", "kind": "helper-contract", "justification": "Version 1 fresh media namespace creation commits its scalar allocation marker with the owning DB2 schema, joins native lifetime and rechecks current ownership before private rollback." }
+		,
+		{"path": "src/lightscaper/storage/photo-media-restore-read-v1.ts", "kind": "helper-contract", "justification": "Version 1 versionless candidate reads authenticate current media ownership and bounded persisted original descriptors without creating or adopting resources."}
+		,
+		{"path": "src/lightscaper/storage/photo-media-restore-signal-v1.ts", "kind": "helper-contract", "justification": "Version 1 intrinsic restore cancellation retains opaque reasons and lends a private joined native signal to media owners."}
 		,
 		{ "path": "src/soundscaper/desktop-native-plugin-state-transport-v1.ts", "kind": "persisted-contract", "justification": "desktop-native-plugin-state-transport-v1.ts is a persisted domain-component or render-contract revision independent of product schema." }
 	]
