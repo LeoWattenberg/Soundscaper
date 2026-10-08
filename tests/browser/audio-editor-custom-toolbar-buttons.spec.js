@@ -4,6 +4,7 @@ import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js'
 import {
 	bootEditor,
 	chooseCommandAction,
+	chooseNestedCommandAction,
 	clipByName,
 	collectClientErrors,
 	getMenuItem,
@@ -50,6 +51,7 @@ async function saveButton(dialog) {
 }
 
 async function selectMiddleOfClip(page, editor, name) {
+	await chooseNestedCommandAction(page, editor, 'View', ['Zoom', 'Fit project to width']);
 	const clip = clipByName(editor, name);
 	await clip.scrollIntoViewIfNeeded();
 	const bounds = await clip.boundingBox();
