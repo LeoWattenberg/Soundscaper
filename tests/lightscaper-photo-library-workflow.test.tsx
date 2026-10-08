@@ -352,6 +352,24 @@ test('a failed query refresh preserves the durable edit acknowledgment and inval
 	} finally { await mounted.dispose(); }
 });
 
+test('an acknowledged import invalidates the active query continuation even when its refresh fails', async () => {
+	const active = owner(async () => page('Library')); let queryReads = 0;
+	active.port.readQueryStep = async () => {
+		if (++queryReads > 1) throw new Error('Import query refresh failed');
+		return { ...page('Filtered'), cursor: 'old-query-cursor', scanned: 1 };
+	};
+	const mounted = await mount(async () => active.port);
+	try {
+		await act(async () => {
+			await mounted.current.applyQuery(QUERY);
+			await mounted.current.importFiles([new File(['x'], 'New.png')]);
+		});
+		assert.deepEqual(mounted.current.receipts, [RECEIPT]);
+		assert.equal(mounted.current.page?.cursor, null);
+		assert.equal(mounted.current.error, 'Import query refresh failed');
+	} finally { await mounted.dispose(); }
+});
+
 function owner(readPage: PhotoLibrarySessionPortV1['readPage']) {
 	let closes = 0;
 	const port: PhotoLibrarySessionPortV1 = {

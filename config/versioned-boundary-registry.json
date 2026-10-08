@@ -284,6 +284,10 @@
 		,
 		{ "path": "src/common/editor/controller/shared/isolated-track-render-project-v21.ts", "kind": "persisted-contract", "justification": "isolated-track-render-project-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
+		{"path": "src/common/editor/controller/shared/photo-library-culling-v1.ts", "kind": "helper-contract", "justification": "Version1 durable culling receipts fence one pending scalar edit observer and identity-based auto advance."}
+		,
+		{"path": "src/common/editor/controller/shared/photo-library-selection-v1.ts", "kind": "helper-contract", "justification": "Version1 page-local selection owns at most64 detached photo IDs and opaque page and generation identities."}
+		,
 		{"path": "src/common/editor/controller/shared/pixel-preview-presentation-v1.ts", "kind": "helper-contract", "justification": "Version1 serial scalar preview demand owns bounded canvas targets, generation cancellation and joined frame staging without original custody."}
 		,
 		{ "path": "src/common/editor/controller/track-audio/internal/mix-render/mix-render-snapshot-v21.ts", "kind": "persisted-contract", "justification": "mix-render-snapshot-v21.ts projects production mixer and automation authority for a persisted render-contract revision independent of product schema." }

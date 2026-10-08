@@ -24,7 +24,7 @@ for (const [locale, copy] of [
 		await importer.getByRole('button', { name: copy.import, exact: true }).click();
 		const card = app.locator('[data-photo-id]'); await expect(card).toHaveCount(1);
 		await expect(app.locator('[data-photo-library]')).toHaveAttribute('aria-busy', 'false');
-		await card.focus(); await expect(app.locator('canvas')).toHaveCount(0);
+		await card.focus(); await page.keyboard.press('Enter'); await expect(app.locator('canvas')).toHaveCount(0);
 		await chooseView(copy.thumbs);
 		const thumbnail = card.locator('canvas'); await expect(thumbnail).toHaveAttribute('width', '2');
 		await expect(thumbnail).toHaveAttribute('height', '3');
@@ -37,7 +37,7 @@ for (const [locale, copy] of [
 		await chooseView(copy.hideLoupe); await expect(app.locator('canvas')).toHaveCount(0);
 		await page.reload(); await expect(app).toBeVisible(); await expect(app.locator('canvas')).toHaveCount(0);
 		await chooseView(copy.show); await expect(card).toHaveCount(1); await expect(app.locator('canvas')).toHaveCount(0);
-		await card.focus(); await chooseView(copy.thumbs); await expect(thumbnail).toHaveAttribute('width', '2');
+		await card.focus(); await page.keyboard.press('Enter'); await chooseView(copy.thumbs); await expect(thumbnail).toHaveAttribute('width', '2');
 		await assertPixels(thumbnail); expect(errors).toEqual([]);
 
 		async function chooseView(label) {

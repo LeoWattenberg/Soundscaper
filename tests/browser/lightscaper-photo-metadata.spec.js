@@ -36,7 +36,7 @@ for (const [locale, copy] of [
 		await expect(library).toHaveAttribute('aria-busy', 'false');
 		const photoId = await card.getAttribute('data-photo-id');
 		const before = await observe(page, photoId);
-		await card.focus(); await openMetadata();
+		await card.focus(); await page.keyboard.press('Enter'); await openMetadata();
 		const dialog = page.getByRole('dialog', { name: copy.edit, exact: true });
 		await expect(dialog.getByLabel(copy.filename, { exact: true })).toBeFocused();
 		await dialog.getByLabel(copy.filename, { exact: true }).fill('Catalog name.png');
@@ -63,7 +63,7 @@ for (const [locale, copy] of [
 		await expect(app.locator('[data-photo-library]')).toHaveCount(0);
 		await app.locator('summary').filter({ hasText: copy.view }).click();
 		await app.getByRole('button', { name: copy.show, exact: true }).click();
-		await expect(card).toContainText('Catalog name.png'); await card.focus(); await openMetadata();
+		await expect(card).toContainText('Catalog name.png'); await card.focus(); await page.keyboard.press('Enter'); await openMetadata();
 		await expect(dialog.getByLabel(copy.title, { exact: true })).toHaveValue('A second authored title');
 		await expect(dialog.getByLabel(copy.offset, { exact: true })).toHaveValue('');
 		expect(await observe(page, photoId)).toEqual(after);

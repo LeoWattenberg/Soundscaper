@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { PhotoLibraryCullReceiptV1 } from '../../controller/shared/photo-library-culling-v1.ts';
 import type { CreatePhotoLibrarySessionV1, PhotoLibraryAttributePatchV1, PhotoLibraryImportItemV1, PhotoLibraryMetadataPatchV1, PhotoLibraryMetadataSnapshotV1, PhotoLibraryDefinitionPageRequestV1, PhotoLibraryQueryBuildProgressV1, PhotoLibraryQueryV1, PhotoLibraryPreviewTierV1, PhotoLibraryPageV1, PhotoLibraryRowV1, PhotoLibrarySessionPortV1 } from '../../photo-library-session-port-v1.ts';
 
 interface SessionSlot {
@@ -11,7 +12,10 @@ interface SessionSlot {
 	pending: Promise<PhotoLibrarySessionPortV1> | null;
 	active: AbortController | null;
 	query: PhotoLibraryQueryV1 | null;
+	page: PhotoLibraryPageV1 | null;
 }
+type WorkflowAction = (owner: PhotoLibrarySessionPortV1, signal: AbortSignal, current: SessionSlot) => Promise<void>;
+type ActionStatus = 'completed' | 'failed' | 'cancelled' | 'busy';
 
 /** The effect owns one resource generation, including factories resolving after cleanup. */
 export function usePhotoLibraryWorkflow(createSession?: CreatePhotoLibrarySessionV1) {
@@ -25,14 +29,18 @@ export function usePhotoLibraryWorkflow(createSession?: CreatePhotoLibrarySessio
 	const [needsQueryIndex, setNeedsQueryIndex] = useState(false);
 	const [queryIndexProgress, setQueryIndexProgress] = useState<PhotoLibraryQueryBuildProgressV1 | null>(null);
 	const [error, setError] = useState<string | null>(null);
+	const publishPage = useCallback((current: SessionSlot, next: PhotoLibraryPageV1 | null) => {
+		if (!current.live) return null;
+		current.page = next; setPage(next); return next;
+	}, []);
 	useEffect(() => {
 		const current: SessionSlot = { live: true, factory: createSession, lifetime: new AbortController(),
-			beforeDrain: retiring.current, pending: null, active: null, query: null };
+			beforeDrain: retiring.current, pending: null, active: null, query: null, page: null };
 		slot.current = current;
 		queueMicrotask(() => {
 			if (!current.live) return;
 			setQuery(null); setNeedsQueryIndex(false); setQueryIndexProgress(null);
-			setPage(null); setMetadata(null); setReceipts([]); setError(null); setBusy(current.active !== null);
+			publishPage(current, null); setMetadata(null); setReceipts([]); setError(null); setBusy(current.active !== null);
 		});
 		return () => {
 			current.live = false; current.lifetime.abort(); current.active?.abort();
@@ -46,27 +54,33 @@ export function usePhotoLibraryWorkflow(createSession?: CreatePhotoLibrarySessio
 			retiring.current = closing;
 			void closing.catch(() => undefined);
 		};
-	}, [createSession]);
+	}, [createSession, publishPage]);
 
-	const run = useCallback(async (action: (owner: PhotoLibrarySessionPortV1, signal: AbortSignal, current: SessionSlot) => Promise<void>) => {
+	const perform = useCallback(async (action: WorkflowAction, externalSignal?: AbortSignal): Promise<ActionStatus> => {
 		const current = slot.current;
-		if (!current?.live || current.factory !== createSession || current.active) return;
+		if (!current?.live || current.factory !== createSession) return 'cancelled';
+		if (current.active) return 'busy';
 		const active = new AbortController(); current.active = active;
+		const signal = AbortSignal.any([active.signal, current.lifetime.signal, ...(externalSignal ? [externalSignal] : [])]);
 		setBusy(true); setError(null);
 		try {
+			signal.throwIfAborted();
 			const owner = await acquire(current);
-			active.signal.throwIfAborted();
-			await action(owner, active.signal, current);
+			signal.throwIfAborted();
+			await action(owner, signal, current);
+			return 'completed';
 		} catch (failure) {
 			if (current.live) {
-				if (!active.signal.aborted && errorCode(failure) === 'PHOTO_QUERY_INDEX_NOT_READY') { setNeedsQueryIndex(true); setError(null); }
-				else setError(active.signal.aborted ? null : message(failure));
+				if (!signal.aborted && errorCode(failure) === 'PHOTO_QUERY_INDEX_NOT_READY') { setNeedsQueryIndex(true); setError(null); }
+				else setError(signal.aborted ? null : message(failure));
 			}
+			return signal.aborted ? 'cancelled' : 'failed';
 		} finally {
 			if (current.live) setBusy(false);
 			current.active = null;
 		}
 	}, [createSession]);
+	const run = useCallback(async (action: WorkflowAction): Promise<void> => { await perform(action); }, [perform]);
 
 	const readPreview = useCallback(async (photoId: string, tier: PhotoLibraryPreviewTierV1,
 		options: Readonly<{ signal?: AbortSignal }> = {}) => {
@@ -81,11 +95,11 @@ export function usePhotoLibraryWorkflow(createSession?: CreatePhotoLibrarySessio
 
 	const readPage = useCallback((cursor: string | null = null) => run(async (owner, signal, current) => {
 		const next = current.query ? await readNonemptyQueryPage(owner, current.query, cursor, signal) : await owner.readPage({ cursor, signal });
-		if (current.live) setPage(next);
-	}), [run]);
+		publishPage(current, next);
+	}), [run, publishPage]);
 	const applyQuery = (nextQuery: PhotoLibraryQueryV1) => run(async (owner, signal, current) => {
 		const next = await readNonemptyQueryPage(owner, nextQuery, null, signal);
-		if (current.live) { current.query = nextQuery; setQuery(nextQuery); setNeedsQueryIndex(false); setPage(next); }
+		if (current.live) { current.query = nextQuery; setQuery(nextQuery); setNeedsQueryIndex(false); publishPage(current, next); }
 	});
 	const probeQuery = () => run(async (owner, signal, current) => {
 		await owner.readQueryStep({ query: current.query ?? DEFAULT_QUERY, signal });
@@ -115,26 +129,40 @@ export function usePhotoLibraryWorkflow(createSession?: CreatePhotoLibrarySessio
 		setReceipts([]);
 		const results = await owner.importFiles(files, { signal });
 		if (current.live) setReceipts(results);
+		if (current.page) publishPage(current, Object.freeze({ ...current.page, cursor: null }));
 		const next = current.query ? await readNonemptyQueryPage(owner, current.query, null, signal) : await owner.readPage({ signal });
-		if (current.live) setPage(next);
+		publishPage(current, next);
 	});
 	const refreshQuery = async (owner: PhotoLibrarySessionPortV1, signal: AbortSignal, current: SessionSlot) => {
-		if (!current.query) return;
+		if (!current.query) return current.live ? current.page : null;
 		const next = await readNonemptyQueryPage(owner, current.query, null, signal);
-		if (current.live) setPage(next);
+		return publishPage(current, next);
 	};
 	const updateRow = (updated: PhotoLibraryRowV1, current: SessionSlot) => {
-		if (current.live) setPage(previous => previous ? Object.freeze({ ...previous, cursor: null,
+		const previous = current.page;
+		return publishPage(current, previous ? Object.freeze({ ...previous, cursor: null,
 			rows: Object.freeze(previous.rows.map(row => row.id === updated.id ? updated : row)) }) : null);
 	};
-	const setRating = (photoId: string, rating: number) => run(async (owner, signal, current) => {
-		updateRow(await owner.setRating(photoId, rating, { signal }), current);
-		await refreshQuery(owner, signal, current);
-	});
-	const applyAttributes = (photoId: string, changes: PhotoLibraryAttributePatchV1) => run(async (owner, signal, current) => {
-		updateRow(await owner.applyAttributes(photoId, changes, { signal }), current);
-		await refreshQuery(owner, signal, current);
-	});
+	const editAttributes = async (save: (owner: PhotoLibrarySessionPortV1, signal: AbortSignal) => Promise<PhotoLibraryRowV1>,
+		options: Readonly<{ signal?: AbortSignal }>): Promise<PhotoLibraryCullReceiptV1> => {
+		let receipt: PhotoLibraryCullReceiptV1 | null = null;
+		const status = await perform(async (owner, signal, current) => {
+			const updated = await save(owner, signal);
+			// The durable acknowledgement remains saved even if refresh or cancellation follows.
+			receipt = Object.freeze({ outcome: 'saved', photoId: updated.id, page: null, notice: 'refresh-failed' });
+			try {
+				// A successful query publishes one final page; an intermediate page would
+				// invalidate the culling observer's captured page identity while awaiting it.
+				const next = current.query ? await refreshQuery(owner, signal, current) : updateRow(updated, current);
+				if (next) receipt = Object.freeze({ outcome: 'saved', photoId: updated.id, page: next, notice: null });
+			} catch (failure) { updateRow(updated, current); throw failure; }
+		}, options.signal);
+		return receipt ?? Object.freeze({ outcome: status === 'completed' ? 'failed' : status });
+	};
+	const setRating = (photoId: string, rating: number, options: Readonly<{ signal?: AbortSignal }> = {}) =>
+		editAttributes((owner, signal) => owner.setRating(photoId, rating, { signal }), options);
+	const applyAttributes = (photoId: string, changes: PhotoLibraryAttributePatchV1, options: Readonly<{ signal?: AbortSignal }> = {}) =>
+		editAttributes((owner, signal) => owner.applyAttributes(photoId, changes, { signal }), options);
 	const readMetadata = useCallback((photoId: string) => run(async (owner, signal, current) => {
 		setMetadata(null);
 		const next = await owner.readMetadata(photoId, { signal });
@@ -144,7 +172,8 @@ export function usePhotoLibraryWorkflow(createSession?: CreatePhotoLibrarySessio
 		const next = await owner.applyMetadata(photoId, expectedRevision, changes, { signal });
 		if (current.live) {
 			setMetadata(next);
-			setPage(previous => previous ? Object.freeze({ ...previous, cursor: null,
+			const previous = current.page;
+			publishPage(current, previous ? Object.freeze({ ...previous, cursor: null,
 				rows: Object.freeze(previous.rows.map(row => row.id === next.photoId ? Object.freeze({ ...row, fileName: next.metadata.fileName }) : row)) }) : null);
 		}
 		await refreshQuery(owner, signal, current);

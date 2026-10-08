@@ -9,8 +9,10 @@ import type { CreatePhotoLibrarySessionV1 } from '../../photo-library-session-po
 import PhotoLibraryPanel from './PhotoLibraryPanel.tsx';
 import type { PhotoPreviewPresentationViewV1 } from './PhotoPreviewPresentation.tsx';
 import { DEFAULT_PHOTO_LIBRARY_QUERY_V1, usePhotoLibraryWorkflow } from './use-photo-library-workflow.ts';
+import { usePhotoLibrarySelection } from './use-photo-library-selection.ts';
 import '../../../../../vendor/audacity-design-system/components/src/ApplicationHeader/ApplicationHeader.css';
 import './lightscaper.css';
+import './photo-culling.css';
 
 export interface LightscaperAppProps {
 	readonly locale: string;
@@ -31,13 +33,16 @@ export default function LightscaperApp({ locale, createSession }: LightscaperApp
 	const [thumbnailsVisible, setThumbnailsVisible] = useState(false);
 	const [loupeVisible, setLoupeVisible] = useState(false);
 	const [queryVisible, setQueryVisible] = useState(false);
-	const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+	const [filmstripVisible, setFilmstripVisible] = useState(false);
+	const [autoAdvance, setAutoAdvance] = useState(false);
 	const library = usePhotoLibraryWorkflow(createSession);
+	const photoSelection = usePhotoLibrarySelection({ photoIds: library.page?.rows.map(row => row.id) ?? [],
+		generation: createSession, pageIdentity: library.page, autoAdvance });
 	const { readPage } = library;
 	const flags = { unflagged: copy.photoUnflagged, pick: copy.photoPick, reject: copy.photoReject };
 	const colorLabels = { none: copy.photoColorNone, red: copy.photoColorRed, yellow: copy.photoColorYellow,
 		green: copy.photoColorGreen, blue: copy.photoColorBlue, purple: copy.photoColorPurple };
-	const selection = library.page?.rows.find(row => row.id === selectedPhoto) ?? null;
+	const selection = library.page?.rows.find(row => row.id === photoSelection.snapshot.primaryId) ?? null;
 	useEffect(() => {
 		const dismiss = (event: PointerEvent) => {
 			for (const menu of app.current?.querySelectorAll<HTMLDetailsElement>('details[open]') ?? []) {
@@ -99,8 +104,12 @@ export default function LightscaperApp({ locale, createSession }: LightscaperApp
 		<PhotoLibraryPanel title={copy.workspacePhoto} empty={copy.photoEmptyLibrary} loading={copy.photoWorking}
 			ratingLabel={copy.photoRating} flags={flags} colorLabels={colorLabels} importedLabel={copy.photoImported} failedLabel={copy.photoImportFailed} metadataNotice={copy.photoMetadataNotice}
 			page={library.page} receipts={library.receipts} selected={selection?.id ?? null} busy={library.busy} error={library.error}
+			selection={photoSelection} layout={filmstripVisible ? 'filmstrip' : 'grid'}
+			cullingNotice={photoSelection.notice === 'refresh-failed' ? copy.photoCullRefreshFailed : null}
 			renderPreview={preview ? row => preview.renderThumbnail(row.id, row.fileName) : undefined}
-			onSelect={setSelectedPhoto} onRate={(photoId, rating) => { void library.setRating(photoId, rating); }} />
+			onSelect={photoSelection.select} onRate={(photoId, rating) => {
+				void photoSelection.cull(photoId, signal => library.setRating(photoId, rating, { signal }));
+			}} />
 		{loupeVisible && selection && preview && <section data-photo-loupe="true" className="lightscaper-library" aria-label={copy.photoLoupe}>
 			<h3>{selection.fileName}</h3>{preview.renderLoupe(selection.fileName)}
 		</section>}
@@ -120,19 +129,28 @@ export default function LightscaperApp({ locale, createSession }: LightscaperApp
 						<details className="lightscaper-photo-submenu" onKeyDown={menuKeyDown} onBlur={menuBlur}>
 							<summary className="application-header__menu-item">{copy.photoPhotoMenu}</summary>
 							<div className="lightscaper-menu-items">
+								<button type="button" disabled={!libraryVisible || !library.page?.rows.length} onClick={event => {
+									closeMenu(event); photoSelection.selectAll();
+								}}>{copy.photoSelectAll}</button>
+								<button type="button" disabled={photoSelection.snapshot.selectedIds.length === 0} onClick={event => {
+									closeMenu(event); photoSelection.clear();
+								}}>{copy.photoClearSelection}</button>
+								<button type="button" disabled={library.busy || photoSelection.pendingPhotoId !== null} aria-pressed={autoAdvance} onClick={event => {
+									closeMenu(event); setAutoAdvance(value => !value);
+								}}>{copy.photoAutoAdvance}</button>
 								<button type="button" disabled={!selection || library.busy} onClick={event => {
 									closeMenu(event); if (selection) { setMetadataVisible(true); void library.readMetadata(selection.id); }
 								}}>{copy.photoEditMetadata}</button>
 								{[0, 1, 2, 3, 4, 5].map(rating => <button key={rating} type="button" disabled={!selection || library.busy}
-									onClick={event => { closeMenu(event); if (selection) void library.setRating(selection.id, rating); }}>
+									onClick={event => { closeMenu(event); if (selection) void photoSelection.cull(selection.id, signal => library.setRating(selection.id, rating, { signal })); }}>
 									{copy.photoRateStars.replace('{count}', String(rating))}
 								</button>)}
 								{(['unflagged', 'pick', 'reject'] as const).map(flag => <button key={flag} type="button" disabled={!selection || library.busy}
-									aria-pressed={selection?.flag === flag} onClick={event => { closeMenu(event); if (selection) void library.applyAttributes(selection.id, { flag }); }}>
+									aria-pressed={selection?.flag === flag} onClick={event => { closeMenu(event); if (selection) void photoSelection.cull(selection.id, signal => library.applyAttributes(selection.id, { flag }, { signal })); }}>
 									{copy.photoFlag}: {flags[flag]}
 								</button>)}
 								{(['none', 'red', 'yellow', 'green', 'blue', 'purple'] as const).map(colorLabel => <button key={colorLabel} type="button" disabled={!selection || library.busy}
-									aria-pressed={selection?.colorLabel === colorLabel} onClick={event => { closeMenu(event); if (selection) void library.applyAttributes(selection.id, { colorLabel }); }}>
+									aria-pressed={selection?.colorLabel === colorLabel} onClick={event => { closeMenu(event); if (selection) void photoSelection.cull(selection.id, signal => library.applyAttributes(selection.id, { colorLabel }, { signal })); }}>
 									{copy.photoColorLabel}: {colorLabels[colorLabel]}
 								</button>)}
 							</div>
@@ -154,6 +172,9 @@ export default function LightscaperApp({ locale, createSession }: LightscaperApp
 						<button type="button" disabled={!libraryVisible} aria-pressed={thumbnailsVisible} onClick={event => {
 							closeMenu(event); setThumbnailsVisible(visible => !visible);
 						}}>{thumbnailsVisible ? copy.photoHideThumbnails : copy.photoShowThumbnails}</button>
+						<button type="button" disabled={!libraryVisible} aria-pressed={filmstripVisible} onClick={event => {
+							closeMenu(event); setFilmstripVisible(visible => !visible);
+						}}>{filmstripVisible ? copy.photoHideFilmstrip : copy.photoShowFilmstrip}</button>
 						<button type="button" disabled={!libraryVisible || !selection} aria-pressed={loupeVisible} onClick={event => {
 							closeMenu(event); setLoupeVisible(visible => !visible);
 						}}>{loupeVisible ? copy.photoHideLoupe : copy.photoShowLoupe}</button>

@@ -38,3 +38,12 @@ test('photo import and ratings are menu entries and rendering never creates a li
 	assert.ok(markup.indexOf('>Photo</summary>') < markup.indexOf('>View</summary>'));
 	assert.equal(opened, 0); assert.doesNotMatch(markup, /data-photo-library="true"|<input|role="dialog"/u);
 });
+
+test('filmstrip, selection and auto advance are opt-in menu entries without an initial surface', () => {
+	const markup = renderToStaticMarkup(<LightscaperApp locale="en" />);
+	assert.match(markup, /Show filmstrip/u);
+	assert.match(markup, /aria-pressed="false">Auto advance/u);
+	assert.match(markup, /Select all photos/u);
+	assert.match(markup, /Clear photo selection/u);
+	assert.doesNotMatch(markup, /data-photo-layout|data-photo-library|<canvas|role="dialog"/u);
+});

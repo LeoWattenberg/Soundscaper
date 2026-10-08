@@ -46,7 +46,7 @@ for (const [locale, copy] of [
 		await expect(library.locator('[data-photo-count]')).toHaveAttribute('data-photo-count', '2');
 		await expect(library.getByRole('alert')).toHaveCount(0);
 		const first = library.getByRole('button').filter({ hasText: 'First.png' });
-		await first.focus(); await page.keyboard.press('5');
+		await first.focus(); await page.keyboard.press('Enter'); await page.keyboard.press('5');
 		await expect(first).toContainText(copy.rating);
 		await app.locator('summary').filter({ hasText: copy.file }).click();
 		await app.locator('summary').filter({ hasText: copy.photo }).click();

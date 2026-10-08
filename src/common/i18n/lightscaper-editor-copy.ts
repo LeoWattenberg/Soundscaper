@@ -86,6 +86,12 @@ const ENGLISH = Object.freeze({
 	photoDefinitionSelected: "Selected",
 	photoDefinitionEmpty: "No definitions in this view.",
 	photoDefinitionFailed: "Catalog definitions could not be read.",
+	photoShowFilmstrip: "Show filmstrip",
+	photoHideFilmstrip: "Hide filmstrip",
+	photoAutoAdvance: "Auto advance",
+	photoSelectAll: "Select all photos",
+	photoClearSelection: "Clear photo selection",
+	photoCullRefreshFailed: "The photo was saved, but the library could not be refreshed. Auto advance is paused.",
 });
 
 export type LightscaperEditorCopyV1 = Readonly<Record<keyof typeof ENGLISH, string>>;
@@ -174,6 +180,12 @@ const GERMAN: LightscaperEditorCopyV1 = Object.freeze({
 	photoDefinitionSelected: "Ausgewählt",
 	photoDefinitionEmpty: "Keine Einträge in dieser Ansicht.",
 	photoDefinitionFailed: "Die Bibliothekseinträge konnten nicht gelesen werden.",
+	photoShowFilmstrip: "Filmstreifen anzeigen",
+	photoHideFilmstrip: "Filmstreifen ausblenden",
+	photoAutoAdvance: "Automatisch weiterschalten",
+	photoSelectAll: "Alle Fotos auswählen",
+	photoClearSelection: "Fotoauswahl aufheben",
+	photoCullRefreshFailed: "Das Foto wurde gespeichert, aber die Bibliothek konnte nicht aktualisiert werden. Automatisches Weiterschalten ist angehalten.",
 });
 
 /** Flat identities remain shared with the canonical translation inventory. */

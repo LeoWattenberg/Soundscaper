@@ -38,6 +38,7 @@ belong in Git history, not in the maintained documentation set.
   defines opt-in canvas surfaces, serial pixel custody and compound memory budgets.
 - [Photo catalog query workflows](architecture/lightscaper-catalog-workflows.md)
   defines menu-owned search/sort/filter, bounded definition selectors and explicit index preparation.
+- [Photo library culling](architecture/lightscaper-culling.md)
 - [Managed SDR pixel grading](architecture/pixel-frame-managed-sdr-grade.md)
 - [Photo catalog queries](architecture/lightscaper-catalog-query.md)
   defines global sort order, bounded sparse scans and resumable query index migration.
