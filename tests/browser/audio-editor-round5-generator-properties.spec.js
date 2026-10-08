@@ -3,6 +3,9 @@
 import { expect, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseCommandAction, chooseNestedCommandAction, openClipProperties, closeWorkspacePanel } from './audio-editor-test-helpers.js';
 
+// Reopening Properties and verifying Undo also run under precise Chromium coverage.
+test.describe.configure({ timeout: 120_000 });
+
 test('generated Title Properties edits supported timeline duration in one Undo', async ({ page }) => {
 	const editor = await bootEditor(page, '/framescaper/embed/en/');
 	await chooseNestedCommandAction(page, editor, 'Generate', ['Video Generators', 'Add Title/Text']);

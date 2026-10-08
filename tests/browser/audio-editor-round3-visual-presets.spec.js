@@ -3,6 +3,9 @@
 import { expect, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseNestedCommandAction } from './audio-editor-test-helpers.js';
 
+// Generator previews and preset persistence also run under precise Chromium coverage.
+test.describe.configure({ timeout: 120_000 });
+
 test('removing the selected visual preset clears its obsolete action target', async ({ page }) => {
 	const editor = await bootEditor(page, '/framescaper/en/');
 	await chooseNestedCommandAction(page, editor, 'Generate', ['Video Generators', 'Add Solid']);

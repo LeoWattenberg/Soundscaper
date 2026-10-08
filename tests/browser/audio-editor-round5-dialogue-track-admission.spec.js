@@ -3,6 +3,9 @@
 import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseCommandAction, chooseNestedCommandAction, importFiles } from './audio-editor-test-helpers.js';
 
+// Track admission, audio import, and rack application share a coverage-enabled budget.
+test.describe.configure({ timeout: 120_000 });
+
 test('Dialogue Chain admits the selected audio track and refuses picture and label tracks', async ({ page }) => {
 	const editor = await bootEditor(page, '/framescaper/embed/en/');
 	await chooseNestedCommandAction(page, editor, 'Generate', ['Video Generators', 'Add Title/Text']);
