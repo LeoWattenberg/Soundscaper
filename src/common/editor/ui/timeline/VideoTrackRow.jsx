@@ -236,6 +236,7 @@ export function VideoTrackRow({
 							if (selectedTrackId !== track.id) run(() => controller.actions.timeline.selectTrack(track.id));
 						}}
 						onKeyDown={(event) => {
+							if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
 							if (event.key === 'Tab') {
 								event.preventDefault();
 								if (event.shiftKey) focusBeforeTrack();
