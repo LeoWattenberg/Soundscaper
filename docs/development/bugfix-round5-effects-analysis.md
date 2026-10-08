@@ -246,3 +246,30 @@ passes 58/58; targeted type-aware lint and size checks pass. Regressions are
 `audio-editor-round5-selection-effect-spectral-band.spec.js`. These omitted
 first-party dispatch branches count once. Final immutable public verification
 is pending, so this entry is not counted yet.
+
+## R5-ROOT-010 — Plot Spectrum understates a recording's amplitude by 6 dB
+
+Import an ordinary 750 Hz stereo WAV with peak amplitude 0.5. Select all and
+open Analyze → Analyze selection: its peak is -6.02 dBFS. Close that dialog
+and open Analyze → Plot spectrum → Export. The downloaded spectrum identifies
+750 Hz correctly, but its peak is 6.09 dB below the measured recording.
+
+The FFT multiplies the recording by a Hann window, then normalizes as if it
+had used a rectangular window. Normalize against the retained Hann coefficient
+sum. Double only interior bins in the one-sided spectrum; DC and Nyquist
+remain undoubled. Preserve channel-power pooling, cached windows, the existing
+averaging policy and immutable reports. This amplitude calibration follows the
+[documented Plot Spectrum convention](https://manual.audacityteam.org/man/plot_spectrum.html)
+that a full-scale sine appears at approximately 0 dB. It is separate from the
+earlier plot-column peak preservation and live opposite-polarity channel mixing.
+
+The ordinary menu/dialog/report download is Chromium RED at the measured
+6.09 dB discrepancy (`/tmp/soundscaper-r5-root-spectrum-level-baseline.log`,
+3.4 seconds). Nine bin-centered sine/FFT-size cases and the DC/Nyquist endpoint
+case independently fail before correction; the channel-pooling control passes.
+New and existing FFT, analysis, window reuse and pink-noise support passes
+27/27. The older spectrum assertion which expected half a full-scale sine's
+amplitude now asserts the calibrated value. Regressions are
+`audio-editor-round5-spectrum-level-calibration.test.ts` and
+`audio-editor-round5-spectrum-level-calibration.spec.js`. Final public
+verification is pending; this entry is not counted yet.

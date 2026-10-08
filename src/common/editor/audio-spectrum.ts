@@ -5,7 +5,8 @@ import { fftRadixTwoFloat64V1 } from './assistance/internal/radix-two-fft-v1.ts'
 export const ANALYSIS_FLOOR_DB = -120;
 
 // Twelve accepted powers of two occupy less than one MiB in total.
-const hannWindows = new Map<number, Float64Array>();
+interface HannWindow { readonly samples: Float64Array; readonly sum: number }
+const hannWindows = new Map<number, HannWindow>();
 const nativeSampleLength = Object.getOwnPropertyDescriptor(
 	Object.getPrototypeOf(Float32Array.prototype) as object, 'length',
 )!.get as (this: Float32Array) => number;
@@ -24,11 +25,16 @@ function acquireWorkspace(size: number): SpectrumWorkspace {
 	if (!existing) workspaces.set(size, workspace);
 	return workspace;
 }
-function hannWindow(size: number): Float64Array {
+function hannWindow(size: number): HannWindow {
 	const existing = hannWindows.get(size);
 	if (existing) return existing;
-	const window = Float64Array.from({ length: size }, (_, index) =>
-		0.5 - 0.5 * Math.cos(2 * Math.PI * index / (size - 1)));
+	let sum = 0;
+	const samples = Float64Array.from({ length: size }, (_, index) => {
+		const weight = 0.5 - 0.5 * Math.cos(2 * Math.PI * index / (size - 1));
+		sum += weight;
+		return weight;
+	});
+	const window = Object.freeze({ samples, sum });
 	hannWindows.set(size, window);
 	return window;
 }
@@ -52,7 +58,7 @@ export function calculateAudioSpectrum(
 	const workspace = acquireWorkspace(requestedSize);
 	const { real, imaginary, powers } = workspace;
 	try {
-	const window = hannWindow(requestedSize);
+	const { samples: window, sum: windowSum } = hannWindow(requestedSize);
 	const windowCount = options.average ? Math.max(1, Math.ceil((frameCount - offset) / (requestedSize / 2))) : 1;
 	for (let block = 0; block < windowCount; block += 1) {
 		const start = offset + block * (requestedSize / 2);
@@ -72,7 +78,8 @@ export function calculateAudioSpectrum(
 		}
 	}
 	const bins = Array.from({ length: requestedSize / 2 + 1 }, (_, index) => {
-		const amplitude = Math.sqrt(powers[index]! / (channels.length * windowCount)) * 2 / requestedSize;
+		const oneSidedScale = index === 0 || index === requestedSize / 2 ? 1 : 2;
+		const amplitude = Math.sqrt(powers[index]! / (channels.length * windowCount)) * oneSidedScale / windowSum;
 		return Object.freeze({ frequency: index * sampleRate / requestedSize, amplitude, db: amplitudeToDb(amplitude) });
 	});
 	return Object.freeze({ sampleRate, size: requestedSize, bins: Object.freeze(bins) });

@@ -13,7 +13,7 @@ test('the public spectrum entry uses the same bounded FFT implementation', () =>
 	const spectrum = calculateAudioSpectrum([samples], rate, { size: 1_024, offsetFrame: 1_024 });
 	const peak = spectrum.bins.reduce((best, bin) => best.amplitude > bin.amplitude ? best : bin);
 	assert.equal(peak.frequency, 512);
-	assert.ok(peak.db > -7 && peak.db < -5);
+	assert.ok(Math.abs(peak.db) < 0.001);
 	assert.ok(Object.isFrozen(spectrum) && Object.isFrozen(spectrum.bins));
 });
 
