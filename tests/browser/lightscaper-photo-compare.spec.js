@@ -59,11 +59,14 @@ for (const locale of ['en', 'de']) {
 		await pair(selected[0], selected[1]);
 		await candidate.press('5'); await expect(candidate.getByLabel(copy.photoRating, { exact: true })).toHaveValue('5');
 		await expect(candidate.getByLabel(copy.photoRating, { exact: true })).toBeEnabled();
+		await pair(selected[0], selected[1]);
 		await candidate.press('p'); await expect(candidate.getByLabel(copy.photoFlag, { exact: true })).toHaveValue('pick');
 		await expect(candidate.getByLabel(copy.photoFlag, { exact: true })).toBeEnabled();
+		await pair(selected[0], selected[1]);
 		await candidate.getByLabel(copy.photoColorLabel, { exact: true }).selectOption('blue');
 		await expect(candidate.getByLabel(copy.photoColorLabel, { exact: true })).toHaveValue('blue');
 		await expect(candidate.getByLabel(copy.photoColorLabel, { exact: true })).toBeEnabled();
+		await pair(selected[0], selected[1]);
 		const after = await observe(page, 'observeCompareLibraryV1', ids);
 		assertImmutable(before, after);
 		const edited = after.photos.find(photo => photo.id === selected[1].id);
