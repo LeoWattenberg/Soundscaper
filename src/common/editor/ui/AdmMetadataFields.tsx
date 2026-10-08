@@ -73,6 +73,7 @@ function DraftField({ name, label, value, disabled, maxLength = 512, pattern, on
 				onChange={(event) => setDraft(event.currentTarget.value)}
 				onBlur={(event) => commit(event.currentTarget)}
 				onKeyDown={(event) => {
+					if (event.nativeEvent?.isComposing) return;
 					if (event.key === 'Escape') {
 						cancelDraftEditOnEscape(
 							blurCommitGuard,

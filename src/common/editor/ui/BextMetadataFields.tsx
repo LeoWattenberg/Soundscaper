@@ -62,6 +62,7 @@ function DraftField({
 		if (draft !== presentedValue) onCommit(draft);
 	};
 	const onKeyDown = (event: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+		if (event.nativeEvent?.isComposing) return;
 		if (event.key === 'Escape') {
 			cancelDraftEditOnEscape(
 				blurCommitGuard,

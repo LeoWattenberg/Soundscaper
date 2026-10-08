@@ -95,6 +95,7 @@ export function MetadataEditorField({ name, label, value, disabled, onCommit, mu
 				onChange={(event) => setDraft(event.currentTarget.value)}
 				onBlur={commit}
 				onKeyDown={(event) => {
+					if (event.nativeEvent?.isComposing) return;
 					if (event.key === 'Enter' && !multiline) event.currentTarget.blur();
 					else if (event.key === 'Escape') {
 						cancelDraftEditOnEscape(
