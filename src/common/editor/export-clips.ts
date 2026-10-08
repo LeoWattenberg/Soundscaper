@@ -6,9 +6,10 @@ import { brandRuntimeProjectProjection, type RuntimeClipProject } from './runtim
 import { inheritTrackFolderMediaStateProjectionV12 } from './track-folder-media-runtime.ts';
 import { reconcileProjectOwnedFeatureRequirements } from './project-owned-feature-requirements.ts';
 import type { ProjectFeatureRequirementsManifest } from './project-feature-requirements.ts';
-import { mixerDetectorInputClosure } from './mixer-detector-input-closure.ts';
+import { exportClipMixer } from './export-clip-mixer.ts';
 import { mixerEndpointKeyV21, type MixerGraphV21 } from './mixer-graph-v21.ts';
 import { hasProductionMixerProjectAuthority } from './project-schema-version.ts';
+import { normalizeAutomationLaneV21 } from './automation-lane-v21.ts';
 
 type DataRecord = Readonly<Record<string, unknown>>;
 
@@ -27,18 +28,22 @@ export function createExportClipProject<Project extends object>(projectValue: Pr
 			&& Array.isArray(track.clipIds) && track.clipIds.includes(output.clipId);
 	});
 	if (!clip || !owner) throw new RangeError(`Export clip ${String(output.clipId)} is missing from its audio track.`);
-	const inputs = hasProductionMixerProjectAuthority(project)
-		? mixerDetectorInputClosure(project.mixer as MixerGraphV21, { kind: 'track', id: String(output.trackId) }).strips
-		: new Set<string>();
+	const mixer = hasProductionMixerProjectAuthority(project)
+		? exportClipMixer(project.mixer as MixerGraphV21, String(output.trackId)) : null;
+	const lanes = (project as DataRecord).automationLanes;
 	const clipIds = new Set([clip.id]);
 	for (const value of project.tracks) {
 		const track = value as DataRecord;
 		if (track.id === output.trackId || track.type !== 'audio'
-			|| !inputs.has(mixerEndpointKeyV21({ kind: 'track', id: String(track.id) }))) continue;
+			|| !mixer?.detectorStrips.has(mixerEndpointKeyV21({ kind: 'track', id: String(track.id) }))) continue;
 		for (const id of Array.isArray(track.clipIds) ? track.clipIds : []) clipIds.add(id);
 	}
 	const snapshot = {
 		...project,
+		...(mixer ? { mixer: mixer.graph, automationLanes: (Array.isArray(lanes) ? lanes : []).filter(value => {
+			const { address } = normalizeAutomationLaneV21(value);
+			return address.kind !== 'edge' || mixer.retainedEdges.has(address.edgeId);
+		}) } : {}),
 		clips: project.clips.filter(candidate => clipIds.has(candidate.id)),
 		tracks: project.tracks.map((value) => {
 			const track = value as DataRecord;

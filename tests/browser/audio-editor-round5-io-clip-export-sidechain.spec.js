@@ -26,9 +26,10 @@ function toneAmplitude(samples, frequency) {
 	return 2 * Math.hypot(sine, cosine) / middle.length;
 }
 
-for (const [title, amplitude, gated] of [
-	['individual clip delivery retains an external Gate detector without mixing it into the clip', 0.1, false],
-	['individual clip delivery retains a quiet Gate detector and the closed programme gate', 0.001, true],
+for (const [title, amplitude, gated, bus] of [
+	['individual clip delivery retains an external Gate detector without mixing it into the clip', 0.1, false, false],
+	['individual clip delivery retains a quiet Gate detector and the closed programme gate', 0.001, true, false],
+	['individual clip delivery retains a Gate detector routed through a group bus', 0.1, false, true],
 ]) test(title, async ({ page }, testInfo) => {
 	test.setTimeout(90_000);
 	await disableNativeSavePicker(page);
@@ -44,9 +45,14 @@ for (const [title, amplitude, gated] of [
 	await closeEffectsPanel(effects);
 	await chooseNestedCommandAction(page, editor, 'Window', ['Mixer']);
 	const mixer = editor.locator('[data-mixer-panel]');
+	if (bus) {
+		await mixer.getByRole('button', { name: 'Add group bus', exact: true }).click();
+		await mixer.getByRole('combobox', { name: 'Output: external-detector', exact: true })
+			.selectOption({ label: 'Group bus 1' });
+	}
 	await mixer.getByRole('button', { name: 'Routing graph', exact: true }).click();
 	const graph = mixer.locator('[data-soundscaper-routing-graph]');
-	await graph.locator(`[data-routing-source="track:${controlTrack}"]`).press('Enter');
+	await graph.locator(bus ? '[data-routing-source^="mixer-node:"]' : `[data-routing-source="track:${controlTrack}"]`).press('Enter');
 	await graph.locator('[data-routing-destination*="effect-sidechain"]').press('Enter');
 	await expect(graph.locator('[data-routing-edge][aria-label*="sidechain"]')).toHaveCount(1);
 	const mixed = await exportSamples(page, editor);
@@ -78,9 +84,10 @@ for (const [title, amplitude, gated] of [
 		}, Array.from(bytes));
 		if (gated) expect(rms(samples)).toBeLessThan(0.002);
 		else {
-			expect(rms(samples)).toBeGreaterThan(0.24);
-			expect(rms(samples)).toBeLessThan(0.25);
-			expect(toneAmplitude(samples, 440)).toBeGreaterThan(0.34);
+			// The retained centred mono panner applies the existing sqrt(1/2) law.
+			expect(rms(samples)).toBeGreaterThan(0.17);
+			expect(rms(samples)).toBeLessThan(0.18);
+			expect(toneAmplitude(samples, 440)).toBeGreaterThan(0.24);
 		}
 		expect(toneAmplitude(samples, 660)).toBeLessThan(0.001);
 	} finally { await archive.close(); }

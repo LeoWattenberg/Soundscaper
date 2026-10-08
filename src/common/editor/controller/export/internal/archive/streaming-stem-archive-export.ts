@@ -70,7 +70,8 @@ export async function streamStemArchiveExport({
 			const snapshot = clips ? createExportClipProject(trackSnapshot, output) : trackSnapshot;
 			const outputPlan = chapters ? createExportChapterPlan(plan, output)
 				: clips ? createExportClipPlan(plan, output) : plan;
-			const encoded = await renderAndEncode(snapshot, outputPlan, settings, abortSignal, exportRenderSources, output, {
+			const target = clips ? { ...output, trackId: null } : output;
+			const encoded = await renderAndEncode(snapshot, outputPlan, settings, abortSignal, exportRenderSources, target, {
 				start: index / plan.outputs.length,
 				end: (index + 1) / plan.outputs.length,
 			});
