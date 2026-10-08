@@ -248,6 +248,9 @@ function richApplicationMenuMatrix(product: ProductId): readonly (readonly MenuI
 			applicationMenusForState(product, {
 				project: richSoundscaperVideoProject(), selectedTrackId: 'video-track', selectedClipId: 'video-clip',
 			}),
+			applicationMenusForState(product, {
+				project: richSoundscaperVideoProject(true), selectedTrackId: 'audio-track', selectedClipId: 'audio-clip',
+			}),
 		];
 	}
 	const ungrouped = richFramescaperProject(false, 'video');
@@ -379,9 +382,14 @@ function frozenSoundscaperProject(project: ReturnType<typeof richSoundscaperProj
 	};
 }
 
-function richSoundscaperVideoProject() {
+function richSoundscaperVideoProject(linked = false) {
+	const options = framescaperV20Options();
 	return createSoundscaperProject({
-		...framescaperV20Options(),
+		...options,
+		...(linked ? {
+			clips: (options.clips as readonly Record<string, unknown>[]).map(clip => ({ ...clip, avLinkId: 'camera-link' })),
+			tracks: (options.tracks as readonly Record<string, unknown>[]).map(track => ({ ...track, laneGroupId: 'camera-lanes' })),
+		} : {}),
 		selection: { startFrame: 0, endFrame: 4_800, trackIds: ['video-track'], clipIds: ['video-clip'] },
 		loop: { enabled: true, startFrame: 0, endFrame: 4_800 },
 		snap: { enabled: true, unit: '1/4', division: '1/4', mode: 'nearest', triplets: false },

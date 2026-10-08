@@ -67,7 +67,7 @@ const REFERENCE_SEEDS: readonly ReferenceSeed[] = Object.freeze([
 	['rate-stretch-left-edge-to-playhead', 'Rate stretch left edge to playhead', 'Edit > Audio clips', FRAMESCAPER],
 	['rate-stretch-right-edge-to-playhead', 'Rate stretch right edge to playhead', 'Edit > Audio clips', FRAMESCAPER],
 	['video-link-audio', 'Link audio', 'Edit > Audio clips', FRAMESCAPER],
-	['video-unlink-audio', 'Unlink audio', 'Edit > Audio clips', FRAMESCAPER],
+	['video-unlink-audio', 'Unlink audio', 'Edit > Audio clips', BOTH],
 	['video-composition-editor', 'Transform and compositing', 'Edit > Audio clips', FRAMESCAPER],
 	['video-keyframes-editor', 'Video keyframes', 'Edit > Audio clips', FRAMESCAPER],
 	['video-retime-editor', 'Video retime', 'Edit > Audio clips', FRAMESCAPER],

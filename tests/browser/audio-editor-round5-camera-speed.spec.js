@@ -19,6 +19,8 @@ test('linked camera speed refuses clearly until ordinary Unlink, then changes au
 	await speed.fill('2');
 	await speed.press('Enter');
 	await expect(properties.getByRole('alert')).toContainText('Unlink audio');
+	await expect(speed).toHaveAttribute('aria-invalid', 'true');
+	await speed.press('Escape');
 	await expect(speed).toHaveValue('1');
 	await expect(clipField(properties, 'durationFrame')).toHaveValue(String(originalDuration));
 	await expect(video).toHaveAttribute('style', originalVideoStyle);
