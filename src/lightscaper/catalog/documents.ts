@@ -2,8 +2,10 @@
 
 import { normalizePhotoCatalogRootV1 } from './catalog-root.ts';
 import { normalizePhotoDocumentV1 } from './photo-document.ts';
-import { LIGHTSCAPER_CATALOG_LIMITS as LIMITS, type LightscaperDocumentV1 } from './types.ts';
+import { LIGHTSCAPER_CATALOG_LIMITS as LIMITS, type LightscaperDocumentV1, type PhotoCatalogRootV1 } from './types.ts';
 import { field, record, requireSchema } from './value-validation.ts';
+
+const validatedCatalogRoots = new WeakSet<object>();
 
 /** v1 starts a new product family; no audio/timeline or pre-release migration is inferred. */
 export function validateLightscaperDocumentV1(value: unknown): LightscaperDocumentV1 {
@@ -20,7 +22,16 @@ export function validateLightscaperDocumentV1(value: unknown): LightscaperDocume
 		default: throw new RangeError('Unsupported Lightscaper document kind.');
 	}
 	assertByteBudget(canonicalJson(normalized));
+	if (normalized.kind === 'photo-catalog') validatedCatalogRoots.add(normalized);
 	return normalized;
+}
+
+/** Borrowers may reuse only a root that completed the owning document admission. */
+export function readValidatedPhotoCatalogRootV1(value: unknown): PhotoCatalogRootV1 {
+	if (value !== null && typeof value === 'object' && validatedCatalogRoots.has(value)) return value as PhotoCatalogRootV1;
+	const root = validateLightscaperDocumentV1(value);
+	if (root.kind !== 'photo-catalog') throw new TypeError('A catalog root document is required.');
+	return root;
 }
 
 export function migrateLightscaperDocumentV1(value: unknown): LightscaperDocumentV1 {
