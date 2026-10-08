@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createStableId } from '../common/editor/stable-id.js';
+import { fingerprintNativeMediaPlan } from '../common/editor/native-media-plan-canonical-form.ts';
+import { normalizeVideoVisualPresetV1 } from '../common/editor/video-visual-preset-v24.ts';
 import { sampleFrameToVideoFrame } from '../common/editor/timeline-time.ts';
 import { resolveSequenceTimingView } from '../common/editor/sequence-timing-model.ts';
 import {
@@ -60,7 +62,7 @@ export function createFramescaperProjectBinVisualActions(
 		if (!name) throw new RangeError('A visual source name is required.');
 		const source = records(data(owner.project).sources).find(item => item.id === clip.sourceId);
 		if (!source) throw new ReferenceError('The visual source is missing.');
-		owner.actions.edit.commit(sourceCommand(source, { ...source, name }));
+		owner.actions.edit.commit(renameSourceCommand(data(owner.project), source, name));
 		return name;
 	}
 
@@ -159,6 +161,20 @@ function clipCommand(expected: Data | null, clip: Data | null, expectedPlacement
 function sourceCommand(expected: Data, source: Data | null): Data {
 	return { type: expected.kind === 'image' ? 'image-source/set' : 'video-visual-source/set',
 		sourceId: expected.id, expectedSource: expected, source };
+}
+
+function renameSourceCommand(project: Data, source: Data, name: string): Data {
+	const renamed = { ...source, name };
+	const command = sourceCommand(source, renamed);
+	if (source.kind !== 'generator') return command;
+	const previousDigest = fingerprintNativeMediaPlan(source).sha256;
+	const nextDigest = fingerprintNativeMediaPlan(renamed).sha256;
+	const updates = records(project.videoVisualPresets)
+		.filter(preset => preset.modelKind === 'generator' && preset.authoredStateSha256 === previousDigest)
+		.map(normalizeVideoVisualPresetV1)
+		.map(preset => ({ type: 'video-visual-preset/set', presetId: preset.id,
+			expectedPreset: preset, preset: { ...preset, authoredStateSha256: nextDigest } }));
+	return updates.length ? { type: 'batch', commands: [command, ...updates] } : command;
 }
 
 function owned(clip: Data): boolean { return clip.kind === 'image' || clip.kind === 'still' || clip.kind === 'generator'; }
