@@ -172,10 +172,10 @@ export function createNyquistHostService(runtime: NyquistHostServiceRuntime) {
 		const stats = nyquistChannelStats([...channels]);
 		const lowHz = Number(frequencyRange?.minimumFrequency);
 		const highHz = Number(frequencyRange?.maximumFrequency);
-		const selectedTrackIndices = targets.map((candidate) => {
+		const selectedTrackIndices = [...new Set(targets.map((candidate) => {
 			const projectIndex = project.tracks.findIndex((projectTrack) => projectTrack.id === (candidate?.sourceTrackId ?? candidate?.track.id));
 			return projectIndex >= 0 ? projectIndex + 1 : null;
-		}).filter(isInteger);
+		}).filter(isInteger))];
 		const selectionProperties: Record<string, unknown> & {
 			START: number;
 			END: number;
