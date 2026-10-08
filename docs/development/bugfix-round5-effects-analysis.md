@@ -336,3 +336,32 @@ two-tab workflow passes Chromium, Firefox and WebKit on immutable `a3d463c31`
 (3/3, 26.9 seconds, no skips or failures;
 `/tmp/soundscaper-r5-root-source-audition-readonly-green13.log`). Both normal
 guarded product builds pass. ROOT-011 is counted once.
+
+## R5-ROOT-012 — Source effects reject an ordinary surround recording
+
+Import a normal six-channel WAV recording. Open Clip properties, focus Source
+waveform and select all. Effect → Special → Invert refuses the operation with
+“The effect did not produce valid audio.” Spectral Delete in the Source editor
+shares the result publication failure. The existing importer, source editor
+and DSP retain all six native channels, but the result service admits two.
+
+Admit the existing source format's bounded 1–32 channel layout for source
+results. Require the same original channel count and preserve native sample
+rate, samples outside the source selection and timeline placements. The
+timeline selection result retains its stereo bound. These effects share one
+source result admission root.
+
+Ordinary immutable-baseline Chromium Invert and Spectral Delete fail
+(`/tmp/soundscaper-r5-root-source-multichannel-effects-baseline.log` and
+`/tmp/soundscaper-r5-root-source-multichannel-spectral-baseline.log`). A separate
+read-only toast observer records the exact refusal in four seconds
+(`/tmp/soundscaper-r5-root-source-multichannel-toast-observer.log`). Six- and
+32-channel strict source→DSP→persistence→real product command cases fail at
+that admission; mono, stereo and bounded-layout controls pass
+(`/tmp/soundscaper-r5-root-source-multichannel-node-red3.log`). Early test
+loader and wrong command-profile fixture failures are excluded. Corrected
+source result, PCM and command support passes 31/31. Regressions are
+`audio-editor-round5-source-multichannel-effects.test.ts` and
+`audio-editor-round5-source-multichannel-effects.spec.js`. Final ordinary
+downloaded PCM inversion, Undo/Redo and spectral deletion verification is
+pending a new immutable production checkpoint. ROOT-012 is not yet counted.
