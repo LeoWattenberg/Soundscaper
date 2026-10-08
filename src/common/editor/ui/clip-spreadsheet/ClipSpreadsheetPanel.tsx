@@ -22,6 +22,7 @@ import {
 	type SpreadsheetCell, type SpreadsheetRange,
 } from './clipboard.ts';
 import { matchClipSpreadsheetSourceFiles, planClipSpreadsheetPaste } from './paste.ts';
+import { spreadsheetOwnsKeyboard } from './keyboard-ownership.ts';
 import './clip-spreadsheet.css';
 
 interface SpreadsheetController {
@@ -258,6 +259,7 @@ function ClipSpreadsheetSurface({ controller, snapshot, copy, fileService }: Cli
 		catch (cause) { setError(feedbackFailure(cause)); }
 	}
 	function handleKey(event: KeyboardEvent<HTMLTableElement>): void {
+		if (event.defaultPrevented || !spreadsheetOwnsKeyboard(event, draft !== null)) return;
 		if (event.key === 'Escape' && !draft) {
 			if (hasSelection) { event.preventDefault(); event.stopPropagation(); clearSelection(); }
 			return;
@@ -323,7 +325,9 @@ function ClipSpreadsheetSurface({ controller, snapshot, copy, fileService }: Cli
 	liveRowActions.current = { finishEdit, selectCell, beginEdit, updateDraft, apply, selectRow: (row, extend) => headerRange('row', row, extend), isDraftActive: () => draft !== null, registerCell: cellIndex.register };
 	const closeFeedback = (): void => { if (!pasting) { setPendingPaste(null); setError(''); } };
 	return <div className="audio-editor-clip-spreadsheet" data-clip-spreadsheet>
-		<div className="audio-editor-clip-spreadsheet__content" onKeyDown={event => { if (!['Escape', 'Tab'].includes(event.key) || draft) event.stopPropagation(); }}>
+		<div className="audio-editor-clip-spreadsheet__content" onKeyDown={event => {
+			if (spreadsheetOwnsKeyboard(event, draft !== null) && (!['Escape', 'Tab'].includes(event.key) || draft)) event.stopPropagation();
+		}}>
 			<input ref={filesRef} type="file" multiple hidden accept="audio/*,.aac,.aif,.aiff,.bw64,.flac,.m4a,.mp2,.mp3,.oga,.ogg,.opus,.rf64,.wav,.wave,.wavpack,.wv"
 				onChange={event => {
 					const files = Array.from(event.currentTarget.files ?? []);
