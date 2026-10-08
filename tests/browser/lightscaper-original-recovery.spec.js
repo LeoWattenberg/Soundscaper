@@ -50,7 +50,7 @@ for (const locale of ['en', 'de']) {
 
 	test(`${locale}: recovery remains reachable after failed startup and ACK precedes provisional promotion`, async ({ page, browserName }) => {
 		qualify(browserName);
-		const context = await setup(page, locale);
+		const context = await setup(page, locale, true);
 		const { app, copy, ids, before } = context;
 		const fault = await observer(page, 'seedOriginalRecoveryFaultV1', ids, 'provisional-missing-row');
 		const missing = await observe(page, ids);
@@ -59,6 +59,7 @@ for (const locale of ['en', 'de']) {
 		expect(missing.authority.roots.filter(root => root.importId === fault.importId)).toHaveLength(1);
 		expect(missing.authority.intent).toEqual({ schemaVersion: 1, kind: 'photo-import', catalogId: before.root.id, importId: fault.importId });
 		await page.reload(); await expect(app).toBeVisible();
+		await observer(page, 'prepareOriginalRecoveryRetryV1');
 		await action(page, app, copy.photoViewMenu, copy.photoShowLibrary);
 		await expect(app.getByRole('alert')).toBeVisible();
 		const dialog = await openRecovery(page, app, copy);
@@ -139,7 +140,7 @@ function qualify(browserName) {
 	test.skip(browserName === 'webkit', 'Full WebKit catalog Blob/OPFS custody qualification remains deferred.');
 	test.setTimeout(120_000);
 }
-async function setup(page, locale) {
+async function setup(page, locale, prepareRetry = false) {
 	const requests = [], errors = [];
 	page.on('request', request => { requests.push(request.url()); }); page.on('pageerror', error => { errors.push(error.message); });
 	const bundle = await build({ stdin: {
@@ -152,6 +153,7 @@ async function setup(page, locale) {
 	const app = page.locator('[data-lightscaper-bound="true"]'); await expect(app).toBeVisible();
 	const copy = await observer(page, 'copyForLocale', locale);
 	await expect(page.getByRole('dialog')).toHaveCount(0); await expect(app.locator('[data-photo-library]')).toHaveCount(0);
+	if (prepareRetry) await observer(page, 'prepareOriginalRecoveryRetryV1');
 	await action(page, app, copy.photoFileMenu, copy.photoImportPhotos);
 	const importer = page.getByRole('dialog', { name: copy.photoImportPhotos, exact: true });
 	await importer.locator('input[type=file]').setInputFiles(['東京 é.PNG', 'Second.png'].map(name => ({ name, mimeType: 'image/png', buffer: PNG })));

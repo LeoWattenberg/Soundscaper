@@ -174,16 +174,42 @@ export function releaseOriginalRecoveryReadV1(): void {
 	readHold.released = true; readHold.release(); readHold.restore();
 }
 
-interface RetryHold { publicationCompleted: boolean; entered: boolean; released: boolean; release: () => void; restore: () => void }
+interface RetryHold { publicationCompleted: boolean; entered: boolean; released: boolean; wait: Promise<void>; release: () => void; restore: () => void }
+interface RetryPreparation { active: boolean; hold: RetryHold | null; restore: () => void }
 let retryHold: RetryHold | null = null;
+let retryPreparation: RetryPreparation | null = null;
+
+/** Install transparently before Session captures its bound request; arming still occurs just before Restore. */
+export function prepareOriginalRecoveryRetryV1(): void {
+	if (retryPreparation?.active) throw new Error('A recovery retry observer is already prepared.');
+	const nativeRequest = LockManager.prototype.request;
+	const prepared: RetryPreparation = { active: true, hold: null, restore: () => {
+		prepared.active = false; LockManager.prototype.request = nativeRequest;
+		if (retryPreparation === prepared) retryPreparation = null;
+	} };
+	retryPreparation = prepared;
+	LockManager.prototype.request = function (this: LockManager, ...args: Parameters<LockManager['request']>) {
+		const hold = prepared.hold;
+		if (prepared.active && hold && !hold.released && hold.publicationCompleted && !hold.entered
+			&& args[0] === `lightscaper-photo-library:namespace:${PHOTO_LIBRARY_DEFAULT_CATALOG_DATABASE_NAME_V2}`) {
+			hold.entered = true;
+			return hold.wait.then(() => Reflect.apply(nativeRequest, this, args) as Promise<unknown>);
+		}
+		return Reflect.apply(nativeRequest, this, args) as Promise<unknown>;
+	} as typeof nativeRequest;
+}
+
 /** This default-library fixture holds its exact selected catalog lease after the actual media publication commits. */
 export function holdOriginalRecoveryRetryV1(assetId: string): void {
 	if (retryHold && !retryHold.released) throw new Error('A recovery retry gate is already pending.');
+	const prepared = retryPreparation;
+	if (!prepared?.active) throw new Error('The recovery retry observer must be prepared before Session creation.');
 	const put = IDBObjectStore.prototype.put, transaction = IDBDatabase.prototype.transaction;
-	const nativeRequest = LockManager.prototype.request, written = new WeakSet<IDBTransaction>(); let release!: () => void;
+	const written = new WeakSet<IDBTransaction>(); let release!: () => void;
 	const gate = new Promise<void>(resolve => { release = resolve; });
-	const hold: RetryHold = { publicationCompleted: false, entered: false, released: false, release,
-		restore: () => { IDBObjectStore.prototype.put = put; IDBDatabase.prototype.transaction = transaction; LockManager.prototype.request = nativeRequest; } };
+	const hold: RetryHold = { publicationCompleted: false, entered: false, released: false, wait: gate, release,
+		restore: () => { IDBObjectStore.prototype.put = put; IDBDatabase.prototype.transaction = transaction; prepared.restore(); } };
+	prepared.hold = hold;
 	retryHold = hold;
 	IDBDatabase.prototype.transaction = function (this: IDBDatabase, ...args: Parameters<IDBDatabase['transaction']>) {
 		const native = Reflect.apply(transaction, this, args) as IDBTransaction;
@@ -206,19 +232,12 @@ export function holdOriginalRecoveryRetryV1(assetId: string): void {
 		}
 		return result;
 	};
-	LockManager.prototype.request = function (this: LockManager, ...args: Parameters<LockManager['request']>) {
-		if (hold.publicationCompleted && !hold.entered
-			&& args[0] === `lightscaper-photo-library:namespace:${PHOTO_LIBRARY_DEFAULT_CATALOG_DATABASE_NAME_V2}`) {
-			hold.entered = true;
-			return gate.then(() => Reflect.apply(nativeRequest, this, args) as Promise<unknown>);
-		}
-		return Reflect.apply(nativeRequest, this, args) as Promise<unknown>;
-	} as typeof nativeRequest;
 }
 export function originalRecoveryRetryStateV1() {
 	return retryHold ? { publicationCompleted: retryHold.publicationCompleted, entered: retryHold.entered, released: retryHold.released } : null;
 }
 export function releaseOriginalRecoveryRetryV1(): void {
-	if (!retryHold) return;
-	retryHold.released = true; retryHold.release(); retryHold.restore();
+	if (retryHold && !retryHold.released) {
+		retryHold.released = true; retryHold.release(); retryHold.restore();
+	} else retryPreparation?.restore();
 }
