@@ -303,7 +303,7 @@ export default function ProjectBinPanel({ controller, snapshot, copy: providedCo
 			data-project-bin-drop-target
 			data-drop-active={dropActive ? 'true' : 'false'}
 			data-project-bin-disabled={mutationBlocked ? 'true' : 'false'}
-			aria-disabled={mutationBlocked ? 'true' : undefined}
+			aria-disabled={selectionBlocked ? 'true' : undefined}
 			{...dropHandlers}
 		>
 			<input
