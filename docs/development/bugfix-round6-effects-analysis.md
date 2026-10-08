@@ -3,6 +3,12 @@
 Only distinct normal-user-path defects qualify. Earlier roots, unsupported
 operations, adversarial inputs and unavailable internal actions are excluded.
 
+R6-EFFECT-001–011 pass their ordinary public workflows in Chromium, Firefox and
+WebKit on immutable Green7 `e139818a9`
+(`/tmp/soundscaper-round6-checkpoint50-round6-browser.log`). Firefox uses the
+repository's qualified CI audio null sink. R6-EFFECT-012 remains pending public
+GREEN on a later build and is not yet counted.
+
 ## R6-EFFECT-001 — A one-symbol DTMF draft resets the authored duty cycle
 
 Open Generate → DTMF tones, set Duty cycle to 50%, replace Sequence with `1`,
@@ -161,8 +167,8 @@ An earlier click on an obscured overlapping header timed out; the final workflow
 uses supported clip focus/Enter and that setup failure is excluded. All 26
 new/existing target-selection and spectral/tool action regressions pass after
 admission repair (`/tmp/soundscaper-r6-effects-spectral-clip-admission-node-green.log`).
-Targeted type-aware lint and strict types pass. Public GREEN awaits the next
-immutable product build. This effects-admission owner is independent of the
+Targeted type-aware lint and strict types pass. Both exported-audio workflows
+pass in all three engines on Green7 `e139818a9`. This effects-admission owner is independent of the
 earlier macro frequency command's metadata correction.
 
 ## R6-EFFECT-008 — Macro effects overwrite frequencies outside the authored band
@@ -253,8 +259,9 @@ unaligned controls pass
 (`/tmp/soundscaper-r6-effects-macro-linked-truncate-node-red.log`). All 32
 new/existing macro service, stereo-truncation and spectral-targeting regressions
 pass after repair (`/tmp/soundscaper-r6-effects-macro-linked-truncate-node-green.log`).
-Targeted type-aware lint, strict types and the file-size gate pass. Public GREEN
-awaits the next immutable product build. R3-ROOT-018 corrected the ordinary
+Targeted type-aware lint, strict types and the file-size gate pass. The exported
+shared-pause duration passes in all three engines on Green7 `e139818a9`.
+R3-ROOT-018 corrected the ordinary
 effect/Preview joint-job admission; R3-ROOT-019's macro follow-through corrected
 the separate per-channel independence flag. This macro-service multi-track
 barrier owner remained independent of both.
@@ -278,13 +285,44 @@ output (`/tmp/soundscaper-r6-effects-nyquist-selected-tracks-browser-red.log`).
 The strict host regression separately fails with `[1,1]` instead of `[1]`,
 while fourteen controls pass
 (`/tmp/soundscaper-r6-effects-nyquist-selected-tracks-node-red.log`). All twenty
-new/existing host, controller, native source-bound and source-tempo cases pass
+new/existing host, native source-bound and source-tempo cases pass
 after repair, including distinct owning tracks
 (`/tmp/soundscaper-r6-effects-nyquist-selected-tracks-node-green.log`). Strict
-types and targeted type-aware lint pass. Public GREEN awaits the next immutable
-product build. Earlier
+types and targeted type-aware lint pass. The ordinary split-clip Nyquist output
+passes in all three engines on Green7 `e139818a9`. Earlier
 native Source clock, tempo and clip-bound corrections concern independent
 metadata owners.
+
+## R6-EFFECT-012 — Nyquist generators do not replace all selected recordings
+
+Import two ordinary one-second mono recordings containing 1 kHz and 2 kHz
+tones. Shift-select both clip headers, or select all to create a positive time
+range across both tracks. Generate → Nyquist → Risset Drum: set Decay to one
+second and Amount of noise to zero, apply, and export WAV. The baseline leaves
+the original tones audible: a header selection inserts another clip, and a
+time range replaces only the focused track.
+
+The generated-audio publisher admits only a positive active selection and one
+focused target. Resolve timeline clip selections and publish the generated
+channels through the existing atomic plural effect-result owner, preserving
+each track's channel width and one Undo. Keep insertion without a selection and
+native Source focus behavior unchanged; check storage before copying output.
+Header and range variants are one selection-admission defect in this publisher.
+
+Both unchanged menu workflows fail causally at the delivered 1 kHz amplitude,
+about 0.1414 instead of below 0.005
+(`/tmp/soundscaper-r6-effects-nyquist-generator-targets-browser-red.log`,
+`/tmp/soundscaper-r6-effects-nyquist-generator-ranges-browser-red.log`). Two
+strict regressions fail at the missing plural replacement while seven controls
+pass (`/tmp/soundscaper-r6-effects-nyquist-generator-targets-node-red.log`). The
+79 focused generated-audio, Nyquist controller/host, duration, native-generator,
+effect-result and native Source metadata cases pass after repair, including
+insertion and Source-focus controls
+(`/tmp/soundscaper-r6-effects-nyquist-generator-targets-node-green2.log`). Strict
+types and targeted type-aware lint pass. Public GREEN awaits the next immutable
+product build; its assertions check both replaced tones and both originals
+restored by one Undo. R3-ROOT-017 and EDIT012 concern the independently owned
+native-generator adapter and allocator, respectively.
 
 These corrections do not change the assistance runtime closure or require a
 manual **Update AI assets** run.
