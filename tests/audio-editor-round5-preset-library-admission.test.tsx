@@ -60,6 +60,22 @@ test('production finishing Apply refuses an audio target while retaining library
 	} finally { await fixture.cleanup(); }
 });
 
+test('completed preset Save canonicalizes accented names without changing the typing draft', async () => {
+	const fixture = await mountPresets({ kind: 'visual', selected: true });
+	try {
+		const name = fixture.dom.one('[data-framescaper-authoring-preset-name]');
+		await act(async () => { reactProps(name).onChange({ currentTarget: { value: 'Cafe\u0301 review' } }); });
+		assert.equal(name.value, 'Cafe\u0301 review');
+		await act(async () => { reactProps(fixture.dom.one('[data-framescaper-authoring-save-visual]')).onClick(); });
+		assert.equal(fixture.commits(), 1);
+		const presets = fixture.project().videoVisualPresets;
+		assert.ok(Array.isArray(presets));
+		assert.ok(presets.some((entry: unknown) => entry !== null && typeof entry === 'object'
+			&& 'name' in entry && entry.name === 'Café review'));
+		assert.equal(name.value, 'Cafe\u0301 review', 'composition stays local until a completed action');
+	} finally { await fixture.cleanup(); }
+});
+
 function effectivelyDisabled(control: ReactTestElement): boolean {
 	const fieldset = control.closest('fieldset');
 	return Boolean(reactProps(control).disabled || (fieldset && reactProps(fieldset).disabled));
@@ -80,9 +96,12 @@ async function mountPresets(options: Readonly<{
 		selection: { clipIds: options.selected ? ['picture'] : [] }, primarySequenceId: 'sequence',
 		sequences: [{ id: 'sequence', trackIds: ['track'], rate: { num: 30, den: 1 } }],
 		tracks: [{ id: 'track', type: options.clipKind === 'audio' ? 'audio' : 'video', clipIds: ['picture'] }],
-		clips: [{ id: 'picture', kind: options.clipKind ?? 'generator', sourceId: 'source', sequenceId: 'sequence', sequenceStartFrame: 0, sequenceFrameCount: 150 }],
+		clips: [{ schemaVersion: 1, id: 'picture', kind: options.clipKind ?? 'generator', sourceId: 'source', sequenceId: 'sequence',
+			sequenceStartFrame: 0, sequenceFrameCount: 150, sourceInFrame: 0, sourceFrameCount: 150 }],
 		sources: options.clipKind === 'audio' ? [{ id: 'source', kind: 'audio', name: 'Voice', sampleRate: 48_000, channels: 1, frames: 48_000 }]
-			: [{ id: 'source', kind: 'generator', name: 'Solid', generator: { kind: 'solid', color: '#000000ff' } }],
+			: [{ schemaVersion: 1, id: 'source', kind: 'generator', name: 'Solid', width: 128, height: 72,
+				frameRate: { num: 30, den: 1 }, frameCount: 150, generator: { kind: 'solid', color: '#000000ff' } }],
+		projectBin: { clips: [] },
 		videoAdjustmentLayers: [], videoVisualPresentations: [], videoMaskMattes: [], videoFreezeFallbacks: [],
 		videoVisualPresets: options.kind === 'visual' ? [{ schemaVersion: 1, kind: 'video-preset', id: 'saved',
 			name: 'Keyboard solid', modelKind: 'generator', authoredStateSha256: 'ab'.repeat(32) }] : [],
@@ -94,8 +113,12 @@ async function mountPresets(options: Readonly<{
 		getSnapshot: () => ({ selectedClipId: options.selected ? 'picture' : null }),
 		getTelemetrySnapshot: () => ({ positionFrame: 0 }), actions: { edit: { commit(value: unknown) {
 			const next = structuredClone(project);
-			if (options.kind === 'visual') applyFramescaperOwnedVisualCommandVisual(next, snapshotFramescaperOwnedVisualCommandVisual(value));
-			else applyFramescaperOwnedFinishingCommandFinishing(next, snapshotFramescaperOwnedFinishingCommandFinishing(value));
+			const children = value !== null && typeof value === 'object' && 'type' in value && value.type === 'batch'
+				&& 'commands' in value && Array.isArray(value.commands) ? value.commands as unknown[] : [value];
+			for (const child of children) {
+				if (options.kind === 'visual') applyFramescaperOwnedVisualCommandVisual(next, snapshotFramescaperOwnedVisualCommandVisual(child));
+				else applyFramescaperOwnedFinishingCommandFinishing(next, snapshotFramescaperOwnedFinishingCommandFinishing(child));
+			}
 			project = next;
 			commits += 1;
 			render();

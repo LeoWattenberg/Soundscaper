@@ -303,7 +303,7 @@ function requestFor(operation: string, model: Model, values: Values) {
 		playheadSample: model.fence.playheadSample, durationFrames: values.freezeDuration };
 	const finishing = operation === 'apply-finishing' || operation === 'remove-finishing';
 	return { ...base, presetId: (finishing ? values.finishingPresetId : values.visualPresetId) || null,
-		name: values.presetName };
+		name: values.presetName.normalize('NFC') };
 }
 
 function selectedPair(model: Model, pairId: string) {

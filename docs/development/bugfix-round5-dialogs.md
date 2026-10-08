@@ -69,3 +69,15 @@ retained source window and one Undo; all ten new/existing panel cases pass.
 The initial native-count expectation assumed 30 fps instead of this Node
 fixture's actual 10 fps sequence and was corrected without changing its two
 second timing assertion. The complete public duration edit, close/reopen and one Undo workflow passes all three engines against immutable green8 `1b0706150` (3/3).
+
+Uncounted D025 completed-name sibling: Framescaper → Add Solid → Save Visual
+Preset; enter Cafe followed by a combining acute accent and review in Preset
+name, then Save selected generator preset. The ordinary immutable Chromium
+workflow reports “visual preset name must be canonical safe text.” Normalize
+only the completed request name to NFC, keeping the typing draft unchanged and
+the native validator strict. The faithfully mounted production Save first
+makes no commit, then saves the canonical name through the real native source,
+project-bin clip and preset batch in one commit. All 14 new/existing library and
+removal-focus checks pass. Targeted lint and focused strict compiler pass;
+public canonical-option readback and Undo/Redo verification is pending. This is
+another completed user-text boundary under D025, with no new ID.

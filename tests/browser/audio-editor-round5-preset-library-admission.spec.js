@@ -86,3 +86,33 @@ test('finishing presets apply to a visual occurrence and remain removable with a
 	await expect(picker.getByRole('option', { name: 'Delivery finish', exact: true })).toHaveCount(1);
 	await expect(dialog.getByRole('button', { name: 'Apply as fresh presentation', exact: true })).toBeDisabled();
 });
+
+test('saving an accented preset Name preserves its canonical option and history', async ({ page }) => {
+	test.setTimeout(60_000);
+	const editor = await bootEditor(page, '/framescaper/embed/en/');
+	await chooseNestedCommandAction(page, editor, 'Generate', ['Video Generators', 'Add Solid']);
+	await editor.getByRole('group', { name: 'Video clip: Solid', exact: true }).press('Enter');
+	const openPresets = async () => {
+		await chooseNestedCommandAction(page, editor, 'Generate', ['Video Generators', 'Save Visual Preset']);
+		return page.getByRole('dialog', { name: 'Selected Visual Presets', exact: true });
+	};
+	let dialog = await openPresets();
+	await dialog.getByRole('textbox', { name: 'Preset name', exact: true }).fill('Café');
+	await dialog.getByRole('button', { name: 'Save selected generator preset', exact: true }).click();
+	await expect(dialog.getByRole('status')).toHaveText('Selected visual preset saved.');
+	await dialog.getByRole('textbox', { name: 'Preset name', exact: true }).fill('Cafe\u0301 review');
+	await dialog.getByRole('button', { name: 'Save selected generator preset', exact: true }).click();
+	await expect(dialog.getByRole('combobox', { name: 'Saved visual preset', exact: true })
+		.getByRole('option', { name: 'Café review', exact: true })).toHaveCount(1);
+	await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+	await editor.getByRole('button', { name: 'Undo', exact: true }).click();
+	dialog = await openPresets();
+	let picker = dialog.getByRole('combobox', { name: 'Saved visual preset', exact: true });
+	await expect(picker.getByRole('option', { name: 'Café', exact: true })).toHaveCount(1);
+	await expect(picker.getByRole('option', { name: 'Café review', exact: true })).toHaveCount(0);
+	await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+	await editor.getByRole('button', { name: 'Redo', exact: true }).click();
+	dialog = await openPresets();
+	picker = dialog.getByRole('combobox', { name: 'Saved visual preset', exact: true });
+	await expect(picker.getByRole('option', { name: 'Café review', exact: true })).toHaveCount(1);
+});
