@@ -26,6 +26,8 @@ belong in Git history, not in the maintained documentation set.
   defines bounded menu-owned browsing, import bridges, and resource lifetime.
 - [Opt-in photo import options](architecture/lightscaper-import-options-ui.md)
   defines authored drafts, explicit preset loading, and durable import acknowledgements.
+- [Photo batch rename](architecture/lightscaper-batch-rename.md)
+  defines bounded name plans and revision-fenced per-photo publication.
 - [Disposable photo preview preparation](architecture/lightscaper-preview-preparation.md)
   defines shared resize recipes and bounded original-free preview bodies.
 - [Photo catalog definitions](architecture/lightscaper-catalog-definitions.md)
