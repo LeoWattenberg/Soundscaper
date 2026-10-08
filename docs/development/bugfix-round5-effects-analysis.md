@@ -629,3 +629,31 @@ or failures; `/tmp/soundscaper-r5-root-rack-prefix-automation-green28.log`).
 The exact complete profile comparison and original 90-second deadline remain
 unchanged. Both guarded product builds pass. ROOT-020 is counted once.
 Assistance runtime assets are unchanged.
+
+## R5-ROOT-021 — Routing navigation swallows a configured project shortcut
+
+Import an ordinary WAV. In Preferences → Keyboard shortcuts, assign
+Ctrl+Alt+Right to New label track. Open Window → Mixer → Routing graph,
+focus the recording's node and press that chord. Instead of executing the
+configured command, the graph moves focus to another node and prevents the
+event; no label track appears. Its independent node, port, connection and
+cancellation handlers claim modified and already-handled keys.
+
+Keep the graph's plain navigation, port connection, deletion and Escape
+cancellation with its local owner. Leave Ctrl/Meta/Alt commands and keys
+already handled by another owner available for project/browser dispatch.
+Node, wire, port and cancellation manifestations share this graph root;
+earlier EQ, timeline, fader and spreadsheet handlers are separate owners.
+
+The complete immutable-baseline Chromium workflow passes ordinary arrow
+navigation, then fails at zero label tracks after the configured chord
+(`/tmp/soundscaper-r5-root-routing-shortcuts-baseline.log`). Four faithfully
+mounted production modifier/ownership cases independently fail while the
+plain navigation/connection/cancellation control passes. New and existing
+routing view, inspector, mixer integration and command support passes 21/21
+after correction. The initial mounted test used a compound selector absent
+from the test DOM and is excluded as a harness failure. Target lint,
+changed-file lint, focused strict test types and the size gate pass. Regressions are
+`audio-editor-round5-routing-shortcuts.test.tsx` and
+`audio-editor-round5-routing-shortcuts.spec.js`. Corrected browser verification
+is pending; ROOT-021 is not counted yet. Assistance runtime assets are unchanged.
