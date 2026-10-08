@@ -550,6 +550,11 @@ excluded as a harness failure. Those regressions and existing band selection,
 deletion and automation gestures pass 14/14 afterward. Regressions are
 `audio-editor-round5-parametric-eq-shortcut.test.tsx` and
 `audio-editor-round5-parametric-eq-shortcut.spec.js`. Target lint, changed-file
-lint, strict test types and the size gate pass. All-browser verification is
-pending; ROOT-018 is not yet included in the verified count. Assistance runtime
-assets are unchanged.
+lint, strict test types and the size gate pass. Immutable `a2b649a5c` passes
+the complete configured-command → unchanged modified band → ordinary arrow
+edit → command after closing the dialog workflow in Chromium, Firefox and
+WebKit. The original keyboard-band-selection control also passes all three
+engines (6/6 combined, 1.3 minutes, no skips or failures;
+`/tmp/soundscaper-r5-root-parametric-eq-shortcut-green24.log`). Both guarded
+product builds pass. ROOT-018 is counted once. Assistance runtime assets
+are unchanged.
