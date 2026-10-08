@@ -67,7 +67,7 @@ export function snapSpectralCenterToPeak(frequency: number, peaks: readonly numb
 export function spectralSelectionPeaks(channels: readonly Float32Array[], sampleRate: number, size = 2_048): number[] {
 	if (!channels.length || !channels[0]?.length || sampleRate <= 0) return [];
 	const power = new Float64Array(size / 2 + 1);
-	for (const channel of channels.slice(0, 2)) {
+	for (const channel of channels) {
 		const last = Math.max(0, channel.length - size);
 		for (const offsetFrame of new Set([0, Math.floor(last / 2), last])) {
 			const spectrum = calculateAudioSpectrum([channel], sampleRate, { size, offsetFrame });
@@ -123,7 +123,7 @@ export function selectedTrackSpectralPeaks(
 		const buffer = visual.buffer;
 		const offset = buffer ? 0 : window?.startFrame ?? 0;
 		const channels = buffer
-			? Array.from({ length: Math.min(2, buffer.numberOfChannels) }, (_, index) => buffer.getChannelData(index))
+			? Array.from({ length: buffer.numberOfChannels }, (_, index) => buffer.getChannelData(index))
 			: window?.channels ?? [];
 		const selectedChannels = channels.map(channel => channel.subarray(
 			Math.max(0, Math.floor(sourceRange.startFrame - offset)),

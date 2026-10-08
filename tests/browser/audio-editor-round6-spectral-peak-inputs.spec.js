@@ -4,7 +4,7 @@ import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js'
 import { bootEditor, chooseCommandAction, clipByName, clipField, closeClipProperties,
 	importFiles, openClipProperties } from './audio-editor-test-helpers.js';
 
-for (const mode of ['independent tempo']) {
+for (const mode of ['independent tempo', 'surround channel']) {
 	test(`spectral center snapping includes the sounding ${mode}`, async ({ page }) => {
 		await page.setViewportSize({ width: 1920, height: 1000 });
 		const editor = await bootEditor(page, '/embed/en/');
