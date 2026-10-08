@@ -17,7 +17,7 @@ test('caption file interchange recognizes every selected V27 sidecar extension',
 	assert.throws(() => captionSidecarFormatForFileName('captions.txt'), /extension|format/iu);
 });
 
-test('browser and desktop caption picks stay pathless and decode strict UTF-8', async () => {
+test('browser and desktop caption picks stay pathless and decode their format text', async () => {
 	const browser = new File(['WEBVTT\n'], 'captions.vtt', { type: 'text/vtt' });
 	assert.deepEqual(await openFramescaperCaptionSidecarFile({ file: browser }), {
 		format: 'webvtt', fileName: 'captions.vtt', text: 'WEBVTT\n',
@@ -43,7 +43,7 @@ test('browser and desktop caption picks stay pathless and decode strict UTF-8', 
 		fileService: { isDesktop: true, chooseFiles: () => [] },
 	}), null);
 
-	const invalid = new File([Uint8Array.from([0xc3, 0x28])], 'captions.srt');
+	const invalid = new File([Uint8Array.from([0xc3, 0x28])], 'captions.vtt');
 	await assert.rejects(() => openFramescaperCaptionSidecarFile({ file: invalid }), /UTF-8/iu);
 });
 

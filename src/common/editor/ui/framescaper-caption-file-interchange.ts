@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { VideoCaptionInterchangeFormatV1 } from '../video-caption-interchange-contract-v27.ts';
+import { decodeLabelInputText } from '../label-input-text.ts';
 
 export interface FramescaperCaptionFileService {
 	readonly isDesktop?: boolean;
@@ -26,7 +27,6 @@ export interface FramescaperCaptionSidecarFile {
 }
 
 const MAXIMUM_CAPTION_SIDECAR_BYTES = 16 * 1024 * 1024;
-const UTF8 = new TextDecoder('utf-8', { fatal: true });
 
 const FORMATS = Object.freeze({
 	srt: Object.freeze({ extension: 'srt', mimeType: 'application/x-subrip;charset=utf-8' }),
@@ -76,7 +76,7 @@ export async function openFramescaperCaptionSidecarFile(input: Readonly<{
 	const format = captionSidecarFormatForFileName(fileName);
 	let text: string;
 	try {
-		text = UTF8.decode(await body.arrayBuffer());
+		text = decodeLabelInputText(await body.arrayBuffer(), format === 'srt');
 	} catch (error) {
 		throwIfAborted(input.signal);
 		throw new TypeError('The caption sidecar must be strict UTF-8.', { cause: error });
