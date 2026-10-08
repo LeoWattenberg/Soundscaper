@@ -155,6 +155,7 @@ export interface EffectMacroServiceRuntime<Buffer = MacroRenderBuffer> {
 		channelCount: number,
 		clipIds?: readonly string[],
 	) => Promise<readonly Float32Array[]>;
+	readonly renderControlTrackRange?: (trackId: string, target: EffectTarget) => Promise<readonly Float32Array[]>;
 	readonly runSelectionEffectWorker: (request: Readonly<{
 		operation: 'apply';
 		effectType: string;
@@ -432,6 +433,9 @@ export function createEffectMacroService<Buffer = MacroRenderBuffer>(runtime: Ef
 			assertCurrent: () => assertOwnership(runtime, ownership),
 			projectFrameCount: () => target.sourceFrameCount ?? runtime.projectFrameCount(),
 			renderDryRange: runtime.renderDryTrackRange,
+			renderControlTrackRange: runtime.renderControlTrackRange ? (trackId, current) => runtime.renderControlTrackRange!(
+				trackId, { ...target, endFrame: current.endFrame, durationFrames: current.endFrame - current.startFrame },
+			) : undefined,
 			runSelectionEffect: runtime.runSelectionEffectWorker, runSelectionEffectChain: runtime.runSelectionEffectChain,
 			createAudioBuffer: runtime.createAudioBuffer,
 			renderSnapshot: runtime.renderStagedSnapshot,

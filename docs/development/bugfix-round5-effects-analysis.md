@@ -134,3 +134,27 @@ Regressions are `audio-editor-round5-normalize-preview-gain.test.ts` and
 `audio-editor-round5-normalize-preview-gain.spec.js`. Complete-selection
 statistics follow the existing processor policy and the
 [Normalize definition](https://www.audacityteam.org/manual/effects/volume-and-compression/normalize/).
+## R5-ROOT-006 — A staged Auto Duck macro loses its real control track
+
+Import ordinary music (24 kHz in the regression) and voice (48 kHz) WAVs. Mute the voice for listening, open the
+music's Clip properties, select all in Source waveform, and choose Tools →
+Macros palette → New macro → Add effect → Auto Duck → Run macro. A valid
+second audio track exists and the ordinary Auto Duck effect can use it. The
+baseline refuses the macro: “Auto Duck requires a valid control track.”
+
+Rack materialization correctly chooses the voice, but a source macro's
+one-clip temporary render discards every other track. A realtime step after an
+offline macro step uses the same staging boundary. Stage the bounded control
+PCM beside the processed selection, preserving the authored control ID without
+mixing it into the output. Source targets use the existing placement and native
+sample-rate renderer; timeline targets retain their ordinary window. Existing
+memory estimates already account for Auto Duck control channels. Each await
+retains the macro's ownership check.
+
+The ordinary Chromium baseline fails with the visible valid-control refusal
+(`/tmp/soundscaper-r5-root-source-macro-duck-red2.log`). Two strict chain cases
+fail because the actual temporary engine project cannot resolve the control.
+Those and the existing source/mixed-rack/lifetime regressions pass after the
+correction (23/23). Target lint passes; public corrected verification is pending.
+This temporary graph ownership defect is independent of earlier regular
+Source Auto Duck placement and selection-edge fade corrections.

@@ -78,6 +78,9 @@ export interface EffectMacroChainRuntime<Buffer = MacroRenderBuffer> {
 		channelCount: number,
 		clipIds?: readonly string[],
 	) => Promise<readonly Float32Array[]>;
+	readonly renderControlTrackRange?: (
+		trackId: string, target: EffectMacroChainTarget,
+	) => Promise<readonly Float32Array[]>;
 	readonly runSelectionEffect: (request: Readonly<{
 		operation: 'apply';
 		effectType: string;
@@ -187,6 +190,7 @@ export function createEffectMacroChainRunner<Buffer = MacroRenderBuffer>(runtime
 	async function renderRackSegment(
 		steps: readonly EffectMacroChainStep[],
 		channels: readonly Float32Array[],
+		target: EffectMacroChainTarget,
 	): Promise<readonly Float32Array[]> {
 		const frames = channels[0]?.length ?? 0;
 		if (!frames) throw createLocalizedError(Error, runtime.copy, 'effectInvalidAudio');
@@ -195,6 +199,30 @@ export function createEffectMacroChainRunner<Buffer = MacroRenderBuffer>(runtime
 		const sourceId = createStableId('macro-step-source');
 		const clipId = createStableId('macro-step-clip');
 		const trackId = createStableId('macro-step-track');
+		const controlSources: Record<string, unknown>[] = [];
+		const controlClips: Record<string, unknown>[] = [];
+		const controlTracks: Record<string, unknown>[] = [];
+		const sourceBuffers = new Map([[sourceId, buffer]]);
+		const controlIds = new Set(steps.filter(step => step.type === 'audacity-auto-duck')
+			.map(step => step.context?.controlTrackId).filter((id): id is string => typeof id === 'string' && Boolean(id)));
+		for (const controlTrackId of controlIds) {
+			const controlTarget = { ...target, endFrame: target.startFrame + frames };
+			const control = runtime.renderControlTrackRange
+				? await runtime.renderControlTrackRange(controlTrackId, controlTarget)
+				: await runtime.renderDryRange(controlTrackId, controlTarget.startFrame, controlTarget.endFrame, 1);
+			runtime.assertCurrent();
+			const controlBuffer = await runtime.createAudioBuffer(control, runtime.sampleRate);
+			runtime.assertCurrent();
+			const controlSourceId = createStableId('macro-control-source');
+			const controlClipId = createStableId('macro-control-clip');
+			sourceBuffers.set(controlSourceId, controlBuffer);
+			controlSources.push({ id: controlSourceId, name: 'Macro control', storageKey: controlSourceId,
+				frameCount: frames, channelCount: control.length, sampleRate: runtime.sampleRate });
+			controlClips.push({ id: controlClipId, sourceId: controlSourceId, timelineStartFrame: 0,
+				durationFrames: frames, sourceStartFrame: 0, sourceDurationFrames: frames });
+			controlTracks.push({ id: controlTrackId, name: 'Macro control', clipIds: [controlClipId],
+				effects: [], gain: 1, pan: 0, mute: false, solo: false });
+		}
 		const project = createAudioPreviewProject({
 			title: 'Macro step',
 			sampleRate: runtime.sampleRate,
@@ -206,7 +234,7 @@ export function createEffectMacroChainRunner<Buffer = MacroRenderBuffer>(runtime
 				frameCount: frames,
 				channelCount: channels.length,
 				sampleRate: runtime.sampleRate,
-			}],
+			}, ...controlSources],
 			clips: [{
 				id: clipId,
 				sourceId,
@@ -215,7 +243,7 @@ export function createEffectMacroChainRunner<Buffer = MacroRenderBuffer>(runtime
 				durationFrames: frames,
 				sourceStartFrame: 0,
 				sourceDurationFrames: frames,
-			}],
+			}, ...controlClips],
 			tracks: [{
 				id: trackId,
 				name: 'Macro step',
@@ -225,7 +253,7 @@ export function createEffectMacroChainRunner<Buffer = MacroRenderBuffer>(runtime
 				pan: 0,
 				mute: false,
 				solo: false,
-			}],
+			}, ...controlTracks],
 		});
 		const rendered = await runtime.renderSnapshot(project, {
 			startFrame: 0,
@@ -236,7 +264,7 @@ export function createEffectMacroChainRunner<Buffer = MacroRenderBuffer>(runtime
 			respectMuteSolo: false,
 			outputFrames: frames,
 			preRollFrames: 0,
-		}, new Map([[sourceId, buffer]]));
+		}, sourceBuffers);
 		runtime.assertCurrent();
 		return runtime.matchSelectionChannels(
 			runtime.audioBufferChannels(rendered),
@@ -254,7 +282,7 @@ export function createEffectMacroChainRunner<Buffer = MacroRenderBuffer>(runtime
 		let channels = initialChannels;
 		for (const segment of segments) {
 			if (segment.realtime) {
-				channels = await renderRackSegment(segment.steps, channels);
+				channels = await renderRackSegment(segment.steps, channels, target);
 				continue;
 			}
 			const steps = segment.steps.map(step => ({ ...step,

@@ -323,6 +323,7 @@ export function createEffectsComposition(dependencies: EffectsCompositionDepende
 			cloneProject: dependencies.projectRuntime.cloneProject,
 			renderSnapshot: dependencies.renderSnapshot,
 			renderStagedSnapshot: createMacroStagedRenderer(dependencies.renderSnapshot),
+			renderControlTrackRange: createSourceControlTrackRenderer(dependencies.getCommandProject, audio.renderDryTrackRange),
 			renderDryTrackRange: (...args) => audio.renderDryTrackRange(...args),
 			// The worker answers an apply request with channels; a reply without them is a failed effect.
 			runSelectionEffectWorker: async (request) => {
