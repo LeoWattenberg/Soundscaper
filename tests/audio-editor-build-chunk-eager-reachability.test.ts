@@ -76,6 +76,7 @@ test('recording notes presentation stays lazy while project note persistence rem
 	for (const path of [
 		'src/common/editor/ui/workspace/RecordingNotesPanel.tsx',
 		'src/common/editor/recording-notes-markdown.ts',
+		'src/common/editor/recording-notes-code.ts',
 	]) {
 		assert.equal(chunkGroupForModulePath(path), 'editor-optional-surfaces', path);
 		assert.equal(chunkGroupForModulePath(path.replaceAll('/', '\\')), 'editor-optional-surfaces', path);

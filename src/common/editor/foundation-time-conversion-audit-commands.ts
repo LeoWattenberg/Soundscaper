@@ -199,6 +199,12 @@ export const FOUNDATION_TIME_CONVERSION_COMMAND_SITES: readonly FoundationTimeCo
 		conversions: [{ helper: 'sampleFrameToVideoFrame', policies: ['enclosingEnd'] }],
 	},
 	{
+		id: 'video-import-companion-audio-offset',
+		file: 'src/common/editor/controller/import/internal/video-import-audio-timing.ts',
+		behavior: 'Whole-file decoded video audio point-rounds its container-relative offset onto its decoded sample grid and encloses the picture duration before padding a delayed track or clipping an earlier track. Timestamp-aware container output already owns this placement.',
+		conversions: [{ helper: 'secondsToSampleFrame', policies: ['enclosingEnd', 'point'] }],
+	},
+	{
 		id: 'video-import-exact-timing-authority',
 		file: 'src/common/editor/controller/import/internal/video-import-timing.ts',
 		behavior: 'Exact timing-sidecar duration is point-rounded once into sample authority before both placement endpoints are point-conformed through the destination sequence grid.',

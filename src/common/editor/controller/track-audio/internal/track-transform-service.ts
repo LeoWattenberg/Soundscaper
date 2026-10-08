@@ -14,6 +14,7 @@ import { loadSourceProvenanceDerivation } from '../../../source-provenance-deriv
 import { resampledClipCommands } from './clip-resample-service.ts';
 import { trackReplacementPlacement } from './track-replacement-placement.ts';
 import { stereoTrackRenderRange } from './stereo-track-render-range.ts';
+import { splitStereoSourceChannels } from './split-stereo-source-channels.ts';
 import { copyDerivedTrackStripAutomation } from '../../../derived-track-strip-automation.ts';
 import { copyDerivedTrackEffectAutomation } from '../../../derived-track-effect-automation.ts';
 import type { DerivedSourceService } from './derived-audio/derived-source-service.ts';
@@ -238,13 +239,14 @@ export function createTrackTransformService(
 				for (const source of sources) {
 					const channels = await dependencies.derivedSources.sourceChannelsForEdit(source);
 					assertOwned(ownership);
+					const [leftChannel, rightChannel] = splitStereoSourceChannels(channels);
 					const left = await dependencies.derivedSources.persistDerivedSource(
-						source, [channels[0]!], `${source.name} — ${publishedCopyFor(dependencies.copy).leftChannel}`, 'left-source',
+						source, [leftChannel], `${source.name} — ${publishedCopyFor(dependencies.copy).leftChannel}`, 'left-source',
 					);
 					derived.push(left);
 					assertOwned(ownership);
 					const right = await dependencies.derivedSources.persistDerivedSource(
-						source, [channels[1] || channels[0]!], `${source.name} — ${publishedCopyFor(dependencies.copy).rightChannel}`, 'right-source',
+						source, [rightChannel], `${source.name} — ${publishedCopyFor(dependencies.copy).rightChannel}`, 'right-source',
 					);
 					derived.push(right);
 					assertOwned(ownership);

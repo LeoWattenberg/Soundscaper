@@ -163,7 +163,7 @@ const deferredSurfaceHelpers = String.raw`ui[\\/](?:clip-spreadsheet[\\/][^\\/]+
 
 /** Menu-opened UI, panel-only domain helpers, and deferred native authoring contracts. */
 export const EDITOR_OPTIONAL_SURFACE_CHUNK_TEST = new RegExp(
-	`(?:${editorPath}(?:${editorOptionalSurfaceModule}|${deferredSurfaceHelpers}|recording-notes-markdown\\.ts|ui[\\\\/]workspace[\\\\/]RecordingNotesPanel\\.tsx|freesound-upload-metadata\\.ts|ui[\\\\/]local-assistance-review-authority\\.ts|local-diagnostics-(?:report|contract)\\.ts|native-ofx-(?:host-contract(?:-v2)?|interact-contract)\\.ts)|src[\\\\/]common[\\\\/]i18n[\\\\/]freesound-attribution-copy\\.js|src[\\\\/]framescaper[\\\\/](?:editor-selected-timeline-image-image-(?:preview|filmstrip|preview-resources)|editor-native-openfx-authoring-model)\\.ts)$`,
+	`(?:${editorPath}(?:${editorOptionalSurfaceModule}|${deferredSurfaceHelpers}|recording-notes-(?:markdown|code)\\.ts|ui[\\\\/]workspace[\\\\/]RecordingNotesPanel\\.tsx|freesound-upload-metadata\\.ts|ui[\\\\/]local-assistance-review-authority\\.ts|local-diagnostics-(?:report|contract)\\.ts|native-ofx-(?:host-contract(?:-v2)?|interact-contract)\\.ts)|src[\\\\/]common[\\\\/]i18n[\\\\/]freesound-attribution-copy\\.js|src[\\\\/]framescaper[\\\\/](?:editor-selected-timeline-image-image-(?:preview|filmstrip|preview-resources)|editor-native-openfx-authoring-model)\\.ts)$`,
 );
 
 /** Split Tool interaction runtimes kept out of the product-ready startup graph. */
