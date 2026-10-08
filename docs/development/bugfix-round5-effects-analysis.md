@@ -362,6 +362,11 @@ that admission; mono, stereo and bounded-layout controls pass
 loader and wrong command-profile fixture failures are excluded. Corrected
 source result, PCM and command support passes 31/31. Regressions are
 `audio-editor-round5-source-multichannel-effects.test.ts` and
-`audio-editor-round5-source-multichannel-effects.spec.js`. Final ordinary
-downloaded PCM inversion, Undo/Redo and spectral deletion verification is
-pending a new immutable production checkpoint. ROOT-012 is not yet counted.
+`audio-editor-round5-source-multichannel-effects.spec.js`. Targeted lint,
+`lint:changed`, strict owning test types and the size gate pass. Immutable
+`92984139e` passes ordinary stereo and six-channel inversion, downloaded PCM
+polarity, Undo/Redo and six-channel spectral deletion across Chromium, Firefox
+and WebKit (9/9, 1.7 minutes, no skips or failures;
+`/tmp/soundscaper-r5-root-source-multichannel-green16.log`). Both guarded
+production builds pass. ROOT-012 is counted once; assistance runtime assets
+are unchanged.
