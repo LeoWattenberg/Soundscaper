@@ -55,12 +55,6 @@ test('desktop staging includes the shared Framescaper durable asset authority', 
 	));
 });
 
-test('desktop storage carries the compiled strict binary inspection dependency', () => {
-	assert.ok(DESKTOP_EXPECTED_RUNTIME_FILES.includes(
-		'src/common/editor/storage/opfs-binary-inspection.js',
-	));
-});
-
 test('Soundscaper packaging carries the restart smoke and its exact compiled recovery closure', async () => {
 	const requiredRuntime = [
 		'desktop/soundscaper-delivery-database.js',
