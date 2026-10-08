@@ -165,13 +165,14 @@ ratchets, without changing application bytes.
 Browser evidence names each exact checkpoint. Firefox audio
 uses the unchanged CI PulseAudio setup with a private 48 kHz null sink.
 
-The canonical gate passes after regenerating its command reference from the
-owning menu inventory and updating stale test contracts: 23,898 Node passes,
-33 skips and no failures, including its isolated preflight. A fresh canonical
-run includes the added legacy-effect regressions. The source-final full browser
-run is also running; both final results remain pending. The earlier browser
+The final canonical gate passes after regenerating its command reference from
+the owning menu inventory and updating stale test contracts. Its main suite
+reports 23,939 tests: 23,906 passes, 33 skips and no failures; the isolated
+preflight adds one pass. This includes the legacy-effect and final capture-owner
+regressions. Static checks, full bounded-memory lint and guarded product builds
+also pass. The source-final full browser inventory remains in progress. The earlier browser
 run was intentionally stopped for the final-source restart after 2,258 passes,
-three failures, four interrupted cases and 40 capability skips; 2,960 cases
+three failures, four interrupted cases and 40 explicit skips; 2,960 cases
 had not run. The two playback/recording timing failures passed unchanged in
 isolated reruns; their raw evidence and timing uncertainty remain retained.
 Current changes do not alter the
