@@ -9,6 +9,11 @@ import {
 	AUDIO_EDITOR_TIMELINE_ANNOTATION_COLORS,
 	type TimelineAnnotationV11,
 } from '../../timeline-annotation.ts';
+export {
+	consumeTimelineAnnotationRenameKey,
+	type TimelineAnnotationRenameKeyInput,
+	type TimelineAnnotationRenameCompletionIntent,
+} from './timeline-annotation-rename-keyboard.ts';
 
 const COLOR_SET: ReadonlySet<string> = new Set(AUDIO_EDITOR_TIMELINE_ANNOTATION_COLORS);
 
@@ -86,17 +91,6 @@ export interface TimelineAnnotationKeyInput {
 	readonly ctrlKey?: boolean;
 	readonly metaKey?: boolean;
 }
-
-export interface TimelineAnnotationRenameKeyInput {
-	readonly key: string;
-	stopPropagation(): void;
-	preventDefault(): void;
-}
-
-export type TimelineAnnotationRenameCompletionIntent = Readonly<{
-	readonly save: boolean;
-	readonly restoreFocus: true;
-}>;
 
 export interface TimelineAnnotationFrameBounds {
 	readonly minimumStartFrame: number;
@@ -261,14 +255,6 @@ export function resolveTimelineAnnotationKeyboardIntent(
 		type: 'move',
 		deltaFrames: deltaFrames || 0,
 	});
-}
-export function consumeTimelineAnnotationRenameKey(
-	event: TimelineAnnotationRenameKeyInput,
-): TimelineAnnotationRenameCompletionIntent | null {
-	event.stopPropagation();
-	if (event.key !== 'Enter' && event.key !== 'Escape') return null;
-	event.preventDefault();
-	return Object.freeze({ save: event.key === 'Enter', restoreFocus: true });
 }
 export function timelineAnnotationPointerDelta(
 	startClientX: number,
