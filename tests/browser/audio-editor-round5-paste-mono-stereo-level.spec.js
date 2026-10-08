@@ -29,6 +29,7 @@ test('pasting mono into an existing stereo recording preserves its listening lev
 	await expect(editor).toHaveAttribute('data-clip-count', '1');
 	await clickClipInterior(page, clipByName(editor, destination.name), 0.25);
 	await chooseNestedCommandAction(page, editor, 'Edit', ['Paste', 'Paste']);
+	await expect(clipByName(editor, destination.name)).toHaveAttribute('aria-label', /1\.6 seconds long$/u);
 	const after = await exportSamples(page, editor);
 	expect(after.length).toBe(before.length * 2);
 	expect(rms(after.slice(19_200, 28_800))).toBeCloseTo(originalLevel, 4);
