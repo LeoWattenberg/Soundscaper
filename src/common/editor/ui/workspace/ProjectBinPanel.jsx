@@ -8,7 +8,7 @@ import { ContextMenuItem } from '@soundscaper/design-system/ContextMenuItem';
 import { DialogHeader } from '@soundscaper/design-system/DialogHeader';
 
 import { AUDIO_EDITOR_TRACK_COLORS } from '../../project-audio-factory.js';
-import { selectAudioEditorBusyBlock, selectAudioEditorEditBlock } from '../edit-blocking.ts';
+import { selectAudioEditorEditBlock } from '../edit-blocking.ts';
 import { createFramescaperVideoProxyApplicationMenuItems } from '../framescaper-video-proxy-application-menu.ts';
 import ProjectBinCard from './ProjectBinCard.jsx';
 import ProjectBinNotices from './ProjectBinNotices.tsx';
@@ -84,7 +84,6 @@ export default function ProjectBinPanel({ controller, snapshot, copy: providedCo
 	const { sourceById, itemSources } = useProjectBinSources(items, project?.sources);
 	const missingSourceIds = new Set(snapshot.missingSourceIds || []);
 	const mutationBlocked = selectAudioEditorEditBlock(snapshot).blocked;
-	const selectionBlocked = selectAudioEditorBusyBlock(snapshot).blocked;
 	const overlayTarget = inputRef.current?.closest('#kw-audio-editor-design-system')
 		?.querySelector('[data-editor-overlay-layer]');
 	const sourceProperties = useProjectBinSourceProperties({ project, controller, copy, disabled: mutationBlocked, overlayTarget });
@@ -303,7 +302,7 @@ export default function ProjectBinPanel({ controller, snapshot, copy: providedCo
 			data-project-bin-drop-target
 			data-drop-active={dropActive ? 'true' : 'false'}
 			data-project-bin-disabled={mutationBlocked ? 'true' : 'false'}
-			aria-disabled={selectionBlocked ? 'true' : undefined}
+			aria-disabled={mutationBlocked ? 'true' : undefined}
 			{...dropHandlers}
 		>
 			<input
@@ -372,7 +371,6 @@ export default function ProjectBinPanel({ controller, snapshot, copy: providedCo
 							copy={copy}
 							locale={locale}
 							mutationBlocked={mutationBlocked}
-							selectionBlocked={selectionBlocked}
 							missing={item.clips.some((clip) => missingSourceIds.has(clip.sourceId))}
 							selectedMediaTrack={selectedMediaTrack}
 							preview={snapshot.projectBinPreview}
