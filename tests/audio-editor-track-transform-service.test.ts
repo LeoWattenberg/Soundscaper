@@ -9,6 +9,7 @@ import {
 	type TrackTransformServiceDependencies,
 } from '../src/common/editor/controller/track-audio/internal/track-transform-service.ts';
 import { findControllerSource } from '../src/common/editor/controller/track-audio/track-domain-types.ts';
+import { createDefaultMixerGraphV21 } from '../src/common/editor/mixer-graph-v21.ts';
 import { createImportedSourceProvenance } from '../src/common/editor/source-provenance.ts';
 import type {
 	ControllerClip,
@@ -29,7 +30,8 @@ function projectFixture(overrides: Partial<ControllerProject> = {}): ControllerP
 		clips: [],
 		sources: [],
 		selection: { startFrame: 0, endFrame: 0, trackIds: [], clipIds: [] },
-		mixer: { groups: [], sends: [], routes: {} },
+		mixer: createDefaultMixerGraphV21((overrides.tracks ?? []).filter(track => track.type === 'audio')
+			.map(track => ({ id: track.id, channelCount: Number(track.channelCount) || 1 })), 2),
 		automationLanes: [],
 		...overrides,
 	} as ControllerProject;
