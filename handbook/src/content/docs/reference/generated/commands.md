@@ -521,7 +521,7 @@ Product availability follows each product profile’s command filters and each l
 | Undo | `action://trackedit/undo` | Ctrl+Z | Edit | Soundscaper, Framescaper | Audacity |
 | Unfreeze track | `soundscaper-unfreeze-track` | — | Tracks > Freeze | Soundscaper | Soundscaper local |
 | Ungroup clips | `ungroup-clips` | Ctrl+Shift+G | Edit > Clip; Clip context | Soundscaper, Framescaper | Audacity |
-| Unlink audio | `video-unlink-audio` | — | Edit > Audio clips | Framescaper | Soundscaper local |
+| Unlink audio | `video-unlink-audio` | — | Edit > Audio clips | Soundscaper, Framescaper | Soundscaper local |
 | Unmute Tracks | `unmute-tracks` | Ctrl+Alt+Shift+U | Tracks > Mute/Unmute | Soundscaper, Framescaper | Audacity |
 | Unmute all tracks | `local://unmute-all` | Ctrl+Shift+U | Tracks | Soundscaper, Framescaper | Soundscaper local |
 | Use Native Audio Helper | `desktop-use-native-audio-helper` | — | Edit > Preferences > Audio settings | Soundscaper, Framescaper | Soundscaper local |
