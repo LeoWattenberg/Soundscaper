@@ -10,7 +10,10 @@ import { normalizePhotoDocumentV1 } from '../src/lightscaper/catalog/photo-docum
 import { PhotoCatalogRepositoryV1 } from '../src/lightscaper/catalog/repository.ts';
 import { PhotoMediaStoreV1 } from '../src/lightscaper/storage/photo-media-store.ts';
 import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
+import { InstrumentedKeyRange } from './helpers/instrumented-indexeddb-keys.ts';
 import { photoArchiveFixture } from './helpers/lightscaper-photo-fixture.ts';
+
+Object.defineProperty(globalThis, 'IDBKeyRange', { value: InstrumentedKeyRange, configurable: true });
 
 async function fixture(count = 2, chunked = false) {
 	const indexedDB = createInstrumentedIndexedDB();

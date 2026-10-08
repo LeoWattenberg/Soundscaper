@@ -20,6 +20,12 @@ import { readPhotoStackQueryPageV2 } from './photo-stack-query-v2.ts';
 import { admitPhotoStackQueryPageRequestV2, type PhotoStackQueryPageRequestV2 } from './photo-stack-query-types-v2.ts';
 import { admitPhotoQueryPageRequestV2, type PhotoQueryPageRequestV2 } from './photo-query-types-v2.ts';
 import { withPhotoStackQuerySignalV1 } from './photo-stack-query-signal-v1.ts';
+import { admitPhotoSmartCollectionSaveV1, readPhotoSmartCollectionWriteOptionsV1, readPhotoSmartCollectionSignalOptionsV1,
+	readPhotoSmartCollectionPageOptionsV1, smartCollectionRevisionV1, type PhotoSmartCollectionWriteOptionsV1,
+	type PhotoSmartCollectionSignalOptionsV1, type PhotoSmartCollectionPageOptionsV1 } from './photo-smart-collection-repository-types-v1.ts';
+import { loadPhotoSmartCollectionV1, readPhotoSmartCollectionStateV1, savePhotoSmartCollectionV1,
+	deletePhotoSmartCollectionV1, withPhotoSmartCollectionWriteSignalV1 } from './photo-smart-collection-repository-v1.ts';
+import { readPhotoSmartCollectionPageV1 } from './photo-smart-collection-pages-v1.ts';
 import { readPhotoStackQueryPageV1 } from './photo-stack-query-pages-v1.ts';
 import { admitPhotoStackQueryPageRequestV1, type PhotoStackQueryPageRequestV1 } from './photo-stack-query-types-v1.ts';
 import { admitPhotoStackSaveV1, admitPhotoStackMemberIdsV1, readPhotoStackWriteOptionsV1, readPhotoStackPageOptionsV1, readPhotoStackSignalOptionsV1,
@@ -182,6 +188,27 @@ export class PhotoCatalogRepositoryV1 {
 		return rebuildPhotoQueryIndexPageV1(await this.#open(), catalogId, options.signal);
 	}
 
+	async saveSmartCollection(value: unknown, expectedRevision: number | null, options: PhotoSmartCollectionWriteOptionsV1) {
+		const candidate = admitPhotoSmartCollectionSaveV1(value, expectedRevision), admitted = readPhotoSmartCollectionWriteOptionsV1(options);
+		return withPhotoSmartCollectionWriteSignalV1(admitted.signal, async signal => savePhotoSmartCollectionV1(await this.#open(), candidate, expectedRevision, { ...admitted, signal }));
+	}
+	async deleteSmartCollection(catalogId: string, collectionId: string, expectedRevision: number, options: PhotoSmartCollectionWriteOptionsV1) {
+		const catalog = id(catalogId, 'saved collection catalog ID'), collection = id(collectionId, 'saved collection ID');
+		const expected = smartCollectionRevisionV1(expectedRevision), admitted = readPhotoSmartCollectionWriteOptionsV1(options);
+		return withPhotoSmartCollectionWriteSignalV1(admitted.signal, async signal => deletePhotoSmartCollectionV1(await this.#open(), catalog, collection, expected, { ...admitted, signal }));
+	}
+	async loadSmartCollection(catalogId: string, collectionId: string, options: PhotoSmartCollectionSignalOptionsV1 = {}) {
+		const catalog = id(catalogId, 'saved collection catalog ID'), collection = id(collectionId, 'saved collection ID'), admitted = readPhotoSmartCollectionSignalOptionsV1(options);
+		return withPhotoStackQuerySignalV1(admitted.signal, async signal => loadPhotoSmartCollectionV1(await this.#open(), catalog, collection, { signal }));
+	}
+	async readSmartCollectionState(catalogId: string, options: PhotoSmartCollectionSignalOptionsV1 = {}) {
+		const catalog = id(catalogId, 'saved collection catalog ID'), admitted = readPhotoSmartCollectionSignalOptionsV1(options);
+		return withPhotoStackQuerySignalV1(admitted.signal, async signal => readPhotoSmartCollectionStateV1(await this.#open(), catalog, { signal }));
+	}
+	async readSmartCollectionPage(catalogId: string, options: PhotoSmartCollectionPageOptionsV1 = {}) {
+		const catalog = id(catalogId, 'saved collection catalog ID'), admitted = readPhotoSmartCollectionPageOptionsV1(options, catalog);
+		return withPhotoStackQuerySignalV1(admitted.signal, async signal => readPhotoSmartCollectionPageV1(await this.#open(), catalog, { ...admitted, signal }));
+	}
 	async #open(): Promise<IDBDatabase> {
 		if (this.#closed) throw new PhotoCatalogClosedError();
 		this.#database ??= openPhotoCatalogDatabaseV1(this.#options.indexedDB, this.#databaseName, () => { this.#closed = true; });

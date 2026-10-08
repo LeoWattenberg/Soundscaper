@@ -10,8 +10,11 @@ import { normalizePhotoLibraryDefinitionCommandV1, normalizePhotoLibraryDefiniti
 import { normalizePhotoLibraryMembershipReadV1, normalizePhotoLibraryMembershipMutationV1,
 	readPhotoLibraryMembershipsV1, applyPhotoLibraryMembershipsV1 } from '../src/lightscaper/controller/photo-library-memberships-v1.ts';
 import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
+import { InstrumentedKeyRange } from './helpers/instrumented-indexeddb-keys.ts';
 import { queryCatalogRootV1, queryPhotoV1 } from './helpers/lightscaper-catalog-query-fixture.ts';
 import { deferred } from './helpers/async-test-control.ts';
+
+Object.defineProperty(globalThis, 'IDBKeyRange', { value: InstrumentedKeyRange, configurable: true });
 
 async function fixture() {
 	const indexedDB = createInstrumentedIndexedDB();

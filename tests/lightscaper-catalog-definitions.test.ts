@@ -11,7 +11,10 @@ import { LIGHTSCAPER_CATALOG_LIMITS, type PhotoCatalogRootV1 } from '../src/ligh
 import { PhotoCatalogRevisionConflictError } from '../src/lightscaper/catalog/repository-types.ts';
 import { PhotoCatalogRepositoryV1 } from '../src/lightscaper/catalog/repository.ts';
 import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
+import { InstrumentedKeyRange } from './helpers/instrumented-indexeddb-keys.ts';
 import { photoArchiveFixture } from './helpers/lightscaper-photo-fixture.ts';
+
+Object.defineProperty(globalThis, 'IDBKeyRange', { value: InstrumentedKeyRange, configurable: true });
 
 function root(overrides: Partial<PhotoCatalogRootV1> = {}): PhotoCatalogRootV1 {
 	return { schemaFamily: 'lightscaper', schemaVersion: 1, kind: 'photo-catalog', id: 'catalog',

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { readCursorPage, request } from '../../common/editor/storage/indexeddb-backend.ts';
-import { validateLightscaperDocumentV1 } from './documents.ts';
+import { readValidatedPhotoCatalogRootV1 } from './documents.ts';
 import { catalogTransaction } from './catalog-transaction.ts';
 import { validatePhotoCatalogReferencesV1 } from './photo-document.ts';
 import { filterScope, indexState, photoMemberships, photoStorageKey, photoSummary, readIndexState, readStoredPhoto } from './repository-records.ts';
@@ -10,6 +10,9 @@ import type { PhotoCatalogRootV1, PhotoDocumentV1 } from './types.ts';
 import { projectPhotoQueryRowV1, publishPhotoQueryRowV1, readPhotoQueryBuildStateV1 } from './photo-query-index-v1.ts';
 import { projectPhotoQueryRowV2 } from './photo-query-index-v2.ts';
 import { publishPhotoQueryRowV2 } from './photo-query-index-storage-v2.ts';
+import { auditPhotoSmartCollectionStorageV1, assertPhotoSmartCollectionStorageAuditV1 } from './photo-smart-collection-audit-v1.ts';
+import { PHOTO_SMART_COLLECTION_CONTEXT_STORES_V1, readPhotoSmartCollectionStorageContextV1 } from './photo-smart-collection-storage-v1.ts';
+import { withPhotoStackQuerySignalV1 } from './photo-stack-query-signal-v1.ts';
 
 export async function createCatalog(database: IDBDatabase, root: PhotoCatalogRootV1): Promise<void> {
 	if (root.revision !== 0 || root.photoCount !== 0) throw new RangeError('A new catalog requires revision zero and no photos.');
@@ -60,29 +63,44 @@ export async function savePhoto(database: IDBDatabase, photo: PhotoDocumentV1, e
 }
 
 export async function saveCatalog(database: IDBDatabase, candidate: PhotoCatalogRootV1, expectedRevision: number, signal?: AbortSignal): Promise<PhotoCatalogRootV1> {
-	return catalogTransaction(database, ['catalogs', 'catalogStates', 'memberships'], 'readwrite', async (stores) => {
-		const previous = await requiredRoot(stores, candidate.id);
-		if (previous.revision !== expectedRevision) throw new PhotoCatalogRevisionConflictError('catalog');
-		if (candidate.photoCount !== previous.photoCount) throw new RangeError('Only photo publication changes the catalog photo count.');
-		const state = await requiredState(stores, previous);
-		const nextFolders = new Set(candidate.folders.map((node) => node.id));
-		const nextKeywords = new Set(candidate.keywords.map((node) => node.id));
-		const nextCollections = new Set(candidate.collections.filter((collection) => collection.kind === 'manual').map((collection) => collection.id));
-		const removals = [
-			...previous.folders.filter((node) => !nextFolders.has(node.id)).map((node) => ({ kind: 'folder' as const, id: node.id })),
-			...previous.keywords.filter((node) => !nextKeywords.has(node.id)).map((node) => ({ kind: 'keyword' as const, id: node.id })),
-			...previous.collections.filter((collection) => collection.kind === 'manual' && !nextCollections.has(collection.id)).map((collection) => ({ kind: 'collection' as const, id: collection.id })),
-		];
-		for (const filter of removals) {
-			const references = await readCursorPage(stores.memberships.index('scope'), {
-				query: filterScope(previous.id, filter), limit: 1, project: (_value, key) => key,
-			});
-			if (references.length > 0) throw new ReferenceError('Cannot remove a hierarchy or manual collection still referenced by photos.');
-		}
-		const next = validatedRoot({ ...candidate, revision: previous.revision + 1 });
-		await Promise.all([request(stores.catalogs.put(next)), request(stores.catalogStates.put(indexState(next, state.indexRevision + 1)))]);
-		return next;
-	}, signal);
+	candidate = validatedRoot(candidate);
+	validatedRoot({ ...candidate, revision: expectedRevision + 1 });
+	let completed: PhotoCatalogRootV1 | undefined;
+	try {
+		return await withPhotoStackQuerySignalV1(signal, async privateSignal => {
+			const proof = await auditPhotoSmartCollectionStorageV1(database, candidate, { expectedCatalogRevision: expectedRevision, signal: privateSignal });
+			completed = await catalogTransaction(database, [...PHOTO_SMART_COLLECTION_CONTEXT_STORES_V1, 'memberships'], 'readwrite', async (stores) => {
+				const context = await readPhotoSmartCollectionStorageContextV1(stores, candidate.id, privateSignal);
+				assertPhotoSmartCollectionStorageAuditV1(proof, database, context, candidate);
+				const previous = context.root;
+				if (previous.revision !== expectedRevision) throw new PhotoCatalogRevisionConflictError('catalog');
+				if (candidate.photoCount !== previous.photoCount) throw new RangeError('Only photo publication changes the catalog photo count.');
+				const state = context.index;
+				const nextFolders = new Set(candidate.folders.map((node) => node.id));
+				const nextKeywords = new Set(candidate.keywords.map((node) => node.id));
+				const nextCollections = new Set(candidate.collections.filter((collection) => collection.kind === 'manual').map((collection) => collection.id));
+				const removals = [
+					...previous.folders.filter((node) => !nextFolders.has(node.id)).map((node) => ({ kind: 'folder' as const, id: node.id })),
+					...previous.keywords.filter((node) => !nextKeywords.has(node.id)).map((node) => ({ kind: 'keyword' as const, id: node.id })),
+					...previous.collections.filter((collection) => collection.kind === 'manual' && !nextCollections.has(collection.id)).map((collection) => ({ kind: 'collection' as const, id: collection.id })),
+				];
+				for (const filter of removals) {
+					const references = await readCursorPage(stores.memberships.index('scope'), {
+						query: filterScope(previous.id, filter), limit: 1, project: (_value, key) => key,
+					});
+					if (references.length > 0) throw new ReferenceError('Cannot remove a hierarchy or manual collection still referenced by photos.');
+				}
+				const next = validatedRoot({ ...candidate, revision: previous.revision + 1 });
+				await Promise.all([request(stores.catalogs.put(next)), request(stores.catalogStates.put(indexState(next, state.indexRevision + 1)))]);
+				return next;
+			}, privateSignal);
+			return completed;
+		});
+	} catch (error) {
+		// A native completed publication remains acknowledged after a late abort.
+		if (completed !== undefined) return completed;
+		throw error;
+	}
 }
 
 async function requiredRoot(stores: Readonly<Record<string, IDBObjectStore>>, catalogId: string): Promise<PhotoCatalogRootV1> {
@@ -94,9 +112,7 @@ async function requiredRoot(stores: Readonly<Record<string, IDBObjectStore>>, ca
 }
 
 function validatedRoot(value: unknown): PhotoCatalogRootV1 {
-	const root = validateLightscaperDocumentV1(value);
-	if (root.kind !== 'photo-catalog') throw new TypeError('Stored catalog requires a root document.');
-	return root;
+	return readValidatedPhotoCatalogRootV1(value);
 }
 
 async function requiredState(stores: Readonly<Record<string, IDBObjectStore>>, root: PhotoCatalogRootV1) {

@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
+import { InstrumentedKeyRange } from './helpers/instrumented-indexeddb-keys.ts';
 import { PhotoCatalogRepositoryV1 } from '../src/lightscaper/catalog/repository.ts';
 import { defaultPhotoDevelopV1 } from '../src/lightscaper/catalog/develop-state.ts';
 import { emptyPhotoMetadataV1 } from '../src/lightscaper/catalog/photo-metadata.ts';
@@ -12,6 +13,8 @@ import { normalizePhotoCatalogRootV1 } from '../src/lightscaper/catalog/catalog-
 import type { PhotoOriginalV1 } from '../src/lightscaper/catalog/types.ts';
 import { indexState, photoStorageKey, photoSummary } from '../src/lightscaper/catalog/repository-records.ts';
 import { serializeLightscaperDocumentV1 } from '../src/lightscaper/catalog/documents.ts';
+
+Object.defineProperty(globalThis, 'IDBKeyRange', { value: InstrumentedKeyRange, configurable: true });
 
 type DatabaseHarness = Omit<ReturnType<typeof createInstrumentedIndexedDB>, 'stats'> & {
 	readonly stats: Omit<ReturnType<typeof createInstrumentedIndexedDB>['stats'], 'getRequests' | 'cursorRequests'> & {

@@ -9,7 +9,10 @@ import { LIGHTSCAPER_CATALOG_LIMITS, type PhotoCatalogRootV1 } from '../src/ligh
 import { PhotoLibrarySessionV1 } from '../src/lightscaper/controller/photo-library-session.ts';
 import { PhotoMediaStoreV1 } from '../src/lightscaper/storage/photo-media-store.ts';
 import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
+import { InstrumentedKeyRange } from './helpers/instrumented-indexeddb-keys.ts';
 import { photoArchiveFixture } from './helpers/lightscaper-photo-fixture.ts';
+
+Object.defineProperty(globalThis, 'IDBKeyRange', { value: InstrumentedKeyRange, configurable: true });
 
 function rootWithSpace(spareBytes: number): PhotoCatalogRootV1 {
 	const folders = Array.from({ length: 7_000 }, (_, index) => ({ id: `node-${String(index)}`, name: 'x', parentId: null }));

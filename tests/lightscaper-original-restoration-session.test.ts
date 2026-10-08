@@ -6,6 +6,9 @@ import { normalizePhotoCatalogRootV1 } from '../src/lightscaper/catalog/catalog-
 import { photoImportIntentKeyV1 } from '../src/lightscaper/import/import-intent-v1.ts';
 import { deferred, remainsPending } from './helpers/async-test-control.ts';
 import { originalRestorationFixture } from './helpers/lightscaper-original-restoration-fixture.ts';
+import { InstrumentedKeyRange } from './helpers/instrumented-indexeddb-keys.ts';
+
+Object.defineProperty(globalThis, 'IDBKeyRange', { value: InstrumentedKeyRange, configurable: true });
 
 for (const provisional of [false, true]) {
 	test(`Session exact restoration reconstructs a missing row under ${provisional ? 'published provisional' : 'committed'} custody before ordinary recovery`, async context => {

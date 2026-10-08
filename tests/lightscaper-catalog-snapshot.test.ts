@@ -9,7 +9,10 @@ import { normalizePhotoCatalogRootV1 } from '../src/lightscaper/catalog/catalog-
 import { PhotoCatalogRepositoryV1 } from '../src/lightscaper/catalog/repository.ts';
 import { indexState } from '../src/lightscaper/catalog/repository-records.ts';
 import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
+import { InstrumentedKeyRange } from './helpers/instrumented-indexeddb-keys.ts';
 import { photoArchiveFixture } from './helpers/lightscaper-photo-fixture.ts';
+
+Object.defineProperty(globalThis, 'IDBKeyRange', { value: InstrumentedKeyRange, configurable: true });
 
 function fixture(context: TestContext) {
 	const indexedDB = createInstrumentedIndexedDB(), databaseName = `photo-snapshot-${crypto.randomUUID()}`;

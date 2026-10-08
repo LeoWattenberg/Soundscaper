@@ -604,6 +604,22 @@
 		,
 		{ "path": "src/lightscaper/catalog/photo-query-types-v2.ts", "kind": "helper-contract", "justification": "Closed version 2 catalog queries and bounded continuations add explicit effective metadata predicates and catalog/index revision context while preserving version 1 parsers and defaults." }
 		,
+		{ "path": "src/lightscaper/catalog/photo-smart-collection-audit-v1.ts", "kind": "helper-contract", "justification": "Version 1 private canonical storage audit validates bounded definition, summary and key pages and issues single-use database, root and context-bound write authority independently of public continuation tokens." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-smart-collection-pages-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded scalar saved-query summary pages authenticate definition existence and catalog, index and saved-state revisions without loading full predicates." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-smart-collection-record-v1.ts", "kind": "helper-contract", "justification": "Version 1 private saved-query storage projections authenticate canonical scoped keys and every referenced hierarchy identity within an independent record byte bound." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-smart-collection-repository-types-v1.ts", "kind": "helper-contract", "justification": "Version 1 closed saved-query write options, durable receipts and scalar summary continuations bind definition, catalog, index and retained saved-state revisions." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-smart-collection-repository-v1.ts", "kind": "helper-contract", "justification": "Version 1 transactional saved-query persistence validates references and revisions before atomic definition, summary, root, index and retained-state publication." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-smart-collection-state-v1.ts", "kind": "persisted-contract", "justification": "Version 1 scalar saved-query catalog state preserves collection count and mutation revision, including a retained empty tombstone after the last deletion." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-smart-collection-storage-v1.ts", "kind": "helper-contract", "justification": "Version 1 private saved-query scalar summary records and storage context authenticate paired table existence and root, index and saved-state consistency without a whole-table scan." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-smart-collection-v1.ts", "kind": "persisted-contract", "justification": "Version 1 saved photo collections persist complete version 2 text, filter, predicate and sort criteria independently of canonical family version 1 catalog roots." }
+		,
 		{ "path": "src/lightscaper/catalog/photo-smart-query-types-v2.ts", "kind": "persisted-contract", "justification": "Independent version 2 bounded smart-query predicates encode allowlisted effective metadata text, numeric, clock and presence conditions without changing canonical family version 1 documents." }
 		,
 		{ "path": "src/lightscaper/catalog/photo-smart-query-v2.ts", "kind": "helper-contract", "justification": "Version 2 pure smart-query admission, serialization and matching validate all hierarchy references before boolean evaluation and provide explicit version 1 predicate migration." }
