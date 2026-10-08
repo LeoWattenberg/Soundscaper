@@ -24,7 +24,8 @@ test('photo copy paints bundled English or German without opening an absent cata
 		assert.equal(mounted.copy.photoFileMenu, 'File');
 		assert.equal(mounted.copy.photoEditor, 'Photo editor');
 		assert.equal(Object.hasOwn(mounted.copy, 'fileMenu'), false);
-		assert.equal(Object.keys(mounted.copy).length, 50);
+		assert.deepEqual(Object.keys(mounted.copy).sort(), [...Object.keys(LIGHTSCAPER_EDITOR_COPY_BY_LOCALE.en),
+			'lightscaperTitle', 'lightscaperMetaDescription', 'photoEditor', 'workspacePhoto'].sort());
 		assert.ok(Object.isFrozen(mounted.copy));
 		await mounted.render('de-AT', loaders);
 		assert.equal(mounted.copy.photoFileMenu, 'Datei');

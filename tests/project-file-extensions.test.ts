@@ -49,12 +49,12 @@ test('every product profile declares the suffix the registry assigns it', () => 
 	assert.equal(PRODUCT_PROFILES.framescaper.projectFileExtension, '.fscape');
 });
 
-test('the registered photo shell reserves `.liscape` without advertising archive authoring', () => {
+test('the photo library admits photos and reserves `.liscape` without advertising archive authoring', () => {
 	assert.equal(projectFileExtensionForProduct('lightscaper'), '.liscape');
 	assert.ok(PRODUCT_IDS.includes('lightscaper'));
 	const profile = productProfile('lightscaper');
 	assert.equal(profile.projectFileExtension, '.liscape');
-	assert.deepEqual(profile.importChoices, []);
+	assert.deepEqual(profile.importChoices, ['photos']);
 	assert.deepEqual(profile.exportChoices, []);
 	assert.ok(isProjectFileName('storyboard.liscape'));
 });

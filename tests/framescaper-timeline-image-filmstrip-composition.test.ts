@@ -95,7 +95,16 @@ function captureImageCopies(
 ): Uint8Array<ArrayBuffer>[] {
 	const descriptor = Object.getOwnPropertyDescriptor(Uint8Array.prototype, 'slice');
 	const original = Uint8Array.prototype.slice;
+	const constructor = globalThis.Uint8Array;
 	const copies: Uint8Array<ArrayBuffer>[] = [];
+	// The shared resize owns a native copy instead of consulting source.slice.
+	// ArrayBuffer-backed views are borrowed and must not count as owned copies.
+	globalThis.Uint8Array = new Proxy(constructor, { construct(target, argumentsList) {
+		const copy = Reflect.construct(target, argumentsList) as Uint8Array<ArrayBuffer>;
+		if (argumentsList[0] instanceof constructor
+			&& expected.some((pattern) => sameBytes(copy, pattern))) copies.push(copy);
+		return copy;
+	} });
 	Object.defineProperty(Uint8Array.prototype, 'slice', {
 		configurable: true,
 		writable: true,
@@ -106,6 +115,7 @@ function captureImageCopies(
 		},
 	});
 	t.after(() => {
+		globalThis.Uint8Array = constructor;
 		if (descriptor) Object.defineProperty(Uint8Array.prototype, 'slice', descriptor);
 		else delete (Uint8Array.prototype as Partial<typeof Uint8Array.prototype>).slice;
 	});
@@ -157,6 +167,23 @@ test('mixed image and inherited cells preserve request order, keys, samples, and
 		{ key: 'video-end', timelineSample: 72_000, sourceUrl: 'blob:video-end' },
 	]);
 	assert.ok(Object.isFrozen(rendered));
+});
+
+test('the allocation observer tracks native copy and slice backings while excluding borrowed views', (t) => {
+	const pattern = imagePixels(0);
+	const copies = captureImageCopies(t, [pattern]);
+	const borrowed = new Uint8Array(pattern.buffer, pattern.byteOffset, pattern.byteLength);
+	const nativeCopy = new Uint8Array(borrowed);
+	const slicedCopy = pattern.slice();
+	assert.equal(copies.length, 2);
+	assert.equal(copies[0], nativeCopy);
+	assert.equal(copies[1], slicedCopy);
+	assert.notEqual(nativeCopy.buffer, pattern.buffer);
+	assert.notEqual(slicedCopy.buffer, pattern.buffer);
+	nativeCopy.fill(0);
+	slicedCopy.fill(0);
+	assertZeroized(copies, 'the observer retains both independently owned backings');
+	assert.deepEqual(borrowed, pattern);
 });
 
 test('an image-route failure zeroizes earlier image copies and every inherited output', async (t) => {

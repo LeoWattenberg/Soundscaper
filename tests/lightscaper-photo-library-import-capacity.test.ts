@@ -41,6 +41,7 @@ async function open(root: PhotoCatalogRootV1, refuseKeywords = false) {
 		exclusive: async (_id, operation, signal) => operation(signal),
 		catalog: { loadCatalog: catalog.loadCatalog.bind(catalog), loadPhoto: catalog.loadPhoto.bind(catalog),
 			publishPhotos: catalog.publishPhotos.bind(catalog), savePhoto: catalog.savePhoto.bind(catalog), readSummaryPage: catalog.readSummaryPage.bind(catalog),
+			readQueryPage: catalog.readQueryPage.bind(catalog), rebuildQueryIndexPage: catalog.rebuildQueryIndexPage.bind(catalog),
 			saveCatalog: async (...args) => {
 				if (refuseKeywords) throw new Error('keyword storage blocked');
 				return catalog.saveCatalog(...args);

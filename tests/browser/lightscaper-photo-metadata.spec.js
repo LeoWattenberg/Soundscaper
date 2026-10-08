@@ -5,6 +5,8 @@ import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { expect, test } from './helpers/browser-coverage-fixture.js';
 
+test.use({ browserCoverage: false });
+
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACAQMAAABIeJ9nAAAAIGNIUk0AAHomAACAhAAA+gAAAIDoAAB1MAAA6mAAADqYAAAXcJy6UTwAAAAGUExURf8gAP///4DcGxUAAAABYktHRAH/Ai3eAAAAB3RJTUUH6ggZEjoj/gYZhQAAAAxJREFUCNdjYGBgAAAABAABJzQnCgAAAABJRU5ErkJggg==', 'base64');
 
 for (const [locale, copy] of [
@@ -81,7 +83,7 @@ async function observe(page, photoId) {
 		await route.fulfill({ contentType: 'text/javascript', body: result.outputFiles[0].text });
 	});
 	return page.evaluate(async photoId => {
-		const inspector = await import('/__photo_metadata_observation.js');
+		const inspector = await import(new URL('/__photo_metadata_observation.js', location.href).href);
 		const result = await inspector.readResidentPhotoLibraryV1([photoId]);
 		return result.photos[0];
 	}, photoId);
