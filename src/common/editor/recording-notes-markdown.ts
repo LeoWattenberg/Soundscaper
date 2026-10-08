@@ -135,6 +135,16 @@ function appendText(content: RecordingNotesInline[], text: string): void {
 	else content.push({ kind: 'text', text });
 }
 
+function appendUnmatchedFrame(stack: InlineFrame[]): void {
+	const frame = stack.pop() as InlineFrame;
+	const parent = stack[stack.length - 1] as InlineFrame;
+	appendText(parent.content, frame.marker);
+	for (const token of frame.content) {
+		if (token.kind === 'text') appendText(parent.content, token.text);
+		else parent.content.push(token);
+	}
+}
+
 function parseInline(text: string): InlineFrame {
 	const root: InlineFrame = { marker: '', content: [] };
 	const stack: InlineFrame[] = [root];
@@ -169,10 +179,20 @@ function parseInline(text: string): InlineFrame {
 			const canOpen = !intraword && Boolean(after) && !/\s/u.test(after);
 			const canClose = !intraword && Boolean(before) && !/\s/u.test(before);
 			while (position < runEnd) {
-				const current = stack[stack.length - 1] as InlineFrame;
 				const remaining = runEnd - position;
-				if (canClose && current.marker.startsWith(character) && remaining >= current.marker.length
-					&& !(current.marker.length === 1 && remaining === 2)) {
+				const closes = (candidate: InlineFrame) => candidate.marker.startsWith(character)
+					&& remaining >= candidate.marker.length && !(candidate.marker.length === 1 && remaining === 2);
+				if (canClose && !closes(stack[stack.length - 1] as InlineFrame)) {
+					// A literal wildcard or unfinished inner emphasis must not block
+					// the completed outer span added by the formatting action.
+					for (let index = stack.length - 2; index > 0; index -= 1) {
+						if (!closes(stack[index] as InlineFrame)) continue;
+						while (stack.length - 1 > index) appendUnmatchedFrame(stack);
+						break;
+					}
+				}
+				const current = stack[stack.length - 1] as InlineFrame;
+				if (canClose && closes(current)) {
 					stack.pop();
 					const parent = stack[stack.length - 1] as InlineFrame;
 					parent.content.push({ kind: current.marker.length === 2 ? 'strong' : 'emphasis', content: current.content });
@@ -193,15 +213,7 @@ function parseInline(text: string): InlineFrame {
 		while (position < text.length && !/[\\`*_]/u.test(text[position] || '')) position += 1;
 		appendText(frame.content, text.slice(start, position));
 	}
-	while (stack.length > 1) {
-		const frame = stack.pop() as InlineFrame;
-		const parent = stack[stack.length - 1] as InlineFrame;
-		appendText(parent.content, frame.marker);
-		for (const token of frame.content) {
-			if (token.kind === 'text') appendText(parent.content, token.text);
-			else parent.content.push(token);
-		}
-	}
+	while (stack.length > 1) appendUnmatchedFrame(stack);
 	return root;
 }
 
