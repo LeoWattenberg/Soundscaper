@@ -662,3 +662,28 @@ validation and inspector workflow passes alongside it (6/6, 35.8 seconds;
 `/tmp/soundscaper-r5-root-routing-shortcuts-green29.log`). Both guarded
 product builds pass. ROOT-021 is counted once. Assistance runtime assets
 are unchanged.
+
+## R5-ROOT-022 — Warp authoring publishes an unsupported repeated-clip map
+
+Import an ordinary 0.8-second mono recording. Select its header, press Right
+once on Looped clip length, then Effect → Pitch and tempo → Audio warp and
+transients → Create identity warp map. The dialog reports success, but File
+→ Export audio fails with “Audio warp outer endpoints must match the clip
+anchor extent.” The authoring service publishes a full-clip map although
+the existing renderer schedules individual loop periods. The opposite order
+already refuses looping through its unwarped-clip admission contract.
+
+Refuse a map while the clip retains looping before publishing a command, and
+explain how to recover by turning off clip looping. Leave map clearing
+available. Preserve the repeat period, phase, source and history. Returning
+the loop handle to one repeat restores ordinary warp authoring.
+
+The complete immutable-baseline Chromium workflow reaches identity-map
+success and then the exact export error
+(`/tmp/soundscaper-r5-root-loop-identity-warp-baseline.log`). Two strict
+ordinary-command-created loop cases fail before correction while the
+remove-loop recovery control passes. New and existing authoring, controller
+composition and loop support now pass 40/40. Target lint and the size gate
+pass. Public corrected refusal, export and Undo/Redo verification is pending;
+this entry is not yet counted. The assistance runtime closure is unchanged.
+

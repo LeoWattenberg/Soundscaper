@@ -38,6 +38,7 @@ import { isAudioWarpProjectSchema } from '../../../../project-schema-version.ts'
 import type { RationalInput } from '../../../../timeline-time.ts';
 import type { ProjectVisualSource, ProjectVisualClip } from '../../../document/project-visual-types.ts';
 import type { EditorControllerLifetime } from '../../../shared/lifecycle.ts';
+import { readClipLoop } from '../../../../audio-clip-loop.ts';
 
 export type AudioWarpAuthoringProject = {
 	readonly [Key in keyof ProjectHierarchyDocument]: Key extends 'sources' ? readonly (ProjectVisualSource & Readonly<{ name?: string }>)[]
@@ -114,6 +115,10 @@ export function createAudioWarpAuthoringService(
 		const preparation = prepared(preparationValue);
 		const project = writableProject();
 		assertCurrentTrackWritable(project, preparation.clipId);
+		const clip = project.clips.find((candidate) => candidate.id === preparation.clipId);
+		if (clip && readClipLoop(clip)) {
+			throw new RangeError('Turn off clip looping before authoring a warp map.');
+		}
 		const warpMap = normalizeAudioWarpMap(warpMapValue);
 		return dependencies.commit({
 			type: 'audio-warp/set',
