@@ -105,6 +105,17 @@ test('parameter changes normalize once, configure EQ preview, and track touched 
 	assert.equal(harness.publications, 1);
 });
 
+test('selecting a saved EQ preset reconfigures its active editable preview', async () => {
+	const harness = createHarness();
+	harness.service.setAudacityEffectParamsFromController({ outputGain: -12, bands: [] });
+	await harness.service.saveEffectPreset('Quiet');
+	harness.service.setAudacityEffectParamsFromController({ outputGain: 0 });
+	harness.configured.length = 0;
+	const preset = harness.service.applyEffectPreset('preset-1');
+	assert.equal(harness.configured.length, 1, 'preset selection must update the playing EQ');
+	assert.deepEqual(harness.configured[0], preset.params);
+});
+
 test('untouched Amplify gain derives Audacity-compatible headroom from the selection peak', () => {
 	const harness = createHarness();
 	harness.state.audacityEffectType = 'audacity-amplify';

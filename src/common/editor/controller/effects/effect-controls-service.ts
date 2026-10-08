@@ -242,6 +242,7 @@ export function createEffectControlsService(runtime: EffectControlsServiceRuntim
 		const preset = applyAudioEditorEffectPreset(runtime.state.effectPresets, presetId) as EffectPreset;
 		runtime.state.audacityEffectType = preset.effectType;
 		runtime.state.audacityEffectParams[preset.effectType] = structuredClone(preset.params);
+		if (preset.effectType === 'eq') runtime.state.audacityPreviewSource?.configure?.(runtime.state.audacityEffectParams.eq!);
 		runtime.state.audacityEffectTouchedParams.set(preset.effectType, new Set(Object.keys(preset.params)));
 		runtime.publishDocumentSnapshot();
 		return preset;
