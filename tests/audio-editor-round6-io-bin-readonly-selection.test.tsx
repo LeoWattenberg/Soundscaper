@@ -34,6 +34,8 @@ test('Project bin allows selecting existing instances in a read-only tab while p
 	try {
 		await render({ readOnly: true });
 		assert.equal(reactProps(dom.one('[aria-label="Add to timeline: Interview"]')).disabled, true);
+		assert.equal(reactProps(dom.one('[data-project-bin-drop-target]'))['aria-disabled'], undefined,
+			'the mixed read-only panel must not mark its available selection as disabled');
 		assert.equal(selection().disabled, false, 'selection must remain available after losing the editing lease');
 		await act(async () => { selection().onClick?.(); });
 		assert.deepEqual(selected, ['bin']);
