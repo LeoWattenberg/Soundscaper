@@ -28,6 +28,7 @@ import { createIsolatedTrackRenderProjectV21 } from '../../../shared/isolated-tr
 import type { RunOfflineSelectionChain } from './offline-selection-chain.ts';
 import { MACRO_NEIGHBOUR_PCM_CACHE_LIMIT_BYTES } from './macro-neighbour-pcm-cache.ts';
 import { macroSpectralContext, type MacroSpectralSelection } from './macro-spectral-context.ts';
+import { runMacroTargetPlans } from './macro-linked-truncation.ts';
 
 const EFFECT_MACRO_TASK = 'selection-effect-macro';
 
@@ -238,11 +239,17 @@ export function createEffectMacroService<Buffer = MacroRenderBuffer>(runtime: Ef
 		try {
 			await runtime.preflightStorage(outputBytes, 'effect');
 			assertOwnership(runtime, ownership);
-			const results: SelectionEffectResult[] = [];
-			for (const { target, effects, spectralSelection, preRollFrames } of plans) {
-				const channels = await runChain(effects, target, project, sampleRate, preRollFrames, ownership, contextCacheBytes, spectralSelection);
-				results.push({ target, channels });
-			}
+			const results = await runMacroTargetPlans(plans, {
+				runEffects: (plan, effects, initial) => runChain(effects, plan.target, project, sampleRate,
+					plan.preRollFrames, ownership, contextCacheBytes, plan.spectralSelection, initial),
+				runLinked: async (effect, channels) => {
+					const result = await runtime.runSelectionEffectWorker({ operation: 'apply', effectType: effect.type,
+						channels, sampleRate, params: effect.params, context: {} });
+					assertOwnership(runtime, ownership);
+					return result.channels;
+				},
+				invalidChannels: () => createLocalizedError(Error, runtime.copy, 'effectInvalidAudio'),
+			});
 			const effectName = String(request.name || publishedCopyFor(runtime.copy).untitledMacro || publishedCopyFor(runtime.copy).macrosPalette).trim()
 				|| publishedCopyFor(runtime.copy).untitledMacro
 				|| publishedCopyFor(runtime.copy).macrosPalette;
@@ -409,13 +416,15 @@ export function createEffectMacroService<Buffer = MacroRenderBuffer>(runtime: Ef
 		ownership: EffectMacroOwnership,
 		contextCacheBytes: number,
 		spectralSelection?: MacroSpectralSelection,
+		initialChannels?: readonly Float32Array[],
 	): Promise<readonly Float32Array[]> {
 		const segments = planEffectMacroChain(effects as unknown as readonly EffectMacroChainStep[]);
-		const leadsWithRack = segments[0]?.realtime === true && !target.sourceId
+		const leadsWithRack = !initialChannels && segments[0]?.realtime === true && !target.sourceId
 			&& !spectralSelection
 			&& !segments[0].steps.some(step => step.type === 'audacity-auto-duck');
 		let channels: readonly Float32Array[];
-		if (leadsWithRack) {
+		if (initialChannels) channels = initialChannels;
+		else if (leadsWithRack) {
 			channels = await renderTimelineRack(
 				segments[0].steps as unknown as readonly MaterializedMacroEffect[],
 				target,

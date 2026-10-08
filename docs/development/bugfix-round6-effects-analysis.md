@@ -229,5 +229,35 @@ public workflows pass Chromium, Firefox and WebKit on immutable Green6
 All noise colors use the same job-seed
 root; the earlier pink-noise spectral balance correction is independent.
 
+## R6-EFFECT-010 — A linked Truncate Silence macro removes different track pauses
+
+Import ordinary two-second mono dialogue recordings with pauses at 0.3–1.3
+and 0.7–1.7 seconds. Shift-select both clip headers. Tools → Macros palette →
+New macro → Add effect → Truncate Silence. Open its settings, leave Truncate
+tracks independently unchecked and set Truncate to zero. Run macro, select all
+and export WAV. The baseline reports completion but delivers 0.99977 seconds
+instead of 1.4: each microphone loses its own full pause rather than their
+shared 0.6-second pause.
+
+The macro service unconditionally runs each complete chain on one target.
+Partition its chains at linked silence detection, process aligned tracks
+together at that barrier, and restore their exact channel ownership before
+continuing each track's effects. Preserve independent requests, unaligned clip
+targets, per-track prefix/suffix effects and one final atomic result batch.
+
+The unchanged normal menu workflow is causally RED at its delivered duration
+(`/tmp/soundscaper-r6-effects-macro-linked-truncate-browser-red.log`). Four
+actual-DSP service regressions fail for a single barrier, multiple barriers,
+prefix/suffix effects and mixed mono/stereo ownership, while independent and
+unaligned controls pass
+(`/tmp/soundscaper-r6-effects-macro-linked-truncate-node-red.log`). All 32
+new/existing macro service, stereo-truncation and spectral-targeting regressions
+pass after repair (`/tmp/soundscaper-r6-effects-macro-linked-truncate-node-green.log`).
+Targeted type-aware lint, strict types and the file-size gate pass. Public GREEN
+awaits the next immutable product build. R3-ROOT-018 corrected the ordinary
+effect/Preview joint-job admission; R3-ROOT-019's macro follow-through corrected
+the separate per-channel independence flag. This macro-service multi-track
+barrier owner remained independent of both.
+
 These corrections do not change the assistance runtime closure or require a
 manual **Update AI assets** run.
