@@ -11,6 +11,9 @@ import { photoCatalogRestoreRootRecordsV1, photoCatalogRestorePhotoRecordsV1, ph
 	photoCatalogRestoreSavedCollectionRecordsV1, type PhotoCatalogRestoreRootRecordsV1 } from './photo-catalog-restore-records-v1.ts';
 import { PhotoCatalogRestoreDeliveryV1 } from './photo-catalog-restore-delivery-v1.ts';
 import { finalizePhotoCatalogRestoreCandidateV1 } from './photo-catalog-restore-finalize-v1.ts';
+import { normalizePhotoLibraryRestoreAllocationV1, photoLibraryRestoreOwnerMarkerV1, PHOTO_CATALOG_RESTORE_OWNER_STORE_V1,
+	type PhotoLibraryRestoreAllocationV1 } from '../storage/photo-library-restore-ownership-v1.ts';
+import { inspectPhotoCatalogRestoreNamespaceV1 } from './photo-catalog-restore-owner-v1.ts';
 
 export interface PhotoCatalogRestoreCandidateV1 {
 	readonly databaseName: string;
@@ -38,6 +41,7 @@ export interface PhotoCatalogRestoreStageOptionsV1 {
 	readonly root: unknown;
 	readonly savedState: unknown;
 	readonly signal?: AbortSignal;
+	readonly restoreAllocation?: unknown;
 }
 
 const activeNames = new WeakMap<object, Set<string>>();
@@ -48,12 +52,18 @@ const nativeAbort = AbortController.prototype.abort;
 
 /** A positively fresh physical namespace is the sole private writer authority. */
 export async function createPhotoCatalogRestoreStageV1(optionsValue: PhotoCatalogRestoreStageOptionsV1): Promise<PhotoCatalogRestoreStageV1> {
-	const input = record(optionsValue, 'catalog restore options', ['indexedDB', 'databaseName', 'root', 'savedState', 'signal'],
+	const input = record(optionsValue, 'catalog restore options', ['indexedDB', 'databaseName', 'root', 'savedState', 'signal', 'restoreAllocation'],
 		['indexedDB', 'databaseName', 'root', 'savedState']);
 	const signal = Object.hasOwn(input, 'signal') ? field(input, 'signal') : undefined;
 	if (signal !== undefined) assertPhotoStackQuerySignalV1(signal);
 	const databaseName = name(field(input, 'databaseName'), 'restore database name');
 	const records = photoCatalogRestoreRootRecordsV1(field(input, 'root'), field(input, 'savedState'));
+	const rawAllocation = Object.hasOwn(input, 'restoreAllocation') ? field(input, 'restoreAllocation') : undefined;
+	const allocation = rawAllocation === undefined ? undefined : normalizePhotoLibraryRestoreAllocationV1(rawAllocation);
+	if (allocation !== undefined && (allocation.catalogId !== records.root.id
+		|| photoLibraryRestoreOwnerMarkerV1(allocation, 'catalog').databaseName !== databaseName)) {
+		throw new TypeError('Catalog restore allocation differs from the selected catalog or database name.');
+	}
 	const factory = field(input, 'indexedDB') as IDBFactory;
 	if (!factory || typeof factory.open !== 'function' || typeof factory.deleteDatabase !== 'function') {
 		throw new TypeError('Catalog restore requires an IndexedDB factory.');
@@ -71,7 +81,7 @@ export async function createPhotoCatalogRestoreStageV1(optionsValue: PhotoCatalo
 	};
 	let stage: RestoreStage | undefined;
 	try {
-		stage = new RestoreStage(factory, databaseName, records, signal, release, claim);
+		stage = new RestoreStage(factory, databaseName, records, signal, release, claim, allocation);
 		await stage.initialize(); return stage;
 	}
 	catch (error) {
@@ -96,6 +106,8 @@ class RestoreStage implements PhotoCatalogRestoreStageV1 {
 	readonly #claim: () => void;
 	readonly #external: AbortSignal | undefined;
 	readonly #forward: () => void;
+	readonly #allocation: PhotoLibraryRestoreAllocationV1 | undefined;
+	readonly #inspectionFactory: Pick<IDBFactory, 'open'>;
 	#database: IDBDatabase | null = null;
 	#owned = false;
 	#failed = false;
@@ -111,9 +123,11 @@ class RestoreStage implements PhotoCatalogRestoreStageV1 {
 	#legacyCount = 0;
 
 	constructor(factory: IDBFactory, readonly databaseName: string, records: PhotoCatalogRestoreRootRecordsV1,
-		signal: AbortSignal | undefined, release: () => void, claim: () => void) {
+		signal: AbortSignal | undefined, release: () => void, claim: () => void, allocation?: PhotoLibraryRestoreAllocationV1) {
 		this.#open = factory.open.bind(factory); this.#delete = factory.deleteDatabase.bind(factory);
+		this.#inspectionFactory = Object.freeze({ open: this.#open });
 		this.#records = records; this.catalogId = records.root.id;
+		this.#allocation = allocation;
 		this.#delivery = new PhotoCatalogRestoreDeliveryV1(this.catalogId); this.#release = release; this.#claim = claim; this.#external = signal;
 		this.#forward = () => { Reflect.apply(nativeAbort, this.#stop, [Reflect.apply(nativeReason, signal!, [])]); };
 		if (signal) {
@@ -174,6 +188,7 @@ class RestoreStage implements PhotoCatalogRestoreStageV1 {
 	finish(): Promise<PhotoCatalogRestoreCandidateV1> {
 		return this.#run(async () => {
 			await finalizePhotoCatalogRestoreCandidateV1(this.#requiredDatabase(), { root: this.#records.root, savedState: this.#records.savedState,
+				restoreAllocation: this.#allocation,
 				photoCount: this.#photoCount, stackCount: this.#stackCount, savedCollectionCount: this.#savedCount,
 				legacyQueryIndexedCount: this.#legacyCount, assertDelivered: (kind, document) => {
 					const expected = kind === 'photo' ? 'photo' : kind === 'stack' ? 'photo-stack' : 'photo-smart-collection';
@@ -210,6 +225,12 @@ class RestoreStage implements PhotoCatalogRestoreStageV1 {
 			try {
 				await this.close();
 				if (!this.#owned) return;
+				if (this.#allocation !== undefined) {
+					// Cleanup uses captured native opening behavior, never the aborted stage lifetime.
+					const current = await inspectPhotoCatalogRestoreNamespaceV1({ indexedDB: this.#inspectionFactory, allocation: this.#allocation });
+					if (current === 'absent') { this.#owned = false; return; }
+					if (current !== 'owned') throw new Error('Catalog restore owner became foreign; the namespace is quarantined.');
+				}
 				await new Promise<void>((resolve, reject) => {
 					const removal = this.#delete(this.databaseName);
 					removal.onsuccess = () => { this.#owned = false; resolve(); };
@@ -259,6 +280,13 @@ class RestoreStage implements PhotoCatalogRestoreStageV1 {
 				try {
 					if (event.oldVersion !== 0) throw new RangeError('Restore database name already exists.');
 					fresh = true; assertNotAborted(this.#stop.signal); createPhotoCatalogStoresV1(opening.result);
+					if (this.#allocation !== undefined) {
+						const owner = opening.result.createObjectStore(PHOTO_CATALOG_RESTORE_OWNER_STORE_V1, { keyPath: 'key' });
+						const marker = owner.add(photoLibraryRestoreOwnerMarkerV1(this.#allocation, 'catalog'));
+						marker.onerror = () => {
+							failed = true; failure = marker.error ?? new Error('Could not record catalog restore ownership.'); opening.transaction?.abort();
+						};
+					}
 				} catch (error) { failed = true; failure = error; opening.transaction?.abort(); }
 			};
 			opening.onerror = () => { reject(failed ? failure : opening.error ?? new Error('Could not create the restore database.')); };

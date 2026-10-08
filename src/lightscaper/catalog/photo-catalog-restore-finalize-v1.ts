@@ -12,6 +12,8 @@ import { auditPhotoCatalogRestoreStoreV1, assertPhotoCatalogRestoreRecordV1, typ
 	type PhotoCatalogRestoreStoreV1 } from './photo-catalog-restore-audit-pages-v1.ts';
 import { auditPhotoCatalogRestoreRecordV1, auditPhotoCatalogRestoreKeyV1 } from './photo-catalog-restore-audit-v1.ts';
 import { integer } from './value-validation.ts';
+import { normalizePhotoLibraryRestoreAllocationV1, PHOTO_CATALOG_RESTORE_OWNER_STORE_V1, type PhotoLibraryRestoreAllocationV1 } from '../storage/photo-library-restore-ownership-v1.ts';
+import { assertPhotoCatalogRestoreNamespaceProfileV1, assertPhotoCatalogRestoreOwnerV1, photoCatalogRestoreNamespaceStoresV1 } from './photo-catalog-restore-owner-v1.ts';
 
 export interface PhotoCatalogRestoreFinalizeContextV1 {
 	readonly root: PhotoCatalogRootV1;
@@ -21,6 +23,7 @@ export interface PhotoCatalogRestoreFinalizeContextV1 {
 	readonly savedCollectionCount: number;
 	readonly legacyQueryIndexedCount: number;
 	readonly assertDelivered: (kind: 'photo' | 'stack' | 'saved', document: PhotoDocumentV1 | PhotoStackV1 | PhotoSmartCollectionV1) => void;
+	readonly restoreAllocation?: PhotoLibraryRestoreAllocationV1;
 }
 
 /**
@@ -31,6 +34,10 @@ export interface PhotoCatalogRestoreFinalizeContextV1 {
 export async function finalizePhotoCatalogRestoreCandidateV1(database: IDBDatabase,
 	context: PhotoCatalogRestoreFinalizeContextV1, signal?: AbortSignal): Promise<void> {
 	const initial = photoCatalogRestoreRootRecordsV1(context.root, context.savedState);
+	const allocation = context.restoreAllocation === undefined ? undefined : normalizePhotoLibraryRestoreAllocationV1(context.restoreAllocation);
+	if (allocation !== undefined && allocation.catalogId !== initial.root.id) throw new TypeError('Catalog restore owner belongs to another catalog.');
+	assertPhotoCatalogRestoreNamespaceProfileV1(database, allocation);
+	const storesInTransaction = photoCatalogRestoreNamespaceStoresV1(allocation);
 	const admitted = Object.freeze({ ...context, root: initial.root, savedState: initial.savedState,
 		assertDelivered: context.assertDelivered.bind(context) });
 	const photoCount = integer(context.photoCount, 0, 10_000_000, 'restored photo count');
@@ -39,6 +46,7 @@ export async function finalizePhotoCatalogRestoreCandidateV1(database: IDBDataba
 	const legacyCount = integer(context.legacyQueryIndexedCount, 0, photoCount, 'restored legacy row count');
 	if (photoCount !== initial.root.photoCount || savedCount !== (initial.savedState?.collectionCount ?? 0)) throw new TypeError('Restore delivery counts differ from archived state.');
 	const controls = async (stores: PhotoCatalogRestoreStoresV1) => {
+		if (allocation !== undefined) await assertPhotoCatalogRestoreOwnerV1(stores[PHOTO_CATALOG_RESTORE_OWNER_STORE_V1]!, allocation);
 		await assertPhotoCatalogRestoreRecordV1(stores, 'catalogs', initial.root.id, initial.root);
 		await assertPhotoCatalogRestoreRecordV1(stores, 'catalogStates', initial.root.id, initial.index);
 		await assertPhotoCatalogRestoreRecordV1(stores, 'photoStackStates', initial.root.id, initial.stackState);
@@ -48,7 +56,7 @@ export async function finalizePhotoCatalogRestoreCandidateV1(database: IDBDataba
 			if (await request(stores.photoSmartCollectionStates.getKey(initial.root.id)) !== undefined) throw new TypeError('Absent archived saved state became physical.');
 		} else await assertPhotoCatalogRestoreRecordV1(stores, 'photoSmartCollectionStates', initial.root.id, initial.savedState);
 	};
-	await catalogTransaction(database, PHOTO_CATALOG_STORES, 'readonly', controls, signal);
+	await catalogTransaction(database, storesInTransaction, 'readonly', controls, signal);
 	const totals = { memberships: 0, stackMemberships: 0, legacyRows: 0 };
 	const counts = {} as Record<PhotoCatalogRestoreStoreV1, number>;
 	const expected: Record<PhotoCatalogRestoreStoreV1, number> = { catalogs: 1, catalogStates: 1, photos: photoCount, summaries: photoCount,
@@ -66,7 +74,8 @@ export async function finalizePhotoCatalogRestoreCandidateV1(database: IDBDataba
 	}
 	for (const store of PHOTO_CATALOG_STORES) if (counts[store] !== expected[store]) throw new TypeError(`Restored ${store} inventory count differs from canonical delivery.`);
 	if (totals.legacyRows !== legacyCount) throw new TypeError('Restored legacy eligibility differs from acknowledged delivery.');
-	await catalogTransaction(database, PHOTO_CATALOG_STORES, 'readwrite', async stores => {
+	await catalogTransaction(database, storesInTransaction, 'readwrite', async stores => {
+		assertPhotoCatalogRestoreNamespaceProfileV1(database, allocation);
 		await controls(stores);
 		for (const store of PHOTO_CATALOG_STORES) if (await request(stores[store].count()) !== expected[store]) throw new TypeError('Restored candidate inventory changed before readiness.');
 		await request(stores.photoQueryBuildStates.put({ ...initial.queryBuildV1, ready: legacyCount === photoCount, indexedCount: legacyCount }));
