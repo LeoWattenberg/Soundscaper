@@ -2,6 +2,7 @@
 
 import { defaultMixerChannelMapV21, mixerEndpointKeyV21, type MixerEdgeV21 } from '../../mixer-graph-v21.ts';
 import { normalizeAutomationLaneV21 } from '../../automation-lane-v21.ts';
+import { mixerDetectorInputClosure } from '../../mixer-detector-input-closure.ts';
 import type { StripRef } from '../../parameter-address.ts';
 import type { IsolatedTrackRenderProjectV21, IsolatedTrackRenderRequestV21 } from './isolated-track-render-project-v21.ts';
 
@@ -12,22 +13,7 @@ export function createAuthoredTrackSidechainRender(
 	widths: ReadonlyMap<string, number>,
 ): IsolatedTrackRenderProjectV21 {
 	const selectedKey = mixerEndpointKeyV21({ kind: 'track', id: request.trackId });
-	const strips = new Set([selectedKey]);
-	const edgeIds = new Set<string>();
-	let changed = true;
-	while (changed) {
-		changed = false;
-		for (const edge of project.mixer.edges) {
-			const destination = edge.destination;
-			const key = destination.kind === 'effect-sidechain' ? mixerEndpointKeyV21(destination.strip)
-				: destination.kind === 'output' ? null : mixerEndpointKeyV21(destination);
-			// Track inputs are clip-owned; only sidechains can enter the selected rack.
-			if (key === null || !strips.has(key) || edgeIds.has(edge.id)) continue;
-			edgeIds.add(edge.id);
-			const source = mixerEndpointKeyV21(edge.source);
-			if (!strips.has(source)) { strips.add(source); changed = true; }
-		}
-	}
+	const { strips, edgeIds } = mixerDetectorInputClosure(project.mixer, { kind: 'track', id: request.trackId });
 	const requested = request.clipIds?.length ? new Set(request.clipIds) : null;
 	const tracks = project.tracks.filter(track => strips.has(mixerEndpointKeyV21({ kind: 'track', id: track.id })))
 		.map(track => track.id === request.trackId ? { ...track, pan: 0,

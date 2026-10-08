@@ -6,6 +6,9 @@ import { brandRuntimeProjectProjection, type RuntimeClipProject } from './runtim
 import { inheritTrackFolderMediaStateProjectionV12 } from './track-folder-media-runtime.ts';
 import { reconcileProjectOwnedFeatureRequirements } from './project-owned-feature-requirements.ts';
 import type { ProjectFeatureRequirementsManifest } from './project-feature-requirements.ts';
+import { mixerDetectorInputClosure } from './mixer-detector-input-closure.ts';
+import { mixerEndpointKeyV21, type MixerGraphV21 } from './mixer-graph-v21.ts';
+import { hasProductionMixerProjectAuthority } from './project-schema-version.ts';
 
 type DataRecord = Readonly<Record<string, unknown>>;
 
@@ -24,12 +27,21 @@ export function createExportClipProject<Project extends object>(projectValue: Pr
 			&& Array.isArray(track.clipIds) && track.clipIds.includes(output.clipId);
 	});
 	if (!clip || !owner) throw new RangeError(`Export clip ${String(output.clipId)} is missing from its audio track.`);
+	const inputs = hasProductionMixerProjectAuthority(project)
+		? mixerDetectorInputClosure(project.mixer as MixerGraphV21, { kind: 'track', id: String(output.trackId) }).strips
+		: new Set<string>();
+	const clipIds = new Set([clip.id]);
+	for (const track of project.tracks) {
+		if (track.id === output.trackId || track.type !== 'audio'
+			|| !inputs.has(mixerEndpointKeyV21({ kind: 'track', id: String(track.id) }))) continue;
+		for (const id of track.clipIds ?? []) clipIds.add(id);
+	}
 	const snapshot = {
 		...project,
-		clips: [clip],
+		clips: project.clips.filter(candidate => clipIds.has(candidate.id)),
 		tracks: project.tracks.map((value) => {
 			const track = value as DataRecord;
-			return { ...track, clipIds: track.id === output.trackId ? [clip.id] : [] };
+			return { ...track, clipIds: Array.isArray(track.clipIds) ? track.clipIds.filter(id => clipIds.has(id)) : [] };
 		}),
 		projectBin: { ...project.projectBin, clips: [] },
 	};
