@@ -35,7 +35,7 @@ test('shortening a warped recording in Properties retains the audible prefix and
 	expect(rms(after, .2, .24)).toBeLessThan(.001);
 	expect(rms(after, .1, .14)).toBeGreaterThan(.1);
 	await editor.getByRole('button', { name: 'Undo', exact: true }).click();
-	await expect(clip).toHaveAccessibleName(/1 seconds long$/u);
+	await expect(clip).toHaveAccessibleName(/1 second long$/u);
 	const restored = await exportSamples(page, editor);
 	expect(restored).toHaveLength(before.length);
 	expect(rms(restored, .2, .24)).toBeLessThan(.001);
