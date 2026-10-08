@@ -7,29 +7,13 @@ import { validateLightscaperDocumentV1 } from '../catalog/documents.ts';
 import { array, field, id, integer, oneOf, record, text } from '../catalog/value-validation.ts';
 import { normalizePhotoImportIntentV1, photoImportIntentKeyV1 } from '../import/import-intent-v1.ts';
 import type { PhotoLibrarySessionPortsV1 } from './photo-library-session-ports.ts';
+import type { PhotoLibraryOriginalBodyInspectionV1, PhotoLibraryOriginalInspectionFailureV1,
+	PhotoLibraryOriginalInspectionPageV1 } from '../../common/editor/photo-library-original-recovery-port-v1.ts';
+export type { PhotoLibraryOriginalBodyInspectionV1, PhotoLibraryOriginalInspectionFailureV1,
+	PhotoLibraryOriginalInspectionPageV1 } from '../../common/editor/photo-library-original-recovery-port-v1.ts';
 
-export type PhotoLibraryOriginalBodyInspectionV1 = Readonly<
-	{ status: 'present' }
-	| { status: 'missing'; reason: 'media-row' | 'directory' | 'file' | 'inline-blob' | 'chunk' }
-	| { status: 'corrupt'; reason: 'size' | 'digest' }
-	| { status: 'unsupported'; storage: string | null }
->;
 export interface PhotoLibraryOriginalInspectionPortV1 {
 	readonly inspect: (binding: CatalogOriginalRepairBindingV1, signal: AbortSignal) => Promise<PhotoLibraryOriginalBodyInspectionV1>;
-}
-export interface PhotoLibraryOriginalInspectionFailureV1 { readonly message: string }
-export interface PhotoLibraryOriginalInspectionPageV1 {
-	readonly schemaVersion: 1;
-	readonly catalogId: string;
-	readonly catalogName: string;
-	readonly revision: number;
-	readonly activeImportId: string | null;
-	readonly startupFailure: PhotoLibraryOriginalInspectionFailureV1 | null;
-	readonly rows: readonly Readonly<{ photoId: string; revision: number; fileName: string;
-		binding: CatalogOriginalRepairBindingV1;
-		inspection: PhotoLibraryOriginalBodyInspectionV1 }>[];
-	readonly scanned: number;
-	readonly cursor: string | null;
 }
 interface Cursor {
 	readonly schemaVersion: 1; readonly catalogId: string; readonly revision: number;

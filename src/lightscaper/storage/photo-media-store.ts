@@ -35,7 +35,8 @@ export interface PhotoMediaStoreOptionsV1 {
 export type PhotoMediaSettingsRepositoryV1 = Readonly<Pick<KeyValueRepository,
 	'get' | 'put' | 'delete' | 'putIfAbsent' | 'replaceIfCurrent' | 'deleteIfCurrent'>>;
 export type PhotoOriginalMediaRepositoryV1 = Readonly<Pick<MediaRepository,
-	'catalogOriginals' | 'beginAssetWrite' | 'writeAsset' | 'loadAsset' | 'getAssetMetadata' | 'deleteAsset'>>;
+	'catalogOriginals' | 'beginAssetWrite' | 'writeAsset' | 'loadAsset' | 'getAssetMetadata' | 'deleteAsset'
+	| 'inspectCatalogOriginalBody' | 'restoreCatalogOriginalBody'>>;
 
 const OPTIONS = ['indexedDB', 'locks', 'storageManager', 'opfsRoot', 'preferOpfs', 'syncWorkerClient',
 	'databaseName', 'opfsDirectoryName', 'opfsWorkerName'];
@@ -89,6 +90,8 @@ export class PhotoMediaStoreV1 {
 			beginAssetWrite: (...args: Parameters<MediaRepository['beginAssetWrite']>) => media.beginAssetWrite(...args),
 			writeAsset: (...args: Parameters<MediaRepository['writeAsset']>) => media.writeAsset(...args),
 			loadAsset: (...args: Parameters<MediaRepository['loadAsset']>) => media.loadAsset(...args),
+			inspectCatalogOriginalBody: (...args: Parameters<MediaRepository['inspectCatalogOriginalBody']>) => media.inspectCatalogOriginalBody(...args),
+			restoreCatalogOriginalBody: (...args: Parameters<MediaRepository['restoreCatalogOriginalBody']>) => media.restoreCatalogOriginalBody(...args),
 			getAssetMetadata: (sourceId: string) => this.#own(() => media.getAssetMetadata(sourceId)),
 			deleteAsset: (sourceId: string) => this.#own(() => media.deleteAsset(sourceId)),
 		});

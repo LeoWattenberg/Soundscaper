@@ -336,7 +336,7 @@ test('the public media port exposes only originals and custody', async () => {
 	const store = setup.create();
 	assert.equal(Object.isFrozen(store.mediaRepository), true);
 	assert.deepEqual(Object.keys(store.mediaRepository).sort(), ['beginAssetWrite', 'catalogOriginals',
-		'deleteAsset', 'getAssetMetadata', 'loadAsset', 'writeAsset']);
+		'deleteAsset', 'getAssetMetadata', 'inspectCatalogOriginalBody', 'loadAsset', 'restoreCatalogOriginalBody', 'writeAsset']);
 	for (const method of ['saveDerivative', 'loadDerivative', 'assetRecords', 'beginAssetMaintenance']) {
 		assert.equal(Reflect.has(store.mediaRepository, method), false);
 	}

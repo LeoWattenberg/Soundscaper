@@ -6,6 +6,8 @@ import type { PhotoLibraryDefinitionAcknowledgementV1, PhotoLibraryDefinitionCom
 	PhotoLibraryMembershipAcknowledgementV1, PhotoLibraryMembershipPatchV1, PhotoLibraryMembershipSnapshotV1 } from '../../common/editor/photo-library-organization-port-v1.ts';
 import type { PhotoLibraryImportPresetCommandV1, PhotoLibraryImportPresetSnapshotV1, PhotoLibraryImportRequestOptionsV1 } from '../../common/editor/photo-library-import-settings-port-v1.ts';
 import type { PhotoLibraryBackupOptionsV1, PhotoLibraryBackupPortV1, PhotoLibraryBackupResultV1 } from '../../common/editor/photo-library-backup-port-v1.ts';
+import type { PhotoLibraryOriginalRecoveryPortV1, PhotoLibraryOriginalInspectionFailureV1, PhotoLibraryOriginalInspectionPageV1,
+	PhotoLibraryOriginalRestoreTargetV1, PhotoLibraryOriginalRestorationOptionsV1, PhotoLibraryOriginalRestorationReceiptV1 } from '../../common/editor/photo-library-original-recovery-port-v1.ts';
 import type { PhotoLibraryBatchRenamePortV1, PhotoLibraryBatchRenameRequestV1, PhotoLibraryBatchRenamePlanV1,
 	PhotoLibraryBatchRenameUndoV1, PhotoLibraryBatchRenameReceiptV1, PhotoLibraryBatchRenameSnapshotV1 } from '../../common/editor/photo-library-batch-rename-port-v1.ts';
 import { IMAGE_IMPORT_LIMITS } from '../../common/editor/image-import-admission.ts';
@@ -34,12 +36,12 @@ import { admitPhotoLibraryImportRequestV1 } from './photo-library-import-request
 import { admitPhotoLibraryBackupRequestV1 } from './photo-library-backup-request.ts';
 import { planPhotoLibraryBatchRenameV1, readPhotoLibraryBatchRenameSelectionV1, renamePhotoLibraryBatchV1,
 	undoPhotoLibraryBatchRenameV1, type PhotoBatchRenameSessionPortsV1 } from './photo-library-batch-rename-v1.ts';
-import { admitPhotoLibraryOriginalInspectionRequestV1, photoOriginalInspectionFailureV1, readPhotoLibraryOriginalInspectionPageV1,
-	type PhotoLibraryOriginalInspectionFailureV1, type PhotoLibraryOriginalInspectionPageV1, type PhotoLibraryOriginalInspectionPortV1 } from './photo-library-original-inspection-v1.ts';
+import { admitPhotoLibraryOriginalInspectionRequestV1, photoOriginalInspectionFailureV1, readPhotoLibraryOriginalInspectionPageV1 } from './photo-library-original-inspection-v1.ts';
+import { admitPhotoLibraryOriginalRestorationRequestV1, restorePhotoLibraryOriginalBodyV1 } from './photo-library-original-restoration-v1.ts';
 
 /** Product session owns lifetime, bounded presentation pages and a single writer. */
-export class PhotoLibrarySessionV1 implements PhotoLibrarySessionPortV1, PhotoLibraryBatchRenamePortV1, PhotoLibraryBackupPortV1 {
-	readonly #ports: PhotoLibrarySessionPortsV1 & { readonly originalInspection?: PhotoLibraryOriginalInspectionPortV1 };
+export class PhotoLibrarySessionV1 implements PhotoLibrarySessionPortV1, PhotoLibraryBatchRenamePortV1, PhotoLibraryBackupPortV1, PhotoLibraryOriginalRecoveryPortV1 {
+	readonly #ports: PhotoLibrarySessionPortsV1;
 	readonly #lifetime = new AbortController();
 	readonly #pending = new Set<Promise<unknown>>();
 	#catalog: Promise<string> | null = null;
@@ -51,7 +53,23 @@ export class PhotoLibrarySessionV1 implements PhotoLibrarySessionPortV1, PhotoLi
 	#closing: Promise<void> | null = null;
 	#startupFailure: PhotoLibraryOriginalInspectionFailureV1 | null = null;
 
-	constructor(ports: PhotoLibrarySessionPortsV1 & { readonly originalInspection?: PhotoLibraryOriginalInspectionPortV1 }) { this.#ports = ports; }
+	constructor(ports: PhotoLibrarySessionPortsV1) { this.#ports = ports; }
+
+	async restoreOriginalBody(target: PhotoLibraryOriginalRestoreTargetV1, selected: Blob,
+		options: PhotoLibraryOriginalRestorationOptionsV1 = {}): Promise<PhotoLibraryOriginalRestorationReceiptV1> {
+		const request = admitPhotoLibraryOriginalRestorationRequestV1(target, options), originalRestoration = this.#ports.originalRestoration;
+		if (!originalRestoration) throw new Error('Photo original restoration is unavailable.');
+		const completed: { result: PhotoLibraryOriginalRestorationReceiptV1 | null } = { result: null };
+		try {
+			return await this.#mutation(async (catalogId, signal) => {
+				const result = await restorePhotoLibraryOriginalBodyV1(catalogId, { ...this.#ports, originalRestoration }, request.target, selected, signal);
+				completed.result = result; this.#catalog = null; return result;
+			}, request.signal, true);
+		} catch (error) {
+			if (completed.result === null) throw error;
+			return Object.freeze({ ...completed.result, notices: Object.freeze(['cleanup-failed'] as const) });
+		}
+	}
 
 	async inspectOriginals(options: Readonly<{ cursor?: string | null; signal?: AbortSignal }> = {}): Promise<PhotoLibraryOriginalInspectionPageV1> {
 		const request = admitPhotoLibraryOriginalInspectionRequestV1(options), originalInspection = this.#ports.originalInspection;
@@ -400,12 +418,12 @@ export class PhotoLibrarySessionV1 implements PhotoLibrarySessionPortV1, PhotoLi
 		finally { this.#presetActive = false; }
 	}
 
-	async #mutation<Result>(run: (catalogId: string, signal: AbortSignal) => Promise<Result>, signal?: AbortSignal, inspection = false): Promise<Result> {
+	async #mutation<Result>(run: (catalogId: string, signal: AbortSignal) => Promise<Result>, signal?: AbortSignal, preReady = false): Promise<Result> {
 		if (this.#writing) throw new Error('A photo library change is already pending.');
 		this.#writing = true;
 		try {
 			return await this.#operation(async admitted => {
-				const catalogId = inspection ? id((await this.#ports.initialize(admitted)).id, 'inspection catalog ID') : await this.#ready(); admitted.throwIfAborted();
+				const catalogId = preReady ? id((await this.#ports.initialize(admitted)).id, 'catalog ID') : await this.#ready(); admitted.throwIfAborted();
 				return (this.#ports.exclusive ?? withPhotoCatalogWriteLockV1)(catalogId, leaseSignal => run(catalogId, leaseSignal ?? admitted), admitted);
 			}, signal);
 		} finally { this.#writing = false; }

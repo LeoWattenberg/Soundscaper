@@ -8,6 +8,8 @@ import type { PhotoCatalogImportExclusiveV1 } from '../import/catalog-write-lock
 import type { PhotoImportOutcomeV1, PhotoImportPreparedV1 } from '../import/photo-import-preparation-v1.ts';
 import type { importManagedPhotosV1 } from '../import/managed-import-v1.ts';
 import type { PhotoImportPresetSettingsPortV1 } from '../storage/photo-import-presets-v1.ts';
+import type { MediaRepository } from '../../common/editor/storage/media-repository.ts';
+import type { PhotoLibraryOriginalInspectionPortV1 } from './photo-library-original-inspection-v1.ts';
 
 type Prepared = Pick<PhotoImportPreparedV1, 'outcome' | 'index' | 'fileName' | 'photo' | 'original' | 'keywordNames' | 'notices'>;
 export type PhotoLibraryPreparationOutcomeV1 = Prepared | Extract<PhotoImportOutcomeV1, { outcome: 'failed' }>;
@@ -15,6 +17,8 @@ export type PhotoLibraryPreparationOutcomeV1 = Prepared | Extract<PhotoImportOut
 export type PhotoLibraryPreviewSchedulerPortV1 = Pick<PhotoPreviewSchedulerV1, 'request' | 'close'>;
 
 export interface PhotoLibrarySessionPortsV1 {
+	readonly originalInspection?: PhotoLibraryOriginalInspectionPortV1;
+	readonly originalRestoration?: Readonly<Pick<MediaRepository, 'restoreCatalogOriginalBody'>>;
 	readonly backup?: Readonly<{
 		readSnapshot: PhotoCatalogRepositoryV1['readSnapshot'];
 		loadOriginal: (original: PhotoOriginalV1, signal?: AbortSignal) => Promise<unknown>;
