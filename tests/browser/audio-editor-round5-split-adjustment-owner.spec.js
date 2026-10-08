@@ -6,6 +6,8 @@ import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.
 import { EDITOR_ENGLISH_COPY } from '../../src/common/i18n/editor-copy-inventory.ts';
 
 test('a split video retains its selected adjustment controls', async ({ page }) => {
+	// Media import and repeated inspector/history edits share one workflow budget.
+	test.setTimeout(60_000);
 	const editor = await bootEditor(page, '/framescaper/embed/en/');
 	await importFiles(editor, [createDeterministicAvFixture('adjusted-video.webm')]);
 	const clips = editor.getByRole('group', { name: /^Video clip:/u });

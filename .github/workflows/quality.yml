@@ -645,7 +645,9 @@ jobs:
       matrix:
         shard: [1, 2, 3, 4]
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    # Run 37733071611 passed all 395 shard-2 tests in 44 minutes, then the
+    # 45-minute job limit cancelled the job after setup overhead.
+    timeout-minutes: 60
     steps:
       - name: Check out source
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2

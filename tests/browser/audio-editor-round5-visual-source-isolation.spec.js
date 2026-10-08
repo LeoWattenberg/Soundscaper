@@ -4,6 +4,8 @@ import { expect, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseCommandAction, chooseNestedCommandAction, clickClipInterior } from './audio-editor-test-helpers.js';
 
 test('editing the selected split Title preserves the other title text', async ({ page }) => {
+	// Inspect both split segments and their undo/redo state under browser coverage.
+	test.setTimeout(60_000);
 	const editor = await bootEditor(page, '/framescaper/embed/en/');
 	await chooseNestedCommandAction(page, editor, 'Generate', ['Video Generators', 'Add Title/Text']);
 	const titles = editor.getByRole('group', { name: 'Video clip: Title', exact: true });
