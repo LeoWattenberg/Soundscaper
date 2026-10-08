@@ -8,9 +8,9 @@ Lightroom Classic — built independently for `lightscaper.org/<locale>/`,
 following the implemented [separate-origin decision](docs/decisions/product-origins.md).
 It reuses IndexedDB/OPFS storage primitives, project-lock contracts, and the
 Scape container while owning a photo-catalog schema family and media library.
-Product-unique code lives in `src/lightscaper/`;
-every operation that changes pixels lives in `src/common/` where Framescaper
-can reach it too.
+Product composition and domain code live in `src/lightscaper/`; photo
+presentation lives in `src/common/editor/ui/lightscaper/`. Every operation that
+changes pixels lives in `src/common/` where Framescaper can reach it too.
 
 ## How to use this roadmap
 

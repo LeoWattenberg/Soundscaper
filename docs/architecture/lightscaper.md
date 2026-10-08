@@ -312,3 +312,40 @@ covers bounded transient copies in addition to the existing library page.
 Reordering and cover selection preserve the full admitted order while requesting
 only the displayed page's names. A known durable write whose refresh fails
 retains its acknowledgement and pauses further edits until a fresh read succeeds.
+
+### Effective metadata query contract
+
+Catalog query version 2 adds a closed predicate over the 19 effective metadata
+columns. Text supports literal contains, equals and starts-with; numeric ranges
+have inclusive endpoints; time ranges include their start and exclude their end.
+Presence distinguishes unknown values from known empty text. Capture time uses
+the recorded local clock, and modified time uses UTC. An unknown capture offset
+does not imply UTC. Raw EXIF and IPTC alternatives remain immutable import facts
+and do not replace the authored effective values used by these predicates.
+
+The existing View-menu search, filter and sort dialog opens the metadata form.
+It edits up to 16 conjunctive conditions. A nested or larger admitted predicate
+survives unrelated text or sort changes until the user explicitly replaces it.
+The product supplies its predicate registry lazily; common presentation imports
+no product domain at runtime. Broad text search retains its version-1 field
+universe. Persisted version-1 smart collections and catalog archives are
+unchanged; this query protocol does not widen their closed schemas.
+
+Database version 4 adds disposable version-2 query rows and build states without
+reading or rewriting existing photo documents. Each row contains every effective
+metadata value once, bounded by 1 MiB, while browse summaries retain their 4 KiB
+limit. Publication updates the photo and both derived index generations in one
+transaction. A legal photo that exceeds the old 512 KiB row profile makes that
+legacy index unready without truncating metadata; an explicit bounded legacy
+rebuild can recover after the photo returns to that profile.
+
+Rebuilding version 2 persists at most 16 photos per step, with source documents
+and derived rows sharing the existing 8 MiB serialized byte budget. Queries
+compile all hierarchy references before scanning, retain bounded current rows
+and at most 64 scalar summaries, and never read photo aggregates or originals
+to populate a page. The catalog name, count and revision context come from that
+same transaction. Continuations bind the query and catalog/index revisions;
+collapsed pages also bind stack state and the issuing connection's signature.
+Ordinary and collapsed reads evaluate the same metadata predicate. Cancellation
+joins pending reads, and neither a late result nor a terminal page with mismatched
+incoming revisions can publish through the session port.
