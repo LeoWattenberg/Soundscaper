@@ -36,6 +36,12 @@ function replaceSelection(value: string, start: number, end: number, text: strin
 function formatInline(value: string, start: number, end: number, marker: string,
 	placeholder: string): RecordingNotesSelection {
 	const selected = value.slice(start, end);
+	if (marker !== '`' && selected) {
+		const leading = /^\s*/u.exec(selected)?.[0].length ?? 0;
+		const trailing = /\s*$/u.exec(selected)?.[0].length ?? 0;
+		if (leading === selected.length) return { value, selectionStart: start, selectionEnd: end };
+		if (leading || trailing) return formatInline(value, start + leading, end - trailing, marker, placeholder);
+	}
 	const markerRun = (text: string, offset: number, direction: number) => {
 		let length = 0;
 		while (text[offset] === marker[0]) { length += 1; offset += direction; }
