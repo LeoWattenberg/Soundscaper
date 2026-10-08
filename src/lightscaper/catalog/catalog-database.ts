@@ -1,9 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { EditorStoreBlockedError } from '../../common/editor/storage/status.ts';
-import { PHOTO_CATALOG_DATABASE_VERSION, PHOTO_CATALOG_STORES } from './repository-types.ts';
-import { PHOTO_QUERY_INDEXES_V1 } from './photo-query-index-v1.ts';
-import { PHOTO_QUERY_INDEXES_V2 } from './photo-query-index-v2.ts';
+import { PHOTO_CATALOG_DATABASE_VERSION } from './repository-types.ts';
+import { createPhotoCatalogStoresV1 } from './catalog-database-schema.ts';
 
 /** Own versioned database; shared editor openDatabase would create timeline stores. */
 export function openPhotoCatalogDatabaseV1(factory: IDBFactory, name: string, onVersionChange: () => void): Promise<IDBDatabase> {
@@ -14,22 +13,7 @@ export function openPhotoCatalogDatabaseV1(factory: IDBFactory, name: string, on
 		request.onupgradeneeded = (event) => {
 			try {
 				if (![0, 1, 2, 3, 4].includes(event.oldVersion)) throw new RangeError('Unsupported photo catalog database migration.');
-				for (const storeName of PHOTO_CATALOG_STORES) {
-					if (request.result.objectStoreNames.contains(storeName)) continue;
-					const store = request.result.createObjectStore(storeName, { keyPath: storeName === 'photoStackStates' || storeName === 'photoSmartCollectionStates' ? 'catalogId' : storeName === 'catalogs' || storeName === 'catalogStates' || storeName === 'photoQueryBuildStates' || storeName === 'photoQueryBuildStatesV2' ? 'id' : 'key' });
-					if (storeName === 'photoSmartCollections' || storeName === 'photoSmartCollectionSummaries') store.createIndex('catalogId', 'catalogId');
-					if (storeName === 'photoSmartCollections') store.createIndex('referenceKey', 'referenceKeys', { multiEntry: true });
-					if (storeName === 'photoStacks' || storeName === 'photoStackMemberships') store.createIndex('catalogId', 'catalogId');
-					if (storeName === 'photoStacks') store.createIndex('memberKey', 'memberKeys', { unique: true, multiEntry: true });
-					if (storeName === 'photoStackMemberships') store.createIndex('scope', 'scope');
-					if (storeName === 'summaries') store.createIndex('catalogId', 'catalogId');
-					if (storeName === 'memberships') store.createIndex('scope', 'scope');
-					if (storeName === 'photoQueryRows' || storeName === 'photoQueryRowsV2') {
-						store.createIndex('catalogId', 'catalogId');
-						const indexes = storeName === 'photoQueryRows' ? PHOTO_QUERY_INDEXES_V1 : PHOTO_QUERY_INDEXES_V2;
-						for (const [sort, fields] of Object.entries(indexes)) store.createIndex(sort, [...fields]);
-					}
-				}
+				createPhotoCatalogStoresV1(request.result);
 			} catch (error) {
 				upgradeError = error;
 				request.transaction?.abort();

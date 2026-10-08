@@ -598,6 +598,18 @@
 		,
 		{"path": "src/lightscaper/archive/smart-collection-pack-v1.ts", "kind": "persisted-contract", "justification": "Version 1 canonical framed saved-collection records preserve complete Query2 criteria under independent streamed record, pack, chunk and cleanup bounds."}
 		,
+		{ "path": "src/lightscaper/catalog/photo-catalog-restore-audit-pages-v1.ts", "kind": "helper-contract", "justification": "Version 1 restored candidate inventories retain bounded ASCII primary-key pages, refuse the first excess key, and compare closed persisted projections without bulk record arrays." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-catalog-restore-audit-v1.ts", "kind": "helper-contract", "justification": "Version 1 private restored source audits bind delivered document digests to exact derived rows, paired summaries, memberships and all referenced catalog authority." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-catalog-restore-delivery-v1.ts", "kind": "helper-contract", "justification": "Version 1 restored delivery identity ledger retains bounded kind and ASCII ID framing plus SHA-256 document digests with an explicit 16 MiB logical byte ceiling." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-catalog-restore-finalize-v1.ts", "kind": "helper-contract", "justification": "Version 1 sealed private catalog candidate finalization authenticates complete bounded inventories and pending controls before atomically acknowledging derived index readiness." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-catalog-restore-records-v1.ts", "kind": "helper-contract", "justification": "Version 1 fresh catalog restore projections preserve archived documents and revisions while explicitly deriving pending index state and exact physical saved-state presence." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-catalog-restore-stage-v1.ts", "kind": "helper-contract", "justification": "Version 1 serial catalog restore stage requires native fresh-database proof, joins admission and retirement, and acknowledges audited candidate readiness without publishing a library pointer or original media." }
+		,
 		{ "path": "src/lightscaper/catalog/photo-metadata-query-columns-v2.ts", "kind": "helper-contract", "justification": "Version 2 closed metadata column definitions bind effective scalar facts, nullable presence, units and local versus UTC clocks independently of raw extracted source metadata." }
 		,
 		{ "path": "src/lightscaper/catalog/photo-query-index-storage-v2.ts", "kind": "persisted-contract", "justification": "Version 2 disposable query build states bind readiness, bounded resume position and atomic derived-row counts independently of canonical photo and catalog schemas." }
