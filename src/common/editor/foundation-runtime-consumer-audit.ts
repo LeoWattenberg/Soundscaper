@@ -119,6 +119,7 @@ export const FOUNDATION_RUNTIME_SHIELDED_OWNERS: readonly FoundationRuntimeShiel
 	{ file: 'src/common/editor/controller/import/internal/project-bin/project-bin-replacement-service.ts', surfaces: ['composition'] },
 	{ file: 'src/common/editor/project-bin-video-replacement.ts', surfaces: ['composition'] },
 	{ file: 'src/common/editor/ui/workspace/project-bin-video-preview-model.ts', surfaces: ['preview'] },
+	{ file: 'src/common/editor/ui/workspace/project-bin-warp-ranges.ts', surfaces: ['waveform'] },
 	{ file: 'src/common/editor/engine/lifecycle.ts', surfaces: ['playback'] },
 	{ file: 'src/common/editor/export.js', surfaces: ['audio-export'] },
 	{ file: 'src/common/editor/export-clip-boundaries.ts', surfaces: ['audio-export'] },

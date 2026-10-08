@@ -21,8 +21,8 @@ export function useProjectBinSources(items: ReturnType<typeof projectBinItems>, 
 	}, [items, sources]);
 }
 
-export function useProjectBinWaveformPath(visual: Parameters<typeof projectBinWaveformPath>[0], clip: Parameters<typeof projectBinWaveformPath>[1]) {
-	return useMemo(() => projectBinWaveformPath(visual, clip), [visual?.buffer, visual?.peaks, clip]);
+export function useProjectBinWaveformPath(visual: Parameters<typeof projectBinWaveformPath>[0], clip: Parameters<typeof projectBinWaveformPath>[1], project?: unknown) {
+	return useMemo(() => projectBinWaveformPath(visual, clip, 160, 44, project), [visual?.buffer, visual?.peaks, clip, project]);
 }
 
 export function useProjectBinTransformBadges(clips: readonly BinClip[], sources: readonly Parameters<typeof projectBinTransformBadges>[1][], copy: Parameters<typeof projectBinTransformBadges>[2]) {

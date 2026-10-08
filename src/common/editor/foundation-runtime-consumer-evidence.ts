@@ -85,6 +85,12 @@ const entries: FoundationRuntimeConsumerEvidence[] = [
 		evidence: 'Video cards resolve authored clip geometry before mapping their preview start, end, duration, and playback rate through the verified source clock.',
 	},
 	{
+		id: 'bin-warp-waveform-geometry', surface: 'waveform',
+		file: 'src/common/editor/ui/workspace/project-bin-warp-ranges.ts', entryPoint: 'projectBinWarpRanges',
+		inputIdentifier: 'projectValue', projectedIdentifier: 'project', boundary: 'projectForRuntimeConsumers',
+		evidence: 'Bin warp columns capture the resolved project and clip before evaluating their painted sample intervals through the authenticated playback warp map, retaining musical tempo and original source authority.',
+	},
+	{
 		id: 'regular-interval-dialog-range', surface: 'timeline',
 		file: 'src/common/editor/ui/regular-interval-dialog-defaults.ts', entryPoint: 'regularIntervalDialogDefaults',
 		inputIdentifier: 'project', projectedIdentifier: null, boundary: 'resolveRuntimeClipProjection',

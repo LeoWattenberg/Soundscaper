@@ -43,7 +43,7 @@ export default function ProjectBinCard({
 	const unavailable = Boolean(missing || !source || visual?.available === false);
 	const disabled = mutationBlocked || unavailable;
 	const name = clip.title || source?.name || copy.clip;
-	const waveformPath = useProjectBinWaveformPath(visual, clip);
+	const waveformPath = useProjectBinWaveformPath(visual, clip, project);
 	const transformBadges = useProjectBinTransformBadges(itemClips, sources, copy);
 	const format = formatProjectBinSource(source, copy);
 	const videoClip = itemClips.find((itemClip) => itemClip.kind === 'video') || null;

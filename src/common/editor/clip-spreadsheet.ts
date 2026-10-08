@@ -7,6 +7,7 @@ import { projectForRuntimeConsumers } from './project-current-runtime.ts';
 import type { RuntimeClipProject } from './runtime-clip-projection.ts';
 import { scaleSampleFrame } from './timeline-time.ts';
 import { readClipLoop } from './audio-clip-loop.ts';
+import { mapVideoTimelineFrameToSource } from './video-source-time.ts';
 
 export const CLIP_SPREADSHEET_COLUMNS = [
 	{ id: 'name', copyKey: 'name', editable: true },
@@ -109,7 +110,11 @@ function rowsForProject(project: SpreadsheetProject, sources: ReadonlyMap<string
 				cells: {
 					name: clip.title || source?.name || '', track: track.id,
 					position: numberText(clip.timelineStartFrame / project.sampleRate), source: clip.sourceId,
-					offset: numberText(clip.sourceStartFrame / sourceRate),
+					offset: numberText(clip.kind === 'video' && source
+						? mapVideoTimelineFrameToSource(clip, clip.timelineStartFrame, {
+							source, sourceSampleRate: sourceRate,
+						}).sourceTimeSeconds ?? clip.sourceStartFrame / sourceRate
+						: clip.sourceStartFrame / sourceRate),
 					duration: numberText(clip.durationFrames / project.sampleRate),
 					pitch: audio ? numberText(clip.linkPitchAndTempo ? 12 * Math.log2(clip.speedRatio) : clip.pitchCents / 100) : '',
 					speed: numberText(clip.speedRatio), gain: audio ? (clip.gain === 0 ? '-Infinity' : numberText(Number((20 * Math.log10(clip.gain)).toPrecision(12)))) : '',
