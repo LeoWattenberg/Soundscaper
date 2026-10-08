@@ -1,12 +1,14 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { trackSourceChannelCount } from '../application-menu-model.js';
+import { isStandaloneMonoAudioTrack } from '../../mono-track-pair-admission.ts';
 
 export interface TrackSelectionContextTrack {
 	readonly id: string;
 	readonly type?: string;
 	readonly clipIds?: readonly string[];
 	readonly locked?: boolean;
+	readonly laneGroupId?: string | null;
 }
 
 interface TrackSelectionContextProject {
@@ -43,9 +45,8 @@ export function createTrackSelectionContextMenuItems(input: Readonly<{
 	const { project, track, copy, blocked, audioEffects, actions = {} } = input;
 	const audioTrack = track?.type === 'audio' ? track : null;
 	const channelCount = trackSourceChannelCount(project, audioTrack) as number;
-	const compatibleMonoTrack = channelCount === 1 && project?.tracks.some((candidate) => (
-		candidate.id !== audioTrack?.id && candidate.type === 'audio'
-		&& trackSourceChannelCount(project, candidate) === 1
+	const compatibleMonoTrack = isStandaloneMonoAudioTrack(audioTrack, channelCount) && project?.tracks.some((candidate) => (
+		candidate.id !== audioTrack?.id && isStandaloneMonoAudioTrack(candidate, trackSourceChannelCount(project, candidate) as number)
 	));
 	const channelItem = (id: string, label: string, unavailable: boolean, operation?: (id: string) => unknown): ContextMenuItem => ({
 		id, label, disabled: blocked || !audioTrack || unavailable || !operation,

@@ -16,6 +16,7 @@ import { trackReplacementPlacement } from './track-replacement-placement.ts';
 import { stereoTrackRenderRange } from './stereo-track-render-range.ts';
 import { splitStereoSourceChannels } from './split-stereo-source-channels.ts';
 import { resampledClipSelectionCommands } from './resampled-clip-selection.ts';
+import { isStandaloneMonoAudioTrack } from '../../../mono-track-pair-admission.ts';
 import { copyDerivedTrackStripAutomation } from '../../../derived-track-strip-automation.ts';
 import { copyDerivedTrackEffectAutomation } from '../../../derived-track-effect-automation.ts';
 import type { DerivedSourceService } from './derived-audio/derived-source-service.ts';
@@ -317,7 +318,7 @@ export function createTrackTransformService(
 		if (dependencies.editingBlocked()) return null;
 		const project = dependencies.getProject();
 		const track = requireMonoTrack(project, trackId);
-		if (track.laneGroupId != null) throw createLocalizedError(Error, dependencies.copy, dependencies.copy.compatibleMonoTrackRequired ? 'compatibleMonoTrackRequired' : dependencies.copy.monoTrackRequired ? 'monoTrackRequired' : 'audioTrackRequired');
+		if (!isStandaloneMonoAudioTrack(track, dependencies.audioTrackChannelCount(project, track))) throw createLocalizedError(Error, dependencies.copy, dependencies.copy.compatibleMonoTrackRequired ? 'compatibleMonoTrackRequired' : dependencies.copy.monoTrackRequired ? 'monoTrackRequired' : 'audioTrackRequired');
 		const trackIndex = project.tracks.findIndex((candidate) => candidate.id === track.id);
 		const partner = findMonoPartner(project, track, trackIndex, partnerTrackId);
 		if (!partner) throw createLocalizedError(Error, dependencies.copy, dependencies.copy.compatibleMonoTrackRequired ? 'compatibleMonoTrackRequired' : dependencies.copy.monoTrackRequired ? 'monoTrackRequired' : 'audioTrackRequired');
@@ -519,9 +520,7 @@ export function createTrackTransformService(
 	): candidate is ControllerTrack {
 		return candidate !== null
 			&& candidate.id !== track.id
-			&& candidate.type === 'audio'
-			&& candidate.laneGroupId == null
-			&& dependencies.audioTrackChannelCount(project, candidate) === 1;
+			&& isStandaloneMonoAudioTrack(candidate, dependencies.audioTrackChannelCount(project, candidate));
 	}
 }
 
