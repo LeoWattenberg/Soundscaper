@@ -71,6 +71,7 @@ export function adoptFramescaperSelectedVisualAuthoringRuntime(from: object, to:
 export function bindFramescaperSelectedAuthoringController(options: Readonly<{
 	readonly controller: FramescaperSelectedAuthoringController;
 	readonly store: AudioEditorProjectStore;
+	readonly projectForRuntimeConsumers?: (project: unknown) => unknown;
 }>): void {
 	const { controller, store } = options;
 	if (!controller || typeof controller !== 'object') {
@@ -115,6 +116,7 @@ export function bindFramescaperSelectedAuthoringController(options: Readonly<{
 					project: state.project,
 					store,
 					request,
+					freezeRuntimeProject: surface === 'video-freeze' ? options.projectForRuntimeConsumers?.(state.project) : undefined,
 					capture: captures.framescaperSelectedFreezeCaptureFinishingFor(
 						VISUAL_CAPTURE_OWNERS.get(controller as object) ?? controller,
 					),

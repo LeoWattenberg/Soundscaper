@@ -198,7 +198,7 @@ export function bindFramescaperInheritedProductRuntimesAssistance(options: Reado
 	);
 	bindFramescaperSelectedAuthoringController({
 		controller: controller as never,
-		store: environment.controllerStore,
+		store: environment.controllerStore, projectForRuntimeConsumers: environment.runtime.projectForRuntimeConsumers,
 	});
 	bindFramescaperMotionAnalysisActionsFinishing(controller, createFramescaperMotionAnalysisActionsFinishing({
 		owner: view as never,

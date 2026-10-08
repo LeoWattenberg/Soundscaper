@@ -14,8 +14,7 @@ import type { AudioEditorProjectStore } from '../common/editor/storage.js';
 import { videoFrameToSampleFrame } from '../common/editor/timeline-time.ts';
 import { sequenceFrameAtSample } from '../common/editor/sequence-frame-navigation.ts';
 import { createVideoFreezeFallbackV1 } from '../common/editor/video-freeze-v24.ts';
-import { resolveVideoRetimeExactPictureOrdinal } from '../common/editor/video-retime-exact-ordinal-authority.ts';
-import { createRegisteredVideoRetimeWebCorePreviewResolver } from '../common/editor/video-retime-web-core-preview.ts';
+import { resolveFramescaperSelectedFreezeSourceOrdinalFinishing } from './editor-selected-finishing-freeze-ordinal.ts';
 import { normalizeVideoMaskMatteGraphV1 } from '../common/editor/video-mask-matte-v24.ts';
 import { normalizeVideoVisualPresetV1 } from '../common/editor/video-visual-preset-v24.ts';
 import {
@@ -80,6 +79,7 @@ export async function prepareFramescaperSelectedVisualAuthoringFinishing(input: 
 	readonly store: AudioEditorProjectStore;
 	readonly request: FramescaperSelectedVisualAuthoringRequestFinishing | unknown;
 	readonly capture?: FramescaperSelectedFreezeCaptureFinishing | null;
+	readonly freezeRuntimeProject?: unknown;
 }>): Promise<Readonly<FramescaperSelectedPreparedVisualAuthoringFinishing>> {
 	assertFramescaperProjectIdentity(input.project);
 	const project = record(input.project, 'selected visual authoring project');
@@ -93,7 +93,7 @@ export async function prepareFramescaperSelectedVisualAuthoringFinishing(input: 
 	if (input.surface === 'video-adjustment-layer') return prepared(adjustmentCommand(project, request));
 	if (input.surface === 'video-visual-preset') return prepared(visualPresetCommand(project, request));
 	if (input.surface === 'video-freeze') {
-		return prepareFreeze(project, input.store, request, input.capture ?? null);
+		return prepareFreeze(project, input.store, request, input.capture ?? null, input.freezeRuntimeProject ?? project);
 	}
 	throw new RangeError(`Selected visual authoring does not support ${input.surface}.`);
 }
@@ -307,6 +307,7 @@ async function prepareFreeze(
 	store: AudioEditorProjectStore,
 	request: Data,
 	capture: FramescaperSelectedFreezeCaptureFinishing | null,
+	runtimeProject: unknown,
 ): Promise<Readonly<FramescaperSelectedPreparedVisualAuthoringFinishing>> {
 	oneOf(request.operation, ['create'] as const, 'freeze operation');
 	const clip = selectedVideoClip(project, request);
@@ -326,18 +327,15 @@ async function prepareFreeze(
 	const end = start + positiveInteger(clip.sequenceFrameCount, 'selected video duration');
 	if (sequenceFrame < start || sequenceFrame >= end) throw new RangeError('The playhead is outside the selected video.');
 	if (!capture) throw new Error('Exact freeze capture is unavailable for the selected preview.');
-	const resolver = createRegisteredVideoRetimeWebCorePreviewResolver(project);
-	const picture = resolveVideoRetimeExactPictureOrdinal(resolver.authority, {
-		outputOrdinal: playhead, clipId: stableId(clip.id, 'selected video clip ID'),
-		sourceId: stableId(source.id, 'selected video source ID'),
-	});
+	const sourceOrdinal = resolveFramescaperSelectedFreezeSourceOrdinalFinishing(runtimeProject,
+		stableId(clip.id, 'selected video clip ID'), stableId(source.id, 'selected video source ID'), playhead);
 	const body = await capture.capture({
 		projectId: stableId(project.id, 'project ID'),
 		projectRevision: nonNegativeInteger(project.revision, 'project revision'),
 		timelineSample: playhead,
 		clipId: stableId(clip.id, 'selected video clip ID'),
 		sourceId: stableId(source.id, 'selected video source ID'),
-		sourceOrdinal: picture.sourceOrdinal,
+		sourceOrdinal,
 	});
 	if (!(body.blob instanceof Blob) || body.blob.type !== 'image/png') {
 		throw new TypeError('Exact freeze capture must return a PNG Blob.');
@@ -369,7 +367,7 @@ async function prepareFreeze(
 		authoredStateSha256: digest({ schemaVersion: 1, kind: 'video-freeze',
 			renderedSourceId: sourceId }),
 		inputIdentitiesSha256: digest({ sourceId: source.id,
-			contentSha256: source.contentSha256, sourceOrdinal: picture.sourceOrdinal }),
+			contentSha256: source.contentSha256, sourceOrdinal }),
 		renderPlanFingerprintSha256: digest({ schemaVersion: 13, sequenceId: clip.sequenceId,
 			sequenceFrame, playhead }),
 		nativeEffectFingerprintSha256: digest({ nativeEffects: false }),
