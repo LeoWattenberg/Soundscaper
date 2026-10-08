@@ -302,6 +302,7 @@ function isComposableAudioDescriptor(descriptor: CommandObject): boolean {
 function hasSupportedClipProcessing(clip: Readonly<Record<string, unknown>>): boolean {
 	return clip.warpMap == null
 		&& finiteDefault(clip.pitchCents, 0) === 0
+		&& (clip.linkPitchAndTempo === true || finiteDefault(clip.speedRatio, 1) === 1)
 		&& clip.preserveFormants !== true
 		&& clip.stretchToTempo !== true;
 }
