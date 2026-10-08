@@ -105,7 +105,7 @@ export default function ClipPropertiesBody({ controller, snapshot, copy, clipId 
 			} else if ((name === 'sourceInFrame' || name === 'durationFrame') && !isVideoClip
 				&& source && controller.actions.clipSourcePreview?.trim) {
 				const value = nonNegativeFrame(rawValue, copy);
-				controller.actions.clipSourcePreview.trim(clip.id, clipPropertiesMediaRange(clip, source.frameCount, name, value));
+				controller.actions.clipSourcePreview.trim(clip.id, clipPropertiesMediaRange(clip, source.frameCount, name, value, { project, source }));
 			} else if (name === 'sourceInFrame') {
 				const sourceStartFrame = nonNegativeFrame(rawValue, copy);
 				controller.actions.clip.trim(clip.id, { sourceStartFrame });
