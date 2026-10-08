@@ -19,7 +19,8 @@ source-ready corrections from completed public verification.
 The baseline and corrected checkpoints use locked detached checkouts, private
 dependency copies, normal guarded product builds, and ordinary loopback
 production previews. Checkpoint one is `23070df21`; its normal browser-product
-build passes. Browser evidence names each exact checkpoint. Firefox audio
+build passes. Checkpoint two is `5948d84d0`; both product builds and the
+coordinated strict test typecheck pass. Browser evidence names each exact checkpoint. Firefox audio
 uses the unchanged CI PulseAudio setup with a private 48 kHz null sink.
 
 Final canonical, Node, build, and browser handoff gates have not yet run for

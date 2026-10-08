@@ -22,7 +22,9 @@ The ordinary baseline workflow fails because no error appears; its captured
 accessible tree records the substituted 24.08 dB. Two strict owning-service
 regressions fail before the correction. They and the attainable controls pass
 afterward; all 11 new and existing normalization cases pass. Target lint passes.
-Corrected-build public browser verification is pending.
+The corrected workflow passes Chromium, Firefox and WebKit on immutable
+checkpoint `5948d84d0` (the combined four-root run is 12/12;
+`/tmp/soundscaper-r5-root-green2.log`, exit 0).
 
 Regression files: `audio-editor-round5-clip-normalization-limit.test.ts` and
 `audio-editor-round5-clip-normalization-limit.spec.js`. Evidence is under
@@ -49,8 +51,9 @@ The ordinary Chromium baseline reports 120 after all setup assertions pass
 (`/tmp/soundscaper-r5-root-nyquist-source-tempo-red2.*`). Two strict canonical
 project cases reproduce both a moved recording and a late source offset placed
 at project zero. All 19 new and existing host/controller cases pass after
-correction, and target type-aware lint passes. Corrected-build public browser
-verification is pending; detailed focused-suite and lint evidence remains in
+correction, and target type-aware lint passes. The ordinary workflow passes
+Chromium, Firefox and WebKit on immutable checkpoint `5948d84d0`; the four-root
+run is 12/12 with exit 0 (`/tmp/soundscaper-r5-root-green2.log`). Focused evidence remains in
 `/tmp/soundscaper-r5-root-nyquist-source-tempo-*`.
 
 ## R5-ROOT-003 — Source-analysis labels stretch across repetitions
@@ -71,7 +74,9 @@ The normal Chromium workflow fails at its displayed 0.400-second start
 fail before correction while ordinary controls pass. Eight corrected native-rate,
 ordinary, reversed-repeat and split-phase cases pass, together with existing
 Nyquist host/controller and source-tempo support: 27/27. Target lint passes.
-Corrected-build public verification is pending. This is a repeat transform,
+The ordinary workflow passes Chromium, Firefox and WebKit on immutable
+checkpoint `5948d84d0` (combined four-root run 12/12, exit 0;
+`/tmp/soundscaper-r5-root-green2.log`). This is a repeat transform,
 separate from the earlier source-label placement offset and 002's tempo lookup.
 
 ## R5-ROOT-004 — In-progress normalization overwrites a later gain edit
@@ -93,5 +98,7 @@ actual download succeed (`/tmp/soundscaper-r5-root-normalization-race-red.*`).
 Four strict owning-service cases using real canonical gain/fade/envelope/polarity
 commands fail before correction; they and the title control pass afterward.
 All 28 focused new and existing property/normalization cases and target lint
-pass. Corrected-build public verification is pending. This missing asynchronous
+pass. The ordinary workflow passes Chromium, Firefox and WebKit on immutable
+checkpoint `5948d84d0` (combined four-root run 12/12, exit 0;
+`/tmp/soundscaper-r5-root-green2.log`). This missing asynchronous
 processing fence is independent of 001's gain-ceiling validation.
