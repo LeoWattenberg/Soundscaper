@@ -319,6 +319,7 @@ export function OutputTrackRow({
 					}}
 					onFocus={onFocus}
 					onKeyDown={(event) => {
+						if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
 						if (event.key === 'Tab') {
 							const moved = event.shiftKey ? onFocusPanel() : onFocusNextPanel();
 							if (!moved) return;
