@@ -41,14 +41,18 @@ export default function MacroScriptEditor({
 	useEffect(() => {
 		if (!nameFocusedRef.current) setNameDraft(script.name || '');
 	}, [script.name]);
+	const commitName = () => {
+		const name = String(nameDraft).trim();
+		setNameDraft(name || script.name || '');
+		if (name && name !== script.name) onChange({ ...script, name });
+	};
 	const finishName = () => {
 		nameFocusedRef.current = false;
 		if (nameCancelledRef.current) {
 			nameCancelledRef.current = false;
 			return;
 		}
-		if (String(nameDraft).trim()) onChange({ ...script, name: nameDraft });
-		else setNameDraft(script.name || '');
+		commitName();
 	};
 
 	const handleKeyDown = (event) => {
@@ -78,6 +82,10 @@ export default function MacroScriptEditor({
 				if (event.key !== 'Enter' && event.key !== 'Escape') return;
 				event.preventDefault();
 				event.stopPropagation();
+				if (event.key === 'Enter') {
+					commitName();
+					return;
+				}
 				if (event.key === 'Escape') {
 					nameCancelledRef.current = true;
 					setNameDraft(script.name || '');

@@ -24,9 +24,14 @@ after each 50 verified fixes; the first milestone has not been reached.
 The immutable checkout at `c85e613cf` verifies 25 distinct roots through
 29 public Chromium regressions, all passing in 34.3 seconds
 (`/tmp/soundscaper-round6-green5-browser.log`). The same cases across all three
-engines report 84 passed and three Firefox failures involving audio observers
-or recording setup; those additional failures are being investigated and are
-not represented as passing (`/tmp/soundscaper-round6-green5-browser-all-engines.log`).
+engines initially report 84 passed and three Firefox failures involving audio
+observers or recording setup (`/tmp/soundscaper-round6-green5-browser-all-engines.log`).
+The existing CI clock probe independently confirms the inherited WSLg audio
+socket stays suspended. The already running CI null sink passes that probe;
+all three unchanged Firefox workflows then pass on the same build
+(`/tmp/soundscaper-r6-effects-io-firefox-null-sink-green5.log`). Thus every one of
+the 87 public checks is verified with a working audio backend. Subsequent
+Firefox runs use `PULSE_SERVER=unix:/tmp/soundscaper-ci-pulse-runtime/native`.
 Full repository lint and TypeScript checks pass again, and both product builds
 pass on this checkout. Changes awaiting a later immutable build remain separate
 from that verified count.
