@@ -60,16 +60,17 @@ test('the concrete routing warning is published before preparing the user save t
 	let prepared = false;
 	const state: { deliveryReport?: DeliveryReport } = {};
 	const native = createFixture({ getProject: () => project as unknown as NativeProjectDocument,
-		fileService: { isDesktop: false, prepareSave: async () => {
+		publishDocumentSnapshot: () => {
+			state.deliveryReport = (native.runtime.state as { deliveryReport?: DeliveryReport }).deliveryReport;
+		} });
+	native.replaceProject(project.id);
+	const service = createNativeProjectService({ ...native.runtime,
+		fileService: { ...native.runtime.fileService, prepareSave: async () => {
 			prepared = true;
 			const warning = state.deliveryReport?.items.find(item => item.code === 'dawproject.routing-features-omitted');
 			assert.match(warning?.message ?? '', /Group bus 1 → Master.*−12 dB.*unity/u);
-			return { mode: 'cancelled', fileName: 'Session.dawproject', target: null };
+			return { mode: 'cancelled', cancelled: true, fileName: 'Session.dawproject' };
 		} } });
-	native.replaceProject(project.id);
-	native.runtime.publishDocumentSnapshot = () => {
-		state.deliveryReport = (native.runtime.state as { deliveryReport?: DeliveryReport }).deliveryReport;
-	};
-	await assert.rejects(createNativeProjectService(native.runtime).saveDawproject(), /cancelled/u);
+	await assert.rejects(service.saveDawproject(), /cancelled/u);
 	assert.equal(prepared, true);
 });
