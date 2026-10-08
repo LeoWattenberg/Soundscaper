@@ -236,13 +236,17 @@ export function createEffectAudioService<Buffer = EffectAudioBuffer>(runtime: Ef
 		const durationFrames = endFrame - startFrame;
 		const sampleRate = runtime.projectSampleRate();
 		if (durationFrames < 2_048) throw createLocalizedError(Error, runtime.copy, 'noiseProfileMinimumSamples');
-		if (scope === 'track' && (!selectionTarget || selectionTarget.track.id !== requestedTrackId)) {
+		if (scope === 'track' && (!selectionTarget || (selectionTarget.track.id !== requestedTrackId
+			&& selectionTarget.sourceTrackId !== requestedTrackId))) {
 			throw createLocalizedError(Error, runtime.copy, 'audacitySelectionHint');
 		}
+		const trackChannelCount = scope === 'track'
+			? runtime.audacitySelectionChannelCount(persistedProject, requireTrackId(requestedTrackId), startFrame, endFrame) : null;
+		if (scope === 'track' && !trackChannelCount) throw createLocalizedError(Error, runtime.copy, 'audacitySelectionHint');
 		const bus = scope === 'group' || scope === 'send'
 			? (project.mixer as unknown as MixerGraphV21)[scope === 'group' ? 'groups' : 'sends']?.find(candidate => candidate.id === requestedTrackId) : null;
 		const channelCount = bus ? masterNoiseProfileChannelCount(bus.channelCount) : scope === 'track'
-			? selectionTarget!.channelCount
+			? trackChannelCount!
 			: masterNoiseProfileChannelCount(project.masterChannels);
 		const estimatedPeakBytes = runtime.estimateAudacityEffectPeakBytes(
 			'audacity-noise-reduction', durationFrames, effect.params, { channelCount, sampleRate },
