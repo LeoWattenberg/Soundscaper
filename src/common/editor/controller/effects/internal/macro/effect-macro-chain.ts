@@ -266,9 +266,9 @@ export function createEffectMacroChainRunner<Buffer = MacroRenderBuffer>(runtime
 			position: 'pre-fader' as const, level: 1, enabled: true,
 			channelMap: defaultMixerChannelMapV21(controlWidths.get(String(step.context?.controlTrackId)) ?? 1, channels.length),
 		}));
-		const staged = { ...project, mixer: { ...mixer, edges: [...mixer.edges.filter(edge => (
-			edge.source.kind !== 'track' || !controlIds.has(edge.source.id) || edge.kind === 'sidechain'
-		)), ...sidechainEdges] } };
+		// Every audio track retains its valid output route. The selected-track
+		// render omits other programme edges while keeping their sidechains.
+		const staged = { ...project, mixer: { ...mixer, edges: [...mixer.edges, ...sidechainEdges] } };
 		const rendered = await runtime.renderSnapshot(staged, {
 			startFrame: 0,
 			endFrame: frames,

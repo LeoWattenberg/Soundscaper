@@ -161,5 +161,12 @@ on checkpoint `5832abef0`; those failures exposed the required explicit sidechai
 connection and the leading timeline path. The corrected strict cases assert that
 connection and pass alongside existing source/mixed-rack/lifetime regressions
 (23/23). Target lint passes; final public corrected verification is pending.
+Checkpoint `e476d5766` then exposed a canonical graph reachability refusal because
+the staged control's normal output assignment was removed. Retain every valid
+assignment: the existing selected-track renderer already excludes other tracks'
+programme edges while admitting sidechains. Both strict cases now also run the
+actual graph validator before processing; they fail on the incomplete graph and
+pass with its restored output routes. These corrections complete the same macro
+graph root and add no count.
 This temporary graph ownership defect is independent of earlier regular
 Source Auto Duck placement and selection-edge fade corrections.
