@@ -51,7 +51,7 @@ for (const kind of ['general', 'bext', 'adm'] as const) for (const key of ['Ente
 			assert.equal(input.ownerDocument.activeElement, input);
 			assert.equal(input.value, 'とう');
 			assert.equal(commits.length, 0);
-			await act(async () => { reactProps(input).onChange({ currentTarget: { value: '東京の録音' } }); });
+			await act(async () => { reactProps(input).onChange({ currentTarget: { value: kind === 'bext' ? 'Tokyo recording' : '東京の録音' } }); });
 			await act(async () => { reactProps(input).onKeyDown({ key: 'Enter', currentTarget: input,
 				nativeEvent: { isComposing: false }, preventDefault: () => undefined, stopPropagation: () => undefined }); });
 			assert.equal(commits.length, 1, 'ordinary Enter publishes the completed text');
