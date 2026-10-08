@@ -124,7 +124,7 @@ test('an authenticated host loader resolves only its exact runtime closure and d
 		writeFile(join(root, 'peer.c'), PEER_SOURCE),
 		writeFile(sibling, 'ungranted library bytes'),
 	]);
-	await execute('cc', [join(root, 'peer.c'), '-o', peer, '-luuid']);
+	await execute('cc', [join(root, 'peer.c'), '-o', peer, '-l:libuuid.so.1']);
 	await execute('cc', ['-std=c17', '-O2', '-Wall', '-Wextra', '-Wpedantic', '-Werror',
 		join(NATIVE_ROOT, 'src/linux_launcher.c'), '-o', launcherPath]);
 	await Promise.all([chmod(peer, 0o700), chmod(launcherPath, 0o700)]);
@@ -176,10 +176,10 @@ const PEER_SOURCE = String.raw`
 #include <fcntl.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <uuid/uuid.h>
+extern int uuid_is_null(const unsigned char *uuid);
 int main(int argc, char **argv) {
 	if (argc != 2) return 2;
-	uuid_t empty = {0};
+	unsigned char empty[16] = {0};
 	if (!uuid_is_null(empty)) return 3;
 	int sibling = open(argv[1], O_RDONLY | O_CLOEXEC);
 	printf("{\"marker\":42,\"deniedSibling\":%s}\n",
