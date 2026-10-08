@@ -531,11 +531,6 @@
       "count": 1
     }
   },
-  "src/common/editor/file-service.js": {
-    "no-control-regex": {
-      "count": 1
-    }
-  },
   "src/common/editor/framescaper-capture-domain.ts": {
     "no-control-regex": {
       "count": 1

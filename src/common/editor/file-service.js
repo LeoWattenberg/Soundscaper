@@ -1,6 +1,5 @@
 import {
 	createDesktopPreparedSave,
-	createFileSystemPreparedSave,
 } from './file-save-stream.ts';
 import {
 	materializeDesktopReadBlob,
@@ -15,7 +14,7 @@ import { createDesktopScapeArchiveByteSource } from './desktop-scape-archive-byt
 import { createDesktopHelperVideoTimingProbe } from './desktop-helper-video-timing-probe.ts';
 import { createDesktopLinkedOriginalAccess } from './desktop-linked-original-port.ts';
 import { registerDesktopReadCapability } from './desktop-read-capability-registry.ts';
-import { releaseDownloadObjectUrl } from './object-url-revoke.ts';
+import { createBrowserFileSaveService, sanitizeSuggestedSaveName as sanitizeSuggestedName } from './browser-file-save-service.ts';
 import { createDesktopLinkedVideoOriginalAccess } from './storage/desktop-linked-video-original-port.ts';
 import { bindSoundscaperPersistentDeliverySave } from './soundscaper-persistent-delivery-save-target.ts';
 import { createDesktopExternalMediaFiles } from './desktop-external-media-files.ts';
@@ -35,10 +34,8 @@ export function resolveAudioEditorDesktopBridge(scope = globalThis) {
 export function createAudioEditorFileService(options = {}) {
 	const scope = options.scope || globalThis;
 	const bridge = options.bridge === undefined ? resolveAudioEditorDesktopBridge(scope) : options.bridge;
-	const document = options.document === undefined ? scope.document : options.document;
-	const urlApi = options.urlApi || scope.URL;
+	const browserFiles = createBrowserFileSaveService({ scope, document: options.document, urlApi: options.urlApi, setTimeout: options.setTimeout });
 	const fetchFile = options.fetch || scope.fetch?.bind(scope);
-	const setTimer = options.setTimeout || scope.setTimeout?.bind(scope);
 	const isDesktop = Boolean(bridge);
 	const externalMediaFiles = createDesktopExternalMediaFiles(bridge, fetchFile);
 	const registerOriginal = (file, descriptor) => registerDesktopOriginalFile(file, descriptor.originalFile, (id) => bridge?.releaseOriginalFile?.(id));
@@ -217,36 +214,28 @@ export function createAudioEditorFileService(options = {}) {
 	}
 
 	async function chooseSaveTarget(request = {}) {
+		if (!bridge) return browserFiles.chooseSaveTarget(request);
 		const purpose = normalizePurpose(request.purpose, ['project', 'project-copy', 'aup3', 'aup4', 'audio-pcm-mix', 'audio', 'video', 'media', 'labels', 'preset', 'macro', 'report', 'attribution-csv', 'interchange']);
 		const suggestedName = sanitizeSuggestedName(request.suggestedName || request.fileName);
-		if (bridge?.chooseSaveTarget) {
-			return bridge.chooseSaveTarget({
-				purpose,
-				suggestedName,
+		if (bridge.chooseSaveTarget) {
+			return bridge.chooseSaveTarget({ purpose, suggestedName,
 				...(request.mimeType ? { mimeType: String(request.mimeType) } : {}),
 			});
 		}
-		if (request.useFileSystemAccess && typeof scope.showSaveFilePicker === 'function') {
-			return scope.showSaveFilePicker({
-				suggestedName,
-				...(Array.isArray(request.types) ? { types: request.types } : {}),
-				excludeAcceptAllOption: false,
-			});
-		}
-		return Object.freeze({ browserDownload: true, name: suggestedName });
+		return browserFiles.chooseSaveTarget(request);
 	}
 
 	async function writeFile(target, input, request = {}) {
+		if (!bridge) return browserFiles.writeFile(target, input, request);
 		throwIfAborted(request.signal);
 		const blob = toBlob(input, request.mimeType);
 		const fileName = sanitizeSuggestedName(target?.originalOverwrite ? target.name : request.suggestedName || request.fileName || target?.name);
 		if (!target) return { cancelled: true, fileName, size: blob.size };
-		if (bridge) return writeDesktopFile(target, blob, fileName, request.signal, request.onProgress);
-		if (typeof target.createWritable === 'function') return writeFileSystemHandle(target, blob, fileName, request.signal);
-		return triggerBrowserDownload(blob, fileName, request.signal);
+		return writeDesktopFile(target, blob, fileName, request.signal, request.onProgress);
 	}
 
 	async function prepareSave(request = {}) {
+		if (!bridge) return browserFiles.prepareSave(request);
 		throwIfAborted(request.signal);
 		const fileName = sanitizeSuggestedName(request.target?.originalOverwrite ? request.target.name : request.suggestedName || request.fileName);
 		let target = request.target;
@@ -261,17 +250,12 @@ export function createAudioEditorFileService(options = {}) {
 			}
 		}
 		if (!target) return Object.freeze({ mode: 'cancelled', cancelled: true, fileName });
-		if (bridge) {
-			const persistent = bindSoundscaperPersistentDeliverySave(target, fileName);
-			return createDesktopPreparedSave({ ...(persistent ?? { bridge, target }), fileName, signal: request.signal });
-		}
-		if (typeof target.createWritable === 'function') {
-			return createFileSystemPreparedSave({ target, fileName, signal: request.signal });
-		}
-		return Object.freeze({ mode: 'blob', target, fileName });
+		const persistent = bindSoundscaperPersistentDeliverySave(target, fileName);
+		return createDesktopPreparedSave({ ...(persistent ?? { bridge, target }), fileName, signal: request.signal });
 	}
 
 	async function saveFile(request = {}) {
+		if (!bridge) return browserFiles.saveFile(request);
 		throwIfAborted(request.signal);
 		const blob = toBlob(request.blob ?? request.bytes ?? request.text ?? '', request.mimeType);
 		let target = request.target;
@@ -289,24 +273,12 @@ export function createAudioEditorFileService(options = {}) {
 	}
 
 	async function createDownload(request = {}) {
-		const blob = toBlob(request.blob ?? request.bytes ?? request.text ?? '', request.mimeType);
-		const fileName = sanitizeSuggestedName(request.suggestedName || request.fileName);
-		if (bridge) return saveFile({ ...request, blob, suggestedName: fileName });
-		if (!urlApi?.createObjectURL) return { method: 'blob', blob, fileName, size: blob.size, url: null, cleanup: async () => {} };
-		const url = urlApi.createObjectURL(blob);
-		let revoked = false;
-		return {
-			method: 'object-url',
-			blob,
-			fileName,
-			size: blob.size,
-			url,
-			cleanup: async () => {
-				if (revoked) return;
-				revoked = true;
-				urlApi.revokeObjectURL?.(url);
-			},
-		};
+		if (bridge) {
+			const blob = toBlob(request.blob ?? request.bytes ?? request.text ?? '', request.mimeType);
+			const fileName = sanitizeSuggestedName(request.suggestedName || request.fileName);
+			return saveFile({ ...request, blob, suggestedName: fileName });
+		}
+		return browserFiles.createDownload(request);
 	}
 
 	async function writeDesktopFile(target, blob, fileName, signal, onProgress) {
@@ -346,42 +318,6 @@ export function createAudioEditorFileService(options = {}) {
 		}
 	}
 
-	async function writeFileSystemHandle(handle, blob, fileName, signal) {
-		throwIfAborted(signal);
-		const writable = await handle.createWritable();
-		try {
-			throwIfAborted(signal);
-			await writable.write(blob);
-			throwIfAborted(signal);
-			await writable.close();
-		} catch (error) {
-			await writable.abort?.().catch(() => undefined);
-			throw error;
-		}
-		return { method: 'file-system-access', fileName, size: blob.size };
-	}
-
-	function triggerBrowserDownload(blob, fileName, signal) {
-		throwIfAborted(signal);
-		if (!document?.createElement || !urlApi?.createObjectURL) return { method: 'blob', blob, fileName, size: blob.size };
-		const url = urlApi.createObjectURL(blob);
-		try {
-			const anchor = document.createElement('a');
-			anchor.href = url;
-			anchor.download = fileName;
-			anchor.hidden = true;
-			document.body?.append(anchor);
-			throwIfAborted(signal);
-			anchor.click();
-			anchor.remove?.();
-		} finally {
-			releaseDownloadObjectUrl(url, {
-				revoke: urlApi.revokeObjectURL ? (value) => urlApi.revokeObjectURL(value) : null,
-				setTimer,
-			});
-		}
-		return { method: 'download', fileName, size: blob.size };
-	}
 }
 
 function createLinkedVideoOriginalPortCompatibility(videoPort, linkedOriginalPort) {
@@ -517,14 +453,6 @@ function createNamedFile(blob, descriptor, scope) {
 function toBlob(input, mimeType) {
 	if (input instanceof Blob) return input;
 	return new Blob([input], { type: mimeType || 'application/octet-stream' });
-}
-
-function sanitizeSuggestedName(value) {
-	return String(value || 'soundscaper-export')
-		.trim()
-		.replace(/[\\/:*?"<>|\u0000-\u001f]+/g, '-')
-		.replace(/[. ]+$/g, '')
-		|| 'soundscaper-export';
 }
 
 function normalizePurpose(value, allowed) {
