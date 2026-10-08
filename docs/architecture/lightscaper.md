@@ -219,3 +219,87 @@ cancellation before publication rolls back the stage. Framescaper and
 Soundscaper classify this registered family as read-only foreign state and can
 preserve its complete archive unchanged; registration grants neither editor
 photo authoring authority.
+
+### Library stack contract
+
+Library stacks group distinct photos. They are independent from a photo's
+develop versions and from collection membership. Stack records use a separate
+closed protocol with `schemaVersion: 1`, `kind: photo-stack`, catalog and stack
+IDs, a monotonic record revision, ordered photo IDs and a cover photo ID.
+Existing family-v1 root and photo documents remain closed and unchanged.
+Each stack contains two through 1,024 unique photos from one catalog, its cover
+belongs to that membership, and serialized records are at most 256 KiB.
+Menu commands capture at most 64 selected IDs; archive admission can carry
+larger previously authored stacks within the same record limit.
+
+Catalog database version 3 adds stack records, unique reverse membership,
+an independent unique forward-membership index and scalar stack state.
+The private stored wrapper includes the exact ordered scoped member keys;
+its multiEntry index protects exclusivity even if a reverse row is missing.
+A canonical stack document remains at most 256 KiB, and the complete stored
+wrapper with at most 1,024 scoped keys is at most 512 KiB. Validation retains
+one document and projection plus bounded serialized text and UTF-8 encoding
+for measuring that record. Migration from versions 1 and 2 creates stores and indexes
+without scanning or rewriting photos. One transaction compares the expected
+stack and catalog revisions, verifies member existence and exclusive stack
+membership, writes the record and reverse rows, and advances catalog/index and
+stack-state revisions. A stack edit never changes photo revisions, originals,
+extracted metadata or custody roots. Dissolving removes grouping only; its
+empty stack state remains persisted so revisions cannot return to zero.
+Cancellation before commit aborts every write; a committed acknowledgement
+remains durable when cancellation arrives afterward.
+
+Stack reads and annotations are explicit indexed pages of at most 64 records.
+Reordering or changing the cover uses one admitted stack, never a whole catalog
+snapshot. Continuations bind their catalog, query, stack-state and photo-index
+revisions. Cross-instance conflicts require refresh instead of silently
+overwriting membership. The persisted document, its forward projection and
+its reverse index must agree;
+corrupt or ambiguous membership is refused rather than repaired during a read.
+
+Portable grouping requires an explicit Lightscaper catalog archive version 2.
+It keeps Scape envelope version 1 and unchanged photo-pack/root/photo v1 data,
+adding streamed stack packs with authenticated bytes and counts. Importing a
+v1 archive produces an empty-stack catalog. V1 readers refuse the successor;
+only the Lightscaper owner admits its new version, without changing the shared
+timeline schema version or giving another product photo authoring authority.
+Import verifies all member references and exclusive assignments in provisional
+staging, closes every reader, then publishes photos and stacks together.
+Truncation, tampering, missing members, cancellation or reader cleanup failure
+roll back the complete unpublished stage. Existing archive entry, expanded-byte
+and final-Blob ceilings remain unchanged.
+
+Create, reorder, choose cover, dissolve and collapse/expand are reached through
+menus. The ordinary grid stays expanded until the user opts into collapsing.
+Collapsed paging chooses one globally eligible representative per stack: its
+cover when that cover matches the active query, otherwise the first matching
+member in the requested global order. Members can cross page boundaries; local
+page deduplication is insufficient. Member probes and candidate steps are
+bounded and resumable, and stale revisions retire the continuation. A storage
+and archive packet is foundation work until the actual menu and pager workflow
+qualifies, including filter changes, reopen and unchanged original digests.
+
+Each collapsed query step performs at most 64 combined stack-audit keys, global
+candidates and point-query-row probes, with indexed scalar membership checks
+for those photo rows. Before publishing any photos, a key-only count audit
+authenticates the grouping state's record count through explicit bounded pages;
+it never calls the native whole-index count operation.
+It retains the output page, one admitted stack and bounded current query rows;
+it never accumulates a catalog-wide membership set. A winning representative,
+including an eligible cover, is emitted only after every declared member's
+query-row existence and forward/reverse binding have been authenticated.
+Large stacks can return empty nonterminal steps carrying one member position
+inside a continuation of at most 4 KiB. The consumer yields between those
+steps and joins canceled reads before releasing its Session resources.
+Each continuation includes an HMAC-SHA256 signature over its canonical scalar
+progress, issued with one 32-byte secret per database connection. Changing a
+member position or audit count invalidates the signature. Opening another
+connection retires that progress; a new Session reads its first page afresh.
+
+The opted-in stack dialog retains one captured stack and one draft, at most
+64 scalar member names for its explicit page, and one durable acknowledgement.
+Those four packets total at most 1 MiB serialized; a 2 MiB presentation allowance
+covers bounded transient copies in addition to the existing library page.
+Reordering and cover selection preserve the full admitted order while requesting
+only the displayed page's names. A known durable write whose refresh fails
+retains its acknowledgement and pauses further edits until a fresh read succeeds.

@@ -1,9 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { transact } from '../../common/editor/storage/indexeddb-backend.ts';
+const nativeThrowIfAborted = AbortSignal.prototype.throwIfAborted;
 
 export function assertNotAborted(signal?: AbortSignal): void {
-	if (signal?.aborted) throw signal.reason instanceof Error ? signal.reason : new DOMException('Catalog operation was canceled.', 'AbortError');
+	if (signal) Reflect.apply(nativeThrowIfAborted, signal, []);
 }
 
 export async function catalogTransaction<Result>(

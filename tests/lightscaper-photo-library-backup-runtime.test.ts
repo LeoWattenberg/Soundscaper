@@ -12,24 +12,33 @@ import { MediaRepository } from '../src/common/editor/storage/media-repository.t
 import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
 import { MemoryLockManager } from './helpers/offline-browser-runtime-store-fixture.ts';
 import { photoArchiveFixture } from './helpers/lightscaper-photo-fixture.ts';
+import { normalizePhotoStackV1 } from '../src/lightscaper/catalog/photo-stack-v1.ts';
+import { importPhotoCatalogArchiveV1 } from '../src/lightscaper/archive/catalog-archive-import.ts';
+import { importPhotoCatalogArchiveV2 } from '../src/lightscaper/archive/catalog-archive-import-v2.ts';
+import { stackArchiveDestination } from './helpers/lightscaper-stack-archive-fixture.ts';
 
-async function fixture() {
+async function fixture(count = 1) {
 	const indexedDB = createInstrumentedIndexedDB() as unknown as IDBFactory;
 	const previousDb = Object.getOwnPropertyDescriptor(globalThis, 'indexedDB'), previousNavigator = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
 	Object.defineProperty(globalThis, 'indexedDB', { value: indexedDB, configurable: true });
 	Object.defineProperty(globalThis, 'navigator', { value: { locks: new MemoryLockManager() }, configurable: true });
 	const media = new PhotoMediaStoreV1(), catalog = new PhotoCatalogRepositoryV1({ indexedDB, verifyOriginal: media.verifyOriginal });
-	const source = photoArchiveFixture();
-	await media.mediaRepository.writeAsset(source.photo.original.storageKey, source.original);
-	await media.mediaRepository.catalogOriginals.retain('catalog-1', [{ photoId: source.photo.id, sourceId: source.photo.original.id,
-		assetId: source.photo.original.storageKey, sha256: source.photo.original.contentSha256, size: source.original.size }]);
+	const sources = Array.from({ length: count }, (_, index) => photoArchiveFixture(index + 1)), source = sources[0]!;
+	for (const selected of sources) {
+		await media.mediaRepository.writeAsset(selected.photo.original.storageKey, selected.original);
+		await media.mediaRepository.catalogOriginals.retain('catalog-1', [{ photoId: selected.photo.id, sourceId: selected.photo.original.id,
+			assetId: selected.photo.original.storageKey, sha256: selected.photo.original.contentSha256, size: selected.original.size }]);
+	}
 	await catalog.createCatalog(normalizePhotoCatalogRootV1({ schemaFamily: 'lightscaper', schemaVersion: 1, kind: 'photo-catalog',
 		id: 'catalog-1', name: 'Existing runtime library', revision: 0, photoCount: 0, folders: [], keywords: [], collections: [] }));
-	await catalog.publishPhotos('catalog-1', 0, [source.photo]);
+	const root = await catalog.publishPhotos('catalog-1', 0, sources.map(selected => selected.photo));
+	const stack = count > 1 ? await catalog.saveStack(normalizePhotoStackV1({ schemaVersion: 1, kind: 'photo-stack', catalogId: root.id,
+		id: 'runtime-stack', revision: 0, photoIds: [...sources].reverse().map(selected => selected.photo.id), coverPhotoId: source.photo.id }), null,
+	{ expectedCatalogRevision: root.revision, expectedStateRevision: 0 }) : null;
 	await media.settingsRepository.putIfAbsent(PHOTO_LIBRARY_CATALOG_POINTER_KEY_V1, { schemaVersion: 1, kind: 'photo-library', catalogId: 'catalog-1' });
 	await Promise.all([catalog.close(), media.close()]);
 	const session: ReturnType<typeof createPhotoLibrarySessionV1> & PhotoLibraryBackupPortV1 = createPhotoLibrarySessionV1({ name: 'Fallback library' });
-	return { session, source, restore: () => {
+	return { session, source, sources, stack, restore: () => {
 		if (previousDb) Object.defineProperty(globalThis, 'indexedDB', previousDb); else Reflect.deleteProperty(globalThis, 'indexedDB');
 		if (previousNavigator) Object.defineProperty(globalThis, 'navigator', previousNavigator); else Reflect.deleteProperty(globalThis, 'navigator');
 	} };
@@ -51,6 +60,24 @@ test('default runtime authenticates the immutable original before passing its ex
 		MediaRepository.prototype.getAssetMetadata = metadata; MediaRepository.prototype.loadAsset = load;
 		await f.session.close(); f.restore();
 	}
+});
+
+test('default production session exports archive2 with the durable ordered stack and exact retained originals', async () => {
+	const f = await fixture(3), target = stackArchiveDestination();
+	try {
+		const output = await f.session.backupCatalog(); assert.ok(output.blob); assert.ok(f.stack);
+		assert.equal(output.photoCount, 3); assert.deepEqual(output.notices, []);
+		const restored = await importPhotoCatalogArchiveV2(output.blob, async () => target.stage);
+		assert.equal(restored.id, 'catalog-1'); assert.equal(restored.revision, 2);
+		assert.deepEqual([...target.stacks.values()], [f.stack]);
+		assert.deepEqual(f.stack.photoIds, ['photo-3', 'photo-2', 'photo-1']); assert.equal(f.stack.coverPhotoId, 'photo-1');
+		for (const source of f.sources) {
+			const photo = target.photos.get(source.photo.id); assert.ok(photo); assert.deepEqual(photo.photo, source.photo);
+			assert.deepEqual(photo.bytes, new Uint8Array(await source.original.arrayBuffer()));
+		}
+		await assert.rejects(importPhotoCatalogArchiveV1(output.blob, async () => target.stage));
+		assert.deepEqual(target.events.slice(-1), ['publish']);
+	} finally { await f.session.close(); f.restore(); }
 });
 
 test('default runtime refuses a changed custody digest before opening any original body', async () => {

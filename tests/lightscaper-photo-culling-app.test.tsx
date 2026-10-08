@@ -166,6 +166,9 @@ function owner(initial = page()) {
 	};
 	const unused = async (): Promise<never> => { throw new Error('This scalar culling fixture must not admit another feature.'); };
 	const port: PhotoLibrarySessionPortV1 = {
+		readStackQueryStep: unused,
+		readStackMemberships: unused, readStackSnapshot: unused, readStackMembers: unused,
+		readStackSummaryPage: unused, applyStack: unused,
 		readBatchRenameSelection: unused,
 		planBatchRename: (): never => { throw new Error('Unexpected batch rename plan in culling App fixture.'); },
 		renamePhotos: unused, undoBatchRename: unused,

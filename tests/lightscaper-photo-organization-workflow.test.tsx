@@ -198,6 +198,9 @@ function owner(catalogName = 'Library') {
 	let opens = 0, closes = 0;
 	const unexpected = async (): Promise<never> => { throw new Error('Unexpected non-organization operation.'); };
 	const port: PhotoLibrarySessionPortV1 & PhotoLibraryOrganizationPortV1 = {
+		readStackQueryStep: unexpected,
+		readStackMemberships: unexpected, readStackSnapshot: unexpected, readStackMembers: unexpected,
+		readStackSummaryPage: unexpected, applyStack: unexpected,
 		readBatchRenameSelection: unexpected,
 		planBatchRename: (): never => { throw new Error('Unexpected batch rename plan in organization fixture.'); },
 		renamePhotos: unexpected, undoBatchRename: unexpected,

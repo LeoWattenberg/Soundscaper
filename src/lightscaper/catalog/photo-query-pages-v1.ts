@@ -6,11 +6,10 @@ import { validateLightscaperDocumentV1 } from './documents.ts';
 import { readIndexState } from './repository-records.ts';
 import { PhotoCatalogRevisionConflictError } from './repository-types.ts';
 import { field, id, record } from './value-validation.ts';
-import { matchesNormalizedPhotoQuerySubjectV1 } from './smart-query.ts';
-import { photoQueryRowKeyV1, PhotoQueryIndexNotReadyError, readPhotoQueryBuildStateV1, readPhotoQueryRowV1, type PhotoQueryRowV1 } from './photo-query-index-v1.ts';
+import { photoQueryMatcherV1 } from './photo-query-matcher-v1.ts';
+import { photoQueryRowKeyV1, PhotoQueryIndexNotReadyError, readPhotoQueryBuildStateV1, readPhotoQueryRowV1 } from './photo-query-index-v1.ts';
 import { normalizePhotoCatalogQueryV1, PHOTO_QUERY_LIMITS_V1, photoQueryDigestV1, readPhotoQueryContinuationV1,
-	type PhotoCatalogQueryV1, type PhotoQueryContinuationV1, type PhotoQueryPageRequestV1, type PhotoQueryPageV1 } from './photo-query-types-v1.ts';
-import type { PhotoCatalogRootV1 } from './types.ts';
+	type PhotoQueryContinuationV1, type PhotoQueryPageRequestV1, type PhotoQueryPageV1 } from './photo-query-types-v1.ts';
 
 export async function readPhotoQueryPageV1(database: IDBDatabase, catalogId: string, options: PhotoQueryPageRequestV1 = {}): Promise<PhotoQueryPageV1> {
 	const catalog = id(catalogId, 'query catalog');
@@ -31,7 +30,7 @@ export async function readPhotoQueryPageV1(database: IDBDatabase, catalogId: str
 		const build: unknown = await request(stores.photoQueryBuildStates.get(catalog));
 		if (build === undefined || !readPhotoQueryBuildStateV1(build, catalog).ready) throw new PhotoQueryIndexNotReadyError();
 		if (readPhotoQueryBuildStateV1(build, catalog).indexedCount !== root.photoCount) throw new TypeError('Ready photo query count disagrees with its catalog.');
-		const matches = queryMatcher(root, query);
+		const matches = photoQueryMatcherV1(root, query);
 		const bucket = continuation?.captureBucket ?? 0;
 		const prefix: IDBValidKey[] = query.sort.field === 'capture-time' ? [catalog, bucket] : [catalog];
 		const maximum: IDBValidKey[] = [...prefix, []];
@@ -67,30 +66,4 @@ export async function readPhotoQueryPageV1(database: IDBDatabase, catalogId: str
 			};
 		});
 	}, signal);
-}
-
-function queryMatcher(root: PhotoCatalogRootV1, query: PhotoCatalogQueryV1): (row: PhotoQueryRowV1) => boolean {
-	const filter = query.filter;
-	const keywords = new Map(root.keywords.map((node) => [node.id, node.name]));
-	const collection = filter?.kind === 'collection' ? root.collections.find((candidate) => candidate.id === filter.id) : null;
-	if (filter?.kind === 'collection' && !collection || filter?.kind === 'keyword' && !keywords.has(filter.id)
-		|| filter?.kind === 'folder' && !root.folders.some((node) => node.id === filter.id)) throw new ReferenceError('Photo query references a missing catalog definition.');
-	return (row) => {
-		const summary = row.summary;
-		if (filter) {
-			switch (filter.kind) {
-				case 'rating': if (summary.rating !== filter.value) return false; break;
-				case 'flag': if (summary.flag !== filter.value) return false; break;
-				case 'label': if (summary.colorLabel !== filter.value) return false; break;
-				case 'folder': if (summary.folderId !== filter.id) return false; break;
-				case 'keyword': if (!row.keywordIds.includes(filter.id)) return false; break;
-				case 'collection':
-					if (collection!.kind === 'manual') { if (!row.collectionIds.includes(filter.id)) return false; }
-					else if (!matchesNormalizedPhotoQuerySubjectV1({ ...summary, keywordIds: row.keywordIds }, collection!.query)) return false;
-					break;
-			}
-		}
-		return query.text === '' || [summary.fileName, row.title, row.caption, row.creator, row.location].some((value) => value.toLowerCase().includes(query.text))
-			|| row.keywordIds.some((keyword) => keywords.get(keyword)?.toLowerCase().includes(query.text));
-	};
 }

@@ -151,6 +151,13 @@ test('a retired generation acknowledges a late durable save without replacing th
 function owner(catalogName = 'Library') {
 	let closes = 0;
 	const port: PhotoLibrarySessionPortV1 = {
+		readStackQueryStep: async (): Promise<never> => { throw new Error('Unexpected collapsed stack query in existing photo fixture.'); },
+		readStackMemberships: async (): Promise<never> => { throw new Error('Unexpected stack operation in existing photo fixture.'); },
+		readStackSnapshot: async (): Promise<never> => { throw new Error('Unexpected stack operation in existing photo fixture.'); },
+		readStackMembers: async (): Promise<never> => { throw new Error('Unexpected stack operation in existing photo fixture.'); },
+		readStackSummaryPage: async (): Promise<never> => { throw new Error('Unexpected stack operation in existing photo fixture.'); },
+		applyStack: async (): Promise<never> => { throw new Error('Unexpected stack operation in existing photo fixture.'); },
+
 		readBatchRenameSelection: async (): Promise<never> => { throw new Error('Unexpected batch rename selection in culling fixture.'); },
 		planBatchRename: (): never => { throw new Error('Unexpected batch rename plan in culling fixture.'); },
 		renamePhotos: async (): Promise<never> => { throw new Error('Unexpected batch rename in culling fixture.'); },

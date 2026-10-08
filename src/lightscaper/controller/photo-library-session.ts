@@ -38,9 +38,15 @@ import { planPhotoLibraryBatchRenameV1, readPhotoLibraryBatchRenameSelectionV1, 
 	undoPhotoLibraryBatchRenameV1, type PhotoBatchRenameSessionPortsV1 } from './photo-library-batch-rename-v1.ts';
 import { admitPhotoLibraryOriginalInspectionRequestV1, photoOriginalInspectionFailureV1, readPhotoLibraryOriginalInspectionPageV1 } from './photo-library-original-inspection-v1.ts';
 import { admitPhotoLibraryOriginalRestorationRequestV1, restorePhotoLibraryOriginalBodyV1 } from './photo-library-original-restoration-v1.ts';
+import type { PhotoLibraryStackPortV1, PhotoLibraryStackOptionsV1, PhotoLibraryStackBindingV1, PhotoLibraryStackCommandV1, PhotoLibraryStackAcknowledgementV1 } from '../../common/editor/photo-library-stack-port-v1.ts';
+import { admitPhotoLibraryStackCommandV1, admitPhotoLibraryStackReadV1, admitPhotoLibraryStackMembersV1, admitPhotoLibraryStackSummaryV1,
+	readPhotoLibraryStackMembershipsV1, readPhotoLibraryStackSnapshotV1, readPhotoLibraryStackMembersV1, readPhotoLibraryStackSummaryPageV1,
+	applyPhotoLibraryStackV1, type PhotoLibraryStackRepositoryV1 } from './photo-library-stacks-v1.ts';
+import { readPhotoStackSignalOptionsV1 } from '../catalog/photo-stack-repository-v1.ts';
+import { admitPhotoLibraryStackQueryStepV1, readPhotoLibraryStackQueryStepV1 } from './photo-library-stack-query-v1.ts';
 
 /** Product session owns lifetime, bounded presentation pages and a single writer. */
-export class PhotoLibrarySessionV1 implements PhotoLibrarySessionPortV1, PhotoLibraryBatchRenamePortV1, PhotoLibraryBackupPortV1, PhotoLibraryOriginalRecoveryPortV1 {
+export class PhotoLibrarySessionV1 implements PhotoLibrarySessionPortV1, PhotoLibraryBatchRenamePortV1, PhotoLibraryBackupPortV1, PhotoLibraryOriginalRecoveryPortV1, PhotoLibraryStackPortV1 {
 	readonly #ports: PhotoLibrarySessionPortsV1;
 	readonly #lifetime = new AbortController();
 	readonly #pending = new Set<Promise<unknown>>();
@@ -54,6 +60,44 @@ export class PhotoLibrarySessionV1 implements PhotoLibrarySessionPortV1, PhotoLi
 	#startupFailure: PhotoLibraryOriginalInspectionFailureV1 | null = null;
 
 	constructor(ports: PhotoLibrarySessionPortsV1) { this.#ports = ports; }
+
+	async readStackMemberships(photoIds: readonly string[], options: PhotoLibraryStackOptionsV1 = {}) {
+		const request = admitPhotoLibraryStackReadV1(photoIds, options);
+		return this.#stackRead((repository, catalogId, signal) => readPhotoLibraryStackMembershipsV1(repository, catalogId, request.photoIds, signal), request.signal);
+	}
+	async readStackSnapshot(photoId: string, options: PhotoLibraryStackOptionsV1 = {}) {
+		const request = admitPhotoLibraryStackReadV1([photoId], options);
+		return this.#stackRead((repository, catalogId, signal) => readPhotoLibraryStackSnapshotV1(repository, catalogId, request.photoIds[0]!, signal), request.signal);
+	}
+	async readStackMembers(binding: PhotoLibraryStackBindingV1, photoIds: readonly string[], options: PhotoLibraryStackOptionsV1 = {}) {
+		const request = admitPhotoLibraryStackMembersV1(binding, photoIds, options);
+		return this.#stackRead((repository, catalogId, signal) => readPhotoLibraryStackMembersV1(repository, catalogId, request.binding, request.photoIds, signal), request.signal);
+	}
+	async readStackSummaryPage(options: Readonly<{ cursor?: string | null; signal?: AbortSignal }> = {}) {
+		const request = admitPhotoLibraryStackSummaryV1(options);
+		return this.#stackRead((repository, catalogId, signal) => readPhotoLibraryStackSummaryPageV1(repository, catalogId, request.continuation, signal), request.signal);
+	}
+	async applyStack(value: PhotoLibraryStackCommandV1, options: PhotoLibraryStackOptionsV1 = {}): Promise<PhotoLibraryStackAcknowledgementV1> {
+		const command = admitPhotoLibraryStackCommandV1(value), request = readPhotoStackSignalOptionsV1(options), repository = this.#stackRepository();
+		const completed: { result: PhotoLibraryStackAcknowledgementV1 | null } = { result: null };
+		try {
+			return await this.#mutation(async (catalogId, signal) => {
+				completed.result = await applyPhotoLibraryStackV1(repository, catalogId, command, this.#ports.createId ?? (() => crypto.randomUUID()), signal);
+				return completed.result;
+			}, request.signal);
+		} catch (error) {
+			if (completed.result === null) throw error;
+			return Object.freeze({ ...completed.result, notices: Object.freeze(['cleanup-failed'] as const) });
+		}
+	}
+	#stackRepository(): PhotoLibraryStackRepositoryV1 {
+		if (!this.#ports.stacks) throw new Error('Photo stacks are unavailable.');
+		return this.#ports.stacks;
+	}
+	#stackRead<Result>(run: (repository: PhotoLibraryStackRepositoryV1, catalogId: string, signal: AbortSignal) => Promise<Result>, signal?: AbortSignal): Promise<Result> {
+		const repository = this.#stackRepository();
+		return this.#operation(async admitted => { const catalogId = await this.#ready(); admitted.throwIfAborted(); return run(repository, catalogId, admitted); }, signal);
+	}
 
 	async restoreOriginalBody(target: PhotoLibraryOriginalRestoreTargetV1, selected: Blob,
 		options: PhotoLibraryOriginalRestorationOptionsV1 = {}): Promise<PhotoLibraryOriginalRestorationReceiptV1> {
@@ -88,6 +132,7 @@ export class PhotoLibrarySessionV1 implements PhotoLibrarySessionPortV1, PhotoLi
 				const { exportPhotoLibraryBackupV1 } = await import('./photo-library-backup-v1.ts');
 				signal.throwIfAborted();
 				const result = await exportPhotoLibraryBackupV1(catalogId, {
+					...(this.#ports.stacks ? { stacks: this.#ports.stacks } : {}),
 					catalog: { readSnapshot: (...args) => backup.readSnapshot(...args),
 						readSummaryPage: (...args) => this.#ports.catalog.readSummaryPage(...args),
 						loadPhoto: (...args) => this.#ports.catalog.loadPhoto(...args) },
@@ -130,6 +175,15 @@ export class PhotoLibrarySessionV1 implements PhotoLibrarySessionPortV1, PhotoLi
 		return this.#operation(async signal => {
 			const catalogId = await this.#ready(); signal.throwIfAborted();
 			return readPhotoLibraryQueryStepV1(this.#ports.catalog, catalogId, { ...request, signal });
+		}, request.signal);
+	}
+
+	async readStackQueryStep(options: Readonly<{ query: PhotoLibraryQueryV1; cursor?: string | null; signal?: AbortSignal }>): Promise<PhotoLibraryQueryStepV1> {
+		const request = admitPhotoLibraryStackQueryStepV1(options), stacks = this.#ports.stacks;
+		if (!stacks) throw new Error('Collapsed photo stacks are unavailable.');
+		return this.#operation(async signal => {
+			const catalogId = await this.#ready(); signal.throwIfAborted();
+			return readPhotoLibraryStackQueryStepV1(stacks, catalogId, { ...request, signal });
 		}, request.signal);
 	}
 

@@ -9,7 +9,7 @@ import { openDefaultPhotoCatalogV1 } from './storage/photo-library-catalog-point
 export function createPhotoLibrarySessionV1(options: Readonly<{ name: string }>): PhotoLibrarySessionV1 {
 	const media = new PhotoMediaStoreV1();
 	const catalog = new PhotoCatalogRepositoryV1({ indexedDB: globalThis.indexedDB, verifyOriginal: media.verifyOriginal });
-	return new PhotoLibrarySessionV1({ catalog, media: { writeAsset: media.mediaRepository.writeAsset,
+	return new PhotoLibrarySessionV1({ catalog, stacks: catalog, media: { writeAsset: media.mediaRepository.writeAsset,
 		custody: media.mediaRepository.catalogOriginals }, journal: media.settingsRepository, settings: media.settingsRepository,
 		originalInspection: { inspect: (binding, signal) => media.mediaRepository.inspectCatalogOriginalBody(binding, { signal }) },
 		originalRestoration: { restoreCatalogOriginalBody: (...args) => media.mediaRepository.restoreCatalogOriginalBody(...args) },

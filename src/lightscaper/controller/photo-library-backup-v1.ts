@@ -2,6 +2,7 @@
 
 import { canonicalMediaContentBlob } from '../../common/editor/storage/media-content-digest.ts';
 import { exportPhotoCatalogArchiveV1, type PhotoCatalogArchiveExportResult } from '../archive/catalog-archive-export.ts';
+import { exportPhotoCatalogArchiveV2, type PhotoCatalogArchiveExportResultV2 } from '../archive/catalog-archive-export-v2.ts';
 import { measurePhotoCatalogPackRecordV1 } from '../archive/catalog-pack.ts';
 import { normalizePhotoCatalogRootV1 } from '../catalog/catalog-root.ts';
 import { normalizePhotoDocumentV1 } from '../catalog/photo-document.ts';
@@ -12,20 +13,33 @@ import type { PhotoOriginalV1 } from '../catalog/types.ts';
 import { PHOTO_CATALOG_REPOSITORY_LIMITS, PhotoCatalogRevisionConflictError, type PhotoCatalogContinuationV1 } from '../catalog/repository-types.ts';
 import { array, field, id, integer, record } from '../catalog/value-validation.ts';
 import { admitPhotoLibraryBackupRequestV1 } from './photo-library-backup-request.ts';
+import { capturePhotoLibraryBackupStacksV1, type PhotoLibraryBackupStackPortsV1 } from './photo-library-backup-stacks-v1.ts';
 
 export interface PhotoLibraryBackupPortsV1 {
 	readonly catalog: Pick<PhotoCatalogRepositoryV1, 'readSnapshot' | 'readSummaryPage' | 'loadPhoto'>;
+	readonly stacks?: PhotoLibraryBackupStackPortsV1;
 	readonly loadOriginal: (original: PhotoOriginalV1, signal?: AbortSignal) => Promise<unknown>;
 }
 
 /** Caller lends the session/catalog lease until the archive destination settles. */
 export async function exportPhotoLibraryBackupV1(catalogValue: unknown, ports: PhotoLibraryBackupPortsV1,
-	optionsValue: unknown = {}): Promise<PhotoCatalogArchiveExportResult> {
+	optionsValue: unknown = {}): Promise<PhotoCatalogArchiveExportResult | PhotoCatalogArchiveExportResultV2> {
 	const catalogId = id(catalogValue, 'backup catalog ID');
 	const options = admitPhotoLibraryBackupRequestV1(optionsValue), signal = options.signal;
 	signal?.throwIfAborted();
 	const initial = await snapshot();
+	if (ports.stacks) {
+		const stacks = await capturePhotoLibraryBackupStacksV1(initial, ports.stacks, verifyCatalog, signal);
+		return exportPhotoCatalogArchiveV2(initial.catalog, originals(), stacks, options);
+	}
 	return exportPhotoCatalogArchiveV1(initial.catalog, originals(), options);
+
+	async function verifyCatalog(): Promise<void> {
+		const current = await snapshot();
+		if (current.indexRevision !== initial.indexRevision || JSON.stringify(current.catalog) !== JSON.stringify(initial.catalog)) {
+			throw new PhotoCatalogRevisionConflictError('catalog');
+		}
+	}
 
 	async function snapshot(): Promise<PhotoCatalogSnapshotV1> {
 		const value = await ports.catalog.readSnapshot(catalogId, { signal }); signal?.throwIfAborted();
@@ -73,9 +87,6 @@ export async function exportPhotoLibraryBackupV1(catalogValue: unknown, ports: P
 			}
 		} while (continuation !== null);
 		if (count !== initial.catalog.photoCount) throw new RangeError('Photo backup enumeration differs from its catalog count.');
-		const current = await snapshot();
-		if (current.indexRevision !== initial.indexRevision || JSON.stringify(current.catalog) !== JSON.stringify(initial.catalog)) {
-			throw new PhotoCatalogRevisionConflictError('catalog');
-		}
+		await verifyCatalog();
 	}
 }

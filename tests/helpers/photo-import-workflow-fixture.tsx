@@ -9,6 +9,9 @@ import { mountPhotoImportUi } from './photo-import-options-react-fixture.tsx';
 export function createImportTestPort(): PhotoLibrarySessionPortV1 {
 	const unexpected = async (): Promise<never> => { throw new Error('Unexpected photo operation in import fixture.'); };
 	return { readPage: async () => ({ catalogName: 'Library', totalCount: 0, rows: [], cursor: null }),
+		readStackQueryStep: unexpected,
+		readStackMemberships: unexpected, readStackSnapshot: unexpected, readStackMembers: unexpected,
+		readStackSummaryPage: unexpected, applyStack: unexpected,
 		readBatchRenameSelection: unexpected,
 		planBatchRename: (): never => { throw new Error('Unexpected batch rename plan in import fixture.'); },
 		renamePhotos: unexpected, undoBatchRename: unexpected,

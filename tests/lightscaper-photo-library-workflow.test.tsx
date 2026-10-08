@@ -373,6 +373,13 @@ test('an acknowledged import invalidates the active query continuation even when
 function owner(readPage: PhotoLibrarySessionPortV1['readPage']) {
 	let closes = 0;
 	const port: PhotoLibrarySessionPortV1 = {
+		readStackQueryStep: async (): Promise<never> => { throw new Error('Unexpected collapsed stack query in existing photo fixture.'); },
+		readStackMemberships: async (): Promise<never> => { throw new Error('Unexpected stack operation in existing photo fixture.'); },
+		readStackSnapshot: async (): Promise<never> => { throw new Error('Unexpected stack operation in existing photo fixture.'); },
+		readStackMembers: async (): Promise<never> => { throw new Error('Unexpected stack operation in existing photo fixture.'); },
+		readStackSummaryPage: async (): Promise<never> => { throw new Error('Unexpected stack operation in existing photo fixture.'); },
+		applyStack: async (): Promise<never> => { throw new Error('Unexpected stack operation in existing photo fixture.'); },
+
 		readBatchRenameSelection: async (): Promise<never> => { throw new Error('Unexpected batch rename selection in workflow fixture.'); },
 		planBatchRename: (): never => { throw new Error('Unexpected batch rename plan in workflow fixture.'); },
 		renamePhotos: async (): Promise<never> => { throw new Error('Unexpected batch rename in workflow fixture.'); },

@@ -8,6 +8,7 @@ import { validateLightscaperDocumentV1 } from '../catalog/documents.ts';
 import type { PhotoCatalogRootV1, PhotoDocumentV1 } from '../catalog/types.ts';
 import { array, field, id, integer, name, oneOf, record, requireSchema, unique } from '../catalog/value-validation.ts';
 import { PHOTO_CATALOG_PACK_LIMITS_V1 } from './catalog-pack.ts';
+import { PhotoCatalogArchiveIdentityLedger } from './catalog-archive-identities.ts';
 
 export const PHOTO_CATALOG_ARCHIVE_LIMITS_V1 = Object.freeze({
 	maximumDocumentBytes: 4 * 1024 * 1024,
@@ -72,29 +73,27 @@ export function assertPhotoCatalogPackManifestV1(document: PhotoCatalogArchiveDo
 
 /** Retains bounded IDs and root-definition indexes, never photo aggregates. */
 export class PhotoCatalogArchiveIdentityGuard {
-	readonly #ids = new Set<string>();
+	readonly #identity: PhotoCatalogArchiveIdentityLedger;
 	readonly #folders: ReadonlySet<string>;
 	readonly #keywords: ReadonlySet<string>;
 	readonly #collections: ReadonlySet<string>;
-	#identityBytes = 0;
 
-	constructor(readonly catalog: PhotoCatalogRootV1) {
+	constructor(readonly catalog: PhotoCatalogRootV1, identity = new PhotoCatalogArchiveIdentityLedger()) {
+		this.#identity = identity;
 		this.#folders = new Set(catalog.folders.map((value) => value.id));
 		this.#keywords = new Set(catalog.keywords.map((value) => value.id));
 		this.#collections = new Set(catalog.collections.filter((value) => value.kind === 'manual').map((value) => value.id));
 	}
 
-	get count(): number { return this.#ids.size; }
+	get count(): number { return this.#identity.photoCount; }
 
 	admit(photo: PhotoDocumentV1): void {
 		if (photo.catalogId !== this.catalog.id) throw new RangeError('Photo belongs to a different archive catalog.');
-		if (this.#ids.has(photo.id)) throw new RangeError('Photo archive contains a duplicate photo identity.');
+		if (this.#identity.hasPhoto(photo.id)) throw new RangeError('Photo archive contains a duplicate photo identity.');
 		if (photo.folderId !== null && !this.#folders.has(photo.folderId)
 			|| photo.keywordIds.some((key) => !this.#keywords.has(key))
 			|| photo.collectionIds.some((key) => !this.#collections.has(key))) throw new ReferenceError('Photo archive references a missing catalog definition.');
-		if (this.#ids.size >= this.catalog.photoCount) throw new RangeError('Photo archive exceeds its catalog count.');
-		this.#identityBytes += photo.id.length;
-		if (this.#identityBytes > PHOTO_CATALOG_ARCHIVE_LIMITS_V1.maximumIdentityBytes) throw new RangeError('Photo archive exceeds its bounded identity inventory.');
-		this.#ids.add(photo.id);
+		if (this.#identity.photoCount >= this.catalog.photoCount) throw new RangeError('Photo archive exceeds its catalog count.');
+		this.#identity.admitPhoto(photo.id);
 	}
 }

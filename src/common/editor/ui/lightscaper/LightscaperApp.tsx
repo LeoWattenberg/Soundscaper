@@ -13,6 +13,7 @@ import { DEFAULT_PHOTO_LIBRARY_QUERY_V1, usePhotoLibraryWorkflow, type LoadPhoto
 import { usePhotoLibrarySelection } from './use-photo-library-selection.ts';
 import { usePhotoCompare } from './use-photo-compare.ts';
 import { usePhotoSurvey } from './use-photo-survey.ts';
+import { usePhotoStacks } from './use-photo-stacks.ts';
 import '../../../../../vendor/audacity-design-system/components/src/ApplicationHeader/ApplicationHeader.css';
 import './lightscaper.css';
 import './photo-culling.css';
@@ -35,6 +36,7 @@ const PhotoCatalogBackupDialog = lazy(() => import('./PhotoCatalogBackupDialog.t
 const PhotoOriginalRecoveryDialog = lazy(() => import('./PhotoOriginalRecoveryDialog.tsx'));
 const PhotoCompareDialog = lazy(() => import('./PhotoCompareDialog.tsx'));
 const PhotoSurveyDialog = lazy(() => import('./PhotoSurveyDialog.tsx'));
+const PhotoStackDialog = lazy(() => import('./PhotoStackDialog.tsx'));
 
 export default function LightscaperApp({ locale, createSession, loadBackupSaveRuntime }: LightscaperAppProps) {
 	const copy = useSiteCopy(locale);
@@ -77,11 +79,19 @@ export default function LightscaperApp({ locale, createSession, loadBackupSaveRu
 		enabled: libraryVisible, busy: library.busy, autoAdvance, setRating: library.setRating, applyAttributes: library.applyAttributes });
 	const survey = usePhotoSurvey({ generation: compareGeneration, queryIdentity: library.query, page: library.page,
 		enabled: libraryVisible, busy: library.busy, autoAdvance, setRating: library.setRating, applyAttributes: library.applyAttributes });
+	const stacks = usePhotoStacks({ generation: compareGeneration, queryIdentity: library.query, pageIdentity: library.page,
+		rows: library.page?.rows ?? [], execute: library.executeStack });
 	const reviewing = compare.visible || survey.visible;
+	const stackMenu = useRef({ generation: compareGeneration, query: library.query, page: library.page,
+		libraryVisible, busy: library.busy, reviewing, pending: photoSelection.pendingPhotoId, selectedIds: photoSelection.snapshot.selectedIds,
+		primaryId: photoSelection.snapshot.primaryId, stacks });
+	stackMenu.current = { generation: compareGeneration, query: library.query, page: library.page, libraryVisible, busy: library.busy,
+		reviewing, pending: photoSelection.pendingPhotoId, selectedIds: photoSelection.snapshot.selectedIds,
+		primaryId: photoSelection.snapshot.primaryId, stacks };
 	const reviewAdmission = useRef<typeof compareGeneration | null>(null);
 	if (reviewAdmission.current !== null && (reviewAdmission.current !== compareGeneration
 		|| (!reviewing && !compare.snapshot.open && !survey.snapshot.open && compare.snapshot.pendingPhotoId === null
-			&& survey.snapshot.pendingPhotoId === null && compare.notice === null && survey.notice === null))) reviewAdmission.current = null;
+			&& survey.snapshot.pendingPhotoId === null && compare.notice === null && survey.notice === null && !stacks.visible && !stacks.busy))) reviewAdmission.current = null;
 	const reviewMenu = useRef({ generation: compareGeneration, queryIdentity: library.query, compare, survey,
 		libraryVisible, busy: library.busy, pendingPhotoId: photoSelection.pendingPhotoId, selectedIds: photoSelection.snapshot.selectedIds });
 	reviewMenu.current = { generation: compareGeneration, queryIdentity: library.query, compare, survey,
@@ -144,11 +154,27 @@ export default function LightscaperApp({ locale, createSession, loadBackupSaveRu
 		const active = reviewMenu.current;
 		if (active.generation !== compareGeneration || active.queryIdentity !== library.query || !active.libraryVisible
 			|| active.busy || active.pendingPhotoId !== null || active.selectedIds.length < 2
-			|| active.compare.visible || active.survey.visible || reviewAdmission.current !== null) return;
+			|| active.compare.visible || active.survey.visible || stackMenu.current.stacks.visible || stackMenu.current.stacks.busy || reviewAdmission.current !== null) return;
 		reviewAdmission.current = compareGeneration;
 		closeMenu(event); setPreviewActivated(true);
 		try { active[kind].open(Object.freeze([...active.selectedIds])); }
 		catch (error) { reviewAdmission.current = null; throw error; }
+	};
+	const toggleStackView = (event: MouseEvent<HTMLButtonElement>) => {
+		const current = stackMenu.current;
+		if (current.generation !== compareGeneration || current.query !== library.query || current.page !== library.page
+			|| !current.libraryVisible || current.busy || current.reviewing || current.pending !== null || current.stacks.busy
+			|| current.stacks.visible || reviewAdmission.current !== null) return;
+		closeMenu(event); void library.setStackCollapsed(!library.stackCollapsed);
+	};
+	const openStack = (kind: 'create' | 'edit', event: MouseEvent<HTMLButtonElement>) => {
+		const current = stackMenu.current;
+		if (current.generation !== compareGeneration || current.query !== library.query || current.page !== library.page
+			|| !current.libraryVisible || current.busy || current.reviewing || current.pending !== null || current.stacks.busy
+			|| current.stacks.visible || reviewAdmission.current !== null || (kind === 'create' ? current.selectedIds.length < 2 : current.primaryId === null)) return;
+		reviewAdmission.current = compareGeneration; closeMenu(event);
+		if (kind === 'create') void current.stacks.openCreate(Object.freeze([...current.selectedIds]));
+		else if (current.primaryId) void current.stacks.openEdit(current.primaryId);
 	};
 	const closeImport = () => { setImportVisible(false); };
 	const closeBatchRename = () => {
@@ -259,6 +285,12 @@ export default function LightscaperApp({ locale, createSession, loadBackupSaveRu
 									onClick={event => {
 										closeMenu(event); if (library.batchRenameUndo) void library.undoBatchRename(library.batchRenameUndo);
 									}}>{copy.photoBatchRenameUndo}</button>
+								<button type="button" data-photo-stack-create-menu disabled={!libraryVisible || photoSelection.snapshot.selectedIds.length < 2
+									|| library.busy || stacks.busy || stacks.visible || reviewing || photoSelection.pendingPhotoId !== null}
+									onClick={event => { openStack('create', event); }}>{copy.photoStackCreate}</button>
+								<button type="button" data-photo-stack-edit-menu disabled={!libraryVisible || !selection || library.busy || stacks.busy
+									|| stacks.visible || reviewing || photoSelection.pendingPhotoId !== null}
+									onClick={event => { openStack('edit', event); }}>{copy.photoStackEdit}</button>
 								{[0, 1, 2, 3, 4, 5].map(rating => <button key={rating} type="button" disabled={!selection || library.busy}
 									onClick={event => { closeMenu(event); if (selection) void photoSelection.cull(selection.id, signal => library.setRating(selection.id, rating, { signal })); }}>
 									{copy.photoRateStars.replace('{count}', String(rating))}
@@ -296,10 +328,13 @@ export default function LightscaperApp({ locale, createSession, loadBackupSaveRu
 						<button type="button" disabled={!libraryVisible || !selection} aria-pressed={loupeVisible} onClick={event => {
 							closeMenu(event); setPreviewActivated(true); setLoupeVisible(visible => !visible);
 						}}>{loupeVisible ? copy.photoHideLoupe : copy.photoShowLoupe}</button>
-						<button type="button" data-photo-compare-menu disabled={!libraryVisible || photoSelection.snapshot.selectedIds.length < 2 || library.busy || photoSelection.pendingPhotoId !== null || reviewing}
+						<button type="button" data-photo-compare-menu disabled={!libraryVisible || photoSelection.snapshot.selectedIds.length < 2 || library.busy || photoSelection.pendingPhotoId !== null || reviewing || stacks.visible || stacks.busy}
 							onClick={event => { openReview('compare', event); }}>{copy.photoCompareTitle}</button>
-						<button type="button" data-photo-survey-menu disabled={!libraryVisible || photoSelection.snapshot.selectedIds.length < 2 || library.busy || photoSelection.pendingPhotoId !== null || reviewing}
+						<button type="button" data-photo-survey-menu disabled={!libraryVisible || photoSelection.snapshot.selectedIds.length < 2 || library.busy || photoSelection.pendingPhotoId !== null || reviewing || stacks.visible || stacks.busy}
 							onClick={event => { openReview('survey', event); }}>{copy.photoSurveyTitle}</button>
+						<button type="button" data-photo-stack-view-menu aria-pressed={library.stackCollapsed} disabled={!libraryVisible
+							|| library.busy || stacks.visible || stacks.busy || reviewing || photoSelection.pendingPhotoId !== null}
+							onClick={toggleStackView}>{library.stackCollapsed ? copy.photoStackExpandView : copy.photoStackCollapseView}</button>
 						<button type="button" disabled={library.busy || !libraryVisible} onClick={event => { closeMenu(event); void library.readPage(); }}>{copy.photoFirstPage}</button>
 						<button type="button" disabled={library.busy || !libraryVisible || !library.page?.cursor} onClick={event => { closeMenu(event); void library.readPage(library.page?.cursor); }}>{copy.photoNextPage}</button>
 					</div>
@@ -351,6 +386,12 @@ export default function LightscaperApp({ locale, createSession, loadBackupSaveRu
 			<PhotoCatalogBackupDialog locale={locale} copy={copy} ready={library.backupReady}
 				maximumStreamingBytes={library.maximumBackupStreamingBytes} busy={library.busy} error={library.error}
 				receipt={library.backupReceipt} onSave={onBackup} onClose={closeBackup} />
+		</Suspense>}
+		{stacks.visible && <Suspense fallback={<p role="status">{copy.photoWorking}</p>}>
+			<PhotoStackDialog generation={compareGeneration} copy={copy} mode={stacks.mode} snapshot={stacks.snapshot}
+				selectedIds={stacks.selectedIds} members={stacks.members} busy={library.busy || stacks.busy}
+				error={stacks.error ?? library.error} receipt={stacks.receipt} notice={stacks.notice}
+				onReadMembers={stacks.readMembers} onApply={stacks.apply} onReload={stacks.reload} onCancel={library.cancel} onClose={stacks.close} />
 		</Suspense>}
 		{originalRecoveryVisible && <Suspense fallback={<p role="status">{copy.photoWorking}</p>}>
 			<PhotoOriginalRecoveryDialog generation={createSession} copy={copy} page={library.originalInspectionPage}
