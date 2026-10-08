@@ -73,3 +73,25 @@ ordinary, reversed-repeat and split-phase cases pass, together with existing
 Nyquist host/controller and source-tempo support: 27/27. Target lint passes.
 Corrected-build public verification is pending. This is a repeat transform,
 separate from the earlier source-label placement offset and 002's tempo lookup.
+
+## R5-ROOT-004 — In-progress normalization overwrites a later gain edit
+
+Import an ordinary 30-second recording. Open Clip properties → Normalize,
+click Normalize to −1 dBFS, then immediately set Clip gain to −6 dB and press
+Enter. Export audio and return to Properties. The baseline initially saves
+−6.00 dB, then its earlier normalization job silently overwrites it with +19.00 dB.
+The last explicit edit should survive the earlier asynchronous operation.
+
+The operation's existing ownership check tracks source bounds and render
+revision, while gain, fades and envelopes can change without that revision.
+Capture and compare the actual clip-processing inputs and gain before every
+asynchronous handoff and before publication. Reject the stale result; preserve
+decorative title edits that leave the processing unchanged.
+
+The ordinary Chromium workflow fails after its −6.00 dB setup assertion and
+actual download succeed (`/tmp/soundscaper-r5-root-normalization-race-red.*`).
+Four strict owning-service cases using real canonical gain/fade/envelope/polarity
+commands fail before correction; they and the title control pass afterward.
+All 28 focused new and existing property/normalization cases and target lint
+pass. Corrected-build public verification is pending. This missing asynchronous
+processing fence is independent of 001's gain-ceiling validation.
