@@ -108,6 +108,11 @@ function workspaceShortcutTargetDisposition(
 	event: Pick<KeyboardEventLike, 'altKey' | 'code' | 'ctrlKey' | 'key' | 'metaKey' | 'shiftKey' | 'target'>,
 ): 'allowed' | 'blocked' | 'modified-control' {
 	if (typeof Element === 'undefined' || !(event.target instanceof Element)) return 'allowed';
+	if (event.target.closest('input')?.getAttribute('type')?.toLowerCase() === 'range') {
+		if (event.ctrlKey || event.metaKey || event.altKey) return 'modified-control';
+		return NATIVE_CONTROL_KEYS.has(event.key.toLowerCase())
+			|| ['PageDown', 'PageUp'].includes(event.key) ? 'blocked' : 'modified-control';
+	}
 	const timeDigit = event.target.closest('.timecode-digit');
 	if (timeDigit?.getAttribute('data-state') === 'active'
 		|| event.target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])')) {

@@ -804,8 +804,11 @@ after cancellation during rendering, worker processing and persistence. The
 correction passes those and existing selection-effect, project-ownership,
 linked silence and mounted dialog support, 39/39
 (`/tmp/soundscaper-r5-root-selection-effect-cancel-support.log`). Targeted
-type-aware lint, focused strict compiler and file-size checks pass. Corrected
-immutable public verification is pending; ROOT-026 is not yet counted.
+type-aware lint, focused strict compiler and file-size checks pass. Immutable `7c3977b10` preserves the complete original PCM after cancellation
+in Chromium, Firefox and WebKit; the combined new cancellation, saved-detector
+and existing Amplify workflows pass 9/9 (3.8 minutes;
+`/tmp/soundscaper-r5-root-effect-cancel-repeat-green39.log`).
+Both guarded product builds pass. ROOT-026 is counted once.
 The composition support caught an omitted idle cancellation stand-in for
 Framescaper, which intentionally excludes selection effects. That stand-in
 is restored before checkpoint capture; all 37 controller/action/absence
@@ -837,5 +840,32 @@ Initial public setup incorrectly expected mono output to omit its center pan
 attenuation and reused a retired clip-name locator; those fixture errors are
 excluded. The final proof uses normal public track identity and the unchanged
 PCM assertion/deadline. Target lint, focused strict types and size pass.
-Corrected immutable public verification is pending; ROOT-027 is not yet
-counted. The assistance runtime closure is unchanged.
+Immutable `7c3977b10` refuses the missing saved control without changing PCM
+or adding history, then restores valid Repeat after Undo, in Chromium, Firefox
+and WebKit. The combined cancellation, saved-detector and existing Amplify
+workflows pass 9/9 (3.8 minutes;
+`/tmp/soundscaper-r5-root-effect-cancel-repeat-green39.log`). Both guarded builds
+pass. ROOT-027 is counted once. The assistance runtime closure is unchanged.
+
+## R5-ROOT-028 — Native effect sliders swallow configured commands
+
+Import an ordinary video in Framescaper. Assign Ctrl+Alt+Up to New label track
+in Preferences, open its Properties, add Color adjust and focus Brightness.
+Press the assigned chord: no label track appears and the native slider changes
+Brightness from zero to 0.01. The workspace classifies every input, including
+a native range, as a text editor and never dispatches the accepted command.
+
+Treat modified range keys as commands while retaining native plain arrows,
+Home/End and Page Up/Down. Keep text and number editing and modal suspension
+unchanged. This shared eligibility owner is distinct from custom control
+handlers repaired earlier; all native range variants count once.
+
+The complete ordinary immutable-baseline workflow fails at the absent label
+track (`/tmp/soundscaper-r5-root-native-range-command-red.log`); a second probe
+confirms the unintended native parameter change. Three strict production-owner
+cases independently fail dispatch before correction, while native editing
+controls pass. New and existing keyboard/cancellation support passes 12/12
+(`/tmp/soundscaper-r5-root-native-range-support-retry.log`). Focused strict
+types, type-aware lint and the size gate pass. Corrected immutable browser
+verification is pending; ROOT-028 is not yet counted. The assistance runtime
+closure is unchanged.

@@ -1,8 +1,8 @@
 # Fifth user-reproducible regression audit
 
-This audit is in progress toward 100 additional distinct fixes. Ninety-one
-new roots have completed ordinary browser verification (editing 24, dialogs 29,
-effects/analysis 25, import/export 13). Its immutable
+This audit is in progress toward 100 additional distinct fixes. Ninety-five
+new roots have completed ordinary browser verification (editing 25, dialogs 29,
+effects/analysis 27, import/export 14). Its immutable
 baseline is `fe6440c81b3a0fe29a028c64db867ae7d2cf3252`.
 
 Count an entry only after ordinary public user actions reproduce its defect
@@ -124,6 +124,11 @@ alongside Bold/Italic (9/9), adding no separate root.
 Checkpoint thirty-eight, `62ecb3872`, passes both guarded builds, output-name
 Enter/Escape focus and Undo/Redo (6/6) plus native-rate Paste spectrum, duration
 and history with existing speed/channel controls (9/9), all three engines.
+Checkpoint thirty-nine, `7c3977b10`, passes both guarded builds, output-lane
+modified command ownership with name editing (9/9), canceled selection effects
+and remembered Auto Duck control admission with existing Amplify controls
+(9/9), and individual-stem detector closure with existing clip-export controls
+(21/21), all three engines. The complete bounded-memory lint passes.
 Browser evidence names each exact checkpoint. Firefox audio
 uses the unchanged CI PulseAudio setup with a private 48 kHz null sink.
 
