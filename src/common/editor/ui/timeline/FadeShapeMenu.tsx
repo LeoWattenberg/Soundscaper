@@ -52,7 +52,7 @@ export function FadeShapeMenu<Id extends keyof typeof PRESET_LABELS>({
 		onPointerDown={event => event.stopPropagation()}
 		onClick={event => event.stopPropagation()}
 		onDoubleClick={event => event.stopPropagation()}
-		onKeyDown={event => event.stopPropagation()}
+		onKeyDown={event => { if (!event.ctrlKey && !event.metaKey && !event.altKey) event.stopPropagation(); }}
 		onContextMenu={event => { event.preventDefault(); event.stopPropagation(); }}>
 		<ContextMenu isOpen x={position.x} y={position.y} onClose={onClose}
 			className="audio-editor-fade-shape-menu">
