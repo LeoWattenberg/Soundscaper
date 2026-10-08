@@ -25,6 +25,7 @@ export default function ProjectBinCard({
 	copy,
 	locale,
 	mutationBlocked,
+	selectionBlocked = mutationBlocked,
 	missing,
 	selectedMediaTrack,
 	preview,
@@ -259,7 +260,7 @@ export default function ProjectBinCard({
 					<button
 						type="button"
 						className="kw-audio-editor__project-bin-icon-button"
-						disabled={mutationBlocked || instanceCount === 0}
+						disabled={selectionBlocked || instanceCount === 0}
 						aria-label={`${copy.projectBinSelectInstances}: ${name}`}
 						onClick={() => run(() => controller.actions.projectBin.selectInstances(clip.id))}
 					>
