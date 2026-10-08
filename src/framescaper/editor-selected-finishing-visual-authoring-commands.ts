@@ -29,7 +29,7 @@ import {
 	type FramescaperSelectedVisualAuthoringSurfaceFinishing,
 } from './editor-selected-finishing-visual-authoring-model.ts';
 import { assertFramescaperProjectIdentity } from './editor-project-identity.ts';
-import { selectedAdjustmentEffectId } from './editor-adjustment-effect-membership.ts';
+import { requireSelectedAdjustmentEffectId } from './editor-adjustment-effect-membership.ts';
 
 export type FramescaperSelectedFreezeCaptureRequest = FramescaperSelectedFreezeCaptureRequestFinishing;
 
@@ -205,7 +205,7 @@ function adjustmentCommand(project: Data, request: Data): unknown {
 		: requireById(records(project.videoAdjustmentLayers, 'adjustment layers'), requestedId, 'adjustment layer');
 	if (operation === 'remove') {
 		if (!current) throw new Error('The selected adjustment layer is stale. Reopen the dialog.');
-		const effectId = onlyEffectId(current, clip);
+		const effectId = stableId(requireSelectedAdjustmentEffectId(current, clip), 'adjustment effect ID');
 		const effectIds = (current.effectIds as readonly string[]).filter((id) => id !== effectId);
 		return batch([{
 			type: 'video-adjustment-layer/set', adjustmentLayerId: requestedId,
@@ -214,7 +214,7 @@ function adjustmentCommand(project: Data, request: Data): unknown {
 	}
 	const brightness = bounded(request.brightness, -1, 1, 'adjustment brightness');
 	if (current) {
-		const effectId = onlyEffectId(current, clip);
+		const effectId = stableId(requireSelectedAdjustmentEffectId(current, clip), 'adjustment effect ID');
 		return createUpdateVideoEffectCommand(stableId(clip.id, 'selected video clip ID'),
 			effectId, { params: { brightness } });
 	}
@@ -464,14 +464,6 @@ function visualPreset(project: Data, id: string) {
 function finishingPreset(project: Data, id: string) {
 	return normalizeVideoFinishingPresetV1(requireById(records(project.videoFinishingPresets,
 		'finishing presets'), id, 'finishing preset'));
-}
-
-function onlyEffectId(layer: Data, clip: Data): string {
-	const id = selectedAdjustmentEffectId(layer, clip);
-	if (id === null) {
-		throw new Error('The selected adjustment layer requires one owned effect.');
-	}
-	return stableId(id, 'adjustment effect ID');
 }
 
 function selectedFenceId(request: Data): string | undefined {

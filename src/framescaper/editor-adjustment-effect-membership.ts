@@ -62,6 +62,12 @@ export function selectedAdjustmentEffectId(layer: Data, clip: Data): string | nu
 	return owned.length === 1 && typeof owned[0]?.id === 'string' ? owned[0].id : null;
 }
 
+export function requireSelectedAdjustmentEffectId(layer: Data, clip: Data): string {
+	const id = selectedAdjustmentEffectId(layer, clip);
+	if (id === null) throw new Error('The selected adjustment layer requires one owned effect.');
+	return id;
+}
+
 function record(value: unknown): Data | null {
 	return value !== null && typeof value === 'object' && !Array.isArray(value) ? value as Data : null;
 }
