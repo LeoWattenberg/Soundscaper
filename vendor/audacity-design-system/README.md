@@ -412,6 +412,12 @@ application overrides and source patches against the pin and upstream master.
     Covered by `tests/audio-editor-round6-clip-name-composition.test.tsx` and the
     public import/F2/name-confirmation/Undo/Redo workflow. Upstream-PR candidate.
 
+57. `TrackNew` opens its clip context menu only for unclaimed plain ContextMenu
+    or Shift+F10, leaving modified keys with the configured workspace command.
+    Preserve existing pointer entry, keyboard geometry and clip selection/move
+    callbacks. Covered by `tests/audio-editor-round6-clip-context-shortcut.test.tsx`
+    and its ordinary Preferences/header/menu/Undo browser workflow.
+
 ## Application-side adaptations
 
 Not deviations — application code that had to change because upstream did. Listed because they
