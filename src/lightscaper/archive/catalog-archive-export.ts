@@ -2,16 +2,20 @@
 
 import { ZipWriter } from '@zip.js/zip.js/index-native.js';
 import { aggregateScapeErrors, throwIfScapeAborted } from '../../common/editor/scape-abort.ts';
-import { SCAPE_ARCHIVE_LIMITS, SCAPE_FORMAT, SCAPE_FORMAT_VERSION, type ScapeAssetDescriptor, type ScapeManifest } from '../../common/editor/scape-archive-envelope.ts';
-import { createScapeDigest, digestScapeBytes, scapeBytesStream, scapeHex } from '../../common/editor/scape-archive-media.ts';
+import { SCAPE_ARCHIVE_LIMITS, SCAPE_FORMAT, SCAPE_FORMAT_VERSION } from '../../common/editor/scape-archive-limits.ts';
+import type { ScapeAssetDescriptor, ScapeManifest } from '../../common/editor/scape-archive-envelope.ts';
+import { createScapeDigest, digestScapeBytes, scapeBytesStream, scapeHex } from '../../common/editor/scape-byte-stream.ts';
 import { createScapeExportDestination } from '../../common/editor/scape-export-destination.ts';
-import { SCAPE_WEB_CORE_BLOB_MAXIMUM_BYTES, maximumScapeStoreArchiveBytes } from '../../common/editor/scape-export-estimate.ts';
+import { SCAPE_WEB_CORE_BLOB_MAXIMUM_BYTES } from '../../common/editor/scape-blob-budget.ts';
 import { PHOTO_CATALOG_PACK_ASSET_KIND, PHOTO_CATALOG_PACK_ENCODING } from '../../common/editor/scape-photo-catalog-pack.ts';
 import { SCAPE_MIME_TYPE } from '../../common/editor/scape-project-format.ts';
 import { validateLightscaperDocumentV1 } from '../catalog/documents.ts';
 import { encodePhotoCatalogPackV1, type PhotoCatalogPackInput } from './catalog-pack.ts';
 import { PHOTO_CATALOG_ARCHIVE_LIMITS_V1 as LIMITS, PhotoCatalogArchiveIdentityGuard, normalizePhotoCatalogArchiveV1, serializePhotoCatalogArchiveV1, type PhotoCatalogArchiveDocumentV1, type PhotoCatalogArchivePackV1 } from './catalog-archive-contract.ts';
 import { PhotoCatalogPackSequence } from './catalog-pack-sequence.ts';
+import { maximumPhotoCatalogStreamingOutputBytesV1 } from './catalog-archive-capacity.ts';
+
+export { maximumPhotoCatalogStreamingOutputBytesV1 } from './catalog-archive-capacity.ts';
 
 export interface PhotoCatalogArchiveExportOptions {
 	readonly signal?: AbortSignal;
@@ -42,7 +46,7 @@ export async function exportPhotoCatalogArchiveV1(
 		write(bytes) { parts.push(new Uint8Array(bytes)); },
 		abort() { parts.length = 0; },
 	});
-	const outputMaximum = options.writable ? maximumStreamingOutputBytes() : blobMaximum;
+	const outputMaximum = options.writable ? maximumPhotoCatalogStreamingOutputBytesV1() : blobMaximum;
 	const destination = createScapeExportDestination(target, SCAPE_MIME_TYPE, outputMaximum);
 	const writer = new ZipWriter(destination.target, { dataDescriptor: true, dataDescriptorSignature: true,
 		extendedTimestamp: true, zip64: true, level: 0, useWebWorkers: false, signal });
@@ -113,12 +117,4 @@ function iterableStream(chunks: AsyncIterable<Uint8Array>): ReadableStream<Uint8
 		},
 		async cancel() { await iterator.return?.(); },
 	});
-}
-
-function maximumStreamingOutputBytes(): number {
-	const entries = Array.from({ length: SCAPE_ARCHIVE_LIMITS.maximumEntryCount }, (_, index) => ({
-		filename: `assets/photo-pack-${String(index).padStart(6, '0')}.bin`,
-		payloadBytes: index === 0 ? SCAPE_ARCHIVE_LIMITS.maximumExpandedBytes : 0,
-	}));
-	return maximumScapeStoreArchiveBytes(entries);
 }

@@ -5,6 +5,7 @@ import type { ImageMetadataV1 } from './imaging/image-metadata-model-v1.ts';
 import type { PhotoLibraryOrganizationPortV1 } from './photo-library-organization-port-v1.ts';
 import type { PhotoLibraryImportSettingsPortV1 } from './photo-library-import-settings-port-v1.ts';
 import type { PhotoLibraryBatchRenamePortV1 } from './photo-library-batch-rename-port-v1.ts';
+import type { PhotoLibraryBackupPortV1 } from './photo-library-backup-port-v1.ts';
 
 /** Scalar presentation boundary; owning catalog documents stay in the product. */
 export interface PhotoLibraryRowV1 {
@@ -121,7 +122,7 @@ export interface PhotoLibraryDefinitionPageV1 {
 	readonly cursor: string | null;
 }
 
-export interface PhotoLibrarySessionPortV1 extends PhotoLibraryOrganizationPortV1, PhotoLibraryImportSettingsPortV1, PhotoLibraryBatchRenamePortV1 {
+export interface PhotoLibrarySessionPortV1 extends PhotoLibraryOrganizationPortV1, PhotoLibraryImportSettingsPortV1, PhotoLibraryBatchRenamePortV1, PhotoLibraryBackupPortV1 {
 	readQueryStep(options: Readonly<{ query: PhotoLibraryQueryV1; cursor?: string | null; signal?: AbortSignal }>): Promise<PhotoLibraryQueryStepV1>;
 	rebuildQueryStep(options?: Readonly<{ signal?: AbortSignal }>): Promise<PhotoLibraryQueryBuildProgressV1>;
 	readDefinitionPage(options: PhotoLibraryDefinitionPageRequestV1): Promise<PhotoLibraryDefinitionPageV1>;

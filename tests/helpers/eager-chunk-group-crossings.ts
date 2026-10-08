@@ -53,6 +53,10 @@ export const EAGER_CHUNK_GROUPS: ReadonlySet<string> = new Set([
 	'editor-media-storage-contracts',
 	// Existing product boot repositories already compose shared original custody.
 	'editor-media-custody-storage',
+	// Existing editor bootstrap file/archive services already consume these
+	// implementations. The photo product reaches them only after menu opt-in.
+	'editor-file-saving',
+	'editor-scape-archive-bytes',
 	'editor-controller-core',
 	'editor-domain',
 	// Frame's existing image decoder/frame source already compose these common

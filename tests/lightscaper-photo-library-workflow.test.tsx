@@ -377,6 +377,7 @@ function owner(readPage: PhotoLibrarySessionPortV1['readPage']) {
 		planBatchRename: (): never => { throw new Error('Unexpected batch rename plan in workflow fixture.'); },
 		renamePhotos: async (): Promise<never> => { throw new Error('Unexpected batch rename in workflow fixture.'); },
 		undoBatchRename: async (): Promise<never> => { throw new Error('Unexpected batch rename undo in workflow fixture.'); },
+		backupCatalog: async (): Promise<never> => { throw new Error('Unexpected catalog backup in workflow fixture.'); },
 		readImportPresets: async (): Promise<never> => { throw new Error('Unexpected import preset read in workflow fixture.'); },
 		applyImportPreset: async (): Promise<never> => { throw new Error('Unexpected import preset write in workflow fixture.'); },
 		readPage,

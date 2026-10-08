@@ -4,7 +4,8 @@ The L3 backup enumerator lends the existing catalog repository and retained
 original loader to the photo Scape archive exporter. It opens no additional
 repository, media store, command owner or writer. Session composition must hold
 its existing catalog lease until the export and destination cleanup settle.
-The menu and save-target composition is a separate integration packet.
+The [menu and save-target owner](lightscaper-catalog-backup-ui.md) prepares the
+destination and joins its final commit or abort after archive staging.
 
 The Session admits destination options before lazy initialization or archive
 loading. `backupCatalog` uses its existing single writer and catalog lease; it

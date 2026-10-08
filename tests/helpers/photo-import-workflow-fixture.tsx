@@ -15,7 +15,7 @@ export function createImportTestPort(): PhotoLibrarySessionPortV1 {
 		readQueryStep: unexpected, rebuildQueryStep: unexpected, readDefinitionPage: unexpected, readDefinition: unexpected,
 		applyDefinition: unexpected, readMemberships: unexpected, applyMemberships: unexpected, readPreview: unexpected,
 		importFiles: unexpected, setRating: unexpected, applyAttributes: unexpected, readMetadata: unexpected, applyMetadata: unexpected,
-		readImportPresets: unexpected, applyImportPreset: unexpected, close: async () => undefined };
+		readImportPresets: unexpected, applyImportPreset: unexpected, backupCatalog: unexpected, close: async () => undefined };
 }
 
 export async function mountImportWorkflow(initialFactory: CreatePhotoLibrarySessionV1) {

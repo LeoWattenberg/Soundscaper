@@ -10,5 +10,10 @@ export default function LightscaperBootstrap(props: LightscaperAppProps) {
 		const runtime = await import('../photo-library-session-runtime.ts');
 		return runtime.createPhotoLibrarySessionV1({ name: bundledSiteCopyForLocale(props.locale).workspacePhoto });
 	}, [props.locale]);
-	return <LightscaperApp {...props} createSession={props.createSession ?? createSession} />;
+	const loadBackupSaveRuntime = useCallback(async () => {
+		const runtime = await import('../photo-library-backup-save-runtime.ts');
+		return runtime.createPhotoLibraryBackupSaveRuntimeV1();
+	}, []);
+	return <LightscaperApp {...props} createSession={props.createSession ?? createSession}
+		loadBackupSaveRuntime={props.loadBackupSaveRuntime ?? loadBackupSaveRuntime} />;
 }

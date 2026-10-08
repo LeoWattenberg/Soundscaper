@@ -159,6 +159,20 @@ const ENGLISH = Object.freeze({
 	photoBatchRefreshFailed: "The library view could not be refreshed. The results remain valid.",
 	photoBatchCurrentName: "Current name",
 	photoBatchNewName: "New name",
+	photoBackupTitle: "Back up catalog",
+	photoBackupDescription: "Back up catalog metadata and original photos. Previews are recreated when needed.",
+	photoBackupSave: "Save backup",
+	photoBackupClose: "Close",
+	photoBackupPreparing: "Preparing backup saving",
+	photoBackupStreamingLimit: "Streaming saves support up to {bytes} bytes.",
+	photoBackupDownloadLimit: "Browser downloads support up to {bytes} bytes.",
+	photoBackupFileType: "Photo catalog backup",
+	photoBackupSaved: "Backup saved: {name}",
+	photoBackupDownloadStarted: "Download started: {name}. Check your browser’s downloads.",
+	photoBackupCancelled: "Backup was cancelled.",
+	photoBackupFailed: "The catalog backup could not be saved.",
+	photoBackupCleanupFailed: "The backup completed, but temporary cleanup could not finish.",
+	photoBackupSummary: "{count} photos · {bytes} bytes",
 });
 
 export type LightscaperEditorCopyV1 = Readonly<Record<keyof typeof ENGLISH, string>>;
@@ -320,6 +334,20 @@ const GERMAN: LightscaperEditorCopyV1 = Object.freeze({
 	photoBatchRefreshFailed: "Die Bibliotheksansicht konnte nicht aktualisiert werden. Die Ergebnisse bleiben gültig.",
 	photoBatchCurrentName: "Aktueller Name",
 	photoBatchNewName: "Neuer Name",
+	photoBackupTitle: "Katalog sichern",
+	photoBackupDescription: "Katalogmetadaten und Originalfotos sichern. Vorschauen werden bei Bedarf neu erstellt.",
+	photoBackupSave: "Sicherung speichern",
+	photoBackupClose: "Schließen",
+	photoBackupPreparing: "Speichern der Sicherung vorbereiten",
+	photoBackupStreamingLimit: "Streaming-Speicherziele unterstützen bis zu {bytes} Bytes.",
+	photoBackupDownloadLimit: "Browser-Downloads unterstützen bis zu {bytes} Bytes.",
+	photoBackupFileType: "Fotokatalog-Sicherung",
+	photoBackupSaved: "Sicherung gespeichert: {name}",
+	photoBackupDownloadStarted: "Download gestartet: {name}. Prüfe die Downloads deines Browsers.",
+	photoBackupCancelled: "Die Sicherung wurde abgebrochen.",
+	photoBackupFailed: "Die Katalogsicherung konnte nicht gespeichert werden.",
+	photoBackupCleanupFailed: "Die Sicherung wurde abgeschlossen, aber temporäre Daten konnten nicht vollständig bereinigt werden.",
+	photoBackupSummary: "{count} Fotos · {bytes} Bytes",
 });
 
 /** Flat identities remain shared with the canonical translation inventory. */

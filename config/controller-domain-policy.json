@@ -194,6 +194,7 @@
 		"shared/isolated-track-render-project-v21.ts",
 		"shared/lifecycle.ts",
 		"shared/owned-state.ts",
+		"shared/photo-library-backup-save-v1.ts",
 		"shared/photo-library-culling-v1.ts",
 		"shared/photo-library-definition-reader.ts",
 		"shared/photo-library-import-gesture-v1.ts",

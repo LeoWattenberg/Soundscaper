@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { PhotoLibraryBackupSaveV1, type PhotoLibraryBackupSaveRequestV1,
+	type PhotoLibraryBackupSaveReceiptV1 } from '../../controller/shared/photo-library-backup-save-v1.ts';
 import type { PhotoLibraryCullReceiptV1 } from '../../controller/shared/photo-library-culling-v1.ts';
 import type { PhotoLibraryBatchRenamePlanV1, PhotoLibraryBatchRenameReceiptV1, PhotoLibraryBatchRenameRequestV1,
 	PhotoLibraryBatchRenameSnapshotV1, PhotoLibraryBatchRenameUndoV1 } from '../../photo-library-batch-rename-port-v1.ts';
@@ -15,6 +17,7 @@ import type { CreatePhotoLibrarySessionV1, PhotoLibraryAttributePatchV1, PhotoLi
 interface SessionSlot {
 	live: boolean;
 	readonly factory: CreatePhotoLibrarySessionV1 | undefined;
+	readonly backupLoader: LoadPhotoLibraryBackupSaveRuntimeV1 | undefined;
 	readonly lifetime: AbortController;
 	readonly beforeDrain: Promise<void> | null;
 	pending: Promise<PhotoLibrarySessionPortV1> | null;
@@ -22,8 +25,14 @@ interface SessionSlot {
 	query: PhotoLibraryQueryV1 | null;
 	page: PhotoLibraryPageV1 | null;
 	batchRenamePlanner: PhotoLibrarySessionPortV1['planBatchRename'] | null;
+	backupRuntime: PhotoLibraryBackupSaveRuntimeV1 | null;
+	backupLoading: Promise<void> | null;
 }
-type WorkflowAction = (owner: PhotoLibrarySessionPortV1, signal: AbortSignal, current: SessionSlot) => Promise<void>;
+type SessionAction = (owner: PhotoLibrarySessionPortV1, signal: AbortSignal, current: SessionSlot) => Promise<void>;
+type WorkflowAction = SessionAction
+	| Readonly<{ start: (signal: AbortSignal, current: SessionSlot) => Promise<void> }>;
+export type PhotoLibraryBackupSaveRuntimeV1 = Readonly<Pick<PhotoLibraryBackupSaveRequestV1, 'prepareSave' | 'saveFile' | 'maximumStreamingBytes'>>;
+export type LoadPhotoLibraryBackupSaveRuntimeV1 = () => Promise<PhotoLibraryBackupSaveRuntimeV1>;
 type ActionStatus = 'completed' | 'failed' | 'cancelled' | 'busy';
 export type PhotoLibraryBatchRenameWorkflowReceiptV1 =
 	| Readonly<{ outcome: 'acknowledged'; receipt: PhotoLibraryBatchRenameReceiptV1; notice: 'refresh-failed' | null }>
@@ -31,8 +40,12 @@ export type PhotoLibraryBatchRenameWorkflowReceiptV1 =
 const getFileName = Object.getOwnPropertyDescriptor(File.prototype, 'name')?.get;
 
 /** The effect owns one resource generation, including factories resolving after cleanup. */
-export function usePhotoLibraryWorkflow(createSession?: CreatePhotoLibrarySessionV1) {
+export function usePhotoLibraryWorkflow(createSession?: CreatePhotoLibrarySessionV1, loadBackupSaveRuntime?: LoadPhotoLibraryBackupSaveRuntimeV1) {
 	const factory = useRef(createSession); factory.current = createSession;
+	const loader = useRef(loadBackupSaveRuntime); loader.current = loadBackupSaveRuntime;
+	const backupSave = useRef<PhotoLibraryBackupSaveV1 | null>(null);
+	backupSave.current ??= new PhotoLibraryBackupSaveV1();
+	const controller = backupSave.current;
 	const slot = useRef<SessionSlot | null>(null);
 	const retiring = useRef<Promise<void> | null>(null);
 	const [page, setPage] = useState<PhotoLibraryPageV1 | null>(null);
@@ -48,59 +61,101 @@ export function usePhotoLibraryWorkflow(createSession?: CreatePhotoLibrarySessio
 	const [batchRenameSnapshot, setBatchRenameSnapshot] = useState<PhotoLibraryBatchRenameSnapshotV1 | null>(null);
 	const [batchRenameReceipt, setBatchRenameReceipt] = useState<Extract<PhotoLibraryBatchRenameWorkflowReceiptV1, { outcome: 'acknowledged' }> | null>(null);
 	const [batchRenameUndo, setBatchRenameUndo] = useState<PhotoLibraryBatchRenameUndoV1 | null>(null);
+	const [backupRuntime, setBackupRuntime] = useState<PhotoLibraryBackupSaveRuntimeV1 | null>(null);
+	const [backupReceipt, setBackupReceipt] = useState<PhotoLibraryBackupSaveReceiptV1 | null>(null);
 	const publishPage = useCallback((current: SessionSlot, next: PhotoLibraryPageV1 | null) => {
 		if (!current.live) return null;
 		current.page = next; setPage(next); return next;
 	}, []);
 	useEffect(() => {
-		const current: SessionSlot = { live: true, factory: createSession, lifetime: new AbortController(),
-			beforeDrain: retiring.current, pending: null, active: null, query: null, page: null, batchRenamePlanner: null };
+		const current: SessionSlot = { live: true, factory: createSession, backupLoader: loadBackupSaveRuntime, lifetime: new AbortController(),
+			beforeDrain: retiring.current, pending: null, active: null, query: null, page: null, batchRenamePlanner: null, backupRuntime: null, backupLoading: null };
 		slot.current = current;
 		queueMicrotask(() => {
 			if (!current.live) return;
 			setQuery(null); setNeedsQueryIndex(false); setQueryIndexProgress(null);
-			publishPage(current, null); setMetadata(null); setMemberships(null); setReceipts([]); setImportReceipt(null); setError(null); setBusy(current.active !== null);
+			publishPage(current, null); setMetadata(null); setMemberships(null); setReceipts([]); setImportReceipt(null); setError(null); setBusy(current.active !== null || controller.isPending());
 			setBatchRenameSnapshot(null); setBatchRenameReceipt(null); setBatchRenameUndo(null);
+			setBackupRuntime(null); setBackupReceipt(null);
 		});
 		return () => {
 			current.live = false; current.lifetime.abort(); current.active?.abort();
 			if (slot.current === current) slot.current = null;
 			const pending = current.pending;
+			const destinationClosed = controller.cancelAndJoin();
 			const closing = (async () => {
 				if (current.beforeDrain) await current.beforeDrain;
+				await destinationClosed;
 				const owner = await pending?.catch(() => null);
 				await owner?.close();
 			})();
 			retiring.current = closing;
 			void closing.catch(() => undefined);
 		};
-	}, [createSession, publishPage]);
+	}, [createSession, loadBackupSaveRuntime, publishPage, controller]);
 
 	const perform = useCallback(async (action: WorkflowAction, externalSignal?: AbortSignal): Promise<ActionStatus> => {
 		const current = slot.current;
-		if (!current?.live || current.factory !== createSession) return 'cancelled';
-		if (current.active) return 'busy';
+		if (!current?.live || current.factory !== createSession || current.factory !== factory.current
+			|| current.backupLoader !== loadBackupSaveRuntime || current.backupLoader !== loader.current) return 'cancelled';
+		if (current.active || controller.isPending()) return 'busy';
 		const active = new AbortController(); current.active = active;
 		const signal = AbortSignal.any([active.signal, current.lifetime.signal, ...(externalSignal ? [externalSignal] : [])]);
 		setBusy(true); setError(null);
 		try {
 			signal.throwIfAborted();
-			const owner = await acquire(current);
-			signal.throwIfAborted();
-			await action(owner, signal, current);
+			if (typeof action === 'function') {
+				const owner = await acquire(current);
+				signal.throwIfAborted(); await action(owner, signal, current);
+			} else await action.start(signal, current);
 			return 'completed';
 		} catch (failure) {
+			// The destination owner can fail cleanup after cancellation. Its error is
+			// distinct from the exact cancellation reason and must remain visible.
+			const cancelled = signal.aborted && (typeof action === 'function' || failure === signal.reason);
 			if (current.live) {
 				if (!signal.aborted && errorCode(failure) === 'PHOTO_QUERY_INDEX_NOT_READY') { setNeedsQueryIndex(true); setError(null); }
-				else setError(signal.aborted ? null : message(failure));
+				else setError(cancelled ? null : message(failure));
 			}
-			return signal.aborted ? 'cancelled' : 'failed';
+			return cancelled ? 'cancelled' : 'failed';
 		} finally {
-			if (current.live) setBusy(false);
 			current.active = null;
+			const visible = slot.current;
+			if (visible?.live) setBusy(visible.active !== null || controller.isPending());
 		}
-	}, [createSession]);
-	const run = useCallback(async (action: WorkflowAction): Promise<void> => { await perform(action); }, [perform]);
+	}, [createSession, loadBackupSaveRuntime, controller]);
+	const run = useCallback(async (action: SessionAction): Promise<void> => { await perform(action); }, [perform]);
+	const prepareBackupSave = useCallback((): Promise<void> => {
+		const current = slot.current;
+		if (!current?.live || current.factory !== createSession || current.factory !== factory.current
+			|| current.backupLoader !== loadBackupSaveRuntime || current.backupLoader !== loader.current
+			|| !loadBackupSaveRuntime || current.backupRuntime) return Promise.resolve();
+		if (current.backupLoading) return current.backupLoading;
+		setError(null);
+		const pending = Promise.resolve().then(loadBackupSaveRuntime).then(runtime => {
+			if (!current.live || current.factory !== factory.current || current.backupLoader !== loader.current) return;
+			current.backupRuntime = runtime; setBackupRuntime(runtime);
+		}).catch(failure => { if (current.live && current.factory === factory.current && current.backupLoader === loader.current) setError(message(failure)); })
+			.finally(() => { if (current.backupLoading === pending) current.backupLoading = null; });
+		current.backupLoading = pending; return pending;
+	}, [createSession, loadBackupSaveRuntime]);
+	const saveBackup = useCallback(async (request: Pick<PhotoLibraryBackupSaveRequestV1, 'catalogName' | 'fileTypeDescription'>): Promise<PhotoLibraryBackupSaveReceiptV1 | null> => {
+		const admission = slot.current;
+		if (!admission?.live || admission.factory !== createSession || admission.factory !== factory.current
+			|| admission.backupLoader !== loadBackupSaveRuntime || admission.backupLoader !== loader.current || !admission.backupRuntime) return null;
+		let receipt: PhotoLibraryBackupSaveReceiptV1 | null = null;
+		const status = await perform({ start: async (signal, current) => {
+			setBackupReceipt(null);
+			receipt = await controller.start({ ...request, ...admission.backupRuntime!, signal,
+				backupCatalog: async options => {
+					const owner = await acquire(current); options.signal?.throwIfAborted();
+					return owner.backupCatalog(options);
+				} });
+		} });
+		if (!receipt && status === 'cancelled') receipt = Object.freeze({ status: 'cancelled' });
+		if (admission.live && admission.factory === factory.current && admission.backupLoader === loader.current && status !== 'busy') setBackupReceipt(receipt);
+		return receipt;
+	}, [perform, controller, createSession, loadBackupSaveRuntime]);
 
 	const readPreview = useCallback(async (photoId: string, tier: PhotoLibraryPreviewTierV1,
 		options: Readonly<{ signal?: AbortSignal }> = {}) => {
@@ -119,7 +174,7 @@ export function usePhotoLibraryWorkflow(createSession?: CreatePhotoLibrarySessio
 	}), [run, publishPage]);
 	const readBatchRenameSelection = useCallback(async (values: readonly string[], options: Readonly<{ signal?: AbortSignal }> = {}): Promise<void> => {
 		const admission = slot.current;
-		if (!admission?.live || admission.factory !== factory.current || admission.active) return;
+		if (!admission?.live || admission.factory !== factory.current || admission.active || controller.isPending()) return;
 		let ids: readonly string[];
 		try {
 			ids = readPhotoLibrarySelectionIdsV1(values);
@@ -132,7 +187,7 @@ export function usePhotoLibraryWorkflow(createSession?: CreatePhotoLibrarySessio
 				current.batchRenamePlanner = request => owner.planBatchRename(request); setBatchRenameSnapshot(next);
 			}
 		}, options.signal);
-	}, [perform]);
+	}, [perform, controller]);
 	const planBatchRename = useCallback((request: PhotoLibraryBatchRenameRequestV1): PhotoLibraryBatchRenamePlanV1 => {
 		const current = slot.current;
 		if (!current?.live || current.factory !== factory.current || !current.batchRenamePlanner) {
@@ -237,7 +292,7 @@ export function usePhotoLibraryWorkflow(createSession?: CreatePhotoLibrarySessio
 	const importFiles = useCallback(async (files: readonly File[], options: Pick<PhotoLibraryImportRequestOptionsV1, 'settings' | 'signal'> = {}): Promise<PhotoLibraryImportGestureReceiptV1> => {
 		const admission = slot.current;
 		if (!admission?.live || admission.factory !== factory.current || options.signal?.aborted) return Object.freeze({ outcome: 'cancelled' });
-		if (admission.active) return Object.freeze({ outcome: 'busy' });
+		if (admission.active || controller.isPending()) return Object.freeze({ outcome: 'busy' });
 		// Capture authored state and original source names before the lazy factory can yield.
 		let draft;
 		try {
@@ -284,7 +339,7 @@ export function usePhotoLibraryWorkflow(createSession?: CreatePhotoLibrarySessio
 		}, options.signal);
 		if (publication.generation?.live && slot.current === publication.generation && publication.generation.factory === factory.current) setImportReceipt(receipt);
 		return receipt ?? Object.freeze({ outcome: status === 'completed' ? 'failed' : status });
-	}, [createSession, perform, publishPage]);
+	}, [createSession, perform, publishPage, controller]);
 	const refreshQuery = async (owner: PhotoLibrarySessionPortV1, signal: AbortSignal, current: SessionSlot) => {
 		if (!current.query) return current.live ? current.page : null;
 		const next = await readNonemptyQueryPage(owner, current.query, null, signal);
@@ -355,6 +410,8 @@ export function usePhotoLibraryWorkflow(createSession?: CreatePhotoLibrarySessio
 		await refreshQuery(owner, signal, current);
 	});
 	return { page, metadata, memberships, batchRenameSnapshot, batchRenameReceipt, batchRenameUndo,
+		prepareBackupSave, saveBackup, backupReceipt, backupReady: backupRuntime !== null, maximumBackupStreamingBytes: backupRuntime?.maximumStreamingBytes ?? null,
+		cancelBackup: () => { if (controller.isPending()) slot.current?.active?.abort(); },
 		readBatchRenameSelection, planBatchRename, renamePhotos, undoBatchRename, readPreview, query, needsQueryIndex, queryIndexProgress, applyQuery, probeQuery, buildQueryIndex, readDefinitions,
 		readDefinition, applyDefinition, readMemberships, applyMemberships, readImportPresets, applyImportPreset, receipts, importReceipt, busy, error, readMetadata, applyMetadata, readPage, importFiles, setRating, applyAttributes,
 		cancel: () => { slot.current?.active?.abort(); } };

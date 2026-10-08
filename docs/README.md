@@ -32,6 +32,8 @@ belong in Git history, not in the maintained documentation set.
   defines explicit name previews, partial results and menu-owned inverse undo.
 - [Photo catalog backup snapshots](architecture/lightscaper-catalog-backup.md)
   defines revision-fenced catalog enumeration and authenticated retained-original archive output.
+- [Catalog backup presentation and destination lifetime](architecture/lightscaper-catalog-backup-ui.md)
+  defines menu-owned saving, joined cancellation, and final file delivery acknowledgements.
 - [Large photo-library diagnostics](architecture/lightscaper-large-library-diagnostics.md)
   defines the pinned native catalog fixture and bounded import, scroll, filter, and search observations.
 - [Disposable photo preview preparation](architecture/lightscaper-preview-preparation.md)

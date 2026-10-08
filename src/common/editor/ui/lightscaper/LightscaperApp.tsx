@@ -9,7 +9,7 @@ import type { CreatePhotoLibrarySessionV1 } from '../../photo-library-session-po
 import { PhotoLibraryDefinitionReader } from '../../controller/shared/photo-library-definition-reader.ts';
 import PhotoLibraryPanel from './PhotoLibraryPanel.tsx';
 import type { PhotoPreviewPresentationViewV1 } from './PhotoPreviewPresentation.tsx';
-import { DEFAULT_PHOTO_LIBRARY_QUERY_V1, usePhotoLibraryWorkflow } from './use-photo-library-workflow.ts';
+import { DEFAULT_PHOTO_LIBRARY_QUERY_V1, usePhotoLibraryWorkflow, type LoadPhotoLibraryBackupSaveRuntimeV1 } from './use-photo-library-workflow.ts';
 import { usePhotoLibrarySelection } from './use-photo-library-selection.ts';
 import '../../../../../vendor/audacity-design-system/components/src/ApplicationHeader/ApplicationHeader.css';
 import './lightscaper.css';
@@ -18,6 +18,7 @@ import './photo-culling.css';
 export interface LightscaperAppProps {
 	readonly locale: string;
 	readonly createSession?: CreatePhotoLibrarySessionV1;
+	readonly loadBackupSaveRuntime?: LoadPhotoLibraryBackupSaveRuntimeV1;
 }
 
 const PhotoImportDialog = lazy(() => import('./PhotoImportDialog.tsx'));
@@ -28,8 +29,9 @@ const PhotoCatalogOrganizerDialog = lazy(() => import('./PhotoCatalogOrganizerDi
 const PhotoMembershipDialog = lazy(() => import('./PhotoMembershipDialog.tsx'));
 const PhotoBatchRenameDialog = lazy(() => import('./PhotoBatchRenameDialog.tsx'));
 const PhotoBatchRenameResults = lazy(() => import('./PhotoBatchRenameResults.tsx'));
+const PhotoCatalogBackupDialog = lazy(() => import('./PhotoCatalogBackupDialog.tsx'));
 
-export default function LightscaperApp({ locale, createSession }: LightscaperAppProps) {
+export default function LightscaperApp({ locale, createSession, loadBackupSaveRuntime }: LightscaperAppProps) {
 	const copy = useSiteCopy(locale);
 	const app = useRef<HTMLElement>(null);
 	const definitionReader = useRef<PhotoLibraryDefinitionReader | null>(null);
@@ -45,7 +47,8 @@ export default function LightscaperApp({ locale, createSession }: LightscaperApp
 	const [organizerVisible, setOrganizerVisible] = useState(false);
 	const [membershipsVisible, setMembershipsVisible] = useState(false);
 	const [batchRenameVisible, setBatchRenameVisible] = useState(false);
-	const library = usePhotoLibraryWorkflow(createSession);
+	const [backupVisible, setBackupVisible] = useState(false);
+	const library = usePhotoLibraryWorkflow(createSession, loadBackupSaveRuntime);
 	const factory = useRef(createSession); factory.current = createSession;
 	const { importFiles } = library;
 	const onImport = useCallback(async (...parameters: Parameters<typeof importFiles>) => {
@@ -54,6 +57,12 @@ export default function LightscaperApp({ locale, createSession }: LightscaperApp
 		return receipt;
 	}, [createSession, importFiles]);
 	const createPresetId = useCallback(() => crypto.randomUUID(), []);
+	const { saveBackup } = library;
+	const backupName = library.page?.catalogName ?? copy.workspacePhoto;
+	const onBackup = useCallback(() => {
+		if (factory.current !== createSession) return Promise.resolve(null);
+		return saveBackup({ catalogName: backupName, fileTypeDescription: copy.photoBackupFileType });
+	}, [createSession, saveBackup, backupName, copy.photoBackupFileType]);
 	const photoSelection = usePhotoLibrarySelection({ photoIds: library.page?.rows.map(row => row.id) ?? [],
 		generation: createSession, pageIdentity: library.page, autoAdvance });
 	const { readPage } = library;
@@ -62,8 +71,8 @@ export default function LightscaperApp({ locale, createSession }: LightscaperApp
 		green: copy.photoColorGreen, blue: copy.photoColorBlue, purple: copy.photoColorPurple };
 	const selection = library.page?.rows.find(row => row.id === photoSelection.snapshot.primaryId) ?? null;
 	useEffect(() => {
-		setOrganizerVisible(false); setMembershipsVisible(false); setMetadataVisible(false); setImportVisible(false); setBatchRenameVisible(false);
-	}, [createSession]);
+		setOrganizerVisible(false); setMembershipsVisible(false); setMetadataVisible(false); setImportVisible(false); setBatchRenameVisible(false); setBackupVisible(false);
+	}, [createSession, loadBackupSaveRuntime]);
 	useEffect(() => {
 		const dismiss = (event: PointerEvent) => {
 			for (const menu of app.current?.querySelectorAll<HTMLDetailsElement>('details[open]') ?? []) {
@@ -113,6 +122,10 @@ export default function LightscaperApp({ locale, createSession }: LightscaperApp
 		if (factory.current !== createSession) return;
 		library.cancel(); setBatchRenameVisible(false);
 	};
+	const closeBackup = () => {
+		if (factory.current !== createSession) return;
+		library.cancelBackup(); setBackupVisible(false);
+	};
 	const menuKeyDown = (event: KeyboardEvent<HTMLDetailsElement>) => {
 		if (event.key !== 'Escape' || !event.currentTarget.open) return;
 		event.preventDefault(); event.stopPropagation();
@@ -157,6 +170,9 @@ export default function LightscaperApp({ locale, createSession }: LightscaperApp
 					<div className="lightscaper-menu-items">
 						<button type="button" disabled={library.busy} onClick={event => { closeMenu(event); setImportVisible(true); }}>{copy.photoImportPhotos}</button>
 						<button type="button" disabled={library.busy} onClick={event => { closeMenu(event); setOrganizerVisible(true); }}>{copy.photoOrganizerTitle}</button>
+						<button type="button" data-photo-backup-menu onClick={event => {
+							closeMenu(event); setBackupVisible(true); void library.prepareBackupSave();
+						}}>{copy.photoBackupTitle}</button>
 						{library.busy && <button type="button" onClick={event => { closeMenu(event); library.cancel(); }}>{copy.photoCancelAction}</button>}
 						<details className="lightscaper-photo-submenu" onKeyDown={menuKeyDown} onBlur={menuBlur}>
 							<summary className="application-header__menu-item">{copy.photoPhotoMenu}</summary>
@@ -266,6 +282,11 @@ export default function LightscaperApp({ locale, createSession }: LightscaperApp
 		{batchRenameVisible && <Suspense fallback={<p role="status">{copy.photoWorking}</p>}>
 			<PhotoBatchRenameDialog snapshot={library.batchRenameSnapshot} busy={library.busy} error={library.error} copy={copy}
 				onPlan={library.planBatchRename} onApply={library.renamePhotos} onClose={closeBatchRename} />
+		</Suspense>}
+		{backupVisible && <Suspense fallback={<p role="status">{copy.photoWorking}</p>}>
+			<PhotoCatalogBackupDialog locale={locale} copy={copy} ready={library.backupReady}
+				maximumStreamingBytes={library.maximumBackupStreamingBytes} busy={library.busy} error={library.error}
+				receipt={library.backupReceipt} onSave={onBackup} onClose={closeBackup} />
 		</Suspense>}
 	</section>;
 }

@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { SCAPE_ARCHIVE_LIMITS, type ScapeManifest } from '../../common/editor/scape-archive-envelope.ts';
+import { SCAPE_ARCHIVE_LIMITS } from '../../common/editor/scape-archive-limits.ts';
+import type { ScapeManifest } from '../../common/editor/scape-archive-envelope.ts';
 import { PHOTO_CATALOG_PACK_ASSET_KIND, PHOTO_CATALOG_PACK_ENCODING } from '../../common/editor/scape-photo-catalog-pack.ts';
 import { serializeScapeProjectDocument } from '../../common/editor/scape-project-document.ts';
 import { validateLightscaperDocumentV1 } from '../catalog/documents.ts';

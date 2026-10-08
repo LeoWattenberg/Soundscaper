@@ -2,6 +2,7 @@
 
 import { editorOptionalSurfaceModule, editorPath } from './build-chunk-tests.mjs';
 import { mediaRetentionChunkGroups } from './build-chunk-media-retention.mjs';
+import { fileSavingChunkGroups } from './build-chunk-file-saving.mjs';
 
 // The dialog lifecycle is shared by all products. Giving its complete neutral
 // closure one owner keeps optional photo dialogs out of the timeline shell,
@@ -12,12 +13,13 @@ export const EDITOR_DIALOG_FOUNDATION_CHUNK_TEST = /(?:src[\\/]common[\\/]editor
 /** @type {import('rolldown').CodeSplittingGroup[]} */
 export const editorUiChunkGroups = [
 	...mediaRetentionChunkGroups,
+	...fileSavingChunkGroups,
 	{
 		// IDs, safe text, cancellation, ordering, worker lifetimes, file failures
 		// and the archive limit share no product domain imports. One neutral owner
 		// avoids timeline passengers and preserves startup request ceilings.
 		name: 'editor-neutral-foundations',
-		test: /src[\\/]common[\\/]editor[\\/](?:(?:abort-error|abort-race|code-unit-order|safe-visual-text|scape-blob-budget|web-file-limit-failure|worker-error-transport|worker-protocol|worker-request-broker)\.ts|stable-id\.js)$/,
+		test: /src[\\/]common[\\/]editor[\\/](?:(?:abort-error|abort-race|code-unit-order|safe-visual-text|scape-archive-limits|scape-blob-budget|scape-project-format|web-file-limit-failure|worker-error-transport|worker-protocol|worker-request-broker)\.ts|stable-id\.js)$/,
 		priority: 99,
 		minSize: 0,
 		maxSize: 400_000,
@@ -28,7 +30,7 @@ export const editorUiChunkGroups = [
 		// Sharing the broad timeline controller owner makes those few imports pull
 		// video commands, storage and effect copy into an otherwise isolated shell.
 		name: 'editor-photo-library-scalars',
-		test: /src[\\/]common[\\/]editor[\\/]controller[\\/]shared[\\/]photo-library-(?:definition-reader|selection-v1|culling-v1|import-gesture-v1)\.ts$/,
+		test: /src[\\/]common[\\/]editor[\\/]controller[\\/]shared[\\/]photo-library-(?:definition-reader|selection-v1|culling-v1|import-gesture-v1|backup-save-v1)\.ts$/,
 		priority: 99,
 		minSize: 0,
 		maxSize: 400_000,
