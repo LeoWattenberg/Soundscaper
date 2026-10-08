@@ -5,7 +5,7 @@ import { dirname, extname, join, resolve } from 'node:path';
 import { build } from 'esbuild';
 import { DESKTOP_5B_TRANSITIVE_RUNTIME_FILES, DESKTOP_RUNTIME_BUNDLED_LEAF_FILES } from './desktop-5b-transitive-runtime-files.mjs';
 import { DESKTOP_ASSISTANCE_RUNTIME_FILES } from './desktop-assistance-runtime-files.mjs';
-import { DESKTOP_ARA_RUNTIME_FILES } from './desktop-ara-runtime-files.mjs';
+import { DESKTOP_ARA_RUNTIME_FILES } from './desktop-ara-runtime-files.mjs'; import { DESKTOP_BLENDER_RUNTIME_FILES } from './desktop-blender-runtime-files.mjs';
 import { DESKTOP_AUDACITY_EFFECT_RUNTIME_FILES } from './desktop-audacity-effect-runtime-files.mjs';
 import { stageDesktopBundledAudioRuntime } from './desktop-bundled-audio-runtime.mjs';
 import { DESKTOP_EXTERNAL_FFMPEG_RUNTIME_FILES } from './desktop-external-ffmpeg-runtime-files.mjs';
@@ -51,8 +51,8 @@ export const DESKTOP_EXPECTED_RUNTIME_FILES = Object.freeze([
 	'desktop/desktop-storage-paths.js', 'desktop/desktop-storage-migration.js', 'desktop/desktop-storage-migration-sync.js',
 	'desktop/desktop-storage-bootstrap.js', 'desktop/desktop-browser-cache.js',
 	'desktop/desktop-project-library-migration.js', 'desktop/desktop-projects-directory.js',
-	'desktop/application-lifecycle.js', 'desktop/save-size-warning-dialog.js', 'src/common/editor/controller/shared/file-size-warning.js', 'desktop/mcp-main-registration.js', 'desktop/mcp-service.js', 'desktop/original-file-overwrite.js',
-	...DESKTOP_ASSISTANCE_RUNTIME_FILES, ...DESKTOP_ARA_RUNTIME_FILES,
+	'desktop/application-lifecycle.js', 'desktop/main-trusted-ipc.js', 'desktop/save-size-warning-dialog.js', 'src/common/editor/controller/shared/file-size-warning.js', 'desktop/mcp-main-registration.js', 'desktop/mcp-service.js', 'desktop/original-file-overwrite.js',
+	...DESKTOP_ASSISTANCE_RUNTIME_FILES, ...DESKTOP_ARA_RUNTIME_FILES, ...DESKTOP_BLENDER_RUNTIME_FILES,
 	...DESKTOP_EXTERNAL_FFMPEG_RUNTIME_FILES,
 	'desktop/framescaper-capture-desktop-port.js',
 	'desktop/framescaper-capture-main-channels.js',

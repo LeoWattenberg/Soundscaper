@@ -16,6 +16,11 @@
 		"types": ["node"]
 	},
 	"include": [
+		"desktop/blender-ipc.ts",
+		"desktop/blender-export-store.ts",
+		"desktop/blender-live-server.ts",
+		"desktop/blender-preload.ts",
+		"desktop/main-trusted-ipc.ts",
 		"desktop/ara-session-service.ts",
 		"desktop/ara-helper-session.ts",
 		"desktop/ara-preload.ts",

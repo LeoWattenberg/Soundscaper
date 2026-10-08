@@ -46,7 +46,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 	generateSignal, repeatLastGenerator, getClipVisualData, getVisibleClips,
 	handleClipAction, handleEdit, handleExportAction, handlePlayAtSpeed, handleTransport,
 	hasMissingTimelineSources, importFiles, pasteClipSpreadsheet, inspectScape, labels, listProjects, makeStereoTrack,
-	materializeFreesoundUploadClip, mixAndRenderTracks, moveClips, moveClipsToNewTrack, moveTrack, newProject,
+	materializeFreesoundUploadClip, publishBlenderTracks, mixAndRenderTracks, moveClips, moveClipsToNewTrack, moveTrack, newProject,
 	normalizePlaybackFrame, openAudacityProject, openAup4, openProject, openScape, openScapeFile, overwriteClips,
 	openDawproject, openSesx, saveDawproject, pasteEffectStack, pauseLoudnessMeasurement,
 	prepareProjectHandoff,
@@ -450,7 +450,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 			contrast: restricted('audioAnalysis', analysisService.captureContrast), repeatLast: restricted('audioAnalysis', analysisService.repeatLast),
 			measureLoudness: restricted('audioAnalysis', analysisService.measureLoudness),
 		}),
-		export: createExportActionGroup({ handleExportAction, state, productName: product.name, getProjectTitle: () => getProject()?.title ?? null, getProject, fileService, persistSetting, publishDocumentSnapshot, createId: createStableId }),
+		export: createExportActionGroup({ handleExportAction, publishBlenderTracks, state, productName: product.name, getProjectTitle: () => getProject()?.title ?? null, getProject, fileService, persistSetting, publishDocumentSnapshot, createId: createStableId }),
 		media: createProjectMediaActionGroup({
 			state, getProject, store, publishDocumentSnapshot, setStatus, copy, fileService, ffmpeg, commit, saveScape: () => Promise.resolve(saveScape()),
 		}),

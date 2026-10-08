@@ -111,6 +111,8 @@ belong in Git history, not in the maintained documentation set.
 
 ## Work on product features
 
+- [Desktop Blender integration](development/desktop-blender.md) covers track-list
+  export, add-on installation, and live audio updates in Blender.
 - [Framescaper capture](features/framescaper-capture.md) covers permission,
   durability, recovery, publication, and privacy.
 - [Framescaper Web VCR](features/framescaper-web-vcr.md) covers the isolated

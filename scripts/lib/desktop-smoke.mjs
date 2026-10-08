@@ -13,6 +13,7 @@ export const DESKTOP_SMOKE_EXPECTED_BRIDGE = Object.freeze([
 	'beginVideoSourceProbe',
 	'beginWrite',
 	'bindNativeAudioSession',
+	'blender',
 	'calibrateNativeAudioSession',
 	'cancelAssistanceModelInstall',
 	'cancelDesktopAudioCodecOperation',
@@ -143,6 +144,7 @@ export const SOUNDSCAPER_DESKTOP_SMOKE_EXPECTED_BRIDGE = Object.freeze(
 
 export const FRAMESCAPER_DESKTOP_SMOKE_EXPECTED_BRIDGE = Object.freeze([
 	...DESKTOP_SMOKE_EXPECTED_BRIDGE.filter((name) => ![
+		'blender',
 		'persistentDelivery', 'onMcpRequest', 'readMcpStatus', 'respondMcpRequest', 'startMcp', 'stopMcp',
 		'openFreesoundAuthorization',
 	].includes(name)),

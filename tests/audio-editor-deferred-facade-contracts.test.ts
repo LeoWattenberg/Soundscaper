@@ -129,10 +129,16 @@ const CONTRACTS: readonly DeferredFacadeContract[] = Object.freeze([
 	{
 		facade: 'deferred-export-service',
 		implementation: 'controller/export/internal/export-service.ts',
-		members: Object.keys(exportFacade),
+		members: Object.keys(exportFacade).filter((member) => member !== 'publishBlenderTracks'),
 		resolve: async () => (
 			await import('../src/common/editor/controller/export/internal/export-service.ts')
 		).createEditorExportService(stub()),
+	},
+	{
+		facade: 'deferred-export-service (Blender publication)',
+		implementation: 'controller/export/blender-publication.ts',
+		members: ['publishBlenderTracks'],
+		resolve: () => import('../src/common/editor/controller/export/blender-publication.ts'),
 	},
 	{
 		facade: 'deferred-local-assistance-runtime',

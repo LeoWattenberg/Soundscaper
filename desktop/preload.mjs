@@ -1,7 +1,6 @@
 /* Electron sandbox preload: restricted require exposes only Electron; Framescaper shares this contextBridge. */
-const { contextBridge, ipcRenderer, webUtils } = require('electron'); import { createAraPreloadBridge } from './project-library-runtime/desktop/ara-preload.js';
-const PRELOAD_ARGUMENTS = typeof process === 'object' && Array.isArray(process?.argv)
-	? process.argv : (globalThis.process?.argv ?? []);
+const { contextBridge, ipcRenderer, webUtils } = require('electron'); import { createAraPreloadBridge } from './project-library-runtime/desktop/ara-preload.js'; import { createBlenderPreloadBridge } from './project-library-runtime/desktop/blender-preload.js';
+const PRELOAD_ARGUMENTS = typeof process === 'object' && Array.isArray(process?.argv) ? process.argv : (globalThis.process?.argv ?? []);
 const PRELOAD_PRODUCT_ID = PRELOAD_ARGUMENTS.includes('--soundscaper-product=framescaper') ? 'framescaper' : 'soundscaper';
 const SOAK_DEBUG_ENABLED = PRELOAD_PRODUCT_ID === 'soundscaper' && PRELOAD_ARGUMENTS.includes('--soundscaper-soak-debug');
 /* Keys main may hold but the renderer may never see, whatever the shape. */ const PLUGIN_PATH_KEYS = new Set(['binaryPath', 'rootPath', 'path', 'absolutePath', 'filePath']);
@@ -51,6 +50,7 @@ const SCAPE_PROJECT_MIME_TYPE = 'application/vnd.soundscaper.scape+zip';
 const MAX_MATERIALIZED_READ_DESCRIPTOR_BYTES = Number.MAX_SAFE_INTEGER; const MAX_SCAPE_RANGE_READ_DESCRIPTOR_BYTES = Number.MAX_SAFE_INTEGER;
 const SHA256 = /^[a-f0-9]{64}$/u;
 const api = Object.freeze({
+	...(PRELOAD_PRODUCT_ID === 'soundscaper' ? { blender: createBlenderPreloadBridge({ invoke: (channel, value) => ipcRenderer.invoke(channel, value) }) } : {}),
 	getEnvironment: () => ipcRenderer.invoke(CHANNELS.environment),
 	captureExternalMedia: (file) => { if (typeof file === 'string') return ipcRenderer.invoke(CHANNELS.captureExternalMedia, opaqueId(file, 64)).then((value) => value === null ? null : text(value, 32768)); const path = webUtils?.getPathForFile(file); return Promise.resolve(path ? text(btoa(Array.from(new TextEncoder().encode(JSON.stringify({ version: 1, path })), (byte) => String.fromCharCode(byte)).join('')), 32768) : null); }, resolveExternalMedia: (value) => ipcRenderer.invoke(CHANNELS.resolveExternalMedia, { projectReadId: opaqueId(value?.projectReadId, 64), sourceId: text(value?.sourceId, 256) }).then(sanitizeReadDescriptor),
 	readMcpStatus: () => ipcRenderer.invoke(CHANNELS.mcpStatus).then(mcpStatus), startMcp: () => ipcRenderer.invoke(CHANNELS.mcpStart).then(mcpStatus), stopMcp: () => ipcRenderer.invoke(CHANNELS.mcpStop).then(mcpStatus), onMcpRequest: (listener) => subscribe(CHANNELS.mcpRequest, listener, mcpRequest), respondMcpRequest: (response) => ipcRenderer.send(CHANNELS.mcpResponse, mcpResponse(response)),
@@ -186,7 +186,7 @@ const framescaperProjectLibrary = Object.freeze({
 	duplicateProject: (value) => invokeFramescaperProject(CHANNELS.framescaperProjectDuplicate, structuredClone(value)),
 });
 if (PRELOAD_PRODUCT_ID === 'soundscaper') globalThis.window?.addEventListener?.('message', transferPersistentDeliveryWorkerPort);
-const SOUNDSCAPER_ONLY_API = new Set(['persistentDelivery', 'readMcpStatus', 'startMcp', 'stopMcp', 'onMcpRequest', 'respondMcpRequest', 'openFreesoundAuthorization']);
+const SOUNDSCAPER_ONLY_API = new Set(['blender', 'persistentDelivery', 'readMcpStatus', 'startMcp', 'stopMcp', 'onMcpRequest', 'respondMcpRequest', 'openFreesoundAuthorization']);
 const apiWithoutPersistentDelivery = Object.freeze(Object.fromEntries(Object.entries(api).filter(([name]) => !SOUNDSCAPER_ONLY_API.has(name)))); const productApi = PRELOAD_PRODUCT_ID === 'soundscaper' ? api : apiWithoutPersistentDelivery; const bridge = Object.freeze({ v1: productApi }); const framescaperBridge = Object.freeze({ v1: Object.freeze({ ...apiWithoutPersistentDelivery, projectLibrary: framescaperProjectLibrary }) }); for (const [channel, type] of [[CHANNELS.nativeAudioRealtimePort, 'soundscaper-native-realtime-port-v1'], [CHANNELS.nativePluginRpcPort, 'soundscaper-native-plugin-rpc-port-v1'], [CHANNELS.framescaperNativeOpenFxFrameOffer, 'framescaper-openfx-frame-port-v1']]) ipcRenderer.on(channel, (event, offer) => { const ports = Array.from(event.ports ?? []); if (ports.length !== 1) { for (const port of ports) port.close(); return; } window.postMessage(Object.freeze({ type, offer: type === 'framescaper-openfx-frame-port-v1' ? nativeOpenFxFrameOfferV2(offer) : nativePluginStatus(offer) }), '*', ports); });
 for (const name of ['scapeDesktop', 'soundscaperDesktop']) contextBridge.exposeInMainWorld(name, bridge);
 contextBridge.exposeInMainWorld('framescaperDesktop', framescaperBridge);
