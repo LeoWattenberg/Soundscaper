@@ -16,8 +16,9 @@ for (const sourceRate of [32_000, 48_000]) {
 		{ name: 'split repeat phase', repeated: true, reversed: false, offsetFrames: 19_200, expected: [76_800, 86_400] },
 	]) {
 		test(`source labels preserve their ${sourceRate} Hz sound position in a ${scenario.name} clip`, () => {
-			const original = createAudioClip({ id: 'clip', sourceId: 'source', timelineStartFrame: 48_000,
-				reversed: scenario.reversed, sourceStartFrame: 0, sourceDurationFrames: Math.round(sourceRate * 0.8), durationFrames: 38_400 });
+			const geometry = { id: 'clip', sourceId: 'source', timelineStartFrame: 48_000,
+				reversed: scenario.reversed, sourceStartFrame: 0, sourceDurationFrames: Math.round(sourceRate * 0.8), durationFrames: 38_400 };
+			const original = { ...createAudioClip(geometry), ...geometry };
 			const clip = { ...original, ...(scenario.repeated ? clipLoopUpdateFields(original, {
 				periodFrames: 38_400, durationFrames: 76_800, offsetFrames: scenario.offsetFrames,
 			}) : {}) };
