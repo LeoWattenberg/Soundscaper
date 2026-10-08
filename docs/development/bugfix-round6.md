@@ -36,6 +36,22 @@ Full repository lint and TypeScript checks pass again, and both product builds
 pass on this checkout. Changes awaiting a later immutable build remain separate
 from that verified count.
 
+The next immutable checkout, `1a269a3fa`, builds both products and runs
+144 public checks across Chromium, Firefox and WebKit. Its initial run reports
+131 passed and 13 failed (`/tmp/soundscaper-round6-green6-browser-all-engines.log`).
+Three failures occur after the repaired Record options focus assertion because
+the test uses R rather than the existing P pause/resume binding; the unchanged
+application passes all three corrected keyboard workflows
+(`/tmp/soundscaper-round6-record-completion-green6-browser.log`). Two roots
+remain incomplete: bin selection inherits its ancestor disabled state, and
+spectral effect targeting broadens to an overlapping clip. Four native capture
+checks also encounter missing browser track-format metadata before the causal
+recording assertion; their portable proof remains under investigation. All 13
+editing roots, eight effects roots (excluding 007), five I/O roots (excluding
+004, with 006 verified through both native-rate Chromium captures), and 11
+dialog roots give a verified count of 37. Pending source corrections do not
+add to that count. The first full-suite milestone remains at 50.
+
 The initial full Node run completed 23,948 tests across its two execution
 batches. Its parallel batch reported 22 failures: 20 reference conformance cases
 ran before the new worktree had its existing provisioned Python validators,

@@ -21,9 +21,9 @@ test('keyboard Record options completion retains the recording keyboard controls
 	await expect(record).toHaveAttribute('aria-label', 'Pause recording');
 	await expect(flyout).toBeHidden();
 	await expect(options).toBeFocused();
-	await page.keyboard.press('r');
+	await page.keyboard.press('p');
 	await expect(record).toHaveAttribute('aria-label', 'Resume recording');
-	await page.keyboard.press('r');
+	await page.keyboard.press('p');
 	await expect(record).toHaveAttribute('aria-label', 'Pause recording');
 	await editor.getByRole('button', { name: 'Stop', exact: true }).click();
 	await expect(record).toHaveAttribute('aria-pressed', 'false');
