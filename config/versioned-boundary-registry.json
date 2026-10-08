@@ -592,6 +592,8 @@
 		,
 		{ "path": "src/lightscaper/catalog/photo-query-matcher-v2.ts", "kind": "helper-contract", "justification": "Version 2 ordinary and collapsed query eligibility combines unchanged literal filters with reference-validated effective metadata predicates without widening the version 1 text universe." }
 		,
+		{"path": "src/lightscaper/catalog/photo-query-page-kernel-v2.ts", "kind": "helper-contract", "justification": "Version 2 transaction-local effective metadata scan preserves bounded transient and saved full-query paging without acquiring a second database transaction."}
+		,
 		{ "path": "src/lightscaper/catalog/photo-query-pages-v1.ts", "kind": "helper-contract", "justification": "Version 1 catalog query pages traverse globally ordered indexes with bounded candidate work and live smart collection evaluation." }
 		,
 		{ "path": "src/lightscaper/catalog/photo-query-pages-v2.ts", "kind": "helper-contract", "justification": "Version 2 metadata query pages traverse bounded globally ordered derived rows and return catalog context, revisions and scalar summaries from one native transaction." }
@@ -607,6 +609,14 @@
 		{ "path": "src/lightscaper/catalog/photo-smart-collection-audit-v1.ts", "kind": "helper-contract", "justification": "Version 1 private canonical storage audit validates bounded definition, summary and key pages and issues single-use database, root and context-bound write authority independently of public continuation tokens." }
 		,
 		{ "path": "src/lightscaper/catalog/photo-smart-collection-pages-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded scalar saved-query summary pages authenticate definition existence and catalog, index and saved-state revisions without loading full predicates." }
+		,
+		{"path": "src/lightscaper/catalog/photo-smart-collection-query-progress-v1.ts", "kind": "helper-contract", "justification": "Version 1 connection-bound saved query continuation authenticates complete definition identity, revisions and bounded physical ordinary or collapsed progress."}
+		,
+		{"path": "src/lightscaper/catalog/photo-smart-collection-query-types-v1.ts", "kind": "helper-contract", "justification": "Version 1 closed saved collection page protocol keeps saved selection and continuation separate from transient query and document schema identities."}
+		,
+		{"path": "src/lightscaper/catalog/photo-smart-collection-query-v1.ts", "kind": "helper-contract", "justification": "Version 1 saved full-query execution validates and compiles one persisted definition in the same bounded native transaction as ordinary or collapsed rows."}
+		,
+		{"path": "src/lightscaper/catalog/photo-smart-collection-read-v1.ts", "kind": "helper-contract", "justification": "Version 1 paired saved definition reads authenticate private references and scalar summaries without widening catalog family documents."}
 		,
 		{ "path": "src/lightscaper/catalog/photo-smart-collection-record-v1.ts", "kind": "helper-contract", "justification": "Version 1 private saved-query storage projections authenticate canonical scoped keys and every referenced hierarchy identity within an independent record byte bound." }
 		,

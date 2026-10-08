@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { readPhotoSmartCollectionQueryPageV1, readPhotoSmartCollectionStackQueryPageV1 } from './photo-smart-collection-query-v1.ts';
+import { admitPhotoSavedQueryPageRequestV1, type PhotoSavedQueryPageRequestV1 } from './photo-smart-collection-query-types-v1.ts';
 import { request } from '../../common/editor/storage/indexeddb-backend.ts';
 import { openPhotoCatalogDatabaseV1 } from './catalog-database.ts';
 import { assertNotAborted, catalogTransaction } from './catalog-transaction.ts';
@@ -209,6 +211,17 @@ export class PhotoCatalogRepositoryV1 {
 		const catalog = id(catalogId, 'saved collection catalog ID'), admitted = readPhotoSmartCollectionPageOptionsV1(options, catalog);
 		return withPhotoStackQuerySignalV1(admitted.signal, async signal => readPhotoSmartCollectionPageV1(await this.#open(), catalog, { ...admitted, signal }));
 	}
+	async readSmartCollectionQueryPageV1(catalogId: string, collectionId: string, options: PhotoSavedQueryPageRequestV1 = {}) {
+		const admitted = admitPhotoSavedQueryPageRequestV1(catalogId, collectionId, 'ordinary', options);
+		return withPhotoStackQuerySignalV1(admitted.signal, async signal => readPhotoSmartCollectionQueryPageV1(await this.#open(),
+			admitted.catalogId, admitted.collectionId, { continuation: admitted.continuation, signal }));
+	}
+	async readSmartCollectionStackQueryPageV1(catalogId: string, collectionId: string, options: PhotoSavedQueryPageRequestV1 = {}) {
+		const admitted = admitPhotoSavedQueryPageRequestV1(catalogId, collectionId, 'collapsed', options);
+		return withPhotoStackQuerySignalV1(admitted.signal, async signal => readPhotoSmartCollectionStackQueryPageV1(await this.#open(),
+			admitted.catalogId, admitted.collectionId, { continuation: admitted.continuation, signal }));
+	}
+
 	async #open(): Promise<IDBDatabase> {
 		if (this.#closed) throw new PhotoCatalogClosedError();
 		this.#database ??= openPhotoCatalogDatabaseV1(this.#options.indexedDB, this.#databaseName, () => { this.#closed = true; });

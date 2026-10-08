@@ -2,9 +2,10 @@
 
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
+import { readPhotoQueryPosition } from './photo-query-position.ts';
 import { filterScope } from './repository-records.ts';
 import type { PhotoCatalogFilterV1, PhotoSummaryV1 } from './repository-types.ts';
-import { array, field, id, integer, localTimestamp, oneOf, record, text } from './value-validation.ts';
+import { field, integer, oneOf, record, text } from './value-validation.ts';
 
 export const PHOTO_QUERY_LIMITS_V1 = Object.freeze({ candidates: 64, maximumRowBytes: 524_288,
 	maximumContinuationBytes: 2_048, rebuildPhotos: 16, rebuildBytes: 8_388_608 });
@@ -61,25 +62,7 @@ export function readPhotoQueryContinuationV1(value: unknown, catalog: string, qu
 	const input = record(value, 'photo query continuation', ['schemaVersion', 'catalogId', 'indexRevision', 'querySha256', 'captureBucket', 'afterKey']);
 	if (field(input, 'schemaVersion') !== 1) throw new RangeError('Unsupported or future query continuation version.');
 	if (field(input, 'catalogId') !== catalog || field(input, 'querySha256') !== photoQueryDigestV1(query)) throw new TypeError('Query continuation belongs to another catalog or query.');
-	const bucket = integer(field(input, 'captureBucket'), 0, 1, 'capture bucket') as 0 | 1;
-	if (query.sort.field !== 'capture-time' && bucket !== 0) throw new TypeError('Query continuation has an invalid capture bucket.');
-	const afterValue = field(input, 'afterKey');
-	let afterKey: readonly (string | number)[] | null = null;
-	if (afterValue !== null) {
-		const length = query.sort.field === 'photo-id' ? 2 : query.sort.field === 'capture-time' ? 4 : 3;
-		const parts = array(afterValue, 'query continuation key', length, length);
-		if (parts[0] !== catalog) throw new TypeError('Query continuation key belongs to another catalog.');
-		const photo = id(parts.at(-1), 'continuation photo ID');
-		if (query.sort.field === 'photo-id') afterKey = Object.freeze([catalog, photo]);
-		else if (query.sort.field === 'rating') afterKey = Object.freeze([catalog, integer(parts[1], 0, 5, 'continuation rating'), photo]);
-		else if (query.sort.field === 'file-name') afterKey = Object.freeze([catalog, text(parts[1], 'continuation filename', 512), photo]);
-		else {
-			if (parts[1] !== bucket) throw new TypeError('Query continuation capture bucket disagrees.');
-			const capture = bucket === 0 ? localTimestamp(parts[2], 'continuation capture') : parts[2];
-			if (bucket === 1 && capture !== '') throw new TypeError('Unknown capture continuation cannot invent a date.');
-			afterKey = Object.freeze([catalog, bucket, capture as string, photo]);
-		}
-	}
+	const { captureBucket: bucket, afterKey } = readPhotoQueryPosition({ captureBucket: field(input, 'captureBucket'), afterKey: field(input, 'afterKey') }, catalog, query.sort.field);
 	const result = Object.freeze({ schemaVersion: 1 as const, catalogId: catalog,
 		indexRevision: integer(field(input, 'indexRevision'), 0, Number.MAX_SAFE_INTEGER, 'query index revision'),
 		querySha256: photoQueryDigestV1(query), captureBucket: bucket, afterKey });
