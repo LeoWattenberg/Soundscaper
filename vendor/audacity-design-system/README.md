@@ -389,6 +389,13 @@ application overrides and source patches against the pin and upstream master.
     `tests/vendored-design-system-context-menu-focus.test.tsx` and the ordinary
     label-track menu keyboard workflow. Upstream-PR candidate.
 
+54. `ContextMenu` and `ContextMenuItem` leave already handled and Ctrl/Meta/Alt
+    navigation available to its existing owner across root and submenu levels.
+    Plain menu navigation and submenu entry retain their existing behavior.
+    Covered by `tests/audio-editor-round6-context-menu-modified-navigation.test.tsx`
+    and the ordinary configured-command workflow from an audio track's menu.
+    Upstream-PR candidate.
+
 ## Application-side adaptations
 
 Not deviations — application code that had to change because upstream did. Listed because they

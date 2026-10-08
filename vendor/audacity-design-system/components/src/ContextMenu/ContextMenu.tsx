@@ -127,6 +127,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
     if (!isOpen) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
       if (!menuRef.current) return;
 
       // Only select direct children menu items, not nested submenu items
