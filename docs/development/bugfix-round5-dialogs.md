@@ -30,3 +30,16 @@ all three engines on immutable green5 `e476d5766`. Both Motion workflows also
 pass without an extra Escape. All four public workflows pass 12/12; the first
 Tone readback expectation omitted its visible samples unit suffix, a test
 expectation error corrected without changing the numeric or focus assertions.
+
+Uncounted R3-DIALOG-015 Properties classification follow-through: Generate →
+Video Generators → Add Title/Text, then open its existing Clip properties entry.
+Changing Duration from five to two seconds failed with “The source editor
+requires an available audio clip.” The selected runtime already supplies its
+native geometry, but the common body incorrectly chose audio-source trimming.
+A focused generator timing body calls the existing native move/trim actions and
+omits unsupported audio/source controls. The production-panel regression first
+calls the wrong audio editor, then passes with the real native trim planner,
+retained source window and one Undo; all ten new/existing panel cases pass.
+The initial native-count expectation assumed 30 fps instead of this Node
+fixture's actual 10 fps sequence and was corrected without changing its two
+second timing assertion. Public corrected-build verification is pending.

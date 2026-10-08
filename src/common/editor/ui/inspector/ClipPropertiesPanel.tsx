@@ -6,6 +6,7 @@ import type { RuntimeClipProject } from '../../runtime-clip-projection.ts';
 import type { ClipPropertiesFocusRequest } from '../../controller/composition/clip-properties-panel-opening.ts';
 import ClipPropertiesBody from './ClipPropertiesBody.jsx';
 import ImageClipPropertiesBody from './ImageClipPropertiesBody.tsx';
+import GeneratorClipPropertiesBody from './GeneratorClipPropertiesBody.tsx';
 import ClipSourceEditor from './ClipSourceEditor.tsx';
 import { selectAudioEditorEditBlock } from '../edit-blocking.ts';
 import { feedbackFailure, usePresentationFeedback } from '../presentation-feedback.ts';
@@ -119,6 +120,9 @@ export default function ClipPropertiesPanel({ controller, snapshot, copy, focusR
 			{sourceClip?.kind === 'image' ? <ImageClipPropertiesBody key={JSON.stringify([selection.projectId, activeClipId])}
 				controller={controller} project={persistedProject} clipId={activeClipId} copy={copy}
 				disabled={selectAudioEditorEditBlock(snapshot as Parameters<typeof selectAudioEditorEditBlock>[0]).blocked} />
+				: sourceClip?.kind === 'generator' ? <GeneratorClipPropertiesBody key={JSON.stringify([selection.projectId, activeClipId])}
+					controller={controller} project={sourceProject} clipId={activeClipId} copy={copy}
+					disabled={selectAudioEditorEditBlock(snapshot as Parameters<typeof selectAudioEditorEditBlock>[0]).blocked} />
 				: <ClipPropertiesBody key={JSON.stringify([selection.projectId, activeClipId])} controller={controller}
 					snapshot={runtimeSnapshot} copy={copy} clipId={activeClipId} />}
 		</div> : <p className="audio-editor-panel-hint" data-no-clip>{copy.noClipSelected}</p>}
