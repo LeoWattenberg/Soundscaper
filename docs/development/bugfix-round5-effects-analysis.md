@@ -52,3 +52,24 @@ at project zero. All 19 new and existing host/controller cases pass after
 correction, and target type-aware lint passes. Corrected-build public browser
 verification is pending; detailed focused-suite and lint evidence remains in
 `/tmp/soundscaper-r5-root-nyquist-source-tempo-*`.
+
+## R5-ROOT-003 — Source-analysis labels stretch across repetitions
+
+Import a normal 0.8-second WAV, select its header, and press Right once on
+Looped clip length to create two repeats. Open Clip properties, focus Source
+waveform and select all. Tools → Nyquist prompt: run
+`'((0.2 0.4 "Source cue"))`, close the prompt, and Edit → Manage labels.
+
+The baseline places the source cue at 0.4–0.8 seconds instead of 0.2–0.4.
+The mapper scales one source pass across the repeated clip's complete extent,
+placing the cue over different sound. Read the authored repeat period and
+phase, and retain the cue's first complete occurrence after the clip's start.
+Ordinary source positions and authenticated warp projection remain intact.
+
+The normal Chromium workflow fails at its displayed 0.400-second start
+(`/tmp/soundscaper-r5-root-nyquist-loop-label-red.*`). Two strict repeat cases
+fail before correction while ordinary controls pass. Eight corrected native-rate,
+ordinary, reversed-repeat and split-phase cases pass, together with existing
+Nyquist host/controller and source-tempo support: 27/27. Target lint passes.
+Corrected-build public verification is pending. This is a repeat transform,
+separate from the earlier source-label placement offset and 002's tempo lookup.
