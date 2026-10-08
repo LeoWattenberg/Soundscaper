@@ -213,7 +213,8 @@ test('a foreign staging record already holding the tombstone key blocks the rese
 test('colliding tombstones and an overflowing durable inventory both invalidate the run', async (context) => {
 	const proxy = opfsIdentity('proxy', PROXY_DIGEST);
 	const collided = await harness(context, {
-		staging: [
+		// Native unique paths exclude this state; raw injection exercises corrupt-inventory refusal.
+		rawStaging: [
 			tombstone(claim(proxy)),
 			tombstone(claim(opfsIdentity('timing', TIMING_DIGEST, { path: String(proxy.path) }))),
 		],
@@ -368,17 +369,15 @@ interface HarnessOptions {
 	readonly removeFailure?: unknown;
 	readonly maximumInventory?: number;
 	readonly staging?: readonly Data[];
+	readonly rawStaging?: readonly Data[];
 	readonly rows?: readonly Data[];
 	readonly chunks?: readonly Data[];
 	readonly projects?: readonly Data[];
 	readonly revisions?: readonly Data[];
 }
-
 async function harness(context: TestContext, options: HarnessOptions = {}): Promise<Harness> {
-	const database = await openDatabase(
-		createInstrumentedIndexedDB() as unknown as IDBFactory,
-		`sequence-claim-cleanup-${Math.random().toString(36).slice(2)}`,
-	);
+	const indexedDB = createInstrumentedIndexedDB();
+	const database = await openDatabase(indexedDB as unknown as IDBFactory, `sequence-claim-cleanup-${Math.random().toString(36).slice(2)}`);
 	context.after(() => database.close());
 	const removed: string[] = [];
 	const directory = {
@@ -401,6 +400,7 @@ async function harness(context: TestContext, options: HarnessOptions = {}): Prom
 	await write(database, CHUNKS, options.chunks);
 	await write(database, 'projects', options.projects);
 	await write(database, 'revisions', options.revisions);
+	for (const record of options.rawStaging ?? []) indexedDB.seedRecord(database.name, STAGING, record);
 	return { database, repository, removed };
 }
 
