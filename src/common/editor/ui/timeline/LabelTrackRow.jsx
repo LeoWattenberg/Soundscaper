@@ -14,6 +14,7 @@ import { LabelContextMenu } from './LabelContextMenu.tsx';
 import { selectAudioEditorLabelEditBlock } from '../../label-edit-blocking.ts';
 import { useLabelMarkerDragCancellation } from './useLabelMarkerDragCancellation.ts';
 import { prepareTimelineLabelRemovalFocus } from './label-removal-focus.ts';
+import { isContextMenuKey } from './context-menu-keyboard.ts';
 
 export function LabelTrackRow({
 	controller,
@@ -273,7 +274,7 @@ export function AudacityLabelMarker({
 					event.preventDefault();
 					event.stopPropagation();
 					onEdit();
-				} else if (event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey)) {
+				} else if (isContextMenuKey(event)) {
 					event.preventDefault();
 					event.stopPropagation();
 					const rect = event.currentTarget.getBoundingClientRect();
