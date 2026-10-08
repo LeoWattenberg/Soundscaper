@@ -468,7 +468,7 @@ export function createClipboardEditService(
 		for (const [startFrame, endFrame] of [...regions].reverse()) {
 			const after = prepareSplit(clip.id, endFrame);
 			const silence = prepareSplit(clip.id, startFrame);
-			commands.push(after, silence, { type: 'clip/remove', clipId: silence.rightClipId });
+			commands.push(after, silence, ...(clip.groupId ? [{ type: 'clip/ungroup' as const, clipIds: [silence.rightClipId] }] : []), { type: 'clip/remove', clipId: silence.rightClipId });
 		}
 		return commands;
 	}
