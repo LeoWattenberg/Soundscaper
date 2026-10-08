@@ -42,10 +42,12 @@ export function createAuthoredTrackSidechainRender(
 		// Zero-level output anchors retain exact graph admission for control tracks;
 		// their authored signal reaches only detector terminals, never this output.
 		return { id, kind: 'assignment', source: { kind: 'track', id: track.id },
-			destination: { kind: 'output', id: main.id }, position: 'post-fader', enabled: true,
-			level: track.id === request.trackId ? 1 : 0,
+			destination: { kind: 'output', id: main.id },
+			position: track.id === request.trackId ? 'pre-fader' : 'post-fader', enabled: true,
+			level: track.id === request.trackId ? Number(track.gain ?? 1) : 0,
 			channelMap: defaultMixerChannelMapV21(widths.get(track.id) ?? project.masterChannels, main.channelCount) };
 	});
+	const programmeCapture = captureEdges.find(edge => edge.source.kind === 'track' && edge.source.id === request.trackId)!;
 	const retainStrip = (strip: StripRef) => strips.has(mixerEndpointKeyV21(strip));
 	return { ...project, tracks,
 		mixer: { ...project.mixer,
@@ -57,12 +59,19 @@ export function createAuthoredTrackSidechainRender(
 				retainStrip(member) && mixerEndpointKeyV21(member) !== selectedKey) })).filter(vca => vca.members.length > 0),
 			edges: [...project.mixer.edges.filter(edge => edgeIds.has(edge.id)), ...captureEdges],
 		},
-		automationLanes: project.automationLanes.filter(value => {
-			const { address } = normalizeAutomationLaneV21(value);
-			if (address.kind === 'edge') return edgeIds.has(address.edgeId);
-			if (!retainStrip(address.strip)) return false;
-			return !(address.kind === 'strip' && address.parameterId === 'pan'
-				&& mixerEndpointKeyV21(address.strip) === selectedKey);
+		automationLanes: project.automationLanes.flatMap(value => {
+			const lane = normalizeAutomationLaneV21(value);
+			const { address } = lane;
+			if (address.kind === 'edge') return edgeIds.has(address.edgeId) ? [lane] : [];
+			if (!retainStrip(address.strip)) return [];
+			if (address.kind === 'strip' && mixerEndpointKeyV21(address.strip) === selectedKey) {
+				if (address.parameterId === 'pan') return [];
+				// The pre-pan tap precedes the programme fader too; carry that one
+				// authored gain onto its capture edge, without scaling or baking it twice.
+				if (address.parameterId === 'gain') return [normalizeAutomationLaneV21({ ...lane,
+					address: { kind: 'edge', edgeId: programmeCapture.id, parameterId: 'level' } })];
+			}
+			return [lane];
 		}),
 	};
 }

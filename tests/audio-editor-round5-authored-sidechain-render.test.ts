@@ -13,7 +13,7 @@ import type { EffectAudioProject } from '../src/common/editor/controller/effects
 import { validateMixerGraphV21, type MixerEdgeV21, type MixerGraphV21, type MixerStripV21 } from '../src/common/editor/mixer-graph-v21.ts';
 
 function fixture(mode: 'track' | 'bus' | 'master' | 'disabled' = 'track') {
-	const programme = createAudioTrack({ id: 'programme', name: 'Programme', pan: 0.75,
+	const programme = createAudioTrack({ id: 'programme', name: 'Programme', gain: 0.75, pan: 0.75,
 		clipIds: [], effects: [createEffect('gate', { id: 'gate' })] });
 	const detector = createAudioTrack({ id: 'detector', name: 'Detector', gain: 0.25,
 		pan: -0.5, clipIds: [], effects: [createEffect('delay', { id: 'detector-gain' })] });
@@ -43,6 +43,7 @@ function fixture(mode: 'track' | 'bus' | 'master' | 'disabled' = 'track') {
 		normalizeAutomationLaneV21({ id, address, timebase: 'absolute-samples',
 			points: [{ id: `${id}-point`, position: 0, value: 0.5 }], segments: [] });
 	const automationLanes = [
+		lane('programme-gain', { kind: 'strip', strip: { kind: 'track', id: programme.id }, parameterId: 'gain' }),
 		lane('programme-pan', { kind: 'strip', strip: { kind: 'track', id: programme.id }, parameterId: 'pan' }),
 		lane('detector-gain', { kind: 'strip', strip: { kind: 'track', id: detector.id }, parameterId: 'gain' }),
 		lane('detector-edge', { kind: 'edge', edgeId: sidechain.id, parameterId: 'level' }),
@@ -69,6 +70,13 @@ for (const mode of ['track', 'bus', 'master', 'disabled'] as const) {
 		const audible = capture.mixer.edges.filter(edge => edge.destination.kind === 'output' && edge.level !== 0);
 		assert.equal(audible.length, 1);
 		assert.deepEqual(audible[0]?.source, { kind: 'track', id: 'programme' });
+		assert.equal(audible[0]?.position, 'pre-fader');
+		assert.equal(audible[0]?.level, 0.75);
+		const gain = capture.automationLanes.find(lane => (lane as { id: string }).id === 'programme-gain');
+		assert.ok(gain);
+		assert.deepEqual(normalizeAutomationLaneV21(gain), {
+			...project.automationLanes[0], address: { kind: 'edge', edgeId: audible[0]!.id, parameterId: 'level' },
+		});
 		assert.deepEqual(project, before);
 		const engine = createAudioEditorEngine({ audioContextFactory: null, offlineAudioContextFactory: null });
 		try { assert.doesNotThrow(() => engine.loadProject(capture, new Map())); }
