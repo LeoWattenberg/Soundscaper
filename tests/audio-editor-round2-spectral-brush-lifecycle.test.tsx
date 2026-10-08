@@ -28,7 +28,7 @@ test('Escape discards a spectral brush draft and pointer release cannot commit i
 			disabled={false} copy={{ spectralBrush: 'Spectral brush' }}
 			onCommit={(value: unknown) => commits.push(value)} />));
 		const surface = dom.one('[data-spectral-brush]');
-		const pointer = { currentTarget: surface, pointerId: 1, clientX: 20, clientY: 30,
+		const pointer = { currentTarget: surface, pointerId: 1, button: 0, clientX: 20, clientY: 30,
 			preventDefault() {}, stopPropagation() {} };
 		await act(async () => reactProps(surface).onPointerDown?.(pointer));
 		await act(async () => reactProps(surface).onPointerMove?.({ ...pointer, clientX: 40 }));
