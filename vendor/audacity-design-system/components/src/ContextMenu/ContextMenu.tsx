@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { useTheme } from '../ThemeProvider';
+import { ContextMenuActionFocus } from '../ContextMenuItem/context-menu-action-focus';
 import './ContextMenu.css';
 
 export interface ContextMenuProps {
@@ -262,6 +263,14 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
 
   if (!isOpen) return null;
 
+  const prepareKeyboardAction = () => {
+    const trigger = triggerElementRef.current;
+    if (trigger?.isConnected && menuRef.current?.contains(document.activeElement)) {
+      triggerElementRef.current = null;
+      trigger.focus();
+    }
+  };
+
   return (
     <div
       ref={menuRef}
@@ -275,7 +284,9 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
         ...style,
       }}
     >
-      {children}
+      <ContextMenuActionFocus.Provider value={prepareKeyboardAction}>
+        {children}
+      </ContextMenuActionFocus.Provider>
     </div>
   );
 };
