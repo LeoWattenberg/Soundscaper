@@ -27,6 +27,7 @@ import type { PersistEffectResultOptions, SelectionEffectResult } from '../effec
 import { createIsolatedTrackRenderProjectV21 } from '../../../shared/isolated-track-render-project-v21.ts';
 import type { RunOfflineSelectionChain } from './offline-selection-chain.ts';
 import { MACRO_NEIGHBOUR_PCM_CACHE_LIMIT_BYTES } from './macro-neighbour-pcm-cache.ts';
+import { macroSpectralContext, type MacroSpectralSelection } from './macro-spectral-context.ts';
 
 const EFFECT_MACRO_TASK = 'selection-effect-macro';
 
@@ -69,6 +70,9 @@ interface MacroProject {
 	readonly tracks: readonly Readonly<Record<string, unknown>>[];
 	readonly master: Readonly<Record<string, unknown>>;
 	readonly mixer: object;
+	readonly selection?: Readonly<{
+		frequencyRange?: Readonly<{ minimumFrequency: number; maximumFrequency: number }> | null;
+	}> | null;
 }
 
 interface MutableMacroProject extends Record<string, unknown> {
@@ -88,6 +92,7 @@ interface MacroCopy {
 	readonly effectInvalidAudio: string;
 	readonly effectRackEmpty: string;
 	readonly noiseProfileMissing: string;
+	readonly spectralEffectLengthChanging?: string;
 	readonly macroApplied?: string;
 	readonly macroEffectsRequired?: string;
 	readonly macrosPalette: string;
@@ -203,13 +208,15 @@ export function createEffectMacroService<Buffer = MacroRenderBuffer>(runtime: Ef
 		const sampleRate = targets[0]?.sourceSampleRate ?? runtime.projectSampleRate();
 		const plans = targets.map((target) => {
 			const effects = enabledEffects.map((effect) => materializeStep(effect, target.sourceTrackId ?? target.track.id));
+			const spectral = macroSpectralContext(project.selection?.frequencyRange, target, effects,
+				() => createLocalizedError(Error, runtime.copy, 'spectralEffectLengthChanging'));
 			const preRollFrames = Math.min(target.startFrame, sampleRate * 10);
 			const outputFrames = chainOutputFrames(effects, target.durationFrames);
 			const outputBytes = outputFrames * target.channelCount * Float32Array.BYTES_PER_ELEMENT;
 			const processingFrames = target.durationFrames + preRollFrames;
 			const latencyFrames = runtime.effectRackLatencyFrames(effects, sampleRate);
 			const offlineBytes = (processingFrames + latencyFrames) * 2 * Float32Array.BYTES_PER_ELEMENT;
-			return { target, effects, preRollFrames, outputBytes, peakBytes: Math.max(
+			return { target, effects, spectralSelection: spectral?.selection, preRollFrames, outputBytes, peakBytes: (spectral?.peakBytes ?? 0) + Math.max(
 				offlineBytes * 2 + outputBytes * 3,
 				chainPeakBytes(effects, target, sampleRate, processingFrames),
 			) };
@@ -232,8 +239,8 @@ export function createEffectMacroService<Buffer = MacroRenderBuffer>(runtime: Ef
 			await runtime.preflightStorage(outputBytes, 'effect');
 			assertOwnership(runtime, ownership);
 			const results: SelectionEffectResult[] = [];
-			for (const { target, effects, preRollFrames } of plans) {
-				const channels = await runChain(effects, target, project, sampleRate, preRollFrames, ownership, contextCacheBytes);
+			for (const { target, effects, spectralSelection, preRollFrames } of plans) {
+				const channels = await runChain(effects, target, project, sampleRate, preRollFrames, ownership, contextCacheBytes, spectralSelection);
 				results.push({ target, channels });
 			}
 			const effectName = String(request.name || publishedCopyFor(runtime.copy).untitledMacro || publishedCopyFor(runtime.copy).macrosPalette).trim()
@@ -401,9 +408,11 @@ export function createEffectMacroService<Buffer = MacroRenderBuffer>(runtime: Ef
 		preRollFrames: number,
 		ownership: EffectMacroOwnership,
 		contextCacheBytes: number,
+		spectralSelection?: MacroSpectralSelection,
 	): Promise<readonly Float32Array[]> {
 		const segments = planEffectMacroChain(effects as unknown as readonly EffectMacroChainStep[]);
 		const leadsWithRack = segments[0]?.realtime === true && !target.sourceId
+			&& !spectralSelection
 			&& !segments[0].steps.some(step => step.type === 'audacity-auto-duck');
 		let channels: readonly Float32Array[];
 		if (leadsWithRack) {
@@ -428,6 +437,7 @@ export function createEffectMacroService<Buffer = MacroRenderBuffer>(runtime: Ef
 		const remaining = segments.slice(leadsWithRack ? 1 : 0);
 		if (!remaining.length) return channels;
 		const chain = createEffectMacroChainRunner({
+			spectralSelection,
 			contextCacheBytes,
 			copy: runtime.copy,
 			sampleRate,

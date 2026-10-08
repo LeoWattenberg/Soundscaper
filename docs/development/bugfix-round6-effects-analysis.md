@@ -38,6 +38,14 @@ configuration calls before correction. All 17 combined effect-control and
 generator cases pass after correction, with targeted type-aware lint passing.
 All three EQ/spectral browser cases pass on immutable checkpoint `48e4cbe22`
 (`/tmp/soundscaper-round6-green3-browser.log`).
+The unchanged EQ preset workflow also passes WebKit on `c85e613cf` and Firefox
+on the repository's qualified CI null sink. Its first Firefox run stalled
+before preset selection because the inherited WSLg audio context never resumed;
+the existing clock probe independently confirms zero advancement and four
+timed-out resumes. The existing null sink advances 0.053 seconds with restarts
+at most 38 ms, and all three unchanged realtime EQ/Bin/recording checks then
+pass (`/tmp/soundscaper-r6-effects-io-firefox-null-sink-green5.log`). No browser
+assertion, deadline or source change was made for that environment correction.
 
 ## R6-EFFECT-003 — Independent tempo changes transpose spectral center snapping
 
@@ -146,6 +154,38 @@ All seven new/existing spectral/tool action regressions pass after repair
 (`/tmp/soundscaper-r6-effects-spectral-toggle-node-green.log`). Public GREEN is
 pending the next immutable product build. This toggle adapter is independent
 of the earlier macro frequency command's retained-target correction.
+
+## R6-EFFECT-008 — Macro effects overwrite frequencies outside the authored band
+
+Import an ordinary mono WAV containing 1 kHz and 6 kHz tones. Select all, enable
+Spectrogram and author a 900–1100 Hz band. Tools → Macros palette → New program:
+run `await sound.effect('audacity-amplify', {gainDb:-12, allowClipping:true});`.
+The baseline attenuates the 6 kHz tone too, although its frequency is outside
+the band. The exported amplitude changes by 0.10589 instead of remaining within
+0.001 of its original value.
+
+The independently owned macro runner never supplies spectral context to its
+offline workers or composes its realtime rack output. Resolve the authored band
+for each actual target, apply it to each offline effect, and compose each
+realtime step through the existing lazy spectral primitive. Each step receives
+the preceding step's unchanged unselected bins, including chains with nonlinear
+detectors. Keep the existing full-band Parametric EQ policy; refuse unsupported
+length-changing steps before async ownership or publication. Preserve the
+context-free batching port for unbanded audio and account for spectral FFT
+scratch in peak admission.
+
+The immutable public workflow is causally RED at the delivered unselected
+6 kHz tone (`/tmp/soundscaper-r6-effects-macro-spectral-browser-red.log`). Actual
+DSP service regressions separately fail for offline Amplify, realtime Invert,
+mixed Amplify/Invert and length-changing Repeat; a double-Invert control passes
+before repair (`/tmp/soundscaper-r6-effects-macro-spectral-node-red2.log`). All
+31 new/existing macro and spectral compositor regressions pass after repair,
+including per-step realtime inputs, context-free batch isolation, input PCM
+immutability and one result publication
+(`/tmp/soundscaper-r6-effects-macro-spectral-node-green2.log`). Targeted
+type-aware lint passes. Public GREEN awaits the next immutable product build.
+Offline/realtime/chain variants share this one macro targeting root; the earlier
+reviewed-effect dispatcher repair never owned this macro service.
 
 These corrections do not change the assistance runtime closure or require a
 manual **Update AI assets** run.
