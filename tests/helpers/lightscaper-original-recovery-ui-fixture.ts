@@ -9,7 +9,8 @@ import type { StorageRecord } from '../../src/common/editor/storage/media-record
 import { PhotoCatalogRepositoryV1 } from '../../src/lightscaper/catalog/repository.ts';
 import type { PhotoCatalogRootV1, PhotoDocumentV1 } from '../../src/lightscaper/catalog/types.ts';
 import { normalizePhotoImportIntentV1, photoImportIntentKeyV1, type PhotoImportIntentV1 } from '../../src/lightscaper/import/import-intent-v1.ts';
-import { PHOTO_LIBRARY_CATALOG_POINTER_KEY_V1, PHOTO_LIBRARY_INITIALIZATION_LOCK_ID_V1 } from '../../src/lightscaper/storage/photo-library-catalog-pointer.ts';
+import { PHOTO_LIBRARY_CATALOG_POINTER_KEY_V1 } from '../../src/lightscaper/storage/photo-library-catalog-pointer.ts';
+import { PHOTO_LIBRARY_DEFAULT_CATALOG_DATABASE_NAME_V2 } from '../../src/lightscaper/storage/photo-library-location-v2.ts';
 import { PHOTO_MEDIA_NAMESPACES_V1, PhotoMediaStoreV1 } from '../../src/lightscaper/storage/photo-media-store.ts';
 
 // Production UI owns all photo authoring. Faults touch only the two selected
@@ -175,7 +176,7 @@ export function releaseOriginalRecoveryReadV1(): void {
 
 interface RetryHold { publicationCompleted: boolean; entered: boolean; released: boolean; release: () => void; restore: () => void }
 let retryHold: RetryHold | null = null;
-/** Hold only normal initialization after the actual media publication commits. */
+/** This default-library fixture holds its exact selected catalog lease after the actual media publication commits. */
 export function holdOriginalRecoveryRetryV1(assetId: string): void {
 	if (retryHold && !retryHold.released) throw new Error('A recovery retry gate is already pending.');
 	const put = IDBObjectStore.prototype.put, transaction = IDBDatabase.prototype.transaction;
@@ -206,7 +207,8 @@ export function holdOriginalRecoveryRetryV1(assetId: string): void {
 		return result;
 	};
 	LockManager.prototype.request = function (this: LockManager, ...args: Parameters<LockManager['request']>) {
-		if (hold.publicationCompleted && !hold.entered && args[0].endsWith(PHOTO_LIBRARY_INITIALIZATION_LOCK_ID_V1)) {
+		if (hold.publicationCompleted && !hold.entered
+			&& args[0] === `lightscaper-photo-library:namespace:${PHOTO_LIBRARY_DEFAULT_CATALOG_DATABASE_NAME_V2}`) {
 			hold.entered = true;
 			return gate.then(() => Reflect.apply(nativeRequest, this, args) as Promise<unknown>);
 		}
