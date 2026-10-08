@@ -106,6 +106,11 @@ export default function FramescaperFinishingDialog({
 		setStatus('');
 		setError('');
 	}, [model.surface, setError, setStatus]);
+	useEffect(() => {
+		setMotionStackId(motionTarget?.stackId ?? '');
+		setMotionStartFrame(motionTarget?.startFrame ?? 0);
+		setMotionEndFrame(motionTarget?.endFrame ?? 0);
+	}, [motionTarget?.stackId, motionTarget?.sourceId, motionTarget?.startFrame, motionTarget?.endFrame]);
 	useEffect(() => () => { motionAbortRef.current?.abort(); }, []);
 
 	const blocked = pending || editingBlocked || readOnly;
@@ -343,12 +348,7 @@ export default function FramescaperFinishingDialog({
 				progress={motionProgress}
 				pending={pending && motionAbortRef.current !== null}
 				copy={copy}
-				onStack={(stackId) => {
-					setMotionStackId(stackId);
-					const target = motionTargets.find((candidate) => candidate.stackId === stackId);
-					setMotionStartFrame(target?.startFrame ?? 0);
-					setMotionEndFrame(target?.endFrame ?? 0);
-				}}
+				onStack={setMotionStackId}
 				onStartFrame={setMotionStartFrame}
 				onEndFrame={setMotionEndFrame}
 				onAnalyze={analyzeMotion}

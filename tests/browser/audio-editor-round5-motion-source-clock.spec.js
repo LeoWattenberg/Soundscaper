@@ -5,6 +5,27 @@ import { bootEditor, chooseCommandAction, chooseNestedCommandAction, importFiles
 import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
 
 test('motion analysis source frame time uses the source clock', async ({ page }) => {
+	const dialog = await authorTrackingStack(page);
+	const end = dialog.getByRole('group', { name: 'End frame', exact: true });
+	await showFilmFrames(page, end);
+	const digits = end.locator('.timecode-digit');
+	await digits.nth(await digits.count() - 2).click();
+	await page.keyboard.type('15');
+	await page.keyboard.press('Enter');
+	await end.getByRole('button', { name: 'End frame: format', exact: true }).click();
+	await page.getByRole('menuitem', { name: 'seconds + milliseconds', exact: true }).click();
+	await expect(end.locator('.timecode__display')).toHaveText('000,001.000s');
+});
+
+test('a newly authored tracking stack initializes its full native analysis range', async ({ page }) => {
+	const dialog = await authorTrackingStack(page);
+	const end = dialog.getByRole('group', { name: 'End frame', exact: true });
+	await showFilmFrames(page, end);
+	await expect.poll(async () => (await end.locator('.timecode-digit').allTextContents()).join(''))
+		.toBe('000000000032');
+});
+
+async function authorTrackingStack(page) {
 	const editor = await bootEditor(page, '/framescaper/embed/en/');
 	await importFiles(editor, [createDeterministicAvFixture('15fps-motion.webm')]);
 	await chooseNestedCommandAction(page, editor, 'Effect', ['Video Finishing', 'Managed Color & Source Interpretation']);
@@ -23,15 +44,11 @@ test('motion analysis source frame time uses the source clock', async ({ page })
 	await document.fill(JSON.stringify(state, null, 2));
 	await dialog.getByRole('button', { name: 'Apply', exact: true }).click();
 	await expect(dialog.getByRole('status').last()).toHaveText('Finishing state updated.');
-	const end = dialog.getByRole('group', { name: 'End frame', exact: true });
+	return dialog;
+}
+
+async function showFilmFrames(page, end) {
 	await end.getByRole('button', { name: 'End frame: format', exact: true }).click();
 	await page.getByRole('menuitem', { name: /^Video frames/u }).hover();
 	await page.getByRole('menuitem', { name: /^film frames/u }).click();
-	const digits = end.locator('.timecode-digit');
-	await digits.nth(await digits.count() - 2).click();
-	await page.keyboard.type('15');
-	await page.keyboard.press('Enter');
-	await end.getByRole('button', { name: 'End frame: format', exact: true }).click();
-	await page.getByRole('menuitem', { name: 'seconds + milliseconds', exact: true }).click();
-	await expect(end.locator('.timecode__display')).toHaveText('000,001.000s');
-});
+}
