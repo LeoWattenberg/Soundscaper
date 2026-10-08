@@ -20,7 +20,7 @@ export const LIGHTSCAPER_SAVED_FILTER_COPY_EN = Object.freeze({
 	photoSavedFilterNoSelection: 'Choose a saved filter.',
 	photoSavedFilterEmpty: 'No saved filters.',
 	photoSavedFilterSummaryPage: '{count} saved filters on this page.',
-	photoSavedFilterConflict: 'The catalog changed. Reload before saving again; your draft has been kept.',
+	photoSavedFilterConflict: 'The filter could not be saved. Reload before trying again; your draft has been kept.',
 });
 
 export const LIGHTSCAPER_SAVED_FILTER_COPY_DE: Readonly<Record<keyof typeof LIGHTSCAPER_SAVED_FILTER_COPY_EN, string>> = Object.freeze({
@@ -43,5 +43,5 @@ export const LIGHTSCAPER_SAVED_FILTER_COPY_DE: Readonly<Record<keyof typeof LIGH
 	photoSavedFilterNoSelection: 'Wähle einen gespeicherten Filter aus.',
 	photoSavedFilterEmpty: 'Keine gespeicherten Filter.',
 	photoSavedFilterSummaryPage: '{count} gespeicherte Filter auf dieser Seite.',
-	photoSavedFilterConflict: 'Der Katalog wurde geändert. Lade ihn vor dem Speichern erneut; dein Entwurf bleibt erhalten.',
+	photoSavedFilterConflict: 'Der Filter konnte nicht gespeichert werden. Lade ihn vor einem erneuten Versuch; dein Entwurf bleibt erhalten.',
 });
