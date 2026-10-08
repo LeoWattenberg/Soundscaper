@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { readClipLoop } from '../../../../audio-clip-loop.ts';
 import { assertCameraAudioDurationChange } from './camera-audio-time-pitch-admission.ts';
+import { assertScalarTimePitchChange } from './scalar-time-pitch-admission.ts';
 
 import { createLocalizedError } from '../../../../../i18n/presentation-message.ts'; import { isAudioMediaKind } from '../../../../audio-media-kind.ts';
 
@@ -204,6 +205,7 @@ export function createClipPropertyService(
 			? clip.durationFrames
 			: Math.max(1, Math.round(sourceTimelineFrames(project, clip) / speedRatio));
 		assertCameraAudioDurationChange(project, clip, durationFrames, dependencies.copy);
+		assertScalarTimePitchChange(project, clip, linked, pitchCents, speedRatio, dependencies.copy);
 		const command = prepareTransformClipsCommand(project, [{
 			clipId: clip.id,
 			trackId: track.id,
@@ -258,6 +260,8 @@ export function createClipPropertyService(
 			}
 			const transforms = clips.map((item): PreparedTransform => {
 				const nextDurationFrames = Math.max(1, Math.round(item.durationFrames * stretchFactor));
+				assertScalarTimePitchChange(project, item, Boolean(item.linkPitchAndTempo), item.pitchCents,
+					sourceTimelineFrames(project, item) / nextDurationFrames, dependencies.copy);
 				assertCameraAudioDurationChange(project, item, nextDurationFrames, dependencies.copy);
 				return {
 					clipId: item.id,
@@ -280,6 +284,8 @@ export function createClipPropertyService(
 				{ selectTrackId: track.id, selectClipId: clip.id },
 			);
 		}
+		assertScalarTimePitchChange(project, clip, Boolean(clip.linkPitchAndTempo), clip.pitchCents,
+			sourceTimelineFrames(project, clip) / durationFrames, dependencies.copy);
 		return dependencies.commit(prepareTransformClipsCommand(project, [{
 			clipId: clip.id,
 			trackId: track.id,

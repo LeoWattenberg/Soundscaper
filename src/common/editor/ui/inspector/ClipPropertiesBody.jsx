@@ -239,7 +239,7 @@ export default function ClipPropertiesBody({ controller, snapshot, copy, clipId 
 							min={Math.min(0.25, clip?.speedRatio ?? 1)} max={Math.max(4, clip?.speedRatio ?? 1)}
 							step={0.01} defaultValue={1} disabled={disabled}
 							onCommit={commitField} onKnobCommit={(value) => commitField('speedRatio', value)} />
-						<div data-clip-field="linkPitchAndTempo"><DesignCheckbox label={copy.clipLinkPitchAndTempo} checked={linkedPitch} disabled={disabled} onChange={(checked) => { if (ownsTarget()) controller.actions.clip.setTimePitch(clip.id, { linkPitchAndTempo: checked }); }} /></div>
+						<div data-clip-field="linkPitchAndTempo"><DesignCheckbox label={copy.clipLinkPitchAndTempo} checked={linkedPitch} disabled={disabled} onChange={(checked) => run(id => controller.actions.clip.setTimePitch(id, { linkPitchAndTempo: checked }))} /></div>
 						<div data-clip-field="preserveFormants"><DesignCheckbox label={copy.preserveFormants} checked={Boolean(clip?.preserveFormants)} disabled={disabled} onChange={(checked) => { if (ownsTarget()) controller.actions.clip.setTimePitch(clip.id, { preserveFormants: checked }); }} /></div>
 						<div data-clip-field="stretchToTempo"><DesignCheckbox label={copy.stretchToTempo} checked={Boolean(clip?.stretchToTempo)} disabled={disabled} onChange={() => { if (ownsTarget()) controller.actions.clip.toggleStretchToTempo(clip.id); }} /></div>
 						<div className="audio-editor-panel-actions">
