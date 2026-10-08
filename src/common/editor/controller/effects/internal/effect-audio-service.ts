@@ -101,12 +101,14 @@ export function createEffectAudioService<Buffer = EffectAudioBuffer>(runtime: Ef
 			snapshot.master = { gain: 1, effects: [] };
 			snapshot.mixer = { groups: [], sends: [], routes: {} };
 		}
+		const authoredControlContext = processing === 'authored' && hasProductionMixerProjectAuthority(snapshot)
+			&& (snapshot.mixer as unknown as MixerGraphV21).edges.some(edge => edge.kind === 'sidechain');
 		const rendered = await runtime.renderSnapshot(snapshot, {
 			startFrame,
 			endFrame,
-			trackId,
-			includeMaster: false,
-			includeTrackPan: false,
+			trackId: authoredControlContext ? null : trackId,
+			includeMaster: authoredControlContext,
+			includeTrackPan: authoredControlContext,
 			respectMuteSolo: false,
 			outputFrames: endFrame - startFrame,
 		}, runtime.sourceBuffers, signal);

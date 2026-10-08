@@ -65,6 +65,7 @@ export function createHarness(options: Readonly<{
 	const persistenceStarted = deferred<void>();
 	const worker = deferred<Readonly<{ profile: unknown }>>();
 	const snapshots: EffectAudioProject[] = [];
+	const renderRequests: Readonly<Record<string, unknown>>[] = [];
 	const commands: unknown[] = [];
 	const persisted: unknown[] = [];
 	const preflightBytes: number[] = [];
@@ -109,6 +110,7 @@ export function createHarness(options: Readonly<{
 		audacitySelectionChannelCount: () => 1,
 		renderSnapshot: async (snapshot, renderOptions) => {
 			snapshots.push(structuredClone(snapshot));
+			renderRequests.push(structuredClone(renderOptions));
 			options.validateRenderSnapshot?.(snapshot);
 			const outputFrames = Number(renderOptions.outputFrames) + (options.spectralRenderFrameDelta ?? 0);
 			return options.deferRender ? render.promise : { channels: [new Float32Array(outputFrames)] };
@@ -160,6 +162,7 @@ export function createHarness(options: Readonly<{
 	});
 	return {
 		commands,
+		renderRequests,
 		get prefixDisposals() { return prefixDisposals; },
 		noiseProfileWorkerChannels,
 		noiseProfileWorkerParams,

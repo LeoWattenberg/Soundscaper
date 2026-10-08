@@ -1,0 +1,49 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+import { expect, test, createWavFixture, monoTone } from './audio-editor-test-fixtures.js';
+import {
+	addRackEffect, bootEditor, chooseCommandAction, chooseNestedCommandAction, clipByName,
+	closeDialog, closeEffectsPanel, disableNativeSavePicker, importFiles, openEffectsForTrack,
+} from './audio-editor-test-helpers.js';
+import { chooseTrackMenuAction } from './helpers/track-menu.js';
+import { exportSamples } from './helpers/round2-audio-export.js';
+
+const quiet = createWavFixture({ name: 'quiet-detector.wav', frequency: 660,
+	channelCount: 1, channelAmplitudes: [0.001] });
+
+function rms(samples) {
+	const middle = samples.slice(9_600, 28_800);
+	return Math.sqrt(middle.reduce((sum, sample) => sum + sample * sample, 0) / middle.length);
+}
+
+test('Make stereo bakes the authored external Gate detector into its channel audio', async ({ page }) => {
+	await disableNativeSavePicker(page);
+	const editor = await bootEditor(page, '/embed/en/');
+	await importFiles(editor, [monoTone, quiet]);
+	const programme = clipByName(editor, monoTone.name);
+	const control = clipByName(editor, quiet.name);
+	const controlTrack = await control.evaluate(clip => clip.closest('[data-track-id]')?.getAttribute('data-track-id'));
+	expect(controlTrack).toBeTruthy();
+	const effects = await openEffectsForTrack(editor, 1);
+	await addRackEffect(page, effects, 'track', 'Gate');
+	await closeDialog(page.getByRole('dialog', { name: 'Gate', exact: true }));
+	await closeEffectsPanel(effects);
+	await chooseNestedCommandAction(page, editor, 'Window', ['Mixer']);
+	const mixer = editor.locator('[data-mixer-panel]');
+	await mixer.getByRole('button', { name: 'Routing graph', exact: true }).click();
+	const graph = mixer.locator('[data-soundscaper-routing-graph]');
+	await graph.locator(`[data-routing-source="track:${controlTrack}"]`).press('Enter');
+	await graph.locator('[data-routing-destination*="effect-sidechain"]').press('Enter');
+	await expect(graph.locator('[data-routing-edge][aria-label*="sidechain"]')).toHaveCount(1);
+	expect(rms(await exportSamples(page, editor))).toBeLessThan(0.002);
+	const track = programme.locator('xpath=ancestor::div[@data-track-row][1]');
+	await chooseTrackMenuAction(page, editor, track, ['Track channels', 'Make stereo track']);
+	await expect(editor).toHaveAttribute('data-clip-count', '1');
+	expect(rms(await exportSamples(page, editor))).toBeLessThan(0.002);
+	await chooseCommandAction(page, editor, 'Edit', 'Undo');
+	await expect(editor).toHaveAttribute('data-clip-count', '2');
+	await expect(graph.locator('[data-routing-edge][aria-label*="sidechain"]')).toHaveCount(1);
+	await chooseCommandAction(page, editor, 'Edit', 'Redo');
+	await expect(editor).toHaveAttribute('data-clip-count', '1');
+	expect(rms(await exportSamples(page, editor))).toBeLessThan(0.002);
+});

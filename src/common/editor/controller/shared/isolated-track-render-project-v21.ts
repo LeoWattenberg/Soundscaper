@@ -11,6 +11,7 @@ import {
 } from '../../track-folder-media-runtime.ts';
 import { resolveTerminalChannelWidths } from '../../terminal-channel-widths.ts';
 import { projectTransientRenderFeatures } from './transient-render-feature-projection.ts';
+import { createAuthoredTrackSidechainRender } from './authored-track-sidechain-render.ts';
 
 interface IsolatedTrackRenderTrackV21 extends Readonly<Record<string, unknown>> {
 	readonly id: string;
@@ -55,6 +56,12 @@ export function createIsolatedTrackRenderProjectV21(
 	const selected = project.tracks.find((track) => track.id === request.trackId && track.type === 'audio');
 	if (!selected) throw new ReferenceError(`The V21 render track ${request.trackId} does not exist.`);
 	const widths = resolveTerminalChannelWidths(project, project.masterChannels).tracks;
+	if (request.preserveTrackProcessing && project.mixer.edges.some(edge => edge.destination.kind === 'effect-sidechain'
+		&& edge.destination.strip.kind === 'track' && edge.destination.strip.id === request.trackId)) {
+		const capture = createAuthoredTrackSidechainRender(project, request, widths);
+		projectTransientRenderFeatures(capture);
+		return inheritTrackFolderMediaStateProjectionV12(project, capture);
+	}
 	const requestedClipIds = request.clipIds?.length ? new Set(request.clipIds) : null;
 	const track: Record<string, unknown> = request.preserveTrackProcessing ? {
 		...selected,
