@@ -423,7 +423,7 @@ function runNativeSelfTest(request) {
 	return { status: result.status, stdout: result.stdout ?? '', stderr: result.stderr ?? '' };
 }
 
-function stagedManifestRow(receipt, targetRoot, buildResult) {
+export function stagedManifestRow(receipt, targetRoot, buildResult) {
 	const toolchain = verificationFor(receipt, 'toolchain');
 	const sources = verificationFor(receipt, 'source-authentication');
 	const staged = (descriptor) => ({
@@ -452,7 +452,7 @@ function stagedManifestRow(receipt, targetRoot, buildResult) {
 	};
 }
 
-async function verifyStagedBuildResultDirectory(targetRoot, verified) {
+export async function verifyStagedBuildResultDirectory(targetRoot, verified) {
 	const receiptBytes = await canonicalRegularFile(
 		resolve(targetRoot, STAGED_BUILD_RESULT_RECEIPT_NAME), 'staged build-result receipt',
 	);

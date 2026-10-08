@@ -3,6 +3,7 @@
 import { createSoundscaperNativeServicesMenuItems } from '../common/editor/ui/soundscaper-native-services-menu.ts';
 import { createSoundscaperWorkflowApplicationMenuItems } from '../common/editor/ui/soundscaper-workflow-application-menu.ts';
 import { appendParallelStackProcessingMenu } from '../common/editor/ui/parallel-stack-menu.ts';
+import { createAraApplicationMenuItems } from '../common/editor/ui/ara-application-menu.ts';
 
 const EMPTY_ITEMS = Object.freeze([]);
 
@@ -45,11 +46,14 @@ export function createApplicationMenuProductItems({
 		readOnly: snapshot.readOnly === true,
 		copy,
 	}, { open: (surface) => nativeRuntime?.open(surface) });
+	const araItems = createAraApplicationMenuItems({ productId, project, available: Boolean(actions.araClipEditing),
+		selectedClipId: snapshot.selectedClipId, editingBlocked: editBlocked, readOnly: snapshot.readOnly === true, copy },
+		() => actions.araClipEditing?.open());
 	return Object.freeze({
 		...workflows,
 		tracks: workflows.tracks,
 		generate: EMPTY_ITEMS,
-		effect: Object.freeze([...workflows.effect, ...nativeServices.effect]),
+		effect: Object.freeze([...workflows.effect, ...nativeServices.effect, ...araItems]),
 		analyze: workflows.analyze,
 		mixer: workflows.mixer,
 		tools: Object.freeze([...workflows.tools, ...appendParallelStackProcessingMenu(nativeServices.tools,

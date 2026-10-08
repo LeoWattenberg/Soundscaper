@@ -3,6 +3,8 @@
 /** Persistent binary RPC peer; all third-party plug-in code stays in this process. */
 
 #include "professional_host_api.h"
+#include "professional_ara_peer.h"
+#include "professional_peer_codec.h"
 #include "professional_host_containment_probe.h"
 #include "juce_message_dispatcher.h"
 #include "vamp_analyzer_peer.h"
@@ -39,6 +41,7 @@ enum class Operation : uint8_t {
 	scan = 1u, open = 2u, process = 3u, latency = 4u,
 	save = 5u, load = 6u, close = 7u, vendor = 8u,
 	capabilities = 9u, parameters = 10u, parameterGet = 11u, parameterSet = 12u,
+	araConfigure = 13u, araWrite = 14u, araBind = 15u, araRender = 16u, araSave = 17u, araLoad = 18u, araCapabilities = 19u,
 };
 
 enum class VendorOperation : uint8_t { open = 1u, close = 2u };
@@ -66,105 +69,8 @@ void encode32(uint8_t *bytes, uint32_t value)
 	for (uint32_t index = 0u; index < 4u; ++index) bytes[index] = static_cast<uint8_t>(value >> (index * 8u));
 }
 
-class Reader {
-public:
-	explicit Reader(const std::vector<uint8_t> &bytes) : bytes_(bytes) {}
-	bool byte(uint8_t &value) { return take(&value, 1u); }
-	bool unsigned32(uint32_t &value)
-	{
-		uint8_t bytes[4];
-		if (!take(bytes, sizeof(bytes))) return false;
-		value = decode32(bytes);
-		return true;
-	}
-	bool number(double &value)
-	{
-		uint8_t bytes[8];
-		if (!take(bytes, sizeof(bytes))) return false;
-		uint64_t encoded = 0u;
-		for (uint32_t index = 0u; index < 8u; ++index) encoded |= static_cast<uint64_t>(bytes[index]) << (index * 8u);
-		std::memcpy(&value, &encoded, sizeof(value));
-		return true;
-	}
-	bool text(std::string &value, size_t maximum = 4096u)
-	{
-		uint32_t length = 0u;
-		if (!unsigned32(length) || length == 0u || length > maximum || remaining() < length) return false;
-		value.assign(reinterpret_cast<const char *>(bytes_.data() + offset_), length);
-		offset_ += length;
-		return value.find('\0') == std::string::npos;
-	}
-	bool blob(std::vector<uint8_t> &value, size_t maximum)
-	{
-		uint32_t length = 0u;
-		if (!unsigned32(length) || length > maximum || remaining() < length) return false;
-		value.assign(bytes_.begin() + static_cast<ptrdiff_t>(offset_),
-			bytes_.begin() + static_cast<ptrdiff_t>(offset_ + length));
-		offset_ += length;
-		return true;
-	}
-	bool floats(std::vector<float> &value, uint32_t count)
-	{
-		const size_t length = static_cast<size_t>(count) * sizeof(float);
-		if (count > maximumFrameBytes / sizeof(float) || remaining() < length) return false;
-		value.resize(count);
-		std::memcpy(value.data(), bytes_.data() + offset_, length);
-		offset_ += length;
-		return true;
-	}
-	bool done() const { return offset_ == bytes_.size(); }
-private:
-	bool take(void *output, size_t length)
-	{
-		if (remaining() < length) return false;
-		std::memcpy(output, bytes_.data() + offset_, length);
-		offset_ += length;
-		return true;
-	}
-	size_t remaining() const { return bytes_.size() - offset_; }
-	const std::vector<uint8_t> &bytes_;
-	size_t offset_ = 0u;
-};
-
-class Writer {
-public:
-	bool byte(uint8_t value) { return append(&value, 1u); }
-	bool unsigned32(uint32_t value)
-	{
-		uint8_t bytes[4]; encode32(bytes, value); return append(bytes, sizeof(bytes));
-	}
-	bool number(double value)
-	{
-		uint64_t encoded = 0u;
-		std::memcpy(&encoded, &value, sizeof(encoded));
-		uint8_t bytes[8];
-		for (uint32_t index = 0u; index < 8u; ++index) {
-			bytes[index] = static_cast<uint8_t>(encoded >> (index * 8u));
-		}
-		return append(bytes, sizeof(bytes));
-	}
-	bool text(const char *value)
-	{
-		const size_t length = value == nullptr ? 0u : std::strlen(value);
-		return length <= UINT32_MAX && unsigned32(static_cast<uint32_t>(length)) && append(value, length);
-	}
-	bool blob(const void *value, size_t length)
-	{
-		return length <= UINT32_MAX && unsigned32(static_cast<uint32_t>(length)) && append(value, length);
-	}
-	bool floats(const std::vector<float> &value) { return append(value.data(), value.size() * sizeof(float)); }
-	const std::vector<uint8_t> &bytes() const { return bytes_; }
-private:
-	bool append(const void *value, size_t length)
-	{
-		if (length > maximumFrameBytes - bytes_.size()) return false;
-		if (length == 0u) return true;
-		const auto *first = static_cast<const uint8_t *>(value);
-		bytes_.insert(bytes_.end(), first, first + length);
-		return true;
-	}
-	std::vector<uint8_t> bytes_;
-};
+using soundscaper::professional::codec::Reader;
+using soundscaper::professional::codec::Writer;
 
 FrameReadStatus readFrame(std::vector<uint8_t> &body)
 {
@@ -230,7 +136,7 @@ public:
 		uint8_t version = 0u, rawOperation = 0u;
 		if (!reader.byte(version) || !reader.byte(rawOperation) || version != protocolVersion
 			|| rawOperation < static_cast<uint8_t>(Operation::scan)
-			|| rawOperation > static_cast<uint8_t>(Operation::parameterSet)) return false;
+			|| rawOperation > static_cast<uint8_t>(Operation::araCapabilities)) return false;
 		const auto operation = static_cast<Operation>(rawOperation);
 		Writer payload;
 		const auto status = execute(operation, reader, payload);
@@ -247,6 +153,8 @@ public:
 private:
 	soundscaper_pro_status execute(Operation operation, Reader &reader, Writer &writer)
 	{
+		if (operation >= Operation::araConfigure) return soundscaper::professional::dispatchAraPeer(
+			static_cast<uint8_t>(operation), plugin_, reader, writer);
 		switch (operation) {
 		case Operation::scan: return inspect(reader, writer);
 		case Operation::open: return open(reader, writer);
@@ -260,6 +168,7 @@ private:
 		case Operation::parameters: return parameters(reader, writer);
 		case Operation::parameterGet: return parameterGet(reader, writer);
 		case Operation::parameterSet: return parameterSet(reader, writer);
+		default: return SOUNDSCAPER_PRO_UNSUPPORTED;
 		}
 		return SOUNDSCAPER_PRO_UNSUPPORTED;
 	}

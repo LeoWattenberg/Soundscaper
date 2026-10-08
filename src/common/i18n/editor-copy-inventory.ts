@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { ENGLISH_COPY, GERMAN_COPY } from './catalogs.js';
+import { ARA_COPY_BY_LOCALE } from './editor-ara-copy.ts';
 import { acceptableTranslation } from './translation-catalog.js';
 import { MACRO_MANAGER_COPY_BY_LOCALE } from './editor-macro-manager-copy.ts';
 import { TRACK_AUTOMATION_COPY_BY_LOCALE } from './editor-track-automation-copy.ts';
@@ -115,6 +116,7 @@ const { pressure: pressureEnglish, preflightStatus: preflightEnglish, operation:
 const { pressure: pressureGerman, preflightStatus: preflightGerman, operation: operationGerman,
 	...storageGerman } = STORAGE_CAPACITY_COPY_BY_LOCALE.de;
 const inventory = buildEditorCopyInventory(ENGLISH_COPY, GERMAN_COPY, [
+	{ owner: 'ara', ...ARA_COPY_BY_LOCALE },
 	{ owner: 'originalFileOverwrite', ...ORIGINAL_FILE_OVERWRITE_COPY_BY_LOCALE },
 	{ owner: 'about', ...ABOUT_DIALOG_COPY_BY_LOCALE },
 	{ owner: 'macroManager', ...MACRO_MANAGER_COPY_BY_LOCALE },

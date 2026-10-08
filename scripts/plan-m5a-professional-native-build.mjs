@@ -18,7 +18,7 @@ const sourcesRoot = resolve(argumentsByName.sources || 'native-sources');
 const target = argumentsByName.target || `${process.platform === 'darwin' ? 'mac' : process.platform === 'win32' ? 'win' : 'linux'}-${process.arch}`;
 const register = readMilestone5NativeSourceAcquisitions(repositoryRoot);
 const sourceIds = [
-	'electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'vamp-plugin-sdk',
+	'electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'vamp-plugin-sdk', 'ara-api', 'ara-library',
 	'asio-sdk', 'ladspa-sdk', 'lv2',
 ];
 const snapshotRoot = createSoundscaperProfessionalNativeSnapshotRoot(

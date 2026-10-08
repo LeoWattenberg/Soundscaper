@@ -23,6 +23,7 @@ import {
 	verifyMilestone5PackageAuditInputs,
 } from './milestone-5-package-audit-inputs.mjs';
 import { MILESTONE_5_PRODUCTS, milestone5EngineeringScope } from './milestone-5-product-scope.mjs';
+import { authenticateProfessionalNativeBuildOverlay } from './milestone-5-native-build-overlay.mjs';
 
 export const MILESTONE_5_PACKAGE_AUDIT_INPUT_PATHS = Object.freeze({
 	licensingMatrix: 'config/production-licensing-matrix.json',
@@ -132,14 +133,25 @@ async function assembleMilestone5PackageAuditScope(options, dependencies) {
 	const { repositoryRoot, sourceRevision, packageOptions } = options;
 	const engineeringScope = milestone5EngineeringScope(options.productIds);
 	const observedHeadRevision = currentRevision(repositoryRoot);
-	const sourceRevisionBinding = sourceRevision === undefined
+	const overlayRoot = process.env.SOUNDSCAPER_M5_NATIVE_BUILD_RESULT_ROOT?.trim() ?? '';
+	const overlay = overlayRoot === '' ? null : await authenticateProfessionalNativeBuildOverlay({
+		repositoryRoot, sourceRevision, resultsRoot: overlayRoot,
+	});
+	const sourceRevisionBinding = overlay?.sourceBinding ?? (sourceRevision === undefined
 		? deepFreeze({ status: 'unverified-working-tree', sourceRevision: null, observedHeadRevision })
-		: verifyMilestone5PackageAuditSourceRevision(repositoryRoot, sourceRevision);
+		: verifyMilestone5PackageAuditSourceRevision(repositoryRoot, sourceRevision));
+	const sourceRevisionVerified = sourceRevisionBinding.status !== 'unverified-working-tree';
 	const revision = sourceRevisionBinding.sourceRevision ?? observedHeadRevision;
-	const inputRevision = sourceRevisionBinding.status === 'verified-clean-head' ? revision : null;
+	const inputRevision = sourceRevisionVerified ? revision : null;
 	const inputPaths = milestone5PackageAuditInputPaths(engineeringScope);
 	const snapshot = readMilestone5PackageAuditInputSnapshot(repositoryRoot, inputPaths, inputRevision);
 	const { inputs, bytes: inputBytes, inputDigests } = snapshot;
+	if (overlay !== null && engineeringScope.payloadInputKeys.includes('soundscaperProfessionalPayload')) {
+		const path = inputPaths.soundscaperProfessionalPayload;
+		inputs.soundscaperProfessionalPayload = JSON.parse(String(overlay.manifestBytes));
+		inputBytes[path] = overlay.manifestBytes;
+		inputDigests[path] = describeMilestone5PackageAuditBytes(overlay.manifestBytes);
+	}
 	inputs.sourceAcquisitionRegister = inputs.sourceAcquisitions;
 	for (const { manifestPath } of engineeringScope.includeDelegatedSources
 		? inputs.sourceAcquisitionRegister.delegatedSources : []) {
@@ -162,7 +174,7 @@ async function assembleMilestone5PackageAuditScope(options, dependencies) {
 			productId: packageOptions.productId,
 			targetId: packageOptions.targetId,
 		}, { auditPackageArtifactContent: dependencies.auditPackageArtifactContent });
-		if (sourceRevisionBinding.status === 'verified-clean-head') {
+		if (sourceRevisionVerified) {
 			assert(inputs.packageAudit.sourceRevision === sourceRevisionBinding.sourceRevision,
 				'Milestone 5 package runtime manifest does not bind the audited revision.');
 		}
@@ -181,17 +193,21 @@ async function assembleMilestone5PackageAuditScope(options, dependencies) {
 	Object.assign(inputDigests, inputs.sourceAcquisitions.inputDigests, inputs.payloadAudit.inputDigests);
 	ASSEMBLED_PACKAGE_AUDIT_INPUTS.add(inputs);
 	ASSEMBLED_PACKAGE_AUDIT_SOURCE_REVISIONS.set(
-		inputs, sourceRevisionBinding.status === 'verified-clean-head',
+		inputs, sourceRevisionVerified,
 	);
 	const assessment = assessMilestone5PackageAudit(inputs, engineeringScope.products);
-	if (sourceRevisionBinding.status === 'verified-clean-head') {
-		const postflight = verifyMilestone5PackageAuditSourceRevision(repositoryRoot, revision);
+	if (sourceRevisionVerified) {
+		const postflight = overlay === null ? verifyMilestone5PackageAuditSourceRevision(repositoryRoot, revision)
+			: (await authenticateProfessionalNativeBuildOverlay({ repositoryRoot, sourceRevision: revision,
+				resultsRoot: overlayRoot })).sourceBinding;
 		assert(postflight.sourceRevision === sourceRevisionBinding.sourceRevision,
 			'Milestone 5 package-audit source revision changed during assembly.');
+		assert(JSON.stringify(postflight) === JSON.stringify(sourceRevisionBinding),
+			'Milestone 5 package-audit native build overlay changed during assembly.');
 	}
 	const audit = deepFreeze({
 		...assessment,
-		sourceRevision: sourceRevisionBinding.status === 'verified-clean-head' ? revision : null,
+		sourceRevision: sourceRevisionVerified ? revision : null,
 		observedHeadRevision,
 		sourceRevisionBinding,
 		inputDigests,

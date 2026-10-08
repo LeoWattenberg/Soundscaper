@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readDesktopPreloadSource } from './helpers/desktop-preload-source.mjs';
 import test from 'node:test';
 import vm from 'node:vm';
 
@@ -71,7 +71,7 @@ test('Vamp preload rejects path leaks, oversized PCM, and malformed identities b
 async function loadPreload(invocationResults) {
 	let bridge;
 	const invocations = [];
-	const source = await readFile(new URL('../desktop/preload.mjs', import.meta.url), 'utf8');
+	const source = await readDesktopPreloadSource();
 	vm.runInNewContext(source, {
 		AggregateError, ArrayBuffer, Array, BigInt, Float32Array, JSON, Map, Number, Object, Promise,
 		RangeError, Set, String, TypeError, Uint8Array, URL,

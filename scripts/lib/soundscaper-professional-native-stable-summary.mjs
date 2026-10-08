@@ -11,9 +11,33 @@ const REVISION = /^(?:[a-f\d]{40}|[a-f\d]{64})$/u;
 export function validateSoundscaperStableProfessionalNativeSummary(
 	summary, targetId, manifestName, runtimeSourceRevision,
 ) {
+	validateBuiltSummary(summary, targetId, manifestName, runtimeSourceRevision, false);
+}
+
+export function validateFramescaperProfessionalNativeSummary(
+	summary, targetId, manifestName, runtimeSourceRevision,
+) {
+	if (summary == null) return;
+	assert(summary.hostingScope === 'audio-plugin-host', `${manifestName} audio plug-in hosting scope is invalid.`);
+	assert(summary.payload === null && summary.osAudioCodec === null && summary.deliveryFilesystem === null,
+		`${manifestName} audio plug-in hosting cannot carry device or delivery artifacts.`);
+	if (summary.status === 'built') {
+		validateBuiltSummary(summary, targetId, manifestName, runtimeSourceRevision, true);
+		return;
+	}
+	assert(summary.status === 'ci-generated' && summary.target === targetId
+		&& summary.targetSource === 'declared' && summary.blockedBy === null
+		&& summary.sourceAuthentication === null && summary.buildAuthority === null
+		&& summary.buildResult === null && summary.pluginPeer === null && summary.isolation === null,
+	`${manifestName} audio plug-in hosting has invalid unavailable state.`);
+	assertSummaryDescriptor(summary.payloadManifest, `${manifestName} plug-in payload manifest`);
+}
+
+function validateBuiltSummary(summary, targetId, manifestName, runtimeSourceRevision, pluginOnly) {
 	const label = `${manifestName} stable professional native`;
 	assert(REVISION.test(String(runtimeSourceRevision)), `${label} runtime manifest source revision is invalid.`);
 	exactRecord(summary, [
+		...(pluginOnly ? ['hostingScope'] : []),
 		'target', 'targetSource', 'status', 'blockedBy', 'payloadManifest',
 		'sourceAuthentication', 'toolchainIdentity', 'buildAuthority', 'payload',
 		'buildResult', 'osAudioCodec', 'pluginPeer', 'deliveryFilesystem', 'isolation',
@@ -33,17 +57,19 @@ export function validateSoundscaperStableProfessionalNativeSummary(
 	assert(authority.sourceRevision === runtimeSourceRevision,
 		`${label} build source revision does not match the runtime manifest source revision.`);
 	const root = `native/soundscaper-professional-host/prebuilt/${targetId}/`;
-	assert(summary.payload?.name === 'soundscaper_professional.node', `${label} payload is invalid.`);
-	assertSummaryFileDigest(summary.payload, `${label} payload`);
+	if (!pluginOnly) {
+		assert(summary.payload?.name === 'soundscaper_professional.node', `${label} payload is invalid.`);
+		assertSummaryFileDigest(summary.payload, `${label} payload`);
+	}
 	assertSummaryArtifact(summary.buildResult,
 		`${root}soundscaper-professional-native-build-result.json`, `${label} build result`);
 	assertSummaryArtifact(summary.pluginPeer,
 		`${root}${targetNativeExecutableName('soundscaper_professional_peer', targetId)}`,
 		`${label} plug-in peer`);
-	assertSummaryArtifact(summary.deliveryFilesystem,
+	if (!pluginOnly) assertSummaryArtifact(summary.deliveryFilesystem,
 		`${root}soundscaper_delivery_fs${targetId.startsWith('win-') ? '.exe' : ''}`,
 		`${label} delivery filesystem`);
-	if (targetId.startsWith('linux-')) {
+	if (pluginOnly || targetId.startsWith('linux-')) {
 		assert(summary.osAudioCodec === null, `${label} unexpectedly carries an OS audio codec.`);
 	} else {
 		assertSummaryArtifact(summary.osAudioCodec,

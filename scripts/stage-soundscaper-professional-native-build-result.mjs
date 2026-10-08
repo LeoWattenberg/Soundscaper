@@ -9,24 +9,30 @@ import { isAbsolute, resolve } from 'node:path';
 import {
 	stageSoundscaperProfessionalNativeBuildResult,
 } from './lib/soundscaper-professional-native-build-result.mjs';
+import { stageProfessionalNativeBuildResultSet } from './lib/milestone-5-native-build-overlay.mjs';
 
 const values = parseArguments(process.argv.slice(2));
-const result = await stageSoundscaperProfessionalNativeBuildResult({
+const repositoryRoot = canonicalDirectory(resolve(values.root ?? process.cwd()), 'repository root');
+const result = values['result-directory'] === undefined ? await stageSoundscaperProfessionalNativeBuildResult({
 	buildResultRoot: canonicalDirectory(resolve(values.result), 'build-result root'),
-	repositoryRoot: canonicalDirectory(resolve(values.root ?? process.cwd()), 'repository root'),
+	repositoryRoot,
+}) : await stageProfessionalNativeBuildResultSet({
+	resultsRoot: canonicalDirectory(resolve(values['result-directory']), 'build-result directory'), repositoryRoot,
 });
 process.stdout.write(`${JSON.stringify(result, null, '\t')}\n`);
 
 function parseArguments(args) {
 	const output = {};
 	for (const argument of args) {
-		const match = /^--(result|root)=(.+)$/u.exec(argument);
+		const match = /^--(result|result-directory|root)=(.+)$/u.exec(argument);
 		if (!match || output[match[1]] !== undefined) {
 			throw new TypeError(`Unsupported or duplicate argument ${argument}.`);
 		}
 		output[match[1]] = match[2];
 	}
-	if (!output.result) throw new TypeError('--result=... is required.');
+	if (Boolean(output.result) === Boolean(output['result-directory'])) {
+		throw new TypeError('Supply exactly one of --result=... or --result-directory=....');
+	}
 	return output;
 }
 

@@ -3,6 +3,7 @@
 /** Addon-shaped async proxy for the actually isolated professional plug-in peer. */
 
 import { realpath } from 'node:fs/promises';
+import { createAraPluginPeerMethods } from './ara-plugin-peer.ts';
 import { dirname } from 'node:path';
 
 import type { HelperFileIdentity, HelperPluginFormat } from './helper-job-grant.ts';
@@ -123,6 +124,7 @@ export function createSoundscaperProfessionalPluginPeer(options: Readonly<{
 			? Object.freeze([]) : loaderArguments(options.entryArguments);
 	const runtimeReadExecute = Object.freeze([...options.runtimeReadExecute]);
 	return Object.freeze({
+		...createAraPluginPeerMethods(liveInstance),
 		describe: async () => Object.freeze({
 			addonVersion: '1.0.0', buildId: 'soundscaper-professional-isolated-peer', napiVersion: 0,
 			maximumChannelCount: 4096, maximumFrameCount: 65_536, pluginFormats: formats,

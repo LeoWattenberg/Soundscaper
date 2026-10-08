@@ -87,6 +87,36 @@ test('a verified professional Node bridge stages exactly its manifest and payloa
 	);
 });
 
+test('Framescaper stages and authenticates only the isolated audio plugin host closure', async (context) => {
+	const fixture = await builtFixture(context);
+	const release = await verifySoundscaperProfessionalNativePayload({
+		repositoryRoot: fixture.root, target: 'linux-x64',
+	});
+	const resourcesPath = join(fixture.root, 'frames-resources');
+	const outputRoot = professionalNativePayloadOutputRoot(join(resourcesPath, 'runtime'), release);
+	const summary = await stageVerifiedSoundscaperProfessionalNativePayload({ release, outputRoot, pluginOnly: true });
+	assert.equal(summary.hostingScope, 'audio-plugin-host');
+	assert.equal(summary.payload, null);
+	assert.equal(summary.osAudioCodec, null);
+	assert.equal(summary.deliveryFilesystem, null);
+	assert.deepEqual((await readdir(outputRoot)).sort(), [
+		'milestone5-native-isolation-launcher', 'native-isolation-broker-v1.json',
+		'native-isolation-profile-v1.json', 'soundscaper-professional-native-build-result.json',
+		'soundscaper-professional-native-payload-manifest.json', 'soundscaper_professional_peer',
+	]);
+	const location = { applicationRoot: fixture.root, packaged: true, resourcesPath,
+		platform: 'linux', arch: 'x64' };
+	assert.equal((await describeSoundscaperProfessionalNativePayload(location)).status, 'unavailable');
+	const available = await describeSoundscaperProfessionalNativePayload({ ...location, pluginOnly: true });
+	assert.equal(available.status, 'available');
+	assert.equal(available.descriptor.path, available.descriptor.pluginPeer.path);
+	assert.equal(available.descriptor.deliveryFilesystem, null);
+	assert.equal(available.descriptor.sourceAudit.status, 'authenticated');
+	await writeFile(join(outputRoot, 'soundscaper_professional_peer'), 'tampered');
+	assert.equal((await describeSoundscaperProfessionalNativePayload({ ...location, pluginOnly: true })).status,
+		'unavailable');
+});
+
 test('stable packaging consumes neutral inputs from an exact matching build result', async (context) => {
 	const stable = await builtFixture(context);
 	const stableRelease = await verifySoundscaperProfessionalNativePayload({
@@ -322,7 +352,7 @@ function hash(bytes) { return createHash('sha256').update(bytes).digest('hex'); 
 function sourceAuthentication(target) {
 	const sourceRegister = JSON.parse(readFileSync(join(ROOT,
 		'config/milestone-5-native-source-acquisitions.json'), 'utf8'));
-	const ids = ['electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'vamp-plugin-sdk',
+	const ids = ['electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'vamp-plugin-sdk', 'ara-api', 'ara-library',
 		...(target.startsWith('win-') ? ['asio-sdk'] : []),
 		...(target.startsWith('linux-') ? ['ladspa-sdk', 'lv2'] : [])];
 	return {

@@ -416,6 +416,44 @@ void soundscaper_pro_plugin_close_vendor_window(soundscaper_pro_plugin_instance 
 	});
 }
 
+uint32_t soundscaper_pro_plugin_ara_supported(soundscaper_pro_plugin_instance *instance)
+{
+	return instance != nullptr && instance->format == "vst3" && instance->juce != nullptr && instance->juce->araSupported() ? 1u : 0u;
+}
+soundscaper_pro_status soundscaper_pro_plugin_ara_configure(soundscaper_pro_plugin_instance *instance, const soundscaper_pro_ara_clip *clip)
+{
+	if (instance == nullptr || clip == nullptr || instance->juce == nullptr) return SOUNDSCAPER_PRO_UNSUPPORTED;
+	return soundscaper::dispatchJuceMessageTask([&]() { return instance->juce->araConfigure(*clip); });
+}
+soundscaper_pro_status soundscaper_pro_plugin_ara_write(soundscaper_pro_plugin_instance *instance,
+	uint32_t start, const float *const *planes, uint32_t channels, uint32_t frames)
+{
+	if (instance == nullptr || instance->juce == nullptr) return SOUNDSCAPER_PRO_UNSUPPORTED;
+	return soundscaper::dispatchJuceMessageTask([&]() { return instance->juce->araWrite(start, planes, channels, frames); });
+}
+soundscaper_pro_status soundscaper_pro_plugin_ara_bind(soundscaper_pro_plugin_instance *instance)
+{
+	if (instance == nullptr || instance->juce == nullptr) return SOUNDSCAPER_PRO_UNSUPPORTED;
+	return soundscaper::dispatchJuceMessageTask([&]() { return instance->juce->araBind(); });
+}
+soundscaper_pro_status soundscaper_pro_plugin_ara_render(soundscaper_pro_plugin_instance *instance,
+	uint32_t start, float **planes, uint32_t channels, uint32_t frames)
+{
+	if (instance == nullptr || instance->juce == nullptr) return SOUNDSCAPER_PRO_UNSUPPORTED;
+	return soundscaper::dispatchJuceMessageTask([&]() { return instance->juce->araRender(start, planes, channels, frames); });
+}
+soundscaper_pro_status soundscaper_pro_plugin_ara_save(soundscaper_pro_plugin_instance *instance,
+	uint8_t *bytes, size_t capacity, size_t *written)
+{
+	if (instance == nullptr || instance->juce == nullptr || written == nullptr) return SOUNDSCAPER_PRO_STATE_REJECTED;
+	return soundscaper::dispatchJuceMessageTask([&]() { return instance->juce->araSave(bytes, capacity, *written); });
+}
+soundscaper_pro_status soundscaper_pro_plugin_ara_load(soundscaper_pro_plugin_instance *instance, const uint8_t *bytes, size_t length)
+{
+	if (instance == nullptr || instance->juce == nullptr) return SOUNDSCAPER_PRO_STATE_REJECTED;
+	return soundscaper::dispatchJuceMessageTask([&]() { return instance->juce->araLoad(bytes, length); });
+}
+
 void soundscaper_pro_plugin_close(soundscaper_pro_plugin_instance *instance)
 {
 	if (instance == nullptr) return;

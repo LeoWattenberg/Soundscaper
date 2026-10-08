@@ -158,11 +158,13 @@ jobs:
           npm run provision:milestone-5-native-sources -- \
             --root "$RUNNER_TEMP/soundscaper-professional-native-source-cache" \
             --source electron-node-api-headers --source juce --source clap \
-            --source vst3-sdk --source asio-sdk --source lv2
+            --source vst3-sdk --source vamp-plugin-sdk --source ara-api --source ara-library \
+            --source asio-sdk --source ladspa-sdk --source lv2
           npm run provision:milestone-5-native-sources -- --check \
             --root "$RUNNER_TEMP/soundscaper-professional-native-source-cache" \
             --source electron-node-api-headers --source juce --source clap \
-            --source vst3-sdk --source asio-sdk --source lv2
+            --source vst3-sdk --source vamp-plugin-sdk --source ara-api --source ara-library \
+            --source asio-sdk --source ladspa-sdk --source lv2
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: soundscaper-stable-native-source-cache

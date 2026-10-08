@@ -7,7 +7,7 @@ const SUPPORTED_ARCHITECTURES = new Set(['arm64', 'x64']);
 
 export const DESKTOP_SMOKE_EXPECTED_BRIDGE = Object.freeze([
 	'abortWrite',
-	'applyNativeTierControl',
+	'applyNativeTierControl', 'ara',
 	'awaitVideoSourceProbe',
 	'beginDesktopVideoCodecOperation',
 	'beginVideoSourceProbe',

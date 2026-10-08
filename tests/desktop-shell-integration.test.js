@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readDesktopPreloadSource } from './helpers/desktop-preload-source.mjs';
 import test from 'node:test';
 import vm from 'node:vm';
 
@@ -97,7 +97,7 @@ test('sandbox preload exposes only the versioned narrow bridge', async () => {
 		on: () => {},
 		removeListener: () => {},
 	};
-	const source = await readFile(new URL('../desktop/preload.mjs', import.meta.url), 'utf8');
+	const source = await readDesktopPreloadSource();
 	vm.runInNewContext(source, {
 		ArrayBuffer,
 		Object,
@@ -121,7 +121,7 @@ test('sandbox preload exposes only the versioned narrow bridge', async () => {
 	const bridge = exposed.get('scapeDesktop');
 	const baseFields = [
 		'captureExternalMedia', 'resolveExternalMedia', 'prepareOriginalOverwrite', 'releaseOriginalFile',
-		'abortWrite', 'applyNativeTierControl', 'awaitVideoSourceProbe', 'beginDesktopVideoCodecOperation', 'beginVideoSourceProbe', 'beginWrite', 'bindNativeAudioSession', 'calibrateNativeAudioSession',
+		'abortWrite', 'applyNativeTierControl', 'ara', 'awaitVideoSourceProbe', 'beginDesktopVideoCodecOperation', 'beginVideoSourceProbe', 'beginWrite', 'bindNativeAudioSession', 'calibrateNativeAudioSession',
 			'cancelAssistanceModelInstall', 'cancelDesktopAudioCodecOperation', 'cancelDesktopVideoCodecOperation', 'cancelNativeVampAnalyzer', 'cancelVideoSourceProbe',
 		'checkForUpdates', 'chooseExternalFfmpeg', 'chooseFiles', 'chooseLinkedAudioOriginal', 'chooseLinkedVideoOriginal', 'chooseSaveTarget', 'chooseSesxMediaFolder', 'clearExternalFfmpeg', 'clearNativePluginQuarantine', 'closeDesktopVideoCodecInput', 'closeNativeAudioSession', 'closeNativePluginInstance', 'closeNativePluginVendorUi',
 			'configureNativeVampAnalyzer', 'deleteDesktopVideoCodecOperation', 'describeNativeAudioBackend', 'editText', 'executeDesktopVideoCodecOperation', 'finishNativeVampAnalyzer', 'finishWrite',

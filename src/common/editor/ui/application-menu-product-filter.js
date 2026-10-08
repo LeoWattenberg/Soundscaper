@@ -30,7 +30,7 @@ export function filterProductMenus(menus, capabilities, productId) {
 				const framescaperVideoEffectIds = new Set([
 					'framescaper-ofx-manage', 'framescaper-video-effects', 'framescaper-video-transitions',
 					'framescaper-edit-video-mask-matte', 'framescaper-freeze-video',
-					'framescaper-video-finishing',
+					'framescaper-video-finishing', 'ara-clip-editor',
 				]);
 				return {
 					...menu,

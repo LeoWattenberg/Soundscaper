@@ -207,9 +207,20 @@ function validateAudit(audit, identity) {
 	}
 	if (!SOURCE_REVISION.test(String(audit.sourceRevision))
 		|| audit.observedHeadRevision !== audit.sourceRevision
-		|| audit.sourceRevisionBinding?.status !== 'verified-clean-head'
+		|| !['verified-clean-head', 'verified-head-native-build-overlay'].includes(audit.sourceRevisionBinding?.status)
 		|| audit.sourceRevisionBinding.sourceRevision !== audit.sourceRevision) {
 		throw new Error(`Milestone 5 package audit ${auditId(identity)} has an invalid source binding.`);
+	}
+	if (audit.sourceRevisionBinding.status === 'verified-head-native-build-overlay') {
+		const overlay = audit.sourceRevisionBinding.buildResultOverlay;
+		if (overlay?.manifestPath !== 'config/soundscaper-professional-native-payload-manifest.json'
+			|| !SHA256.test(String(overlay.committedManifestSha256)) || !SHA256.test(String(overlay.manifestSha256))
+			|| !Array.isArray(overlay.targets) || overlay.targets.length < 1 || overlay.targets.length > 5
+			|| new Set(overlay.targets.map(({ target }) => target)).size !== overlay.targets.length
+			|| overlay.targets.some(({ target, receiptSha256 }) => !MILESTONE_5_TARGETS.includes(target)
+				|| !SHA256.test(String(receiptSha256)))) {
+			throw new Error(`Milestone 5 package audit ${auditId(identity)} has an invalid native build overlay.`);
+		}
 	}
 	if (typeof audit.repositoryInputsVerified !== 'boolean'
 		|| typeof audit.sourceInputsVerified !== 'boolean'

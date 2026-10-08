@@ -1,6 +1,12 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Bind an extracted package runtime to the independently verified payload audit. */
+/**
+ * Bind an extracted package runtime to the independently verified payload audit.
+ * @param {*} packageAudit
+ * @param {*} payloadAudit
+ * @param {*} inputPaths
+ * @param {{ payloadProducts: readonly string[] } | null} engineeringScope
+ */
 
 export function validateMilestone5PackagePayloadBinding(
 	packageAudit,
@@ -55,9 +61,9 @@ export function validateMilestone5PackagePayloadBinding(
 	}
 	assert(packageAudit.productId === 'framescaper',
 		'Milestone 5 package audit has an unsupported product.');
-	assert(runtime.soundscaperProfessionalNative === null
-		|| runtime.soundscaperProfessionalNative === undefined,
-	'Milestone 5 Framescaper package unexpectedly carries the Soundscaper professional native host.');
+	if (runtime.soundscaperProfessionalNative != null) {
+		bindFramescaperProfessionalPeer(runtime.soundscaperProfessionalNative, payloadAudit, inputPaths, targetId);
+	}
 	assert(runtime.framescaperNativeHosts?.target === targetId,
 		'Milestone 5 Framescaper package native-host target is inconsistent.');
 	for (const [manifestKey, inputKey, summaryKey, label] of [
@@ -75,6 +81,30 @@ export function validateMilestone5PackagePayloadBinding(
 		`Milestone 5 package ${label} target disagrees with the authenticated payload audit.`);
 	}
 }
+
+function bindFramescaperProfessionalPeer(professional, payloadAudit, inputPaths, targetId) {
+	const manifest = payloadAudit.manifests.soundscaperProfessional;
+	const target = exactTarget(manifest, targetId, 'professional audio plug-in host');
+	const descriptor = payloadAudit.inputDigests[inputPaths.soundscaperProfessionalPayload];
+	assert(professional.hostingScope === 'audio-plugin-host'
+		&& professional.payload === null && professional.osAudioCodec === null
+		&& professional.deliveryFilesystem === null,
+	'Milestone 5 Framescaper professional native hosting scope is invalid.');
+	assert(professional.payloadManifest?.id === manifest.id
+		&& professional.payloadManifest.byteLength === descriptor?.byteLength
+		&& professional.payloadManifest.sha256 === descriptor?.sha256,
+	'Milestone 5 package professional native manifest pin disagrees with the authenticated payload audit.');
+	assert(professional.target === targetId && ['declared', 'build-host'].includes(professional.targetSource)
+		&& professional.status === target.status && professional.blockedBy === target.blockedBy
+		&& sameJson(professional.sourceAuthentication, target.sourceAuthentication)
+		&& professional.toolchainIdentity === target.toolchainIdentity
+		&& sameJson(professional.buildResult, target.buildResult)
+		&& sameJson(professional.pluginPeer, target.pluginPeer)
+		&& sameJson(professional.isolation, target.isolation),
+	'Milestone 5 package professional native peer closure disagrees with the authenticated payload audit.');
+}
+
+function sameJson(left, right) { return JSON.stringify(left) === JSON.stringify(right); }
 
 function exactTarget(manifest, targetId, label) {
 	const matches = manifest.targets.filter(({ id }) => id === targetId);

@@ -249,6 +249,8 @@ test('the professional plug-in RPC executes only in the enforced isolated child'
 			execFileAsync('c++', [
 				'-std=c++20', '-static', '-O2', '-Wall', '-Wextra', '-Wpedantic', '-Werror',
 				join(ROOT, 'native/soundscaper-professional-host/src/professional_host_peer.cpp'),
+				join(ROOT, 'native/soundscaper-professional-host/src/professional_ara_peer.cpp'),
+				join(ROOT, 'native/soundscaper-professional-host/src/ara_clip_data.cpp'),
 				join(ROOT, 'native/soundscaper-professional-host/src/professional_host_containment_probe.cpp'),
 				stubPath,
 			'-I', join(ROOT, 'native/soundscaper-professional-host/src'), '-o', peerPath,
@@ -310,6 +312,21 @@ test('the professional plug-in RPC executes only in the enforced isolated child'
 	await assert.rejects(plugin.closePluginVendorWindow(instance, `window_02.${'b'.repeat(64)}`), /refused/iu);
 	assert.equal(await plugin.closePluginVendorWindow(instance, windowCapability), true);
 	assert.equal(await plugin.closePluginInstance(instance), true);
+	const araInstance = await plugin.openPluginInstance(
+		fixture.allowedPath, 48_000, 256, 'vst3', 'fixture:b', contextValue,
+	);
+	assert.deepEqual(await plugin.araCapabilities(araInstance), { supported: true });
+	await plugin.configureAra(araInstance, { sourceId: 'isolated-source', name: 'Isolated clip',
+		sampleRate: 48_000, channelCount: 2, frameCount: 2, sourceStartSeconds: 0,
+		playbackStartSeconds: 1, durationSeconds: 2 / 48_000 });
+	await plugin.writeAraPcm(araInstance, { startFrame: 0, channels: input });
+	await plugin.bindAra(araInstance);
+	const araRender = await plugin.renderAra(araInstance, { startFrame: 0, frameCount: 2, channelCount: 2 });
+	assert.deepEqual(araRender.channels.map((plane) => [...plane]), [[2, 4], [6, 8]]);
+	assert.equal(araRender.latencyFrames, 32);
+	assert.deepEqual(await plugin.saveAraState(araInstance), Uint8Array.of(1, 2, 3));
+	assert.equal(await plugin.loadAraState(araInstance, Uint8Array.of(3, 2, 1)), true);
+	assert.equal(await plugin.closePluginInstance(araInstance), true);
 });
 
 test('caller-supplied review metadata and an unverified launcher cannot mount execution', {

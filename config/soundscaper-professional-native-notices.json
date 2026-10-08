@@ -76,6 +76,32 @@
 			]
 		},
 		{
+			"id": "ara-api",
+			"targets": ["linux-x64", "linux-arm64", "mac-arm64", "win-x64", "win-arm64"],
+			"notices": [
+				{
+					"name": "ARA-API-Apache-2.0.txt",
+					"origin": "authenticated-source",
+					"path": "LICENSE.txt",
+					"byteLength": 11357,
+					"sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+				}
+			]
+		},
+		{
+			"id": "ara-library",
+			"targets": ["linux-x64", "linux-arm64", "mac-arm64", "win-x64", "win-arm64"],
+			"notices": [
+				{
+					"name": "ARA-Library-Apache-2.0.txt",
+					"origin": "authenticated-source",
+					"path": "LICENSE.txt",
+					"byteLength": 11357,
+					"sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+				}
+			]
+		},
+		{
 			"id": "asio-sdk",
 			"targets": ["win-x64", "win-arm64"],
 			"notices": [
