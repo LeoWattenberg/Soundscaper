@@ -108,6 +108,7 @@ export const EDITOR_ACTION_FUNCTION_NAMES = defineEditorActionFunctionNames([
 	'listProjects',
 	'makeStereoTrack',
 	'materializeFreesoundUploadClip',
+	'publishBlenderTracks',
 	'mixAndRenderTracks',
 	'moveClips',
 	'moveClipsToNewTrack',

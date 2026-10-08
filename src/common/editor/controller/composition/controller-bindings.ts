@@ -55,6 +55,7 @@ export function createControllerBindings<RenderEngine extends ClipTimePitchRende
 	const { load: loadPreferences } = deferControllerMethods(() => services.preferences(), ['load']);
 	const { switchProject } = deferControllerMethods(() => services.projectSwitchService(), ['switchProject']);
 	const { materializeFreesoundUploadClip } = deferAsyncControllerMethods(() => services.tracks(), ['materializeFreesoundUploadClip']);
+	const { publishBlenderTracks } = deferAsyncControllerMethods(() => services.tracks().export, ['publishBlenderTracks']);
 	const { sampleEditingAvailable, setSampleEditMode } = deferControllerMethods(() => services.clips().sampleEdit, ['sampleEditingAvailable', 'setSampleEditMode']);
 	const { applySamplePencil, smoothSelectedSamples } = deferControllerMethods(() => services.clips(), ['applySamplePencil', 'smoothSelectedSamples']);
 	const { updateRecordingDeviceRows } = deferControllerMethods(() => services.recording().routing, ['updateRecordingDeviceRows']);
@@ -154,7 +155,7 @@ export function createControllerBindings<RenderEngine extends ClipTimePitchRende
 		revertFactorySettings, sessionTab, persistActiveSessionUiState, setTrackChannelHeightRatio,
 		dismissAup4CompatibilitySummary,
 		cacheSourceBuffer, clearWaveformPcmWindows,
-		mixAndRenderTracks, materializeFreesoundUploadClip, resampleTrack, resampleClip, swapTrackChannels,
+		mixAndRenderTracks, materializeFreesoundUploadClip, publishBlenderTracks, resampleTrack, resampleClip, swapTrackChannels,
 		splitStereoTrack, makeStereoTrack, splitAtFrame,
 		selectedTracksTimeRange, toggleRmsWaveform, toggleVerticalRulers, toggleScrollViewToPlayhead,
 		togglePinnedPlayhead, toggleRulerPlayback, setZoom,

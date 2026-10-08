@@ -10,6 +10,7 @@ import createApplicationMenus from '../application-menus.js';
 import { createDesktopHostMenuItems } from '../desktop-host-menu.ts';
 import { createVideoTrimApplicationMenuActions } from './video-trim-application-menu-actions.ts';
 import { createParallelStackMenuRuntime } from './parallel-stack-menu-runtime.ts';
+import { createBlenderWorkspaceMenuPort } from './blender-workspace-menu.ts';
 import {
 	createProductWorkspaceApplicationMenuRuntime,
 	useProductNativeServicesMenuRefresh,
@@ -120,6 +121,7 @@ export function createWorkspaceApplicationMenus({
 			locale,
 		copy,
 		desktopHost,
+		blender: createBlenderWorkspaceMenuPort({ controller, productId, fileService, copy, run }),
 		desktopOriginalOverwrite: fileService.isDesktop === true ? {
 			originalFile: () => controller?.actions?.export?.originalFile?.() ?? null,
 			available: () => controller?.actions?.export?.overwriteOriginalAvailable?.() === true,

@@ -6,12 +6,15 @@ import {
 	type ExportSnapshotRendererRuntime,
 } from './export-snapshot-renderer.ts';
 import type { EditorExportState } from './export-state.ts';
+import type { BlenderRenderProject, BlenderPublishRequest } from './blender-publication.ts';
+import type { RenderedAudio } from '../../rendered-audio-channels.ts';
 
 export type DeferredEditorExportModule = typeof import('./internal/export-service.ts');
 type EditorExportService = ReturnType<DeferredEditorExportModule['createEditorExportService']>;
 
 export interface DeferredEditorExportRuntime extends ExportSnapshotRendererRuntime {
 	readonly state: EditorExportState;
+	readonly getProject?: () => object | null | undefined;
 }
 
 export type DeferredEditorExportLoader = () => Promise<DeferredEditorExportModule>;
@@ -61,6 +64,12 @@ export function createDeferredEditorExportService<Runtime extends DeferredEditor
 	};
 	return createDeferredModuleFacade(loadService, DEFERRED_EXPORT_METHOD_NAMES, {
 		eager: {
+			publishBlenderTracks: async (request: BlenderPublishRequest) => {
+				const { publishBlenderTracks } = await import('./blender-publication.ts');
+				return await publishBlenderTracks({ getProject: () => runtime.state.disposed ? null : runtime.getProject?.() as BlenderRenderProject | null | undefined,
+					renderSnapshot: async (project, range, signal) => await exportSnapshotRenderer.renderSnapshot(project, range, undefined, signal) as RenderedAudio,
+				}, request);
+			},
 			persistentAudioDeliveryAvailable: ((): boolean => (
 				loadedService ? loadedService.persistentAudioDeliveryAvailable() : servicePromise === null
 			)) satisfies EditorExportService['persistentAudioDeliveryAvailable'],

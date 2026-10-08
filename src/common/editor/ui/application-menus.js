@@ -21,6 +21,7 @@ import { createPitchAndTempoApplicationMenuItems } from './pitch-tempo-applicati
 import { createLabeledAudioApplicationMenuItems } from './labeled-audio-application-menu.ts';
 import { createPrivacyPolicyMenuItem } from './privacy-policy-menu.ts';
 import { createInstallApplicationMenuItem } from './install-application-menu.ts';
+import { createBlenderApplicationMenuItems } from './blender-application-menu.ts';
 import { projectTrackFolderMediaStateV12 } from '../track-folder-media-runtime.ts';
 import { selectLabeledAudioRegions } from '../labeled-audio-regions.ts';
 import { createVisibleVideoTrackPredicate } from '../video-track-visibility.js';
@@ -72,6 +73,7 @@ export default function createApplicationMenus({
 	copy,
 	desktopHost = { view: [], tools: [], help: [] },
 	desktopOriginalOverwrite = /** @type {import('./original-file-overwrite-menu.ts').OriginalFileOverwriteMenuPort | null} */ (null),
+	blender = /** @type {import('./blender-application-menu.ts').BlenderMenuPort | null} */ (null),
 	project,
 	snapshot,
 	blocked,
@@ -131,6 +133,8 @@ export default function createApplicationMenus({
 	// nothing to render — greying it on missing audio alone would strip a
 	// picture-only project of its one route into the export.
 	const exportableTimelineMedia = projectHasTimelineAudio(project) || projectHasTimelineVideo(project);
+	const blenderItems = createBlenderApplicationMenuItems(blender, { copy,
+		blocked: blocked || Boolean(snapshot.importing || snapshot.recording || snapshot.recordingStarting), materialAvailable: projectHasTimelineAudio(project) });
 	const preferences = snapshot.preferences;
 	const effectTargeting = resolveEffectMenuTargeting({
 		project, preferences, selectedTrack, selectedAudioTrack, selectionActive, clipSelectionActive,
@@ -234,6 +238,7 @@ export default function createApplicationMenus({
 					label: copy.exportOther,
 					parityLabel: copy.audacityParityMatchExportOther,
 					items: [
+						...blenderItems.file,
 						...(productId === 'soundscaper' ? [{ id: 'save-aup3', label: copy.saveAsAup3, preserveLabel: true, disabled: blocked, onClick: actions.saveAup3 }] : []),
 						...(productId === 'soundscaper' ? [{ id: 'save-aup4', label: copy.saveAsAup4, preserveLabel: true, disabled: blocked, onClick: actions.saveAup4 }] : []),
 						{
@@ -463,6 +468,7 @@ export default function createApplicationMenus({
 			id: 'tools',
 			label: copy.toolsMenu,
 			items: [
+				...blenderItems.tools,
 				...createImportAnalysisToolMenuItems(importAnalysisMenuContext),
 				...createLocalAssistanceMenuItems({ desktopAvailable: typeof actions.openLocalAssistance === 'function', capabilityActive: capabilities.assistanceAssets === true, copy }, { open: actions.openLocalAssistance, openIndexedSearch: actions.openLocalAssistanceIndexedSearch }),
 				...createLocalModelManagerMenuItems({ desktopAvailable: typeof actions.openLocalModels === 'function', copy }, { open: actions.openLocalModels }),

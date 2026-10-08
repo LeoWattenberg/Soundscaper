@@ -4,6 +4,7 @@
 export class DesktopRendererOwnershipCleanup {
 	#drains = new WeakMap();
 	#revokeCapture;
+	#revokeBlender;
 	#revokeAssistanceSemanticSearch;
 	#revokeDesktopCodecs;
 	#revokeSoundscaperDelivery;
@@ -18,8 +19,9 @@ export class DesktopRendererOwnershipCleanup {
 	#reportError;
 	#saves;
 
-	constructor({ linkedVideoLocators, ownership, projectLibraryIpc, readCapabilities, originalFiles, reportError, revokeAssistanceSemanticSearch, revokeCapture, revokeDesktopCodecs, revokeSoundscaperDelivery, revokeNativeServices, revokeNativeTier, saves, sesxMediaSessions }) {
+	constructor({ linkedVideoLocators, ownership, projectLibraryIpc, readCapabilities, originalFiles, reportError, revokeAssistanceSemanticSearch, revokeCapture, revokeBlender, revokeDesktopCodecs, revokeSoundscaperDelivery, revokeNativeServices, revokeNativeTier, saves, sesxMediaSessions }) {
 		this.#revokeCapture = revokeCapture;
+		this.#revokeBlender = revokeBlender;
 		this.#revokeAssistanceSemanticSearch = revokeAssistanceSemanticSearch;
 		this.#revokeDesktopCodecs = revokeDesktopCodecs;
 		this.#revokeSoundscaperDelivery = revokeSoundscaperDelivery;
@@ -60,6 +62,7 @@ export class DesktopRendererOwnershipCleanup {
 	async #drainOwner(owner) {
 		const results = await Promise.allSettled([
 			this.#revokeCapture?.(owner),
+			this.#revokeBlender?.(owner),
 			this.#revokeAssistanceSemanticSearch?.(owner),
 			this.#revokeDesktopCodecs?.(owner),
 			this.#revokeSoundscaperDelivery?.(owner),
