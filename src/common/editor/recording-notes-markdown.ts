@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { formatRecordingNotesCode, recordingNotesCodeReader } from './recording-notes-code.ts';
+
 export type RecordingNotesFormat = 'bold' | 'italic' | 'heading' | 'bullets' | 'numbered-list' | 'code';
 
 export interface RecordingNotesSelection {
@@ -109,8 +111,9 @@ export function formatRecordingNotes(value: string, selectionStart: number, sele
 	format: RecordingNotesFormat, placeholder: string): RecordingNotesSelection {
 	const start = selectionOffset(selectionStart, value.length);
 	const end = Math.max(start, selectionOffset(selectionEnd, value.length));
-	if (format === 'bold' || format === 'italic' || format === 'code') {
-		return formatInline(value, start, end, format === 'bold' ? '**' : format === 'italic' ? '*' : '`', placeholder);
+	if (format === 'code') return formatRecordingNotesCode(value, start, end, placeholder);
+	if (format === 'bold' || format === 'italic') {
+		return formatInline(value, start, end, format === 'bold' ? '**' : '*', placeholder);
 	}
 	return formatLines(value, start, end, format, placeholder);
 }
@@ -130,6 +133,7 @@ function appendText(content: RecordingNotesInline[], text: string): void {
 function parseInline(text: string): InlineFrame {
 	const root: InlineFrame = { marker: '', content: [] };
 	const stack: InlineFrame[] = [root];
+	const readCode = recordingNotesCodeReader(text);
 	let position = 0;
 	while (position < text.length) {
 		const frame = stack[stack.length - 1] as InlineFrame;
@@ -139,12 +143,16 @@ function parseInline(text: string): InlineFrame {
 			continue;
 		}
 		if (text[position] === '`') {
-			const end = text.indexOf('`', position + 1);
-			if (end > position + 1) {
-				frame.content.push({ kind: 'code', text: text.slice(position + 1, end) });
-				position = end + 1;
-				continue;
+			const code = readCode(position);
+			if (code) {
+				frame.content.push({ kind: 'code', text: code.text });
+				position = code.end;
+			} else {
+				const start = position;
+				while (text[position] === '`') position += 1;
+				appendText(frame.content, text.slice(start, position));
 			}
+			continue;
 		}
 		const character = text[position] || '';
 		if (character === '*' || character === '_') {
