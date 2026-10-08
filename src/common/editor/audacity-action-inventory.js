@@ -216,7 +216,7 @@ export const AUDACITY_ACTION_DEFINITIONS = [
 	disabled('expand-all-tracks', 'Expand all tracks', ['View > Zoom'], DISABLED_REASONS.superseded, { source: UPSTREAM.project, menuVisible: false }),
 	implemented('toggle-effects', 'Effects', ['Window'], 'panels.effects', { enableWhen: 'project-opened' }),
 	implemented('toggle-history', 'History', ['View'], 'panels.history', { enableWhen: 'project-opened' }),
-	implemented('fullscreen', 'Fullscreen', ['View'], 'workspace.fullscreen', { shortcut: 'F11', source: UPSTREAM.menu }),
+	implemented('fullscreen', 'Fullscreen', ['Window'], 'workspace.fullscreen', { shortcut: 'F11', source: UPSTREAM.menu }),
 	implemented('toggle-clipping-in-waveform', 'Show clipping in waveform', ['View'], 'view.toggleClipping', { enableWhen: 'project-opened', source: UPSTREAM.projectScene }),
 	implemented('toggle-rms-in-waveform', 'Show RMS in waveform', ['View'], 'view.toggleRms', { enableWhen: 'project-opened', source: UPSTREAM.projectScene }),
 	implemented('toggle-vertical-rulers', 'Show vertical rulers', ['View'], 'view.toggleVerticalRulers', { enableWhen: 'project-opened', source: UPSTREAM.projectScene }),

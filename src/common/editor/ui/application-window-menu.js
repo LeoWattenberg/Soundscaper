@@ -9,7 +9,7 @@ import {
 } from './workspace/workspace-panel-model.ts';
 import { workspaceSwitcherOptions } from './workspace/workspace-switcher-options.ts';
 
-/** Projects, workspace presets and panel visibility share one flat Window menu. */
+/** Projects, workspace presets, panels and fullscreen share one flat Window menu. */
 export function createApplicationWindowMenu(context, viewMenu, actions) {
 	const {
 		blocked, capabilities, copy, divider, effectsPanelOpen, preferences, productId,
@@ -67,6 +67,8 @@ export function createApplicationWindowMenu(context, viewMenu, actions) {
 						visibilityToggle: true,
 						onClick: () => viewMenu.togglePanel(panelId),
 					}, productItems)),
+			divider(),
+			{ id: 'fullscreen', label: copy.fullscreen, shortcut: 'F11', onClick: actions.fullscreen },
 		],
 	};
 }

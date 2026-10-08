@@ -205,7 +205,7 @@ Product availability follows each product profile’s command filters and each l
 | Freeze Video | `framescaper-freeze-video` | — | Effect | Framescaper | Soundscaper local |
 | Freeze track | `soundscaper-freeze-track` | — | Tracks > Freeze | Soundscaper | Soundscaper local |
 | Full resolution | `video-preview-resolution-full` | — | View > Video preview resolution | Soundscaper, Framescaper | Soundscaper local |
-| Fullscreen | `fullscreen` | F11 | View | Soundscaper, Framescaper | Audacity |
+| Fullscreen | `fullscreen` | F11 | Window | Soundscaper, Framescaper | Audacity |
 | Generate | `framescaper-proxy-generate` | — | Tools > Proxies | Framescaper | Soundscaper local |
 | Generate Editorial Text | `assistance-task-generate-editorial-text` | — | Generate | Soundscaper, Framescaper | Soundscaper local |
 | Get effects | `nyquist-get-effects` | — | Effect > Nyquist | Soundscaper | Soundscaper local |

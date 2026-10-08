@@ -15,6 +15,7 @@ import { ENGLISH_COPY, GERMAN_COPY } from '../src/common/i18n/catalogs.js';
 interface MenuItem {
 	readonly id?: string;
 	readonly label?: string;
+	readonly shortcut?: string;
 	readonly checked?: boolean;
 	readonly disabled?: boolean;
 	readonly documentationId?: string;
@@ -38,6 +39,7 @@ function fixture({ productId = 'soundscaper', german = false, blocked = false,
 		project, selectedTrackId: null,
 		...(tabs ? { projectTabs: projects } : { projects }),
 		preferences: {
+			shortcuts: { fullscreen: ['F11'] },
 			workspace: { activeId: 'podcast', custom: [{ id: 'podcast', name: 'Podcast' }],
 				panels: Object.fromEntries(WORKSPACE_PANEL_IDS.map((id) => [id, { visible: id === 'history' }])) },
 			view: {},
@@ -58,6 +60,7 @@ function fixture({ productId = 'soundscaper', german = false, blocked = false,
 		},
 		actions: new Proxy({
 			switchProject: (id: string) => { calls.push(`project:${id}`); },
+			fullscreen: () => { calls.push('fullscreen'); },
 		} as Record<string, unknown>, { get: (target, key) => target[key as string] ?? (() => undefined) }),
 	};
 	const menus = (workspaceRuntime ? createWorkspaceApplicationMenus({
@@ -69,18 +72,19 @@ function fixture({ productId = 'soundscaper', german = false, blocked = false,
 		} },
 		run: (operation: () => unknown) => operation(),
 		toggleWorkspacePanel: (id: string) => { calls.push(`panel:${id}`); },
+		toggleFullscreen: () => { calls.push('fullscreen'); },
 	} as unknown as Parameters<typeof createWorkspaceApplicationMenus>[0]) : createApplicationMenus(input)) as readonly MenuItem[];
 	const window = menus.find((menu) => menu.id === 'window');
 	assert.ok(window, 'the application has a Window menu');
 	return { menus, window, items: window.items ?? [], calls };
 }
 
-test('Window lists projects, workspaces and panels as flat groups separated by two dividers', () => {
+test('Window lists projects, workspaces, panels and fullscreen as separate flat groups', () => {
 	const { menus, items } = fixture();
 	assert.equal(menus.find((menu) => menu.id === 'view')?.items?.some((item) => item.id === 'panels'), false);
 	assert.ok(items.every((item) => item.items === undefined));
 	const dividers = items.flatMap((item, index) => item.divider ? [index] : []);
-	assert.deepEqual(dividers, [2, 8]);
+	assert.deepEqual(dividers, [2, 8, items.length - 2]);
 	assert.deepEqual(items.slice(0, 2).map((item) => item.label), ['First project', 'Second project']);
 	assert.deepEqual(items.slice(3, 8).map((item) => item.id), [
 		'workspace-modern', 'workspace-audacity', 'workspace-music', 'workspace-classic', 'workspace-podcast',
@@ -88,6 +92,29 @@ test('Window lists projects, workspaces and panels as flat groups separated by t
 	assert.equal(items.some((item) => item.id === 'toggle-tracks'), false);
 	assert.ok(items.some((item) => item.id === 'panel-clip-properties'));
 	assert.equal(menus.at(-2)?.id, 'window');
+});
+
+for (const productId of ['soundscaper', 'framescaper']) {
+	test(`${productId} offers localized fullscreen only in Window and retains its F11 action`, () => {
+		for (const german of [false, true]) for (const workspaceRuntime of [false, true]) {
+			const { menus, items, calls } = fixture({ productId, german, workspaceRuntime });
+			const fullscreen = items.find((item) => item.id === 'fullscreen');
+			assert.ok(fullscreen);
+			assert.equal(fullscreen.label, german ? 'Vollbild' : 'Fullscreen');
+			assert.equal(fullscreen.shortcut, 'F11');
+			const view = menus.find((menu) => menu.id === 'view');
+			assert.equal(view?.items?.some((item) => item.id === 'fullscreen'), false);
+			assert.notEqual(view?.items?.at(-1)?.divider, true);
+			fullscreen.onClick?.();
+			assert.deepEqual(calls, ['fullscreen']);
+		}
+	});
+}
+
+test('fullscreen documents Window as its location and keeps its F11 shortcut', () => {
+	const action = audacityActionDefinition('fullscreen');
+	assert.deepEqual(action?.locations, ['Window']);
+	assert.equal(action?.shortcut, 'F11');
 });
 
 test('Window marks active projects and workspaces and invokes their switching actions', () => {
@@ -160,7 +187,7 @@ test('Window disables project switching while busy and supports the projects fal
 test('Window omits a leading divider with no open projects and deduplicates project tabs', () => {
 	const empty = fixture({ projectEntries: [] }).items;
 	assert.equal(empty[0]?.id, 'workspace-modern');
-	assert.equal(empty.filter((item) => item.divider).length, 1);
+	assert.equal(empty.filter((item) => item.divider).length, 2);
 	const duplicate = fixture({ projectEntries: [
 		{ id: 'one', title: 'First project' }, { id: 'one', title: 'First project' },
 		{ id: '', title: 'Invalid project' },

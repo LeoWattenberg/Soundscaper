@@ -368,7 +368,7 @@ export default function createApplicationMenus({
 			capabilities, clipSelectionNavigationMenus, compactLayout, copy, desktopHost, divider, editBlocked,
 			preferences, productItems, project,
 			editSelectionActive, showArmControls, snapshot, uiFlags,
-		}, viewMenu, actions),
+		}, viewMenu),
 		{
 			id: 'tracks',
 			label: copy.tracksMenu,
