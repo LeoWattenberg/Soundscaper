@@ -27,8 +27,9 @@ test('a configured modified command leaves the stereo divider unchanged', async 
 	await divider.press('ArrowUp');
 	await expect(divider).toHaveAttribute('aria-valuenow', '45');
 	await chooseCommandAction(page, editor, 'Edit', 'Undo');
-	await expect(divider).toHaveAttribute('aria-valuenow', '50');
-	await expect(editor.locator('[data-label-track]')).toHaveCount(1);
+	await expect(divider).toHaveAttribute('aria-valuenow', '45');
+	await expect(editor.locator('[data-label-track]')).toHaveCount(0);
 	await chooseCommandAction(page, editor, 'Edit', 'Redo');
 	await expect(divider).toHaveAttribute('aria-valuenow', '45');
+	await expect(editor.locator('[data-label-track]')).toHaveCount(1);
 });
