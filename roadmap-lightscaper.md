@@ -159,8 +159,8 @@ Architectural constraints that still drive the sequence:
 - original custody and catalog persistence have separate owners and must
   reconcile interrupted publication before a library is exposed;
 - catalog-scale browsing uses bounded indexed pages rather than whole-project
-  history snapshots; full library view/filter/organization workflows and their
-  synthetic UI budgets remain L3 work; and
+  history snapshots; remaining library view/filter/organization workflows and
+  hosted validation of the measured synthetic budgets remain L3 work; and
 - origins have separate storage: cross-product editing transfers an
   authenticated editable copy under the handoff contract.
 
@@ -290,9 +290,14 @@ real-library scale.
   capture-time edit, batch rename, missing-media detection and relink through
   the existing relink path, and catalog snapshot/backup through Scape
   export.
-- **Shared — Planned:** a pinned synthetic large-library fixture, with its
-  import, scroll, filter, and search measurements and thresholds recorded in
-  the quality-diagnostics configuration and run in CI.
+- **Shared — In progress:** a digest-pinned 20,000-photo synthetic fixture
+  measures managed import, rendered-grid scrolling, keyword filtering, and
+  distant search against recorded quality-diagnostics thresholds. All nine
+  threshold checks passed locally in Chromium and Firefox; diagnostics
+  collection is validated and the hosted CI workload is registered. An actual
+  hosted CI run remains outstanding. Repeated 2×2 media isolates catalog
+  scaling; this baseline does not measure large-image decoding or
+  representative camera working sets.
 - **Shared — Optional:** merge-on-import of a catalog Scape archive into an open
   catalog.
 
