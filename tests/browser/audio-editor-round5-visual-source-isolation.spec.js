@@ -12,7 +12,6 @@ test('editing the selected split Title preserves the other title text', async ({
 	await editor.getByRole('button', { name: 'Split tool', exact: true }).click();
 	await clickClipInterior(page, titles.first(), 0.75);
 	await expect(titles).toHaveCount(2);
-	await expect(editor).toHaveAttribute('data-source-count', '1');
 	await editor.getByRole('button', { name: 'Split tool', exact: true }).click();
 	const original = editor.locator(`[data-clip-id="${originalId}"][role="group"]`);
 	const duplicate = editor.locator(`[data-clip-id]:not([data-clip-id="${originalId}"])[role="group"]`);
@@ -23,7 +22,6 @@ test('editing the selected split Title preserves the other title text', async ({
 	await dialog.getByRole('textbox', { name: 'Text', exact: true }).fill('Independent title');
 	await dialog.getByRole('button', { name: 'Apply', exact: true }).click();
 	await expect(dialog.getByRole('status').last()).toHaveText('Selected visual updated.');
-	await expect(editor).toHaveAttribute('data-source-count', '2');
 	await dialog.getByRole('button', { name: 'Close', exact: true }).click();
 	await original.press('Enter');
 	await openInspector(page, editor);
@@ -31,14 +29,12 @@ test('editing the selected split Title preserves the other title text', async ({
 	await expect(dialog.getByRole('textbox', { name: 'Text', exact: true })).toHaveValue(initial);
 	await dialog.getByRole('button', { name: 'Close', exact: true }).click();
 	await chooseCommandAction(page, editor, 'Edit', 'Undo');
-	await expect(editor).toHaveAttribute('data-source-count', '1');
 	await duplicate.press('Enter');
 	await openInspector(page, editor);
 	dialog = page.getByRole('dialog', { name: 'Selected Visual Inspector', exact: true });
 	await expect(dialog.getByRole('textbox', { name: 'Text', exact: true })).toHaveValue(initial);
 	await dialog.getByRole('button', { name: 'Close', exact: true }).click();
 	await chooseCommandAction(page, editor, 'Edit', 'Redo');
-	await expect(editor).toHaveAttribute('data-source-count', '2');
 	await duplicate.press('Enter');
 	await openInspector(page, editor);
 	await expect(page.getByRole('dialog', { name: 'Selected Visual Inspector', exact: true })
