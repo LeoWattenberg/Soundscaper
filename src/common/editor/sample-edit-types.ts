@@ -37,10 +37,14 @@ export interface CreatePencilSampleEditsRequest {
 	readonly maximumFrames?: number;
 }
 
-export interface SmoothSampleRange {
+export interface SampleSmoothingSegment {
 	readonly startFrame: number;
 	readonly endFrame: number;
+}
+
+export interface SmoothSampleRange extends SampleSmoothingSegment {
 	readonly channel: number | null;
+	readonly segments?: readonly SampleSmoothingSegment[];
 }
 
 export interface CreateSmoothSampleRangeRequest {
