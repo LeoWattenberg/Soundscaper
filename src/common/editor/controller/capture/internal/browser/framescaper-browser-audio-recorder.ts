@@ -3,6 +3,7 @@
 import { createRecordingController } from '../../../../recording.js';
 import { createFramescaperBrowserAudioProcessorRecorder } from './framescaper-browser-audio-processor-recorder.ts';
 import { createFramescaperCapturePcmFrameMapper } from '../framescaper-capture-pcm-frame-mapper.ts';
+import { acquireFramescaperCaptureAudioContext, type FramescaperCaptureAudioContextFactory } from './framescaper-capture-audio-context.ts';
 import type { CapturePcmChunk } from '../framescaper-capture-pcm-packetizer.ts';
 const CAPTURE_AUDIO_CHANNEL_COUNT_MAXIMUM = 32;
 const CAPTURE_AUDIO_SAMPLE_RATE_MAXIMUM = 768_000;
@@ -83,6 +84,7 @@ export interface FramescaperBrowserAudioRecorderOptions {
 	readonly track: FramescaperAudioTrackLike;
 	readonly stream: unknown;
 	readonly context?: Readonly<{ sampleRate: number }> | null;
+	readonly createAudioContext?: FramescaperCaptureAudioContextFactory;
 	/** Undefined probes the runtime constructor; null explicitly disables it. */
 	readonly MediaStreamTrackProcessor?: FramescaperAudioTrackProcessorConstructor | null;
 	readonly recordingControllerFactory?: FramescaperWorkletRecordingControllerFactory;
@@ -204,17 +206,15 @@ async function createWorkletRecorder(input: Readonly<{
 	if (!options.context) {
 		throw new Error('Capture audio requires an AudioWorklet context.');
 	}
-	if (options.context.sampleRate !== format.sampleRate) {
-		throw new Error('Capture AudioWorklet context must retain the source track sample rate.');
-	}
+	const context = await acquireFramescaperCaptureAudioContext(options.context, format.sampleRate, options.createAudioContext);
 	const factory = options.recordingControllerFactory
 		?? (createRecordingController as unknown as FramescaperWorkletRecordingControllerFactory);
 	const frameMapper = createFramescaperCapturePcmFrameMapper();
 	let state: FramescaperCaptureAudioRecorderState = 'ready';
 	let stopPromise: Promise<void> | null = null;
 	let disposePromise: Promise<void> | null = null;
-	const delegate = await factory({
-		context: options.context,
+	const delegate = await Promise.resolve().then(() => factory({
+		context: context.context,
 		stream: options.stream,
 		channelCount: format.channelCount,
 		chunkFrames,
@@ -226,7 +226,7 @@ async function createWorkletRecorder(input: Readonly<{
 			failures.fail(error);
 			state = 'failed';
 		},
-	});
+	})).catch(async (error: unknown) => { await context.dispose(); throw error; });
 
 	function start(startFrameValue = 0): void {
 		assertStartable(state, failures.failure);
@@ -273,6 +273,7 @@ async function createWorkletRecorder(input: Readonly<{
 				if (delegate.detach) await delegate.detach();
 				else await delegate.dispose?.({ stopTracks: false });
 			} catch (error) { failures.fail(error); }
+			try { await context.dispose(); } catch (error) { failures.fail(error); }
 			state = 'disposed';
 			if (failures.failure) throw failures.failure;
 		});
