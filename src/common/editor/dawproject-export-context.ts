@@ -43,7 +43,7 @@ export interface DawprojectMixerStrip {
 
 export interface DawprojectTrackRoute {
 	readonly groupId: string | null;
-	readonly sends: ReadonlyMap<string, number>;
+	readonly sends: ReadonlyMap<string, Readonly<{ level: number; position: 'pre' | 'post' }>>;
 }
 
 export interface DawprojectMixerRouting {
@@ -173,9 +173,9 @@ export function readDawprojectMixerRouting(project: DataRecord): DawprojectMixer
 	const routes = new Map<string, DawprojectTrackRoute>();
 	for (const [trackId, value] of Object.entries(record(mixer.routes))) {
 		const route = record(value);
-		const sends = new Map<string, number>();
+		const sends = new Map<string, Readonly<{ level: number; position: 'pre' | 'post' }>>();
 		for (const [sendId, level] of Object.entries(record(route.sends))) {
-			if (Number.isFinite(Number(level))) sends.set(sendId, Number(level));
+			if (Number.isFinite(Number(level))) sends.set(sendId, { level: Number(level), position: 'post' });
 		}
 		routes.set(trackId, Object.freeze({ groupId: route.groupId == null ? null : String(route.groupId), sends }));
 	}
@@ -189,8 +189,8 @@ export function readDawprojectMixerRouting(project: DataRecord): DawprojectMixer
 }
 
 function readGraphRouting(graph: DataRecord): DawprojectMixerRouting {
-	const routes = new Map<string, { groupId: string | null; sends: Map<string, number> }>();
-	const nodeRoutes = new Map<string, { groupId: string | null; sends: Map<string, number> }>();
+	const routes = new Map<string, { groupId: string | null; sends: Map<string, Readonly<{ level: number; position: 'pre' | 'post' }>> }>();
+	const nodeRoutes: typeof routes = new Map();
 	const route = (entries: typeof routes, sourceId: string) => {
 		let entry = entries.get(sourceId);
 		if (!entry) {
@@ -206,7 +206,9 @@ function readGraphRouting(graph: DataRecord): DawprojectMixerRouting {
 		if ((source.kind !== 'track' && source.kind !== 'mixer-node') || destination.kind !== 'mixer-node') continue;
 		const entries = source.kind === 'track' ? routes : nodeRoutes;
 		if (edge.kind === 'assignment') route(entries, String(source.id)).groupId = String(destination.id);
-		else if (edge.kind === 'send') route(entries, String(source.id)).sends.set(String(destination.id), Number(edge.level ?? 1));
+		else if (edge.kind === 'send') route(entries, String(source.id)).sends.set(String(destination.id), {
+			level: Number(edge.level ?? 1), position: edge.position === 'pre-fader' ? 'pre' : 'post',
+		});
 	}
 	return Object.freeze({
 		groups: records(graph.groups).map(strip),

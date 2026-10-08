@@ -16,6 +16,7 @@ import type { ProjectFileExtension } from '../../../project-file-extensions.ts';
 import type { ProjectFlushOptions } from './project-save-service.ts';
 import type { ScapeReplaceWriteAuthority } from '../../scape-import-transaction.ts';
 import type { ExternalAudioDecoder, ExternalMediaResolver } from '../../scape-external-media.ts';
+import type { DawprojectImportRoutingContext } from '../../dawproject-import-structure.ts';
 
 export type NativeAwaitable<Value> = PromiseLike<Value> | Value;
 export type NativeSaveState = 'dirty' | 'saved' | 'saving' | string;
@@ -414,7 +415,7 @@ export interface NativeProjectServiceRuntime {
 	readonly createAup4Client: (options: Readonly<Record<string, unknown>>) => NativeAup4Client;
 	readonly initialAup4Client?: NativeAup4Client | null;
 	readonly aup4Options?: Readonly<Record<string, unknown>>;
-	readonly adaptAudacityProject?: (value: unknown) => NativeAwaitable<NativeProjectDocument>;
+	readonly adaptAudacityProject?: (value: unknown, context?: DawprojectImportRoutingContext) => NativeAwaitable<NativeProjectDocument>;
 	readonly prepareAudacityProjectExport?: (
 		project: NativeProjectDocument,
 	) => NativeAwaitable<NativeProjectDocument>;

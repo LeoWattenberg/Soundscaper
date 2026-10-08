@@ -55,6 +55,11 @@ export interface ParameterTarget {
 	readonly unit: string | null;
 }
 
+/** Per-import graph semantics that the shared numeric-send document cannot carry. */
+export interface DawprojectImportRoutingContext {
+	readonly sendTaps: readonly Readonly<{ trackId: string; sendId: string; position: 'pre-fader' | 'post-fader' }>[];
+}
+
 export interface Build {
 	readonly draft: Draft;
 	readonly sampleRate: number;
@@ -68,6 +73,7 @@ export interface Build {
 	readonly stripByChannelId: Map<string, Readonly<{ kind: 'group' | 'send' | 'folder'; id: string }>>;
 	readonly parameters: Map<string, ParameterTarget>;
 	readonly routes: Map<string, { groupId: string | null; sends: Record<string, number> }>;
+	readonly sendTaps: { trackId: string; sendId: string; position: 'pre-fader' | 'post-fader' }[];
 	/** Parent folder per built track and per folder, for bus membership. */
 	readonly parentFolderIds: Map<string, string | null>;
 	master: StripBuild;
@@ -210,6 +216,8 @@ export function resolveRouting(document: DawprojectDocument, build: Build): void
 			const target = build.stripByChannelId.get(send.destination);
 			if (target?.kind !== 'send') continue;
 			route.sends[target.id] = clamp(gainOf(send.volume), 0, 4);
+			build.sendTaps.push({ trackId: built.id, sendId: target.id,
+				position: send.type === 'pre' ? 'pre-fader' : 'post-fader' });
 		}
 		if (route.groupId !== null || Object.keys(route.sends).length > 0) build.routes.set(built.id, route);
 	};

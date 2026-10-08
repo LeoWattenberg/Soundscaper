@@ -184,7 +184,7 @@ export function createDawprojectService(runtime: NativeProjectServiceRuntime, he
 			// Both interchange readers produce the shared audio document. Apply the
 			// product's import adapter before its family-qualified loader sees it.
 			importedProject = runtime.adaptAudacityProject
-				? await runtime.adaptAudacityProject(created)
+				? await runtime.adaptAudacityProject(created, plan.routingContext)
 				: runtime.loadProject(created).project;
 			assertReady();
 			const retainedIds = new Set(plan.media.map((binding) => binding.sourceId));

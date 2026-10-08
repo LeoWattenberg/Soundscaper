@@ -87,7 +87,7 @@ interface ChannelSpec {
 	readonly solo: boolean;
 	readonly audioChannels: number;
 	readonly destination: string | null;
-	readonly sends: readonly Readonly<{ id: string; level: number }>[];
+	readonly sends: readonly Readonly<{ id: string; level: number; position: 'pre' | 'post' }>[];
 	readonly effects: readonly unknown[];
 	readonly scope: DataRecord;
 }
@@ -247,7 +247,7 @@ function channelRouting(context: DawprojectExportContext, route: DawprojectTrack
 		destination: channelIdFor(context, destination ? `mixer-node:${destination.id}` : 'master'),
 		sends: [...(route?.sends ?? [])]
 			.filter(([sendId]) => context.routing.sends.some(send => send.id === sendId))
-			.map(([id, level]) => ({ id, level })),
+			.map(([id, send]) => ({ id, ...send })),
 	};
 }
 
@@ -335,9 +335,9 @@ function buildChannel(context: DawprojectExportContext, key: string, spec: Chann
 			message: 'DAWproject carries plug-in state by vendor identifier; the editor\'s effect stack has none, so the channel is written dry.',
 		});
 	}
-	const sends = spec.sends.map(({ id, level }) => xmlElement('Send', {
+	const sends = spec.sends.map(({ id, level, position }) => xmlElement('Send', {
 		destination: channelIdFor(context, `mixer-node:${id}`),
-		type: 'post',
+		type: position,
 		id: context.ids.id(`send:${key}:${id}`),
 	}, [
 		xmlElement('Volume', {
