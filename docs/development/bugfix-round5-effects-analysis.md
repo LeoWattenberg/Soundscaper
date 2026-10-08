@@ -391,7 +391,11 @@ mounted production controls independently fail at the changed destination
 (`/tmp/soundscaper-r5-root-tempo-reference-node-red2.log`); the initial loader
 attempt without the repository's CSS loader is excluded. Corrected new and
 existing rate, duration and derived-control checks pass 11/11. Target lint
-passes. Production browser verification is pending, so ROOT-013 is uncounted.
+and strict test types pass. Immutable `b40d2db8b` passes the complete field
+refusal, valid 160 → 240 recovery, Apply and actual 25600-frame WAV download
+across Chromium, Firefox and WebKit (3/3, 18.6 seconds, no skips or failures;
+`/tmp/soundscaper-r5-root-tempo-reference-green18.log`). Both guarded product
+builds pass. ROOT-013 is counted once.
 Regressions are `audio-editor-round5-tempo-reference-admission.test.tsx` and
 `audio-editor-round5-tempo-reference-admission.spec.js`. Assistance runtime
 assets are unchanged.
