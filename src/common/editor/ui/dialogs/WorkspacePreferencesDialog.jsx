@@ -24,6 +24,7 @@ import PlaybackRecordingPreferencesPage from './PlaybackRecordingPreferencesPage
 import PreferenceDropdownField from './PreferenceDropdownField.jsx';
 import TrackDisplayPreferencesPage from './TrackDisplayPreferencesPage.jsx';
 import { ShortcutEditorRow } from './ShortcutEditorRow.tsx';
+import { useWorkspaceDeletionFocus } from './useWorkspaceDeletionFocus.ts';
 import { useShortcutCommands, useShortcutCommandGroups } from './useShortcutPresentation.ts';
 import { createShortcutDraftConflictIndex } from './shortcut-draft-conflict-index.ts';
 import { shortcutCategoryMessageKey } from './workspace-preferences-shortcut-categories.ts';
@@ -53,6 +54,7 @@ export default function WorkspacePreferencesDialog({
 	productId = 'soundscaper',
 }) {
 	const sideNavRef = useRef(null);
+	const workspacePresetRef = useRef(null);
 	const [selectedPage, setSelectedPage] = useState(workspacePreferencesPage(initialPage));
 	const [shortcutSearch, setShortcutSearch] = useState('');
 	const [shortcutSort, setShortcutSort] = useState(DEFAULT_SHORTCUT_SORT_MODE);
@@ -66,6 +68,7 @@ export default function WorkspacePreferencesDialog({
 	const shortcutGroups = useShortcutCommandGroups(commands, shortcutSearch, shortcutSort);
 	const conflictFor = useMemo(() => selectedPage === 'shortcuts' ? createShortcutDraftConflictIndex(preferences.shortcuts) : undefined, [preferences.shortcuts, selectedPage]);
 	const activeCustom = preferences.workspace.custom.find((workspace) => workspace.id === preferences.workspace.activeId);
+	const captureWorkspaceDeletion = useWorkspaceDeletionFocus(workspacePresetRef, preferences.workspace.custom, controller);
 	// Audacity's own page order, with the one page it has no counterpart for —
 	// Workspace, holding both the presets and the panel inventory — kept after
 	// Shortcuts.
@@ -171,13 +174,13 @@ export default function WorkspacePreferencesDialog({
 						{selectedPage === 'workspace' && (
 							<>
 							<PreferencePanel title={copy.workspace}>
-								<PreferenceDropdownField
+								<div ref={workspacePresetRef}><PreferenceDropdownField
 									label={copy.workspacePreset}
 									value={preferences.workspace.activeId}
 									onChange={(value) => run(() => controller.actions.preferences.setWorkspace(value))}
 									options={workspaceSwitcherOptions(productId, copy, preferences.workspace.custom)
 										.map(({ id, name }) => ({ value: id, label: name }))}
-								/>
+								/></div>
 								<label className="kw-audio-editor-preferences__workspace-name">
 									<span>{copy.workspaceName}</span>
 									<input aria-label={copy.workspaceName} placeholder={copy.workspaceName} value={workspaceName} onChange={(event) => setWorkspaceName(event.currentTarget.value)} />
@@ -190,7 +193,7 @@ export default function WorkspacePreferencesDialog({
 										).then(() => { setWorkspaceName(''); }).catch(() => undefined);
 									}}>{copy.workspaceCreate}</Button>
 									<Button variant="secondary" disabled={!activeCustom} onClick={() => run(() => controller.actions.preferences.updateWorkspace(activeCustom.id, workspaceName.trim() ? { name: workspaceName.trim() } : {}))}>{copy.workspaceUpdate}</Button>
-									<Button variant="secondary" disabled={!activeCustom} onClick={() => run(() => controller.actions.preferences.deleteWorkspace(activeCustom.id))}>{copy.workspaceDelete}</Button>
+									<Button variant="secondary" disabled={!activeCustom} onClick={(event) => { captureWorkspaceDeletion(event.currentTarget, activeCustom.id); run(() => controller.actions.preferences.deleteWorkspace(activeCustom.id)); }}>{copy.workspaceDelete}</Button>
 								</div>
 							</PreferencePanel>
 							<Separator />
