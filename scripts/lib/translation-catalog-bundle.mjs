@@ -7,7 +7,6 @@ const VIRTUAL_PREFIX = '\0scape:translation-catalog:';
 const VIRTUAL_EXTENSION = '.mjs';
 const CATALOG_INDEX_SUFFIX = '/src/common/i18n/translations/index.js';
 const CATALOG_FIELDS = ['schemaVersion', 'locale', 'provenance', 'entries', 'community'];
-const MINIMUM_STRING_SAVING_BYTES = 32;
 
 /**
  * Keep the committed JSON and its runtime shape intact. Repeated string values
@@ -25,12 +24,15 @@ export function renderTranslationCatalogModule(catalog) {
 	const references = new Map();
 	const declarations = [];
 	for (const [value, count] of counts) {
+		if (count < 2) continue;
 		const literal = JSON.stringify(value);
 		const reference = `$t${references.size}`;
 		const declaration = `const ${reference}=${literal};`;
 		const literalBytes = Buffer.byteLength(literal);
-		const saving = count * literalBytes - Buffer.byteLength(declaration) - count * reference.length;
-		if (saving <= MINIMUM_STRING_SAVING_BYTES) continue;
+		// Charge the exact emitted declaration, its separating newline, and every
+		// ASCII reference. Even a small positive saving pays its complete source cost.
+		const saving = count * literalBytes - Buffer.byteLength(`${declaration}\n`) - count * reference.length;
+		if (saving <= 0) continue;
 		references.set(value, reference);
 		declarations.push(declaration);
 	}

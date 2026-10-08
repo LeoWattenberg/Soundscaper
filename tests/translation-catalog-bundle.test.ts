@@ -5,6 +5,7 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import { transform } from 'esbuild';
+import { COMMITTED_LOCALE_TAGS } from '../src/common/i18n/locales.js';
 
 import {
 	createTranslationCatalogBundlePlugin,
@@ -83,6 +84,22 @@ test('short repetitions and unique strings do not add an unprofitable string dic
 	assert.deepEqual((await loadModule(source)).default, catalog);
 });
 
+test('small but proven byte savings are retained after charging the complete declaration overhead', async () => {
+	const catalog = { schemaVersion: 2, locale: 'fr',
+		entries: { a: ['machine', 'Repeated value', 'Premier'], b: ['human', 'Repeated value', 'Deuxième'],
+			c: ['audacity', 'Repeated value', 'Troisième'] } };
+	const literalSource = [`const catalog = ${JSON.stringify(catalog)};`,
+		...Object.keys(catalog).map(key => `export const ${key} = catalog.${key};`), 'export default catalog;'].join('\n');
+	const source = renderTranslationCatalogModule(catalog);
+	assert.ok(Buffer.byteLength(source) < Buffer.byteLength(literalSource),
+		'Interning must recover its own complete declaration, reference and newline bytes.');
+	const [compact, literal] = await Promise.all([transform(source, { minify: true, charset: 'utf8' }),
+		transform(literalSource, { minify: true, charset: 'utf8' })]);
+	assert.ok(Buffer.byteLength(compact.code) < Buffer.byteLength(literal.code));
+	const actual = (await loadModule(compact.code)).default as typeof catalog;
+	assert.deepEqual(actual, catalog); assert.notEqual(actual.entries.a, actual.entries.b);
+});
+
 test('the bundle plugin only substitutes lazy imports from the generated catalog index', async () => {
 	const plugin = createTranslationCatalogBundlePlugin();
 	const importer = fileURLToPath(new URL('../src/common/i18n/translations/index.js', import.meta.url));
@@ -107,4 +124,15 @@ test('the complete Hindi catalog fits the production chunk budget without removi
 	const { code } = await transform(renderTranslationCatalogModule(catalog), { minify: true, charset: 'utf8' });
 	assert.ok(Buffer.byteLength(code) < 490_000, 'Leave room for the bundler runtime under the 500 KB ceiling.');
 	assert.deepEqual((await loadModule(code)).default, catalog);
+});
+
+test('every published machine catalog retains all tuples and named exports within the production ceiling', async t => {
+	const locales = COMMITTED_LOCALE_TAGS.filter(locale => !['en', 'de'].includes(new Intl.Locale(locale).language));
+	for (const locale of locales) await t.test(locale, async () => {
+		const catalog = JSON.parse(await readFile(new URL(`../src/common/i18n/translations/${locale}.json`, import.meta.url), 'utf8')) as Record<string, unknown>;
+		const { code } = await transform(renderTranslationCatalogModule(catalog), { minify: true, charset: 'utf8' });
+		assert.ok(Buffer.byteLength(code) < 500_000, `${locale} must preserve the production JavaScript chunk ceiling.`);
+		const module = await loadModule(code); assert.deepEqual(module.default, catalog);
+		for (const [key, value] of Object.entries(catalog)) assert.deepEqual(module[key], value, `${locale}.${key}`);
+	});
 });
