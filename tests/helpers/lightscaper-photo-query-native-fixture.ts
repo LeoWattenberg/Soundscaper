@@ -68,21 +68,39 @@ export async function seedPhotoLibraryQueryNativeV1() {
 
 /** Simulates absent derived rows after an upgrade; immutable documents and custody are untouched. */
 export async function invalidatePhotoLibraryQueryIndexNativeV1(catalogId: string) {
+	await invalidatePhotoLibraryQueryIndexNative(catalogId, 1);
+}
+
+/** Retires only the menu's metadata profile; the legacy derived rows remain queryable. */
+export async function invalidatePhotoLibraryQueryIndexNativeV2(catalogId: string) {
+	await invalidatePhotoLibraryQueryIndexNative(catalogId, 2);
+	const f = owners();
+	try {
+		const page = await f.catalog.readQueryPage(catalogId);
+		const root = await f.catalog.loadCatalog(catalogId);
+		if (!root) throw new ReferenceError('The invalidated query catalog is missing.');
+		return { legacyRows: page.items.length, totalCount: root.photoCount };
+	} finally { await f.close(); }
+}
+
+async function invalidatePhotoLibraryQueryIndexNative(catalogId: string, profile: 1 | 2) {
+	const rowStore = profile === 1 ? 'photoQueryRows' : 'photoQueryRowsV2';
+	const buildStore = profile === 1 ? 'photoQueryBuildStates' : 'photoQueryBuildStatesV2';
 	const database = await new Promise<IDBDatabase>((resolve, reject) => {
 		const opening = indexedDB.open('lightscaper-photo-catalog-v1', PHOTO_CATALOG_DATABASE_VERSION);
 		opening.onsuccess = () => { resolve(opening.result); }; opening.onerror = () => { reject(opening.error); };
 	});
 	try {
 		await new Promise<void>((resolve, reject) => {
-			const transaction = database.transaction(['photoQueryRows', 'photoQueryBuildStates'], 'readwrite');
+			const transaction = database.transaction([rowStore, buildStore], 'readwrite');
 			transaction.oncomplete = () => { resolve(); }; transaction.onabort = () => { reject(transaction.error); };
-			const rows = transaction.objectStore('photoQueryRows'), cursor = rows.index('catalogId').openKeyCursor(IDBKeyRange.only(catalogId)); let count = 0;
+			const rows = transaction.objectStore(rowStore), cursor = rows.index('catalogId').openKeyCursor(IDBKeyRange.only(catalogId)); let count = 0;
 			cursor.onsuccess = () => {
 				const current = cursor.result; if (!current) return;
 				if (++count > 128) { transaction.abort(); return; }
 				rows.delete(current.primaryKey); current.continue();
 			};
-			transaction.objectStore('photoQueryBuildStates').delete(catalogId);
+			transaction.objectStore(buildStore).delete(catalogId);
 		});
 	} finally { database.close(); }
 }

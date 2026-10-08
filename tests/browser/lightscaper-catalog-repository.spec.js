@@ -114,7 +114,9 @@ test('native version changes close catalog owners and future databases refuse v1
 		await next.close();
 		return { stores, closedCode, futureError };
 	}, ROOT);
-	expect(result.stores).toEqual(['catalogStates', 'catalogs', 'memberships', 'photoQueryBuildStates', 'photoQueryRows', 'photos', 'summaries']);
+	expect(result.stores).toEqual(['catalogStates', 'catalogs', 'memberships', 'photoQueryBuildStates',
+		'photoQueryBuildStatesV2', 'photoQueryRows', 'photoQueryRowsV2', 'photoStackMemberships', 'photoStackStates',
+		'photoStacks', 'photos', 'summaries']);
 	expect(result.closedCode).toBe('CATALOG_CLOSED');
 	expect(result.futureError).toBe('VersionError');
 });

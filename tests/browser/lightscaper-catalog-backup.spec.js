@@ -5,7 +5,10 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { browserProductSiteForBuild } from '../../scripts/lib/browser-product-site-plan.mjs';
-import { importPhotoCatalogArchiveV1 } from '../../src/lightscaper/archive/catalog-archive-import.ts';
+import { importPhotoCatalogArchiveV2 } from '../../src/lightscaper/archive/catalog-archive-import-v2.ts';
+import { normalizePhotoCatalogArchiveV2 } from '../../src/lightscaper/archive/catalog-archive-contract-v2.ts';
+import { readScapeArchiveEnvelope } from '../../src/common/editor/scape-archive-envelope.ts';
+import { withScapeArchiveReader } from '../../src/common/editor/scape-archive-reader.ts';
 import { expect, test } from './helpers/browser-coverage-fixture.js';
 
 test.use({ browserCoverage: false });
@@ -84,12 +87,17 @@ test('a held picker is joined across Close and reopen, then a genuine native wri
 });
 
 async function authenticate(bytes, previous) {
+	const blob = new Blob([bytes]);
+	const document = await withScapeArchiveReader(blob, undefined, async entries =>
+		normalizePhotoCatalogArchiveV2(JSON.parse((await readScapeArchiveEnvelope(entries)).projectText)));
+	expect(document.schemaVersion).toBe(2); expect(document.stackCount).toBe(0); expect(document.stackPacks).toEqual([]);
 	const records = []; let published = false;
-	const catalog = await importPhotoCatalogArchiveV1(new Blob([bytes]), async () => ({
+	const catalog = await importPhotoCatalogArchiveV2(blob, async () => ({
 		async writePhoto(photo, chunks) {
 			const parts = []; for await (const chunk of chunks) parts.push(Buffer.from(chunk));
 			records.push({ photo, bytes: Buffer.concat(parts) });
-		}, async publish() { published = true; }, async rollback() { records.length = 0; },
+		}, async writeStack() { throw new Error('An unstacked catalog backup must not contain stack records.'); },
+		async publish() { published = true; }, async rollback() { records.length = 0; },
 	}));
 	expect(published).toBe(true); expect(catalog).toEqual(previous.root); expect(records).toHaveLength(previous.photos.length);
 	for (const record of records) {

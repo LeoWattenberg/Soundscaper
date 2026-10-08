@@ -116,9 +116,10 @@ test('search index rebuilding requires explicit menu demand and leaves retained 
 	test.skip(browserName === 'webkit', 'The roadmap defers the full WebKit storage workflow until native Blob/OPFS support is qualified.');
 	test.setTimeout(90_000);
 	const { app, fixture } = await setup(page, 'en'), copy = copies[0][1];
-	await page.evaluate(async catalogId => {
-		const api = await import(new URL('/__lightscaper_photo_query_fixture.js', location.href).href); await api.invalidatePhotoLibraryQueryIndexNativeV1(catalogId);
+	const invalidated = await page.evaluate(async catalogId => {
+		const api = await import(new URL('/__lightscaper_photo_query_fixture.js', location.href).href); return api.invalidatePhotoLibraryQueryIndexNativeV2(catalogId);
 	}, fixture.catalogId);
+	expect(invalidated).toEqual({ legacyRows: 64, totalCount: fixture.count });
 	await app.locator('summary').filter({ hasText: copy.view }).click(); await app.getByRole('button', { name: copy.query, exact: true }).click();
 	const dialog = page.getByRole('dialog', { name: copy.query, exact: true });
 	await expect(dialog.getByText(copy.required, { exact: true })).toBeVisible();
