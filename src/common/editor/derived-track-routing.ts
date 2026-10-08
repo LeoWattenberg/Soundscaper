@@ -2,6 +2,7 @@
 
 import type { AudioEditorCommand } from './commands/protocol.ts';
 import { derivedTrackSidechainRoutes } from './derived-track-sidechains.ts';
+import { copyDerivedTrackRouteAutomation, type DerivedTrackRouteCopy } from './derived-track-route-automation.ts';
 import {
 	defaultMixerChannelMapV21,
 	normalizeMixerGraphV21,
@@ -28,7 +29,7 @@ export function preserveProductionTrackRouting<Project extends RoutingProject>(
 	const staged = previewCommand(project, command);
 	const originalGraph = normalizeMixerGraphV21(project.mixer as never);
 	const stagedGraph = normalizeMixerGraphV21(staged.mixer as never);
-	const desired = restateRoutes(
+	const { graph: desired, edgeCopies } = restateRoutes(
 		project,
 		staged,
 		stagedGraph,
@@ -42,7 +43,8 @@ export function preserveProductionTrackRouting<Project extends RoutingProject>(
 		expected: stagedGraph as unknown as Readonly<Record<string, unknown>>,
 		mixer: desired as unknown as Readonly<Record<string, unknown>>,
 	};
-	return Object.freeze({ type: 'batch', commands: Object.freeze([...command.commands, graphCommand]) });
+	const automation = copyDerivedTrackRouteAutomation(project, staged, edgeCopies, createId);
+	return Object.freeze({ type: 'batch', commands: Object.freeze([...command.commands, graphCommand, ...automation]) });
 }
 
 function restateRoutes(
@@ -53,7 +55,8 @@ function restateRoutes(
 	copies: readonly Readonly<{ readonly sourceTrackId: string; readonly targetTrackId: string }>[],
 	directTrackIds: readonly string[],
 	createId: (prefix: string) => string,
-): MixerGraphV21 {
+): Readonly<{ graph: MixerGraphV21; edgeCopies: readonly DerivedTrackRouteCopy[] }> {
+	const edgeCopies: DerivedTrackRouteCopy[] = [];
 	const targetIds = new Set([
 		...copies.map(({ targetTrackId }) => targetTrackId),
 		...directTrackIds,
@@ -88,10 +91,11 @@ function restateRoutes(
 			const channelMap = remainsValid && !wasDefault
 				? route.channelMap
 				: defaultMixerChannelMapV21(sourceWidth, destinationWidth);
-			let id = copiedRouteId(route, copy.sourceTrackId, copy.targetTrackId)
-				?? createId('mix-route');
+			let id = copy.sourceTrackId === copy.targetTrackId ? route.id
+				: copiedRouteId(route, copy.sourceTrackId, copy.targetTrackId) ?? createId('mix-route');
 			while (occupiedIds.has(id)) id = createId('mix-route');
 			occupiedIds.add(id);
+			edgeCopies.push({ sourceEdgeId: route.id, targetEdgeId: id });
 			edges.push({
 				...structuredClone(route), id,
 				source: { kind: 'track', id: copy.targetTrackId },
@@ -117,6 +121,7 @@ function restateRoutes(
 			? route.id : createId('mix-route');
 		while (occupiedIds.has(id)) id = createId('mix-route');
 		occupiedIds.add(id);
+		edgeCopies.push({ sourceEdgeId: route.id, targetEdgeId: id });
 		edges.push({ ...structuredClone(copied), id, channelMap: remainsValid && !wasDefault
 			? route.channelMap : defaultMixerChannelMapV21(sourceWidth, destinationWidth) });
 	}
@@ -146,7 +151,7 @@ function restateRoutes(
 		}
 		return { ...vca, members };
 	});
-	return normalizeMixerGraphV21({ ...staged, edges, vcas });
+	return { graph: normalizeMixerGraphV21({ ...staged, edges, vcas }), edgeCopies };
 }
 
 function sameChannelMap(left: readonly number[], right: readonly number[]): boolean {
