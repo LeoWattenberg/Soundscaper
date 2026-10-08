@@ -7,6 +7,9 @@ import { bundledLightscaperEditorCopyForLocale } from '../../src/common/i18n/lig
 import { createPhotoMetadataQueryByteFixtureV1 } from '../helpers/lightscaper-metadata-query-byte-fixture.ts';
 import { expect, test } from './helpers/browser-coverage-fixture.js';
 
+// The routed esbuild observation helper is test-only executable code, excluded from portable coverage.
+test.use({ browserCoverage: false });
+
 const OBSERVER = '/__lightscaper_metadata_query_observation.js';
 const FIXTURE = createPhotoMetadataQueryByteFixtureV1();
 const sourceName = id => FIXTURE.cases.find(item => item.id === id).fileName;

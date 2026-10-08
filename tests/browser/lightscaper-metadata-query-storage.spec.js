@@ -5,6 +5,9 @@ import { build } from 'esbuild';
 import { browserProductSiteForBuild } from '../../scripts/lib/browser-product-site-plan.mjs';
 import { expect, test } from './helpers/browser-coverage-fixture.js';
 
+// The routed esbuild storage facade is test-only executable code, excluded from portable coverage.
+test.use({ browserCoverage: false });
+
 const MODULE = '/__lightscaper_metadata_storage.js';
 const ENTRY = `
 export {PhotoCatalogRepositoryV1} from './src/lightscaper/catalog/repository.ts';
