@@ -223,8 +223,10 @@ test('the actual photo session borrows shared media repositories without linked 
 			const target = resolveRelativeModule(path, dependency); assert.ok(target, dependency); pending.push(target);
 		}
 	}
-	assert.equal(storage.size, 55);
-	for (const module of ['media-repository.ts', 'media-catalog-original-repository.ts', 'opfs-repository.ts', 'opfs-binary-inspection.ts']) {
+	assert.equal(storage.size, 60);
+	for (const module of ['media-repository.ts', 'media-catalog-original-repository.ts', 'opfs-repository.ts', 'opfs-binary-inspection.ts',
+		'media-asset-binary-inspection.ts', 'media-catalog-original-inspection-repository.ts',
+		'media-catalog-original-repair-contract.ts', 'media-catalog-original-repair-publication.ts', 'media-catalog-original-repair-repository.ts']) {
 		assert.ok(storage.has(directory + 'storage/' + module));
 	}
 	for (const module of ['linked-audio-original-source-reader.ts', 'linked-video-original-source-reader.ts', 'project-repository.ts']) {

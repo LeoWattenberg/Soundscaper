@@ -580,6 +580,8 @@
 		,
 		{"path": "src/lightscaper/controller/photo-library-organizer-v1.ts", "kind": "helper-contract", "justification": "Version 1 revision-fenced catalog organization admits full smart-query JSON and scalar definition changes without exposing the catalog root."}
 		,
+		{ "path": "src/lightscaper/controller/photo-library-original-inspection-v1.ts", "kind": "helper-contract", "justification": "Version 1 opted-in pre-recovery inspection enumerates bounded published-photo and retained-original bindings under the existing Session writer, preserving strict startup recovery and rejecting custody conflicts without mutating photo documents." }
+		,
 		{"path": "src/lightscaper/controller/photo-library-query-v1.ts", "kind": "helper-contract", "justification": "Version1 scalar query and explicit migration steps preserve bounded global ordering, strict cursors and cancellation without exposing photo documents."}
 		,
 		{ "path": "src/lightscaper/import/catalog-write-lock-v1.ts", "kind": "helper-contract", "justification": "Authoritative shared lock namespace for version 1 photo catalog publication across separate metadata and media databases." }
