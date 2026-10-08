@@ -2,8 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CLIP_CONTENT_OFFSET } from '@soundscaper/design-system/constants';
 import { EnvelopeCurve } from '@soundscaper/design-system/EnvelopeCurve';
 import { EnvelopeInteractionLayer } from '@soundscaper/design-system/EnvelopeInteractionLayer';
-import { TextInput } from '@soundscaper/design-system/TextInput';
 import { TrackControlPanel } from '@soundscaper/design-system/TrackControlPanel';
+import { OutputTrackNameEditor } from './OutputTrackNameEditor.tsx';
+
+export { OutputTrackNameEditor };
 
 import {
 	designValueToPan,
@@ -483,44 +485,11 @@ export function OutputTrackControls({
 				label={copy.trackName}
 				blocked={blocked}
 				onCommit={(name) => run(() => update({ name }))}
-				onClose={() => setEditingName(false)}
+				onClose={(restoreKeyboardFocus) => {
+					setEditingName(false);
+					if (restoreKeyboardFocus) controlsRef.current?.querySelector('.track-control-panel')?.focus();
+				}}
 			/>}
 		</div>
-	);
-}
-
-export function OutputTrackNameEditor({ name: initialName, label, blocked, onCommit, onClose }) {
-	const editorRef = useRef(null);
-	const [name, setName] = useState(initialName);
-	useEffect(() => setName(initialName), [initialName]);
-	useEffect(() => {
-		const input = editorRef.current?.querySelector('input');
-		input?.focus();
-		input?.select();
-	}, []);
-	const commit = () => {
-		const nextName = name.trim();
-		if (nextName && nextName !== initialName) onCommit(nextName);
-		onClose();
-	};
-	return (
-		<label
-			ref={editorRef}
-			className="audio-editor-output-name-editor"
-			onBlur={commit}
-			onKeyDown={(event) => {
-				if (event.key === 'Enter') {
-					event.preventDefault();
-					event.currentTarget.querySelector('input')?.blur();
-				} else if (event.key === 'Escape') {
-					event.preventDefault();
-					setName(initialName);
-					onClose();
-				}
-			}}
-		>
-			<span className="kw-audio-editor-sr-only">{label}: {initialName}</span>
-			<TextInput value={name} disabled={blocked} width="100%" onChange={setName} />
-		</label>
 	);
 }
