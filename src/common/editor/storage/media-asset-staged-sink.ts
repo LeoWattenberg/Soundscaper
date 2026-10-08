@@ -42,6 +42,7 @@ export async function prepareMediaAssetStaging({
 	opfs,
 	signal,
 	confirmFileSizeWarning,
+	discardStagedPath,
 }: Readonly<{
 	sourceId: string;
 	expectedBytes: number;
@@ -52,6 +53,8 @@ export async function prepareMediaAssetStaging({
 	opfs: OpfsRepository;
 	signal?: AbortSignal;
 	confirmFileSizeWarning?: FileSizeWarningConfirmation;
+	/** Strict owners verify failed plan paths before giving up their durable lease. */
+	discardStagedPath?: (path: string) => Promise<void>;
 }>): Promise<PreparedMediaAssetStaging> {
 	const plan = database ? await opfs.planBinaryWriter(`media-${sourceId}`, { signal })
 		.catch((error: unknown) => { throw browserFileStorageFailure('OPFS media planning', error); }) : null;
@@ -61,10 +64,11 @@ export async function prepareMediaAssetStaging({
 		try {
 			writer = await plan.open();
 		} catch (error) {
+			if (discardStagedPath) await discardFailedPlan(plan.path, discardStagedPath, error);
 			return releaseLeaseAfterFailure(lease, browserFileStorageFailure('OPFS media admission', error));
 		}
 		if (writer) {
-			const sink = opfsSink(writer, lease);
+			const sink = opfsSink(writer, lease, discardStagedPath);
 			try {
 				await lease.checkpoint();
 			} catch (error) {
@@ -72,6 +76,7 @@ export async function prepareMediaAssetStaging({
 			}
 			return { sink, lease };
 		}
+		if (discardStagedPath) await discardFailedPlan(plan.path, discardStagedPath);
 		try {
 			await lease.release();
 		} catch (cleanupError) {
@@ -137,7 +142,7 @@ function chunkSink(
 	};
 }
 
-function opfsSink(writer: OpfsBinaryWriter, lease: MediaAssetStagingLease): StagedMediaSink {
+function opfsSink(writer: OpfsBinaryWriter, lease: MediaAssetStagingLease, discardStagedPath?: (path: string) => Promise<void>): StagedMediaSink {
 	return {
 		storage: 'opfs',
 		path: writer.path,
@@ -153,8 +158,24 @@ function opfsSink(writer: OpfsBinaryWriter, lease: MediaAssetStagingLease): Stag
 			catch (error) { throw browserFileStorageFailure('OPFS media close', error); }
 			await lease.checkpoint();
 		},
-		abort: () => writer.abort(),
+		abort: async () => {
+			if (!discardStagedPath) return writer.abort();
+			const errors: unknown[] = [];
+			try { await writer.abort(); } catch (error) { errors.push(error); }
+			try { await discardStagedPath(writer.path); } catch (error) { errors.push(error); }
+			if (errors.length) throw new MediaAssetCleanupError(errors, 'Strict staged OPFS cleanup failed.');
+		},
 	};
+}
+
+async function discardFailedPlan(path: string, discard: (path: string) => Promise<void>, primary?: unknown): Promise<void> {
+	try { await discard(path); }
+	catch (cleanup) {
+		// The caller intentionally keeps the durable path lease if no verified
+		// absence can be established; chunk fallback must not hide an owned body.
+		throw new MediaAssetCleanupError(primary === undefined ? [cleanup] : [primary, cleanup],
+			'Failed OPFS plan cleanup could not verify path removal.');
+	}
 }
 
 async function abortStagingAfterFailure(
