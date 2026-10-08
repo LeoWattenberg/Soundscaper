@@ -16,18 +16,29 @@ test('the pinned 20000-photo library measures menu import, scrolling, filtering 
 	test.skip(!ENABLED, 'Opt in with LIGHTSCAPER_L3_LARGE_LIBRARY_DIAGNOSTIC=1; hosted diagnostics run this workload.');
 	test.skip(browserName === 'webkit', 'WebKit Blob/OPFS catalog custody is deferred.');
 	test.setTimeout(360_000);
+	const phaseStarted = performance.now(); let phaseRecords = 0;
+	function phase(name, event, trial = null, durationMs = null) {
+		if (++phaseRecords > 64) throw new RangeError('Library phase diagnostics exceed their record bound.');
+		const line = JSON.stringify({ kind: 'lightscaper-library-phase-v1', schemaVersion: 1, phase: name, event, trial,
+			elapsedSinceTestStartMs: performance.now() - phaseStarted, durationMs });
+		if (Buffer.byteLength(line) > 512) throw new RangeError('Library phase diagnostic exceeds its byte bound.');
+		console.log(line);
+	}
 	const errors = [];
 	page.on('pageerror', error => { errors.push(error.message); });
 	await setup(page);
 	const app = page.locator('[data-lightscaper-bound="true"]');
 	await expect(app).toBeVisible(); await expect(app.locator('[data-photo-library]')).toHaveCount(0);
+	phase('seed', 'begin');
 	const fixture = await native(page, 'seedLargePhotoLibraryNativeV1');
+	phase('seed', 'end', null, fixture.setupDurationMs);
 	await menu('View', 'Show photo library');
 	const library = app.getByRole('region', { name: 'Photo library', exact: true });
 	await expect(library.locator('[data-photo-count]')).toHaveAttribute('data-photo-count', '20000');
 	await expect(library.locator('[data-photo-id]')).toHaveCount(64);
 	const importTrials = [], scrollTrials = [], filterTrials = [], searchTrials = [];
 	for (let trial = 0; trial < 6; trial++) {
+		phase('import', 'begin', trial);
 		await menu('File', 'Import photos');
 		const dialog = page.getByRole('dialog', { name: 'Import photos', exact: true });
 		await dialog.getByLabel('Choose photos', { exact: true }).setInputFiles(Array.from({ length: 64 }, (_, index) => ({
@@ -41,8 +52,10 @@ test('the pinned 20000-photo library measures menu import, scrolling, filtering 
 		const afterCount = Number(await library.locator('[data-photo-count]').getAttribute('data-photo-count'));
 		const importedCount = await library.locator('[data-photo-import-status="imported"]').count();
 		importTrials.push({ trial, elapsedMs, beforeCount, afterCount, importedCount });
+		phase('import', 'end', trial, elapsedMs);
 		expect(importedCount).toBe(64); expect(afterCount).toBe(beforeCount + 64);
 	}
+	phase('scroll', 'begin');
 	for (let trial = 0; trial < 6; trial++) {
 		const sample = await page.evaluate(async () => {
 			let scroller = document.querySelector('[data-photo-library] .lightscaper-photo-grid');
@@ -65,26 +78,35 @@ test('the pinned 20000-photo library measures menu import, scrolling, filtering 
 		});
 		scrollTrials.push({ trial, ...sample });
 	}
+	phase('scroll', 'end');
 	const queryDialog = page.getByRole('dialog', { name: 'Search, filter and sort', exact: true });
 	for (let trial = 0; trial < 6; trial++) {
+		phase('filter', 'begin', trial);
 		await menu('View', 'Search, filter and sort');
 		await queryDialog.getByLabel('Search text', { exact: true }).fill('');
 		await queryDialog.getByRole('combobox', { name: 'Filter', exact: true }).selectOption('keyword');
 		await queryDialog.locator('[data-definition-choose="landscape"]').click();
 		filterTrials.push({ trial, ...(await applyQuery()), resultFirstPhotoId: await library.locator('[data-photo-id]').first().getAttribute('data-photo-id'),
 			resultCount: await library.locator('[data-photo-id]').count() });
+		phase('filter', 'end', trial, filterTrials[filterTrials.length - 1].elapsedMs);
 		await closeQuery();
 	}
 	for (let trial = 0; trial < 6; trial++) {
+		phase('search', 'begin', trial);
 		await menu('View', 'Search, filter and sort');
 		await queryDialog.getByRole('combobox', { name: 'Filter', exact: true }).selectOption('');
 		await queryDialog.getByLabel('Search text', { exact: true }).fill(SPEC.sparseSearchText);
 		searchTrials.push({ trial, ...(await applyQuery()), resultPhotoId: await library.locator('[data-photo-id]').first().getAttribute('data-photo-id'),
 			resultCount: await library.locator('[data-photo-id]').count() });
+		phase('search', 'end', trial, searchTrials[searchTrials.length - 1].elapsedMs);
 		await closeQuery();
 	}
+	phase('observe-query', 'begin');
 	const query = await native(page, 'observeLargePhotoLibraryQueryNativeV1');
+	phase('observe-query', 'end', null, query.durationMs);
+	phase('observe-original', 'begin');
 	const original = await native(page, 'observeLargePhotoLibraryOriginalNativeV1');
+	phase('observe-original', 'end');
 	expect(errors).toEqual([]);
 	const diagnostic = { schemaVersion: 1, profile: 'deterministic-photo-library-20000-v1', workloadId: 'l3-photo-library-large',
 		fixtureId: SPEC.id, fixture: SPEC, environmentId: process.env.LIGHTSCAPER_L3_OBSERVED_ENVIRONMENT_ID ?? 'local-runtime-diagnostics',
