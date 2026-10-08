@@ -31,10 +31,11 @@ export function createExportClipProject<Project extends object>(projectValue: Pr
 		? mixerDetectorInputClosure(project.mixer as MixerGraphV21, { kind: 'track', id: String(output.trackId) }).strips
 		: new Set<string>();
 	const clipIds = new Set([clip.id]);
-	for (const track of project.tracks) {
+	for (const value of project.tracks) {
+		const track = value as DataRecord;
 		if (track.id === output.trackId || track.type !== 'audio'
 			|| !inputs.has(mixerEndpointKeyV21({ kind: 'track', id: String(track.id) }))) continue;
-		for (const id of track.clipIds ?? []) clipIds.add(id);
+		for (const id of Array.isArray(track.clipIds) ? track.clipIds : []) clipIds.add(id);
 	}
 	const snapshot = {
 		...project,
