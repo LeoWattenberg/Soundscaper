@@ -1,5 +1,9 @@
 .lightscaper-app {
-	min-height: 70vh;
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	min-height: 0;
+	overflow: auto;
 	color: CanvasText;
 	background: Canvas;
 	border: 1px solid color-mix(in srgb, CanvasText 18%, Canvas);
@@ -7,6 +11,7 @@
 }
 
 .lightscaper-header {
+	flex: none;
 	--header-bg: Canvas;
 	--header-border: color-mix(in srgb, CanvasText 18%, Canvas);
 	--header-text: CanvasText;
