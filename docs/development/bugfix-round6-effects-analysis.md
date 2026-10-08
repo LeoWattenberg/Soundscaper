@@ -187,5 +187,33 @@ type-aware lint passes. Public GREEN awaits the next immutable product build.
 Offline/realtime/chain variants share this one macro targeting root; the earlier
 reviewed-effect dispatcher repair never owned this macro service.
 
+## R6-EFFECT-009 — Separately generated noise layers replay the same recording
+
+Create an Audio track with Tracks → Add new track → Audio track. Generate →
+Noise, amplitude 0.2, duration one second; export its WAV. Create another Audio
+track and independently generate noise with those same normal settings. Export
+the two-track mix. Its power is 3.99999998 times the first recording's power:
+the supposedly independent layers are copies, adding 6 dB instead of the
+approximately 3 dB expected from independent noise. A separate normal Generate,
+export, Undo, Generate, export workflow also measures correlation 1 between the
+two complete audible recordings. The UI has no seed or repeat-recording choice.
+
+The generator restarts every unseeded job from one fixed PRNG seed. Draw one
+fresh seed at job construction, retaining the existing bounded PRNG and its
+per-channel and per-block state. Explicit seed requests keep their exact
+reproducible output.
+
+The strict independence regression is RED while the explicit seed/block-boundary
+control passes (`/tmp/soundscaper-r6-effects-noise-independent-node-red.log`).
+The immutable downloaded-recording and two-track-mix workflows are causally RED
+at correlation 0.9999999999999423 and power ratio 3.9999999809979605 respectively
+(`/tmp/soundscaper-r6-effects-noise-independent-browser-red.log` and
+`/tmp/soundscaper-r6-effects-noise-layers-browser-red2.log`). An earlier layer
+fixture used a spinbutton locator for a text input and is excluded. All 23
+new/existing generator, streaming and worker regressions pass after repair
+(`/tmp/soundscaper-r6-effects-noise-independent-node-green.log`). Public GREEN
+awaits the next immutable product build. All noise colors use the same job-seed
+root; the earlier pink-noise spectral balance correction is independent.
+
 These corrections do not change the assistance runtime closure or require a
 manual **Update AI assets** run.
