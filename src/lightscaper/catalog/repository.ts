@@ -6,6 +6,7 @@ import { assertNotAborted, catalogTransaction } from './catalog-transaction.ts';
 import { validateLightscaperDocumentV1, serializeLightscaperDocumentV1 } from './documents.ts';
 import { photoMemberships, photoStorageKey, readStoredPhoto } from './repository-records.ts';
 import { readCatalogSummaryPageV1, type PhotoSummaryPageRequestV1 } from './repository-pages.ts';
+import { readCatalogSnapshotV1, type PhotoCatalogSnapshotV1 } from './repository-snapshot.ts';
 import { createCatalog, publishPhotos, saveCatalog, savePhoto } from './repository-writes.ts';
 import { PhotoCatalogClosedError, PHOTO_CATALOG_REPOSITORY_LIMITS as LIMITS, type PhotoCatalogRepositoryOptionsV1, type PhotoSummaryPageV1 } from './repository-types.ts';
 import type { PhotoCatalogRootV1, PhotoDocumentV1 } from './types.ts';
@@ -51,6 +52,10 @@ export class PhotoCatalogRepositoryV1 {
 			const value: unknown = await request(stores.photos.get(key));
 			return value === undefined ? null : readStoredPhoto(value);
 		});
+	}
+
+	async readSnapshot(catalogId: string, options: Readonly<{ signal?: AbortSignal }> = {}): Promise<PhotoCatalogSnapshotV1 | null> {
+		return readCatalogSnapshotV1(await this.#open(), catalogId, options);
 	}
 
 	async publishPhotos(catalogId: string, expectedRevision: number, values: readonly unknown[], options: Readonly<{ signal?: AbortSignal }> = {}): Promise<PhotoCatalogRootV1> {

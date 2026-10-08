@@ -2,9 +2,8 @@
 
 import { readClosedDomainField, readClosedDomainRecord } from '../../common/editor/closed-domain-value.ts';
 import { canonicalMediaContentBlob } from '../../common/editor/storage/media-content-digest.ts';
-import { serializeLightscaperDocumentV1 } from '../catalog/documents.ts';
 import { normalizePhotoDocumentV1 } from '../catalog/photo-document.ts';
-import { PHOTO_CATALOG_PACK_LIMITS_V1 as LIMITS, type PhotoCatalogPackInput } from './catalog-pack.ts';
+import { measurePhotoCatalogPackRecordV1, PHOTO_CATALOG_PACK_LIMITS_V1 as LIMITS, type PhotoCatalogPackInput } from './catalog-pack.ts';
 import { PhotoCatalogArchiveIdentityGuard } from './catalog-archive-contract.ts';
 
 interface PreparedRecord { readonly input: PhotoCatalogPackInput; readonly size: number }
@@ -59,8 +58,7 @@ export class PhotoCatalogPackSequence {
 		const photo = normalizePhotoDocumentV1(readClosedDomainField(value, 'photo', 'photo archive input'));
 		const original = canonicalMediaContentBlob(readClosedDomainField(value, 'original', 'photo archive input'));
 		if (original.size !== photo.original.byteLength) throw new RangeError('Photo original length differs from its archive reference.');
-		const size = 12 + new TextEncoder().encode(serializeLightscaperDocumentV1(photo)).byteLength + original.size;
-		if (size + 8 > LIMITS.maximumPackBytes) throw new RangeError('A photo original cannot fit the bounded archive pack.');
+		const size = measurePhotoCatalogPackRecordV1(photo);
 		this.identity.admit(photo);
 		return { input: { photo, original }, size };
 	}

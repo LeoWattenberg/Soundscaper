@@ -33,6 +33,16 @@ export interface PhotoCatalogPackInput {
 
 type PhotoCatalogPackLimits = Readonly<Record<keyof typeof PHOTO_CATALOG_PACK_LIMITS_V1, number>>;
 
+/** Admit one record's fixed format bytes before opening its retained original. */
+export function measurePhotoCatalogPackRecordV1(value: unknown): number {
+	const photo = normalizePhotoDocumentV1(value);
+	const size = 12 + TEXT_ENCODER.encode(serializeLightscaperDocumentV1(photo)).byteLength + photo.original.byteLength;
+	if (!Number.isSafeInteger(size) || size + MAGIC.byteLength > PHOTO_CATALOG_PACK_LIMITS_V1.maximumPackBytes) {
+		throw new RangeError('A photo original cannot fit the bounded archive pack.');
+	}
+	return size;
+}
+
 /**
  * Pack v1: ASCII LSCPACK1, then repeated little-endian u32 JSON length + u64
  * original length, canonical photo JSON, exact original bytes. No padding,

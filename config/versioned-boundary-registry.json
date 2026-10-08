@@ -568,6 +568,8 @@
 		,
 		{"path": "src/lightscaper/controller/photo-batch-rename-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded scalar batch rename preserves selected sequence bindings and publishes authored filenames through existing per-photo CAS/history without mutating originals."}
 		,
+		{ "path": "src/lightscaper/controller/photo-library-backup-v1.ts", "kind": "helper-contract", "justification": "Version 1 leased catalog backup enumerates bounded summary pages and authenticated retained originals, fencing root and photo-index revisions before archive completion." }
+		,
 		{ "path": "src/lightscaper/controller/photo-library-batch-rename-v1.ts", "kind": "helper-contract", "justification": "Version 1 serial batch rename and undo borrow the existing Session writer and one command owner, preserving durable receipts through cancellation and cleanup within fixed scalar bounds." }
 		,
 		{"path": "src/lightscaper/controller/photo-library-definition-pages-v1.ts", "kind": "helper-contract", "justification": "Version1 scalar definition pages preserve catalog revision and hierarchy scope with bounded current-parent and selected-name projections."}
