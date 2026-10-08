@@ -34,9 +34,9 @@ export function RawPcmImportDialog({ controller, copy, run, onClose, fileService
 	const [file, setFile] = useState<File | null>(null);
 	const [sampleFormat, setSampleFormat] = useState<RawPcmSampleFormat>('int16');
 	const [byteOrder, setByteOrder] = useState<RawPcmByteOrder>('little');
-	const [sampleRate, setSampleRate] = useState(44_100);
-	const [channelCount, setChannelCount] = useState(1);
-	const [offsetBytes, setOffsetBytes] = useState(0);
+	const [sampleRate, setSampleRate] = useState('44100');
+	const [channelCount, setChannelCount] = useState('1');
+	const [offsetBytes, setOffsetBytes] = useState('0');
 	const [importing, setImporting] = useState(false);
 	const importingRef = useRef(false);
 	const pendingImport = useRef<AbortController | null>(null);
@@ -59,7 +59,7 @@ export function RawPcmImportDialog({ controller, copy, run, onClose, fileService
 		setImporting(true);
 		run(async () => {
 			try {
-				const wav = await withWebFileLoadLimitContext(() => prepareRawPcmWaveFile(file, { sampleFormat, byteOrder, sampleRate, channelCount, offsetBytes },
+				const wav = await withWebFileLoadLimitContext(() => prepareRawPcmWaveFile(file, { sampleFormat, byteOrder, sampleRate: Number(sampleRate), channelCount: Number(channelCount), offsetBytes: Number(offsetBytes) },
 					{ desktop: fileService?.isDesktop === true, confirmFileSizeWarning, signal: cancellation.signal, assertCurrent: () => { if (!projectIsCurrent()) throw new DOMException('The project changed.', 'AbortError'); } }));
 				if (!projectIsCurrent()) return;
 				await controller.actions.project.importFiles([wav], { signal: cancellation.signal });
@@ -175,9 +175,9 @@ export function RegularIntervalAnnotationDialog({ controller, copy, run, onClose
 }
 
 function NumberField({ label, value, minimum, maximum, onChange }: Readonly<{
-	label: string; value: number; minimum: number; maximum: number; onChange(value: number): void;
+	label: string; value: string; minimum: number; maximum: number; onChange(value: string): void;
 }>) {
-	return <label className="kw-audio-editor-dialog__field"><span>{label}</span><input required type="number" min={minimum} max={maximum} step={1} value={value} onChange={(event) => onChange(Number(event.currentTarget.value))} /></label>;
+	return <label className="kw-audio-editor-dialog__field"><span>{label}</span><input required type="number" min={minimum} max={maximum} step={1} value={value} onChange={(event) => onChange(event.currentTarget.value)} /></label>;
 }
 
 function TimeField({ name, label, value, sampleRate = 48_000, minimum, maximum, onChange }: Readonly<{
