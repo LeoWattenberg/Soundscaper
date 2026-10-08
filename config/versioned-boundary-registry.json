@@ -424,6 +424,8 @@
 		,
 		{ "path": "src/common/editor/photo-library-original-recovery-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded original inspection pages and revision-fenced exact restoration targets expose scalar retained-source identities independently of product documents or storage locators." }
 		,
+		{ "path": "src/common/editor/photo-library-query-port-v2.ts", "kind": "helper-contract", "justification": "Version 2 scalar metadata query and explicit rebuild ports carry closed effective predicates, bounded ordinary or collapsed steps and separate source/derived byte observations without photo documents." }
+		,
 		{ "path": "src/common/editor/photo-library-session-port-v1.ts", "kind": "helper-contract", "justification": "Scalar browser presentation port for the version 1 photo library session, independent of owning catalog documents." }
 		,
 		{"path": "src/common/editor/photo-library-stack-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 scalar stack presentation commands bind selected membership, ordered drafts and durable acknowledgements to the existing photo Session."}
@@ -578,15 +580,33 @@
 		,
 		{"path": "src/lightscaper/archive/catalog-archive-import-v2.ts", "kind": "helper-contract", "justification": "Version 2 catalog import admits version 1 empty grouping and validates exclusive stack membership before provisional catalog publication."}
 		,
+		{ "path": "src/lightscaper/catalog/photo-metadata-query-columns-v2.ts", "kind": "helper-contract", "justification": "Version 2 closed metadata column definitions bind effective scalar facts, nullable presence, units and local versus UTC clocks independently of raw extracted source metadata." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-query-index-storage-v2.ts", "kind": "persisted-contract", "justification": "Version 2 disposable query build states bind readiness, bounded resume position and atomic derived-row counts independently of canonical photo and catalog schemas." }
+		,
 		{ "path": "src/lightscaper/catalog/photo-query-index-v1.ts", "kind": "persisted-contract", "justification": "Version 1 disposable metadata query rows and rebuild states preserve bounded ordered indexes independently of canonical photo documents." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-query-index-v2.ts", "kind": "persisted-contract", "justification": "Version 2 disposable flat query rows retain bounded effective metadata and dimensions with authenticated sort projections while deriving the unchanged scalar photo summary on demand." }
 		,
 		{"path": "src/lightscaper/catalog/photo-query-matcher-v1.ts", "kind": "helper-contract", "justification": "Version 1 query eligibility is shared by ordinary and globally collapsed catalog pages, including live smart collections."}
 		,
+		{ "path": "src/lightscaper/catalog/photo-query-matcher-v2.ts", "kind": "helper-contract", "justification": "Version 2 ordinary and collapsed query eligibility combines unchanged literal filters with reference-validated effective metadata predicates without widening the version 1 text universe." }
+		,
 		{ "path": "src/lightscaper/catalog/photo-query-pages-v1.ts", "kind": "helper-contract", "justification": "Version 1 catalog query pages traverse globally ordered indexes with bounded candidate work and live smart collection evaluation." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-query-pages-v2.ts", "kind": "helper-contract", "justification": "Version 2 metadata query pages traverse bounded globally ordered derived rows and return catalog context, revisions and scalar summaries from one native transaction." }
 		,
 		{ "path": "src/lightscaper/catalog/photo-query-rebuild-v1.ts", "kind": "helper-contract", "justification": "Version 1 resumable query index rebuild publishes bounded derived rows and progress atomically without rewriting original photo documents." }
 		,
+		{ "path": "src/lightscaper/catalog/photo-query-rebuild-v2.ts", "kind": "helper-contract", "justification": "Version 2 explicit resumable metadata index rebuild joins source and derived-row byte bounds with atomic count/progress publication while leaving canonical photo documents unchanged." }
+		,
 		{ "path": "src/lightscaper/catalog/photo-query-types-v1.ts", "kind": "helper-contract", "justification": "Closed version 1 catalog query and bounded continuation contracts bind literal search, filtering and global ordering to one catalog revision." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-query-types-v2.ts", "kind": "helper-contract", "justification": "Closed version 2 catalog queries and bounded continuations add explicit effective metadata predicates and catalog/index revision context while preserving version 1 parsers and defaults." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-smart-query-types-v2.ts", "kind": "persisted-contract", "justification": "Independent version 2 bounded smart-query predicates encode allowlisted effective metadata text, numeric, clock and presence conditions without changing canonical family version 1 documents." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-smart-query-v2.ts", "kind": "helper-contract", "justification": "Version 2 pure smart-query admission, serialization and matching validate all hierarchy references before boolean evaluation and provide explicit version 1 predicate migration." }
 		,
 		{ "path": "src/lightscaper/catalog/photo-stack-query-audit-v1.ts", "kind": "helper-contract", "justification": "Version 1 collapsed grouping-count authentication resumes bounded primary-key pages without whole-index count scans or retained stack documents." }
 		,
@@ -594,9 +614,15 @@
 		,
 		{ "path": "src/lightscaper/catalog/photo-stack-query-progress-v1.ts", "kind": "helper-contract", "justification": "Version 1 collapsed progress signatures authenticate bounded member positions on their issuing database connection without retaining catalog-wide query state." }
 		,
+		{ "path": "src/lightscaper/catalog/photo-stack-query-progress-v2.ts", "kind": "helper-contract", "justification": "Version 2 collapsed metadata progress signatures authenticate canonical bounded member and count-audit positions on their issuing database connection with authority separate from version 1 cursors." }
+		,
 		{ "path": "src/lightscaper/catalog/photo-stack-query-signal-v1.ts", "kind": "helper-contract", "justification": "Version 1 collapsed read cancellation borrows a private native signal bridge and joins transaction settlement without evaluating late caller-owned signal overrides." }
 		,
 		{"path": "src/lightscaper/catalog/photo-stack-query-types-v1.ts", "kind": "helper-contract", "justification": "Closed version 1 collapsed continuations bind query, catalog, photo index and grouping revisions within a scalar byte bound."}
+		,
+		{ "path": "src/lightscaper/catalog/photo-stack-query-types-v2.ts", "kind": "helper-contract", "justification": "Closed version 2 collapsed metadata requests, pages and continuations bind query digest, atomic catalog/index/grouping revisions and bounded signed progress without admitting version 1 tokens." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-stack-query-v2.ts", "kind": "helper-contract", "justification": "Version 2 collapsed metadata pages adapt the shared bounded global representative kernel to effective query rows while authenticating every winning stack member and preserving version 1 traversal behavior." }
 		,
 		{"path": "src/lightscaper/catalog/photo-stack-record-v1.ts", "kind": "helper-contract", "justification": "Version 1 private stack storage projection validates ordered scoped forward membership and a bounded record independently of portable stack documents."}
 		,
@@ -626,7 +652,11 @@
 		,
 		{"path": "src/lightscaper/controller/photo-library-query-v1.ts", "kind": "helper-contract", "justification": "Version1 scalar query and explicit migration steps preserve bounded global ordering, strict cursors and cancellation without exposing photo documents."}
 		,
+		{ "path": "src/lightscaper/controller/photo-library-query-v2.ts", "kind": "helper-contract", "justification": "Version 2 Session metadata query and explicit rebuild adapters admit closed requests before initialization and project authenticated atomic page context into bounded scalar rows with joined cancellation." }
+		,
 		{"path": "src/lightscaper/controller/photo-library-stack-query-v1.ts", "kind": "helper-contract", "justification": "Version 1 collapsed Session query admission detaches criteria and preserves scalar cursors, cancellation and selected catalog authority."}
+		,
+		{ "path": "src/lightscaper/controller/photo-library-stack-query-v2.ts", "kind": "helper-contract", "justification": "Version 2 collapsed Session metadata queries detach closed criteria and signed cursors before initialization, preserving selected catalog and atomic grouping context through bounded scalar projection and joined cancellation." }
 		,
 		{"path": "src/lightscaper/controller/photo-library-stacks-v1.ts", "kind": "helper-contract", "justification": "Version 1 stack Session commands borrow the existing writer and publish durable grouping acknowledgements independently of cleanup."}
 		,

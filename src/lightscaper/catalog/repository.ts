@@ -14,6 +14,12 @@ import { array, id, integer, name, unique } from './value-validation.ts';
 import { readPhotoQueryPageV1 } from './photo-query-pages-v1.ts';
 import { rebuildPhotoQueryIndexPageV1 } from './photo-query-rebuild-v1.ts';
 import type { PhotoQueryPageRequestV1, PhotoQueryPageV1 } from './photo-query-types-v1.ts';
+import { readPhotoQueryPageV2 } from './photo-query-pages-v2.ts';
+import { rebuildPhotoQueryIndexPageV2 } from './photo-query-rebuild-v2.ts';
+import { readPhotoStackQueryPageV2 } from './photo-stack-query-v2.ts';
+import { admitPhotoStackQueryPageRequestV2, type PhotoStackQueryPageRequestV2 } from './photo-stack-query-types-v2.ts';
+import { admitPhotoQueryPageRequestV2, type PhotoQueryPageRequestV2 } from './photo-query-types-v2.ts';
+import { withPhotoStackQuerySignalV1 } from './photo-stack-query-signal-v1.ts';
 import { readPhotoStackQueryPageV1 } from './photo-stack-query-pages-v1.ts';
 import { admitPhotoStackQueryPageRequestV1, type PhotoStackQueryPageRequestV1 } from './photo-stack-query-types-v1.ts';
 import { admitPhotoStackSaveV1, admitPhotoStackMemberIdsV1, readPhotoStackWriteOptionsV1, readPhotoStackPageOptionsV1, readPhotoStackSignalOptionsV1,
@@ -151,9 +157,25 @@ export class PhotoCatalogRepositoryV1 {
 		return readPhotoQueryPageV1(await this.#open(), catalogId, options);
 	}
 
+	async readQueryPageV2(catalogId: string, options: PhotoQueryPageRequestV2 = {}) {
+		const catalog = id(catalogId, 'metadata query catalog ID'), admitted = admitPhotoQueryPageRequestV2(catalog, options);
+		return withPhotoStackQuerySignalV1(admitted.signal, async signal =>
+			readPhotoQueryPageV2(await this.#open(), catalog, { ...admitted, signal }));
+	}
+
+	async rebuildQueryIndexPageV2(catalogId: string, options: Readonly<{ signal?: AbortSignal }> = {}) {
+		const catalog = id(catalogId, 'metadata query catalog ID'), admitted = readPhotoStackSignalOptionsV1(options);
+		return withPhotoStackQuerySignalV1(admitted.signal, async signal =>
+			rebuildPhotoQueryIndexPageV2(await this.#open(), catalog, signal));
+	}
+
 	async readStackQueryPage(catalogId: string, options: PhotoStackQueryPageRequestV1 = {}) {
 		const catalog = id(catalogId, 'collapsed query catalog ID'), admitted = admitPhotoStackQueryPageRequestV1(catalog, options);
 		return readPhotoStackQueryPageV1(await this.#open(), catalog, admitted);
+	}
+	async readStackQueryPageV2(catalogId: string, options: PhotoStackQueryPageRequestV2 = {}) {
+		const catalog = id(catalogId, 'collapsed metadata catalog ID'), admitted = admitPhotoStackQueryPageRequestV2(catalog, options);
+		return withPhotoStackQuerySignalV1(admitted.signal, async signal => readPhotoStackQueryPageV2(await this.#open(), catalog, { ...admitted, signal }));
 	}
 
 	async rebuildQueryIndexPage(catalogId: string, options: Readonly<{ signal?: AbortSignal }> = {}) {

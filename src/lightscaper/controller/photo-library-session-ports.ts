@@ -18,7 +18,8 @@ export type PhotoLibraryPreparationOutcomeV1 = Prepared | Extract<PhotoImportOut
 export type PhotoLibraryPreviewSchedulerPortV1 = Pick<PhotoPreviewSchedulerV1, 'request' | 'close'>;
 
 export interface PhotoLibrarySessionPortsV1 {
-	readonly stacks?: PhotoLibraryStackRepositoryV1 & Pick<PhotoCatalogRepositoryV1, 'readStackQueryPage'>;
+	readonly stacks?: PhotoLibraryStackRepositoryV1 & Pick<PhotoCatalogRepositoryV1, 'readStackQueryPage'>
+		& Partial<Pick<PhotoCatalogRepositoryV1, 'readStackQueryPageV2'>>;
 	readonly originalInspection?: PhotoLibraryOriginalInspectionPortV1;
 	readonly originalRestoration?: Readonly<Pick<MediaRepository, 'restoreCatalogOriginalBody'>>;
 	readonly backup?: Readonly<{
@@ -26,7 +27,8 @@ export interface PhotoLibrarySessionPortsV1 {
 		loadOriginal: (original: PhotoOriginalV1, signal?: AbortSignal) => Promise<unknown>;
 	}>;
 	readonly createPreviewScheduler?: (catalogId: string) => Promise<PhotoLibraryPreviewSchedulerPortV1>;
-	readonly catalog: Pick<PhotoCatalogRepositoryV1, 'loadCatalog' | 'loadPhoto' | 'publishPhotos' | 'savePhoto' | 'saveCatalog' | 'readSummaryPage' | 'readQueryPage' | 'rebuildQueryIndexPage'>;
+	readonly catalog: Pick<PhotoCatalogRepositoryV1, 'loadCatalog' | 'loadPhoto' | 'publishPhotos' | 'savePhoto' | 'saveCatalog' | 'readSummaryPage' | 'readQueryPage' | 'rebuildQueryIndexPage'>
+		& Partial<Pick<PhotoCatalogRepositoryV1, 'readQueryPageV2' | 'rebuildQueryIndexPageV2'>>;
 	readonly media: PhotoManagedImportPortsV1['media'];
 	readonly journal: PhotoManagedImportPortsV1['journal'];
 	readonly settings?: PhotoImportPresetSettingsPortV1;

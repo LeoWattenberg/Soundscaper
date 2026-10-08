@@ -3,6 +3,7 @@
 import { EditorStoreBlockedError } from '../../common/editor/storage/status.ts';
 import { PHOTO_CATALOG_DATABASE_VERSION, PHOTO_CATALOG_STORES } from './repository-types.ts';
 import { PHOTO_QUERY_INDEXES_V1 } from './photo-query-index-v1.ts';
+import { PHOTO_QUERY_INDEXES_V2 } from './photo-query-index-v2.ts';
 
 /** Own versioned database; shared editor openDatabase would create timeline stores. */
 export function openPhotoCatalogDatabaseV1(factory: IDBFactory, name: string, onVersionChange: () => void): Promise<IDBDatabase> {
@@ -12,18 +13,19 @@ export function openPhotoCatalogDatabaseV1(factory: IDBFactory, name: string, on
 		const request = factory.open(name, PHOTO_CATALOG_DATABASE_VERSION);
 		request.onupgradeneeded = (event) => {
 			try {
-				if (![0, 1, 2].includes(event.oldVersion)) throw new RangeError('Unsupported photo catalog database migration.');
+				if (![0, 1, 2, 3].includes(event.oldVersion)) throw new RangeError('Unsupported photo catalog database migration.');
 				for (const storeName of PHOTO_CATALOG_STORES) {
 					if (request.result.objectStoreNames.contains(storeName)) continue;
-					const store = request.result.createObjectStore(storeName, { keyPath: storeName === 'photoStackStates' ? 'catalogId' : storeName === 'catalogs' || storeName === 'catalogStates' || storeName === 'photoQueryBuildStates' ? 'id' : 'key' });
+					const store = request.result.createObjectStore(storeName, { keyPath: storeName === 'photoStackStates' ? 'catalogId' : storeName === 'catalogs' || storeName === 'catalogStates' || storeName === 'photoQueryBuildStates' || storeName === 'photoQueryBuildStatesV2' ? 'id' : 'key' });
 					if (storeName === 'photoStacks' || storeName === 'photoStackMemberships') store.createIndex('catalogId', 'catalogId');
 					if (storeName === 'photoStacks') store.createIndex('memberKey', 'memberKeys', { unique: true, multiEntry: true });
 					if (storeName === 'photoStackMemberships') store.createIndex('scope', 'scope');
 					if (storeName === 'summaries') store.createIndex('catalogId', 'catalogId');
 					if (storeName === 'memberships') store.createIndex('scope', 'scope');
-					if (storeName === 'photoQueryRows') {
+					if (storeName === 'photoQueryRows' || storeName === 'photoQueryRowsV2') {
 						store.createIndex('catalogId', 'catalogId');
-						for (const [sort, fields] of Object.entries(PHOTO_QUERY_INDEXES_V1)) store.createIndex(sort, [...fields]);
+						const indexes = storeName === 'photoQueryRows' ? PHOTO_QUERY_INDEXES_V1 : PHOTO_QUERY_INDEXES_V2;
+						for (const [sort, fields] of Object.entries(indexes)) store.createIndex(sort, [...fields]);
 					}
 				}
 			} catch (error) {
