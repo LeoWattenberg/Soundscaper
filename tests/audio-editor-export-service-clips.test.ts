@@ -61,12 +61,13 @@ test('clip archive renders only its named clip over its own span and conforms ea
 	});
 	assert.equal(result.fileName, 'Takes-clips.zip');
 	assert.deepEqual(rendered.map(({ clipIds }) => clipIds), [['a'], ['b']]);
+	// Render the isolated projection without a track filter so detector bus feeds remain available.
 	assert.deepEqual(rendered.map(({ range }) => ({
 		startFrame: range.startFrame, endFrame: range.endFrame, includeTail: range.includeTail,
 		trackId: range.trackId, includeMaster: range.includeMaster, respectMuteSolo: range.respectMuteSolo,
 	})), [
-		{ startFrame: 2, endFrame: 5, includeTail: 0, trackId: 'one', includeMaster: false, respectMuteSolo: false },
-		{ startFrame: 6, endFrame: 12, includeTail: 0, trackId: 'two', includeMaster: false, respectMuteSolo: false },
+		{ startFrame: 2, endFrame: 5, includeTail: 0, trackId: null, includeMaster: false, respectMuteSolo: false },
+		{ startFrame: 6, endFrame: 12, includeTail: 0, trackId: null, includeMaster: false, respectMuteSolo: false },
 	]);
 	assert.deepEqual(fixture.encodedFrameCounts, [3, 6]);
 	assert.deepEqual(fixture.progress, [0.5, 1]);
@@ -109,8 +110,8 @@ test('realtime clip exports load isolated snapshots and retain per-clip render b
 	assert.deepEqual(fixture.realtimeRenderOptions.map(({ startFrame, endFrame, trackId, includeMaster }) => ({
 		startFrame, endFrame, trackId, includeMaster,
 	})), [
-		{ startFrame: 2, endFrame: 8, trackId: 'one', includeMaster: false },
-		{ startFrame: 6, endFrame: 12, trackId: 'two', includeMaster: false },
+		{ startFrame: 2, endFrame: 8, trackId: null, includeMaster: false },
+		{ startFrame: 6, endFrame: 12, trackId: null, includeMaster: false },
 	]);
 	assert.deepEqual(fixture.errors, []);
 });
