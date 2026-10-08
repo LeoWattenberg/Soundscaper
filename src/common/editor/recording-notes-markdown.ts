@@ -38,6 +38,7 @@ function replaceSelection(value: string, start: number, end: number, text: strin
 function formatInline(value: string, start: number, end: number, marker: string,
 	placeholder: string): RecordingNotesSelection {
 	const selected = value.slice(start, end);
+	if (selected.includes('\n')) return formatMultilineInline(value, start, end, marker, placeholder);
 	if (marker !== '`' && selected) {
 		const leading = /^\s*/u.exec(selected)?.[0].length ?? 0;
 		const trailing = /\s*$/u.exec(selected)?.[0].length ?? 0;
@@ -60,6 +61,45 @@ function formatInline(value: string, start: number, end: number, marker: string,
 	}
 	const text = selected || placeholder;
 	return replaceSelection(value, start, end, marker + text + marker, marker.length, marker.length + text.length);
+}
+
+function formatMultilineInline(value: string, start: number, end: number, marker: string,
+	placeholder: string): RecordingNotesSelection {
+	let offset = start;
+	const lines = value.slice(start, end).split('\n').map(text => {
+		const from = offset;
+		offset += text.length + 1;
+		return { from, to: from + text.length, text };
+	});
+	let next = value;
+	let selectionStart = start;
+	let selectionEnd = end;
+	let finalContent = true;
+	// Independent inline spans cannot cross paragraph/list boundaries. Work
+	// backwards so earlier authored offsets remain valid after each replacement.
+	for (const line of lines.reverse()) {
+		if (!line.text.trim()) continue;
+		const lineStart = line.from === 0 ? 0 : value.lastIndexOf('\n', line.from - 1) + 1;
+		const prefix = line.from === lineStart ? blockPrefix(line.text) : null;
+		let from = line.from + (prefix ? prefix.indent.length + prefix.prefix.length : 0);
+		let to = line.to;
+		if (from === to) continue;
+		const content = next.slice(from, to);
+		const contentStart = from + (/^\s*/u.exec(content)?.[0].length ?? 0);
+		const contentEnd = to - (/\s*$/u.exec(content)?.[0].length ?? 0);
+		// The restored selection excludes the first opener and last closer.
+		// Include that matching half when toggling the first or final line.
+		if (next.slice(contentStart, contentEnd).endsWith(marker)
+			&& next.slice(contentStart - marker.length, contentStart) === marker) from = contentStart - marker.length;
+		if (next.slice(contentStart, contentEnd).startsWith(marker)
+			&& next.slice(contentEnd, contentEnd + marker.length) === marker) to = contentEnd + marker.length;
+		const result = formatInline(next, from, to, marker, placeholder);
+		selectionEnd = finalContent ? result.selectionEnd : selectionEnd + result.value.length - next.length;
+		selectionStart = result.selectionStart;
+		finalContent = false;
+		next = result.value;
+	}
+	return { value: next, selectionStart, selectionEnd };
 }
 
 function blockPrefix(line: string): { indent: string; prefix: string; content: string } {
