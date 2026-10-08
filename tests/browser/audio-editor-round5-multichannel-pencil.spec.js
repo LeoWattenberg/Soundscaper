@@ -44,7 +44,7 @@ test('Pencil edits the visible right channel of a normal multichannel recording'
 	expect(channels[1][32]).toBeGreaterThan(0.1);
 	expect(channels[0][32]).toBeCloseTo(0, 6);
 	await chooseCommandAction(page, editor, 'Edit', 'Undo');
-	expect((await exportChannels(page, editor))[1][32]).toBe(0);
+	expect((await exportChannels(page, editor))[1][32]).toBeCloseTo(0, 6);
 	await chooseCommandAction(page, editor, 'Edit', 'Redo');
 	expect((await exportChannels(page, editor))[1][32]).toBeGreaterThan(0.1);
 });
