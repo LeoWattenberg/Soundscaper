@@ -7,8 +7,7 @@
 
 import { publishedCopyFor } from '../../shared/presentation-localization.ts'; import { createAddClipCommand, createAddSourceCommand } from '../../../commands/factories.ts'; import { setLocalizedStatus } from '../../../../i18n/presentation-message.ts';
 import { projectForAudioGeneratorCommands } from './generator-project-view.ts';
-import type { AudioEditorCommand } from '../../../commands/protocol.ts';
-import { prepareDisjointRangeDeleteCommand } from '../../../commands/range-runtime.js';
+import { prepareLabeledAudioSilenceRemoval } from './labeled-audio-silence-removal.ts';
 import { generateAudioEditorSignal } from '../../../generators.js';
 import { normalizeProjectSampleRate } from '../../shared/app-helpers.ts';
 import { publishGeneratedAudioSource, type GeneratedAudioSource } from './generated-source-publication.ts';
@@ -122,14 +121,7 @@ export function createLabeledAudioSilence<Context, Target extends AudioGenerator
 					type: 'batch',
 					commands: [
 						...[...sources.values()].map(createAddSourceCommand),
-						prepareDisjointRangeDeleteCommand(project, {
-							ranges: spans.map((region) => ({
-								startFrame: region.startFrame,
-								endFrame: region.endFrame,
-							})),
-							trackIds: plan.map((entry) => entry.trackId),
-							rippleMode: 'none',
-						}) as AudioEditorCommand,
+						prepareLabeledAudioSilenceRemoval(project, spans, plan.map(entry => entry.trackId), dependencies.createId),
 						...plan.flatMap((entry) => entry.spans.map((region) => createAddClipCommand(entry.trackId, {
 							id: dependencies.createId('clip'),
 							sourceId: sources.get(entry.channelCount)!.id,
