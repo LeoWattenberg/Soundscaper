@@ -160,17 +160,58 @@ all three engines (9/9). Modern effects and headerless prompts retain their
 existing input semantics. Earlier auxiliary export setup and ideal-wave
 comparison errors are excluded; their raw evidence is retained.
 This source-final normal build covers every counted correction. Later changes
-correct verification setup and assertions or update documentation and size
-ratchets, without changing application bytes.
+in this audit correct verification setup and assertions or update documentation
+and size ratchets, without changing application bytes.
 Browser evidence names each exact checkpoint. Firefox audio
 uses the unchanged CI PulseAudio setup with a private 48 kHz null sink.
 
-The final canonical gate passes after regenerating its command reference from
+The final canonical gate for source and tests at `374e78a87` passes after regenerating its command reference from
 the owning menu inventory and updating stale test contracts. Its main suite
 reports 23,939 tests: 23,906 passes, 33 skips and no failures; the isolated
 preflight adds one pass. This includes the legacy-effect and final capture-owner
 regressions. Static checks, full bounded-memory lint and guarded product builds
-also pass. The source-final full browser inventory remains in progress. The earlier browser
+also pass. Documentation-only follow-ups through `43dfc1665` retain that source
+and test closure. Later shared-checkout changes are outside these receipts.
+
+The source-final browser inventory covers all 5,268 unique project/test
+identities. Its final composite outcomes are:
+
+| Browser | Passed | Explicit annotated skips | Remaining failures | Inventory |
+| --- | ---: | ---: | ---: | ---: |
+| Chromium | 1,740 | 16 | 0 | 1,756 |
+| Firefox | 1,676 | 80 | 0 | 1,756 |
+| WebKit | 1,651 | 100 | 5 | 1,756 |
+| Total | 5,067 | 196 | 5 | 5,268 |
+
+This is an identity-complete composite, not a green uninterrupted browser
+command. Original failures and deliberate interruptions are retained. Resume
+partitions exclude only successful or explicit skipped identities, retaining
+failed, interrupted and serial-dependent cases; the final inventories contain
+no missing identities or implicitly unrun cases. Three Chromium failures
+required uncounted fixture corrections: decoded-silence precision and an
+invalid cross-capture latency assumption. Their corrected public workflows
+pass, with the exact signed mapping independently checked at both capture
+owners. Firefox's 17 remaining failures all pass unchanged in its one-worker
+retry (exit 0). WebKit's six-case one-worker retry passes the scientific
+frequency assertion but leaves five failures (exit 1): podcast tempo remains
+120 instead of 108; keyframe editing and bus-tail rendering exceed their
+overall deadlines before the relevant output assertions; preset Save does not
+publish its expected completion status within five seconds; and the reloaded
+visual Inspector shows Noise when the test expects Test Image. These outcomes
+are unresolved and add no counted bugs. No source cause is inferred solely
+from resource pressure, and no retry changes their assertions or budgets.
+A passive native-event observer subsequently passes the original podcast
+actions and assertions: the same connected tempo input receives `108`, a real
+blur and a successful save. It does not reproduce the proposed late Effects
+focus transfer; Effects focus occurs before tempo editing. The earlier `120`
+failure remains unexplained. This diagnostic does not replace the unmodified
+retry's failures in the table. Its evidence is retained in
+`/tmp/soundscaper-r5-podcast-tempo-public-observer-summary.json`.
+
+Exact Firefox and WebKit identity partitions, frozen fixture hashes and raw
+attempts are retained in `/tmp/soundscaper-r5-final-firefox-g44-composite-receipt.json`
+and `/tmp/soundscaper-r5-final-webkit-g44-final-composite-inventory.json`.
+The earlier browser
 run was intentionally stopped for the final-source restart after 2,258 passes,
 three failures, four interrupted cases and 40 explicit skips; 2,960 cases
 had not run. The two playback/recording timing failures passed unchanged in
