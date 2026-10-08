@@ -18,11 +18,12 @@ export interface PhotoPreviewPresentationPropsV1 extends PhotoPreviewPresentatio
 }
 
 function PreviewCanvas(props: Readonly<{ photoId: string; tier: PhotoLibraryPreviewTierV1; label: string;
-	controller: PixelPreviewPresentationV1; pending: boolean; compare?: boolean }>) {
-	const { photoId, tier, controller, compare } = props;
+	controller: PixelPreviewPresentationV1; pending: boolean; profile?: 'ordinary' | 'compare' | 'survey' }>) {
+	const { photoId, tier, controller, profile = 'ordinary' } = props;
 	const attach = useCallback((canvas: HTMLCanvasElement | null) => {
-		if (compare) controller.attachCompare(photoId, canvas); else controller.attach(photoId, tier, canvas);
-	}, [controller, photoId, tier, compare]);
+		if (profile === 'survey') controller.attachSurvey(photoId, tier, canvas);
+		else if (profile === 'compare') controller.attachCompare(photoId, canvas); else controller.attach(photoId, tier, canvas);
+	}, [controller, photoId, tier, profile]);
 	return <canvas ref={attach} width={0} height={0} className={`lightscaper-preview lightscaper-preview-${tier}`}
 		role="img" aria-label={props.label} aria-busy={props.pending} />;
 }
@@ -31,16 +32,25 @@ function PreviewCanvas(props: Readonly<{ photoId: string; tier: PhotoLibraryPrev
 export default function PhotoPreviewPresentation(props: PhotoPreviewPresentationPropsV1) {
 	const { controller, snapshot } = usePhotoPreviewPresentation(props);
 	const comparing = props.comparePhotoIds != null;
+	const surveying = props.surveyPhotoIds != null;
 	const pending = (id: string, tier: PhotoLibraryPreviewTierV1) => snapshot.targets.find(target => target.photoId === id && target.tier === tier)?.status === 'pending';
 	return props.children({ snapshot,
-		renderThumbnail: (photoId, label) => !comparing && props.thumbnailsVisible && props.photoIds.includes(photoId)
+		renderThumbnail: (photoId, label) => surveying
+			? props.surveyPhotoIds?.includes(photoId) && photoId !== props.surveyFocusedPhotoId
+				? <PreviewCanvas key={`survey:thumbnail:${photoId}`} photoId={photoId} tier="thumbnail" label={label}
+					controller={controller} pending={pending(photoId, 'thumbnail')} profile="survey" /> : null
+			: !comparing && props.thumbnailsVisible && props.photoIds.includes(photoId)
 			? <PreviewCanvas key={`thumbnail:${photoId}`} photoId={photoId} tier="thumbnail" label={label}
 				controller={controller} pending={pending(photoId, 'thumbnail')} /> : null,
-		renderLoupe: label => !comparing && props.fitScreenPhotoId !== null
+		renderLoupe: label => !comparing && !surveying && props.fitScreenPhotoId !== null
 			? <PreviewCanvas key={`fit-screen:${props.fitScreenPhotoId}`} photoId={props.fitScreenPhotoId} tier="fit-screen" label={label}
 				controller={controller} pending={pending(props.fitScreenPhotoId, 'fit-screen')} /> : null,
-		renderFitScreen: (photoId, label) => props.comparePhotoIds?.includes(photoId)
+		renderFitScreen: (photoId, label) => surveying
+			? photoId === props.surveyFocusedPhotoId && props.surveyPhotoIds?.includes(photoId)
+				? <PreviewCanvas key={`survey:fit-screen:${photoId}`} photoId={photoId} tier="fit-screen" label={label}
+					controller={controller} pending={pending(photoId, 'fit-screen')} profile="survey" /> : null
+			: props.comparePhotoIds?.includes(photoId)
 			? <PreviewCanvas key={`compare:${photoId}`} photoId={photoId} tier="fit-screen" label={label}
-				controller={controller} pending={pending(photoId, 'fit-screen')} compare /> : null,
+				controller={controller} pending={pending(photoId, 'fit-screen')} profile="compare" /> : null,
 	});
 }

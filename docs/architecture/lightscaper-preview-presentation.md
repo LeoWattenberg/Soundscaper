@@ -15,6 +15,7 @@ length and digest, and an original-free raw preview Blob.
 | Thumbnail backing | At most 1 MiB per target and 64 MiB per page |
 | Loupe backing | One fit-screen target, at most 16 MiB |
 | Compare backing | Exactly two fit-screen targets, at most 16 MiB each and 32 MiB combined; ordinary targets detach |
+| Survey backing | One focused fit-screen target replaces its thumbnail; at most 63 thumbnail targets plus 16 MiB fit backing, totaling 79 MiB |
 | Settled presentation | At most 80 MiB of declared RGBA canvas backing |
 | Presentation demand | One requested body/read/paint at a time; no queued bodies |
 | Body staging | One at most 16 MiB Blob and one at most 16 MiB owned read buffer |
@@ -38,6 +39,17 @@ registrations are refused. Null callbacks from retired profiles cannot detach
 a new profile's target with the same photo ID. Cleanup tries every surface and
 joins a held native stage even when a clear fails; bounded diagnostics retain
 that failure independently of cancellation.
+
+Survey is a third explicit profile of the same presenter. A nonempty review
+has exactly one focused ID from its at-most-64-ID view; an empty review has no
+focus or targets. The focused fit-screen target replaces its own thumbnail,
+so there are at most 64 surfaces and 79 MiB of settled backing. One staged
+16 MiB body and one owned 16 MiB buffer bring its presentation phase to at most
+111 MiB, within the unchanged 112 MiB ceiling. Ordinary and Compare targets
+detach before Survey attaches, and profile-specific late null callbacks cannot
+detach new targets. Focus changes retire the displaced tier before reading a
+new body. The same owner joins held reads, native staging and cleanup through
+view changes, empty reviews and acknowledged-page canvas recreation.
 
 The shared body owner admits the closed descriptor, current processing profile,
 geometry, genuine Blob size and declared output length before reading. It reads

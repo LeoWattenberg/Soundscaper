@@ -12,6 +12,7 @@ import type { PhotoPreviewPresentationViewV1 } from './PhotoPreviewPresentation.
 import { DEFAULT_PHOTO_LIBRARY_QUERY_V1, usePhotoLibraryWorkflow, type LoadPhotoLibraryBackupSaveRuntimeV1 } from './use-photo-library-workflow.ts';
 import { usePhotoLibrarySelection } from './use-photo-library-selection.ts';
 import { usePhotoCompare } from './use-photo-compare.ts';
+import { usePhotoSurvey } from './use-photo-survey.ts';
 import '../../../../../vendor/audacity-design-system/components/src/ApplicationHeader/ApplicationHeader.css';
 import './lightscaper.css';
 import './photo-culling.css';
@@ -33,6 +34,7 @@ const PhotoBatchRenameResults = lazy(() => import('./PhotoBatchRenameResults.tsx
 const PhotoCatalogBackupDialog = lazy(() => import('./PhotoCatalogBackupDialog.tsx'));
 const PhotoOriginalRecoveryDialog = lazy(() => import('./PhotoOriginalRecoveryDialog.tsx'));
 const PhotoCompareDialog = lazy(() => import('./PhotoCompareDialog.tsx'));
+const PhotoSurveyDialog = lazy(() => import('./PhotoSurveyDialog.tsx'));
 
 export default function LightscaperApp({ locale, createSession, loadBackupSaveRuntime }: LightscaperAppProps) {
 	const copy = useSiteCopy(locale);
@@ -73,6 +75,17 @@ export default function LightscaperApp({ locale, createSession, loadBackupSaveRu
 	const compareGeneration = useMemo(() => Object.freeze({ createSession, loadBackupSaveRuntime }), [createSession, loadBackupSaveRuntime]);
 	const compare = usePhotoCompare({ generation: compareGeneration, queryIdentity: library.query, page: library.page,
 		enabled: libraryVisible, busy: library.busy, autoAdvance, setRating: library.setRating, applyAttributes: library.applyAttributes });
+	const survey = usePhotoSurvey({ generation: compareGeneration, queryIdentity: library.query, page: library.page,
+		enabled: libraryVisible, busy: library.busy, autoAdvance, setRating: library.setRating, applyAttributes: library.applyAttributes });
+	const reviewing = compare.visible || survey.visible;
+	const reviewAdmission = useRef<typeof compareGeneration | null>(null);
+	if (reviewAdmission.current !== null && (reviewAdmission.current !== compareGeneration
+		|| (!reviewing && !compare.snapshot.open && !survey.snapshot.open && compare.snapshot.pendingPhotoId === null
+			&& survey.snapshot.pendingPhotoId === null && compare.notice === null && survey.notice === null))) reviewAdmission.current = null;
+	const reviewMenu = useRef({ generation: compareGeneration, queryIdentity: library.query, compare, survey,
+		libraryVisible, busy: library.busy, pendingPhotoId: photoSelection.pendingPhotoId, selectedIds: photoSelection.snapshot.selectedIds });
+	reviewMenu.current = { generation: compareGeneration, queryIdentity: library.query, compare, survey,
+		libraryVisible, busy: library.busy, pendingPhotoId: photoSelection.pendingPhotoId, selectedIds: photoSelection.snapshot.selectedIds };
 	const comparePair: readonly [string, string] | null = compare.visible && compare.snapshot.referenceId !== null && compare.snapshot.candidateId !== null
 		? [compare.snapshot.referenceId, compare.snapshot.candidateId] : null;
 	const { readPage } = library;
@@ -127,6 +140,16 @@ export default function LightscaperApp({ locale, createSession, loadBackupSaveRu
 		}
 		menu?.querySelector('summary')?.focus();
 	};
+	const openReview = (kind: 'compare' | 'survey', event: MouseEvent<HTMLButtonElement>) => {
+		const active = reviewMenu.current;
+		if (active.generation !== compareGeneration || active.queryIdentity !== library.query || !active.libraryVisible
+			|| active.busy || active.pendingPhotoId !== null || active.selectedIds.length < 2
+			|| active.compare.visible || active.survey.visible || reviewAdmission.current !== null) return;
+		reviewAdmission.current = compareGeneration;
+		closeMenu(event); setPreviewActivated(true);
+		try { active[kind].open(Object.freeze([...active.selectedIds])); }
+		catch (error) { reviewAdmission.current = null; throw error; }
+	};
 	const closeImport = () => { setImportVisible(false); };
 	const closeBatchRename = () => {
 		if (factory.current !== createSession) return;
@@ -171,7 +194,7 @@ export default function LightscaperApp({ locale, createSession, loadBackupSaveRu
 		</Suspense>}
 	</>;
 	const renderScene = (preview?: PhotoPreviewPresentationViewV1) => <>
-		{libraryVisible && renderLibrary(compare.visible ? undefined : preview)}
+		{libraryVisible && renderLibrary(reviewing ? undefined : preview)}
 		{compare.visible && preview && <Suspense fallback={<p role="status">{copy.photoWorking}</p>}>
 			<PhotoCompareDialog generation={compareGeneration} snapshot={compare.snapshot} rows={library.page?.rows ?? []}
 				previewTargets={preview.snapshot.targets.filter(target => target.tier === 'fit-screen')}
@@ -180,6 +203,15 @@ export default function LightscaperApp({ locale, createSession, loadBackupSaveRu
 				onPrevious={compare.previous} onNext={compare.next} onSwap={compare.swap} onPromote={compare.promote}
 				onRate={(id, rating) => { void compare.rate(id, rating); }} onFlag={(id, flag) => { void compare.flag(id, flag); }}
 				onColorLabel={(id, label) => { void compare.label(id, label); }} onClose={() => { void compare.close(); }} />
+		</Suspense>}
+		{survey.visible && preview && <Suspense fallback={<p role="status">{copy.photoWorking}</p>}>
+			<PhotoSurveyDialog generation={compareGeneration} snapshot={survey.snapshot} rows={library.page?.rows ?? []}
+				previewTargets={preview.snapshot.targets} renderThumbnail={preview.renderThumbnail} renderFitScreen={preview.renderFitScreen}
+				copy={copy} flags={flags} colorLabels={colorLabels} busy={library.busy || survey.snapshot.pendingPhotoId !== null}
+				error={library.error} notice={survey.notice} onFocus={survey.focus} onPrevious={survey.previous} onNext={survey.next}
+				onRemove={survey.remove} onRestoreRemoved={survey.restoreRemoved}
+				onRate={(id, rating) => { void survey.rate(id, rating); }} onFlag={(id, flag) => { void survey.flag(id, flag); }}
+				onColorLabel={(id, label) => { void survey.label(id, label); }} onClose={() => { void survey.close(); }} />
 		</Suspense>}
 	</>;
 
@@ -264,8 +296,10 @@ export default function LightscaperApp({ locale, createSession, loadBackupSaveRu
 						<button type="button" disabled={!libraryVisible || !selection} aria-pressed={loupeVisible} onClick={event => {
 							closeMenu(event); setPreviewActivated(true); setLoupeVisible(visible => !visible);
 						}}>{loupeVisible ? copy.photoHideLoupe : copy.photoShowLoupe}</button>
-						<button type="button" data-photo-compare-menu disabled={!libraryVisible || photoSelection.snapshot.selectedIds.length < 2 || library.busy || photoSelection.pendingPhotoId !== null || compare.visible}
-							onClick={event => { closeMenu(event); setPreviewActivated(true); compare.open(photoSelection.snapshot.selectedIds); }}>{copy.photoCompareTitle}</button>
+						<button type="button" data-photo-compare-menu disabled={!libraryVisible || photoSelection.snapshot.selectedIds.length < 2 || library.busy || photoSelection.pendingPhotoId !== null || reviewing}
+							onClick={event => { openReview('compare', event); }}>{copy.photoCompareTitle}</button>
+						<button type="button" data-photo-survey-menu disabled={!libraryVisible || photoSelection.snapshot.selectedIds.length < 2 || library.busy || photoSelection.pendingPhotoId !== null || reviewing}
+							onClick={event => { openReview('survey', event); }}>{copy.photoSurveyTitle}</button>
 						<button type="button" disabled={library.busy || !libraryVisible} onClick={event => { closeMenu(event); void library.readPage(); }}>{copy.photoFirstPage}</button>
 						<button type="button" disabled={library.busy || !libraryVisible || !library.page?.cursor} onClick={event => { closeMenu(event); void library.readPage(library.page?.cursor); }}>{copy.photoNextPage}</button>
 					</div>
@@ -275,9 +309,10 @@ export default function LightscaperApp({ locale, createSession, loadBackupSaveRu
 		</header>
 		{previewActivated
 			? <Suspense fallback={libraryVisible ? renderLibrary() : null}><PhotoPreviewPresentation readPreview={library.readPreview}
-				photoIds={libraryVisible ? library.page?.rows.map(row => row.id) ?? [] : []} thumbnailsVisible={libraryVisible && thumbnailsVisible && !compare.visible}
-				fitScreenPhotoId={libraryVisible && loupeVisible && !compare.visible ? selection?.id ?? null : null}
-				comparePhotoIds={comparePair}>{renderScene}</PhotoPreviewPresentation></Suspense>
+				photoIds={libraryVisible ? library.page?.rows.map(row => row.id) ?? [] : []} thumbnailsVisible={libraryVisible && thumbnailsVisible && !reviewing}
+				fitScreenPhotoId={libraryVisible && loupeVisible && !reviewing ? selection?.id ?? null : null}
+				comparePhotoIds={comparePair} surveyPhotoIds={survey.visible ? survey.snapshot.photoIds : null}
+				surveyFocusedPhotoId={survey.snapshot.focusedPhotoId}>{renderScene}</PhotoPreviewPresentation></Suspense>
 			: renderScene()}
 		{queryVisible && <Suspense fallback={<p role="status">{copy.photoWorking}</p>}>
 			<PhotoQueryDialog query={library.query ?? DEFAULT_PHOTO_LIBRARY_QUERY_V1} copy={copy} flags={flags} colorLabels={colorLabels}

@@ -10,6 +10,8 @@ export interface PhotoPreviewPresentationOptionsV1 {
 	readonly thumbnailsVisible: boolean;
 	readonly fitScreenPhotoId: string | null;
 	readonly comparePhotoIds?: readonly [string, string] | null;
+	readonly surveyPhotoIds?: readonly string[] | null;
+	readonly surveyFocusedPhotoId?: string | null;
 }
 
 /** React observes scalar state; the controller owns cancellation, staging and target backing. */
@@ -20,16 +22,19 @@ export function usePhotoPreviewPresentation(options: PhotoPreviewPresentationOpt
 	const [snapshot, setSnapshot] = useState<Readonly<PixelPreviewPresentationSnapshotV1>>(() => controller.snapshot());
 	const { readPreview, thumbnailsVisible, fitScreenPhotoId } = options;
 	const referenceId = options.comparePhotoIds?.[0] ?? null, candidateId = options.comparePhotoIds?.[1] ?? null;
+	const surveyIds = options.surveyPhotoIds == null ? null : JSON.stringify(options.surveyPhotoIds);
+	const surveyFocusedPhotoId = options.surveyFocusedPhotoId ?? null;
 	const ids = JSON.stringify(options.photoIds);
 	useLayoutEffect(() => {
 		const unsubscribe = controller.subscribe(setSnapshot);
-		if (referenceId !== null && candidateId !== null) controller.setCompareView({ readPreview, photoIds: [referenceId, candidateId] });
+		if (surveyIds !== null) controller.setSurveyView({ readPreview, photoIds: JSON.parse(surveyIds) as string[], focusedPhotoId: surveyFocusedPhotoId });
+		else if (referenceId !== null && candidateId !== null) controller.setCompareView({ readPreview, photoIds: [referenceId, candidateId] });
 		else controller.setView({ readPreview, photoIds: JSON.parse(ids) as string[], thumbnailsVisible, fitScreenPhotoId });
 		return () => {
 			unsubscribe();
 			// Pause reuses the same joined owner during StrictMode's effect replay.
 			void controller.pause().catch(() => undefined);
 		};
-	}, [controller, readPreview, ids, thumbnailsVisible, fitScreenPhotoId, referenceId, candidateId]);
+	}, [controller, readPreview, ids, thumbnailsVisible, fitScreenPhotoId, referenceId, candidateId, surveyIds, surveyFocusedPhotoId]);
 	return { controller, snapshot };
 }

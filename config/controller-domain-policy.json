@@ -201,6 +201,7 @@
 		"shared/photo-library-import-gesture-v1.ts",
 		"shared/photo-library-original-recovery-v1.ts",
 		"shared/photo-library-selection-v1.ts",
+		"shared/photo-library-survey-v1.ts",
 		"shared/pixel-preview-presentation-v1.ts",
 		"shared/presentation-localization.ts",
 		"shared/storage-capacity-runtime.ts",

@@ -74,6 +74,33 @@ closing restores the user's opted-in ordinary previews. Once activated, the
 same presenter stays mounted through view transitions, including hiding the
 library, and joins an old body/stage before reading any new one.
 
+## Survey
+
+View → Survey selected photos captures two through 64 selected IDs in page
+order and opens a review mosaic. One focused tile uses a fit-screen preview;
+the other tiles use thumbnails. Left/Right changes focus without wrapping.
+Ratings, flags and color labels borrow the existing catalog workflow. Native
+form controls keep their own keys. Compare and Survey share a current menu
+admission fence, including retained handlers invoked before React publishes
+the first gesture, so they cannot create two active review dialogs.
+
+Remove from review and Delete change only temporary review membership. They
+never delete a photo, change grid selection, write a catalog group or persist
+culling attributes. Removing the focused tile selects its next survivor, then
+its previous survivor. One remaining photo stays reviewable; removing every
+photo leaves the dialog open with Restore removed photos and Close. Restore
+uses the original captured order and only IDs still available to this review.
+
+An exact saved receipt reconciles the previous available survivors with its
+acknowledged page. New matching query rows and captured photos excluded by an
+earlier saved receipt cannot enter the review later. Local removals survive
+both page-before-receipt and receipt-before-layout publication. Original
+captured IDs remain bounded scalar provenance, not authority to restore a
+filtered-out photo. A failed refresh retains the saved acknowledgement and
+pauses review. Unrelated page, query, hidden-library, factory and loader
+replacement retire the old gesture. Close cancels and joins borrowed work;
+late saved receipts cannot reopen it.
+
 ## Memory and ownership
 
 This slice adds only bounded scalar state and button references. It retains no
@@ -104,8 +131,12 @@ real catalog/media stores in Chromium and Firefox, including a 65-photo boundary
 reopen and original digests. The existing three-engine raw canvas qualification
 continues to cover the unchanged pixel route; it is not a WebKit storage claim.
 
-Survey and library stacks remain separate L3 work. Survey needs explicit
-multi-surface residency and phase budgets under one presentation owner.
+Survey's maintained native menu workflow checks full mosaic pixel bytes after
+each culling acknowledgement, temporary removal through zero survivors,
+restoration, eviction regeneration, reopen and original custody. Its focused
+Node tests exercise temporary removal, zero/one survivors, monotonic query survivors,
+observer reentry, saved receipt ordering, stale callbacks and exclusive review
+menu admission. Library stacks remain separate L3 work.
 Library stacks need an explicit grouping contract, indexed
 membership and archive/migration rules; per-photo develop versions are not
 library groups. The full L3 keyboard loop and large-library CI budgets remain

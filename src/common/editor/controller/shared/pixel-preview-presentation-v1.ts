@@ -22,6 +22,12 @@ export interface PixelPreviewCompareViewV1 {
 	readonly photoIds: readonly string[];
 }
 
+export interface PixelPreviewSurveyViewV1 {
+	readonly readPreview: PixelPreviewPresentationReaderV1;
+	readonly photoIds: readonly string[];
+	readonly focusedPhotoId: string | null;
+}
+
 export interface PixelPreviewTargetStatusV1 {
 	readonly photoId: string;
 	readonly tier: PhotoLibraryPreviewTierV1;
@@ -46,7 +52,7 @@ interface Ports {
 	readonly clear?: typeof clearPixelFrameCanvasV1;
 }
 interface Target { readonly canvas: HTMLCanvasElement; bytes: number }
-type Profile = 'ordinary' | 'compare';
+type Profile = 'ordinary' | 'compare' | 'survey';
 interface View { readonly readPreview: PixelPreviewPresentationReaderV1; readonly photoIds: readonly string[];
 	readonly thumbnailsVisible: boolean; readonly fitScreenPhotoIds: readonly string[]; readonly profile: Profile }
 interface Job { readonly key: string; readonly photoId: string; readonly tier: PhotoLibraryPreviewTierV1; readonly profile: Profile;
@@ -57,6 +63,9 @@ export const PIXEL_PREVIEW_PRESENTATION_LIMITS_V1 = Object.freeze({ maximumThumb
 	maximumFitScreenTargets: 1, maximumThumbnailBytes: 64 * MIB, maximumFitScreenBytes: 16 * MIB });
 export const PIXEL_COMPARE_PRESENTATION_LIMITS_V1 = Object.freeze({ maximumFitScreenTargets: 2,
 	maximumFitScreenTargetBytes: 16 * MIB, maximumFitScreenBytes: 32 * MIB, maximumBackingBytes: 80 * MIB });
+export const PIXEL_SURVEY_PRESENTATION_LIMITS_V1 = Object.freeze({ maximumThumbnailTargets: 63,
+	maximumFitScreenTargets: 1, maximumThumbnailBytes: 63 * MIB, maximumFitScreenBytes: 16 * MIB,
+	maximumBackingBytes: 79 * MIB });
 const THUMBNAIL: Readonly<PixelFrameLimitsV1> = Object.freeze({ maximumSidePixels: 512, maximumPixels: 512 * 512, maximumBytes: MIB });
 const FIT_SCREEN: Readonly<PixelFrameLimitsV1> = Object.freeze({ maximumSidePixels: 2048, maximumPixels: 2048 * 2048, maximumBytes: 16 * MIB });
 const SIGNAL_ABORTED = Object.getOwnPropertyDescriptor(AbortSignal.prototype, 'aborted')!.get!;
@@ -121,6 +130,21 @@ export class PixelPreviewPresentationV1 {
 			thumbnailsVisible: false, fitScreenPhotoIds: ids, profile: 'compare' });
 	}
 
+	setSurveyView(value: PixelPreviewSurveyViewV1): void {
+		this.#assertOpen();
+		const input = record(value, 'pixel survey view', ['readPreview', 'photoIds', 'focusedPhotoId']);
+		const readPreview = field(input, 'readPreview', 'pixel survey view');
+		if (typeof readPreview !== 'function') throw new TypeError('Pixel survey view requires a read port.');
+		const ids = array(field(input, 'photoIds', 'pixel survey view'), 'survey photo IDs', 0, 64).map(photoId);
+		if (new Set(ids).size !== ids.length) throw new RangeError('Survey photo IDs must be unique.');
+		const focus = field(input, 'focusedPhotoId', 'pixel survey view'), focusedPhotoId = focus === null ? null : photoId(focus);
+		if (ids.length === 0 ? focusedPhotoId !== null : focusedPhotoId === null || !ids.includes(focusedPhotoId)) {
+			throw new RangeError('Survey requires one visible focus, or null focus for an empty view.');
+		}
+		this.#setView({ readPreview: readPreview as PixelPreviewPresentationReaderV1, photoIds: Object.freeze(ids),
+			thumbnailsVisible: true, fitScreenPhotoIds: Object.freeze(focusedPhotoId === null ? [] : [focusedPhotoId]), profile: 'survey' });
+	}
+
 	attach(idValue: string, tierValue: PhotoLibraryPreviewTierV1, canvas: HTMLCanvasElement | null): void {
 		this.#attach(idValue, tierValue, canvas, 'ordinary');
 	}
@@ -130,6 +154,10 @@ export class PixelPreviewPresentationV1 {
 		this.#attach(idValue, 'fit-screen', canvas, 'compare');
 	}
 
+	attachSurvey(idValue: string, tierValue: PhotoLibraryPreviewTierV1, canvas: HTMLCanvasElement | null): void {
+		this.#attach(idValue, tierValue, canvas, 'survey');
+	}
+
 	#attach(idValue: string, tierValue: PhotoLibraryPreviewTierV1, canvas: HTMLCanvasElement | null, profile: Profile): void {
 		if (this.#closed && canvas === null) return;
 		this.#assertOpen();
@@ -137,6 +165,9 @@ export class PixelPreviewPresentationV1 {
 		// A stale ref from the retired profile cannot detach its successor's target.
 		if (canvas === null && profile !== this.#profile) return;
 		if (canvas !== null) this.#selectProfile(profile);
+		if (canvas !== null && profile === 'survey' && this.#targets.has(targetKey(id, tier === 'thumbnail' ? 'fit-screen' : 'thumbnail'))) {
+			throw new RangeError('A Survey fit replaces the same photo thumbnail; detach its previous tier first.');
+		}
 		if (previous?.canvas === canvas) return;
 		if (previous) {
 			if (this.#active?.key === key) this.#active.controller.abort();
@@ -145,8 +176,8 @@ export class PixelPreviewPresentationV1 {
 		if (canvas !== null) {
 			if ([...this.#targets.values()].some(target => target.canvas === canvas)) throw new RangeError('A canvas may own only one preview target.');
 			const count = [...this.#targets.keys()].filter(key => key.endsWith(`,"${tier}"]`)).length;
-			const maximum = tier === 'thumbnail' ? 64 : profile === 'compare' ? 2 : 1;
-			if (count >= maximum) throw new RangeError(tier === 'thumbnail' ? 'At most 64 thumbnail targets are admitted.'
+			const maximum = tier === 'thumbnail' ? profile === 'survey' ? 63 : 64 : profile === 'compare' ? 2 : 1;
+			if (count >= maximum) throw new RangeError(tier === 'thumbnail' ? `At most ${maximum} thumbnail targets are admitted.`
 				: profile === 'compare' ? 'At most two compare targets are admitted.' : 'At most one loupe target is admitted.');
 			this.#ports.clear(canvas); this.#targets.set(key, { canvas, bytes: 0 });
 			const status = this.#statuses.get(key); if (status) this.#statuses.set(key, { ...status, status: 'pending', error: null });
@@ -156,7 +187,7 @@ export class PixelPreviewPresentationV1 {
 
 	#selectProfile(profile: Profile): void {
 		if (profile === this.#profile) return;
-		if (this.#targets.size !== 0) throw new RangeError('Mixed ordinary and compare registrations require detaching the previous surfaces.');
+		if (this.#targets.size !== 0) throw new RangeError('Mixed ordinary, compare and survey registrations require detaching the previous surfaces.');
 		this.#cancel(); this.#view = null; this.#statuses.clear(); this.#profile = profile;
 	}
 	#setView(view: View): void {
@@ -166,9 +197,15 @@ export class PixelPreviewPresentationV1 {
 			&& JSON.stringify(previous.fitScreenPhotoIds) === JSON.stringify(view.fitScreenPhotoIds)
 			&& JSON.stringify(previous.photoIds) === JSON.stringify(view.photoIds)) return;
 		this.#cancel(); this.#view = null; this.#statuses.clear(); this.#clearAll();
+		if (view.profile === 'survey') {
+			const desired = new Set(view.photoIds.map(id => targetKey(id, view.fitScreenPhotoIds.includes(id) ? 'fit-screen' : 'thumbnail')));
+			for (const key of this.#targets.keys()) if (!desired.has(key)) this.#targets.delete(key);
+		}
 		this.#view = Object.freeze(view);
 		for (const id of view.fitScreenPhotoIds) this.#addStatus(id, 'fit-screen');
-		if (view.thumbnailsVisible) for (const id of view.photoIds) this.#addStatus(id, 'thumbnail');
+		if (view.thumbnailsVisible) for (const id of view.photoIds) {
+			if (view.profile !== 'survey' || !view.fitScreenPhotoIds.includes(id)) this.#addStatus(id, 'thumbnail');
+		}
 		this.#notify(); this.#wake();
 	}
 
@@ -318,10 +355,13 @@ export class PixelPreviewPresentationV1 {
 			backingBytes += target.bytes;
 			if (key.endsWith(`,"${job.tier}"]`)) tierBytes += target.bytes;
 		}
-		const maximum = job.tier === 'thumbnail' ? PIXEL_PREVIEW_PRESENTATION_LIMITS_V1.maximumThumbnailBytes
+		const maximum = job.tier === 'thumbnail' ? job.profile === 'survey' ? PIXEL_SURVEY_PRESENTATION_LIMITS_V1.maximumThumbnailBytes
+			: PIXEL_PREVIEW_PRESENTATION_LIMITS_V1.maximumThumbnailBytes
 			: job.profile === 'compare' ? PIXEL_COMPARE_PRESENTATION_LIMITS_V1.maximumFitScreenBytes
 				: PIXEL_PREVIEW_PRESENTATION_LIMITS_V1.maximumFitScreenBytes;
-		if (tierBytes > maximum || backingBytes > PIXEL_COMPARE_PRESENTATION_LIMITS_V1.maximumBackingBytes) {
+		const maximumBacking = job.profile === 'survey' ? PIXEL_SURVEY_PRESENTATION_LIMITS_V1.maximumBackingBytes
+			: PIXEL_COMPARE_PRESENTATION_LIMITS_V1.maximumBackingBytes;
+		if (tierBytes > maximum || backingBytes > maximumBacking) {
 			throw new RangeError('Preview surfaces exceed their aggregate backing budget.');
 		}
 	}
