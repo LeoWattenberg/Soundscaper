@@ -406,6 +406,8 @@
 		,
 		{ "path": "src/common/editor/parameter-automation-gesture-adapter-v21.ts", "kind": "persisted-contract", "justification": "parameter-automation-gesture-adapter-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
+		{ "path": "src/common/editor/photo-library-batch-rename-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 scalar selection, rename plan, durable partial receipts and bounded revision-fenced inverse without media or catalog documents." }
+		,
 		{ "path": "src/common/editor/photo-library-import-settings-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 scalar import recipes, revision-fenced named presets and publication acknowledgements preserve immutable original ownership." }
 		,
 		{"path": "src/common/editor/photo-library-organization-port-v1.ts", "kind": "helper-contract", "justification": "Version1 scalar organization port carries revision-fenced definitions, bounded smart-query JSON and photo memberships without catalog documents."}
@@ -562,7 +564,11 @@
 		,
 		{ "path": "src/lightscaper/catalog/photo-query-types-v1.ts", "kind": "helper-contract", "justification": "Closed version 1 catalog query and bounded continuation contracts bind literal search, filtering and global ordering to one catalog revision." }
 		,
+		{ "path": "src/lightscaper/controller/photo-batch-rename-inverse-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded compensating filename commands require exact current revision and name while preserving remaining restoration fences." }
+		,
 		{"path": "src/lightscaper/controller/photo-batch-rename-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded scalar batch rename preserves selected sequence bindings and publishes authored filenames through existing per-photo CAS/history without mutating originals."}
+		,
+		{ "path": "src/lightscaper/controller/photo-library-batch-rename-v1.ts", "kind": "helper-contract", "justification": "Version 1 serial batch rename and undo borrow the existing Session writer and one command owner, preserving durable receipts through cancellation and cleanup within fixed scalar bounds." }
 		,
 		{"path": "src/lightscaper/controller/photo-library-definition-pages-v1.ts", "kind": "helper-contract", "justification": "Version1 scalar definition pages preserve catalog revision and hierarchy scope with bounded current-parent and selected-name projections."}
 		,

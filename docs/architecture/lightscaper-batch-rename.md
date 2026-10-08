@@ -69,10 +69,63 @@ to a real browser task; ordinary per-photo conflicts/failures can be reported
 while later selected entries continue. Cancellation stops remaining work and
 preserves known acknowledgments. The helper does not make the batch atomic.
 
-Current session composition releases the previous selected owner's history
-when switching photos. This packet proves undo/redo in each borrowed owner's
-normal history and preserves scalar names/revisions for a later bounded batch
-undo design; it does not claim retention of 64 histories or whole-batch undo.
-Menu/UI integration and native workflows belong to the following composition
+## Session composition and inverse undo
+
+The scalar session port captures 1–64 selected IDs in their supplied order under
+the existing catalog lease. It reads one photo at a time and returns only the
+catalog ID, photo ID, revision and display filename. The synchronous pure plan
+method expands every name before any writer acquisition. Apply and undo admit
+the complete transported plan or inverse, then use one session mutation for the
+entire serial loop. An overlapping writer is refused synchronously; no batch is
+queued. Each completed item yields to a real task before the next owner is read.
+
+Receipts contain at most 64 scalar outcomes. Ordinary conflicts and write
+failures keep their selected indexes and let later slots continue. A finished
+receipt means every slot produced an acknowledged or failed outcome; it does
+not mean every rename succeeded. Cancellation or an operational interruption
+stops remaining work and retains every known durable acknowledgment. Close
+cancels and joins the active operation before releasing the owner or storage.
+An abort after the final acknowledged item does not erase a completed batch.
+
+Only changed durable acknowledgments create inverse entries. Each binds the
+catalog, original selected index, photo ID, acknowledged revision, exact current
+name and previous display name. Undo restores one filename through that photo's
+ordinary metadata command only if its current revision and name still match.
+Successful entries are removed; failed and unattempted inverse entries keep
+their original fences for a later explicit retry. No-op renames need no inverse.
+Undo is a compensating, revision-fenced edit, with no whole-batch transaction or
+automatic overwrite of later changes. It creates ordinary per-photo history.
+
+Session composition retains one command owner and its existing bounded history,
+never 64 heavy histories. Extra scalar bounds are 256 KiB each for a selection
+snapshot and inverse, 1 MiB for the complete UTF-8 JSON receipt, and 8 MiB for
+serialized-equivalent scalar admission/assembly copies. The worst-case receipt
+test uses 64 names at 256 lone-surrogate units, 128-unit IDs, maximal revisions
+and 1,536-unit error details. The existing 64 MiB command-path allowance and
+one 2 MiB photo bound remain; no original or pixel buffer is read or retained.
+Stop rather than raise these bounds if their maximal fixtures fail.
+
+Every error detail, including the interruption message, is best-effort own-data
+text capped at 1,536 code units. Accessor messages are ignored and a throwing
+descriptor trap receives a constant fallback; reporting cannot veto an ACK.
+The cap accounts for JSON's worst-case six-byte escapes and leaves room for a
+complete inverse on a failed undo. The fully escaped 64-failure undo receipt,
+all 64 inverse fences and maximal interruption message occupies 1,022,550
+UTF-8 bytes, leaving 26,026 bytes below 1 MiB. Its rename-only counterpart is
+811,097 bytes. The maximal complete inverse is 211,459 bytes; the scalar
+selection is 110,832 bytes. A second
+capacity test qualifies a 64-success receipt with its complete inverse and
+maximal acknowledged revisions. These tests include JSON escaping rather than
+estimating bytes from JavaScript string lengths.
+
+The worst-case bound includes every failed item and inverse entry. Replacing a
+failure with a durable restore removes both its escaped error and its inverse
+entry, so mixed success/failure receipts cannot exceed the all-failed bound.
+Forward successes create an inverse but carry no error detail, and the full
+64-success case is also qualified. Final receipt validation therefore retains
+every admitted name, revision, ACK and remaining inverse without increasing the
+ceiling or throwing after a durable edit because of ordinary error detail.
+
+Menu/UI integration and native batch workflows remain a later composition
 packet. Single-photo capture-time edits already use the existing authored
 capture timestamp with an optional unknown offset; they need no schema change.

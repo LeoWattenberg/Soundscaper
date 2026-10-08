@@ -5,6 +5,8 @@ import type { PhotoLibraryAttributePatchV1, PhotoLibraryImportItemV1, PhotoLibra
 import type { PhotoLibraryDefinitionAcknowledgementV1, PhotoLibraryDefinitionCommandV1, PhotoLibraryDefinitionReadRequestV1, PhotoLibraryDefinitionSnapshotV1,
 	PhotoLibraryMembershipAcknowledgementV1, PhotoLibraryMembershipPatchV1, PhotoLibraryMembershipSnapshotV1 } from '../../common/editor/photo-library-organization-port-v1.ts';
 import type { PhotoLibraryImportPresetCommandV1, PhotoLibraryImportPresetSnapshotV1, PhotoLibraryImportRequestOptionsV1 } from '../../common/editor/photo-library-import-settings-port-v1.ts';
+import type { PhotoLibraryBatchRenamePortV1, PhotoLibraryBatchRenameRequestV1, PhotoLibraryBatchRenamePlanV1,
+	PhotoLibraryBatchRenameUndoV1, PhotoLibraryBatchRenameReceiptV1, PhotoLibraryBatchRenameSnapshotV1 } from '../../common/editor/photo-library-batch-rename-port-v1.ts';
 import { IMAGE_IMPORT_LIMITS } from '../../common/editor/image-import-admission.ts';
 import { normalizePhotoCatalogRootV1 } from '../catalog/catalog-root.ts';
 import { normalizePhotoDocumentV1 } from '../catalog/photo-document.ts';
@@ -28,9 +30,11 @@ import { normalizePhotoLibraryMembershipReadV1, normalizePhotoLibraryMembershipM
 	readPhotoLibraryMembershipsV1, applyPhotoLibraryMembershipsV1 } from './photo-library-memberships-v1.ts';
 import type { PhotoLibraryPreparationOutcomeV1, PhotoLibraryPreviewSchedulerPortV1, PhotoLibrarySessionPortsV1 } from './photo-library-session-ports.ts';
 import { admitPhotoLibraryImportRequestV1 } from './photo-library-import-request.ts';
+import { planPhotoLibraryBatchRenameV1, readPhotoLibraryBatchRenameSelectionV1, renamePhotoLibraryBatchV1,
+	undoPhotoLibraryBatchRenameV1, type PhotoBatchRenameSessionPortsV1 } from './photo-library-batch-rename-v1.ts';
 
 /** Product session owns lifetime, bounded presentation pages and a single writer. */
-export class PhotoLibrarySessionV1 implements PhotoLibrarySessionPortV1 {
+export class PhotoLibrarySessionV1 implements PhotoLibrarySessionPortV1, PhotoLibraryBatchRenamePortV1 {
 	readonly #ports: PhotoLibrarySessionPortsV1;
 	readonly #lifetime = new AbortController();
 	readonly #pending = new Set<Promise<unknown>>();
@@ -43,6 +47,28 @@ export class PhotoLibrarySessionV1 implements PhotoLibrarySessionPortV1 {
 	#closing: Promise<void> | null = null;
 
 	constructor(ports: PhotoLibrarySessionPortsV1) { this.#ports = ports; }
+
+	readBatchRenameSelection(photoIds: readonly string[], options: Readonly<{ signal?: AbortSignal }> = {}): Promise<PhotoLibraryBatchRenameSnapshotV1> {
+		return readPhotoLibraryBatchRenameSelectionV1(this.#batchRenamePorts(), photoIds, options);
+	}
+
+	planBatchRename(request: PhotoLibraryBatchRenameRequestV1): PhotoLibraryBatchRenamePlanV1 {
+		if (this.#closed) throw new Error('The photo library is closed.');
+		return planPhotoLibraryBatchRenameV1(request);
+	}
+
+	renamePhotos(plan: PhotoLibraryBatchRenamePlanV1, options: Readonly<{ signal?: AbortSignal }> = {}): Promise<PhotoLibraryBatchRenameReceiptV1> {
+		return renamePhotoLibraryBatchV1(this.#batchRenamePorts(), plan, options);
+	}
+
+	undoBatchRename(undo: PhotoLibraryBatchRenameUndoV1, options: Readonly<{ signal?: AbortSignal }> = {}): Promise<PhotoLibraryBatchRenameReceiptV1> {
+		return undoPhotoLibraryBatchRenameV1(this.#batchRenamePorts(), undo, options);
+	}
+
+	#batchRenamePorts(): PhotoBatchRenameSessionPortsV1 {
+		return { repository: this.#ports.catalog, mutate: (run, signal) => this.#mutation(run, signal),
+			withPhoto: (catalogId, photoId, signal, run) => this.#withPhoto(catalogId, photoId, signal, run) };
+	}
 
 	async readQueryStep(options: Readonly<{ query: PhotoLibraryQueryV1; cursor?: string | null; signal?: AbortSignal }>): Promise<PhotoLibraryQueryStepV1> {
 		const request = admitPhotoLibraryQueryStepRequestV1(options);
@@ -250,19 +276,22 @@ export class PhotoLibrarySessionV1 implements PhotoLibrarySessionPortV1 {
 	}
 
 	async #editPhoto<Result>(key: string, run: (owner: PhotoCommandOwnerV1, signal: AbortSignal) => Promise<Result>, signal?: AbortSignal): Promise<Result> {
-		return this.#mutation(async (catalogId, admitted) => {
-			if (this.#photo?.history.present.id !== key) {
-				await this.#photo?.close(); this.#photo = null;
-				this.#photo = await PhotoCommandOwnerV1.open(this.#ports.catalog, catalogId, key);
-			} else {
-				const current = await this.#ports.catalog.loadPhoto(catalogId, key);
-				admitted.throwIfAborted();
-				if (!current) { await this.#photo.close(); this.#photo = null; throw new ReferenceError('The photo is missing.'); }
-				if (current.revision !== this.#photo.history.present.revision) await this.#photo.reload({ signal: admitted });
-			}
-			try { admitted.throwIfAborted(); return await run(this.#photo, admitted); }
-			catch (error) { await this.#photo.close(); this.#photo = null; throw error; }
-		}, signal);
+		return this.#mutation((catalogId, admitted) => this.#withPhoto(catalogId, key, admitted, run), signal);
+	}
+
+	async #withPhoto<Result>(catalogId: string, key: string, admitted: AbortSignal,
+		run: (owner: PhotoCommandOwnerV1, signal: AbortSignal) => Promise<Result>): Promise<Result> {
+		if (this.#photo?.history.present.id !== key) {
+			await this.#photo?.close(); this.#photo = null;
+			this.#photo = await PhotoCommandOwnerV1.open(this.#ports.catalog, catalogId, key);
+		} else {
+			const current = await this.#ports.catalog.loadPhoto(catalogId, key);
+			admitted.throwIfAborted();
+			if (!current) { await this.#photo.close(); this.#photo = null; throw new ReferenceError('The photo is missing.'); }
+			if (current.revision !== this.#photo.history.present.revision) await this.#photo.reload({ signal: admitted });
+		}
+		try { admitted.throwIfAborted(); return await run(this.#photo, admitted); }
+		catch (error) { await this.#photo.close(); this.#photo = null; throw error; }
 	}
 
 	close(): Promise<void> {
