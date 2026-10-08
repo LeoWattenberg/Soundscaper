@@ -3,7 +3,7 @@
 import type { PhotoLibraryMetadataPatchV1, PhotoLibraryMetadataSnapshotV1 } from '../../common/editor/photo-library-session-port-v1.ts';
 import { normalizePhotoDocumentV1 } from '../catalog/photo-document.ts';
 import { emptyPhotoMetadataV1, normalizePhotoMetadataV1 } from '../catalog/photo-metadata.ts';
-import { record } from '../catalog/value-validation.ts';
+import { field, record } from '../catalog/value-validation.ts';
 
 export const PHOTO_LIBRARY_METADATA_MAXIMUM_BYTES_V1 = 1024 * 1024;
 const EDITABLE_FIELDS = ['fileName', 'title', 'caption', 'creator', 'copyright', 'location', 'captureTime'] as const;
@@ -12,8 +12,10 @@ const EDITABLE_FIELDS = ['fileName', 'title', 'caption', 'creator', 'copyright',
 export function normalizePhotoLibraryMetadataPatchV1(value: unknown): PhotoLibraryMetadataPatchV1 {
 	const input = record(value, 'photo metadata patch', EDITABLE_FIELDS, []);
 	if (Object.keys(input).length === 0) throw new RangeError('Photo metadata patch is empty.');
-	const normalized = normalizePhotoMetadataV1({ ...emptyPhotoMetadataV1('Photo'), ...input });
-	return Object.freeze(Object.fromEntries(EDITABLE_FIELDS.filter(key => Object.hasOwn(input, key))
+	const present = EDITABLE_FIELDS.filter(key => Object.hasOwn(input, key));
+	const snapshot = Object.fromEntries(present.map(key => [key, field(input, key)]));
+	const normalized = normalizePhotoMetadataV1({ ...emptyPhotoMetadataV1('Photo'), ...snapshot });
+	return Object.freeze(Object.fromEntries(present
 		.map(key => [key, normalized[key]]))) as PhotoLibraryMetadataPatchV1;
 }
 
