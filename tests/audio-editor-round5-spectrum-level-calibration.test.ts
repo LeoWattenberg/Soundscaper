@@ -34,3 +34,11 @@ test('window compensation leaves opposite-polarity channel pooling intact', () =
 		assert.ok(Math.abs(stereo.bins[index]!.amplitude - bin.amplitude) < 1e-12);
 	}
 });
+
+test('averaging complete windows does not append artificial silence to a short recording', () => {
+	for (const size of [2048, 4096]) {
+		const input = Float32Array.from({ length: size }, (_, frame) => 0.5 * Math.sin(2 * Math.PI * 32 * frame / size));
+		const peak = calculateAudioSpectrum([input], 48_000, { size, average: true }).bins[32]!;
+		assert.ok(Math.abs(peak.db - 20 * Math.log10(0.5)) < 0.001, `measured ${peak.db} dB`);
+	}
+});

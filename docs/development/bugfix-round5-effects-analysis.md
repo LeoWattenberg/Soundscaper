@@ -257,8 +257,10 @@ and open Analyze → Plot spectrum → Export. The downloaded spectrum identifie
 The FFT multiplies the recording by a Hann window, then normalizes as if it
 had used a rectangular window. Normalize against the retained Hann coefficient
 sum. Double only interior bins in the one-sided spectrum; DC and Nyquist
-remain undoubled. Preserve channel-power pooling, cached windows, the existing
-averaging policy and immutable reports. This amplitude calibration follows the
+remain undoubled. Average the available complete windows without appending
+partially zero-filled windows after them; retain the single bounded padded
+window for shorter input. Preserve channel-power pooling, cached windows and
+immutable reports. This amplitude calibration follows the
 [documented Plot Spectrum convention](https://manual.audacityteam.org/man/plot_spectrum.html)
 that a full-scale sine appears at approximately 0 dB. It is separate from the
 earlier plot-column peak preservation and live opposite-polarity channel mixing.
@@ -267,8 +269,10 @@ The ordinary menu/dialog/report download is Chromium RED at the measured
 6.09 dB discrepancy (`/tmp/soundscaper-r5-root-spectrum-level-baseline.log`,
 3.4 seconds). Nine bin-centered sine/FFT-size cases and the DC/Nyquist endpoint
 case independently fail before correction; the channel-pooling control passes.
+The same calibration case with averaging over a single complete FFT window
+exposes an extra 2.04 dB reduction from the trailing artificial half-window.
 New and existing FFT, analysis, window reuse and pink-noise support passes
-27/27. The older spectrum assertion which expected half a full-scale sine's
+28/28. The older spectrum assertion which expected half a full-scale sine's
 amplitude now asserts the calibrated value. Regressions are
 `audio-editor-round5-spectrum-level-calibration.test.ts` and
 `audio-editor-round5-spectrum-level-calibration.spec.js`. Final public
