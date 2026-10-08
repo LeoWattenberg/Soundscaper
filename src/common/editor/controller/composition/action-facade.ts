@@ -34,7 +34,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 	const {
 	addEffect, addLabelTrack, addTrack, addVideoTrackPair, adjustAllTrackHeights, adjustTrackHeight,
 	analysisService, applyAudacityEffectFromController, applySamplePencil,
-	applySpectralSelection, beginParametricEqGesture, beginRackEffectGesture, cancelAudacityEffectPreview,
+	applySpectralSelection, beginParametricEqGesture, beginRackEffectGesture, cancelAudacityEffectPreview, cancelSelectedAudacityEffect,
 	cancelNyquistEvaluation, cancelParametricEqGesture, cancelPlaybackCachePreparation,
 	cancelRackEffectGesture, cancelSampleEdit, capabilities,
 	captureRackNoiseProfileFromController, captureSelectedNoiseProfile, claimProjectLock, clearLocalData,
@@ -439,6 +439,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 			applySelection: restricted('audioEffects', applyAudacityEffectFromController),
 			previewSelection: restricted('audioEffects', previewAudacityEffectFromController),
 			cancelPreview: () => cancelAudacityEffectPreview(),
+			cancelSelection: () => cancelSelectedAudacityEffect(),
 			repeatLast: restricted('audioEffects', repeatLastAudacityEffect),
 			presets: createEffectPresetActions(effectLibraryScope, restricted),
 		}),

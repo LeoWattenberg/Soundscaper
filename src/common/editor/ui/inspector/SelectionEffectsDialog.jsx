@@ -185,15 +185,19 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, fil
 		? { ...audioSelectionEffectDefaults(selectionType), pitchMode: 'pitch-shift', duration: 'keep' }
 		: audioSelectionEffectDefaults(selectionType);
 
+	const cancel = () => {
+		activeOperation.current = null;
+		controller.actions.effects.cancelSelection?.();
+		controller.actions.effects.cancelPreview();
+		onClose?.();
+	};
+
 	return (
 		<AudioEditorDialogShell
 			isOpen={isOpen}
 			title={copy.selectionEffects || copy.audacityEffectsTitle}
 			headerTitle={safeEffectLabel(selectionType, copy).replace(/ \(Audacity\)$/u, '')}
-			onClose={() => {
-				controller.actions.effects.cancelPreview();
-				onClose?.();
-			}}
+			onClose={cancel}
 			width={audacityEffectDialogWidth(selectionType) ?? (selectionType === 'eq' ? 920 : 720)}
 			className="audio-editor-selection-effects-dialog"
 			dataAttributes={{ 'data-selection-effects-dialog': '' }}
@@ -254,10 +258,7 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, fil
 					)}
 					rightContent={(
 						<>
-							<Button variant="secondary" onClick={() => {
-								controller.actions.effects.cancelPreview();
-								onClose?.();
-							}}>{copy.cancel}</Button>
+							<Button variant="secondary" onClick={cancel}>{copy.cancel}</Button>
 							<span data-apply-audacity-effect>
 								<Button
 									variant="primary"

@@ -1,7 +1,7 @@
 # Fifth user-reproducible regression audit
 
-This audit is in progress toward 100 additional distinct fixes. Eighty-nine
-new roots have completed ordinary browser verification (editing 23, dialogs 28,
+This audit is in progress toward 100 additional distinct fixes. Ninety-one
+new roots have completed ordinary browser verification (editing 24, dialogs 29,
 effects/analysis 25, import/export 13). Its immutable
 baseline is `fe6440c81b3a0fe29a028c64db867ae7d2cf3252`.
 
@@ -119,7 +119,11 @@ test check caught a missing array guard in an I/O menu fixture. Its focused
 compiler and the coordinated retry pass after that fixture correction.
 Checkpoint thirty-seven, `1672be43a`, passes both guarded builds and modal
 resize modified-key admission with ordinary resizing and resumed command
-dispatch in all three engines (3/3).
+dispatch in all three engines (3/3). Recording-notes multiline Code passes
+alongside Bold/Italic (9/9), adding no separate root.
+Checkpoint thirty-eight, `62ecb3872`, passes both guarded builds, output-name
+Enter/Escape focus and Undo/Redo (6/6) plus native-rate Paste spectrum, duration
+and history with existing speed/channel controls (9/9), all three engines.
 Browser evidence names each exact checkpoint. Firefox audio
 uses the unchanged CI PulseAudio setup with a private 48 kHz null sink.
 

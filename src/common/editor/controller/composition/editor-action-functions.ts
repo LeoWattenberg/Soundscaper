@@ -51,6 +51,7 @@ export interface EditorActionFunctions {
 	readonly beginRackEffectGesture: ReturnType<typeof createEffectsComposition>['rack']['beginRackEffectGesture'];
 	readonly beginVideoEffectGesture: ReturnType<typeof createClipVideoComposition>['videoEffect']['beginVideoEffectGesture'];
 	readonly bypassVideoClipEffect: ReturnType<typeof createClipVideoComposition>['videoEffect']['bypassVideoClipEffect'];
+	readonly cancelSelectedAudacityEffect: ReturnType<typeof createEffectsComposition>['execution']['cancelSelectedAudacityEffect'];
 	readonly cancelAudacityEffectPreview: ReturnType<typeof createEffectsComposition>['controls']['cancelAudacityEffectPreview'];
 	readonly cancelEffectMacro: ReturnType<typeof createEffectsComposition>['macro']['cancelEffectMacro'];
 	readonly cancelNyquistEvaluation: ReturnType<typeof createEffectsComposition>['nyquistHost']['cancelNyquistEvaluation'];

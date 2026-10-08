@@ -19,6 +19,7 @@ import { assertCompleteNyquistOutput, planNyquistOutputAdmission } from './nyqui
 export const NYQUIST_EVALUATION_TASK = 'nyquist-evaluation';
 
 export interface SelectionEffectExecutionRuntime {
+	readonly cancelSelectionWorkers?: () => void;
 	readonly batchPresentation?: (mutation: () => void) => void;
 	readonly runIndependentSelectionEffects?: IndependentSelectionPorts['runIndependentSelectionEffects'];
 	/** Stable canonical audio ownership until an edit; absent for untrusted ports or memory mode. */
@@ -57,6 +58,19 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 		...runtime, releasePreparedPcm: () => preparedAudio.clear(),
 	});
 	let preparationGeneration = 0;
+	let activeSelectionOwnership: SelectionEffectOwnership | null = null;
+
+	function cancelSelectedAudacityEffect(): boolean {
+		const ownership = activeSelectionOwnership;
+		if (!ownership || !selectionEffectTaskIsCurrent(ownership.task)
+			|| !selectionEffectProjectIsCurrent(runtime, ownership.project)) return false;
+		activeSelectionOwnership = null;
+		ownership.task.abort(new DOMException('The selection effect was cancelled.', 'AbortError'));
+		runtime.cancelSelectionWorkers?.();
+		state.audacityEffectProcessing = false;
+		publishDocumentSnapshot();
+		return true;
+	}
 
 	async function prepareAudacityEffectFromController(type: string) {
 		const generation = ++preparationGeneration;
@@ -150,6 +164,7 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 		}
 		if (estimatedPeakBytes > AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES) throw audacityEffectMemoryError(copy);
 		const ownership = beginSelectionEffectOwnership(runtime);
+		activeSelectionOwnership = ownership;
 		const renderCurrentDryTrackRange = async (...args: RuntimeValue[]) => {
 			const channels = await renderDryTrackRange(...args);
 			assertSelectionEffectOwnership(runtime, ownership);
@@ -244,6 +259,7 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 				finishSelectionEffectProcessing(runtime, ownership); finished = true; });
 		} finally {
 			if (!finished) finishSelectionEffectProcessing(runtime, ownership);
+			if (activeSelectionOwnership === ownership) activeSelectionOwnership = null;
 		}
 	}
 
@@ -434,7 +450,7 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 	}
 
 	return Object.freeze({
-		applySelectedAudacityEffect,
+		applySelectedAudacityEffect, cancelSelectedAudacityEffect,
 		prepareAudacityEffectFromController,
 		previewAudacityEffectFromController,
 		runNyquistEvaluation,

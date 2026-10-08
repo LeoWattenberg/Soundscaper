@@ -47,7 +47,7 @@ export const EDITOR_ACTION_FUNCTION_NAMES = defineEditorActionFunctionNames([
 	'beginRackEffectGesture',
 	'beginVideoEffectGesture',
 	'bypassVideoClipEffect',
-	'cancelAudacityEffectPreview',
+	'cancelAudacityEffectPreview', 'cancelSelectedAudacityEffect',
 	'cancelEffectMacro',
 	'cancelNyquistEvaluation',
 	'cancelParametricEqGesture',

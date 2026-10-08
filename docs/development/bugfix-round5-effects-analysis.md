@@ -778,3 +778,32 @@ in Chromium, Firefox and WebKit (3/3, 13.9 seconds;
 `/tmp/soundscaper-r5-root-modal-resize-shortcut-green37.log`). Both guarded
 product builds pass. ROOT-025 is counted once. The assistance runtime closure
 is unchanged.
+
+## R5-ROOT-026 — Cancel dismisses an effect while its audio replacement continues
+
+Import an ordinary 30-second mono WAV. Select all, Effect → Delay and reverb
+→ Reverb, Apply to selection, then press the still-enabled Cancel button while
+the progress indicator is visible. The dialog closes, but the background work
+finishes and replaces the recording. Export WAV: its PCM differs from the
+original by a peak 0.0368758 despite that explicit cancellation.
+
+Give the submitted selection-effect task an owned cancellation action. The
+dialog's Cancel, Close and idle Escape cancel that task and its worker, clear
+its busy presentation and invalidate its eventual completion. Existing task
+and project assertions fence audio loading, processing and persistence, so a
+late result cannot replace the document or update Repeat last effect. Preserve
+preview cancellation and successful applications. This execution owner is
+independent of generator insertion cancellation and canceled Amplify draft
+configuration fixed in earlier rounds.
+
+The ordinary immutable-baseline workflow reaches Cancel during real rendering
+and fails its decoded WAV equality assertion (53.9 seconds;
+`/tmp/soundscaper-r5-root-selection-effect-cancel-red.log`). Three strict
+production-service cases independently fail at publishing one replacement
+after cancellation during rendering, worker processing and persistence. The
+correction passes those and existing selection-effect, project-ownership,
+linked silence and mounted dialog support, 39/39
+(`/tmp/soundscaper-r5-root-selection-effect-cancel-support.log`). Targeted
+type-aware lint, focused strict compiler and file-size checks pass. Corrected
+immutable public verification is pending; ROOT-026 is not yet counted.
+The assistance runtime closure is unchanged.

@@ -124,6 +124,7 @@ export function createControllerBindings<RenderEngine extends ClipTimePitchRende
 	const { addEffect, updateRackEffect, beginRackEffectGesture, previewRackEffect, commitRackEffectGesture, cancelRackEffectGesture, beginParametricEqGesture, previewParametricEq, commitParametricEqGesture, cancelParametricEqGesture, copyRackEffect, copyEffectStack, pasteEffectStack } = deferControllerMethods(() => services.effects().rack, ['addEffect', 'updateRackEffect', 'beginRackEffectGesture', 'previewRackEffect', 'commitRackEffectGesture', 'cancelRackEffectGesture', 'beginParametricEqGesture', 'previewParametricEq', 'commitParametricEqGesture', 'cancelParametricEqGesture', 'copyRackEffect', 'copyEffectStack', 'pasteEffectStack']);
 	const { runEffectMacro, applyAudacityEffectFromController, repeatLastAudacityEffect, applySpectralSelection, captureSelectedNoiseProfile, runNyquistEvaluation } = deferControllerMethods(() => services.effects(), ['runEffectMacro', 'applyAudacityEffectFromController', 'repeatLastAudacityEffect', 'applySpectralSelection', 'captureSelectedNoiseProfile', 'runNyquistEvaluation']);
 	const { currentAudacityEffectParams, setAudacityEffectType, setAudacityEffectParamsFromController, setAudacityControlTrack, applyEffectPreset, saveEffectPreset, deleteEffectPreset, importEffectPresets, exportEffectPreset, cancelAudacityEffectPreview, captureRackNoiseProfileFromController } = deferControllerMethods(() => services.effects().controls, ['currentAudacityEffectParams', 'setAudacityEffectType', 'setAudacityEffectParamsFromController', 'setAudacityControlTrack', 'applyEffectPreset', 'saveEffectPreset', 'deleteEffectPreset', 'importEffectPresets', 'exportEffectPreset', 'cancelAudacityEffectPreview', 'captureRackNoiseProfileFromController']);
+	const { cancelSelectedAudacityEffect } = deferControllerMethods(() => services.effects().execution, ['cancelSelectedAudacityEffect']);
 	const { renderDryTrackRange } = deferControllerMethods(() => services.effects().audio, ['renderDryTrackRange']);
 	const { setSourceSelection, readSourceSelectionDuration, readSourceSelectionSampleRate, loadSourceAudio, loadSourceAudioWindow } = deferControllerMethods(() => services.effects().sourceEditor, ['setSourceSelection', 'readSourceSelectionDuration', 'readSourceSelectionSampleRate', 'loadSourceAudio', 'loadSourceAudioWindow']);
 	const { cancelNyquistEvaluation } = deferControllerMethods(() => services.effects().nyquistHost, ['cancelNyquistEvaluation']);
@@ -176,7 +177,7 @@ export function createControllerBindings<RenderEngine extends ClipTimePitchRende
 		applySpectralSelection, captureSelectedNoiseProfile, runNyquistEvaluation, currentAudacityEffectParams,
 		setAudacityEffectType, setAudacityEffectParamsFromController, setAudacityControlTrack, applyEffectPreset,
 		saveEffectPreset, deleteEffectPreset, importEffectPresets, exportEffectPreset,
-		cancelAudacityEffectPreview, captureRackNoiseProfileFromController, renderDryTrackRange, cancelNyquistEvaluation,
+		cancelAudacityEffectPreview, cancelSelectedAudacityEffect, captureRackNoiseProfileFromController, renderDryTrackRange, cancelNyquistEvaluation,
 		toggleRecordingPause, toggleLeadInRecording, cancelRecordingStart, updateTransportState,
 		updateMeters, updateZoom, setTimelineViewportWidth, setAutoFitTrackHeight,
 		adjustTrackHeight, toggleExport, updateExportProgress, showAnalysis,

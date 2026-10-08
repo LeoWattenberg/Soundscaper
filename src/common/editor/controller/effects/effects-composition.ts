@@ -350,6 +350,7 @@ export function createEffectsComposition(dependencies: EffectsCompositionDepende
 		: createAbsentEffectMacroService(absentSubsystem);
 	const execution = dependencies.composition.effects
 		? createSelectionEffectExecutionService({
+		cancelSelectionWorkers: () => worker.cancelWorkers(),
 			beginResultTransaction: dependencies.beginResultTransaction,
 			pauseSourcePreview: dependencies.pauseSourcePreview, batchPresentation: dependencies.batchPresentation,
 			AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES,
