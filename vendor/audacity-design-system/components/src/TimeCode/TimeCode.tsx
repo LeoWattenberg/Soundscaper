@@ -427,9 +427,9 @@ export function TimeCode({
       aria-description={ariaDescription}
       aria-describedby={ariaDescribedBy}
       tabIndex={disabled ? -1 : 0}
-      onKeyDown={handleContainerKeyDown}
+      onKeyDown={handleContainerKeyDown} onClickCapture={(event) => event.preventDefault()}
     >
-      <div className="timecode__display" onClick={(event) => event.preventDefault()}>
+      <div className="timecode__display">
         {segments.map((segment, index) => (
           <React.Fragment key={index}>
             {segment.type === 'unit' ? (
