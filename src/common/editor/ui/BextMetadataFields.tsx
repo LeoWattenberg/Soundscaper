@@ -68,7 +68,7 @@ function DraftField({
 				event,
 				() => setDraft(presentedValue),
 			);
-		} else if (!multiline && event.key === 'Enter') event.currentTarget.blur();
+		} else if (!multiline && event.key === 'Enter') { event.preventDefault(); commit(); }
 	};
 	return (
 		<label>

@@ -79,7 +79,7 @@ function DraftField({ name, label, value, disabled, maxLength = 512, pattern, on
 							event,
 							() => setDraft(value),
 						);
-					} else if (event.key === 'Enter') event.currentTarget.blur();
+					} else if (event.key === 'Enter') { event.preventDefault(); commit(event.currentTarget); }
 				}}
 			/>
 		</label>
@@ -109,20 +109,21 @@ function DraftNumberInput({ value, onCommit, ...props }: Readonly<{
 	const [draft, setDraft] = useState(String(value));
 	const blurCommitGuard = useRef(createDraftBlurCommitGuard()).current;
 	useEffect(() => setDraft(String(value)), [value]);
+	const commit = (input: HTMLInputElement) => {
+		if (!draftBlurShouldCommit(blurCommitGuard)) return;
+		const next = validNumberInput(input);
+		if (next == null) setDraft(String(value));
+		else if (next !== value) onCommit(next);
+	};
 	return <input {...props} type="number" value={draft}
 		onChange={(event) => {
 			setDraft(event.currentTarget.value);
 		}}
-		onBlur={(event) => {
-			if (!draftBlurShouldCommit(blurCommitGuard)) return;
-			const next = validNumberInput(event.currentTarget);
-			if (next == null) setDraft(String(value));
-			else if (next !== value) onCommit(next);
-		}}
+		onBlur={(event) => commit(event.currentTarget)}
 		onKeyDown={(event) => {
 			if (event.key === 'Escape') {
 				cancelDraftEditOnEscape(blurCommitGuard, event, () => setDraft(String(value)));
-			} else if (event.key === 'Enter') event.currentTarget.blur();
+			} else if (event.key === 'Enter') { event.preventDefault(); commit(event.currentTarget); }
 		}}
 	/>;
 }
