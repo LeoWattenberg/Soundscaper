@@ -1,8 +1,8 @@
 # Fifth user-reproducible regression audit
 
-This audit is in progress toward 100 additional distinct fixes. Sixty
-new roots have completed ordinary browser verification (editing 17, dialogs 19,
-effects/analysis 16, import/export 8). Its immutable
+This audit is in progress toward 100 additional distinct fixes. Sixty-five
+new roots have completed ordinary browser verification (editing 18, dialogs 21,
+effects/analysis 17, import/export 9). Its immutable
 baseline is `fe6440c81b3a0fe29a028c64db867ae7d2cf3252`.
 
 Count an entry only after ordinary public user actions reproduce its defect
@@ -47,6 +47,12 @@ passes both guarded builds, Source editor rack profile capture and existing-clip
 mono-to-stereo paste across all three engines. Checkpoint twenty-two,
 `2d5177efb`, passes both guarded builds and loudness analysis repetition across
 all three engines. The complete bounded-memory lint passes all eleven shards.
+Checkpoint twenty-three, `c1fb08c11`, passes both guarded builds, ordinary
+camera stereo admission, native-rate noise-profile export, styled Bin placement,
+recording-notes blank-block formatting and visualizer-preset source selection.
+The first visualizer-preset WebKit run reached the correct reopened state but
+exceeded its overall deadline; an unchanged isolated run passes within that
+original deadline. No product assertion or budget was weakened.
 Browser evidence names each exact checkpoint. Firefox audio
 uses the unchanged CI PulseAudio setup with a private 48 kHz null sink.
 
