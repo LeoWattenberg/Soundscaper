@@ -42,6 +42,7 @@ type InitialFocus = 'first' | 'dialog' | string;
 export interface AudioEditorDialogShellProps {
 	readonly isOpen?: boolean;
 	readonly title: string;
+	readonly role?: 'dialog' | 'alertdialog';
 	readonly headerTitle?: string;
 	readonly headerOs?: 'windows' | 'macos' | null;
 	readonly onClose?: () => void;
@@ -81,6 +82,7 @@ interface DragSession {
 export default function AudioEditorDialogShell({
 	isOpen = true,
 	title,
+	role = 'dialog',
 	headerTitle = title,
 	headerOs = 'windows',
 	onClose,
@@ -265,7 +267,7 @@ export default function AudioEditorDialogShell({
 				ref={panelRef}
 				tabIndex={-1}
 				className={panelClasses}
-				role="dialog"
+				role={role}
 				{...(modal ? { 'aria-modal': 'true' } : {})}
 				aria-label={title}
 				aria-describedby={ariaDescribedBy}
