@@ -109,6 +109,7 @@ test('the diagnostic collector table retains parity, timing, and GPU observation
 			['m4-production-parity', 'blocking', 'any'],
 			['m4b2-keyframe-render-parity', 'blocking', 'any'],
 			['m3-longform-editorial', 'blocking', 'any'],
+			['l3-photo-library-large', 'blocking', 'any'],
 			['m1-video-preview-12fx-720p', 'observational', 'hardware'],
 		],
 	);
@@ -116,7 +117,33 @@ test('the diagnostic collector table retains parity, timing, and GPU observation
 		'tests/browser/audio-editor-m4-production-parity.spec.js',
 		'tests/browser/audio-editor-m4b2-keyframe-parity.spec.js',
 		'tests/browser/audio-editor-longform-editorial-benchmark.spec.js',
+		'tests/browser/lightscaper-large-library-native.spec.js',
 	]);
+});
+
+test('large-library collection enables its native observation flag and exact hosted environment', async () => {
+	const root = await mkdtemp(join(tmpdir(), 'ci-lightscaper-diagnostics-'));
+	let observedEnvironment: Record<string, string> | null = null;
+	await collectCiDiagnostics({ outputDirectory: join(root, 'run'), allowLocal: false }, {
+		processEnvironment: { GITHUB_ACTIONS: 'true', LIGHTSCAPER_L3_OBSERVED_ENVIRONMENT_ID: 'foreign' },
+		runPlaywright: async (environment: Record<string, string>) => {
+			observedEnvironment = environment;
+			return { consoleOutput: '', exit: PASSING_EXIT };
+		},
+		collectors: [stubCollector('parity', 'blocking', true)],
+	});
+	assert.equal(observedEnvironment!['LIGHTSCAPER_L3_LARGE_LIBRARY_DIAGNOSTIC'], '1');
+	assert.equal(observedEnvironment!['LIGHTSCAPER_L3_OBSERVED_ENVIRONMENT_ID'], 'github-ubuntu-playwright-1.62.1');
+});
+
+test('the real large-library collector fails closed when its diagnostic is absent or malformed', () => {
+	const collector = HOSTED_CI_COLLECTORS.find(value => value.diagnosticKey === 'l3-photo-library-large');
+	assert.ok(collector);
+	for (const consoleOutput of ['', '{"profile":"deterministic-photo-library-20000-v1","workloadId":"l3-photo-library-large"}']) {
+		const report = createCiDiagnosticsReport({ consoleOutput, sourceRevision: null, playwrightExit: PASSING_EXIT }, { collectors: [collector] });
+		assert.equal(report.passed, false); assert.equal(report.report.blockingWorkloadCount, 1);
+		assert.equal(report.report.failures.length, 1); assert.match(report.report.failures[0]!, /l3-photo-library-large/u);
+	}
 });
 
 test('collection writes a raw diagnostic log and report without accepted evidence artifacts', async () => {

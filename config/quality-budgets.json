@@ -800,6 +800,23 @@
 					"filesystem-denied"
 				]
 			}
+		},
+		{
+			"id": "lightscaper-large-library-20000-v1",
+			"kind": "deterministic-bounded-native-photo-catalog",
+			"specification": {
+				"generatorRevision": 1,
+				"photoCount": 20000,
+				"publicationBatchSize": 16,
+				"presentationPageSize": 64,
+				"width": 2,
+				"height": 2,
+				"maximumDocumentBytes": 16384,
+				"sourceByteLength": 163,
+				"sourceSha256": "53da2d7acaff4a63fe169b1c8c76ab63f4cfa8d5182868d2ba9f356a97586e6c",
+				"sparseSearchText": "Distant library search token"
+			},
+			"limitation": "Tiny repeated immutable media isolates catalog scaling and bounded query/presentation behavior. Fixture setup may reuse the decoded original; an ordinary managed-import gesture into the populated catalog is measured separately. This does not measure large-image decoding, heterogeneous camera formats, raw processing, representative working sets or hardware performance."
 		}
 	],
 	"measurements": [
@@ -1261,6 +1278,42 @@
 		},
 		{
 			"id": "ofx.hostProcessTreeRssBytes",
+			"behavior": "observational"
+		},
+		{
+			"id": "photoLibrary.resultMismatchCount",
+			"behavior": "blocking"
+		},
+		{
+			"id": "photoLibrary.originalDigestMismatchCount",
+			"behavior": "blocking"
+		},
+		{
+			"id": "photoLibrary.maximumRenderedPhotos",
+			"behavior": "blocking"
+		},
+		{
+			"id": "photoLibrary.maximumPublishedBatchPhotos",
+			"behavior": "blocking"
+		},
+		{
+			"id": "photoLibrary.maximumCandidatePhotos",
+			"behavior": "blocking"
+		},
+		{
+			"id": "photoLibrary.importP95Ms",
+			"behavior": "observational"
+		},
+		{
+			"id": "photoLibrary.scrollFrameIntervalP95Ms",
+			"behavior": "observational"
+		},
+		{
+			"id": "photoLibrary.filterP95Ms",
+			"behavior": "observational"
+		},
+		{
+			"id": "photoLibrary.searchP95Ms",
 			"behavior": "observational"
 		}
 	],
@@ -1954,6 +2007,60 @@
 			"comparison": "lte",
 			"value": 1073741824,
 			"unit": "bytes"
+		},
+		{
+			"measurementId": "photoLibrary.resultMismatchCount",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "photos"
+		},
+		{
+			"measurementId": "photoLibrary.originalDigestMismatchCount",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "originals"
+		},
+		{
+			"measurementId": "photoLibrary.maximumRenderedPhotos",
+			"comparison": "lte",
+			"value": 64,
+			"unit": "photos"
+		},
+		{
+			"measurementId": "photoLibrary.maximumPublishedBatchPhotos",
+			"comparison": "lte",
+			"value": 16,
+			"unit": "photos"
+		},
+		{
+			"measurementId": "photoLibrary.maximumCandidatePhotos",
+			"comparison": "lte",
+			"value": 64,
+			"unit": "photos"
+		},
+		{
+			"measurementId": "photoLibrary.importP95Ms",
+			"comparison": "lte",
+			"value": 10000,
+			"unit": "ms"
+		},
+		{
+			"measurementId": "photoLibrary.scrollFrameIntervalP95Ms",
+			"comparison": "lte",
+			"value": 50,
+			"unit": "ms"
+		},
+		{
+			"measurementId": "photoLibrary.filterP95Ms",
+			"comparison": "lte",
+			"value": 1000,
+			"unit": "ms"
+		},
+		{
+			"measurementId": "photoLibrary.searchP95Ms",
+			"comparison": "lte",
+			"value": 5000,
+			"unit": "ms"
 		}
 	],
 	"workloads": [
@@ -2234,6 +2341,24 @@
 				"ofx.authoredStateLosses",
 				"ofx.unsupportedTargets",
 				"ofx.hostProcessTreeRssBytes"
+			]
+		},
+		{
+			"id": "l3-photo-library-large",
+			"behavior": "blocking",
+			"fixtureIds": [
+				"lightscaper-large-library-20000-v1"
+			],
+			"measurementIds": [
+				"photoLibrary.resultMismatchCount",
+				"photoLibrary.originalDigestMismatchCount",
+				"photoLibrary.maximumRenderedPhotos",
+				"photoLibrary.maximumPublishedBatchPhotos",
+				"photoLibrary.maximumCandidatePhotos",
+				"photoLibrary.importP95Ms",
+				"photoLibrary.scrollFrameIntervalP95Ms",
+				"photoLibrary.filterP95Ms",
+				"photoLibrary.searchP95Ms"
 			]
 		}
 	]

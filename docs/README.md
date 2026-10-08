@@ -28,6 +28,8 @@ belong in Git history, not in the maintained documentation set.
   defines authored drafts, explicit preset loading, and durable import acknowledgements.
 - [Photo batch rename](architecture/lightscaper-batch-rename.md)
   defines bounded name plans and revision-fenced per-photo publication.
+- [Large photo-library diagnostics](architecture/lightscaper-large-library-diagnostics.md)
+  defines the pinned native catalog fixture and bounded import, scroll, filter, and search observations.
 - [Disposable photo preview preparation](architecture/lightscaper-preview-preparation.md)
   defines shared resize recipes and bounded original-free preview bodies.
 - [Photo catalog definitions](architecture/lightscaper-catalog-definitions.md)

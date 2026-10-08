@@ -1,6 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { diagnosticErrorMessage as messageOf } from './diagnostic-error-message.ts';
+import {
+	createPendingLightscaperLargeLibraryResult,
+	parseLightscaperLargeLibraryDiagnostic,
+} from './lightscaper-large-library-diagnostics-v1.ts';
 
 import {
 	createPendingM3LongformEditorialResult,
@@ -33,6 +37,9 @@ export const HOSTED_CI_COLLECTORS = Object.freeze([
 	collector('m3-longform-editorial', 'blocking', 'any',
 		'tests/browser/audio-editor-longform-editorial-benchmark.spec.js',
 		parseM3LongformEditorialDiagnostic, createPendingM3LongformEditorialResult),
+	collector('l3-photo-library-large', 'blocking', 'any',
+		'tests/browser/lightscaper-large-library-native.spec.js',
+		parseLightscaperLargeLibraryDiagnostic, createPendingLightscaperLargeLibraryResult),
 	collector('m1-video-preview-12fx-720p', 'observational', 'hardware',
 		'tests/browser/audio-editor-video-preview-benchmark.spec.js',
 		parseM1VideoPreviewDiagnostic, createPendingM1VideoPreviewResult),

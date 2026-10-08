@@ -66,6 +66,16 @@ inventory, generator revision, and digests where those facts affect a
 measurement. Small correctness fixtures and virtual-length witnesses state what
 they do not allocate or execute.
 
+The [large photo-library diagnostic](../architecture/lightscaper-large-library-diagnostics.md)
+publishes 20,000 real catalog documents in bounded transactions with retained
+original custody. A tiny repeated, digest-pinned PNG isolates catalog scale;
+it does not measure a mixed camera library, large-image decoding, raw processing,
+or representative hardware. Its menu-driven import, library scrolling, keyword
+filter, and distant global search run once with one warm-up and five measured
+trials. Structural result, source-digest, publication, candidate-page, and
+rendered-page limits block; valid timing observations can warn. Hosted CI opts
+in to the workload explicitly and records the browser that actually ran.
+
 Direct stem-archive publication uses a small focused Node correctness fixture.
 It checks ZIP32 and 7z Copy framing, at-most-64-KiB input slices, serialized sink
 backpressure, close-before-commit behavior, cancellation, and zero partial

@@ -20,6 +20,8 @@ const DEFAULT_OUTPUT_DIRECTORY = 'test-results/ci-diagnostics';
 
 const COLLECTION_VARIABLES = Object.freeze({
 	AUDIO_EDITOR_FFMPEG_BROWSER: '1',
+	LIGHTSCAPER_L3_LARGE_LIBRARY_DIAGNOSTIC: '1',
+	LIGHTSCAPER_L3_OBSERVED_ENVIRONMENT_ID: HOSTED_CI_ENVIRONMENT_ID,
 	SOUNDSCAPER_M1_OBSERVED_ENVIRONMENT_ID: HOSTED_CI_ENVIRONMENT_ID,
 	SOUNDSCAPER_M3_LONGFORM_BENCHMARK: '1',
 	SOUNDSCAPER_M3_OBSERVED_ENVIRONMENT_ID: HOSTED_CI_ENVIRONMENT_ID,
@@ -45,7 +47,7 @@ export async function collectCiDiagnostics(options, dependencies = {}) {
 	const runPlaywright = dependencies.runPlaywright ?? ((environment) => runDiagnosticSpecs(
 		environment, hostedCiDiagnosticSpecs(collectors),
 	));
-	const { consoleOutput, exit } = await runPlaywright(processEnvironment);
+	const { consoleOutput, exit } = await runPlaywright({ ...processEnvironment, ...COLLECTION_VARIABLES });
 	await mkdir(runRoot, { recursive: true });
 	const config = dependencies.config ?? JSON.parse(await readFile(CONFIG_PATH, 'utf8'));
 	const result = createCiDiagnosticsReport({
@@ -102,7 +104,7 @@ async function runDiagnosticSpec(spec, processEnvironment) {
 			cwd: REPOSITORY_ROOT,
 			encoding: 'utf8',
 			maxBuffer: 256 * 1024 * 1024,
-			env: { ...processEnvironment, ...COLLECTION_VARIABLES },
+			env: processEnvironment,
 		});
 		return { consoleOutput: `${stdout}\n${stderr}`, exit: { code: 0, signal: null } };
 	} catch (error) {

@@ -128,6 +128,8 @@
 		,
 		{ "path": "scripts/lib/e2e-v8-topology.mjs", "kind": "upstream-contract", "justification": "e2e-v8-topology.mjs validates the upstream V8 coverage topology and does not identify project schema." }
 		,
+		{ "path": "scripts/lib/lightscaper-large-library-diagnostics-v1.ts", "kind": "external-contract", "justification": "Version 1 closed browser observations bind the pinned photo-library fixture and measured trials to hosted CI diagnostics independently of product schemas." }
+		,
 		{ "path": "scripts/lib/m5b-quality-observations-v2.mjs", "kind": "external-contract", "justification": "m5b-quality-observations-v2.mjs names the retained quality-evidence pipeline revision consumed by repository automation." }
 		,
 		{ "path": "scripts/lib/m5b-quality-pipeline-v2.mjs", "kind": "external-contract", "justification": "m5b-quality-pipeline-v2.mjs names the retained quality-evidence pipeline revision consumed by repository automation." }
@@ -599,6 +601,8 @@
 		{ "path": "src/lightscaper/preview/photo-preview-preparation-v1.ts", "kind": "ipc-contract", "justification": "Version 1 prepared disposable photo body carries an independent pixel descriptor and output digest without embedding immutable original bytes." }
 		,
 		{ "path": "src/lightscaper/preview/photo-preview-scheduler-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded scalar preview demand queue joining retained-original regeneration, cache publication and cancellation." }
+		,
+		{"path": "src/lightscaper/quality/large-library-workload-v1.ts", "kind": "helper-contract", "justification": "Version 1 digest-pinned deterministic photo catalog workload generates bounded publication batches independently of product schema and runtime capabilities."}
 		,
 		{ "path": "src/lightscaper/storage/photo-import-presets-v1.ts", "kind": "persisted-contract", "justification": "Version 1 catalog-scoped import preset rows use bounded settings storage and exact revision-fenced publication independently of photo and archive schemas." }
 		,
