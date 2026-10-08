@@ -60,6 +60,7 @@ for (const extent of ['complete', 'partial']) test(`lifting a ${extent} frozen r
 	await expect(history).toHaveCount(beforeFreeze + 2);
 	await chooseCommandAction(page, editor, 'Edit', 'Undo');
 	await expect(tracks).toHaveCount(originalCount);
+	await clip.locator('.clip-header').click();
 	await expect(getMenuItem(await openMenu(page, editor, 'Tracks'), 'Freeze (fresh)')).toBeVisible();
 	await page.keyboard.press('Escape');
 });
