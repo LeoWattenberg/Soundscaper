@@ -28,6 +28,10 @@ test('canonical handoff inspection stays with the optional archive implementatio
 	assert.equal(chunkGroupForModulePath(path), null, `${path} must stay behind its lazy action`);
 });
 
+test('Framescaper source compaction shares its feature declaration foundation', () => {
+	assert.equal(chunkGroupForModulePath('src/framescaper/editor-project-source-compaction.ts'), 'framescaper-project-foundations');
+});
+
 test('the Framescaper project command spine has one non-recursive semantic owner', () => {
 	for (const path of [
 		'src/framescaper/editor-project-retime-command-admission.ts',

@@ -294,6 +294,7 @@ const framescaperProjectFoundationModules = Object.freeze([
 	'editor-project-sequence-validation',
 	'editor-project-sequence',
 	'editor-project-storage-profile',
+	'editor-project-source-compaction',
 	'editor-project-timeline-image-foundation',
 	'editor-project-timeline-image-validation',
 	'editor-project-timeline-image',
