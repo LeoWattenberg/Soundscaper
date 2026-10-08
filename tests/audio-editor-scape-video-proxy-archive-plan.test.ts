@@ -207,7 +207,8 @@ test('has no deprecated V2 wrapper and keeps the baseline archive owner at forma
 	assert.doesNotMatch(source,
 		/project-runtime-profile|framescaper|soundscaper|scape-archive-envelope|SCAPE_FORMAT_VERSION|repository|storage\/|controller|desktop|productId|\bBlob\b|arrayBuffer|ReadableStream/iu);
 	const baselineEnvelope = await readSource('src/common/editor/scape-archive-envelope.ts');
-	assert.match(baselineEnvelope, /export const SCAPE_FORMAT_VERSION = 1;/u);
+	assert.match(baselineEnvelope, /export\s*\{[^}]*SCAPE_FORMAT_VERSION[^}]*\}\s*from '\.\/scape-archive-limits\.ts'/u);
+	assert.match(await readSource('src/common/editor/scape-archive-limits.ts'), /export const SCAPE_FORMAT_VERSION = 1;/u);
 	assert.doesNotMatch(baselineEnvelope, /video-proxy/iu);
 });
 

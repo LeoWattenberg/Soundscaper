@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { SCAPE_ARCHIVE_LIMITS } from './scape-archive-envelope.ts';
+import { SCAPE_ARCHIVE_LIMITS } from './scape-archive-limits.ts';
 import { maximumScapeStoreCentralDirectoryBytes } from './scape-archive-zip-profile.ts';
 import { SCAPE_WEB_CORE_BLOB_MAXIMUM_BYTES } from './scape-blob-budget.ts';
 
