@@ -337,13 +337,13 @@ export function FreesoundPanel({
 					<Button
 						size="small"
 						disabled={loading || state.page <= 1}
-						onClick={() => search({ page: state.page - 1 })}
+						onClick={() => search({ query: state.query, page: state.page - 1 })}
 					>{copy.previousPage}</Button>
 					<span aria-live="polite">{pageLabel}</span>
 					<Button
 						size="small"
 						disabled={loading || state.page >= state.pageCount}
-						onClick={() => search({ page: state.page + 1 })}
+						onClick={() => search({ query: state.query, page: state.page + 1 })}
 					>{copy.nextPage}</Button>
 				</nav>
 			) : null}
