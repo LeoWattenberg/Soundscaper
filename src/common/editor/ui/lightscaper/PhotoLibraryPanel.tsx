@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { KeyboardEvent } from 'react';
+import type { KeyboardEvent, ReactNode } from 'react';
 import type { PhotoLibraryImportItemV1, PhotoLibraryPageV1, PhotoLibraryRowV1 } from '../../photo-library-session-port-v1.ts';
 
 interface Props {
@@ -18,6 +18,7 @@ interface Props {
 	readonly selected: string | null;
 	readonly busy: boolean;
 	readonly error: string | null;
+	readonly renderPreview?: (row: PhotoLibraryRowV1) => ReactNode;
 	readonly onSelect: (photoId: string) => void;
 	readonly onRate: (photoId: string, rating: number) => void;
 }
@@ -45,6 +46,7 @@ export default function PhotoLibraryPanel(props: Props) {
 			{rows.map((row, index) => <li key={row.id}>
 				<button type="button" data-photo-id={row.id} data-photo-flag={row.flag} data-photo-color-label={row.colorLabel} aria-pressed={props.selected === row.id} onClick={() => { props.onSelect(row.id); }}
 					onFocus={() => { props.onSelect(row.id); }} onKeyDown={event => { navigate(event, index); }}>
+					{props.renderPreview?.(row)}
 					<strong>{row.fileName}</strong>
 					<span>{row.width} × {row.height}</span>
 					<span>{props.ratingLabel}: {row.rating}</span>

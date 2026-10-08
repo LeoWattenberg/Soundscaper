@@ -15,6 +15,11 @@ export function createPhotoLibrarySessionV1(options: Readonly<{ name: string }>)
 			await media.ready(); signal.throwIfAborted();
 			return openDefaultPhotoCatalogV1({ catalog, settings: media.settingsRepository }, { name: options.name, signal });
 		},
+		createPreviewScheduler: async catalogId => {
+			const { PhotoPreviewSchedulerV1 } = await import('./preview/photo-preview-scheduler-v1.ts');
+			return new PhotoPreviewSchedulerV1({ catalogId, loadPhoto: photoId => catalog.loadPhoto(catalogId, photoId),
+				loadOriginal: (key, signal) => media.mediaRepository.loadAsset(key, { signal }), cache: media.getPreviewCache() });
+		},
 		closeResources: async () => {
 			const outcomes = await Promise.allSettled([catalog.close(), media.close()]);
 			const errors = outcomes.filter((result): result is PromiseRejectedResult => result.status === 'rejected').map(result => result.reason as unknown);

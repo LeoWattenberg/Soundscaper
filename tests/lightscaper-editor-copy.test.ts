@@ -28,12 +28,12 @@ const KEYS = Object.freeze([
 
 test('the lazy photo source preserves every corrected English and German flat identity', () => {
 	const copy = LIGHTSCAPER_EDITOR_COPY_BY_LOCALE;
-	assert.deepEqual(Object.keys(copy.en), KEYS);
-	assert.deepEqual(Object.keys(copy.de), KEYS);
+	assert.deepEqual(Object.keys(copy.en).slice(0, KEYS.length), KEYS);
+	assert.deepEqual(Object.keys(copy.de), Object.keys(copy.en));
 	// Snapshot of the corrected source at 0f175d60a, before the ownership move.
 	const snapshot = JSON.stringify(KEYS.map(key => [key, copy.en[key], copy.de[key]]));
 	assert.equal(createHash('sha256').update(snapshot).digest('hex'), '2a3cf1bcafbd5adad36ff987d1cfe92bd1cf3d358854846928447f976a37e5b6');
-	for (const key of KEYS) {
+	for (const key of Object.keys(copy.en) as (keyof typeof copy.en)[]) {
 		assert.equal(ENGLISH_COPY[key], copy.en[key], key);
 		assert.equal(GERMAN_COPY[key], copy.de[key], key);
 		assert.equal(EDITOR_ENGLISH_COPY[key], copy.en[key], key);

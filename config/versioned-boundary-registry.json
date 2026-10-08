@@ -284,6 +284,8 @@
 		,
 		{ "path": "src/common/editor/controller/shared/isolated-track-render-project-v21.ts", "kind": "persisted-contract", "justification": "isolated-track-render-project-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
+		{"path": "src/common/editor/controller/shared/pixel-preview-presentation-v1.ts", "kind": "helper-contract", "justification": "Version1 serial scalar preview demand owns bounded canvas targets, generation cancellation and joined frame staging without original custody."}
+		,
 		{ "path": "src/common/editor/controller/track-audio/internal/mix-render/mix-render-snapshot-v21.ts", "kind": "persisted-contract", "justification": "mix-render-snapshot-v21.ts projects production mixer and automation authority for a persisted render-contract revision independent of product schema." }
 		,
 		{ "path": "src/common/editor/engine/automation-control-v21.ts", "kind": "persisted-contract", "justification": "automation-control-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
@@ -340,7 +342,11 @@
 		,
 		{ "path": "src/common/editor/imaging/pixel-frame-admission-v1.ts", "kind": "ipc-contract", "justification": "Version-1 pixel interchange admission binds declared sample and color profiles to explicit processor support without changing the persisted descriptor." }
 		,
+		{"path": "src/common/editor/imaging/pixel-frame-body-v1.ts", "kind": "helper-contract", "justification": "Version1 callback-scoped pixel body admission binds genuine Blob geometry, profile, length and output digest to one wiped bounded staging buffer."}
+		,
 		{ "path": "src/common/editor/imaging/pixel-frame-canonical-rgba8-v1.ts", "kind": "helper-contract", "justification": "Version 1 native RGBA8 snapshot and fully transparent RGB canonicalization shared by Frame imports and authenticated photo regeneration." }
+		,
+		{"path": "src/common/editor/imaging/pixel-frame-canvas-presenter-v1.ts", "kind": "helper-contract", "justification": "Version1 shared canvas presentation admits current profiles, preserves oriented straight-alpha pixels and deterministically releases bounded backing."}
 		,
 		{ "path": "src/common/editor/imaging/pixel-frame-contract-v1.ts", "kind": "ipc-contract", "justification": "Version-1 transient RGBA frame interchange declares sample format, color primaries, transfer, and bounded geometry across image processing and worker boundaries." }
 		,
@@ -541,6 +547,10 @@
 		{ "path": "src/lightscaper/catalog/photo-query-rebuild-v1.ts", "kind": "helper-contract", "justification": "Version 1 resumable query index rebuild publishes bounded derived rows and progress atomically without rewriting original photo documents." }
 		,
 		{ "path": "src/lightscaper/catalog/photo-query-types-v1.ts", "kind": "helper-contract", "justification": "Closed version 1 catalog query and bounded continuation contracts bind literal search, filtering and global ordering to one catalog revision." }
+		,
+		{"path": "src/lightscaper/controller/photo-library-definition-pages-v1.ts", "kind": "helper-contract", "justification": "Version1 scalar definition pages preserve catalog revision and hierarchy scope with bounded current-parent and selected-name projections."}
+		,
+		{"path": "src/lightscaper/controller/photo-library-query-v1.ts", "kind": "helper-contract", "justification": "Version1 scalar query and explicit migration steps preserve bounded global ordering, strict cursors and cancellation without exposing photo documents."}
 		,
 		{ "path": "src/lightscaper/import/catalog-write-lock-v1.ts", "kind": "helper-contract", "justification": "Authoritative shared lock namespace for version 1 photo catalog publication across separate metadata and media databases." }
 		,

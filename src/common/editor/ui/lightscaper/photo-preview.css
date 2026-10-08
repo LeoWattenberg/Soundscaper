@@ -1,0 +1,21 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+.lightscaper-preview {
+	display: block;
+	max-width: 100%;
+	height: auto;
+	object-fit: contain;
+	background: repeating-conic-gradient(#737373 0% 25%, #a3a3a3 0% 50%) 50% / 16px 16px;
+}
+
+.lightscaper-preview-thumbnail {
+	width: min(100%, 256px);
+	max-height: 256px;
+	margin-inline: auto;
+}
+
+.lightscaper-preview-fit-screen {
+	width: auto;
+	max-height: 70vh;
+	margin-inline: auto;
+}

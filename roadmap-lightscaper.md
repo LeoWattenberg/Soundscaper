@@ -135,8 +135,10 @@ platform tier states the contract the item must meet when it lands.
 ## Current foundation
 
 Lightscaper owns a registered product composition, a durable per-photo catalog,
-managed-original storage, and a menu-owned import, paged browse, and rating
-workflow. Develop, export, raw, and desktop capabilities remain disabled.
+managed-original storage, and menu-owned import, paged browse, metadata and
+culling workflows. Opt-in thumbnails and a selected-photo loupe use disposable
+previews; global search and sort use bounded indexed candidate pages. Develop,
+export, raw, and desktop capabilities remain disabled.
 
 | Area | Current capability |
 | --- | --- |
@@ -145,6 +147,7 @@ workflow. Develop, export, raw, and desktop capabilities remain disabled.
 | Stills | Framescaper V30 still import and timeline-image modeling landed; Lightscaper reuses shared image admission, native decode, EXIF orientation, and immutable original bindings. |
 | Pixel interchange | A versioned descriptor admits sample formats, primaries, and transfer independently. Current processing admits `unorm8` sRGB; deeper buffers and wider processing wait for L7. |
 | Library and storage | Separate catalog-root and photo rows, bounded summary/membership pages, per-photo commands and history, verified retained originals with digest dedupe and custody, managed-import recovery, and catalog Scape round trips. |
+| Library queries and previews | Global filename/capture/rating indexes, resumable explicit index preparation, scalar paged definition selectors, and cancellable demand previews with disposable paired cache entries and one shared presenter owner. |
 | Metadata | Bounded shared EXIF/IPTC readers, immutable extracted facts, authored metadata overrides, and Lightscaper's import adapter. |
 | UI and platform | Shared design-system/dialog ownership, a product-owned photo shell, opt-in menu workflows, offline application shells, and the existing hardened Electron wrappers for Soundscaper and Framescaper. |
 | Gates | Sharded Node suites including Lightscaper, browser workflows, coverage-union thresholds, architecture and file-size ceilings, licensing/notice/WASM audits, correctness checks, and existing packaged desktop smokes. Performance reports are diagnostics. |
@@ -276,14 +279,14 @@ real-library scale.
   failure reporting, rename templates, apply-during-import of keywords and
   metadata presets (develop presets once L4 lands), and interruption recovery
   to a consistent catalog.
-- **Web Core — Planned:** derivative previews as disposable artifacts in tiers
+- **Web Core — Done:** derivative previews as disposable artifacts in tiers
   (thumbnail, fit-screen), built in cancellable background batches,
   regenerated on demand, and evictable under storage pressure.
 - **Web Core — In progress:** grid, filmstrip, loupe, compare, and survey views;
   ratings, flags, and labels with auto-advance culling; stacks; sort orders;
   a filter bar over text, attributes, and metadata columns; and collections
   with live smart collections.
-- **Web Core — Planned:** a metadata panel over the L2 read model,
+- **Web Core — In progress:** a metadata panel over the L2 read model,
   capture-time edit, batch rename, missing-media detection and relink through
   the existing relink path, and catalog snapshot/backup through Scape
   export.

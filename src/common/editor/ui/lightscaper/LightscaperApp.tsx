@@ -7,7 +7,8 @@ import { productHref } from '../../../product-web-links.js';
 import { useLightscaperEditorCopy as useSiteCopy } from './use-lightscaper-editor-copy.ts';
 import type { CreatePhotoLibrarySessionV1 } from '../../photo-library-session-port-v1.ts';
 import PhotoLibraryPanel from './PhotoLibraryPanel.tsx';
-import { usePhotoLibraryWorkflow } from './use-photo-library-workflow.ts';
+import type { PhotoPreviewPresentationViewV1 } from './PhotoPreviewPresentation.tsx';
+import { DEFAULT_PHOTO_LIBRARY_QUERY_V1, usePhotoLibraryWorkflow } from './use-photo-library-workflow.ts';
 import '../../../../../vendor/audacity-design-system/components/src/ApplicationHeader/ApplicationHeader.css';
 import './lightscaper.css';
 
@@ -18,6 +19,8 @@ export interface LightscaperAppProps {
 
 const PhotoImportDialog = lazy(() => import('./PhotoImportDialog.tsx'));
 const PhotoMetadataDialog = lazy(() => import('./PhotoMetadataDialog.tsx'));
+const PhotoPreviewPresentation = lazy(() => import('./PhotoPreviewPresentation.tsx'));
+const PhotoQueryDialog = lazy(() => import('./PhotoQueryDialog.tsx'));
 
 export default function LightscaperApp({ locale, createSession }: LightscaperAppProps) {
 	const copy = useSiteCopy(locale);
@@ -25,6 +28,9 @@ export default function LightscaperApp({ locale, createSession }: LightscaperApp
 	const [libraryVisible, setLibraryVisible] = useState(false);
 	const [importVisible, setImportVisible] = useState(false);
 	const [metadataVisible, setMetadataVisible] = useState(false);
+	const [thumbnailsVisible, setThumbnailsVisible] = useState(false);
+	const [loupeVisible, setLoupeVisible] = useState(false);
+	const [queryVisible, setQueryVisible] = useState(false);
 	const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
 	const library = usePhotoLibraryWorkflow(createSession);
 	const { readPage } = library;
@@ -89,6 +95,19 @@ export default function LightscaperApp({ locale, createSession }: LightscaperApp
 		}
 	};
 
+	const renderLibrary = (preview?: PhotoPreviewPresentationViewV1) => <>
+		<PhotoLibraryPanel title={copy.workspacePhoto} empty={copy.photoEmptyLibrary} loading={copy.photoWorking}
+			ratingLabel={copy.photoRating} flags={flags} colorLabels={colorLabels} importedLabel={copy.photoImported} failedLabel={copy.photoImportFailed} metadataNotice={copy.photoMetadataNotice}
+			page={library.page} receipts={library.receipts} selected={selection?.id ?? null} busy={library.busy} error={library.error}
+			renderPreview={preview ? row => preview.renderThumbnail(row.id, row.fileName) : undefined}
+			onSelect={setSelectedPhoto} onRate={(photoId, rating) => { void library.setRating(photoId, rating); }} />
+		{loupeVisible && selection && preview && <section data-photo-loupe="true" className="lightscaper-library" aria-label={copy.photoLoupe}>
+			<h3>{selection.fileName}</h3>{preview.renderLoupe(selection.fileName)}
+		</section>}
+		{preview?.snapshot.targets.some(target => target.status === 'failed' || target.status === 'missing') && <p role="alert">{copy.photoPreviewUnavailable}</p>}
+		{preview?.snapshot.targets.some(target => target.notices.length > 0) && <p role="status">{copy.photoPreviewTemporary}</p>}
+	</>;
+
 	return <section ref={app} className="lightscaper-app" data-lightscaper-bound="true" aria-label={copy.lightscaperTitle}>
 		<header className="lightscaper-header application-header">
 			<h2>{copy.lightscaperTitle}</h2>
@@ -129,6 +148,15 @@ export default function LightscaperApp({ locale, createSession }: LightscaperApp
 						<button type="button" aria-pressed={libraryVisible} onClick={toggleLibrary}>
 							{libraryVisible ? copy.photoHideLibrary : copy.photoShowLibrary}
 						</button>
+						<button type="button" disabled={library.busy} onClick={event => {
+							closeMenu(event); setQueryVisible(true); void library.probeQuery();
+						}}>{copy.photoQueryTitle}</button>
+						<button type="button" disabled={!libraryVisible} aria-pressed={thumbnailsVisible} onClick={event => {
+							closeMenu(event); setThumbnailsVisible(visible => !visible);
+						}}>{thumbnailsVisible ? copy.photoHideThumbnails : copy.photoShowThumbnails}</button>
+						<button type="button" disabled={!libraryVisible || !selection} aria-pressed={loupeVisible} onClick={event => {
+							closeMenu(event); setLoupeVisible(visible => !visible);
+						}}>{loupeVisible ? copy.photoHideLoupe : copy.photoShowLoupe}</button>
 						<button type="button" disabled={library.busy || !libraryVisible} onClick={event => { closeMenu(event); void library.readPage(); }}>{copy.photoFirstPage}</button>
 						<button type="button" disabled={library.busy || !libraryVisible || !library.page?.cursor} onClick={event => { closeMenu(event); void library.readPage(library.page?.cursor); }}>{copy.photoNextPage}</button>
 					</div>
@@ -136,10 +164,17 @@ export default function LightscaperApp({ locale, createSession }: LightscaperApp
 
 			</nav>
 		</header>
-		{libraryVisible && <PhotoLibraryPanel title={copy.workspacePhoto} empty={copy.photoEmptyLibrary} loading={copy.photoWorking}
-			ratingLabel={copy.photoRating} flags={flags} colorLabels={colorLabels} importedLabel={copy.photoImported} failedLabel={copy.photoImportFailed} metadataNotice={copy.photoMetadataNotice}
-			page={library.page} receipts={library.receipts} selected={selection?.id ?? null} busy={library.busy} error={library.error}
-			onSelect={setSelectedPhoto} onRate={(photoId, rating) => { void library.setRating(photoId, rating); }} />}
+		{libraryVisible && (thumbnailsVisible || loupeVisible
+			? <Suspense fallback={renderLibrary()}><PhotoPreviewPresentation readPreview={library.readPreview}
+				photoIds={library.page?.rows.map(row => row.id) ?? []} thumbnailsVisible={thumbnailsVisible}
+				fitScreenPhotoId={loupeVisible ? selection?.id ?? null : null}>{renderLibrary}</PhotoPreviewPresentation></Suspense>
+			: renderLibrary())}
+		{queryVisible && <Suspense fallback={<p role="status">{copy.photoWorking}</p>}>
+			<PhotoQueryDialog query={library.query ?? DEFAULT_PHOTO_LIBRARY_QUERY_V1} copy={copy} flags={flags} colorLabels={colorLabels}
+				busy={library.busy} error={library.error} needsIndex={library.needsQueryIndex} indexProgress={library.queryIndexProgress}
+				readDefinitions={library.readDefinitions} onClose={() => { library.cancel(); setQueryVisible(false); }}
+				onApply={query => { setLibraryVisible(true); void library.applyQuery(query); }} onBuild={() => { void library.buildQueryIndex(); }} />
+		</Suspense>}
 		{metadataVisible && <Suspense fallback={<p role="status">{copy.photoWorking}</p>}>
 			<PhotoMetadataDialog locale={locale} snapshot={library.metadata} busy={library.busy} error={library.error}
 				onClose={() => { setMetadataVisible(false); }} onSave={(photoId, revision, changes) => { void library.applyMetadata(photoId, revision, changes); }} />

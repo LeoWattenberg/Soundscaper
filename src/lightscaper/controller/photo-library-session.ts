@@ -1,13 +1,13 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { readClosedDomainArray } from '../../common/editor/closed-domain-value.ts';
-import type { PhotoLibraryAttributePatchV1, PhotoLibraryImportItemV1, PhotoLibraryMetadataPatchV1, PhotoLibraryMetadataSnapshotV1, PhotoLibraryPageV1, PhotoLibraryRowV1, PhotoLibrarySessionPortV1 } from '../../common/editor/photo-library-session-port-v1.ts';
+import type { PhotoLibraryAttributePatchV1, PhotoLibraryImportItemV1, PhotoLibraryMetadataPatchV1, PhotoLibraryMetadataSnapshotV1, PhotoLibraryDefinitionPageRequestV1, PhotoLibraryDefinitionPageV1, PhotoLibraryQueryBuildProgressV1, PhotoLibraryQueryStepV1, PhotoLibraryQueryV1, PhotoLibraryPreviewOutcomeV1, PhotoLibraryPreviewTierV1, PhotoLibraryPageV1, PhotoLibraryRowV1, PhotoLibrarySessionPortV1 } from '../../common/editor/photo-library-session-port-v1.ts';
 import { IMAGE_IMPORT_LIMITS } from '../../common/editor/image-import-admission.ts';
 import { normalizePhotoCatalogRootV1 } from '../catalog/catalog-root.ts';
 import { normalizePhotoDocumentV1 } from '../catalog/photo-document.ts';
 import { PhotoCatalogRevisionConflictError, type PhotoCatalogContinuationV1 } from '../catalog/repository-types.ts';
 import { LIGHTSCAPER_CATALOG_LIMITS } from '../catalog/types.ts';
-import { field, id, integer, name, record } from '../catalog/value-validation.ts';
+import { field, id, integer, name, oneOf, record } from '../catalog/value-validation.ts';
 import { withPhotoCatalogWriteLockV1 } from '../import/catalog-write-lock-v1.ts';
 import { importManagedPhotosV1, recoverManagedPhotoImportV1 } from '../import/managed-import-v1.ts';
 import type { PhotoManagedImportPortsV1 } from '../import/managed-import-ports-v1.ts';
@@ -15,7 +15,9 @@ import { preparePhotoImportGestureV1 } from '../import/photo-import-preparation-
 import { PhotoCommandOwnerV1 } from './photo-command-owner.ts';
 import { normalizePhotoLibraryAttributesV1 } from './photo-library-attributes.ts';
 import { normalizePhotoLibraryMetadataPatchV1, readPhotoLibraryMetadataSnapshotV1 } from './photo-library-metadata.ts';
-import type { PhotoLibraryPreparationOutcomeV1, PhotoLibrarySessionPortsV1 } from './photo-library-session-ports.ts';
+import { admitPhotoLibraryQueryBuildRequestV1, admitPhotoLibraryQueryStepRequestV1, readPhotoLibraryQueryStepV1, rebuildPhotoLibraryQueryStepV1 } from './photo-library-query-v1.ts';
+import { admitPhotoLibraryDefinitionPageRequestV1, readPhotoLibraryDefinitionPageV1 } from './photo-library-definition-pages-v1.ts';
+import type { PhotoLibraryPreparationOutcomeV1, PhotoLibraryPreviewSchedulerPortV1, PhotoLibrarySessionPortsV1 } from './photo-library-session-ports.ts';
 
 /** Product session owns lifetime, bounded presentation pages and a single writer. */
 export class PhotoLibrarySessionV1 implements PhotoLibrarySessionPortV1 {
@@ -24,11 +26,60 @@ export class PhotoLibrarySessionV1 implements PhotoLibrarySessionPortV1 {
 	readonly #pending = new Set<Promise<unknown>>();
 	#catalog: Promise<string> | null = null;
 	#photo: PhotoCommandOwnerV1 | null = null;
+	#previews: Promise<PhotoLibraryPreviewSchedulerPortV1> | null = null;
 	#writing = false;
 	#closed = false;
 	#closing: Promise<void> | null = null;
 
 	constructor(ports: PhotoLibrarySessionPortsV1) { this.#ports = ports; }
+
+	async readQueryStep(options: Readonly<{ query: PhotoLibraryQueryV1; cursor?: string | null; signal?: AbortSignal }>): Promise<PhotoLibraryQueryStepV1> {
+		const request = admitPhotoLibraryQueryStepRequestV1(options);
+		return this.#operation(async signal => {
+			const catalogId = await this.#ready(); signal.throwIfAborted();
+			return readPhotoLibraryQueryStepV1(this.#ports.catalog, catalogId, { ...request, signal });
+		}, request.signal);
+	}
+
+	async rebuildQueryStep(options: Readonly<{ signal?: AbortSignal }> = {}): Promise<PhotoLibraryQueryBuildProgressV1> {
+		const request = admitPhotoLibraryQueryBuildRequestV1(options);
+		return this.#operation(async signal => {
+			const catalogId = await this.#ready(); signal.throwIfAborted();
+			return rebuildPhotoLibraryQueryStepV1(this.#ports.catalog, catalogId, { signal });
+		}, request.signal);
+	}
+
+	async readDefinitionPage(options: PhotoLibraryDefinitionPageRequestV1): Promise<PhotoLibraryDefinitionPageV1> {
+		const request = admitPhotoLibraryDefinitionPageRequestV1(options);
+		return this.#operation(async signal => {
+			const catalogId = await this.#ready(); signal.throwIfAborted();
+			return readPhotoLibraryDefinitionPageV1(this.#ports.catalog, catalogId, { ...request, signal });
+		}, request.signal);
+	}
+
+	async readPreview(photoId: string, tier: PhotoLibraryPreviewTierV1,
+		options: Readonly<{ signal?: AbortSignal }> = {}): Promise<PhotoLibraryPreviewOutcomeV1> {
+		const key = id(photoId, 'photo ID'), admittedTier = oneOf(tier, ['thumbnail', 'fit-screen'] as const, 'preview tier');
+		return this.#operation(async signal => {
+			const catalogId = await this.#ready(); signal.throwIfAborted();
+			if (!this.#ports.createPreviewScheduler) throw new Error('Photo preview is unavailable.');
+			if (!this.#previews) {
+				const pending = this.#ports.createPreviewScheduler(catalogId);
+				this.#previews = pending;
+				void pending.catch(() => { if (this.#previews === pending) this.#previews = null; });
+			}
+			const scheduler = await this.#previews; signal.throwIfAborted();
+			const result = await scheduler.request({ photoId: key, tier: admittedTier, signal });
+			signal.throwIfAborted();
+			if (result.outcome !== 'ready') return Object.freeze({ outcome: result.outcome });
+			const notices: Array<'persistence-failed' | 'cleanup-failed'> = [];
+			if (result.cache === 'transient' || result.persistenceError !== undefined) notices.push('persistence-failed');
+			if (result.cleanupErrors?.length) notices.push('cleanup-failed');
+			return Object.freeze({ outcome: 'ready', cache: result.cache, notices: Object.freeze(notices),
+				preview: Object.freeze({ photoId: key, tier: admittedTier, descriptor: result.preview.descriptor,
+					byteLength: result.preview.byteLength, outputSha256: result.preview.outputSha256, body: result.preview.body }) });
+		}, options.signal);
+	}
 
 	async readPage(options: Readonly<{ cursor?: string | null; signal?: AbortSignal }> = {}): Promise<PhotoLibraryPageV1> {
 		const continuation = readCursor(options.cursor);
@@ -150,8 +201,12 @@ export class PhotoLibrarySessionV1 implements PhotoLibrarySessionPortV1 {
 
 	async #close(): Promise<void> {
 		await Promise.allSettled([...this.#pending]);
-		await this.#photo?.close();
-		await this.#ports.closeResources();
+		const errors: unknown[] = [];
+		try { await (await this.#previews)?.close(); } catch (error) { errors.push(error); }
+		try { await this.#photo?.close(); } catch (error) { errors.push(error); }
+		try { await this.#ports.closeResources(); } catch (error) { errors.push(error); }
+		if (errors.length === 1) throw errors[0];
+		if (errors.length > 1) throw new AggregateError(errors, 'Photo library cleanup failed.');
 	}
 
 	#ready(): Promise<string> {

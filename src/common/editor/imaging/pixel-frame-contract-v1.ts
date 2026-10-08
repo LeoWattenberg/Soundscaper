@@ -138,7 +138,7 @@ export function readPixelFrameV1(value: unknown, limitsValue: unknown = {}): Pix
 		validateBuffer(pixels, plan);
 		for (let index = 0; index < pixels.length; index += 1) {
 			const sample = pixels[index];
-			if (!Number.isFinite(sample)) throw new RangeError('Pixel frame float samples must be finite.');
+			if (typeof sample !== 'number' || !Number.isFinite(sample)) throw new RangeError('Pixel frame float samples must be finite.');
 			if (index % 4 === 3 && (sample < 0 || sample > 1)) {
 				throw new RangeError('Pixel frame straight alpha must be between zero and one.');
 			}

@@ -26,14 +26,27 @@ Source keyword facts remain immutable. Valid display names become catalog
 memberships under the import's writer lease before photo publication. Names that
 cannot fit the authored catalog remain in extracted facts and produce a notice.
 
-Closing cancels and joins session work before closing both resource owners.
+Closing cancels and joins session work, then drains its optional preview scheduler
+before closing both resource owners. Preview scheduler creation is lazy and
+shared by the session; a UI factory replacement joins the old session close
+before creating its replacement. Background preview requests reuse the same
+owner as foreground edits without changing the foreground busy state. Only
+original-free pixel descriptors/bodies and bounded scalar cache notices cross
+the preview port; catalog custody bindings and raw storage errors stay inside
+the product owner.
 Reopening settles an interrupted managed import before exposing the catalog.
 Storage failure is reported as failure and never presented as an empty library.
 
 Culling flags and labels use the same selected-photo command owner as ratings.
 The File menu owns their Photo submenu entry points. Each acknowledged change
-preserves the displayed page and immutable original/source facts. Snapshot
-cursors are invalidated by writes; View refresh requests a new snapshot.
+preserves immutable original/source facts. With the default library view, writes
+update its displayed scalar rows and invalidate the snapshot continuation.
+An active query instead refreshes from its first candidate page after imports
+and acknowledged attribute or metadata edits, so membership and global order
+reflect the durable catalog. Empty candidate steps yield through cancellable
+tasks. If that refresh fails, the acknowledged edit remains visible, the old
+continuation stays invalidated, and the workflow reports the refresh error.
+View refresh requests a new snapshot using the same active query.
 
 
 The metadata packet exposes one explicit File → Photo → Edit metadata dialog.
