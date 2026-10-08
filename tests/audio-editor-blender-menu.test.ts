@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { applyAudacityParityToMenus } from '../src/common/editor/audacity-action-parity.js';
 import { createBlenderApplicationMenuItems } from '../src/common/editor/ui/blender-application-menu.ts';
 import { materializeApplicationMenu } from '../src/common/editor/ui/application-menu-materialization.ts';
 import { EDITOR_ENGLISH_COPY, EDITOR_GERMAN_COPY } from '../src/common/i18n/editor-copy-inventory.ts';
@@ -35,4 +36,28 @@ test('Blender sync can always stop after audio removal or a blocked editing stat
 	const pending = createBlenderApplicationMenuItems({ ...port, busy: () => true }, { copy: {}, blocked: false, materialAvailable: true });
 	assert.equal(pending.file[0]?.disabled, true);
 	assert.equal(pending.tools[1]?.disabled, false, 'a running render can be stopped from its menu');
+});
+
+test('Blender commands retain their handlers when deferred menu availability changes', () => {
+	let busy = true;
+	let active = false;
+	const calls: string[] = [];
+	const port = { active: () => active, busy: () => busy,
+		exportTracks: () => { calls.push('export'); },
+		toggleLiveSync: () => { active = !active; calls.push(active ? 'start' : 'stop'); } };
+	const menu = createBlenderApplicationMenuItems(port, { copy: EDITOR_ENGLISH_COPY, blocked: false, materialAvailable: true });
+	const decorated = applyAudacityParityToMenus(menu.tools) as typeof menu.tools;
+	assert.equal(materializeApplicationMenu(decorated[0]!).disabled, true);
+	decorated[0]!.onClick?.();
+	assert.deepEqual(calls, [], 'the live predicate still prevents a disabled command from running');
+	busy = false;
+	const start = materializeApplicationMenu(decorated[0]!);
+	assert.equal(start.disabled, false);
+	assert.equal(typeof start.onClick, 'function', 'parity must preserve the deferred command callback');
+	start.onClick();
+	const stop = materializeApplicationMenu(decorated[1]!);
+	assert.equal(stop.disabled, false);
+	assert.equal(typeof stop.onClick, 'function', 'the initially disabled stop command must also become actionable');
+	stop.onClick();
+	assert.deepEqual(calls, ['start', 'stop']);
 });

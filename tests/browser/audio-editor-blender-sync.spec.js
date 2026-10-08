@@ -8,20 +8,23 @@ test.setTimeout(60_000);
 
 test('desktop Blender export renders WAVs and live sync updates edits until stopped', async ({ page }) => {
 	await installBlenderFixture(page);
-	page.on('dialog', (dialog) => { void dialog.dismiss(); });
 	const editor = await bootEditor(page, '/embed/en/');
 	await expect(editor.getByRole('button', { name: /Blender/iu })).toHaveCount(0);
 	await importFiles(editor, [AUDIO]);
+	const exportReady = dismissCompletionNotice(page, 'The Blender bundle is ready.');
 	await chooseNestedCommandAction(page, editor, 'File', ['Export other', 'Export track list for Blender']);
+	await exportReady;
 	await expect.poll(() => page.evaluate(() => globalThis.__blenderProbe.commits.length)).toBe(1);
 	const first = await page.evaluate(() => globalThis.__blenderProbe.commits[0]);
 	expect(first.tracks).toHaveLength(1);
 	expect(first.tracks[0]).toMatchObject({ startSeconds: 0, mute: false });
 	expect(first.wavHeaders).toEqual(['RIFF']);
 	expect(first.chunkSizes.every((size) => size > 0 && size <= 4 * 1024 * 1024)).toBe(true);
+	const syncReady = dismissCompletionNotice(page, 'Live Blender sync is running.');
 	const startMenu = await openNestedCommandMenu(page, editor, 'Tools', []);
 	await expect(getMenuItem(startMenu, 'Start live Blender sync')).toBeEnabled();
 	await getMenuItem(startMenu, 'Start live Blender sync').press('Enter');
+	await syncReady;
 	await expect.poll(() => page.evaluate(() => globalThis.__blenderProbe.commits.length)).toBe(2);
 	const tools = await openNestedCommandMenu(page, editor, 'Tools', []);
 	await expect(getMenuItem(tools, 'Stop live Blender sync')).toBeEnabled();
@@ -49,6 +52,13 @@ test('browser and Framescaper menus omit desktop Soundscaper Blender commands', 
 	const framescaperTools = await openNestedCommandMenu(page, framescaper, 'Tools', []);
 	await expect(getMenuItem(framescaperTools, 'Start live Blender sync')).toHaveCount(0);
 });
+
+async function dismissCompletionNotice(page, message) {
+	const dialog = await page.waitForEvent('dialog');
+	const actualMessage = dialog.message();
+	await dialog.dismiss();
+	expect(actualMessage).toContain(message);
+}
 
 async function installBlenderFixture(page) {
 	await page.addInitScript(() => {

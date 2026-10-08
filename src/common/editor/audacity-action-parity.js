@@ -341,7 +341,9 @@ function decorateMenuItem(item, localization, actionRuntime, actionContext, cano
 		}
 	} else if (result.disabled) {
 		const hadHandler = typeof result.onClick === 'function';
-		result.onClick = undefined;
+		// Deferred local commands may become enabled before the next menu open.
+		// Keep their callbacks for materialization; the disabled item stays inert.
+		if (definition || typeof result.resolve !== 'function') result.onClick = undefined;
 		result.disabledReason ||= localizedAudacityReason(hadHandler ? DISABLED_REASONS.state : DISABLED_REASONS.local, localization);
 	}
 	return result;
