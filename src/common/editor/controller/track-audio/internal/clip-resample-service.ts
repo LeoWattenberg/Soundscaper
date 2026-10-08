@@ -6,6 +6,7 @@ import { createAddClipCommand, createAddSourceCommand } from '../../../commands/
 import type { AudioEditorCommand } from '../../../commands/protocol.ts';
 import { scaleSampleFrame } from '../../../timeline-time.ts';
 import { remapAudioWarpSourceWindow } from '../../../audio-warp-source-window.ts';
+import { resampledClipSelectionCommands } from './resampled-clip-selection.ts';
 import type { DerivedSourceService } from './derived-audio/derived-source-service.ts';
 import {
 	isCurrentAssertion,
@@ -193,23 +194,12 @@ export function createClipResampleService(
 				'resampled-source',
 			);
 			assertOwned(ownership);
-			// The production projection prunes the temporarily removed clip from selection.
-			// Restore the live selection after re-add/relink in the same history entry.
-			const selection = dependencies.getProject().selection;
-			const selectionCommands: AudioEditorCommand[] = selection?.clipIds?.includes(clip.id) ? [{
-				...selection,
-				type: 'selection/set',
-				frequencyRange: selection.frequencyRange ? {
-					minimumFrequency: selection.frequencyRange.minimumFrequency,
-					maximumFrequency: selection.frequencyRange.maximumFrequency,
-				} : null,
-			}] : [];
 			dependencies.commit({
 				type: 'batch',
 				commands: [
 					createAddSourceCommand(record.source),
 					...resampledClipCommands(track.id, clip, source, record.source, sampleRate, linkedVideo),
-					...selectionCommands,
+					...resampledClipSelectionCommands(dependencies.getProject().selection, [clip.id]),
 				],
 			}, { selectTrackId: track.id, selectClipId: clip.id });
 			setLocalizedStatus(dependencies.setStatus, dependencies.copy, "done", undefined, 'success');

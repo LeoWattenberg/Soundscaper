@@ -15,6 +15,7 @@ import { resampledClipCommands } from './clip-resample-service.ts';
 import { trackReplacementPlacement } from './track-replacement-placement.ts';
 import { stereoTrackRenderRange } from './stereo-track-render-range.ts';
 import { splitStereoSourceChannels } from './split-stereo-source-channels.ts';
+import { resampledClipSelectionCommands } from './resampled-clip-selection.ts';
 import { copyDerivedTrackStripAutomation } from '../../../derived-track-strip-automation.ts';
 import { copyDerivedTrackEffectAutomation } from '../../../derived-track-effect-automation.ts';
 import type { DerivedSourceService } from './derived-audio/derived-source-service.ts';
@@ -159,6 +160,7 @@ export function createTrackTransformService(
 				const commands: AudioEditorCommand[] = derived.map(({ source }) => createAddSourceCommand(source));
 				for (const clip of clips) addResampledClipCommands(commands, track, clip, replacements, sampleRate);
 				assertOwned(ownership);
+				commands.push(...resampledClipSelectionCommands(dependencies.getProject().selection, clips.map(clip => clip.id)));
 				dependencies.commit({ type: 'batch', commands }, { selectTrackId: track.id });
 				setLocalizedStatus(dependencies.setStatus, dependencies.copy, "done", undefined, 'success');
 				return track.id;
@@ -463,11 +465,14 @@ export function createTrackTransformService(
 		replacements: ReadonlyMap<string, DerivedSourceRecord>,
 		sampleRate: number,
 	): void {
-		const originalSource = findControllerSource(dependencies.getProject(), clip.sourceId);
+		const project = dependencies.getProject();
+		const originalSource = findControllerSource(project, clip.sourceId);
 		const replacement = replacements.get(clip.sourceId);
 		if (!originalSource || !replacement) return;
+		const linkedVideo = clip.avLinkId ? project.clips.find(candidate =>
+			candidate.kind === 'video' && candidate.avLinkId === clip.avLinkId) ?? null : null;
 		commands.push(...resampledClipCommands(
-			track.id, clip, originalSource, replacement.source, sampleRate,
+			track.id, clip, originalSource, replacement.source, sampleRate, linkedVideo,
 		));
 	}
 
