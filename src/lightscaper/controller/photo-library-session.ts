@@ -25,7 +25,9 @@ import { applyPhotoImportPresetV1, normalizePhotoImportPresetCommandV1, readPhot
 import { PhotoCommandOwnerV1 } from './photo-command-owner.ts';
 import { normalizePhotoLibraryAttributesV1 } from './photo-library-attributes.ts';
 import { normalizePhotoLibraryMetadataPatchV1, readPhotoLibraryMetadataSnapshotV1 } from './photo-library-metadata.ts';
-import { admitPhotoLibraryQueryBuildRequestV1, admitPhotoLibraryQueryStepRequestV1, readPhotoLibraryQueryStepV1, rebuildPhotoLibraryQueryStepV1 } from './photo-library-query-v1.ts';
+import { admitPhotoLibraryQueryBuildRequestV1 } from './photo-library-query-v1.ts';
+import { createPhotoLibraryQuerySessionV1 } from './photo-library-query-session-v1.ts';
+import { createPhotoLibrarySavedCollectionsSessionV1 } from './photo-library-saved-collections-session-v1.ts';
 import { admitPhotoLibraryDefinitionPageRequestV1, readPhotoLibraryDefinitionPageV1 } from './photo-library-definition-pages-v1.ts';
 import { normalizePhotoLibraryDefinitionReadRequestV1, normalizePhotoLibraryDefinitionMutationV1,
 	readPhotoLibraryDefinitionV1, applyPhotoLibraryDefinitionV1 } from './photo-library-organizer-v1.ts';
@@ -43,15 +45,13 @@ import { admitPhotoLibraryStackCommandV1, admitPhotoLibraryStackReadV1, admitPho
 	readPhotoLibraryStackMembershipsV1, readPhotoLibraryStackSnapshotV1, readPhotoLibraryStackMembersV1, readPhotoLibraryStackSummaryPageV1,
 	applyPhotoLibraryStackV1, type PhotoLibraryStackRepositoryV1 } from './photo-library-stacks-v1.ts';
 import { readPhotoStackSignalOptionsV1 } from '../catalog/photo-stack-repository-v1.ts';
-import { admitPhotoLibraryStackQueryStepV1, readPhotoLibraryStackQueryStepV1 } from './photo-library-stack-query-v1.ts';
 import type { PhotoLibraryQueryV2, PhotoLibraryQueryBuildProgressV2 } from '../../common/editor/photo-library-query-port-v2.ts';
-import { admitPhotoLibraryQueryStepRequestV2, admitPhotoLibraryQueryBuildRequestV2, readPhotoLibraryQueryStepV2, rebuildPhotoLibraryQueryStepV2 } from './photo-library-query-v2.ts';
-import { withPhotoStackQuerySignalV1 } from '../catalog/photo-stack-query-signal-v1.ts';
-import { admitPhotoLibraryStackQueryStepV2, readPhotoLibraryStackQueryStepV2 } from './photo-library-stack-query-v2.ts';
 
 /** Product session owns lifetime, bounded presentation pages and a single writer. */
 export class PhotoLibrarySessionV1 implements PhotoLibrarySessionPortV1, PhotoLibraryBatchRenamePortV1, PhotoLibraryBackupPortV1, PhotoLibraryOriginalRecoveryPortV1, PhotoLibraryStackPortV1 {
+	readonly savedCollections: ReturnType<typeof createPhotoLibrarySavedCollectionsSessionV1>;
 	readonly #ports: PhotoLibrarySessionPortsV1;
+	readonly #queries: ReturnType<typeof createPhotoLibraryQuerySessionV1>;
 	readonly #lifetime = new AbortController();
 	readonly #pending = new Set<Promise<unknown>>();
 	#catalog: Promise<string> | null = null;
@@ -63,7 +63,14 @@ export class PhotoLibrarySessionV1 implements PhotoLibrarySessionPortV1, PhotoLi
 	#closing: Promise<void> | null = null;
 	#startupFailure: PhotoLibraryOriginalInspectionFailureV1 | null = null;
 
-	constructor(ports: PhotoLibrarySessionPortsV1) { this.#ports = ports; }
+	constructor(ports: PhotoLibrarySessionPortsV1) {
+		this.#ports = ports;
+		this.#queries = createPhotoLibraryQuerySessionV1({ repositories: ports,
+			operation: (run, signal) => this.#operation(run, signal), ready: () => this.#ready() });
+		this.savedCollections = createPhotoLibrarySavedCollectionsSessionV1({ repositories: ports,
+			operation: (run, signal) => this.#operation(run, signal), mutation: (run, signal) => this.#mutation(run, signal),
+			ready: () => this.#ready(), createId: () => (this.#ports.createId ?? (() => crypto.randomUUID()))() });
+	}
 
 	async readStackMemberships(photoIds: readonly string[], options: PhotoLibraryStackOptionsV1 = {}) {
 		const request = admitPhotoLibraryStackReadV1(photoIds, options);
@@ -174,54 +181,12 @@ export class PhotoLibrarySessionV1 implements PhotoLibrarySessionPortV1, PhotoLi
 			withPhoto: (catalogId, photoId, signal, run) => this.#withPhoto(catalogId, photoId, signal, run) };
 	}
 
-	async readQueryStep(options: Readonly<{ query: PhotoLibraryQueryV1; cursor?: string | null; signal?: AbortSignal }>): Promise<PhotoLibraryQueryStepV1> {
-		const request = admitPhotoLibraryQueryStepRequestV1(options);
-		return this.#operation(async signal => {
-			const catalogId = await this.#ready(); signal.throwIfAborted();
-			return readPhotoLibraryQueryStepV1(this.#ports.catalog, catalogId, { ...request, signal });
-		}, request.signal);
-	}
-	async readQueryStepV2(options: Readonly<{ query: PhotoLibraryQueryV2; cursor?: string | null; signal?: AbortSignal }>): Promise<PhotoLibraryQueryStepV1> {
-		const request = admitPhotoLibraryQueryStepRequestV2(options), repository = this.#ports.catalog, read = repository.readQueryPageV2;
-		if (!read) throw new Error('Metadata photo queries are unavailable.');
-		return withPhotoStackQuerySignalV1(request.signal, privateSignal => this.#operation(async signal => {
-			const catalogId = await this.#ready(); signal.throwIfAborted();
-			return readPhotoLibraryQueryStepV2({ readQueryPageV2: read.bind(repository) }, catalogId, { ...request, signal });
-		}, privateSignal));
-	}
-	async rebuildQueryStepV2(options: Readonly<{ signal?: AbortSignal }> = {}): Promise<PhotoLibraryQueryBuildProgressV2> {
-		const request = admitPhotoLibraryQueryBuildRequestV2(options), repository = this.#ports.catalog, rebuild = repository.rebuildQueryIndexPageV2;
-		if (!rebuild) throw new Error('Metadata query rebuilding is unavailable.');
-		return withPhotoStackQuerySignalV1(request.signal, privateSignal => this.#operation(async signal => {
-			const catalogId = await this.#ready(); signal.throwIfAborted();
-			return rebuildPhotoLibraryQueryStepV2({ rebuildQueryIndexPageV2: rebuild.bind(repository) }, catalogId, { signal });
-		}, privateSignal));
-	}
-
-	async readStackQueryStep(options: Readonly<{ query: PhotoLibraryQueryV1; cursor?: string | null; signal?: AbortSignal }>): Promise<PhotoLibraryQueryStepV1> {
-		const request = admitPhotoLibraryStackQueryStepV1(options), stacks = this.#ports.stacks;
-		if (!stacks) throw new Error('Collapsed photo stacks are unavailable.');
-		return this.#operation(async signal => {
-			const catalogId = await this.#ready(); signal.throwIfAborted();
-			return readPhotoLibraryStackQueryStepV1(stacks, catalogId, { ...request, signal });
-		}, request.signal);
-	}
-	async readStackQueryStepV2(options: Readonly<{ query: PhotoLibraryQueryV2; cursor?: string | null; signal?: AbortSignal }>): Promise<PhotoLibraryQueryStepV1> {
-		const request = admitPhotoLibraryStackQueryStepV2(options), repository = this.#ports.stacks, read = repository?.readStackQueryPageV2;
-		if (!repository || !read) throw new Error('Collapsed metadata photo queries are unavailable.');
-		return withPhotoStackQuerySignalV1(request.signal, privateSignal => this.#operation(async signal => {
-			const catalogId = await this.#ready(); signal.throwIfAborted();
-			return readPhotoLibraryStackQueryStepV2({ readStackQueryPageV2: read.bind(repository) }, catalogId, { ...request, signal });
-		}, privateSignal));
-	}
-
-	async rebuildQueryStep(options: Readonly<{ signal?: AbortSignal }> = {}): Promise<PhotoLibraryQueryBuildProgressV1> {
-		const request = admitPhotoLibraryQueryBuildRequestV1(options);
-		return this.#operation(async signal => {
-			const catalogId = await this.#ready(); signal.throwIfAborted();
-			return rebuildPhotoLibraryQueryStepV1(this.#ports.catalog, catalogId, { signal });
-		}, request.signal);
-	}
+	async readQueryStep(options: Readonly<{ query: PhotoLibraryQueryV1; cursor?: string | null; signal?: AbortSignal }>): Promise<PhotoLibraryQueryStepV1> { return this.#queries.readQueryStep(options); }
+	async readQueryStepV2(options: Readonly<{ query: PhotoLibraryQueryV2; cursor?: string | null; signal?: AbortSignal }>): Promise<PhotoLibraryQueryStepV1> { return this.#queries.readQueryStepV2(options); }
+	async rebuildQueryStepV2(options: Readonly<{ signal?: AbortSignal }> = {}): Promise<PhotoLibraryQueryBuildProgressV2> { return this.#queries.rebuildQueryStepV2(options); }
+	async readStackQueryStep(options: Readonly<{ query: PhotoLibraryQueryV1; cursor?: string | null; signal?: AbortSignal }>): Promise<PhotoLibraryQueryStepV1> { return this.#queries.readStackQueryStep(options); }
+	async readStackQueryStepV2(options: Readonly<{ query: PhotoLibraryQueryV2; cursor?: string | null; signal?: AbortSignal }>): Promise<PhotoLibraryQueryStepV1> { return this.#queries.readStackQueryStepV2(options); }
+	async rebuildQueryStep(options: Readonly<{ signal?: AbortSignal }> = {}): Promise<PhotoLibraryQueryBuildProgressV1> { return this.#queries.rebuildQueryStep(options); }
 
 	async readDefinitionPage(options: PhotoLibraryDefinitionPageRequestV1): Promise<PhotoLibraryDefinitionPageV1> {
 		const request = admitPhotoLibraryDefinitionPageRequestV1(options);

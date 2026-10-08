@@ -426,6 +426,8 @@
 		,
 		{ "path": "src/common/editor/photo-library-query-port-v2.ts", "kind": "helper-contract", "justification": "Version 2 scalar metadata query and explicit rebuild ports carry closed effective predicates, bounded ordinary or collapsed steps and separate source/derived byte observations without photo documents." }
 		,
+		{ "path": "src/common/editor/photo-library-saved-collection-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 scalar saved-query port carries bounded summary navigation, one full Query2 recipe string, atomic revision context and durable command acknowledgements without owning catalog documents or storage resources." }
+		,
 		{ "path": "src/common/editor/photo-library-session-port-v1.ts", "kind": "helper-contract", "justification": "Scalar browser presentation port for the version 1 photo library session, independent of owning catalog documents." }
 		,
 		{"path": "src/common/editor/photo-library-stack-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 scalar stack presentation commands bind selected membership, ordered drafts and durable acknowledgements to the existing photo Session."}
@@ -678,9 +680,19 @@
 		,
 		{ "path": "src/lightscaper/controller/photo-library-original-restoration-v1.ts", "kind": "helper-contract", "justification": "Version 1 original restoration revalidates catalog, active intent, photo revision and immutable source authority before selected bytes, preserving durable body acknowledgement independently of subsequent strict library recovery." }
 		,
+		{ "path": "src/lightscaper/controller/photo-library-query-session-v1.ts", "kind": "helper-contract", "justification": "Product query Session facade preserves existing V1/V2 ordinary, collapsed and rebuild admission through the Session's borrowed operation and readiness owners without allocating storage, lifetime or writer resources." }
+		,
 		{"path": "src/lightscaper/controller/photo-library-query-v1.ts", "kind": "helper-contract", "justification": "Version1 scalar query and explicit migration steps preserve bounded global ordering, strict cursors and cancellation without exposing photo documents."}
 		,
 		{ "path": "src/lightscaper/controller/photo-library-query-v2.ts", "kind": "helper-contract", "justification": "Version 2 Session metadata query and explicit rebuild adapters admit closed requests before initialization and project authenticated atomic page context into bounded scalar rows with joined cancellation." }
+		,
+		{ "path": "src/lightscaper/controller/photo-library-saved-collection-admission-v1.ts", "kind": "helper-contract", "justification": "Version 1 saved-query presentation admission detaches closed commands, full Query2 recipes, scalar context and opaque navigation before lazy Session resources while retaining one private branded save candidate." }
+		,
+		{ "path": "src/lightscaper/controller/photo-library-saved-collection-read-v1.ts", "kind": "helper-contract", "justification": "Version 1 saved-query read projection authenticates selected catalog, recipe and cursor context into bounded scalar summaries and snapshots with joined native cancellation." }
+		,
+		{ "path": "src/lightscaper/controller/photo-library-saved-collection-write-v1.ts", "kind": "helper-contract", "justification": "Version 1 saved-query write adapter borrows the existing catalog writer, forwards one admitted full recipe and validates exact durable revision and count acknowledgements independently of late cancellation." }
+		,
+		{ "path": "src/lightscaper/controller/photo-library-saved-collections-session-v1.ts", "kind": "helper-contract", "justification": "Version 1 physically frozen four-method scalar saved-query facade borrows the existing Session readiness, cancellation, settlement and single writer without acquiring resources or exposing repository authority." }
 		,
 		{"path": "src/lightscaper/controller/photo-library-stack-query-v1.ts", "kind": "helper-contract", "justification": "Version 1 collapsed Session query admission detaches criteria and preserves scalar cursors, cancellation and selected catalog authority."}
 		,

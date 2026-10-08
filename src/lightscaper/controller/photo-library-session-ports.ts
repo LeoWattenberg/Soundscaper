@@ -18,6 +18,8 @@ export type PhotoLibraryPreparationOutcomeV1 = Prepared | Extract<PhotoImportOut
 export type PhotoLibraryPreviewSchedulerPortV1 = Pick<PhotoPreviewSchedulerV1, 'request' | 'close'>;
 
 export interface PhotoLibrarySessionPortsV1 {
+	readonly smartCollections?: Pick<PhotoCatalogRepositoryV1, 'readSmartCollectionPage' | 'readSmartCollectionSnapshotV1'
+		| 'readSmartCollectionQueryPageV1' | 'readSmartCollectionStackQueryPageV1' | 'saveSmartCollection' | 'deleteSmartCollection'>;
 	readonly stacks?: PhotoLibraryStackRepositoryV1 & Pick<PhotoCatalogRepositoryV1, 'readStackQueryPage'>
 		& Partial<Pick<PhotoCatalogRepositoryV1, 'readStackQueryPageV2'>>;
 	readonly originalInspection?: PhotoLibraryOriginalInspectionPortV1;
