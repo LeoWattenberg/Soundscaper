@@ -10,6 +10,7 @@ test.use({ browserCoverage: false });
 const ROOT = '/__lightscaper_catalog_repository__';
 
 async function routeRepository(page) {
+	page.on('console', (message) => { if (message.text().startsWith('catalog-repository-measurement')) console.info(message.text()); });
 	const bundle = await build({
 		stdin: {
 			contents: `export { PhotoCatalogRepositoryV1 } from './src/lightscaper/catalog/repository.ts';
@@ -17,6 +18,7 @@ export { defaultPhotoDevelopV1 } from './src/lightscaper/catalog/develop-state.t
 export { emptyPhotoMetadataV1 } from './src/lightscaper/catalog/photo-metadata.ts';
 export { photoSummary, photoMemberships, indexState } from './src/lightscaper/catalog/repository-records.ts';
 export { PHOTO_CATALOG_DATABASE_VERSION } from './src/lightscaper/catalog/repository-types.ts';
+export { seedLightscaperNativeScaleV1, inspectLightscaperNativeScaleV1 } from './tests/helpers/lightscaper-native-scale-seed.ts';
 export function catalog() { return { schemaFamily: 'lightscaper', schemaVersion: 1,
 kind: 'photo-catalog', id: 'catalog', name: 'Browser', revision: 0, photoCount: 0,
 folders: [], keywords: [], collections: [] }; }
@@ -126,7 +128,8 @@ test('native indexes bound distant 100,000-photo pages without retaining transac
 	test.setTimeout(180_000);
 	await routeRepository(page);
 	const result = await page.evaluate(async (root) => {
-		const { PhotoCatalogRepositoryV1, catalog, photo, photoSummary, photoMemberships, indexState, PHOTO_CATALOG_DATABASE_VERSION } = await import(`${root}/entry.js`);
+		const { PhotoCatalogRepositoryV1, catalog, photo, photoSummary, photoMemberships, indexState, PHOTO_CATALOG_DATABASE_VERSION,
+			seedLightscaperNativeScaleV1, inspectLightscaperNativeScaleV1 } = await import(`${root}/entry.js`);
 		const databaseName = 'lightscaper-native-paging';
 		const repository = new PhotoCatalogRepositoryV1({ indexedDB, databaseName, verifyOriginal: async () => undefined });
 		await repository.createCatalog(catalog());
@@ -137,19 +140,25 @@ test('native indexes bound distant 100,000-photo pages without retaining transac
 		});
 		// Seed the physical indexes and all per-photo aggregates directly; admission
 		// batches are qualified separately and would mask the cursor cost measured here.
-		for (let start = 0; start < 100_000; start += 1_000) {
-			await new Promise((resolve, reject) => {
-				const transaction = database.transaction(['photos', 'summaries', 'memberships'], 'readwrite');
-				transaction.oncomplete = resolve;
-				transaction.onabort = () => reject(transaction.error);
-				for (let index = start; index < start + 1_000; index++) {
-					const item = photo(index);
-					transaction.objectStore('photos').put({ key: `catalog|${item.id}`, document: item });
-					transaction.objectStore('summaries').put(photoSummary(item));
-					const membership = photoMemberships(item).find((entry) => entry.scope === 'catalog|rating|0');
-					transaction.objectStore('memberships').put(membership);
-				}
-			});
+		const seedStarted = performance.now();
+		const records = (index) => {
+			const item = photo(index);
+			return [{ storeName: 'photos', value: { key: `catalog|${item.id}`, document: item } },
+				{ storeName: 'summaries', value: photoSummary(item) },
+				{ storeName: 'memberships', value: photoMemberships(item).find((entry) => entry.scope === 'catalog|rating|0') }];
+		};
+		const seeded = await seedLightscaperNativeScaleV1(database, { storeNames: ['photos', 'summaries', 'memberships'], totalRows: 100_000,
+			createRecords: records,
+			onProgress: (result) => console.info('catalog-repository-measurement', JSON.stringify({ phase: 'seed', milliseconds: performance.now() - seedStarted, ...result })) });
+		console.info('catalog-repository-measurement', JSON.stringify({ phase: 'seed-complete', milliseconds: performance.now() - seedStarted, ...seeded }));
+		const physical = await inspectLightscaperNativeScaleV1(database, { photos: ['catalog|photo-000000', 'catalog|photo-099999'],
+			summaries: ['catalog|photo-000000', 'catalog|photo-099999'], memberships: ['catalog|rating|0|photo-000000', 'catalog|rating|0|photo-099999'] });
+		for (const [position, name] of ['photos', 'summaries', 'memberships'].entries()) {
+			const store = physical[name], indexes = name === 'photos' ? []
+				: [{ name: name === 'summaries' ? 'catalogId' : 'scope', keyPath: name === 'summaries' ? 'catalogId' : 'scope', unique: false, multiEntry: false }];
+			if (store.count !== 100_000 || store.keyPath !== 'key' || store.autoIncrement
+				|| JSON.stringify(store.values) !== JSON.stringify([records(0)[position].value, records(99_999)[position].value])
+				|| JSON.stringify(store.indexes) !== JSON.stringify(indexes)) throw new Error(`The native ${name} fixture changed its values or index geometry.`);
 		}
 		await new Promise((resolve, reject) => {
 			const transaction = database.transaction(['catalogs', 'catalogStates'], 'readwrite');
@@ -183,6 +192,7 @@ test('native indexes bound distant 100,000-photo pages without retaining transac
 		IDBObjectStore.prototype.get = function (...args) { gets.push(this.name); return original.get.apply(this, args); };
 		IDBObjectStore.prototype.getAll = function () { throw new Error('Full catalog materialization is forbidden.'); };
 		try {
+			const pageStarted = performance.now();
 			const first = await repository.readSummaryPage('catalog');
 			const distant = await repository.readSummaryPage('catalog', { continuation: {
 				...first.continuation, afterKey: 'catalog|photo-095000',
@@ -190,6 +200,7 @@ test('native indexes bound distant 100,000-photo pages without retaining transac
 			const filtered = await repository.readSummaryPage('catalog', { filter: { kind: 'rating', value: 0 }, continuation: {
 				catalogId: 'catalog', indexRevision: 1, scope: 'catalog|rating|0', afterKey: 'catalog|rating|0|photo-095000',
 			} });
+			console.info('catalog-repository-measurement', JSON.stringify({ phase: 'pages', milliseconds: performance.now() - pageStarted }));
 			return { counts: [first.items.length, distant.items.length, filtered.items.length],
 				first: first.items[0].photoId, distant: distant.items[0].photoId, filtered: filtered.items[0].photoId,
 				active, cursors, gets };

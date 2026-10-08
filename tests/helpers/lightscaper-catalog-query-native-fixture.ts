@@ -2,16 +2,15 @@
 
 import { PhotoCatalogRepositoryV1 } from '../../src/lightscaper/catalog/repository.ts';
 import { PHOTO_CATALOG_DATABASE_VERSION } from '../../src/lightscaper/catalog/repository-types.ts';
+import { createPhotoCatalogStoresV1 } from '../../src/lightscaper/catalog/catalog-database-schema.ts';
+import { PHOTO_QUERY_INDEXES_V1 } from '../../src/lightscaper/catalog/photo-query-index-v1.ts';
+import { createCatalog } from '../../src/lightscaper/catalog/repository-writes.ts';
+import { readValidatedPhotoCatalogRootV1 } from '../../src/lightscaper/catalog/documents.ts';
 import { indexState, photoSummary } from '../../src/lightscaper/catalog/repository-records.ts';
 import { normalizePhotoCatalogQueryV1, type PhotoQueryContinuationV1 } from '../../src/lightscaper/catalog/photo-query-types-v1.ts';
 import { queryCatalogRootV1, queryPhotoV1, queryScaleFixtureRowV1 } from './lightscaper-catalog-query-fixture.ts';
+import { seedLightscaperNativeScaleV1, inspectLightscaperNativeScaleV1 } from './lightscaper-native-scale-seed.ts';
 
-function open(name: string, version = PHOTO_CATALOG_DATABASE_VERSION): Promise<IDBDatabase> {
-	return new Promise((resolve, reject) => {
-		const opening = indexedDB.open(name, version);
-		opening.onsuccess = () => resolve(opening.result); opening.onerror = () => reject(opening.error);
-	});
-}
 function write(database: IDBDatabase, names: string[], work: (transaction: IDBTransaction) => void): Promise<void> {
 	return new Promise((resolve, reject) => {
 		const transaction = database.transaction(names, 'readwrite');
@@ -23,23 +22,69 @@ function repository(name: string) {
 	return new PhotoCatalogRepositoryV1({ indexedDB, databaseName: name, verifyOriginal: async () => undefined });
 }
 
+/** Fresh test data only: bulk-build genuine native indexes before any production query reads. */
+export async function createDeferredCatalogQueryScaleFixtureV1(factory: IDBFactory, databaseName: string,
+	seed: (database: IDBDatabase) => Promise<void>): Promise<IDBDatabase> {
+	const openNative = factory.open.bind(factory);
+	function opened(version: number, expectedOldVersion: number, upgrade: (database: IDBDatabase, transaction: IDBTransaction) => void): Promise<IDBDatabase> {
+		return new Promise((resolve, reject) => {
+			const request = openNative(databaseName, version); let upgraded = false, failed = false, failure: unknown;
+			request.onupgradeneeded = event => {
+				try {
+					if (event.oldVersion !== expectedOldVersion || !request.transaction) throw new Error('Query fixture requires a fresh native database and its own final upgrade.');
+					upgrade(request.result, request.transaction); upgraded = true;
+				} catch (error) { failed = true; failure = error; request.transaction?.abort(); }
+			};
+			request.onerror = () => reject(failed ? failure : request.error);
+			request.onsuccess = () => {
+				if (failed || !upgraded) { request.result.close(); reject(failed ? failure : new Error('Query fixture requires a fresh native database and its own final upgrade.')); }
+				else resolve(request.result);
+			};
+			// Blocked native requests retain ownership until their actual terminal event.
+		});
+	}
+	const database = await opened(4, 0, (database, transaction) => {
+		createPhotoCatalogStoresV1(database);
+		const rows = transaction.objectStore('photoQueryRows');
+		for (const index of [...rows.indexNames]) rows.deleteIndex(index);
+	});
+	try { await seed(database); } finally { database.close(); }
+	return opened(PHOTO_CATALOG_DATABASE_VERSION, 4, (_database, transaction) => {
+		const rows = transaction.objectStore('photoQueryRows'); rows.createIndex('catalogId', 'catalogId');
+		for (const [sort, fields] of Object.entries(PHOTO_QUERY_INDEXES_V1)) rows.createIndex(sort, [...fields]);
+	});
+}
+
 export async function qualifyCatalogQueryScaleNativeV1() {
 	const name = 'lightscaper-query-scale-v1'; const owner = repository(name);
-	await owner.createCatalog(queryCatalogRootV1()); const database = await open(name);
 	const seedStarted = performance.now();
-	for (let start = 0; start < 100_000; start += 1_000) {
-		await write(database, ['photoQueryRows'], (transaction) => {
-			for (let index = start; index < Math.min(100_000, start + 1_000); index++) transaction.objectStore('photoQueryRows').put(queryScaleFixtureRowV1(index));
-		});
-		if (start % 20_000 === 0) console.info('catalog-query-measurement', JSON.stringify({ phase: 'seed', rows: start + 1_000, milliseconds: performance.now() - seedStarted }));
-	}
+	let seedReport: Awaited<ReturnType<typeof seedLightscaperNativeScaleV1>> | null = null;
+	const database = await createDeferredCatalogQueryScaleFixtureV1(indexedDB, name, async database => {
+		// Preserve the same production-created root/index and both empty build-control rows.
+		await createCatalog(database, readValidatedPhotoCatalogRootV1(queryCatalogRootV1()));
+		seedReport = await seedLightscaperNativeScaleV1(database, { storeNames: ['photoQueryRows'], totalRows: 100_000,
+			createRecords: index => [{ storeName: 'photoQueryRows', value: queryScaleFixtureRowV1(index) }],
+			onProgress: result => console.info('catalog-query-measurement', JSON.stringify({ phase: 'seed', milliseconds: performance.now() - seedStarted, ...result })) });
+	});
+	console.info('catalog-query-measurement', JSON.stringify({ phase: 'indexes-ready', milliseconds: performance.now() - seedStarted, version: database.version }));
+	const physical = await inspectLightscaperNativeScaleV1(database, { photoQueryRows: ['catalog|photo-000000', 'catalog|photo-099999'] });
+	const rows = physical.photoQueryRows!;
+	if (database.version !== PHOTO_CATALOG_DATABASE_VERSION || rows.count !== 100_000 || rows.keyPath !== 'key' || rows.autoIncrement
+		|| JSON.stringify(rows.values) !== JSON.stringify([queryScaleFixtureRowV1(0), queryScaleFixtureRowV1(99_999)])
+		|| JSON.stringify(rows.indexes) !== JSON.stringify([
+			{ name: 'capture-time', keyPath: ['catalogId', 'captureBucket', 'captureSort', 'photoId'], unique: false, multiEntry: false },
+			{ name: 'catalogId', keyPath: 'catalogId', unique: false, multiEntry: false },
+			{ name: 'file-name', keyPath: ['catalogId', 'fileNameSort', 'photoId'], unique: false, multiEntry: false },
+			{ name: 'photo-id', keyPath: ['catalogId', 'photoId'], unique: false, multiEntry: false },
+			{ name: 'rating', keyPath: ['catalogId', 'ratingSort', 'photoId'], unique: false, multiEntry: false },
+		])) throw new Error('The 100,000-row native query fixture changed its values or index geometry.');
 	await write(database, ['catalogs', 'catalogStates', 'photoQueryBuildStates'], (transaction) => {
 		const root = { ...queryCatalogRootV1(), revision: 1, photoCount: 100_000 };
 		transaction.objectStore('catalogs').put(root); transaction.objectStore('catalogStates').put(indexState(root, 1));
 		transaction.objectStore('photoQueryBuildStates').put({ id: 'catalog', schemaVersion: 1, ready: true, afterKey: null, indexedCount: 100_000 });
 	});
 	database.close(); const seedMilliseconds = performance.now() - seedStarted;
-	console.info('catalog-query-measurement', JSON.stringify({ phase: 'query', seedMilliseconds }));
+	console.info('catalog-query-measurement', JSON.stringify({ phase: 'query', seedMilliseconds, seeded: seedReport }));
 	const native = { transaction: IDBDatabase.prototype.transaction, cursor: IDBIndex.prototype.openCursor,
 		get: IDBObjectStore.prototype.get, getAll: IDBObjectStore.prototype.getAll };
 	let active = 0; let maximumCandidates = 0; let forbiddenReads = 0; let emptySteps = 0;

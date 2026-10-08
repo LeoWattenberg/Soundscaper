@@ -166,6 +166,7 @@ export const NIGHTLY_TEST_PAYLOAD_INPUTS = Object.freeze([
 	{ source: 'tests/helpers/lightscaper-photo-orientation-oracle.ts', destination: 'tests/helpers/lightscaper-photo-orientation-oracle.ts', kind: 'file', label: 'photo metadata query JPEG orientation byte support' },
 	{ source: 'tests/helpers/lightscaper-catalog-query-fixture.ts', destination: 'tests/helpers/lightscaper-catalog-query-fixture.ts', kind: 'file', label: 'photo metadata storage native catalog fixture' },
 	{ source: 'tests/helpers/lightscaper-library-restore-native-fixture.ts', destination: 'tests/helpers/lightscaper-library-restore-native-fixture.ts', kind: 'file', label: 'photo library archive restore native qualification' },
+	{ source: 'tests/helpers/lightscaper-native-scale-seed.ts', destination: 'tests/helpers/lightscaper-native-scale-seed.ts', kind: 'file', label: 'bounded native photo library test population' },
 	{ source: 'tests/helpers/lightscaper-smart-collections-native-fixture.ts', destination: 'tests/helpers/lightscaper-smart-collections-native-fixture.ts', kind: 'file', label: 'saved photo-query native storage qualification' },
 	{ source: 'tests/helpers/lightscaper-smart-collections-native-observer.ts', destination: 'tests/helpers/lightscaper-smart-collections-native-observer.ts', kind: 'file', label: 'saved photo-query native request observation' },
 	{ source: 'tests/helpers/lightscaper-saved-query-native-fixture.ts', destination: 'tests/helpers/lightscaper-saved-query-native-fixture.ts', kind: 'file', label: 'saved photo-query native execution qualification' },

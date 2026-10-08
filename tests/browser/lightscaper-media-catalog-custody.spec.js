@@ -9,12 +9,14 @@ test.use({ browserCoverage: false });
 const ROOT = '/__lightscaper_media_custody__';
 
 async function routeMedia(page) {
+	page.on('console', (message) => { if (message.text().startsWith('catalog-custody-measurement')) console.info(message.text()); });
 	const bundle = await build({
 		stdin: { contents: `
 export { openDatabase } from './src/common/editor/storage/indexeddb-backend.ts';
 export { getMemoryDatabase } from './src/common/editor/storage/memory-backend.ts';
 export { MediaRepository } from './src/common/editor/storage/media-repository.ts';
 export { OpfsRepository } from './src/common/editor/storage/opfs-repository.ts';
+export { seedLightscaperNativeScaleV1, inspectLightscaperNativeScaleV1 } from './tests/helpers/lightscaper-native-scale-seed.ts';
 export { deleteIndexedDbRetentionCandidates } from './src/common/editor/storage/indexeddb-retention-prune.ts';`,
 		resolveDir: fileURLToPath(new URL('../..', import.meta.url)) },
 		bundle: true, write: false, format: 'esm', platform: 'browser', external: ['module'],
@@ -99,19 +101,31 @@ test('native digest and recovery indexes bound distant pages in a 100,000-origin
 			read.onsuccess = () => { asset = read.result; };
 			transaction.oncomplete = resolve; transaction.onabort = () => reject(transaction.error);
 		});
-		for (let start = 0; start < 100_000; start += 1_000) {
-			await new Promise((resolve, reject) => {
-				const transaction = database.transaction(['mediaAssets', 'catalogOriginalRoots'], 'readwrite');
-				transaction.oncomplete = resolve; transaction.onabort = () => reject(transaction.error);
-				for (let index = start; index < start + 1_000; index++) {
-					const id = 'asset-' + String(index).padStart(6, '0');
-					transaction.objectStore('mediaAssets').put({ ...asset, sourceId: id, catalogRootCount: 1 });
-					transaction.objectStore('catalogOriginalRoots').put({ schemaVersion: 1,
-						key: JSON.stringify(['catalog', null, id]), scope: JSON.stringify(['catalog', null]),
-						catalogId: 'catalog', importId: null, photoId: id, assetId: id, sourceId: 'logical-' + id,
-						sha256: prototype.sha256, size: prototype.size, mediaContentToken: asset.mediaContentToken });
-				}
-			});
+		const seedStarted = performance.now();
+		const records = (index) => {
+			const id = 'asset-' + String(index).padStart(6, '0');
+			return [{ storeName: 'mediaAssets', value: { ...asset, sourceId: id, catalogRootCount: 1 } },
+				{ storeName: 'catalogOriginalRoots', value: { schemaVersion: 1,
+					key: JSON.stringify(['catalog', null, id]), scope: JSON.stringify(['catalog', null]),
+					catalogId: 'catalog', importId: null, photoId: id, assetId: id, sourceId: 'logical-' + id,
+					sha256: prototype.sha256, size: prototype.size, mediaContentToken: asset.mediaContentToken } }];
+		};
+		const seeded = await api.seedLightscaperNativeScaleV1(database, { storeNames: ['mediaAssets', 'catalogOriginalRoots'], totalRows: 100_000,
+			createRecords: records,
+			onProgress: (result) => console.info('catalog-custody-measurement', JSON.stringify({ phase: 'seed', milliseconds: performance.now() - seedStarted, ...result })) });
+		console.info('catalog-custody-measurement', JSON.stringify({ phase: 'seed-complete', milliseconds: performance.now() - seedStarted, ...seeded }));
+		const physical = await api.inspectLightscaperNativeScaleV1(database, { mediaAssets: ['asset-000000', 'asset-099999'],
+			catalogOriginalRoots: [JSON.stringify(['catalog', null, 'asset-000000']), JSON.stringify(['catalog', null, 'asset-099999'])] });
+		for (const [position, name] of ['mediaAssets', 'catalogOriginalRoots'].entries()) {
+			const store = physical[name], indexes = (position === 0 ? ['mediaChunkToken', 'path', 'sha256'] : ['assetId', 'scope'])
+				.map((indexName) => ({ name: indexName, keyPath: indexName, unique: false, multiEntry: false }));
+			if (store.count !== (position === 0 ? 100_001 : 100_000) || store.keyPath !== (position === 0 ? 'sourceId' : 'key') || store.autoIncrement
+				|| JSON.stringify(store.values) !== JSON.stringify([records(0)[position].value, records(99_999)[position].value])
+				|| JSON.stringify(store.indexes) !== JSON.stringify(indexes)) throw new Error(`The native ${name} fixture changed its values or index geometry.`);
+		}
+		for (const value of physical.mediaAssets.values) {
+			if (new TextDecoder().decode(await value.blob.arrayBuffer()) !== 'retained original file bytes'
+				|| value.blob.size !== prototype.size) throw new Error('The seeded native original body changed.');
 		}
 		const observations = { getAll: 0, cursorEvents: 0, activeTransactions: 0, maximumPageEvents: 0 };
 		const originalGetAll = IDBObjectStore.prototype.getAll;
@@ -135,6 +149,7 @@ test('native digest and recovery indexes bound distant pages in a 100,000-origin
 			return transaction;
 		};
 		try {
+			const pageStarted = performance.now();
 			const digest = await media.catalogOriginals.findDigestPage(prototype.sha256, 'asset-095000');
 			observations.maximumPageEvents = observations.cursorEvents;
 			observations.cursorEvents = 0;
@@ -142,7 +157,10 @@ test('native digest and recovery indexes bound distant pages in a 100,000-origin
 			observations.maximumPageEvents = Math.max(observations.maximumPageEvents, observations.cursorEvents);
 			const state = { protectedIds: new Set(), maximumAge: 0, currentTime: Date.now() + 172_800_000,
 				deferredSourceIds: [], getNextEligibleAt: () => null, setNextEligibleAt: () => undefined };
+			console.info('catalog-custody-measurement', JSON.stringify({ phase: 'pages', milliseconds: performance.now() - pageStarted }));
+			const pruneStarted = performance.now();
 			const pruned = await api.deleteIndexedDbRetentionCandidates(database, undefined, state);
+			console.info('catalog-custody-measurement', JSON.stringify({ phase: 'prune', milliseconds: performance.now() - pruneStarted }));
 			return { digestLength: digest.matches.length, firstDigest: digest.matches[0].assetId,
 				rootLength: roots.roots.length, firstRoot: roots.roots[0].assetId,
 				getAll: observations.getAll, pageEvents: observations.maximumPageEvents,
