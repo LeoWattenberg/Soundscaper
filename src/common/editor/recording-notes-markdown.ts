@@ -78,11 +78,16 @@ function formatLines(value: string, start: number, end: number,
 	const lines = value.slice(first, last).split('\n').map(blockPrefix);
 	const matches = (prefix: string) => format === 'heading' ? /^#[\t ]+$/u.test(prefix)
 		: format === 'bullets' ? /^[-*+][\t ]+$/u.test(prefix) : /^\d+[.)][\t ]+$/u.test(prefix);
-	const remove = lines.every((line) => matches(line.prefix));
-	const replacements = lines.map((line, index) => {
-		const prefix = remove ? '' : format === 'heading' ? '# '
-			: format === 'bullets' ? '- ' : `${index + 1}. `;
-		return { original: line, prefix, text: line.indent + prefix + (line.content || placeholder) };
+	const remove = lines.some((line) => matches(line.prefix))
+		&& lines.every((line) => !line.content || matches(line.prefix));
+	let itemNumber = 0;
+	const replacements = lines.map((line) => {
+		// A selected separator is authored whitespace, not a request for a new
+		// placeholder note. Keep the explicit empty-caret insertion behavior.
+		const content = line.content || (!remove && start === end && lines.length === 1 ? placeholder : '');
+		const prefix = remove || !content ? '' : format === 'heading' ? '# '
+			: format === 'bullets' ? '- ' : `${++itemNumber}. `;
+		return { original: line, prefix, text: line.indent + prefix + content };
 	});
 	const mapOffset = (offset: number): number => {
 		let originalPosition = first;
